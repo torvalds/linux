@@ -61,6 +61,10 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_WIPHY_TXQ_PARAMS] = { .type = NLA_NESTED },
 	[NL80211_ATTR_WIPHY_FREQ] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_CHANNEL_TYPE] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_RETRY_SHORT] = { .type = NLA_U8 },
+	[NL80211_ATTR_WIPHY_RETRY_LONG] = { .type = NLA_U8 },
+	[NL80211_ATTR_WIPHY_FRAG_THRESHOLD] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_RTS_THRESHOLD] = { .type = NLA_U32 },
 
 	[NL80211_ATTR_IFTYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_IFINDEX] = { .type = NLA_U32 },
@@ -204,6 +208,16 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->wiphy_idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
+
+	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_RETRY_SHORT,
+		   dev->wiphy.retry_short);
+	NLA_PUT_U8(msg, NL80211_ATTR_WIPHY_RETRY_LONG,
+		   dev->wiphy.retry_long);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
+		    dev->wiphy.frag_threshold);
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_RTS_THRESHOLD,
+		    dev->wiphy.rts_threshold);
+
 	NLA_PUT_U8(msg, NL80211_ATTR_MAX_NUM_SCAN_SSIDS,
 		   dev->wiphy.max_scan_ssids);
 	NLA_PUT_U16(msg, NL80211_ATTR_MAX_SCAN_IE_LEN,
@@ -416,6 +430,9 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev;
 	int result = 0, rem_txq_params = 0;
 	struct nlattr *nl_txq_params;
+	u32 changed;
+	u8 retry_short = 0, retry_long = 0;
+	u32 frag_threshold = 0, rts_threshold = 0;
 
 	rtnl_lock();
 
@@ -530,6 +547,84 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			goto bad_res;
 	}
 
+	changed = 0;
+
+	if (info->attrs[NL80211_ATTR_WIPHY_RETRY_SHORT]) {
+		retry_short = nla_get_u8(
+			info->attrs[NL80211_ATTR_WIPHY_RETRY_SHORT]);
+		if (retry_short == 0) {
+			result = -EINVAL;
+			goto bad_res;
+		}
+		changed |= WIPHY_PARAM_RETRY_SHORT;
+	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_RETRY_LONG]) {
+		retry_long = nla_get_u8(
+			info->attrs[NL80211_ATTR_WIPHY_RETRY_LONG]);
+		if (retry_long == 0) {
+			result = -EINVAL;
+			goto bad_res;
+		}
+		changed |= WIPHY_PARAM_RETRY_LONG;
+	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_FRAG_THRESHOLD]) {
+		frag_threshold = nla_get_u32(
+			info->attrs[NL80211_ATTR_WIPHY_FRAG_THRESHOLD]);
+		if (frag_threshold < 256) {
+			result = -EINVAL;
+			goto bad_res;
+		}
+		if (frag_threshold != (u32) -1) {
+			/*
+			 * Fragments (apart from the last one) are required to
+			 * have even length. Make the fragmentation code
+			 * simpler by stripping LSB should someone try to use
+			 * odd threshold value.
+			 */
+			frag_threshold &= ~0x1;
+		}
+		changed |= WIPHY_PARAM_FRAG_THRESHOLD;
+	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_RTS_THRESHOLD]) {
+		rts_threshold = nla_get_u32(
+			info->attrs[NL80211_ATTR_WIPHY_RTS_THRESHOLD]);
+		changed |= WIPHY_PARAM_RTS_THRESHOLD;
+	}
+
+	if (changed) {
+		u8 old_retry_short, old_retry_long;
+		u32 old_frag_threshold, old_rts_threshold;
+
+		if (!rdev->ops->set_wiphy_params) {
+			result = -EOPNOTSUPP;
+			goto bad_res;
+		}
+
+		old_retry_short = rdev->wiphy.retry_short;
+		old_retry_long = rdev->wiphy.retry_long;
+		old_frag_threshold = rdev->wiphy.frag_threshold;
+		old_rts_threshold = rdev->wiphy.rts_threshold;
+
+		if (changed & WIPHY_PARAM_RETRY_SHORT)
+			rdev->wiphy.retry_short = retry_short;
+		if (changed & WIPHY_PARAM_RETRY_LONG)
+			rdev->wiphy.retry_long = retry_long;
+		if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
+			rdev->wiphy.frag_threshold = frag_threshold;
+		if (changed & WIPHY_PARAM_RTS_THRESHOLD)
+			rdev->wiphy.rts_threshold = rts_threshold;
+
+		result = rdev->ops->set_wiphy_params(&rdev->wiphy, changed);
+		if (result) {
+			rdev->wiphy.retry_short = old_retry_short;
+			rdev->wiphy.retry_long = old_retry_long;
+			rdev->wiphy.frag_threshold = old_frag_threshold;
+			rdev->wiphy.rts_threshold = old_rts_threshold;
+		}
+	}
 
  bad_res:
 	mutex_unlock(&rdev->mtx);

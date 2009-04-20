@@ -46,8 +46,10 @@
  *	to get a list of all present wiphys.
  * @NL80211_CMD_SET_WIPHY: set wiphy parameters, needs %NL80211_ATTR_WIPHY or
  *	%NL80211_ATTR_IFINDEX; can be used to set %NL80211_ATTR_WIPHY_NAME,
- *	%NL80211_ATTR_WIPHY_TXQ_PARAMS, %NL80211_ATTR_WIPHY_FREQ, and/or
- *	%NL80211_ATTR_WIPHY_CHANNEL_TYPE.
+ *	%NL80211_ATTR_WIPHY_TXQ_PARAMS, %NL80211_ATTR_WIPHY_FREQ,
+ *	%NL80211_ATTR_WIPHY_CHANNEL_TYPE, %NL80211_ATTR_WIPHY_RETRY_SHORT,
+ *	%NL80211_ATTR_WIPHY_RETRY_LONG, %NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
+ *	and/or %NL80211_ATTR_WIPHY_RTS_THRESHOLD.
  * @NL80211_CMD_NEW_WIPHY: Newly created wiphy, response to get request
  *	or rename notification. Has attributes %NL80211_ATTR_WIPHY and
  *	%NL80211_ATTR_WIPHY_NAME.
@@ -337,6 +339,18 @@ enum nl80211_commands {
  *	NL80211_CHAN_HT20 = HT20 only
  *	NL80211_CHAN_HT40MINUS = secondary channel is below the primary channel
  *	NL80211_CHAN_HT40PLUS = secondary channel is above the primary channel
+ * @NL80211_ATTR_WIPHY_RETRY_SHORT: TX retry limit for frames whose length is
+ *	less than or equal to the RTS threshold; allowed range: 1..255;
+ *	dot11ShortRetryLimit; u8
+ * @NL80211_ATTR_WIPHY_RETRY_LONG: TX retry limit for frames whose length is
+ *	greater than the RTS threshold; allowed range: 1..255;
+ *	dot11ShortLongLimit; u8
+ * @NL80211_ATTR_WIPHY_FRAG_THRESHOLD: fragmentation threshold, i.e., maximum
+ *	length in octets for frames; allowed range: 256..8000, disable
+ *	fragmentation with (u32)-1; dot11FragmentationThreshold; u32
+ * @NL80211_ATTR_WIPHY_RTS_THRESHOLD: RTS threshold (TX frames with length
+ *	larger than or equal to this use RTS/CTS handshake); allowed range:
+ *	0..65536, disable with (u32)-1; dot11RTSThreshold; u32
  *
  * @NL80211_ATTR_IFINDEX: network interface index of the device to operate on
  * @NL80211_ATTR_IFNAME: network interface name
@@ -564,6 +578,12 @@ enum nl80211_attrs {
 	NL80211_ATTR_FREQ_AFTER,
 
 	NL80211_ATTR_FREQ_FIXED,
+
+
+	NL80211_ATTR_WIPHY_RETRY_SHORT,
+	NL80211_ATTR_WIPHY_RETRY_LONG,
+	NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
+	NL80211_ATTR_WIPHY_RTS_THRESHOLD,
 
 	/* add attributes here, update the policy in nl80211.c */
 

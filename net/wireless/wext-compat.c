@@ -314,3 +314,154 @@ struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
 
 }
 EXPORT_SYMBOL(cfg80211_wext_freq);
+
+int cfg80211_wext_siwrts(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_param *rts, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	u32 orts = wdev->wiphy->rts_threshold;
+	int err;
+
+	if (rts->disabled || !rts->fixed)
+		wdev->wiphy->rts_threshold = (u32) -1;
+	else if (rts->value < 0)
+		return -EINVAL;
+	else
+		wdev->wiphy->rts_threshold = rts->value;
+
+	err = rdev->ops->set_wiphy_params(wdev->wiphy,
+					  WIPHY_PARAM_RTS_THRESHOLD);
+	if (err)
+		wdev->wiphy->rts_threshold = orts;
+
+	return err;
+}
+EXPORT_SYMBOL(cfg80211_wext_siwrts);
+
+int cfg80211_wext_giwrts(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_param *rts, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	rts->value = wdev->wiphy->rts_threshold;
+	rts->disabled = rts->value == (u32) -1;
+	rts->fixed = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL(cfg80211_wext_giwrts);
+
+int cfg80211_wext_siwfrag(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *frag, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	u32 ofrag = wdev->wiphy->frag_threshold;
+	int err;
+
+	if (frag->disabled || !frag->fixed)
+		wdev->wiphy->frag_threshold = (u32) -1;
+	else if (frag->value < 256)
+		return -EINVAL;
+	else {
+		/* Fragment length must be even, so strip LSB. */
+		wdev->wiphy->frag_threshold = frag->value & ~0x1;
+	}
+
+	err = rdev->ops->set_wiphy_params(wdev->wiphy,
+					  WIPHY_PARAM_FRAG_THRESHOLD);
+	if (err)
+		wdev->wiphy->frag_threshold = ofrag;
+
+	return err;
+}
+EXPORT_SYMBOL(cfg80211_wext_siwfrag);
+
+int cfg80211_wext_giwfrag(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *frag, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	frag->value = wdev->wiphy->frag_threshold;
+	frag->disabled = frag->value == (u32) -1;
+	frag->fixed = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL(cfg80211_wext_giwfrag);
+
+int cfg80211_wext_siwretry(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *retry, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	u32 changed = 0;
+	u8 olong = wdev->wiphy->retry_long;
+	u8 oshort = wdev->wiphy->retry_short;
+	int err;
+
+	if (retry->disabled ||
+	    (retry->flags & IW_RETRY_TYPE) != IW_RETRY_LIMIT)
+		return -EINVAL;
+
+	if (retry->flags & IW_RETRY_LONG) {
+		wdev->wiphy->retry_long = retry->value;
+		changed |= WIPHY_PARAM_RETRY_LONG;
+	} else if (retry->flags & IW_RETRY_SHORT) {
+		wdev->wiphy->retry_short = retry->value;
+		changed |= WIPHY_PARAM_RETRY_SHORT;
+	} else {
+		wdev->wiphy->retry_short = retry->value;
+		wdev->wiphy->retry_long = retry->value;
+		changed |= WIPHY_PARAM_RETRY_LONG;
+		changed |= WIPHY_PARAM_RETRY_SHORT;
+	}
+
+	if (!changed)
+		return 0;
+
+	err = rdev->ops->set_wiphy_params(wdev->wiphy, changed);
+	if (err) {
+		wdev->wiphy->retry_short = oshort;
+		wdev->wiphy->retry_long = olong;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL(cfg80211_wext_siwretry);
+
+int cfg80211_wext_giwretry(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *retry, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	retry->disabled = 0;
+
+	if (retry->flags == 0 || (retry->flags & IW_RETRY_SHORT)) {
+		/*
+		 * First return short value, iwconfig will ask long value
+		 * later if needed
+		 */
+		retry->flags |= IW_RETRY_LIMIT;
+		retry->value = wdev->wiphy->retry_short;
+		if (wdev->wiphy->retry_long != wdev->wiphy->retry_short)
+			retry->flags |= IW_RETRY_LONG;
+
+		return 0;
+	}
+
+	if (retry->flags & IW_RETRY_LONG) {
+		retry->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
+		retry->value = wdev->wiphy->retry_long;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(cfg80211_wext_giwretry);

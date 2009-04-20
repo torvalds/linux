@@ -744,6 +744,20 @@ struct cfg80211_ibss_params {
 };
 
 /**
+ * enum wiphy_params_flags - set_wiphy_params bitfield values
+ * WIPHY_PARAM_RETRY_SHORT: wiphy->retry_short has changed
+ * WIPHY_PARAM_RETRY_LONG: wiphy->retry_long has changed
+ * WIPHY_PARAM_FRAG_THRESHOLD: wiphy->frag_threshold has changed
+ * WIPHY_PARAM_RTS_THRESHOLD: wiphy->rts_threshold has changed
+ */
+enum wiphy_params_flags {
+	WIPHY_PARAM_RETRY_SHORT		= 1 << 0,
+	WIPHY_PARAM_RETRY_LONG		= 1 << 1,
+	WIPHY_PARAM_FRAG_THRESHOLD	= 1 << 2,
+	WIPHY_PARAM_RTS_THRESHOLD	= 1 << 3,
+};
+
+/**
  * struct cfg80211_ops - backend description for wireless configuration
  *
  * This struct is registered by fullmac card drivers and/or wireless stacks
@@ -823,6 +837,11 @@ struct cfg80211_ibss_params {
  *	cfg80211_ibss_joined(), also call that function when changing BSSID due
  *	to a merge.
  * @leave_ibss: Leave the IBSS.
+ *
+ * @set_wiphy_params: Notify that wiphy parameters have changed;
+ *	@changed bitfield (see &enum wiphy_params_flags) describes which values
+ *	have changed. The actual parameter values are available in
+ *	struct wiphy. If returning an error, no value should be changed.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy);
@@ -912,6 +931,8 @@ struct cfg80211_ops {
 	int	(*join_ibss)(struct wiphy *wiphy, struct net_device *dev,
 			     struct cfg80211_ibss_params *params);
 	int	(*leave_ibss)(struct wiphy *wiphy, struct net_device *dev);
+
+	int	(*set_wiphy_params)(struct wiphy *wiphy, u32 changed);
 };
 
 /*
@@ -945,6 +966,11 @@ struct cfg80211_ops {
  * @signal_type: signal type reported in &struct cfg80211_bss.
  * @cipher_suites: supported cipher suites
  * @n_cipher_suites: number of supported cipher suites
+ * @retry_short: Retry limit for short frames (dot11ShortRetryLimit)
+ * @retry_long: Retry limit for long frames (dot11LongRetryLimit)
+ * @frag_threshold: Fragmentation threshold (dot11FragmentationThreshold);
+ *	-1 = fragmentation disabled, only odd values >= 256 used
+ * @rts_threshold: RTS threshold (dot11RTSThreshold); -1 = RTS/CTS disabled
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -966,6 +992,11 @@ struct wiphy {
 
 	int n_cipher_suites;
 	const u32 *cipher_suites;
+
+	u8 retry_short;
+	u8 retry_long;
+	u32 frag_threshold;
+	u32 rts_threshold;
 
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
@@ -1344,6 +1375,25 @@ int cfg80211_ibss_wext_giwap(struct net_device *dev,
 
 struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
 					     struct iw_freq *freq);
+
+int cfg80211_wext_siwrts(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_param *rts, char *extra);
+int cfg80211_wext_giwrts(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_param *rts, char *extra);
+int cfg80211_wext_siwfrag(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *frag, char *extra);
+int cfg80211_wext_giwfrag(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *frag, char *extra);
+int cfg80211_wext_siwretry(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *retry, char *extra);
+int cfg80211_wext_giwretry(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *retry, char *extra);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

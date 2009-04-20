@@ -472,132 +472,6 @@ static int ieee80211_ioctl_giwtxpower(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_siwrts(struct net_device *dev,
-				  struct iw_request_info *info,
-				  struct iw_param *rts, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (rts->disabled)
-		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
-	else if (!rts->fixed)
-		/* if the rts value is not fixed, then take default */
-		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
-	else if (rts->value < 0 || rts->value > IEEE80211_MAX_RTS_THRESHOLD)
-		return -EINVAL;
-	else
-		local->rts_threshold = rts->value;
-
-	/* If the wlan card performs RTS/CTS in hardware/firmware,
-	 * configure it here */
-
-	if (local->ops->set_rts_threshold)
-		local->ops->set_rts_threshold(local_to_hw(local),
-					     local->rts_threshold);
-
-	return 0;
-}
-
-static int ieee80211_ioctl_giwrts(struct net_device *dev,
-				  struct iw_request_info *info,
-				  struct iw_param *rts, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	rts->value = local->rts_threshold;
-	rts->disabled = (rts->value >= IEEE80211_MAX_RTS_THRESHOLD);
-	rts->fixed = 1;
-
-	return 0;
-}
-
-
-static int ieee80211_ioctl_siwfrag(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_param *frag, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (frag->disabled)
-		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
-	else if (!frag->fixed)
-		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
-	else if (frag->value < 256 ||
-		 frag->value > IEEE80211_MAX_FRAG_THRESHOLD)
-		return -EINVAL;
-	else {
-		/* Fragment length must be even, so strip LSB. */
-		local->fragmentation_threshold = frag->value & ~0x1;
-	}
-
-	return 0;
-}
-
-static int ieee80211_ioctl_giwfrag(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_param *frag, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	frag->value = local->fragmentation_threshold;
-	frag->disabled = (frag->value >= IEEE80211_MAX_FRAG_THRESHOLD);
-	frag->fixed = 1;
-
-	return 0;
-}
-
-
-static int ieee80211_ioctl_siwretry(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_param *retry, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (retry->disabled ||
-	    (retry->flags & IW_RETRY_TYPE) != IW_RETRY_LIMIT)
-		return -EINVAL;
-
-	if (retry->flags & IW_RETRY_MAX) {
-		local->hw.conf.long_frame_max_tx_count = retry->value;
-	} else if (retry->flags & IW_RETRY_MIN) {
-		local->hw.conf.short_frame_max_tx_count = retry->value;
-	} else {
-		local->hw.conf.long_frame_max_tx_count = retry->value;
-		local->hw.conf.short_frame_max_tx_count = retry->value;
-	}
-
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_RETRY_LIMITS);
-
-	return 0;
-}
-
-
-static int ieee80211_ioctl_giwretry(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_param *retry, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	retry->disabled = 0;
-	if (retry->flags == 0 || retry->flags & IW_RETRY_MIN) {
-		/* first return min value, iwconfig will ask max value
-		 * later if needed */
-		retry->flags |= IW_RETRY_LIMIT;
-		retry->value = local->hw.conf.short_frame_max_tx_count;
-		if (local->hw.conf.long_frame_max_tx_count !=
-		    local->hw.conf.short_frame_max_tx_count)
-			retry->flags |= IW_RETRY_MIN;
-		return 0;
-	}
-	if (retry->flags & IW_RETRY_MAX) {
-		retry->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
-		retry->value = local->hw.conf.long_frame_max_tx_count;
-	}
-
-	return 0;
-}
-
-
 static int ieee80211_ioctl_siwencode(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *erq, char *keybuf)
@@ -1050,14 +924,14 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) ieee80211_ioctl_siwrate,		/* SIOCSIWRATE */
 	(iw_handler) ieee80211_ioctl_giwrate,		/* SIOCGIWRATE */
-	(iw_handler) ieee80211_ioctl_siwrts,		/* SIOCSIWRTS */
-	(iw_handler) ieee80211_ioctl_giwrts,		/* SIOCGIWRTS */
-	(iw_handler) ieee80211_ioctl_siwfrag,		/* SIOCSIWFRAG */
-	(iw_handler) ieee80211_ioctl_giwfrag,		/* SIOCGIWFRAG */
+	(iw_handler) cfg80211_wext_siwrts,		/* SIOCSIWRTS */
+	(iw_handler) cfg80211_wext_giwrts,		/* SIOCGIWRTS */
+	(iw_handler) cfg80211_wext_siwfrag,		/* SIOCSIWFRAG */
+	(iw_handler) cfg80211_wext_giwfrag,		/* SIOCGIWFRAG */
 	(iw_handler) ieee80211_ioctl_siwtxpower,	/* SIOCSIWTXPOW */
 	(iw_handler) ieee80211_ioctl_giwtxpower,	/* SIOCGIWTXPOW */
-	(iw_handler) ieee80211_ioctl_siwretry,		/* SIOCSIWRETRY */
-	(iw_handler) ieee80211_ioctl_giwretry,		/* SIOCGIWRETRY */
+	(iw_handler) cfg80211_wext_siwretry,		/* SIOCSIWRETRY */
+	(iw_handler) cfg80211_wext_giwretry,		/* SIOCGIWRETRY */
 	(iw_handler) ieee80211_ioctl_siwencode,		/* SIOCSIWENCODE */
 	(iw_handler) ieee80211_ioctl_giwencode,		/* SIOCGIWENCODE */
 	(iw_handler) ieee80211_ioctl_siwpower,		/* SIOCSIWPOWER */

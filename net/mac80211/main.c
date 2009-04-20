@@ -776,10 +776,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	/* set up some defaults */
 	local->hw.queues = 1;
 	local->hw.max_rates = 1;
-	local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
-	local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
-	local->hw.conf.long_frame_max_tx_count = 4;
-	local->hw.conf.short_frame_max_tx_count = 7;
+	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
+	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
 	local->hw.conf.radio_enabled = true;
 
 	INIT_LIST_HEAD(&local->interfaces);

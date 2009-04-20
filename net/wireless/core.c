@@ -273,6 +273,16 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 	drv->wiphy.dev.class = &ieee80211_class;
 	drv->wiphy.dev.platform_data = drv;
 
+	/*
+	 * Initialize wiphy parameters to IEEE 802.11 MIB default values.
+	 * Fragmentation and RTS threshold are disabled by default with the
+	 * special -1 value.
+	 */
+	drv->wiphy.retry_short = 7;
+	drv->wiphy.retry_long = 4;
+	drv->wiphy.frag_threshold = (u32) -1;
+	drv->wiphy.rts_threshold = (u32) -1;
+
 	return &drv->wiphy;
 }
 EXPORT_SYMBOL(wiphy_new);

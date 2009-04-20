@@ -1044,7 +1044,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* setup RTS threshold */
 	if (local->ops->set_rts_threshold)
-		local->ops->set_rts_threshold(hw, local->rts_threshold);
+		local->ops->set_rts_threshold(hw, hw->wiphy->rts_threshold);
 
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);
