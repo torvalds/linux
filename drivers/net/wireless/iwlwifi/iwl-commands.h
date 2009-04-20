@@ -2469,8 +2469,8 @@ struct iwl_ssid_ie {
 	u8 ssid[32];
 } __attribute__ ((packed));
 
-#define PROBE_OPTION_MAX_API1		0x4
-#define PROBE_OPTION_MAX        	0x14
+#define PROBE_OPTION_MAX_3945		4
+#define PROBE_OPTION_MAX		20
 #define TX_CMD_LIFE_TIME_INFINITE	cpu_to_le32(0xFFFFFFFF)
 #define IWL_GOOD_CRC_TH			cpu_to_le16(1)
 #define IWL_MAX_SCAN_SIZE 1024
@@ -2552,7 +2552,7 @@ struct iwl3945_scan_cmd {
 	struct iwl3945_tx_cmd tx_cmd;
 
 	/* For directed active scans (set to all-0s otherwise) */
-	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX_API1];
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX_3945];
 
 	/*
 	 * Probe request frame, followed by channel list.
