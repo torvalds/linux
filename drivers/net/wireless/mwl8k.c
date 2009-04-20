@@ -3720,12 +3720,12 @@ err_free_reg:
 	return rc;
 }
 
-static void __devexit mwl8k_remove(struct pci_dev *pdev)
+static void __devexit mwl8k_shutdown(struct pci_dev *pdev)
 {
 	printk(KERN_ERR "===>%s(%u)\n", __func__, __LINE__);
 }
 
-static void __devexit mwl8k_shutdown(struct pci_dev *pdev)
+static void __devexit mwl8k_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct mwl8k_priv *priv;
