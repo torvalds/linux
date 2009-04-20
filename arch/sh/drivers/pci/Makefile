@@ -22,5 +22,5 @@ obj-$(CONFIG_SH_SDK7780)		+= fixups-sdk7780.o
 obj-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= fixups-sdk7780.o
 obj-$(CONFIG_SH_TITAN)			+= ops-titan.o
 obj-$(CONFIG_SH_LANDISK)		+= ops-landisk.o
-obj-$(CONFIG_SH_LBOX_RE2)		+= ops-lboxre2.o fixups-lboxre2.o
+obj-$(CONFIG_SH_LBOX_RE2)		+= ops-lboxre2.o fixups-rts7751r2d.o
 obj-$(CONFIG_SH_CAYMAN)			+= ops-cayman.o
