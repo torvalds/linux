@@ -77,7 +77,12 @@ config TRACING_SUPPORT
 
 if TRACING_SUPPORT
 
-menu "Tracers"
+menuconfig FTRACE
+	bool "Tracers"
+	help
+	 Enable the kernel tracing infrastructure.
+
+if FTRACE
 
 config FUNCTION_TRACER
 	bool "Kernel Function Tracer"
@@ -462,7 +467,7 @@ config MMIOTRACE_TEST
 
 	  Say N, unless you absolutely know what you are doing.
 
-endmenu
+endif # FTRACE
 
 endif # TRACING_SUPPORT
 
