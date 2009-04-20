@@ -309,6 +309,7 @@ LIB_OBJS += usage.o
 LIB_OBJS += wrapper.o
 
 BUILTIN_OBJS += builtin-help.o
+BUILTIN_OBJS += builtin-record.o
 BUILTIN_OBJS += builtin-stat.o
 BUILTIN_OBJS += builtin-top.o
 

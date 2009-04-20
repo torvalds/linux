@@ -248,8 +248,9 @@ static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	static struct cmd_struct commands[] = {
-		{ "top", cmd_top, 0 },
+		{ "record", cmd_record, 0 },
 		{ "stat", cmd_stat, 0 },
+		{ "top", cmd_top, 0 },
 	};
 	int i;
 	static const char ext[] = STRIP_EXTENSION;

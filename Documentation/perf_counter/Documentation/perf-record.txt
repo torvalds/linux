@@ -1,0 +1,63 @@
+perf-record(1)
+==========
+
+NAME
+----
+perf-record - Run a command and record its profile into output.perf
+
+SYNOPSIS
+--------
+[verse]
+'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
+
+DESCRIPTION
+-----------
+This command runs a command and gathers a performance counter profile
+from it, into output.perf - without displaying anything.
+
+This file can then be inspected later on, using 'perf report'.
+
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-e::
+--event=::
+                             0:0: cpu-cycles          
+                             0:0: cycles              
+                             0:1: instructions        
+                             0:2: cache-references    
+                             0:3: cache-misses        
+                             0:4: branch-instructions 
+                             0:4: branches            
+                             0:5: branch-misses       
+                             0:6: bus-cycles          
+                             1:0: cpu-clock           
+                             1:1: task-clock          
+                             1:2: page-faults         
+                             1:2: faults              
+                             1:5: minor-faults        
+                             1:6: major-faults        
+                             1:3: context-switches    
+                             1:3: cs                  
+                             1:4: cpu-migrations      
+                             1:4: migrations          
+                           rNNN: raw PMU events (eventsel+umask)
+
+-a::
+        system-wide collection
+
+-l::
+        scale counter values
+
+Configuration
+-------------
+
+EXAMPLES
+--------
+
+SEE ALSO
+--------
+linkperf:git-stat[1]

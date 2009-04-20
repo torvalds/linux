@@ -81,16 +81,12 @@
 	(void) (&_min1 == &_min2);		\
 	_min1 < _min2 ? _min1 : _min2; })
 
-asmlinkage int sys_perf_counter_open(
+extern asmlinkage int sys_perf_counter_open(
         struct perf_counter_hw_event    *hw_event_uptr          __user,
         pid_t                           pid,
         int                             cpu,
         int                             group_fd,
-        unsigned long                   flags)
-{
-        return syscall(
-                __NR_perf_counter_open, hw_event_uptr, pid, cpu, group_fd, flags);
-}
+        unsigned long                   flags);
 
 #define MAX_COUNTERS			64
 #define MAX_NR_CPUS			256
@@ -117,26 +113,6 @@ const unsigned int default_count[] = {
 	  10000,
 	1000000,
 	  10000,
-};
-
-static char *hw_event_names[] = {
-	"CPU cycles",
-	"instructions",
-	"cache references",
-	"cache misses",
-	"branches",
-	"branch misses",
-	"bus cycles",
-};
-
-static char *sw_event_names[] = {
-	"cpu clock ticks",
-	"task clock ticks",
-	"pagefaults",
-	"context switches",
-	"CPU migrations",
-	"minor faults",
-	"major faults",
 };
 
 struct event_symbol {
@@ -414,7 +390,7 @@ static void sigchld_handler(int sig)
 		done = 1;
 }
 
-int main(int argc, char *argv[])
+int cmd_record(int argc, const char **argv)
 {
 	struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
 	struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
