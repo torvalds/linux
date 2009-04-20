@@ -140,10 +140,12 @@ struct pci_controller {
 	struct resource	io_resource;
 	struct resource mem_resources[3];
 	int global_number;		/* PCI domain number */
+
+	resource_size_t dma_window_base_cur;
+	resource_size_t dma_window_size;
+
 #ifdef CONFIG_PPC64
 	unsigned long buid;
-	unsigned long dma_window_base_cur;
-	unsigned long dma_window_size;
 
 	void *private_data;
 #endif	/* CONFIG_PPC64 */
