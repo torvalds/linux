@@ -1,3 +1,9 @@
+Version 1.58
+------------
+Guard against buffer overruns in various UCS-2 to UTF-8 string conversions
+when the UTF-8 string is composed of unusually long (more than 4 byte) converted
+characters.
+ 
 Version 1.57
 ------------
 Improve support for multiple security contexts to the same server. We

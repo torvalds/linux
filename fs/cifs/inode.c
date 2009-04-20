@@ -962,13 +962,21 @@ undo_setattr:
 	goto out_close;
 }
 
+
+/*
+ * If dentry->d_inode is null (usually meaning the cached dentry
+ * is a negative dentry) then we would attempt a standard SMB delete, but
+ * if that fails we can not attempt the fall back mechanisms on EACESS
+ * but will return the EACESS to the caller.  Note that the VFS does not call
+ * unlink on negative dentries currently.
+ */
 int cifs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc = 0;
 	int xid;
 	char *full_path = NULL;
 	struct inode *inode = dentry->d_inode;
-	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifsInodeInfo *cifs_inode;
 	struct super_block *sb = dir->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
@@ -1012,7 +1020,7 @@ psx_del_no_retry:
 		rc = cifs_rename_pending_delete(full_path, dentry, xid);
 		if (rc == 0)
 			drop_nlink(inode);
-	} else if (rc == -EACCES && dosattr == 0) {
+	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 		if (attrs == NULL) {
 			rc = -ENOMEM;
@@ -1020,7 +1028,8 @@ psx_del_no_retry:
 		}
 
 		/* try to reset dos attributes */
-		origattr = cifsInode->cifsAttrs;
+		cifs_inode = CIFS_I(inode);
+		origattr = cifs_inode->cifsAttrs;
 		if (origattr == 0)
 			origattr |= ATTR_NORMAL;
 		dosattr = origattr & ~ATTR_READONLY;
@@ -1041,13 +1050,13 @@ psx_del_no_retry:
 
 out_reval:
 	if (inode) {
-		cifsInode = CIFS_I(inode);
-		cifsInode->time = 0;	/* will force revalidate to get info
+		cifs_inode = CIFS_I(inode);
+		cifs_inode->time = 0;	/* will force revalidate to get info
 					   when needed */
 		inode->i_ctime = current_fs_time(sb);
 	}
 	dir->i_ctime = dir->i_mtime = current_fs_time(sb);
-	cifsInode = CIFS_I(dir);
+	cifs_inode = CIFS_I(dir);
 	CIFS_I(dir)->time = 0;	/* force revalidate of dir as well */
 
 	kfree(full_path);
