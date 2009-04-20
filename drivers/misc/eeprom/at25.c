@@ -140,7 +140,8 @@ at25_bin_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 
 static ssize_t
-at25_ee_write(struct at25_data *at25, char *buf, loff_t off, size_t count)
+at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
+	      size_t count)
 {
 	ssize_t			status = 0;
 	unsigned		written = 0;
@@ -276,7 +277,7 @@ static ssize_t at25_mem_read(struct memory_accessor *mem, char *buf,
 	return at25_ee_read(at25, buf, offset, count);
 }
 
-static ssize_t at25_mem_write(struct memory_accessor *mem, char *buf,
+static ssize_t at25_mem_write(struct memory_accessor *mem, const char *buf,
 			  off_t offset, size_t count)
 {
 	struct at25_data *at25 = container_of(mem, struct at25_data, mem);

@@ -28,6 +28,7 @@
 #include <mach/udc.h>
 #include <mach/irda.h>
 #include <mach/irqs.h>
+#include <mach/audio.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -198,6 +199,7 @@ static void __init e750_init(void)
 	eseries_get_tmio_gpios();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_udc_info(&e7xx_udc_mach_info);
+	pxa_set_ac97_info(NULL);
 	e7xx_irda_init();
 	pxa_set_ficp_info(&e7xx_ficp_platform_data);
 }

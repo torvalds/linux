@@ -473,9 +473,9 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 /* default table of all avaialable root fs divisors */
 static unsigned int iis_fs_tab[] = { 256, 512, 384, 768 };
 
-int s3c2412_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
-			  unsigned int *fstab,
-			  unsigned int rate, struct clk *clk)
+int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
+			    unsigned int *fstab,
+			    unsigned int rate, struct clk *clk)
 {
 	unsigned long clkrate = clk_get_rate(clk);
 	unsigned int div;
@@ -531,7 +531,7 @@ int s3c2412_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(s3c2412_iis_calc_rate);
+EXPORT_SYMBOL_GPL(s3c_i2sv2_iis_calc_rate);
 
 int s3c_i2sv2_probe(struct platform_device *pdev,
 		    struct snd_soc_dai *dai,
@@ -624,10 +624,12 @@ static int s3c2412_i2s_resume(struct snd_soc_dai *dai)
 
 int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
 {
-	dai->ops.trigger = s3c2412_i2s_trigger;
-	dai->ops.hw_params = s3c2412_i2s_hw_params;
-	dai->ops.set_fmt = s3c2412_i2s_set_fmt;
-	dai->ops.set_clkdiv = s3c2412_i2s_set_clkdiv;
+	struct snd_soc_dai_ops *ops = dai->ops;
+
+	ops->trigger = s3c2412_i2s_trigger;
+	ops->hw_params = s3c2412_i2s_hw_params;
+	ops->set_fmt = s3c2412_i2s_set_fmt;
+	ops->set_clkdiv = s3c2412_i2s_set_clkdiv;
 
 	dai->suspend = s3c2412_i2s_suspend;
 	dai->resume = s3c2412_i2s_resume;

@@ -1,5 +1,5 @@
+#include <trace/syscall.h>
 #include <linux/kernel.h>
-#include <linux/ftrace.h>
 #include <asm/syscall.h>
 
 #include "trace_output.h"

@@ -36,6 +36,8 @@ struct splice_desc {
 		void *data;		/* cookie */
 	} u;
 	loff_t pos;			/* file position */
+	size_t num_spliced;		/* number of bytes already spliced */
+	bool need_wakeup;		/* need to wake up writer */
 };
 
 struct partial_page {
@@ -66,6 +68,16 @@ extern ssize_t splice_from_pipe(struct pipe_inode_info *, struct file *,
 				splice_actor *);
 extern ssize_t __splice_from_pipe(struct pipe_inode_info *,
 				  struct splice_desc *, splice_actor *);
+extern int splice_from_pipe_feed(struct pipe_inode_info *, struct splice_desc *,
+				 splice_actor *);
+extern int splice_from_pipe_next(struct pipe_inode_info *,
+				 struct splice_desc *);
+extern void splice_from_pipe_begin(struct splice_desc *);
+extern void splice_from_pipe_end(struct pipe_inode_info *,
+				 struct splice_desc *);
+extern int pipe_to_file(struct pipe_inode_info *, struct pipe_buffer *,
+			struct splice_desc *);
+
 extern ssize_t splice_to_pipe(struct pipe_inode_info *,
 			      struct splice_pipe_desc *);
 extern ssize_t splice_direct_to_actor(struct file *, struct splice_desc *,

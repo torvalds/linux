@@ -21,9 +21,7 @@
 #include <linux/audit.h>
 #include <linux/pid_namespace.h>
 #include <linux/syscalls.h>
-
-#include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 /*
@@ -48,7 +46,7 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 	list_add(&child->ptrace_entry, &new_parent->ptraced);
 	child->parent = new_parent;
 }
- 
+
 /*
  * Turn a tracing stop into a normal stop now, since with no tracer there
  * would be no way to wake it up with SIGCONT or SIGKILL.  If there was a
@@ -173,7 +171,7 @@ bool ptrace_may_access(struct task_struct *task, unsigned int mode)
 	task_lock(task);
 	err = __ptrace_may_access(task, mode);
 	task_unlock(task);
-	return (!err ? true : false);
+	return !err;
 }
 
 int ptrace_attach(struct task_struct *task)
@@ -358,7 +356,7 @@ int ptrace_readdata(struct task_struct *tsk, unsigned long src, char __user *dst
 		copied += retval;
 		src += retval;
 		dst += retval;
-		len -= retval;			
+		len -= retval;
 	}
 	return copied;
 }
@@ -383,7 +381,7 @@ int ptrace_writedata(struct task_struct *tsk, char __user *src, unsigned long ds
 		copied += retval;
 		src += retval;
 		dst += retval;
-		len -= retval;			
+		len -= retval;
 	}
 	return copied;
 }
@@ -496,9 +494,9 @@ static int ptrace_resume(struct task_struct *child, long request, long data)
 		if (unlikely(!arch_has_single_step()))
 			return -EIO;
 		user_enable_single_step(child);
-	}
-	else
+	} else {
 		user_disable_single_step(child);
+	}
 
 	child->exit_code = data;
 	wake_up_process(child);
@@ -606,10 +604,11 @@ repeat:
 		ret = security_ptrace_traceme(current->parent);
 
 		/*
-		 * Set the ptrace bit in the process ptrace flags.
-		 * Then link us on our parent's ptraced list.
+		 * Check PF_EXITING to ensure ->real_parent has not passed
+		 * exit_ptrace(). Otherwise we don't report the error but
+		 * pretend ->real_parent untraces us right after return.
 		 */
-		if (!ret) {
+		if (!ret && !(current->real_parent->flags & PF_EXITING)) {
 			current->ptrace |= PT_PTRACED;
 			__ptrace_link(current, current->real_parent);
 		}

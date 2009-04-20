@@ -41,7 +41,7 @@ cifs_spnego_key_instantiate(struct key *key, const void *data, size_t datalen)
 
 	/* attach the data */
 	memcpy(payload, data, datalen);
-	rcu_assign_pointer(key->payload.data, payload);
+	key->payload.data = payload;
 	ret = 0;
 
 error:

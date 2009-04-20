@@ -226,10 +226,10 @@ static void __init mxc_board_init(void)
 	mxc_iomux_setup_pin(MX31_PIN_BATT_LINE__OWIRE, "batt-0wire");
 	mxc_register_device(&mxc_w1_master_device, NULL);
 
-	/* SMSC9215 IRQ pin */
+	/* LAN9217 IRQ pin */
 	if (!mxc_iomux_setup_pin(IOMUX_MODE(MX31_PIN_GPIO3_1, IOMUX_CONFIG_GPIO),
 				"pcm037-eth"))
-		gpio_direction_input(MX31_PIN_GPIO3_1);
+		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
 
 #ifdef CONFIG_I2C_IMX
 	i2c_register_board_info(1, pcm037_i2c_devices,

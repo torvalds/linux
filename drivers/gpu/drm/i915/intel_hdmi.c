@@ -38,7 +38,7 @@
 struct intel_hdmi_priv {
 	u32 sdvox_reg;
 	u32 save_SDVOX;
-	int has_hdmi_sink;
+	bool has_hdmi_sink;
 };
 
 static void intel_hdmi_mode_set(struct drm_encoder *encoder,
@@ -128,6 +128,22 @@ static bool intel_hdmi_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+static void
+intel_hdmi_sink_detect(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_hdmi_priv *hdmi_priv = intel_output->dev_priv;
+	struct edid *edid = NULL;
+
+	edid = drm_get_edid(&intel_output->base,
+			    &intel_output->ddc_bus->adapter);
+	if (edid != NULL) {
+		hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
+		kfree(edid);
+		intel_output->base.display_info.raw_edid = NULL;
+	}
+}
+
 static enum drm_connector_status
 intel_hdmi_detect(struct drm_connector *connector)
 {
@@ -158,9 +174,10 @@ intel_hdmi_detect(struct drm_connector *connector)
 		return connector_status_unknown;
 	}
 
-	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0)
+	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) != 0) {
+		intel_hdmi_sink_detect(connector);
 		return connector_status_connected;
-	else
+	} else
 		return connector_status_disconnected;
 }
 

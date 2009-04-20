@@ -209,9 +209,11 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	snd_pcm_uframes_t pos;
-	snd_pcm_uframes_t new_hw_ptr, hw_ptr_interrupt, hw_base;
-	snd_pcm_sframes_t delta;
+	snd_pcm_uframes_t old_hw_ptr, new_hw_ptr, hw_ptr_interrupt, hw_base;
+	snd_pcm_sframes_t hdelta, delta;
+	unsigned long jdelta;
 
+	old_hw_ptr = runtime->status->hw_ptr;
 	pos = snd_pcm_update_hw_ptr_pos(substream, runtime);
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);
@@ -247,7 +249,30 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 			new_hw_ptr = hw_base + pos;
 		}
 	}
-	if (delta > runtime->period_size) {
+	hdelta = new_hw_ptr - old_hw_ptr;
+	jdelta = jiffies - runtime->hw_ptr_jiffies;
+	if (((hdelta * HZ) / runtime->rate) > jdelta + HZ/100) {
+		delta = jdelta /
+			(((runtime->period_size * HZ) / runtime->rate)
+								+ HZ/100);
+		hw_ptr_error(substream,
+			     "hw_ptr skipping! [Q] "
+			     "(pos=%ld, delta=%ld, period=%ld, "
+			     "jdelta=%lu/%lu/%lu)\n",
+			     (long)pos, (long)hdelta,
+			     (long)runtime->period_size, jdelta,
+			     ((hdelta * HZ) / runtime->rate), delta);
+		hw_ptr_interrupt = runtime->hw_ptr_interrupt +
+				   runtime->period_size * delta;
+		if (hw_ptr_interrupt >= runtime->boundary)
+			hw_ptr_interrupt -= runtime->boundary;
+		/* rebase to interrupt position */
+		hw_base = new_hw_ptr = hw_ptr_interrupt;
+		/* align hw_base to buffer_size */
+		hw_base -= hw_base % runtime->buffer_size;
+		delta = 0;
+	}
+	if (delta > runtime->period_size + runtime->period_size / 2) {
 		hw_ptr_error(substream,
 			     "Lost interrupts? "
 			     "(stream=%i, delta=%ld, intr_ptr=%ld)\n",
@@ -263,6 +288,7 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
+	runtime->hw_ptr_jiffies = jiffies;
 	runtime->hw_ptr_interrupt = hw_ptr_interrupt;
 
 	return snd_pcm_update_hw_ptr_post(substream, runtime);
@@ -275,6 +301,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 	snd_pcm_uframes_t pos;
 	snd_pcm_uframes_t old_hw_ptr, new_hw_ptr, hw_base;
 	snd_pcm_sframes_t delta;
+	unsigned long jdelta;
 
 	old_hw_ptr = runtime->status->hw_ptr;
 	pos = snd_pcm_update_hw_ptr_pos(substream, runtime);
@@ -286,14 +313,15 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 	new_hw_ptr = hw_base + pos;
 
 	delta = new_hw_ptr - old_hw_ptr;
+	jdelta = jiffies - runtime->hw_ptr_jiffies;
 	if (delta < 0) {
 		delta += runtime->buffer_size;
 		if (delta < 0) {
 			hw_ptr_error(substream, 
 				     "Unexpected hw_pointer value [2] "
-				     "(stream=%i, pos=%ld, old_ptr=%ld)\n",
+				     "(stream=%i, pos=%ld, old_ptr=%ld, jdelta=%li)\n",
 				     substream->stream, (long)pos,
-				     (long)old_hw_ptr);
+				     (long)old_hw_ptr, jdelta);
 			return 0;
 		}
 		hw_base += runtime->buffer_size;
@@ -301,12 +329,13 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 			hw_base = 0;
 		new_hw_ptr = hw_base + pos;
 	}
-	if (delta > runtime->period_size && runtime->periods > 1) {
+	if (((delta * HZ) / runtime->rate) > jdelta + HZ/100) {
 		hw_ptr_error(substream,
 			     "hw_ptr skipping! "
-			     "(pos=%ld, delta=%ld, period=%ld)\n",
+			     "(pos=%ld, delta=%ld, period=%ld, jdelta=%lu/%lu)\n",
 			     (long)pos, (long)delta,
-			     (long)runtime->period_size);
+			     (long)runtime->period_size, jdelta,
+			     ((delta * HZ) / runtime->rate));
 		return 0;
 	}
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
@@ -315,6 +344,7 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream)
 
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;
+	runtime->hw_ptr_jiffies = jiffies;
 
 	return snd_pcm_update_hw_ptr_post(substream, runtime);
 }
@@ -1441,6 +1471,7 @@ static int snd_pcm_lib_ioctl_reset(struct snd_pcm_substream *substream,
 		runtime->status->hw_ptr %= runtime->buffer_size;
 	else
 		runtime->status->hw_ptr = 0;
+	runtime->hw_ptr_jiffies = jiffies;
 	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
 }

@@ -8,6 +8,24 @@ kernel.
 
 --------------------------------------------------------------------------
 
+Driver: ambassador -- Madge Ambassador (Collage PCI 155 Server) ATM NIC.
+
+File: firmware/atmsar11.fw
+
+Licence: Allegedly GPLv2+, but no source visible. Marked:
+
+  Madge Ambassador ATM Adapter microcode.
+  Copyright (C) 1995-1999  Madge Networks Ltd.
+
+  This microcode data is placed under the terms of the GNU General
+  Public License. The GPL is contained in /usr/doc/copyright/GPL on a
+  Debian system and in the file COPYING in the Linux kernel source.
+
+  We would prefer you not to distribute modified versions without
+  consultation and not to ask for assembly/other microcode source.
+
+--------------------------------------------------------------------------
+
 Driver: korg1212 -- Korg 1212 IO audio device
 
 File: korg/k1212.dsp
@@ -390,59 +408,6 @@ Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
 
-Driver: SLICOSS - Alacritech IS-NIC products
-
-File: slicoss/gbdownload.sys.ihex
-File: slicoss/gbrcvucode.sys.ihex
-File: slicoss/oasisdbgdownload.sys.ihex
-File: slicoss/oasisdownload.sys.ihex
-File: slicoss/oasisrcvucode.sys.ihex
-
-Licence:
-		Copyright (C) 1999-2009 Alacritech, Inc.
-
-	as an unpublished work. This notice does not imply unrestricted or
-	public access to the source code from which this firmware image is
-	derived.  Except as noted below this firmware image may not be
-	reproduced, used, sold or transferred to any third party without
-	Alacritech's prior written consent.  All Rights Reserved.
-
-	Permission is hereby granted for the distribution of this firmware
-	image as part of a Linux or other Open Source operating system kernel
-	in text or binary form as required.
-
-	This firmware may not be modified and may only be used with
-	Alacritech hardware.
-
-Found in hex form in kernel source.
-
---------------------------------------------------------------------------
-
-Driver: SXG - Alacritech IS-NIC products
-
-File: sxg/saharadownloadB.sys.ihex
-File: sxg/saharadbgdownloadB.sys.ihex
-
-Licence:
-		Copyright (C) 1999-2009 Alacritech, Inc.
-
-	as an unpublished work. This notice does not imply unrestricted or
-	public access to the source code from which this firmware image is
-	derived.  Except as noted below this firmware image may not be
-	reproduced, used, sold or transferred to any third party without
-	Alacritech's prior written consent.  All Rights Reserved.
-
-	Permission is hereby granted for the distribution of this firmware
-	image as part of a Linux or other Open Source operating system kernel
-	in text or binary form as required.
-
-	This firmware may not be modified and may only be used with
-	Alacritech hardware.
-
-Found in hex form in kernel source.
-
---------------------------------------------------------------------------
-
 Driver: cxgb3 - Chelsio Terminator 3 1G/10G Ethernet adapter
 
 File: cxgb3/t3b_psram-1.1.0.bin.ihex
@@ -660,5 +625,26 @@ Licence:
  accompanying it.
 
 Found in hex form in kernel source.
+
+--------------------------------------------------------------------------
+
+Driver: DVB AV7110 -- AV7110 cards
+
+File: av7110/bootcode.bin
+
+Licence: GPLv2 or later
+
+ARM assembly source code available at http://www.linuxtv.org/downloads/firmware/Boot.S
+
+--------------------------------------------------------------------------
+
+Driver: wavefront - ISA WaveFront sound card
+
+File: yamaha/yss225_registers.bin
+
+Licence: Allegedly GPLv2+, but no source visible.
+
+Found in hex form in kernel source, with the following comment:
+   Copyright (c) 1998-2002 by Paul Davis <pbd@op.net>
 
 --------------------------------------------------------------------------

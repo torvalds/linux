@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2005-2009  NTT DATA CORPORATION
  *
- * Version: 2.2.0-pre   2009/02/01
+ * Version: 2.2.0   2009/04/01
  *
  */
 
@@ -1773,7 +1773,7 @@ void tomoyo_load_policy(const char *filename)
 	envp[2] = NULL;
 	call_usermodehelper(argv[0], argv, envp, 1);
 
-	printk(KERN_INFO "TOMOYO: 2.2.0-pre   2009/02/01\n");
+	printk(KERN_INFO "TOMOYO: 2.2.0   2009/04/01\n");
 	printk(KERN_INFO "Mandatory Access Control activated.\n");
 	tomoyo_policy_loaded = true;
 	{ /* Check all profiles currently assigned to domains are defined. */
@@ -1800,7 +1800,7 @@ void tomoyo_load_policy(const char *filename)
 static int tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->read_eof) {
-		tomoyo_io_printf(head, "2.2.0-pre");
+		tomoyo_io_printf(head, "2.2.0");
 		head->read_eof = true;
 	}
 	return 0;

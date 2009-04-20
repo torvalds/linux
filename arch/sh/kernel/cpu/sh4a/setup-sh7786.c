@@ -143,14 +143,14 @@ static void __init sh7786_usb_setup(void)
 	 * Set the PHY and PLL enable bit
 	 */
 	__raw_writel(PHY_ENB | PLL_ENB, USBPCTL1);
-	while (i-- &&
-	       ((__raw_readl(USBST) & ACT_PLL_STATUS) != ACT_PLL_STATUS))
+	while (i--) {
+		if (ACT_PLL_STATUS == (__raw_readl(USBST) & ACT_PLL_STATUS)) {
+			/* Set the PHY RST bit */
+			__raw_writel(PHY_ENB | PLL_ENB | PHY_RST, USBPCTL1);
+			printk(KERN_INFO "sh7786 usb setup done\n");
+			break;
+		}
 		cpu_relax();
-
-	if (i) {
-		/* Set the PHY RST bit */
-		__raw_writel(PHY_ENB | PLL_ENB | PHY_RST, USBPCTL1);
-		printk(KERN_INFO "sh7786 usb setup done\n");
 	}
 }
 

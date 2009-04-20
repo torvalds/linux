@@ -112,6 +112,19 @@ void et131x_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp);
 void et131x_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
 void et131x_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
 
+static const struct net_device_ops et131x_netdev_ops = {
+	.ndo_open		= et131x_open,
+	.ndo_stop		= et131x_close,
+	.ndo_start_xmit		= et131x_tx,
+	.ndo_set_multicast_list	= et131x_multicast,
+	.ndo_tx_timeout		= et131x_tx_timeout,
+	.ndo_change_mtu		= et131x_change_mtu,
+	.ndo_set_mac_address	= et131x_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_get_stats		= et131x_stats,
+	.ndo_do_ioctl		= et131x_ioctl,
+};
+
 /**
  * et131x_device_alloc
  *
@@ -142,16 +155,8 @@ struct net_device *et131x_device_alloc(void)
 	 */
 	//netdev->init               = &et131x_init;
 	//netdev->set_config = &et131x_config;
-	netdev->get_stats = &et131x_stats;
-	netdev->open = &et131x_open;
-	netdev->stop = &et131x_close;
-	netdev->do_ioctl = &et131x_ioctl;
-	netdev->set_multicast_list = &et131x_multicast;
-	netdev->hard_start_xmit = &et131x_tx;
-	netdev->tx_timeout = &et131x_tx_timeout;
 	netdev->watchdog_timeo = ET131X_TX_TIMEOUT;
-	netdev->change_mtu = &et131x_change_mtu;
-	netdev->set_mac_address = &et131x_set_mac_addr;
+	netdev->netdev_ops = &et131x_netdev_ops;
 
 	//netdev->ethtool_ops        = &et131x_ethtool_ops;
 

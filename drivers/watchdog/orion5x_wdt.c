@@ -42,7 +42,17 @@ static unsigned int wdt_tclk;
 static unsigned long wdt_status;
 static spinlock_t wdt_lock;
 
-static void wdt_enable(void)
+static void orion5x_wdt_ping(void)
+{
+	spin_lock(&wdt_lock);
+
+	/* Reload watchdog duration */
+	writel(wdt_tclk * heartbeat, WDT_VAL);
+
+	spin_unlock(&wdt_lock);
+}
+
+static void orion5x_wdt_enable(void)
 {
 	u32 reg;
 
@@ -69,7 +79,7 @@ static void wdt_enable(void)
 	spin_unlock(&wdt_lock);
 }
 
-static void wdt_disable(void)
+static void orion5x_wdt_disable(void)
 {
 	u32 reg;
 
@@ -101,7 +111,7 @@ static int orion5x_wdt_open(struct inode *inode, struct file *file)
 	if (test_and_set_bit(WDT_IN_USE, &wdt_status))
 		return -EBUSY;
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
-	wdt_enable();
+	orion5x_wdt_enable();
 	return nonseekable_open(inode, file);
 }
 
@@ -122,17 +132,27 @@ static ssize_t orion5x_wdt_write(struct file *file, const char *data,
 					set_bit(WDT_OK_TO_CLOSE, &wdt_status);
 			}
 		}
-		wdt_enable();
+		orion5x_wdt_ping();
 	}
 	return len;
 }
 
-static struct watchdog_info ident = {
+static int orion5x_wdt_settimeout(int new_time)
+{
+	if ((new_time <= 0) || (new_time > wdt_max_duration))
+		return -EINVAL;
+
+	/* Set new watchdog time to be used when
+	 * orion5x_wdt_enable() or orion5x_wdt_ping() is called. */
+	heartbeat = new_time;
+	return 0;
+}
+
+static const struct watchdog_info ident = {
 	.options	= WDIOF_MAGICCLOSE | WDIOF_SETTIMEOUT |
 			  WDIOF_KEEPALIVEPING,
 	.identity	= "Orion5x Watchdog",
 };
-
 
 static long orion5x_wdt_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
@@ -152,7 +172,7 @@ static long orion5x_wdt_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case WDIOC_KEEPALIVE:
-		wdt_enable();
+		orion5x_wdt_ping();
 		ret = 0;
 		break;
 
@@ -161,12 +181,11 @@ static long orion5x_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (ret)
 			break;
 
-		if (time <= 0 || time > wdt_max_duration) {
+		if (orion5x_wdt_settimeout(time)) {
 			ret = -EINVAL;
 			break;
 		}
-		heartbeat = time;
-		wdt_enable();
+		orion5x_wdt_ping();
 		/* Fall through */
 
 	case WDIOC_GETTIMEOUT:
@@ -187,7 +206,7 @@ static long orion5x_wdt_ioctl(struct file *file, unsigned int cmd,
 static int orion5x_wdt_release(struct inode *inode, struct file *file)
 {
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
-		wdt_disable();
+		orion5x_wdt_disable();
 	else
 		printk(KERN_CRIT "WATCHDOG: Device closed unexpectedly - "
 					"timer will not stop\n");
@@ -230,7 +249,7 @@ static int __devinit orion5x_wdt_probe(struct platform_device *pdev)
 	orion5x_wdt_miscdev.parent = &pdev->dev;
 
 	wdt_max_duration = WDT_MAX_CYCLE_COUNT / wdt_tclk;
-	if (heartbeat <= 0 || heartbeat > wdt_max_duration)
+	if (orion5x_wdt_settimeout(heartbeat))
 		heartbeat = wdt_max_duration;
 
 	ret = misc_register(&orion5x_wdt_miscdev);
@@ -247,7 +266,7 @@ static int __devexit orion5x_wdt_remove(struct platform_device *pdev)
 	int ret;
 
 	if (test_bit(WDT_IN_USE, &wdt_status)) {
-		wdt_disable();
+		orion5x_wdt_disable();
 		clear_bit(WDT_IN_USE, &wdt_status);
 	}
 
@@ -258,9 +277,16 @@ static int __devexit orion5x_wdt_remove(struct platform_device *pdev)
 	return ret;
 }
 
+static void orion5x_wdt_shutdown(struct platform_device *pdev)
+{
+	if (test_bit(WDT_IN_USE, &wdt_status))
+		orion5x_wdt_disable();
+}
+
 static struct platform_driver orion5x_wdt_driver = {
 	.probe		= orion5x_wdt_probe,
 	.remove		= __devexit_p(orion5x_wdt_remove),
+	.shutdown	= orion5x_wdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "orion5x_wdt",
@@ -285,10 +311,11 @@ MODULE_AUTHOR("Sylver Bruneau <sylver.bruneau@googlemail.com>");
 MODULE_DESCRIPTION("Orion5x Processor Watchdog");
 
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds");
+MODULE_PARM_DESC(heartbeat, "Initial watchdog heartbeat in seconds");
 
 module_param(nowayout, int, 0);
-MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
+MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
+				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

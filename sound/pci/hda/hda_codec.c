@@ -642,19 +642,21 @@ static int get_codec_name(struct hda_codec *codec)
  */
 static void /*__devinit*/ setup_fg_nodes(struct hda_codec *codec)
 {
-	int i, total_nodes;
+	int i, total_nodes, function_id;
 	hda_nid_t nid;
 
 	total_nodes = snd_hda_get_sub_nodes(codec, AC_NODE_ROOT, &nid);
 	for (i = 0; i < total_nodes; i++, nid++) {
-		codec->function_id = snd_hda_param_read(codec, nid,
+		function_id = snd_hda_param_read(codec, nid,
 						AC_PAR_FUNCTION_TYPE) & 0xff;
-		switch (codec->function_id) {
+		switch (function_id) {
 		case AC_GRP_AUDIO_FUNCTION:
 			codec->afg = nid;
+			codec->function_id = function_id;
 			break;
 		case AC_GRP_MODEM_FUNCTION:
 			codec->mfg = nid;
+			codec->function_id = function_id;
 			break;
 		default:
 			break;
@@ -2250,7 +2252,11 @@ int snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
 	err = bus->ops.command(bus, res);
 	if (!err) {
 		struct hda_cache_head *c;
-		u32 key = build_cmd_cache_key(nid, verb);
+		u32 key;
+		/* parm may contain the verb stuff for get/set amp */
+		verb = verb | (parm >> 8);
+		parm &= 0xff;
+		key = build_cmd_cache_key(nid, verb);
 		c = get_alloc_hash(&codec->cmd_cache, key);
 		if (c)
 			c->val = parm;

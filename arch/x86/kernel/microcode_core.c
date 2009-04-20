@@ -108,40 +108,29 @@ struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 EXPORT_SYMBOL_GPL(ucode_cpu_info);
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
-struct update_for_cpu {
-	const void __user	*buf;
-	size_t			size;
-};
-
-static long update_for_cpu(void *_ufc)
-{
-	struct update_for_cpu *ufc = _ufc;
-	int error;
-
-	error = microcode_ops->request_microcode_user(smp_processor_id(),
-						      ufc->buf, ufc->size);
-	if (error < 0)
-		return error;
-	if (!error)
-		microcode_ops->apply_microcode(smp_processor_id());
-	return error;
-}
-
 static int do_microcode_update(const void __user *buf, size_t size)
 {
+	cpumask_t old;
 	int error = 0;
 	int cpu;
-	struct update_for_cpu ufc = { .buf = buf, .size = size };
+
+	old = current->cpus_allowed;
 
 	for_each_online_cpu(cpu) {
 		struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 		if (!uci->valid)
 			continue;
-		error = work_on_cpu(cpu, update_for_cpu, &ufc);
+
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+		error = microcode_ops->request_microcode_user(cpu, buf, size);
 		if (error < 0)
-			break;
+			goto out;
+		if (!error)
+			microcode_ops->apply_microcode(cpu);
 	}
+out:
+	set_cpus_allowed_ptr(current, &old);
 	return error;
 }
 

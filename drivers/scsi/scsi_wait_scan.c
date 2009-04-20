@@ -11,7 +11,7 @@
  */
 
 #include <linux/module.h>
-#include "scsi_priv.h"
+#include <scsi/scsi_scan.h>
 
 static int __init wait_scan_init(void)
 {
