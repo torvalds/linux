@@ -248,6 +248,7 @@ static void handle_internal_command(int argc, const char **argv)
 {
 	const char *cmd = argv[0];
 	static struct cmd_struct commands[] = {
+		{ "help", cmd_help, 0 },
 		{ "record", cmd_record, 0 },
 		{ "stat", cmd_stat, 0 },
 		{ "top", cmd_top, 0 },
