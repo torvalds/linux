@@ -568,8 +568,8 @@ void __exit lguest_arch_host_fini(void)
 int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
 	switch (args->arg0) {
-	case LHCALL_LOAD_GDT:
-		load_guest_gdt(cpu, args->arg1, args->arg2);
+	case LHCALL_LOAD_GDT_ENTRY:
+		load_guest_gdt_entry(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_LOAD_IDT_ENTRY:
 		load_guest_idt_entry(cpu, args->arg1, args->arg2, args->arg3);
