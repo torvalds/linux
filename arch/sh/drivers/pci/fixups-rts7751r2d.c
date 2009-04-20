@@ -1,20 +1,43 @@
 /*
  * arch/sh/drivers/pci/fixups-rts7751r2d.c
  *
- * RTS7751R2D PCI fixups
+ * RTS7751R2D / LBOXRE2 PCI fixups
  *
  * Copyright (C) 2003  Lineo uSolutions, Inc.
  * Copyright (C) 2004  Paul Mundt
+ * Copyright (C) 2007  Nobuhiro Iwamatsu
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
 #include <linux/pci.h>
+#include <mach/lboxre2.h>
+#include <mach/r2d.h>
 #include "pci-sh4.h"
+#include <asm/machtypes.h>
 
 #define PCIMCR_MRSET_OFF	0xBFFFFFFF
 #define PCIMCR_RFSH_OFF		0xFFFFFFFB
+
+static u8 rts7751r2d_irq_tab[] __initdata = {
+	IRQ_PCI_INTA,
+	IRQ_PCI_INTB,
+	IRQ_PCI_INTC,
+	IRQ_PCI_INTD,
+};
+
+static char lboxre2_irq_tab[] __initdata = {
+	IRQ_ETH0, IRQ_ETH1, IRQ_INTA, IRQ_INTD,
+};
+
+int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
+{
+	if (mach_is_lboxre2())
+		return lboxre2_irq_tab[slot];
+	else
+		return rts7751r2d_irq_tab[slot];
+}
 
 int pci_fixup_pcic(struct pci_channel *chan)
 {
