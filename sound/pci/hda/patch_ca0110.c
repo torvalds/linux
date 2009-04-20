@@ -309,7 +309,7 @@ static int ca0110_build_pcms(struct hda_codec *codec)
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK] = ca0110_pcm_analog_playback;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid = spec->dacs[0];
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].channels_max =
-		spec->multiout.num_dacs * 2;
+		spec->multiout.max_channels;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE] = ca0110_pcm_analog_capture;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].substreams = spec->num_inputs;
 	info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->adcs[0];
@@ -418,6 +418,7 @@ static void parse_line_outs(struct hda_codec *codec)
 	}
 	spec->multiout.dac_nids = spec->dacs;
 	spec->multiout.num_dacs = n;
+	spec->multiout.max_channels = n * 2;
 }
 
 static void parse_hp_out(struct hda_codec *codec)
