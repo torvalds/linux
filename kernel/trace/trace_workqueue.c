@@ -185,15 +185,8 @@ static void *workqueue_stat_next(void *prev, int idx)
 static int workqueue_stat_show(struct seq_file *s, void *p)
 {
 	struct cpu_workqueue_stats *cws = p;
-	unsigned long flags;
-	int cpu = cws->cpu;
 	struct pid *pid;
 	struct task_struct *tsk;
-
-	spin_lock_irqsave(&workqueue_cpu_stat(cpu)->lock, flags);
-	if (&cws->list == workqueue_cpu_stat(cpu)->list.next)
-		seq_printf(s, "\n");
-	spin_unlock_irqrestore(&workqueue_cpu_stat(cpu)->lock, flags);
 
 	pid = find_get_pid(cws->pid);
 	if (pid) {
