@@ -5,7 +5,7 @@
 #include "run-command.h"
 
 const char perf_usage_string[] =
-	"perf [--version] [--exec-path[=PERF_EXEC_PATH]] [--html-path] [-p|--paginate|--no-pager] [--bare] [--perf-dir=PERF_DIR] [--work-tree=PERF_WORK_TREE] [--help] COMMAND [ARGS]";
+	"perf [--version] [--help] COMMAND [ARGS]";
 
 const char perf_more_info_string[] =
 	"See 'perf help COMMAND' for more information on a specific command.";
@@ -251,6 +251,7 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "record", cmd_record, 0 },
 		{ "stat", cmd_stat, 0 },
 		{ "top", cmd_top, 0 },
+		{ "version", cmd_version, 0 },
 	};
 	int i;
 	static const char ext[] = STRIP_EXTENSION;
