@@ -63,7 +63,7 @@ static inline int trace_seq_puts(struct trace_seq *s, const char *str)
 {
 	return 0;
 }
-static inline int trace_seq_putc(struct trace_seq *s, unsigned char c);
+static inline int trace_seq_putc(struct trace_seq *s, unsigned char c)
 {
 	return 0;
 }
