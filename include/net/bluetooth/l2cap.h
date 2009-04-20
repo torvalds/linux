@@ -149,6 +149,8 @@ struct l2cap_conf_opt {
 } __attribute__ ((packed));
 #define L2CAP_CONF_OPT_SIZE	2
 
+#define L2CAP_CONF_HINT		0x80
+
 #define L2CAP_CONF_MTU		0x01
 #define L2CAP_CONF_FLUSH_TO	0x02
 #define L2CAP_CONF_QOS		0x03

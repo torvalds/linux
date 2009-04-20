@@ -1739,7 +1739,7 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 	while (len >= L2CAP_CONF_OPT_SIZE) {
 		len -= l2cap_get_conf_opt(&req, &type, &olen, &val);
 
-		hint  = type & 0x80;
+		hint  = type & L2CAP_CONF_HINT;
 		type &= 0x7f;
 
 		switch (type) {
