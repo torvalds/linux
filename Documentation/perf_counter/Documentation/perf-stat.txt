@@ -1,0 +1,76 @@
+perf-stat(1)
+==========
+
+NAME
+----
+perf-stat - Run a command and gather performance counter statistics
+
+SYNOPSIS
+--------
+[verse]
+'perf stat' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
+
+DESCRIPTION
+-----------
+This command runs a command and gathers performance counter statistics
+from it.
+
+
+OPTIONS
+-------
+<command>...::
+	Any command you can specify in a shell.
+
+-e::
+--event=::
+                             0:0: cpu-cycles          
+                             0:0: cycles              
+                             0:1: instructions        
+                             0:2: cache-references    
+                             0:3: cache-misses        
+                             0:4: branch-instructions 
+                             0:4: branches            
+                             0:5: branch-misses       
+                             0:6: bus-cycles          
+                             1:0: cpu-clock           
+                             1:1: task-clock          
+                             1:2: page-faults         
+                             1:2: faults              
+                             1:5: minor-faults        
+                             1:6: major-faults        
+                             1:3: context-switches    
+                             1:3: cs                  
+                             1:4: cpu-migrations      
+                             1:4: migrations          
+                           rNNN: raw PMU events (eventsel+umask)
+
+-a::
+        system-wide collection
+
+-l::
+        scale counter values
+
+Configuration
+-------------
+
+EXAMPLES
+--------
+
+$ perf stat sleep 1
+
+ Performance counter stats for 'sleep':
+
+       0.678356  task clock ticks     (msecs)
+              7  context switches     (events)
+              4  CPU migrations       (events)
+            232  pagefaults           (events)
+        1810403  CPU cycles           (events)
+         946759  instructions         (events)
+          18952  cache references     (events)
+           4885  cache misses         (events)
+
+ Wall-clock time elapsed:  1001.252894 msecs
+
+SEE ALSO
+--------
+linkperf:git-tops[1]

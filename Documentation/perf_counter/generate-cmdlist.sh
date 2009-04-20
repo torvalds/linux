@@ -9,16 +9,16 @@ struct cmdname_help
 
 static struct cmdname_help common_cmds[] = {"
 
-sed -n -e 's/^git-\([^ 	]*\)[ 	].* common.*/\1/p' command-list.txt |
+sed -n -e 's/^perf-\([^ 	]*\)[ 	].* common.*/\1/p' command-list.txt |
 sort |
 while read cmd
 do
      sed -n '
-     /^NAME/,/git-'"$cmd"'/H
+     /^NAME/,/perf-'"$cmd"'/H
      ${
             x
-            s/.*git-'"$cmd"' - \(.*\)/  {"'"$cmd"'", "\1"},/
+            s/.*perf-'"$cmd"' - \(.*\)/  {"'"$cmd"'", "\1"},/
 	    p
-     }' "Documentation/git-$cmd.txt"
+     }' "Documentation/perf-$cmd.txt"
 done
 echo "};"
