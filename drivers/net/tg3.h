@@ -2501,6 +2501,7 @@ struct tg3 {
 	struct tg3_hw_status		*hw_status;
 	dma_addr_t			status_mapping;
 	u32				last_tag;
+	u32				last_irq_tag;
 
 	u32				msg_enable;
 

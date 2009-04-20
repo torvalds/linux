@@ -4656,6 +4656,7 @@ static int tg3_poll(struct napi_struct *napi, int budget)
 			 * so we must read it before checking for more work.
 			 */
 			tp->last_tag = sblk->status_tag;
+			tp->last_irq_tag = tp->last_tag;
 			rmb();
 		} else
 			sblk->status &= ~SD_STATUS_UPDATED;
@@ -4811,7 +4812,7 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 	 * Reading the PCI State register will confirm whether the
 	 * interrupt is ours and will flush the status block.
 	 */
-	if (unlikely(sblk->status_tag == tp->last_tag)) {
+	if (unlikely(sblk->status_tag == tp->last_irq_tag)) {
 		if ((tp->tg3_flags & TG3_FLAG_CHIP_RESETTING) ||
 		    (tr32(TG3PCI_PCISTATE) & PCISTATE_INT_NOT_ACTIVE)) {
 			handled = 0;
@@ -4831,18 +4832,22 @@ static irqreturn_t tg3_interrupt_tagged(int irq, void *dev_id)
 	 * excessive spurious interrupts can be worse in some cases.
 	 */
 	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0x00000001);
+
+	/*
+	 * In a shared interrupt configuration, sometimes other devices'
+	 * interrupts will scream.  We record the current status tag here
+	 * so that the above check can report that the screaming interrupts
+	 * are unhandled.  Eventually they will be silenced.
+	 */
+	tp->last_irq_tag = sblk->status_tag;
+
 	if (tg3_irq_sync(tp))
 		goto out;
-	if (napi_schedule_prep(&tp->napi)) {
-		prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
-		/* Update last_tag to mark that this status has been
-		 * seen. Because interrupt may be shared, we may be
-		 * racing with tg3_poll(), so only update last_tag
-		 * if tg3_poll() is not scheduled.
-		 */
-		tp->last_tag = sblk->status_tag;
-		__napi_schedule(&tp->napi);
-	}
+
+	prefetch(&tp->rx_rcb[tp->rx_rcb_ptr]);
+
+	napi_schedule(&tp->napi);
+
 out:
 	return IRQ_RETVAL(handled);
 }
@@ -6156,6 +6161,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 		tp->hw_status->status_tag = 0;
 	}
 	tp->last_tag = 0;
+	tp->last_irq_tag = 0;
 	smp_mb();
 	synchronize_irq(tp->pdev->irq);
 
@@ -7138,7 +7144,6 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	udelay(100);
 
 	tw32_mailbox_f(MAILBOX_INTERRUPT_0 + TG3_64BIT_REG_LOW, 0);
-	tp->last_tag = 0;
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS)) {
 		tw32_f(DMAC_MODE, DMAC_MODE_ENABLE);
