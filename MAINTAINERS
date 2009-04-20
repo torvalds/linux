@@ -1287,6 +1287,14 @@ S:	Maintained
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/video/bt8xx/bttv*
 
+CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-cachefs@redhat.com
+S:	Supported
+F:	Documentation/filesystems/caching/cachefiles.txt
+F:	fs/cachefiles/
+
 CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
 P:	Jonathan Corbet
 M:	corbet@lwn.net
@@ -2324,6 +2332,15 @@ S:	Supported
 F:	Documentation/power/freezing-of-tasks.txt
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
+
+FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-cachefs@redhat.com
+S:	Supported
+F:	Documentation/filesystems/caching/
+F:	fs/fscache/
+F:	include/linux/fscache*.h
 
 FTRACE
 P:	Steven Rostedt
