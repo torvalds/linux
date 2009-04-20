@@ -1483,7 +1483,9 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 
 static int trace_irq_level(void)
 {
-	return hardirq_count() + softirq_count() + in_nmi();
+	return (hardirq_count() >> HARDIRQ_SHIFT) +
+		(softirq_count() >> + SOFTIRQ_SHIFT) +
+		!!in_nmi();
 }
 
 static int trace_recursive_lock(void)
