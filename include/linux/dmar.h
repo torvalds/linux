@@ -158,6 +158,8 @@ static inline struct intel_iommu *map_ioapic_to_ir(int apic)
 }
 #define irq_remapped(irq)		(0)
 #define enable_intr_remapping(mode)	(-1)
+#define disable_intr_remapping()	(0)
+#define reenable_intr_remapping(mode)	(0)
 #define intr_remapping_enabled		(0)
 #endif
 

@@ -107,8 +107,7 @@ extern u32 native_safe_apic_wait_icr_idle(void);
 extern void native_apic_icr_write(u32 low, u32 id);
 extern u64 native_apic_icr_read(void);
 
-#define EIM_8BIT_APIC_ID	0
-#define EIM_32BIT_APIC_ID	1
+extern int x2apic_mode;
 
 #ifdef CONFIG_X86_X2APIC
 /*
@@ -166,7 +165,7 @@ static inline u64 native_x2apic_icr_read(void)
 	return val;
 }
 
-extern int x2apic, x2apic_phys;
+extern int x2apic_phys;
 extern void check_x2apic(void);
 extern void enable_x2apic(void);
 extern void x2apic_icr_write(u32 low, u32 id);
@@ -182,6 +181,8 @@ static inline int x2apic_enabled(void)
 		return 1;
 	return 0;
 }
+
+#define x2apic_supported()	(cpu_has_x2apic)
 #else
 static inline void check_x2apic(void)
 {
@@ -194,9 +195,8 @@ static inline int x2apic_enabled(void)
 	return 0;
 }
 
-#define	x2apic	0
 #define	x2apic_preenabled 0
-
+#define	x2apic_supported()	0
 #endif
 
 extern void enable_IR_x2apic(void);

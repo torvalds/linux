@@ -134,8 +134,8 @@ static __init int setup_apicpmtimer(char *s)
 __setup("apicpmtimer", setup_apicpmtimer);
 #endif
 
+int x2apic_mode;
 #ifdef CONFIG_X86_X2APIC
-int x2apic;
 /* x2apic enabled before OS handover */
 static int x2apic_preenabled;
 static int disable_x2apic;
@@ -858,7 +858,7 @@ void clear_local_APIC(void)
 	u32 v;
 
 	/* APIC hasn't been mapped yet */
-	if (!x2apic && !apic_phys)
+	if (!x2apic_mode && !apic_phys)
 		return;
 
 	maxlvt = lapic_get_maxlvt();
@@ -1330,7 +1330,7 @@ void check_x2apic(void)
 {
 	if (x2apic_enabled()) {
 		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
-		x2apic_preenabled = x2apic = 1;
+		x2apic_preenabled = x2apic_mode = 1;
 	}
 }
 
@@ -1338,7 +1338,7 @@ void enable_x2apic(void)
 {
 	int msr, msr2;
 
-	if (!x2apic)
+	if (!x2apic_mode)
 		return;
 
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
@@ -1390,25 +1390,17 @@ void __init enable_IR_x2apic(void)
 	mask_IO_APIC_setup(ioapic_entries);
 	mask_8259A();
 
-#ifdef CONFIG_X86_X2APIC
-	if (cpu_has_x2apic)
-		ret = enable_intr_remapping(EIM_32BIT_APIC_ID);
-	else
-#endif
-		ret = enable_intr_remapping(EIM_8BIT_APIC_ID);
-
+	ret = enable_intr_remapping(x2apic_supported());
 	if (ret)
 		goto end_restore;
 
 	pr_info("Enabled Interrupt-remapping\n");
 
-#ifdef CONFIG_X86_X2APIC
-	if (cpu_has_x2apic && !x2apic) {
-		x2apic = 1;
+	if (x2apic_supported() && !x2apic_mode) {
+		x2apic_mode = 1;
 		enable_x2apic();
 		pr_info("Enabled x2apic\n");
 	}
-#endif
 
 end_restore:
 	if (ret)
@@ -1576,7 +1568,7 @@ void __init early_init_lapic_mapping(void)
  */
 void __init init_apic_mappings(void)
 {
-	if (x2apic) {
+	if (x2apic_mode) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
 	}
@@ -2010,10 +2002,10 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 
 	local_irq_save(flags);
 	disable_local_APIC();
-#ifdef CONFIG_INTR_REMAP
+
 	if (intr_remapping_enabled)
 		disable_intr_remapping();
-#endif
+
 	local_irq_restore(flags);
 	return 0;
 }
@@ -2023,8 +2015,6 @@ static int lapic_resume(struct sys_device *dev)
 	unsigned int l, h;
 	unsigned long flags;
 	int maxlvt;
-
-#ifdef CONFIG_INTR_REMAP
 	int ret;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
@@ -2050,17 +2040,8 @@ static int lapic_resume(struct sys_device *dev)
 		mask_8259A();
 	}
 
-	if (x2apic)
+	if (x2apic_mode)
 		enable_x2apic();
-#else
-	if (!apic_pm_state.active)
-		return 0;
-
-	local_irq_save(flags);
-	if (x2apic)
-		enable_x2apic();
-#endif
-
 	else {
 		/*
 		 * Make sure the APICBASE points to the right address
@@ -2098,18 +2079,12 @@ static int lapic_resume(struct sys_device *dev)
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
 
-#ifdef CONFIG_INTR_REMAP
 	if (intr_remapping_enabled) {
-		if (x2apic)
-			reenable_intr_remapping(EIM_32BIT_APIC_ID);
-		else
-			reenable_intr_remapping(EIM_8BIT_APIC_ID);
-
+		reenable_intr_remapping(x2apic_mode);
 		unmask_8259A();
 		restore_IO_APIC_setup(ioapic_entries);
 		free_ioapic_entries(ioapic_entries);
 	}
-#endif
 
 	local_irq_restore(flags);
 
