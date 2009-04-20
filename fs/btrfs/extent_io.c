@@ -2501,7 +2501,7 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 	};
 	struct writeback_control wbc_writepages = {
 		.bdi		= wbc->bdi,
-		.sync_mode	= WB_SYNC_NONE,
+		.sync_mode	= wbc->sync_mode,
 		.older_than_this = NULL,
 		.nr_to_write	= 64,
 		.range_start	= page_offset(page) + PAGE_CACHE_SIZE,

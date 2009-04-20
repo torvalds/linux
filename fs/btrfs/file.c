@@ -1131,7 +1131,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		if (will_write) {
 			btrfs_fdatawrite_range(inode->i_mapping, pos,
 					       pos + write_bytes - 1,
-					       WB_SYNC_NONE);
+					       WB_SYNC_ALL);
 		} else {
 			balance_dirty_pages_ratelimited_nr(inode->i_mapping,
 							   num_pages);
