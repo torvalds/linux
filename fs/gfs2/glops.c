@@ -156,6 +156,12 @@ static void inode_go_sync(struct gfs2_glock *gl)
 	error = filemap_fdatawait(metamapping);
 	mapping_set_error(metamapping, error);
 	gfs2_ail_empty_gl(gl);
+	/*
+	 * Writeback of the data mapping may cause the dirty flag to be set
+	 * so we have to clear it again here.
+	 */
+	smp_mb__before_clear_bit();
+	clear_bit(GLF_DIRTY, &gl->gl_flags);
 }
 
 /**
