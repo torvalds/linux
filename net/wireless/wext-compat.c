@@ -57,7 +57,7 @@ int cfg80211_wext_giwname(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwname);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwname);
 
 int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra)
@@ -108,7 +108,7 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	return ret;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwmode);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwmode);
 
 int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra)
@@ -143,7 +143,7 @@ int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwmode);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwmode);
 
 
 int cfg80211_wext_giwrange(struct net_device *dev,
@@ -239,7 +239,7 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwrange);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwrange);
 
 int cfg80211_wext_siwmlme(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -283,7 +283,7 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
-EXPORT_SYMBOL(cfg80211_wext_siwmlme);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwmlme);
 
 
 /**
@@ -313,7 +313,7 @@ struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
 	}
 
 }
-EXPORT_SYMBOL(cfg80211_wext_freq);
+EXPORT_SYMBOL_GPL(cfg80211_wext_freq);
 
 int cfg80211_wext_siwrts(struct net_device *dev,
 			 struct iw_request_info *info,
@@ -338,7 +338,7 @@ int cfg80211_wext_siwrts(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwrts);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwrts);
 
 int cfg80211_wext_giwrts(struct net_device *dev,
 			 struct iw_request_info *info,
@@ -352,7 +352,7 @@ int cfg80211_wext_giwrts(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwrts);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwrts);
 
 int cfg80211_wext_siwfrag(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -379,7 +379,7 @@ int cfg80211_wext_siwfrag(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwfrag);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwfrag);
 
 int cfg80211_wext_giwfrag(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -393,7 +393,7 @@ int cfg80211_wext_giwfrag(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwfrag);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwfrag);
 
 int cfg80211_wext_siwretry(struct net_device *dev,
 			   struct iw_request_info *info,
@@ -434,7 +434,7 @@ int cfg80211_wext_siwretry(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwretry);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwretry);
 
 int cfg80211_wext_giwretry(struct net_device *dev,
 			   struct iw_request_info *info,
@@ -464,4 +464,4 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwretry);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwretry);

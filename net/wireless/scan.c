@@ -653,7 +653,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	cfg80211_put_dev(rdev);
 	return err;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwscan);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwscan);
 
 static void ieee80211_scan_add_ies(struct iw_request_info *info,
 				   struct cfg80211_bss *bss,
@@ -962,5 +962,5 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	cfg80211_put_dev(rdev);
 	return res;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwscan);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwscan);
 #endif
