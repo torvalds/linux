@@ -70,6 +70,70 @@ pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 	res->end = region->end + offset;
 }
 
+int pcibios_enable_device(struct pci_dev *dev, int mask)
+{
+	u16 cmd, old_cmd;
+	int idx;
+	struct resource *r;
+
+	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	old_cmd = cmd;
+	for (idx=0; idx < PCI_NUM_RESOURCES; idx++) {
+		/* Only set up the requested stuff */
+		if (!(mask & (1<<idx)))
+			continue;
+
+		r = &dev->resource[idx];
+		if (!(r->flags & (IORESOURCE_IO | IORESOURCE_MEM)))
+			continue;
+		if ((idx == PCI_ROM_RESOURCE) &&
+				(!(r->flags & IORESOURCE_ROM_ENABLE)))
+			continue;
+		if (!r->start && r->end) {
+			printk(KERN_ERR "PCI: Device %s not available "
+			       "because of resource collisions\n",
+			       pci_name(dev));
+			return -EINVAL;
+		}
+		if (r->flags & IORESOURCE_IO)
+			cmd |= PCI_COMMAND_IO;
+		if (r->flags & IORESOURCE_MEM)
+			cmd |= PCI_COMMAND_MEMORY;
+	}
+	if (cmd != old_cmd) {
+		printk("PCI: Enabling device %s (%04x -> %04x)\n",
+		       pci_name(dev), old_cmd, cmd);
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
+	return 0;
+}
+
+/*
+ *  If we set up a device for bus mastering, we need to check and set
+ *  the latency timer as it may not be properly set.
+ */
+static unsigned int pcibios_max_latency = 255;
+
+void pcibios_set_master(struct pci_dev *dev)
+{
+	u8 lat;
+	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &lat);
+	if (lat < 16)
+		lat = (64 <= pcibios_max_latency) ? 64 : pcibios_max_latency;
+	else if (lat > pcibios_max_latency)
+		lat = pcibios_max_latency;
+	else
+		return;
+	printk(KERN_INFO "PCI: Setting latency timer of device %s to %d\n",
+	       pci_name(dev), lat);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
+}
+
+void __init pcibios_update_irq(struct pci_dev *dev, int irq)
+{
+	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
+}
+
 int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 			enum pci_mmap_state mmap_state, int write_combine)
 {
