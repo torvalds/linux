@@ -138,7 +138,6 @@ static inline void __iomem *__get_pci_io_base(unsigned long port,
 #endif
 
 /* Board-specific fixup routines. */
-void pcibios_fixup(void);
 int pcibios_init_platform(void);
 int pcibios_map_platform_irq(struct pci_dev *dev, u8 slot, u8 pin);
 
