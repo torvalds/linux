@@ -38,6 +38,7 @@ ACPI_MODULE_NAME("system");
 #define ACPI_SYSTEM_DEVICE_NAME		"System"
 
 u32 acpi_irq_handled;
+u32 acpi_irq_not_handled;
 
 /*
  * Make ACPICA version work as module param
@@ -214,8 +215,9 @@ err:
 
 #define COUNT_GPE 0
 #define COUNT_SCI 1	/* acpi_irq_handled */
-#define COUNT_ERROR 2	/* other */
-#define NUM_COUNTERS_EXTRA 3
+#define COUNT_SCI_NOT 2	/* acpi_irq_not_handled */
+#define COUNT_ERROR 3	/* other */
+#define NUM_COUNTERS_EXTRA 4
 
 struct event_counter {
 	u32 count;
@@ -317,6 +319,8 @@ static ssize_t counter_show(struct kobject *kobj,
 
 	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI].count =
 		acpi_irq_handled;
+	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_NOT].count =
+		acpi_irq_not_handled;
 	all_counters[num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_GPE].count =
 		acpi_gpe_count;
 
@@ -363,6 +367,7 @@ static ssize_t counter_set(struct kobject *kobj,
 			all_counters[i].count = 0;
 		acpi_gpe_count = 0;
 		acpi_irq_handled = 0;
+		acpi_irq_not_handled = 0;
 		goto end;
 	}
 
@@ -456,6 +461,8 @@ void acpi_irq_stats_init(void)
 			sprintf(buffer, "gpe_all");
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI)
 			sprintf(buffer, "sci");
+		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_SCI_NOT)
+			sprintf(buffer, "sci_not");
 		else if (i == num_gpes + ACPI_NUM_FIXED_EVENTS + COUNT_ERROR)
 			sprintf(buffer, "error");
 		else

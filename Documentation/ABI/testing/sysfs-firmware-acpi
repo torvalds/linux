@@ -69,9 +69,13 @@ Description:
 		gpe1F:	     0	invalid
 		gpe_all:    1192
 		sci:	1194
+		sci_not:     0	
 
-		sci - The total number of times the ACPI SCI
-		has claimed an interrupt.
+		sci - The number of times the ACPI SCI
+		has been called and claimed an interrupt.
+
+		sci_not - The number of times the ACPI SCI
+		has been called and NOT claimed an interrupt.
 
 		gpe_all - count of SCI caused by GPEs.
 
