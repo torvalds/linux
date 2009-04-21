@@ -2449,8 +2449,8 @@ static int rndis_wext_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	set_wiphy_dev(wiphy, &usbdev->udev->dev);
 
 	if (wiphy_register(wiphy)) {
-		wiphy_free(wiphy);
-		return -ENODEV;
+		retval = -ENODEV;
+		goto fail;
 	}
 
 	set_default_iw_params(usbdev);
@@ -2472,7 +2472,7 @@ fail:
 	flush_workqueue(priv->workqueue);
 	destroy_workqueue(priv->workqueue);
 
-	kfree(priv);
+	wiphy_free(wiphy);
 	return retval;
 }
 
