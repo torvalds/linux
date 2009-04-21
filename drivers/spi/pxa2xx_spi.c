@@ -1700,6 +1700,13 @@ static int pxa2xx_spi_resume(struct platform_device *pdev)
 	struct ssp_device *ssp = drv_data->ssp;
 	int status = 0;
 
+	if (drv_data->rx_channel != -1)
+		DRCMR(drv_data->ssp->drcmr_rx) =
+			DRCMR_MAPVLD | drv_data->rx_channel;
+	if (drv_data->tx_channel != -1)
+		DRCMR(drv_data->ssp->drcmr_tx) =
+			DRCMR_MAPVLD | drv_data->tx_channel;
+
 	/* Enable the SSP clock */
 	clk_enable(ssp->clk);
 
