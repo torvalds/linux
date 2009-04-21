@@ -266,6 +266,8 @@ ixgb_up(struct ixgb_adapter *adapter)
 	napi_enable(&adapter->napi);
 	ixgb_irq_enable(adapter);
 
+	netif_wake_queue(netdev);
+
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
 	return 0;
@@ -1118,7 +1120,6 @@ ixgb_watchdog(unsigned long data)
 			adapter->link_speed = 10000;
 			adapter->link_duplex = FULL_DUPLEX;
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
 		}
 	} else {
 		if (netif_carrier_ok(netdev)) {
@@ -1127,8 +1128,6 @@ ixgb_watchdog(unsigned long data)
 			printk(KERN_INFO "ixgb: %s NIC Link is Down\n",
 			       netdev->name);
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
-
 		}
 	}
 

@@ -942,6 +942,8 @@ int igb_up(struct igb_adapter *adapter)
 	rd32(E1000_ICR);
 	igb_irq_enable(adapter);
 
+	netif_tx_start_all_queues(adapter->netdev);
+
 	/* Fire a link change interrupt to start the watchdog. */
 	wr32(E1000_ICS, E1000_ICS_LSC);
 	return 0;
@@ -2664,7 +2666,6 @@ static void igb_watchdog_task(struct work_struct *work)
 			}
 
 			netif_carrier_on(netdev);
-			netif_tx_wake_all_queues(netdev);
 
 			igb_ping_all_vfs(adapter);
 
@@ -2681,7 +2682,6 @@ static void igb_watchdog_task(struct work_struct *work)
 			printk(KERN_INFO "igb: %s NIC Link is Down\n",
 			       netdev->name);
 			netif_carrier_off(netdev);
-			netif_tx_stop_all_queues(netdev);
 
 			igb_ping_all_vfs(adapter);
 
