@@ -1,7 +1,7 @@
 /*
  * SuperH On-Chip RTC Support
  *
- * Copyright (C) 2006, 2007, 2008  Paul Mundt
+ * Copyright (C) 2006 - 2009  Paul Mundt
  * Copyright (C) 2006  Jamie Lenehan
  * Copyright (C) 2008  Angelo Castello
  *
@@ -25,10 +25,11 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/log2.h>
+#include <linux/clk.h>
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.2.1"
+#define DRV_VERSION	"0.2.2"
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
@@ -87,16 +88,17 @@
 #define RCR2_START	0x01	/* Start bit               */
 
 struct sh_rtc {
-	void __iomem *regbase;
-	unsigned long regsize;
-	struct resource *res;
-	int alarm_irq;
-	int periodic_irq;
-	int carry_irq;
-	struct rtc_device *rtc_dev;
-	spinlock_t lock;
-	unsigned long capabilities;	/* See asm-sh/rtc.h for cap bits */
-	unsigned short periodic_freq;
+	void __iomem		*regbase;
+	unsigned long		regsize;
+	struct resource		*res;
+	int			alarm_irq;
+	int			periodic_irq;
+	int			carry_irq;
+	struct clk		*clk;
+	struct rtc_device	*rtc_dev;
+	spinlock_t		lock;
+	unsigned long		capabilities;	/* See asm/rtc.h for cap bits */
+	unsigned short		periodic_freq;
 };
 
 static int __sh_rtc_interrupt(struct sh_rtc *rtc)
@@ -294,10 +296,10 @@ static inline void sh_rtc_setaie(struct device *dev, unsigned int enable)
 
 	tmp = readb(rtc->regbase + RCR1);
 
-	if (!enable)
-		tmp &= ~RCR1_AIE;
-	else
+	if (enable)
 		tmp |= RCR1_AIE;
+	else
+		tmp &= ~RCR1_AIE;
 
 	writeb(tmp, rtc->regbase + RCR1);
 
@@ -618,6 +620,7 @@ static int sh_rtc_irq_set_freq(struct device *dev, int freq)
 {
 	if (!is_power_of_2(freq))
 		return -EINVAL;
+
 	return sh_rtc_ioctl(dev, RTC_IRQP_SET, freq);
 }
 
@@ -637,7 +640,8 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 	struct sh_rtc *rtc;
 	struct resource *res;
 	struct rtc_time r;
-	int ret;
+	char clk_name[6];
+	int clk_id, ret;
 
 	rtc = kzalloc(sizeof(struct sh_rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
@@ -652,6 +656,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No IRQ resource\n");
 		goto err_badres;
 	}
+
 	rtc->periodic_irq = ret;
 	rtc->carry_irq = platform_get_irq(pdev, 1);
 	rtc->alarm_irq = platform_get_irq(pdev, 2);
@@ -663,7 +668,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		goto err_badres;
 	}
 
-	rtc->regsize = res->end - res->start + 1;
+	rtc->regsize = resource_size(res);
 
 	rtc->res = request_mem_region(res->start, rtc->regsize, pdev->name);
 	if (unlikely(!rtc->res)) {
@@ -676,6 +681,26 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_badmap;
 	}
+
+	clk_id = pdev->id;
+	/* With a single device, the clock id is still "rtc0" */
+	if (clk_id < 0)
+		clk_id = 0;
+
+	snprintf(clk_name, sizeof(clk_name), "rtc%d", clk_id);
+
+	rtc->clk = clk_get(&pdev->dev, clk_name);
+	if (IS_ERR(rtc->clk)) {
+		/*
+		 * No error handling for rtc->clk intentionally, not all
+		 * platforms will have a unique clock for the RTC, and
+		 * the clk API can handle the struct clk pointer being
+		 * NULL.
+		 */
+		rtc->clk = NULL;
+	}
+
+	clk_enable(rtc->clk);
 
 	rtc->rtc_dev = rtc_device_register("sh", &pdev->dev,
 					   &sh_rtc_ops, THIS_MODULE);
@@ -759,6 +784,8 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 err_unmap:
+	clk_disable(rtc->clk);
+	clk_put(rtc->clk);
 	iounmap(rtc->regbase);
 err_badmap:
 	release_resource(rtc->res);
@@ -780,6 +807,7 @@ static int __devexit sh_rtc_remove(struct platform_device *pdev)
 	sh_rtc_setcie(&pdev->dev, 0);
 
 	free_irq(rtc->periodic_irq, rtc);
+
 	if (rtc->carry_irq > 0) {
 		free_irq(rtc->carry_irq, rtc);
 		free_irq(rtc->alarm_irq, rtc);
@@ -788,6 +816,9 @@ static int __devexit sh_rtc_remove(struct platform_device *pdev)
 	release_resource(rtc->res);
 
 	iounmap(rtc->regbase);
+
+	clk_disable(rtc->clk);
+	clk_put(rtc->clk);
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -802,11 +833,11 @@ static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
 	set_irq_wake(rtc->periodic_irq, enabled);
+
 	if (rtc->carry_irq > 0) {
 		set_irq_wake(rtc->carry_irq, enabled);
 		set_irq_wake(rtc->alarm_irq, enabled);
 	}
-
 }
 
 static int sh_rtc_suspend(struct device *dev)
