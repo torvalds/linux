@@ -318,7 +318,7 @@ static int wm9705_reset(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int wm9705_soc_suspend(struct platform_device *pdev)
+static int wm9705_soc_suspend(struct platform_device *pdev, pm_message_t msg)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;

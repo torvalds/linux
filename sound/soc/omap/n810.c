@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2008 Nokia Corporation
  *
- * Contact: Jarkko Nikula <jarkko.nikula@nokia.com>
+ * Contact: Jarkko Nikula <jhnikula@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -417,6 +417,6 @@ static void __exit n810_soc_exit(void)
 module_init(n810_soc_init);
 module_exit(n810_soc_exit);
 
-MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@nokia.com>");
+MODULE_AUTHOR("Jarkko Nikula <jhnikula@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC Nokia N810");
 MODULE_LICENSE("GPL");
