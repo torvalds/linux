@@ -522,7 +522,7 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai,
 	reg = wm8580_read(codec, WM8580_PLLA4 + offset);
 	reg &= ~0x3f;
 	reg |= pll_div.prescale | pll_div.postscale << 1 |
-		pll_div.freqmode << 4;
+		pll_div.freqmode << 3;
 
 	wm8580_write(codec, WM8580_PLLA4 + offset, reg);
 
