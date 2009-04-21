@@ -3171,10 +3171,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (vcpu->arch.exception.pending)
 		__queue_exception(vcpu);
-	else if (irqchip_in_kernel(vcpu->kvm))
-		kvm_x86_ops->inject_pending_irq(vcpu, kvm_run);
 	else
-		kvm_x86_ops->inject_pending_vectors(vcpu, kvm_run);
+		kvm_x86_ops->inject_pending_irq(vcpu, kvm_run);
 
 	kvm_lapic_sync_to_vapic(vcpu);
 

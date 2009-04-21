@@ -517,8 +517,6 @@ struct kvm_x86_ops {
 	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,
 				bool has_error_code, u32 error_code);
 	void (*inject_pending_irq)(struct kvm_vcpu *vcpu, struct kvm_run *run);
-	void (*inject_pending_vectors)(struct kvm_vcpu *vcpu,
-				       struct kvm_run *run);
 	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 	int (*get_tdp_level)(void);

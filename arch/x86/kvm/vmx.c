@@ -3693,7 +3693,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_irq = vmx_inject_irq,
 	.queue_exception = vmx_queue_exception,
 	.inject_pending_irq = vmx_intr_assist,
-	.inject_pending_vectors = vmx_intr_assist,
 	.interrupt_allowed = vmx_interrupt_allowed,
 	.set_tss_addr = vmx_set_tss_addr,
 	.get_tdp_level = get_ept_level,

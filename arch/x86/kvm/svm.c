@@ -2655,7 +2655,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_irq = svm_set_irq,
 	.queue_exception = svm_queue_exception,
 	.inject_pending_irq = svm_intr_assist,
-	.inject_pending_vectors = svm_intr_assist,
 	.interrupt_allowed = svm_interrupt_allowed,
 
 	.set_tss_addr = svm_set_tss_addr,
