@@ -1908,7 +1908,9 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
 	sector_t sdist;
 	u64 total;
 
-	if (cic->last_request_pos < rq->sector)
+	if (!cic->last_request_pos)
+		sdist = 0;
+	else if (cic->last_request_pos < rq->sector)
 		sdist = rq->sector - cic->last_request_pos;
 	else
 		sdist = cic->last_request_pos - rq->sector;
