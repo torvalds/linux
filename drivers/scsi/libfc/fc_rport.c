@@ -267,6 +267,10 @@ static void fc_rport_work(struct work_struct *work)
 			       "(%6x).\n", ids.port_id);
 			event = RPORT_EV_FAILED;
 		}
+		if (rport->port_id != FC_FID_DIR_SERV)
+			if (rport_ops->event_callback)
+				rport_ops->event_callback(lport, rport,
+							  RPORT_EV_FAILED);
 		put_device(&rport->dev);
 		rport = new_rport;
 		rdata = new_rport->dd_data;
@@ -325,10 +329,19 @@ int fc_rport_login(struct fc_rport *rport)
 int fc_rport_logoff(struct fc_rport *rport)
 {
 	struct fc_rport_libfc_priv *rdata = rport->dd_data;
+	struct fc_lport *lport = rdata->local_port;
 
 	mutex_lock(&rdata->rp_mutex);
 
 	FC_DEBUG_RPORT("Remove port (%6x)\n", rport->port_id);
+
+	if (rdata->rp_state == RPORT_ST_NONE) {
+		FC_DEBUG_RPORT("(%6x): Port (%6x) in NONE state,"
+			       " not removing", fc_host_port_id(lport->host),
+			       rport->port_id);
+		mutex_unlock(&rdata->rp_mutex);
+		goto out;
+	}
 
 	fc_rport_enter_logo(rport);
 
@@ -349,6 +362,7 @@ int fc_rport_logoff(struct fc_rport *rport)
 
 	mutex_unlock(&rdata->rp_mutex);
 
+out:
 	return 0;
 }
 
@@ -1015,6 +1029,8 @@ static void fc_rport_recv_plogi_req(struct fc_rport *rport,
 	default:
 		FC_DEBUG_RPORT("incoming PLOGI from %x in unexpected "
 			       "state %d\n", sid, rdata->rp_state);
+		fc_frame_free(fp);
+		return;
 		break;
 	}
 
@@ -1106,6 +1122,8 @@ static void fc_rport_recv_prli_req(struct fc_rport *rport,
 		reason = ELS_RJT_NONE;
 		break;
 	default:
+		fc_frame_free(rx_fp);
+		return;
 		break;
 	}
 	len = fr_len(rx_fp) - sizeof(*fh);
@@ -1235,6 +1253,11 @@ static void fc_rport_recv_prlo_req(struct fc_rport *rport, struct fc_seq *sp,
 		       "while in state %s\n", ntoh24(fh->fh_s_id),
 		       fc_rport_state(rport));
 
+	if (rdata->rp_state == RPORT_ST_NONE) {
+		fc_frame_free(fp);
+		return;
+	}
+
 	rjt_data.fp = NULL;
 	rjt_data.reason = ELS_RJT_UNAB;
 	rjt_data.explan = ELS_EXPL_NONE;
@@ -1263,6 +1286,11 @@ static void fc_rport_recv_logo_req(struct fc_rport *rport, struct fc_seq *sp,
 	FC_DEBUG_RPORT("Received LOGO request from port (%6x) "
 		       "while in state %s\n", ntoh24(fh->fh_s_id),
 		       fc_rport_state(rport));
+
+	if (rdata->rp_state == RPORT_ST_NONE) {
+		fc_frame_free(fp);
+		return;
+	}
 
 	rdata->event = RPORT_EV_LOGO;
 	queue_work(rport_event_queue, &rdata->event_work);

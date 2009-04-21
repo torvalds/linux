@@ -113,6 +113,11 @@ void fc_disc_stop_rports(struct fc_disc *disc)
 		lport->tt.rport_logoff(rport);
 	}
 
+	list_for_each_entry_safe(rdata, next, &disc->rogue_rports, peers) {
+		rport = PRIV_TO_RPORT(rdata);
+		lport->tt.rport_logoff(rport);
+	}
+
 	mutex_unlock(&disc->disc_mutex);
 }
 
@@ -131,23 +136,32 @@ static void fc_disc_rport_callback(struct fc_lport *lport,
 {
 	struct fc_rport_libfc_priv *rdata = rport->dd_data;
 	struct fc_disc *disc = &lport->disc;
-	int found = 0;
 
 	FC_DEBUG_DISC("Received a %d event for port (%6x)\n", event,
 		      rport->port_id);
 
-	if (event == RPORT_EV_CREATED) {
+	switch (event) {
+	case RPORT_EV_CREATED:
 		if (disc) {
-			found = 1;
 			mutex_lock(&disc->disc_mutex);
 			list_add_tail(&rdata->peers, &disc->rports);
 			mutex_unlock(&disc->disc_mutex);
 		}
+		break;
+	case RPORT_EV_LOGO:
+	case RPORT_EV_FAILED:
+	case RPORT_EV_STOP:
+		mutex_lock(&disc->disc_mutex);
+		mutex_lock(&rdata->rp_mutex);
+		if (rdata->trans_state == FC_PORTSTATE_ROGUE)
+			list_del(&rdata->peers);
+		mutex_unlock(&rdata->rp_mutex);
+		mutex_unlock(&disc->disc_mutex);
+		break;
+	default:
+		break;
 	}
 
-	if (!found)
-		FC_DEBUG_DISC("The rport (%6x) is not maintained "
-			      "by the discovery layer\n", rport->port_id);
 }
 
 /**
@@ -439,6 +453,7 @@ static int fc_disc_new_target(struct fc_disc *disc,
 			rdata = rport->dd_data;
 			rdata->ops = &fc_disc_rport_ops;
 			rdata->rp_state = RPORT_ST_INIT;
+			list_add_tail(&rdata->peers, &disc->rogue_rports);
 			lport->tt.rport_login(rport);
 		}
 	}
@@ -630,6 +645,8 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 				rdata = rport->dd_data;
 				rdata->ops = &fc_disc_rport_ops;
 				rdata->local_port = lport;
+				list_add_tail(&rdata->peers,
+					      &disc->rogue_rports);
 				lport->tt.rport_login(rport);
 			} else
 				FC_DBG("Failed to allocate memory for "
@@ -769,7 +786,6 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 {
 	struct fc_lport *lport;
-	struct fc_rport *rport;
 	struct fc_rport *new_rport;
 	struct fc_rport_libfc_priv *rdata;
 
@@ -778,15 +794,12 @@ static void fc_disc_single(struct fc_disc *disc, struct fc_disc_port *dp)
 	if (dp->ids.port_id == fc_host_port_id(lport->host))
 		goto out;
 
-	rport = lport->tt.rport_lookup(lport, dp->ids.port_id);
-	if (rport)
-		fc_disc_del_target(disc, rport);
-
 	new_rport = lport->tt.rport_create(dp);
 	if (new_rport) {
 		rdata = new_rport->dd_data;
 		rdata->ops = &fc_disc_rport_ops;
 		kfree(dp);
+		list_add_tail(&rdata->peers, &disc->rogue_rports);
 		lport->tt.rport_login(new_rport);
 	}
 	return;
@@ -848,6 +861,7 @@ int fc_disc_init(struct fc_lport *lport)
 	INIT_DELAYED_WORK(&disc->disc_work, fc_disc_timeout);
 	mutex_init(&disc->disc_mutex);
 	INIT_LIST_HEAD(&disc->rports);
+	INIT_LIST_HEAD(&disc->rogue_rports);
 
 	disc->lport = lport;
 	disc->delay = FC_DISC_DELAY;
