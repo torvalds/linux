@@ -449,7 +449,8 @@ static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
 	for (i = 0; i < alt->desc.bNumEndpoints; i++) {
 		ep = &alt->endpoint[i];
 		attr = ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
-		if (attr == xfer)
+		if (attr == xfer
+		    && ep->desc.wMaxPacketSize != 0)
 			return ep;
 	}
 	return NULL;
