@@ -196,11 +196,6 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	svm->vmcb->control.event_inj_err = error_code;
 }
 
-static bool svm_exception_injected(struct kvm_vcpu *vcpu)
-{
-	return false;
-}
-
 static int is_external_interrupt(u32 info)
 {
 	info &= SVM_EVTINJ_TYPE_MASK | SVM_EVTINJ_VALID;
@@ -2659,7 +2654,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.get_irq = svm_get_irq,
 	.set_irq = svm_set_irq,
 	.queue_exception = svm_queue_exception,
-	.exception_injected = svm_exception_injected,
 	.inject_pending_irq = svm_intr_assist,
 	.inject_pending_vectors = svm_intr_assist,
 	.interrupt_allowed = svm_interrupt_allowed,

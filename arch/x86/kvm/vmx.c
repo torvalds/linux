@@ -789,11 +789,6 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
 }
 
-static bool vmx_exception_injected(struct kvm_vcpu *vcpu)
-{
-	return false;
-}
-
 /*
  * Swap MSR entry in host/guest MSR entry array.
  */
@@ -3697,7 +3692,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.get_irq = vmx_get_irq,
 	.set_irq = vmx_inject_irq,
 	.queue_exception = vmx_queue_exception,
-	.exception_injected = vmx_exception_injected,
 	.inject_pending_irq = vmx_intr_assist,
 	.inject_pending_vectors = vmx_intr_assist,
 	.interrupt_allowed = vmx_interrupt_allowed,

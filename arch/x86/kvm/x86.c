@@ -3237,8 +3237,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		profile_hit(KVM_PROFILING, (void *)rip);
 	}
 
-	if (vcpu->arch.exception.pending && kvm_x86_ops->exception_injected(vcpu))
-		vcpu->arch.exception.pending = false;
 
 	kvm_lapic_sync_from_vapic(vcpu);
 
