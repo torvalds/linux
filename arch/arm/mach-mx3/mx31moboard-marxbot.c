@@ -16,7 +16,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
@@ -24,6 +26,7 @@
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/mmc.h>
 
 #include "devices.h"
 
@@ -46,6 +49,33 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_TXD2__GPIO1_28,
 };
 
+#define SDHC2_CD IOMUX_TO_GPIO(MX31_PIN_ATA_DIOR)
+#define SDHC2_WP IOMUX_TO_GPIO(MX31_PIN_ATA_DIOW)
+
+static int marxbot_sdhc2_get_ro(struct device *dev)
+{
+	return gpio_get_value(SDHC2_WP);
+}
+
+static int marxbot_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
+		void *data)
+{
+	return request_irq(gpio_to_irq(SDHC2_CD), detect_irq,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+		"sdhc2-card-detect", data);
+}
+
+static void marxbot_sdhc2_exit(struct device *dev, void *data)
+{
+	free_irq(gpio_to_irq(SDHC2_CD), data);
+}
+
+static struct imxmmc_platform_data sdhc2_pdata = {
+	.get_ro	= marxbot_sdhc2_get_ro,
+	.init	= marxbot_sdhc2_init,
+	.exit	= marxbot_sdhc2_exit,
+};
+
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -55,4 +85,6 @@ void __init mx31moboard_marxbot_init(void)
 
 	mxc_iomux_setup_multiple_pins(marxbot_pins, ARRAY_SIZE(marxbot_pins),
 		"marxbot");
+
+	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
 }

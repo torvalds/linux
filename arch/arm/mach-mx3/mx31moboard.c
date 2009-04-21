@@ -16,7 +16,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/memory.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
@@ -33,6 +35,7 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/i2c.h>
+#include <mach/mmc.h>
 
 #include "devices.h"
 
@@ -98,6 +101,33 @@ static struct imxi2c_platform_data moboard_i2c1_pdata = {
 	.bitrate = 100000,
 };
 
+#define SDHC1_CD IOMUX_TO_GPIO(MX31_PIN_ATA_CS0)
+#define SDHC1_WP IOMUX_TO_GPIO(MX31_PIN_ATA_CS1)
+
+static int moboard_sdhc1_get_ro(struct device *dev)
+{
+	return gpio_get_value(SDHC1_WP);
+}
+
+static int moboard_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
+		void *data)
+{
+	return request_irq(gpio_to_irq(SDHC1_CD), detect_irq,
+		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+		"sdhc1-card-detect", data);
+}
+
+static void moboard_sdhc1_exit(struct device *dev, void *data)
+{
+	free_irq(gpio_to_irq(SDHC1_CD), data);
+}
+
+static struct imxmmc_platform_data sdhc1_pdata = {
+	.get_ro	= moboard_sdhc1_get_ro,
+	.init	= moboard_sdhc1_init,
+	.exit	= moboard_sdhc1_exit,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
@@ -120,6 +150,8 @@ static void __init mxc_board_init(void)
 
 	mxc_register_device(&mxc_i2c_device0, &moboard_i2c0_pdata);
 	mxc_register_device(&mxc_i2c_device1, &moboard_i2c1_pdata);
+
+	mxc_register_device(&mxcsdhc_device0, &sdhc1_pdata);
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
