@@ -2724,13 +2724,18 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			kvm_set_cr4(vcpu, kvm_register_read(vcpu, reg));
 			skip_emulated_instruction(vcpu);
 			return 1;
-		case 8:
-			kvm_set_cr8(vcpu, kvm_register_read(vcpu, reg));
-			skip_emulated_instruction(vcpu);
-			if (irqchip_in_kernel(vcpu->kvm))
-				return 1;
-			kvm_run->exit_reason = KVM_EXIT_SET_TPR;
-			return 0;
+		case 8: {
+				u8 cr8_prev = kvm_get_cr8(vcpu);
+				u8 cr8 = kvm_register_read(vcpu, reg);
+				kvm_set_cr8(vcpu, cr8);
+				skip_emulated_instruction(vcpu);
+				if (irqchip_in_kernel(vcpu->kvm))
+					return 1;
+				if (cr8_prev <= cr8)
+					return 1;
+				kvm_run->exit_reason = KVM_EXIT_SET_TPR;
+				return 0;
+			}
 		};
 		break;
 	case 2: /* clts */

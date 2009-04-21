@@ -1862,8 +1862,12 @@ static int emulate_on_interception(struct vcpu_svm *svm,
 
 static int cr8_write_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
+	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
+	/* instruction emulation calls kvm_set_cr8() */
 	emulate_instruction(&svm->vcpu, NULL, 0, 0, 0);
 	if (irqchip_in_kernel(svm->vcpu.kvm))
+		return 1;
+	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
 		return 1;
 	kvm_run->exit_reason = KVM_EXIT_SET_TPR;
 	return 0;
