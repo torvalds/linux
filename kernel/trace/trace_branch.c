@@ -155,6 +155,13 @@ static enum print_line_t trace_branch_print(struct trace_iterator *iter,
 	return TRACE_TYPE_HANDLED;
 }
 
+static void branch_print_header(struct seq_file *s)
+{
+	seq_puts(s, "#           TASK-PID    CPU#    TIMESTAMP  CORRECT"
+		"  FUNC:FILE:LINE\n");
+	seq_puts(s, "#              | |       |          |         |   "
+		"    |\n");
+}
 
 static struct trace_event trace_branch_event = {
 	.type		= TRACE_BRANCH,
@@ -169,6 +176,7 @@ static struct tracer branch_trace __read_mostly =
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest	= trace_selftest_startup_branch,
 #endif /* CONFIG_FTRACE_SELFTEST */
+	.print_header	= branch_print_header,
 };
 
 __init static int init_branch_tracer(void)

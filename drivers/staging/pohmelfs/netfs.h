@@ -87,6 +87,7 @@ enum {
 	POHMELFS_FLAGS_DEL,     /* Network state control message for DEL */
 	POHMELFS_FLAGS_SHOW,    /* Network state control message for SHOW */
 	POHMELFS_FLAGS_CRYPTO,	/* Crypto data control message */
+	POHMELFS_FLAGS_MODIFY,	/* Network state modification message */
 };
 
 /*
@@ -116,16 +117,20 @@ struct pohmelfs_crypto
 	unsigned char		data[0];	/* Algorithm string, key and IV */
 };
 
+#define POHMELFS_IO_PERM_READ		(1<<0)
+#define POHMELFS_IO_PERM_WRITE		(1<<1)
+
 /*
  * Configuration command used to create table of different remote servers.
  */
 struct pohmelfs_ctl
 {
-	unsigned int		idx;		/* Config index */
-	unsigned int		type;		/* Socket type */
-	unsigned int		proto;		/* Socket protocol */
-	unsigned int		addrlen;	/* Size of the address */
-	unsigned short		unused;		/* Align structure by 4 bytes */
+	__u32			idx;		/* Config index */
+	__u32			type;		/* Socket type */
+	__u32			proto;		/* Socket protocol */
+	__u16			addrlen;	/* Size of the address */
+	__u16			perm;		/* IO permission */
+	__u16			prio;		/* IO priority */
 	struct saddr		addr;		/* Remote server address */
 };
 
@@ -920,12 +925,6 @@ static inline void pohmelfs_mcache_put(struct pohmelfs_sb *psb,
 	if (atomic_dec_and_test(&m->refcnt))
 		pohmelfs_mcache_free(psb, m);
 }
-
-int pohmelfs_ftrans_init(void);
-void pohmelfs_ftrans_exit(void);
-void pohmelfs_ftrans_update(u64 id);
-int pohmelfs_ftrans_check(u64 id);
-void pohmelfs_ftrans_clean(u64 id);
 
 #endif /* __KERNEL__*/
 

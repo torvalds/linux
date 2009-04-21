@@ -328,7 +328,7 @@ static int pohmelfs_sync_remote_dir(struct pohmelfs_inode *pi)
 {
 	struct inode *inode = &pi->vfs_inode;
 	struct pohmelfs_sb *psb = POHMELFS_SB(inode->i_sb);
-	long ret = msecs_to_jiffies(25000);
+	long ret = psb->wait_on_page_timeout;
 	int err;
 
 	dprintk("%s: dir: %llu, state: %lx: remote_synced: %d.\n",
@@ -389,11 +389,11 @@ static int pohmelfs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	dprintk("%s: parent: %llu, fpos: %llu, hash: %08lx.\n",
 			__func__, pi->ino, (u64)file->f_pos,
 			(unsigned long)file->private_data);
-
+#if 0
 	err = pohmelfs_data_lock(pi, 0, ~0, POHMELFS_READ_LOCK);
 	if (err)
 		return err;
-
+#endif
 	err = pohmelfs_sync_remote_dir(pi);
 	if (err)
 		return err;
@@ -513,10 +513,6 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 
 	need_lock = pohmelfs_need_lock(parent, lock_type);
 
-	err = pohmelfs_data_lock(parent, 0, ~0, lock_type);
-	if (err)
-		goto out;
-
 	str.hash = jhash(dentry->d_name.name, dentry->d_name.len, 0);
 
 	mutex_lock(&parent->offset_lock);
@@ -525,8 +521,8 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 		ino = n->ino;
 	mutex_unlock(&parent->offset_lock);
 
-	dprintk("%s: 1 ino: %lu, inode: %p, name: '%s', hash: %x, parent_state: %lx.\n",
-			__func__, ino, inode, str.name, str.hash, parent->state);
+	dprintk("%s: start ino: %lu, inode: %p, name: '%s', hash: %x, parent_state: %lx, need_lock: %d.\n",
+			__func__, ino, inode, str.name, str.hash, parent->state, need_lock);
 
 	if (ino) {
 		inode = ilookup(dir->i_sb, ino);
@@ -534,7 +530,7 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 			goto out;
 	}
 
-	dprintk("%s: dir: %p, dir_ino: %llu, name: '%s', len: %u, dir_state: %lx, ino: %lu.\n",
+	dprintk("%s: no inode dir: %p, dir_ino: %llu, name: '%s', len: %u, dir_state: %lx, ino: %lu.\n",
 			__func__, dir, parent->ino,
 			str.name, str.len, parent->state, ino);
 
@@ -542,6 +538,10 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 		if (!need_lock)
 			goto out;
 	}
+
+	err = pohmelfs_data_lock(parent, 0, ~0, lock_type);
+	if (err)
+		goto out;
 
 	err = pohmelfs_lookup_single(parent, &str, ino);
 	if (err)
@@ -557,10 +557,10 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 
 	if (ino) {
 		inode = ilookup(dir->i_sb, ino);
-		printk("%s: second lookup ino: %lu, inode: %p, name: '%s', hash: %x.\n",
+		dprintk("%s: second lookup ino: %lu, inode: %p, name: '%s', hash: %x.\n",
 				__func__, ino, inode, str.name, str.hash);
 		if (!inode) {
-			printk("%s: No inode for ino: %lu, name: '%s', hash: %x.\n",
+			dprintk("%s: No inode for ino: %lu, name: '%s', hash: %x.\n",
 				__func__, ino, str.name, str.hash);
 			//return NULL;
 			return ERR_PTR(-EACCES);

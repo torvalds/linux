@@ -652,7 +652,7 @@ next_desc:
 
 	iface = &intf->altsetting[0];
 	ep = &iface->endpoint[0].desc;
-	if (!usb_endpoint_is_int_in(ep)) {
+	if (!ep || !usb_endpoint_is_int_in(ep)) {
 		rv = -EINVAL;
 		goto err;
 	}

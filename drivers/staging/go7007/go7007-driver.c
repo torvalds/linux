@@ -268,21 +268,6 @@ int go7007_register_encoder(struct go7007 *go)
 			init_i2c_module(&go->i2c_adapter,
 					go->board_info->i2c_devs[i].id,
 					go->board_info->i2c_devs[i].addr);
-#ifdef TUNER_SET_TYPE_ADDR
-		if (go->tuner_type >= 0) {
-			struct tuner_setup tun_setup = {
-				.mode_mask	= T_ANALOG_TV,
-				.addr		= ADDR_UNSET,
-				.type		= go->tuner_type
-			};
-			i2c_clients_command(&go->i2c_adapter,
-				TUNER_SET_TYPE_ADDR, &tun_setup);
-		}
-#else
-		if (go->tuner_type >= 0)
-			i2c_clients_command(&go->i2c_adapter,
-				TUNER_SET_TYPE, &go->tuner_type);
-#endif
 		if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
 			i2c_clients_command(&go->i2c_adapter,
 				DECODER_SET_CHANNEL, &go->channel_number);

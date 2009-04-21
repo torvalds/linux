@@ -169,3 +169,62 @@ three different ways to find such a match:
       be probed later if another device registers.  (Which is OK, since
       this interface is only for use with non-hotpluggable devices.)
 
+
+Early Platform Devices and Drivers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The early platform interfaces provide platform data to platform device
+drivers early on during the system boot. The code is built on top of the
+early_param() command line parsing and can be executed very early on.
+
+Example: "earlyprintk" class early serial console in 6 steps
+
+1. Registering early platform device data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The architecture code registers platform device data using the function
+early_platform_add_devices(). In the case of early serial console this
+should be hardware configuration for the serial port. Devices registered
+at this point will later on be matched against early platform drivers.
+
+2. Parsing kernel command line
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The architecture code calls parse_early_param() to parse the kernel
+command line. This will execute all matching early_param() callbacks.
+User specified early platform devices will be registered at this point.
+For the early serial console case the user can specify port on the
+kernel command line as "earlyprintk=serial.0" where "earlyprintk" is
+the class string, "serial" is the name of the platfrom driver and
+0 is the platform device id. If the id is -1 then the dot and the
+id can be omitted.
+
+3. Installing early platform drivers belonging to a certain class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The architecture code may optionally force registration of all early
+platform drivers belonging to a certain class using the function
+early_platform_driver_register_all(). User specified devices from
+step 2 have priority over these. This step is omitted by the serial
+driver example since the early serial driver code should be disabled
+unless the user has specified port on the kernel command line.
+
+4. Early platform driver registration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Compiled-in platform drivers making use of early_platform_init() are
+automatically registered during step 2 or 3. The serial driver example
+should use early_platform_init("earlyprintk", &platform_driver).
+
+5. Probing of early platform drivers belonging to a certain class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The architecture code calls early_platform_driver_probe() to match
+registered early platform devices associated with a certain class with
+registered early platform drivers. Matched devices will get probed().
+This step can be executed at any point during the early boot. As soon
+as possible may be good for the serial port case.
+
+6. Inside the early platform driver probe()
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The driver code needs to take special care during early boot, especially
+when it comes to memory allocation and interrupt registration. The code
+in the probe() function can use is_early_platform_device() to check if
+it is called at early platform device or at the regular platform device
+time. The early serial driver performs register_console() at this point.
+
+For further information, see <linux/platform_device.h>.

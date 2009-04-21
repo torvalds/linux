@@ -603,10 +603,9 @@ static void ATEN2011_bulk_out_data_callback(struct urb *urb)
 
 	tty = tty_port_tty_get(&ATEN2011_port->port->port);
 
-	if (tty && ATEN2011_port->open) {
+	if (tty && ATEN2011_port->open)
 		/* tell the tty driver that something has changed */
-		wake_up_interruptible(&tty->write_wait);
-	}
+		tty_wakeup(tty);
 
 	/* schedule_work(&ATEN2011_port->port->work); */
 	tty_kref_put(tty);
@@ -825,12 +824,6 @@ static int ATEN2011_open(struct tty_struct *tty, struct usb_serial_port *port,
 	status = 0;
 	status = set_reg_sync(port, ATEN2011_port->ControlRegOffset, Data);
 
-	/* force low_latency on so that our tty_push actually forces *
-	 * the data through,otherwise it is scheduled, and with      *
-	 * high data rates (like with OHCI) data can get lost.       */
-
-	if (tty)
-		tty->low_latency = 1;
 	/*
 	 * Check to see if we've set up our endpoint info yet
 	 * (can't set it up in ATEN2011_startup as the structures
@@ -1473,22 +1466,7 @@ static void ATEN2011_set_termios(struct tty_struct *tty,
 
 	cflag = tty->termios->c_cflag;
 
-	if (!cflag) {
-		dbg("%s %s", __func__, "cflag is NULL");
-		return;
-	}
-
-	/* check that they really want us to change something */
-	if (old_termios) {
-		if ((cflag == old_termios->c_cflag) &&
-		    (RELEVANT_IFLAG(tty->termios->c_iflag) ==
-		     RELEVANT_IFLAG(old_termios->c_iflag))) {
-			dbg("%s", "Nothing to change");
-			return;
-		}
-	}
-
-	dbg("%s - clfag %08x iflag %08x", __func__,
+	dbg("%s - cflag %08x iflag %08x", __func__,
 	    tty->termios->c_cflag, RELEVANT_IFLAG(tty->termios->c_iflag));
 
 	if (old_termios) {

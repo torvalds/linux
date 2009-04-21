@@ -345,6 +345,19 @@ static void slic_init_adapter(struct net_device *netdev,
 	return;
 }
 
+static const struct net_device_ops slic_netdev_ops = {
+	.ndo_open		= slic_entry_open,
+	.ndo_stop		= slic_entry_halt,
+	.ndo_start_xmit		= slic_xmit_start,
+	.ndo_do_ioctl		= slic_ioctl,
+	.ndo_set_mac_address	= slic_mac_set_address,
+	.ndo_get_stats		= slic_get_stats,
+	.ndo_set_multicast_list	= slic_mcast_set_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
 static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 			       const struct pci_device_id *pci_tbl_entry)
 {
@@ -442,13 +455,7 @@ static int __devinit slic_entry_probe(struct pci_dev *pcidev,
 
 	netdev->base_addr = (unsigned long)adapter->memorybase;
 	netdev->irq = adapter->irq;
-	netdev->open = slic_entry_open;
-	netdev->stop = slic_entry_halt;
-	netdev->hard_start_xmit = slic_xmit_start;
-	netdev->do_ioctl = slic_ioctl;
-	netdev->set_mac_address = slic_mac_set_address;
-	netdev->get_stats = slic_get_stats;
-	netdev->set_multicast_list = slic_mcast_set_list;
+	netdev->netdev_ops = &slic_netdev_ops;
 
 	slic_debug_adapter_create(adapter);
 
@@ -1260,7 +1267,7 @@ static int slic_mcast_add_list(struct adapter *adapter, char *address)
 	}
 
 	/* Doesn't already exist.  Allocate a structure to hold it */
-	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_KERNEL);
+	mcaddr = kmalloc(sizeof(struct mcast_address), GFP_ATOMIC);
 	if (mcaddr == NULL)
 		return 1;
 
@@ -2284,7 +2291,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 	}
 	if (!physcard) {
 		/* no structure allocated for this physical card yet */
-		physcard = kzalloc(sizeof(struct physcard), GFP_KERNEL);
+		physcard = kzalloc(sizeof(struct physcard), GFP_ATOMIC);
 		ASSERT(physcard);
 
 		physcard->next = slic_global.phys_card;

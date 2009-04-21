@@ -456,34 +456,25 @@ int netfs_trans_finish_send(struct netfs_trans *t, struct pohmelfs_sb *psb)
 		__func__, t, t->gen, t->iovec.iov_len, t->page_num, psb->active_state);
 #endif
 	mutex_lock(&psb->state_lock);
-
-	if ((t->flags & NETFS_TRANS_SINGLE_DST) && psb->active_state) {
-		st = &psb->active_state->state;
-
-		err = -EPIPE;
-		if (netfs_state_poll(st) & POLLOUT) {
-			err = netfs_trans_push_dst(t, st);
-			if (!err) {
-				err = netfs_trans_send(t, st);
-				if (err) {
-					netfs_trans_drop_last(t, st);
-				} else {
-					pohmelfs_switch_active(psb);
-					goto out;
-				}
-			}
-		}
-		pohmelfs_switch_active(psb);
-	}
-
 	list_for_each_entry(c, &psb->state_list, config_entry) {
 		st = &c->state;
+
+		if (t->flags & NETFS_TRANS_SINGLE_DST) {
+			if (!(st->ctl.perm & POHMELFS_IO_PERM_READ))
+				continue;
+		} else {
+			if (!(st->ctl.perm & POHMELFS_IO_PERM_WRITE))
+				continue;
+		}
+
+		if (psb->active_state && (psb->active_state->state.ctl.prio >= st->ctl.prio))
+			st = &psb->active_state->state;
 
 		err = netfs_trans_push(t, st);
 		if (!err && (t->flags & NETFS_TRANS_SINGLE_DST))
 			break;
 	}
-out:
+
 	mutex_unlock(&psb->state_lock);
 #if 0
 	dprintk("%s: fully sent t: %p, gen: %u, size: %u, page_num: %u, err: %d.\n",
@@ -500,8 +491,6 @@ int netfs_trans_finish(struct netfs_trans *t, struct pohmelfs_sb *psb)
 	struct netfs_cmd *cmd = t->iovec.iov_base;
 
 	t->gen = atomic_inc_return(&psb->trans_gen);
-
-	pohmelfs_ftrans_clean(t->gen);
 
 	cmd->size = t->iovec.iov_len - sizeof(struct netfs_cmd) +
 		t->attached_size + t->attached_pages * sizeof(struct netfs_cmd);
