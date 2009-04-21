@@ -3309,6 +3309,34 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	}
 }
 
+static void vmx_intr_inject(struct kvm_vcpu *vcpu)
+{
+	/* try to reinject previous events if any */
+	if (vcpu->arch.nmi_injected) {
+		vmx_inject_nmi(vcpu);
+		return;
+	}
+
+	if (vcpu->arch.interrupt.pending) {
+		vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
+		return;
+	}
+
+	/* try to inject new event if pending */
+	if (vcpu->arch.nmi_pending) {
+		if (vcpu->arch.nmi_window_open) {
+			vcpu->arch.nmi_pending = false;
+			vcpu->arch.nmi_injected = true;
+			vmx_inject_nmi(vcpu);
+		}
+	} else if (kvm_cpu_has_interrupt(vcpu)) {
+		if (vcpu->arch.interrupt_window_open) {
+			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
+			vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
+		}
+	}
+}
+
 static void vmx_intr_assist(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
@@ -3323,32 +3351,9 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 				GUEST_INTR_STATE_STI |
 				GUEST_INTR_STATE_MOV_SS);
 
-	if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
-		if (vcpu->arch.interrupt.pending) {
-			enable_nmi_window(vcpu);
-		} else if (vcpu->arch.nmi_window_open) {
-			vcpu->arch.nmi_pending = false;
-			vcpu->arch.nmi_injected = true;
-		} else {
-			enable_nmi_window(vcpu);
-			return;
-		}
-	}
+	vmx_intr_inject(vcpu);
 
-	if (vcpu->arch.nmi_injected) {
-		vmx_inject_nmi(vcpu);
-		goto out;
-	}
-
-	if (!vcpu->arch.interrupt.pending && kvm_cpu_has_interrupt(vcpu)) {
-		if (vcpu->arch.interrupt_window_open)
-			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
-	}
-
-	if (vcpu->arch.interrupt.pending)
-		vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
-
-out:
+	/* enable NMI/IRQ window open exits if needed */
 	if (vcpu->arch.nmi_pending)
 		enable_nmi_window(vcpu);
 	else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
