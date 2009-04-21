@@ -1024,6 +1024,9 @@ static void alc_subsystem_id(struct hda_codec *codec,
 	if (codec->vendor_id == 0x10ec0260)
 		nid = 0x17;
 	ass = snd_hda_codec_get_pincfg(codec, nid);
+	snd_printd("realtek: No valid SSID, "
+		   "checking pincfg 0x%08x for NID 0x%x\n",
+		   nid, ass);
 	if (!(ass & 1) && !(ass & 0x100000))
 		return;
 	if ((ass >> 30) != 1)	/* no physical connection */
@@ -1038,6 +1041,8 @@ static void alc_subsystem_id(struct hda_codec *codec,
 	if (((ass >> 16) & 0xf) != tmp)
 		return;
 do_sku:
+	snd_printd("realtek: Enabling init ASM_ID=0x%04x CODEC_ID=%08x\n",
+		   ass & 0xffff, codec->vendor_id);
 	/*
 	 * 0 : override
 	 * 1 :	Swap Jack

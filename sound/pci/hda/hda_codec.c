@@ -175,14 +175,23 @@ unsigned int snd_hda_codec_read(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int verb, unsigned int parm)
 {
 	struct hda_bus *bus = codec->bus;
-	unsigned int res;
+	unsigned int cmd, res;
+	int repeated = 0;
 
-	res = make_codec_cmd(codec, nid, direct, verb, parm);
+	cmd = make_codec_cmd(codec, nid, direct, verb, parm);
 	snd_hda_power_up(codec);
 	mutex_lock(&bus->cmd_mutex);
-	if (!bus->ops.command(bus, res))
+ again:
+	if (!bus->ops.command(bus, cmd)) {
 		res = bus->ops.get_response(bus);
-	else
+		if (res == -1 && bus->rirb_error) {
+			if (repeated++ < 1) {
+				snd_printd(KERN_WARNING "hda_codec: "
+					   "Trying verb 0x%08x again\n", cmd);
+				goto again;
+			}
+		}
+	} else
 		res = (unsigned int)-1;
 	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
@@ -1056,6 +1065,8 @@ EXPORT_SYMBOL_HDA(snd_hda_codec_cleanup_stream);
 /* FIXME: more better hash key? */
 #define HDA_HASH_KEY(nid,dir,idx) (u32)((nid) + ((idx) << 16) + ((dir) << 24))
 #define HDA_HASH_PINCAP_KEY(nid) (u32)((nid) + (0x02 << 24))
+#define HDA_HASH_PARPCM_KEY(nid) (u32)((nid) + (0x03 << 24))
+#define HDA_HASH_PARSTR_KEY(nid) (u32)((nid) + (0x04 << 24))
 #define INFO_AMP_CAPS	(1<<0)
 #define INFO_AMP_VOL(ch)	(1 << (1 + (ch)))
 
@@ -1146,18 +1157,31 @@ int snd_hda_override_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 }
 EXPORT_SYMBOL_HDA(snd_hda_override_amp_caps);
 
-u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid)
+static unsigned int
+query_caps_hash(struct hda_codec *codec, hda_nid_t nid, u32 key,
+		unsigned int (*func)(struct hda_codec *, hda_nid_t))
 {
 	struct hda_amp_info *info;
 
-	info = get_alloc_amp_hash(codec, HDA_HASH_PINCAP_KEY(nid));
+	info = get_alloc_amp_hash(codec, key);
 	if (!info)
 		return 0;
 	if (!info->head.val) {
-		info->amp_caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
 		info->head.val |= INFO_AMP_CAPS;
+		info->amp_caps = func(codec, nid);
 	}
 	return info->amp_caps;
+}
+
+static unsigned int read_pin_cap(struct hda_codec *codec, hda_nid_t nid)
+{
+	return snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
+}
+
+u32 snd_hda_query_pin_caps(struct hda_codec *codec, hda_nid_t nid)
+{
+	return query_caps_hash(codec, nid, HDA_HASH_PINCAP_KEY(nid),
+			       read_pin_cap);
 }
 EXPORT_SYMBOL_HDA(snd_hda_query_pin_caps);
 
@@ -2547,6 +2571,41 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 }
 EXPORT_SYMBOL_HDA(snd_hda_calc_stream_format);
 
+static unsigned int get_pcm_param(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int val = 0;
+	if (nid != codec->afg &&
+	    (get_wcaps(codec, nid) & AC_WCAP_FORMAT_OVRD))
+		val = snd_hda_param_read(codec, nid, AC_PAR_PCM);
+	if (!val || val == -1)
+		val = snd_hda_param_read(codec, codec->afg, AC_PAR_PCM);
+	if (!val || val == -1)
+		return 0;
+	return val;
+}
+
+static unsigned int query_pcm_param(struct hda_codec *codec, hda_nid_t nid)
+{
+	return query_caps_hash(codec, nid, HDA_HASH_PARPCM_KEY(nid),
+			       get_pcm_param);
+}
+
+static unsigned int get_stream_param(struct hda_codec *codec, hda_nid_t nid)
+{
+	unsigned int streams = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
+	if (!streams || streams == -1)
+		streams = snd_hda_param_read(codec, codec->afg, AC_PAR_STREAM);
+	if (!streams || streams == -1)
+		return 0;
+	return streams;
+}
+
+static unsigned int query_stream_param(struct hda_codec *codec, hda_nid_t nid)
+{
+	return query_caps_hash(codec, nid, HDA_HASH_PARSTR_KEY(nid),
+			       get_stream_param);
+}
+
 /**
  * snd_hda_query_supported_pcm - query the supported PCM rates and formats
  * @codec: the HDA codec
@@ -2565,15 +2624,8 @@ static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 {
 	unsigned int i, val, wcaps;
 
-	val = 0;
 	wcaps = get_wcaps(codec, nid);
-	if (nid != codec->afg && (wcaps & AC_WCAP_FORMAT_OVRD)) {
-		val = snd_hda_param_read(codec, nid, AC_PAR_PCM);
-		if (val == -1)
-			return -EIO;
-	}
-	if (!val)
-		val = snd_hda_param_read(codec, codec->afg, AC_PAR_PCM);
+	val = query_pcm_param(codec, nid);
 
 	if (ratesp) {
 		u32 rates = 0;
@@ -2595,15 +2647,9 @@ static int snd_hda_query_supported_pcm(struct hda_codec *codec, hda_nid_t nid,
 		u64 formats = 0;
 		unsigned int streams, bps;
 
-		streams = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
-		if (streams == -1)
+		streams = query_stream_param(codec, nid);
+		if (!streams)
 			return -EIO;
-		if (!streams) {
-			streams = snd_hda_param_read(codec, codec->afg,
-						     AC_PAR_STREAM);
-			if (streams == -1)
-				return -EIO;
-		}
 
 		bps = 0;
 		if (streams & AC_SUPFMT_PCM) {
@@ -2677,17 +2723,9 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 	int i;
 	unsigned int val = 0, rate, stream;
 
-	if (nid != codec->afg &&
-	    (get_wcaps(codec, nid) & AC_WCAP_FORMAT_OVRD)) {
-		val = snd_hda_param_read(codec, nid, AC_PAR_PCM);
-		if (val == -1)
-			return 0;
-	}
-	if (!val) {
-		val = snd_hda_param_read(codec, codec->afg, AC_PAR_PCM);
-		if (val == -1)
-			return 0;
-	}
+	val = query_pcm_param(codec, nid);
+	if (!val)
+		return 0;
 
 	rate = format & 0xff00;
 	for (i = 0; i < AC_PAR_PCM_RATE_BITS; i++)
@@ -2699,12 +2737,8 @@ int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 	if (i >= AC_PAR_PCM_RATE_BITS)
 		return 0;
 
-	stream = snd_hda_param_read(codec, nid, AC_PAR_STREAM);
-	if (stream == -1)
-		return 0;
-	if (!stream && nid != codec->afg)
-		stream = snd_hda_param_read(codec, codec->afg, AC_PAR_STREAM);
-	if (!stream || stream == -1)
+	stream = query_stream_param(codec, nid);
+	if (!stream)
 		return 0;
 
 	if (stream & AC_SUPFMT_PCM) {

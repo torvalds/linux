@@ -606,6 +606,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 		}
 		if (!chip->rirb.cmds) {
 			smp_rmb();
+			bus->rirb_error = 0;
 			return chip->rirb.res; /* the last value */
 		}
 		if (time_after(jiffies, timeout))
@@ -625,8 +626,10 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 		chip->irq = -1;
 		pci_disable_msi(chip->pci);
 		chip->msi = 0;
-		if (azx_acquire_irq(chip, 1) < 0)
+		if (azx_acquire_irq(chip, 1) < 0) {
+			bus->rirb_error = 1;
 			return -1;
+		}
 		goto again;
 	}
 
@@ -646,14 +649,12 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 		return -1;
 	}
 
-	snd_printk(KERN_ERR "hda_intel: azx_get_response timeout, "
-		   "switching to single_cmd mode: last cmd=0x%08x\n",
-		   chip->last_cmd);
-	chip->rirb.rp = azx_readb(chip, RIRBWP);
-	chip->rirb.cmds = 0;
-	/* switch to single_cmd mode */
-	chip->single_cmd = 1;
-	azx_free_cmd_io(chip);
+	snd_printk(KERN_ERR "hda_intel: azx_get_response timeout (ERROR): "
+		   "last cmd=0x%08x\n", chip->last_cmd);
+	spin_lock_irq(&chip->reg_lock);
+	chip->rirb.cmds = 0; /* reset the index */
+	bus->rirb_error = 1;
+	spin_unlock_irq(&chip->reg_lock);
 	return -1;
 }
 
