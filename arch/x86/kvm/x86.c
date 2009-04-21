@@ -3071,8 +3071,7 @@ static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
 {
 	return (!irqchip_in_kernel(vcpu->kvm) && !kvm_cpu_has_interrupt(vcpu) &&
 		kvm_run->request_interrupt_window &&
-		vcpu->arch.interrupt_window_open &&
-		(kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF));
+		kvm_arch_interrupt_allowed(vcpu));
 }
 
 static void post_kvm_run_save(struct kvm_vcpu *vcpu,
@@ -3085,7 +3084,7 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 		kvm_run->ready_for_interrupt_injection = 1;
 	else
 		kvm_run->ready_for_interrupt_injection =
-					(vcpu->arch.interrupt_window_open &&
+					(kvm_arch_interrupt_allowed(vcpu) &&
 					 !kvm_cpu_has_interrupt(vcpu));
 }
 
