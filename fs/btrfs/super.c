@@ -196,7 +196,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				info->max_extent = max_t(u64,
 					info->max_extent, root->sectorsize);
 				printk(KERN_INFO "btrfs: max_extent at %llu\n",
-				       info->max_extent);
+				       (unsigned long long)info->max_extent);
 			}
 			break;
 		case Opt_max_inline:
@@ -211,7 +211,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 						root->sectorsize);
 				}
 				printk(KERN_INFO "btrfs: max_inline at %llu\n",
-					info->max_inline);
+					(unsigned long long)info->max_inline);
 			}
 			break;
 		case Opt_alloc_start:
@@ -221,7 +221,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 				kfree(num);
 				printk(KERN_INFO
 					"btrfs: allocations start at %llu\n",
-					info->alloc_start);
+					(unsigned long long)info->alloc_start);
 			}
 			break;
 		case Opt_noacl:
@@ -420,11 +420,14 @@ static int btrfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (btrfs_test_opt(root, NOBARRIER))
 		seq_puts(seq, ",nobarrier");
 	if (info->max_extent != (u64)-1)
-		seq_printf(seq, ",max_extent=%llu", info->max_extent);
+		seq_printf(seq, ",max_extent=%llu",
+			   (unsigned long long)info->max_extent);
 	if (info->max_inline != 8192 * 1024)
-		seq_printf(seq, ",max_inline=%llu", info->max_inline);
+		seq_printf(seq, ",max_inline=%llu",
+			   (unsigned long long)info->max_inline);
 	if (info->alloc_start != 0)
-		seq_printf(seq, ",alloc_start=%llu", info->alloc_start);
+		seq_printf(seq, ",alloc_start=%llu",
+			   (unsigned long long)info->alloc_start);
 	if (info->thread_pool_size !=  min_t(unsigned long,
 					     num_online_cpus() + 2, 8))
 		seq_printf(seq, ",thread_pool=%d", info->thread_pool_size);

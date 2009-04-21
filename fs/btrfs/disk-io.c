@@ -1671,7 +1671,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (features) {
 		printk(KERN_ERR "BTRFS: couldn't mount because of "
 		       "unsupported optional features (%Lx).\n",
-		       features);
+		       (unsigned long long)features);
 		err = -EINVAL;
 		goto fail_iput;
 	}
@@ -1681,7 +1681,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!(sb->s_flags & MS_RDONLY) && features) {
 		printk(KERN_ERR "BTRFS: couldn't mount RDWR because of "
 		       "unsupported option features (%Lx).\n",
-		       features);
+		       (unsigned long long)features);
 		err = -EINVAL;
 		goto fail_iput;
 	}
@@ -2273,7 +2273,7 @@ int close_ctree(struct btrfs_root *root)
 
 	if (fs_info->delalloc_bytes) {
 		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
-		       fs_info->delalloc_bytes);
+		       (unsigned long long)fs_info->delalloc_bytes);
 	}
 	if (fs_info->total_ref_cache_size) {
 		printk(KERN_INFO "btrfs: at umount reference cache size %llu\n",

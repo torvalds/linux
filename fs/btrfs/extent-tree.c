@@ -1844,10 +1844,14 @@ again:
 		printk(KERN_ERR "no space left, need %llu, %llu delalloc bytes"
 		       ", %llu bytes_used, %llu bytes_reserved, "
 		       "%llu bytes_pinned, %llu bytes_readonly, %llu may use"
-		       "%llu total\n", bytes, data_sinfo->bytes_delalloc,
-		       data_sinfo->bytes_used, data_sinfo->bytes_reserved,
-		       data_sinfo->bytes_pinned, data_sinfo->bytes_readonly,
-		       data_sinfo->bytes_may_use, data_sinfo->total_bytes);
+		       "%llu total\n", (unsigned long long)bytes,
+		       (unsigned long long)data_sinfo->bytes_delalloc,
+		       (unsigned long long)data_sinfo->bytes_used,
+		       (unsigned long long)data_sinfo->bytes_reserved,
+		       (unsigned long long)data_sinfo->bytes_pinned,
+		       (unsigned long long)data_sinfo->bytes_readonly,
+		       (unsigned long long)data_sinfo->bytes_may_use,
+		       (unsigned long long)data_sinfo->total_bytes);
 		return -ENOSPC;
 	}
 	data_sinfo->bytes_may_use += bytes;
@@ -2824,9 +2828,12 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
 				    info->bytes_pinned - info->bytes_reserved),
 	       (info->full) ? "" : "not ");
 	printk(KERN_INFO "space_info total=%llu, pinned=%llu, delalloc=%llu,"
-	       " may_use=%llu, used=%llu\n", info->total_bytes,
-	       info->bytes_pinned, info->bytes_delalloc, info->bytes_may_use,
-	       info->bytes_used);
+	       " may_use=%llu, used=%llu\n",
+	       (unsigned long long)info->total_bytes,
+	       (unsigned long long)info->bytes_pinned,
+	       (unsigned long long)info->bytes_delalloc,
+	       (unsigned long long)info->bytes_may_use,
+	       (unsigned long long)info->bytes_used);
 
 	down_read(&info->groups_sem);
 	list_for_each_entry(cache, &info->block_groups, list) {
