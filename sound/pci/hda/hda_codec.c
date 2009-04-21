@@ -2348,7 +2348,8 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 		if (wcaps & AC_WCAP_POWER) {
 			unsigned int wid_type = (wcaps & AC_WCAP_TYPE) >>
 				AC_WCAP_TYPE_SHIFT;
-			if (wid_type == AC_WID_PIN) {
+			if (power_state == AC_PWRST_D3 &&
+			    wid_type == AC_WID_PIN) {
 				unsigned int pincap;
 				/*
 				 * don't power down the widget if it controls
@@ -2360,7 +2361,7 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 						nid, 0,
 						AC_VERB_GET_EAPD_BTLENABLE, 0);
 					eapd &= 0x02;
-					if (power_state == AC_PWRST_D3 && eapd)
+					if (eapd)
 						continue;
 				}
 			}
