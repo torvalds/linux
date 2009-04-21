@@ -1396,6 +1396,64 @@ mpt2sas_base_put_smid_target_assist(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 }
 
 /**
+ * _base_display_dell_branding - Disply branding string
+ * @ioc: per adapter object
+ *
+ * Return nothing.
+ */
+static void
+_base_display_dell_branding(struct MPT2SAS_ADAPTER *ioc)
+{
+	char dell_branding[MPT2SAS_DELL_BRANDING_SIZE];
+
+	if (ioc->pdev->subsystem_vendor != PCI_VENDOR_ID_DELL)
+		return;
+
+	memset(dell_branding, 0, MPT2SAS_DELL_BRANDING_SIZE);
+	switch (ioc->pdev->subsystem_device) {
+	case MPT2SAS_DELL_6GBPS_SAS_HBA_SSDID:
+		strncpy(dell_branding, MPT2SAS_DELL_6GBPS_SAS_HBA_BRANDING,
+		    MPT2SAS_DELL_BRANDING_SIZE - 1);
+		break;
+	case MPT2SAS_DELL_PERC_H200_ADAPTER_SSDID:
+		strncpy(dell_branding, MPT2SAS_DELL_PERC_H200_ADAPTER_BRANDING,
+		    MPT2SAS_DELL_BRANDING_SIZE - 1);
+		break;
+	case MPT2SAS_DELL_PERC_H200_INTEGRATED_SSDID:
+		strncpy(dell_branding,
+		    MPT2SAS_DELL_PERC_H200_INTEGRATED_BRANDING,
+		    MPT2SAS_DELL_BRANDING_SIZE - 1);
+		break;
+	case MPT2SAS_DELL_PERC_H200_MODULAR_SSDID:
+		strncpy(dell_branding,
+		    MPT2SAS_DELL_PERC_H200_MODULAR_BRANDING,
+		    MPT2SAS_DELL_BRANDING_SIZE - 1);
+		break;
+	case MPT2SAS_DELL_PERC_H200_EMBEDDED_SSDID:
+		strncpy(dell_branding,
+		    MPT2SAS_DELL_PERC_H200_EMBEDDED_BRANDING,
+		    MPT2SAS_DELL_BRANDING_SIZE - 1);
+		break;
+	case MPT2SAS_DELL_PERC_H200_SSDID:
+		strncpy(dell_branding, MPT2SAS_DELL_PERC_H200_BRANDING,
+		    MPT2SAS_DELL_BRANDING_SIZE - 1);
+		break;
+	case MPT2SAS_DELL_6GBPS_SAS_SSDID:
+		strncpy(dell_branding, MPT2SAS_DELL_6GBPS_SAS_BRANDING,
+		    MPT2SAS_DELL_BRANDING_SIZE - 1);
+		break;
+	default:
+		sprintf(dell_branding, "0x%4X", ioc->pdev->subsystem_device);
+		break;
+	}
+
+	printk(MPT2SAS_INFO_FMT "%s: Vendor(0x%04X), Device(0x%04X),"
+	    " SSVID(0x%04X), SSDID(0x%04X)\n", ioc->name, dell_branding,
+	    ioc->pdev->vendor, ioc->pdev->device, ioc->pdev->subsystem_vendor,
+	    ioc->pdev->subsystem_device);
+}
+
+/**
  * _base_display_ioc_capabilities - Disply IOC's capabilities.
  * @ioc: per adapter object
  *
@@ -1435,6 +1493,8 @@ _base_display_ioc_capabilities(struct MPT2SAS_ADAPTER *ioc)
 		printk("%sTarget", i ? "," : "");
 		i++;
 	}
+
+	_base_display_dell_branding(ioc);
 
 	i = 0;
 	printk("), ");
