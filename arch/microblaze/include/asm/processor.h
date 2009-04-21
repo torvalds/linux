@@ -15,6 +15,8 @@
 #include <asm/setup.h>
 #include <asm/registers.h>
 #include <asm/segment.h>
+#include <asm/entry.h>
+#include <asm/current.h>
 
 # ifndef __ASSEMBLY__
 /* from kernel/cpu/mb.c */

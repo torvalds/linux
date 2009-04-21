@@ -31,4 +31,7 @@ DECLARE_PER_CPU(unsigned int, R11_SAVE); /* Temp variable for entry */
 DECLARE_PER_CPU(unsigned int, CURRENT_SAVE); /* Saved current pointer */
 # endif /* __ASSEMBLY__ */
 
+/* noMMU hasn't any space for args */
+# define STATE_SAVE_ARG_SPACE	(0)
+
 #endif /* _ASM_MICROBLAZE_ENTRY_H */
