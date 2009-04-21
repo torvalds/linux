@@ -213,7 +213,7 @@ static int flush(struct driver_data *drv_data)
 		while (read_SSSR(reg) & SSSR_RNE) {
 			read_SSDR(reg);
 		}
-	} while ((read_SSSR(reg) & SSSR_BSY) && limit--);
+	} while ((read_SSSR(reg) & SSSR_BSY) && --limit);
 	write_SSSR(SSSR_ROR, reg);
 
 	return limit;
@@ -484,7 +484,7 @@ static int wait_ssp_rx_stall(void const __iomem *ioaddr)
 {
 	unsigned long limit = loops_per_jiffy << 1;
 
-	while ((read_SSSR(ioaddr) & SSSR_BSY) && limit--)
+	while ((read_SSSR(ioaddr) & SSSR_BSY) && --limit)
 		cpu_relax();
 
 	return limit;
@@ -494,7 +494,7 @@ static int wait_dma_channel_stop(int channel)
 {
 	unsigned long limit = loops_per_jiffy << 1;
 
-	while (!(DCSR(channel) & DCSR_STOPSTATE) && limit--)
+	while (!(DCSR(channel) & DCSR_STOPSTATE) && --limit)
 		cpu_relax();
 
 	return limit;
