@@ -2065,6 +2065,8 @@ F:	drivers/infiniband/hw/ehca/
 EMBEDDED LINUX
 P:	Paul Gortmaker
 M:	paul.gortmaker@windriver.com
+P:	Matt Mackall
+M:	mpm@selenic.com
 P:	David Woodhouse
 M:	dwmw2@infradead.org
 L:	linux-embedded@vger.kernel.org
