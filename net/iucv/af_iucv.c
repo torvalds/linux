@@ -1124,6 +1124,8 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 		return;
 	}
 
+	spin_lock(&iucv->message_q.lock);
+
 	if (!list_empty(&iucv->message_q.list) ||
 	    !skb_queue_empty(&iucv->backlog_skb_q))
 		goto save_message;
@@ -1137,9 +1139,8 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 	if (!skb)
 		goto save_message;
 
-	spin_lock(&iucv->message_q.lock);
 	iucv_process_message(sk, skb, path, msg);
-	spin_unlock(&iucv->message_q.lock);
+	goto out_unlock;
 
 	return;
 
@@ -1150,8 +1151,9 @@ save_message:
 	save_msg->path = path;
 	save_msg->msg = *msg;
 
-	spin_lock(&iucv->message_q.lock);
 	list_add_tail(&save_msg->list, &iucv->message_q.list);
+
+out_unlock:
 	spin_unlock(&iucv->message_q.lock);
 }
 
