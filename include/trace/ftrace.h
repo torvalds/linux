@@ -123,7 +123,7 @@
 #define TP_printk(fmt, args...) fmt "\n", args
 
 #undef __get_str
-#define __get_str(field)	(char *)__entry + __entry->__str_loc_##field
+#define __get_str(field)	((char *)__entry + __entry->__str_loc_##field)
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
