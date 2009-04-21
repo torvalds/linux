@@ -2535,21 +2535,20 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 		vmx_inject_nmi(vcpu);
 		if (vcpu->arch.nmi_pending)
 			enable_nmi_window(vcpu);
-		else if (vcpu->arch.irq_summary
-			 || kvm_run->request_interrupt_window)
+		else if (kvm_cpu_has_interrupt(vcpu) ||
+			 kvm_run->request_interrupt_window)
 			enable_irq_window(vcpu);
 		return;
 	}
 
 	if (vcpu->arch.interrupt_window_open) {
-		if (vcpu->arch.irq_summary && !vcpu->arch.interrupt.pending)
-			kvm_queue_interrupt(vcpu, kvm_pop_irq(vcpu));
+		if (kvm_cpu_has_interrupt(vcpu) && !vcpu->arch.interrupt.pending)
+			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
 
 		if (vcpu->arch.interrupt.pending)
 			vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
-	}
-	if (!vcpu->arch.interrupt_window_open &&
-	    (vcpu->arch.irq_summary || kvm_run->request_interrupt_window))
+	} else if(kvm_cpu_has_interrupt(vcpu) ||
+		  kvm_run->request_interrupt_window)
 		enable_irq_window(vcpu);
 }
 
@@ -2976,8 +2975,9 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
 	 */
-	if (kvm_run->request_interrupt_window &&
-	    !vcpu->arch.irq_summary) {
+	if (!irqchip_in_kernel(vcpu->kvm) &&
+	    kvm_run->request_interrupt_window &&
+	    !kvm_cpu_has_interrupt(vcpu)) {
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		return 0;
 	}

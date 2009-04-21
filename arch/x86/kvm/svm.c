@@ -2091,8 +2091,9 @@ static int interrupt_window_interception(struct vcpu_svm *svm,
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
 	 */
-	if (kvm_run->request_interrupt_window &&
-	    !svm->vcpu.arch.irq_summary) {
+	if (!irqchip_in_kernel(svm->vcpu.kvm) &&
+	    kvm_run->request_interrupt_window &&
+	    !kvm_cpu_has_interrupt(&svm->vcpu)) {
 		++svm->vcpu.stat.irq_window_exits;
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		return 0;
@@ -2373,7 +2374,8 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 		 (svm->vmcb->save.rflags & X86_EFLAGS_IF) &&
 		 (svm->vcpu.arch.hflags & HF_GIF_MASK));
 
-	if (svm->vcpu.arch.interrupt_window_open && svm->vcpu.arch.irq_summary)
+	if (svm->vcpu.arch.interrupt_window_open &&
+	    kvm_cpu_has_interrupt(&svm->vcpu))
 		/*
 		 * If interrupts enabled, and not blocked by sti or mov ss. Good.
 		 */
@@ -2383,7 +2385,8 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 	 * Interrupts blocked.  Wait for unblock.
 	 */
 	if (!svm->vcpu.arch.interrupt_window_open &&
-	    (svm->vcpu.arch.irq_summary || kvm_run->request_interrupt_window))
+	    (kvm_cpu_has_interrupt(&svm->vcpu) ||
+	     kvm_run->request_interrupt_window))
 		svm_set_vintr(svm);
 	else
 		svm_clear_vintr(svm);

@@ -3069,7 +3069,7 @@ EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
 static int dm_request_for_irq_injection(struct kvm_vcpu *vcpu,
 					  struct kvm_run *kvm_run)
 {
-	return (!vcpu->arch.irq_summary &&
+	return (!irqchip_in_kernel(vcpu->kvm) && !kvm_cpu_has_interrupt(vcpu) &&
 		kvm_run->request_interrupt_window &&
 		vcpu->arch.interrupt_window_open &&
 		(kvm_x86_ops->get_rflags(vcpu) & X86_EFLAGS_IF));
@@ -3086,7 +3086,7 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 	else
 		kvm_run->ready_for_interrupt_injection =
 					(vcpu->arch.interrupt_window_open &&
-					 vcpu->arch.irq_summary == 0);
+					 !kvm_cpu_has_interrupt(vcpu));
 }
 
 static void vapic_enter(struct kvm_vcpu *vcpu)
