@@ -313,6 +313,7 @@ static int __filter_add_pred(struct ftrace_event_call *call,
 {
 	struct ftrace_event_field *field;
 	filter_pred_fn_t fn;
+	unsigned long long val;
 
 	field = find_event_field(call, pred->field_name);
 	if (!field)
@@ -322,14 +323,13 @@ static int __filter_add_pred(struct ftrace_event_call *call,
 	pred->offset = field->offset;
 
 	if (is_string_field(field->type)) {
-		if (!pred->str_len)
-			return -EINVAL;
 		fn = filter_pred_string;
 		pred->str_len = field->size;
 		return filter_add_pred_fn(call, pred, fn);
 	} else {
-		if (pred->str_len)
+		if (strict_strtoull(pred->str_val, 0, &val))
 			return -EINVAL;
+		pred->val = val;
 	}
 
 	switch (field->size) {
@@ -413,12 +413,16 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 	return 0;
 }
 
+/*
+ * The filter format can be
+ *   - 0, which means remove all filter preds
+ *   - [||/&&] <field> ==/!= <val>
+ */
 int filter_parse(char **pbuf, struct filter_pred *pred)
 {
-	char *tmp, *tok, *val_str = NULL;
+	char *tok, *val_str = NULL;
 	int tok_n = 0;
 
-	/* field ==/!= number, or/and field ==/!= number, number */
 	while ((tok = strsep(pbuf, " \n"))) {
 		if (tok_n == 0) {
 			if (!strcmp(tok, "0")) {
@@ -478,18 +482,12 @@ int filter_parse(char **pbuf, struct filter_pred *pred)
 		return -EINVAL;
 	}
 
+	strcpy(pred->str_val, val_str);
+	pred->str_len = strlen(val_str);
+
 	pred->field_name = kstrdup(pred->field_name, GFP_KERNEL);
 	if (!pred->field_name)
 		return -ENOMEM;
-
-	pred->str_len = 0;
-	pred->val = simple_strtoull(val_str, &tmp, 0);
-	if (tmp == val_str) {
-		strncpy(pred->str_val, val_str, MAX_FILTER_STR_VAL);
-		pred->str_len = strlen(val_str);
-		pred->str_val[pred->str_len] = '\0';
-	} else if (*tmp != '\0')
-		return -EINVAL;
 
 	return 0;
 }
