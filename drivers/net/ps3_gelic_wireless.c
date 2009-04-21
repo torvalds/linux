@@ -2101,6 +2101,9 @@ static int gelic_wl_associate_bss(struct gelic_wl_info *wl,
 	if (ret) {
 		pr_debug("%s: WEP/WPA setup failed %d\n", __func__,
 			 ret);
+		ret = -EPERM;
+		gelic_wl_send_iwap_event(wl, NULL);
+		goto out;
 	}
 
 	/* start association */

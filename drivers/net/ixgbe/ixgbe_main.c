@@ -2841,11 +2841,55 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 			}
 			ret = true;
 		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-			for (i = 0; i < dcb_i; i++) {
-				adapter->rx_ring[i].reg_idx = i << 4;
-				adapter->tx_ring[i].reg_idx = i << 4;
+			if (dcb_i == 8) {
+				/*
+				 * Tx TC0 starts at: descriptor queue 0
+				 * Tx TC1 starts at: descriptor queue 32
+				 * Tx TC2 starts at: descriptor queue 64
+				 * Tx TC3 starts at: descriptor queue 80
+				 * Tx TC4 starts at: descriptor queue 96
+				 * Tx TC5 starts at: descriptor queue 104
+				 * Tx TC6 starts at: descriptor queue 112
+				 * Tx TC7 starts at: descriptor queue 120
+				 *
+				 * Rx TC0-TC7 are offset by 16 queues each
+				 */
+				for (i = 0; i < 3; i++) {
+					adapter->tx_ring[i].reg_idx = i << 5;
+					adapter->rx_ring[i].reg_idx = i << 4;
+				}
+				for ( ; i < 5; i++) {
+					adapter->tx_ring[i].reg_idx =
+					                         ((i + 2) << 4);
+					adapter->rx_ring[i].reg_idx = i << 4;
+				}
+				for ( ; i < dcb_i; i++) {
+					adapter->tx_ring[i].reg_idx =
+					                         ((i + 8) << 3);
+					adapter->rx_ring[i].reg_idx = i << 4;
+				}
+
+				ret = true;
+			} else if (dcb_i == 4) {
+				/*
+				 * Tx TC0 starts at: descriptor queue 0
+				 * Tx TC1 starts at: descriptor queue 64
+				 * Tx TC2 starts at: descriptor queue 96
+				 * Tx TC3 starts at: descriptor queue 112
+				 *
+				 * Rx TC0-TC3 are offset by 32 queues each
+				 */
+				adapter->tx_ring[0].reg_idx = 0;
+				adapter->tx_ring[1].reg_idx = 64;
+				adapter->tx_ring[2].reg_idx = 96;
+				adapter->tx_ring[3].reg_idx = 112;
+				for (i = 0 ; i < dcb_i; i++)
+					adapter->rx_ring[i].reg_idx = i << 5;
+
+				ret = true;
+			} else {
+				ret = false;
 			}
-			ret = true;
 		} else {
 			ret = false;
 		}

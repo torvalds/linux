@@ -250,6 +250,8 @@ static struct usb_device_id dev_table[] = {
 	{ USB_DEVICE(0x03eb, 0x7617), USB_DEVICE_DATA(BOARD_505A) },
 	/* Siemens Gigaset USB WLAN Adapter 11 */
 	{ USB_DEVICE(0x1690, 0x0701), USB_DEVICE_DATA(BOARD_505A) },
+	/* OQO Model 01+ Internal Wi-Fi */
+	{ USB_DEVICE(0x1557, 0x0002), USB_DEVICE_DATA(BOARD_505A) },
 	/*
 	 * at76c505amx-rfmd
 	 */

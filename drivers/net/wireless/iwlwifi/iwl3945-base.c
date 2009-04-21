@@ -4075,7 +4075,7 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!static_key) {
 		sta_id = iwl3945_hw_find_station(priv, addr);
 		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_MAC80211(priv, "leave - %pMnot in station map.\n",
+			IWL_DEBUG_MAC80211(priv, "leave - %pM not in station map.\n",
 					    addr);
 			return -EINVAL;
 		}
@@ -4912,6 +4912,8 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->custom_regulatory = true;
+
+	hw->wiphy->max_scan_ssids = 1; /* WILL FIX */
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;

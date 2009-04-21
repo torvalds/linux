@@ -93,7 +93,6 @@ struct tun_file {
 	atomic_t count;
 	struct tun_struct *tun;
 	struct net *net;
-	wait_queue_head_t	read_wait;
 };
 
 struct tun_sock;
@@ -156,6 +155,7 @@ static int tun_attach(struct tun_struct *tun, struct file *file)
 	tfile->tun = tun;
 	tun->tfile = tfile;
 	dev_hold(tun->dev);
+	sock_hold(tun->sk);
 	atomic_inc(&tfile->count);
 
 out:
@@ -165,11 +165,8 @@ out:
 
 static void __tun_detach(struct tun_struct *tun)
 {
-	struct tun_file *tfile = tun->tfile;
-
 	/* Detach from net device */
 	netif_tx_lock_bh(tun->dev);
-	tfile->tun = NULL;
 	tun->tfile = NULL;
 	netif_tx_unlock_bh(tun->dev);
 
@@ -333,10 +330,17 @@ static void tun_net_uninit(struct net_device *dev)
 	/* Inform the methods they need to stop using the dev.
 	 */
 	if (tfile) {
-		wake_up_all(&tfile->read_wait);
+		wake_up_all(&tun->socket.wait);
 		if (atomic_dec_and_test(&tfile->count))
 			__tun_detach(tun);
 	}
+}
+
+static void tun_free_netdev(struct net_device *dev)
+{
+	struct tun_struct *tun = netdev_priv(dev);
+
+	sock_put(tun->sk);
 }
 
 /* Net device open. */
@@ -393,7 +397,7 @@ static int tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Notify and wake up reader process */
 	if (tun->flags & TUN_FASYNC)
 		kill_fasync(&tun->fasync, SIGIO, POLL_IN);
-	wake_up_interruptible(&tun->tfile->read_wait);
+	wake_up_interruptible(&tun->socket.wait);
 	return 0;
 
 drop:
@@ -490,7 +494,7 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 
 	DBG(KERN_INFO "%s: tun_chr_poll\n", tun->dev->name);
 
-	poll_wait(file, &tfile->read_wait, wait);
+	poll_wait(file, &tun->socket.wait, wait);
 
 	if (!skb_queue_empty(&tun->readq))
 		mask |= POLLIN | POLLRDNORM;
@@ -763,7 +767,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 		goto out;
 	}
 
-	add_wait_queue(&tfile->read_wait, &wait);
+	add_wait_queue(&tun->socket.wait, &wait);
 	while (len) {
 		current->state = TASK_INTERRUPTIBLE;
 
@@ -794,7 +798,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 	}
 
 	current->state = TASK_RUNNING;
-	remove_wait_queue(&tfile->read_wait, &wait);
+	remove_wait_queue(&tun->socket.wait, &wait);
 
 out:
 	tun_put(tun);
@@ -811,7 +815,7 @@ static void tun_setup(struct net_device *dev)
 	tun->group = -1;
 
 	dev->ethtool_ops = &tun_ethtool_ops;
-	dev->destructor = free_netdev;
+	dev->destructor = tun_free_netdev;
 }
 
 /* Trivial set of netlink ops to allow deleting tun or tap
@@ -848,7 +852,7 @@ static void tun_sock_write_space(struct sock *sk)
 
 static void tun_sock_destruct(struct sock *sk)
 {
-	dev_put(container_of(sk, struct tun_sock, sk)->tun->dev);
+	free_netdev(container_of(sk, struct tun_sock, sk)->tun->dev);
 }
 
 static struct proto tun_proto = {
@@ -862,7 +866,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	struct sock *sk;
 	struct tun_struct *tun;
 	struct net_device *dev;
-	struct tun_file *tfile = file->private_data;
 	int err;
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
@@ -920,13 +923,10 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (!sk)
 			goto err_free_dev;
 
-		/* This ref count is for tun->sk. */
-		dev_hold(dev);
+		init_waitqueue_head(&tun->socket.wait);
 		sock_init_data(&tun->socket, sk);
 		sk->sk_write_space = tun_sock_write_space;
-		sk->sk_destruct = tun_sock_destruct;
 		sk->sk_sndbuf = INT_MAX;
-		sk->sk_sleep = &tfile->read_wait;
 
 		tun->sk = sk;
 		container_of(sk, struct tun_sock, sk)->tun = tun;
@@ -942,11 +942,13 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		err = -EINVAL;
 		err = register_netdevice(tun->dev);
 		if (err < 0)
-			goto err_free_dev;
+			goto err_free_sk;
+
+		sk->sk_destruct = tun_sock_destruct;
 
 		err = tun_attach(tun, file);
 		if (err < 0)
-			goto err_free_dev;
+			goto failed;
 	}
 
 	DBG(KERN_INFO "%s: tun_set_iff\n", tun->dev->name);
@@ -1266,7 +1268,6 @@ static int tun_chr_open(struct inode *inode, struct file * file)
 	atomic_set(&tfile->count, 0);
 	tfile->tun = NULL;
 	tfile->net = get_net(current->nsproxy->net_ns);
-	init_waitqueue_head(&tfile->read_wait);
 	file->private_data = tfile;
 	return 0;
 }
@@ -1284,13 +1285,15 @@ static int tun_chr_close(struct inode *inode, struct file *file)
 		__tun_detach(tun);
 
 		/* If desireable, unregister the netdevice. */
-		if (!(tun->flags & TUN_PERSIST)) {
-			sock_put(tun->sk);
+		if (!(tun->flags & TUN_PERSIST))
 			unregister_netdevice(tun->dev);
-		}
 
 		rtnl_unlock();
 	}
+
+	tun = tfile->tun;
+	if (tun)
+		sock_put(tun->sk);
 
 	put_net(tfile->net);
 	kfree(tfile);
