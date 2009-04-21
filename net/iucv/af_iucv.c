@@ -172,6 +172,7 @@ static void iucv_sock_close(struct sock *sk)
 			err = iucv_sock_wait_state(sk, IUCV_CLOSED, 0, timeo);
 		}
 
+	case IUCV_CLOSING:   /* fall through */
 		sk->sk_state = IUCV_CLOSED;
 		sk->sk_state_change(sk);
 
@@ -224,6 +225,8 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 	spin_lock_init(&iucv_sk(sk)->message_q.lock);
 	skb_queue_head_init(&iucv_sk(sk)->backlog_skb_q);
 	iucv_sk(sk)->send_tag = 0;
+	iucv_sk(sk)->path = NULL;
+	memset(&iucv_sk(sk)->src_user_id , 0, 32);
 
 	sk->sk_destruct = iucv_sock_destruct;
 	sk->sk_sndtimeo = IUCV_CONN_TIMEOUT;
