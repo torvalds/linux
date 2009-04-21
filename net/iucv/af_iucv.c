@@ -32,7 +32,7 @@
 #define CONFIG_IUCV_SOCK_DEBUG 1
 
 #define IPRMDATA 0x80
-#define VERSION "1.0"
+#define VERSION "1.1"
 
 static char iucv_userid[80];
 
@@ -226,6 +226,7 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 	spin_lock_init(&iucv_sk(sk)->message_q.lock);
 	skb_queue_head_init(&iucv_sk(sk)->backlog_skb_q);
 	iucv_sk(sk)->send_tag = 0;
+	iucv_sk(sk)->flags = 0;
 
 	sk->sk_destruct = iucv_sock_destruct;
 	sk->sk_sndtimeo = IUCV_CONN_TIMEOUT;
@@ -1003,6 +1004,78 @@ static int iucv_sock_release(struct socket *sock)
 	return err;
 }
 
+/* getsockopt and setsockopt */
+static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
+				char __user *optval, int optlen)
+{
+	struct sock *sk = sock->sk;
+	struct iucv_sock *iucv = iucv_sk(sk);
+	int val;
+	int rc;
+
+	if (level != SOL_IUCV)
+		return -ENOPROTOOPT;
+
+	if (optlen < sizeof(int))
+		return -EINVAL;
+
+	if (get_user(val, (int __user *) optval))
+		return -EFAULT;
+
+	rc = 0;
+
+	lock_sock(sk);
+	switch (optname) {
+	case SO_IPRMDATA_MSG:
+		if (val)
+			iucv->flags |= IUCV_IPRMDATA;
+		else
+			iucv->flags &= ~IUCV_IPRMDATA;
+		break;
+	default:
+		rc = -ENOPROTOOPT;
+		break;
+	}
+	release_sock(sk);
+
+	return rc;
+}
+
+static int iucv_sock_getsockopt(struct socket *sock, int level, int optname,
+				char __user *optval, int __user *optlen)
+{
+	struct sock *sk = sock->sk;
+	struct iucv_sock *iucv = iucv_sk(sk);
+	int val, len;
+
+	if (level != SOL_IUCV)
+		return -ENOPROTOOPT;
+
+	if (get_user(len, optlen))
+		return -EFAULT;
+
+	if (len < 0)
+		return -EINVAL;
+
+	len = min_t(unsigned int, len, sizeof(int));
+
+	switch (optname) {
+	case SO_IPRMDATA_MSG:
+		val = (iucv->flags & IUCV_IPRMDATA) ? 1 : 0;
+		break;
+	default:
+		return -ENOPROTOOPT;
+	}
+
+	if (put_user(len, optlen))
+		return -EFAULT;
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
+
 /* Callback wrappers - called from iucv base support */
 static int iucv_callback_connreq(struct iucv_path *path,
 				 u8 ipvmid[8], u8 ipuser[16])
@@ -1229,8 +1302,8 @@ static struct proto_ops iucv_sock_ops = {
 	.mmap		= sock_no_mmap,
 	.socketpair	= sock_no_socketpair,
 	.shutdown	= iucv_sock_shutdown,
-	.setsockopt	= sock_no_setsockopt,
-	.getsockopt	= sock_no_getsockopt
+	.setsockopt	= iucv_sock_setsockopt,
+	.getsockopt	= iucv_sock_getsockopt,
 };
 
 static struct net_proto_family iucv_sock_family_ops = {

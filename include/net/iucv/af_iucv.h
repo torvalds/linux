@@ -73,7 +73,11 @@ struct iucv_sock {
 	struct sk_buff_head	backlog_skb_q;
 	struct sock_msg_q	message_q;
 	unsigned int		send_tag;
+	u8			flags;
 };
+
+/* iucv socket options (SOL_IUCV) */
+#define SO_IPRMDATA_MSG	0x0080		/* send/recv IPRM_DATA msgs */
 
 struct iucv_sock_list {
 	struct hlist_head head;
