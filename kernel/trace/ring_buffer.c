@@ -1241,7 +1241,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		 * about it.
 		 */
 		if (unlikely(next_page == commit_page)) {
-			WARN_ON_ONCE(1);
+			/* This can easily happen on small ring buffers */
+			WARN_ON_ONCE(buffer->pages > 2);
 			goto out_reset;
 		}
 
