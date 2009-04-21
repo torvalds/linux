@@ -32,6 +32,7 @@
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/i2c.h>
 
 #include "devices.h"
 
@@ -89,6 +90,14 @@ static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
+static struct imxi2c_platform_data moboard_i2c0_pdata = {
+	.bitrate = 400000,
+};
+
+static struct imxi2c_platform_data moboard_i2c1_pdata = {
+	.bitrate = 100000,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
@@ -108,6 +117,9 @@ static void __init mxc_board_init(void)
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_uart_device4, &uart_pdata);
+
+	mxc_register_device(&mxc_i2c_device0, &moboard_i2c0_pdata);
+	mxc_register_device(&mxc_i2c_device1, &moboard_i2c1_pdata);
 
 	switch (mx31moboard_baseboard) {
 	case MX31NOBOARD:
