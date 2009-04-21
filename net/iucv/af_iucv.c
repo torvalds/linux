@@ -937,6 +937,9 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 
 	lock_sock(sk);
 	switch (sk->sk_state) {
+	case IUCV_DISCONN:
+	case IUCV_CLOSING:
+	case IUCV_SEVERED:
 	case IUCV_CLOSED:
 		err = -ENOTCONN;
 		goto fail;
