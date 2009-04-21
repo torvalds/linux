@@ -2863,7 +2863,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		 */
 		new_smi->pdev = platform_device_alloc("ipmi_si",
 						      new_smi->intf_num);
-		if (rv) {
+		if (!new_smi->pdev) {
 			printk(KERN_ERR
 			       "ipmi_si_intf:"
 			       " Unable to allocate platform device\n");
