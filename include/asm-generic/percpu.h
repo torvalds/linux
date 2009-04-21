@@ -1,13 +1,9 @@
 #ifndef _ASM_GENERIC_PERCPU_H_
 #define _ASM_GENERIC_PERCPU_H_
+
 #include <linux/compiler.h>
 #include <linux/threads.h>
-
-/*
- * Determine the real variable name from the name visible in the
- * kernel sources.
- */
-#define per_cpu_var(var) per_cpu__##var
+#include <linux/percpu-defs.h>
 
 #ifdef CONFIG_SMP
 
@@ -100,23 +96,5 @@ extern void setup_per_cpu_areas(void);
 #ifndef PER_CPU_ATTRIBUTES
 #define PER_CPU_ATTRIBUTES
 #endif
-
-#define DECLARE_PER_CPU_SECTION(type, name, section)			\
-	extern \
-	__attribute__((__section__(PER_CPU_BASE_SECTION section)))	\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
-
-#define DECLARE_PER_CPU(type, name)					\
-	DECLARE_PER_CPU_SECTION(type, name, "")
-
-#define DECLARE_PER_CPU_SHARED_ALIGNED(type, name)			\
-	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
-	____cacheline_aligned_in_smp
-
-#define DECLARE_PER_CPU_PAGE_ALIGNED(type, name)				\
-	DECLARE_PER_CPU_SECTION(type, name, ".page_aligned")
-
-#define DECLARE_PER_CPU_FIRST(type, name)				\
-	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_FIRST_SECTION)
 
 #endif /* _ASM_GENERIC_PERCPU_H_ */
