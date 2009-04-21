@@ -1895,8 +1895,7 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 static u32 root_256(struct nes_device *nesdev,
 		    struct nes_root_vpbl *root_vpbl,
 		    struct nes_root_vpbl *new_root,
-		    u16 pbl_count_4k,
-		    u16 pbl_count_256)
+		    u16 pbl_count_4k)
 {
 	u64 leaf_pbl;
 	int i, j, k;
@@ -2012,7 +2011,7 @@ static int nes_reg_mr(struct nes_device *nesdev, struct nes_pd *nespd,
 	}
 
 	if (use_256_pbls && use_two_level) {
-		if (root_256(nesdev, root_vpbl, &new_root, pbl_count_4k, pbl_count_256) == 1) {
+		if (root_256(nesdev, root_vpbl, &new_root, pbl_count_4k) == 1) {
 			if (new_root.pbl_pbase != 0)
 				root_vpbl = &new_root;
 		} else {
