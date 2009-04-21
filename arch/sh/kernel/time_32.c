@@ -208,7 +208,7 @@ unsigned long long sched_clock(void)
 	if (!clocksource_sh.rating)
 		return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ);
 
-	cycles = clocksource_sh.read();
+	cycles = clocksource_sh.read(&clocksource_sh);
 	return cyc2ns(&clocksource_sh, cycles);
 }
 #endif

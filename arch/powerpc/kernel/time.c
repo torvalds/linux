@@ -77,7 +77,7 @@
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
 
-static cycle_t rtc_read(void);
+static cycle_t rtc_read(struct clocksource *);
 static struct clocksource clocksource_rtc = {
 	.name         = "rtc",
 	.rating       = 400,
@@ -88,7 +88,7 @@ static struct clocksource clocksource_rtc = {
 	.read         = rtc_read,
 };
 
-static cycle_t timebase_read(void);
+static cycle_t timebase_read(struct clocksource *);
 static struct clocksource clocksource_timebase = {
 	.name         = "timebase",
 	.rating       = 400,
@@ -766,12 +766,12 @@ unsigned long read_persistent_clock(void)
 }
 
 /* clocksource code */
-static cycle_t rtc_read(void)
+static cycle_t rtc_read(struct clocksource *cs)
 {
 	return (cycle_t)get_rtc();
 }
 
-static cycle_t timebase_read(void)
+static cycle_t timebase_read(struct clocksource *cs)
 {
 	return (cycle_t)get_tb();
 }
