@@ -461,21 +461,29 @@ static void fc_disc_del_target(struct fc_disc *disc, struct fc_rport *rport)
 /**
  * fc_disc_done() - Discovery has been completed
  * @disc: FC discovery context
+ * Locking Note: This function expects that the disc mutex is locked before
+ * it is called. The discovery callback is then made with the lock released,
+ * and the lock is re-taken before returning from this function
  */
 static void fc_disc_done(struct fc_disc *disc)
 {
 	struct fc_lport *lport = disc->lport;
+	enum fc_disc_event event;
 
 	FC_DEBUG_DISC("Discovery complete for port (%6x)\n",
 		      fc_host_port_id(lport->host));
 
-	disc->disc_callback(lport, disc->event);
+	event = disc->event;
 	disc->event = DISC_EV_NONE;
 
 	if (disc->requested)
 		fc_disc_gpn_ft_req(disc);
 	else
 		disc->pending = 0;
+
+	mutex_unlock(&disc->disc_mutex);
+	disc->disc_callback(lport, event);
+	mutex_lock(&disc->disc_mutex);
 }
 
 /**
@@ -681,8 +689,8 @@ static void fc_disc_timeout(struct work_struct *work)
  * @fp: response frame
  * @lp_arg: Fibre Channel host port instance
  *
- * Locking Note: This function expects that the disc_mutex is locked
- *		 before it is called.
+ * Locking Note: This function is called without disc mutex held, and
+ *		 should do all its processing with the mutex held
  */
 static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 				void *disc_arg)
@@ -695,11 +703,13 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 	unsigned int len;
 	int error;
 
+	mutex_lock(&disc->disc_mutex);
 	FC_DEBUG_DISC("Received a GPN_FT response on port (%6x)\n",
 		      fc_host_port_id(disc->lport->host));
 
 	if (IS_ERR(fp)) {
 		fc_disc_error(disc, fp);
+		mutex_unlock(&disc->disc_mutex);
 		return;
 	}
 
@@ -744,6 +754,8 @@ static void fc_disc_gpn_ft_resp(struct fc_seq *sp, struct fc_frame *fp,
 			disc->seq_count++;
 	}
 	fc_frame_free(fp);
+
+	mutex_unlock(&disc->disc_mutex);
 }
 
 /**
