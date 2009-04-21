@@ -947,14 +947,18 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 		return cfqd->last_position - rq->sector;
 }
 
+#define CIC_SEEK_THR	8 * 1024
+#define CIC_SEEKY(cic)	((cic)->seek_mean > CIC_SEEK_THR)
+
 static inline int cfq_rq_close(struct cfq_data *cfqd, struct request *rq)
 {
 	struct cfq_io_context *cic = cfqd->active_cic;
+	sector_t sdist = cic->seek_mean;
 
 	if (!sample_valid(cic->seek_samples))
-		return 0;
+		sdist = CIC_SEEK_THR;
 
-	return cfq_dist_from_last(cfqd, rq) <= cic->seek_mean;
+	return cfq_dist_from_last(cfqd, rq) <= sdist;
 }
 
 static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
@@ -1038,9 +1042,6 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 		cfq_mark_cfqq_coop(cfqq);
 	return cfqq;
 }
-
-
-#define CIC_SEEKY(cic) ((cic)->seek_mean > (8 * 1024))
 
 static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 {
