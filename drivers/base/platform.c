@@ -1028,7 +1028,7 @@ static __initdata LIST_HEAD(early_platform_device_list);
 
 /**
  * early_platform_driver_register
- * @edrv: early_platform driver structure
+ * @epdrv: early_platform driver structure
  * @buf: string passed from early_param()
  */
 int __init early_platform_driver_register(struct early_platform_driver *epdrv,
@@ -1112,7 +1112,7 @@ void __init early_platform_driver_register_all(char *class_str)
 
 /**
  * early_platform_match
- * @edrv: early platform driver structure
+ * @epdrv: early platform driver structure
  * @id: id to match against
  */
 static  __init struct platform_device *
@@ -1130,7 +1130,7 @@ early_platform_match(struct early_platform_driver *epdrv, int id)
 
 /**
  * early_platform_left
- * @edrv: early platform driver structure
+ * @epdrv: early platform driver structure
  * @id: return true if id or above exists
  */
 static  __init int early_platform_left(struct early_platform_driver *epdrv,
