@@ -4356,7 +4356,7 @@ out_done:
 #else /*  (CONFIG_SCHED_MC || CONFIG_SCHED_SMT) */
 static inline int find_new_ilb(int call_cpu)
 {
-	return first_cpu(nohz.cpu_mask);
+	return cpumask_first(nohz.cpu_mask);
 }
 #endif
 
