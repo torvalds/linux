@@ -1011,7 +1011,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	wlen = skb->len / FCOE_WORD_TO_BYTE;
 
 	if (!lp->link_up) {
-		kfree(skb);
+		kfree_skb(skb);
 		return 0;
 	}
 
