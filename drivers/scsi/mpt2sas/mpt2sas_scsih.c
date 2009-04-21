@@ -516,12 +516,8 @@ _scsih_sas_device_add(struct MPT2SAS_ADAPTER *ioc,
 	handle = sas_device->handle;
 	parent_handle = sas_device->parent_handle;
 	sas_address = sas_device->sas_address;
-	if (!mpt2sas_transport_port_add(ioc, handle, parent_handle)) {
+	if (!mpt2sas_transport_port_add(ioc, handle, parent_handle))
 		_scsih_sas_device_remove(ioc, sas_device);
-	} else if (!sas_device->starget) {
-		mpt2sas_transport_port_remove(ioc, sas_address, parent_handle);
-		_scsih_sas_device_remove(ioc, sas_device);
-	}
 }
 
 /**
@@ -1203,7 +1199,9 @@ scsih_target_destroy(struct scsi_target *starget)
 	rphy = dev_to_rphy(starget->dev.parent);
 	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 	   rphy->identify.sas_address);
-	if (sas_device)
+	if (sas_device && (sas_device->starget == starget) &&
+	    (sas_device->id == starget->id) &&
+	    (sas_device->channel == starget->channel))
 		sas_device->starget = NULL;
 
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
@@ -3924,7 +3922,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 
 		mpt2sas_scsih_issue_tm(ioc, handle, lun,
 		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30);
-		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
+		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 
 		if ((mpi_reply->IOCStatus == MPI2_IOCSTATUS_SUCCESS) &&
 		    (mpi_reply->ResponseCode ==
@@ -3934,10 +3932,10 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 			continue;
 
 		mpt2sas_scsih_issue_tm(ioc, handle, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, smid, 30);
+		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30);
+		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
 	}
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 	ioc->broadcast_aen_busy = 0;
 	mutex_unlock(&ioc->tm_cmds.mutex);
 
