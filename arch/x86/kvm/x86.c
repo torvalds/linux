@@ -3114,6 +3114,68 @@ static void vapic_exit(struct kvm_vcpu *vcpu)
 	up_read(&vcpu->kvm->slots_lock);
 }
 
+static void update_cr8_intercept(struct kvm_vcpu *vcpu)
+{
+	int max_irr, tpr;
+
+	if (!kvm_x86_ops->update_cr8_intercept)
+		return;
+
+	max_irr = kvm_lapic_find_highest_irr(vcpu);
+
+	if (max_irr != -1)
+		max_irr >>= 4;
+
+	tpr = kvm_lapic_get_cr8(vcpu);
+
+	kvm_x86_ops->update_cr8_intercept(vcpu, tpr, max_irr);
+}
+
+static void inject_irq(struct kvm_vcpu *vcpu)
+{
+	/* try to reinject previous events if any */
+	if (vcpu->arch.nmi_injected) {
+		kvm_x86_ops->set_nmi(vcpu);
+		return;
+	}
+
+	if (vcpu->arch.interrupt.pending) {
+		kvm_x86_ops->set_irq(vcpu, vcpu->arch.interrupt.nr);
+		return;
+	}
+
+	/* try to inject new event if pending */
+	if (vcpu->arch.nmi_pending) {
+		if (kvm_x86_ops->nmi_allowed(vcpu)) {
+			vcpu->arch.nmi_pending = false;
+			vcpu->arch.nmi_injected = true;
+			kvm_x86_ops->set_nmi(vcpu);
+		}
+	} else if (kvm_cpu_has_interrupt(vcpu)) {
+		if (kvm_x86_ops->interrupt_allowed(vcpu)) {
+			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
+			kvm_x86_ops->set_irq(vcpu, vcpu->arch.interrupt.nr);
+		}
+	}
+}
+
+static void inject_pending_irq(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
+		kvm_run->request_interrupt_window;
+
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		kvm_x86_ops->drop_interrupt_shadow(vcpu);
+
+	inject_irq(vcpu);
+
+	/* enable NMI/IRQ window open exits if needed */
+	if (vcpu->arch.nmi_pending)
+		kvm_x86_ops->enable_nmi_window(vcpu);
+	else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
+		kvm_x86_ops->enable_irq_window(vcpu);
+}
+
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
@@ -3172,9 +3234,14 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (vcpu->arch.exception.pending)
 		__queue_exception(vcpu);
 	else
-		kvm_x86_ops->inject_pending_irq(vcpu, kvm_run);
+		inject_pending_irq(vcpu, kvm_run);
 
-	kvm_lapic_sync_to_vapic(vcpu);
+	if (kvm_lapic_enabled(vcpu)) {
+		if (!vcpu->arch.apic->vapic_addr)
+			update_cr8_intercept(vcpu);
+		else
+			kvm_lapic_sync_to_vapic(vcpu);
+	}
 
 	up_read(&vcpu->kvm->slots_lock);
 

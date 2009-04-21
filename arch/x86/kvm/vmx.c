@@ -1314,6 +1314,9 @@ static __init int hardware_setup(void)
 	if (!cpu_has_vmx_flexpriority())
 		flexpriority_enabled = 0;
 
+	if (!cpu_has_vmx_tpr_shadow())
+		kvm_x86_ops->update_cr8_intercept = NULL;
+
 	return alloc_kvm_area();
 }
 
@@ -2404,6 +2407,12 @@ out:
 	return ret;
 }
 
+void vmx_drop_interrupt_shadow(struct kvm_vcpu *vcpu)
+{
+	vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
+			GUEST_INTR_STATE_STI | GUEST_INTR_STATE_MOV_SS);
+}
+
 static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
@@ -3214,21 +3223,14 @@ static int vmx_handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static void update_tpr_threshold(struct kvm_vcpu *vcpu)
+static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 {
-	int max_irr, tpr;
-
-	if (!vm_need_tpr_shadow(vcpu->kvm))
-		return;
-
-	if (!kvm_lapic_enabled(vcpu) ||
-	    ((max_irr = kvm_lapic_find_highest_irr(vcpu)) == -1)) {
+	if (irr == -1 || tpr < irr) {
 		vmcs_write32(TPR_THRESHOLD, 0);
 		return;
 	}
 
-	tpr = (kvm_lapic_get_cr8(vcpu) & 0x0f) << 4;
-	vmcs_write32(TPR_THRESHOLD, (max_irr > tpr) ? tpr >> 4 : max_irr >> 4);
+	vmcs_write32(TPR_THRESHOLD, irr);
 }
 
 static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
@@ -3298,55 +3300,6 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	default:
 		break;
 	}
-}
-
-static void vmx_intr_inject(struct kvm_vcpu *vcpu)
-{
-	/* try to reinject previous events if any */
-	if (vcpu->arch.nmi_injected) {
-		vmx_inject_nmi(vcpu);
-		return;
-	}
-
-	if (vcpu->arch.interrupt.pending) {
-		vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
-		return;
-	}
-
-	/* try to inject new event if pending */
-	if (vcpu->arch.nmi_pending) {
-		if (vmx_nmi_allowed(vcpu)) {
-			vcpu->arch.nmi_pending = false;
-			vcpu->arch.nmi_injected = true;
-			vmx_inject_nmi(vcpu);
-		}
-	} else if (kvm_cpu_has_interrupt(vcpu)) {
-		if (vmx_interrupt_allowed(vcpu)) {
-			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
-			vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
-		}
-	}
-}
-
-static void vmx_intr_assist(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
-{
-	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
-		kvm_run->request_interrupt_window;
-
-	update_tpr_threshold(vcpu);
-
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
-				GUEST_INTR_STATE_STI |
-				GUEST_INTR_STATE_MOV_SS);
-
-	vmx_intr_inject(vcpu);
-
-	/* enable NMI/IRQ window open exits if needed */
-	if (vcpu->arch.nmi_pending)
-		enable_nmi_window(vcpu);
-	else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
-		enable_irq_window(vcpu);
 }
 
 /*
@@ -3683,9 +3636,15 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.patch_hypercall = vmx_patch_hypercall,
 	.get_irq = vmx_get_irq,
 	.set_irq = vmx_inject_irq,
+	.set_nmi = vmx_inject_nmi,
 	.queue_exception = vmx_queue_exception,
-	.inject_pending_irq = vmx_intr_assist,
 	.interrupt_allowed = vmx_interrupt_allowed,
+	.nmi_allowed = vmx_nmi_allowed,
+	.enable_nmi_window = enable_nmi_window,
+	.enable_irq_window = enable_irq_window,
+	.update_cr8_intercept = update_cr8_intercept,
+	.drop_interrupt_shadow = vmx_drop_interrupt_shadow,
+
 	.set_tss_addr = vmx_set_tss_addr,
 	.get_tdp_level = get_ept_level,
 	.get_mt_mask_shift = vmx_get_mt_mask_shift,

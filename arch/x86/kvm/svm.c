@@ -1843,6 +1843,14 @@ static int cpuid_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int iret_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	++svm->vcpu.stat.nmi_window_exits;
+	svm->vmcb->control.intercept &= ~(1UL << INTERCEPT_IRET);
+	svm->vcpu.arch.hflags &= ~HF_NMI_MASK;
+	return 1;
+}
+
 static int invlpg_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	if (emulate_instruction(&svm->vcpu, kvm_run, 0, 0, 0) != EMULATE_DONE)
@@ -1863,8 +1871,10 @@ static int cr8_write_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	u8 cr8_prev = kvm_get_cr8(&svm->vcpu);
 	/* instruction emulation calls kvm_set_cr8() */
 	emulate_instruction(&svm->vcpu, NULL, 0, 0, 0);
-	if (irqchip_in_kernel(svm->vcpu.kvm))
+	if (irqchip_in_kernel(svm->vcpu.kvm)) {
+		svm->vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
 		return 1;
+	}
 	if (cr8_prev <= kvm_get_cr8(&svm->vcpu))
 		return 1;
 	kvm_run->exit_reason = KVM_EXIT_SET_TPR;
@@ -2120,6 +2130,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_VINTR]			= interrupt_window_interception,
 	/* [SVM_EXIT_CR0_SEL_WRITE]		= emulate_on_interception, */
 	[SVM_EXIT_CPUID]			= cpuid_interception,
+	[SVM_EXIT_IRET]                         = iret_interception,
 	[SVM_EXIT_INVD]                         = emulate_on_interception,
 	[SVM_EXIT_HLT]				= halt_interception,
 	[SVM_EXIT_INVLPG]			= invlpg_interception,
@@ -2227,6 +2238,21 @@ static void pre_svm_run(struct vcpu_svm *svm)
 		new_asid(svm, svm_data);
 }
 
+static void svm_drop_interrupt_shadow(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
+}
+
+static void svm_inject_nmi(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	svm->vmcb->control.event_inj = SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_NMI;
+	vcpu->arch.hflags |= HF_NMI_MASK;
+	svm->vmcb->control.intercept |= (1UL << INTERCEPT_IRET);
+	++vcpu->stat.nmi_injections;
+}
 
 static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 {
@@ -2242,8 +2268,10 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
 }
 
-static void svm_queue_irq(struct vcpu_svm *svm, unsigned nr)
+static void svm_queue_irq(struct kvm_vcpu *vcpu, unsigned nr)
 {
+	struct vcpu_svm *svm = to_svm(vcpu);
+
 	svm->vmcb->control.event_inj = nr |
 		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
 }
@@ -2254,28 +2282,26 @@ static void svm_set_irq(struct kvm_vcpu *vcpu, int irq)
 
 	nested_svm_intr(svm);
 
-	svm_queue_irq(svm, irq);
+	svm_queue_irq(vcpu, irq);
 }
 
-static void update_cr8_intercept(struct kvm_vcpu *vcpu)
+static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (irr == -1)
+		return;
+
+	if (tpr >= irr)
+		svm->vmcb->control.intercept_cr_write |= INTERCEPT_CR8_MASK;
+}
+
+static int svm_nmi_allowed(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
-	int max_irr, tpr;
-
-	if (!irqchip_in_kernel(vcpu->kvm) || vcpu->arch.apic->vapic_addr)
-		return;
-
-	vmcb->control.intercept_cr_write &= ~INTERCEPT_CR8_MASK;
-
-	max_irr = kvm_lapic_find_highest_irr(vcpu);
-	if (max_irr == -1)
-		return;
-
-	tpr = kvm_lapic_get_cr8(vcpu) << 4;
-
-	if (tpr >= (max_irr & 0xf0))
-		vmcb->control.intercept_cr_write |= INTERCEPT_CR8_MASK;
+	return !(vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) &&
+		!(svm->vcpu.arch.hflags & HF_NMI_MASK);
 }
 
 static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
@@ -2293,39 +2319,12 @@ static void enable_irq_window(struct kvm_vcpu *vcpu)
 	svm_inject_irq(to_svm(vcpu), 0x0);
 }
 
-static void svm_intr_inject(struct kvm_vcpu *vcpu)
-{
-	/* try to reinject previous events if any */
-	if (vcpu->arch.interrupt.pending) {
-		svm_queue_irq(to_svm(vcpu), vcpu->arch.interrupt.nr);
-		return;
-	}
-
-	/* try to inject new event if pending */
-	if (kvm_cpu_has_interrupt(vcpu)) {
-		if (svm_interrupt_allowed(vcpu)) {
-			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
-			svm_queue_irq(to_svm(vcpu), vcpu->arch.interrupt.nr);
-		}
-	}
-}
-
-static void svm_intr_assist(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static void enable_nmi_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
-		kvm_run->request_interrupt_window;
 
-	if (nested_svm_intr(svm))
-		goto out;
-
-	svm_intr_inject(vcpu);
-
-	if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
+	if (svm->vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK)
 		enable_irq_window(vcpu);
-
-out:
-	update_cr8_intercept(vcpu);
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
@@ -2650,9 +2649,14 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.patch_hypercall = svm_patch_hypercall,
 	.get_irq = svm_get_irq,
 	.set_irq = svm_set_irq,
+	.set_nmi = svm_inject_nmi,
 	.queue_exception = svm_queue_exception,
-	.inject_pending_irq = svm_intr_assist,
 	.interrupt_allowed = svm_interrupt_allowed,
+	.nmi_allowed = svm_nmi_allowed,
+	.enable_nmi_window = enable_nmi_window,
+	.enable_irq_window = enable_irq_window,
+	.update_cr8_intercept = update_cr8_intercept,
+	.drop_interrupt_shadow = svm_drop_interrupt_shadow,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
