@@ -29,9 +29,6 @@
 #include <net/iucv/iucv.h>
 #include <net/iucv/af_iucv.h>
 
-#define CONFIG_IUCV_SOCK_DEBUG 1
-
-#define IPRMDATA 0x80
 #define VERSION "1.1"
 
 static char iucv_userid[80];
@@ -43,6 +40,10 @@ static struct proto iucv_proto = {
 	.owner		= THIS_MODULE,
 	.obj_size	= sizeof(struct iucv_sock),
 };
+
+/* special AF_IUCV IPRM messages */
+static const u8 iprm_shutdown[8] =
+	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
 
 static void iucv_sock_kill(struct sock *sk);
 static void iucv_sock_close(struct sock *sk);
@@ -78,6 +79,37 @@ static inline void high_nmcpy(unsigned char *dst, char *src)
 static inline void low_nmcpy(unsigned char *dst, char *src)
 {
        memcpy(&dst[8], src, 8);
+}
+
+/**
+ * iucv_msg_length() - Returns the length of an iucv message.
+ * @msg:	Pointer to struct iucv_message, MUST NOT be NULL
+ *
+ * The function returns the length of the specified iucv message @msg of data
+ * stored in a buffer and of data stored in the parameter list (PRMDATA).
+ *
+ * For IUCV_IPRMDATA, AF_IUCV uses the following convention to transport socket
+ * data:
+ *	PRMDATA[0..6]	socket data (max 7 bytes);
+ *	PRMDATA[7]	socket data length value (len is 0xff - PRMDATA[7])
+ *
+ * The socket data length is computed by substracting the socket data length
+ * value from 0xFF.
+ * If the socket data len is greater 7, then PRMDATA can be used for special
+ * notifications (see iucv_sock_shutdown); and further,
+ * if the socket data len is > 7, the function returns 8.
+ *
+ * Use this function to allocate socket buffers to store iucv message data.
+ */
+static inline size_t iucv_msg_length(struct iucv_message *msg)
+{
+	size_t datalen;
+
+	if (msg->flags & IUCV_IPRMDATA) {
+		datalen = 0xff - msg->rmmsg[7];
+		return (datalen < 8) ? datalen : 8;
+	}
+	return msg->length;
 }
 
 /* Timers */
@@ -487,7 +519,7 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	iucv = iucv_sk(sk);
 	/* Create path. */
 	iucv->path = iucv_path_alloc(IUCV_QUEUELEN_DEFAULT,
-				     IPRMDATA, GFP_KERNEL);
+				     IUCV_IPRMDATA, GFP_KERNEL);
 	if (!iucv->path) {
 		err = -ENOMEM;
 		goto done;
@@ -521,8 +553,7 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 	}
 
 	if (sk->sk_state == IUCV_DISCONN) {
-		release_sock(sk);
-		return -ECONNREFUSED;
+		err = -ECONNREFUSED;
 	}
 
 	if (err) {
@@ -636,6 +667,30 @@ static int iucv_sock_getname(struct socket *sock, struct sockaddr *addr,
 	return 0;
 }
 
+/**
+ * iucv_send_iprm() - Send socket data in parameter list of an iucv message.
+ * @path:	IUCV path
+ * @msg:	Pointer to a struct iucv_message
+ * @skb:	The socket data to send, skb->len MUST BE <= 7
+ *
+ * Send the socket data in the parameter list in the iucv message
+ * (IUCV_IPRMDATA). The socket data is stored at index 0 to 6 in the parameter
+ * list and the socket data len at index 7 (last byte).
+ * See also iucv_msg_length().
+ *
+ * Returns the error code from the iucv_message_send() call.
+ */
+static int iucv_send_iprm(struct iucv_path *path, struct iucv_message *msg,
+			  struct sk_buff *skb)
+{
+	u8 prmdata[8];
+
+	memcpy(prmdata, (void *) skb->data, skb->len);
+	prmdata[7] = 0xff - (u8) skb->len;
+	return iucv_message_send(path, msg, IUCV_IPRMDATA, 0,
+				 (void *) prmdata, 8);
+}
+
 static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			     struct msghdr *msg, size_t len)
 {
@@ -677,8 +732,29 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 		txmsg.tag = iucv->send_tag++;
 		memcpy(skb->cb, &txmsg.tag, 4);
 		skb_queue_tail(&iucv->send_skb_q, skb);
-		err = iucv_message_send(iucv->path, &txmsg, 0, 0,
-					(void *) skb->data, skb->len);
+
+		if (((iucv->path->flags & IUCV_IPRMDATA) & iucv->flags)
+		    && skb->len <= 7) {
+			err = iucv_send_iprm(iucv->path, &txmsg, skb);
+
+			/* on success: there is no message_complete callback
+			 * for an IPRMDATA msg; remove skb from send queue */
+			if (err == 0) {
+				skb_unlink(skb, &iucv->send_skb_q);
+				kfree_skb(skb);
+			}
+
+			/* this error should never happen since the
+			 * IUCV_IPRMDATA path flag is set... sever path */
+			if (err == 0x15) {
+				iucv_path_sever(iucv->path, NULL);
+				skb_unlink(skb, &iucv->send_skb_q);
+				err = -EPIPE;
+				goto fail;
+			}
+		} else
+			err = iucv_message_send(iucv->path, &txmsg, 0, 0,
+						(void *) skb->data, skb->len);
 		if (err) {
 			if (err == 3) {
 				user_id[8] = 0;
@@ -744,19 +820,25 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 				 struct iucv_message *msg)
 {
 	int rc;
+	unsigned int len;
 
-	if (msg->flags & IPRMDATA) {
-		skb->data = NULL;
-		skb->len = 0;
+	len = iucv_msg_length(msg);
+
+	/* check for special IPRM messages (e.g. iucv_sock_shutdown) */
+	if ((msg->flags & IUCV_IPRMDATA) && len > 7) {
+		if (memcmp(msg->rmmsg, iprm_shutdown, 8) == 0) {
+			skb->data = NULL;
+			skb->len = 0;
+		}
 	} else {
-		rc = iucv_message_receive(path, msg, 0, skb->data,
-					  msg->length, NULL);
+		rc = iucv_message_receive(path, msg, msg->flags & IUCV_IPRMDATA,
+					  skb->data, len, NULL);
 		if (rc) {
 			kfree_skb(skb);
 			return;
 		}
 		if (skb->truesize >= sk->sk_rcvbuf / 4) {
-			rc = iucv_fragment_skb(sk, skb, msg->length);
+			rc = iucv_fragment_skb(sk, skb, len);
 			kfree_skb(skb);
 			skb = NULL;
 			if (rc) {
@@ -767,7 +849,7 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 		} else {
 			skb_reset_transport_header(skb);
 			skb_reset_network_header(skb);
-			skb->len = msg->length;
+			skb->len = len;
 		}
 	}
 
@@ -782,7 +864,7 @@ static void iucv_process_message_q(struct sock *sk)
 	struct sock_msg_q *p, *n;
 
 	list_for_each_entry_safe(p, n, &iucv->message_q.list, list) {
-		skb = alloc_skb(p->msg.length, GFP_ATOMIC | GFP_DMA);
+		skb = alloc_skb(iucv_msg_length(&p->msg), GFP_ATOMIC | GFP_DMA);
 		if (!skb)
 			break;
 		iucv_process_message(sk, skb, p->path, &p->msg);
@@ -928,7 +1010,6 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 	struct iucv_sock *iucv = iucv_sk(sk);
 	struct iucv_message txmsg;
 	int err = 0;
-	u8 prmmsg[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
 
 	how++;
 
@@ -950,7 +1031,7 @@ static int iucv_sock_shutdown(struct socket *sock, int how)
 		txmsg.class = 0;
 		txmsg.tag = 0;
 		err = iucv_message_send(iucv->path, &txmsg, IUCV_IPRMDATA, 0,
-					(void *) prmmsg, 8);
+					(void *) iprm_shutdown, 8);
 		if (err) {
 			switch (err) {
 			case 1:
@@ -1196,11 +1277,11 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 		goto save_message;
 
 	len = atomic_read(&sk->sk_rmem_alloc);
-	len += msg->length + sizeof(struct sk_buff);
+	len += iucv_msg_length(msg) + sizeof(struct sk_buff);
 	if (len > sk->sk_rcvbuf)
 		goto save_message;
 
-	skb = alloc_skb(msg->length, GFP_ATOMIC | GFP_DMA);
+	skb = alloc_skb(iucv_msg_length(msg), GFP_ATOMIC | GFP_DMA);
 	if (!skb)
 		goto save_message;
 

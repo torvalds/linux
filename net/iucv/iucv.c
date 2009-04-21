@@ -1388,6 +1388,8 @@ static void iucv_path_complete(struct iucv_irq_data *data)
 	struct iucv_path_complete *ipc = (void *) data;
 	struct iucv_path *path = iucv_path_table[ipc->ippathid];
 
+	if (path)
+		path->flags = ipc->ipflags1;
 	if (path && path->handler && path->handler->path_complete)
 		path->handler->path_complete(path, ipc->ipuser);
 }
