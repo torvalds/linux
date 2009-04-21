@@ -30,11 +30,4 @@ static inline u8 kvm_pop_irq(struct kvm_vcpu *vcpu)
 		clear_bit(word_index, &vcpu->arch.irq_summary);
 	return irq;
 }
-
-static inline void kvm_push_irq(struct kvm_vcpu *vcpu, u8 irq)
-{
-        set_bit(irq, vcpu->arch.irq_pending);
-        set_bit(irq / BITS_PER_LONG, &vcpu->arch.irq_summary);
-}
-
 #endif
