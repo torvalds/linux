@@ -579,6 +579,10 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	async->bio_flags = bio_flags;
 
 	atomic_inc(&fs_info->nr_async_submits);
+
+	if (rw & (1 << BIO_RW_SYNCIO))
+		btrfs_set_work_high_prio(&async->work);
+
 	btrfs_queue_worker(&fs_info->workers, &async->work);
 #if 0
 	int limit = btrfs_async_submit_limit(fs_info);
@@ -656,6 +660,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
 				     mirror_num, 0);
 	}
+
 	/*
 	 * kthread helpers are used to submit writes so that checksumming
 	 * can happen in parallel across all CPUs
@@ -2095,10 +2100,10 @@ static int write_dev_supers(struct btrfs_device *device,
 				device->barriers = 0;
 				get_bh(bh);
 				lock_buffer(bh);
-				ret = submit_bh(WRITE, bh);
+				ret = submit_bh(WRITE_SYNC, bh);
 			}
 		} else {
-			ret = submit_bh(WRITE, bh);
+			ret = submit_bh(WRITE_SYNC, bh);
 		}
 
 		if (!ret && wait) {

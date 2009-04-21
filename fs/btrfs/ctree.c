@@ -1325,12 +1325,12 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 	int ret = 0;
 	int blocksize;
 
-	parent = path->nodes[level - 1];
+	parent = path->nodes[level + 1];
 	if (!parent)
 		return 0;
 
 	nritems = btrfs_header_nritems(parent);
-	slot = path->slots[level];
+	slot = path->slots[level + 1];
 	blocksize = btrfs_level_size(root, level);
 
 	if (slot > 0) {
@@ -1341,7 +1341,7 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 			block1 = 0;
 		free_extent_buffer(eb);
 	}
-	if (slot < nritems) {
+	if (slot + 1 < nritems) {
 		block2 = btrfs_node_blockptr(parent, slot + 1);
 		gen = btrfs_node_ptr_generation(parent, slot + 1);
 		eb = btrfs_find_tree_block(root, block2, blocksize);
@@ -1351,7 +1351,11 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 	}
 	if (block1 || block2) {
 		ret = -EAGAIN;
+
+		/* release the whole path */
 		btrfs_release_path(root, path);
+
+		/* read the blocks */
 		if (block1)
 			readahead_tree_block(root, block1, blocksize, 0);
 		if (block2)
@@ -1361,7 +1365,7 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 			eb = read_tree_block(root, block1, blocksize, 0);
 			free_extent_buffer(eb);
 		}
-		if (block1) {
+		if (block2) {
 			eb = read_tree_block(root, block2, blocksize, 0);
 			free_extent_buffer(eb);
 		}
@@ -1481,12 +1485,15 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	 * of the btree by dropping locks before
 	 * we read.
 	 */
-	btrfs_release_path(NULL, p);
+	btrfs_unlock_up_safe(p, level + 1);
+	btrfs_set_path_blocking(p);
+
 	if (tmp)
 		free_extent_buffer(tmp);
 	if (p->reada)
 		reada_for_search(root, p, level, slot, key->objectid);
 
+	btrfs_release_path(NULL, p);
 	tmp = read_tree_block(root, blocknr, blocksize, gen);
 	if (tmp)
 		free_extent_buffer(tmp);
