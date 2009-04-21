@@ -155,7 +155,7 @@ no_newjump:
 #endif
 
 	;; We need to setup the bus registers before we start using the DRAM
-#include "../../lib/dram_init.S"
+#include "../../../arch-v10/lib/dram_init.S"
 
 	;; we now should go through the checksum-table and check the listed
 	;; partitions for errors.

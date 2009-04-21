@@ -1,11 +1,23 @@
 #
-# arch/cris/arch-v10/boot/compressed/Makefile
+# arch/cris/boot/compressed/Makefile
 #
 
 asflags-y += $(LINUXINCLUDE)
 ccflags-y += -O2 $(LINUXINCLUDE)
-ldflags-y += -T $(srctree)/$(src)/decompress.lds
-OBJECTS = $(obj)/head.o $(obj)/misc.o
+
+# asflags-$(CONFIG_ETRAX_ARCH_V32) += -I$(srctree)/include/asm/mach \
+# 				    -I$(srctree)/include/asm/arch
+# ccflags-$(CONFIG_ETRAX_ARCH_V32) += -O2 -I$(srctree)/include/asm/mach
+# 					-I$(srctree)/include/asm/arch
+
+arch-$(CONFIG_ETRAX_ARCH_V10) = v10
+arch-$(CONFIG_ETRAX_ARCH_V32) = v32
+
+ldflags-y += -T $(srctree)/$(src)/decompress_$(arch-y).lds
+
+OBJECTS-$(CONFIG_ETRAX_ARCH_V32) = $(obj)/head_v32.o
+OBJECTS-$(CONFIG_ETRAX_ARCH_V10) = $(obj)/head_v10.o
+OBJECTS= $(OBJECTS-y) $(obj)/misc.o
 OBJCOPYFLAGS = -O binary --remove-section=.bss
 
 quiet_cmd_image = BUILD   $@
@@ -24,4 +36,3 @@ $(obj)/vmlinux: $(obj)/piggy.gz $(obj)/decompress.bin FORCE
 
 $(obj)/piggy.gz: $(obj)/../Image FORCE
 	$(call if_changed,gzip)
-

@@ -18,14 +18,18 @@
 
 #define KERNEL_LOAD_ADR 0x40004000
 
-
 #include <linux/types.h>
+
+#ifdef CONFIG_ETRAX_ARCH_V32
 #include <hwregs/reg_rdwr.h>
 #include <hwregs/reg_map.h>
 #include <hwregs/ser_defs.h>
 #include <hwregs/pinmux_defs.h>
 #ifdef CONFIG_CRIS_MACH_ARTPEC3
 #include <hwregs/clkgen_defs.h>
+#endif
+#else
+#include <arch/svinto.h>
 #endif
 
 /*
@@ -35,12 +39,10 @@
 #define OF(args)  args
 #define STATIC static
 
-void* memset(void* s, int c, size_t n);
-void* memcpy(void* __dest, __const void* __src,
-	     size_t __n);
+void *memset(void *s, int c, size_t n);
+void *memcpy(void *__dest, __const void *__src, size_t __n);
 
-#define memzero(s, n)     memset ((s), 0, (n))
-
+#define memzero(s, n)     memset((s), 0, (n))
 
 typedef unsigned char  uch;
 typedef unsigned short ush;
@@ -68,37 +70,49 @@ static unsigned outcnt = 0;  /* bytes in output buffer */
 #define ENCRYPTED    0x20 /* bit 5 set: file is encrypted */
 #define RESERVED     0xC0 /* bit 6,7:   reserved */
 
-#define get_byte() inbuf[inptr++]
+#define get_byte() (inbuf[inptr++])
 
 /* Diagnostic functions */
 #ifdef DEBUG
-#  define Assert(cond,msg) {if(!(cond)) error(msg);}
+#  define Assert(cond, msg) do { \
+		if (!(cond)) \
+			error(msg); \
+	} while (0)
 #  define Trace(x) fprintf x
-#  define Tracev(x) {if (verbose) fprintf x ;}
-#  define Tracevv(x) {if (verbose>1) fprintf x ;}
-#  define Tracec(c,x) {if (verbose && (c)) fprintf x ;}
-#  define Tracecv(c,x) {if (verbose>1 && (c)) fprintf x ;}
+#  define Tracev(x) do { \
+		if (verbose) \
+			fprintf x; \
+	} while (0)
+#  define Tracevv(x) do { \
+		if (verbose > 1) \
+			fprintf x; \
+	} while (0)
+#  define Tracec(c, x) do { \
+		if (verbose && (c)) \
+			fprintf x; \
+	} while (0)
+#  define Tracecv(c, x) do { \
+		if (verbose > 1 && (c)) \
+			fprintf x; \
+	} while (0)
 #else
-#  define Assert(cond,msg)
+#  define Assert(cond, msg)
 #  define Trace(x)
 #  define Tracev(x)
 #  define Tracevv(x)
-#  define Tracec(c,x)
-#  define Tracecv(c,x)
+#  define Tracec(c, x)
+#  define Tracecv(c, x)
 #endif
 
 static void flush_window(void);
 static void error(char *m);
+static void puts(const char *);
 
 extern char *input_data;  /* lives in head.S */
 
 static long bytes_out;
 static uch *output_data;
 static unsigned long output_ptr;
-
-static void error(char *m);
-
-static void puts(const char *);
 
 /* the "heap" is put directly after the BSS ends, at end */
 
@@ -110,8 +124,8 @@ static long free_mem_end_ptr;
 
 /* decompressor info and error messages to serial console */
 
-static inline void
-serout(const char *s, reg_scope_instances regi_ser)
+#ifdef CONFIG_ETRAX_ARCH_V32
+static inline void serout(const char *s, reg_scope_instances regi_ser)
 {
 	reg_ser_rs_stat_din rs;
 	reg_ser_rw_dout dout = {.data = *s};
@@ -123,23 +137,47 @@ serout(const char *s, reg_scope_instances regi_ser)
 
 	REG_WR(ser, regi_ser, rw_dout, dout);
 }
+#endif
 
-static void
-puts(const char *s)
+static void puts(const char *s)
 {
 #ifndef CONFIG_ETRAX_DEBUG_PORT_NULL
 	while (*s) {
 #ifdef CONFIG_ETRAX_DEBUG_PORT0
+#ifdef CONFIG_ETRAX_ARCH_V32
 		serout(s, regi_ser0);
+#else
+		while (!(*R_SERIAL0_STATUS & (1 << 5)))
+			;
+		*R_SERIAL0_TR_DATA = *s++;
+#endif
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT1
+#ifdef CONFIG_ETRAX_ARCH_V32
 		serout(s, regi_ser1);
+#else
+		while (!(*R_SERIAL1_STATUS & (1 << 5)))
+			;
+		*R_SERIAL1_TR_DATA = *s++;
+#endif
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT2
+#ifdef CONFIG_ETRAX_ARCH_V32
 		serout(s, regi_ser2);
+#else
+		while (!(*R_SERIAL2_STATUS & (1 << 5)))
+			;
+		*R_SERIAL2_TR_DATA = *s++;
+#endif
 #endif
 #ifdef CONFIG_ETRAX_DEBUG_PORT3
+#ifdef CONFIG_ETRAX_ARCH_V32
 		serout(s, regi_ser3);
+#else
+		while (!(*R_SERIAL3_STATUS & (1 << 5)))
+			;
+		*R_SERIAL3_TR_DATA = *s++;
+#endif
 #endif
 		*s++;
 	}
@@ -147,8 +185,7 @@ puts(const char *s)
 #endif
 }
 
-void*
-memset(void* s, int c, size_t n)
+void *memset(void *s, int c, size_t n)
 {
 	int i;
 	char *ss = (char*)s;
@@ -158,14 +195,13 @@ memset(void* s, int c, size_t n)
 	return s;
 }
 
-void*
-memcpy(void* __dest, __const void* __src,
-			    size_t __n)
+void *memcpy(void *__dest, __const void *__src, size_t __n)
 {
 	int i;
 	char *d = (char *)__dest, *s = (char *)__src;
 
-	for (i=0;i<__n;i++) d[i] = s[i];
+	for (i = 0; i < __n; i++)
+		d[i] = s[i];
 
 	return __dest;
 }
@@ -175,43 +211,42 @@ memcpy(void* __dest, __const void* __src,
  * (Used for the decompressed data only.)
  */
 
-static void
-flush_window()
+static void flush_window(void)
 {
-    ulg c = crc;         /* temporary variable */
-    unsigned n;
-    uch *in, *out, ch;
+	ulg c = crc;         /* temporary variable */
+	unsigned n;
+	uch *in, *out, ch;
 
-    in = window;
-    out = &output_data[output_ptr];
-    for (n = 0; n < outcnt; n++) {
-	    ch = *out++ = *in++;
-	    c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
-    }
-    crc = c;
-    bytes_out += (ulg)outcnt;
-    output_ptr += (ulg)outcnt;
-    outcnt = 0;
+	in = window;
+	out = &output_data[output_ptr];
+	for (n = 0; n < outcnt; n++) {
+		ch = *out = *in;
+		out++;
+		in++;
+		c = crc_32_tab[((int)c ^ ch) & 0xff] ^ (c >> 8);
+	}
+	crc = c;
+	bytes_out += (ulg)outcnt;
+	output_ptr += (ulg)outcnt;
+	outcnt = 0;
 }
 
-static void
-error(char *x)
+static void error(char *x)
 {
-	puts("\r\n\n");
+	puts("\n\n");
 	puts(x);
-	puts("\r\n\n -- System halted\n");
+	puts("\n\n -- System halted\n");
 
 	while(1);	/* Halt */
 }
 
-void
-setup_normal_output_buffer(void)
+void setup_normal_output_buffer(void)
 {
 	output_data = (char *)KERNEL_LOAD_ADR;
 }
 
-static inline void
-serial_setup(reg_scope_instances regi_ser)
+#ifdef CONFIG_ETRAX_ARCH_V32
+static inline void serial_setup(reg_scope_instances regi_ser)
 {
 	reg_ser_rw_xoff xoff;
 	reg_ser_rw_tr_ctrl tr_ctrl;
@@ -252,12 +287,16 @@ serial_setup(reg_scope_instances regi_ser)
 	REG_WR(ser, regi_ser, rw_rec_ctrl, rec_ctrl);
 	REG_WR(ser, regi_ser, rw_rec_baud_div, rec_baud);
 }
+#endif
 
-void
-decompress_kernel(void)
+void decompress_kernel(void)
 {
 	char revision;
+	char compile_rev;
 
+#ifdef CONFIG_ETRAX_ARCH_V32
+	/* Need at least a CRISv32 to run. */
+	compile_rev = 32;
 #if defined(CONFIG_ETRAX_DEBUG_PORT1) || \
     defined(CONFIG_ETRAX_DEBUG_PORT2) || \
     defined(CONFIG_ETRAX_DEBUG_PORT3)
@@ -276,6 +315,7 @@ decompress_kernel(void)
 	/* pinmux setup for ports 1..3 */
 	hwprot = REG_RD(pinmux, regi_pinmux, rw_hwprot);
 #endif
+
 
 #ifdef CONFIG_ETRAX_DEBUG_PORT0
 	serial_setup(regi_ser0);
@@ -300,19 +340,52 @@ decompress_kernel(void)
 
 	/* input_data is set in head.S */
 	inbuf = input_data;
+#else /* CRISv10 */
+	/* Need at least a crisv10 to run. */
+	compile_rev = 10;
+
+	/* input_data is set in head.S */
+	inbuf = input_data;
+
+#ifdef CONFIG_ETRAX_DEBUG_PORT0
+	*R_SERIAL0_XOFF = 0;
+	*R_SERIAL0_BAUD = 0x99;
+	*R_SERIAL0_TR_CTRL = 0x40;
+#endif
+#ifdef CONFIG_ETRAX_DEBUG_PORT1
+	*R_SERIAL1_XOFF = 0;
+	*R_SERIAL1_BAUD = 0x99;
+	*R_SERIAL1_TR_CTRL = 0x40;
+#endif
+#ifdef CONFIG_ETRAX_DEBUG_PORT2
+	*R_GEN_CONFIG = 0x08;
+	*R_SERIAL2_XOFF = 0;
+	*R_SERIAL2_BAUD = 0x99;
+	*R_SERIAL2_TR_CTRL = 0x40;
+#endif
+#ifdef CONFIG_ETRAX_DEBUG_PORT3
+	*R_GEN_CONFIG = 0x100;
+	*R_SERIAL3_XOFF = 0;
+	*R_SERIAL3_BAUD = 0x99;
+	*R_SERIAL3_TR_CTRL = 0x40;
+#endif
+#endif
 
 	setup_normal_output_buffer();
 
 	makecrc();
 
 	__asm__ volatile ("move $vr,%0" : "=rm" (revision));
-	if (revision < 32)
-	{
-		puts("You need an ETRAX FS to run Linux 2.6/crisv32.\r\n");
+	if (revision < compile_rev) {
+#ifdef CONFIG_ETRAX_ARCH_V32
+		puts("You need an ETRAX FS to run Linux 2.6/crisv32\n");
+#else
+		puts("You need an ETRAX 100LX to run linux 2.6\n");
+#endif
 		while(1);
 	}
 
-	puts("Uncompressing Linux...\r\n");
+	puts("Uncompressing Linux...\n");
 	gunzip();
-	puts("Done. Now booting the kernel.\r\n");
+	puts("Done. Now booting the kernel\n");
 }
