@@ -414,7 +414,8 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		touched = 1;
 	}
 
-	if (cpumask_test_cpu(cpu, backtrace_mask)) {
+	/* We can be called before check_nmi_watchdog, hence NULL check. */
+	if (backtrace_mask != NULL && cpumask_test_cpu(cpu, backtrace_mask)) {
 		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
 
 		spin_lock(&lock);
