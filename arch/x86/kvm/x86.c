@@ -3566,16 +3566,16 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->efer = vcpu->arch.shadow_efer;
 	sregs->apic_base = kvm_get_apic_base(vcpu);
 
-	if (irqchip_in_kernel(vcpu->kvm)) {
+	if (irqchip_in_kernel(vcpu->kvm))
 		memset(sregs->interrupt_bitmap, 0,
 		       sizeof sregs->interrupt_bitmap);
-		pending_vec = kvm_x86_ops->get_irq(vcpu);
-		if (pending_vec >= 0)
-			set_bit(pending_vec,
-				(unsigned long *)sregs->interrupt_bitmap);
-	} else
+	else
 		memcpy(sregs->interrupt_bitmap, vcpu->arch.irq_pending,
 		       sizeof sregs->interrupt_bitmap);
+
+	pending_vec = kvm_x86_ops->get_irq(vcpu);
+	if (pending_vec >= 0)
+		set_bit(pending_vec, (unsigned long *)sregs->interrupt_bitmap);
 
 	vcpu_put(vcpu);
 
