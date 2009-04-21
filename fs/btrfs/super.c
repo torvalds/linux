@@ -68,7 +68,7 @@ enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
 	Opt_ssd, Opt_thread_pool, Opt_noacl,  Opt_compress, Opt_notreelog,
-	Opt_flushoncommit, Opt_err,
+	Opt_ratio, Opt_flushoncommit, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -87,6 +87,7 @@ static match_table_t tokens = {
 	{Opt_noacl, "noacl"},
 	{Opt_notreelog, "notreelog"},
 	{Opt_flushoncommit, "flushoncommit"},
+	{Opt_ratio, "metadata_ratio=%d"},
 	{Opt_err, NULL},
 };
 
@@ -233,6 +234,15 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_flushoncommit:
 			printk(KERN_INFO "btrfs: turning on flush-on-commit\n");
 			btrfs_set_opt(info->mount_opt, FLUSHONCOMMIT);
+			break;
+		case Opt_ratio:
+			intarg = 0;
+			match_int(&args[0], &intarg);
+			if (intarg) {
+				info->metadata_ratio = intarg;
+				printk(KERN_INFO "btrfs: metadata ratio %d\n",
+				       info->metadata_ratio);
+			}
 			break;
 		default:
 			break;

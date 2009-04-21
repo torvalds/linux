@@ -881,6 +881,9 @@ struct btrfs_fs_info {
 	u64 metadata_alloc_profile;
 	u64 system_alloc_profile;
 
+	unsigned data_chunk_allocations;
+	unsigned metadata_ratio;
+
 	void *bdev_holder;
 };
 

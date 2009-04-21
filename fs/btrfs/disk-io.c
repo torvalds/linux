@@ -1604,6 +1604,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
+	fs_info->metadata_ratio = 8;
 
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
