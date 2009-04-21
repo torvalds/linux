@@ -2555,9 +2555,6 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 		ret = futex_wait_requeue_pi(uaddr, fshared, val, timeout, val3,
 					    clockrt, uaddr2);
 		break;
-	case FUTEX_REQUEUE_PI:
-		ret = futex_requeue(uaddr, fshared, uaddr2, val, val2, NULL, 1);
-		break;
 	case FUTEX_CMP_REQUEUE_PI:
 		ret = futex_requeue(uaddr, fshared, uaddr2, val, val2, &val3,
 				    1);
@@ -2596,8 +2593,7 @@ SYSCALL_DEFINE6(futex, u32 __user *, uaddr, int, op, u32, val,
 	 * number of waiters to wake in 'utime' if cmd == FUTEX_WAKE_OP.
 	 */
 	if (cmd == FUTEX_REQUEUE || cmd == FUTEX_CMP_REQUEUE ||
-	    cmd == FUTEX_REQUEUE_PI || cmd == FUTEX_CMP_REQUEUE_PI ||
-	    cmd == FUTEX_WAKE_OP)
+	    cmd == FUTEX_CMP_REQUEUE_PI || cmd == FUTEX_WAKE_OP)
 		val2 = (u32) (unsigned long) utime;
 
 	return do_futex(uaddr, op, val, tp, uaddr2, val2, val3);
