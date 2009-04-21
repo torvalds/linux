@@ -5638,7 +5638,7 @@ L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 F:	arch/m68knommu/
 
-UCLINUX FOR RENESAS H8/300
+UCLINUX FOR RENESAS H8/300 (H8300)
 P:	Yoshinori Sato
 M:	ysato@users.sourceforge.jp
 W:	http://uclinux-h8.sourceforge.jp/
