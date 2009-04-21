@@ -268,6 +268,7 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 	skb_queue_head_init(&iucv_sk(sk)->backlog_skb_q);
 	iucv_sk(sk)->send_tag = 0;
 	iucv_sk(sk)->flags = 0;
+	iucv_sk(sk)->msglimit = IUCV_QUEUELEN_DEFAULT;
 
 	sk->sk_destruct = iucv_sock_destruct;
 	sk->sk_sndtimeo = IUCV_CONN_TIMEOUT;
@@ -536,7 +537,7 @@ static int iucv_sock_connect(struct socket *sock, struct sockaddr *addr,
 
 	iucv = iucv_sk(sk);
 	/* Create path. */
-	iucv->path = iucv_path_alloc(IUCV_QUEUELEN_DEFAULT,
+	iucv->path = iucv_path_alloc(iucv->msglimit,
 				     IUCV_IPRMDATA, GFP_KERNEL);
 	if (!iucv->path) {
 		err = -ENOMEM;
@@ -1219,6 +1220,20 @@ static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
 		else
 			iucv->flags &= ~IUCV_IPRMDATA;
 		break;
+	case SO_MSGLIMIT:
+		switch (sk->sk_state) {
+		case IUCV_OPEN:
+		case IUCV_BOUND:
+			if (val < 1 || val > (u16)(~0))
+				rc = -EINVAL;
+			else
+				iucv->msglimit = val;
+			break;
+		default:
+			rc = -EINVAL;
+			break;
+		}
+		break;
 	default:
 		rc = -ENOPROTOOPT;
 		break;
@@ -1249,6 +1264,12 @@ static int iucv_sock_getsockopt(struct socket *sock, int level, int optname,
 	switch (optname) {
 	case SO_IPRMDATA_MSG:
 		val = (iucv->flags & IUCV_IPRMDATA) ? 1 : 0;
+		break;
+	case SO_MSGLIMIT:
+		lock_sock(sk);
+		val = (iucv->path != NULL) ? iucv->path->msglim	/* connected */
+					   : iucv->msglimit;	/* default */
+		release_sock(sk);
 		break;
 	default:
 		return -ENOPROTOOPT;
@@ -1339,7 +1360,9 @@ static int iucv_callback_connreq(struct iucv_path *path,
 	memcpy(nuser_data + 8, niucv->src_name, 8);
 	ASCEBC(nuser_data + 8, 8);
 
-	path->msglim = IUCV_QUEUELEN_DEFAULT;
+	/* set message limit for path based on msglimit of accepting socket */
+	niucv->msglimit = iucv->msglimit;
+	path->msglim = iucv->msglimit;
 	err = iucv_path_accept(path, &af_iucv_handler, nuser_data, nsk);
 	if (err) {
 		err = iucv_path_sever(path, user_data);
