@@ -830,7 +830,7 @@ again:
 
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		BUG_ON(ret);
-		goto done;
+		goto release;
 	} else if (split == start) {
 		if (locked_end < extent_end) {
 			ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
@@ -926,6 +926,8 @@ again:
 	}
 done:
 	btrfs_mark_buffer_dirty(leaf);
+
+release:
 	btrfs_release_path(root, path);
 	if (split_end && split == start) {
 		split = end;
