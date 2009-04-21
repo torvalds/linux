@@ -2298,7 +2298,7 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 		(svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
-static void svm_intr_assist(struct kvm_vcpu *vcpu)
+static void svm_intr_assist(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	struct vmcb *vmcb = svm->vmcb;
