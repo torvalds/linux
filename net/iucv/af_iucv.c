@@ -814,6 +814,8 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
+	/* receive/dequeue next skb:
+	 * the function understands MSG_PEEK and, thus, does not dequeue skb */
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
 	if (!skb) {
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
@@ -861,9 +863,7 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 				iucv_process_message_q(sk);
 			spin_unlock_bh(&iucv->message_q.lock);
 		}
-
-	} else
-		skb_queue_head(&sk->sk_receive_queue, skb);
+	}
 
 done:
 	return err ? : copied;
