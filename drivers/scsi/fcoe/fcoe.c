@@ -884,7 +884,6 @@ err2:
 	kfree_skb(skb);
 	return -1;
 }
-EXPORT_SYMBOL_GPL(fcoe_rcv);
 
 /**
  * fcoe_start_io() - pass to netdev to start xmit for fcoe
@@ -1123,7 +1122,6 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fcoe_xmit);
 
 /**
  * fcoe_percpu_receive_thread() - recv thread per cpu
@@ -1652,7 +1650,6 @@ int fcoe_link_ok(struct fc_lport *lp)
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(fcoe_link_ok);
 
 /**
  * fcoe_percpu_clean() - Clear the pending skbs for an lport
@@ -1684,7 +1681,6 @@ void fcoe_percpu_clean(struct fc_lport *lp)
 		spin_unlock_bh(&pp->fcoe_rx_list.lock);
 	}
 }
-EXPORT_SYMBOL_GPL(fcoe_percpu_clean);
 
 /**
  * fcoe_clean_pending_queue() - Dequeue a skb and free it
@@ -1705,7 +1701,6 @@ void fcoe_clean_pending_queue(struct fc_lport *lp)
 	}
 	spin_unlock_bh(&fc->fcoe_pending_queue.lock);
 }
-EXPORT_SYMBOL_GPL(fcoe_clean_pending_queue);
 
 /**
  * fcoe_reset() - Resets the fcoe
@@ -1719,7 +1714,6 @@ int fcoe_reset(struct Scsi_Host *shost)
 	fc_lport_reset(lport);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fcoe_reset);
 
 /**
  * fcoe_hostlist_lookup_softc() - find the corresponding lport by a given device
@@ -1757,7 +1751,6 @@ struct fc_lport *fcoe_hostlist_lookup(const struct net_device *netdev)
 
 	return (fc) ? fc->ctlr.lp : NULL;
 }
-EXPORT_SYMBOL_GPL(fcoe_hostlist_lookup);
 
 /**
  * fcoe_hostlist_add() - Add a lport to lports list
@@ -1778,7 +1771,6 @@ int fcoe_hostlist_add(const struct fc_lport *lp)
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fcoe_hostlist_add);
 
 /**
  * fcoe_hostlist_remove() - remove a lport from lports list
@@ -1798,7 +1790,6 @@ int fcoe_hostlist_remove(const struct fc_lport *lp)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(fcoe_hostlist_remove);
 
 /**
  * fcoe_init() - fcoe module loading initialization
