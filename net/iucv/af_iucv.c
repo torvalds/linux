@@ -1116,8 +1116,10 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 	struct sock_msg_q *save_msg;
 	int len;
 
-	if (sk->sk_shutdown & RCV_SHUTDOWN)
+	if (sk->sk_shutdown & RCV_SHUTDOWN) {
+		iucv_message_reject(path, msg);
 		return;
+	}
 
 	if (!list_empty(&iucv->message_q.list) ||
 	    !skb_queue_empty(&iucv->backlog_skb_q))
