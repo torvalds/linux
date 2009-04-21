@@ -26,6 +26,7 @@
 #include <mach/mmc.h>
 #include <mach/ohci.h>
 #include <mach/pxa2xx-regs.h>
+#include <mach/audio.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -315,6 +316,7 @@ static void __init csb726_init(void)
 	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_mci_info(&csb726_mci);
 	pxa_set_ohci_info(&csb726_ohci_platform_data);
+	pxa_set_ac97_info(NULL);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
