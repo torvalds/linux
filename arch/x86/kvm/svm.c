@@ -966,13 +966,6 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 	return 0;
 }
 
-static int svm_get_irq(struct kvm_vcpu *vcpu)
-{
-	if (!vcpu->arch.interrupt.pending)
-		return -1;
-	return vcpu->arch.interrupt.nr;
-}
-
 static void load_host_msrs(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
@@ -2647,7 +2640,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.handle_exit = handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.patch_hypercall = svm_patch_hypercall,
-	.get_irq = svm_get_irq,
 	.set_irq = svm_set_irq,
 	.set_nmi = svm_inject_nmi,
 	.queue_exception = svm_queue_exception,

@@ -1045,13 +1045,6 @@ static int set_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 	return 0;
 }
 
-static int vmx_get_irq(struct kvm_vcpu *vcpu)
-{
-	if (!vcpu->arch.interrupt.pending)
-		return -1;
-	return vcpu->arch.interrupt.nr;
-}
-
 static __init int cpu_has_kvm_support(void)
 {
 	return cpu_has_vmx();
@@ -3634,7 +3627,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.handle_exit = vmx_handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
 	.patch_hypercall = vmx_patch_hypercall,
-	.get_irq = vmx_get_irq,
 	.set_irq = vmx_inject_irq,
 	.set_nmi = vmx_inject_nmi,
 	.queue_exception = vmx_queue_exception,

@@ -510,7 +510,6 @@ struct kvm_x86_ops {
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
 	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
 				unsigned char *hypercall_addr);
-	int (*get_irq)(struct kvm_vcpu *vcpu);
 	void (*set_irq)(struct kvm_vcpu *vcpu, int vec);
 	void (*set_nmi)(struct kvm_vcpu *vcpu);
 	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,

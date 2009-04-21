@@ -3536,7 +3536,6 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
 	struct descriptor_table dt;
-	int pending_vec;
 
 	vcpu_load(vcpu);
 
@@ -3573,9 +3572,9 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 		memcpy(sregs->interrupt_bitmap, vcpu->arch.irq_pending,
 		       sizeof sregs->interrupt_bitmap);
 
-	pending_vec = kvm_x86_ops->get_irq(vcpu);
-	if (pending_vec >= 0)
-		set_bit(pending_vec, (unsigned long *)sregs->interrupt_bitmap);
+	if (vcpu->arch.interrupt.pending)
+		set_bit(vcpu->arch.interrupt.nr,
+			(unsigned long *)sregs->interrupt_bitmap);
 
 	vcpu_put(vcpu);
 
@@ -4097,9 +4096,8 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 			max_bits);
 		/* Only pending external irq is handled here */
 		if (pending_vec < max_bits) {
-			kvm_x86_ops->set_irq(vcpu, pending_vec);
-			pr_debug("Set back pending irq %d\n",
-				 pending_vec);
+			kvm_queue_interrupt(vcpu, pending_vec);
+			pr_debug("Set back pending irq %d\n", pending_vec);
 		}
 		kvm_pic_clear_isr_ack(vcpu->kvm);
 	}
