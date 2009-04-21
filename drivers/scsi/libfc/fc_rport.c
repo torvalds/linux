@@ -444,6 +444,7 @@ static void fc_rport_error(struct fc_rport *rport, struct fc_frame *fp)
 	case RPORT_ST_PRLI:
 	case RPORT_ST_LOGO:
 		rdata->event = RPORT_EV_FAILED;
+		fc_rport_state_enter(rport, RPORT_ST_NONE);
 		queue_work(rport_event_queue,
 			   &rdata->event_work);
 		break;
@@ -664,6 +665,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	} else {
 		FC_DBG("Bad ELS response\n");
 		rdata->event = RPORT_EV_FAILED;
+		fc_rport_state_enter(rport, RPORT_ST_NONE);
 		queue_work(rport_event_queue, &rdata->event_work);
 	}
 
@@ -715,6 +717,7 @@ static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 	} else {
 		FC_DBG("Bad ELS response\n");
 		rdata->event = RPORT_EV_LOGO;
+		fc_rport_state_enter(rport, RPORT_ST_NONE);
 		queue_work(rport_event_queue, &rdata->event_work);
 	}
 
@@ -1293,6 +1296,7 @@ static void fc_rport_recv_logo_req(struct fc_rport *rport, struct fc_seq *sp,
 	}
 
 	rdata->event = RPORT_EV_LOGO;
+	fc_rport_state_enter(rport, RPORT_ST_NONE);
 	queue_work(rport_event_queue, &rdata->event_work);
 
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
