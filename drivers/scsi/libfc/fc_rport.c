@@ -505,15 +505,17 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	FC_DEBUG_RPORT("Received a PLOGI response from port (%6x)\n",
 		       rport->port_id);
 
-	if (IS_ERR(fp)) {
-		fc_rport_error_retry(rport, fp);
-		goto err;
-	}
-
 	if (rdata->rp_state != RPORT_ST_PLOGI) {
 		FC_DBG("Received a PLOGI response, but in state %s\n",
 		       fc_rport_state(rport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_rport_error_retry(rport, fp);
+		goto err;
 	}
 
 	op = fc_frame_payload_op(fp);
@@ -614,15 +616,17 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	FC_DEBUG_RPORT("Received a PRLI response from port (%6x)\n",
 		       rport->port_id);
 
-	if (IS_ERR(fp)) {
-		fc_rport_error_retry(rport, fp);
-		goto err;
-	}
-
 	if (rdata->rp_state != RPORT_ST_PRLI) {
 		FC_DBG("Received a PRLI response, but in state %s\n",
 		       fc_rport_state(rport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_rport_error_retry(rport, fp);
+		goto err;
 	}
 
 	op = fc_frame_payload_op(fp);
@@ -678,15 +682,17 @@ static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 	FC_DEBUG_RPORT("Received a LOGO response from port (%6x)\n",
 		       rport->port_id);
 
-	if (IS_ERR(fp)) {
-		fc_rport_error_retry(rport, fp);
-		goto err;
-	}
-
 	if (rdata->rp_state != RPORT_ST_LOGO) {
 		FC_DEBUG_RPORT("Received a LOGO response, but in state %s\n",
 			       fc_rport_state(rport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_rport_error_retry(rport, fp);
+		goto err;
 	}
 
 	op = fc_frame_payload_op(fp);
@@ -764,15 +770,17 @@ static void fc_rport_rtv_resp(struct fc_seq *sp, struct fc_frame *fp,
 	FC_DEBUG_RPORT("Received a RTV response from port (%6x)\n",
 		       rport->port_id);
 
-	if (IS_ERR(fp)) {
-		fc_rport_error(rport, fp);
-		goto err;
-	}
-
 	if (rdata->rp_state != RPORT_ST_RTV) {
 		FC_DBG("Received a RTV response, but in state %s\n",
 		       fc_rport_state(rport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_rport_error(rport, fp);
+		goto err;
 	}
 
 	op = fc_frame_payload_op(fp);

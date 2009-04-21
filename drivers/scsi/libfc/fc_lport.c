@@ -1032,15 +1032,17 @@ static void fc_lport_rft_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	FC_DEBUG_LPORT("Received a RFT_ID response\n");
 
-	if (IS_ERR(fp)) {
-		fc_lport_error(lport, fp);
-		goto err;
-	}
-
 	if (lport->state != LPORT_ST_RFT_ID) {
 		FC_DBG("Received a RFT_ID response, but in state %s\n",
 		       fc_lport_state(lport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_lport_error(lport, fp);
+		goto err;
 	}
 
 	fh = fc_frame_header_get(fp);
@@ -1084,15 +1086,17 @@ static void fc_lport_rpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	FC_DEBUG_LPORT("Received a RPN_ID response\n");
 
-	if (IS_ERR(fp)) {
-		fc_lport_error(lport, fp);
-		goto err;
-	}
-
 	if (lport->state != LPORT_ST_RPN_ID) {
 		FC_DBG("Received a RPN_ID response, but in state %s\n",
 		       fc_lport_state(lport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_lport_error(lport, fp);
+		goto err;
 	}
 
 	fh = fc_frame_header_get(fp);
@@ -1134,15 +1138,17 @@ static void fc_lport_scr_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	FC_DEBUG_LPORT("Received a SCR response\n");
 
-	if (IS_ERR(fp)) {
-		fc_lport_error(lport, fp);
-		goto err;
-	}
-
 	if (lport->state != LPORT_ST_SCR) {
 		FC_DBG("Received a SCR response, but in state %s\n",
 		       fc_lport_state(lport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_lport_error(lport, fp);
+		goto err;
 	}
 
 	op = fc_frame_payload_op(fp);
@@ -1360,15 +1366,17 @@ static void fc_lport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	FC_DEBUG_LPORT("Received a LOGO response\n");
 
-	if (IS_ERR(fp)) {
-		fc_lport_error(lport, fp);
-		goto err;
-	}
-
 	if (lport->state != LPORT_ST_LOGO) {
 		FC_DBG("Received a LOGO response, but in state %s\n",
 		       fc_lport_state(lport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_lport_error(lport, fp);
+		goto err;
 	}
 
 	op = fc_frame_payload_op(fp);
@@ -1444,15 +1452,17 @@ static void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	FC_DEBUG_LPORT("Received a FLOGI response\n");
 
-	if (IS_ERR(fp)) {
-		fc_lport_error(lport, fp);
-		goto err;
-	}
-
 	if (lport->state != LPORT_ST_FLOGI) {
 		FC_DBG("Received a FLOGI response, but in state %s\n",
 		       fc_lport_state(lport));
+		if (IS_ERR(fp))
+			goto err;
 		goto out;
+	}
+
+	if (IS_ERR(fp)) {
+		fc_lport_error(lport, fp);
+		goto err;
 	}
 
 	fh = fc_frame_header_get(fp);
