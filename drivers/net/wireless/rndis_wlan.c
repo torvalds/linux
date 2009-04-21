@@ -415,12 +415,12 @@ static int rndis_change_virtual_intf(struct wiphy *wiphy, int ifindex,
 static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 			struct cfg80211_scan_request *request);
 
-struct cfg80211_ops rndis_config_ops = {
+static struct cfg80211_ops rndis_config_ops = {
 	.change_virtual_intf = rndis_change_virtual_intf,
 	.scan = rndis_scan,
 };
 
-void *rndis_wiphy_privid = &rndis_wiphy_privid;
+static void *rndis_wiphy_privid = &rndis_wiphy_privid;
 
 static const int bcm4320_power_output[4] = { 25, 50, 75, 100 };
 
