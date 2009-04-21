@@ -32,6 +32,7 @@
 #include <linux/kthread.h>
 #include <linux/pagevec.h>
 #include <linux/freezer.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <net/ipv6.h>
@@ -2278,6 +2279,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	struct dfs_info3_param *referrals = NULL;
 	unsigned int num_referrals = 0;
+	int referral_walks_count = 0;
 try_mount_again:
 #endif
 	full_path = NULL;
@@ -2525,6 +2527,16 @@ remote_path_check:
 	/* get referral if needed */
 	if (rc == -EREMOTE) {
 #ifdef CONFIG_CIFS_DFS_UPCALL
+		if (referral_walks_count > MAX_NESTED_LINKS) {
+			/*
+			 * BB: when we implement proper loop detection,
+			 *     we will remove this check. But now we need it
+			 *     to prevent an indefinite loop if 'DFS tree' is
+			 *     misconfigured (i.e. has loops).
+			 */
+			rc = -ELOOP;
+			goto mount_fail_check;
+		}
 		/* convert forward to back slashes in prepath here if needed */
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
 			convert_delimiter(cifs_sb->prepath,
@@ -2558,6 +2570,7 @@ remote_path_check:
 			cleanup_volume_info(&volume_info);
 			FreeXid(xid);
 			kfree(full_path);
+			referral_walks_count++;
 			goto try_mount_again;
 		}
 #else /* No DFS support, return error on mount */
