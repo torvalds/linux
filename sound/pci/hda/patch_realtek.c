@@ -1026,7 +1026,7 @@ static void alc_subsystem_id(struct hda_codec *codec,
 	ass = snd_hda_codec_get_pincfg(codec, nid);
 	snd_printd("realtek: No valid SSID, "
 		   "checking pincfg 0x%08x for NID 0x%x\n",
-		   nid, ass);
+		   ass, nid);
 	if (!(ass & 1) && !(ass & 0x100000))
 		return;
 	if ((ass >> 30) != 1)	/* no physical connection */
