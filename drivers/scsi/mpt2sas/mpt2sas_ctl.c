@@ -917,9 +917,9 @@ _ctl_getiocinfo(void __user *arg)
 	karg.pci_information.u.bits.function = PCI_FUNC(ioc->pdev->devfn);
 	karg.pci_information.segment_id = pci_domain_nr(ioc->pdev->bus);
 	karg.firmware_version = ioc->facts.FWVersion.Word;
-	strncpy(karg.driver_version, MPT2SAS_DRIVER_VERSION,
-	    MPT2_IOCTL_VERSION_LENGTH);
-	karg.driver_version[MPT2_IOCTL_VERSION_LENGTH - 1] = '\0';
+	strcpy(karg.driver_version, MPT2SAS_DRIVER_NAME);
+	strcat(karg.driver_version, "-");
+	strcat(karg.driver_version, MPT2SAS_DRIVER_VERSION);
 	karg.bios_version = le32_to_cpu(ioc->bios_pg3.BiosVersion);
 
 	if (copy_to_user(arg, &karg, sizeof(karg))) {
