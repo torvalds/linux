@@ -24,20 +24,11 @@
 #define	I2C_DRIVERID_WIS_OV7640		0xf0f5
 #define	I2C_DRIVERID_WIS_TW2804		0xf0f6
 #define	I2C_DRIVERID_S2250		0xf0f7
-#define	I2C_ALGO_GO7007			0xf00000
-#define	I2C_ALGO_GO7007_USB		0xf10000
 
 /* Flag to indicate that the client needs to be accessed with SCCB semantics */
 /* We re-use the I2C_M_TEN value so the flag passes through the masks in the
  * core I2C code.  Major kludge, but the I2C layer ain't exactly flexible. */
 #define	I2C_CLIENT_SCCB			0x10
-
-typedef int (*found_proc) (struct i2c_adapter *, int, int);
-int wis_i2c_add_driver(unsigned int id, found_proc found_proc);
-void wis_i2c_del_driver(found_proc found_proc);
-
-int wis_i2c_probe_device(struct i2c_adapter *adapter,
-				unsigned int id, int addr);
 
 /* Definitions for new video decoder commands */
 
