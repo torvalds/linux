@@ -9,30 +9,6 @@
 
 #include <asm/percpu.h>
 
-#ifndef PER_CPU_BASE_SECTION
-#ifdef CONFIG_SMP
-#define PER_CPU_BASE_SECTION ".data.percpu"
-#else
-#define PER_CPU_BASE_SECTION ".data"
-#endif
-#endif
-
-#ifdef CONFIG_SMP
-
-#ifdef MODULE
-#define PER_CPU_SHARED_ALIGNED_SECTION ""
-#else
-#define PER_CPU_SHARED_ALIGNED_SECTION ".shared_aligned"
-#endif
-#define PER_CPU_FIRST_SECTION ".first"
-
-#else
-
-#define PER_CPU_SHARED_ALIGNED_SECTION ""
-#define PER_CPU_FIRST_SECTION ""
-
-#endif
-
 #define DEFINE_PER_CPU_SECTION(type, name, section)			\
 	__attribute__((__section__(PER_CPU_BASE_SECTION section)))	\
 	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name

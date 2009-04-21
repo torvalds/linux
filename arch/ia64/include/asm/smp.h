@@ -58,7 +58,7 @@ extern struct smp_boot_data {
 extern char no_int_routing __devinitdata;
 
 extern cpumask_t cpu_core_map[NR_CPUS];
-DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+DECLARE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
 extern int smp_num_siblings;
 extern void __iomem *ipi_base_addr;
 extern unsigned char smp_int_redirect;

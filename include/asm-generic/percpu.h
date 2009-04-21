@@ -73,11 +73,50 @@ extern void setup_per_cpu_areas(void);
 
 #endif	/* SMP */
 
+#ifndef PER_CPU_BASE_SECTION
+#ifdef CONFIG_SMP
+#define PER_CPU_BASE_SECTION ".data.percpu"
+#else
+#define PER_CPU_BASE_SECTION ".data"
+#endif
+#endif
+
+#ifdef CONFIG_SMP
+
+#ifdef MODULE
+#define PER_CPU_SHARED_ALIGNED_SECTION ""
+#else
+#define PER_CPU_SHARED_ALIGNED_SECTION ".shared_aligned"
+#endif
+#define PER_CPU_FIRST_SECTION ".first"
+
+#else
+
+#define PER_CPU_SHARED_ALIGNED_SECTION ""
+#define PER_CPU_FIRST_SECTION ""
+
+#endif
+
 #ifndef PER_CPU_ATTRIBUTES
 #define PER_CPU_ATTRIBUTES
 #endif
 
-#define DECLARE_PER_CPU(type, name) extern PER_CPU_ATTRIBUTES \
-					__typeof__(type) per_cpu_var(name)
+#define DECLARE_PER_CPU_SECTION(type, name, section)			\
+	extern \
+	__attribute__((__section__(PER_CPU_BASE_SECTION section)))	\
+	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
+
+#define DECLARE_PER_CPU(type, name)					\
+	DECLARE_PER_CPU_SECTION(type, name, "")
+
+#define DECLARE_PER_CPU_SHARED_ALIGNED(type, name)			\
+	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
+	____cacheline_aligned_in_smp
+
+#define DECLARE_PER_CPU_PAGE_ALIGNED(type, name)				\
+	DECLARE_PER_CPU_SECTION(type, name, ".page_aligned")
+
+#define DECLARE_PER_CPU_FIRST(type, name)				\
+	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_FIRST_SECTION)
 
 #endif /* _ASM_GENERIC_PERCPU_H_ */
