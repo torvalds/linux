@@ -16,6 +16,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
 #include <linux/sm501.h>
+#include <linux/smsc911x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -275,15 +276,26 @@ static struct resource csb726_lan_resources[] = {
 	{
 		.start	= CSB726_IRQ_LAN,
 		.end	= CSB726_IRQ_LAN,
-		.flags	= IORESOURCE_IRQ,
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
 
+struct smsc911x_platform_config csb726_lan_config = {
+	.irq_type	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
+	.flags		= SMSC911X_USE_32BIT,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+};
+
+
 static struct platform_device csb726_lan = {
-	.name		= "smc911x",
+	.name		= "smsc911x",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(csb726_lan_resources),
 	.resource	= csb726_lan_resources,
+	.dev		= {
+		.platform_data	= &csb726_lan_config,
+	},
 };
 
 static struct platform_device *devices[] __initdata = {
