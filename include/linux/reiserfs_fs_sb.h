@@ -193,7 +193,7 @@ struct reiserfs_journal {
 	atomic_t j_wcount;	/* count of writers for current commit */
 	unsigned long j_bcount;	/* batch count. allows turning X transactions into 1 */
 	unsigned long j_first_unflushed_offset;	/* first unflushed transactions offset */
-	unsigned long j_last_flush_trans_id;	/* last fully flushed journal timestamp */
+	unsigned j_last_flush_trans_id;	/* last fully flushed journal timestamp */
 	struct buffer_head *j_header_bh;
 
 	time_t j_trans_start_time;	/* time this transaction started */
