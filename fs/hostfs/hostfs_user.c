@@ -76,9 +76,9 @@ int file_type(const char *path, int *maj, int *min)
 	 * about its definition.
 	 */
 	if (maj != NULL)
-		*maj = major(buf.st_rdev);
+		*maj = os_major(buf.st_rdev);
 	if (min != NULL)
-		*min = minor(buf.st_rdev);
+		*min = os_minor(buf.st_rdev);
 
 	if (S_ISDIR(buf.st_mode))
 		return OS_TYPE_DIR;
@@ -361,7 +361,7 @@ int do_mknod(const char *file, int mode, unsigned int major, unsigned int minor)
 {
 	int err;
 
-	err = mknod(file, mode, makedev(major, minor));
+	err = mknod(file, mode, os_makedev(major, minor));
 	if (err)
 		return -errno;
 	return 0;
