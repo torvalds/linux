@@ -1358,16 +1358,18 @@ static struct resource bfin_pata_resources[] = {
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 0,
 };
-
+/* CompactFlash Storage Card Memory Mapped Adressing
+ * /REG = A11 = 1
+ */
 static struct resource bfin_pata_resources[] = {
 	{
-		.start = 0x20211820,
-		.end = 0x2021183F,
+		.start = 0x20211800,
+		.end = 0x20211807,
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start = 0x2021181C,
-		.end = 0x2021181F,
+		.start = 0x2021180E,	/* Device Ctl */
+		.end = 0x2021180E,
 		.flags = IORESOURCE_MEM,
 	},
 };
@@ -1527,7 +1529,8 @@ static int __init stamp_init(void)
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 
-#if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
+#if (defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)) \
+	 && defined(PATA_INT)
 	irq_desc[PATA_INT].status |= IRQ_NOAUTOEN;
 #endif
 
