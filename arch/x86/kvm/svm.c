@@ -2348,7 +2348,7 @@ static inline void sync_cr8_to_lapic(struct kvm_vcpu *vcpu)
 
 	if (!(svm->vmcb->control.intercept_cr_write & INTERCEPT_CR8_MASK)) {
 		int cr8 = svm->vmcb->control.int_ctl & V_TPR_MASK;
-		kvm_lapic_set_tpr(vcpu, cr8);
+		kvm_set_cr8(vcpu, cr8);
 	}
 }
 
@@ -2356,9 +2356,6 @@ static inline void sync_lapic_to_cr8(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	u64 cr8;
-
-	if (!irqchip_in_kernel(vcpu->kvm))
-		return;
 
 	cr8 = kvm_get_cr8(vcpu);
 	svm->vmcb->control.int_ctl &= ~V_TPR_MASK;
