@@ -463,7 +463,7 @@ static int iscsi_sw_tcp_pdu_init(struct iscsi_task *task,
 	}
 
 	if (err) {
-		iscsi_conn_failure(conn, err);
+		/* got invalid offset/len */
 		return -EIO;
 	}
 	return 0;
