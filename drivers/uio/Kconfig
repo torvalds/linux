@@ -58,6 +58,24 @@ config UIO_SMX
 
 	  If you compile this as a module, it will be called uio_smx.
 
+config UIO_AEC
+	tristate "AEC video timestamp device"
+	depends on PCI
+	default n
+	help
+
+	  UIO driver for the Adrienne Electronics Corporation PCI time
+	  code device.
+
+	  This device differs from other UIO devices since it uses I/O
+	  ports instead of memory mapped I/O. In order to make it
+	  possible for UIO to work with this device a utility, uioport,
+	  can be used to read and write the ports:
+
+	    git clone git://ifup.org/philips/uioport.git
+
+	  If you compile this as a module, it will be called uio_aec.
+
 config UIO_SERCOS3
 	tristate "Automata Sercos III PCI card driver"
 	default n

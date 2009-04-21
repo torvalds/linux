@@ -143,7 +143,7 @@ static const struct snd_soc_dapm_widget omap3pandora_out_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_widget omap3pandora_in_dapm_widgets[] = {
-	SND_SOC_DAPM_MIC("Mic (Internal)", NULL),
+	SND_SOC_DAPM_MIC("Mic (internal)", NULL),
 	SND_SOC_DAPM_MIC("Mic (external)", NULL),
 	SND_SOC_DAPM_LINE("Line In", NULL),
 };
@@ -155,15 +155,32 @@ static const struct snd_soc_dapm_route omap3pandora_out_map[] = {
 };
 
 static const struct snd_soc_dapm_route omap3pandora_in_map[] = {
-	{"INL", NULL, "Line In"},
-	{"INR", NULL, "Line In"},
-	{"INL", NULL, "Mic (Internal)"},
-	{"INR", NULL, "Mic (external)"},
+	{"AUXL", NULL, "Line In"},
+	{"AUXR", NULL, "Line In"},
+
+	{"MAINMIC", NULL, "Mic Bias 1"},
+	{"Mic Bias 1", NULL, "Mic (internal)"},
+
+	{"SUBMIC", NULL, "Mic Bias 2"},
+	{"Mic Bias 2", NULL, "Mic (external)"},
 };
 
 static int omap3pandora_out_init(struct snd_soc_codec *codec)
 {
 	int ret;
+
+	/* All TWL4030 output pins are floating */
+	snd_soc_dapm_nc_pin(codec, "OUTL");
+	snd_soc_dapm_nc_pin(codec, "OUTR");
+	snd_soc_dapm_nc_pin(codec, "EARPIECE");
+	snd_soc_dapm_nc_pin(codec, "PREDRIVEL");
+	snd_soc_dapm_nc_pin(codec, "PREDRIVER");
+	snd_soc_dapm_nc_pin(codec, "HSOL");
+	snd_soc_dapm_nc_pin(codec, "HSOR");
+	snd_soc_dapm_nc_pin(codec, "CARKITL");
+	snd_soc_dapm_nc_pin(codec, "CARKITR");
+	snd_soc_dapm_nc_pin(codec, "HFL");
+	snd_soc_dapm_nc_pin(codec, "HFR");
 
 	ret = snd_soc_dapm_new_controls(codec, omap3pandora_out_dapm_widgets,
 				ARRAY_SIZE(omap3pandora_out_dapm_widgets));
@@ -180,18 +197,11 @@ static int omap3pandora_in_init(struct snd_soc_codec *codec)
 {
 	int ret;
 
-	/* All TWL4030 output pins are floating */
-	snd_soc_dapm_nc_pin(codec, "OUTL"),
-	snd_soc_dapm_nc_pin(codec, "OUTR"),
-	snd_soc_dapm_nc_pin(codec, "EARPIECE"),
-	snd_soc_dapm_nc_pin(codec, "PREDRIVEL"),
-	snd_soc_dapm_nc_pin(codec, "PREDRIVER"),
-	snd_soc_dapm_nc_pin(codec, "HSOL"),
-	snd_soc_dapm_nc_pin(codec, "HSOR"),
-	snd_soc_dapm_nc_pin(codec, "CARKITL"),
-	snd_soc_dapm_nc_pin(codec, "CARKITR"),
-	snd_soc_dapm_nc_pin(codec, "HFL"),
-	snd_soc_dapm_nc_pin(codec, "HFR"),
+	/* Not comnnected */
+	snd_soc_dapm_nc_pin(codec, "HSMIC");
+	snd_soc_dapm_nc_pin(codec, "CARKITMIC");
+	snd_soc_dapm_nc_pin(codec, "DIGIMIC0");
+	snd_soc_dapm_nc_pin(codec, "DIGIMIC1");
 
 	ret = snd_soc_dapm_new_controls(codec, omap3pandora_in_dapm_widgets,
 				ARRAY_SIZE(omap3pandora_in_dapm_widgets));
@@ -251,10 +261,9 @@ static int __init omap3pandora_soc_init(void)
 {
 	int ret;
 
-	if (!machine_is_omap3_pandora()) {
-		pr_debug(PREFIX "Not OMAP3 Pandora\n");
+	if (!machine_is_omap3_pandora())
 		return -ENODEV;
-	}
+
 	pr_info("OMAP3 Pandora SoC init\n");
 
 	ret = gpio_request(OMAP3_PANDORA_DAC_POWER_GPIO, "dac_power");

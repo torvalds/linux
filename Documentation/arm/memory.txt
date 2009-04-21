@@ -29,7 +29,14 @@ ffff0000	ffff0fff	CPU vector page.
 				CPU supports vector relocation (control
 				register V bit.)
 
-ffc00000	fffeffff	DMA memory mapping region.  Memory returned
+fffe0000	fffeffff	XScale cache flush area.  This is used
+				in proc-xscale.S to flush the whole data
+				cache.  Free for other usage on non-XScale.
+
+fff00000	fffdffff	Fixmap mapping region.  Addresses provided
+				by fix_to_virt() will be located here.
+
+ffc00000	ffefffff	DMA memory mapping region.  Memory returned
 				by the dma_alloc_xxx functions will be
 				dynamically mapped here.
 

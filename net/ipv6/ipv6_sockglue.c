@@ -218,8 +218,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			if (opt)
 				sock_kfree_s(sk, opt, opt->tot_len);
 			pktopt = xchg(&np->pktoptions, NULL);
-			if (pktopt)
-				kfree_skb(pktopt);
+			kfree_skb(pktopt);
 
 			sk->sk_destruct = inet_sock_destruct;
 			/*
@@ -381,10 +380,6 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 			default:
 				goto sticky_done;
 			}
-
-			if ((rthdr->hdrlen & 1) ||
-			    (rthdr->hdrlen >> 1) != rthdr->segments_left)
-				goto sticky_done;
 		}
 
 		retv = 0;

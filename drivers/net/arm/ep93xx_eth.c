@@ -153,7 +153,7 @@ struct ep93xx_descs
 struct ep93xx_priv
 {
 	struct resource		*res;
-	void			*base_addr;
+	void __iomem		*base_addr;
 	int			irq;
 
 	struct ep93xx_descs	*descs;
@@ -298,7 +298,7 @@ poll_some_more:
 		int more = 0;
 
 		spin_lock_irq(&ep->rx_lock);
-		__netif_rx_complete(napi);
+		__napi_complete(napi);
 		wrl(ep, REG_INTEN, REG_INTEN_TX | REG_INTEN_RX);
 		if (ep93xx_have_more_rx(ep)) {
 			wrl(ep, REG_INTEN, REG_INTEN_TX);
@@ -307,7 +307,7 @@ poll_some_more:
 		}
 		spin_unlock_irq(&ep->rx_lock);
 
-		if (more && netif_rx_reschedule(napi))
+		if (more && napi_reschedule(napi))
 			goto poll_some_more;
 	}
 
@@ -415,9 +415,9 @@ static irqreturn_t ep93xx_irq(int irq, void *dev_id)
 
 	if (status & REG_INTSTS_RX) {
 		spin_lock(&ep->rx_lock);
-		if (likely(netif_rx_schedule_prep(&ep->napi))) {
+		if (likely(napi_schedule_prep(&ep->napi))) {
 			wrl(ep, REG_INTEN, REG_INTEN_TX);
-			__netif_rx_schedule(&ep->napi);
+			__napi_schedule(&ep->napi);
 		}
 		spin_unlock(&ep->rx_lock);
 	}
@@ -770,7 +770,18 @@ static struct ethtool_ops ep93xx_ethtool_ops = {
 	.get_link		= ep93xx_get_link,
 };
 
-struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
+static const struct net_device_ops ep93xx_netdev_ops = {
+	.ndo_open		= ep93xx_open,
+	.ndo_stop		= ep93xx_close,
+	.ndo_start_xmit		= ep93xx_xmit,
+	.ndo_get_stats		= ep93xx_get_stats,
+	.ndo_do_ioctl		= ep93xx_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+};
+
+static struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 {
 	struct net_device *dev;
 
@@ -780,12 +791,8 @@ struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 
 	memcpy(dev->dev_addr, data->dev_addr, ETH_ALEN);
 
-	dev->get_stats = ep93xx_get_stats;
 	dev->ethtool_ops = &ep93xx_ethtool_ops;
-	dev->hard_start_xmit = ep93xx_xmit;
-	dev->open = ep93xx_open;
-	dev->stop = ep93xx_close;
-	dev->do_ioctl = ep93xx_ioctl;
+	dev->netdev_ops = &ep93xx_netdev_ops;
 
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 

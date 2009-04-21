@@ -126,6 +126,10 @@ struct dw_dma_regs {
 
 #define DW_REGLEN		0x400
 
+enum dw_dmac_flags {
+	DW_DMA_IS_CYCLIC = 0,
+};
+
 struct dw_dma_chan {
 	struct dma_chan		chan;
 	void __iomem		*ch_regs;
@@ -134,10 +138,12 @@ struct dw_dma_chan {
 	spinlock_t		lock;
 
 	/* these other elements are all protected by lock */
+	unsigned long		flags;
 	dma_cookie_t		completed;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
+	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
 };
@@ -157,7 +163,6 @@ static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct dw_dma_chan, chan);
 }
-
 
 struct dw_dma {
 	struct dma_device	dma;

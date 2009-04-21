@@ -280,15 +280,16 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 		return NULL;
 	area->phys_addr = phys_addr;
 	vaddr = (unsigned long) area->addr;
-	if (ioremap_page_range(vaddr, vaddr + size, phys_addr, prot)) {
+
+	if (kernel_map_sync_memtype(phys_addr, size, prot_val)) {
 		free_memtype(phys_addr, phys_addr + size);
 		free_vm_area(area);
 		return NULL;
 	}
 
-	if (ioremap_change_attr(vaddr, size, prot_val) < 0) {
+	if (ioremap_page_range(vaddr, vaddr + size, phys_addr, prot)) {
 		free_memtype(phys_addr, phys_addr + size);
-		vunmap(area->addr);
+		free_vm_area(area);
 		return NULL;
 	}
 
@@ -374,7 +375,8 @@ static void __iomem *ioremap_default(resource_size_t phys_addr,
 	 * - UC_MINUS for non-WB-able memory with no other conflicting mappings
 	 * - Inherit from confliting mappings otherwise
 	 */
-	err = reserve_memtype(phys_addr, phys_addr + size, -1, &flags);
+	err = reserve_memtype(phys_addr, phys_addr + size,
+				_PAGE_CACHE_WB, &flags);
 	if (err < 0)
 		return NULL;
 
@@ -547,7 +549,7 @@ void __init early_ioremap_reset(void)
 }
 
 static void __init __early_set_fixmap(enum fixed_addresses idx,
-				   unsigned long phys, pgprot_t flags)
+				      phys_addr_t phys, pgprot_t flags)
 {
 	unsigned long addr = __fix_to_virt(idx);
 	pte_t *pte;
@@ -566,7 +568,7 @@ static void __init __early_set_fixmap(enum fixed_addresses idx,
 }
 
 static inline void __init early_set_fixmap(enum fixed_addresses idx,
-					   unsigned long phys, pgprot_t prot)
+					   phys_addr_t phys, pgprot_t prot)
 {
 	if (after_paging_init)
 		__set_fixmap(idx, phys, prot);
@@ -607,9 +609,10 @@ static int __init check_early_ioremap_leak(void)
 late_initcall(check_early_ioremap_leak);
 
 static void __init __iomem *
-__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
+__early_ioremap(resource_size_t phys_addr, unsigned long size, pgprot_t prot)
 {
-	unsigned long offset, last_addr;
+	unsigned long offset;
+	resource_size_t last_addr;
 	unsigned int nrpages;
 	enum fixed_addresses idx0, idx;
 	int i, slot;
@@ -625,15 +628,15 @@ __early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
 	}
 
 	if (slot < 0) {
-		printk(KERN_INFO "early_iomap(%08lx, %08lx) not found slot\n",
-			 phys_addr, size);
+		printk(KERN_INFO "early_iomap(%08llx, %08lx) not found slot\n",
+			 (u64)phys_addr, size);
 		WARN_ON(1);
 		return NULL;
 	}
 
 	if (early_ioremap_debug) {
-		printk(KERN_INFO "early_ioremap(%08lx, %08lx) [%d] => ",
-		       phys_addr, size, slot);
+		printk(KERN_INFO "early_ioremap(%08llx, %08lx) [%d] => ",
+		       (u64)phys_addr, size, slot);
 		dump_stack();
 	}
 
@@ -680,13 +683,15 @@ __early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
 }
 
 /* Remap an IO device */
-void __init __iomem *early_ioremap(unsigned long phys_addr, unsigned long size)
+void __init __iomem *
+early_ioremap(resource_size_t phys_addr, unsigned long size)
 {
 	return __early_ioremap(phys_addr, size, PAGE_KERNEL_IO);
 }
 
 /* Remap memory */
-void __init __iomem *early_memremap(unsigned long phys_addr, unsigned long size)
+void __init __iomem *
+early_memremap(resource_size_t phys_addr, unsigned long size)
 {
 	return __early_ioremap(phys_addr, size, PAGE_KERNEL);
 }

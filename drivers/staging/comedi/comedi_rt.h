@@ -28,7 +28,6 @@
 #error comedi_rt.h should only be included by comedidev.h
 #endif
 
-#include <linux/version.h>
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -59,12 +58,12 @@
 
 int comedi_request_irq(unsigned int irq, irqreturn_t(*handler) (int,
 		void *PT_REGS_ARG), unsigned long flags, const char *device,
-		comedi_device *dev_id);
-void comedi_free_irq(unsigned int irq, comedi_device *dev_id);
+		struct comedi_device *dev_id);
+void comedi_free_irq(unsigned int irq, struct comedi_device *dev_id);
 void comedi_rt_init(void);
 void comedi_rt_cleanup(void);
-int comedi_switch_to_rt(comedi_device *dev);
-void comedi_switch_to_non_rt(comedi_device *dev);
+int comedi_switch_to_rt(struct comedi_device *dev);
+void comedi_switch_to_non_rt(struct comedi_device *dev);
 void comedi_rt_pend_wakeup(wait_queue_head_t *q);
 extern int rt_pend_call(void (*func) (int arg1, void *arg2), int arg1,
 	void *arg2);

@@ -24,26 +24,19 @@
 #ifdef CONFIG_USB_VIDEO_CLASS_INPUT_EVDEV
 static int uvc_input_init(struct uvc_device *dev)
 {
-	struct usb_device *udev = dev->udev;
 	struct input_dev *input;
-	char *phys = NULL;
 	int ret;
 
 	input = input_allocate_device();
 	if (input == NULL)
 		return -ENOMEM;
 
-	phys = kmalloc(6 + strlen(udev->bus->bus_name) + strlen(udev->devpath),
-			GFP_KERNEL);
-	if (phys == NULL) {
-		ret = -ENOMEM;
-		goto error;
-	}
-	sprintf(phys, "usb-%s-%s", udev->bus->bus_name, udev->devpath);
+	usb_make_path(dev->udev, dev->input_phys, sizeof(dev->input_phys));
+	strlcat(dev->input_phys, "/button", sizeof(dev->input_phys));
 
 	input->name = dev->name;
-	input->phys = phys;
-	usb_to_input_id(udev, &input->id);
+	input->phys = dev->input_phys;
+	usb_to_input_id(dev->udev, &input->id);
 	input->dev.parent = &dev->intf->dev;
 
 	__set_bit(EV_KEY, input->evbit);
@@ -57,7 +50,6 @@ static int uvc_input_init(struct uvc_device *dev)
 
 error:
 	input_free_device(input);
-	kfree(phys);
 	return ret;
 }
 

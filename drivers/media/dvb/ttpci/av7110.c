@@ -725,7 +725,7 @@ static int dvb_osd_ioctl(struct inode *inode, struct file *file,
 }
 
 
-static struct file_operations dvb_osd_fops = {
+static const struct file_operations dvb_osd_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= dvb_generic_ioctl,
 	.open		= dvb_generic_open,
@@ -1518,20 +1518,6 @@ static int check_firmware(struct av7110* av7110)
 	return 0;
 }
 
-#ifdef CONFIG_DVB_AV7110_FIRMWARE_FILE
-#include "av7110_firm.h"
-static void put_firmware(struct av7110* av7110)
-{
-	av7110->bin_fw = NULL;
-}
-
-static inline int get_firmware(struct av7110* av7110)
-{
-	av7110->bin_fw = dvb_ttpci_fw;
-	av7110->size_fw = sizeof(dvb_ttpci_fw);
-	return check_firmware(av7110);
-}
-#else
 static void put_firmware(struct av7110* av7110)
 {
 	vfree(av7110->bin_fw);
@@ -1580,8 +1566,6 @@ static int get_firmware(struct av7110* av7110)
 	release_firmware(fw);
 	return ret;
 }
-#endif
-
 
 static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters *params)
 {

@@ -41,11 +41,6 @@ struct attrlist_cursor_kern;
 #define IO_INVIS	0x00020		/* don't update inode timestamps */
 
 /*
- * Flags for xfs_inode_flush
- */
-#define FLUSH_SYNC		1	/* wait for flush to complete	*/
-
-/*
  * Flush/Invalidate options for vop_toss/flush/flushinval_pages.
  */
 #define FI_NONE			0	/* none */
@@ -53,33 +48,6 @@ struct attrlist_cursor_kern;
 #define FI_REMAPF_LOCKED	2	/* Do a remapf prior to the operation.
 					   Prevent VM access to the pages until
 					   the operation completes. */
-
-/*
- * Dealing with bad inodes
- */
-static inline int VN_BAD(struct inode *vp)
-{
-	return is_bad_inode(vp);
-}
-
-/*
- * Extracting atime values in various formats
- */
-static inline void vn_atime_to_bstime(struct inode *vp, xfs_bstime_t *bs_atime)
-{
-	bs_atime->tv_sec = vp->i_atime.tv_sec;
-	bs_atime->tv_nsec = vp->i_atime.tv_nsec;
-}
-
-static inline void vn_atime_to_timespec(struct inode *vp, struct timespec *ts)
-{
-	*ts = vp->i_atime;
-}
-
-static inline void vn_atime_to_time_t(struct inode *vp, time_t *tt)
-{
-	*tt = vp->i_atime.tv_sec;
-}
 
 /*
  * Some useful predicates.

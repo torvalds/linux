@@ -32,7 +32,8 @@
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 #include "tea6420.h"
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
@@ -44,24 +45,23 @@ module_param(debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-/* addresses to scan, found only at 0x4c and/or 0x4d (7-Bit) */
-static unsigned short normal_i2c[] = { I2C_ADDR_TEA6420_1, I2C_ADDR_TEA6420_2, I2C_CLIENT_END };
-
-/* magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
 
 /* make a connection between the input 'i' and the output 'o'
-   with gain 'g' for the tea6420-client 'client' (note: i = 6 means 'mute') */
-static int tea6420_switch(struct i2c_client *client, int i, int o, int g)
+   with gain 'g' (note: i = 6 means 'mute') */
+static int tea6420_s_routing(struct v4l2_subdev *sd,
+			     u32 i, u32 o, u32 config)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int g = (o >> 4) & 0xf;
 	u8 byte;
 	int ret;
 
-	v4l_dbg(1, debug, client, "i=%d, o=%d, g=%d\n", i, o, g);
+	o &= 0xf;
+	v4l2_dbg(1, debug, sd, "i=%d, o=%d, g=%d\n", i, o, g);
 
 	/* check if the parameters are valid */
 	if (i < 1 || i > 6 || o < 1 || o > 4 || g < 0 || g > 6 || g % 2 != 0)
-		return -1;
+		return -EINVAL;
 
 	byte = ((o - 1) << 5);
 	byte |= (i - 1);
@@ -83,37 +83,33 @@ static int tea6420_switch(struct i2c_client *client, int i, int o, int g)
 
 	ret = i2c_smbus_write_byte(client, byte);
 	if (ret) {
-		v4l_dbg(1, debug, client,
+		v4l2_dbg(1, debug, sd,
 			"i2c_smbus_write_byte() failed, ret:%d\n", ret);
 		return -EIO;
 	}
 	return 0;
 }
 
-static long tea6420_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
+static int tea6420_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
-	if (cmd == TEA6420_SWITCH) {
-		struct i2c_client *client = v4l2_get_subdevdata(sd);
-		struct tea6420_multiplex *a = (struct tea6420_multiplex *)arg;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-		return tea6420_switch(client, a->in, a->out, a->gain);
-	}
-	return -ENOIOCTLCMD;
-}
-
-static int tea6420_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TEA6420, 0);
 }
 
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops tea6420_core_ops = {
-	.ioctl = tea6420_ioctl,
+	.g_chip_ident = tea6420_g_chip_ident,
+};
+
+static const struct v4l2_subdev_audio_ops tea6420_audio_ops = {
+	.s_routing = tea6420_s_routing,
 };
 
 static const struct v4l2_subdev_ops tea6420_ops = {
 	.core = &tea6420_core_ops,
+	.audio = &tea6420_audio_ops,
 };
 
 /* this function is called by i2c_probe */
@@ -130,20 +126,19 @@ static int tea6420_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	/* set initial values: set "mute"-input to all outputs at gain 0 */
-	err = 0;
-	for (i = 1; i < 5; i++) {
-		err += tea6420_switch(client, 6, i, 0);
-	}
-	if (err) {
-		v4l_dbg(1, debug, client, "could not initialize tea6420\n");
-		return -ENODEV;
-	}
-
 	sd = kmalloc(sizeof(struct v4l2_subdev), GFP_KERNEL);
 	if (sd == NULL)
 		return -ENOMEM;
 	v4l2_i2c_subdev_init(sd, client, &tea6420_ops);
+
+	/* set initial values: set "mute"-input to all outputs at gain 0 */
+	err = 0;
+	for (i = 1; i < 5; i++)
+		err += tea6420_s_routing(sd, 6, i, 0);
+	if (err) {
+		v4l_dbg(1, debug, client, "could not initialize tea6420\n");
+		return -ENODEV;
+	}
 	return 0;
 }
 
@@ -156,13 +151,6 @@ static int tea6420_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int tea6420_legacy_probe(struct i2c_adapter *adapter)
-{
-	/* Let's see whether this is a known adapter we can attach to.
-	   Prevents conflicts with tvaudio.c. */
-	return adapter->id == I2C_HW_SAA7146;
-}
-
 static const struct i2c_device_id tea6420_id[] = {
 	{ "tea6420", 0 },
 	{ }
@@ -171,10 +159,7 @@ MODULE_DEVICE_TABLE(i2c, tea6420_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tea6420",
-	.driverid = I2C_DRIVERID_TEA6420,
-	.command = tea6420_command,
 	.probe = tea6420_probe,
 	.remove = tea6420_remove,
-	.legacy_probe = tea6420_legacy_probe,
 	.id_table = tea6420_id,
 };

@@ -503,7 +503,7 @@ static void octeon_cf_dma_setup(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct octeon_cf_port *cf_port;
 
-	cf_port = (struct octeon_cf_port *)ap->private_data;
+	cf_port = ap->private_data;
 	DPRINTK("ENTER\n");
 	/* issue r/w command */
 	qc->cursg = qc->sg;
@@ -596,7 +596,7 @@ static unsigned int octeon_cf_dma_finished(struct ata_port *ap,
 	if (ap->hsm_task_state != HSM_ST_LAST)
 		return 0;
 
-	cf_port = (struct octeon_cf_port *)ap->private_data;
+	cf_port = ap->private_data;
 
 	dma_cfg.u64 = cvmx_read_csr(CVMX_MIO_BOOT_DMA_CFGX(ocd->dma_engine));
 	if (dma_cfg.s.size != 0xfffff) {
@@ -657,7 +657,7 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 			continue;
 
 		ocd = ap->dev->platform_data;
-		cf_port = (struct octeon_cf_port *)ap->private_data;
+		cf_port = ap->private_data;
 		dma_int.u64 =
 			cvmx_read_csr(CVMX_MIO_BOOT_DMA_INTX(ocd->dma_engine));
 		dma_cfg.u64 =
@@ -871,7 +871,7 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 	ap->private_data = cf_port;
 	cf_port->ap = ap;
 	ap->ops = &octeon_cf_ops;
-	ap->pio_mask = 0x7f; /* Support PIO 0-6 */
+	ap->pio_mask = ATA_PIO6;
 	ap->flags |= ATA_FLAG_MMIO | ATA_FLAG_NO_LEGACY
 		  | ATA_FLAG_NO_ATAPI | ATA_FLAG_PIO_POLLING;
 
@@ -900,7 +900,7 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 		ap->ioaddr.ctl_addr	= cs1 + (6 << 1) + 1;
 		octeon_cf_ops.sff_data_xfer = octeon_cf_data_xfer16;
 
-		ap->mwdma_mask	= 0x1f; /* Support MWDMA 0-4 */
+		ap->mwdma_mask	= ATA_MWDMA4;
 		irq = platform_get_irq(pdev, 0);
 		irq_handler = octeon_cf_interrupt;
 

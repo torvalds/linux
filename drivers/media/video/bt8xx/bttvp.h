@@ -26,13 +26,12 @@
 #define _BTTVP_H_
 
 #include <linux/version.h>
-#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,17)
+#define BTTV_VERSION_CODE KERNEL_VERSION(0,9,18)
 
 #include <linux/types.h>
 #include <linux/wait.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/videodev.h>
 #include <linux/pci.h>
 #include <linux/input.h>
 #include <linux/mutex.h>
@@ -135,7 +134,7 @@ struct bttv_buffer {
 
 	/* bttv specific */
 	const struct bttv_format   *fmt;
-	int                        tvnorm;
+	unsigned int               tvnorm;
 	int                        btformat;
 	int                        btswap;
 	struct bttv_geometry       geo;
@@ -154,7 +153,7 @@ struct bttv_buffer_set {
 };
 
 struct bttv_overlay {
-	int                    tvnorm;
+	unsigned int           tvnorm;
 	struct v4l2_rect       w;
 	enum v4l2_field        field;
 	struct v4l2_clip       *clips;
@@ -174,7 +173,7 @@ struct bttv_vbi_fmt {
 };
 
 /* bttv-vbi.c */
-void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, int norm);
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm);
 
 struct bttv_crop {
 	/* A cropping rectangle in struct bttv_tvnorm.cropcap units. */
@@ -329,7 +328,8 @@ struct bttv {
 	unsigned int cardid;   /* pci subsystem id (bt878 based ones) */
 	unsigned int tuner_type;  /* tuner chip type */
 	unsigned int tda9887_conf;
-	unsigned int svhs;
+	unsigned int svhs, dig;
+	unsigned int has_saa6588:1;
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
@@ -353,8 +353,8 @@ struct bttv {
 	int                        i2c_state, i2c_rc;
 	int                        i2c_done;
 	wait_queue_head_t          i2c_queue;
-	struct i2c_client 	  *i2c_msp34xx_client;
-	struct i2c_client 	  *i2c_tvaudio_client;
+	struct v4l2_subdev 	  *sd_msp34xx;
+	struct v4l2_subdev 	  *sd_tvaudio;
 
 	/* video4linux (1) */
 	struct video_device *video_dev;
@@ -378,7 +378,8 @@ struct bttv {
 	unsigned int audio;
 	unsigned int mute;
 	unsigned long freq;
-	int tvnorm,hue,contrast,bright,saturation;
+	unsigned int tvnorm;
+	int hue, contrast, bright, saturation;
 	struct v4l2_framebuffer fbuf;
 	unsigned int field_count;
 
@@ -458,10 +459,21 @@ struct bttv {
 	__s32			crop_start;
 };
 
+static inline struct bttv *to_bttv(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct bttv, c.v4l2_dev);
+}
+
 /* our devices */
 #define BTTV_MAX 32
 extern unsigned int bttv_num;
-extern struct bttv bttvs[BTTV_MAX];
+extern struct bttv *bttvs[BTTV_MAX];
+
+static inline unsigned int bttv_muxsel(const struct bttv *btv,
+				       unsigned int input)
+{
+	return (bttv_tvcards[btv->c.type].muxsel >> (input * 2)) & 3;
+}
 
 #endif
 

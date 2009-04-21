@@ -28,6 +28,13 @@
  * need to find some way of advertising it. */
 #define KVM44x_GUEST_TLB_SIZE 64
 
+struct kvmppc_44x_tlbe {
+	u32 tid; /* Only the low 8 bits are used. */
+	u32 word0;
+	u32 word1;
+	u32 word2;
+};
+
 struct kvmppc_44x_shadow_ref {
 	struct page *page;
 	u16 gtlb_index;

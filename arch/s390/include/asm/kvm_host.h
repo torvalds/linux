@@ -15,14 +15,12 @@
 #define ASM_KVM_HOST_H
 #include <linux/kvm_host.h>
 #include <asm/debug.h>
+#include <asm/cpuid.h>
 
 #define KVM_MAX_VCPUS 64
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
-
-struct kvm_guest_debug {
-};
 
 struct sca_entry {
 	atomic_t scn;

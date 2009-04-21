@@ -11,6 +11,9 @@
 #ifndef _ASM_S390_TIMEX_H
 #define _ASM_S390_TIMEX_H
 
+/* The value of the TOD clock for 1.1.1970. */
+#define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
+
 /* Inline functions for clock register access. */
 static inline int set_clock(__u64 time)
 {
@@ -84,5 +87,7 @@ static inline cycles_t get_cycles(void)
 int get_sync_clock(unsigned long long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
+
+extern u64 sched_clock_base_cc;
 
 #endif

@@ -21,7 +21,6 @@
 #include <sound/pxa2xx-lib.h>
 
 #include <asm/irq.h>
-#include <mach/hardware.h>
 #include <mach/regs-ac97.h>
 #include <mach/pxa2xx-gpio.h>
 #include <mach/audio.h>
@@ -31,6 +30,7 @@ static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
 static volatile long gsr_bits;
 static struct clk *ac97_clk;
 static struct clk *ac97conf_clk;
+static int reset_gpio;
 
 /*
  * Beware PXA27x bugs:
@@ -41,6 +41,45 @@ static struct clk *ac97conf_clk;
  * We therefore have an hybrid approach for waiting on SDONE (interrupt or
  * 1 jiffy timeout if interrupt never comes).
  */
+
+enum {
+	RESETGPIO_FORCE_HIGH,
+	RESETGPIO_FORCE_LOW,
+	RESETGPIO_NORMAL_ALTFUNC
+};
+
+/**
+ * set_resetgpio_mode - computes and sets the AC97_RESET gpio mode on PXA
+ * @mode: chosen action
+ *
+ * As the PXA27x CPUs suffer from a AC97 bug, a manual control of the reset line
+ * must be done to insure proper work of AC97 reset line.  This function
+ * computes the correct gpio_mode for further use by reset functions, and
+ * applied the change through pxa_gpio_mode.
+ */
+static void set_resetgpio_mode(int resetgpio_action)
+{
+	int mode = 0;
+
+	if (reset_gpio)
+		switch (resetgpio_action) {
+		case RESETGPIO_NORMAL_ALTFUNC:
+			if (reset_gpio == 113)
+				mode = 113 | GPIO_OUT | GPIO_DFLT_LOW;
+			if (reset_gpio == 95)
+				mode = 95 | GPIO_ALT_FN_1_OUT;
+			break;
+		case RESETGPIO_FORCE_LOW:
+			mode = reset_gpio | GPIO_OUT | GPIO_DFLT_LOW;
+			break;
+		case RESETGPIO_FORCE_HIGH:
+			mode = reset_gpio | GPIO_OUT | GPIO_DFLT_HIGH;
+			break;
+		};
+
+	if (mode)
+		pxa_gpio_mode(mode);
+}
 
 unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
@@ -137,10 +176,10 @@ static inline void pxa_ac97_warm_pxa27x(void)
 
 	/* warm reset broken on Bulverde,
 	   so manually keep AC97 reset high */
-	pxa_gpio_mode(113 | GPIO_OUT | GPIO_DFLT_HIGH);
+	set_resetgpio_mode(RESETGPIO_FORCE_HIGH);
 	udelay(10);
 	GCR |= GCR_WARM_RST;
-	pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+	set_resetgpio_mode(RESETGPIO_NORMAL_ALTFUNC);
 	udelay(500);
 }
 
@@ -199,6 +238,8 @@ static inline void pxa_ac97_cold_pxa3xx(void)
 
 bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 {
+	unsigned long gsr;
+
 #ifdef CONFIG_PXA25x
 	if (cpu_is_pxa25x())
 		pxa_ac97_warm_pxa25x();
@@ -215,10 +256,10 @@ bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 	else
 #endif
 		BUG();
-
-	if (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR))) {
+	gsr = GSR | gsr_bits;
+	if (!(gsr & (GSR_PCR | GSR_SCR))) {
 		printk(KERN_INFO "%s: warm reset timeout (GSR=%#lx)\n",
-				 __func__, gsr_bits);
+				 __func__, gsr);
 
 		return false;
 	}
@@ -229,6 +270,8 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_try_warm_reset);
 
 bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 {
+	unsigned long gsr;
+
 #ifdef CONFIG_PXA25x
 	if (cpu_is_pxa25x())
 		pxa_ac97_cold_pxa25x();
@@ -246,9 +289,10 @@ bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 #endif
 		BUG();
 
-	if (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR))) {
+	gsr = GSR | gsr_bits;
+	if (!(gsr & (GSR_PCR | GSR_SCR))) {
 		printk(KERN_INFO "%s: cold reset timeout (GSR=%#lx)\n",
-				 __func__, gsr_bits);
+				 __func__, gsr);
 
 		return false;
 	}
@@ -308,8 +352,8 @@ int pxa2xx_ac97_hw_resume(void)
 		pxa_gpio_mode(GPIO29_SDATA_IN_AC97_MD);
 	}
 	if (cpu_is_pxa27x()) {
-		/* Use GPIO 113 as AC97 Reset on Bulverde */
-		pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+		/* Use GPIO 113 or 95 as AC97 Reset on Bulverde */
+		set_resetgpio_mode(RESETGPIO_NORMAL_ALTFUNC);
 	}
 	clk_enable(ac97_clk);
 	return 0;
@@ -320,6 +364,27 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_resume);
 int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 {
 	int ret;
+	struct pxa2xx_ac97_platform_data *pdata = dev->dev.platform_data;
+
+	if (pdata) {
+		switch (pdata->reset_gpio) {
+		case 95:
+		case 113:
+			reset_gpio = pdata->reset_gpio;
+			break;
+		case 0:
+			reset_gpio = 113;
+			break;
+		case -1:
+			break;
+		default:
+			dev_err(&dev->dev, "Invalid reset GPIO %d\n",
+				pdata->reset_gpio);
+		}
+	} else {
+		if (cpu_is_pxa27x())
+			reset_gpio = 113;
+	}
 
 	if (cpu_is_pxa25x() || cpu_is_pxa27x()) {
 		pxa_gpio_mode(GPIO31_SYNC_AC97_MD);
@@ -330,7 +395,7 @@ int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 
 	if (cpu_is_pxa27x()) {
 		/* Use GPIO 113 as AC97 Reset on Bulverde */
-		pxa_gpio_mode(113 | GPIO_ALT_FN_2_OUT);
+		set_resetgpio_mode(RESETGPIO_NORMAL_ALTFUNC);
 		ac97conf_clk = clk_get(&dev->dev, "AC97CONFCLK");
 		if (IS_ERR(ac97conf_clk)) {
 			ret = PTR_ERR(ac97conf_clk);

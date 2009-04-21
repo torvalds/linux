@@ -212,11 +212,14 @@ static int kobject_add_internal(struct kobject *kobj)
  * @fmt: format string used to build the name
  * @vargs: vargs to format the string.
  */
-static int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
+int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 				  va_list vargs)
 {
 	const char *old_name = kobj->name;
 	char *s;
+
+	if (kobj->name && !fmt)
+		return 0;
 
 	kobj->name = kvasprintf(GFP_KERNEL, fmt, vargs);
 	if (!kobj->name)

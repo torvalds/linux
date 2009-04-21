@@ -37,8 +37,6 @@
 #define GEF_GPIO_OVERRUN	0x1C
 #define GEF_GPIO_MODE		0x20
 
-#define NUM_GPIO 19
-
 static void _gef_gpio_set(void __iomem *reg, unsigned int offset, int value)
 {
 	unsigned int data;
@@ -103,10 +101,10 @@ static void gef_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int __init gef_gpio_init(void)
 {
 	struct device_node *np;
+	int retval;
+	struct of_mm_gpio_chip *gef_gpio_chip;
 
 	for_each_compatible_node(np, NULL, "gef,sbc610-gpio") {
-		int retval;
-		struct of_mm_gpio_chip *gef_gpio_chip;
 
 		pr_debug("%s: Initialising GEF GPIO\n", np->full_name);
 
@@ -120,7 +118,35 @@ static int __init gef_gpio_init(void)
 
 		/* Setup pointers to chip functions */
 		gef_gpio_chip->of_gc.gpio_cells = 2;
-		gef_gpio_chip->of_gc.gc.ngpio = NUM_GPIO;
+		gef_gpio_chip->of_gc.gc.ngpio = 19;
+		gef_gpio_chip->of_gc.gc.direction_input = gef_gpio_dir_in;
+		gef_gpio_chip->of_gc.gc.direction_output = gef_gpio_dir_out;
+		gef_gpio_chip->of_gc.gc.get = gef_gpio_get;
+		gef_gpio_chip->of_gc.gc.set = gef_gpio_set;
+
+		/* This function adds a memory mapped GPIO chip */
+		retval = of_mm_gpiochip_add(np, gef_gpio_chip);
+		if (retval) {
+			kfree(gef_gpio_chip);
+			pr_err("%s: Unable to add GPIO\n", np->full_name);
+		}
+	}
+
+	for_each_compatible_node(np, NULL, "gef,sbc310-gpio") {
+
+		pr_debug("%s: Initialising GEF GPIO\n", np->full_name);
+
+		/* Allocate chip structure */
+		gef_gpio_chip = kzalloc(sizeof(*gef_gpio_chip), GFP_KERNEL);
+		if (!gef_gpio_chip) {
+			pr_err("%s: Unable to allocate structure\n",
+				np->full_name);
+			continue;
+		}
+
+		/* Setup pointers to chip functions */
+		gef_gpio_chip->of_gc.gpio_cells = 2;
+		gef_gpio_chip->of_gc.gc.ngpio = 6;
 		gef_gpio_chip->of_gc.gc.direction_input = gef_gpio_dir_in;
 		gef_gpio_chip->of_gc.gc.direction_output = gef_gpio_dir_out;
 		gef_gpio_chip->of_gc.gc.get = gef_gpio_get;

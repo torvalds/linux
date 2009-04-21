@@ -16,10 +16,9 @@
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
 
-#include <mach/hardware.h>
-#include <mach/mfp-pxa930.h>
+#include <mach/pxa930.h>
 
-static struct pxa3xx_mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
+static struct mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
 
 	MFP_ADDR(GPIO0, 0x02e0),
 	MFP_ADDR(GPIO1, 0x02dc),
@@ -180,8 +179,8 @@ static struct pxa3xx_mfp_addr_map pxa930_mfp_addr_map[] __initdata = {
 static int __init pxa930_init(void)
 {
 	if (cpu_is_pxa930()) {
-		pxa3xx_init_mfp();
-		pxa3xx_mfp_init_addr(pxa930_mfp_addr_map);
+		mfp_init_base(io_p2v(MFPR_BASE));
+		mfp_init_addr(pxa930_mfp_addr_map);
 	}
 
 	return 0;

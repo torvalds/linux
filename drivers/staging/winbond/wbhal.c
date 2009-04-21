@@ -1,14 +1,14 @@
-#include "os_common.h"
+#include "sysdef.h"
 #include "wbhal_f.h"
 #include "wblinux_f.h"
 
-void hal_set_ethernet_address( phw_data_t pHwData, u8 *current_address )
+void hal_set_ethernet_address( struct hw_data * pHwData, u8 *current_address )
 {
 	u32 ltmp[2];
 
 	if( pHwData->SurpriseRemove ) return;
 
-	memcpy( pHwData->CurrentMacAddress, current_address, ETH_LENGTH_OF_ADDRESS );
+	memcpy( pHwData->CurrentMacAddress, current_address, ETH_ALEN );
 
 	ltmp[0]= cpu_to_le32( *(u32 *)pHwData->CurrentMacAddress );
 	ltmp[1]= cpu_to_le32( *(u32 *)(pHwData->CurrentMacAddress + 4) ) & 0xffff;
@@ -16,7 +16,7 @@ void hal_set_ethernet_address( phw_data_t pHwData, u8 *current_address )
 	Wb35Reg_BurstWrite( pHwData, 0x03e8, ltmp, 2, AUTO_INCREMENT );
 }
 
-void hal_get_permanent_address( phw_data_t pHwData, u8 *pethernet_address )
+void hal_get_permanent_address( struct hw_data * pHwData, u8 *pethernet_address )
 {
 	if( pHwData->SurpriseRemove ) return;
 
@@ -26,7 +26,7 @@ void hal_get_permanent_address( phw_data_t pHwData, u8 *pethernet_address )
 static void hal_led_control(unsigned long data)
 {
 	struct wbsoft_priv *adapter = (struct wbsoft_priv *) data;
-	phw_data_t pHwData = &adapter->sHwData;
+	struct hw_data * pHwData = &adapter->sHwData;
 	struct wb35_reg *reg = &pHwData->reg;
 	u32	LEDSet = (pHwData->SoftwareSet & HAL_LED_SET_MASK) >> HAL_LED_SET_SHIFT;
 	u8	LEDgray[20] = { 0,3,4,6,8,10,11,12,13,14,15,14,13,12,11,10,8,6,4,2 };
@@ -311,7 +311,7 @@ static void hal_led_control(unsigned long data)
 u8 hal_init_hardware(struct ieee80211_hw *hw)
 {
 	struct wbsoft_priv *priv = hw->priv;
-	phw_data_t pHwData = &priv->sHwData;
+	struct hw_data * pHwData = &priv->sHwData;
 	u16 SoftwareSet;
 
 	// Initial the variable
@@ -356,7 +356,7 @@ u8 hal_init_hardware(struct ieee80211_hw *hw)
 }
 
 
-void hal_halt(phw_data_t pHwData, void *ppa_data)
+void hal_halt(struct hw_data * pHwData, void *ppa_data)
 {
 	switch( pHwData->InitialResource )
 	{
@@ -370,7 +370,7 @@ void hal_halt(phw_data_t pHwData, void *ppa_data)
 }
 
 //---------------------------------------------------------------------------------------------------
-void hal_set_beacon_period(  phw_data_t pHwData,  u16 beacon_period )
+void hal_set_beacon_period(  struct hw_data * pHwData,  u16 beacon_period )
 {
 	u32	tmp;
 
@@ -383,7 +383,7 @@ void hal_set_beacon_period(  phw_data_t pHwData,  u16 beacon_period )
 }
 
 
-static void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel )
+static void hal_set_current_channel_ex(  struct hw_data * pHwData,  ChanInfo channel )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -396,7 +396,7 @@ static void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel )
 	pHwData->Channel = channel.ChanNo;
 	pHwData->band = channel.band;
 	#ifdef _PE_STATE_DUMP_
-	WBDEBUG(("Set channel is %d, band =%d\n", pHwData->Channel, pHwData->band));
+	printk("Set channel is %d, band =%d\n", pHwData->Channel, pHwData->band);
 	#endif
 	reg->M28_MacControl &= ~0xff; // Clean channel information field
 	reg->M28_MacControl |= channel.ChanNo;
@@ -404,12 +404,12 @@ static void hal_set_current_channel_ex(  phw_data_t pHwData,  ChanInfo channel )
 					(s8 *)&channel, sizeof(ChanInfo));
 }
 //---------------------------------------------------------------------------------------------------
-void hal_set_current_channel(  phw_data_t pHwData,  ChanInfo channel )
+void hal_set_current_channel(  struct hw_data * pHwData,  ChanInfo channel )
 {
 	hal_set_current_channel_ex( pHwData, channel );
 }
 //---------------------------------------------------------------------------------------------------
-void hal_set_accept_broadcast(  phw_data_t pHwData,  u8 enable )
+void hal_set_accept_broadcast(  struct hw_data * pHwData,  u8 enable )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -424,7 +424,7 @@ void hal_set_accept_broadcast(  phw_data_t pHwData,  u8 enable )
 }
 
 //for wep key error detection, we need to accept broadcast packets to be received temporary.
-void hal_set_accept_promiscuous( phw_data_t pHwData,  u8 enable)
+void hal_set_accept_promiscuous( struct hw_data * pHwData,  u8 enable)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -438,7 +438,7 @@ void hal_set_accept_promiscuous( phw_data_t pHwData,  u8 enable)
 	}
 }
 
-void hal_set_accept_multicast(  phw_data_t pHwData,  u8 enable )
+void hal_set_accept_multicast(  struct hw_data * pHwData,  u8 enable )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -449,7 +449,7 @@ void hal_set_accept_multicast(  phw_data_t pHwData,  u8 enable )
 	Wb35Reg_Write( pHwData, 0x0800, reg->M00_MacControl );
 }
 
-void hal_set_accept_beacon(  phw_data_t pHwData,  u8 enable )
+void hal_set_accept_beacon(  struct hw_data * pHwData,  u8 enable )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -467,7 +467,7 @@ void hal_set_accept_beacon(  phw_data_t pHwData,  u8 enable )
 }
 //---------------------------------------------------------------------------------------------------
 
-void hal_stop(  phw_data_t pHwData )
+void hal_stop(  struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -481,10 +481,10 @@ void hal_stop(  phw_data_t pHwData )
 	Wb35Reg_Write( pHwData, 0x0400, reg->D00_DmaControl );
 }
 
-unsigned char hal_idle(phw_data_t pHwData)
+unsigned char hal_idle(struct hw_data * pHwData)
 {
 	struct wb35_reg *reg = &pHwData->reg;
-	PWBUSB	pWbUsb = &pHwData->WbUsb;
+	struct wb_usb *pWbUsb = &pHwData->WbUsb;
 
 	if( !pHwData->SurpriseRemove && ( pWbUsb->DetectCount || reg->EP0vm_state!=VM_STOP ) )
 		return false;
@@ -492,12 +492,12 @@ unsigned char hal_idle(phw_data_t pHwData)
 	return true;
 }
 //---------------------------------------------------------------------------------------------------
-void hal_set_phy_type(  phw_data_t pHwData,  u8 PhyType )
+void hal_set_phy_type(  struct hw_data * pHwData,  u8 PhyType )
 {
 	pHwData->phy_type = PhyType;
 }
 
-void hal_set_radio_mode( phw_data_t pHwData,  unsigned char radio_off)
+void hal_set_radio_mode( struct hw_data * pHwData,  unsigned char radio_off)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -516,7 +516,7 @@ void hal_set_radio_mode( phw_data_t pHwData,  unsigned char radio_off)
 	Wb35Reg_Write( pHwData, 0x0824, reg->M24_MacControl );
 }
 
-u8 hal_get_antenna_number(  phw_data_t pHwData )
+u8 hal_get_antenna_number(  struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -528,7 +528,7 @@ u8 hal_get_antenna_number(  phw_data_t pHwData )
 
 //----------------------------------------------------------------------------------------------------
 //0 : radio on; 1: radio off
-u8 hal_get_hw_radio_off(  phw_data_t pHwData )
+u8 hal_get_hw_radio_off(  struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -545,14 +545,14 @@ u8 hal_get_hw_radio_off(  phw_data_t pHwData )
 	}
 }
 
-unsigned char hal_get_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 * pValue )
+unsigned char hal_get_dxx_reg(  struct hw_data * pHwData,  u16 number,  u32 * pValue )
 {
 	if( number < 0x1000 )
 		number += 0x1000;
 	return Wb35Reg_ReadSync( pHwData, number, pValue );
 }
 
-unsigned char hal_set_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 value )
+unsigned char hal_set_dxx_reg(  struct hw_data * pHwData,  u16 number,  u32 value )
 {
 	unsigned char	ret;
 
@@ -562,7 +562,7 @@ unsigned char hal_set_dxx_reg(  phw_data_t pHwData,  u16 number,  u32 value )
 	return ret;
 }
 
-void hal_set_rf_power(phw_data_t pHwData, u8 PowerIndex)
+void hal_set_rf_power(struct hw_data * pHwData, u8 PowerIndex)
 {
 	RFSynthesizer_SetPowerIndex( pHwData, PowerIndex );
 }

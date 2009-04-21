@@ -58,11 +58,8 @@ static void proc_delete_inode(struct inode *inode)
 
 	/* Let go of any associated proc directory entry */
 	de = PROC_I(inode)->pde;
-	if (de) {
-		if (de->owner)
-			module_put(de->owner);
+	if (de)
 		de_put(de);
-	}
 	if (PROC_I(inode)->sysctl)
 		sysctl_head_put(PROC_I(inode)->sysctl);
 	clear_inode(inode);
@@ -127,7 +124,7 @@ static void __pde_users_dec(struct proc_dir_entry *pde)
 		complete(pde->pde_unload_completion);
 }
 
-static void pde_users_dec(struct proc_dir_entry *pde)
+void pde_users_dec(struct proc_dir_entry *pde)
 {
 	spin_lock(&pde->pde_unload_lock);
 	__pde_users_dec(pde);
@@ -449,12 +446,9 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 {
 	struct inode * inode;
 
-	if (!try_module_get(de->owner))
-		goto out_mod;
-
 	inode = iget_locked(sb, ino);
 	if (!inode)
-		goto out_ino;
+		return NULL;
 	if (inode->i_state & I_NEW) {
 		inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 		PROC_I(inode)->fd = 0;
@@ -485,16 +479,9 @@ struct inode *proc_get_inode(struct super_block *sb, unsigned int ino,
 			}
 		}
 		unlock_new_inode(inode);
-	} else {
-	       module_put(de->owner);
+	} else
 	       de_put(de);
-	}
 	return inode;
-
-out_ino:
-	module_put(de->owner);
-out_mod:
-	return NULL;
 }			
 
 int proc_fill_super(struct super_block *s)

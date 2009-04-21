@@ -31,7 +31,7 @@ struct itd1000_state {
 	/* ugly workaround for flexcop's incapable i2c-controller
 	 * FIXME, if possible
 	 */
-	u8 shadow[255];
+	u8 shadow[256];
 };
 
 enum itd1000_register {

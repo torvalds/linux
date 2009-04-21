@@ -570,15 +570,16 @@ static int saa7127_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	return saa7127_set_std(sd, std);
 }
 
-static int saa7127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa7127_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct saa7127_state *state = to_state(sd);
 	int rc = 0;
 
-	if (state->input_type != route->input)
-		rc = saa7127_set_input_type(sd, route->input);
-	if (rc == 0 && state->output_type != route->output)
-		rc = saa7127_set_output_type(sd, route->output);
+	if (state->input_type != input)
+		rc = saa7127_set_input_type(sd, input);
+	if (rc == 0 && state->output_type != output)
+		rc = saa7127_set_output_type(sd, output);
 	return rc;
 }
 
@@ -810,7 +811,6 @@ MODULE_DEVICE_TABLE(i2c, saa7127_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7127",
-	.driverid = I2C_DRIVERID_SAA7127,
 	.probe = saa7127_probe,
 	.remove = saa7127_remove,
 	.id_table = saa7127_id,

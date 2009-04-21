@@ -1944,7 +1944,7 @@ static int stat_file_read_proc(char *page, char **start, off_t off,
 
 int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 			    read_proc_t *read_proc,
-			    void *data, struct module *owner)
+			    void *data)
 {
 	int                    rv = 0;
 #ifdef CONFIG_PROC_FS
@@ -1970,7 +1970,6 @@ int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 	} else {
 		file->data = data;
 		file->read_proc = read_proc;
-		file->owner = owner;
 
 		mutex_lock(&smi->proc_entry_lock);
 		/* Stick it on the list. */
@@ -1993,23 +1992,21 @@ static int add_proc_entries(ipmi_smi_t smi, int num)
 	smi->proc_dir = proc_mkdir(smi->proc_dir_name, proc_ipmi_root);
 	if (!smi->proc_dir)
 		rv = -ENOMEM;
-	else
-		smi->proc_dir->owner = THIS_MODULE;
 
 	if (rv == 0)
 		rv = ipmi_smi_add_proc_entry(smi, "stats",
 					     stat_file_read_proc,
-					     smi, THIS_MODULE);
+					     smi);
 
 	if (rv == 0)
 		rv = ipmi_smi_add_proc_entry(smi, "ipmb",
 					     ipmb_file_read_proc,
-					     smi, THIS_MODULE);
+					     smi);
 
 	if (rv == 0)
 		rv = ipmi_smi_add_proc_entry(smi, "version",
 					     version_file_read_proc,
-					     smi, THIS_MODULE);
+					     smi);
 #endif /* CONFIG_PROC_FS */
 
 	return rv;
@@ -4265,7 +4262,6 @@ static int ipmi_init_msghandler(void)
 	    return -ENOMEM;
 	}
 
-	proc_ipmi_root->owner = THIS_MODULE;
 #endif /* CONFIG_PROC_FS */
 
 	setup_timer(&ipmi_timer, ipmi_timeout, 0);

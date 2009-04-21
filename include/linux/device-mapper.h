@@ -116,7 +116,6 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 /*
  * Target features
  */
-#define DM_TARGET_SUPPORTS_BARRIERS 0x00000001
 
 struct target_type {
 	uint64_t features;
@@ -139,6 +138,9 @@ struct target_type {
 	dm_ioctl_fn ioctl;
 	dm_merge_fn merge;
 	dm_busy_fn busy;
+
+	/* For internal device-mapper use. */
+	struct list_head list;
 };
 
 struct io_restrictions {

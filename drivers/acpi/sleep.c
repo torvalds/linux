@@ -21,6 +21,8 @@
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+
+#include "internal.h"
 #include "sleep.h"
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
@@ -248,7 +250,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 	/* If ACPI is not enabled by the BIOS, we need to enable it here. */
 	if (set_sci_en_on_resume)
-		acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1);
+		acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 	else
 		acpi_enable();
 
@@ -298,9 +300,9 @@ static int acpi_suspend_state_valid(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin,
-	.prepare = acpi_pm_prepare,
+	.prepare_late = acpi_pm_prepare,
 	.enter = acpi_suspend_enter,
-	.finish = acpi_pm_finish,
+	.wake = acpi_pm_finish,
 	.end = acpi_pm_end,
 };
 
@@ -326,9 +328,9 @@ static int acpi_suspend_begin_old(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops_old = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin_old,
-	.prepare = acpi_pm_disable_gpes,
+	.prepare_late = acpi_pm_disable_gpes,
 	.enter = acpi_suspend_enter,
-	.finish = acpi_pm_finish,
+	.wake = acpi_pm_finish,
 	.end = acpi_pm_end,
 	.recover = acpi_pm_finish,
 };
@@ -392,6 +394,15 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
+		},
+	},
+	{
+	.callback = init_old_suspend_ordering,
+	.ident = "Panasonic CF51-2L",
+	.matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR,
+				"Matsushita Electric Industrial Co.,Ltd."),
+		DMI_MATCH(DMI_BOARD_NAME, "CF51-2L"),
 		},
 	},
 	{},

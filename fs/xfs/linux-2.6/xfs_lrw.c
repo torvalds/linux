@@ -751,10 +751,26 @@ start:
 			goto relock;
 		}
 	} else {
+		int enospc = 0;
+		ssize_t ret2 = 0;
+
+write_retry:
 		xfs_rw_enter_trace(XFS_WRITE_ENTER, xip, (void *)iovp, segs,
 				*offset, ioflags);
-		ret = generic_file_buffered_write(iocb, iovp, segs,
+		ret2 = generic_file_buffered_write(iocb, iovp, segs,
 				pos, offset, count, ret);
+		/*
+		 * if we just got an ENOSPC, flush the inode now we
+		 * aren't holding any page locks and retry *once*
+		 */
+		if (ret2 == -ENOSPC && !enospc) {
+			error = xfs_flush_pages(xip, 0, -1, 0, FI_NONE);
+			if (error)
+				goto out_unlock_internal;
+			enospc = 1;
+			goto write_retry;
+		}
+		ret = ret2;
 	}
 
 	current->backing_dev_info = NULL;

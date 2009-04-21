@@ -30,9 +30,6 @@
 #include "usbusx2y.h"
 #include "usX2Yhwdep.h"
 
-int usX2Y_hwdep_pcm_new(struct snd_card *card);
-
-
 static int snd_us428ctls_vm_fault(struct vm_area_struct *area,
 				  struct vm_fault *vmf)
 {
@@ -105,16 +102,6 @@ static unsigned int snd_us428ctls_poll(struct snd_hwdep *hw, struct file *file, 
 	return mask;
 }
 
-
-static int snd_usX2Y_hwdep_open(struct snd_hwdep *hw, struct file *file)
-{
-	return 0;
-}
-
-static int snd_usX2Y_hwdep_release(struct snd_hwdep *hw, struct file *file)
-{
-	return 0;
-}
 
 static int snd_usX2Y_hwdep_dsp_status(struct snd_hwdep *hw,
 				      struct snd_hwdep_dsp_status *info)
@@ -216,13 +203,12 @@ static int snd_usX2Y_hwdep_dsp_load(struct snd_hwdep *hw,
 
 	if (access_ok(VERIFY_READ, dsp->image, dsp->length)) {
 		struct usb_device* dev = priv->chip.dev;
-		char *buf = kmalloc(dsp->length, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
-		if (copy_from_user(buf, dsp->image, dsp->length)) {
-			kfree(buf);
-			return -EFAULT;
-		}
+		char *buf;
+
+		buf = memdup_user(dsp->image, dsp->length);
+		if (IS_ERR(buf))
+			return PTR_ERR(buf);
+
 		err = usb_set_interface(dev, 0, 1);
 		if (err)
 			snd_printk(KERN_ERR "usb_set_interface error \n");
@@ -267,8 +253,6 @@ int usX2Y_hwdep_new(struct snd_card *card, struct usb_device* device)
 
 	hw->iface = SNDRV_HWDEP_IFACE_USX2Y;
 	hw->private_data = usX2Y(card);
-	hw->ops.open = snd_usX2Y_hwdep_open;
-	hw->ops.release = snd_usX2Y_hwdep_release;
 	hw->ops.dsp_status = snd_usX2Y_hwdep_dsp_status;
 	hw->ops.dsp_load = snd_usX2Y_hwdep_dsp_load;
 	hw->ops.mmap = snd_us428ctls_mmap;

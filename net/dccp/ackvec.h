@@ -20,6 +20,9 @@
 /* We can spread an ack vector across multiple options */
 #define DCCP_MAX_ACKVEC_LEN (DCCP_SINGLE_OPT_MAXLEN * 2)
 
+/* Estimated minimum average Ack Vector length - used for updating MPS */
+#define DCCPAV_MIN_OPTLEN	16
+
 #define DCCP_ACKVEC_STATE_RECEIVED	0
 #define DCCP_ACKVEC_STATE_ECN_MARKED	(1 << 6)
 #define DCCP_ACKVEC_STATE_NOT_RECEIVED	(3 << 6)

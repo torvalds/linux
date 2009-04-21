@@ -241,10 +241,10 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (sizeof(dma_addr_t) > 4
 	    && ahc->features & AHC_LARGE_SCBS
 	    && dma_set_mask(dev, mask_39bit) == 0
-	    && dma_get_required_mask(dev) > DMA_32BIT_MASK) {
+	    && dma_get_required_mask(dev) > DMA_BIT_MASK(32)) {
 		ahc->flags |= AHC_39BIT_ADDRESSING;
 	} else {
-		if (dma_set_mask(dev, DMA_32BIT_MASK)) {
+		if (dma_set_mask(dev, DMA_BIT_MASK(32))) {
 			ahc_free(ahc);
 			printk(KERN_WARNING "aic7xxx: No suitable DMA available.\n");
                 	return (-ENODEV);

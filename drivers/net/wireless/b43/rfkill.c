@@ -113,7 +113,7 @@ out_unlock:
 	return err;
 }
 
-char * b43_rfkill_led_name(struct b43_wldev *dev)
+char *b43_rfkill_led_name(struct b43_wldev *dev)
 {
 	struct b43_rfkill *rfk = &(dev->wl->rfkill);
 

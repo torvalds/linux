@@ -176,9 +176,9 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <mach/assabet.h>
 #include <mach/shannon.h>
@@ -199,13 +199,17 @@
 extern void (*sa1100fb_backlight_power)(int on);
 extern void (*sa1100fb_lcd_power)(int on);
 
-/*
- * IMHO this looks wrong.  In 8BPP, length should be 8.
- */
-static struct sa1100fb_rgb rgb_8 = {
+static struct sa1100fb_rgb rgb_4 = {
 	.red	= { .offset = 0,  .length = 4, },
 	.green	= { .offset = 0,  .length = 4, },
 	.blue	= { .offset = 0,  .length = 4, },
+	.transp	= { .offset = 0,  .length = 0, },
+};
+
+static struct sa1100fb_rgb rgb_8 = {
+	.red	= { .offset = 0,  .length = 8, },
+	.green	= { .offset = 0,  .length = 8, },
+	.blue	= { .offset = 0,  .length = 8, },
 	.transp	= { .offset = 0,  .length = 0, },
 };
 
@@ -249,22 +253,6 @@ static struct sa1100fb_mach_info pal_info __initdata = {
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
 };
 #endif
-#endif
-
-#ifdef CONFIG_SA1100_H3800
-static struct sa1100fb_mach_info h3800_info __initdata = {
-	.pixclock	= 174757, 	.bpp		= 16,
-	.xres		= 320,		.yres		= 240,
-
-	.hsync_len	= 3,		.vsync_len	= 3,
-	.left_margin	= 12,		.upper_margin	= 10,
-	.right_margin	= 17,		.lower_margin	= 1,
-
-	.cmap_static	= 1,
-
-	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
-	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
-};
 #endif
 
 #ifdef CONFIG_SA1100_H3600
@@ -430,11 +418,6 @@ sa1100fb_get_machine_info(struct sa1100fb_info *fbi)
 	if (machine_is_h3600()) {
 		inf = &h3600_info;
 		fbi->rgb[RGB_16] = &h3600_rgb_16;
-	}
-#endif
-#ifdef CONFIG_SA1100_H3800
-	if (machine_is_h3800()) {
-		inf = &h3800_info;
 	}
 #endif
 #ifdef CONFIG_SA1100_COLLIE
@@ -634,7 +617,7 @@ sa1100fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	DPRINTK("var->bits_per_pixel=%d\n", var->bits_per_pixel);
 	switch (var->bits_per_pixel) {
 	case 4:
-		rgbidx = RGB_8;
+		rgbidx = RGB_4;
 		break;
 	case 8:
 		rgbidx = RGB_8;
@@ -1403,6 +1386,7 @@ static struct sa1100fb_info * __init sa1100fb_init_fbinfo(struct device *dev)
 	fbi->fb.monspecs	= monspecs;
 	fbi->fb.pseudo_palette	= (fbi + 1);
 
+	fbi->rgb[RGB_4]		= &rgb_4;
 	fbi->rgb[RGB_8]		= &rgb_8;
 	fbi->rgb[RGB_16]	= &def_rgb_16;
 

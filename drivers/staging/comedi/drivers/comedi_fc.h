@@ -30,30 +30,30 @@
 #include "../comedidev.h"
 
 /* Writes an array of data points to comedi's buffer */
-extern unsigned int cfc_write_array_to_buffer(comedi_subdevice *subd,
+extern unsigned int cfc_write_array_to_buffer(struct comedi_subdevice *subd,
 					      void *data,
 					      unsigned int num_bytes);
 
-static inline unsigned int cfc_write_to_buffer(comedi_subdevice *subd,
-					       sampl_t data)
+static inline unsigned int cfc_write_to_buffer(struct comedi_subdevice *subd,
+					       short data)
 {
 	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
 };
 
-static inline unsigned int cfc_write_long_to_buffer(comedi_subdevice *subd,
-						    lsampl_t data)
+static inline unsigned int cfc_write_long_to_buffer(struct comedi_subdevice *subd,
+						    unsigned int data)
 {
 	return cfc_write_array_to_buffer(subd, &data, sizeof(data));
 };
 
-extern unsigned int cfc_read_array_from_buffer(comedi_subdevice *subd,
+extern unsigned int cfc_read_array_from_buffer(struct comedi_subdevice *subd,
 					       void *data,
 					       unsigned int num_bytes);
 
-extern unsigned int cfc_handle_events(comedi_device *dev,
-				      comedi_subdevice *subd);
+extern unsigned int cfc_handle_events(struct comedi_device *dev,
+				      struct comedi_subdevice *subd);
 
-static inline unsigned int cfc_bytes_per_scan(comedi_subdevice *subd)
+static inline unsigned int cfc_bytes_per_scan(struct comedi_subdevice *subd)
 {
 	int num_samples;
 	int bits_per_sample;

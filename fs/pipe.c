@@ -37,6 +37,42 @@
  * -- Manfred Spraul <manfred@colorfullife.com> 2002-05-09
  */
 
+static void pipe_lock_nested(struct pipe_inode_info *pipe, int subclass)
+{
+	if (pipe->inode)
+		mutex_lock_nested(&pipe->inode->i_mutex, subclass);
+}
+
+void pipe_lock(struct pipe_inode_info *pipe)
+{
+	/*
+	 * pipe_lock() nests non-pipe inode locks (for writing to a file)
+	 */
+	pipe_lock_nested(pipe, I_MUTEX_PARENT);
+}
+EXPORT_SYMBOL(pipe_lock);
+
+void pipe_unlock(struct pipe_inode_info *pipe)
+{
+	if (pipe->inode)
+		mutex_unlock(&pipe->inode->i_mutex);
+}
+EXPORT_SYMBOL(pipe_unlock);
+
+void pipe_double_lock(struct pipe_inode_info *pipe1,
+		      struct pipe_inode_info *pipe2)
+{
+	BUG_ON(pipe1 == pipe2);
+
+	if (pipe1 < pipe2) {
+		pipe_lock_nested(pipe1, I_MUTEX_PARENT);
+		pipe_lock_nested(pipe2, I_MUTEX_CHILD);
+	} else {
+		pipe_lock_nested(pipe2, I_MUTEX_CHILD);
+		pipe_lock_nested(pipe1, I_MUTEX_PARENT);
+	}
+}
+
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe)
 {
@@ -47,12 +83,10 @@ void pipe_wait(struct pipe_inode_info *pipe)
 	 * is considered a noninteractive wait:
 	 */
 	prepare_to_wait(&pipe->wait, &wait, TASK_INTERRUPTIBLE);
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 	schedule();
 	finish_wait(&pipe->wait, &wait);
-	if (pipe->inode)
-		mutex_lock(&pipe->inode->i_mutex);
+	pipe_lock(pipe);
 }
 
 static int
@@ -667,10 +701,7 @@ pipe_read_fasync(int fd, struct file *filp, int on)
 	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_readers);
 	mutex_unlock(&inode->i_mutex);
 
-	if (retval < 0)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 
@@ -684,10 +715,7 @@ pipe_write_fasync(int fd, struct file *filp, int on)
 	retval = fasync_helper(fd, filp, on, &inode->i_pipe->fasync_writers);
 	mutex_unlock(&inode->i_mutex);
 
-	if (retval < 0)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 
@@ -706,11 +734,7 @@ pipe_rdwr_fasync(int fd, struct file *filp, int on)
 			fasync_helper(-1, filp, 0, &pipe->fasync_readers);
 	}
 	mutex_unlock(&inode->i_mutex);
-
-	if (retval < 0)
-		return retval;
-
-	return 0;
+	return retval;
 }
 
 
@@ -870,7 +894,7 @@ static char *pipefs_dname(struct dentry *dentry, char *buffer, int buflen)
 				dentry->d_inode->i_ino);
 }
 
-static struct dentry_operations pipefs_dentry_operations = {
+static const struct dentry_operations pipefs_dentry_operations = {
 	.d_delete	= pipefs_delete_dentry,
 	.d_dname	= pipefs_dname,
 };
@@ -1032,11 +1056,6 @@ int do_pipe_flags(int *fd, int flags)
  err_write_pipe:
 	free_write_pipe(fw);
 	return error;
-}
-
-int do_pipe(int *fd)
-{
-	return do_pipe_flags(fd, 0);
 }
 
 /*

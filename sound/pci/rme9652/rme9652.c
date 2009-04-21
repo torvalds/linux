@@ -2594,11 +2594,11 @@ static int __devinit snd_rme9652_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct snd_rme9652));
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct snd_rme9652), &card);
 
-	if (!card)
-		return -ENOMEM;
+	if (err < 0)
+		return err;
 
 	rme9652 = (struct snd_rme9652 *) card->private_data;
 	card->private_free = snd_rme9652_card_free;

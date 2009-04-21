@@ -592,10 +592,12 @@ set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
 	if (assign_irq_vector(irq, cfg, mask))
 		return BAD_APICID;
 
-	cpumask_and(desc->affinity, cfg->domain, mask);
+	/* check that before desc->addinity get updated */
 	set_extra_move_desc(desc, mask);
 
-	return apic->cpu_mask_to_apicid_and(desc->affinity, cpu_online_mask);
+	cpumask_copy(desc->affinity, mask);
+
+	return apic->cpu_mask_to_apicid_and(desc->affinity, cfg->domain);
 }
 
 static void
@@ -849,63 +851,74 @@ __setup("pirq=", ioapic_pirq_setup);
 #endif /* CONFIG_X86_32 */
 
 #ifdef CONFIG_INTR_REMAP
-/* I/O APIC RTE contents at the OS boot up */
-static struct IO_APIC_route_entry *early_ioapic_entries[MAX_IO_APICS];
+struct IO_APIC_route_entry **alloc_ioapic_entries(void)
+{
+	int apic;
+	struct IO_APIC_route_entry **ioapic_entries;
+
+	ioapic_entries = kzalloc(sizeof(*ioapic_entries) * nr_ioapics,
+				GFP_ATOMIC);
+	if (!ioapic_entries)
+		return 0;
+
+	for (apic = 0; apic < nr_ioapics; apic++) {
+		ioapic_entries[apic] =
+			kzalloc(sizeof(struct IO_APIC_route_entry) *
+				nr_ioapic_registers[apic], GFP_ATOMIC);
+		if (!ioapic_entries[apic])
+			goto nomem;
+	}
+
+	return ioapic_entries;
+
+nomem:
+	while (--apic >= 0)
+		kfree(ioapic_entries[apic]);
+	kfree(ioapic_entries);
+
+	return 0;
+}
 
 /*
  * Saves all the IO-APIC RTE's
  */
-int save_IO_APIC_setup(void)
+int save_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries)
 {
-	union IO_APIC_reg_01 reg_01;
-	unsigned long flags;
 	int apic, pin;
 
-	/*
-	 * The number of IO-APIC IRQ registers (== #pins):
-	 */
-	for (apic = 0; apic < nr_ioapics; apic++) {
-		spin_lock_irqsave(&ioapic_lock, flags);
-		reg_01.raw = io_apic_read(apic, 1);
-		spin_unlock_irqrestore(&ioapic_lock, flags);
-		nr_ioapic_registers[apic] = reg_01.bits.entries+1;
-	}
+	if (!ioapic_entries)
+		return -ENOMEM;
 
 	for (apic = 0; apic < nr_ioapics; apic++) {
-		early_ioapic_entries[apic] =
-			kzalloc(sizeof(struct IO_APIC_route_entry) *
-				nr_ioapic_registers[apic], GFP_KERNEL);
-		if (!early_ioapic_entries[apic])
-			goto nomem;
-	}
+		if (!ioapic_entries[apic])
+			return -ENOMEM;
 
-	for (apic = 0; apic < nr_ioapics; apic++)
 		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++)
-			early_ioapic_entries[apic][pin] =
+			ioapic_entries[apic][pin] =
 				ioapic_read_entry(apic, pin);
+	}
 
 	return 0;
-
-nomem:
-	while (apic >= 0)
-		kfree(early_ioapic_entries[apic--]);
-	memset(early_ioapic_entries, 0,
-		ARRAY_SIZE(early_ioapic_entries));
-
-	return -ENOMEM;
 }
 
-void mask_IO_APIC_setup(void)
+/*
+ * Mask all IO APIC entries.
+ */
+void mask_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries)
 {
 	int apic, pin;
 
+	if (!ioapic_entries)
+		return;
+
 	for (apic = 0; apic < nr_ioapics; apic++) {
-		if (!early_ioapic_entries[apic])
+		if (!ioapic_entries[apic])
 			break;
+
 		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
 			struct IO_APIC_route_entry entry;
 
-			entry = early_ioapic_entries[apic][pin];
+			entry = ioapic_entries[apic][pin];
 			if (!entry.mask) {
 				entry.mask = 1;
 				ioapic_write_entry(apic, pin, entry);
@@ -914,22 +927,30 @@ void mask_IO_APIC_setup(void)
 	}
 }
 
-void restore_IO_APIC_setup(void)
+/*
+ * Restore IO APIC entries which was saved in ioapic_entries.
+ */
+int restore_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries)
 {
 	int apic, pin;
 
+	if (!ioapic_entries)
+		return -ENOMEM;
+
 	for (apic = 0; apic < nr_ioapics; apic++) {
-		if (!early_ioapic_entries[apic])
-			break;
+		if (!ioapic_entries[apic])
+			return -ENOMEM;
+
 		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++)
 			ioapic_write_entry(apic, pin,
-					   early_ioapic_entries[apic][pin]);
-		kfree(early_ioapic_entries[apic]);
-		early_ioapic_entries[apic] = NULL;
+					ioapic_entries[apic][pin]);
 	}
+	return 0;
 }
 
-void reinit_intr_remapped_IO_APIC(int intr_remapping)
+void reinit_intr_remapped_IO_APIC(int intr_remapping,
+	struct IO_APIC_route_entry **ioapic_entries)
+
 {
 	/*
 	 * for now plain restore of previous settings.
@@ -938,7 +959,17 @@ void reinit_intr_remapped_IO_APIC(int intr_remapping)
 	 * table entries. for now, do a plain restore, and wait for
 	 * the setup_IO_APIC_irqs() to do proper initialization.
 	 */
-	restore_IO_APIC_setup();
+	restore_IO_APIC_setup(ioapic_entries);
+}
+
+void free_ioapic_entries(struct IO_APIC_route_entry **ioapic_entries)
+{
+	int apic;
+
+	for (apic = 0; apic < nr_ioapics; apic++)
+		kfree(ioapic_entries[apic]);
+
+	kfree(ioapic_entries);
 }
 #endif
 
@@ -1428,7 +1459,6 @@ void __setup_vector_irq(int cpu)
 
 static struct irq_chip ioapic_chip;
 static struct irq_chip ir_ioapic_chip;
-static struct irq_chip msi_ir_chip;
 
 #define IOAPIC_AUTO     -1
 #define IOAPIC_EDGE     0
@@ -2494,7 +2524,6 @@ static void irq_complete_move(struct irq_desc **descp)
 static inline void irq_complete_move(struct irq_desc **descp) {}
 #endif
 
-#ifdef CONFIG_INTR_REMAP
 static void __eoi_ioapic_irq(unsigned int irq, struct irq_cfg *cfg)
 {
 	int apic, pin;
@@ -2528,6 +2557,7 @@ eoi_ioapic_irq(struct irq_desc *desc)
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
+#ifdef CONFIG_X86_X2APIC
 static void ack_x2apic_level(unsigned int irq)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
@@ -2539,7 +2569,6 @@ static void ack_x2apic_edge(unsigned int irq)
 {
 	ack_x2APIC_irq();
 }
-
 #endif
 
 static void ack_apic_edge(unsigned int irq)
@@ -2605,6 +2634,9 @@ static void ack_apic_level(unsigned int irq)
 	 */
 	ack_APIC_irq();
 
+	if (irq_remapped(irq))
+		eoi_ioapic_irq(desc);
+
 	/* Now we can move and renable the irq */
 	if (unlikely(do_unmask_irq)) {
 		/* Only migrate the irq if the ack has been received.
@@ -2650,6 +2682,26 @@ static void ack_apic_level(unsigned int irq)
 #endif
 }
 
+#ifdef CONFIG_INTR_REMAP
+static void ir_ack_apic_edge(unsigned int irq)
+{
+#ifdef CONFIG_X86_X2APIC
+       if (x2apic_enabled())
+               return ack_x2apic_edge(irq);
+#endif
+       return ack_apic_edge(irq);
+}
+
+static void ir_ack_apic_level(unsigned int irq)
+{
+#ifdef CONFIG_X86_X2APIC
+       if (x2apic_enabled())
+               return ack_x2apic_level(irq);
+#endif
+       return ack_apic_level(irq);
+}
+#endif /* CONFIG_INTR_REMAP */
+
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name		= "IO-APIC",
 	.startup	= startup_ioapic_irq,
@@ -2663,20 +2715,20 @@ static struct irq_chip ioapic_chip __read_mostly = {
 	.retrigger	= ioapic_retrigger_irq,
 };
 
-#ifdef CONFIG_INTR_REMAP
 static struct irq_chip ir_ioapic_chip __read_mostly = {
 	.name		= "IR-IO-APIC",
 	.startup	= startup_ioapic_irq,
 	.mask		= mask_IO_APIC_irq,
 	.unmask		= unmask_IO_APIC_irq,
-	.ack		= ack_x2apic_edge,
-	.eoi		= ack_x2apic_level,
+#ifdef CONFIG_INTR_REMAP
+	.ack		= ir_ack_apic_edge,
+	.eoi		= ir_ack_apic_level,
 #ifdef CONFIG_SMP
 	.set_affinity	= set_ir_ioapic_affinity_irq,
 #endif
+#endif
 	.retrigger	= ioapic_retrigger_irq,
 };
-#endif
 
 static inline void init_IO_APIC_traps(void)
 {
@@ -3391,18 +3443,18 @@ static struct irq_chip msi_chip = {
 	.retrigger	= ioapic_retrigger_irq,
 };
 
-#ifdef CONFIG_INTR_REMAP
 static struct irq_chip msi_ir_chip = {
 	.name		= "IR-PCI-MSI",
 	.unmask		= unmask_msi_irq,
 	.mask		= mask_msi_irq,
-	.ack		= ack_x2apic_edge,
+#ifdef CONFIG_INTR_REMAP
+	.ack		= ir_ack_apic_edge,
 #ifdef CONFIG_SMP
 	.set_affinity	= ir_set_msi_irq_affinity,
 #endif
+#endif
 	.retrigger	= ioapic_retrigger_irq,
 };
-#endif
 
 /*
  * Map the PCI dev to the corresponding remapping hardware unit
@@ -3466,6 +3518,10 @@ int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	unsigned int irq_want;
 	struct intel_iommu *iommu = NULL;
 	int index = 0;
+
+	/* x86 doesn't support multiple MSI yet */
+	if (type == PCI_CAP_ID_MSI && nvec > 1)
+		return 1;
 
 	irq_want = nr_irqs_gsi;
 	sub_handle = 0;

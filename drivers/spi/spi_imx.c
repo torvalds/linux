@@ -186,6 +186,7 @@
 #define QUEUE_STOPPED			(1)
 
 #define IS_DMA_ALIGNED(x) 		(((u32)(x) & 0x03) == 0)
+#define DMA_ALIGNMENT			4
 /*-------------------------------------------------------------------------*/
 
 
@@ -779,7 +780,8 @@ static irqreturn_t interrupt_transfer(struct driver_data *drv_data)
 
 			/* Read trailing bytes */
 			limit = loops_per_jiffy << 1;
-			while ((read(drv_data) == 0) && limit--);
+			while ((read(drv_data) == 0) && --limit)
+				cpu_relax();
 
 			if (limit == 0)
 				dev_err(&drv_data->pdev->dev,
@@ -1381,7 +1383,7 @@ static int __init init_queue(struct driver_data *drv_data)
 
 	INIT_WORK(&drv_data->work, pump_messages);
 	drv_data->workqueue = create_singlethread_workqueue(
-					drv_data->master->dev.parent->bus_id);
+				dev_name(drv_data->master->dev.parent));
 	if (drv_data->workqueue == NULL)
 		return -EBUSY;
 
@@ -1481,6 +1483,7 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;
+	master->dma_alignment = DMA_ALIGNMENT;
 	master->cleanup = cleanup;
 	master->setup = setup;
 	master->transfer = transfer;
@@ -1525,7 +1528,8 @@ static int __init spi_imx_probe(struct platform_device *pdev)
 		status = -ENODEV;
 		goto err_no_irqres;
 	}
-	status = request_irq(irq, spi_int, IRQF_DISABLED, dev->bus_id, drv_data);
+	status = request_irq(irq, spi_int, IRQF_DISABLED,
+			     dev_name(dev), drv_data);
 	if (status < 0) {
 		dev_err(&pdev->dev, "probe - cannot get IRQ (%d)\n", status);
 		goto err_no_irqres;

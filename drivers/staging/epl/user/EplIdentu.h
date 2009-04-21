@@ -68,41 +68,27 @@
 
 ****************************************************************************/
 
-#include "../EplDll.h"
-
 #ifndef _EPLIDENTU_H_
 #define _EPLIDENTU_H_
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
+#include "../EplDll.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
-
-typedef tEplKernel(PUBLIC * tEplIdentuCbResponse) (unsigned int uiNodeId_p,
+typedef tEplKernel(* tEplIdentuCbResponse) (unsigned int uiNodeId_p,
 						   tEplIdentResponse *
 						   pIdentResponse_p);
 
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
+tEplKernel EplIdentuInit(void);
 
-tEplKernel PUBLIC EplIdentuInit(void);
+tEplKernel EplIdentuAddInstance(void);
 
-tEplKernel PUBLIC EplIdentuAddInstance(void);
+tEplKernel EplIdentuDelInstance(void);
 
-tEplKernel PUBLIC EplIdentuDelInstance(void);
+tEplKernel EplIdentuReset(void);
 
-tEplKernel PUBLIC EplIdentuReset(void);
+tEplKernel EplIdentuGetIdentResponse(unsigned int uiNodeId_p,
+				     tEplIdentResponse **ppIdentResponse_p);
 
-tEplKernel PUBLIC EplIdentuGetIdentResponse(unsigned int uiNodeId_p,
-					    tEplIdentResponse **
-					    ppIdentResponse_p);
-
-tEplKernel PUBLIC EplIdentuRequestIdentResponse(unsigned int uiNodeId_p,
-						tEplIdentuCbResponse
-						pfnCbResponse_p);
+tEplKernel EplIdentuRequestIdentResponse(unsigned int uiNodeId_p,
+					 tEplIdentuCbResponse pfnCbResponse_p);
 
 #endif // #ifndef _EPLIDENTU_H_

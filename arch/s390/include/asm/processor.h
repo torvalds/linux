@@ -14,7 +14,10 @@
 #define __ASM_S390_PROCESSOR_H
 
 #include <linux/linkage.h>
+#include <asm/cpuid.h>
+#include <asm/page.h>
 #include <asm/ptrace.h>
+#include <asm/setup.h>
 
 #ifdef __KERNEL__
 /*
@@ -23,41 +26,13 @@
  */
 #define current_text_addr() ({ void *pc; asm("basr %0,0" : "=a" (pc)); pc; })
 
-/*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- *  Members of this structure are referenced in head.S, so think twice
- *  before touching them. [mj]
- */
-
-typedef struct
-{
-        unsigned int version :  8;
-        unsigned int ident   : 24;
-        unsigned int machine : 16;
-        unsigned int unused  : 16;
-} __attribute__ ((packed)) cpuid_t;
-
 static inline void get_cpu_id(cpuid_t *ptr)
 {
 	asm volatile("stidp 0(%1)" : "=m" (*ptr) : "a" (ptr));
 }
 
-struct cpuinfo_S390
-{
-        cpuid_t  cpu_id;
-        __u16    cpu_addr;
-        __u16    cpu_nr;
-        unsigned long loops_per_jiffy;
-        unsigned long *pgd_quick;
-#ifdef __s390x__
-        unsigned long *pmd_quick;
-#endif /* __s390x__ */
-        unsigned long *pte_quick;
-        unsigned long pgtable_cache_sz;
-};
-
 extern void s390_adjust_jiffies(void);
-extern void print_cpu_info(struct cpuinfo_S390 *);
+extern void print_cpu_info(void);
 extern int get_cpu_capability(unsigned int *);
 
 /*

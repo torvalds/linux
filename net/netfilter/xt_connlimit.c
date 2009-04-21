@@ -108,7 +108,7 @@ static int count_them(struct xt_connlimit_data *data,
 	const struct nf_conntrack_tuple_hash *found;
 	struct xt_connlimit_conn *conn;
 	struct xt_connlimit_conn *tmp;
-	const struct nf_conn *found_ct;
+	struct nf_conn *found_ct;
 	struct list_head *hash;
 	bool addit = true;
 	int matches = 0;
@@ -123,7 +123,7 @@ static int count_them(struct xt_connlimit_data *data,
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, tmp, hash, list) {
-		found    = __nf_conntrack_find(&init_net, &conn->tuple);
+		found    = nf_conntrack_find_get(&init_net, &conn->tuple);
 		found_ct = NULL;
 
 		if (found != NULL)
@@ -151,6 +151,7 @@ static int count_them(struct xt_connlimit_data *data,
 			 * we do not care about connections which are
 			 * closed already -> ditch it
 			 */
+			nf_ct_put(found_ct);
 			list_del(&conn->list);
 			kfree(conn);
 			continue;
@@ -160,6 +161,7 @@ static int count_them(struct xt_connlimit_data *data,
 		    match->family))
 			/* same source network -> be counted! */
 			++matches;
+		nf_ct_put(found_ct);
 	}
 
 	rcu_read_unlock();

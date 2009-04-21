@@ -888,7 +888,7 @@ static int tsi108_poll(struct napi_struct *napi, int budget)
 
 	if (num_received < budget) {
 		data->rxpending = 0;
-		netif_rx_complete(napi);
+		napi_complete(napi);
 
 		TSI_WRITE(TSI108_EC_INTMASK,
 				     TSI_READ(TSI108_EC_INTMASK)
@@ -915,11 +915,11 @@ static void tsi108_rx_int(struct net_device *dev)
 	 *
 	 * This can happen if this code races with tsi108_poll(), which masks
 	 * the interrupts after tsi108_irq_one() read the mask, but before
-	 * netif_rx_schedule is called.  It could also happen due to calls
+	 * napi_schedule is called.  It could also happen due to calls
 	 * from tsi108_check_rxring().
 	 */
 
-	if (netif_rx_schedule_prep(&data->napi)) {
+	if (napi_schedule_prep(&data->napi)) {
 		/* Mask, rather than ack, the receive interrupts.  The ack
 		 * will happen in tsi108_poll().
 		 */
@@ -930,7 +930,7 @@ static void tsi108_rx_int(struct net_device *dev)
 				     | TSI108_INT_RXTHRESH |
 				     TSI108_INT_RXOVERRUN | TSI108_INT_RXERROR |
 				     TSI108_INT_RXWAIT);
-		__netif_rx_schedule(&data->napi);
+		__napi_schedule(&data->napi);
 	} else {
 		if (!netif_running(dev)) {
 			/* This can happen if an interrupt occurs while the
@@ -1561,6 +1561,18 @@ static const struct ethtool_ops tsi108_ethtool_ops = {
 	.set_settings	= tsi108_set_settings,
 };
 
+static const struct net_device_ops tsi108_netdev_ops = {
+	.ndo_open		= tsi108_open,
+	.ndo_stop		= tsi108_close,
+	.ndo_start_xmit		= tsi108_send_packet,
+	.ndo_set_multicast_list	= tsi108_set_rx_mode,
+	.ndo_get_stats		= tsi108_get_stats,
+	.ndo_do_ioctl		= tsi108_do_ioctl,
+	.ndo_set_mac_address	= tsi108_set_mac,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
 static int
 tsi108_init_one(struct platform_device *pdev)
 {
@@ -1616,14 +1628,8 @@ tsi108_init_one(struct platform_device *pdev)
 	data->phy_type = einfo->phy_type;
 	data->irq_num = einfo->irq_num;
 	data->id = pdev->id;
-	dev->open = tsi108_open;
-	dev->stop = tsi108_close;
-	dev->hard_start_xmit = tsi108_send_packet;
-	dev->set_mac_address = tsi108_set_mac;
-	dev->set_multicast_list = tsi108_set_rx_mode;
-	dev->get_stats = tsi108_get_stats;
 	netif_napi_add(dev, &data->napi, tsi108_poll, 64);
-	dev->do_ioctl = tsi108_do_ioctl;
+	dev->netdev_ops = &tsi108_netdev_ops;
 	dev->ethtool_ops = &tsi108_ethtool_ops;
 
 	/* Apparently, the Linux networking code won't use scatter-gather

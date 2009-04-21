@@ -22,14 +22,9 @@
 #include <linux/ethtool.h>
 #include <linux/mutex.h>
 
-#include "bnx2x_reg.h"
-#include "bnx2x_fw_defs.h"
-#include "bnx2x_hsi.h"
-#include "bnx2x_link.h"
 #include "bnx2x.h"
 
 /********************************************************/
-#define SUPPORT_CL73 0 /* Currently no */
 #define ETH_HLEN			14
 #define ETH_OVREHEAD		(ETH_HLEN + 8)/* 8 for CRC + VLAN*/
 #define ETH_MIN_PACKET_SIZE		60
@@ -139,6 +134,26 @@
 #define PHY_SGMII_FLAG			0x2
 #define PHY_SERDES_FLAG			0x4
 
+/* */
+#define SFP_EEPROM_CON_TYPE_ADDR		0x2
+	#define SFP_EEPROM_CON_TYPE_VAL_LC 		0x7
+	#define SFP_EEPROM_CON_TYPE_VAL_COPPER	0x21
+
+#define SFP_EEPROM_FC_TX_TECH_ADDR		0x8
+	#define SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE 0x4
+	#define SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_ACTIVE	 0x8
+#define SFP_EEPROM_VENDOR_NAME_ADDR		0x14
+#define SFP_EEPROM_VENDOR_NAME_SIZE 	16
+#define SFP_EEPROM_OPTIONS_ADDR 		0x40
+	#define SFP_EEPROM_OPTIONS_LINEAR_RX_OUT_MASK 0x1
+#define SFP_EEPROM_OPTIONS_SIZE 		2
+
+#define SFP_MODULE_TYPE_UNKNOWN 			0x0
+#define SFP_MODULE_TYPE_LC   			0x1
+#define SFP_MODULE_TYPE_ACTIVE_COPPER_CABLE		0x2
+#define SFP_MODULE_TYPE_PASSIVE_COPPER_CABLE	0x3
+
+#define SFP_LIMITING_MODE_VALUE 			0x0044
 /**********************************************************/
 /*                     INTERFACE                          */
 /**********************************************************/
@@ -154,13 +169,34 @@
 		(_bank + (_addr & 0xf)), \
 		_val)
 
-static void bnx2x_set_phy_mdio(struct link_params *params)
+static void bnx2x_set_serdes_access(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
-	REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_ST +
-		   params->port*0x18, 0);
-	REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_DEVAD + params->port*0x18,
-		   DEFAULT_PHY_DEV_ADDR);
+	u32 emac_base = (params->port) ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
+	/* Set Clause 22 */
+	REG_WR(bp, NIG_REG_SERDES0_CTRL_MD_ST + params->port*0x10, 1);
+	REG_WR(bp, emac_base + EMAC_REG_EMAC_MDIO_COMM, 0x245f8000);
+	udelay(500);
+	REG_WR(bp, emac_base + EMAC_REG_EMAC_MDIO_COMM, 0x245d000f);
+	udelay(500);
+	 /* Set Clause 45 */
+	REG_WR(bp, NIG_REG_SERDES0_CTRL_MD_ST + params->port*0x10, 0);
+}
+static void bnx2x_set_phy_mdio(struct link_params *params, u8 phy_flags)
+{
+	struct bnx2x *bp = params->bp;
+	if (phy_flags & PHY_XGXS_FLAG) {
+		REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_ST +
+			   params->port*0x18, 0);
+		REG_WR(bp, NIG_REG_XGXS0_CTRL_MD_DEVAD + params->port*0x18,
+			   DEFAULT_PHY_DEV_ADDR);
+	} else {
+		bnx2x_set_serdes_access(params);
+
+		REG_WR(bp, NIG_REG_SERDES0_CTRL_MD_DEVAD +
+			   params->port*0x10,
+			   DEFAULT_PHY_DEV_ADDR);
+	}
 }
 
 static u32 bnx2x_bits_en(struct bnx2x *bp, u32 reg, u32 bits)
@@ -277,8 +313,10 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 			   port*4, 0);
 	}
 
-	/* enable emac */
-	REG_WR(bp, NIG_REG_NIG_EMAC0_EN + port*4, 1);
+	bnx2x_bits_en(bp, emac_base + EMAC_REG_EMAC_RX_MODE,
+		    EMAC_RX_MODE_RESET);
+	bnx2x_bits_en(bp, emac_base + EMAC_REG_EMAC_TX_MODE,
+		    EMAC_TX_MODE_RESET);
 
 	if (CHIP_REV_IS_SLOW(bp)) {
 		/* config GMII mode */
@@ -498,7 +536,7 @@ static void bnx2x_phy_deassert(struct link_params *params, u8 phy_flags)
 	udelay(500);
 	REG_WR(bp, GRCBASE_MISC + MISC_REGISTERS_RESET_REG_3_SET,
 		    val);
-	bnx2x_set_phy_mdio(params);
+	bnx2x_set_phy_mdio(params, phy_flags);
 }
 
 void bnx2x_link_status_update(struct link_params *params,
@@ -749,12 +787,17 @@ static u8 bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
 	return 0;
 }
 
-static u32 bnx2x_get_emac_base(u32 ext_phy_type, u8 port)
+static u32 bnx2x_get_emac_base(struct bnx2x *bp, u32 ext_phy_type, u8 port)
 {
 	u32 emac_base;
 	switch (ext_phy_type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
-		emac_base = GRCBASE_EMAC0;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+		/* All MDC/MDIO is directed through single EMAC */
+		if (REG_RD(bp, NIG_REG_PORT_SWAP))
+			emac_base = GRCBASE_EMAC0;
+		else
+			emac_base = GRCBASE_EMAC1;
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 		emac_base = (port) ? GRCBASE_EMAC0 : GRCBASE_EMAC1;
@@ -772,11 +815,12 @@ u8 bnx2x_cl45_write(struct bnx2x *bp, u8 port, u32 ext_phy_type,
 {
 	u32 tmp, saved_mode;
 	u8 i, rc = 0;
-	u32 mdio_ctrl = bnx2x_get_emac_base(ext_phy_type, port);
+	u32 mdio_ctrl = bnx2x_get_emac_base(bp, ext_phy_type, port);
 
 	/* set clause 45 mode, slow down the MDIO clock to 2.5MHz
 	 * (a value of 49==0x31) and make sure that the AUTO poll is off
 	 */
+
 	saved_mode = REG_RD(bp, mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE);
 	tmp = saved_mode & ~(EMAC_MDIO_MODE_AUTO_POLL |
 			     EMAC_MDIO_MODE_CLOCK_CNT);
@@ -841,10 +885,11 @@ u8 bnx2x_cl45_read(struct bnx2x *bp, u8 port, u32 ext_phy_type,
 	u16 i;
 	u8 rc = 0;
 
-	u32 mdio_ctrl = bnx2x_get_emac_base(ext_phy_type, port);
+	u32 mdio_ctrl = bnx2x_get_emac_base(bp, ext_phy_type, port);
 	/* set clause 45 mode, slow down the MDIO clock to 2.5MHz
 	 * (a value of 49==0x31) and make sure that the AUTO poll is off
 	 */
+
 	saved_mode = REG_RD(bp, mdio_ctrl + EMAC_REG_EMAC_MDIO_MODE);
 	val = saved_mode & ((EMAC_MDIO_MODE_AUTO_POLL |
 			     EMAC_MDIO_MODE_CLOCK_CNT));
@@ -966,6 +1011,8 @@ static u8 bnx2x_reset_unicore(struct link_params *params)
 			      MDIO_COMBO_IEEE0_MII_CONTROL,
 			      (mii_control |
 			       MDIO_COMBO_IEEO_MII_CONTROL_RESET));
+
+	bnx2x_set_serdes_access(params);
 
 	/* wait for the reset to self clear */
 	for (i = 0; i < MDIO_ACCESS_TIMEOUT; i++) {
@@ -1156,62 +1203,9 @@ static void bnx2x_set_autoneg(struct link_params *params,
 			      MDIO_BAM_NEXT_PAGE_MP5_NEXT_PAGE_CTRL,
 			      reg_val);
 
-	/* Enable Clause 73 Aneg */
-	if ((vars->line_speed == SPEED_AUTO_NEG) &&
-	    (SUPPORT_CL73)) {
-		/* Enable BAM Station Manager */
+	/* CL73 Autoneg Disabled */
+	reg_val = 0;
 
-		CL45_WR_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				      MDIO_REG_BANK_CL73_USERB0,
-				      MDIO_CL73_USERB0_CL73_BAM_CTRL1,
-				   (MDIO_CL73_USERB0_CL73_BAM_CTRL1_BAM_EN |
-			MDIO_CL73_USERB0_CL73_BAM_CTRL1_BAM_STATION_MNGR_EN |
-			MDIO_CL73_USERB0_CL73_BAM_CTRL1_BAM_NP_AFTER_BP_EN));
-
-		/* Merge CL73 and CL37 aneg resolution */
-		CL45_RD_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				      MDIO_REG_BANK_CL73_USERB0,
-				      MDIO_CL73_USERB0_CL73_BAM_CTRL3,
-				      &reg_val);
-
-		CL45_WR_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-			MDIO_REG_BANK_CL73_USERB0,
-			MDIO_CL73_USERB0_CL73_BAM_CTRL3,
-			(reg_val |
-			MDIO_CL73_USERB0_CL73_BAM_CTRL3_USE_CL73_HCD_MR));
-
-		/* Set the CL73 AN speed */
-
-		CL45_RD_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				      MDIO_REG_BANK_CL73_IEEEB1,
-				      MDIO_CL73_IEEEB1_AN_ADV2, &reg_val);
-		/* In the SerDes we support only the 1G.
-		   In the XGXS we support the 10G KX4
-		   but we currently do not support the KR */
-		if (vars->phy_flags & PHY_XGXS_FLAG) {
-			DP(NETIF_MSG_LINK, "XGXS\n");
-			/* 10G KX4 */
-			reg_val |= MDIO_CL73_IEEEB1_AN_ADV2_ADVR_10G_KX4;
-		} else {
-			DP(NETIF_MSG_LINK, "SerDes\n");
-			/* 1000M KX */
-			reg_val |= MDIO_CL73_IEEEB1_AN_ADV2_ADVR_1000M_KX;
-		}
-		CL45_WR_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				      MDIO_REG_BANK_CL73_IEEEB1,
-				      MDIO_CL73_IEEEB1_AN_ADV2, reg_val);
-
-		/* CL73 Autoneg Enabled */
-		reg_val = MDIO_CL73_IEEEB0_CL73_AN_CONTROL_AN_EN;
-	} else {
-		/* CL73 Autoneg Disabled */
-		reg_val = 0;
-	}
 	CL45_WR_OVER_CL22(bp, params->port,
 			      params->phy_addr,
 			      MDIO_REG_BANK_CL73_IEEEB0,
@@ -1344,44 +1338,25 @@ static void bnx2x_set_ieee_aneg_advertisment(struct link_params *params,
 static void bnx2x_restart_autoneg(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
+	u16 mii_control;
 	DP(NETIF_MSG_LINK, "bnx2x_restart_autoneg\n");
-	if (SUPPORT_CL73) {
-		/* enable and restart clause 73 aneg */
-		u16 an_ctrl;
+	/* Enable and restart BAM/CL37 aneg */
 
-		CL45_RD_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				      MDIO_REG_BANK_CL73_IEEEB0,
-				      MDIO_CL73_IEEEB0_CL73_AN_CONTROL,
-				  &an_ctrl);
-		CL45_WR_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				MDIO_REG_BANK_CL73_IEEEB0,
-				MDIO_CL73_IEEEB0_CL73_AN_CONTROL,
-				(an_ctrl |
-				MDIO_CL73_IEEEB0_CL73_AN_CONTROL_AN_EN |
-				MDIO_CL73_IEEEB0_CL73_AN_CONTROL_RESTART_AN));
-
-	} else {
-		/* Enable and restart BAM/CL37 aneg */
-		u16 mii_control;
-
-		CL45_RD_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				      MDIO_REG_BANK_COMBO_IEEE0,
-				      MDIO_COMBO_IEEE0_MII_CONTROL,
-				      &mii_control);
-		DP(NETIF_MSG_LINK,
-			 "bnx2x_restart_autoneg mii_control before = 0x%x\n",
-			 mii_control);
-		CL45_WR_OVER_CL22(bp, params->port,
-				      params->phy_addr,
-				      MDIO_REG_BANK_COMBO_IEEE0,
-				      MDIO_COMBO_IEEE0_MII_CONTROL,
-				      (mii_control |
-				MDIO_COMBO_IEEO_MII_CONTROL_AN_EN |
-				MDIO_COMBO_IEEO_MII_CONTROL_RESTART_AN));
-	}
+	CL45_RD_OVER_CL22(bp, params->port,
+			      params->phy_addr,
+			      MDIO_REG_BANK_COMBO_IEEE0,
+			      MDIO_COMBO_IEEE0_MII_CONTROL,
+			      &mii_control);
+	DP(NETIF_MSG_LINK,
+		 "bnx2x_restart_autoneg mii_control before = 0x%x\n",
+		 mii_control);
+	CL45_WR_OVER_CL22(bp, params->port,
+			      params->phy_addr,
+			      MDIO_REG_BANK_COMBO_IEEE0,
+			      MDIO_COMBO_IEEE0_MII_CONTROL,
+			      (mii_control |
+			       MDIO_COMBO_IEEO_MII_CONTROL_AN_EN |
+			       MDIO_COMBO_IEEO_MII_CONTROL_RESTART_AN));
 }
 
 static void bnx2x_initialize_sgmii_process(struct link_params *params,
@@ -1726,7 +1701,11 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 		    ((XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
 		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) ||
 		    (XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
-		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705))) {
+		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705) ||
+		    (XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
+		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) ||
+		     (XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
+		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481))) {
 			vars->autoneg = AUTO_NEG_ENABLED;
 
 			if (gp_status & MDIO_AN_CL73_OR_37_COMPLETE) {
@@ -1770,38 +1749,44 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 	return rc;
 }
 
-static void bnx2x_set_sgmii_tx_driver(struct link_params *params)
+static void bnx2x_set_gmii_tx_driver(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
 	u16 lp_up2;
 	u16 tx_driver;
+	u16 bank;
 
 	/* read precomp */
-
 	CL45_RD_OVER_CL22(bp, params->port,
 			      params->phy_addr,
 			      MDIO_REG_BANK_OVER_1G,
 			      MDIO_OVER_1G_LP_UP2, &lp_up2);
-
-	CL45_RD_OVER_CL22(bp, params->port,
-			      params->phy_addr,
-			      MDIO_REG_BANK_TX0,
-			      MDIO_TX0_TX_DRIVER, &tx_driver);
 
 	/* bits [10:7] at lp_up2, positioned at [15:12] */
 	lp_up2 = (((lp_up2 & MDIO_OVER_1G_LP_UP2_PREEMPHASIS_MASK) >>
 		   MDIO_OVER_1G_LP_UP2_PREEMPHASIS_SHIFT) <<
 		  MDIO_TX0_TX_DRIVER_PREEMPHASIS_SHIFT);
 
-	if ((lp_up2 != 0) &&
-	    (lp_up2 != (tx_driver & MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK))) {
-		/* replace tx_driver bits [15:12] */
-		tx_driver &= ~MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK;
-		tx_driver |= lp_up2;
-		CL45_WR_OVER_CL22(bp, params->port,
+	if (lp_up2 == 0)
+		return;
+
+	for (bank = MDIO_REG_BANK_TX0; bank <= MDIO_REG_BANK_TX3;
+	      bank += (MDIO_REG_BANK_TX1 - MDIO_REG_BANK_TX0)) {
+		CL45_RD_OVER_CL22(bp, params->port,
 				      params->phy_addr,
-				      MDIO_REG_BANK_TX0,
-				      MDIO_TX0_TX_DRIVER, tx_driver);
+				      bank,
+				      MDIO_TX0_TX_DRIVER, &tx_driver);
+
+		/* replace tx_driver bits [15:12] */
+		if (lp_up2 !=
+		    (tx_driver & MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK)) {
+			tx_driver &= ~MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK;
+			tx_driver |= lp_up2;
+			CL45_WR_OVER_CL22(bp, params->port,
+					      params->phy_addr,
+					      bank,
+					      MDIO_TX0_TX_DRIVER, tx_driver);
+		}
 	}
 }
 
@@ -1902,6 +1887,25 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 				       MDIO_PMA_DEVAD,
 				       MDIO_PMA_REG_CTRL, 0xa040);
 			break;
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+
+			/* Restore normal power mode*/
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
+					  MISC_REGISTERS_GPIO_OUTPUT_HIGH,
+					  params->port);
+
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
+					  MISC_REGISTERS_GPIO_OUTPUT_HIGH,
+					  params->port);
+
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_CTRL,
+				       1<<15);
+
+			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 			/* Unset Low Power Mode and SW reset */
 			/* Restore normal power mode*/
@@ -1919,9 +1923,6 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 			{
-			u16 emac_base;
-			emac_base = (params->port) ? GRCBASE_EMAC0 :
-					GRCBASE_EMAC1;
 
 			/* Restore normal power mode*/
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
@@ -1949,6 +1950,23 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 
 			break;
 
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+
+			/* Restore normal power mode*/
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
+				      MISC_REGISTERS_GPIO_OUTPUT_HIGH,
+					  params->port);
+
+			/* HW reset */
+			bnx2x_hw_reset(bp, params->port);
+
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_CTRL,
+				       1<<15);
+			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
 			DP(NETIF_MSG_LINK, "XGXS PHY Failure detected\n");
 			break;
@@ -1980,6 +1998,31 @@ static void bnx2x_ext_phy_reset(struct link_params *params,
 	}
 }
 
+
+static void bnx2x_save_spirom_version(struct bnx2x *bp, u8 port,
+				    u32 shmem_base, u32 spirom_ver)
+{
+	DP(NETIF_MSG_LINK, "FW version 0x%x:0x%x\n",
+		 (u16)(spirom_ver>>16), (u16)spirom_ver);
+	REG_WR(bp, shmem_base +
+		   offsetof(struct shmem_region,
+			    port_mb[port].ext_phy_fw_version),
+			spirom_ver);
+}
+
+static void bnx2x_save_bcm_spirom_ver(struct bnx2x *bp, u8 port,
+				    u32 ext_phy_type, u8 ext_phy_addr,
+				    u32 shmem_base)
+{
+	u16 fw_ver1, fw_ver2;
+	bnx2x_cl45_read(bp, port, ext_phy_type, ext_phy_addr, MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
+	bnx2x_cl45_read(bp, port, ext_phy_type, ext_phy_addr, MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_ROM_VER2, &fw_ver2);
+	bnx2x_save_spirom_version(bp, port, shmem_base,
+				(u32)(fw_ver1<<16 | fw_ver2));
+}
+
 static void bnx2x_bcm8072_external_rom_boot(struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
@@ -1988,7 +2031,6 @@ static void bnx2x_bcm8072_external_rom_boot(struct link_params *params)
 			     PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
 			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
 	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
-	u16 fw_ver1, fw_ver2;
 
 	/* Need to wait 200ms after reset */
 	msleep(200);
@@ -2024,14 +2066,10 @@ static void bnx2x_bcm8072_external_rom_boot(struct link_params *params)
 	/* Wait 100ms */
 	msleep(100);
 
-	/* Print the PHY FW version */
-	bnx2x_cl45_read(bp, port, ext_phy_type, ext_phy_addr,
-			    MDIO_PMA_DEVAD,
-			    MDIO_PMA_REG_ROM_VER1, &fw_ver1);
-	bnx2x_cl45_read(bp, port, ext_phy_type, ext_phy_addr,
-			    MDIO_PMA_DEVAD,
-			    MDIO_PMA_REG_ROM_VER2, &fw_ver2);
-	DP(NETIF_MSG_LINK, "8072 FW version 0x%x:0x%x\n", fw_ver1, fw_ver2);
+	bnx2x_save_bcm_spirom_ver(bp, port,
+				ext_phy_type,
+				ext_phy_addr,
+				params->shmem_base);
 }
 
 static u8 bnx2x_8073_is_snr_needed(struct link_params *params)
@@ -2049,7 +2087,7 @@ static u8 bnx2x_8073_is_snr_needed(struct link_params *params)
 		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 		      ext_phy_addr,
 		      MDIO_PMA_DEVAD,
-		      0xc801, &val);
+		      MDIO_PMA_REG_8073_CHIP_REV, &val);
 
 	if (val != 1) {
 		/* No need to workaround in 8073 A1 */
@@ -2081,7 +2119,7 @@ static u8 bnx2x_bcm8073_xaui_wa(struct link_params *params)
 		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 		      ext_phy_addr,
 		      MDIO_PMA_DEVAD,
-		      0xc801, &val);
+		      MDIO_PMA_REG_8073_CHIP_REV, &val);
 
 	if (val > 0) {
 		/* No need to workaround in 8073 A1 */
@@ -2097,7 +2135,8 @@ static u8 bnx2x_bcm8073_xaui_wa(struct link_params *params)
 			      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 			      ext_phy_addr,
 			      MDIO_PMA_DEVAD,
-			      0xc820, &val);
+			      MDIO_PMA_REG_8073_SPEED_LINK_STATUS,
+			      &val);
 		  /* If bit [14] = 0 or bit [13] = 0, continue on with
 		   system initialization (XAUI work-around not required,
 		    as these bits indicate 2.5G or 1G link up). */
@@ -2115,7 +2154,7 @@ static u8 bnx2x_bcm8073_xaui_wa(struct link_params *params)
 					PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 					ext_phy_addr,
 					MDIO_PMA_DEVAD,
-					0xc841, &val);
+					MDIO_PMA_REG_8073_XAUI_WA, &val);
 				if (val & (1<<15)) {
 					DP(NETIF_MSG_LINK,
 					  "XAUI workaround has completed\n");
@@ -2133,9 +2172,8 @@ static u8 bnx2x_bcm8073_xaui_wa(struct link_params *params)
 }
 
 static void bnx2x_bcm8073_external_rom_boot(struct bnx2x *bp, u8 port,
-					  u8 ext_phy_addr)
+					  u8 ext_phy_addr, u32 shmem_base)
 {
-	u16 fw_ver1, fw_ver2;
 	/* Boot port from external ROM  */
 	/* EDC grst */
 	bnx2x_cl45_write(bp, port,
@@ -2185,17 +2223,496 @@ static void bnx2x_bcm8073_external_rom_boot(struct bnx2x *bp, u8 port,
 		       MDIO_PMA_DEVAD,
 		       MDIO_PMA_REG_MISC_CTRL1, 0x0000);
 
-	bnx2x_cl45_read(bp, port, PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
-		      ext_phy_addr,
-		      MDIO_PMA_DEVAD,
-		      MDIO_PMA_REG_ROM_VER1, &fw_ver1);
-	bnx2x_cl45_read(bp, port,
-		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
-		      ext_phy_addr,
-		      MDIO_PMA_DEVAD,
-		      MDIO_PMA_REG_ROM_VER2, &fw_ver2);
-	DP(NETIF_MSG_LINK, "8073 FW version 0x%x:0x%x\n", fw_ver1, fw_ver2);
+	bnx2x_save_bcm_spirom_ver(bp, port,
+				PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
+				ext_phy_addr,
+				shmem_base);
+}
 
+static void bnx2x_bcm8726_external_rom_boot(struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u8 port = params->port;
+	u8 ext_phy_addr = ((params->ext_phy_config &
+			     PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
+
+	/* Need to wait 100ms after reset */
+	msleep(100);
+
+	/* Set serial boot control for external load */
+	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_MISC_CTRL1, 0x0001);
+
+	/* Micro controller re-boot */
+	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_GEN_CTRL,
+		       MDIO_PMA_REG_GEN_CTRL_ROM_RESET_INTERNAL_MP);
+
+	/* Set soft reset */
+	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_GEN_CTRL,
+		       MDIO_PMA_REG_GEN_CTRL_ROM_MICRO_RESET);
+
+	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_GEN_CTRL2,
+		       0x73A0);
+
+	/* Clear soft reset.
+	Will automatically reset micro-controller re-boot */
+	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_GEN_CTRL,
+		       MDIO_PMA_REG_GEN_CTRL_ROM_RESET_INTERNAL_MP);
+
+	/* wait for 150ms for microcode load */
+	msleep(150);
+
+	/* Disable serial boot control, tristates pins SS_N, SCK, MOSI, MISO */
+	bnx2x_cl45_write(bp, port, ext_phy_type, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_MISC_CTRL1, 0x0000);
+
+	msleep(200);
+	bnx2x_save_bcm_spirom_ver(bp, port,
+				ext_phy_type,
+				ext_phy_addr,
+				params->shmem_base);
+}
+
+static void bnx2x_bcm8726_set_transmitter(struct bnx2x *bp, u8 port,
+					u8 ext_phy_addr, u8 tx_en)
+{
+	u16 val;
+	DP(NETIF_MSG_LINK, "Setting transmitter tx_en=%x for port %x\n",
+		 tx_en, port);
+	/* Disable/Enable transmitter ( TX laser of the SFP+ module.)*/
+	bnx2x_cl45_read(bp, port,
+		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+		      ext_phy_addr,
+		      MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_PHY_IDENTIFIER,
+		      &val);
+
+	if (tx_en)
+		val &= ~(1<<15);
+	else
+		val |= (1<<15);
+
+	bnx2x_cl45_write(bp, port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_PHY_IDENTIFIER,
+		       val);
+}
+
+
+static u8 bnx2x_read_sfp_module_eeprom(struct link_params *params, u16 addr,
+				     u8 byte_cnt, u8 *o_buf) {
+	struct bnx2x *bp = params->bp;
+	u16 val, i;
+	u8 port = params->port;
+	u8 ext_phy_addr = ((params->ext_phy_config &
+			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+			   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
+	if (byte_cnt > 16) {
+		DP(NETIF_MSG_LINK, "Reading from eeprom is"
+			    " is limited to 0xf\n");
+		return -EINVAL;
+	}
+	/* Set the read command byte count */
+	bnx2x_cl45_write(bp, port,
+		       ext_phy_type,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_8726_TWO_WIRE_BYTE_CNT,
+		       (byte_cnt | 0xa000));
+
+	/* Set the read command address */
+	bnx2x_cl45_write(bp, port,
+		       ext_phy_type,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_8726_TWO_WIRE_MEM_ADDR,
+		       addr);
+
+	/* Activate read command */
+	bnx2x_cl45_write(bp, port,
+		       ext_phy_type,
+		       ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_8726_TWO_WIRE_CTRL,
+		       0x2c0f);
+
+	/* Wait up to 500us for command complete status */
+	for (i = 0; i < 100; i++) {
+		bnx2x_cl45_read(bp, port,
+			      ext_phy_type,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_8726_TWO_WIRE_CTRL, &val);
+		if ((val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK) ==
+		    MDIO_PMA_REG_8726_TWO_WIRE_STATUS_COMPLETE)
+			break;
+		udelay(5);
+	}
+
+	if ((val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK) !=
+		    MDIO_PMA_REG_8726_TWO_WIRE_STATUS_COMPLETE) {
+		DP(NETIF_MSG_LINK,
+			 "Got bad status 0x%x when reading from SFP+ EEPROM\n",
+			 (val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK));
+		return -EINVAL;
+	}
+
+	/* Read the buffer */
+	for (i = 0; i < byte_cnt; i++) {
+		bnx2x_cl45_read(bp, port,
+			      ext_phy_type,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_8726_TWO_WIRE_DATA_BUF + i, &val);
+		o_buf[i] = (u8)(val & MDIO_PMA_REG_8726_TWO_WIRE_DATA_MASK);
+	}
+
+	for (i = 0; i < 100; i++) {
+		bnx2x_cl45_read(bp, port,
+			      ext_phy_type,
+			      ext_phy_addr,
+			      MDIO_PMA_DEVAD,
+			      MDIO_PMA_REG_8726_TWO_WIRE_CTRL, &val);
+		if ((val & MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK) ==
+		    MDIO_PMA_REG_8726_TWO_WIRE_STATUS_IDLE)
+			return 0;;
+		msleep(1);
+	}
+	return -EINVAL;
+}
+
+
+static u8 bnx2x_get_sfp_module_type(struct link_params *params,
+				  u8 *module_type)
+{
+	struct bnx2x *bp = params->bp;
+	u8 val;
+	*module_type = SFP_MODULE_TYPE_UNKNOWN;
+
+	/* First check for copper cable */
+	if (bnx2x_read_sfp_module_eeprom(params,
+				       SFP_EEPROM_CON_TYPE_ADDR,
+				       1,
+				       &val) != 0) {
+		DP(NETIF_MSG_LINK, "Failed to read from SFP+ module EEPROM");
+		return -EINVAL;
+	}
+
+	switch (val) {
+	case SFP_EEPROM_CON_TYPE_VAL_COPPER:
+	{
+		u8 copper_module_type;
+		/* Check if its active cable( includes SFP+ module)
+		of passive cable*/
+		if (bnx2x_read_sfp_module_eeprom(params,
+					       SFP_EEPROM_FC_TX_TECH_ADDR,
+					       1,
+					       &copper_module_type) !=
+		    0) {
+			DP(NETIF_MSG_LINK,
+				"Failed to read copper-cable-type"
+				" from SFP+ EEPROM\n");
+			return -EINVAL;
+		}
+
+		if (copper_module_type &
+		    SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_ACTIVE) {
+			DP(NETIF_MSG_LINK, "Active Copper cable detected\n");
+			*module_type = SFP_MODULE_TYPE_ACTIVE_COPPER_CABLE;
+		} else if (copper_module_type &
+			SFP_EEPROM_FC_TX_TECH_BITMASK_COPPER_PASSIVE) {
+				DP(NETIF_MSG_LINK, "Passive Copper"
+					    " cable detected\n");
+				*module_type =
+				      SFP_MODULE_TYPE_PASSIVE_COPPER_CABLE;
+		} else {
+			DP(NETIF_MSG_LINK, "Unknown copper-cable-"
+				     "type 0x%x !!!\n", copper_module_type);
+			return -EINVAL;
+		}
+		break;
+	}
+	case SFP_EEPROM_CON_TYPE_VAL_LC:
+		DP(NETIF_MSG_LINK, "Optic module detected\n");
+		*module_type = SFP_MODULE_TYPE_LC;
+		break;
+
+	default:
+		DP(NETIF_MSG_LINK, "Unable to determine module type 0x%x !!!\n",
+			 val);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+
+/* This function read the relevant field from the module ( SFP+ ),
+	and verify it is compliant with this board */
+static u8 bnx2x_verify_sfp_module(struct link_params *params,
+				u8 module_type)
+{
+	struct bnx2x *bp = params->bp;
+	u8 *str_p, *tmp_buf;
+	u16 i;
+
+#define COMPLIANCE_STR_CNT 6
+	u8 *compliance_str[] = {"Broadcom", "JDSU", "Molex Inc", "PICOLIGHT",
+		"FINISAR CORP.   ", "Amphenol"};
+	u8 buf[SFP_EEPROM_VENDOR_NAME_SIZE];
+	/* Passive Copper cables are allowed to participate,
+	since the module is hardwired to the copper cable */
+
+	if (!(params->feature_config_flags &
+	     FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED)) {
+		DP(NETIF_MSG_LINK, "NOT enforcing module verification\n");
+		return 0;
+	}
+
+	if (module_type != SFP_MODULE_TYPE_LC) {
+		DP(NETIF_MSG_LINK, "No need to verify copper cable\n");
+		return 0;
+	}
+
+	/* In case of non copper cable or Active copper cable,
+		verify that the SFP+ module is compliant with this board*/
+	if (bnx2x_read_sfp_module_eeprom(params,
+				       SFP_EEPROM_VENDOR_NAME_ADDR,
+				       SFP_EEPROM_VENDOR_NAME_SIZE,
+				       buf) != 0) {
+		DP(NETIF_MSG_LINK, "Failed to read Vendor-Name from"
+			    " module EEPROM\n");
+		return -EINVAL;
+	}
+	for (i = 0; i < COMPLIANCE_STR_CNT; i++) {
+		str_p = compliance_str[i];
+		tmp_buf = buf;
+		while (*str_p) {
+			if ((u8)(*tmp_buf) != (u8)(*str_p))
+				break;
+			str_p++;
+			tmp_buf++;
+		}
+
+		if (!(*str_p)) {
+			DP(NETIF_MSG_LINK, "SFP+ Module verified, "
+				     "index=%x\n", i);
+			return 0;
+		}
+	}
+	DP(NETIF_MSG_LINK, "Incompliant SFP+ module. Disable module !!!\n");
+	return -EINVAL;
+}
+
+
+static u8 bnx2x_bcm8726_set_limiting_mode(struct link_params *params,
+					u8 module_type)
+{
+	struct bnx2x *bp = params->bp;
+	u8 port = params->port;
+	u8 options[SFP_EEPROM_OPTIONS_SIZE];
+	u8 limiting_mode;
+	u8 ext_phy_addr = ((params->ext_phy_config &
+			    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+			   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+	u16 cur_limiting_mode;
+	if (bnx2x_read_sfp_module_eeprom(params,
+				       SFP_EEPROM_OPTIONS_ADDR,
+				       SFP_EEPROM_OPTIONS_SIZE,
+				       options) != 0) {
+		DP(NETIF_MSG_LINK, "Failed to read Option field from"
+			    " module EEPROM\n");
+		return -EINVAL;
+	}
+	limiting_mode = !(options[0] &
+			  SFP_EEPROM_OPTIONS_LINEAR_RX_OUT_MASK);
+
+	bnx2x_cl45_read(bp, port,
+		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+		      ext_phy_addr,
+		      MDIO_PMA_DEVAD,
+		      MDIO_PMA_REG_ROM_VER2,
+		      &cur_limiting_mode);
+	DP(NETIF_MSG_LINK, "Current Limiting mode is 0x%x\n",
+		 cur_limiting_mode);
+
+	if (limiting_mode &&
+	    (module_type != SFP_MODULE_TYPE_PASSIVE_COPPER_CABLE)) {
+		DP(NETIF_MSG_LINK,
+			 "Module options = 0x%x.Setting LIMITING MODE\n",
+			 options[0]);
+		bnx2x_cl45_write(bp, port,
+			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+			       ext_phy_addr,
+			       MDIO_PMA_DEVAD,
+			       MDIO_PMA_REG_ROM_VER2,
+			       SFP_LIMITING_MODE_VALUE);
+	} else { /* LRM mode ( default )*/
+
+		DP(NETIF_MSG_LINK, "Module options = 0x%x.Setting LRM MODE\n",
+			 options[0]);
+
+		/* Changing to LRM mode takes quite few seconds.
+		So do it only if current mode is limiting
+		( default is LRM )*/
+		if (cur_limiting_mode != SFP_LIMITING_MODE_VALUE)
+			return 0;
+
+		bnx2x_cl45_write(bp, port,
+			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+			       ext_phy_addr,
+			       MDIO_PMA_DEVAD,
+			       MDIO_PMA_REG_LRM_MODE,
+			       0);
+		bnx2x_cl45_write(bp, port,
+			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+			       ext_phy_addr,
+			       MDIO_PMA_DEVAD,
+			       MDIO_PMA_REG_ROM_VER2,
+			       0x128);
+		bnx2x_cl45_write(bp, port,
+			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+			       ext_phy_addr,
+			       MDIO_PMA_DEVAD,
+			       MDIO_PMA_REG_MISC_CTRL0,
+			       0x4008);
+		bnx2x_cl45_write(bp, port,
+			       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
+			       ext_phy_addr,
+			       MDIO_PMA_DEVAD,
+			       MDIO_PMA_REG_LRM_MODE,
+			       0xaaaa);
+	}
+	return 0;
+}
+
+static u8 bnx2x_wait_for_sfp_module_initialized(struct link_params *params)
+{
+	u8 val;
+	struct bnx2x *bp = params->bp;
+	u16 timeout;
+	/* Initialization time after hot-plug may take up to 300ms for some
+	phys type ( e.g. JDSU ) */
+	for (timeout = 0; timeout < 60; timeout++) {
+		if (bnx2x_read_sfp_module_eeprom(params, 1, 1, &val)
+		    == 0) {
+			DP(NETIF_MSG_LINK, "SFP+ module initialization "
+				     "took %d ms\n", timeout * 5);
+			return 0;
+		}
+		msleep(5);
+	}
+	return -EINVAL;
+}
+
+static u8 bnx2x_sfp_module_detection(struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u8 module_type;
+	u8 ext_phy_addr = ((params->ext_phy_config &
+				PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+				PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+	u32 ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
+
+	if (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) {
+		DP(NETIF_MSG_LINK, "Module detection is not required "
+			    "for this phy\n");
+		return 0;
+	}
+
+	DP(NETIF_MSG_LINK, "SFP+ module plugged in/out detected on port %d\n",
+		 params->port);
+
+	if (bnx2x_get_sfp_module_type(params,
+				    &module_type) != 0) {
+		DP(NETIF_MSG_LINK, "Failed to get valid module type\n");
+		if (!(params->feature_config_flags &
+		      FEATURE_CONFIG_MODULE_ENFORCMENT_ENABLED)) {
+			/* In case module detection is disabled, it trys to
+			link up. The issue that can happen here is LRM /
+			LIMITING mode which set according to the module-type*/
+			DP(NETIF_MSG_LINK, "Unable to read module-type."
+				    "Probably due to Bit Stretching."
+				    " Proceeding...\n");
+		} else {
+			return -EINVAL;
+		}
+	} else if (bnx2x_verify_sfp_module(params, module_type) !=
+		   0) {
+		/* check SFP+ module compatibility */
+		DP(NETIF_MSG_LINK, "Module verification failed!!\n");
+		/* Turn on fault module-detected led */
+		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
+				  MISC_REGISTERS_GPIO_HIGH,
+				  params->port);
+		return -EINVAL;
+	}
+
+	/* Turn off fault module-detected led */
+	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
+			  MISC_REGISTERS_GPIO_LOW,
+			  params->port);
+
+	/* Check and set limiting mode / LRM mode */
+	bnx2x_bcm8726_set_limiting_mode(params, module_type);
+
+	/* Enable transmit for this module */
+	bnx2x_bcm8726_set_transmitter(bp, params->port,
+				    ext_phy_addr, 1);
+	return 0;
+}
+
+void bnx2x_handle_module_detect_int(struct link_params *params)
+{
+	struct bnx2x *bp = params->bp;
+	u32 gpio_val;
+	u8 port = params->port;
+	/* Set valid module led off */
+	bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
+			  MISC_REGISTERS_GPIO_HIGH,
+			  params->port);
+
+	/* Get current gpio val refelecting module plugged in / out*/
+	gpio_val = bnx2x_get_gpio(bp,  MISC_REGISTERS_GPIO_3, port);
+
+	/* Call the handling function in case module is detected */
+	if (gpio_val == 0) {
+
+		bnx2x_set_gpio_int(bp, MISC_REGISTERS_GPIO_3,
+				      MISC_REGISTERS_GPIO_INT_OUTPUT_CLR,
+				      port);
+
+		if (bnx2x_wait_for_sfp_module_initialized(params)
+		    == 0)
+			bnx2x_sfp_module_detection(params);
+		else
+			DP(NETIF_MSG_LINK, "SFP+ module is not initialized\n");
+	} else {
+		u8 ext_phy_addr = ((params->ext_phy_config &
+				    PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+				   PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+		bnx2x_set_gpio_int(bp, MISC_REGISTERS_GPIO_3,
+				      MISC_REGISTERS_GPIO_INT_OUTPUT_SET,
+				      port);
+		/* Module was plugged out. */
+		/* Disable transmit for this module */
+		bnx2x_bcm8726_set_transmitter(bp, params->port,
+					    ext_phy_addr, 0);
+	}
 }
 
 static void bnx2x_bcm807x_force_10G(struct link_params *params)
@@ -2239,7 +2756,7 @@ static void bnx2x_bcm8073_set_xaui_low_power_mode(struct link_params *params)
 		      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 		      ext_phy_addr,
 		      MDIO_PMA_DEVAD,
-		      0xc801, &val);
+		      MDIO_PMA_REG_8073_CHIP_REV, &val);
 
 	if (val == 0) {
 		/* Mustn't set low power mode in 8073 A0 */
@@ -2377,31 +2894,40 @@ static void bnx2x_ext_phy_set_pause(struct link_params *params,
 		       MDIO_AN_DEVAD,
 		       MDIO_AN_REG_ADV_PAUSE, val);
 }
+static void bnx2x_set_preemphasis(struct link_params *params)
+{
+	u16 bank, i = 0;
+	struct bnx2x *bp = params->bp;
 
+	for (bank = MDIO_REG_BANK_RX0, i = 0; bank <= MDIO_REG_BANK_RX3;
+	      bank += (MDIO_REG_BANK_RX1-MDIO_REG_BANK_RX0), i++) {
+			CL45_WR_OVER_CL22(bp, params->port,
+					      params->phy_addr,
+					      bank,
+					      MDIO_RX0_RX_EQ_BOOST,
+					      params->xgxs_config_rx[i]);
+	}
+
+	for (bank = MDIO_REG_BANK_TX0, i = 0; bank <= MDIO_REG_BANK_TX3;
+		      bank += (MDIO_REG_BANK_TX1 - MDIO_REG_BANK_TX0), i++) {
+			CL45_WR_OVER_CL22(bp, params->port,
+					      params->phy_addr,
+					      bank,
+					      MDIO_TX0_TX_DRIVER,
+					      params->xgxs_config_tx[i]);
+	}
+}
 
 static void bnx2x_init_internal_phy(struct link_params *params,
 				struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u8 port = params->port;
 	if (!(vars->phy_flags & PHY_SGMII_FLAG)) {
-		u16 bank, rx_eq;
-
-		rx_eq = ((params->serdes_config &
-			  PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_MASK) >>
-			 PORT_HW_CFG_SERDES_RX_DRV_EQUALIZER_SHIFT);
-
-		DP(NETIF_MSG_LINK, "setting rx eq to 0x%x\n", rx_eq);
-		for (bank = MDIO_REG_BANK_RX0; bank <= MDIO_REG_BANK_RX_ALL;
-		      bank += (MDIO_REG_BANK_RX1-MDIO_REG_BANK_RX0)) {
-			CL45_WR_OVER_CL22(bp, port,
-					      params->phy_addr,
-					      bank ,
-					      MDIO_RX0_RX_EQ_BOOST,
-					      ((rx_eq &
-				MDIO_RX0_RX_EQ_BOOST_EQUALIZER_CTRL_MASK) |
-				MDIO_RX0_RX_EQ_BOOST_OFFSET_CTRL));
-		}
+		if ((XGXS_EXT_PHY_TYPE(params->ext_phy_config) ==
+		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) &&
+		    (params->feature_config_flags &
+		     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED))
+			bnx2x_set_preemphasis(params);
 
 		/* forced speed requested? */
 		if (vars->line_speed != SPEED_AUTO_NEG) {
@@ -2506,12 +3032,53 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				       ext_phy_addr,
 				       MDIO_WIS_DEVAD,
 				       MDIO_WIS_REG_LASI_CNTL, 0x1);
+
+			/* BCM8705 doesn't have microcode, hence the 0 */
+			bnx2x_save_spirom_version(bp, params->port,
+						params->shmem_base, 0);
 			break;
 
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
-			DP(NETIF_MSG_LINK, "XGXS 8706\n");
-
-			msleep(10);
+			/* Wait until fw is loaded */
+			for (cnt = 0; cnt < 100; cnt++) {
+				bnx2x_cl45_read(bp, params->port, ext_phy_type,
+					      ext_phy_addr, MDIO_PMA_DEVAD,
+					      MDIO_PMA_REG_ROM_VER1, &val);
+				if (val)
+					break;
+				msleep(10);
+			}
+			DP(NETIF_MSG_LINK, "XGXS 8706 is initialized "
+				"after %d ms\n", cnt);
+			if ((params->feature_config_flags &
+			     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED)) {
+				u8 i;
+				u16 reg;
+				for (i = 0; i < 4; i++) {
+					reg = MDIO_XS_8706_REG_BANK_RX0 +
+						i*(MDIO_XS_8706_REG_BANK_RX1 -
+						   MDIO_XS_8706_REG_BANK_RX0);
+					bnx2x_cl45_read(bp, params->port,
+						      ext_phy_type,
+						      ext_phy_addr,
+						      MDIO_XS_DEVAD,
+						      reg, &val);
+					/* Clear first 3 bits of the control */
+					val &= ~0x7;
+					/* Set control bits according to
+					configuation */
+					val |= (params->xgxs_config_rx[i] &
+						0x7);
+					DP(NETIF_MSG_LINK, "Setting RX"
+						 "Equalizer to BCM8706 reg 0x%x"
+						 " <-- val 0x%x\n", reg, val);
+					bnx2x_cl45_write(bp, params->port,
+						       ext_phy_type,
+						       ext_phy_addr,
+						       MDIO_XS_DEVAD,
+						       reg, val);
+				}
+			}
 			/* Force speed */
 			/* First enable LASI */
 			bnx2x_cl45_write(bp, params->port,
@@ -2578,9 +3145,95 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 					       0x1200);
 
 			}
-
+			bnx2x_save_bcm_spirom_ver(bp, params->port,
+						ext_phy_type,
+						ext_phy_addr,
+						params->shmem_base);
 			break;
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+			DP(NETIF_MSG_LINK, "Initializing BCM8726\n");
+			bnx2x_bcm8726_external_rom_boot(params);
 
+			/* Need to call module detected on initialization since
+			the module detection triggered by actual module
+			insertion might occur before driver is loaded, and when
+			driver is loaded, it reset all registers, including the
+			transmitter */
+			bnx2x_sfp_module_detection(params);
+			if (params->req_line_speed == SPEED_1000) {
+				DP(NETIF_MSG_LINK, "Setting 1G force\n");
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_CTRL, 0x40);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_10G_CTRL2, 0xD);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_LASI_CTRL, 0x5);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_RX_ALARM_CTRL,
+					       0x400);
+			} else if ((params->req_line_speed ==
+				    SPEED_AUTO_NEG) &&
+				   ((params->speed_cap_mask &
+				     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G))) {
+				DP(NETIF_MSG_LINK, "Setting 1G clause37 \n");
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_AN_REG_ADV, 0x20);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_AN_REG_CL37_CL73, 0x040c);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_AN_REG_CL37_FC_LD, 0x0020);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_AN_REG_CL37_AN, 0x1000);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_AN_DEVAD,
+					       MDIO_AN_REG_CTRL, 0x1200);
+
+				/* Enable RX-ALARM control to receive
+				interrupt for 1G speed change */
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_LASI_CTRL, 0x4);
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_RX_ALARM_CTRL,
+					       0x400);
+
+			} else { /* Default 10G. Set only LASI control */
+				bnx2x_cl45_write(bp, params->port, ext_phy_type,
+					       ext_phy_addr, MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_LASI_CTRL, 1);
+			}
+
+			/* Set TX PreEmphasis if needed */
+			if ((params->feature_config_flags &
+			     FEATURE_CONFIG_OVERRIDE_PREEMPHASIS_ENABLED)) {
+				DP(NETIF_MSG_LINK, "Setting TX_CTRL1 0x%x,"
+					 "TX_CTRL2 0x%x\n",
+					 params->xgxs_config_tx[0],
+					 params->xgxs_config_tx[1]);
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_8726_TX_CTRL1,
+					       params->xgxs_config_tx[0]);
+
+				bnx2x_cl45_write(bp, params->port,
+					       ext_phy_type,
+					       ext_phy_addr,
+					       MDIO_PMA_DEVAD,
+					       MDIO_PMA_REG_8726_TX_CTRL2,
+					       params->xgxs_config_tx[1]);
+			}
+			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 		{
@@ -2627,7 +3280,7 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				      ext_phy_type,
 				      ext_phy_addr,
 				      MDIO_PMA_DEVAD,
-				      0xca13,
+				      MDIO_PMA_REG_M8051_MSGOUT_REG,
 				      &tmp1);
 
 			bnx2x_cl45_read(bp, params->port,
@@ -2694,7 +3347,7 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 					      ext_phy_type,
 					      ext_phy_addr,
 					      MDIO_AN_DEVAD,
-					      0x8329, &tmp1);
+					      MDIO_AN_REG_8073_2_5G, &tmp1);
 
 				if (((params->speed_cap_mask &
 				      PORT_HW_CFG_SPEED_CAPABILITY_D0_2_5G) &&
@@ -2708,7 +3361,7 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 					 PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 					 ext_phy_addr,
 					 MDIO_PMA_DEVAD,
-					 0xc801, &phy_ver);
+					 MDIO_PMA_REG_8073_CHIP_REV, &phy_ver);
 					DP(NETIF_MSG_LINK, "Add 2.5G\n");
 					if (phy_ver > 0)
 						tmp1 |= 1;
@@ -2723,7 +3376,7 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 					       ext_phy_type,
 					       ext_phy_addr,
 					       MDIO_AN_DEVAD,
-					       0x8329, tmp1);
+					       MDIO_AN_REG_8073_2_5G, tmp1);
 			}
 
 			/* Add support for CL37 (passive mode) II */
@@ -2798,6 +3451,8 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 			break;
 		}
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
+		{
+			u16 fw_ver1, fw_ver2;
 			DP(NETIF_MSG_LINK,
 				"Setting the SFX7101 LASI indication\n");
 
@@ -2827,6 +3482,50 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				       ext_phy_addr,
 				       MDIO_AN_DEVAD,
 				       MDIO_AN_REG_CTRL, val);
+
+			/* Save spirom version */
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr, MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_7101_VER1, &fw_ver1);
+
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr, MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_7101_VER2, &fw_ver2);
+
+			bnx2x_save_spirom_version(params->bp, params->port,
+						params->shmem_base,
+						(u32)(fw_ver1<<16 | fw_ver2));
+
+			break;
+		}
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+			DP(NETIF_MSG_LINK,
+				"Setting the BCM8481 LASI control\n");
+
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_LASI_CTRL, 0x1);
+
+			/* Restart autoneg */
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_AN_DEVAD,
+				      MDIO_AN_REG_CTRL, &val);
+			val |= 0x200;
+			bnx2x_cl45_write(bp, params->port,
+				       ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_AN_DEVAD,
+				       MDIO_AN_REG_CTRL, val);
+
+			bnx2x_save_bcm_spirom_ver(bp, params->port,
+						ext_phy_type,
+						ext_phy_addr,
+						params->shmem_base);
+
 			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_FAILURE:
 			DP(NETIF_MSG_LINK,
@@ -2910,38 +3609,43 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 			break;
 
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
-			DP(NETIF_MSG_LINK, "XGXS 8706\n");
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+			DP(NETIF_MSG_LINK, "XGXS 8706/8726\n");
+			/* Clear RX Alarm*/
 			bnx2x_cl45_read(bp, params->port, ext_phy_type,
 				      ext_phy_addr,
-				      MDIO_PMA_DEVAD,
-				      MDIO_PMA_REG_LASI_STATUS, &val1);
-			DP(NETIF_MSG_LINK, "8706 LASI status 0x%x\n", val1);
+				      MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_ALARM,
+				      &val2);
+			/* clear LASI indication*/
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS,
+				      &val1);
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD, MDIO_PMA_REG_LASI_STATUS,
+				      &val2);
+			DP(NETIF_MSG_LINK, "8706/8726 LASI status 0x%x-->"
+				     "0x%x\n", val1, val2);
 
 			bnx2x_cl45_read(bp, params->port, ext_phy_type,
 				      ext_phy_addr,
-				      MDIO_PMA_DEVAD,
-				      MDIO_PMA_REG_LASI_STATUS, &val1);
-			DP(NETIF_MSG_LINK, "8706 LASI status 0x%x\n", val1);
+				      MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_SD,
+				      &rx_sd);
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PCS_DEVAD, MDIO_PCS_REG_STATUS,
+				      &pcs_status);
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_AN_DEVAD, MDIO_AN_REG_LINK_STATUS,
+				      &val2);
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_AN_DEVAD, MDIO_AN_REG_LINK_STATUS,
+				      &val2);
 
-			bnx2x_cl45_read(bp, params->port, ext_phy_type,
-				      ext_phy_addr,
-				      MDIO_PMA_DEVAD,
-				      MDIO_PMA_REG_RX_SD, &rx_sd);
-			bnx2x_cl45_read(bp, params->port, ext_phy_type,
-				      ext_phy_addr,
-				      MDIO_PCS_DEVAD,
-				      MDIO_PCS_REG_STATUS, &pcs_status);
-
-			bnx2x_cl45_read(bp, params->port, ext_phy_type,
-				      ext_phy_addr,
-				      MDIO_AN_DEVAD,
-				      MDIO_AN_REG_LINK_STATUS, &val2);
-			bnx2x_cl45_read(bp, params->port, ext_phy_type,
-				      ext_phy_addr,
-				      MDIO_AN_DEVAD,
-				      MDIO_AN_REG_LINK_STATUS, &val2);
-
-			DP(NETIF_MSG_LINK, "8706 rx_sd 0x%x"
+			DP(NETIF_MSG_LINK, "8706/8726 rx_sd 0x%x"
 			   "  pcs_status 0x%x 1Gbps link_status 0x%x\n",
 			   rx_sd, pcs_status, val2);
 			/* link is up if both bit 0 of pmd_rx_sd and
@@ -2951,19 +3655,31 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 			ext_phy_link_up = ((rx_sd & pcs_status & 0x1) ||
 					   (val2 & (1<<1)));
 			if (ext_phy_link_up) {
+				if (ext_phy_type ==
+				     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) {
+					/* If transmitter is disabled,
+					ignore false link up indication */
+					bnx2x_cl45_read(bp, params->port,
+						   ext_phy_type,
+						   ext_phy_addr,
+						   MDIO_PMA_DEVAD,
+						   MDIO_PMA_REG_PHY_IDENTIFIER,
+						   &val1);
+					if (val1 & (1<<15)) {
+						DP(NETIF_MSG_LINK, "Tx is "
+							    "disabled\n");
+						ext_phy_link_up = 0;
+						break;
+					}
+				}
+
 				if (val2 & (1<<1))
 					vars->line_speed = SPEED_1000;
 				else
 					vars->line_speed = SPEED_10000;
 			}
 
-			/* clear LASI indication*/
-			bnx2x_cl45_read(bp, params->port, ext_phy_type,
-				      ext_phy_addr,
-				      MDIO_PMA_DEVAD,
-				      MDIO_PMA_REG_RX_ALARM, &val2);
 			break;
-
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
 		{
@@ -3018,7 +3734,7 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 				      ext_phy_type,
 				      ext_phy_addr,
 				      MDIO_PMA_DEVAD,
-				      0xca13,
+				      MDIO_PMA_REG_M8051_MSGOUT_REG,
 				      &val1);
 
 			/* Check the LASI */
@@ -3063,17 +3779,17 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 					}
 				}
 				bnx2x_cl45_read(bp, params->port,
-						      ext_phy_type,
-						      ext_phy_addr,
-						      MDIO_AN_DEVAD,
-						      0x8304,
-						      &an1000_status);
+					      ext_phy_type,
+					      ext_phy_addr,
+					      MDIO_AN_DEVAD,
+					      MDIO_AN_REG_LINK_STATUS,
+					      &an1000_status);
 				bnx2x_cl45_read(bp, params->port,
-						      ext_phy_type,
-						      ext_phy_addr,
-						      MDIO_AN_DEVAD,
-						      0x8304,
-						      &an1000_status);
+					      ext_phy_type,
+					      ext_phy_addr,
+					      MDIO_AN_DEVAD,
+					      MDIO_AN_REG_LINK_STATUS,
+					      &an1000_status);
 
 				/* Check the link status on 1.1.2 */
 				bnx2x_cl45_read(bp, params->port,
@@ -3090,7 +3806,7 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 					     "an_link_status=0x%x\n",
 					  val2, val1, an1000_status);
 
-					ext_phy_link_up = (((val1 & 4) == 4) ||
+				ext_phy_link_up = (((val1 & 4) == 4) ||
 						(an1000_status & (1<<1)));
 				if (ext_phy_link_up &&
 				    bnx2x_8073_is_snr_needed(params)) {
@@ -3118,11 +3834,11 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 
 				}
 				bnx2x_cl45_read(bp, params->port,
-						      ext_phy_type,
-						      ext_phy_addr,
-						      MDIO_PMA_DEVAD,
-						      0xc820,
-						      &link_status);
+					   ext_phy_type,
+					   ext_phy_addr,
+					   MDIO_PMA_DEVAD,
+					   MDIO_PMA_REG_8073_SPEED_LINK_STATUS,
+					   &link_status);
 
 				/* Bits 0..2 --> speed detected,
 				   bits 13..15--> link is down */
@@ -3156,17 +3872,17 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 			} else {
 				/* See if 1G link is up for the 8072 */
 				bnx2x_cl45_read(bp, params->port,
-						      ext_phy_type,
-						      ext_phy_addr,
-						      MDIO_AN_DEVAD,
-						      0x8304,
-						      &an1000_status);
+					      ext_phy_type,
+					      ext_phy_addr,
+					      MDIO_AN_DEVAD,
+					      MDIO_AN_REG_LINK_STATUS,
+					      &an1000_status);
 				bnx2x_cl45_read(bp, params->port,
-						      ext_phy_type,
-						      ext_phy_addr,
-						      MDIO_AN_DEVAD,
-						      0x8304,
-						      &an1000_status);
+					      ext_phy_type,
+					      ext_phy_addr,
+					      MDIO_AN_DEVAD,
+					      MDIO_AN_REG_LINK_STATUS,
+					      &an1000_status);
 				if (an1000_status & (1<<1)) {
 					ext_phy_link_up = 1;
 					vars->line_speed = SPEED_1000;
@@ -3226,7 +3942,53 @@ static u8 bnx2x_ext_phy_is_link_up(struct link_params *params,
 					 (val2 & (1<<14)));
 			}
 			break;
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+			/* Clear LASI interrupt */
+			bnx2x_cl45_read(bp, params->port,
+				      ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD,
+				      MDIO_PMA_REG_LASI_STATUS, &val1);
+			DP(NETIF_MSG_LINK, "8481 LASI status reg = 0x%x\n",
+				 val1);
 
+			/* Check 10G-BaseT link status */
+			/* Check Global PMD signal ok */
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PMA_DEVAD, MDIO_PMA_REG_RX_SD,
+				      &rx_sd);
+			/* Check PCS block lock */
+			bnx2x_cl45_read(bp, params->port, ext_phy_type,
+				      ext_phy_addr,
+				      MDIO_PCS_DEVAD, MDIO_PCS_REG_STATUS,
+				      &pcs_status);
+			DP(NETIF_MSG_LINK, "8481 1.a = 0x%x, 1.20 = 0x%x\n",
+				 rx_sd, pcs_status);
+			if (rx_sd & pcs_status & 0x1) {
+				vars->line_speed = SPEED_10000;
+				ext_phy_link_up = 1;
+			} else {
+
+				/* Check 1000-BaseT link status */
+				bnx2x_cl45_read(bp, params->port, ext_phy_type,
+					      ext_phy_addr,
+					      MDIO_AN_DEVAD, 0xFFE1,
+					      &val1);
+
+				bnx2x_cl45_read(bp, params->port, ext_phy_type,
+					      ext_phy_addr,
+					      MDIO_AN_DEVAD, 0xFFE1,
+					      &val2);
+				DP(NETIF_MSG_LINK, "8481 7.FFE1 ="
+					     "0x%x-->0x%x\n", val1, val2);
+				if (val2 & (1<<2)) {
+					vars->line_speed = SPEED_1000;
+					ext_phy_link_up = 1;
+				}
+			}
+
+			break;
 		default:
 			DP(NETIF_MSG_LINK, "BAD XGXS ext_phy_config 0x%x\n",
 			   params->ext_phy_config);
@@ -3426,7 +4188,7 @@ static void bnx2x_turn_on_ef(struct bnx2x *bp, u8 port, u8 ext_phy_addr,
 			      ext_phy_addr,
 			      MDIO_PMA_DEVAD,
 			      MDIO_PMA_REG_CTRL,
-			       &ctrl);
+			      &ctrl);
 		if (!(ctrl & (1<<15))) {
 			DP(NETIF_MSG_LINK, "Reset completed\n\n");
 				break;
@@ -3452,91 +4214,39 @@ u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
 {
 	struct bnx2x *bp = params->bp;
 	u32 ext_phy_type = 0;
-	u16 val = 0;
-	u8 ext_phy_addr = 0 ;
+	u32 spirom_ver = 0;
 	u8 status = 0 ;
-	u32 ver_num;
 
 	if (version == NULL || params == NULL)
 		return -EINVAL;
 
+	spirom_ver = REG_RD(bp, params->shmem_base +
+		   offsetof(struct shmem_region,
+			    port_mb[params->port].ext_phy_fw_version));
+
 	/* reset the returned value to zero */
 	ext_phy_type = XGXS_EXT_PHY_TYPE(params->ext_phy_config);
-	ext_phy_addr = ((params->ext_phy_config &
-				PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
-				PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
-
 	switch (ext_phy_type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 
 		if (len < 5)
 			return -EINVAL;
 
-		/* Take ext phy out of reset */
-		if (!driver_loaded)
-			bnx2x_turn_on_ef(bp, params->port, ext_phy_addr,
-				       ext_phy_type);
-
-		/*  wait for 1ms */
-		msleep(1);
-
-		bnx2x_cl45_read(bp, params->port,
-			      ext_phy_type,
-			      ext_phy_addr,
-			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_7101_VER1, &val);
-		version[2] = (val & 0xFF);
-		version[3] = ((val & 0xFF00)>>8);
-
-		bnx2x_cl45_read(bp, params->port,
-			      ext_phy_type,
-			      ext_phy_addr,
-			      MDIO_PMA_DEVAD, MDIO_PMA_REG_7101_VER2,
-			      &val);
-		version[0] = (val & 0xFF);
-		version[1] = ((val & 0xFF00)>>8);
+		version[0] = (spirom_ver & 0xFF);
+		version[1] = (spirom_ver & 0xFF00) >> 8;
+		version[2] = (spirom_ver & 0xFF0000) >> 16;
+		version[3] = (spirom_ver & 0xFF000000) >> 24;
 		version[4] = '\0';
 
-		if (!driver_loaded)
-			bnx2x_turn_off_sf(bp, params->port);
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
-	{
-		/* Take ext phy out of reset */
-		if (!driver_loaded)
-			bnx2x_turn_on_ef(bp, params->port, ext_phy_addr,
-				       ext_phy_type);
-
-		bnx2x_cl45_read(bp, params->port, ext_phy_type,
-			      ext_phy_addr,
-			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_ROM_VER1, &val);
-		ver_num = val<<16;
-		bnx2x_cl45_read(bp, params->port, ext_phy_type,
-			      ext_phy_addr,
-			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_ROM_VER2, &val);
-		ver_num |= val;
-		status = bnx2x_format_ver(ver_num, version, len);
-		break;
-	}
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
-
-		bnx2x_cl45_read(bp, params->port, ext_phy_type,
-			      ext_phy_addr,
-			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_ROM_VER1, &val);
-		ver_num = val<<16;
-		bnx2x_cl45_read(bp, params->port, ext_phy_type,
-			      ext_phy_addr,
-			      MDIO_PMA_DEVAD,
-			      MDIO_PMA_REG_ROM_VER2, &val);
-		ver_num |= val;
-		status = bnx2x_format_ver(ver_num, version, len);
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481:
+		status = bnx2x_format_ver(spirom_ver, version, len);
 		break;
-
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
 		break;
 
@@ -3635,6 +4345,14 @@ static void bnx2x_ext_phy_loopback(struct link_params *params)
 			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8706:
 			DP(NETIF_MSG_LINK, "ext_phy_loopback: 8706\n");
+			break;
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+			DP(NETIF_MSG_LINK, "PMA/PMD ext_phy_loopback: 8726\n");
+			bnx2x_cl45_write(bp, params->port, ext_phy_type,
+				       ext_phy_addr,
+				       MDIO_PMA_DEVAD,
+				       MDIO_PMA_REG_CTRL,
+				       0x0001);
 			break;
 		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_SFX7101:
 			/* SFX7101_XGXS_TEST1 */
@@ -3906,11 +4624,13 @@ static u8 bnx2x_link_initialize(struct link_params *params,
 
 	/* init ext phy and enable link state int */
 	non_ext_phy = ((ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) ||
-		       (params->loopback_mode == LOOPBACK_XGXS_10) ||
-		       (params->loopback_mode == LOOPBACK_EXT_PHY));
+		       (params->loopback_mode == LOOPBACK_XGXS_10));
 
 	if (non_ext_phy ||
-	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705)) {
+	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705) ||
+	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) ||
+	    (ext_phy_type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8481) ||
+	    (params->loopback_mode == LOOPBACK_EXT_PHY)) {
 		if (params->req_line_speed == SPEED_AUTO_NEG)
 			bnx2x_set_parallel_detection(params, vars->phy_flags);
 		bnx2x_init_internal_phy(params, vars);
@@ -4104,6 +4824,7 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 			return -EINVAL;
 			break;
 		}
+		DP(NETIF_MSG_LINK, "Phy address = 0x%x\n", params->phy_addr);
 
 		bnx2x_link_initialize(params, vars);
 		msleep(30);
@@ -4112,7 +4833,23 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	return 0;
 }
 
-u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars)
+static void bnx2x_8726_reset_phy(struct bnx2x *bp, u8 port, u8 ext_phy_addr)
+{
+	DP(NETIF_MSG_LINK, "bnx2x_8726_reset_phy port %d\n", port);
+
+	/* Set serial boot control for external load */
+	bnx2x_cl45_write(bp, port,
+		       PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726, ext_phy_addr,
+		       MDIO_PMA_DEVAD,
+		       MDIO_PMA_REG_GEN_CTRL, 0x0001);
+
+	/* Disable Transmitter */
+	bnx2x_bcm8726_set_transmitter(bp, port, ext_phy_addr, 0);
+
+}
+
+u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
+		  u8 reset_ext_phy)
 {
 
 	struct bnx2x *bp = params->bp;
@@ -4150,28 +4887,37 @@ u8 bnx2x_link_reset(struct link_params *params, struct link_vars *vars)
 	 */
 	 /* clear link led */
 	bnx2x_set_led(bp, port, LED_MODE_OFF, 0, hw_led_mode, chip_id);
-	if (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT) {
-		if ((ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072) &&
-		    (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073)) {
-			/* HW reset */
-
-			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
-					  MISC_REGISTERS_GPIO_OUTPUT_LOW,
-					  port);
-
+	if (reset_ext_phy) {
+		switch (ext_phy_type) {
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT:
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8072:
+			break;
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
+			DP(NETIF_MSG_LINK, "Setting 8073 port %d into "
+				 "low power mode\n",
+				 port);
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
 					  MISC_REGISTERS_GPIO_OUTPUT_LOW,
 					  port);
-
+			break;
+		case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+		{
+			u8 ext_phy_addr = ((params->ext_phy_config &
+					 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+					 PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+			/* Set soft reset */
+			bnx2x_8726_reset_phy(bp, params->port, ext_phy_addr);
+			break;
+		}
+		default:
+			/* HW reset */
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
+					  MISC_REGISTERS_GPIO_OUTPUT_LOW,
+					  port);
+			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
+					  MISC_REGISTERS_GPIO_OUTPUT_LOW,
+					  port);
 			DP(NETIF_MSG_LINK, "reset external PHY\n");
-		} else if (ext_phy_type ==
-			   PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073) {
-				DP(NETIF_MSG_LINK, "Setting 8073 port %d into "
-					 "low power mode\n",
-					 port);
-				bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
-					MISC_REGISTERS_GPIO_OUTPUT_LOW,
-						  port);
 		}
 	}
 	/* reset the SerDes/XGXS */
@@ -4248,7 +4994,7 @@ static u8 bnx2x_update_link_up(struct link_params *params,
 		if (gp_status & MDIO_AN_CL73_OR_37_COMPLETE) {
 			if (!(vars->phy_flags &
 			      PHY_SGMII_FLAG))
-				bnx2x_set_sgmii_tx_driver(params);
+				bnx2x_set_gmii_tx_driver(params);
 		}
 	}
 
@@ -4337,6 +5083,7 @@ u8 bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 
 	if ((ext_phy_type != PORT_HW_CFG_SERDES_EXT_PHY_TYPE_DIRECT) &&
 	    (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8705) &&
+	    (ext_phy_type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726) &&
 	    (ext_phy_link_up && !vars->phy_link_up))
 		bnx2x_init_internal_phy(params, vars);
 
@@ -4398,7 +5145,7 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 		u16 fw_ver1;
 
 		bnx2x_bcm8073_external_rom_boot(bp, port,
-						      ext_phy_addr[port]);
+					      ext_phy_addr[port], shmem_base);
 
 		bnx2x_cl45_read(bp, port, PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 			      ext_phy_addr[port],
@@ -4434,7 +5181,7 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 
 	/* PART3 - complete TX_POWER_DOWN process, and set GPIO2 back to low */
 	for (port = PORT_MAX - 1; port >= PORT_0; port--) {
-		/* Phase2 of POWER_DOWN_RESET*/
+		/* Phase2 of POWER_DOWN_RESET */
 		/* Release bit 10 (Release Tx power down) */
 		bnx2x_cl45_read(bp, port,
 			      PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
@@ -4469,12 +5216,51 @@ static u8 bnx2x_8073_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 
 }
 
+
+static u8 bnx2x_8726_common_init_phy(struct bnx2x *bp, u32 shmem_base)
+{
+	u8 ext_phy_addr;
+	u32 val;
+	s8 port;
+	/* Use port1 because of the static port-swap */
+	/* Enable the module detection interrupt */
+	val = REG_RD(bp, MISC_REG_GPIO_EVENT_EN);
+	val |= ((1<<MISC_REGISTERS_GPIO_3)|
+		(1<<(MISC_REGISTERS_GPIO_3 + MISC_REGISTERS_GPIO_PORT_SHIFT)));
+	REG_WR(bp, MISC_REG_GPIO_EVENT_EN, val);
+
+	bnx2x_hw_reset(bp, 1);
+	msleep(5);
+	for (port = 0; port < PORT_MAX; port++) {
+		/* Extract the ext phy address for the port */
+		u32 ext_phy_config = REG_RD(bp, shmem_base +
+					offsetof(struct shmem_region,
+			dev_info.port_hw_config[port].external_phy_config));
+
+		ext_phy_addr =
+			((ext_phy_config &
+			      PORT_HW_CFG_XGXS_EXT_PHY_ADDR_MASK) >>
+			      PORT_HW_CFG_XGXS_EXT_PHY_ADDR_SHIFT);
+		DP(NETIF_MSG_LINK, "8726_common_init : ext_phy_addr = 0x%x\n",
+			 ext_phy_addr);
+
+		bnx2x_8726_reset_phy(bp, port, ext_phy_addr);
+
+		/* Set fault module detected LED on */
+		bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_0,
+				  MISC_REGISTERS_GPIO_HIGH,
+				  port);
+	}
+
+	return 0;
+}
+
 u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 {
 	u8 rc = 0;
 	u32 ext_phy_type;
 
-	DP(NETIF_MSG_LINK, "bnx2x_common_init_phy\n");
+	DP(NETIF_MSG_LINK, "Begin common phy init\n");
 
 	/* Read the ext_phy_type for arbitrary port(0) */
 	ext_phy_type = XGXS_EXT_PHY_TYPE(
@@ -4488,6 +5274,12 @@ u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base)
 		rc = bnx2x_8073_common_init_phy(bp, shmem_base);
 		break;
 	}
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726:
+		/* GPIO1 affects both ports, so there's need to pull
+		it for single port alone */
+		rc = bnx2x_8726_common_init_phy(bp, shmem_base);
+
+		break;
 	default:
 		DP(NETIF_MSG_LINK,
 			 "bnx2x_common_init_phy: ext_phy 0x%x not required\n",

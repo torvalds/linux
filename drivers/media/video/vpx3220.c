@@ -24,10 +24,10 @@
 #include <linux/types.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
-#include <media/v4l2-common.h>
-#include <media/v4l2-i2c-drv-legacy.h>
-#include <linux/videodev.h>
-#include <linux/video_decoder.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("vpx3220a/vpx3216b/vpx3214c video decoder driver");
 MODULE_AUTHOR("Laurent Pinchart");
@@ -37,14 +37,17 @@ static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+
 #define VPX_TIMEOUT_COUNT  10
 
 /* ----------------------------------------------------------------------- */
 
 struct vpx3220 {
+	struct v4l2_subdev sd;
 	unsigned char reg[255];
 
-	int norm;
+	v4l2_std_id norm;
+	int ident;
 	int input;
 	int enable;
 	int bright;
@@ -53,30 +56,38 @@ struct vpx3220 {
 	int sat;
 };
 
+static inline struct vpx3220 *to_vpx3220(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct vpx3220, sd);
+}
+
 static char *inputs[] = { "internal", "composite", "svideo" };
 
 /* ----------------------------------------------------------------------- */
 
-static inline int vpx3220_write(struct i2c_client *client, u8 reg, u8 value)
+static inline int vpx3220_write(struct v4l2_subdev *sd, u8 reg, u8 value)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct vpx3220 *decoder = i2c_get_clientdata(client);
 
 	decoder->reg[reg] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-static inline int vpx3220_read(struct i2c_client *client, u8 reg)
+static inline int vpx3220_read(struct v4l2_subdev *sd, u8 reg)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int vpx3220_fp_status(struct i2c_client *client)
+static int vpx3220_fp_status(struct v4l2_subdev *sd)
 {
 	unsigned char status;
 	unsigned int i;
 
 	for (i = 0; i < VPX_TIMEOUT_COUNT; i++) {
-		status = vpx3220_read(client, 0x29);
+		status = vpx3220_read(sd, 0x29);
 
 		if (!(status & 4))
 			return 0;
@@ -90,57 +101,60 @@ static int vpx3220_fp_status(struct i2c_client *client)
 	return -1;
 }
 
-static int vpx3220_fp_write(struct i2c_client *client, u8 fpaddr, u16 data)
+static int vpx3220_fp_write(struct v4l2_subdev *sd, u8 fpaddr, u16 data)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	/* Write the 16-bit address to the FPWR register */
 	if (i2c_smbus_write_word_data(client, 0x27, swab16(fpaddr)) == -1) {
-		v4l_dbg(1, debug, client, "%s: failed\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
-	if (vpx3220_fp_status(client) < 0)
+	if (vpx3220_fp_status(sd) < 0)
 		return -1;
 
 	/* Write the 16-bit data to the FPDAT register */
 	if (i2c_smbus_write_word_data(client, 0x28, swab16(data)) == -1) {
-		v4l_dbg(1, debug, client, "%s: failed\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
 	return 0;
 }
 
-static u16 vpx3220_fp_read(struct i2c_client *client, u16 fpaddr)
+static u16 vpx3220_fp_read(struct v4l2_subdev *sd, u16 fpaddr)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	s16 data;
 
 	/* Write the 16-bit address to the FPRD register */
 	if (i2c_smbus_write_word_data(client, 0x26, swab16(fpaddr)) == -1) {
-		v4l_dbg(1, debug, client, "%s: failed\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
-	if (vpx3220_fp_status(client) < 0)
+	if (vpx3220_fp_status(sd) < 0)
 		return -1;
 
 	/* Read the 16-bit data from the FPDAT register */
 	data = i2c_smbus_read_word_data(client, 0x28);
 	if (data == -1) {
-		v4l_dbg(1, debug, client, "%s: failed\n", __func__);
+		v4l2_dbg(1, debug, sd, "%s: failed\n", __func__);
 		return -1;
 	}
 
 	return swab16(data);
 }
 
-static int vpx3220_write_block(struct i2c_client *client, const u8 *data, unsigned int len)
+static int vpx3220_write_block(struct v4l2_subdev *sd, const u8 *data, unsigned int len)
 {
 	u8 reg;
 	int ret = -1;
 
 	while (len >= 2) {
 		reg = *data++;
-		ret = vpx3220_write(client, reg, *data++);
+		ret = vpx3220_write(sd, reg, *data++);
 		if (ret < 0)
 			break;
 		len -= 2;
@@ -149,7 +163,7 @@ static int vpx3220_write_block(struct i2c_client *client, const u8 *data, unsign
 	return ret;
 }
 
-static int vpx3220_write_fp_block(struct i2c_client *client,
+static int vpx3220_write_fp_block(struct v4l2_subdev *sd,
 		const u16 *data, unsigned int len)
 {
 	u8 reg;
@@ -157,7 +171,7 @@ static int vpx3220_write_fp_block(struct i2c_client *client,
 
 	while (len > 1) {
 		reg = *data++;
-		ret |= vpx3220_fp_write(client, reg, *data++);
+		ret |= vpx3220_fp_write(sd, reg, *data++);
 		len -= 2;
 	}
 
@@ -259,276 +273,274 @@ static const unsigned short init_fp[] = {
 	0x4b, 0x298,		/* PLL gain */
 };
 
-static void vpx3220_dump_i2c(struct i2c_client *client)
-{
-	int len = sizeof(init_common);
-	const unsigned char *data = init_common;
 
-	while (len > 1) {
-		v4l_dbg(1, debug, client, "i2c reg 0x%02x data 0x%02x\n",
-			*data, vpx3220_read(client, *data));
-		data += 2;
-		len -= 2;
-	}
+static int vpx3220_init(struct v4l2_subdev *sd, u32 val)
+{
+	struct vpx3220 *decoder = to_vpx3220(sd);
+
+	vpx3220_write_block(sd, init_common, sizeof(init_common));
+	vpx3220_write_fp_block(sd, init_fp, sizeof(init_fp) >> 1);
+	if (decoder->norm & V4L2_STD_NTSC)
+		vpx3220_write_fp_block(sd, init_ntsc, sizeof(init_ntsc) >> 1);
+	else if (decoder->norm & V4L2_STD_PAL)
+		vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
+	else if (decoder->norm & V4L2_STD_SECAM)
+		vpx3220_write_fp_block(sd, init_secam, sizeof(init_secam) >> 1);
+	else
+		vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
+	return 0;
 }
 
-static int vpx3220_command(struct i2c_client *client, unsigned cmd, void *arg)
+static int vpx3220_status(struct v4l2_subdev *sd, u32 *pstatus, v4l2_std_id *pstd)
 {
-	struct vpx3220 *decoder = i2c_get_clientdata(client);
+	int res = V4L2_IN_ST_NO_SIGNAL, status;
+	v4l2_std_id std = 0;
 
-	switch (cmd) {
-	case 0:
-	{
-		vpx3220_write_block(client, init_common,
-				    sizeof(init_common));
-		vpx3220_write_fp_block(client, init_fp,
-				       sizeof(init_fp) >> 1);
-		switch (decoder->norm) {
-		case VIDEO_MODE_NTSC:
-			vpx3220_write_fp_block(client, init_ntsc,
-					       sizeof(init_ntsc) >> 1);
+	status = vpx3220_fp_read(sd, 0x0f3);
+
+	v4l2_dbg(1, debug, sd, "status: 0x%04x\n", status);
+
+	if (status < 0)
+		return status;
+
+	if ((status & 0x20) == 0) {
+		res = 0;
+
+		switch (status & 0x18) {
+		case 0x00:
+		case 0x10:
+		case 0x14:
+		case 0x18:
+			std = V4L2_STD_PAL;
 			break;
 
-		case VIDEO_MODE_PAL:
-			vpx3220_write_fp_block(client, init_pal,
-					       sizeof(init_pal) >> 1);
-			break;
-		case VIDEO_MODE_SECAM:
-			vpx3220_write_fp_block(client, init_secam,
-					       sizeof(init_secam) >> 1);
-			break;
-		default:
-			vpx3220_write_fp_block(client, init_pal,
-					       sizeof(init_pal) >> 1);
-			break;
-		}
-		break;
-	}
-
-	case DECODER_DUMP:
-	{
-		vpx3220_dump_i2c(client);
-		break;
-	}
-
-	case DECODER_GET_CAPABILITIES:
-	{
-		struct video_decoder_capability *cap = arg;
-
-		v4l_dbg(1, debug, client, "DECODER_GET_CAPABILITIES\n");
-
-		cap->flags = VIDEO_DECODER_PAL |
-			     VIDEO_DECODER_NTSC |
-			     VIDEO_DECODER_SECAM |
-			     VIDEO_DECODER_AUTO |
-			     VIDEO_DECODER_CCIR;
-		cap->inputs = 3;
-		cap->outputs = 1;
-		break;
-	}
-
-	case DECODER_GET_STATUS:
-	{
-		int res = 0, status;
-
-		v4l_dbg(1, debug, client, "DECODER_GET_STATUS\n");
-
-		status = vpx3220_fp_read(client, 0x0f3);
-
-		v4l_dbg(1, debug, client, "status: 0x%04x\n", status);
-
-		if (status < 0)
-			return status;
-
-		if ((status & 0x20) == 0) {
-			res |= DECODER_STATUS_GOOD | DECODER_STATUS_COLOR;
-
-			switch (status & 0x18) {
-			case 0x00:
-			case 0x10:
-			case 0x14:
-			case 0x18:
-				res |= DECODER_STATUS_PAL;
-				break;
-
-			case 0x08:
-				res |= DECODER_STATUS_SECAM;
-				break;
-
-			case 0x04:
-			case 0x0c:
-			case 0x1c:
-				res |= DECODER_STATUS_NTSC;
-				break;
-			}
-		}
-
-		*(int *) arg = res;
-		break;
-	}
-
-	case DECODER_SET_NORM:
-	{
-		int *iarg = arg, data;
-		int temp_input;
-
-		/* Here we back up the input selection because it gets
-		   overwritten when we fill the registers with the
-		   choosen video norm */
-		temp_input = vpx3220_fp_read(client, 0xf2);
-
-		v4l_dbg(1, debug, client, "DECODER_SET_NORM %d\n", *iarg);
-		switch (*iarg) {
-		case VIDEO_MODE_NTSC:
-			vpx3220_write_fp_block(client, init_ntsc,
-					       sizeof(init_ntsc) >> 1);
-			v4l_dbg(1, debug, client, "norm switched to NTSC\n");
+		case 0x08:
+			std = V4L2_STD_SECAM;
 			break;
 
-		case VIDEO_MODE_PAL:
-			vpx3220_write_fp_block(client, init_pal,
-					       sizeof(init_pal) >> 1);
-			v4l_dbg(1, debug, client, "norm switched to PAL\n");
+		case 0x04:
+		case 0x0c:
+		case 0x1c:
+			std = V4L2_STD_NTSC;
 			break;
-
-		case VIDEO_MODE_SECAM:
-			vpx3220_write_fp_block(client, init_secam,
-					       sizeof(init_secam) >> 1);
-			v4l_dbg(1, debug, client, "norm switched to SECAM\n");
-			break;
-
-		case VIDEO_MODE_AUTO:
-			/* FIXME This is only preliminary support */
-			data = vpx3220_fp_read(client, 0xf2) & 0x20;
-			vpx3220_fp_write(client, 0xf2, 0x00c0 | data);
-			v4l_dbg(1, debug, client, "norm switched to AUTO\n");
-			break;
-
-		default:
-			return -EINVAL;
 		}
-		decoder->norm = *iarg;
+	}
+	if (pstd)
+		*pstd = std;
+	if (pstatus)
+		*pstatus = status;
+	return 0;
+}
 
-		/* And here we set the backed up video input again */
-		vpx3220_fp_write(client, 0xf2, temp_input | 0x0010);
-		udelay(10);
-		break;
+static int vpx3220_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	v4l2_dbg(1, debug, sd, "querystd\n");
+	return vpx3220_status(sd, NULL, std);
+}
+
+static int vpx3220_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	v4l2_dbg(1, debug, sd, "g_input_status\n");
+	return vpx3220_status(sd, status, NULL);
+}
+
+static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
+{
+	struct vpx3220 *decoder = to_vpx3220(sd);
+	int temp_input;
+
+	/* Here we back up the input selection because it gets
+	   overwritten when we fill the registers with the
+	   choosen video norm */
+	temp_input = vpx3220_fp_read(sd, 0xf2);
+
+	v4l2_dbg(1, debug, sd, "s_std %llx\n", (unsigned long long)std);
+	if (std & V4L2_STD_NTSC) {
+		vpx3220_write_fp_block(sd, init_ntsc, sizeof(init_ntsc) >> 1);
+		v4l2_dbg(1, debug, sd, "norm switched to NTSC\n");
+	} else if (std & V4L2_STD_PAL) {
+		vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
+		v4l2_dbg(1, debug, sd, "norm switched to PAL\n");
+	} else if (std & V4L2_STD_SECAM) {
+		vpx3220_write_fp_block(sd, init_secam, sizeof(init_secam) >> 1);
+		v4l2_dbg(1, debug, sd, "norm switched to SECAM\n");
+	} else {
+		return -EINVAL;
 	}
 
-	case DECODER_SET_INPUT:
-	{
-		int *iarg = arg, data;
+	decoder->norm = std;
 
-		/* RJ:  *iarg = 0: ST8 (PCTV) input
-		 *iarg = 1: COMPOSITE  input
-		 *iarg = 2: SVHS       input  */
+	/* And here we set the backed up video input again */
+	vpx3220_fp_write(sd, 0xf2, temp_input | 0x0010);
+	udelay(10);
+	return 0;
+}
 
-		const int input[3][2] = {
-			{0x0c, 0},
-			{0x0d, 0},
-			{0x0e, 1}
-		};
+static int vpx3220_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
+{
+	int data;
 
-		if (*iarg < 0 || *iarg > 2)
-			return -EINVAL;
+	/* RJ:   input = 0: ST8 (PCTV) input
+		 input = 1: COMPOSITE  input
+		 input = 2: SVHS       input  */
 
-		v4l_dbg(1, debug, client, "input switched to %s\n", inputs[*iarg]);
+	const int input_vals[3][2] = {
+		{0x0c, 0},
+		{0x0d, 0},
+		{0x0e, 1}
+	};
 
-		vpx3220_write(client, 0x33, input[*iarg][0]);
+	if (input < 0 || input > 2)
+		return -EINVAL;
 
-		data = vpx3220_fp_read(client, 0xf2) & ~(0x0020);
-		if (data < 0)
-			return data;
-		/* 0x0010 is required to latch the setting */
-		vpx3220_fp_write(client, 0xf2,
-				 data | (input[*iarg][1] << 5) | 0x0010);
+	v4l2_dbg(1, debug, sd, "input switched to %s\n", inputs[input]);
 
-		udelay(10);
+	vpx3220_write(sd, 0x33, input_vals[input][0]);
+
+	data = vpx3220_fp_read(sd, 0xf2) & ~(0x0020);
+	if (data < 0)
+		return data;
+	/* 0x0010 is required to latch the setting */
+	vpx3220_fp_write(sd, 0xf2,
+			data | (input_vals[input][1] << 5) | 0x0010);
+
+	udelay(10);
+	return 0;
+}
+
+static int vpx3220_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	v4l2_dbg(1, debug, sd, "s_stream %s\n", enable ? "on" : "off");
+
+	vpx3220_write(sd, 0xf2, (enable ? 0x1b : 0x00));
+	return 0;
+}
+
+static int vpx3220_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
+{
+	switch (qc->id) {
+	case V4L2_CID_BRIGHTNESS:
+		v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
 		break;
-	}
 
-	case DECODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		/* not much choice of outputs */
-		if (*iarg != 0) {
-			return -EINVAL;
-		}
+	case V4L2_CID_CONTRAST:
+		v4l2_ctrl_query_fill(qc, 0, 63, 1, 32);
 		break;
-	}
 
-	case DECODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-
-		v4l_dbg(1, debug, client, "DECODER_ENABLE_OUTPUT %d\n", *iarg);
-
-		vpx3220_write(client, 0xf2, (*iarg ? 0x1b : 0x00));
+	case V4L2_CID_SATURATION:
+		v4l2_ctrl_query_fill(qc, 0, 4095, 1, 2048);
 		break;
-	}
 
-	case DECODER_SET_PICTURE:
-	{
-		struct video_picture *pic = arg;
-
-		if (decoder->bright != pic->brightness) {
-			/* We want -128 to 128 we get 0-65535 */
-			decoder->bright = pic->brightness;
-			vpx3220_write(client, 0xe6,
-				      (decoder->bright - 32768) >> 8);
-		}
-		if (decoder->contrast != pic->contrast) {
-			/* We want 0 to 64 we get 0-65535 */
-			/* Bit 7 and 8 is for noise shaping */
-			decoder->contrast = pic->contrast;
-			vpx3220_write(client, 0xe7,
-				      (decoder->contrast >> 10) + 192);
-		}
-		if (decoder->sat != pic->colour) {
-			/* We want 0 to 4096 we get 0-65535 */
-			decoder->sat = pic->colour;
-			vpx3220_fp_write(client, 0xa0,
-					 decoder->sat >> 4);
-		}
-		if (decoder->hue != pic->hue) {
-			/* We want -512 to 512 we get 0-65535 */
-			decoder->hue = pic->hue;
-			vpx3220_fp_write(client, 0x1c,
-					 ((decoder->hue - 32768) >> 6) & 0xFFF);
-		}
+	case V4L2_CID_HUE:
+		v4l2_ctrl_query_fill(qc, -512, 511, 1, 0);
 		break;
-	}
 
 	default:
 		return -EINVAL;
 	}
-
 	return 0;
 }
 
-static int vpx3220_init_client(struct i2c_client *client)
+static int vpx3220_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-	vpx3220_write_block(client, init_common, sizeof(init_common));
-	vpx3220_write_fp_block(client, init_fp, sizeof(init_fp) >> 1);
-	/* Default to PAL */
-	vpx3220_write_fp_block(client, init_pal, sizeof(init_pal) >> 1);
+	struct vpx3220 *decoder = to_vpx3220(sd);
 
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		ctrl->value = decoder->bright;
+		break;
+	case V4L2_CID_CONTRAST:
+		ctrl->value = decoder->contrast;
+		break;
+	case V4L2_CID_SATURATION:
+		ctrl->value = decoder->sat;
+		break;
+	case V4L2_CID_HUE:
+		ctrl->value = decoder->hue;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
+
+static int vpx3220_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct vpx3220 *decoder = to_vpx3220(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		if (decoder->bright != ctrl->value) {
+			decoder->bright = ctrl->value;
+			vpx3220_write(sd, 0xe6, decoder->bright);
+		}
+		break;
+	case V4L2_CID_CONTRAST:
+		if (decoder->contrast != ctrl->value) {
+			/* Bit 7 and 8 is for noise shaping */
+			decoder->contrast = ctrl->value;
+			vpx3220_write(sd, 0xe7, decoder->contrast + 192);
+		}
+		break;
+	case V4L2_CID_SATURATION:
+		if (decoder->sat != ctrl->value) {
+			decoder->sat = ctrl->value;
+			vpx3220_fp_write(sd, 0xa0, decoder->sat);
+		}
+		break;
+	case V4L2_CID_HUE:
+		if (decoder->hue != ctrl->value) {
+			decoder->hue = ctrl->value;
+			vpx3220_fp_write(sd, 0x1c, decoder->hue);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int vpx3220_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct vpx3220 *decoder = to_vpx3220(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, decoder->ident, 0);
+}
+
+/* ----------------------------------------------------------------------- */
+
+static const struct v4l2_subdev_core_ops vpx3220_core_ops = {
+	.g_chip_ident = vpx3220_g_chip_ident,
+	.init = vpx3220_init,
+	.g_ctrl = vpx3220_g_ctrl,
+	.s_ctrl = vpx3220_s_ctrl,
+	.queryctrl = vpx3220_queryctrl,
+	.s_std = vpx3220_s_std,
+};
+
+static const struct v4l2_subdev_video_ops vpx3220_video_ops = {
+	.s_routing = vpx3220_s_routing,
+	.s_stream = vpx3220_s_stream,
+	.querystd = vpx3220_querystd,
+	.g_input_status = vpx3220_g_input_status,
+};
+
+static const struct v4l2_subdev_ops vpx3220_ops = {
+	.core = &vpx3220_core_ops,
+	.video = &vpx3220_video_ops,
+};
 
 /* -----------------------------------------------------------------------
  * Client management code
  */
 
-static unsigned short normal_i2c[] = { 0x86 >> 1, 0x8e >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
-
 static int vpx3220_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct vpx3220 *decoder;
+	struct v4l2_subdev *sd;
 	const char *name = NULL;
 	u8 ver;
 	u16 pn;
@@ -541,18 +553,20 @@ static int vpx3220_probe(struct i2c_client *client,
 	decoder = kzalloc(sizeof(struct vpx3220), GFP_KERNEL);
 	if (decoder == NULL)
 		return -ENOMEM;
-	decoder->norm = VIDEO_MODE_PAL;
+	sd = &decoder->sd;
+	v4l2_i2c_subdev_init(sd, client, &vpx3220_ops);
+	decoder->norm = V4L2_STD_PAL;
 	decoder->input = 0;
 	decoder->enable = 1;
 	decoder->bright = 32768;
 	decoder->contrast = 32768;
 	decoder->hue = 32768;
 	decoder->sat = 32768;
-	i2c_set_clientdata(client, decoder);
 
 	ver = i2c_smbus_read_byte_data(client, 0x00);
 	pn = (i2c_smbus_read_byte_data(client, 0x02) << 8) +
 		i2c_smbus_read_byte_data(client, 0x01);
+	decoder->ident = V4L2_IDENT_VPX3220A;
 	if (ver == 0xec) {
 		switch (pn) {
 		case 0x4680:
@@ -560,26 +574,34 @@ static int vpx3220_probe(struct i2c_client *client,
 			break;
 		case 0x4260:
 			name = "vpx3216b";
+			decoder->ident = V4L2_IDENT_VPX3216B;
 			break;
 		case 0x4280:
 			name = "vpx3214c";
+			decoder->ident = V4L2_IDENT_VPX3214C;
 			break;
 		}
 	}
 	if (name)
-		v4l_info(client, "%s found @ 0x%x (%s)\n", name,
+		v4l2_info(sd, "%s found @ 0x%x (%s)\n", name,
 			client->addr << 1, client->adapter->name);
 	else
-		v4l_info(client, "chip (%02x:%04x) found @ 0x%x (%s)\n",
+		v4l2_info(sd, "chip (%02x:%04x) found @ 0x%x (%s)\n",
 			ver, pn, client->addr << 1, client->adapter->name);
 
-	vpx3220_init_client(client);
+	vpx3220_write_block(sd, init_common, sizeof(init_common));
+	vpx3220_write_fp_block(sd, init_fp, sizeof(init_fp) >> 1);
+	/* Default to PAL */
+	vpx3220_write_fp_block(sd, init_pal, sizeof(init_pal) >> 1);
 	return 0;
 }
 
 static int vpx3220_remove(struct i2c_client *client)
 {
-	kfree(i2c_get_clientdata(client));
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+
+	v4l2_device_unregister_subdev(sd);
+	kfree(to_vpx3220(sd));
 	return 0;
 }
 
@@ -593,8 +615,6 @@ MODULE_DEVICE_TABLE(i2c, vpx3220_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "vpx3220",
-	.driverid = I2C_DRIVERID_VPX3220,
-	.command = vpx3220_command,
 	.probe = vpx3220_probe,
 	.remove = vpx3220_remove,
 	.id_table = vpx3220_id,

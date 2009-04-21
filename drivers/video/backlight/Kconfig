@@ -84,6 +84,15 @@ config LCD_TOSA
 	  If you have an Sharp SL-6000 Zaurus say Y to enable a driver
 	  for its LCD.
 
+config LCD_HP700
+	tristate "HP Jornada 700 series LCD Driver"
+	depends on LCD_CLASS_DEVICE
+	depends on SA1100_JORNADA720_SSP && !PREEMPT
+	default y
+	help
+	  If you have an HP Jornada 700 series handheld (710/720/728)
+	  say Y to enable LCD control driver.
+
 #
 # Backlight
 #
@@ -156,6 +165,15 @@ config BACKLIGHT_HP680
 	help
 	  If you have a HP Jornada 680, say y to enable the
 	  backlight driver.
+
+config BACKLIGHT_HP700
+	tristate "HP Jornada 700 series Backlight Driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on SA1100_JORNADA720_SSP && !PREEMPT
+	default y
+	help
+	  If you have an HP Jornada 700 series,
+	  say Y to include backlight control driver.
 
 config BACKLIGHT_PROGEAR
 	tristate "Frontpath ProGear Backlight Driver"

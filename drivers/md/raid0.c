@@ -18,7 +18,10 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
-#include <linux/raid/raid0.h>
+#include <linux/blkdev.h>
+#include <linux/seq_file.h>
+#include "md.h"
+#include "raid0.h"
 
 static void raid0_unplug(struct request_queue *q)
 {
@@ -73,16 +76,15 @@ static int create_strip_zones (mddev_t *mddev)
 		list_for_each_entry(rdev2, &mddev->disks, same_set) {
 			printk(KERN_INFO "raid0:   comparing %s(%llu)",
 			       bdevname(rdev1->bdev,b),
-			       (unsigned long long)rdev1->size);
+			       (unsigned long long)rdev1->sectors);
 			printk(KERN_INFO " with %s(%llu)\n",
 			       bdevname(rdev2->bdev,b),
-			       (unsigned long long)rdev2->size);
+			       (unsigned long long)rdev2->sectors);
 			if (rdev2 == rdev1) {
 				printk(KERN_INFO "raid0:   END\n");
 				break;
 			}
-			if (rdev2->size == rdev1->size)
-			{
+			if (rdev2->sectors == rdev1->sectors) {
 				/*
 				 * Not unique, don't count it as a new
 				 * group
@@ -145,7 +147,7 @@ static int create_strip_zones (mddev_t *mddev)
 		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
-		if (!smallest || (rdev1->size <smallest->size))
+		if (!smallest || (rdev1->sectors < smallest->sectors))
 			smallest = rdev1;
 		cnt++;
 	}
@@ -155,10 +157,10 @@ static int create_strip_zones (mddev_t *mddev)
 		goto abort;
 	}
 	zone->nb_dev = cnt;
-	zone->sectors = smallest->size * cnt * 2;
+	zone->sectors = smallest->sectors * cnt;
 	zone->zone_start = 0;
 
-	current_start = smallest->size * 2;
+	current_start = smallest->sectors;
 	curr_zone_start = zone->sectors;
 
 	/* now do the other zones */
@@ -177,29 +179,29 @@ static int create_strip_zones (mddev_t *mddev)
 			rdev = conf->strip_zone[0].dev[j];
 			printk(KERN_INFO "raid0: checking %s ...",
 				bdevname(rdev->bdev, b));
-			if (rdev->size > current_start / 2) {
-				printk(KERN_INFO " contained as device %d\n",
-					c);
-				zone->dev[c] = rdev;
-				c++;
-				if (!smallest || (rdev->size <smallest->size)) {
-					smallest = rdev;
-					printk(KERN_INFO "  (%llu) is smallest!.\n",
-						(unsigned long long)rdev->size);
-				}
-			} else
+			if (rdev->sectors <= current_start) {
 				printk(KERN_INFO " nope.\n");
+				continue;
+			}
+			printk(KERN_INFO " contained as device %d\n", c);
+			zone->dev[c] = rdev;
+			c++;
+			if (!smallest || rdev->sectors < smallest->sectors) {
+				smallest = rdev;
+				printk(KERN_INFO "  (%llu) is smallest!.\n",
+					(unsigned long long)rdev->sectors);
+			}
 		}
 
 		zone->nb_dev = c;
-		zone->sectors = (smallest->size * 2 - current_start) * c;
+		zone->sectors = (smallest->sectors - current_start) * c;
 		printk(KERN_INFO "raid0: zone->nb_dev: %d, sectors: %llu\n",
 			zone->nb_dev, (unsigned long long)zone->sectors);
 
 		zone->zone_start = curr_zone_start;
 		curr_zone_start += zone->sectors;
 
-		current_start = smallest->size * 2;
+		current_start = smallest->sectors;
 		printk(KERN_INFO "raid0: current zone start: %llu\n",
 			(unsigned long long)current_start);
 	}
@@ -261,12 +263,25 @@ static int raid0_mergeable_bvec(struct request_queue *q,
 		return max;
 }
 
+static sector_t raid0_size(mddev_t *mddev, sector_t sectors, int raid_disks)
+{
+	sector_t array_sectors = 0;
+	mdk_rdev_t *rdev;
+
+	WARN_ONCE(sectors || raid_disks,
+		  "%s does not support generic reshape\n", __func__);
+
+	list_for_each_entry(rdev, &mddev->disks, same_set)
+		array_sectors += rdev->sectors;
+
+	return array_sectors;
+}
+
 static int raid0_run (mddev_t *mddev)
 {
 	unsigned  cur=0, i=0, nb_zone;
 	s64 sectors;
 	raid0_conf_t *conf;
-	mdk_rdev_t *rdev;
 
 	if (mddev->chunk_size == 0) {
 		printk(KERN_ERR "md/raid0: non-zero chunk size required.\n");
@@ -291,16 +306,14 @@ static int raid0_run (mddev_t *mddev)
 		goto out_free_conf;
 
 	/* calculate array device size */
-	mddev->array_sectors = 0;
-	list_for_each_entry(rdev, &mddev->disks, same_set)
-		mddev->array_sectors += rdev->size * 2;
+	md_set_array_sectors(mddev, raid0_size(mddev, 0, 0));
 
 	printk(KERN_INFO "raid0 : md_size is %llu sectors.\n",
 		(unsigned long long)mddev->array_sectors);
 	printk(KERN_INFO "raid0 : conf->spacing is %llu sectors.\n",
 		(unsigned long long)conf->spacing);
 	{
-		sector_t s = mddev->array_sectors;
+		sector_t s = raid0_size(mddev, 0, 0);
 		sector_t space = conf->spacing;
 		int round;
 		conf->sector_shift = 0;
@@ -509,6 +522,7 @@ static struct mdk_personality raid0_personality=
 	.run		= raid0_run,
 	.stop		= raid0_stop,
 	.status		= raid0_status,
+	.size		= raid0_size,
 };
 
 static int __init raid0_init (void)

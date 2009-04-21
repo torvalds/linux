@@ -30,8 +30,8 @@
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-i2c-drv-legacy.h>
-#include "tda9840.h"
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_AUTHOR("Michael Hunold <michael@mihu.de>");
 MODULE_DESCRIPTION("tda9840 driver");
@@ -56,11 +56,6 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define TDA9840_SET_BOTH_R              0x16
 #define TDA9840_SET_EXTERNAL            0x7a
 
-/* addresses to scan, found only at 0x42 (7-Bit) */
-static unsigned short normal_i2c[] = { I2C_ADDR_TDA9840, I2C_CLIENT_END };
-
-/* magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
 
 static void tda9840_write(struct v4l2_subdev *sd, u8 reg, u8 val)
 {
@@ -137,60 +132,17 @@ static int tda9840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *t)
 	return 0;
 }
 
-static long tda9840_ioctl(struct v4l2_subdev *sd, unsigned cmd, void *arg)
+static int tda9840_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
 {
-	int byte;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-	switch (cmd) {
-	case TDA9840_LEVEL_ADJUST:
-		byte = *(int *)arg;
-		v4l2_dbg(1, debug, sd, "TDA9840_LEVEL_ADJUST: %d\n", byte);
-
-		/* check for correct range */
-		if (byte > 25 || byte < -20)
-			return -EINVAL;
-
-		/* calculate actual value to set, see specs, page 18 */
-		byte /= 5;
-		if (0 < byte)
-			byte += 0x8;
-		else
-			byte = -byte;
-		tda9840_write(sd, LEVEL_ADJUST, byte);
-		break;
-
-	case TDA9840_STEREO_ADJUST:
-		byte = *(int *)arg;
-		v4l2_dbg(1, debug, sd, "TDA9840_STEREO_ADJUST: %d\n", byte);
-
-		/* check for correct range */
-		if (byte > 25 || byte < -24)
-			return -EINVAL;
-
-		/* calculate actual value to set */
-		byte /= 5;
-		if (0 < byte)
-			byte += 0x20;
-		else
-			byte = -byte;
-
-		tda9840_write(sd, STEREO_ADJUST, byte);
-		break;
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
-
-static int tda9840_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TDA9840, 0);
 }
 
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops tda9840_core_ops = {
-	.ioctl = tda9840_ioctl,
+	.g_chip_ident = tda9840_g_chip_ident,
 };
 
 static const struct v4l2_subdev_tuner_ops tda9840_tuner_ops = {
@@ -209,8 +161,6 @@ static int tda9840_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct v4l2_subdev *sd;
-	int result;
-	int byte;
 
 	/* let's see whether this adapter can support what we need */
 	if (!i2c_check_functionality(client->adapter,
@@ -227,15 +177,9 @@ static int tda9840_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(sd, client, &tda9840_ops);
 
 	/* set initial values for level & stereo - adjustment, mode */
-	byte = 0;
-	result = tda9840_ioctl(sd, TDA9840_LEVEL_ADJUST, &byte);
-	result |= tda9840_ioctl(sd, TDA9840_STEREO_ADJUST, &byte);
+	tda9840_write(sd, LEVEL_ADJUST, 0);
+	tda9840_write(sd, STEREO_ADJUST, 0);
 	tda9840_write(sd, SWITCH, TDA9840_SET_STEREO);
-	if (result) {
-		v4l2_dbg(1, debug, sd, "could not initialize tda9840\n");
-		kfree(sd);
-		return -ENODEV;
-	}
 	return 0;
 }
 
@@ -248,12 +192,6 @@ static int tda9840_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int tda9840_legacy_probe(struct i2c_adapter *adapter)
-{
-	/* Let's see whether this is a known adapter we can attach to.
-	   Prevents conflicts with tvaudio.c. */
-	return adapter->id == I2C_HW_SAA7146;
-}
 static const struct i2c_device_id tda9840_id[] = {
 	{ "tda9840", 0 },
 	{ }
@@ -262,10 +200,7 @@ MODULE_DEVICE_TABLE(i2c, tda9840_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tda9840",
-	.driverid = I2C_DRIVERID_TDA9840,
-	.command = tda9840_command,
 	.probe = tda9840_probe,
 	.remove = tda9840_remove,
-	.legacy_probe = tda9840_legacy_probe,
 	.id_table = tda9840_id,
 };

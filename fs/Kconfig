@@ -56,61 +56,7 @@ endif # BLOCK
 
 source "fs/notify/Kconfig"
 
-config QUOTA
-	bool "Quota support"
-	help
-	  If you say Y here, you will be able to set per user limits for disk
-	  usage (also called disk quotas). Currently, it works for the
-	  ext2, ext3, and reiserfs file system. ext3 also supports journalled
-	  quotas for which you don't need to run quotacheck(8) after an unclean
-	  shutdown.
-	  For further details, read the Quota mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>, or the documentation provided
-	  with the quota tools. Probably the quota support is only useful for
-	  multi user systems. If unsure, say N.
-
-config QUOTA_NETLINK_INTERFACE
-	bool "Report quota messages through netlink interface"
-	depends on QUOTA && NET
-	help
-	  If you say Y here, quota warnings (about exceeding softlimit, reaching
-	  hardlimit, etc.) will be reported through netlink interface. If unsure,
-	  say Y.
-
-config PRINT_QUOTA_WARNING
-	bool "Print quota warnings to console (OBSOLETE)"
-	depends on QUOTA
-	default y
-	help
-	  If you say Y here, quota warnings (about exceeding softlimit, reaching
-	  hardlimit, etc.) will be printed to the process' controlling terminal.
-	  Note that this behavior is currently deprecated and may go away in
-	  future. Please use notification via netlink socket instead.
-
-# Generic support for tree structured quota files. Seleted when needed.
-config QUOTA_TREE
-	 tristate
-
-config QFMT_V1
-	tristate "Old quota format support"
-	depends on QUOTA
-	help
-	  This quota format was (is) used by kernels earlier than 2.4.22. If
-	  you have quota working and you don't want to convert to new quota
-	  format say Y here.
-
-config QFMT_V2
-	tristate "Quota format v2 support"
-	depends on QUOTA
-	select QUOTA_TREE
-	help
-	  This quota format allows using quotas with 32-bit UIDs/GIDs. If you
-	  need this functionality say Y here.
-
-config QUOTACTL
-	bool
-	depends on XFS_QUOTA || QUOTA
-	default y
+source "fs/quota/Kconfig"
 
 source "fs/autofs/Kconfig"
 source "fs/autofs4/Kconfig"
@@ -119,6 +65,13 @@ source "fs/fuse/Kconfig"
 config GENERIC_ACL
 	bool
 	select FS_POSIX_ACL
+
+menu "Caches"
+
+source "fs/fscache/Kconfig"
+source "fs/cachefiles/Kconfig"
+
+endmenu
 
 if BLOCK
 menu "CD-ROM/DVD Filesystems"
@@ -222,6 +175,33 @@ source "fs/qnx4/Kconfig"
 source "fs/romfs/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
+source "fs/exofs/Kconfig"
+
+config NILFS2_FS
+	tristate "NILFS2 file system support (EXPERIMENTAL)"
+	depends on BLOCK && EXPERIMENTAL
+	select CRC32
+	help
+	  NILFS2 is a log-structured file system (LFS) supporting continuous
+	  snapshotting.  In addition to versioning capability of the entire
+	  file system, users can even restore files mistakenly overwritten or
+	  destroyed just a few seconds ago.  Since this file system can keep
+	  consistency like conventional LFS, it achieves quick recovery after
+	  system crashes.
+
+	  NILFS2 creates a number of checkpoints every few seconds or per
+	  synchronous write basis (unless there is no change).  Users can
+	  select significant versions among continuously created checkpoints,
+	  and can change them into snapshots which will be preserved for long
+	  periods until they are changed back to checkpoints.  Each
+	  snapshot is mountable as a read-only file system concurrently with
+	  its writable mount, and this feature is convenient for online backup.
+
+	  Some features including atime, extended attributes, and POSIX ACLs,
+	  are not supported yet.
+
+	  To compile this file system support as a module, choose M here: the
+	  module will be called nilfs2.  If unsure, say N.
 
 endif # MISC_FILESYSTEMS
 

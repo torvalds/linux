@@ -41,6 +41,7 @@ extern void init_virt_timer(struct vtimer_list *timer);
 extern void add_virt_timer(void *new);
 extern void add_virt_timer_periodic(void *new);
 extern int mod_virt_timer(struct vtimer_list *timer, __u64 expires);
+extern int mod_virt_timer_periodic(struct vtimer_list *timer, __u64 expires);
 extern int del_virt_timer(struct vtimer_list *timer);
 
 extern void init_cpu_vtimer(void);

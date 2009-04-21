@@ -134,7 +134,7 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 				  EMAC_FTR_440EP_PHY_CLK_FIX))
 		DBG(dev, "%s" NL, error);
 	else if (net_ratelimit())
-		printk(KERN_ERR "%s: %s\n", dev->ndev->name, error);
+		printk(KERN_ERR "%s: %s\n", dev->ofdev->node->full_name, error);
 }
 
 /* EMAC PHY clock workaround:
@@ -1229,7 +1229,7 @@ static int emac_link_differs(struct emac_instance *dev)
 static void emac_link_timer(struct work_struct *work)
 {
 	struct emac_instance *dev =
-		container_of((struct delayed_work *)work,
+		container_of(to_delayed_work(work),
 			     struct emac_instance, link_work);
 	int link_poll_interval;
 
@@ -2686,6 +2686,32 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	return 0;
 }
 
+static const struct net_device_ops emac_netdev_ops = {
+	.ndo_open		= emac_open,
+	.ndo_stop		= emac_close,
+	.ndo_get_stats		= emac_stats,
+	.ndo_set_multicast_list	= emac_set_multicast_list,
+	.ndo_do_ioctl		= emac_ioctl,
+	.ndo_tx_timeout		= emac_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_start_xmit		= emac_start_xmit,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
+static const struct net_device_ops emac_gige_netdev_ops = {
+	.ndo_open		= emac_open,
+	.ndo_stop		= emac_close,
+	.ndo_get_stats		= emac_stats,
+	.ndo_set_multicast_list	= emac_set_multicast_list,
+	.ndo_do_ioctl		= emac_ioctl,
+	.ndo_tx_timeout		= emac_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_start_xmit		= emac_start_xmit_sg,
+	.ndo_change_mtu		= emac_change_mtu,
+};
+
 static int __devinit emac_probe(struct of_device *ofdev,
 				const struct of_device_id *match)
 {
@@ -2827,23 +2853,14 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	if (err != 0)
 		goto err_detach_tah;
 
-	/* Fill in the driver function table */
-	ndev->open = &emac_open;
 	if (dev->tah_dev)
 		ndev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-	ndev->tx_timeout = &emac_tx_timeout;
 	ndev->watchdog_timeo = 5 * HZ;
-	ndev->stop = &emac_close;
-	ndev->get_stats = &emac_stats;
-	ndev->set_multicast_list = &emac_set_multicast_list;
-	ndev->do_ioctl = &emac_ioctl;
 	if (emac_phy_supports_gige(dev->phy_mode)) {
-		ndev->hard_start_xmit = &emac_start_xmit_sg;
-		ndev->change_mtu = &emac_change_mtu;
+		ndev->netdev_ops = &emac_gige_netdev_ops;
 		dev->commac.ops = &emac_commac_sg_ops;
-	} else {
-		ndev->hard_start_xmit = &emac_start_xmit;
-	}
+	} else
+		ndev->netdev_ops = &emac_netdev_ops;
 	SET_ETHTOOL_OPS(ndev, &emac_ethtool_ops);
 
 	netif_carrier_off(ndev);

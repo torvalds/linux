@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2006 - 2008 NetEffect, Inc. All rights reserved.
+* Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
 *
 * This software is available to you under a choice of one of two
 * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,12 +35,14 @@
 
 #include <linux/inet_lro.h>
 
+#define NES_PHY_TYPE_CX4       1
 #define NES_PHY_TYPE_1G        2
 #define NES_PHY_TYPE_IRIS      3
 #define NES_PHY_TYPE_ARGUS     4
 #define NES_PHY_TYPE_PUMA_1G   5
 #define NES_PHY_TYPE_PUMA_10G  6
 #define NES_PHY_TYPE_GLADIUS   7
+#define NES_PHY_TYPE_SFP_D     8
 
 #define NES_MULTICAST_PF_MAX 8
 
@@ -61,6 +63,7 @@ enum pci_regs {
 	NES_CQ_ACK = 0x0034,
 	NES_WQE_ALLOC = 0x0040,
 	NES_CQE_ALLOC = 0x0044,
+	NES_AEQ_ALLOC = 0x0048
 };
 
 enum indexed_regs {
@@ -875,7 +878,6 @@ struct nes_hw_nic {
 	u8 replenishing_rq;
 	u8 reserved;
 
-	spinlock_t sq_lock;
 	spinlock_t rq_lock;
 };
 
@@ -1147,7 +1149,6 @@ struct nes_ib_device;
 struct nes_vnic {
 	struct nes_ib_device *nesibdev;
 	u64 sq_full;
-	u64 sq_locked;
 	u64 tso_requests;
 	u64 segmented_tso_requests;
 	u64 linearized_skbs;

@@ -102,8 +102,7 @@ static int h4_close(struct hci_uart *hu)
 
 	skb_queue_purge(&h4->txq);
 
-	if (h4->rx_skb)
-		kfree_skb(h4->rx_skb);
+	kfree_skb(h4->rx_skb);
 
 	hu->priv = NULL;
 	kfree(h4);

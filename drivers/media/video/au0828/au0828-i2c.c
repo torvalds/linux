@@ -39,13 +39,15 @@ MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 static inline int i2c_slave_did_write_ack(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x08 ? 0 : 1;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_NO_WRITE_ACK ? 0 : 1;
 }
 
 static inline int i2c_slave_did_read_ack(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x02 ? 0 : 1;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_NO_READ_ACK ? 0 : 1;
 }
 
 static int i2c_wait_read_ack(struct i2c_adapter *i2c_adap)
@@ -67,7 +69,8 @@ static int i2c_wait_read_ack(struct i2c_adapter *i2c_adap)
 static inline int i2c_is_read_busy(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x01 ? 0 : 1;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_READ_DONE ? 0 : 1;
 }
 
 static int i2c_wait_read_done(struct i2c_adapter *i2c_adap)
@@ -89,7 +92,8 @@ static int i2c_wait_read_done(struct i2c_adapter *i2c_adap)
 static inline int i2c_is_write_done(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x04 ? 1 : 0;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_WRITE_DONE ? 1 : 0;
 }
 
 static int i2c_wait_write_done(struct i2c_adapter *i2c_adap)
@@ -111,7 +115,8 @@ static int i2c_wait_write_done(struct i2c_adapter *i2c_adap)
 static inline int i2c_is_busy(struct i2c_adapter *i2c_adap)
 {
 	struct au0828_dev *dev = i2c_adap->algo_data;
-	return au0828_read(dev, REG_201) & 0x10 ? 1 : 0;
+	return au0828_read(dev, AU0828_I2C_STATUS_201) &
+		AU0828_I2C_STATUS_BUSY ? 1 : 0;
 }
 
 static int i2c_wait_done(struct i2c_adapter *i2c_adap)
@@ -139,19 +144,42 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	dprintk(4, "%s()\n", __func__);
 
-	au0828_write(dev, REG_2FF, 0x01);
-	au0828_write(dev, REG_202, 0x07);
+	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
+
+	/* Set the I2C clock */
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+		     dev->board.i2c_clk_divider);
 
 	/* Hardware needs 8 bit addresses */
-	au0828_write(dev, REG_203, msg->addr << 1);
+	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
 
 	dprintk(4, "SEND: %02x\n", msg->addr);
+
+	/* Deal with i2c_scan */
+	if (msg->len == 0) {
+		/* The analog tuner detection code makes use of the SMBUS_QUICK
+		   message (which involves a zero length i2c write).  To avoid
+		   checking the status register when we didn't strobe out any
+		   actual bytes to the bus, just do a read check.  This is
+		   consistent with how I saw i2c device checking done in the
+		   USB trace of the Windows driver */
+		au0828_write(dev, AU0828_I2C_TRIGGER_200,
+			     AU0828_I2C_TRIGGER_READ);
+
+		if (!i2c_wait_done(i2c_adap))
+			return -EIO;
+
+		if (i2c_wait_read_ack(i2c_adap))
+			return -EIO;
+
+		return 0;
+	}
 
 	for (i = 0; i < msg->len;) {
 
 		dprintk(4, " %02x\n", msg->buf[i]);
 
-		au0828_write(dev, REG_205, msg->buf[i]);
+		au0828_write(dev, AU0828_I2C_WRITE_FIFO_205, msg->buf[i]);
 
 		strobe++;
 		i++;
@@ -160,9 +188,12 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 			/* Strobe the byte into the bus */
 			if (i < msg->len)
-				au0828_write(dev, REG_200, 0x41);
+				au0828_write(dev, AU0828_I2C_TRIGGER_200,
+					     AU0828_I2C_TRIGGER_WRITE |
+					     AU0828_I2C_TRIGGER_HOLD);
 			else
-				au0828_write(dev, REG_200, 0x01);
+				au0828_write(dev, AU0828_I2C_TRIGGER_200,
+					     AU0828_I2C_TRIGGER_WRITE);
 
 			/* Reset strobe trigger */
 			strobe = 0;
@@ -190,17 +221,22 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 
 	dprintk(4, "%s()\n", __func__);
 
-	au0828_write(dev, REG_2FF, 0x01);
-	au0828_write(dev, REG_202, 0x07);
+	au0828_write(dev, AU0828_I2C_MULTIBYTE_MODE_2FF, 0x01);
+
+	/* Set the I2C clock */
+	au0828_write(dev, AU0828_I2C_CLK_DIVIDER_202,
+		     dev->board.i2c_clk_divider);
 
 	/* Hardware needs 8 bit addresses */
-	au0828_write(dev, REG_203, msg->addr << 1);
+	au0828_write(dev, AU0828_I2C_DEST_ADDR_203, msg->addr << 1);
 
 	dprintk(4, " RECV:\n");
 
 	/* Deal with i2c_scan */
 	if (msg->len == 0) {
-		au0828_write(dev, REG_200, 0x20);
+		au0828_write(dev, AU0828_I2C_TRIGGER_200,
+			     AU0828_I2C_TRIGGER_READ);
+
 		if (i2c_wait_read_ack(i2c_adap))
 			return -EIO;
 		return 0;
@@ -211,14 +247,18 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		i++;
 
 		if (i < msg->len)
-			au0828_write(dev, REG_200, 0x60);
+			au0828_write(dev, AU0828_I2C_TRIGGER_200,
+				     AU0828_I2C_TRIGGER_READ |
+				     AU0828_I2C_TRIGGER_HOLD);
 		else
-			au0828_write(dev, REG_200, 0x20);
+			au0828_write(dev, AU0828_I2C_TRIGGER_200,
+				     AU0828_I2C_TRIGGER_READ);
 
 		if (!i2c_wait_read_done(i2c_adap))
 			return -EIO;
 
-		msg->buf[i-1] = au0828_read(dev, REG_209) & 0xff;
+		msg->buf[i-1] = au0828_read(dev, AU0828_I2C_READ_FIFO_209) &
+			0xff;
 
 		dprintk(4, " %02x\n", msg->buf[i-1]);
 	}
@@ -265,33 +305,6 @@ err:
 	return retval;
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	if (!client->driver->command)
-		return 0;
-
-	return 0;
-}
-
-static int detach_inform(struct i2c_client *client)
-{
-	dprintk(1, "i2c detach [client=%s]\n", client->name);
-
-	return 0;
-}
-
-void au0828_call_i2c_clients(struct au0828_dev *dev,
-			      unsigned int cmd, void *arg)
-{
-	if (dev->i2c_rc != 0)
-		return;
-
-	i2c_clients_command(&dev->i2c_adap, cmd, arg);
-}
-
 static u32 au0828_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
@@ -309,9 +322,6 @@ static struct i2c_adapter au0828_i2c_adap_template = {
 	.owner             = THIS_MODULE,
 	.id                = I2C_HW_B_AU0828,
 	.algo              = &au0828_i2c_algo_template,
-	.class             = I2C_CLASS_TV_ANALOG,
-	.client_register   = attach_inform,
-	.client_unregister = detach_inform,
 };
 
 static struct i2c_client au0828_i2c_client_template = {
@@ -356,9 +366,9 @@ int au0828_i2c_register(struct au0828_dev *dev)
 	strlcpy(dev->i2c_adap.name, DRIVER_NAME,
 		sizeof(dev->i2c_adap.name));
 
-	dev->i2c_algo.data = dev;
+	dev->i2c_adap.algo = &dev->i2c_algo;
 	dev->i2c_adap.algo_data = dev;
-	i2c_set_adapdata(&dev->i2c_adap, dev);
+	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&dev->i2c_adap);
 
 	dev->i2c_client.adapter = &dev->i2c_adap;

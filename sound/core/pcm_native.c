@@ -186,7 +186,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		if (!(params->rmask & (1 << k)))
 			continue;
 #ifdef RULES_DEBUG
-		printk("%s = ", snd_pcm_hw_param_names[k]);
+		printk(KERN_DEBUG "%s = ", snd_pcm_hw_param_names[k]);
 		printk("%04x%04x%04x%04x -> ", m->bits[3], m->bits[2], m->bits[1], m->bits[0]);
 #endif
 		changed = snd_mask_refine(m, constrs_mask(constrs, k));
@@ -206,7 +206,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 		if (!(params->rmask & (1 << k)))
 			continue;
 #ifdef RULES_DEBUG
-		printk("%s = ", snd_pcm_hw_param_names[k]);
+		printk(KERN_DEBUG "%s = ", snd_pcm_hw_param_names[k]);
 		if (i->empty)
 			printk("empty");
 		else
@@ -251,7 +251,7 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 			if (!doit)
 				continue;
 #ifdef RULES_DEBUG
-			printk("Rule %d [%p]: ", k, r->func);
+			printk(KERN_DEBUG "Rule %d [%p]: ", k, r->func);
 			if (r->var >= 0) {
 				printk("%s = ", snd_pcm_hw_param_names[r->var]);
 				if (hw_is_mask(r->var)) {
@@ -327,21 +327,16 @@ static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params;
 	int err;
 
-	params = kmalloc(sizeof(*params), GFP_KERNEL);
-	if (!params) {
-		err = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(params, _params, sizeof(*params))) {
-		err = -EFAULT;
-		goto out;
-	}
+	params = memdup_user(_params, sizeof(*params));
+	if (IS_ERR(params))
+		return PTR_ERR(params);
+
 	err = snd_pcm_hw_refine(substream, params);
 	if (copy_to_user(_params, params, sizeof(*params))) {
 		if (!err)
 			err = -EFAULT;
 	}
-out:
+
 	kfree(params);
 	return err;
 }
@@ -465,21 +460,16 @@ static int snd_pcm_hw_params_user(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params;
 	int err;
 
-	params = kmalloc(sizeof(*params), GFP_KERNEL);
-	if (!params) {
-		err = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(params, _params, sizeof(*params))) {
-		err = -EFAULT;
-		goto out;
-	}
+	params = memdup_user(_params, sizeof(*params));
+	if (IS_ERR(params))
+		return PTR_ERR(params);
+
 	err = snd_pcm_hw_params(substream, params);
 	if (copy_to_user(_params, params, sizeof(*params))) {
 		if (!err)
 			err = -EFAULT;
 	}
-out:
+
 	kfree(params);
 	return err;
 }
@@ -2593,13 +2583,11 @@ static int snd_pcm_playback_ioctl1(struct file *file,
 			return -EFAULT;
 		if (copy_from_user(&xfern, _xfern, sizeof(xfern)))
 			return -EFAULT;
-		bufs = kmalloc(sizeof(void *) * runtime->channels, GFP_KERNEL);
-		if (bufs == NULL)
-			return -ENOMEM;
-		if (copy_from_user(bufs, xfern.bufs, sizeof(void *) * runtime->channels)) {
-			kfree(bufs);
-			return -EFAULT;
-		}
+
+		bufs = memdup_user(xfern.bufs,
+				   sizeof(void *) * runtime->channels);
+		if (IS_ERR(bufs))
+			return PTR_ERR(bufs);
 		result = snd_pcm_lib_writev(substream, bufs, xfern.frames);
 		kfree(bufs);
 		__put_user(result, &_xfern->result);
@@ -2675,13 +2663,11 @@ static int snd_pcm_capture_ioctl1(struct file *file,
 			return -EFAULT;
 		if (copy_from_user(&xfern, _xfern, sizeof(xfern)))
 			return -EFAULT;
-		bufs = kmalloc(sizeof(void *) * runtime->channels, GFP_KERNEL);
-		if (bufs == NULL)
-			return -ENOMEM;
-		if (copy_from_user(bufs, xfern.bufs, sizeof(void *) * runtime->channels)) {
-			kfree(bufs);
-			return -EFAULT;
-		}
+
+		bufs = memdup_user(xfern.bufs,
+				   sizeof(void *) * runtime->channels);
+		if (IS_ERR(bufs))
+			return PTR_ERR(bufs);
 		result = snd_pcm_lib_readv(substream, bufs, xfern.frames);
 		kfree(bufs);
 		__put_user(result, &_xfern->result);
@@ -3246,9 +3232,7 @@ static int snd_pcm_fasync(int fd, struct file * file, int on)
 	err = fasync_helper(fd, file, on, &runtime->fasync);
 out:
 	unlock_kernel();
-	if (err < 0)
-		return err;
-	return 0;
+	return err;
 }
 
 /*
@@ -3314,18 +3298,12 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 	int err;
 
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
-	if (!params) {
-		err = -ENOMEM;
-		goto out;
-	}
-	oparams = kmalloc(sizeof(*oparams), GFP_KERNEL);
-	if (!oparams) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!params)
+		return -ENOMEM;
 
-	if (copy_from_user(oparams, _oparams, sizeof(*oparams))) {
-		err = -EFAULT;
+	oparams = memdup_user(_oparams, sizeof(*oparams));
+	if (IS_ERR(oparams)) {
+		err = PTR_ERR(oparams);
 		goto out;
 	}
 	snd_pcm_hw_convert_from_old_params(params, oparams);
@@ -3335,9 +3313,10 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 		if (!err)
 			err = -EFAULT;
 	}
+
+	kfree(oparams);
 out:
 	kfree(params);
-	kfree(oparams);
 	return err;
 }
 
@@ -3349,17 +3328,12 @@ static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 	int err;
 
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
-	if (!params) {
-		err = -ENOMEM;
-		goto out;
-	}
-	oparams = kmalloc(sizeof(*oparams), GFP_KERNEL);
-	if (!oparams) {
-		err = -ENOMEM;
-		goto out;
-	}
-	if (copy_from_user(oparams, _oparams, sizeof(*oparams))) {
-		err = -EFAULT;
+	if (!params)
+		return -ENOMEM;
+
+	oparams = memdup_user(_oparams, sizeof(*oparams));
+	if (IS_ERR(oparams)) {
+		err = PTR_ERR(oparams);
 		goto out;
 	}
 	snd_pcm_hw_convert_from_old_params(params, oparams);
@@ -3369,9 +3343,10 @@ static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 		if (!err)
 			err = -EFAULT;
 	}
+
+	kfree(oparams);
 out:
 	kfree(params);
-	kfree(oparams);
 	return err;
 }
 #endif /* CONFIG_SND_SUPPORT_OLD_API */

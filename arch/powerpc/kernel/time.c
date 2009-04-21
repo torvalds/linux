@@ -1127,3 +1127,19 @@ void div128_by_32(u64 dividend_high, u64 dividend_low,
 	dr->result_low  = ((u64)y << 32) + z;
 
 }
+
+static int __init rtc_init(void)
+{
+	struct platform_device *pdev;
+
+	if (!ppc_md.get_rtc_time)
+		return -ENODEV;
+
+	pdev = platform_device_register_simple("rtc-generic", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
+
+module_init(rtc_init);

@@ -21,7 +21,7 @@ static void arch_idle(void)
 	cpu_do_idle();
 }
 
-static void arch_reset(char mode)
+static void arch_reset(char mode, const char *cmd)
 {
 	davinci_watchdog_reset();
 }

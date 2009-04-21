@@ -1,5 +1,5 @@
 /* orinoco_pci.c
- * 
+ *
  * Driver for Prism 2.5/3 devices that have a direct PCI interface
  * (i.e. these are not PCMCIA cards in a PCMCIA-to-PCI bridge).
  * The card contains only one PCI region, which contains all the usual
@@ -237,7 +237,8 @@ static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
 	" (Pavel Roskin <proski@gnu.org>,"
 	" David Gibson <hermes@gibson.dropbear.id.au> &"
 	" Jean Tourrilhes <jt@hpl.hp.com>)";
-MODULE_AUTHOR("Pavel Roskin <proski@gnu.org> & David Gibson <hermes@gibson.dropbear.id.au>");
+MODULE_AUTHOR("Pavel Roskin <proski@gnu.org> &"
+	      " David Gibson <hermes@gibson.dropbear.id.au>");
 MODULE_DESCRIPTION("Driver for wireless LAN cards using direct PCI interface");
 MODULE_LICENSE("Dual MPL/GPL");
 

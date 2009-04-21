@@ -169,11 +169,11 @@
 #define GAM15       0x8C /* Gamma Curve 15th segment input end point */
 #define SLOP        0x8D /* Gamma curve highest segment slope */
 #define DNSTH       0x8E /* De-noise threshold */
-#define EDGE0       0x8F /* Edge enhancement control 0 */
-#define EDGE1       0x90 /* Edge enhancement control 1 */
+#define EDGE_STRNGT 0x8F /* Edge strength  control when manual mode */
+#define EDGE_TRSHLD 0x90 /* Edge threshold control when manual mode */
 #define DNSOFF      0x91 /* Auto De-noise threshold control */
-#define EDGE2       0x92 /* Edge enhancement strength low  point control */
-#define EDGE3       0x93 /* Edge enhancement strength high point control */
+#define EDGE_UPPER  0x92 /* Edge strength upper limit when Auto mode */
+#define EDGE_LOWER  0x93 /* Edge strength lower limit when Auto mode */
 #define MTX1        0x94 /* Matrix coefficient 1 */
 #define MTX2        0x95 /* Matrix coefficient 2 */
 #define MTX3        0x96 /* Matrix coefficient 3 */
@@ -217,10 +217,11 @@
 #define OCAP_4x         0x03	/* 4x */
 
 /* COM3 */
-#define SWAP_MASK       0x38
+#define SWAP_MASK       (SWAP_RGB | SWAP_YUV | SWAP_ML)
+#define IMG_MASK        (VFLIP_IMG | HFLIP_IMG)
 
-#define VFIMG_ON_OFF    0x80	/* Vertical flip image ON/OFF selection */
-#define HMIMG_ON_OFF    0x40	/* Horizontal mirror image ON/OFF selection */
+#define VFLIP_IMG       0x80	/* Vertical flip image ON/OFF selection */
+#define HFLIP_IMG       0x40	/* Horizontal mirror image ON/OFF selection */
 #define SWAP_RGB        0x20	/* Swap B/R  output sequence in RGB mode */
 #define SWAP_YUV        0x10	/* Swap Y/UV output sequence in YUV mode */
 #define SWAP_ML         0x08	/* Swap output MSB/LSB */
@@ -271,11 +272,13 @@
 #define SLCT_QVGA       0x40	/*   1 : QVGA */
 #define ITU656_ON_OFF   0x20	/* ITU656 protocol ON/OFF selection */
 				/* RGB output format control */
+#define FMT_MASK        0x0c	/*      Mask of color format */
 #define FMT_GBR422      0x00	/*      00 : GBR 4:2:2 */
 #define FMT_RGB565      0x04	/*      01 : RGB 565 */
 #define FMT_RGB555      0x08	/*      10 : RGB 555 */
 #define FMT_RGB444      0x0c	/* 11 : RGB 444 */
 				/* Output format control */
+#define OFMT_MASK       0x03    /*      Mask of output format */
 #define OFMT_YUV        0x00	/*      00 : YUV */
 #define OFMT_P_BRAW     0x01	/*      01 : Processed Bayer RAW */
 #define OFMT_RGB        0x02	/*      10 : RGB */
@@ -299,7 +302,7 @@
 #define GAIN_2x         0x00	/*    000 :   2x */
 #define GAIN_4x         0x10	/*    001 :   4x */
 #define GAIN_8x         0x20	/*    010 :   8x */
-#define GAIN_16x        0x30	/* 011 :  16x */
+#define GAIN_16x        0x30	/*    011 :  16x */
 #define GAIN_32x        0x40	/*    100 :  32x */
 #define GAIN_64x        0x50	/* 101 :  64x */
 #define GAIN_128x       0x60	/* 110 : 128x */
@@ -355,12 +358,13 @@
 #define VOSZ_VGA        0xF0
 #define VOSZ_QVGA       0x78
 
-/*
- * bit configure (32 bit)
- * this is used in struct ov772x_color_format :: option
- */
-#define OP_UV       0x00000001
-#define OP_SWAP_RGB 0x00000002
+/* DSPAUTO (DSP Auto Function ON/OFF Control) */
+#define AWB_ACTRL       0x80 /* AWB auto threshold control */
+#define DENOISE_ACTRL   0x40 /* De-noise auto threshold control */
+#define EDGE_ACTRL      0x20 /* Edge enhancement auto strength control */
+#define UV_ACTRL        0x10 /* UV adjust auto slope control */
+#define SCAL0_ACTRL     0x08 /* Auto scaling factor control */
+#define SCAL1_2_ACTRL   0x04 /* Auto scaling factor control */
 
 /*
  * ID
@@ -380,8 +384,9 @@ struct regval_list {
 struct ov772x_color_format {
 	char                     *name;
 	__u32                     fourcc;
-	const struct regval_list *regs;
-	unsigned int              option;
+	u8                        dsp3;
+	u8                        com3;
+	u8                        com7;
 };
 
 struct ov772x_win_size {
@@ -399,37 +404,11 @@ struct ov772x_priv {
 	const struct ov772x_color_format *fmt;
 	const struct ov772x_win_size     *win;
 	int                               model;
+	unsigned int                      flag_vflip:1;
+	unsigned int                      flag_hflip:1;
 };
 
 #define ENDMARKER { 0xff, 0xff }
-
-/*
- * register setting for color format
- */
-static const struct regval_list ov772x_RGB555_regs[] = {
-	{ COM3, 0x00 },
-	{ COM7, FMT_RGB555 | OFMT_RGB },
-	ENDMARKER,
-};
-
-static const struct regval_list ov772x_RGB565_regs[] = {
-	{ COM3, 0x00 },
-	{ COM7, FMT_RGB565 | OFMT_RGB },
-	ENDMARKER,
-};
-
-static const struct regval_list ov772x_YYUV_regs[] = {
-	{ COM3, SWAP_YUV },
-	{ COM7, OFMT_YUV },
-	ENDMARKER,
-};
-
-static const struct regval_list ov772x_UVYY_regs[] = {
-	{ COM3, 0x00 },
-	{ COM7, OFMT_YUV },
-	ENDMARKER,
-};
-
 
 /*
  * register setting for window size
@@ -500,38 +479,48 @@ static const struct soc_camera_data_format ov772x_fmt_lists[] = {
 /*
  * color format list
  */
-#define T_YUYV 0
 static const struct ov772x_color_format ov772x_cfmts[] = {
-	[T_YUYV] = {
+	{
 		SETFOURCC(YUYV),
-		.regs   = ov772x_YYUV_regs,
+		.dsp3   = 0x0,
+		.com3   = SWAP_YUV,
+		.com7   = OFMT_YUV,
 	},
 	{
 		SETFOURCC(YVYU),
-		.regs   = ov772x_YYUV_regs,
-		.option = OP_UV,
+		.dsp3   = UV_ON,
+		.com3   = SWAP_YUV,
+		.com7   = OFMT_YUV,
 	},
 	{
 		SETFOURCC(UYVY),
-		.regs   = ov772x_UVYY_regs,
+		.dsp3   = 0x0,
+		.com3   = 0x0,
+		.com7   = OFMT_YUV,
 	},
 	{
 		SETFOURCC(RGB555),
-		.regs   = ov772x_RGB555_regs,
-		.option = OP_SWAP_RGB,
+		.dsp3   = 0x0,
+		.com3   = SWAP_RGB,
+		.com7   = FMT_RGB555 | OFMT_RGB,
 	},
 	{
 		SETFOURCC(RGB555X),
-		.regs   = ov772x_RGB555_regs,
+		.dsp3   = 0x0,
+		.com3   = 0x0,
+		.com7   = FMT_RGB555 | OFMT_RGB,
 	},
 	{
 		SETFOURCC(RGB565),
-		.regs   = ov772x_RGB565_regs,
-		.option = OP_SWAP_RGB,
+		.dsp3   = 0x0,
+		.com3   = SWAP_RGB,
+		.com7   = FMT_RGB565 | OFMT_RGB,
 	},
 	{
 		SETFOURCC(RGB565X),
-		.regs   = ov772x_RGB565_regs,
+		.dsp3   = 0x0,
+		.com3   = 0x0,
+		.com7   = FMT_RGB565 | OFMT_RGB,
 	},
 };
 
@@ -562,6 +551,27 @@ static const struct ov772x_win_size ov772x_win_qvga = {
 	.regs     = ov772x_qvga_regs,
 };
 
+static const struct v4l2_queryctrl ov772x_controls[] = {
+	{
+		.id		= V4L2_CID_VFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Flip Vertically",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+	},
+	{
+		.id		= V4L2_CID_HFLIP,
+		.type		= V4L2_CTRL_TYPE_BOOLEAN,
+		.name		= "Flip Horizontally",
+		.minimum	= 0,
+		.maximum	= 1,
+		.step		= 1,
+		.default_value	= 0,
+	},
+};
+
 
 /*
  * general function
@@ -587,8 +597,11 @@ static int ov772x_mask_set(struct i2c_client *client,
 					  u8  set)
 {
 	s32 val = i2c_smbus_read_byte_data(client, command);
+	if (val < 0)
+		return val;
+
 	val &= ~mask;
-	val |=  set;
+	val |= set & mask;
 
 	return i2c_smbus_write_byte_data(client, command, val);
 }
@@ -635,74 +648,24 @@ static int ov772x_release(struct soc_camera_device *icd)
 static int ov772x_start_capture(struct soc_camera_device *icd)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-	int                 ret;
 
-	if (!priv->win)
-		priv->win = &ov772x_win_vga;
-	if (!priv->fmt)
-		priv->fmt = &ov772x_cfmts[T_YUYV];
-
-	/*
-	 * reset hardware
-	 */
-	ov772x_reset(priv->client);
-
-	/*
-	 * set color format
-	 */
-	ret = ov772x_write_array(priv->client, priv->fmt->regs);
-	if (ret < 0)
-		goto start_end;
-
-	/*
-	 * set size format
-	 */
-	ret = ov772x_write_array(priv->client, priv->win->regs);
-	if (ret < 0)
-		goto start_end;
-
-	/*
-	 * set COM7 bit ( QVGA or VGA )
-	 */
-	ret = ov772x_mask_set(priv->client,
-			      COM7, SLCT_MASK, priv->win->com7_bit);
-	if (ret < 0)
-		goto start_end;
-
-	/*
-	 * set UV setting
-	 */
-	if (priv->fmt->option & OP_UV) {
-		ret = ov772x_mask_set(priv->client,
-				      DSP_CTRL3, UV_MASK, UV_ON);
-		if (ret < 0)
-			goto start_end;
+	if (!priv->win || !priv->fmt) {
+		dev_err(&icd->dev, "norm or win select error\n");
+		return -EPERM;
 	}
 
-	/*
-	 * set SWAP setting
-	 */
-	if (priv->fmt->option & OP_SWAP_RGB) {
-		ret = ov772x_mask_set(priv->client,
-				      COM3, SWAP_MASK, SWAP_RGB);
-		if (ret < 0)
-			goto start_end;
-	}
+	ov772x_mask_set(priv->client, COM2, SOFT_SLEEP_MODE, 0);
 
 	dev_dbg(&icd->dev,
 		 "format %s, win %s\n", priv->fmt->name, priv->win->name);
 
-start_end:
-	priv->fmt = NULL;
-	priv->win = NULL;
-
-	return ret;
+	return 0;
 }
 
 static int ov772x_stop_capture(struct soc_camera_device *icd)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-	ov772x_reset(priv->client);
+	ov772x_mask_set(priv->client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
 	return 0;
 }
 
@@ -715,12 +678,55 @@ static int ov772x_set_bus_param(struct soc_camera_device *icd,
 static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 {
 	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
-	struct soc_camera_link *icl = priv->client->dev.platform_data;
+	struct soc_camera_link *icl = &priv->info->link;
 	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
 		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		priv->info->buswidth;
+		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
 
 	return soc_camera_apply_sensor_flags(icl, flags);
+}
+
+static int ov772x_get_control(struct soc_camera_device *icd,
+			      struct v4l2_control *ctrl)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		ctrl->value = priv->flag_vflip;
+		break;
+	case V4L2_CID_HFLIP:
+		ctrl->value = priv->flag_hflip;
+		break;
+	}
+	return 0;
+}
+
+static int ov772x_set_control(struct soc_camera_device *icd,
+			      struct v4l2_control *ctrl)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+	int ret = 0;
+	u8 val;
+
+	switch (ctrl->id) {
+	case V4L2_CID_VFLIP:
+		val = ctrl->value ? VFLIP_IMG : 0x00;
+		priv->flag_vflip = ctrl->value;
+		if (priv->info->flags & OV772X_FLAG_VFLIP)
+			val ^= VFLIP_IMG;
+		ret = ov772x_mask_set(priv->client, COM3, VFLIP_IMG, val);
+		break;
+	case V4L2_CID_HFLIP:
+		val = ctrl->value ? HFLIP_IMG : 0x00;
+		priv->flag_hflip = ctrl->value;
+		if (priv->info->flags & OV772X_FLAG_HFLIP)
+			val ^= HFLIP_IMG;
+		ret = ov772x_mask_set(priv->client, COM3, HFLIP_IMG, val);
+		break;
+	}
+
+	return ret;
 }
 
 static int ov772x_get_chip_id(struct soc_camera_device *icd,
@@ -787,13 +793,11 @@ ov772x_select_win(u32 width, u32 height)
 	return win;
 }
 
-
-static int ov772x_set_fmt(struct soc_camera_device *icd,
-			  __u32                     pixfmt,
-			  struct v4l2_rect         *rect)
+static int ov772x_set_params(struct ov772x_priv *priv, u32 width, u32 height,
+			     u32 pixfmt)
 {
-	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
 	int ret = -EINVAL;
+	u8  val;
 	int i;
 
 	/*
@@ -803,17 +807,146 @@ static int ov772x_set_fmt(struct soc_camera_device *icd,
 	for (i = 0; i < ARRAY_SIZE(ov772x_cfmts); i++) {
 		if (pixfmt == ov772x_cfmts[i].fourcc) {
 			priv->fmt = ov772x_cfmts + i;
-			ret = 0;
 			break;
 		}
 	}
+	if (!priv->fmt)
+		goto ov772x_set_fmt_error;
 
 	/*
 	 * select win
 	 */
-	priv->win = ov772x_select_win(rect->width, rect->height);
+	priv->win = ov772x_select_win(width, height);
+
+	/*
+	 * reset hardware
+	 */
+	ov772x_reset(priv->client);
+
+	/*
+	 * Edge Ctrl
+	 */
+	if (priv->info->edgectrl.strength & OV772X_MANUAL_EDGE_CTRL) {
+
+		/*
+		 * Manual Edge Control Mode
+		 *
+		 * Edge auto strength bit is set by default.
+		 * Remove it when manual mode.
+		 */
+
+		ret = ov772x_mask_set(priv->client, DSPAUTO, EDGE_ACTRL, 0x00);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_TRSHLD, EDGE_THRESHOLD_MASK,
+				      priv->info->edgectrl.threshold);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_STRNGT, EDGE_STRENGTH_MASK,
+				      priv->info->edgectrl.strength);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+	} else if (priv->info->edgectrl.upper > priv->info->edgectrl.lower) {
+		/*
+		 * Auto Edge Control Mode
+		 *
+		 * set upper and lower limit
+		 */
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_UPPER, EDGE_UPPER_MASK,
+				      priv->info->edgectrl.upper);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+
+		ret = ov772x_mask_set(priv->client,
+				      EDGE_LOWER, EDGE_LOWER_MASK,
+				      priv->info->edgectrl.lower);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+	}
+
+	/*
+	 * set size format
+	 */
+	ret = ov772x_write_array(priv->client, priv->win->regs);
+	if (ret < 0)
+		goto ov772x_set_fmt_error;
+
+	/*
+	 * set DSP_CTRL3
+	 */
+	val = priv->fmt->dsp3;
+	if (val) {
+		ret = ov772x_mask_set(priv->client,
+				      DSP_CTRL3, UV_MASK, val);
+		if (ret < 0)
+			goto ov772x_set_fmt_error;
+	}
+
+	/*
+	 * set COM3
+	 */
+	val = priv->fmt->com3;
+	if (priv->info->flags & OV772X_FLAG_VFLIP)
+		val |= VFLIP_IMG;
+	if (priv->info->flags & OV772X_FLAG_HFLIP)
+		val |= HFLIP_IMG;
+	if (priv->flag_vflip)
+		val ^= VFLIP_IMG;
+	if (priv->flag_hflip)
+		val ^= HFLIP_IMG;
+
+	ret = ov772x_mask_set(priv->client,
+			      COM3, SWAP_MASK | IMG_MASK, val);
+	if (ret < 0)
+		goto ov772x_set_fmt_error;
+
+	/*
+	 * set COM7
+	 */
+	val = priv->win->com7_bit | priv->fmt->com7;
+	ret = ov772x_mask_set(priv->client,
+			      COM7, (SLCT_MASK | FMT_MASK | OFMT_MASK),
+			      val);
+	if (ret < 0)
+		goto ov772x_set_fmt_error;
 
 	return ret;
+
+ov772x_set_fmt_error:
+
+	ov772x_reset(priv->client);
+	priv->win = NULL;
+	priv->fmt = NULL;
+
+	return ret;
+}
+
+static int ov772x_set_crop(struct soc_camera_device *icd,
+			   struct v4l2_rect *rect)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+
+	if (!priv->fmt)
+		return -EINVAL;
+
+	return ov772x_set_params(priv, rect->width, rect->height,
+				 priv->fmt->fourcc);
+}
+
+static int ov772x_set_fmt(struct soc_camera_device *icd,
+			  struct v4l2_format *f)
+{
+	struct ov772x_priv *priv = container_of(icd, struct ov772x_priv, icd);
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+
+	return ov772x_set_params(priv, pix->width, pix->height,
+				 pix->pixelformat);
 }
 
 static int ov772x_try_fmt(struct soc_camera_device *icd,
@@ -889,7 +1022,6 @@ static int ov772x_video_probe(struct soc_camera_device *icd)
 		 i2c_smbus_read_byte_data(priv->client, MIDH),
 		 i2c_smbus_read_byte_data(priv->client, MIDL));
 
-
 	return soc_camera_video_start(icd);
 }
 
@@ -906,10 +1038,15 @@ static struct soc_camera_ops ov772x_ops = {
 	.release		= ov772x_release,
 	.start_capture		= ov772x_start_capture,
 	.stop_capture		= ov772x_stop_capture,
+	.set_crop		= ov772x_set_crop,
 	.set_fmt		= ov772x_set_fmt,
 	.try_fmt		= ov772x_try_fmt,
 	.set_bus_param		= ov772x_set_bus_param,
 	.query_bus_param	= ov772x_query_bus_param,
+	.controls		= ov772x_controls,
+	.num_controls		= ARRAY_SIZE(ov772x_controls),
+	.get_control		= ov772x_get_control,
+	.set_control		= ov772x_set_control,
 	.get_chip_id		= ov772x_get_chip_id,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.get_register		= ov772x_get_register,

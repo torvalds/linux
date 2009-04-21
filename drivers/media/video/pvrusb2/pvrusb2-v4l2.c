@@ -91,7 +91,7 @@ static struct v4l2_capability pvr_capability ={
 	.card           = "Hauppauge WinTV pvr-usb2",
 	.bus_info       = "usb",
 	.version        = KERNEL_VERSION(0,8,0),
-	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE |
+	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE |
 			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
 			   V4L2_CAP_READWRITE),
 	.reserved       = {0,0,0,0}
@@ -952,10 +952,6 @@ static long pvr2_v4l2_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
 
-/* Temporary hack : use ivtv api until a v4l2 one is available. */
-#define IVTV_IOC_G_CODEC        0xFFEE7703
-#define IVTV_IOC_S_CODEC        0xFFEE7704
-	if (cmd == IVTV_IOC_G_CODEC || cmd == IVTV_IOC_S_CODEC) return 0;
 	return video_usercopy(file, cmd, arg, pvr2_v4l2_do_ioctl);
 }
 
@@ -1268,8 +1264,9 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		dip->minor_type = pvr2_v4l_type_video;
 		nr_ptr = video_nr;
 		if (!dip->stream) {
-			err("Failed to set up pvrusb2 v4l video dev"
-			    " due to missing stream instance");
+			pr_err(KBUILD_MODNAME
+				": Failed to set up pvrusb2 v4l video dev"
+				" due to missing stream instance\n");
 			return;
 		}
 		break;
@@ -1286,8 +1283,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 		break;
 	default:
 		/* Bail out (this should be impossible) */
-		err("Failed to set up pvrusb2 v4l dev"
-		    " due to unrecognized config");
+		pr_err(KBUILD_MODNAME ": Failed to set up pvrusb2 v4l dev"
+		    " due to unrecognized config\n");
 		return;
 	}
 
@@ -1303,7 +1300,8 @@ static void pvr2_v4l2_dev_init(struct pvr2_v4l2_dev *dip,
 				   dip->v4l_type, mindevnum) < 0) &&
 	    (video_register_device(&dip->devbase,
 				   dip->v4l_type, -1) < 0)) {
-		err("Failed to register pvrusb2 v4l device");
+		pr_err(KBUILD_MODNAME
+			": Failed to register pvrusb2 v4l device\n");
 	}
 
 	printk(KERN_INFO "pvrusb2: registered device %s%u [%s]\n",

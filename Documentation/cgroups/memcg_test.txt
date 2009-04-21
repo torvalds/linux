@@ -1,5 +1,5 @@
 Memory Resource Controller(Memcg)  Implementation Memo.
-Last Updated: 2009/1/19
+Last Updated: 2009/1/20
 Base Kernel Version: based on 2.6.29-rc2.
 
 Because VM is getting complex (one of reasons is memcg...), memcg's behavior
@@ -356,7 +356,25 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	(Shell-B)
 	# move all tasks in /cgroup/test to /cgroup
 	# /sbin/swapoff -a
-	# rmdir /test/cgroup
+	# rmdir /cgroup/test
 	# kill malloc task.
 
 	Of course, tmpfs v.s. swapoff test should be tested, too.
+
+ 9.8 OOM-Killer
+	Out-of-memory caused by memcg's limit will kill tasks under
+	the memcg. When hierarchy is used, a task under hierarchy
+	will be killed by the kernel.
+	In this case, panic_on_oom shouldn't be invoked and tasks
+	in other groups shouldn't be killed.
+
+	It's not difficult to cause OOM under memcg as following.
+	Case A) when you can swapoff
+	#swapoff -a
+	#echo 50M > /memory.limit_in_bytes
+	run 51M of malloc
+
+	Case B) when you use mem+swap limitation.
+	#echo 50M > memory.limit_in_bytes
+	#echo 50M > memory.memsw.limit_in_bytes
+	run 51M of malloc

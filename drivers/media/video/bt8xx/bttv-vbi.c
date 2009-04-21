@@ -411,7 +411,7 @@ int bttv_g_fmt_vbi_cap(struct file *file, void *f, struct v4l2_format *frt)
 	return 0;
 }
 
-void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, int norm)
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, unsigned int norm)
 {
 	const struct bttv_tvnorm *tvnorm;
 	unsigned int real_samples_per_line;

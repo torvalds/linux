@@ -50,7 +50,8 @@ static struct workqueue_struct *khelper_wq;
 char modprobe_path[KMOD_PATH_LEN] = "/sbin/modprobe";
 
 /**
- * request_module - try to load a kernel module
+ * __request_module - try to load a kernel module
+ * @wait: wait (or not) for the operation to complete
  * @fmt: printf style format string for the name of the module
  * @...: arguments as specified in the format string
  *
@@ -63,7 +64,7 @@ char modprobe_path[KMOD_PATH_LEN] = "/sbin/modprobe";
  * If module auto-loading support is disabled then this function
  * becomes a no-operation.
  */
-int request_module(const char *fmt, ...)
+int __request_module(bool wait, const char *fmt, ...)
 {
 	va_list args;
 	char module_name[MODULE_NAME_LEN];
@@ -108,11 +109,12 @@ int request_module(const char *fmt, ...)
 		return -ENOMEM;
 	}
 
-	ret = call_usermodehelper(modprobe_path, argv, envp, 1);
+	ret = call_usermodehelper(modprobe_path, argv, envp,
+			wait ? UMH_WAIT_PROC : UMH_WAIT_EXEC);
 	atomic_dec(&kmod_concurrent);
 	return ret;
 }
-EXPORT_SYMBOL(request_module);
+EXPORT_SYMBOL(__request_module);
 #endif /* CONFIG_MODULES */
 
 struct subprocess_info {
@@ -167,7 +169,7 @@ static int ____call_usermodehelper(void *data)
 	}
 
 	/* We can run anywhere, unlike our parent keventd(). */
-	set_cpus_allowed_ptr(current, CPU_MASK_ALL_PTR);
+	set_cpus_allowed_ptr(current, cpu_all_mask);
 
 	/*
 	 * Our parent is keventd, which runs with elevated scheduling priority.

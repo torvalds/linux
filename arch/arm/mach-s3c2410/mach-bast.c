@@ -409,8 +409,7 @@ static struct platform_device bast_sio = {
 static struct s3c2410_platform_i2c __initdata bast_i2c_info = {
 	.flags		= 0,
 	.slave_addr	= 0x10,
-	.bus_freq	= 100*1000,
-	.max_freq	= 130*1000,
+	.frequency	= 100*1000,
 };
 
 /* Asix AX88796 10/100 ethernet controller */

@@ -1214,6 +1214,19 @@ static void __devinit ioc3_serial_probe(struct pci_dev *pdev, struct ioc3 *ioc3)
 }
 #endif
 
+static const struct net_device_ops ioc3_netdev_ops = {
+	.ndo_open		= ioc3_open,
+	.ndo_stop		= ioc3_close,
+	.ndo_start_xmit		= ioc3_start_xmit,
+	.ndo_tx_timeout		= ioc3_timeout,
+	.ndo_get_stats		= ioc3_get_stats,
+	.ndo_set_multicast_list	= ioc3_set_multicast_list,
+	.ndo_do_ioctl		= ioc3_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= ioc3_set_mac_address,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
 static int __devinit ioc3_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
@@ -1226,17 +1239,17 @@ static int __devinit ioc3_probe(struct pci_dev *pdev,
 	int err, pci_using_dac;
 
 	/* Configure DMA attributes. */
-	err = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (!err) {
 		pci_using_dac = 1;
-		err = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err < 0) {
 			printk(KERN_ERR "%s: Unable to obtain 64 bit DMA "
 			       "for consistent allocations\n", pci_name(pdev));
 			goto out;
 		}
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			printk(KERN_ERR "%s: No usable DMA configuration, "
 			       "aborting.\n", pci_name(pdev));
@@ -1310,15 +1323,8 @@ static int __devinit ioc3_probe(struct pci_dev *pdev,
 	ioc3_get_eaddr(ip);
 
 	/* The IOC3-specific entries in the device structure. */
-	dev->open		= ioc3_open;
-	dev->hard_start_xmit	= ioc3_start_xmit;
-	dev->tx_timeout		= ioc3_timeout;
 	dev->watchdog_timeo	= 5 * HZ;
-	dev->stop		= ioc3_close;
-	dev->get_stats		= ioc3_get_stats;
-	dev->do_ioctl		= ioc3_ioctl;
-	dev->set_multicast_list	= ioc3_set_multicast_list;
-	dev->set_mac_address	= ioc3_set_mac_address;
+	dev->netdev_ops		= &ioc3_netdev_ops;
 	dev->ethtool_ops	= &ioc3_ethtool_ops;
 	dev->features		= NETIF_F_IP_CSUM;
 

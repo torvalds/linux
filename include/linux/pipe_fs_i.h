@@ -134,6 +134,11 @@ struct pipe_buf_operations {
    memory allocation, whereas PIPE_BUF makes atomicity guarantees.  */
 #define PIPE_SIZE		PAGE_SIZE
 
+/* Pipe lock and unlock operations */
+void pipe_lock(struct pipe_inode_info *);
+void pipe_unlock(struct pipe_inode_info *);
+void pipe_double_lock(struct pipe_inode_info *, struct pipe_inode_info *);
+
 /* Drop the inode semaphore and wait for a pipe event, atomically */
 void pipe_wait(struct pipe_inode_info *pipe);
 

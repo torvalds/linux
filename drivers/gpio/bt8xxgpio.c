@@ -160,7 +160,7 @@ static void bt8xxgpio_gpio_setup(struct bt8xxgpio *bg)
 {
 	struct gpio_chip *c = &bg->gpio;
 
-	c->label = bg->pdev->dev.bus_id;
+	c->label = dev_name(&bg->pdev->dev);
 	c->owner = THIS_MODULE;
 	c->direction_input = bt8xxgpio_gpio_direction_input;
 	c->get = bt8xxgpio_gpio_get;

@@ -169,6 +169,30 @@ SECTIONS
 	  __end___mckinley_e9_bundles = .;
 	}
 
+#if defined(CONFIG_PARAVIRT)
+  . = ALIGN(16);
+  .paravirt_bundles : AT(ADDR(.paravirt_bundles) - LOAD_OFFSET)
+	{
+	  __start_paravirt_bundles = .;
+          *(.paravirt_bundles)
+	  __stop_paravirt_bundles = .;
+	}
+  . = ALIGN(16);
+  .paravirt_insts : AT(ADDR(.paravirt_insts) - LOAD_OFFSET)
+	{
+	  __start_paravirt_insts = .;
+          *(.paravirt_insts)
+	  __stop_paravirt_insts = .;
+	}
+  . = ALIGN(16);
+  .paravirt_branches : AT(ADDR(.paravirt_branches) - LOAD_OFFSET)
+	{
+	  __start_paravirt_branches = .;
+	  *(.paravirt_branches)
+	  __stop_paravirt_branches = .;
+	}
+#endif
+
 #if defined(CONFIG_IA64_GENERIC)
   /* Machine Vector */
   . = ALIGN(16);
@@ -201,6 +225,12 @@ SECTIONS
 	  __start_gate_section = .;
 	  *(.data.gate)
 	  __stop_gate_section = .;
+#ifdef CONFIG_XEN
+	  . = ALIGN(PAGE_SIZE);
+	  __xen_start_gate_section = .;
+	  *(.data.gate.xen)
+	  __xen_stop_gate_section = .;
+#endif
 	}
   . = ALIGN(PAGE_SIZE);		/* make sure the gate page doesn't expose
   				 * kernel data

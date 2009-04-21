@@ -348,6 +348,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/firmware.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -384,11 +385,7 @@
 #define	MEMORY_MAPPED_IO	1
 #endif
 
-#define UNIQUE_FW_NAME
 #include "qla1280.h"
-#include "ql12160_fw.h"		/* ISP RISC codes */
-#include "ql1280_fw.h"
-#include "ql1040_fw.h"
 
 #ifndef BITS_PER_LONG
 #error "BITS_PER_LONG not defined!"
@@ -541,10 +538,7 @@ __setup("qla1280=", qla1280_setup);
 struct qla_boards {
 	unsigned char name[9];	/* Board ID String */
 	int numPorts;		/* Number of SCSI ports */
-	unsigned short *fwcode;	/* pointer to FW array         */
-	unsigned short *fwlen;	/* number of words in array    */
-	unsigned short *fwstart;	/* start address for F/W       */
-	unsigned char *fwver;	/* Ptr to F/W version array    */
+	char *fwname;		/* firmware name        */
 };
 
 /* NOTE: the last argument in each entry is used to index ql1280_board_tbl */
@@ -567,19 +561,13 @@ MODULE_DEVICE_TABLE(pci, qla1280_pci_tbl);
 
 static struct qla_boards ql1280_board_tbl[] = {
 	/* Name ,  Number of ports, FW details */
-	{"QLA12160", 2, &fw12160i_code01[0], &fw12160i_length01,
-	 &fw12160i_addr01, &fw12160i_version_str[0]},
-	{"QLA1040", 1, &risc_code01[0], &risc_code_length01,
-	 &risc_code_addr01, &firmware_version[0]},
-	{"QLA1080", 1, &fw1280ei_code01[0], &fw1280ei_length01,
-	 &fw1280ei_addr01, &fw1280ei_version_str[0]},
-	{"QLA1240", 2, &fw1280ei_code01[0], &fw1280ei_length01,
-	 &fw1280ei_addr01, &fw1280ei_version_str[0]},
-	{"QLA1280", 2, &fw1280ei_code01[0], &fw1280ei_length01,
-	 &fw1280ei_addr01, &fw1280ei_version_str[0]},
-	{"QLA10160", 1, &fw12160i_code01[0], &fw12160i_length01,
-	 &fw12160i_addr01, &fw12160i_version_str[0]},
-	{"        ", 0}
+	{"QLA12160",	2, "qlogic/12160.bin"},
+	{"QLA1040",	1, "qlogic/1040.bin"},
+	{"QLA1080",	1, "qlogic/1280.bin"},
+	{"QLA1240",	2, "qlogic/1280.bin"},
+	{"QLA1280",	2, "qlogic/1280.bin"},
+	{"QLA10160",	1, "qlogic/12160.bin"},
+	{"        ",	0, "   "},
 };
 
 static int qla1280_verbose = 1;
@@ -704,7 +692,7 @@ qla1280_info(struct Scsi_Host *host)
 	sprintf (bp,
 		 "QLogic %s PCI to SCSI Host Adapter\n"
 		 "       Firmware version: %2d.%02d.%02d, Driver version %s",
-		 &bdp->name[0], bdp->fwver[0], bdp->fwver[1], bdp->fwver[2],
+		 &bdp->name[0], ha->fwver1, ha->fwver2, ha->fwver3,
 		 QLA1280_VERSION);
 	return bp;
 }
@@ -1648,36 +1636,60 @@ qla1280_chip_diag(struct scsi_qla_host *ha)
 static int
 qla1280_load_firmware_pio(struct scsi_qla_host *ha)
 {
-	uint16_t risc_address, *risc_code_address, risc_code_size;
+	const struct firmware *fw;
+	const __le16 *fw_data;
+	uint16_t risc_address, risc_code_size;
 	uint16_t mb[MAILBOX_REGISTER_COUNT], i;
 	int err;
 
+	err = request_firmware(&fw, ql1280_board_tbl[ha->devnum].fwname,
+			       &ha->pdev->dev);
+	if (err) {
+		printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
+		       ql1280_board_tbl[ha->devnum].fwname, err);
+		return err;
+	}
+	if ((fw->size % 2) || (fw->size < 6)) {
+		printk(KERN_ERR "Bogus length %zu in image \"%s\"\n",
+		       fw->size, ql1280_board_tbl[ha->devnum].fwname);
+		err = -EINVAL;
+		goto out;
+	}
+	ha->fwver1 = fw->data[0];
+	ha->fwver2 = fw->data[1];
+	ha->fwver3 = fw->data[2];
+	fw_data = (const __le16 *)&fw->data[0];
+	ha->fwstart = __le16_to_cpu(fw_data[2]);
+
 	/* Load RISC code. */
-	risc_address = *ql1280_board_tbl[ha->devnum].fwstart;
-	risc_code_address = ql1280_board_tbl[ha->devnum].fwcode;
-	risc_code_size = *ql1280_board_tbl[ha->devnum].fwlen;
+	risc_address = ha->fwstart;
+	fw_data = (const __le16 *)&fw->data[6];
+	risc_code_size = (fw->size - 6) / 2;
 
 	for (i = 0; i < risc_code_size; i++) {
 		mb[0] = MBC_WRITE_RAM_WORD;
 		mb[1] = risc_address + i;
-		mb[2] = risc_code_address[i];
+		mb[2] = __le16_to_cpu(fw_data[i]);
 
 		err = qla1280_mailbox_command(ha, BIT_0 | BIT_1 | BIT_2, mb);
 		if (err) {
 			printk(KERN_ERR "scsi(%li): Failed to load firmware\n",
 					ha->host_no);
-			return err;
+			goto out;
 		}
 	}
-
-	return 0;
+out:
+	release_firmware(fw);
+	return err;
 }
 
 #define DUMP_IT_BACK 0		/* for debug of RISC loading */
 static int
 qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 {
-	uint16_t risc_address, *risc_code_address, risc_code_size;
+	const struct firmware *fw;
+	const __le16 *fw_data;
+	uint16_t risc_address, risc_code_size;
 	uint16_t mb[MAILBOX_REGISTER_COUNT], cnt;
 	int err = 0, num, i;
 #if DUMP_IT_BACK
@@ -1689,10 +1701,29 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 		return -ENOMEM;
 #endif
 
+	err = request_firmware(&fw, ql1280_board_tbl[ha->devnum].fwname,
+			       &ha->pdev->dev);
+	if (err) {
+		printk(KERN_ERR "Failed to load image \"%s\" err %d\n",
+		       ql1280_board_tbl[ha->devnum].fwname, err);
+		return err;
+	}
+	if ((fw->size % 2) || (fw->size < 6)) {
+		printk(KERN_ERR "Bogus length %zu in image \"%s\"\n",
+		       fw->size, ql1280_board_tbl[ha->devnum].fwname);
+		err = -EINVAL;
+		goto out;
+	}
+	ha->fwver1 = fw->data[0];
+	ha->fwver2 = fw->data[1];
+	ha->fwver3 = fw->data[2];
+	fw_data = (const __le16 *)&fw->data[0];
+	ha->fwstart = __le16_to_cpu(fw_data[2]);
+
 	/* Load RISC code. */
-	risc_address = *ql1280_board_tbl[ha->devnum].fwstart;
-	risc_code_address = ql1280_board_tbl[ha->devnum].fwcode;
-	risc_code_size = *ql1280_board_tbl[ha->devnum].fwlen;
+	risc_address = ha->fwstart;
+	fw_data = (const __le16 *)&fw->data[6];
+	risc_code_size = (fw->size - 6) / 2;
 
 	dprintk(1, "%s: DMA RISC code (%i) words\n",
 			__func__, risc_code_size);
@@ -1708,10 +1739,9 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 
 		dprintk(2, "qla1280_setup_chip:  loading risc @ =(0x%p),"
 			"%d,%d(0x%x)\n",
-			risc_code_address, cnt, num, risc_address);
+			fw_data, cnt, num, risc_address);
 		for(i = 0; i < cnt; i++)
-			((__le16 *)ha->request_ring)[i] =
-				cpu_to_le16(risc_code_address[i]);
+			((__le16 *)ha->request_ring)[i] = fw_data[i];
 
 		mb[0] = MBC_LOAD_RAM;
 		mb[1] = risc_address;
@@ -1763,7 +1793,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 #endif
 		risc_address += cnt;
 		risc_code_size = risc_code_size - cnt;
-		risc_code_address = risc_code_address + cnt;
+		fw_data = fw_data + cnt;
 		num++;
 	}
 
@@ -1771,6 +1801,7 @@ qla1280_load_firmware_dma(struct scsi_qla_host *ha)
 #if DUMP_IT_BACK
 	pci_free_consistent(ha->pdev, 8000, tbuf, p_tbuf);
 #endif
+	release_firmware(fw);
 	return err;
 }
 
@@ -1786,7 +1817,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 	/* Verify checksum of loaded RISC code. */
 	mb[0] = MBC_VERIFY_CHECKSUM;
 	/* mb[1] = ql12_risc_code_addr01; */
-	mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
+	mb[1] = ha->fwstart;
 	err = qla1280_mailbox_command(ha, BIT_1 | BIT_0, mb);
 	if (err) {
 		printk(KERN_ERR "scsi(%li): RISC checksum failed.\n", ha->host_no);
@@ -1796,7 +1827,7 @@ qla1280_start_firmware(struct scsi_qla_host *ha)
 	/* Start firmware execution. */
 	dprintk(1, "%s: start firmware running.\n", __func__);
 	mb[0] = MBC_EXECUTE_FIRMWARE;
-	mb[1] = *ql1280_board_tbl[ha->devnum].fwstart;
+	mb[1] = ha->fwstart;
 	err = qla1280_mailbox_command(ha, BIT_1 | BIT_0, &mb[0]);
 	if (err) {
 		printk(KERN_ERR "scsi(%li): Failed to start firmware\n",
@@ -4244,8 +4275,8 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	ha->devnum = devnum;	/* specifies microcode load address */
 
 #ifdef QLA_64BIT_PTR
-	if (pci_set_dma_mask(ha->pdev, DMA_64BIT_MASK)) {
-		if (pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(64))) {
+		if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "scsi(%li): Unable to set a "
 			       "suitable DMA mask - aborting\n", ha->host_no);
 			error = -ENODEV;
@@ -4255,7 +4286,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		dprintk(2, "scsi(%li): 64 Bit PCI Addressing Enabled\n",
 			ha->host_no);
 #else
-	if (pci_set_dma_mask(ha->pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(ha->pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "scsi(%li): Unable to set a "
 		       "suitable DMA mask - aborting\n", ha->host_no);
 		error = -ENODEV;
@@ -4450,6 +4481,9 @@ module_exit(qla1280_exit);
 MODULE_AUTHOR("Qlogic & Jes Sorensen");
 MODULE_DESCRIPTION("Qlogic ISP SCSI (qla1x80/qla1x160) driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("qlogic/1040.bin");
+MODULE_FIRMWARE("qlogic/1280.bin");
+MODULE_FIRMWARE("qlogic/12160.bin");
 MODULE_VERSION(QLA1280_VERSION);
 
 /*

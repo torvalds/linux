@@ -415,7 +415,7 @@
 #define PWR_MGT_SLOWDOWN_MCLK			0x00002000
 
 #define PMI_PMSCR_REG				0x60
-                                                                                
+
 /* used by ATI bug fix for hardware ROM */
 #define RAGE128_MPP_TB_CONFIG                   0x01c0
 

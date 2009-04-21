@@ -26,12 +26,12 @@ int show_unhandled_signals = 0;
  * Allocate space for the signal frame
  */
 void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
-			   size_t frame_size)
+			   size_t frame_size, int is_32)
 {
         unsigned long oldsp, newsp;
 
         /* Default to using normal stack */
-        oldsp = regs->gpr[1];
+        oldsp = get_clean_sp(regs, is_32);
 
 	/* Check for alt stack */
 	if ((ka->sa.sa_flags & SA_ONSTACK) &&

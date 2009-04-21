@@ -26,7 +26,7 @@
 #ifndef OCFS2_DCACHE_H
 #define OCFS2_DCACHE_H
 
-extern struct dentry_operations ocfs2_dentry_ops;
+extern const struct dentry_operations ocfs2_dentry_ops;
 
 struct ocfs2_dentry_lock {
 	/* Use count of dentry lock */

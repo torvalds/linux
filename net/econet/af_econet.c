@@ -1102,8 +1102,8 @@ drop:
 	return NET_RX_DROP;
 }
 
-static struct packet_type econet_packet_type = {
-	.type =		__constant_htons(ETH_P_ECONET),
+static struct packet_type econet_packet_type __read_mostly = {
+	.type =		cpu_to_be16(ETH_P_ECONET),
 	.func =		econet_rcv,
 };
 

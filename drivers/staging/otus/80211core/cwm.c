@@ -75,9 +75,9 @@ void zfCoreCwmBusy(zdev_t* dev, u16_t busy)
 
     if((wd->wlanMode == ZM_MODE_INFRASTRUCTURE || wd->wlanMode == ZM_MODE_PSEUDO ||
         wd->wlanMode == ZM_MODE_IBSS)) {
-        if (wd->sta.ie.HtCap.HtCapInfo && HTCAP_SupChannelWidthSet != 0 &&
-            wd->sta.ie.HtInfo.ChannelInfo && ExtHtCap_RecomTxWidthSet != 0 &&
-            (wd->sta.ie.HtInfo.ChannelInfo && ExtHtCap_ExtChannelOffsetAbove) == 1) {
+        if ((wd->sta.ie.HtCap.HtCapInfo & HTCAP_SupChannelWidthSet) &&
+            (wd->sta.ie.HtInfo.ChannelInfo & ExtHtCap_RecomTxWidthSet) &&
+            (wd->sta.ie.HtInfo.ChannelInfo & ExtHtCap_ExtChannelOffsetAbove)) {
 
             wd->cwm.cw_width = CWM_WIDTH40;
         }

@@ -376,7 +376,7 @@ static int ps3_system_bus_probe(struct device *_dev)
 	struct ps3_system_bus_driver *drv;
 
 	BUG_ON(!dev);
-	pr_debug(" -> %s:%d: %s\n", __func__, __LINE__, _dev->bus_id);
+	dev_dbg(_dev, "%s:%d\n", __func__, __LINE__);
 
 	drv = ps3_system_bus_dev_to_system_bus_drv(dev);
 	BUG_ON(!drv);
@@ -398,7 +398,7 @@ static int ps3_system_bus_remove(struct device *_dev)
 	struct ps3_system_bus_driver *drv;
 
 	BUG_ON(!dev);
-	pr_debug(" -> %s:%d: %s\n", __func__, __LINE__, _dev->bus_id);
+	dev_dbg(_dev, "%s:%d\n", __func__, __LINE__);
 
 	drv = ps3_system_bus_dev_to_system_bus_drv(dev);
 	BUG_ON(!drv);
@@ -689,7 +689,7 @@ static void ps3_ioc0_unmap_sg(struct device *_dev, struct scatterlist *sg,
 
 static int ps3_dma_supported(struct device *_dev, u64 mask)
 {
-	return mask >= DMA_32BIT_MASK;
+	return mask >= DMA_BIT_MASK(32);
 }
 
 static struct dma_mapping_ops ps3_sb_dma_ops = {

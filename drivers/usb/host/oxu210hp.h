@@ -235,21 +235,21 @@ struct ehci_qtd {
 } __attribute__ ((aligned(32)));
 
 /* mask NakCnt+T in qh->hw_alt_next */
-#define QTD_MASK __constant_cpu_to_le32 (~0x1f)
+#define QTD_MASK cpu_to_le32 (~0x1f)
 
 #define IS_SHORT_READ(token) (QTD_LENGTH(token) != 0 && QTD_PID(token) == 1)
 
 /* Type tag from {qh, itd, sitd, fstn}->hw_next */
-#define Q_NEXT_TYPE(dma) ((dma) & __constant_cpu_to_le32 (3 << 1))
+#define Q_NEXT_TYPE(dma) ((dma) & cpu_to_le32 (3 << 1))
 
 /* values for that type tag */
-#define Q_TYPE_QH	__constant_cpu_to_le32 (1 << 1)
+#define Q_TYPE_QH	cpu_to_le32 (1 << 1)
 
 /* next async queue entry, or pointer to interrupt/periodic QH */
 #define	QH_NEXT(dma)	(cpu_to_le32(((u32)dma)&~0x01f)|Q_TYPE_QH)
 
 /* for periodic/async schedules and qtd lists, mark end of list */
-#define	EHCI_LIST_END	__constant_cpu_to_le32(1) /* "null pointer" to hw */
+#define	EHCI_LIST_END	cpu_to_le32(1) /* "null pointer" to hw */
 
 /*
  * Entries in periodic shadow table are pointers to one of four kinds

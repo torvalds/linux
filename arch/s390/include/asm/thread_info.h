@@ -31,8 +31,9 @@
 #define ASYNC_SIZE  (PAGE_SIZE << ASYNC_ORDER)
 
 #ifndef __ASSEMBLY__
-#include <asm/processor.h>
 #include <asm/lowcore.h>
+#include <asm/page.h>
+#include <asm/processor.h>
 
 /*
  * low level task data that entry.S needs immediate access to

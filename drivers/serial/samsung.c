@@ -127,7 +127,7 @@ static void s3c24xx_serial_stop_tx(struct uart_port *port)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (tx_enabled(port)) {
-		disable_irq(ourport->tx_irq);
+		disable_irq_nosync(ourport->tx_irq);
 		tx_enabled(port) = 0;
 		if (port->flags & UPF_CONS_FLOW)
 			s3c24xx_serial_rx_enable(port);
@@ -154,7 +154,7 @@ static void s3c24xx_serial_stop_rx(struct uart_port *port)
 
 	if (rx_enabled(port)) {
 		dbg("s3c24xx_serial_stop_rx: port=%p\n", port);
-		disable_irq(ourport->rx_irq);
+		disable_irq_nosync(ourport->rx_irq);
 		rx_enabled(port) = 0;
 	}
 }

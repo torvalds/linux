@@ -333,11 +333,10 @@ static inline void part_dec_in_flight(struct hd_struct *part)
 		part_to_disk(part)->part0.in_flight--;
 }
 
-/* drivers/block/ll_rw_blk.c */
+/* block/blk-core.c */
 extern void part_round_stats(int cpu, struct hd_struct *part);
 
-/* drivers/block/genhd.c */
-extern int get_blkdev_list(char *, int);
+/* block/genhd.c */
 extern void add_disk(struct gendisk *disk);
 extern void del_gendisk(struct gendisk *gp);
 extern void unlink_gendisk(struct gendisk *gp);

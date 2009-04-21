@@ -42,7 +42,7 @@
 
 
 #define DRV_NAME "pata_pcmcia"
-#define DRV_VERSION "0.3.3"
+#define DRV_VERSION "0.3.5"
 
 /*
  *	Private data structure to glue stuff together
@@ -126,6 +126,37 @@ static unsigned int ata_data_xfer_8bit(struct ata_device *dev,
 	return buflen;
 }
 
+/**
+ *	pcmcia_8bit_drain_fifo - Stock FIFO drain logic for SFF controllers
+ *	@qc: command
+ *
+ *	Drain the FIFO and device of any stuck data following a command
+ *	failing to complete. In some cases this is neccessary before a
+ *	reset will recover the device.
+ *
+ */
+ 
+void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
+{
+	int count;
+	struct ata_port *ap;
+
+	/* We only need to flush incoming data when a command was running */
+	if (qc == NULL || qc->dma_dir == DMA_TO_DEVICE)
+		return;
+
+	ap = qc->ap;
+
+	/* Drain up to 64K of data before we give up this recovery method */
+	for (count = 0; (ap->ops->sff_check_status(ap) & ATA_DRQ)
+							&& count++ < 65536;)
+		ioread8(ap->ioaddr.data_addr);
+
+	if (count)
+		ata_port_printk(ap, KERN_WARNING, "drained %d bytes to clear DRQ.\n",
+								count);
+
+}
 
 static struct scsi_host_template pcmcia_sht = {
 	ATA_PIO_SHT(DRV_NAME),
@@ -143,6 +174,7 @@ static struct ata_port_operations pcmcia_8bit_port_ops = {
 	.sff_data_xfer	= ata_data_xfer_8bit,
 	.cable_detect	= ata_cable_40wire,
 	.set_mode	= pcmcia_set_mode_8bit,
+	.drain_fifo	= pcmcia_8bit_drain_fifo,
 };
 
 #define CS_CHECK(fn, ret) \
@@ -299,7 +331,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		ap = host->ports[p];
 
 		ap->ops = ops;
-		ap->pio_mask = 1;		/* ISA so PIO 0 cycles */
+		ap->pio_mask = ATA_PIO0;	/* ISA so PIO 0 cycles */
 		ap->flags |= ATA_FLAG_SLAVE_POSS;
 		ap->ioaddr.cmd_addr = io_addr + 0x10 * p;
 		ap->ioaddr.altstatus_addr = ctl_addr + 0x10 * p;

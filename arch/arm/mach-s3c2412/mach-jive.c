@@ -52,7 +52,6 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/udc.h>
-#include <plat/iic.h>
 
 static struct map_desc jive_iodesc[] __initdata = {
 };
@@ -278,7 +277,7 @@ __setup("mtdset=", jive_mtdset);
 #define LCD_HTOT (LCD_HSYNC + LCD_LEFT_MARGIN + LCD_XRES + LCD_RIGHT_MARGIN)
 #define LCD_VTOT (LCD_VSYNC + LCD_LOWER_MARGIN + LCD_YRES + LCD_UPPER_MARGIN)
 
-struct s3c2410fb_display jive_vgg2432a4_display[] = {
+static struct s3c2410fb_display jive_vgg2432a4_display[] = {
 	[0] = {
 		.width		= LCD_XRES,
 		.height		= LCD_YRES,
@@ -311,7 +310,7 @@ struct s3c2410fb_display jive_vgg2432a4_display[] = {
 #define S3C2410_GPCCON_MASK(x)	(3 << ((x) * 2))
 #define S3C2410_GPDCON_MASK(x)	(3 << ((x) * 2))
 
-struct s3c2410fb_mach_info jive_lcd_config = {
+static struct s3c2410fb_mach_info jive_lcd_config = {
 	.displays	 = jive_vgg2432a4_display,
 	.num_displays	 = ARRAY_SIZE(jive_vgg2432a4_display),
 	.default_display = 0,
@@ -453,8 +452,7 @@ static struct spi_board_info __initdata jive_spi_devs[] = {
 /* I2C bus and device configuration. */
 
 static struct s3c2410_platform_i2c jive_i2c_cfg __initdata = {
-	.max_freq	= 80 * 1000,
-	.bus_freq	= 50 * 1000,
+	.frequency	= 80 * 1000,
 	.flags		= S3C_IICFLG_FILTER,
 	.sda_delay	= 2,
 };
@@ -494,7 +492,7 @@ static int jive_pm_suspend(struct sys_device *sd, pm_message_t state)
 	 * correct address to resume from. */
 
 	__raw_writel(0x2BED, S3C2412_INFORM0);
-	__raw_writel(virt_to_phys(s3c2410_cpu_resume), S3C2412_INFORM1);
+	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C2412_INFORM1);
 
 	return 0;
 }
@@ -630,7 +628,7 @@ static void __init jive_machine_init(void)
 
 	/* initialise the power management now we've setup everything. */
 
-	s3c2410_pm_init();
+	s3c_pm_init();
 
 	s3c_device_nand.dev.platform_data = &jive_nand_info;
 

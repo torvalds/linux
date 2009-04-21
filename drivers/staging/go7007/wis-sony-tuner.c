@@ -386,6 +386,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct wis_sony_tuner *t = i2c_get_clientdata(client);
 
 	switch (cmd) {
+#if 0
 #ifdef TUNER_SET_TYPE_ADDR
 	case TUNER_SET_TYPE_ADDR:
 	{
@@ -463,6 +464,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				t->type, sony_tuners[t->type - 200].name);
 		break;
 	}
+#endif
 	case VIDIOC_G_FREQUENCY:
 	{
 		struct v4l2_frequency *f = arg;

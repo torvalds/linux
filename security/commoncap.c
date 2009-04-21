@@ -916,7 +916,6 @@ changed:
 	return commit_creds(new);
 
 no_change:
-	error = 0;
 error:
 	abort_creds(new);
 	return error;

@@ -476,7 +476,6 @@ int __init atm_proc_init(void)
 				     atm_proc_root, e->proc_fops);
 		if (!dirent)
 			goto err_out_remove;
-		dirent->owner = THIS_MODULE;
 		e->dirent = dirent;
 	}
 	ret = 0;

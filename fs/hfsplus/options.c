@@ -48,7 +48,7 @@ void hfsplus_fill_defaults(struct hfsplus_sb_info *opts)
 
 	opts->creator = HFSPLUS_DEF_CR_TYPE;
 	opts->type = HFSPLUS_DEF_CR_TYPE;
-	opts->umask = current->fs->umask;
+	opts->umask = current_umask();
 	opts->uid = current_uid();
 	opts->gid = current_gid();
 	opts->part = -1;

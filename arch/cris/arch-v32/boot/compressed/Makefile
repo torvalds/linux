@@ -2,9 +2,9 @@
 # arch/cris/arch-v32/boot/compressed/Makefile
 #
 
-asflags-y += -I $(srctree)/include/asm/mach/ -I $(srctree)/include/asm/arch
-ccflags-y += -O2 -I $(srctree)/include/asm/mach/ -I $(srctree)/include/asm/arch
-ldflags-y += -T $(srctree)/$(src)/decompress.lds
+asflags-y += -I$(srctree)/include/asm/mach/ -I$(srctree)/include/asm/arch
+ccflags-y += -O2 -I$(srctree)/include/asm/mach/ -I$(srctree)/include/asm/arch
+ldflags-y += -T$(srctree)/$(src)/decompress.lds
 OBJECTS = $(obj)/head.o $(obj)/misc.o
 OBJCOPYFLAGS = -O binary --remove-section=.bss
 

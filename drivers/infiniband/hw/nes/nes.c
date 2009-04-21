@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2008 NetEffect, Inc. All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -478,23 +478,23 @@ static int __devinit nes_probe(struct pci_dev *pcidev, const struct pci_device_i
 	}
 
 	if ((sizeof(dma_addr_t) > 4)) {
-		ret = pci_set_dma_mask(pcidev, DMA_64BIT_MASK);
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(64));
 		if (ret < 0) {
 			printk(KERN_ERR PFX "64b DMA mask configuration failed\n");
 			goto bail2;
 		}
-		ret = pci_set_consistent_dma_mask(pcidev, DMA_64BIT_MASK);
+		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(64));
 		if (ret) {
 			printk(KERN_ERR PFX "64b DMA consistent mask configuration failed\n");
 			goto bail2;
 		}
 	} else {
-		ret = pci_set_dma_mask(pcidev, DMA_32BIT_MASK);
+		ret = pci_set_dma_mask(pcidev, DMA_BIT_MASK(32));
 		if (ret < 0) {
 			printk(KERN_ERR PFX "32b DMA mask configuration failed\n");
 			goto bail2;
 		}
-		ret = pci_set_consistent_dma_mask(pcidev, DMA_32BIT_MASK);
+		ret = pci_set_consistent_dma_mask(pcidev, DMA_BIT_MASK(32));
 		if (ret) {
 			printk(KERN_ERR PFX "32b DMA consistent mask configuration failed\n");
 			goto bail2;

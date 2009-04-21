@@ -54,7 +54,7 @@
 
 #include "aic7xxx_pci.h"
 
-static __inline uint64_t
+static inline uint64_t
 ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 {
 	uint64_t id;
@@ -960,16 +960,12 @@ ahc_pci_config(struct ahc_softc *ahc, const struct ahc_pci_identity *entry)
 	error = ahc_init(ahc);
 	if (error != 0)
 		return (error);
+	ahc->init_level++;
 
 	/*
 	 * Allow interrupts now that we are completely setup.
 	 */
-	error = ahc_pci_map_int(ahc);
-	if (error != 0)
-		return (error);
-
-	ahc->init_level++;
-	return (0);
+	return ahc_pci_map_int(ahc);
 }
 
 /*

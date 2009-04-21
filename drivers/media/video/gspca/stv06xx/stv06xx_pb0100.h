@@ -114,6 +114,7 @@ static int pb0100_start(struct sd *sd);
 static int pb0100_init(struct sd *sd);
 static int pb0100_stop(struct sd *sd);
 static int pb0100_dump(struct sd *sd);
+static void pb0100_disconnect(struct sd *sd);
 
 /* V4L2 controls supported by the driver */
 static int pb0100_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
@@ -137,139 +138,12 @@ const struct stv06xx_sensor stv06xx_sensor_pb0100 = {
 	.i2c_addr = 0xba,
 	.i2c_len = 2,
 
-	.nctrls = 7,
-	.ctrls = {
-#define GAIN_IDX 0
-	{
-		{
-			.id		= V4L2_CID_GAIN,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Gain",
-			.minimum	= 0,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 128
-		},
-		.set = pb0100_set_gain,
-		.get = pb0100_get_gain
-	},
-#define RED_BALANCE_IDX 1
-	{
-		{
-			.id		= V4L2_CID_RED_BALANCE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Red Balance",
-			.minimum	= -255,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 0
-		},
-		.set = pb0100_set_red_balance,
-		.get = pb0100_get_red_balance
-	},
-#define BLUE_BALANCE_IDX 2
-	{
-		{
-			.id		= V4L2_CID_BLUE_BALANCE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Blue Balance",
-			.minimum	= -255,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 0
-		},
-		.set = pb0100_set_blue_balance,
-		.get = pb0100_get_blue_balance
-	},
-#define EXPOSURE_IDX 3
-	{
-		{
-			.id		= V4L2_CID_EXPOSURE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Exposure",
-			.minimum	= 0,
-			.maximum	= 511,
-			.step		= 1,
-			.default_value  = 12
-		},
-		.set = pb0100_set_exposure,
-		.get = pb0100_get_exposure
-	},
-#define AUTOGAIN_IDX 4
-	{
-		{
-			.id		= V4L2_CID_AUTOGAIN,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "Automatic Gain and Exposure",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value  = 1
-		},
-		.set = pb0100_set_autogain,
-		.get = pb0100_get_autogain
-	},
-#define AUTOGAIN_TARGET_IDX 5
-	{
-		{
-			.id		= V4L2_CTRL_CLASS_USER + 0x1000,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "Automatic Gain Target",
-			.minimum	= 0,
-			.maximum	= 255,
-			.step		= 1,
-			.default_value  = 128
-		},
-		.set = pb0100_set_autogain_target,
-		.get = pb0100_get_autogain_target
-	},
-#define NATURAL_IDX 6
-	{
-		{
-			.id		= V4L2_CTRL_CLASS_USER + 0x1001,
-			.type		= V4L2_CTRL_TYPE_BOOLEAN,
-			.name		= "Natural Light Source",
-			.minimum	= 0,
-			.maximum	= 1,
-			.step		= 1,
-			.default_value  = 1
-		},
-		.set = pb0100_set_natural,
-		.get = pb0100_get_natural
-	},
-	},
-
 	.init = pb0100_init,
 	.probe = pb0100_probe,
 	.start = pb0100_start,
 	.stop = pb0100_stop,
 	.dump = pb0100_dump,
-
-	.nmodes = 2,
-	.modes = {
-/* low res / subsample modes disabled as they are only half res horizontal,
-   halving the vertical resolution does not seem to work */
-	{
-		320,
-		240,
-		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
-		.sizeimage = 320 * 240,
-		.bytesperline = 320,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = PB0100_CROP_TO_VGA
-	},
-	{
-		352,
-		288,
-		V4L2_PIX_FMT_SGRBG8,
-		V4L2_FIELD_NONE,
-		.sizeimage = 352 * 288,
-		.bytesperline = 352,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0
-	},
-	}
+	.disconnect = pb0100_disconnect,
 };
 
 #endif

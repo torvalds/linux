@@ -559,7 +559,7 @@ static void dm9000_show_carrier(board_info_t *db,
 static void
 dm9000_poll_work(struct work_struct *w)
 {
-	struct delayed_work *dw = container_of(w, struct delayed_work, work);
+	struct delayed_work *dw = to_delayed_work(w);
 	board_info_t *db = container_of(dw, board_info_t, phy_poll);
 	struct net_device *ndev = db->ndev;
 

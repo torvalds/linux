@@ -30,52 +30,58 @@
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
 #include <linux/i2c-id.h>
-#include <linux/videodev.h>
-#include <linux/video_encoder.h>
-#include <media/v4l2-common.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <linux/videodev2.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("Philips SAA7185 video encoder driver");
 MODULE_AUTHOR("Dave Perks");
 MODULE_LICENSE("GPL");
 
-
 static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
+
 /* ----------------------------------------------------------------------- */
 
 struct saa7185 {
+	struct v4l2_subdev sd;
 	unsigned char reg[128];
 
-	int norm;
-	int enable;
-	int bright;
-	int contrast;
-	int hue;
-	int sat;
+	v4l2_std_id norm;
 };
+
+static inline struct saa7185 *to_saa7185(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct saa7185, sd);
+}
 
 /* ----------------------------------------------------------------------- */
 
-static inline int saa7185_read(struct i2c_client *client)
+static inline int saa7185_read(struct v4l2_subdev *sd)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
 	return i2c_smbus_read_byte(client);
 }
 
-static int saa7185_write(struct i2c_client *client, u8 reg, u8 value)
+static int saa7185_write(struct v4l2_subdev *sd, u8 reg, u8 value)
 {
-	struct saa7185 *encoder = i2c_get_clientdata(client);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct saa7185 *encoder = to_saa7185(sd);
 
-	v4l_dbg(1, debug, client, "%02x set to %02x\n", reg, value);
+	v4l2_dbg(1, debug, sd, "%02x set to %02x\n", reg, value);
 	encoder->reg[reg] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
-static int saa7185_write_block(struct i2c_client *client,
+static int saa7185_write_block(struct v4l2_subdev *sd,
 		const u8 *data, unsigned int len)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct saa7185 *encoder = to_saa7185(sd);
 	int ret = -1;
 	u8 reg;
 
@@ -83,7 +89,6 @@ static int saa7185_write_block(struct i2c_client *client,
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
-		struct saa7185 *encoder = i2c_get_clientdata(client);
 		u8 block_data[32];
 		int block_len;
 
@@ -104,7 +109,7 @@ static int saa7185_write_block(struct i2c_client *client,
 		/* do some slow I2C emulation kind of thing */
 		while (len >= 2) {
 			reg = *data++;
-			ret = saa7185_write(client, reg, *data++);
+			ret = saa7185_write(sd, reg, *data++);
 			if (ret < 0)
 				break;
 			len -= 2;
@@ -213,133 +218,107 @@ static const unsigned char init_ntsc[] = {
 	0x66, 0x21,		/* FSC3 */
 };
 
-static int saa7185_command(struct i2c_client *client, unsigned cmd, void *arg)
+
+static int saa7185_init(struct v4l2_subdev *sd, u32 val)
 {
-	struct saa7185 *encoder = i2c_get_clientdata(client);
+	struct saa7185 *encoder = to_saa7185(sd);
 
-	switch (cmd) {
+	saa7185_write_block(sd, init_common, sizeof(init_common));
+	if (encoder->norm & V4L2_STD_NTSC)
+		saa7185_write_block(sd, init_ntsc, sizeof(init_ntsc));
+	else
+		saa7185_write_block(sd, init_pal, sizeof(init_pal));
+	return 0;
+}
+
+static int saa7185_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
+{
+	struct saa7185 *encoder = to_saa7185(sd);
+
+	if (std & V4L2_STD_NTSC)
+		saa7185_write_block(sd, init_ntsc, sizeof(init_ntsc));
+	else if (std & V4L2_STD_PAL)
+		saa7185_write_block(sd, init_pal, sizeof(init_pal));
+	else
+		return -EINVAL;
+	encoder->norm = std;
+	return 0;
+}
+
+static int saa7185_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
+{
+	struct saa7185 *encoder = to_saa7185(sd);
+
+	/* RJ: input = 0: input is from SA7111
+	 input = 1: input is from ZR36060 */
+
+	switch (input) {
 	case 0:
-		saa7185_write_block(client, init_common,
-				    sizeof(init_common));
-		switch (encoder->norm) {
-
-		case VIDEO_MODE_NTSC:
-			saa7185_write_block(client, init_ntsc,
-					    sizeof(init_ntsc));
-			break;
-
-		case VIDEO_MODE_PAL:
-			saa7185_write_block(client, init_pal,
-					    sizeof(init_pal));
-			break;
-		}
+		/* turn off colorbar */
+		saa7185_write(sd, 0x3a, 0x0f);
+		/* Switch RTCE to 1 */
+		saa7185_write(sd, 0x61, (encoder->reg[0x61] & 0xf7) | 0x08);
+		saa7185_write(sd, 0x6e, 0x01);
 		break;
 
-	case ENCODER_GET_CAPABILITIES:
-	{
-		struct video_encoder_capability *cap = arg;
-
-		cap->flags =
-		    VIDEO_ENCODER_PAL | VIDEO_ENCODER_NTSC |
-		    VIDEO_ENCODER_SECAM | VIDEO_ENCODER_CCIR;
-		cap->inputs = 1;
-		cap->outputs = 1;
+	case 1:
+		/* turn off colorbar */
+		saa7185_write(sd, 0x3a, 0x0f);
+		/* Switch RTCE to 0 */
+		saa7185_write(sd, 0x61, (encoder->reg[0x61] & 0xf7) | 0x00);
+		/* SW: a slight sync problem... */
+		saa7185_write(sd, 0x6e, 0x00);
 		break;
-	}
 
-	case ENCODER_SET_NORM:
-	{
-		int *iarg = arg;
-
-		//saa7185_write_block(client, init_common, sizeof(init_common));
-
-		switch (*iarg) {
-		case VIDEO_MODE_NTSC:
-			saa7185_write_block(client, init_ntsc,
-					    sizeof(init_ntsc));
-			break;
-
-		case VIDEO_MODE_PAL:
-			saa7185_write_block(client, init_pal,
-					    sizeof(init_pal));
-			break;
-
-		case VIDEO_MODE_SECAM:
-		default:
-			return -EINVAL;
-		}
-		encoder->norm = *iarg;
+	case 2:
+		/* turn on colorbar */
+		saa7185_write(sd, 0x3a, 0x8f);
+		/* Switch RTCE to 0 */
+		saa7185_write(sd, 0x61, (encoder->reg[0x61] & 0xf7) | 0x08);
+		/* SW: a slight sync problem... */
+		saa7185_write(sd, 0x6e, 0x01);
 		break;
-	}
-
-	case ENCODER_SET_INPUT:
-	{
-		int *iarg = arg;
-
-		/* RJ: *iarg = 0: input is from SA7111
-		 *iarg = 1: input is from ZR36060 */
-
-		switch (*iarg) {
-		case 0:
-			/* Switch RTCE to 1 */
-			saa7185_write(client, 0x61,
-				      (encoder->reg[0x61] & 0xf7) | 0x08);
-			saa7185_write(client, 0x6e, 0x01);
-			break;
-
-		case 1:
-			/* Switch RTCE to 0 */
-			saa7185_write(client, 0x61,
-				      (encoder->reg[0x61] & 0xf7) | 0x00);
-			/* SW: a slight sync problem... */
-			saa7185_write(client, 0x6e, 0x00);
-			break;
-
-		default:
-			return -EINVAL;
-		}
-		break;
-	}
-
-	case ENCODER_SET_OUTPUT:
-	{
-		int *iarg = arg;
-
-		/* not much choice of outputs */
-		if (*iarg != 0)
-			return -EINVAL;
-		break;
-	}
-
-	case ENCODER_ENABLE_OUTPUT:
-	{
-		int *iarg = arg;
-
-		encoder->enable = !!*iarg;
-		saa7185_write(client, 0x61,
-			      (encoder->reg[0x61] & 0xbf) |
-			      (encoder->enable ? 0x00 : 0x40));
-		break;
-	}
 
 	default:
 		return -EINVAL;
 	}
-
 	return 0;
+}
+
+static int saa7185_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_SAA7185, 0);
 }
 
 /* ----------------------------------------------------------------------- */
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
+static const struct v4l2_subdev_core_ops saa7185_core_ops = {
+	.g_chip_ident = saa7185_g_chip_ident,
+	.init = saa7185_init,
+};
 
-I2C_CLIENT_INSMOD;
+static const struct v4l2_subdev_video_ops saa7185_video_ops = {
+	.s_std_output = saa7185_s_std_output,
+	.s_routing = saa7185_s_routing,
+};
+
+static const struct v4l2_subdev_ops saa7185_ops = {
+	.core = &saa7185_core_ops,
+	.video = &saa7185_video_ops,
+};
+
+
+/* ----------------------------------------------------------------------- */
 
 static int saa7185_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	int i;
 	struct saa7185 *encoder;
+	struct v4l2_subdev *sd;
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
@@ -351,28 +330,29 @@ static int saa7185_probe(struct i2c_client *client,
 	encoder = kzalloc(sizeof(struct saa7185), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
-	encoder->norm = VIDEO_MODE_NTSC;
-	encoder->enable = 1;
-	i2c_set_clientdata(client, encoder);
+	encoder->norm = V4L2_STD_NTSC;
+	sd = &encoder->sd;
+	v4l2_i2c_subdev_init(sd, client, &saa7185_ops);
 
-	i = saa7185_write_block(client, init_common, sizeof(init_common));
+	i = saa7185_write_block(sd, init_common, sizeof(init_common));
 	if (i >= 0)
-		i = saa7185_write_block(client, init_ntsc, sizeof(init_ntsc));
+		i = saa7185_write_block(sd, init_ntsc, sizeof(init_ntsc));
 	if (i < 0)
-		v4l_dbg(1, debug, client, "init error %d\n", i);
+		v4l2_dbg(1, debug, sd, "init error %d\n", i);
 	else
-		v4l_dbg(1, debug, client, "revision 0x%x\n",
-				saa7185_read(client) >> 5);
+		v4l2_dbg(1, debug, sd, "revision 0x%x\n",
+				saa7185_read(sd) >> 5);
 	return 0;
 }
 
 static int saa7185_remove(struct i2c_client *client)
 {
-	struct saa7185 *encoder = i2c_get_clientdata(client);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct saa7185 *encoder = to_saa7185(sd);
 
-	saa7185_write(client, 0x61, (encoder->reg[0x61]) | 0x40);	/* SW: output off is active */
-	//saa7185_write(client, 0x3a, (encoder->reg[0x3a]) | 0x80); /* SW: color bar */
-
+	v4l2_device_unregister_subdev(sd);
+	/* SW: output off is active */
+	saa7185_write(sd, 0x61, (encoder->reg[0x61]) | 0x40);
 	kfree(encoder);
 	return 0;
 }
@@ -387,8 +367,6 @@ MODULE_DEVICE_TABLE(i2c, saa7185_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7185",
-	.driverid = I2C_DRIVERID_SAA7185B,
-	.command = saa7185_command,
 	.probe = saa7185_probe,
 	.remove = saa7185_remove,
 	.id_table = saa7185_id,

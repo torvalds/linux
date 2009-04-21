@@ -977,7 +977,7 @@ static int dock_add(acpi_handle handle)
 		sizeof(struct dock_station *));
 
 	/* we want the dock device to send uevents */
-	dock_device->dev.uevent_suppress = 0;
+	dev_set_uevent_suppress(&dock_device->dev, 0);
 
 	if (is_dock(handle))
 		dock_station->flags |= DOCK_IS_DOCK;
@@ -1146,9 +1146,10 @@ static int __init dock_init(void)
 static void __exit dock_exit(void)
 {
 	struct dock_station *dock_station;
+	struct dock_station *tmp;
 
 	unregister_acpi_bus_notifier(&dock_acpi_notifier);
-	list_for_each_entry(dock_station, &dock_stations, sibiling)
+	list_for_each_entry_safe(dock_station, tmp, &dock_stations, sibiling)
 		dock_remove(dock_station);
 }
 

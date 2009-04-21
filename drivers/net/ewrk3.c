@@ -388,6 +388,18 @@ static int __init ewrk3_probe1(struct net_device *dev, u_long iobase, int irq)
 	return err;
 }
 
+static const struct net_device_ops ewrk3_netdev_ops = {
+	.ndo_open		= ewrk3_open,
+	.ndo_start_xmit		= ewrk3_queue_pkt,
+	.ndo_stop		= ewrk3_close,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_do_ioctl		= ewrk3_ioctl,
+	.ndo_tx_timeout		= ewrk3_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __init
 ewrk3_hw_init(struct net_device *dev, u_long iobase)
 {
@@ -603,16 +615,11 @@ ewrk3_hw_init(struct net_device *dev, u_long iobase)
 		printk(version);
 	}
 	/* The EWRK3-specific entries in the device structure. */
-	dev->open = ewrk3_open;
-	dev->hard_start_xmit = ewrk3_queue_pkt;
-	dev->stop = ewrk3_close;
-	dev->set_multicast_list = set_multicast_list;
-	dev->do_ioctl = ewrk3_ioctl;
+	dev->netdev_ops = &ewrk3_netdev_ops;
 	if (lp->adapter_name[4] == '3')
 		SET_ETHTOOL_OPS(dev, &ethtool_ops_203);
 	else
 		SET_ETHTOOL_OPS(dev, &ethtool_ops);
-	dev->tx_timeout = ewrk3_timeout;
 	dev->watchdog_timeo = QUEUE_PKT_TIMEOUT;
 
 	dev->mem_start = 0;

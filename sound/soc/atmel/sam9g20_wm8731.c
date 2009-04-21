@@ -36,6 +36,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/i2c.h>
 
 #include <linux/atmel-ssc.h>
 
@@ -45,6 +46,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
+#include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 
@@ -52,6 +54,9 @@
 #include "atmel-pcm.h"
 #include "atmel_ssc_dai.h"
 
+#define MCLK_RATE 12000000
+
+static struct clk *mclk;
 
 static int at91sam9g20ek_startup(struct snd_pcm_substream *substream)
 {
@@ -59,11 +64,12 @@ static int at91sam9g20ek_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 	int ret;
 
-	/* codec system clock is supplied by PCK0, set to 12MHz */
 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8731_SYSCLK,
-		12000000, SND_SOC_CLOCK_IN);
-	if (ret < 0)
+		MCLK_RATE, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		clk_disable(mclk);
 		return ret;
+	}
 
 	return 0;
 }
@@ -189,6 +195,31 @@ static struct snd_soc_ops at91sam9g20ek_ops = {
 	.shutdown = at91sam9g20ek_shutdown,
 };
 
+static int at91sam9g20ek_set_bias_level(struct snd_soc_card *card,
+					enum snd_soc_bias_level level)
+{
+	static int mclk_on;
+	int ret = 0;
+
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+	case SND_SOC_BIAS_PREPARE:
+		if (!mclk_on)
+			ret = clk_enable(mclk);
+		if (ret == 0)
+			mclk_on = 1;
+		break;
+
+	case SND_SOC_BIAS_OFF:
+	case SND_SOC_BIAS_STANDBY:
+		if (mclk_on)
+			clk_disable(mclk);
+		mclk_on = 0;
+		break;
+	}
+
+	return ret;
+}
 
 static const struct snd_soc_dapm_widget at91sam9g20ek_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Int Mic", NULL),
@@ -243,21 +274,48 @@ static struct snd_soc_dai_link at91sam9g20ek_dai = {
 };
 
 static struct snd_soc_card snd_soc_at91sam9g20ek = {
-	.name = "WM8731",
+	.name = "AT91SAMG20-EK",
 	.platform = &atmel_soc_platform,
 	.dai_link = &at91sam9g20ek_dai,
 	.num_links = 1,
+	.set_bias_level = at91sam9g20ek_set_bias_level,
 };
 
-static struct wm8731_setup_data at91sam9g20ek_wm8731_setup = {
-	.i2c_bus = 0,
-	.i2c_address = 0x1b,
-};
+/*
+ * FIXME: This is a temporary bodge to avoid cross-tree merge issues.
+ * New drivers should register the wm8731 I2C device in the machine
+ * setup code (under arch/arm for ARM systems).
+ */
+static int wm8731_i2c_register(void)
+{
+	struct i2c_board_info info;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client;
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = 0x1b;
+	strlcpy(info.type, "wm8731", I2C_NAME_SIZE);
+
+	adapter = i2c_get_adapter(0);
+	if (!adapter) {
+		printk(KERN_ERR "can't get i2c adapter 0\n");
+		return -ENODEV;
+	}
+
+	client = i2c_new_device(adapter, &info);
+	i2c_put_adapter(adapter);
+	if (!client) {
+		printk(KERN_ERR "can't add i2c device at 0x%x\n",
+			(unsigned int)info.addr);
+		return -ENODEV;
+	}
+
+	return 0;
+}
 
 static struct snd_soc_device at91sam9g20ek_snd_devdata = {
 	.card = &snd_soc_at91sam9g20ek,
 	.codec_dev = &soc_codec_dev_wm8731,
-	.codec_data = &at91sam9g20ek_wm8731_setup,
 };
 
 static struct platform_device *at91sam9g20ek_snd_device;
@@ -266,23 +324,56 @@ static int __init at91sam9g20ek_init(void)
 {
 	struct atmel_ssc_info *ssc_p = at91sam9g20ek_dai.cpu_dai->private_data;
 	struct ssc_device *ssc = NULL;
+	struct clk *pllb;
 	int ret;
+
+	if (!machine_is_at91sam9g20ek())
+		return -ENODEV;
+
+	/*
+	 * Codec MCLK is supplied by PCK0 - set it up.
+	 */
+	mclk = clk_get(NULL, "pck0");
+	if (IS_ERR(mclk)) {
+		printk(KERN_ERR "ASoC: Failed to get MCLK\n");
+		ret = PTR_ERR(mclk);
+		goto err;
+	}
+
+	pllb = clk_get(NULL, "pllb");
+	if (IS_ERR(mclk)) {
+		printk(KERN_ERR "ASoC: Failed to get PLLB\n");
+		ret = PTR_ERR(mclk);
+		goto err_mclk;
+	}
+	ret = clk_set_parent(mclk, pllb);
+	clk_put(pllb);
+	if (ret != 0) {
+		printk(KERN_ERR "ASoC: Failed to set MCLK parent\n");
+		goto err_mclk;
+	}
+
+	clk_set_rate(mclk, MCLK_RATE);
 
 	/*
 	 * Request SSC device
 	 */
 	ssc = ssc_request(0);
 	if (IS_ERR(ssc)) {
+		printk(KERN_ERR "ASoC: Failed to request SSC 0\n");
 		ret = PTR_ERR(ssc);
 		ssc = NULL;
 		goto err_ssc;
 	}
 	ssc_p->ssc = ssc;
 
+	ret = wm8731_i2c_register();
+	if (ret != 0)
+		goto err_ssc;
+
 	at91sam9g20ek_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!at91sam9g20ek_snd_device) {
-		printk(KERN_DEBUG
-				"platform device allocation failed\n");
+		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
 		ret = -ENOMEM;
 	}
 
@@ -292,14 +383,19 @@ static int __init at91sam9g20ek_init(void)
 
 	ret = platform_device_add(at91sam9g20ek_snd_device);
 	if (ret) {
-		printk(KERN_DEBUG
-				"platform device allocation failed\n");
+		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
 		platform_device_put(at91sam9g20ek_snd_device);
 	}
 
 	return ret;
 
 err_ssc:
+	ssc_free(ssc);
+	ssc_p->ssc = NULL;
+err_mclk:
+	clk_put(mclk);
+	mclk = NULL;
+err:
 	return ret;
 }
 
@@ -317,6 +413,8 @@ static void __exit at91sam9g20ek_exit(void)
 
 	platform_device_unregister(at91sam9g20ek_snd_device);
 	at91sam9g20ek_snd_device = NULL;
+	clk_put(mclk);
+	mclk = NULL;
 }
 
 module_init(at91sam9g20ek_init);

@@ -291,8 +291,7 @@ int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon)
 	if (daemon->user_ns)
 		put_user_ns(daemon->user_ns);
 	mutex_unlock(&daemon->mux);
-	memset(daemon, 0, sizeof(*daemon));
-	kfree(daemon);
+	kzfree(daemon);
 out:
 	return rc;
 }

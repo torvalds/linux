@@ -198,6 +198,23 @@ static long v4l2_unlocked_ioctl(struct file *filp,
 	return vdev->fops->unlocked_ioctl(filp, cmd, arg);
 }
 
+#ifdef CONFIG_MMU
+#define v4l2_get_unmapped_area NULL
+#else
+static unsigned long v4l2_get_unmapped_area(struct file *filp,
+		unsigned long addr, unsigned long len, unsigned long pgoff,
+		unsigned long flags)
+{
+	struct video_device *vdev = video_devdata(filp);
+
+	if (!vdev->fops->get_unmapped_area)
+		return -ENOSYS;
+	if (video_is_unregistered(vdev))
+		return -ENODEV;
+	return vdev->fops->get_unmapped_area(filp, addr, len, pgoff, flags);
+}
+#endif
+
 static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 {
 	struct video_device *vdev = video_devdata(filp);
@@ -212,7 +229,7 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 static int v4l2_open(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev;
-	int ret;
+	int ret = 0;
 
 	/* Check if the video device is available */
 	mutex_lock(&videodev_lock);
@@ -226,7 +243,9 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	/* and increase the device refcount */
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
-	ret = vdev->fops->open(filp);
+	if (vdev->fops->open)
+		ret = vdev->fops->open(filp);
+
 	/* decrease the refcount in case of an error */
 	if (ret)
 		video_put(vdev);
@@ -237,7 +256,10 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 static int v4l2_release(struct inode *inode, struct file *filp)
 {
 	struct video_device *vdev = video_devdata(filp);
-	int ret = vdev->fops->release(filp);
+	int ret = 0;
+
+	if (vdev->fops->release)
+		vdev->fops->release(filp);
 
 	/* decrease the refcount unconditionally since the release()
 	   return value is ignored. */
@@ -250,6 +272,7 @@ static const struct file_operations v4l2_unlocked_fops = {
 	.read = v4l2_read,
 	.write = v4l2_write,
 	.open = v4l2_open,
+	.get_unmapped_area = v4l2_get_unmapped_area,
 	.mmap = v4l2_mmap,
 	.unlocked_ioctl = v4l2_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
@@ -265,6 +288,7 @@ static const struct file_operations v4l2_fops = {
 	.read = v4l2_read,
 	.write = v4l2_write,
 	.open = v4l2_open,
+	.get_unmapped_area = v4l2_get_unmapped_area,
 	.mmap = v4l2_mmap,
 	.ioctl = v4l2_ioctl,
 #ifdef CONFIG_COMPAT
@@ -288,37 +312,38 @@ static const struct file_operations v4l2_fops = {
  */
 static int get_index(struct video_device *vdev, int num)
 {
-	u32 used = 0;
-	const int max_index = sizeof(used) * 8 - 1;
+	/* This can be static since this function is called with the global
+	   videodev_lock held. */
+	static DECLARE_BITMAP(used, VIDEO_NUM_DEVICES);
 	int i;
 
-	/* Currently a single v4l driver instance cannot create more than
-	   32 devices.
-	   Increase to u64 or an array of u32 if more are needed. */
-	if (num > max_index) {
+	if (num >= VIDEO_NUM_DEVICES) {
 		printk(KERN_ERR "videodev: %s num is too large\n", __func__);
 		return -EINVAL;
 	}
 
-	/* Some drivers do not set the parent. In that case always return 0. */
+	/* Some drivers do not set the parent. In that case always return
+	   num or 0. */
 	if (vdev->parent == NULL)
-		return 0;
+		return num >= 0 ? num : 0;
+
+	bitmap_zero(used, VIDEO_NUM_DEVICES);
 
 	for (i = 0; i < VIDEO_NUM_DEVICES; i++) {
 		if (video_device[i] != NULL &&
 		    video_device[i]->parent == vdev->parent) {
-			used |= 1 << video_device[i]->index;
+			set_bit(video_device[i]->index, used);
 		}
 	}
 
 	if (num >= 0) {
-		if (used & (1 << num))
+		if (test_bit(num, used))
 			return -ENFILE;
 		return num;
 	}
 
-	i = ffz(used);
-	return i > max_index ? -ENFILE : i;
+	i = find_first_zero_bit(used, VIDEO_NUM_DEVICES);
+	return i == VIDEO_NUM_DEVICES ? -ENFILE : i;
 }
 
 int video_register_device(struct video_device *vdev, int type, int nr)
@@ -365,12 +390,11 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 
 	/* A minor value of -1 marks this video device as never
 	   having been registered */
-	if (vdev)
-		vdev->minor = -1;
+	vdev->minor = -1;
 
 	/* the release callback MUST be present */
-	WARN_ON(!vdev || !vdev->release);
-	if (!vdev || !vdev->release)
+	WARN_ON(!vdev->release);
+	if (!vdev->release)
 		return -EINVAL;
 
 	/* Part 1: check device type */
@@ -395,7 +419,7 @@ int video_register_device_index(struct video_device *vdev, int type, int nr,
 
 	vdev->vfl_type = type;
 	vdev->cdev = NULL;
-	if (vdev->v4l2_dev)
+	if (vdev->v4l2_dev && vdev->v4l2_dev->dev)
 		vdev->parent = vdev->v4l2_dev->dev;
 
 	/* Part 2: find a free minor, kernel number and device index. */
@@ -582,6 +606,7 @@ module_exit(videodev_exit)
 MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_DESCRIPTION("Device registrar for Video4Linux drivers v2");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_CHARDEV_MAJOR(VIDEO_MAJOR);
 
 
 /*

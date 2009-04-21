@@ -19,6 +19,7 @@
 #include <linux/kmod.h>
 #include <linux/ctype.h>
 #include <linux/genhd.h>
+#include <linux/blktrace_api.h>
 
 #include "check.h"
 
@@ -294,6 +295,9 @@ static struct attribute_group part_attr_group = {
 
 static struct attribute_group *part_attr_groups[] = {
 	&part_attr_group,
+#ifdef CONFIG_BLK_DEV_IO_TRACE
+	&blk_trace_attr_group,
+#endif
 	NULL
 };
 
@@ -400,7 +404,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	pdev->devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
-	pdev->uevent_suppress = 1;
+	dev_set_uevent_suppress(pdev, 1);
 	err = device_add(pdev);
 	if (err)
 		goto out_put;
@@ -410,7 +414,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	if (!p->holder_dir)
 		goto out_del;
 
-	pdev->uevent_suppress = 0;
+	dev_set_uevent_suppress(pdev, 0);
 	if (flags & ADDPART_FLAG_WHOLEDISK) {
 		err = device_create_file(pdev, &dev_attr_whole_disk);
 		if (err)
@@ -422,7 +426,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	rcu_assign_pointer(ptbl->part[partno], p);
 
 	/* suppress uevent if the disk supresses it */
-	if (!ddev->uevent_suppress)
+	if (!dev_get_uevent_suppress(pdev))
 		kobject_uevent(&pdev->kobj, KOBJ_ADD);
 
 	return p;
@@ -455,7 +459,7 @@ void register_disk(struct gendisk *disk)
 	dev_set_name(ddev, disk->disk_name);
 
 	/* delay uevents, until we scanned partition table */
-	ddev->uevent_suppress = 1;
+	dev_set_uevent_suppress(ddev, 1);
 
 	if (device_add(ddev))
 		return;
@@ -490,7 +494,7 @@ void register_disk(struct gendisk *disk)
 
 exit:
 	/* announce disk after possible partitions are created */
-	ddev->uevent_suppress = 0;
+	dev_set_uevent_suppress(ddev, 0);
 	kobject_uevent(&ddev->kobj, KOBJ_ADD);
 
 	/* announce possible partitions */

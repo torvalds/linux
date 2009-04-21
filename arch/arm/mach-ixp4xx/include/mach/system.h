@@ -20,7 +20,7 @@ static inline void arch_idle(void)
 }
 
 
-static inline void arch_reset(char mode)
+static inline void arch_reset(char mode, const char *cmd)
 {
 	if ( 1 && mode == 's') {
 		/* Jump into ROM at address 0 */

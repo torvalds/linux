@@ -147,5 +147,6 @@ static void __exit hilscher_exit_module(void)
 module_init(hilscher_init_module);
 module_exit(hilscher_exit_module);
 
+MODULE_DEVICE_TABLE(pci, hilscher_pci_ids);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Hans J. Koch, Benedikt Spranger");

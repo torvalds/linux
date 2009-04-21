@@ -725,7 +725,7 @@ static int tc_mii_probe(struct net_device *dev)
 	}
 
 	/* attach the mac to the phy */
-	phydev = phy_connect(dev, phydev->dev.bus_id,
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
 			     &tc_handle_link_change, 0,
 			     lp->chiptype == TC35815_TX4939 ?
 			     PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII);
@@ -735,7 +735,7 @@ static int tc_mii_probe(struct net_device *dev)
 	}
 	printk(KERN_INFO "%s: attached PHY driver [%s] "
 		"(mii_bus:phy_addr=%s, id=%x)\n",
-		dev->name, phydev->drv->name, phydev->dev.bus_id,
+		dev->name, phydev->drv->name, dev_name(&phydev->dev),
 		phydev->phy_id);
 
 	/* mask with MAC supported features */
@@ -862,6 +862,22 @@ static int __devinit tc35815_init_dev_addr(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops tc35815_netdev_ops = {
+	.ndo_open		= tc35815_open,
+	.ndo_stop		= tc35815_close,
+	.ndo_start_xmit		= tc35815_send_packet,
+	.ndo_get_stats		= tc35815_get_stats,
+	.ndo_set_multicast_list	= tc35815_set_multicast_list,
+	.ndo_tx_timeout		= tc35815_tx_timeout,
+	.ndo_do_ioctl		= tc35815_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= tc35815_poll_controller,
+#endif
+};
+
 static int __devinit tc35815_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
@@ -904,20 +920,11 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 	ioaddr = pcim_iomap_table(pdev)[1];
 
 	/* Initialize the device structure. */
-	dev->open = tc35815_open;
-	dev->hard_start_xmit = tc35815_send_packet;
-	dev->stop = tc35815_close;
-	dev->get_stats = tc35815_get_stats;
-	dev->set_multicast_list = tc35815_set_multicast_list;
-	dev->do_ioctl = tc35815_ioctl;
+	dev->netdev_ops = &tc35815_netdev_ops;
 	dev->ethtool_ops = &tc35815_ethtool_ops;
-	dev->tx_timeout = tc35815_tx_timeout;
 	dev->watchdog_timeo = TC35815_TX_TIMEOUT;
 #ifdef TC35815_NAPI
 	netif_napi_add(dev, &lp->napi, tc35815_poll, NAPI_WEIGHT);
-#endif
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = tc35815_poll_controller;
 #endif
 
 	dev->irq = pdev->irq;
@@ -1609,8 +1616,8 @@ static irqreturn_t tc35815_interrupt(int irq, void *dev_id)
 	if (!(dmactl & DMA_IntMask)) {
 		/* disable interrupts */
 		tc_writel(dmactl | DMA_IntMask, &tr->DMA_Ctl);
-		if (netif_rx_schedule_prep(&lp->napi))
-			__netif_rx_schedule(&lp->napi);
+		if (napi_schedule_prep(&lp->napi))
+			__napi_schedule(&lp->napi);
 		else {
 			printk(KERN_ERR "%s: interrupt taken in poll\n",
 			       dev->name);
@@ -1908,7 +1915,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	do {
 		tc_writel(status, &tr->Int_Src);	/* write to clear */
 
-		handled = tc35815_do_interrupt(dev, status, limit);
+		handled = tc35815_do_interrupt(dev, status, budget - received);
 		if (handled >= 0) {
 			received += handled;
 			if (received >= budget)
@@ -1919,7 +1926,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	spin_unlock(&lp->lock);
 
 	if (received < budget) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		/* enable interrupts */
 		tc_writel(tc_readl(&tr->DMA_Ctl) & ~DMA_IntMask, &tr->DMA_Ctl);
 	}

@@ -62,7 +62,7 @@ static int osk_hw_params(struct snd_pcm_substream *substream,
 	/* Set codec DAI configuration */
 	err = snd_soc_dai_set_fmt(codec_dai,
 				  SND_SOC_DAIFMT_DSP_B |
-				  SND_SOC_DAIFMT_NB_IF |
+				  SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
 		printk(KERN_ERR "can't set codec DAI configuration\n");
@@ -72,7 +72,7 @@ static int osk_hw_params(struct snd_pcm_substream *substream,
 	/* Set cpu DAI configuration */
 	err = snd_soc_dai_set_fmt(cpu_dai,
 				  SND_SOC_DAIFMT_DSP_B |
-				  SND_SOC_DAIFMT_NB_IF |
+				  SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBM_CFM);
 	if (err < 0) {
 		printk(KERN_ERR "can't set cpu DAI configuration\n");
@@ -186,13 +186,6 @@ static int __init osk_soc_init(void)
 		return -ENODEV;
 	}
 
-	if (clk_get_usecount(tlv320aic23_mclk) > 0) {
-		/* MCLK is already in use */
-		printk(KERN_WARNING
-		       "MCLK in use at %d Hz. We change it to %d Hz\n",
-		       (uint) clk_get_rate(tlv320aic23_mclk), CODEC_CLOCK);
-	}
-
 	/*
 	 * Configure 12 MHz output on MCLK.
 	 */
@@ -205,9 +198,8 @@ static int __init osk_soc_init(void)
 		}
 	}
 
-	printk(KERN_INFO "MCLK = %d [%d], usecount = %d\n",
-	       (uint) clk_get_rate(tlv320aic23_mclk), CODEC_CLOCK,
-	       clk_get_usecount(tlv320aic23_mclk));
+	printk(KERN_INFO "MCLK = %d [%d]\n",
+	       (uint) clk_get_rate(tlv320aic23_mclk), CODEC_CLOCK);
 
 	return 0;
 err1:

@@ -22,6 +22,7 @@
 #include <asm/pvclock-abi.h>
 #include <asm/desc.h>
 #include <asm/mtrr.h>
+#include <asm/msr-index.h>
 
 #define KVM_MAX_VCPUS 16
 #define KVM_MEMORY_SLOTS 32
@@ -134,11 +135,18 @@ enum {
 
 #define KVM_NR_MEM_OBJS 40
 
-struct kvm_guest_debug {
-	int enabled;
-	unsigned long bp[4];
-	int singlestep;
-};
+#define KVM_NR_DB_REGS	4
+
+#define DR6_BD		(1 << 13)
+#define DR6_BS		(1 << 14)
+#define DR6_FIXED_1	0xffff0ff0
+#define DR6_VOLATILE	0x0000e00f
+
+#define DR7_BP_EN_MASK	0x000000ff
+#define DR7_GE		(1 << 9)
+#define DR7_GD		(1 << 13)
+#define DR7_FIXED_1	0x00000400
+#define DR7_VOLATILE	0xffff23ff
 
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
@@ -162,7 +170,8 @@ struct kvm_pte_chain {
  *   bits 0:3 - total guest paging levels (2-4, or zero for real mode)
  *   bits 4:7 - page table level for this shadow (1-4)
  *   bits 8:9 - page table quadrant for 2-level guests
- *   bit   16 - "metaphysical" - gfn is not a real page (huge page/real mode)
+ *   bit   16 - direct mapping of virtual to physical mapping at gfn
+ *              used for real mode and two-dimensional paging
  *   bits 17:19 - common access permissions for all ptes in this shadow page
  */
 union kvm_mmu_page_role {
@@ -172,9 +181,10 @@ union kvm_mmu_page_role {
 		unsigned level:4;
 		unsigned quadrant:2;
 		unsigned pad_for_nice_hex_output:6;
-		unsigned metaphysical:1;
+		unsigned direct:1;
 		unsigned access:3;
 		unsigned invalid:1;
+		unsigned cr4_pge:1;
 	};
 };
 
@@ -218,6 +228,18 @@ struct kvm_pv_mmu_op_buffer {
 	char buf[512] __aligned(sizeof(long));
 };
 
+struct kvm_pio_request {
+	unsigned long count;
+	int cur_count;
+	gva_t guest_gva;
+	int in;
+	int port;
+	int size;
+	int string;
+	int down;
+	int rep;
+};
+
 /*
  * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
  * 32-bit).  The kvm_mmu structure abstracts the details of the current mmu
@@ -236,6 +258,7 @@ struct kvm_mmu {
 	hpa_t root_hpa;
 	int root_level;
 	int shadow_root_level;
+	union kvm_mmu_page_role base_role;
 
 	u64 *pae_root;
 };
@@ -258,6 +281,7 @@ struct kvm_vcpu_arch {
 	unsigned long cr3;
 	unsigned long cr4;
 	unsigned long cr8;
+	u32 hflags;
 	u64 pdptrs[4]; /* pae */
 	u64 shadow_efer;
 	u64 apic_base;
@@ -338,6 +362,15 @@ struct kvm_vcpu_arch {
 
 	struct mtrr_state_type mtrr_state;
 	u32 pat;
+
+	int switch_db_regs;
+	unsigned long host_db[KVM_NR_DB_REGS];
+	unsigned long host_dr6;
+	unsigned long host_dr7;
+	unsigned long db[KVM_NR_DB_REGS];
+	unsigned long dr6;
+	unsigned long dr7;
+	unsigned long eff_db[KVM_NR_DB_REGS];
 };
 
 struct kvm_mem_alias {
@@ -378,6 +411,7 @@ struct kvm_arch{
 
 	unsigned long irq_sources_bitmap;
 	unsigned long irq_states[KVM_IOAPIC_NUM_PINS];
+	u64 vm_init_tsc;
 };
 
 struct kvm_vm_stat {
@@ -446,8 +480,7 @@ struct kvm_x86_ops {
 	void (*vcpu_put)(struct kvm_vcpu *vcpu);
 
 	int (*set_guest_debug)(struct kvm_vcpu *vcpu,
-			       struct kvm_debug_guest *dbg);
-	void (*guest_debug_pre)(struct kvm_vcpu *vcpu);
+			       struct kvm_guest_debug *dbg);
 	int (*get_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata);
 	int (*set_msr)(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 	u64 (*get_segment_base)(struct kvm_vcpu *vcpu, int seg);
@@ -583,16 +616,12 @@ void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
 			   u32 error_code);
 
-void kvm_pic_set_irq(void *opaque, int irq, int level);
+int kvm_pic_set_irq(void *opaque, int irq, int level);
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 
 void fx_init(struct kvm_vcpu *vcpu);
 
-int emulator_read_std(unsigned long addr,
-		      void *val,
-		      unsigned int bytes,
-		      struct kvm_vcpu *vcpu);
 int emulator_write_emulated(unsigned long addr,
 			    const void *val,
 			    unsigned int bytes,
@@ -736,6 +765,10 @@ enum {
 	TASK_SWITCH_JMP = 2,
 	TASK_SWITCH_GATE = 3,
 };
+
+#define HF_GIF_MASK		(1 << 0)
+#define HF_HIF_MASK		(1 << 1)
+#define HF_VINTR_MASK		(1 << 2)
 
 /*
  * Hardware virtualization extension instructions may fault if a

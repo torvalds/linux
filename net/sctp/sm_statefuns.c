@@ -988,7 +988,9 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(const struct sctp_endpoint *ep,
 		/* Set transport error counter and association error counter
 		 * when sending heartbeat.
 		 */
-		sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_RESET,
+		sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_IDLE,
+				SCTP_TRANSPORT(transport));
+		sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_HB_SENT,
 				SCTP_TRANSPORT(transport));
 	}
 	sctp_add_cmd_sf(commands, SCTP_CMD_HB_TIMER_UPDATE,
@@ -4955,7 +4957,7 @@ sctp_disposition_t sctp_sf_do_prm_requestheartbeat(
 	 *    to that address and not acknowledged within one RTO.
 	 *
 	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_RESET,
+	sctp_add_cmd_sf(commands, SCTP_CMD_TRANSPORT_HB_SENT,
 			SCTP_TRANSPORT(arg));
 	return SCTP_DISPOSITION_CONSUME;
 }

@@ -52,41 +52,44 @@
  * 1) PTYPE1 packages do not contain sub-packages.
  *
  * ACPI_PTYPE1_FIXED: Fixed length, 1 or 2 object types:
- *     object type
- *     count
- *     object type
- *     count
+ *      object type
+ *      count
+ *      object type
+ *      count
  *
  * ACPI_PTYPE1_VAR: Variable length:
- *    object type (Int/Buf/Ref)
+ *      object type (Int/Buf/Ref)
  *
- * ACPI_PTYPE1_OPTION: Package has some required and some optional elements:
- *      Used for _PRW
+ * ACPI_PTYPE1_OPTION: Package has some required and some optional elements
+ *      (Used for _PRW)
  *
  *
  * 2) PTYPE2 packages contain a variable number of sub-packages. Each of the
  *    different types describe the contents of each of the sub-packages.
  *
  * ACPI_PTYPE2: Each subpackage contains 1 or 2 object types:
- *     object type
- *     count
- *     object type
- *     count
+ *      object type
+ *      count
+ *      object type
+ *      count
+ *      (Used for _ALR,_MLS,_PSS,_TRT,_TSS)
  *
  * ACPI_PTYPE2_COUNT: Each subpackage has a count as first element:
- *     object type
+ *      object type
+ *      (Used for _CSD,_PSD,_TSD)
  *
  * ACPI_PTYPE2_PKG_COUNT: Count of subpackages at start, 1 or 2 object types:
- *     object type
- *     count
- *     object type
- *     count
+ *      object type
+ *      count
+ *      object type
+ *      count
+ *      (Used for _CST)
  *
- * ACPI_PTYPE2_FIXED: Each subpackage is of fixed length:
- *      Used for _PRT
+ * ACPI_PTYPE2_FIXED: Each subpackage is of fixed length
+ *      (Used for _PRT)
  *
  * ACPI_PTYPE2_MIN: Each subpackage has a variable but minimum length
- *      Used for _HPX
+ *      (Used for _HPX)
  *
  *****************************************************************************/
 

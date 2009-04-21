@@ -40,11 +40,11 @@ static u8 wv_irq_to_psa(int irq)
  */
 static int __init wv_psa_to_irq(u8 irqval)
 {
-	int irq;
+	int i;
 
-	for (irq = 0; irq < ARRAY_SIZE(irqvals); irq++)
-		if (irqvals[irq] == irqval)
-			return irq;
+	for (i = 0; i < ARRAY_SIZE(irqvals); i++)
+		if (irqvals[i] == irqval)
+			return i;
 
 	return -1;
 }
@@ -735,9 +735,9 @@ if (lp->tx_n_in_use > 0)
 		if (tx_status & AC_SFLD_OK) {
 			int ncollisions;
 
-			lp->stats.tx_packets++;
+			dev->stats.tx_packets++;
 			ncollisions = tx_status & AC_SFLD_MAXCOL;
-			lp->stats.collisions += ncollisions;
+			dev->stats.collisions += ncollisions;
 #ifdef DEBUG_TX_INFO
 			if (ncollisions > 0)
 				printk(KERN_DEBUG
@@ -745,9 +745,9 @@ if (lp->tx_n_in_use > 0)
 				       dev->name, ncollisions);
 #endif
 		} else {
-			lp->stats.tx_errors++;
+			dev->stats.tx_errors++;
 			if (tx_status & AC_SFLD_S10) {
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 #ifdef DEBUG_TX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_complete(): tx error: no CS.\n",
@@ -755,7 +755,7 @@ if (lp->tx_n_in_use > 0)
 #endif
 			}
 			if (tx_status & AC_SFLD_S9) {
-				lp->stats.tx_carrier_errors++;
+				dev->stats.tx_carrier_errors++;
 #ifdef DEBUG_TX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_complete(): tx error: lost CTS.\n",
@@ -763,7 +763,7 @@ if (lp->tx_n_in_use > 0)
 #endif
 			}
 			if (tx_status & AC_SFLD_S8) {
-				lp->stats.tx_fifo_errors++;
+				dev->stats.tx_fifo_errors++;
 #ifdef DEBUG_TX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_complete(): tx error: slow DMA.\n",
@@ -771,7 +771,7 @@ if (lp->tx_n_in_use > 0)
 #endif
 			}
 			if (tx_status & AC_SFLD_S6) {
-				lp->stats.tx_heartbeat_errors++;
+				dev->stats.tx_heartbeat_errors++;
 #ifdef DEBUG_TX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_complete(): tx error: heart beat.\n",
@@ -779,7 +779,7 @@ if (lp->tx_n_in_use > 0)
 #endif
 			}
 			if (tx_status & AC_SFLD_S5) {
-				lp->stats.tx_aborted_errors++;
+				dev->stats.tx_aborted_errors++;
 #ifdef DEBUG_TX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_complete(): tx error: too many collisions.\n",
@@ -1346,20 +1346,6 @@ static void wv_init_info(struct net_device * dev)
  * or wireless extensions
  */
 
-/*------------------------------------------------------------------*/
-/*
- * Get the current Ethernet statistics. This may be called with the
- * card open or closed.
- * Used when the user read /proc/net/dev
- */
-static en_stats *wavelan_get_stats(struct net_device * dev)
-{
-#ifdef DEBUG_IOCTL_TRACE
-	printk(KERN_DEBUG "%s: <>wavelan_get_stats()\n", dev->name);
-#endif
-
-	return &((net_local *)netdev_priv(dev))->stats;
-}
 
 /*------------------------------------------------------------------*/
 /*
@@ -2466,7 +2452,7 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 		       "%s: wv_packet_read(): could not alloc_skb(%d, GFP_ATOMIC).\n",
 		       dev->name, sksize);
 #endif
-		lp->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return;
 	}
 
@@ -2526,8 +2512,8 @@ wv_packet_read(struct net_device * dev, u16 buf_off, int sksize)
 	netif_rx(skb);
 
 	/* Keep statistics up to date */
-	lp->stats.rx_packets++;
-	lp->stats.rx_bytes += sksize;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += sksize;
 
 #ifdef DEBUG_RX_TRACE
 	printk(KERN_DEBUG "%s: <-wv_packet_read()\n", dev->name);
@@ -2608,7 +2594,7 @@ static void wv_receive(struct net_device * dev)
 #endif
 		} else {	/* If reception was no successful */
 
-			lp->stats.rx_errors++;
+			dev->stats.rx_errors++;
 
 #ifdef DEBUG_RX_INFO
 			printk(KERN_DEBUG
@@ -2624,7 +2610,7 @@ static void wv_receive(struct net_device * dev)
 #endif
 
 			if ((fd.fd_status & FD_STATUS_S7) != 0) {
-				lp->stats.rx_length_errors++;
+				dev->stats.rx_length_errors++;
 #ifdef DEBUG_RX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_receive(): frame too short.\n",
@@ -2633,7 +2619,7 @@ static void wv_receive(struct net_device * dev)
 			}
 
 			if ((fd.fd_status & FD_STATUS_S8) != 0) {
-				lp->stats.rx_over_errors++;
+				dev->stats.rx_over_errors++;
 #ifdef DEBUG_RX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_receive(): rx DMA overrun.\n",
@@ -2642,7 +2628,7 @@ static void wv_receive(struct net_device * dev)
 			}
 
 			if ((fd.fd_status & FD_STATUS_S9) != 0) {
-				lp->stats.rx_fifo_errors++;
+				dev->stats.rx_fifo_errors++;
 #ifdef DEBUG_RX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_receive(): ran out of resources.\n",
@@ -2651,7 +2637,7 @@ static void wv_receive(struct net_device * dev)
 			}
 
 			if ((fd.fd_status & FD_STATUS_S10) != 0) {
-				lp->stats.rx_frame_errors++;
+				dev->stats.rx_frame_errors++;
 #ifdef DEBUG_RX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_receive(): alignment error.\n",
@@ -2660,7 +2646,7 @@ static void wv_receive(struct net_device * dev)
 			}
 
 			if ((fd.fd_status & FD_STATUS_S11) != 0) {
-				lp->stats.rx_crc_errors++;
+				dev->stats.rx_crc_errors++;
 #ifdef DEBUG_RX_FAIL
 				printk(KERN_DEBUG
 				       "%s: wv_receive(): CRC error.\n",
@@ -2826,7 +2812,7 @@ static int wv_packet_write(struct net_device * dev, void *buf, short length)
 	dev->trans_start = jiffies;
 
 	/* Keep stats up to date. */
-	lp->stats.tx_bytes += length;
+	dev->stats.tx_bytes += length;
 
 	if (lp->tx_first_in_use == I82586NULL)
 		lp->tx_first_in_use = txblock;
@@ -4038,6 +4024,22 @@ static int wavelan_close(struct net_device * dev)
 	return 0;
 }
 
+static const struct net_device_ops wavelan_netdev_ops = {
+	.ndo_open 		= wavelan_open,
+	.ndo_stop 		= wavelan_close,
+	.ndo_start_xmit		= wavelan_packet_xmit,
+	.ndo_set_multicast_list = wavelan_set_multicast_list,
+        .ndo_tx_timeout		= wavelan_watchdog,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef SET_MAC_ADDRESS
+	.ndo_set_mac_address	= wavelan_set_mac_address
+#else
+	.ndo_set_mac_address 	= eth_mac_addr,
+#endif
+};
+
+
 /*------------------------------------------------------------------*/
 /*
  * Probe an I/O address, and if the WaveLAN is there configure the
@@ -4130,17 +4132,8 @@ static int __init wavelan_config(struct net_device *dev, unsigned short ioaddr)
 	/* Init spinlock */
 	spin_lock_init(&lp->spinlock);
 
-	dev->open = wavelan_open;
-	dev->stop = wavelan_close;
-	dev->hard_start_xmit = wavelan_packet_xmit;
-	dev->get_stats = wavelan_get_stats;
-	dev->set_multicast_list = &wavelan_set_multicast_list;
-        dev->tx_timeout		= &wavelan_watchdog;
-        dev->watchdog_timeo	= WATCHDOG_JIFFIES;
-#ifdef SET_MAC_ADDRESS
-	dev->set_mac_address = &wavelan_set_mac_address;
-#endif				/* SET_MAC_ADDRESS */
-
+	dev->netdev_ops = &wavelan_netdev_ops;
+	dev->watchdog_timeo = WATCHDOG_JIFFIES;
 	dev->wireless_handlers = &wavelan_handler_def;
 	lp->wireless_data.spy_data = &lp->spy_data;
 	dev->wireless_data = &lp->wireless_data;
@@ -4281,8 +4274,7 @@ int __init init_module(void)
 
 
 	/* Loop on all possible base addresses. */
-	i = -1;
-	while ((io[++i] != 0) && (i < ARRAY_SIZE(io))) {
+	for (i = 0; i < ARRAY_SIZE(io) && io[i] != 0; i++) {
 		struct net_device *dev = alloc_etherdev(sizeof(net_local));
 		if (!dev)
 			break;

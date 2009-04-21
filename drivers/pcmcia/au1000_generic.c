@@ -468,13 +468,13 @@ out:
 	return ret;
 }
 
-int au1x00_drv_pcmcia_remove(struct device *dev)
+int au1x00_drv_pcmcia_remove(struct platform_device *dev)
 {
-	struct skt_dev_info *sinfo = dev_get_drvdata(dev);
+	struct skt_dev_info *sinfo = platform_get_drvdata(dev);
 	int i;
 
 	mutex_lock(&pcmcia_sockets_lock);
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	for (i = 0; i < sinfo->nskt; i++) {
 		struct au1000_pcmcia_socket *skt = PCMCIA_SOCKET(i);
@@ -498,13 +498,13 @@ int au1x00_drv_pcmcia_remove(struct device *dev)
  * PCMCIA "Driver" API
  */
 
-static int au1x00_drv_pcmcia_probe(struct device *dev)
+static int au1x00_drv_pcmcia_probe(struct platform_device *dev)
 {
 	int i, ret = -ENODEV;
 
 	mutex_lock(&pcmcia_sockets_lock);
 	for (i=0; i < ARRAY_SIZE(au1x00_pcmcia_hw_init); i++) {
-		ret = au1x00_pcmcia_hw_init[i](dev);
+		ret = au1x00_pcmcia_hw_init[i](&dev->dev);
 		if (ret == 0)
 			break;
 	}
@@ -512,14 +512,26 @@ static int au1x00_drv_pcmcia_probe(struct device *dev)
 	return ret;
 }
 
+static int au1x00_drv_pcmcia_suspend(struct platform_device *dev,
+				     pm_message_t state)
+{
+	return pcmcia_socket_dev_suspend(&dev->dev, state);
+}
 
-static struct device_driver au1x00_pcmcia_driver = {
+static int au1x00_drv_pcmcia_resume(struct platform_device *dev)
+{
+	return pcmcia_socket_dev_resume(&dev->dev);
+}
+
+static struct platform_driver au1x00_pcmcia_driver = {
+	.driver = {
+		.name		= "au1x00-pcmcia",
+		.owner		= THIS_MODULE,
+	},
 	.probe		= au1x00_drv_pcmcia_probe,
 	.remove		= au1x00_drv_pcmcia_remove,
-	.name		= "au1x00-pcmcia",
-	.bus		= &platform_bus_type,
-	.suspend	= pcmcia_socket_dev_suspend,
-	.resume		= pcmcia_socket_dev_resume,
+	.suspend 	= au1x00_drv_pcmcia_suspend,
+	.resume 	= au1x00_drv_pcmcia_resume,
 };
 
 
@@ -533,8 +545,7 @@ static struct device_driver au1x00_pcmcia_driver = {
 static int __init au1x00_pcmcia_init(void)
 {
 	int error = 0;
-	if ((error = driver_register(&au1x00_pcmcia_driver)))
-		return error;
+	error = platform_driver_register(&au1x00_pcmcia_driver);
 	return error;
 }
 
@@ -544,7 +555,7 @@ static int __init au1x00_pcmcia_init(void)
  */
 static void __exit au1x00_pcmcia_exit(void)
 {
-	driver_unregister(&au1x00_pcmcia_driver);
+	platform_driver_unregister(&au1x00_pcmcia_driver);
 }
 
 module_init(au1x00_pcmcia_init);

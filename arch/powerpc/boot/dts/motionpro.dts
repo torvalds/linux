@@ -17,6 +17,7 @@
 	compatible = "promess,motionpro";
 	#address-cells = <1>;
 	#size-cells = <1>;
+	interrupt-parent = <&mpc5200_pic>;
 
 	cpus {
 		#address-cells = <1>;
@@ -66,7 +67,6 @@
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x600 0x10>;
 			interrupts = <1 9 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			fsl,has-wdt;
 		};
 
@@ -74,35 +74,30 @@
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x610 0x10>;
 			interrupts = <1 10 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		timer@620 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x620 0x10>;
 			interrupts = <1 11 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		timer@630 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x630 0x10>;
 			interrupts = <1 12 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		timer@640 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x640 0x10>;
 			interrupts = <1 13 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		timer@650 {	// General Purpose Timer
 			compatible = "fsl,mpc5200b-gpt","fsl,mpc5200-gpt";
 			reg = <0x650 0x10>;
 			interrupts = <1 14 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		motionpro-led@660 {	// Motion-PRO status LED
@@ -110,7 +105,6 @@
 			label = "motionpro-statusled";
 			reg = <0x660 0x10>;
 			interrupts = <1 15 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			blink-delay = <100>; // 100 msec
 		};
 
@@ -119,49 +113,46 @@
 			label = "motionpro-readyled";
 			reg = <0x670 0x10>;
 			interrupts = <1 16 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		rtc@800 {	// Real time clock
 			compatible = "fsl,mpc5200b-rtc","fsl,mpc5200-rtc";
 			reg = <0x800 0x100>;
 			interrupts = <1 5 0 1 6 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		can@980 {
 			compatible = "fsl,mpc5200b-mscan","fsl,mpc5200-mscan";
 			interrupts = <2 18 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			reg = <0x980 0x80>;
 		};
 
-		gpio@b00 {
+		gpio_simple: gpio@b00 {
 			compatible = "fsl,mpc5200b-gpio","fsl,mpc5200-gpio";
 			reg = <0xb00 0x40>;
 			interrupts = <1 7 0>;
-			interrupt-parent = <&mpc5200_pic>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
-		gpio@c00 {
+		gpio_wkup: gpio@c00 {
 			compatible = "fsl,mpc5200b-gpio-wkup","fsl,mpc5200-gpio-wkup";
 			reg = <0xc00 0x40>;
 			interrupts = <1 8 0 0 3 0>;
-			interrupt-parent = <&mpc5200_pic>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		spi@f00 {
 			compatible = "fsl,mpc5200b-spi","fsl,mpc5200-spi";
 			reg = <0xf00 0x20>;
 			interrupts = <2 13 0 2 14 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		usb@1000 {
 			compatible = "fsl,mpc5200b-ohci","fsl,mpc5200-ohci","ohci-be";
 			reg = <0x1000 0xff>;
 			interrupts = <2 6 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		dma-controller@1200 {
@@ -171,7 +162,6 @@
 			              3 4 0  3 5 0  3 6 0  3 7 0
 			              3 8 0  3 9 0  3 10 0  3 11 0
 			              3 12 0  3 13 0  3 14 0  3 15 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		xlb@1f00 {
@@ -180,12 +170,9 @@
 		};
 
 		serial@2000 {		// PSC1
-			device_type = "serial";
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			port-number = <0>;  // Logical port assignment
 			reg = <0x2000 0x100>;
 			interrupts = <2 1 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		// PSC2 in spi master mode 
@@ -194,26 +181,20 @@
 			cell-index = <1>;
 			reg = <0x2200 0x100>;
 			interrupts = <2 2 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		// PSC5 in uart mode
 		serial@2800 {		// PSC5
-			device_type = "serial";
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
-			port-number = <4>;  // Logical port assignment
 			reg = <0x2800 0x100>;
 			interrupts = <2 12 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		ethernet@3000 {
-			device_type = "network";
 			compatible = "fsl,mpc5200b-fec","fsl,mpc5200-fec";
 			reg = <0x3000 0x400>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <2 5 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			phy-handle = <&phy0>;
 		};
 
@@ -223,10 +204,8 @@
 			compatible = "fsl,mpc5200b-mdio","fsl,mpc5200-mdio";
 			reg = <0x3000 0x400>;       // fec range, since we need to setup fec interrupts
 			interrupts = <2 5 0>;   // these are for "mii command finished", not link changes & co.
-			interrupt-parent = <&mpc5200_pic>;
 
 			phy0: ethernet-phy@2 {
-				device_type = "ethernet-phy";
 				reg = <2>;
 			};
 		};
@@ -235,7 +214,6 @@
 			compatible = "fsl,mpc5200b-ata","fsl,mpc5200-ata";
 			reg = <0x3a00 0x100>;
 			interrupts = <2 7 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		i2c@3d40 {
@@ -244,7 +222,6 @@
 			compatible = "fsl,mpc5200b-i2c","fsl,mpc5200-i2c","fsl-i2c";
 			reg = <0x3d40 0x40>;
 			interrupts = <2 16 0>;
-			interrupt-parent = <&mpc5200_pic>;
 			fsl5200-clocking;
 
 			rtc@68 {
@@ -259,8 +236,8 @@
 		};
 	};
 
-	lpb {
-		compatible = "fsl,lpb";
+	localbus {
+		compatible = "fsl,mpc5200b-lpb","simple-bus";
 		#address-cells = <2>;
 		#size-cells = <1>;
 		ranges = <0 0 0xff000000 0x01000000
@@ -273,7 +250,6 @@
 			compatible = "promess,motionpro-kollmorgen";
 			reg = <1 0 0x10000>;
 			interrupts = <1 1 0>;
-			interrupt-parent = <&mpc5200_pic>;
 		};
 
 		// 8-bit board CPLD on LocalPlus Bus CS2

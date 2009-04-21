@@ -584,7 +584,7 @@ drop_n_restore:
 		skb->len = skb_len;
 	}
 drop:
-	kfree_skb(skb);
+	consume_skb(skb);
 	return 0;
 }
 
@@ -756,8 +756,7 @@ ring_is_full:
 	spin_unlock(&sk->sk_receive_queue.lock);
 
 	sk->sk_data_ready(sk, 0);
-	if (copy_skb)
-		kfree_skb(copy_skb);
+	kfree_skb(copy_skb);
 	goto drop_n_restore;
 }
 
@@ -1759,8 +1758,9 @@ static void free_pg_vec(char **pg_vec, unsigned int order, unsigned int len)
 
 static inline char *alloc_one_pg_vec_page(unsigned long order)
 {
-	return (char *) __get_free_pages(GFP_KERNEL | __GFP_COMP | __GFP_ZERO,
-					 order);
+	gfp_t gfp_flags = GFP_KERNEL | __GFP_COMP | __GFP_ZERO | __GFP_NOWARN;
+
+	return (char *) __get_free_pages(gfp_flags, order);
 }
 
 static char **alloc_pg_vec(struct tpacket_req *req, int order)
