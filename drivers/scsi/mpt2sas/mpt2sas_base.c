@@ -636,6 +636,14 @@ _base_unmask_interrupts(struct MPT2SAS_ADAPTER *ioc)
 static irqreturn_t
 _base_interrupt(int irq, void *bus_id)
 {
+	union reply_descriptor {
+		u64 word;
+		struct {
+			u32 low;
+			u32 high;
+		} u;
+	};
+	union reply_descriptor rd;
 	u32 post_index, post_index_next, completed_cmds;
 	u8 request_desript_type;
 	u16 smid;
@@ -656,7 +664,8 @@ _base_interrupt(int irq, void *bus_id)
 
 	completed_cmds = 0;
 	do {
-		if (ioc->reply_post_free[post_index].Words == ~0ULL)
+		rd.word = ioc->reply_post_free[post_index].Words;
+		if (rd.u.low == UINT_MAX || rd.u.high == UINT_MAX)
 			goto out;
 		reply = 0;
 		cb_idx = 0xFF;
@@ -721,7 +730,7 @@ _base_interrupt(int irq, void *bus_id)
 	for (i = 0 ; i < completed_cmds; i++) {
 		post_index = post_index_next;
 		/* poison the reply post descriptor */
-		ioc->reply_post_free[post_index_next].Words = ~0ULL;
+		ioc->reply_post_free[post_index_next].Words = ULLONG_MAX;
 		post_index_next = (post_index ==
 		    (ioc->reply_post_queue_depth - 1))
 		    ? 0 : post_index + 1;
@@ -3068,7 +3077,7 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 
 	/* initialize Reply Post Free Queue */
 	for (i = 0; i < ioc->reply_post_queue_depth; i++)
-		ioc->reply_post_free[i].Words = ~0ULL;
+		ioc->reply_post_free[i].Words = ULLONG_MAX;
 
 	r = _base_send_ioc_init(ioc, VF_ID, sleep_flag);
 	if (r)
