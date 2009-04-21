@@ -266,7 +266,6 @@ struct kvm_mmu {
 
 struct kvm_vcpu_arch {
 	u64 host_tsc;
-	int interrupt_window_open;
 	unsigned long irq_summary; /* bit vector: 1 per word in irq_pending */
 	DECLARE_BITMAP(irq_pending, KVM_NR_INTERRUPTS);
 	/*
@@ -360,7 +359,6 @@ struct kvm_vcpu_arch {
 
 	bool nmi_pending;
 	bool nmi_injected;
-	bool nmi_window_open;
 
 	struct mtrr_state_type mtrr_state;
 	u32 pat;

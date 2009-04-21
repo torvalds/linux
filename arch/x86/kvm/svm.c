@@ -216,8 +216,6 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 
 	kvm_rip_write(vcpu, svm->next_rip);
 	svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
-
-	vcpu->arch.interrupt_window_open = (svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
 static int has_svm(void)
@@ -2305,7 +2303,7 @@ static void svm_intr_inject(struct kvm_vcpu *vcpu)
 
 	/* try to inject new event if pending */
 	if (kvm_cpu_has_interrupt(vcpu)) {
-		if (vcpu->arch.interrupt_window_open) {
+		if (svm_interrupt_allowed(vcpu)) {
 			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
 			svm_queue_irq(to_svm(vcpu), vcpu->arch.interrupt.nr);
 		}
@@ -2320,8 +2318,6 @@ static void svm_intr_assist(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (nested_svm_intr(svm))
 		goto out;
-
-	svm->vcpu.arch.interrupt_window_open = svm_interrupt_allowed(vcpu);
 
 	svm_intr_inject(vcpu);
 
