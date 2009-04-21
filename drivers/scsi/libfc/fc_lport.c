@@ -644,7 +644,12 @@ EXPORT_SYMBOL(fc_fabric_logoff);
  */
 int fc_lport_destroy(struct fc_lport *lport)
 {
+	mutex_lock(&lport->lp_mutex);
+	lport->state = LPORT_ST_NONE;
+	lport->link_up = 0;
 	lport->tt.frame_send = fc_frame_drop;
+	mutex_unlock(&lport->lp_mutex);
+
 	lport->tt.fcp_abort_io(lport);
 	lport->tt.exch_mgr_reset(lport, 0, 0);
 	return 0;
