@@ -3339,7 +3339,7 @@ P:	Eduard - Gabriel Munteanu
 M:	eduard.munteanu@linux360.ro
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
-F:	Documentation/vm/kmemtrace.txt
+F:	Documentation/trace/kmemtrace.txt
 F:	include/trace/kmemtrace.h
 F:	kernel/trace/kmemtrace.c
 
