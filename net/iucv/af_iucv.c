@@ -45,6 +45,15 @@ static struct proto iucv_proto = {
 static const u8 iprm_shutdown[8] =
 	{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
 
+#define TRGCLS_SIZE	(sizeof(((struct iucv_message *)0)->class))
+
+/* macros to set/get socket control buffer at correct offset */
+#define CB_TAG(skb)	((skb)->cb)		/* iucv message tag */
+#define CB_TAG_LEN	(sizeof(((struct iucv_message *) 0)->tag))
+#define CB_TRGCLS(skb)	((skb)->cb + CB_TAG_LEN) /* iucv msg target class */
+#define CB_TRGCLS_LEN	(TRGCLS_SIZE)
+
+
 static void iucv_sock_kill(struct sock *sk);
 static void iucv_sock_close(struct sock *sk);
 
@@ -698,6 +707,8 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	struct iucv_sock *iucv = iucv_sk(sk);
 	struct sk_buff *skb;
 	struct iucv_message txmsg;
+	struct cmsghdr *cmsg;
+	int cmsg_done;
 	char user_id[9];
 	char appl_id[9];
 	int err;
@@ -717,6 +728,48 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	if (sk->sk_state == IUCV_CONNECTED) {
+		/* initialize defaults */
+		cmsg_done   = 0;	/* check for duplicate headers */
+		txmsg.class = 0;
+
+		/* iterate over control messages */
+		for (cmsg = CMSG_FIRSTHDR(msg); cmsg;
+		     cmsg = CMSG_NXTHDR(msg, cmsg)) {
+
+			if (!CMSG_OK(msg, cmsg)) {
+				err = -EINVAL;
+				goto out;
+			}
+
+			if (cmsg->cmsg_level != SOL_IUCV)
+				continue;
+
+			if (cmsg->cmsg_type & cmsg_done) {
+				err = -EINVAL;
+				goto out;
+			}
+			cmsg_done |= cmsg->cmsg_type;
+
+			switch (cmsg->cmsg_type) {
+			case SCM_IUCV_TRGCLS:
+				if (cmsg->cmsg_len != CMSG_LEN(TRGCLS_SIZE)) {
+					err = -EINVAL;
+					goto out;
+				}
+
+				/* set iucv message target class */
+				memcpy(&txmsg.class,
+					(void *) CMSG_DATA(cmsg), TRGCLS_SIZE);
+
+				break;
+
+			default:
+				err = -EINVAL;
+				goto out;
+				break;
+			}
+		}
+
 		if (!(skb = sock_alloc_send_skb(sk, len,
 						msg->msg_flags & MSG_DONTWAIT,
 						&err)))
@@ -727,10 +780,9 @@ static int iucv_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			goto fail;
 		}
 
-		txmsg.class = 0;
-		memcpy(&txmsg.class, skb->data, skb->len >= 4 ? 4 : skb->len);
+		/* increment and save iucv message tag for msg_completion cbk */
 		txmsg.tag = iucv->send_tag++;
-		memcpy(skb->cb, &txmsg.tag, 4);
+		memcpy(CB_TAG(skb), &txmsg.tag, CB_TAG_LEN);
 		skb_queue_tail(&iucv->send_skb_q, skb);
 
 		if (((iucv->path->flags & IUCV_IPRMDATA) & iucv->flags)
@@ -801,6 +853,10 @@ static int iucv_fragment_skb(struct sock *sk, struct sk_buff *skb, int len)
 		if (!nskb)
 			return -ENOMEM;
 
+		/* copy target class to control buffer of new skb */
+		memcpy(CB_TRGCLS(nskb), CB_TRGCLS(skb), CB_TRGCLS_LEN);
+
+		/* copy data fragment */
 		memcpy(nskb->data, skb->data + copied, size);
 		copied += size;
 		dataleft -= size;
@@ -823,6 +879,10 @@ static void iucv_process_message(struct sock *sk, struct sk_buff *skb,
 	unsigned int len;
 
 	len = iucv_msg_length(msg);
+
+	/* store msg target class in the second 4 bytes of skb ctrl buffer */
+	/* Note: the first 4 bytes are reserved for msg tag */
+	memcpy(CB_TRGCLS(skb), &msg->class, CB_TRGCLS_LEN);
 
 	/* check for special IPRM messages (e.g. iucv_sock_shutdown) */
 	if ((msg->flags & IUCV_IPRMDATA) && len > 7) {
@@ -914,6 +974,17 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	}
 
 	len -= copied;
+
+	/* create control message to store iucv msg target class:
+	 * get the trgcls from the control buffer of the skb due to
+	 * fragmentation of original iucv message. */
+	err = put_cmsg(msg, SOL_IUCV, SCM_IUCV_TRGCLS,
+			CB_TRGCLS_LEN, CB_TRGCLS(skb));
+	if (err) {
+		if (!(flags & MSG_PEEK))
+			skb_queue_head(&sk->sk_receive_queue, skb);
+		return err;
+	}
 
 	/* Mark read part of skb as used */
 	if (!(flags & MSG_PEEK)) {
@@ -1316,7 +1387,7 @@ static void iucv_callback_txdone(struct iucv_path *path,
 		spin_lock_irqsave(&list->lock, flags);
 
 		while (list_skb != (struct sk_buff *)list) {
-			if (!memcmp(&msg->tag, list_skb->cb, 4)) {
+			if (!memcmp(&msg->tag, CB_TAG(list_skb), CB_TAG_LEN)) {
 				this = list_skb;
 				break;
 			}

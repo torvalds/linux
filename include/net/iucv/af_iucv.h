@@ -79,6 +79,9 @@ struct iucv_sock {
 /* iucv socket options (SOL_IUCV) */
 #define SO_IPRMDATA_MSG	0x0080		/* send/recv IPRM_DATA msgs */
 
+/* iucv related control messages (scm) */
+#define SCM_IUCV_TRGCLS	0x0001		/* target class control message */
+
 struct iucv_sock_list {
 	struct hlist_head head;
 	rwlock_t	  lock;
