@@ -5934,7 +5934,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 
 	/* Initalize the timer
 	 */
-	init_timer(&pCfg->timer);
+	init_timer_on_stack(&pCfg->timer);
 	pCfg->timer.data = (unsigned long) ioc;
 	pCfg->timer.function = mpt_timer_expired;
 	pCfg->wait_done = 0;
