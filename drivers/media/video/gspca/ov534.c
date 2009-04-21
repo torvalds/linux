@@ -708,8 +708,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
-	cam->bulk_size = 16384;
-	cam->bulk_nurbs = 2;
+	if (sd->sensor == SENSOR_OV772X) {
+		cam->bulk = 1;
+		cam->bulk_size = 16384;
+		cam->bulk_nurbs = 2;
+	}
 
 	return 0;
 }

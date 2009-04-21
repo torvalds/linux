@@ -441,7 +441,7 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
  * look for an input transfer endpoint in an alternate setting
  */
 static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
-					  __u8 xfer)
+					  int xfer)
 {
 	struct usb_host_endpoint *ep;
 	int i, attr;
@@ -467,37 +467,28 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 {
 	struct usb_interface *intf;
 	struct usb_host_endpoint *ep;
-	int i, ret;
+	int xfer, i, ret;
 
 	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 	ep = NULL;
+	xfer = gspca_dev->cam.bulk ? USB_ENDPOINT_XFER_BULK
+				   : USB_ENDPOINT_XFER_ISOC;
 	i = gspca_dev->alt;			/* previous alt setting */
-
-	/* try isoc */
 	while (--i >= 0) {
-		ep = alt_xfer(&intf->altsetting[i],
-				USB_ENDPOINT_XFER_ISOC);
+		ep = alt_xfer(&intf->altsetting[i], xfer);
 		if (ep)
 			break;
 	}
-
-	/* if no isoc, try bulk (alt 0 only) */
 	if (ep == NULL) {
-		ep = alt_xfer(&intf->altsetting[0],
-				USB_ENDPOINT_XFER_BULK);
-		if (ep == NULL) {
-			err("no transfer endpoint found");
-			return NULL;
-		}
-		i = 0;
-		gspca_dev->bulk = 1;
+		err("no transfer endpoint found");
+		return NULL;
 	}
 	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
 			i, ep->desc.bEndpointAddress);
 	if (i > 0) {
 		ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
 		if (ret < 0) {
-			err("set interface err %d", ret);
+			err("set alt %d err %d", i, ret);
 			return NULL;
 		}
 	}
@@ -517,7 +508,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 	/* calculate the packet size and the number of packets */
 	psize = le16_to_cpu(ep->desc.wMaxPacketSize);
 
-	if (!gspca_dev->bulk) {			/* isoc */
+	if (!gspca_dev->cam.bulk) {		/* isoc */
 
 		/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
 		psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
@@ -617,7 +608,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			goto out;
 
 		/* clear the bulk endpoint */
-		if (gspca_dev->bulk)
+		if (gspca_dev->cam.bulk)
 			usb_clear_halt(gspca_dev->dev,
 					gspca_dev->urb[0]->pipe);
 
@@ -630,7 +621,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		gspca_dev->streaming = 1;
 
 		/* some bulk transfers are started by the subdriver */
-		if (gspca_dev->bulk && gspca_dev->cam.bulk_nurbs == 0)
+		if (gspca_dev->cam.bulk && gspca_dev->cam.bulk_nurbs == 0)
 			break;
 
 		/* submit the URBs */

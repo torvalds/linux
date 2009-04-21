@@ -56,6 +56,7 @@ struct cam {
 				 * - cannot be > MAX_NURBS
 				 * - when 0 and bulk_size != 0 means
 				 *   1 URB and submit done by subdriver */
+	u8 bulk;		/* image transfer by 0:isoc / 1:bulk */
 	u32 input_flags;	/* value for ENUM_INPUT status flags */
 };
 
@@ -168,7 +169,6 @@ struct gspca_dev {
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
-	u8 bulk;			/* image transfer by 0:isoc / 1:bulk */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,
