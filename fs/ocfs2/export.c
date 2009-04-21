@@ -100,7 +100,8 @@ static struct dentry *ocfs2_get_dentry(struct super_block *sb,
 
 	/* If the inode allocator bit is clear, this inode must be stale */
 	if (!set) {
-		mlog(0, "inode %llu suballoc bit is clear\n", blkno);
+		mlog(0, "inode %llu suballoc bit is clear\n",
+		     (unsigned long long)blkno);
 		status = -ESTALE;
 		goto unlock_nfs_sync;
 	}
@@ -114,7 +115,7 @@ check_err:
 	if (status < 0) {
 		if (status == -ESTALE) {
 			mlog(0, "stale inode ino: %llu generation: %u\n",
-			     blkno, handle->ih_generation);
+			     (unsigned long long)blkno, handle->ih_generation);
 		}
 		result = ERR_PTR(status);
 		goto bail;
@@ -129,8 +130,8 @@ check_err:
 check_gen:
 	if (handle->ih_generation != inode->i_generation) {
 		iput(inode);
-		mlog(0, "stale inode ino: %llu generation: %u\n", blkno,
-		     handle->ih_generation);
+		mlog(0, "stale inode ino: %llu generation: %u\n",
+		     (unsigned long long)blkno, handle->ih_generation);
 		result = ERR_PTR(-ESTALE);
 		goto bail;
 	}
