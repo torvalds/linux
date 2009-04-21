@@ -112,6 +112,7 @@ struct nes_cq {
 	spinlock_t       lock;
 	u8               virtual_cq;
 	u8               pad[3];
+	u32		 mcrqf;
 };
 
 struct nes_wq {

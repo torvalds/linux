@@ -1627,6 +1627,7 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				nescq->hw_cq.cq_number = nes_ucontext->mcrqf & 0xffff;
 			else
 				nescq->hw_cq.cq_number = nesvnic->mcrq_qp_id + nes_ucontext->mcrqf-1;
+			nescq->mcrqf = nes_ucontext->mcrqf;
 			nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 		}
 		nes_debug(NES_DBG_CQ, "CQ Virtual Address = %08lX, size = %u.\n",
@@ -1682,6 +1683,12 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		if (!context)
 			pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 					nescq->hw_cq.cq_pbase);
+		else {
+			pci_free_consistent(nesdev->pcidev, nespbl->pbl_size,
+					    nespbl->pbl_vbase, nespbl->pbl_pbase);
+			kfree(nespbl);
+		}
+
 		nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 		kfree(nescq);
 		return ERR_PTR(-ENOMEM);
@@ -1705,6 +1712,11 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				if (!context)
 					pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 							nescq->hw_cq.cq_pbase);
+				else {
+					pci_free_consistent(nesdev->pcidev, nespbl->pbl_size,
+							    nespbl->pbl_vbase, nespbl->pbl_pbase);
+					kfree(nespbl);
+				}
 				nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 				kfree(nescq);
 				return ERR_PTR(-ENOMEM);
@@ -1722,6 +1734,11 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 				if (!context)
 					pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 							nescq->hw_cq.cq_pbase);
+				else {
+					pci_free_consistent(nesdev->pcidev, nespbl->pbl_size,
+							    nespbl->pbl_vbase, nespbl->pbl_pbase);
+					kfree(nespbl);
+				}
 				nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 				kfree(nescq);
 				return ERR_PTR(-ENOMEM);
@@ -1774,6 +1791,11 @@ static struct ib_cq *nes_create_cq(struct ib_device *ibdev, int entries,
 		if (!context)
 			pci_free_consistent(nesdev->pcidev, nescq->cq_mem_size, mem,
 					nescq->hw_cq.cq_pbase);
+		else {
+			pci_free_consistent(nesdev->pcidev, nespbl->pbl_size,
+					    nespbl->pbl_vbase, nespbl->pbl_pbase);
+			kfree(nespbl);
+		}
 		nes_free_resource(nesadapter, nesadapter->allocated_cqs, cq_num);
 		kfree(nescq);
 		return ERR_PTR(-EIO);
@@ -1855,7 +1877,9 @@ static int nes_destroy_cq(struct ib_cq *ib_cq)
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_OPCODE_IDX, opcode);
 	set_wqe_32bit_value(cqp_wqe->wqe_words, NES_CQP_WQE_ID_IDX,
 		(nescq->hw_cq.cq_number | ((u32)PCI_FUNC(nesdev->pcidev->devfn) << 16)));
-	nes_free_resource(nesadapter, nesadapter->allocated_cqs, nescq->hw_cq.cq_number);
+	if (!nescq->mcrqf)
+		nes_free_resource(nesadapter, nesadapter->allocated_cqs, nescq->hw_cq.cq_number);
+
 	atomic_set(&cqp_request->refcount, 2);
 	nes_post_cqp_request(nesdev, cqp_request);
 
