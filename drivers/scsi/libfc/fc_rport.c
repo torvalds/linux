@@ -509,7 +509,7 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 	struct fc_rport *rport = rp_arg;
 	struct fc_rport_libfc_priv *rdata = rport->dd_data;
 	struct fc_lport *lport = rdata->local_port;
-	struct fc_els_flogi *plp;
+	struct fc_els_flogi *plp = NULL;
 	unsigned int tov;
 	u16 csp_seq;
 	u16 cssp_seq;
