@@ -62,6 +62,7 @@
  *   unregister_netdev()
  */
 #include "i2400m.h"
+#include <linux/etherdevice.h>
 #include <linux/wimax/i2400m.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -650,6 +651,7 @@ int i2400m_setup(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 	result = i2400m_read_mac_addr(i2400m);
 	if (result < 0)
 		goto error_read_mac_addr;
+	random_ether_addr(i2400m->src_mac_addr);
 
 	result = register_netdev(net_dev);	/* Okey dokey, bring it up */
 	if (result < 0) {
