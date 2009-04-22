@@ -25,7 +25,7 @@
 #define TIMER_CLOCKEVENT 1
 static u32 latch;
 
-static cycle_t ns9360_clocksource_read(void)
+static cycle_t ns9360_clocksource_read(struct clocksource *cs)
 {
 	return __raw_readl(SYS_TR(TIMER_CLOCKSOURCE));
 }

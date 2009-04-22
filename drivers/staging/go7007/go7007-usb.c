@@ -91,6 +91,7 @@ static struct go7007_usb_board board_matrix_ii = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
+				.type	= "wis_saa7115",
 				.id	= I2C_DRIVERID_WIS_SAA7115,
 				.addr	= 0x20,
 			},
@@ -127,6 +128,7 @@ static struct go7007_usb_board board_matrix_reload = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
+				.type	= "wis_saa7113",
 				.id	= I2C_DRIVERID_WIS_SAA7113,
 				.addr	= 0x25,
 			},
@@ -164,6 +166,7 @@ static struct go7007_usb_board board_star_trek = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
+				.type	= "wis_saa7115",
 				.id	= I2C_DRIVERID_WIS_SAA7115,
 				.addr	= 0x20,
 			},
@@ -209,14 +212,17 @@ static struct go7007_usb_board board_px_tv402u = {
 		.num_i2c_devs	 = 3,
 		.i2c_devs	 = {
 			{
+				.type	= "wis_saa7115",
 				.id	= I2C_DRIVERID_WIS_SAA7115,
 				.addr	= 0x20,
 			},
 			{
+				.type	= "wis_uda1342",
 				.id	= I2C_DRIVERID_WIS_UDA1342,
 				.addr	= 0x1a,
 			},
 			{
+				.type	= "wis_sony_tuner",
 				.id	= I2C_DRIVERID_WIS_SONY_TUNER,
 				.addr	= 0x60,
 			},
@@ -264,6 +270,7 @@ static struct go7007_usb_board board_xmen = {
 		.num_i2c_devs	  = 1,
 		.i2c_devs	  = {
 			{
+				.type	= "wis_ov7640",
 				.id	= I2C_DRIVERID_WIS_OV7640,
 				.addr	= 0x21,
 			},
@@ -296,6 +303,7 @@ static struct go7007_usb_board board_matrix_revolution = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
+				.type	= "wis_tw9903",
 				.id	= I2C_DRIVERID_WIS_TW9903,
 				.addr	= 0x44,
 			},
@@ -385,6 +393,7 @@ static struct go7007_usb_board board_adlink_mpg24 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
+				.type	= "wis_twTW2804",
 				.id	= I2C_DRIVERID_WIS_TW2804,
 				.addr	= 0x00, /* yes, really */
 			},
@@ -415,8 +424,9 @@ static struct go7007_usb_board board_sensoray_2250 = {
 		.num_i2c_devs	 = 1,
 		.i2c_devs	 = {
 			{
+				.type	= "s2250_board",
 				.id	= I2C_DRIVERID_S2250,
-				.addr	= 0x34,
+				.addr	= 0x43,
 			},
 		},
 		.num_inputs	 = 2,
@@ -943,9 +953,7 @@ static struct i2c_algorithm go7007_usb_algo = {
 
 static struct i2c_adapter go7007_usb_adap_templ = {
 	.owner			= THIS_MODULE,
-	.class			= I2C_CLASS_TV_ANALOG,
 	.name			= "WIS GO7007SB EZ-USB",
-	.id			= I2C_ALGO_GO7007_USB,
 	.algo			= &go7007_usb_algo,
 };
 

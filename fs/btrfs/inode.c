@@ -4970,20 +4970,16 @@ out_fail:
 	return err;
 }
 
-static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
+static int prealloc_file_range(struct btrfs_trans_handle *trans,
+			       struct inode *inode, u64 start, u64 end,
 			       u64 alloc_hint, int mode)
 {
-	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
 	u64 alloc_size;
 	u64 cur_offset = start;
 	u64 num_bytes = end - start;
 	int ret = 0;
-
-	trans = btrfs_join_transaction(root, 1);
-	BUG_ON(!trans);
-	btrfs_set_trans_block_group(trans, inode);
 
 	while (num_bytes > 0) {
 		alloc_size = min(num_bytes, root->fs_info->max_extent);
@@ -5015,7 +5011,6 @@ out:
 		BUG_ON(ret);
 	}
 
-	btrfs_end_transaction(trans, root);
 	return ret;
 }
 
@@ -5029,10 +5024,17 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	u64 alloc_hint = 0;
 	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
 	struct extent_map *em;
+	struct btrfs_trans_handle *trans;
 	int ret;
 
 	alloc_start = offset & ~mask;
 	alloc_end =  (offset + len + mask) & ~mask;
+
+	/*
+	 * wait for ordered IO before we have any locks.  We'll loop again
+	 * below with the locks held.
+	 */
+	btrfs_wait_ordered_range(inode, alloc_start, alloc_end - alloc_start);
 
 	mutex_lock(&inode->i_mutex);
 	if (alloc_start > inode->i_size) {
@@ -5043,6 +5045,16 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
+
+		trans = btrfs_start_transaction(BTRFS_I(inode)->root, 1);
+		if (!trans) {
+			ret = -EIO;
+			goto out;
+		}
+
+		/* the extent lock is ordered inside the running
+		 * transaction
+		 */
 		lock_extent(&BTRFS_I(inode)->io_tree, alloc_start,
 			    alloc_end - 1, GFP_NOFS);
 		ordered = btrfs_lookup_first_ordered_extent(inode,
@@ -5053,6 +5065,12 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 			btrfs_put_ordered_extent(ordered);
 			unlock_extent(&BTRFS_I(inode)->io_tree,
 				      alloc_start, alloc_end - 1, GFP_NOFS);
+			btrfs_end_transaction(trans, BTRFS_I(inode)->root);
+
+			/*
+			 * we can't wait on the range with the transaction
+			 * running or with the extent lock held
+			 */
 			btrfs_wait_ordered_range(inode, alloc_start,
 						 alloc_end - alloc_start);
 		} else {
@@ -5070,7 +5088,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		last_byte = min(extent_map_end(em), alloc_end);
 		last_byte = (last_byte + mask) & ~mask;
 		if (em->block_start == EXTENT_MAP_HOLE) {
-			ret = prealloc_file_range(inode, cur_offset,
+			ret = prealloc_file_range(trans, inode, cur_offset,
 					last_byte, alloc_hint, mode);
 			if (ret < 0) {
 				free_extent_map(em);
@@ -5089,6 +5107,8 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	}
 	unlock_extent(&BTRFS_I(inode)->io_tree, alloc_start, alloc_end - 1,
 		      GFP_NOFS);
+
+	btrfs_end_transaction(trans, BTRFS_I(inode)->root);
 out:
 	mutex_unlock(&inode->i_mutex);
 	return ret;

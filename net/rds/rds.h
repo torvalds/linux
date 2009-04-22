@@ -638,7 +638,7 @@ struct rds_message *rds_send_get_message(struct rds_connection *,
 void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force);
 
 /* stats.c */
-DECLARE_PER_CPU(struct rds_statistics, rds_stats);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct rds_statistics, rds_stats);
 #define rds_stats_inc_which(which, member) do {		\
 	per_cpu(which, get_cpu()).member++;		\
 	put_cpu();					\

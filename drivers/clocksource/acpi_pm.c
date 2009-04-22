@@ -57,7 +57,7 @@ u32 acpi_pm_read_verified(void)
 	return v2;
 }
 
-static cycle_t acpi_pm_read(void)
+static cycle_t acpi_pm_read(struct clocksource *cs)
 {
 	return (cycle_t)read_pmtmr();
 }
@@ -83,7 +83,7 @@ static int __init acpi_pm_good_setup(char *__str)
 }
 __setup("acpi_pm_good", acpi_pm_good_setup);
 
-static cycle_t acpi_pm_read_slow(void)
+static cycle_t acpi_pm_read_slow(struct clocksource *cs)
 {
 	return (cycle_t)acpi_pm_read_verified();
 }
@@ -156,9 +156,9 @@ static int verify_pmtmr_rate(void)
 	unsigned long count, delta;
 
 	mach_prepare_counter();
-	value1 = clocksource_acpi_pm.read();
+	value1 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
 	mach_countup(&count);
-	value2 = clocksource_acpi_pm.read();
+	value2 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
 	delta = (value2 - value1) & ACPI_PM_MASK;
 
 	/* Check that the PMTMR delta is within 5% of what we expect */
@@ -195,9 +195,9 @@ static int __init init_acpi_pm_clocksource(void)
 	/* "verify" this timing source: */
 	for (j = 0; j < ACPI_PM_MONOTONICITY_CHECKS; j++) {
 		udelay(100 * j);
-		value1 = clocksource_acpi_pm.read();
+		value1 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
 		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
-			value2 = clocksource_acpi_pm.read();
+			value2 = clocksource_acpi_pm.read(&clocksource_acpi_pm);
 			if (value2 == value1)
 				continue;
 			if (value2 > value1)

@@ -245,7 +245,12 @@ struct spi_master {
 	 */
 	u16			dma_alignment;
 
-	/* setup mode and clock, etc (spi driver may call many times) */
+	/* Setup mode and clock, etc (spi driver may call many times).
+	 *
+	 * IMPORTANT:  this may be called when transfers to another
+	 * device are active.  DO NOT UPDATE SHARED REGISTERS in ways
+	 * which could break those transfers.
+	 */
 	int			(*setup)(struct spi_device *spi);
 
 	/* bidirectional bulk transfers

@@ -28,7 +28,6 @@ extern int s2250loader_init(void);
 extern void s2250loader_cleanup(void);
 
 #define TLV320_ADDRESS      0x34
-#define S2250_VIDDEC        0x86
 #define VPX322_ADDR_ANALOGCONTROL1	0x02
 #define VPX322_ADDR_BRIGHTNESS0		0x0127
 #define VPX322_ADDR_BRIGHTNESS1		0x0131
@@ -123,6 +122,7 @@ struct s2250 {
 	int hue;
 	int reg12b_val;
 	int audio_input;
+	struct i2c_client *audio;
 };
 
 /* from go7007-usb.c which is Copyright (C) 2005-2006 Micronas USA Inc.*/
@@ -452,16 +452,15 @@ static int s2250_command(struct i2c_client *client,
 	{
 		struct v4l2_audio *audio = arg;
 
-		client->addr = TLV320_ADDRESS;
 		switch (audio->index) {
 		case 0:
-			write_reg(client, 0x08, 0x02); /* Line In */
+			write_reg(dec->audio, 0x08, 0x02); /* Line In */
 			break;
 		case 1:
-			write_reg(client, 0x08, 0x04); /* Mic */
+			write_reg(dec->audio, 0x08, 0x04); /* Mic */
 			break;
 		case 2:
-			write_reg(client, 0x08, 0x05); /* Mic Boost */
+			write_reg(dec->audio, 0x08, 0x05); /* Mic Boost */
 			break;
 		default:
 			return -EINVAL;
@@ -477,31 +476,23 @@ static int s2250_command(struct i2c_client *client,
 	return 0;
 }
 
-static struct i2c_driver s2250_driver;
-
-static struct i2c_client s2250_client_templ = {
-	.name		= "Sensoray 2250",
-	.driver		= &s2250_driver,
-};
-
-static int s2250_detect(struct i2c_adapter *adapter, int addr, int kind)
+static int s2250_probe(struct i2c_client *client,
+		       const struct i2c_device_id *id)
 {
-	struct i2c_client *client;
+	struct i2c_client *audio;
+	struct i2c_adapter *adapter = client->adapter;
 	struct s2250 *dec;
 	u8 *data;
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct go7007_usb *usb = go->hpi_context;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == NULL)
+	audio = i2c_new_dummy(adapter, TLV320_ADDRESS >> 1);
+	if (audio == NULL)
 		return -ENOMEM;
-	memcpy(client, &s2250_client_templ,
-	       sizeof(s2250_client_templ));
-	client->adapter = adapter;
 
 	dec = kmalloc(sizeof(struct s2250), GFP_KERNEL);
 	if (dec == NULL) {
-		kfree(client);
+		i2c_unregister_device(audio);
 		return -ENOMEM;
 	}
 
@@ -510,7 +501,7 @@ static int s2250_detect(struct i2c_adapter *adapter, int addr, int kind)
 	dec->contrast = 50;
 	dec->saturation = 50;
 	dec->hue = 0;
-	client->addr = TLV320_ADDRESS;
+	dec->audio = audio;
 	i2c_set_clientdata(client, dec);
 
 	printk(KERN_DEBUG
@@ -518,28 +509,25 @@ static int s2250_detect(struct i2c_adapter *adapter, int addr, int kind)
 	       adapter->name);
 
 	/* initialize the audio */
-	client->addr = TLV320_ADDRESS;
-	if (write_regs(client, aud_regs) < 0) {
+	if (write_regs(audio, aud_regs) < 0) {
 		printk(KERN_ERR
 		       "s2250: error initializing audio\n");
-		kfree(client);
+		i2c_unregister_device(audio);
 		kfree(dec);
 		return 0;
 	}
-	client->addr = S2250_VIDDEC;
-	i2c_set_clientdata(client, dec);
 
 	if (write_regs(client, vid_regs) < 0) {
 		printk(KERN_ERR
 		       "s2250: error initializing decoder\n");
-		kfree(client);
+		i2c_unregister_device(audio);
 		kfree(dec);
 		return 0;
 	}
 	if (write_regs_fp(client, vid_regs_fp) < 0) {
 		printk(KERN_ERR
 		       "s2250: error initializing decoder\n");
-		kfree(client);
+		i2c_unregister_device(audio);
 		kfree(dec);
 		return 0;
 	}
@@ -575,32 +563,33 @@ static int s2250_detect(struct i2c_adapter *adapter, int addr, int kind)
 		up(&usb->i2c_lock);
 	}
 
-	i2c_attach_client(client);
 	printk("s2250: initialized successfully\n");
 	return 0;
 }
 
-static int s2250_detach(struct i2c_client *client)
+static int s2250_remove(struct i2c_client *client)
 {
 	struct s2250 *dec = i2c_get_clientdata(client);
-	int r;
 
-	r = i2c_detach_client(client);
-	if (r < 0)
-		return r;
-
-	kfree(client);
+	i2c_set_clientdata(client, NULL);
+	i2c_unregister_device(dec->audio);
 	kfree(dec);
 	return 0;
 }
+
+static struct i2c_device_id s2250_id[] = {
+	{ "s2250_board", 0 },
+	{ }
+};
 
 static struct i2c_driver s2250_driver = {
 	.driver = {
 		.name	= "Sensoray 2250 board driver",
 	},
-	.id		= I2C_DRIVERID_S2250,
-	.detach_client	= s2250_detach,
+	.probe		= s2250_probe,
+	.remove		= s2250_remove,
 	.command	= s2250_command,
+	.id_table	= s2250_id,
 };
 
 static int __init s2250_init(void)
@@ -613,13 +602,13 @@ static int __init s2250_init(void)
 
 	r = i2c_add_driver(&s2250_driver);
 	if (r < 0)
-		return r;
-	return wis_i2c_add_driver(s2250_driver.id, s2250_detect);
+		s2250loader_cleanup();
+
+	return r;
 }
 
 static void __exit s2250_cleanup(void)
 {
-	wis_i2c_del_driver(s2250_detect);
 	i2c_del_driver(&s2250_driver);
 
 	s2250loader_cleanup();

@@ -551,6 +551,7 @@ extern int (*platform_notify_remove)(struct device *dev);
 extern struct device *get_device(struct device *dev);
 extern void put_device(struct device *dev);
 
+extern void wait_for_device_probe(void);
 
 /* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);

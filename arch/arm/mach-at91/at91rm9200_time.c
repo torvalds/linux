@@ -85,7 +85,7 @@ static struct irqaction at91rm9200_timer_irq = {
 	.handler	= at91rm9200_timer_interrupt
 };
 
-static cycle_t read_clk32k(void)
+static cycle_t read_clk32k(struct clocksource *cs)
 {
 	return read_CRTR();
 }

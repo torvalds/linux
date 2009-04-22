@@ -36,7 +36,7 @@ static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;
 
 /* clock source */
 
-static cycle_t mxc_get_cycles(void)
+static cycle_t mxc_get_cycles(struct clocksource *cs)
 {
 	return __raw_readl(TIMER_BASE + MXC_TCN);
 }

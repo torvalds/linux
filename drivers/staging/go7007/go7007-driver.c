@@ -191,8 +191,10 @@ int go7007_reset_encoder(struct go7007 *go)
 /*
  * Attempt to instantiate an I2C client by ID, probably loading a module.
  */
-static int init_i2c_module(struct i2c_adapter *adapter, int id, int addr)
+static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
+			   int id, int addr)
 {
+	struct i2c_board_info info;
 	char *modname;
 
 	switch (id) {
@@ -226,7 +228,11 @@ static int init_i2c_module(struct i2c_adapter *adapter, int id, int addr)
 	}
 	if (modname != NULL)
 		request_module(modname);
-	if (wis_i2c_probe_device(adapter, id, addr) == 1)
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = addr;
+	strlcpy(info.type, type, I2C_NAME_SIZE);
+	if (!i2c_new_device(adapter, &info))
 		return 0;
 	if (modname != NULL)
 		printk(KERN_INFO
@@ -266,6 +272,7 @@ int go7007_register_encoder(struct go7007 *go)
 	if (go->i2c_adapter_online) {
 		for (i = 0; i < go->board_info->num_i2c_devs; ++i)
 			init_i2c_module(&go->i2c_adapter,
+					go->board_info->i2c_devs[i].type,
 					go->board_info->i2c_devs[i].id,
 					go->board_info->i2c_devs[i].addr);
 		if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
