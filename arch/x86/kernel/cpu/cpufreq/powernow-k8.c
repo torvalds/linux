@@ -649,6 +649,20 @@ static void print_basics(struct powernow_k8_data *data)
 				data->batps);
 }
 
+static u32 freq_from_fid_did(u32 fid, u32 did)
+{
+	u32 mhz = 0;
+
+	if (boot_cpu_data.x86 == 0x10)
+		mhz = (100 * (fid + 0x10)) >> did;
+	else if (boot_cpu_data.x86 == 0x11)
+		mhz = (100 * (fid + 8)) >> did;
+	else
+		BUG();
+
+	return mhz * 1000;
+}
+
 static int fill_powernow_table(struct powernow_k8_data *data,
 		struct pst_s *pst, u8 maxvid)
 {
@@ -923,8 +937,13 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 
 		powernow_table[i].index = index;
 
-		powernow_table[i].frequency =
-			data->acpi_data.states[i].core_frequency * 1000;
+		/* Frequency may be rounded for these */
+		if (boot_cpu_data.x86 == 0x10 || boot_cpu_data.x86 == 0x11) {
+			powernow_table[i].frequency =
+				freq_from_fid_did(lo & 0x3f, (lo >> 6) & 7);
+		} else
+			powernow_table[i].frequency =
+				data->acpi_data.states[i].core_frequency * 1000;
 	}
 	return 0;
 }
