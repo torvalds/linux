@@ -337,6 +337,7 @@ config USB_NET_RNDIS_WLAN
 	select USB_NET_CDCETHER
 	select USB_NET_RNDIS_HOST
 	select WIRELESS_EXT
+	select CFG80211
 	---help---
 	  This is a driver for wireless RNDIS devices.
 	  These are USB based adapters found in devices such as:
