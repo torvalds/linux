@@ -144,7 +144,7 @@ EOF
 # Generate a control file
 cat <<EOF > debian/control
 Source: linux-upstream
-Section: base
+Section: admin
 Priority: optional
 Maintainer: $maintainer
 Standards-Version: 3.6.1
