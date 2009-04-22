@@ -375,7 +375,7 @@ acpi_status acpi_leave_sleep_state_prep(u8 sleep_state);
 acpi_status acpi_leave_sleep_state(u8 sleep_state);
 
 /*
- * Debug output
+ * Error/Warning output
  */
 void ACPI_INTERNAL_VAR_XFACE
 acpi_error(const char *module_name,
@@ -394,6 +394,9 @@ void ACPI_INTERNAL_VAR_XFACE
 acpi_info(const char *module_name,
 	  u32 line_number, const char *format, ...) ACPI_PRINTF_LIKE(3);
 
+/*
+ * Debug output
+ */
 #ifdef ACPI_DEBUG_OUTPUT
 
 void ACPI_INTERNAL_VAR_XFACE
