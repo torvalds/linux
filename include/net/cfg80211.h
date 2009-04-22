@@ -1475,9 +1475,18 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
  * @len: length of the frame data
  *
  * This function is called whenever an authentication has been processed in
- * station mode.
+ * station mode. The driver is required to call either this function or
+ * cfg80211_send_auth_timeout() to indicate the result of cfg80211_ops::auth()
+ * call.
  */
 void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
+
+/**
+ * cfg80211_send_auth_timeout - notification of timed out authentication
+ * @dev: network device
+ * @addr: The MAC address of the device with which the authentication timed out
+ */
+void cfg80211_send_auth_timeout(struct net_device *dev, const u8 *addr);
 
 /**
  * cfg80211_send_rx_assoc - notification of processed association
@@ -1486,9 +1495,18 @@ void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
  * @len: length of the frame data
  *
  * This function is called whenever a (re)association response has been
- * processed in station mode.
+ * processed in station mode. The driver is required to call either this
+ * function or cfg80211_send_assoc_timeout() to indicate the result of
+ * cfg80211_ops::assoc() call.
  */
 void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len);
+
+/**
+ * cfg80211_send_assoc_timeout - notification of timed out association
+ * @dev: network device
+ * @addr: The MAC address of the device with which the association timed out
+ */
+void cfg80211_send_assoc_timeout(struct net_device *dev, const u8 *addr);
 
 /**
  * cfg80211_send_deauth - notification of processed deauthentication

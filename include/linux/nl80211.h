@@ -203,8 +203,12 @@
  *	frame, i.e., it was for the local STA and was received in correct
  *	state. This is similar to MLME-AUTHENTICATE.confirm primitive in the
  *	MLME SAP interface (kernel providing MLME, userspace SME). The
- *	included NL80211_ATTR_FRAME attribute contains the management frame
- *	(including both the header and frame body, but not FCS).
+ *	included %NL80211_ATTR_FRAME attribute contains the management frame
+ *	(including both the header and frame body, but not FCS). This event is
+ *	also used to indicate if the authentication attempt timed out. In that
+ *	case the %NL80211_ATTR_FRAME attribute is replaced with a
+ *	%NL80211_ATTR_TIMED_OUT flag (and %NL80211_ATTR_MAC to indicate which
+ *	pending authentication timed out).
  * @NL80211_CMD_ASSOCIATE: association request and notification; like
  *	NL80211_CMD_AUTHENTICATE but for Association and Reassociation
  *	(similar to MLME-ASSOCIATE.request, MLME-REASSOCIATE.request,
@@ -487,6 +491,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_FREQ_FIXED: a flag indicating the IBSS should not try to look
  *	for other networks on different channels
  *
+ * @NL80211_ATTR_TIMED_OUT: a flag indicating than an operation timed out; this
+ *	is used, e.g., with %NL80211_CMD_AUTHENTICATE event
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -586,6 +593,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_WIPHY_RETRY_LONG,
 	NL80211_ATTR_WIPHY_FRAG_THRESHOLD,
 	NL80211_ATTR_WIPHY_RTS_THRESHOLD,
+
+	NL80211_ATTR_TIMED_OUT,
 
 	/* add attributes here, update the policy in nl80211.c */
 

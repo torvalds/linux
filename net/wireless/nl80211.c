@@ -121,6 +121,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_AUTH_TYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_REASON_CODE] = { .type = NLA_U16 },
 	[NL80211_ATTR_FREQ_FIXED] = { .type = NLA_FLAG },
+	[NL80211_ATTR_TIMED_OUT] = { .type = NLA_FLAG },
 };
 
 /* IE validation */
@@ -3693,6 +3694,54 @@ void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 {
 	nl80211_send_mlme_event(rdev, netdev, buf, len,
 				NL80211_CMD_DISASSOCIATE);
+}
+
+void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
+			       struct net_device *netdev, int cmd,
+			       const u8 *addr)
+{
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_ATOMIC);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, cmd);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
+	NLA_PUT_FLAG(msg, NL80211_ATTR_TIMED_OUT);
+	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, addr);
+
+	if (genlmsg_end(msg, hdr) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast(msg, 0, nl80211_mlme_mcgrp.id, GFP_ATOMIC);
+	return;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
+}
+
+void nl80211_send_auth_timeout(struct cfg80211_registered_device *rdev,
+			       struct net_device *netdev, const u8 *addr)
+{
+	nl80211_send_mlme_timeout(rdev, netdev, NL80211_CMD_AUTHENTICATE,
+				  addr);
+}
+
+void nl80211_send_assoc_timeout(struct cfg80211_registered_device *rdev,
+				struct net_device *netdev, const u8 *addr)
+{
+	nl80211_send_mlme_timeout(rdev, netdev, NL80211_CMD_ASSOCIATE, addr);
 }
 
 void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,

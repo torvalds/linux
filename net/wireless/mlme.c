@@ -44,6 +44,33 @@ void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len)
 }
 EXPORT_SYMBOL(cfg80211_send_disassoc);
 
+static void cfg80211_wext_disconnected(struct net_device *dev)
+{
+#ifdef CONFIG_WIRELESS_EXT
+	union iwreq_data wrqu;
+	memset(&wrqu, 0, sizeof(wrqu));
+	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
+#endif
+}
+
+void cfg80211_send_auth_timeout(struct net_device *dev, const u8 *addr)
+{
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	nl80211_send_auth_timeout(rdev, dev, addr);
+	cfg80211_wext_disconnected(dev);
+}
+EXPORT_SYMBOL(cfg80211_send_auth_timeout);
+
+void cfg80211_send_assoc_timeout(struct net_device *dev, const u8 *addr)
+{
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+	nl80211_send_assoc_timeout(rdev, dev, addr);
+	cfg80211_wext_disconnected(dev);
+}
+EXPORT_SYMBOL(cfg80211_send_assoc_timeout);
+
 void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 				  enum nl80211_key_type key_type, int key_id,
 				  const u8 *tsc)
