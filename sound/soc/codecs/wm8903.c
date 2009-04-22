@@ -392,14 +392,18 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_codec *codec = w->codec;
 	u16 val;
 	u16 reg;
+	u16 dcs_reg;
+	u16 dcs_bit;
 	int shift;
 
 	switch (w->reg) {
 	case WM8903_POWER_MANAGEMENT_2:
 		reg = WM8903_ANALOGUE_HP_0;
+		dcs_bit = 0 + w->shift;
 		break;
 	case WM8903_POWER_MANAGEMENT_3:
 		reg = WM8903_ANALOGUE_LINEOUT_0;
+		dcs_bit = 2 + w->shift;
 		break;
 	default:
 		BUG();
@@ -439,6 +443,11 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 		val |= (WM8903_OUTPUT_OUT << shift);
 		wm8903_write(codec, reg, val);
 
+		/* Enable the DC servo */
+		dcs_reg = wm8903_read(codec, WM8903_DC_SERVO_0);
+		dcs_reg |= dcs_bit;
+		wm8903_write(codec, WM8903_DC_SERVO_0, dcs_reg);
+
 		/* Remove the short */
 		val |= (WM8903_OUTPUT_SHORT << shift);
 		wm8903_write(codec, reg, val);
@@ -450,6 +459,11 @@ static int wm8903_output_event(struct snd_soc_dapm_widget *w,
 		/* Short the output */
 		val &= ~(WM8903_OUTPUT_SHORT << shift);
 		wm8903_write(codec, reg, val);
+
+		/* Disable the DC servo */
+		dcs_reg = wm8903_read(codec, WM8903_DC_SERVO_0);
+		dcs_reg &= ~dcs_bit;
+		wm8903_write(codec, WM8903_DC_SERVO_0, dcs_reg);
 
 		/* Then disable the intermediate and output stages */
 		val &= ~((WM8903_OUTPUT_OUT | WM8903_OUTPUT_INT |
