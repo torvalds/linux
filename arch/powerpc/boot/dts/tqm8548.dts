@@ -59,6 +59,19 @@
 		bus-frequency = <0>;
 		compatible = "fsl,mpc8548-immr", "simple-bus";
 
+		ecm-law@0 {
+			compatible = "fsl,ecm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <10>;
+		};
+
+		ecm@1000 {
+			compatible = "fsl,mpc8548-ecm", "fsl,ecm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
+
 		memory-controller@2000 {
 			compatible = "fsl,mpc8548-memory-controller";
 			reg = <0x2000 0x1000>;
