@@ -517,7 +517,7 @@ struct ieee80211_rx_status {
  * Flags to define PHY configuration options
  *
  * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
- * @IEEE80211_CONF_PS: Enable 802.11 power save mode
+ * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only)
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_RADIOTAP		= (1<<0),
@@ -553,14 +553,26 @@ enum ieee80211_conf_changed {
  *
  * This struct indicates how the driver shall configure the hardware.
  *
+ * @flags: configuration flags defined above
+ *
  * @radio_enabled: when zero, driver is required to switch off the radio.
  * @beacon_int: beacon interval (TODO make interface config)
+ *
  * @listen_interval: listen interval in units of beacon interval
- * @flags: configuration flags defined above
+ * @max_sleep_interval: the maximum number of beacon intervals to sleep for
+ *	before checking the beacon for a TIM bit (managed mode only); this
+ *	value will be only achievable between DTIM frames, the hardware
+ *	needs to check for the multicast traffic bit in DTIM beacons.
+ *	This variable is valid only when the CONF_PS flag is set.
+ * @dynamic_ps_timeout: The dynamic powersave timeout (in ms), see the
+ *	powersave documentation below. This variable is valid only when
+ *	the CONF_PS flag is set.
+ *
  * @power_level: requested transmit power (in dBm)
- * @dynamic_ps_timeout: dynamic powersave timeout (in ms)
+ *
  * @channel: the channel to tune to
  * @channel_type: the channel (HT) type
+ *
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
  *    (a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
  *    but actually means the number of transmissions not the number of retries
@@ -572,6 +584,7 @@ struct ieee80211_conf {
 	int beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
+	int max_sleep_interval;
 
 	u16 listen_interval;
 	bool radio_enabled;

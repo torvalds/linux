@@ -545,10 +545,19 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 		beaconint_us = ieee80211_tu_to_usec(
 					found->vif.bss_conf.beacon_int);
 
-		if (beaconint_us > latency)
+		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;
-		else
+		} else {
+			u8 dtimper = found->vif.bss_conf.dtim_period;
+			int maxslp = 1;
+
+			if (dtimper > 1)
+				maxslp = min_t(int, dtimper,
+						    latency / beaconint_us);
+
+			local->hw.conf.max_sleep_interval = maxslp;
 			local->ps_sdata = found;
+		}
 	} else {
 		local->ps_sdata = NULL;
 	}
@@ -851,8 +860,11 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
 	/* will be same as sdata */
-	if (local->ps_sdata)
-		ieee80211_enable_ps(local, sdata);
+	if (local->ps_sdata) {
+		mutex_lock(&local->iflist_mtx);
+		ieee80211_recalc_ps(local, -1);
+		mutex_unlock(&local->iflist_mtx);
+	}
 
 	netif_tx_start_all_queues(sdata->dev);
 	netif_carrier_on(sdata->dev);
