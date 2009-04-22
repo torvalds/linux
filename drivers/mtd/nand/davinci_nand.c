@@ -306,6 +306,10 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	uint32_t			val;
 	nand_ecc_modes_t		ecc_mode;
 
+	/* insist on board-specific configuration */
+	if (!pdata)
+		return -ENODEV;
+
 	/* which external chipselect will we be managing? */
 	if (pdev->id < 0 || pdev->id > 3)
 		return -ENODEV;
@@ -351,7 +355,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	info->chip.select_chip	= nand_davinci_select_chip;
 
 	/* options such as NAND_USE_FLASH_BBT or 16-bit widths */
-	info->chip.options	= pdata ? pdata->options : 0;
+	info->chip.options	= pdata->options;
 
 	info->ioaddr		= (uint32_t __force) vaddr;
 
@@ -360,14 +364,8 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	info->mask_chipsel	= pdata->mask_chipsel;
 
 	/* use nandboot-capable ALE/CLE masks by default */
-	if (pdata && pdata->mask_ale)
-		info->mask_ale	= pdata->mask_cle;
-	else
-		info->mask_ale	= MASK_ALE;
-	if (pdata && pdata->mask_cle)
-		info->mask_cle	= pdata->mask_cle;
-	else
-		info->mask_cle	= MASK_CLE;
+	info->mask_ale		= pdata->mask_cle ? : MASK_ALE;
+	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
 
 	/* Set address of hardware control function */
 	info->chip.cmd_ctrl	= nand_davinci_hwcontrol;
@@ -377,11 +375,8 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	info->chip.read_buf     = nand_davinci_read_buf;
 	info->chip.write_buf    = nand_davinci_write_buf;
 
-	/* use board-specific ECC config; else, the best available */
-	if (pdata)
-		ecc_mode = pdata->ecc_mode;
-	else
-		ecc_mode = NAND_ECC_HW;
+	/* Use board-specific ECC config */
+	ecc_mode		= pdata->ecc_mode;
 
 	switch (ecc_mode) {
 	case NAND_ECC_NONE:
@@ -469,7 +464,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 			info->mtd.name = master_name;
 		}
 
-		if (mtd_parts_nb <= 0 && pdata) {
+		if (mtd_parts_nb <= 0) {
 			mtd_parts = pdata->parts;
 			mtd_parts_nb = pdata->nr_parts;
 		}
@@ -482,7 +477,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 				info->partitioned = true;
 		}
 
-	} else if (pdata && pdata->nr_parts) {
+	} else if (pdata->nr_parts) {
 		dev_warn(&pdev->dev, "ignoring %d default partitions on %s\n",
 				pdata->nr_parts, info->mtd.name);
 	}
