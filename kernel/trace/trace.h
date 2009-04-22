@@ -422,7 +422,7 @@ void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
 struct ring_buffer_event;
 
 struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
-						    unsigned char type,
+						    int type,
 						    unsigned long len,
 						    unsigned long flags,
 						    int pc);

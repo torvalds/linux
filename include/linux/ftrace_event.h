@@ -16,7 +16,7 @@ struct dentry;
  *     bash-15816 [01]   235.197585: idle_cpu <- irq_enter
  */
 struct trace_entry {
-	unsigned char		type;
+	int			type;
 	unsigned char		flags;
 	unsigned char		preempt_count;
 	int			pid;
@@ -73,7 +73,7 @@ enum print_line_t {
 
 
 struct ring_buffer_event *
-trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
+trace_current_buffer_lock_reserve(int type, unsigned long len,
 				  unsigned long flags, int pc);
 void trace_current_buffer_unlock_commit(struct ring_buffer_event *event,
 					unsigned long flags, int pc);

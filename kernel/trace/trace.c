@@ -838,7 +838,7 @@ tracing_generic_entry_update(struct trace_entry *entry, unsigned long flags,
 }
 
 struct ring_buffer_event *trace_buffer_lock_reserve(struct trace_array *tr,
-						    unsigned char type,
+						    int type,
 						    unsigned long len,
 						    unsigned long flags, int pc)
 {
@@ -881,7 +881,7 @@ void trace_buffer_unlock_commit(struct trace_array *tr,
 }
 
 struct ring_buffer_event *
-trace_current_buffer_lock_reserve(unsigned char type, unsigned long len,
+trace_current_buffer_lock_reserve(int type, unsigned long len,
 				  unsigned long flags, int pc)
 {
 	return trace_buffer_lock_reserve(&global_trace,

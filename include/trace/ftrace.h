@@ -198,7 +198,7 @@ ftrace_define_fields_##call(void)					\
 	struct ftrace_event_call *event_call = &event_##call;		\
 	int ret;							\
 									\
-	__common_field(unsigned char, type);				\
+	__common_field(int, type);					\
 	__common_field(unsigned char, flags);				\
 	__common_field(unsigned char, preempt_count);			\
 	__common_field(int, pid);					\
