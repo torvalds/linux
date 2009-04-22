@@ -925,7 +925,7 @@ static int sa1100_irda_probe(struct platform_device *pdev)
 		goto err_mem_5;
 
 	dev->netdev_ops	= &sa1100_irda_netdev_ops;
-	dev->ir		= IRQ_Ser2ICP;
+	dev->irq	= IRQ_Ser2ICP;
 
 	irda_init_max_qos_capabilies(&si->qos);
 
