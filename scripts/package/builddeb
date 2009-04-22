@@ -11,6 +11,18 @@
 
 set -e
 
+create_package() {
+	local pname="$1" pdir="$2"
+
+	# Fix ownership and permissions
+	chown -R root:root "$pdir"
+	chmod -R go-w "$pdir"
+
+	# Create the package
+	dpkg-gencontrol -isp -p$pname -P"$pdir"
+	dpkg --build "$pdir" ..
+}
+
 # Some variables and settings used throughout the script
 version=$KERNELRELEASE
 revision=$(cat .version)
@@ -77,13 +89,16 @@ linux ($version-$revision) unstable; urgency=low
 EOF
 
 # Generate a control file
-if [ "$ARCH" = "um" ]; then
-	cat <<EOF > debian/control
+cat <<EOF > debian/control
 Source: linux
 Section: base
 Priority: optional
 Maintainer: $name
 Standards-Version: 3.6.1
+EOF
+
+if [ "$ARCH" = "um" ]; then
+	cat <<EOF >> debian/control
 
 Package: $packagename
 Provides: kernel-image-$version, linux-image-$version
@@ -100,12 +115,7 @@ Description: User Mode Linux kernel, version $version
 EOF
 
 else
-	cat <<EOF > debian/control
-Source: linux
-Section: base
-Priority: optional
-Maintainer: $name
-Standards-Version: 3.6.1
+	cat <<EOF >> debian/control
 
 Package: $packagename
 Provides: kernel-image-$version, linux-image-$version
@@ -117,10 +127,6 @@ Description: Linux kernel, version $version
 EOF
 
 fi
-
-# Fix some ownership and permissions
-chown -R root:root "$tmpdir"
-chmod -R go-w "$tmpdir"
 
 # Do we have firmware? Move it out of the way and build it into a package.
 if [ -e "$tmpdir/lib/firmware" ]; then
@@ -134,12 +140,9 @@ Description: Linux kernel firmware, version $version
  This package contains firmware from the Linux kernel, version $version
 EOF
 
-	dpkg-gencontrol -isp -p$fwpackagename -P"$fwdir"
-	dpkg --build "$fwdir" ..
+	create_package "$fwpackagename" "$fwdir"
 fi
 
-# Perform the final magic
-dpkg-gencontrol -isp -p$packagename
-dpkg --build "$tmpdir" ..
+create_package "$packagename" "$tmpdir"
 
 exit 0
