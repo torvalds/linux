@@ -674,8 +674,12 @@ static int intelfb_multi_fb_probe_crtc(struct drm_device *dev, struct drm_crtc *
 	par->crtc_ids[0] = crtc->base.id;
 
 	modeset->num_connectors = conn_count;
-	if (modeset->mode != modeset->crtc->desired_mode)
-		modeset->mode = modeset->crtc->desired_mode;
+	if (modeset->crtc->desired_mode) {
+		if (modeset->mode)
+			drm_mode_destroy(dev, modeset->mode);
+		modeset->mode = drm_mode_duplicate(dev,
+						   modeset->crtc->desired_mode);
+	}
 
 	par->crtc_count = 1;
 
@@ -824,8 +828,12 @@ static int intelfb_single_fb_probe(struct drm_device *dev)
 		par->crtc_ids[crtc_count++] = crtc->base.id;
 
 		modeset->num_connectors = conn_count;
-		if (modeset->mode != modeset->crtc->desired_mode)
-			modeset->mode = modeset->crtc->desired_mode;
+		if (modeset->crtc->desired_mode) {
+			if (modeset->mode)
+				drm_mode_destroy(dev, modeset->mode);
+			modeset->mode = drm_mode_duplicate(dev,
+							   modeset->crtc->desired_mode);
+		}
 	}
 	par->crtc_count = crtc_count;
 

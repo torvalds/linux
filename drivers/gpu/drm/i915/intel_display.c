@@ -2310,6 +2310,8 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
+	if (intel_crtc->mode_set.mode)
+		drm_mode_destroy(crtc->dev, intel_crtc->mode_set.mode);
 	drm_crtc_cleanup(crtc);
 	kfree(intel_crtc);
 }
