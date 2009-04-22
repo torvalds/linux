@@ -98,7 +98,7 @@ name="Kernel Compiler <$(id -nu)@$(hostname -f)>"
 cat <<EOF > debian/changelog
 linux ($packageversion) unstable; urgency=low
 
-  * A standard release
+  * Custom built Linux kernel.
 
  -- $name  $(date -R)
 EOF
@@ -126,7 +126,7 @@ Description: User Mode Linux kernel, version $version
  many other things.
  .
  This package contains the Linux kernel, modules and corresponding other
- files version $version
+ files, version: $version.
 EOF
 
 else
@@ -138,7 +138,7 @@ Suggests: $fwpackagename
 Architecture: any
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
- files version $version
+ files, version: $version.
 EOF
 
 fi
@@ -152,7 +152,7 @@ if [ -e "$tmpdir/lib/firmware" ]; then
 Package: $fwpackagename
 Architecture: all
 Description: Linux kernel firmware, version $version
- This package contains firmware from the Linux kernel, version $version
+ This package contains firmware from the Linux kernel, version $version.
 EOF
 
 	create_package "$fwpackagename" "$fwdir"
