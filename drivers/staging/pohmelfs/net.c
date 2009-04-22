@@ -168,8 +168,7 @@ int pohmelfs_data_recv_and_check(struct netfs_state *st, void *data, unsigned in
  * Polling machinery.
  */
 
-struct netfs_poll_helper
-{
+struct netfs_poll_helper {
 	poll_table 		pt;
 	struct netfs_state	*st;
 };
