@@ -36,7 +36,7 @@ else
 fi
 tmpdir="$objtree/debian/tmp"
 fwdir="$objtree/debian/fwtmp"
-packagename=linux-$version
+packagename=linux-image-$version
 fwpackagename=linux-firmware-image
 
 if [ "$ARCH" = "um" ] ; then
