@@ -116,6 +116,9 @@ static int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 	enum ieee80211_band band;
 	int i;
 
+	if (!wdev->wext.beacon_interval)
+		wdev->wext.beacon_interval = 100;
+
 	/* try to find an IBSS channel if none requested ... */
 	if (!wdev->wext.channel) {
 		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {

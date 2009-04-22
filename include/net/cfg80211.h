@@ -733,6 +733,7 @@ struct cfg80211_disassoc_request {
  *	IBSSs to join on other channels.
  * @ie: information element(s) to include in the beacon
  * @ie_len: length of that
+ * @beacon_interval: beacon interval to use
  */
 struct cfg80211_ibss_params {
 	u8 *ssid;
@@ -740,6 +741,7 @@ struct cfg80211_ibss_params {
 	struct ieee80211_channel *channel;
 	u8 *ie;
 	u8 ssid_len, ie_len;
+	u16 beacon_interval;
 	bool channel_fixed;
 };
 

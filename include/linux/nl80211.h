@@ -230,7 +230,9 @@
  *	and optionally a MAC (as BSSID) and FREQ_FIXED attribute if those
  *	should be fixed rather than automatically determined. Can only be
  *	executed on a network interface that is UP, and fixed BSSID/FREQ
- *	may be rejected.
+ *	may be rejected. Another optional parameter is the beacon interval,
+ *	given in the %NL80211_ATTR_BEACON_INTERVAL attribute, which if not
+ *	given defaults to 100 TU (102.4ms).
  * @NL80211_CMD_LEAVE_IBSS: Leave the IBSS -- no special arguments, the IBSS is
  *	determined by the network interface.
  *

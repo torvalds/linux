@@ -3159,6 +3159,8 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	struct wiphy *wiphy;
 	int err;
 
+	memset(&ibss, 0, sizeof(ibss));
+
 	if (!is_valid_ie_attr(info->attrs[NL80211_ATTR_IE]))
 		return -EINVAL;
 
@@ -3166,6 +3168,15 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	    !info->attrs[NL80211_ATTR_SSID] ||
 	    !nla_len(info->attrs[NL80211_ATTR_SSID]))
 		return -EINVAL;
+
+	ibss.beacon_interval = 100;
+
+	if (info->attrs[NL80211_ATTR_BEACON_INTERVAL]) {
+		ibss.beacon_interval =
+			nla_get_u32(info->attrs[NL80211_ATTR_BEACON_INTERVAL]);
+		if (ibss.beacon_interval < 1 || ibss.beacon_interval > 10000)
+			return -EINVAL;
+	}
 
 	rtnl_lock();
 
@@ -3189,7 +3200,6 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	wiphy = &drv->wiphy;
-	memset(&ibss, 0, sizeof(ibss));
 
 	if (info->attrs[NL80211_ATTR_MAC])
 		ibss.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
