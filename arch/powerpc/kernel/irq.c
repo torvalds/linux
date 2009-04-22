@@ -254,7 +254,6 @@ static inline void handle_one_irq(unsigned int irq)
 	struct thread_info *curtp, *irqtp;
 	unsigned long saved_sp_limit;
 	struct irq_desc *desc;
-	void *handler;
 
 	/* Switch to the irq stack to handle this */
 	curtp = current_thread_info();
@@ -269,10 +268,6 @@ static inline void handle_one_irq(unsigned int irq)
 	desc = irq_desc + irq;
 	saved_sp_limit = current->thread.ksp_limit;
 
-	handler = desc->handle_irq;
-	if (handler == NULL)
-		handler = &__do_IRQ;
-
 	irqtp->task = curtp->task;
 	irqtp->flags = 0;
 
@@ -284,7 +279,7 @@ static inline void handle_one_irq(unsigned int irq)
 	current->thread.ksp_limit = (unsigned long)irqtp +
 		_ALIGN_UP(sizeof(struct thread_info), 16);
 
-	call_handle_irq(irq, desc, irqtp, handler);
+	call_handle_irq(irq, desc, irqtp, desc->handle_irq);
 	current->thread.ksp_limit = saved_sp_limit;
 	irqtp->task = NULL;
 
