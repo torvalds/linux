@@ -53,7 +53,10 @@ if [ "$ARCH" = "um" ] ; then
 else 
 	cp System.map "$tmpdir/boot/System.map-$version"
 	cp .config "$tmpdir/boot/config-$version"
-	cp $KBUILD_IMAGE "$tmpdir/boot/vmlinuz-$version"
+	# Not all arches include the boot path in KBUILD_IMAGE
+	if ! cp $KBUILD_IMAGE "$tmpdir/boot/vmlinuz-$version"; then
+		cp arch/$ARCH/boot/$KBUILD_IMAGE "$tmpdir/boot/vmlinuz-$version"
+	fi
 fi
 
 if grep -q '^CONFIG_MODULES=y' .config ; then
