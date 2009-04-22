@@ -52,17 +52,19 @@
 
 /* dapm power sequences - make this per codec in the future */
 static int dapm_up_seq[] = {
-	snd_soc_dapm_pre, snd_soc_dapm_micbias, snd_soc_dapm_mic,
-	snd_soc_dapm_mux, snd_soc_dapm_value_mux, snd_soc_dapm_dac,
-	snd_soc_dapm_mixer, snd_soc_dapm_mixer_named_ctl, snd_soc_dapm_pga,
-	snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk, snd_soc_dapm_post
+	snd_soc_dapm_pre, snd_soc_dapm_supply, snd_soc_dapm_micbias,
+	snd_soc_dapm_mic, snd_soc_dapm_mux, snd_soc_dapm_value_mux,
+	snd_soc_dapm_dac, snd_soc_dapm_mixer, snd_soc_dapm_mixer_named_ctl,
+	snd_soc_dapm_pga, snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk,
+	snd_soc_dapm_post
 };
 
 static int dapm_down_seq[] = {
 	snd_soc_dapm_pre, snd_soc_dapm_adc, snd_soc_dapm_hp, snd_soc_dapm_spk,
 	snd_soc_dapm_pga, snd_soc_dapm_mixer_named_ctl, snd_soc_dapm_mixer,
 	snd_soc_dapm_dac, snd_soc_dapm_mic, snd_soc_dapm_micbias,
-	snd_soc_dapm_mux, snd_soc_dapm_value_mux, snd_soc_dapm_post
+	snd_soc_dapm_mux, snd_soc_dapm_value_mux, snd_soc_dapm_supply,
+	snd_soc_dapm_post
 };
 
 static int dapm_status = 1;
@@ -165,6 +167,7 @@ static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	case snd_soc_dapm_dac:
 	case snd_soc_dapm_micbias:
 	case snd_soc_dapm_vmid:
+	case snd_soc_dapm_supply:
 		p->connect = 1;
 	break;
 	/* does effect routing - dynamically connected */
@@ -435,6 +438,9 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 	struct snd_soc_dapm_path *path;
 	int con = 0;
 
+	if (widget->id == snd_soc_dapm_supply)
+		return 0;
+
 	if (widget->id == snd_soc_dapm_adc && widget->active)
 		return 1;
 
@@ -470,6 +476,9 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 {
 	struct snd_soc_dapm_path *path;
 	int con = 0;
+
+	if (widget->id == snd_soc_dapm_supply)
+		return 0;
 
 	/* active stream ? */
 	if (widget->id == snd_soc_dapm_dac && widget->active)
@@ -622,6 +631,26 @@ static int dapm_dac_check_power(struct snd_soc_dapm_widget *w)
 	}
 }
 
+/* Check to see if a power supply is needed */
+static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_path *path;
+	int power = 0;
+
+	/* Check if one of our outputs is connected */
+	list_for_each_entry(path, &w->sinks, list_source) {
+		if (path->sink && path->sink->power_check &&
+		    path->sink->power_check(path->sink)) {
+			power = 1;
+			break;
+		}
+	}
+
+	dapm_clear_walk(w->codec);
+
+	return power;
+}
+
 /*
  * Scan a single DAPM widget for a complete audio path and update the
  * power status appropriately.
@@ -752,6 +781,7 @@ static void dbg_dump_dapm(struct snd_soc_codec* codec, const char *action)
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
+		case snd_soc_dapm_supply:
 			if (w->name) {
 				in = is_connected_input_ep(w);
 				dapm_clear_walk(w->codec);
@@ -880,6 +910,7 @@ static ssize_t dapm_widget_show(struct device *dev,
 		case snd_soc_dapm_pga:
 		case snd_soc_dapm_mixer:
 		case snd_soc_dapm_mixer_named_ctl:
+		case snd_soc_dapm_supply:
 			if (w->name)
 				count += sprintf(buf + count, "%s: %s\n",
 					w->name, w->power ? "On":"Off");
@@ -1044,6 +1075,7 @@ static int snd_soc_dapm_add_route(struct snd_soc_codec *codec,
 	case snd_soc_dapm_vmid:
 	case snd_soc_dapm_pre:
 	case snd_soc_dapm_post:
+	case snd_soc_dapm_supply:
 		list_add(&path->list, &codec->dapm_paths);
 		list_add(&path->list_sink, &wsink->sources);
 		list_add(&path->list_source, &wsource->sinks);
@@ -1164,6 +1196,8 @@ int snd_soc_dapm_new_widgets(struct snd_soc_codec *codec)
 		case snd_soc_dapm_line:
 			w->power_check = dapm_generic_check_power;
 			break;
+		case snd_soc_dapm_supply:
+			w->power_check = dapm_supply_check_power;
 		case snd_soc_dapm_vmid:
 		case snd_soc_dapm_pre:
 		case snd_soc_dapm_post:
