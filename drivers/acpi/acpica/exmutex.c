@@ -373,11 +373,12 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	     walk_state->thread->thread_id)
 	    && (obj_desc != acpi_gbl_global_lock_mutex)) {
 		ACPI_ERROR((AE_INFO,
-			    "Thread %lX cannot release Mutex [%4.4s] acquired by thread %lX",
-			    (unsigned long)walk_state->thread->thread_id,
+			    "Thread %p cannot release Mutex [%4.4s] acquired by thread %p",
+			    ACPI_CAST_PTR(void, walk_state->thread->thread_id),
 			    acpi_ut_get_node_name(obj_desc->mutex.node),
-			    (unsigned long)obj_desc->mutex.owner_thread->
-			    thread_id));
+			    ACPI_CAST_PTR(void,
+					  obj_desc->mutex.owner_thread->
+					  thread_id)));
 		return_ACPI_STATUS(AE_AML_NOT_OWNER);
 	}
 
