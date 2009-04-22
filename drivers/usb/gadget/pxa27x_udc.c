@@ -1892,6 +1892,15 @@ static void handle_ep0_ctrl_req(struct pxa_udc *udc,
 
 	nuke(ep, -EPROTO);
 
+	/*
+	 * In the PXA320 manual, in the section about Back-to-Back setup
+	 * packets, it describes this situation.  The solution is to set OPC to
+	 * get rid of the status packet, and then continue with the setup
+	 * packet. Generalize to pxa27x CPUs.
+	 */
+	if (epout_has_pkt(ep) && (ep_count_bytes_remain(ep) == 0))
+		udc_ep_writel(ep, UDCCSR, UDCCSR0_OPC);
+
 	/* read SETUP packet */
 	for (i = 0; i < 2; i++) {
 		if (unlikely(ep_is_empty(ep)))
@@ -1965,6 +1974,8 @@ stall:
  *     cleared by software.
  *   - clearing UDCCSR0_OPC always flushes ep0. If in setup stage, never do it
  *     before reading ep0.
+ *     This is true only for PXA27x. This is not true anymore for PXA3xx family
+ *     (check Back-to-Back setup packet in developers guide).
  *   - irq can be called on a "packet complete" event (opc_irq=1), while
  *     UDCCSR0_OPC is not yet raised (delta can be as big as 100ms
  *     from experimentation).
@@ -2575,7 +2586,7 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
-	if (!cpu_is_pxa27x())
+	if (!cpu_is_pxa27x() && !cpu_is_pxa3xx())
 		return -ENODEV;
 
 	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);

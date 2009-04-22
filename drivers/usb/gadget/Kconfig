@@ -253,7 +253,7 @@ config USB_PXA25X_SMALL
 
 config USB_GADGET_PXA27X
 	boolean "PXA 27x"
-	depends on ARCH_PXA && PXA27x
+	depends on ARCH_PXA && (PXA27x || PXA3xx)
 	select USB_OTG_UTILS
 	help
 	   Intel's PXA 27x series XScale ARM v5TE processors include
