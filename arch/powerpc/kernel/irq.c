@@ -301,6 +301,22 @@ static inline void handle_one_irq(unsigned int irq)
 }
 #endif
 
+static inline void check_stack_overflow(void)
+{
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+	long sp;
+
+	sp = __get_SP() & (THREAD_SIZE-1);
+
+	/* check for stack overflow: is there less than 2KB free? */
+	if (unlikely(sp < (sizeof(struct thread_info) + 2048))) {
+		printk("do_IRQ: stack overflow: %ld\n",
+			sp - sizeof(struct thread_info));
+		dump_stack();
+	}
+#endif
+}
+
 void do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
@@ -308,20 +324,7 @@ void do_IRQ(struct pt_regs *regs)
 
 	irq_enter();
 
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 2KB free? */
-	{
-		long sp;
-
-		sp = __get_SP() & (THREAD_SIZE-1);
-
-		if (unlikely(sp < (sizeof(struct thread_info) + 2048))) {
-			printk("do_IRQ: stack overflow: %ld\n",
-				sp - sizeof(struct thread_info));
-			dump_stack();
-		}
-	}
-#endif
+	check_stack_overflow();
 
 	/*
 	 * Every platform is required to implement ppc_md.get_irq.
