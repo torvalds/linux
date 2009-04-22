@@ -28,6 +28,7 @@
 #include <asm/txx9tmr.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/ndfmc.h>
+#include <asm/txx9/dmac.h>
 #include <asm/txx9/tx4939.h>
 
 static void __init tx4939_wdr_init(void)
@@ -259,11 +260,6 @@ void __init tx4939_setup(void)
 	for (i = 0; i < TX4939_NR_TMR; i++)
 		txx9_tmr_init(TX4939_TMR_REG(i) & 0xfffffffffULL);
 
-	/* DMA */
-	for (i = 0; i < 2; i++)
-		____raw_writeq(TX4938_DMA_MCR_MSTEN,
-			       (void __iomem *)(TX4939_DMA_REG(i) + 0x50));
-
 	/* set PCIC1 reset (required to prevent hangup on BIST) */
 	txx9_set64(&tx4939_ccfgptr->clkctr, TX4939_CLKCTR_PCI1RST);
 	pcfg = ____raw_readq(&tx4939_ccfgptr->pcfg);
@@ -472,6 +468,21 @@ void __init tx4939_ndfmc_init(unsigned int hold, unsigned int spw,
 		.wide_mask = wide_mask,
 	};
 	txx9_ndfmc_init(TX4939_NDFMC_REG & 0xfffffffffULL, &plat_data);
+}
+
+void __init tx4939_dmac_init(int memcpy_chan0, int memcpy_chan1)
+{
+	struct txx9dmac_platform_data plat_data = {
+		.have_64bit_regs = true,
+	};
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		plat_data.memcpy_chan = i ? memcpy_chan1 : memcpy_chan0;
+		txx9_dmac_init(i, TX4939_DMA_REG(i) & 0xfffffffffULL,
+			       TXX9_IRQ_BASE + TX4939_IR_DMA(i, 0),
+			       &plat_data);
+	}
 }
 
 static void __init tx4939_stop_unused_modules(void)

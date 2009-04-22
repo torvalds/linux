@@ -22,6 +22,7 @@
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
 #include <asm/txx9/generic.h>
+#include <asm/txx9/dmac.h>
 #include <asm/txx9/tx4927.h>
 
 static void __init tx4927_wdr_init(void)
@@ -251,6 +252,17 @@ void __init tx4927_mtd_init(int ch)
 	if (!(TX4927_EBUSC_CR(ch) & 0x8))
 		return;	/* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
+}
+
+void __init tx4927_dmac_init(int memcpy_chan)
+{
+	struct txx9dmac_platform_data plat_data = {
+		.memcpy_chan = memcpy_chan,
+		.have_64bit_regs = true,
+	};
+
+	txx9_dmac_init(0, TX4927_DMA_REG & 0xfffffffffULL,
+		       TXX9_IRQ_BASE + TX4927_IR_DMA(0), &plat_data);
 }
 
 static void __init tx4927_stop_unused_modules(void)

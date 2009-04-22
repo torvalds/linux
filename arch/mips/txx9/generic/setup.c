@@ -33,6 +33,7 @@
 #include <asm/txx9/pci.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9/ndfmc.h>
+#include <asm/txx9/dmac.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
 #endif
@@ -821,3 +822,57 @@ void __init txx9_iocled_init(unsigned long baseaddr,
 {
 }
 #endif /* CONFIG_LEDS_GPIO */
+
+void __init txx9_dmac_init(int id, unsigned long baseaddr, int irq,
+			   const struct txx9dmac_platform_data *pdata)
+{
+#if defined(CONFIG_TXX9_DMAC) || defined(CONFIG_TXX9_DMAC_MODULE)
+	struct resource res[] = {
+		{
+			.start = baseaddr,
+			.end = baseaddr + 0x800 - 1,
+			.flags = IORESOURCE_MEM,
+#ifndef CONFIG_MACH_TX49XX
+		}, {
+			.start = irq,
+			.flags = IORESOURCE_IRQ,
+#endif
+		}
+	};
+#ifdef CONFIG_MACH_TX49XX
+	struct resource chan_res[] = {
+		{
+			.flags = IORESOURCE_IRQ,
+		}
+	};
+#endif
+	struct platform_device *pdev = platform_device_alloc("txx9dmac", id);
+	struct txx9dmac_chan_platform_data cpdata;
+	int i;
+
+	if (!pdev ||
+	    platform_device_add_resources(pdev, res, ARRAY_SIZE(res)) ||
+	    platform_device_add_data(pdev, pdata, sizeof(*pdata)) ||
+	    platform_device_add(pdev)) {
+		platform_device_put(pdev);
+		return;
+	}
+	memset(&cpdata, 0, sizeof(cpdata));
+	cpdata.dmac_dev = pdev;
+	for (i = 0; i < TXX9_DMA_MAX_NR_CHANNELS; i++) {
+#ifdef CONFIG_MACH_TX49XX
+		chan_res[0].start = irq + i;
+#endif
+		pdev = platform_device_alloc("txx9dmac-chan",
+					     id * TXX9_DMA_MAX_NR_CHANNELS + i);
+		if (!pdev ||
+#ifdef CONFIG_MACH_TX49XX
+		    platform_device_add_resources(pdev, chan_res,
+						  ARRAY_SIZE(chan_res)) ||
+#endif
+		    platform_device_add_data(pdev, &cpdata, sizeof(cpdata)) ||
+		    platform_device_add(pdev))
+			platform_device_put(pdev);
+	}
+#endif
+}

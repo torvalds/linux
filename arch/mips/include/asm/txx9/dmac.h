@@ -45,4 +45,7 @@ struct txx9dmac_slave {
 	unsigned int	reg_width;
 };
 
+void txx9_dmac_init(int id, unsigned long baseaddr, int irq,
+		    const struct txx9dmac_platform_data *pdata);
+
 #endif /* __ASM_TXX9_DMAC_H */

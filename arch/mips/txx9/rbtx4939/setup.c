@@ -498,6 +498,7 @@ static void __init rbtx4939_device_init(void)
 	tx4939_wdt_init();
 	tx4939_ata_init();
 	tx4939_rtc_init();
+	tx4939_dmac_init(0, 2);
 }
 
 static void __init rbtx4939_setup(void)

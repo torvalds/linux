@@ -41,6 +41,7 @@
 
 #define TX4927_SDRAMC_REG	(TX4927_REG_BASE + 0x8000)
 #define TX4927_EBUSC_REG	(TX4927_REG_BASE + 0x9000)
+#define TX4927_DMA_REG		(TX4927_REG_BASE + 0xb000)
 #define TX4927_PCIC_REG		(TX4927_REG_BASE + 0xd000)
 #define TX4927_CCFG_REG		(TX4927_REG_BASE + 0xe000)
 #define TX4927_IRC_REG		(TX4927_REG_BASE + 0xf600)
@@ -265,5 +266,6 @@ int tx4927_pciclk66_setup(void);
 void tx4927_setup_pcierr_irq(void);
 void tx4927_irq_init(void);
 void tx4927_mtd_init(int ch);
+void tx4927_dmac_init(int memcpy_chan);
 
 #endif /* __ASM_TXX9_TX4927_H */
