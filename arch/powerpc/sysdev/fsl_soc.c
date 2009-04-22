@@ -379,16 +379,10 @@ static int __init setup_rstcr(void)
 	struct device_node *np;
 	np = of_find_node_by_name(NULL, "global-utilities");
 	if ((np && of_get_property(np, "fsl,has-rstcr", NULL))) {
-		const u32 *prop = of_get_property(np, "reg", NULL);
-		if (prop) {
-			/* map reset control register
-			 * 0xE00B0 is offset of reset control register
-			 */
-			rstcr = ioremap(get_immrbase() + *prop + 0xB0, 0xff);
-			if (!rstcr)
-				printk (KERN_EMERG "Error: reset control "
-						"register not mapped!\n");
-		}
+		rstcr = of_iomap(np, 0) + 0xb0;
+		if (!rstcr)
+			printk (KERN_EMERG "Error: reset control register "
+					"not mapped!\n");
 	} else
 		printk (KERN_INFO "rstcr compatible register does not exist!\n");
 	if (np)
