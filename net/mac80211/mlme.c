@@ -487,6 +487,13 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 {
 	struct ieee80211_conf *conf = &local->hw.conf;
 
+	/*
+	 * If we are scanning right now then the parameters will
+	 * take effect when scan finishes.
+	 */
+	if (local->hw_scanning || local->sw_scanning)
+		return;
+
 	if (conf->dynamic_ps_timeout > 0 &&
 	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)) {
 		mod_timer(&local->dynamic_ps_timer, jiffies +
