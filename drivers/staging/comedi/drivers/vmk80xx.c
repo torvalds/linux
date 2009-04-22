@@ -32,7 +32,6 @@ Status: works
 */
 
 #include <linux/kernel.h>
-#include <linux/comedidev.h> /* comedi definitions */
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/errno.h>
@@ -41,6 +40,8 @@ Status: works
 #include <linux/poll.h>
 #include <linux/usb.h>
 #include <asm/uaccess.h>
+
+#include "../comedidev.h"	/* comedi definitions */
 
 /* ------------------------------------------------------------------------ */
 #define VMK80XX_MODULE_DESC "Velleman USB Interface Board Kernel-Space Driver"
@@ -346,8 +347,8 @@ exit:
 /* ---------------------------------------------------------------------------
  * COMEDI-Interface (callback functions for the userspacs apps).
 --------------------------------------------------------------------------- */
-static int vm_ai_rinsn(comedi_device *dev, comedi_subdevice *s,
-		       comedi_insn *insn, unsigned int *data)
+static int vm_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+		       struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -399,8 +400,8 @@ error:
 	return retval;
 }
 
-static int vm_ao_winsn(comedi_device *dev, comedi_subdevice *s,
-                       comedi_insn *insn, unsigned int *data)
+static int vm_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+		       struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -454,8 +455,8 @@ error:
 	return retval;
 }
 
-static int vm_di_rinsn(comedi_device *dev, comedi_subdevice *s,
-		       comedi_insn *insn, unsigned int *data)
+static int vm_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+		       struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -504,8 +505,8 @@ error:
 	return retval;
 }
 
-static int vm_do_winsn(comedi_device *dev, comedi_subdevice *s,
-		       comedi_insn *insn, unsigned int *data)
+static int vm_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+		       struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -555,8 +556,8 @@ error:
 	return retval;
 }
 
-static int vm_cnt_rinsn(comedi_device *dev, comedi_subdevice *s,
-			comedi_insn *insn, unsigned int *data)
+static int vm_cnt_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -608,8 +609,8 @@ error:
 	return retval;
 }
 
-static int vm_cnt_winsn(comedi_device *dev, comedi_subdevice *s,
-			comedi_insn *insn, unsigned int *data)
+static int vm_cnt_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -659,8 +660,8 @@ error:
 	return retval;
 }
 
-static int vm_cnt_cinsn(comedi_device *dev, comedi_subdevice *s,
-			comedi_insn *insn, unsigned int *data)
+static int vm_cnt_cinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+			struct comedi_insn *insn, unsigned int *data)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -749,9 +750,9 @@ static DEFINE_MUTEX(glb_mutex);
  * Hook-up (or deallocate) the virtual device file '/dev/comedi[minor]' with
  * the vmk80xx driver (comedi_config/rmmod).
 --------------------------------------------------------------------------- */
-static int vm_attach(comedi_device *dev, comedi_devconfig *it)
+static int vm_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	comedi_subdevice *s;
+	struct comedi_subdevice *s;
 	int minor = dev->minor;
 	int idx, i;
 
@@ -844,7 +845,7 @@ static int vm_attach(comedi_device *dev, comedi_devconfig *it)
 	return 0;
 }
 
-static int vm_detach(comedi_device *dev)
+static int vm_detach(struct comedi_device *dev)
 {
 	struct vmk80xx_usb *vm;
 	int minor = dev->minor;
@@ -1060,16 +1061,13 @@ static void vm_disconnect(struct usb_interface *intf)
  * Register/Deregister this driver with/from the usb subsystem and the comedi.
 --------------------------------------------------------------------------- */
 static struct usb_driver vm_driver = {
-#ifdef COMEDI_HAVE_USB_DRIVER_OWNER
-	.owner =	THIS_MODULE,
-#endif
 	.name =		"vmk80xx",
 	.probe =	vm_probe,
 	.disconnect =	vm_disconnect,
 	.id_table =	vm_id_table,
 };
 
-static comedi_driver driver_vm = {
+static struct comedi_driver driver_vm = {
 	.module =	THIS_MODULE,
 	.driver_name =	"vmk80xx",
 	.attach =	vm_attach,
