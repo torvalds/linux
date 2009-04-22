@@ -21,29 +21,41 @@ static void disable_hotplug_cpu(int cpu)
 	set_cpu_present(cpu, false);
 }
 
-static void vcpu_hotplug(unsigned int cpu)
+static int vcpu_online(unsigned int cpu)
 {
 	int err;
 	char dir[32], state[32];
-
-	if (!cpu_possible(cpu))
-		return;
 
 	sprintf(dir, "cpu/%u", cpu);
 	err = xenbus_scanf(XBT_NIL, dir, "availability", "%s", state);
 	if (err != 1) {
 		printk(KERN_ERR "XENBUS: Unable to read cpu state\n");
-		return;
+		return err;
 	}
 
-	if (strcmp(state, "online") == 0) {
+	if (strcmp(state, "online") == 0)
+		return 1;
+	else if (strcmp(state, "offline") == 0)
+		return 0;
+
+	printk(KERN_ERR "XENBUS: unknown state(%s) on CPU%d\n", state, cpu);
+	return -EINVAL;
+}
+static void vcpu_hotplug(unsigned int cpu)
+{
+	if (!cpu_possible(cpu))
+		return;
+
+	switch (vcpu_online(cpu)) {
+	case 1:
 		enable_hotplug_cpu(cpu);
-	} else if (strcmp(state, "offline") == 0) {
+		break;
+	case 0:
 		(void)cpu_down(cpu);
 		disable_hotplug_cpu(cpu);
-	} else {
-		printk(KERN_ERR "XENBUS: unknown state(%s) on CPU%d\n",
-		       state, cpu);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -64,11 +76,19 @@ static void handle_vcpu_hotplug_event(struct xenbus_watch *watch,
 static int setup_cpu_watcher(struct notifier_block *notifier,
 			      unsigned long event, void *data)
 {
+	int cpu;
 	static struct xenbus_watch cpu_watch = {
 		.node = "cpu",
 		.callback = handle_vcpu_hotplug_event};
 
 	(void)register_xenbus_watch(&cpu_watch);
+
+	for_each_possible_cpu(cpu) {
+		if (vcpu_online(cpu) == 0) {
+			(void)cpu_down(cpu);
+			cpu_clear(cpu, cpu_present_map);
+		}
+	}
 
 	return NOTIFY_DONE;
 }

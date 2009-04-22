@@ -4508,12 +4508,17 @@ struct saa7134_board saa7134_boards[] = {
 		/* Matthias Schwarzott <zzam@gentoo.org> */
 		.name           = "Avermedia DVB-S Hybrid+FM A700",
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_ABSENT, /* TUNER_XC2028 */
+		.tuner_type     = TUNER_XC2028,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = { {
+			.name   = name_tv,
+			.vmux   = 4,
+			.amux   = TV,
+			.tv     = 1,
+		}, {
 			.name = name_comp,
 			.vmux = 1,
 			.amux = LINE1,
@@ -4522,6 +4527,10 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux = 6,
 			.amux = LINE1,
 		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+		},
 	},
 	[SAA7134_BOARD_BEHOLD_H6] = {
 		/* Igor Kuznetsov <igk@igk.ru> */
@@ -5914,6 +5923,11 @@ static int saa7134_xc2028_callback(struct saa7134_dev *dev,
 			msleep(10);
 			saa7134_set_gpio(dev, 21, 1);
 		break;
+		case SAA7134_BOARD_AVERMEDIA_A700_HYBRID:
+			saa7134_set_gpio(dev, 18, 0);
+			msleep(10);
+			saa7134_set_gpio(dev, 18, 1);
+		break;
 		}
 	return 0;
 	}
@@ -6259,10 +6273,6 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0c0007cd, 0x0c0007cd);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A700_HYBRID:
-		printk("%s: %s: hybrid analog/dvb card\n"
-		       "%s: Sorry, of the analog inputs, only analog s-video and composite "
-		       "are supported for now.\n",
-			dev->name, card(dev).name, dev->name);
 	case SAA7134_BOARD_AVERMEDIA_A700_PRO:
 		/* write windows gpio values */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x80040100, 0x80040100);
@@ -6326,6 +6336,7 @@ static void saa7134_tuner_setup(struct saa7134_dev *dev)
 		case SAA7134_BOARD_AVERMEDIA_A16D:
 		case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
 		case SAA7134_BOARD_AVERMEDIA_M103:
+		case SAA7134_BOARD_AVERMEDIA_A700_HYBRID:
 			ctl.demod = XC3028_FE_ZARLINK456;
 			break;
 		default:
@@ -6599,20 +6610,24 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		/* Note: radio tuner address is always filled in,
 		   so we do not need to probe for a radio tuner device. */
 		if (dev->radio_type != UNSET)
-			v4l2_i2c_new_subdev(&dev->i2c_adap,
-				"tuner", "tuner", dev->radio_addr);
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				dev->radio_addr);
 		if (has_demod)
-			v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
 		if (dev->tuner_addr == ADDR_UNSET) {
 			enum v4l2_i2c_tuner_type type =
 				has_demod ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
 
-			v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "tuner",
-				"tuner", v4l2_i2c_tuner_addrs(type));
+			v4l2_i2c_new_probed_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				v4l2_i2c_tuner_addrs(type));
 		} else {
-			v4l2_i2c_new_subdev(&dev->i2c_adap,
-				"tuner", "tuner", dev->tuner_addr);
+			v4l2_i2c_new_subdev(&dev->v4l2_dev,
+				&dev->i2c_adap, "tuner", "tuner",
+				dev->tuner_addr);
 		}
 	}
 

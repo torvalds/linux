@@ -431,7 +431,7 @@ EXPORT_SYMBOL(blk_queue_segment_boundary);
  *
  * description:
  *    set required memory and length alignment for direct dma transactions.
- *    this is used when buiding direct io requests for the queue.
+ *    this is used when building direct io requests for the queue.
  *
  **/
 void blk_queue_dma_alignment(struct request_queue *q, int mask)

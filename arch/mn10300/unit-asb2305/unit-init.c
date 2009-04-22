@@ -18,7 +18,7 @@
 #include <asm/cpu/intctl-regs.h>
 #include <asm/cpu/rtc-regs.h>
 #include <asm/cpu/serial-regs.h>
-#include <asm/unit/serial.h>
+#include <unit/serial.h>
 
 /*
  * initialise some of the unit hardware before gdbstub is set up

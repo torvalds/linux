@@ -78,6 +78,7 @@ static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
 static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 					ssize_t size);
 #define MAX_SLOTS 8
+#define MAX_RETRY 15
 
 enum {
 	AHCI_PCI_BAR		= 5,
@@ -113,6 +114,7 @@ enum {
 	board_ahci_sb700	= 5, /* for SB700 and SB800 */
 	board_ahci_mcp65	= 6,
 	board_ahci_nopmp	= 7,
+	board_ahci_yesncq	= 8,
 
 	/* global controller registers */
 	HOST_CAP		= 0x00, /* host capabilities */
@@ -468,6 +470,14 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
+	/* board_ahci_yesncq */
+	{
+		AHCI_HFLAGS	(AHCI_HFLAG_YES_NCQ),
+		.flags		= AHCI_FLAG_COMMON,
+		.pio_mask	= ATA_PIO4,
+		.udma_mask	= ATA_UDMA6,
+		.port_ops	= &ahci_ops,
+	},
 };
 
 static const struct pci_device_id ahci_pci_tbl[] = {
@@ -534,30 +544,30 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(NVIDIA, 0x045d), board_ahci_mcp65 },	/* MCP65 */
 	{ PCI_VDEVICE(NVIDIA, 0x045e), board_ahci_mcp65 },	/* MCP65 */
 	{ PCI_VDEVICE(NVIDIA, 0x045f), board_ahci_mcp65 },	/* MCP65 */
-	{ PCI_VDEVICE(NVIDIA, 0x0550), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0551), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0552), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0553), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0554), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0555), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0556), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0557), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0558), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x0559), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x055a), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x055b), board_ahci },		/* MCP67 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f0), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f1), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f2), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f3), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f4), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f5), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f6), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f7), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f8), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07f9), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07fa), board_ahci },		/* MCP73 */
-	{ PCI_VDEVICE(NVIDIA, 0x07fb), board_ahci },		/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x0550), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0551), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0552), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0553), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0554), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0555), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0556), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0557), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0558), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x0559), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x055a), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x055b), board_ahci_yesncq },	/* MCP67 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f0), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f1), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f2), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f3), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f4), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f5), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f6), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f7), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f8), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07f9), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07fa), board_ahci_yesncq },	/* MCP73 */
+	{ PCI_VDEVICE(NVIDIA, 0x07fb), board_ahci_yesncq },	/* MCP73 */
 	{ PCI_VDEVICE(NVIDIA, 0x0ad0), board_ahci },		/* MCP77 */
 	{ PCI_VDEVICE(NVIDIA, 0x0ad1), board_ahci },		/* MCP77 */
 	{ PCI_VDEVICE(NVIDIA, 0x0ad2), board_ahci },		/* MCP77 */
@@ -1115,6 +1125,8 @@ static void ahci_start_port(struct ata_port *ap)
 	struct ahci_port_priv *pp = ap->private_data;
 	struct ata_link *link;
 	struct ahci_em_priv *emp;
+	ssize_t rc;
+	int i;
 
 	/* enable FIS reception */
 	ahci_start_fis_rx(ap);
@@ -1126,7 +1138,17 @@ static void ahci_start_port(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_EM) {
 		ata_for_each_link(link, ap, EDGE) {
 			emp = &pp->em_priv[link->pmp];
-			ahci_transmit_led_message(ap, emp->led_state, 4);
+
+			/* EM Transmit bit maybe busy during init */
+			for (i = 0; i < MAX_RETRY; i++) {
+				rc = ahci_transmit_led_message(ap,
+							       emp->led_state,
+							       4);
+				if (rc == -EBUSY)
+					udelay(100);
+				else
+					break;
+			}
 		}
 	}
 
@@ -1331,7 +1353,7 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 	em_ctl = readl(mmio + HOST_EM_CTL);
 	if (em_ctl & EM_CTL_TM) {
 		spin_unlock_irqrestore(ap->lock, flags);
-		return -EINVAL;
+		return -EBUSY;
 	}
 
 	/*
@@ -2405,10 +2427,10 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 	int rc;
 
 	if (using_dac &&
-	    !pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
-		rc = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (rc) {
-			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (rc) {
 				dev_printk(KERN_ERR, &pdev->dev,
 					   "64-bit DMA enable failed\n");
@@ -2416,13 +2438,13 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 			}
 		}
 	} else {
-		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "32-bit DMA enable failed\n");
 			return rc;
 		}
-		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "32-bit consistent DMA enable failed\n");

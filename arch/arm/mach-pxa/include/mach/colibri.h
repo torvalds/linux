@@ -1,5 +1,8 @@
 #ifndef _COLIBRI_H_
 #define _COLIBRI_H_
+
+#include <net/ax88796.h>
+
 /*
  * common settings for all modules
  */
@@ -14,6 +17,10 @@ static inline void colibri_pxa3xx_init_mmc(mfp_cfg_t *, int, int) {}
 extern void colibri_pxa3xx_init_lcd(int bl_pin);
 #else
 static inline void colibri_pxa3xx_init_lcd(int) {}
+#endif
+
+#if defined(CONFIG_AX88796)
+extern void colibri_pxa3xx_init_eth(struct ax_plat_data *plat_data);
 #endif
 
 /* physical memory regions */

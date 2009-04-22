@@ -1686,7 +1686,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* show some infos about the specific si470x device */
 	if (si470x_get_all_registers(radio) < 0) {
 		retval = -EIO;
-		goto err_all;
+		goto err_video;
 	}
 	printk(KERN_INFO DRIVER_NAME ": DeviceID=0x%4.4hx ChipID=0x%4.4hx\n",
 			radio->registers[DEVICEID], radio->registers[CHIPID]);
@@ -1694,7 +1694,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* get software and hardware versions */
 	if (si470x_get_scratch_page_versions(radio) < 0) {
 		retval = -EIO;
-		goto err_all;
+		goto err_video;
 	}
 	printk(KERN_INFO DRIVER_NAME
 			": software version %d, hardware version %d\n",
@@ -1727,7 +1727,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->buffer = kmalloc(radio->buf_size, GFP_KERNEL);
 	if (!radio->buffer) {
 		retval = -EIO;
-		goto err_all;
+		goto err_video;
 	}
 
 	/* rds buffer configuration */
@@ -1749,8 +1749,9 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 
 	return 0;
 err_all:
-	video_device_release(radio->videodev);
 	kfree(radio->buffer);
+err_video:
+	video_device_release(radio->videodev);
 err_radio:
 	kfree(radio);
 err_initial:

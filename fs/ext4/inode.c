@@ -372,16 +372,16 @@ static int ext4_block_to_path(struct inode *inode,
 }
 
 static int __ext4_check_blockref(const char *function, struct inode *inode,
-				 unsigned int *p, unsigned int max) {
+				 __le32 *p, unsigned int max) {
 
 	unsigned int maxblocks = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es);
-	unsigned int *bref = p;
+	__le32 *bref = p;
 	while (bref < p+max) {
-		if (unlikely(*bref >= maxblocks)) {
+		if (unlikely(le32_to_cpu(*bref) >= maxblocks)) {
 			ext4_error(inode->i_sb, function,
 				   "block reference %u >= max (%u) "
 				   "in inode #%lu, offset=%d",
-				   *bref, maxblocks,
+				   le32_to_cpu(*bref), maxblocks,
 				   inode->i_ino, (int)(bref-p));
  			return -EIO;
  		}

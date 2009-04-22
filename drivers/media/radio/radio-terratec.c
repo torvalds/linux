@@ -332,20 +332,8 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return a->index ? -EINVAL : 0;
 }
 
-static int terratec_open(struct file *file)
-{
-	return 0;
-}
-
-static int terratec_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations terratec_fops = {
 	.owner		= THIS_MODULE,
-	.open           = terratec_open,
-	.release        = terratec_release,
 	.ioctl		= video_ioctl2,
 };
 

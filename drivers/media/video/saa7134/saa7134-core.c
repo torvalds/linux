@@ -911,7 +911,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 	pci_set_master(pci_dev);
-	if (!pci_dma_supported(pci_dev, DMA_32BIT_MASK)) {
+	if (!pci_dma_supported(pci_dev, DMA_BIT_MASK(32))) {
 		printk("%s: Oops: no 32bit PCI DMA ???\n",dev->name);
 		err = -EIO;
 		goto fail1;
@@ -982,7 +982,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	/* load i2c helpers */
 	if (card_is_empress(dev)) {
 		struct v4l2_subdev *sd =
-			v4l2_i2c_new_subdev(&dev->i2c_adap,
+			v4l2_i2c_new_subdev(&dev->v4l2_dev, &dev->i2c_adap,
 				"saa6752hs", "saa6752hs",
 				saa7134_boards[dev->board].empress_addr);
 
@@ -991,12 +991,11 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	}
 
 	if (saa7134_boards[dev->board].rds_addr) {
-		unsigned short addrs[2] = { 0, I2C_CLIENT_END };
 		struct v4l2_subdev *sd;
 
-		addrs[0] = saa7134_boards[dev->board].rds_addr;
-		sd = v4l2_i2c_new_probed_subdev(&dev->i2c_adap, "saa6588",
-			    "saa6588", addrs);
+		sd = v4l2_i2c_new_probed_subdev_addr(&dev->v4l2_dev,
+				&dev->i2c_adap,	"saa6588", "saa6588",
+				saa7134_boards[dev->board].rds_addr);
 		if (sd)
 			printk(KERN_INFO "%s: found RDS decoder\n", dev->name);
 	}
@@ -1015,7 +1014,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	saa7134_irq_video_signalchange(dev);
 
 	if (TUNER_ABSENT != dev->tuner_type)
-		saa_call_all(dev, core, s_standby, 0);
+		saa_call_all(dev, tuner, s_standby);
 
 	/* register v4l devices */
 	if (saa7134_no_overlay > 0)

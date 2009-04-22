@@ -2856,7 +2856,7 @@ static int initio_probe_one(struct pci_dev *pdev,
 		reg = 0;
 	bios_seg = (bios_seg << 8) + ((u16) ((reg & 0xFF00) >> 8));
 
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING  "i91u: Could not set 32 bit DMA mask\n");
 		error = -ENODEV;
 		goto out_disable_device;

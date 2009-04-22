@@ -1018,10 +1018,8 @@ zoran_close(struct file  *file)
 		zoran_set_pci_master(zr, 0);
 
 		if (!pass_through) {	/* Switch to color bar */
-			struct v4l2_routing route = { 2, 0 };
-
 			decoder_call(zr, video, s_stream, 0);
-			encoder_call(zr, video, s_routing, &route);
+			encoder_call(zr, video, s_routing, 2, 0, 0);
 		}
 	}
 
@@ -1449,7 +1447,7 @@ zoran_set_norm (struct zoran *zr,
 		v4l2_std_id std = 0;
 
 		decoder_call(zr, video, querystd, &std);
-		decoder_call(zr, tuner, s_std, std);
+		decoder_call(zr, core, s_std, std);
 
 		/* let changes come into effect */
 		ssleep(2);
@@ -1461,7 +1459,7 @@ zoran_set_norm (struct zoran *zr,
 				"%s: %s - no norm detected\n",
 				ZR_DEVNAME(zr), __func__);
 			/* reset norm */
-			decoder_call(zr, tuner, s_std, zr->norm);
+			decoder_call(zr, core, s_std, zr->norm);
 			return -EIO;
 		}
 
@@ -1480,7 +1478,7 @@ zoran_set_norm (struct zoran *zr,
 	if (on)
 		zr36057_overlay(zr, 0);
 
-	decoder_call(zr, tuner, s_std, norm);
+	decoder_call(zr, core, s_std, norm);
 	encoder_call(zr, video, s_std_output, norm);
 
 	if (on)
@@ -1496,8 +1494,6 @@ static int
 zoran_set_input (struct zoran *zr,
 		 int           input)
 {
-	struct v4l2_routing route = { 0, 0 };
-
 	if (input == zr->input) {
 		return 0;
 	}
@@ -1519,10 +1515,10 @@ zoran_set_input (struct zoran *zr,
 		return -EINVAL;
 	}
 
-	route.input = zr->card.input[input].muxsel;
 	zr->input = input;
 
-	decoder_call(zr, video, s_routing, &route);
+	decoder_call(zr, video, s_routing,
+			zr->card.input[input].muxsel, 0, 0);
 
 	return 0;
 }
@@ -1748,7 +1744,6 @@ jpgreqbuf_unlock_and_return:
 	case BUZIOC_G_STATUS:
 	{
 		struct zoran_status *bstat = arg;
-		struct v4l2_routing route = { 0, 0 };
 		int status = 0, res = 0;
 		v4l2_std_id norm;
 
@@ -1762,8 +1757,6 @@ jpgreqbuf_unlock_and_return:
 			return -EINVAL;
 		}
 
-		route.input = zr->card.input[bstat->input].muxsel;
-
 		mutex_lock(&zr->resource_lock);
 
 		if (zr->codec_mode != BUZ_MODE_IDLE) {
@@ -1775,7 +1768,8 @@ jpgreqbuf_unlock_and_return:
 			goto gstat_unlock_and_return;
 		}
 
-		decoder_call(zr, video, s_routing, &route);
+		decoder_call(zr, video, s_routing,
+				zr->card.input[bstat->input].muxsel, 0, 0);
 
 		/* sleep 1 second */
 		ssleep(1);
@@ -1785,8 +1779,8 @@ jpgreqbuf_unlock_and_return:
 		decoder_call(zr, video, g_input_status, &status);
 
 		/* restore previous input and norm */
-		route.input = zr->card.input[zr->input].muxsel;
-		decoder_call(zr, video, s_routing, &route);
+		decoder_call(zr, video, s_routing,
+				zr->card.input[zr->input].muxsel, 0, 0);
 gstat_unlock_and_return:
 		mutex_unlock(&zr->resource_lock);
 

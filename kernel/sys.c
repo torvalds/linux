@@ -360,6 +360,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		void __user *, arg)
 {
 	char buffer[256];
+	int ret = 0;
 
 	/* We only trust the superuser with rebooting the system. */
 	if (!capable(CAP_SYS_BOOT))
@@ -397,7 +398,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		kernel_halt();
 		unlock_kernel();
 		do_exit(0);
-		break;
+		panic("cannot halt");
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
 		kernel_power_off();
@@ -417,29 +418,22 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 
 #ifdef CONFIG_KEXEC
 	case LINUX_REBOOT_CMD_KEXEC:
-		{
-			int ret;
-			ret = kernel_kexec();
-			unlock_kernel();
-			return ret;
-		}
+		ret = kernel_kexec();
+		break;
 #endif
 
 #ifdef CONFIG_HIBERNATION
 	case LINUX_REBOOT_CMD_SW_SUSPEND:
-		{
-			int ret = hibernate();
-			unlock_kernel();
-			return ret;
-		}
+		ret = hibernate();
+		break;
 #endif
 
 	default:
-		unlock_kernel();
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
 	unlock_kernel();
-	return 0;
+	return ret;
 }
 
 static void deferred_cad(struct work_struct *dummy)

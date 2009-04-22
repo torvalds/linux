@@ -4413,6 +4413,24 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 		if (spec->num_pwrs > 0)
 			stac92xx_pin_sense(codec, event->nid);
 		stac92xx_report_jack(codec, event->nid);
+
+		switch (codec->subsystem_id) {
+		case 0x103c308f:
+			if (event->nid == 0xb) {
+				int pin = AC_PINCTL_IN_EN;
+
+				if (get_pin_presence(codec, 0xa)
+						&& get_pin_presence(codec, 0xb))
+					pin |= AC_PINCTL_VREF_80;
+				if (!get_pin_presence(codec, 0xb))
+					pin |= AC_PINCTL_VREF_80;
+
+				/* toggle VREF state based on mic + hp pin
+				 * status
+				 */
+				stac92xx_auto_set_pinctl(codec, 0x0a, pin);
+			}
+		}
 		break;
 	case STAC_VREF_EVENT:
 		data = snd_hda_codec_read(codec, codec->afg, 0,
@@ -4895,6 +4913,7 @@ again:
 	switch (codec->vendor_id) {
 	case 0x111d7604:
 	case 0x111d7605:
+	case 0x111d76d5:
 		if (spec->board_config == STAC_92HD83XXX_PWR_REF)
 			break;
 		spec->num_pwrs = 0;
@@ -5707,6 +5726,7 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d7603, .name = "92HD75B3X5", .patch = patch_stac92hd71bxx},
 	{ .id = 0x111d7604, .name = "92HD83C1X5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7605, .name = "92HD81B1X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76d5, .name = "92HD81B1C5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7608, .name = "92HD75B2X5", .patch = patch_stac92hd71bxx},
 	{ .id = 0x111d7674, .name = "92HD73D1X5", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d7675, .name = "92HD73C1X5", .patch = patch_stac92hd73xx },

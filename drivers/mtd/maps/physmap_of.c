@@ -219,6 +219,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 		goto err_out;
 	}
 	info->mtd->owner = THIS_MODULE;
+	info->mtd->dev.parent = &dev->dev;
 
 #ifdef CONFIG_MTD_PARTITIONS
 	/* First look for RedBoot table or partitions on the command

@@ -365,8 +365,8 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void __init psycho_scan_bus(struct pci_pbm_info *pbm,
-				   struct device *parent)
+static void __devinit psycho_scan_bus(struct pci_pbm_info *pbm,
+				      struct device *parent)
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable = 0;
@@ -482,8 +482,8 @@ static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
 #define PSYCHO_MEMSPACE_B	0x180000000UL
 #define PSYCHO_MEMSPACE_SIZE	0x07fffffffUL
 
-static void __init psycho_pbm_init(struct pci_pbm_info *pbm,
-				   struct of_device *op, int is_pbm_a)
+static void __devinit psycho_pbm_init(struct pci_pbm_info *pbm,
+				      struct of_device *op, int is_pbm_a)
 {
 	psycho_pbm_init_common(pbm, op, "PSYCHO", PBM_CHIP_TYPE_PSYCHO);
 	psycho_pbm_strbuf_init(pbm, is_pbm_a);

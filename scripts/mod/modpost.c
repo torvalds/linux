@@ -1913,7 +1913,7 @@ static void read_dump(const char *fname, unsigned int kernel)
 		if (!mod) {
 			if (is_vmlinux(modname))
 				have_vmlinux = 1;
-			mod = new_module(NOFAIL(strdup(modname)));
+			mod = new_module(modname);
 			mod->skip = 1;
 		}
 		s = sym_add_exported(symname, mod, export_no(export));
@@ -1997,7 +1997,7 @@ static void read_markers(const char *fname)
 
 		mod = find_module(modname);
 		if (!mod) {
-			mod = new_module(NOFAIL(strdup(modname)));
+			mod = new_module(modname);
 			mod->skip = 1;
 		}
 		if (is_vmlinux(modname)) {

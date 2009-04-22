@@ -23,17 +23,33 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
-void ide_tf_dump(const char *s, struct ide_taskfile *tf)
+void ide_tf_readback(ide_drive_t *drive, struct ide_cmd *cmd)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+
+	/* Be sure we're looking at the low order bytes */
+	tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
+
+	tp_ops->tf_read(drive, &cmd->tf, cmd->valid.in.tf);
+
+	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
+		tp_ops->write_devctl(hwif, ATA_HOB | ATA_DEVCTL_OBS);
+
+		tp_ops->tf_read(drive, &cmd->hob, cmd->valid.in.hob);
+	}
+}
+
+void ide_tf_dump(const char *s, struct ide_cmd *cmd)
 {
 #ifdef DEBUG
 	printk("%s: tf: feat 0x%02x nsect 0x%02x lbal 0x%02x "
 		"lbam 0x%02x lbah 0x%02x dev 0x%02x cmd 0x%02x\n",
-		s, tf->feature, tf->nsect, tf->lbal,
-		tf->lbam, tf->lbah, tf->device, tf->command);
-	printk("%s: hob: nsect 0x%02x lbal 0x%02x "
-		"lbam 0x%02x lbah 0x%02x\n",
-		s, tf->hob_nsect, tf->hob_lbal,
-		tf->hob_lbam, tf->hob_lbah);
+	       s, cmd->tf.feature, cmd->tf.nsect,
+	       cmd->tf.lbal, cmd->tf.lbam, cmd->tf.lbah,
+	       cmd->tf.device, cmd->tf.command);
+	printk("%s: hob: nsect 0x%02x lbal 0x%02x lbam 0x%02x lbah 0x%02x\n",
+	       s, cmd->hob.nsect, cmd->hob.lbal, cmd->hob.lbam, cmd->hob.lbah);
 #endif
 }
 
@@ -47,7 +63,8 @@ int taskfile_lib_get_identify (ide_drive_t *drive, u8 *buf)
 		cmd.tf.command = ATA_CMD_ID_ATA;
 	else
 		cmd.tf.command = ATA_CMD_ID_ATAPI;
-	cmd.tf_flags = IDE_TFLAG_TF | IDE_TFLAG_DEVICE;
+	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
+	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
 	cmd.protocol = ATA_PROT_PIO;
 
 	return ide_raw_taskfile(drive, &cmd, buf, 1);
@@ -79,16 +96,27 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 	memcpy(cmd, orig_cmd, sizeof(*cmd));
 
 	if ((cmd->tf_flags & IDE_TFLAG_DMA_PIO_FALLBACK) == 0) {
-		ide_tf_dump(drive->name, tf);
+		ide_tf_dump(drive->name, cmd);
 		tp_ops->write_devctl(hwif, ATA_DEVCTL_OBS);
 		SELECT_MASK(drive, 0);
 
 		if (cmd->ftf_flags & IDE_FTFLAG_OUT_DATA) {
-			u8 data[2] = { tf->data, tf->hob_data };
+			u8 data[2] = { cmd->tf.data, cmd->hob.data };
 
 			tp_ops->output_data(drive, cmd, data, 2);
 		}
-		tp_ops->tf_load(drive, cmd);
+
+		if (cmd->valid.out.tf & IDE_VALID_DEVICE) {
+			u8 HIHI = (cmd->tf_flags & IDE_TFLAG_LBA48) ?
+				  0xE0 : 0xEF;
+
+			if (!(cmd->ftf_flags & IDE_FTFLAG_FLAGGED))
+				cmd->tf.device &= HIHI;
+			cmd->tf.device |= drive->select;
+		}
+
+		tp_ops->tf_load(drive, &cmd->hob, cmd->valid.out.hob);
+		tp_ops->tf_load(drive, &cmd->tf,  cmd->valid.out.tf);
 	}
 
 	switch (cmd->protocol) {
@@ -489,16 +517,17 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	memcpy(&cmd.tf_array[0], req_task->hob_ports,
-	       HDIO_DRIVE_HOB_HDR_SIZE - 2);
-	memcpy(&cmd.tf_array[6], req_task->io_ports,
-	       HDIO_DRIVE_TASK_HDR_SIZE);
+	memcpy(&cmd.hob, req_task->hob_ports, HDIO_DRIVE_HOB_HDR_SIZE - 2);
+	memcpy(&cmd.tf,  req_task->io_ports,  HDIO_DRIVE_TASK_HDR_SIZE);
 
-	cmd.tf_flags   = IDE_TFLAG_IO_16BIT | IDE_TFLAG_DEVICE |
-			 IDE_TFLAG_IN_TF;
+	cmd.valid.out.tf = IDE_VALID_DEVICE;
+	cmd.valid.in.tf  = IDE_VALID_DEVICE | IDE_VALID_IN_TF;
+	cmd.tf_flags = IDE_TFLAG_IO_16BIT;
 
-	if (drive->dev_flags & IDE_DFLAG_LBA48)
-		cmd.tf_flags |= (IDE_TFLAG_LBA48 | IDE_TFLAG_IN_HOB);
+	if (drive->dev_flags & IDE_DFLAG_LBA48) {
+		cmd.tf_flags |= IDE_TFLAG_LBA48;
+		cmd.valid.in.hob = IDE_VALID_IN_HOB;
+	}
 
 	if (req_task->out_flags.all) {
 		cmd.ftf_flags |= IDE_FTFLAG_FLAGGED;
@@ -507,28 +536,28 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 			cmd.ftf_flags |= IDE_FTFLAG_OUT_DATA;
 
 		if (req_task->out_flags.b.nsector_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_NSECT;
+			cmd.valid.out.hob |= IDE_VALID_NSECT;
 		if (req_task->out_flags.b.sector_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_LBAL;
+			cmd.valid.out.hob |= IDE_VALID_LBAL;
 		if (req_task->out_flags.b.lcyl_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_LBAM;
+			cmd.valid.out.hob |= IDE_VALID_LBAM;
 		if (req_task->out_flags.b.hcyl_hob)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB_LBAH;
+			cmd.valid.out.hob |= IDE_VALID_LBAH;
 
 		if (req_task->out_flags.b.error_feature)
-			cmd.tf_flags |= IDE_TFLAG_OUT_FEATURE;
+			cmd.valid.out.tf  |= IDE_VALID_FEATURE;
 		if (req_task->out_flags.b.nsector)
-			cmd.tf_flags |= IDE_TFLAG_OUT_NSECT;
+			cmd.valid.out.tf  |= IDE_VALID_NSECT;
 		if (req_task->out_flags.b.sector)
-			cmd.tf_flags |= IDE_TFLAG_OUT_LBAL;
+			cmd.valid.out.tf  |= IDE_VALID_LBAL;
 		if (req_task->out_flags.b.lcyl)
-			cmd.tf_flags |= IDE_TFLAG_OUT_LBAM;
+			cmd.valid.out.tf  |= IDE_VALID_LBAM;
 		if (req_task->out_flags.b.hcyl)
-			cmd.tf_flags |= IDE_TFLAG_OUT_LBAH;
+			cmd.valid.out.tf  |= IDE_VALID_LBAH;
 	} else {
-		cmd.tf_flags |= IDE_TFLAG_OUT_TF;
+		cmd.valid.out.tf |= IDE_VALID_OUT_TF;
 		if (cmd.tf_flags & IDE_TFLAG_LBA48)
-			cmd.tf_flags |= IDE_TFLAG_OUT_HOB;
+			cmd.valid.out.hob |= IDE_VALID_OUT_HOB;
 	}
 
 	if (req_task->in_flags.b.data)
@@ -594,7 +623,7 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 	if (req_task->req_cmd == IDE_DRIVE_TASK_NO_DATA)
 		nsect = 0;
 	else if (!nsect) {
-		nsect = (cmd.tf.hob_nsect << 8) | cmd.tf.nsect;
+		nsect = (cmd.hob.nsect << 8) | cmd.tf.nsect;
 
 		if (!nsect) {
 			printk(KERN_ERR "%s: in/out command without data\n",
@@ -606,10 +635,8 @@ int ide_taskfile_ioctl(ide_drive_t *drive, unsigned long arg)
 
 	err = ide_raw_taskfile(drive, &cmd, data_buf, nsect);
 
-	memcpy(req_task->hob_ports, &cmd.tf_array[0],
-	       HDIO_DRIVE_HOB_HDR_SIZE - 2);
-	memcpy(req_task->io_ports, &cmd.tf_array[6],
-	       HDIO_DRIVE_TASK_HDR_SIZE);
+	memcpy(req_task->hob_ports, &cmd.hob, HDIO_DRIVE_HOB_HDR_SIZE - 2);
+	memcpy(req_task->io_ports,  &cmd.tf,  HDIO_DRIVE_TASK_HDR_SIZE);
 
 	if ((cmd.ftf_flags & IDE_FTFLAG_SET_IN_FLAGS) &&
 	    req_task->in_flags.all == 0) {

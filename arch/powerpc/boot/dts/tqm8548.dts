@@ -397,10 +397,13 @@
 		upm@3,0 {
 			#address-cells = <0>;
 			#size-cells = <0>;
-			compatible = "fsl,upm-nand";
+			compatible = "tqc,tqm8548-upm-nand", "fsl,upm-nand";
 			reg = <3 0x0 0x800>;
 			fsl,upm-addr-offset = <0x10>;
 			fsl,upm-cmd-offset = <0x08>;
+			/* Micron MT29F8G08FAB multi-chip device */
+			fsl,upm-addr-line-cs-offsets = <0x0 0x200>;
+			fsl,upm-wait-flags = <0x5>;
 			chip-delay = <25>; // in micro-seconds
 
 			nand@0 {
@@ -409,7 +412,7 @@
 
 				partition@0 {
 					    label = "fs";
-					    reg = <0x00000000 0x01000000>;
+					    reg = <0x00000000 0x10000000>;
 				};
 			};
 		};

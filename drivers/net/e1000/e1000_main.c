@@ -962,13 +962,13 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	if (err)
 		return err;
 
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK) &&
-	    !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK)) {
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) &&
+	    !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (err) {
 				E1000_ERR("No usable DMA configuration, "
 					  "aborting\n");
@@ -2335,6 +2335,12 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	int mta_reg_count = (hw->mac_type == e1000_ich8lan) ?
 				E1000_NUM_MTA_REGISTERS_ICH8LAN :
 				E1000_NUM_MTA_REGISTERS;
+	u32 *mcarray = kcalloc(mta_reg_count, sizeof(u32), GFP_ATOMIC);
+
+	if (!mcarray) {
+		DPRINTK(PROBE, ERR, "memory allocation failed\n");
+		return;
+	}
 
 	if (hw->mac_type == e1000_ich8lan)
 		rar_entries = E1000_RAR_ENTRIES_ICH8LAN;
@@ -2401,22 +2407,34 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	}
 	WARN_ON(uc_ptr != NULL);
 
-	/* clear the old settings from the multicast hash table */
-
-	for (i = 0; i < mta_reg_count; i++) {
-		E1000_WRITE_REG_ARRAY(hw, MTA, i, 0);
-		E1000_WRITE_FLUSH();
-	}
-
 	/* load any remaining addresses into the hash table */
 
 	for (; mc_ptr; mc_ptr = mc_ptr->next) {
+		u32 hash_reg, hash_bit, mta;
 		hash_value = e1000_hash_mc_addr(hw, mc_ptr->da_addr);
-		e1000_mta_set(hw, hash_value);
+		hash_reg = (hash_value >> 5) & 0x7F;
+		hash_bit = hash_value & 0x1F;
+		mta = (1 << hash_bit);
+		mcarray[hash_reg] |= mta;
 	}
+
+	/* write the hash table completely, write from bottom to avoid
+	 * both stupid write combining chipsets, and flushing each write */
+	for (i = mta_reg_count - 1; i >= 0 ; i--) {
+		/*
+		 * If we are on an 82544 has an errata where writing odd
+		 * offsets overwrites the previous even offset, but writing
+		 * backwards over the range solves the issue by always
+		 * writing the odd offset first
+		 */
+		E1000_WRITE_REG_ARRAY(hw, MTA, i, mcarray[i]);
+	}
+	E1000_WRITE_FLUSH();
 
 	if (hw->mac_type == e1000_82542_rev2_0)
 		e1000_leave_82542_rst(adapter);
+
+	kfree(mcarray);
 }
 
 /* Need to wait a few seconds after link up to get diagnostic information from

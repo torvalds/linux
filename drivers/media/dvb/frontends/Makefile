@@ -61,6 +61,7 @@ obj-$(CONFIG_DVB_TDA10048) += tda10048.o
 obj-$(CONFIG_DVB_TUNER_CX24113) += cx24113.o
 obj-$(CONFIG_DVB_S5H1411) += s5h1411.o
 obj-$(CONFIG_DVB_LGS8GL5) += lgs8gl5.o
+obj-$(CONFIG_DVB_LGS8GXX) += lgs8gxx.o
 obj-$(CONFIG_DVB_DUMMY_FE) += dvb_dummy_fe.o
 obj-$(CONFIG_DVB_AF9013) += af9013.o
 obj-$(CONFIG_DVB_CX24116) += cx24116.o

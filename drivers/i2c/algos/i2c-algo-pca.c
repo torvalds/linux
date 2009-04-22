@@ -190,7 +190,7 @@ static int pca_xfer(struct i2c_adapter *i2c_adap,
 	int completed = 1;
 	unsigned long timeout = jiffies + i2c_adap->timeout;
 
-	while (pca_status(adap) != 0xf8) {
+	while ((state = pca_status(adap)) != 0xf8) {
 		if (time_before(jiffies, timeout)) {
 			msleep(10);
 		} else {

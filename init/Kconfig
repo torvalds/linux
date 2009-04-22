@@ -208,6 +208,12 @@ config POSIX_MQUEUE
 
 	  If unsure, say Y.
 
+config POSIX_MQUEUE_SYSCTL
+	bool
+	depends on POSIX_MQUEUE
+	depends on SYSCTL
+	default y
+
 config BSD_PROCESS_ACCT
 	bool "BSD Process Accounting"
 	help
@@ -670,10 +676,10 @@ config UTS_NS
 
 config IPC_NS
 	bool "IPC namespace"
-	depends on NAMESPACES && SYSVIPC
+	depends on NAMESPACES && (SYSVIPC || POSIX_MQUEUE)
 	help
 	  In this namespace tasks work with IPC ids which correspond to
-	  different IPC objects in different namespaces
+	  different IPC objects in different namespaces.
 
 config USER_NS
 	bool "User namespace (EXPERIMENTAL)"
@@ -801,6 +807,14 @@ config KALLSYMS_EXTRA_PASS
 	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
 	   you wait for kallsyms to be fixed.
 
+
+config STRIP_ASM_SYMS
+	bool "Strip assembler-generated symbols during link"
+	default n
+	help
+	  Strip internal assembler-generated symbols during a link (symbols
+	  that look like '.Lxxx') so they don't pollute the output of
+	  get_wchan() and suchlike.
 
 config HOTPLUG
 	bool "Support for hot-pluggable devices" if EMBEDDED
@@ -1016,7 +1030,7 @@ source "arch/Kconfig"
 
 config SLOW_WORK
 	default n
-	bool "Enable slow work thread pool"
+	bool
 	help
 	  The slow work thread pool provides a number of dynamically allocated
 	  threads that can be used by the kernel to perform operations that
@@ -1025,6 +1039,8 @@ config SLOW_WORK
 	  An example of this would be CacheFiles doing a path lookup followed
 	  by a series of mkdirs and a create call, all of which have to touch
 	  disk.
+
+	  See Documentation/slow-work.txt.
 
 endmenu		# General setup
 

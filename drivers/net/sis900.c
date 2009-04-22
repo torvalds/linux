@@ -432,7 +432,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	ret = pci_enable_device(pci_dev);
 	if(ret) return ret;
 
-	i = pci_set_dma_mask(pci_dev, DMA_32BIT_MASK);
+	i = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if(i){
 		printk(KERN_ERR "sis900.c: architecture does not support "
 			"32bit PCI busmaster DMA\n");

@@ -209,7 +209,7 @@ static struct platform_device pseudo_dev = {
 	.id   = 0,
 	.num_resources = 0,
 	.dev  = {
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 		.release = dev_release,
 	}
 };

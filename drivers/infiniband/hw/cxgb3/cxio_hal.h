@@ -115,6 +115,11 @@ struct cxio_rdev {
 #define	CXIO_ERROR_FATAL	1
 };
 
+static inline int cxio_fatal_error(struct cxio_rdev *rdev_p)
+{
+	return rdev_p->flags & CXIO_ERROR_FATAL;
+}
+
 static inline int cxio_num_stags(struct cxio_rdev *rdev_p)
 {
 	return min((int)T3_MAX_NUM_STAG, (int)((rdev_p->rnic_info.tpt_top - rdev_p->rnic_info.tpt_base) >> 5));
@@ -188,6 +193,7 @@ void cxio_count_scqes(struct t3_cq *cq, struct t3_wq *wq, int *count);
 void cxio_flush_hw_cq(struct t3_cq *cq);
 int cxio_poll_cq(struct t3_wq *wq, struct t3_cq *cq, struct t3_cqe *cqe,
 		     u8 *cqe_flushed, u64 *cookie, u32 *credit);
+int iwch_cxgb3_ofld_send(struct t3cdev *tdev, struct sk_buff *skb);
 
 #define MOD "iw_cxgb3: "
 #define PDBG(fmt, args...) pr_debug(MOD fmt, ## args)

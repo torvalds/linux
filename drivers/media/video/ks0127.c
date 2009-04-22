@@ -409,11 +409,12 @@ static void ks0127_init(struct v4l2_subdev *sd)
 	}
 }
 
-static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int ks0127_s_routing(struct v4l2_subdev *sd,
+			    u32 input, u32 output, u32 config)
 {
 	struct ks0127 *ks = to_ks0127(sd);
 
-	switch (route->input) {
+	switch (input) {
 	case KS_INPUT_COMPOSITE_1:
 	case KS_INPUT_COMPOSITE_2:
 	case KS_INPUT_COMPOSITE_3:
@@ -421,13 +422,13 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 	case KS_INPUT_COMPOSITE_5:
 	case KS_INPUT_COMPOSITE_6:
 		v4l2_dbg(1, debug, sd,
-			"s_routing %d: Composite\n", route->input);
+			"s_routing %d: Composite\n", input);
 		/* autodetect 50/60 Hz */
 		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
 		/* VSE=0 */
 		ks0127_and_or(sd, KS_CMDA,   ~0x40, 0x00);
 		/* set input line */
-		ks0127_and_or(sd, KS_CMDB,   0xb0, route->input);
+		ks0127_and_or(sd, KS_CMDB,   0xb0, input);
 		/* non-freerunning mode */
 		ks0127_and_or(sd, KS_CMDC,   0x70, 0x0a);
 		/* analog input */
@@ -455,13 +456,13 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 	case KS_INPUT_SVIDEO_2:
 	case KS_INPUT_SVIDEO_3:
 		v4l2_dbg(1, debug, sd,
-			"s_routing %d: S-Video\n", route->input);
+			"s_routing %d: S-Video\n", input);
 		/* autodetect 50/60 Hz */
 		ks0127_and_or(sd, KS_CMDA,   0xfc, 0x00);
 		/* VSE=0 */
 		ks0127_and_or(sd, KS_CMDA,   ~0x40, 0x00);
 		/* set input line */
-		ks0127_and_or(sd, KS_CMDB,   0xb0, route->input);
+		ks0127_and_or(sd, KS_CMDB,   0xb0, input);
 		/* non-freerunning mode */
 		ks0127_and_or(sd, KS_CMDC,   0x70, 0x0a);
 		/* analog input */
@@ -496,7 +497,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 
 		ks0127_and_or(sd, KS_CMDA,   0xff, 0x40); /* VSE=1 */
 		/* set input line and VALIGN */
-		ks0127_and_or(sd, KS_CMDB,   0xb0, (route->input | 0x40));
+		ks0127_and_or(sd, KS_CMDB,   0xb0, (input | 0x40));
 		/* freerunning mode, */
 		/* TSTGEN = 1 TSTGFR=11 TSTGPH=0 TSTGPK=0  VMEM=1*/
 		ks0127_and_or(sd, KS_CMDC,   0x70, 0x87);
@@ -531,7 +532,7 @@ static int ks0127_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 
 	default:
 		v4l2_dbg(1, debug, sd,
-			"s_routing: Unknown input %d\n", route->input);
+			"s_routing: Unknown input %d\n", input);
 		break;
 	}
 
@@ -648,9 +649,6 @@ static int ks0127_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_iden
 
 static const struct v4l2_subdev_core_ops ks0127_core_ops = {
 	.g_chip_ident = ks0127_g_chip_ident,
-};
-
-static const struct v4l2_subdev_tuner_ops ks0127_tuner_ops = {
 	.s_std = ks0127_s_std,
 };
 
@@ -663,7 +661,6 @@ static const struct v4l2_subdev_video_ops ks0127_video_ops = {
 
 static const struct v4l2_subdev_ops ks0127_ops = {
 	.core = &ks0127_core_ops,
-	.tuner = &ks0127_tuner_ops,
 	.video = &ks0127_video_ops,
 };
 

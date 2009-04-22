@@ -2258,7 +2258,7 @@ static int esp_open(struct tty_struct *tty, struct file *filp)
  * driver.
  */
 
-static void show_serial_version(void)
+static void __init show_serial_version(void)
 {
 	printk(KERN_INFO "%s version %s (DMA %u)\n",
 		serial_name, serial_version, dma);

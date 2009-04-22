@@ -4834,6 +4834,7 @@ static int niu_compute_rbr_cfig_b(struct rx_ring_info *rp, u64 *ret)
 {
 	u64 val = 0;
 
+	*ret = 0;
 	switch (rp->rbr_block_size) {
 	case 4 * 1024:
 		val |= (RBR_BLKSIZE_4K << RBR_CFIG_B_BLKSIZE_SHIFT);
@@ -9542,7 +9543,7 @@ static struct niu_parent * __devinit niu_new_parent(struct niu *np,
 
 	plat_dev = platform_device_register_simple("niu", niu_parent_index,
 						   NULL, 0);
-	if (!plat_dev)
+	if (IS_ERR(plat_dev))
 		return NULL;
 
 	for (i = 0; attr_name(niu_parent_attributes[i]); i++) {
@@ -9889,8 +9890,8 @@ static int __devinit niu_pci_init_one(struct pci_dev *pdev,
 			goto err_out_release_parent;
 		}
 	}
-	if (err || dma_mask == DMA_32BIT_MASK) {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	if (err || dma_mask == DMA_BIT_MASK(32)) {
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, PFX "No usable DMA configuration, "
 				"aborting.\n");

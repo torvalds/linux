@@ -356,6 +356,9 @@ struct ftrace_graph_ret {
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
+/* for init task */
+#define INIT_FTRACE_GRAPH		.ret_stack = NULL,
+
 /*
  * Stack of return addresses for functions
  * of a thread.
@@ -430,10 +433,11 @@ static inline void unpause_graph_tracing(void)
 {
 	atomic_dec(&current->tracing_graph_pause);
 }
-#else
+#else /* !CONFIG_FUNCTION_GRAPH_TRACER */
 
 #define __notrace_funcgraph
 #define __irq_entry
+#define INIT_FTRACE_GRAPH
 
 static inline void ftrace_graph_init_task(struct task_struct *t) { }
 static inline void ftrace_graph_exit_task(struct task_struct *t) { }
@@ -445,7 +449,7 @@ static inline int task_curr_ret_stack(struct task_struct *tsk)
 
 static inline void pause_graph_tracing(void) { }
 static inline void unpause_graph_tracing(void) { }
-#endif
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #ifdef CONFIG_TRACING
 #include <linux/sched.h>
@@ -506,34 +510,5 @@ static inline void trace_hw_branch(u64 from, u64 to) {}
 static inline void trace_hw_branch_oops(void) {}
 
 #endif /* CONFIG_HW_BRANCH_TRACER */
-
-/*
- * A syscall entry in the ftrace syscalls array.
- *
- * @name: name of the syscall
- * @nb_args: number of parameters it takes
- * @types: list of types as strings
- * @args: list of args as strings (args[i] matches types[i])
- */
-struct syscall_metadata {
-	const char	*name;
-	int		nb_args;
-	const char	**types;
-	const char	**args;
-};
-
-#ifdef CONFIG_FTRACE_SYSCALLS
-extern void arch_init_ftrace_syscalls(void);
-extern struct syscall_metadata *syscall_nr_to_meta(int nr);
-extern void start_ftrace_syscalls(void);
-extern void stop_ftrace_syscalls(void);
-extern void ftrace_syscall_enter(struct pt_regs *regs);
-extern void ftrace_syscall_exit(struct pt_regs *regs);
-#else
-static inline void start_ftrace_syscalls(void) { }
-static inline void stop_ftrace_syscalls(void) { }
-static inline void ftrace_syscall_enter(struct pt_regs *regs) { }
-static inline void ftrace_syscall_exit(struct pt_regs *regs) { }
-#endif
 
 #endif /* _LINUX_FTRACE_H */

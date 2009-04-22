@@ -277,8 +277,6 @@ void ide_dma_start(ide_drive_t *drive)
 		dma_cmd = inb(hwif->dma_base + ATA_DMA_CMD);
 		outb(dma_cmd | ATA_DMA_START, hwif->dma_base + ATA_DMA_CMD);
 	}
-
-	wmb();
 }
 EXPORT_SYMBOL_GPL(ide_dma_start);
 
@@ -286,7 +284,7 @@ EXPORT_SYMBOL_GPL(ide_dma_start);
 int ide_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 dma_stat = 0, dma_cmd = 0, mask;
+	u8 dma_stat = 0, dma_cmd = 0;
 
 	/* stop DMA */
 	if (hwif->host_flags & IDE_HFLAG_MMIO) {
@@ -304,11 +302,10 @@ int ide_dma_end(ide_drive_t *drive)
 	/* clear INTR & ERROR bits */
 	ide_dma_sff_write_status(hwif, dma_stat | ATA_DMA_ERR | ATA_DMA_INTR);
 
-	wmb();
+#define CHECK_DMA_MASK (ATA_DMA_ACTIVE | ATA_DMA_ERR | ATA_DMA_INTR)
 
 	/* verify good DMA status */
-	mask = ATA_DMA_ACTIVE | ATA_DMA_ERR | ATA_DMA_INTR;
-	if ((dma_stat & mask) != ATA_DMA_INTR)
+	if ((dma_stat & CHECK_DMA_MASK) != ATA_DMA_INTR)
 		return 0x10 | dma_stat;
 	return 0;
 }

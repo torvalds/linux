@@ -6,14 +6,16 @@
  * Copyright (C) 2008 Frederic Weisbecker <fweisbec@gmail.com>
  */
 
-#include <linux/dcache.h>
-#include <linux/debugfs.h>
-#include <linux/fs.h>
+#include <linux/tracepoint.h>
 #include <linux/seq_file.h>
+#include <linux/debugfs.h>
+#include <linux/dcache.h>
+#include <linux/fs.h>
+
 #include <trace/kmemtrace.h>
 
-#include "trace.h"
 #include "trace_output.h"
+#include "trace.h"
 
 /* Select an alternative, minimalistic output than the original one */
 #define TRACE_KMEM_OPT_MINIMAL	0x1
@@ -25,13 +27,155 @@ static struct tracer_opt kmem_opts[] = {
 };
 
 static struct tracer_flags kmem_tracer_flags = {
-	.val = 0,
-	.opts = kmem_opts
+	.val			= 0,
+	.opts			= kmem_opts
 };
 
-
-static bool kmem_tracing_enabled __read_mostly;
 static struct trace_array *kmemtrace_array;
+
+/* Trace allocations */
+static inline void kmemtrace_alloc(enum kmemtrace_type_id type_id,
+				   unsigned long call_site,
+				   const void *ptr,
+				   size_t bytes_req,
+				   size_t bytes_alloc,
+				   gfp_t gfp_flags,
+				   int node)
+{
+	struct trace_array *tr = kmemtrace_array;
+	struct kmemtrace_alloc_entry *entry;
+	struct ring_buffer_event *event;
+
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	if (!event)
+		return;
+
+	entry = ring_buffer_event_data(event);
+	tracing_generic_entry_update(&entry->ent, 0, 0);
+
+	entry->ent.type		= TRACE_KMEM_ALLOC;
+	entry->type_id		= type_id;
+	entry->call_site	= call_site;
+	entry->ptr		= ptr;
+	entry->bytes_req	= bytes_req;
+	entry->bytes_alloc	= bytes_alloc;
+	entry->gfp_flags	= gfp_flags;
+	entry->node		= node;
+
+	ring_buffer_unlock_commit(tr->buffer, event);
+
+	trace_wake_up();
+}
+
+static inline void kmemtrace_free(enum kmemtrace_type_id type_id,
+				  unsigned long call_site,
+				  const void *ptr)
+{
+	struct trace_array *tr = kmemtrace_array;
+	struct kmemtrace_free_entry *entry;
+	struct ring_buffer_event *event;
+
+	event = ring_buffer_lock_reserve(tr->buffer, sizeof(*entry));
+	if (!event)
+		return;
+	entry	= ring_buffer_event_data(event);
+	tracing_generic_entry_update(&entry->ent, 0, 0);
+
+	entry->ent.type		= TRACE_KMEM_FREE;
+	entry->type_id		= type_id;
+	entry->call_site	= call_site;
+	entry->ptr		= ptr;
+
+	ring_buffer_unlock_commit(tr->buffer, event);
+
+	trace_wake_up();
+}
+
+static void kmemtrace_kmalloc(unsigned long call_site,
+			      const void *ptr,
+			      size_t bytes_req,
+			      size_t bytes_alloc,
+			      gfp_t gfp_flags)
+{
+	kmemtrace_alloc(KMEMTRACE_TYPE_KMALLOC, call_site, ptr,
+			bytes_req, bytes_alloc, gfp_flags, -1);
+}
+
+static void kmemtrace_kmem_cache_alloc(unsigned long call_site,
+				       const void *ptr,
+				       size_t bytes_req,
+				       size_t bytes_alloc,
+				       gfp_t gfp_flags)
+{
+	kmemtrace_alloc(KMEMTRACE_TYPE_CACHE, call_site, ptr,
+			bytes_req, bytes_alloc, gfp_flags, -1);
+}
+
+static void kmemtrace_kmalloc_node(unsigned long call_site,
+				   const void *ptr,
+				   size_t bytes_req,
+				   size_t bytes_alloc,
+				   gfp_t gfp_flags,
+				   int node)
+{
+	kmemtrace_alloc(KMEMTRACE_TYPE_KMALLOC, call_site, ptr,
+			bytes_req, bytes_alloc, gfp_flags, node);
+}
+
+static void kmemtrace_kmem_cache_alloc_node(unsigned long call_site,
+					    const void *ptr,
+					    size_t bytes_req,
+					    size_t bytes_alloc,
+					    gfp_t gfp_flags,
+					    int node)
+{
+	kmemtrace_alloc(KMEMTRACE_TYPE_CACHE, call_site, ptr,
+			bytes_req, bytes_alloc, gfp_flags, node);
+}
+
+static void kmemtrace_kfree(unsigned long call_site, const void *ptr)
+{
+	kmemtrace_free(KMEMTRACE_TYPE_KMALLOC, call_site, ptr);
+}
+
+static void kmemtrace_kmem_cache_free(unsigned long call_site, const void *ptr)
+{
+	kmemtrace_free(KMEMTRACE_TYPE_CACHE, call_site, ptr);
+}
+
+static int kmemtrace_start_probes(void)
+{
+	int err;
+
+	err = register_trace_kmalloc(kmemtrace_kmalloc);
+	if (err)
+		return err;
+	err = register_trace_kmem_cache_alloc(kmemtrace_kmem_cache_alloc);
+	if (err)
+		return err;
+	err = register_trace_kmalloc_node(kmemtrace_kmalloc_node);
+	if (err)
+		return err;
+	err = register_trace_kmem_cache_alloc_node(kmemtrace_kmem_cache_alloc_node);
+	if (err)
+		return err;
+	err = register_trace_kfree(kmemtrace_kfree);
+	if (err)
+		return err;
+	err = register_trace_kmem_cache_free(kmemtrace_kmem_cache_free);
+
+	return err;
+}
+
+static void kmemtrace_stop_probes(void)
+{
+	unregister_trace_kmalloc(kmemtrace_kmalloc);
+	unregister_trace_kmem_cache_alloc(kmemtrace_kmem_cache_alloc);
+	unregister_trace_kmalloc_node(kmemtrace_kmalloc_node);
+	unregister_trace_kmem_cache_alloc_node(kmemtrace_kmem_cache_alloc_node);
+	unregister_trace_kfree(kmemtrace_kfree);
+	unregister_trace_kmem_cache_free(kmemtrace_kmem_cache_free);
+}
 
 static int kmem_trace_init(struct trace_array *tr)
 {
@@ -41,14 +185,14 @@ static int kmem_trace_init(struct trace_array *tr)
 	for_each_cpu_mask(cpu, cpu_possible_map)
 		tracing_reset(tr, cpu);
 
-	kmem_tracing_enabled = true;
+	kmemtrace_start_probes();
 
 	return 0;
 }
 
 static void kmem_trace_reset(struct trace_array *tr)
 {
-	kmem_tracing_enabled = false;
+	kmemtrace_stop_probes();
 }
 
 static void kmemtrace_headers(struct seq_file *s)
@@ -66,46 +210,83 @@ static void kmemtrace_headers(struct seq_file *s)
 }
 
 /*
- * The two following functions give the original output from kmemtrace,
- * or something close to....perhaps they need some missing things
+ * The following functions give the original output from kmemtrace,
+ * plus the origin CPU, since reordering occurs in-kernel now.
  */
+
+#define KMEMTRACE_USER_ALLOC	0
+#define KMEMTRACE_USER_FREE	1
+
+struct kmemtrace_user_event {
+	u8			event_id;
+	u8			type_id;
+	u16			event_size;
+	u32			cpu;
+	u64			timestamp;
+	unsigned long		call_site;
+	unsigned long		ptr;
+};
+
+struct kmemtrace_user_event_alloc {
+	size_t			bytes_req;
+	size_t			bytes_alloc;
+	unsigned		gfp_flags;
+	int			node;
+};
+
 static enum print_line_t
-kmemtrace_print_alloc_original(struct trace_iterator *iter,
-				struct kmemtrace_alloc_entry *entry)
+kmemtrace_print_alloc_user(struct trace_iterator *iter,
+			   struct kmemtrace_alloc_entry *entry)
 {
+	struct kmemtrace_user_event_alloc *ev_alloc;
 	struct trace_seq *s = &iter->seq;
-	int ret;
+	struct kmemtrace_user_event *ev;
 
-	/* Taken from the old linux/kmemtrace.h */
-	ret = trace_seq_printf(s, "type_id %d call_site %lu ptr %lu "
-	  "bytes_req %lu bytes_alloc %lu gfp_flags %lu node %d\n",
-	   entry->type_id, entry->call_site, (unsigned long) entry->ptr,
-	   (unsigned long) entry->bytes_req, (unsigned long) entry->bytes_alloc,
-	   (unsigned long) entry->gfp_flags, entry->node);
-
-	if (!ret)
+	ev = trace_seq_reserve(s, sizeof(*ev));
+	if (!ev)
 		return TRACE_TYPE_PARTIAL_LINE;
+
+	ev->event_id		= KMEMTRACE_USER_ALLOC;
+	ev->type_id		= entry->type_id;
+	ev->event_size		= sizeof(*ev) + sizeof(*ev_alloc);
+	ev->cpu			= iter->cpu;
+	ev->timestamp		= iter->ts;
+	ev->call_site		= entry->call_site;
+	ev->ptr			= (unsigned long)entry->ptr;
+
+	ev_alloc = trace_seq_reserve(s, sizeof(*ev_alloc));
+	if (!ev_alloc)
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	ev_alloc->bytes_req	= entry->bytes_req;
+	ev_alloc->bytes_alloc	= entry->bytes_alloc;
+	ev_alloc->gfp_flags	= entry->gfp_flags;
+	ev_alloc->node		= entry->node;
 
 	return TRACE_TYPE_HANDLED;
 }
 
 static enum print_line_t
-kmemtrace_print_free_original(struct trace_iterator *iter,
-				struct kmemtrace_free_entry *entry)
+kmemtrace_print_free_user(struct trace_iterator *iter,
+			  struct kmemtrace_free_entry *entry)
 {
 	struct trace_seq *s = &iter->seq;
-	int ret;
+	struct kmemtrace_user_event *ev;
 
-	/* Taken from the old linux/kmemtrace.h */
-	ret = trace_seq_printf(s, "type_id %d call_site %lu ptr %lu\n",
-	   entry->type_id, entry->call_site, (unsigned long) entry->ptr);
-
-	if (!ret)
+	ev = trace_seq_reserve(s, sizeof(*ev));
+	if (!ev)
 		return TRACE_TYPE_PARTIAL_LINE;
+
+	ev->event_id		= KMEMTRACE_USER_FREE;
+	ev->type_id		= entry->type_id;
+	ev->event_size		= sizeof(*ev);
+	ev->cpu			= iter->cpu;
+	ev->timestamp		= iter->ts;
+	ev->call_site		= entry->call_site;
+	ev->ptr			= (unsigned long)entry->ptr;
 
 	return TRACE_TYPE_HANDLED;
 }
-
 
 /* The two other following provide a more minimalistic output */
 static enum print_line_t
@@ -178,7 +359,7 @@ kmemtrace_print_alloc_compress(struct trace_iterator *iter,
 
 static enum print_line_t
 kmemtrace_print_free_compress(struct trace_iterator *iter,
-				struct kmemtrace_free_entry *entry)
+			      struct kmemtrace_free_entry *entry)
 {
 	struct trace_seq *s = &iter->seq;
 	int ret;
@@ -239,20 +420,22 @@ static enum print_line_t kmemtrace_print_line(struct trace_iterator *iter)
 	switch (entry->type) {
 	case TRACE_KMEM_ALLOC: {
 		struct kmemtrace_alloc_entry *field;
+
 		trace_assign_type(field, entry);
 		if (kmem_tracer_flags.val & TRACE_KMEM_OPT_MINIMAL)
 			return kmemtrace_print_alloc_compress(iter, field);
 		else
-			return kmemtrace_print_alloc_original(iter, field);
+			return kmemtrace_print_alloc_user(iter, field);
 	}
 
 	case TRACE_KMEM_FREE: {
 		struct kmemtrace_free_entry *field;
+
 		trace_assign_type(field, entry);
 		if (kmem_tracer_flags.val & TRACE_KMEM_OPT_MINIMAL)
 			return kmemtrace_print_free_compress(iter, field);
 		else
-			return kmemtrace_print_free_original(iter, field);
+			return kmemtrace_print_free_user(iter, field);
 	}
 
 	default:
@@ -260,70 +443,13 @@ static enum print_line_t kmemtrace_print_line(struct trace_iterator *iter)
 	}
 }
 
-/* Trace allocations */
-void kmemtrace_mark_alloc_node(enum kmemtrace_type_id type_id,
-			     unsigned long call_site,
-			     const void *ptr,
-			     size_t bytes_req,
-			     size_t bytes_alloc,
-			     gfp_t gfp_flags,
-			     int node)
-{
-	struct ring_buffer_event *event;
-	struct kmemtrace_alloc_entry *entry;
-	struct trace_array *tr = kmemtrace_array;
-
-	if (!kmem_tracing_enabled)
-		return;
-
-	event = trace_buffer_lock_reserve(tr, TRACE_KMEM_ALLOC,
-					  sizeof(*entry), 0, 0);
-	if (!event)
-		return;
-	entry	= ring_buffer_event_data(event);
-
-	entry->call_site = call_site;
-	entry->ptr = ptr;
-	entry->bytes_req = bytes_req;
-	entry->bytes_alloc = bytes_alloc;
-	entry->gfp_flags = gfp_flags;
-	entry->node	=	node;
-
-	trace_buffer_unlock_commit(tr, event, 0, 0);
-}
-EXPORT_SYMBOL(kmemtrace_mark_alloc_node);
-
-void kmemtrace_mark_free(enum kmemtrace_type_id type_id,
-		       unsigned long call_site,
-		       const void *ptr)
-{
-	struct ring_buffer_event *event;
-	struct kmemtrace_free_entry *entry;
-	struct trace_array *tr = kmemtrace_array;
-
-	if (!kmem_tracing_enabled)
-		return;
-
-	event = trace_buffer_lock_reserve(tr, TRACE_KMEM_FREE,
-					  sizeof(*entry), 0, 0);
-	if (!event)
-		return;
-	entry	= ring_buffer_event_data(event);
-	entry->type_id	= type_id;
-	entry->call_site = call_site;
-	entry->ptr = ptr;
-
-	trace_buffer_unlock_commit(tr, event, 0, 0);
-}
-EXPORT_SYMBOL(kmemtrace_mark_free);
-
 static struct tracer kmem_tracer __read_mostly = {
-	.name		= "kmemtrace",
-	.init		= kmem_trace_init,
-	.reset		= kmem_trace_reset,
-	.print_line	= kmemtrace_print_line,
-	.print_header = kmemtrace_headers,
-	.flags		= &kmem_tracer_flags
+	.name			= "kmemtrace",
+	.init			= kmem_trace_init,
+	.reset			= kmem_trace_reset,
+	.print_line		= kmemtrace_print_line,
+	.print_header		= kmemtrace_headers,
+	.flags			= &kmem_tracer_flags
 };
 
 void kmemtrace_init(void)
@@ -335,5 +461,4 @@ static int __init init_kmem_tracer(void)
 {
 	return register_tracer(&kmem_tracer);
 }
-
 device_initcall(init_kmem_tracer);
