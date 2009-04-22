@@ -1529,9 +1529,9 @@ static void pohmelfs_drop_scan(struct work_struct *work)
 	struct pohmelfs_inode *pi;
 	unsigned int count = 0;
 
-	while ((pi = pohmelfs_get_inode_from_list(psb, &psb->drop_list, &count))) {
+	while ((pi = pohmelfs_get_inode_from_list(psb, &psb->drop_list, &count)))
 		pohmelfs_put_inode_count(pi, count);
-	}
+
 	pohmelfs_check_states(psb);
 
 	if (psb->drop_scan_timeout)
@@ -1568,9 +1568,8 @@ static void pohmelfs_trans_scan_state(struct netfs_state *st)
 		rb_node = rb_next(rb_node);
 
 		err = -ETIMEDOUT;
-		if (timeout && (++dst->retries < psb->trans_retries)) {
+		if (timeout && (++dst->retries < psb->trans_retries))
 			err = netfs_trans_resend(t, psb);
-		}
 
 		if (err || (t->flags & NETFS_TRANS_SINGLE_DST)) {
 			if (netfs_trans_remove_nolock(dst, st))

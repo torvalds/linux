@@ -692,9 +692,9 @@ static int pohmelfs_remove_entry(struct inode *dir, struct dentry *dentry)
 	n = pohmelfs_search_hash(parent, str.hash);
 	if (n) {
 		pohmelfs_fix_offset(parent, n);
-		if (test_bit(NETFS_INODE_REMOTE_SYNCED, &pi->state)) {
+		if (test_bit(NETFS_INODE_REMOTE_SYNCED, &pi->state))
 			pohmelfs_remove_child(pi, n);
-		}
+
 		pohmelfs_name_free(parent, n);
 		err = 0;
 	}
@@ -1006,9 +1006,8 @@ static int pohmelfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	pi = POHMELFS_I(inode);
 	old_parent = POHMELFS_I(old_dir);
 
-	if (new_dir) {
+	if (new_dir)
 		new_dir->i_sb->s_op->write_inode(new_dir, 0);
-	}
 
 	old_hash = jhash(old_dentry->d_name.name, old_dentry->d_name.len, 0);
 	str.hash = jhash(new_dentry->d_name.name, new_dentry->d_name.len, 0);

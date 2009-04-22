@@ -914,9 +914,9 @@ static int pohmelfs_recv(void *data)
 				unsigned char *hash = e->data;
 
 				dprintk("%s: received hash: ", __func__);
-				for (i=0; i<cmd->csize; ++i) {
+				for (i=0; i<cmd->csize; ++i)
 					printk("%02x ", hash[i]);
-				}
+
 				printk("\n");
 			}
 #endif

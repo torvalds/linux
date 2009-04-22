@@ -178,9 +178,9 @@ int netfs_trans_send(struct netfs_trans *t, struct netfs_state *st)
 
 err_out_unlock_return:
 
-	if (st->need_reset) {
+	if (st->need_reset)
 		netfs_state_exit(st);
-	}
+
 	netfs_state_unlock_send(st);
 
 	dprintk("%s: t: %p, gen: %u, err: %d.\n",
