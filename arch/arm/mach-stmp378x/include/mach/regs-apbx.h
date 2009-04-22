@@ -1,0 +1,79 @@
+/*
+ * STMP APBX Register Definitions
+ *
+ * Copyright (c) 2008 Freescale Semiconductor
+ * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+ *
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+ */
+#ifndef __ARCH_ARM___APBX_H
+#define __ARCH_ARM___APBX_H  1
+
+#include <mach/stmp3xxx_regs.h>
+
+#define REGS_APBX_BASE (REGS_BASE + 0x24000)
+#define REGS_APBX_BASE_PHYS (0x80024000)
+#define REGS_APBX_SIZE 0x00002000
+HW_REGISTER(HW_APBX_CTRL0, REGS_APBX_BASE, 0x00000000)
+#define HW_APBX_CTRL0_ADDR (REGS_APBX_BASE + 0x00000000)
+#define BM_APBX_CTRL0_SFTRST 0x80000000
+#define BM_APBX_CTRL0_CLKGATE 0x40000000
+HW_REGISTER(HW_APBX_CTRL1, REGS_APBX_BASE, 0x00000010)
+HW_REGISTER(HW_APBX_CTRL2, REGS_APBX_BASE, 0x00000020)
+HW_REGISTER(HW_APBX_CHANNEL_CTRL, REGS_APBX_BASE, 0x00000030)
+#define BP_APBX_CHANNEL_CTRL_RESET_CHANNEL      16
+#define BM_APBX_CHANNEL_CTRL_RESET_CHANNEL      0xFFFF0000
+#define BF_APBX_CHANNEL_CTRL_RESET_CHANNEL(v)   \
+	(((v) << BP_APBX_CHANNEL_CTRL_RESET_CHANNEL) & \
+	 BM_APBX_CHANNEL_CTRL_RESET_CHANNEL)
+HW_REGISTER_0(HW_APBX_DEVSEL, REGS_APBX_BASE, 0x00000040)
+HW_REGISTER_0_INDEXED(HW_APBX_CHn_CURCMDAR, REGS_APBX_BASE, 0x00000100, 0x70)
+HW_REGISTER_0_INDEXED(HW_APBX_CHn_NXTCMDAR, REGS_APBX_BASE, 0x00000110, 0x70)
+HW_REGISTER_0_INDEXED(HW_APBX_CHn_CMD, REGS_APBX_BASE, 0x00000120, 0x70)
+#define BP_APBX_CHn_CMD_XFER_COUNT      16
+#define BM_APBX_CHn_CMD_XFER_COUNT 0xFFFF0000
+#define BF_APBX_CHn_CMD_XFER_COUNT(v) \
+	(((v) << 16) & BM_APBX_CHn_CMD_XFER_COUNT)
+#define BP_APBX_CHn_CMD_CMDWORDS      12
+#define BM_APBX_CHn_CMD_CMDWORDS 0x0000F000
+#define BF_APBX_CHn_CMD_CMDWORDS(v)  \
+	(((v) << 12) & BM_APBX_CHn_CMD_CMDWORDS)
+#define BM_APBX_CHn_CMD_HALTONTERMINATE 0x00000100
+#define BM_APBX_CHn_CMD_WAIT4ENDCMD 0x00000080
+#define BM_APBX_CHn_CMD_SEMAPHORE 0x00000040
+#define BM_APBX_CHn_CMD_IRQONCMPLT 0x00000008
+#define BM_APBX_CHn_CMD_CHAIN 0x00000004
+#define BP_APBX_CHn_CMD_COMMAND      0
+#define BM_APBX_CHn_CMD_COMMAND 0x00000003
+#define BF_APBX_CHn_CMD_COMMAND(v)  \
+	(((v) << 0) & BM_APBX_CHn_CMD_COMMAND)
+#define BV_APBX_CHn_CMD_COMMAND__NO_DMA_XFER 0x0
+#define BV_APBX_CHn_CMD_COMMAND__DMA_WRITE   0x1
+#define BV_APBX_CHn_CMD_COMMAND__DMA_READ    0x2
+HW_REGISTER_0_INDEXED(HW_APBX_CHn_BAR, REGS_APBX_BASE, 0x00000130, 0x70)
+HW_REGISTER_0_INDEXED(HW_APBX_CHn_SEMA, REGS_APBX_BASE, 0x00000140, 0x70)
+#define BP_APBX_CHn_SEMA_PHORE      16
+#define BM_APBX_CHn_SEMA_PHORE 0x00FF0000
+#define BF_APBX_CHn_SEMA_PHORE(v)  \
+	(((v) << 16) & BM_APBX_CHn_SEMA_PHORE)
+#define BP_APBX_CHn_SEMA_INCREMENT_SEMA      0
+#define BM_APBX_CHn_SEMA_INCREMENT_SEMA 0x000000FF
+#define BF_APBX_CHn_SEMA_INCREMENT_SEMA(v)  \
+	(((v) << 0) & BM_APBX_CHn_SEMA_INCREMENT_SEMA)
+HW_REGISTER_0_INDEXED(HW_APBX_CHn_DEBUG1, REGS_APBX_BASE, 0x00000150, 0x70)
+HW_REGISTER_0_INDEXED(HW_APBX_CHn_DEBUG2, REGS_APBX_BASE, 0x00000160, 0x70)
+HW_REGISTER_0(HW_APBX_VERSION, REGS_APBX_BASE, 0x00000800)
+#endif /* __ARCH_ARM___APBX_H */
