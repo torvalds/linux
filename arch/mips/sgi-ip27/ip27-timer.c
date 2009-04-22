@@ -159,7 +159,7 @@ static void __init hub_rt_clock_event_global_init(void)
 	setup_irq(irq, &hub_rt_irqaction);
 }
 
-static cycle_t hub_rt_read(void)
+static cycle_t hub_rt_read(struct clocksource *cs)
 {
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }

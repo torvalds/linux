@@ -891,7 +891,8 @@ int device_add(struct device *dev)
 		set_dev_node(dev, dev_to_node(parent));
 
 	/* first, register with generic layer. */
-	error = kobject_add(&dev->kobj, dev->kobj.parent, "%s", dev_name(dev));
+	/* we require the name to be set before, and pass NULL */
+	error = kobject_add(&dev->kobj, dev->kobj.parent, NULL);
 	if (error)
 		goto Error;
 

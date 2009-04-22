@@ -54,11 +54,10 @@ static int check_name(const char *name)
  * Check a string doesn't overrun the chunk of
  * memory we copied from user land.
  */
-static int invalid_str(char *str, void *end)
+static int invalid_str(char *str, size_t size)
 {
-	while ((void *) str <= end)
-		if (!*str++)
-			return 0;
+	if (memchr(str, 0, size))
+		return 0;
 	return -EINVAL;
 }
 
@@ -138,8 +137,7 @@ static int validate_dev_ioctl(int cmd, struct autofs_dev_ioctl *param)
 	}
 
 	if (param->size > sizeof(*param)) {
-		err = invalid_str(param->path,
-				 (void *) ((size_t) param + param->size));
+		err = invalid_str(param->path, param->size - sizeof(*param));
 		if (err) {
 			AUTOFS_WARN(
 			  "path string terminator missing for cmd(0x%08x)",
@@ -488,7 +486,7 @@ static int autofs_dev_ioctl_requester(struct file *fp,
 	}
 
 	path = param->path;
-	devid = sbi->sb->s_dev;
+	devid = new_encode_dev(sbi->sb->s_dev);
 
 	param->requester.uid = param->requester.gid = -1;
 

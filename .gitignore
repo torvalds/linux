@@ -49,6 +49,7 @@ include/linux/compile.h
 include/linux/version.h
 include/linux/utsrelease.h
 include/linux/bounds.h
+include/generated
 
 # stgit generated dirs
 patches-*

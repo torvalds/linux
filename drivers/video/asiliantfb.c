@@ -533,6 +533,7 @@ static int __devinit init_asiliant(struct fb_info *p, unsigned long addr)
 
 	writeb(0xff, mmio_base + 0x78c);
 	chips_hw_init(p);
+	return 0;
 }
 
 static int __devinit

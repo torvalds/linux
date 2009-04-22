@@ -41,7 +41,7 @@ static u32 ticks_per_jiffy;
 /*
  * Clocksource handling.
  */
-static cycle_t orion_clksrc_read(void)
+static cycle_t orion_clksrc_read(struct clocksource *cs)
 {
 	return 0xffffffff - readl(TIMER0_VAL);
 }

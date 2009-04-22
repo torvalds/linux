@@ -125,6 +125,20 @@ static noinline struct btrfs_fs_devices *find_fsid(u8 *fsid)
 	return NULL;
 }
 
+static void requeue_list(struct btrfs_pending_bios *pending_bios,
+			struct bio *head, struct bio *tail)
+{
+
+	struct bio *old_head;
+
+	old_head = pending_bios->head;
+	pending_bios->head = head;
+	if (pending_bios->tail)
+		tail->bi_next = old_head;
+	else
+		pending_bios->tail = tail;
+}
+
 /*
  * we try to collect pending bios for a device so we don't get a large
  * number of procs sending bios down to the same device.  This greatly
@@ -141,10 +155,12 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	struct bio *pending;
 	struct backing_dev_info *bdi;
 	struct btrfs_fs_info *fs_info;
+	struct btrfs_pending_bios *pending_bios;
 	struct bio *tail;
 	struct bio *cur;
 	int again = 0;
-	unsigned long num_run = 0;
+	unsigned long num_run;
+	unsigned long num_sync_run;
 	unsigned long limit;
 	unsigned long last_waited = 0;
 
@@ -153,20 +169,30 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
 
+	/* we want to make sure that every time we switch from the sync
+	 * list to the normal list, we unplug
+	 */
+	num_sync_run = 0;
+
 loop:
 	spin_lock(&device->io_lock);
+	num_run = 0;
 
 loop_lock:
+
 	/* take all the bios off the list at once and process them
 	 * later on (without the lock held).  But, remember the
 	 * tail and other pointers so the bios can be properly reinserted
 	 * into the list if we hit congestion
 	 */
-	pending = device->pending_bios;
-	tail = device->pending_bio_tail;
+	if (device->pending_sync_bios.head)
+		pending_bios = &device->pending_sync_bios;
+	else
+		pending_bios = &device->pending_bios;
+
+	pending = pending_bios->head;
+	tail = pending_bios->tail;
 	WARN_ON(pending && !tail);
-	device->pending_bios = NULL;
-	device->pending_bio_tail = NULL;
 
 	/*
 	 * if pending was null this time around, no bios need processing
@@ -176,16 +202,41 @@ loop_lock:
 	 * device->running_pending is used to synchronize with the
 	 * schedule_bio code.
 	 */
-	if (pending) {
-		again = 1;
-		device->running_pending = 1;
-	} else {
+	if (device->pending_sync_bios.head == NULL &&
+	    device->pending_bios.head == NULL) {
 		again = 0;
 		device->running_pending = 0;
+	} else {
+		again = 1;
+		device->running_pending = 1;
 	}
+
+	pending_bios->head = NULL;
+	pending_bios->tail = NULL;
+
 	spin_unlock(&device->io_lock);
 
+	/*
+	 * if we're doing the regular priority list, make sure we unplug
+	 * for any high prio bios we've sent down
+	 */
+	if (pending_bios == &device->pending_bios && num_sync_run > 0) {
+		num_sync_run = 0;
+		blk_run_backing_dev(bdi, NULL);
+	}
+
 	while (pending) {
+
+		rmb();
+		if (pending_bios != &device->pending_sync_bios &&
+		    device->pending_sync_bios.head &&
+		    num_run > 16) {
+			cond_resched();
+			spin_lock(&device->io_lock);
+			requeue_list(pending_bios, pending, tail);
+			goto loop_lock;
+		}
+
 		cur = pending;
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
@@ -196,10 +247,18 @@ loop_lock:
 			wake_up(&fs_info->async_submit_wait);
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
-		bio_get(cur);
 		submit_bio(cur->bi_rw, cur);
-		bio_put(cur);
 		num_run++;
+		if (bio_sync(cur))
+			num_sync_run++;
+
+		if (need_resched()) {
+			if (num_sync_run) {
+				blk_run_backing_dev(bdi, NULL);
+				num_sync_run = 0;
+			}
+			cond_resched();
+		}
 
 		/*
 		 * we made progress, there is more work to do and the bdi
@@ -208,7 +267,6 @@ loop_lock:
 		 */
 		if (pending && bdi_write_congested(bdi) && num_run > 16 &&
 		    fs_info->fs_devices->open_devices > 1) {
-			struct bio *old_head;
 			struct io_context *ioc;
 
 			ioc = current->io_context;
@@ -233,17 +291,17 @@ loop_lock:
 				 * against it before looping
 				 */
 				last_waited = ioc->last_waited;
+				if (need_resched()) {
+					if (num_sync_run) {
+						blk_run_backing_dev(bdi, NULL);
+						num_sync_run = 0;
+					}
+					cond_resched();
+				}
 				continue;
 			}
 			spin_lock(&device->io_lock);
-
-			old_head = device->pending_bios;
-			device->pending_bios = pending;
-			if (device->pending_bio_tail)
-				tail->bi_next = old_head;
-			else
-				device->pending_bio_tail = tail;
-
+			requeue_list(pending_bios, pending, tail);
 			device->running_pending = 1;
 
 			spin_unlock(&device->io_lock);
@@ -251,11 +309,18 @@ loop_lock:
 			goto done;
 		}
 	}
+
+	if (num_sync_run) {
+		num_sync_run = 0;
+		blk_run_backing_dev(bdi, NULL);
+	}
+
+	cond_resched();
 	if (again)
 		goto loop;
 
 	spin_lock(&device->io_lock);
-	if (device->pending_bios)
+	if (device->pending_bios.head || device->pending_sync_bios.head)
 		goto loop_lock;
 	spin_unlock(&device->io_lock);
 
@@ -2497,7 +2562,7 @@ again:
 			max_errors = 1;
 		}
 	}
-	if (multi_ret && rw == WRITE &&
+	if (multi_ret && (rw & (1 << BIO_RW)) &&
 	    stripes_allocated < stripes_required) {
 		stripes_allocated = map->num_stripes;
 		free_extent_map(em);
@@ -2762,6 +2827,7 @@ static noinline int schedule_bio(struct btrfs_root *root,
 				 int rw, struct bio *bio)
 {
 	int should_queue = 1;
+	struct btrfs_pending_bios *pending_bios;
 
 	/* don't bother with additional async steps for reads, right now */
 	if (!(rw & (1 << BIO_RW))) {
@@ -2783,13 +2849,17 @@ static noinline int schedule_bio(struct btrfs_root *root,
 	bio->bi_rw |= rw;
 
 	spin_lock(&device->io_lock);
+	if (bio_sync(bio))
+		pending_bios = &device->pending_sync_bios;
+	else
+		pending_bios = &device->pending_bios;
 
-	if (device->pending_bio_tail)
-		device->pending_bio_tail->bi_next = bio;
+	if (pending_bios->tail)
+		pending_bios->tail->bi_next = bio;
 
-	device->pending_bio_tail = bio;
-	if (!device->pending_bios)
-		device->pending_bios = bio;
+	pending_bios->tail = bio;
+	if (!pending_bios->head)
+		pending_bios->head = bio;
 	if (device->running_pending)
 		should_queue = 0;
 

@@ -674,7 +674,7 @@ static void mpc85xx_mc_check(struct mem_ctl_info *mci)
 	int row_index;
 
 	err_detect = in_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT);
-	if (err_detect)
+	if (!err_detect)
 		return;
 
 	mpc85xx_mc_printk(mci, KERN_ERR, "Err Detect Register: %#8.8x\n",

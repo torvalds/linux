@@ -715,7 +715,7 @@ static struct irqaction realview_timer_irq = {
 	.handler	= realview_timer_interrupt,
 };
 
-static cycle_t realview_get_cycles(void)
+static cycle_t realview_get_cycles(struct clocksource *cs)
 {
 	return ~readl(timer3_va_base + TIMER_VALUE);
 }

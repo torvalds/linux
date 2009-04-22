@@ -699,7 +699,7 @@ static struct clocksource clocksource_tsc;
  * code, which is necessary to support wrapping clocksources like pm
  * timer.
  */
-static cycle_t read_tsc(void)
+static cycle_t read_tsc(struct clocksource *cs)
 {
 	cycle_t ret = (cycle_t)get_cycles();
 

@@ -75,7 +75,7 @@ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
 {
 	struct mem_cgroup *mem;
 	rcu_read_lock();
-	mem = mem_cgroup_from_task((mm)->owner);
+	mem = mem_cgroup_from_task(rcu_dereference((mm)->owner));
 	rcu_read_unlock();
 	return cgroup == mem;
 }

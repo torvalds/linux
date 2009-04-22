@@ -489,7 +489,7 @@ again:
 	/* start IO across the range first to instantiate any delalloc
 	 * extents
 	 */
-	btrfs_fdatawrite_range(inode->i_mapping, start, orig_end, WB_SYNC_NONE);
+	btrfs_fdatawrite_range(inode->i_mapping, start, orig_end, WB_SYNC_ALL);
 
 	/* The compression code will leave pages locked but return from
 	 * writepage without setting the page writeback.  Starting again

@@ -237,13 +237,9 @@ setxattr(struct dentry *d, const char __user *name, const void __user *value,
 	if (size) {
 		if (size > XATTR_SIZE_MAX)
 			return -E2BIG;
-		kvalue = kmalloc(size, GFP_KERNEL);
-		if (!kvalue)
-			return -ENOMEM;
-		if (copy_from_user(kvalue, value, size)) {
-			kfree(kvalue);
-			return -EFAULT;
-		}
+		kvalue = memdup_user(value, size);
+		if (IS_ERR(kvalue))
+			return PTR_ERR(kvalue);
 	}
 
 	error = vfs_setxattr(d, kname, kvalue, size, flags);

@@ -830,7 +830,7 @@ again:
 
 		ret = btrfs_del_items(trans, root, path, del_slot, del_nr);
 		BUG_ON(ret);
-		goto done;
+		goto release;
 	} else if (split == start) {
 		if (locked_end < extent_end) {
 			ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
@@ -926,6 +926,8 @@ again:
 	}
 done:
 	btrfs_mark_buffer_dirty(leaf);
+
+release:
 	btrfs_release_path(root, path);
 	if (split_end && split == start) {
 		split = end;
@@ -1131,7 +1133,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		if (will_write) {
 			btrfs_fdatawrite_range(inode->i_mapping, pos,
 					       pos + write_bytes - 1,
-					       WB_SYNC_NONE);
+					       WB_SYNC_ALL);
 		} else {
 			balance_dirty_pages_ratelimited_nr(inode->i_mapping,
 							   num_pages);
