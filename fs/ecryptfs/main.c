@@ -208,7 +208,7 @@ enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig,
        ecryptfs_opt_passthrough, ecryptfs_opt_xattr_metadata,
        ecryptfs_opt_encrypted_view, ecryptfs_opt_fnek_sig,
        ecryptfs_opt_fn_cipher, ecryptfs_opt_fn_cipher_key_bytes,
-       ecryptfs_opt_err };
+       ecryptfs_opt_unlink_sigs, ecryptfs_opt_err };
 
 static const match_table_t tokens = {
 	{ecryptfs_opt_sig, "sig=%s"},
@@ -222,6 +222,7 @@ static const match_table_t tokens = {
 	{ecryptfs_opt_fnek_sig, "ecryptfs_fnek_sig=%s"},
 	{ecryptfs_opt_fn_cipher, "ecryptfs_fn_cipher=%s"},
 	{ecryptfs_opt_fn_cipher_key_bytes, "ecryptfs_fn_key_bytes=%u"},
+	{ecryptfs_opt_unlink_sigs, "ecryptfs_unlink_sigs"},
 	{ecryptfs_opt_err, NULL}
 };
 
@@ -401,6 +402,9 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 			mount_crypt_stat->global_default_fn_cipher_key_bytes =
 				fn_cipher_key_bytes;
 			fn_cipher_key_bytes_set = 1;
+			break;
+		case ecryptfs_opt_unlink_sigs:
+			mount_crypt_stat->flags |= ECRYPTFS_UNLINK_SIGS;
 			break;
 		case ecryptfs_opt_err:
 		default:

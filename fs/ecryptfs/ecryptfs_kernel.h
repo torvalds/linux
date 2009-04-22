@@ -269,6 +269,7 @@ struct ecryptfs_crypt_stat {
 #define ECRYPTFS_ENCRYPT_FILENAMES    0x00000800
 #define ECRYPTFS_ENCFN_USE_MOUNT_FNEK 0x00001000
 #define ECRYPTFS_ENCFN_USE_FEK        0x00002000
+#define ECRYPTFS_UNLINK_SIGS	      0x00004000
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
