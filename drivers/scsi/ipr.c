@@ -7688,7 +7688,7 @@ static void __ipr_remove(struct pci_dev *pdev)
  * Return value:
  * 	none
  **/
-static void ipr_remove(struct pci_dev *pdev)
+static void __devexit ipr_remove(struct pci_dev *pdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = pci_get_drvdata(pdev);
 
@@ -7864,7 +7864,7 @@ static struct pci_driver ipr_driver = {
 	.name = IPR_NAME,
 	.id_table = ipr_pci_table,
 	.probe = ipr_probe,
-	.remove = ipr_remove,
+	.remove = __devexit_p(ipr_remove),
 	.shutdown = ipr_shutdown,
 	.err_handler = &ipr_err_handler,
 };
