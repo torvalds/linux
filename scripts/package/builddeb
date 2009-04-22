@@ -147,7 +147,7 @@ Source: linux-upstream
 Section: admin
 Priority: optional
 Maintainer: $maintainer
-Standards-Version: 3.6.1
+Standards-Version: 3.8.1
 EOF
 
 if [ "$ARCH" = "um" ]; then
