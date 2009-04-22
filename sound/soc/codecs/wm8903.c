@@ -846,6 +846,7 @@ SND_SOC_DAPM_PGA("Right Speaker PGA", WM8903_POWER_MANAGEMENT_5, 0, 0,
 
 SND_SOC_DAPM_SUPPLY("Charge Pump", WM8903_CHARGE_PUMP_0, 0, 0,
 		    wm8903_cp_event, SND_SOC_DAPM_POST_PMU),
+SND_SOC_DAPM_SUPPLY("CLK_DSP", WM8903_CLOCK_RATES_2, 1, 0, NULL, 0),
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
@@ -891,7 +892,12 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "Right Input PGA", NULL, "Right Input Mode Mux" },
 
 	{ "ADCL", NULL, "Left Input PGA" },
+	{ "ADCL", NULL, "CLK_DSP" },
 	{ "ADCR", NULL, "Right Input PGA" },
+	{ "ADCR", NULL, "CLK_DSP" },
+
+	{ "DACL", NULL, "CLK_DSP" },
+	{ "DACR", NULL, "CLK_DSP" },
 
 	{ "Left Output Mixer", "Left Bypass Switch", "Left Input PGA" },
 	{ "Left Output Mixer", "Right Bypass Switch", "Right Input PGA" },
