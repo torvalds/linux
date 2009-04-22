@@ -14,10 +14,6 @@
 #include <asm/cpm.h>
 #include <sysdev/fsl_soc.h>
 
-#ifdef CONFIG_PPC_85xx
-#define CPM_MAP_ADDR (get_immrbase() + 0x80000)
-#endif
-
 /* CPM Command register.
 */
 #define CPM_CR_RST	((uint)0x80000000)
