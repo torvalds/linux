@@ -132,7 +132,7 @@ static char *open_min_error[] = {"No error", "Function Failure", "Signal Lost", 
 				   "Reserved", "Reserved", "No Monitor Detected for RPL", 
 				   "Monitor Contention failer for RPL", "FDX Protocol Error"};
 
-/* Module paramters */
+/* Module parameters */
 
 MODULE_AUTHOR("Mike Phillips <mikep@linuxtr.net>") ; 
 MODULE_DESCRIPTION("Olympic PCI/Cardbus Chipset Driver") ; 

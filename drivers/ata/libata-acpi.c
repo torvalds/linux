@@ -748,9 +748,9 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 /**
  * ata_acpi_exec_tfs - get then write drive taskfile settings
  * @dev: target ATA device
- * @nr_executed: out paramter for the number of executed commands
+ * @nr_executed: out parameter for the number of executed commands
  *
- * Evaluate _GTF and excute returned taskfiles.
+ * Evaluate _GTF and execute returned taskfiles.
  *
  * LOCKING:
  * EH context.
