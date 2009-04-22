@@ -81,9 +81,9 @@ acpi_status acpi_hw_clear_acpi_status(void)
 
 	ACPI_FUNCTION_TRACE(hw_clear_acpi_status);
 
-	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %0llX\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %8.8X%8.8X\n",
 			  ACPI_BITMASK_ALL_FIXED_STATUS,
-			  acpi_gbl_xpm1a_status.address));
+			  ACPI_FORMAT_UINT64(acpi_gbl_xpm1a_status.address)));
 
 	lock_flags = acpi_os_acquire_lock(acpi_gbl_hardware_lock);
 
