@@ -1289,14 +1289,8 @@ static int wm8903_startup(struct snd_pcm_substream *substream,
 	if (wm8903->master_substream) {
 		master_runtime = wm8903->master_substream->runtime;
 
-		dev_dbg(&i2c->dev, "Constraining to %d bits at %dHz\n",
-			master_runtime->sample_bits,
-			master_runtime->rate);
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_RATE,
-					     master_runtime->rate,
-					     master_runtime->rate);
+		dev_dbg(&i2c->dev, "Constraining to %d bits\n",
+			master_runtime->sample_bits);
 
 		snd_pcm_hw_constraint_minmax(substream->runtime,
 					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
