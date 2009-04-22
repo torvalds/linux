@@ -844,7 +844,7 @@ static inline int pohmelfs_need_lock(struct pohmelfs_inode *pi, int type)
 int __init pohmelfs_mcache_init(void);
 void pohmelfs_mcache_exit(void);
 
-//#define CONFIG_POHMELFS_DEBUG
+/* #define CONFIG_POHMELFS_DEBUG */
 
 #ifdef CONFIG_POHMELFS_DEBUG
 #define dprintka(f, a...) printk(f, ##a)

@@ -562,7 +562,7 @@ struct dentry *pohmelfs_lookup(struct inode *dir, struct dentry *dentry, struct 
 		if (!inode) {
 			dprintk("%s: No inode for ino: %lu, name: '%s', hash: %x.\n",
 				__func__, ino, str.name, str.hash);
-			//return NULL;
+			/* return NULL; */
 			return ERR_PTR(-EACCES);
 		}
 	} else {
