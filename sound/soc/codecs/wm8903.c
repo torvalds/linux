@@ -978,6 +978,11 @@ static int wm8903_set_bias_level(struct snd_soc_codec *codec,
 			wm8903_write(codec, WM8903_CLOCK_RATES_2,
 				     WM8903_CLK_SYS_ENA);
 
+			/* Change DC servo dither level in startup sequence */
+			wm8903_write(codec, WM8903_WRITE_SEQUENCER_0, 0x11);
+			wm8903_write(codec, WM8903_WRITE_SEQUENCER_1, 0x1257);
+			wm8903_write(codec, WM8903_WRITE_SEQUENCER_2, 0x2);
+
 			wm8903_run_sequence(codec, 0);
 			wm8903_sync_reg_cache(codec, codec->reg_cache);
 
