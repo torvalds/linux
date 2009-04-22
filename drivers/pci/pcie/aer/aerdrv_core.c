@@ -113,15 +113,17 @@ static void set_device_error_reporting(struct pci_dev *dev, void *data)
 {
 	bool enable = *((bool *)data);
 
-	if (dev->pcie_type != PCIE_RC_PORT &&
-	    dev->pcie_type != PCIE_SW_UPSTREAM_PORT &&
-	    dev->pcie_type != PCIE_SW_DOWNSTREAM_PORT)
-		return;
+	if (dev->pcie_type == PCIE_RC_PORT ||
+	    dev->pcie_type == PCIE_SW_UPSTREAM_PORT ||
+	    dev->pcie_type == PCIE_SW_DOWNSTREAM_PORT) {
+		if (enable)
+			pci_enable_pcie_error_reporting(dev);
+		else
+			pci_disable_pcie_error_reporting(dev);
+	}
 
 	if (enable)
-		pci_enable_pcie_error_reporting(dev);
-	else
-		pci_disable_pcie_error_reporting(dev);
+		pcie_set_ecrc_checking(dev);
 }
 
 /**
