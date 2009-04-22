@@ -1743,12 +1743,12 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
  *	look out for other vendor IEs.
  */
 static const u64 care_about_ies =
-	BIT(WLAN_EID_COUNTRY) |
-	BIT(WLAN_EID_ERP_INFO) |
-	BIT(WLAN_EID_CHANNEL_SWITCH) |
-	BIT(WLAN_EID_PWR_CONSTRAINT) |
-	BIT(WLAN_EID_HT_CAPABILITY) |
-	BIT(WLAN_EID_HT_INFORMATION);
+	(1ULL << WLAN_EID_COUNTRY) |
+	(1ULL << WLAN_EID_ERP_INFO) |
+	(1ULL << WLAN_EID_CHANNEL_SWITCH) |
+	(1ULL << WLAN_EID_PWR_CONSTRAINT) |
+	(1ULL << WLAN_EID_HT_CAPABILITY) |
+	(1ULL << WLAN_EID_HT_INFORMATION);
 
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_mgmt *mgmt,
