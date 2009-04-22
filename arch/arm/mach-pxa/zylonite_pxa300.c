@@ -127,6 +127,10 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	/* Standard I2C */
 	GPIO21_I2C_SCL,
 	GPIO22_I2C_SDA,
+
+	/* GPIO */
+	GPIO18_GPIO,	/* GPIO Expander #0 INT_N */
+	GPIO19_GPIO,	/* GPIO Expander #1 INT_N */
 };
 
 static mfp_cfg_t pxa300_mfp_cfg[] __initdata = {
