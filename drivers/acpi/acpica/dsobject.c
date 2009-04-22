@@ -734,7 +734,8 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			/* Local ID (0-7) is (AML opcode - base AML_LOCAL_OP) */
 
-			obj_desc->reference.value = opcode - AML_LOCAL_OP;
+			obj_desc->reference.value =
+			    ((u32)opcode) - AML_LOCAL_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
 #ifndef ACPI_NO_METHOD_EXECUTION
@@ -754,7 +755,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			/* Arg ID (0-6) is (AML opcode - base AML_ARG_OP) */
 
-			obj_desc->reference.value = opcode - AML_ARG_OP;
+			obj_desc->reference.value = ((u32)opcode) - AML_ARG_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
 #ifndef ACPI_NO_METHOD_EXECUTION

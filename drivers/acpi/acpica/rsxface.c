@@ -338,13 +338,17 @@ acpi_resource_to_address64(struct acpi_resource *resource,
 	switch (resource->type) {
 	case ACPI_RESOURCE_TYPE_ADDRESS16:
 
-		address16 = (struct acpi_resource_address16 *)&resource->data;
+		address16 =
+		    ACPI_CAST_PTR(struct acpi_resource_address16,
+				  &resource->data);
 		ACPI_COPY_ADDRESS(out, address16);
 		break;
 
 	case ACPI_RESOURCE_TYPE_ADDRESS32:
 
-		address32 = (struct acpi_resource_address32 *)&resource->data;
+		address32 =
+		    ACPI_CAST_PTR(struct acpi_resource_address32,
+				  &resource->data);
 		ACPI_COPY_ADDRESS(out, address32);
 		break;
 
