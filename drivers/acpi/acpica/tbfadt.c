@@ -284,9 +284,9 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
 	if (length > sizeof(struct acpi_table_fadt)) {
 		ACPI_WARNING((AE_INFO,
 			      "FADT (revision %u) is longer than ACPI 2.0 version, "
-			      "truncating length 0x%X to 0x%zX",
-			      table->revision, (unsigned)length,
-			      sizeof(struct acpi_table_fadt)));
+			      "truncating length 0x%X to 0x%X",
+			      table->revision, length,
+			      (u32)sizeof(struct acpi_table_fadt)));
 	}
 
 	/* Clear the entire local FADT */
