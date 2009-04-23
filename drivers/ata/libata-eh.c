@@ -3507,6 +3507,8 @@ static void ata_eh_handle_port_suspend(struct ata_port *ap)
  */
 static void ata_eh_handle_port_resume(struct ata_port *ap)
 {
+	struct ata_link *link;
+	struct ata_device *dev;
 	unsigned long flags;
 	int rc = 0;
 
@@ -3520,6 +3522,17 @@ static void ata_eh_handle_port_resume(struct ata_port *ap)
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	WARN_ON(!(ap->pflags & ATA_PFLAG_SUSPENDED));
+
+	/*
+	 * Error timestamps are in jiffies which doesn't run while
+	 * suspended and PHY events during resume isn't too uncommon.
+	 * When the two are combined, it can lead to unnecessary speed
+	 * downs if the machine is suspended and resumed repeatedly.
+	 * Clear error history.
+	 */
+	ata_for_each_link(link, ap, HOST_FIRST)
+		ata_for_each_dev(dev, link, ALL)
+			ata_ering_clear(&dev->ering);
 
 	ata_acpi_set_state(ap, PMSG_ON);
 
