@@ -720,13 +720,13 @@ int __init omap2_clk_init(void)
 
 	clk_init(&omap2_clk_functions);
 
+	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
+		clk_init_one(c->lk.clk);
+
 	osc_ck.rate = omap2_osc_clk_recalc(&osc_ck);
 	propagate_rate(&osc_ck);
 	sys_ck.rate = omap2_sys_clk_recalc(&sys_ck);
 	propagate_rate(&sys_ck);
-
-	for (c = omap24xx_clks; c < omap24xx_clks + ARRAY_SIZE(omap24xx_clks); c++)
-		clk_init_one(c->lk.clk);
 
 	cpu_mask = 0;
 	if (cpu_is_omap2420())
