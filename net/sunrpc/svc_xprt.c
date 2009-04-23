@@ -11,6 +11,7 @@
 #include <net/sock.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svc_xprt.h>
+#include <linux/sunrpc/svcsock.h>
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
