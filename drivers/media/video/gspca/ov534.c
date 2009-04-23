@@ -867,18 +867,16 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 
 		/* If PTS or FID has changed, start a new frame. */
 		if (this_pts != sd->last_pts || this_fid != sd->last_fid) {
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-					NULL, 0);
+			if (gspca_dev->last_packet_type == INTER_PACKET)
+				frame = gspca_frame_add(gspca_dev,
+							LAST_PACKET, frame,
+							NULL, 0);
 			sd->last_pts = this_pts;
 			sd->last_fid = this_fid;
-		}
-
-		/* Add the data from this payload */
-		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
 					data + 12, len - 12);
-
 		/* If this packet is marked as EOF, end the frame */
-		if (data[1] & UVC_STREAM_EOF) {
+		} else if (data[1] & UVC_STREAM_EOF) {
 			sd->last_pts = 0;
 
 			if (frame->data_end - frame->data !=
@@ -886,10 +884,15 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev, struct gspca_frame *frame,
 				PDEBUG(D_PACK, "short frame");
 				goto discard;
 			}
-
 			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-						NULL, 0);
+						data + 12, len - 12);
+		} else {
+
+			/* Add the data from this payload */
+			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+						data + 12, len - 12);
 		}
+
 
 		/* Done this payload */
 		goto scan_next;
