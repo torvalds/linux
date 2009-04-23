@@ -911,6 +911,37 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 }
 
 /*
+ * A single 'fd' number was written, in which case it must be for
+ * a socket of a supported family/protocol, and we use it as an
+ * nfsd listener.
+ */
+static ssize_t __write_ports_addfd(char *buf)
+{
+	char *mesg = buf;
+	int fd, err;
+
+	err = get_int(&mesg, &fd);
+	if (err != 0 || fd < 0)
+		return -EINVAL;
+
+	err = nfsd_create_serv();
+	if (err != 0)
+		return err;
+
+	err = svc_addsock(nfsd_serv, fd, buf);
+	if (err >= 0) {
+		err = lockd_up();
+		if (err < 0)
+			svc_sock_names(buf + strlen(buf) + 1, nfsd_serv, buf);
+
+		/* Decrease the count, but don't shut down the service */
+		nfsd_serv->sv_nrthreads--;
+	}
+
+	return err < 0 ? err : 0;
+}
+
+/*
  * A '-' followed by the 'name' of a socket means we close the socket.
  */
 static ssize_t __write_ports_delfd(char *buf)
@@ -995,36 +1026,9 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 			len = svc_xprt_names(nfsd_serv, buf, 0);
 		return len;
 	}
-	/* Either a single 'fd' number is written, in which
-	 * case it must be for a socket of a supported family/protocol,
-	 * and we use it as an nfsd socket, or
-	 * A '-' followed by the 'name' of a socket in which case
-	 * we close the socket.
-	 */
-	if (isdigit(buf[0])) {
-		char *mesg = buf;
-		int fd;
-		int err;
-		err = get_int(&mesg, &fd);
-		if (err)
-			return -EINVAL;
-		if (fd < 0)
-			return -EINVAL;
-		err = nfsd_create_serv();
-		if (!err) {
-			err = svc_addsock(nfsd_serv, fd, buf);
-			if (err >= 0) {
-				err = lockd_up();
-				if (err < 0)
-					svc_sock_names(buf+strlen(buf)+1, nfsd_serv, buf);
-			}
-			/* Decrease the count, but don't shutdown the
-			 * the service
-			 */
-			nfsd_serv->sv_nrthreads--;
-		}
-		return err < 0 ? err : 0;
-	}
+
+	if (isdigit(buf[0]))
+		return __write_ports_addfd(buf);
 
 	if (buf[0] == '-' && isdigit(buf[1]))
 		return __write_ports_delfd(buf);
