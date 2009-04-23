@@ -793,7 +793,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
 	char *vers, *minorp, sign;
-	int len, num;
+	int len, num, remaining;
 	unsigned minor;
 	ssize_t tlen = 0;
 	char *sep;
@@ -840,32 +840,50 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			}
 		next:
 			vers += len + 1;
-			tlen += len;
 		} while ((len = qword_get(&mesg, vers, size)) > 0);
 		/* If all get turned off, turn them back on, as
 		 * having no versions is BAD
 		 */
 		nfsd_reset_versions();
 	}
+
 	/* Now write current state into reply buffer */
 	len = 0;
 	sep = "";
+	remaining = SIMPLE_TRANSACTION_LIMIT;
 	for (num=2 ; num <= 4 ; num++)
 		if (nfsd_vers(num, NFSD_AVAIL)) {
-			len += sprintf(buf+len, "%s%c%d", sep,
+			len = snprintf(buf, remaining, "%s%c%d", sep,
 				       nfsd_vers(num, NFSD_TEST)?'+':'-',
 				       num);
 			sep = " ";
+
+			if (len > remaining)
+				break;
+			remaining -= len;
+			buf += len;
+			tlen += len;
 		}
 	if (nfsd_vers(4, NFSD_AVAIL))
-		for (minor = 1; minor <= NFSD_SUPPORTED_MINOR_VERSION; minor++)
-			len += sprintf(buf+len, " %c4.%u",
+		for (minor = 1; minor <= NFSD_SUPPORTED_MINOR_VERSION;
+		     minor++) {
+			len = snprintf(buf, remaining, " %c4.%u",
 					(nfsd_vers(4, NFSD_TEST) &&
 					 nfsd_minorversion(minor, NFSD_TEST)) ?
 						'+' : '-',
 					minor);
-	len += sprintf(buf+len, "\n");
-	return len;
+
+			if (len > remaining)
+				break;
+			remaining -= len;
+			buf += len;
+			tlen += len;
+		}
+
+	len = snprintf(buf, remaining, "\n");
+	if (len > remaining)
+		return -EINVAL;
+	return tlen + len;
 }
 
 /**
