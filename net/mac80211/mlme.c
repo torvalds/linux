@@ -890,7 +890,7 @@ static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata)
 		printk(KERN_DEBUG "%s: direct probe to AP %pM timed out\n",
 		       sdata->dev->name, ifmgd->bssid);
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
-		ieee80211_sta_send_apinfo(sdata);
+		cfg80211_send_auth_timeout(sdata->dev, ifmgd->bssid);
 
 		/*
 		 * Most likely AP is not in the range so remove the
