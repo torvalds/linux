@@ -252,6 +252,13 @@ static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 			      &inet_sk(svsk->sk_sk)->rcv_saddr,
 			      inet_sk(svsk->sk_sk)->num);
 		break;
+	case PF_INET6:
+		len = snprintf(buf, remaining, "ipv6 %s %pI6 %d\n",
+				svsk->sk_sk->sk_protocol == IPPROTO_UDP ?
+				"udp" : "tcp",
+				&inet6_sk(svsk->sk_sk)->rcv_saddr,
+				inet_sk(svsk->sk_sk)->num);
+		break;
 	default:
 		len = snprintf(buf, remaining, "*unknown-%d*\n",
 			       svsk->sk_sk->sk_family);
