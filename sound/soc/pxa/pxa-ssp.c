@@ -67,7 +67,7 @@ struct pxa2xx_pcm_dma_data {
 };
 
 static struct pxa2xx_pcm_dma_params *
-ssp_get_dma_params(struct ssp_device *ssp, int stereo, int out)
+ssp_get_dma_params(struct ssp_device *ssp, int width4, int out)
 {
 	struct pxa2xx_pcm_dma_data *dma;
 
@@ -76,13 +76,13 @@ ssp_get_dma_params(struct ssp_device *ssp, int stereo, int out)
 		return NULL;
 
 	snprintf(dma->name, 20, "SSP%d PCM %s %s", ssp->port_id,
-			stereo ? "Stereo" : "Mono", out ? "out" : "in");
+			width4 ? "32-bit" : "16-bit", out ? "out" : "in");
 
 	dma->params.name = dma->name;
 	dma->params.drcmr = &DRCMR(out ? ssp->drcmr_tx : ssp->drcmr_rx);
 	dma->params.dcmd = (out ? (DCMD_INCSRCADDR | DCMD_FLOWTRG) :
 				  (DCMD_INCTRGADDR | DCMD_FLOWSRC)) |
-			(stereo ? DCMD_WIDTH4 : DCMD_WIDTH2) | DCMD_BURST16;
+			(width4 ? DCMD_WIDTH4 : DCMD_WIDTH2) | DCMD_BURST16;
 	dma->params.dev_addr = ssp->phys_base + SSDR;
 
 	return &dma->params;
