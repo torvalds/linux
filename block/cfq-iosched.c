@@ -154,6 +154,8 @@ struct cfq_queue {
 	unsigned long rb_key;
 	/* prio tree member */
 	struct rb_node p_node;
+	/* prio tree root we belong to, if any */
+	struct rb_root *p_root;
 	/* sorted list of pending requests */
 	struct rb_root sort_list;
 	/* if fifo isn't expired, next request to serve */
@@ -558,10 +560,10 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 }
 
 static struct cfq_queue *
-cfq_prio_tree_lookup(struct cfq_data *cfqd, int ioprio, sector_t sector,
-		     struct rb_node **ret_parent, struct rb_node ***rb_link)
+cfq_prio_tree_lookup(struct cfq_data *cfqd, struct rb_root *root,
+		     sector_t sector, struct rb_node **ret_parent,
+		     struct rb_node ***rb_link)
 {
-	struct rb_root *root = &cfqd->prio_trees[ioprio];
 	struct rb_node **p, *parent;
 	struct cfq_queue *cfqq = NULL;
 
@@ -595,24 +597,27 @@ cfq_prio_tree_lookup(struct cfq_data *cfqd, int ioprio, sector_t sector,
 
 static void cfq_prio_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
-	struct rb_root *root = &cfqd->prio_trees[cfqq->ioprio];
 	struct rb_node **p, *parent;
 	struct cfq_queue *__cfqq;
 
-	if (!RB_EMPTY_NODE(&cfqq->p_node))
-		rb_erase_init(&cfqq->p_node, root);
+	if (cfqq->p_root) {
+		rb_erase(&cfqq->p_node, cfqq->p_root);
+		cfqq->p_root = NULL;
+	}
 
 	if (cfq_class_idle(cfqq))
 		return;
 	if (!cfqq->next_rq)
 		return;
 
-	__cfqq = cfq_prio_tree_lookup(cfqd, cfqq->ioprio, cfqq->next_rq->sector,
+	cfqq->p_root = &cfqd->prio_trees[cfqq->org_ioprio];
+	__cfqq = cfq_prio_tree_lookup(cfqd, cfqq->p_root, cfqq->next_rq->sector,
 					 &parent, &p);
 	if (!__cfqq) {
 		rb_link_node(&cfqq->p_node, parent, p);
-		rb_insert_color(&cfqq->p_node, root);
-	}
+		rb_insert_color(&cfqq->p_node, cfqq->p_root);
+	} else
+		cfqq->p_root = NULL;
 }
 
 /*
@@ -657,8 +662,10 @@ static void cfq_del_cfqq_rr(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 	if (!RB_EMPTY_NODE(&cfqq->rb_node))
 		cfq_rb_erase(&cfqq->rb_node, &cfqd->service_tree);
-	if (!RB_EMPTY_NODE(&cfqq->p_node))
-		rb_erase_init(&cfqq->p_node, &cfqd->prio_trees[cfqq->ioprio]);
+	if (cfqq->p_root) {
+		rb_erase(&cfqq->p_node, cfqq->p_root);
+		cfqq->p_root = NULL;
+	}
 
 	BUG_ON(!cfqd->busy_queues);
 	cfqd->busy_queues--;
@@ -965,7 +972,7 @@ static inline int cfq_rq_close(struct cfq_data *cfqd, struct request *rq)
 static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 				    struct cfq_queue *cur_cfqq)
 {
-	struct rb_root *root = &cfqd->prio_trees[cur_cfqq->ioprio];
+	struct rb_root *root = &cfqd->prio_trees[cur_cfqq->org_ioprio];
 	struct rb_node *parent, *node;
 	struct cfq_queue *__cfqq;
 	sector_t sector = cfqd->last_position;
@@ -977,8 +984,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	 * First, if we find a request starting at the end of the last
 	 * request, choose it.
 	 */
-	__cfqq = cfq_prio_tree_lookup(cfqd, cur_cfqq->ioprio,
-				      sector, &parent, NULL);
+	__cfqq = cfq_prio_tree_lookup(cfqd, root, sector, &parent, NULL);
 	if (__cfqq)
 		return __cfqq;
 
