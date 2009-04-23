@@ -15,23 +15,11 @@
 #include "blackfin_sram.h"
 
 /*
- * BAD_PAGE is the page that is used for page faults when linux
- * is out-of-memory. Older versions of linux just did a
- * do_exit(), but using this instead means there is less risk
- * for a process dying in kernel mode, possibly leaving a inode
- * unused etc..
- *
- * BAD_PAGETABLE is the accompanying page-table: it is initialized
- * to point to BAD_PAGE entries.
- *
- * ZERO_PAGE is a special page that is used for zero-initialized
- * data and COW.
+ * ZERO_PAGE is a special page that is used for zero-initialized data and COW.
+ * Let the bss do its zero-init magic so we don't have to do it ourselves.
  */
-static unsigned long empty_bad_page_table;
-
-static unsigned long empty_bad_page;
-
-static unsigned long empty_zero_page;
+char empty_zero_page[PAGE_SIZE] __attribute__((aligned(PAGE_SIZE)));
+EXPORT_SYMBOL(empty_zero_page);
 
 #ifndef CONFIG_EXCEPTION_L1_SCRATCH
 #if defined CONFIG_SYSCALL_TAB_L1
@@ -58,15 +46,6 @@ void __init paging_init(void)
 	unsigned long end_mem = memory_end & PAGE_MASK;
 
 	pr_debug("start_mem is %#lx   virtual_end is %#lx\n", PAGE_ALIGN(memory_start), end_mem);
-
-	/*
-	 * initialize the bad page table and bad page to point
-	 * to a couple of allocated pages
-	 */
-	empty_bad_page_table = (unsigned long)alloc_bootmem_pages(PAGE_SIZE);
-	empty_bad_page = (unsigned long)alloc_bootmem_pages(PAGE_SIZE);
-	empty_zero_page = (unsigned long)alloc_bootmem_pages(PAGE_SIZE);
-	memset((void *)empty_zero_page, 0, PAGE_SIZE);
 
 	/*
 	 * Set up SFC/DFC registers (user data space)
