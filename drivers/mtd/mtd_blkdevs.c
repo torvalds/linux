@@ -54,33 +54,33 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 
 	if (req->cmd_type == REQ_TYPE_LINUX_BLOCK &&
 	    req->cmd[0] == REQ_LB_OP_DISCARD)
-		return !tr->discard(dev, block, nsect);
+		return tr->discard(dev, block, nsect);
 
 	if (!blk_fs_request(req))
-		return 0;
+		return -EIO;
 
 	if (req->sector + req->current_nr_sectors > get_capacity(req->rq_disk))
-		return 0;
+		return -EIO;
 
 	switch(rq_data_dir(req)) {
 	case READ:
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->readsect(dev, block, buf))
-				return 0;
-		return 1;
+				return -EIO;
+		return 0;
 
 	case WRITE:
 		if (!tr->writesect)
-			return 0;
+			return -EIO;
 
 		for (; nsect > 0; nsect--, block++, buf += tr->blksize)
 			if (tr->writesect(dev, block, buf))
-				return 0;
-		return 1;
+				return -EIO;
+		return 0;
 
 	default:
 		printk(KERN_NOTICE "Unknown request %u\n", rq_data_dir(req));
-		return 0;
+		return -EIO;
 	}
 }
 
@@ -96,7 +96,7 @@ static int mtd_blktrans_thread(void *arg)
 	while (!kthread_should_stop()) {
 		struct request *req;
 		struct mtd_blktrans_dev *dev;
-		int res = 0;
+		int res;
 
 		req = elv_next_request(rq);
 
@@ -119,7 +119,7 @@ static int mtd_blktrans_thread(void *arg)
 
 		spin_lock_irq(rq->queue_lock);
 
-		end_request(req, res);
+		__blk_end_request_cur(req, res);
 	}
 	spin_unlock_irq(rq->queue_lock);
 

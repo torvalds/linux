@@ -654,17 +654,17 @@ static void gdrom_request(struct request_queue *rq)
 	while ((req = elv_next_request(rq)) != NULL) {
 		if (!blk_fs_request(req)) {
 			printk(KERN_DEBUG "GDROM: Non-fs request ignored\n");
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 		}
 		if (rq_data_dir(req) != READ) {
 			printk(KERN_NOTICE "GDROM: Read only device -");
 			printk(" write request ignored\n");
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 		}
 		if (req->nr_sectors)
 			gdrom_request_handler_dma(req);
 		else
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 	}
 }
 

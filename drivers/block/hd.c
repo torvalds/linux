@@ -410,7 +410,7 @@ static void bad_rw_intr(void)
 	if (req != NULL) {
 		struct hd_i_struct *disk = req->rq_disk->private_data;
 		if (++req->errors >= MAX_ERRORS || (hd_error & BBD_ERR)) {
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			disk->special_op = disk->recalibrate = 1;
 		} else if (req->errors % RESET_FREQ == 0)
 			reset = 1;
@@ -466,7 +466,7 @@ ok_to_read:
 		req->buffer+512);
 #endif
 	if (req->current_nr_sectors <= 0)
-		end_request(req, 1);
+		__blk_end_request_cur(req, 0);
 	if (i > 0) {
 		SET_HANDLER(&read_intr);
 		return;
@@ -505,7 +505,7 @@ ok_to_write:
 	--req->current_nr_sectors;
 	req->buffer += 512;
 	if (!i || (req->bio && req->current_nr_sectors <= 0))
-		end_request(req, 1);
+		__blk_end_request_cur(req, 0);
 	if (i > 0) {
 		SET_HANDLER(&write_intr);
 		outsw(HD_DATA, req->buffer, 256);
@@ -548,7 +548,7 @@ static void hd_times_out(unsigned long dummy)
 #ifdef DEBUG
 		printk("%s: too many errors\n", name);
 #endif
-		end_request(CURRENT, 0);
+		__blk_end_request_cur(CURRENT, -EIO);
 	}
 	hd_request();
 	spin_unlock_irq(hd_queue->queue_lock);
@@ -563,7 +563,7 @@ static int do_special_op(struct hd_i_struct *disk, struct request *req)
 	}
 	if (disk->head > 16) {
 		printk("%s: cannot handle device with more than 16 heads - giving up\n", req->rq_disk->disk_name);
-		end_request(req, 0);
+		__blk_end_request_cur(req, -EIO);
 	}
 	disk->special_op = 0;
 	return 1;
@@ -607,7 +607,7 @@ repeat:
 	    ((block+nsect) > get_capacity(req->rq_disk))) {
 		printk("%s: bad access: block=%d, count=%d\n",
 			req->rq_disk->disk_name, block, nsect);
-		end_request(req, 0);
+		__blk_end_request_cur(req, -EIO);
 		goto repeat;
 	}
 
@@ -647,7 +647,7 @@ repeat:
 			break;
 		default:
 			printk("unknown hd-command\n");
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			break;
 		}
 	}

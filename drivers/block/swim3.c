@@ -320,15 +320,15 @@ static void start_request(struct floppy_state *fs)
 #endif
 
 		if (req->sector < 0 || req->sector >= fs->total_secs) {
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
 		if (req->current_nr_sectors == 0) {
-			end_request(req, 1);
+			__blk_end_request_cur(req, 0);
 			continue;
 		}
 		if (fs->ejected) {
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
 
@@ -336,7 +336,7 @@ static void start_request(struct floppy_state *fs)
 			if (fs->write_prot < 0)
 				fs->write_prot = swim3_readbit(fs, WRITE_PROT);
 			if (fs->write_prot) {
-				end_request(req, 0);
+				__blk_end_request_cur(req, -EIO);
 				continue;
 			}
 		}
@@ -508,7 +508,7 @@ static void act(struct floppy_state *fs)
 		case do_transfer:
 			if (fs->cur_cyl != fs->req_cyl) {
 				if (fs->retries > 5) {
-					end_request(fd_req, 0);
+					__blk_end_request_cur(fd_req, -EIO);
 					fs->state = idle;
 					return;
 				}
@@ -540,7 +540,7 @@ static void scan_timeout(unsigned long data)
 	out_8(&sw->intr_enable, 0);
 	fs->cur_cyl = -1;
 	if (fs->retries > 5) {
-		end_request(fd_req, 0);
+		__blk_end_request_cur(fd_req, -EIO);
 		fs->state = idle;
 		start_request(fs);
 	} else {
@@ -559,7 +559,7 @@ static void seek_timeout(unsigned long data)
 	out_8(&sw->select, RELAX);
 	out_8(&sw->intr_enable, 0);
 	printk(KERN_ERR "swim3: seek timeout\n");
-	end_request(fd_req, 0);
+	__blk_end_request_cur(fd_req, -EIO);
 	fs->state = idle;
 	start_request(fs);
 }
@@ -583,7 +583,7 @@ static void settle_timeout(unsigned long data)
 		return;
 	}
 	printk(KERN_ERR "swim3: seek settle timeout\n");
-	end_request(fd_req, 0);
+	__blk_end_request_cur(fd_req, -EIO);
 	fs->state = idle;
 	start_request(fs);
 }
@@ -615,7 +615,7 @@ static void xfer_timeout(unsigned long data)
 	fd_req->current_nr_sectors -= s;
 	printk(KERN_ERR "swim3: timeout %sing sector %ld\n",
 	       (rq_data_dir(fd_req)==WRITE? "writ": "read"), (long)fd_req->sector);
-	end_request(fd_req, 0);
+	__blk_end_request_cur(fd_req, -EIO);
 	fs->state = idle;
 	start_request(fs);
 }
@@ -646,7 +646,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 				printk(KERN_ERR "swim3: seen sector but cyl=ff?\n");
 				fs->cur_cyl = -1;
 				if (fs->retries > 5) {
-					end_request(fd_req, 0);
+					__blk_end_request_cur(fd_req, -EIO);
 					fs->state = idle;
 					start_request(fs);
 				} else {
@@ -731,7 +731,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 				printk("swim3: error %sing block %ld (err=%x)\n",
 				       rq_data_dir(fd_req) == WRITE? "writ": "read",
 				       (long)fd_req->sector, err);
-				end_request(fd_req, 0);
+				__blk_end_request_cur(fd_req, -EIO);
 				fs->state = idle;
 			}
 		} else {
@@ -740,7 +740,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 				printk(KERN_ERR "swim3: fd dma: stat=%x resid=%d\n", stat, resid);
 				printk(KERN_ERR "  state=%d, dir=%x, intr=%x, err=%x\n",
 				       fs->state, rq_data_dir(fd_req), intr, err);
-				end_request(fd_req, 0);
+				__blk_end_request_cur(fd_req, -EIO);
 				fs->state = idle;
 				start_request(fs);
 				break;
@@ -749,7 +749,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 			fd_req->current_nr_sectors -= fs->scount;
 			fd_req->buffer += fs->scount * 512;
 			if (fd_req->current_nr_sectors <= 0) {
-				end_request(fd_req, 1);
+				__blk_end_request_cur(fd_req, 0);
 				fs->state = idle;
 			} else {
 				fs->req_sector += fs->scount;

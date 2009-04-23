@@ -77,7 +77,7 @@ static void do_z2_request(struct request_queue *q)
 		if (start + len > z2ram_size) {
 			printk( KERN_ERR DEVICE_NAME ": bad access: block=%lu, count=%u\n",
 				req->sector, req->current_nr_sectors);
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
 		while (len) {
@@ -93,7 +93,7 @@ static void do_z2_request(struct request_queue *q)
 			start += size;
 			len -= size;
 		}
-		end_request(req, 1);
+		__blk_end_request_cur(req, 0);
 	}
 }
 

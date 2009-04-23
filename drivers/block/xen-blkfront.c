@@ -302,7 +302,7 @@ static void do_blkif_request(struct request_queue *rq)
 	while ((req = elv_next_request(rq)) != NULL) {
 		info = req->rq_disk->private_data;
 		if (!blk_fs_request(req)) {
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
 

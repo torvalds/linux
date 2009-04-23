@@ -532,39 +532,39 @@ static void redo_fd_request(struct request_queue *q)
 
 		fs = req->rq_disk->private_data;
 		if (req->sector < 0 || req->sector >= fs->total_secs) {
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
 		if (req->current_nr_sectors == 0) {
-			end_request(req, 1);
+			__blk_end_request_cur(req, 0);
 			continue;
 		}
 		if (!fs->disk_in) {
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
 		if (rq_data_dir(req) == WRITE) {
 			if (fs->write_protected) {
-				end_request(req, 0);
+				__blk_end_request_cur(req, -EIO);
 				continue;
 			}
 		}
 		switch (rq_data_dir(req)) {
 		case WRITE:
 			/* NOT IMPLEMENTED */
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 			break;
 		case READ:
 			if (floppy_read_sectors(fs, req->sector,
 						req->current_nr_sectors,
 						req->buffer)) {
-				end_request(req, 0);
+				__blk_end_request_cur(req, -EIO);
 				continue;
 			}
 			req->nr_sectors -= req->current_nr_sectors;
 			req->sector += req->current_nr_sectors;
 			req->buffer += req->current_nr_sectors * 512;
-			end_request(req, 1);
+			__blk_end_request_cur(req, 0);
 			break;
 		}
 	}

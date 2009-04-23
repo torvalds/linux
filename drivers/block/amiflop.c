@@ -1359,7 +1359,7 @@ static void redo_fd_request(void)
 #endif
 		block = CURRENT->sector + cnt;
 		if ((int)block > floppy->blocks) {
-			end_request(CURRENT, 0);
+			__blk_end_request_cur(CURRENT, -EIO);
 			goto repeat;
 		}
 
@@ -1373,11 +1373,11 @@ static void redo_fd_request(void)
 
 		if ((rq_data_dir(CURRENT) != READ) && (rq_data_dir(CURRENT) != WRITE)) {
 			printk(KERN_WARNING "do_fd_request: unknown command\n");
-			end_request(CURRENT, 0);
+			__blk_end_request_cur(CURRENT, -EIO);
 			goto repeat;
 		}
 		if (get_track(drive, track) == -1) {
-			end_request(CURRENT, 0);
+			__blk_end_request_cur(CURRENT, -EIO);
 			goto repeat;
 		}
 
@@ -1391,7 +1391,7 @@ static void redo_fd_request(void)
 
 			/* keep the drive spinning while writes are scheduled */
 			if (!fd_motor_on(drive)) {
-				end_request(CURRENT, 0);
+				__blk_end_request_cur(CURRENT, -EIO);
 				goto repeat;
 			}
 			/*
@@ -1410,7 +1410,7 @@ static void redo_fd_request(void)
 	CURRENT->nr_sectors -= CURRENT->current_nr_sectors;
 	CURRENT->sector += CURRENT->current_nr_sectors;
 
-	end_request(CURRENT, 1);
+	__blk_end_request_cur(CURRENT, 0);
 	goto repeat;
 }
 

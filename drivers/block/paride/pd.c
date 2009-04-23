@@ -410,7 +410,8 @@ static void run_fsm(void)
 				pd_claimed = 0;
 				phase = NULL;
 				spin_lock_irqsave(&pd_lock, saved_flags);
-				end_request(pd_req, res);
+				__blk_end_request_cur(pd_req,
+						      res == Ok ? 0 : -EIO);
 				pd_req = elv_next_request(pd_queue);
 				if (!pd_req)
 					stop = 1;
@@ -477,7 +478,7 @@ static int pd_next_buf(void)
 	if (pd_count)
 		return 0;
 	spin_lock_irqsave(&pd_lock, saved_flags);
-	end_request(pd_req, 1);
+	__blk_end_request_cur(pd_req, 0);
 	pd_count = pd_req->current_nr_sectors;
 	pd_buf = pd_req->buffer;
 	spin_unlock_irqrestore(&pd_lock, saved_flags);

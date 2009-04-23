@@ -845,9 +845,8 @@ extern unsigned int blk_rq_cur_bytes(struct request *rq);
  * blk_update_request() completes given number of bytes and updates
  * the request without completing it.
  *
- * blk_end_request() and friends.  __blk_end_request() and
- * end_request() must be called with the request queue spinlock
- * acquired.
+ * blk_end_request() and friends.  __blk_end_request() must be called
+ * with the request queue spinlock acquired.
  *
  * Several drivers define their own end_request and call
  * blk_end_request() for parts of the original function.
@@ -899,6 +898,19 @@ static inline void blk_end_request_all(struct request *rq, int error)
 }
 
 /**
+ * blk_end_request_cur - Helper function to finish the current request chunk.
+ * @rq: the request to finish the current chunk for
+ * @err: %0 for success, < %0 for error
+ *
+ * Description:
+ *     Complete the current consecutively mapped chunk from @rq.
+ */
+static inline void blk_end_request_cur(struct request *rq, int error)
+{
+	blk_end_request(rq, error, rq->hard_cur_sectors << 9);
+}
+
+/**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
  * @error:    %0 for success, < %0 for error
@@ -934,29 +946,17 @@ static inline void __blk_end_request_all(struct request *rq, int error)
 }
 
 /**
- * end_request - end I/O on the current segment of the request
- * @rq:		the request being processed
- * @uptodate:	error value or %0/%1 uptodate flag
+ * __blk_end_request_cur - Helper function to finish the current request chunk.
+ * @rq: the request to finish the current chunk for
+ * @err: %0 for success, < %0 for error
  *
  * Description:
- *     Ends I/O on the current segment of a request. If that is the only
- *     remaining segment, the request is also completed and freed.
- *
- *     This is a remnant of how older block drivers handled I/O completions.
- *     Modern drivers typically end I/O on the full request in one go, unless
- *     they have a residual value to account for. For that case this function
- *     isn't really useful, unless the residual just happens to be the
- *     full current segment. In other words, don't use this function in new
- *     code. Use blk_end_request() or __blk_end_request() to end a request.
- **/
-static inline void end_request(struct request *rq, int uptodate)
+ *     Complete the current consecutively mapped chunk from @rq.  Must
+ *     be called with queue lock held.
+ */
+static inline void __blk_end_request_cur(struct request *rq, int error)
 {
-	int error = 0;
-
-	if (uptodate <= 0)
-		error = uptodate ? uptodate : -EIO;
-
-	__blk_end_bidi_request(rq, error, rq->hard_cur_sectors << 9, 0);
+	__blk_end_request(rq, error, rq->hard_cur_sectors << 9);
 }
 
 extern void blk_complete_request(struct request *);

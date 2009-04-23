@@ -466,7 +466,7 @@ struct request *ace_get_next_request(struct request_queue * q)
 	while ((req = elv_next_request(q)) != NULL) {
 		if (blk_fs_request(req))
 			break;
-		end_request(req, 0);
+		__blk_end_request_cur(req, -EIO);
 	}
 	return req;
 }
@@ -494,7 +494,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 		/* Drop all pending requests */
 		while ((req = elv_next_request(ace->queue)) != NULL)
-			end_request(req, 0);
+			__blk_end_request_cur(req, -EIO);
 
 		/* Drop back to IDLE state and notify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
