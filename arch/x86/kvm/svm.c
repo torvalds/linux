@@ -1811,6 +1811,10 @@ static int task_switch_interception(struct vcpu_svm *svm,
 	int int_type = svm->vmcb->control.exit_int_info &
 		SVM_EXITINTINFO_TYPE_MASK;
 	int int_vec = svm->vmcb->control.exit_int_info & SVM_EVTINJ_VEC_MASK;
+	uint32_t type =
+		svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_TYPE_MASK;
+	uint32_t idt_v =
+		svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID;
 
 	tss_selector = (u16)svm->vmcb->control.exit_info_1;
 
@@ -1820,11 +1824,26 @@ static int task_switch_interception(struct vcpu_svm *svm,
 	else if (svm->vmcb->control.exit_info_2 &
 		 (1ULL << SVM_EXITINFOSHIFT_TS_REASON_JMP))
 		reason = TASK_SWITCH_JMP;
-	else if (svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID)
+	else if (idt_v)
 		reason = TASK_SWITCH_GATE;
 	else
 		reason = TASK_SWITCH_CALL;
 
+	if (reason == TASK_SWITCH_GATE) {
+		switch (type) {
+		case SVM_EXITINTINFO_TYPE_NMI:
+			svm->vcpu.arch.nmi_injected = false;
+			break;
+		case SVM_EXITINTINFO_TYPE_EXEPT:
+			kvm_clear_exception_queue(&svm->vcpu);
+			break;
+		case SVM_EXITINTINFO_TYPE_INTR:
+			kvm_clear_interrupt_queue(&svm->vcpu);
+			break;
+		default:
+			break;
+		}
+	}
 
 	if (reason != TASK_SWITCH_GATE ||
 	    int_type == SVM_EXITINTINFO_TYPE_SOFT ||
@@ -2203,7 +2222,7 @@ static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	if (is_external_interrupt(svm->vmcb->control.exit_int_info) &&
 	    exit_code != SVM_EXIT_EXCP_BASE + PF_VECTOR &&
-	    exit_code != SVM_EXIT_NPF)
+	    exit_code != SVM_EXIT_NPF && exit_code != SVM_EXIT_TASK_SWITCH)
 		printk(KERN_ERR "%s: unexpected exit_ini_info 0x%x "
 		       "exit_code 0x%x\n",
 		       __func__, svm->vmcb->control.exit_int_info,
