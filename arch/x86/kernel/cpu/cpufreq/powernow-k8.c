@@ -1,3 +1,4 @@
+
 /*
  *   (c) 2003-2006 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
@@ -823,13 +824,14 @@ static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data,
 	if (!data->acpi_data.state_count || (cpu_family == CPU_HW_PSTATE))
 		return;
 
-	control = data->acpi_data.states[index].control; data->irt = (control
-			>> IRT_SHIFT) & IRT_MASK; data->rvo = (control >>
-				RVO_SHIFT) & RVO_MASK; data->exttype = (control
-					>> EXT_TYPE_SHIFT) & EXT_TYPE_MASK;
-	data->plllock = (control >> PLL_L_SHIFT) & PLL_L_MASK; data->vidmvs = 1
-		<< ((control >> MVS_SHIFT) & MVS_MASK); data->vstable =
-		(control >> VST_SHIFT) & VST_MASK; }
+	control = data->acpi_data.states[index].control;
+	data->irt = (control >> IRT_SHIFT) & IRT_MASK;
+	data->rvo = (control >> RVO_SHIFT) & RVO_MASK;
+	data->exttype = (control >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK;
+	data->plllock = (control >> PLL_L_SHIFT) & PLL_L_MASK;
+	data->vidmvs = 1 << ((control >> MVS_SHIFT) & MVS_MASK);
+	data->vstable = (control >> VST_SHIFT) & VST_MASK;
+}
 
 static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 {
