@@ -433,7 +433,7 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -671,7 +671,7 @@ int i_APCI1710_InsnWriteDigitalIOChlOnOff(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1021,5 +1021,5 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
 		i_ReturnValue = -9;
 		DPRINTK("NO INPUT/OUTPUT specified\n");
 	}			/* switch INPUT / OUTPUT */
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

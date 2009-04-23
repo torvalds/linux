@@ -199,5 +199,5 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 		w_EepromStartAddress += 2;	/*  to read the next word */
 
 	}			/*  for (...) i_NbOfWordsToRead */
-	return (0);
+	return 0;
 }

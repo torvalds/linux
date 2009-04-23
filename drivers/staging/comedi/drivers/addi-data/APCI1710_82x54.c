@@ -396,7 +396,7 @@ int i_APCI1710_InsnConfigInitTimer(struct comedi_device *dev, struct comedi_subd
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -552,7 +552,7 @@ int i_APCI1710_InsnWriteEnableDisableTimer(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -663,7 +663,7 @@ int i_APCI1710_InsnReadAllTimerValue(struct comedi_device *dev, struct comedi_su
 		}
 
 	}			/*  End of Switch */
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -727,7 +727,7 @@ int i_APCI1710_InsnBitsTimer(struct comedi_device *dev, struct comedi_subdevice 
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -812,7 +812,7 @@ int i_APCI1710_ReadTimerValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
@@ -891,7 +891,7 @@ int i_APCI1710_GetTimerOutputLevel(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*

@@ -136,7 +136,7 @@ int i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev, struct comedi_subdevi
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -502,7 +502,7 @@ int i_APCI1710_InitCounter(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -627,7 +627,7 @@ int i_APCI1710_CounterAutoTest(struct comedi_device *dev, unsigned char *pb_Test
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1113,7 +1113,7 @@ int i_APCI1710_InitIndex(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1239,7 +1239,7 @@ int i_APCI1710_InitReference(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1362,7 +1362,7 @@ int i_APCI1710_InitExternalStrobe(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
@@ -1434,7 +1434,7 @@ int i_APCI1710_InitCompareLogic(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1992,7 +1992,7 @@ int i_APCI1710_InitFrequencyMeasurement(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*########################################################################### */
@@ -2065,7 +2065,7 @@ int i_APCI1710_InsnBitsINCCPT(struct comedi_device *dev, struct comedi_subdevice
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2131,7 +2131,7 @@ int i_APCI1710_ClearCounterValue(struct comedi_device *dev, unsigned char b_Modu
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2198,7 +2198,7 @@ int i_APCI1710_ClearAllCounterValue(struct comedi_device *dev)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2530,7 +2530,7 @@ int i_APCI1710_SetInputFilter(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2616,7 +2616,7 @@ int i_APCI1710_LatchCounter(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2769,7 +2769,7 @@ int i_APCI1710_SetIndexAndReferenceSource(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2849,7 +2849,7 @@ int i_APCI1710_SetDigitalChlOn(struct comedi_device *dev, unsigned char b_ModulN
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2929,7 +2929,7 @@ int i_APCI1710_SetDigitalChlOff(struct comedi_device *dev, unsigned char b_Modul
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*########################################################################### */
@@ -3018,7 +3018,7 @@ int i_APCI1710_InsnWriteINCCPT(struct comedi_device *dev, struct comedi_subdevic
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3105,7 +3105,7 @@ int i_APCI1710_EnableLatchInterrupt(struct comedi_device *dev, unsigned char b_M
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3198,7 +3198,7 @@ int i_APCI1710_DisableLatchInterrupt(struct comedi_device *dev, unsigned char b_
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3288,7 +3288,7 @@ int i_APCI1710_Write16BitCounterValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3357,7 +3357,7 @@ int i_APCI1710_Write32BitCounterValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3455,7 +3455,7 @@ int i_APCI1710_EnableIndex(struct comedi_device *dev, unsigned char b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3549,7 +3549,7 @@ int i_APCI1710_DisableIndex(struct comedi_device *dev, unsigned char b_ModulNbr)
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3653,7 +3653,7 @@ int i_APCI1710_EnableCompareLogic(struct comedi_device *dev, unsigned char b_Mod
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3753,7 +3753,7 @@ int i_APCI1710_DisableCompareLogic(struct comedi_device *dev, unsigned char b_Mo
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
@@ -3909,7 +3909,7 @@ int i_APCI1710_EnableFrequencyMeasurement(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
@@ -4026,7 +4026,7 @@ int i_APCI1710_DisableFrequencyMeasurement(struct comedi_device *dev, unsigned c
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*########################################################################### */
@@ -4155,7 +4155,7 @@ int i_APCI1710_InsnReadINCCPT(struct comedi_device *dev, struct comedi_subdevice
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 
 }
 
@@ -4248,7 +4248,7 @@ int i_APCI1710_ReadLatchRegisterStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4332,7 +4332,7 @@ int i_APCI1710_ReadLatchRegisterValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4431,7 +4431,7 @@ int i_APCI1710_Read16BitCounterValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4507,7 +4507,7 @@ int i_APCI1710_Read32BitCounterValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4590,7 +4590,7 @@ int i_APCI1710_GetIndexStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4676,7 +4676,7 @@ int i_APCI1710_GetReferenceStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4744,7 +4744,7 @@ int i_APCI1710_GetUASStatus(struct comedi_device *dev,
 
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4812,7 +4812,7 @@ int i_APCI1710_GetCBStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -4937,7 +4937,7 @@ int i_APCI1710_Get16BitCBStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}			/*  if (b_ModulNbr < 4) */
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -5007,7 +5007,7 @@ int i_APCI1710_GetUDStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -5100,7 +5100,7 @@ int i_APCI1710_GetInterruptUDLatchedStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 	/*
@@ -5359,5 +5359,5 @@ int i_APCI1710_ReadFrequencyMeasurement(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

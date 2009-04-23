@@ -70,11 +70,11 @@ You shoud also find the complete GPL in the COPYING file accompanying this sourc
 
 int i_APCI3XXX_TestConversionStarted(struct comedi_device *dev)
 {
-	if ((readl((void *)(devpriv->dw_AiBase + 8)) & 0x80000UL) == 0x80000UL) {
-		return (1);
-	} else {
-		return (0);
-	}
+	if ((readl((void *)(devpriv->dw_AiBase + 8)) & 0x80000UL) == 0x80000UL)
+		return 1;
+	else
+		return 0;
+
 }
 
 /*
@@ -268,7 +268,7 @@ int i_APCI3XXX_AnalogInputConfigOperatingMode(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -326,7 +326,7 @@ int i_APCI3XXX_InsnConfigAnalogInput(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -585,7 +585,7 @@ int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 		printk("Operating mode not configured\n");
 		i_ReturnValue = -1;
 	}
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -757,7 +757,7 @@ int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -888,7 +888,7 @@ int i_APCI3XXX_InsnConfigInitTTLIO(struct comedi_device *dev,
 		}
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1051,7 +1051,7 @@ int i_APCI3XXX_InsnBitsTTLIO(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1157,7 +1157,7 @@ int i_APCI3XXX_InsnReadTTLIO(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1269,7 +1269,7 @@ int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1334,7 +1334,7 @@ int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device *dev,
 		i_ReturnValue = -3;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1378,7 +1378,7 @@ int i_APCI3XXX_InsnBitsDigitalInput(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1481,7 +1481,7 @@ int i_APCI3XXX_InsnBitsDigitalOutput(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1557,7 +1557,7 @@ int i_APCI3XXX_InsnWriteDigitalOutput(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1622,7 +1622,7 @@ int i_APCI3XXX_InsnReadDigitalOutput(struct comedi_device *dev,
 		i_ReturnValue = -101;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*

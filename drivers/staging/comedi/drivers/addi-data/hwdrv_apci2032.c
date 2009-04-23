@@ -290,7 +290,7 @@ int i_APCI2032_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 			return -EINVAL;
 		}		/* if else data[3]==1) */
 	}			/* if else data[3]==0) */
-	return (insn->n);;
+	return insn->n;
 }
 
 /*

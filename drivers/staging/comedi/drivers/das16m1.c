@@ -626,7 +626,7 @@ static int das16m1_irq_bits(unsigned int irq)
 		return -1;
 		break;
 	}
-	return (ret << 4);
+	return ret << 4;
 }
 
 /*

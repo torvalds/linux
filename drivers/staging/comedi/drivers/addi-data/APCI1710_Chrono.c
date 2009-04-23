@@ -780,7 +780,7 @@ int i_APCI1710_InsnConfigInitChrono(struct comedi_device *dev, struct comedi_sub
 		i_ReturnValue = -2;
 	}
 	data[0] = ul_RealTimingInterval;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1072,7 +1072,7 @@ int i_APCI1710_InsnWriteEnableDisableChrono(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1152,7 +1152,7 @@ int i_APCI1710_InsnReadChrono(struct comedi_device *dev, struct comedi_subdevice
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 
 }
 
@@ -1289,7 +1289,7 @@ int i_APCI1710_GetChronoProgressStatus(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1575,7 +1575,7 @@ int i_APCI1710_ReadChronoValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1752,7 +1752,7 @@ int i_APCI1710_ConvertChronoValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2028,5 +2028,5 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

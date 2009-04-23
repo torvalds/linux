@@ -340,7 +340,7 @@ int i_APCI1710_InsnConfigInitTTLIO(struct comedi_device *dev, struct comedi_subd
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -628,7 +628,7 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev, struct comedi_subdev
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -777,7 +777,7 @@ int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1034,5 +1034,5 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

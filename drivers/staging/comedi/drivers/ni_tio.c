@@ -149,13 +149,13 @@ static const unsigned ni_660x_max_rtsi_channel = 6;
 static inline unsigned NI_660x_RTSI_Clock(unsigned n)
 {
 	BUG_ON(n > ni_660x_max_rtsi_channel);
-	return (0xb + n);
+	return 0xb + n;
 }
 static const unsigned ni_660x_max_source_pin = 7;
 static inline unsigned NI_660x_Source_Pin_Clock(unsigned n)
 {
 	BUG_ON(n > ni_660x_max_source_pin);
-	return (0x2 + n);
+	return 0x2 + n;
 }
 
 /* clock sources for ni e and m series boards, get bits with Gi_Source_Select_Bits() */

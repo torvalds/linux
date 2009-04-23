@@ -304,7 +304,7 @@ static int C6X_encInput(unsigned long baseAddr, unsigned channel)
 		timeout++;
 	}
 
-	return (enc.value ^ 0x800000);
+	return enc.value ^ 0x800000;
 }
 
 static void C6X_encResetAll(unsigned long baseAddr)

@@ -1209,7 +1209,7 @@ int i_APCI1500_WriteDigitalOutput(struct comedi_device *dev, struct comedi_subde
 		}		/* if else data[3]==1) */
 	}			/* if else data[3]==0) */
 	ui_Temp = data[0];
-	return (insn->n);;
+	return insn->n;
 }
 
 /*

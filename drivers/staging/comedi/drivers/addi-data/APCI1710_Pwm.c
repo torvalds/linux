@@ -111,7 +111,7 @@ int i_APCI1710_InsnConfigPWM(struct comedi_device *dev, struct comedi_subdevice 
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1436,7 +1436,7 @@ int i_APCI1710_InitPWM(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1665,7 +1665,7 @@ int i_APCI1710_GetPWMInitialisation(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1718,7 +1718,7 @@ int i_APCI1710_InsnWritePWM(struct comedi_device *dev, struct comedi_subdevice *
 
 	if (i_ReturnValue >= 0)
 		i_ReturnValue = insn->n;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2029,7 +2029,7 @@ int i_APCI1710_EnablePWM(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2144,7 +2144,7 @@ int i_APCI1710_DisablePWM(struct comedi_device *dev, unsigned char b_ModulNbr, u
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3411,7 +3411,7 @@ int i_APCI1710_SetNewPWMTiming(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -3558,7 +3558,7 @@ int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_sub
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 int i_APCI1710_InsnBitsReadPWMInterrupt(struct comedi_device *dev,

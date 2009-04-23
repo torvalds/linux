@@ -239,7 +239,7 @@ int i_APCI16XX_InsnConfigInitTTLIO(struct comedi_device *dev,
 		}
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -405,7 +405,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device *dev,
 		}
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -524,7 +524,7 @@ int i_APCI16XX_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
 		i_ReturnValue = -100;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -758,7 +758,7 @@ int i_APCI16XX_InsnBitsWriteTTLIO(struct comedi_device *dev,
 			devpriv->iobase + 20 + ((b_SelectedPort / 4) * 4));
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*

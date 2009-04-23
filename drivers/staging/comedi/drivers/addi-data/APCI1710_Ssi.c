@@ -351,7 +351,7 @@ int i_APCI1710_InsnConfigInitSSI(struct comedi_device *dev, struct comedi_subdev
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -695,7 +695,7 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, struct comedi_subdevi
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -844,5 +844,5 @@ int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device *dev, struct comedi_sub
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

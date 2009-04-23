@@ -348,7 +348,7 @@ unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc
 
 	}
 
-	return (w_ReadWord);
+	return w_ReadWord;
 
 }
 

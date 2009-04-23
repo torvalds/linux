@@ -243,7 +243,7 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 		w_EepromStartAddress += 2;	/*  to read the next word */
 
 	}			/*  for (...) i_NbOfWordsToRead */
-	return (0);
+	return 0;
 }
 
 /*+----------------------------------------------------------------------------+*/
@@ -522,7 +522,7 @@ int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 #endif
 	/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
 
-	return (0);
+	return 0;
 }
 
 /* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */

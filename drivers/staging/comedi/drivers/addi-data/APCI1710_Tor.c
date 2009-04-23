@@ -858,7 +858,7 @@ int i_APCI1710_InsnConfigInitTorCounter(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 	data[0] = (unsigned int) ul_RealTimingInterval;
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1375,7 +1375,7 @@ int i_APCI1710_InsnWriteEnableDisableTorCounter(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -1637,7 +1637,7 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -2045,5 +2045,5 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }

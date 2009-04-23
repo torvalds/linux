@@ -209,7 +209,7 @@ static int ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 /* returns a maxdata value for a given n_bits */
 static inline unsigned int figure_out_maxdata(int bits)
 {
-	return (((unsigned int) 1 << bits) - 1);
+	return ((unsigned int) 1 << bits) - 1;
 }
 
 /*

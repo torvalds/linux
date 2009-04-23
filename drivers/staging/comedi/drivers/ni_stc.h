@@ -318,7 +318,7 @@ enum Clock_and_FOUT_bits {
 };
 static inline unsigned FOUT_Divider(unsigned divider)
 {
-	return (divider & FOUT_Divider_mask);
+	return divider & FOUT_Divider_mask;
 }
 
 #define IO_Bidirection_Pin_Register	57
@@ -759,7 +759,7 @@ enum Configuration_Memory_High_Bits {
 };
 static inline unsigned int AI_CONFIG_CHANNEL(unsigned int channel)
 {
-	return (channel & 0x3f);
+	return channel & 0x3f;
 }
 
 #define ADC_FIFO_Data_Register		0x1c

@@ -2576,7 +2576,7 @@ int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 
 /* ES05        ui_Temp=data[0] & 0xf0; */
 	devpriv->b_DigitalOutputRegister = data[0] & 0xf0;
-	return (insn->n);
+	return insn->n;
 
 }
 

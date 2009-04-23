@@ -346,7 +346,7 @@ int i_APCI1710_InsnConfigInitPulseEncoder(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -656,7 +656,7 @@ int i_APCI1710_InsnWriteEnableDisablePulseEncoder(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 /*
@@ -831,7 +831,7 @@ int i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device *dev,
 		i_ReturnValue = -2;
 	}
 
-	return (i_ReturnValue);
+	return i_ReturnValue;
 }
 
 int i_APCI1710_InsnReadInterruptPulseEncoder(struct comedi_device *dev,
