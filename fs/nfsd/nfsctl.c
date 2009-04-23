@@ -943,7 +943,7 @@ static ssize_t __write_ports_addfd(char *buf)
 	if (err != 0)
 		goto out;
 
-	err = svc_addsock(nfsd_serv, fd, buf);
+	err = svc_addsock(nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT);
 	if (err < 0)
 		lockd_down();
 
