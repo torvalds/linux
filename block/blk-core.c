@@ -1780,7 +1780,7 @@ struct request *elv_next_request(struct request_queue *q)
 			break;
 		} else if (ret == BLKPREP_KILL) {
 			rq->cmd_flags |= REQ_QUIET;
-			__blk_end_request(rq, -EIO, blk_rq_bytes(rq));
+			__blk_end_request_all(rq, -EIO);
 		} else {
 			printk(KERN_ERR "%s: bad return=%d\n", __func__, ret);
 			break;

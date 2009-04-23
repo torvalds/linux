@@ -551,7 +551,6 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 	for (i = info->ring.rsp_cons; i != rp; i++) {
 		unsigned long id;
-		int ret;
 
 		bret = RING_GET_RESPONSE(&info->ring, i);
 		id   = bret->id;
@@ -578,8 +577,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				dev_dbg(&info->xbdev->dev, "Bad return from blkdev data "
 					"request: %x\n", bret->status);
 
-			ret = __blk_end_request(req, error, blk_rq_bytes(req));
-			BUG_ON(ret);
+			__blk_end_request_all(req, error);
 			break;
 		default:
 			BUG();

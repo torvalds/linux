@@ -632,7 +632,7 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 		* before handling ending the request */
 		spin_lock(&gdrom_lock);
 		list_del_init(&req->queuelist);
-		__blk_end_request(req, err, blk_rq_bytes(req));
+		__blk_end_request_all(req, err);
 	}
 	spin_unlock(&gdrom_lock);
 	kfree(read_command);

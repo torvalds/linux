@@ -810,7 +810,7 @@ void elv_abort_queue(struct request_queue *q)
 		rq = list_entry_rq(q->queue_head.next);
 		rq->cmd_flags |= REQ_QUIET;
 		trace_block_rq_abort(q, rq);
-		__blk_end_request(rq, -EIO, blk_rq_bytes(rq));
+		__blk_end_request_all(rq, -EIO);
 	}
 }
 EXPORT_SYMBOL(elv_abort_queue);

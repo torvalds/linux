@@ -749,8 +749,7 @@ static inline void carm_end_request_queued(struct carm_host *host,
 	struct request *req = crq->rq;
 	int rc;
 
-	rc = __blk_end_request(req, error, blk_rq_bytes(req));
-	assert(rc == 0);
+	__blk_end_request_all(req, error);
 
 	rc = carm_put_request(host, crq);
 	assert(rc == 0);

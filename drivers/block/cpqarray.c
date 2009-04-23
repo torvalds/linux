@@ -1024,8 +1024,7 @@ static inline void complete_command(cmdlist_t *cmd, int timeout)
 				cmd->req.sg[i].size, ddir);
 
 	DBGPX(printk("Done with %p\n", rq););
-	if (__blk_end_request(rq, error, blk_rq_bytes(rq)))
-		BUG();
+	__blk_end_request_all(rq, error);
 }
 
 /*

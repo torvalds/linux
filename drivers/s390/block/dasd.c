@@ -1614,15 +1614,6 @@ void dasd_block_clear_timer(struct dasd_block *block)
 }
 
 /*
- * posts the buffer_cache about a finalized request
- */
-static inline void dasd_end_request(struct request *req, int error)
-{
-	if (__blk_end_request(req, error, blk_rq_bytes(req)))
-		BUG();
-}
-
-/*
  * Process finished error recovery ccw.
  */
 static inline void __dasd_block_process_erp(struct dasd_block *block,
@@ -1676,7 +1667,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "Rejecting write request %p",
 				      req);
 			blkdev_dequeue_request(req);
-			dasd_end_request(req, -EIO);
+			__blk_end_request_all(req, -EIO);
 			continue;
 		}
 		cqr = basedev->discipline->build_cp(basedev, block, req);
@@ -1705,7 +1696,7 @@ static void __dasd_process_request_queue(struct dasd_block *block)
 				      "on request %p",
 				      PTR_ERR(cqr), req);
 			blkdev_dequeue_request(req);
-			dasd_end_request(req, -EIO);
+			__blk_end_request_all(req, -EIO);
 			continue;
 		}
 		/*
@@ -1731,7 +1722,7 @@ static void __dasd_cleanup_cqr(struct dasd_ccw_req *cqr)
 	status = cqr->block->base->discipline->free_cp(cqr, req);
 	if (status <= 0)
 		error = status ? status : -EIO;
-	dasd_end_request(req, error);
+	__blk_end_request_all(req, error);
 }
 
 /*
@@ -2040,7 +2031,7 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 	spin_lock_irq(&block->request_queue_lock);
 	while ((req = elv_next_request(block->request_queue))) {
 		blkdev_dequeue_request(req);
-		dasd_end_request(req, -EIO);
+		__blk_end_request_all(req, -EIO);
 	}
 	spin_unlock_irq(&block->request_queue_lock);
 }

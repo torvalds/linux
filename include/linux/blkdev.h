@@ -883,6 +883,22 @@ static inline bool blk_end_request(struct request *rq, int error,
 }
 
 /**
+ * blk_end_request_all - Helper function for drives to finish the request.
+ * @rq: the request to finish
+ * @err: %0 for success, < %0 for error
+ *
+ * Description:
+ *     Completely finish @rq.
+ */
+static inline void blk_end_request_all(struct request *rq, int error)
+{
+	bool pending;
+
+	pending = blk_end_request(rq, error, blk_rq_bytes(rq));
+	BUG_ON(pending);
+}
+
+/**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
  * @error:    %0 for success, < %0 for error
@@ -899,6 +915,22 @@ static inline bool __blk_end_request(struct request *rq, int error,
 				     unsigned int nr_bytes)
 {
 	return __blk_end_bidi_request(rq, error, nr_bytes, 0);
+}
+
+/**
+ * __blk_end_request_all - Helper function for drives to finish the request.
+ * @rq: the request to finish
+ * @err: %0 for success, < %0 for error
+ *
+ * Description:
+ *     Completely finish @rq.  Must be called with queue lock held.
+ */
+static inline void __blk_end_request_all(struct request *rq, int error)
+{
+	bool pending;
+
+	pending = __blk_end_request(rq, error, blk_rq_bytes(rq));
+	BUG_ON(pending);
 }
 
 /**

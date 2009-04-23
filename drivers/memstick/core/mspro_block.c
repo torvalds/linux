@@ -826,7 +826,7 @@ static void mspro_block_submit_req(struct request_queue *q)
 
 	if (msb->eject) {
 		while ((req = elv_next_request(q)) != NULL)
-			__blk_end_request(req, -ENODEV, blk_rq_bytes(req));
+			__blk_end_request_all(req, -ENODEV);
 
 		return;
 	}

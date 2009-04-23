@@ -106,10 +106,7 @@ bool blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 	 */
 	q->ordseq = 0;
 	rq = q->orig_bar_rq;
-
-	if (__blk_end_request(rq, q->orderr, blk_rq_bytes(rq)))
-		BUG();
-
+	__blk_end_request_all(rq, q->orderr);
 	return true;
 }
 
@@ -252,9 +249,7 @@ bool blk_do_ordered(struct request_queue *q, struct request **rqp)
 			 * with prejudice.
 			 */
 			elv_dequeue_request(q, rq);
-			if (__blk_end_request(rq, -EOPNOTSUPP,
-					      blk_rq_bytes(rq)))
-				BUG();
+			__blk_end_request_all(rq, -EOPNOTSUPP);
 			*rqp = NULL;
 			return false;
 		}

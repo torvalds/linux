@@ -62,7 +62,7 @@ static void blk_done(struct virtqueue *vq)
 			break;
 		}
 
-		__blk_end_request(vbr->req, error, blk_rq_bytes(vbr->req));
+		__blk_end_request_all(vbr->req, error);
 		list_del(&vbr->list);
 		mempool_free(vbr, vblk->pool);
 	}

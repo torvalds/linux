@@ -192,8 +192,7 @@ static void mbox_tx_work(struct work_struct *work)
 		}
 
 		spin_lock(q->queue_lock);
-		if (__blk_end_request(rq, 0, 0))
-			BUG();
+		__blk_end_request_all(rq, 0);
 		spin_unlock(q->queue_lock);
 	}
 }
@@ -224,10 +223,7 @@ static void mbox_rx_work(struct work_struct *work)
 			break;
 
 		msg = (mbox_msg_t) rq->data;
-
-		if (blk_end_request(rq, 0, 0))
-			BUG();
-
+		blk_end_request_all(rq, 0);
 		mbox->rxq->callback((void *)msg);
 	}
 }
@@ -337,8 +333,7 @@ omap_mbox_read(struct device *dev, struct device_attribute *attr, char *buf)
 
 		*p = (mbox_msg_t) rq->data;
 
-		if (blk_end_request(rq, 0, 0))
-			BUG();
+		blk_end_request_all(rq, 0);
 
 		if (unlikely(mbox_seq_test(mbox, *p))) {
 			pr_info("mbox: Illegal seq bit!(%08x) ignored\n", *p);
