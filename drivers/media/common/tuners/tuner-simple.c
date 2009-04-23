@@ -751,6 +751,17 @@ static int simple_set_radio_freq(struct dvb_frontend *fe,
 	if (4 != rc)
 		tuner_warn("i2c i/o error: rc == %d (should be 4)\n", rc);
 
+	/* Write AUX byte */
+	switch (priv->type) {
+	case TUNER_PHILIPS_FM1216ME_MK3:
+		buffer[2] = 0x98;
+		buffer[3] = 0x20; /* set TOP AGC */
+		rc = tuner_i2c_xfer_send(&priv->i2c_props, buffer, 4);
+		if (4 != rc)
+			tuner_warn("i2c i/o error: rc == %d (should be 4)\n", rc);
+		break;
+	}
+
 	return 0;
 }
 
