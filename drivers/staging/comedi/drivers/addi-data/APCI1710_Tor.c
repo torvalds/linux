@@ -1479,13 +1479,13 @@ int i_APCI1710_InsnReadGetTorCounterInitialisation(struct comedi_device *dev,
 	b_ModulNbr = CR_AREF(insn->chanspec);
 	b_TorCounter = CR_CHAN(insn->chanspec);
 
-	pb_TimingUnit = (unsigned char *) & data[0];
-	pul_TimingInterval = (unsigned int *) & data[1];
-	pb_InputMode = (unsigned char *) & data[2];
-	pb_ExternGate = (unsigned char *) & data[3];
-	pb_CycleMode = (unsigned char *) & data[4];
-	pb_Enable = (unsigned char *) & data[5];
-	pb_InterruptEnable = (unsigned char *) & data[6];
+	pb_TimingUnit = (unsigned char *) &data[0];
+	pul_TimingInterval = (unsigned int *) &data[1];
+	pb_InputMode = (unsigned char *) &data[2];
+	pb_ExternGate = (unsigned char *) &data[3];
+	pb_CycleMode = (unsigned char *) &data[4];
+	pb_Enable = (unsigned char *) &data[5];
+	pb_InterruptEnable = (unsigned char *) &data[6];
 
 	/**************************/
 	/* Test the module number */
@@ -1719,8 +1719,8 @@ int i_APCI1710_InsnBitsGetTorCounterProgressStatusAndValue(struct comedi_device 
 	b_ReadType = (unsigned char) data[0];
 	b_TorCounter = (unsigned char) data[1];
 	ui_TimeOut = (unsigned int) data[2];
-	pb_TorCounterStatus = (unsigned char *) & data[0];
-	pul_TorCounterValue = (unsigned int *) & data[1];
+	pb_TorCounterStatus = (unsigned char *) &data[0];
+	pul_TorCounterValue = (unsigned int *) &data[1];
 
 	/**************************/
 	/* Test the module number */

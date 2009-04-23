@@ -1101,25 +1101,25 @@ int i_APCI1710_InsnReadChrono(struct comedi_device *dev, struct comedi_subdevice
 	switch (b_ReadType) {
 	case APCI1710_CHRONO_PROGRESS_STATUS:
 		i_ReturnValue = i_APCI1710_GetChronoProgressStatus(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_CHRONO_READVALUE:
 		i_ReturnValue = i_APCI1710_ReadChronoValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
 			(unsigned int) insn->unused[0],
-			(unsigned char *) & data[0], (unsigned int *) & data[1]);
+			(unsigned char *) &data[0], (unsigned int *) &data[1]);
 		break;
 
 	case APCI1710_CHRONO_CONVERTVALUE:
 		i_ReturnValue = i_APCI1710_ConvertChronoValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
 			(unsigned int) insn->unused[0],
-			(unsigned int *) & data[0],
-			(unsigned char *) & data[1],
-			(unsigned char *) & data[2],
-			(unsigned int *) & data[3],
-			(unsigned int *) & data[4], (unsigned int *) & data[5]);
+			(unsigned int *) &data[0],
+			(unsigned char *) &data[1],
+			(unsigned char *) &data[2],
+			(unsigned int *) &data[3],
+			(unsigned int *) &data[4], (unsigned int *) &data[5]);
 		break;
 
 	case APCI1710_CHRONO_READINTERRUPT:
@@ -1962,7 +1962,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,
 		 /**********************************/
 					/* Test the digital input channel */
 		 /**********************************/
-					pb_ChannelStatus = (unsigned char *) & data[0];
+					pb_ChannelStatus = (unsigned char *) &data[0];
 					b_InputChannel =
 						(unsigned char) CR_CHAN(insn->chanspec);
 
@@ -1992,7 +1992,7 @@ int i_APCI1710_InsnBitsChronoDigitalIO(struct comedi_device *dev,
 
 				case APCI1710_CHRONO_READ_PORT:
 
-					pb_PortValue = (unsigned char *) & data[0];
+					pb_PortValue = (unsigned char *) &data[0];
 
 					dw_Status =
 						inl(devpriv->s_BoardInfos.

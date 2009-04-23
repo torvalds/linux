@@ -85,23 +85,23 @@ int i_APCI1710_InsnConfigPWM(struct comedi_device *dev, struct comedi_subdevice 
 			(unsigned char) data[2],	/*  b_TimingUnit */
 			(unsigned int) data[3],	/* ul_LowTiming */
 			(unsigned int) data[4],	/* ul_HighTiming */
-			(unsigned int *) & data[0],	/* pul_RealLowTiming */
-			(unsigned int *) & data[1]	/* pul_RealHighTiming */
+			(unsigned int *) &data[0],	/* pul_RealLowTiming */
+			(unsigned int *) &data[1]	/* pul_RealHighTiming */
 			);
 		break;
 
 	case APCI1710_PWM_GETINITDATA:
 		i_ReturnValue = i_APCI1710_GetPWMInitialisation(dev, (unsigned char) CR_AREF(insn->chanspec),	/*  b_ModulNbr */
 			(unsigned char) data[0],	/* b_PWM */
-			(unsigned char *) & data[0],	/* pb_TimingUnit */
-			(unsigned int *) & data[1],	/* pul_LowTiming */
-			(unsigned int *) & data[2],	/* pul_HighTiming */
-			(unsigned char *) & data[3],	/*  pb_StartLevel */
-			(unsigned char *) & data[4],	/*  pb_StopMode */
-			(unsigned char *) & data[5],	/*  pb_StopLevel */
-			(unsigned char *) & data[6],	/*  pb_ExternGate */
-			(unsigned char *) & data[7],	/*  pb_InterruptEnable */
-			(unsigned char *) & data[8]	/*  pb_Enable */
+			(unsigned char *) &data[0],	/* pb_TimingUnit */
+			(unsigned int *) &data[1],	/* pul_LowTiming */
+			(unsigned int *) &data[2],	/* pul_HighTiming */
+			(unsigned char *) &data[3],	/*  pb_StartLevel */
+			(unsigned char *) &data[4],	/*  pb_StopMode */
+			(unsigned char *) &data[5],	/*  pb_StopLevel */
+			(unsigned char *) &data[6],	/*  pb_ExternGate */
+			(unsigned char *) &data[7],	/*  pb_InterruptEnable */
+			(unsigned char *) &data[8]	/*  pb_Enable */
 			);
 		break;
 
@@ -3474,8 +3474,8 @@ int i_APCI1710_InsnReadGetPWMStatus(struct comedi_device *dev, struct comedi_sub
 	i_ReturnValue = insn->n;
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_PWM = (unsigned char) CR_CHAN(insn->chanspec);
-	pb_PWMOutputStatus = (unsigned char *) & data[0];
-	pb_ExternGateStatus = (unsigned char *) & data[1];
+	pb_PWMOutputStatus = (unsigned char *) &data[0];
+	pb_ExternGateStatus = (unsigned char *) &data[1];
 
 	/**************************/
 	/* Test the module number */

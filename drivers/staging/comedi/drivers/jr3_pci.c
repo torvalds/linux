@@ -873,7 +873,7 @@ static int jr3_pci_attach(struct comedi_device *dev, struct comedi_devconfig *it
 				p->range[j].range.max = 1000000;
 				for (k = 0; k < 7; k++) {
 					p->range_table_list[j + k * 8] =
-						(struct comedi_lrange *) & p->range[j];
+						(struct comedi_lrange *) &p->range[j];
 					p->maxdata_list[j + k * 8] = 0x7fff;
 				}
 			}
@@ -882,9 +882,9 @@ static int jr3_pci_attach(struct comedi_device *dev, struct comedi_devconfig *it
 			p->range[8].range.max = 65536;
 
 			p->range_table_list[56] =
-				(struct comedi_lrange *) & p->range[8];
+				(struct comedi_lrange *) &p->range[8];
 			p->range_table_list[57] =
-				(struct comedi_lrange *) & p->range[8];
+				(struct comedi_lrange *) &p->range[8];
 			p->maxdata_list[56] = 0xffff;
 			p->maxdata_list[57] = 0xffff;
 			/*  Channel specific range and maxdata */

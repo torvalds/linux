@@ -724,8 +724,8 @@ int i_APCI1710_InsnBitsReadWritePulseEncoder(struct comedi_device *dev,
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_Type = (unsigned char) data[0];
 	b_PulseEncoderNbr = (unsigned char) data[1];
-	pb_Status = (unsigned char *) & data[0];
-	pul_ReadValue = (unsigned int *) & data[1];
+	pb_Status = (unsigned char *) &data[0];
+	pul_ReadValue = (unsigned int *) &data[1];
 
 	/***********************************/
 	/* Test the selected module number */

@@ -859,10 +859,10 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 									}
 								}
 								/* Write the scan to the buffer. */
-								if (comedi_buf_put(s->async, ((short *) & val)[0])
+								if (comedi_buf_put(s->async, ((short *) &val)[0])
 									&&
 									comedi_buf_put
-									(s->async, ((short *) & val)[1])) {
+									(s->async, ((short *) &val)[1])) {
 									s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
 								} else {
 									/* Overflow! Stop acquisition!! */

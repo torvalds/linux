@@ -303,7 +303,7 @@ int i_APCI1710_InsnReadDigitalIOChlValue(struct comedi_device *dev,
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_InputChannel = (unsigned char) CR_CHAN(insn->chanspec);
 	data[0] = 0;
-	pb_ChannelStatus = (unsigned char *) & data[0];
+	pb_ChannelStatus = (unsigned char *) &data[0];
 	i_ReturnValue = insn->n;
 
 	/**************************/
@@ -747,7 +747,7 @@ int i_APCI1710_InsnBitsDigitalIOPortOnOff(struct comedi_device *dev,
 	b_PortOnOFF = (unsigned char) data[1];	/*  if output then On or Off */
 	b_PortValue = (unsigned char) data[2];	/*  if out put then Value */
 	i_ReturnValue = insn->n;
-	pb_PortValue = (unsigned char *) & data[0];
+	pb_PortValue = (unsigned char *) &data[0];
 /* if input then read value */
 
 	switch (b_PortOperation) {

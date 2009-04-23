@@ -380,7 +380,7 @@ int i_APCI16XX_InsnBitsReadTTLIO(struct comedi_device *dev,
 	/**************************/
 
 	if (i_ReturnValue >= 0) {
-		pb_Status = (unsigned char *) & data[0];
+		pb_Status = (unsigned char *) &data[0];
 
 	   /*******************************/
 		/* Get the digital inpu status */

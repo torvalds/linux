@@ -96,7 +96,7 @@ int i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev, struct comedi_subdevi
 
 	case APCI1710_INCCPT_COUNTERAUTOTEST:
 		i_ReturnValue = i_APCI1710_CounterAutoTest(dev,
-			(unsigned char *) & data[0]);
+			(unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_INITINDEX:
@@ -126,7 +126,7 @@ int i_APCI1710_InsnConfigINCCPT(struct comedi_device *dev, struct comedi_subdevi
 		i_ReturnValue = i_APCI1710_InitFrequencyMeasurement(dev,
 			CR_AREF(insn->chanspec),
 			(unsigned char) data[0],
-			(unsigned char) data[1], (unsigned int) data[2], (unsigned int *) & data[0]);
+			(unsigned char) data[1], (unsigned int) data[2], (unsigned int *) &data[0]);
 		break;
 
 	default:
@@ -4062,69 +4062,69 @@ int i_APCI1710_InsnReadINCCPT(struct comedi_device *dev, struct comedi_subdevice
 	case APCI1710_INCCPT_READLATCHREGISTERSTATUS:
 		i_ReturnValue = i_APCI1710_ReadLatchRegisterStatus(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) CR_RANGE(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_READLATCHREGISTERVALUE:
 		i_ReturnValue = i_APCI1710_ReadLatchRegisterValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) & data[0]);
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) &data[0]);
 		printk("Latch Register Value %d\n", data[0]);
 		break;
 
 	case APCI1710_INCCPT_READ16BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Read16BitCounterValue(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) & data[0]);
+			(unsigned char) CR_RANGE(insn->chanspec), (unsigned int *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_READ32BITCOUNTERVALUE:
 		i_ReturnValue = i_APCI1710_Read32BitCounterValue(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned int *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned int *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETINDEXSTATUS:
 		i_ReturnValue = i_APCI1710_GetIndexStatus(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETREFERENCESTATUS:
 		i_ReturnValue = i_APCI1710_GetReferenceStatus(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETUASSTATUS:
 		i_ReturnValue = i_APCI1710_GetUASStatus(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GETCBSTATUS:
 		i_ReturnValue = i_APCI1710_GetCBStatus(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_GET16BITCBSTATUS:
 		i_ReturnValue = i_APCI1710_Get16BitCBStatus(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char *) & data[0], (unsigned char *) & data[1]);
+			(unsigned char *) &data[0], (unsigned char *) &data[1]);
 		break;
 
 	case APCI1710_INCCPT_GETUDSTATUS:
 		i_ReturnValue = i_APCI1710_GetUDStatus(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 
 		break;
 
 	case APCI1710_INCCPT_GETINTERRUPTUDLATCHEDSTATUS:
 		i_ReturnValue = i_APCI1710_GetInterruptUDLatchedStatus(dev,
-			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) & data[0]);
+			(unsigned char) CR_AREF(insn->chanspec), (unsigned char *) &data[0]);
 		break;
 
 	case APCI1710_INCCPT_READFREQUENCYMEASUREMENT:
 		i_ReturnValue = i_APCI1710_ReadFrequencyMeasurement(dev,
 			(unsigned char) CR_AREF(insn->chanspec),
-			(unsigned char *) & data[0],
-			(unsigned char *) & data[1], (unsigned int *) & data[2]);
+			(unsigned char *) &data[0],
+			(unsigned char *) &data[1], (unsigned int *) &data[2]);
 		break;
 
 	case APCI1710_INCCPT_READINTERRUPT:

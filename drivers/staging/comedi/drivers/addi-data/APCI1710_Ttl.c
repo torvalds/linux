@@ -439,7 +439,7 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev, struct comedi_subdev
 			switch (b_ReadType) {
 
 			case APCI1710_TTL_READCHANNEL:
-				pb_ChannelStatus = (unsigned char *) & data[0];
+				pb_ChannelStatus = (unsigned char *) &data[0];
 	      /********************************/
 				/* Test the TTL I/O port number */
 	      /********************************/
@@ -533,7 +533,7 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev, struct comedi_subdev
 				break;
 
 			case APCI1710_TTL_READPORT:
-				pb_PortValue = (unsigned char *) & data[0];
+				pb_PortValue = (unsigned char *) &data[0];
 			  /********************************/
 				/* Test the TTL I/O port number */
 			  /********************************/
@@ -665,7 +665,7 @@ int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
 
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	i_ReturnValue = insn->n;
-	pul_PortValue = (unsigned int *) & data[0];
+	pul_PortValue = (unsigned int *) &data[0];
 
 	/**************************/
 	/* Test the module number */

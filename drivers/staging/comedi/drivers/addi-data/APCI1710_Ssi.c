@@ -422,12 +422,12 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, struct comedi_subdevi
 	unsigned int *pul_TurnCpt1;
 
 	i_ReturnValue = insn->n;
-	pul_Position1 = (unsigned int *) & data[0];
+	pul_Position1 = (unsigned int *) &data[0];
 /* For Read1 */
-	pul_TurnCpt1 = (unsigned int *) & data[1];
+	pul_TurnCpt1 = (unsigned int *) &data[1];
 /* For Read all */
-	pul_Position = (unsigned int *) & data[0];	/* 0-2 */
-	pul_TurnCpt = (unsigned int *) & data[3];	/* 3-5 */
+	pul_Position = (unsigned int *) &data[0];	/* 0-2 */
+	pul_TurnCpt = (unsigned int *) &data[3];	/* 3-5 */
 	b_ModulNbr = (unsigned char) CR_AREF(insn->chanspec);
 	b_SelectedSSI = (unsigned char) CR_CHAN(insn->chanspec);
 	b_ReadType = (unsigned char) CR_RANGE(insn->chanspec);
@@ -786,7 +786,7 @@ int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device *dev, struct comedi_sub
 				   /******************************************/
 
 				b_InputChannel = (unsigned char) CR_CHAN(insn->chanspec);
-				pb_ChannelStatus = (unsigned char *) & data[0];
+				pb_ChannelStatus = (unsigned char *) &data[0];
 
 				if (b_InputChannel <= 2) {
 					/**************************/
@@ -814,7 +814,7 @@ int i_APCI1710_InsnBitsSSIDigitalIO(struct comedi_device *dev, struct comedi_sub
 					/**************************/
 				/* Read all digital input */
 					/**************************/
-				pb_InputStatus = (unsigned char *) & data[0];
+				pb_InputStatus = (unsigned char *) &data[0];
 
 				dw_StatusReg =
 					inl(devpriv->s_BoardInfos.ui_Address +

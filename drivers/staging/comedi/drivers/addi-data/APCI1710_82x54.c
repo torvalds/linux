@@ -695,7 +695,7 @@ int i_APCI1710_InsnBitsTimer(struct comedi_device *dev, struct comedi_subdevice 
 		i_ReturnValue = i_APCI1710_ReadTimerValue(dev,
 							  (unsigned char)CR_AREF(insn->chanspec),
 							  (unsigned char)CR_CHAN(insn->chanspec),
-							  (unsigned int *) & data[0]);
+							  (unsigned int *) &data[0]);
 		break;
 
 	case APCI1710_TIMER_GETOUTPUTLEVEL:
