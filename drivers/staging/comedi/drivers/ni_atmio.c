@@ -414,8 +414,10 @@ static int ni_atmio_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	unsigned int irq;
 
 	/* allocate private area */
-	if ((ret = ni_alloc_private(dev)) < 0)
+	ret = ni_alloc_private(dev);
+	if (ret < 0)
 		return ret;
+
 	devpriv->stc_writew = &ni_atmio_win_out;
 	devpriv->stc_readw = &ni_atmio_win_in;
 	devpriv->stc_writel = &win_out2;
@@ -476,8 +478,10 @@ static int ni_atmio_attach(struct comedi_device *dev, struct comedi_devconfig *i
 			return -EINVAL;
 		}
 		printk(" ( irq = %u )", irq);
-		if ((ret = comedi_request_irq(irq, ni_E_interrupt,
-					NI_E_IRQ_FLAGS, "ni_atmio", dev)) < 0) {
+		ret = comedi_request_irq(irq, ni_E_interrupt,
+					  NI_E_IRQ_FLAGS, "ni_atmio", dev);
+
+		if (ret < 0) {
 			printk(" irq not available\n");
 			return -EINVAL;
 		}
@@ -486,7 +490,8 @@ static int ni_atmio_attach(struct comedi_device *dev, struct comedi_devconfig *i
 
 	/* generic E series stuff in ni_mio_common.c */
 
-	if ((ret = ni_E_init(dev, it)) < 0) {
+	ret = ni_E_init(dev, it);
+	if (ret < 0) {
 		return ret;
 	}
 

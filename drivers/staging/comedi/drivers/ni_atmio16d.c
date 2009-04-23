@@ -449,11 +449,13 @@ static int atmio16d_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s
 		outw(devpriv->com_reg_1_state, dev->iobase + COM_REG_1);
 	} else {
 		/* Counter 4 and 5 are needed */
-		if ((tmp = sample_count & 0xFFFF)) {
+
+		tmp = sample_count & 0xFFFF;
+		if (tmp)
 			outw(tmp - 1, dev->iobase + AM9513A_DATA_REG);
-		} else {
+		else
 			outw(0xFFFF, dev->iobase + AM9513A_DATA_REG);
-		}
+
 		outw(0xFF48, dev->iobase + AM9513A_COM_REG);
 		outw(0, dev->iobase + AM9513A_DATA_REG);
 		outw(0xFF28, dev->iobase + AM9513A_COM_REG);
@@ -726,9 +728,12 @@ static int atmio16d_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	/* board name */
 	dev->board_name = boardtype->name;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct atmio16d_private))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct atmio16d_private));
+	if (ret < 0)
 		return ret;
 
 	/* reset the atmio16d hardware */
@@ -737,8 +742,10 @@ static int atmio16d_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	/* check if our interrupt is available and get it */
 	irq = it->options[1];
 	if (irq) {
-		if ((ret = comedi_request_irq(irq, atmio16d_interrupt,
-					0, "atmio16d", dev)) < 0) {
+
+		ret = comedi_request_irq(irq, atmio16d_interrupt,
+					  0, "atmio16d", dev);
+		if (ret < 0) {
 			printk("failed to allocate irq %u\n", irq);
 			return ret;
 		}

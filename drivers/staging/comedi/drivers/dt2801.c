@@ -521,10 +521,12 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	n_ai_chans = probe_number_of_ai_chans(dev);
 	printk(" (ai channels = %d)", n_ai_chans);
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		goto out;
 
-	if ((ret = alloc_private(dev, sizeof(struct dt2801_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct dt2801_private));
+	if (ret < 0)
 		goto out;
 
 	dev->board_name = boardtype.name;

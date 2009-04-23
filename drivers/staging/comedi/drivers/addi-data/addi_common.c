@@ -2575,9 +2575,9 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	sprintf(c_Identifier, "Addi-Data GmbH Comedi %s",
 		this_board->pc_DriverName);
 
-	if ((ret = alloc_private(dev, sizeof(struct addi_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct addi_private));
+	if (ret < 0)
 		return -ENOMEM;
-	}
 
 	if (!pci_list_builded) {
 		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */
@@ -2589,12 +2589,14 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		i_Dma = 1;
 	}
 
-	if ((card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
-				this_board->i_DeviceId,
-				it->options[0],
-				it->options[1], i_Dma)) == NULL) {
+	card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
+					     this_board->i_DeviceId,
+					     it->options[0],
+					     it->options[1], i_Dma);
+
+	if (card == NULL)
 		return -EIO;
-	}
+
 	devpriv->allocated = 1;
 
 	if ((i_pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
@@ -2698,12 +2700,11 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			devpriv->b_DmaDoubleBuffer = 0;
 			for (i = 0; i < 2; i++) {
 				for (pages = 4; pages >= 0; pages--) {
-					if ((devpriv->ul_DmaBufferVirtual[i] =
-							(void *)
-							__get_free_pages
-							(GFP_KERNEL, pages))) {
+					devpriv->ul_DmaBufferVirtual[i] =
+						(void *) __get_free_pages(GFP_KERNEL, pages);
+
+					if (devpriv->ul_DmaBufferVirtual[i])
 						break;
-					}
 				}
 				if (devpriv->ul_DmaBufferVirtual[i]) {
 					devpriv->ui_DmaBufferPages[i] = pages;
@@ -2745,7 +2746,8 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	} else {
 		/* Update-0.7.57->0.7.68dev->n_subdevices = 7; */
 		n_subdevices = 7;
-		if ((ret = alloc_subdevices(dev, n_subdevices)) < 0)
+		ret = alloc_subdevices(dev, n_subdevices);
+		if (ret < 0)
 			return ret;
 
 		/*  Allocate and Initialise AI Subdevice Structures */

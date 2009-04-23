@@ -284,7 +284,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Allocate the private structure area.  alloc_private() is a
  * convenient macro defined in comedidev.h.
  */
-	if ((ret = alloc_private(dev, sizeof(struct pc236_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct pc236_private));
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
@@ -302,7 +303,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		slot = it->options[1];
 		share_irq = 1;
 
-		if ((ret = pc236_find_pci(dev, bus, slot, &pci_dev)) < 0)
+		ret = pc236_find_pci(dev, bus, slot, &pci_dev);
+		if (ret < 0)
 			return ret;
 		devpriv->pci_dev = pci_dev;
 		break;
@@ -323,7 +325,9 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* Enable device and reserve I/O spaces. */
 #ifdef CONFIG_COMEDI_PCI
 	if (pci_dev) {
-		if ((ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME)) < 0) {
+
+		ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME);
+		if (ret < 0) {
 			printk(KERN_ERR
 				"comedi%d: error! cannot enable PCI device and request regions!\n",
 				dev->minor);
@@ -346,7 +350,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Allocate the subdevice structures.  alloc_subdevice() is a
  * convenient macro defined in comedidev.h.
  */
-	if ((ret = alloc_subdevices(dev, 2)) < 0) {
+	ret = alloc_subdevices(dev, 2);
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
@@ -354,7 +359,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	s = dev->subdevices + 0;
 	/* digital i/o subdevice (8255) */
-	if ((ret = subdev_8255_init(dev, s, NULL, iobase)) < 0) {
+	ret = subdev_8255_init(dev, s, NULL, iobase);
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;

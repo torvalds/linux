@@ -443,7 +443,8 @@ static int pci1760_unchecked_mbxrequest(struct comedi_device *dev,
 		outb(omb[2], dev->iobase + OMB2);
 		outb(omb[3], dev->iobase + OMB3);
 		for (tout = 0; tout < 251; tout++) {
-			if ((imb[2] = inb(dev->iobase + IMB2)) == omb[2]) {
+			imb[2] = inb(dev->iobase + IMB2);
+			if (imb[2] == omb[2]) {
 				imb[0] = inb(dev->iobase + IMB0);
 				imb[1] = inb(dev->iobase + IMB1);
 				imb[3] = inb(dev->iobase + IMB3);
@@ -517,7 +518,8 @@ static int pci1760_insn_bits_do(struct comedi_device *dev, struct comedi_subdevi
 		s->state &= ~data[0];
 		s->state |= (data[0] & data[1]);
 		omb[0] = s->state;
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret = pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 	}
 	data[1] = s->state;
@@ -541,7 +543,8 @@ static int pci1760_insn_cnt_read(struct comedi_device *dev, struct comedi_subdev
 	unsigned char imb[4];
 
 	for (n = 0; n < insn->n; n++) {
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret = pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 		data[n] = (imb[1] << 8) + imb[0];
 	}
@@ -567,20 +570,23 @@ static int pci1760_insn_cnt_write(struct comedi_device *dev, struct comedi_subde
 	unsigned char imb[4];
 
 	if (devpriv->CntResValue[chan] != (data[0] & 0xffff)) {	/*  Set reset value if different */
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret =  pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 		devpriv->CntResValue[chan] = data[0] & 0xffff;
 	}
 
 	omb[0] = bitmask;	/*  reset counter to it reset value */
 	omb[2] = CMD_ResetIDICounters;
-	if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+	ret = pci1760_mbxrequest(dev, omb, imb);
+	if (!ret)
 		return ret;
 
 	if (!(bitmask & devpriv->IDICntEnable)) {	/*  start counter if it don't run */
 		omb[0] = bitmask;
 		omb[2] = CMD_EnableIDICounters;
-		if (!(ret = pci1760_mbxrequest(dev, omb, imb)))
+		ret = pci1760_mbxrequest(dev, omb, imb);
+		if (!ret)
 			return ret;
 		devpriv->IDICntEnable |= bitmask;
 	}
@@ -892,7 +898,8 @@ static int pci_dio_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(struct pci_dio_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct pci_dio_private));
+	if (ret < 0) {
 		rt_printk(", Error: Cann't allocate private memory!\n");
 		return -ENOMEM;
 	}
@@ -959,7 +966,8 @@ static int pci_dio_attach(struct comedi_device *dev, struct comedi_devconfig *it
 			n_subdevices++;
 	}
 
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
+	ret = alloc_subdevices(dev, n_subdevices);
+	if (ret < 0) {
 		rt_printk(", Error: Cann't allocate subdevice memory!\n");
 		return ret;
 	}

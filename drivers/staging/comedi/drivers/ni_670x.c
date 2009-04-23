@@ -144,7 +144,8 @@ static int ni_670x_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	printk("comedi%d: ni_670x: ", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(struct ni_670x_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct ni_670x_private));
+	if (ret < 0)
 		return ret;
 
 	ret = ni_670x_find_device(dev, it->options[0], it->options[1]);

@@ -857,7 +857,8 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 
 	dev->board_name = thisboard->name;
 
-	if ((ret = alloc_subdevices(dev, 6)) < 0)
+	ret = alloc_subdevices(dev, 6);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -961,7 +962,8 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pci_dev *pdev;
 #endif
 
-	if ((ret = alloc_private(dev, sizeof(struct das08_private_struct))) < 0)
+	ret = alloc_private(dev, sizeof(struct das08_private_struct));
+	if (ret < 0)
 		return ret;
 
 	printk("comedi%d: das08: ", dev->minor);

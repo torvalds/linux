@@ -213,7 +213,8 @@ static int unioxx5_insn_config(struct comedi_device *dev, struct comedi_subdevic
 		return -1;
 	}
 
-	if ((channel_offset = __unioxx5_define_chan_offset(channel)) < 0) {
+	channel_offset = __unioxx5_define_chan_offset(channel);
+	if (channel_offset < 0) {
 		printk(KERN_ERR
 			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
 			dev->minor, channel);
@@ -275,8 +276,9 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev, int subdev_iob
 		return -EIO;
 	}
 
-	if ((usp = (struct unioxx5_subd_priv *) kzalloc(sizeof(*usp),
-				GFP_KERNEL)) == NULL) {
+	usp = (struct unioxx5_subd_priv *) kzalloc(sizeof(*usp), GFP_KERNEL);
+
+	if (usp == NULL) {
 		printk(KERN_ERR "comedi%d: erorr! --> out of memory!\n", minor);
 		return -1;
 	}
@@ -336,7 +338,8 @@ static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp, unsigned int *
 	int channel_offset, val;
 	int mask = 1 << (channel & 0x07);
 
-	if ((channel_offset = __unioxx5_define_chan_offset(channel)) < 0) {
+	channel_offset = __unioxx5_define_chan_offset(channel);
+	if (channel_offset < 0) {
 		printk(KERN_ERR
 			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
 			minor, channel);
@@ -362,7 +365,8 @@ static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp, unsigned int *d
 {
 	int channel_offset, mask = 1 << (channel & 0x07);
 
-	if ((channel_offset = __unioxx5_define_chan_offset(channel)) < 0) {
+	channel_offset = __unioxx5_define_chan_offset(channel);
+	if (channel_offset < 0) {
 		printk(KERN_ERR
 			"comedi%d: undefined channel %d. channel range is 0 .. 23\n",
 			minor, channel);

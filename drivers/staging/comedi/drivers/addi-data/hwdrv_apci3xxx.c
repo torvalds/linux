@@ -614,8 +614,8 @@ void v_APCI3XXX_Interrupt(int irq, void *d)
 	/* Test if interrupt occur */
 	/***************************/
 
-	if (((dw_Status = readl((void *)(devpriv->dw_AiBase + 16))) & 0x2UL) ==
-		0x2UL) {
+	dw_Status = readl((void *)(devpriv->dw_AiBase + 16));
+	if ( (dw_Status & 0x2UL) == 0x2UL) {
 	   /***********************/
 		/* Reset the interrupt */
 	   /***********************/

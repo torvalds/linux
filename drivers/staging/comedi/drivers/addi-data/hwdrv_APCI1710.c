@@ -1,4 +1,4 @@
-/**
+//**
 @verbatim
 
 Copyright (C) 2004,2005  ADDI-DATA GmbH for the source code of this module.
@@ -63,7 +63,8 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	int n_subdevices = 9;
 
 	/* Update-0.7.57->0.7.68dev->n_subdevices = 9; */
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0)
+	ret = alloc_subdevices(dev, n_subdevices);
+	if (ret < 0)
 		return;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */

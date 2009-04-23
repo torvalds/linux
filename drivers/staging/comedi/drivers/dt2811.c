@@ -379,10 +379,14 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 #endif
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct dt2811_private))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct dt2811_private));
+	if (ret < 0)
 		return ret;
+
 	switch (it->options[2]) {
 	case 0:
 		devpriv->adc_mux = adc_singleended;

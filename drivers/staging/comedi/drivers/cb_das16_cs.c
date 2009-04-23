@@ -766,15 +766,22 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
+
 	last_fn = GetFirstTuple;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret != 0)
 		goto cs_failed;
+
 	last_fn = GetTupleData;
-	if ((last_ret = pcmcia_get_tuple_data(link, &tuple)) != 0)
+	last_ret = pcmcia_get_tuple_data(link, &tuple);
+	if (last_ret != 0)
 		goto cs_failed;
+
 	last_fn = ParseTuple;
-	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse)) != 0)
+	last_ret = pcmcia_parse_tuple(&tuple, &parse);
+	if (last_ret != 0)
 		goto cs_failed;
+
 	link->conf.ConfigBase = parse.config.base;
 	link->conf.Present = parse.config.rmask[0];
 
@@ -792,8 +799,11 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	last_fn = GetFirstTuple;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple)) != 0)
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret)
 		goto cs_failed;
+
 	while (1) {
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
 		if (pcmcia_get_tuple_data(link, &tuple))
@@ -844,7 +854,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 
 	      next_entry:
 		last_fn = GetNextTuple;
-		if ((last_ret = pcmcia_get_next_tuple(link, &tuple)) != 0)
+
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
+		if (last_ret)
 			goto cs_failed;
 	}
 
@@ -855,7 +867,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	 */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
 		last_fn = RequestIRQ;
-		if ((last_ret = pcmcia_request_irq(link, &link->irq)) != 0)
+
+		last_ret = pcmcia_request_irq(link, &link->irq);
+		if (last_ret)
 			goto cs_failed;
 	}
 	/*
@@ -864,7 +878,8 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	   card and host interface into "Memory and IO" mode.
 	 */
 	last_fn = RequestConfiguration;
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf)) != 0)
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+	if (last_ret)
 		goto cs_failed;
 
 	/*

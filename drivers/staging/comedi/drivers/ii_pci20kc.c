@@ -209,9 +209,12 @@ static int pci20xxx_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	struct comedi_subdevice *s;
 	union pci20xxx_subdev_private *sdp;
 
-	if ((ret = alloc_subdevices(dev, 1 + PCI20000_MODULES)) < 0)
+	ret = alloc_subdevices(dev, 1 + PCI20000_MODULES);
+	if (ret < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct pci20xxx_private))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct pci20xxx_private));
+	if (ret < 0)
 		return ret;
 
 	devpriv->ioaddr = (void *)(unsigned long)it->options[0];

@@ -260,7 +260,9 @@ static int pcm3724_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	iobase = it->options[0];
 	iorange = this_board->io_range;
-	if ((ret = alloc_private(dev, sizeof(struct priv_pcm3724))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct priv_pcm3724));
+	if (ret < 0)
 		return -ENOMEM;
 
 	((struct priv_pcm3724 *) (dev->private))->dio_1 = 0;
@@ -279,7 +281,8 @@ static int pcm3724_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	n_subdevices = this_board->numofports;
 
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0)
+	ret = alloc_subdevices(dev, n_subdevices);
+	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {

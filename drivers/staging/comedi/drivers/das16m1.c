@@ -646,8 +646,8 @@ static int das16m1_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	printk("comedi%d: das16m1:", dev->minor);
 
-	if ((ret = alloc_private(dev,
-				sizeof(struct das16m1_private_struct))) < 0)
+	ret = alloc_private(dev, sizeof(struct das16m1_private_struct));
+	if (ret < 0)
 		return ret;
 
 	dev->board_name = thisboard->name;
@@ -687,7 +687,8 @@ static int das16m1_attach(struct comedi_device *dev, struct comedi_devconfig *it
 		return -EINVAL;
 	}
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

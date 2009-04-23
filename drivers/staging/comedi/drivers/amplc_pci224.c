@@ -1338,16 +1338,20 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	bus = it->options[0];
 	slot = it->options[1];
-	if ((ret = alloc_private(dev, sizeof(struct pci224_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct pci224_private));
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
 	}
-	if ((ret = pci224_find_pci(dev, bus, slot, &pci_dev)) < 0)
-		return ret;
-	devpriv->pci_dev = pci_dev;
 
-	if ((ret = comedi_pci_enable(pci_dev, DRIVER_NAME)) < 0) {
+	ret = pci224_find_pci(dev, bus, slot, &pci_dev);
+	if (ret < 0)
+		return ret;
+
+	devpriv->pci_dev = pci_dev;
+	ret = comedi_pci_enable(pci_dev, DRIVER_NAME);
+	if (ret < 0) {
 		printk(KERN_ERR
 			"comedi%d: error! cannot enable PCI device "
 			"and request regions!\n", dev->minor);
@@ -1394,7 +1398,8 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		dev->iobase + PCI224_DACCON);
 
 	/* Allocate subdevices.  There is only one!  */
-	if ((ret = alloc_subdevices(dev, 1)) < 0) {
+	ret = alloc_subdevices(dev, 1);
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;

@@ -1474,11 +1474,10 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	s->async->cur_chan = 0;
 	devpriv->ai_buf_ptr = 0;
 
-	if (devpriv->usedma) {
+	if (devpriv->usedma)
 		ret = pci9118_ai_docmd_dma(dev, s);
-	} else {
+	else
 		ret = pci9118_ai_docmd_sampl(dev, s);
-	}
 
 	DPRINTK("adl_pci9118 EDBG: END: pci9118_ai_cmd()\n");
 	return ret;
@@ -1860,7 +1859,8 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 		master = 1;
 	}
 
-	if ((ret = alloc_private(dev, sizeof(struct pci9118_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct pci9118_private));
+	if (ret < 0) {
 		rt_printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
@@ -1940,11 +1940,13 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	if (master) {		/*  alloc DMA buffers */
 		devpriv->dma_doublebuf = 0;
 		for (i = 0; i < 2; i++) {
-			for (pages = 4; pages >= 0; pages--)
-				if ((devpriv->dmabuf_virt[i] = (short *)
-						__get_free_pages(GFP_KERNEL,
-							pages)))
+			for (pages = 4; pages >= 0; pages--) {
+				devpriv->dmabuf_virt[i] =
+					(short *) __get_free_pages(GFP_KERNEL,
+								   pages);
+				if (devpriv->dmabuf_virt[i])
 					break;
+			}
 			if (devpriv->dmabuf_virt[i]) {
 				devpriv->dmabuf_pages[i] = pages;
 				devpriv->dmabuf_size[i] = PAGE_SIZE * pages;
@@ -1965,11 +1967,11 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	}
 
-	if ((devpriv->master = master)) {
+	devpriv->master = master;
+	if (devpriv->master)
 		rt_printk(", bus master");
-	} else {
+	else
 		rt_printk(", no bus master");
-	}
 
 	devpriv->usemux = 0;
 	if (it->options[2] > 0) {
@@ -1998,7 +2000,8 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	pci_read_config_word(devpriv->pcidev, PCI_COMMAND, &u16w);
 	pci_write_config_word(devpriv->pcidev, PCI_COMMAND, u16w | 64);	/*  Enable parity check for parity error */
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

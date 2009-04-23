@@ -921,7 +921,8 @@ static void pcmmio_stop_intr(struct comedi_device *dev, struct comedi_subdevice 
 {
 	int nports, firstport, asic, port;
 
-	if ((asic = subpriv->dio.intr.asic) < 0)
+	asic = subpriv->dio.intr.asic;
+	if (asic < 0)
 		return;		/* not an interrupt subdev */
 
 	subpriv->dio.intr.enabled_mask = 0;
@@ -948,7 +949,8 @@ static int pcmmio_start_intr(struct comedi_device *dev, struct comedi_subdevice 
 		int nports, firstport, asic, port;
 		struct comedi_cmd *cmd = &s->async->cmd;
 
-		if ((asic = subpriv->dio.intr.asic) < 0)
+		asic = subpriv->dio.intr.asic;
+		if (asic  < 0)
 			return 1;	/* not an interrupt
 					   subdev */
 		subpriv->dio.intr.enabled_mask = 0;

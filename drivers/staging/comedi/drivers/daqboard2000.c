@@ -772,7 +772,8 @@ static int daqboard2000_attach(struct comedi_device *dev, struct comedi_devconfi
 		}
 	}
 
-	if ((result = comedi_pci_enable(card, "daqboard2000")) < 0) {
+	result = comedi_pci_enable(card, "daqboard2000");
+	if (result < 0) {
 		printk(" failed to enable PCI device and request regions\n");
 		return -EIO;
 	}

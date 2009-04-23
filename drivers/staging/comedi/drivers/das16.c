@@ -1400,7 +1400,8 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	if ((ret = alloc_private(dev, sizeof(struct das16_private_struct))) < 0)
+	ret = alloc_private(dev, sizeof(struct das16_private_struct));
+	if (ret < 0)
 		return ret;
 
 	if (thisboard->size < 0x400) {
@@ -1450,8 +1451,10 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* now for the irq */
 	if (irq > 1 && irq < 8) {
-		if ((ret = comedi_request_irq(irq, das16_dma_interrupt, 0,
-					"das16", dev)) < 0)
+		ret = comedi_request_irq(irq, das16_dma_interrupt, 0,
+					 "das16", dev);
+
+		if (ret < 0)
 			return ret;
 		dev->irq = irq;
 		printk(" ( irq = %u )", irq);
@@ -1526,7 +1529,8 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	devpriv->timer_mode = timer_mode ? 1 : 0;
 
-	if ((ret = alloc_subdevices(dev, 5)) < 0)
+	ret = alloc_subdevices(dev, 5);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

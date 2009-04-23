@@ -1041,7 +1041,8 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 	}
 
-	if ((ret = alloc_private(dev, sizeof(struct pcl816_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct pcl816_private));
+	if (ret < 0)
 		return ret;	/* Can't alloc mem */
 
 	/* set up some name stuff */
@@ -1177,7 +1178,9 @@ static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
   if (this_board->n_dochan > 0)
     subdevs[3] = COMEDI_SUBD_DO;
 */
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+
+	ret = alloc_subdevices(dev, 1);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

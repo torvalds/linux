@@ -1326,7 +1326,8 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	}
 
-	if ((ret = alloc_private(dev, sizeof(struct dt282x_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct dt282x_private));
+	if (ret < 0)
 		return ret;
 
 	ret = dt282x_grab_dma(dev, it->options[opt_dma1],
@@ -1334,7 +1335,8 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret < 0)
 		return ret;
 
-	if ((ret = alloc_subdevices(dev, 3)) < 0)
+	ret = alloc_subdevices(dev, 3);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;
@@ -1358,7 +1360,9 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->ad_2scomp = it->options[opt_ai_twos];
 
 	s++;
-	if ((s->n_chan = boardtype.dachan)) {
+
+	s->n_chan = boardtype.dachan;
+	if (s->n_chan) {
 		/* ao subsystem */
 		s->type = COMEDI_SUBD_AO;
 		dev->write_subdev = s;

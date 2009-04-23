@@ -264,7 +264,8 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = this_board->name;
 
-	if ((ret = alloc_private(dev, sizeof(struct pcl726_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct pcl726_private));
+	if (ret < 0)
 		return -ENOMEM;
 
 	for (i = 0; i < 12; i++) {
@@ -302,7 +303,8 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk("\n");
 
-	if ((ret = alloc_subdevices(dev, 3)) < 0)
+	ret = alloc_subdevices(dev, 3);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

@@ -394,7 +394,8 @@ static int dev_8255_attach(struct comedi_device *dev, struct comedi_devconfig * 
 		return -EINVAL;
 	}
 
-	if ((ret = alloc_subdevices(dev, i)) < 0)
+	ret = alloc_subdevices(dev, i);
+	if (ret < 0)
 		return ret;
 
 	for (i = 0; i < dev->n_subdevices; i++) {

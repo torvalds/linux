@@ -1282,7 +1282,8 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(KERN_DEBUG "comedi%d: %s: attach\n", dev->minor,
 		DIO200_DRIVER_NAME);
 
-	if ((ret = alloc_private(dev, sizeof(struct dio200_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct dio200_private));
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;
@@ -1301,7 +1302,8 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		slot = it->options[1];
 		share_irq = 1;
 
-		if ((ret = dio200_find_pci(dev, bus, slot, &pci_dev)) < 0)
+		ret = dio200_find_pci(dev, bus, slot, &pci_dev);
+		if (ret < 0)
 			return ret;
 		devpriv->pci_dev = pci_dev;
 		break;
@@ -1339,7 +1341,9 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 
 	layout = thislayout;
-	if ((ret = alloc_subdevices(dev, layout->n_subdevs)) < 0) {
+
+	ret = alloc_subdevices(dev, layout->n_subdevs);
+	if (ret < 0) {
 		printk(KERN_ERR "comedi%d: error! out of memory!\n",
 			dev->minor);
 		return ret;

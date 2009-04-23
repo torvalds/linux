@@ -310,7 +310,8 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	opt_bus = it->options[0];
 	opt_slot = it->options[1];
 
-	if ((ret = alloc_private(dev, sizeof(struct pci1723_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct pci1723_private));
+	if (ret < 0) {
 		rt_printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
@@ -369,7 +370,8 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	if (this_board->n_diochan)
 		n_subdevices++;
 
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
+	ret = alloc_subdevices(dev, n_subdevices);
+	if (ret < 0) {
 		rt_printk(" - Allocation failed!\n");
 		return ret;
 	}

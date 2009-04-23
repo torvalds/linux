@@ -1703,7 +1703,8 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long pages;
 	struct comedi_subdevice *s;
 
-	if ((ret = alloc_private(dev, sizeof(struct pcl818_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct pcl818_private));
+	if (ret < 0)
 		return ret;	/* Can't alloc mem */
 
 	/* claim our I/O space */
@@ -1842,7 +1843,8 @@ static int pcl818_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
       no_dma:
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

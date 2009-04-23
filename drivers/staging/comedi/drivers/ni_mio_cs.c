@@ -446,24 +446,28 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(" %s", boardtype.name);
 	dev->board_name = boardtype.name;
 
-	if ((ret = comedi_request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
-				"ni_mio_cs", dev)) < 0) {
+	ret = comedi_request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+				 "ni_mio_cs", dev);
+	if (ret < 0) {
 		printk(" irq not available\n");
 		return -EINVAL;
 	}
 	dev->irq = irq;
 
 	/* allocate private area */
-	if ((ret = ni_alloc_private(dev)) < 0)
+	ret = ni_alloc_private(dev);
+	if (ret < 0)
 		return ret;
+
 	devpriv->stc_writew = &mio_cs_win_out;
 	devpriv->stc_readw = &mio_cs_win_in;
 	devpriv->stc_writel = &win_out2;
 	devpriv->stc_readl = &win_in2;
 
-	if ((ret = ni_E_init(dev, it)) < 0) {
+	ret = ni_E_init(dev, it);
+
+	if (ret < 0)
 		return ret;
-	}
 
 	return 0;
 }

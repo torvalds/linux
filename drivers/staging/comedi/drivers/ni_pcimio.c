@@ -1679,9 +1679,10 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(" unknown irq (bad)\n");
 	} else {
 		printk(" ( irq = %u )", dev->irq);
-		if ((ret = comedi_request_irq(dev->irq, ni_E_interrupt,
-					NI_E_IRQ_FLAGS, DRV_NAME,
-					dev)) < 0) {
+		ret = comedi_request_irq(dev->irq, ni_E_interrupt,
+					 NI_E_IRQ_FLAGS, DRV_NAME,
+					 dev);
+		if (ret < 0) {
 			printk(" irq not available\n");
 			dev->irq = 0;
 		}

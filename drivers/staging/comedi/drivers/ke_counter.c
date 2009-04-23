@@ -157,9 +157,9 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int error, i;
 
 	/* allocate device private structure */
-	if ((error = alloc_private(dev, sizeof(struct cnt_device_private))) < 0) {
+	error = alloc_private(dev, sizeof(struct cnt_device_private));
+	if (error < 0)
 		return error;
-	}
 
 	/* Probe the device to determine what device in the series it is. */
 	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
@@ -203,7 +203,8 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = board->name;
 
 	/* enable PCI device and request regions */
-	if ((error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME)) < 0) {
+	error = comedi_pci_enable(pci_device, CNT_DRIVER_NAME);
+	if (error < 0) {
 		printk("comedi%d: failed to enable PCI device and request regions!\n", dev->minor);
 		return error;
 	}
@@ -213,9 +214,9 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = io_base;
 
 	/* allocate the subdevice structures */
-	if ((error = alloc_subdevices(dev, 1)) < 0) {
+	error = alloc_subdevices(dev, 1);
+	if (error < 0)
 		return error;
-	}
 
 	subdevice = dev->subdevices + 0;
 	dev->read_subdev = subdevice;

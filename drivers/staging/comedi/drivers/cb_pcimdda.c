@@ -257,7 +257,8 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
  * should already be initialized.
  */
-	if ((err = probe(dev, it)))
+	err = probe(dev, it);
+	if (err)
 		return err;
 
 /* Output some info */

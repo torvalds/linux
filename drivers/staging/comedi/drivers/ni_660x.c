@@ -960,8 +960,10 @@ static int ni_660x_allocate_private(struct comedi_device *dev)
 	int retval;
 	unsigned i;
 
-	if ((retval = alloc_private(dev, sizeof(struct ni_660x_private))) < 0)
+	retval = alloc_private(dev, sizeof(struct ni_660x_private));
+	if (retval < 0)
 		return retval;
+
 	spin_lock_init(&private(dev)->mite_channel_lock);
 	spin_lock_init(&private(dev)->interrupt_lock);
 	spin_lock_init(&private(dev)->soft_reg_copy_lock);
@@ -1105,9 +1107,11 @@ static int ni_660x_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	for (i = 0; i < board(dev)->n_chips; ++i) {
 		set_tio_counterswap(dev, i);
 	}
-	if ((ret = comedi_request_irq(mite_irq(private(dev)->mite),
-				&ni_660x_interrupt, IRQF_SHARED, "ni_660x",
-				dev)) < 0) {
+	ret = comedi_request_irq(mite_irq(private(dev)->mite),
+				 ni_660x_interrupt, IRQF_SHARED, "ni_660x",
+				 dev);
+
+	if (ret < 0) {
 		printk(" irq not available\n");
 		return ret;
 	}

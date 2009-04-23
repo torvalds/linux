@@ -140,9 +140,12 @@ static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+	ret = alloc_subdevices(dev, 1);
+	if (ret < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct pcmad_priv_struct))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct pcmad_priv_struct));
+	if (ret < 0)
 		return ret;
 
 	dev->board_name = this_board->name;

@@ -908,7 +908,8 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->iobase = local->link->io.BasePort1;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
 
 	printk("comedi%d: attaching daqp%d (io 0x%04lx)\n",
@@ -1149,15 +1150,21 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	tuple.TupleOffset = 0;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
+
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_get_tuple_data(link, &tuple))) {
+
+	last_ret = pcmcia_get_tuple_data(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetTupleData, last_ret);
 		goto cs_failed;
 	}
-	if ((last_ret = pcmcia_parse_tuple(&tuple, &parse))) {
+
+	last_ret = pcmcia_parse_tuple(&tuple, &parse);
+	if (last_ret) {
 		cs_error(link, ParseTuple, last_ret);
 		goto cs_failed;
 	}
@@ -1177,10 +1184,12 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   will only use the CIS to fill in implementation-defined details.
 	 */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	if ((last_ret = pcmcia_get_first_tuple(link, &tuple))) {
+	last_ret = pcmcia_get_first_tuple(link, &tuple);
+	if (last_ret) {
 		cs_error(link, GetFirstTuple, last_ret);
 		goto cs_failed;
 	}
+
 	while (1) {
 		cistpl_cftable_entry_t dflt = { 0 };
 		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
@@ -1226,7 +1235,8 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		break;
 
 	      next_entry:
-		if ((last_ret = pcmcia_get_next_tuple(link, &tuple))) {
+		last_ret = pcmcia_get_next_tuple(link, &tuple);
+		if (last_ret) {
 			cs_error(link, GetNextTuple, last_ret);
 			goto cs_failed;
 		}
@@ -1237,18 +1247,21 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	   handler to the interrupt, unless the 'Handler' member of the
 	   irq structure is initialized.
 	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		if ((last_ret = pcmcia_request_irq(link, &link->irq))) {
+	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
+		last_ret = pcmcia_request_irq(link, &link->irq);
+		if (last_ret) {
 			cs_error(link, RequestIRQ, last_ret);
 			goto cs_failed;
 		}
+	}
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping, and putting the
 	   card and host interface into "Memory and IO" mode.
 	 */
-	if ((last_ret = pcmcia_request_configuration(link, &link->conf))) {
+	last_ret = pcmcia_request_configuration(link, &link->conf);
+	if (last_ret) {
 		cs_error(link, RequestConfiguration, last_ret);
 		goto cs_failed;
 	}

@@ -1286,7 +1286,8 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-	if ((ret = alloc_private(dev, sizeof(struct pcl812_private))) < 0) {
+	ret = alloc_private(dev, sizeof(struct pcl812_private));
+	if (ret < 0) {
 		free_resources(dev);
 		return ret;	/* Can't alloc mem */
 	}
@@ -1364,7 +1365,8 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (this_board->n_dochan > 0)
 		n_subdevices++;
 
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0) {
+	ret = alloc_subdevices(dev, n_subdevices);
+	if (ret < 0) {
 		free_resources(dev);
 		return ret;
 	}

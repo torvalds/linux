@@ -811,7 +811,8 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	bus = it->options[0];
 	slot = it->options[1];
 
-	if ((ret = alloc_private(dev, sizeof(struct dt3k_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct dt3k_private));
+	if (ret < 0)
 		return ret;
 
 	ret = dt_pci_probe(dev, bus, slot);
@@ -831,7 +832,8 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->irq = devpriv->pci_dev->irq;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices;
@@ -935,7 +937,8 @@ static int dt_pci_probe(struct comedi_device *dev, int bus, int slot)
 	if (!devpriv->pci_dev)
 		return 0;
 
-	if ((ret = setup_pci(dev)) < 0)
+	ret = setup_pci(dev);
+	if (ret < 0)
 		return ret;
 
 	return 1;

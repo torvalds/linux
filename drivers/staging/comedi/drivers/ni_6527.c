@@ -371,7 +371,8 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk("comedi%d: ni6527:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(struct ni6527_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct ni6527_private));
+	if (ret < 0)
 		return ret;
 
 	ret = ni6527_find_device(dev, it->options[0], it->options[1]);
@@ -389,7 +390,8 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	printk(" ID=0x%02x", readb(devpriv->mite->daq_io_addr + ID_Register));
 
-	if ((ret = alloc_subdevices(dev, 3)) < 0)
+	ret = alloc_subdevices(dev, 3);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

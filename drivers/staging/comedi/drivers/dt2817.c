@@ -146,7 +146,8 @@ static int dt2817_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->iobase = iobase;
 	dev->board_name = "dt2817";
 
-	if ((ret = alloc_subdevices(dev, 1)) < 0)
+	ret = alloc_subdevices(dev, 1);
+	if (ret < 0)
 		return ret;
 
 	s = dev->subdevices + 0;

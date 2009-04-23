@@ -975,96 +975,117 @@ static void v_APCI1564_Interrupt(int irq, void *d)
 
 	}			/*  if  (ui_DO) */
 
-	if ((ui_Timer == 1) && (devpriv->b_TimerSelectMode = ADDIDATA_TIMER)) {
-		/*  Disable Timer Interrupt */
-		ul_Command2 =
-			inl(devpriv->i_IobaseAmcc + APCI1564_TIMER +
-			APCI1564_TCW_PROG);
-		outl(0x0,
-			devpriv->i_IobaseAmcc + APCI1564_TIMER +
-			APCI1564_TCW_PROG);
+	if (ui_Timer == 1) {
+		devpriv->b_TimerSelectMode = ADDIDATA_TIMER;
+		if (devpriv->b_TimerSelectMode) {
 
-		/* Send a signal to from kernel to user space */
-		send_sig(SIGIO, devpriv->tsk_Current, 0);
+			/*  Disable Timer Interrupt */
+			ul_Command2 =
+				inl(devpriv->i_IobaseAmcc + APCI1564_TIMER +
+				    APCI1564_TCW_PROG);
+			outl(0x0,
+			     devpriv->i_IobaseAmcc + APCI1564_TIMER +
+			     APCI1564_TCW_PROG);
 
-		/*  Enable Timer Interrupt */
+			/* Send a signal to from kernel to user space */
+			send_sig(SIGIO, devpriv->tsk_Current, 0);
 
-		outl(ul_Command2,
-			devpriv->i_IobaseAmcc + APCI1564_TIMER +
-			APCI1564_TCW_PROG);
-	}			/*  if  ((ui_Timer == 1) && (devpriv->b_TimerSelectMode =ADDIDATA_TIMER)) */
+			/*  Enable Timer Interrupt */
 
-	if ((ui_C1 == 1) && (devpriv->b_TimerSelectMode = ADDIDATA_COUNTER)) {
-		/*  Disable Counter Interrupt */
-		ul_Command2 =
-			inl(devpriv->iobase + APCI1564_COUNTER1 +
-			APCI1564_TCW_PROG);
-		outl(0x0,
-			devpriv->iobase + APCI1564_COUNTER1 +
-			APCI1564_TCW_PROG);
+			outl(ul_Command2,
+			     devpriv->i_IobaseAmcc + APCI1564_TIMER +
+			     APCI1564_TCW_PROG);
+		}
+	}/* if  (ui_Timer == 1) */
 
-		/* Send a signal to from kernel to user space */
-		send_sig(SIGIO, devpriv->tsk_Current, 0);
 
-		/*  Enable Counter Interrupt */
-		outl(ul_Command2,
-			devpriv->iobase + APCI1564_COUNTER1 +
-			APCI1564_TCW_PROG);
-	}			/*  if  ((ui_C1 == 1) && (devpriv->b_TimerSelectMode = ADDIDATA_COUNTER)) */
+	if (ui_C1 == 1) {
+		devpriv->b_TimerSelectMode = ADDIDATA_COUNTER;
+		if (devpriv->b_TimerSelectMode) {
 
-	if ((ui_C2 == 1) && (devpriv->b_TimerSelectMode = ADDIDATA_COUNTER)) {
-		/*  Disable Counter Interrupt */
-		ul_Command2 =
-			inl(devpriv->iobase + APCI1564_COUNTER2 +
-			APCI1564_TCW_PROG);
-		outl(0x0,
-			devpriv->iobase + APCI1564_COUNTER2 +
-			APCI1564_TCW_PROG);
+			/*  Disable Counter Interrupt */
+			ul_Command2 =
+				inl(devpriv->iobase + APCI1564_COUNTER1 +
+				    APCI1564_TCW_PROG);
+			outl(0x0,
+			     devpriv->iobase + APCI1564_COUNTER1 +
+			     APCI1564_TCW_PROG);
 
-		/* Send a signal to from kernel to user space */
-		send_sig(SIGIO, devpriv->tsk_Current, 0);
+			/* Send a signal to from kernel to user space */
+			send_sig(SIGIO, devpriv->tsk_Current, 0);
 
-		/*  Enable Counter Interrupt */
-		outl(ul_Command2,
-			devpriv->iobase + APCI1564_COUNTER2 +
-			APCI1564_TCW_PROG);
-	}			/*  if  ((ui_C2 == 1) && (devpriv->b_TimerSelectMode =ADDIDATA_COUNTER)) */
+			/*  Enable Counter Interrupt */
+			outl(ul_Command2,
+			     devpriv->iobase + APCI1564_COUNTER1 +
+			     APCI1564_TCW_PROG);
+		}
+	} /* if  (ui_C1 == 1) */
 
-	if ((ui_C3 == 1) && (devpriv->b_TimerSelectMode = ADDIDATA_COUNTER)) {
-		/*  Disable Counter Interrupt */
-		ul_Command2 =
-			inl(devpriv->iobase + APCI1564_COUNTER3 +
-			APCI1564_TCW_PROG);
-		outl(0x0,
-			devpriv->iobase + APCI1564_COUNTER3 +
-			APCI1564_TCW_PROG);
+	if (ui_C2 == 1) {
+		devpriv->b_TimerSelectMode = ADDIDATA_COUNTER;
+		if (devpriv->b_TimerSelectMode) {
 
-		/* Send a signal to from kernel to user space */
-		send_sig(SIGIO, devpriv->tsk_Current, 0);
+			/*  Disable Counter Interrupt */
+			ul_Command2 =
+				inl(devpriv->iobase + APCI1564_COUNTER2 +
+				    APCI1564_TCW_PROG);
+			outl(0x0,
+			     devpriv->iobase + APCI1564_COUNTER2 +
+			     APCI1564_TCW_PROG);
 
-		/*  Enable Counter Interrupt */
-		outl(ul_Command2,
-			devpriv->iobase + APCI1564_COUNTER3 +
-			APCI1564_TCW_PROG);
-	}			/*  if ((ui_C3 == 1) && (devpriv->b_TimerSelectMode =ADDIDATA_COUNTER)) */
+			/* Send a signal to from kernel to user space */
+			send_sig(SIGIO, devpriv->tsk_Current, 0);
 
-	if ((ui_C4 == 1) && (devpriv->b_TimerSelectMode = ADDIDATA_COUNTER)) {
-		/*  Disable Counter Interrupt */
-		ul_Command2 =
-			inl(devpriv->iobase + APCI1564_COUNTER4 +
-			APCI1564_TCW_PROG);
-		outl(0x0,
-			devpriv->iobase + APCI1564_COUNTER4 +
-			APCI1564_TCW_PROG);
+			/*  Enable Counter Interrupt */
+			outl(ul_Command2,
+			     devpriv->iobase + APCI1564_COUNTER2 +
+			     APCI1564_TCW_PROG);
+		}
+	} /*  if  ((ui_C2 == 1) */
 
-		/* Send a signal to from kernel to user space */
-		send_sig(SIGIO, devpriv->tsk_Current, 0);
+	if (ui_C3 == 1) {
+		devpriv->b_TimerSelectMode = ADDIDATA_COUNTER;
+		if (devpriv->b_TimerSelectMode) {
 
-		/*  Enable Counter Interrupt */
-		outl(ul_Command2,
-			devpriv->iobase + APCI1564_COUNTER4 +
-			APCI1564_TCW_PROG);
-	}			/*  if ((ui_C4 == 1) && (devpriv->b_TimerSelectMode =ADDIDATA_COUNTER)) */
+			/*  Disable Counter Interrupt */
+			ul_Command2 =
+				inl(devpriv->iobase + APCI1564_COUNTER3 +
+				    APCI1564_TCW_PROG);
+			outl(0x0,
+			     devpriv->iobase + APCI1564_COUNTER3 +
+			     APCI1564_TCW_PROG);
+
+			/* Send a signal to from kernel to user space */
+			send_sig(SIGIO, devpriv->tsk_Current, 0);
+
+			/*  Enable Counter Interrupt */
+			outl(ul_Command2,
+			     devpriv->iobase + APCI1564_COUNTER3 +
+			     APCI1564_TCW_PROG);
+		}
+	}	/*  if ((ui_C3 == 1) */
+
+	if (ui_C4 == 1) {
+		devpriv->b_TimerSelectMode = ADDIDATA_COUNTER;
+		if (devpriv->b_TimerSelectMode) {
+
+			/*  Disable Counter Interrupt */
+			ul_Command2 =
+				inl(devpriv->iobase + APCI1564_COUNTER4 +
+				    APCI1564_TCW_PROG);
+			outl(0x0,
+			     devpriv->iobase + APCI1564_COUNTER4 +
+			     APCI1564_TCW_PROG);
+
+			/* Send a signal to from kernel to user space */
+			send_sig(SIGIO, devpriv->tsk_Current, 0);
+
+			/*  Enable Counter Interrupt */
+			outl(ul_Command2,
+			     devpriv->iobase + APCI1564_COUNTER4 +
+			     APCI1564_TCW_PROG);
+		}
+	}	/*  if (ui_C4 == 1) */
 	return;
 }
 

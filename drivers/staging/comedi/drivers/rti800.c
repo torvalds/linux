@@ -339,8 +339,9 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	irq = it->options[1];
 	if (irq) {
 		printk("( irq = %u )", irq);
-		if ((ret = comedi_request_irq(irq, rti800_interrupt, 0,
-					"rti800", dev)) < 0) {
+		ret = comedi_request_irq(irq, rti800_interrupt, 0,
+					 "rti800", dev);
+		if (ret < 0) {
 			printk(" Failed to allocate IRQ\n");
 			return ret;
 		}
@@ -351,9 +352,12 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = this_board->name;
 
-	if ((ret = alloc_subdevices(dev, 4)) < 0)
+	ret = alloc_subdevices(dev, 4);
+	if (ret < 0)
 		return ret;
-	if ((ret = alloc_private(dev, sizeof(struct rti800_private))) < 0)
+
+	ret = alloc_private(dev, sizeof(struct rti800_private));
+	if (ret < 0)
 		return ret;
 
 	devpriv->adc_mux = it->options[2];
