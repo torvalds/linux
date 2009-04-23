@@ -66,8 +66,8 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
  */
 
 #define USE_DMA
-//#define DEBUG 1
-//#define DEBUG_FLAGS
+/* #define DEBUG 1 */
+/* #define DEBUG_FLAGS */
 
 #include "../comedidev.h"
 
@@ -117,9 +117,9 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #define Waited				(1<<5)
 #define PrimaryTC				(1<<6)
 #define SecondaryTC				(1<<7)
-  //#define SerialRose
-  //#define ReqRose
-  //#define Paused
+  /* #define SerialRose */
+  /* #define ReqRose */
+  /* #define Paused */
 
 #define Group_1_First_Clear		6	/* W */
 #define Group_2_First_Clear		7	/* W */
@@ -206,7 +206,7 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 
 #define DMA_Line_Control_Group1		76
 #define DMA_Line_Control_Group2		108
-// channel zero is none
+/* channel zero is none */
 static inline unsigned primary_DMAChannel_bits(unsigned channel)
 {
 	return channel & 0x3;
@@ -486,7 +486,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	struct comedi_async *async = s->async;
 	struct mite_struct *mite = devpriv->mite;
 
-	//int i, j;
+	/* int i, j; */
 	long int AuxData = 0;
 	short data1 = 0;
 	short data2 = 0;
@@ -496,9 +496,9 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	unsigned int m_status = 0;
 	unsigned long irq_flags;
 
-	//interrupcions parasites
+	/* interrupcions parasites */
 	if (dev->attached == 0) {
-		// assume it's from another card
+		/* assume it's from another card */
 		return IRQ_NONE;
 	}
 
@@ -511,8 +511,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	ni_pcidio_print_flags(flags);
 	ni_pcidio_print_status(status);
 
-	//printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf);
-	//printk("buf[4096]=%08x\n",*(unsigned int *)(async->prealloc_buf+4096));
+	/* printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf); */
+	/* printk("buf[4096]=%08x\n",*(unsigned int *)(async->prealloc_buf+4096)); */
 
 	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
 	if (devpriv->di_mite_chan)
@@ -520,8 +520,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 #ifdef MITE_DEBUG
 	mite_print_chsr(m_status);
 #endif
-	//printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,DI_DMA_CHAN));
-	//mite_dump_regs(mite);
+	/* printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,DI_DMA_CHAN)); */
+	/* mite_dump_regs(mite); */
 	if (m_status & CHSR_INT) {
 		if (m_status & CHSR_LINKC) {
 			writel(CHOR_CLRLC,
@@ -552,7 +552,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 		flags &= IntEn;
 
 		if (flags & TransferReady) {
-			//DPRINTK("TransferReady\n");
+			/* DPRINTK("TransferReady\n"); */
 			while (flags & TransferReady) {
 				work++;
 				if (work > 100) {
@@ -569,14 +569,14 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 				data2 = (AuxData & 0xffff0000) >> 16;
 				comedi_buf_put(async, data1);
 				comedi_buf_put(async, data2);
-				//DPRINTK("read:%d, %d\n",data1,data2);
+				/* DPRINTK("read:%d, %d\n",data1,data2); */
 				flags = readb(devpriv->mite->daq_io_addr +
 					Group_1_Flags);
 			}
-			//DPRINTK("buf_int_count: %d\n",async->buf_int_count);
-			//DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status);
-			//ni_pcidio_print_flags(flags);
-			//ni_pcidio_print_status(status);
+			/* DPRINTK("buf_int_count: %d\n",async->buf_int_count); */
+			/* DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status); */
+			/* ni_pcidio_print_flags(flags); */
+			/* ni_pcidio_print_status(status); */
 			async->events |= COMEDI_CB_BLOCK;
 		}
 
@@ -621,10 +621,10 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 		flags = readb(devpriv->mite->daq_io_addr + Group_1_Flags);
 		status = readb(devpriv->mite->daq_io_addr +
 			Interrupt_And_Window_Status);
-		//DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n",
-		//      IntEn,flags,status);
-		//ni_pcidio_print_flags(flags);
-		//ni_pcidio_print_status(status);
+		/* DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n", */
+		/* IntEn,flags,status); */
+		/* ni_pcidio_print_flags(flags); */
+		/* ni_pcidio_print_status(status); */
 	}
 
       out:
@@ -963,7 +963,7 @@ static int ni_pcidio_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 
 	/* clear and enable interrupts */
 	writeb(0xff, devpriv->mite->daq_io_addr + Group_1_First_Clear);
-	//writeb(ClearExpired,devpriv->mite->daq_io_addr+Group_1_Second_Clear);
+	/* writeb(ClearExpired,devpriv->mite->daq_io_addr+Group_1_Second_Clear); */
 
 	writeb(IntEn, devpriv->mite->daq_io_addr + Interrupt_Control);
 	writeb(0x03,
@@ -971,7 +971,7 @@ static int ni_pcidio_cmd(struct comedi_device * dev, struct comedi_subdevice * s
 
 	if (cmd->stop_src == TRIG_NONE) {
 		devpriv->OpModeBits = DataLatching(0) | RunMode(7);
-	} else {		// TRIG_TIMER
+	} else {		/* TRIG_TIMER */
 		devpriv->OpModeBits = Numbered | RunMode(7);
 	}
 	if (cmd->start_src == TRIG_NOW) {

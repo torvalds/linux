@@ -811,35 +811,35 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	struct str_MainHeader s_MainHeader;
 	struct str_DigitalInputHeader s_DigitalInputHeader;
 	struct str_DigitalOutputHeader s_DigitalOutputHeader;
-	//struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader;
+	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
 	str_AnalogOutputHeader s_AnalogOutputHeader;
 	struct str_AnalogInputHeader s_AnalogInputHeader;
 
-	// Read size
+	/* Read size */
 	s_MainHeader.w_HeaderSize =
 		w_EepromReadWord(w_PCIBoardEepromAddress, pc_PCIChipInformation,
 		0x100 + 8);
 
-	// Read nbr of functionality
+	/* Read nbr of functionality */
 	w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
 		pc_PCIChipInformation, 0x100 + 10);
 	s_MainHeader.b_Nfunctions = (unsigned char) w_Temp & 0x00FF;
 
-	// Read functionality details
+	/* Read functionality details */
 	for (i = 0; i < s_MainHeader.b_Nfunctions; i++) {
-		// Read Type
+		/* Read Type */
 		w_Temp = w_EepromReadWord(w_PCIBoardEepromAddress,
 			pc_PCIChipInformation, 0x100 + 12 + w_Count);
 		s_MainHeader.s_Functions[i].b_Type = (unsigned char) w_Temp & 0x3F;
 		w_Count = w_Count + 2;
-		//Read Address
+		/* Read Address */
 		s_MainHeader.s_Functions[i].w_Address =
 			w_EepromReadWord(w_PCIBoardEepromAddress,
 			pc_PCIChipInformation, 0x100 + 12 + w_Count);
 		w_Count = w_Count + 2;
 	}
 
-	// Display main header info
+	/* Display main header info */
 	for (i = 0; i < s_MainHeader.b_Nfunctions; i++) {
 
 		switch (s_MainHeader.s_Functions[i].b_Type) {

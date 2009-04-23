@@ -81,7 +81,7 @@ If you do not specify any options, they will default to
 
 #include "../comedidev.h"
 
-// address scheme (page 2.17 of the manual)
+/* address scheme (page 2.17 of the manual) */
 #define ADQ12B_SIZE     16
 
 #define ADQ12B_CTREG    0x00
@@ -94,12 +94,12 @@ If you do not specify any options, they will default to
 #define ADQ12B_CONT2    0x0e
 #define ADQ12B_COWORD   0x0f
 
-// mask of the bit at STINR to check end of conversion
+/* mask of the bit at STINR to check end of conversion */
 #define ADQ12B_EOC     0x20
 
 #define TIMEOUT        20
 
-// available ranges through the PGA gains
+/* available ranges through the PGA gains */
 static const struct comedi_lrange range_adq12b_ai_bipolar = { 4, {
         BIP_RANGE(5),
         BIP_RANGE(2),
@@ -134,7 +134,7 @@ static const struct adq12b_board adq12b_boards[] = {
 	.di_chans = 5,
 	.do_chans = 8
         }
-// potentially, more adq-based deviced will be added
+/* potentially, more adq-based deviced will be added */
 /*,
 	.name = "adq12b",
 	.ai_chans = 16,  // this is just for reference, hardcoded again later
@@ -337,17 +337,17 @@ static int adq12b_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
           /* wait for end of convertion */
 	  i = 0;
           do {
-//            comedi_udelay(1);
+/* comedi_udelay(1); */
 	    status = inb(dev->iobase + ADQ12B_STINR);
             status = status & ADQ12B_EOC;
           } while (status == 0 && ++i < TIMEOUT);
-//          } while (++i < 10);
+/* } while (++i < 10); */
 
           /* read data */
           hi = inb(dev->iobase + ADQ12B_ADHIG);
           lo = inb(dev->iobase + ADQ12B_ADLOW);
 
-          //rt_printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n", channel, range, status,  hi, lo);
+          /* rt_printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n", channel, range, status,  hi, lo); */
           data[n] = (hi << 8) | lo;
 
         }
