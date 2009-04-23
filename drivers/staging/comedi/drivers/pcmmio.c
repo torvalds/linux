@@ -179,19 +179,19 @@ static const struct comedi_lrange ranges_ao =
 
 static const struct pcmmio_board pcmmio_boards[] = {
 	{
-	      name:	"pcmmio",
-	      dio_num_asics:1,
-	      dio_num_ports:6,
-	      total_iosize:32,
-	      ai_bits:	16,
-	      ao_bits:	16,
-	      n_ai_chans:16,
-	      n_ao_chans:8,
-	      ai_range_table:&ranges_ai,
-	      ao_range_table:&ranges_ao,
-	      ai_rinsn:ai_rinsn,
-	      ao_rinsn:ao_rinsn,
-      ao_winsn:ao_winsn},
+	.name = "pcmmio",
+	.dio_num_asics = 1,
+	.dio_num_ports = 6,
+	.total_iosize = 32,
+	.ai_bits = 16,
+	.ao_bits = 16,
+	.n_ai_chans = 16,
+	.n_ao_chans = 8,
+	.ai_range_table = &ranges_ai,
+	.ao_range_table = &ranges_ao,
+	.ai_rinsn = ai_rinsn,
+	.ao_rinsn = ao_rinsn,
+	.ao_winsn = ao_winsn},
 };
 
 /*
@@ -268,10 +268,10 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int pcmmio_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver = {
-      driver_name:"pcmmio",
-      module:THIS_MODULE,
-      attach:pcmmio_attach,
-      detach:pcmmio_detach,
+	.driver_name = "pcmmio",
+	.module = THIS_MODULE,
+	.attach = pcmmio_attach,
+	.detach = pcmmio_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -290,9 +290,9 @@ static struct comedi_driver driver = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      board_name:&pcmmio_boards[0].name,
-      offset:sizeof(struct pcmmio_board),
-      num_names:sizeof(pcmmio_boards) / sizeof(struct pcmmio_board),
+	.board_name = &pcmmio_boards[0].name,
+	.offset = sizeof(struct pcmmio_board),
+	.num_names = sizeof(pcmmio_boards) / sizeof(struct pcmmio_board),
 };
 
 static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,

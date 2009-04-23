@@ -116,15 +116,15 @@ struct pci1723_board {
 
 static const struct pci1723_board boardtypes[] = {
 	{
-	      name:	"pci1723",
-	      vendor_id:ADVANTECH_VENDOR,
-	      device_id:0x1723,
-	      iorange:	IORANGE_1723,
-	      cardtype:TYPE_PCI1723,
-	      n_aochan:8,
-	      n_diochan:16,
-	      ao_maxdata:0xffff,
-	      rangelist_ao:&range_pci1723,
+	.name = "pci1723",
+	.vendor_id = ADVANTECH_VENDOR,
+	.device_id = 0x1723,
+	.iorange = IORANGE_1723,
+	.cardtype = TYPE_PCI1723,
+	.n_aochan = 8,
+	.n_diochan = 16,
+	.ao_maxdata = 0xffff,
+	.rangelist_ao = &range_pci1723,
 		},
 };
 
@@ -149,10 +149,10 @@ static int pci1723_detach(struct comedi_device *dev);
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct pci1723_board))
 
 static struct comedi_driver driver_pci1723 = {
-      driver_name:"adv_pci1723",
-      module:THIS_MODULE,
-      attach:pci1723_attach,
-      detach:pci1723_detach,
+	.driver_name = "adv_pci1723",
+	.module = THIS_MODULE,
+	.attach = pci1723_attach,
+	.detach = pci1723_detach,
 };
 
 /* this structure is for data unique to this hardware driver. */

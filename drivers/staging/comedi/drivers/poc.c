@@ -70,33 +70,33 @@ struct boarddef_struct {
 };
 static const struct boarddef_struct boards[] = {
 	{
-	      name:	"dac02",
-	      iosize:	8,
-			/* setup:                dac02_setup, */
-	      type:	COMEDI_SUBD_AO,
-	      n_chan:	2,
-	      n_bits:	12,
-	      winsn:	dac02_ao_winsn,
-	      rinsn:	readback_insn,
-	      range:	&range_unknown,
+	.name = "dac02",
+	.iosize = 8,
+			/*	.setup = dac02_setup, */
+	.type = COMEDI_SUBD_AO,
+	.n_chan = 2,
+	.n_bits = 12,
+	.winsn = dac02_ao_winsn,
+	.rinsn = readback_insn,
+	.range = &range_unknown,
 		},
 	{
-	      name:	"pcl733",
-	      iosize:	4,
-	      type:	COMEDI_SUBD_DI,
-	      n_chan:	32,
-	      n_bits:	1,
-	      insnbits:pcl733_insn_bits,
-	      range:	&range_digital,
+	.name = "pcl733",
+	.iosize = 4,
+	.type = COMEDI_SUBD_DI,
+	.n_chan = 32,
+	.n_bits = 1,
+	.insnbits = pcl733_insn_bits,
+	.range = &range_digital,
 		},
 	{
-	      name:	"pcl734",
-	      iosize:	4,
-	      type:	COMEDI_SUBD_DO,
-	      n_chan:	32,
-	      n_bits:	1,
-	      insnbits:pcl734_insn_bits,
-	      range:	&range_digital,
+	.name = "pcl734",
+	.iosize = 4,
+	.type = COMEDI_SUBD_DO,
+	.n_chan = 32,
+	.n_bits = 1,
+	.insnbits = pcl734_insn_bits,
+	.range = &range_digital,
 		},
 };
 
@@ -104,13 +104,13 @@ static const struct boarddef_struct boards[] = {
 #define this_board ((const struct boarddef_struct *)dev->board_ptr)
 
 static struct comedi_driver driver_poc = {
-      driver_name:"poc",
-      module:THIS_MODULE,
-      attach:poc_attach,
-      detach:poc_detach,
-      board_name:&boards[0].name,
-      num_names:n_boards,
-      offset:sizeof(boards[0]),
+	.driver_name = "poc",
+	.module = THIS_MODULE,
+	.attach = poc_attach,
+	.detach = poc_detach,
+	.board_name = &boards[0].name,
+	.num_names = n_boards,
+	.offset = sizeof(boards[0]),
 };
 
 static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)

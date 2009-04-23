@@ -83,31 +83,31 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static const struct labpc_board_struct labpc_cs_boards[] = {
 	{
-	      name:	"daqcard-1200",
-	      device_id:0x103,	/*  0x10b is manufacturer id, 0x103 is device id */
-	      ai_speed:10000,
-	      bustype:	pcmcia_bustype,
-	      register_layout:labpc_1200_layout,
-	      has_ao:	1,
-	      ai_range_table:&range_labpc_1200_ai,
-	      ai_range_code:labpc_1200_ai_gain_bits,
-	      ai_range_is_unipolar:labpc_1200_is_unipolar,
-	      ai_scan_up:0,
-	      memory_mapped_io:0,
+	.name = "daqcard-1200",
+	.device_id = 0x103,	/*  0x10b is manufacturer id, 0x103 is device id */
+	.ai_speed = 10000,
+	.bustype = pcmcia_bustype,
+	.register_layout = labpc_1200_layout,
+	.has_ao = 1,
+	.ai_range_table = &range_labpc_1200_ai,
+	.ai_range_code = labpc_1200_ai_gain_bits,
+	.ai_range_is_unipolar = labpc_1200_is_unipolar,
+	.ai_scan_up = 0,
+	.memory_mapped_io = 0,
 		},
 	/* duplicate entry, to support using alternate name */
 	{
-	      name:	"ni_labpc_cs",
-	      device_id:0x103,
-	      ai_speed:10000,
-	      bustype:	pcmcia_bustype,
-	      register_layout:labpc_1200_layout,
-	      has_ao:	1,
-	      ai_range_table:&range_labpc_1200_ai,
-	      ai_range_code:labpc_1200_ai_gain_bits,
-	      ai_range_is_unipolar:labpc_1200_is_unipolar,
-	      ai_scan_up:0,
-	      memory_mapped_io:0,
+	.name = "ni_labpc_cs",
+	.device_id = 0x103,
+	.ai_speed = 10000,
+	.bustype = pcmcia_bustype,
+	.register_layout = labpc_1200_layout,
+	.has_ao = 1,
+	.ai_range_table = &range_labpc_1200_ai,
+	.ai_range_code = labpc_1200_ai_gain_bits,
+	.ai_range_is_unipolar = labpc_1200_is_unipolar,
+	.ai_scan_up = 0,
+	.memory_mapped_io = 0,
 		},
 };
 

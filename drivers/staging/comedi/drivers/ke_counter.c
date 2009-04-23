@@ -72,10 +72,10 @@ struct cnt_board_struct {
 
 static const struct cnt_board_struct cnt_boards[] = {
 	{
-	      name:	CNT_DRIVER_NAME,
-	      device_id:CNT_CARD_DEVICE_ID,
-	      cnt_channel_nbr:3,
-      cnt_bits:24}
+	.name = CNT_DRIVER_NAME,
+	.device_id = CNT_CARD_DEVICE_ID,
+	.cnt_channel_nbr = 3,
+	.cnt_bits = 24}
 };
 
 #define cnt_board_nbr (sizeof(cnt_boards)/sizeof(struct cnt_board_struct))
@@ -91,10 +91,10 @@ struct cnt_device_private {
 #define devpriv ((struct cnt_device_private *)dev->private)
 
 static struct comedi_driver cnt_driver = {
-      driver_name:CNT_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:cnt_attach,
-      detach:cnt_detach,
+	.driver_name = CNT_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = cnt_attach,
+	.detach = cnt_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(cnt_driver, cnt_pci_table);

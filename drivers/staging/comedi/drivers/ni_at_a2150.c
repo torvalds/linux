@@ -138,16 +138,16 @@ static const struct comedi_lrange range_a2150 = {
 enum { a2150_c, a2150_s };
 static const struct a2150_board a2150_boards[] = {
 	{
-	      name:	"at-a2150c",
-	      clock:	{31250, 22676, 20833, 19531},
-	      num_clocks:4,
-	      ai_speed:19531,
+	.name = "at-a2150c",
+	.clock = {31250, 22676, 20833, 19531},
+	.num_clocks = 4,
+	.ai_speed = 19531,
 		},
 	{
-	      name:	"at-a2150s",
-	      clock:	{62500, 50000, 41667, 0},
-	      num_clocks:3,
-	      ai_speed:41667,
+	.name = "at-a2150s",
+	.clock = {62500, 50000, 41667, 0},
+	.num_clocks = 3,
+	.ai_speed = 41667,
 		},
 };
 
@@ -174,10 +174,10 @@ static int a2150_detach(struct comedi_device *dev);
 static int a2150_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static struct comedi_driver driver_a2150 = {
-      driver_name:"ni_at_a2150",
-      module:THIS_MODULE,
-      attach:a2150_attach,
-      detach:a2150_detach,
+	.driver_name = "ni_at_a2150",
+	.module = THIS_MODULE,
+	.attach = a2150_attach,
+	.detach = a2150_detach,
 };
 
 static irqreturn_t a2150_interrupt(int irq, void *d);

@@ -78,10 +78,10 @@ struct contec_private {
 static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int contec_detach(struct comedi_device *dev);
 static struct comedi_driver driver_contec = {
-      driver_name:"contec_pci_dio",
-      module:THIS_MODULE,
-      attach:contec_attach,
-      detach:contec_detach,
+	.driver_name = "contec_pci_dio",
+	.module = THIS_MODULE,
+	.attach = contec_attach,
+	.detach = contec_detach,
 };
 
 /* Classic digital IO */

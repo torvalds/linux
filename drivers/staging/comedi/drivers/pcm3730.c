@@ -31,10 +31,10 @@ Configuration options:
 static int pcm3730_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pcm3730_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcm3730 = {
-      driver_name:"pcm3730",
-      module:THIS_MODULE,
-      attach:pcm3730_attach,
-      detach:pcm3730_detach,
+	.driver_name = "pcm3730",
+	.module = THIS_MODULE,
+	.attach = pcm3730_attach,
+	.detach = pcm3730_detach,
 };
 
 COMEDI_INITCLEANUP(driver_pcm3730);

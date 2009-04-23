@@ -118,15 +118,15 @@ enum DIO_METHODS {
 
 static const struct board_struct boards[] = {
 	{
-	      name:	"cb_pcimdda06-16",
-	      device_id:PCI_ID_PCIM_DDA06_16,
-	      ao_chans:6,
-	      ao_bits:	16,
-	      dio_chans:24,
-	      dio_method:DIO_8255,
-	      dio_offset:12,
-	      regs_badrindex:3,
-	      reg_sz:	16,
+	.name = "cb_pcimdda06-16",
+	.device_id = PCI_ID_PCIM_DDA06_16,
+	.ao_chans = 6,
+	.ao_bits = 16,
+	.dio_chans = 24,
+	.dio_method = DIO_8255,
+	.dio_offset = 12,
+	.regs_badrindex = 3,
+	.reg_sz = 16,
 		}
 };
 
@@ -184,10 +184,10 @@ struct board_private_struct {
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int detach(struct comedi_device *dev);
 static struct comedi_driver cb_pcimdda_driver = {
-      driver_name:"cb_pcimdda",
-      module:THIS_MODULE,
-      attach:attach,
-      detach:detach,
+	.driver_name = "cb_pcimdda",
+	.module = THIS_MODULE,
+	.attach = attach,
+	.detach = detach,
 };
 
 MODULE_AUTHOR("Calin A. Culianu <calin@rtlab.org>");

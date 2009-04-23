@@ -102,21 +102,21 @@ struct cb_pcimdas_board {
 
 static const struct cb_pcimdas_board cb_pcimdas_boards[] = {
 	{
-	      name:	"PCIM-DAS1602/16",
-	      device_id:0x56,
-	      ai_se_chans:16,
-	      ai_diff_chans:8,
-	      ai_bits:	16,
-	      ai_speed:10000,	/* ?? */
-	      ao_nchan:2,
-	      ao_bits:	12,
-	      has_ao_fifo:0,	/* ?? */
-	      ao_scan_speed:10000,
+	.name = "PCIM-DAS1602/16",
+	.device_id = 0x56,
+	.ai_se_chans = 16,
+	.ai_diff_chans = 8,
+	.ai_bits = 16,
+	.ai_speed = 10000,	/* ?? */
+	.ao_nchan = 2,
+	.ao_bits = 12,
+	.has_ao_fifo = 0,	/* ?? */
+	.ao_scan_speed = 10000,
 			/* ?? */
-	      fifo_size:1024,
-	      dio_bits:24,
-	      has_dio:	1,
-/* ranges:         &cb_pcimdas_ranges, */
+	.fifo_size = 1024,
+	.dio_bits = 24,
+	.has_dio = 1,
+/*	.ranges = &cb_pcimdas_ranges, */
 		},
 };
 
@@ -178,10 +178,10 @@ struct cb_pcimdas_private {
 static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int cb_pcimdas_detach(struct comedi_device *dev);
 static struct comedi_driver driver_cb_pcimdas = {
-      driver_name:"cb_pcimdas",
-      module:THIS_MODULE,
-      attach:cb_pcimdas_attach,
-      detach:cb_pcimdas_detach,
+	.driver_name = "cb_pcimdas",
+	.module = THIS_MODULE,
+	.attach = cb_pcimdas_attach,
+	.detach = cb_pcimdas_detach,
 };
 
 static int cb_pcimdas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,

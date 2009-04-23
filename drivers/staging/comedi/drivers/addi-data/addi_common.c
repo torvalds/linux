@@ -901,7 +901,7 @@ static const struct addi_board boardtypes[] = {
 		NULL},
 #endif
 #ifdef CONFIG_APCI_3300
-	/* Begin JK 20.10.2004: APCI-3300 integration */
+	/* Begin JK	.20.10.2004 = APCI-3300 integration */
 	{"apci3300",
 			APCI3200_BOARD_VENDOR_ID,
 			0x3007,
@@ -2528,13 +2528,13 @@ static const struct addi_board boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct addi_board))
 
 struct comedi_driver driver_addi = {
-      driver_name:"addi_common",
-      module:THIS_MODULE,
-      attach:i_ADDI_Attach,
-      detach:i_ADDI_Detach,
-      num_names:n_boardtypes,
-      board_name:&boardtypes[0].pc_DriverName,
-      offset:sizeof(struct addi_board),
+	.driver_name = "addi_common",
+	.module = THIS_MODULE,
+	.attach = i_ADDI_Attach,
+	.detach = i_ADDI_Detach,
+	.num_names = n_boardtypes,
+	.board_name = &boardtypes[0].pc_DriverName,
+	.offset = sizeof(struct addi_board),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_addi, addi_apci_tbl);

@@ -169,14 +169,14 @@ struct s526_board {
 
 static const struct s526_board s526_boards[] = {
 	{
-	      name:	"s526",
-	      gpct_chans:4,
-	      gpct_bits:24,
-	      ad_chans:8,
-	      ad_bits:	16,
-	      da_chans:4,
-	      da_bits:	16,
-	      have_dio:1,
+	.name = "s526",
+	.gpct_chans = 4,
+	.gpct_bits = 24,
+	.ad_chans = 8,
+	.ad_bits = 16,
+	.da_chans = 4,
+	.da_bits = 16,
+	.have_dio = 1,
 		}
 };
 
@@ -220,10 +220,10 @@ struct s526_private {
 static int s526_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int s526_detach(struct comedi_device *dev);
 static struct comedi_driver driver_s526 = {
-      driver_name:"s526",
-      module:THIS_MODULE,
-      attach:s526_attach,
-      detach:s526_detach,
+	.driver_name = "s526",
+	.module = THIS_MODULE,
+	.attach = s526_attach,
+	.detach = s526_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -242,9 +242,9 @@ static struct comedi_driver driver_s526 = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      board_name:&s526_boards[0].name,
-      offset:sizeof(struct s526_board),
-      num_names:sizeof(s526_boards) / sizeof(struct s526_board),
+	.board_name = &s526_boards[0].name,
+	.offset = sizeof(struct s526_board),
+	.num_names = sizeof(s526_boards) / sizeof(struct s526_board),
 };
 
 static int s526_gpct_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,

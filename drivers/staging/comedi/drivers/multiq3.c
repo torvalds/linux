@@ -85,10 +85,10 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 static int multiq3_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int multiq3_detach(struct comedi_device *dev);
 static struct comedi_driver driver_multiq3 = {
-      driver_name:"multiq3",
-      module:THIS_MODULE,
-      attach:multiq3_attach,
-      detach:multiq3_detach,
+	.driver_name = "multiq3",
+	.module = THIS_MODULE,
+	.attach = multiq3_attach,
+	.detach = multiq3_detach,
 };
 
 COMEDI_INITCLEANUP(driver_multiq3);

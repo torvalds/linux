@@ -309,27 +309,27 @@ struct pci9111_board {
 
 static const struct pci9111_board pci9111_boards[] = {
 	{
-	      name:	"pci9111_hr",
-	      device_id:PCI9111_HR_DEVICE_ID,
-	      ai_channel_nbr:PCI9111_AI_CHANNEL_NBR,
-	      ao_channel_nbr:PCI9111_AO_CHANNEL_NBR,
-	      ai_resolution:PCI9111_HR_AI_RESOLUTION,
-	      ai_resolution_mask:PCI9111_HR_AI_RESOLUTION_MASK,
-	      ao_resolution:PCI9111_AO_RESOLUTION,
-	      ao_resolution_mask:PCI9111_AO_RESOLUTION_MASK,
-	      ai_range_list:&pci9111_hr_ai_range,
-	      ao_range_list:&range_bipolar10,
-      ai_acquisition_period_min_ns:PCI9111_AI_ACQUISITION_PERIOD_MIN_NS}
+	.name = "pci9111_hr",
+	.device_id = PCI9111_HR_DEVICE_ID,
+	.ai_channel_nbr = PCI9111_AI_CHANNEL_NBR,
+	.ao_channel_nbr = PCI9111_AO_CHANNEL_NBR,
+	.ai_resolution = PCI9111_HR_AI_RESOLUTION,
+	.ai_resolution_mask = PCI9111_HR_AI_RESOLUTION_MASK,
+	.ao_resolution = PCI9111_AO_RESOLUTION,
+	.ao_resolution_mask = PCI9111_AO_RESOLUTION_MASK,
+	.ai_range_list = &pci9111_hr_ai_range,
+	.ao_range_list = &range_bipolar10,
+	.ai_acquisition_period_min_ns = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS}
 };
 
 #define pci9111_board_nbr \
   (sizeof(pci9111_boards)/sizeof(struct pci9111_board))
 
 static struct comedi_driver pci9111_driver = {
-      driver_name:PCI9111_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pci9111_attach,
-      detach:pci9111_detach,
+	.driver_name = PCI9111_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = pci9111_attach,
+	.detach = pci9111_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(pci9111_driver, pci9111_pci_table);

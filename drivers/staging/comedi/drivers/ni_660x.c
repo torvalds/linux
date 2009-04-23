@@ -387,24 +387,24 @@ struct ni_660x_board {
 
 static const struct ni_660x_board ni_660x_boards[] = {
 	{
-	      dev_id:	0x2c60,
-	      name:	"PCI-6601",
-	      n_chips:	1,
+	.dev_id = 0x2c60,
+	.name = "PCI-6601",
+	.n_chips = 1,
 		},
 	{
-	      dev_id:	0x1310,
-	      name:	"PCI-6602",
-	      n_chips:	2,
+	.dev_id = 0x1310,
+	.name = "PCI-6602",
+	.n_chips = 2,
 		},
 	{
-	      dev_id:	0x1360,
-	      name:	"PXI-6602",
-	      n_chips:	2,
+	.dev_id = 0x1360,
+	.name = "PXI-6602",
+	.n_chips = 2,
 		},
 	{
-	      dev_id:	0x2cc0,
-	      name:	"PXI-6608",
-	      n_chips:	2,
+	.dev_id = 0x2cc0,
+	.name = "PXI-6608",
+	.n_chips = 2,
 		},
 };
 
@@ -455,10 +455,10 @@ static void ni_660x_select_pfi_output(struct comedi_device *dev, unsigned pfi_ch
 	unsigned output_select);
 
 static struct comedi_driver driver_ni_660x = {
-      driver_name:"ni_660x",
-      module:THIS_MODULE,
-      attach:ni_660x_attach,
-      detach:ni_660x_detach,
+	.driver_name = "ni_660x",
+	.module = THIS_MODULE,
+	.attach = ni_660x_attach,
+	.detach = ni_660x_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_ni_660x, ni_660x_pci_table);

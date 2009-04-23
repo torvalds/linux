@@ -78,10 +78,10 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int ni6527_detach(struct comedi_device *dev);
 static struct comedi_driver driver_ni6527 = {
-      driver_name:"ni6527",
-      module:THIS_MODULE,
-      attach:ni6527_attach,
-      detach:ni6527_detach,
+	.driver_name = "ni6527",
+	.module = THIS_MODULE,
+	.attach = ni6527_attach,
+	.detach = ni6527_detach,
 };
 
 struct ni6527_board {
@@ -92,12 +92,12 @@ struct ni6527_board {
 
 static const struct ni6527_board ni6527_boards[] = {
 	{
-	      dev_id:	0x2b20,
-	      name:	"pci-6527",
+	.dev_id = 0x2b20,
+	.name = "pci-6527",
 		},
 	{
-	      dev_id:	0x2b10,
-	      name:	"pxi-6527",
+	.dev_id = 0x2b10,
+	.name = "pxi-6527",
 		},
 };
 

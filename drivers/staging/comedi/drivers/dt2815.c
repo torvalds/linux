@@ -78,10 +78,10 @@ static const struct comedi_lrange range_dt2815_ao_20_current = { 1, {
 static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int dt2815_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dt2815 = {
-      driver_name:"dt2815",
-      module:THIS_MODULE,
-      attach:dt2815_attach,
-      detach:dt2815_detach,
+	.driver_name = "dt2815",
+	.module = THIS_MODULE,
+	.attach = dt2815_attach,
+	.detach = dt2815_detach,
 };
 
 COMEDI_INITCLEANUP(driver_dt2815);

@@ -155,14 +155,14 @@ struct pcmuio_board {
 
 static const struct pcmuio_board pcmuio_boards[] = {
 	{
-	      name:	"pcmuio48",
-	      num_asics:1,
-	      num_ports:6,
+	.name = "pcmuio48",
+	.num_asics = 1,
+	.num_ports = 6,
 		},
 	{
-	      name:	"pcmuio96",
-	      num_asics:2,
-	      num_ports:12,
+	.name = "pcmuio96",
+	.num_asics = 2,
+	.num_ports = 12,
 		},
 };
 
@@ -226,10 +226,10 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int pcmuio_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver = {
-      driver_name:"pcmuio",
-      module:THIS_MODULE,
-      attach:pcmuio_attach,
-      detach:pcmuio_detach,
+	.driver_name = "pcmuio",
+	.module = THIS_MODULE,
+	.attach = pcmuio_attach,
+	.detach = pcmuio_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -248,9 +248,9 @@ static struct comedi_driver driver = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      board_name:&pcmuio_boards[0].name,
-      offset:sizeof(struct pcmuio_board),
-      num_names:sizeof(pcmuio_boards) / sizeof(struct pcmuio_board),
+	.board_name = &pcmuio_boards[0].name,
+	.offset = sizeof(struct pcmuio_board),
+	.num_names = sizeof(pcmuio_boards) / sizeof(struct pcmuio_board),
 };
 
 static int pcmuio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,

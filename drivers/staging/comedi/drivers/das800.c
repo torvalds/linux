@@ -184,46 +184,46 @@ enum { das800, ciodas800, das801, ciodas801, das802, ciodas802, ciodas80216 };
 
 static const struct das800_board das800_boards[] = {
 	{
-	      name:	"das-800",
-	      ai_speed:25000,
-	      ai_range:&range_das800_ai,
-	      resolution:12,
+	.name = "das-800",
+	.ai_speed = 25000,
+	.ai_range = &range_das800_ai,
+	.resolution = 12,
 		},
 	{
-	      name:	"cio-das800",
-	      ai_speed:20000,
-	      ai_range:&range_das800_ai,
-	      resolution:12,
+	.name = "cio-das800",
+	.ai_speed = 20000,
+	.ai_range = &range_das800_ai,
+	.resolution = 12,
 		},
 	{
-	      name:	"das-801",
-	      ai_speed:25000,
-	      ai_range:&range_das801_ai,
-	      resolution:12,
+	.name = "das-801",
+	.ai_speed = 25000,
+	.ai_range = &range_das801_ai,
+	.resolution = 12,
 		},
 	{
-	      name:	"cio-das801",
-	      ai_speed:20000,
-	      ai_range:&range_cio_das801_ai,
-	      resolution:12,
+	.name = "cio-das801",
+	.ai_speed = 20000,
+	.ai_range = &range_cio_das801_ai,
+	.resolution = 12,
 		},
 	{
-	      name:	"das-802",
-	      ai_speed:25000,
-	      ai_range:&range_das802_ai,
-	      resolution:12,
+	.name = "das-802",
+	.ai_speed = 25000,
+	.ai_range = &range_das802_ai,
+	.resolution = 12,
 		},
 	{
-	      name:	"cio-das802",
-	      ai_speed:20000,
-	      ai_range:&range_das802_ai,
-	      resolution:12,
+	.name = "cio-das802",
+	.ai_speed = 20000,
+	.ai_range = &range_das802_ai,
+	.resolution = 12,
 		},
 	{
-	      name:	"cio-das802/16",
-	      ai_speed:10000,
-	      ai_range:&range_das80216_ai,
-	      resolution:16,
+	.name = "cio-das802/16",
+	.ai_speed = 10000,
+	.ai_range = &range_das80216_ai,
+	.resolution = 16,
 		},
 };
 
@@ -247,13 +247,13 @@ static int das800_detach(struct comedi_device *dev);
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
 static struct comedi_driver driver_das800 = {
-      driver_name:"das800",
-      module:THIS_MODULE,
-      attach:das800_attach,
-      detach:das800_detach,
-      num_names:sizeof(das800_boards) / sizeof(struct das800_board),
-      board_name:&das800_boards[0].name,
-      offset:sizeof(struct das800_board),
+	.driver_name = "das800",
+	.module = THIS_MODULE,
+	.attach = das800_attach,
+	.detach = das800_detach,
+	.num_names = sizeof(das800_boards) / sizeof(struct das800_board),
+	.board_name = &das800_boards[0].name,
+	.offset = sizeof(struct das800_board),
 };
 
 static irqreturn_t das800_interrupt(int irq, void *d);

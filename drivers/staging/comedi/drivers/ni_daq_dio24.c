@@ -73,16 +73,16 @@ struct dio24_board_struct {
 
 static const struct dio24_board_struct dio24_boards[] = {
 	{
-	      name:	"daqcard-dio24",
-	      device_id:0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
-	      bustype:	pcmcia_bustype,
-	      have_dio:1,
+	.name = "daqcard-dio24",
+	.device_id = 0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
+	.bustype = pcmcia_bustype,
+	.have_dio = 1,
 		},
 	{
-	      name:	"ni_daq_dio24",
-	      device_id:0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
-	      bustype:	pcmcia_bustype,
-	      have_dio:1,
+	.name = "ni_daq_dio24",
+	.device_id = 0x475c,/*  0x10b is manufacturer id, 0x475c is device id */
+	.bustype = pcmcia_bustype,
+	.have_dio = 1,
 		},
 };
 
@@ -100,13 +100,13 @@ struct dio24_private {
 #define devpriv ((struct dio24_private *)dev->private)
 
 static struct comedi_driver driver_dio24 = {
-      driver_name:"ni_daq_dio24",
-      module:THIS_MODULE,
-      attach:dio24_attach,
-      detach:dio24_detach,
-      num_names:sizeof(dio24_boards) / sizeof(struct dio24_board_struct),
-      board_name:&dio24_boards[0].name,
-      offset:sizeof(struct dio24_board_struct),
+	.driver_name = "ni_daq_dio24",
+	.module = THIS_MODULE,
+	.attach = dio24_attach,
+	.detach = dio24_detach,
+	.num_names = sizeof(dio24_boards) / sizeof(struct dio24_board_struct),
+	.board_name = &dio24_boards[0].name,
+	.offset = sizeof(struct dio24_board_struct),
 };
 
 static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)

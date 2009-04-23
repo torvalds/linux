@@ -159,13 +159,13 @@ static const struct pcl711_board boardtypes[] = {
 static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pcl711_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcl711 = {
-      driver_name:"pcl711",
-      module:THIS_MODULE,
-      attach:pcl711_attach,
-      detach:pcl711_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(struct pcl711_board),
+	.driver_name = "pcl711",
+	.module = THIS_MODULE,
+	.attach = pcl711_attach,
+	.detach = pcl711_detach,
+	.board_name = &boardtypes[0].name,
+	.num_names = n_boardtypes,
+	.offset = sizeof(struct pcl711_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl711);

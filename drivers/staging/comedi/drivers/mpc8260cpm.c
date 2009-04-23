@@ -49,10 +49,10 @@ struct mpc8260cpm_private {
 static int mpc8260cpm_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int mpc8260cpm_detach(struct comedi_device *dev);
 static struct comedi_driver driver_mpc8260cpm = {
-      driver_name:"mpc8260cpm",
-      module:THIS_MODULE,
-      attach:mpc8260cpm_attach,
-      detach:mpc8260cpm_detach,
+	.driver_name = "mpc8260cpm",
+	.module = THIS_MODULE,
+	.attach = mpc8260cpm_attach,
+	.detach = mpc8260cpm_detach,
 };
 
 COMEDI_INITCLEANUP(driver_mpc8260cpm);

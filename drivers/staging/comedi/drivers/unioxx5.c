@@ -103,10 +103,10 @@ static int __unioxx5_define_chan_offset(int chan_num);
 static void __unioxx5_analog_config(struct unioxx5_subd_priv *usp, int channel);
 
 static struct comedi_driver unioxx5_driver = {
-      driver_name:DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:unioxx5_attach,
-      detach:unioxx5_detach
+	.driver_name = DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = unioxx5_attach,
+	.detach = unioxx5_detach
 };
 
 COMEDI_INITCLEANUP(unioxx5_driver);

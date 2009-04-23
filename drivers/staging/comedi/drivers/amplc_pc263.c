@@ -74,27 +74,27 @@ struct pc263_board {
 };
 static const struct pc263_board pc263_boards[] = {
 	{
-	      name:	"pc263",
-	      fancy_name:"PC263",
-	      bustype:	isa_bustype,
-	      model:	pc263_model,
+	.name = "pc263",
+	.fancy_name = "PC263",
+	.bustype = isa_bustype,
+	.model = pc263_model,
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	"pci263",
-	      fancy_name:"PCI263",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI263,
-	      bustype:	pci_bustype,
-	      model:	pci263_model,
+	.name = "pci263",
+	.fancy_name = "PCI263",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI263,
+	.bustype = pci_bustype,
+	.model = pci263_model,
 		},
 #endif
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	PC263_DRIVER_NAME,
-	      fancy_name:PC263_DRIVER_NAME,
-	      devid:	PCI_DEVICE_ID_INVALID,
-	      bustype:	pci_bustype,
-	      model:	anypci_model,	/* wildcard */
+	.name = PC263_DRIVER_NAME,
+	.fancy_name = PC263_DRIVER_NAME,
+	.devid = PCI_DEVICE_ID_INVALID,
+	.bustype = pci_bustype,
+	.model = anypci_model,	/* wildcard */
 		},
 #endif
 };
@@ -135,13 +135,13 @@ struct pc263_private {
 static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pc263_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pc263 = {
-      driver_name:PC263_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pc263_attach,
-      detach:pc263_detach,
-      board_name:&pc263_boards[0].name,
-      offset:sizeof(struct pc263_board),
-      num_names:sizeof(pc263_boards) / sizeof(struct pc263_board),
+	.driver_name = PC263_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = pc263_attach,
+	.detach = pc263_detach,
+	.board_name = &pc263_boards[0].name,
+	.offset = sizeof(struct pc263_board),
+	.num_names = sizeof(pc263_boards) / sizeof(struct pc263_board),
 };
 
 static int pc263_request_region(unsigned minor, unsigned long from,

@@ -63,22 +63,22 @@ struct pcidio_board {
 
 static const struct pcidio_board pcidio_boards[] = {
 	{
-	      name:	"pci-dio24",
-	      n_8255:	1,
-	      pcicontroler_badrindex:1,
-	      dioregs_badrindex:2,
+	.name = "pci-dio24",
+	.n_8255 = 1,
+	.pcicontroler_badrindex = 1,
+	.dioregs_badrindex = 2,
 		},
 	{
-	      name:	"pci-dio24h",
-	      n_8255:	1,
-	      pcicontroler_badrindex:1,
-	      dioregs_badrindex:2,
+	.name = "pci-dio24h",
+	.n_8255 = 1,
+	.pcicontroler_badrindex = 1,
+	.dioregs_badrindex = 2,
 		},
 	{
-	      name:	"pci-dio48h",
-	      n_8255:	2,
-	      pcicontroler_badrindex:0,
-	      dioregs_badrindex:1,
+	.name = "pci-dio48h",
+	.n_8255 = 2,
+	.pcicontroler_badrindex = 0,
+	.dioregs_badrindex = 1,
 		},
 };
 
@@ -130,10 +130,10 @@ struct pcidio_private {
 static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pcidio_detach(struct comedi_device *dev);
 static struct comedi_driver driver_cb_pcidio = {
-      driver_name:"cb_pcidio",
-      module:THIS_MODULE,
-      attach:pcidio_attach,
-      detach:pcidio_detach,
+	.driver_name = "cb_pcidio",
+	.module = THIS_MODULE,
+	.attach = pcidio_attach,
+	.detach = pcidio_detach,
 
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
@@ -158,9 +158,9 @@ static struct comedi_driver driver_cb_pcidio = {
 /* The following fields should NOT be initialized if you are dealing
  * with PCI devices
  *
- *         board_name:	pcidio_boards,
- *         offset:	sizeof(struct pcidio_board),
- *         num_names: 	sizeof(pcidio_boards) / sizeof(structpcidio_board),
+ *	.board_name = pcidio_boards,
+ *	.offset = sizeof(struct pcidio_board),
+ *	.num_names = sizeof(pcidio_boards) / sizeof(structpcidio_board),
  */
 
 };

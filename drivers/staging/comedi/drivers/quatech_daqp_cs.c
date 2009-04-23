@@ -179,8 +179,8 @@ static struct local_info_t *dev_table[MAX_DEV] = { NULL, /* ... */  };
 #define DAQP_AUX_FIFO_EMPTY		0x01
 
 /* These range structures tell COMEDI how the sample values map to
- * voltages.  The A/D converter has four ranges: +/- 10V through
- * +/- 1.25V, and the D/A converter has only one: +/- 5V.
+ * voltages.  The A/D converter has four	.ranges = +/- 10V through
+ * +/- 1.25V, and the D/A converter has only	.one = +/- 5V.
  */
 
 static const struct comedi_lrange range_daqp_ai = { 4, {
@@ -200,10 +200,10 @@ static const struct comedi_lrange range_daqp_ao = { 1, {BIP_RANGE(5)} };
 static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int daqp_detach(struct comedi_device *dev);
 static struct comedi_driver driver_daqp = {
-      driver_name:"quatech_daqp_cs",
-      module:THIS_MODULE,
-      attach:daqp_attach,
-      detach:daqp_detach,
+	.driver_name = "quatech_daqp_cs",
+	.module = THIS_MODULE,
+	.attach = daqp_attach,
+	.detach = daqp_detach,
 };
 
 #ifdef DAQP_DEBUG

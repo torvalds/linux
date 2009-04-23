@@ -59,14 +59,14 @@ static struct pcmcia_device *cur_dev = NULL;
 static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 
 static struct comedi_driver driver_das08_cs = {
-      driver_name:"das08_cs",
-      module:THIS_MODULE,
-      attach:das08_cs_attach,
-      detach:das08_common_detach,
-      board_name:&das08_cs_boards[0].name,
-      num_names:sizeof(das08_cs_boards) /
+	.driver_name = "das08_cs",
+	.module = THIS_MODULE,
+	.attach = das08_cs_attach,
+	.detach = das08_common_detach,
+	.board_name = &das08_cs_boards[0].name,
+	.num_names = sizeof(das08_cs_boards) /
 		sizeof(struct das08_board_struct),
-      offset:sizeof(struct das08_board_struct),
+	.offset = sizeof(struct das08_board_struct),
 };
 
 static int das08_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)

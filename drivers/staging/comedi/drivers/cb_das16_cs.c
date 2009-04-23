@@ -61,19 +61,19 @@ struct das16cs_board {
 };
 static const struct das16cs_board das16cs_boards[] = {
 	{
-	      device_id:0x0000,/* unknown */
-	      name:	"PC-CARD DAS16/16",
-	      n_ao_chans:0,
+	.device_id = 0x0000,/* unknown */
+	.name = "PC-CARD DAS16/16",
+	.n_ao_chans = 0,
 		},
 	{
-	      device_id:0x0039,
-	      name:	"PC-CARD DAS16/16-AO",
-	      n_ao_chans:2,
+	.device_id = 0x0039,
+	.name = "PC-CARD DAS16/16-AO",
+	.n_ao_chans = 2,
 		},
 	{
-	      device_id:0x4009,
-	      name:	"PCM-DAS16s/16",
-	      n_ao_chans:0,
+	.device_id = 0x4009,
+	.name = "PCM-DAS16s/16",
+	.n_ao_chans = 0,
 		},
 };
 
@@ -92,10 +92,10 @@ struct das16cs_private {
 static int das16cs_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int das16cs_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das16cs = {
-      driver_name:"cb_das16_cs",
-      module:THIS_MODULE,
-      attach:das16cs_attach,
-      detach:das16cs_detach,
+	.driver_name = "cb_das16_cs",
+	.module = THIS_MODULE,
+	.attach = das16cs_attach,
+	.detach = das16cs_detach,
 };
 
 static struct pcmcia_device *cur_dev = NULL;

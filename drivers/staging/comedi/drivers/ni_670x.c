@@ -69,22 +69,22 @@ struct ni_670x_board {
 
 static const struct ni_670x_board ni_670x_boards[] = {
 	{
-	      dev_id:	0x2c90,
-	      name:	"PCI-6703",
-	      ao_chans:16,
-	      ao_bits:	16,
+	.dev_id = 0x2c90,
+	.name = "PCI-6703",
+	.ao_chans = 16,
+	.ao_bits = 16,
 		},
 	{
-	      dev_id:	0x1920,
-	      name:	"PXI-6704",
-	      ao_chans:32,
-	      ao_bits:	16,
+	.dev_id = 0x1920,
+	.name = "PXI-6704",
+	.ao_chans = 32,
+	.ao_bits = 16,
 		},
 	{
-	      dev_id:	0x1290,
-	      name:	"PCI-6704",
-	      ao_chans:32,
-	      ao_bits:	16,
+	.dev_id = 0x1290,
+	.name = "PCI-6704",
+	.ao_chans = 32,
+	.ao_bits = 16,
 		},
 };
 
@@ -115,10 +115,10 @@ static int ni_670x_attach(struct comedi_device *dev, struct comedi_devconfig *it
 static int ni_670x_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_ni_670x = {
-      driver_name:"ni_670x",
-      module:THIS_MODULE,
-      attach:ni_670x_attach,
-      detach:ni_670x_detach,
+	.driver_name = "ni_670x",
+	.module = THIS_MODULE,
+	.attach = ni_670x_attach,
+	.detach = ni_670x_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_ni_670x, ni_670x_pci_table);

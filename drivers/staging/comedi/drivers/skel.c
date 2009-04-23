@@ -97,16 +97,16 @@ struct skel_board {
 
 static const struct skel_board skel_boards[] = {
 	{
-	      name:	"skel-100",
-	      ai_chans:16,
-	      ai_bits:	12,
-	      have_dio:1,
+	.name = "skel-100",
+	.ai_chans = 16,
+	.ai_bits = 12,
+	.have_dio = 1,
 		},
 	{
-	      name:	"skel-200",
-	      ai_chans:8,
-	      ai_bits:	16,
-	      have_dio:0,
+	.name = "skel-200",
+	.ai_chans = 8,
+	.ai_bits = 16,
+	.have_dio = 0,
 		},
 };
 
@@ -157,10 +157,10 @@ struct skel_private {
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int skel_detach(struct comedi_device *dev);
 static struct comedi_driver driver_skel = {
-      driver_name:"dummy",
-      module:THIS_MODULE,
-      attach:skel_attach,
-      detach:skel_detach,
+	.driver_name = "dummy",
+	.module = THIS_MODULE,
+	.attach = skel_attach,
+	.detach = skel_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -179,9 +179,9 @@ static struct comedi_driver driver_skel = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      board_name:&skel_boards[0].name,
-      offset:sizeof(struct skel_board),
-      num_names:sizeof(skel_boards) / sizeof(struct skel_board),
+	.board_name = &skel_boards[0].name,
+	.offset = sizeof(struct skel_board),
+	.num_names = sizeof(skel_boards) / sizeof(struct skel_board),
 };
 
 static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,

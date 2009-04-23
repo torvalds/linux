@@ -111,12 +111,12 @@ struct atmio16_board_t {
 
 static const struct atmio16_board_t atmio16_boards[] = {
 	{
-	      name:	"atmio16",
-	      has_8255:0,
+	.name = "atmio16",
+	.has_8255 = 0,
 		},
 	{
-	      name:	"atmio16d",
-	      has_8255:1,
+	.name = "atmio16d",
+	.has_8255 = 1,
 		},
 };
 
@@ -137,13 +137,13 @@ static void reset_atmio16d(struct comedi_device * dev);
 
 /* main driver struct */
 static struct comedi_driver driver_atmio16d = {
-      driver_name:"atmio16",
-      module:THIS_MODULE,
-      attach:atmio16d_attach,
-      detach:atmio16d_detach,
-      board_name:&atmio16_boards[0].name,
-      num_names:n_atmio16_boards,
-      offset:sizeof(struct atmio16_board_t),
+	.driver_name = "atmio16",
+	.module = THIS_MODULE,
+	.attach = atmio16d_attach,
+	.detach = atmio16d_detach,
+	.board_name = &atmio16_boards[0].name,
+	.num_names = n_atmio16_boards,
+	.offset = sizeof(struct atmio16_board_t),
 };
 
 COMEDI_INITCLEANUP(driver_atmio16d);

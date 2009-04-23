@@ -58,10 +58,10 @@ static int jr3_pci_attach(struct comedi_device *dev, struct comedi_devconfig *it
 static int jr3_pci_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_jr3_pci = {
-      driver_name:"jr3_pci",
-      module:THIS_MODULE,
-      attach:jr3_pci_attach,
-      detach:jr3_pci_detach,
+	.driver_name = "jr3_pci",
+	.module = THIS_MODULE,
+	.attach = jr3_pci_attach,
+	.detach = jr3_pci_detach,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {

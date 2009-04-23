@@ -157,13 +157,13 @@ static int RTC_timer_lock = 0;	/* RTC int lock */
 #endif
 
 static struct comedi_driver driver_pcl816 = {
-      driver_name:"pcl816",
-      module:THIS_MODULE,
-      attach:pcl816_attach,
-      detach:pcl816_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(struct pcl816_board),
+	.driver_name = "pcl816",
+	.module = THIS_MODULE,
+	.attach = pcl816_attach,
+	.detach = pcl816_detach,
+	.board_name = &boardtypes[0].name,
+	.num_names = n_boardtypes,
+	.offset = sizeof(struct pcl816_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl816);

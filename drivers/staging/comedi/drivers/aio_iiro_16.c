@@ -52,9 +52,9 @@ struct aio_iiro_16_board {
 
 static const struct aio_iiro_16_board aio_iiro_16_boards[] = {
 	{
-	      name:	"aio_iiro_16",
-	      di:	16,
-      do_:	16},
+	.name = "aio_iiro_16",
+	.di = 16,
+	.do_ = 16},
 };
 
 #define	thisboard	((const struct aio_iiro_16_board *) dev->board_ptr)
@@ -72,13 +72,13 @@ static int aio_iiro_16_attach(struct comedi_device *dev, struct comedi_devconfig
 static int aio_iiro_16_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_aio_iiro_16 = {
-      driver_name:"aio_iiro_16",
-      module:THIS_MODULE,
-      attach:aio_iiro_16_attach,
-      detach:aio_iiro_16_detach,
-      board_name:&aio_iiro_16_boards[0].name,
-      offset:sizeof(struct aio_iiro_16_board),
-      num_names:sizeof(aio_iiro_16_boards) / sizeof(struct aio_iiro_16_board),
+	.driver_name = "aio_iiro_16",
+	.module = THIS_MODULE,
+	.attach = aio_iiro_16_attach,
+	.detach = aio_iiro_16_detach,
+	.board_name = &aio_iiro_16_boards[0].name,
+	.offset = sizeof(struct aio_iiro_16_board),
+	.num_names = sizeof(aio_iiro_16_boards) / sizeof(struct aio_iiro_16_board),
 };
 
 static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,

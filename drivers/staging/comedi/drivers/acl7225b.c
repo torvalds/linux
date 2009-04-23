@@ -39,13 +39,13 @@ static const struct boardtype boardtypes[] = {
 #define this_board ((const struct boardtype *)dev->board_ptr)
 
 static struct comedi_driver driver_acl7225b = {
-      driver_name:"acl7225b",
-      module:THIS_MODULE,
-      attach:acl7225b_attach,
-      detach:acl7225b_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(struct boardtype),
+	.driver_name = "acl7225b",
+	.module = THIS_MODULE,
+	.attach = acl7225b_attach,
+	.detach = acl7225b_detach,
+	.board_name = &boardtypes[0].name,
+	.num_names = n_boardtypes,
+	.offset = sizeof(struct boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_acl7225b);

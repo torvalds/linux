@@ -107,27 +107,27 @@ struct pc236_board {
 };
 static const struct pc236_board pc236_boards[] = {
 	{
-	      name:	"pc36at",
-	      fancy_name:"PC36AT",
-	      bustype:	isa_bustype,
-	      model:	pc36at_model,
+	.name = "pc36at",
+	.fancy_name = "PC36AT",
+	.bustype = isa_bustype,
+	.model = pc36at_model,
 		},
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	"pci236",
-	      fancy_name:"PCI236",
-	      devid:	PCI_DEVICE_ID_AMPLICON_PCI236,
-	      bustype:	pci_bustype,
-	      model:	pci236_model,
+	.name = "pci236",
+	.fancy_name = "PCI236",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI236,
+	.bustype = pci_bustype,
+	.model = pci236_model,
 		},
 #endif
 #ifdef CONFIG_COMEDI_PCI
 	{
-	      name:	PC236_DRIVER_NAME,
-	      fancy_name:PC236_DRIVER_NAME,
-	      devid:	PCI_DEVICE_ID_INVALID,
-	      bustype:	pci_bustype,
-	      model:	anypci_model,	/* wildcard */
+	.name = PC236_DRIVER_NAME,
+	.fancy_name = PC236_DRIVER_NAME,
+	.devid = PCI_DEVICE_ID_INVALID,
+	.bustype = pci_bustype,
+	.model = anypci_model,	/* wildcard */
 		},
 #endif
 };
@@ -170,13 +170,13 @@ struct pc236_private {
 static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pc236_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pc236 = {
-      driver_name:PC236_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pc236_attach,
-      detach:pc236_detach,
-      board_name:&pc236_boards[0].name,
-      offset:sizeof(struct pc236_board),
-      num_names:sizeof(pc236_boards) / sizeof(struct pc236_board),
+	.driver_name = PC236_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = pc236_attach,
+	.detach = pc236_detach,
+	.board_name = &pc236_boards[0].name,
+	.offset = sizeof(struct pc236_board),
+	.num_names = sizeof(pc236_boards) / sizeof(struct pc236_board),
 };
 
 #ifdef CONFIG_COMEDI_PCI

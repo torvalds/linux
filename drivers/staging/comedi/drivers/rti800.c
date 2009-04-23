@@ -134,13 +134,13 @@ static const struct rti800_board boardtypes[] = {
 static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int rti800_detach(struct comedi_device *dev);
 static struct comedi_driver driver_rti800 = {
-      driver_name:"rti800",
-      module:THIS_MODULE,
-      attach:rti800_attach,
-      detach:rti800_detach,
-      num_names:sizeof(boardtypes) / sizeof(struct rti800_board),
-      board_name:&boardtypes[0].name,
-      offset:sizeof(struct rti800_board),
+	.driver_name = "rti800",
+	.module = THIS_MODULE,
+	.attach = rti800_attach,
+	.detach = rti800_detach,
+	.num_names = sizeof(boardtypes) / sizeof(struct rti800_board),
+	.board_name = &boardtypes[0].name,
+	.offset = sizeof(struct rti800_board),
 };
 
 COMEDI_INITCLEANUP(driver_rti800);

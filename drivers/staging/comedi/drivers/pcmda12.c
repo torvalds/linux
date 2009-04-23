@@ -83,7 +83,7 @@ static const struct comedi_lrange pcmda12_ranges = {
 
 static const struct pcmda12_board pcmda12_boards[] = {
 	{
-	      name:	"pcmda12",
+	.name = "pcmda12",
 		},
 };
 
@@ -113,10 +113,10 @@ static int pcmda12_detach(struct comedi_device *dev);
 static void zero_chans(struct comedi_device *dev);
 
 static struct comedi_driver driver = {
-      driver_name:"pcmda12",
-      module:THIS_MODULE,
-      attach:pcmda12_attach,
-      detach:pcmda12_detach,
+	.driver_name = "pcmda12",
+	.module = THIS_MODULE,
+	.attach = pcmda12_attach,
+	.detach = pcmda12_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 	/* Most drivers will support multiple types of boards by
@@ -135,9 +135,9 @@ static struct comedi_driver driver = {
 	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
 	 * devices are such boards.
 	 */
-      board_name:&pcmda12_boards[0].name,
-      offset:sizeof(struct pcmda12_board),
-      num_names:sizeof(pcmda12_boards) / sizeof(struct pcmda12_board),
+	.board_name = &pcmda12_boards[0].name,
+	.offset = sizeof(struct pcmda12_board),
+	.num_names = sizeof(pcmda12_boards) / sizeof(struct pcmda12_board),
 };
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,

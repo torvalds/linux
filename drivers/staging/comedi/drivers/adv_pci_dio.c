@@ -323,10 +323,10 @@ static const struct dio_boardtype boardtypes[] = {
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct dio_boardtype))
 
 static struct comedi_driver driver_pci_dio = {
-      driver_name:"adv_pci_dio",
-      module:THIS_MODULE,
-      attach:pci_dio_attach,
-      detach:pci_dio_detach
+	.driver_name = "adv_pci_dio",
+	.module = THIS_MODULE,
+	.attach = pci_dio_attach,
+	.detach = pci_dio_detach
 };
 
 struct pci_dio_private {

@@ -52,7 +52,7 @@ struct serial2002_board {
 
 static const struct serial2002_board serial2002_boards[] = {
 	{
-      name:	"serial2002"}
+	.name = "serial2002"}
 };
 
 /*
@@ -92,13 +92,13 @@ struct serial2002_private {
 static int serial2002_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int serial2002_detach(struct comedi_device *dev);
 struct comedi_driver driver_serial2002 = {
-      driver_name:"serial2002",
-      module:THIS_MODULE,
-      attach:serial2002_attach,
-      detach:serial2002_detach,
-      board_name:&serial2002_boards[0].name,
-      offset:sizeof(struct serial2002_board),
-      num_names:sizeof(serial2002_boards) / sizeof(struct serial2002_board),
+	.driver_name = "serial2002",
+	.module = THIS_MODULE,
+	.attach = serial2002_attach,
+	.detach = serial2002_detach,
+	.board_name = &serial2002_boards[0].name,
+	.offset = sizeof(struct serial2002_board),
+	.num_names = sizeof(serial2002_boards) / sizeof(struct serial2002_board),
 };
 
 static int serial2002_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,

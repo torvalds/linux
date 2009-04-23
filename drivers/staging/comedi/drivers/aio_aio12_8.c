@@ -77,7 +77,7 @@ struct aio12_8_boardtype {
 
 static const struct aio12_8_boardtype board_types[] = {
 	{
-      name:	"aio_aio12_8"},
+	.name = "aio_aio12_8"},
 };
 
 #define	thisboard	((const struct aio12_8_boardtype  *) dev->board_ptr)
@@ -214,13 +214,13 @@ static int aio_aio12_8_detach(struct comedi_device *dev)
 }
 
 static struct comedi_driver driver_aio_aio12_8 = {
-      driver_name:"aio_aio12_8",
-      module:THIS_MODULE,
-      attach:aio_aio12_8_attach,
-      detach:aio_aio12_8_detach,
-      board_name:&board_types[0].name,
-      num_names:1,
-      offset:sizeof(struct aio12_8_boardtype),
+	.driver_name = "aio_aio12_8",
+	.module = THIS_MODULE,
+	.attach = aio_aio12_8_attach,
+	.detach = aio_aio12_8_detach,
+	.board_name = &board_types[0].name,
+	.num_names = 1,
+	.offset = sizeof(struct aio12_8_boardtype),
 };
 
 COMEDI_INITCLEANUP(driver_aio_aio12_8);

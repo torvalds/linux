@@ -66,22 +66,22 @@ struct pci6208_board {
 
 static const struct pci6208_board pci6208_boards[] = {
 	/*{
-	   name :  "pci6208v",
-	   dev_id       :  0x6208,      // not sure
-	   ao_chans:  8
-	   // ,  ao_bits :  16
+	.name = "pci6208v",
+	.dev_id = 0x6208,      // not sure
+	.ao_chans = 8
+	   // ,	.ao_bits = 16
 	   },
 	   {
-	   name :  "pci6216v",
-	   dev_id       :  0x6208,      // not sure
-	   ao_chans:  16
-	   // ,  ao_bits :  16
+	.name = "pci6216v",
+	.dev_id = 0x6208,      // not sure
+	.ao_chans = 16
+	   // ,	.ao_bits = 16
 	   }, */
 	{
-	      name:	"pci6208a",
-	      dev_id:	0x6208,
-	      ao_chans:8
-			/* ,     ao_bits :  16 */
+	.name = "pci6208a",
+	.dev_id = 0x6208,
+	.ao_chans = 8
+			/* ,	.ao_bits = 16 */
 		}
 };
 
@@ -114,10 +114,10 @@ static int pci6208_detach(struct comedi_device *dev);
 	(sizeof(pci6208_boards) / sizeof(struct pci6208_board))
 
 static struct comedi_driver driver_pci6208 = {
-      driver_name:PCI6208_DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pci6208_attach,
-      detach:pci6208_detach,
+	.driver_name = PCI6208_DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = pci6208_attach,
+	.detach = pci6208_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_pci6208, pci6208_pci_table);

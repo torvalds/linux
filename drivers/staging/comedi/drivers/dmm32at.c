@@ -213,15 +213,15 @@ struct dmm32at_board {
 };
 static const struct dmm32at_board dmm32at_boards[] = {
 	{
-	      name:	"dmm32at",
-	      ai_chans:32,
-	      ai_bits:	16,
-	      ai_ranges:&dmm32at_airanges,
-	      ao_chans:4,
-	      ao_bits:	12,
-	      ao_ranges:&dmm32at_aoranges,
-	      have_dio:1,
-	      dio_chans:24,
+	.name = "dmm32at",
+	.ai_chans = 32,
+	.ai_bits = 16,
+	.ai_ranges = &dmm32at_airanges,
+	.ao_chans = 4,
+	.ao_bits = 12,
+	.ao_ranges = &dmm32at_aoranges,
+	.have_dio = 1,
+	.dio_chans = 24,
 		},
 };
 
@@ -261,10 +261,10 @@ struct dmm32at_private {
 static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int dmm32at_detach(struct comedi_device *dev);
 static struct comedi_driver driver_dmm32at = {
-      driver_name:"dmm32at",
-      module:THIS_MODULE,
-      attach:dmm32at_attach,
-      detach:dmm32at_detach,
+	.driver_name = "dmm32at",
+	.module = THIS_MODULE,
+	.attach = dmm32at_attach,
+	.detach = dmm32at_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
 /* Most drivers will support multiple types of boards by
@@ -283,9 +283,9 @@ static struct comedi_driver driver_dmm32at = {
  * the type of board in software.  ISA PnP, PCI, and PCMCIA
  * devices are such boards.
  */
-      board_name:&dmm32at_boards[0].name,
-      offset:sizeof(struct dmm32at_board),
-      num_names:sizeof(dmm32at_boards) / sizeof(struct dmm32at_board),
+	.board_name = &dmm32at_boards[0].name,
+	.offset = sizeof(struct dmm32at_board),
+	.num_names = sizeof(dmm32at_boards) / sizeof(struct dmm32at_board),
 };
 
 /* prototypes for driver functions below */

@@ -58,12 +58,12 @@ struct pcmad_board_struct {
 };
 static const struct pcmad_board_struct pcmad_boards[] = {
 	{
-	      name:	"pcmad12",
-	      n_ai_bits:12,
+	.name = "pcmad12",
+	.n_ai_bits = 12,
 		},
 	{
-	      name:	"pcmad16",
-	      n_ai_bits:16,
+	.name = "pcmad16",
+	.n_ai_bits = 16,
 		},
 };
 
@@ -79,13 +79,13 @@ struct pcmad_priv_struct {
 static int pcmad_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pcmad_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcmad = {
-      driver_name:"pcmad",
-      module:THIS_MODULE,
-      attach:pcmad_attach,
-      detach:pcmad_detach,
-      board_name:&pcmad_boards[0].name,
-      num_names:n_pcmad_boards,
-      offset:sizeof(pcmad_boards[0]),
+	.driver_name = "pcmad",
+	.module = THIS_MODULE,
+	.attach = pcmad_attach,
+	.detach = pcmad_detach,
+	.board_name = &pcmad_boards[0].name,
+	.num_names = n_pcmad_boards,
+	.offset = sizeof(pcmad_boards[0]),
 };
 
 COMEDI_INITCLEANUP(driver_pcmad);

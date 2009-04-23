@@ -61,10 +61,10 @@ struct adl_pci7432_private {
 static int adl_pci7432_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int adl_pci7432_detach(struct comedi_device *dev);
 static struct comedi_driver driver_adl_pci7432 = {
-      driver_name:"adl_pci7432",
-      module:THIS_MODULE,
-      attach:adl_pci7432_attach,
-      detach:adl_pci7432_detach,
+	.driver_name = "adl_pci7432",
+	.module = THIS_MODULE,
+	.attach = adl_pci7432_attach,
+	.detach = adl_pci7432_detach,
 };
 
 /* Digital IO */

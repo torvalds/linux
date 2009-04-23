@@ -377,13 +377,13 @@ static const struct pcl812_board boardtypes[] = {
 #define this_board ((const struct pcl812_board *)dev->board_ptr)
 
 static struct comedi_driver driver_pcl812 = {
-      driver_name:"pcl812",
-      module:THIS_MODULE,
-      attach:pcl812_attach,
-      detach:pcl812_detach,
-      board_name:&boardtypes[0].name,
-      num_names:n_boardtypes,
-      offset:sizeof(struct pcl812_board),
+	.driver_name = "pcl812",
+	.module = THIS_MODULE,
+	.attach = pcl812_attach,
+	.detach = pcl812_detach,
+	.board_name = &boardtypes[0].name,
+	.num_names = n_boardtypes,
+	.offset = sizeof(struct pcl812_board),
 };
 
 COMEDI_INITCLEANUP(driver_pcl812);

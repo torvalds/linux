@@ -320,7 +320,7 @@ static const struct ni_board_struct ni_boards[] = {
 			.ai_fifo_depth = 512,
 			.alwaysdither = 0,
 			.gainlkup = ai_gain_16,
-			/* Note: there have been reported problems with full speed
+			/*	.Note = there have been reported problems with full speed
 			 * on this board */
 			.ai_speed = 2000,
 			.n_aochan = 2,
@@ -846,7 +846,7 @@ static const struct ni_board_struct ni_boards[] = {
 			.n_adchan = 16,
 			.adbits = 16,
 			.ai_fifo_depth = 512,
-			/* FIXME:  guess */
+			/*	.FIXME = guess */
 			.gainlkup = ai_gain_622x,
 			.ai_speed = 4000,
 			.n_aochan = 0,
@@ -1210,10 +1210,10 @@ static const struct ni_board_struct ni_boards[] = {
 static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pcimio_detach(struct comedi_device *dev);
 static struct comedi_driver driver_pcimio = {
-	driver_name: DRV_NAME,
-	module:THIS_MODULE,
-	attach:pcimio_attach,
-	detach:pcimio_detach,
+	.driver_name = DRV_NAME,
+	.module = THIS_MODULE,
+	.attach = pcimio_attach,
+	.detach = pcimio_detach,
 };
 
 COMEDI_PCI_INITCLEANUP(driver_pcimio, ni_pci_table)

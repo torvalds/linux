@@ -150,10 +150,10 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int mpc624_detach(struct comedi_device *dev);
 /* ---------------------------------------------------------------------------- */
 static struct comedi_driver driver_mpc624 = {
-      driver_name:"mpc624",
-      module:THIS_MODULE,
-      attach:mpc624_attach,
-      detach:mpc624_detach
+	.driver_name = "mpc624",
+	.module = THIS_MODULE,
+	.attach = mpc624_attach,
+	.detach = mpc624_detach
 };
 
 /* ---------------------------------------------------------------------------- */

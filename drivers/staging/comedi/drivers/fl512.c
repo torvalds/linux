@@ -46,10 +46,10 @@ static int fl512_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int fl512_detach(struct comedi_device *dev);
 
 static struct comedi_driver driver_fl512 = {
-      driver_name:"fl512",
-      module:THIS_MODULE,
-      attach:fl512_attach,
-      detach:fl512_detach,
+	.driver_name = "fl512",
+	.module = THIS_MODULE,
+	.attach = fl512_attach,
+	.detach = fl512_detach,
 };
 
 COMEDI_INITCLEANUP(driver_fl512);

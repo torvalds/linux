@@ -158,12 +158,12 @@ struct atao_board {
 
 static const struct atao_board atao_boards[] = {
 	{
-	      name:	"ai-ao-6",
-	      n_ao_chans:6,
+	.name = "ai-ao-6",
+	.n_ao_chans = 6,
 		},
 	{
-	      name:	"ai-ao-10",
-	      n_ao_chans:10,
+	.name = "ai-ao-10",
+	.n_ao_chans = 10,
 		},
 };
 
@@ -184,13 +184,13 @@ struct atao_private {
 static int atao_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int atao_detach(struct comedi_device *dev);
 static struct comedi_driver driver_atao = {
-      driver_name:"ni_at_ao",
-      module:THIS_MODULE,
-      attach:atao_attach,
-      detach:atao_detach,
-      board_name:&atao_boards[0].name,
-      offset:sizeof(struct atao_board),
-      num_names:sizeof(atao_boards) / sizeof(struct atao_board),
+	.driver_name = "ni_at_ao",
+	.module = THIS_MODULE,
+	.attach = atao_attach,
+	.detach = atao_detach,
+	.board_name = &atao_boards[0].name,
+	.offset = sizeof(struct atao_board),
+	.num_names = sizeof(atao_boards) / sizeof(struct atao_board),
 };
 
 COMEDI_INITCLEANUP(driver_atao);

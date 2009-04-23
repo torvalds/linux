@@ -358,23 +358,23 @@ struct pci224_board {
 
 static const struct pci224_board pci224_boards[] = {
 	{
-	      name:	"pci224",
-	      devid: PCI_DEVICE_ID_AMPLICON_PCI224,
-	      model:	pci224_model,
-	      ao_chans:16,
-	      ao_bits:	12,
+	.name = "pci224",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI224,
+	.model = pci224_model,
+	.ao_chans = 16,
+	.ao_bits = 12,
 		},
 	{
-	      name:	"pci234",
-	      devid: PCI_DEVICE_ID_AMPLICON_PCI234,
-	      model:	pci234_model,
-	      ao_chans:4,
-	      ao_bits:	16,
+	.name = "pci234",
+	.devid = PCI_DEVICE_ID_AMPLICON_PCI234,
+	.model = pci234_model,
+	.ao_chans = 4,
+	.ao_bits = 16,
 		},
 	{
-	      name:	DRIVER_NAME,
-	      devid: PCI_DEVICE_ID_INVALID,
-	      model:	any_model,	/* wildcard */
+	.name = DRIVER_NAME,
+	.devid = PCI_DEVICE_ID_INVALID,
+	.model = any_model,	/* wildcard */
 		},
 };
 
@@ -431,13 +431,13 @@ struct pci224_private {
 static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pci224_detach(struct comedi_device *dev);
 static struct comedi_driver driver_amplc_pci224 = {
-      driver_name:DRIVER_NAME,
-      module:THIS_MODULE,
-      attach:pci224_attach,
-      detach:pci224_detach,
-      board_name:&pci224_boards[0].name,
-      offset:sizeof(struct pci224_board),
-      num_names:sizeof(pci224_boards) / sizeof(struct pci224_board),
+	.driver_name = DRIVER_NAME,
+	.module = THIS_MODULE,
+	.attach = pci224_attach,
+	.detach = pci224_detach,
+	.board_name = &pci224_boards[0].name,
+	.offset = sizeof(struct pci224_board),
+	.num_names = sizeof(pci224_boards) / sizeof(struct pci224_board),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);

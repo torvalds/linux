@@ -159,8 +159,8 @@ struct das16m1_board {
 
 static const struct das16m1_board das16m1_boards[] = {
 	{
-	      name:	"cio-das16/m1",	/*  CIO-DAS16_M1.pdf */
-	      ai_speed:1000,	/*  1MHz max speed */
+	.name = "cio-das16/m1",	/*  CIO-DAS16_M1.pdf */
+	.ai_speed = 1000,	/*  1MHz max speed */
 		},
 };
 
@@ -169,13 +169,13 @@ static const struct das16m1_board das16m1_boards[] = {
 static int das16m1_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int das16m1_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das16m1 = {
-      driver_name:"das16m1",
-      module:THIS_MODULE,
-      attach:das16m1_attach,
-      detach:das16m1_detach,
-      board_name:&das16m1_boards[0].name,
-      num_names:das16m1_num_boards,
-      offset:sizeof(das16m1_boards[0]),
+	.driver_name = "das16m1",
+	.module = THIS_MODULE,
+	.attach = das16m1_attach,
+	.detach = das16m1_detach,
+	.board_name = &das16m1_boards[0].name,
+	.num_names = das16m1_num_boards,
+	.offset = sizeof(das16m1_boards[0]),
 };
 
 struct das16m1_private_struct {

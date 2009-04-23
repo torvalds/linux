@@ -127,20 +127,20 @@ struct adq12b_board {
 
 static const struct adq12b_board adq12b_boards[] = {
         {
-        name:           "adq12b",
-        ai_se_chans:    16,
-        ai_diff_chans:  8,
-        ai_bits:        12,
-        di_chans:       5,
-        do_chans:       8
+	.name = "adq12b",
+	.ai_se_chans = 16,
+	.ai_diff_chans = 8,
+	.ai_bits = 12,
+	.di_chans = 5,
+	.do_chans = 8
         }
 // potentially, more adq-based deviced will be added
 /*,
-        name:           "adq12b",
-        ai_chans:       16,  // this is just for reference, hardcoded again later
-        ai_bits:        12,
-        di_chans:       8,
-        do_chans:       5
+	.name = "adq12b",
+	.ai_chans = 16,  // this is just for reference, hardcoded again later
+	.ai_bits = 12,
+	.di_chans = 8,
+	.do_chans = 5
         }*/
 };
 
