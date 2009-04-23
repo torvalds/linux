@@ -4001,6 +4001,17 @@ static struct dvb_frontend_ops stv090x_ops = {
 
 	.info = {
 		.name			= "STV090x Multistandard",
+		.type			= FE_QPSK,
+		.frequency_min		= 950000,
+		.frequency_max 		= 2150000,
+		.frequency_stepsize	= 0,
+		.frequency_tolerance	= 0,
+		.symbol_rate_min 	= 1000000,
+		.symbol_rate_max 	= 45000000,
+		.caps			= FE_CAN_INVERSION_AUTO |
+					  FE_CAN_FEC_AUTO       |
+					  FE_CAN_QPSK           |
+					  FE_CAN_2G_MODULATION
 	},
 
 	.release			= stv090x_release,
