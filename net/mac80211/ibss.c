@@ -786,7 +786,11 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
 		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+			continue;
+		if (!sdata->u.ibss.ssid_len)
 			continue;
 		sdata->u.ibss.last_scan_completed = jiffies;
 		ieee80211_sta_find_ibss(sdata);
@@ -827,9 +831,6 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 {
 	struct sk_buff *skb;
 
-	memcpy(sdata->u.ibss.ssid, params->ssid, IEEE80211_MAX_SSID_LEN);
-	sdata->u.ibss.ssid_len = params->ssid_len;
-
 	if (params->bssid) {
 		memcpy(sdata->u.ibss.bssid, params->bssid, ETH_ALEN);
 		sdata->u.ibss.fixed_bssid = true;
@@ -858,6 +859,17 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	sdata->u.ibss.skb = skb;
 	sdata->u.ibss.state = IEEE80211_IBSS_MLME_SEARCH;
 	sdata->u.ibss.ibss_join_req = jiffies;
+
+	memcpy(sdata->u.ibss.ssid, params->ssid, IEEE80211_MAX_SSID_LEN);
+
+	/*
+	 * The ssid_len setting below is used to see whether
+	 * we are active, and we need all other settings
+	 * before that may get visible.
+	 */
+	mb();
+
+	sdata->u.ibss.ssid_len = params->ssid_len;
 
 	set_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
 	queue_work(sdata->local->hw.workqueue, &sdata->u.ibss.work);
