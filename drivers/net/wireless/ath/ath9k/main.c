@@ -2363,104 +2363,6 @@ skip_chan_change:
 	return 0;
 }
 
-static int ath9k_config_interface(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif,
-				  struct ieee80211_if_conf *conf)
-{
-	struct ath_wiphy *aphy = hw->priv;
-	struct ath_softc *sc = aphy->sc;
-	struct ath_hw *ah = sc->sc_ah;
-	struct ath_vif *avp = (void *)vif->drv_priv;
-	u32 rfilt = 0;
-	int error, i;
-
-	mutex_lock(&sc->mutex);
-
-	/* TODO: Need to decide which hw opmode to use for multi-interface
-	 * cases */
-	if (vif->type == NL80211_IFTYPE_AP &&
-	    ah->opmode != NL80211_IFTYPE_AP) {
-		ah->opmode = NL80211_IFTYPE_STATION;
-		ath9k_hw_setopmode(ah);
-		memcpy(sc->curbssid, sc->sc_ah->macaddr, ETH_ALEN);
-		sc->curaid = 0;
-		ath9k_hw_write_associd(sc);
-		/* Request full reset to get hw opmode changed properly */
-		sc->sc_flags |= SC_OP_FULL_RESET;
-	}
-
-	if ((conf->changed & IEEE80211_IFCC_BSSID) &&
-	    !is_zero_ether_addr(conf->bssid)) {
-		switch (vif->type) {
-		case NL80211_IFTYPE_STATION:
-		case NL80211_IFTYPE_ADHOC:
-		case NL80211_IFTYPE_MESH_POINT:
-			/* Set BSSID */
-			memcpy(sc->curbssid, conf->bssid, ETH_ALEN);
-			memcpy(avp->bssid, conf->bssid, ETH_ALEN);
-			sc->curaid = 0;
-			ath9k_hw_write_associd(sc);
-
-			/* Set aggregation protection mode parameters */
-			sc->config.ath_aggr_prot = 0;
-
-			DPRINTF(sc, ATH_DBG_CONFIG,
-				"RX filter 0x%x bssid %pM aid 0x%x\n",
-				rfilt, sc->curbssid, sc->curaid);
-
-			/* need to reconfigure the beacon */
-			sc->sc_flags &= ~SC_OP_BEACONS ;
-
-			break;
-		default:
-			break;
-		}
-	}
-
-	if ((vif->type == NL80211_IFTYPE_ADHOC) ||
-	    (vif->type == NL80211_IFTYPE_AP) ||
-	    (vif->type == NL80211_IFTYPE_MESH_POINT)) {
-		if ((conf->changed & IEEE80211_IFCC_BEACON) ||
-		    (conf->changed & IEEE80211_IFCC_BEACON_ENABLED &&
-		     conf->enable_beacon)) {
-			/*
-			 * Allocate and setup the beacon frame.
-			 *
-			 * Stop any previous beacon DMA.  This may be
-			 * necessary, for example, when an ibss merge
-			 * causes reconfiguration; we may be called
-			 * with beacon transmission active.
-			 */
-			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
-
-			error = ath_beacon_alloc(aphy, vif);
-			if (error != 0) {
-				mutex_unlock(&sc->mutex);
-				return error;
-			}
-
-			ath_beacon_config(sc, vif);
-		}
-	}
-
-	/* Check for WLAN_CAPABILITY_PRIVACY ? */
-	if ((avp->av_opmode != NL80211_IFTYPE_STATION)) {
-		for (i = 0; i < IEEE80211_WEP_NKID; i++)
-			if (ath9k_hw_keyisvalid(sc->sc_ah, (u16)i))
-				ath9k_hw_keysetmac(sc->sc_ah,
-						   (u16)i,
-						   sc->curbssid);
-	}
-
-	/* Only legacy IBSS for now */
-	if (vif->type == NL80211_IFTYPE_ADHOC)
-		ath_update_chainmask(sc, 0);
-
-	mutex_unlock(&sc->mutex);
-
-	return 0;
-}
-
 #define SUPPORTED_FILTERS			\
 	(FIF_PROMISC_IN_BSS |			\
 	FIF_ALLMULTI |				\
@@ -2597,8 +2499,91 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_vif *avp = (void *)vif->drv_priv;
+	u32 rfilt = 0;
+	int error, i;
 
 	mutex_lock(&sc->mutex);
+
+	/*
+	 * TODO: Need to decide which hw opmode to use for
+	 *       multi-interface cases
+	 * XXX: This belongs into add_interface!
+	 */
+	if (vif->type == NL80211_IFTYPE_AP &&
+	    ah->opmode != NL80211_IFTYPE_AP) {
+		ah->opmode = NL80211_IFTYPE_STATION;
+		ath9k_hw_setopmode(ah);
+		memcpy(sc->curbssid, sc->sc_ah->macaddr, ETH_ALEN);
+		sc->curaid = 0;
+		ath9k_hw_write_associd(sc);
+		/* Request full reset to get hw opmode changed properly */
+		sc->sc_flags |= SC_OP_FULL_RESET;
+	}
+
+	if ((changed & BSS_CHANGED_BSSID) &&
+	    !is_zero_ether_addr(bss_conf->bssid)) {
+		switch (vif->type) {
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_MESH_POINT:
+			/* Set BSSID */
+			memcpy(sc->curbssid, bss_conf->bssid, ETH_ALEN);
+			memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
+			sc->curaid = 0;
+			ath9k_hw_write_associd(sc);
+
+			/* Set aggregation protection mode parameters */
+			sc->config.ath_aggr_prot = 0;
+
+			DPRINTF(sc, ATH_DBG_CONFIG,
+				"RX filter 0x%x bssid %pM aid 0x%x\n",
+				rfilt, sc->curbssid, sc->curaid);
+
+			/* need to reconfigure the beacon */
+			sc->sc_flags &= ~SC_OP_BEACONS ;
+
+			break;
+		default:
+			break;
+		}
+	}
+
+	if ((vif->type == NL80211_IFTYPE_ADHOC) ||
+	    (vif->type == NL80211_IFTYPE_AP) ||
+	    (vif->type == NL80211_IFTYPE_MESH_POINT)) {
+		if ((changed & BSS_CHANGED_BEACON) ||
+		    (changed & BSS_CHANGED_BEACON_ENABLED &&
+		     bss_conf->enable_beacon)) {
+			/*
+			 * Allocate and setup the beacon frame.
+			 *
+			 * Stop any previous beacon DMA.  This may be
+			 * necessary, for example, when an ibss merge
+			 * causes reconfiguration; we may be called
+			 * with beacon transmission active.
+			 */
+			ath9k_hw_stoptxdma(sc->sc_ah, sc->beacon.beaconq);
+
+			error = ath_beacon_alloc(aphy, vif);
+			if (!error)
+				ath_beacon_config(sc, vif);
+		}
+	}
+
+	/* Check for WLAN_CAPABILITY_PRIVACY ? */
+	if ((avp->av_opmode != NL80211_IFTYPE_STATION)) {
+		for (i = 0; i < IEEE80211_WEP_NKID; i++)
+			if (ath9k_hw_keyisvalid(sc->sc_ah, (u16)i))
+				ath9k_hw_keysetmac(sc->sc_ah,
+						   (u16)i,
+						   sc->curbssid);
+	}
+
+	/* Only legacy IBSS for now */
+	if (vif->type == NL80211_IFTYPE_ADHOC)
+		ath_update_chainmask(sc, 0);
 
 	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
 		DPRINTF(sc, ATH_DBG_CONFIG, "BSS Changed PREAMBLE %d\n",
@@ -2757,7 +2742,6 @@ struct ieee80211_ops ath9k_ops = {
 	.add_interface 	    = ath9k_add_interface,
 	.remove_interface   = ath9k_remove_interface,
 	.config 	    = ath9k_config,
-	.config_interface   = ath9k_config_interface,
 	.configure_filter   = ath9k_configure_filter,
 	.sta_notify         = ath9k_sta_notify,
 	.conf_tx 	    = ath9k_conf_tx,

@@ -227,9 +227,6 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 static void ath5k_remove_interface(struct ieee80211_hw *hw,
 		struct ieee80211_if_init_conf *conf);
 static int ath5k_config(struct ieee80211_hw *hw, u32 changed);
-static int ath5k_config_interface(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif,
-		struct ieee80211_if_conf *conf);
 static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		unsigned int changed_flags,
 		unsigned int *new_flags,
@@ -259,7 +256,6 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.add_interface 	= ath5k_add_interface,
 	.remove_interface = ath5k_remove_interface,
 	.config 	= ath5k_config,
-	.config_interface = ath5k_config_interface,
 	.configure_filter = ath5k_configure_filter,
 	.set_key 	= ath5k_set_key,
 	.get_stats 	= ath5k_get_stats,
@@ -2764,44 +2760,6 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	return ret;
 }
 
-static int
-ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_if_conf *conf)
-{
-	struct ath5k_softc *sc = hw->priv;
-	struct ath5k_hw *ah = sc->ah;
-	int ret = 0;
-
-	mutex_lock(&sc->lock);
-	if (sc->vif != vif) {
-		ret = -EIO;
-		goto unlock;
-	}
-	if (conf->changed & IEEE80211_IFCC_BSSID && conf->bssid) {
-		/* Cache for later use during resets */
-		memcpy(ah->ah_bssid, conf->bssid, ETH_ALEN);
-		/* XXX: assoc id is set to 0 for now, mac80211 doesn't have
-		 * a clean way of letting us retrieve this yet. */
-		ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
-		mmiowb();
-	}
-	if (conf->changed & IEEE80211_IFCC_BEACON &&
-			(vif->type == NL80211_IFTYPE_ADHOC ||
-			 vif->type == NL80211_IFTYPE_MESH_POINT ||
-			 vif->type == NL80211_IFTYPE_AP)) {
-		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
-		if (!beacon) {
-			ret = -ENOMEM;
-			goto unlock;
-		}
-		ath5k_beacon_update(sc, beacon);
-	}
-
-unlock:
-	mutex_unlock(&sc->lock);
-	return ret;
-}
-
 #define SUPPORTED_FIF_FLAGS \
 	FIF_PROMISC_IN_BSS |  FIF_ALLMULTI | FIF_FCSFAIL | \
 	FIF_PLCPFAIL | FIF_CONTROL | FIF_OTHER_BSS | \
@@ -3082,15 +3040,40 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 				    u32 changes)
 {
 	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = sc->ah;
+
+	mutex_lock(&sc->lock);
+	if (WARN_ON(sc->vif != vif))
+		goto unlock;
+
+	if (changes & BSS_CHANGED_BSSID) {
+		/* Cache for later use during resets */
+		memcpy(ah->ah_bssid, bss_conf->bssid, ETH_ALEN);
+		/* XXX: assoc id is set to 0 for now, mac80211 doesn't have
+		 * a clean way of letting us retrieve this yet. */
+		ath5k_hw_set_associd(ah, ah->ah_bssid, 0);
+		mmiowb();
+	}
 
 	if (changes & BSS_CHANGED_BEACON_INT)
 		sc->bintval = bss_conf->beacon_int;
 
 	if (changes & BSS_CHANGED_ASSOC) {
-		mutex_lock(&sc->lock);
 		sc->assoc = bss_conf->assoc;
 		if (sc->opmode == NL80211_IFTYPE_STATION)
 			set_beacon_filter(hw, sc->assoc);
-		mutex_unlock(&sc->lock);
 	}
+
+	if (changes & BSS_CHANGED_BEACON &&
+	    (vif->type == NL80211_IFTYPE_ADHOC ||
+	     vif->type == NL80211_IFTYPE_MESH_POINT ||
+	     vif->type == NL80211_IFTYPE_AP)) {
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+
+		if (beacon)
+			ath5k_beacon_update(sc, beacon);
+	}
+
+ unlock:
+	mutex_unlock(&sc->lock);
 }

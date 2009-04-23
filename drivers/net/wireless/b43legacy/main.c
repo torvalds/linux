@@ -2804,6 +2804,7 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 	u32 savedirqs;
 
 	mutex_lock(&wl->mutex);
+	B43legacy_WARN_ON(wl->vif != vif);
 
 	dev = wl->current_dev;
 	phy = &dev->phy;
@@ -2817,8 +2818,29 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 		goto out_unlock_mutex;
 	}
 	savedirqs = b43legacy_interrupt_disable(dev, B43legacy_IRQ_ALL);
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-	b43legacy_synchronize_irq(dev);
+
+	if (changed & BSS_CHANGED_BSSID) {
+		spin_unlock_irqrestore(&wl->irq_lock, flags);
+		b43legacy_synchronize_irq(dev);
+
+		if (conf->bssid)
+			memcpy(wl->bssid, conf->bssid, ETH_ALEN);
+		else
+			memset(wl->bssid, 0, ETH_ALEN);
+
+		if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
+			if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP)) {
+				B43legacy_WARN_ON(vif->type != NL80211_IFTYPE_AP);
+				if (changed & BSS_CHANGED_BEACON)
+					b43legacy_update_templates(wl);
+			} else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
+				if (changed & BSS_CHANGED_BEACON)
+					b43legacy_update_templates(wl);
+			}
+			b43legacy_write_mac_bssid_templates(dev);
+		}
+		spin_unlock_irqrestore(&wl->irq_lock, flags);
+	}
 
 	b43legacy_mac_suspend(dev);
 
@@ -2846,8 +2868,6 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
  out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
-
-	return;
 }
 
 static void b43legacy_op_configure_filter(struct ieee80211_hw *hw,
@@ -2887,40 +2907,6 @@ static void b43legacy_op_configure_filter(struct ieee80211_hw *hw,
 	if (changed && b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED)
 		b43legacy_adjust_opmode(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
-}
-
-static int b43legacy_op_config_interface(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif,
-					 struct ieee80211_if_conf *conf)
-{
-	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
-	struct b43legacy_wldev *dev = wl->current_dev;
-	unsigned long flags;
-
-	if (!dev)
-		return -ENODEV;
-	mutex_lock(&wl->mutex);
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	B43legacy_WARN_ON(wl->vif != vif);
-	if (conf->bssid)
-		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
-	else
-		memset(wl->bssid, 0, ETH_ALEN);
-	if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
-		if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP)) {
-			B43legacy_WARN_ON(vif->type != NL80211_IFTYPE_AP);
-			if (conf->changed & IEEE80211_IFCC_BEACON)
-				b43legacy_update_templates(wl);
-		} else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
-			if (conf->changed & IEEE80211_IFCC_BEACON)
-				b43legacy_update_templates(wl);
-		}
-		b43legacy_write_mac_bssid_templates(dev);
-	}
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-	mutex_unlock(&wl->mutex);
-
-	return 0;
 }
 
 /* Locking: wl->mutex */
@@ -3563,7 +3549,6 @@ static const struct ieee80211_ops b43legacy_hw_ops = {
 	.remove_interface	= b43legacy_op_remove_interface,
 	.config			= b43legacy_op_dev_config,
 	.bss_info_changed	= b43legacy_op_bss_info_changed,
-	.config_interface	= b43legacy_op_config_interface,
 	.configure_filter	= b43legacy_op_configure_filter,
 	.get_stats		= b43legacy_op_get_stats,
 	.get_tx_stats		= b43legacy_op_get_tx_stats,

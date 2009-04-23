@@ -2204,41 +2204,6 @@ out:
 	return ret;
 }
 
-static int p54_config_interface(struct ieee80211_hw *dev,
-				struct ieee80211_vif *vif,
-				struct ieee80211_if_conf *conf)
-{
-	struct p54_common *priv = dev->priv;
-	int ret = 0;
-
-	mutex_lock(&priv->conf_mutex);
-	if (conf->changed & IEEE80211_IFCC_BSSID) {
-		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
-		ret = p54_setup_mac(dev);
-		if (ret)
-			goto out;
-	}
-
-	if (conf->changed & IEEE80211_IFCC_BEACON) {
-		ret = p54_scan(dev, P54_SCAN_EXIT, 0);
-		if (ret)
-			goto out;
-		ret = p54_setup_mac(dev);
-		if (ret)
-			goto out;
-		ret = p54_beacon_update(dev, vif);
-		if (ret)
-			goto out;
-		ret = p54_set_edcf(dev);
-		if (ret)
-			goto out;
-	}
-
-out:
-	mutex_unlock(&priv->conf_mutex);
-	return ret;
-}
-
 static void p54_configure_filter(struct ieee80211_hw *dev,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
@@ -2342,8 +2307,32 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 				 u32 changed)
 {
 	struct p54_common *priv = dev->priv;
+	int ret;
 
-	if (changed & BSS_CHANGED_ERP_SLOT) {
+	mutex_lock(&priv->conf_mutex);
+	if (changed & BSS_CHANGED_BSSID) {
+		memcpy(priv->bssid, info->bssid, ETH_ALEN);
+		ret = p54_setup_mac(dev);
+		if (ret)
+			goto out;
+	}
+
+	if (changed & BSS_CHANGED_BEACON) {
+		ret = p54_scan(dev, P54_SCAN_EXIT, 0);
+		if (ret)
+			goto out;
+		ret = p54_setup_mac(dev);
+		if (ret)
+			goto out;
+		ret = p54_beacon_update(dev, vif);
+		if (ret)
+			goto out;
+	}
+	/* XXX: this mimics having two callbacks... clean up */
+ out:
+	mutex_unlock(&priv->conf_mutex);
+
+	if (changed & (BSS_CHANGED_ERP_SLOT | BSS_CHANGED_BEACON)) {
 		priv->use_short_slot = info->use_short_slot;
 		p54_set_edcf(dev);
 	}
@@ -2364,7 +2353,6 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 			p54_setup_mac(dev);
 		}
 	}
-
 }
 
 static int p54_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
@@ -2619,7 +2607,6 @@ static const struct ieee80211_ops p54_ops = {
 	.sta_notify		= p54_sta_notify,
 	.set_key		= p54_set_key,
 	.config			= p54_config,
-	.config_interface	= p54_config_interface,
 	.bss_info_changed	= p54_bss_info_changed,
 	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,

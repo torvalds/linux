@@ -4106,7 +4106,6 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
 	.config = iwl_mac_config,
-	.config_interface = iwl_mac_config_interface,
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl3945_mac_set_key,
 	.get_tx_stats = iwl_mac_get_tx_stats,

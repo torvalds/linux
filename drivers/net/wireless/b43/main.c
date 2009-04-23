@@ -3543,12 +3543,38 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;
+	unsigned long flags;
 
 	mutex_lock(&wl->mutex);
 
 	dev = wl->current_dev;
 	if (!dev || b43_status(dev) < B43_STAT_STARTED)
 		goto out_unlock_mutex;
+
+	B43_WARN_ON(wl->vif != vif);
+
+	if (changed & BSS_CHANGED_BSSID) {
+		spin_lock_irqsave(&wl->irq_lock, flags);
+		if (conf->bssid)
+			memcpy(wl->bssid, conf->bssid, ETH_ALEN);
+		else
+			memset(wl->bssid, 0, ETH_ALEN);
+
+		if (b43_status(dev) >= B43_STAT_INITIALIZED) {
+			if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
+			    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT)) {
+				B43_WARN_ON(vif->type != wl->if_type);
+				if (changed & BSS_CHANGED_BEACON)
+					b43_update_templates(wl);
+			} else if (b43_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
+				if (changed & BSS_CHANGED_BEACON)
+					b43_update_templates(wl);
+			}
+			b43_write_mac_bssid_templates(dev);
+		}
+		spin_unlock_irqrestore(&wl->irq_lock, flags);
+	}
+
 	b43_mac_suspend(dev);
 
 	/* Update templates for AP/mesh mode. */
@@ -3571,8 +3597,6 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 	b43_mac_enable(dev);
 out_unlock_mutex:
 	mutex_unlock(&wl->mutex);
-
-	return;
 }
 
 static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -3728,41 +3752,6 @@ static void b43_op_configure_filter(struct ieee80211_hw *hw,
 	if (changed && b43_status(dev) >= B43_STAT_INITIALIZED)
 		b43_adjust_opmode(dev);
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
-}
-
-static int b43_op_config_interface(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif,
-				   struct ieee80211_if_conf *conf)
-{
-	struct b43_wl *wl = hw_to_b43_wl(hw);
-	struct b43_wldev *dev = wl->current_dev;
-	unsigned long flags;
-
-	if (!dev)
-		return -ENODEV;
-	mutex_lock(&wl->mutex);
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	B43_WARN_ON(wl->vif != vif);
-	if (conf->bssid)
-		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
-	else
-		memset(wl->bssid, 0, ETH_ALEN);
-	if (b43_status(dev) >= B43_STAT_INITIALIZED) {
-		if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
-		    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT)) {
-			B43_WARN_ON(vif->type != wl->if_type);
-			if (conf->changed & IEEE80211_IFCC_BEACON)
-				b43_update_templates(wl);
-		} else if (b43_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
-			if (conf->changed & IEEE80211_IFCC_BEACON)
-				b43_update_templates(wl);
-		}
-		b43_write_mac_bssid_templates(dev);
-	}
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-	mutex_unlock(&wl->mutex);
-
-	return 0;
 }
 
 /* Locking: wl->mutex */
@@ -4434,7 +4423,6 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.remove_interface	= b43_op_remove_interface,
 	.config			= b43_op_config,
 	.bss_info_changed	= b43_op_bss_info_changed,
-	.config_interface	= b43_op_config_interface,
 	.configure_filter	= b43_op_configure_filter,
 	.set_key		= b43_op_set_key,
 	.get_stats		= b43_op_get_stats,

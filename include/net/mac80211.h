@@ -150,6 +150,12 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_HT: 802.11n parameters changed
  * @BSS_CHANGED_BASIC_RATES: Basic rateset changed
  * @BSS_CHANGED_BEACON_INT: Beacon interval changed
+ * @BSS_CHANGED_BSSID: BSSID changed, for whatever
+ *	reason (IBSS and managed mode)
+ * @BSS_CHANGED_BEACON: Beacon data changed, retrieve
+ *	new beacon (beaconing modes)
+ * @BSS_CHANGED_BEACON_ENABLED: Beaconing should be
+ *	enabled/disabled (beaconing modes)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -159,6 +165,9 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_HT                  = 1<<4,
 	BSS_CHANGED_BASIC_RATES		= 1<<5,
 	BSS_CHANGED_BEACON_INT		= 1<<6,
+	BSS_CHANGED_BSSID		= 1<<7,
+	BSS_CHANGED_BEACON		= 1<<8,
+	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
 };
 
 /**
@@ -192,8 +201,11 @@ struct ieee80211_bss_ht_conf {
  * @basic_rates: bitmap of basic rates, each bit stands for an
  *	index into the rate table configured by the driver in
  *	the current band.
+ * @bssid: The BSSID for this BSS
+ * @enable_beacon: whether beaconing should be enabled or not
  */
 struct ieee80211_bss_conf {
+	const u8 *bssid;
 	/* association related data */
 	bool assoc;
 	u16 aid;
@@ -201,6 +213,7 @@ struct ieee80211_bss_conf {
 	bool use_cts_prot;
 	bool use_short_preamble;
 	bool use_short_slot;
+	bool enable_beacon;
 	u8 dtim_period;
 	u16 beacon_int;
 	u16 assoc_capability;
@@ -657,37 +670,6 @@ struct ieee80211_if_init_conf {
 	enum nl80211_iftype type;
 	struct ieee80211_vif *vif;
 	void *mac_addr;
-};
-
-/**
- * enum ieee80211_if_conf_change - interface config change flags
- *
- * @IEEE80211_IFCC_BSSID: The BSSID changed.
- * @IEEE80211_IFCC_BEACON: The beacon for this interface changed
- *	(currently AP and MESH only), use ieee80211_beacon_get().
- * @IEEE80211_IFCC_BEACON_ENABLED: The enable_beacon value changed.
- */
-enum ieee80211_if_conf_change {
-	IEEE80211_IFCC_BSSID		= BIT(0),
-	IEEE80211_IFCC_BEACON		= BIT(1),
-	IEEE80211_IFCC_BEACON_ENABLED	= BIT(2),
-};
-
-/**
- * struct ieee80211_if_conf - configuration of an interface
- *
- * @changed: parameters that have changed, see &enum ieee80211_if_conf_change.
- * @bssid: BSSID of the network we are associated to/creating.
- * @enable_beacon: Indicates whether beacons can be sent.
- *	This is valid only for AP/IBSS/MESH modes.
- *
- * This structure is passed to the config_interface() callback of
- * &struct ieee80211_hw.
- */
-struct ieee80211_if_conf {
-	u32 changed;
-	const u8 *bssid;
-	bool enable_beacon;
 };
 
 /**
@@ -1358,10 +1340,6 @@ enum ieee80211_ampdu_mlme_action {
  *	This function should never fail but returns a negative error code
  *	if it does.
  *
- * @config_interface: Handler for configuration requests related to interfaces
- *	(e.g. BSSID changes.)
- *	Returns a negative error code which will be seen in userspace.
- *
  * @bss_info_changed: Handler for configuration requests related to BSS
  *	parameters that may vary during BSS's lifespan, and may affect low
  *	level driver (e.g. assoc/disassoc status, erp parameters).
@@ -1463,9 +1441,6 @@ struct ieee80211_ops {
 	void (*remove_interface)(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
 	int (*config)(struct ieee80211_hw *hw, u32 changed);
-	int (*config_interface)(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_if_conf *conf);
 	void (*bss_info_changed)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,

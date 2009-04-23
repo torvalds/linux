@@ -1360,33 +1360,6 @@ out:
 	return err;
 }
 
-static int ar9170_op_config_interface(struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif,
-				      struct ieee80211_if_conf *conf)
-{
-	struct ar9170 *ar = hw->priv;
-	int err = 0;
-
-	mutex_lock(&ar->mutex);
-
-	if (conf->changed & IEEE80211_IFCC_BSSID) {
-		memcpy(ar->bssid, conf->bssid, ETH_ALEN);
-		err = ar9170_set_operating_mode(ar);
-	}
-
-	if (conf->changed & IEEE80211_IFCC_BEACON) {
-		err = ar9170_update_beacon(ar);
-
-		if (err)
-			goto out;
-		err = ar9170_set_beacon_timers(ar);
-	}
-
-out:
-	mutex_unlock(&ar->mutex);
-	return err;
-}
-
 static void ar9170_set_filters(struct work_struct *work)
 {
 	struct ar9170 *ar = container_of(work, struct ar9170,
@@ -1487,6 +1460,17 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	int err = 0;
 
 	mutex_lock(&ar->mutex);
+
+	if (changed & BSS_CHANGED_BSSID) {
+		memcpy(ar->bssid, bss_conf->bssid, ETH_ALEN);
+		err = ar9170_set_operating_mode(ar);
+	}
+
+	if (changed & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_ENABLED)) {
+		err = ar9170_update_beacon(ar);
+		if (!err)
+			ar9170_set_beacon_timers(ar);
+	}
 
 	ar9170_regwrite_begin(ar);
 
@@ -1796,7 +1780,6 @@ static const struct ieee80211_ops ar9170_ops = {
 	.add_interface		= ar9170_op_add_interface,
 	.remove_interface	= ar9170_op_remove_interface,
 	.config			= ar9170_op_config,
-	.config_interface	= ar9170_op_config_interface,
 	.configure_filter	= ar9170_op_configure_filter,
 	.conf_tx		= ar9170_conf_tx,
 	.bss_info_changed	= ar9170_op_bss_info_changed,

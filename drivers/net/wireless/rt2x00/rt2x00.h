@@ -943,9 +943,6 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 				struct ieee80211_if_init_conf *conf);
 int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed);
-int rt2x00mac_config_interface(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       struct ieee80211_if_conf *conf);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,

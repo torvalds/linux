@@ -95,16 +95,9 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
-
 	local->oper_channel = chan;
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-
-	sdata->vif.bss_conf.beacon_int = beacon_int;
-	bss_change = BSS_CHANGED_BEACON_INT;
-	bss_change |= ieee80211_reset_erp_info(sdata);
-	ieee80211_bss_info_change_notify(sdata, bss_change);
 
 	sband = local->hw.wiphy->bands[chan->band];
 
@@ -161,8 +154,13 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	rcu_assign_pointer(ifibss->presp, skb);
 
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON |
-				   IEEE80211_IFCC_BEACON_ENABLED);
+	sdata->vif.bss_conf.beacon_int = beacon_int;
+	bss_change = BSS_CHANGED_BEACON_INT;
+	bss_change |= ieee80211_reset_erp_info(sdata);
+	bss_change |= BSS_CHANGED_BSSID;
+	bss_change |= BSS_CHANGED_BEACON;
+	bss_change |= BSS_CHANGED_BEACON_ENABLED;
+	ieee80211_bss_info_change_notify(sdata, bss_change);
 
 	rates = 0;
 	for (i = 0; i < supp_rates_len; i++) {
@@ -887,7 +885,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	kfree(sdata->u.ibss.ie);
 	skb = sdata->u.ibss.presp;
 	rcu_assign_pointer(sdata->u.ibss.presp, NULL);
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 	synchronize_rcu();
 	kfree_skb(skb);
 

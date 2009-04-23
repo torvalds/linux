@@ -2289,12 +2289,8 @@ int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 		ifmgd->flags &= ~IEEE80211_STA_BSSID_SET;
 	}
 
-	if (netif_running(sdata->dev)) {
-		if (ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID)) {
-			printk(KERN_DEBUG "%s: Failed to config new BSSID to "
-			       "the low-level driver\n", sdata->dev->name);
-		}
-	}
+	if (netif_running(sdata->dev))
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
 
 	return ieee80211_sta_commit(sdata);
 }

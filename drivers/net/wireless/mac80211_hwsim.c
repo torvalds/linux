@@ -587,23 +587,6 @@ static void mac80211_hwsim_configure_filter(struct ieee80211_hw *hw,
 	*total_flags = data->rx_filter;
 }
 
-static int mac80211_hwsim_config_interface(struct ieee80211_hw *hw,
-					   struct ieee80211_vif *vif,
-					   struct ieee80211_if_conf *conf)
-{
-	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
-
-	hwsim_check_magic(vif);
-	if (conf->changed & IEEE80211_IFCC_BSSID) {
-		DECLARE_MAC_BUF(mac);
-		printk(KERN_DEBUG "%s:%s: BSSID changed: %pM\n",
-		       wiphy_name(hw->wiphy), __func__,
-		       conf->bssid);
-		memcpy(vp->bssid, conf->bssid, ETH_ALEN);
-	}
-	return 0;
-}
-
 static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 					    struct ieee80211_vif *vif,
 					    struct ieee80211_bss_conf *info,
@@ -616,6 +599,13 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 	printk(KERN_DEBUG "%s:%s(changed=0x%x)\n",
 	       wiphy_name(hw->wiphy), __func__, changed);
+
+	if (changed & BSS_CHANGED_BSSID) {
+		printk(KERN_DEBUG "%s:%s: BSSID changed: %pM\n",
+		       wiphy_name(hw->wiphy), __func__,
+		       info->bssid);
+		memcpy(vp->bssid, info->bssid, ETH_ALEN);
+	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		printk(KERN_DEBUG "  %s: ASSOC: assoc=%d aid=%d\n",
@@ -708,7 +698,6 @@ static const struct ieee80211_ops mac80211_hwsim_ops =
 	.remove_interface = mac80211_hwsim_remove_interface,
 	.config = mac80211_hwsim_config,
 	.configure_filter = mac80211_hwsim_configure_filter,
-	.config_interface = mac80211_hwsim_config_interface,
 	.bss_info_changed = mac80211_hwsim_bss_info_changed,
 	.sta_notify = mac80211_hwsim_sta_notify,
 	.set_tim = mac80211_hwsim_set_tim,

@@ -906,7 +906,6 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 
 
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed);
-int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed);

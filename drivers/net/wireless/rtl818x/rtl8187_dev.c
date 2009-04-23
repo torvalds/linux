@@ -1090,32 +1090,6 @@ static int rtl8187_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static int rtl8187_config_interface(struct ieee80211_hw *dev,
-				    struct ieee80211_vif *vif,
-				    struct ieee80211_if_conf *conf)
-{
-	struct rtl8187_priv *priv = dev->priv;
-	int i;
-	u8 reg;
-
-	mutex_lock(&priv->conf_mutex);
-	for (i = 0; i < ETH_ALEN; i++)
-		rtl818x_iowrite8(priv, &priv->map->BSSID[i], conf->bssid[i]);
-
-	if (is_valid_ether_addr(conf->bssid)) {
-		reg = RTL818X_MSR_INFRA;
-		if (priv->is_rtl8187b)
-			reg |= RTL818X_MSR_ENEDCA;
-		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
-	} else {
-		reg = RTL818X_MSR_NO_LINK;
-		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
-	}
-
-	mutex_unlock(&priv->conf_mutex);
-	return 0;
-}
-
 /*
  * With 8187B, AC_*_PARAM clashes with FEMR definition in struct rtl818x_csr for
  * example. Thus we have to use raw values for AC_*_PARAM register addresses.
@@ -1193,6 +1167,27 @@ static void rtl8187_bss_info_changed(struct ieee80211_hw *dev,
 				     u32 changed)
 {
 	struct rtl8187_priv *priv = dev->priv;
+	int i;
+	u8 reg;
+
+	if (changed & BSS_CHANGED_BSSID) {
+		mutex_lock(&priv->conf_mutex);
+		for (i = 0; i < ETH_ALEN; i++)
+			rtl818x_iowrite8(priv, &priv->map->BSSID[i],
+					 info->bssid[i]);
+
+		if (is_valid_ether_addr(info->bssid)) {
+			reg = RTL818X_MSR_INFRA;
+			if (priv->is_rtl8187b)
+				reg |= RTL818X_MSR_ENEDCA;
+			rtl818x_iowrite8(priv, &priv->map->MSR, reg);
+		} else {
+			reg = RTL818X_MSR_NO_LINK;
+			rtl818x_iowrite8(priv, &priv->map->MSR, reg);
+		}
+
+		mutex_unlock(&priv->conf_mutex);
+	}
 
 	if (changed & (BSS_CHANGED_ERP_SLOT | BSS_CHANGED_ERP_PREAMBLE))
 		rtl8187_conf_erp(priv, info->use_short_slot,
@@ -1274,7 +1269,6 @@ static const struct ieee80211_ops rtl8187_ops = {
 	.add_interface		= rtl8187_add_interface,
 	.remove_interface	= rtl8187_remove_interface,
 	.config			= rtl8187_config,
-	.config_interface	= rtl8187_config_interface,
 	.bss_info_changed	= rtl8187_bss_info_changed,
 	.configure_filter	= rtl8187_configure_filter,
 	.conf_tx		= rtl8187_conf_tx

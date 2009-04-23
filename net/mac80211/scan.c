@@ -346,8 +346,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		if (sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
 		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
-			ieee80211_if_config(sdata,
-					    IEEE80211_IFCC_BEACON_ENABLED);
+			ieee80211_bss_info_change_notify(
+				sdata, BSS_CHANGED_BEACON_ENABLED);
 	}
 	mutex_unlock(&local->iflist_mtx);
 
@@ -387,8 +387,8 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 		if (sdata->vif.type == NL80211_IFTYPE_AP ||
 		    sdata->vif.type == NL80211_IFTYPE_ADHOC ||
 		    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
-			ieee80211_if_config(sdata,
-					    IEEE80211_IFCC_BEACON_ENABLED);
+			ieee80211_bss_info_change_notify(
+				sdata, BSS_CHANGED_BEACON_ENABLED);
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED) {

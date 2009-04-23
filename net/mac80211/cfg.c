@@ -521,8 +521,9 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 
 	kfree(old);
 
-	return ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON |
-					  IEEE80211_IFCC_BEACON_ENABLED);
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED |
+						BSS_CHANGED_BEACON);
+	return 0;
 }
 
 static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
@@ -573,7 +574,8 @@ static int ieee80211_del_beacon(struct wiphy *wiphy, struct net_device *dev)
 	synchronize_rcu();
 	kfree(old);
 
-	return ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+	return 0;
 }
 
 /* Layer 2 Update frame (802.2 Type 1 LLC XID Update response) */
