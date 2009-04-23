@@ -43,6 +43,43 @@ static inline void blk_clear_rq_complete(struct request *rq)
 	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
 }
 
+/*
+ * Internal elevator interface
+ */
+#define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
+
+static inline struct request *__elv_next_request(struct request_queue *q)
+{
+	struct request *rq;
+
+	while (1) {
+		while (!list_empty(&q->queue_head)) {
+			rq = list_entry_rq(q->queue_head.next);
+			if (blk_do_ordered(q, &rq))
+				return rq;
+		}
+
+		if (!q->elevator->ops->elevator_dispatch_fn(q, 0))
+			return NULL;
+	}
+}
+
+static inline void elv_activate_rq(struct request_queue *q, struct request *rq)
+{
+	struct elevator_queue *e = q->elevator;
+
+	if (e->ops->elevator_activate_req_fn)
+		e->ops->elevator_activate_req_fn(q, rq);
+}
+
+static inline void elv_deactivate_rq(struct request_queue *q, struct request *rq)
+{
+	struct elevator_queue *e = q->elevator;
+
+	if (e->ops->elevator_deactivate_req_fn)
+		e->ops->elevator_deactivate_req_fn(q, rq);
+}
+
 #ifdef CONFIG_FAIL_IO_TIMEOUT
 int blk_should_fake_timeout(struct request_queue *);
 ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);

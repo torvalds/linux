@@ -53,7 +53,6 @@ static const int elv_hash_shift = 6;
 		(hash_long(ELV_HASH_BLOCK((sec)), elv_hash_shift))
 #define ELV_HASH_ENTRIES	(1 << elv_hash_shift)
 #define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
-#define ELV_ON_HASH(rq)		(!hlist_unhashed(&(rq)->hash))
 
 DEFINE_TRACE(block_rq_insert);
 DEFINE_TRACE(block_rq_issue);
@@ -309,22 +308,6 @@ void elevator_exit(struct elevator_queue *e)
 	kobject_put(&e->kobj);
 }
 EXPORT_SYMBOL(elevator_exit);
-
-static void elv_activate_rq(struct request_queue *q, struct request *rq)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e->ops->elevator_activate_req_fn)
-		e->ops->elevator_activate_req_fn(q, rq);
-}
-
-static void elv_deactivate_rq(struct request_queue *q, struct request *rq)
-{
-	struct elevator_queue *e = q->elevator;
-
-	if (e->ops->elevator_deactivate_req_fn)
-		e->ops->elevator_deactivate_req_fn(q, rq);
-}
 
 static inline void __elv_rqhash_del(struct request *rq)
 {
@@ -757,117 +740,6 @@ void elv_add_request(struct request_queue *q, struct request *rq, int where,
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(elv_add_request);
-
-static inline struct request *__elv_next_request(struct request_queue *q)
-{
-	struct request *rq;
-
-	while (1) {
-		while (!list_empty(&q->queue_head)) {
-			rq = list_entry_rq(q->queue_head.next);
-			if (blk_do_ordered(q, &rq))
-				return rq;
-		}
-
-		if (!q->elevator->ops->elevator_dispatch_fn(q, 0))
-			return NULL;
-	}
-}
-
-struct request *elv_next_request(struct request_queue *q)
-{
-	struct request *rq;
-	int ret;
-
-	while ((rq = __elv_next_request(q)) != NULL) {
-		if (!(rq->cmd_flags & REQ_STARTED)) {
-			/*
-			 * This is the first time the device driver
-			 * sees this request (possibly after
-			 * requeueing).  Notify IO scheduler.
-			 */
-			if (blk_sorted_rq(rq))
-				elv_activate_rq(q, rq);
-
-			/*
-			 * just mark as started even if we don't start
-			 * it, a request that has been delayed should
-			 * not be passed by new incoming requests
-			 */
-			rq->cmd_flags |= REQ_STARTED;
-			trace_block_rq_issue(q, rq);
-		}
-
-		if (!q->boundary_rq || q->boundary_rq == rq) {
-			q->end_sector = rq_end_sector(rq);
-			q->boundary_rq = NULL;
-		}
-
-		if (rq->cmd_flags & REQ_DONTPREP)
-			break;
-
-		if (q->dma_drain_size && rq->data_len) {
-			/*
-			 * make sure space for the drain appears we
-			 * know we can do this because max_hw_segments
-			 * has been adjusted to be one fewer than the
-			 * device can handle
-			 */
-			rq->nr_phys_segments++;
-		}
-
-		if (!q->prep_rq_fn)
-			break;
-
-		ret = q->prep_rq_fn(q, rq);
-		if (ret == BLKPREP_OK) {
-			break;
-		} else if (ret == BLKPREP_DEFER) {
-			/*
-			 * the request may have been (partially) prepped.
-			 * we need to keep this request in the front to
-			 * avoid resource deadlock.  REQ_STARTED will
-			 * prevent other fs requests from passing this one.
-			 */
-			if (q->dma_drain_size && rq->data_len &&
-			    !(rq->cmd_flags & REQ_DONTPREP)) {
-				/*
-				 * remove the space for the drain we added
-				 * so that we don't add it again
-				 */
-				--rq->nr_phys_segments;
-			}
-
-			rq = NULL;
-			break;
-		} else if (ret == BLKPREP_KILL) {
-			rq->cmd_flags |= REQ_QUIET;
-			__blk_end_request(rq, -EIO, blk_rq_bytes(rq));
-		} else {
-			printk(KERN_ERR "%s: bad return=%d\n", __func__, ret);
-			break;
-		}
-	}
-
-	return rq;
-}
-EXPORT_SYMBOL(elv_next_request);
-
-void elv_dequeue_request(struct request_queue *q, struct request *rq)
-{
-	BUG_ON(list_empty(&rq->queuelist));
-	BUG_ON(ELV_ON_HASH(rq));
-
-	list_del_init(&rq->queuelist);
-
-	/*
-	 * the time frame between a request being removed from the lists
-	 * and to it is freed is accounted as io that is in progress at
-	 * the driver side.
-	 */
-	if (blk_account_rq(rq))
-		q->in_flight++;
-}
 
 int elv_queue_empty(struct request_queue *q)
 {
