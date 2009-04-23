@@ -134,6 +134,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	rq->cmd_len = BLK_MAX_CDB;
 	rq->tag = -1;
 	rq->ref_count = 1;
+	rq->start_time = jiffies;
 }
 EXPORT_SYMBOL(blk_rq_init);
 
@@ -1099,7 +1100,6 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	req->errors = 0;
 	req->hard_sector = req->sector = bio->bi_sector;
 	req->ioprio = bio_prio(bio);
-	req->start_time = jiffies;
 	blk_rq_bio_prep(req->q, req, bio);
 }
 
