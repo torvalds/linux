@@ -1568,12 +1568,13 @@ static void ath_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
 	__le16 fc = hdr->frame_control;
 
-	/* lowest rate for management and multicast/broadcast frames */
-	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1) ||
-	    !sta) {
+	/* lowest rate for management and NO_ACK frames */
+	if (!ieee80211_is_data(fc) ||
+	    tx_info->flags & IEEE80211_TX_CTL_NO_ACK || !sta) {
 		tx_info->control.rates[0].idx = rate_lowest_index(sband, sta);
 		tx_info->control.rates[0].count =
-			is_multicast_ether_addr(hdr->addr1) ? 1 : ATH_MGT_TXMAXTRY;
+			(tx_info->flags & IEEE80211_TX_CTL_NO_ACK) ?
+				1 : ATH_MGT_TXMAXTRY;
 		return;
 	}
 
