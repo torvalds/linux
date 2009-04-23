@@ -559,7 +559,7 @@ enum ieee80211_conf_changed {
  * @beacon_int: beacon interval (TODO make interface config)
  *
  * @listen_interval: listen interval in units of beacon interval
- * @max_sleep_interval: the maximum number of beacon intervals to sleep for
+ * @max_sleep_period: the maximum number of beacon intervals to sleep for
  *	before checking the beacon for a TIM bit (managed mode only); this
  *	value will be only achievable between DTIM frames, the hardware
  *	needs to check for the multicast traffic bit in DTIM beacons.
@@ -584,7 +584,7 @@ struct ieee80211_conf {
 	int beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
-	int max_sleep_interval;
+	int max_sleep_period;
 
 	u16 listen_interval;
 	bool radio_enabled;

@@ -562,7 +562,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 				maxslp = min_t(int, dtimper,
 						    latency / beaconint_us);
 
-			local->hw.conf.max_sleep_interval = maxslp;
+			local->hw.conf.max_sleep_period = maxslp;
 			local->ps_sdata = found;
 		}
 	} else {
