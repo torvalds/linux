@@ -1251,6 +1251,28 @@ static void twl4030_constraints(struct twl4030_priv *twl4030,
 				twl4030->channels);
 }
 
+/* In case of 4 channel mode, the RX1 L/R for playback and the TX2 L/R for
+ * capture has to be enabled/disabled. */
+static void twl4030_tdm_enable(struct snd_soc_codec *codec, int direction,
+				int enable)
+{
+	u8 reg, mask;
+
+	reg = twl4030_read_reg_cache(codec, TWL4030_REG_OPTION);
+
+	if (direction == SNDRV_PCM_STREAM_PLAYBACK)
+		mask = TWL4030_ARXL1_VRX_EN | TWL4030_ARXR1_EN;
+	else
+		mask = TWL4030_ATXL2_VTXL_EN | TWL4030_ATXR2_VTXR_EN;
+
+	if (enable)
+		reg |= mask;
+	else
+		reg &= ~mask;
+
+	twl4030_write(codec, TWL4030_REG_OPTION, reg);
+}
+
 static int twl4030_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
@@ -1267,6 +1289,15 @@ static int twl4030_startup(struct snd_pcm_substream *substream,
 		if (twl4030->configured)
 			twl4030_constraints(twl4030, twl4030->master_substream);
 	} else {
+		if (!(twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE) &
+			TWL4030_OPTION_1)) {
+			/* In option2 4 channel is not supported, set the
+			 * constraint for the first stream for channels, the
+			 * second stream will 'inherit' this cosntraint */
+			snd_pcm_hw_constraint_minmax(substream->runtime,
+						SNDRV_PCM_HW_PARAM_CHANNELS,
+						2, 2);
+		}
 		twl4030->master_substream = substream;
 	}
 
@@ -1292,6 +1323,10 @@ static void twl4030_shutdown(struct snd_pcm_substream *substream,
 		twl4030->configured = 0;
 	 else if (!twl4030->master_substream->runtime->channels)
 		twl4030->configured = 0;
+
+	 /* If the closing substream had 4 channel, do the necessary cleanup */
+	if (substream->runtime->channels == 4)
+		twl4030_tdm_enable(codec, substream->stream, 0);
 }
 
 static int twl4030_hw_params(struct snd_pcm_substream *substream,
@@ -1303,6 +1338,16 @@ static int twl4030_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct twl4030_priv *twl4030 = codec->private_data;
 	u8 mode, old_mode, format, old_format;
+
+	 /* If the substream has 4 channel, do the necessary setup */
+	if (params_channels(params) == 4) {
+		/* Safety check: are we in the correct operating mode? */
+		if ((twl4030_read_reg_cache(codec, TWL4030_REG_CODEC_MODE) &
+			TWL4030_OPTION_1))
+			twl4030_tdm_enable(codec, substream->stream, 1);
+		else
+			return -EINVAL;
+	}
 
 	if (twl4030->configured)
 		/* Ignoring hw_params for already configured DAI */
@@ -1460,6 +1505,9 @@ static int twl4030_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
 		format |= TWL4030_AIF_FORMAT_CODEC;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		format |= TWL4030_AIF_FORMAT_TDM;
 		break;
 	default:
 		return -EINVAL;
@@ -1642,13 +1690,13 @@ struct snd_soc_dai twl4030_dai[] = {
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 4,
 		.rates = TWL4030_RATES | SNDRV_PCM_RATE_96000,
 		.formats = TWL4030_FORMATS,},
 	.capture = {
 		.stream_name = "Capture",
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 4,
 		.rates = TWL4030_RATES,
 		.formats = TWL4030_FORMATS,},
 	.ops = &twl4030_dai_ops,

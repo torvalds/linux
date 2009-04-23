@@ -116,6 +116,17 @@
 #define TWL4030_OPTION_1		(1 << 0)
 #define TWL4030_OPTION_2		(0 << 0)
 
+/* TWL4030_OPTION (0x02) Fields */
+
+#define TWL4030_ATXL1_EN		(1 << 0)
+#define TWL4030_ATXR1_EN		(1 << 1)
+#define TWL4030_ATXL2_VTXL_EN		(1 << 2)
+#define TWL4030_ATXR2_VTXR_EN		(1 << 3)
+#define TWL4030_ARXL1_VRX_EN		(1 << 4)
+#define TWL4030_ARXR1_EN		(1 << 5)
+#define TWL4030_ARXL2_EN		(1 << 6)
+#define TWL4030_ARXR2_EN		(1 << 7)
+
 /* TWL4030_REG_MICBIAS_CTL (0x04) Fields */
 
 #define TWL4030_MICBIAS2_CTL		0x40
