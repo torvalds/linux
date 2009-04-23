@@ -939,17 +939,18 @@ static ssize_t __write_ports_addfd(char *buf)
 	if (err != 0)
 		return err;
 
+	err = lockd_up();
+	if (err != 0)
+		goto out;
+
 	err = svc_addsock(nfsd_serv, fd, buf);
-	if (err >= 0) {
-		err = lockd_up();
-		if (err < 0)
-			svc_sock_names(buf + strlen(buf) + 1, nfsd_serv, buf);
+	if (err < 0)
+		lockd_down();
 
-		/* Decrease the count, but don't shut down the service */
-		nfsd_serv->sv_nrthreads--;
-	}
-
-	return err < 0 ? err : 0;
+out:
+	/* Decrease the count, but don't shut down the service */
+	nfsd_serv->sv_nrthreads--;
+	return err;
 }
 
 /*
