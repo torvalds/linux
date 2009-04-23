@@ -918,7 +918,7 @@ static ssize_t __write_ports_names(char *buf)
 {
 	if (nfsd_serv == NULL)
 		return 0;
-	return svc_xprt_names(nfsd_serv, buf, 0);
+	return svc_xprt_names(nfsd_serv, buf, SIMPLE_TRANSACTION_LIMIT);
 }
 
 /*
