@@ -37,9 +37,9 @@ static void random_recv_done(struct virtqueue *vq)
 {
 	int len;
 
-	/* We never get spurious callbacks. */
+	/* We can get spurious callbacks, e.g. shared IRQs + virtio_pci. */
 	if (!vq->vq_ops->get_buf(vq, &len))
-		BUG();
+		return;
 
 	data_left = len / sizeof(random_data[0]);
 	complete(&have_data);
