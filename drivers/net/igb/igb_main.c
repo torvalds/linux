@@ -2898,13 +2898,13 @@ static void igb_set_itr(struct igb_adapter *adapter)
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
 	case lowest_latency:
-		new_itr = 70000;
+		new_itr = 56;  /* aka 70,000 ints/sec */
 		break;
 	case low_latency:
-		new_itr = 20000; /* aka hwitr = ~200 */
+		new_itr = 196; /* aka 20,000 ints/sec */
 		break;
 	case bulk_latency:
-		new_itr = 4000;
+		new_itr = 980; /* aka 4,000 ints/sec */
 		break;
 	default:
 		break;
@@ -2923,7 +2923,8 @@ set_itr_now:
 		 * by adding intermediate steps when interrupt rate is
 		 * increasing */
 		new_itr = new_itr > adapter->itr ?
-			     min(adapter->itr + (new_itr >> 2), new_itr) :
+			     max((new_itr * adapter->itr) /
+			         (new_itr + (adapter->itr >> 2)), new_itr) :
 			     new_itr;
 		/* Don't write the value here; it resets the adapter's
 		 * internal timer, and causes us to delay far longer than
@@ -2932,7 +2933,7 @@ set_itr_now:
 		 * ends up being correct.
 		 */
 		adapter->itr = new_itr;
-		adapter->rx_ring->itr_val = 1000000000 / (new_itr * 256);
+		adapter->rx_ring->itr_val = new_itr;
 		adapter->rx_ring->set_itr = 1;
 	}
 
