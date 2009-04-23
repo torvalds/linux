@@ -426,13 +426,14 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		long		all[SVC_PKTINFO_SPACE / sizeof(long)];
 	} buffer;
 	struct cmsghdr *cmh = &buffer.hdr;
-	int		err, len;
 	struct msghdr msg = {
 		.msg_name = svc_addr(rqstp),
 		.msg_control = cmh,
 		.msg_controllen = sizeof(buffer),
 		.msg_flags = MSG_DONTWAIT,
 	};
+	size_t len;
+	int err;
 
 	if (test_and_clear_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags))
 	    /* udp sockets need large rcvbuf as all pending
@@ -464,8 +465,8 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 		return -EAGAIN;
 	}
 	len = svc_addr_len(svc_addr(rqstp));
-	if (len < 0)
-		return len;
+	if (len == 0)
+		return -EAFNOSUPPORT;
 	rqstp->rq_addrlen = len;
 	if (skb->tstamp.tv64 == 0) {
 		skb->tstamp = ktime_get_real();

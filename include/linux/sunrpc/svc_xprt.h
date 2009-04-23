@@ -118,7 +118,7 @@ static inline unsigned short svc_addr_port(const struct sockaddr *sa)
 	return 0;
 }
 
-static inline size_t svc_addr_len(struct sockaddr *sa)
+static inline size_t svc_addr_len(const struct sockaddr *sa)
 {
 	switch (sa->sa_family) {
 	case AF_INET:
@@ -126,7 +126,8 @@ static inline size_t svc_addr_len(struct sockaddr *sa)
 	case AF_INET6:
 		return sizeof(struct sockaddr_in6);
 	}
-	return -EAFNOSUPPORT;
+
+	return 0;
 }
 
 static inline unsigned short svc_xprt_local_port(const struct svc_xprt *xprt)
