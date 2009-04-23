@@ -12,6 +12,11 @@
  *   also fit for MPC8560, MPC8555, MPC8548, MPC8641, and etc.
  *   The support for MPC8349 DMA contorller is also added.
  *
+ * This driver instructs the DMA controller to issue the PCI Read Multiple
+ * command for PCI read operations, instead of using the default PCI Read Line
+ * command. Please be aware that this setting may result in read pre-fetching
+ * on some platforms.
+ *
  * This is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -49,9 +54,10 @@ static void dma_init(struct fsl_dma_chan *fsl_chan)
 	case FSL_DMA_IP_83XX:
 		/* Set the channel to below modes:
 		 * EOTIE - End-of-transfer interrupt enable
+		 * PRC_RM - PCI read multiple
 		 */
-		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, FSL_DMA_MR_EOTIE,
-				32);
+		DMA_OUT(fsl_chan, &fsl_chan->reg_base->mr, FSL_DMA_MR_EOTIE
+				| FSL_DMA_MR_PRC_RM, 32);
 		break;
 	}
 
