@@ -911,6 +911,17 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 }
 
 /*
+ * Zero-length write.  Return a list of NFSD's current listener
+ * transports.
+ */
+static ssize_t __write_ports_names(char *buf)
+{
+	if (nfsd_serv == NULL)
+		return 0;
+	return svc_xprt_names(nfsd_serv, buf, 0);
+}
+
+/*
  * A single 'fd' number was written, in which case it must be for
  * a socket of a supported family/protocol, and we use it as an
  * nfsd listener.
@@ -1019,13 +1030,8 @@ static ssize_t __write_ports_delxprt(char *buf)
 
 static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 {
-	if (size == 0) {
-		int len = 0;
-
-		if (nfsd_serv)
-			len = svc_xprt_names(nfsd_serv, buf, 0);
-		return len;
-	}
+	if (size == 0)
+		return __write_ports_names(buf);
 
 	if (isdigit(buf[0]))
 		return __write_ports_addfd(buf);
