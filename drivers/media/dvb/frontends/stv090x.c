@@ -1943,6 +1943,7 @@ static int stv090x_get_loop_params(struct stv090x_state *state, s32 *freq_inc, s
 
 	srate = state->srate;
 	car_max = state->search_range / 1000;
+	car_max += car_max / 10;
 	car_max  = 65536 * (car_max / 2);
 	car_max /= (state->mclk / 1000);
 
@@ -2003,6 +2004,7 @@ static int stv090x_chk_signal(struct stv090x_state *state)
 
 	offst_car  = STV090x_READ_DEMOD(state, CFR2) << 8;
 	offst_car |= STV090x_READ_DEMOD(state, CFR1);
+	offst_car = comp2(offst_car, 16);
 
 	agc2  = STV090x_READ_DEMOD(state, AGC2I1) << 8;
 	agc2 |= STV090x_READ_DEMOD(state, AGC2I0);
@@ -2065,6 +2067,9 @@ static int stv090x_search_car_loop(struct stv090x_state *state, s32 inc, s32 tim
 			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0x1);
 			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
 				goto err;
+			STV090x_SETFIELD_Px(reg, RST_HWARE_FIELD, 0x0);
+			if (STV090x_WRITE_DEMOD(state, TSCFGH, reg) < 0)
+				goto err;
 		}
 
 		if (zigzag) {
@@ -2075,6 +2080,8 @@ static int stv090x_search_car_loop(struct stv090x_state *state, s32 inc, s32 tim
 		} else {
 			offst_freq += 2 * inc;
 		}
+
+		cpt_step++;
 
 		lock = stv090x_get_dmdlock(state, timeout);
 		no_signal = stv090x_chk_signal(state);
@@ -2149,7 +2156,7 @@ static int stv090x_sw_algo(struct stv090x_state *state)
 			if (STV090x_WRITE_DEMOD(state, CORRELABS, 0x68) < 0)
 				goto err;
 		}
-		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, 0x69) < 0)
+		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, 0xc9) < 0)
 			goto err;
 		zigzag = 0;
 		break;
@@ -2310,7 +2317,7 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 	if (state->algo == STV090x_BLIND_SEARCH) {
 		tmg = STV090x_READ_DEMOD(state, TMGREG2);
 		STV090x_WRITE_DEMOD(state, SFRSTEP, 0x5c);
-		while ((i <= 50) && (!tmg) && (tmg != 0xff)) {
+		while ((i <= 50) && (tmg != 0) && (tmg != 0xff)) {
 			tmg = STV090x_READ_DEMOD(state, TMGREG2);
 			msleep(5);
 			i += 5;
@@ -2347,7 +2354,7 @@ static enum stv090x_signal_state stv090x_get_sig_params(struct stv090x_state *st
 		stv090x_i2c_gate_ctrl(fe, 0);
 
 		if (abs(offst_freq) <= ((state->search_range / 2000) + 500))
-			return  STV090x_RANGEOK;
+			return STV090x_RANGEOK;
 		else if (abs(offst_freq) <= (stv090x_car_width(state->srate, state->rolloff) / 2000))
 			return STV090x_RANGEOK;
 		else
@@ -2569,8 +2576,8 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 
 	case STV090x_DVBS2:
 		reg = STV090x_READ_DEMOD(state, DMDCFGMD);
-		STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 1);
-		STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 0);
+		STV090x_SETFIELD_Px(reg, DVBS1_ENABLE_FIELD, 0);
+		STV090x_SETFIELD_Px(reg, DVBS2_ENABLE_FIELD, 1);
 		if (STV090x_WRITE_DEMOD(state, DMDCFGMD, reg) < 0)
 			goto err;
 		if (STV090x_WRITE_DEMOD(state, ACLC, 0) < 0)
@@ -3115,7 +3122,7 @@ static enum stv090x_signal_state stv090x_algo(struct stv090x_state *state)
 	if ((signal_state == STV090x_NODATA) && (!no_signal)) {
 		if (state->dev_ver <= 0x11) {
 			reg = STV090x_READ_DEMOD(state, DMDSTATE);
-			if (((STV090x_GETFIELD_Px(reg, HEADER_MODE_FIELD)) == STV090x_DVBS2) && (state->inversion == INVERSION_AUTO))
+			if (((STV090x_GETFIELD_Px(reg, HEADER_MODE_FIELD)) == STV090x_DVBS1) && (state->inversion == INVERSION_AUTO))
 				signal_state = stv090x_acq_fixs1(state);
 		}
 	}
@@ -3139,7 +3146,7 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe, struct dvb_fron
 	state->fec = STV090x_PRERR;
 	state->search_range = 2000000;
 
-	if (!stv090x_algo(state)) {
+	if (stv090x_algo(state) == STV090x_RANGEOK) {
 		dprintk(FE_DEBUG, 1, "Search success!");
 		return DVBFE_ALGO_SEARCH_SUCCESS;
 	} else {
@@ -3949,12 +3956,13 @@ static int stv090x_setup(struct dvb_frontend *fe)
 	msleep(5);
 
 	/* write initval */
+	dprintk(FE_DEBUG, 1, "Setting up initial values");
 	for (i = 0; i < t1_size; i++) {
-		dprintk(FE_DEBUG, 1, "Setting up initial values");
 		if (stv090x_write_reg(state, stv090x_initval[i].addr, stv090x_initval[i].data) < 0)
 			goto err;
 	}
 
+	state->dev_ver = stv090x_read_reg(state, STV090x_MID);
 	if (state->dev_ver >= 0x20) {
 		if (stv090x_write_reg(state, STV090x_TSGENERAL, 0x0c) < 0)
 			goto err;
@@ -4047,7 +4055,6 @@ struct dvb_frontend *stv090x_attach(const struct stv090x_config *config,
 		dprintk(FE_ERROR, 1, "Error waking device");
 		goto error;
 	}
-	state->dev_ver = stv090x_read_reg(state, STV090x_MID);
 
 	dprintk(FE_ERROR, 1, "Attaching %s demodulator(%d) Cut=0x%02x\n",
 	       state->device == STV0900 ? "STV0900" : "STV0903",
