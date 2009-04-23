@@ -368,9 +368,8 @@ int i_APCI3120_InsnReadAnalogInput(struct comedi_device *dev, struct comedi_subd
 					us_TmpValue =
 						inw(devpriv->iobase +
 						APCI3120_RD_STATUS);
-				}
-				while ((us_TmpValue & APCI3120_EOS) !=
-					APCI3120_EOS);
+				} while ((us_TmpValue & APCI3120_EOS) !=
+					 APCI3120_EOS);
 
 				for (i = 0; i < devpriv->ui_AiNbrofChannels;
 					i++) {

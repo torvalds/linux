@@ -477,9 +477,8 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, struct comedi_subdevi
 								s_BoardInfos.
 								ui_Address +
 								(64 * b_ModulNbr));
-						}
-						while ((dw_StatusReg & 0x1) !=
-							0);
+						} while ((dw_StatusReg & 0x1)
+							 != 0);
 
 		    /******************************/
 						/* Read the SSI counter value */
@@ -608,8 +607,7 @@ int i_APCI1710_InsnReadSSIValue(struct comedi_device *dev, struct comedi_subdevi
 							s_BoardInfos.
 							ui_Address +
 							(64 * b_ModulNbr));
-					}
-					while ((dw_StatusReg & 0x1) != 0);
+					} while ((dw_StatusReg & 0x1) != 0);
 
 					for (b_SSICpt = 0; b_SSICpt < 3;
 						b_SSICpt++) {

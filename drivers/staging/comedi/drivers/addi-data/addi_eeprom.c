@@ -411,8 +411,7 @@ void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 		b_EepromBusy = inb(w_PCIBoardEepromAddress + 0x3F);
 		b_EepromBusy = b_EepromBusy & 0x80;
 
-	}
-	while (b_EepromBusy == 0x80);
+	} while (b_EepromBusy == 0x80);
 
 }
 

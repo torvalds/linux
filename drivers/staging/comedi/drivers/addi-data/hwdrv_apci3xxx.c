@@ -535,8 +535,7 @@ int i_APCI3XXX_InsnReadAnalogInput(struct comedi_device *dev,
 								dw_Temp =
 									dw_Temp
 									& 1;
-							}
-							while (dw_Temp != 1);
+							} while (dw_Temp != 1);
 
 			  /*************************/
 							/* Read the analog value */
@@ -729,8 +728,7 @@ int i_APCI3XXX_InsnWriteAnalogOutput(struct comedi_device *dev,
 					dw_Status =
 						readl((void *)(devpriv->
 							dw_AiBase + 96));
-				}
-				while ((dw_Status & 0x100) != 0x100);
+				} while ((dw_Status & 0x100) != 0x100);
 			} else {
 		 /***************************/
 				/* Channel not initialised */
