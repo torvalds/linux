@@ -240,21 +240,26 @@ out:
 /*
  * Report socket names for nfsdfs
  */
-static int one_sock_name(char *buf, struct svc_sock *svsk)
+static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 {
 	int len;
 
 	switch(svsk->sk_sk->sk_family) {
-	case AF_INET:
-		len = sprintf(buf, "ipv4 %s %pI4 %d\n",
+	case PF_INET:
+		len = snprintf(buf, remaining, "ipv4 %s %pI4 %d\n",
 			      svsk->sk_sk->sk_protocol == IPPROTO_UDP ?
 			      "udp" : "tcp",
 			      &inet_sk(svsk->sk_sk)->rcv_saddr,
 			      inet_sk(svsk->sk_sk)->num);
 		break;
 	default:
-		len = sprintf(buf, "*unknown-%d*\n",
+		len = snprintf(buf, remaining, "*unknown-%d*\n",
 			       svsk->sk_sk->sk_family);
+	}
+
+	if (len >= remaining) {
+		*buf = '\0';
+		return -ENAMETOOLONG;
 	}
 	return len;
 }
@@ -282,15 +287,21 @@ int svc_sock_names(struct svc_serv *serv, char *buf, const size_t buflen,
 
 	if (!serv)
 		return 0;
+
 	spin_lock_bh(&serv->sv_lock);
 	list_for_each_entry(svsk, &serv->sv_permsocks, sk_xprt.xpt_list) {
-		int onelen = one_sock_name(buf+len, svsk);
-		if (toclose && strcmp(toclose, buf+len) == 0)
+		int onelen = svc_one_sock_name(svsk, buf + len, buflen - len);
+		if (onelen < 0) {
+			len = onelen;
+			break;
+		}
+		if (toclose && strcmp(toclose, buf + len) == 0)
 			closesk = svsk;
 		else
 			len += onelen;
 	}
 	spin_unlock_bh(&serv->sv_lock);
+
 	if (closesk)
 		/* Should unregister with portmap, but you cannot
 		 * unregister just one protocol...
@@ -1195,7 +1206,7 @@ int svc_addsock(struct svc_serv *serv, const int fd, char *name_return,
 		sockfd_put(so);
 		return err;
 	}
-	return one_sock_name(name_return, svsk);
+	return svc_one_sock_name(svsk, name_return, len);
 }
 EXPORT_SYMBOL_GPL(svc_addsock);
 
