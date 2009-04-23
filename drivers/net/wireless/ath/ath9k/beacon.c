@@ -320,8 +320,7 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 		u64 tsfadjust;
 		int intval;
 
-		intval = sc->hw->conf.beacon_int ?
-			sc->hw->conf.beacon_int : ATH_DEFAULT_BINTVAL;
+		intval = sc->beacon_interval ? : ATH_DEFAULT_BINTVAL;
 
 		/*
 		 * Calculate the TSF offset for this beacon slot, i.e., the
@@ -431,8 +430,7 @@ void ath_beacon_tasklet(unsigned long data)
 	 * on the tsf to safeguard against missing an swba.
 	 */
 
-	intval = sc->hw->conf.beacon_int ?
-		sc->hw->conf.beacon_int : ATH_DEFAULT_BINTVAL;
+	intval = sc->beacon_interval ? : ATH_DEFAULT_BINTVAL;
 
 	tsf = ath9k_hw_gettsf64(ah);
 	tsftu = TSF_TO_TU(tsf>>32, tsf);
@@ -711,8 +709,7 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 	/* Setup the beacon configuration parameters */
 
 	memset(&conf, 0, sizeof(struct ath_beacon_config));
-	conf.beacon_interval = sc->hw->conf.beacon_int ?
-		sc->hw->conf.beacon_int : ATH_DEFAULT_BINTVAL;
+	conf.beacon_interval = sc->beacon_interval ? : ATH_DEFAULT_BINTVAL;
 	conf.listen_interval = 1;
 	conf.dtim_period = conf.beacon_interval;
 	conf.dtim_count = 1;

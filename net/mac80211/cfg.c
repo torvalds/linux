@@ -451,18 +451,11 @@ static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
 	 * This is a kludge. beacon interval should really be part
 	 * of the beacon information.
 	 */
-	if (params->interval && (sdata->local->hw.conf.beacon_int !=
-				 params->interval)) {
-		sdata->local->hw.conf.beacon_int = params->interval;
-		err = ieee80211_hw_config(sdata->local,
-					IEEE80211_CONF_CHANGE_BEACON_INTERVAL);
-		if (err < 0)
-			return err;
-		/*
-		 * We updated some parameter so if below bails out
-		 * it's not an error.
-		 */
-		err = 0;
+	if (params->interval &&
+	    (sdata->vif.bss_conf.beacon_int != params->interval)) {
+		sdata->vif.bss_conf.beacon_int = params->interval;
+		ieee80211_bss_info_change_notify(sdata,
+						 BSS_CHANGED_BEACON_INT);
 	}
 
 	/* Need to have a beacon head if we don't have one yet */

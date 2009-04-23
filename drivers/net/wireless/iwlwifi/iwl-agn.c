@@ -567,7 +567,8 @@ static void iwl_setup_rxon_timing(struct iwl_priv *priv)
 		beacon_int = iwl_adjust_beacon_interval(priv->beacon_int);
 		priv->rxon_timing.atim_window = 0;
 	} else {
-		beacon_int = iwl_adjust_beacon_interval(conf->beacon_int);
+		beacon_int = iwl_adjust_beacon_interval(
+			priv->vif->bss_conf.beacon_int);
 
 		/* TODO: we need to get atim_window from upper stack
 		 * for now we set to 0 */

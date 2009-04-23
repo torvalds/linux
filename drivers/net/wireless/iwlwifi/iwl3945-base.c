@@ -551,7 +551,8 @@ static void iwl3945_setup_rxon_timing(struct iwl_priv *priv)
 		priv->rxon_timing.atim_window = 0;
 	} else {
 		priv->rxon_timing.beacon_interval =
-			iwl3945_adjust_beacon_interval(conf->beacon_int);
+			iwl3945_adjust_beacon_interval(
+				priv->vif->bss_conf.beacon_int);
 		/* TODO: we need to get atim_window from upper stack
 		 * for now we set to 0 */
 		priv->rxon_timing.atim_window = 0;
@@ -4210,8 +4211,6 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
-
-	hw->conf.beacon_int = 100;
 
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
 		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =

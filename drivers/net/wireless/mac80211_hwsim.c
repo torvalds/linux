@@ -553,18 +553,13 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 
-	printk(KERN_DEBUG "%s:%s (freq=%d radio_enabled=%d beacon_int=%d)\n",
+	printk(KERN_DEBUG "%s:%s (freq=%d radio_enabled=%d)\n",
 	       wiphy_name(hw->wiphy), __func__,
-	       conf->channel->center_freq, conf->radio_enabled,
-	       conf->beacon_int);
+	       conf->channel->center_freq, conf->radio_enabled);
 
 	data->channel = conf->channel;
 	data->radio_enabled = conf->radio_enabled;
-	data->beacon_int = 1024 * conf->beacon_int / 1000 * HZ / 1000;
-	if (data->beacon_int < 1)
-		data->beacon_int = 1;
-
-	if (!data->started || !data->radio_enabled)
+	if (!data->started || !data->radio_enabled || !data->beacon_int)
 		del_timer(&data->beacon_timer);
 	else
 		mod_timer(&data->beacon_timer, jiffies + data->beacon_int);
@@ -615,6 +610,7 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 					    u32 changed)
 {
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+	struct mac80211_hwsim_data *data = hw->priv;
 
 	hwsim_check_magic(vif);
 
@@ -626,6 +622,14 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 		       wiphy_name(hw->wiphy), info->assoc, info->aid);
 		vp->assoc = info->assoc;
 		vp->aid = info->aid;
+	}
+
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		printk(KERN_DEBUG "  %s: BCNINT: %d\n",
+		       wiphy_name(hw->wiphy), info->beacon_int);
+		data->beacon_int = 1024 * info->beacon_int / 1000 * HZ / 1000;
+		if (WARN_ON(data->beacon_int))
+			data->beacon_int = 1;
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {

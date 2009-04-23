@@ -590,6 +590,8 @@ struct ath_softc {
 	int led_on_cnt;
 	int led_off_cnt;
 
+	int beacon_interval;
+
 	struct ath_rfkill rf_kill;
 	struct ath_ani ani;
 	struct ath9k_node_stats nodestats;

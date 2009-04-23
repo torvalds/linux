@@ -2721,11 +2721,6 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	/* Antennas for RX and management frame TX. */
 	b43legacy_mgmtframe_txantenna(dev, antenna_tx);
 
-	/* Update templates for AP mode. */
-	if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
-		b43legacy_set_beacon_int(dev, conf->beacon_int);
-
-
 	if (!!conf->radio_enabled != phy->radio_on) {
 		if (conf->radio_enabled) {
 			b43legacy_radio_turn_on(dev);
@@ -2826,6 +2821,11 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 	b43legacy_synchronize_irq(dev);
 
 	b43legacy_mac_suspend(dev);
+
+	if (changed & BSS_CHANGED_BEACON_INT &&
+	    (b43legacy_is_mode(wl, NL80211_IFTYPE_AP) ||
+	     b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)))
+		b43legacy_set_beacon_int(dev, conf->beacon_int);
 
 	if (changed & BSS_CHANGED_BASIC_RATES)
 		b43legacy_update_basic_rates(dev, conf->basic_rates);

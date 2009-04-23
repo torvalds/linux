@@ -3468,11 +3468,6 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (phy->ops->set_rx_antenna)
 		phy->ops->set_rx_antenna(dev, antenna);
 
-	/* Update templates for AP/mesh mode. */
-	if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
-	    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT))
-		b43_set_beacon_int(dev, conf->beacon_int);
-
 	if (!!conf->radio_enabled != phy->radio_on) {
 		if (conf->radio_enabled) {
 			b43_software_rfkill(dev, RFKILL_STATE_UNBLOCKED);
@@ -3555,6 +3550,13 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 	if (!dev || b43_status(dev) < B43_STAT_STARTED)
 		goto out_unlock_mutex;
 	b43_mac_suspend(dev);
+
+	/* Update templates for AP/mesh mode. */
+	if (changed & BSS_CHANGED_BEACON_INT &&
+	    (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
+	     b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT) ||
+	     b43_is_mode(wl, NL80211_IFTYPE_ADHOC)))
+		b43_set_beacon_int(dev, conf->beacon_int);
 
 	if (changed & BSS_CHANGED_BASIC_RATES)
 		b43_update_basic_rates(dev, conf->basic_rates);

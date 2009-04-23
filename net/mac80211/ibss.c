@@ -73,6 +73,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos;
 	struct ieee80211_supported_band *sband;
+	u32 bss_change;
 
 	if (local->ops->reset_tsf) {
 		/* Reset own TSF to allow time synchronization work. */
@@ -92,8 +93,6 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
-	local->hw.conf.beacon_int = beacon_int >= 10 ? beacon_int : 10;
-
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
 	ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
@@ -101,6 +100,12 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	local->oper_channel = chan;
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+
+	sdata->vif.bss_conf.beacon_int = beacon_int;
+	bss_change = BSS_CHANGED_BEACON_INT;
+	bss_change |= ieee80211_reset_erp_info(sdata);
+	ieee80211_bss_info_change_notify(sdata, bss_change);
+
 	sband = local->hw.wiphy->bands[chan->band];
 
 	/* Build IBSS probe response */
@@ -111,7 +116,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memset(mgmt->da, 0xff, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
-	mgmt->u.beacon.beacon_int = cpu_to_le16(local->hw.conf.beacon_int);
+	mgmt->u.beacon.beacon_int = cpu_to_le16(beacon_int);
 	mgmt->u.beacon.timestamp = cpu_to_le64(tsf);
 	mgmt->u.beacon.capab_info = cpu_to_le16(capability);
 
@@ -181,8 +186,13 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_bss *bss)
 {
+	u16 beacon_int = bss->cbss.beacon_interval;
+
+	if (beacon_int < 10)
+		beacon_int = 10;
+
 	__ieee80211_sta_join_ibss(sdata, bss->cbss.bssid,
-				  bss->cbss.beacon_interval,
+				  beacon_int,
 				  bss->cbss.channel,
 				  bss->supp_rates_len, bss->supp_rates,
 				  bss->cbss.capability,
@@ -464,9 +474,6 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 
 	sband = local->hw.wiphy->bands[ifibss->channel->band];
 
-	if (local->hw.conf.beacon_int == 0)
-		local->hw.conf.beacon_int = 100;
-
 	capability = WLAN_CAPABILITY_IBSS;
 
 	if (sdata->default_key)
@@ -480,7 +487,7 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 		*pos++ = (u8) (rate / 5);
 	}
 
-	__ieee80211_sta_join_ibss(sdata, bssid, local->hw.conf.beacon_int,
+	__ieee80211_sta_join_ibss(sdata, bssid, sdata->vif.bss_conf.beacon_int,
 				  ifibss->channel, sband->n_bitrates,
 				  supp_rates, capability, 0);
 }
@@ -822,6 +829,8 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 		sdata->u.ibss.fixed_bssid = true;
 	} else
 		sdata->u.ibss.fixed_bssid = false;
+
+	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 
 	sdata->u.ibss.channel = params->channel;
 	sdata->u.ibss.fixed_channel = params->channel_fixed;

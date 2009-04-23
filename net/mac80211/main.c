@@ -294,9 +294,6 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 
-	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
-		return;
-
 	if (!changed)
 		return;
 
@@ -305,6 +302,17 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 					     &sdata->vif,
 					     &sdata->vif.bss_conf,
 					     changed);
+
+	/*
+	 * DEPRECATED
+	 *
+	 * ~changed is just there to not do this at resume time
+	 */
+	if (changed & BSS_CHANGED_BEACON_INT && ~changed) {
+		local->hw.conf.beacon_int = sdata->vif.bss_conf.beacon_int;
+		ieee80211_hw_config(local,
+				    _IEEE80211_CONF_CHANGE_BEACON_INTERVAL);
+	}
 }
 
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
@@ -970,9 +978,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 				   sizeof(struct ieee80211_tx_status_rtap_hdr));
 
 	debugfs_hw_add(local);
-
-	if (local->hw.conf.beacon_int < 10)
-		local->hw.conf.beacon_int = 100;
 
 	if (local->hw.max_listen_interval == 0)
 		local->hw.max_listen_interval = 1;

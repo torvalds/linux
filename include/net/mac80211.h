@@ -149,6 +149,7 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_ERP_SLOT: slot timing changed
  * @BSS_CHANGED_HT: 802.11n parameters changed
  * @BSS_CHANGED_BASIC_RATES: Basic rateset changed
+ * @BSS_CHANGED_BEACON_INT: Beacon interval changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -157,6 +158,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_ERP_SLOT		= 1<<3,
 	BSS_CHANGED_HT                  = 1<<4,
 	BSS_CHANGED_BASIC_RATES		= 1<<5,
+	BSS_CHANGED_BEACON_INT		= 1<<6,
 };
 
 /**
@@ -529,7 +531,7 @@ enum ieee80211_conf_flags {
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
  * @IEEE80211_CONF_CHANGE_RADIO_ENABLED: the value of radio_enabled changed
- * @IEEE80211_CONF_CHANGE_BEACON_INTERVAL: the beacon interval changed
+ * @_IEEE80211_CONF_CHANGE_BEACON_INTERVAL: DEPRECATED
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
@@ -539,7 +541,7 @@ enum ieee80211_conf_flags {
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
-	IEEE80211_CONF_CHANGE_BEACON_INTERVAL	= BIT(1),
+	_IEEE80211_CONF_CHANGE_BEACON_INTERVAL	= BIT(1),
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
@@ -547,6 +549,14 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
 };
+
+static inline __deprecated enum ieee80211_conf_changed
+__IEEE80211_CONF_CHANGE_BEACON_INTERVAL(void)
+{
+	return _IEEE80211_CONF_CHANGE_BEACON_INTERVAL;
+}
+#define IEEE80211_CONF_CHANGE_BEACON_INTERVAL \
+	__IEEE80211_CONF_CHANGE_BEACON_INTERVAL()
 
 /**
  * struct ieee80211_conf - configuration of the device

@@ -316,9 +316,9 @@ int ar9170_set_beacon_timers(struct ar9170 *ar)
 	u32 v = 0;
 	u32 pretbtt = 0;
 
-	v |= ar->hw->conf.beacon_int;
-
 	if (ar->vif) {
+		v |= ar->vif->bss_conf.beacon_int;
+
 		switch (ar->vif->type) {
 		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_ADHOC:
@@ -326,7 +326,7 @@ int ar9170_set_beacon_timers(struct ar9170 *ar)
 			break;
 		case NL80211_IFTYPE_AP:
 			v |= BIT(24);
-			pretbtt = (ar->hw->conf.beacon_int - 6) << 16;
+			pretbtt = (ar->vif->bss_conf.beacon_int - 6) << 16;
 			break;
 		default:
 			break;

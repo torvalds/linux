@@ -2358,16 +2358,6 @@ skip_chan_change:
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		sc->config.txpowlimit = 2 * conf->power_level;
 
-	/*
-	 * The HW TSF has to be reset when the beacon interval changes.
-	 * We set the flag here, and ath_beacon_config_ap() would take this
-	 * into account when it gets called through the subsequent
-	 * config_interface() call - with IFCC_BEACON in the changed field.
-	 */
-
-	if (changed & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
-		sc->sc_flags |= SC_OP_TSF_RESET;
-
 	mutex_unlock(&sc->mutex);
 
 	return 0;
@@ -2633,6 +2623,18 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		DPRINTF(sc, ATH_DBG_CONFIG, "BSS Changed ASSOC %d\n",
 			bss_conf->assoc);
 		ath9k_bss_assoc_info(sc, vif, bss_conf);
+	}
+
+	/*
+	 * The HW TSF has to be reset when the beacon interval changes.
+	 * We set the flag here, and ath_beacon_config_ap() would take this
+	 * into account when it gets called through the subsequent
+	 * config_interface() call - with IFCC_BEACON in the changed field.
+	 */
+
+	if (changed & BSS_CHANGED_BEACON_INT) {
+		sc->sc_flags |= SC_OP_TSF_RESET;
+		sc->beacon_interval = bss_conf->beacon_int;
 	}
 
 	mutex_unlock(&sc->mutex);

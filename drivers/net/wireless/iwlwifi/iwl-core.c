@@ -1313,7 +1313,6 @@ int iwl_setup_mac(struct iwl_priv *priv)
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 
-	hw->conf.beacon_int = 100;
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
 
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
@@ -2751,7 +2750,7 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	priv->ibss_beacon = NULL;
 
-	priv->beacon_int = priv->hw->conf.beacon_int;
+	priv->beacon_int = priv->vif->bss_conf.beacon_int;
 	priv->timestamp = 0;
 	if ((priv->iw_mode == NL80211_IFTYPE_STATION))
 		priv->beacon_int = 0;

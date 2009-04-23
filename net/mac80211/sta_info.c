@@ -543,9 +543,8 @@ void sta_info_unlink(struct sta_info **sta)
 	spin_unlock_irqrestore(&local->sta_lock, flags);
 }
 
-static inline int sta_info_buffer_expired(struct ieee80211_local *local,
-					  struct sta_info *sta,
-					  struct sk_buff *skb)
+static int sta_info_buffer_expired(struct sta_info *sta,
+				   struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info;
 	int timeout;
@@ -556,8 +555,9 @@ static inline int sta_info_buffer_expired(struct ieee80211_local *local,
 	info = IEEE80211_SKB_CB(skb);
 
 	/* Timeout: (2 * listen_interval * beacon_int * 1024 / 1000000) sec */
-	timeout = (sta->listen_interval * local->hw.conf.beacon_int * 32 /
-		   15625) * HZ;
+	timeout = (sta->listen_interval *
+		   sta->sdata->vif.bss_conf.beacon_int *
+		   32 / 15625) * HZ;
 	if (timeout < STA_TX_BUFFER_EXPIRE)
 		timeout = STA_TX_BUFFER_EXPIRE;
 	return time_after(jiffies, info->control.jiffies + timeout);
@@ -577,7 +577,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
 		skb = skb_peek(&sta->ps_tx_buf);
-		if (sta_info_buffer_expired(local, sta, skb))
+		if (sta_info_buffer_expired(sta, skb))
 			skb = __skb_dequeue(&sta->ps_tx_buf);
 		else
 			skb = NULL;

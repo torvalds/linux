@@ -842,6 +842,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.timestamp = bss->cbss.tsf;
 		sdata->vif.bss_conf.dtim_period = bss->dtim_period;
 
+		bss_info_changed |= BSS_CHANGED_BEACON_INT;
 		bss_info_changed |= ieee80211_handle_bss_capability(sdata,
 			bss->cbss.capability, bss->has_erp_value, bss->erp_value);
 

@@ -380,7 +380,7 @@ static int lbtf_op_config_interface(struct ieee80211_hw *hw,
 		if (beacon) {
 			lbtf_beacon_set(priv, beacon);
 			kfree_skb(beacon);
-			lbtf_beacon_ctrl(priv, 1, hw->conf.beacon_int);
+			lbtf_beacon_ctrl(priv, 1, vif->bss_conf.beacon_int);
 		}
 		break;
 	default:

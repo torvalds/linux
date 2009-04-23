@@ -2756,7 +2756,6 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 
 	mutex_lock(&sc->lock);
 
-	sc->bintval = conf->beacon_int;
 	sc->power_level = conf->power_level;
 
 	ret = ath5k_chan_set(sc, conf->channel);
@@ -3083,6 +3082,10 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 				    u32 changes)
 {
 	struct ath5k_softc *sc = hw->priv;
+
+	if (changes & BSS_CHANGED_BEACON_INT)
+		sc->bintval = bss_conf->beacon_int;
+
 	if (changes & BSS_CHANGED_ASSOC) {
 		mutex_lock(&sc->lock);
 		sc->assoc = bss_conf->assoc;
