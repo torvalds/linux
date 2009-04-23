@@ -840,27 +840,97 @@ extern unsigned int blk_rq_bytes(struct request *rq);
 extern unsigned int blk_rq_cur_bytes(struct request *rq);
 
 /*
- * blk_end_request() and friends.
- * __blk_end_request() and end_request() must be called with
- * the request queue spinlock acquired.
+ * Request completion related functions.
+ *
+ * blk_update_request() completes given number of bytes and updates
+ * the request without completing it.
+ *
+ * blk_end_request() and friends.  __blk_end_request() and
+ * end_request() must be called with the request queue spinlock
+ * acquired.
  *
  * Several drivers define their own end_request and call
  * blk_end_request() for parts of the original function.
  * This prevents code duplication in drivers.
  */
-extern int blk_end_request(struct request *rq, int error,
-				unsigned int nr_bytes);
-extern int __blk_end_request(struct request *rq, int error,
-				unsigned int nr_bytes);
-extern int blk_end_bidi_request(struct request *rq, int error,
-				unsigned int nr_bytes, unsigned int bidi_bytes);
-extern void end_request(struct request *, int);
+extern bool blk_update_request(struct request *rq, int error,
+			       unsigned int nr_bytes);
+extern bool blk_end_bidi_request(struct request *rq, int error,
+				 unsigned int nr_bytes,
+				 unsigned int bidi_bytes);
+extern bool __blk_end_bidi_request(struct request *rq, int error,
+				   unsigned int nr_bytes,
+				   unsigned int bidi_bytes);
+
+/**
+ * blk_end_request - Helper function for drivers to complete the request.
+ * @rq:       the request being processed
+ * @error:    %0 for success, < %0 for error
+ * @nr_bytes: number of bytes to complete
+ *
+ * Description:
+ *     Ends I/O on a number of bytes attached to @rq.
+ *     If @rq has leftover, sets it up for the next range of segments.
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
+ **/
+static inline bool blk_end_request(struct request *rq, int error,
+				   unsigned int nr_bytes)
+{
+	return blk_end_bidi_request(rq, error, nr_bytes, 0);
+}
+
+/**
+ * __blk_end_request - Helper function for drivers to complete the request.
+ * @rq:       the request being processed
+ * @error:    %0 for success, < %0 for error
+ * @nr_bytes: number of bytes to complete
+ *
+ * Description:
+ *     Must be called with queue lock held unlike blk_end_request().
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
+ **/
+static inline bool __blk_end_request(struct request *rq, int error,
+				     unsigned int nr_bytes)
+{
+	return __blk_end_bidi_request(rq, error, nr_bytes, 0);
+}
+
+/**
+ * end_request - end I/O on the current segment of the request
+ * @rq:		the request being processed
+ * @uptodate:	error value or %0/%1 uptodate flag
+ *
+ * Description:
+ *     Ends I/O on the current segment of a request. If that is the only
+ *     remaining segment, the request is also completed and freed.
+ *
+ *     This is a remnant of how older block drivers handled I/O completions.
+ *     Modern drivers typically end I/O on the full request in one go, unless
+ *     they have a residual value to account for. For that case this function
+ *     isn't really useful, unless the residual just happens to be the
+ *     full current segment. In other words, don't use this function in new
+ *     code. Use blk_end_request() or __blk_end_request() to end a request.
+ **/
+static inline void end_request(struct request *rq, int uptodate)
+{
+	int error = 0;
+
+	if (uptodate <= 0)
+		error = uptodate ? uptodate : -EIO;
+
+	__blk_end_bidi_request(rq, error, rq->hard_cur_sectors << 9, 0);
+}
+
 extern void blk_complete_request(struct request *);
 extern void __blk_complete_request(struct request *);
 extern void blk_abort_request(struct request *);
 extern void blk_abort_queue(struct request_queue *);
-extern void blk_update_request(struct request *rq, int error,
-			       unsigned int nr_bytes);
 
 /*
  * Access functions for manipulating queue properties
