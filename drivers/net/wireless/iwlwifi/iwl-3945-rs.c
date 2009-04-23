@@ -683,11 +683,10 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	if (sta)
 		rate_mask = sta->supp_rates[sband->band];
 
-	/* Send management frames and broadcast/multicast data using lowest
-	 * rate. */
+	/* Send management frames and NO_ACK data using lowest rate. */
 	fc = le16_to_cpu(hdr->frame_control);
 	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    is_multicast_ether_addr(hdr->addr1) ||
+	    info->flags & IEEE80211_TX_CTL_NO_ACK ||
 	    !sta || !priv_sta) {
 		IWL_DEBUG_RATE(priv, "leave: No STA priv data to update!\n");
 		if (!rate_mask)
@@ -696,6 +695,8 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 		else
 			info->control.rates[0].idx =
 					rate_lowest_index(sband, sta);
+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+			info->control.rates[0].count = 1;
 		return;
 	}
 

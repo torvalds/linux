@@ -172,7 +172,7 @@ struct iwl_lq_sta {
 };
 
 static void rs_rate_scale_perform(struct iwl_priv *priv,
-				   struct ieee80211_hdr *hdr,
+				   struct sk_buff *skb,
 				   struct ieee80211_sta *sta,
 				   struct iwl_lq_sta *lq_sta);
 static void rs_fill_link_cmd(const struct iwl_priv *priv,
@@ -829,7 +829,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	IWL_DEBUG_RATE_LIMIT(priv, "get frame ack response, update rate scale window\n");
 
 	if (!ieee80211_is_data(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
 	/* This packet was aggregated but doesn't carry rate scale info */
@@ -995,7 +995,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 
 	/* See if there's a better rate or modulation mode to try. */
 	if (sta && sta->supp_rates[sband->band])
-		rs_rate_scale_perform(priv, hdr, sta, lq_sta);
+		rs_rate_scale_perform(priv, skb, sta, lq_sta);
 out:
 	return;
 }
@@ -1975,12 +1975,14 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta)
  * Do rate scaling and search for new modulation mode.
  */
 static void rs_rate_scale_perform(struct iwl_priv *priv,
-				  struct ieee80211_hdr *hdr,
+				  struct sk_buff *skb,
 				  struct ieee80211_sta *sta,
 				  struct iwl_lq_sta *lq_sta)
 {
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_conf *conf = &hw->conf;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int low = IWL_RATE_INVALID;
 	int high = IWL_RATE_INVALID;
 	int index;
@@ -2006,11 +2008,10 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	IWL_DEBUG_RATE(priv, "rate scale calculate new rate for skb\n");
 
-	/* Send management frames and broadcast/multicast data using
-	 * lowest rate. */
+	/* Send management frames and NO_ACK data using lowest rate. */
 	/* TODO: this could probably be improved.. */
 	if (!ieee80211_is_data(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
 	if (!sta || !lq_sta)
@@ -2450,16 +2451,17 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	if (sta)
 		mask_bit = sta->supp_rates[sband->band];
 
-	/* Send management frames and broadcast/multicast data using lowest
-	 * rate. */
+	/* Send management frames and NO_ACK data using lowest rate. */
 	if (!ieee80211_is_data(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1) || !sta || !lq_sta) {
+	    info->flags & IEEE80211_TX_CTL_NO_ACK || !sta || !lq_sta) {
 		if (!mask_bit)
 			info->control.rates[0].idx =
 					rate_lowest_index(sband, NULL);
 		else
 			info->control.rates[0].idx =
 					rate_lowest_index(sband, sta);
+		if (info->flags & IEEE80211_TX_CTL_NO_ACK)
+			info->control.rates[0].count = 1;
 		return;
 	}
 
