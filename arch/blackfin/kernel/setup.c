@@ -150,40 +150,45 @@ void __init bfin_relocate_l1_mem(void)
 	unsigned long l1_data_b_length;
 	unsigned long l2_length;
 
-	blackfin_dma_early_init();
-
-	l1_code_length = _etext_l1 - _stext_l1;
-	if (l1_code_length > L1_CODE_LENGTH)
-		panic("L1 Instruction SRAM Overflow\n");
-	/* cannot complain as printk is not available as yet.
-	 * But we can continue booting and complain later!
+	/*
+	 * due to the ALIGN(4) in the arch/blackfin/kernel/vmlinux.lds.S
+	 * we know that everything about l1 text/data is nice and aligned,
+	 * so copy by 4 byte chunks, and don't worry about overlapping
+	 * src/dest.
+	 *
+	 * We can't use the dma_memcpy functions, since they can call
+	 * scheduler functions which might be in L1 :( and core writes
+	 * into L1 instruction cause bad access errors, so we are stuck,
+	 * we are required to use DMA, but can't use the common dma
+	 * functions. We can't use memcpy either - since that might be
+	 * going to be in the relocated L1
 	 */
 
-	/* Copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
-	dma_memcpy(_stext_l1, _l1_lma_start, l1_code_length);
+	blackfin_dma_early_init();
 
+	/* if necessary, copy _stext_l1 to _etext_l1 to L1 instruction SRAM */
+	l1_code_length = _etext_l1 - _stext_l1;
+	if (l1_code_length)
+		early_dma_memcpy(_stext_l1, _l1_lma_start, l1_code_length);
+
+	/* if necessary, copy _sdata_l1 to _sbss_l1 to L1 data bank A SRAM */
 	l1_data_a_length = _sbss_l1 - _sdata_l1;
-	if (l1_data_a_length > L1_DATA_A_LENGTH)
-		panic("L1 Data SRAM Bank A Overflow\n");
+	if (l1_data_a_length)
+		early_dma_memcpy(_sdata_l1, _l1_lma_start + l1_code_length, l1_data_a_length);
 
-	/* Copy _sdata_l1 to _sbss_l1 to L1 data bank A SRAM */
-	dma_memcpy(_sdata_l1, _l1_lma_start + l1_code_length, l1_data_a_length);
-
+	/* if necessary, copy _sdata_b_l1 to _sbss_b_l1 to L1 data bank B SRAM */
 	l1_data_b_length = _sbss_b_l1 - _sdata_b_l1;
-	if (l1_data_b_length > L1_DATA_B_LENGTH)
-		panic("L1 Data SRAM Bank B Overflow\n");
-
-	/* Copy _sdata_b_l1 to _sbss_b_l1 to L1 data bank B SRAM */
-	dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
+	if (l1_data_b_length)
+		early_dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
 			l1_data_a_length, l1_data_b_length);
 
+	early_dma_memcpy_done();
+
+	/* if necessary, copy _stext_l2 to _edata_l2 to L2 SRAM */
 	if (L2_LENGTH != 0) {
 		l2_length = _sbss_l2 - _stext_l2;
-		if (l2_length > L2_LENGTH)
-			panic("L2 SRAM Overflow\n");
-
-		/* Copy _stext_l2 to _edata_l2 to L2 SRAM */
-		dma_memcpy(_stext_l2, _l2_lma_start, l2_length);
+		if (l2_length)
+			memcpy(_stext_l2, _l2_lma_start, l2_length);
 	}
 }
 
