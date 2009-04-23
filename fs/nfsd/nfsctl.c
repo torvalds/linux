@@ -1260,8 +1260,9 @@ static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
 
 		status = nfs4_reset_recoverydir(recdir);
 	}
-	sprintf(buf, "%s\n", nfs4_recoverydir());
-	return strlen(buf);
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%s\n",
+							nfs4_recoverydir());
 }
 
 /**
