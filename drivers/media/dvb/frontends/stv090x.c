@@ -3880,6 +3880,11 @@ static int stv090x_init(struct dvb_frontend *fe)
 	const struct stv090x_config *config = state->config;
 	u32 reg;
 
+	if (stv090x_wakeup(fe) < 0) {
+		dprintk(FE_ERROR, 1, "Error waking device");
+		goto err;
+	}
+
 	stv090x_ldpc_mode(state, state->demod_mode);
 
 	reg = STV090x_READ_DEMOD(state, TNRCFG2);
@@ -3893,6 +3898,8 @@ static int stv090x_init(struct dvb_frontend *fe)
 
 	stv090x_i2c_gate_ctrl(fe, 1);
 
+	if (config->tuner_set_mode)
+		config->tuner_set_mode(fe, TUNER_WAKE);
 	if (config->tuner_init)
 		config->tuner_init(fe);
 
