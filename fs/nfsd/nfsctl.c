@@ -1061,7 +1061,9 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
  *			buf:		C string containing an unsigned
  *					integer value representing a bound
  *					but unconnected socket that is to be
- *					used as an NFSD listener
+ *					used as an NFSD listener; listen(3)
+ *					must be called for a SOCK_STREAM
+ *					socket, otherwise it is ignored
  *			size:		non-zero length of C string in @buf
  * Output:
  *	On success:	NFS service is started;
