@@ -124,23 +124,23 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	struct str_DigitalInputHeader * s_Header);
+	struct str_DigitalInputHeader *s_Header);
 
 int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	struct str_DigitalOutputHeader * s_Header);
+	struct str_DigitalOutputHeader *s_Header);
 
 int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	struct str_TimerMainHeader * s_Header);
+	struct str_TimerMainHeader *s_Header);
 
 int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_AnalogOutputHeader * s_Header);
+	str_AnalogOutputHeader *s_Header);
 
 int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	struct str_AnalogInputHeader * s_Header);
+	struct str_AnalogInputHeader *s_Header);
 
 		/******************************************/
 		/*      Eeprom Specific Functions                         */
@@ -1082,7 +1082,7 @@ int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 
 int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
-	str_AnalogOutputHeader * s_Header)
+	str_AnalogOutputHeader *s_Header)
 {
 	unsigned short w_Temp;
 	/*  No of channels for 1st hard component */

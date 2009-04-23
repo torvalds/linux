@@ -451,56 +451,56 @@ static struct comedi_driver driver_cb_pcidas = {
 };
 
 static int cb_pcidas_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ai_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int cb_pcidas_ao_nofifo_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int cb_pcidas_ao_fifo_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int cb_pcidas_ao_readback_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int cb_pcidas_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int cb_pcidas_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int cb_pcidas_ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
+	struct comedi_insn *insn, unsigned int *data);
+static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcidas_ao_nofifo_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcidas_ao_fifo_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcidas_ao_readback_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcidas_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int cb_pcidas_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int cb_pcidas_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int cb_pcidas_ao_inttrig(struct comedi_device *dev,
 				struct comedi_subdevice *subdev,
 				unsigned int trig_num);
-static int cb_pcidas_ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
+static int cb_pcidas_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
 static irqreturn_t cb_pcidas_interrupt(int irq, void *d);
-static void handle_ao_interrupt(struct comedi_device * dev, unsigned int status);
-static int cb_pcidas_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static int cb_pcidas_ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static void cb_pcidas_load_counters(struct comedi_device * dev, unsigned int *ns,
+static void handle_ao_interrupt(struct comedi_device *dev, unsigned int status);
+static int cb_pcidas_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int cb_pcidas_ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static void cb_pcidas_load_counters(struct comedi_device *dev, unsigned int *ns,
 	int round_flags);
-static int eeprom_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int caldac_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int caldac_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int trimpot_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int cb_pcidas_trimpot_write(struct comedi_device * dev, unsigned int channel,
+static int eeprom_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int caldac_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int caldac_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int trimpot_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int cb_pcidas_trimpot_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int value);
-static int trimpot_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dac08_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dac08_write(struct comedi_device * dev, unsigned int value);
-static int dac08_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int caldac_8800_write(struct comedi_device * dev, unsigned int address,
+static int trimpot_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dac08_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dac08_write(struct comedi_device *dev, unsigned int value);
+static int dac08_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 	uint8_t value);
-static int trimpot_7376_write(struct comedi_device * dev, uint8_t value);
-static int trimpot_8402_write(struct comedi_device * dev, unsigned int channel,
+static int trimpot_7376_write(struct comedi_device *dev, uint8_t value);
+static int trimpot_8402_write(struct comedi_device *dev, unsigned int channel,
 	uint8_t value);
-static int nvram_read(struct comedi_device * dev, unsigned int address,
-	uint8_t * data);
+static int nvram_read(struct comedi_device *dev, unsigned int address,
+	uint8_t *data);
 
-static inline unsigned int cal_enable_bits(struct comedi_device * dev)
+static inline unsigned int cal_enable_bits(struct comedi_device *dev)
 {
 	return CAL_EN_BIT | CAL_SRC_BITS(devpriv->calibration_source);
 }

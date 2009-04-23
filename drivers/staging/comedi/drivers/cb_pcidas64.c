@@ -1137,73 +1137,73 @@ static struct comedi_driver driver_cb_pcidas = {
 	.detach = detach,
 };
 
-static int ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ai_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ao_readback_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int ao_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int ao_inttrig(struct comedi_device * dev, struct comedi_subdevice * subdev,
+static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ao_readback_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *subdev,
 	unsigned int trig_num);
-static int ao_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
+static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
 static irqreturn_t handle_interrupt(int irq, void *d);
-static int ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static int ao_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int dio_callback(int dir, int port, int data, unsigned long arg);
 static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
-static int di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dio_60xx_config_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dio_60xx_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int calib_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int calib_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int ad8402_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static void ad8402_write(struct comedi_device * dev, unsigned int channel,
+static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dio_60xx_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int calib_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int calib_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int ad8402_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static void ad8402_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int value);
-static int ad8402_write_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int eeprom_read_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static void check_adc_timing(struct comedi_device * dev, struct comedi_cmd * cmd);
+static int ad8402_write_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int eeprom_read_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
-static void i2c_write(struct comedi_device * dev, unsigned int address,
-	const uint8_t * data, unsigned int length);
-static void caldac_write(struct comedi_device * dev, unsigned int channel,
+static void i2c_write(struct comedi_device *dev, unsigned int address,
+	const uint8_t *data, unsigned int length);
+static void caldac_write(struct comedi_device *dev, unsigned int channel,
 	unsigned int value);
-static int caldac_8800_write(struct comedi_device * dev, unsigned int address,
+static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 	uint8_t value);
 /* static int dac_1590_write(struct comedi_device *dev, unsigned int dac_a, unsigned int dac_b); */
-static int caldac_i2c_write(struct comedi_device * dev, unsigned int caldac_channel,
+static int caldac_i2c_write(struct comedi_device *dev, unsigned int caldac_channel,
 	unsigned int value);
-static void abort_dma(struct comedi_device * dev, unsigned int channel);
-static void disable_plx_interrupts(struct comedi_device * dev);
-static int set_ai_fifo_size(struct comedi_device * dev, unsigned int num_samples);
-static unsigned int ai_fifo_size(struct comedi_device * dev);
-static int set_ai_fifo_segment_length(struct comedi_device * dev,
+static void abort_dma(struct comedi_device *dev, unsigned int channel);
+static void disable_plx_interrupts(struct comedi_device *dev);
+static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples);
+static unsigned int ai_fifo_size(struct comedi_device *dev);
+static int set_ai_fifo_segment_length(struct comedi_device *dev,
 	unsigned int num_entries);
-static void disable_ai_pacing(struct comedi_device * dev);
-static void disable_ai_interrupts(struct comedi_device * dev);
-static void enable_ai_interrupts(struct comedi_device * dev, const struct comedi_cmd * cmd);
+static void disable_ai_pacing(struct comedi_device *dev);
+static void disable_ai_interrupts(struct comedi_device *dev);
+static void enable_ai_interrupts(struct comedi_device *dev, const struct comedi_cmd *cmd);
 static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
-static void load_ao_dma(struct comedi_device * dev, const struct comedi_cmd * cmd);
+static void load_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd);
 
 COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, pcidas64_pci_table);
 
-static unsigned int ai_range_bits_6xxx(const struct comedi_device * dev,
+static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
 	unsigned int range_index)
 {
 	const struct comedi_krange *range =

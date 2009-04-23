@@ -52,15 +52,15 @@ support could be added to this driver.
 #include "plx9080.h"
 #include "comedi_fc.h"
 
-static int hpdi_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int hpdi_detach(struct comedi_device * dev);
-void abort_dma(struct comedi_device * dev, unsigned int channel);
-static int hpdi_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int hpdi_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int hpdi_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int hpdi_detach(struct comedi_device *dev);
+void abort_dma(struct comedi_device *dev, unsigned int channel);
+static int hpdi_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int hpdi_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t handle_interrupt(int irq, void *d);
-static int dio_config_block_size(struct comedi_device * dev, unsigned int * data);
+static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 
 #undef HPDI_DEBUG		/*  disable debugging messages */
 /* #define HPDI_DEBUG      enable debugging code */

@@ -125,15 +125,15 @@ static const struct atmio16_board_t atmio16_boards[] = {
 #define boardtype ((const struct atmio16_board_t *)dev->board_ptr)
 
 /* function prototypes */
-static int atmio16d_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int atmio16d_detach(struct comedi_device * dev);
+static int atmio16d_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int atmio16d_detach(struct comedi_device *dev);
 static irqreturn_t atmio16d_interrupt(int irq, void *d);
-static int atmio16d_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int atmio16d_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int atmio16d_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static void reset_counters(struct comedi_device * dev);
-static void reset_atmio16d(struct comedi_device * dev);
+static int atmio16d_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int atmio16d_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int atmio16d_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static void reset_counters(struct comedi_device *dev);
+static void reset_atmio16d(struct comedi_device *dev);
 
 /* main driver struct */
 static struct comedi_driver driver_atmio16d = {

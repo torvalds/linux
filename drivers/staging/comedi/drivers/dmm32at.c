@@ -289,23 +289,23 @@ static struct comedi_driver driver_dmm32at = {
 };
 
 /* prototypes for driver functions below */
-static int dmm32at_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dmm32at_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dmm32at_ao_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dmm32at_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dmm32at_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int dmm32at_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int dmm32at_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int dmm32at_ai_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int dmm32at_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int dmm32at_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int dmm32at_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int dmm32at_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static int dmm32at_ns_to_timer(unsigned int *ns, int round);
 static irqreturn_t dmm32at_isr(int irq, void *d);
-void dmm32at_setaitimer(struct comedi_device * dev, unsigned int nansec);
+void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec);
 
 /*
  * Attach is called by the Comedi core to configure the driver

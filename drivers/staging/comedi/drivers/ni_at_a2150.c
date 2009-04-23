@@ -181,15 +181,15 @@ static struct comedi_driver driver_a2150 = {
 };
 
 static irqreturn_t a2150_interrupt(int irq, void *d);
-static int a2150_ai_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int a2150_ai_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int a2150_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int a2150_get_timing(struct comedi_device * dev, unsigned int *period,
+static int a2150_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int a2150_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 	int flags);
-static int a2150_probe(struct comedi_device * dev);
-static int a2150_set_chanlist(struct comedi_device * dev, unsigned int start_channel,
+static int a2150_probe(struct comedi_device *dev);
+static int a2150_set_chanlist(struct comedi_device *dev, unsigned int start_channel,
 	unsigned int num_channels);
 /*
  * A convenient macro that defines init_module() and cleanup_module(),

@@ -295,24 +295,24 @@ static struct comedi_driver driver = {
 	.num_names = sizeof(pcmmio_boards) / sizeof(struct pcmmio_board),
 };
 
-static int pcmmio_dio_insn_bits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int pcmmio_dio_insn_config(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int pcmmio_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int pcmmio_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
 static irqreturn_t interrupt_pcmmio(int irq, void *d);
 static void pcmmio_stop_intr(struct comedi_device *, struct comedi_subdevice *);
-static int pcmmio_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static int pcmmio_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int pcmmio_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
+static int pcmmio_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int pcmmio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
 
 /* some helper functions to deal with specifics of this device's registers */
-static void init_asics(struct comedi_device * dev);	/* sets up/clears ASIC chips to defaults */
-static void switch_page(struct comedi_device * dev, int asic, int page);
+static void init_asics(struct comedi_device *dev);	/* sets up/clears ASIC chips to defaults */
+static void switch_page(struct comedi_device *dev, int asic, int page);
 #ifdef notused
-static void lock_port(struct comedi_device * dev, int asic, int port);
-static void unlock_port(struct comedi_device * dev, int asic, int port);
+static void lock_port(struct comedi_device *dev, int asic, int port);
+static void unlock_port(struct comedi_device *dev, int asic, int port);
 #endif
 
 /*

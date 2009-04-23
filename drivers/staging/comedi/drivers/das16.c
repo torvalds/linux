@@ -326,34 +326,34 @@ struct munge_info {
 	unsigned have_byte:1;
 };
 
-static int das16_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int das16_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
-static int das16_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int das16_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s);
-static int das16_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
-static void das16_ai_munge(struct comedi_device * dev, struct comedi_subdevice * s,
+static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int das16_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s);
+static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
+static void das16_ai_munge(struct comedi_device *dev, struct comedi_subdevice *s,
 	void *array, unsigned int num_bytes, unsigned int start_chan_index);
 
-static void das16_reset(struct comedi_device * dev);
+static void das16_reset(struct comedi_device *dev);
 static irqreturn_t das16_dma_interrupt(int irq, void *d);
 static void das16_timer_interrupt(unsigned long arg);
-static void das16_interrupt(struct comedi_device * dev);
+static void das16_interrupt(struct comedi_device *dev);
 
-static unsigned int das16_set_pacer(struct comedi_device * dev, unsigned int ns,
+static unsigned int das16_set_pacer(struct comedi_device *dev, unsigned int ns,
 	int flags);
-static int das1600_mode_detect(struct comedi_device * dev);
-static unsigned int das16_suggest_transfer_size(struct comedi_device * dev,
+static int das1600_mode_detect(struct comedi_device *dev);
+static unsigned int das16_suggest_transfer_size(struct comedi_device *dev,
 	struct comedi_cmd cmd);
 
-static void reg_dump(struct comedi_device * dev);
+static void reg_dump(struct comedi_device *dev);
 
 struct das16_board {
 	const char *name;

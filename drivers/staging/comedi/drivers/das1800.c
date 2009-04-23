@@ -180,37 +180,37 @@ enum {
 	das1802hr, das1802hr_da, das1801hc, das1802hc, das1801ao, das1802ao
 };
 
-static int das1800_attach(struct comedi_device * dev, struct comedi_devconfig * it);
-static int das1800_detach(struct comedi_device * dev);
-static int das1800_probe(struct comedi_device * dev);
-static int das1800_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int das1800_detach(struct comedi_device *dev);
+static int das1800_probe(struct comedi_device *dev);
+static int das1800_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t das1800_interrupt(int irq, void *d);
-static int das1800_ai_poll(struct comedi_device * dev, struct comedi_subdevice * s);
-static void das1800_ai_handler(struct comedi_device * dev);
-static void das1800_handle_dma(struct comedi_device * dev, struct comedi_subdevice * s,
+static int das1800_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s);
+static void das1800_ai_handler(struct comedi_device *dev);
+static void das1800_handle_dma(struct comedi_device *dev, struct comedi_subdevice *s,
 	unsigned int status);
-static void das1800_flush_dma(struct comedi_device * dev, struct comedi_subdevice * s);
-static void das1800_flush_dma_channel(struct comedi_device * dev, struct comedi_subdevice * s,
-	unsigned int channel, uint16_t * buffer);
-static void das1800_handle_fifo_half_full(struct comedi_device * dev,
-	struct comedi_subdevice * s);
-static void das1800_handle_fifo_not_empty(struct comedi_device * dev,
-	struct comedi_subdevice * s);
-static int das1800_ai_do_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int das1800_ai_do_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int das1800_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das1800_ao_winsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das1800_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das1800_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static void das1800_flush_dma(struct comedi_device *dev, struct comedi_subdevice *s);
+static void das1800_flush_dma_channel(struct comedi_device *dev, struct comedi_subdevice *s,
+	unsigned int channel, uint16_t *buffer);
+static void das1800_handle_fifo_half_full(struct comedi_device *dev,
+	struct comedi_subdevice *s);
+static void das1800_handle_fifo_not_empty(struct comedi_device *dev,
+	struct comedi_subdevice *s);
+static int das1800_ai_do_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int das1800_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int das1800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das1800_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das1800_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das1800_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
-static int das1800_set_frequency(struct comedi_device * dev);
+static int das1800_set_frequency(struct comedi_device *dev);
 static unsigned int burst_convert_arg(unsigned int convert_arg, int round_mode);
-static unsigned int suggest_transfer_size(struct comedi_cmd * cmd);
+static unsigned int suggest_transfer_size(struct comedi_cmd *cmd);
 
 /* analog input ranges */
 static const struct comedi_lrange range_ai_das1801 = {

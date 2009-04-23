@@ -187,15 +187,15 @@ COMEDI_INITCLEANUP(driver_amplc_pc236);
 
 static int pc236_request_region(unsigned minor, unsigned long from,
 	unsigned long extent);
-static void pc236_intr_disable(struct comedi_device * dev);
-static void pc236_intr_enable(struct comedi_device * dev);
-static int pc236_intr_check(struct comedi_device * dev);
-static int pc236_intr_insn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int pc236_intr_cmdtest(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int pc236_intr_cmd(struct comedi_device * dev, struct comedi_subdevice * s);
-static int pc236_intr_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static void pc236_intr_disable(struct comedi_device *dev);
+static void pc236_intr_enable(struct comedi_device *dev);
+static int pc236_intr_check(struct comedi_device *dev);
+static int pc236_intr_insn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int pc236_intr_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int pc236_intr_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int pc236_intr_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t pc236_interrupt(int irq, void *d);
 
 /*

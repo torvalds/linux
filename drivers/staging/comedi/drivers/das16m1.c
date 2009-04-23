@@ -131,23 +131,23 @@ static const struct comedi_lrange range_das16m1 = { 9,
 		}
 };
 
-static int das16m1_do_wbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16m1_di_rbits(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
-static int das16m1_ai_rinsn(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_insn * insn, unsigned int * data);
+static int das16m1_do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16m1_di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
+static int das16m1_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_insn *insn, unsigned int *data);
 
-static int das16m1_cmd_test(struct comedi_device * dev, struct comedi_subdevice * s,
-	struct comedi_cmd * cmd);
-static int das16m1_cmd_exec(struct comedi_device * dev, struct comedi_subdevice * s);
-static int das16m1_cancel(struct comedi_device * dev, struct comedi_subdevice * s);
+static int das16m1_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
+	struct comedi_cmd *cmd);
+static int das16m1_cmd_exec(struct comedi_device *dev, struct comedi_subdevice *s);
+static int das16m1_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
 
-static int das16m1_poll(struct comedi_device * dev, struct comedi_subdevice * s);
+static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s);
 static irqreturn_t das16m1_interrupt(int irq, void *d);
-static void das16m1_handler(struct comedi_device * dev, unsigned int status);
+static void das16m1_handler(struct comedi_device *dev, unsigned int status);
 
-static unsigned int das16m1_set_pacer(struct comedi_device * dev, unsigned int ns,
+static unsigned int das16m1_set_pacer(struct comedi_device *dev, unsigned int ns,
 	int round_flag);
 
 static int das16m1_irq_bits(unsigned int irq);
