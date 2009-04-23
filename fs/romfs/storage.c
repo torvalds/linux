@@ -120,6 +120,7 @@ static int romfs_blk_read(struct super_block *sb, unsigned long pos,
 			return -EIO;
 		memcpy(buf, bh->b_data + offset, segment);
 		brelse(bh);
+		buf += segment;
 		buflen -= segment;
 		pos += segment;
 	}
