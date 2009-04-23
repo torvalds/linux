@@ -391,7 +391,6 @@ static int __devinit sc6000_init_board(char __iomem *vport,
 	int config = mss_config |
 		     sc6000_mpu_irq_to_softcfg(mpu_irq[dev]);
 	int err;
-	int cfg[2];
 	int old = 0;
 
 	err = sc6000_dsp_reset(vport);
@@ -421,11 +420,18 @@ static int __devinit sc6000_init_board(char __iomem *vport,
 		answer, version[0], version[1]);
 
 	/* set configuration */
-	sc6000_hw_cfg_encode(vport, &cfg[0], port[dev], mpu_port[dev],
-			     mss_port[dev]);
-	if (sc6000_hw_cfg_write(vport, cfg) < 0) {
-		snd_printk(KERN_ERR "sc6000_hw_cfg_write: failed!\n");
-		return -EIO;
+	sc6000_write(vport, COMMAND_5C);
+	if (sc6000_read(vport) < 0)
+		old = 1;
+
+	if (!old) {
+		int cfg[2];
+		sc6000_hw_cfg_encode(vport, &cfg[0], port[dev], mpu_port[dev],
+				     mss_port[dev]);
+		if (sc6000_hw_cfg_write(vport, cfg) < 0) {
+			snd_printk(KERN_ERR "sc6000_hw_cfg_write: failed!\n");
+			return -EIO;
+		}
 	}
 	err = sc6000_setup_board(vport, config);
 	if (err < 0) {
@@ -433,10 +439,6 @@ static int __devinit sc6000_init_board(char __iomem *vport,
 		return -ENODEV;
 	}
 
-	sc6000_dsp_reset(vport);
-	sc6000_write(vport, COMMAND_5C);
-	if (sc6000_read(vport) < 0)
-		old = 1;
 	sc6000_dsp_reset(vport);
 
 	if (!old) {
