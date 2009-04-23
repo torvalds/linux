@@ -783,6 +783,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	INIT_LIST_HEAD(&local->interfaces);
 	mutex_init(&local->iflist_mtx);
+	mutex_init(&local->scan_mtx);
 
 	spin_lock_init(&local->key_lock);
 
@@ -1126,6 +1127,7 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	mutex_destroy(&local->iflist_mtx);
+	mutex_destroy(&local->scan_mtx);
 
 	wiphy_free(local->hw.wiphy);
 }

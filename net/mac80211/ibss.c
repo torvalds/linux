@@ -432,15 +432,7 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "%s: No active IBSS STAs - trying to scan for other "
 	       "IBSS networks with same SSID (merge)\n", sdata->dev->name);
 
-	/* XXX maybe racy? */
-	if (sdata->local->scan_req)
-		return;
-
-	memcpy(sdata->local->int_scan_req.ssids[0].ssid,
-	       ifibss->ssid, IEEE80211_MAX_SSID_LEN);
-	sdata->local->int_scan_req.ssids[0].ssid_len = ifibss->ssid_len;
-	if (ieee80211_request_scan(sdata, &sdata->local->int_scan_req))
-		ieee80211_scan_failed(sdata->local);
+	ieee80211_request_internal_scan(sdata, ifibss->ssid, ifibss->ssid_len);
 }
 
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
@@ -553,16 +545,8 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		printk(KERN_DEBUG "%s: Trigger new scan to find an IBSS to "
 		       "join\n", sdata->dev->name);
 
-		/* XXX maybe racy? */
-		if (local->scan_req)
-			return;
-
-		memcpy(local->int_scan_req.ssids[0].ssid,
-		       ifibss->ssid, IEEE80211_MAX_SSID_LEN);
-		local->int_scan_req.ssids[0].ssid_len =
-			ifibss->ssid_len;
-		if (ieee80211_request_scan(sdata, &local->int_scan_req))
-			ieee80211_scan_failed(local);
+		ieee80211_request_internal_scan(sdata, ifibss->ssid,
+						ifibss->ssid_len);
 	} else if (ifibss->state != IEEE80211_IBSS_MLME_JOINED) {
 		int interval = IEEE80211_SCAN_INTERVAL;
 

@@ -2072,19 +2072,15 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata)
 		return 0;
 	} else {
 		if (ifmgd->assoc_scan_tries < IEEE80211_ASSOC_SCANS_MAX_TRIES) {
-			ifmgd->assoc_scan_tries++;
-			/* XXX maybe racy? */
-			if (local->scan_req)
-				return -1;
-			memcpy(local->int_scan_req.ssids[0].ssid,
-			       ifmgd->ssid, IEEE80211_MAX_SSID_LEN);
-			if (ifmgd->flags & IEEE80211_STA_AUTO_SSID_SEL)
-				local->int_scan_req.ssids[0].ssid_len = 0;
-			else
-				local->int_scan_req.ssids[0].ssid_len = ifmgd->ssid_len;
+			u8 ssid_len = 0;
 
-			if (ieee80211_start_scan(sdata, &local->int_scan_req))
-				ieee80211_scan_failed(local);
+			if (!(ifmgd->flags & IEEE80211_STA_AUTO_SSID_SEL))
+				ssid_len = ifmgd->ssid_len;
+
+			ifmgd->assoc_scan_tries++;
+
+			ieee80211_request_internal_scan(sdata, ifmgd->ssid,
+							ssid_len);
 
 			ifmgd->state = IEEE80211_STA_MLME_AUTHENTICATE;
 			set_bit(IEEE80211_STA_REQ_AUTH, &ifmgd->request);
@@ -2122,14 +2118,8 @@ static void ieee80211_sta_work(struct work_struct *work)
 	    ifmgd->state != IEEE80211_STA_MLME_AUTHENTICATE &&
 	    ifmgd->state != IEEE80211_STA_MLME_ASSOCIATE &&
 	    test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifmgd->request)) {
-		/*
-		 * The call to ieee80211_start_scan can fail but ieee80211_request_scan
-		 * (which queued ieee80211_sta_work) did not return an error. Thus, call
-		 * ieee80211_scan_failed here if ieee80211_start_scan fails in order to
-		 * notify the scan requester.
-		 */
-		if (ieee80211_start_scan(sdata, local->scan_req))
-			ieee80211_scan_failed(local);
+		queue_delayed_work(local->hw.workqueue, &local->scan_work,
+				   round_jiffies_relative(0));
 		return;
 	}
 
