@@ -576,6 +576,16 @@ Found in hex form in kernel source.
 
 --------------------------------------------------------------------------
 
+Driver: PCMCIA_PCNET - NE2000 compatible PCMCIA adapter
+
+File: cis/LA-PCM.cis
+
+Licence: GPL
+
+Originally developed by the pcmcia-cs project
+
+--------------------------------------------------------------------------
+
 Driver: PCMCIA_SMC91C92 - SMC 91Cxx PCMCIA
 
 File: ositech/Xilinx7OD.bin

@@ -988,7 +988,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nlattr *cda[])
 {
 	struct nf_conntrack_helper *helper;
 	struct nf_conn_help *help = nfct_help(ct);
-	char *helpname;
+	char *helpname = NULL;
 	int err;
 
 	/* don't change helper of sibling connections */
@@ -1231,7 +1231,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 
 	rcu_read_lock();
  	if (cda[CTA_HELP]) {
- 		char *helpname;
+		char *helpname = NULL;
  
  		err = ctnetlink_parse_help(cda[CTA_HELP], &helpname);
  		if (err < 0)
