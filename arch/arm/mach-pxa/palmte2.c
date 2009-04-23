@@ -25,6 +25,7 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -318,11 +319,18 @@ static struct pxaficp_platform_data palmte2_ficp_platform_data = {
 /******************************************************************************
  * UDC
  ******************************************************************************/
-static struct pxa2xx_udc_mach_info palmte2_udc_info __initdata = {
+static struct gpio_vbus_mach_info palmte2_udc_info = {
 	.gpio_vbus		= GPIO_NR_PALMTE2_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
 	.gpio_pullup		= GPIO_NR_PALMTE2_USB_PULLUP,
-	.gpio_pullup_inverted	= 0,
+};
+
+static struct platform_device palmte2_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &palmte2_udc_info,
+	},
 };
 
 /******************************************************************************
@@ -429,6 +437,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&palmte2_backlight,
 	&power_supply,
+	&palmte2_gpio_vbus,
 };
 
 /* setup udc GPIOs initial state */
@@ -447,7 +456,6 @@ static void __init palmte2_init(void)
 	set_pxa_fb_info(&palmte2_lcd_screen);
 	pxa_set_mci_info(&palmte2_mci_platform_data);
 	palmte2_udc_init();
-	pxa_set_udc_info(&palmte2_udc_info);
 	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&palmte2_ficp_platform_data);
 	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);

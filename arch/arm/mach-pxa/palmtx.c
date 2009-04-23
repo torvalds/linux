@@ -27,6 +27,7 @@
 #include <linux/gpio.h>
 #include <linux/wm97xx_batt.h>
 #include <linux/power_supply.h>
+#include <linux/usb/gpio_vbus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -359,11 +360,18 @@ static struct pxaficp_platform_data palmtx_ficp_platform_data = {
 /******************************************************************************
  * UDC
  ******************************************************************************/
-static struct pxa2xx_udc_mach_info palmtx_udc_info __initdata = {
+static struct gpio_vbus_mach_info palmtx_udc_info = {
 	.gpio_vbus		= GPIO_NR_PALMTX_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
 	.gpio_pullup		= GPIO_NR_PALMTX_USB_PULLUP,
-	.gpio_pullup_inverted	= 0,
+};
+
+static struct platform_device palmtx_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &palmtx_udc_info,
+	},
 };
 
 /******************************************************************************
@@ -517,6 +525,7 @@ static struct platform_device *devices[] __initdata = {
 	&palmtx_backlight,
 	&power_supply,
 	&palmtx_asoc,
+	&palmtx_gpio_vbus,
 };
 
 static struct map_desc palmtx_io_desc[] __initdata = {
@@ -552,7 +561,6 @@ static void __init palmtx_init(void)
 	pxa_set_mci_info(&palmtx_mci_platform_data);
 	palmtx_udc_init();
 	pxa_set_ac97_info(&palmtx_ac97_pdata);
-	pxa_set_udc_info(&palmtx_udc_info);
 	pxa_set_ficp_info(&palmtx_ficp_platform_data);
 	pxa_set_keypad_info(&palmtx_keypad_platform_data);
 	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
