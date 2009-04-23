@@ -832,6 +832,14 @@ static inline void blk_run_address_space(struct address_space *mapping)
 extern void blkdev_dequeue_request(struct request *req);
 
 /*
+ * blk_end_request() takes bytes instead of sectors as a complete size.
+ * blk_rq_bytes() returns bytes left to complete in the entire request.
+ * blk_rq_cur_bytes() returns bytes left to complete in the current segment.
+ */
+extern unsigned int blk_rq_bytes(struct request *rq);
+extern unsigned int blk_rq_cur_bytes(struct request *rq);
+
+/*
  * blk_end_request() and friends.
  * __blk_end_request() and end_request() must be called with
  * the request queue spinlock acquired.
@@ -856,14 +864,6 @@ extern void blk_abort_request(struct request *);
 extern void blk_abort_queue(struct request_queue *);
 extern void blk_update_request(struct request *rq, int error,
 			       unsigned int nr_bytes);
-
-/*
- * blk_end_request() takes bytes instead of sectors as a complete size.
- * blk_rq_bytes() returns bytes left to complete in the entire request.
- * blk_rq_cur_bytes() returns bytes left to complete in the current segment.
- */
-extern unsigned int blk_rq_bytes(struct request *rq);
-extern unsigned int blk_rq_cur_bytes(struct request *rq);
 
 /*
  * Access functions for manipulating queue properties
