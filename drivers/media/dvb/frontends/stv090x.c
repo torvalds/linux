@@ -3163,7 +3163,6 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct stv090x_state *state = fe->demodulator_priv;
 	u32 reg;
 	u8 search_state;
-	int locked = 0;
 
 	reg = STV090x_READ_DEMOD(state, DMDSTATE);
 	search_state = STV090x_GETFIELD_Px(reg, HEADER_MODE_FIELD);
@@ -3173,7 +3172,7 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	case 1: /* first PLH detected */
 	default:
 		dprintk(FE_DEBUG, 1, "Status: Unlocked (Searching ..)");
-		locked = 0;
+		*status = 0;
 		break;
 
 	case 2: /* DVB-S2 mode */
@@ -3182,7 +3181,6 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (STV090x_GETFIELD_Px(reg, LOCK_DEFINITIF_FIELD)) {
 			reg = STV090x_READ_DEMOD(state, TSSTATUS);
 			if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
-				locked = 1;
 				*status = FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 			}
 		}
@@ -3196,7 +3194,6 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			if (STV090x_GETFIELD_Px(reg, LOCKEDVIT_FIELD)) {
 				reg = STV090x_READ_DEMOD(state, TSSTATUS);
 				if (STV090x_GETFIELD_Px(reg, TSFIFO_LINEOK_FIELD)) {
-					locked = 1;
 					*status = FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 				}
 			}
@@ -3204,7 +3201,7 @@ static int stv090x_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		break;
 	}
 
-	return locked;
+	return 0;
 }
 
 static int stv090x_read_per(struct dvb_frontend *fe, u32 *per)
@@ -3215,7 +3212,8 @@ static int stv090x_read_per(struct dvb_frontend *fe, u32 *per)
 	u32 reg, h, m, l;
 	enum fe_status status;
 
-	if (!stv090x_read_status(fe, &status)) {
+	stv090x_read_status(fe, &status);
+	if (!(status & FE_HAS_LOCK)) {
 		*per = 1 << 23; /* Max PER */
 	} else {
 		/* Counter 2 */
