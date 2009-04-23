@@ -278,22 +278,22 @@ struct rtdBoard {
 
 static const struct rtdBoard rtd520Boards[] = {
 	{
-	      name:	"DM7520",
-	      device_id : 0x7520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:32,
-	      range10Start:6,
-	      rangeUniStart:12,
+	.name = "DM7520",
+	.device_id = 0x7520,
+	.aiChans = 16,
+	.aiBits = 12,
+	.aiMaxGain = 32,
+	.range10Start = 6,
+	.rangeUniStart = 12,
 		},
 	{
-	      name:	"PCI4520",
-	      device_id : 0x4520,
-	      aiChans:	16,
-	      aiBits:	12,
-	      aiMaxGain:128,
-	      range10Start:8,
-	      rangeUniStart:16,
+	.name = "PCI4520",
+	.device_id = 0x4520,
+	.aiChans = 16,
+	.aiBits = 12,
+	.aiMaxGain = 128,
+	.range10Start = 8,
+	.rangeUniStart = 16,
 		},
 };
 
@@ -684,10 +684,10 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int rtd_detach(struct comedi_device *dev);
 
 static struct comedi_driver rtd520Driver = {
-      driver_name: DRV_NAME,
-      module : THIS_MODULE,
-      attach : rtd_attach,
-      detach : rtd_detach,
+	.driver_name = DRV_NAME,
+	.module = THIS_MODULE,
+	.attach = rtd_attach,
+	.detach = rtd_detach,
 };
 
 static int rtd_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
