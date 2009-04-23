@@ -211,8 +211,8 @@ struct request {
 
 	unsigned short ioprio;
 
-	void *special;
-	char *buffer;
+	void *special;		/* opaque pointer available for LLD use */
+	char *buffer;		/* kaddr of the current segment if available */
 
 	int tag;
 	int errors;
@@ -229,7 +229,6 @@ struct request {
 	unsigned int data_len;
 	unsigned int extra_len;	/* length of alignment and padding */
 	unsigned int sense_len;
-	void *data;
 	void *sense;
 
 	unsigned long deadline;

@@ -1088,7 +1088,6 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 			return ret;
 	} else {
 		BUG_ON(req->data_len);
-		BUG_ON(req->data);
 
 		memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 		req->buffer = NULL;

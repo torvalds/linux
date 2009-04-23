@@ -189,10 +189,9 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 						(unsigned long long)rq->sector,
 						rq->nr_sectors,
 						rq->current_nr_sectors);
-	printk(KERN_INFO "  bio %p, biotail %p, buffer %p, data %p, len %u\n",
+	printk(KERN_INFO "  bio %p, biotail %p, buffer %p, len %u\n",
 						rq->bio, rq->biotail,
-						rq->buffer, rq->data,
-						rq->data_len);
+						rq->buffer, rq->data_len);
 
 	if (blk_pc_request(rq)) {
 		printk(KERN_INFO "  cdb: ");

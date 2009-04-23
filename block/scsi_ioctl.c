@@ -500,7 +500,6 @@ static int __blk_send_generic(struct request_queue *q, struct gendisk *bd_disk,
 
 	rq = blk_get_request(q, WRITE, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->data = NULL;
 	rq->data_len = 0;
 	rq->extra_len = 0;
 	rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
