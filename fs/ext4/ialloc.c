@@ -585,6 +585,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 fallback:
 	ngroups = sbi->s_groups_count;
 	avefreei = freei / ngroups;
+fallback_retry:
 	parent_group = EXT4_I(parent)->i_block_group;
 	for (i = 0; i < ngroups; i++) {
 		grp = (parent_group + i) % ngroups;
@@ -602,7 +603,7 @@ fallback:
 		 * filesystems the above test can fail to find any blockgroups
 		 */
 		avefreei = 0;
-		goto fallback;
+		goto fallback_retry;
 	}
 
 	return -1;
