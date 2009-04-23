@@ -2446,12 +2446,22 @@ static void cfq_exit_queue(struct elevator_queue *e)
 static void *cfq_init_queue(struct request_queue *q)
 {
 	struct cfq_data *cfqd;
+	int i;
 
 	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
 	if (!cfqd)
 		return NULL;
 
 	cfqd->service_tree = CFQ_RB_ROOT;
+
+	/*
+	 * Not strictly needed (since RB_ROOT just clears the node and we
+	 * zeroed cfqd on alloc), but better be safe in case someone decides
+	 * to add magic to the rb code
+	 */
+	for (i = 0; i < CFQ_PRIO_LISTS; i++)
+		cfqd->prio_trees[i] = RB_ROOT;
+
 	INIT_LIST_HEAD(&cfqd->cic_list);
 
 	cfqd->queue = q;
