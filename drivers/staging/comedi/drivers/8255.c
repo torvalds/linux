@@ -361,8 +361,10 @@ int subdev_8255_init_irq(struct comedi_device *dev, struct comedi_subdevice * s,
 void subdev_8255_cleanup(struct comedi_device *dev, struct comedi_subdevice * s)
 {
 	if (s->private) {
-		if (subdevpriv->have_irq) {
-		}
+		/* this test does nothing, so comment it out
+		 * if (subdevpriv->have_irq) {
+		 * }
+		 */
 
 		kfree(s->private);
 	}
