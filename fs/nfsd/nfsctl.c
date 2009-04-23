@@ -695,8 +695,9 @@ static ssize_t write_threads(struct file *file, char *buf, size_t size)
 		if (rv)
 			return rv;
 	}
-	sprintf(buf, "%d\n", nfsd_nrthreads());
-	return strlen(buf);
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%d\n",
+							nfsd_nrthreads());
 }
 
 /**
@@ -1197,7 +1198,9 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 		nfsd_max_blksize = bsize;
 		mutex_unlock(&nfsd_mutex);
 	}
-	return sprintf(buf, "%d\n", nfsd_max_blksize);
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%d\n",
+							nfsd_max_blksize);
 }
 
 #ifdef CONFIG_NFSD_V4
@@ -1221,8 +1224,9 @@ static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
 			return -EINVAL;
 		nfs4_reset_lease(lease);
 	}
-	sprintf(buf, "%ld\n", nfs4_lease_time());
-	return strlen(buf);
+
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n",
+							nfs4_lease_time());
 }
 
 /**
