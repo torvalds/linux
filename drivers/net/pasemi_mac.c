@@ -1733,7 +1733,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *dev;
 	struct pasemi_mac *mac;
-	int err;
+	int err, ret;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -1791,12 +1791,13 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	memcpy(dev->dev_addr, mac->mac_addr, sizeof(mac->mac_addr));
 
-	mac->dma_if = mac_to_intf(mac);
-	if (mac->dma_if < 0) {
+	ret = mac_to_intf(mac);
+	if (ret < 0) {
 		dev_err(&mac->pdev->dev, "Can't map DMA interface\n");
 		err = -ENODEV;
 		goto out;
 	}
+	mac->dma_if = ret;
 
 	switch (pdev->device) {
 	case 0xa005:
