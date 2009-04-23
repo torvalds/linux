@@ -657,4 +657,13 @@ config TOUCHSCREEN_STMPE
 	  To compile this driver as a module, choose M here: the
 	  module will be called stmpe-ts.
 
+config TOUCHSCREEN_QUANTUM_OBP
+	tristate "Quantum OBP based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a Quantum touchscreen that uses
+	  the Object Based Protocol based firmware.
+
+	  If unsure, say N.
+
 endif
