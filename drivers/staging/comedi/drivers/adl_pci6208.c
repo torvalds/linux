@@ -110,9 +110,6 @@ struct pci6208_private {
 static int pci6208_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int pci6208_detach(struct comedi_device *dev);
 
-#define pci6208_board_nbr \
-	(sizeof(pci6208_boards) / sizeof(struct pci6208_board))
-
 static struct comedi_driver driver_pci6208 = {
 	.driver_name = PCI6208_DRIVER_NAME,
 	.module = THIS_MODULE,
@@ -315,7 +312,7 @@ static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 		pci_dev != NULL;
 		pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
 		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK) {
-			for (i = 0; i < pci6208_board_nbr; i++) {
+			for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
 				if (pci6208_boards[i].dev_id == pci_dev->device) {
 					/*  was a particular bus/slot requested? */
 					if ((bus != 0) || (slot != 0)) {

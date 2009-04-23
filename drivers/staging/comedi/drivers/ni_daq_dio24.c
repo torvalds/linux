@@ -104,7 +104,7 @@ static struct comedi_driver driver_dio24 = {
 	.module = THIS_MODULE,
 	.attach = dio24_attach,
 	.detach = dio24_detach,
-	.num_names = sizeof(dio24_boards) / sizeof(struct dio24_board_struct),
+	.num_names = ARRAY_SIZE(dio24_boards),
 	.board_name = &dio24_boards[0].name,
 	.offset = sizeof(struct dio24_board_struct),
 };

@@ -1014,12 +1014,6 @@ static const struct pcidas64_board pcidas64_boards[] = {
 #endif
 };
 
-/* Number of boards in cb_pcidas_boards */
-static inline unsigned int num_boards(void)
-{
-	return sizeof(pcidas64_boards) / sizeof(struct pcidas64_board);
-}
-
 static DEFINE_PCI_DEVICE_TABLE(pcidas64_pci_table) = {
 	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x001d, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_COMPUTERBOARDS, 0x001e, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -1702,7 +1696,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
 		/*  loop through cards supported by this driver */
-		for (index = 0; index < num_boards(); index++) {
+		for (index = 0; index < ARRAY_SIZE(pcidas64_boards); index++) {
 			if (pcidas64_boards[index].device_id != pcidev->device)
 				continue;
 			/*  was a particular bus/slot requested? */

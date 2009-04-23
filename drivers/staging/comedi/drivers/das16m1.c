@@ -164,8 +164,6 @@ static const struct das16m1_board das16m1_boards[] = {
 		},
 };
 
-#define das16m1_num_boards ((sizeof(das16m1_boards)) / (sizeof(das16m1_boards[0])))
-
 static int das16m1_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static int das16m1_detach(struct comedi_device *dev);
 static struct comedi_driver driver_das16m1 = {
@@ -174,7 +172,7 @@ static struct comedi_driver driver_das16m1 = {
 	.attach = das16m1_attach,
 	.detach = das16m1_detach,
 	.board_name = &das16m1_boards[0].name,
-	.num_names = das16m1_num_boards,
+	.num_names = ARRAY_SIZE(das16m1_boards),
 	.offset = sizeof(das16m1_boards[0]),
 };
 

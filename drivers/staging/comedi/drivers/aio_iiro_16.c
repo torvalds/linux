@@ -78,7 +78,7 @@ static struct comedi_driver driver_aio_iiro_16 = {
 	.detach = aio_iiro_16_detach,
 	.board_name = &aio_iiro_16_boards[0].name,
 	.offset = sizeof(struct aio_iiro_16_board),
-	.num_names = sizeof(aio_iiro_16_boards) / sizeof(struct aio_iiro_16_board),
+	.num_names = ARRAY_SIZE(aio_iiro_16_boards),
 };
 
 static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,

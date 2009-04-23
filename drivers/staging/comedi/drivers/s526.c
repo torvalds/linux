@@ -244,7 +244,7 @@ static struct comedi_driver driver_s526 = {
 	 */
 	.board_name = &s526_boards[0].name,
 	.offset = sizeof(struct s526_board),
-	.num_names = sizeof(s526_boards) / sizeof(struct s526_board),
+	.num_names = ARRAY_SIZE(s526_boards),
 };
 
 static int s526_gpct_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,

@@ -509,7 +509,7 @@ static struct comedi_driver driver_das1800 = {
 	.module = THIS_MODULE,
 	.attach = das1800_attach,
 	.detach = das1800_detach,
-	.num_names = sizeof(das1800_boards) / sizeof(struct das1800_board),
+	.num_names = ARRAY_SIZE(das1800_boards),
 	.board_name = &das1800_boards[0].name,
 	.offset = sizeof(struct das1800_board),
 };

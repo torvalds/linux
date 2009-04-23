@@ -757,7 +757,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				continue;
 			}
 		}
-		for (i = 0; i < sizeof (rtd520Boards) / sizeof (rtd520Boards[0]); ++i)
+		for (i = 0; i < ARRAY_SIZE(rtd520Boards); ++i)
 		{
 			if (pcidev->device == rtd520Boards[i].device_id)
 			{

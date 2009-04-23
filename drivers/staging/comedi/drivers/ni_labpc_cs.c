@@ -121,7 +121,7 @@ static struct comedi_driver driver_labpc_cs = {
 	.module = THIS_MODULE,
 	.attach = &labpc_attach,
 	.detach = &labpc_common_detach,
-	.num_names = sizeof(labpc_cs_boards) / sizeof(struct labpc_board_struct),
+	.num_names = ARRAY_SIZE(labpc_cs_boards),
 	.board_name = &labpc_cs_boards[0].name,
 	.offset = sizeof(struct labpc_board_struct),
 };

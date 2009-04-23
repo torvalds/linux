@@ -437,7 +437,7 @@ static struct comedi_driver driver_amplc_pci224 = {
 	.detach = pci224_detach,
 	.board_name = &pci224_boards[0].name,
 	.offset = sizeof(struct pci224_board),
-	.num_names = sizeof(pci224_boards) / sizeof(struct pci224_board),
+	.num_names = ARRAY_SIZE(pci224_boards),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci224, pci224_pci_table);

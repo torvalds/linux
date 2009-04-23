@@ -1084,7 +1084,7 @@ static inline int M_Offset_Static_AI_Control(int i)
 		0x262,
 		0x263,
 	};
-	if (((unsigned)i) >= sizeof(offset) / sizeof(offset[0])) {
+	if (((unsigned)i) >= ARRAY_SIZE(offset)) {
 		rt_printk("%s: invalid channel=%i\n", __func__, i);
 		return offset[0];
 	}
@@ -1098,7 +1098,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 		0x266,
 		0x267
 	};
-	if (((unsigned)channel) >= sizeof(offset) / sizeof(offset[0])) {
+	if (((unsigned)channel) >= ARRAY_SIZE(offset)) {
 		rt_printk("%s: invalid channel=%i\n", __func__, channel);
 		return offset[0];
 	}

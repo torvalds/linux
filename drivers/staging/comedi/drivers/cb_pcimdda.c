@@ -135,8 +135,6 @@ static const struct board_struct boards[] = {
  */
 #define thisboard    ((const struct board_struct *)dev->board_ptr)
 
-/* Number of boards in boards[] */
-#define N_BOARDS	(sizeof(boards) / sizeof(struct board_struct))
 #define REG_SZ (thisboard->reg_sz)
 #define REGS_BADRINDEX (thisboard->regs_badrindex)
 
@@ -439,7 +437,7 @@ static int probe(struct comedi_device *dev, const struct comedi_devconfig *it)
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;
 		/*  loop through cards supported by this driver */
-		for (index = 0; index < N_BOARDS; index++) {
+		for (index = 0; index < ARRAY_SIZE(boards); index++) {
 			if (boards[index].device_id != pcidev->device)
 				continue;
 			/*  was a particular bus/slot requested? */

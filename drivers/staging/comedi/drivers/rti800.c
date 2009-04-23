@@ -138,7 +138,7 @@ static struct comedi_driver driver_rti800 = {
 	.module = THIS_MODULE,
 	.attach = rti800_attach,
 	.detach = rti800_detach,
-	.num_names = sizeof(boardtypes) / sizeof(struct rti800_board),
+	.num_names = ARRAY_SIZE(boardtypes),
 	.board_name = &boardtypes[0].name,
 	.offset = sizeof(struct rti800_board),
 };
@@ -199,8 +199,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 		/* without a delay here, the RTI_OVERRUN bit
 		 * gets set, and you will have an error. */
 		if (insn->n > 0) {
-			BUG_ON(gain >=
-				sizeof(gaindelay) / sizeof(gaindelay[0]));
+			BUG_ON(gain >= ARRAY_SIZE(gaindelay));
 			comedi_udelay(gaindelay[gain]);
 		}
 	}

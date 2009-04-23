@@ -484,7 +484,7 @@ static struct comedi_driver driver_amplc_dio200 = {
 	.detach = dio200_detach,
 	.board_name = &dio200_boards[0].name,
 	.offset = sizeof(struct dio200_board),
-	.num_names = sizeof(dio200_boards) / sizeof(struct dio200_board),
+	.num_names = ARRAY_SIZE(dio200_boards),
 };
 
 #ifdef CONFIG_COMEDI_PCI

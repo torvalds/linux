@@ -99,7 +99,7 @@ static struct comedi_driver driver_dnp = {
 	.board_name = &dnp_boards[0].name,
 	/* only necessary for non-PnP devs   */
 	.offset = sizeof(struct dnp_board),/* like ISA-PnP, PCI or PCMCIA.      */
-	.num_names = sizeof(dnp_boards) / sizeof(struct dnp_board),
+	.num_names = ARRAY_SIZE(dnp_boards),
 };
 
 COMEDI_INITCLEANUP(driver_dnp);

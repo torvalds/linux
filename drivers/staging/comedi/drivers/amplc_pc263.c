@@ -141,7 +141,7 @@ static struct comedi_driver driver_amplc_pc263 = {
 	.detach = pc263_detach,
 	.board_name = &pc263_boards[0].name,
 	.offset = sizeof(struct pc263_board),
-	.num_names = sizeof(pc263_boards) / sizeof(struct pc263_board),
+	.num_names = ARRAY_SIZE(pc263_boards),
 };
 
 static int pc263_request_region(unsigned minor, unsigned long from,

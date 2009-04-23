@@ -204,7 +204,7 @@ static int pcidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			continue;
 		/*  loop through cards supported by this driver */
 		for (index = 0;
-			index < sizeof pcidio_boards / sizeof(struct pcidio_board);
+			index < ARRAY_SIZE(pcidio_boards);
 			index++) {
 			if (pcidio_pci_table[index].device != pcidev->device)
 				continue;

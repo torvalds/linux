@@ -222,7 +222,7 @@ static struct comedi_driver driver_dt2811 = {
 	.attach = dt2811_attach,
 	.detach = dt2811_detach,
 	.board_name = &boardtypes[0].name,
-	.num_names = sizeof(boardtypes) / sizeof(struct dt2811_board),
+	.num_names = ARRAY_SIZE(boardtypes),
 	.offset = sizeof(struct dt2811_board),
 };
 

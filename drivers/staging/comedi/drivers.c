@@ -853,7 +853,8 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
 	/*  pci slot */
 	options[1] = PCI_SLOT(pcidev->devfn);
 
-	return comedi_auto_config(&pcidev->dev, board_name, options, sizeof(options) / sizeof(options[0]));
+	return comedi_auto_config(&pcidev->dev, board_name,
+				  options, ARRAY_SIZE(options));
 }
 
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)

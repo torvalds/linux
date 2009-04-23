@@ -113,7 +113,7 @@ static const struct me4000_board me4000_boards[] = {
 	{0},
 };
 
-#define ME4000_BOARD_VERSIONS (sizeof(me4000_boards) / sizeof(struct me4000_board) - 1)
+#define ME4000_BOARD_VERSIONS (ARRAY_SIZE(me4000_boards) - 1)
 
 /*-----------------------------------------------------------------------------
   Comedi function prototypes

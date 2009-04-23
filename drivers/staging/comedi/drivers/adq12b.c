@@ -171,7 +171,7 @@ static struct comedi_driver driver_adq12b={
         detach:         adq12b_detach,
         board_name:     &adq12b_boards[0].name,
         offset:         sizeof(struct adq12b_board),
-        num_names:      sizeof(adq12b_boards) / sizeof(struct adq12b_board),
+        num_names:      ARRAY_SIZE(adq12b_boards),
 };
 
 static int adq12b_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data);

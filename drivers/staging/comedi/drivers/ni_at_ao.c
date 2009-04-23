@@ -190,7 +190,7 @@ static struct comedi_driver driver_atao = {
 	.detach = atao_detach,
 	.board_name = &atao_boards[0].name,
 	.offset = sizeof(struct atao_board),
-	.num_names = sizeof(atao_boards) / sizeof(struct atao_board),
+	.num_names = ARRAY_SIZE(atao_boards),
 };
 
 COMEDI_INITCLEANUP(driver_atao);

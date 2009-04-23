@@ -176,7 +176,7 @@ static struct comedi_driver driver_amplc_pc236 = {
 	.detach = pc236_detach,
 	.board_name = &pc236_boards[0].name,
 	.offset = sizeof(struct pc236_board),
-	.num_names = sizeof(pc236_boards) / sizeof(struct pc236_board),
+	.num_names = ARRAY_SIZE(pc236_boards),
 };
 
 #ifdef CONFIG_COMEDI_PCI

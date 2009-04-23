@@ -181,7 +181,7 @@ static struct comedi_driver driver_skel = {
 	 */
 	.board_name = &skel_boards[0].name,
 	.offset = sizeof(struct skel_board),
-	.num_names = sizeof(skel_boards) / sizeof(struct skel_board),
+	.num_names = ARRAY_SIZE(skel_boards),
 };
 
 static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,

@@ -137,7 +137,7 @@ static struct comedi_driver driver = {
 	 */
 	.board_name = &pcmda12_boards[0].name,
 	.offset = sizeof(struct pcmda12_board),
-	.num_names = sizeof(pcmda12_boards) / sizeof(struct pcmda12_board),
+	.num_names = ARRAY_SIZE(pcmda12_boards),
 };
 
 static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,

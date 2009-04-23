@@ -285,7 +285,7 @@ static struct comedi_driver driver_dmm32at = {
  */
 	.board_name = &dmm32at_boards[0].name,
 	.offset = sizeof(struct dmm32at_board),
-	.num_names = sizeof(dmm32at_boards) / sizeof(struct dmm32at_board),
+	.num_names = ARRAY_SIZE(dmm32at_boards),
 };
 
 /* prototypes for driver functions below */

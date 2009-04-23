@@ -612,7 +612,7 @@ static struct comedi_driver driver_amplc_pci230 = {
 	.detach = pci230_detach,
 	.board_name = &pci230_boards[0].name,
 	.offset = sizeof(pci230_boards[0]),
-	.num_names = sizeof(pci230_boards) / sizeof(pci230_boards[0]),
+	.num_names = ARRAY_SIZE(pci230_boards),
 };
 
 COMEDI_PCI_INITCLEANUP(driver_amplc_pci230, pci230_pci_table);

@@ -217,7 +217,6 @@ static const struct dt2801_board boardtypes[] = {
 	.dabits = 12},
 };
 
-#define n_boardtypes ((sizeof(boardtypes))/(sizeof(boardtypes[0])))
 #define boardtype (*(const struct dt2801_board *)dev->board_ptr)
 
 struct dt2801_private {
@@ -506,7 +505,7 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!board_code)
 		board_code = dt2801_reset(dev);
 
-	for (type = 0; type < n_boardtypes; type++) {
+	for (type = 0; type < ARRAY_SIZE(boardtypes); type++) {
 		if (boardtypes[type].boardcode == board_code)
 			goto havetype;
 	}

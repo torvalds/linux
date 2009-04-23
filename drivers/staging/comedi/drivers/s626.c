@@ -2358,7 +2358,7 @@ static void LoadTrimDACs(struct comedi_device *dev)
 	register uint8_t i;
 
 	/*  Copy TrimDac setpoint values from EEPROM to TrimDacs. */
-	for (i = 0; i < (sizeof(trimchan) / sizeof(trimchan[0])); i++)
+	for (i = 0; i < ARRAY_SIZE(trimchan); i++)
 		WriteTrimDAC(dev, i, I2Cread(dev, trimadrs[i]));
 }
 

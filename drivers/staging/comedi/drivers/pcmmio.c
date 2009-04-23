@@ -292,7 +292,7 @@ static struct comedi_driver driver = {
 	 */
 	.board_name = &pcmmio_boards[0].name,
 	.offset = sizeof(struct pcmmio_board),
-	.num_names = sizeof(pcmmio_boards) / sizeof(struct pcmmio_board),
+	.num_names = ARRAY_SIZE(pcmmio_boards),
 };
 
 static int pcmmio_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,

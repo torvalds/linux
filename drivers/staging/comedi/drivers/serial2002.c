@@ -98,7 +98,7 @@ struct comedi_driver driver_serial2002 = {
 	.detach = serial2002_detach,
 	.board_name = &serial2002_boards[0].name,
 	.offset = sizeof(struct serial2002_board),
-	.num_names = sizeof(serial2002_boards) / sizeof(struct serial2002_board),
+	.num_names = ARRAY_SIZE(serial2002_boards),
 };
 
 static int serial2002_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
