@@ -599,7 +599,7 @@ void elv_quiesce_start(struct request_queue *q)
 	 */
 	elv_drain_elevator(q);
 	while (q->rq.elvpriv) {
-		blk_start_queueing(q);
+		__blk_run_queue(q);
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
@@ -643,8 +643,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 		 *   with anything.  There's no point in delaying queue
 		 *   processing.
 		 */
-		blk_remove_plug(q);
-		blk_start_queueing(q);
+		__blk_run_queue(q);
 		break;
 
 	case ELEVATOR_INSERT_SORT:
@@ -971,7 +970,7 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
 		    (!next || blk_ordered_req_seq(next) > QUEUE_ORDSEQ_DRAIN)) {
 			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);
-			blk_start_queueing(q);
+			__blk_run_queue(q);
 		}
 	}
 }

@@ -433,9 +433,7 @@ EXPORT_SYMBOL(__blk_run_queue);
  *
  * Description:
  *    Invoke request handling on this queue, if it has pending work to do.
- *    May be used to restart queueing when a request has completed. Also
- *    See @blk_start_queueing.
- *
+ *    May be used to restart queueing when a request has completed.
  */
 void blk_run_queue(struct request_queue *q)
 {
@@ -895,28 +893,6 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 EXPORT_SYMBOL(blk_get_request);
 
 /**
- * blk_start_queueing - initiate dispatch of requests to device
- * @q:		request queue to kick into gear
- *
- * This is basically a helper to remove the need to know whether a queue
- * is plugged or not if someone just wants to initiate dispatch of requests
- * for this queue. Should be used to start queueing on a device outside
- * of ->request_fn() context. Also see @blk_run_queue.
- *
- * The queue lock must be held with interrupts disabled.
- */
-void blk_start_queueing(struct request_queue *q)
-{
-	if (!blk_queue_plugged(q)) {
-		if (unlikely(blk_queue_stopped(q)))
-			return;
-		q->request_fn(q);
-	} else
-		__generic_unplug_device(q);
-}
-EXPORT_SYMBOL(blk_start_queueing);
-
-/**
  * blk_requeue_request - put a request back on queue
  * @q:		request queue where request should be inserted
  * @rq:		request to be inserted
@@ -984,7 +960,7 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 
 	drive_stat_acct(rq, 1);
 	__elv_add_request(q, rq, where, 0);
-	blk_start_queueing(q);
+	__blk_run_queue(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 EXPORT_SYMBOL(blk_insert_request);

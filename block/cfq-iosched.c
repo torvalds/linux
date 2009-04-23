@@ -2088,7 +2088,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE ||
 			    cfqd->busy_queues > 1) {
 				del_timer(&cfqd->idle_slice_timer);
-				blk_start_queueing(cfqd->queue);
+			__blk_run_queue(cfqd->queue);
 			}
 			cfq_mark_cfqq_must_dispatch(cfqq);
 		}
@@ -2100,7 +2100,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		 * this new queue is RT and the current one is BE
 		 */
 		cfq_preempt_queue(cfqd, cfqq);
-		blk_start_queueing(cfqd->queue);
+		__blk_run_queue(cfqd->queue);
 	}
 }
 
@@ -2345,7 +2345,7 @@ static void cfq_kick_queue(struct work_struct *work)
 	struct request_queue *q = cfqd->queue;
 
 	spin_lock_irq(q->queue_lock);
-	blk_start_queueing(q);
+	__blk_run_queue(cfqd->queue);
 	spin_unlock_irq(q->queue_lock);
 }
 

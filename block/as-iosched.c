@@ -1312,12 +1312,8 @@ static void as_merged_requests(struct request_queue *q, struct request *req,
 static void as_work_handler(struct work_struct *work)
 {
 	struct as_data *ad = container_of(work, struct as_data, antic_work);
-	struct request_queue *q = ad->q;
-	unsigned long flags;
 
-	spin_lock_irqsave(q->queue_lock, flags);
-	blk_start_queueing(q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	blk_run_queue(ad->q);
 }
 
 static int as_may_queue(struct request_queue *q, int rw)
