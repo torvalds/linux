@@ -16,12 +16,12 @@
 #include <linux/ieee80211.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason)
 {
 	struct ieee80211_local *local = sta->local;
-	struct ieee80211_hw *hw = &local->hw;
 	int i;
 
 	/* check if TID is in operational state */
@@ -41,8 +41,8 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	       sta->sta.addr, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
-	if (local->ops->ampdu_action(hw, IEEE80211_AMPDU_RX_STOP,
-				     &sta->sta, tid, NULL))
+	if (drv_ampdu_action(local, IEEE80211_AMPDU_RX_STOP,
+			     &sta->sta, tid, NULL))
 		printk(KERN_DEBUG "HW problem - can not stop rx "
 				"aggregation for tid %d\n", tid);
 
@@ -278,9 +278,8 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 		goto end;
 	}
 
-	if (local->ops->ampdu_action)
-		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_RX_START,
-					       &sta->sta, tid, &start_seq_num);
+	ret = drv_ampdu_action(local, IEEE80211_AMPDU_RX_START,
+			       &sta->sta, tid, &start_seq_num);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Rx A-MPDU request on tid %d result %d\n", tid, ret);
 #endif /* CONFIG_MAC80211_HT_DEBUG */

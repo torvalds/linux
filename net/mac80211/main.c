@@ -26,6 +26,7 @@
 #include <net/cfg80211.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "rate.h"
 #include "mesh.h"
 #include "wep.h"
@@ -81,10 +82,9 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	/* be a bit nasty */
 	new_flags |= (1<<31);
 
-	local->ops->configure_filter(local_to_hw(local),
-				     changed_flags, &new_flags,
-				     local->mdev->mc_count,
-				     local->mdev->mc_list);
+	drv_configure_filter(local, changed_flags, &new_flags,
+			     local->mdev->mc_count,
+			     local->mdev->mc_list);
 
 	WARN_ON(new_flags & (1<<31));
 
@@ -192,7 +192,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	}
 
 	if (changed && local->open_count) {
-		ret = local->ops->config(local_to_hw(local), changed);
+		ret = drv_config(local, changed);
 		/*
 		 * Goal:
 		 * HW reconfiguration should never fail, the driver has told
@@ -276,11 +276,8 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (local->ops->bss_info_changed)
-		local->ops->bss_info_changed(local_to_hw(local),
-					     &sdata->vif,
-					     &sdata->vif.bss_conf,
-					     changed);
+	drv_bss_info_changed(local, &sdata->vif,
+			     &sdata->vif.bss_conf, changed);
 
 	/*
 	 * DEPRECATED

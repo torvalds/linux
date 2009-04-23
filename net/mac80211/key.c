@@ -16,6 +16,7 @@
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "debugfs_key.h"
 #include "aes_ccm.h"
 #include "aes_cmac.h"
@@ -136,8 +137,7 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = key->local->ops->set_key(local_to_hw(key->local), SET_KEY,
-				       &sdata->vif, sta, &key->conf);
+	ret = drv_set_key(key->local, SET_KEY, &sdata->vif, sta, &key->conf);
 
 	if (!ret) {
 		spin_lock(&todo_lock);
@@ -179,8 +179,8 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	ret = key->local->ops->set_key(local_to_hw(key->local), DISABLE_KEY,
-				       &sdata->vif, sta, &key->conf);
+	ret = drv_set_key(key->local, DISABLE_KEY, &sdata->vif,
+			  sta, &key->conf);
 
 	if (ret)
 		printk(KERN_ERR "mac80211-%s: failed to remove key "

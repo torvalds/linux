@@ -2,6 +2,7 @@
 #include <net/rtnetlink.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "led.h"
 
 int __ieee80211_suspend(struct ieee80211_hw *hw)
@@ -43,8 +44,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-			local->ops->sta_notify(hw, &sdata->vif,
-				STA_NOTIFY_REMOVE, &sta->sta);
+			drv_sta_notify(local, &sdata->vif, STA_NOTIFY_REMOVE,
+				       &sta->sta);
 		}
 		spin_unlock_irqrestore(&local->sta_lock, flags);
 	}
@@ -57,7 +58,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 			conf.vif = &sdata->vif;
 			conf.type = sdata->vif.type;
 			conf.mac_addr = sdata->dev->dev_addr;
-			local->ops->remove_interface(hw, &conf);
+			drv_remove_interface(local, &conf);
 		}
 	}
 
@@ -67,7 +68,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	/* stop hardware */
 	if (local->open_count) {
 		ieee80211_led_radio(local, false);
-		local->ops->stop(hw);
+		drv_stop(local);
 	}
 	return 0;
 }

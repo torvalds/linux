@@ -22,6 +22,7 @@
 #include <asm/unaligned.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "rate.h"
 
 #define IEEE80211_SCAN_INTERVAL (2 * HZ)
@@ -75,10 +76,9 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_supported_band *sband;
 	u32 bss_change;
 
-	if (local->ops->reset_tsf) {
-		/* Reset own TSF to allow time synchronization work. */
-		local->ops->reset_tsf(local_to_hw(local));
-	}
+
+	/* Reset own TSF to allow time synchronization work. */
+	drv_reset_tsf(local);
 
 	skb = ifibss->skb;
 	rcu_assign_pointer(ifibss->presp, NULL);
@@ -315,12 +315,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				bitrates[rx_status->rate_idx].bitrate;
 
 		rx_timestamp = rx_status->mactime + (24 * 8 * 10 / rate);
-	} else if (local && local->ops && local->ops->get_tsf)
-		/* second best option: get current TSF */
-		rx_timestamp = local->ops->get_tsf(local_to_hw(local));
-	else
-		/* can't merge without knowing the TSF */
-		rx_timestamp = -1LLU;
+	} else {
+		/*
+		 * second best option: get current TSF
+		 * (will return -1 if not supported)
+		 */
+		rx_timestamp = drv_get_tsf(local);
+	}
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "RX beacon SA=%pM BSSID="
@@ -591,10 +592,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	    len < 24 + 2 || !ifibss->presp)
 		return;
 
-	if (local->ops->tx_last_beacon)
-		tx_last_beacon = local->ops->tx_last_beacon(local_to_hw(local));
-	else
-		tx_last_beacon = 1;
+	tx_last_beacon = drv_tx_last_beacon(local);
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "%s: RX ProbeReq SA=%pM DA=%pM BSSID=%pM"

@@ -21,6 +21,7 @@
 #include <net/iw_handler.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "mesh.h"
 
 #define IEEE80211_PROBE_DELAY (HZ / 33)
@@ -316,17 +317,15 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	netif_tx_lock_bh(local->mdev);
 	netif_addr_lock(local->mdev);
 	local->filter_flags &= ~FIF_BCN_PRBRESP_PROMISC;
-	local->ops->configure_filter(local_to_hw(local),
-				     FIF_BCN_PRBRESP_PROMISC,
-				     &local->filter_flags,
-				     local->mdev->mc_count,
-				     local->mdev->mc_list);
+	drv_configure_filter(local, FIF_BCN_PRBRESP_PROMISC,
+			     &local->filter_flags,
+			     local->mdev->mc_count,
+			     local->mdev->mc_list);
 
 	netif_addr_unlock(local->mdev);
 	netif_tx_unlock_bh(local->mdev);
 
-	if (local->ops->sw_scan_complete)
-		local->ops->sw_scan_complete(local_to_hw(local));
+	drv_sw_scan_complete(local);
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -375,8 +374,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	 * nullfunc frames and probe requests will be dropped in
 	 * ieee80211_tx_h_check_assoc().
 	 */
-	if (local->ops->sw_scan_start)
-		local->ops->sw_scan_start(local_to_hw(local));
+	drv_sw_scan_start(local);
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -405,11 +403,10 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 
 	netif_addr_lock_bh(local->mdev);
 	local->filter_flags |= FIF_BCN_PRBRESP_PROMISC;
-	local->ops->configure_filter(local_to_hw(local),
-				     FIF_BCN_PRBRESP_PROMISC,
-				     &local->filter_flags,
-				     local->mdev->mc_count,
-				     local->mdev->mc_list);
+	drv_configure_filter(local, FIF_BCN_PRBRESP_PROMISC,
+			     &local->filter_flags,
+			     local->mdev->mc_count,
+			     local->mdev->mc_list);
 	netif_addr_unlock_bh(local->mdev);
 
 	/* TODO: start scan as soon as all nullfunc frames are ACKed */
@@ -477,8 +474,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&local->scan_mtx);
 
 	if (local->ops->hw_scan)
-		rc = local->ops->hw_scan(local_to_hw(local),
-					 local->scan_req);
+		rc = drv_hw_scan(local, local->scan_req);
 	else
 		rc = ieee80211_start_sw_scan(local);
 

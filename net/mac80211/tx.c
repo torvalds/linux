@@ -25,6 +25,7 @@
 #include <asm/unaligned.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "led.h"
 #include "mesh.h"
 #include "wep.h"
@@ -1162,7 +1163,7 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 
 		next = skb->next;
 		len = skb->len;
-		ret = local->ops->tx(local_to_hw(local), skb);
+		ret = drv_tx(local, skb);
 		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
 			dev_kfree_skb(skb);
 			ret = NETDEV_TX_OK;

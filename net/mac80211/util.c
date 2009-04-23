@@ -26,6 +26,7 @@
 #include <net/rtnetlink.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "rate.h"
 #include "mesh.h"
 #include "wme.h"
@@ -726,7 +727,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 	qparam.txop = 0;
 
 	for (i = 0; i < local_to_hw(local)->queues; i++)
-		local->ops->conf_tx(local_to_hw(local), i, &qparam);
+		drv_conf_tx(local, i, &qparam);
 }
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
@@ -1000,7 +1001,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* restart hardware */
 	if (local->open_count) {
-		res = local->ops->start(hw);
+		res = drv_start(local);
 
 		ieee80211_led_radio(local, hw->conf.radio_enabled);
 	}
@@ -1013,7 +1014,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			conf.vif = &sdata->vif;
 			conf.type = sdata->vif.type;
 			conf.mac_addr = sdata->dev->dev_addr;
-			res = local->ops->add_interface(hw, &conf);
+			res = drv_add_interface(local, &conf);
 		}
 	}
 
@@ -1026,8 +1027,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-			local->ops->sta_notify(hw, &sdata->vif,
-				STA_NOTIFY_ADD, &sta->sta);
+			drv_sta_notify(local, &sdata->vif, STA_NOTIFY_ADD,
+				       &sta->sta);
 		}
 		spin_unlock_irqrestore(&local->sta_lock, flags);
 	}
@@ -1045,8 +1046,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	rcu_read_unlock();
 
 	/* setup RTS threshold */
-	if (local->ops->set_rts_threshold)
-		local->ops->set_rts_threshold(hw, hw->wiphy->rts_threshold);
+	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
 
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);

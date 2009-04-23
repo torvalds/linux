@@ -20,6 +20,7 @@
 #include "debugfs_netdev.h"
 #include "mesh.h"
 #include "led.h"
+#include "driver-ops.h"
 
 /**
  * DOC: Interface list locking
@@ -164,9 +165,7 @@ static int ieee80211_open(struct net_device *dev)
 	}
 
 	if (local->open_count == 0) {
-		res = 0;
-		if (local->ops->start)
-			res = local->ops->start(local_to_hw(local));
+		res = drv_start(local);
 		if (res)
 			goto err_del_bss;
 		/* we're brought up, everything changes */
@@ -199,8 +198,8 @@ static int ieee80211_open(struct net_device *dev)
 	 * Validate the MAC address for this device.
 	 */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		if (!local->open_count && local->ops->stop)
-			local->ops->stop(local_to_hw(local));
+		if (!local->open_count)
+			drv_stop(local);
 		return -EADDRNOTAVAIL;
 	}
 
@@ -241,7 +240,7 @@ static int ieee80211_open(struct net_device *dev)
 		conf.vif = &sdata->vif;
 		conf.type = sdata->vif.type;
 		conf.mac_addr = dev->dev_addr;
-		res = local->ops->add_interface(local_to_hw(local), &conf);
+		res = drv_add_interface(local, &conf);
 		if (res)
 			goto err_stop;
 
@@ -328,10 +327,10 @@ static int ieee80211_open(struct net_device *dev)
 
 	return 0;
  err_del_interface:
-	local->ops->remove_interface(local_to_hw(local), &conf);
+	drv_remove_interface(local, &conf);
  err_stop:
-	if (!local->open_count && local->ops->stop)
-		local->ops->stop(local_to_hw(local));
+	if (!local->open_count)
+		drv_stop(local);
  err_del_bss:
 	sdata->bss = NULL;
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
@@ -544,7 +543,7 @@ static int ieee80211_stop(struct net_device *dev)
 		conf.mac_addr = dev->dev_addr;
 		/* disable all keys for as long as this netdev is down */
 		ieee80211_disable_keys(sdata);
-		local->ops->remove_interface(local_to_hw(local), &conf);
+		drv_remove_interface(local, &conf);
 	}
 
 	sdata->bss = NULL;
@@ -553,8 +552,7 @@ static int ieee80211_stop(struct net_device *dev)
 		if (netif_running(local->mdev))
 			dev_close(local->mdev);
 
-		if (local->ops->stop)
-			local->ops->stop(local_to_hw(local));
+		drv_stop(local);
 
 		ieee80211_led_radio(local, 0);
 
