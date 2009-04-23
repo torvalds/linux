@@ -911,6 +911,27 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 }
 
 /*
+ * A '-' followed by the 'name' of a socket means we close the socket.
+ */
+static ssize_t __write_ports_delfd(char *buf)
+{
+	char *toclose;
+	int len = 0;
+
+	toclose = kstrdup(buf + 1, GFP_KERNEL);
+	if (toclose == NULL)
+		return -ENOMEM;
+
+	if (nfsd_serv != NULL)
+		len = svc_sock_names(buf, nfsd_serv, toclose);
+	if (len >= 0)
+		lockd_down();
+
+	kfree(toclose);
+	return len;
+}
+
+/*
  * A transport listener is added by writing it's transport name and
  * a port number.
  */
@@ -1004,18 +1025,9 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 		}
 		return err < 0 ? err : 0;
 	}
-	if (buf[0] == '-' && isdigit(buf[1])) {
-		char *toclose = kstrdup(buf+1, GFP_KERNEL);
-		int len = 0;
-		if (!toclose)
-			return -ENOMEM;
-		if (nfsd_serv)
-			len = svc_sock_names(buf, nfsd_serv, toclose);
-		if (len >= 0)
-			lockd_down();
-		kfree(toclose);
-		return len;
-	}
+
+	if (buf[0] == '-' && isdigit(buf[1]))
+		return __write_ports_delfd(buf);
 
 	if (isalpha(buf[0]))
 		return __write_ports_addxprt(buf);
