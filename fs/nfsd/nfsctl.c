@@ -911,6 +911,36 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 }
 
 /*
+ * A transport listener is added by writing it's transport name and
+ * a port number.
+ */
+static ssize_t __write_ports_addxprt(char *buf)
+{
+	char transport[16];
+	int port, err;
+
+	if (sscanf(buf, "%15s %4u", transport, &port) != 2)
+		return -EINVAL;
+
+	if (port < 1 || port > USHORT_MAX)
+		return -EINVAL;
+
+	err = nfsd_create_serv();
+	if (err != 0)
+		return err;
+
+	err = svc_create_xprt(nfsd_serv, transport,
+				PF_INET, port, SVC_SOCK_ANONYMOUS);
+	if (err < 0) {
+		/* Give a reasonable perror msg for bad transport string */
+		if (err == -ENOENT)
+			err = -EPROTONOSUPPORT;
+		return err;
+	}
+	return 0;
+}
+
+/*
  * A transport listener is removed by writing a "-", it's transport
  * name, and it's port number.
  */
@@ -986,29 +1016,9 @@ static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 		kfree(toclose);
 		return len;
 	}
-	/*
-	 * Add a transport listener by writing it's transport name
-	 */
-	if (isalpha(buf[0])) {
-		int err;
-		char transport[16];
-		int port;
-		if (sscanf(buf, "%15s %4d", transport, &port) == 2) {
-			if (port < 1 || port > 65535)
-				return -EINVAL;
-			err = nfsd_create_serv();
-			if (!err) {
-				err = svc_create_xprt(nfsd_serv,
-						      transport, PF_INET, port,
-						      SVC_SOCK_ANONYMOUS);
-				if (err == -ENOENT)
-					/* Give a reasonable perror msg for
-					 * bad transport string */
-					err = -EPROTONOSUPPORT;
-			}
-			return err < 0 ? err : 0;
-		}
-	}
+
+	if (isalpha(buf[0]))
+		return __write_ports_addxprt(buf);
 
 	if (buf[0] == '-' && isalpha(buf[1]))
 		return __write_ports_delxprt(buf);
