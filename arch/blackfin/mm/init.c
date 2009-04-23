@@ -40,31 +40,26 @@ EXPORT_SYMBOL(cpu_pda);
 void __init paging_init(void)
 {
 	/*
-	 * make sure start_mem is page aligned,  otherwise bootmem and
-	 * page_alloc get different views og the world
+	 * make sure start_mem is page aligned, otherwise bootmem and
+	 * page_alloc get different views of the world
 	 */
 	unsigned long end_mem = memory_end & PAGE_MASK;
 
-	pr_debug("start_mem is %#lx   virtual_end is %#lx\n", PAGE_ALIGN(memory_start), end_mem);
+	unsigned long zones_size[MAX_NR_ZONES] = {
+		[0] = 0,
+		[ZONE_DMA] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT,
+		[ZONE_NORMAL] = 0,
+#ifdef CONFIG_HIGHMEM
+		[ZONE_HIGHMEM] = 0,
+#endif
+	};
 
-	/*
-	 * Set up SFC/DFC registers (user data space)
-	 */
+	/* Set up SFC/DFC registers (user data space) */
 	set_fs(KERNEL_DS);
 
-	pr_debug("free_area_init -> start_mem is %#lx   virtual_end is %#lx\n",
+	pr_debug("free_area_init -> start_mem is %#lx virtual_end is %#lx\n",
 	        PAGE_ALIGN(memory_start), end_mem);
-
-	{
-		unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-
-		zones_size[ZONE_DMA] = (end_mem - PAGE_OFFSET) >> PAGE_SHIFT;
-		zones_size[ZONE_NORMAL] = 0;
-#ifdef CONFIG_HIGHMEM
-		zones_size[ZONE_HIGHMEM] = 0;
-#endif
-		free_area_init(zones_size);
-	}
+	free_area_init(zones_size);
 }
 
 asmlinkage void __init init_pda(void)
