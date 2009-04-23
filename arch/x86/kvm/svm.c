@@ -70,7 +70,6 @@ module_param(npt, int, S_IRUGO);
 static int nested = 0;
 module_param(nested, int, S_IRUGO);
 
-static void kvm_reput_irq(struct vcpu_svm *svm);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu);
 
 static int nested_svm_exit_handled(struct vcpu_svm *svm, bool kvm_override);
@@ -199,9 +198,7 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 
 static bool svm_exception_injected(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	return !(svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID);
+	return false;
 }
 
 static int is_external_interrupt(u32 info)
@@ -978,12 +975,9 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 
 static int svm_get_irq(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_svm *svm = to_svm(vcpu);
-	u32 exit_int_info = svm->vmcb->control.exit_int_info;
-
-	if (is_external_interrupt(exit_int_info))
-		return exit_int_info & SVM_EVTINJ_VEC_MASK;
-	return -1;
+	if (!vcpu->arch.interrupt.pending)
+		return -1;
+	return vcpu->arch.interrupt.nr;
 }
 
 static void load_host_msrs(struct kvm_vcpu *vcpu)
@@ -1090,17 +1084,8 @@ static void svm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long value,
 
 static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
-	u32 exit_int_info = svm->vmcb->control.exit_int_info;
-	struct kvm *kvm = svm->vcpu.kvm;
 	u64 fault_address;
 	u32 error_code;
-	bool event_injection = false;
-
-	if (!irqchip_in_kernel(kvm) &&
-	    is_external_interrupt(exit_int_info)) {
-		event_injection = true;
-		kvm_push_irq(&svm->vcpu, exit_int_info & SVM_EVTINJ_VEC_MASK);
-	}
 
 	fault_address  = svm->vmcb->control.exit_info_2;
 	error_code = svm->vmcb->control.exit_info_1;
@@ -1120,9 +1105,11 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	 */
 	if (npt_enabled)
 		svm_flush_tlb(&svm->vcpu);
-
-	if (!npt_enabled && event_injection)
-		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
+	else {
+		if (svm->vcpu.arch.interrupt.pending ||
+				svm->vcpu.arch.exception.pending)
+			kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
+	}
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
 }
 
@@ -2196,7 +2183,6 @@ static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		}
 	}
 
-	kvm_reput_irq(svm);
 
 	if (svm->vmcb->control.exit_code == SVM_EXIT_ERR) {
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
@@ -2259,13 +2245,19 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 		((/*control->int_vector >> 4*/ 0xf) << V_INTR_PRIO_SHIFT);
 }
 
+static void svm_queue_irq(struct vcpu_svm *svm, unsigned nr)
+{
+	svm->vmcb->control.event_inj = nr |
+		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
+}
+
 static void svm_set_irq(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	nested_svm_intr(svm);
 
-	svm_inject_irq(svm, irq);
+	svm_queue_irq(svm, irq);
 }
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu)
@@ -2298,98 +2290,47 @@ static int svm_interrupt_allowed(struct kvm_vcpu *vcpu)
 		(svm->vcpu.arch.hflags & HF_GIF_MASK);
 }
 
+static void enable_irq_window(struct kvm_vcpu *vcpu)
+{
+	svm_set_vintr(to_svm(vcpu));
+	svm_inject_irq(to_svm(vcpu), 0x0);
+}
+
+static void svm_intr_inject(struct kvm_vcpu *vcpu)
+{
+	/* try to reinject previous events if any */
+	if (vcpu->arch.interrupt.pending) {
+		svm_queue_irq(to_svm(vcpu), vcpu->arch.interrupt.nr);
+		return;
+	}
+
+	/* try to inject new event if pending */
+	if (kvm_cpu_has_interrupt(vcpu)) {
+		if (vcpu->arch.interrupt_window_open) {
+			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
+			svm_queue_irq(to_svm(vcpu), vcpu->arch.interrupt.nr);
+		}
+	}
+}
+
 static void svm_intr_assist(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb *vmcb = svm->vmcb;
-	int intr_vector = -1;
-
-	if ((vmcb->control.exit_int_info & SVM_EVTINJ_VALID) &&
-	    ((vmcb->control.exit_int_info & SVM_EVTINJ_TYPE_MASK) == 0)) {
-		intr_vector = vmcb->control.exit_int_info &
-			      SVM_EVTINJ_VEC_MASK;
-		vmcb->control.exit_int_info = 0;
-		svm_inject_irq(svm, intr_vector);
-		goto out;
-	}
-
-	if (vmcb->control.int_ctl & V_IRQ_MASK)
-		goto out;
-
-	if (!kvm_cpu_has_interrupt(vcpu))
-		goto out;
+	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
+		kvm_run->request_interrupt_window;
 
 	if (nested_svm_intr(svm))
 		goto out;
 
-	if (!(svm->vcpu.arch.hflags & HF_GIF_MASK))
-		goto out;
+	svm->vcpu.arch.interrupt_window_open = svm_interrupt_allowed(vcpu);
 
-	if (!(vmcb->save.rflags & X86_EFLAGS_IF) ||
-	    (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK) ||
-	    (vmcb->control.event_inj & SVM_EVTINJ_VALID)) {
-		/* unable to deliver irq, set pending irq */
-		svm_set_vintr(svm);
-		svm_inject_irq(svm, 0x0);
-		goto out;
-	}
-	/* Okay, we can deliver the interrupt: grab it and update PIC state. */
-	intr_vector = kvm_cpu_get_interrupt(vcpu);
-	svm_inject_irq(svm, intr_vector);
+	svm_intr_inject(vcpu);
+
+	if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
+		enable_irq_window(vcpu);
+
 out:
 	update_cr8_intercept(vcpu);
-}
-
-static void kvm_reput_irq(struct vcpu_svm *svm)
-{
-	struct vmcb_control_area *control = &svm->vmcb->control;
-
-	if ((control->int_ctl & V_IRQ_MASK)
-	    && !irqchip_in_kernel(svm->vcpu.kvm)) {
-		control->int_ctl &= ~V_IRQ_MASK;
-		kvm_push_irq(&svm->vcpu, control->int_vector);
-	}
-
-	svm->vcpu.arch.interrupt_window_open =
-		!(control->int_state & SVM_INTERRUPT_SHADOW_MASK) &&
-		 (svm->vcpu.arch.hflags & HF_GIF_MASK);
-}
-
-static void svm_do_inject_vector(struct vcpu_svm *svm)
-{
-	svm_inject_irq(svm, kvm_pop_irq(&svm->vcpu));
-}
-
-static void do_interrupt_requests(struct kvm_vcpu *vcpu,
-				       struct kvm_run *kvm_run)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-	struct vmcb_control_area *control = &svm->vmcb->control;
-
-	if (nested_svm_intr(svm))
-		return;
-
-	svm->vcpu.arch.interrupt_window_open =
-		(!(control->int_state & SVM_INTERRUPT_SHADOW_MASK) &&
-		 (svm->vmcb->save.rflags & X86_EFLAGS_IF) &&
-		 (svm->vcpu.arch.hflags & HF_GIF_MASK));
-
-	if (svm->vcpu.arch.interrupt_window_open &&
-	    kvm_cpu_has_interrupt(&svm->vcpu))
-		/*
-		 * If interrupts enabled, and not blocked by sti or mov ss. Good.
-		 */
-		svm_do_inject_vector(svm);
-
-	/*
-	 * Interrupts blocked.  Wait for unblock.
-	 */
-	if (!svm->vcpu.arch.interrupt_window_open &&
-	    (kvm_cpu_has_interrupt(&svm->vcpu) ||
-	     kvm_run->request_interrupt_window))
-		svm_set_vintr(svm);
-	else
-		svm_clear_vintr(svm);
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
@@ -2427,6 +2368,46 @@ static inline void sync_lapic_to_cr8(struct kvm_vcpu *vcpu)
 	cr8 = kvm_get_cr8(vcpu);
 	svm->vmcb->control.int_ctl &= ~V_TPR_MASK;
 	svm->vmcb->control.int_ctl |= cr8 & V_TPR_MASK;
+}
+
+static void svm_complete_interrupts(struct vcpu_svm *svm)
+{
+	u8 vector;
+	int type;
+	u32 exitintinfo = svm->vmcb->control.exit_int_info;
+
+	svm->vcpu.arch.nmi_injected = false;
+	kvm_clear_exception_queue(&svm->vcpu);
+	kvm_clear_interrupt_queue(&svm->vcpu);
+
+	if (!(exitintinfo & SVM_EXITINTINFO_VALID))
+		return;
+
+	vector = exitintinfo & SVM_EXITINTINFO_VEC_MASK;
+	type = exitintinfo & SVM_EXITINTINFO_TYPE_MASK;
+
+	switch (type) {
+	case SVM_EXITINTINFO_TYPE_NMI:
+		svm->vcpu.arch.nmi_injected = true;
+		break;
+	case SVM_EXITINTINFO_TYPE_EXEPT:
+		/* In case of software exception do not reinject an exception
+		   vector, but re-execute and instruction instead */
+		if (vector == BP_VECTOR || vector == OF_VECTOR)
+			break;
+		if (exitintinfo & SVM_EXITINTINFO_VALID_ERR) {
+			u32 err = svm->vmcb->control.exit_int_info_err;
+			kvm_queue_exception_e(&svm->vcpu, vector, err);
+
+		} else
+			kvm_queue_exception(&svm->vcpu, vector);
+		break;
+	case SVM_EXITINTINFO_TYPE_INTR:
+		kvm_queue_interrupt(&svm->vcpu, vector);
+		break;
+	default:
+		break;
+	}
 }
 
 #ifdef CONFIG_X86_64
@@ -2557,6 +2538,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	sync_cr8_to_lapic(vcpu);
 
 	svm->next_rip = 0;
+
+	svm_complete_interrupts(svm);
 }
 
 #undef R
@@ -2678,7 +2661,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.queue_exception = svm_queue_exception,
 	.exception_injected = svm_exception_injected,
 	.inject_pending_irq = svm_intr_assist,
-	.inject_pending_vectors = do_interrupt_requests,
+	.inject_pending_vectors = svm_intr_assist,
 	.interrupt_allowed = svm_interrupt_allowed,
 
 	.set_tss_addr = svm_set_tss_addr,
