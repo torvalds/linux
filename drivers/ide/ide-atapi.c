@@ -577,7 +577,7 @@ static ide_startstop_t ide_transfer_pc(ide_drive_t *drive)
 
 		/*
 		 * If necessary schedule the packet transfer to occur 'timeout'
-		 * miliseconds later in ide_delayed_transfer_pc() after the
+		 * milliseconds later in ide_delayed_transfer_pc() after the
 		 * device says it's ready for a packet.
 		 */
 		if (drive->atapi_flags & IDE_AFLAG_ZIP_DRIVE) {
