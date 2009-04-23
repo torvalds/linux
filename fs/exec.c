@@ -1060,7 +1060,6 @@ EXPORT_SYMBOL(install_exec_creds);
 int check_unsafe_exec(struct linux_binprm *bprm)
 {
 	struct task_struct *p = current, *t;
-	unsigned long flags;
 	unsigned n_fs;
 	int res = 0;
 
@@ -1068,11 +1067,12 @@ int check_unsafe_exec(struct linux_binprm *bprm)
 
 	n_fs = 1;
 	write_lock(&p->fs->lock);
-	lock_task_sighand(p, &flags);
+	rcu_read_lock();
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
 		if (t->fs == p->fs)
 			n_fs++;
 	}
+	rcu_read_unlock();
 
 	if (p->fs->users > n_fs) {
 		bprm->unsafe |= LSM_UNSAFE_SHARE;
@@ -1083,8 +1083,6 @@ int check_unsafe_exec(struct linux_binprm *bprm)
 			res = 1;
 		}
 	}
-
-	unlock_task_sighand(p, &flags);
 	write_unlock(&p->fs->lock);
 
 	return res;
