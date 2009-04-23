@@ -20,6 +20,11 @@
 #include <asm/dma.h>
 #include <asm/uaccess.h>
 
+/*
+ * To make sure we work around 05000119 - we always check DMA_DONE bit,
+ * never the DMA_RUN bit
+ */
+
 struct dma_channel dma_ch[MAX_DMA_CHANNELS];
 EXPORT_SYMBOL(dma_ch);
 
