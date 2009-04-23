@@ -78,7 +78,7 @@ static void appldata_get_mem_data(void *data)
 {
 	/*
 	 * don't put large structures on the stack, we are
-	 * serialized through the appldata_ops_lock and can use static
+	 * serialized through the appldata_ops_mutex and can use static
 	 */
 	static struct sysinfo val;
 	unsigned long ev[NR_VM_EVENT_ITEMS];
