@@ -439,7 +439,8 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	memcpy(sdata->local->int_scan_req.ssids[0].ssid,
 	       ifibss->ssid, IEEE80211_MAX_SSID_LEN);
 	sdata->local->int_scan_req.ssids[0].ssid_len = ifibss->ssid_len;
-	ieee80211_request_scan(sdata, &sdata->local->int_scan_req);
+	if (ieee80211_request_scan(sdata, &sdata->local->int_scan_req))
+		ieee80211_scan_failed(sdata->local);
 }
 
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
@@ -560,7 +561,8 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		       ifibss->ssid, IEEE80211_MAX_SSID_LEN);
 		local->int_scan_req.ssids[0].ssid_len =
 			ifibss->ssid_len;
-		ieee80211_request_scan(sdata, &local->int_scan_req);
+		if (ieee80211_request_scan(sdata, &local->int_scan_req))
+			ieee80211_scan_failed(local);
 	} else if (ifibss->state != IEEE80211_IBSS_MLME_JOINED) {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
