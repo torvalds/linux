@@ -584,12 +584,13 @@ cfq_prio_tree_lookup(struct cfq_data *cfqd, int ioprio, sector_t sector,
 		else
 			break;
 		p = n;
+		cfqq = NULL;
 	}
 
 	*ret_parent = parent;
 	if (rb_link)
 		*rb_link = p;
-	return NULL;
+	return cfqq;
 }
 
 static void cfq_prio_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq)
@@ -608,10 +609,10 @@ static void cfq_prio_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 
 	__cfqq = cfq_prio_tree_lookup(cfqd, cfqq->ioprio, cfqq->next_rq->sector,
 					 &parent, &p);
-	BUG_ON(__cfqq);
-
-	rb_link_node(&cfqq->p_node, parent, p);
-	rb_insert_color(&cfqq->p_node, root);
+	if (!__cfqq) {
+		rb_link_node(&cfqq->p_node, parent, p);
+		rb_insert_color(&cfqq->p_node, root);
+	}
 }
 
 /*
