@@ -326,11 +326,14 @@ ext4_ext_max_entries(struct inode *inode, int depth)
 
 static int ext4_valid_extent(struct inode *inode, struct ext4_extent *ext)
 {
-	ext4_fsblk_t block = ext_pblock(ext);
+	ext4_fsblk_t block = ext_pblock(ext), valid_block;
 	int len = ext4_ext_get_actual_len(ext);
 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
-	if (unlikely(block < le32_to_cpu(es->s_first_data_block) ||
-			((block + len) > ext4_blocks_count(es))))
+
+	valid_block = le32_to_cpu(es->s_first_data_block) +
+		EXT4_SB(inode->i_sb)->s_gdb_count;
+	if (unlikely(block <= valid_block ||
+		     ((block + len) > ext4_blocks_count(es))))
 		return 0;
 	else
 		return 1;
@@ -339,10 +342,13 @@ static int ext4_valid_extent(struct inode *inode, struct ext4_extent *ext)
 static int ext4_valid_extent_idx(struct inode *inode,
 				struct ext4_extent_idx *ext_idx)
 {
-	ext4_fsblk_t block = idx_pblock(ext_idx);
+	ext4_fsblk_t block = idx_pblock(ext_idx), valid_block;
 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
-	if (unlikely(block < le32_to_cpu(es->s_first_data_block) ||
-			(block >= ext4_blocks_count(es))))
+
+	valid_block = le32_to_cpu(es->s_first_data_block) +
+		EXT4_SB(inode->i_sb)->s_gdb_count;
+	if (unlikely(block <= valid_block ||
+		     (block >= ext4_blocks_count(es))))
 		return 0;
 	else
 		return 1;
