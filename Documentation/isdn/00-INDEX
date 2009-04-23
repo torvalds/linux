@@ -8,6 +8,8 @@ INTERFACE
 	- description of isdn4linux Link Level and Hardware Level interfaces.
 INTERFACE.fax
 	- description of the fax subinterface of isdn4linux.
+INTERFACE.CAPI
+	- description of kernel CAPI Link Level to Hardware Level interface.
 README
 	- general info on what you need and what to do for Linux ISDN.
 README.FAQ
