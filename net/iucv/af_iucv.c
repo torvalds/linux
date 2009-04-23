@@ -982,8 +982,6 @@ static int iucv_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (flags & (MSG_OOB))
 		return -EOPNOTSUPP;
 
-	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
-
 	/* receive/dequeue next skb:
 	 * the function understands MSG_PEEK and, thus, does not dequeue skb */
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
@@ -1428,8 +1426,6 @@ static void iucv_callback_rx(struct iucv_path *path, struct iucv_message *msg)
 
 	iucv_process_message(sk, skb, path, msg);
 	goto out_unlock;
-
-	return;
 
 save_message:
 	save_msg = kzalloc(sizeof(struct sock_msg_q), GFP_ATOMIC | GFP_DMA);
