@@ -1904,6 +1904,7 @@ enum ixgbe_phy_type {
 	ixgbe_phy_sfp_ftl,
 	ixgbe_phy_sfp_unknown,
 	ixgbe_phy_sfp_intel,
+	ixgbe_phy_sfp_unsupported,
 	ixgbe_phy_generic
 };
 

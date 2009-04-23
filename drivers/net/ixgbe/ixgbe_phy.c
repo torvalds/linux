@@ -673,11 +673,22 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				break;
 			}
 		}
-		if (hw->mac.type == ixgbe_mac_82598EB ||
-		    (hw->phy.sfp_type != ixgbe_sfp_type_sr &&
-		     hw->phy.sfp_type != ixgbe_sfp_type_lr &&
-		     hw->phy.sfp_type != ixgbe_sfp_type_srlr_core0 &&
-		     hw->phy.sfp_type != ixgbe_sfp_type_srlr_core1)) {
+
+		/* All DA cables are supported */
+		if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE) {
+			status = 0;
+			goto out;
+		}
+
+		/* 1G SFP modules are not supported */
+		if (comp_codes_10g == 0) {
+			hw->phy.type = ixgbe_phy_sfp_unsupported;
+			status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+			goto out;
+		}
+
+		/* Anything else 82598-based is supported */
+		if (hw->mac.type == ixgbe_mac_82598EB) {
 			status = 0;
 			goto out;
 		}
@@ -690,6 +701,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				status = 0;
 			} else {
 				hw_dbg(hw, "SFP+ module not supported\n");
+				hw->phy.type = ixgbe_phy_sfp_unsupported;
 				status = IXGBE_ERR_SFP_NOT_SUPPORTED;
 			}
 		} else {
