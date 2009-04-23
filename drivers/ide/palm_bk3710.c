@@ -66,12 +66,12 @@ struct palm_bk3710_udmatiming {
 };
 
 static const struct palm_bk3710_udmatiming palm_bk3710_udmatimings[6] = {
-	{160, 240 / 2,},	/* UDMA Mode 0 */
-	{125, 160 / 2,},	/* UDMA Mode 1 */
-	{100, 120 / 2,},	/* UDMA Mode 2 */
-	{100, 90 / 2,},		/* UDMA Mode 3 */
-	{100, 60 / 2,},		/* UDMA Mode 4 */
-	{85,  40 / 2,},		/* UDMA Mode 5 */
+	{ 160, 240 / 2 },	/* UDMA Mode 0 */
+	{ 125, 160 / 2 },	/* UDMA Mode 1 */
+	{ 100, 120 / 2 },	/* UDMA Mode 2 */
+	{ 100,  90 / 2 },	/* UDMA Mode 3 */
+	{ 100,  60 / 2 },	/* UDMA Mode 4 */
+	{  85,  40 / 2 },	/* UDMA Mode 5 */
 };
 
 static void palm_bk3710_setudmamode(void __iomem *base, unsigned int dev,
