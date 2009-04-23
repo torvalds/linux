@@ -242,26 +242,27 @@ out:
  */
 static int svc_one_sock_name(struct svc_sock *svsk, char *buf, int remaining)
 {
+	const struct sock *sk = svsk->sk_sk;
+	const char *proto_name = sk->sk_protocol == IPPROTO_UDP ?
+							"udp" : "tcp";
 	int len;
 
-	switch(svsk->sk_sk->sk_family) {
+	switch (sk->sk_family) {
 	case PF_INET:
 		len = snprintf(buf, remaining, "ipv4 %s %pI4 %d\n",
-			      svsk->sk_sk->sk_protocol == IPPROTO_UDP ?
-			      "udp" : "tcp",
-			      &inet_sk(svsk->sk_sk)->rcv_saddr,
-			      inet_sk(svsk->sk_sk)->num);
+				proto_name,
+				&inet_sk(sk)->rcv_saddr,
+				inet_sk(sk)->num);
 		break;
 	case PF_INET6:
 		len = snprintf(buf, remaining, "ipv6 %s %pI6 %d\n",
-				svsk->sk_sk->sk_protocol == IPPROTO_UDP ?
-				"udp" : "tcp",
-				&inet6_sk(svsk->sk_sk)->rcv_saddr,
-				inet_sk(svsk->sk_sk)->num);
+				proto_name,
+				&inet6_sk(sk)->rcv_saddr,
+				inet_sk(sk)->num);
 		break;
 	default:
 		len = snprintf(buf, remaining, "*unknown-%d*\n",
-			       svsk->sk_sk->sk_family);
+				sk->sk_family);
 	}
 
 	if (len >= remaining) {
