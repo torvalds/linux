@@ -212,8 +212,7 @@ static u32 gfs2_bitfit(const u8 *buf, const unsigned int len,
 	if (tmp == 0)
 		return BFITNOENT;
 	ptr--;
-	bit = fls64(tmp);
-	bit--;		/* fls64 always adds one to the bit count */
+	bit = __ffs64(tmp);
 	bit /= 2;	/* two bits per entry in the bitmap */
 	return (((const unsigned char *)ptr - buf) * GFS2_NBBY) + bit;
 }
