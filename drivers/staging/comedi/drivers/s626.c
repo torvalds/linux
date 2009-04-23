@@ -1886,28 +1886,13 @@ static int s626_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s
 		err++;
 	}
 
-	if (cmd->start_src == TRIG_EXT && cmd->start_arg < 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-
 	if (cmd->start_src == TRIG_EXT && cmd->start_arg > 39) {
 		cmd->start_arg = 39;
 		err++;
 	}
 
-	if (cmd->scan_begin_src == TRIG_EXT && cmd->scan_begin_arg < 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
-
 	if (cmd->scan_begin_src == TRIG_EXT && cmd->scan_begin_arg > 39) {
 		cmd->scan_begin_arg = 39;
-		err++;
-	}
-
-	if (cmd->convert_src == TRIG_EXT && cmd->convert_arg < 0) {
-		cmd->convert_arg = 0;
 		err++;
 	}
 
