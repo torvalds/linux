@@ -1082,16 +1082,13 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	if (bio_failfast_driver(bio))
 		req->cmd_flags |= REQ_FAILFAST_DRIVER;
 
-	/*
-	 * REQ_BARRIER implies no merging, but lets make it explicit
-	 */
 	if (unlikely(bio_discard(bio))) {
 		req->cmd_flags |= REQ_DISCARD;
 		if (bio_barrier(bio))
 			req->cmd_flags |= REQ_SOFTBARRIER;
 		req->q->prepare_discard_fn(req->q, req);
 	} else if (unlikely(bio_barrier(bio)))
-		req->cmd_flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
+		req->cmd_flags |= REQ_HARDBARRIER;
 
 	if (bio_sync(bio))
 		req->cmd_flags |= REQ_RW_SYNC;
