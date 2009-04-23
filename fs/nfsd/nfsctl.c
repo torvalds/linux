@@ -966,7 +966,8 @@ static ssize_t __write_ports_delfd(char *buf)
 		return -ENOMEM;
 
 	if (nfsd_serv != NULL)
-		len = svc_sock_names(buf, nfsd_serv, toclose);
+		len = svc_sock_names(nfsd_serv, buf,
+					SIMPLE_TRANSACTION_LIMIT, toclose);
 	if (len >= 0)
 		lockd_down();
 

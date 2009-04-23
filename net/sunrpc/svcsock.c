@@ -259,8 +259,23 @@ static int one_sock_name(char *buf, struct svc_sock *svsk)
 	return len;
 }
 
-int
-svc_sock_names(char *buf, struct svc_serv *serv, char *toclose)
+/**
+ * svc_sock_names - construct a list of listener names in a string
+ * @serv: pointer to RPC service
+ * @buf: pointer to a buffer to fill in with socket names
+ * @buflen: size of the buffer to be filled
+ * @toclose: pointer to '\0'-terminated C string containing the name
+ *		of a listener to be closed
+ *
+ * Fills in @buf with a '\n'-separated list of names of listener
+ * sockets.  If @toclose is not NULL, the socket named by @toclose
+ * is closed, and is not included in the output list.
+ *
+ * Returns positive length of the socket name string, or a negative
+ * errno value on error.
+ */
+int svc_sock_names(struct svc_serv *serv, char *buf, const size_t buflen,
+		   const char *toclose)
 {
 	struct svc_sock *svsk, *closesk = NULL;
 	int len = 0;
