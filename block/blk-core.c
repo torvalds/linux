@@ -946,7 +946,6 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 	 * barrier
 	 */
 	rq->cmd_type = REQ_TYPE_SPECIAL;
-	rq->cmd_flags |= REQ_SOFTBARRIER;
 
 	rq->special = data;
 
