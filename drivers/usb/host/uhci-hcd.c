@@ -961,7 +961,7 @@ static int __init uhci_hcd_init(void)
 		errbuf = kmalloc(ERRBUF_LEN, GFP_KERNEL);
 		if (!errbuf)
 			goto errbuf_failed;
-		uhci_debugfs_root = debugfs_create_dir("uhci", NULL);
+		uhci_debugfs_root = debugfs_create_dir("uhci", usb_debug_root);
 		if (!uhci_debugfs_root)
 			goto debug_failed;
 	}
