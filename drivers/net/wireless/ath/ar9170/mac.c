@@ -283,9 +283,9 @@ int ar9170_set_operating_mode(struct ar9170 *ar)
 		case NL80211_IFTYPE_ADHOC:
 			pm_mode |= AR9170_MAC_REG_POWERMGT_IBSS;
 			break;
-/*		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_AP:
 			pm_mode |= AR9170_MAC_REG_POWERMGT_AP;
-			break;*/
+			break;
 		case NL80211_IFTYPE_WDS:
 			pm_mode |= AR9170_MAC_REG_POWERMGT_AP_WDS;
 			break;
