@@ -202,6 +202,7 @@ struct pxa_buffer {
 };
 
 struct pxa_camera_dev {
+	struct soc_camera_host	soc_host;
 	struct device		*dev;
 	/* PXA27x is only supposed to handle one camera on its Quick Capture
 	 * interface. If anyone ever builds hardware to enable more than
@@ -1552,12 +1553,6 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.set_bus_param	= pxa_camera_set_bus_param,
 };
 
-/* Should be allocated dynamically too, but we have only one. */
-static struct soc_camera_host pxa_soc_camera_host = {
-	.drv_name		= PXA_CAM_DRV_NAME,
-	.ops			= &pxa_soc_camera_host_ops,
-};
-
 static int pxa_camera_probe(struct platform_device *pdev)
 {
 	struct pxa_camera_dev *pcdev;
@@ -1586,7 +1581,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit_kfree;
 	}
 
-	dev_set_drvdata(&pdev->dev, pcdev);
+	platform_set_drvdata(pdev, pcdev);
 	pcdev->res = res;
 
 	pcdev->pdata = pdev->dev.platform_data;
@@ -1616,13 +1611,13 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	/*
 	 * Request the regions.
 	 */
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				PXA_CAM_DRV_NAME)) {
 		err = -EBUSY;
 		goto exit_clk;
 	}
 
-	base = ioremap(res->start, res->end - res->start + 1);
+	base = ioremap(res->start, resource_size(res));
 	if (!base) {
 		err = -ENOMEM;
 		goto exit_release;
@@ -1670,10 +1665,12 @@ static int pxa_camera_probe(struct platform_device *pdev)
 		goto exit_free_dma;
 	}
 
-	pxa_soc_camera_host.priv	= pcdev;
-	pxa_soc_camera_host.dev.parent	= &pdev->dev;
-	pxa_soc_camera_host.nr		= pdev->id;
-	err = soc_camera_host_register(&pxa_soc_camera_host);
+	pcdev->soc_host.drv_name	= PXA_CAM_DRV_NAME;
+	pcdev->soc_host.ops		= &pxa_soc_camera_host_ops;
+	pcdev->soc_host.priv		= pcdev;
+	pcdev->soc_host.dev.parent	= &pdev->dev;
+	pcdev->soc_host.nr		= pdev->id;
+	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
 		goto exit_free_irq;
 
@@ -1690,7 +1687,7 @@ exit_free_dma_y:
 exit_iounmap:
 	iounmap(base);
 exit_release:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 exit_clk:
 	clk_put(pcdev->clk);
 exit_kfree:
@@ -1711,12 +1708,12 @@ static int __devexit pxa_camera_remove(struct platform_device *pdev)
 	pxa_free_dma(pcdev->dma_chans[2]);
 	free_irq(pcdev->irq, pcdev);
 
-	soc_camera_host_unregister(&pxa_soc_camera_host);
+	soc_camera_host_unregister(&pcdev->soc_host);
 
 	iounmap(pcdev->base);
 
 	res = pcdev->res;
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	kfree(pcdev);
 

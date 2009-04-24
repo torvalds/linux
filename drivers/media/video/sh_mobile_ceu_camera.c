@@ -840,7 +840,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 		goto exit_kfree;
 	}
 
-	base = ioremap_nocache(res->start, res->end - res->start + 1);
+	base = ioremap_nocache(res->start, resource_size(res));
 	if (!base) {
 		err = -ENXIO;
 		dev_err(&pdev->dev, "Unable to ioremap CEU registers.\n");
@@ -856,7 +856,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	if (res) {
 		err = dma_declare_coherent_memory(&pdev->dev, res->start,
 						  res->start,
-						  (res->end - res->start) + 1,
+						  resource_size(res),
 						  DMA_MEMORY_MAP |
 						  DMA_MEMORY_EXCLUSIVE);
 		if (!err) {
@@ -865,7 +865,7 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 			goto exit_iounmap;
 		}
 
-		pcdev->video_limit = (res->end - res->start) + 1;
+		pcdev->video_limit = resource_size(res);
 	}
 
 	/* request irq */

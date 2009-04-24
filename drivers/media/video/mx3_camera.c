@@ -1102,7 +1102,7 @@ static int mx3_camera_probe(struct platform_device *pdev)
 		goto eclkget;
 	}
 
-	dev_set_drvdata(&pdev->dev, mx3_cam);
+	platform_set_drvdata(pdev, mx3_cam);
 
 	mx3_cam->pdata = pdev->dev.platform_data;
 	mx3_cam->platform_flags = mx3_cam->pdata->flags;

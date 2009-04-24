@@ -102,6 +102,7 @@ struct mx1_buffer {
  * Interface. If anyone ever builds hardware to enable more than
  * one camera, they will have to modify this driver too */
 struct mx1_camera_dev {
+	struct soc_camera_host		soc_host;
 	struct soc_camera_device	*icd;
 	struct mx1_camera_pdata		*pdata;
 	struct mx1_buffer		*active;
@@ -633,12 +634,6 @@ static struct soc_camera_host_ops mx1_soc_camera_host_ops = {
 	.querycap	= mx1_camera_querycap,
 };
 
-/* Should be allocated dynamically too, but we have only one. */
-static struct soc_camera_host mx1_soc_camera_host = {
-	.drv_name	= DRIVER_NAME,
-	.ops		= &mx1_soc_camera_host_ops,
-};
-
 static struct fiq_handler fh = {
 	.name		= "csi_sof"
 };
@@ -673,7 +668,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 		goto exit_put_clk;
 	}
 
-	dev_set_drvdata(&pdev->dev, pcdev);
+	platform_set_drvdata(pdev, pcdev);
 	pcdev->res = res;
 	pcdev->clk = clk;
 
@@ -746,10 +741,12 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	mxc_set_irq_fiq(irq, 1);
 	enable_fiq(irq);
 
-	mx1_soc_camera_host.priv	= pcdev;
-	mx1_soc_camera_host.dev.parent	= &pdev->dev;
-	mx1_soc_camera_host.nr		= pdev->id;
-	err = soc_camera_host_register(&mx1_soc_camera_host);
+	pcdev->soc_host.drv_name	= DRIVER_NAME;
+	pcdev->soc_host.ops		= &mx1_soc_camera_host_ops;
+	pcdev->soc_host.priv		= pcdev;
+	pcdev->soc_host.dev.parent	= &pdev->dev;
+	pcdev->soc_host.nr		= pdev->id;
+	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
 		goto exit_free_irq;
 
@@ -787,7 +784,7 @@ static int __exit mx1_camera_remove(struct platform_device *pdev)
 
 	clk_put(pcdev->clk);
 
-	soc_camera_host_unregister(&mx1_soc_camera_host);
+	soc_camera_host_unregister(&pcdev->soc_host);
 
 	iounmap(pcdev->base);
 
