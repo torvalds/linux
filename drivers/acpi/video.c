@@ -770,10 +770,12 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	 * In this case, the first two elements in _BCL packages
 	 * are also supported brightness levels that OS should take care of.
 	 */
-	for (i = 2; i < count; i++)
-		if (br->levels[i] == br->levels[0] ||
-		    br->levels[i] == br->levels[1])
+	for (i = 2; i < count; i++) {
+		if (br->levels[i] == br->levels[0])
 			level_ac_battery++;
+		if (br->levels[i] == br->levels[1])
+			level_ac_battery++;
+	}
 
 	if (level_ac_battery < 2) {
 		level_ac_battery = 2 - level_ac_battery;
