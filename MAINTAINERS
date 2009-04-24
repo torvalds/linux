@@ -1337,12 +1337,9 @@ L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 F:	arch/powerpc/include/asm/cell*.h
-F:	arch/powerpc/include/asm/lv1call.h
-F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
-F:	arch/powerpc/platforms/ps3/
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 P:	David Vrabel
@@ -4507,7 +4504,9 @@ F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/platforms/ps3/
 F:	drivers/*/ps3*
 F:	drivers/ps3/
+F:	drivers/rtc/rtc-ps3.c
 F:	drivers/usb/host/*ps3.c
+F:	sound/ppc/snd_ps3*
 
 PS3VRAM DRIVER
 P:	Jim Paris
