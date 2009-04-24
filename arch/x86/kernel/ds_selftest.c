@@ -323,12 +323,14 @@ static int ds_selftest_bts_bad_request_task(void *buffer)
 int ds_selftest_bts(void)
 {
 	struct ds_selftest_bts_conf conf;
-	unsigned char buffer[BUFFER_SIZE];
+	unsigned char buffer[BUFFER_SIZE], *small_buffer;
 	unsigned long irq;
 	int cpu;
 
 	printk(KERN_INFO "[ds] bts selftest...");
 	conf.error = 0;
+
+	small_buffer = (unsigned char *)ALIGN((unsigned long)buffer, 8) + 8;
 
 	get_online_cpus();
 	for_each_online_cpu(cpu) {
@@ -381,7 +383,7 @@ int ds_selftest_bts(void)
 	conf.suspend = ds_suspend_bts_noirq;
 	conf.resume = ds_resume_bts_noirq;
 	conf.tracer =
-		ds_request_bts_task(current, buffer, SMALL_BUFFER_SIZE,
+		ds_request_bts_task(current, small_buffer, SMALL_BUFFER_SIZE,
 				   NULL, (size_t)-1, BTS_KERNEL);
 	local_irq_save(irq);
 	ds_selftest_bts_cpu(&conf);
