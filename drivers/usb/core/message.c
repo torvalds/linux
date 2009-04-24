@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/ctype.h>
+#include <linux/nls.h>
 #include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/usb/quirks.h>
@@ -759,7 +760,7 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
 }
 
 /**
- * usb_string - returns ISO 8859-1 version of a string descriptor
+ * usb_string - returns UTF-8 version of a string descriptor
  * @dev: the device whose string descriptor is being retrieved
  * @index: the number of the descriptor
  * @buf: where to put the string
@@ -767,16 +768,9 @@ static int usb_string_sub(struct usb_device *dev, unsigned int langid,
  * Context: !in_interrupt ()
  *
  * This converts the UTF-16LE encoded strings returned by devices, from
- * usb_get_string_descriptor(), to null-terminated ISO-8859-1 encoded ones
- * that are more usable in most kernel contexts.  Note that all characters
- * in the chosen descriptor that can't be encoded using ISO-8859-1
- * are converted to the question mark ("?") character, and this function
+ * usb_get_string_descriptor(), to null-terminated UTF-8 encoded ones
+ * that are more usable in most kernel contexts.  Note that this function
  * chooses strings in the first language supported by the device.
- *
- * The ASCII (or, redundantly, "US-ASCII") character set is the seven-bit
- * subset of ISO 8859-1. ISO-8859-1 is the eight-bit subset of Unicode,
- * and is appropriate for use many uses of English and several other
- * Western European languages.  (But it doesn't include the "Euro" symbol.)
  *
  * This call is synchronous, and may not be used in an interrupt context.
  *
@@ -786,14 +780,14 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 {
 	unsigned char *tbuf;
 	int err;
-	unsigned int u, idx;
+	unsigned int u;
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
 	if (size <= 0 || !buf || !index)
 		return -EINVAL;
 	buf[0] = 0;
-	tbuf = kmalloc(256, GFP_NOIO);
+	tbuf = kmalloc(256 + 2, GFP_NOIO);
 	if (!tbuf)
 		return -ENOMEM;
 
@@ -820,17 +814,13 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	if (err < 0)
 		goto errout;
 
+	for (u = 2; u < err; u += 2)
+		le16_to_cpus((u16 *)&tbuf[u]);
+	tbuf[u] = 0;
+	tbuf[u + 1] = 0;
 	size--;		/* leave room for trailing NULL char in output buffer */
-	for (idx = 0, u = 2; u < err; u += 2) {
-		if (idx >= size)
-			break;
-		if (tbuf[u+1])			/* high byte */
-			buf[idx++] = '?';  /* non ISO-8859-1 character */
-		else
-			buf[idx++] = tbuf[u];
-	}
-	buf[idx] = 0;
-	err = idx;
+	err = utf8_wcstombs(buf, (u16 *)&tbuf[2], size);
+	buf[err] = 0;
 
 	if (tbuf[1] != USB_DT_STRING)
 		dev_dbg(&dev->dev,
@@ -842,6 +832,9 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	return err;
 }
 EXPORT_SYMBOL_GPL(usb_string);
+
+/* one UTF-8-encoded 16-bit character has at most three bytes */
+#define MAX_USB_STRING_SIZE (127 * 3 + 1)
 
 /**
  * usb_cache_string - read a string descriptor and cache it for later use
@@ -860,9 +853,9 @@ char *usb_cache_string(struct usb_device *udev, int index)
 	if (index <= 0)
 		return NULL;
 
-	buf = kmalloc(256, GFP_KERNEL);
+	buf = kmalloc(MAX_USB_STRING_SIZE, GFP_KERNEL);
 	if (buf) {
-		len = usb_string(udev, index, buf, 256);
+		len = usb_string(udev, index, buf, MAX_USB_STRING_SIZE);
 		if (len > 0) {
 			smallbuf = kmalloc(++len, GFP_KERNEL);
 			if (!smallbuf)
