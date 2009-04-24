@@ -4407,6 +4407,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 			(__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
 	}
 
+	ret = 0;
 	if (ei->i_file_acl &&
 	    ((ei->i_file_acl < 
 	      (le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block) +
@@ -4418,8 +4419,11 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		ret = -EIO;
 		goto bad_inode;
 	} else if (ei->i_flags & EXT4_EXTENTS_FL) {
-		/* Validate extent which is part of inode */
-		ret = ext4_ext_check_inode(inode);
+		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+		    (S_ISLNK(inode->i_mode) &&
+		     !ext4_inode_is_fast_symlink(inode)))
+			/* Validate extent which is part of inode */
+			ret = ext4_ext_check_inode(inode);
  	} else if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		   (S_ISLNK(inode->i_mode) &&
 		    !ext4_inode_is_fast_symlink(inode))) {
