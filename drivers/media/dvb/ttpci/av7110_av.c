@@ -1249,7 +1249,8 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 
 	case VIDEO_SLOWMOTION:
 		if (av7110->playing&RP_VIDEO) {
-			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Slow, 2, 0, 0);
+			if (av7110->trickmode != TRICK_SLOW)
+				ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Slow, 2, 0, 0);
 			if (!ret)
 				ret = vidcom(av7110, AV_VIDEO_CMD_SLOW, arg);
 		} else {
