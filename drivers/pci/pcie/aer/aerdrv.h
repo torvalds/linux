@@ -11,6 +11,7 @@
 #include <linux/workqueue.h>
 #include <linux/pcieport_if.h>
 #include <linux/aer.h>
+#include <linux/interrupt.h>
 
 #define AER_NONFATAL			0
 #define AER_FATAL			1
@@ -120,6 +121,7 @@ extern void aer_delete_rootport(struct aer_rpc *rpc);
 extern int aer_init(struct pcie_device *dev);
 extern void aer_isr(struct work_struct *work);
 extern void aer_print_error(struct pci_dev *dev, struct aer_err_info *info);
+extern irqreturn_t aer_irq(int irq, void *context);
 
 #ifdef CONFIG_ACPI
 extern int aer_osc_setup(struct pcie_device *pciedev);
