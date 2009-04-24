@@ -60,7 +60,7 @@ struct soc_camera_file {
 
 struct soc_camera_host {
 	struct list_head list;
-	struct device dev;
+	struct device *dev;
 	unsigned char nr;				/* Host number */
 	void *priv;
 	const char *drv_name;
@@ -117,7 +117,7 @@ static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)
 
 static inline struct soc_camera_host *to_soc_camera_host(struct device *dev)
 {
-	return container_of(dev, struct soc_camera_host, dev);
+	return dev_get_drvdata(dev);
 }
 
 extern int soc_camera_host_register(struct soc_camera_host *ici);

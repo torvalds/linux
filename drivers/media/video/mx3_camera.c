@@ -87,7 +87,6 @@ struct mx3_camera_buffer {
  * @soc_host:		embedded soc_host object
  */
 struct mx3_camera_dev {
-	struct device		*dev;
 	/*
 	 * i.MX3x is only supposed to handle one camera on its Camera Sensor
 	 * Interface. If anyone ever builds hardware to enable more than one
@@ -431,7 +430,7 @@ static void mx3_camera_init_videobuf(struct videobuf_queue *q,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 
-	videobuf_queue_dma_contig_init(q, &mx3_videobuf_ops, mx3_cam->dev,
+	videobuf_queue_dma_contig_init(q, &mx3_videobuf_ops, ici->dev,
 				       &mx3_cam->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
 				       V4L2_FIELD_NONE,
@@ -599,7 +598,8 @@ static int test_platform_param(struct mx3_camera_dev *mx3_cam,
 		*flags |= SOCAM_DATAWIDTH_4;
 		break;
 	default:
-		dev_info(mx3_cam->dev, "Unsupported bus width %d\n", buswidth);
+		dev_info(mx3_cam->soc_host.dev, "Unsupported bus width %d\n",
+			 buswidth);
 		return -EINVAL;
 	}
 
@@ -614,7 +614,7 @@ static int mx3_camera_try_bus_param(struct soc_camera_device *icd,
 	unsigned long bus_flags, camera_flags;
 	int ret = test_platform_param(mx3_cam, depth, &bus_flags);
 
-	dev_dbg(&ici->dev, "requested bus width %d bit: %d\n", depth, ret);
+	dev_dbg(ici->dev, "requested bus width %d bit: %d\n", depth, ret);
 
 	if (ret < 0)
 		return ret;
@@ -637,7 +637,7 @@ static bool chan_filter(struct dma_chan *chan, void *arg)
 	if (!rq)
 		return false;
 
-	pdata = rq->mx3_cam->dev->platform_data;
+	pdata = rq->mx3_cam->soc_host.dev->platform_data;
 
 	return rq->id == chan->chan_id &&
 		pdata->dma_dev == chan->device->dev;
@@ -697,7 +697,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = buswidth;
 			xlate++;
-			dev_dbg(&ici->dev, "Providing format %s using %s\n",
+			dev_dbg(ici->dev, "Providing format %s using %s\n",
 				mx3_camera_formats[0].name,
 				icd->formats[idx].name);
 		}
@@ -709,7 +709,7 @@ static int mx3_camera_get_formats(struct soc_camera_device *icd, int idx,
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = buswidth;
 			xlate++;
-			dev_dbg(&ici->dev, "Providing format %s using %s\n",
+			dev_dbg(ici->dev, "Providing format %s using %s\n",
 				mx3_camera_formats[0].name,
 				icd->formats[idx].name);
 		}
@@ -722,7 +722,7 @@ passthrough:
 			xlate->cam_fmt = icd->formats + idx;
 			xlate->buswidth = buswidth;
 			xlate++;
-			dev_dbg(&ici->dev,
+			dev_dbg(ici->dev,
 				"Providing format %s in pass-through mode\n",
 				icd->formats[idx].name);
 		}
@@ -829,7 +829,7 @@ static int mx3_camera_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pix->pixelformat);
+		dev_warn(ici->dev, "Format %x not found\n", pix->pixelformat);
 		return -EINVAL;
 	}
 
@@ -866,7 +866,7 @@ static int mx3_camera_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (pixfmt && !xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pixfmt);
+		dev_warn(ici->dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
@@ -933,11 +933,11 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pixfmt);
+		dev_warn(ici->dev, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
-	dev_dbg(&ici->dev, "requested bus width %d bit: %d\n",
+	dev_dbg(ici->dev, "requested bus width %d bit: %d\n",
 		icd->buswidth, ret);
 
 	if (ret < 0)
@@ -947,7 +947,7 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 
 	common_flags = soc_camera_bus_param_compatible(camera_flags, bus_flags);
 	if (!common_flags) {
-		dev_dbg(&ici->dev, "no common flags: camera %lx, host %lx\n",
+		dev_dbg(ici->dev, "no common flags: camera %lx, host %lx\n",
 			camera_flags, bus_flags);
 		return -EINVAL;
 	}
@@ -1054,7 +1054,7 @@ static int mx3_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
 
 	csi_reg_write(mx3_cam, sens_conf | dw, CSI_SENS_CONF);
 
-	dev_dbg(&ici->dev, "Set SENS_CONF to %x\n", sens_conf | dw);
+	dev_dbg(ici->dev, "Set SENS_CONF to %x\n", sens_conf | dw);
 
 	return 0;
 }
@@ -1102,8 +1102,6 @@ static int mx3_camera_probe(struct platform_device *pdev)
 		goto eclkget;
 	}
 
-	platform_set_drvdata(pdev, mx3_cam);
-
 	mx3_cam->pdata = pdev->dev.platform_data;
 	mx3_cam->platform_flags = mx3_cam->pdata->flags;
 	if (!(mx3_cam->platform_flags & (MX3_CAMERA_DATAWIDTH_4 |
@@ -1135,14 +1133,14 @@ static int mx3_camera_probe(struct platform_device *pdev)
 	}
 
 	mx3_cam->base	= base;
-	mx3_cam->dev	= &pdev->dev;
 
 	soc_host		= &mx3_cam->soc_host;
 	soc_host->drv_name	= MX3_CAM_DRV_NAME;
 	soc_host->ops		= &mx3_soc_camera_host_ops;
 	soc_host->priv		= mx3_cam;
-	soc_host->dev.parent	= &pdev->dev;
+	soc_host->dev		= &pdev->dev;
 	soc_host->nr		= pdev->id;
+
 	err = soc_camera_host_register(soc_host);
 	if (err)
 		goto ecamhostreg;
@@ -1165,11 +1163,13 @@ egetres:
 
 static int __devexit mx3_camera_remove(struct platform_device *pdev)
 {
-	struct mx3_camera_dev *mx3_cam = platform_get_drvdata(pdev);
+	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
+	struct mx3_camera_dev *mx3_cam = container_of(soc_host,
+					struct mx3_camera_dev, soc_host);
 
 	clk_put(mx3_cam->clk);
 
-	soc_camera_host_unregister(&mx3_cam->soc_host);
+	soc_camera_host_unregister(soc_host);
 
 	iounmap(mx3_cam->base);
 

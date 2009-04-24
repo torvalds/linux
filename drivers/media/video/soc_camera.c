@@ -279,7 +279,7 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 		return ret;
 	} else if (!icd->current_fmt ||
 		   icd->current_fmt->fourcc != pix->pixelformat) {
-		dev_err(&ici->dev,
+		dev_err(ici->dev,
 			"Host driver hasn't set up current format correctly!\n");
 		return -EINVAL;
 	}
@@ -794,7 +794,7 @@ static void scan_add_host(struct soc_camera_host *ici)
 
 	list_for_each_entry(icd, &devices, list) {
 		if (icd->iface == ici->nr) {
-			icd->dev.parent = &ici->dev;
+			icd->dev.parent = ici->dev;
 			device_register_link(icd);
 		}
 	}
@@ -818,7 +818,7 @@ static int scan_add_device(struct soc_camera_device *icd)
 	list_for_each_entry(ici, &hosts, list) {
 		if (icd->iface == ici->nr) {
 			ret = 1;
-			icd->dev.parent = &ici->dev;
+			icd->dev.parent = ici->dev;
 			break;
 		}
 	}
@@ -952,7 +952,6 @@ static void dummy_release(struct device *dev)
 
 int soc_camera_host_register(struct soc_camera_host *ici)
 {
-	int ret;
 	struct soc_camera_host *ix;
 
 	if (!ici || !ici->ops ||
@@ -965,11 +964,9 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 	    !ici->ops->reqbufs ||
 	    !ici->ops->add ||
 	    !ici->ops->remove ||
-	    !ici->ops->poll)
+	    !ici->ops->poll ||
+	    !ici->dev)
 		return -EINVAL;
-
-	/* Number might be equal to the platform device ID */
-	dev_set_name(&ici->dev, "camera_host%d", ici->nr);
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
@@ -979,26 +976,14 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 		}
 	}
 
+	dev_set_drvdata(ici->dev, ici);
+
 	list_add_tail(&ici->list, &hosts);
 	mutex_unlock(&list_lock);
-
-	ici->dev.release = dummy_release;
-
-	ret = device_register(&ici->dev);
-
-	if (ret)
-		goto edevr;
 
 	scan_add_host(ici);
 
 	return 0;
-
-edevr:
-	mutex_lock(&list_lock);
-	list_del(&ici->list);
-	mutex_unlock(&list_lock);
-
-	return ret;
 }
 EXPORT_SYMBOL(soc_camera_host_register);
 
@@ -1012,7 +997,7 @@ void soc_camera_host_unregister(struct soc_camera_host *ici)
 	list_del(&ici->list);
 
 	list_for_each_entry(icd, &devices, list) {
-		if (icd->dev.parent == &ici->dev) {
+		if (icd->dev.parent == ici->dev) {
 			device_unregister(&icd->dev);
 			/* Not before device_unregister(), .remove
 			 * needs parent to call ici->ops->remove() */
@@ -1023,7 +1008,7 @@ void soc_camera_host_unregister(struct soc_camera_host *ici)
 
 	mutex_unlock(&list_lock);
 
-	device_unregister(&ici->dev);
+	dev_set_drvdata(ici->dev, NULL);
 }
 EXPORT_SYMBOL(soc_camera_host_unregister);
 
@@ -1130,7 +1115,7 @@ int soc_camera_video_start(struct soc_camera_device *icd)
 	vdev = video_device_alloc();
 	if (!vdev)
 		goto evidallocd;
-	dev_dbg(&ici->dev, "Allocated video_device %p\n", vdev);
+	dev_dbg(ici->dev, "Allocated video_device %p\n", vdev);
 
 	strlcpy(vdev->name, ici->drv_name, sizeof(vdev->name));
 

@@ -106,7 +106,6 @@ struct mx1_camera_dev {
 	struct soc_camera_device	*icd;
 	struct mx1_camera_pdata		*pdata;
 	struct mx1_buffer		*active;
-	struct device			*dev;
 	struct resource			*res;
 	struct clk			*clk;
 	struct list_head		capture;
@@ -220,7 +219,7 @@ static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 	int ret;
 
 	if (unlikely(!pcdev->active)) {
-		dev_err(pcdev->dev, "DMA End IRQ with no active buffer\n");
+		dev_err(pcdev->soc_host.dev, "DMA End IRQ with no active buffer\n");
 		return -EFAULT;
 	}
 
@@ -230,7 +229,7 @@ static int mx1_camera_setup_dma(struct mx1_camera_dev *pcdev)
 		vbuf->size, pcdev->res->start +
 		CSIRXR, DMA_MODE_READ);
 	if (unlikely(ret))
-		dev_err(pcdev->dev, "Failed to setup DMA sg list\n");
+		dev_err(pcdev->soc_host.dev, "Failed to setup DMA sg list\n");
 
 	return ret;
 }
@@ -339,14 +338,14 @@ static void mx1_camera_dma_irq(int channel, void *data)
 	imx_dma_disable(channel);
 
 	if (unlikely(!pcdev->active)) {
-		dev_err(pcdev->dev, "DMA End IRQ with no active buffer\n");
+		dev_err(pcdev->soc_host.dev, "DMA End IRQ with no active buffer\n");
 		goto out;
 	}
 
 	vb = &pcdev->active->vb;
 	buf = container_of(vb, struct mx1_buffer, vb);
 	WARN_ON(buf->inwork || list_empty(&vb->queue));
-	dev_dbg(pcdev->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(pcdev->soc_host.dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	mx1_camera_wakeup(pcdev, vb, buf);
@@ -367,7 +366,7 @@ static void mx1_camera_init_videobuf(struct videobuf_queue *q,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct mx1_camera_dev *pcdev = ici->priv;
 
-	videobuf_queue_dma_contig_init(q, &mx1_videobuf_ops, pcdev->dev,
+	videobuf_queue_dma_contig_init(q, &mx1_videobuf_ops, ici->dev,
 					&pcdev->lock,
 					V4L2_BUF_TYPE_VIDEO_CAPTURE,
 					V4L2_FIELD_NONE,
@@ -386,7 +385,7 @@ static int mclk_get_divisor(struct mx1_camera_dev *pcdev)
 	 * they get a nice Oops */
 	div = (lcdclk + 2 * mclk - 1) / (2 * mclk) - 1;
 
-	dev_dbg(pcdev->dev, "System clock %lukHz, target freq %dkHz, "
+	dev_dbg(pcdev->soc_host.dev, "System clock %lukHz, target freq %dkHz, "
 		"divisor %lu\n", lcdclk / 1000, mclk / 1000, div);
 
 	return div;
@@ -396,7 +395,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 {
 	unsigned int csicr1 = CSICR1_EN;
 
-	dev_dbg(pcdev->dev, "Activate device\n");
+	dev_dbg(pcdev->soc_host.dev, "Activate device\n");
 
 	clk_enable(pcdev->clk);
 
@@ -412,7 +411,7 @@ static void mx1_camera_activate(struct mx1_camera_dev *pcdev)
 
 static void mx1_camera_deactivate(struct mx1_camera_dev *pcdev)
 {
-	dev_dbg(pcdev->dev, "Deactivate device\n");
+	dev_dbg(pcdev->soc_host.dev, "Deactivate device\n");
 
 	/* Disable all CSI interface */
 	__raw_writel(0x00, pcdev->base + CSICR1);
@@ -551,7 +550,7 @@ static int mx1_camera_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(&ici->dev, "Format %x not found\n", pix->pixelformat);
+		dev_warn(ici->dev, "Format %x not found\n", pix->pixelformat);
 		return -EINVAL;
 	}
 
@@ -668,7 +667,6 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 		goto exit_put_clk;
 	}
 
-	platform_set_drvdata(pdev, pcdev);
 	pcdev->res = res;
 	pcdev->clk = clk;
 
@@ -702,16 +700,15 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	}
 	pcdev->irq = irq;
 	pcdev->base = base;
-	pcdev->dev = &pdev->dev;
 
 	/* request dma */
 	pcdev->dma_chan = imx_dma_request_by_prio(DRIVER_NAME, DMA_PRIO_HIGH);
 	if (pcdev->dma_chan < 0) {
-		dev_err(pcdev->dev, "Can't request DMA for MX1 CSI\n");
+		dev_err(&pdev->dev, "Can't request DMA for MX1 CSI\n");
 		err = -EBUSY;
 		goto exit_iounmap;
 	}
-	dev_dbg(pcdev->dev, "got DMA channel %d\n", pcdev->dma_chan);
+	dev_dbg(&pdev->dev, "got DMA channel %d\n", pcdev->dma_chan);
 
 	imx_dma_setup_handlers(pcdev->dma_chan, mx1_camera_dma_irq, NULL,
 			       pcdev);
@@ -724,7 +721,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	/* request irq */
 	err = claim_fiq(&fh);
 	if (err) {
-		dev_err(pcdev->dev, "Camera interrupt register failed \n");
+		dev_err(&pdev->dev, "Camera interrupt register failed \n");
 		goto exit_free_dma;
 	}
 
@@ -744,7 +741,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	pcdev->soc_host.drv_name	= DRIVER_NAME;
 	pcdev->soc_host.ops		= &mx1_soc_camera_host_ops;
 	pcdev->soc_host.priv		= pcdev;
-	pcdev->soc_host.dev.parent	= &pdev->dev;
+	pcdev->soc_host.dev		= &pdev->dev;
 	pcdev->soc_host.nr		= pdev->id;
 	err = soc_camera_host_register(&pcdev->soc_host);
 	if (err)
@@ -774,7 +771,9 @@ exit:
 
 static int __exit mx1_camera_remove(struct platform_device *pdev)
 {
-	struct mx1_camera_dev *pcdev = platform_get_drvdata(pdev);
+	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
+	struct mx1_camera_dev *pcdev = container_of(soc_host,
+					struct mx1_camera_dev, soc_host);
 	struct resource *res;
 
 	imx_dma_free(pcdev->dma_chan);
@@ -784,7 +783,7 @@ static int __exit mx1_camera_remove(struct platform_device *pdev)
 
 	clk_put(pcdev->clk);
 
-	soc_camera_host_unregister(&pcdev->soc_host);
+	soc_camera_host_unregister(soc_host);
 
 	iounmap(pcdev->base);
 
