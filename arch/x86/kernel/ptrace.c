@@ -617,17 +617,28 @@ struct bts_context {
 	struct work_struct	work;
 };
 
-static inline void alloc_bts_buffer(struct bts_context *context,
-				    unsigned int size)
+static int alloc_bts_buffer(struct bts_context *context, unsigned int size)
 {
-	void *buffer;
+	void *buffer = NULL;
+	int err = -ENOMEM;
 
-	buffer = alloc_locked_buffer(size);
-	if (buffer) {
-		context->buffer = buffer;
-		context->size = size;
-		context->mm = get_task_mm(current);
-	}
+	err = account_locked_memory(current->mm, current->signal->rlim, size);
+	if (err < 0)
+		return err;
+
+	buffer = kzalloc(size, GFP_KERNEL);
+	if (!buffer)
+		goto out_refund;
+
+	context->buffer = buffer;
+	context->size = size;
+	context->mm = get_task_mm(current);
+
+	return 0;
+
+ out_refund:
+	refund_locked_memory(current->mm, size);
+	return err;
 }
 
 static inline void free_bts_buffer(struct bts_context *context)
@@ -638,7 +649,7 @@ static inline void free_bts_buffer(struct bts_context *context)
 	kfree(context->buffer);
 	context->buffer = NULL;
 
-	refund_locked_buffer_memory(context->mm, context->size);
+	refund_locked_memory(context->mm, context->size);
 	context->size = 0;
 
 	mmput(context->mm);
@@ -786,13 +797,15 @@ static int ptrace_bts_config(struct task_struct *child,
 	context->tracer = NULL;
 
 	if ((cfg.flags & PTRACE_BTS_O_ALLOC) && (cfg.size != context->size)) {
+		int err;
+
 		free_bts_buffer(context);
 		if (!cfg.size)
 			return 0;
 
-		alloc_bts_buffer(context, cfg.size);
-		if (!context->buffer)
-			return -ENOMEM;
+		err = alloc_bts_buffer(context, cfg.size);
+		if (err < 0)
+			return err;
 	}
 
 	if (cfg.flags & PTRACE_BTS_O_TRACE)
