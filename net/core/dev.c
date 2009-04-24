@@ -1336,7 +1336,12 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct packet_type *ptype;
 
+#ifdef CONFIG_NET_CLS_ACT
+	if (!(skb->tstamp.tv64 && (G_TC_FROM(skb->tc_verd) & AT_INGRESS)))
+		net_timestamp(skb);
+#else
 	net_timestamp(skb);
+#endif
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
@@ -2540,9 +2545,9 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 	}
 
 	BUG_ON(info->nr_frags > MAX_SKB_FRAGS);
-	frag = &info->frags[info->nr_frags - 1];
+	frag = info->frags;
 
-	for (i = skb_shinfo(skb)->nr_frags; i < info->nr_frags; i++) {
+	for (i = 0; i < info->nr_frags; i++) {
 		skb_fill_page_desc(skb, i, frag->page, frag->page_offset,
 				   frag->size);
 		frag++;
@@ -4400,7 +4405,7 @@ int register_netdevice(struct net_device *dev)
 	dev->iflink = -1;
 
 #ifdef CONFIG_COMPAT_NET_DEV_OPS
-	/* Netdevice_ops API compatiability support.
+	/* Netdevice_ops API compatibility support.
 	 * This is temporary until all network devices are converted.
 	 */
 	if (dev->netdev_ops) {
@@ -4411,7 +4416,7 @@ int register_netdevice(struct net_device *dev)
 			dev->name, netdev_drivername(dev, drivername, 64));
 
 		/* This works only because net_device_ops and the
-		   compatiablity structure are the same. */
+		   compatibility structure are the same. */
 		dev->netdev_ops = (void *) &(dev->init);
 	}
 #endif

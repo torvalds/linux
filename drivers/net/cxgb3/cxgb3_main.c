@@ -1117,8 +1117,8 @@ static void cxgb_down(struct adapter *adapter)
 	spin_unlock_irq(&adapter->work_lock);
 
 	free_irq_resources(adapter);
-	flush_workqueue(cxgb3_wq);	/* wait for external IRQ handler */
 	quiesce_rx(adapter);
+	flush_workqueue(cxgb3_wq);	/* wait for external IRQ handler */
 }
 
 static void schedule_chk_task(struct adapter *adap)
@@ -1187,6 +1187,9 @@ static int offload_close(struct t3cdev *tdev)
 
 	sysfs_remove_group(&tdev->lldev->dev.kobj, &offload_attr_group);
 
+	/* Flush work scheduled while releasing TIDs */
+	flush_scheduled_work();
+
 	tdev->lldev = NULL;
 	cxgb3_set_dummy_ops(tdev);
 	t3_tp_set_offload_mode(adapter, 0);
@@ -1232,6 +1235,10 @@ static int cxgb_close(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
+	
+	if (!adapter->open_device_map)
+		return 0;
+
 	/* Stop link fault interrupts */
 	t3_xgm_intr_disable(adapter, pi->port_id);
 	t3_read_reg(adapter, A_XGM_INT_STATUS + pi->mac.offset);
@@ -1247,8 +1254,7 @@ static int cxgb_close(struct net_device *dev)
 	spin_unlock_irq(&adapter->work_lock);
 
 	if (!(adapter->open_device_map & PORT_MASK))
-		cancel_rearming_delayed_workqueue(cxgb3_wq,
-						  &adapter->adap_check_task);
+		cancel_delayed_work_sync(&adapter->adap_check_task);
 
 	if (!adapter->open_device_map)
 		cxgb_down(adapter);
@@ -2493,6 +2499,7 @@ static void check_link_status(struct adapter *adapter)
 
 		spin_lock_irq(&adapter->work_lock);
 		if (p->link_fault) {
+			t3_link_fault(adapter, i);
 			spin_unlock_irq(&adapter->work_lock);
 			continue;
 		}
@@ -2554,9 +2561,7 @@ static void t3_adap_check_task(struct work_struct *work)
 
 	adapter->check_task_cnt++;
 
-	/* Check link status for PHYs without interrupts */
-	if (p->linkpoll_period)
-		check_link_status(adapter);
+	check_link_status(adapter);
 
 	/* Accumulate MAC stats if needed */
 	if (!p->linkpoll_period ||
@@ -2680,21 +2685,6 @@ void t3_os_ext_intr_handler(struct adapter *adapter)
 	spin_unlock(&adapter->work_lock);
 }
 
-static void link_fault_task(struct work_struct *work)
-{
-	struct adapter *adapter = container_of(work, struct adapter,
-					       link_fault_handler_task);
-	int i;
-
-	for_each_port(adapter, i) {
-		struct net_device *netdev = adapter->port[i];
-		struct port_info *pi = netdev_priv(netdev);
-
-		if (pi->link_fault)
-			t3_link_fault(adapter, i);
-	}
-}
-
 void t3_os_link_fault_handler(struct adapter *adapter, int port_id)
 {
 	struct net_device *netdev = adapter->port[port_id];
@@ -2702,7 +2692,6 @@ void t3_os_link_fault_handler(struct adapter *adapter, int port_id)
 
 	spin_lock(&adapter->work_lock);
 	pi->link_fault = 1;
-	queue_work(cxgb3_wq, &adapter->link_fault_handler_task);
 	spin_unlock(&adapter->work_lock);
 }
 
@@ -2838,6 +2827,9 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 	struct adapter *adapter = pci_get_drvdata(pdev);
 	int ret;
 
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
 	ret = t3_adapter_error(adapter, 0);
 
 	/* Request a slot reset. */
@@ -2932,8 +2924,13 @@ static int __devinit cxgb_enable_msix(struct adapter *adap)
 	while ((err = pci_enable_msix(adap->pdev, entries, vectors)) > 0)
 		vectors = err;
 
-	if (!err && vectors < (adap->params.nports + 1))
+	if (err < 0)
+		pci_disable_msix(adap->pdev);
+
+	if (!err && vectors < (adap->params.nports + 1)) {
+		pci_disable_msix(adap->pdev);
 		err = -1;
+	}
 
 	if (!err) {
 		for (i = 0; i < vectors; ++i)
@@ -3082,7 +3079,6 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	INIT_LIST_HEAD(&adapter->adapter_list);
 	INIT_WORK(&adapter->ext_intr_handler_task, ext_intr_task);
-	INIT_WORK(&adapter->link_fault_handler_task, link_fault_task);
 	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 

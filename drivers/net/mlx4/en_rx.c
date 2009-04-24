@@ -436,8 +436,9 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		/* Initialize page allocators */
 		err = mlx4_en_init_allocator(priv, ring);
 		if (err) {
-			 mlx4_err(mdev, "Failed initializing ring allocator\n");
-			 goto err_allocator;
+			mlx4_err(mdev, "Failed initializing ring allocator\n");
+			ring_ind--;
+			goto err_allocator;
 		}
 
 		/* Fill Rx buffers */
@@ -467,6 +468,7 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 				     ring->wqres.db.dma, &ring->srq);
 		if (err){
 			mlx4_err(mdev, "Failed to allocate srq\n");
+			ring_ind--;
 			goto err_srq;
 		}
 		ring->srq.event = mlx4_en_srq_event;
@@ -925,12 +927,6 @@ void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
 		mlx4_dbg(DRV, priv, "Entry %d ---> ring %d\n", i, rss_map->map[i]);
 	}
 }
-
-static void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)
-{
-    return;
-}
-
 
 static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv,
 				 int qpn, int srqn, int cqn,
