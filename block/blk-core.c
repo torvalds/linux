@@ -68,7 +68,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 	int rw = rq_data_dir(rq);
 	int cpu;
 
-	if (!blk_fs_request(rq) || !blk_do_io_stat(rq))
+	if (!blk_do_io_stat(rq))
 		return;
 
 	cpu = part_stat_lock();
@@ -1639,10 +1639,7 @@ EXPORT_SYMBOL(blkdev_dequeue_request);
 
 static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
-	if (!blk_do_io_stat(req))
-		return;
-
-	if (blk_fs_request(req)) {
+	if (blk_do_io_stat(req)) {
 		const int rw = rq_data_dir(req);
 		struct hd_struct *part;
 		int cpu;
@@ -1656,15 +1653,12 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 
 static void blk_account_io_done(struct request *req)
 {
-	if (!blk_do_io_stat(req))
-		return;
-
 	/*
 	 * Account IO completion.  bar_rq isn't accounted as a normal
 	 * IO on queueing nor completion.  Accounting the containing
 	 * request is enough.
 	 */
-	if (blk_fs_request(req) && req != &req->q->bar_rq) {
+	if (blk_do_io_stat(req) && req != &req->q->bar_rq) {
 		unsigned long duration = jiffies - req->start_time;
 		const int rw = rq_data_dir(req);
 		struct hd_struct *part;

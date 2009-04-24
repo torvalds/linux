@@ -149,9 +149,16 @@ static inline int blk_cpu_to_group(int cpu)
 #endif
 }
 
+/*
+ * Contribute to IO statistics IFF:
+ *
+ *	a) it's attached to a gendisk, and
+ *	b) the queue had IO stats enabled when this request was started, and
+ *	c) it's a file system request
+ */
 static inline int blk_do_io_stat(struct request *rq)
 {
-	return rq->rq_disk && blk_rq_io_stat(rq);
+	return rq->rq_disk && blk_rq_io_stat(rq) && blk_fs_request(rq);
 }
 
 #endif
