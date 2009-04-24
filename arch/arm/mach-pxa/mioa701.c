@@ -708,17 +708,18 @@ static struct i2c_board_info __initdata mioa701_pi2c_devices[] = {
 	},
 };
 
-static struct soc_camera_link iclink = {
-	.bus_id	= 0, /* Must match id in pxa27x_device_camera in device.c */
-};
-
 /* Board I2C devices. */
 static struct i2c_board_info __initdata mioa701_i2c_devices[] = {
 	{
-		/* Must initialize before the camera(s) */
 		I2C_BOARD_INFO("mt9m111", 0x5d),
-		.platform_data = &iclink,
 	},
+};
+
+static struct soc_camera_link iclink = {
+	.bus_id		= 0, /* Match id in pxa27x_device_camera in device.c */
+	.board_info	= &mioa701_i2c_devices[0],
+	.i2c_adapter_id	= 0,
+	.module_name	= "mt9m111",
 };
 
 struct i2c_pxa_platform_data i2c_pdata = {
@@ -754,6 +755,7 @@ MIO_SIMPLE_DEV(pxa2xx_pcm,	  "pxa2xx-pcm",	    NULL)
 MIO_SIMPLE_DEV(mioa701_sound,	  "mioa701-wm9713", NULL)
 MIO_SIMPLE_DEV(mioa701_board,	  "mioa701-board",  NULL)
 MIO_SIMPLE_DEV(gpio_vbus,	  "gpio-vbus",      &gpio_vbus_data);
+MIO_SIMPLE_DEV(mioa701_camera,	  "soc-camera-pdrv",&iclink);
 
 static struct platform_device *devices[] __initdata = {
 	&mioa701_gpio_keys,
@@ -764,6 +766,7 @@ static struct platform_device *devices[] __initdata = {
 	&power_dev,
 	&strataflash,
 	&gpio_vbus,
+	&mioa701_camera,
 	&mioa701_board,
 };
 
@@ -813,7 +816,6 @@ static void __init mioa701_machine_init(void)
 	pxa_set_i2c_info(&i2c_pdata);
 	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_camera_info(&mioa701_pxacamera_platform_data);
-	i2c_register_board_info(0, ARRAY_AND_SIZE(mioa701_i2c_devices));
 }
 
 static void mioa701_machine_exit(void)
