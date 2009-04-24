@@ -144,7 +144,6 @@ utf8_wcstombs(__u8 *s, const wchar_t *pwcs, int maxlen)
 			size = utf8_wctomb(op, *ip, maxlen);
 			if (size == -1) {
 				/* Ignore character and move on */
-				maxlen--;
 			} else {
 				op += size;
 				maxlen -= size;
