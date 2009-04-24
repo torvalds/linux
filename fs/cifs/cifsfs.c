@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/smp_lock.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -530,6 +531,7 @@ static void cifs_umount_begin(struct super_block *sb)
 	if (tcon == NULL)
 		return;
 
+	lock_kernel();
 	read_lock(&cifs_tcp_ses_lock);
 	if (tcon->tc_count == 1)
 		tcon->tidStatus = CifsExiting;
@@ -548,6 +550,7 @@ static void cifs_umount_begin(struct super_block *sb)
 	}
 /* BB FIXME - finish add checks for tidStatus BB */
 
+	unlock_kernel();
 	return;
 }
 

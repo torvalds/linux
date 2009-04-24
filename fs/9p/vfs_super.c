@@ -37,6 +37,7 @@
 #include <linux/mount.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -230,9 +231,12 @@ static int v9fs_show_options(struct seq_file *m, struct vfsmount *mnt)
 static void
 v9fs_umount_begin(struct super_block *sb)
 {
-	struct v9fs_session_info *v9ses = sb->s_fs_info;
+	struct v9fs_session_info *v9ses;
 
+	lock_kernel();
+	v9ses = sb->s_fs_info;
 	v9fs_session_cancel(v9ses);
+	unlock_kernel();
 }
 
 static const struct super_operations v9fs_super_ops = {

@@ -1073,9 +1073,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	 */
 
 	if (flags & MNT_FORCE && sb->s_op->umount_begin) {
-		lock_kernel();
 		sb->s_op->umount_begin(sb);
-		unlock_kernel();
 	}
 
 	/*

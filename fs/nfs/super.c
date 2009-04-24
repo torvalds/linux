@@ -683,9 +683,12 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
  */
 static void nfs_umount_begin(struct super_block *sb)
 {
-	struct nfs_server *server = NFS_SB(sb);
+	struct nfs_server *server;
 	struct rpc_clnt *rpc;
 
+	lock_kernel();
+
+	server = NFS_SB(sb);
 	/* -EIO all pending I/O */
 	rpc = server->client_acl;
 	if (!IS_ERR(rpc))
@@ -693,6 +696,8 @@ static void nfs_umount_begin(struct super_block *sb)
 	rpc = server->client;
 	if (!IS_ERR(rpc))
 		rpc_killall_tasks(rpc);
+
+	unlock_kernel();
 }
 
 /*
