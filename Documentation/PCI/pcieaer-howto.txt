@@ -246,3 +246,24 @@ with the PCI Express AER Root driver?
 A: It could call the helper functions to enable AER in devices and
 cleanup uncorrectable status register. Pls. refer to section 3.3.
 
+
+4. Software error injection
+
+Debugging PCIE AER error recovery code is quite difficult because it
+is hard to trigger real hardware errors. Software based error
+injection can be used to fake various kinds of PCIE errors.
+
+First you should enable PCIE AER software error injection in kernel
+configuration, that is, following item should be in your .config.
+
+CONFIG_PCIEAER_INJECT=y or CONFIG_PCIEAER_INJECT=m
+
+After reboot with new kernel or insert the module, a device file named
+/dev/aer_inject should be created.
+
+Then, you need a user space tool named aer-inject, which can be gotten
+from:
+    http://www.kernel.org/pub/linux/kernel/people/yhuang/
+
+More information about aer-inject can be found in the document comes
+with its source code.
