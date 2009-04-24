@@ -150,6 +150,7 @@ utf8_wcstombs(__u8 *s, const wchar_t *pwcs, int maxlen)
 			}
 		} else {
 			*op++ = (__u8) *ip;
+			maxlen--;
 		}
 		ip++;
 	}
