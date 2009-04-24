@@ -56,6 +56,7 @@ typedef enum print_line_t (*trace_print_func)(struct trace_iterator *iter,
 					      int flags);
 struct trace_event {
 	struct hlist_node	node;
+	struct list_head	list;
 	int			type;
 	trace_print_func	trace;
 	trace_print_func	raw;

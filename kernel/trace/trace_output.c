@@ -483,6 +483,36 @@ struct trace_event *ftrace_find_event(int type)
 	return NULL;
 }
 
+static LIST_HEAD(ftrace_event_list);
+
+static int trace_search_list(struct list_head **list)
+{
+	struct trace_event *e;
+	int last = __TRACE_LAST_TYPE;
+
+	if (list_empty(&ftrace_event_list)) {
+		*list = &ftrace_event_list;
+		return last + 1;
+	}
+
+	/*
+	 * We used up all possible max events,
+	 * lets see if somebody freed one.
+	 */
+	list_for_each_entry(e, &ftrace_event_list, list) {
+		if (e->type != last + 1)
+			break;
+		last++;
+	}
+
+	/* Did we used up all 65 thousand events??? */
+	if ((last + 1) > FTRACE_MAX_EVENT)
+		return 0;
+
+	*list = &e->list;
+	return last + 1;
+}
+
 /**
  * register_ftrace_event - register output for an event type
  * @event: the event type to register
@@ -505,20 +535,40 @@ int register_ftrace_event(struct trace_event *event)
 
 	mutex_lock(&trace_event_mutex);
 
-	if (!event) {
-		ret = next_event_type++;
+	if (WARN_ON(!event))
 		goto out;
-	}
 
-	if (!event->type)
-		event->type = next_event_type++;
-	else if (event->type > __TRACE_LAST_TYPE) {
+	INIT_LIST_HEAD(&event->list);
+
+	if (!event->type) {
+		struct list_head *list;
+
+		if (next_event_type > FTRACE_MAX_EVENT) {
+
+			event->type = trace_search_list(&list);
+			if (!event->type)
+				goto out;
+
+		} else {
+			
+			event->type = next_event_type++;
+			list = &ftrace_event_list;
+		}
+
+		if (WARN_ON(ftrace_find_event(event->type)))
+			goto out;
+
+		list_add_tail(&event->list, list);
+
+	} else if (event->type > __TRACE_LAST_TYPE) {
 		printk(KERN_WARNING "Need to add type to trace.h\n");
 		WARN_ON(1);
-	}
-
-	if (ftrace_find_event(event->type))
 		goto out;
+	} else {
+		/* Is this event already used */
+		if (ftrace_find_event(event->type))
+			goto out;
+	}
 
 	if (event->trace == NULL)
 		event->trace = trace_nop_print;
@@ -537,8 +587,6 @@ int register_ftrace_event(struct trace_event *event)
  out:
 	mutex_unlock(&trace_event_mutex);
 
-	WARN_ON_ONCE(next_event_type > FTRACE_MAX_EVENT);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(register_ftrace_event);
@@ -551,6 +599,7 @@ int unregister_ftrace_event(struct trace_event *event)
 {
 	mutex_lock(&trace_event_mutex);
 	hlist_del(&event->node);
+	list_del(&event->list);
 	mutex_unlock(&trace_event_mutex);
 
 	return 0;
