@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.30-rc2
-# Wed Apr 22 17:32:41 2009
+# Wed Apr 22 17:17:30 2009
 #
 CONFIG_M68K=y
 # CONFIG_MMU is not set
@@ -112,9 +112,9 @@ CONFIG_DEFAULT_IOSCHED="noop"
 # CONFIG_M5206e is not set
 # CONFIG_M520x is not set
 # CONFIG_M523x is not set
-CONFIG_M5249=y
+# CONFIG_M5249 is not set
 # CONFIG_M5271 is not set
-# CONFIG_M5272 is not set
+CONFIG_M5272=y
 # CONFIG_M5275 is not set
 # CONFIG_M528x is not set
 # CONFIG_M5307 is not set
@@ -122,13 +122,20 @@ CONFIG_M5249=y
 # CONFIG_M5407 is not set
 CONFIG_COLDFIRE=y
 CONFIG_CLOCK_SET=y
-CONFIG_CLOCK_FREQ=140000000
-CONFIG_CLOCK_DIV=2
+CONFIG_CLOCK_FREQ=66666666
+CONFIG_CLOCK_DIV=1
 
 #
 # Platform
 #
-CONFIG_M5249C3=y
+# CONFIG_UC5272 is not set
+CONFIG_M5272C3=y
+# CONFIG_COBRA5272 is not set
+# CONFIG_CANCam is not set
+# CONFIG_SCALES is not set
+# CONFIG_NETtel is not set
+# CONFIG_CPU16B is not set
+# CONFIG_MOD5272 is not set
 CONFIG_FREESCALE=y
 CONFIG_4KSTACKS=y
 CONFIG_HZ=100
@@ -166,7 +173,6 @@ CONFIG_SPLIT_PTLOCK_CPUS=4
 CONFIG_ZONE_DMA_FLAG=1
 CONFIG_VIRT_TO_BUS=y
 # CONFIG_UNEVICTABLE_LRU is not set
-CONFIG_ISA_DMA_API=y
 
 #
 # Executable file formats
@@ -378,6 +384,8 @@ CONFIG_NET_ETHERNET=y
 # CONFIG_IBM_NEW_EMAC_MAL_CLR_ICINTSTAT is not set
 # CONFIG_IBM_NEW_EMAC_MAL_COMMON_ERR is not set
 # CONFIG_B44 is not set
+CONFIG_FEC=y
+# CONFIG_FEC2 is not set
 # CONFIG_NETDEV_1000 is not set
 # CONFIG_NETDEV_10000 is not set
 
@@ -391,18 +399,8 @@ CONFIG_NET_ETHERNET=y
 # Enable WiMAX (Networking options) to see the WiMAX drivers
 #
 # CONFIG_WAN is not set
-CONFIG_PPP=y
-# CONFIG_PPP_MULTILINK is not set
-# CONFIG_PPP_FILTER is not set
-# CONFIG_PPP_ASYNC is not set
-# CONFIG_PPP_SYNC_TTY is not set
-# CONFIG_PPP_DEFLATE is not set
-# CONFIG_PPP_BSDCOMP is not set
-# CONFIG_PPP_MPPE is not set
-# CONFIG_PPPOE is not set
-# CONFIG_PPPOL2TP is not set
+# CONFIG_PPP is not set
 # CONFIG_SLIP is not set
-CONFIG_SLHC=y
 # CONFIG_NETCONSOLE is not set
 # CONFIG_NETPOLL is not set
 # CONFIG_NET_POLL_CONTROLLER is not set
@@ -528,9 +526,8 @@ CONFIG_EXT2_FS=y
 # CONFIG_XFS_FS is not set
 # CONFIG_OCFS2_FS is not set
 # CONFIG_BTRFS_FS is not set
-CONFIG_DNOTIFY=y
-CONFIG_INOTIFY=y
-CONFIG_INOTIFY_USER=y
+# CONFIG_DNOTIFY is not set
+# CONFIG_INOTIFY is not set
 # CONFIG_QUOTA is not set
 # CONFIG_AUTOFS_FS is not set
 # CONFIG_AUTOFS4_FS is not set
@@ -634,12 +631,13 @@ CONFIG_BOOTPARAM_STRING="root=/dev/mtdblock0"
 #
 # Library routines
 #
+CONFIG_BITREVERSE=y
 CONFIG_GENERIC_FIND_LAST_BIT=y
 # CONFIG_CRC_CCITT is not set
 # CONFIG_CRC16 is not set
 # CONFIG_CRC_T10DIF is not set
 # CONFIG_CRC_ITU_T is not set
-# CONFIG_CRC32 is not set
+CONFIG_CRC32=y
 # CONFIG_CRC7 is not set
 # CONFIG_LIBCRC32C is not set
 CONFIG_HAS_IOMEM=y
