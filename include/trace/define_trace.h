@@ -44,7 +44,7 @@
 
 #ifndef TRACE_INCLUDE_PATH
 # define __TRACE_INCLUDE(system) <trace/events/system.h>
-# define UNDEF_TRACE_INCLUDE_FILE
+# define UNDEF_TRACE_INCLUDE_PATH
 #else
 # define __TRACE_INCLUDE(system) __stringify(TRACE_INCLUDE_PATH/system.h)
 #endif
@@ -64,13 +64,13 @@
 
 /* Only undef what we defined in this file */
 #ifdef UNDEF_TRACE_INCLUDE_FILE
-# undef TRACE_INCLUDE_PATH
+# undef TRACE_INCLUDE_FILE
 # undef UNDEF_TRACE_INCLUDE_FILE
 #endif
 
-#ifdef UNDEF_TRACE_INCLUDE_FILE
+#ifdef UNDEF_TRACE_INCLUDE_PATH
 # undef TRACE_INCLUDE_PATH
-# undef UNDEF_TRACE_INCLUDE_FILE
+# undef UNDEF_TRACE_INCLUDE_PATH
 #endif
 
 /* We may be processing more files */
