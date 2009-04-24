@@ -313,15 +313,6 @@ inline void portmux_setup(unsigned short per)
 # define portmux_setup(...)  do { } while (0)
 #endif
 
-static int __init bfin_gpio_init(void)
-{
-	printk(KERN_INFO "Blackfin GPIO Controller\n");
-
-	return 0;
-}
-arch_initcall(bfin_gpio_init);
-
-
 #ifndef CONFIG_BF54x
 /***********************************************************
 *
