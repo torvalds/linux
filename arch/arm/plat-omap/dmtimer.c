@@ -238,7 +238,7 @@ static struct omap_dm_timer omap3_dm_timers[] = {
 	{ .phys_base = 0x49040000, .irq = INT_24XX_GPTIMER9 },
 	{ .phys_base = 0x48086000, .irq = INT_24XX_GPTIMER10 },
 	{ .phys_base = 0x48088000, .irq = INT_24XX_GPTIMER11 },
-	{ .phys_base = 0x48304000, .irq = INT_24XX_GPTIMER12 },
+	{ .phys_base = 0x48304000, .irq = INT_34XX_GPT12_IRQ },
 };
 
 static const char *omap3_dm_source_names[] __initdata = {
