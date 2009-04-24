@@ -669,6 +669,8 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(ADI_VID, ADI_GNICE_PID),
 		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ USB_DEVICE(JETI_VID, JETI_SPC1201_PID) },
+	{ USB_DEVICE(MARVELL_VID, MARVELL_SHEEVAPLUG_PID),
+		.driver_info = (kernel_ulong_t)&ftdi_jtag_quirk },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
