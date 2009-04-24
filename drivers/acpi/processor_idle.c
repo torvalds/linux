@@ -1037,6 +1037,9 @@ static int acpi_processor_setup_cpuidle(struct acpi_processor *pr)
 		dev->states[i].desc[0] = '\0';
 	}
 
+	if (max_cstate == 0)
+		max_cstate = 1;
+
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		cx = &pr->power.states[i];
 		state = &dev->states[count];
