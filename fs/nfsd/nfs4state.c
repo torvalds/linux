@@ -4002,6 +4002,7 @@ nfs4_state_init(void)
 		INIT_LIST_HEAD(&conf_str_hashtbl[i]);
 		INIT_LIST_HEAD(&unconf_str_hashtbl[i]);
 		INIT_LIST_HEAD(&unconf_id_hashtbl[i]);
+		INIT_LIST_HEAD(&reclaim_str_hashtbl[i]);
 	}
 	for (i = 0; i < SESSION_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&sessionid_hashtbl[i]);
@@ -4024,8 +4025,6 @@ nfs4_state_init(void)
 	INIT_LIST_HEAD(&close_lru);
 	INIT_LIST_HEAD(&client_lru);
 	INIT_LIST_HEAD(&del_recall_lru);
-	for (i = 0; i < CLIENT_HASH_SIZE; i++)
-		INIT_LIST_HEAD(&reclaim_str_hashtbl[i]);
 	reclaim_str_hashtbl_size = 0;
 	return 0;
 }
