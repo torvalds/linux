@@ -34,6 +34,7 @@
 #include <linux/usb.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 
 #include <asm/io.h>
 #include <linux/scatterlist.h>
@@ -1001,6 +1002,22 @@ static struct notifier_block usb_bus_nb = {
 	.notifier_call = usb_bus_notify,
 };
 
+struct dentry *usb_debug_root;
+EXPORT_SYMBOL_GPL(usb_debug_root);
+
+static int usb_debugfs_init(void)
+{
+	usb_debug_root = debugfs_create_dir("usb", NULL);
+	if (!usb_debug_root)
+		return -ENOENT;
+	return 0;
+}
+
+static void usb_debugfs_cleanup(void)
+{
+	debugfs_remove(usb_debug_root);
+}
+
 /*
  * Init
  */
@@ -1011,6 +1028,10 @@ static int __init usb_init(void)
 		pr_info("%s: USB support disabled\n", usbcore_name);
 		return 0;
 	}
+
+	retval = usb_debugfs_init();
+	if (retval)
+		goto out;
 
 	retval = ksuspend_usb_init();
 	if (retval)
@@ -1083,6 +1104,7 @@ static void __exit usb_exit(void)
 	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
 	bus_unregister(&usb_bus_type);
 	ksuspend_usb_cleanup();
+	usb_debugfs_cleanup();
 }
 
 subsys_initcall(usb_init);
