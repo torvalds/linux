@@ -66,6 +66,7 @@ struct omap_clk {
 static struct omap_clk omap24xx_clks[] = {
 	/* external root sources */
 	CLK(NULL,	"func_32k_ck",	&func_32k_ck,	CK_243X | CK_242X),
+	CLK(NULL,	"secure_32k_ck", &secure_32k_ck, CK_243X | CK_242X),
 	CLK(NULL,	"osc_ck",	&osc_ck,	CK_243X | CK_242X),
 	CLK(NULL,	"sys_ck",	&sys_ck,	CK_243X | CK_242X),
 	CLK(NULL,	"alt_ck",	&alt_ck,	CK_243X | CK_242X),

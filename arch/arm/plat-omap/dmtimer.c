@@ -509,7 +509,7 @@ EXPORT_SYMBOL_GPL(omap_dm_timer_stop);
 
 #ifdef CONFIG_ARCH_OMAP1
 
-void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
+int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
 	int n = (timer - dm_timers) << 1;
 	u32 l;
@@ -517,23 +517,31 @@ void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	l = omap_readl(MOD_CONF_CTRL_1) & ~(0x03 << n);
 	l |= source << n;
 	omap_writel(l, MOD_CONF_CTRL_1);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_set_source);
 
 #else
 
-void omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
+int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
+	int ret = -EINVAL;
+
 	if (source < 0 || source >= 3)
-		return;
+		return -EINVAL;
 
 	clk_disable(timer->fclk);
-	clk_set_parent(timer->fclk, dm_source_clocks[source]);
+	ret = clk_set_parent(timer->fclk, dm_source_clocks[source]);
 	clk_enable(timer->fclk);
 
-	/* When the functional clock disappears, too quick writes seem to
-	 * cause an abort. */
+	/*
+	 * When the functional clock disappears, too quick writes seem
+	 * to cause an abort. XXX Is this still necessary?
+	 */
 	__delay(150000);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(omap_dm_timer_set_source);
 

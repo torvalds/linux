@@ -2901,7 +2901,6 @@ static struct clk sr_l4_ick = {
 
 /* SECURE_32K_FCK clocks */
 
-/* XXX This clock no longer exists in 3430 TRM rev F */
 static struct clk gpt12_fck = {
 	.name		= "gpt12_fck",
 	.ops		= &clkops_null,
