@@ -830,7 +830,8 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	BUG_ON(!trans);
 
 	/* punch hole in destination first */
-	btrfs_drop_extents(trans, root, inode, off, off+len, 0, &hint_byte);
+	btrfs_drop_extents(trans, root, inode, off, off + len,
+			   off + len, 0, &hint_byte);
 
 	/* clone data */
 	key.objectid = src->i_ino;

@@ -363,15 +363,16 @@ out:
  */
 noinline int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
-		       u64 start, u64 end, u64 inline_limit, u64 *hint_byte)
+		       u64 start, u64 end, u64 locked_end,
+		       u64 inline_limit, u64 *hint_byte)
 {
 	u64 extent_end = 0;
-	u64 locked_end = end;
 	u64 search_start = start;
 	u64 leaf_start;
 	u64 ram_bytes = 0;
 	u64 orig_parent = 0;
 	u64 disk_bytenr = 0;
+	u64 orig_locked_end = locked_end;
 	u8 compression;
 	u8 encryption;
 	u16 other_encoding = 0;
@@ -684,9 +685,9 @@ next_slot:
 	}
 out:
 	btrfs_free_path(path);
-	if (locked_end > end) {
-		unlock_extent(&BTRFS_I(inode)->io_tree, end, locked_end - 1,
-			      GFP_NOFS);
+	if (locked_end > orig_locked_end) {
+		unlock_extent(&BTRFS_I(inode)->io_tree, orig_locked_end,
+			      locked_end - 1, GFP_NOFS);
 	}
 	btrfs_check_file(root, inode);
 	return ret;

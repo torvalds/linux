@@ -234,7 +234,7 @@ static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_drop_extents(trans, root, inode, start,
-				 aligned_end, start, &hint_byte);
+				 aligned_end, aligned_end, start, &hint_byte);
 	BUG_ON(ret);
 
 	if (isize > actual_end)
@@ -1439,6 +1439,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 				       struct inode *inode, u64 file_pos,
 				       u64 disk_bytenr, u64 disk_num_bytes,
 				       u64 num_bytes, u64 ram_bytes,
+				       u64 locked_end,
 				       u8 compression, u8 encryption,
 				       u16 other_encoding, int extent_type)
 {
@@ -1455,7 +1456,8 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 
 	path->leave_spinning = 1;
 	ret = btrfs_drop_extents(trans, root, inode, file_pos,
-				 file_pos + num_bytes, file_pos, &hint);
+				 file_pos + num_bytes, locked_end,
+				 file_pos, &hint);
 	BUG_ON(ret);
 
 	ins.objectid = inode->i_ino;
@@ -1589,6 +1591,8 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 						ordered_extent->start,
 						ordered_extent->disk_len,
 						ordered_extent->len,
+						ordered_extent->len,
+						ordered_extent->file_offset +
 						ordered_extent->len,
 						compressed, 0, 0,
 						BTRFS_FILE_EXTENT_REG);
@@ -2877,6 +2881,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t size)
 			err = btrfs_drop_extents(trans, root, inode,
 						 cur_offset,
 						 cur_offset + hole_size,
+						 block_end,
 						 cur_offset, &hint_byte);
 			if (err)
 				break;
@@ -4968,7 +4973,7 @@ out_fail:
 
 static int prealloc_file_range(struct btrfs_trans_handle *trans,
 			       struct inode *inode, u64 start, u64 end,
-			       u64 alloc_hint, int mode)
+			       u64 locked_end, u64 alloc_hint, int mode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
@@ -4989,7 +4994,8 @@ static int prealloc_file_range(struct btrfs_trans_handle *trans,
 		ret = insert_reserved_file_extent(trans, inode,
 						  cur_offset, ins.objectid,
 						  ins.offset, ins.offset,
-						  ins.offset, 0, 0, 0,
+						  ins.offset, locked_end,
+						  0, 0, 0,
 						  BTRFS_FILE_EXTENT_PREALLOC);
 		BUG_ON(ret);
 		num_bytes -= ins.offset;
@@ -5018,6 +5024,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	u64 alloc_start;
 	u64 alloc_end;
 	u64 alloc_hint = 0;
+	u64 locked_end;
 	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
 	struct extent_map *em;
 	struct btrfs_trans_handle *trans;
@@ -5039,6 +5046,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 			goto out;
 	}
 
+	locked_end = alloc_end - 1;
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
 
@@ -5051,8 +5059,8 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		/* the extent lock is ordered inside the running
 		 * transaction
 		 */
-		lock_extent(&BTRFS_I(inode)->io_tree, alloc_start,
-			    alloc_end - 1, GFP_NOFS);
+		lock_extent(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
+			    GFP_NOFS);
 		ordered = btrfs_lookup_first_ordered_extent(inode,
 							    alloc_end - 1);
 		if (ordered &&
@@ -5060,7 +5068,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		    ordered->file_offset < alloc_end) {
 			btrfs_put_ordered_extent(ordered);
 			unlock_extent(&BTRFS_I(inode)->io_tree,
-				      alloc_start, alloc_end - 1, GFP_NOFS);
+				      alloc_start, locked_end, GFP_NOFS);
 			btrfs_end_transaction(trans, BTRFS_I(inode)->root);
 
 			/*
@@ -5085,7 +5093,8 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		last_byte = (last_byte + mask) & ~mask;
 		if (em->block_start == EXTENT_MAP_HOLE) {
 			ret = prealloc_file_range(trans, inode, cur_offset,
-					last_byte, alloc_hint, mode);
+					last_byte, locked_end + 1,
+					alloc_hint, mode);
 			if (ret < 0) {
 				free_extent_map(em);
 				break;
@@ -5101,7 +5110,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 			break;
 		}
 	}
-	unlock_extent(&BTRFS_I(inode)->io_tree, alloc_start, alloc_end - 1,
+	unlock_extent(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
 		      GFP_NOFS);
 
 	btrfs_end_transaction(trans, BTRFS_I(inode)->root);
