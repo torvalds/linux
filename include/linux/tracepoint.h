@@ -158,11 +158,6 @@ static inline void tracepoint_synchronize_unregister(void)
 
 #define PARAMS(args...) args
 
-#ifndef TRACE_FORMAT
-#define TRACE_FORMAT(name, proto, args, fmt)		\
-	DECLARE_TRACE(name, PARAMS(proto), PARAMS(args))
-#endif
-
 #ifndef TRACE_EVENT
 /*
  * For use with the TRACE_EVENT macro:

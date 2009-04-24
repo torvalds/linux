@@ -26,10 +26,6 @@
 #define TRACE_EVENT(name, proto, args, tstruct, assign, print)	\
 	DEFINE_TRACE(name)
 
-#undef TRACE_FORMAT
-#define TRACE_FORMAT(name, proto, args, print)	\
-	DEFINE_TRACE(name)
-
 #undef DECLARE_TRACE
 #define DECLARE_TRACE(name, proto, args)	\
 	DEFINE_TRACE(name)

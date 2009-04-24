@@ -18,9 +18,6 @@
 
 #include <linux/ftrace_event.h>
 
-#undef TRACE_FORMAT
-#define TRACE_FORMAT(call, proto, args, fmt)
-
 #undef __array
 #define __array(type, item, len)	type	item[len];
 
@@ -61,9 +58,6 @@
  * once we perform the strlen() of the src strings.
  *
  */
-
-#undef TRACE_FORMAT
-#define TRACE_FORMAT(call, proto, args, fmt)
 
 #undef __array
 #define __array(type, item, len)
@@ -298,16 +292,6 @@ ftrace_define_fields_##call(void)					\
  *	unregister_trace_<call>(ftrace_event_<call>);
  * }
  *
- * For those macros defined with TRACE_FORMAT:
- *
- * static struct ftrace_event_call __used
- * __attribute__((__aligned__(4)))
- * __attribute__((section("_ftrace_events"))) event_<call> = {
- *	.name			= "<call>",
- *	.regfunc		= ftrace_reg_event_<call>,
- *	.unregfunc		= ftrace_unreg_event_<call>,
- * }
- *
  *
  * For those macros defined with TRACE_EVENT:
  *
@@ -416,56 +400,6 @@ static void ftrace_profile_disable_##call(struct ftrace_event_call *call) \
 #define _TRACE_PROFILE(call, proto, args)
 #define _TRACE_PROFILE_INIT(call)
 #endif
-
-#define _TRACE_FORMAT(call, proto, args, fmt)				\
-static void ftrace_event_##call(proto)					\
-{									\
-	event_trace_printk(_RET_IP_, #call ": " fmt);			\
-}									\
-									\
-static int ftrace_reg_event_##call(void)				\
-{									\
-	int ret;							\
-									\
-	ret = register_trace_##call(ftrace_event_##call);		\
-	if (ret)							\
-		pr_info("event trace: Could not activate trace point "	\
-			"probe to " #call "\n");			\
-	return ret;							\
-}									\
-									\
-static void ftrace_unreg_event_##call(void)				\
-{									\
-	unregister_trace_##call(ftrace_event_##call);			\
-}									\
-									\
-static struct ftrace_event_call event_##call;				\
-									\
-static int ftrace_init_event_##call(void)				\
-{									\
-	int id;								\
-									\
-	id = register_ftrace_event(NULL);				\
-	if (!id)							\
-		return -ENODEV;						\
-	event_##call.id = id;						\
-	return 0;							\
-}
-
-#undef TRACE_FORMAT
-#define TRACE_FORMAT(call, proto, args, fmt)				\
-_TRACE_FORMAT(call, PARAMS(proto), PARAMS(args), PARAMS(fmt))		\
-_TRACE_PROFILE(call, PARAMS(proto), PARAMS(args))			\
-static struct ftrace_event_call __used					\
-__attribute__((__aligned__(4)))						\
-__attribute__((section("_ftrace_events"))) event_##call = {		\
-	.name			= #call,				\
-	.system			= __stringify(TRACE_SYSTEM),		\
-	.raw_init		= ftrace_init_event_##call,		\
-	.regfunc		= ftrace_reg_event_##call,		\
-	.unregfunc		= ftrace_unreg_event_##call,		\
-	_TRACE_PROFILE_INIT(call)					\
-}
 
 #undef __entry
 #define __entry entry
