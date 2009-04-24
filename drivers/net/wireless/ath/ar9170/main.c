@@ -151,8 +151,8 @@ static struct ieee80211_channel ar9170_5ghz_chantable[] = {
 			  IEEE80211_HT_CAP_SGI_40 |			\
 			  IEEE80211_HT_CAP_DSSSCCK40 |			\
 			  IEEE80211_HT_CAP_SM_PS,			\
-	.ampdu_factor	= 3, /* ?? */					\
-	.ampdu_density	= 7, /* ?? */					\
+	.ampdu_factor	= 3,						\
+	.ampdu_density	= 6,						\
 	.mcs		= {						\
 		.rx_mask = { 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, },	\
 	},								\

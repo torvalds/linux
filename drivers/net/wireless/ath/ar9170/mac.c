@@ -72,6 +72,24 @@ int ar9170_set_qos(struct ar9170 *ar)
 	return ar9170_regwrite_result();
 }
 
+static int ar9170_set_ampdu_density(struct ar9170 *ar, u8 mpdudensity)
+{
+	u32 val;
+
+	/* don't allow AMPDU density > 8us */
+	if (mpdudensity > 6)
+		return -EINVAL;
+
+	/* Watch out! Otus uses slightly different density values. */
+	val = 0x140a00 | (mpdudensity ? (mpdudensity + 1) : 0);
+
+	ar9170_regwrite_begin(ar);
+	ar9170_regwrite(AR9170_MAC_REG_AMPDU_SET, val);
+	ar9170_regwrite_finish();
+
+	return ar9170_regwrite_result();
+}
+
 int ar9170_init_mac(struct ar9170 *ar)
 {
 	ar9170_regwrite_begin(ar);
@@ -293,6 +311,11 @@ int ar9170_set_operating_mode(struct ar9170 *ar)
 		return err;
 
 	err = ar9170_set_promiscouous(ar);
+	if (err)
+		return err;
+
+	/* set AMPDU density to 8us. */
+	err = ar9170_set_ampdu_density(ar, 6);
 	if (err)
 		return err;
 
