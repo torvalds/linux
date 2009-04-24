@@ -248,9 +248,8 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_EXT_SME		BIT(17)
 /* flags for MLME request */
 #define IEEE80211_STA_REQ_SCAN 0
-#define IEEE80211_STA_REQ_DIRECT_PROBE 1
-#define IEEE80211_STA_REQ_AUTH 2
-#define IEEE80211_STA_REQ_RUN  3
+#define IEEE80211_STA_REQ_AUTH 1
+#define IEEE80211_STA_REQ_RUN  2
 
 /* bitfield of allowed auth algs */
 #define IEEE80211_AUTH_ALG_OPEN BIT(0)
