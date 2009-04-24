@@ -321,11 +321,9 @@ static void omap_dm_timer_reset(struct omap_dm_timer *timer)
 	l |= 0x2 << 8;   /* Set clock activity to perserve f-clock on idle */
 
 	/*
-	 * Enable wake-up only for GPT1 on OMAP2 CPUs.
-	 * FIXME: All timers should have wake-up enabled and clear
-	 * PRCM status.
+	 * Enable wake-up on OMAP2 CPUs.
 	 */
-	if (cpu_class_is_omap2() && (timer == &dm_timers[0]))
+	if (cpu_class_is_omap2())
 		l |= 1 << 2;
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_OCP_CFG_REG, l);
 
