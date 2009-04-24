@@ -107,6 +107,7 @@ struct soc_camera_link {
 	 */
 	int (*set_bus_param)(struct soc_camera_link *, unsigned long flags);
 	unsigned long (*query_bus_param)(struct soc_camera_link *);
+	void (*free_bus)(struct soc_camera_link *);
 };
 
 static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)

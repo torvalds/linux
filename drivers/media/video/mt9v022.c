@@ -735,10 +735,13 @@ ei2c:
 static void mt9v022_video_remove(struct soc_camera_device *icd)
 {
 	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
+	struct soc_camera_link *icl = mt9v022->client->dev.platform_data;
 
 	dev_dbg(&icd->dev, "Video %x removed: %p, %p\n", mt9v022->client->addr,
 		icd->dev.parent, icd->vdev);
 	soc_camera_video_stop(icd);
+	if (icl->free_bus)
+		icl->free_bus(icl);
 }
 
 static int mt9v022_probe(struct i2c_client *client,
