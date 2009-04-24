@@ -111,7 +111,7 @@ EXPORT_SYMBOL(dma_alloc_coherent);
 void dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
 	dma_addr_t dma_handle)
 {
-	plat_unmap_dma_mem(dev, dma_handle);
+	plat_unmap_dma_mem(dev, dma_handle, size, DMA_BIDIRECTIONAL);
 	free_pages((unsigned long) vaddr, get_order(size));
 }
 
@@ -122,7 +122,7 @@ void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 {
 	unsigned long addr = (unsigned long) vaddr;
 
-	plat_unmap_dma_mem(dev, dma_handle);
+	plat_unmap_dma_mem(dev, dma_handle, size, DMA_BIDIRECTIONAL);
 
 	if (!plat_device_is_coherent(dev))
 		addr = CAC_ADDR(addr);
@@ -173,7 +173,7 @@ void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		__dma_sync(dma_addr_to_virt(dma_addr), size,
 		           direction);
 
-	plat_unmap_dma_mem(dev, dma_addr);
+	plat_unmap_dma_mem(dev, dma_addr, size, direction);
 }
 
 EXPORT_SYMBOL(dma_unmap_single);
@@ -232,7 +232,7 @@ void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 			if (addr)
 				__dma_sync(addr, sg->length, direction);
 		}
-		plat_unmap_dma_mem(dev, sg->dma_address);
+		plat_unmap_dma_mem(dev, sg->dma_address, sg->length, direction);
 	}
 }
 
