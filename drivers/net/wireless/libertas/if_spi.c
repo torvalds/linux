@@ -731,7 +731,7 @@ static int if_spi_c2h_data(struct if_spi_card *card)
 		goto out;
 	} else if (len > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
 		lbs_pr_err("%s: error: card has %d bytes of data, but "
-			   "our maximum skb size is %u\n",
+			   "our maximum skb size is %lu\n",
 			   __func__, len, MRVDRV_ETH_RX_PACKET_BUFFER_SIZE);
 		err = -EINVAL;
 		goto out;
