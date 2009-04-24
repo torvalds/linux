@@ -41,8 +41,13 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		void *alignf_data)
 {
 	int i, ret = -ENOMEM;
+	resource_size_t max = -1;
 
 	type_mask |= IORESOURCE_IO | IORESOURCE_MEM;
+
+	/* don't allocate too high if the pref mem doesn't support 64bit*/
+	if (!(res->flags & IORESOURCE_MEM_64))
+		max = PCIBIOS_MAX_MEM_32;
 
 	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
 		struct resource *r = bus->resource[i];
@@ -62,7 +67,7 @@ pci_bus_alloc_resource(struct pci_bus *bus, struct resource *res,
 		/* Ok, try it out.. */
 		ret = allocate_resource(r, res, size,
 					r->start ? : min,
-					-1, align,
+					max, align,
 					alignf, alignf_data);
 		if (ret == 0)
 			break;

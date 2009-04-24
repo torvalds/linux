@@ -1097,6 +1097,10 @@ static inline struct pci_dev *pci_get_bus_and_slot(unsigned int bus,
 
 #include <asm/pci.h>
 
+#ifndef PCIBIOS_MAX_MEM_32
+#define PCIBIOS_MAX_MEM_32 (-1)
+#endif
+
 /* these helpers provide future and backwards compatibility
  * for accessing popular PCI BAR info */
 #define pci_resource_start(dev, bar)	((dev)->resource[(bar)].start)
