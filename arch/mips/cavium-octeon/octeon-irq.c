@@ -10,6 +10,8 @@
 #include <linux/hardirq.h>
 
 #include <asm/octeon/octeon.h>
+#include <asm/octeon/cvmx-pexp-defs.h>
+#include <asm/octeon/cvmx-npi-defs.h>
 
 DEFINE_RWLOCK(octeon_irq_ciu0_rwlock);
 DEFINE_RWLOCK(octeon_irq_ciu1_rwlock);
