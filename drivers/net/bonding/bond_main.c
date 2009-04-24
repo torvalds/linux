@@ -695,6 +695,18 @@ static int bond_check_dev_link(struct bonding *bond, struct net_device *slave_de
 	if (bond->params.use_carrier)
 		return netif_carrier_ok(slave_dev) ? BMSR_LSTATUS : 0;
 
+	/* Try to get link status using Ethtool first. */
+	if (slave_dev->ethtool_ops) {
+		if (slave_dev->ethtool_ops->get_link) {
+			u32 link;
+
+			link = slave_dev->ethtool_ops->get_link(slave_dev);
+
+			return link ? BMSR_LSTATUS : 0;
+		}
+	}
+
+	/* Ethtool can't be used, fallback to MII ioclts. */
 	ioctl = slave_ops->ndo_do_ioctl;
 	if (ioctl) {
 		/* TODO: set pointer to correct ioctl on a per team member */
@@ -717,20 +729,6 @@ static int bond_check_dev_link(struct bonding *bond, struct net_device *slave_de
 			if (IOCTL(slave_dev, &ifr, SIOCGMIIREG) == 0) {
 				return (mii->val_out & BMSR_LSTATUS);
 			}
-		}
-	}
-
-	/*
-	 * Some drivers cache ETHTOOL_GLINK for a period of time so we only
-	 * attempt to get link status from it if the above MII ioctls fail.
-	 */
-	if (slave_dev->ethtool_ops) {
-		if (slave_dev->ethtool_ops->get_link) {
-			u32 link;
-
-			link = slave_dev->ethtool_ops->get_link(slave_dev);
-
-			return link ? BMSR_LSTATUS : 0;
 		}
 	}
 
