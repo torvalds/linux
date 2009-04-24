@@ -28,8 +28,8 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
 {
 	int ret;
 
-	ret = trace_seq_printf(s, "\ttype        :    2 bits\n");
-	ret = trace_seq_printf(s, "\tlen         :    3 bits\n");
+	ret = trace_seq_printf(s, "# compressed entry header\n");
+	ret = trace_seq_printf(s, "\ttype_len    :    5 bits\n");
 	ret = trace_seq_printf(s, "\ttime_delta  :   27 bits\n");
 	ret = trace_seq_printf(s, "\tarray       :   32 bits\n");
 	ret = trace_seq_printf(s, "\n");
@@ -37,8 +37,8 @@ int ring_buffer_print_entry_header(struct trace_seq *s)
 			       RINGBUF_TYPE_PADDING);
 	ret = trace_seq_printf(s, "\ttime_extend : type == %d\n",
 			       RINGBUF_TYPE_TIME_EXTEND);
-	ret = trace_seq_printf(s, "\tdata        : type == %d\n",
-			       RINGBUF_TYPE_DATA);
+	ret = trace_seq_printf(s, "\tdata max type_len  == %d\n",
+			       RINGBUF_TYPE_DATA_TYPE_LEN_MAX);
 
 	return ret;
 }
@@ -204,7 +204,10 @@ EXPORT_SYMBOL_GPL(tracing_is_on);
 
 #define RB_EVNT_HDR_SIZE (offsetof(struct ring_buffer_event, array))
 #define RB_ALIGNMENT		4U
-#define RB_MAX_SMALL_DATA	28
+#define RB_MAX_SMALL_DATA	(RB_ALIGNMENT * RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
+
+/* define RINGBUF_TYPE_DATA for 'case RINGBUF_TYPE_DATA:' */
+#define RINGBUF_TYPE_DATA 0 ... RINGBUF_TYPE_DATA_TYPE_LEN_MAX
 
 enum {
 	RB_LEN_TIME_EXTEND = 8,
@@ -213,17 +216,18 @@ enum {
 
 static inline int rb_null_event(struct ring_buffer_event *event)
 {
-	return event->type == RINGBUF_TYPE_PADDING && event->time_delta == 0;
+	return event->type_len == RINGBUF_TYPE_PADDING
+			&& event->time_delta == 0;
 }
 
 static inline int rb_discarded_event(struct ring_buffer_event *event)
 {
-	return event->type == RINGBUF_TYPE_PADDING && event->time_delta;
+	return event->type_len == RINGBUF_TYPE_PADDING && event->time_delta;
 }
 
 static void rb_event_set_padding(struct ring_buffer_event *event)
 {
-	event->type = RINGBUF_TYPE_PADDING;
+	event->type_len = RINGBUF_TYPE_PADDING;
 	event->time_delta = 0;
 }
 
@@ -232,8 +236,8 @@ rb_event_data_length(struct ring_buffer_event *event)
 {
 	unsigned length;
 
-	if (event->len)
-		length = event->len * RB_ALIGNMENT;
+	if (event->type_len)
+		length = event->type_len * RB_ALIGNMENT;
 	else
 		length = event->array[0];
 	return length + RB_EVNT_HDR_SIZE;
@@ -243,12 +247,12 @@ rb_event_data_length(struct ring_buffer_event *event)
 static unsigned
 rb_event_length(struct ring_buffer_event *event)
 {
-	switch (event->type) {
+	switch (event->type_len) {
 	case RINGBUF_TYPE_PADDING:
 		if (rb_null_event(event))
 			/* undefined */
 			return -1;
-		return rb_event_data_length(event);
+		return  event->array[0] + RB_EVNT_HDR_SIZE;
 
 	case RINGBUF_TYPE_TIME_EXTEND:
 		return RB_LEN_TIME_EXTEND;
@@ -272,7 +276,7 @@ rb_event_length(struct ring_buffer_event *event)
 unsigned ring_buffer_event_length(struct ring_buffer_event *event)
 {
 	unsigned length = rb_event_length(event);
-	if (event->type != RINGBUF_TYPE_DATA)
+	if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 		return length;
 	length -= RB_EVNT_HDR_SIZE;
 	if (length > RB_MAX_SMALL_DATA + sizeof(event->array[0]))
@@ -285,9 +289,9 @@ EXPORT_SYMBOL_GPL(ring_buffer_event_length);
 static void *
 rb_event_data(struct ring_buffer_event *event)
 {
-	BUG_ON(event->type != RINGBUF_TYPE_DATA);
+	BUG_ON(event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX);
 	/* If length is in len field, then array[0] has the data */
-	if (event->len)
+	if (event->type_len)
 		return (void *)&event->array[0];
 	/* Otherwise length is in array[0] and array[1] has the data */
 	return (void *)&event->array[1];
@@ -988,7 +992,7 @@ static void rb_update_overflow(struct ring_buffer_per_cpu *cpu_buffer)
 		if (RB_WARN_ON(cpu_buffer, rb_null_event(event)))
 			return;
 		/* Only count data entries */
-		if (event->type != RINGBUF_TYPE_DATA)
+		if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 			continue;
 		cpu_buffer->overrun++;
 		cpu_buffer->entries--;
@@ -1133,28 +1137,21 @@ static void
 rb_update_event(struct ring_buffer_event *event,
 			 unsigned type, unsigned length)
 {
-	event->type = type;
+	event->type_len = type;
 
 	switch (type) {
 
 	case RINGBUF_TYPE_PADDING:
-		break;
-
 	case RINGBUF_TYPE_TIME_EXTEND:
-		event->len = DIV_ROUND_UP(RB_LEN_TIME_EXTEND, RB_ALIGNMENT);
-		break;
-
 	case RINGBUF_TYPE_TIME_STAMP:
-		event->len = DIV_ROUND_UP(RB_LEN_TIME_STAMP, RB_ALIGNMENT);
 		break;
 
-	case RINGBUF_TYPE_DATA:
+	case 0:
 		length -= RB_EVNT_HDR_SIZE;
-		if (length > RB_MAX_SMALL_DATA) {
-			event->len = 0;
+		if (length > RB_MAX_SMALL_DATA)
 			event->array[0] = length;
-		} else
-			event->len = DIV_ROUND_UP(length, RB_ALIGNMENT);
+		else
+			event->type_len = DIV_ROUND_UP(length, RB_ALIGNMENT);
 		break;
 	default:
 		BUG();
@@ -1562,7 +1559,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	if (length > BUF_PAGE_SIZE)
 		goto out;
 
-	event = rb_reserve_next_event(cpu_buffer, RINGBUF_TYPE_DATA, length);
+	event = rb_reserve_next_event(cpu_buffer, 0, length);
 	if (!event)
 		goto out;
 
@@ -1634,7 +1631,9 @@ EXPORT_SYMBOL_GPL(ring_buffer_unlock_commit);
 
 static inline void rb_event_discard(struct ring_buffer_event *event)
 {
-	event->type = RINGBUF_TYPE_PADDING;
+	/* array[0] holds the actual length for the discarded event */
+	event->array[0] = rb_event_data_length(event) - RB_EVNT_HDR_SIZE;
+	event->type_len = RINGBUF_TYPE_PADDING;
 	/* time delta must be non zero */
 	if (!event->time_delta)
 		event->time_delta = 1;
@@ -1786,8 +1785,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 		goto out;
 
 	event_length = rb_calculate_event_length(length);
-	event = rb_reserve_next_event(cpu_buffer,
-				      RINGBUF_TYPE_DATA, event_length);
+	event = rb_reserve_next_event(cpu_buffer, 0, event_length);
 	if (!event)
 		goto out;
 
@@ -2035,7 +2033,7 @@ rb_update_read_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 {
 	u64 delta;
 
-	switch (event->type) {
+	switch (event->type_len) {
 	case RINGBUF_TYPE_PADDING:
 		return;
 
@@ -2066,7 +2064,7 @@ rb_update_iter_read_stamp(struct ring_buffer_iter *iter,
 {
 	u64 delta;
 
-	switch (event->type) {
+	switch (event->type_len) {
 	case RINGBUF_TYPE_PADDING:
 		return;
 
@@ -2181,7 +2179,8 @@ static void rb_advance_reader(struct ring_buffer_per_cpu *cpu_buffer)
 
 	event = rb_reader_event(cpu_buffer);
 
-	if (event->type == RINGBUF_TYPE_DATA || rb_discarded_event(event))
+	if (event->type_len <= RINGBUF_TYPE_DATA_TYPE_LEN_MAX
+			|| rb_discarded_event(event))
 		cpu_buffer->entries--;
 
 	rb_update_read_stamp(cpu_buffer, event);
@@ -2262,7 +2261,7 @@ rb_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 
 	event = rb_reader_event(cpu_buffer);
 
-	switch (event->type) {
+	switch (event->type_len) {
 	case RINGBUF_TYPE_PADDING:
 		if (rb_null_event(event))
 			RB_WARN_ON(cpu_buffer, 1);
@@ -2334,7 +2333,7 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 
 	event = rb_iter_head_event(iter);
 
-	switch (event->type) {
+	switch (event->type_len) {
 	case RINGBUF_TYPE_PADDING:
 		if (rb_null_event(event)) {
 			rb_inc_iter(iter);
@@ -2393,7 +2392,7 @@ ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts)
 	event = rb_buffer_peek(buffer, cpu, ts);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
-	if (event && event->type == RINGBUF_TYPE_PADDING) {
+	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
 		cpu_relax();
 		goto again;
 	}
@@ -2421,7 +2420,7 @@ ring_buffer_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	event = rb_iter_peek(iter, ts);
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
-	if (event && event->type == RINGBUF_TYPE_PADDING) {
+	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
 		cpu_relax();
 		goto again;
 	}
@@ -2466,7 +2465,7 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts)
  out:
 	preempt_enable();
 
-	if (event && event->type == RINGBUF_TYPE_PADDING) {
+	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
 		cpu_relax();
 		goto again;
 	}
@@ -2559,7 +2558,7 @@ ring_buffer_read(struct ring_buffer_iter *iter, u64 *ts)
  out:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
 
-	if (event && event->type == RINGBUF_TYPE_PADDING) {
+	if (event && event->type_len == RINGBUF_TYPE_PADDING) {
 		cpu_relax();
 		goto again;
 	}
@@ -2766,7 +2765,7 @@ static void rb_remove_entries(struct ring_buffer_per_cpu *cpu_buffer,
 		if (RB_WARN_ON(cpu_buffer, rb_null_event(event)))
 			return;
 		/* Only count data entries */
-		if (event->type != RINGBUF_TYPE_DATA)
+		if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 			continue;
 		cpu_buffer->entries--;
 	}

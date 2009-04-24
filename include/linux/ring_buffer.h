@@ -11,7 +11,7 @@ struct ring_buffer_iter;
  * Don't refer to this struct directly, use functions below.
  */
 struct ring_buffer_event {
-	u32		type:2, len:3, time_delta:27;
+	u32		type_len:5, time_delta:27;
 	u32		array[];
 };
 
@@ -24,7 +24,8 @@ struct ring_buffer_event {
  *				  size is variable depending on how much
  *				  padding is needed
  *				 If time_delta is non zero:
- *				  everything else same as RINGBUF_TYPE_DATA
+ *				  array[0] holds the actual length
+ *				  size = 4 + length (bytes)
  *
  * @RINGBUF_TYPE_TIME_EXTEND:	Extend the time delta
  *				 array[0] = time delta (28 .. 59)
@@ -35,22 +36,23 @@ struct ring_buffer_event {
  *				 array[1..2] = tv_sec
  *				 size = 16 bytes
  *
- * @RINGBUF_TYPE_DATA:		Data record
- *				 If len is zero:
+ * <= @RINGBUF_TYPE_DATA_TYPE_LEN_MAX:
+ *				Data record
+ *				 If type_len is zero:
  *				  array[0] holds the actual length
  *				  array[1..(length+3)/4] holds data
- *				  size = 4 + 4 + length (bytes)
+ *				  size = 4 + length (bytes)
  *				 else
- *				  length = len << 2
+ *				  length = type_len << 2
  *				  array[0..(length+3)/4-1] holds data
  *				  size = 4 + length (bytes)
  */
 enum ring_buffer_type {
+	RINGBUF_TYPE_DATA_TYPE_LEN_MAX = 28,
 	RINGBUF_TYPE_PADDING,
 	RINGBUF_TYPE_TIME_EXTEND,
 	/* FIXME: RINGBUF_TYPE_TIME_STAMP not implemented */
 	RINGBUF_TYPE_TIME_STAMP,
-	RINGBUF_TYPE_DATA,
 };
 
 unsigned ring_buffer_event_length(struct ring_buffer_event *event);
