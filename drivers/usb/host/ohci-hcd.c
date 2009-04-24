@@ -1105,7 +1105,7 @@ static int __init ohci_hcd_mod_init(void)
 	set_bit(USB_OHCI_LOADED, &usb_hcds_loaded);
 
 #ifdef DEBUG
-	ohci_debug_root = debugfs_create_dir("ohci", NULL);
+	ohci_debug_root = debugfs_create_dir("ohci", usb_debug_root);
 	if (!ohci_debug_root) {
 		retval = -ENOENT;
 		goto error_debug;
