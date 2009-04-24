@@ -581,6 +581,11 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
 		struct acpi_processor_cx *cx = &pr->power.states[i];
 
+#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
+		/* TSC could halt in idle, so notify users */
+		if (tsc_halts_in_c(cx->type))
+			mark_tsc_unstable("TSC halts in idle");;
+#endif
 		switch (cx->type) {
 		case ACPI_STATE_C1:
 			cx->valid = 1;
@@ -657,11 +662,9 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 
 	seq_printf(seq, "active state:            C%zd\n"
 		   "max_cstate:              C%d\n"
-		   "bus master activity:     %08x\n"
 		   "maximum allowed latency: %d usec\n",
 		   pr->power.state ? pr->power.state - pr->power.states : 0,
-		   max_cstate, (unsigned)pr->power.bm_activity,
-		   pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY));
+		   max_cstate, pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY));
 
 	seq_puts(seq, "states:\n");
 
@@ -871,11 +874,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	kt2 = ktime_get_real();
 	idle_time =  ktime_to_us(ktime_sub(kt2, kt1));
 
-#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
-	/* TSC could halt in idle, so notify users */
-	if (tsc_halts_in_c(cx->type))
-		mark_tsc_unstable("TSC halts in idle");;
-#endif
 	sleep_ticks = us_to_pm_timer_ticks(idle_time);
 
 	/* Tell the scheduler how much we idled: */
@@ -989,11 +987,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		spin_unlock(&c3_lock);
 	}
 
-#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
-	/* TSC could halt in idle, so notify users */
-	if (tsc_halts_in_c(ACPI_STATE_C3))
-		mark_tsc_unstable("TSC halts in idle");
-#endif
 	sleep_ticks = us_to_pm_timer_ticks(idle_time);
 	/* Tell the scheduler how much we idled: */
 	sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
