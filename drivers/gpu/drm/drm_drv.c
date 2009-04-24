@@ -456,7 +456,8 @@ int drm_ioctl(struct inode *inode, struct file *filp,
 		retcode = -EINVAL;
 	} else if (((ioctl->flags & DRM_ROOT_ONLY) && !capable(CAP_SYS_ADMIN)) ||
 		   ((ioctl->flags & DRM_AUTH) && !file_priv->authenticated) ||
-		   ((ioctl->flags & DRM_MASTER) && !file_priv->is_master)) {
+		   ((ioctl->flags & DRM_MASTER) && !file_priv->is_master) ||
+		   (!(ioctl->flags & DRM_CONTROL_ALLOW) && (file_priv->minor->type == DRM_MINOR_CONTROL))) {
 		retcode = -EACCES;
 	} else {
 		if (cmd & (IOC_IN | IOC_OUT)) {
