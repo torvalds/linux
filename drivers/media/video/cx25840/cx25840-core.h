@@ -50,6 +50,7 @@ struct cx25840_state {
 	u32 rev;
 	int is_cx25836;
 	int is_cx23885;
+	int is_cx231xx;
 	int is_initialized;
 	wait_queue_head_t fw_wait;    /* wake up when the fw load is finished */
 	struct work_struct fw_work;   /* work entry for fw load */

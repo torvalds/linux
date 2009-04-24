@@ -115,7 +115,7 @@ extern int driver_probe_device(struct device_driver *drv, struct device *dev);
 static inline int driver_match_device(struct device_driver *drv,
 				      struct device *dev)
 {
-	return drv->bus->match && drv->bus->match(dev, drv);
+	return drv->bus->match ? drv->bus->match(dev, drv) : 1;
 }
 
 extern void sysdev_shutdown(void);

@@ -42,7 +42,7 @@
 #include <irq-mapping.h>
 #include <pnx833x.h>
 
-static u64 uart_dmamask     = DMA_32BIT_MASK;
+static u64 uart_dmamask     = DMA_BIT_MASK(32);
 
 static struct resource pnx833x_uart_resources[] = {
 	[0] = {
@@ -101,14 +101,14 @@ static struct platform_device pnx833x_uart_device = {
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &uart_dmamask,
-		.coherent_dma_mask	= DMA_32BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= pnx8xxx_ports,
 	},
 	.num_resources	= ARRAY_SIZE(pnx833x_uart_resources),
 	.resource	= pnx833x_uart_resources,
 };
 
-static u64 ehci_dmamask     = DMA_32BIT_MASK;
+static u64 ehci_dmamask     = DMA_BIT_MASK(32);
 
 static struct resource pnx833x_usb_ehci_resources[] = {
 	[0] = {
@@ -128,7 +128,7 @@ static struct platform_device pnx833x_usb_ehci_device = {
 	.id		= -1,
 	.dev = {
 		.dma_mask		= &ehci_dmamask,
-		.coherent_dma_mask	= DMA_32BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(pnx833x_usb_ehci_resources),
 	.resource	= pnx833x_usb_ehci_resources,
@@ -198,7 +198,7 @@ static struct platform_device pnx833x_i2c1_device = {
 };
 #endif
 
-static u64 ethernet_dmamask = DMA_32BIT_MASK;
+static u64 ethernet_dmamask = DMA_BIT_MASK(32);
 
 static struct resource pnx833x_ethernet_resources[] = {
 	[0] = {
@@ -218,7 +218,7 @@ static struct platform_device pnx833x_ethernet_device = {
 	.id   = -1,
 	.dev  = {
 		.dma_mask          = &ethernet_dmamask,
-		.coherent_dma_mask = DMA_32BIT_MASK,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.num_resources = ARRAY_SIZE(pnx833x_ethernet_resources),
 	.resource      = pnx833x_ethernet_resources,

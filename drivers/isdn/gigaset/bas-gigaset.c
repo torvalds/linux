@@ -821,7 +821,7 @@ static void read_iso_callback(struct urb *urb)
 		/* pass URB to tasklet */
 		ubc->isoindone = urb;
 		ubc->isoinstatus = status;
-		tasklet_schedule(&ubc->rcvd_tasklet);
+		tasklet_hi_schedule(&ubc->rcvd_tasklet);
 	} else {
 		/* tasklet still busy, drop data and resubmit URB */
 		ubc->loststatus = status;
@@ -888,7 +888,7 @@ static void write_iso_callback(struct urb *urb)
 	ubc->isooutovfl = ubc->isooutdone;
 	ubc->isooutdone = ucx;
 	spin_unlock_irqrestore(&ubc->isooutlock, flags);
-	tasklet_schedule(&ubc->sent_tasklet);
+	tasklet_hi_schedule(&ubc->sent_tasklet);
 }
 
 /* starturbs

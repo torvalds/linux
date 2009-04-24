@@ -418,17 +418,12 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 
 	if (count == 0)
 		goto out;
-	data = kmalloc(count, GFP_KERNEL);
-	if (!data) {
-		printk(KERN_ERR "%s: Out of memory whilst attempting to "
-		       "kmalloc([%zd], GFP_KERNEL)\n", __func__, count);
+
+	data = memdup_user(buf, count);
+	if (IS_ERR(data)) {
+		printk(KERN_ERR "%s: memdup_user returned error [%ld]\n",
+		       __func__, PTR_ERR(data));
 		goto out;
-	}
-	rc = copy_from_user(data, buf, count);
-	if (rc) {
-		printk(KERN_ERR "%s: copy_from_user returned error [%d]\n",
-		       __func__, rc);
-		goto out_free;
 	}
 	sz = count;
 	i = 0;

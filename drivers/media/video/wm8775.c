@@ -79,7 +79,8 @@ static int wm8775_write(struct v4l2_subdev *sd, int reg, u16 val)
 	return -1;
 }
 
-static int wm8775_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int wm8775_s_routing(struct v4l2_subdev *sd,
+			    u32 input, u32 output, u32 config)
 {
 	struct wm8775_state *state = to_state(sd);
 
@@ -88,11 +89,11 @@ static int wm8775_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 	   16 combinations.
 	   If only one input is active (the normal case) then the
 	   input values 1, 2, 4 or 8 should be used. */
-	if (route->input > 15) {
-		v4l2_err(sd, "Invalid input %d.\n", route->input);
+	if (input > 15) {
+		v4l2_err(sd, "Invalid input %d.\n", input);
 		return -EINVAL;
 	}
-	state->input = route->input;
+	state->input = input;
 	if (state->muted)
 		return 0;
 	wm8775_write(sd, R21, 0x0c0);

@@ -3076,6 +3076,11 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 	unsigned int wid_caps;
 
 	for (i = 0; i < num_outs && i < ARRAY_SIZE(chname); i++) {
+		if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
+			wid_caps = get_wcaps(codec, pins[i]);
+			if (wid_caps & AC_WCAP_UNSOL_CAP)
+				spec->hp_detect = 1;
+		}
 		nid = dac_nids[i];
 		if (!nid)
 			continue;
@@ -3119,11 +3124,6 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 			err = create_controls_idx(codec, name, idx, nid, 3);
 			if (err < 0)
 				return err;
-			if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
-				wid_caps = get_wcaps(codec, pins[i]);
-				if (wid_caps & AC_WCAP_UNSOL_CAP)
-					spec->hp_detect = 1;
-			}
 		}
 	}
 	return 0;
@@ -3851,6 +3851,15 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 			   AC_VERB_SET_GPIO_DATA, gpiostate); /* sync */
 }
 
+#ifdef CONFIG_SND_JACK
+static void stac92xx_free_jack_priv(struct snd_jack *jack)
+{
+	struct sigmatel_jack *jacks = jack->private_data;
+	jacks->nid = 0;
+	jacks->jack = NULL;
+}
+#endif
+
 static int stac92xx_add_jack(struct hda_codec *codec,
 		hda_nid_t nid, int type)
 {
@@ -3860,6 +3869,7 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 	int def_conf = snd_hda_codec_get_pincfg(codec, nid);
 	int connectivity = get_defcfg_connect(def_conf);
 	char name[32];
+	int err;
 
 	if (connectivity && connectivity != AC_JACK_PORT_FIXED)
 		return 0;
@@ -3876,10 +3886,15 @@ static int stac92xx_add_jack(struct hda_codec *codec,
 		snd_hda_get_jack_connectivity(def_conf),
 		snd_hda_get_jack_location(def_conf));
 
-	return snd_jack_new(codec->bus->card, name, type, &jack->jack);
-#else
-	return 0;
+	err = snd_jack_new(codec->bus->card, name, type, &jack->jack);
+	if (err < 0) {
+		jack->nid = 0;
+		return err;
+	}
+	jack->jack->private_data = jack;
+	jack->jack->private_free = stac92xx_free_jack_priv;
 #endif
+	return 0;
 }
 
 static int stac_add_event(struct sigmatel_spec *spec, hda_nid_t nid,
@@ -4138,8 +4153,10 @@ static void stac92xx_free_jacks(struct hda_codec *codec)
 	if (!codec->bus->shutdown && spec->jacks.list) {
 		struct sigmatel_jack *jacks = spec->jacks.list;
 		int i;
-		for (i = 0; i < spec->jacks.used; i++)
-			snd_device_free(codec->bus->card, &jacks[i].jack);
+		for (i = 0; i < spec->jacks.used; i++, jacks++) {
+			if (jacks->jack)
+				snd_device_free(codec->bus->card, jacks->jack);
+		}
 	}
 	snd_array_free(&spec->jacks);
 #endif
@@ -4413,6 +4430,24 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 		if (spec->num_pwrs > 0)
 			stac92xx_pin_sense(codec, event->nid);
 		stac92xx_report_jack(codec, event->nid);
+
+		switch (codec->subsystem_id) {
+		case 0x103c308f:
+			if (event->nid == 0xb) {
+				int pin = AC_PINCTL_IN_EN;
+
+				if (get_pin_presence(codec, 0xa)
+						&& get_pin_presence(codec, 0xb))
+					pin |= AC_PINCTL_VREF_80;
+				if (!get_pin_presence(codec, 0xb))
+					pin |= AC_PINCTL_VREF_80;
+
+				/* toggle VREF state based on mic + hp pin
+				 * status
+				 */
+				stac92xx_auto_set_pinctl(codec, 0x0a, pin);
+			}
+		}
 		break;
 	case STAC_VREF_EVENT:
 		data = snd_hda_codec_read(codec, codec->afg, 0,
@@ -4895,6 +4930,7 @@ again:
 	switch (codec->vendor_id) {
 	case 0x111d7604:
 	case 0x111d7605:
+	case 0x111d76d5:
 		if (spec->board_config == STAC_92HD83XXX_PWR_REF)
 			break;
 		spec->num_pwrs = 0;
@@ -5707,6 +5743,7 @@ static struct hda_codec_preset snd_hda_preset_sigmatel[] = {
 	{ .id = 0x111d7603, .name = "92HD75B3X5", .patch = patch_stac92hd71bxx},
 	{ .id = 0x111d7604, .name = "92HD83C1X5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7605, .name = "92HD81B1X5", .patch = patch_stac92hd83xxx},
+	{ .id = 0x111d76d5, .name = "92HD81B1C5", .patch = patch_stac92hd83xxx},
 	{ .id = 0x111d7608, .name = "92HD75B2X5", .patch = patch_stac92hd71bxx},
 	{ .id = 0x111d7674, .name = "92HD73D1X5", .patch = patch_stac92hd73xx },
 	{ .id = 0x111d7675, .name = "92HD73C1X5", .patch = patch_stac92hd73xx },

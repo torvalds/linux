@@ -339,20 +339,8 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
-static int maxiradio_open(struct file *file)
-{
-	return 0;
-}
-
-static int maxiradio_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations maxiradio_fops = {
 	.owner		= THIS_MODULE,
-	.open           = maxiradio_open,
-	.release        = maxiradio_release,
 	.ioctl          = video_ioctl2,
 };
 

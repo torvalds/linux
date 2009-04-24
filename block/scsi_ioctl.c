@@ -217,7 +217,7 @@ static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
 static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 				 struct bio *bio)
 {
-	int ret = 0;
+	int r, ret = 0;
 
 	/*
 	 * fill in all the output members
@@ -242,7 +242,9 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 			ret = -EFAULT;
 	}
 
-	blk_rq_unmap_user(bio);
+	r = blk_rq_unmap_user(bio);
+	if (!ret)
+		ret = r;
 	blk_put_request(rq);
 
 	return ret;

@@ -1100,7 +1100,7 @@ static int mx3_camera_probe(struct platform_device *pdev)
 	}
 	memset(mx3_cam, 0, sizeof(*mx3_cam));
 
-	mx3_cam->clk = clk_get(&pdev->dev, "csi_clk");
+	mx3_cam->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(mx3_cam->clk)) {
 		err = PTR_ERR(mx3_cam->clk);
 		goto eclkget;

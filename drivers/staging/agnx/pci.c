@@ -477,8 +477,8 @@ static int __devinit agnx_pci_probe(struct pci_dev *pdev,
 		return err;
 	}
 
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) ||
-	    pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) ||
+	    pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR PFX "No suitable DMA available\n");
 		goto err_free_reg;
 	}

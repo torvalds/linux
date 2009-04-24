@@ -426,6 +426,7 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	if (type == NES_TIMER_TYPE_CLOSE) {
 		new_send->timetosend += (HZ/10);
 		if (cm_node->recv_entry) {
+			kfree(new_send);
 			WARN_ON(1);
 			return -EINVAL;
 		}
@@ -445,8 +446,8 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		if (ret != NETDEV_TX_OK) {
 			nes_debug(NES_DBG_CM, "Error sending packet %p "
 				"(jiffies = %lu)\n", new_send, jiffies);
-			atomic_dec(&new_send->skb->users);
 			new_send->timetosend = jiffies;
+			ret = NETDEV_TX_OK;
 		} else {
 			cm_packets_sent++;
 			if (!send_retrans) {
@@ -630,7 +631,6 @@ static void nes_cm_timer_tick(unsigned long pass)
 				nes_debug(NES_DBG_CM, "rexmit failed for "
 					"node=%p\n", cm_node);
 				cm_packets_bounced++;
-				atomic_dec(&send_entry->skb->users);
 				send_entry->retrycount--;
 				nexttimeout = jiffies + NES_SHORT_TIME;
 				settimer = 1;
@@ -666,11 +666,6 @@ static void nes_cm_timer_tick(unsigned long pass)
 
 		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
-		if (ret != NETDEV_TX_OK) {
-			nes_debug(NES_DBG_CM, "rexmit failed for cm_node=%p\n",
-				cm_node);
-			break;
-		}
 	}
 
 	if (settimer) {
@@ -1262,7 +1257,6 @@ static int rem_ref_cm_node(struct nes_cm_core *cm_core,
 		cm_node->nesqp = NULL;
 	}
 
-	cm_node->freed = 1;
 	kfree(cm_node);
 	return 0;
 }
@@ -1999,13 +1993,17 @@ static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 		if (loopbackremotelistener == NULL) {
 			create_event(cm_node, NES_CM_EVENT_ABORTED);
 		} else {
-			atomic_inc(&cm_loopbacks);
 			loopback_cm_info = *cm_info;
 			loopback_cm_info.loc_port = cm_info->rem_port;
 			loopback_cm_info.rem_port = cm_info->loc_port;
 			loopback_cm_info.cm_id = loopbackremotelistener->cm_id;
 			loopbackremotenode = make_cm_node(cm_core, nesvnic,
 				&loopback_cm_info, loopbackremotelistener);
+			if (!loopbackremotenode) {
+				rem_ref_cm_node(cm_node->cm_core, cm_node);
+				return NULL;
+			}
+			atomic_inc(&cm_loopbacks);
 			loopbackremotenode->loopbackpartner = cm_node;
 			loopbackremotenode->tcp_cntxt.rcv_wscale =
 				NES_CM_DEFAULT_RCV_WND_SCALE;
@@ -2690,6 +2688,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct ib_mr *ibmr = NULL;
 	struct ib_phys_buf ibphysbuf;
 	struct nes_pd *nespd;
+	u64 tagged_offset;
 
 
 
@@ -2755,10 +2754,11 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ibphysbuf.addr = nesqp->ietf_frame_pbase;
 		ibphysbuf.size = conn_param->private_data_len +
 					sizeof(struct ietf_mpa_frame);
+		tagged_offset = (u64)(unsigned long)nesqp->ietf_frame;
 		ibmr = nesibdev->ibdev.reg_phys_mr((struct ib_pd *)nespd,
 						&ibphysbuf, 1,
 						IB_ACCESS_LOCAL_WRITE,
-						(u64 *)&nesqp->ietf_frame);
+						&tagged_offset);
 		if (!ibmr) {
 			nes_debug(NES_DBG_CM, "Unable to register memory region"
 					"for lSMM for cm_node = %p \n",
@@ -2782,7 +2782,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			sizeof(struct ietf_mpa_frame));
 		set_wqe_64bit_value(wqe->wqe_words,
 					NES_IWARP_SQ_WQE_FRAG0_LOW_IDX,
-					(u64)nesqp->ietf_frame);
+					(u64)(unsigned long)nesqp->ietf_frame);
 		wqe->wqe_words[NES_IWARP_SQ_WQE_LENGTH0_IDX] =
 			cpu_to_le32(conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));

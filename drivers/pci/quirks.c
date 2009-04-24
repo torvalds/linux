@@ -36,17 +36,18 @@ EXPORT_SYMBOL(pcie_mch_quirk);
 
 #ifdef CONFIG_PCI_QUIRKS
 /*
- * This quirk function disables the device and releases resources
- * which is specified by kernel's boot parameter 'pci=resource_alignment='.
+ * This quirk function disables memory decoding and releases memory resources
+ * of the device specified by kernel's boot parameter 'pci=resource_alignment='.
  * It also rounds up size to specified alignment.
  * Later on, the kernel will assign page-aligned memory resource back
- * to that device.
+ * to the device.
  */
 static void __devinit quirk_resource_alignment(struct pci_dev *dev)
 {
 	int i;
 	struct resource *r;
 	resource_size_t align, size;
+	u16 command;
 
 	if (!pci_is_reassigndev(dev))
 		return;
@@ -58,8 +59,11 @@ static void __devinit quirk_resource_alignment(struct pci_dev *dev)
 		return;
 	}
 
-	dev_info(&dev->dev, "Disabling device and release resources.\n");
-	pci_disable_device(dev);
+	dev_info(&dev->dev,
+		"Disabling memory decoding and releasing memory resources.\n");
+	pci_read_config_word(dev, PCI_COMMAND, &command);
+	command &= ~PCI_COMMAND_MEMORY;
+	pci_write_config_word(dev, PCI_COMMAND, command);
 
 	align = pci_specified_resource_alignment(dev);
 	for (i=0; i < PCI_BRIDGE_RESOURCES; i++) {
@@ -2410,6 +2414,54 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x4375,
 			quirk_msi_intx_disable_bug);
 
 #endif /* CONFIG_PCI_MSI */
+
+#ifdef CONFIG_PCI_IOV
+
+/*
+ * For Intel 82576 SR-IOV NIC, if BIOS doesn't allocate resources for the
+ * SR-IOV BARs, zero the Flash BAR and program the SR-IOV BARs to use the
+ * old Flash Memory Space.
+ */
+static void __devinit quirk_i82576_sriov(struct pci_dev *dev)
+{
+	int pos, flags;
+	u32 bar, start, size;
+
+	if (PAGE_SIZE > 0x10000)
+		return;
+
+	flags = pci_resource_flags(dev, 0);
+	if ((flags & PCI_BASE_ADDRESS_SPACE) !=
+			PCI_BASE_ADDRESS_SPACE_MEMORY ||
+	    (flags & PCI_BASE_ADDRESS_MEM_TYPE_MASK) !=
+			PCI_BASE_ADDRESS_MEM_TYPE_32)
+		return;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return;
+
+	pci_read_config_dword(dev, pos + PCI_SRIOV_BAR, &bar);
+	if (bar & PCI_BASE_ADDRESS_MEM_MASK)
+		return;
+
+	start = pci_resource_start(dev, 1);
+	size = pci_resource_len(dev, 1);
+	if (!start || size != 0x400000 || start & (size - 1))
+		return;
+
+	pci_resource_flags(dev, 1) = 0;
+	pci_write_config_dword(dev, PCI_BASE_ADDRESS_1, 0);
+	pci_write_config_dword(dev, pos + PCI_SRIOV_BAR, start);
+	pci_write_config_dword(dev, pos + PCI_SRIOV_BAR + 12, start + size / 2);
+
+	dev_info(&dev->dev, "use Flash Memory Space for SR-IOV BARs\n");
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10c9, quirk_i82576_sriov);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e6, quirk_i82576_sriov);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e7, quirk_i82576_sriov);
+
+#endif	/* CONFIG_PCI_IOV */
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)

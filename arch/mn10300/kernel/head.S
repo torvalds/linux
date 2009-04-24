@@ -17,7 +17,7 @@
 #include <asm/pgtable.h>
 #include <asm/frame.inc>
 #include <asm/param.h>
-#include <asm/unit/serial.h>
+#include <unit/serial.h>
 
 	.section .text.head,"ax"
 

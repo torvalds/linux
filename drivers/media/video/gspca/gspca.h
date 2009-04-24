@@ -56,6 +56,7 @@ struct cam {
 				 * - cannot be > MAX_NURBS
 				 * - when 0 and bulk_size != 0 means
 				 *   1 URB and submit done by subdriver */
+	u32 input_flags;	/* value for ENUM_INPUT status flags */
 };
 
 struct gspca_dev;

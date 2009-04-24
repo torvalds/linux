@@ -37,7 +37,7 @@
 #include <linux/version.h>
 #include <linux/mutex.h>
 
-#define CX23885_VERSION_CODE KERNEL_VERSION(0, 0, 1)
+#define CX23885_VERSION_CODE KERNEL_VERSION(0, 0, 2)
 
 #define UNSET (-1U)
 

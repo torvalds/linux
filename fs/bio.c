@@ -348,6 +348,24 @@ err:
 	return NULL;
 }
 
+/**
+ * bio_alloc - allocate a bio for I/O
+ * @gfp_mask:   the GFP_ mask given to the slab allocator
+ * @nr_iovecs:	number of iovecs to pre-allocate
+ *
+ * Description:
+ *   bio_alloc will allocate a bio and associated bio_vec array that can hold
+ *   at least @nr_iovecs entries. Allocations will be done from the
+ *   fs_bio_set. Also see @bio_alloc_bioset.
+ *
+ *   If %__GFP_WAIT is set, then bio_alloc will always be able to allocate
+ *   a bio. This is due to the mempool guarantees. To make this work, callers
+ *   must never allocate more than 1 bio at the time from this pool. Callers
+ *   that need to allocate more than 1 bio must always submit the previously
+ *   allocate bio for IO before attempting to allocate a new one. Failure to
+ *   do so can cause livelocks under memory pressure.
+ *
+ **/
 struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
 {
 	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);

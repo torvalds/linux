@@ -33,7 +33,6 @@
 int cx18_audio_set_io(struct cx18 *cx)
 {
 	const struct cx18_card_audio_input *in;
-	struct v4l2_routing route;
 	u32 val;
 	int err;
 
@@ -44,13 +43,11 @@ int cx18_audio_set_io(struct cx18 *cx)
 		in = &cx->card->audio_inputs[cx->audio_input];
 
 	/* handle muxer chips */
-	route.input = in->muxer_input;
-	route.output = 0;
-	v4l2_subdev_call(cx->sd_extmux, audio, s_routing, &route);
+	v4l2_subdev_call(cx->sd_extmux, audio, s_routing,
+			in->audio_input, 0, 0);
 
-	route.input = in->audio_input;
 	err = cx18_call_hw_err(cx, cx->card->hw_audio_ctrl,
-			       audio, s_routing, &route);
+			       audio, s_routing, in->audio_input, 0, 0);
 	if (err)
 		return err;
 

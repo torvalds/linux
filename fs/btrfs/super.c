@@ -635,14 +635,9 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	vol = kmalloc(sizeof(*vol), GFP_KERNEL);
-	if (!vol)
-		return -ENOMEM;
-
-	if (copy_from_user(vol, (void __user *)arg, sizeof(*vol))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	vol = memdup_user((void __user *)arg, sizeof(*vol));
+	if (IS_ERR(vol))
+		return PTR_ERR(vol);
 
 	switch (cmd) {
 	case BTRFS_IOC_SCAN_DEV:
@@ -650,7 +645,7 @@ static long btrfs_control_ioctl(struct file *file, unsigned int cmd,
 					    &btrfs_fs_type, &fs_devices);
 		break;
 	}
-out:
+
 	kfree(vol);
 	return ret;
 }

@@ -2170,15 +2170,12 @@ static int musb_suspend(struct platform_device *pdev, pm_message_t message)
 	return 0;
 }
 
-static int musb_resume(struct platform_device *pdev)
+static int musb_resume_early(struct platform_device *pdev)
 {
-	unsigned long	flags;
 	struct musb	*musb = dev_to_musb(&pdev->dev);
 
 	if (!musb->clock)
 		return 0;
-
-	spin_lock_irqsave(&musb->lock, flags);
 
 	if (musb->set_clock)
 		musb->set_clock(musb->clock, 1);
@@ -2186,10 +2183,9 @@ static int musb_resume(struct platform_device *pdev)
 		clk_enable(musb->clock);
 
 	/* for static cmos like DaVinci, register values were preserved
-	 * unless for some reason the whole soc powered down and we're
-	 * not treating that as a whole-system restart (e.g. swsusp)
+	 * unless for some reason the whole soc powered down or the USB
+	 * module got reset through the PSC (vs just being disabled).
 	 */
-	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
 }
 
@@ -2207,7 +2203,7 @@ static struct platform_driver musb_driver = {
 	.remove		= __devexit_p(musb_remove),
 	.shutdown	= musb_shutdown,
 	.suspend	= musb_suspend,
-	.resume		= musb_resume,
+	.resume_early	= musb_resume_early,
 };
 
 /*-------------------------------------------------------------------------*/

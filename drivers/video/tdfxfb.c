@@ -10,6 +10,12 @@
  * Created      : Thu Sep 23 18:17:43 1999, hmallat
  * Last modified: Tue Nov  2 21:19:47 1999, hmallat
  *
+ * I2C part copied from the i2c-voodoo3.c driver by:
+ * Frodo Looijaard <frodol@dds.nl>,
+ * Philip Edelbrock <phil@netroedge.com>,
+ * Ralph Metzler <rjkm@thp.uni-koeln.de>, and
+ * Mark D. Studebaker <mdsxyz123@yahoo.com>
+ *
  * Lots of the information here comes from the Daryll Strauss' Banshee
  * patches to the XF86 server, and the rest comes from the 3dfx
  * Banshee specification. I'm very much indebted to Daryll for his
@@ -478,6 +484,12 @@ static int tdfxfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	if (((var->vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) &&
 	    (par->max_pixclock < VOODOO3_MAX_PIXCLOCK)) {
 		DPRINTK("interlace not supported\n");
+		return -EINVAL;
+	}
+
+	if (info->monspecs.hfmax && info->monspecs.vfmax &&
+	    info->monspecs.dclkmax && fb_validate_mode(var, info) < 0) {
+		DPRINTK("mode outside monitor's specs\n");
 		return -EINVAL;
 	}
 
@@ -1167,6 +1179,207 @@ static struct fb_ops tdfxfb_ops = {
 #endif
 };
 
+#ifdef CONFIG_FB_3DFX_I2C
+/* The voo GPIO registers don't have individual masks for each bit
+   so we always have to read before writing. */
+
+static void tdfxfb_i2c_setscl(void *data, int val)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+	unsigned int r;
+
+	r = tdfx_inl(par, VIDSERPARPORT);
+	if (val)
+		r |= I2C_SCL_OUT;
+	else
+		r &= ~I2C_SCL_OUT;
+	tdfx_outl(par, VIDSERPARPORT, r);
+	tdfx_inl(par, VIDSERPARPORT);	/* flush posted write */
+}
+
+static void tdfxfb_i2c_setsda(void *data, int val)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+	unsigned int r;
+
+	r = tdfx_inl(par, VIDSERPARPORT);
+	if (val)
+		r |= I2C_SDA_OUT;
+	else
+		r &= ~I2C_SDA_OUT;
+	tdfx_outl(par, VIDSERPARPORT, r);
+	tdfx_inl(par, VIDSERPARPORT);	/* flush posted write */
+}
+
+/* The GPIO pins are open drain, so the pins always remain outputs.
+   We rely on the i2c-algo-bit routines to set the pins high before
+   reading the input from other chips. */
+
+static int tdfxfb_i2c_getscl(void *data)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+
+	return (0 != (tdfx_inl(par, VIDSERPARPORT) & I2C_SCL_IN));
+}
+
+static int tdfxfb_i2c_getsda(void *data)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+
+	return (0 != (tdfx_inl(par, VIDSERPARPORT) & I2C_SDA_IN));
+}
+
+static void tdfxfb_ddc_setscl(void *data, int val)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+	unsigned int r;
+
+	r = tdfx_inl(par, VIDSERPARPORT);
+	if (val)
+		r |= DDC_SCL_OUT;
+	else
+		r &= ~DDC_SCL_OUT;
+	tdfx_outl(par, VIDSERPARPORT, r);
+	tdfx_inl(par, VIDSERPARPORT);	/* flush posted write */
+}
+
+static void tdfxfb_ddc_setsda(void *data, int val)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+	unsigned int r;
+
+	r = tdfx_inl(par, VIDSERPARPORT);
+	if (val)
+		r |= DDC_SDA_OUT;
+	else
+		r &= ~DDC_SDA_OUT;
+	tdfx_outl(par, VIDSERPARPORT, r);
+	tdfx_inl(par, VIDSERPARPORT);	/* flush posted write */
+}
+
+static int tdfxfb_ddc_getscl(void *data)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+
+	return (0 != (tdfx_inl(par, VIDSERPARPORT) & DDC_SCL_IN));
+}
+
+static int tdfxfb_ddc_getsda(void *data)
+{
+	struct tdfxfb_i2c_chan 	*chan = data;
+	struct tdfx_par 	*par = chan->par;
+
+	return (0 != (tdfx_inl(par, VIDSERPARPORT) & DDC_SDA_IN));
+}
+
+static int __devinit tdfxfb_setup_ddc_bus(struct tdfxfb_i2c_chan *chan,
+					  const char *name, struct device *dev)
+{
+	int rc;
+
+	strlcpy(chan->adapter.name, name, sizeof(chan->adapter.name));
+	chan->adapter.owner		= THIS_MODULE;
+	chan->adapter.class		= I2C_CLASS_DDC;
+	chan->adapter.algo_data		= &chan->algo;
+	chan->adapter.dev.parent	= dev;
+	chan->algo.setsda		= tdfxfb_ddc_setsda;
+	chan->algo.setscl		= tdfxfb_ddc_setscl;
+	chan->algo.getsda		= tdfxfb_ddc_getsda;
+	chan->algo.getscl		= tdfxfb_ddc_getscl;
+	chan->algo.udelay		= 10;
+	chan->algo.timeout		= msecs_to_jiffies(500);
+	chan->algo.data 		= chan;
+
+	i2c_set_adapdata(&chan->adapter, chan);
+
+	rc = i2c_bit_add_bus(&chan->adapter);
+	if (rc == 0)
+		DPRINTK("I2C bus %s registered.\n", name);
+	else
+		chan->par = NULL;
+
+	return rc;
+}
+
+static int __devinit tdfxfb_setup_i2c_bus(struct tdfxfb_i2c_chan *chan,
+					  const char *name, struct device *dev)
+{
+	int rc;
+
+	strlcpy(chan->adapter.name, name, sizeof(chan->adapter.name));
+	chan->adapter.owner		= THIS_MODULE;
+	chan->adapter.class		= I2C_CLASS_TV_ANALOG;
+	chan->adapter.algo_data		= &chan->algo;
+	chan->adapter.dev.parent	= dev;
+	chan->algo.setsda		= tdfxfb_i2c_setsda;
+	chan->algo.setscl		= tdfxfb_i2c_setscl;
+	chan->algo.getsda		= tdfxfb_i2c_getsda;
+	chan->algo.getscl		= tdfxfb_i2c_getscl;
+	chan->algo.udelay		= 10;
+	chan->algo.timeout		= msecs_to_jiffies(500);
+	chan->algo.data 		= chan;
+
+	i2c_set_adapdata(&chan->adapter, chan);
+
+	rc = i2c_bit_add_bus(&chan->adapter);
+	if (rc == 0)
+		DPRINTK("I2C bus %s registered.\n", name);
+	else
+		chan->par = NULL;
+
+	return rc;
+}
+
+static void __devinit tdfxfb_create_i2c_busses(struct fb_info *info)
+{
+	struct tdfx_par *par = info->par;
+
+	tdfx_outl(par, VIDINFORMAT, 0x8160);
+	tdfx_outl(par, VIDSERPARPORT, 0xcffc0020);
+
+	par->chan[0].par = par;
+	par->chan[1].par = par;
+
+	tdfxfb_setup_ddc_bus(&par->chan[0], "Voodoo3-DDC", info->dev);
+	tdfxfb_setup_i2c_bus(&par->chan[1], "Voodoo3-I2C", info->dev);
+}
+
+static void tdfxfb_delete_i2c_busses(struct tdfx_par *par)
+{
+	if (par->chan[0].par)
+		i2c_del_adapter(&par->chan[0].adapter);
+	par->chan[0].par = NULL;
+
+	if (par->chan[1].par)
+		i2c_del_adapter(&par->chan[1].adapter);
+	par->chan[1].par = NULL;
+}
+
+static int tdfxfb_probe_i2c_connector(struct tdfx_par *par,
+				      struct fb_monspecs *specs)
+{
+	u8 *edid = NULL;
+
+	DPRINTK("Probe DDC Bus\n");
+	if (par->chan[0].par)
+		edid = fb_ddc_read(&par->chan[0].adapter);
+
+	if (edid) {
+		fb_edid_to_monspecs(edid, specs);
+		kfree(edid);
+		return 0;
+	}
+	return 1;
+}
+#endif /* CONFIG_FB_3DFX_I2C */
+
 /**
  *      tdfxfb_probe - Device Initializiation
  *
@@ -1182,6 +1395,8 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	struct tdfx_par *default_par;
 	struct fb_info *info;
 	int err, lpitch;
+	struct fb_monspecs *specs;
+	bool found;
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -1284,13 +1499,49 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	if (hwcursor)
 		info->fix.smem_len = (info->fix.smem_len - 1024) &
 					(PAGE_MASK << 1);
+	specs = &info->monspecs;
+	found = false;
+	info->var.bits_per_pixel = 8;
+#ifdef CONFIG_FB_3DFX_I2C
+	tdfxfb_create_i2c_busses(info);
+	err = tdfxfb_probe_i2c_connector(default_par, specs);
 
-	if (!mode_option)
+	if (!err) {
+		if (specs->modedb == NULL)
+			DPRINTK("Unable to get Mode Database\n");
+		else {
+			const struct fb_videomode *m;
+
+			fb_videomode_to_modelist(specs->modedb,
+						 specs->modedb_len,
+						 &info->modelist);
+			m = fb_find_best_display(specs, &info->modelist);
+			if (m) {
+				fb_videomode_to_var(&info->var, m);
+				/* fill all other info->var's fields */
+				if (tdfxfb_check_var(&info->var, info) < 0)
+					info->var = tdfx_var;
+				else
+					found = true;
+			}
+		}
+	}
+#endif
+	if (!mode_option && !found)
 		mode_option = "640x480@60";
 
-	err = fb_find_mode(&info->var, info, mode_option, NULL, 0, NULL, 8);
-	if (!err || err == 4)
-		info->var = tdfx_var;
+	if (mode_option) {
+		err = fb_find_mode(&info->var, info, mode_option,
+				   specs->modedb, specs->modedb_len,
+				   NULL, info->var.bits_per_pixel);
+		if (!err || err == 4)
+			info->var = tdfx_var;
+	}
+
+	if (found) {
+		fb_destroy_modedb(specs->modedb);
+		specs->modedb = NULL;
+	}
 
 	/* maximize virtual vertical length */
 	lpitch = info->var.xres_virtual * ((info->var.bits_per_pixel + 7) >> 3);
@@ -1315,6 +1566,9 @@ static int __devinit tdfxfb_probe(struct pci_dev *pdev,
 	return 0;
 
 out_err_iobase:
+#ifdef CONFIG_FB_3DFX_I2C
+	tdfxfb_delete_i2c_busses(default_par);
+#endif
 	if (default_par->mtrr_handle >= 0)
 		mtrr_del(default_par->mtrr_handle, info->fix.smem_start,
 			 info->fix.smem_len);
@@ -1379,6 +1633,9 @@ static void __devexit tdfxfb_remove(struct pci_dev *pdev)
 	struct tdfx_par *par = info->par;
 
 	unregister_framebuffer(info);
+#ifdef CONFIG_FB_3DFX_I2C
+	tdfxfb_delete_i2c_busses(par);
+#endif
 	if (par->mtrr_handle >= 0)
 		mtrr_del(par->mtrr_handle, info->fix.smem_start,
 			 info->fix.smem_len);

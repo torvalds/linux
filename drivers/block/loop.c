@@ -1431,6 +1431,7 @@ static int lo_open(struct block_device *bdev, fmode_t mode)
 static int lo_release(struct gendisk *disk, fmode_t mode)
 {
 	struct loop_device *lo = disk->private_data;
+	int err;
 
 	mutex_lock(&lo->lo_ctl_mutex);
 
@@ -1442,7 +1443,9 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 		 * In autoclear mode, stop the loop thread
 		 * and remove configuration after last close.
 		 */
-		loop_clr_fd(lo, NULL);
+		err = loop_clr_fd(lo, NULL);
+		if (!err)
+			goto out_unlocked;
 	} else {
 		/*
 		 * Otherwise keep thread (if running) and config,
@@ -1453,7 +1456,7 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 
 out:
 	mutex_unlock(&lo->lo_ctl_mutex);
-
+out_unlocked:
 	return 0;
 }
 

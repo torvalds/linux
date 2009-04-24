@@ -105,13 +105,10 @@ void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev cx2584x update...");
 	if (hdw->input_dirty || hdw->force_dirty) {
-		struct v4l2_routing route;
 		enum cx25840_video_input vid_input;
 		enum cx25840_audio_input aud_input;
 		const struct routing_scheme *sp;
 		unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
-
-		memset(&route, 0, sizeof(route));
 
 		if ((sid < ARRAY_SIZE(routing_schemes)) &&
 		    ((sp = routing_schemes + sid) != NULL) &&
@@ -131,10 +128,8 @@ void pvr2_cx25840_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		pvr2_trace(PVR2_TRACE_CHIPS,
 			   "subdev cx2584x set_input vid=0x%x aud=0x%x",
 			   vid_input, aud_input);
-		route.input = (u32)vid_input;
-		sd->ops->video->s_routing(sd, &route);
-		route.input = (u32)aud_input;
-		sd->ops->audio->s_routing(sd, &route);
+		sd->ops->video->s_routing(sd, (u32)vid_input, 0, 0);
+		sd->ops->audio->s_routing(sd, (u32)aud_input, 0, 0);
 	}
 }
 

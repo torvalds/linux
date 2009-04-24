@@ -80,7 +80,8 @@ struct msp_state {
 	int i2s_mode;
 	int main, second;	/* sound carrier */
 	int input;
-	struct v4l2_routing routing;
+	u32 route_in;
+	u32 route_out;
 
 	/* v4l2 */
 	int audmode;

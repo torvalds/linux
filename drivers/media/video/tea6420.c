@@ -48,15 +48,15 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* make a connection between the input 'i' and the output 'o'
    with gain 'g' (note: i = 6 means 'mute') */
-static int tea6420_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int tea6420_s_routing(struct v4l2_subdev *sd,
+			     u32 i, u32 o, u32 config)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int i = route->input;
-	int o = route->output & 0xf;
-	int g = (route->output >> 4) & 0xf;
+	int g = (o >> 4) & 0xf;
 	u8 byte;
 	int ret;
 
+	o &= 0xf;
 	v4l2_dbg(1, debug, sd, "i=%d, o=%d, g=%d\n", i, o, g);
 
 	/* check if the parameters are valid */
@@ -133,13 +133,8 @@ static int tea6420_probe(struct i2c_client *client,
 
 	/* set initial values: set "mute"-input to all outputs at gain 0 */
 	err = 0;
-	for (i = 1; i < 5; i++) {
-		struct v4l2_routing route;
-
-		route.input = 6;
-		route.output = i;
-		err += tea6420_s_routing(sd, &route);
-	}
+	for (i = 1; i < 5; i++)
+		err += tea6420_s_routing(sd, 6, i, 0);
 	if (err) {
 		v4l_dbg(1, debug, client, "could not initialize tea6420\n");
 		return -ENODEV;
@@ -155,7 +150,6 @@ static int tea6420_remove(struct i2c_client *client)
 	kfree(sd);
 	return 0;
 }
-
 
 static const struct i2c_device_id tea6420_id[] = {
 	{ "tea6420", 0 },

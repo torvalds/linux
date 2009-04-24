@@ -1534,13 +1534,13 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 
 	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
 
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)
-	    && !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK)) {
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))
+	    && !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
 		    ": 64 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
 		    ioc->name));
-	} else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK)
-	    && !pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))
+	    && !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		dinitprintk(ioc, printk(MYIOC_s_INFO_FMT
 		    ": 32 BIT PCI BUS DMA ADDRESSING SUPPORTED\n",
 		    ioc->name));
@@ -5934,7 +5934,7 @@ mpt_config(MPT_ADAPTER *ioc, CONFIGPARMS *pCfg)
 
 	/* Initalize the timer
 	 */
-	init_timer(&pCfg->timer);
+	init_timer_on_stack(&pCfg->timer);
 	pCfg->timer.data = (unsigned long) ioc;
 	pCfg->timer.function = mpt_timer_expired;
 	pCfg->wait_done = 0;

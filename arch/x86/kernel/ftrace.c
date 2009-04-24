@@ -18,9 +18,10 @@
 #include <linux/init.h>
 #include <linux/list.h>
 
+#include <trace/syscall.h>
+
 #include <asm/cacheflush.h>
 #include <asm/ftrace.h>
-#include <linux/ftrace.h>
 #include <asm/nops.h>
 #include <asm/nmi.h>
 

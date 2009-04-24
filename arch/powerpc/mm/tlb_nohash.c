@@ -125,7 +125,6 @@ static void do_flush_tlb_page_ipi(void *param)
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
-	cpumask_t cpu_mask;
 	unsigned int pid;
 
 	preempt_disable();

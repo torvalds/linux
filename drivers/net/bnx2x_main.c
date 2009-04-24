@@ -10979,16 +10979,16 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		goto err_out_release;
 	}
 
-	if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) == 0) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
 		bp->flags |= USING_DAC_FLAG;
-		if (pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
+		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
 			printk(KERN_ERR PFX "pci_set_consistent_dma_mask"
 			       " failed, aborting\n");
 			rc = -EIO;
 			goto err_out_release;
 		}
 
-	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) {
+	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
 		printk(KERN_ERR PFX "System does not support DMA,"
 		       " aborting\n");
 		rc = -EIO;

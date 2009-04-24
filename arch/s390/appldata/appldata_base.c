@@ -176,7 +176,7 @@ static void __appldata_mod_vtimer_wrap(void *p) {
 		struct vtimer_list *timer;
 		u64    expires;
 	} *args = p;
-	mod_virt_timer(args->timer, args->expires);
+	mod_virt_timer_periodic(args->timer, args->expires);
 }
 
 #define APPLDATA_ADD_TIMER	0

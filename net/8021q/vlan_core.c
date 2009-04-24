@@ -121,8 +121,10 @@ int vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 	if (!skb)
 		return NET_RX_DROP;
 
-	if (netpoll_rx_on(skb))
+	if (netpoll_rx_on(skb)) {
+		skb->protocol = eth_type_trans(skb, skb->dev);
 		return vlan_hwaccel_receive_skb(skb, grp, vlan_tci);
+	}
 
 	return napi_frags_finish(napi, skb,
 				 vlan_gro_common(napi, grp, vlan_tci, skb));

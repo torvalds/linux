@@ -81,6 +81,45 @@ static struct pohmelfs_config_group *pohmelfs_find_create_config_group(unsigned 
 	return g;
 }
 
+static inline void pohmelfs_insert_config_entry(struct pohmelfs_sb *psb, struct pohmelfs_config *dst)
+{
+	struct pohmelfs_config *tmp;
+
+	INIT_LIST_HEAD(&dst->config_entry);
+
+	list_for_each_entry(tmp, &psb->state_list, config_entry) {
+		if (dst->state.ctl.prio > tmp->state.ctl.prio)
+			list_add_tail(&dst->config_entry, &tmp->config_entry);
+	}
+	if (list_empty(&dst->config_entry))
+		list_add_tail(&dst->config_entry, &psb->state_list);
+}
+
+static int pohmelfs_move_config_entry(struct pohmelfs_sb *psb,
+		struct pohmelfs_config *dst, struct pohmelfs_config *new)
+{
+	if ((dst->state.ctl.prio == new->state.ctl.prio) &&
+		(dst->state.ctl.perm == new->state.ctl.perm))
+		return 0;
+
+	dprintk("%s: dst: prio: %d, perm: %x, new: prio: %d, perm: %d.\n",
+			__func__, dst->state.ctl.prio, dst->state.ctl.perm,
+			new->state.ctl.prio, new->state.ctl.perm);
+	dst->state.ctl.prio = new->state.ctl.prio;
+	dst->state.ctl.perm = new->state.ctl.perm;
+
+	list_del_init(&dst->config_entry);
+	pohmelfs_insert_config_entry(psb, dst);
+	return 0;
+}
+
+/*
+ * pohmelfs_copy_config() is used to copy new state configs from the
+ * config group (controlled by the netlink messages) into the superblock.
+ * This happens either at startup time where no transactions can access
+ * the list of the configs (and thus list of the network states), or at
+ * run-time, where it is protected by the psb->state_lock.
+ */
 int pohmelfs_copy_config(struct pohmelfs_sb *psb)
 {
 	struct pohmelfs_config_group *g;
@@ -103,7 +142,9 @@ int pohmelfs_copy_config(struct pohmelfs_sb *psb)
 		err = 0;
 		list_for_each_entry(dst, &psb->state_list, config_entry) {
 			if (pohmelfs_config_eql(&dst->state.ctl, &c->state.ctl)) {
-				err = -EEXIST;
+				err = pohmelfs_move_config_entry(psb, dst, c);
+				if (!err)
+					err = -EEXIST;
 				break;
 			}
 		}
@@ -119,7 +160,7 @@ int pohmelfs_copy_config(struct pohmelfs_sb *psb)
 
 		memcpy(&dst->state.ctl, &c->state.ctl, sizeof(struct pohmelfs_ctl));
 
-		list_add_tail(&dst->config_entry, &psb->state_list);
+		pohmelfs_insert_config_entry(psb, dst);
 
 		err = pohmelfs_state_init_one(psb, dst);
 		if (err) {
@@ -248,6 +289,13 @@ out_unlock:
         return err;
 }
 
+static int pohmelfs_modify_config(struct pohmelfs_ctl *old, struct pohmelfs_ctl *new)
+{
+	old->perm = new->perm;
+	old->prio = new->prio;
+	return 0;
+}
+
 static int pohmelfs_cn_ctl(struct cn_msg *msg, int action)
 {
 	struct pohmelfs_config_group *g;
@@ -278,6 +326,9 @@ static int pohmelfs_cn_ctl(struct cn_msg *msg, int action)
 				g->num_entry--;
 				kfree(c);
 				goto out_unlock;
+			} else if (action == POHMELFS_FLAGS_MODIFY) {
+				err = pohmelfs_modify_config(sc, ctl);
+				goto out_unlock;
 			} else {
 				err = -EEXIST;
 				goto out_unlock;
@@ -296,6 +347,7 @@ static int pohmelfs_cn_ctl(struct cn_msg *msg, int action)
 	}
 	memcpy(&c->state.ctl, ctl, sizeof(struct pohmelfs_ctl));
 	g->num_entry++;
+
 	list_add_tail(&c->config_entry, &g->config_list);
 
 out_unlock:
@@ -401,10 +453,9 @@ static void pohmelfs_cn_callback(void *data)
 
 	switch (msg->flags) {
 		case POHMELFS_FLAGS_ADD:
-			err = pohmelfs_cn_ctl(msg, POHMELFS_FLAGS_ADD);
-			break;
 		case POHMELFS_FLAGS_DEL:
-			err = pohmelfs_cn_ctl(msg, POHMELFS_FLAGS_DEL);
+		case POHMELFS_FLAGS_MODIFY:
+			err = pohmelfs_cn_ctl(msg, msg->flags);
 			break;
 		case POHMELFS_FLAGS_SHOW:
 			err = pohmelfs_cn_disp(msg);

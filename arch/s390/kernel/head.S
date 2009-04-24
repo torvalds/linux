@@ -471,7 +471,12 @@ startup:basr	%r13,0			# get base
 .LPG0:
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
-
+	l	%r1,5f-.LPG0(%r13)
+	stck	0(%r1)
+	spt	6f-.LPG0(%r13)
+	mvc	__LC_LAST_UPDATE_CLOCK(8),0(%r1)
+	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
+	mvc	__LC_EXIT_TIMER(8),5f-.LPG0(%r13)
 #ifndef CONFIG_MARCH_G5
 	# check processor version against MARCH_{G5,Z900,Z990,Z9_109,Z10}
 	stidp	__LC_CPUID		# store cpuid
@@ -496,9 +501,13 @@ startup:basr	%r13,0			# get base
 	brct	%r0,0b
 #endif
 
-	l	%r13,0f-.LPG0(%r13)
+	l	%r13,4f-.LPG0(%r13)
 	b	0(%r13)
-0:	.long	startup_continue
+	.align	4
+4:	.long	startup_continue
+5:	.long	sched_clock_base_cc
+	.align	8
+6:	.long	0x7fffffff,0xffffffff
 
 #
 # params at 10400 (setup.h)

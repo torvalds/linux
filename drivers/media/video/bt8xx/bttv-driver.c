@@ -1198,7 +1198,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 	ctrl.value = btv->mute;
 	bttv_call_all(btv, core, s_ctrl, &ctrl);
 	if (btv->sd_msp34xx) {
-		struct v4l2_routing route;
+		u32 in;
 
 		/* Note: the inputs tuner/radio/extern/intern are translated
 		   to msp routings. This assumes common behavior for all msp3400
@@ -1207,11 +1207,11 @@ audio_mux(struct bttv *btv, int input, int mute)
 		   For now this is sufficient. */
 		switch (input) {
 		case TVAUDIO_INPUT_RADIO:
-			route.input = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
+			in = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
 				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;
 		case TVAUDIO_INPUT_EXTERN:
-			route.input = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1,
+			in = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1,
 				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;
 		case TVAUDIO_INPUT_INTERN:
@@ -1220,7 +1220,7 @@ audio_mux(struct bttv *btv, int input, int mute)
 			   input is the BTTV_BOARD_AVERMEDIA98. I wonder how
 			   that was tested. My guess is that the whole INTERN
 			   input does not work. */
-			route.input = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
+			in = MSP_INPUT(MSP_IN_SCART2, MSP_IN_TUNER1,
 				    MSP_DSP_IN_SCART, MSP_DSP_IN_SCART);
 			break;
 		case TVAUDIO_INPUT_TUNER:
@@ -1229,21 +1229,18 @@ audio_mux(struct bttv *btv, int input, int mute)
 			   is the only difference between the VOODOOTV_FM
 			   and VOODOOTV_200 */
 			if (btv->c.type == BTTV_BOARD_VOODOOTV_200)
-				route.input = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER2, \
+				in = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER2, \
 					MSP_DSP_IN_TUNER, MSP_DSP_IN_TUNER);
 			else
-				route.input = MSP_INPUT_DEFAULT;
+				in = MSP_INPUT_DEFAULT;
 			break;
 		}
-		route.output = MSP_OUTPUT_DEFAULT;
-		v4l2_subdev_call(btv->sd_msp34xx, audio, s_routing, &route);
+		v4l2_subdev_call(btv->sd_msp34xx, audio, s_routing,
+			       in, MSP_OUTPUT_DEFAULT, 0);
 	}
 	if (btv->sd_tvaudio) {
-		struct v4l2_routing route;
-
-		route.input = input;
-		route.output = 0;
-		v4l2_subdev_call(btv->sd_tvaudio, audio, s_routing, &route);
+		v4l2_subdev_call(btv->sd_tvaudio, audio, s_routing,
+				input, 0, 0);
 	}
 	return 0;
 }
@@ -1329,7 +1326,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 		break;
 	}
 	id = tvnorm->v4l2_id;
-	bttv_call_all(btv, tuner, s_std, id);
+	bttv_call_all(btv, core, s_std, id);
 
 	return 0;
 }
@@ -4320,7 +4317,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 		       btv->c.nr);
 		return -EIO;
 	}
-	if (pci_set_dma_mask(dev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(dev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING "bttv%d: No suitable DMA available.\n",
 		       btv->c.nr);
 		return -EIO;

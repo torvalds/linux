@@ -64,6 +64,7 @@ static unsigned long palmt5_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO95_AC97_nRESET,
 
 	/* IrDA */
 	GPIO40_GPIO,	/* ir disable */
@@ -72,13 +73,13 @@ static unsigned long palmt5_pin_config[] __initdata = {
 
 	/* USB */
 	GPIO15_GPIO,	/* usb detect */
-	GPIO95_GPIO,	/* usb power */
+	GPIO93_GPIO,	/* usb power */
 
 	/* MATRIX KEYPAD */
-	GPIO100_KP_MKIN_0,
-	GPIO101_KP_MKIN_1,
-	GPIO102_KP_MKIN_2,
-	GPIO97_KP_MKIN_3,
+	GPIO100_KP_MKIN_0 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO101_KP_MKIN_1 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO102_KP_MKIN_2 | WAKEUP_ON_LEVEL_HIGH,
+	GPIO97_KP_MKIN_3 | WAKEUP_ON_LEVEL_HIGH,
 	GPIO103_KP_MKOUT_0,
 	GPIO104_KP_MKOUT_1,
 	GPIO105_KP_MKOUT_2,
@@ -344,7 +345,7 @@ static struct pxaficp_platform_data palmt5_ficp_platform_data = {
 static struct pxa2xx_udc_mach_info palmt5_udc_info __initdata = {
 	.gpio_vbus		= GPIO_NR_PALMT5_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_PALMT5_USB_POWER,
+	.gpio_pullup		= GPIO_NR_PALMT5_USB_PULLUP,
 	.gpio_pullup_inverted	= 0,
 };
 
@@ -450,6 +451,33 @@ static struct pxafb_mach_info palmt5_lcd_screen = {
 };
 
 /******************************************************************************
+ * Power management - standby
+ ******************************************************************************/
+#ifdef CONFIG_PM
+static u32 *addr __initdata;
+static u32 resume[3] __initdata = {
+	0xe3a00101,	/* mov	r0,	#0x40000000 */
+	0xe380060f,	/* orr	r0, r0, #0x00f00000 */
+	0xe590f008,	/* ldr	pc, [r0, #0x08] */
+};
+
+static int __init palmt5_pm_init(void)
+{
+	int i;
+
+	/* this is where the bootloader jumps */
+	addr = phys_to_virt(PALMT5_STR_BASE);
+
+	for (i = 0; i < 3; i++)
+		addr[i] = resume[i];
+
+	return 0;
+}
+
+device_initcall(palmt5_pm_init);
+#endif
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static struct platform_device *devices[] __initdata = {
@@ -463,9 +491,9 @@ static struct platform_device *devices[] __initdata = {
 /* setup udc GPIOs initial state */
 static void __init palmt5_udc_init(void)
 {
-	if (!gpio_request(GPIO_NR_PALMT5_USB_POWER, "UDC Vbus")) {
-		gpio_direction_output(GPIO_NR_PALMT5_USB_POWER, 1);
-		gpio_free(GPIO_NR_PALMT5_USB_POWER);
+	if (!gpio_request(GPIO_NR_PALMT5_USB_PULLUP, "UDC Vbus")) {
+		gpio_direction_output(GPIO_NR_PALMT5_USB_PULLUP, 1);
+		gpio_free(GPIO_NR_PALMT5_USB_PULLUP);
 	}
 }
 

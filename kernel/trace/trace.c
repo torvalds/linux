@@ -30,6 +30,7 @@
 #include <linux/percpu.h>
 #include <linux/splice.h>
 #include <linux/kdebug.h>
+#include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -147,8 +148,7 @@ static int __init set_ftrace_dump_on_oops(char *str)
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
-long
-ns2usecs(cycle_t nsec)
+unsigned long long ns2usecs(cycle_t nsec)
 {
 	nsec += 500;
 	do_div(nsec, 1000);
@@ -1632,7 +1632,11 @@ static void test_cpu_buff_start(struct trace_iterator *iter)
 		return;
 
 	cpumask_set_cpu(iter->cpu, iter->started);
-	trace_seq_printf(s, "##### CPU %u buffer started ####\n", iter->cpu);
+
+	/* Don't print started cpu buffer for the first entry of the trace */
+	if (iter->idx > 1)
+		trace_seq_printf(s, "##### CPU %u buffer started ####\n",
+				iter->cpu);
 }
 
 static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
@@ -1867,6 +1871,11 @@ __tracing_open(struct inode *inode, struct file *file)
 	if (current_trace)
 		*iter->trace = *current_trace;
 
+	if (!alloc_cpumask_var(&iter->started, GFP_KERNEL))
+		goto fail;
+
+	cpumask_clear(iter->started);
+
 	if (current_trace && current_trace->print_max)
 		iter->tr = &max_tr;
 	else
@@ -1917,6 +1926,7 @@ __tracing_open(struct inode *inode, struct file *file)
 		if (iter->buffer_iter[cpu])
 			ring_buffer_read_finish(iter->buffer_iter[cpu]);
 	}
+	free_cpumask_var(iter->started);
  fail:
 	mutex_unlock(&trace_types_lock);
 	kfree(iter->trace);
@@ -1960,6 +1970,7 @@ static int tracing_release(struct inode *inode, struct file *file)
 
 	seq_release(inode, file);
 	mutex_destroy(&iter->mutex);
+	free_cpumask_var(iter->started);
 	kfree(iter->trace);
 	kfree(iter);
 	return 0;
@@ -2358,9 +2369,9 @@ static const char readme_msg[] =
 	"# mkdir /debug\n"
 	"# mount -t debugfs nodev /debug\n\n"
 	"# cat /debug/tracing/available_tracers\n"
-	"wakeup preemptirqsoff preemptoff irqsoff ftrace sched_switch none\n\n"
+	"wakeup preemptirqsoff preemptoff irqsoff function sched_switch nop\n\n"
 	"# cat /debug/tracing/current_tracer\n"
-	"none\n"
+	"nop\n"
 	"# echo sched_switch > /debug/tracing/current_tracer\n"
 	"# cat /debug/tracing/current_tracer\n"
 	"sched_switch\n"
@@ -3266,19 +3277,13 @@ static int tracing_buffers_open(struct inode *inode, struct file *filp)
 
 	info->tr	= &global_trace;
 	info->cpu	= cpu;
-	info->spare	= ring_buffer_alloc_read_page(info->tr->buffer);
+	info->spare	= NULL;
 	/* Force reading ring buffer for first read */
 	info->read	= (unsigned int)-1;
-	if (!info->spare)
-		goto out;
 
 	filp->private_data = info;
 
-	return 0;
-
- out:
-	kfree(info);
-	return -ENOMEM;
+	return nonseekable_open(inode, filp);
 }
 
 static ssize_t
@@ -3292,6 +3297,11 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 
 	if (!count)
 		return 0;
+
+	if (!info->spare)
+		info->spare = ring_buffer_alloc_read_page(info->tr->buffer);
+	if (!info->spare)
+		return -ENOMEM;
 
 	/* Do we have previous read data to read? */
 	if (info->read < PAGE_SIZE)
@@ -3331,7 +3341,8 @@ static int tracing_buffers_release(struct inode *inode, struct file *file)
 {
 	struct ftrace_buffer_info *info = file->private_data;
 
-	ring_buffer_free_read_page(info->tr->buffer, info->spare);
+	if (info->spare)
+		ring_buffer_free_read_page(info->tr->buffer, info->spare);
 	kfree(info);
 
 	return 0;
@@ -3417,14 +3428,19 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	int size, i;
 	size_t ret;
 
-	/*
-	 * We can't seek on a buffer input
-	 */
-	if (unlikely(*ppos))
-		return -ESPIPE;
+	if (*ppos & (PAGE_SIZE - 1)) {
+		WARN_ONCE(1, "Ftrace: previous read must page-align\n");
+		return -EINVAL;
+	}
 
+	if (len & (PAGE_SIZE - 1)) {
+		WARN_ONCE(1, "Ftrace: splice_read should page-align\n");
+		if (len < PAGE_SIZE)
+			return -EINVAL;
+		len &= PAGE_MASK;
+	}
 
-	for (i = 0; i < PIPE_BUFFERS && len; i++, len -= size) {
+	for (i = 0; i < PIPE_BUFFERS && len; i++, len -= PAGE_SIZE) {
 		struct page *page;
 		int r;
 
@@ -3463,6 +3479,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		spd.partial[i].offset = 0;
 		spd.partial[i].private = (unsigned long)ref;
 		spd.nr_pages++;
+		*ppos += PAGE_SIZE;
 	}
 
 	spd.nr_pages = i;

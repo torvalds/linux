@@ -245,14 +245,15 @@ static int saa7185_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int saa7185_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa7185_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct saa7185 *encoder = to_saa7185(sd);
 
-	/* RJ: route->input = 0: input is from SA7111
-	 route->input = 1: input is from ZR36060 */
+	/* RJ: input = 0: input is from SA7111
+	 input = 1: input is from ZR36060 */
 
-	switch (route->input) {
+	switch (input) {
 	case 0:
 		/* turn off colorbar */
 		saa7185_write(sd, 0x3a, 0x0f);

@@ -367,6 +367,7 @@ static const intel_limit_t intel_limits[] = {
         .p1  = { .min = I9XX_P1_MIN,		.max = I9XX_P1_MAX },
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
+	.find_pll = intel_find_best_PLL,
     },
     { /* INTEL_LIMIT_IGD_LVDS */
         .dot = { .min = I9XX_DOT_MIN,		.max = I9XX_DOT_MAX },
@@ -380,6 +381,7 @@ static const intel_limit_t intel_limits[] = {
 	/* IGD only supports single-channel mode. */
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
+	.find_pll = intel_find_best_PLL,
     },
 
 };

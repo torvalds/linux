@@ -575,8 +575,9 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	if (ret)
 		return ret;
 
-	vdev->config->set(vdev, offsetof(struct virtio_net_config, mac),
-			  dev->dev_addr, dev->addr_len);
+	if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC))
+		vdev->config->set(vdev, offsetof(struct virtio_net_config, mac),
+		                  dev->dev_addr, dev->addr_len);
 
 	return 0;
 }
@@ -876,11 +877,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 		vdev->config->get(vdev,
 				  offsetof(struct virtio_net_config, mac),
 				  dev->dev_addr, dev->addr_len);
-	} else {
+	} else
 		random_ether_addr(dev->dev_addr);
-		vdev->config->set(vdev, offsetof(struct virtio_net_config, mac),
-				  dev->dev_addr, dev->addr_len);
-	}
 
 	/* Set up our device-specific information */
 	vi = netdev_priv(dev);

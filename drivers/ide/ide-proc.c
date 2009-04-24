@@ -204,8 +204,8 @@ static int set_xfer_rate (ide_drive_t *drive, int arg)
 	cmd.tf.command = ATA_CMD_SET_FEATURES;
 	cmd.tf.feature = SETFEATURES_XFER;
 	cmd.tf.nsect   = (u8)arg;
-	cmd.tf_flags   = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT |
-			 IDE_TFLAG_IN_NSECT;
+	cmd.valid.out.tf = IDE_VALID_FEATURE | IDE_VALID_NSECT;
+	cmd.valid.in.tf  = IDE_VALID_NSECT;
 
 	err = ide_no_data_taskfile(drive, &cmd);
 

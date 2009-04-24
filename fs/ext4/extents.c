@@ -342,7 +342,7 @@ static int ext4_valid_extent_idx(struct inode *inode,
 	ext4_fsblk_t block = idx_pblock(ext_idx);
 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
 	if (unlikely(block < le32_to_cpu(es->s_first_data_block) ||
-			(block > ext4_blocks_count(es))))
+			(block >= ext4_blocks_count(es))))
 		return 0;
 	else
 		return 1;
@@ -2416,8 +2416,6 @@ static int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
 			len = ee_len;
 
 		bio = bio_alloc(GFP_NOIO, len);
-		if (!bio)
-			return -ENOMEM;
 		bio->bi_sector = ee_pblock;
 		bio->bi_bdev   = inode->i_sb->s_bdev;
 

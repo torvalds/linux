@@ -138,7 +138,7 @@ static inline void __init omap2_gp_clocksource_init(void) {}
  * clocksource
  */
 static struct omap_dm_timer *gpt_clocksource;
-static cycle_t clocksource_read_cycles(void)
+static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
 	return (cycle_t)omap_dm_timer_read_counter(gpt_clocksource);
 }

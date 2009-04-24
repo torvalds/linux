@@ -145,6 +145,9 @@ static void acpi_timer_check_state(int state, struct acpi_processor *pr,
 	struct acpi_processor_power *pwr = &pr->power;
 	u8 type = local_apic_timer_c2_ok ? ACPI_STATE_C3 : ACPI_STATE_C2;
 
+	if (cpu_has(&cpu_data(pr->id), X86_FEATURE_ARAT))
+		return;
+
 	/*
 	 * Check, if one of the previous states already marked the lapic
 	 * unstable

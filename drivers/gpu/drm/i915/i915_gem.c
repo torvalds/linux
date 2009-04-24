@@ -43,8 +43,6 @@ static int i915_gem_object_set_cpu_read_domain_range(struct drm_gem_object *obj,
 						     uint64_t offset,
 						     uint64_t size);
 static void i915_gem_object_set_to_full_cpu_read_domain(struct drm_gem_object *obj);
-static int i915_gem_object_get_pages(struct drm_gem_object *obj);
-static void i915_gem_object_put_pages(struct drm_gem_object *obj);
 static int i915_gem_object_wait_rendering(struct drm_gem_object *obj);
 static int i915_gem_object_bind_to_gtt(struct drm_gem_object *obj,
 					   unsigned alignment);
@@ -143,15 +141,27 @@ fast_shmem_read(struct page **pages,
 		int length)
 {
 	char __iomem *vaddr;
-	int ret;
+	int unwritten;
 
 	vaddr = kmap_atomic(pages[page_base >> PAGE_SHIFT], KM_USER0);
 	if (vaddr == NULL)
 		return -ENOMEM;
-	ret = __copy_to_user_inatomic(data, vaddr + page_offset, length);
+	unwritten = __copy_to_user_inatomic(data, vaddr + page_offset, length);
 	kunmap_atomic(vaddr, KM_USER0);
 
-	return ret;
+	if (unwritten)
+		return -EFAULT;
+
+	return 0;
+}
+
+static int i915_gem_object_needs_bit17_swizzle(struct drm_gem_object *obj)
+{
+	drm_i915_private_t *dev_priv = obj->dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+
+	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
+		obj_priv->tiling_mode != I915_TILING_NONE;
 }
 
 static inline int
@@ -177,6 +187,64 @@ slow_shmem_copy(struct page *dst_page,
 
 	kunmap_atomic(src_vaddr, KM_USER1);
 	kunmap_atomic(dst_vaddr, KM_USER0);
+
+	return 0;
+}
+
+static inline int
+slow_shmem_bit17_copy(struct page *gpu_page,
+		      int gpu_offset,
+		      struct page *cpu_page,
+		      int cpu_offset,
+		      int length,
+		      int is_read)
+{
+	char *gpu_vaddr, *cpu_vaddr;
+
+	/* Use the unswizzled path if this page isn't affected. */
+	if ((page_to_phys(gpu_page) & (1 << 17)) == 0) {
+		if (is_read)
+			return slow_shmem_copy(cpu_page, cpu_offset,
+					       gpu_page, gpu_offset, length);
+		else
+			return slow_shmem_copy(gpu_page, gpu_offset,
+					       cpu_page, cpu_offset, length);
+	}
+
+	gpu_vaddr = kmap_atomic(gpu_page, KM_USER0);
+	if (gpu_vaddr == NULL)
+		return -ENOMEM;
+
+	cpu_vaddr = kmap_atomic(cpu_page, KM_USER1);
+	if (cpu_vaddr == NULL) {
+		kunmap_atomic(gpu_vaddr, KM_USER0);
+		return -ENOMEM;
+	}
+
+	/* Copy the data, XORing A6 with A17 (1). The user already knows he's
+	 * XORing with the other bits (A9 for Y, A9 and A10 for X)
+	 */
+	while (length > 0) {
+		int cacheline_end = ALIGN(gpu_offset + 1, 64);
+		int this_length = min(cacheline_end - gpu_offset, length);
+		int swizzled_gpu_offset = gpu_offset ^ 64;
+
+		if (is_read) {
+			memcpy(cpu_vaddr + cpu_offset,
+			       gpu_vaddr + swizzled_gpu_offset,
+			       this_length);
+		} else {
+			memcpy(gpu_vaddr + swizzled_gpu_offset,
+			       cpu_vaddr + cpu_offset,
+			       this_length);
+		}
+		cpu_offset += this_length;
+		gpu_offset += this_length;
+		length -= this_length;
+	}
+
+	kunmap_atomic(cpu_vaddr, KM_USER1);
+	kunmap_atomic(gpu_vaddr, KM_USER0);
 
 	return 0;
 }
@@ -269,6 +337,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	int page_length;
 	int ret;
 	uint64_t data_ptr = args->data_ptr;
+	int do_bit17_swizzling;
 
 	remain = args->size;
 
@@ -286,12 +355,14 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 
 	down_read(&mm->mmap_sem);
 	pinned_pages = get_user_pages(current, mm, (uintptr_t)args->data_ptr,
-				      num_pages, 0, 0, user_pages, NULL);
+				      num_pages, 1, 0, user_pages, NULL);
 	up_read(&mm->mmap_sem);
 	if (pinned_pages < num_pages) {
 		ret = -EFAULT;
 		goto fail_put_user_pages;
 	}
+
+	do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -327,11 +398,20 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		if ((data_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - data_page_offset;
 
-		ret = slow_shmem_copy(user_pages[data_page_index],
-				      data_page_offset,
-				      obj_priv->pages[shmem_page_index],
-				      shmem_page_offset,
-				      page_length);
+		if (do_bit17_swizzling) {
+			ret = slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
+						    shmem_page_offset,
+						    user_pages[data_page_index],
+						    data_page_offset,
+						    page_length,
+						    1);
+		} else {
+			ret = slow_shmem_copy(user_pages[data_page_index],
+					      data_page_offset,
+					      obj_priv->pages[shmem_page_index],
+					      shmem_page_offset,
+					      page_length);
+		}
 		if (ret)
 			goto fail_put_pages;
 
@@ -383,9 +463,14 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	ret = i915_gem_shmem_pread_fast(dev, obj, args, file_priv);
-	if (ret != 0)
+	if (i915_gem_object_needs_bit17_swizzle(obj)) {
 		ret = i915_gem_shmem_pread_slow(dev, obj, args, file_priv);
+	} else {
+		ret = i915_gem_shmem_pread_fast(dev, obj, args, file_priv);
+		if (ret != 0)
+			ret = i915_gem_shmem_pread_slow(dev, obj, args,
+							file_priv);
+	}
 
 	drm_gem_object_unreference(obj);
 
@@ -727,6 +812,7 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 	int page_length;
 	int ret;
 	uint64_t data_ptr = args->data_ptr;
+	int do_bit17_swizzling;
 
 	remain = args->size;
 
@@ -750,6 +836,8 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		ret = -EFAULT;
 		goto fail_put_user_pages;
 	}
+
+	do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -785,11 +873,20 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		if ((data_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - data_page_offset;
 
-		ret = slow_shmem_copy(obj_priv->pages[shmem_page_index],
-				      shmem_page_offset,
-				      user_pages[data_page_index],
-				      data_page_offset,
-				      page_length);
+		if (do_bit17_swizzling) {
+			ret = slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
+						    shmem_page_offset,
+						    user_pages[data_page_index],
+						    data_page_offset,
+						    page_length,
+						    0);
+		} else {
+			ret = slow_shmem_copy(obj_priv->pages[shmem_page_index],
+					      shmem_page_offset,
+					      user_pages[data_page_index],
+					      data_page_offset,
+					      page_length);
+		}
 		if (ret)
 			goto fail_put_pages;
 
@@ -854,6 +951,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 			ret = i915_gem_gtt_pwrite_slow(dev, obj, args,
 						       file_priv);
 		}
+	} else if (i915_gem_object_needs_bit17_swizzle(obj)) {
+		ret = i915_gem_shmem_pwrite_slow(dev, obj, args, file_priv);
 	} else {
 		ret = i915_gem_shmem_pwrite_fast(dev, obj, args, file_priv);
 		if (ret == -EFAULT) {
@@ -1285,7 +1384,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static void
+void
 i915_gem_object_put_pages(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
@@ -1296,6 +1395,9 @@ i915_gem_object_put_pages(struct drm_gem_object *obj)
 
 	if (--obj_priv->pages_refcount != 0)
 		return;
+
+	if (obj_priv->tiling_mode != I915_TILING_NONE)
+		i915_gem_object_save_bit_17_swizzle(obj);
 
 	for (i = 0; i < page_count; i++)
 		if (obj_priv->pages[i] != NULL) {
@@ -1494,8 +1596,19 @@ i915_gem_retire_request(struct drm_device *dev,
 
 		if (obj->write_domain != 0)
 			i915_gem_object_move_to_flushing(obj);
-		else
+		else {
+			/* Take a reference on the object so it won't be
+			 * freed while the spinlock is held.  The list
+			 * protection for this spinlock is safe when breaking
+			 * the lock like this since the next thing we do
+			 * is just get the head of the list again.
+			 */
+			drm_gem_object_reference(obj);
 			i915_gem_object_move_to_inactive(obj);
+			spin_unlock(&dev_priv->mm.active_list_lock);
+			drm_gem_object_unreference(obj);
+			spin_lock(&dev_priv->mm.active_list_lock);
+		}
 	}
 out:
 	spin_unlock(&dev_priv->mm.active_list_lock);
@@ -1884,7 +1997,7 @@ i915_gem_evict_everything(struct drm_device *dev)
 	return ret;
 }
 
-static int
+int
 i915_gem_object_get_pages(struct drm_gem_object *obj)
 {
 	struct drm_i915_gem_object *obj_priv = obj->driver_private;
@@ -1922,6 +2035,10 @@ i915_gem_object_get_pages(struct drm_gem_object *obj)
 		}
 		obj_priv->pages[i] = page;
 	}
+
+	if (obj_priv->tiling_mode != I915_TILING_NONE)
+		i915_gem_object_do_bit_17_swizzle(obj);
+
 	return 0;
 }
 
@@ -3002,13 +3119,13 @@ i915_gem_get_relocs_from_user(struct drm_i915_gem_exec_object *exec_list,
 			drm_free(*relocs, reloc_count * sizeof(**relocs),
 				 DRM_MEM_DRIVER);
 			*relocs = NULL;
-			return ret;
+			return -EFAULT;
 		}
 
 		reloc_index += exec_list[i].relocation_count;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int
@@ -3017,23 +3134,28 @@ i915_gem_put_relocs_to_user(struct drm_i915_gem_exec_object *exec_list,
 			    struct drm_i915_gem_relocation_entry *relocs)
 {
 	uint32_t reloc_count = 0, i;
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < buffer_count; i++) {
 		struct drm_i915_gem_relocation_entry __user *user_relocs;
+		int unwritten;
 
 		user_relocs = (void __user *)(uintptr_t)exec_list[i].relocs_ptr;
 
-		if (ret == 0) {
-			ret = copy_to_user(user_relocs,
-					   &relocs[reloc_count],
-					   exec_list[i].relocation_count *
-					   sizeof(*relocs));
+		unwritten = copy_to_user(user_relocs,
+					 &relocs[reloc_count],
+					 exec_list[i].relocation_count *
+					 sizeof(*relocs));
+
+		if (unwritten) {
+			ret = -EFAULT;
+			goto err;
 		}
 
 		reloc_count += exec_list[i].relocation_count;
 	}
 
+err:
 	drm_free(relocs, reloc_count * sizeof(*relocs), DRM_MEM_DRIVER);
 
 	return ret;
@@ -3243,7 +3365,7 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 	exec_offset = exec_list[args->buffer_count - 1].offset;
 
 #if WATCH_EXEC
-	i915_gem_dump_object(object_list[args->buffer_count - 1],
+	i915_gem_dump_object(batch_obj,
 			      args->batch_len,
 			      __func__,
 			      ~0);
@@ -3308,10 +3430,12 @@ err:
 				   (uintptr_t) args->buffers_ptr,
 				   exec_list,
 				   sizeof(*exec_list) * args->buffer_count);
-		if (ret)
+		if (ret) {
+			ret = -EFAULT;
 			DRM_ERROR("failed to copy %d exec entries "
 				  "back to user (%d)\n",
 				  args->buffer_count, ret);
+		}
 	}
 
 	/* Copy the updated relocations out regardless of current error
@@ -3593,6 +3717,7 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 	i915_gem_free_mmap_offset(obj);
 
 	drm_free(obj_priv->page_cpu_valid, 1, DRM_MEM_DRIVER);
+	kfree(obj_priv->bit_17);
 	drm_free(obj->driver_private, 1, DRM_MEM_DRIVER);
 }
 

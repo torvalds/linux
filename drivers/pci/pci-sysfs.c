@@ -148,7 +148,7 @@ static ssize_t is_enabled_store(struct device *dev,
 		return -EPERM;
 
 	if (!val) {
-		if (atomic_read(&pdev->enable_cnt) != 0)
+		if (pci_is_enabled(pdev))
 			pci_disable_device(pdev);
 		else
 			result = -EIO;
@@ -277,13 +277,9 @@ remove_store(struct device *dev, struct device_attribute *dummy,
 {
 	int ret = 0;
 	unsigned long val;
-	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
-
-	if (pci_is_root_bus(pdev->bus))
-		return -EBUSY;
 
 	/* An attribute cannot be unregistered by one of its own methods,
 	 * so we have to use this roundabout approach.

@@ -3745,14 +3745,14 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 			mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 		}
 		spin_unlock_irqrestore(&np->lock, flags);
-		__napi_complete(napi);
+		napi_complete(napi);
 		return rx_work;
 	}
 
 	if (rx_work < budget) {
 		/* re-enable interrupts
 		   (msix not enabled in napi) */
-		__napi_complete(napi);
+		napi_complete(napi);
 
 		writel(np->irqmask, base + NvRegIrqMask);
 	}
@@ -5632,12 +5632,12 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 		np->desc_ver = DESC_VER_3;
 		np->txrxctl_bits = NVREG_TXRXCTL_DESC_3;
 		if (dma_64bit) {
-			if (pci_set_dma_mask(pci_dev, DMA_39BIT_MASK))
+			if (pci_set_dma_mask(pci_dev, DMA_BIT_MASK(39)))
 				dev_printk(KERN_INFO, &pci_dev->dev,
 					"64-bit DMA failed, using 32-bit addressing\n");
 			else
 				dev->features |= NETIF_F_HIGHDMA;
-			if (pci_set_consistent_dma_mask(pci_dev, DMA_39BIT_MASK)) {
+			if (pci_set_consistent_dma_mask(pci_dev, DMA_BIT_MASK(39))) {
 				dev_printk(KERN_INFO, &pci_dev->dev,
 					"64-bit DMA (consistent) failed, using 32-bit ring buffers\n");
 			}
@@ -6116,6 +6116,9 @@ static int nv_resume(struct pci_dev *pdev)
 		writel(np->saved_config_space[i], base+i*sizeof(u32));
 
 	pci_write_config_dword(pdev, NV_MSI_PRIV_OFFSET, NV_MSI_PRIV_VALUE);
+
+	/* restore phy state, including autoneg */
+	phy_init(dev);
 
 	netif_device_attach(dev);
 	if (netif_running(dev)) {

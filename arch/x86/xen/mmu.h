@@ -11,6 +11,9 @@ enum pt_level {
 };
 
 
+bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+bool install_p2mtop_page(unsigned long pfn, unsigned long *p);
+
 void set_pte_mfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
 

@@ -991,7 +991,7 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	set_tvaudio(core);
 
 	// tell i2c chips
-	call_all(core, tuner, s_std, norm);
+	call_all(core, core, s_std, norm);
 
 	// done
 	return 0;

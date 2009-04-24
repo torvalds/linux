@@ -15,7 +15,8 @@ Posix file open support added (turned off after one attempt if server
 fails to support it properly, as with Samba server versions prior to 3.3.2)
 Fix "redzone overwritten" bug in cifs_put_tcon (CIFSTcon may allocate too
 little memory for the "nativeFileSystem" field returned by the server
-during mount). 
+during mount).  Endian convert inode numbers if necessary (makes it easier
+to compare inode numbers on network files from big endian systems). 
 
 Version 1.56
 ------------

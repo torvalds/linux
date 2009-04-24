@@ -74,14 +74,14 @@ xfs_flush_pages(
 
 	if (mapping_tagged(mapping, PAGECACHE_TAG_DIRTY)) {
 		xfs_iflags_clear(ip, XFS_ITRUNCATED);
-		ret = filemap_fdatawrite(mapping);
-		if (flags & XFS_B_ASYNC)
-			return -ret;
-		ret2 = filemap_fdatawait(mapping);
-		if (!ret)
-			ret = ret2;
+		ret = -filemap_fdatawrite(mapping);
 	}
-	return -ret;
+	if (flags & XFS_B_ASYNC)
+		return ret;
+	ret2 = xfs_wait_on_pages(ip, first, last);
+	if (!ret)
+		ret = ret2;
+	return ret;
 }
 
 int

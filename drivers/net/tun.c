@@ -518,7 +518,7 @@ static inline struct sk_buff *tun_alloc_skb(struct tun_struct *tun,
 	int err;
 
 	/* Under a page?  Don't bother with paged skb. */
-	if (prepad + len < PAGE_SIZE)
+	if (prepad + len < PAGE_SIZE || !linear)
 		linear = len;
 
 	skb = sock_alloc_send_pskb(sk, prepad + linear, len - linear, noblock,
@@ -565,7 +565,8 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun,
 
 	if ((tun->flags & TUN_TYPE_MASK) == TUN_TAP_DEV) {
 		align = NET_IP_ALIGN;
-		if (unlikely(len < ETH_HLEN))
+		if (unlikely(len < ETH_HLEN ||
+			     (gso.hdr_len && gso.hdr_len < ETH_HLEN)))
 			return -EINVAL;
 	}
 

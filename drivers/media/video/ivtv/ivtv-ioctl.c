@@ -1033,7 +1033,6 @@ static int ivtv_g_output(struct file *file, void *fh, unsigned int *i)
 static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 {
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
-	struct v4l2_routing route;
 
 	if (outp >= itv->card->nof_outputs)
 		return -EINVAL;
@@ -1046,9 +1045,9 @@ static int ivtv_s_output(struct file *file, void *fh, unsigned int outp)
 		   itv->active_output, outp);
 
 	itv->active_output = outp;
-	route.input = SAA7127_INPUT_TYPE_NORMAL;
-	route.output = itv->card->video_outputs[outp].video_output;
-	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing, &route);
+	ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_routing,
+			SAA7127_INPUT_TYPE_NORMAL,
+			itv->card->video_outputs[outp].video_output, 0);
 
 	return 0;
 }
@@ -1121,7 +1120,7 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 	IVTV_DEBUG_INFO("Switching standard to %llx.\n", (unsigned long long)itv->std);
 
 	/* Tuner */
-	ivtv_call_all(itv, tuner, s_std, itv->std);
+	ivtv_call_all(itv, core, s_std, itv->std);
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
 		/* set display standard */
@@ -1735,13 +1734,6 @@ static long ivtv_default(struct file *file, void *fh, int cmd, void *arg)
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 
 	switch (cmd) {
-	case VIDIOC_INT_S_AUDIO_ROUTING: {
-		struct v4l2_routing *route = arg;
-
-		ivtv_call_hw(itv, itv->card->hw_audio, audio, s_routing, route);
-		break;
-	}
-
 	case VIDIOC_INT_RESET: {
 		u32 val = *(u32 *)arg;
 

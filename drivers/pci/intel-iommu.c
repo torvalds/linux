@@ -56,8 +56,8 @@
 #define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
 
 #define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
-#define DMA_32BIT_PFN		IOVA_PFN(DMA_32BIT_MASK)
-#define DMA_64BIT_PFN		IOVA_PFN(DMA_64BIT_MASK)
+#define DMA_32BIT_PFN		IOVA_PFN(DMA_BIT_MASK(32))
+#define DMA_64BIT_PFN		IOVA_PFN(DMA_BIT_MASK(64))
 
 /* global iommu list, set NULL for ignored DMAR units */
 static struct intel_iommu **g_iommus;
@@ -733,8 +733,8 @@ static void dma_pte_clear_range(struct dmar_domain *domain, u64 start, u64 end)
 	start &= (((u64)1) << addr_width) - 1;
 	end &= (((u64)1) << addr_width) - 1;
 	/* in case it's partial page */
-	start = PAGE_ALIGN(start);
-	end &= PAGE_MASK;
+	start &= PAGE_MASK;
+	end = PAGE_ALIGN(end);
 	npages = (end - start) / VTD_PAGE_SIZE;
 
 	/* we don't need lock here, nobody else touches the iova range */
@@ -2080,15 +2080,15 @@ __intel_alloc_iova(struct device *dev, struct dmar_domain *domain,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct iova *iova = NULL;
 
-	if (dma_mask <= DMA_32BIT_MASK || dmar_forcedac)
+	if (dma_mask <= DMA_BIT_MASK(32) || dmar_forcedac)
 		iova = iommu_alloc_iova(domain, size, dma_mask);
 	else {
 		/*
 		 * First try to allocate an io virtual address in
-		 * DMA_32BIT_MASK and if that fails then try allocating
+		 * DMA_BIT_MASK(32) and if that fails then try allocating
 		 * from higher range
 		 */
-		iova = iommu_alloc_iova(domain, size, DMA_32BIT_MASK);
+		iova = iommu_alloc_iova(domain, size, DMA_BIT_MASK(32));
 		if (!iova)
 			iova = iommu_alloc_iova(domain, size, dma_mask);
 	}

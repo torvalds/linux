@@ -39,6 +39,8 @@ Currently, these files are in /proc/sys/vm:
 - nr_hugepages
 - nr_overcommit_hugepages
 - nr_pdflush_threads
+- nr_pdflush_threads_min
+- nr_pdflush_threads_max
 - nr_trim_pages         (only if CONFIG_MMU=n)
 - numa_zonelist_order
 - oom_dump_tasks
@@ -460,6 +462,32 @@ If panic_on_oom is selected, it takes precedence over whatever value
 is used in oom_kill_allocating_task.
 
 The default value is 0.
+
+==============================================================
+
+nr_pdflush_threads_min
+
+This value controls the minimum number of pdflush threads.
+
+At boot time, the kernel will create and maintain 'nr_pdflush_threads_min'
+threads for the kernel's lifetime.
+
+The default value is 2.  The minimum value you can specify is 1, and
+the maximum value is the current setting of 'nr_pdflush_threads_max'.
+
+See 'nr_pdflush_threads_max' below for more information.
+
+==============================================================
+
+nr_pdflush_threads_max
+
+This value controls the maximum number of pdflush threads that can be
+created.  The pdflush algorithm will create a new pdflush thread (up to
+this maximum) if no pdflush threads have been available for >= 1 second.
+
+The default value is 8.  The minimum value you can specify is the
+current value of 'nr_pdflush_threads_min' and the
+maximum is 1000.
 
 ==============================================================
 

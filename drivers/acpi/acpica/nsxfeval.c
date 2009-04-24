@@ -53,7 +53,6 @@ ACPI_MODULE_NAME("nsxfeval")
 /* Local prototypes */
 static void acpi_ns_resolve_references(struct acpi_evaluate_info *info);
 
-#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_evaluate_object_typed
@@ -147,7 +146,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
-#endif				/*  ACPI_FUTURE_USAGE  */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_evaluate_object

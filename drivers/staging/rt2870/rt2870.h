@@ -96,6 +96,7 @@
 	{USB_DEVICE(0x0DF6,0x002B)}, /* Sitecom */		\
 	{USB_DEVICE(0x0DF6,0x002C)}, /* Sitecom */		\
 	{USB_DEVICE(0x0DF6,0x002D)}, /* Sitecom */		\
+	{USB_DEVICE(0x0DF6,0x0039)}, /* Sitecom */		\
 	{USB_DEVICE(0x14B2,0x3C06)}, /* Conceptronic */		\
 	{USB_DEVICE(0x14B2,0x3C28)}, /* Conceptronic */		\
 	{USB_DEVICE(0x2019,0xED06)}, /* Planex Communications, Inc. */		\

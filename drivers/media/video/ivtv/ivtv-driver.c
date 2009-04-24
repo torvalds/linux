@@ -884,12 +884,9 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	}
 	else if (itv->card->type == IVTV_CARD_GV_MVPRX ||
 		 itv->card->type == IVTV_CARD_GV_MVPRX2E) {
-		struct v4l2_crystal_freq crystal_freq;
-
 		/* The crystal frequency of GVMVPRX is 24.576MHz */
-		crystal_freq.freq = SAA7115_FREQ_24_576_MHZ;
-		crystal_freq.flags = SAA7115_FREQ_FL_UCGC;
-		v4l2_subdev_call(itv->sd_video, video, s_crystal_freq, &crystal_freq);
+		v4l2_subdev_call(itv->sd_video, video, s_crystal_freq,
+			SAA7115_FREQ_24_576_MHZ, SAA7115_FREQ_FL_UCGC);
 	}
 
 	if (hw & IVTV_HW_CX25840) {
@@ -1234,7 +1231,7 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	if (itv->card->hw_all & IVTV_HW_CX25840) {
 		struct v4l2_control ctrl;
 
-		v4l2_subdev_call(itv->sd_video, core, init, 0);
+		v4l2_subdev_call(itv->sd_video, core, load_fw);
 		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
 		ctrl.id = V4L2_CID_PRIVATE_BASE;
 		ctrl.value = itv->pvr150_workaround;

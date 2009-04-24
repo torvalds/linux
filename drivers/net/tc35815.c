@@ -862,6 +862,22 @@ static int __devinit tc35815_init_dev_addr(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops tc35815_netdev_ops = {
+	.ndo_open		= tc35815_open,
+	.ndo_stop		= tc35815_close,
+	.ndo_start_xmit		= tc35815_send_packet,
+	.ndo_get_stats		= tc35815_get_stats,
+	.ndo_set_multicast_list	= tc35815_set_multicast_list,
+	.ndo_tx_timeout		= tc35815_tx_timeout,
+	.ndo_do_ioctl		= tc35815_ioctl,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= tc35815_poll_controller,
+#endif
+};
+
 static int __devinit tc35815_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
@@ -904,20 +920,11 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 	ioaddr = pcim_iomap_table(pdev)[1];
 
 	/* Initialize the device structure. */
-	dev->open = tc35815_open;
-	dev->hard_start_xmit = tc35815_send_packet;
-	dev->stop = tc35815_close;
-	dev->get_stats = tc35815_get_stats;
-	dev->set_multicast_list = tc35815_set_multicast_list;
-	dev->do_ioctl = tc35815_ioctl;
+	dev->netdev_ops = &tc35815_netdev_ops;
 	dev->ethtool_ops = &tc35815_ethtool_ops;
-	dev->tx_timeout = tc35815_tx_timeout;
 	dev->watchdog_timeo = TC35815_TX_TIMEOUT;
 #ifdef TC35815_NAPI
 	netif_napi_add(dev, &lp->napi, tc35815_poll, NAPI_WEIGHT);
-#endif
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = tc35815_poll_controller;
 #endif
 
 	dev->irq = pdev->irq;

@@ -317,6 +317,41 @@ static int wm9705_reset(struct snd_soc_codec *codec)
 	return -EIO;
 }
 
+#ifdef CONFIG_PM
+static int wm9705_soc_suspend(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+
+	soc_ac97_ops.write(codec->ac97, AC97_POWERDOWN, 0xffff);
+
+	return 0;
+}
+
+static int wm9705_soc_resume(struct platform_device *pdev)
+{
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int i, ret;
+	u16 *cache = codec->reg_cache;
+
+	ret = wm9705_reset(codec);
+	if (ret < 0) {
+		printk(KERN_ERR "could not reset AC97 codec\n");
+		return ret;
+	}
+
+	for (i = 2; i < ARRAY_SIZE(wm9705_reg) << 1; i += 2) {
+		soc_ac97_ops.write(codec->ac97, i, cache[i>>1]);
+	}
+
+	return 0;
+}
+#else
+#define wm9705_soc_suspend NULL
+#define wm9705_soc_resume NULL
+#endif
+
 static int wm9705_soc_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -407,6 +442,8 @@ static int wm9705_soc_remove(struct platform_device *pdev)
 struct snd_soc_codec_device soc_codec_dev_wm9705 = {
 	.probe = 	wm9705_soc_probe,
 	.remove = 	wm9705_soc_remove,
+	.suspend =	wm9705_soc_suspend,
+	.resume =	wm9705_soc_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm9705);
 

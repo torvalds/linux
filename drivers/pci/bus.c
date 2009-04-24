@@ -184,7 +184,7 @@ void pci_enable_bridges(struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->subordinate) {
-			if (atomic_read(&dev->enable_cnt) == 0) {
+			if (!pci_is_enabled(dev)) {
 				retval = pci_enable_device(dev);
 				pci_set_master(dev);
 			}

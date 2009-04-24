@@ -782,17 +782,14 @@ static int af9015_read_config(struct usb_device *udev)
 				  ARRAY_SIZE(af9015_ir_table_leadtek);
 				break;
 			case USB_VID_VISIONPLUS:
-				if (udev->descriptor.idProduct ==
-				cpu_to_le16(USB_PID_AZUREWAVE_AD_TU700)) {
-					af9015_properties[i].rc_key_map =
-					  af9015_rc_keys_twinhan;
-					af9015_properties[i].rc_key_map_size =
-					  ARRAY_SIZE(af9015_rc_keys_twinhan);
-					af9015_config.ir_table =
-					  af9015_ir_table_twinhan;
-					af9015_config.ir_table_size =
-					  ARRAY_SIZE(af9015_ir_table_twinhan);
-				}
+				af9015_properties[i].rc_key_map =
+				  af9015_rc_keys_twinhan;
+				af9015_properties[i].rc_key_map_size =
+				  ARRAY_SIZE(af9015_rc_keys_twinhan);
+				af9015_config.ir_table =
+				  af9015_ir_table_twinhan;
+				af9015_config.ir_table_size =
+				  ARRAY_SIZE(af9015_ir_table_twinhan);
 				break;
 			case USB_VID_KWORLD_2:
 				/* TODO: use correct rc keys */
@@ -833,6 +830,16 @@ static int af9015_read_config(struct usb_device *udev)
 					  af9015_ir_table_msi;
 					af9015_config.ir_table_size =
 					  ARRAY_SIZE(af9015_ir_table_msi);
+				} else if (udev->descriptor.idProduct ==
+					cpu_to_le16(USB_PID_TREKSTOR_DVBT)) {
+					af9015_properties[i].rc_key_map =
+					  af9015_rc_keys_trekstor;
+					af9015_properties[i].rc_key_map_size =
+					  ARRAY_SIZE(af9015_rc_keys_trekstor);
+					af9015_config.ir_table =
+					  af9015_ir_table_trekstor;
+					af9015_config.ir_table_size =
+					  ARRAY_SIZE(af9015_ir_table_trekstor);
 				}
 				break;
 			case USB_VID_AVERMEDIA:
@@ -980,6 +987,21 @@ static int af9015_read_config(struct usb_device *udev)
 error:
 	if (ret)
 		err("eeprom read failed:%d", ret);
+
+	/* AverMedia AVerTV Volar Black HD (A850) device have bad EEPROM
+	   content :-( Override some wrong values here. */
+	if (le16_to_cpu(udev->descriptor.idVendor) == USB_VID_AVERMEDIA &&
+	    le16_to_cpu(udev->descriptor.idProduct) == USB_PID_AVERMEDIA_A850) {
+		deb_info("%s: AverMedia A850: overriding config\n", __func__);
+		/* disable dual mode */
+		af9015_config.dual_mode = 0;
+		 /* disable 2nd adapter */
+		for (i = 0; i < af9015_properties_count; i++)
+			af9015_properties[i].num_adapters = 1;
+
+		/* set correct IF */
+		af9015_af9013_config[0].tuner_if = 4570;
+	}
 
 	return ret;
 }
@@ -1237,6 +1259,9 @@ static struct usb_device_id af9015_usb_table[] = {
 /* 15 */{USB_DEVICE(USB_VID_MSI_2,     USB_PID_MSI_DIGI_VOX_MINI_III)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_2)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_3)},
+	{USB_DEVICE(USB_VID_AFATECH,   USB_PID_TREKSTOR_DVBT)},
+	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1401,7 +1426,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 7,
+		.num_device_descs = 9,
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1437,7 +1462,19 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.name = "KWorld USB DVB-T TV Stick II " \
 					"(VS-DVB-T 395U)",
 				.cold_ids = {&af9015_usb_table[16],
-					     &af9015_usb_table[17], NULL},
+					     &af9015_usb_table[17],
+					     &af9015_usb_table[18], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "TrekStor DVB-T USB Stick",
+				.cold_ids = {&af9015_usb_table[19], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "AverMedia AVerTV Volar Black HD " \
+					"(A850)",
+				.cold_ids = {&af9015_usb_table[20], NULL},
 				.warm_ids = {NULL},
 			},
 		}

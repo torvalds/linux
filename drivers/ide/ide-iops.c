@@ -37,14 +37,11 @@ void SELECT_MASK(ide_drive_t *drive, int mask)
 
 u8 ide_read_error(ide_drive_t *drive)
 {
-	struct ide_cmd cmd;
+	struct ide_taskfile tf;
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_IN_ERROR;
+	drive->hwif->tp_ops->tf_read(drive, &tf, IDE_VALID_ERROR);
 
-	drive->hwif->tp_ops->tf_read(drive, &cmd);
-
-	return cmd.tf.error;
+	return tf.error;
 }
 EXPORT_SYMBOL_GPL(ide_read_error);
 
@@ -312,10 +309,10 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	const struct ide_tp_ops *tp_ops = hwif->tp_ops;
+	struct ide_taskfile tf;
 	u16 *id = drive->id, i;
 	int error = 0;
 	u8 stat;
-	struct ide_cmd cmd;
 
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (hwif->dma_ops)	/* check if host supports DMA */
@@ -347,12 +344,11 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	udelay(1);
 	tp_ops->write_devctl(hwif, ATA_NIEN | ATA_DEVCTL_OBS);
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.tf_flags = IDE_TFLAG_OUT_FEATURE | IDE_TFLAG_OUT_NSECT;
-	cmd.tf.feature = SETFEATURES_XFER;
-	cmd.tf.nsect   = speed;
+	memset(&tf, 0, sizeof(tf));
+	tf.feature = SETFEATURES_XFER;
+	tf.nsect   = speed;
 
-	tp_ops->tf_load(drive, &cmd);
+	tp_ops->tf_load(drive, &tf, IDE_VALID_FEATURE | IDE_VALID_NSECT);
 
 	tp_ops->exec_command(hwif, ATA_CMD_SET_FEATURES);
 

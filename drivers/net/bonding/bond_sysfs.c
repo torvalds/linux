@@ -684,17 +684,15 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			goto out;
 		}
 		/* look for an empty slot to put the target in, and check for dupes */
-		for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
+		for (i = 0; (i < BOND_MAX_ARP_TARGETS) && !done; i++) {
 			if (targets[i] == newtarget) { /* duplicate */
 				printk(KERN_ERR DRV_NAME
 				       ": %s: ARP target %pI4 is already present\n",
 				       bond->dev->name, &newtarget);
-				if (done)
-					targets[i] = 0;
 				ret = -EINVAL;
 				goto out;
 			}
-			if (targets[i] == 0 && !done) {
+			if (targets[i] == 0) {
 				printk(KERN_INFO DRV_NAME
 				       ": %s: adding ARP target %pI4.\n",
 				       bond->dev->name, &newtarget);
@@ -720,12 +718,16 @@ static ssize_t bonding_store_arp_targets(struct device *d,
 			goto out;
 		}
 
-		for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
+		for (i = 0; (i < BOND_MAX_ARP_TARGETS) && !done; i++) {
 			if (targets[i] == newtarget) {
+				int j;
 				printk(KERN_INFO DRV_NAME
 				       ": %s: removing ARP target %pI4.\n",
 				       bond->dev->name, &newtarget);
-				targets[i] = 0;
+				for (j = i; (j < (BOND_MAX_ARP_TARGETS-1)) && targets[j+1]; j++)
+					targets[j] = targets[j+1];
+
+				targets[j] = 0;
 				done = 1;
 			}
 		}

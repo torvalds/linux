@@ -2274,8 +2274,6 @@ static void port_start(struct mv643xx_eth_private *mp)
 		pscr |= FORCE_LINK_PASS;
 	wrlp(mp, PORT_SERIAL_CONTROL, pscr);
 
-	wrlp(mp, SDMA_CONFIG, PORT_SDMA_CONFIG_DEFAULT_VALUE);
-
 	/*
 	 * Configure TX path and queues.
 	 */
@@ -2956,6 +2954,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		wrl(mp, WINDOW_PROTECT(mp->port_num), mp->shared->win_protect);
 
 	netif_carrier_off(dev);
+
+	wrlp(mp, SDMA_CONFIG, PORT_SDMA_CONFIG_DEFAULT_VALUE);
 
 	set_rx_coal(mp, 250);
 	set_tx_coal(mp, 0);

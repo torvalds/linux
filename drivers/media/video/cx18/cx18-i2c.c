@@ -100,16 +100,16 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 
 	if (hw == CX18_HW_TUNER) {
 		/* special tuner group handling */
-		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
-						cx->card_i2c->radio);
+		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
+				adap, mod, type, cx->card_i2c->radio);
 		if (sd != NULL)
 			sd->grp_id = hw;
-		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
-						cx->card_i2c->demod);
+		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
+				adap, mod, type, cx->card_i2c->demod);
 		if (sd != NULL)
 			sd->grp_id = hw;
-		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
-						cx->card_i2c->tv);
+		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
+				adap, mod, type, cx->card_i2c->tv);
 		if (sd != NULL)
 			sd->grp_id = hw;
 		return sd != NULL ? 0 : -1;
@@ -120,7 +120,7 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 		return -1;
 
 	/* It's an I2C device other than an analog tuner */
-	sd = v4l2_i2c_new_subdev(adap, mod, type, hw_addrs[idx]);
+	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, mod, type, hw_addrs[idx]);
 	if (sd != NULL)
 		sd->grp_id = hw;
 	return sd != NULL ? 0 : -1;

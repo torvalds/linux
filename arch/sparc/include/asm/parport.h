@@ -117,7 +117,7 @@ static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id 
 	if (!strcmp(parent->name, "dma")) {
 		p = parport_pc_probe_port(base, base + 0x400,
 					  op->irqs[0], PARPORT_DMA_NOFIFO,
-					  op->dev.parent->parent);
+					  op->dev.parent->parent, 0);
 		if (!p)
 			return -ENOMEM;
 		dev_set_drvdata(&op->dev, p);
@@ -168,7 +168,8 @@ static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id 
 	p = parport_pc_probe_port(base, base + 0x400,
 				  op->irqs[0],
 				  slot,
-				  op->dev.parent);
+				  op->dev.parent,
+				  0);
 	err = -ENOMEM;
 	if (!p)
 		goto out_disable_irq;

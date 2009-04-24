@@ -377,20 +377,8 @@ static int vidioc_s_audio(struct file *file, void *priv,
 	return a->index ? -EINVAL : 0;
 }
 
-static int fmr2_open(struct file *file)
-{
-	return 0;
-}
-
-static int fmr2_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations fmr2_fops = {
 	.owner          = THIS_MODULE,
-	.open           = fmr2_open,
-	.release        = fmr2_release,
 	.ioctl          = video_ioctl2,
 };
 

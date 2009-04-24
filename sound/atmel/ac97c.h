@@ -1,5 +1,5 @@
 /*
- * Register definitions for the Atmel AC97C controller
+ * Register definitions for Atmel AC97C
  *
  * Copyright (C) 2005-2009 Atmel Corporation
  *
@@ -17,10 +17,6 @@
 #define AC97C_CATHR		0x24
 #define AC97C_CASR		0x28
 #define AC97C_CAMR		0x2c
-#define AC97C_CBRHR		0x30
-#define AC97C_CBTHR		0x34
-#define AC97C_CBSR		0x38
-#define AC97C_CBMR		0x3c
 #define AC97C_CORHR		0x40
 #define AC97C_COTHR		0x44
 #define AC97C_COSR		0x48
@@ -46,8 +42,10 @@
 #define AC97C_MR_VRA		(1 << 2)
 
 #define AC97C_CSR_TXRDY		(1 << 0)
+#define AC97C_CSR_TXEMPTY	(1 << 1)
 #define AC97C_CSR_UNRUN		(1 << 2)
 #define AC97C_CSR_RXRDY		(1 << 4)
+#define AC97C_CSR_OVRUN		(1 << 5)
 #define AC97C_CSR_ENDTX		(1 << 10)
 #define AC97C_CSR_ENDRX		(1 << 14)
 
@@ -61,11 +59,15 @@
 #define AC97C_CMR_DMAEN		(1 << 22)
 
 #define AC97C_SR_CAEVT		(1 << 3)
+#define AC97C_SR_COEVT		(1 << 2)
+#define AC97C_SR_WKUP		(1 << 1)
+#define AC97C_SR_SOF		(1 << 0)
 
+#define AC97C_CH_MASK(slot)						\
+	(0x7 << (3 * (AC97_SLOT_##slot - 3)))
 #define AC97C_CH_ASSIGN(slot, channel)					\
 	(AC97C_CHANNEL_##channel << (3 * (AC97_SLOT_##slot - 3)))
 #define AC97C_CHANNEL_NONE	0x0
 #define AC97C_CHANNEL_A		0x1
-#define AC97C_CHANNEL_B		0x2
 
 #endif /* __SOUND_ATMEL_AC97C_H */

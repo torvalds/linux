@@ -19,7 +19,7 @@ my $opt_graph;
 	version	=> \&version,
 
 	all	=> \$opt_all,
-	I	=> \@opt_include,
+	"I=s"	=> \@opt_include,
 	graph	=> \$opt_graph,
 );
 

@@ -93,14 +93,14 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_device(pdev))
 		return -EIO;
 
-	ret =  pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	ret =  pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 
 	if (ret) {
 		printk(KERN_ERR "ath9k: 32-bit DMA not available\n");
 		goto bad;
 	}
 
-	ret = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 
 	if (ret) {
 		printk(KERN_ERR "ath9k: 32-bit DMA consistent "

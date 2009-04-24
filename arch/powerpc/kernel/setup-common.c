@@ -36,7 +36,6 @@
 #include <linux/percpu.h>
 #include <linux/lmb.h>
 #include <linux/of_platform.h>
-#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
