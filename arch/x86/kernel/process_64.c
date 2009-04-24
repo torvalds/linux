@@ -419,6 +419,9 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 
 	load_TLS(next, cpu);
 
+	/* Must be after DS reload */
+	unlazy_fpu(prev_p);
+
 	/*
 	 * Leave lazy mode, flushing any hypercalls made here.
 	 * This must be done before restoring TLS segments so
@@ -458,9 +461,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (next->gs)
 		wrmsrl(MSR_KERNEL_GS_BASE, next->gs);
 	prev->gsindex = gsindex;
-
-	/* Must be after DS reload */
-	unlazy_fpu(prev_p);
 
 	/*
 	 * Switch the PDA and FPU contexts.
