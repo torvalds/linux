@@ -260,4 +260,13 @@ config INPUT_RB532_BUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called rb532_button.
 
+config INPUT_DM355EVM
+	tristate "TI DaVinci DM355 EVM Keypad and IR Remote"
+	depends on MFD_DM355EVM_MSP
+	help
+	  Supports the pushbuttons and IR remote used with
+	  the DM355 EVM board.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dm355evm_keys.
 endif
