@@ -812,7 +812,7 @@ static u8 ath_rc_rate_getidx(struct ath_softc *sc,
 			     u16 min_rate)
 {
 	u32 j;
-	u8 nextindex;
+	u8 nextindex = 0;
 
 	if (min_rate) {
 		for (j = RATE_TABLE_SIZE; j > 0; j--) {
