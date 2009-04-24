@@ -10,11 +10,24 @@
 /*
  * Tracepoint for entry of interrupt handler:
  */
-TRACE_FORMAT(irq_handler_entry,
+TRACE_EVENT(irq_handler_entry,
+
 	TP_PROTO(int irq, struct irqaction *action),
+
 	TP_ARGS(irq, action),
-	TP_FMT("irq=%d handler=%s", irq, action->name)
-	);
+
+	TP_STRUCT__entry(
+		__field(	int,	irq		)
+		__string(	name,	action->name	)
+	),
+
+	TP_fast_assign(
+		__entry->irq = irq;
+		__assign_str(name, action->name);
+	),
+
+	TP_printk("irq=%d handler=%s", __entry->irq, __get_str(name))
+);
 
 /*
  * Tracepoint for return of an interrupt handler:
@@ -39,17 +52,43 @@ TRACE_EVENT(irq_handler_exit,
 		  __entry->irq, __entry->ret ? "handled" : "unhandled")
 );
 
-TRACE_FORMAT(softirq_entry,
-	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
-	TP_ARGS(h, vec),
-	TP_FMT("softirq=%d action=%s", (int)(h - vec), softirq_to_name[h-vec])
-	);
+TRACE_EVENT(softirq_entry,
 
-TRACE_FORMAT(softirq_exit,
 	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+
 	TP_ARGS(h, vec),
-	TP_FMT("softirq=%d action=%s", (int)(h - vec), softirq_to_name[h-vec])
-	);
+
+	TP_STRUCT__entry(
+		__field(	int,	vec			)
+		__string(	name,	softirq_to_name[h-vec]	)
+	),
+
+	TP_fast_assign(
+		__entry->vec = (int)(h - vec);
+		__assign_str(name, softirq_to_name[h-vec]);
+	),
+
+	TP_printk("softirq=%d action=%s", __entry->vec, __get_str(name))
+);
+
+TRACE_EVENT(softirq_exit,
+
+	TP_PROTO(struct softirq_action *h, struct softirq_action *vec),
+
+	TP_ARGS(h, vec),
+
+	TP_STRUCT__entry(
+		__field(	int,	vec			)
+		__string(	name,	softirq_to_name[h-vec]	)
+	),
+
+	TP_fast_assign(
+		__entry->vec = (int)(h - vec);
+		__assign_str(name, softirq_to_name[h-vec]);
+	),
+
+	TP_printk("softirq=%d action=%s", __entry->vec, __get_str(name))
+);
 
 #endif /*  _TRACE_IRQ_H */
 
