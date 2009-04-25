@@ -14,12 +14,14 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/of_platform.h>
+#include <linux/of_mdio.h>
 #include <asm/io.h>
 #include <asm/mpc52xx.h>
 #include "fec_mpc52xx.h"
 
 struct mpc52xx_fec_mdio_priv {
 	struct mpc52xx_fec __iomem *regs;
+	int mdio_irqs[PHY_MAX_ADDR];
 };
 
 static int mpc52xx_fec_mdio_transfer(struct mii_bus *bus, int phy_id,
@@ -27,7 +29,7 @@ static int mpc52xx_fec_mdio_transfer(struct mii_bus *bus, int phy_id,
 {
 	struct mpc52xx_fec_mdio_priv *priv = bus->priv;
 	struct mpc52xx_fec __iomem *fec;
-	int tries = 100;
+	int tries = 3;
 
 	value |= (phy_id << FEC_MII_DATA_PA_SHIFT) & FEC_MII_DATA_PA_MSK;
 	value |= (reg << FEC_MII_DATA_RA_SHIFT) & FEC_MII_DATA_RA_MSK;
@@ -38,7 +40,7 @@ static int mpc52xx_fec_mdio_transfer(struct mii_bus *bus, int phy_id,
 
 	/* wait for it to finish, this takes about 23 us on lite5200b */
 	while (!(in_be32(&fec->ievent) & FEC_IEVENT_MII) && --tries)
-		udelay(5);
+		msleep(1);
 
 	if (!tries)
 		return -ETIMEDOUT;
@@ -64,7 +66,6 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 {
 	struct device *dev = &of->dev;
 	struct device_node *np = of->node;
-	struct device_node *child = NULL;
 	struct mii_bus *bus;
 	struct mpc52xx_fec_mdio_priv *priv;
 	struct resource res = {};
@@ -85,22 +86,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 	bus->write = mpc52xx_fec_mdio_write;
 
 	/* setup irqs */
-	bus->irq = kmalloc(sizeof(bus->irq[0]) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (bus->irq == NULL) {
-		err = -ENOMEM;
-		goto out_free;
-	}
-	for (i=0; i<PHY_MAX_ADDR; i++)
-		bus->irq[i] = PHY_POLL;
-
-	while ((child = of_get_next_child(np, child)) != NULL) {
-		int irq = irq_of_parse_and_map(child, 0);
-		if (irq != NO_IRQ) {
-			const u32 *id = of_get_property(child, "reg", NULL);
-			if (id)
-				bus->irq[*id] = irq;
-		}
-	}
+	bus->irq = priv->mdio_irqs;
 
 	/* setup registers */
 	err = of_address_to_resource(np, 0, &res);
@@ -122,7 +108,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 	out_be32(&priv->regs->mii_speed,
 		((mpc52xx_find_ipb_freq(of->node) >> 20) / 5) << 1);
 
-	err = mdiobus_register(bus);
+	err = of_mdiobus_register(bus, np);
 	if (err)
 		goto out_unmap;
 
