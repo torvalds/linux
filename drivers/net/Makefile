@@ -134,6 +134,8 @@ obj-$(CONFIG_AX88796) += ax88796.o
 
 obj-$(CONFIG_TSI108_ETH) += tsi108_eth.o
 obj-$(CONFIG_MV643XX_ETH) += mv643xx_eth.o
+ll_temac-objs := ll_temac_main.o ll_temac_mdio.o
+obj-$(CONFIG_XILINX_LL_TEMAC) += ll_temac.o
 obj-$(CONFIG_QLA3XXX) += qla3xxx.o
 obj-$(CONFIG_QLGE) += qlge/
 

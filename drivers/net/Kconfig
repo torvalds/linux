@@ -2362,6 +2362,14 @@ config MV643XX_ETH
 	  Some boards that use the Discovery chipset are the Momenco
 	  Ocelot C and Jaguar ATX and Pegasos II.
 
+config XILINX_LL_TEMAC
+	tristate "Xilinx LL TEMAC (LocalLink Tri-mode Ethernet MAC) driver"
+	select PHYLIB
+	depends on PPC_DCR_NATIVE
+	help
+	  This driver supports the Xilinx 10/100/1000 LocalLink TEMAC
+	  core used in Xilinx Spartan and Virtex FPGAs
+
 config QLA3XXX
 	tristate "QLogic QLA3XXX Network Driver Support"
 	depends on PCI
