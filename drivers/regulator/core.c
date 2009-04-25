@@ -2080,6 +2080,10 @@ out:
 
 scrub:
 	device_unregister(&rdev->dev);
+	/* device core frees rdev */
+	rdev = ERR_PTR(ret);
+	goto out;
+
 clean:
 	kfree(rdev);
 	rdev = ERR_PTR(ret);
