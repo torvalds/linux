@@ -13,6 +13,9 @@
 #define DMA_PTE_WRITE (2)
 #define DMA_PTE_SNP (1 << 11)
 
+#define CONTEXT_TT_MULTI_LEVEL	0
+#define CONTEXT_TT_PASS_THROUGH 2
+
 struct intel_iommu;
 struct dmar_domain;
 struct root_entry;
@@ -21,8 +24,13 @@ extern void free_dmar_iommu(struct intel_iommu *iommu);
 
 #ifdef CONFIG_DMAR
 extern int iommu_calculate_agaw(struct intel_iommu *iommu);
+extern int iommu_calculate_max_sagaw(struct intel_iommu *iommu);
 #else
 static inline int iommu_calculate_agaw(struct intel_iommu *iommu)
+{
+	return 0;
+}
+static inline int iommu_calculate_max_sagaw(struct intel_iommu *iommu)
 {
 	return 0;
 }

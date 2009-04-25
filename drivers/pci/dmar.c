@@ -515,6 +515,7 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	u32 ver;
 	static int iommu_allocated = 0;
 	int agaw = 0;
+	int msagaw = 0;
 
 	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu)
@@ -535,12 +536,20 @@ int alloc_iommu(struct dmar_drhd_unit *drhd)
 	agaw = iommu_calculate_agaw(iommu);
 	if (agaw < 0) {
 		printk(KERN_ERR
-			"Cannot get a valid agaw for iommu (seq_id = %d)\n",
+		       "Cannot get a valid agaw for iommu (seq_id = %d)\n",
+		       iommu->seq_id);
+		goto error;
+	}
+	msagaw = iommu_calculate_max_sagaw(iommu);
+	if (msagaw < 0) {
+		printk(KERN_ERR
+			"Cannot get a valid max agaw for iommu (seq_id = %d)\n",
 			iommu->seq_id);
 		goto error;
 	}
 #endif
 	iommu->agaw = agaw;
+	iommu->msagaw = msagaw;
 
 	/* the registers might be more than one page */
 	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),

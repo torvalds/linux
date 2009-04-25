@@ -53,6 +53,8 @@
 
 #define DEFAULT_DOMAIN_ADDRESS_WIDTH 48
 
+#define MAX_AGAW_WIDTH 64
+
 #define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
 
 #define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
@@ -126,8 +128,6 @@ static inline void context_set_fault_enable(struct context_entry *context)
 {
 	context->lo &= (((u64)-1) << 2) | 1;
 }
-
-#define CONTEXT_TT_MULTI_LEVEL 0
 
 static inline void context_set_translation_type(struct context_entry *context,
 						unsigned long value)
@@ -288,6 +288,7 @@ int dmar_disabled = 1;
 static int __initdata dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
+int iommu_pass_through;
 
 #define DUMMY_DEVICE_DOMAIN_INFO ((struct device_domain_info *)(-1))
 static DEFINE_SPINLOCK(device_domain_lock);
@@ -397,23 +398,37 @@ void free_iova_mem(struct iova *iova)
 
 static inline int width_to_agaw(int width);
 
-/* calculate agaw for each iommu.
- * "SAGAW" may be different across iommus, use a default agaw, and
- * get a supported less agaw for iommus that don't support the default agaw.
- */
-int iommu_calculate_agaw(struct intel_iommu *iommu)
+static int __iommu_calculate_agaw(struct intel_iommu *iommu, int max_gaw)
 {
 	unsigned long sagaw;
 	int agaw = -1;
 
 	sagaw = cap_sagaw(iommu->cap);
-	for (agaw = width_to_agaw(DEFAULT_DOMAIN_ADDRESS_WIDTH);
+	for (agaw = width_to_agaw(max_gaw);
 	     agaw >= 0; agaw--) {
 		if (test_bit(agaw, &sagaw))
 			break;
 	}
 
 	return agaw;
+}
+
+/*
+ * Calculate max SAGAW for each iommu.
+ */
+int iommu_calculate_max_sagaw(struct intel_iommu *iommu)
+{
+	return __iommu_calculate_agaw(iommu, MAX_AGAW_WIDTH);
+}
+
+/*
+ * calculate agaw for each iommu.
+ * "SAGAW" may be different across iommus, use a default agaw, and
+ * get a supported less agaw for iommus that don't support the default agaw.
+ */
+int iommu_calculate_agaw(struct intel_iommu *iommu)
+{
+	return __iommu_calculate_agaw(iommu, DEFAULT_DOMAIN_ADDRESS_WIDTH);
 }
 
 /* in native case, each domain is related to only one iommu */
@@ -1321,8 +1336,8 @@ static void domain_exit(struct dmar_domain *domain)
 	free_domain_mem(domain);
 }
 
-static int domain_context_mapping_one(struct dmar_domain *domain,
-				      int segment, u8 bus, u8 devfn)
+static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
+				 u8 bus, u8 devfn, int translation)
 {
 	struct context_entry *context;
 	unsigned long flags;
@@ -1335,7 +1350,10 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 
 	pr_debug("Set context mapping for %02x:%02x.%d\n",
 		bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
+
 	BUG_ON(!domain->pgd);
+	BUG_ON(translation != CONTEXT_TT_PASS_THROUGH &&
+	       translation != CONTEXT_TT_MULTI_LEVEL);
 
 	iommu = device_to_iommu(segment, bus, devfn);
 	if (!iommu)
@@ -1395,9 +1413,18 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	}
 
 	context_set_domain_id(context, id);
-	context_set_address_width(context, iommu->agaw);
-	context_set_address_root(context, virt_to_phys(pgd));
-	context_set_translation_type(context, CONTEXT_TT_MULTI_LEVEL);
+
+	/*
+	 * In pass through mode, AW must be programmed to indicate the largest
+	 * AGAW value supported by hardware. And ASR is ignored by hardware.
+	 */
+	if (likely(translation == CONTEXT_TT_MULTI_LEVEL)) {
+		context_set_address_width(context, iommu->agaw);
+		context_set_address_root(context, virt_to_phys(pgd));
+	} else
+		context_set_address_width(context, iommu->msagaw);
+
+	context_set_translation_type(context, translation);
 	context_set_fault_enable(context);
 	context_set_present(context);
 	domain_flush_cache(domain, context, sizeof(*context));
@@ -1422,13 +1449,15 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 }
 
 static int
-domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev)
+domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
+			int translation)
 {
 	int ret;
 	struct pci_dev *tmp, *parent;
 
 	ret = domain_context_mapping_one(domain, pci_domain_nr(pdev->bus),
-					 pdev->bus->number, pdev->devfn);
+					 pdev->bus->number, pdev->devfn,
+					 translation);
 	if (ret)
 		return ret;
 
@@ -1442,7 +1471,7 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev)
 		ret = domain_context_mapping_one(domain,
 						 pci_domain_nr(parent->bus),
 						 parent->bus->number,
-						 parent->devfn);
+						 parent->devfn, translation);
 		if (ret)
 			return ret;
 		parent = parent->bus->self;
@@ -1450,12 +1479,14 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev)
 	if (tmp->is_pcie) /* this is a PCIE-to-PCI bridge */
 		return domain_context_mapping_one(domain,
 					pci_domain_nr(tmp->subordinate),
-					tmp->subordinate->number, 0);
+					tmp->subordinate->number, 0,
+					translation);
 	else /* this is a legacy PCI bridge */
 		return domain_context_mapping_one(domain,
 						  pci_domain_nr(tmp->bus),
 						  tmp->bus->number,
-						  tmp->devfn);
+						  tmp->devfn,
+						  translation);
 }
 
 static int domain_context_mapped(struct pci_dev *pdev)
@@ -1752,7 +1783,7 @@ static int iommu_prepare_identity_map(struct pci_dev *pdev,
 		goto error;
 
 	/* context entry init */
-	ret = domain_context_mapping(domain, pdev);
+	ret = domain_context_mapping(domain, pdev, CONTEXT_TT_MULTI_LEVEL);
 	if (!ret)
 		return 0;
 error:
@@ -1853,6 +1884,23 @@ static inline void iommu_prepare_isa(void)
 }
 #endif /* !CONFIG_DMAR_FLPY_WA */
 
+/* Initialize each context entry as pass through.*/
+static int __init init_context_pass_through(void)
+{
+	struct pci_dev *pdev = NULL;
+	struct dmar_domain *domain;
+	int ret;
+
+	for_each_pci_dev(pdev) {
+		domain = get_domain_for_dev(pdev, DEFAULT_DOMAIN_ADDRESS_WIDTH);
+		ret = domain_context_mapping(domain, pdev,
+					     CONTEXT_TT_PASS_THROUGH);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
 static int __init init_dmars(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -1860,6 +1908,7 @@ static int __init init_dmars(void)
 	struct pci_dev *pdev;
 	struct intel_iommu *iommu;
 	int i, ret;
+	int pass_through = 1;
 
 	/*
 	 * for each drhd
@@ -1913,7 +1962,15 @@ static int __init init_dmars(void)
 			printk(KERN_ERR "IOMMU: allocate root entry failed\n");
 			goto error;
 		}
+		if (!ecap_pass_through(iommu->ecap))
+			pass_through = 0;
 	}
+	if (iommu_pass_through)
+		if (!pass_through) {
+			printk(KERN_INFO
+			       "Pass Through is not supported by hardware.\n");
+			iommu_pass_through = 0;
+		}
 
 	/*
 	 * Start from the sane iommu hardware state.
@@ -1976,37 +2033,57 @@ static int __init init_dmars(void)
 			       "IOMMU: enable interrupt remapping failed\n");
 	}
 #endif
-
 	/*
-	 * For each rmrr
-	 *   for each dev attached to rmrr
-	 *   do
-	 *     locate drhd for dev, alloc domain for dev
-	 *     allocate free domain
-	 *     allocate page table entries for rmrr
-	 *     if context not allocated for bus
-	 *           allocate and init context
-	 *           set present in root table for this bus
-	 *     init context with domain, translation etc
-	 *    endfor
-	 * endfor
+	 * If pass through is set and enabled, context entries of all pci
+	 * devices are intialized by pass through translation type.
 	 */
-	for_each_rmrr_units(rmrr) {
-		for (i = 0; i < rmrr->devices_cnt; i++) {
-			pdev = rmrr->devices[i];
-			/* some BIOS lists non-exist devices in DMAR table */
-			if (!pdev)
-				continue;
-			ret = iommu_prepare_rmrr_dev(rmrr, pdev);
-			if (ret)
-				printk(KERN_ERR
-				 "IOMMU: mapping reserved region failed\n");
+	if (iommu_pass_through) {
+		ret = init_context_pass_through();
+		if (ret) {
+			printk(KERN_ERR "IOMMU: Pass through init failed.\n");
+			iommu_pass_through = 0;
 		}
 	}
 
-	iommu_prepare_gfx_mapping();
+	/*
+	 * If pass through is not set or not enabled, setup context entries for
+	 * identity mappings for rmrr, gfx, and isa.
+	 */
+	if (!iommu_pass_through) {
+		/*
+		 * For each rmrr
+		 *   for each dev attached to rmrr
+		 *   do
+		 *     locate drhd for dev, alloc domain for dev
+		 *     allocate free domain
+		 *     allocate page table entries for rmrr
+		 *     if context not allocated for bus
+		 *           allocate and init context
+		 *           set present in root table for this bus
+		 *     init context with domain, translation etc
+		 *    endfor
+		 * endfor
+		 */
+		for_each_rmrr_units(rmrr) {
+			for (i = 0; i < rmrr->devices_cnt; i++) {
+				pdev = rmrr->devices[i];
+				/*
+				 * some BIOS lists non-exist devices in DMAR
+				 * table.
+				 */
+				if (!pdev)
+					continue;
+				ret = iommu_prepare_rmrr_dev(rmrr, pdev);
+				if (ret)
+					printk(KERN_ERR
+				 "IOMMU: mapping reserved region failed\n");
+			}
+		}
 
-	iommu_prepare_isa();
+		iommu_prepare_gfx_mapping();
+
+		iommu_prepare_isa();
+	}
 
 	/*
 	 * for each drhd
@@ -2117,7 +2194,8 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 
 	/* make sure context mapping is ok */
 	if (unlikely(!domain_context_mapped(pdev))) {
-		ret = domain_context_mapping(domain, pdev);
+		ret = domain_context_mapping(domain, pdev,
+					     CONTEXT_TT_MULTI_LEVEL);
 		if (ret) {
 			printk(KERN_ERR
 				"Domain context map for %s failed",
@@ -2786,7 +2864,7 @@ int __init intel_iommu_init(void)
 	 * Check the need for DMA-remapping initialization now.
 	 * Above initialization will also be used by Interrupt-remapping.
 	 */
-	if (no_iommu || swiotlb || dmar_disabled)
+	if (no_iommu || (swiotlb && !iommu_pass_through) || dmar_disabled)
 		return -ENODEV;
 
 	iommu_init_mempool();
@@ -2806,7 +2884,15 @@ int __init intel_iommu_init(void)
 
 	init_timer(&unmap_timer);
 	force_iommu = 1;
-	dma_ops = &intel_dma_ops;
+
+	if (!iommu_pass_through) {
+		printk(KERN_INFO
+		       "Multi-level page-table translation for DMAR.\n");
+		dma_ops = &intel_dma_ops;
+	} else
+		printk(KERN_INFO
+		       "DMAR: Pass through translation for DMAR.\n");
+
 	init_iommu_sysfs();
 
 	register_iommu(&intel_iommu_ops);
@@ -3146,7 +3232,7 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		return -EFAULT;
 	}
 
-	ret = domain_context_mapping(dmar_domain, pdev);
+	ret = domain_context_mapping(dmar_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
 	if (ret)
 		return ret;
 

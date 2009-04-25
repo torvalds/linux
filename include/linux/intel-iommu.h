@@ -120,6 +120,7 @@ static inline void dmar_writeq(void __iomem *addr, u64 val)
 	(ecap_iotlb_offset(e) + ecap_niotlb_iunits(e) * 16)
 #define ecap_coherent(e)	((e) & 0x1)
 #define ecap_qis(e)		((e) & 0x2)
+#define ecap_pass_through(e)	((e >> 6) & 0x1)
 #define ecap_eim_support(e)	((e >> 4) & 0x1)
 #define ecap_ir_support(e)	((e >> 3) & 0x1)
 #define ecap_max_handle_mask(e) ((e >> 20) & 0xf)
@@ -302,6 +303,7 @@ struct intel_iommu {
 	spinlock_t	register_lock; /* protect register handling */
 	int		seq_id;	/* sequence id of the iommu */
 	int		agaw; /* agaw of this iommu */
+	int		msagaw; /* max sagaw of this iommu */
 	unsigned int 	irq;
 	unsigned char 	name[13];    /* Device Name */
 

@@ -160,6 +160,8 @@ again:
 	return page_address(page);
 }
 
+extern int iommu_pass_through;
+
 /*
  * See <Documentation/x86_64/boot-options.txt> for the iommu kernel parameter
  * documentation.
@@ -209,6 +211,10 @@ static __init int iommu_setup(char *p)
 #ifdef CONFIG_SWIOTLB
 		if (!strncmp(p, "soft", 4))
 			swiotlb = 1;
+		if (!strncmp(p, "pt", 2)) {
+			iommu_pass_through = 1;
+			return 1;
+		}
 #endif
 
 		gart_parse_options(p);
