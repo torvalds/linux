@@ -39,19 +39,20 @@ MODULE_DESCRIPTION("PHY library");
 MODULE_AUTHOR("Andy Fleming");
 MODULE_LICENSE("GPL");
 
-static struct phy_driver genphy_driver;
-extern int mdio_bus_init(void);
-extern void mdio_bus_exit(void);
-
 void phy_device_free(struct phy_device *phydev)
 {
 	kfree(phydev);
 }
+EXPORT_SYMBOL(phy_device_free);
 
 static void phy_device_release(struct device *dev)
 {
 	phy_device_free(to_phy_device(dev));
 }
+
+static struct phy_driver genphy_driver;
+extern int mdio_bus_init(void);
+extern void mdio_bus_exit(void);
 
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
@@ -166,6 +167,10 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 	dev->addr = addr;
 	dev->phy_id = phy_id;
 	dev->bus = bus;
+	dev->dev.parent = bus->parent;
+	dev->dev.bus = &mdio_bus_type;
+	dev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
+	dev_set_name(&dev->dev, PHY_ID_FMT, bus->id, addr);
 
 	dev->state = PHY_DOWN;
 
@@ -235,6 +240,38 @@ struct phy_device * get_phy_device(struct mii_bus *bus, int addr)
 
 	return dev;
 }
+EXPORT_SYMBOL(get_phy_device);
+
+/**
+ * phy_device_register - Register the phy device on the MDIO bus
+ * @phy_device: phy_device structure to be added to the MDIO bus
+ */
+int phy_device_register(struct phy_device *phydev)
+{
+	int err;
+
+	/* Don't register a phy if one is already registered at this
+	 * address */
+	if (phydev->bus->phy_map[phydev->addr])
+		return -EINVAL;
+	phydev->bus->phy_map[phydev->addr] = phydev;
+
+	/* Run all of the fixups for this PHY */
+	phy_scan_fixups(phydev);
+
+	err = device_register(&phydev->dev);
+	if (err) {
+		pr_err("phy %d failed to register\n", phydev->addr);
+		goto out;
+	}
+
+	return 0;
+
+ out:
+	phydev->bus->phy_map[phydev->addr] = NULL;
+	return err;
+}
+EXPORT_SYMBOL(phy_device_register);
 
 /**
  * phy_prepare_link - prepares the PHY layer to monitor link status

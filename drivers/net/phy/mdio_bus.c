@@ -113,7 +113,6 @@ int mdiobus_register(struct mii_bus *bus)
 		bus->reset(bus);
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		bus->phy_map[i] = NULL;
 		if ((bus->phy_mask & (1 << i)) == 0) {
 			struct phy_device *phydev;
 
@@ -150,6 +149,7 @@ void mdiobus_unregister(struct mii_bus *bus)
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		if (bus->phy_map[i])
 			device_unregister(&bus->phy_map[i]->dev);
+		bus->phy_map[i] = NULL;
 	}
 }
 EXPORT_SYMBOL(mdiobus_unregister);
@@ -188,34 +188,11 @@ struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr)
 	if (IS_ERR(phydev) || phydev == NULL)
 		return phydev;
 
-	/* There's a PHY at this address
-	 * We need to set:
-	 * 1) IRQ
-	 * 2) bus_id
-	 * 3) parent
-	 * 4) bus
-	 * 5) mii_bus
-	 * And, we need to register it */
-
-	phydev->irq = bus->irq != NULL ? bus->irq[addr] : PHY_POLL;
-
-	phydev->dev.parent = bus->parent;
-	phydev->dev.bus = &mdio_bus_type;
-	dev_set_name(&phydev->dev, PHY_ID_FMT, bus->id, addr);
-
-	phydev->bus = bus;
-
-	/* Run all of the fixups for this PHY */
-	phy_scan_fixups(phydev);
-
-	err = device_register(&phydev->dev);
+	err = phy_device_register(phydev);
 	if (err) {
-		printk(KERN_ERR "phy %d failed to register\n", addr);
 		phy_device_free(phydev);
-		phydev = NULL;
+		return NULL;
 	}
-
-	bus->phy_map[addr] = phydev;
 
 	return phydev;
 }
