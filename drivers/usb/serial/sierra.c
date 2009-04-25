@@ -14,7 +14,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.3.3"
+#define DRIVER_VERSION "v.1.3.4"
 #define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -30,8 +30,8 @@
 #define SWIMS_USB_REQUEST_SetPower	0x00
 #define SWIMS_USB_REQUEST_SetNmea	0x07
 
-#define N_IN_URB	4
-#define N_OUT_URB	4
+#define N_IN_URB	8
+#define N_OUT_URB	64
 #define IN_BUFLEN	4096
 
 static int debug;
