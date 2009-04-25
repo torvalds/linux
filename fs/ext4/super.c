@@ -1483,7 +1483,7 @@ set_qf_format:
 				return 0;
 			if (option < 0 || option > (1 << 30))
 				return 0;
-			if (option & (option - 1)) {
+			if (!is_power_of_2(option)) {
 				printk(KERN_ERR "EXT4-fs: inode_readahead_blks"
 				       " must be a power of 2\n");
 				return 0;
@@ -2101,8 +2101,7 @@ static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 	if (parse_strtoul(buf, 0x40000000, &t))
 		return -EINVAL;
 
-	/* inode_readahead_blks must be a power of 2 */
-	if (t & (t-1))
+	if (!is_power_of_2(t))
 		return -EINVAL;
 
 	sbi->s_inode_readahead_blks = t;
