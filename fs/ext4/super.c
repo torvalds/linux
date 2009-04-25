@@ -2828,14 +2828,6 @@ no_journal:
 		goto failed_mount4;
 	};
 
-	/*
-	 * akpm: core read_super() calls in here with the superblock locked.
-	 * That deadlocks, because orphan cleanup needs to lock the superblock
-	 * in numerous places.  Here we just pop the lock - it's relatively
-	 * harmless, because we are now ready to accept write_super() requests,
-	 * and aviro says that's the only reason for hanging onto the
-	 * superblock lock.
-	 */
 	EXT4_SB(sb)->s_mount_state |= EXT4_ORPHAN_FS;
 	ext4_orphan_cleanup(sb, es);
 	EXT4_SB(sb)->s_mount_state &= ~EXT4_ORPHAN_FS;
