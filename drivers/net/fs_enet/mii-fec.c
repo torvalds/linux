@@ -100,23 +100,6 @@ static int fs_enet_fec_mii_reset(struct mii_bus *bus)
 	return 0;
 }
 
-static void __devinit add_phy(struct mii_bus *bus, struct device_node *np)
-{
-	const u32 *data;
-	int len, id, irq;
-
-	data = of_get_property(np, "reg", &len);
-	if (!data || len != 4)
-		return;
-
-	id = *data;
-	bus->phy_mask &= ~(1 << id);
-
-	irq = of_irq_to_resource(np, 0, NULL);
-	if (irq != NO_IRQ)
-		bus->irq[id] = irq;
-}
-
 static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
                                         const struct of_device_id *match)
 {
@@ -163,17 +146,10 @@ static int __devinit fs_enet_mdio_probe(struct of_device *ofdev,
 	if (!new_bus->irq)
 		goto out_unmap_regs;
 
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		new_bus->irq[i] = -1;
-
-	while ((np = of_get_next_child(ofdev->node, np)))
-		if (!strcmp(np->type, "ethernet-phy"))
-			add_phy(new_bus, np);
-
 	new_bus->parent = &ofdev->dev;
 	dev_set_drvdata(&ofdev->dev, new_bus);
 
-	ret = mdiobus_register(new_bus);
+	ret = of_mdiobus_register(new_bus, ofdev->node);
 	if (ret)
 		goto out_free_irqs;
 
