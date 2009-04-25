@@ -3029,11 +3029,13 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 				       " in nonleaf level: levels %d gva %lx"
 				       " level %d pte %llx\n", audit_msg,
 				       vcpu->arch.mmu.root_level, va, level, ent);
-
-			audit_mappings_page(vcpu, ent, va, level - 1);
+			else
+				audit_mappings_page(vcpu, ent, va, level - 1);
 		} else {
 			gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, va);
-			hpa_t hpa = (hpa_t)gpa_to_pfn(vcpu, gpa) << PAGE_SHIFT;
+			gfn_t gfn = gpa >> PAGE_SHIFT;
+			pfn_t pfn = gfn_to_pfn(vcpu->kvm, gfn);
+			hpa_t hpa = (hpa_t)pfn << PAGE_SHIFT;
 
 			if (is_shadow_present_pte(ent)
 			    && (ent & PT64_BASE_ADDR_MASK) != hpa)
