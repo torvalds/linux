@@ -29,7 +29,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/phy.h>
-#include <linux/platform_device.h>
+#include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 
 #define DELAY 1
@@ -39,6 +39,7 @@ static void __iomem *gpio_regs;
 struct gpio_priv {
 	int mdc_pin;
 	int mdio_pin;
+	int mdio_irqs[PHY_MAX_ADDR];
 };
 
 #define MDC_PIN(bus)	(((struct gpio_priv *)bus->priv)->mdc_pin)
@@ -218,12 +219,11 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 				     const struct of_device_id *match)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *phy_dn, *np = ofdev->node;
+	struct device_node *np = ofdev->node;
 	struct mii_bus *new_bus;
 	struct gpio_priv *priv;
 	const unsigned int *prop;
 	int err;
-	int i;
 
 	err = -ENOMEM;
 	priv = kzalloc(sizeof(struct gpio_priv), GFP_KERNEL);
@@ -244,27 +244,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", *prop);
 	new_bus->priv = priv;
 
-	new_bus->phy_mask = 0;
-
-	new_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
-
-	if (!new_bus->irq)
-		goto out_free_bus;
-
-	for (i = 0; i < PHY_MAX_ADDR; i++)
-		new_bus->irq[i] = NO_IRQ;
-
-	for (phy_dn = of_get_next_child(np, NULL);
-	     phy_dn != NULL;
-	     phy_dn = of_get_next_child(np, phy_dn)) {
-		const unsigned int *ip, *regp;
-
-		ip = of_get_property(phy_dn, "interrupts", NULL);
-		regp = of_get_property(phy_dn, "reg", NULL);
-		if (!ip || !regp || *regp >= PHY_MAX_ADDR)
-			continue;
-		new_bus->irq[*regp] = irq_create_mapping(NULL, *ip);
-	}
+	new_bus->irq = priv->mdio_irqs;
 
 	prop = of_get_property(np, "mdc-pin", NULL);
 	priv->mdc_pin = *prop;
@@ -275,7 +255,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 	new_bus->parent = dev;
 	dev_set_drvdata(dev, new_bus);
 
-	err = mdiobus_register(new_bus);
+	err = of_mdiobus_register(new_bus, np);
 
 	if (err != 0) {
 		printk(KERN_ERR "%s: Cannot register as MDIO bus, err %d\n",
@@ -286,8 +266,6 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 	return 0;
 
 out_free_irq:
-	kfree(new_bus->irq);
-out_free_bus:
 	kfree(new_bus);
 out_free_priv:
 	kfree(priv);

@@ -24,6 +24,7 @@
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
+#include <linux/of_mdio.h>
 #include <linux/etherdevice.h>
 #include <asm/dma-mapping.h>
 #include <linux/in.h>
@@ -1086,34 +1087,17 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	struct pasemi_mac *mac = netdev_priv(dev);
 	struct device_node *dn, *phy_dn;
 	struct phy_device *phydev;
-	unsigned int phy_id;
-	const phandle *ph;
-	const unsigned int *prop;
-	struct resource r;
-	int ret;
 
 	dn = pci_device_to_OF_node(mac->pdev);
-	ph = of_get_property(dn, "phy-handle", NULL);
-	if (!ph)
-		return -ENODEV;
-	phy_dn = of_find_node_by_phandle(*ph);
-
-	prop = of_get_property(phy_dn, "reg", NULL);
-	ret = of_address_to_resource(phy_dn->parent, 0, &r);
-	if (ret)
-		goto err;
-
-	phy_id = *prop;
-	snprintf(mac->phy_id, sizeof(mac->phy_id), "%x:%02x",
-		 (int)r.start, phy_id);
-
+	phy_dn = of_parse_phandle(dn, "phy-handle", 0);
 	of_node_put(phy_dn);
 
 	mac->link = 0;
 	mac->speed = 0;
 	mac->duplex = -1;
 
-	phydev = phy_connect(dev, mac->phy_id, &pasemi_adjust_link, 0, PHY_INTERFACE_MODE_SGMII);
+	phydev = of_phy_connect(dev, phy_dn, &pasemi_adjust_link, 0,
+				PHY_INTERFACE_MODE_SGMII);
 
 	if (IS_ERR(phydev)) {
 		printk(KERN_ERR "%s: Could not attach to phy\n", dev->name);
@@ -1123,10 +1107,6 @@ static int pasemi_mac_phy_init(struct net_device *dev)
 	mac->phydev = phydev;
 
 	return 0;
-
-err:
-	of_node_put(phy_dn);
-	return -ENODEV;
 }
 
 
