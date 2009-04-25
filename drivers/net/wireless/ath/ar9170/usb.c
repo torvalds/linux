@@ -689,6 +689,7 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	aru->common.exec_cmd = ar9170_usb_exec_cmd;
 	aru->common.callback_cmd = ar9170_usb_callback_cmd;
 
+	udev->reset_resume = 1;
 	err = ar9170_usb_reset(aru);
 	if (err)
 		goto err_freehw;
@@ -805,6 +806,7 @@ static struct usb_driver ar9170_driver = {
 #ifdef CONFIG_PM
 	.suspend = ar9170_suspend,
 	.resume = ar9170_resume,
+	.reset_resume = ar9170_resume,
 #endif /* CONFIG_PM */
 };
 
