@@ -27,6 +27,7 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/workqueue.h>
+#include <linux/of_mdio.h>
 #include <linux/of_platform.h>
 
 #include <asm/uaccess.h>
@@ -1543,12 +1544,14 @@ static int init_phy(struct net_device *dev)
 	priv->oldspeed = 0;
 	priv->oldduplex = -1;
 
-	phydev = phy_connect(dev, ug_info->phy_bus_id, &adjust_link, 0,
-			     priv->phy_interface);
+	if (!ug_info->phy_node)
+		return 0;
 
-	if (IS_ERR(phydev)) {
+	phydev = of_phy_connect(dev, ug_info->phy_node, &adjust_link, 0,
+				priv->phy_interface);
+	if (!phydev) {
 		printk("%s: Could not attach to PHY\n", dev->name);
-		return PTR_ERR(phydev);
+		return -ENODEV;
 	}
 
 	phydev->supported &= (ADVERTISED_10baseT_Half |
@@ -3511,14 +3514,12 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 {
 	struct device *device = &ofdev->dev;
 	struct device_node *np = ofdev->node;
-	struct device_node *mdio;
 	struct net_device *dev = NULL;
 	struct ucc_geth_private *ugeth = NULL;
 	struct ucc_geth_info *ug_info;
 	struct resource res;
 	struct device_node *phy;
 	int err, ucc_num, max_speed = 0;
-	const phandle *ph;
 	const u32 *fixed_link;
 	const unsigned int *prop;
 	const char *sprop;
@@ -3618,45 +3619,21 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	ug_info->uf_info.irq = irq_of_parse_and_map(np, 0);
 	fixed_link = of_get_property(np, "fixed-link", NULL);
 	if (fixed_link) {
-		snprintf(ug_info->phy_bus_id, sizeof(ug_info->phy_bus_id),
-			 PHY_ID_FMT, "0", fixed_link[0]);
 		phy = NULL;
 	} else {
-		char bus_name[MII_BUS_ID_SIZE];
-
-		ph = of_get_property(np, "phy-handle", NULL);
-		phy = of_find_node_by_phandle(*ph);
-
+		phy = of_parse_phandle(np, "phy-handle", 0);
 		if (phy == NULL)
 			return -ENODEV;
-
-		/* set the PHY address */
-		prop = of_get_property(phy, "reg", NULL);
-		if (prop == NULL)
-			return -1;
-
-		/* Set the bus id */
-		mdio = of_get_parent(phy);
-
-		if (mdio == NULL)
-			return -ENODEV;
-
-		err = of_address_to_resource(mdio, 0, &res);
-
-		if (err) {
-			of_node_put(mdio);
-			return err;
-		}
-		fsl_pq_mdio_bus_name(bus_name, mdio);
-		of_node_put(mdio);
-		snprintf(ug_info->phy_bus_id, sizeof(ug_info->phy_bus_id),
-			"%s:%02x", bus_name, *prop);
 	}
+	ug_info->phy_node = phy;
 
 	/* get the phy interface type, or default to MII */
 	prop = of_get_property(np, "phy-connection-type", NULL);
 	if (!prop) {
 		/* handle interface property present in old trees */
+		if (!phy)
+			return -ENODEV;
+
 		prop = of_get_property(phy, "interface", NULL);
 		if (prop != NULL) {
 			phy_interface = enet_to_phy_interface[*prop];
