@@ -1280,6 +1280,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam = &gspca_dev->cam;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
+	cam->npkt = 24;			/* 24 packets per ISOC message */
 
 	sd->bridge = id->driver_info >> 16;
 	sd->sensor = id->driver_info >> 8;

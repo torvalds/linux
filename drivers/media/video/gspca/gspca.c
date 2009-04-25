@@ -513,9 +513,9 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 
 		/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
 		psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
-		npkt = ISO_MAX_SIZE / psize;
-		if (npkt > ISO_MAX_PKT)
-			npkt = ISO_MAX_PKT;
+		npkt = gspca_dev->cam.npkt;
+		if (npkt == 0)
+			npkt = 32;		/* default value */
 		bsize = psize * npkt;
 		PDEBUG(D_STREAM,
 			"isoc %d pkts size %d = bsize:%d",

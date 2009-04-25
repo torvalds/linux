@@ -42,7 +42,7 @@ struct sd {
 	char bridge;
 #define BRIDGE_VC0321 0
 #define BRIDGE_VC0323 1
-	char sensor;
+	u8 sensor;
 #define SENSOR_HV7131R 0
 #define SENSOR_MI0360 1
 #define SENSOR_MI1310_SOC 2
@@ -2453,6 +2453,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 	struct cam *cam;
 	int sensor;
+	static u8 npkt[] = {	/* number of packets per ISOC message */
+		64,		/* HV7131R 0 */
+		32,		/* MI0360 1 */
+		32,		/* MI1310_SOC 2 */
+		64,		/* MI1320 3 */
+		128,		/* MI1320_SOC 4 */
+		32,		/* OV7660 5 */
+		64,		/* OV7670 6 */
+		128,		/* PO1200 7 */
+		128,		/* PO3130NC 8 */
+	};
 
 	cam = &gspca_dev->cam;
 	sd->bridge = id->driver_info;
@@ -2515,6 +2526,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			break;
 		}
 	}
+	cam->npkt = npkt[sd->sensor];
 
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;
