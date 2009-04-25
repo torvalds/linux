@@ -1003,7 +1003,7 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	 * Note2: Windows driver (ndiswrapper) sets this to
 	 *        0x00000714 instead of 0x00000007
 	 */
-	if (ah->ah_version > AR5K_AR5211) {
+	if (ah->ah_version >= AR5K_AR5211) {
 		ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
 				AR5K_KEYTABLE_TYPE(entry));
 
