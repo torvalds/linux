@@ -735,6 +735,8 @@ int iwl_full_rxon_required(struct iwl_priv *priv)
 	     priv->active_rxon.ofdm_ht_single_stream_basic_rates) ||
 	    (priv->staging_rxon.ofdm_ht_dual_stream_basic_rates !=
 	     priv->active_rxon.ofdm_ht_dual_stream_basic_rates) ||
+	    (priv->staging_rxon.ofdm_ht_triple_stream_basic_rates !=
+	     priv->active_rxon.ofdm_ht_triple_stream_basic_rates) ||
 	    (priv->staging_rxon.assoc_id != priv->active_rxon.assoc_id))
 		return 1;
 
@@ -821,7 +823,8 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 
 	rxon->flags |= cpu_to_le32(val << RXON_FLG_HT_OPERATING_MODE_POS);
 
-	iwl_set_rxon_chain(priv);
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
 
 	IWL_DEBUG_ASSOC(priv, "supported HT rate 0x%X 0x%X 0x%X "
 			"rxon flags 0x%X operation mode :0x%X "
@@ -901,10 +904,11 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
  * never called for monitor mode. The only way mac80211 informs us about
  * monitor mode is through configuring filters (call to configure_filter).
  */
-static bool iwl_is_monitor_mode(struct iwl_priv *priv)
+bool iwl_is_monitor_mode(struct iwl_priv *priv)
 {
 	return !!(priv->staging_rxon.filter_flags & RXON_FILTER_PROMISC_MSK);
 }
+EXPORT_SYMBOL(iwl_is_monitor_mode);
 
 /**
  * iwl_set_rxon_chain - Set up Rx chain usage in "staging" RXON image
@@ -1068,11 +1072,6 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
 						  RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 
-	case NL80211_IFTYPE_MONITOR:
-		priv->staging_rxon.dev_type = RXON_DEV_TYPE_SNIFFER;
-		priv->staging_rxon.filter_flags = RXON_FILTER_PROMISC_MSK |
-		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
-		break;
 	default:
 		IWL_ERR(priv, "Unsupported interface type %d\n", mode);
 		break;
@@ -1117,6 +1116,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
 	memcpy(priv->staging_rxon.wlap_bssid_addr, priv->mac_addr, ETH_ALEN);
 	priv->staging_rxon.ofdm_ht_single_stream_basic_rates = 0xff;
 	priv->staging_rxon.ofdm_ht_dual_stream_basic_rates = 0xff;
+	priv->staging_rxon.ofdm_ht_triple_stream_basic_rates = 0xff;
 }
 EXPORT_SYMBOL(iwl_connection_init_rx_config);
 
@@ -1305,7 +1305,10 @@ int iwl_setup_mac(struct iwl_priv *priv)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->custom_regulatory = true;
-	hw->wiphy->max_scan_ssids = 1;
+
+	hw->wiphy->max_scan_ssids = PROBE_OPTION_MAX;
+	/* we create the 802.11 header and a zero-length SSID element */
+	hw->wiphy->max_scan_ie_len = IWL_MAX_PROBE_REQUEST - 24 - 2;
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
@@ -1366,7 +1369,7 @@ int iwl_init_drv(struct iwl_priv *priv)
 	mutex_init(&priv->mutex);
 
 	/* Clear the driver's (not device's) station table */
-	iwl_clear_stations_table(priv);
+	priv->cfg->ops->smgmt->clear_station_table(priv);
 
 	priv->data_retry_limit = -1;
 	priv->ieee_channels = NULL;
@@ -1378,7 +1381,9 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DISABLED;
 
 	/* Choose which receivers/antennas to use */
-	iwl_set_rxon_chain(priv);
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
+
 	iwl_init_scan_params(priv);
 
 	iwl_reset_qos(priv);
@@ -2054,7 +2059,7 @@ void iwl_bg_rf_kill(struct work_struct *work)
 			  "HW and/or SW RF Kill no longer active, restarting "
 			  "device\n");
 		if (!test_bit(STATUS_EXIT_PENDING, &priv->status) &&
-		    test_bit(STATUS_ALIVE, &priv->status))
+		    priv->is_open)
 			queue_work(priv->workqueue, &priv->restart);
 	} else {
 		/* make sure mac80211 stop sending Tx frame */
@@ -2112,3 +2117,727 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 }
 EXPORT_SYMBOL(iwl_rx_reply_error);
 
+void iwl_clear_isr_stats(struct iwl_priv *priv)
+{
+	memset(&priv->isr_stats, 0, sizeof(priv->isr_stats));
+}
+EXPORT_SYMBOL(iwl_clear_isr_stats);
+
+int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
+			   const struct ieee80211_tx_queue_params *params)
+{
+	struct iwl_priv *priv = hw->priv;
+	unsigned long flags;
+	int q;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
+		return -EIO;
+	}
+
+	if (queue >= AC_NUM) {
+		IWL_DEBUG_MAC80211(priv, "leave - queue >= AC_NUM %d\n", queue);
+		return 0;
+	}
+
+	q = AC_NUM - 1 - queue;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	priv->qos_data.def_qos_parm.ac[q].cw_min = cpu_to_le16(params->cw_min);
+	priv->qos_data.def_qos_parm.ac[q].cw_max = cpu_to_le16(params->cw_max);
+	priv->qos_data.def_qos_parm.ac[q].aifsn = params->aifs;
+	priv->qos_data.def_qos_parm.ac[q].edca_txop =
+			cpu_to_le16((params->txop * 32));
+
+	priv->qos_data.def_qos_parm.ac[q].reserved1 = 0;
+	priv->qos_data.qos_active = 1;
+
+	if (priv->iw_mode == NL80211_IFTYPE_AP)
+		iwl_activate_qos(priv, 1);
+	else if (priv->assoc_id && iwl_is_associated(priv))
+		iwl_activate_qos(priv, 0);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+	return 0;
+}
+EXPORT_SYMBOL(iwl_mac_conf_tx);
+
+static void iwl_ht_conf(struct iwl_priv *priv,
+			    struct ieee80211_bss_conf *bss_conf)
+{
+	struct ieee80211_sta_ht_cap *ht_conf;
+	struct iwl_ht_info *iwl_conf = &priv->current_ht_config;
+	struct ieee80211_sta *sta;
+
+	IWL_DEBUG_MAC80211(priv, "enter: \n");
+
+	if (!iwl_conf->is_ht)
+		return;
+
+
+	/*
+	 * It is totally wrong to base global information on something
+	 * that is valid only when associated, alas, this driver works
+	 * that way and I don't know how to fix it.
+	 */
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(priv->hw, priv->bssid);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
+	ht_conf = &sta->ht_cap;
+
+	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
+		iwl_conf->sgf |= HT_SHORT_GI_20MHZ;
+	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_40)
+		iwl_conf->sgf |= HT_SHORT_GI_40MHZ;
+
+	iwl_conf->is_green_field = !!(ht_conf->cap & IEEE80211_HT_CAP_GRN_FLD);
+	iwl_conf->max_amsdu_size =
+		!!(ht_conf->cap & IEEE80211_HT_CAP_MAX_AMSDU);
+
+	iwl_conf->supported_chan_width =
+		!!(ht_conf->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40);
+
+	/*
+	 * XXX: The HT configuration needs to be moved into iwl_mac_config()
+	 *	to be done there correctly.
+	 */
+
+	iwl_conf->extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+	if (conf_is_ht40_minus(&priv->hw->conf))
+		iwl_conf->extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+	else if (conf_is_ht40_plus(&priv->hw->conf))
+		iwl_conf->extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+
+	/* If no above or below channel supplied disable FAT channel */
+	if (iwl_conf->extension_chan_offset != IEEE80211_HT_PARAM_CHA_SEC_ABOVE &&
+	    iwl_conf->extension_chan_offset != IEEE80211_HT_PARAM_CHA_SEC_BELOW)
+		iwl_conf->supported_chan_width = 0;
+
+	iwl_conf->sm_ps = (u8)((ht_conf->cap & IEEE80211_HT_CAP_SM_PS) >> 2);
+
+	memcpy(&iwl_conf->mcs, &ht_conf->mcs, 16);
+
+	iwl_conf->tx_chan_width = iwl_conf->supported_chan_width != 0;
+	iwl_conf->ht_protection =
+		bss_conf->ht.operation_mode & IEEE80211_HT_OP_MODE_PROTECTION;
+	iwl_conf->non_GF_STA_present =
+		!!(bss_conf->ht.operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+
+	rcu_read_unlock();
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+}
+
+#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
+void iwl_bss_info_changed(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *bss_conf,
+				     u32 changes)
+{
+	struct iwl_priv *priv = hw->priv;
+	int ret;
+
+	IWL_DEBUG_MAC80211(priv, "changes = 0x%X\n", changes);
+
+	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
+		IWL_DEBUG_MAC80211(priv, "ERP_PREAMBLE %d\n",
+				   bss_conf->use_short_preamble);
+		if (bss_conf->use_short_preamble)
+			priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
+		else
+			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
+	}
+
+	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
+		IWL_DEBUG_MAC80211(priv, "ERP_CTS %d\n", bss_conf->use_cts_prot);
+		if (bss_conf->use_cts_prot && (priv->band != IEEE80211_BAND_5GHZ))
+			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
+		else
+			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
+	}
+
+	if (changes & BSS_CHANGED_HT) {
+		iwl_ht_conf(priv, bss_conf);
+
+		if (priv->cfg->ops->hcmd->set_rxon_chain)
+			priv->cfg->ops->hcmd->set_rxon_chain(priv);
+	}
+
+	if (changes & BSS_CHANGED_ASSOC) {
+		IWL_DEBUG_MAC80211(priv, "ASSOC %d\n", bss_conf->assoc);
+		/* This should never happen as this function should
+		 * never be called from interrupt context. */
+		if (WARN_ON_ONCE(in_interrupt()))
+			return;
+		if (bss_conf->assoc) {
+			priv->assoc_id = bss_conf->aid;
+			priv->beacon_int = bss_conf->beacon_int;
+			priv->power_data.dtim_period = bss_conf->dtim_period;
+			priv->timestamp = bss_conf->timestamp;
+			priv->assoc_capability = bss_conf->assoc_capability;
+
+			/* we have just associated, don't start scan too early
+			 * leave time for EAPOL exchange to complete
+			 */
+			priv->next_scan_jiffies = jiffies +
+					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
+			mutex_lock(&priv->mutex);
+			priv->cfg->ops->lib->post_associate(priv);
+			mutex_unlock(&priv->mutex);
+		} else {
+			priv->assoc_id = 0;
+			IWL_DEBUG_MAC80211(priv, "DISASSOC %d\n", bss_conf->assoc);
+		}
+	} else if (changes && iwl_is_associated(priv) && priv->assoc_id) {
+			IWL_DEBUG_MAC80211(priv, "Associated Changes %d\n", changes);
+			ret = iwl_send_rxon_assoc(priv);
+			if (!ret)
+				/* Sync active_rxon with latest change. */
+				memcpy((void *)&priv->active_rxon,
+					&priv->staging_rxon,
+					sizeof(struct iwl_rxon_cmd));
+	}
+
+}
+EXPORT_SYMBOL(iwl_bss_info_changed);
+
+int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct iwl_priv *priv = hw->priv;
+	unsigned long flags;
+	__le64 timestamp;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
+		return -EIO;
+	}
+
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
+		IWL_DEBUG_MAC80211(priv, "leave - not IBSS\n");
+		return -EIO;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	if (priv->ibss_beacon)
+		dev_kfree_skb(priv->ibss_beacon);
+
+	priv->ibss_beacon = skb;
+
+	priv->assoc_id = 0;
+	timestamp = ((struct ieee80211_mgmt *)skb->data)->u.beacon.timestamp;
+	priv->timestamp = le64_to_cpu(timestamp);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	iwl_reset_qos(priv);
+
+	priv->cfg->ops->lib->post_associate(priv);
+
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_mac_beacon_update);
+
+int iwl_set_mode(struct iwl_priv *priv, int mode)
+{
+	if (mode == NL80211_IFTYPE_ADHOC) {
+		const struct iwl_channel_info *ch_info;
+
+		ch_info = iwl_get_channel_info(priv,
+			priv->band,
+			le16_to_cpu(priv->staging_rxon.channel));
+
+		if (!ch_info || !is_channel_ibss(ch_info)) {
+			IWL_ERR(priv, "channel %d not IBSS channel\n",
+				  le16_to_cpu(priv->staging_rxon.channel));
+			return -EINVAL;
+		}
+	}
+
+	iwl_connection_init_rx_config(priv, mode);
+
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
+
+	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
+
+	priv->cfg->ops->smgmt->clear_station_table(priv);
+
+	/* dont commit rxon if rf-kill is on*/
+	if (!iwl_is_ready_rf(priv))
+		return -EAGAIN;
+
+	cancel_delayed_work(&priv->scan_check);
+	if (iwl_scan_cancel_timeout(priv, 100)) {
+		IWL_WARN(priv, "Aborted scan still in progress after 100ms\n");
+		IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
+		return -EAGAIN;
+	}
+
+	iwlcore_commit_rxon(priv);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_set_mode);
+
+int iwl_mac_add_interface(struct ieee80211_hw *hw,
+				 struct ieee80211_if_init_conf *conf)
+{
+	struct iwl_priv *priv = hw->priv;
+	unsigned long flags;
+
+	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", conf->type);
+
+	if (priv->vif) {
+		IWL_DEBUG_MAC80211(priv, "leave - vif != NULL\n");
+		return -EOPNOTSUPP;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->vif = conf->vif;
+	priv->iw_mode = conf->type;
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	mutex_lock(&priv->mutex);
+
+	if (conf->mac_addr) {
+		IWL_DEBUG_MAC80211(priv, "Set %pM\n", conf->mac_addr);
+		memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
+	}
+
+	if (iwl_set_mode(priv, conf->type) == -EAGAIN)
+		/* we are not ready, will run again when ready */
+		set_bit(STATUS_MODE_PENDING, &priv->status);
+
+	mutex_unlock(&priv->mutex);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+	return 0;
+}
+EXPORT_SYMBOL(iwl_mac_add_interface);
+
+void iwl_mac_remove_interface(struct ieee80211_hw *hw,
+				     struct ieee80211_if_init_conf *conf)
+{
+	struct iwl_priv *priv = hw->priv;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	mutex_lock(&priv->mutex);
+
+	if (iwl_is_ready_rf(priv)) {
+		iwl_scan_cancel_timeout(priv, 100);
+		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv);
+	}
+	if (priv->vif == conf->vif) {
+		priv->vif = NULL;
+		memset(priv->bssid, 0, ETH_ALEN);
+	}
+	mutex_unlock(&priv->mutex);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
+}
+EXPORT_SYMBOL(iwl_mac_remove_interface);
+
+/**
+ * iwl_mac_config - mac80211 config callback
+ *
+ * We ignore conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME since it seems to
+ * be set inappropriately and the driver currently sets the hardware up to
+ * use it whenever needed.
+ */
+int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
+{
+	struct iwl_priv *priv = hw->priv;
+	const struct iwl_channel_info *ch_info;
+	struct ieee80211_conf *conf = &hw->conf;
+	unsigned long flags = 0;
+	int ret = 0;
+	u16 ch;
+	int scan_active = 0;
+
+	mutex_lock(&priv->mutex);
+
+	IWL_DEBUG_MAC80211(priv, "enter to channel %d changed 0x%X\n",
+					conf->channel->hw_value, changed);
+
+	if (unlikely(!priv->cfg->mod_params->disable_hw_scan &&
+			test_bit(STATUS_SCANNING, &priv->status))) {
+		scan_active = 1;
+		IWL_DEBUG_MAC80211(priv, "leave - scanning\n");
+	}
+
+
+	/* during scanning mac80211 will delay channel setting until
+	 * scan finish with changed = 0
+	 */
+	if (!changed || (changed & IEEE80211_CONF_CHANGE_CHANNEL)) {
+		if (scan_active)
+			goto set_ch_out;
+
+		ch = ieee80211_frequency_to_channel(conf->channel->center_freq);
+		ch_info = iwl_get_channel_info(priv, conf->channel->band, ch);
+		if (!is_channel_valid(ch_info)) {
+			IWL_DEBUG_MAC80211(priv, "leave - invalid channel\n");
+			ret = -EINVAL;
+			goto set_ch_out;
+		}
+
+		if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+			!is_channel_ibss(ch_info)) {
+			IWL_ERR(priv, "channel %d in band %d not "
+				"IBSS channel\n",
+				conf->channel->hw_value, conf->channel->band);
+			ret = -EINVAL;
+			goto set_ch_out;
+		}
+
+		priv->current_ht_config.is_ht = conf_is_ht(conf);
+
+		spin_lock_irqsave(&priv->lock, flags);
+
+
+		/* if we are switching from ht to 2.4 clear flags
+		 * from any ht related info since 2.4 does not
+		 * support ht */
+		if ((le16_to_cpu(priv->staging_rxon.channel) != ch))
+			priv->staging_rxon.flags = 0;
+
+		iwl_set_rxon_channel(priv, conf->channel);
+
+		iwl_set_flags_for_band(priv, conf->channel->band);
+		spin_unlock_irqrestore(&priv->lock, flags);
+ set_ch_out:
+		/* The list of supported rates and rate mask can be different
+		 * for each band; since the band may have changed, reset
+		 * the rate mask to what mac80211 lists */
+		iwl_set_rate(priv);
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_PS) {
+		if (conf->flags & IEEE80211_CONF_PS)
+			ret = iwl_power_set_user_mode(priv, IWL_POWER_INDEX_3);
+		else
+			ret = iwl_power_set_user_mode(priv, IWL_POWER_MODE_CAM);
+		if (ret)
+			IWL_DEBUG_MAC80211(priv, "Error setting power level\n");
+
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		IWL_DEBUG_MAC80211(priv, "TX Power old=%d new=%d\n",
+			priv->tx_power_user_lmt, conf->power_level);
+
+		iwl_set_tx_power(priv, conf->power_level, false);
+	}
+
+	/* call to ensure that 4965 rx_chain is set properly in monitor mode */
+	if (priv->cfg->ops->hcmd->set_rxon_chain)
+		priv->cfg->ops->hcmd->set_rxon_chain(priv);
+
+	if (changed & IEEE80211_CONF_CHANGE_RADIO_ENABLED) {
+		if (conf->radio_enabled &&
+			iwl_radio_kill_sw_enable_radio(priv)) {
+			IWL_DEBUG_MAC80211(priv, "leave - RF-KILL - "
+						"waiting for uCode\n");
+			goto out;
+		}
+
+		if (!conf->radio_enabled)
+			iwl_radio_kill_sw_disable_radio(priv);
+	}
+
+	if (!conf->radio_enabled) {
+		IWL_DEBUG_MAC80211(priv, "leave - radio disabled\n");
+		goto out;
+	}
+
+	if (!iwl_is_ready(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		goto out;
+	}
+
+	if (scan_active)
+		goto out;
+
+	if (memcmp(&priv->active_rxon,
+		   &priv->staging_rxon, sizeof(priv->staging_rxon)))
+		iwlcore_commit_rxon(priv);
+	else
+		IWL_DEBUG_INFO(priv, "Not re-sending same RXON configuration.\n");
+
+
+out:
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+	mutex_unlock(&priv->mutex);
+	return ret;
+}
+EXPORT_SYMBOL(iwl_mac_config);
+
+int iwl_mac_config_interface(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+				    struct ieee80211_if_conf *conf)
+{
+	struct iwl_priv *priv = hw->priv;
+	int rc;
+
+	if (conf == NULL)
+		return -EIO;
+
+	if (priv->vif != vif) {
+		IWL_DEBUG_MAC80211(priv, "leave - priv->vif != vif\n");
+		return 0;
+	}
+
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
+	    conf->changed & IEEE80211_IFCC_BEACON) {
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+		if (!beacon)
+			return -ENOMEM;
+		mutex_lock(&priv->mutex);
+		rc = iwl_mac_beacon_update(hw, beacon);
+		mutex_unlock(&priv->mutex);
+		if (rc)
+			return rc;
+	}
+
+	if (!iwl_is_alive(priv))
+		return -EAGAIN;
+
+	mutex_lock(&priv->mutex);
+
+	if (conf->bssid)
+		IWL_DEBUG_MAC80211(priv, "bssid: %pM\n", conf->bssid);
+
+/*
+ * very dubious code was here; the probe filtering flag is never set:
+ *
+	if (unlikely(test_bit(STATUS_SCANNING, &priv->status)) &&
+	    !(priv->hw->flags & IEEE80211_HW_NO_PROBE_FILTERING)) {
+ */
+
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {
+		if (!conf->bssid) {
+			conf->bssid = priv->mac_addr;
+			memcpy(priv->bssid, priv->mac_addr, ETH_ALEN);
+			IWL_DEBUG_MAC80211(priv, "bssid was set to: %pM\n",
+					   conf->bssid);
+		}
+		if (priv->ibss_beacon)
+			dev_kfree_skb(priv->ibss_beacon);
+
+		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
+	}
+
+	if (iwl_is_rfkill(priv))
+		goto done;
+
+	if (conf->bssid && !is_zero_ether_addr(conf->bssid) &&
+	    !is_multicast_ether_addr(conf->bssid)) {
+		/* If there is currently a HW scan going on in the background
+		 * then we need to cancel it else the RXON below will fail. */
+		if (iwl_scan_cancel_timeout(priv, 100)) {
+			IWL_WARN(priv, "Aborted scan still in progress "
+				    "after 100ms\n");
+			IWL_DEBUG_MAC80211(priv, "leaving - scan abort failed.\n");
+			mutex_unlock(&priv->mutex);
+			return -EAGAIN;
+		}
+		memcpy(priv->staging_rxon.bssid_addr, conf->bssid, ETH_ALEN);
+
+		/* TODO: Audit driver for usage of these members and see
+		 * if mac80211 deprecates them (priv->bssid looks like it
+		 * shouldn't be there, but I haven't scanned the IBSS code
+		 * to verify) - jpk */
+		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
+
+		if (priv->iw_mode == NL80211_IFTYPE_AP)
+			iwlcore_config_ap(priv);
+		else {
+			rc = iwlcore_commit_rxon(priv);
+			if ((priv->iw_mode == NL80211_IFTYPE_STATION) && rc)
+				iwl_rxon_add_station(
+					priv, priv->active_rxon.bssid_addr, 1);
+		}
+
+	} else {
+		iwl_scan_cancel_timeout(priv, 100);
+		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv);
+	}
+
+ done:
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+	mutex_unlock(&priv->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_mac_config_interface);
+
+int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_queue_stats *stats)
+{
+	struct iwl_priv *priv = hw->priv;
+	int i, avail;
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	unsigned long flags;
+
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - RF not ready\n");
+		return -EIO;
+	}
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	for (i = 0; i < AC_NUM; i++) {
+		txq = &priv->txq[i];
+		q = &txq->q;
+		avail = iwl_queue_space(q);
+
+		stats[i].len = q->n_window - avail;
+		stats[i].limit = q->n_window - q->high_mark;
+		stats[i].count = q->n_window;
+
+	}
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_mac_get_tx_stats);
+
+void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
+{
+	struct iwl_priv *priv = hw->priv;
+	unsigned long flags;
+
+	mutex_lock(&priv->mutex);
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	spin_lock_irqsave(&priv->lock, flags);
+	memset(&priv->current_ht_config, 0, sizeof(struct iwl_ht_info));
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	iwl_reset_qos(priv);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->assoc_id = 0;
+	priv->assoc_capability = 0;
+	priv->assoc_station_added = 0;
+
+	/* new association get rid of ibss beacon skb */
+	if (priv->ibss_beacon)
+		dev_kfree_skb(priv->ibss_beacon);
+
+	priv->ibss_beacon = NULL;
+
+	priv->beacon_int = priv->hw->conf.beacon_int;
+	priv->timestamp = 0;
+	if ((priv->iw_mode == NL80211_IFTYPE_STATION))
+		priv->beacon_int = 0;
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (!iwl_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211(priv, "leave - not ready\n");
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
+	/* we are restarting association process
+	 * clear RXON_FILTER_ASSOC_MSK bit
+	 */
+	if (priv->iw_mode != NL80211_IFTYPE_AP) {
+		iwl_scan_cancel_timeout(priv, 100);
+		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwlcore_commit_rxon(priv);
+	}
+
+	iwl_power_update_mode(priv, 0);
+
+	/* Per mac80211.h: This is only used in IBSS mode... */
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
+
+		/* switch to CAM during association period.
+		 * the ucode will block any association/authentication
+		 * frome during assiciation period if it can not hear
+		 * the AP because of PM. the timer enable PM back is
+		 * association do not complete
+		 */
+		if (priv->hw->conf.channel->flags &
+		    (IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_RADAR))
+				iwl_power_disable_management(priv, 3000);
+
+		IWL_DEBUG_MAC80211(priv, "leave - not in IBSS\n");
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
+	iwl_set_rate(priv);
+
+	mutex_unlock(&priv->mutex);
+
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+}
+EXPORT_SYMBOL(iwl_mac_reset_tsf);
+
+#ifdef CONFIG_PM
+
+int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct iwl_priv *priv = pci_get_drvdata(pdev);
+
+	/*
+	 * This function is called when system goes into suspend state
+	 * mac80211 will call iwl_mac_stop() from the mac80211 suspend function
+	 * first but since iwl_mac_stop() has no knowledge of who the caller is,
+	 * it will not call apm_ops.stop() to stop the DMA operation.
+	 * Calling apm_ops.stop here to make sure we stop the DMA.
+	 */
+	priv->cfg->ops->lib->apm_ops.stop(priv);
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_pci_suspend);
+
+int iwl_pci_resume(struct pci_dev *pdev)
+{
+	struct iwl_priv *priv = pci_get_drvdata(pdev);
+	int ret;
+
+	pci_set_power_state(pdev, PCI_D0);
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+	pci_restore_state(pdev);
+	iwl_enable_interrupts(priv);
+
+	return 0;
+}
+EXPORT_SYMBOL(iwl_pci_resume);
+
+#endif /* CONFIG_PM */

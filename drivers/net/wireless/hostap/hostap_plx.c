@@ -435,7 +435,7 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	unsigned long pccard_attr_mem;
 	unsigned int pccard_attr_len;
 	void __iomem *attr_mem = NULL;
-	unsigned int cor_offset, cor_index;
+	unsigned int cor_offset = 0, cor_index = 0;
 	u32 reg;
 	local_info_t *local = NULL;
 	struct net_device *dev = NULL;

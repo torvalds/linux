@@ -414,6 +414,55 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	return found;
 }
 
+struct cfg80211_bss*
+cfg80211_inform_bss(struct wiphy *wiphy,
+		    struct ieee80211_channel *channel,
+		    const u8 *bssid,
+		    u64 timestamp, u16 capability, u16 beacon_interval,
+		    const u8 *ie, size_t ielen,
+		    s32 signal, gfp_t gfp)
+{
+	struct cfg80211_internal_bss *res;
+	size_t privsz;
+
+	if (WARN_ON(!wiphy))
+		return NULL;
+
+	privsz = wiphy->bss_priv_size;
+
+	if (WARN_ON(wiphy->signal_type == NL80211_BSS_SIGNAL_UNSPEC &&
+			(signal < 0 || signal > 100)))
+		return NULL;
+
+	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
+	if (!res)
+		return NULL;
+
+	memcpy(res->pub.bssid, bssid, ETH_ALEN);
+	res->pub.channel = channel;
+	res->pub.signal = signal;
+	res->pub.tsf = timestamp;
+	res->pub.beacon_interval = beacon_interval;
+	res->pub.capability = capability;
+	/* point to after the private area */
+	res->pub.information_elements = (u8 *)res + sizeof(*res) + privsz;
+	memcpy(res->pub.information_elements, ie, ielen);
+	res->pub.len_information_elements = ielen;
+
+	kref_init(&res->ref);
+
+	res = cfg80211_bss_update(wiphy_to_dev(wiphy), res, 0);
+	if (!res)
+		return NULL;
+
+	if (res->pub.capability & WLAN_CAPABILITY_ESS)
+		regulatory_hint_found_beacon(wiphy, channel, gfp);
+
+	/* cfg80211_bss_update gives us a referenced result */
+	return &res->pub;
+}
+EXPORT_SYMBOL(cfg80211_inform_bss);
+
 struct cfg80211_bss *
 cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  struct ieee80211_channel *channel,
@@ -604,7 +653,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	cfg80211_put_dev(rdev);
 	return err;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwscan);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwscan);
 
 static void ieee80211_scan_add_ies(struct iw_request_info *info,
 				   struct cfg80211_bss *bss,
@@ -913,5 +962,5 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	cfg80211_put_dev(rdev);
 	return res;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwscan);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwscan);
 #endif

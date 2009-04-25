@@ -686,41 +686,10 @@ static void sta_info_debugfs_add_work(struct work_struct *work)
 }
 #endif
 
-static void __ieee80211_run_pending_flush(struct ieee80211_local *local)
-{
-	struct sta_info *sta;
-	unsigned long flags;
-
-	ASSERT_RTNL();
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	while (!list_empty(&local->sta_flush_list)) {
-		sta = list_first_entry(&local->sta_flush_list,
-				       struct sta_info, list);
-		list_del(&sta->list);
-		spin_unlock_irqrestore(&local->sta_lock, flags);
-		sta_info_destroy(sta);
-		spin_lock_irqsave(&local->sta_lock, flags);
-	}
-	spin_unlock_irqrestore(&local->sta_lock, flags);
-}
-
-static void ieee80211_sta_flush_work(struct work_struct *work)
-{
-	struct ieee80211_local *local =
-		container_of(work, struct ieee80211_local, sta_flush_work);
-
-	rtnl_lock();
-	__ieee80211_run_pending_flush(local);
-	rtnl_unlock();
-}
-
 void sta_info_init(struct ieee80211_local *local)
 {
 	spin_lock_init(&local->sta_lock);
 	INIT_LIST_HEAD(&local->sta_list);
-	INIT_LIST_HEAD(&local->sta_flush_list);
-	INIT_WORK(&local->sta_flush_work, ieee80211_sta_flush_work);
 
 	setup_timer(&local->sta_cleanup, sta_info_cleanup,
 		    (unsigned long)local);
@@ -741,7 +710,6 @@ int sta_info_start(struct ieee80211_local *local)
 void sta_info_stop(struct ieee80211_local *local)
 {
 	del_timer(&local->sta_cleanup);
-	cancel_work_sync(&local->sta_flush_work);
 #ifdef CONFIG_MAC80211_DEBUGFS
 	/*
 	 * Make sure the debugfs adding work isn't pending after this
@@ -752,10 +720,7 @@ void sta_info_stop(struct ieee80211_local *local)
 	cancel_work_sync(&local->sta_debugfs_add);
 #endif
 
-	rtnl_lock();
 	sta_info_flush(local, NULL);
-	__ieee80211_run_pending_flush(local);
-	rtnl_unlock();
 }
 
 /**
@@ -767,7 +732,7 @@ void sta_info_stop(struct ieee80211_local *local)
  * @sdata: matching rule for the net device (sta->dev) or %NULL to match all STAs
  */
 int sta_info_flush(struct ieee80211_local *local,
-		    struct ieee80211_sub_if_data *sdata)
+		   struct ieee80211_sub_if_data *sdata)
 {
 	struct sta_info *sta, *tmp;
 	LIST_HEAD(tmp_list);
@@ -775,7 +740,6 @@ int sta_info_flush(struct ieee80211_local *local,
 	unsigned long flags;
 
 	might_sleep();
-	ASSERT_RTNL();
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
@@ -793,39 +757,6 @@ int sta_info_flush(struct ieee80211_local *local,
 		sta_info_destroy(sta);
 
 	return ret;
-}
-
-/**
- * sta_info_flush_delayed - flush matching STA entries from the STA table
- *
- * This function unlinks all stations for a given interface and queues
- * them for freeing. Note that the workqueue function scheduled here has
- * to run before any new keys can be added to the system to avoid set_key()
- * callback ordering issues.
- *
- * @sdata: the interface
- */
-void sta_info_flush_delayed(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta, *tmp;
-	unsigned long flags;
-	bool work = false;
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	list_for_each_entry_safe(sta, tmp, &local->sta_list, list) {
-		if (sdata == sta->sdata) {
-			__sta_info_unlink(&sta);
-			if (sta) {
-				list_add_tail(&sta->list,
-					      &local->sta_flush_list);
-				work = true;
-			}
-		}
-	}
-	if (work)
-		schedule_work(&local->sta_flush_work);
-	spin_unlock_irqrestore(&local->sta_lock, flags);
 }
 
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,

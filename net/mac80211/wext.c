@@ -149,17 +149,14 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		sdata->u.ibss.flags &= ~IEEE80211_IBSS_AUTO_CHANNEL_SEL;
+		return cfg80211_ibss_wext_siwfreq(dev, info, freq, extra);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_CHANNEL_SEL;
 
 	/* freq->e == 0: freq->m = channel; otherwise freq = m * 10^e */
 	if (freq->e == 0) {
 		if (freq->m < 0) {
-			if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-				sdata->u.ibss.flags |=
-					IEEE80211_IBSS_AUTO_CHANNEL_SEL;
-			else if (sdata->vif.type == NL80211_IFTYPE_STATION)
+			if (sdata->vif.type == NL80211_IFTYPE_STATION)
 				sdata->u.mgd.flags |=
 					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
@@ -183,6 +180,10 @@ static int ieee80211_ioctl_giwfreq(struct net_device *dev,
 				   struct iw_freq *freq, char *extra)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
 
 	freq->m = local->hw.conf.channel->center_freq;
 	freq->e = 6;
@@ -195,15 +196,17 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_point *data, char *ssid)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	size_t len = data->length;
 	int ret;
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_siwessid(dev, info, data, ssid);
 
 	/* iwconfig uses nul termination in SSID.. */
 	if (len > 0 && ssid[len - 1] == '\0')
 		len--;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		if (data->flags)
 			sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
@@ -217,8 +220,7 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
 		ieee80211_sta_req_auth(sdata);
 		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return ieee80211_ibss_set_ssid(sdata, ssid, len);
+	}
 
 	return -EOPNOTSUPP;
 }
@@ -229,19 +231,15 @@ static int ieee80211_ioctl_giwessid(struct net_device *dev,
 				    struct iw_point *data, char *ssid)
 {
 	size_t len;
-
 	struct ieee80211_sub_if_data *sdata;
+
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_giwessid(dev, info, data, ssid);
+
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		int res = ieee80211_sta_get_ssid(sdata, ssid, &len);
-		if (res == 0) {
-			data->length = len;
-			data->flags = 1;
-		} else
-			data->flags = 0;
-		return res;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		int res = ieee80211_ibss_get_ssid(sdata, ssid, &len);
 		if (res == 0) {
 			data->length = len;
 			data->flags = 1;
@@ -258,9 +256,11 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct sockaddr *ap_addr, char *extra)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_siwap(dev, info, ap_addr, extra);
+
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		int ret;
 
@@ -277,16 +277,6 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
 		ieee80211_sta_req_auth(sdata);
 		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		if (is_zero_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.ibss.flags |= IEEE80211_IBSS_AUTO_BSSID_SEL |
-					       IEEE80211_IBSS_AUTO_CHANNEL_SEL;
-		else if (is_broadcast_ether_addr((u8 *) &ap_addr->sa_data))
-			sdata->u.ibss.flags |= IEEE80211_IBSS_AUTO_BSSID_SEL;
-		else
-			sdata->u.ibss.flags &= ~IEEE80211_IBSS_AUTO_BSSID_SEL;
-
-		return ieee80211_ibss_set_bssid(sdata, (u8 *) &ap_addr->sa_data);
 	} else if (sdata->vif.type == NL80211_IFTYPE_WDS) {
 		/*
 		 * If it is necessary to update the WDS peer address
@@ -312,20 +302,15 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 				 struct iw_request_info *info,
 				 struct sockaddr *ap_addr, char *extra)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		return cfg80211_ibss_wext_giwap(dev, info, ap_addr, extra);
+
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		if (sdata->u.mgd.state == IEEE80211_STA_MLME_ASSOCIATED) {
 			ap_addr->sa_family = ARPHRD_ETHER;
 			memcpy(&ap_addr->sa_data, sdata->u.mgd.bssid, ETH_ALEN);
-		} else
-			memset(&ap_addr->sa_data, 0, ETH_ALEN);
-		return 0;
-	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
-		if (sdata->u.ibss.state == IEEE80211_IBSS_MLME_JOINED) {
-			ap_addr->sa_family = ARPHRD_ETHER;
-			memcpy(&ap_addr->sa_data, sdata->u.ibss.bssid, ETH_ALEN);
 		} else
 			memset(&ap_addr->sa_data, 0, ETH_ALEN);
 		return 0;
@@ -487,155 +472,6 @@ static int ieee80211_ioctl_giwtxpower(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_siwrts(struct net_device *dev,
-				  struct iw_request_info *info,
-				  struct iw_param *rts, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (rts->disabled)
-		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
-	else if (!rts->fixed)
-		/* if the rts value is not fixed, then take default */
-		local->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
-	else if (rts->value < 0 || rts->value > IEEE80211_MAX_RTS_THRESHOLD)
-		return -EINVAL;
-	else
-		local->rts_threshold = rts->value;
-
-	/* If the wlan card performs RTS/CTS in hardware/firmware,
-	 * configure it here */
-
-	if (local->ops->set_rts_threshold)
-		local->ops->set_rts_threshold(local_to_hw(local),
-					     local->rts_threshold);
-
-	return 0;
-}
-
-static int ieee80211_ioctl_giwrts(struct net_device *dev,
-				  struct iw_request_info *info,
-				  struct iw_param *rts, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	rts->value = local->rts_threshold;
-	rts->disabled = (rts->value >= IEEE80211_MAX_RTS_THRESHOLD);
-	rts->fixed = 1;
-
-	return 0;
-}
-
-
-static int ieee80211_ioctl_siwfrag(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_param *frag, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (frag->disabled)
-		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
-	else if (!frag->fixed)
-		local->fragmentation_threshold = IEEE80211_MAX_FRAG_THRESHOLD;
-	else if (frag->value < 256 ||
-		 frag->value > IEEE80211_MAX_FRAG_THRESHOLD)
-		return -EINVAL;
-	else {
-		/* Fragment length must be even, so strip LSB. */
-		local->fragmentation_threshold = frag->value & ~0x1;
-	}
-
-	return 0;
-}
-
-static int ieee80211_ioctl_giwfrag(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_param *frag, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	frag->value = local->fragmentation_threshold;
-	frag->disabled = (frag->value >= IEEE80211_MAX_FRAG_THRESHOLD);
-	frag->fixed = 1;
-
-	return 0;
-}
-
-
-static int ieee80211_ioctl_siwretry(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_param *retry, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	if (retry->disabled ||
-	    (retry->flags & IW_RETRY_TYPE) != IW_RETRY_LIMIT)
-		return -EINVAL;
-
-	if (retry->flags & IW_RETRY_MAX) {
-		local->hw.conf.long_frame_max_tx_count = retry->value;
-	} else if (retry->flags & IW_RETRY_MIN) {
-		local->hw.conf.short_frame_max_tx_count = retry->value;
-	} else {
-		local->hw.conf.long_frame_max_tx_count = retry->value;
-		local->hw.conf.short_frame_max_tx_count = retry->value;
-	}
-
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_RETRY_LIMITS);
-
-	return 0;
-}
-
-
-static int ieee80211_ioctl_giwretry(struct net_device *dev,
-				    struct iw_request_info *info,
-				    struct iw_param *retry, char *extra)
-{
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-
-	retry->disabled = 0;
-	if (retry->flags == 0 || retry->flags & IW_RETRY_MIN) {
-		/* first return min value, iwconfig will ask max value
-		 * later if needed */
-		retry->flags |= IW_RETRY_LIMIT;
-		retry->value = local->hw.conf.short_frame_max_tx_count;
-		if (local->hw.conf.long_frame_max_tx_count !=
-		    local->hw.conf.short_frame_max_tx_count)
-			retry->flags |= IW_RETRY_MIN;
-		return 0;
-	}
-	if (retry->flags & IW_RETRY_MAX) {
-		retry->flags = IW_RETRY_LIMIT | IW_RETRY_MAX;
-		retry->value = local->hw.conf.long_frame_max_tx_count;
-	}
-
-	return 0;
-}
-
-static int ieee80211_ioctl_siwmlme(struct net_device *dev,
-				   struct iw_request_info *info,
-				   struct iw_point *data, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata;
-	struct iw_mlme *mlme = (struct iw_mlme *) extra;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (!(sdata->vif.type == NL80211_IFTYPE_STATION))
-		return -EINVAL;
-
-	switch (mlme->cmd) {
-	case IW_MLME_DEAUTH:
-		/* TODO: mlme->addr.sa_data */
-		return ieee80211_sta_deauthenticate(sdata, mlme->reason_code);
-	case IW_MLME_DISASSOC:
-		/* TODO: mlme->addr.sa_data */
-		return ieee80211_sta_disassociate(sdata, mlme->reason_code);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-
 static int ieee80211_ioctl_siwencode(struct net_device *dev,
 				     struct iw_request_info *info,
 				     struct iw_point *erq, char *keybuf)
@@ -675,7 +511,7 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 		!sdata->default_key,
 		keybuf, erq->length);
 
-	if (!ret) {
+	if (!ret && sdata->vif.type == NL80211_IFTYPE_STATION) {
 		if (remove)
 			sdata->u.mgd.flags &= ~IEEE80211_STA_TKIP_WEP_USED;
 		else
@@ -747,7 +583,7 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_conf *conf = &local->hw.conf;
-	int ret = 0, timeout = 0;
+	int timeout = 0;
 	bool ps;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS))
@@ -779,42 +615,18 @@ static int ieee80211_ioctl_siwpower(struct net_device *dev,
 		timeout = wrq->value / 1000;
 
  set:
-	if (ps == local->powersave && timeout == conf->dynamic_ps_timeout)
-		return ret;
+	if (ps == sdata->u.mgd.powersave && timeout == conf->dynamic_ps_timeout)
+		return 0;
 
-	local->powersave = ps;
+	sdata->u.mgd.powersave = ps;
 	conf->dynamic_ps_timeout = timeout;
 
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
-		ret = ieee80211_hw_config(local,
-					  IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT);
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 
-	if (!(sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED))
-		return ret;
+	ieee80211_recalc_ps(local, -1);
 
-	if (conf->dynamic_ps_timeout > 0 &&
-	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)) {
-		mod_timer(&local->dynamic_ps_timer, jiffies +
-			  msecs_to_jiffies(conf->dynamic_ps_timeout));
-	} else {
-		if (local->powersave) {
-			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-				ieee80211_send_nullfunc(local, sdata, 1);
-			conf->flags |= IEEE80211_CONF_PS;
-			ret = ieee80211_hw_config(local,
-					IEEE80211_CONF_CHANGE_PS);
-		} else {
-			conf->flags &= ~IEEE80211_CONF_PS;
-			ret = ieee80211_hw_config(local,
-					IEEE80211_CONF_CHANGE_PS);
-			if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
-				ieee80211_send_nullfunc(local, sdata, 0);
-			del_timer_sync(&local->dynamic_ps_timer);
-			cancel_work_sync(&local->dynamic_ps_enable_work);
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 static int ieee80211_ioctl_giwpower(struct net_device *dev,
@@ -822,9 +634,9 @@ static int ieee80211_ioctl_giwpower(struct net_device *dev,
 				    union iwreq_data *wrqu,
 				    char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	wrqu->power.disabled = !local->powersave;
+	wrqu->power.disabled = !sdata->u.mgd.powersave;
 
 	return 0;
 }
@@ -1099,7 +911,7 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWTHRSPY */
 	(iw_handler) ieee80211_ioctl_siwap,		/* SIOCSIWAP */
 	(iw_handler) ieee80211_ioctl_giwap,		/* SIOCGIWAP */
-	(iw_handler) ieee80211_ioctl_siwmlme,		/* SIOCSIWMLME */
+	(iw_handler) cfg80211_wext_siwmlme,		/* SIOCSIWMLME */
 	(iw_handler) NULL,				/* SIOCGIWAPLIST */
 	(iw_handler) cfg80211_wext_siwscan,		/* SIOCSIWSCAN */
 	(iw_handler) cfg80211_wext_giwscan,		/* SIOCGIWSCAN */
@@ -1111,14 +923,14 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* -- hole -- */
 	(iw_handler) ieee80211_ioctl_siwrate,		/* SIOCSIWRATE */
 	(iw_handler) ieee80211_ioctl_giwrate,		/* SIOCGIWRATE */
-	(iw_handler) ieee80211_ioctl_siwrts,		/* SIOCSIWRTS */
-	(iw_handler) ieee80211_ioctl_giwrts,		/* SIOCGIWRTS */
-	(iw_handler) ieee80211_ioctl_siwfrag,		/* SIOCSIWFRAG */
-	(iw_handler) ieee80211_ioctl_giwfrag,		/* SIOCGIWFRAG */
+	(iw_handler) cfg80211_wext_siwrts,		/* SIOCSIWRTS */
+	(iw_handler) cfg80211_wext_giwrts,		/* SIOCGIWRTS */
+	(iw_handler) cfg80211_wext_siwfrag,		/* SIOCSIWFRAG */
+	(iw_handler) cfg80211_wext_giwfrag,		/* SIOCGIWFRAG */
 	(iw_handler) ieee80211_ioctl_siwtxpower,	/* SIOCSIWTXPOW */
 	(iw_handler) ieee80211_ioctl_giwtxpower,	/* SIOCGIWTXPOW */
-	(iw_handler) ieee80211_ioctl_siwretry,		/* SIOCSIWRETRY */
-	(iw_handler) ieee80211_ioctl_giwretry,		/* SIOCGIWRETRY */
+	(iw_handler) cfg80211_wext_siwretry,		/* SIOCSIWRETRY */
+	(iw_handler) cfg80211_wext_giwretry,		/* SIOCGIWRETRY */
 	(iw_handler) ieee80211_ioctl_siwencode,		/* SIOCSIWENCODE */
 	(iw_handler) ieee80211_ioctl_giwencode,		/* SIOCGIWENCODE */
 	(iw_handler) ieee80211_ioctl_siwpower,		/* SIOCSIWPOWER */

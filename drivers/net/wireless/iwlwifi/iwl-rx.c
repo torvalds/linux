@@ -1102,13 +1102,6 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	if (rx_start->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
 		rx_status.flag |= RX_FLAG_SHORTPRE;
 
-	/* Take shortcut when only in monitor mode */
-	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
-		iwl_pass_packet_to_mac80211(priv, include_phy,
-						 rxb, &rx_status);
-		return;
-	}
-
 	network_packet = iwl_is_network_packet(priv, header);
 	if (network_packet) {
 		priv->last_rx_rssi = rx_status.signal;

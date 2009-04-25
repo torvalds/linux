@@ -625,9 +625,11 @@ struct b43_wl {
 	/* Stats about the wireless interface */
 	struct ieee80211_low_level_stats ieee_stats;
 
+#ifdef CONFIG_B43_HWRNG
 	struct hwrng rng;
-	u8 rng_initialized;
+	bool rng_initialized;
 	char rng_name[30 + 1];
+#endif /* CONFIG_B43_HWRNG */
 
 	/* The RF-kill button */
 	struct b43_rfkill rfkill;
@@ -776,8 +778,8 @@ struct b43_wldev {
 	/* Reason code of the last interrupt. */
 	u32 irq_reason;
 	u32 dma_reason[6];
-	/* saved irq enable/disable state bitfield. */
-	u32 irq_savedstate;
+	/* The currently active generic-interrupt mask. */
+	u32 irq_mask;
 	/* Link Quality calculation context. */
 	struct b43_noise_calculation noisecalc;
 	/* if > 0 MAC is suspended. if == 0 MAC is enabled. */

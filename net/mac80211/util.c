@@ -20,6 +20,7 @@
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <linux/bitmap.h>
+#include <linux/crc32.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
@@ -28,6 +29,7 @@
 #include "rate.h"
 #include "mesh.h"
 #include "wme.h"
+#include "led.h"
 
 /* privid for wiphys to determine whether they belong to us or not */
 void *mac80211_wiphy_privid = &mac80211_wiphy_privid;
@@ -536,8 +538,16 @@ EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces_atomic);
 void ieee802_11_parse_elems(u8 *start, size_t len,
 			    struct ieee802_11_elems *elems)
 {
+	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
+}
+
+u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
+			       struct ieee802_11_elems *elems,
+			       u64 filter, u32 crc)
+{
 	size_t left = len;
 	u8 *pos = start;
+	bool calc_crc = filter != 0;
 
 	memset(elems, 0, sizeof(*elems));
 	elems->ie_start = start;
@@ -551,7 +561,10 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 		left -= 2;
 
 		if (elen > left)
-			return;
+			break;
+
+		if (calc_crc && id < 64 && (filter & BIT(id)))
+			crc = crc32_be(crc, pos - 2, elen + 2);
 
 		switch (id) {
 		case WLAN_EID_SSID:
@@ -575,8 +588,10 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 			elems->cf_params_len = elen;
 			break;
 		case WLAN_EID_TIM:
-			elems->tim = pos;
-			elems->tim_len = elen;
+			if (elen >= sizeof(struct ieee80211_tim_ie)) {
+				elems->tim = (void *)pos;
+				elems->tim_len = elen;
+			}
 			break;
 		case WLAN_EID_IBSS_PARAMS:
 			elems->ibss_params = pos;
@@ -586,15 +601,20 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 			elems->challenge = pos;
 			elems->challenge_len = elen;
 			break;
-		case WLAN_EID_WPA:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if (elen >= 4 && pos[0] == 0x00 && pos[1] == 0x50 &&
 			    pos[2] == 0xf2) {
 				/* Microsoft OUI (00:50:F2) */
+
+				if (calc_crc)
+					crc = crc32_be(crc, pos - 2, elen + 2);
+
 				if (pos[3] == 1) {
 					/* OUI Type 1 - WPA IE */
 					elems->wpa = pos;
 					elems->wpa_len = elen;
 				} else if (elen >= 5 && pos[3] == 2) {
+					/* OUI Type 2 - WMM IE */
 					if (pos[4] == 0) {
 						elems->wmm_info = pos;
 						elems->wmm_info_len = elen;
@@ -679,6 +699,8 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 		left -= elen;
 		pos += elen;
 	}
+
+	return crc;
 }
 
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
@@ -831,16 +853,73 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb, encrypt);
 }
 
+int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
+			     const u8 *ie, size_t ie_len)
+{
+	struct ieee80211_supported_band *sband;
+	u8 *pos, *supp_rates_len, *esupp_rates_len = NULL;
+	int i;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+	pos = buffer;
+
+	*pos++ = WLAN_EID_SUPP_RATES;
+	supp_rates_len = pos;
+	*pos++ = 0;
+
+	for (i = 0; i < sband->n_bitrates; i++) {
+		struct ieee80211_rate *rate = &sband->bitrates[i];
+
+		if (esupp_rates_len) {
+			*esupp_rates_len += 1;
+		} else if (*supp_rates_len == 8) {
+			*pos++ = WLAN_EID_EXT_SUPP_RATES;
+			esupp_rates_len = pos;
+			*pos++ = 1;
+		} else
+			*supp_rates_len += 1;
+
+		*pos++ = rate->bitrate / 5;
+	}
+
+	if (sband->ht_cap.ht_supported) {
+		__le16 tmp = cpu_to_le16(sband->ht_cap.cap);
+
+		*pos++ = WLAN_EID_HT_CAPABILITY;
+		*pos++ = sizeof(struct ieee80211_ht_cap);
+		memset(pos, 0, sizeof(struct ieee80211_ht_cap));
+		memcpy(pos, &tmp, sizeof(u16));
+		pos += sizeof(u16);
+		/* TODO: needs a define here for << 2 */
+		*pos++ = sband->ht_cap.ampdu_factor |
+			 (sband->ht_cap.ampdu_density << 2);
+		memcpy(pos, &sband->ht_cap.mcs, sizeof(sband->ht_cap.mcs));
+		pos += sizeof(sband->ht_cap.mcs);
+		pos += 2 + 4 + 1; /* ext info, BF cap, antsel */
+	}
+
+	/*
+	 * If adding more here, adjust code in main.c
+	 * that calculates local->scan_ies_len.
+	 */
+
+	if (ie) {
+		memcpy(pos, ie, ie_len);
+		pos += ie_len;
+	}
+
+	return pos - buffer;
+}
+
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
-			      u8 *ssid, size_t ssid_len,
-			      u8 *ie, size_t ie_len)
+			      const u8 *ssid, size_t ssid_len,
+			      const u8 *ie, size_t ie_len)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	u8 *pos, *supp_rates, *esupp_rates = NULL;
-	int i;
+	u8 *pos;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt) + 200 +
 			    ie_len);
@@ -867,31 +946,9 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = ssid_len;
 	memcpy(pos, ssid, ssid_len);
+	pos += ssid_len;
 
-	supp_rates = skb_put(skb, 2);
-	supp_rates[0] = WLAN_EID_SUPP_RATES;
-	supp_rates[1] = 0;
-	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
-	for (i = 0; i < sband->n_bitrates; i++) {
-		struct ieee80211_rate *rate = &sband->bitrates[i];
-		if (esupp_rates) {
-			pos = skb_put(skb, 1);
-			esupp_rates[1]++;
-		} else if (supp_rates[1] == 8) {
-			esupp_rates = skb_put(skb, 3);
-			esupp_rates[0] = WLAN_EID_EXT_SUPP_RATES;
-			esupp_rates[1] = 1;
-			pos = &esupp_rates[2];
-		} else {
-			pos = skb_put(skb, 1);
-			supp_rates[1]++;
-		}
-		*pos = rate->bitrate / 5;
-	}
-
-	if (ie)
-		memcpy(skb_put(skb, ie_len), ie, ie_len);
+	skb_put(skb, ieee80211_build_preq_ies(local, pos, ie, ie_len));
 
 	ieee80211_tx_skb(sdata, skb, 0);
 }
@@ -930,4 +987,121 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 				supp_rates |= BIT(j);
 	}
 	return supp_rates;
+}
+
+int ieee80211_reconfig(struct ieee80211_local *local)
+{
+	struct ieee80211_hw *hw = &local->hw;
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_if_init_conf conf;
+	struct sta_info *sta;
+	unsigned long flags;
+	int res;
+
+	/* restart hardware */
+	if (local->open_count) {
+		res = local->ops->start(hw);
+
+		ieee80211_led_radio(local, hw->conf.radio_enabled);
+	}
+
+	/* add interfaces */
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
+		    netif_running(sdata->dev)) {
+			conf.vif = &sdata->vif;
+			conf.type = sdata->vif.type;
+			conf.mac_addr = sdata->dev->dev_addr;
+			res = local->ops->add_interface(hw, &conf);
+		}
+	}
+
+	/* add STAs back */
+	if (local->ops->sta_notify) {
+		spin_lock_irqsave(&local->sta_lock, flags);
+		list_for_each_entry(sta, &local->sta_list, list) {
+			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+				sdata = container_of(sdata->bss,
+					     struct ieee80211_sub_if_data,
+					     u.ap);
+
+			local->ops->sta_notify(hw, &sdata->vif,
+				STA_NOTIFY_ADD, &sta->sta);
+		}
+		spin_unlock_irqrestore(&local->sta_lock, flags);
+	}
+
+	/* Clear Suspend state so that ADDBA requests can be processed */
+
+	rcu_read_lock();
+
+	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
+		list_for_each_entry_rcu(sta, &local->sta_list, list) {
+			clear_sta_flags(sta, WLAN_STA_SUSPEND);
+		}
+	}
+
+	rcu_read_unlock();
+
+	/* setup RTS threshold */
+	if (local->ops->set_rts_threshold)
+		local->ops->set_rts_threshold(hw, hw->wiphy->rts_threshold);
+
+	/* reconfigure hardware */
+	ieee80211_hw_config(local, ~0);
+
+	netif_addr_lock_bh(local->mdev);
+	ieee80211_configure_filter(local);
+	netif_addr_unlock_bh(local->mdev);
+
+	/* Finally also reconfigure all the BSS information */
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		u32 changed = ~0;
+		if (!netif_running(sdata->dev))
+			continue;
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_STATION:
+			/* disable beacon change bits */
+			changed &= ~IEEE80211_IFCC_BEACON;
+			/* fall through */
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_MESH_POINT:
+			/*
+			 * Driver's config_interface can fail if rfkill is
+			 * enabled. Accommodate this return code.
+			 * FIXME: When mac80211 has knowledge of rfkill
+			 * state the code below can change back to:
+			 *   WARN(ieee80211_if_config(sdata, changed));
+			 *   ieee80211_bss_info_change_notify(sdata, ~0);
+			 */
+			if (ieee80211_if_config(sdata, changed))
+				printk(KERN_DEBUG "%s: failed to configure interface during resume\n",
+				       sdata->dev->name);
+			else
+				ieee80211_bss_info_change_notify(sdata, ~0);
+			break;
+		case NL80211_IFTYPE_WDS:
+			break;
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_MONITOR:
+			/* ignore virtual */
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case __NL80211_IFTYPE_AFTER_LAST:
+			WARN_ON(1);
+			break;
+		}
+	}
+
+	/* add back keys */
+	list_for_each_entry(sdata, &local->interfaces, list)
+		if (netif_running(sdata->dev))
+			ieee80211_enable_keys(sdata);
+
+	ieee80211_wake_queues_by_reason(hw,
+			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
+
+	return 0;
 }

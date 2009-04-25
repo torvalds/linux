@@ -52,13 +52,13 @@ static const struct file_operations name## _ops = {			\
 DEBUGFS_READONLY_FILE(frequency, 20, "%d",
 		      local->hw.conf.channel->center_freq);
 DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
-		      local->rts_threshold);
+		      local->hw.wiphy->rts_threshold);
 DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
-		      local->fragmentation_threshold);
+		      local->hw.wiphy->frag_threshold);
 DEBUGFS_READONLY_FILE(short_retry_limit, 20, "%d",
-		      local->hw.conf.short_frame_max_tx_count);
+		      local->hw.wiphy->retry_short);
 DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
-		      local->hw.conf.long_frame_max_tx_count);
+		      local->hw.wiphy->retry_long);
 DEBUGFS_READONLY_FILE(total_ps_buffered, 20, "%d",
 		      local->total_ps_buffered);
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#08x",

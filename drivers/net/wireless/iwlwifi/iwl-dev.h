@@ -70,6 +70,7 @@ extern struct iwl_ops iwl5000_ops;
 extern struct iwl_lib_ops iwl5000_lib;
 extern struct iwl_hcmd_ops iwl5000_hcmd;
 extern struct iwl_hcmd_utils_ops iwl5000_hcmd_utils;
+extern struct iwl_station_mgmt_ops iwl5000_station_mgmt;
 
 /* shared functions from iwl-5000.c */
 extern u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len);
@@ -822,6 +823,21 @@ enum {
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
+/* interrupt statistics */
+struct isr_statistics {
+	u32 hw;
+	u32 sw;
+	u32 sw_err;
+	u32 sch;
+	u32 alive;
+	u32 rfkill;
+	u32 ctkill;
+	u32 wakeup;
+	u32 rx;
+	u32 rx_handlers[REPLY_MAX];
+	u32 tx;
+	u32 unhandled;
+};
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
 
@@ -877,9 +893,7 @@ struct iwl_priv {
 	unsigned long scan_start_tsf;
 	void *scan;
 	int scan_bands;
-	int one_direct_scan;
-	u8 direct_ssid_len;
-	u8 direct_ssid[IW_ESSID_MAX_SIZE];
+	struct cfg80211_scan_request *scan_request;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
 	u8 mgmt_tx_ant;
 
@@ -977,6 +991,9 @@ struct iwl_priv {
 		u32 cnt;
 		u64 bytes;
 	} tx_stats[3], rx_stats[3];
+
+	/* counts interrupts */
+	struct isr_statistics isr_stats;
 
 	struct iwl_power_mgr power_data;
 

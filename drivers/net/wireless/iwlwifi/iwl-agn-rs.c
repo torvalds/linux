@@ -52,7 +52,7 @@
 /* max allowed rate miss before sync LQ cmd */
 #define IWL_MISSED_RATE_MAX		15
 /* max time to accum history 2 seconds */
-#define IWL_RATE_SCALE_FLUSH_INTVL   (2*HZ)
+#define IWL_RATE_SCALE_FLUSH_INTVL   (3*HZ)
 
 static u8 rs_ht_to_legacy[] = {
 	IWL_RATE_6M_INDEX, IWL_RATE_6M_INDEX,
@@ -135,7 +135,7 @@ struct iwl_lq_sta {
 	u32 table_count;
 	u32 total_failed;	/* total failed frames, any/all rates */
 	u32 total_success;	/* total successful frames, any/all rates */
-	u32 flush_timer;	/* time staying in mode before new search */
+	u64 flush_timer;	/* time staying in mode before new search */
 
 	u8 action_counter;	/* # mode-switch actions tried */
 	u8 is_green;
@@ -167,6 +167,8 @@ struct iwl_lq_sta {
 
 	/* used to be in sta_info */
 	int last_txrate_idx;
+	/* last tx rate_n_flags */
+	u32 last_rate_n_flags;
 };
 
 static void rs_rate_scale_perform(struct iwl_priv *priv,
@@ -191,7 +193,7 @@ static void rs_dbgfs_set_mcs(struct iwl_lq_sta *lq_sta,
  * 1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54, 60 MBits
  * "G" is the only table that supports CCK (the first 4 rates).
  */
-/*FIXME:RS:need to separate tables for MIMO2/MIMO3*/
+
 static s32 expected_tpt_A[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 40, 57, 72, 98, 121, 154, 177, 186, 186
 };
@@ -208,11 +210,11 @@ static s32 expected_tpt_siso20MHzSGI[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 46, 46, 82, 110, 132, 168, 192, 202, 211
 };
 
-static s32 expected_tpt_mimo20MHz[IWL_RATE_COUNT] = {
+static s32 expected_tpt_mimo2_20MHz[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 74, 74, 123, 155, 179, 214, 236, 244, 251
 };
 
-static s32 expected_tpt_mimo20MHzSGI[IWL_RATE_COUNT] = {
+static s32 expected_tpt_mimo2_20MHzSGI[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 81, 81, 131, 164, 188, 222, 243, 251, 257
 };
 
@@ -224,12 +226,46 @@ static s32 expected_tpt_siso40MHzSGI[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 83, 83, 135, 169, 193, 229, 250, 257, 264
 };
 
-static s32 expected_tpt_mimo40MHz[IWL_RATE_COUNT] = {
+static s32 expected_tpt_mimo2_40MHz[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 123, 123, 182, 214, 235, 264, 279, 285, 289
 };
 
-static s32 expected_tpt_mimo40MHzSGI[IWL_RATE_COUNT] = {
+static s32 expected_tpt_mimo2_40MHzSGI[IWL_RATE_COUNT] = {
 	0, 0, 0, 0, 131, 131, 191, 222, 242, 270, 284, 289, 293
+};
+
+/* Expected throughput metric MIMO3 */
+static s32 expected_tpt_mimo3_20MHz[IWL_RATE_COUNT] = {
+	0, 0, 0, 0, 99, 99, 153, 186, 208, 239, 256, 263, 268
+};
+
+static s32 expected_tpt_mimo3_20MHzSGI[IWL_RATE_COUNT] = {
+	0, 0, 0, 0, 106, 106, 162, 194, 215, 246, 262, 268, 273
+};
+
+static s32 expected_tpt_mimo3_40MHz[IWL_RATE_COUNT] = {
+	0, 0, 0, 0, 152, 152, 211, 239, 255, 279, 290, 294, 297
+};
+
+static s32 expected_tpt_mimo3_40MHzSGI[IWL_RATE_COUNT] = {
+	0, 0, 0, 0, 160, 160, 219, 245, 261, 284, 294, 297, 300
+};
+
+/* mbps, mcs */
+const static struct iwl_rate_mcs_info iwl_rate_mcs[IWL_RATE_COUNT] = {
+  {"1", ""},
+  {"2", ""},
+  {"5.5", ""},
+  {"11", ""},
+  {"6", "BPSK 1/2"},
+  {"9", "BPSK 1/2"},
+  {"12", "QPSK 1/2"},
+  {"18", "QPSK 3/4"},
+  {"24", "16QAM 1/2"},
+  {"36", "16QAM 3/4"},
+  {"48", "64QAM 2/3"},
+  {"54", "64QAM 3/4"},
+  {"60", "64QAM 5/6"}
 };
 
 static inline u8 rs_extract_rate(u32 rate_n_flags)
@@ -902,6 +938,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	 * else look up the rate that was, finally, successful.
 	 */
 	tx_rate = le32_to_cpu(table->rs_table[index].rate_n_flags);
+	lq_sta->last_rate_n_flags = tx_rate;
 	rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type, &rs_index);
 
 	/* Update frame history window with "success" if Tx got ACKed ... */
@@ -988,6 +1025,7 @@ static void rs_set_stay_in_table(struct iwl_priv *priv, u8 is_legacy,
 	lq_sta->table_count = 0;
 	lq_sta->total_failed = 0;
 	lq_sta->total_success = 0;
+	lq_sta->flush_timer = jiffies;
 }
 
 /*
@@ -1011,17 +1049,26 @@ static void rs_set_expected_tpt_table(struct iwl_lq_sta *lq_sta,
 			tbl->expected_tpt = expected_tpt_siso20MHzSGI;
 		else
 			tbl->expected_tpt = expected_tpt_siso20MHz;
-
-	} else if (is_mimo(tbl->lq_type)) { /* FIXME:need to separate mimo2/3 */
+	} else if (is_mimo2(tbl->lq_type)) {
 		if (tbl->is_fat && !lq_sta->is_dup)
 			if (tbl->is_SGI)
-				tbl->expected_tpt = expected_tpt_mimo40MHzSGI;
+				tbl->expected_tpt = expected_tpt_mimo2_40MHzSGI;
 			else
-				tbl->expected_tpt = expected_tpt_mimo40MHz;
+				tbl->expected_tpt = expected_tpt_mimo2_40MHz;
 		else if (tbl->is_SGI)
-			tbl->expected_tpt = expected_tpt_mimo20MHzSGI;
+			tbl->expected_tpt = expected_tpt_mimo2_20MHzSGI;
 		else
-			tbl->expected_tpt = expected_tpt_mimo20MHz;
+			tbl->expected_tpt = expected_tpt_mimo2_20MHz;
+	} else if (is_mimo3(tbl->lq_type)) {
+		if (tbl->is_fat && !lq_sta->is_dup)
+			if (tbl->is_SGI)
+				tbl->expected_tpt = expected_tpt_mimo3_40MHzSGI;
+			else
+				tbl->expected_tpt = expected_tpt_mimo3_40MHz;
+		else if (tbl->is_SGI)
+			tbl->expected_tpt = expected_tpt_mimo3_20MHzSGI;
+		else
+			tbl->expected_tpt = expected_tpt_mimo3_20MHz;
 	} else
 		tbl->expected_tpt = expected_tpt_G;
 }
@@ -1130,7 +1177,7 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 }
 
 /*
- * Set up search table for MIMO
+ * Set up search table for MIMO2
  */
 static int rs_switch_to_mimo2(struct iwl_priv *priv,
 			     struct iwl_lq_sta *lq_sta,
@@ -1183,7 +1230,73 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
 
 	IWL_DEBUG_RATE(priv, "LQ: MIMO2 best rate %d mask %X\n", rate, rate_mask);
+	if ((rate == IWL_RATE_INVALID) || !((1 << rate) & rate_mask)) {
+		IWL_DEBUG_RATE(priv, "Can't switch with index %d rate mask %x\n",
+						rate, rate_mask);
+		return -1;
+	}
+	tbl->current_rate = rate_n_flags_from_tbl(priv, tbl, rate, is_green);
 
+	IWL_DEBUG_RATE(priv, "LQ: Switch to new mcs %X index is green %X\n",
+		     tbl->current_rate, is_green);
+	return 0;
+}
+
+/*
+ * Set up search table for MIMO3
+ */
+static int rs_switch_to_mimo3(struct iwl_priv *priv,
+			     struct iwl_lq_sta *lq_sta,
+			     struct ieee80211_conf *conf,
+			     struct ieee80211_sta *sta,
+			     struct iwl_scale_tbl_info *tbl, int index)
+{
+	u16 rate_mask;
+	s32 rate;
+	s8 is_green = lq_sta->is_green;
+
+	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
+		return -1;
+
+	if (((sta->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
+						== WLAN_HT_CAP_SM_PS_STATIC)
+		return -1;
+
+	/* Need both Tx chains/antennas to support MIMO */
+	if (priv->hw_params.tx_chains_num < 3)
+		return -1;
+
+	IWL_DEBUG_RATE(priv, "LQ: try to switch to MIMO3\n");
+
+	tbl->lq_type = LQ_MIMO3;
+	tbl->is_dup = lq_sta->is_dup;
+	tbl->action = 0;
+	rate_mask = lq_sta->active_mimo3_rate;
+
+	if (priv->current_ht_config.supported_chan_width
+					== IWL_CHANNEL_WIDTH_40MHZ)
+		tbl->is_fat = 1;
+	else
+		tbl->is_fat = 0;
+
+	/* FIXME: - don't toggle SGI here
+	if (tbl->is_fat) {
+		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
+			tbl->is_SGI = 1;
+		else
+			tbl->is_SGI = 0;
+	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
+		tbl->is_SGI = 1;
+	else
+		tbl->is_SGI = 0;
+	*/
+
+	rs_set_expected_tpt_table(lq_sta, tbl);
+
+	rate = rs_get_best_rate(priv, lq_sta, tbl, rate_mask, index);
+
+	IWL_DEBUG_RATE(priv, "LQ: MIMO3 best rate %d mask %X\n",
+		rate, rate_mask);
 	if ((rate == IWL_RATE_INVALID) || !((1 << rate) & rate_mask)) {
 		IWL_DEBUG_RATE(priv, "Can't switch with index %d rate mask %x\n",
 						rate, rate_mask);
@@ -1342,9 +1455,29 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 				goto out;
 			}
 			break;
+
+		case IWL_LEGACY_SWITCH_MIMO3_ABC:
+			IWL_DEBUG_RATE(priv, "LQ: Legacy switch to MIMO3\n");
+
+			/* Set up search table to try MIMO3 */
+			memcpy(search_tbl, tbl, sz);
+			search_tbl->is_SGI = 0;
+
+			search_tbl->ant_type = ANT_ABC;
+
+			if (!rs_is_valid_ant(valid_tx_ant, search_tbl->ant_type))
+				break;
+
+			ret = rs_switch_to_mimo3(priv, lq_sta, conf, sta,
+						 search_tbl, index);
+			if (!ret) {
+				lq_sta->action_counter = 0;
+				goto out;
+			}
+			break;
 		}
 		tbl->action++;
-		if (tbl->action > IWL_LEGACY_SWITCH_MIMO2_BC)
+		if (tbl->action > IWL_LEGACY_SWITCH_MIMO3_ABC)
 			tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
 
 		if (tbl->action == start_action)
@@ -1357,7 +1490,7 @@ static int rs_move_legacy_other(struct iwl_priv *priv,
 out:
 	lq_sta->search_better_tbl = 1;
 	tbl->action++;
-	if (tbl->action > IWL_LEGACY_SWITCH_MIMO2_BC)
+	if (tbl->action > IWL_LEGACY_SWITCH_MIMO3_ABC)
 		tbl->action = IWL_LEGACY_SWITCH_ANTENNA1;
 	return 0;
 
@@ -1457,9 +1590,23 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
 				rate_n_flags_from_tbl(priv, search_tbl,
 						      index, is_green);
 			goto out;
+		case IWL_SISO_SWITCH_MIMO3_ABC:
+			IWL_DEBUG_RATE(priv, "LQ: SISO switch to MIMO3\n");
+			memcpy(search_tbl, tbl, sz);
+			search_tbl->is_SGI = 0;
+			search_tbl->ant_type = ANT_ABC;
+
+			if (!rs_is_valid_ant(valid_tx_ant, search_tbl->ant_type))
+				break;
+
+			ret = rs_switch_to_mimo3(priv, lq_sta, conf, sta,
+						 search_tbl, index);
+			if (!ret)
+				goto out;
+			break;
 		}
 		tbl->action++;
-		if (tbl->action > IWL_SISO_SWITCH_GI)
+		if (tbl->action > IWL_LEGACY_SWITCH_MIMO3_ABC)
 			tbl->action = IWL_SISO_SWITCH_ANTENNA1;
 
 		if (tbl->action == start_action)
@@ -1471,15 +1618,15 @@ static int rs_move_siso_to_other(struct iwl_priv *priv,
  out:
 	lq_sta->search_better_tbl = 1;
 	tbl->action++;
-	if (tbl->action > IWL_SISO_SWITCH_GI)
+	if (tbl->action > IWL_SISO_SWITCH_MIMO3_ABC)
 		tbl->action = IWL_SISO_SWITCH_ANTENNA1;
 	return 0;
 }
 
 /*
- * Try to switch to new modulation mode from MIMO
+ * Try to switch to new modulation mode from MIMO2
  */
-static int rs_move_mimo_to_other(struct iwl_priv *priv,
+static int rs_move_mimo2_to_other(struct iwl_priv *priv,
 				 struct iwl_lq_sta *lq_sta,
 				 struct ieee80211_conf *conf,
 				 struct ieee80211_sta *sta, int index)
@@ -1501,7 +1648,7 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
 		switch (tbl->action) {
 		case IWL_MIMO2_SWITCH_ANTENNA1:
 		case IWL_MIMO2_SWITCH_ANTENNA2:
-			IWL_DEBUG_RATE(priv, "LQ: MIMO toggle Antennas\n");
+			IWL_DEBUG_RATE(priv, "LQ: MIMO2 toggle Antennas\n");
 
 			if (tx_chains_num <= 2)
 				break;
@@ -1549,7 +1696,160 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
 						HT_SHORT_GI_40MHZ))
 				break;
 
-			IWL_DEBUG_RATE(priv, "LQ: MIMO toggle SGI/NGI\n");
+			IWL_DEBUG_RATE(priv, "LQ: MIMO2 toggle SGI/NGI\n");
+
+			/* Set up new search table for MIMO2 */
+			memcpy(search_tbl, tbl, sz);
+			search_tbl->is_SGI = !tbl->is_SGI;
+			rs_set_expected_tpt_table(lq_sta, search_tbl);
+			/*
+			 * If active table already uses the fastest possible
+			 * modulation (dual stream with short guard interval),
+			 * and it's working well, there's no need to look
+			 * for a better type of modulation!
+			 */
+			if (tbl->is_SGI) {
+				s32 tpt = lq_sta->last_tpt / 100;
+				if (tpt >= search_tbl->expected_tpt[index])
+					break;
+			}
+			search_tbl->current_rate =
+				rate_n_flags_from_tbl(priv, search_tbl,
+						      index, is_green);
+			goto out;
+
+		case IWL_MIMO2_SWITCH_MIMO3_ABC:
+			IWL_DEBUG_RATE(priv, "LQ: MIMO2 switch to MIMO3\n");
+			memcpy(search_tbl, tbl, sz);
+			search_tbl->is_SGI = 0;
+			search_tbl->ant_type = ANT_ABC;
+
+			if (!rs_is_valid_ant(valid_tx_ant, search_tbl->ant_type))
+				break;
+
+			ret = rs_switch_to_mimo3(priv, lq_sta, conf, sta,
+						 search_tbl, index);
+			if (!ret)
+				goto out;
+
+			break;
+		}
+		tbl->action++;
+		if (tbl->action > IWL_MIMO2_SWITCH_MIMO3_ABC)
+			tbl->action = IWL_MIMO2_SWITCH_ANTENNA1;
+
+		if (tbl->action == start_action)
+			break;
+	}
+	search_tbl->lq_type = LQ_NONE;
+	return 0;
+ out:
+	lq_sta->search_better_tbl = 1;
+	tbl->action++;
+	if (tbl->action > IWL_MIMO2_SWITCH_MIMO3_ABC)
+		tbl->action = IWL_MIMO2_SWITCH_ANTENNA1;
+	return 0;
+
+}
+
+/*
+ * Try to switch to new modulation mode from MIMO3
+ */
+static int rs_move_mimo3_to_other(struct iwl_priv *priv,
+				 struct iwl_lq_sta *lq_sta,
+				 struct ieee80211_conf *conf,
+				 struct ieee80211_sta *sta, int index)
+{
+	s8 is_green = lq_sta->is_green;
+	struct iwl_scale_tbl_info *tbl = &(lq_sta->lq_info[lq_sta->active_tbl]);
+	struct iwl_scale_tbl_info *search_tbl =
+				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
+	struct iwl_rate_scale_data *window = &(tbl->win[index]);
+	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
+		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
+	u8 start_action = tbl->action;
+	u8 valid_tx_ant = priv->hw_params.valid_tx_ant;
+	u8 tx_chains_num = priv->hw_params.tx_chains_num;
+	int ret;
+
+	for (;;) {
+		lq_sta->action_counter++;
+		switch (tbl->action) {
+		case IWL_MIMO3_SWITCH_ANTENNA1:
+		case IWL_MIMO3_SWITCH_ANTENNA2:
+			IWL_DEBUG_RATE(priv, "LQ: MIMO3 toggle Antennas\n");
+
+			if (tx_chains_num <= 3)
+				break;
+
+			if (window->success_ratio >= IWL_RS_GOOD_RATIO)
+				break;
+
+			memcpy(search_tbl, tbl, sz);
+			if (rs_toggle_antenna(valid_tx_ant,
+				       &search_tbl->current_rate, search_tbl))
+				goto out;
+			break;
+		case IWL_MIMO3_SWITCH_SISO_A:
+		case IWL_MIMO3_SWITCH_SISO_B:
+		case IWL_MIMO3_SWITCH_SISO_C:
+			IWL_DEBUG_RATE(priv, "LQ: MIMO3 switch to SISO\n");
+
+			/* Set up new search table for SISO */
+			memcpy(search_tbl, tbl, sz);
+
+			if (tbl->action == IWL_MIMO3_SWITCH_SISO_A)
+				search_tbl->ant_type = ANT_A;
+			else if (tbl->action == IWL_MIMO3_SWITCH_SISO_B)
+				search_tbl->ant_type = ANT_B;
+			else
+				search_tbl->ant_type = ANT_C;
+
+			if (!rs_is_valid_ant(valid_tx_ant, search_tbl->ant_type))
+				break;
+
+			ret = rs_switch_to_siso(priv, lq_sta, conf, sta,
+						 search_tbl, index);
+			if (!ret)
+				goto out;
+
+			break;
+
+		case IWL_MIMO3_SWITCH_MIMO2_AB:
+		case IWL_MIMO3_SWITCH_MIMO2_AC:
+		case IWL_MIMO3_SWITCH_MIMO2_BC:
+			IWL_DEBUG_RATE(priv, "LQ: MIMO3 switch to MIMO2\n");
+
+			memcpy(search_tbl, tbl, sz);
+			search_tbl->is_SGI = 0;
+			if (tbl->action == IWL_MIMO3_SWITCH_MIMO2_AB)
+				search_tbl->ant_type = ANT_AB;
+			else if (tbl->action == IWL_MIMO3_SWITCH_MIMO2_AC)
+				search_tbl->ant_type = ANT_AC;
+			else
+				search_tbl->ant_type = ANT_BC;
+
+			if (!rs_is_valid_ant(valid_tx_ant, search_tbl->ant_type))
+				break;
+
+			ret = rs_switch_to_mimo2(priv, lq_sta, conf, sta,
+						 search_tbl, index);
+			if (!ret)
+				goto out;
+
+			break;
+
+		case IWL_MIMO3_SWITCH_GI:
+			if (!tbl->is_fat &&
+				!(priv->current_ht_config.sgf &
+						HT_SHORT_GI_20MHZ))
+				break;
+			if (tbl->is_fat &&
+				!(priv->current_ht_config.sgf &
+						HT_SHORT_GI_40MHZ))
+				break;
+
+			IWL_DEBUG_RATE(priv, "LQ: MIMO3 toggle SGI/NGI\n");
 
 			/* Set up new search table for MIMO */
 			memcpy(search_tbl, tbl, sz);
@@ -1570,11 +1870,10 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
 				rate_n_flags_from_tbl(priv, search_tbl,
 						      index, is_green);
 			goto out;
-
 		}
 		tbl->action++;
-		if (tbl->action > IWL_MIMO2_SWITCH_GI)
-			tbl->action = IWL_MIMO2_SWITCH_ANTENNA1;
+		if (tbl->action > IWL_MIMO3_SWITCH_GI)
+			tbl->action = IWL_MIMO3_SWITCH_ANTENNA1;
 
 		if (tbl->action == start_action)
 			break;
@@ -1584,8 +1883,8 @@ static int rs_move_mimo_to_other(struct iwl_priv *priv,
  out:
 	lq_sta->search_better_tbl = 1;
 	tbl->action++;
-	if (tbl->action > IWL_MIMO2_SWITCH_GI)
-		tbl->action = IWL_MIMO2_SWITCH_ANTENNA1;
+	if (tbl->action > IWL_MIMO3_SWITCH_GI)
+		tbl->action = IWL_MIMO3_SWITCH_ANTENNA1;
 	return 0;
 
 }
@@ -1616,8 +1915,8 @@ static void rs_stay_in_table(struct iwl_lq_sta *lq_sta)
 		/* Elapsed time using current modulation mode */
 		if (lq_sta->flush_timer)
 			flush_interval_passed =
-			    time_after(jiffies,
-				       (unsigned long)(lq_sta->flush_timer +
+			time_after(jiffies,
+					(unsigned long)(lq_sta->flush_timer +
 					IWL_RATE_SCALE_FLUSH_INTVL));
 
 		/*
@@ -1951,6 +2250,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 			update_lq = 1;
 			index = low;
 		}
+
 		break;
 	case 1:
 		/* Increase starting rate, update uCode's rate table */
@@ -1997,8 +2297,10 @@ lq_update:
 			rs_move_legacy_other(priv, lq_sta, conf, sta, index);
 		else if (is_siso(tbl->lq_type))
 			rs_move_siso_to_other(priv, lq_sta, conf, sta, index);
+		else if (is_mimo2(tbl->lq_type))
+			rs_move_mimo2_to_other(priv, lq_sta, conf, sta, index);
 		else
-			rs_move_mimo_to_other(priv, lq_sta, conf, sta, index);
+			rs_move_mimo3_to_other(priv, lq_sta, conf, sta, index);
 
 		/* If new "search" mode was selected, set up in uCode table */
 		if (lq_sta->search_better_tbl) {
@@ -2014,8 +2316,11 @@ lq_update:
 				     tbl->current_rate, index);
 			rs_fill_link_cmd(priv, lq_sta, tbl->current_rate);
 			iwl_send_lq_cmd(priv, &lq_sta->lq, CMD_ASYNC);
-		}
+		} else
+			done_search = 1;
+	}
 
+	if (done_search && !lq_sta->stay_in_tbl) {
 		/* If the "active" (non-search) mode was legacy,
 		 * and we've tried switching antennas,
 		 * but we haven't been able to try HT modes (not available),
@@ -2050,17 +2355,6 @@ lq_update:
 			lq_sta->action_counter = 0;
 			rs_set_stay_in_table(priv, 0, lq_sta);
 		}
-
-	/*
-	 * Else, don't search for a new modulation mode.
-	 * Put new timestamp in stay-in-modulation-mode flush timer if:
-	 * 1)  Not changing rates right now
-	 * 2)  Not just finishing up a search
-	 * 3)  flush timer is empty
-	 */
-	} else {
-		if ((!update_lq) && (!done_search) && (!lq_sta->flush_timer))
-			lq_sta->flush_timer = jiffies;
 	}
 
 out:
@@ -2173,13 +2467,15 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 
 	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !lq_sta->ibss_sta_added) {
-		u8 sta_id = iwl_find_station(priv, hdr->addr1);
+		u8 sta_id = priv->cfg->ops->smgmt->find_station(priv,
+						   hdr->addr1);
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n",
 				       hdr->addr1);
-			sta_id = iwl_add_station_flags(priv, hdr->addr1,
-							0, CMD_ASYNC, NULL);
+			sta_id = priv->cfg->ops->smgmt->add_station(priv,
+						hdr->addr1, 0,
+						CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
@@ -2246,15 +2542,17 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 
 	lq_sta->ibss_sta_added = 0;
 	if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		u8 sta_id = iwl_find_station(priv, sta->addr);
+		u8 sta_id = priv->cfg->ops->smgmt->find_station(priv,
+								sta->addr);
 
 		/* for IBSS the call are from tasklet */
 		IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n", sta->addr);
-			sta_id = iwl_add_station_flags(priv, sta->addr,
-							0, CMD_ASYNC, NULL);
+			sta_id = priv->cfg->ops->smgmt->add_station(priv,
+							sta->addr, 0,
+							CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq_sta->lq.sta_id = sta_id;
@@ -2539,6 +2837,7 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 	char *buff;
 	int desc = 0;
 	int i = 0;
+	int index = 0;
 	ssize_t ret;
 
 	struct iwl_lq_sta *lq_sta = file->private_data;
@@ -2570,6 +2869,8 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 		   (tbl->is_fat) ? "40MHz" : "20MHz");
 		desc += sprintf(buff+desc, " %s\n", (tbl->is_SGI) ? "SGI" : "");
 	}
+	desc += sprintf(buff+desc, "last tx rate=0x%X\n",
+		lq_sta->last_rate_n_flags);
 	desc += sprintf(buff+desc, "general:"
 		"flags=0x%X mimo-d=%d s-ant0x%x d-ant=0x%x\n",
 		lq_sta->lq.general_params.flags,
@@ -2590,10 +2891,19 @@ static ssize_t rs_sta_dbgfs_scale_table_read(struct file *file,
 			lq_sta->lq.general_params.start_rate_index[2],
 			lq_sta->lq.general_params.start_rate_index[3]);
 
-
-	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
-		desc += sprintf(buff+desc, " rate[%d] 0x%X\n",
-			i, le32_to_cpu(lq_sta->lq.rs_table[i].rate_n_flags));
+	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++) {
+		index = iwl_hwrate_to_plcp_idx(
+			le32_to_cpu(lq_sta->lq.rs_table[i].rate_n_flags));
+		if (is_legacy(tbl->lq_type)) {
+			desc += sprintf(buff+desc, " rate[%d] 0x%X %smbps\n",
+				i, le32_to_cpu(lq_sta->lq.rs_table[i].rate_n_flags),
+				iwl_rate_mcs[index].mbps);
+		} else {
+			desc += sprintf(buff+desc, " rate[%d] 0x%X %smbps (%s)\n",
+				i, le32_to_cpu(lq_sta->lq.rs_table[i].rate_n_flags),
+				iwl_rate_mcs[index].mbps, iwl_rate_mcs[index].mcs);
+		}
+	}
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
 	kfree(buff);

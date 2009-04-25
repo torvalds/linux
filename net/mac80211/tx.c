@@ -409,8 +409,24 @@ ieee80211_tx_h_unicast_ps_buf(struct ieee80211_tx_data *tx)
 		       sta->sta.addr);
 	}
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
-	clear_sta_flags(sta, WLAN_STA_PSPOLL);
+	if (test_and_clear_sta_flags(sta, WLAN_STA_PSPOLL)) {
+		/*
+		 * The sleeping station with pending data is now snoozing.
+		 * It queried us for its buffered frames and will go back
+		 * to deep sleep once it got everything.
+		 *
+		 * inform the driver, in case the hardware does powersave
+		 * frame filtering and keeps a station  blacklist on its own
+		 * (e.g: p54), so that frames can be delivered unimpeded.
+		 *
+		 * Note: It should be save to disable the filter now.
+		 * As, it is really unlikely that we still have any pending
+		 * frame for this station in the hw's buffers/fifos left,
+		 * that is not rejected with a unsuccessful tx_status yet.
+		 */
 
+		info->flags |= IEEE80211_TX_CTL_CLEAR_PS_FILT;
+	}
 	return TX_CONTINUE;
 }
 
@@ -429,7 +445,7 @@ ieee80211_tx_h_ps_buf(struct ieee80211_tx_data *tx)
 static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_key *key;
+	struct ieee80211_key *key = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)tx->skb->data;
 
@@ -500,7 +516,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	sband = tx->local->hw.wiphy->bands[tx->channel->band];
 
 	len = min_t(int, tx->skb->len + FCS_LEN,
-			 tx->local->fragmentation_threshold);
+			 tx->local->hw.wiphy->frag_threshold);
 
 	/* set up the tx rate control struct we give the RC algo */
 	txrc.hw = local_to_hw(tx->local);
@@ -511,8 +527,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.max_rate_idx = tx->sdata->max_ratectrl_rateidx;
 
 	/* set up RTS protection if desired */
-	if (tx->local->rts_threshold < IEEE80211_MAX_RTS_THRESHOLD &&
-	    len > tx->local->rts_threshold) {
+	if (len > tx->local->hw.wiphy->rts_threshold) {
 		txrc.rts = rts = true;
 	}
 
@@ -754,7 +769,7 @@ ieee80211_tx_h_fragment(struct ieee80211_tx_data *tx)
 	struct sk_buff *skb = tx->skb;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (void *)skb->data;
-	int frag_threshold = tx->local->fragmentation_threshold;
+	int frag_threshold = tx->local->hw.wiphy->frag_threshold;
 	int hdrlen;
 	int fragnum;
 
@@ -1072,7 +1087,7 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 
 	if (tx->flags & IEEE80211_TX_FRAGMENTED) {
 		if ((tx->flags & IEEE80211_TX_UNICAST) &&
-		    skb->len + FCS_LEN > local->fragmentation_threshold &&
+		    skb->len + FCS_LEN > local->hw.wiphy->frag_threshold &&
 		    !(info->flags & IEEE80211_TX_CTL_AMPDU))
 			tx->flags |= IEEE80211_TX_FRAGMENTED;
 		else
@@ -2086,18 +2101,18 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 		struct ieee80211_hdr *hdr;
+		struct sk_buff *presp = rcu_dereference(ifibss->presp);
 
-		if (!ifibss->probe_resp)
+		if (!presp)
 			goto out;
 
-		skb = skb_copy(ifibss->probe_resp, GFP_ATOMIC);
+		skb = skb_copy(presp, GFP_ATOMIC);
 		if (!skb)
 			goto out;
 
 		hdr = (struct ieee80211_hdr *) skb->data;
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						 IEEE80211_STYPE_BEACON);
-
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;

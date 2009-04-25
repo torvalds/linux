@@ -146,10 +146,10 @@ config LIBERTAS_CS
 	  A driver for Marvell Libertas 8385 CompactFlash devices.
 
 config LIBERTAS_SDIO
-	tristate "Marvell Libertas 8385 and 8686 SDIO 802.11b/g cards"
+	tristate "Marvell Libertas 8385/8686/8688 SDIO 802.11b/g cards"
 	depends on LIBERTAS && MMC
 	---help---
-	  A driver for Marvell Libertas 8385 and 8686 SDIO devices.
+	  A driver for Marvell Libertas 8385/8686/8688 SDIO devices.
 
 config LIBERTAS_SPI
 	tristate "Marvell Libertas 8686 SPI 802.11b/g cards"
@@ -337,6 +337,7 @@ config USB_NET_RNDIS_WLAN
 	select USB_NET_CDCETHER
 	select USB_NET_RNDIS_HOST
 	select WIRELESS_EXT
+	select CFG80211
 	---help---
 	  This is a driver for wireless RNDIS devices.
 	  These are USB based adapters found in devices such as:
@@ -433,6 +434,13 @@ config RTL8187
 
 	  Thanks to Realtek for their support!
 
+# If possible, automatically enable LEDs for RTL8187.
+
+config RTL8187_LEDS
+	bool
+	depends on RTL8187 && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = RTL8187)
+	default y
+
 config ADM8211
 	tristate "ADMtek ADM8211 support"
 	depends on MAC80211 && PCI && WLAN_80211 && EXPERIMENTAL
@@ -483,9 +491,7 @@ config MWL8K
 	  will be called mwl8k.  If unsure, say N.
 
 source "drivers/net/wireless/p54/Kconfig"
-source "drivers/net/wireless/ath5k/Kconfig"
-source "drivers/net/wireless/ath9k/Kconfig"
-source "drivers/net/wireless/ar9170/Kconfig"
+source "drivers/net/wireless/ath/Kconfig"
 source "drivers/net/wireless/ipw2x00/Kconfig"
 source "drivers/net/wireless/iwlwifi/Kconfig"
 source "drivers/net/wireless/hostap/Kconfig"

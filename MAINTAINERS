@@ -888,6 +888,12 @@ P:	Luis R. Rodriguez
 M:	lrodriguez@atheros.com
 P:	Jouni Malinen
 M:	jmalinen@atheros.com
+P:	Sujith Manoharan
+M:	Sujith.Manoharan@atheros.com
+P:	Vasanthakumar Thiagarajan
+M:	vasanth@atheros.com
+P:	Senthil Balasubramanian
+M:	senthilkumar@atheros.com
 L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
 S:	Supported
@@ -4421,8 +4427,8 @@ S:	Maintained
 F:	drivers/ata/sata_promise.*
 
 PS3 NETWORK SUPPORT
-P:	Masakazu Mokuno
-M:	mokuno@sm.sony.co.jp
+P:	Geoff Levand
+M:	geoffrey.levand@am.sony.com
 L:	netdev@vger.kernel.org
 L:	cbe-oss-dev@ozlabs.org
 S:	Supported

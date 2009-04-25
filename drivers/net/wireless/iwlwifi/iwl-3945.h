@@ -162,7 +162,6 @@ struct iwl3945_frame {
 #define STATUS_TEMPERATURE	8
 #define STATUS_GEO_CONFIGURED	9
 #define STATUS_EXIT_PENDING	10
-#define STATUS_IN_SUSPEND	11
 #define STATUS_STATISTICS	12
 #define STATUS_SCANNING		13
 #define STATUS_SCAN_ABORTING	14
@@ -207,7 +206,8 @@ struct iwl3945_addsta_cmd;
 extern int iwl3945_send_add_station(struct iwl_priv *priv,
 				struct iwl3945_addsta_cmd *sta, u8 flags);
 extern u8 iwl3945_add_station(struct iwl_priv *priv, const u8 *bssid,
-			  int is_ap, u8 flags);
+			  int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
+extern void iwl3945_clear_stations_table(struct iwl_priv *priv);
 extern int iwl3945_power_init_handle(struct iwl_priv *priv);
 extern int iwl3945_eeprom_init(struct iwl_priv *priv);
 extern int iwl3945_calc_db_from_ratio(int sig_ratio);
@@ -278,6 +278,8 @@ extern void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
+extern void iwl3945_post_associate(struct iwl_priv *priv);
+extern void iwl3945_config_ap(struct iwl_priv *priv);
 
 /**
  * iwl3945_hw_find_station - Find station id for a given BSSID

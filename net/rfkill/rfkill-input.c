@@ -47,12 +47,6 @@ enum rfkill_global_sched_op {
 	RFKILL_GLOBAL_OP_UNBLOCK,
 };
 
-/*
- * Currently, the code marked with RFKILL_NEED_SWSET is inactive.
- * If handling of EV_SW SW_WLAN/WWAN/BLUETOOTH/etc is needed in the
- * future, when such events are added, that code will be necessary.
- */
-
 struct rfkill_task {
 	struct delayed_work dwork;
 
@@ -64,14 +58,6 @@ struct rfkill_task {
 
 	/* pending regular switch operations (1=pending) */
 	unsigned long sw_pending[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
-
-#ifdef RFKILL_NEED_SWSET
-	/* set operation pending (1=pending) */
-	unsigned long sw_setpending[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
-
-	/* desired state for pending set operation (1=unblock) */
-	unsigned long sw_newstate[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
-#endif
 
 	/* should the state be complemented (1=yes) */
 	unsigned long sw_togglestate[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
@@ -111,24 +97,6 @@ static void __rfkill_handle_global_op(enum rfkill_global_sched_op op)
 	}
 }
 
-#ifdef RFKILL_NEED_SWSET
-static void __rfkill_handle_normal_op(const enum rfkill_type type,
-			const bool sp, const bool s, const bool c)
-{
-	enum rfkill_state state;
-
-	if (sp)
-		state = (s) ? RFKILL_STATE_UNBLOCKED :
-			      RFKILL_STATE_SOFT_BLOCKED;
-	else
-		state = rfkill_get_global_state(type);
-
-	if (c)
-		state = rfkill_state_complement(state);
-
-	rfkill_switch_all(type, state);
-}
-#else
 static void __rfkill_handle_normal_op(const enum rfkill_type type,
 			const bool c)
 {
@@ -140,7 +108,6 @@ static void __rfkill_handle_normal_op(const enum rfkill_type type,
 
 	rfkill_switch_all(type, state);
 }
-#endif
 
 static void rfkill_task_handler(struct work_struct *work)
 {
@@ -171,21 +138,11 @@ static void rfkill_task_handler(struct work_struct *work)
 						i < RFKILL_TYPE_MAX) {
 				if (test_and_clear_bit(i, task->sw_pending)) {
 					bool c;
-#ifdef RFKILL_NEED_SWSET
-					bool sp, s;
-					sp = test_and_clear_bit(i,
-							task->sw_setpending);
-					s = test_bit(i, task->sw_newstate);
-#endif
 					c = test_and_clear_bit(i,
 							task->sw_togglestate);
 					spin_unlock_irq(&task->lock);
 
-#ifdef RFKILL_NEED_SWSET
-					__rfkill_handle_normal_op(i, sp, s, c);
-#else
 					__rfkill_handle_normal_op(i, c);
-#endif
 
 					spin_lock_irq(&task->lock);
 				}
@@ -237,32 +194,6 @@ static void rfkill_schedule_global_op(enum rfkill_global_sched_op op)
 		rfkill_schedule_ratelimited();
 	spin_unlock_irqrestore(&rfkill_task.lock, flags);
 }
-
-#ifdef RFKILL_NEED_SWSET
-/* Use this if you need to add EV_SW SW_WLAN/WWAN/BLUETOOTH/etc handling */
-
-static void rfkill_schedule_set(enum rfkill_type type,
-				enum rfkill_state desired_state)
-{
-	unsigned long flags;
-
-	if (rfkill_is_epo_lock_active())
-		return;
-
-	spin_lock_irqsave(&rfkill_task.lock, flags);
-	if (!rfkill_task.global_op_pending) {
-		set_bit(type, rfkill_task.sw_pending);
-		set_bit(type, rfkill_task.sw_setpending);
-		clear_bit(type, rfkill_task.sw_togglestate);
-		if (desired_state)
-			set_bit(type,  rfkill_task.sw_newstate);
-		else
-			clear_bit(type, rfkill_task.sw_newstate);
-		rfkill_schedule_ratelimited();
-	}
-	spin_unlock_irqrestore(&rfkill_task.lock, flags);
-}
-#endif
 
 static void rfkill_schedule_toggle(enum rfkill_type type)
 {

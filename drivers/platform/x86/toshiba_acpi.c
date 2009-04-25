@@ -803,7 +803,6 @@ static int __init toshiba_acpi_init(void)
 
 		toshiba_acpi.rfk_dev->name = toshiba_acpi.bt_name;
 		toshiba_acpi.rfk_dev->toggle_radio = bt_rfkill_toggle_radio;
-		toshiba_acpi.rfk_dev->user_claim_unsupported = 1;
 		toshiba_acpi.rfk_dev->data = &toshiba_acpi;
 
 		if (hci_get_bt_on(&bt_on) == HCI_SUCCESS && bt_on) {

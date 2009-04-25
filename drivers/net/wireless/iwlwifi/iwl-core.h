@@ -83,9 +83,21 @@ struct iwl_cmd;
 #define IWL_SKU_A       0x2
 #define IWL_SKU_N       0x8
 
+struct iwl_station_mgmt_ops {
+	u8 (*add_station)(struct iwl_priv *priv, const u8 *addr,
+			int is_ap, u8 flags, struct ieee80211_sta_ht_cap *ht_info);
+	int (*remove_station)(struct iwl_priv *priv, const u8 *addr,
+			int is_ap);
+	u8 (*find_station)(struct iwl_priv *priv, const u8 *addr);
+	void (*clear_station_table)(struct iwl_priv *priv);
+};
+
 struct iwl_hcmd_ops {
 	int (*rxon_assoc)(struct iwl_priv *priv);
+	int (*commit_rxon)(struct iwl_priv *priv);
+	void (*set_rxon_chain)(struct iwl_priv *priv);
 };
+
 struct iwl_hcmd_utils_ops {
 	u16 (*get_hcmd_size)(u8 cmd_id, u16 len);
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
@@ -149,6 +161,9 @@ struct iwl_lib_ops {
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
 	void (*temperature) (struct iwl_priv *priv);
+	void (*post_associate) (struct iwl_priv *priv);
+	void (*config_ap) (struct iwl_priv *priv);
+
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 };
@@ -157,10 +172,10 @@ struct iwl_ops {
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
+	const struct iwl_station_mgmt_ops *smgmt;
 };
 
 struct iwl_mod_params {
-	int disable;		/* def: 0 = enable radio */
 	int sw_crypto;		/* def: 0 = using hardware encryption */
 	u32 debug;		/* def: 0 = minimal debug log messages */
 	int disable_hw_scan;	/* def: 0 = use h/w scan */
@@ -225,6 +240,8 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 void iwl_hw_detect(struct iwl_priv *priv);
 void iwl_reset_qos(struct iwl_priv *priv);
 void iwl_activate_qos(struct iwl_priv *priv, u8 force);
+int iwl_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
+		    const struct ieee80211_tx_queue_params *params);
 void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, int hw_decrypt);
 int iwl_check_rxon_cmd(struct iwl_priv *priv);
 int iwl_full_rxon_required(struct iwl_priv *priv);
@@ -249,6 +266,27 @@ int iwl_setup_mac(struct iwl_priv *priv);
 int iwl_set_hw_params(struct iwl_priv *priv);
 int iwl_init_drv(struct iwl_priv *priv);
 void iwl_uninit_drv(struct iwl_priv *priv);
+bool iwl_is_monitor_mode(struct iwl_priv *priv);
+void iwl_post_associate(struct iwl_priv *priv);
+void iwl_bss_info_changed(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *bss_conf,
+				     u32 changes);
+int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
+int iwl_commit_rxon(struct iwl_priv *priv);
+int iwl_set_mode(struct iwl_priv *priv, int mode);
+int iwl_mac_add_interface(struct ieee80211_hw *hw,
+				 struct ieee80211_if_init_conf *conf);
+void iwl_mac_remove_interface(struct ieee80211_hw *hw,
+				 struct ieee80211_if_init_conf *conf);
+int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
+void iwl_config_ap(struct iwl_priv *priv);
+int iwl_mac_config_interface(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_if_conf *conf);
+int iwl_mac_get_tx_stats(struct ieee80211_hw *hw,
+			 struct ieee80211_tx_queue_stats *stats);
+void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
 
 /*****************************************************
  * RX handlers.
@@ -358,8 +396,8 @@ int iwl_scan_cancel(struct iwl_priv *priv);
 int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 int iwl_scan_initiate(struct iwl_priv *priv);
 int iwl_mac_hw_scan(struct ieee80211_hw *hw, struct cfg80211_scan_request *req);
-u16 iwl_fill_probe_req(struct iwl_priv *priv, enum ieee80211_band band,
-		       struct ieee80211_mgmt *frame, int left);
+u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
+		       const u8 *ie, int ie_len, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
 u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 			      enum ieee80211_band band,
@@ -432,12 +470,17 @@ static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }
+#ifdef CONFIG_PM
+int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state);
+int iwl_pci_resume(struct pci_dev *pdev);
+#endif /* CONFIG_PM */
 
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/
 void iwl_dump_nic_error_log(struct iwl_priv *priv);
 void iwl_dump_nic_event_log(struct iwl_priv *priv);
+void iwl_clear_isr_stats(struct iwl_priv *priv);
 
 /*****************************************************
 *  GEOS
@@ -458,7 +501,6 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_TEMPERATURE	8
 #define STATUS_GEO_CONFIGURED	9
 #define STATUS_EXIT_PENDING	10
-#define STATUS_IN_SUSPEND	11
 #define STATUS_STATISTICS	12
 #define STATUS_SCANNING		13
 #define STATUS_SCAN_ABORTING	14
@@ -528,7 +570,14 @@ static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->rxon_assoc(priv);
 }
-
+static inline int iwlcore_commit_rxon(struct iwl_priv *priv)
+{
+	return priv->cfg->ops->hcmd->commit_rxon(priv);
+}
+static inline void iwlcore_config_ap(struct iwl_priv *priv)
+{
+	priv->cfg->ops->lib->config_ap(priv);
+}
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)
 {

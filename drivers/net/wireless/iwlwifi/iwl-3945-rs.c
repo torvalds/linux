@@ -719,7 +719,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 			IWL_DEBUG_RATE(priv, "LQ: ADD station %pm\n",
 				       hdr->addr1);
 			sta_id = iwl3945_add_station(priv,
-				    hdr->addr1, 0, CMD_ASYNC);
+				    hdr->addr1, 0, CMD_ASYNC, NULL);
 		}
 		if (sta_id != IWL_INVALID_STATION)
 			rs_sta->ibss_sta_added = 1;

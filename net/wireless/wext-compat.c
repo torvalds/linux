@@ -10,8 +10,8 @@
 
 #include <linux/wireless.h>
 #include <linux/nl80211.h>
+#include <linux/if_arp.h>
 #include <net/iw_handler.h>
-#include <net/wireless.h>
 #include <net/cfg80211.h>
 #include "core.h"
 
@@ -57,7 +57,7 @@ int cfg80211_wext_giwname(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwname);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwname);
 
 int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra)
@@ -108,7 +108,7 @@ int cfg80211_wext_siwmode(struct net_device *dev, struct iw_request_info *info,
 
 	return ret;
 }
-EXPORT_SYMBOL(cfg80211_wext_siwmode);
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwmode);
 
 int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 			  u32 *mode, char *extra)
@@ -143,7 +143,7 @@ int cfg80211_wext_giwmode(struct net_device *dev, struct iw_request_info *info,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwmode);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwmode);
 
 
 int cfg80211_wext_giwrange(struct net_device *dev,
@@ -206,7 +206,6 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 
-
 	for (band = 0; band < IEEE80211_NUM_BANDS; band ++) {
 		int i;
 		struct ieee80211_supported_band *sband;
@@ -240,4 +239,229 @@ int cfg80211_wext_giwrange(struct net_device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(cfg80211_wext_giwrange);
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwrange);
+
+int cfg80211_wext_siwmlme(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_point *data, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
+	struct cfg80211_registered_device *rdev;
+	union {
+		struct cfg80211_disassoc_request disassoc;
+		struct cfg80211_deauth_request deauth;
+	} cmd;
+
+	if (!wdev)
+		return -EOPNOTSUPP;
+
+	rdev = wiphy_to_dev(wdev->wiphy);
+
+	if (wdev->iftype != NL80211_IFTYPE_STATION)
+		return -EINVAL;
+
+	if (mlme->addr.sa_family != ARPHRD_ETHER)
+		return -EINVAL;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	switch (mlme->cmd) {
+	case IW_MLME_DEAUTH:
+		if (!rdev->ops->deauth)
+			return -EOPNOTSUPP;
+		cmd.deauth.peer_addr = mlme->addr.sa_data;
+		cmd.deauth.reason_code = mlme->reason_code;
+		return rdev->ops->deauth(wdev->wiphy, dev, &cmd.deauth);
+	case IW_MLME_DISASSOC:
+		if (!rdev->ops->disassoc)
+			return -EOPNOTSUPP;
+		cmd.disassoc.peer_addr = mlme->addr.sa_data;
+		cmd.disassoc.reason_code = mlme->reason_code;
+		return rdev->ops->disassoc(wdev->wiphy, dev, &cmd.disassoc);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwmlme);
+
+
+/**
+ * cfg80211_wext_freq - get wext frequency for non-"auto"
+ * @wiphy: the wiphy
+ * @freq: the wext freq encoding
+ *
+ * Returns a channel, %NULL for auto, or an ERR_PTR for errors!
+ */
+struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
+					     struct iw_freq *freq)
+{
+	if (freq->e == 0) {
+		if (freq->m < 0)
+			return NULL;
+		else
+			return ieee80211_get_channel(wiphy,
+				ieee80211_channel_to_frequency(freq->m));
+	} else {
+		int i, div = 1000000;
+		for (i = 0; i < freq->e; i++)
+			div /= 10;
+		if (div > 0)
+			return ieee80211_get_channel(wiphy, freq->m / div);
+		else
+			return ERR_PTR(-EINVAL);
+	}
+
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_freq);
+
+int cfg80211_wext_siwrts(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_param *rts, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	u32 orts = wdev->wiphy->rts_threshold;
+	int err;
+
+	if (rts->disabled || !rts->fixed)
+		wdev->wiphy->rts_threshold = (u32) -1;
+	else if (rts->value < 0)
+		return -EINVAL;
+	else
+		wdev->wiphy->rts_threshold = rts->value;
+
+	err = rdev->ops->set_wiphy_params(wdev->wiphy,
+					  WIPHY_PARAM_RTS_THRESHOLD);
+	if (err)
+		wdev->wiphy->rts_threshold = orts;
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwrts);
+
+int cfg80211_wext_giwrts(struct net_device *dev,
+			 struct iw_request_info *info,
+			 struct iw_param *rts, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	rts->value = wdev->wiphy->rts_threshold;
+	rts->disabled = rts->value == (u32) -1;
+	rts->fixed = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwrts);
+
+int cfg80211_wext_siwfrag(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *frag, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	u32 ofrag = wdev->wiphy->frag_threshold;
+	int err;
+
+	if (frag->disabled || !frag->fixed)
+		wdev->wiphy->frag_threshold = (u32) -1;
+	else if (frag->value < 256)
+		return -EINVAL;
+	else {
+		/* Fragment length must be even, so strip LSB. */
+		wdev->wiphy->frag_threshold = frag->value & ~0x1;
+	}
+
+	err = rdev->ops->set_wiphy_params(wdev->wiphy,
+					  WIPHY_PARAM_FRAG_THRESHOLD);
+	if (err)
+		wdev->wiphy->frag_threshold = ofrag;
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwfrag);
+
+int cfg80211_wext_giwfrag(struct net_device *dev,
+			  struct iw_request_info *info,
+			  struct iw_param *frag, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	frag->value = wdev->wiphy->frag_threshold;
+	frag->disabled = frag->value == (u32) -1;
+	frag->fixed = 1;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwfrag);
+
+int cfg80211_wext_siwretry(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *retry, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	u32 changed = 0;
+	u8 olong = wdev->wiphy->retry_long;
+	u8 oshort = wdev->wiphy->retry_short;
+	int err;
+
+	if (retry->disabled ||
+	    (retry->flags & IW_RETRY_TYPE) != IW_RETRY_LIMIT)
+		return -EINVAL;
+
+	if (retry->flags & IW_RETRY_LONG) {
+		wdev->wiphy->retry_long = retry->value;
+		changed |= WIPHY_PARAM_RETRY_LONG;
+	} else if (retry->flags & IW_RETRY_SHORT) {
+		wdev->wiphy->retry_short = retry->value;
+		changed |= WIPHY_PARAM_RETRY_SHORT;
+	} else {
+		wdev->wiphy->retry_short = retry->value;
+		wdev->wiphy->retry_long = retry->value;
+		changed |= WIPHY_PARAM_RETRY_LONG;
+		changed |= WIPHY_PARAM_RETRY_SHORT;
+	}
+
+	if (!changed)
+		return 0;
+
+	err = rdev->ops->set_wiphy_params(wdev->wiphy, changed);
+	if (err) {
+		wdev->wiphy->retry_short = oshort;
+		wdev->wiphy->retry_long = olong;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwretry);
+
+int cfg80211_wext_giwretry(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_param *retry, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+
+	retry->disabled = 0;
+
+	if (retry->flags == 0 || (retry->flags & IW_RETRY_SHORT)) {
+		/*
+		 * First return short value, iwconfig will ask long value
+		 * later if needed
+		 */
+		retry->flags |= IW_RETRY_LIMIT;
+		retry->value = wdev->wiphy->retry_short;
+		if (wdev->wiphy->retry_long != wdev->wiphy->retry_short)
+			retry->flags |= IW_RETRY_LONG;
+
+		return 0;
+	}
+
+	if (retry->flags & IW_RETRY_LONG) {
+		retry->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
+		retry->value = wdev->wiphy->retry_long;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwretry);

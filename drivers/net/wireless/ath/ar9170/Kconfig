@@ -1,0 +1,18 @@
+config AR9170_USB
+	tristate "Atheros AR9170 802.11n USB support"
+	depends on USB && MAC80211 && WLAN_80211 && EXPERIMENTAL
+	select FW_LOADER
+	select ATH_COMMON
+	help
+	  This is a driver for the Atheros "otus" 802.11n USB devices.
+
+	  These devices require additional firmware (2 files).
+	  For now, these files can be downloaded from here:
+	  http://wireless.kernel.org/en/users/Drivers/ar9170
+
+	  If you choose to build a module, it'll be called ar9170usb.
+
+config AR9170_LEDS
+	bool
+	depends on AR9170_USB && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = AR9170_USB)
+	default y

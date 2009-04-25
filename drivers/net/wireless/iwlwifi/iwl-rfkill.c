@@ -91,7 +91,6 @@ int iwl_rfkill_init(struct iwl_priv *priv)
 	priv->rfkill->data = priv;
 	priv->rfkill->state = RFKILL_STATE_UNBLOCKED;
 	priv->rfkill->toggle_radio = iwl_rfkill_soft_rf_kill;
-	priv->rfkill->user_claim_unsupported = 1;
 
 	priv->rfkill->dev.class->suspend = NULL;
 	priv->rfkill->dev.class->resume = NULL;

@@ -728,7 +728,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* drop all data frame if we are not associated */
 	if (ieee80211_is_data(fc) &&
-	    (priv->iw_mode != NL80211_IFTYPE_MONITOR ||
+	    (!iwl_is_monitor_mode(priv) ||
 	    !(info->flags & IEEE80211_TX_CTL_INJECTED)) && /* packet injection */
 	    (!iwl_is_associated(priv) ||
 	     ((priv->iw_mode == NL80211_IFTYPE_STATION) && !priv->assoc_id) ||
@@ -1183,8 +1183,10 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 			__func__, ra, tid);
 
 	sta_id = iwl_find_station(priv, ra);
-	if (sta_id == IWL_INVALID_STATION)
+	if (sta_id == IWL_INVALID_STATION) {
+		IWL_ERR(priv, "Start AGG on invalid station\n");
 		return -ENXIO;
+	}
 
 	if (priv->stations[sta_id].tid[tid].agg.state != IWL_AGG_OFF) {
 		IWL_ERR(priv, "Start AGG when state is not IWL_AGG_OFF !\n");
@@ -1192,8 +1194,10 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	}
 
 	txq_id = iwl_txq_ctx_activate_free(priv);
-	if (txq_id == -1)
+	if (txq_id == -1) {
+		IWL_ERR(priv, "No free aggregation queue available\n");
 		return -ENXIO;
+	}
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	tid_data = &priv->stations[sta_id].tid[tid];
@@ -1207,7 +1211,7 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 		return ret;
 
 	if (tid_data->tfds_in_queue == 0) {
-		IWL_ERR(priv, "HW queue is empty\n");
+		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
 		ieee80211_start_tx_ba_cb_irqsafe(priv->hw, ra, tid);
 	} else {

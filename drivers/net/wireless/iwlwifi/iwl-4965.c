@@ -2268,9 +2268,17 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->txpower_work);
 }
 
+static struct iwl_station_mgmt_ops iwl4965_station_mgmt = {
+	.add_station = iwl_add_station_flags,
+	.remove_station = iwl_remove_station,
+	.find_station = iwl_find_station,
+	.clear_station_table = iwl_clear_stations_table,
+};
 
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
+	.commit_rxon = iwl_commit_rxon,
+	.set_rxon_chain = iwl_set_rxon_chain,
 };
 
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
@@ -2324,12 +2332,15 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
 	.temperature = iwl4965_temperature_calib,
+	.post_associate = iwl_post_associate,
+	.config_ap = iwl_config_ap,
 };
 
 static struct iwl_ops iwl4965_ops = {
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
+	.smgmt = &iwl4965_station_mgmt,
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {
@@ -2350,8 +2361,6 @@ MODULE_FIRMWARE(IWL4965_MODULE_FIRMWARE(IWL4965_UCODE_API_MAX));
 
 module_param_named(antenna, iwl4965_mod_params.antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
-module_param_named(disable, iwl4965_mod_params.disable, int, 0444);
-MODULE_PARM_DESC(disable, "manually disable the radio (default 0 [radio on])");
 module_param_named(swcrypto, iwl4965_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
 module_param_named(debug, iwl4965_mod_params.debug, uint, 0444);

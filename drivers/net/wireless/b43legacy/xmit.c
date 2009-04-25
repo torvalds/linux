@@ -274,7 +274,7 @@ static int generate_txhdr_fw3(struct b43legacy_wldev *dev,
 
 	/* PHY TX Control word */
 	if (rate_ofdm)
-		phy_ctl |= B43legacy_TX4_PHY_OFDM;
+		phy_ctl |= B43legacy_TX4_PHY_ENC_OFDM;
 	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 		phy_ctl |= B43legacy_TX4_PHY_SHORTPRMBL;
 	switch (info->antenna_sel_tx) {

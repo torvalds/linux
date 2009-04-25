@@ -678,7 +678,7 @@ static void iwl5000_init_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	iwl_clear_stations_table(priv);
+	priv->cfg->ops->smgmt->clear_station_table(priv);
 	ret = priv->cfg->ops->lib->alive_notify(priv);
 	if (ret) {
 		IWL_WARN(priv,
@@ -1472,8 +1472,17 @@ int iwl5000_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWL49_RSSI_OFFSET;
 }
 
+struct iwl_station_mgmt_ops iwl5000_station_mgmt = {
+	.add_station = iwl_add_station_flags,
+	.remove_station = iwl_remove_station,
+	.find_station = iwl_find_station,
+	.clear_station_table = iwl_clear_stations_table,
+};
+
 struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
+	.commit_rxon = iwl_commit_rxon,
+	.set_rxon_chain = iwl_set_rxon_chain,
 };
 
 struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
@@ -1527,12 +1536,15 @@ struct iwl_lib_ops iwl5000_lib = {
 		.calib_version	= iwl5000_eeprom_calib_version,
 		.query_addr = iwl5000_eeprom_query_addr,
 	},
+	.post_associate = iwl_post_associate,
+	.config_ap = iwl_config_ap,
 };
 
 struct iwl_ops iwl5000_ops = {
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
+	.smgmt = &iwl5000_station_mgmt,
 };
 
 struct iwl_mod_params iwl50_mod_params = {
@@ -1643,9 +1655,6 @@ struct iwl_cfg iwl5150_agn_cfg = {
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_MAX));
 
-module_param_named(disable50, iwl50_mod_params.disable, int, 0444);
-MODULE_PARM_DESC(disable50,
-		  "manually disable the 50XX radio (default 0 [radio on])");
 module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, 0444);
 MODULE_PARM_DESC(swcrypto50,
 		  "using software crypto engine (default 0 [hardware])\n");

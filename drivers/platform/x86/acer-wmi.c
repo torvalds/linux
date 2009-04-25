@@ -1005,7 +1005,6 @@ enum rfkill_type type, char *name, u32 cap)
 	*data = cap;
 	rfkill_dev->data = data;
 	rfkill_dev->toggle_radio = acer_rfkill_set;
-	rfkill_dev->user_claim_unsupported = 1;
 
 	err = rfkill_register(rfkill_dev);
 	if (err) {

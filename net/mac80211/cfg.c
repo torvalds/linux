@@ -1167,7 +1167,8 @@ static int ieee80211_scan(struct wiphy *wiphy,
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 	    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT)
+	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
+	    (sdata->vif.type != NL80211_IFTYPE_AP || sdata->u.ap.beacon))
 		return -EOPNOTSUPP;
 
 	return ieee80211_request_scan(sdata, req);
@@ -1267,23 +1268,60 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 static int ieee80211_deauth(struct wiphy *wiphy, struct net_device *dev,
 			    struct cfg80211_deauth_request *req)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	/* TODO: req->ie */
+	/* TODO: req->ie, req->peer_addr */
 	return ieee80211_sta_deauthenticate(sdata, req->reason_code);
 }
 
 static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 			      struct cfg80211_disassoc_request *req)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	/* TODO: req->ie */
+	/* TODO: req->ie, req->peer_addr */
 	return ieee80211_sta_disassociate(sdata, req->reason_code);
+}
+
+static int ieee80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
+			       struct cfg80211_ibss_params *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return ieee80211_ibss_join(sdata, params);
+}
+
+static int ieee80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return ieee80211_ibss_leave(sdata);
+}
+
+static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
+		int err;
+
+		if (local->ops->set_rts_threshold) {
+			err = local->ops->set_rts_threshold(
+				local_to_hw(local), wiphy->rts_threshold);
+			if (err)
+				return err;
+		}
+	}
+
+	if (changed & WIPHY_PARAM_RETRY_SHORT)
+		local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
+	if (changed & WIPHY_PARAM_RETRY_LONG)
+		local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
+	if (changed &
+	    (WIPHY_PARAM_RETRY_SHORT | WIPHY_PARAM_RETRY_LONG))
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_RETRY_LIMITS);
+
+	return 0;
 }
 
 struct cfg80211_ops mac80211_config_ops = {
@@ -1322,4 +1360,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.assoc = ieee80211_assoc,
 	.deauth = ieee80211_deauth,
 	.disassoc = ieee80211_disassoc,
+	.join_ibss = ieee80211_join_ibss,
+	.leave_ibss = ieee80211_leave_ibss,
+	.set_wiphy_params = ieee80211_set_wiphy_params,
 };

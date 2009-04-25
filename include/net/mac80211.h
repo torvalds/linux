@@ -19,7 +19,6 @@
 #include <linux/wireless.h>
 #include <linux/device.h>
 #include <linux/ieee80211.h>
-#include <net/wireless.h>
 #include <net/cfg80211.h>
 
 /**
@@ -518,7 +517,7 @@ struct ieee80211_rx_status {
  * Flags to define PHY configuration options
  *
  * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
- * @IEEE80211_CONF_PS: Enable 802.11 power save mode
+ * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only)
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_RADIOTAP		= (1<<0),
@@ -533,8 +532,7 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_BEACON_INTERVAL: the beacon interval changed
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
- * @IEEE80211_CONF_CHANGE_PS: the PS flag changed
- * @IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT: the dynamic PS timeout changed
+ * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
  * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
@@ -545,10 +543,9 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
-	IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT	= BIT(5),
-	IEEE80211_CONF_CHANGE_POWER		= BIT(6),
-	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(7),
-	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(8),
+	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
+	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
+	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
 };
 
 /**
@@ -556,14 +553,26 @@ enum ieee80211_conf_changed {
  *
  * This struct indicates how the driver shall configure the hardware.
  *
+ * @flags: configuration flags defined above
+ *
  * @radio_enabled: when zero, driver is required to switch off the radio.
  * @beacon_int: beacon interval (TODO make interface config)
+ *
  * @listen_interval: listen interval in units of beacon interval
- * @flags: configuration flags defined above
+ * @max_sleep_interval: the maximum number of beacon intervals to sleep for
+ *	before checking the beacon for a TIM bit (managed mode only); this
+ *	value will be only achievable between DTIM frames, the hardware
+ *	needs to check for the multicast traffic bit in DTIM beacons.
+ *	This variable is valid only when the CONF_PS flag is set.
+ * @dynamic_ps_timeout: The dynamic powersave timeout (in ms), see the
+ *	powersave documentation below. This variable is valid only when
+ *	the CONF_PS flag is set.
+ *
  * @power_level: requested transmit power (in dBm)
- * @dynamic_ps_timeout: dynamic powersave timeout (in ms)
+ *
  * @channel: the channel to tune to
  * @channel_type: the channel (HT) type
+ *
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
  *    (a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
  *    but actually means the number of transmissions not the number of retries
@@ -575,6 +584,7 @@ struct ieee80211_conf {
 	int beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
+	int max_sleep_interval;
 
 	u16 listen_interval;
 	bool radio_enabled;
@@ -1109,11 +1119,9 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * need software support for parsing the TIM bitmap. This is also supported
  * by mac80211 by combining the %IEEE80211_HW_SUPPORTS_PS and
  * %IEEE80211_HW_PS_NULLFUNC_STACK flags. The hardware is of course still
- * required to pass up beacons. Additionally, in this case, mac80211 will
- * wake up the hardware when multicast traffic is announced in the beacon.
- *
- * FIXME: I don't think we can be fast enough in software when we want to
- *	  receive multicast traffic?
+ * required to pass up beacons. The hardware is still required to handle
+ * waking up for multicast traffic; if it cannot the driver must handle that
+ * as best as it can, mac80211 is too slow.
  *
  * Dynamic powersave mode is an extension to normal powersave mode in which
  * the hardware stays awake for a user-specified period of time after sending
@@ -1134,11 +1142,53 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * way the host will only receive beacons where some relevant information
  * (for example ERP protection or WMM settings) have changed.
  *
- * Beacon filter support is informed with %IEEE80211_HW_BEACON_FILTER flag.
- * The driver needs to enable beacon filter support whenever power save is
- * enabled, that is %IEEE80211_CONF_PS is set. When power save is enabled,
- * the stack will not check for beacon miss at all and the driver needs to
- * notify about complete loss of beacons with ieee80211_beacon_loss().
+ * Beacon filter support is advertised with the %IEEE80211_HW_BEACON_FILTER
+ * hardware capability. The driver needs to enable beacon filter support
+ * whenever power save is enabled, that is %IEEE80211_CONF_PS is set. When
+ * power save is enabled, the stack will not check for beacon loss and the
+ * driver needs to notify about loss of beacons with ieee80211_beacon_loss().
+ *
+ * The time (or number of beacons missed) until the firmware notifies the
+ * driver of a beacon loss event (which in turn causes the driver to call
+ * ieee80211_beacon_loss()) should be configurable and will be controlled
+ * by mac80211 and the roaming algorithm in the future.
+ *
+ * Since there may be constantly changing information elements that nothing
+ * in the software stack cares about, we will, in the future, have mac80211
+ * tell the driver which information elements are interesting in the sense
+ * that we want to see changes in them. This will include
+ *  - a list of information element IDs
+ *  - a list of OUIs for the vendor information element
+ *
+ * Ideally, the hardware would filter out any beacons without changes in the
+ * requested elements, but if it cannot support that it may, at the expense
+ * of some efficiency, filter out only a subset. For example, if the device
+ * doesn't support checking for OUIs it should pass up all changes in all
+ * vendor information elements.
+ *
+ * Note that change, for the sake of simplification, also includes information
+ * elements appearing or disappearing from the beacon.
+ *
+ * Some hardware supports an "ignore list" instead, just make sure nothing
+ * that was requested is on the ignore list, and include commonly changing
+ * information element IDs in the ignore list, for example 11 (BSS load) and
+ * the various vendor-assigned IEs with unknown contents (128, 129, 133-136,
+ * 149, 150, 155, 156, 173, 176, 178, 179, 219); for forward compatibility
+ * it could also include some currently unused IDs.
+ *
+ *
+ * In addition to these capabilities, hardware should support notifying the
+ * host of changes in the beacon RSSI. This is relevant to implement roaming
+ * when no traffic is flowing (when traffic is flowing we see the RSSI of
+ * the received data packets). This can consist in notifying the host when
+ * the RSSI changes significantly or when it drops below or rises above
+ * configurable thresholds. In the future these thresholds will also be
+ * configured by mac80211 (which gets them from userspace) to implement
+ * them as the roaming algorithm requires.
+ *
+ * If the hardware cannot implement this, the driver should ask it to
+ * periodically pass beacon frames to the host so that software can do the
+ * signal strength threshold checking.
  */
 
 /**
@@ -1330,11 +1380,14 @@ enum ieee80211_ampdu_mlme_action {
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's
  *	registered bands. The hardware (or the driver) needs to make sure
- *	that power save is disabled. When the scan finishes,
- *	ieee80211_scan_completed() must be called; note that it also must
- *	be called when the scan cannot finish because the hardware is
- *	turned off! Anything else is a bug! Returns a negative error code
- *	which will be seen in userspace.
+ *	that power save is disabled.
+ *	The @req ie/ie_len members are rewritten by mac80211 to contain the
+ *	entire IEs after the SSID, so that drivers need not look at these
+ *	at all but just send them after the SSID -- mac80211 includes the
+ *	(extended) supported rates and HT information (where applicable).
+ *	When the scan finishes, ieee80211_scan_completed() must be called;
+ *	note that it also must be called when the scan cannot finish due to
+ *	any error unless this callback returned a negative error code.
  *
  * @sw_scan_start: Notifier function that is called just before a software scan
  *	is started. Can be NULL, if the driver doesn't need this notification.
@@ -1571,6 +1624,20 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw);
  * @hw: the hardware to free
  */
 void ieee80211_free_hw(struct ieee80211_hw *hw);
+
+/**
+ * ieee80211_restart_hw - restart hardware completely
+ *
+ * Call this function when the hardware was restarted for some reason
+ * (hardware error, ...) and the driver is unable to restore its state
+ * by itself. mac80211 assumes that at this point the driver/hardware
+ * is completely uninitialised and stopped, it starts the process by
+ * calling the ->start() operation. The driver will need to reset all
+ * internal state that it has prior to calling this function.
+ *
+ * @hw: the hardware to restart
+ */
+void ieee80211_restart_hw(struct ieee80211_hw *hw);
 
 /* trick to avoid symbol clashes with the ieee80211 subsystem */
 void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,

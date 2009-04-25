@@ -17,11 +17,31 @@ extern void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 extern void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
 				  struct net_device *netdev,
 				  const u8 *buf, size_t len);
-extern void nl80211_send_rx_deauth(struct cfg80211_registered_device *rdev,
-				   struct net_device *netdev,
-				   const u8 *buf, size_t len);
-extern void nl80211_send_rx_disassoc(struct cfg80211_registered_device *rdev,
-				     struct net_device *netdev,
-				     const u8 *buf, size_t len);
+extern void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
+				struct net_device *netdev,
+				const u8 *buf, size_t len);
+extern void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
+				  struct net_device *netdev,
+				  const u8 *buf, size_t len);
+extern void nl80211_send_auth_timeout(struct cfg80211_registered_device *rdev,
+				      struct net_device *netdev,
+				      const u8 *addr);
+extern void nl80211_send_assoc_timeout(struct cfg80211_registered_device *rdev,
+				       struct net_device *netdev,
+				       const u8 *addr);
+extern void
+nl80211_michael_mic_failure(struct cfg80211_registered_device *rdev,
+			    struct net_device *netdev, const u8 *addr,
+			    enum nl80211_key_type key_type,
+			    int key_id, const u8 *tsc);
+
+extern void
+nl80211_send_beacon_hint_event(struct wiphy *wiphy,
+			       struct ieee80211_channel *channel_before,
+			       struct ieee80211_channel *channel_after);
+
+void nl80211_send_ibss_bssid(struct cfg80211_registered_device *rdev,
+			     struct net_device *netdev, const u8 *bssid,
+			     gfp_t gfp);
 
 #endif /* __NET_WIRELESS_NL80211_H */

@@ -119,6 +119,19 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
 		    cmd.hwifversion, cmd.version);
 
+	/* Determine mesh_fw_ver from fwrelease and fwcapinfo */
+	/* 5.0.16p0 9.0.0.p0 is known to NOT support any mesh */
+	/* 5.110.22 have mesh command with 0xa3 command id */
+	/* 10.0.0.p0 FW brings in mesh config command with different id */
+	/* Check FW version MSB and initialize mesh_fw_ver */
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V5)
+		priv->mesh_fw_ver = MESH_FW_OLD;
+	else if ((MRVL_FW_MAJOR_REV(priv->fwrelease) >= MRVL_FW_V10) &&
+		(priv->fwcapinfo & MESH_CAPINFO_ENABLE_MASK))
+		priv->mesh_fw_ver = MESH_FW_NEW;
+	else
+		priv->mesh_fw_ver = MESH_NONE;
+
 	/* Clamp region code to 8-bit since FW spec indicates that it should
 	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
 	 * returns non-zero high 8 bits here.
@@ -1036,17 +1049,26 @@ static int __lbs_mesh_config_send(struct lbs_private *priv,
 				  uint16_t action, uint16_t type)
 {
 	int ret;
+	u16 command = CMD_MESH_CONFIG_OLD;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->hdr.command = cpu_to_le16(CMD_MESH_CONFIG);
+	/*
+	 * Command id is 0xac for v10 FW along with mesh interface
+	 * id in bits 14-13-12.
+	 */
+	if (priv->mesh_fw_ver == MESH_FW_NEW)
+		command = CMD_MESH_CONFIG |
+			  (MESH_IFACE_ID << MESH_IFACE_BIT_OFFSET);
+
+	cmd->hdr.command = cpu_to_le16(command);
 	cmd->hdr.size = cpu_to_le16(sizeof(struct cmd_ds_mesh_config));
 	cmd->hdr.result = 0;
 
 	cmd->type = cpu_to_le16(type);
 	cmd->action = cpu_to_le16(action);
 
-	ret = lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
+	ret = lbs_cmd_with_response(priv, command, cmd);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return ret;
