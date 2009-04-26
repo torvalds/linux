@@ -214,11 +214,6 @@ int rt28xx_close(IN PNET_DEV dev)
 	if (pAd == NULL)
 		return 0; // close ok
 
-
-#ifdef WDS_SUPPORT
-	WdsDown(pAd);
-#endif // WDS_SUPPORT //
-
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
