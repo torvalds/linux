@@ -95,14 +95,6 @@ VOID StopNetIfQueue(
 	UCHAR IfIdx = 0;
 	BOOLEAN valid = FALSE;
 
-#ifdef APCLI_SUPPORT
-	if (RTMP_GET_PACKET_NET_DEVICE(pPacket) >= MIN_NET_DEVICE_FOR_APCLI)
-	{
-		IfIdx = (RTMP_GET_PACKET_NET_DEVICE(pPacket) - MIN_NET_DEVICE_FOR_APCLI) % MAX_APCLI_NUM;
-		NetDev = pAd->ApCfg.ApCliTab[IfIdx].dev;
-	}
-	else
-#endif // APCLI_SUPPORT //
 	{
 #ifdef MBSS_SUPPORT
 		if (pAd->OpMode == OPMODE_AP)

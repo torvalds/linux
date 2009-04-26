@@ -559,9 +559,6 @@ VOID MlmeHandler(
 	IN PRTMP_ADAPTER pAd)
 {
 	MLME_QUEUE_ELEM 	   *Elem = NULL;
-#ifdef APCLI_SUPPORT
-	SHORT apcliIfIndex;
-#endif
 
 	// Only accept MLME and Frame from peer side, no other (control/data) frame should
 	// get into this state machine

@@ -332,10 +332,6 @@
 #define MAX_MESH_NUM				0
 
 #define MAX_APCLI_NUM				0
-#ifdef APCLI_SUPPORT
-#undef	MAX_APCLI_NUM
-#define MAX_APCLI_NUM				1
-#endif // APCLI_SUPPORT //
 
 #define MAX_MBSSID_NUM				1
 
@@ -953,96 +949,6 @@
 #define AP_MAX_WPA_MSG                  5
 
 #define AP_WPA_FUNC_SIZE                (AP_MAX_WPA_PTK_STATE * AP_MAX_WPA_MSG)
-
-#ifdef APCLI_SUPPORT
-//ApCli authentication state machine
-#define APCLI_AUTH_REQ_IDLE                0
-#define APCLI_AUTH_WAIT_SEQ2               1
-#define APCLI_AUTH_WAIT_SEQ4               2
-#define APCLI_MAX_AUTH_STATE               3
-
-#define APCLI_AUTH_MACHINE_BASE            0
-#define APCLI_MT2_MLME_AUTH_REQ            0
-#define APCLI_MT2_MLME_DEAUTH_REQ          1
-#define APCLI_MT2_PEER_AUTH_EVEN           2
-#define APCLI_MT2_PEER_DEAUTH              3
-#define APCLI_MT2_AUTH_TIMEOUT             4
-#define APCLI_MAX_AUTH_MSG                 5
-
-#define APCLI_AUTH_FUNC_SIZE               (APCLI_MAX_AUTH_STATE * APCLI_MAX_AUTH_MSG)
-
-//ApCli association state machine
-#define APCLI_ASSOC_IDLE                   0
-#define APCLI_ASSOC_WAIT_RSP               1
-#define APCLI_MAX_ASSOC_STATE              2
-
-#define APCLI_ASSOC_MACHINE_BASE           0
-#define APCLI_MT2_MLME_ASSOC_REQ           0
-#define APCLI_MT2_MLME_DISASSOC_REQ        1
-#define APCLI_MT2_PEER_DISASSOC_REQ        2
-#define APCLI_MT2_PEER_ASSOC_RSP           3
-#define APCLI_MT2_ASSOC_TIMEOUT            4
-#define APCLI_MAX_ASSOC_MSG                5
-
-#define APCLI_ASSOC_FUNC_SIZE              (APCLI_MAX_ASSOC_STATE * APCLI_MAX_ASSOC_MSG)
-
-//ApCli sync state machine
-#define APCLI_SYNC_IDLE                   0  // merge NO_BSS,IBSS_IDLE,IBSS_ACTIVE and BSS in to 1 state
-#define APCLI_JOIN_WAIT_PROBE_RSP         1
-#define APCLI_MAX_SYNC_STATE              2
-
-#define APCLI_SYNC_MACHINE_BASE           0
-#define APCLI_MT2_MLME_PROBE_REQ          0
-#define APCLI_MT2_PEER_PROBE_RSP          1
-#define APCLI_MT2_PROBE_TIMEOUT           2
-#define APCLI_MAX_SYNC_MSG                3
-
-#define APCLI_SYNC_FUNC_SIZE              (APCLI_MAX_SYNC_STATE * APCLI_MAX_SYNC_MSG)
-
-//ApCli ctrl state machine
-#define APCLI_CTRL_DISCONNECTED           0  // merge NO_BSS,IBSS_IDLE,IBSS_ACTIVE and BSS in to 1 state
-#define APCLI_CTRL_PROBE                  1
-#define APCLI_CTRL_AUTH                   2
-#define APCLI_CTRL_AUTH_2                 3
-#define APCLI_CTRL_ASSOC                  4
-#define APCLI_CTRL_DEASSOC                5
-#define APCLI_CTRL_CONNECTED              6
-#define APCLI_MAX_CTRL_STATE              7
-
-#define APCLI_CTRL_MACHINE_BASE           0
-#define APCLI_CTRL_JOIN_REQ               0
-#define APCLI_CTRL_PROBE_RSP              1
-#define APCLI_CTRL_AUTH_RSP               2
-#define APCLI_CTRL_DISCONNECT_REQ         3
-#define APCLI_CTRL_PEER_DISCONNECT_REQ    4
-#define APCLI_CTRL_ASSOC_RSP              5
-#define APCLI_CTRL_DEASSOC_RSP            6
-#define APCLI_CTRL_JOIN_REQ_TIMEOUT       7
-#define APCLI_CTRL_AUTH_REQ_TIMEOUT       8
-#define APCLI_CTRL_ASSOC_REQ_TIMEOUT      9
-#define APCLI_MAX_CTRL_MSG                10
-
-#define APCLI_CTRL_FUNC_SIZE              (APCLI_MAX_CTRL_STATE * APCLI_MAX_CTRL_MSG)
-
-#if 0	// remove those variables by AlbertY
-// ApCli WPA state machine
-#define APCLI_WPA_PSK_IDLE				0
-#define APCLI_MAX_WPA_PSK_STATE			1
-
-// ApCli WPA MSG Type
-#define APCLI_WPA_MACHINE_BASE			0
-#define APCLI_MT2_EAPPacket				0
-#define APCLI_MT2_EAPOLStart			1
-#define APCLI_MT2_EAPOLLogoff			2
-#define APCLI_MT2_EAPOLKey				3
-#define APCLI_MT2_EAPOLASFAlert			4
-#define APCLI_MAX_WPA_PSK_MSG			5
-
-#define	APCLI_WPA_PSK_FUNC_SIZE			(APCLI_MAX_WPA_PSK_STATE * APCLI_MAX_WPA_PSK_MSG)
-#endif // end - 0 //
-
-#endif	// APCLI_SUPPORT //
-
 
 // =============================================================================
 
