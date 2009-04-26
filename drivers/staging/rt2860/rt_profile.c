@@ -919,9 +919,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		src = STA_PROFILE_PATH;
 #endif // CONFIG_STA_SUPPORT //
-#ifdef MULTIPLE_CARD_SUPPORT
-	src = pAd->MC_FileName;
-#endif // MULTIPLE_CARD_SUPPORT //
 
 	// Save uid and gid used for filesystem access.
 	// Set user and group to 0 (root)

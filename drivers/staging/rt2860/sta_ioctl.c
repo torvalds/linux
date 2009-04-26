@@ -5073,9 +5073,6 @@ INT RTMPQueryInformation(
         case RT_OID_QUERY_MULTIPLE_CARD_SUPPORT:
 			wrq->u.data.length = sizeof(UCHAR);
             i = 0;
-#ifdef MULTIPLE_CARD_SUPPORT
-            i = 1;
-#endif // MULTIPLE_CARD_SUPPORT //
 			if (copy_to_user(wrq->u.data.pointer, &i, wrq->u.data.length))
             {
 				Status = -EFAULT;

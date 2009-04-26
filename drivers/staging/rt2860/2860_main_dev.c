@@ -37,13 +37,6 @@
 
 #include "rt_config.h"
 
-
-#ifdef MULTIPLE_CARD_SUPPORT
-// record whether the card in the card list is used in the card file
-extern UINT8  MC_CardUsed[];
-#endif // MULTIPLE_CARD_SUPPORT //
-
-
 extern INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
 									IN UINT argc, OUT PRTMP_ADAPTER *ppAd);
 
@@ -328,14 +321,6 @@ static VOID __devexit rt2860_remove_one(
 
 	if (pAd != NULL)
 	{
-#ifdef MULTIPLE_CARD_SUPPORT
-		if ((pAd->MC_RowID >= 0) && (pAd->MC_RowID <= MAX_NUM_OF_MULTIPLE_CARD))
-			MC_CardUsed[pAd->MC_RowID] = 0; // not clear MAC address
-#endif // MULTIPLE_CARD_SUPPORT //
-
-
-
-
 		// Unregister network device
 		unregister_netdev(net_dev);
 
