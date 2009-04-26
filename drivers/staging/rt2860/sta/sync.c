@@ -933,15 +933,6 @@ VOID PeerBeaconAtJoinAction(
 			DBGPRINT(RT_DEBUG_TRACE, ("SYNC - after JOIN, SupRateLen=%d, ExtRateLen=%d\n",
 										pAd->MlmeAux.SupRateLen, pAd->MlmeAux.ExtRateLen));
 
-#ifdef LEAP_SUPPORT
-			// Update CkipFlag
-			pAd->StaCfg.CkipFlag = CkipFlag;
-
-			// Keep TimeStamp for Re-Association used.
-			if (LEAP_CCKM_ON(pAd) && (pAd->StaCfg.CCKMLinkUpFlag == TRUE))
-				pAd->StaCfg.CCKMBeaconAtJoinTimeStamp = TimeStamp;
-#endif // LEAP_SUPPORT //
-
 			if (AironetCellPowerLimit != 0xFF)
 			{
 				//We need to change our TxPower for CCX 2.0 AP Control of Client Transmit Power

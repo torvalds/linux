@@ -560,34 +560,6 @@ VOID MlmeAssocReqAction(
 						END_OF_ARGS);
 			FrameLen += tmp;
 
-			//
-			// Add CipherSuite CCKM or LeapTkip if setting.
-			//
-#ifdef LEAP_SUPPORT
-			if (LEAP_CCKM_ON(pAd))
-			{
-				MakeOutgoingFrame(pOutBuffer + FrameLen,	&tmp,
-						CipherSuiteCiscoCCKMLen,		CipherSuiteCiscoCCKM,
-						END_OF_ARGS);
-				FrameLen += tmp;
-
-				// Third add RSN
-				NdisMoveMemory(pAd->StaCfg.ReqVarIEs + VarIesOffset, CipherSuiteCiscoCCKM, CipherSuiteCiscoCCKMLen); //Save CipherSuite
-				VarIesOffset += CipherSuiteCiscoCCKMLen;
-			}
-			else if ((pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP) && (pAd->StaCfg.WepStatus == Ndis802_11Encryption2Enabled))
-			{
-				MakeOutgoingFrame(pOutBuffer + FrameLen, &tmp,
-						CipherSuiteCCXTkipLen,	    CipherSuiteCCXTkip,
-						END_OF_ARGS);
-				FrameLen += tmp;
-
-				// Third add RSN
-				NdisMoveMemory(pAd->StaCfg.ReqVarIEs + VarIesOffset, CipherSuiteCCXTkip, CipherSuiteCCXTkipLen);
-				VarIesOffset += CipherSuiteCCXTkipLen;
-			}
-#endif // LEAP_SUPPORT //
-
 			// Add by James 03/06/27
 			// Set Variable IEs Length
 			pAd->StaCfg.ReqVarIELen = VarIesOffset;
@@ -647,23 +619,6 @@ VOID MlmeReassocReqAction(
 	NDIS_STATUS		NStatus;
 	ULONG			tmp;
 	PUCHAR			pOutBuffer = NULL;
-//CCX 2.X
-#ifdef LEAP_SUPPORT
-	UCHAR			CkipFlag;
-	UCHAR			CkipNegotiationBuffer[CKIP_NEGOTIATION_LENGTH];
-	UCHAR			AironetCkipIe = IE_AIRONET_CKIP;
-	UCHAR			AironetCkipLen = CKIP_NEGOTIATION_LENGTH;
-	UCHAR			AironetIPAddressIE = IE_AIRONET_IPADDRESS;
-	UCHAR			AironetIPAddressLen = AIRONET_IPADDRESS_LENGTH;
-	UCHAR			AironetIPAddressBuffer[AIRONET_IPADDRESS_LENGTH] = {0x00, 0x40, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00};
-	UCHAR			AironetCCKMReassocIE = IE_AIRONET_CCKMREASSOC;
-	UCHAR			AironetCCKMReassocLen = AIRONET_CCKMREASSOC_LENGTH;
-	UCHAR			AironetCCKMReassocBuffer[AIRONET_CCKMREASSOC_LENGTH];
-	UCHAR			AironetOUI[] = {0x00, 0x40, 0x96, 0x00};
-	UCHAR			MICMN[16];
-	UCHAR			CalcMicBuffer[80];
-	ULONG			CalcMicBufferLen = 0;
-#endif // LEAP_SUPPORT //
 	USHORT			Status;
 
 	// Block all authentication request durning WPA block period
@@ -805,73 +760,6 @@ VOID MlmeReassocReqAction(
 							  END_OF_ARGS);
 			FrameLen += TmpLen;
 		}
-#ifdef LEAP_SUPPORT
-		if (LEAP_CCKM_ON(pAd) && (pAd->StaCfg.CCKMLinkUpFlag == TRUE))
-		{
-			CkipFlag = pAd->StaCfg.CkipFlag;	// We have update that at PeerBeaconAtJoinRequest()
-			if (CkipFlag != 0)
-			{
-				NdisZeroMemory(CkipNegotiationBuffer, CKIP_NEGOTIATION_LENGTH);
-				CkipNegotiationBuffer[2] = 0x66;
-				// Make it try KP & MIC, since we have to follow the result from AssocRsp
-				CkipNegotiationBuffer[8] = 0x18;
-				CkipNegotiationBuffer[CKIP_NEGOTIATION_LENGTH - 1] = 0x22;
-
-				MakeOutgoingFrame(pOutBuffer + FrameLen,            &tmp,
-									1,                              &AironetCkipIe,
-									1,                              &AironetCkipLen,
-									AironetCkipLen,                 CkipNegotiationBuffer,
-									END_OF_ARGS);
-				FrameLen += tmp;
-			}
-
-			MakeOutgoingFrame(pOutBuffer + FrameLen, &tmp,
-							1,                              &AironetIPAddressIE,
-							1,                              &AironetIPAddressLen,
-							AironetIPAddressLen,            AironetIPAddressBuffer,
-							END_OF_ARGS);
-			FrameLen += tmp;
-
-			//
-			// The RN is incremented before each reassociation request.
-			//
-			pAd->StaCfg.CCKMRN++;
-			//
-			// Calculate MIC = hmac-md5(krk, STA-ID|BSSID|RSNIE|TSF|RN);
-			//
-			COPY_MAC_ADDR(CalcMicBuffer, pAd->CurrentAddress);
-			CalcMicBufferLen = MAC_ADDR_LEN;
-			COPY_MAC_ADDR(CalcMicBuffer + CalcMicBufferLen, pAd->MlmeAux.Bssid);
-			CalcMicBufferLen += MAC_ADDR_LEN;
-			NdisMoveMemory(CalcMicBuffer + CalcMicBufferLen, CipherSuiteCiscoCCKM, CipherSuiteCiscoCCKMLen);
-			CalcMicBufferLen += CipherSuiteCiscoCCKMLen;
-			NdisMoveMemory(CalcMicBuffer + CalcMicBufferLen, (PUCHAR) &pAd->StaCfg.CCKMBeaconAtJoinTimeStamp, sizeof(pAd->StaCfg.CCKMBeaconAtJoinTimeStamp));
-			CalcMicBufferLen += sizeof(pAd->StaCfg.CCKMBeaconAtJoinTimeStamp);
-			NdisMoveMemory(CalcMicBuffer + CalcMicBufferLen, (PUCHAR)&pAd->StaCfg.CCKMRN, sizeof(pAd->StaCfg.CCKMRN));
-			CalcMicBufferLen += sizeof(pAd->StaCfg.CCKMRN);
-			hmac_md5(pAd->StaCfg.KRK, LEN_EAP_MICK, CalcMicBuffer, CalcMicBufferLen, MICMN);
-
-			//
-			// fill up CCKM reassociation request element
-			//
-			NdisMoveMemory(AironetCCKMReassocBuffer, AironetOUI, 4);
-			NdisMoveMemory(AironetCCKMReassocBuffer + 4, (PUCHAR)&pAd->StaCfg.CCKMBeaconAtJoinTimeStamp, 8);
-			NdisMoveMemory(AironetCCKMReassocBuffer + 12, (PUCHAR) &pAd->StaCfg.CCKMRN, 4);
-			NdisMoveMemory(AironetCCKMReassocBuffer +16, MICMN, 8);
-
-			MakeOutgoingFrame(pOutBuffer + FrameLen, &tmp,
-							1,                      &AironetCCKMReassocIE,
-							1,                      &AironetCCKMReassocLen,
-							AironetCCKMReassocLen,  AironetCCKMReassocBuffer,
-							END_OF_ARGS);
-			FrameLen += tmp;
-
-			MakeOutgoingFrame(pOutBuffer + FrameLen, &tmp,
-							CipherSuiteCiscoCCKMLen,CipherSuiteCiscoCCKM,
-							END_OF_ARGS);
-			FrameLen += tmp;
-		}
-#endif // LEAP_SUPPORT //
 
 		// Add CCX v2 request if CCX2 admin state is on
 		if (pAd->StaCfg.CCXControl.field.Enable == 1)
@@ -1079,14 +967,6 @@ VOID PeerAssocRspAction(
 			}
 			else
 			{
-				// Faile on Association, we need to check the status code
-				// Is that a Rogue AP?
-#ifdef LEAP_SUPPORT
-				if ((pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP) && (Status == MLME_ALG_NOT_SUPPORT))
-				{ //Possibly Rogue AP
-					RogueApTableSetEntry(pAd, &pAd->StaCfg.RogueApTab, pAd->MlmeAux.Bssid, LEAP_REASON_INVALID_AUTH);
-				}
-#endif // LEAP_SUPPORT //
 			}
 			pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 			MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_ASSOC_CONF, 2, &Status);
@@ -1170,37 +1050,6 @@ VOID PeerReassocRspAction(
 
 			}
 
-			//
-			// Cisco Leap CCKM supported Re-association.
-			//
-#ifdef LEAP_SUPPORT
-			if (LEAP_CCKM_ON(pAd) && (pAd->StaCfg.CCKMLinkUpFlag == TRUE))
-			{
-				if (CCKMAssocRspSanity(pAd, Elem->Msg, Elem->MsgLen) == TRUE)
-				{
-					pAd->StaCfg.CkipFlag = CkipFlag;
-					if (CkipFlag & 0x18)
-					{
-						NdisZeroMemory(pAd->StaCfg.TxSEQ, 4);
-						NdisZeroMemory(pAd->StaCfg.RxSEQ, 4);
-						NdisZeroMemory(pAd->StaCfg.CKIPMIC, 4);
-						pAd->StaCfg.GIV[0] = RandomByte(pAd);
-						pAd->StaCfg.GIV[1] = RandomByte(pAd);
-						pAd->StaCfg.GIV[2] = RandomByte(pAd);
-						pAd->StaCfg.bCkipOn = TRUE;
-						DBGPRINT(RT_DEBUG_TRACE, ("<CCX> pAd->StaCfg.CkipFlag = 0x%02x\n", pAd->StaCfg.CkipFlag));
-					}
-
-					pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
-					MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_REASSOC_CONF, 2, &Status);
-				}
-				else
-				{
-					DBGPRINT(RT_DEBUG_TRACE, ("ASSOC - CCKMAssocRspSanity() sanity check fail\n"));
-				}
-			}
-			else
-#endif // LEAP_SUPPORT //
 			{
 				// CkipFlag is no use for reassociate
 				pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
@@ -1384,21 +1233,6 @@ VOID PeerDisassocAction(
 				RTMPSendWirelessEvent(pAd, IW_DISASSOC_EVENT_FLAG, pAd->MacTab.Content[BSSID_WCID].Addr, BSS0, 0);
 			}
 
-
-#ifdef LEAP_SUPPORT
-			if (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-			{
-				// Cisco_LEAP has start a timer
-				// We should cancel it if using LEAP
-				RTMPCancelTimer(&pAd->StaCfg.LeapAuthTimer, &TimerCancelled);
-				//Check is it mach the LEAP Authentication failed as possible a Rogue AP
-				//on it's PortSecured not equal to WPA_802_1X_PORT_SECURED while process the Association.
-				if ((pAd->Mlme.LeapMachine.CurrState != LEAP_IDLE) && (pAd->StaCfg.PortSecured != WPA_802_1X_PORT_SECURED))
-				{
-					RogueApTableSetEntry(pAd, &pAd->StaCfg.RogueApTab, Addr2, LEAP_REASON_AUTH_TIMEOUT);
-				}
-			}
-#endif	// LEAP_SUPPORT //
 			//
 			// Get Current System time and Turn on AdjacentAPReport
 			//

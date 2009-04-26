@@ -969,9 +969,6 @@ NDIS_STATUS STASendPacket(
 #ifdef WPA_SUPPLICANT_SUPPORT
 		  || (pAd->StaCfg.IEEE8021X == TRUE)
 #endif // WPA_SUPPLICANT_SUPPORT //
-#ifdef LEAP_SUPPORT
-		  || (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-#endif // LEAP_SUPPORT //
 		  )
 		  && ((pAd->StaCfg.PortSecured == WPA_802_1X_PORT_NOT_SECURED) || (pAd->StaCfg.MicErrCnt >= 2))
 		  && (RTMP_GET_PACKET_EAPOL(pPacket)== FALSE)
@@ -1318,30 +1315,6 @@ VOID STAFindCipherAlgorithm(
 		}
 		else if (Cipher == Ndis802_11Encryption1Enabled)
 		{
-#ifdef LEAP_SUPPORT
-			if (pAd->StaCfg.CkipFlag & 0x10) // Cisco CKIP KP is on
-			{
-				if (LEAP_CCKM_ON(pAd))
-				{
-					if (((*pSrcBufVA & 0x01) && (ADHOC_ON(pAd))))
-						KeyIdx = 1;
-					else
-						KeyIdx = 0;
-				}
-				else
-					KeyIdx = pAd->StaCfg.DefaultKeyId;
-			}
-			else if (pAd->StaCfg.CkipFlag & 0x08) // only CKIP CMIC
-				KeyIdx = pAd->StaCfg.DefaultKeyId;
-			else if (LEAP_CCKM_ON(pAd))
-			{
-				if ((*pSrcBufVA & 0x01) && (ADHOC_ON(pAd)))
-					KeyIdx = 1;
-				else
-					KeyIdx = 0;
-			}
-			else	// standard WEP64 or WEP128
-#endif // LEAP_SUPPORT //
 				KeyIdx = pAd->StaCfg.DefaultKeyId;
 		}
 		else if ((Cipher == Ndis802_11Encryption2Enabled) ||
