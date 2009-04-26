@@ -188,6 +188,38 @@ VOID MlmeCntlMachinePerformAction(
 				pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
 			}
 			break;
+#ifdef RT2870
+		//
+		// This state is for that we want to connect to an AP but
+		// it didn't find on BSS List table. So we need to scan the air first,
+		// after that we can try to connect to the desired AP if available.
+		//
+		case CNTL_WAIT_SCAN_FOR_CONNECT:
+			if(Elem->MsgType == MT2_SCAN_CONF)
+			{
+				// Resume TxRing after SCANING complete. We hope the out-of-service time
+				// won't be too long to let upper layer time-out the waiting frames
+				RTMPResumeMsduTransmission(pAd);
+#ifdef CCX_SUPPORT
+				if (pAd->StaCfg.CCXReqType != MSRN_TYPE_UNUSED)
+				{
+					// Cisco scan request is finished, prepare beacon report
+					MlmeEnqueue(pAd, AIRONET_STATE_MACHINE, MT2_AIRONET_SCAN_DONE, 0, NULL);
+				}
+#endif // CCX_SUPPORT //
+				pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
+
+				//
+				// Check if we can connect to.
+				//
+				BssTableSsidSort(pAd, &pAd->MlmeAux.SsidBssTab, pAd->MlmeAux.AutoReconnectSsid, pAd->MlmeAux.AutoReconnectSsidLen);
+				if (pAd->MlmeAux.SsidBssTab.BssNr > 0)
+				{
+					MlmeAutoReconnectLastSSID(pAd);
+				}
+			}
+			break;
+#endif // RT2870 //
 		default:
 			DBGPRINT_ERR(("!ERROR! CNTL - Illegal message type(=%ld)", Elem->MsgType));
 			break;
@@ -309,9 +341,11 @@ VOID CntlOidSsidProc(
 	MLME_DISASSOC_REQ_STRUCT   DisassocReq;
 	ULONG					   Now;
 
+#ifdef RT2860
 	// BBP and RF are not accessible in PS mode, we has to wake them up first
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 		AsicForceWakeup(pAd, RTMP_HALT);
+#endif
 
 	// Step 1. record the desired user settings to MlmeAux
 	NdisZeroMemory(pAd->MlmeAux.Ssid, MAX_LEN_OF_SSID);
@@ -1024,6 +1058,44 @@ VOID CntlWaitReassocProc(
 	}
 }
 
+
+#ifdef RT2870
+VOID	AdhocTurnOnQos(
+	IN  PRTMP_ADAPTER pAd)
+{
+#define AC0_DEF_TXOP		0
+#define AC1_DEF_TXOP		0
+#define AC2_DEF_TXOP		94
+#define AC3_DEF_TXOP		47
+
+	// Turn on QOs if use HT rate.
+	if (pAd->CommonCfg.APEdcaParm.bValid == FALSE)
+	{
+		pAd->CommonCfg.APEdcaParm.bValid = TRUE;
+		pAd->CommonCfg.APEdcaParm.Aifsn[0] = 3;
+		pAd->CommonCfg.APEdcaParm.Aifsn[1] = 7;
+		pAd->CommonCfg.APEdcaParm.Aifsn[2] = 1;
+		pAd->CommonCfg.APEdcaParm.Aifsn[3] = 1;
+
+		pAd->CommonCfg.APEdcaParm.Cwmin[0] = 4;
+		pAd->CommonCfg.APEdcaParm.Cwmin[1] = 4;
+		pAd->CommonCfg.APEdcaParm.Cwmin[2] = 3;
+		pAd->CommonCfg.APEdcaParm.Cwmin[3] = 2;
+
+		pAd->CommonCfg.APEdcaParm.Cwmax[0] = 10;
+		pAd->CommonCfg.APEdcaParm.Cwmax[1] = 6;
+		pAd->CommonCfg.APEdcaParm.Cwmax[2] = 4;
+		pAd->CommonCfg.APEdcaParm.Cwmax[3] = 3;
+
+		pAd->CommonCfg.APEdcaParm.Txop[0]  = 0;
+		pAd->CommonCfg.APEdcaParm.Txop[1]  = 0;
+		pAd->CommonCfg.APEdcaParm.Txop[2]  = AC2_DEF_TXOP;
+		pAd->CommonCfg.APEdcaParm.Txop[3]  = AC3_DEF_TXOP;
+	}
+	AsicSetEdcaParm(pAd, &pAd->CommonCfg.APEdcaParm);
+}
+#endif /* RT2870 */
+
 /*
 	==========================================================================
 	Description:
@@ -1042,12 +1114,14 @@ VOID LinkUp(
 	UCHAR	Value = 0, idx;
 	MAC_TABLE_ENTRY *pEntry = NULL, *pCurrEntry;
 
+#ifdef RT2860
 	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
 	{
 		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_HALT);
 		RTMPusecDelay(6000);
 		pAd->bPCIclkOff = FALSE;
 	}
+#endif
 
 	pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
@@ -1072,6 +1146,7 @@ VOID LinkUp(
 	//rt2860b. Don't know why need this
 	SwitchBetweenWepAndCkip(pAd);
 
+#ifdef RT2860
 	// Before power save before link up function, We will force use 1R.
 	// So after link up, check Rx antenna # again.
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
@@ -1089,11 +1164,30 @@ VOID LinkUp(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
 	pAd->StaCfg.BBPR3 = Value;
+#endif /* RT2860 */
 
 	if (BssType == BSS_ADHOC)
 	{
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_ADHOC_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_INFRA_ON);
+
+#ifdef RT30xx
+		if ((pAd->CommonCfg.HtCapability.HtCapInfo.ChannelWidth  == BW_40) &&
+			(pAd->CommonCfg.AddHTInfo.AddHtInfo.ExtChanOffset == EXTCHA_ABOVE))
+		{
+			pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel + 2;
+		}
+		else if ((pAd->CommonCfg.Channel > 2) &&
+				 (pAd->CommonCfg.HtCapability.HtCapInfo.ChannelWidth  == BW_40) &&
+				 (pAd->CommonCfg.AddHTInfo.AddHtInfo.ExtChanOffset == EXTCHA_BELOW))
+		{
+			pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel - 2;
+		}
+#endif
+#ifdef RT2870
+		if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
+			AdhocTurnOnQos(pAd);
+#endif
 
 		DBGPRINT(RT_DEBUG_TRACE, ("!!!Adhoc LINK UP !!! \n" ));
 	}
@@ -1129,7 +1223,9 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
+#endif
 
 		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
 		Data &= 0xfffffffe;
@@ -1164,7 +1260,9 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 	    Value |= (0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
+#endif
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -1194,7 +1292,9 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
+#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
+#endif
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -1384,7 +1484,9 @@ VOID LinkUp(
 			IV |= (pAd->StaCfg.DefaultKeyId << 30);
 			AsicUpdateWCIDIVEIV(pAd, BSSID_WCID, IV, 0);
 
+#ifdef RT2860
 			RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+#endif
 		}
 		// NOTE:
 		// the decision of using "short slot time" or not may change dynamically due to
@@ -1465,9 +1567,14 @@ VOID LinkUp(
 		{
 			pAd->IndicateMediaState = NdisMediaStateConnected;
 			pAd->ExtraInfo = GENERAL_LINK_UP;
+#ifdef RT2870
+			RTMP_IndicateMediaState(pAd);
+#endif
 		}
         // --
+#ifdef RT2860
 		RTMP_IndicateMediaState(pAd);
+#endif
 
 		// Add BSSID in my MAC Table.
         NdisAcquireSpinLock(&pAd->MacTabLock);
@@ -1478,6 +1585,9 @@ VOID LinkUp(
 		pAd->MacTab.Size = 1;	// infra mode always set MACtab size =1.
 		pAd->MacTab.Content[BSSID_WCID].Sst = SST_ASSOC;
 		pAd->MacTab.Content[BSSID_WCID].AuthState = SST_ASSOC;
+#ifdef RT30xx
+		pAd->MacTab.Content[BSSID_WCID].AuthMode = pAd->StaCfg.AuthMode;
+#endif
 		pAd->MacTab.Content[BSSID_WCID].WepStatus = pAd->StaCfg.WepStatus;
         NdisReleaseSpinLock(&pAd->MacTabLock);
 
@@ -1601,8 +1711,15 @@ VOID LinkUp(
 	// Txop can only be modified when RDG is off, WMM is disable and TxBurst is enable
 	//
 	// if 1. Legacy AP WMM on,  or 2. 11n AP, AMPDU disable.  Force turn off burst no matter what bEnableTxBurst is.
+#ifdef RT30xx
+	if (!((pAd->CommonCfg.RxStream == 1)&&(pAd->CommonCfg.TxStream == 1)) &&
+		(((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED))
+		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE))))
+#endif
+#ifndef RT30xx
 	if (((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED)))
 		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE)))
+#endif
 	{
 		RTMP_IO_READ32(pAd, EDCA_AC0_CFG, &Data);
 		Data  &= 0xFFFFFF00;
@@ -1684,7 +1801,9 @@ VOID LinkUp(
 	}
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
+#ifdef RT2860
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
+#endif
 }
 
 /*
@@ -1717,17 +1836,21 @@ VOID LinkDown(
 	IN  BOOLEAN      IsReqFromAP)
 {
 	UCHAR			    i, ByteValue = 0;
+#ifdef RT2860
 	BOOLEAN		Cancelled;
+#endif
 
 	// Do nothing if monitor mode is on
 	if (MONITOR_ON(pAd))
 		return;
 
+#ifdef RT2860
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
 	RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
 
 	// Not allow go to sleep within linkdown function.
 	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+#endif
 
     if (pAd->CommonCfg.bWirelessEvent)
 	{
@@ -1737,6 +1860,7 @@ VOID LinkDown(
 	DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN !!!\n"));
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED);
 
+#ifdef RT2860
     if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
     {
 	    BOOLEAN Cancelled;
@@ -1753,6 +1877,7 @@ VOID LinkDown(
     }
 
     pAd->bPCIclkOff = FALSE;
+#endif
 	if (ADHOC_ON(pAd))		// Adhoc mode link down
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN 1!!!\n"));
@@ -1898,13 +2023,18 @@ VOID LinkDown(
 	// Update extra information to link is up
 	pAd->ExtraInfo = GENERAL_LINK_DOWN;
 
+#ifdef RT2860
     pAd->StaCfg.AdhocBOnlyJoined = FALSE;
 	pAd->StaCfg.AdhocBGJoined = FALSE;
 	pAd->StaCfg.Adhoc20NJoined = FALSE;
+#endif
     pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
 
 	// Reset the Current AP's IP address
 	NdisZeroMemory(pAd->StaCfg.AironetIPAddress, 4);
+#ifdef RT2870
+	pAd->bUsbTxBulkAggre = FALSE;
+#endif // RT2870 //
 
 	// Clean association information
 	NdisZeroMemory(&pAd->StaCfg.AssocInfo, sizeof(NDIS_802_11_ASSOCIATION_INFORMATION));
@@ -1960,14 +2090,32 @@ VOID LinkDown(
 	RTMP_IO_WRITE32(pAd, MAX_LEN_CFG, 0x1fff);
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
 
+#ifdef RT2860
 	// Allow go to sleep after linkdown steps.
 	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+#endif
 
 	{
 		union iwreq_data    wrqu;
 		memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
 		wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 	}
+
+#ifdef RT30xx
+	if (IS_RT3090(pAd))
+	{
+		UINT32				macdata;
+		// disable MMPS BBP control register
+		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &ByteValue);
+		ByteValue &= ~(0x04);	//bit 2
+		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, ByteValue);
+
+		// disable MMPS MAC control register
+		RTMP_IO_READ32(pAd, 0x1210, &macdata);
+		macdata &= ~(0x09);	//bit 0, 3
+		RTMP_IO_WRITE32(pAd, 0x1210, macdata);
+	}
+#endif // RT30xx //
 }
 
 /*
@@ -2173,21 +2321,61 @@ VOID AuthParmFill(
 
 	==========================================================================
  */
+
+
+#ifdef RT2870
+
+VOID MlmeCntlConfirm(
+	IN PRTMP_ADAPTER pAd,
+	IN ULONG MsgType,
+	IN USHORT Msg)
+{
+	MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MsgType, sizeof(USHORT), &Msg);
+}
+#endif
+
 VOID ComposePsPoll(
 	IN PRTMP_ADAPTER pAd)
 {
+#ifdef RT2870
+	PTXINFO_STRUC		pTxInfo;
+	PTXWI_STRUC		pTxWI;
+
+	DBGPRINT(RT_DEBUG_TRACE, ("ComposePsPoll\n"));
+#endif
 	NdisZeroMemory(&pAd->PsPollFrame, sizeof(PSPOLL_FRAME));
+
+#ifdef RT2870
+	pAd->PsPollFrame.FC.PwrMgmt = 0;
+#endif
 	pAd->PsPollFrame.FC.Type = BTYPE_CNTL;
 	pAd->PsPollFrame.FC.SubType = SUBTYPE_PS_POLL;
 	pAd->PsPollFrame.Aid = pAd->StaActive.Aid | 0xC000;
 	COPY_MAC_ADDR(pAd->PsPollFrame.Bssid, pAd->CommonCfg.Bssid);
 	COPY_MAC_ADDR(pAd->PsPollFrame.Ta, pAd->CurrentAddress);
+
+#ifdef RT2870
+	RTMPZeroMemory(&pAd->PsPollContext.TransferBuffer->field.WirelessPacket[0], 100);
+	pTxInfo = (PTXINFO_STRUC)&pAd->PsPollContext.TransferBuffer->field.WirelessPacket[0];
+	RTMPWriteTxInfo(pAd, pTxInfo, (USHORT)(sizeof(PSPOLL_FRAME)+TXWI_SIZE), TRUE, EpToQueue[MGMTPIPEIDX], FALSE,  FALSE);
+	pTxWI = (PTXWI_STRUC)&pAd->PsPollContext.TransferBuffer->field.WirelessPacket[TXINFO_SIZE];
+	RTMPWriteTxWI(pAd, pTxWI, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, 0, BSSID_WCID, (sizeof(PSPOLL_FRAME)),
+		0,  0, (UCHAR)pAd->CommonCfg.MlmeTransmit.field.MCS, IFS_BACKOFF, FALSE, &pAd->CommonCfg.MlmeTransmit);
+	RTMPMoveMemory(&pAd->PsPollContext.TransferBuffer->field.WirelessPacket[TXWI_SIZE+TXINFO_SIZE], &pAd->PsPollFrame, sizeof(PSPOLL_FRAME));
+	// Append 4 extra zero bytes.
+	pAd->PsPollContext.BulkOutSize =  TXINFO_SIZE + TXWI_SIZE + sizeof(PSPOLL_FRAME) + 4;
+#endif
 }
 
 // IRQL = DISPATCH_LEVEL
 VOID ComposeNullFrame(
 	IN PRTMP_ADAPTER pAd)
 {
+#ifdef RT2870
+	PTXINFO_STRUC		pTxInfo;
+	PTXWI_STRUC		pTxWI;
+#endif
+
 	NdisZeroMemory(&pAd->NullFrame, sizeof(HEADER_802_11));
 	pAd->NullFrame.FC.Type = BTYPE_DATA;
 	pAd->NullFrame.FC.SubType = SUBTYPE_NULL_FUNC;
@@ -2195,6 +2383,16 @@ VOID ComposeNullFrame(
 	COPY_MAC_ADDR(pAd->NullFrame.Addr1, pAd->CommonCfg.Bssid);
 	COPY_MAC_ADDR(pAd->NullFrame.Addr2, pAd->CurrentAddress);
 	COPY_MAC_ADDR(pAd->NullFrame.Addr3, pAd->CommonCfg.Bssid);
+#ifdef RT2870
+	RTMPZeroMemory(&pAd->NullContext.TransferBuffer->field.WirelessPacket[0], 100);
+	pTxInfo = (PTXINFO_STRUC)&pAd->NullContext.TransferBuffer->field.WirelessPacket[0];
+	RTMPWriteTxInfo(pAd, pTxInfo, (USHORT)(sizeof(HEADER_802_11)+TXWI_SIZE), TRUE, EpToQueue[MGMTPIPEIDX], FALSE,  FALSE);
+	pTxWI = (PTXWI_STRUC)&pAd->NullContext.TransferBuffer->field.WirelessPacket[TXINFO_SIZE];
+	RTMPWriteTxWI(pAd, pTxWI, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, 0, BSSID_WCID, (sizeof(HEADER_802_11)),
+		0, 0, (UCHAR)pAd->CommonCfg.MlmeTransmit.field.MCS, IFS_BACKOFF, FALSE, &pAd->CommonCfg.MlmeTransmit);
+	RTMPMoveMemory(&pAd->NullContext.TransferBuffer->field.WirelessPacket[TXWI_SIZE+TXINFO_SIZE], &pAd->NullFrame, sizeof(HEADER_802_11));
+	pAd->NullContext.BulkOutSize =  TXINFO_SIZE + TXWI_SIZE + sizeof(pAd->NullFrame) + 4;
+#endif
 }
 
 

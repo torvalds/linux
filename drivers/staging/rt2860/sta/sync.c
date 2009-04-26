@@ -37,6 +37,7 @@
 */
 #include "../rt_config.h"
 
+#ifdef RT2860
 #define AC0_DEF_TXOP		0
 #define AC1_DEF_TXOP		0
 #define AC2_DEF_TXOP		94
@@ -71,6 +72,10 @@ VOID	AdhocTurnOnQos(
 	}
 	AsicSetEdcaParm(pAd, &pAd->CommonCfg.APEdcaParm);
 }
+#endif /* RT2860 */
+#ifdef RT2870
+#define ADHOC_ENTRY_BEACON_LOST_TIME	(2*OS_HZ)	// 2 sec
+#endif
 
 /*
 	==========================================================================
@@ -226,6 +231,7 @@ VOID MlmeScanReqAction(
 	// Increase the scan retry counters.
 	pAd->StaCfg.ScanCnt++;
 
+#ifdef RT2860
     if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
@@ -233,6 +239,7 @@ VOID MlmeScanReqAction(
 	{
 		RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
 	}
+#endif
 
 	// first check the parameter sanity
 	if (MlmeScanReqSanity(pAd,
@@ -345,6 +352,7 @@ VOID MlmeJoinReqAction(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - MlmeJoinReqAction(BSS #%ld)\n", pInfo->BssIdx));
 
+#ifdef RT2860
     if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
@@ -352,6 +360,7 @@ VOID MlmeJoinReqAction(
 	{
 		RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
 	}
+#endif
 
 	// reset all the timers
 	RTMPCancelTimer(&pAd->MlmeAux.ScanTimer, &TimerCancelled);
@@ -1107,6 +1116,10 @@ VOID PeerBeacon(
 			// Add the safeguard against the mismatch of adhoc wep status
 			if (pAd->StaCfg.WepStatus != pAd->ScanTab.BssEntry[Bssidx].WepStatus)
 			{
+#ifdef RT30xx
+				DBGPRINT(RT_DEBUG_TRACE, ("SYNC - Not matched wep status %d %d\n", pAd->StaCfg.WepStatus, pAd->ScanTab.BssEntry[Bssidx].WepStatus));
+				DBGPRINT(RT_DEBUG_TRACE, ("bssid=%s\n", pAd->ScanTab.BssEntry[Bssidx].Bssid));
+#endif
 				return;
 			}
 
@@ -1170,11 +1183,14 @@ VOID PeerBeacon(
 				pAd->CommonCfg.TxPowerPercentage = pAd->CommonCfg.TxPowerDefault;
 			}
 
+#ifdef RT2860
 			// at least one 11b peer joined. downgrade the MaxTxRate to 11Mbps
 			// after last 11b peer left for several seconds, we'll auto switch back to 11G rate
 			// in MlmePeriodicExec()
+#endif
 			if (ADHOC_ON(pAd) && (CAP_IS_IBSS_ON(CapabilityInfo)))
 			{
+#ifdef RT2860
 				BOOLEAN	bRestart;
                 BOOLEAN	bnRestart;
 
@@ -1359,6 +1375,79 @@ VOID PeerBeacon(
 						}
 					}
 				}
+#endif /* RT2860 */
+#ifdef RT2870
+				UCHAR			MaxSupportedRateIn500Kbps = 0;
+				UCHAR			idx;
+				MAC_TABLE_ENTRY *pEntry;
+
+				// supported rates array may not be sorted. sort it and find the maximum rate
+			    for (idx=0; idx<SupRateLen; idx++)
+			    {
+			        if (MaxSupportedRateIn500Kbps < (SupRate[idx] & 0x7f))
+			            MaxSupportedRateIn500Kbps = SupRate[idx] & 0x7f;
+			    }
+
+				for (idx=0; idx<ExtRateLen; idx++)
+			    {
+			        if (MaxSupportedRateIn500Kbps < (ExtRate[idx] & 0x7f))
+			            MaxSupportedRateIn500Kbps = ExtRate[idx] & 0x7f;
+			    }
+
+				// look up the existing table
+				pEntry = MacTableLookup(pAd, Addr2);
+
+				// Ad-hoc mode is using MAC address as BA session. So we need to continuously find newly joined adhoc station by receiving beacon.
+				// To prevent always check this, we use wcid == RESERVED_WCID to recognize it as newly joined adhoc station.
+				if ((ADHOC_ON(pAd) && (Elem->Wcid == RESERVED_WCID)) ||
+					(pEntry && ((pEntry->LastBeaconRxTime + ADHOC_ENTRY_BEACON_LOST_TIME) < Now)))
+				{
+					if (pEntry == NULL)
+						// Another adhoc joining, add to our MAC table.
+						pEntry = MacTableInsertEntry(pAd, Addr2, BSS0, FALSE);
+
+					if (StaAddMacTableEntry(pAd, pEntry, MaxSupportedRateIn500Kbps, &HtCapability, HtCapabilityLen, CapabilityInfo) == FALSE)
+					{
+						DBGPRINT(RT_DEBUG_TRACE, ("ADHOC - Add Entry failed.\n"));
+						return;
+					}
+
+					if (pEntry &&
+						(Elem->Wcid == RESERVED_WCID))
+					{
+						idx = pAd->StaCfg.DefaultKeyId;
+						RT28XX_STA_SECURITY_INFO_ADD(pAd, BSS0, idx, pEntry);
+					}
+				}
+
+				if (pEntry && pEntry->ValidAsCLI)
+					pEntry->LastBeaconRxTime = Now;
+
+				// At least another peer in this IBSS, declare MediaState as CONNECTED
+				if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED))
+				{
+					OPSTATUS_SET_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);
+
+					pAd->IndicateMediaState = NdisMediaStateConnected;
+					RTMP_IndicateMediaState(pAd);
+	                pAd->ExtraInfo = GENERAL_LINK_UP;
+					AsicSetBssid(pAd, pAd->CommonCfg.Bssid);
+
+					// 2003/03/12 - john
+					// Make sure this entry in "ScanTab" table, thus complies to Microsoft's policy that
+					// "site survey" result should always include the current connected network.
+					//
+					Bssidx = BssTableSearch(&pAd->ScanTab, Bssid, Channel);
+					if (Bssidx == BSS_NOT_FOUND)
+					{
+						Bssidx = BssTableSetEntry(pAd, &pAd->ScanTab, Bssid, Ssid, SsidLen, BssType, BeaconPeriod,
+									&CfParm, AtimWin, CapabilityInfo, SupRate, SupRateLen, ExtRate, ExtRateLen, &HtCapability,
+									&AddHtInfo, HtCapabilityLen, AddHtInfoLen, NewExtChannelOffset, Channel, RealRssi, TimeStamp, 0,
+									&EdcaParm, &QosCapability, &QbssLoad, LenVIE, pVIE);
+					}
+					DBGPRINT(RT_DEBUG_TRACE, ("ADHOC  fOP_STATUS_MEDIA_STATE_CONNECTED.\n"));
+				}
+#endif /* RT2870 */
 			}
 
 			if (INFRA_ON(pAd))
@@ -1447,10 +1536,12 @@ VOID PeerBeacon(
 				//  5. otherwise, put PHY back to sleep to save battery.
 				if (MessageToMe)
 				{
+#ifdef RT2860
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
 					}
+#endif
 					if (pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable &&
 						pAd->CommonCfg.bAPSDAC_BE && pAd->CommonCfg.bAPSDAC_BK && pAd->CommonCfg.bAPSDAC_VI && pAd->CommonCfg.bAPSDAC_VO)
 					{
@@ -1461,10 +1552,12 @@ VOID PeerBeacon(
 				}
 				else if (BcastFlag && (DtimCount == 0) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM))
 				{
+#ifdef RT2860
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
 					}
+#endif
 				}
 				else if ((pAd->TxSwQueue[QID_AC_BK].Number != 0)													||
 						(pAd->TxSwQueue[QID_AC_BE].Number != 0)														||
@@ -1478,10 +1571,12 @@ VOID PeerBeacon(
 				{
 					// TODO: consider scheduled HCCA. might not be proper to use traditional DTIM-based power-saving scheme
 					// can we cheat here (i.e. just check MGMT & AC_BE) for better performance?
+#ifdef RT2860
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
 					}
+#endif
 				}
 				else
 				{
@@ -1496,9 +1591,14 @@ VOID PeerBeacon(
 
 					if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 					{
+#ifdef RT2860
 						// Set a flag to go to sleep . Then after parse this RxDoneInterrupt, will go to sleep mode.
 						RTMP_SET_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
 						pAd->ThisTbttNumToNextWakeUp = TbttNumToNextWakeUp;
+#endif
+#ifdef RT2870
+						AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
+#endif
 					}
 				}
 			}

@@ -454,6 +454,11 @@ VOID MlmeAssocReqAction(
 				RSNIe = IE_WPA2;
 			}
 
+#ifdef RT30xx
+#ifdef SIOCSIWGENIE
+			if (pAd->StaCfg.WpaSupplicantUP != 1)
+#endif // SIOCSIWGENIE //
+#endif
             RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, BSS0);
 
             // Check for WPA PMK cache list
@@ -480,6 +485,17 @@ VOID MlmeAssocReqAction(
 				}
 			}
 
+#ifdef RT30xx
+#ifdef SIOCSIWGENIE
+			if (pAd->StaCfg.WpaSupplicantUP == 1)
+			{
+				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
+		                        	pAd->StaCfg.RSNIE_Len,			pAd->StaCfg.RSN_IE,
+		                        	END_OF_ARGS);
+			}
+			else
+#endif
+#endif
 			{
 				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
 				              		1,                              &RSNIe,
@@ -490,6 +506,11 @@ VOID MlmeAssocReqAction(
 
 			FrameLen += tmp;
 
+#ifdef RT30xx
+#ifdef SIOCSIWGENIE
+			if (pAd->StaCfg.WpaSupplicantUP != 1)
+#endif
+#endif
 			{
 	            // Append Variable IE
 	            NdisMoveMemory(pAd->StaCfg.ReqVarIEs + VarIesOffset, &RSNIe, 1);
@@ -882,6 +903,7 @@ VOID PeerAssocRspAction(
 			RTMPCancelTimer(&pAd->MlmeAux.AssocTimer, &TimerCancelled);
 			if(Status == MLME_SUCCESS)
 			{
+#ifdef RT2860
 				// go to procedure listed on page 376
 				AssocPostProc(pAd, Addr2, CapabilityInfo, Aid, SupRate, SupRateLen, ExtRate, ExtRateLen,
 					&EdcaParm, &HtCapability, HtCapabilityLen, &AddHtInfo);
@@ -895,7 +917,29 @@ VOID PeerAssocRspAction(
                     wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 
                 }
+#endif
+#ifdef RT2870
+				UCHAR			MaxSupportedRateIn500Kbps = 0;
+				UCHAR			idx;
 
+				// supported rates array may not be sorted. sort it and find the maximum rate
+			    for (idx=0; idx<SupRateLen; idx++)
+                {
+			        if (MaxSupportedRateIn500Kbps < (SupRate[idx] & 0x7f))
+			            MaxSupportedRateIn500Kbps = SupRate[idx] & 0x7f;
+			    }
+
+				for (idx=0; idx<ExtRateLen; idx++)
+			    {
+			        if (MaxSupportedRateIn500Kbps < (ExtRate[idx] & 0x7f))
+			            MaxSupportedRateIn500Kbps = ExtRate[idx] & 0x7f;
+                }
+				// go to procedure listed on page 376
+				AssocPostProc(pAd, Addr2, CapabilityInfo, Aid, SupRate, SupRateLen, ExtRate, ExtRateLen,
+					&EdcaParm, &HtCapability, HtCapabilityLen, &AddHtInfo);
+
+				StaAddMacTableEntry(pAd, &pAd->MacTab.Content[BSSID_WCID], MaxSupportedRateIn500Kbps, &HtCapability, HtCapabilityLen, CapabilityInfo);
+#endif
 				pAd->StaCfg.CkipFlag = CkipFlag;
 				if (CkipFlag & 0x18)
 				{
@@ -1485,3 +1529,227 @@ int wext_notify_event_assoc(
 	return 0;
 
 }
+
+#ifdef RT2870
+BOOLEAN StaAddMacTableEntry(
+	IN  PRTMP_ADAPTER		pAd,
+	IN  PMAC_TABLE_ENTRY	pEntry,
+	IN  UCHAR				MaxSupportedRateIn500Kbps,
+	IN  HT_CAPABILITY_IE	*pHtCapability,
+	IN  UCHAR				HtCapabilityLen,
+	IN  USHORT        		CapabilityInfo)
+{
+	UCHAR            MaxSupportedRate = RATE_11;
+
+	if (ADHOC_ON(pAd))
+		CLIENT_STATUS_CLEAR_FLAG(pEntry, fCLIENT_STATUS_WMM_CAPABLE);
+
+	switch (MaxSupportedRateIn500Kbps)
+    {
+        case 108: MaxSupportedRate = RATE_54;   break;
+        case 96:  MaxSupportedRate = RATE_48;   break;
+        case 72:  MaxSupportedRate = RATE_36;   break;
+        case 48:  MaxSupportedRate = RATE_24;   break;
+        case 36:  MaxSupportedRate = RATE_18;   break;
+        case 24:  MaxSupportedRate = RATE_12;   break;
+        case 18:  MaxSupportedRate = RATE_9;    break;
+        case 12:  MaxSupportedRate = RATE_6;    break;
+        case 22:  MaxSupportedRate = RATE_11;   break;
+        case 11:  MaxSupportedRate = RATE_5_5;  break;
+        case 4:   MaxSupportedRate = RATE_2;    break;
+        case 2:   MaxSupportedRate = RATE_1;    break;
+        default:  MaxSupportedRate = RATE_11;   break;
+    }
+
+    if ((pAd->CommonCfg.PhyMode == PHY_11G) && (MaxSupportedRate < RATE_FIRST_OFDM_RATE))
+        return FALSE;
+
+	// 11n only
+	if (((pAd->CommonCfg.PhyMode == PHY_11N_2_4G) || (pAd->CommonCfg.PhyMode == PHY_11N_5G))&& (HtCapabilityLen == 0))
+		return FALSE;
+
+	if (!pEntry)
+        return FALSE;
+
+	NdisAcquireSpinLock(&pAd->MacTabLock);
+	if (pEntry)
+	{
+		pEntry->PortSecured = WPA_802_1X_PORT_SECURED;
+		if ((MaxSupportedRate < RATE_FIRST_OFDM_RATE) ||
+			(pAd->CommonCfg.PhyMode == PHY_11B))
+		{
+			pEntry->RateLen = 4;
+			if (MaxSupportedRate >= RATE_FIRST_OFDM_RATE)
+				MaxSupportedRate = RATE_11;
+		}
+		else
+			pEntry->RateLen = 12;
+
+		pEntry->MaxHTPhyMode.word = 0;
+		pEntry->MinHTPhyMode.word = 0;
+		pEntry->HTPhyMode.word = 0;
+		pEntry->MaxSupportedRate = MaxSupportedRate;
+		if (pEntry->MaxSupportedRate < RATE_FIRST_OFDM_RATE)
+		{
+			pEntry->MaxHTPhyMode.field.MODE = MODE_CCK;
+			pEntry->MaxHTPhyMode.field.MCS = pEntry->MaxSupportedRate;
+			pEntry->MinHTPhyMode.field.MODE = MODE_CCK;
+			pEntry->MinHTPhyMode.field.MCS = pEntry->MaxSupportedRate;
+			pEntry->HTPhyMode.field.MODE = MODE_CCK;
+			pEntry->HTPhyMode.field.MCS = pEntry->MaxSupportedRate;
+		}
+		else
+		{
+			pEntry->MaxHTPhyMode.field.MODE = MODE_OFDM;
+			pEntry->MaxHTPhyMode.field.MCS = OfdmRateToRxwiMCS[pEntry->MaxSupportedRate];
+			pEntry->MinHTPhyMode.field.MODE = MODE_OFDM;
+			pEntry->MinHTPhyMode.field.MCS = OfdmRateToRxwiMCS[pEntry->MaxSupportedRate];
+			pEntry->HTPhyMode.field.MODE = MODE_OFDM;
+			pEntry->HTPhyMode.field.MCS = OfdmRateToRxwiMCS[pEntry->MaxSupportedRate];
+		}
+		pEntry->CapabilityInfo = CapabilityInfo;
+		CLIENT_STATUS_CLEAR_FLAG(pEntry, fCLIENT_STATUS_AGGREGATION_CAPABLE);
+		CLIENT_STATUS_CLEAR_FLAG(pEntry, fCLIENT_STATUS_PIGGYBACK_CAPABLE);
+	}
+
+	// If this Entry supports 802.11n, upgrade to HT rate.
+	if ((HtCapabilityLen != 0) && (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
+	{
+		UCHAR	j, bitmask; //k,bitmask;
+		CHAR    i;
+
+		if (ADHOC_ON(pAd))
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_WMM_CAPABLE);
+		if ((pHtCapability->HtCapInfo.GF) && (pAd->CommonCfg.DesiredHtPhy.GF))
+		{
+			pEntry->MaxHTPhyMode.field.MODE = MODE_HTGREENFIELD;
+		}
+		else
+		{
+			pEntry->MaxHTPhyMode.field.MODE = MODE_HTMIX;
+			pAd->MacTab.fAnyStationNonGF = TRUE;
+			pAd->CommonCfg.AddHTInfo.AddHtInfo2.NonGfPresent = 1;
+		}
+
+		if ((pHtCapability->HtCapInfo.ChannelWidth) && (pAd->CommonCfg.DesiredHtPhy.ChannelWidth))
+		{
+			pEntry->MaxHTPhyMode.field.BW= BW_40;
+			pEntry->MaxHTPhyMode.field.ShortGI = ((pAd->CommonCfg.DesiredHtPhy.ShortGIfor40)&(pHtCapability->HtCapInfo.ShortGIfor40));
+		}
+		else
+		{
+			pEntry->MaxHTPhyMode.field.BW = BW_20;
+			pEntry->MaxHTPhyMode.field.ShortGI = ((pAd->CommonCfg.DesiredHtPhy.ShortGIfor20)&(pHtCapability->HtCapInfo.ShortGIfor20));
+			pAd->MacTab.fAnyStation20Only = TRUE;
+		}
+
+		// 3*3
+		if (pAd->MACVersion >= RALINK_2883_VERSION && pAd->MACVersion < RALINK_3070_VERSION)
+			pEntry->MaxHTPhyMode.field.TxBF = pAd->CommonCfg.RegTransmitSetting.field.TxBF;
+
+		// find max fixed rate
+		for (i=23; i>=0; i--) // 3*3
+		{
+			j = i/8;
+			bitmask = (1<<(i-(j*8)));
+			if ((pAd->StaCfg.DesiredHtPhyInfo.MCSSet[j] & bitmask) && (pHtCapability->MCSSet[j] & bitmask))
+			{
+				pEntry->MaxHTPhyMode.field.MCS = i;
+				break;
+			}
+			if (i==0)
+				break;
+		}
+
+
+		if (pAd->StaCfg.DesiredTransmitSetting.field.MCS != MCS_AUTO)
+		{
+			if (pAd->StaCfg.DesiredTransmitSetting.field.MCS == 32)
+			{
+				// Fix MCS as HT Duplicated Mode
+				pEntry->MaxHTPhyMode.field.BW = 1;
+				pEntry->MaxHTPhyMode.field.MODE = MODE_HTMIX;
+				pEntry->MaxHTPhyMode.field.STBC = 0;
+				pEntry->MaxHTPhyMode.field.ShortGI = 0;
+				pEntry->MaxHTPhyMode.field.MCS = 32;
+			}
+			else if (pEntry->MaxHTPhyMode.field.MCS > pAd->StaCfg.HTPhyMode.field.MCS)
+			{
+				// STA supports fixed MCS
+				pEntry->MaxHTPhyMode.field.MCS = pAd->StaCfg.HTPhyMode.field.MCS;
+			}
+		}
+
+		pEntry->MaxHTPhyMode.field.STBC = (pHtCapability->HtCapInfo.RxSTBC & (pAd->CommonCfg.DesiredHtPhy.TxSTBC));
+		pEntry->MpduDensity = pHtCapability->HtCapParm.MpduDensity;
+		pEntry->MaxRAmpduFactor = pHtCapability->HtCapParm.MaxRAmpduFactor;
+		pEntry->MmpsMode = (UCHAR)pHtCapability->HtCapInfo.MimoPs;
+		pEntry->AMsduSize = (UCHAR)pHtCapability->HtCapInfo.AMsduSize;
+		pEntry->HTPhyMode.word = pEntry->MaxHTPhyMode.word;
+
+		if (pAd->CommonCfg.DesiredHtPhy.AmsduEnable && (pAd->CommonCfg.REGBACapability.field.AutoBA == FALSE))
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_AMSDU_INUSED);
+		if (pHtCapability->HtCapInfo.ShortGIfor20)
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_SGI20_CAPABLE);
+		if (pHtCapability->HtCapInfo.ShortGIfor40)
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_SGI40_CAPABLE);
+		if (pHtCapability->HtCapInfo.TxSTBC)
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_TxSTBC_CAPABLE);
+		if (pHtCapability->HtCapInfo.RxSTBC)
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_RxSTBC_CAPABLE);
+		if (pHtCapability->ExtHtCapInfo.PlusHTC)
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_HTC_CAPABLE);
+		if (pAd->CommonCfg.bRdg && pHtCapability->ExtHtCapInfo.RDGSupport)
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_RDG_CAPABLE);
+		if (pHtCapability->ExtHtCapInfo.MCSFeedback == 0x03)
+			CLIENT_STATUS_SET_FLAG(pEntry, fCLIENT_STATUS_MCSFEEDBACK_CAPABLE);
+	}
+	else
+	{
+		pAd->MacTab.fAnyStationIsLegacy = TRUE;
+	}
+
+	NdisMoveMemory(&pEntry->HTCapability, pHtCapability, sizeof(HT_CAPABILITY_IE));
+
+	pEntry->HTPhyMode.word = pEntry->MaxHTPhyMode.word;
+	pEntry->CurrTxRate = pEntry->MaxSupportedRate;
+
+	// Set asic auto fall back
+	if (pAd->StaCfg.bAutoTxRateSwitch == TRUE)
+	{
+		PUCHAR					pTable;
+		UCHAR					TableSize = 0;
+
+		MlmeSelectTxRateTable(pAd, pEntry, &pTable, &TableSize, &pEntry->CurrTxRateIndex);
+		pEntry->bAutoTxRateSwitch = TRUE;
+	}
+	else
+	{
+		pEntry->HTPhyMode.field.MODE	= pAd->StaCfg.HTPhyMode.field.MODE;
+		pEntry->HTPhyMode.field.MCS	= pAd->StaCfg.HTPhyMode.field.MCS;
+		pEntry->bAutoTxRateSwitch = FALSE;
+
+		// If the legacy mode is set, overwrite the transmit setting of this entry.
+		RTMPUpdateLegacyTxSetting((UCHAR)pAd->StaCfg.DesiredTransmitSetting.field.FixedTxMode, pEntry);
+	}
+
+	pEntry->PortSecured = WPA_802_1X_PORT_SECURED;
+	pEntry->Sst = SST_ASSOC;
+	pEntry->AuthState = AS_AUTH_OPEN;
+	pEntry->AuthMode = pAd->StaCfg.AuthMode;
+	pEntry->WepStatus = pAd->StaCfg.WepStatus;
+
+	NdisReleaseSpinLock(&pAd->MacTabLock);
+
+    {
+        union iwreq_data    wrqu;
+        wext_notify_event_assoc(pAd);
+
+        memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
+        memcpy(wrqu.ap_addr.sa_data, pAd->MlmeAux.Bssid, MAC_ADDR_LEN);
+        wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
+
+    }
+	return TRUE;
+}
+#endif /* RT2870 */
