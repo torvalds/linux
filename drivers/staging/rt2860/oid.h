@@ -682,17 +682,6 @@ enum {
 
 // MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition!!!
 typedef union  _HTTRANSMIT_SETTING {
-#ifdef RT_BIG_ENDIAN
-	struct	{
-	USHORT		MODE:2;	// Use definition MODE_xxx.
-	USHORT		TxBF:1;
-	USHORT		rsv:2;
-	USHORT		STBC:2;	//SPACE
-	USHORT		ShortGI:1;
-	USHORT		BW:1;	//channel bandwidth 20MHz or 40 MHz
-	USHORT   	MCS:7;                 // MCS
-	}	field;
-#else
 	struct	{
 	USHORT   	MCS:7;                 // MCS
 	USHORT		BW:1;	//channel bandwidth 20MHz or 40 MHz
@@ -702,7 +691,6 @@ typedef union  _HTTRANSMIT_SETTING {
 	USHORT		TxBF:1;
 	USHORT		MODE:2;	// Use definition MODE_xxx.
 	}	field;
-#endif
 	USHORT		word;
  } HTTRANSMIT_SETTING, *PHTTRANSMIT_SETTING;
 

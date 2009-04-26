@@ -1249,17 +1249,6 @@
 #define OPMODE_AP                   1
 //#define OPMODE_L3_BRG               2       // as AP and STA at the same time
 
-#ifdef RT_BIG_ENDIAN
-#define DIR_READ                    0
-#define DIR_WRITE                   1
-#define TYPE_TXD                    0
-#define TYPE_RXD                    1
-#define TYPE_TXINFO					0
-#define TYPE_RXINFO					1
-#define TYPE_TXWI					0
-#define TYPE_RXWI					1
-#endif
-
 // ========================= AP rtmp_def.h ===========================
 // value domain for pAd->EventTab.Log[].Event
 #define EVENT_RESET_ACCESS_POINT    0 // Log = "hh:mm:ss   Restart Access Point"
@@ -1440,23 +1429,6 @@
     (UINT64)(((UINT64)(x) & (UINT64) 0x00ff000000000000ULL) >> 40) | \
     (UINT64)(((UINT64)(x) & (UINT64) 0xff00000000000000ULL) >> 56) ))
 
-#ifdef RT_BIG_ENDIAN
-
-#define cpu2le64(x) SWAP64((x))
-#define le2cpu64(x) SWAP64((x))
-#define cpu2le32(x) SWAP32((x))
-#define le2cpu32(x) SWAP32((x))
-#define cpu2le16(x) SWAP16((x))
-#define le2cpu16(x) SWAP16((x))
-#define cpu2be64(x) ((UINT64)(x))
-#define be2cpu64(x) ((UINT64)(x))
-#define cpu2be32(x) ((UINT32)(x))
-#define be2cpu32(x) ((UINT32)(x))
-#define cpu2be16(x) ((UINT16)(x))
-#define be2cpu16(x) ((UINT16)(x))
-
-#else   // Little_Endian
-
 #define cpu2le64(x) ((UINT64)(x))
 #define le2cpu64(x) ((UINT64)(x))
 #define cpu2le32(x) ((UINT32)(x))
@@ -1469,8 +1441,6 @@
 #define be2cpu32(x) SWAP32((x))
 #define cpu2be16(x) SWAP16((x))
 #define be2cpu16(x) SWAP16((x))
-
-#endif  // RT_BIG_ENDIAN
 
 #endif  // __RTMP_DEF_H__
 

@@ -1167,9 +1167,7 @@ VOID RT28xx_UpdateBeaconToAsic(
 	else
 	{
 		ptr = (PUCHAR)&pAd->BeaconTxWI;
-#ifdef RT_BIG_ENDIAN
-		RTMPWIEndianChange(ptr, TYPE_TXWI);
-#endif
+
 		for (i=0; i<TXWI_SIZE; i+=4)  // 16-byte TXWI field
 		{
 			UINT32 longptr =  *ptr + (*(ptr+1)<<8) + (*(ptr+2)<<16) + (*(ptr+3)<<24);

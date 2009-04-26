@@ -582,52 +582,27 @@ VOID ScanNextChannel(
 				ULONG	Tmp;
 				UCHAR	HtLen;
 				UCHAR	BROADCOM[4] = {0x0, 0x90, 0x4c, 0x33};
-#ifdef RT_BIG_ENDIAN
-				HT_CAPABILITY_IE HtCapabilityTmp;
-#endif
+
 				if (pAd->bBroadComHT == TRUE)
 				{
 					HtLen = pAd->MlmeAux.HtCapabilityLen + 4;
-#ifdef RT_BIG_ENDIAN
-					NdisMoveMemory(&HtCapabilityTmp, &pAd->MlmeAux.HtCapability, SIZE_HT_CAP_IE);
-					*(USHORT *)(&HtCapabilityTmp.HtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.HtCapInfo));
-					*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo));
 
-					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
-									1,                                &WpaIe,
-									1,                                &HtLen,
-									4,                                &BROADCOM[0],
-									pAd->MlmeAux.HtCapabilityLen,     &HtCapabilityTmp,
-									END_OF_ARGS);
-#else
 					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
 									1,                                &WpaIe,
 									1,                                &HtLen,
 									4,                                &BROADCOM[0],
 									pAd->MlmeAux.HtCapabilityLen,     &pAd->MlmeAux.HtCapability,
 									END_OF_ARGS);
-#endif // RT_BIG_ENDIAN //
 				}
 				else
 				{
 					HtLen = pAd->MlmeAux.HtCapabilityLen;
-#ifdef RT_BIG_ENDIAN
-					NdisMoveMemory(&HtCapabilityTmp, &pAd->CommonCfg.HtCapability, SIZE_HT_CAP_IE);
-					*(USHORT *)(&HtCapabilityTmp.HtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.HtCapInfo));
-					*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo));
 
-					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
-									1,                                &HtCapIe,
-									1,                                &HtLen,
-									HtLen,                            &HtCapabilityTmp,
-									END_OF_ARGS);
-#else
 					MakeOutgoingFrame(pOutBuffer + FrameLen,          &Tmp,
 									1,                                &HtCapIe,
 									1,                                &HtLen,
 									HtLen,                            &pAd->CommonCfg.HtCapability,
 									END_OF_ARGS);
-#endif // RT_BIG_ENDIAN //
 				}
 				FrameLen += Tmp;
 			}

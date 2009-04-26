@@ -300,10 +300,6 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 	PUCHAR			pSrcBufVA;
 	UINT			SrcBufLen;
 	PTXD_STRUC		pTxD;
-#ifdef RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-    TXD_STRUC       TxD;
-#endif
 	PHEADER_802_11	pHeader_802_11;
 	BOOLEAN 		bAckRequired, bInsertTimestamp;
 	ULONG			SrcBufPA;
@@ -335,14 +331,7 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 
 	SwIdx = pAd->TxRing[QueIdx].TxCpuIdx;
 
-#ifndef RT_BIG_ENDIAN
 	pTxD  = (PTXD_STRUC) pAd->TxRing[QueIdx].Cell[SwIdx].AllocVa;
-#else
-    pDestTxD  = (PTXD_STRUC)pAd->TxRing[QueIdx].Cell[SwIdx].AllocVa;
-    TxD = *pDestTxD;
-    pTxD = &TxD;
-    RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#endif
 
 	if (pAd->TxRing[QueIdx].Cell[SwIdx].pNdisPacket)
 	{
@@ -438,9 +427,6 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 		return (NDIS_STATUS_FAILURE);
 	}
 
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)pHeader_802_11, DIR_WRITE, FALSE);
-#endif
 	//
 	// fill scatter-and-gather buffer list into TXD. Internally created NDIS PACKET
 	// should always has only one ohysical buffer, and the whole frame size equals
@@ -470,9 +456,7 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 
 	pAd->TxRing[QueIdx].Cell[SwIdx].pNdisPacket = pPacket;
 	pAd->TxRing[QueIdx].Cell[SwIdx].pNextNdisPacket = NULL;
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange((PUCHAR)pFirstTxWI, TYPE_TXWI);
-#endif
+
 	SrcBufPA = PCI_MAP_SINGLE(pAd, pSrcBufVA, SrcBufLen, 0, PCI_DMA_TODEVICE);
 
 
@@ -483,11 +467,6 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 	pTxD->SDLen1 = 0;
 	pTxD->SDPtr0 = SrcBufPA;
 	pTxD->DMADONE = 0;
-
-#ifdef RT_BIG_ENDIAN
-    RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-    WriteBackToDescriptor((PUCHAR)pDestTxD, (PUCHAR)pTxD, FALSE, TYPE_TXD);
-#endif
 
 	pAd->RalinkCounters.KickTxCount++;
 	pAd->RalinkCounters.OneSecTxDoneCount++;
@@ -639,10 +618,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 		return (NDIS_STATUS_FAILURE);
 	}
 
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)pHeader_802_11, DIR_WRITE, FALSE);
-#endif
-
 	//
 	// fill scatter-and-gather buffer list into TXD. Internally created NDIS PACKET
 	// should always has only one ohysical buffer, and the whole frame size equals
@@ -668,10 +643,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 					(UCHAR)pMacEntry->MaxHTPhyMode.field.MCS,
 					IFS_BACKOFF, FALSE, &pMacEntry->MaxHTPhyMode);
 	}
-
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange((PUCHAR)pFirstTxWI, TYPE_TXWI);
-#endif
 
 	// Now do hardware-depened kick out.
 	HAL_KickOutMgmtTx(pAd, QueIdx, pPacket, pSrcBufVA, SrcBufLen);
@@ -1723,9 +1694,6 @@ BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 {
 	PRTMP_TX_RING pTxRing;
 	PTXD_STRUC	  pTxD;
-#ifdef	RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-#endif
 	PNDIS_PACKET  pPacket;
 	UCHAR	FREE = 0;
 	TXD_STRUC	TxD, *pOriTxD;
@@ -1745,18 +1713,10 @@ BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 
 		/* Note : If (pAd->ate.bQATxStart == TRUE), we will never reach here. */
 		FREE++;
-#ifndef RT_BIG_ENDIAN
                 pTxD = (PTXD_STRUC) (pTxRing->Cell[pTxRing->TxSwFreeIdx].AllocVa);
 		pOriTxD = pTxD;
                 NdisMoveMemory(&TxD, pTxD, sizeof(TXD_STRUC));
 		pTxD = &TxD;
-#else
-        pDestTxD = (PTXD_STRUC) (pTxRing->Cell[pTxRing->TxSwFreeIdx].AllocVa);
-        pOriTxD = pDestTxD ;
-        TxD = *pDestTxD;
-        pTxD = &TxD;
-        RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#endif
 
 		pTxD->DMADONE = 0;
 
@@ -1799,12 +1759,8 @@ BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 		INC_RING_INDEX(pTxRing->TxSwFreeIdx, TX_RING_SIZE);
 		/* get tx_tdx_idx again */
 		RTMP_IO_READ32(pAd, TX_DTX_IDX0 + QueIdx * RINGREG_DIFF ,  &pTxRing->TxDmaIdx);
-#ifdef RT_BIG_ENDIAN
-        RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-        *pDestTxD = TxD;
-#else
+
         NdisMoveMemory(pOriTxD, pTxD, sizeof(TXD_STRUC));
-#endif
 	}
 
 
@@ -1887,10 +1843,6 @@ VOID	RTMPHandleMgmtRingDmaDoneInterrupt(
 	IN	PRTMP_ADAPTER	pAd)
 {
 	PTXD_STRUC	 pTxD;
-#ifdef RT_BIG_ENDIAN
-    PTXD_STRUC      pDestTxD;
-    TXD_STRUC       TxD;
-#endif
 	PNDIS_PACKET pPacket;
 	UCHAR	FREE = 0;
 	PRTMP_MGMT_RING pMgmtRing = &pAd->MgmtRing;
@@ -1901,14 +1853,7 @@ VOID	RTMPHandleMgmtRingDmaDoneInterrupt(
 	while (pMgmtRing->TxSwFreeIdx!= pMgmtRing->TxDmaIdx)
 	{
 		FREE++;
-#ifdef RT_BIG_ENDIAN
-        pDestTxD = (PTXD_STRUC) (pMgmtRing->Cell[pAd->MgmtRing.TxSwFreeIdx].AllocVa);
-        TxD = *pDestTxD;
-        pTxD = &TxD;
-		RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#else
 		pTxD = (PTXD_STRUC) (pMgmtRing->Cell[pAd->MgmtRing.TxSwFreeIdx].AllocVa);
-#endif
 		pTxD->DMADONE = 0;
 		pPacket = pMgmtRing->Cell[pMgmtRing->TxSwFreeIdx].pNdisPacket;
 
@@ -1928,11 +1873,6 @@ VOID	RTMPHandleMgmtRingDmaDoneInterrupt(
 		}
 		pMgmtRing->Cell[pMgmtRing->TxSwFreeIdx].pNextNdisPacket = NULL;
 		INC_RING_INDEX(pMgmtRing->TxSwFreeIdx, MGMT_RING_SIZE);
-
-#ifdef RT_BIG_ENDIAN
-        RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-        WriteBackToDescriptor((PUCHAR)pDestTxD, (PUCHAR)pTxD, TRUE, TYPE_TXD);
-#endif
 	}
 	NdisReleaseSpinLock(&pAd->MgmtRingLock);
 
