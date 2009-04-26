@@ -2895,11 +2895,6 @@ typedef struct _RTMP_ADAPTER
 	// current TX sequence #
 	USHORT                  Sequence;
 
-#ifdef UNDER_CE
-	NDIS_HANDLE             hGiISR;
-#endif
-
-
 	// Control disconnect / connect event generation
 	//+++Didn't used anymore
 	ULONG                   LinkDownTime;
