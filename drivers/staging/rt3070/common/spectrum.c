@@ -1059,27 +1059,6 @@ VOID NotifyChSwAnnToPeerAPs(
 	IN UINT8 ChSwMode,
 	IN UINT8 Channel)
 {
-#ifdef WDS_SUPPORT
-	if (!((pRA[0] & 0xff) == 0xff)) // is pRA a broadcase address.
-	{
-		INT i;
-		// info neighbor APs that Radar signal found throgh WDS link.
-		for (i = 0; i < MAX_WDS_ENTRY; i++)
-		{
-			if (ValidWdsEntry(pAd, i))
-			{
-				PUCHAR pDA = pAd->WdsTab.WdsEntry[i].PeerWdsAddr;
-
-				// DA equal to SA. have no necessary orignal AP which found Radar signal.
-				if (MAC_ADDR_EQUAL(pTA, pDA))
-					continue;
-
-				// send Channel Switch Action frame to info Neighbro APs.
-				EnqueueChSwAnn(pAd, pDA, ChSwMode, Channel);
-			}
-		}
-	}
-#endif // WDS_SUPPORT //
 }
 
 static VOID StartDFSProcedure(

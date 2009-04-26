@@ -95,14 +95,6 @@ VOID StopNetIfQueue(
 	UCHAR IfIdx = 0;
 	BOOLEAN valid = FALSE;
 
-#ifdef WDS_SUPPORT
-	if (RTMP_GET_PACKET_NET_DEVICE(pPacket) >= MIN_NET_DEVICE_FOR_WDS)
-	{
-		IfIdx = (RTMP_GET_PACKET_NET_DEVICE(pPacket) - MIN_NET_DEVICE_FOR_WDS) % MAX_WDS_ENTRY;
-		NetDev = pAd->WdsTab.WdsEntry[IfIdx].dev;
-	}
-	else
-#endif // WDS_SUPPORT //
 	{
 #ifdef MBSS_SUPPORT
 		if (pAd->OpMode == OPMODE_AP)
