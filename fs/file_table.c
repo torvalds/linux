@@ -214,7 +214,7 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
 	 */
 	if ((mode & FMODE_WRITE) && !special_file(dentry->d_inode->i_mode)) {
 		file_take_write(file);
-		error = mnt_want_write(mnt);
+		error = mnt_clone_write(mnt);
 		WARN_ON(error);
 	}
 	return error;

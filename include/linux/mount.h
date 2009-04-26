@@ -88,7 +88,11 @@ static inline struct vfsmount *mntget(struct vfsmount *mnt)
 	return mnt;
 }
 
+struct file; /* forward dec */
+
 extern int mnt_want_write(struct vfsmount *mnt);
+extern int mnt_want_write_file(struct file *file);
+extern int mnt_clone_write(struct vfsmount *mnt);
 extern void mnt_drop_write(struct vfsmount *mnt);
 extern void mntput_no_expire(struct vfsmount *mnt);
 extern void mnt_pin(struct vfsmount *mnt);
