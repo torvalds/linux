@@ -1174,16 +1174,6 @@ VOID RTMPDeQueuePacket(
 		}
 
 		RT28XX_STOP_DEQUEUE(pAd, QueIdx, IrqFlags);
-
-
-#ifdef BLOCK_NET_IF
-		if ((pAd->blockQueueTab[QueIdx].SwTxQueueBlockFlag == TRUE)
-			&& (pAd->TxSwQueue[QueIdx].Number < 1))
-		{
-			releaseNetIf(&pAd->blockQueueTab[QueIdx]);
-		}
-#endif // BLOCK_NET_IF //
-
 	}
 
 }

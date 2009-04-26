@@ -442,11 +442,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 	CfgInitHook(pAd);
 
-
-#ifdef BLOCK_NET_IF
-	initblockQueueTab(pAd);
-#endif // BLOCK_NET_IF //
-
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		NdisAllocateSpinLock(&pAd->MacTabLock);
