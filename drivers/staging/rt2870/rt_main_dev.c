@@ -714,27 +714,6 @@ int rt28xx_open(IN PNET_DEV dev)
 		return -1;
 	}
 
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-	if (pAd->OpMode == OPMODE_AP)
-	{
-		CW_MAX_IN_BITS = 6;
-	}
-	else if (pAd->OpMode == OPMODE_STA)
-	{
-		CW_MAX_IN_BITS = 10;
-	}
-
-#if WIRELESS_EXT >= 12
-	if (net_dev->priv_flags == INT_MAIN)
-	{
-		if (pAd->OpMode == OPMODE_AP)
-			net_dev->wireless_handlers = (struct iw_handler_def *) &rt28xx_ap_iw_handler_def;
-		else if (pAd->OpMode == OPMODE_STA)
-			net_dev->wireless_handlers = (struct iw_handler_def *) &rt28xx_iw_handler_def;
-	}
-#endif // WIRELESS_EXT >= 12 //
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
-
 #ifdef CONFIG_STA_SUPPORT
 #endif // CONFIG_STA_SUPPORT //
 
@@ -875,15 +854,6 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 	}
 #endif //WIRELESS_EXT >= 12
 #endif // CONFIG_STA_SUPPORT //
-
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-#if WIRELESS_EXT >= 12
-	if (pAd->OpMode == OPMODE_AP)
-	{
-		dev->wireless_handlers = &rt28xx_ap_iw_handler_def;
-	}
-#endif //WIRELESS_EXT >= 12
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
 
 #if WIRELESS_EXT < 21
 		dev->get_wireless_stats = rt28xx_get_wireless_stats;
