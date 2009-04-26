@@ -103,6 +103,15 @@
 #define GET_DURATION_RES(__size, __rate)(((__size) * 8 * 10) % (__rate))
 
 /*
+ * Determine the alignment requirement,
+ * to make sure the 802.11 payload is padded to a 4-byte boundrary
+ * we must determine the address of the payload and calculate the
+ * amount of bytes needed to move the data.
+ */
+#define ALIGN_SIZE(__skb, __header) \
+	(  ((unsigned long)((__skb)->data + (__header))) & 3 )
+
+/*
  * Standard timing and size defines.
  * These values should follow the ieee80211 specifications.
  */
@@ -590,6 +599,7 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_SCHEDULED,
 	DRIVER_REQUIRE_DMA,
 	DRIVER_REQUIRE_COPY_IV,
+	DRIVER_REQUIRE_L2PAD,
 
 	/*
 	 * Driver features

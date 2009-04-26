@@ -227,6 +227,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	enum data_queue_qid qid = skb_get_queue_mapping(entry->skb);
+	unsigned int header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
 	u8 rate_idx, rate_flags;
 
 	/*
@@ -235,13 +236,19 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
 
 	/*
+	 * Remove L2 padding which was added during
+	 */
+	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
+		rt2x00queue_payload_align(entry->skb, true, header_length);
+
+	/*
 	 * If the IV/EIV data was stripped from the frame before it was
 	 * passed to the hardware, we should now reinsert it again because
 	 * mac80211 will expect the the same data to be present it the
 	 * frame as it was passed to us.
 	 */
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))
-		rt2x00crypto_tx_insert_iv(entry->skb);
+		rt2x00crypto_tx_insert_iv(entry->skb, header_length);
 
 	/*
 	 * Send frame to debugfs immediately, after this call is completed
@@ -325,7 +332,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_supported_band *sband;
 	const struct rt2x00_rate *rate;
 	unsigned int header_length;
-	unsigned int align;
+	bool l2pad;
 	unsigned int i;
 	int idx = -1;
 
@@ -348,12 +355,15 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	memset(&rxdesc, 0, sizeof(rxdesc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
+	/* Trim buffer to correct size */
+	skb_trim(entry->skb, rxdesc.size);
+
 	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
 	 */
 	header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
-	align = ((unsigned long)(entry->skb->data + header_length)) & 3;
+	l2pad = !!(rxdesc.dev_flags & RXDONE_L2PAD);
 
 	/*
 	 * Hardware might have stripped the IV/EIV/ICV data,
@@ -362,18 +372,11 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * in which case we should reinsert the data into the frame.
 	 */
 	if ((rxdesc.dev_flags & RXDONE_CRYPTO_IV) &&
-	    (rxdesc.flags & RX_FLAG_IV_STRIPPED)) {
-		rt2x00crypto_rx_insert_iv(entry->skb, align,
-					  header_length, &rxdesc);
-	} else if (align) {
-		skb_push(entry->skb, align);
-		/* Move entire frame in 1 command */
-		memmove(entry->skb->data, entry->skb->data + align,
-			rxdesc.size);
-	}
-
-	/* Update data pointers, trim buffer to correct size */
-	skb_trim(entry->skb, rxdesc.size);
+	    (rxdesc.flags & RX_FLAG_IV_STRIPPED))
+		rt2x00crypto_rx_insert_iv(entry->skb, l2pad, header_length,
+					  &rxdesc);
+	else
+		rt2x00queue_payload_align(entry->skb, l2pad, header_length);
 
 	/*
 	 * Update RX statistics.

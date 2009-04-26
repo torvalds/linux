@@ -87,13 +87,16 @@ enum data_queue_qid {
  *
  * @SKBDESC_DMA_MAPPED_RX: &skb_dma field has been mapped for RX
  * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
- * @FRAME_DESC_IV_STRIPPED: Frame contained a IV/EIV provided by
+ * @SKBDESC_IV_STRIPPED: Frame contained a IV/EIV provided by
  *	mac80211 but was stripped for processing by the driver.
+ * @SKBDESC_L2_PADDED: Payload has been padded for 4-byte alignment,
+ *	the padded bytes are located between header and payload.
  */
 enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = 1 << 0,
 	SKBDESC_DMA_MAPPED_TX = 1 << 1,
-	FRAME_DESC_IV_STRIPPED = 1 << 2,
+	SKBDESC_IV_STRIPPED = 1 << 2,
+	SKBDESC_L2_PADDED = 1 << 3
 };
 
 /**
@@ -148,6 +151,7 @@ static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
  * @RXDONE_MY_BSS: Does this frame originate from device's BSS.
  * @RXDONE_CRYPTO_IV: Driver provided IV/EIV data.
  * @RXDONE_CRYPTO_ICV: Driver provided ICV data.
+ * @RXDONE_L2PAD: 802.11 payload has been padded to 4-byte boundary.
  */
 enum rxdone_entry_desc_flags {
 	RXDONE_SIGNAL_PLCP = 1 << 0,
@@ -155,6 +159,7 @@ enum rxdone_entry_desc_flags {
 	RXDONE_MY_BSS = 1 << 2,
 	RXDONE_CRYPTO_IV = 1 << 3,
 	RXDONE_CRYPTO_ICV = 1 << 4,
+	RXDONE_L2PAD = 1 << 5,
 };
 
 /**
@@ -267,6 +272,8 @@ enum txentry_desc_flags {
  *
  * @flags: Descriptor flags (See &enum queue_entry_flags).
  * @queue: Queue identification (See &enum data_queue_qid).
+ * @header_length: Length of 802.11 header.
+ * @l2pad: Amount of padding to align 802.11 payload to 4-byte boundrary.
  * @length_high: PLCP length high word.
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
@@ -286,6 +293,9 @@ struct txentry_desc {
 	unsigned long flags;
 
 	enum data_queue_qid queue;
+
+	u16 header_length;
+	u16 l2pad;
 
 	u16 length_high;
 	u16 length_low;

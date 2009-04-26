@@ -113,6 +113,23 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 
 /**
+ * rt2x00queue_payload_align - Align 802.11 payload to 4-byte boundary
+ * @skb: The skb to align
+ * @l2pad: Should L2 padding be used
+ * @header_length: Length of 802.11 header
+ *
+ * This function prepares the @skb to be send to the device or mac80211.
+ * If @l2pad is set to true padding will occur between the 802.11 header
+ * and payload. Otherwise the padding will be done in front of the 802.11
+ * header.
+ * When @l2pad is set the function will check for the &SKBDESC_L2_PADDED
+ * flag in &skb_frame_desc. If that flag is set, the padding is removed
+ * and the flag cleared. Otherwise the padding is added and the flag is set.
+ */
+void rt2x00queue_payload_align(struct sk_buff *skb,
+			       bool l2pad, unsigned int header_length);
+
+/**
  * rt2x00queue_write_tx_frame - Write TX frame to hardware
  * @queue: Queue over which the frame should be send
  * @skb: The skb to send
@@ -299,8 +316,8 @@ void rt2x00crypto_tx_copy_iv(struct sk_buff *skb,
 			     struct txentry_desc *txdesc);
 void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
 			       struct txentry_desc *txdesc);
-void rt2x00crypto_tx_insert_iv(struct sk_buff *skb);
-void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
+void rt2x00crypto_tx_insert_iv(struct sk_buff *skb, unsigned int header_length);
+void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 			       unsigned int header_length,
 			       struct rxdone_entry_desc *rxdesc);
 #else
@@ -330,12 +347,12 @@ static inline void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
 {
 }
 
-static inline void rt2x00crypto_tx_insert_iv(struct sk_buff *skb)
+static inline void rt2x00crypto_tx_insert_iv(struct sk_buff *skb,
+					     unsigned int header_length)
 {
 }
 
-static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
-					     unsigned int align,
+static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 					     unsigned int header_length,
 					     struct rxdone_entry_desc *rxdesc)
 {

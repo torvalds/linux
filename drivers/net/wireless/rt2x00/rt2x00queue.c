@@ -148,6 +148,35 @@ void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
+void rt2x00queue_payload_align(struct sk_buff *skb,
+			       bool l2pad, unsigned int header_length)
+{
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
+	unsigned int frame_length = skb->len;
+	unsigned int align = ALIGN_SIZE(skb, header_length);
+
+	if (!align)
+		return;
+
+	if (l2pad) {
+		if (skbdesc->flags & SKBDESC_L2_PADDED) {
+			/* Remove L2 padding */
+			memmove(skb->data + align, skb->data, header_length);
+			skb_pull(skb, align);
+			skbdesc->flags &= ~SKBDESC_L2_PADDED;
+		} else {
+			/* Add L2 padding */
+			skb_push(skb, align);
+			memmove(skb->data, skb->data + align, header_length);
+			skbdesc->flags |= SKBDESC_L2_PADDED;
+		}
+	} else {
+		/* Generic payload alignment to 4-byte boundary */
+		skb_push(skb, align);
+		memmove(skb->data, skb->data + align, frame_length);
+	}
+}
+
 static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 						 struct txentry_desc *txdesc)
 {
@@ -257,6 +286,12 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	txdesc->cw_min = entry->queue->cw_min;
 	txdesc->cw_max = entry->queue->cw_max;
 	txdesc->aifs = entry->queue->aifs;
+
+	/*
+	 * Header and alignment information.
+	 */
+	txdesc->header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
+	txdesc->l2pad = ALIGN_SIZE(entry->skb, txdesc->header_length);
 
 	/*
 	 * Check whether this frame is to be acked.
@@ -415,6 +450,10 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 		else
 			rt2x00crypto_tx_remove_iv(skb, &txdesc);
 	}
+
+	if (test_bit(DRIVER_REQUIRE_L2PAD, &queue->rt2x00dev->flags))
+		rt2x00queue_payload_align(entry->skb, true,
+					  txdesc.header_length);
 
 	/*
 	 * It could be possible that the queue was corrupted and this
