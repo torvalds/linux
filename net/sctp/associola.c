@@ -575,6 +575,13 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 	if (asoc->shutdown_last_sent_to == peer)
 		asoc->shutdown_last_sent_to = NULL;
 
+	/* If we remove the transport an ASCONF was last sent to, set it to
+	 * NULL.
+	 */
+	if (asoc->addip_last_asconf &&
+	    asoc->addip_last_asconf->transport == peer)
+		asoc->addip_last_asconf->transport = NULL;
+
 	asoc->peer.transport_count--;
 
 	sctp_transport_free(peer);
