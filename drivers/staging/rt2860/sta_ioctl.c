@@ -3142,13 +3142,6 @@ INT RTMPSetInformation(
     UCHAR                               wpa_supplicant_enable = 0;
 #endif // WPA_SUPPLICANT_SUPPORT //
 
-#ifdef SNMP_SUPPORT
-	TX_RTY_CFG_STRUC			tx_rty_cfg;
-	ULONG						ShortRetryLimit, LongRetryLimit;
-	UCHAR						ctmp;
-#endif // SNMP_SUPPORT //
-
-
 #ifdef DOT11_N_SUPPORT
 	MaxPhyMode = PHY_11N_5G;
 #endif // DOT11_N_SUPPORT //
@@ -4269,93 +4262,6 @@ INT RTMPSetInformation(
 	        break;
 #endif // WPA_SUPPLICANT_SUPPORT //
 
-
-
-#ifdef SNMP_SUPPORT
-		case OID_802_11_SHORTRETRYLIMIT:
-			if (wrq->u.data.length != sizeof(ULONG))
-				Status = -EINVAL;
-			else
-			{
-				Status = copy_from_user(&ShortRetryLimit, wrq->u.data.pointer, wrq->u.data.length);
-				RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-				tx_rty_cfg.field.ShortRtyLimit = ShortRetryLimit;
-				RTMP_IO_WRITE32(pAdapter, TX_RTY_CFG, tx_rty_cfg.word);
-				DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_SHORTRETRYLIMIT (tx_rty_cfg.field.ShortRetryLimit=%d, ShortRetryLimit=%ld)\n", tx_rty_cfg.field.ShortRtyLimit, ShortRetryLimit));
-			}
-			break;
-
-		case OID_802_11_LONGRETRYLIMIT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_LONGRETRYLIMIT \n"));
-			if (wrq->u.data.length != sizeof(ULONG))
-				Status = -EINVAL;
-			else
-			{
-				Status = copy_from_user(&LongRetryLimit, wrq->u.data.pointer, wrq->u.data.length);
-				RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-				tx_rty_cfg.field.LongRtyLimit = LongRetryLimit;
-				RTMP_IO_WRITE32(pAdapter, TX_RTY_CFG, tx_rty_cfg.word);
-				DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_LONGRETRYLIMIT (tx_rty_cfg.field.LongRetryLimit= %d,LongRetryLimit=%ld)\n", tx_rty_cfg.field.LongRtyLimit, LongRetryLimit));
-			}
-			break;
-
-		case OID_802_11_WEPDEFAULTKEYVALUE:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_WEPDEFAULTKEYVALUE\n"));
-			pKey = kmalloc(wrq->u.data.length, GFP_KERNEL);
-			Status = copy_from_user(pKey, wrq->u.data.pointer, wrq->u.data.length);
-			//pKey = &WepKey;
-
-			if ( pKey->Length != wrq->u.data.length)
-			{
-				Status = -EINVAL;
-				DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_WEPDEFAULTKEYVALUE, Failed!!\n"));
-			}
-			KeyIdx = pKey->KeyIndex & 0x0fffffff;
-			DBGPRINT(RT_DEBUG_TRACE,("pKey->KeyIndex =%d, pKey->KeyLength=%d\n", pKey->KeyIndex, pKey->KeyLength));
-
-			// it is a shared key
-			if (KeyIdx > 4)
-				Status = -EINVAL;
-			else
-			{
-				pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen = (UCHAR) pKey->KeyLength;
-				NdisMoveMemory(&pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].Key, &pKey->KeyMaterial, pKey->KeyLength);
-				if (pKey->KeyIndex & 0x80000000)
-				{
-					// Default key for tx (shared key)
-					pAdapter->StaCfg.DefaultKeyId = (UCHAR) KeyIdx;
-				}
-				//RestartAPIsRequired = TRUE;
-			}
-			break;
-
-
-		case OID_802_11_WEPDEFAULTKEYID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_WEPDEFAULTKEYID \n"));
-
-			if (wrq->u.data.length != sizeof(UCHAR))
-				Status = -EINVAL;
-			else
-				Status = copy_from_user(&pAdapter->StaCfg.DefaultKeyId, wrq->u.data.pointer, wrq->u.data.length);
-
-			break;
-
-
-		case OID_802_11_CURRENTCHANNEL:
-			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_CURRENTCHANNEL \n"));
-			if (wrq->u.data.length != sizeof(UCHAR))
-				Status = -EINVAL;
-			else
-			{
-				Status = copy_from_user(&ctmp, wrq->u.data.pointer, wrq->u.data.length);
-				sprintf(&ctmp,"%d", ctmp);
-				Set_Channel_Proc(pAdapter, &ctmp);
-			}
-			break;
-#endif
-
-
-
         default:
             DBGPRINT(RT_DEBUG_TRACE, ("Set::unknown IOCTL's subcmd = 0x%08x\n", cmd));
             Status = -EOPNOTSUPP;
@@ -4396,16 +4302,6 @@ INT RTMPQueryInformation(
     BOOLEAN                             RadioState;
 	UCHAR	driverVersion[8];
     OID_SET_HT_PHYMODE			        *pHTPhyMode = NULL;
-
-
-#ifdef SNMP_SUPPORT
-	//for snmp, kathy
-	DefaultKeyIdxValue			*pKeyIdxValue;
-	INT							valueLen;
-	TX_RTY_CFG_STRUC			tx_rty_cfg;
-	ULONG						ShortRetryLimit, LongRetryLimit;
-	UCHAR						tmp[64];
-#endif //SNMP
 
     switch(cmd)
     {
@@ -4997,132 +4893,6 @@ INT RTMPQueryInformation(
             }
             DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_QUERY_MULTIPLE_CARD_SUPPORT(=%d) \n", i));
             break;
-#ifdef SNMP_SUPPORT
-		case RT_OID_802_11_MAC_ADDRESS:
-            wrq->u.data.length = MAC_ADDR_LEN;
-            Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CurrentAddress, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_MANUFACTUREROUI:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_MANUFACTUREROUI \n"));
-			wrq->u.data.length = ManufacturerOUI_LEN;
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CurrentAddress, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_MANUFACTURERNAME:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_MANUFACTURERNAME \n"));
-			wrq->u.data.length = strlen(ManufacturerNAME);
-			Status = copy_to_user(wrq->u.data.pointer, ManufacturerNAME, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_RESOURCETYPEIDNAME:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_RESOURCETYPEIDNAME \n"));
-			wrq->u.data.length = strlen(ResourceTypeIdName);
-			Status = copy_to_user(wrq->u.data.pointer, ResourceTypeIdName, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_PRIVACYOPTIONIMPLEMENTED:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_PRIVACYOPTIONIMPLEMENTED \n"));
-			ulInfo = 1; // 1 is support wep else 2 is not support.
-			wrq->u.data.length = sizeof(ulInfo);
-			Status = copy_to_user(wrq->u.data.pointer, &ulInfo, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_POWERMANAGEMENTMODE:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_POWERMANAGEMENTMODE \n"));
-			if (pAdapter->StaCfg.Psm == PSMP_ACTION)
-				ulInfo = 1; // 1 is power active else 2 is power save.
-			else
-				ulInfo = 2;
-
-			wrq->u.data.length = sizeof(ulInfo);
-			Status = copy_to_user(wrq->u.data.pointer, &ulInfo, wrq->u.data.length);
-			break;
-
-		case OID_802_11_WEPDEFAULTKEYVALUE:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_WEPDEFAULTKEYVALUE \n"));
-			//KeyIdxValue.KeyIdx = pAd->PortCfg.MBSSID[pAd->IoctlIF].DefaultKeyId;
-			pKeyIdxValue = wrq->u.data.pointer;
-			DBGPRINT(RT_DEBUG_TRACE,("KeyIdxValue.KeyIdx = %d, \n",pKeyIdxValue->KeyIdx));
-			valueLen = pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen;
-			NdisMoveMemory(pKeyIdxValue->Value,
-						   &pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].Key,
-						   valueLen);
-			pKeyIdxValue->Value[valueLen]='\0';
-
-			wrq->u.data.length = sizeof(DefaultKeyIdxValue);
-
-			Status = copy_to_user(wrq->u.data.pointer, pKeyIdxValue, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE,("DefaultKeyId = %d, total len = %d, str len=%d, KeyValue= %02x %02x %02x %02x \n", pAdapter->StaCfg.DefaultKeyId, wrq->u.data.length, pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen,
-			pAdapter->SharedKey[BSS0][0].Key[0],
-			pAdapter->SharedKey[BSS0][1].Key[0],
-			pAdapter->SharedKey[BSS0][2].Key[0],
-			pAdapter->SharedKey[BSS0][3].Key[0]));
-			break;
-
-		case OID_802_11_WEPDEFAULTKEYID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_WEPDEFAULTKEYID \n"));
-			wrq->u.data.length = sizeof(UCHAR);
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->StaCfg.DefaultKeyId, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE, ("DefaultKeyId =%d \n", pAdapter->StaCfg.DefaultKeyId));
-			break;
-
-		case RT_OID_802_11_WEPKEYMAPPINGLENGTH:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_WEPKEYMAPPINGLENGTH \n"));
-			wrq->u.data.length = sizeof(UCHAR);
-			Status = copy_to_user(wrq->u.data.pointer,
-									&pAdapter->SharedKey[BSS0][pAdapter->StaCfg.DefaultKeyId].KeyLen,
-									wrq->u.data.length);
-			break;
-
-		case OID_802_11_SHORTRETRYLIMIT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_SHORTRETRYLIMIT \n"));
-			wrq->u.data.length = sizeof(ULONG);
-			RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-			ShortRetryLimit = tx_rty_cfg.field.ShortRtyLimit;
-			DBGPRINT(RT_DEBUG_TRACE, ("ShortRetryLimit =%ld,  tx_rty_cfg.field.ShortRetryLimit=%d\n", ShortRetryLimit, tx_rty_cfg.field.ShortRtyLimit));
-			Status = copy_to_user(wrq->u.data.pointer, &ShortRetryLimit, wrq->u.data.length);
-			break;
-
-		case OID_802_11_LONGRETRYLIMIT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_LONGRETRYLIMIT \n"));
-			wrq->u.data.length = sizeof(ULONG);
-			RTMP_IO_READ32(pAdapter, TX_RTY_CFG, &tx_rty_cfg.word);
-			LongRetryLimit = tx_rty_cfg.field.LongRtyLimit;
-			DBGPRINT(RT_DEBUG_TRACE, ("LongRetryLimit =%ld,  tx_rty_cfg.field.LongRtyLimit=%d\n", LongRetryLimit, tx_rty_cfg.field.LongRtyLimit));
-			Status = copy_to_user(wrq->u.data.pointer, &LongRetryLimit, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_PRODUCTID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_PRODUCTID \n"));
-
-			{
-
-				USHORT  device_id;
-				if (((POS_COOKIE)pAdapter->OS_Cookie)->pci_dev != NULL)
-			    	pci_read_config_word(((POS_COOKIE)pAdapter->OS_Cookie)->pci_dev, PCI_DEVICE_ID, &device_id);
-				else
-					DBGPRINT(RT_DEBUG_TRACE, (" pci_dev = NULL\n"));
-				sprintf(tmp, "%04x %04x\n", NIC_PCI_VENDOR_ID, device_id);
-			}
-			wrq->u.data.length = strlen(tmp);
-			Status = copy_to_user(wrq->u.data.pointer, tmp, wrq->u.data.length);
-			break;
-
-		case RT_OID_802_11_MANUFACTUREID:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_MANUFACTUREID \n"));
-			wrq->u.data.length = strlen(ManufacturerNAME);
-			Status = copy_to_user(wrq->u.data.pointer, ManufacturerNAME, wrq->u.data.length);
-			break;
-
-		case OID_802_11_CURRENTCHANNEL:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_CURRENTCHANNEL \n"));
-			wrq->u.data.length = sizeof(UCHAR);
-			DBGPRINT(RT_DEBUG_TRACE, ("sizeof UCHAR=%d, channel=%d \n", sizeof(UCHAR), pAdapter->CommonCfg.Channel));
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.Channel, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE, ("Status=%d\n", Status));
-			break;
-#endif //SNMP_SUPPORT
 
 		case OID_802_11_BUILD_CHANNEL_EX:
 			{
