@@ -54,15 +54,6 @@
 #define NIC_TAG             ((ULONG)'0682')
 #define NIC_DBG_STRING      ("**RT28xx**")
 
-#ifdef SNMP_SUPPORT
-// for snmp
-// to get manufacturer OUI, kathy, 2008_0220
-#define ManufacturerOUI_LEN			3
-#define ManufacturerNAME			("Ralink Technology Company.")
-#define	ResourceTypeIdName			("Ralink_ID")
-#endif
-
-
 //#define PACKED
 
 #define RALINK_2883_VERSION		((UINT32)0x28830300)
