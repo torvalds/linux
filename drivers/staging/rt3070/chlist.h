@@ -957,16 +957,12 @@ static inline VOID ChBandCheck(
 	switch(PhyMode)
 	{
 		case PHY_11A:
-#ifdef DOT11_N_SUPPORT
 		case PHY_11AN_MIXED:
-#endif // DOT11_N_SUPPORT //
 			*pChType = BAND_5G;
 			break;
 		case PHY_11ABG_MIXED:
-#ifdef DOT11_N_SUPPORT
 		case PHY_11AGN_MIXED:
 		case PHY_11ABGN_MIXED:
-#endif // DOT11_N_SUPPORT //
 			*pChType = BAND_BOTH;
 			break;
 
@@ -1114,8 +1110,6 @@ static inline VOID BuildBeaconChList(
 	}
 }
 
-
-#ifdef DOT11_N_SUPPORT
 static inline BOOLEAN IsValidChannel(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR channel)
@@ -1230,8 +1224,6 @@ static inline VOID N_SetCenCh(
 		pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel;
 	}
 }
-#endif // DOT11_N_SUPPORT //
-
 
 static inline UINT8 GetCuntryMaxTxPwr(
 	IN PRTMP_ADAPTER pAd,

@@ -750,7 +750,6 @@ typedef enum _RT_802_11_PHY_MODE {
 	PHY_11A,
 	PHY_11ABG_MIXED,
 	PHY_11G,
-#ifdef DOT11_N_SUPPORT
 	PHY_11ABGN_MIXED,	// both band   5
 	PHY_11N_2_4G,		// 11n-only with 2.4G band   	6
 	PHY_11GN_MIXED,	// 2.4G band      7
@@ -758,7 +757,6 @@ typedef enum _RT_802_11_PHY_MODE {
 	PHY_11BGN_MIXED,	// if check 802.11b.      9
 	PHY_11AGN_MIXED,	// if check 802.11b.      10
 	PHY_11N_5G,			// 11n-only with 5G band		11
-#endif // DOT11_N_SUPPORT //
 } RT_802_11_PHY_MODE;
 
 // put all proprietery for-query objects here to reduce # of Query_OID

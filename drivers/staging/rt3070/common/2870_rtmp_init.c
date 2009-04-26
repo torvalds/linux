@@ -237,7 +237,6 @@ NDIS_STATUS	NICInitTransmit(
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		for(acidx=0; acidx<4; acidx++)
 		{
-#if 1 //def DOT11_N_SUPPORT
 			PHT_TX_CONTEXT	pHTTXContext = &(pAd->TxContext[acidx]);
 
 			NdisZeroMemory(pHTTXContext, sizeof(HT_TX_CONTEXT));
@@ -260,7 +259,6 @@ NDIS_STATUS	NICInitTransmit(
 			pHTTXContext->BulkOutPipeId = acidx;
 			pHTTXContext->bRingEmpty = TRUE;
 			pHTTXContext->bCopySavePad = FALSE;
-#endif // DOT11_N_SUPPORT //
 			pAd->BulkOutPending[acidx] = FALSE;
 		}
 

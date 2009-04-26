@@ -341,7 +341,6 @@ VOID MlmeAssocReqAction(
 			FrameLen += tmp;
 		}
 
-#ifdef DOT11_N_SUPPORT
 		// HT
 		if ((pAd->MlmeAux.HtCapabilityLen > 0) && (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
 		{
@@ -368,7 +367,6 @@ VOID MlmeAssocReqAction(
 			}
 			FrameLen += TmpLen;
 		}
-#endif // DOT11_N_SUPPORT //
 
 		// add Ralink proprietary IE to inform AP this STA is going to use AGGREGATION or PIGGY-BACK+AGGREGATION
 		// Case I: (Aggregation + Piggy-Back)
@@ -691,7 +689,6 @@ VOID MlmeReassocReqAction(
 			FrameLen += tmp;
 		}
 
-#ifdef DOT11_N_SUPPORT
 		// HT
 		if ((pAd->MlmeAux.HtCapabilityLen > 0) && (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
 		{
@@ -718,7 +715,6 @@ VOID MlmeReassocReqAction(
 			}
 			FrameLen += TmpLen;
 		}
-#endif // DOT11_N_SUPPORT //
 
 		// add Ralink proprietary IE to inform AP this STA is going to use AGGREGATION or PIGGY-BACK+AGGREGATION
 		// Case I: (Aggregation + Piggy-Back)
@@ -897,9 +893,7 @@ VOID PeerAssocRspAction(
 		if(MAC_ADDR_EQUAL(Addr2, pAd->MlmeAux.Bssid))
 		{
 			DBGPRINT(RT_DEBUG_TRACE, ("PeerAssocRspAction():ASSOC - receive ASSOC_RSP to me (status=%d)\n", Status));
-#ifdef DOT11_N_SUPPORT
 			DBGPRINT(RT_DEBUG_TRACE, ("PeerAssocRspAction():MacTable [%d].AMsduSize = %d. ClientStatusFlags = 0x%lx \n",Elem->Wcid, pAd->MacTab.Content[BSSID_WCID].AMsduSize, pAd->MacTab.Content[BSSID_WCID].ClientStatusFlags));
-#endif // DOT11_N_SUPPORT //
 			RTMPCancelTimer(&pAd->MlmeAux.AssocTimer, &TimerCancelled);
 			if(Status == MLME_SUCCESS)
 			{
@@ -1050,7 +1044,7 @@ VOID AssocPostProc(
 	COPY_MAC_ADDR(pAd->MlmeAux.Bssid, pAddr2);
 	pAd->MlmeAux.Aid = Aid;
 	pAd->MlmeAux.CapabilityInfo = CapabilityInfo & SUPPORTED_CAPABILITY_INFO;
-#ifdef DOT11_N_SUPPORT
+
 	// Some HT AP might lost WMM IE. We add WMM ourselves. beacuase HT requires QoS on.
 	if ((HtCapabilityLen > 0) && (pEdcaParm->bValid == FALSE))
 	{
@@ -1076,7 +1070,6 @@ VOID AssocPostProc(
 		pEdcaParm->Txop[3]  = 48;
 
 	}
-#endif // DOT11_N_SUPPORT //
 
 	NdisMoveMemory(&pAd->MlmeAux.APEdcaParm, pEdcaParm, sizeof(EDCA_PARM));
 
@@ -1090,7 +1083,6 @@ VOID AssocPostProc(
 	NdisMoveMemory(pAd->MlmeAux.ExtRate, ExtRate, ExtRateLen);
 	RTMPCheckRates(pAd, pAd->MlmeAux.ExtRate, &pAd->MlmeAux.ExtRateLen);
 
-#ifdef DOT11_N_SUPPORT
 	if (HtCapabilityLen > 0)
 	{
 		RTMPCheckHt(pAd, BSSID_WCID, pHtCapability, pAddHtInfo);
@@ -1099,7 +1091,6 @@ VOID AssocPostProc(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("AssocPostProc===>    (Mmps=%d, AmsduSize=%d, )\n",
 		pAd->MacTab.Content[BSSID_WCID].MmpsMode, pAd->MacTab.Content[BSSID_WCID].AMsduSize));
-#endif // DOT11_N_SUPPORT //
 
 	// Set New WPA information
 	Idx = BssTableSearch(&pAd->ScanTab, pAddr2, pAd->MlmeAux.Channel);
@@ -1550,11 +1541,9 @@ BOOLEAN StaAddMacTableEntry(
     if ((pAd->CommonCfg.PhyMode == PHY_11G) && (MaxSupportedRate < RATE_FIRST_OFDM_RATE))
         return FALSE;
 
-#ifdef DOT11_N_SUPPORT
 	// 11n only
 	if (((pAd->CommonCfg.PhyMode == PHY_11N_2_4G) || (pAd->CommonCfg.PhyMode == PHY_11N_5G))&& (HtCapabilityLen == 0))
 		return FALSE;
-#endif // DOT11_N_SUPPORT //
 
 	if (!pEntry)
         return FALSE;
@@ -1600,7 +1589,6 @@ BOOLEAN StaAddMacTableEntry(
 		CLIENT_STATUS_CLEAR_FLAG(pEntry, fCLIENT_STATUS_PIGGYBACK_CAPABLE);
 	}
 
-#ifdef DOT11_N_SUPPORT
 	// If this Entry supports 802.11n, upgrade to HT rate.
 	if ((HtCapabilityLen != 0) && (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
 	{
@@ -1699,7 +1687,6 @@ BOOLEAN StaAddMacTableEntry(
 	}
 
 	NdisMoveMemory(&pEntry->HTCapability, pHtCapability, sizeof(HT_CAPABILITY_IE));
-#endif // DOT11_N_SUPPORT //
 
 	pEntry->HTPhyMode.word = pEntry->MaxHTPhyMode.word;
 	pEntry->CurrTxRate = pEntry->MaxSupportedRate;

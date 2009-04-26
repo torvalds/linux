@@ -197,11 +197,9 @@ INT Set_FragTest_Proc(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  PUCHAR          arg);
 
-#ifdef DOT11_N_SUPPORT
 INT Set_TGnWifiTest_Proc(
     IN  PRTMP_ADAPTER   pAd,
     IN  PUCHAR          arg);
-#endif // DOT11_N_SUPPORT //
 
 INT Set_LongRetryLimit_Proc(
 	IN	PRTMP_ADAPTER	pAdapter,
@@ -227,7 +225,6 @@ static struct {
 	{"BGProtection",				Set_BGProtection_Proc},
 	{"RTSThreshold",				Set_RTSThreshold_Proc},
 	{"FragThreshold",				Set_FragThreshold_Proc},
-#ifdef DOT11_N_SUPPORT
 	{"HtBw",		                Set_HtBw_Proc},
 	{"HtMcs",		                Set_HtMcs_Proc},
 	{"HtGi",		                Set_HtGi_Proc},
@@ -241,8 +238,6 @@ static struct {
 	{"HtBaDecline",					Set_BADecline_Proc},
 	{"HtProtect",		        	Set_HtProtect_Proc},
 	{"HtMimoPs",		        	Set_HtMimoPs_Proc},
-#endif // DOT11_N_SUPPORT //
-
 #ifdef AGGREGATION_SUPPORT
 	{"PktAggregate",				Set_PktAggregate_Proc},
 #endif
@@ -267,10 +262,8 @@ static struct {
 #endif
     {"WpaSupport",                  Set_Wpa_Support},
 	{"FixedTxMode",                 Set_FixedTxMode_Proc},
-#ifdef DOT11_N_SUPPORT
     {"TGnWifiTest",                 Set_TGnWifiTest_Proc},
     {"ForceGF",		        		Set_ForceGF_Proc},
-#endif // DOT11_N_SUPPORT //
 	{"LongRetry",	        		Set_LongRetryLimit_Proc},
 	{"ShortRetry",	        		Set_ShortRetryLimit_Proc},
 //2008/09/11:KH add to support efuse<--
@@ -1828,7 +1821,6 @@ rt_private_get_statistics(struct net_device *dev, struct iw_request_info *info,
     return Status;
 }
 
-#ifdef DOT11_N_SUPPORT
 void	getBaInfo(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			pOutBuf)
@@ -1876,7 +1868,6 @@ void	getBaInfo(
 
 	return;
 }
-#endif // DOT11_N_SUPPORT //
 
 static int
 rt_private_show(struct net_device *dev, struct iw_request_info *info,
@@ -1922,12 +1913,10 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
         case SHOW_CONN_STATUS:
             if (MONITOR_ON(pAd))
             {
-#ifdef DOT11_N_SUPPORT
                 if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED &&
                     pAd->CommonCfg.RegTransmitSetting.field.BW)
                     sprintf(extra, "Monitor Mode(CentralChannel %d)\n", pAd->CommonCfg.CentralChannel);
                 else
-#endif // DOT11_N_SUPPORT //
                     sprintf(extra, "Monitor Mode(Channel %d)\n", pAd->CommonCfg.Channel);
             }
             else
@@ -1961,12 +1950,10 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
             sprintf(extra, "Driver version-%s, %s %s\n", STA_DRIVER_VERSION, __DATE__, __TIME__ );
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
-#ifdef DOT11_N_SUPPORT
         case SHOW_BA_INFO:
             getBaInfo(pAd, extra);
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
-#endif // DOT11_N_SUPPORT //
 		case SHOW_DESC_INFO:
 			{
 				Show_DescInfo_Proc(pAd, NULL);
@@ -2808,9 +2795,7 @@ int rt_ioctl_siwrate(struct net_device *dev,
 		    (pAd->MacTab.Content[BSSID_WCID].HTPhyMode.field.MODE <= MODE_OFDM))
 			RTMPSetDesiredRates(pAd, -1);
 
-#ifdef DOT11_N_SUPPORT
 		SetCommonHT(pAd);
-#endif // DOT11_N_SUPPORT //
     }
     else
     {
@@ -2823,9 +2808,7 @@ int rt_ioctl_siwrate(struct net_device *dev,
             else
             {
                 pAd->StaCfg.DesiredTransmitSetting.field.MCS = MCS_AUTO;
-#ifdef DOT11_N_SUPPORT
                 SetCommonHT(pAd);
-#endif // DOT11_N_SUPPORT //
             }
             DBGPRINT(RT_DEBUG_TRACE, ("rt_ioctl_siwrate::(HtMcs=%d)\n",pAd->StaCfg.DesiredTransmitSetting.field.MCS));
         }
@@ -2873,14 +2856,12 @@ int rt_ioctl_giwrate(struct net_device *dev,
     else
         ht_setting.word = pAd->MacTab.Content[BSSID_WCID].HTPhyMode.word;
 
-#ifdef DOT11_N_SUPPORT
     if (ht_setting.field.MODE >= MODE_HTMIX)
     {
 //    	rate_index = 12 + ((UCHAR)ht_setting.field.BW *16) + ((UCHAR)ht_setting.field.ShortGI *32) + ((UCHAR)ht_setting.field.MCS);
     	rate_index = 12 + ((UCHAR)ht_setting.field.BW *24) + ((UCHAR)ht_setting.field.ShortGI *48) + ((UCHAR)ht_setting.field.MCS);
     }
     else
-#endif // DOT11_N_SUPPORT //
     if (ht_setting.field.MODE == MODE_OFDM)
     	rate_index = (UCHAR)(ht_setting.field.MCS) + 4;
     else if (ht_setting.field.MODE == MODE_CCK)
@@ -3045,18 +3026,13 @@ INT RTMPSetInformation(
     ULONG                               PowerTemp;
     BOOLEAN                             RadioState;
     BOOLEAN                             StateMachineTouched = FALSE;
-#ifdef DOT11_N_SUPPORT
 	OID_SET_HT_PHYMODE					HT_PhyMode;	//11n ,kathy
-#endif // DOT11_N_SUPPORT //
     PNDIS_802_11_PMKID                  pPmkId = NULL;
     BOOLEAN				                IEEE8021xState = FALSE;
     BOOLEAN				                IEEE8021x_required_keys = FALSE;
     UCHAR                               wpa_supplicant_enable = 0;
 
-#ifdef DOT11_N_SUPPORT
 	MaxPhyMode = PHY_11N_5G;
-#endif // DOT11_N_SUPPORT //
-
 
 	DBGPRINT(RT_DEBUG_TRACE, ("-->RTMPSetInformation(),	0x%08x\n", cmd&0x7FFF));
     switch(cmd & 0x7FFF) {
@@ -3076,9 +3052,7 @@ INT RTMPSetInformation(
 				pAdapter->CommonCfg.PhyMode = 0xff;
 				// Build all corresponding channel information
 				RTMPSetPhyMode(pAdapter, TmpPhy);
-#ifdef DOT11_N_SUPPORT
 				SetCommonHT(pAdapter);
-#endif // DOT11_N_SUPPORT //
 				DBGPRINT(RT_DEBUG_TRACE, ("Set::RT_OID_802_11_COUNTRY_REGION (A:%d  B/G:%d)\n", pAdapter->CommonCfg.CountryRegionForABand,
 				    pAdapter->CommonCfg.CountryRegion));
             }
@@ -3256,9 +3230,7 @@ INT RTMPSetInformation(
 				if (PhyMode <= MaxPhyMode)
 				{
                 	RTMPSetPhyMode(pAdapter, PhyMode);
-#ifdef DOT11_N_SUPPORT
 					SetCommonHT(pAdapter);
-#endif // DOT11_N_SUPPORT //
 				}
                 DBGPRINT(RT_DEBUG_TRACE, ("Set::RT_OID_802_11_PHY_MODE (=%d)\n", PhyMode));
             }
@@ -3536,10 +3508,10 @@ INT RTMPSetInformation(
 					RTMPSetPhyMode(pAdapter, PHY_11A);
 				else
 					Status = -EINVAL;
-#ifdef DOT11_N_SUPPORT
+
 				if (Status == NDIS_STATUS_SUCCESS)
 					SetCommonHT(pAdapter);
-#endif // DOT11_N_SUPPORT //
+
                 DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_NETWORK_TYPE_IN_USE (=%d)\n",NetType));
 		    }
 			break;
@@ -3683,7 +3655,6 @@ INT RTMPSetInformation(
                 pAdapter->bConfigChanged = TRUE;
             }
             break;
-#ifdef DOT11_N_SUPPORT
 		case RT_OID_802_11_SET_HT_PHYMODE:
 			if (wrq->u.data.length	!= sizeof(OID_SET_HT_PHYMODE))
 				Status = -EINVAL;
@@ -3702,7 +3673,6 @@ INT RTMPSetInformation(
 				pAdapter->StaCfg.HTPhyMode.field.MCS, pAdapter->StaCfg.HTPhyMode.field.BW, pAdapter->StaCfg.HTPhyMode.field.ShortGI,
 				pAdapter->StaCfg.HTPhyMode.field.STBC));
 			break;
-#endif // DOT11_N_SUPPORT //
 		case RT_OID_802_11_SET_APSD_SETTING:
 			if (wrq->u.data.length != sizeof(ULONG))
 				Status = -EINVAL;
@@ -3785,8 +3755,6 @@ INT RTMPSetInformation(
 				StateMachineTouched	= TRUE;
 			}
 			break;
-
-#ifdef DOT11_N_SUPPORT
 		case RT_OID_802_11_SET_IMME_BA_CAP:
 				if (wrq->u.data.length != sizeof(OID_BACAP_STRUC))
 					Status = -EINVAL;
@@ -3941,8 +3909,6 @@ INT RTMPSetInformation(
 				}
             }
             break;
-#endif // DOT11_N_SUPPORT //
-
         // For WPA_SUPPLICANT to set static wep key
     	case OID_802_11_ADD_WEP:
     	    pWepKey = kmalloc(wrq->u.data.length, MEM_ALLOC_FLAG);
@@ -5272,19 +5238,14 @@ INT Set_NetworkType_Proc(
 		DBGPRINT(RT_DEBUG_TRACE, ("fOP_STATUS_MEDIA_STATE_CONNECTED \n"));
         if (pAdapter->CommonCfg.CentralChannel == 0)
         {
-#ifdef DOT11_N_SUPPORT
             if (pAdapter->CommonCfg.PhyMode == PHY_11AN_MIXED)
                 pAdapter->CommonCfg.CentralChannel = 36;
             else
-#endif // DOT11_N_SUPPORT //
                 pAdapter->CommonCfg.CentralChannel = 6;
         }
-#ifdef DOT11_N_SUPPORT
         else
             N_ChannelCheck(pAdapter);
-#endif // DOT11_N_SUPPORT //
 
-#ifdef DOT11_N_SUPPORT
 	if (pAdapter->CommonCfg.PhyMode >= PHY_11ABGN_MIXED &&
             pAdapter->CommonCfg.RegTransmitSetting.field.BW == BW_40 &&
             pAdapter->CommonCfg.RegTransmitSetting.field.EXTCHA == EXTCHA_ABOVE)
@@ -5335,7 +5296,6 @@ INT Set_NetworkType_Proc(
                                        pAdapter->CommonCfg.CentralChannel));
 		}
 		else
-#endif // DOT11_N_SUPPORT //
 		{
 			// 20MHz
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, BBP_R4, &bbpValue);
