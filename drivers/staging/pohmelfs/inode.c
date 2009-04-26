@@ -943,7 +943,7 @@ err_out_unlock:
 	return ret;
 }
 
-const static struct file_operations pohmelfs_file_ops = {
+static const struct file_operations pohmelfs_file_ops = {
 	.open		= generic_file_open,
 	.fsync		= pohmelfs_fsync,
 
