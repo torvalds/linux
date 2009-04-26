@@ -66,6 +66,7 @@ void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 
 	txdesc->key_idx = hw_key->hw_key_idx;
 	txdesc->iv_offset = ieee80211_get_hdrlen_from_skb(entry->skb);
+	txdesc->iv_len = hw_key->iv_len;
 
 	if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV))
 		__set_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags);
@@ -103,34 +104,32 @@ unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 	return overhead;
 }
 
-void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len)
+void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	unsigned int header_length = ieee80211_get_hdrlen_from_skb(skb);
 
-	if (unlikely(!iv_len))
+	if (unlikely(!txdesc->iv_len))
 		return;
 
 	/* Copy IV/EIV data */
-	memcpy(skbdesc->iv, skb->data + header_length, iv_len);
+	memcpy(skbdesc->iv, skb->data + txdesc->iv_offset, txdesc->iv_len);
 }
 
-void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len)
+void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	unsigned int header_length = ieee80211_get_hdrlen_from_skb(skb);
 
-	if (unlikely(!iv_len))
+	if (unlikely(!txdesc->iv_len))
 		return;
 
 	/* Copy IV/EIV data */
-	memcpy(skbdesc->iv, skb->data + header_length, iv_len);
+	memcpy(skbdesc->iv, skb->data + txdesc->iv_offset, txdesc->iv_len);
 
 	/* Move ieee80211 header */
-	memmove(skb->data + iv_len, skb->data, header_length);
+	memmove(skb->data + txdesc->iv_len, skb->data, txdesc->iv_offset);
 
 	/* Pull buffer to correct size */
-	skb_pull(skb, iv_len);
+	skb_pull(skb, txdesc->iv_len);
 
 	/* IV/EIV data has officially be stripped */
 	skbdesc->flags |= FRAME_DESC_IV_STRIPPED;

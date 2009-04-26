@@ -295,8 +295,10 @@ void rt2x00crypto_create_tx_descriptor(struct queue_entry *entry,
 				       struct txentry_desc *txdesc);
 unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev,
 				      struct sk_buff *skb);
-void rt2x00crypto_tx_copy_iv(struct sk_buff *skb, unsigned int iv_len);
-void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len);
+void rt2x00crypto_tx_copy_iv(struct sk_buff *skb,
+			     struct txentry_desc *txdesc);
+void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
+			       struct txentry_desc *txdesc);
 void rt2x00crypto_tx_insert_iv(struct sk_buff *skb);
 void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
 			       unsigned int header_length,
@@ -319,12 +321,12 @@ static inline unsigned int rt2x00crypto_tx_overhead(struct rt2x00_dev *rt2x00dev
 }
 
 static inline void rt2x00crypto_tx_copy_iv(struct sk_buff *skb,
-					   unsigned int iv_len)
+					   struct txentry_desc *txdesc)
 {
 }
 
 static inline void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
-					     unsigned int iv_len)
+					     struct txentry_desc *txdesc)
 {
 }
 

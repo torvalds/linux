@@ -280,6 +280,7 @@ enum txentry_desc_flags {
  * @cipher: Cipher type used for encryption.
  * @key_idx: Key index used for encryption.
  * @iv_offset: Position where IV should be inserted by hardware.
+ * @iv_len: Length of IV data.
  */
 struct txentry_desc {
 	unsigned long flags;
@@ -302,6 +303,7 @@ struct txentry_desc {
 	enum cipher cipher;
 	u16 key_idx;
 	u16 iv_offset;
+	u16 iv_len;
 };
 
 /**

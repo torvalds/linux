@@ -368,7 +368,6 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc;
-	unsigned int iv_len = 0;
 	u8 rate_idx, rate_flags;
 
 	if (unlikely(rt2x00queue_full(queue)))
@@ -389,9 +388,6 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	 */
 	entry->skb = skb;
 	rt2x00queue_create_tx_descriptor(entry, &txdesc);
-
-	if (IEEE80211_SKB_CB(skb)->control.hw_key != NULL)
-		iv_len = IEEE80211_SKB_CB(skb)->control.hw_key->iv_len;
 
 	/*
 	 * All information is retrieved from the skb->cb array,
@@ -415,9 +411,9 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
 	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {
 		if (test_bit(DRIVER_REQUIRE_COPY_IV, &queue->rt2x00dev->flags))
-			rt2x00crypto_tx_copy_iv(skb, iv_len);
+			rt2x00crypto_tx_copy_iv(skb, &txdesc);
 		else
-			rt2x00crypto_tx_remove_iv(skb, iv_len);
+			rt2x00crypto_tx_remove_iv(skb, &txdesc);
 	}
 
 	/*
