@@ -260,9 +260,8 @@ VOID CntlIdleProc(
 			DisassocParmFill(pAd, &DisassocReq, pAd->CommonCfg.Bssid, REASON_DISASSOC_STA_LEAVING);
 			MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_MLME_DISASSOC_REQ, sizeof(MLME_DISASSOC_REQ_STRUCT), &DisassocReq);
 			pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_OID_DISASSOC;
-#ifdef WPA_SUPPLICANT_SUPPORT
+
             if (pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_ENABLE_WITH_WEB_UI)
-#endif // WPA_SUPPLICANT_SUPPORT //
             {
     			// Set the AutoReconnectSsid to prevent it reconnect to old SSID
     			// Since calling this indicate user don't want to connect to that SSID anymore.
@@ -1479,15 +1478,11 @@ VOID LinkUp(
 
 
 		// If WEP is enabled, add paiewise and shared key
-#ifdef WPA_SUPPLICANT_SUPPORT
         if (((pAd->StaCfg.WpaSupplicantUP)&&
              (pAd->StaCfg.WepStatus == Ndis802_11WEPEnabled)&&
              (pAd->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)) ||
             ((pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_DISABLE)&&
               (pAd->StaCfg.WepStatus == Ndis802_11WEPEnabled)))
-#else
-		if (pAd->StaCfg.WepStatus == Ndis802_11WEPEnabled)
-#endif // WPA_SUPPLICANT_SUPPORT //
 		{
 			PUCHAR	Key;
 			UCHAR 	CipherAlg;
@@ -1915,7 +1910,7 @@ VOID LinkDown(
 	}
 
 	// 802.1x port control
-#ifdef WPA_SUPPLICANT_SUPPORT
+
 	// Prevent clear PortSecured here with static WEP
 	// NetworkManger set security policy first then set SSID to connect AP.
 	if (pAd->StaCfg.WpaSupplicantUP &&
@@ -1925,7 +1920,6 @@ VOID LinkDown(
 		pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 	}
 	else
-#endif // WPA_SUPPLICANT_SUPPORT //
 	{
 		pAd->StaCfg.PortSecured = WPA_802_1X_PORT_NOT_SECURED;
 		pAd->StaCfg.PrivacyFilter = Ndis802_11PrivFilter8021xWEP;

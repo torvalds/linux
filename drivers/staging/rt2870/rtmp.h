@@ -1949,7 +1949,6 @@ typedef struct _STA_ADMIN_CONFIG {
 	BOOLEAN		        bFastRoaming;       // 0:disable fast roaming, 1:enable fast roaming
 	CHAR		        dBmToRoam;          // the condition to roam when receiving Rssi less than this value. It's negative value.
 
-#ifdef WPA_SUPPLICANT_SUPPORT
     BOOLEAN             IEEE8021X;
     BOOLEAN             IEEE8021x_required_keys;
     CIPHER_KEY	        DesireSharedKey[4];	// Record user desired WEP keys
@@ -1960,7 +1959,6 @@ typedef struct _STA_ADMIN_CONFIG {
     // 2: driver takes care of scanning, AP selection, and IEEE 802.11 association parameters
     UCHAR               WpaSupplicantUP;
 	UCHAR				WpaSupplicantScanCount;
-#endif // WPA_SUPPLICANT_SUPPORT //
 
     CHAR                dev_name[16];
     USHORT              OriDevType;
@@ -5851,7 +5849,6 @@ VOID QueryBATABLE(
 	OUT PQUERYBA_TABLE pBAT);
 #endif // DOT11_N_SUPPORT //
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 INT	    WpaCheckEapCode(
 	IN  PRTMP_ADAPTER   	pAd,
 	IN  PUCHAR				pFrame,
@@ -5864,7 +5861,6 @@ VOID    WpaSendMicFailureToWpaSupplicant(
 
 VOID    SendAssocIEsToWpaSupplicant(
     IN  PRTMP_ADAPTER       pAd);
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 int wext_notify_event_assoc(
 	IN  RTMP_ADAPTER *pAd);

@@ -608,13 +608,6 @@ typedef	struct	_CmdQ	{
 	UINT32		CmdQState;
 }CmdQ, *PCmdQ;
 
-//
-// For WPA SUPPLICANT: WIRELESS EXT support wireless events: v14 or newer
-//
-#if WIRELESS_EXT >= 14
-//#define WPA_SUPPLICANT_SUPPORT  1
-#endif
-
 /* oid.h */
 // Cipher suite type for mixed mode group cipher, P802.11i-2004
 typedef enum _RT_802_11_CIPHER_SUITE_TYPE {

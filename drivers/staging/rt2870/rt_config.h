@@ -67,10 +67,6 @@
 #include "igmp_snoop.h"
 #endif // IGMP_SNOOP_SUPPORT //
 
-#ifndef WPA_SUPPLICANT_SUPPORT
-#error "Build for being controlled by NetworkManager or wext, please set HAS_WPA_SUPPLICANT=y"
-#endif // WPA_SUPPLICANT_SUPPORT //
-
 #ifdef IKANOS_VX_1X0
 #include	"vr_ikans.h"
 #endif // IKANOS_VX_1X0 //

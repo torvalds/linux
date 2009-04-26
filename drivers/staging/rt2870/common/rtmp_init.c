@@ -3316,13 +3316,10 @@ VOID	UserCfgInit(
 		NdisZeroMemory(pAd->nickname, IW_ESSID_MAX_SIZE+1);
 		sprintf(pAd->nickname, "%s", STA_NIC_DEVICE_NAME);
 		RTMPInitTimer(pAd, &pAd->StaCfg.WpaDisassocAndBlockAssocTimer, GET_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc), pAd, FALSE);
-#ifdef WPA_SUPPLICANT_SUPPORT
 		pAd->StaCfg.IEEE8021X = FALSE;
 		pAd->StaCfg.IEEE8021x_required_keys = FALSE;
 		pAd->StaCfg.WpaSupplicantUP = WPA_SUPPLICANT_DISABLE;
 		pAd->StaCfg.WpaSupplicantUP = WPA_SUPPLICANT_ENABLE;
-#endif // WPA_SUPPLICANT_SUPPORT //
-
 	}
 
 	// Default for extra information is not valid
