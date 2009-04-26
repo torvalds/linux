@@ -2549,10 +2549,6 @@ typedef struct _APCLI_STRUCT {
 	UCHAR       	SNonce[32];         // SNonce for WPA-PSK
 	UCHAR			GNonce[32];			// GNonce for WPA-PSK from authenticator
 
-#ifdef WSC_AP_SUPPORT
-	WSC_CTRL	           WscControl;
-#endif // WSC_AP_SUPPORT //
-
 	HTTRANSMIT_SETTING				HTPhyMode, MaxHTPhyMode, MinHTPhyMode;
 	RT_HT_PHY_INFO					DesiredHtPhyInfo;
 	BOOLEAN							bAutoTxRateSwitch;
