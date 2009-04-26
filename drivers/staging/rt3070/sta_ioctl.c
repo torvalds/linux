@@ -325,9 +325,6 @@ static struct {
 
 
 	{"FixedTxMode",                 Set_FixedTxMode_Proc},
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-	{"OpMode",						Set_OpMode_Proc},
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
 #ifdef DOT11_N_SUPPORT
     {"TGnWifiTest",                 Set_TGnWifiTest_Proc},
     {"ForceGF",		        		Set_ForceGF_Proc},
@@ -5409,14 +5406,6 @@ INT rt28xx_sta_ioctl(
     //check if the interface is down
     if(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE))
     {
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-	    if (wrq->u.data.pointer == NULL)
-	    {
-		    return Status;
-	    }
-
-	    if (strstr(wrq->u.data.pointer, "OpMode") == NULL)
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
         {
             DBGPRINT(RT_DEBUG_TRACE, ("INFO::Network is down!\n"));
 		    return -ENETDOWN;
