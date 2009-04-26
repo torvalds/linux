@@ -190,13 +190,7 @@ typedef struct _VIRTUAL_ADAPTER
 } VIRTUAL_ADAPTER, PVIRTUAL_ADAPTER;
 
 #undef  ASSERT
-#define ASSERT(x)                                                               \
-{                                                                               \
-    if (!(x))                                                                   \
-    {                                                                           \
-        printk(KERN_WARNING __FILE__ ":%d assert " #x "failed\n", __LINE__);    \
-    }                                                                           \
-}
+#define ASSERT(x)
 
 typedef struct os_cookie	* POS_COOKIE;
 typedef struct pci_dev 		* PPCI_DEV;
