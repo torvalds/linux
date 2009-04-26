@@ -234,7 +234,6 @@ NDIS_STATUS	NICInitTransmit(
 		//
 		// TX_RING_SIZE, 4 ACs
 		//
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		for(acidx=0; acidx<4; acidx++)
 		{
 			PHT_TX_CONTEXT	pHTTXContext = &(pAd->TxContext[acidx]);
@@ -432,7 +431,6 @@ out2:
 	}
 
 out1:
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	for(acidx=0; acidx<4; acidx++)
 	{
 		PHT_TX_CONTEXT pTxContext = &(pAd->TxContext[acidx]);
@@ -640,13 +638,12 @@ VOID	RTMPFreeTxRxRingMemory(
 
 
 	// Free Tx frame resource
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		for(acidx=0; acidx<4; acidx++)
-		{
+	for(acidx=0; acidx<4; acidx++)
+	{
 		PHT_TX_CONTEXT pHTTXContext = &(pAd->TxContext[acidx]);
 			if (pHTTXContext)
 				LM_URB_FREE(pObj, pHTTXContext, sizeof(HTTX_BUFFER));
-		}
+	}
 
 	if (pAd->FragFrame.pFragPacket)
 		RELEASE_NDIS_PACKET(pAd, pAd->FragFrame.pFragPacket, NDIS_STATUS_SUCCESS);

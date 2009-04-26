@@ -754,7 +754,6 @@ static void rtmp_read_key_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbuf, c
 	//DefaultKeyID
 	if(RTMPGetKeyParameter("DefaultKeyID", tmpbuf, 25, buffer))
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			KeyIdx = simple_strtol(tmpbuf, 0, 10);
 			if((KeyIdx >= 1 ) && (KeyIdx <= 4))
@@ -778,7 +777,6 @@ static void rtmp_read_key_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbuf, c
 			    KeyType[i] = simple_strtol(macptr, 0, 10);
 		    }
 
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			{
 				sprintf(tok_str, "Key%dStr", idx + 1);
 				if (RTMPGetCriticalParameter(tok_str, tmpbuf, 128, buffer))
@@ -884,8 +882,7 @@ NDIS_STATUS	RTMPReadParametersHook(
         return NDIS_STATUS_FAILURE;
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		src = STA_PROFILE_PATH;
+	src = STA_PROFILE_PATH;
 
 	// Save uid and gid used for filesystem access.
 	// Set user and group to 0 (root)
@@ -959,7 +956,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 						pAd->CommonCfg.CountryCode[2] = ' ';
 					}
 
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						//SSID
 						if (RTMPGetCriticalParameter("SSID", tmpbuf, 256, buffer))
@@ -980,7 +976,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 						}
 					}
 
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						//NetworkType
 						if (RTMPGetKeyParameter("NetworkType", tmpbuf, 25, buffer))
@@ -1034,8 +1029,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 					{
 						pAd->CommonCfg.TxPowerPercentage = (ULONG) simple_strtol(tmpbuf, 0, 10);
 
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-							pAd->CommonCfg.TxPowerDefault = pAd->CommonCfg.TxPowerPercentage;
+						pAd->CommonCfg.TxPowerDefault = pAd->CommonCfg.TxPowerPercentage;
 
 						DBGPRINT(RT_DEBUG_TRACE, ("TxPower=%ld\n", pAd->CommonCfg.TxPowerPercentage));
 					}
@@ -1157,8 +1151,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 #endif // AGGREGATION_SUPPORT //
 
 					// WmmCapable
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-						rtmp_read_sta_wmm_parms_from_file(pAd, tmpbuf, buffer);
+					rtmp_read_sta_wmm_parms_from_file(pAd, tmpbuf, buffer);
 
 					//ShortSlot
 					if(RTMPGetKeyParameter("ShortSlot", tmpbuf, 10, buffer))
@@ -1261,7 +1254,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 					//AuthMode
 					if(RTMPGetKeyParameter("AuthMode", tmpbuf, 128, buffer))
 					{
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							if ((strcmp(tmpbuf, "WEPAUTO") == 0) || (strcmp(tmpbuf, "wepauto") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeAutoSwitch;
@@ -1288,7 +1280,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 					//EncrypType
 					if(RTMPGetKeyParameter("EncrypType", tmpbuf, 128, buffer))
 					{
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							if ((strcmp(tmpbuf, "WEP") == 0) || (strcmp(tmpbuf, "wep") == 0))
 								pAd->StaCfg.WepStatus	= Ndis802_11WEPEnabled;
@@ -1310,7 +1301,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 						}
 					}
 
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						if(RTMPGetCriticalParameter("WPAPSK", tmpbuf, 512, buffer))
 						{
@@ -1397,7 +1387,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 					HTParametersHook(pAd, tmpbuf, buffer);
 
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						//PSMode
 						if (RTMPGetKeyParameter("PSMode", tmpbuf, 10, buffer))
@@ -1485,7 +1474,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 					}
 
 #ifdef RT30xx
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							if(RTMPGetKeyParameter("AntDiversity", tmpbuf, 10, buffer))
 							{
@@ -1770,7 +1758,6 @@ static void	HTParametersHook(
 	{
 		UCHAR	fix_tx_mode;
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			fix_tx_mode = FIXED_TXMODE_HT;
 
@@ -1846,7 +1833,6 @@ static void	HTParametersHook(
 	// MSC
 	if (RTMPGetKeyParameter("HT_MCS", pValueStr, 50, pInput))
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			Value = simple_strtol(pValueStr, 0, 10);
 

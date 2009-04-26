@@ -125,7 +125,6 @@ VOID MlmeADDBAAction(
 			pBAEntry =&pAd->BATable.BAOriEntry[Idx];
 		}
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (ADHOC_ON(pAd))
 				ActHeaderInit(pAd, &Frame.Hdr, pInfo->pAddr, pAd->CurrentAddress, pAd->CommonCfg.Bssid);
@@ -209,8 +208,7 @@ VOID MlmeDELBAAction(
 		// SEND BAR (Send BAR to refresh peer reordering buffer.)
 		Idx = pAd->MacTab.Content[pInfo->Wcid].BAOriWcidArray[pInfo->TID];
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			BarHeaderInit(pAd, &FrameBar, pAd->MacTab.Content[pInfo->Wcid].Addr, pAd->CurrentAddress);
+		BarHeaderInit(pAd, &FrameBar, pAd->MacTab.Content[pInfo->Wcid].Addr, pAd->CurrentAddress);
 
 		FrameBar.StartingSeq.field.FragNum = 0; // make sure sequence not clear in DEL funciton.
 		FrameBar.StartingSeq.field.StartSeq = pAd->MacTab.Content[pInfo->Wcid].TxSeq[pInfo->TID]; // make sure sequence not clear in DEL funciton.
@@ -229,7 +227,6 @@ VOID MlmeDELBAAction(
 		// SEND DELBA FRAME
 		FrameLen = 0;
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (ADHOC_ON(pAd))
 				ActHeaderInit(pAd, &Frame.Hdr, pAd->MacTab.Content[pInfo->Wcid].Addr, pAd->CurrentAddress, pAd->CommonCfg.Bssid);
@@ -359,7 +356,6 @@ static VOID respond_ht_information_exchange_action(
 
 	NdisZeroMemory(&HTINFOframe, sizeof(FRAME_HT_INFO));
 	// 2-1. Prepare ADDBA Response frame.
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (ADHOC_ON(pAd))
 			ActHeaderInit(pAd, &HTINFOframe.Hdr, pAddr, pAd->CurrentAddress, pAd->CommonCfg.Bssid);
@@ -532,8 +528,7 @@ VOID SendRefreshBAR(
 
 			Sequence = pEntry->TxSeq[TID];
 
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-				BarHeaderInit(pAd, &FrameBar, pEntry->Addr, pAd->CurrentAddress);
+			BarHeaderInit(pAd, &FrameBar, pEntry->Addr, pAd->CurrentAddress);
 
 			FrameBar.StartingSeq.field.FragNum = 0; // make sure sequence not clear in DEL function.
 			FrameBar.StartingSeq.field.StartSeq = Sequence; // make sure sequence not clear in DEL funciton.

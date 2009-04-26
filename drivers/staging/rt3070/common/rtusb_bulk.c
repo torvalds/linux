@@ -319,7 +319,6 @@ VOID	RTUSBBulkOutDataPacket(
 			break;
 		}
 		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 		if (pTxInfo->QSEL != FIFO_EDCA)
 		{
@@ -354,7 +353,6 @@ VOID	RTUSBBulkOutDataPacket(
 		pLastTxInfo = pTxInfo;
 
 		// Make sure we use EDCA QUEUE.
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		pTxInfo->QSEL = FIFO_EDCA; //PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 		ThisBulkSize += (pTxInfo->USBDMATxPktLen+4);
 		TmpBulkEndPos += (pTxInfo->USBDMATxPktLen+4);
@@ -842,8 +840,7 @@ VOID	RTUSBBulkReceive(
 			RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
 
 			// read RxContext, Since not
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-				STARxDoneInterruptHandle(pAd, TRUE);
+			STARxDoneInterruptHandle(pAd, TRUE);
 
 			// Finish to handle this bulkIn buffer.
 			RTMP_IRQ_LOCK(&pAd->BulkInLock, IrqFlags);

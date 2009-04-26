@@ -492,10 +492,7 @@ PNET_DEV get_netdev_from_bssid(
 {
     PNET_DEV dev_p = NULL;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		dev_p = pAd->net_dev;
-	}
+	dev_p = pAd->net_dev;
 
 	ASSERT(dev_p);
 	return dev_p; /* return one of MBSS */
@@ -651,11 +648,8 @@ void wlan_802_11_to_802_3_packet(
 	//
 	//
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		NdisMoveMemory(skb_push(pOSPkt, LENGTH_802_3), pHeader802_3, LENGTH_802_3);
-	}
-
-
+	NdisMoveMemory(skb_push(pOSPkt, LENGTH_802_3), pHeader802_3, LENGTH_802_3);
+}
 
 void announce_802_3_packet(
 	IN	PRTMP_ADAPTER	pAd,

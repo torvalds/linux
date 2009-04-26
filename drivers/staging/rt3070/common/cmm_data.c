@@ -377,12 +377,9 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 		return NDIS_STATUS_FAILURE;
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		// outgoing frame always wakeup PHY to prevent frame lost
-		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-			AsicForceWakeup(pAd, TRUE);
-	}
+	// outgoing frame always wakeup PHY to prevent frame lost
+	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+		AsicForceWakeup(pAd, TRUE);
 
 	pFirstTxWI = (PTXWI_STRUC)(pSrcBufVA +  TXINFO_SIZE);
 	pHeader_802_11 = (PHEADER_802_11) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE); //TXWI_SIZE);
@@ -406,7 +403,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 		pMacEntry = MacTableLookup(pAd, pHeader_802_11->Addr1);
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Fixed W52 with Activity scan issue in ABG_MIXED and ABGN_MIXED mode.
 		if (pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED
@@ -712,17 +708,13 @@ BOOLEAN RTMP_FillTxBlkInfo(
 			TX_BLK_SET_FLAG(pTxBlk, fTX_bAckRequired);
 
 		{
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			{
+			// If support WMM, enable it.
+			if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) &&
+				CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE))
+				TX_BLK_SET_FLAG(pTxBlk, fTX_bWMM);
 
-				// If support WMM, enable it.
-				if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) &&
-					CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE))
-					TX_BLK_SET_FLAG(pTxBlk, fTX_bWMM);
-
-//				if (pAd->StaCfg.bAutoTxRateSwitch)
-//					TX_BLK_SET_FLAG(pTxBlk, fTX_AutoRateSwitch);
-			}
+//			if (pAd->StaCfg.bAutoTxRateSwitch)
+//				TX_BLK_SET_FLAG(pTxBlk, fTX_AutoRateSwitch);
 		}
 
 		if (pTxBlk->TxFrameType == TX_LEGACY_FRAME)
@@ -859,7 +851,6 @@ VOID RTMPDeQueuePacket(
 	{
 		sQIdx = 0;
 //PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		eQIdx = 3;	// 4 ACs, start from 0.
 	}
 	else
@@ -979,9 +970,8 @@ VOID RTMPDeQueuePacket(
 
 			Count += pTxBlk->TxPacketList.Number;
 
-				// Do HardTransmit now.
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-				Status = STAHardTransmit(pAd, pTxBlk, QueIdx);
+			// Do HardTransmit now.
+			Status = STAHardTransmit(pAd, pTxBlk, QueIdx);
 		}
 
 		RT28XX_STOP_DEQUEUE(pAd, QueIdx, IrqFlags);
@@ -1662,7 +1652,6 @@ UINT deaggregate_AMSDU_announce(
 		   kfree(Elem);
 		}
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 	        	if (pRemovedLLCSNAP)
 	        	{
@@ -1675,8 +1664,7 @@ UINT deaggregate_AMSDU_announce(
 		pClonePacket = ClonePacket(pAd, pPacket, pPayload, PayloadSize);
 		if (pClonePacket)
 		{
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-				ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pClonePacket, RTMP_GET_PACKET_IF(pPacket));
+			ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pClonePacket, RTMP_GET_PACKET_IF(pPacket));
 		}
 
 
@@ -1775,8 +1763,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 
 	FirstWcid = 1;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-
 	if (pAd->StaCfg.BssType == BSS_INFRA)
 		FirstWcid = 2;
 
@@ -1801,7 +1787,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 				pEntry->PairwiseKey.CipherAlg = CIPHER_NONE;
 			}
 			{
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 					pEntry->ValidAsCLI = TRUE;
 					pEntry->ValidAsWDS = FALSE;
@@ -1829,7 +1814,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 				pEntry->apidx = apidx;
 
 			{
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 					pEntry->AuthMode = pAd->StaCfg.AuthMode;
 					pEntry->WepStatus = pAd->StaCfg.WepStatus;
@@ -2315,8 +2299,7 @@ VOID Indicate_Legacy_Packet(
 	// 2. remove LLC
 	// 		a. pointer pRxBlk->pData to payload
 	//      b. modify pRxBlk->DataSize
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
+	RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
 
 	if (pRxBlk->DataSize > MAX_RX_PKT_LEN)
 	{
@@ -2365,8 +2348,7 @@ VOID Indicate_Legacy_Packet(
 	//
 	// pass this 802.3 packet to upper layer or forward this packet to WM directly
 	//
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pRxPacket, FromWhichBSSID);
+	ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pRxPacket, FromWhichBSSID);
 }
 
 
@@ -2425,8 +2407,7 @@ VOID CmmRxRalinkFrameIndicate(
 	}
 
 	// get 802.3 Header and  remove LLC
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
+	RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
 
 	ASSERT(pRxBlk->pRxPacket);
 
@@ -2437,8 +2418,7 @@ VOID CmmRxRalinkFrameIndicate(
 
 	pData2 = pRxBlk->pData + Payload1Size + LENGTH_802_3;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		pPacket2 = duplicate_pkt(pAd, (pData2-LENGTH_802_3), LENGTH_802_3, pData2, Payload2Size, FromWhichBSSID);
+	pPacket2 = duplicate_pkt(pAd, (pData2-LENGTH_802_3), LENGTH_802_3, pData2, Payload2Size, FromWhichBSSID);
 
 	if (!pPacket2)
 	{
@@ -2451,13 +2431,11 @@ VOID CmmRxRalinkFrameIndicate(
 	pRxBlk->DataSize = Payload1Size;
 	wlan_802_11_to_802_3_packet(pAd, pRxBlk, Header802_3, FromWhichBSSID);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pRxBlk->pRxPacket, FromWhichBSSID);
+	ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pRxBlk->pRxPacket, FromWhichBSSID);
 
 	if (pPacket2)
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pPacket2, FromWhichBSSID);
+		ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pPacket2, FromWhichBSSID);
 	}
 }
 
@@ -2600,7 +2578,6 @@ VOID Indicate_EAPOL_Packet(
 {
 	MAC_TABLE_ENTRY *pEntry = NULL;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		pEntry = &pAd->MacTab.Content[BSSID_WCID];
 		STARxEAPOLFrameIndicate(pAd, pEntry, pRxBlk, FromWhichBSSID);

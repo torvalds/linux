@@ -612,7 +612,6 @@ VOID RT2870_WatchDog(IN RTMP_ADAPTER *pAd)
 	}
 
 //PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		idx = 0;
 		if ((MACValue & 0xff00) !=0 )
@@ -1312,10 +1311,7 @@ VOID RT2870_BssBeaconStop(
 	{
 		INT NumOfBcn;
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		{
-			NumOfBcn = MAX_MESH_NUM;
-		}
+		NumOfBcn = MAX_MESH_NUM;
 
 		RTMPCancelTimer(&pAd->CommonCfg.BeaconUpdateTimer, &Cancelled);
 
@@ -1348,10 +1344,7 @@ VOID RT2870_BssBeaconStart(
 	{
 		INT NumOfBcn;
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		{
-			NumOfBcn = MAX_MESH_NUM;
-		}
+		NumOfBcn = MAX_MESH_NUM;
 
 		for(apidx=0; apidx<NumOfBcn; apidx++)
 		{

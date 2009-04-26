@@ -1197,7 +1197,6 @@ VOID CMDHandler(
 					{
 						UINT32 data;
 
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							// Read GPIO pin2 as Hardware controlled radio state
 
@@ -1659,7 +1658,6 @@ VOID CMDHandler(
 						MAC_TABLE_ENTRY *pEntry;
 						pEntry = (MAC_TABLE_ENTRY *)pData;
 
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							AsicRemovePairwiseKeyEntry(pAd, pEntry->apidx, (UCHAR)pEntry->Aid);
 							if ((pEntry->AuthMode <= Ndis802_11AuthModeAutoSwitch) && (pEntry->WepStatus == Ndis802_11Encryption1Enabled))
