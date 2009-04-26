@@ -2814,35 +2814,6 @@ INT	Set_FixedTxMode_Proc(
 	return TRUE;
 }
 
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-INT	Set_OpMode_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg)
-{
-	ULONG Value;
-
-	Value = simple_strtol(arg, 0, 10);
-
-	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE))
-	{
-		DBGPRINT(RT_DEBUG_ERROR, ("Can not switch operate mode on interface up !! \n"));
-		return FALSE;
-	}
-
-	if (Value == 0)
-		pAd->OpMode = OPMODE_STA;
-	else if (Value == 1)
-		pAd->OpMode = OPMODE_AP;
-	else
-		return FALSE; //Invalid argument
-
-	DBGPRINT(RT_DEBUG_TRACE, ("Set_OpMode_Proc::(OpMode=%s)\n", pAd->OpMode == 1 ? "AP Mode" : "STA Mode"));
-
-	return TRUE;
-}
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
-
-
 /////////////////////////////////////////////////////////////////////////
 PCHAR   RTMPGetRalinkAuthModeStr(
     IN  NDIS_802_11_AUTHENTICATION_MODE authMode)

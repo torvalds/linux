@@ -6854,12 +6854,6 @@ INT	Set_FixedTxMode_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg);
 
-#ifdef CONFIG_APSTA_MIXED_SUPPORT
-INT	Set_OpMode_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg);
-#endif // CONFIG_APSTA_MIXED_SUPPORT //
-
 static inline char* GetPhyMode(
 	int Mode)
 {
