@@ -97,7 +97,7 @@ static
 	{}
 };
 
-const static struct ctrl ov9650_ctrls[] = {
+static const struct ctrl ov9650_ctrls[] = {
 #define EXPOSURE_IDX 0
 	{
 		{

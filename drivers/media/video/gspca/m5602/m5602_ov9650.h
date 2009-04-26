@@ -143,7 +143,7 @@ int ov9650_start(struct sd *sd);
 int ov9650_stop(struct sd *sd);
 void ov9650_disconnect(struct sd *sd);
 
-const static struct m5602_sensor ov9650 = {
+static const struct m5602_sensor ov9650 = {
 	.name = "OV9650",
 	.i2c_slave_id = 0x60,
 	.i2c_regW = 1,

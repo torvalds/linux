@@ -77,7 +77,7 @@ static struct v4l2_pix_format s5k4aa_modes[] = {
 	}
 };
 
-const static struct ctrl s5k4aa_ctrls[] = {
+static const struct ctrl s5k4aa_ctrls[] = {
 #define VFLIP_IDX 0
 	{
 		{

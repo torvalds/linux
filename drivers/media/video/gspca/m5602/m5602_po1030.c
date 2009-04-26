@@ -54,7 +54,7 @@ static struct v4l2_pix_format po1030_modes[] = {
 	}
 };
 
-const static struct ctrl po1030_ctrls[] = {
+static const struct ctrl po1030_ctrls[] = {
 #define GAIN_IDX 0
 	{
 		{

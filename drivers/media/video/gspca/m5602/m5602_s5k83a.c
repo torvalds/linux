@@ -44,7 +44,7 @@ static struct v4l2_pix_format s5k83a_modes[] = {
 	}
 };
 
-const static struct ctrl s5k83a_ctrls[] = {
+static const struct ctrl s5k83a_ctrls[] = {
 #define GAIN_IDX 0
 	{
 		{
