@@ -662,9 +662,6 @@ enum {
 	SHOW_DESC_INFO = 7,
     RAIO_OFF = 10,
     RAIO_ON = 11,
-#ifdef QOS_DLS_SUPPORT
-	SHOW_DLS_ENTRY_INFO = 19,
-#endif // QOS_DLS_SUPPORT //
 	SHOW_CFG_VALUE = 20,
 };
 
@@ -924,29 +921,6 @@ typedef struct _RT_LLTD_ASSOICATION_TABLE {
 #endif // LLTD_SUPPORT //
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-//rt2860, kathy 2007-0118
-// structure for DLS
-typedef struct _RT_802_11_DLS_UI {
-	USHORT						TimeOut;		// unit: second , set by UI
-	USHORT						CountDownTimer;	// unit: second , used by driver only
-	NDIS_802_11_MAC_ADDRESS		MacAddr;		// set by UI
-	UCHAR						Status;			// 0: none , 1: wait STAkey, 2: finish DLS setup , set by driver only
-	BOOLEAN						Valid;			// 1: valid , 0: invalid , set by UI, use to setup or tear down DLS link
-} RT_802_11_DLS_UI, *PRT_802_11_DLS_UI;
-
-typedef struct _RT_802_11_DLS_INFO {
-	RT_802_11_DLS_UI	Entry[MAX_NUMBER_OF_DLS_ENTRY];
-	UCHAR				num;
-} RT_802_11_DLS_INFO, *PRT_802_11_DLS_INFO;
-
-typedef enum _RT_802_11_DLS_MODE {
-    DLS_NONE,
-    DLS_WAIT_KEY,
-    DLS_FINISH
-} RT_802_11_DLS_MODE;
-#endif // QOS_DLS_SUPPORT //
-
 #ifdef WPA_SUPPLICANT_SUPPORT
 #ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
 #define	RT_ASSOC_EVENT_FLAG                         0x0101

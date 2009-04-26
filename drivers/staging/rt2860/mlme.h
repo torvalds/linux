@@ -1329,29 +1329,6 @@ typedef struct _MLME_START_REQ_STRUCT {
     UCHAR       SsidLen;
 } MLME_START_REQ_STRUCT, *PMLME_START_REQ_STRUCT;
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-// structure for DLS
-typedef struct _RT_802_11_DLS {
-	USHORT						TimeOut;		// Use to time out while slience, unit: second , set by UI
-	USHORT						CountDownTimer;	// Use to time out while slience,unit: second , used by driver only
-	NDIS_802_11_MAC_ADDRESS		MacAddr;		// set by UI
-	UCHAR						Status;			// 0: none , 1: wait STAkey, 2: finish DLS setup , set by driver only
-	BOOLEAN						Valid;			// 1: valid , 0: invalid , set by UI, use to setup or tear down DLS link
-	RALINK_TIMER_STRUCT			Timer;			// Use to time out while handshake
-	USHORT						Sequence;
-	USHORT						MacTabMatchWCID;	// ASIC
-	BOOLEAN						bHTCap;
-	PVOID						pAd;
-} RT_802_11_DLS, *PRT_802_11_DLS;
-
-typedef struct _MLME_DLS_REQ_STRUCT {
-    PRT_802_11_DLS	pDLS;
-    USHORT			Reason;
-} MLME_DLS_REQ_STRUCT, *PMLME_DLS_REQ_STRUCT;
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
 typedef struct PACKED {
     UCHAR   Eid;
     UCHAR   Len;

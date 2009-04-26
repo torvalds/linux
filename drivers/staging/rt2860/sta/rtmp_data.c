@@ -168,9 +168,6 @@ VOID STARxDataFrameAnnounce(
 			// ARALINK
 			CmmRxRalinkFrameIndicate(pAd, pEntry, pRxBlk, FromWhichBSSID);
 		}
-#ifdef QOS_DLS_SUPPORT
-		RX_BLK_CLEAR_FLAG(pRxBlk, fRX_DLS);
-#endif // QOS_DLS_SUPPORT //
 	}
 	else
 	{
@@ -276,14 +273,6 @@ VOID STAHandleRxDataFrame(
 			return;
 		}
 
-#ifdef QOS_DLS_SUPPORT
-		//if ((pHeader->FC.FrDs == 0) && (pHeader->FC.ToDs == 0))
-		if (RTMPRcvFrameDLSCheck(pAd, pHeader, pRxWI->MPDUtotalByteCount, pRxD))
-		{
-			return;
-		}
-#endif // QOS_DLS_SUPPORT //
-
 		// Drop not my BSS frames
 		if (pRxD->MyBss == 0)
 		{
@@ -342,10 +331,7 @@ VOID STAHandleRxDataFrame(
 		}
 
 	    // Drop not my BSS frame (we can not only check the MyBss bit in RxD)
-#ifdef QOS_DLS_SUPPORT
-	    if (!pAd->CommonCfg.bDLSCapable)
-	    {
-#endif // QOS_DLS_SUPPORT //
+
 		if (INFRA_ON(pAd))
 		{
 			// Infrastructure mode, check address 2 for BSSID
@@ -368,9 +354,6 @@ VOID STAHandleRxDataFrame(
 				return;
 			}
 		}
-#ifdef QOS_DLS_SUPPORT
-	    }
-#endif // QOS_DLS_SUPPORT //
 
 		//
 		// find pEntry
@@ -391,11 +374,6 @@ VOID STAHandleRxDataFrame(
 		if (INFRA_ON(pAd))
 		{
 			RX_BLK_SET_FLAG(pRxBlk, fRX_INFRA);
-#ifdef QOS_DLS_SUPPORT
-			if ((pHeader->FC.FrDs == 0) && (pHeader->FC.ToDs == 0))
-				RX_BLK_SET_FLAG(pRxBlk, fRX_DLS);
-			else
-#endif // QOS_DLS_SUPPORT //
 			ASSERT(pRxWI->WirelessCliID == BSSID_WCID);
 		}
 
@@ -509,18 +487,6 @@ VOID STAHandleRxDataFrame(
 	{
 		pAd->LastRxRate = (USHORT)((pRxWI->MCS) + (pRxWI->BW <<7) + (pRxWI->ShortGI <<8)+ (pRxWI->PHYMODE <<14)) ;
 
-
-#ifdef QOS_DLS_SUPPORT
-        if (RX_BLK_TEST_FLAG(pRxBlk, fRX_DLS))
-		{
-			MAC_TABLE_ENTRY *pDlsEntry = NULL;
-
-			pDlsEntry = DlsEntryTableLookupByWcid(pAd, pRxWI->WirelessCliID, pHeader->Addr2, TRUE);
-										                        if(pDlsEntry)
-			Update_Rssi_Sample(pAd, &pDlsEntry->RssiSample, pRxWI);
-		}
-		else
-#endif // QOS_DLS_SUPPORT //
 		if (ADHOC_ON(pAd))
 		{
 			pEntry = MacTableLookup(pAd, pHeader->Addr2);
@@ -869,17 +835,6 @@ VOID STASendPackets(
 			{
 				// Record that orignal packet source is from NDIS layer,so that
 				// later on driver knows how to release this NDIS PACKET
-#ifdef QOS_DLS_SUPPORT
-				MAC_TABLE_ENTRY *pEntry;
-				PUCHAR pSrcBufVA = GET_OS_PKT_DATAPTR(pPacket);
-
-				pEntry = MacTableLookup(pAd, pSrcBufVA);
-				if (pEntry && (pEntry->ValidAsDls == TRUE))
-				{
-					RTMP_SET_PACKET_WCID(pPacket, pEntry->Aid);
-				}
-				else
-#endif // QOS_DLS_SUPPORT //
 				RTMP_SET_PACKET_WCID(pPacket, 0); // this field is useless when in STA mode
 				RTMP_SET_PACKET_SOURCE(pPacket, PKTSRC_NDIS);
 				NDIS_SET_PACKET_STATUS(pPacket, NDIS_STATUS_PENDING);
@@ -961,18 +916,6 @@ NDIS_STATUS STASendPacket(
 	{
 		if(INFRA_ON(pAd))
 		{
-#ifdef QOS_DLS_SUPPORT
-			USHORT	tmpWcid;
-
-			tmpWcid = RTMP_GET_PACKET_WCID(pPacket);
-			if (VALID_WCID(tmpWcid) &&
-				(pAd->MacTab.Content[tmpWcid].ValidAsDls== TRUE))
-			{
-				pEntry = &pAd->MacTab.Content[tmpWcid];
-				Rate = pAd->MacTab.Content[tmpWcid].CurrTxRate;
-			}
-			else
-#endif // QOS_DLS_SUPPORT //
 			{
 			pEntry = &pAd->MacTab.Content[BSSID_WCID];
 			RTMP_SET_PACKET_WCID(pPacket, BSSID_WCID);
@@ -1440,12 +1383,7 @@ VOID STABuildCommon802_11Header(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  TX_BLK          *pTxBlk)
 {
-
 	HEADER_802_11	*pHeader_802_11;
-#ifdef QOS_DLS_SUPPORT
-	BOOLEAN	bDLSFrame = FALSE;
-	INT	DlsEntryIndex = 0;
-#endif // QOS_DLS_SUPPORT //
 
 	//
 	// MAKE A COMMON 802.11 HEADER
@@ -1462,19 +1400,6 @@ VOID STABuildCommon802_11Header(
 	pHeader_802_11->FC.Type = BTYPE_DATA;
 	pHeader_802_11->FC.SubType = ((TX_BLK_TEST_FLAG(pTxBlk, fTX_bWMM)) ? SUBTYPE_QDATA : SUBTYPE_DATA);
 
-#ifdef QOS_DLS_SUPPORT
-	if (INFRA_ON(pAd))
-	{
-		// Check if the frame can be sent through DLS direct link interface
-		// If packet can be sent through DLS, then force aggregation disable. (Hard to determine peer STA's capability)
-		DlsEntryIndex = RTMPCheckDLSFrame(pAd, pTxBlk->pSrcBufHeader);
-		if (DlsEntryIndex >= 0)
-			bDLSFrame = TRUE;
-		else
-			bDLSFrame = FALSE;
-	}
-#endif // QOS_DLS_SUPPORT //
-
     if (pTxBlk->pMacEntry)
 	{
 		if (TX_BLK_TEST_FLAG(pTxBlk, fTX_bForceNonQoS))
@@ -1484,14 +1409,6 @@ VOID STABuildCommon802_11Header(
 		}
 		else
 		{
-#ifdef QOS_DLS_SUPPORT
-			if (bDLSFrame)
-			{
-				pHeader_802_11->Sequence = pAd->StaCfg.DLSEntry[DlsEntryIndex].Sequence;
-				pAd->StaCfg.DLSEntry[DlsEntryIndex].Sequence = (pAd->StaCfg.DLSEntry[DlsEntryIndex].Sequence+1) & MAXSEQ;
-			}
-			else
-#endif // QOS_DLS_SUPPORT //
 			{
     	    pHeader_802_11->Sequence = pTxBlk->pMacEntry->TxSeq[pTxBlk->UserPriority];
     	    pTxBlk->pMacEntry->TxSeq[pTxBlk->UserPriority] = (pTxBlk->pMacEntry->TxSeq[pTxBlk->UserPriority]+1) & MAXSEQ;
@@ -1511,16 +1428,6 @@ VOID STABuildCommon802_11Header(
 	{
 		if (INFRA_ON(pAd))
 		{
-#ifdef QOS_DLS_SUPPORT
-			if (bDLSFrame)
-			{
-				COPY_MAC_ADDR(pHeader_802_11->Addr1, pTxBlk->pSrcBufHeader);
-				COPY_MAC_ADDR(pHeader_802_11->Addr2, pAd->CurrentAddress);
-				COPY_MAC_ADDR(pHeader_802_11->Addr3, pAd->CommonCfg.Bssid);
-				pHeader_802_11->FC.ToDs = 0;
-			}
-			else
-#endif // QOS_DLS_SUPPORT //
 			{
 			COPY_MAC_ADDR(pHeader_802_11->Addr1, pAd->CommonCfg.Bssid);
 			COPY_MAC_ADDR(pHeader_802_11->Addr2, pAd->CurrentAddress);
@@ -1576,29 +1483,7 @@ VOID STABuildCache802_11Header(
     pMacEntry->TxSeq[pTxBlk->UserPriority] = (pMacEntry->TxSeq[pTxBlk->UserPriority]+1) & MAXSEQ;
 
 	{
-		// Check if the frame can be sent through DLS direct link interface
-		// If packet can be sent through DLS, then force aggregation disable. (Hard to determine peer STA's capability)
-#ifdef QOS_DLS_SUPPORT
-		BOOLEAN	bDLSFrame = FALSE;
-		INT	DlsEntryIndex = 0;
-
-		DlsEntryIndex = RTMPCheckDLSFrame(pAd, pTxBlk->pSrcBufHeader);
-		if (DlsEntryIndex >= 0)
-			bDLSFrame = TRUE;
-		else
-			bDLSFrame = FALSE;
-#endif // QOS_DLS_SUPPORT //
-
 		// The addr3 of normal packet send from DS is Dest Mac address.
-#ifdef QOS_DLS_SUPPORT
-		if (bDLSFrame)
-		{
-			COPY_MAC_ADDR(pHeader80211->Addr1, pTxBlk->pSrcBufHeader);
-			COPY_MAC_ADDR(pHeader80211->Addr3, pAd->CommonCfg.Bssid);
-			pHeader80211->FC.ToDs = 0;
-		}
-		else
-#endif // QOS_DLS_SUPPORT //
 		if (ADHOC_ON(pAd))
 			COPY_MAC_ADDR(pHeader80211->Addr3, pAd->CommonCfg.Bssid);
 		else

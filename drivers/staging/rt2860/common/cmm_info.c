@@ -1748,11 +1748,6 @@ VOID	RTMPAddWcidAttributeEntry(
 				Wcid = pEntry->Aid;
 			else if (pEntry && INFRA_ON(pAd))
 			{
-#ifdef QOS_DLS_SUPPORT
-				if (pEntry->ValidAsDls == TRUE)
-					Wcid = pEntry->Aid;
-				else
-#endif // QOS_DLS_SUPPORT //
 				Wcid = BSSID_WCID;
 			}
 			else
@@ -1769,14 +1764,6 @@ VOID	RTMPAddWcidAttributeEntry(
 	{
 		if (pEntry && pEntry->ValidAsMesh)
 			WCIDAttri = (CipherAlg<<1) | PAIRWISEKEYTABLE;
-#ifdef QOS_DLS_SUPPORT
-		else if ((pEntry) && (pEntry->ValidAsDls) &&
-					((CipherAlg == CIPHER_TKIP) ||
-				 	(CipherAlg == CIPHER_TKIP_NO_MIC) ||
-					(CipherAlg == CIPHER_AES) ||
-				 	(CipherAlg == CIPHER_NONE)))
-			WCIDAttri = (CipherAlg<<1) | PAIRWISEKEYTABLE;
-#endif // QOS_DLS_SUPPORT //
 		else
 			WCIDAttri = (CipherAlg<<1) | SHAREDKEYTABLE;
 	}

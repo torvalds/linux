@@ -501,11 +501,6 @@ NDIS_STATUS MlmeInit(
 			WpaPskStateMachineInit(pAd, &pAd->Mlme.WpaPskMachine, pAd->Mlme.WpaPskFunc);
 			AironetStateMachineInit(pAd, &pAd->Mlme.AironetMachine, pAd->Mlme.AironetFunc);
 
-#ifdef QOS_DLS_SUPPORT
-			DlsStateMachineInit(pAd, &pAd->Mlme.DlsMachine, pAd->Mlme.DlsFunc);
-#endif // QOS_DLS_SUPPORT //
-
-
 			// Since we are using switch/case to implement it, the init is different from the above
 			// state machine init
 			MlmeCntlInit(pAd, &pAd->Mlme.CntlMachine, NULL);
@@ -624,12 +619,6 @@ VOID MlmeHandler(
 				case AIRONET_STATE_MACHINE:
 					StateMachinePerformAction(pAd, &pAd->Mlme.AironetMachine, Elem);
 					break;
-
-#ifdef QOS_DLS_SUPPORT
-				case DLS_STATE_MACHINE:
-					StateMachinePerformAction(pAd, &pAd->Mlme.DlsMachine, Elem);
-					break;
-#endif // QOS_DLS_SUPPORT //
 #endif // CONFIG_STA_SUPPORT //
 
 				case ACTION_STATE_MACHINE:
@@ -688,9 +677,6 @@ VOID MlmeHalt(
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
-#ifdef QOS_DLS_SUPPORT
-		UCHAR		i;
-#endif // QOS_DLS_SUPPORT //
 		// Cancel pending timers
 		RTMPCancelTimer(&pAd->MlmeAux.AssocTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.ReassocTimer,		&Cancelled);
@@ -703,13 +689,6 @@ VOID MlmeHalt(
 	   	    RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
 		    RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,		&Cancelled);
 		}
-
-#ifdef QOS_DLS_SUPPORT
-		for (i=0; i<MAX_NUM_OF_DLS_ENTRY; i++)
-		{
-			RTMPCancelTimer(&pAd->StaCfg.DLSEntry[i].Timer, &Cancelled);
-		}
-#endif // QOS_DLS_SUPPORT //
 	}
 #endif // CONFIG_STA_SUPPORT //
 
@@ -1121,11 +1100,6 @@ VOID STAMlmePeriodicExec(
 
 	if (INFRA_ON(pAd))
 	{
-#ifdef QOS_DLS_SUPPORT
-		// Check DLS time out, then tear down those session
-		RTMPCheckDLSTimeOut(pAd);
-#endif // QOS_DLS_SUPPORT //
-
 		// Is PSM bit consistent with user power management policy?
 		// This is the only place that will set PSM bit ON.
 		if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
@@ -4976,9 +4950,6 @@ VOID	MlmeRestartStateMachine(
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
-#ifdef QOS_DLS_SUPPORT
-		UCHAR i;
-#endif // QOS_DLS_SUPPORT //
 		// Cancel all timer events
 		// Be careful to cancel new added timer
 		RTMPCancelTimer(&pAd->MlmeAux.AssocTimer,	  &Cancelled);
@@ -4987,13 +4958,6 @@ VOID	MlmeRestartStateMachine(
 		RTMPCancelTimer(&pAd->MlmeAux.AuthTimer,	   &Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.BeaconTimer,	   &Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.ScanTimer,	   &Cancelled);
-
-#ifdef QOS_DLS_SUPPORT
-		for (i=0; i<MAX_NUM_OF_DLS_ENTRY; i++)
-		{
-			RTMPCancelTimer(&pAd->StaCfg.DLSEntry[i].Timer, &Cancelled);
-		}
-#endif // QOS_DLS_SUPPORT //
 	}
 #endif // CONFIG_STA_SUPPORT //
 
@@ -5014,9 +4978,6 @@ VOID	MlmeRestartStateMachine(
 		pAd->Mlme.AuthRspMachine.CurrState = AUTH_RSP_IDLE;
 		pAd->Mlme.SyncMachine.CurrState    = SYNC_IDLE;
 		pAd->Mlme.ActMachine.CurrState    = ACT_IDLE;
-#ifdef QOS_DLS_SUPPORT
-		pAd->Mlme.DlsMachine.CurrState    = DLS_IDLE;
-#endif // QOS_DLS_SUPPORT //
 	}
 #endif // CONFIG_STA_SUPPORT //
 
@@ -8218,11 +8179,6 @@ BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(
 		}
 		else
 			result = FALSE;
-
-#ifdef QOS_DLS_SUPPORT
-		if (pEntry && (pEntry->ValidAsDls))
-			result = pAd->StaCfg.bAutoTxRateSwitch;
-#endif // QOS_DLS_SUPPORT //
 	}
 #endif // CONFIG_STA_SUPPORT //
 

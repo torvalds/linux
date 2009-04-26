@@ -50,9 +50,6 @@ BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
 BUILD_TIMER_FUNCTION(PsPollWakeExec);
 BUILD_TIMER_FUNCTION(RadioOnExec);
-#ifdef QOS_DLS_SUPPORT
-BUILD_TIMER_FUNCTION(DlsTimeoutAction);
-#endif // QOS_DLS_SUPPORT //
 #endif // CONFIG_STA_SUPPORT //
 
 // for wireless system event message
