@@ -1,9 +1,16 @@
-OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
+OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT)
+
+#ifdef CONFIG_X86_64
+OUTPUT_ARCH(i386:x86-64)
+ENTRY(startup_64)
+#else
 OUTPUT_ARCH(i386)
 ENTRY(startup_32)
+#endif
+
 SECTIONS
 {
-	/* Be careful parts of head_32.S assume startup_32 is at
+	/* Be careful parts of head_64.S assume startup_32 is at
 	 * address 0.
 	 */
 	. = 0;
@@ -38,6 +45,13 @@ SECTIONS
 		*(.bss)
 		*(.bss.*)
 		*(COMMON)
-		_end = . ;
+#ifdef CONFIG_X86_64
+		. = ALIGN(8);
+		_end_before_pgt = . ;
+		. = ALIGN(4096);
+		pgtable = . ;
+		. = . + 4096 * 6;
+#endif
+		_ebss = .;
 	}
 }
