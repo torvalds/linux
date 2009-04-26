@@ -1037,26 +1037,11 @@ VOID STAMlmePeriodicExec(
 			// Lost AP, send disconnect & link down event
 			LinkDown(pAd, FALSE);
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-            if (pAd->StaCfg.WpaSupplicantUP)
-			{
-                union iwreq_data    wrqu;
-                //send disassociate event to wpa_supplicant
-                memset(&wrqu, 0, sizeof(wrqu));
-                wrqu.data.flags = RT_DISASSOC_EVENT_FLAG;
-                wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-            }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
             {
                 union iwreq_data    wrqu;
                 memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
                 wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
             }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 
 			// RTMPPatchMacBbpBug(pAd);
 			MlmeAutoReconnectLastSSID(pAd);

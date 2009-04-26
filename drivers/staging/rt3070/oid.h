@@ -934,19 +934,6 @@ typedef struct _RT_LLTD_ASSOICATION_TABLE {
 } RT_LLTD_ASSOICATION_TABLE, *PRT_LLTD_ASSOICATION_TABLE;
 #endif // LLTD_SUPPORT //
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-#define	RT_ASSOC_EVENT_FLAG                         0x0101
-#define	RT_DISASSOC_EVENT_FLAG                      0x0102
-#define	RT_REQIE_EVENT_FLAG                         0x0103
-#define	RT_RESPIE_EVENT_FLAG                        0x0104
-#define	RT_ASSOCINFO_EVENT_FLAG                     0x0105
-#define RT_PMKIDCAND_FLAG                           0x0106
-#define RT_INTERFACE_DOWN                           0x0107
-#define RT_INTERFACE_UP                             0x0108
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
 #define MAX_CUSTOM_LEN 128
 
 typedef enum _RT_802_11_D_CLIENT_MODE

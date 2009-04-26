@@ -128,14 +128,11 @@ VOID PeerDeauthAction(
             DBGPRINT(RT_DEBUG_TRACE,("AUTH_RSP - receive DE-AUTH from our AP (Reason=%d)\n", Reason));
 
 
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
             {
                 union iwreq_data    wrqu;
                 memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
                 wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
             }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-
 
 			// send wireless event - for deauthentication
 			if (pAd->CommonCfg.bWirelessEvent)
