@@ -63,10 +63,6 @@
 #include	"spectrum.h"
 
 
-#ifdef LEAP_SUPPORT
-#include    "leap.h"
-#endif // LEAP_SUPPORT //
-
 #ifdef IGMP_SNOOP_SUPPORT
 #include "igmp_snoop.h"
 #endif // IGMP_SNOOP_SUPPORT //

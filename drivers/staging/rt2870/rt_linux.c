@@ -47,9 +47,6 @@ BUILD_TIMER_FUNCTION(AssocTimeout);
 BUILD_TIMER_FUNCTION(ReassocTimeout);
 BUILD_TIMER_FUNCTION(DisassocTimeout);
 BUILD_TIMER_FUNCTION(LinkDownExec);
-#ifdef LEAP_SUPPORT
-BUILD_TIMER_FUNCTION(LeapAuthTimeout);
-#endif
 BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
 #endif // CONFIG_STA_SUPPORT //
