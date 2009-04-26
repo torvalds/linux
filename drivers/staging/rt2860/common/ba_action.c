@@ -531,6 +531,13 @@ VOID BAOriSessionSetUp(
 	pBAEntry->TimeOutValue = TimeOut;
 	pBAEntry->pAdapter = pAd;
 
+#ifdef RT30xx
+	DBGPRINT(RT_DEBUG_TRACE,("Send AddBA to %02x:%02x:%02x:%02x:%02x:%02x Tid:%d isForced:%d Wcid:%d\n"
+		,pEntry->Addr[0],pEntry->Addr[1],pEntry->Addr[2]
+		,pEntry->Addr[3],pEntry->Addr[4],pEntry->Addr[5]
+		,TID,isForced,pEntry->Aid));
+#endif
+
 	if (!(pEntry->TXBAbitmap & (1<<TID)))
 	{
 		RTMPInitTimer(pAd, &pBAEntry->ORIBATimer, GET_TIMER_FUNCTION(BAOriSessionSetupTimeout), pBAEntry, FALSE);
@@ -1071,8 +1078,16 @@ VOID BAOriSessionSetupTimeout(
 		AddbaReq.Token = pBAEntry->Token;
 		MlmeEnqueue(pAd, ACTION_STATE_MACHINE, MT2_MLME_ADD_BA_CATE, sizeof(MLME_ADDBA_REQ_STRUCT), (PVOID)&AddbaReq);
 		RT28XX_MLME_HANDLER(pAd);
+#ifndef RT30xx
 		DBGPRINT(RT_DEBUG_TRACE,("BA Ori Session Timeout(%d) : Send ADD BA again\n", pBAEntry->Token));
-
+#endif
+#ifdef RT30xx
+		DBGPRINT(RT_DEBUG_TRACE,("BA Ori Session Timeout(%d) to %02x:%02x:%02x:%02x:%02x:%02x Tid:%d Wcid:%d\n"
+		,pBAEntry->Token
+		,pEntry->Addr[0],pEntry->Addr[1],pEntry->Addr[2]
+		,pEntry->Addr[3],pEntry->Addr[4],pEntry->Addr[5]
+		,pBAEntry->TID,pEntry->Aid));
+#endif
 		pBAEntry->Token++;
 		RTMPSetTimer(&pBAEntry->ORIBATimer, ORI_BA_SESSION_TIMEOUT);
 	}
@@ -1376,6 +1391,10 @@ VOID SendPSMPAction(
 	//ULONG           Idx;
 	FRAME_PSMP_ACTION   Frame;
 	ULONG           FrameLen;
+#ifdef RT30xx
+	UCHAR			bbpdata=0;
+	UINT32			macdata;
+#endif // RT30xx //
 
 	NStatus = MlmeAllocateMemory(pAd, &pOutBuffer);	 //Get an unused nonpaged memory
 	if (NStatus != NDIS_STATUS_SUCCESS)
@@ -1391,12 +1410,54 @@ VOID SendPSMPAction(
 	switch (Psmp)
 	{
 		case MMPS_ENABLE:
+#ifdef RT30xx
+			if (IS_RT3090(pAd))
+			{
+				// disable MMPS BBP control register
+				RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &bbpdata);
+				bbpdata &= ~(0x04);	//bit 2
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, bbpdata);
+
+				// disable MMPS MAC control register
+				RTMP_IO_READ32(pAd, 0x1210, &macdata);
+				macdata &= ~(0x09);	//bit 0, 3
+				RTMP_IO_WRITE32(pAd, 0x1210, macdata);
+			}
+#endif // RT30xx //
 			Frame.Psmp = 0;
 			break;
 		case MMPS_DYNAMIC:
+#ifdef RT30xx
+			if (IS_RT3090(pAd))
+			{
+				// enable MMPS BBP control register
+				RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &bbpdata);
+				bbpdata |= 0x04;	//bit 2
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, bbpdata);
+
+				// enable MMPS MAC control register
+				RTMP_IO_READ32(pAd, 0x1210, &macdata);
+				macdata |= 0x09;	//bit 0, 3
+				RTMP_IO_WRITE32(pAd, 0x1210, macdata);
+			}
+#endif // RT30xx //
 			Frame.Psmp = 3;
 			break;
 		case MMPS_STATIC:
+#ifdef RT30xx
+			if (IS_RT3090(pAd))
+			{
+				// enable MMPS BBP control register
+				RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &bbpdata);
+				bbpdata |= 0x04;	//bit 2
+				RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, bbpdata);
+
+				// enable MMPS MAC control register
+				RTMP_IO_READ32(pAd, 0x1210, &macdata);
+				macdata |= 0x09;	//bit 0, 3
+				RTMP_IO_WRITE32(pAd, 0x1210, macdata);
+			}
+#endif // RT30xx //
 			Frame.Psmp = 1;
 			break;
 	}

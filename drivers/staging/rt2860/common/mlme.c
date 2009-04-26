@@ -338,6 +338,9 @@ UCHAR  WpaIe	 = IE_WPA;
 UCHAR  Wpa2Ie	 = IE_WPA2;
 UCHAR  IbssIe	 = IE_IBSS_PARM;
 UCHAR  Ccx2Ie	 = IE_CCX_V2;
+#ifdef RT2870
+UCHAR  WapiIe	 = IE_WAPI;
+#endif
 
 extern UCHAR	WPA_OUI[];
 
@@ -446,7 +449,13 @@ FREQUENCY_ITEM FreqItems3020[] =
 	{13,   247,	 2,  2},
 	{14,   248,	 2,  4},
 };
+#ifndef RT30xx
 #define	NUM_OF_3020_CHNL	(sizeof(FreqItems3020) / sizeof(FREQUENCY_ITEM))
+#endif
+#ifdef RT30xx
+//2008/07/10:KH Modified to share this variable
+UCHAR	NUM_OF_3020_CHNL=(sizeof(FreqItems3020) / sizeof(FREQUENCY_ITEM));
+#endif
 
 /*
 	==========================================================================
@@ -504,6 +513,7 @@ NDIS_STATUS MlmeInit(
 		// software-based RX Antenna diversity
 		RTMPInitTimer(pAd, &pAd->Mlme.RxAntEvalTimer, GET_TIMER_FUNCTION(AsicRxAntEvalTimeout), pAd, FALSE);
 
+#ifdef RT2860
 		{
 	        if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 	        {
@@ -512,6 +522,7 @@ NDIS_STATUS MlmeInit(
 	    		RTMPInitTimer(pAd, &pAd->Mlme.RadioOnOffTimer, GET_TIMER_FUNCTION(RadioOnExec), pAd, FALSE);
 	        }
 		}
+#endif
 	} while (FALSE);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- MLME Initialize\n"));
@@ -566,6 +577,16 @@ VOID MlmeHandler(
 		//From message type, determine which state machine I should drive
 		if (MlmeDequeue(&pAd->Mlme.Queue, &Elem))
 		{
+#ifdef RT2870
+			if (Elem->MsgType == MT2_RESET_CONF)
+			{
+				DBGPRINT_RAW(RT_DEBUG_TRACE, ("!!! reset MLME state machine !!!\n"));
+				MlmeRestartStateMachine(pAd);
+				Elem->Occupied = FALSE;
+				Elem->MsgLen = 0;
+				continue;
+			}
+#endif // RT2870 //
 
 			// if dequeue success
 			switch (Elem->Machine)
@@ -636,6 +657,9 @@ VOID MlmeHalt(
 	IN PRTMP_ADAPTER pAd)
 {
 	BOOLEAN 	  Cancelled;
+#ifdef RT3070
+	UINT32		TxPinCfg = 0x00050F0F;
+#endif // RT3070 //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> MlmeHalt\n"));
 
@@ -653,11 +677,13 @@ VOID MlmeHalt(
 		RTMPCancelTimer(&pAd->MlmeAux.AuthTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.BeaconTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.ScanTimer,		&Cancelled);
+#ifdef RT2860
 	    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 	    {
 	   	    RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
 		    RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,		&Cancelled);
 		}
+#endif
 	}
 
 	RTMPCancelTimer(&pAd->Mlme.PeriodicTimer,		&Cancelled);
@@ -670,6 +696,27 @@ VOID MlmeHalt(
 		// Set LED
 		RTMPSetLED(pAd, LED_HALT);
         RTMPSetSignalLED(pAd, -100);	// Force signal strength Led to be turned off, firmware is not done it.
+#ifdef RT2870
+        {
+            LED_CFG_STRUC LedCfg;
+            RTMP_IO_READ32(pAd, LED_CFG, &LedCfg.word);
+            LedCfg.field.LedPolar = 0;
+            LedCfg.field.RLedMode = 0;
+            LedCfg.field.GLedMode = 0;
+            LedCfg.field.YLedMode = 0;
+            RTMP_IO_WRITE32(pAd, LED_CFG, LedCfg.word);
+        }
+#endif // RT2870 //
+#ifdef RT3070
+		//
+		// Turn off LNA_PE
+		//
+		if (IS_RT3070(pAd) || IS_RT3071(pAd))
+		{
+			TxPinCfg &= 0xFFFFF0F0;
+			RTUSBWriteMACRegister(pAd, TX_PIN_CFG, TxPinCfg);
+		}
+#endif // RT3070 //
 	}
 
 	RTMPusecDelay(5000);    //  5 msec to gurantee Ant Diversity timer canceled
@@ -740,6 +787,7 @@ VOID MlmePeriodicExec(
 	ULONG			TxTotalCnt;
 	PRTMP_ADAPTER	pAd = (RTMP_ADAPTER *)FunctionContext;
 
+#ifdef RT2860
 	//Baron 2008/07/10
 	//printk("Baron_Test:\t%s", RTMPGetRalinkEncryModeStr(pAd->StaCfg.WepStatus));
 	//If the STA security setting is OPEN or WEP, pAd->StaCfg.WpaSupplicantUP = 0.
@@ -792,6 +840,7 @@ VOID MlmePeriodicExec(
 			}
 		}
 	}
+#endif /* RT2860 */
 
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
@@ -801,6 +850,7 @@ VOID MlmePeriodicExec(
 								fRTMP_ADAPTER_RESET_IN_PROGRESS))))
 		return;
 
+#ifdef RT2860
 	{
 		if ((pAd->RalinkCounters.LastReceivedByteCount == pAd->RalinkCounters.ReceivedByteCount) && (pAd->StaCfg.bRadio == TRUE))
 		{
@@ -838,7 +888,7 @@ VOID MlmePeriodicExec(
 			AsicResetFromDMABusy(pAd);
 		}
 	}
-
+#endif /* RT2860 */
 	RT28XX_MLME_PRE_SANITY_CHECK(pAd);
 
 	{
@@ -871,6 +921,10 @@ VOID MlmePeriodicExec(
 //	RECBATimerTimeout(SystemSpecific1,FunctionContext,SystemSpecific2,SystemSpecific3);
 	pAd->Mlme.PeriodicRound ++;
 
+#ifdef RT3070
+	// execute every 100ms, update the Tx FIFO Cnt for update Tx Rate.
+	NICUpdateFifoStaCounters(pAd);
+#endif // RT3070 //
 	// execute every 500ms
 	if ((pAd->Mlme.PeriodicRound % 5 == 0) && RTMPAutoRateSwitchCheck(pAd)/*(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))*/)
 	{
@@ -919,6 +973,10 @@ VOID MlmePeriodicExec(
 		// the dynamic tuning mechanism below are based on most up-to-date information
 		NICUpdateRawCounters(pAd);
 
+#ifdef RT2870
+		RT2870_WatchDog(pAd);
+#endif // RT2870 //
+
    		// Need statistics after read counter. So put after NICUpdateRawCounters
 		ORIBATimerTimeout(pAd);
 
@@ -929,6 +987,7 @@ VOID MlmePeriodicExec(
 							 pAd->RalinkCounters.OneSecTxRetryOkCount +
 							 pAd->RalinkCounters.OneSecTxFailCount;
 
+			// dynamic adjust antenna evaluation period according to the traffic
 			if (TxTotalCnt > 50)
 			{
 				if (pAd->Mlme.OneSecPeriodicRound % 10 == 0)
@@ -950,7 +1009,9 @@ VOID MlmePeriodicExec(
 		MlmeResetRalinkCounters(pAd);
 
 		{
+#ifdef RT2860
 			if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST) && (pAd->bPCIclkOff == FALSE))
+#endif
 			{
 				// When Adhoc beacon is enabled and RTS/CTS is enabled, there is a chance that hardware MAC FSM will run into a deadlock
 				// and sending CTS-to-self over and over.
@@ -976,14 +1037,19 @@ VOID MlmePeriodicExec(
 		RT28XX_MLME_HANDLER(pAd);
 	}
 
-
 	pAd->bUpdateBcnCntDone = FALSE;
 }
 
 VOID STAMlmePeriodicExec(
 	PRTMP_ADAPTER pAd)
 {
+#ifdef RT2860
 	ULONG			    TxTotalCnt;
+#endif
+#ifdef RT2870
+	ULONG	TxTotalCnt;
+	int 	i;
+#endif
 
     if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_DISABLE)
     {
@@ -992,6 +1058,7 @@ VOID STAMlmePeriodicExec(
     		pAd->StaCfg.bBlockAssoc = FALSE;
     }
 
+#ifdef RT2860
 	//Baron 2008/07/10
 	//printk("Baron_Test:\t%s", RTMPGetRalinkEncryModeStr(pAd->StaCfg.WepStatus));
 	//If the STA security setting is OPEN or WEP, pAd->StaCfg.WpaSupplicantUP = 0.
@@ -1004,6 +1071,7 @@ VOID STAMlmePeriodicExec(
 	{
 		pAd->StaCfg.WpaSupplicantUP = 1;
 	}
+#endif
 
     if ((pAd->PreMediaState != pAd->IndicateMediaState) && (pAd->CommonCfg.bWirelessEvent))
 	{
@@ -1014,6 +1082,7 @@ VOID STAMlmePeriodicExec(
 		pAd->PreMediaState = pAd->IndicateMediaState;
 	}
 
+#ifdef RT2860
 	if ((pAd->OpMode == OPMODE_STA) && (IDLE_ON(pAd)) &&
         (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
 		(pAd->Mlme.SyncMachine.CurrState == SYNC_IDLE) &&
@@ -1023,6 +1092,7 @@ VOID STAMlmePeriodicExec(
 	{
 		RT28xxPciAsicRadioOff(pAd, GUI_IDLE_POWER_SAVE, 0);
 	}
+#endif
 
 
 
@@ -1119,6 +1189,7 @@ VOID STAMlmePeriodicExec(
 	}
 	else if (ADHOC_ON(pAd))
 	{
+#ifdef RT2860
 		// 2003-04-17 john. this is a patch that driver forces a BEACON out if ASIC fails
 		// the "TX BEACON competition" for the entire past 1 sec.
 		// So that even when ASIC's BEACONgen engine been blocked
@@ -1159,6 +1230,7 @@ VOID STAMlmePeriodicExec(
 				pAd->StaCfg.Adhoc20NJoined = FALSE;
 			}
 		}
+#endif /* RT2860 */
 
 		//radar detect
 		if ((pAd->CommonCfg.Channel > 14)
@@ -1183,6 +1255,19 @@ VOID STAMlmePeriodicExec(
 			MlmeEnqueue(pAd, SYNC_STATE_MACHINE, MT2_MLME_START_REQ, sizeof(MLME_START_REQ_STRUCT), &StartReq);
 			pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_START;
 		}
+
+#ifdef RT2870
+		for (i = 1; i < MAX_LEN_OF_MAC_TABLE; i++)
+		{
+			MAC_TABLE_ENTRY *pEntry = &pAd->MacTab.Content[i];
+
+			if (pEntry->ValidAsCLI == FALSE)
+				continue;
+
+			if (pEntry->LastBeaconRxTime + ADHOC_BEACON_LOST_TIME < pAd->Mlme.Now32)
+				MacTableDeleteEntry(pAd, pEntry->Aid, pEntry->Addr);
+		}
+#endif
 	}
 	else // no INFRA nor ADHOC connection
 	{
@@ -1350,10 +1435,16 @@ VOID MlmeSelectTxRateTable(
 		if ((pAd->OpMode == OPMODE_STA) && ADHOC_ON(pAd))
 		{
 			if ((pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED) &&
+#ifdef RT2860
 				!pAd->StaCfg.AdhocBOnlyJoined &&
 				!pAd->StaCfg.AdhocBGJoined &&
 				(pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0xff) &&
 				((pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0x00) || (pAd->Antenna.field.TxPath == 1)))
+#endif
+#ifdef RT2870
+				(pEntry->HTCapability.MCSSet[0] == 0xff) &&
+				((pEntry->HTCapability.MCSSet[1] == 0x00) || (pAd->Antenna.field.TxPath == 1)))
+#endif
 			{// 11N 1S Adhoc
 				*ppTable = RateSwitchTable11N1S;
 				*pTableSize = RateSwitchTable11N1S[0];
@@ -1361,10 +1452,16 @@ VOID MlmeSelectTxRateTable(
 
 			}
 			else if ((pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED) &&
+#ifdef RT2860
 					!pAd->StaCfg.AdhocBOnlyJoined &&
 					!pAd->StaCfg.AdhocBGJoined &&
 					(pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0xff) &&
 					(pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0xff) &&
+#endif
+#ifdef RT2870
+					(pEntry->HTCapability.MCSSet[0] == 0xff) &&
+					(pEntry->HTCapability.MCSSet[1] == 0xff) &&
+#endif
 					(pAd->Antenna.field.TxPath == 2))
 			{// 11N 2S Adhoc
 				if (pAd->LatchRfRegs.Channel <= 14)
@@ -1382,6 +1479,7 @@ VOID MlmeSelectTxRateTable(
 
 			}
 			else
+#ifdef RT2860
 				if (pAd->CommonCfg.PhyMode == PHY_11B)
 			{
 				*ppTable = RateSwitchTable11B;
@@ -1390,6 +1488,12 @@ VOID MlmeSelectTxRateTable(
 
 			}
 	        else if((pAd->LatchRfRegs.Channel <= 14) && (pAd->StaCfg.AdhocBOnlyJoined == TRUE))
+#endif
+#ifdef RT2870
+				if ((pEntry->RateLen == 4)
+					&& (pEntry->HTCapability.MCSSet[0] == 0) && (pEntry->HTCapability.MCSSet[1] == 0)
+					)
+#endif
 			{
 				// USe B Table when Only b-only Station in my IBSS .
 				*ppTable = RateSwitchTable11B;
@@ -1473,7 +1577,10 @@ VOID MlmeSelectTxRateTable(
 
 		//else if ((pAd->StaActive.SupRateLen == 4) && (pAd->StaActive.ExtRateLen == 0) && (pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0) && (pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0))
 		if ((pEntry->RateLen == 4)
+#ifndef RT30xx
+//Iverson mark for Adhoc b mode,sta will use rate 54  Mbps when connect with sta b/g/n mode
 			&& (pEntry->HTCapability.MCSSet[0] == 0) && (pEntry->HTCapability.MCSSet[1] == 0)
+#endif
 			)
 		{// B only AP
 			*ppTable = RateSwitchTable11B;
@@ -1934,7 +2041,15 @@ VOID MlmeDynamicTxRateSwitching(
 
 		if ((pAd->MacTab.Size == 1) || (pEntry->ValidAsDls))
 		{
+#ifdef RT2860
 			Rssi = RTMPMaxRssi(pAd, (CHAR)pAd->StaCfg.RssiSample.AvgRssi0, (CHAR)pAd->StaCfg.RssiSample.AvgRssi1, (CHAR)pAd->StaCfg.RssiSample.AvgRssi2);
+#endif
+#ifdef RT2870
+			Rssi = RTMPMaxRssi(pAd,
+							   pAd->StaCfg.RssiSample.AvgRssi0,
+							   pAd->StaCfg.RssiSample.AvgRssi1,
+							   pAd->StaCfg.RssiSample.AvgRssi2);
+#endif
 
 			// Update statistic counter
 			RTMP_IO_READ32(pAd, TX_STA_CNT0, &TxStaCnt0.word);
@@ -1964,7 +2079,21 @@ VOID MlmeDynamicTxRateSwitching(
 		}
 		else
 		{
+#ifdef RT2860
 			Rssi = RTMPMaxRssi(pAd, (CHAR)pEntry->RssiSample.AvgRssi0, (CHAR)pEntry->RssiSample.AvgRssi1, (CHAR)pEntry->RssiSample.AvgRssi2);
+#endif
+#ifdef RT2870
+			if (INFRA_ON(pAd) && (i == 1))
+				Rssi = RTMPMaxRssi(pAd,
+								   pAd->StaCfg.RssiSample.AvgRssi0,
+								   pAd->StaCfg.RssiSample.AvgRssi1,
+								   pAd->StaCfg.RssiSample.AvgRssi2);
+			else
+				Rssi = RTMPMaxRssi(pAd,
+								   pEntry->RssiSample.AvgRssi0,
+								   pEntry->RssiSample.AvgRssi1,
+								   pEntry->RssiSample.AvgRssi2);
+#endif
 
 			TxTotalCnt = pEntry->OneSecTxNoRetryOkCount +
 				 pEntry->OneSecTxRetryOkCount +
@@ -2388,7 +2517,12 @@ VOID StaQuickResponeForRateUpExec(
 	UCHAR					UpRateIdx = 0, DownRateIdx = 0, CurrRateIdx = 0;
 	ULONG					TxTotalCnt;
 	ULONG					TxErrorRatio = 0;
+#ifdef RT2860
 	BOOLEAN					bTxRateChanged = TRUE; //, bUpgradeQuality = FALSE;
+#endif
+#ifdef RT2870
+	BOOLEAN					bTxRateChanged; //, bUpgradeQuality = FALSE;
+#endif
 	PRTMP_TX_RATE_SWITCH	pCurrTxRate, pNextTxRate = NULL;
 	PUCHAR					pTable;
 	UCHAR					TableSize = 0;
@@ -2413,11 +2547,25 @@ VOID StaQuickResponeForRateUpExec(
 		if (RTMPCheckEntryEnableAutoRateSwitch(pAd, pEntry) == FALSE)
 			continue;
 
+#ifdef RT2860
 		//Rssi = RTMPMaxRssi(pAd, (CHAR)pAd->StaCfg.AvgRssi0, (CHAR)pAd->StaCfg.AvgRssi1, (CHAR)pAd->StaCfg.AvgRssi2);
 	    if (pAd->Antenna.field.TxPath > 1)
 			Rssi = (pAd->StaCfg.RssiSample.AvgRssi0 + pAd->StaCfg.RssiSample.AvgRssi1) >> 1;
 		else
 			Rssi = pAd->StaCfg.RssiSample.AvgRssi0;
+#endif
+#ifdef RT2870
+		if (INFRA_ON(pAd) && (i == 1))
+			Rssi = RTMPMaxRssi(pAd,
+							   pAd->StaCfg.RssiSample.AvgRssi0,
+							   pAd->StaCfg.RssiSample.AvgRssi1,
+							   pAd->StaCfg.RssiSample.AvgRssi2);
+		else
+			Rssi = RTMPMaxRssi(pAd,
+							   pEntry->RssiSample.AvgRssi0,
+							   pEntry->RssiSample.AvgRssi1,
+							   pEntry->RssiSample.AvgRssi2);
+#endif
 
 		CurrRateIdx = pAd->CommonCfg.TxRateIndex;
 
@@ -2557,6 +2705,9 @@ VOID StaQuickResponeForRateUpExec(
 			pAd->DrsCounters.TxRateUpPenalty = 0;
 			NdisZeroMemory(pAd->DrsCounters.TxQuality, sizeof(USHORT) * MAX_STEP_OF_TX_RATE_SWITCH);
 			NdisZeroMemory(pAd->DrsCounters.PER, sizeof(UCHAR) * MAX_STEP_OF_TX_RATE_SWITCH);
+#ifdef RT2870
+			bTxRateChanged = TRUE;
+#endif
 		}
 		// if rate-down happen, only clear DownRate's bad history
 		else if (pAd->CommonCfg.TxRateIndex < CurrRateIdx)
@@ -2566,6 +2717,9 @@ VOID StaQuickResponeForRateUpExec(
 			pAd->DrsCounters.TxRateUpPenalty = 0;           // no penalty
 			pAd->DrsCounters.TxQuality[pAd->CommonCfg.TxRateIndex] = 0;
 			pAd->DrsCounters.PER[pAd->CommonCfg.TxRateIndex] = 0;
+#ifdef RT2870
+			bTxRateChanged = TRUE;
+#endif
 		}
 		else
 		{
@@ -2621,7 +2775,13 @@ VOID MlmeCheckPsmChange(
 	if (INFRA_ON(pAd) &&
 		(PowerMode != Ndis802_11PowerModeCAM) &&
 		(pAd->StaCfg.Psm == PWR_ACTIVE) &&
+#ifdef RT2860
 		RTMP_TEST_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP))
+#endif
+#if !defined(RT2860) && !defined(RT30xx)
+		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE))
+#endif
+#ifndef RT30xx
 	{
 		NdisGetSystemUpTime(&pAd->Mlme.LastSendNULLpsmTime);
 		pAd->RalinkCounters.RxCountSinceLastNULL = 0;
@@ -2635,6 +2795,42 @@ VOID MlmeCheckPsmChange(
 			RTMPSendNullFrame(pAd, pAd->CommonCfg.TxRate, TRUE);
 		}
 	}
+#endif
+#ifdef RT30xx
+//		(! RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
+		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE) /*&&
+		(pAd->RalinkCounters.OneSecTxNoRetryOkCount == 0) &&
+		(pAd->RalinkCounters.OneSecTxRetryOkCount == 0)*/)
+	{
+		// add by johnli, use Rx OK data count per second to calculate throughput
+		// If Ttraffic is too high ( > 400 Rx per second), don't go to sleep mode. If tx rate is low, use low criteria
+		// Mode=CCK/MCS=3 => 11 Mbps, Mode=OFDM/MCS=3 => 18 Mbps
+		if (((pAd->StaCfg.HTPhyMode.field.MCS <= 3) &&
+/* Iverson mark
+				(pAd->StaCfg.HTPhyMode.field.MODE <= MODE_OFDM) &&
+*/
+				(pAd->RalinkCounters.OneSecRxOkDataCnt < (ULONG)100)) ||
+			((pAd->StaCfg.HTPhyMode.field.MCS > 3) &&
+/* Iverson mark
+			(pAd->StaCfg.HTPhyMode.field.MODE > MODE_OFDM) &&
+*/
+			(pAd->RalinkCounters.OneSecRxOkDataCnt < (ULONG)400)))
+		{
+				// Get this time
+			NdisGetSystemUpTime(&pAd->Mlme.LastSendNULLpsmTime);
+			pAd->RalinkCounters.RxCountSinceLastNULL = 0;
+			MlmeSetPsmBit(pAd, PWR_SAVE);
+			if (!(pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable))
+			{
+				RTMPSendNullFrame(pAd, pAd->CommonCfg.TxRate, FALSE);
+			}
+			else
+			{
+				RTMPSendNullFrame(pAd, pAd->CommonCfg.TxRate, TRUE);
+			}
+		}
+	}
+#endif
 }
 
 // IRQL = PASSIVE_LEVEL
@@ -2649,7 +2845,9 @@ VOID MlmeSetPsmBit(
 	RTMP_IO_READ32(pAd, AUTO_RSP_CFG, &csr4.word);
 	csr4.field.AckCtsPsmBit = (psm == PWR_SAVE)? 1:0;
 	RTMP_IO_WRITE32(pAd, AUTO_RSP_CFG, csr4.word);
+#ifndef RT30xx
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeSetPsmBit = %d\n", psm));
+#endif
 }
 
 // IRQL = DISPATCH_LEVEL
@@ -3679,9 +3877,18 @@ ULONG BssTableSetEntry(
 	}
 	else
 	{
+#ifdef RT30xx
+		/* avoid  Hidden SSID form beacon to overwirite correct SSID from probe response */
+		if ((SSID_EQUAL(Ssid, SsidLen, Tab->BssEntry[Idx].Ssid, Tab->BssEntry[Idx].SsidLen)) ||
+			(NdisEqualMemory(Tab->BssEntry[Idx].Ssid, ZeroSsid, Tab->BssEntry[Idx].SsidLen)))
+		{
+#endif
 		BssEntrySet(pAd, &Tab->BssEntry[Idx], pBssid, Ssid, SsidLen, BssType, BeaconPeriod,CfParm, AtimWin,
 					CapabilityInfo, SupRate, SupRateLen, ExtRate, ExtRateLen,pHtCapability, pAddHtInfo,HtCapabilityLen, AddHtInfoLen,
 					NewExtChanOffset, ChannelNo, Rssi, TimeStamp, CkipFlag, pEdcaParm, pQosCapability, pQbssLoad, LengthVIE, pVIE);
+#ifdef RT30xx
+		}
+#endif
 	}
 
 	return Idx;
@@ -3742,9 +3949,14 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
+#ifndef RT30xx
 					if ((pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher) &&
 						(pInBss->WPA.GroupCipher != Ndis802_11GroupWEP40Enabled) &&
 						(pInBss->WPA.GroupCipher != Ndis802_11GroupWEP104Enabled))
+#endif
+#ifdef RT30xx
+					if (pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher)
+#endif
 						continue;
 
 					// check pairwise cipher, skip if none matched
@@ -3763,9 +3975,14 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
+#ifndef RT30xx
 					if ((pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher) &&
 						(pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP40Enabled) &&
 						(pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP104Enabled))
+#endif
+#ifdef RT30xx
+					if (pAd->StaCfg.WepStatus < pInBss->WPA2.GroupCipher)
+#endif
 						continue;
 
 					// check pairwise cipher, skip if none matched
@@ -4043,10 +4260,16 @@ VOID BssCipherParse(
 				switch (*pTmp)
 				{
 					case 1:
+#ifndef RT30xx
 						pBss->WPA.GroupCipher = Ndis802_11GroupWEP40Enabled;
 						break;
 					case 5:
 						pBss->WPA.GroupCipher = Ndis802_11GroupWEP104Enabled;
+#endif
+#ifdef RT30xx
+					case 5:	// Although WEP is not allowed in WPA related auth mode, we parse it anyway
+						pBss->WPA.GroupCipher = Ndis802_11Encryption1Enabled;
+#endif
 						break;
 					case 2:
 						pBss->WPA.GroupCipher = Ndis802_11Encryption2Enabled;
@@ -4133,7 +4356,6 @@ VOID BssCipherParse(
 					pBss->AuthMode	  = Ndis802_11AuthModeWPANone;
 					pBss->AuthModeAux = Ndis802_11AuthModeWPANone;
 					pBss->WepStatus   = pBss->WPA.GroupCipher;
-					// Patched bugs for old driver
 					if (pBss->WPA.PairCipherAux == Ndis802_11WEPDisabled)
 						pBss->WPA.PairCipherAux = pBss->WPA.GroupCipher;
 				}
@@ -4163,10 +4385,16 @@ VOID BssCipherParse(
 				switch (pCipher->Type)
 				{
 					case 1:
+#ifndef RT30xx
 						pBss->WPA2.GroupCipher = Ndis802_11GroupWEP40Enabled;
 						break;
 					case 5:
 						pBss->WPA2.GroupCipher = Ndis802_11GroupWEP104Enabled;
+#endif
+#ifdef RT30xx
+					case 5:	// Although WEP is not allowed in WPA related auth mode, we parse it anyway
+						pBss->WPA2.GroupCipher = Ndis802_11Encryption1Enabled;
+#endif
 						break;
 					case 2:
 						pBss->WPA2.GroupCipher = Ndis802_11Encryption2Enabled;
@@ -4260,7 +4488,6 @@ VOID BssCipherParse(
 					pBss->WPA.PairCipherAux = pBss->WPA2.PairCipherAux;
 					pBss->WPA.GroupCipher	= pBss->WPA2.GroupCipher;
 					pBss->WepStatus 		= pBss->WPA.GroupCipher;
-					// Patched bugs for old driver
 					if (pBss->WPA.PairCipherAux == Ndis802_11WEPDisabled)
 						pBss->WPA.PairCipherAux = pBss->WPA.GroupCipher;
 				}
@@ -4619,11 +4846,14 @@ BOOLEAN MlmeDequeue(
 VOID	MlmeRestartStateMachine(
 	IN	PRTMP_ADAPTER	pAd)
 {
+#ifdef RT2860
 	MLME_QUEUE_ELEM		*Elem = NULL;
+#endif
 	BOOLEAN				Cancelled;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeRestartStateMachine \n"));
 
+#ifdef RT2860
 	NdisAcquireSpinLock(&pAd->Mlme.TaskLock);
 	if(pAd->Mlme.bRunning)
 	{
@@ -4651,6 +4881,7 @@ VOID	MlmeRestartStateMachine(
 			DBGPRINT_ERR(("MlmeRestartStateMachine: MlmeQueue empty\n"));
 		}
 	}
+#endif /* RT2860 */
 
 	{
 		// Cancel all timer events
@@ -4680,10 +4911,12 @@ VOID	MlmeRestartStateMachine(
 		pAd->Mlme.ActMachine.CurrState    = ACT_IDLE;
 	}
 
+#ifdef RT2860
 	// Remove running state
 	NdisAcquireSpinLock(&pAd->Mlme.TaskLock);
 	pAd->Mlme.bRunning = FALSE;
 	NdisReleaseSpinLock(&pAd->Mlme.TaskLock);
+#endif
 }
 
 /*! \brief	test if the MLME Queue is empty
@@ -5402,6 +5635,276 @@ VOID 	AsicUpdateProtect(
 	}
 }
 
+#ifdef RT30xx
+/*
+	========================================================================
+
+	Routine Description: Write RT30xx RF register through MAC
+
+	Arguments:
+
+	Return Value:
+
+	IRQL =
+
+	Note:
+
+	========================================================================
+*/
+NTSTATUS RT30xxWriteRFRegister(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	UCHAR			RegID,
+	IN	UCHAR			Value)
+{
+	RF_CSR_CFG_STRUC	rfcsr;
+	UINT				i = 0;
+
+	do
+	{
+		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
+
+		if (!rfcsr.field.RF_CSR_KICK)
+			break;
+		i++;
+	}
+	while ((i < RETRY_LIMIT) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)));
+
+	if ((i == RETRY_LIMIT) || (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
+	{
+		DBGPRINT_RAW(RT_DEBUG_ERROR, ("Retry count exhausted or device removed!!!\n"));
+		return STATUS_UNSUCCESSFUL;
+	}
+
+	rfcsr.field.RF_CSR_WR = 1;
+	rfcsr.field.RF_CSR_KICK = 1;
+	rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
+	rfcsr.field.RF_CSR_DATA = Value;
+
+	RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
+
+	return STATUS_SUCCESS;
+}
+
+
+/*
+	========================================================================
+
+	Routine Description: Read RT30xx RF register through MAC
+
+	Arguments:
+
+	Return Value:
+
+	IRQL =
+
+	Note:
+
+	========================================================================
+*/
+NTSTATUS RT30xxReadRFRegister(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	UCHAR			RegID,
+	IN	PUCHAR			pValue)
+{
+	RF_CSR_CFG_STRUC	rfcsr;
+	UINT				i=0, k=0;
+
+	for (i=0; i<MAX_BUSY_COUNT; i++)
+	{
+		RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
+
+		if (rfcsr.field.RF_CSR_KICK == BUSY)
+		{
+			continue;
+		}
+		rfcsr.word = 0;
+		rfcsr.field.RF_CSR_WR = 0;
+		rfcsr.field.RF_CSR_KICK = 1;
+		rfcsr.field.TESTCSR_RFACC_REGNUM = RegID;
+		RTMP_IO_WRITE32(pAd, RF_CSR_CFG, rfcsr.word);
+		for (k=0; k<MAX_BUSY_COUNT; k++)
+		{
+			RTMP_IO_READ32(pAd, RF_CSR_CFG, &rfcsr.word);
+
+			if (rfcsr.field.RF_CSR_KICK == IDLE)
+				break;
+		}
+		if ((rfcsr.field.RF_CSR_KICK == IDLE) &&
+			(rfcsr.field.TESTCSR_RFACC_REGNUM == RegID))
+		{
+			*pValue = (UCHAR)rfcsr.field.RF_CSR_DATA;
+			break;
+		}
+	}
+	if (rfcsr.field.RF_CSR_KICK == BUSY)
+	{
+		DBGPRINT_ERR(("RF read R%d=0x%x fail, i[%d], k[%d]\n", RegID, rfcsr.word,i,k));
+		return STATUS_UNSUCCESSFUL;
+	}
+
+	return STATUS_SUCCESS;
+}
+#endif // RT30xx //
+
+#ifdef RT30xx
+// add by johnli, RF power sequence setup
+/*
+	==========================================================================
+	Description:
+
+	Load RF normal operation-mode setup
+
+	==========================================================================
+ */
+VOID RT30xxLoadRFNormalModeSetup(
+	IN PRTMP_ADAPTER 	pAd)
+{
+	UCHAR RFValue;
+
+	// RX0_PD & TX0_PD, RF R1 register Bit 2 & Bit 3 to 0 and RF_BLOCK_en,RX1_PD & TX1_PD, Bit0, Bit 4 & Bit5 to 1
+	RT30xxReadRFRegister(pAd, RF_R01, &RFValue);
+	RFValue = (RFValue & (~0x0C)) | 0x31;
+	RT30xxWriteRFRegister(pAd, RF_R01, RFValue);
+
+	// TX_LO2_en, RF R15 register Bit 3 to 0
+	RT30xxReadRFRegister(pAd, RF_R15, &RFValue);
+	RFValue &= (~0x08);
+	RT30xxWriteRFRegister(pAd, RF_R15, RFValue);
+
+	// TX_LO1_en, RF R17 register Bit 3 to 0
+	RT30xxReadRFRegister(pAd, RF_R17, &RFValue);
+	RFValue &= (~0x08);
+	// to fix rx long range issue
+	if (((pAd->MACVersion & 0xffff) >= 0x0211) && (pAd->NicConfig2.field.ExternalLNAForG == 0))
+	{
+		RFValue |= 0x20;
+	}
+	RT30xxWriteRFRegister(pAd, RF_R17, RFValue);
+
+	// RX_LO1_en, RF R20 register Bit 3 to 0
+	RT30xxReadRFRegister(pAd, RF_R20, &RFValue);
+	RFValue &= (~0x08);
+	RT30xxWriteRFRegister(pAd, RF_R20, RFValue);
+
+	// RX_LO2_en, RF R21 register Bit 3 to 0
+	RT30xxReadRFRegister(pAd, RF_R21, &RFValue);
+	RFValue &= (~0x08);
+	RT30xxWriteRFRegister(pAd, RF_R21, RFValue);
+
+	// LDORF_VC, RF R27 register Bit 2 to 0
+	RT30xxReadRFRegister(pAd, RF_R27, &RFValue);
+	if ((pAd->MACVersion & 0xffff) < 0x0211)
+		RFValue = (RFValue & (~0x77)) | 0x3;
+	else
+		RFValue = (RFValue & (~0x77));
+	RT30xxWriteRFRegister(pAd, RF_R27, RFValue);
+	/* end johnli */
+}
+
+/*
+	==========================================================================
+	Description:
+
+	Load RF sleep-mode setup
+
+	==========================================================================
+ */
+VOID RT30xxLoadRFSleepModeSetup(
+	IN PRTMP_ADAPTER 	pAd)
+{
+	UCHAR RFValue;
+	UINT32 MACValue;
+
+	// RF_BLOCK_en. RF R1 register Bit 0 to 0
+	RT30xxReadRFRegister(pAd, RF_R01, &RFValue);
+	RFValue &= (~0x01);
+	RT30xxWriteRFRegister(pAd, RF_R01, RFValue);
+
+	// VCO_IC, RF R7 register Bit 4 & Bit 5 to 0
+	RT30xxReadRFRegister(pAd, RF_R07, &RFValue);
+	RFValue &= (~0x30);
+	RT30xxWriteRFRegister(pAd, RF_R07, RFValue);
+
+	// Idoh, RF R9 register Bit 1, Bit 2 & Bit 3 to 0
+	RT30xxReadRFRegister(pAd, RF_R09, &RFValue);
+	RFValue &= (~0x0E);
+	RT30xxWriteRFRegister(pAd, RF_R09, RFValue);
+
+	// RX_CTB_en, RF R21 register Bit 7 to 0
+	RT30xxReadRFRegister(pAd, RF_R21, &RFValue);
+	RFValue &= (~0x80);
+	RT30xxWriteRFRegister(pAd, RF_R21, RFValue);
+
+	// LDORF_VC, RF R27 register Bit 0, Bit 1 & Bit 2 to 1
+	RT30xxReadRFRegister(pAd, RF_R27, &RFValue);
+	RFValue |= 0x77;
+	RT30xxWriteRFRegister(pAd, RF_R27, RFValue);
+
+	RTMP_IO_READ32(pAd, LDO_CFG0, &MACValue);
+	MACValue |= 0x1D000000;
+	RTMP_IO_WRITE32(pAd, LDO_CFG0, MACValue);
+}
+
+/*
+	==========================================================================
+	Description:
+
+	Reverse RF sleep-mode setup
+
+	==========================================================================
+ */
+VOID RT30xxReverseRFSleepModeSetup(
+	IN PRTMP_ADAPTER 	pAd)
+{
+	UCHAR RFValue;
+	UINT32 MACValue;
+
+	// RF_BLOCK_en, RF R1 register Bit 0 to 1
+	RT30xxReadRFRegister(pAd, RF_R01, &RFValue);
+	RFValue |= 0x01;
+	RT30xxWriteRFRegister(pAd, RF_R01, RFValue);
+
+	// VCO_IC, RF R7 register Bit 4 & Bit 5 to 1
+	RT30xxReadRFRegister(pAd, RF_R07, &RFValue);
+	RFValue |= 0x30;
+	RT30xxWriteRFRegister(pAd, RF_R07, RFValue);
+
+	// Idoh, RF R9 register Bit 1, Bit 2 & Bit 3 to 1
+	RT30xxReadRFRegister(pAd, RF_R09, &RFValue);
+	RFValue |= 0x0E;
+	RT30xxWriteRFRegister(pAd, RF_R09, RFValue);
+
+	// RX_CTB_en, RF R21 register Bit 7 to 1
+	RT30xxReadRFRegister(pAd, RF_R21, &RFValue);
+	RFValue |= 0x80;
+	RT30xxWriteRFRegister(pAd, RF_R21, RFValue);
+
+	// LDORF_VC, RF R27 register Bit 2 to 0
+	RT30xxReadRFRegister(pAd, RF_R27, &RFValue);
+	if ((pAd->MACVersion & 0xffff) < 0x0211)
+		RFValue = (RFValue & (~0x77)) | 0x3;
+	else
+		RFValue = (RFValue & (~0x77));
+	RT30xxWriteRFRegister(pAd, RF_R27, RFValue);
+
+	// RT3071 version E has fixed this issue
+	if ((pAd->NicConfig2.field.DACTestBit == 1) && ((pAd->MACVersion & 0xffff) < 0x0211))
+	{
+		// patch tx EVM issue temporarily
+		RTMP_IO_READ32(pAd, LDO_CFG0, &MACValue);
+		MACValue = ((MACValue & 0xE0FFFFFF) | 0x0D000000);
+		RTMP_IO_WRITE32(pAd, LDO_CFG0, MACValue);
+	}
+	else
+	{
+		RTMP_IO_READ32(pAd, LDO_CFG0, &MACValue);
+		MACValue = ((MACValue & 0xE0FFFFFF) | 0x01000000);
+		RTMP_IO_WRITE32(pAd, LDO_CFG0, MACValue);
+	}
+}
+// end johnli
+#endif // RT30xx //
+
 /*
 	==========================================================================
 	Description:
@@ -5423,6 +5926,21 @@ VOID AsicSwitchChannel(
 	RTMP_RF_REGS *RFRegTable;
 
 	// Search Tx power value
+#ifdef RT30xx
+	// We can't use ChannelList to search channel, since some central channl's txpowr doesn't list
+	// in ChannelList, so use TxPower array instead.
+	//
+	for (index = 0; index < MAX_NUM_OF_CHANNELS; index++)
+	{
+		if (Channel == pAd->TxPower[index].Channel)
+	{
+			TxPwer = pAd->TxPower[index].Power;
+			TxPwer2 = pAd->TxPower[index].Power2;
+			break;
+		}
+	}
+#endif
+#ifndef RT30xx
 	for (index = 0; index < pAd->ChannelListNum; index++)
 	{
 		if (Channel == pAd->ChannelList[index].Channel)
@@ -5432,12 +5950,152 @@ VOID AsicSwitchChannel(
 			break;
 		}
 	}
+#endif
 
 	if (index == MAX_NUM_OF_CHANNELS)
 	{
+#ifndef RT30xx
 		DBGPRINT(RT_DEBUG_ERROR, ("AsicSwitchChannel: Cant find the Channel#%d \n", Channel));
+#endif
+#ifdef RT30xx
+		DBGPRINT(RT_DEBUG_ERROR, ("AsicSwitchChannel: Can't find the Channel#%d \n", Channel));
+#endif
 	}
 
+#ifdef RT2870
+	// The RF programming sequence is difference between 3xxx and 2xxx
+#ifdef RT30xx
+	if ((IS_RT3070(pAd) || IS_RT3090(pAd)) && ((pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020) ||
+		(pAd->RfIcType == RFIC_3021) || (pAd->RfIcType == RFIC_3022)))
+#endif
+#ifndef RT30xx
+	if (IS_RT3070(pAd) && ((pAd->RfIcType == RFIC_3020) || (pAd->RfIcType == RFIC_2020)))
+#endif
+	{
+		/* modify by WY for Read RF Reg. error */
+		UCHAR RFValue;
+
+		for (index = 0; index < NUM_OF_3020_CHNL; index++)
+		{
+			if (Channel == FreqItems3020[index].Channel)
+			{
+				// Programming channel parameters
+				RT30xxWriteRFRegister(pAd, RF_R02, FreqItems3020[index].N);
+				RT30xxWriteRFRegister(pAd, RF_R03, FreqItems3020[index].K);
+
+#ifndef RT30xx
+				RT30xxReadRFRegister(pAd, RF_R06, (PUCHAR)&RFValue);
+				RFValue = (RFValue & 0xFC) | FreqItems3020[index].R;
+				RT30xxWriteRFRegister(pAd, RF_R06, (UCHAR)RFValue);
+
+				// Set Tx Power
+				RT30xxReadRFRegister(pAd, RF_R12, (PUCHAR)&RFValue);
+				RFValue = (RFValue & 0xE0) | TxPwer;
+				RT30xxWriteRFRegister(pAd, RF_R12, (UCHAR)RFValue);
+
+				// Set RF offset
+				RT30xxReadRFRegister(pAd, RF_R23, (PUCHAR)&RFValue);
+				RFValue = (RFValue & 0x80) | pAd->RfFreqOffset;
+				RT30xxWriteRFRegister(pAd, RF_R23, (UCHAR)RFValue);
+#endif
+#ifdef RT30xx
+				RT30xxReadRFRegister(pAd, RF_R06, &RFValue);
+				RFValue = (RFValue & 0xFC) | FreqItems3020[index].R;
+				RT30xxWriteRFRegister(pAd, RF_R06, RFValue);
+
+				// Set Tx0 Power
+				RT30xxReadRFRegister(pAd, RF_R12, &RFValue);
+				RFValue = (RFValue & 0xE0) | TxPwer;
+				RT30xxWriteRFRegister(pAd, RF_R12, RFValue);
+
+				// Set Tx1 Power
+				RT30xxReadRFRegister(pAd, RF_R13, &RFValue);
+				RFValue = (RFValue & 0xE0) | TxPwer2;
+				RT30xxWriteRFRegister(pAd, RF_R13, RFValue);
+
+				// Tx/Rx Stream setting
+				RT30xxReadRFRegister(pAd, RF_R01, &RFValue);
+				//if (IS_RT3090(pAd))
+				//	RFValue |= 0x01; // Enable RF block.
+				RFValue &= 0x03;	//clear bit[7~2]
+				if (pAd->Antenna.field.TxPath == 1)
+					RFValue |= 0xA0;
+				else if (pAd->Antenna.field.TxPath == 2)
+					RFValue |= 0x80;
+				if (pAd->Antenna.field.RxPath == 1)
+					RFValue |= 0x50;
+				else if (pAd->Antenna.field.RxPath == 2)
+					RFValue |= 0x40;
+				RT30xxWriteRFRegister(pAd, RF_R01, RFValue);
+
+				// Set RF offset
+				RT30xxReadRFRegister(pAd, RF_R23, &RFValue);
+				RFValue = (RFValue & 0x80) | pAd->RfFreqOffset;
+				RT30xxWriteRFRegister(pAd, RF_R23, RFValue);
+#endif
+
+				// Set BW
+				if (!bScan && (pAd->CommonCfg.BBPCurrentBW == BW_40))
+				{
+					RFValue = pAd->Mlme.CaliBW40RfR24;
+					//DISABLE_11N_CHECK(pAd);
+				}
+				else
+				{
+					RFValue = pAd->Mlme.CaliBW20RfR24;
+				}
+#ifndef RT30xx
+				RT30xxWriteRFRegister(pAd, RF_R24, (UCHAR)RFValue);
+
+				// Enable RF tuning
+				RT30xxReadRFRegister(pAd, RF_R07, (PUCHAR)&RFValue);
+				RFValue = RFValue | 0x1;
+				RT30xxWriteRFRegister(pAd, RF_R07, (UCHAR)RFValue);
+
+				// latch channel for future usage.
+				pAd->LatchRfRegs.Channel = Channel;
+#endif
+#ifdef RT30xx
+				RT30xxWriteRFRegister(pAd, RF_R24, RFValue);
+				RT30xxWriteRFRegister(pAd, RF_R31, RFValue);
+
+				// Enable RF tuning
+				RT30xxReadRFRegister(pAd, RF_R07, &RFValue);
+				RFValue = RFValue | 0x1;
+				RT30xxWriteRFRegister(pAd, RF_R07, RFValue);
+
+				// latch channel for future usage.
+				pAd->LatchRfRegs.Channel = Channel;
+
+				DBGPRINT(RT_DEBUG_TRACE, ("SwitchChannel#%d(RF=%d, Pwr0=%d, Pwr1=%d, %dT), N=0x%02X, K=0x%02X, R=0x%02X\n",
+					Channel,
+					pAd->RfIcType,
+					TxPwer,
+					TxPwer2,
+					pAd->Antenna.field.TxPath,
+					FreqItems3020[index].N,
+					FreqItems3020[index].K,
+					FreqItems3020[index].R));
+#endif
+
+				break;
+			}
+		}
+
+#ifndef RT30xx
+		DBGPRINT(RT_DEBUG_TRACE, ("SwitchChannel#%d(RF=%d, Pwr0=%d, Pwr1=%d, %dT), N=0x%02X, K=0x%02X, R=0x%02X\n",
+			Channel,
+			pAd->RfIcType,
+			TxPwer,
+			TxPwer2,
+			pAd->Antenna.field.TxPath,
+			FreqItems3020[index].N,
+			FreqItems3020[index].K,
+			FreqItems3020[index].R));
+#endif
+	}
+	else
+#endif // RT2870 //
 	{
 		RFRegTable = RF2850RegTable;
 
@@ -5691,6 +6349,53 @@ VOID	AsicAntennaSelect(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			Channel)
 {
+#ifdef RT30xx
+			if (pAd->Mlme.OneSecPeriodicRound % 2 == 1)
+			{
+				// patch for AsicSetRxAnt failed
+				pAd->RxAnt.EvaluatePeriod = 0;
+
+				// check every 2 second. If rcv-beacon less than 5 in the past 2 second, then AvgRSSI is no longer a
+				// valid indication of the distance between this AP and its clients.
+				if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED))
+				{
+					SHORT	realavgrssi1;
+
+					// if no traffic then reset average rssi to trigger evaluation
+					if (pAd->StaCfg.NumOfAvgRssiSample < 5)
+					{
+						pAd->RxAnt.Pair1LastAvgRssi = (-99);
+						pAd->RxAnt.Pair2LastAvgRssi = (-99);
+						DBGPRINT(RT_DEBUG_TRACE, ("MlmePeriodicExec: no traffic/beacon, reset RSSI\n"));
+					}
+
+					pAd->StaCfg.NumOfAvgRssiSample = 0;
+					realavgrssi1 = (pAd->RxAnt.Pair1AvgRssi[pAd->RxAnt.Pair1PrimaryRxAnt] >> 3);
+
+					DBGPRINT(RT_DEBUG_TRACE,("Ant-realrssi0(%d), Lastrssi0(%d), EvaluateStableCnt=%d\n", realavgrssi1, pAd->RxAnt.Pair1LastAvgRssi, pAd->RxAnt.EvaluateStableCnt));
+
+					// if the difference between two rssi is larger or less than 5, then evaluate the other antenna
+					if ((pAd->RxAnt.EvaluateStableCnt < 2) || (realavgrssi1 > (pAd->RxAnt.Pair1LastAvgRssi + 5)) || (realavgrssi1 < (pAd->RxAnt.Pair1LastAvgRssi - 5)))
+					{
+						pAd->RxAnt.Pair1LastAvgRssi = realavgrssi1;
+						AsicEvaluateRxAnt(pAd);
+					}
+				}
+				else
+				{
+					// if not connected, always switch antenna to try to connect
+					UCHAR	temp;
+
+					temp = pAd->RxAnt.Pair1PrimaryRxAnt;
+					pAd->RxAnt.Pair1PrimaryRxAnt = pAd->RxAnt.Pair1SecondaryRxAnt;
+					pAd->RxAnt.Pair1SecondaryRxAnt = temp;
+
+					DBGPRINT(RT_DEBUG_TRACE, ("MlmePeriodicExec: no connect, switch to another one to try connection\n"));
+
+					AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
+				}
+			}
+#endif /* RT30xx */
 }
 
 /*
@@ -5760,11 +6465,13 @@ VOID AsicAdjustTxPower(
 	ULONG		TxPwr[5];
 	CHAR		Value;
 
+#ifdef RT2860
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
 		|| (pAd->bPCIclkOff == TRUE)
 		|| RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF)
 		|| RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
 		return;
+#endif
 
 	if (pAd->CommonCfg.BBPCurrentBW == BW_40)
 	{
@@ -6020,10 +6727,20 @@ VOID AsicForceSleep(
  */
 VOID AsicForceWakeup(
 	IN PRTMP_ADAPTER pAd,
+#ifdef RT2860
 	IN UCHAR    	 Level)
+#endif
+#ifdef RT2870
+	IN BOOLEAN    bFromTx)
+#endif
 {
     DBGPRINT(RT_DEBUG_TRACE, ("--> AsicForceWakeup \n"));
+#ifdef RT2860
     RT28XX_STA_FORCE_WAKEUP(pAd, Level);
+#endif
+#ifdef RT2870
+    RT28XX_STA_FORCE_WAKEUP(pAd, bFromTx);
+#endif
 }
 
 /*
@@ -6234,6 +6951,7 @@ VOID AsicEnableIbssSync(
 	csr9.field.bTsfTicking = 0;
 	RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, csr9.word);
 
+#ifdef RT2860
 	// move BEACON TXD and frame content to on-chip memory
 	ptr = (PUCHAR)&pAd->BeaconTxWI;
 	for (i=0; i<TXWI_SIZE; i+=4)  // 16-byte TXWI field
@@ -6251,6 +6969,24 @@ VOID AsicEnableIbssSync(
 		RTMP_IO_WRITE32(pAd, HW_BEACON_BASE0 + TXWI_SIZE + i, longptr);
 		ptr +=4;
 	}
+#endif
+#ifdef RT2870
+	// move BEACON TXD and frame content to on-chip memory
+	ptr = (PUCHAR)&pAd->BeaconTxWI;
+	for (i=0; i<TXWI_SIZE; i+=2)  // 16-byte TXWI field
+	{
+		RTUSBMultiWrite(pAd, HW_BEACON_BASE0 + i, ptr, 2);
+		ptr += 2;
+	}
+
+	// start right after the 16-byte TXWI field
+	ptr = pAd->BeaconBuf;
+	for (i=0; i< pAd->BeaconTxWI.MPDUtotalByteCount; i+=2)
+	{
+		RTUSBMultiWrite(pAd, HW_BEACON_BASE0 + TXWI_SIZE + i, ptr, 2);
+		ptr +=2;
+	}
+#endif // RT2870 //
 
 	// start sending BEACON
 	csr9.field.BeaconInterval = pAd->CommonCfg.BeaconPeriod << 4; // ASIC register in units of 1/16 TU
@@ -6406,13 +7142,21 @@ VOID AsicSetEdcaParm(
 				Ac2Cfg.field.Aifsn -= 1;
 
 			// Tuning for TGn Wi-Fi 5.2.32
-			// STA TestBed changes in this item: conexant legacy sta ==> broadcom 11n sta
+			// STA TestBed changes in this item: connexant legacy sta ==> broadcom 11n sta
 			if (STA_TGN_WIFI_ON(pAd) &&
 				pEdcaParm->Aifsn[QID_AC_VI] == 10)
 			{
 				Ac0Cfg.field.Aifsn = 3;
 				Ac2Cfg.field.AcTxop = 5;
 			}
+
+#ifdef RT30xx
+			if (pAd->RfIcType == RFIC_3020 || pAd->RfIcType == RFIC_2020)
+			{
+				// Tuning for WiFi WMM S3-T07: connexant legacy sta ==> broadcom 11n sta.
+				Ac2Cfg.field.Aifsn = 5;
+			}
+#endif // RT30xx //
 		}
 
 		Ac3Cfg.field.AcTxop = pEdcaParm->Txop[QID_AC_VO];
@@ -6479,16 +7223,24 @@ VOID AsicSetEdcaParm(
 				AifsnCsr.field.Aifsn2 = Ac2Cfg.field.Aifsn - 4;
 
 			// Tuning for TGn Wi-Fi 5.2.32
-			// STA TestBed changes in this item: conexant legacy sta ==> broadcom 11n sta
+			// STA TestBed changes in this item: connexant legacy sta ==> broadcom 11n sta
 			if (STA_TGN_WIFI_ON(pAd) &&
 				pEdcaParm->Aifsn[QID_AC_VI] == 10)
 			{
 				AifsnCsr.field.Aifsn0 = 3;
 				AifsnCsr.field.Aifsn2 = 7;
 			}
+#ifdef RT2870
+			if (INFRA_ON(pAd))
+				CLIENT_STATUS_SET_FLAG(&pAd->MacTab.Content[BSSID_WCID], fCLIENT_STATUS_WMM_CAPABLE);
+#endif
 		}
 
 		AifsnCsr.field.Aifsn3 = Ac3Cfg.field.Aifsn - 1; //pEdcaParm->Aifsn[QID_AC_VO]; //for TGn wifi test
+#ifdef RT30xx
+		if (pAd->RfIcType == RFIC_3020 || pAd->RfIcType == RFIC_2020)
+			AifsnCsr.field.Aifsn2 = 0x2; //pEdcaParm->Aifsn[QID_AC_VI]; //for WiFi WMM S4-T04.
+#endif // RT30xx //
 
 		RTMP_IO_WRITE32(pAd, WMM_AIFSN_CFG, AifsnCsr.word);
 
@@ -6551,6 +7303,7 @@ VOID 	AsicSetSlotTime(
 	SlotTime = (bUseShortSlotTime)? 9 : 20;
 
 	{
+#ifndef RT30xx
 		// force using short SLOT time for FAE to demo performance when TxBurst is ON
 		if (((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED)))
 			|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE))
@@ -6560,6 +7313,10 @@ VOID 	AsicSetSlotTime(
 			// And we will not set to short slot when bEnableTxBurst is TRUE.
 		}
 		else if (pAd->CommonCfg.bEnableTxBurst)
+#endif
+#ifdef RT30xx
+		if (pAd->CommonCfg.bEnableTxBurst)
+#endif
 			SlotTime = 9;
 	}
 
@@ -6600,7 +7357,9 @@ VOID AsicAddSharedKeyEntry(
 {
 	ULONG offset; //, csr0;
 	SHAREDKEY_MODE_STRUC csr1;
+#ifdef RT2860
 	INT   i;
+#endif
 
 	DBGPRINT(RT_DEBUG_TRACE, ("AsicAddSharedKeyEntry BssIndex=%d, KeyIdx=%d\n", BssIndex,KeyIdx));
 //============================================================================================
@@ -6622,28 +7381,43 @@ VOID AsicAddSharedKeyEntry(
 	//
 	// fill key material - key + TX MIC + RX MIC
 	//
+
 	offset = SHARED_KEY_TABLE_BASE + (4*BssIndex + KeyIdx)*HW_KEY_ENTRY_SIZE;
+#ifdef RT2860
 	for (i=0; i<MAX_LEN_OF_SHARE_KEY; i++)
 	{
 		RTMP_IO_WRITE8(pAd, offset + i, pKey[i]);
 	}
-
+#endif
+#ifdef RT2870
+	RTUSBMultiWrite(pAd, offset, pKey, MAX_LEN_OF_SHARE_KEY);
+#endif
 	offset += MAX_LEN_OF_SHARE_KEY;
 	if (pTxMic)
 	{
+#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset + i, pTxMic[i]);
 		}
+#endif
+#ifdef RT2870
+		RTUSBMultiWrite(pAd, offset, pTxMic, 8);
+#endif
 	}
 
 	offset += 8;
 	if (pRxMic)
 	{
+#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset + i, pRxMic[i]);
 		}
+#endif
+#ifdef RT2870
+		RTUSBMultiWrite(pAd, offset, pRxMic, 8);
+#endif
 	}
 
 
@@ -6819,7 +7593,9 @@ VOID AsicAddKeyEntry(
 	PUCHAR		pTxtsc = pCipherKey->TxTsc;
 	UCHAR		CipherAlg = pCipherKey->CipherAlg;
 	SHAREDKEY_MODE_STRUC csr1;
+#ifdef RT2860
 	UCHAR		i;
+#endif
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> AsicAddKeyEntry\n"));
 	//
@@ -6834,10 +7610,15 @@ VOID AsicAddKeyEntry(
 	// 2.) Set Key to Asic
 	//
 	//for (i = 0; i < KeyLen; i++)
+#ifdef RT2860
 	for (i = 0; i < MAX_LEN_OF_PEER_KEY; i++)
 	{
 		RTMP_IO_WRITE8(pAd, offset + i, pKey[i]);
 	}
+#endif
+#ifdef RT2870
+	RTUSBMultiWrite(pAd, offset, pKey, MAX_LEN_OF_PEER_KEY);
+#endif
 	offset += MAX_LEN_OF_PEER_KEY;
 
 	//
@@ -6845,19 +7626,29 @@ VOID AsicAddKeyEntry(
 	//
 	if (pTxMic)
 	{
+#ifdef RT2860
 		for (i = 0; i < 8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset + i, pTxMic[i]);
 		}
+#endif
+#ifdef RT2870
+		RTUSBMultiWrite(pAd, offset, pTxMic, 8);
+#endif
 	}
 	offset += LEN_TKIP_TXMICK;
 
 	if (pRxMic)
 	{
+#ifdef RT2860
 		for (i = 0; i < 8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset + i, pRxMic[i]);
 		}
+#endif
+#ifdef RT2870
+		RTUSBMultiWrite(pAd, offset, pRxMic, 8);
+#endif
 	}
 
 
@@ -6867,6 +7658,7 @@ VOID AsicAddKeyEntry(
 	//
 	if (bTxKey)
 	{
+#ifdef RT2860
 		offset = MAC_IVEIV_TABLE_BASE + (WCID * HW_IVEIV_ENTRY_SIZE);
 		//
 		// Write IV
@@ -6890,6 +7682,26 @@ VOID AsicAddKeyEntry(
 			RTMP_IO_WRITE8(pAd, offset + i, pTxtsc[i + 2]);
 		}
 
+#endif
+#ifdef RT2870
+		UINT32 tmpVal;
+
+		//
+		// Write IV
+		//
+		IV4 = (KeyIdx << 6);
+		if ((CipherAlg == CIPHER_TKIP) || (CipherAlg == CIPHER_TKIP_NO_MIC) ||(CipherAlg == CIPHER_AES))
+			IV4 |= 0x20;  // turn on extension bit means EIV existence
+
+		tmpVal = pTxtsc[1] + (((pTxtsc[1] | 0x20) & 0x7f) << 8) + (pTxtsc[0] << 16) + (IV4 << 24);
+		RTMP_IO_WRITE32(pAd, offset, tmpVal);
+
+		//
+		// Write EIV
+		//
+		offset += 4;
+		RTMP_IO_WRITE32(pAd, offset, *(PUINT32)&pCipherKey->TxTsc[2]);
+#endif // RT2870 //
 		AsicUpdateWCIDAttribute(pAd, WCID, BssIndex, CipherAlg, bUsePairewiseKeyTable);
 	}
 
@@ -6954,10 +7766,15 @@ VOID AsicAddPairwiseKeyEntry(
 
 	// EKEY
 	offset = PAIRWISE_KEY_TABLE_BASE + (WCID * HW_KEY_ENTRY_SIZE);
+#ifdef RT2860
 	for (i=0; i<MAX_LEN_OF_PEER_KEY; i++)
 	{
 		RTMP_IO_WRITE8(pAd, offset + i, pKey[i]);
 	}
+#endif
+#ifdef RT2870
+	RTUSBMultiWrite(pAd, offset, &pCipherKey->Key[0], MAX_LEN_OF_PEER_KEY);
+#endif // RT2870 //
 	for (i=0; i<MAX_LEN_OF_PEER_KEY; i+=4)
 	{
 		UINT32 Value;
@@ -6969,18 +7786,28 @@ VOID AsicAddPairwiseKeyEntry(
 	//  MIC KEY
 	if (pTxMic)
 	{
+#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset+i, pTxMic[i]);
 		}
+#endif
+#ifdef RT2870
+		RTUSBMultiWrite(pAd, offset, &pCipherKey->TxMic[0], 8);
+#endif // RT2870 //
 	}
 	offset += 8;
 	if (pRxMic)
 	{
+#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset+i, pRxMic[i]);
 		}
+#endif
+#ifdef RT2870
+		RTUSBMultiWrite(pAd, offset, &pCipherKey->RxMic[0], 8);
+#endif // RT2870 //
 	}
 
 	DBGPRINT(RT_DEBUG_TRACE,("AsicAddPairwiseKeyEntry: WCID #%d Alg=%s\n",WCID, CipherName[CipherAlg]));
@@ -7042,6 +7869,7 @@ BOOLEAN AsicSendCommandToMcu(
 	if (i >= 100)
 	{
 		{
+#ifdef RT2860
 			UINT32 Data;
 
 			// Reset DMA
@@ -7063,9 +7891,13 @@ BOOLEAN AsicSendCommandToMcu(
 			RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &Data);
 			Data &= 0xfffffffd;
 			RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+#endif /* RT2860 */
 		DBGPRINT_ERR(("H2M_MAILBOX still hold by MCU. command fail\n"));
 		}
 		//return FALSE;
+#ifdef RT2870
+		return FALSE;
+#endif
 	}
 
 	H2MMailbox.field.Owner	  = 1;	   // pass ownership to MCU
@@ -7085,6 +7917,7 @@ BOOLEAN AsicSendCommandToMcu(
 	return TRUE;
 }
 
+#ifdef RT2860
 BOOLEAN AsicCheckCommanOk(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR		 Command)
@@ -7149,6 +7982,7 @@ BOOLEAN AsicCheckCommanOk(
 
 	return FALSE;
 }
+#endif /* RT8260 */
 
 /*
 	========================================================================
@@ -7497,6 +8331,58 @@ CHAR RTMPMaxRssi(
 	return larger;
 }
 
+#ifdef RT30xx
+// Antenna divesity use GPIO3 and EESK pin for control
+// Antenna and EEPROM access are both using EESK pin,
+// Therefor we should avoid accessing EESK at the same time
+// Then restore antenna after EEPROM access
+VOID AsicSetRxAnt(
+	IN PRTMP_ADAPTER	pAd,
+	IN UCHAR			Ant)
+{
+#ifdef RT30xx
+	UINT32	Value;
+	UINT32	x;
+
+	if ((pAd->EepromAccess)										||
+		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS))	||
+		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS))	||
+		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))			||
+		(RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
+	{
+		return;
+	}
+
+	// the antenna selection is through firmware and MAC register(GPIO3)
+	if (Ant == 0)
+	{
+		// Main antenna
+		RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
+		x |= (EESK);
+		RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
+
+		RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &Value);
+		Value &= ~(0x0808);
+		RTMP_IO_WRITE32(pAd, GPIO_CTRL_CFG, Value);
+		DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicSetRxAnt, switch to main antenna\n"));
+	}
+	else
+	{
+		// Aux antenna
+		RTMP_IO_READ32(pAd, E2PROM_CSR, &x);
+		x &= ~(EESK);
+		RTMP_IO_WRITE32(pAd, E2PROM_CSR, x);
+
+		RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &Value);
+		Value &= ~(0x0808);
+		Value |= 0x08;
+		RTMP_IO_WRITE32(pAd, GPIO_CTRL_CFG, Value);
+		DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicSetRxAnt, switch to aux antenna\n"));
+	}
+#endif // RT30xx //
+}
+#endif /* RT30xx */
+
 /*
     ========================================================================
     Routine Description:
@@ -7515,6 +8401,7 @@ VOID AsicEvaluateRxAnt(
 {
 	UCHAR	BBPR3 = 0;
 
+#ifndef RT30xx
 	{
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
 								fRTMP_ADAPTER_HALT_IN_PROGRESS	|
@@ -7543,7 +8430,92 @@ VOID AsicEvaluateRxAnt(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
 
+#ifdef RT2860
     	pAd->StaCfg.BBPR3 = BBPR3;
+#endif
+#ifdef RT2870
+	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
+		)
+	{
+		ULONG	TxTotalCnt = pAd->RalinkCounters.OneSecTxNoRetryOkCount +
+								pAd->RalinkCounters.OneSecTxRetryOkCount +
+								pAd->RalinkCounters.OneSecTxFailCount;
+
+		if (TxTotalCnt > 50)
+		{
+			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 20);
+			pAd->Mlme.bLowThroughput = FALSE;
+		}
+		else
+		{
+			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 300);
+			pAd->Mlme.bLowThroughput = TRUE;
+		}
+	}
+#endif
+#endif /* RT30xx */
+#ifdef RT30xx
+	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
+							fRTMP_ADAPTER_HALT_IN_PROGRESS	|
+							fRTMP_ADAPTER_RADIO_OFF			|
+							fRTMP_ADAPTER_NIC_NOT_EXIST		|
+							fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS) ||
+							OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
+#ifdef RT30xx
+							|| (pAd->EepromAccess)
+#endif // RT30xx //
+							)
+		return;
+
+
+	{
+		//if (pAd->StaCfg.Psm == PWR_SAVE)
+		//	return;
+	}
+
+	// two antenna selection mechanism- one is antenna diversity, the other is failed antenna remove
+	// one is antenna diversity:there is only one antenna can rx and tx
+	// the other is failed antenna remove:two physical antenna can rx and tx
+	if (pAd->NicConfig2.field.AntDiversity)
+	{
+		DBGPRINT(RT_DEBUG_TRACE,("AntDiv - before evaluate Pair1-Ant (%d,%d)\n",
+			pAd->RxAnt.Pair1PrimaryRxAnt, pAd->RxAnt.Pair1SecondaryRxAnt));
+
+		AsicSetRxAnt(pAd, pAd->RxAnt.Pair1SecondaryRxAnt);
+
+		pAd->RxAnt.EvaluatePeriod = 1; // 1:Means switch to SecondaryRxAnt, 0:Means switch to Pair1PrimaryRxAnt
+		pAd->RxAnt.FirstPktArrivedWhenEvaluate = FALSE;
+		pAd->RxAnt.RcvPktNumWhenEvaluate = 0;
+
+		// a one-shot timer to end the evalution
+		// dynamic adjust antenna evaluation period according to the traffic
+		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED))
+			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 100);
+		else
+			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 300);
+	}
+	else
+	{
+		if (pAd->StaCfg.Psm == PWR_SAVE)
+			return;
+
+		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBPR3);
+		BBPR3 &= (~0x18);
+		if(pAd->Antenna.field.RxPath == 3)
+		{
+			BBPR3 |= (0x10);
+		}
+		else if(pAd->Antenna.field.RxPath == 2)
+		{
+			BBPR3 |= (0x8);
+		}
+		else if(pAd->Antenna.field.RxPath == 1)
+		{
+			BBPR3 |= (0x0);
+		}
+		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
+	}
+#endif /* RT30xx */
 
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 		)
@@ -7552,6 +8524,7 @@ VOID AsicEvaluateRxAnt(
 								pAd->RalinkCounters.OneSecTxRetryOkCount +
 								pAd->RalinkCounters.OneSecTxFailCount;
 
+			// dynamic adjust antenna evaluation period according to the traffic
 		if (TxTotalCnt > 50)
 		{
 			RTMPSetTimer(&pAd->Mlme.RxAntEvalTimer, 20);
@@ -7588,6 +8561,7 @@ VOID AsicRxAntEvalTimeout(
 	UCHAR			BBPR3 = 0;
 	CHAR			larger = -127, rssi0, rssi1, rssi2;
 
+#ifndef RT30xx
 	{
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS)	||
 			RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS)		||
@@ -7645,8 +8619,111 @@ VOID AsicRxAntEvalTimeout(
 			BBPR3 |= (0x0);
 		}
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
+#ifdef RT2860
 		pAd->StaCfg.BBPR3 = BBPR3;
+#endif
 	}
+#endif /* RT30xx */
+#ifdef RT30xx
+	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
+							fRTMP_ADAPTER_HALT_IN_PROGRESS	|
+							fRTMP_ADAPTER_RADIO_OFF			|
+							fRTMP_ADAPTER_NIC_NOT_EXIST) ||
+							OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
+#ifdef RT30xx
+							|| (pAd->EepromAccess)
+#endif // RT30xx //
+							)
+		return;
+
+	{
+		//if (pAd->StaCfg.Psm == PWR_SAVE)
+		//	return;
+
+		if (pAd->NicConfig2.field.AntDiversity)
+		{
+			if ((pAd->RxAnt.RcvPktNumWhenEvaluate != 0) && (pAd->RxAnt.Pair1AvgRssi[pAd->RxAnt.Pair1SecondaryRxAnt] >= pAd->RxAnt.Pair1AvgRssi[pAd->RxAnt.Pair1PrimaryRxAnt]))
+			{
+				UCHAR			temp;
+
+				//
+				// select PrimaryRxAntPair
+				//    Role change, Used Pair1SecondaryRxAnt as PrimaryRxAntPair.
+				//    Since Pair1SecondaryRxAnt Quality good than Pair1PrimaryRxAnt
+				//
+				temp = pAd->RxAnt.Pair1PrimaryRxAnt;
+				pAd->RxAnt.Pair1PrimaryRxAnt = pAd->RxAnt.Pair1SecondaryRxAnt;
+				pAd->RxAnt.Pair1SecondaryRxAnt = temp;
+
+				pAd->RxAnt.Pair1LastAvgRssi = (pAd->RxAnt.Pair1AvgRssi[pAd->RxAnt.Pair1SecondaryRxAnt] >> 3);
+				pAd->RxAnt.EvaluateStableCnt = 0;
+			}
+			else
+			{
+				// if the evaluated antenna is not better than original, switch back to original antenna
+				AsicSetRxAnt(pAd, pAd->RxAnt.Pair1PrimaryRxAnt);
+				pAd->RxAnt.EvaluateStableCnt ++;
+			}
+
+			pAd->RxAnt.EvaluatePeriod = 0; // 1:Means switch to SecondaryRxAnt, 0:Means switch to Pair1PrimaryRxAnt
+
+			DBGPRINT(RT_DEBUG_TRACE,("AsicRxAntEvalAction::After Eval(fix in #%d), <%d, %d>, RcvPktNumWhenEvaluate=%ld\n",
+					pAd->RxAnt.Pair1PrimaryRxAnt, (pAd->RxAnt.Pair1AvgRssi[0] >> 3), (pAd->RxAnt.Pair1AvgRssi[1] >> 3), pAd->RxAnt.RcvPktNumWhenEvaluate));
+		}
+		else
+		{
+			if (pAd->StaCfg.Psm == PWR_SAVE)
+				return;
+
+			// if the traffic is low, use average rssi as the criteria
+			if (pAd->Mlme.bLowThroughput == TRUE)
+			{
+				rssi0 = pAd->StaCfg.RssiSample.LastRssi0;
+				rssi1 = pAd->StaCfg.RssiSample.LastRssi1;
+				rssi2 = pAd->StaCfg.RssiSample.LastRssi2;
+			}
+			else
+			{
+				rssi0 = pAd->StaCfg.RssiSample.AvgRssi0;
+				rssi1 = pAd->StaCfg.RssiSample.AvgRssi1;
+				rssi2 = pAd->StaCfg.RssiSample.AvgRssi2;
+			}
+
+			if(pAd->Antenna.field.RxPath == 3)
+			{
+				larger = max(rssi0, rssi1);
+
+				if (larger > (rssi2 + 20))
+					pAd->Mlme.RealRxPath = 2;
+				else
+					pAd->Mlme.RealRxPath = 3;
+			}
+			else if(pAd->Antenna.field.RxPath == 2)
+			{
+				if (rssi0 > (rssi1 + 20))
+					pAd->Mlme.RealRxPath = 1;
+				else
+					pAd->Mlme.RealRxPath = 2;
+			}
+
+			RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBPR3);
+			BBPR3 &= (~0x18);
+			if(pAd->Mlme.RealRxPath == 3)
+			{
+				BBPR3 |= (0x10);
+			}
+			else if(pAd->Mlme.RealRxPath == 2)
+			{
+				BBPR3 |= (0x8);
+			}
+			else if(pAd->Mlme.RealRxPath == 1)
+			{
+				BBPR3 |= (0x0);
+			}
+			RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
+		}
+	}
+#endif /* RT30xx */
 }
 
 
@@ -7845,7 +8922,12 @@ VOID AsicStaBbpTuning(
 		&& (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 			)
 		&& !(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+#ifdef RT2860
 		&& (pAd->bPCIclkOff == FALSE))
+#endif
+#ifdef RT2870
+		)
+#endif
 	{
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R66, &OrigR66Value);
 		R66 = OrigR66Value;
@@ -7857,6 +8939,45 @@ VOID AsicStaBbpTuning(
 
 		if (pAd->LatchRfRegs.Channel <= 14)
 		{	//BG band
+#ifdef RT2870
+			// RT3070 is a no LNA solution, it should have different control regarding to AGC gain control
+			// Otherwise, it will have some throughput side effect when low RSSI
+#ifndef RT30xx
+			if (IS_RT3070(pAd))
+#endif
+#ifdef RT30xx
+			if (IS_RT30xx(pAd))
+#endif
+			{
+				if (Rssi > RSSI_FOR_MID_LOW_SENSIBILITY)
+				{
+					R66 = 0x1C + 2*GET_LNA_GAIN(pAd) + 0x20;
+					if (OrigR66Value != R66)
+					{
+#ifndef RT30xx
+						RTUSBWriteBBPRegister(pAd, BBP_R66, R66);
+#endif
+#ifdef RT30xx
+						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, R66);
+#endif
+					}
+				}
+				else
+				{
+					R66 = 0x1C + 2*GET_LNA_GAIN(pAd);
+					if (OrigR66Value != R66)
+					{
+#ifndef RT30xx
+						RTUSBWriteBBPRegister(pAd, BBP_R66, R66);
+#endif
+#ifdef RT30xx
+						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, R66);
+#endif
+					}
+				}
+			}
+			else
+#endif // RT2870 //
 			{
 				if (Rssi > RSSI_FOR_MID_LOW_SENSIBILITY)
 				{
@@ -7922,6 +9043,7 @@ VOID AsicStaBbpTuning(
 	}
 }
 
+#ifdef RT2860
 VOID AsicResetFromDMABusy(
 	IN PRTMP_ADAPTER pAd)
 {
@@ -8021,6 +9143,7 @@ VOID AsicResetPBF(
 		DBGPRINT(RT_DEBUG_TRACE, ("<---  Asic HardReset PBF !!!! \n"));
 	}
 }
+#endif /* RT2860 */
 
 VOID RTMPSetAGCInitValue(
 	IN PRTMP_ADAPTER	pAd,
@@ -8059,6 +9182,15 @@ VOID AsicTurnOffRFClk(
 	UCHAR			index;
 	RTMP_RF_REGS	*RFRegTable;
 
+#ifdef RT30xx
+	// The RF programming sequence is difference between 3xxx and 2xxx
+	if (IS_RT3090(pAd))
+	{
+		RT30xxLoadRFSleepModeSetup(pAd);  // add by johnli,  RF power sequence setup, load RF sleep-mode setup
+	}
+	else
+	{
+#endif // RT30xx //
 	RFRegTable = RF2850RegTable;
 
 	switch (pAd->RfIcType)
@@ -8100,6 +9232,10 @@ VOID AsicTurnOffRFClk(
 		default:
 			break;
 	}
+#ifdef RT30xx
+	}
+#endif // RT30xx //
+
 }
 
 
@@ -8113,6 +9249,14 @@ VOID AsicTurnOnRFClk(
 	UCHAR			index;
 	RTMP_RF_REGS	*RFRegTable;
 
+#ifdef RT30xx
+	// The RF programming sequence is difference between 3xxx and 2xxx
+	if (IS_RT3090(pAd))
+	{
+	}
+	else
+	{
+#endif // RT30xx //
 	RFRegTable = RF2850RegTable;
 
 	switch (pAd->RfIcType)
@@ -8159,9 +9303,14 @@ VOID AsicTurnOnRFClk(
 			break;
 	}
 
+#ifndef RT30xx
 	DBGPRINT(RT_DEBUG_TRACE, ("AsicTurnOnRFClk#%d(RF=%d, ) , R2=0x%08x\n",
 		Channel,
 		pAd->RfIcType,
 		R2));
+#endif
+#ifdef RT30xx
+	}
+#endif // RT30xx //
 }
 

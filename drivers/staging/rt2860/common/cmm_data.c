@@ -105,7 +105,9 @@ NDIS_STATUS MiniportMMRequest(
 	PNDIS_PACKET	pPacket;
 	NDIS_STATUS  	Status = NDIS_STATUS_SUCCESS;
 	ULONG	 		FreeNum;
+#ifdef RT2860
 	unsigned long	IrqFlags = 0;
+#endif
 	UCHAR			IrqState;
 	UCHAR			rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE]; //RTMP_HW_HDR_LEN];
 
@@ -117,9 +119,10 @@ NDIS_STATUS MiniportMMRequest(
 
 	IrqState = pAd->irq_disabled;
 
+#ifdef RT2860
 	if ((pAd->MACVersion == 0x28600100) && (!IrqState))
 		RTMP_IRQ_LOCK(&pAd->irq_lock, IrqFlags);
-
+#endif
 	do
 	{
 		// Reset is in progress, stop immediately
@@ -172,14 +175,15 @@ NDIS_STATUS MiniportMMRequest(
 
 	} while (FALSE);
 
+#ifdef RT2860
 	// 2860C use Tx Ring
 	if ((pAd->MACVersion == 0x28600100) && (!IrqState))
 		RTMP_IRQ_UNLOCK(&pAd->irq_lock, IrqFlags);
-
+#endif
 	return Status;
 }
 
-
+#ifdef RT2860
 NDIS_STATUS MiniportMMRequestUnlock(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			QueIdx,
@@ -247,7 +251,115 @@ NDIS_STATUS MiniportMMRequestUnlock(
 
 	return Status;
 }
+#endif
+#ifdef RT30xx
+NDIS_STATUS MlmeDataHardTransmit(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	UCHAR	QueIdx,
+	IN	PNDIS_PACKET	pPacket);
 
+#define MAX_DATAMM_RETRY	3
+/*
+	========================================================================
+
+	Routine Description:
+		API for MLME to transmit management frame to AP (BSS Mode)
+	or station (IBSS Mode)
+
+	Arguments:
+		pAd Pointer to our adapter
+		pData		Pointer to the outgoing 802.11 frame
+		Length		Size of outgoing management frame
+
+	Return Value:
+		NDIS_STATUS_FAILURE
+		NDIS_STATUS_PENDING
+		NDIS_STATUS_SUCCESS
+
+	IRQL = PASSIVE_LEVEL
+	IRQL = DISPATCH_LEVEL
+
+	Note:
+
+	========================================================================
+*/
+NDIS_STATUS MiniportDataMMRequest(
+							 IN  PRTMP_ADAPTER   pAd,
+							 IN  UCHAR           QueIdx,
+							 IN  PUCHAR          pData,
+							 IN  UINT            Length)
+{
+	PNDIS_PACKET    pPacket;
+	NDIS_STATUS  Status = NDIS_STATUS_SUCCESS;
+	ULONG    FreeNum;
+	int 	retry = 0;
+	UCHAR           IrqState;
+	UCHAR			rtmpHwHdr[TXINFO_SIZE + TXWI_SIZE]; //RTMP_HW_HDR_LEN];
+
+	ASSERT(Length <= MGMT_DMA_BUFFER_SIZE);
+
+	// 2860C use Tx Ring
+	IrqState = pAd->irq_disabled;
+
+	do
+	{
+		// Reset is in progress, stop immediately
+		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS) ||
+			 RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST)||
+			!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_START_UP))
+		{
+			Status = NDIS_STATUS_FAILURE;
+			break;
+		}
+
+		// Check Free priority queue
+		// Since we use PBF Queue2 for management frame.  Its corresponding DMA ring should be using TxRing.
+
+		// 2860C use Tx Ring
+
+		// free Tx(QueIdx) resources
+		FreeNum = GET_TXRING_FREENO(pAd, QueIdx);
+
+		if ((FreeNum > 0))
+		{
+			// We need to reserve space for rtmp hardware header. i.e., TxWI for RT2860 and TxInfo+TxWI for RT2870
+			NdisZeroMemory(&rtmpHwHdr, (TXINFO_SIZE + TXWI_SIZE));
+			Status = RTMPAllocateNdisPacket(pAd, &pPacket, (PUCHAR)&rtmpHwHdr, (TXINFO_SIZE + TXWI_SIZE), pData, Length);
+			if (Status != NDIS_STATUS_SUCCESS)
+			{
+				DBGPRINT(RT_DEBUG_WARN, ("MiniportMMRequest (error:: can't allocate NDIS PACKET)\n"));
+				break;
+			}
+
+			//pAd->CommonCfg.MlmeTransmit.field.MODE = MODE_CCK;
+			//pAd->CommonCfg.MlmeRate = RATE_2;
+
+
+			Status = MlmeDataHardTransmit(pAd, QueIdx, pPacket);
+			if (Status != NDIS_STATUS_SUCCESS)
+				RTMPFreeNdisPacket(pAd, pPacket);
+			retry = MAX_DATAMM_RETRY;
+		}
+		else
+		{
+			retry ++;
+
+			printk("retry %d\n", retry);
+			pAd->RalinkCounters.MgmtRingFullCount++;
+
+			if (retry >= MAX_DATAMM_RETRY)
+			{
+				DBGPRINT(RT_DEBUG_ERROR, ("Qidx(%d), not enough space in DataRing, MgmtRingFullCount=%ld!\n",
+											QueIdx, pAd->RalinkCounters.MgmtRingFullCount));
+			}
+		}
+
+	} while (retry < MAX_DATAMM_RETRY);
+
+
+	return Status;
+}
+#endif /* RT30xx */
 
 /*
 	========================================================================
@@ -283,14 +395,16 @@ NDIS_STATUS MlmeHardTransmit(
 		return NDIS_STATUS_FAILURE;
 	}
 
+#ifdef RT2860
 	if ( pAd->MACVersion == 0x28600100 )
 		return MlmeHardTransmitTxRing(pAd,QueIdx,pPacket);
 	else
+#endif
 		return MlmeHardTransmitMgmtRing(pAd,QueIdx,pPacket);
 
 }
 
-
+#ifdef RT2860
 NDIS_STATUS MlmeHardTransmitTxRing(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR	QueIdx,
@@ -472,7 +586,25 @@ NDIS_STATUS MlmeHardTransmitTxRing(
 
 	return NDIS_STATUS_SUCCESS;
 }
+#endif /* RT2860 */
 
+#ifdef RT30xx
+NDIS_STATUS MlmeDataHardTransmit(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	UCHAR	QueIdx,
+	IN	PNDIS_PACKET	pPacket)
+{
+	if ((pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE)
+		)
+	{
+		return NDIS_STATUS_FAILURE;
+	}
+
+#ifdef RT2870
+	return MlmeHardTransmitMgmtRing(pAd,QueIdx,pPacket);
+#endif // RT2870 //
+}
+#endif /* RT30xx */
 
 NDIS_STATUS MlmeHardTransmitMgmtRing(
 	IN	PRTMP_ADAPTER	pAd,
@@ -500,7 +632,12 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 
 	// outgoing frame always wakeup PHY to prevent frame lost
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+#ifdef RT2860
 		AsicForceWakeup(pAd, FROM_TX);
+#endif
+#ifdef RT2870
+		AsicForceWakeup(pAd, TRUE);
+#endif
 
 	pFirstTxWI = (PTXWI_STRUC)(pSrcBufVA +  TXINFO_SIZE);
 	pHeader_802_11 = (PHEADER_802_11) (pSrcBufVA + TXINFO_SIZE + TXWI_SIZE); //TXWI_SIZE);
@@ -823,7 +960,13 @@ BOOLEAN RTMP_FillTxBlkInfo(
 
 		{
 			// If support WMM, enable it.
+#ifdef RT2860
 			if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED))
+#endif
+#ifdef RT2870
+			if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) &&
+				CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE))
+#endif
 				TX_BLK_SET_FLAG(pTxBlk, fTX_bWMM);
 		}
 
@@ -870,6 +1013,11 @@ BOOLEAN RTMP_FillTxBlkInfo(
 	}
 
 	return TRUE;
+
+#ifdef RT30xx
+FillTxBlkErr:
+	return FALSE;
+#endif
 }
 
 
@@ -957,6 +1105,7 @@ VOID RTMPDeQueuePacket(
 	if (QIdx == NUM_OF_TX_RING)
 	{
 		sQIdx = 0;
+//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 		eQIdx = 3;	// 4 ACs, start from 0.
 	}
 	else
@@ -999,7 +1148,7 @@ VOID RTMPDeQueuePacket(
 				DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
 				break;
 			}
-
+#ifdef RT2860
 			FreeNumber[QueIdx] = GET_TXRING_FREENO(pAd, QueIdx);
 
 #ifdef DBG_DIAGNOSE
@@ -1024,7 +1173,7 @@ VOID RTMPDeQueuePacket(
 				RTMPFreeTXDUponTxDmaDone(pAd, QueIdx);
 				FreeNumber[QueIdx] = GET_TXRING_FREENO(pAd, QueIdx);
 			}
-
+#endif /* RT2860 */
 			// probe the Queue Head
 			pQueue = &pAd->TxSwQueue[QueIdx];
 			if ((pEntry = pQueue->Head) == NULL)
@@ -1093,19 +1242,29 @@ VOID RTMPDeQueuePacket(
 					pTxBlk->TxFrameType = TX_LEGACY_FRAME;
 			}
 
+#ifdef RT2870
+			DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
+#endif // RT2870 //
 
 			Count += pTxBlk->TxPacketList.Number;
 
 			// Do HardTransmit now.
 			Status = STAHardTransmit(pAd, pTxBlk, QueIdx);
 
+#ifdef RT2860
 			DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext, IrqFlags);
 			// static rate also need NICUpdateFifoStaCounters() function.
 			//if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))
 				NICUpdateFifoStaCounters(pAd);
+#endif
 		}
 
 		RT28XX_STOP_DEQUEUE(pAd, QueIdx, IrqFlags);
+
+#ifdef RT2870
+		if (!hasTxDesc)
+			RTUSBKickBulkOut(pAd);
+#endif // RT2870 //
 	}
 
 }
@@ -1633,7 +1792,7 @@ PQUEUE_HEADER	RTMPCheckTxSwQueue(
 	return (NULL);
 }
 
-
+#ifdef RT2860
 BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 	IN PRTMP_ADAPTER	pAd,
 	IN UCHAR			QueIdx)
@@ -2016,6 +2175,7 @@ VOID DBGPRINT_RX_RING(
 	DBGPRINT_RAW(RT_DEBUG_TRACE,(" 	RxSwReadIdx [%d]=", AC0freeIdx));
 	DBGPRINT_RAW(RT_DEBUG_TRACE,("	pending-NDIS=%ld\n", pAd->RalinkCounters.PendingNdisPacketCount));
 }
+#endif /* RT2860 */
 
 /*
 	========================================================================
@@ -2075,7 +2235,15 @@ VOID RTMPResumeMsduTransmission(
 {
 	DBGPRINT(RT_DEBUG_TRACE,("SCAN done, resume MSDU transmission ...\n"));
 
-
+#ifdef RT30xx
+	// After finish BSS_SCAN_IN_PROGRESS, we need to restore Current R66 value
+	// R66 should not be 0
+	if (pAd->BbpTuning.R66CurrentValue == 0)
+	{
+		pAd->BbpTuning.R66CurrentValue = 0x38;
+		DBGPRINT_ERR(("RTMPResumeMsduTransmission, R66CurrentValue=0...\n"));
+	}
+#endif
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, pAd->BbpTuning.R66CurrentValue);
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
@@ -2298,7 +2466,9 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 					pEntry->AuthMode = pAd->StaCfg.AuthMode;
 					pEntry->WepStatus = pAd->StaCfg.WepStatus;
 					pEntry->PrivacyFilter = Ndis802_11PrivFilterAcceptAll;
+#ifdef RT2860
 					AsicRemovePairwiseKeyEntry(pAd, pEntry->apidx, (UCHAR)i);
+#endif
 				}
 			}
 
@@ -2306,10 +2476,12 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 			pEntry->PairwiseKey.KeyLen = 0;
 			pEntry->PairwiseKey.CipherAlg = CIPHER_NONE;
 
+#ifdef RT2860
 			if ((pAd->OpMode == OPMODE_STA) &&
 				(pAd->StaCfg.BssType == BSS_ADHOC))
 				pEntry->PortSecured = WPA_802_1X_PORT_SECURED;
 			else
+#endif
 			pEntry->PortSecured = WPA_802_1X_PORT_NOT_SECURED;
 
 			pEntry->PMKID_CacheIdx = ENTRY_NOT_FOUND;
@@ -2445,7 +2617,12 @@ BOOLEAN MacTableDeleteEntry(
 	if (pAd->MacTab.Size == 0)
 	{
 		pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode = 0;
+#ifndef RT30xx
 		AsicUpdateProtect(pAd, 0 /*pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode*/, (ALLN_SETPROTECT), TRUE, 0 /*pAd->MacTab.fAnyStationNonGF*/);
+#endif
+#ifdef RT30xx
+		RT28XX_UPDATE_PROTECT(pAd);  // edit by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+#endif
 	}
 
 	return TRUE;
@@ -2469,7 +2646,9 @@ VOID MacTableReset(
 
 	for (i=1; i<MAX_LEN_OF_MAC_TABLE; i++)
 	{
+#ifdef RT2860
 		RT28XX_STA_ENTRY_MAC_RESET(pAd, i);
+#endif
 		if (pAd->MacTab.Content[i].ValidAsCLI == TRUE)
 	   {
 			// free resources of BA
@@ -2479,6 +2658,10 @@ VOID MacTableReset(
 
 
 
+#ifdef RT2870
+			NdisZeroMemory(pAd->MacTab.Content[i].Addr, 6);
+			RT28XX_STA_ENTRY_MAC_RESET(pAd, i);
+#endif // RT2870 //
 
 			//AsicDelWcidTab(pAd, i);
 		}
@@ -2791,6 +2974,37 @@ VOID Indicate_Legacy_Packet(
 
 	STATS_INC_RX_PACKETS(pAd, FromWhichBSSID);
 
+#ifdef RT2870
+	if (pAd->CommonCfg.bDisableReordering == 0)
+	{
+		PBA_REC_ENTRY		pBAEntry;
+		ULONG				Now32;
+		UCHAR				Wcid = pRxBlk->pRxWI->WirelessCliID;
+		UCHAR				TID = pRxBlk->pRxWI->TID;
+		USHORT				Idx;
+
+#define REORDERING_PACKET_TIMEOUT		((100 * HZ)/1000)	// system ticks -- 100 ms
+
+		if (Wcid < MAX_LEN_OF_MAC_TABLE)
+		{
+			Idx = pAd->MacTab.Content[Wcid].BARecWcidArray[TID];
+			if (Idx != 0)
+			{
+				pBAEntry = &pAd->BATable.BARecEntry[Idx];
+				// update last rx time
+				NdisGetSystemUpTime(&Now32);
+				if ((pBAEntry->list.qlen > 0) &&
+					 RTMP_TIME_AFTER((unsigned long)Now32, (unsigned long)(pBAEntry->LastIndSeqAtTimer+(REORDERING_PACKET_TIMEOUT)))
+	   				)
+				{
+					printk("Indicate_Legacy_Packet():flush reordering_timeout_mpdus! RxWI->Flags=%d, pRxWI.TID=%d, RxD->AMPDU=%d!\n", pRxBlk->Flags, pRxBlk->pRxWI->TID, pRxBlk->RxD.AMPDU);
+					hex_dump("Dump the legacy Packet:", GET_OS_PKT_DATAPTR(pRxBlk->pRxPacket), 64);
+					ba_flush_reordering_timeout_mpdus(pAd, pBAEntry, Now32);
+				}
+			}
+		}
+	}
+#endif // RT2870 //
 
 	wlan_802_11_to_802_3_packet(pAd, pRxBlk, Header802_3, FromWhichBSSID);
 

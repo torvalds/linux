@@ -39,10 +39,14 @@
 // WPA OUI
 UCHAR		OUI_WPA_NONE_AKM[4]		= {0x00, 0x50, 0xF2, 0x00};
 UCHAR       OUI_WPA_VERSION[4]      = {0x00, 0x50, 0xF2, 0x01};
+#ifndef RT30xx
 UCHAR       OUI_WPA_WEP40[4]      = {0x00, 0x50, 0xF2, 0x01};
+#endif
 UCHAR       OUI_WPA_TKIP[4]     = {0x00, 0x50, 0xF2, 0x02};
 UCHAR       OUI_WPA_CCMP[4]     = {0x00, 0x50, 0xF2, 0x04};
+#ifndef RT30xx
 UCHAR       OUI_WPA_WEP104[4]      = {0x00, 0x50, 0xF2, 0x05};
+#endif
 UCHAR       OUI_WPA_8021X_AKM[4]	= {0x00, 0x50, 0xF2, 0x01};
 UCHAR       OUI_WPA_PSK_AKM[4]      = {0x00, 0x50, 0xF2, 0x02};
 // WPA2 OUI
@@ -51,7 +55,9 @@ UCHAR       OUI_WPA2_TKIP[4]        = {0x00, 0x0F, 0xAC, 0x02};
 UCHAR       OUI_WPA2_CCMP[4]        = {0x00, 0x0F, 0xAC, 0x04};
 UCHAR       OUI_WPA2_8021X_AKM[4]   = {0x00, 0x0F, 0xAC, 0x01};
 UCHAR       OUI_WPA2_PSK_AKM[4]   	= {0x00, 0x0F, 0xAC, 0x02};
+#ifndef RT30xx
 UCHAR       OUI_WPA2_WEP104[4]   = {0x00, 0x0F, 0xAC, 0x05};
+#endif
 // MSA OUI
 UCHAR   	OUI_MSA_8021X_AKM[4]    = {0x00, 0x0F, 0xAC, 0x05};		// Not yet final - IEEE 802.11s-D1.06
 UCHAR   	OUI_MSA_PSK_AKM[4]   	= {0x00, 0x0F, 0xAC, 0x06};		// Not yet final - IEEE 802.11s-D1.06
@@ -370,6 +376,7 @@ static VOID RTMPInsertRsnIeCipher(
                 break;
         }
 
+#ifndef RT30xx
 		if ((pAd->OpMode == OPMODE_STA) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption2Enabled) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption3Enabled))
@@ -385,7 +392,7 @@ static VOID RTMPInsertRsnIeCipher(
 					break;
 			}
 		}
-
+#endif
 		// swap for big-endian platform
 		pRsnie_cipher->version = cpu2le16(pRsnie_cipher->version);
 	    pRsnie_cipher->ucount = cpu2le16(pRsnie_cipher->ucount);
@@ -446,6 +453,7 @@ static VOID RTMPInsertRsnIeCipher(
                 break;
         }
 
+#ifndef RT30xx
 		if ((pAd->OpMode == OPMODE_STA) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption2Enabled) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption3Enabled))
@@ -461,7 +469,7 @@ static VOID RTMPInsertRsnIeCipher(
 					break;
 			}
 		}
-
+#endif
 		// swap for big-endian platform
 		pRsnie_cipher->version = cpu2le16(pRsnie_cipher->version);
 	    pRsnie_cipher->ucount = cpu2le16(pRsnie_cipher->ucount);

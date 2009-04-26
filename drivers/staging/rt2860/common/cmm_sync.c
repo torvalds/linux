@@ -440,13 +440,24 @@ VOID ScanNextChannel(
 
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
 	}
+#ifdef RT2870
+	else if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST) && (pAd->OpMode == OPMODE_STA))
+	{
+		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
+		MlmeCntlConfirm(pAd, MT2_SCAN_CONF, MLME_FAIL_NO_RESOURCE);
+	}
+#endif // RT2870 //
 	else
 	{
 		{
 		// BBP and RF are not accessible in PS mode, we has to wake them up first
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+#ifdef RT2860
 				AsicForceWakeup(pAd, FROM_TX);
-
+#endif
+#ifdef RT2870
+			AsicForceWakeup(pAd, TRUE);
+#endif
 			// leave PSM during scanning. otherwise we may lost ProbeRsp & BEACON
 			if (pAd->StaCfg.Psm == PWR_SAVE)
 				MlmeSetPsmBit(pAd, PWR_ACTIVE);
