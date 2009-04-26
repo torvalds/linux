@@ -68,7 +68,6 @@ static int rt28xx_init(IN struct net_device *net_dev);
 INT rt28xx_send_packets(IN struct sk_buff *skb_p, IN struct net_device *net_dev);
 
 static void CfgInitHook(PRTMP_ADAPTER pAd);
-//static BOOLEAN RT28XXAvailRANameAssign(IN CHAR *name_p);
 
 extern	const struct iw_handler_def rt28xx_iw_handler_def;
 
@@ -288,9 +287,6 @@ int rt28xx_close(IN PNET_DEV dev)
 	remove_wait_queue (&unlink_wakeup, &wait);
 #endif // RT2870 //
 
-	//RTUSBCleanUpMLMEWaitQueue(pAd);	/*not used in RT28xx*/
-
-
 #ifdef RT2870
 	// We need clear timerQ related structure before exits of the timer thread.
 	RT2870_TimerQ_Exit(pAd);
@@ -400,9 +396,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	if (Status != NDIS_STATUS_SUCCESS)
 		goto err1;
 
-//	COPY_MAC_ADDR(pAd->ApCfg.MBSSID[apidx].Bssid, netif->hwaddr);
-//	pAd->bForcePrintTX = TRUE;
-
 	CfgInitHook(pAd);
 
 	NdisAllocateSpinLock(&pAd->MacTabLock);
@@ -442,7 +435,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 
    	//Init Ba Capability parameters.
-//	RT28XX_BA_INIT(pAd);
 	pAd->CommonCfg.DesiredHtPhy.MpduDensity = (UCHAR)pAd->CommonCfg.BACapability.field.MpduDensity;
 	pAd->CommonCfg.DesiredHtPhy.AmsduEnable = (USHORT)pAd->CommonCfg.BACapability.field.AmsduEnable;
 	pAd->CommonCfg.DesiredHtPhy.AmsduSize = (USHORT)pAd->CommonCfg.BACapability.field.AmsduSize;
@@ -451,13 +443,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	pAd->CommonCfg.HtCapability.HtCapInfo.MimoPs = (USHORT)pAd->CommonCfg.BACapability.field.MMPSmode;
 	pAd->CommonCfg.HtCapability.HtCapInfo.AMsduSize = (USHORT)pAd->CommonCfg.BACapability.field.AmsduSize;
 	pAd->CommonCfg.HtCapability.HtCapParm.MpduDensity = (UCHAR)pAd->CommonCfg.BACapability.field.MpduDensity;
-
-	// after reading Registry, we now know if in AP mode or STA mode
-
-	// Load 8051 firmware; crash when FW image not existent
-	// Status = NICLoadFirmware(pAd);
-	// if (Status != NDIS_STATUS_SUCCESS)
-	//    break;
 
 	printk("2. Phy Mode = %d\n", pAd->CommonCfg.PhyMode);
 
@@ -490,15 +475,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	NICInitRT30xxRFRegisters(pAd);
 #endif // RT2870 //
 
-#if 0
-	// Patch cardbus controller if EEPROM said so.
-	if (pAd->bTest1 == FALSE)
-		RTMPPatchCardBus(pAd);
-#endif
-
-
-//		APInitialize(pAd);
-
 #ifdef IKANOS_VX_1X0
 	VR_IKANOS_FP_Init(pAd->ApCfg.BssidNum, pAd->PermanentAddress);
 #endif // IKANOS_VX_1X0 //
@@ -519,16 +495,13 @@ static int rt28xx_init(IN struct net_device *net_dev)
 		//
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE))
 		{
-//			NdisMDeregisterInterrupt(&pAd->Interrupt);
 			RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE);
 		}
-//		RTMPFreeAdapter(pAd); // we will free it in disconnect()
 	}
 	else if (pAd)
 	{
 		// Microsoft HCT require driver send a disconnect event after driver initialization.
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);
-//		pAd->IndicateMediaState = NdisMediaStateDisconnected;
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_MEDIA_STATE_CHANGE);
 
 		DBGPRINT(RT_DEBUG_TRACE, ("NDIS_STATUS_MEDIA_DISCONNECT Event B!\n"));
@@ -561,7 +534,6 @@ err3:
 	MlmeHalt(pAd);
 err2:
 	RTMPFreeTxRxRingMemory(pAd);
-//	RTMPFreeAdapter(pAd);
 err1:
 	os_free_mem(pAd, pAd->mpdu_blk_pool.mem); // free BA pool
 	RT28XX_IRQ_RELEASE(net_dev);
@@ -647,34 +619,6 @@ int rt28xx_open(IN PNET_DEV dev)
 	printk("0x1300 = %08x\n", reg);
 	}
 
-	{
-//	u32 reg;
-//	u8  byte;
-//	u16 tmp;
-
-//	RTMP_IO_READ32(pAd, XIFS_TIME_CFG, &reg);
-
-//	tmp = 0x0805;
-//	reg  = (reg & 0xffff0000) | tmp;
-//	RTMP_IO_WRITE32(pAd, XIFS_TIME_CFG, reg);
-
-	}
-
-#if 0
-	/*
-	 * debugging helper
-	 * 		show the size of main table in Adapter structure
-	 *		MacTab  -- 185K
-	 *		BATable -- 137K
-	 * 		Total 	-- 385K  !!!!! (5/26/2006)
-	 */
-	printk("sizeof(pAd->MacTab) = %ld\n", sizeof(pAd->MacTab));
-	printk("sizeof(pAd->AccessControlList) = %ld\n", sizeof(pAd->AccessControlList));
-	printk("sizeof(pAd->ApCfg) = %ld\n", sizeof(pAd->ApCfg));
-	printk("sizeof(pAd->BATable) = %ld\n", sizeof(pAd->BATable));
-	BUG();
-#endif
-
 	return (retval);
 
 err:
@@ -704,10 +648,6 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 	CHAR    slot_name[IFNAMSIZ];
 	struct net_device   *device;
 
-
-	//ether_setup(dev);
-//	dev->set_multicast_list = ieee80211_set_multicast_list;
-//	dev->change_mtu = ieee80211_change_mtu;
 #if WIRELESS_EXT >= 12
 	if (pAd->OpMode == OPMODE_STA)
 	{
@@ -718,8 +658,6 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 #if WIRELESS_EXT < 21
 		dev->get_wireless_stats = rt28xx_get_wireless_stats;
 #endif
-//	dev->uninit = ieee80211_if_reinit;
-//	dev->destructor = ieee80211_if_free;
 	dev->priv_flags = INT_MAIN;
 	dev->netdev_ops = &rt2870_netdev_ops;
 	// find available device name
@@ -786,10 +724,6 @@ INT __devinit   rt28xx_probe(
 
     DBGPRINT(RT_DEBUG_TRACE, ("STA Driver version-%s\n", STA_DRIVER_VERSION));
 
-	// Check chipset vendor/product ID
-//	if (RT28XXChipsetCheck(_dev_p) == FALSE)
-//		goto err_out;
-
     net_dev = alloc_etherdev(sizeof(PRTMP_ADAPTER));
     if (net_dev == NULL)
     {
@@ -797,10 +731,6 @@ INT __devinit   rt28xx_probe(
 
         goto err_out;
     }
-
-// sample
-//	if (rt_ieee80211_if_setup(net_dev) != NDIS_STATUS_SUCCESS)
-//		goto err_out;
 
 	netif_stop_queue(net_dev);
 
@@ -824,9 +754,6 @@ INT __devinit   rt28xx_probe(
 	RT28XXNetDevInit(_dev_p, net_dev, pAd);
 
     pAd->StaCfg.OriDevType = net_dev->type;
-
-	// Find and assign a free interface name, raxx
-//	RT28XXAvailRANameAssign(net_dev->name);
 
 	// Post config
 	if (RT28XXProbePostConfig(_dev_p, pAd, 0) == FALSE)
@@ -909,16 +836,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 		goto done;
 	}
 
-#if 0
-//	if ((pkt->data[0] & 0x1) == 0)
-	{
-		//hex_dump(__func__, pkt->data, pkt->len);
-		printk("pPacket = %x\n", pPacket);
-	}
-#endif
-
 	RTMP_SET_PACKET_5VT(pPacket, 0);
-//	MiniportMMRequest(pAd, pkt->data, pkt->len);
 #ifdef CONFIG_5VT_ENHANCE
     if (*(int*)(skb->cb) == BRIDGE_TAG) {
 		RTMP_SET_PACKET_5VT(pPacket, 1);
@@ -975,56 +893,6 @@ void CfgInitHook(PRTMP_ADAPTER pAd)
 {
 	pAd->bBroadComHT = TRUE;
 } /* End of CfgInitHook */
-
-
-#if 0	// Not used now, should keep it in our source tree??
-/*
-========================================================================
-Routine Description:
-    Find and assign a free interface name (raxx).
-
-Arguments:
-    *name_p				the interface name pointer
-
-Return Value:
-	TRUE				OK
-	FALSE				FAIL
-
-Note:
-========================================================================
-*/
-static BOOLEAN RT28XXAvailRANameAssign(
-	IN CHAR			*name_p)
-{
-    CHAR				slot_name[IFNAMSIZ];
-    struct net_device	*device;
-	UINT32				if_id;
-
-
-    for(if_id=0; if_id<8; if_id++)
-    {
-        sprintf(slot_name, "ra%d", if_id);
-
-        for(device=dev_base; device!=NULL; device=device->next)
-        {
-            if (strncmp(device->name, slot_name, 4) == 0)
-                break;
-        }
-
-        if (device == NULL)
-			break;
-    }
-
-    if (if_id == 8)
-    {
-        DBGPRINT(RT_DEBUG_ERROR, ("No available slot name\n"));
-        return FALSE;
-    }
-
-    sprintf(name_p, "ra%d", if_id);
-	return TRUE;
-} /* End of RT28XXAvailRANameAssign */
-#endif
 
 #if WIRELESS_EXT >= 12
 // This function will be called when query /proc

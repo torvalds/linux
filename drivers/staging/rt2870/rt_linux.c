@@ -30,7 +30,6 @@
 ULONG	RTDebugLevel = RT_DEBUG_ERROR;
 
 BUILD_TIMER_FUNCTION(MlmePeriodicExec);
-//BUILD_TIMER_FUNCTION(MlmeRssiReportExec);
 BUILD_TIMER_FUNCTION(AsicRxAntEvalTimeout);
 BUILD_TIMER_FUNCTION(APSDPeriodicExec);
 BUILD_TIMER_FUNCTION(AsicRfTuningExec);
@@ -515,17 +514,6 @@ PNDIS_PACKET DuplicatePacket(
 		pRetPacket = OSPKT_TO_RTPKT(skb);
 	}
 
-#if 0
-	if ((skb = __dev_alloc_skb(DataSize + 2+32, MEM_ALLOC_FLAG)) != NULL)
-	{
-		skb_reserve(skb, 2+32);
-		NdisMoveMemory(skb->tail, pData, DataSize);
-		skb_put(skb, DataSize);
-		skb->dev = get_netdev_from_bssid(pAd, FromWhichBSSID);
-		pRetPacket = OSPKT_TO_RTPKT(skb);
-	}
-#endif
-
 	return pRetPacket;
 
 }
@@ -580,31 +568,6 @@ PNDIS_PACKET duplicate_pkt_with_TKIP_MIC(
 	}
 
 	return OSPKT_TO_RTPKT(skb);
-
-#if 0
-	if ((data = skb_put(skb, TKIP_TX_MIC_SIZE)) != NULL)
-	{	// If we can extend it, well, copy it first.
-		NdisMoveMemory(data, pAd->PrivateInfo.Tx.MIC, TKIP_TX_MIC_SIZE);
-	}
-	else
-	{
-		// Otherwise, copy the packet.
-		newskb = skb_copy_expand(skb, skb_headroom(skb), TKIP_TX_MIC_SIZE, GFP_ATOMIC);
-		dev_kfree_skb_any(skb);
-		if (newskb == NULL)
-		{
-			DBGPRINT(RT_DEBUG_ERROR, ("Extend Tx.MIC to packet failed!, dropping packet\n"));
-			return NULL;
-		}
-		skb = newskb;
-
-		NdisMoveMemory(skb->tail, pAd->PrivateInfo.Tx.MIC, TKIP_TX_MIC_SIZE);
-		skb_put(skb, TKIP_TX_MIC_SIZE);
-	}
-
-	return OSPKT_TO_RTPKT(skb);
-#endif
-
 }
 
 
@@ -700,9 +663,6 @@ void announce_802_3_packet(
 #else
 	pRxPkt->protocol = eth_type_trans(pRxPkt, pRxPkt->dev);
 
-//#ifdef CONFIG_5VT_ENHANCE
-//	*(int*)(pRxPkt->cb) = BRIDGE_TAG;
-//#endif
 	netif_rx(pRxPkt);
 #endif // IKANOS_VX_1X0 //
 }

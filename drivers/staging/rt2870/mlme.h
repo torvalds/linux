@@ -39,8 +39,6 @@
 #ifndef __MLME_H__
 #define __MLME_H__
 
-//extern UCHAR BROADCAST_ADDR[];
-
 // maximum supported capability information -
 // ESS, IBSS, Privacy, Short Preamble, Spectrum mgmt, Short Slot
 #define SUPPORTED_CAPABILITY_INFO   0x0533
@@ -51,7 +49,6 @@
 #define LEAD_TIME                   5
 #define MLME_TASK_EXEC_MULTIPLE       10  /*5*/       // MLME_TASK_EXEC_MULTIPLE * MLME_TASK_EXEC_INTV = 1 sec
 #define REORDER_EXEC_INTV         	100       // 0.1 sec
-//#define TBTT_PRELOAD_TIME         384        // usec. LomgPreamble + 24-byte at 1Mbps
 
 // The definition of Radar detection duration region
 #define CE		0
@@ -106,13 +103,6 @@
 #define TX_WEIGHTING                     30
 #define RX_WEIGHTING                     20
 
-//#define PEER_KEY_NOT_USED                0
-//#define PEER_KEY_64_BIT                  64
-//#define PEER_KEY_128_BIT                 128
-
-//#define PEER_KEY_64BIT_LEN               8
-//#define PEER_KEY_128BIT_LEN              16
-
 #define BSS_NOT_FOUND                    0xFFFFFFFF
 
 #define MAX_LEN_OF_MLME_QUEUE            40 //10
@@ -125,7 +115,6 @@
 #define	SCAN_CISCO_CHANNEL_LOAD			 23		// Single channel passive scan for channel load collection
 #define FAST_SCAN_ACTIVE                 24		// scan with probe request, and wait beacon and probe response
 
-//#define BSS_TABLE_EMPTY(x)             ((x).BssNr == 0)
 #define MAC_ADDR_IS_GROUP(Addr)       (((Addr[0]) & 0x01))
 #define MAC_ADDR_HASH(Addr)            (Addr[0] ^ Addr[1] ^ Addr[2] ^ Addr[3] ^ Addr[4] ^ Addr[5])
 #define MAC_ADDR_HASH_INDEX(Addr)      (MAC_ADDR_HASH(Addr) % HASH_TABLE_SIZE)
@@ -156,8 +145,6 @@
 #define CAP_IS_DELAY_BA(x)               (((x) & 0x4000) != 0)  // 802.11e d9
 
 #define CAP_GENERATE(ess,ibss,priv,s_pre,s_slot,spectrum)  (((ess) ? 0x0001 : 0x0000) | ((ibss) ? 0x0002 : 0x0000) | ((priv) ? 0x0010 : 0x0000) | ((s_pre) ? 0x0020 : 0x0000) | ((s_slot) ? 0x0400 : 0x0000) | ((spectrum) ? 0x0100 : 0x0000))
-
-//#define STA_QOS_CAPABILITY               0 // 1-byte. see 802.11e d9.0 for bit definition
 
 #define ERP_IS_NON_ERP_PRESENT(x)        (((x) & 0x01) != 0)    // 802.11g
 #define ERP_IS_USE_PROTECTION(x)         (((x) & 0x02) != 0)    // 802.11g
@@ -401,12 +388,6 @@ typedef struct {
 //This structure substracts ralink supports from all 802.11n-related features.
 //Features not listed here but contained in 802.11n spec are not supported in rt2860.
 typedef struct {
-#if 0	// move to
-	BOOLEAN			bHtEnable;	 // If we should use ht rate.
-	BOOLEAN			bPreNHt;	 // If we should use ht rate.
-	//Substract from HT Capability IE
-	UCHAR			MCSSet[16];	//only supoort MCS=0-15,32 ,
-#endif
 	USHORT	ChannelWidth:1;
 	USHORT	MimoPs:2;//mimo power safe MMPS_
 	USHORT	GF:1;	//green field
@@ -1098,11 +1079,6 @@ typedef struct PACKED _RTMP_TX_RATE_SWITCH
 // ========================== AP mlme.h ===============================
 #define TBTT_PRELOAD_TIME       384        // usec. LomgPreamble + 24-byte at 1Mbps
 #define DEFAULT_DTIM_PERIOD     1
-
-// weighting factor to calculate Channel quality, total should be 100%
-//#define RSSI_WEIGHTING                   0
-//#define TX_WEIGHTING                     40
-//#define RX_WEIGHTING                     60
 
 #define MAC_TABLE_AGEOUT_TIME			300			// unit: sec
 #define MAC_TABLE_ASSOC_TIMEOUT			5			// unit: sec

@@ -963,21 +963,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define HW_DEBUG_SETTING_BASE   0x77f0  // 0x77f0~0x77ff total 16 bytes
 #define HW_DEBUG_SETTING_BASE2   0x7770  // 0x77f0~0x77ff total 16 bytes
 
-#if 0
-// on-chip BEACON frame space - base address = 0x7800
-#define HW_BEACON_MAX_SIZE      0x0800 /* unit: byte */
-#define HW_BEACON_BASE0         0x7800
-#define HW_BEACON_BASE1         0x7900
-#define HW_BEACON_BASE2         0x7a00
-#define HW_BEACON_BASE3         0x7b00
-#define HW_BEACON_BASE4         0x7c00
-#define HW_BEACON_BASE5         0x7d00
-#define HW_BEACON_BASE6         0x7e00
-#define HW_BEACON_BASE7         0x7f00
-/* 1. HW_BEACON_OFFSET/64B must be 0;
-   2. BCN_OFFSET0 must also be changed in NICInitializeAsic();
-   3. max 0x0800 for 8 beacon frames; */
-#else
 // In order to support maximum 8 MBSS and its maximum length is 512 for each beacon
 // Three section discontinue memory segments will be used.
 // 1. The original region for BCN 0~3
@@ -994,7 +979,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define HW_BEACON_BASE5         0x7400
 #define HW_BEACON_BASE6         0x5DC0
 #define HW_BEACON_BASE7         0x5BC0
-#endif
 
 #define HW_BEACON_MAX_COUNT     8
 #define HW_BEACON_OFFSET		0x0200
@@ -1029,11 +1013,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define MAX_FIRMWARE_IMAGE_SIZE 0x1000    // 4kbyte
 #endif // RT2870 //
 
-// TODO: ????? old RT2560 registers. to keep them or remove them?
-//#define MCAST0                  0x0178  // multicast filter register 0
-//#define MCAST1                  0x017c  // multicast filter register 1
-
-
 // ================================================================
 // Tx /	Rx / Mgmt ring descriptor definition
 // ================================================================
@@ -1047,18 +1026,7 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define PID_DATA_AMPDU	 	0x04
 #define PID_DATA_NO_ACK    	0x08
 #define PID_DATA_NOT_NORM_ACK	 	0x03
-#if 0
-#define PTYPE_DATA_REQUIRE_ACK  0x00 // b7-6:00, b5-0: 0~59 is MAC table index (AID?), 60~63 is WDS index
-#define PTYPE_NULL_AT_HIGH_RATE 0x04 // b7-6:01, b5-0: 0~59 is MAC table index (AID?), 60~63 is WDS index
-#define PTYPE_RESERVED          0x08 // b7-6:10
-#define PTYPE_SPECIAL           0x0c // b7-6:11
 
-// when b3-2=11 (PTYPE_SPECIAL), b1-0 coube be ...
-#define PSUBTYPE_DATA_NO_ACK    0x00
-#define PSUBTYPE_MGMT           0x01
-#define PSUBTYPE_OTHER_CNTL     0x02
-#define PSUBTYPE_RTS            0x03
-#endif
 // value domain of pTxD->HostQId (4-bit: 0~15)
 #define QID_AC_BK               1   // meet ACI definition in 802.11e
 #define QID_AC_BE               0   // meet ACI definition in 802.11e
@@ -1167,11 +1135,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 
 #define BBPR94_DEFAULT              0x06 // Add 1 value will gain 1db
 
-//#define PHY_TR_SWITCH_TIME          5  // usec
-
-//#define BBP_R17_LOW_SENSIBILITY     0x50
-//#define BBP_R17_MID_SENSIBILITY     0x41
-//#define BBP_R17_DYNAMIC_UP_BOUND    0x40
 #define RSSI_FOR_VERY_LOW_SENSIBILITY -35
 #define RSSI_FOR_LOW_SENSIBILITY      -58
 #define RSSI_FOR_MID_LOW_SENSIBILITY  -80
@@ -1211,12 +1174,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define EEPROM_TXPOWER_BYRATE_40MHZ_5G		0x10a	// 40MHZ 5G tx power.
 #define EEPROM_A_TX_PWR_OFFSET      0x78
 #define EEPROM_A_TX2_PWR_OFFSET      0xa6
-//#define EEPROM_Japan_TX_PWR_OFFSET      0x90 // 802.11j
-//#define EEPROM_Japan_TX2_PWR_OFFSET      0xbe
-//#define EEPROM_TSSI_REF_OFFSET	0x54
-//#define EEPROM_TSSI_DELTA_OFFSET	0x24
-//#define EEPROM_CCK_TX_PWR_OFFSET  0x62
-//#define EEPROM_CALIBRATE_OFFSET	0x7c
 #define EEPROM_VERSION_OFFSET       0x02
 #define	EEPROM_FREQ_OFFSET			0x3a
 #define EEPROM_TXPOWER_BYRATE 	0xde	// 20MHZ power.
@@ -1320,7 +1277,6 @@ typedef	struct	PACKED _TXWI_STRUC {
 	UINT32		ShortGI:1;
 	UINT32		STBC:2;	// 1: STBC support MCS =0-7,   2,3 : RESERVE
 	UINT32		Ifs:1;	//
-//	UINT32		rsv2:2;	//channel bandwidth 20MHz or 40 MHz
 	UINT32		rsv2:1;
 	UINT32		TxBF:1;	// 3*3
 	UINT32		PHYMODE:2;

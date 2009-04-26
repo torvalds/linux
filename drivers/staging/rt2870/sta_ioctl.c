@@ -336,7 +336,6 @@ VOID RTMPAddKey(
             if (pAd->StaCfg.AuthMode >= Ndis802_11AuthModeWPA2)
             {
                 // set 802.1x port control
-	            //pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 				STA_PORT_SECURED(pAd);
 
                 // Indicate Connected for GUI
@@ -386,7 +385,6 @@ VOID RTMPAddKey(
         							  NULL);
 
             // set 802.1x port control
-	        //pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 			STA_PORT_SECURED(pAd);
 
             // Indicate Connected for GUI
@@ -1608,7 +1606,6 @@ int rt_ioctl_siwencode(struct net_device *dev,
 	else if ((erq->length == 0) &&
              (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN))
 	{
-	    //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 		STA_PORT_SECURED(pAdapter);
 		pAdapter->StaCfg.PairCipher = Ndis802_11WEPEnabled;
 		pAdapter->StaCfg.GroupCipher = Ndis802_11WEPEnabled;
@@ -2234,7 +2231,6 @@ int rt_ioctl_siwauth(struct net_device *dev,
             }
             else if (param->value == 0)
             {
-                //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 				STA_PORT_SECURED(pAdapter);
             }
             DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_KEY_MGMT - param->value = %d!\n", __func__, param->value));
@@ -2242,14 +2238,6 @@ int rt_ioctl_siwauth(struct net_device *dev,
     	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
             break;
     	case IW_AUTH_PRIVACY_INVOKED:
-            /*if (param->value == 0)
-			{
-                pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
-                pAdapter->StaCfg.WepStatus = Ndis802_11WEPDisabled;
-                pAdapter->StaCfg.OrigWepStatus = pAdapter->StaCfg.WepStatus;
-                pAdapter->StaCfg.PairCipher = Ndis802_11WEPDisabled;
-        	    pAdapter->StaCfg.GroupCipher = Ndis802_11WEPDisabled;
-            }*/
             DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_PRIVACY_INVOKED - param->value = %d!\n", __func__, param->value));
     		break;
     	case IW_AUTH_DROP_UNENCRYPTED:
@@ -2257,7 +2245,6 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_NOT_SECURED;
 			else
 			{
-                //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 				STA_PORT_SECURED(pAdapter);
 			}
             DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_AUTH_WPA_VERSION - param->value = %d!\n", __func__, param->value));
@@ -2445,7 +2432,6 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
                         fnSetCipherKey(pAdapter, keyIdx, CIPHER_TKIP, FALSE, ext);
                         if (pAdapter->StaCfg.AuthMode >= Ndis802_11AuthModeWPA2)
                         {
-                            //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
                             STA_PORT_SECURED(pAdapter);
                         }
 		}
@@ -2454,7 +2440,6 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
                         fnSetCipherKey(pAdapter, keyIdx, CIPHER_TKIP, TRUE, ext);
 
                         // set 802.1x port control
-            	        //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
             	        STA_PORT_SECURED(pAdapter);
                     }
                 }
@@ -2466,7 +2451,6 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 		{
                     fnSetCipherKey(pAdapter, keyIdx, CIPHER_AES, FALSE, ext);
                     if (pAdapter->StaCfg.AuthMode >= Ndis802_11AuthModeWPA2)
-                    	//pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
                     	STA_PORT_SECURED(pAdapter);
                 }
                 else if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
@@ -2474,7 +2458,6 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
                     fnSetCipherKey(pAdapter, keyIdx, CIPHER_AES, TRUE, ext);
 
                     // set 802.1x port control
-        	        //pAdapter->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
         	        STA_PORT_SECURED(pAdapter);
                 }
                 break;
@@ -2723,7 +2706,6 @@ rt_private_ioctl_bbp(struct net_device *dev, struct iw_request_info *info,
 	CHAR				*this_char;
 	CHAR				*value = NULL;
 	UCHAR				regBBP = 0;
-//	CHAR				arg[255]={0};
 	UINT32				bbpId;
 	UINT32				bbpValue;
 	BOOLEAN				bIsPrintAllBBP = FALSE;
@@ -2918,7 +2900,6 @@ int rt_ioctl_giwrate(struct net_device *dev,
 
     if (ht_setting.field.MODE >= MODE_HTMIX)
     {
-//    	rate_index = 12 + ((UCHAR)ht_setting.field.BW *16) + ((UCHAR)ht_setting.field.ShortGI *32) + ((UCHAR)ht_setting.field.MCS);
     	rate_index = 12 + ((UCHAR)ht_setting.field.BW *24) + ((UCHAR)ht_setting.field.ShortGI *48) + ((UCHAR)ht_setting.field.MCS);
     }
     else

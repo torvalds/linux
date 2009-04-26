@@ -783,9 +783,6 @@ INT	Set_ResetStatCounter_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
 {
-	//UCHAR           i;
-	//MAC_TABLE_ENTRY *pEntry;
-
 	DBGPRINT(RT_DEBUG_TRACE, ("==>Set_ResetStatCounter_Proc\n"));
 
 	// add the most up-to-date h/w raw counters into software counters
@@ -795,315 +792,8 @@ INT	Set_ResetStatCounter_Proc(
 	NdisZeroMemory(&pAd->Counters8023, sizeof(COUNTER_802_3));
 	NdisZeroMemory(&pAd->RalinkCounters, sizeof(COUNTER_RALINK));
 
-	// Reset HotSpot counter
-#if 0 // ToDo.
-	for (i = 0; i < MAX_LEN_OF_MAC_TABLE; i++)
-	{
-		pEntry = &pAd->MacTab.Content[i];
-
-		if ((pEntry->Valid == FALSE) || (pEntry->Sst != SST_ASSOC))
-			continue;
-
-		pEntry->HSCounter.LastDataPacketTime = 0;
-		pEntry->HSCounter.TotalRxByteCount= 0;
-		pEntry->HSCounter.TotalTxByteCount= 0;
-	}
-#endif
-
-
 	return TRUE;
 }
-
-/*
-	========================================================================
-
-	Routine Description:
-		Add WPA key process.
-		In Adhoc WPANONE, bPairwise = 0;  KeyIdx = 0;
-
-	Arguments:
-		pAd 					Pointer to our adapter
-		pBuf							Pointer to the where the key stored
-
-	Return Value:
-		NDIS_SUCCESS					Add key successfully
-
-	IRQL = DISPATCH_LEVEL
-
-	Note:
-
-	========================================================================
-*/
-#if 0 // remove by AlbertY
-NDIS_STATUS RTMPWPAAddKeyProc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PVOID			pBuf)
-{
-	PNDIS_802_11_KEY	pKey;
-	ULONG				KeyIdx;
-//	NDIS_STATUS 		Status;
-//	ULONG 	offset;	// unused variable, snowpin 2006.07.13
-
-	PUCHAR		pTxMic, pRxMic;
-	BOOLEAN 	bTxKey; 		// Set the key as transmit key
-	BOOLEAN 	bPairwise;		// Indicate the key is pairwise key
-	BOOLEAN 	bKeyRSC;		// indicate the receive  SC set by KeyRSC value.
-								// Otherwise, it will set by the NIC.
-	BOOLEAN 	bAuthenticator; // indicate key is set by authenticator.
-	UCHAR		apidx = BSS0;
-
-	pKey = (PNDIS_802_11_KEY) pBuf;
-	KeyIdx = pKey->KeyIndex & 0xff;
-	// Bit 31 of Add-key, Tx Key
-	bTxKey		   = (pKey->KeyIndex & 0x80000000) ? TRUE : FALSE;
-	// Bit 30 of Add-key PairwiseKey
-	bPairwise	   = (pKey->KeyIndex & 0x40000000) ? TRUE : FALSE;
-	// Bit 29 of Add-key KeyRSC
-	bKeyRSC 	   = (pKey->KeyIndex & 0x20000000) ? TRUE : FALSE;
-	// Bit 28 of Add-key Authenticator
-	bAuthenticator = (pKey->KeyIndex & 0x10000000) ? TRUE : FALSE;
-
-	DBGPRINT(RT_DEBUG_TRACE,("RTMPWPAAddKeyProc==>pKey->KeyIndex = %x. bPairwise= %d\n", pKey->KeyIndex, bPairwise));
-	// 1. Check Group / Pairwise Key
-	if (bPairwise)	// Pairwise Key
-	{
-		// 1. KeyIdx must be 0, otherwise, return NDIS_STATUS_INVALID_DATA
-		if (KeyIdx != 0)
-			return(NDIS_STATUS_INVALID_DATA);
-
-		// 2. Check bTx, it must be true, otherwise, return NDIS_STATUS_INVALID_DATA
-		if (bTxKey == FALSE)
-			return(NDIS_STATUS_INVALID_DATA);
-
-		// 3. If BSSID is all 0xff, return NDIS_STATUS_INVALID_DATA
-		if (MAC_ADDR_EQUAL(pKey->BSSID, BROADCAST_ADDR))
-			return(NDIS_STATUS_INVALID_DATA);
-
-		// 3.1 Check Pairwise key length for TKIP key. For AES, it's always 128 bits
-		//if ((pAdapter->PortCfg.WepStatus == Ndis802_11Encryption2Enabled) && (pKey->KeyLength != LEN_TKIP_KEY))
-		if ((pAd->StaCfg.PairCipher == Ndis802_11Encryption2Enabled) && (pKey->KeyLength != LEN_TKIP_KEY))
-			return(NDIS_STATUS_INVALID_DATA);
-
-		pAd->SharedKey[apidx][KeyIdx].Type = PAIRWISE_KEY;
-
-		if (pAd->ApCfg.MBSSID[apidx].AuthMode == Ndis802_11AuthModeWPA2)
-		{
-			// Send media specific event to start PMKID caching
-			RTMPIndicateWPA2Status(pAd);
-		}
-	}
-	else
-	{
-		// 1. Check BSSID, if not current BSSID or Bcast, return NDIS_STATUS_INVALID_DATA
-		if ((! MAC_ADDR_EQUAL(pKey->BSSID, BROADCAST_ADDR)) &&
-			(! MAC_ADDR_EQUAL(pKey->BSSID, pAd->ApCfg.MBSSID[apidx].Bssid)))
-			return(NDIS_STATUS_INVALID_DATA);
-
-		// 2. Check Key index for supported Group Key
-		if (KeyIdx >= GROUP_KEY_NUM)
-			return(NDIS_STATUS_INVALID_DATA);
-
-		// 3. Set as default Tx Key if bTxKey is TRUE
-		if (bTxKey == TRUE)
-			pAd->ApCfg.MBSSID[apidx].DefaultKeyId = (UCHAR) KeyIdx;
-
-		pAd->SharedKey[apidx][KeyIdx].Type = GROUP_KEY;
-	}
-
-	// 4. Select RxMic / TxMic based on Supp / Authenticator
-	if (pAd->ApCfg.MBSSID[apidx].AuthMode == Ndis802_11AuthModeWPANone)
-	{
-		// for WPA-None Tx, Rx MIC is the same
-		pTxMic = (PUCHAR) (&pKey->KeyMaterial) + 16;
-		pRxMic = pTxMic;
-	}
-	else if (bAuthenticator == TRUE)
-	{
-		pTxMic = (PUCHAR) (&pKey->KeyMaterial) + 16;
-		pRxMic = (PUCHAR) (&pKey->KeyMaterial) + 24;
-	}
-	else
-	{
-		pRxMic = (PUCHAR) (&pKey->KeyMaterial) + 16;
-		pTxMic = (PUCHAR) (&pKey->KeyMaterial) + 24;
-	}
-
-	// 6. Check RxTsc
-	if (bKeyRSC == TRUE)
-	{
-		NdisMoveMemory(pAd->SharedKey[apidx][KeyIdx].RxTsc, &pKey->KeyRSC, 6);
-		NdisMoveMemory(pAd->MacTab.Content[BSSID_WCID].PairwiseKey.RxTsc, &pKey->KeyRSC, 6);
-	}
-	else
-	{
-		NdisZeroMemory(pAd->SharedKey[apidx][KeyIdx].RxTsc, 6);
-	}
-
-	// 7. Copy information into Pairwise Key structure.
-	// pKey->KeyLength will include TxMic and RxMic, therefore, we use 16 bytes hardcoded.
-	pAd->SharedKey[apidx][KeyIdx].KeyLen = (UCHAR) pKey->KeyLength;
-	pAd->MacTab.Content[BSSID_WCID].PairwiseKey.KeyLen = (UCHAR)pKey->KeyLength;
-	NdisMoveMemory(pAd->SharedKey[BSS0][KeyIdx].Key, &pKey->KeyMaterial, 16);
-	NdisMoveMemory(pAd->MacTab.Content[BSSID_WCID].PairwiseKey.Key, &pKey->KeyMaterial, 16);
-	if (pKey->KeyLength == LEN_TKIP_KEY)
-	{
-		// Only Key lenth equal to TKIP key have these
-		NdisMoveMemory(pAd->SharedKey[apidx][KeyIdx].RxMic, pRxMic, 8);
-		NdisMoveMemory(pAd->SharedKey[apidx][KeyIdx].TxMic, pTxMic, 8);
-		NdisMoveMemory(pAd->MacTab.Content[BSSID_WCID].PairwiseKey.RxMic, pRxMic, 8);
-		NdisMoveMemory(pAd->MacTab.Content[BSSID_WCID].PairwiseKey.TxMic, pTxMic, 8);
-	}
-
-	COPY_MAC_ADDR(pAd->SharedKey[BSS0][KeyIdx].BssId, pKey->BSSID);
-
-	// Init TxTsc to one based on WiFi WPA specs
-	pAd->SharedKey[apidx][KeyIdx].TxTsc[0] = 1;
-	pAd->SharedKey[apidx][KeyIdx].TxTsc[1] = 0;
-	pAd->SharedKey[apidx][KeyIdx].TxTsc[2] = 0;
-	pAd->SharedKey[apidx][KeyIdx].TxTsc[3] = 0;
-	pAd->SharedKey[apidx][KeyIdx].TxTsc[4] = 0;
-	pAd->SharedKey[apidx][KeyIdx].TxTsc[5] = 0;
-	// 4. Init TxTsc to one based on WiFi WPA specs
-	pAd->MacTab.Content[BSSID_WCID].PairwiseKey.TxTsc[0] = 1;
-	pAd->MacTab.Content[BSSID_WCID].PairwiseKey.TxTsc[1] = 0;
-	pAd->MacTab.Content[BSSID_WCID].PairwiseKey.TxTsc[2] = 0;
-	pAd->MacTab.Content[BSSID_WCID].PairwiseKey.TxTsc[3] = 0;
-	pAd->MacTab.Content[BSSID_WCID].PairwiseKey.TxTsc[4] = 0;
-	pAd->MacTab.Content[BSSID_WCID].PairwiseKey.TxTsc[5] = 0;
-
-	if (pAd->ApCfg.MBSSID[apidx].WepStatus == Ndis802_11Encryption3Enabled)
-	{
-		pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_AES;
-		pAd->MacTab.Content[BSSID_WCID].PairwiseKey.CipherAlg = CIPHER_AES;
-	}
-	else if (pAd->ApCfg.MBSSID[apidx].WepStatus == Ndis802_11Encryption2Enabled)
-	{
-		pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_TKIP;
-		pAd->MacTab.Content[BSSID_WCID].PairwiseKey.CipherAlg = CIPHER_TKIP;
-	}
-	else if (pAd->ApCfg.MBSSID[apidx].WepStatus == Ndis802_11Encryption1Enabled)
-	{
-		if (pAd->SharedKey[apidx][KeyIdx].KeyLen == 5)
-		{
-			pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_WEP64;
-			pAd->MacTab.Content[BSSID_WCID].PairwiseKey.CipherAlg = CIPHER_WEP64;
-		}
-		else if (pAd->SharedKey[apidx][KeyIdx].KeyLen == 13)
-		{
-			pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_WEP128;
-			pAd->MacTab.Content[BSSID_WCID].PairwiseKey.CipherAlg = CIPHER_WEP128;
-		}
-		else
-		{
-			pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_NONE;
-			pAd->MacTab.Content[BSSID_WCID].PairwiseKey.CipherAlg = CIPHER_NONE;
-		}
-	}
-	else
-	{
-		pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_NONE;
-		pAd->MacTab.Content[BSSID_WCID].PairwiseKey.CipherAlg = CIPHER_NONE;
-	}
-
-	if ((pAd->OpMode == OPMODE_STA))  // Pairwise Key. Add BSSID to WCTable
-	{
-		pAd->MacTab.Content[BSSID_WCID].PairwiseKey.CipherAlg = pAd->SharedKey[BSS0][KeyIdx].CipherAlg;
-		pAd->MacTab.Content[BSSID_WCID].PairwiseKey.KeyLen = pAd->SharedKey[BSS0][KeyIdx].KeyLen;
-	}
-
-	if ((pAd->ApCfg.MBSSID[apidx].AuthMode == Ndis802_11AuthModeWPA2) ||
-		(pAd->ApCfg.MBSSID[apidx].AuthMode == Ndis802_11AuthModeWPA2PSK))
-	{
-		//
-		// On WPA2, Update Group Key Cipher.
-		//
-		if (!bPairwise)
-		{
-			if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption3Enabled)
-				pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_AES;
-			else if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption2Enabled)
-				pAd->SharedKey[apidx][KeyIdx].CipherAlg = CIPHER_TKIP;
-		}
-	}
-
-	DBGPRINT(RT_DEBUG_TRACE, ("pAd->SharedKey[%d][%d].CipherAlg = %d\n", apidx, KeyIdx, pAd->SharedKey[apidx][KeyIdx].CipherAlg));
-
-#if 0
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("%s Key #%d", CipherName[pAd->SharedKey[apidx][KeyIdx].CipherAlg],KeyIdx));
-	for (i = 0; i < 16; i++)
-	{
-		DBGPRINT_RAW(RT_DEBUG_TRACE, ("%02x:", pAd->SharedKey[apidx][KeyIdx].Key[i]));
-	}
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("\n	  Rx MIC Key = "));
-	for (i = 0; i < 8; i++)
-	{
-		DBGPRINT_RAW(RT_DEBUG_TRACE, ("%02x:", pAd->SharedKey[apidx][KeyIdx].RxMic[i]));
-	}
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("\n	  Tx MIC Key = "));
-	for (i = 0; i < 8; i++)
-	{
-		DBGPRINT_RAW(RT_DEBUG_TRACE, ("%02x:", pAd->SharedKey[apidx][KeyIdx].TxMic[i]));
-	}
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("\n	  RxTSC = "));
-	for (i = 0; i < 6; i++)
-	{
-		DBGPRINT_RAW(RT_DEBUG_TRACE, ("%02x:", pAd->SharedKey[apidx][KeyIdx].RxTsc[i]));
-	}
-#endif
-	DBGPRINT_RAW(RT_DEBUG_TRACE, ("\n pKey-> BSSID:%02x:%02x:%02x:%02x:%02x:%02x \n",
-		pKey->BSSID[0],pKey->BSSID[1],pKey->BSSID[2],pKey->BSSID[3],pKey->BSSID[4],pKey->BSSID[5]));
-
-	if ((bTxKey) && (pAd->OpMode == OPMODE_STA))  // Pairwise Key. Add BSSID to WCTable
-		RTMPAddBSSIDCipher(pAd, BSSID_WCID, pKey, pAd->SharedKey[BSS0][KeyIdx].CipherAlg);
-
-
-	// No matter pairwise key or what leyidx is, always has a copy at on-chip SharedKeytable.
-	AsicAddSharedKeyEntry(pAd,
-						  apidx,
-						  (UCHAR)KeyIdx,
-						  pAd->SharedKey[apidx][KeyIdx].CipherAlg,
-						  pAd->SharedKey[apidx][KeyIdx].Key,
-						  pAd->SharedKey[apidx][KeyIdx].TxMic,
-						  pAd->SharedKey[apidx][KeyIdx].RxMic);
-
-	// The WCID key specified in used at Tx. For STA, always use pairwise key.
-
-	// ad-hoc mode need to specify WAP Group key with WCID index=BSS0Mcast_WCID. Let's always set this key here.
-/*	if (bPairwise == FALSE)
-	{
-		offset = MAC_IVEIV_TABLE_BASE + (BSS0Mcast_WCID * HW_IVEIV_ENTRY_SIZE);
-		NdisZeroMemory(IVEIV, 8);
-		// 1. IV/EIV
-		// Specify key index to find shared key.
-		if ((pAd->SharedKey[BSS0][KeyIdx].CipherAlg==CIPHER_TKIP) ||
-			(pAd->SharedKey[BSS0][KeyIdx].CipherAlg==CIPHER_AES))
-		IVEIV[3] = 0x20;		// Eiv bit on. keyid always 0 for pairwise key
-		IVEIV[3] |= (KeyIdx<< 6);	// groupkey index is not 0
-		for (i=0; i<8; i++)
-		{
-			RTMP_IO_WRITE8(pAd, offset+i, IVEIV[i]);
-		}
-
-		// 2. WCID Attribute UDF:3, BSSIdx:3, Alg:3, Keytable:use share key, BSSIdx is 0
-		WCIDAttri = (pAd->SharedKey[BSS0][KeyIdx].CipherAlg<<1)|PAIRWISEKEYTABLE;
-		offset = MAC_WCID_ATTRIBUTE_BASE + (BSS0Mcast_WCID* HW_WCID_ATTRI_SIZE);
-		RTMP_IO_WRITE32(pAd, offset, WCIDAttri);
-
-	}
-
-*/
-
-   if (pAd->SharedKey[apidx][KeyIdx].Type == GROUP_KEY)
-	{
-		// 802.1x port control
-		pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
-		DBGPRINT(RT_DEBUG_TRACE,("!!WPA_802_1X_PORT_SECURED!!\n"));
-
-	}
-
-	return (NDIS_STATUS_SUCCESS);
-}
-#endif
 
 BOOLEAN RTMPCheckStrPrintAble(
     IN  CHAR *pInPutStr,
@@ -1425,11 +1115,6 @@ VOID	RTMPSetPhyMode(
 	INT i;
 	// the selected phymode must be supported by the RF IC encoded in E2PROM
 
-	// if no change, do nothing
-	/* bug fix
-	if (pAd->CommonCfg.PhyMode == phymode)
-		return;
-    */
 	pAd->CommonCfg.PhyMode = (UCHAR)phymode;
 
 	DBGPRINT(RT_DEBUG_TRACE,("RTMPSetPhyMode : PhyMode=%d, channel=%d \n", pAd->CommonCfg.PhyMode, pAd->CommonCfg.Channel));
@@ -2206,11 +1891,6 @@ VOID RTMPIoctlGetMacTable(
 
 			// the connected time per entry
 			MacTab.Entry[MacTab.Num].ConnectedTime = pAd->MacTab.Content[i].StaConnectTime;
-#if 0 // ToDo
-			MacTab.Entry[MacTab.Num].HSCounter.LastDataPacketTime = pAd->MacTab.Content[i].HSCounter.LastDataPacketTime;
-			MacTab.Entry[MacTab.Num].HSCounter.TotalRxByteCount = pAd->MacTab.Content[i].HSCounter.TotalRxByteCount;
-			MacTab.Entry[MacTab.Num].HSCounter.TotalTxByteCount = pAd->MacTab.Content[i].HSCounter.TotalTxByteCount;
-#endif
 			MacTab.Entry[MacTab.Num].TxRate.field.MCS = pAd->MacTab.Content[i].HTPhyMode.field.MCS;
 			MacTab.Entry[MacTab.Num].TxRate.field.BW = pAd->MacTab.Content[i].HTPhyMode.field.BW;
 			MacTab.Entry[MacTab.Num].TxRate.field.ShortGI = pAd->MacTab.Content[i].HTPhyMode.field.ShortGI;
@@ -2277,7 +1957,6 @@ INT	Set_BASetup_Proc(
 		=>The six 2 digit hex-decimal number previous are the Mac address,
 		=>The seventh decimal number is the tid value.
 */
-	//printk("\n%s\n", arg);
 
 	if(strlen(arg) < 19)  //Mac address acceptable format 01:02:03:04:05:06 length 17 plus the "-" and tid value in decimal format.
 		return FALSE;
@@ -2351,7 +2030,6 @@ INT	Set_BAOriTearDown_Proc(
 	INT i;
     MAC_TABLE_ENTRY *pEntry;
 
-    //printk("\n%s\n", arg);
 /*
 	The BAOriTearDown inupt string format should be xx:xx:xx:xx:xx:xx-d,
 		=>The six 2 digit hex-decimal number previous are the Mac address,

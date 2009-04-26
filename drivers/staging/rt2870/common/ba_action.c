@@ -462,19 +462,6 @@ void ba_flush_reordering_timeout_mpdus(
     		}
 
 	}
-#if 0
-	else if (
-			 (RTMP_TIME_AFTER((unsigned long)Now32, (unsigned long)(pBAEntry->LastIndSeqAtTimer+(MAX_REORDERING_PACKET_TIMEOUT))) &&
-			  (pBAEntry->list.qlen > 1))
-			)
-		{
-		DBGPRINT(RT_DEBUG_TRACE,("timeout[%d] (%lx-%lx = %d > %d): %x\n ", pBAEntry->list.qlen, Now32, (pBAEntry->LastIndSeqAtTimer),
-			   (int)((long) Now32 - (long)(pBAEntry->LastIndSeqAtTimer)), MAX_REORDERING_PACKET_TIMEOUT,
-			   pBAEntry->LastIndSeq));
-		ba_refresh_reordering_mpdus(pAd, pBAEntry);
-			pBAEntry->LastIndSeqAtTimer = Now32;
-				}
-#endif
 }
 
 
@@ -687,10 +674,6 @@ BOOLEAN BARecSessionAdd(
 		{
 			RTMPInitTimer(pAd, &pBAEntry->RECBATimer, GET_TIMER_FUNCTION(BARecSessionIdleTimeout), pBAEntry, TRUE);
 		}
-
-#if 0	// for debugging
-		RTMPSetTimer(&pBAEntry->RECBATimer, REC_BA_SESSION_IDLE_TIMEOUT);
-#endif
 
 		// Set Bitmap flag.
 		pEntry->RXBAbitmap |= (1<<TID);
@@ -1552,13 +1535,9 @@ static VOID ba_enqueue_reordering_packet(
 	}
 	else
 	{
-#if 0
-		DBGPRINT(RT_DEBUG_ERROR,  ("!!! (%d:%d) Can't allocate reordering mpdu blk\n",
-								   blk_count, pBAEntry->list.qlen));
-#else
 		DBGPRINT(RT_DEBUG_ERROR,  ("!!! (%d) Can't allocate reordering mpdu blk\n",
 								   pBAEntry->list.qlen));
-#endif
+
 		/*
 		 * flush all pending reordering mpdus
 		 * and receving mpdu to upper layer
@@ -1606,28 +1585,10 @@ VOID Indicate_AMPDU_Packet(
 
 	if (!RX_BLK_TEST_FLAG(pRxBlk, fRX_AMSDU) &&  (pRxBlk->DataSize > MAX_RX_PKT_LEN))
 	{
-#if 0 // sample take off, no use
-		static int err_size;
-
-		err_size++;
-		if (err_size > 20) {
-			 printk("AMPDU DataSize = %d\n", pRxBlk->DataSize);
-			 hex_dump("802.11 Header", (UCHAR *)pRxBlk->pHeader, 24);
-			 hex_dump("Payload", pRxBlk->pData, 64);
-			 err_size = 0;
-		}
-#endif
 		// release packet
 		RELEASE_NDIS_PACKET(pAd, pRxBlk->pRxPacket, NDIS_STATUS_FAILURE);
 		return;
 	}
-
-
-#if 0 // test
-	/* Rec BA Session had been torn down */
-	INDICATE_LEGACY_OR_AMSDU(pAd, pRxBlk, FromWhichBSSID);
-	return;
-#endif
 
 	if (Wcid < MAX_LEN_OF_MAC_TABLE)
 	{
@@ -1723,10 +1684,6 @@ VOID Indicate_AMPDU_Packet(
 	//
 	else
 	{
-#if 0
-		ba_refresh_reordering_mpdus(pAd, pBAEntry);
-		INDICATE_LEGACY_OR_AMSDU(pAd, pRxBlk, FromWhichBSSID);
-#else
 		LONG WinStartSeq, TmpSeq;
 
 
@@ -1748,6 +1705,5 @@ VOID Indicate_AMPDU_Packet(
 		{
 			pBAEntry->LastIndSeq = TmpSeq;
 		}
-#endif
 	}
 }

@@ -1222,28 +1222,6 @@ NTSTATUS    RTUSB_VendorRequest(
 			if ((TransferBuffer!= NULL) && (TransferBufferLength > 0))
 				hex_dump("Failed TransferBuffer value", TransferBuffer, TransferBufferLength);
         }
-
-#if 0
-        // retry
-		if (ret < 0) {
-			int temp_i=0;
-			DBGPRINT(RT_DEBUG_ERROR, ("USBVendorRequest failed ret=%d, \n",ret));
-			ret = 0;
-			do
-			{
-				if( RequestType == DEVICE_VENDOR_REQUEST_OUT)
-					ret=usb_control_msg(pObj->pUsb_Dev, usb_sndctrlpipe( pObj->pUsb_Dev, 0 ), Request, RequestType, Value,Index, TransferBuffer, TransferBufferLength, CONTROL_TIMEOUT_JIFFIES);
-				else if(RequestType == DEVICE_VENDOR_REQUEST_IN)
-					ret=usb_control_msg(pObj->pUsb_Dev, usb_rcvctrlpipe( pObj->pUsb_Dev, 0 ), Request, RequestType, Value,Index, TransferBuffer, TransferBufferLength, CONTROL_TIMEOUT_JIFFIES);
-				temp_i++;
-			} while( (ret < 0) && (temp_i <= 1) );
-
-			if( ret >= 0)
-				return ret;
-
-		}
-#endif
-
 	}
 	return ret;
 }
@@ -1621,15 +1599,6 @@ VOID CMDHandler(
 								}
 								else
 								{	// success
-#if 0
-									RTMP_IRQ_LOCK(&pAd->BulkInLock, IrqFlags);
-									pRxContext->IRPPending = TRUE;
-									//NdisInterlockedIncrement(&pAd->PendingRx);
-									pAd->PendingRx++;
-									RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
-									pAd->BulkInReq++;
-#endif
-									//printk("BIDone, Pend=%d,BIIdx=%d,BIRIdx=%d!\n", pAd->PendingRx, pAd->NextRxBulkInIndex, pAd->NextRxBulkInReadIndex);
 									DBGPRINT_RAW(RT_DEBUG_TRACE, ("CMDTHREAD_RESET_BULK_IN: Submit Rx URB Done, status=%d!\n", pUrb->status));
 									ASSERT((pRxContext->InUse == pRxContext->IRPPending));
 								}

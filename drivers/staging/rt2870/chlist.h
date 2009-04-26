@@ -1195,49 +1195,6 @@ static inline VOID N_ChannelCheck(
 				pAd->CommonCfg.RegTransmitSetting.field.BW  = BW_20;
 				//pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_NONE;	// We didn't set the ExtCh as NONE due to it'll set in RTMPSetHT()
 			}
-#if 0
-			switch (pAd->CommonCfg.CountryRegion  & 0x7f)
-			{
-				case REGION_0_BG_BAND:	// 1 -11
-				case REGION_1_BG_BAND:	// 1 - 13
-				case REGION_5_BG_BAND:	// 1 - 14
-					if (Channel <= 4)
-					{
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_ABOVE;
-					}
-					else if (Channel >= 8)
-					{
-						if ((ChannelNum - Channel) < 4)
-							pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_BELOW;
-					}
-					break;
-
-				case REGION_2_BG_BAND:	// 10 - 11
-				case REGION_3_BG_BAND:	// 10 - 13
-				case REGION_4_BG_BAND:	// 14
-					pAd->CommonCfg.RegTransmitSetting.field.BW  = BW_20;
-					break;
-
-				case REGION_6_BG_BAND:	// 3 - 9
-					if (Channel <= 5)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_ABOVE;
-					else if (Channel == 6)
-						pAd->CommonCfg.RegTransmitSetting.field.BW  = BW_20;
-					else if (Channel >= 7)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_BELOW;
-					break;
-
-				case REGION_7_BG_BAND:  // 5 - 13
-					if (Channel <= 8)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_ABOVE;
-					else if (Channel >= 10)
-						pAd->CommonCfg.RegTransmitSetting.field.EXTCHA = EXTCHA_BELOW;
-					break;
-
-				default:	// Error. should never happen
-					break;
-			}
-#endif
 		}
 	}
 

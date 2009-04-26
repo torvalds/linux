@@ -63,7 +63,6 @@ VOID STARxEAPOLFrameIndicate(
 				int     idx = 0;
 
 				DBGPRINT_RAW(RT_DEBUG_TRACE, ("Receive EAP-SUCCESS Packet\n"));
-				//pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 				STA_PORT_SECURED(pAd);
 
                 if (pAd->StaCfg.IEEE8021x_required_keys == FALSE)
@@ -864,7 +863,6 @@ NDIS_STATUS STASendPacket(
 	UINT			SrcBufLen;
 	UINT			AllowFragSize;
 	UCHAR			NumberOfFrag;
-//	UCHAR			RTSRequired;
 	UCHAR			QueIdx, UserPriority;
 	MAC_TABLE_ENTRY *pEntry = NULL;
 	unsigned int 	IrqFlags;
@@ -1078,7 +1076,6 @@ NDIS_STATUS STASendPacket(
     if ((pAd->CommonCfg.BACapability.field.AutoBA == TRUE)&&
         IS_HT_STA(pEntry))
 	{
-	    //PMAC_TABLE_ENTRY pMacEntry = &pAd->MacTab.Content[BSSID_WCID];
 		if (((pEntry->TXBAbitmap & (1<<UserPriority)) == 0) &&
             ((pEntry->BADeclineBitmap & (1<<UserPriority)) == 0) &&
             (pEntry->PortSecured == WPA_802_1X_PORT_SECURED)
@@ -1133,7 +1130,6 @@ NDIS_STATUS RTMPFreeTXDRequest(
 	IN		UCHAR			NumberRequired,
 	IN		PUCHAR			FreeNumberIs)
 {
-	//ULONG		FreeNumber = 0;
 	NDIS_STATUS 	Status = NDIS_STATUS_FAILURE;
 	unsigned long   IrqFlags;
 	HT_TX_CONTEXT	*pHTTXContext;

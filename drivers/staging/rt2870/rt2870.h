@@ -219,19 +219,8 @@ typedef	struct	_MGMT_STRUC	{
 
 
 /* ----------------- Frimware Related MACRO ----------------- */
-#if 0
-#define RT28XX_FIRMUD_INIT(pAd)		\
-	{	UINT32	MacReg;				\
-		RTUSBReadMACRegister(pAd, MAC_CSR0, &MacReg); }
-
-#define RT28XX_FIRMUD_END(pAd)	\
-	RTUSBWriteMACRegister(pAd, 0x7014, 0xffffffff);	\
-	RTUSBWriteMACRegister(pAd, 0x701c, 0xffffffff);	\
-	RTUSBFirmwareRun(pAd);
-#else
 #define RT28XX_WRITE_FIRMWARE(_pAd, _pFwImage, _FwLen)		\
 	RTUSBFirmwareWrite(_pAd, _pFwImage, _FwLen)
-#endif
 
 /* ----------------- TX Related MACRO ----------------- */
 #define RT28XX_START_DEQUEUE(pAd, QueIdx, irqFlags)				\
@@ -316,13 +305,6 @@ extern UCHAR EpToQueue[6];
 /* ----------------- RX Related MACRO ----------------- */
 //#define RT28XX_RX_ERROR_CHECK				RTMPCheckRxWI
 
-#if 0
-#define RT28XX_RCV_INIT(pAd)					\
-	pAd->TransferBufferLength = 0;				\
-	pAd->ReadPosition = 0;						\
-	pAd->pCurrRxContext = NULL;
-#endif
-
 #define RT28XX_RV_ALL_BUF_END(bBulkReceive)		\
 	/* We return STATUS_MORE_PROCESSING_REQUIRED so that the completion */	\
 	/* routine (IofCompleteRequest) will stop working on the irp. */		\
@@ -330,27 +312,6 @@ extern UCHAR EpToQueue[6];
 
 
 /* ----------------- ASIC Related MACRO ----------------- */
-#if 0
-#define RT28XX_DMA_WRITE_INIT(GloCfg)			\
-	{	GloCfg.field.EnTXWriteBackDDONE = 1;	\
-		GloCfg.field.EnableRxDMA = 1;			\
-		GloCfg.field.EnableTxDMA = 1; }
-
-#define RT28XX_DMA_POST_WRITE(_pAd)				\
-	do{	USB_DMA_CFG_STRUC	UsbCfg;				\
-		UsbCfg.word = 0;						\
-		/* for last packet, PBF might use more than limited, so minus 2 to prevent from error */ \
-		UsbCfg.field.RxBulkAggLmt = (MAX_RXBULK_SIZE /1024)-3;	\
-		UsbCfg.field.phyclear = 0;								\
-		/* usb version is 1.1,do not use bulk in aggregation */	\
-		if (_pAd->BulkInMaxPacketSize == 512)					\
-			UsbCfg.field.RxBulkAggEn = 1;						\
-		UsbCfg.field.RxBulkEn = 1;								\
-		UsbCfg.field.TxBulkEn = 1;								\
-		UsbCfg.field.RxBulkAggTOut = 0x80; /* 2006-10-18 */		\
-		RTUSBWriteMACRegister(_pAd, USB_DMA_CFG, UsbCfg.word); 	\
-	}while(0)
-#endif
 
 // reset MAC of a station entry to 0xFFFFFFFFFFFF
 #define RT28XX_STA_ENTRY_MAC_RESET(pAd, Wcid)					\

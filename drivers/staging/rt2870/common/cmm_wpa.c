@@ -1248,16 +1248,6 @@ VOID	ConstructEapolMsg(
 	*(USHORT *)(&pMsg->KeyDesc.KeyInfo) = cpu2le16(*(USHORT *)(&pMsg->KeyDesc.KeyInfo));
 
 	// Fill in Key Length
-#if 0
-	if (bWPA2)
-	{
-		// In WPA2 mode, the field indicates the length of pairwise key cipher,
-		// so only pairwise_msg_1 and pairwise_msg_3 need to fill.
-		if ((MsgType == EAPOL_PAIR_MSG_1) || (MsgType == EAPOL_PAIR_MSG_3))
-			pMsg->KeyDesc.KeyLength[1] = ((WepStatus == Ndis802_11Encryption2Enabled) ? LEN_TKIP_KEY : LEN_AES_KEY);
-	}
-	else if (!bWPA2)
-#endif
 	{
 		if (MsgType >= EAPOL_GROUP_MSG_1)
 		{

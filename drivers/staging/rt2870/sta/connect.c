@@ -533,13 +533,6 @@ VOID CntlOidRTBssidProc(
 	pAd->MlmeAux.SsidBssTab.BssNr = 1;
 	NdisMoveMemory(&pAd->MlmeAux.SsidBssTab.BssEntry[0], &pAd->ScanTab.BssEntry[BssIdx], sizeof(BSS_ENTRY));
 
-	//pAd->MlmeAux.AutoReconnectSsidLen = pAd->ScanTab.BssEntry[BssIdx].SsidLen;
-	//NdisMoveMemory(pAd->MlmeAux.AutoReconnectSsid, pAd->ScanTab.BssEntry[BssIdx].Ssid, pAd->ScanTab.BssEntry[BssIdx].SsidLen);
-
-	// Add SSID into MlmeAux for site surey joining hidden SSID
-	//pAd->MlmeAux.SsidLen = pAd->ScanTab.BssEntry[BssIdx].SsidLen;
-	//NdisMoveMemory(pAd->MlmeAux.Ssid, pAd->ScanTab.BssEntry[BssIdx].Ssid, pAd->MlmeAux.SsidLen);
-
 	// 2002-11-26 skip the following checking. i.e. if user wants to re-connect to same AP
 	//   we just follow normal procedure. The reason of user doing this may because he/she changed
 	//   AP to another channel, but we still received BEACON from it thus don't claim Link Down.
@@ -1917,9 +1910,6 @@ VOID LinkDown(
 	// Update extra information to link is up
 	pAd->ExtraInfo = GENERAL_LINK_DOWN;
 
-    //pAd->StaCfg.AdhocBOnlyJoined = FALSE;
-	//pAd->StaCfg.AdhocBGJoined = FALSE;
-	//pAd->StaCfg.Adhoc20NJoined = FALSE;
     pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
 
 	// Reset the Current AP's IP address

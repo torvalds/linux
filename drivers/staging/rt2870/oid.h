@@ -585,19 +585,6 @@ typedef struct _NDIS_802_11_AUTHENTICATION_EVENT
     NDIS_802_11_AUTHENTICATION_REQUEST  Request[1];
 } NDIS_802_11_AUTHENTICATION_EVENT, *PNDIS_802_11_AUTHENTICATION_EVENT;
 
-/*
-typedef struct _NDIS_802_11_TEST
-{
-    ULONG Length;
-    ULONG Type;
-    union
-    {
-        NDIS_802_11_AUTHENTICATION_EVENT AuthenticationEvent;
-        NDIS_802_11_RSSI RssiTrigger;
-    };
-} NDIS_802_11_TEST, *PNDIS_802_11_TEST;
- */
-
 // 802.11 Media stream constraints, associated with OID_802_11_MEDIA_STREAM_MODE
 typedef enum _NDIS_802_11_MEDIA_STREAM_MODE
 {
@@ -691,7 +678,6 @@ typedef union  _HTTRANSMIT_SETTING {
 	USHORT		BW:1;	//channel bandwidth 20MHz or 40 MHz
 	USHORT		ShortGI:1;
 	USHORT		STBC:2;	//SPACE
-//	USHORT		rsv:3;
 	USHORT		rsv:2;
 	USHORT		TxBF:1;
 	USHORT		MODE:2;	// Use definition MODE_xxx.
@@ -778,15 +764,6 @@ typedef struct _RT_802_11_HARDWARE_REGISTER {
     ULONG   Offset;             // Q/S register offset addr
     ULONG   Data;               // R/W data buffer
 } RT_802_11_HARDWARE_REGISTER, *PRT_802_11_HARDWARE_REGISTER;
-
-// structure to tune BBP R17 "RX AGC VGC init"
-//typedef struct _RT_802_11_RX_AGC_VGC_TUNING {
-//    UCHAR   FalseCcaLowerThreshold;  // 0-255, def 10
-//    UCHAR   FalseCcaUpperThreshold;  // 0-255, def 100
-//    UCHAR   VgcDelta;                // R17 +-= VgcDelta whenever flase CCA over UpprThreshold
-//                                     // or lower than LowerThresholdupper threshold
-//    UCHAR   VgcUpperBound;           // max value of R17
-//} RT_802_11_RX_AGC_VGC_TUNING, *PRT_802_11_RX_AGC_VGC_TUNING;
 
 typedef struct _RT_802_11_AP_CONFIG {
     ULONG   EnableTxBurst;      // 0-disable, 1-enable

@@ -200,9 +200,6 @@ typedef char				NDIS_PACKET;
 typedef PNDIS_PACKET		* PPNDIS_PACKET;
 typedef	dma_addr_t			NDIS_PHYSICAL_ADDRESS;
 typedef	dma_addr_t			* PNDIS_PHYSICAL_ADDRESS;
-//typedef struct timer_list	RALINK_TIMER_STRUCT;
-//typedef struct timer_list	* PRALINK_TIMER_STRUCT;
-//typedef struct os_lock		NDIS_SPIN_LOCK;
 typedef spinlock_t			NDIS_SPIN_LOCK;
 typedef struct timer_list	NDIS_MINIPORT_TIMER;
 typedef void				* NDIS_HANDLE;
@@ -300,8 +297,6 @@ typedef struct _RT2870_TIMER_ENTRY_
 typedef struct _RT2870_TIMER_QUEUE_
 {
 	unsigned int		status;
-	//wait_queue_head_t 	timerWaitQ;
-	//atomic_t			count;
 	UCHAR				*pTimerQPoll;
 	RT2870_TIMER_ENTRY	*pQPollFreeList;
 	RT2870_TIMER_ENTRY 	*pQHead;
@@ -373,20 +368,6 @@ extern ULONG    RTDebugLevel;
 	spin_unlock_bh((spinlock_t *)(__lock));				\
 }
 
-#if 0 // sample, IRQ LOCK
-#define RTMP_IRQ_LOCK(__lock, __irqflags)					\
-{													\
-	spin_lock_irqsave((spinlock_t *)__lock, __irqflags);	\
-	pAd->irq_disabled |= 1; \
-}
-
-#define RTMP_IRQ_UNLOCK(__lock, __irqflag)						\
-{														\
-	pAd->irq_disabled &= 0; \
-	spin_unlock_irqrestore((spinlock_t *)(__lock), ((unsigned long)__irqflag));	\
-}
-#else
-
 // sample, use semaphore lock to replace IRQ lock, 2007/11/15
 #define RTMP_IRQ_LOCK(__lock, __irqflags)			\
 {													\
@@ -410,7 +391,6 @@ extern ULONG    RTDebugLevel;
 {													\
 	spin_unlock_irqrestore((spinlock_t *)(__lock), ((unsigned long)__irqflag));	\
 }
-#endif
 
 
 
@@ -598,7 +578,6 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 //   check DDK NDIS_PACKET data structure and find out only MiniportReservedEx[0..7] can be used by our driver without
 //   ambiguity. Fields after pPacket->MiniportReservedEx[8] may be used by other wrapper layer thus crashes the driver
 //
-//#define RTMP_GET_PACKET_MR(_p)			(RTPKT_TO_OSPKT(_p))
 
 // User Priority
 #define RTMP_SET_PACKET_UP(_p, _prio)			(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+0] = _prio)
@@ -640,16 +619,7 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 #define RTMP_SET_PACKET_MOREDATA(_p, _morebit)		(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+7] = _morebit)
 #define RTMP_GET_PACKET_MOREDATA(_p)				(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+7])
 
-//#define RTMP_SET_PACKET_NET_DEVICE_MBSSID(_p, _bss)	(RTPKT_TO_OSPKT(_p)->cb[8] = _bss)
-//#define RTMP_GET_PACKET_NET_DEVICE_MBSSID(_p)		(RTPKT_TO_OSPKT(_p)->cb[8])
 
-
-
-
-#if 0
-//#define RTMP_SET_PACKET_DHCP(_p, _flg)   	(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+11] = _flg)
-//#define RTMP_GET_PACKET_DHCP(_p)         	(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+11])
-#else
 //
 //	Sepcific Pakcet Type definition
 //
@@ -728,8 +698,6 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 			}while(0)
 
 #define RTMP_GET_PACKET_IPV4(_p)		(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+11] & RTMP_PACKET_SPECIFIC_IPV4)
-
-#endif
 
 
 // If this flag is set, it indicates that this EAPoL frame MUST be clear.

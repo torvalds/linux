@@ -546,7 +546,6 @@ VOID PeerBeaconAtScanAction(
 	UCHAR			NewExtChannelOffset = 0xff;
 
 
-	// NdisFillMemory(Ssid, MAX_LEN_OF_SSID, 0x00);
 	pFrame = (PFRAME_802_11) Elem->Msg;
 	// Init Variable IE structure
 	pVIE = (PNDIS_802_11_VARIABLE_IEs) VarIE;

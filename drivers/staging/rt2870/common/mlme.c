@@ -243,19 +243,11 @@ UCHAR RateSwitchTable11BGN3S[] = { // 3*3
     0x02, 0x21,  2, 20, 50,
     0x03, 0x21,  3, 20, 50,
     0x04, 0x21,  4, 15, 50,
-#if 1
     0x05, 0x20, 20, 15, 30,
     0x06, 0x20, 21,  8, 20,
     0x07, 0x20, 22,  8, 20,
     0x08, 0x20, 23,  8, 25,
     0x09, 0x22, 23,  8, 25,
-#else // for RT2860 2*3 test
-    0x05, 0x20, 12, 15, 30,
-    0x06, 0x20, 13,  8, 20,
-    0x07, 0x20, 14,  8, 20,
-    0x08, 0x20, 15,  8, 25,
-    0x09, 0x22, 15,  8, 25,
-#endif
 };
 
 UCHAR RateSwitchTable11BGN2SForABand[] = {
@@ -822,8 +814,6 @@ VOID MlmePeriodicExec(
 			rx_Total = 0;
 		}
 
-		//ORIBATimerTimeout(pAd);
-
 		// Media status changed, report to NDIS
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_MEDIA_STATE_CHANGE))
 		{
@@ -854,13 +844,6 @@ VOID MlmePeriodicExec(
    		// Need statistics after read counter. So put after NICUpdateRawCounters
 		ORIBATimerTimeout(pAd);
 
-		// if MGMT RING is full more than twice within 1 second, we consider there's
-		// a hardware problem stucking the TX path. In this case, try a hardware reset
-		// to recover the system
-	//	if (pAd->RalinkCounters.MgmtRingFullCount >= 2)
-	//		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HARDWARE_ERROR);
-	//	else
-	//		pAd->RalinkCounters.MgmtRingFullCount = 0;
 
 		// The time period for checking antenna is according to traffic
 		if (pAd->Mlme.bEnableAutoAntennaCheck)
@@ -978,8 +961,6 @@ VOID STAMlmePeriodicExec(
 			DBGPRINT(RT_DEBUG_TRACE, ("MMCHK - No BEACON. restore R66 to the low bound(%d) \n", (0x2E + GET_LNA_GAIN(pAd))));
 		}
 
-        //if ((pAd->RalinkCounters.OneSecTxNoRetryOkCount == 0) &&
-        //    (pAd->RalinkCounters.OneSecTxRetryOkCount == 0))
         {
     		if (pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable)
     		{
@@ -1015,7 +996,6 @@ VOID STAMlmePeriodicExec(
                 wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
             }
 
-			// RTMPPatchMacBbpBug(pAd);
 			MlmeAutoReconnectLastSSID(pAd);
 		}
 		else if (CQI_IS_BAD(pAd->Mlme.ChannelQuality))
@@ -1295,8 +1275,6 @@ VOID MlmeSelectTxRateTable(
 			break;
 		}
 
-		//if ((pAd->StaActive.SupRateLen + pAd->StaActive.ExtRateLen == 12) && (pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0xff) &&
-		//	((pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0x00) || (pAd->Antenna.field.TxPath == 1)))
 		if ((pEntry->RateLen == 12) && (pEntry->HTCapability.MCSSet[0] == 0xff) &&
 			((pEntry->HTCapability.MCSSet[1] == 0x00) || (pAd->CommonCfg.TxStream == 1)))
 		{// 11BGN 1S AP
@@ -1307,8 +1285,6 @@ VOID MlmeSelectTxRateTable(
 			break;
 		}
 
-		//else if ((pAd->StaActive.SupRateLen + pAd->StaActive.ExtRateLen == 12) && (pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0xff) &&
-		//	(pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0xff) && (pAd->Antenna.field.TxPath == 2))
 		if ((pEntry->RateLen == 12) && (pEntry->HTCapability.MCSSet[0] == 0xff) &&
 			(pEntry->HTCapability.MCSSet[1] == 0xff) && (pAd->CommonCfg.TxStream == 2))
 		{// 11BGN 2S AP
@@ -1329,7 +1305,6 @@ VOID MlmeSelectTxRateTable(
 			break;
 		}
 
-		//else if ((pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0xff) && ((pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0x00) || (pAd->Antenna.field.TxPath == 1)))
 		if ((pEntry->HTCapability.MCSSet[0] == 0xff) && ((pEntry->HTCapability.MCSSet[1] == 0x00) || (pAd->CommonCfg.TxStream == 1)))
 		{// 11N 1S AP
 			*ppTable = RateSwitchTable11N1S;
@@ -1339,7 +1314,6 @@ VOID MlmeSelectTxRateTable(
 			break;
 		}
 
-		//else if ((pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0xff) && (pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0xff) && (pAd->Antenna.field.TxPath == 2))
 		if ((pEntry->HTCapability.MCSSet[0] == 0xff) && (pEntry->HTCapability.MCSSet[1] == 0xff) && (pAd->CommonCfg.TxStream == 2))
 		{// 11N 2S AP
 			if (pAd->LatchRfRegs.Channel <= 14)
@@ -2003,7 +1977,6 @@ VOID MlmeDynamicTxRateSwitching(
 				{
 					MCS14 = idx;
 				}
-				//else if ((pCurrTxRate->CurrMCS == MCS_15)/* && (pCurrTxRate->ShortGI == GI_800)*/)	//we hope to use ShortGI as initial rate
 				else if ((pCurrTxRate->CurrMCS == MCS_15) && (pCurrTxRate->ShortGI == GI_800))	//we hope to use ShortGI as initial rate, however Atheros's chip has bugs when short GI
 				{
 					MCS15 = idx;
@@ -2074,7 +2047,6 @@ VOID MlmeDynamicTxRateSwitching(
 			else
 				TxRateIdx = MCS0;
 		}
-//		else if ((pTable == RateSwitchTable11BGN2S) || (pTable == RateSwitchTable11BGN2SForABand) ||(pTable == RateSwitchTable11N2S) ||(pTable == RateSwitchTable11N2SForABand) || (pTable == RateSwitchTable))
 		else if ((pTable == RateSwitchTable11BGN2S) || (pTable == RateSwitchTable11BGN2SForABand) ||(pTable == RateSwitchTable11N2S) ||(pTable == RateSwitchTable11N2SForABand)) // 3*3
 			{// N mode with 2 stream
 				if (MCS15 && (Rssi >= (-70+RssiOffset)))
@@ -2137,7 +2109,6 @@ VOID MlmeDynamicTxRateSwitching(
 					TxRateIdx = MCS0;
 			}
 
-	//		if (TxRateIdx != pAd->CommonCfg.TxRateIndex)
 			{
 				pEntry->CurrTxRateIndex = TxRateIdx;
 				pNextTxRate = (PRTMP_TX_RATE_SWITCH) &pTable[(pEntry->CurrTxRateIndex+1)*5];
@@ -2378,14 +2349,6 @@ VOID StaQuickResponeForRateUpExec(
 			pAd->WlanCounters.RetryCount.u.LowPart += StaTx1.field.TxRetransmit;
 			pAd->WlanCounters.FailedCount.u.LowPart += TxStaCnt0.field.TxFailCount;
 
-#if 0 // test by Gary.
-			// if no traffic in the past 1-sec period, don't change TX rate,
-			// but clear all bad history. because the bad history may affect the next
-			// Chariot throughput test
-			TxTotalCnt = pAd->RalinkCounters.OneSecTxNoRetryOkCount +
-						 pAd->RalinkCounters.OneSecTxRetryOkCount +
-						 pAd->RalinkCounters.OneSecTxFailCount;
-#endif
 			if (TxTotalCnt)
 				TxErrorRatio = ((TxRetransmit + TxFailCount) * 100) / TxTotalCnt;
 		}
@@ -2538,10 +2501,7 @@ VOID MlmeCheckPsmChange(
 	if (INFRA_ON(pAd) &&
 		(PowerMode != Ndis802_11PowerModeCAM) &&
 		(pAd->StaCfg.Psm == PWR_ACTIVE) &&
-//		(! RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
-		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE) /*&&
-		(pAd->RalinkCounters.OneSecTxNoRetryOkCount == 0) &&
-		(pAd->RalinkCounters.OneSecTxRetryOkCount == 0)*/)
+		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE))
 	{
 		NdisGetSystemUpTime(&pAd->Mlme.LastSendNULLpsmTime);
 		pAd->RalinkCounters.RxCountSinceLastNULL = 0;
@@ -2734,28 +2694,20 @@ VOID MlmeUpdateTxRates(
 	// specified; otherwise disabled
 	if (num <= 1)
 	{
-		//OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED);
-		//pAd->CommonCfg.bAutoTxRateSwitch	= FALSE;
 		*auto_rate_cur_p = FALSE;
 	}
 	else
 	{
-		//OPSTATUS_SET_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED);
-		//pAd->CommonCfg.bAutoTxRateSwitch	= TRUE;
 		*auto_rate_cur_p = TRUE;
 	}
 
 #if 1
 	if (HtMcs != MCS_AUTO)
 	{
-		//OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED);
-		//pAd->CommonCfg.bAutoTxRateSwitch	= FALSE;
 		*auto_rate_cur_p = FALSE;
 	}
 	else
 	{
-		//OPSTATUS_SET_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED);
-		//pAd->CommonCfg.bAutoTxRateSwitch	= TRUE;
 		*auto_rate_cur_p = TRUE;
 	}
 #endif
@@ -2824,9 +2776,6 @@ VOID MlmeUpdateTxRates(
 
 	RTMP_IO_WRITE32(pAd, LEGACY_BASIC_RATE, BasicRateBitmap);
 
-	// bug fix
-	// pAd->CommonCfg.BasicRateBitmap = BasicRateBitmap;
-
 	// calculate the exptected ACK rate for each TX rate. This info is used to caculate
 	// the DURATION field of outgoing uniicast DATA/MGMT frame
 	for (i=0; i<MAX_LEN_OF_SUPPORTED_RATES; i++)
@@ -2844,14 +2793,6 @@ VOID MlmeUpdateTxRates(
 		pAd->CommonCfg.MaxTxRate = MaxDesire;
 
 	pAd->CommonCfg.MinTxRate = MinSupport;
-	// 2003-07-31 john - 2500 doesn't have good sensitivity at high OFDM rates. to increase the success
-	// ratio of initial DHCP packet exchange, TX rate starts from a lower rate depending
-	// on average RSSI
-	//	 1. RSSI >= -70db, start at 54 Mbps (short distance)
-	//	 2. -70 > RSSI >= -75, start at 24 Mbps (mid distance)
-	//	 3. -75 > RSSI, start at 11 Mbps (long distance)
-	//if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED)/* &&
-	//	OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)*/)
 	if (*auto_rate_cur_p)
 	{
 		short dbm = 0;
@@ -2920,11 +2861,7 @@ VOID MlmeUpdateTxRates(
 				pAd->CommonCfg.MlmeTransmit.field.MODE = MODE_CCK;
 				pAd->CommonCfg.MlmeTransmit.field.MCS = RATE_1;
 
-//#ifdef	WIFI_TEST
 				pAd->CommonCfg.RtsRate = RATE_11;
-//#else
-//				pAd->CommonCfg.RtsRate = RATE_1;
-//#endif
 				break;
 			case PHY_11G:
 			case PHY_11A:
@@ -4278,8 +4215,6 @@ VOID MgtMacHeaderInit(
 
 	pHdr80211->FC.Type = BTYPE_MGMT;
 	pHdr80211->FC.SubType = SubType;
-//	if (SubType == SUBTYPE_ACK)	// sample, no use, it will conflict with ACTION frame sub type
-//		pHdr80211->FC.Type = BTYPE_CNTL;
 	pHdr80211->FC.ToDs = ToDs;
 	COPY_MAC_ADDR(pHdr80211->Addr1, pDA);
 
@@ -5122,9 +5057,7 @@ VOID 	AsicUpdateProtect(
 	// Config ASIC RTS threshold register
 	RTMP_IO_READ32(pAd, TX_RTS_CFG, &MacReg);
 	MacReg &= 0xFF0000FF;
-#if 0
-	MacReg |= (pAd->CommonCfg.RtsThreshold << 8);
-#else
+
 	// If the user want disable RtsThreshold and enable Amsdu/Ralink-Aggregation, set the RtsThreshold as 4096
         if ((
 			(pAd->CommonCfg.BACapability.field.AmsduEnable) ||
@@ -5137,7 +5070,6 @@ VOID 	AsicUpdateProtect(
         {
 			MacReg |= (pAd->CommonCfg.RtsThreshold << 8);
         }
-#endif
 
 	RTMP_IO_WRITE32(pAd, TX_RTS_CFG, MacReg);
 
@@ -5831,10 +5763,7 @@ VOID AsicAdjustTxPower(
 						break;
 				}
 				// The index is the step we should decrease, idx = 0 means there is nothing to compensate
-//				if (R3 > (ULONG) (TxAgcStep * (idx-1)))
-					*pTxAgcCompensate = -(TxAgcStep * (idx-1));
-//				else
-//					*pTxAgcCompensate = -((UCHAR)R3);
+				*pTxAgcCompensate = -(TxAgcStep * (idx-1));
 
 				DeltaPwr += (*pTxAgcCompensate);
 				DBGPRINT(RT_DEBUG_TRACE, ("-- Tx Power, BBP R1=%x, TssiRef=%x, TxAgcStep=%x, step = -%d\n",
@@ -6116,11 +6045,6 @@ VOID AsicDisableRDG(
 	RTMP_IO_READ32(pAd, EDCA_AC0_CFG, &Data);
 
 	Data  &= 0xFFFFFF00;
-	//Data  |= 0x20;
-#ifndef WIFI_TEST
-	//if ( pAd->CommonCfg.bEnableTxBurst )
-	//	Data |= 0x60; // for performance issue not set the TXOP to 0
-#endif
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_DYNAMIC_BE_TXOP_ACTIVE)
 		&& (pAd->MacTab.fAnyStationMIMOPSDynamic == FALSE)
 	)
@@ -6177,7 +6101,6 @@ VOID AsicEnableBssSync(
 	DBGPRINT(RT_DEBUG_TRACE, ("--->AsicEnableBssSync(INFRA mode)\n"));
 
 	RTMP_IO_READ32(pAd, BCN_TIME_CFG, &csr.word);
-//	RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, 0x00000000);
 
 	{
 		csr.field.BeaconInterval = pAd->CommonCfg.BeaconPeriod << 4; // ASIC register in units of 1/16 TU
@@ -6223,8 +6146,6 @@ VOID AsicEnableIbssSync(
 	ptr = (PUCHAR)&pAd->BeaconTxWI;
 	for (i=0; i<TXWI_SIZE; i+=2)  // 16-byte TXWI field
 	{
-		//UINT32 longptr =  *ptr + (*(ptr+1)<<8) + (*(ptr+2)<<16) + (*(ptr+3)<<24);
-		//RTMP_IO_WRITE32(pAd, HW_BEACON_BASE0 + i, longptr);
 		RTUSBMultiWrite(pAd, HW_BEACON_BASE0 + i, ptr, 2);
 		ptr += 2;
 	}
@@ -6233,18 +6154,10 @@ VOID AsicEnableIbssSync(
 	ptr = pAd->BeaconBuf;
 	for (i=0; i< pAd->BeaconTxWI.MPDUtotalByteCount; i+=2)
 	{
-		//UINT32 longptr =  *ptr + (*(ptr+1)<<8) + (*(ptr+2)<<16) + (*(ptr+3)<<24);
-		//RTMP_IO_WRITE32(pAd, HW_BEACON_BASE0 + TXWI_SIZE + i, longptr);
 		RTUSBMultiWrite(pAd, HW_BEACON_BASE0 + TXWI_SIZE + i, ptr, 2);
 		ptr +=2;
 	}
 #endif // RT2870 //
-
-	//
-	// For Wi-Fi faily generated beacons between participating stations.
-	// Set TBTT phase adaptive adjustment step to 8us (default 16us)
-	// don't change settings 2006-5- by Jerry
-	//RTMP_IO_WRITE32(pAd, TBTT_SYNC_CFG, 0x00001010);
 
 	// start sending BEACON
 	csr9.field.BeaconInterval = pAd->CommonCfg.BeaconPeriod << 4; // ASIC register in units of 1/16 TU
@@ -6293,7 +6206,6 @@ VOID AsicSetEdcaParm(
 		//========================================================
 		//      MAC Register has a copy .
 		//========================================================
-//#ifndef WIFI_TEST
 		if( pAd->CommonCfg.bEnableTxBurst )
 		{
 			// For CWC test, change txop from 0x30 to 0x20 in TxBurst mode
@@ -6301,9 +6213,6 @@ VOID AsicSetEdcaParm(
 		}
 		else
 			Ac0Cfg.field.AcTxop = 0;	// QID_AC_BE
-//#else
-//		Ac0Cfg.field.AcTxop = 0;	// QID_AC_BE
-//#endif
 		Ac0Cfg.field.Cwmin = CW_MIN_IN_BITS;
 		Ac0Cfg.field.Cwmax = CW_MAX_IN_BITS;
 		Ac0Cfg.field.Aifsn = 2;
@@ -6807,17 +6716,13 @@ VOID AsicAddKeyEntry(
 	IN BOOLEAN		bTxKey)
 {
 	ULONG	offset;
-//	ULONG   WCIDAttri = 0;
 	UCHAR	IV4 = 0;
 	PUCHAR		pKey = pCipherKey->Key;
-//	ULONG		KeyLen = pCipherKey->KeyLen;
 	PUCHAR		pTxMic = pCipherKey->TxMic;
 	PUCHAR		pRxMic = pCipherKey->RxMic;
 	PUCHAR		pTxtsc = pCipherKey->TxTsc;
 	UCHAR		CipherAlg = pCipherKey->CipherAlg;
 	SHAREDKEY_MODE_STRUC csr1;
-
-//	ASSERT(KeyLen <= MAX_LEN_OF_PEER_KEY);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> AsicAddKeyEntry\n"));
 	//
@@ -7561,18 +7466,6 @@ VOID APSDPeriodicExec(
 
 	pAd->CommonCfg.TriggerTimerCount++;
 
-// Driver should not send trigger frame, it should be send by application layer
-/*
-	if (pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable
-		&& (pAd->CommonCfg.bNeedSendTriggerFrame ||
-		(((pAd->CommonCfg.TriggerTimerCount%20) == 19) && (!pAd->CommonCfg.bAPSDAC_BE || !pAd->CommonCfg.bAPSDAC_BK || !pAd->CommonCfg.bAPSDAC_VI || !pAd->CommonCfg.bAPSDAC_VO))))
-	{
-		DBGPRINT(RT_DEBUG_TRACE,("Sending trigger frame and enter service period when support APSD\n"));
-		RTMPSendNullFrame(pAd, pAd->CommonCfg.TxRate, TRUE);
-		pAd->CommonCfg.bNeedSendTriggerFrame = FALSE;
-		pAd->CommonCfg.TriggerTimerCount = 0;
-		pAd->CommonCfg.bInServicePeriod = TRUE;
-	}*/
 }
 
 /*

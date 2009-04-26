@@ -266,27 +266,6 @@ NDIS_STATUS	NICInitTransmit(
 		//
 		// MGMT_RING_SIZE
 		//
-#if 0
-		for(i=0; i<MGMT_RING_SIZE; i++) // 8
-		{
-			PTX_CONTEXT	pMLMEContext = &(pAd->MLMEContext[i]);
-
-
-			NdisZeroMemory(pMLMEContext, sizeof(TX_CONTEXT));
-
-			//Allocate URB
-			LM_USB_ALLOC(pObj, pMLMEContext, PTX_BUFFER, sizeof(TX_BUFFER), Status,
-							("<-- ERROR in Alloc TX MLMEContext[%d] urb!! \n", i),
-							out2,
-							("<-- ERROR in Alloc TX MLMEContext[%d] TX_BUFFER !! \n", i),
-							out2);
-
-			pMLMEContext->pAd = pAd;
-			pMLMEContext->pIrp = NULL;
-			pMLMEContext->InUse = FALSE;
-			pMLMEContext->IRPPending = FALSE;
-		}
-#else
 		// Allocate MGMT ring descriptor's memory
 		pAd->MgmtDescRing.AllocSize = MGMT_RING_SIZE * sizeof(TX_CONTEXT);
 		RTMPAllocateMemory(&pAd->MgmtDescRing.AllocVa, pAd->MgmtDescRing.AllocSize);
@@ -336,7 +315,6 @@ NDIS_STATUS	NICInitTransmit(
 		pAd->MgmtRing.TxSwFreeIdx = MGMT_RING_SIZE;
 		pAd->MgmtRing.TxCpuIdx = 0;
 		pAd->MgmtRing.TxDmaIdx = 0;
-#endif
 
 		//
 		// BEACON_RING_SIZE

@@ -45,8 +45,6 @@
 
 #include "aironet.h"
 
-//#define DBG		1
-
 //#define DBG_DIAGNOSE		1
 
 #define VIRTUAL_IF_INC(__pAd) ((__pAd)->VirtualIfCnt++)
@@ -142,7 +140,6 @@ typedef struct _RX_CONTEXT
 	PURB				pUrb;
 	//These 2 Boolean shouldn't both be 1 at the same time.
 	ULONG				BulkInOffset;	// number of packets waiting for reordering .
-//	BOOLEAN				ReorderInUse;	// At least one packet in this buffer are in reordering buffer and wait for receive indication
 	BOOLEAN				bRxHandling;	// Notify this packet is being process now.
 	BOOLEAN				InUse;			// USB Hardware Occupied. Wait for USB HW to put packet.
 	BOOLEAN				Readable;		// Receive Complete back. OK for driver to indicate receiving packet.
@@ -579,8 +576,6 @@ typedef struct  _QUEUE_HEADER   {
 //
 // Common fragment list structure -  Identical to the scatter gather frag list structure
 //
-//#define RTMP_SCATTER_GATHER_ELEMENT         SCATTER_GATHER_ELEMENT
-//#define PRTMP_SCATTER_GATHER_ELEMENT        PSCATTER_GATHER_ELEMENT
 #define NIC_MAX_PHYS_BUF_COUNT              8
 
 typedef struct _RTMP_SCATTER_GATHER_ELEMENT {
@@ -1290,21 +1285,14 @@ typedef struct _BA_REC_ENTRY {
 	UCHAR   Wcid;
 	UCHAR   TID;
 	UCHAR   BAWinSize;	// 7.3.1.14. each buffer is capable of holding a max AMSDU or MSDU.
-	//UCHAR	NumOfRxPkt;
-	//UCHAR    Curindidx; // the head in the RX reordering buffer
 	USHORT		LastIndSeq;
-//	USHORT		LastIndSeqAtTimer;
 	USHORT		TimeOutValue;
 	RALINK_TIMER_STRUCT RECBATimer;
 	ULONG		LastIndSeqAtTimer;
 	ULONG		nDropPacket;
 	ULONG		rcvSeq;
 	REC_BLOCKACK_STATUS  REC_BA_Status;
-//	UCHAR	RxBufIdxUsed;
-	// corresponding virtual address for RX reordering packet storage.
-	//RTMP_REORDERDMABUF MAP_RXBuf[MAX_RX_REORDERBUF];
 	NDIS_SPIN_LOCK          RxReRingLock;                 // Rx Ring spinlock
-//	struct _BA_REC_ENTRY *pNext;
 	PVOID	pAdapter;
 	struct reordering_list	list;
 } BA_REC_ENTRY, *PBA_REC_ENTRY;
@@ -1382,8 +1370,6 @@ typedef	struct	_IOT_STRUC	{
 // This is the registry setting for 802.11n transmit setting.  Used in advanced page.
 typedef union _REG_TRANSMIT_SETTING {
  struct {
-         //UINT32  PhyMode:4;
-         //UINT32  MCS:7;                 // MCS
 		 UINT32  rsv0:10;
 		 UINT32  TxBF:1;
          UINT32  BW:1; //channel bandwidth 20MHz or 40 MHz
@@ -1481,7 +1467,6 @@ typedef struct _MULTISSID_STRUCT {
 	DESIRED_TRANSMIT_SETTING        	DesiredTransmitSetting; // Desired transmit setting. this is for reading registry setting only. not useful.
 	BOOLEAN								bAutoTxRateSwitch;
 
-	//CIPHER_KEY                          SharedKey[SHARE_KEY_NUM]; // ref pAd->SharedKey[BSS][4]
 	UCHAR                               DefaultKeyId;
 
 	UCHAR								TxRate;       // RATE_1, RATE_2, RATE_5_5, RATE_11, ...
@@ -1489,8 +1474,6 @@ typedef struct _MULTISSID_STRUCT {
 	UCHAR								DesiredRatesIndex;
 	UCHAR     							MaxTxRate;            // RATE_1, RATE_2, RATE_5_5, RATE_11
 
-//	ULONG           					TimBitmap;      // bit0 for broadcast, 1 for AID1, 2 for AID2, ...so on
-//    ULONG           					TimBitmap2;     // b0 for AID32, b1 for AID33, ... and so on
 	UCHAR								TimBitmaps[WLAN_MAX_NUM_OF_TIM];
 
     // WPA
@@ -1587,23 +1570,6 @@ typedef struct _COMMON_CONFIG {
 	UCHAR       Channel;
 	UCHAR       CentralChannel;    	// Central Channel when using 40MHz is indicating. not real channel.
 
-#if 0	// move to STA_ADMIN_CONFIG
-	UCHAR       DefaultKeyId;
-
-	NDIS_802_11_PRIVACY_FILTER          PrivacyFilter;  // PrivacyFilter enum for 802.1X
-	NDIS_802_11_AUTHENTICATION_MODE     AuthMode;       // This should match to whatever microsoft defined
-	NDIS_802_11_WEP_STATUS              WepStatus;
-	NDIS_802_11_WEP_STATUS				OrigWepStatus;	// Original wep status set from OID
-
-	// Add to support different cipher suite for WPA2/WPA mode
-	NDIS_802_11_ENCRYPTION_STATUS		GroupCipher;		// Multicast cipher suite
-	NDIS_802_11_ENCRYPTION_STATUS		PairCipher;			// Unicast cipher suite
-	BOOLEAN								bMixCipher;			// Indicate current Pair & Group use different cipher suites
-	USHORT								RsnCapability;
-
-	NDIS_802_11_WEP_STATUS              GroupKeyWepStatus;
-#endif
-
 	UCHAR       SupRate[MAX_LEN_OF_SUPPORTED_RATES];
 	UCHAR       SupRateLen;
 	UCHAR       ExtRate[MAX_LEN_OF_SUPPORTED_RATES];
@@ -1625,15 +1591,11 @@ typedef struct _COMMON_CONFIG {
 	ULONG		TriggerTimerCount;
 	UCHAR		MaxSPLength;
 	UCHAR		BBPCurrentBW;	// BW_10, 	BW_20, BW_40
-	// move to MULTISSID_STRUCT for MBSS
-	//HTTRANSMIT_SETTING	HTPhyMode, MaxHTPhyMode, MinHTPhyMode;// For transmit phy setting in TXWI.
 	REG_TRANSMIT_SETTING        RegTransmitSetting; //registry transmit setting. this is for reading registry setting only. not useful.
-	//UCHAR       FixedTxMode;              // Fixed Tx Mode (CCK, OFDM), for HT fixed tx mode (GF, MIX) , refer to RegTransmitSetting.field.HTMode
 	UCHAR       TxRate;                 // Same value to fill in TXD. TxRate is 6-bit
 	UCHAR       MaxTxRate;              // RATE_1, RATE_2, RATE_5_5, RATE_11
 	UCHAR       TxRateIndex;            // Tx rate index in RateSwitchTable
 	UCHAR       TxRateTableSize;        // Valid Tx rate table size in RateSwitchTable
-	//BOOLEAN		bAutoTxRateSwitch;
 	UCHAR       MinTxRate;              // RATE_1, RATE_2, RATE_5_5, RATE_11
 	UCHAR       RtsRate;                // RATE_xxx
 	HTTRANSMIT_SETTING	MlmeTransmit;   // MGMT frame PHY rate setting when operatin at Ht rate.
@@ -2066,7 +2028,6 @@ typedef struct _MAC_TABLE_ENTRY {
 	UCHAR           CurrTxRateIndex;
 	// to record the each TX rate's quality. 0 is best, the bigger the worse.
 	USHORT          TxQuality[MAX_STEP_OF_TX_RATE_SWITCH];
-//	USHORT          OneSecTxOkCount;
 	UINT32			OneSecTxNoRetryOkCount;
 	UINT32          OneSecTxRetryOkCount;
 	UINT32          OneSecTxFailCount;
@@ -2235,15 +2196,10 @@ typedef struct _APCLI_STRUCT {
 	UCHAR		PSK[100];				// reserve PSK key material
 	UCHAR       PSKLen;
 	UCHAR       PMK[32];                // WPA PSK mode PMK
-	//UCHAR       PTK[64];                // WPA PSK mode PTK
 	UCHAR		GTK[32];				// GTK from authenticator
 
-	//CIPHER_KEY		PairwiseKey;
 	CIPHER_KEY      SharedKey[SHARE_KEY_NUM];
 	UCHAR           DefaultKeyId;
-
-	// WPA 802.1x port control, WPA_802_1X_PORT_SECURED, WPA_802_1X_PORT_NOT_SECURED
-	//UCHAR       PortSecured;
 
 	// store RSN_IE built by driver
 	UCHAR		RSN_IE[MAX_LEN_OF_RSNIE];  // The content saved here should be convert to little-endian format.
@@ -2251,13 +2207,9 @@ typedef struct _APCLI_STRUCT {
 
 	// For WPA countermeasures
 	ULONG       LastMicErrorTime;   // record last MIC error time
-	//ULONG       MicErrCnt;          // Should be 0, 1, 2, then reset to zero (after disassoiciation).
 	BOOLEAN                 bBlockAssoc; // Block associate attempt for 60 seconds after counter measure occurred.
 
 	// For WPA-PSK supplicant state
-	//WPA_STATE   	WpaState;           // Default is SS_NOTUSE
-	//UCHAR       	ReplayCounter[8];
-	//UCHAR       	ANonce[32];         // ANonce for WPA-PSK from authenticator
 	UCHAR       	SNonce[32];         // SNonce for WPA-PSK
 	UCHAR			GNonce[32];			// GNonce for WPA-PSK from authenticator
 
@@ -2310,15 +2262,12 @@ typedef struct _RtmpDiagStrcut_
 	// Tx Related Count
 	USHORT			TxDataCnt[DIAGNOSE_TIME];
 	USHORT			TxFailCnt[DIAGNOSE_TIME];
-//	USHORT			TxDescCnt[DIAGNOSE_TIME][16];		// TxDesc queue length in scale of 0~14, >=15
 	USHORT			TxDescCnt[DIAGNOSE_TIME][24]; // 3*3	// TxDesc queue length in scale of 0~14, >=15
-//	USHORT			TxMcsCnt[DIAGNOSE_TIME][16];			// TxDate MCS Count in range from 0 to 15, step in 1.
 	USHORT			TxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
 	USHORT			TxSWQueCnt[DIAGNOSE_TIME][9];		// TxSwQueue length in scale of 0, 1, 2, 3, 4, 5, 6, 7, >=8
 
 	USHORT			TxAggCnt[DIAGNOSE_TIME];
 	USHORT			TxNonAggCnt[DIAGNOSE_TIME];
-//	USHORT			TxAMPDUCnt[DIAGNOSE_TIME][16];		// 10 sec, TxDMA APMDU Aggregation count in range from 0 to 15, in setp of 1.
 	USHORT			TxAMPDUCnt[DIAGNOSE_TIME][24]; // 3*3 // 10 sec, TxDMA APMDU Aggregation count in range from 0 to 15, in setp of 1.
 	USHORT			TxRalinkCnt[DIAGNOSE_TIME];			// TxRalink Aggregation Count in 1 sec scale.
 	USHORT			TxAMSDUCnt[DIAGNOSE_TIME];			// TxAMSUD Aggregation Count in 1 sec scale.
@@ -2326,7 +2275,6 @@ typedef struct _RtmpDiagStrcut_
 	// Rx Related Count
 	USHORT			RxDataCnt[DIAGNOSE_TIME];			// Rx Total Data count.
 	USHORT			RxCrcErrCnt[DIAGNOSE_TIME];
-//	USHORT			RxMcsCnt[DIAGNOSE_TIME][16];		// Rx MCS Count in range from 0 to 15, step in 1.
 	USHORT			RxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
 }RtmpDiagStruct;
 #endif // DBG_DIAGNOSE //
@@ -2661,7 +2609,6 @@ typedef struct _RTMP_ADAPTER
 	// ----------------------------
 	// DEBUG paramerts
 	// ----------------------------
-	//ULONG		DebugSetting[4];
 	BOOLEAN		bBanAllBaSetup;
 	BOOLEAN		bPromiscuous;
 
@@ -2771,7 +2718,6 @@ typedef struct  _CISCO_IAPP_CONTENT_
 
 typedef struct _RX_BLK_
 {
-//	RXD_STRUC		RxD; // sample
 	RT28XX_RXD_STRUC	RxD;
 	PRXWI_STRUC			pRxWI;
 	PHEADER_802_11		pHeader;
@@ -2859,7 +2805,6 @@ typedef struct _TX_BLK_
 #define fTX_bAckRequired       	0x0002	// the packet need ack response
 #define fTX_bPiggyBack     		0x0004	// Legacy device use Piggback or not
 #define fTX_bHTRate         	0x0008	// allow to use HT rate
-//#define fTX_bForceLowRate       0x0010	// force to use Low Rate
 #define fTX_bForceNonQoS       	0x0010	// force to transmit frame without WMM-QoS in HT mode
 #define fTX_bAllowFrag       	0x0020	// allow to fragment the packet, A-MPDU, A-MSDU, A-Ralink is not allowed to fragment
 #define fTX_bMoreData			0x0040	// there are more data packets in PowerSave Queue
@@ -3021,13 +2966,6 @@ VOID NICUpdateFifoStaCounters(
 
 VOID NICUpdateRawCounters(
 	IN  PRTMP_ADAPTER   pAd);
-
-#if 0
-ULONG RTMPEqualMemory(
-	IN  PVOID   pSrc1,
-	IN  PVOID   pSrc2,
-	IN  ULONG   Length);
-#endif
 
 ULONG	RTMPNotAllZero(
 	IN	PVOID	pSrc1,
@@ -3276,12 +3214,6 @@ BOOLEAN PeerIsAggreOn(
     IN  PRTMP_ADAPTER   pAd,
     IN  ULONG          TxRate,
     IN  PMAC_TABLE_ENTRY pMacEntry);
-
-#if 0	// It's not be used
-HTTRANSMIT_SETTING  *GetTxMode(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	TX_BLK			*pTxBlk);
-#endif
 
 NDIS_STATUS Sniff2BytesFromNdisBuffer(
 	IN  PNDIS_BUFFER    pFirstBuffer,
@@ -3600,12 +3532,6 @@ VOID AsicSetBssid(
 VOID AsicSetMcastWC(
 	IN PRTMP_ADAPTER pAd);
 
-#if 0	// removed by AlbertY
-VOID AsicSetBssidWC(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR pBssid);
-#endif
-
 VOID AsicDelWcidTab(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR	Wcid);
@@ -3632,17 +3558,6 @@ VOID AsicSetEdcaParm(
 VOID AsicSetSlotTime(
 	IN PRTMP_ADAPTER pAd,
 	IN BOOLEAN bUseShortSlotTime);
-
-#if 0
-VOID AsicAddWcidCipherEntry(
-	IN PRTMP_ADAPTER pAd,
-	IN UCHAR		 WCID,
-	IN UCHAR		 BssIndex,
-	IN UCHAR		 KeyTable,
-	IN UCHAR		 CipherAlg,
-	IN PUCHAR		 pAddr,
-	IN CIPHER_KEY		 *pCipherKey);
-#endif
 
 VOID AsicAddSharedKeyEntry(
 	IN PRTMP_ADAPTER pAd,
@@ -4472,12 +4387,6 @@ UCHAR ChannelSanity(
 NDIS_802_11_NETWORK_TYPE NetworkTypeInUseSanity(
 	IN PBSS_ENTRY pBss);
 
-#if 0	// It's omitted
-NDIS_STATUS	RTMPWepKeySanity(
-	IN	PRTMP_ADAPTER	pAdapter,
-	IN	PVOID			pBuf);
-#endif
-
 BOOLEAN MlmeDelBAReqSanity(
     IN PRTMP_ADAPTER pAd,
     IN VOID *Msg,
@@ -4783,12 +4692,6 @@ BOOLEAN RTMPSoftDecryptAES(
 	IN PUCHAR	pData,
 	IN ULONG	DataByteCnt,
 	IN PCIPHER_KEY	pWpaKey);
-
-#if 0	// removed by AlbertY
-NDIS_STATUS RTMPWPAAddKeyProc(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PVOID           pBuf);
-#endif
 
 //
 // Prototypes of function definition in cmm_info.c
@@ -5210,29 +5113,11 @@ VOID RTMPHandleSTAKey(
     IN MAC_TABLE_ENTRY  *pEntry,
     IN MLME_QUEUE_ELEM  *Elem);
 
-#if 0 // merge into PeerPairMsg4Action
-VOID Wpa1PeerPairMsg4Action(
-	IN PRTMP_ADAPTER pAd,
-	IN MAC_TABLE_ENTRY  *pEntry,
-	IN MLME_QUEUE_ELEM *Elem);
-
-VOID Wpa2PeerPairMsg4Action(
-	IN  PRTMP_ADAPTER    pAd,
-	IN  PMAC_TABLE_ENTRY pEntry,
-	IN  MLME_QUEUE_ELEM  *Elem);
-#endif // 0 //
-
 VOID PeerGroupMsg2Action(
 	IN  PRTMP_ADAPTER    pAd,
 	IN  PMAC_TABLE_ENTRY pEntry,
 	IN  VOID             *Msg,
 	IN  UINT             MsgLen);
-
-#if 0	// replaced by WPAStart2WayGroupHS
-NDIS_STATUS APWpaHardTransmit(
-	IN  PRTMP_ADAPTER    pAd,
-	IN  PMAC_TABLE_ENTRY pEntry);
-#endif // 0 //
 
 VOID PairDisAssocAction(
 	IN  PRTMP_ADAPTER    pAd,
@@ -5319,9 +5204,6 @@ VOID	RTMPSendTriggerFrame(
 	IN	ULONG			Length,
 	IN  UCHAR           TxRate,
 	IN	BOOLEAN			bQosNull);
-
-
-//typedef void (*TIMER_FUNCTION)(unsigned long);
 
 
 /* timeout -- ms */
@@ -6428,18 +6310,6 @@ NDIS_STATUS RTMPWPAAddKeyProc(
 VOID AsicRxAntEvalAction(
 	IN PRTMP_ADAPTER pAd);
 
-#if 0 // Mark because not used in RT28xx.
-NTSTATUS RTUSBRxPacket(
-	IN	PRTMP_ADAPTER  pAd,
-	IN    BOOLEAN          bBulkReceive);
-
-VOID RTUSBDequeueMLMEPacket(
-	IN	PRTMP_ADAPTER	pAd);
-
-VOID RTUSBCleanUpMLMEWaitQueue(
-	IN	PRTMP_ADAPTER	pAd);
-#endif
-
 void append_pkt(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			pHeader802_3,
@@ -6467,14 +6337,6 @@ VOID RTUSBMlmeHardTransmit(
 
 INT MlmeThread(
 	IN PVOID Context);
-
-#if 0
-VOID    RTUSBResumeMsduTransmission(
-	IN	PRTMP_ADAPTER	pAd);
-
-VOID    RTUSBSuspendMsduTransmission(
-	IN	PRTMP_ADAPTER	pAd);
-#endif
 
 //
 // Function Prototype in rtusb_data.c

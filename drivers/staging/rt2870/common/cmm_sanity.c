@@ -81,14 +81,6 @@ BOOLEAN MlmeAddBAReqSanity(
         return FALSE;
     }
 
-	/*
-    if ((pInfo->BaBufSize > MAX_RX_REORDERBUF) || (pInfo->BaBufSize < 2))
-    {
-        DBGPRINT(RT_DEBUG_TRACE, ("MlmeAddBAReqSanity fail - Rx Reordering buffer too big or too small\n"));
-        return FALSE;
-    }
-	*/
-
     if ((pInfo->pAddr[0]&0x01) == 0x01)
     {
         DBGPRINT(RT_DEBUG_TRACE, ("MlmeAddBAReqSanity fail - broadcast address not support BA\n"));
@@ -185,7 +177,6 @@ BOOLEAN PeerAddBARspActionSanity(
     IN VOID *pMsg,
     IN ULONG MsgLen)
 {
-	//PFRAME_802_11 pFrame = (PFRAME_802_11)pMsg;
 	PFRAME_ADDBA_RSP pAddFrame;
 
 	pAddFrame = (PFRAME_ADDBA_RSP)(pMsg);
@@ -340,8 +331,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     // get Addr2 and BSSID from header
     COPY_MAC_ADDR(pAddr2, pFrame->Hdr.Addr2);
     COPY_MAC_ADDR(pBssid, pFrame->Hdr.Addr3);
-
-//	hex_dump("Beacon", Msg, MsgLen);
 
     Ptr = pFrame->Octet;
     Length += LENGTH_802_11;
@@ -556,26 +545,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
             // Wifi WMM use the same IE vale, need to parse that too
             // case IE_WPA:
             case IE_VENDOR_SPECIFIC:
-                // Check Broadcom/Atheros 802.11n OUI version, for HT Capability IE.
-                // This HT IE is before IEEE draft set HT IE value.2006-09-28 by Jan.
-                /*if (NdisEqualMemory(pEid->Octet, BROADCOM_OUI, 3) && (pEid->Len >= 4))
-                {
-                	if ((pEid->Octet[3] == OUI_BROADCOM_HT) && (pEid->Len >= 30))
-            		{
-				{
-					NdisMoveMemory(pHtCapability, &pEid->Octet[4], sizeof(HT_CAPABILITY_IE));
-					*pHtCapabilityLen = SIZE_HT_CAP_IE;	// Nnow we only support 26 bytes.
-				}
-         		}
-                	if ((pEid->Octet[3] == OUI_BROADCOM_HT) && (pEid->Len >= 26))
-            		{
-				{
-					NdisMoveMemory(AddHtInfo, &pEid->Octet[4], sizeof(ADD_HT_INFO_IE));
-					*AddHtInfoLen = SIZE_ADD_HT_INFO_IE;	// Nnow we only support 26 bytes.
-				}
-         		}
-                }
-				*/
                 // Check the OUI version, filter out non-standard usage
                 if (NdisEqualMemory(pEid->Octet, RALINK_OUI, 3) && (pEid->Len == 7))
                 {

@@ -36,16 +36,6 @@
 */
 #include "../rt_config.h"
 
-#if 0
-#define EEPROM_SIZE								0x200
-#define NVRAM_OFFSET			0x30000
-#define RF_OFFSET				0x40000
-
-static UCHAR init_flag = 0;
-static PUCHAR nv_ee_start = 0;
-
-static UCHAR EeBuffer[EEPROM_SIZE];
-#endif
 // IRQL = PASSIVE_LEVEL
 VOID RaiseClock(
     IN	PRTMP_ADAPTER	pAd,

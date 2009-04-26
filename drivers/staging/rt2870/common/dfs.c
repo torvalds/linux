@@ -80,18 +80,6 @@ VOID BbpRadarDetectionStart(
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, 124, 0x28);
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, 125, 0xff);
 
-#if 0
-	// toggle Rx enable bit for radar detection.
-	// it's Andy's recommand.
-	{
-		UINT32 Value;
-	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
-	Value |= (0x1 << 3);
-	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, Value);
-	Value &= ~(0x1 << 3);
-	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, Value);
-	}
-#endif
 	RadarPeriod = ((UINT)RdIdleTimeTable[pAd->CommonCfg.RadarDetect.RDDurRegion][0] + (UINT)pAd->CommonCfg.RadarDetect.DfsSessionTime) < 250 ?
 			(RdIdleTimeTable[pAd->CommonCfg.RadarDetect.RDDurRegion][0] + pAd->CommonCfg.RadarDetect.DfsSessionTime) : 250;
 
