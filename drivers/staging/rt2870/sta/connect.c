@@ -987,9 +987,6 @@ VOID CntlWaitStartProc(
 			{
 				pAd->CommonCfg.RadarDetect.RDMode = RD_SILENCE_MODE;
 				pAd->CommonCfg.RadarDetect.RDCount = 0;
-#ifdef DFS_SUPPORT
-				BbpRadarDetectionStart(pAd);
-#endif // DFS_SUPPORT //
 			}
 
 			DBGPRINT(RT_DEBUG_TRACE, ("CNTL - start a new IBSS = %02x:%02x:%02x:%02x:%02x:%02x ...\n",
@@ -1494,9 +1491,6 @@ VOID LinkUp(
 
 	if (pAd->CommonCfg.RadarDetect.RDMode == RD_SILENCE_MODE)
 	{
-#ifdef DFS_SUPPORT
-		RadarDetectionStop(pAd);
-#endif // DFS_SUPPORT //
 	}
 	pAd->CommonCfg.RadarDetect.RDMode = RD_NORMAL_MODE;
 

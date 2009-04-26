@@ -314,15 +314,6 @@ ULONG RTMPReadRadarDuration(
 {
 	ULONG result = 0;
 
-#ifdef DFS_SUPPORT
-	UINT8 duration1 = 0, duration2 = 0, duration3 = 0;
-
-	BBP_IO_READ8_BY_REG_ID(pAd, BBP_R116, &duration1);
-	BBP_IO_READ8_BY_REG_ID(pAd, BBP_R117, &duration2);
-	BBP_IO_READ8_BY_REG_ID(pAd, BBP_R118, &duration3);
-	result = (duration1 << 16) + (duration2 << 8) + duration3;
-#endif // DFS_SUPPORT //
-
 	return result;
 
 }
