@@ -26,7 +26,7 @@ SECTIONS
 
   _sinittext = .;
   .init.text : {
-	*(.text.head)
+	HEAD_TEXT
 #ifndef CONFIG_DEBUG_INFO
 	INIT_TEXT
 	EXIT_TEXT
