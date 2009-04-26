@@ -1061,6 +1061,10 @@ VOID PeerBeacon(
 			// Add the safeguard against the mismatch of adhoc wep status
 			if (pAd->StaCfg.WepStatus != pAd->ScanTab.BssEntry[Bssidx].WepStatus)
 			{
+#ifdef RT30xx
+				DBGPRINT(RT_DEBUG_TRACE, ("SYNC - Not matched wep status %d %d\n", pAd->StaCfg.WepStatus, pAd->ScanTab.BssEntry[Bssidx].WepStatus));
+				DBGPRINT(RT_DEBUG_TRACE, ("bssid=%s\n", pAd->ScanTab.BssEntry[Bssidx].Bssid));
+#endif
 				return;
 			}
 

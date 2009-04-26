@@ -454,6 +454,11 @@ VOID MlmeAssocReqAction(
 				RSNIe = IE_WPA2;
 			}
 
+#ifdef RT30xx
+#ifdef SIOCSIWGENIE
+			if (pAd->StaCfg.WpaSupplicantUP != 1)
+#endif // SIOCSIWGENIE //
+#endif
             	RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, BSS0);
 
             // Check for WPA PMK cache list
@@ -480,6 +485,17 @@ VOID MlmeAssocReqAction(
 				}
 			}
 
+#ifdef RT30xx
+#ifdef SIOCSIWGENIE
+			if (pAd->StaCfg.WpaSupplicantUP == 1)
+			{
+				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
+		                        	pAd->StaCfg.RSNIE_Len,			pAd->StaCfg.RSN_IE,
+		                        	END_OF_ARGS);
+			}
+			else
+#endif
+#endif
 			{
 				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
 				              		1,                              &RSNIe,
@@ -490,6 +506,11 @@ VOID MlmeAssocReqAction(
 
 			FrameLen += tmp;
 
+#ifdef RT30xx
+#ifdef SIOCSIWGENIE
+			if (pAd->StaCfg.WpaSupplicantUP != 1)
+#endif
+#endif
 			{
 	            // Append Variable IE
 	            NdisMoveMemory(pAd->StaCfg.ReqVarIEs + VarIesOffset, &RSNIe, 1);
