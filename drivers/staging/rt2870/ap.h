@@ -490,9 +490,6 @@ BOOLEAN PeerAssocReqCmmSanity(
     OUT UCHAR *RSN,
     OUT UCHAR *pRSNLen,
     OUT BOOLEAN *pbWmmCapable,
-#ifdef WSC_AP_SUPPORT
-    OUT BOOLEAN *pWscCapable,
-#endif // WSC_AP_SUPPORT //
     OUT ULONG  *pRalinkIe,
 #ifdef DOT11N_DRAFT3
     OUT EXT_CAP_INFO_ELEMENT	*pExtCapInfo,
