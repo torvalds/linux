@@ -346,9 +346,6 @@ UCHAR  ExtRateIe = IE_EXT_SUPP_RATES;
 UCHAR  HtCapIe = IE_HT_CAP;
 UCHAR  AddHtInfoIe = IE_ADD_HT;
 UCHAR  NewExtChanIe = IE_SECONDARY_CH_OFFSET;
-#ifdef DOT11N_DRAFT3
-UCHAR  ExtHtCapIe = IE_EXT_CAPABILITY;
-#endif // DOT11N_DRAFT3 //
 #endif // DOT11_N_SUPPORT //
 UCHAR  ErpIe	 = IE_ERP;
 UCHAR  DsIe 	 = IE_DS_PARM;
@@ -1206,14 +1203,6 @@ SKIP_AUTO_SCAN_CONN:
 		pAd->MacTab.fAnyBASession = FALSE;
 		AsicUpdateProtect(pAd, pAd->MlmeAux.AddHtInfo.AddHtInfo2.OperaionMode,  ALLN_SETPROTECT, FALSE, FALSE);
 	}
-#endif // DOT11_N_SUPPORT //
-
-
-#ifdef DOT11_N_SUPPORT
-#ifdef DOT11N_DRAFT3
-	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_SCAN_2040))
-		TriEventCounterMaintenance(pAd);
-#endif // DOT11N_DRAFT3 //
 #endif // DOT11_N_SUPPORT //
 
 	return;
@@ -3792,111 +3781,6 @@ ULONG BssTableSetEntry(
 }
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef DOT11_N_SUPPORT
-#ifdef DOT11N_DRAFT3
-VOID  TriEventInit(
-	IN	PRTMP_ADAPTER	pAd)
-{
-	UCHAR		i;
-
-	for (i = 0;i < MAX_TRIGGER_EVENT;i++)
-		pAd->CommonCfg.TriggerEventTab.EventA[i].bValid = FALSE;
-
-	pAd->CommonCfg.TriggerEventTab.EventANo = 0;
-	pAd->CommonCfg.TriggerEventTab.EventBCountDown = 0;
-}
-
-ULONG TriEventTableSetEntry(
-	IN	PRTMP_ADAPTER	pAd,
-	OUT TRIGGER_EVENT_TAB *Tab,
-	IN PUCHAR pBssid,
-	IN HT_CAPABILITY_IE *pHtCapability,
-	IN UCHAR			HtCapabilityLen,
-	IN UCHAR			RegClass,
-	IN UCHAR ChannelNo)
-{
-	// Event A
-	if (HtCapabilityLen == 0)
-	{
-		if (Tab->EventANo < MAX_TRIGGER_EVENT)
-		{
-			RTMPMoveMemory(Tab->EventA[Tab->EventANo].BSSID, pBssid, 6);
-			Tab->EventA[Tab->EventANo].bValid = TRUE;
-			Tab->EventA[Tab->EventANo].Channel = ChannelNo;
-			Tab->EventA[Tab->EventANo].CDCounter = pAd->CommonCfg.Dot11BssWidthChanTranDelay;
-			if (RegClass != 0)
-			{
-				// Beacon has Regulatory class IE. So use beacon's
-				Tab->EventA[Tab->EventANo].RegClass = RegClass;
-			}
-			else
-			{
-				// Use Station's Regulatory class instead.
-				if (pAd->StaActive.SupportedHtPhy.bHtEnable == TRUE)
-				{
-					if (pAd->CommonCfg.CentralChannel > pAd->CommonCfg.Channel)
-					{
-						Tab->EventA[Tab->EventANo].RegClass = 32;
-					}
-					else if (pAd->CommonCfg.CentralChannel < pAd->CommonCfg.Channel)
-						Tab->EventA[Tab->EventANo].RegClass = 33;
-				}
-				else
-					Tab->EventA[Tab->EventANo].RegClass = ??;
-
-			}
-
-			Tab->EventANo ++;
-		}
-	}
-	else if (pHtCapability->HtCapInfo.Intolerant40)
-	{
-		Tab->EventBCountDown = pAd->CommonCfg.Dot11BssWidthChanTranDelay;
-	}
-
-}
-
-/*
-	========================================================================
-	Routine Description:
-		Trigger Event table Maintainence called once every second.
-
-	Arguments:
-	// IRQL = DISPATCH_LEVEL
-	========================================================================
-*/
-VOID TriEventCounterMaintenance(
-	IN	PRTMP_ADAPTER	pAd)
-{
-	UCHAR		i;
-	BOOLEAN			bNotify = FALSE;
-	for (i = 0;i < MAX_TRIGGER_EVENT;i++)
-	{
-		if (pAd->CommonCfg.TriggerEventTab.EventA[i].bValid && (pAd->CommonCfg.TriggerEventTab.EventA[i].CDCounter > 0))
-		{
-			pAd->CommonCfg.TriggerEventTab.EventA[i].CDCounter--;
-			if (pAd->CommonCfg.TriggerEventTab.EventA[i].CDCounter == 0)
-			{
-				pAd->CommonCfg.TriggerEventTab.EventA[i].bValid = FALSE;
-				pAd->CommonCfg.TriggerEventTab.EventANo --;
-				// Need to send 20/40 Coexistence Notify frame if has status change.
-				bNotify = TRUE;
-			}
-		}
-	}
-	if (pAd->CommonCfg.TriggerEventTab.EventBCountDown > 0)
-	{
-		pAd->CommonCfg.TriggerEventTab.EventBCountDown--;
-		if (pAd->CommonCfg.TriggerEventTab.EventBCountDown == 0)
-			bNotify = TRUE;
-	}
-
-	if (bNotify == TRUE)
-		Update2040CoexistFrameAndNotify(pAd, BSSID_WCID, TRUE);
-}
-#endif // DOT11N_DRAFT3 //
-#endif // DOT11_N_SUPPORT //
-
 // IRQL = DISPATCH_LEVEL
 VOID BssTableSsidSort(
 	IN	PRTMP_ADAPTER	pAd,
