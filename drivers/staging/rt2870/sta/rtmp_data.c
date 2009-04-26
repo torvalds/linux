@@ -1148,9 +1148,6 @@ NDIS_STATUS STASendPacket(
 	if (pAd->TxSwQueue[QueIdx].Number >= MAX_PACKETS_IN_QUEUE)
 	{
 		RTMP_IRQ_UNLOCK(&pAd->irq_lock, IrqFlags);
-#ifdef BLOCK_NET_IF
-		StopNetIfQueue(pAd, QueIdx, pPacket);
-#endif // BLOCK_NET_IF //
 		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
 
 		return NDIS_STATUS_FAILURE;

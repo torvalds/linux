@@ -940,15 +940,6 @@ VOID RTMPDeQueuePacket(
 		if (!hasTxDesc)
 			RTUSBKickBulkOut(pAd);
 #endif // RT2870 //
-
-#ifdef BLOCK_NET_IF
-		if ((pAd->blockQueueTab[QueIdx].SwTxQueueBlockFlag == TRUE)
-			&& (pAd->TxSwQueue[QueIdx].Number < 1))
-		{
-			releaseNetIf(&pAd->blockQueueTab[QueIdx]);
-		}
-#endif // BLOCK_NET_IF //
-
 	}
 
 }

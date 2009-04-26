@@ -2488,14 +2488,6 @@ typedef struct _APCLI_STRUCT {
 
 // ----------- end of AP ----------------------------
 
-#ifdef BLOCK_NET_IF
-typedef struct _BLOCK_QUEUE_ENTRY
-{
-	BOOLEAN SwTxQueueBlockFlag;
-	LIST_HEADER NetIfList;
-} BLOCK_QUEUE_ENTRY, *PBLOCK_QUEUE_ENTRY;
-#endif // BLOCK_NET_IF //
-
 struct wificonf
 {
 	BOOLEAN	bShortGI;
@@ -2939,12 +2931,6 @@ typedef struct _RTMP_ADAPTER
 #endif
 
 	struct net_device_stats	stats;
-
-#ifdef BLOCK_NET_IF
-	BLOCK_QUEUE_ENTRY		blockQueueTab[NUM_OF_TX_RING];
-#endif // BLOCK_NET_IF //
-
-
 
 #ifdef MULTIPLE_CARD_SUPPORT
 	INT32					MC_RowID;

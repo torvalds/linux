@@ -67,10 +67,6 @@
 #include    "leap.h"
 #endif // LEAP_SUPPORT //
 
-#ifdef BLOCK_NET_IF
-#include "netif_block.h"
-#endif // BLOCK_NET_IF //
-
 #ifdef IGMP_SNOOP_SUPPORT
 #include "igmp_snoop.h"
 #endif // IGMP_SNOOP_SUPPORT //
