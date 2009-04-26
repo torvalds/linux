@@ -495,17 +495,7 @@ VOID ScanNextChannel(
 					ScanTimeIn5gChannel = MIN_CHANNEL_TIME;
 				}
 			}
-
-#ifdef CARRIER_DETECTION_SUPPORT // Roger sync Carrier
-			// carrier detection
-			if (pAd->CommonCfg.CarrierDetect.Enable == TRUE)
-			{
-				ScanType = SCAN_PASSIVE;
-				ScanTimeIn5gChannel = MIN_CHANNEL_TIME;
-			}
-#endif // CARRIER_DETECTION_SUPPORT //
 		}
-
 #endif // CONFIG_STA_SUPPORT //
 
 		//Global country domain(ch1-11:active scan, ch12-14 passive scan)

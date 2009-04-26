@@ -1198,14 +1198,6 @@ VOID STAMlmePeriodicExec(
 				}
 				else
 				{
-#ifdef CARRIER_DETECTION_SUPPORT // Roger sync Carrier
-					if (pAd->CommonCfg.CarrierDetect.Enable == TRUE)
-					{
-						if ((pAd->Mlme.OneSecPeriodicRound % 5) == 1)
-							MlmeAutoReconnectLastSSID(pAd);
-					}
-					else
-#endif // CARRIER_DETECTION_SUPPORT //
 						MlmeAutoReconnectLastSSID(pAd);
 				}
 			}
@@ -1738,14 +1730,6 @@ VOID MlmeCalculateChannelQuality(
 	UCHAR NorRssi;
 	CHAR  MaxRssi;
 	ULONG BeaconLostTime = BEACON_LOST_TIME;
-
-#ifdef CARRIER_DETECTION_SUPPORT // Roger sync Carrier
-	// longer beacon lost time when carrier detection enabled
-	if (pAd->CommonCfg.CarrierDetect.Enable == TRUE)
-	{
-		BeaconLostTime = BEACON_LOST_TIME + BEACON_LOST_TIME/2;
-	}
-#endif // CARRIER_DETECTION_SUPPORT //
 
 	MaxRssi = RTMPMaxRssi(pAd, pAd->StaCfg.RssiSample.LastRssi0, pAd->StaCfg.RssiSample.LastRssi1, pAd->StaCfg.RssiSample.LastRssi2);
 
@@ -3941,9 +3925,6 @@ VOID BssTableSsidSort(
 		if (((pAd->CommonCfg.bIEEE80211H == 1) &&
             (pAd->MlmeAux.Channel > 14) &&
              RadarChannelCheck(pAd, pInBss->Channel))
-#ifdef CARRIER_DETECTION_SUPPORT // Roger sync Carrier
-             || (pAd->CommonCfg.CarrierDetect.Enable == TRUE)
-#endif // CARRIER_DETECTION_SUPPORT //
             )
 		{
 			if (pInBss->Hidden)

@@ -216,12 +216,6 @@ INT Set_Ieee80211dClientMode_Proc(
     IN  PUCHAR          arg);
 #endif // EXT_BUILD_CHANNEL_LIST //
 
-#ifdef CARRIER_DETECTION_SUPPORT
-INT Set_CarrierDetect_Proc(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          arg);
-#endif // CARRIER_DETECTION_SUPPORT //
-
 INT	Show_Adhoc_MacTable_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PCHAR			extra);
@@ -301,10 +295,6 @@ static struct {
 #ifdef EXT_BUILD_CHANNEL_LIST
 	{"11dClientMode",				Set_Ieee80211dClientMode_Proc},
 #endif // EXT_BUILD_CHANNEL_LIST //
-#ifdef CARRIER_DETECTION_SUPPORT
-	{"CarrierDetect",				Set_CarrierDetect_Proc},
-#endif // CARRIER_DETECTION_SUPPORT //
-
 	{NULL,}
 };
 
@@ -6841,22 +6831,6 @@ INT Set_Ieee80211dClientMode_Proc(
     return TRUE;
 }
 #endif // EXT_BUILD_CHANNEL_LIST //
-
-#ifdef CARRIER_DETECTION_SUPPORT
-INT Set_CarrierDetect_Proc(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          arg)
-{
-    if (simple_strtol(arg, 0, 10) == 0)
-        pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-    else
-        pAd->CommonCfg.CarrierDetect.Enable = TRUE;
-
-    DBGPRINT(RT_DEBUG_TRACE, ("IF Set_CarrierDetect_Proc::(CarrierDetect.Enable=%d)\n", pAd->CommonCfg.CarrierDetect.Enable));
-	return TRUE;
-}
-#endif // CARRIER_DETECTION_SUPPORT //
-
 
 INT	Show_Adhoc_MacTable_Proc(
 	IN	PRTMP_ADAPTER	pAd,

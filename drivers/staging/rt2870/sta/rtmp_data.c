@@ -2486,15 +2486,6 @@ NDIS_STATUS STAHardTransmit(
 
 	pPacket = QUEUE_ENTRY_TO_PACKET(pTxBlk->TxPacketList.Head);
 
-#if 0 //def CARRIER_DETECTION_SUPPORT // Roger sync Carrier
-		if ((pAd->CommonCfg.CarrierDetect.Enable == TRUE) && (isCarrierDetectExist(pAd) == TRUE))
-	{
-		DBGPRINT(RT_DEBUG_INFO,("STAHardTransmit --> radar detect not in normal mode !!!\n"));
-		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_FAILURE);
-		return (NDIS_STATUS_FAILURE);
-	}
-#endif // CARRIER_DETECTION_SUPPORT //
-
 	// ------------------------------------------------------------------
 	// STEP 1. WAKE UP PHY
 	//		outgoing frame always wakeup PHY to prevent frame lost and
