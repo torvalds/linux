@@ -410,50 +410,6 @@ end_request:
 		return 2;
 }
 
-/*
- * Check the contents of the interrupt reason register from the cdrom
- * and attempt to recover if there are problems.  Returns  0 if everything's
- * ok; nonzero if the request has been terminated.
- */
-static int ide_cd_check_ireason(ide_drive_t *drive, struct request *rq,
-				int len, int ireason, int rw)
-{
-	ide_hwif_t *hwif = drive->hwif;
-
-	ide_debug_log(IDE_DBG_FUNC, "ireason: 0x%x, rw: 0x%x", ireason, rw);
-
-	/*
-	 * ireason == 0: the drive wants to receive data from us
-	 * ireason == 2: the drive is expecting to transfer data to us
-	 */
-	if (ireason == (!rw << 1))
-		return 0;
-	else if (ireason == (rw << 1)) {
-
-		/* whoops... */
-		printk(KERN_ERR PFX "%s: %s: wrong transfer direction!\n",
-				drive->name, __func__);
-
-		ide_pad_transfer(drive, rw, len);
-	} else  if (rw == 0 && ireason == 1) {
-		/*
-		 * Some drives (ASUS) seem to tell us that status info is
-		 * available.  Just get it and ignore.
-		 */
-		(void)hwif->tp_ops->read_status(hwif);
-		return 0;
-	} else {
-		/* drive wants a command packet, or invalid ireason... */
-		printk(KERN_ERR PFX "%s: %s: bad interrupt reason 0x%02x\n",
-				drive->name, __func__, ireason);
-	}
-
-	if (rq->cmd_type == REQ_TYPE_ATA_PC)
-		rq->cmd_flags |= REQ_FAILED;
-
-	return -1;
-}
-
 static void ide_cd_request_sense_fixup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	struct request *rq = cmd->rq;
@@ -645,8 +601,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 		goto out_end;
 	}
 
-	/* check which way to transfer data */
-	rc = ide_cd_check_ireason(drive, rq, len, ireason, write);
+	rc = ide_check_ireason(drive, rq, len, ireason, write);
 	if (rc)
 		goto out_end;
 
