@@ -821,23 +821,6 @@ static void rtmp_read_sta_wmm_parms_from_file(IN  PRTMP_ADAPTER pAd, char *tmpbu
 		DBGPRINT(RT_DEBUG_TRACE, ("WmmCapable=%d\n", pAd->CommonCfg.bWmmCapable));
 	}
 
-#ifdef QOS_DLS_SUPPORT
-	//DLSCapable
-	if(RTMPGetKeyParameter("DLSCapable", tmpbuf, 32, buffer))
-	{
-		if(simple_strtol(tmpbuf, 0, 10) != 0)  //Enable
-		{
-			pAd->CommonCfg.bDLSCapable = TRUE;
-		}
-		else //Disable
-		{
-			pAd->CommonCfg.bDLSCapable = FALSE;
-		}
-
-		DBGPRINT(RT_DEBUG_TRACE, ("bDLSCapable=%d\n", pAd->CommonCfg.bDLSCapable));
-	}
-#endif // QOS_DLS_SUPPORT //
-
 	//AckPolicy for AC_BK, AC_BE, AC_VI, AC_VO
 	if(RTMPGetKeyParameter("AckPolicy", tmpbuf, 32, buffer))
 	{

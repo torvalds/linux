@@ -288,12 +288,6 @@ VOID CntlIdleProc(
             WpaMicFailureReportFrame(pAd, Elem);
             break;
 
-#ifdef QOS_DLS_SUPPORT
-		case RT_OID_802_11_SET_DLS_PARAM:
-			CntlOidDLSSetupProc(pAd, Elem);
-			break;
-#endif // QOS_DLS_SUPPORT //
-
 		default:
 			DBGPRINT(RT_DEBUG_TRACE, ("CNTL - Illegal message in CntlIdleProc(MsgType=%ld)\n",Elem->MsgType));
 			break;
@@ -686,113 +680,6 @@ VOID CntlMlmeRoamingProc(
 	pAd->MlmeAux.BssIdx = 0;
 	IterateOnBssTab(pAd);
 }
-
-#ifdef QOS_DLS_SUPPORT
-/*
-	==========================================================================
-	Description:
-
-	IRQL = DISPATCH_LEVEL
-
-	==========================================================================
-*/
-VOID CntlOidDLSSetupProc(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem)
-{
-	PRT_802_11_DLS		pDLS = (PRT_802_11_DLS)Elem->Msg;
-	MLME_DLS_REQ_STRUCT	MlmeDlsReq;
-	INT					i;
-	USHORT				reason = REASON_UNSPECIFY;
-
-	DBGPRINT(RT_DEBUG_TRACE,("CNTL - (OID set %02x:%02x:%02x:%02x:%02x:%02x with Valid=%d, Status=%d, TimeOut=%d, CountDownTimer=%d)\n",
-		pDLS->MacAddr[0], pDLS->MacAddr[1], pDLS->MacAddr[2], pDLS->MacAddr[3], pDLS->MacAddr[4], pDLS->MacAddr[5],
-		pDLS->Valid, pDLS->Status, pDLS->TimeOut, pDLS->CountDownTimer));
-
-	if (!pAd->CommonCfg.bDLSCapable)
-		return;
-
-	// DLS will not be supported when Adhoc mode
-	if (INFRA_ON(pAd))
-	{
-		for (i = 0; i < MAX_NUM_OF_DLS_ENTRY; i++)
-		{
-			if (pDLS->Valid && pAd->StaCfg.DLSEntry[i].Valid && (pAd->StaCfg.DLSEntry[i].Status == DLS_FINISH) &&
-				(pDLS->TimeOut == pAd->StaCfg.DLSEntry[i].TimeOut) && MAC_ADDR_EQUAL(pDLS->MacAddr, pAd->StaCfg.DLSEntry[i].MacAddr))
-			{
-				// 1. Same setting, just drop it
-				DBGPRINT(RT_DEBUG_TRACE,("CNTL - setting unchanged\n"));
-				break;
-			}
-			else if (!pDLS->Valid && pAd->StaCfg.DLSEntry[i].Valid && (pAd->StaCfg.DLSEntry[i].Status == DLS_FINISH) &&
-				MAC_ADDR_EQUAL(pDLS->MacAddr, pAd->StaCfg.DLSEntry[i].MacAddr))
-			{
-				// 2. Disable DLS link case, just tear down DLS link
-				reason = REASON_QOS_UNWANTED_MECHANISM;
-				pAd->StaCfg.DLSEntry[i].Valid	= FALSE;
-				pAd->StaCfg.DLSEntry[i].Status	= DLS_NONE;
-				DlsParmFill(pAd, &MlmeDlsReq, &pAd->StaCfg.DLSEntry[i], reason);
-				MlmeEnqueue(pAd, DLS_STATE_MACHINE, MT2_MLME_DLS_TEAR_DOWN, sizeof(MLME_DLS_REQ_STRUCT), &MlmeDlsReq);
-				DBGPRINT(RT_DEBUG_TRACE,("CNTL - start tear down procedure\n"));
-				break;
-			}
-			else if ((i < MAX_NUM_OF_DLS_ENTRY) && pDLS->Valid && !pAd->StaCfg.DLSEntry[i].Valid)
-			{
-				// 3. Enable case, start DLS setup procedure
-				NdisMoveMemory(&pAd->StaCfg.DLSEntry[i], pDLS, sizeof(RT_802_11_DLS_UI));
-
-				//Update countdown timer
-				pAd->StaCfg.DLSEntry[i].CountDownTimer = pAd->StaCfg.DLSEntry[i].TimeOut;
-				DlsParmFill(pAd, &MlmeDlsReq, &pAd->StaCfg.DLSEntry[i], reason);
-				MlmeEnqueue(pAd, DLS_STATE_MACHINE, MT2_MLME_DLS_REQ, sizeof(MLME_DLS_REQ_STRUCT), &MlmeDlsReq);
-				DBGPRINT(RT_DEBUG_TRACE,("CNTL - DLS setup case\n"));
-				break;
-			}
-			else if ((i < MAX_NUM_OF_DLS_ENTRY) && pDLS->Valid && pAd->StaCfg.DLSEntry[i].Valid &&
-				(pAd->StaCfg.DLSEntry[i].Status == DLS_FINISH) && !MAC_ADDR_EQUAL(pDLS->MacAddr, pAd->StaCfg.DLSEntry[i].MacAddr))
-			{
-				// 4. update mac case, tear down old DLS and setup new DLS
-				reason = REASON_QOS_UNWANTED_MECHANISM;
-				pAd->StaCfg.DLSEntry[i].Valid	= FALSE;
-				pAd->StaCfg.DLSEntry[i].Status	= DLS_NONE;
-				DlsParmFill(pAd, &MlmeDlsReq, &pAd->StaCfg.DLSEntry[i], reason);
-				MlmeEnqueue(pAd, DLS_STATE_MACHINE, MT2_MLME_DLS_TEAR_DOWN, sizeof(MLME_DLS_REQ_STRUCT), &MlmeDlsReq);
-				NdisMoveMemory(&pAd->StaCfg.DLSEntry[i], pDLS, sizeof(RT_802_11_DLS_UI));
-				DlsParmFill(pAd, &MlmeDlsReq, &pAd->StaCfg.DLSEntry[i], reason);
-				MlmeEnqueue(pAd, DLS_STATE_MACHINE, MT2_MLME_DLS_REQ, sizeof(MLME_DLS_REQ_STRUCT), &MlmeDlsReq);
-				DBGPRINT(RT_DEBUG_TRACE,("CNTL - DLS tear down and restart case\n"));
-				break;
-			}
-			else if (pDLS->Valid && pAd->StaCfg.DLSEntry[i].Valid &&
-				MAC_ADDR_EQUAL(pDLS->MacAddr, pAd->StaCfg.DLSEntry[i].MacAddr) && (pAd->StaCfg.DLSEntry[i].TimeOut != pDLS->TimeOut))
-			{
-				// 5. update timeout case, start DLS setup procedure (no tear down)
-				pAd->StaCfg.DLSEntry[i].TimeOut	= pDLS->TimeOut;
-				//Update countdown timer
-				pAd->StaCfg.DLSEntry[i].CountDownTimer = pAd->StaCfg.DLSEntry[i].TimeOut;
-				DlsParmFill(pAd, &MlmeDlsReq, &pAd->StaCfg.DLSEntry[i], reason);
-				MlmeEnqueue(pAd, DLS_STATE_MACHINE, MT2_MLME_DLS_REQ, sizeof(MLME_DLS_REQ_STRUCT), &MlmeDlsReq);
-				DBGPRINT(RT_DEBUG_TRACE,("CNTL - DLS update timeout case\n"));
-				break;
-			}
-			else if (pDLS->Valid && pAd->StaCfg.DLSEntry[i].Valid &&
-				(pAd->StaCfg.DLSEntry[i].Status != DLS_FINISH) && MAC_ADDR_EQUAL(pDLS->MacAddr, pAd->StaCfg.DLSEntry[i].MacAddr))
-			{
-				// 6. re-setup case, start DLS setup procedure (no tear down)
-				DlsParmFill(pAd, &MlmeDlsReq, &pAd->StaCfg.DLSEntry[i], reason);
-				MlmeEnqueue(pAd, DLS_STATE_MACHINE, MT2_MLME_DLS_REQ, sizeof(MLME_DLS_REQ_STRUCT), &MlmeDlsReq);
-				DBGPRINT(RT_DEBUG_TRACE,("CNTL - DLS retry setup procedure\n"));
-				break;
-			}
-			else
-			{
-				DBGPRINT(RT_DEBUG_WARN,("CNTL - DLS not changed in entry - %d - Valid=%d, Status=%d, TimeOut=%d\n",
-					i, pAd->StaCfg.DLSEntry[i].Valid, pAd->StaCfg.DLSEntry[i].Status, pAd->StaCfg.DLSEntry[i].TimeOut));
-			}
-		}
-	}
-}
-#endif // QOS_DLS_SUPPORT //
 
 /*
 	==========================================================================
@@ -2027,33 +1914,6 @@ VOID LinkDown(
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN 2!!!\n"));
 
-#ifdef QOS_DLS_SUPPORT
-		// DLS tear down frame must be sent before link down
-		// send DLS-TEAR_DOWN message
-		if (pAd->CommonCfg.bDLSCapable)
-		{
-			// tear down local dls table entry
-			for (i=0; i<MAX_NUM_OF_INIT_DLS_ENTRY; i++)
-			{
-				if (pAd->StaCfg.DLSEntry[i].Valid && (pAd->StaCfg.DLSEntry[i].Status == DLS_FINISH))
-				{
-					pAd->StaCfg.DLSEntry[i].Status = DLS_NONE;
-					RTMPSendDLSTearDownFrame(pAd, pAd->StaCfg.DLSEntry[i].MacAddr);
-				}
-			}
-
-			// tear down peer dls table entry
-			for (i=MAX_NUM_OF_INIT_DLS_ENTRY; i<MAX_NUM_OF_DLS_ENTRY; i++)
-			{
-				if (pAd->StaCfg.DLSEntry[i].Valid && (pAd->StaCfg.DLSEntry[i].Status ==  DLS_FINISH))
-				{
-					pAd->StaCfg.DLSEntry[i].Status = DLS_NONE;
-					RTMPSendDLSTearDownFrame(pAd, pAd->StaCfg.DLSEntry[i].MacAddr);
-				}
-			}
-		}
-#endif // QOS_DLS_SUPPORT //
-
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_INFRA_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);
 
@@ -2152,11 +2012,6 @@ VOID LinkDown(
 		pAd->StaCfg.WpaState = SS_START;
 		// Clear Replay counter
 		NdisZeroMemory(pAd->StaCfg.ReplayCounter, 8);
-
-#ifdef QOS_DLS_SUPPORT
-		if (pAd->CommonCfg.bDLSCapable)
-			NdisZeroMemory(pAd->StaCfg.DlsReplayCounter, 8);
-#endif // QOS_DLS_SUPPORT //
 	}
 
 
@@ -2475,26 +2330,6 @@ VOID ScanParmFill(
 	ScanReq->BssType = BssType;
 	ScanReq->ScanType = ScanType;
 }
-
-#ifdef QOS_DLS_SUPPORT
-/*
-	==========================================================================
-	Description:
-
-	IRQL = DISPATCH_LEVEL
-
-	==========================================================================
-*/
-VOID DlsParmFill(
-	IN PRTMP_ADAPTER pAd,
-	IN OUT MLME_DLS_REQ_STRUCT *pDlsReq,
-	IN PRT_802_11_DLS pDls,
-	IN USHORT reason)
-{
-	pDlsReq->pDLS = pDls;
-	pDlsReq->Reason = reason;
-}
-#endif // QOS_DLS_SUPPORT //
 
 /*
 	==========================================================================

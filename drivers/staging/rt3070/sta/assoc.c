@@ -948,36 +948,6 @@ VOID MlmeDisassocReqAction(
 	ULONG                 Timeout = 0;
 	USHORT                Status;
 
-#ifdef QOS_DLS_SUPPORT
-	// send DLS-TEAR_DOWN message,
-	if (pAd->CommonCfg.bDLSCapable)
-	{
-		UCHAR i;
-
-		// tear down local dls table entry
-		for (i=0; i<MAX_NUM_OF_INIT_DLS_ENTRY; i++)
-		{
-			if (pAd->StaCfg.DLSEntry[i].Valid && (pAd->StaCfg.DLSEntry[i].Status == DLS_FINISH))
-			{
-				RTMPSendDLSTearDownFrame(pAd, pAd->StaCfg.DLSEntry[i].MacAddr);
-				pAd->StaCfg.DLSEntry[i].Status	= DLS_NONE;
-				pAd->StaCfg.DLSEntry[i].Valid	= FALSE;
-			}
-		}
-
-		// tear down peer dls table entry
-		for (i=MAX_NUM_OF_INIT_DLS_ENTRY; i<MAX_NUM_OF_DLS_ENTRY; i++)
-		{
-			if (pAd->StaCfg.DLSEntry[i].Valid && (pAd->StaCfg.DLSEntry[i].Status == DLS_FINISH))
-			{
-				RTMPSendDLSTearDownFrame(pAd, pAd->StaCfg.DLSEntry[i].MacAddr);
-				pAd->StaCfg.DLSEntry[i].Status = DLS_NONE;
-				pAd->StaCfg.DLSEntry[i].Valid	= FALSE;
-			}
-		}
-	}
-#endif // QOS_DLS_SUPPORT //
-
 	// skip sanity check
 	pDisassocReq = (PMLME_DISASSOC_REQ_STRUCT)(Elem->Msg);
 

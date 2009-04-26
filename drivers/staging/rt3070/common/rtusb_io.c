@@ -1673,15 +1673,6 @@ VOID CMDHandler(
 
 					pEntry = (PMAC_TABLE_ENTRY)(pData);
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-					KeyIdx = 0;
-					CipherAlg = pEntry->PairwiseKey.CipherAlg;
-					ApIdx = BSS0;
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
-
 						RTMPAddWcidAttributeEntry(
 										  pAd,
 										  ApIdx,

@@ -529,10 +529,6 @@ DECLARE_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 DECLARE_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
 DECLARE_TIMER_FUNCTION(PsPollWakeExec);
 DECLARE_TIMER_FUNCTION(RadioOnExec);
-
-#ifdef QOS_DLS_SUPPORT
-DECLARE_TIMER_FUNCTION(DlsTimeoutAction);
-#endif // QOS_DLS_SUPPORT //
 #endif // CONFIG_STA_SUPPORT //
 
 void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);

@@ -1324,15 +1324,6 @@ typedef struct _MLME_STRUCT {
 	// Action
 	STATE_MACHINE           ActMachine;
 
-
-#ifdef QOS_DLS_SUPPORT
-	STATE_MACHINE			DlsMachine;
-	STATE_MACHINE_FUNC      DlsFunc[DLS_FUNC_SIZE];
-#endif // QOS_DLS_SUPPORT //
-
-
-
-
 	ULONG                   ChannelQuality;  // 0..100, Channel Quality Indication for Roaming
 	ULONG                   Now32;           // latch the value of NdisGetSystemUpTime()
 	ULONG                   LastSendNULLpsmTime;
@@ -2126,10 +2117,6 @@ typedef struct _STA_ADMIN_CONFIG {
 	UCHAR           	DtimCount;      // 0.. DtimPeriod-1
 	UCHAR           	DtimPeriod;     // default = 3
 
-#ifdef QOS_DLS_SUPPORT
-	RT_802_11_DLS		DLSEntry[MAX_NUM_OF_DLS_ENTRY];
-	UCHAR				DlsReplayCounter[8];
-#endif // QOS_DLS_SUPPORT //
 	////////////////////////////////////////////////////////////////////////////////////////
 	// This is only for WHQL test.
 	BOOLEAN				WhqlTest;
@@ -2300,14 +2287,6 @@ typedef struct _MAC_TABLE_ENTRY {
 	UINT32          CurrTxRateStableTime; // # of second in current TX rate
 	UCHAR           TxRateUpPenalty;      // extra # of second penalty due to last unstable condition
 //====================================================
-
-
-
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-	UINT			MatchDlsEntryIdx; // indicate the index in pAd->StaCfg.DLSEntry
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 
 	BOOLEAN         fNoisyEnvironment;
 	BOOLEAN			fLastSecAccordingRSSI;
@@ -3732,22 +3711,6 @@ VOID PeerQOSAction(
     IN PRTMP_ADAPTER pAd,
     IN MLME_QUEUE_ELEM *Elem);
 
-#ifdef QOS_DLS_SUPPORT
-VOID PeerDLSAction(
-    IN PRTMP_ADAPTER pAd,
-    IN MLME_QUEUE_ELEM *Elem);
-#endif // QOS_DLS_SUPPORT //
-
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-VOID DlsParmFill(
-	IN PRTMP_ADAPTER pAd,
-	IN OUT MLME_DLS_REQ_STRUCT *pDlsReq,
-	IN PRT_802_11_DLS pDls,
-	IN USHORT reason);
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
 #ifdef DOT11_N_SUPPORT
 VOID RECBATimerTimeout(
     IN PVOID SystemSpecific1,
@@ -4679,142 +4642,6 @@ VOID PeerAuthSimpleRspGenAndSend(
 // Private routines in dls.c
 //
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-void DlsStateMachineInit(
-    IN PRTMP_ADAPTER pAd,
-    IN STATE_MACHINE *Sm,
-    OUT STATE_MACHINE_FUNC Trans[]);
-
-VOID MlmeDlsReqAction(
-    IN PRTMP_ADAPTER pAd,
-    IN MLME_QUEUE_ELEM *Elem);
-
-VOID PeerDlsReqAction(
-    IN PRTMP_ADAPTER	pAd,
-    IN MLME_QUEUE_ELEM	*Elem);
-
-VOID PeerDlsRspAction(
-    IN PRTMP_ADAPTER	pAd,
-    IN MLME_QUEUE_ELEM	*Elem);
-
-VOID MlmeDlsTearDownAction(
-    IN PRTMP_ADAPTER pAd,
-    IN MLME_QUEUE_ELEM *Elem);
-
-VOID PeerDlsTearDownAction(
-    IN PRTMP_ADAPTER	pAd,
-    IN MLME_QUEUE_ELEM	*Elem);
-
-VOID RTMPCheckDLSTimeOut(
-	IN PRTMP_ADAPTER	pAd);
-
-BOOLEAN RTMPRcvFrameDLSCheck(
-	IN PRTMP_ADAPTER	pAd,
-	IN PHEADER_802_11	pHeader,
-	IN ULONG			Len,
-	IN PRT28XX_RXD_STRUC	pRxD);
-
-INT	RTMPCheckDLSFrame(
-	IN	PRTMP_ADAPTER	pAd,
-	IN  PUCHAR          pDA);
-
-VOID RTMPSendDLSTearDownFrame(
-	IN	PRTMP_ADAPTER	pAd,
-	IN  PUCHAR          pDA);
-
-NDIS_STATUS RTMPSendSTAKeyRequest(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pDA);
-
-NDIS_STATUS RTMPSendSTAKeyHandShake(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pDA);
-
-VOID DlsTimeoutAction(
-	IN PVOID SystemSpecific1,
-	IN PVOID FunctionContext,
-	IN PVOID SystemSpecific2,
-	IN PVOID SystemSpecific3);
-
-BOOLEAN MlmeDlsReqSanity(
-	IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PRT_802_11_DLS *pDLS,
-    OUT PUSHORT pReason);
-
-INT Set_DlsEntryInfo_Display_Proc(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR arg);
-
-MAC_TABLE_ENTRY *MacTableInsertDlsEntry(
-	IN  PRTMP_ADAPTER   pAd,
-	IN  PUCHAR	pAddr,
-	IN  UINT	DlsEntryIdx);
-
-BOOLEAN MacTableDeleteDlsEntry(
-	IN PRTMP_ADAPTER pAd,
-	IN USHORT wcid,
-	IN PUCHAR pAddr);
-
-MAC_TABLE_ENTRY *DlsEntryTableLookup(
-	IN PRTMP_ADAPTER pAd,
-	IN PUCHAR	pAddr,
-	IN BOOLEAN	bResetIdelCount);
-
-MAC_TABLE_ENTRY *DlsEntryTableLookupByWcid(
-	IN PRTMP_ADAPTER pAd,
-	IN UCHAR	wcid,
-	IN PUCHAR	pAddr,
-	IN BOOLEAN	bResetIdelCount);
-
-INT	Set_DlsAddEntry_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg);
-
-INT	Set_DlsTearDownEntry_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg);
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
-#ifdef QOS_DLS_SUPPORT
-BOOLEAN PeerDlsReqSanity(
-    IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PUCHAR pDA,
-    OUT PUCHAR pSA,
-    OUT USHORT *pCapabilityInfo,
-    OUT USHORT *pDlsTimeout,
-    OUT UCHAR *pRatesLen,
-    OUT UCHAR Rates[],
-    OUT UCHAR *pHtCapabilityLen,
-    OUT HT_CAPABILITY_IE *pHtCapability);
-
-BOOLEAN PeerDlsRspSanity(
-    IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PUCHAR pDA,
-    OUT PUCHAR pSA,
-    OUT USHORT *pCapabilityInfo,
-    OUT USHORT *pStatus,
-    OUT UCHAR *pRatesLen,
-    OUT UCHAR Rates[],
-    OUT UCHAR *pHtCapabilityLen,
-    OUT HT_CAPABILITY_IE *pHtCapability);
-
-BOOLEAN PeerDlsTearDownSanity(
-    IN PRTMP_ADAPTER pAd,
-    IN VOID *Msg,
-    IN ULONG MsgLen,
-    OUT PUCHAR pDA,
-    OUT PUCHAR pSA,
-    OUT USHORT *pReason);
-#endif // QOS_DLS_SUPPORT //
-
 //========================================
 
 VOID SyncStateMachineInit(
@@ -4918,12 +4745,6 @@ VOID CntlWaitAuthProc2(
 VOID CntlWaitAssocProc(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  MLME_QUEUE_ELEM *Elem);
-
-#ifdef QOS_DLS_SUPPORT
-VOID CntlOidDLSSetupProc(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem);
-#endif // QOS_DLS_SUPPORT //
 
 VOID LinkUp(
 	IN  PRTMP_ADAPTER   pAd,

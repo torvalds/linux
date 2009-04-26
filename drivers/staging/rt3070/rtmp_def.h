@@ -636,10 +636,6 @@
 
 
 
-#ifdef QOS_DLS_SUPPORT
-#define DLS_STATE_MACHINE               26
-#endif // QOS_DLS_SUPPORT //
-
 //
 // STA's CONTROL/CONNECT state machine: states, events, total function #
 //

@@ -72,9 +72,6 @@ VOID ActionStateMachineInit(
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_QOS_CATE, (STATE_MACHINE_FUNC)PeerQOSAction);
 
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_DLS_CATE, (STATE_MACHINE_FUNC)ReservedAction);
-#ifdef QOS_DLS_SUPPORT
-		StateMachineSetAction(S, ACT_IDLE, MT2_PEER_DLS_CATE, (STATE_MACHINE_FUNC)PeerDLSAction);
-#endif // QOS_DLS_SUPPORT //
 
 #ifdef DOT11_N_SUPPORT
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_BA_CATE, (STATE_MACHINE_FUNC)PeerBAAction);
@@ -290,39 +287,6 @@ VOID PeerQOSAction(
 	IN MLME_QUEUE_ELEM *Elem)
 {
 }
-
-#ifdef QOS_DLS_SUPPORT
-VOID PeerDLSAction(
-	IN PRTMP_ADAPTER pAd,
-	IN MLME_QUEUE_ELEM *Elem)
-{
-	UCHAR	Action = Elem->Msg[LENGTH_802_11+1];
-
-	switch(Action)
-	{
-		case ACTION_DLS_REQUEST:
-#ifdef CONFIG_STA_SUPPORT
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			PeerDlsReqAction(pAd, Elem);
-#endif // CONFIG_STA_SUPPORT //
-			break;
-
-		case ACTION_DLS_RESPONSE:
-#ifdef CONFIG_STA_SUPPORT
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			PeerDlsRspAction(pAd, Elem);
-#endif // CONFIG_STA_SUPPORT //
-			break;
-
-		case ACTION_DLS_TEARDOWN:
-#ifdef CONFIG_STA_SUPPORT
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			PeerDlsTearDownAction(pAd, Elem);
-#endif // CONFIG_STA_SUPPORT //
-			break;
-	}
-}
-#endif // QOS_DLS_SUPPORT //
 
 #ifdef DOT11_N_SUPPORT
 VOID PeerBAAction(
