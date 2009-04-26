@@ -147,6 +147,7 @@ struct rt2x00_chip {
 #define RT2561		0x0302
 #define RT2661		0x0401
 #define RT2571		0x1300
+#define RT2870		0x1600
 
 	u16 rf;
 	u32 rev;

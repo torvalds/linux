@@ -18,3 +18,4 @@ obj-$(CONFIG_RT2500PCI)			+= rt2500pci.o
 obj-$(CONFIG_RT61PCI)			+= rt61pci.o
 obj-$(CONFIG_RT2500USB)			+= rt2500usb.o
 obj-$(CONFIG_RT73USB)			+= rt73usb.o
+obj-$(CONFIG_RT2800USB)			+= rt2800usb.o
