@@ -815,17 +815,10 @@ typedef struct  _RTMP_DMABUF
 
 
 typedef	union	_HEADER_802_11_SEQ{
-#ifdef RT_BIG_ENDIAN
-    struct {
-   	USHORT			Sequence:12;
-	USHORT			Frag:4;
-    }   field;
-#else
     struct {
 	USHORT			Frag:4;
 	USHORT			Sequence:12;
     }   field;
-#endif
     USHORT           value;
 }	HEADER_802_11_SEQ, *PHEADER_802_11_SEQ;
 
@@ -1041,15 +1034,6 @@ typedef struct  _ARCFOUR
 
 // MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI too. just copy to TXWI.
 typedef struct  _RECEIVE_SETTING {
-#ifdef RT_BIG_ENDIAN
-	USHORT		MIMO:1;
-	USHORT		OFDM:1;
-	USHORT		rsv:3;
-	USHORT		STBC:2;	//SPACE
-	USHORT		ShortGI:1;
-	USHORT		Mode:2;	//channel bandwidth 20MHz or 40 MHz
-	USHORT   	NumOfRX:2;                 // MIMO. WE HAVE 3R
-#else
 	USHORT   	NumOfRX:2;                 // MIMO. WE HAVE 3R
 	USHORT		Mode:2;	//channel bandwidth 20MHz or 40 MHz
 	USHORT		ShortGI:1;
@@ -1057,7 +1041,6 @@ typedef struct  _RECEIVE_SETTING {
 	USHORT		rsv:3;
 	USHORT		OFDM:1;
 	USHORT		MIMO:1;
-#endif
  } RECEIVE_SETTING, *PRECEIVE_SETTING;
 
 // Shared key data structure
@@ -1392,21 +1375,6 @@ typedef struct _QUERYBA_TABLE{
 } QUERYBA_TABLE, *PQUERYBA_TABLE;
 
 typedef	union	_BACAP_STRUC	{
-#ifdef RT_BIG_ENDIAN
-	struct	{
-		UINT32     :4;
-		UINT32     b2040CoexistScanSup:1;		//As Sta, support do 2040 coexistence scan for AP. As Ap, support monitor trigger event to check if can use BW 40MHz.
-		UINT32     bHtAdhoc:1;			// adhoc can use ht rate.
-		UINT32     MMPSmode:2;	// MIMO power save more, 0:static, 1:dynamic, 2:rsv, 3:mimo enable
-		UINT32     AmsduSize:1;	// 0:3839, 1:7935 bytes. UINT  MSDUSizeToBytes[]	= { 3839, 7935};
-		UINT32     AmsduEnable:1;	//Enable AMSDU transmisstion
-		UINT32		MpduDensity:3;
-		UINT32		Policy:2;	// 0: DELAY_BA 1:IMMED_BA  (//BA Policy subfiled value in ADDBA frame)   2:BA-not use
-		UINT32		AutoBA:1;	// automatically BA
-		UINT32		TxBAWinLimit:8;
-		UINT32		RxBAWinLimit:8;
-	}	field;
-#else
 	struct	{
 		UINT32		RxBAWinLimit:8;
 		UINT32		TxBAWinLimit:8;
@@ -1420,7 +1388,6 @@ typedef	union	_BACAP_STRUC	{
 		UINT32       	b2040CoexistScanSup:1;		//As Sta, support do 2040 coexistence scan for AP. As Ap, support monitor trigger event to check if can use BW 40MHz.
 		UINT32       	:4;
 	}	field;
-#endif
 	UINT32			word;
 } BACAP_STRUC, *PBACAP_STRUC;
 #endif // DOT11_N_SUPPORT //
@@ -1449,21 +1416,6 @@ typedef	struct	_IOT_STRUC	{
 
 // This is the registry setting for 802.11n transmit setting.  Used in advanced page.
 typedef union _REG_TRANSMIT_SETTING {
-#ifdef RT_BIG_ENDIAN
- struct {
-         UINT32  rsv:13;
-		 UINT32  EXTCHA:2;
-		 UINT32  HTMODE:1;
-		 UINT32  TRANSNO:2;
-		 UINT32  STBC:1; //SPACE
-		 UINT32  ShortGI:1;
-		 UINT32  BW:1; //channel bandwidth 20MHz or 40 MHz
-		 UINT32  TxBF:1; // 3*3
-		 UINT32  rsv0:10;
-		 //UINT32  MCS:7;                 // MCS
-         //UINT32  PhyMode:4;
-    } field;
-#else
  struct {
          //UINT32  PhyMode:4;
          //UINT32  MCS:7;                 // MCS
@@ -1477,26 +1429,16 @@ typedef union _REG_TRANSMIT_SETTING {
          UINT32  EXTCHA:2;
          UINT32  rsv:13;
     } field;
-#endif
  UINT32   word;
 } REG_TRANSMIT_SETTING, *PREG_TRANSMIT_SETTING;
 
 typedef union  _DESIRED_TRANSMIT_SETTING {
-#ifdef RT_BIG_ENDIAN
-	struct	{
-			USHORT		rsv:3;
-			USHORT		FixedTxMode:2;			// If MCS isn't AUTO, fix rate in CCK, OFDM or HT mode.
-			USHORT		PhyMode:4;
-			USHORT   	MCS:7;                 // MCS
-	}	field;
-#else
 	struct	{
 			USHORT   	MCS:7;                 	// MCS
 			USHORT		PhyMode:4;
 			USHORT	 	FixedTxMode:2;			// If MCS isn't AUTO, fix rate in CCK, OFDM or HT mode.
 			USHORT		rsv:3;
 	}	field;
-#endif
 	USHORT		word;
  } DESIRED_TRANSMIT_SETTING, *PDESIRED_TRANSMIT_SETTING;
 
@@ -3011,244 +2953,6 @@ typedef struct _TX_BLK_
 
 
 //------------------------------------------------------------------------------------------
-
-
-
-#ifdef RT_BIG_ENDIAN
-static inline VOID	WriteBackToDescriptor(
-	IN  PUCHAR			Dest,
- 	IN	PUCHAR			Src,
-    IN  BOOLEAN			DoEncrypt,
-	IN  ULONG           DescriptorType)
-{
-	UINT32 *p1, *p2;
-
-	p1 = ((UINT32 *)Dest);
-	p2 = ((UINT32 *)Src);
-
-	*p1 = *p2;
-	*(p1+2) = *(p2+2);
-	*(p1+3) = *(p2+3);
-	*(p1+1) = *(p2+1); // Word 1; this must be written back last
-}
-
-/*
-	========================================================================
-
-	Routine Description:
-		Endian conversion of Tx/Rx descriptor .
-
-	Arguments:
-		pAd 	Pointer to our adapter
-		pData			Pointer to Tx/Rx descriptor
-		DescriptorType	Direction of the frame
-
-	Return Value:
-		None
-
-	Note:
-		Call this function when read or update descriptor
-	========================================================================
-*/
-static inline VOID	RTMPWIEndianChange(
-	IN	PUCHAR			pData,
-	IN	ULONG			DescriptorType)
-{
-	int size;
-	int i;
-
-	size = ((DescriptorType == TYPE_TXWI) ? TXWI_SIZE : RXWI_SIZE);
-
-	if(DescriptorType == TYPE_TXWI)
-	{
-		*((UINT32 *)(pData)) = SWAP32(*((UINT32 *)(pData)));		// Byte 0~3
-		*((UINT32 *)(pData + 4)) = SWAP32(*((UINT32 *)(pData+4)));	// Byte 4~7
-	}
-	else
-	{
-		for(i=0; i < size/4 ; i++)
-			*(((UINT32 *)pData) +i) = SWAP32(*(((UINT32 *)pData)+i));
-	}
-}
-
-/*
-	========================================================================
-
-	Routine Description:
-		Endian conversion of Tx/Rx descriptor .
-
-	Arguments:
-		pAd 	Pointer to our adapter
-		pData			Pointer to Tx/Rx descriptor
-		DescriptorType	Direction of the frame
-
-	Return Value:
-		None
-
-	Note:
-		Call this function when read or update descriptor
-	========================================================================
-*/
-
-#ifdef RT2870
-static inline VOID	RTMPDescriptorEndianChange(
-	IN	PUCHAR			pData,
-	IN	ULONG			DescriptorType)
-{
-	*((UINT32 *)(pData)) = SWAP32(*((UINT32 *)(pData)));
-}
-#endif // RT2870 //
-/*
-	========================================================================
-
-	Routine Description:
-		Endian conversion of all kinds of 802.11 frames .
-
-	Arguments:
-		pAd 	Pointer to our adapter
-		pData			Pointer to the 802.11 frame structure
-		Dir 			Direction of the frame
-		FromRxDoneInt	Caller is from RxDone interrupt
-
-	Return Value:
-		None
-
-	Note:
-		Call this function when read or update buffer data
-	========================================================================
-*/
-static inline VOID	RTMPFrameEndianChange(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			pData,
-	IN	ULONG			Dir,
-	IN	BOOLEAN 		FromRxDoneInt)
-{
-	PHEADER_802_11 pFrame;
-	PUCHAR	pMacHdr;
-
-	// swab 16 bit fields - Frame Control field
-	if(Dir == DIR_READ)
-	{
-		*(USHORT *)pData = SWAP16(*(USHORT *)pData);
-	}
-
-	pFrame = (PHEADER_802_11) pData;
-	pMacHdr = (PUCHAR) pFrame;
-
-	// swab 16 bit fields - Duration/ID field
-	*(USHORT *)(pMacHdr + 2) = SWAP16(*(USHORT *)(pMacHdr + 2));
-
-	// swab 16 bit fields - Sequence Control field
-	*(USHORT *)(pMacHdr + 22) = SWAP16(*(USHORT *)(pMacHdr + 22));
-
-	if(pFrame->FC.Type == BTYPE_MGMT)
-	{
-		switch(pFrame->FC.SubType)
-		{
-			case SUBTYPE_ASSOC_REQ:
-			case SUBTYPE_REASSOC_REQ:
-				// swab 16 bit fields - CapabilityInfo field
-				pMacHdr += sizeof(HEADER_802_11);
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-
-				// swab 16 bit fields - Listen Interval field
-				pMacHdr += 2;
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-				break;
-
-			case SUBTYPE_ASSOC_RSP:
-			case SUBTYPE_REASSOC_RSP:
-				// swab 16 bit fields - CapabilityInfo field
-				pMacHdr += sizeof(HEADER_802_11);
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-
-				// swab 16 bit fields - Status Code field
-				pMacHdr += 2;
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-
-				// swab 16 bit fields - AID field
-				pMacHdr += 2;
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-				break;
-
-			case SUBTYPE_AUTH:
-				// If from APHandleRxDoneInterrupt routine, it is still a encrypt format.
-				// The convertion is delayed to RTMPHandleDecryptionDoneInterrupt.
-				if(!FromRxDoneInt && pFrame->FC.Wep == 1)
-					break;
-				else
-				{
-					// swab 16 bit fields - Auth Alg No. field
-					pMacHdr += sizeof(HEADER_802_11);
-					*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-
-					// swab 16 bit fields - Auth Seq No. field
-					pMacHdr += 2;
-					*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-
-					// swab 16 bit fields - Status Code field
-					pMacHdr += 2;
-					*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-				}
-				break;
-
-			case SUBTYPE_BEACON:
-			case SUBTYPE_PROBE_RSP:
-				// swab 16 bit fields - BeaconInterval field
-				pMacHdr += (sizeof(HEADER_802_11) + TIMESTAMP_LEN);
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-
-				// swab 16 bit fields - CapabilityInfo field
-				pMacHdr += sizeof(USHORT);
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-				break;
-
-			case SUBTYPE_DEAUTH:
-			case SUBTYPE_DISASSOC:
-				// swab 16 bit fields - Reason code field
-				pMacHdr += sizeof(HEADER_802_11);
-				*(USHORT *)pMacHdr = SWAP16(*(USHORT *)pMacHdr);
-				break;
-		}
-	}
-	else if( pFrame->FC.Type == BTYPE_DATA )
-	{
-	}
-	else if(pFrame->FC.Type == BTYPE_CNTL)
-	{
-		switch(pFrame->FC.SubType)
-		{
-			case SUBTYPE_BLOCK_ACK_REQ:
-				{
-					PFRAME_BA_REQ pBAReq = (PFRAME_BA_REQ)pFrame;
-					*(USHORT *)(&pBAReq->BARControl) = SWAP16(*(USHORT *)(&pBAReq->BARControl));
-					pBAReq->BAStartingSeq.word = SWAP16(pBAReq->BAStartingSeq.word);
-				}
-				break;
-			case SUBTYPE_BLOCK_ACK:
-				// For Block Ack packet, the HT_CONTROL field is in the same offset with Addr3
-				*(UINT32 *)(&pFrame->Addr3[0]) = SWAP32(*(UINT32 *)(&pFrame->Addr3[0]));
-				break;
-
-			case SUBTYPE_ACK:
-				//For ACK packet, the HT_CONTROL field is in the same offset with Addr2
-				*(UINT32 *)(&pFrame->Addr2[0])=	SWAP32(*(UINT32 *)(&pFrame->Addr2[0]));
-				break;
-		}
-	}
-	else
-	{
-		DBGPRINT(RT_DEBUG_ERROR,("Invalid Frame Type!!!\n"));
-	}
-
-	// swab 16 bit fields - Frame Control
-	if(Dir == DIR_WRITE)
-	{
-		*(USHORT *)pData = SWAP16(*(USHORT *)pData);
-	}
-}
-#endif // RT_BIG_ENDIAN //
-
 
 static inline VOID ConvertMulticastIP2MAC(
 	IN PUCHAR pIpAddr,

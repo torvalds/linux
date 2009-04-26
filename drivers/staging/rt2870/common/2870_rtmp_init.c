@@ -1078,18 +1078,13 @@ PNDIS_PACKET GetPacketFromRxRing(
 	// skip USB frame length field
 	pData += RT2870_RXDMALEN_FIELD_SIZE;
 	pRxWI = (PRXWI_STRUC)pData;
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange(pData, TYPE_RXWI);
-#endif // RT_BIG_ENDIAN //
+
 	if (pRxWI->MPDUtotalByteCount > ThisFrameLen)
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("%s():pRxWIMPDUtotalByteCount(%d) large than RxDMALen(%ld)\n",
 									__func__, pRxWI->MPDUtotalByteCount, ThisFrameLen));
 		goto label_null;
 	}
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange(pData, TYPE_RXWI);
-#endif // RT_BIG_ENDIAN //
 
 	// allocate a rx packet
 	pSkb = dev_alloc_skb(ThisFrameLen);
@@ -1106,9 +1101,6 @@ PNDIS_PACKET GetPacketFromRxRing(
 
 	// copy RxD
 	*pSaveRxD = *(PRXINFO_STRUC)(pData + ThisFrameLen);
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pSaveRxD, TYPE_RXINFO);
-#endif // RT_BIG_ENDIAN //
 
 	// update next packet read position.
 	pAd->ReadPosition += (ThisFrameLen + RT2870_RXDMALEN_FIELD_SIZE + RXINFO_SIZE);	// 8 for (RT2870_RXDMALEN_FIELD_SIZE + sizeof(RXINFO_STRUC))

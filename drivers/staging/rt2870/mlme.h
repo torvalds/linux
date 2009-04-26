@@ -209,22 +209,6 @@ if (((__pEntry)) != NULL) \
 //
 //  HT Capability INFO field in HT Cap IE .
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-	USHORT	LSIGTxopProSup:1;
-	USHORT	Forty_Mhz_Intolerant:1;
-	USHORT	PSMP:1;
-	USHORT	CCKmodein40:1;
-	USHORT	AMsduSize:1;
-	USHORT	DelayedBA:1;	//rt2860c not support
-	USHORT	RxSTBC:2;
-	USHORT	TxSTBC:1;
-	USHORT	ShortGIfor40:1;	//for40MHz
-	USHORT	ShortGIfor20:1;
-	USHORT	GF:1;	//green field
-	USHORT	MimoPs:2;//momi power safe
-	USHORT	ChannelWidth:1;
-	USHORT	AdvCoding:1;
-#else
 	USHORT	AdvCoding:1;
 	USHORT	ChannelWidth:1;
 	USHORT	MimoPs:2;//momi power safe
@@ -239,53 +223,29 @@ typedef struct PACKED {
 	USHORT	PSMP:1;
 	USHORT	Forty_Mhz_Intolerant:1;
 	USHORT	LSIGTxopProSup:1;
-#endif	/* !RT_BIG_ENDIAN */
 } HT_CAP_INFO, *PHT_CAP_INFO;
 
 //  HT Capability INFO field in HT Cap IE .
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-	UCHAR	rsv:3;//momi power safe
-	UCHAR	MpduDensity:3;
-	UCHAR	MaxRAmpduFactor:2;
-#else
 	UCHAR	MaxRAmpduFactor:2;
 	UCHAR	MpduDensity:3;
 	UCHAR	rsv:3;//momi power safe
-#endif /* !RT_BIG_ENDIAN */
 } HT_CAP_PARM, *PHT_CAP_PARM;
 
 //  HT Capability INFO field in HT Cap IE .
 typedef struct PACKED {
 	UCHAR	MCSSet[10];
 	UCHAR	SupRate[2];  // unit : 1Mbps
-#ifdef RT_BIG_ENDIAN
-	UCHAR	rsv:3;
-	UCHAR	MpduDensity:1;
-	UCHAR	TxStream:2;
-	UCHAR	TxRxNotEqual:1;
-	UCHAR	TxMCSSetDefined:1;
-#else
 	UCHAR	TxMCSSetDefined:1;
 	UCHAR	TxRxNotEqual:1;
 	UCHAR	TxStream:2;
 	UCHAR	MpduDensity:1;
 	UCHAR	rsv:3;
-#endif // RT_BIG_ENDIAN //
 	UCHAR	rsv3[3];
 } HT_MCS_SET, *PHT_MCS_SET;
 
 //  HT Capability INFO field in HT Cap IE .
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-	USHORT	rsv2:4;
-	USHORT	RDGSupport:1;	//reverse Direction Grant  support
-	USHORT	PlusHTC:1;	//+HTC control field support
-	USHORT	MCSFeedback:2;	//0:no MCS feedback, 2:unsolicited MCS feedback, 3:Full MCS feedback,  1:rsv.
-	USHORT	rsv:5;//momi power safe
-	USHORT	TranTime:2;
-	USHORT	Pco:1;
-#else
 	USHORT	Pco:1;
 	USHORT	TranTime:2;
 	USHORT	rsv:5;//momi power safe
@@ -293,33 +253,10 @@ typedef struct PACKED {
 	USHORT	PlusHTC:1;	//+HTC control field support
 	USHORT	RDGSupport:1;	//reverse Direction Grant  support
 	USHORT	rsv2:4;
-#endif /* RT_BIG_ENDIAN */
 } EXT_HT_CAP_INFO, *PEXT_HT_CAP_INFO;
 
 //  HT Beamforming field in HT Cap IE .
 typedef struct PACKED _HT_BF_CAP{
-#ifdef RT_BIG_ENDIAN
-	ULONG	rsv:3;
-	ULONG	ChanEstimation:2;
-	ULONG	CSIRowBFSup:2;
-	ULONG	ComSteerBFAntSup:2;
-	ULONG	NoComSteerBFAntSup:2;
-	ULONG	CSIBFAntSup:2;
-	ULONG	MinGrouping:2;
-	ULONG	ExpComBF:2;
-	ULONG	ExpNoComBF:2;
-	ULONG	ExpCSIFbk:2;
-	ULONG	ExpComSteerCapable:1;
-	ULONG	ExpNoComSteerCapable:1;
-	ULONG	ExpCSICapable:1;
-	ULONG	Calibration:2;
-	ULONG	ImpTxBFCapable:1;
-	ULONG	TxNDPCapable:1;
-	ULONG	RxNDPCapable:1;
-	ULONG	TxSoundCapable:1;
-	ULONG	RxSoundCapable:1;
-	ULONG	TxBFRecCapable:1;
-#else
 	ULONG	TxBFRecCapable:1;
 	ULONG	RxSoundCapable:1;
 	ULONG	TxSoundCapable:1;
@@ -340,21 +277,10 @@ typedef struct PACKED _HT_BF_CAP{
 	ULONG	CSIRowBFSup:2;
 	ULONG	ChanEstimation:2;
 	ULONG	rsv:3;
-#endif // RT_BIG_ENDIAN //
 } HT_BF_CAP, *PHT_BF_CAP;
 
 //  HT antenna selection field in HT Cap IE .
 typedef struct PACKED _HT_AS_CAP{
-#ifdef RT_BIG_ENDIAN
-	UCHAR	rsv:1;
-	UCHAR	TxSoundPPDU:1;
-	UCHAR	RxASel:1;
-	UCHAR	AntIndFbk:1;
-	UCHAR	ExpCSIFbk:1;
-	UCHAR	AntIndFbkTxASEL:1;
-	UCHAR	ExpCSIFbkTxASEL:1;
-	UCHAR	AntSelect:1;
-#else
 	UCHAR	AntSelect:1;
 	UCHAR	ExpCSIFbkTxASEL:1;
 	UCHAR	AntIndFbkTxASEL:1;
@@ -363,7 +289,6 @@ typedef struct PACKED _HT_AS_CAP{
 	UCHAR	RxASel:1;
 	UCHAR	TxSoundPPDU:1;
 	UCHAR	rsv:1;
-#endif // RT_BIG_ENDIAN //
 } HT_AS_CAP, *PHT_AS_CAP;
 
 // Draft 1.0 set IE length 26, but is extensible..
@@ -407,17 +332,10 @@ typedef struct PACKED _OVERLAP_BSS_SCAN_IE{
 //  7.3.2.56. 20/40 Coexistence element used in  Element ID = 72 = IE_2040_BSS_COEXIST
 typedef union PACKED _BSS_2040_COEXIST_IE{
  struct PACKED {
- #ifdef RT_BIG_ENDIAN
-	UCHAR	rsv:5;
-	UCHAR	BSS20WidthReq:1;
-	UCHAR	Intolerant40:1;
-	UCHAR	InfoReq:1;
- #else
 	UCHAR	InfoReq:1;
 	UCHAR	Intolerant40:1;			// Inter-BSS. set 1 when prohibits a receiving BSS from operating as a 20/40 Mhz BSS.
 	UCHAR	BSS20WidthReq:1;		// Intra-BSS set 1 when prohibits a receiving AP from operating its BSS as a 20/40MHz BSS.
 	UCHAR	rsv:5;
-#endif // RT_BIG_ENDIAN //
     } field;
  UCHAR   word;
 } BSS_2040_COEXIST_IE, *PBSS_2040_COEXIST_IE;
@@ -443,17 +361,10 @@ typedef struct  _TRIGGER_EVENT_TAB{
 // 7.3.27 20/40 Bss Coexistence Mgmt capability used in extended capabilities information IE( ID = 127 = IE_EXT_CAPABILITY).
 //	This is the first octet and was defined in 802.11n D3.03 and 802.11yD9.0
 typedef struct PACKED _EXT_CAP_INFO_ELEMENT{
-#ifdef RT_BIG_ENDIAN
-	UCHAR	rsv2:5;
-	UCHAR	ExtendChannelSwitch:1;
-	UCHAR	rsv:1;
-	UCHAR	BssCoexistMgmtSupport:1;
-#else
 	UCHAR	BssCoexistMgmtSupport:1;
 	UCHAR	rsv:1;
 	UCHAR	ExtendChannelSwitch:1;
 	UCHAR	rsv2:5;
-#endif // RT_BIG_ENDIAN //
 }EXT_CAP_INFO_ELEMENT, *PEXT_CAP_INFO_ELEMENT;
 
 
@@ -505,18 +416,6 @@ typedef struct {
 	//Substract from HT Capability IE
 	UCHAR			MCSSet[16];	//only supoort MCS=0-15,32 ,
 #endif
-#ifdef RT_BIG_ENDIAN
-	USHORT	rsv:5;
-	USHORT	AmsduSize:1;	// Max receiving A-MSDU size
-	USHORT	AmsduEnable:1;	// Enable to transmit A-MSDU. Suggest disable. We should use A-MPDU to gain best benifit of 802.11n
-	USHORT	RxSTBC:2;	// 2 bits
-	USHORT	TxSTBC:1;
-	USHORT	ShortGIfor40:1;	//for40MHz
-	USHORT	ShortGIfor20:1;
-	USHORT	GF:1;	//green field
-	USHORT	MimoPs:2;//mimo power safe MMPS_
-	USHORT	ChannelWidth:1;
-#else
 	USHORT	ChannelWidth:1;
 	USHORT	MimoPs:2;//mimo power safe MMPS_
 	USHORT	GF:1;	//green field
@@ -527,34 +426,18 @@ typedef struct {
 	USHORT	AmsduEnable:1;	// Enable to transmit A-MSDU. Suggest disable. We should use A-MPDU to gain best benifit of 802.11n
 	USHORT	AmsduSize:1;	// Max receiving A-MSDU size
 	USHORT	rsv:5;
-#endif
 
 	//Substract from Addiont HT INFO IE
-#ifdef RT_BIG_ENDIAN
-	UCHAR	RecomWidth:1;
-	UCHAR	ExtChanOffset:2;	// Please not the difference with following 	UCHAR	NewExtChannelOffset; from 802.11n
-	UCHAR	MpduDensity:3;
-	UCHAR	MaxRAmpduFactor:2;
-#else
 	UCHAR	MaxRAmpduFactor:2;
 	UCHAR	MpduDensity:3;
 	UCHAR	ExtChanOffset:2;	// Please not the difference with following 	UCHAR	NewExtChannelOffset; from 802.11n
 	UCHAR	RecomWidth:1;
-#endif
 
-#ifdef RT_BIG_ENDIAN
-	USHORT	rsv2:11;
-	USHORT	OBSS_NonHTExist:1;
-	USHORT	rsv3:1;
-	USHORT	NonGfPresent:1;
-	USHORT	OperaionMode:2;
-#else
 	USHORT	OperaionMode:2;
 	USHORT	NonGfPresent:1;
 	USHORT	rsv3:1;
 	USHORT	OBSS_NonHTExist:1;
 	USHORT	rsv2:11;
-#endif
 
 	// New Extension Channel Offset IE
 	UCHAR	NewExtChannelOffset;
@@ -564,50 +447,24 @@ typedef struct {
 
 //   field in Addtional HT Information IE .
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-	UCHAR	SerInterGranu:3;
-	UCHAR	S_PSMPSup:1;
-	UCHAR	RifsMode:1;
-	UCHAR	RecomWidth:1;
-	UCHAR	ExtChanOffset:2;
-#else
 	UCHAR	ExtChanOffset:2;
 	UCHAR	RecomWidth:1;
 	UCHAR	RifsMode:1;
 	UCHAR	S_PSMPSup:1;	 //Indicate support for scheduled PSMP
 	UCHAR	SerInterGranu:3;	 //service interval granularity
-#endif
 } ADD_HTINFO, *PADD_HTINFO;
 
 typedef struct PACKED{
-#ifdef RT_BIG_ENDIAN
-	USHORT	rsv2:11;
-	USHORT	OBSS_NonHTExist:1;
-	USHORT	rsv:1;
-	USHORT	NonGfPresent:1;
-	USHORT	OperaionMode:2;
-#else
 	USHORT	OperaionMode:2;
 	USHORT	NonGfPresent:1;
 	USHORT	rsv:1;
 	USHORT	OBSS_NonHTExist:1;
 	USHORT	rsv2:11;
-#endif
 } ADD_HTINFO2, *PADD_HTINFO2;
 
 
 // TODO: Need sync with spec about the definition of StbcMcs. In Draft 3.03, it's reserved.
 typedef struct PACKED{
-#ifdef RT_BIG_ENDIAN
-	USHORT	rsv:4;
-	USHORT	PcoPhase:1;
-	USHORT	PcoActive:1;
-	USHORT	LsigTxopProt:1;
-	USHORT	STBCBeacon:1;
-	USHORT	DualCTSProtect:1;
-	USHORT	DualBeacon:1;
-	USHORT	StbcMcs:6;
-#else
 	USHORT	StbcMcs:6;
 	USHORT	DualBeacon:1;
 	USHORT	DualCTSProtect:1;
@@ -616,7 +473,6 @@ typedef struct PACKED{
 	USHORT	PcoActive:1;
 	USHORT	PcoPhase:1;
 	USHORT	rsv:4;
-#endif // RT_BIG_ENDIAN //
 } ADD_HTINFO3, *PADD_HTINFO3;
 
 #define SIZE_ADD_HT_INFO_IE		22
@@ -635,22 +491,6 @@ typedef struct  PACKED{
 
 // 4-byte HTC field.  maybe included in any frame except non-QOS data frame.  The Order bit must set 1.
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    UINT32		RDG:1;	//RDG / More PPDU
-    UINT32		ACConstraint:1;	//feedback request
-    UINT32		rsv:5;  //calibration sequence
-    UINT32		ZLFAnnouce:1;	// ZLF announcement
-    UINT32		CSISTEERING:2;	//CSI/ STEERING
-    UINT32		FBKReq:2;	//feedback request
-    UINT32		CalSeq:2;  //calibration sequence
-    UINT32		CalPos:2;	// calibration position
-    UINT32		MFBorASC:7;	//Link adaptation feedback containing recommended MCS. 0x7f for no feedback or not available
-    UINT32		MFS:3;	//SET to the received value of MRS. 0x111 for unsolicited MFB.
-    UINT32		MRSorASI:3;	// MRQ Sequence identifier. unchanged during entire procedure. 0x000-0x110.
-    UINT32		MRQ:1;	//MCS feedback. Request for a MCS feedback
-    UINT32		TRQ:1;	//sounding request
-    UINT32		MA:1;	//management action payload exist in (QoS Null+HTC)
-#else
     UINT32		MA:1;	//management action payload exist in (QoS Null+HTC)
     UINT32		TRQ:1;	//sounding request
     UINT32		MRQ:1;	//MCS feedback. Request for a MCS feedback
@@ -665,41 +505,19 @@ typedef struct PACKED {
     UINT32		rsv:5;  //calibration sequence
     UINT32		ACConstraint:1;	//feedback request
     UINT32		RDG:1;	//RDG / More PPDU
-#endif /* !RT_BIG_ENDIAN */
 } HT_CONTROL, *PHT_CONTROL;
 
 // 2-byte QOS CONTROL field
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    USHORT      Txop_QueueSize:8;
-    USHORT      AMsduPresent:1;
-    USHORT      AckPolicy:2;  //0: normal ACK 1:No ACK 2:scheduled under MTBA/PSMP  3: BA
-    USHORT      EOSP:1;
-    USHORT      TID:4;
-#else
     USHORT      TID:4;
     USHORT      EOSP:1;
     USHORT      AckPolicy:2;  //0: normal ACK 1:No ACK 2:scheduled under MTBA/PSMP  3: BA
     USHORT      AMsduPresent:1;
     USHORT      Txop_QueueSize:8;
-#endif /* !RT_BIG_ENDIAN */
 } QOS_CONTROL, *PQOS_CONTROL;
 
 // 2-byte Frame control field
 typedef	struct	PACKED {
-#ifdef RT_BIG_ENDIAN
-	USHORT		Order:1;			// Strict order expected
-	USHORT		Wep:1;				// Wep data
-	USHORT		MoreData:1;			// More data bit
-	USHORT		PwrMgmt:1;			// Power management bit
-	USHORT		Retry:1;			// Retry status bit
-	USHORT		MoreFrag:1;			// More fragment bit
-	USHORT		FrDs:1;				// From DS indication
-	USHORT		ToDs:1;				// To DS indication
-	USHORT		SubType:4;			// MSDU subtype
-	USHORT		Type:2;				// MSDU type
-	USHORT		Ver:2;				// Protocol version
-#else
 	USHORT		Ver:2;				// Protocol version
 	USHORT		Type:2;				// MSDU type
 	USHORT		SubType:4;			// MSDU subtype
@@ -711,7 +529,6 @@ typedef	struct	PACKED {
 	USHORT		MoreData:1;			// More data bit
 	USHORT		Wep:1;				// Wep data
 	USHORT		Order:1;			// Strict order expected
-#endif /* !RT_BIG_ENDIAN */
 } FRAME_CONTROL, *PFRAME_CONTROL;
 
 typedef	struct	PACKED _HEADER_802_11	{
@@ -720,13 +537,8 @@ typedef	struct	PACKED _HEADER_802_11	{
     UCHAR           Addr1[MAC_ADDR_LEN];
     UCHAR           Addr2[MAC_ADDR_LEN];
 	UCHAR			Addr3[MAC_ADDR_LEN];
-#ifdef RT_BIG_ENDIAN
-	USHORT			Sequence:12;
-	USHORT			Frag:4;
-#else
 	USHORT			Frag:4;
 	USHORT			Sequence:12;
-#endif /* !RT_BIG_ENDIAN */
 	UCHAR			Octet[0];
 }	HEADER_802_11, *PHEADER_802_11;
 
@@ -750,42 +562,24 @@ typedef	struct	PACKED _HEADER_802_3	{
 ////Block ACK related format
 // 2-byte BA Parameter  field  in 	DELBA frames to terminate an already set up bA
 typedef struct PACKED{
-#ifdef RT_BIG_ENDIAN
-    USHORT      TID:4;	// value of TC os TS
-    USHORT      Initiator:1;	// 1: originator    0:recipient
-    USHORT      Rsv:11;	// always set to 0
-#else
     USHORT      Rsv:11;	// always set to 0
     USHORT      Initiator:1;	// 1: originator    0:recipient
     USHORT      TID:4;	// value of TC os TS
-#endif /* !RT_BIG_ENDIAN */
 } DELBA_PARM, *PDELBA_PARM;
 
 // 2-byte BA Parameter Set field  in ADDBA frames to signal parm for setting up a BA
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    USHORT      BufSize:10;	// number of buffe of size 2304 octetsr
-    USHORT      TID:4;	// value of TC os TS
-    USHORT      BAPolicy:1;	// 1: immediately BA    0:delayed BA
-    USHORT      AMSDUSupported:1;	// 0: not permitted		1: permitted
-#else
     USHORT      AMSDUSupported:1;	// 0: not permitted		1: permitted
     USHORT      BAPolicy:1;	// 1: immediately BA    0:delayed BA
     USHORT      TID:4;	// value of TC os TS
     USHORT      BufSize:10;	// number of buffe of size 2304 octetsr
-#endif /* !RT_BIG_ENDIAN */
 } BA_PARM, *PBA_PARM;
 
 // 2-byte BA Starting Seq CONTROL field
 typedef union PACKED {
     struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    USHORT      StartSeq:12;   // sequence number of the 1st MSDU for which this BAR is sent
-	USHORT      FragNum:4;	// always set to 0
-#else
     USHORT      FragNum:4;	// always set to 0
 	USHORT      StartSeq:12;   // sequence number of the 1st MSDU for which this BAR is sent
-#endif /* RT_BIG_ENDIAN */
     }   field;
     USHORT           word;
 } BASEQ_CONTROL, *PBASEQ_CONTROL;
@@ -793,63 +587,34 @@ typedef union PACKED {
 //BAControl and BARControl are the same
 // 2-byte BA CONTROL field in BA frame
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    USHORT      TID:4;
-    USHORT      Rsv:9;
-    USHORT      Compressed:1;
-    USHORT      MTID:1;		//EWC V1.24
-    USHORT      ACKPolicy:1; // only related to N-Delayed BA. But not support in RT2860b. 0:NormalACK  1:No ACK
-#else
     USHORT      ACKPolicy:1; // only related to N-Delayed BA. But not support in RT2860b. 0:NormalACK  1:No ACK
     USHORT      MTID:1;		//EWC V1.24
     USHORT      Compressed:1;
     USHORT      Rsv:9;
     USHORT      TID:4;
-#endif /* !RT_BIG_ENDIAN */
 } BA_CONTROL, *PBA_CONTROL;
 
 // 2-byte BAR CONTROL field in BAR frame
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    USHORT      TID:4;
-    USHORT      Rsv1:9;
-    USHORT      Compressed:1;
-    USHORT      MTID:1;		//if this bit1, use  FRAME_MTBA_REQ,  if 0, use FRAME_BA_REQ
-    USHORT      ACKPolicy:1;
-#else
     USHORT      ACKPolicy:1; // 0:normal ack,  1:no ack.
     USHORT      MTID:1;		//if this bit1, use  FRAME_MTBA_REQ,  if 0, use FRAME_BA_REQ
     USHORT      Compressed:1;
     USHORT      Rsv1:9;
     USHORT      TID:4;
-#endif /* !RT_BIG_ENDIAN */
 } BAR_CONTROL, *PBAR_CONTROL;
 
 // BARControl in MTBAR frame
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    USHORT      NumTID:4;
-    USHORT      Rsv1:9;
-    USHORT      Compressed:1;
-    USHORT      MTID:1;
-    USHORT      ACKPolicy:1;
-#else
     USHORT      ACKPolicy:1;
     USHORT      MTID:1;
     USHORT      Compressed:1;
     USHORT      Rsv1:9;
     USHORT      NumTID:4;
-#endif /* !RT_BIG_ENDIAN */
 } MTBAR_CONTROL, *PMTBAR_CONTROL;
 
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-    USHORT      TID:4;
-    USHORT      Rsv1:12;
-#else
     USHORT      Rsv1:12;
     USHORT      TID:4;
-#endif /* !RT_BIG_ENDIAN */
 } PER_TID_INFO, *PPER_TID_INFO;
 
 typedef struct {
@@ -1069,15 +834,6 @@ typedef struct {
 
 // QBSS Info field in QSTA's assoc req
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-	UCHAR		Rsv2:1;
-	UCHAR		MaxSPLength:2;
-	UCHAR		Rsv1:1;
-	UCHAR		UAPSD_AC_BE:1;
-	UCHAR		UAPSD_AC_BK:1;
-	UCHAR		UAPSD_AC_VI:1;
-	UCHAR		UAPSD_AC_VO:1;
-#else
     UCHAR		UAPSD_AC_VO:1;
 	UCHAR		UAPSD_AC_VI:1;
 	UCHAR		UAPSD_AC_BK:1;
@@ -1085,20 +841,13 @@ typedef struct PACKED {
 	UCHAR		Rsv1:1;
 	UCHAR		MaxSPLength:2;
 	UCHAR		Rsv2:1;
-#endif /* !RT_BIG_ENDIAN */
 } QBSS_STA_INFO_PARM, *PQBSS_STA_INFO_PARM;
 
 // QBSS Info field in QAP's Beacon/ProbeRsp
 typedef struct PACKED {
-#ifdef RT_BIG_ENDIAN
-	UCHAR		UAPSD:1;
-	UCHAR		Rsv:3;
-    UCHAR		ParamSetCount:4;
-#else
     UCHAR		ParamSetCount:4;
 	UCHAR		Rsv:3;
 	UCHAR		UAPSD:1;
-#endif /* !RT_BIG_ENDIAN */
 } QBSS_AP_INFO_PARM, *PQBSS_AP_INFO_PARM;
 
 // QOS Capability reported in QAP's BEACON/ProbeRsp
@@ -1349,21 +1098,12 @@ typedef struct PACKED {
 typedef struct PACKED _RTMP_TX_RATE_SWITCH
 {
 	UCHAR   ItemNo;
-#ifdef RT_BIG_ENDIAN
-	UCHAR	Rsv2:2;
-	UCHAR	Mode:2;
-	UCHAR	Rsv1:1;
-	UCHAR	BW:1;
-	UCHAR	ShortGI:1;
-	UCHAR	STBC:1;
-#else
 	UCHAR	STBC:1;
 	UCHAR	ShortGI:1;
 	UCHAR	BW:1;
 	UCHAR	Rsv1:1;
 	UCHAR	Mode:2;
 	UCHAR	Rsv2:2;
-#endif
 	UCHAR   CurrMCS;
 	UCHAR   TrainUp;
 	UCHAR   TrainDown;

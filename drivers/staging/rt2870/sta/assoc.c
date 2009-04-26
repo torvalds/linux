@@ -360,28 +360,11 @@ VOID MlmeAssocReqAction(
 			}
 			else
 			{
-#ifdef RT_BIG_ENDIAN
-		        HT_CAPABILITY_IE HtCapabilityTmp;
-#endif
-
-#ifndef RT_BIG_ENDIAN
 				MakeOutgoingFrame(pOutBuffer + FrameLen,            &TmpLen,
 							  1,                                &HtCapIe,
 							  1,                                &pAd->MlmeAux.HtCapabilityLen,
 							 pAd->MlmeAux.HtCapabilityLen,          &pAd->MlmeAux.HtCapability,
 							  END_OF_ARGS);
-#else
-                NdisZeroMemory(&HtCapabilityTmp, sizeof(HT_CAPABILITY_IE));
-                NdisMoveMemory(&HtCapabilityTmp, &pAd->MlmeAux.HtCapability, pAd->MlmeAux.HtCapabilityLen);
-        		*(USHORT *)(&HtCapabilityTmp.HtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.HtCapInfo));
-        		*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo));
-
-        		MakeOutgoingFrame(pOutBuffer + FrameLen,         &TmpLen,
-        							1,                           &HtCapIe,
-        							1,                           &pAd->MlmeAux.HtCapabilityLen,
-        							pAd->MlmeAux.HtCapabilityLen,&HtCapabilityTmp,
-        							END_OF_ARGS);
-#endif
 			}
 			FrameLen += TmpLen;
 		}

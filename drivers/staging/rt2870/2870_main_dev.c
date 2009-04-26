@@ -1231,9 +1231,7 @@ VOID RT28xx_UpdateBeaconToAsic(
 	else
 	{
 		ptr = (PUCHAR)&pAd->BeaconTxWI;
-#ifdef RT_BIG_ENDIAN
-		RTMPWIEndianChange(ptr, TYPE_TXWI);
-#endif
+
 		if (NdisEqualMemory(pBeaconSync->BeaconTxWI[bcn_idx], &pAd->BeaconTxWI, TXWI_SIZE) == FALSE)
 		{	// If BeaconTxWI changed, we need to rewrite the TxWI for the Beacon frames.
 			pBeaconSync->BeaconBitMap &= (~(BEACON_BITMAP_MASK & (1 << bcn_idx)));

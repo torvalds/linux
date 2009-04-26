@@ -189,9 +189,6 @@ USHORT	RtmpUSB_WriteFragTxResource(
 	}
 
 	NdisMoveMemory(pWirelessPacket, pTxBlk->HeaderBuf, TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)(pWirelessPacket + TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 	pWirelessPacket += (TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
 	pHTTXContext->CurWriteRealPos += (TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
 
@@ -303,9 +300,6 @@ USHORT RtmpUSB_WriteSingleTxResource(
 			bTxQLastRound = TRUE;
 		}
 		NdisMoveMemory(pWirelessPacket, pTxBlk->HeaderBuf, TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
-#ifdef RT_BIG_ENDIAN
-		RTMPFrameEndianChange(pAd, (PUCHAR)(pWirelessPacket + TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 		pWirelessPacket += (TXINFO_SIZE + TXWI_SIZE + hwHdrLen);
 
 		// We unlock it here to prevent the first 8 bytes maybe over-writed issue.
@@ -417,9 +411,6 @@ USHORT RtmpUSB_WriteMultiTxResource(
 
 			// Copy it.
 			NdisMoveMemory(pWirelessPacket, pTxBlk->HeaderBuf, pTxBlk->Priv);
-#ifdef RT_BIG_ENDIAN
-			RTMPFrameEndianChange(pAd, (PUCHAR)(pWirelessPacket+ TXINFO_SIZE + TXWI_SIZE), DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 			pHTTXContext->CurWriteRealPos += pTxBlk->Priv;
 			pWirelessPacket += pTxBlk->Priv;
 		}
@@ -687,14 +678,7 @@ VOID RtmpUSBNullFrameKickOut(
 		pTxWI = (PTXWI_STRUC)&pWirelessPkt[TXINFO_SIZE];
 		RTMPWriteTxWI(pAd, pTxWI,  FALSE, FALSE, FALSE, FALSE, TRUE, FALSE, 0, BSSID_WCID, (sizeof(HEADER_802_11)),
 			0, 0, (UCHAR)pAd->CommonCfg.MlmeTransmit.field.MCS, IFS_HTTXOP, FALSE, &pAd->CommonCfg.MlmeTransmit);
-#ifdef RT_BIG_ENDIAN
-		RTMPWIEndianChange((PUCHAR)pTxWI, TYPE_TXWI);
-#endif // RT_BIG_ENDIAN //
-
 		RTMPMoveMemory(&pWirelessPkt[TXWI_SIZE+TXINFO_SIZE], &pAd->NullFrame, sizeof(HEADER_802_11));
-#ifdef RT_BIG_ENDIAN
-		RTMPFrameEndianChange(pAd, (PUCHAR)&pWirelessPkt[TXINFO_SIZE + TXWI_SIZE], DIR_WRITE, FALSE);
-#endif // RT_BIG_ENDIAN //
 		pAd->NullContext.BulkOutSize =  TXINFO_SIZE + TXWI_SIZE + sizeof(pAd->NullFrame) + 4;
 
 		// Fill out frame length information for global Bulk out arbitor

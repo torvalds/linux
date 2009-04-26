@@ -693,11 +693,6 @@ BOOLEAN STARxDoneInterruptHandle(
 		pRxWI	= (PRXWI_STRUC) pData;
 		pHeader = (PHEADER_802_11) (pData+RXWI_SIZE) ;
 
-#ifdef RT_BIG_ENDIAN
-	    RTMPFrameEndianChange(pAd, (PUCHAR)pHeader, DIR_READ, TRUE);
-		RTMPWIEndianChange((PUCHAR)pRxWI, TYPE_RXWI);
-#endif
-
 		// build RxCell
 		RxCell.pRxWI = pRxWI;
 		RxCell.pHeader = pHeader;

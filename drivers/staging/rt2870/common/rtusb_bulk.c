@@ -365,31 +365,14 @@ VOID	RTUSBBulkOutDataPacket(
 			bTxQLastRound = TRUE;
 			pHTTXContext->ENextBulkOutPosition = 8;
 
-	#ifdef RT_BIG_ENDIAN
-			RTMPDescriptorEndianChange((PUCHAR)pTxInfo, TYPE_TXINFO);
-			RTMPWIEndianChange((PUCHAR)pTxWI, TYPE_TXWI);
-	#endif // RT_BIG_ENDIAN //
-
 			break;
 		}
-
-#ifdef RT_BIG_ENDIAN
-		RTMPDescriptorEndianChange((PUCHAR)pTxInfo, TYPE_TXINFO);
-		RTMPWIEndianChange((PUCHAR)pTxWI, TYPE_TXWI);
-#endif // RT_BIG_ENDIAN //
-
 	}while (TRUE);
 
 	// adjust the pTxInfo->USBDMANextVLD value of last pTxInfo.
 	if (pLastTxInfo)
 	{
-#ifdef RT_BIG_ENDIAN
-		RTMPDescriptorEndianChange((PUCHAR)pLastTxInfo, TYPE_TXINFO);
-#endif // RT_BIG_ENDIAN //
 		pLastTxInfo->USBDMANextVLD = 0;
-#ifdef RT_BIG_ENDIAN
-		RTMPDescriptorEndianChange((PUCHAR)pLastTxInfo, TYPE_TXINFO);
-#endif // RT_BIG_ENDIAN //
 	}
 
 	/*
@@ -657,10 +640,6 @@ VOID	RTUSBBulkOutNullFrame(
 	// Clear Null frame bulk flag
 	RTUSB_CLEAR_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NULL);
 
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pNullContext->TransferBuffer, TYPE_TXINFO);
-#endif // RT_BIG_ENDIAN //
-
 	// Init Tx context descriptor
 	RTUSBInitTxDesc(pAd, pNullContext, 0, (usb_complete_t)RTUSBBulkOutNullFrameComplete);
 
@@ -783,10 +762,6 @@ VOID	RTUSBBulkOutRTSFrame(
 
 	// Clear RTS frame bulk flag
 	RTUSB_CLEAR_BULK_FLAG(pAd, fRTUSB_BULK_OUT_RTS);
-
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pRTSContext->TransferBuffer, TYPE_TXINFO);
-#endif // RT_BIG_ENDIAN //
 
 	// Init Tx context descriptor
 	RTUSBInitTxDesc(pAd, pRTSContext, PipeID, (usb_complete_t)RTUSBBulkOutRTSFrameComplete);
@@ -938,10 +913,6 @@ VOID	RTUSBBulkOutMLMEPacket(
 	}
 }
 #endif
-
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pMLMEContext->TransferBuffer, TYPE_TXINFO);
-#endif // RT_BIG_ENDIAN //
 
 	// Init Tx context descriptor
 	RTUSBInitTxDesc(pAd, pMLMEContext, MGMTPIPEIDX, (usb_complete_t)RTUSBBulkOutMLMEPacketComplete);
@@ -1103,10 +1074,6 @@ VOID	RTUSBBulkOutPsPoll(
 
 	// Clear PS-Poll bulk flag
 	RTUSB_CLEAR_BULK_FLAG(pAd, fRTUSB_BULK_OUT_PSPOLL);
-
-#ifdef RT_BIG_ENDIAN
-	RTMPDescriptorEndianChange((PUCHAR)pPsPollContext->TransferBuffer, TYPE_TXINFO);
-#endif // RT_BIG_ENDIAN //
 
 	// Init Tx context descriptor
 	RTUSBInitTxDesc(pAd, pPsPollContext, MGMTPIPEIDX, (usb_complete_t)RTUSBBulkOutPsPollComplete);

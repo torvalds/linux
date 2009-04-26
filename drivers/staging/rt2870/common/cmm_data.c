@@ -366,10 +366,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 		return (NDIS_STATUS_FAILURE);
 	}
 
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)pHeader_802_11, DIR_WRITE, FALSE);
-#endif
-
 	//
 	// fill scatter-and-gather buffer list into TXD. Internally created NDIS PACKET
 	// should always has only one ohysical buffer, and the whole frame size equals
@@ -396,10 +392,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 					(UCHAR)pMacEntry->MaxHTPhyMode.field.MCS,
 					IFS_BACKOFF, FALSE, &pMacEntry->MaxHTPhyMode);
 	}
-
-#ifdef RT_BIG_ENDIAN
-	RTMPWIEndianChange((PUCHAR)pFirstTxWI, TYPE_TXWI);
-#endif
 
 	// Now do hardware-depened kick out.
 	HAL_KickOutMgmtTx(pAd, QueIdx, pPacket, pSrcBufVA, SrcBufLen);
