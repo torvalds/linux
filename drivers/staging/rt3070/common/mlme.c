@@ -6928,9 +6928,6 @@ VOID AsicSetEdcaParm(
 		Ac2Cfg.field.Cwmin = pEdcaParm->Cwmin[QID_AC_VI];
 		Ac2Cfg.field.Cwmax = pEdcaParm->Cwmax[QID_AC_VI];
 		Ac2Cfg.field.Aifsn = pEdcaParm->Aifsn[QID_AC_VI];
-#ifdef INF_AMAZON_SE
-#endif // INF_AMAZON_SE //
-
 
 #ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
@@ -7016,9 +7013,6 @@ VOID AsicSetEdcaParm(
 		AifsnCsr.field.Aifsn0 = Ac0Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_BE];
 		AifsnCsr.field.Aifsn1 = Ac1Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_BK];
 		AifsnCsr.field.Aifsn2 = Ac2Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_VI];
-#ifdef INF_AMAZON_SE
-#endif // INF_AMAZON_SE //
-
 
 #ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)

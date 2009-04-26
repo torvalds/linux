@@ -281,55 +281,12 @@ VOID	RTUSBBulkOutDataPacket(
 		//if ((ThisBulkSize != 0)  && (pTxWI->AMPDU == 0))
 		if ((ThisBulkSize != 0) && (pTxWI->PHYMODE == MODE_CCK))
 		{
-#ifdef INF_AMAZON_SE
-			/*Iverson Add for AMAZON USB (RT2070 &&  RT3070) to pass WMM A2-T4 ~ A2-T10*/
-			if(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED))
-			{
-				/*Iverson patch for WMM A5-T07 ,WirelessStaToWirelessSta do not bulk out aggregate*/
-				if(pTxWI->PacketId == 6)
-                {
-                	pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-                	break;
-                }
-				else if (BulkOutPipeId == 1)
-				{
-					/*BK  No Limit BulkOut size .*/
-					pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-					break;
-				}
-				else if (((ThisBulkSize&0xffff8000) != 0) || (((ThisBulkSize&0x1000) == 0x1000) &&  (BulkOutPipeId == 0)  ))
-				{
-					/*BE  Limit BulkOut size to about 4k bytes.*/
-					pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-					break;
-				}
-				else if (((ThisBulkSize&0xffff8000) != 0) || (((ThisBulkSize&0x1c00) == 0x1c00) &&  (BulkOutPipeId == 2)  ))
-				{
-					/*VI Limit BulkOut size to about 7k bytes.*/
-					pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-					break;
-				}
-				else if (((ThisBulkSize&0xffff8000) != 0) || (((ThisBulkSize&0x2500) == 0x2500) &&  (BulkOutPipeId == 3)  ))
-				{
-					/*VO Limit BulkOut size to about 9k bytes.*/
-					pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-					break;
-				}
-			}
-			else if (((ThisBulkSize&0xffff8000) != 0) || ((ThisBulkSize&0x1000) == 0x1000))
-			{
-				/* Limit BulkOut size to about 4k bytes.*/
-				pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-				break;
-			}
-#else
 			if (((ThisBulkSize&0xffff8000) != 0) || ((ThisBulkSize&0x1000) == 0x1000))
 			{
 				// Limit BulkOut size to about 4k bytes.
 				pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
 				break;
 			}
-#endif // INF_AMAZON_SE //
 
 			else if (((pAd->BulkOutMaxPacketSize < 512) && ((ThisBulkSize&0xfffff800) != 0) ) /*|| ( (ThisBulkSize != 0)  && (pTxWI->AMPDU == 0))*/)
 			{
@@ -342,38 +299,6 @@ VOID	RTUSBBulkOutDataPacket(
 		// end Iverson
 		else
 		{
-#ifdef INF_AMAZON_SE
-//#ifdef DOT11_N_SUPPORT
-//			if(((ThisBulkSize&0xffff8000) != 0) || ((ThisBulkSize&0x6000) == 0x6000) || ( (ThisBulkSize != 0)  && (pTxWI->AMPDU == 0)))
-//			{
-//				/* AMAZON_SE: BG mode Disable BulkOut Aggregate, N mode BulkOut Aggregaet size 24K */
-//				pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-//               break;
-//			}
-//			else
-//#endif // DOT11_N_SUPPORT //
-//			{
-				if(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) && (pTxWI->AMPDU == 0))
-				{
-					if (((pAd->BulkOutMaxPacketSize < 512) && ((ThisBulkSize&0xfffff800) != 0)) ||
-						(ThisBulkSize != 0))
-					{
-						/* AMAZON_SE: RT2070  Disable BulkOut Aggregate when WMM for USB issue */
-						pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-						break;
-					}
-				}
-/*
-				else if (((ThisBulkSize&0xffff8000) != 0) || ((ThisBulkSize&0x6000) == 0x6000))
-				{
-					// Limit BulkOut size to about 24k bytes.
-					pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;
-					break;
-				}
-			}
-*/
-#endif // INF_AMAZON_SE //
-
 			if (((ThisBulkSize&0xffff8000) != 0) || ((ThisBulkSize&0x6000) == 0x6000))
 			{	// Limit BulkOut size to about 24k bytes.
 				pHTTXContext->ENextBulkOutPosition = TmpBulkEndPos;

@@ -185,13 +185,7 @@ RTMP_REG_PAIR	MACRegTable[] =	{
 //	{WMM_CWMIN_CFG,		0x00002344},
 //	{WMM_CWMAX_CFG,		0x000034aa},
 //#endif // CONFIG_STA_SUPPORT //
-#ifdef INF_AMAZON_SE
-	{PBF_MAX_PCNT,			0x1F3F6F6F}, 	//iverson modify for usb issue, 2008/09/19
-											// 6F + 6F < total page count FE
-											// so that RX doesn't occupy TX's buffer space when WMM congestion.
-#else
 	{PBF_MAX_PCNT,			0x1F3FBF9F}, 	//0x1F3f7f9f},		//Jan, 2006/04/20
-#endif // INF_AMAZON_SE //
 	//{TX_RTY_CFG,			0x6bb80408},	// Jan, 2006/11/16
 	{TX_RTY_CFG,			0x47d01f0f},	// Jan, 2006/11/16, Set TxWI->ACK =0 in Probe Rsp Modify for 2860E ,2007-08-03
 	{AUTO_RSP_CFG,			0x00000013},	// Initial Auto_Responder, because QA will turn off Auto-Responder

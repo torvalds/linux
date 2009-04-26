@@ -1108,19 +1108,6 @@ NTSTATUS    RTUSB_VendorRequest(
 		void	*tmpBuf = TransferBuffer;
 
 		// Acquire Control token
-#ifdef INF_AMAZON_SE
-		ret = down_interruptible(&(pAd->UsbVendorReq_semaphore));
-		if (pAd->UsbVendorReqBuf)
-		{
-			ASSERT(TransferBufferLength <MAX_PARAM_BUFFER_SIZE);
-
-		   	tmpBuf = (void *)pAd->UsbVendorReqBuf;
-		   	NdisZeroMemory(pAd->UsbVendorReqBuf, TransferBufferLength);
-
-		   	if (RequestType == DEVICE_VENDOR_REQUEST_OUT)
-		   	 NdisMoveMemory(tmpBuf, TransferBuffer, TransferBufferLength);
-		}
-#endif // INF_AMAZON_SE //
 		do {
 		if( RequestType == DEVICE_VENDOR_REQUEST_OUT)
 			ret=usb_control_msg(pObj->pUsb_Dev, usb_sndctrlpipe( pObj->pUsb_Dev, 0 ), Request, RequestType, Value,Index, tmpBuf, TransferBufferLength, CONTROL_TIMEOUT_JIFFIES);
@@ -1138,12 +1125,6 @@ NTSTATUS    RTUSB_VendorRequest(
 				RTMPusecDelay(5000);
 			}
 		} while((ret < 0) && (retryCount < MAX_RETRY_COUNT));
-
-#ifdef INF_AMAZON_SE
-	  	if ((pAd->UsbVendorReqBuf) && (RequestType == DEVICE_VENDOR_REQUEST_IN))
-			NdisMoveMemory(TransferBuffer, tmpBuf, TransferBufferLength);
-	  	up(&(pAd->UsbVendorReq_semaphore));
-#endif // INF_AMAZON_SE //
 
         if (ret < 0) {
 //			DBGPRINT(RT_DEBUG_ERROR, ("USBVendorRequest failed ret=%d \n",ret));

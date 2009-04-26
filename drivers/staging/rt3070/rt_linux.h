@@ -724,15 +724,6 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 #define RTMP_SET_PACKET_5VT(_p, _flg)   (RTPKT_TO_OSPKT(_p)->cb[CB_OFF+22] = _flg)
 #define RTMP_GET_PACKET_5VT(_p)         (RTPKT_TO_OSPKT(_p)->cb[CB_OFF+22])
 
-
-#ifdef INF_AMAZON_SE
-/*Iverson patch for WMM A5-T07 ,WirelessStaToWirelessSta do not bulk out aggregate */
-#define RTMP_SET_PACKET_NOBULKOUT(_p, _morebit)			(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+23] = _morebit)
-#define RTMP_GET_PACKET_NOBULKOUT(_p)					(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+23])
-#endif // INF_AMAZON_SE //
-
-
-
 #ifdef CONFIG_5VT_ENHANCE
 #define BRIDGE_TAG 0x35564252    // depends on 5VT define in br_input.c
 #endif

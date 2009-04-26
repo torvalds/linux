@@ -1313,16 +1313,6 @@ VOID RTMPWriteTxWI_Data(
 
 	// for rate adapation
 	pTxWI->PacketId = pTxWI->MCS;
-#ifdef INF_AMAZON_SE
-/*Iverson patch for WMM A5-T07 ,WirelessStaToWirelessSta do not bulk out aggregate */
-	if( RTMP_GET_PACKET_NOBULKOUT(pTxBlk->pPacket))
-	{
-		if(pTxWI->PHYMODE == MODE_CCK)
-		{
-			pTxWI->PacketId = 6;
-		}
-	}
-#endif // INF_AMAZON_SE //
 }
 
 

@@ -2547,10 +2547,7 @@ typedef struct _RTMP_ADAPTER
 	struct semaphore			mlme_semaphore;			/* to sleep thread on	*/
 	struct semaphore			RTUSBCmd_semaphore;		/* to sleep thread on	*/
 	struct semaphore			RTUSBTimer_semaphore;
-#ifdef INF_AMAZON_SE
-	struct semaphore			UsbVendorReq_semaphore;
-	PVOID						UsbVendorReqBuf;
-#endif // INF_AMAZON_SE //
+
 	struct completion			TimerQComplete;
 	struct completion			mlmeComplete;
 	struct completion			CmdQComplete;
