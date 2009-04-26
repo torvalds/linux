@@ -149,19 +149,6 @@
 // EAPOL Key Information definition within Key descriptor format
 typedef	struct PACKED _KEY_INFO
 {
-#ifdef RT_BIG_ENDIAN
-	UCHAR	KeyAck:1;
-    UCHAR	Install:1;
-    UCHAR	KeyIndex:2;
-    UCHAR	KeyType:1;
-    UCHAR	KeyDescVer:3;
-    UCHAR	Rsvd:3;
-    UCHAR	EKD_DL:1;		// EKD for AP; DL for STA
-    UCHAR	Request:1;
-    UCHAR	Error:1;
-    UCHAR	Secure:1;
-    UCHAR	KeyMic:1;
-#else
 	UCHAR	KeyMic:1;
 	UCHAR	Secure:1;
 	UCHAR	Error:1;
@@ -173,7 +160,6 @@ typedef	struct PACKED _KEY_INFO
 	UCHAR	KeyIndex:2;
 	UCHAR	Install:1;
 	UCHAR	KeyAck:1;
-#endif
 }	KEY_INFO, *PKEY_INFO;
 
 // EAPOL Key descriptor format
@@ -203,17 +189,10 @@ typedef	struct PACKED _EAPOL_PACKET
 //802.11i D10 page 83
 typedef struct PACKED _GTK_ENCAP
 {
-#ifndef RT_BIG_ENDIAN
     UCHAR               Kid:2;
     UCHAR               tx:1;
     UCHAR               rsv:5;
     UCHAR               rsv1;
-#else
-    UCHAR               rsv:5;
-    UCHAR               tx:1;
-    UCHAR               Kid:2;
-    UCHAR               rsv1;
-#endif
     UCHAR               GTK[TKIP_GTK_LENGTH];
 }   GTK_ENCAP, *PGTK_ENCAP;
 
@@ -257,19 +236,11 @@ typedef struct PACKED _RSNIE_AUTH {
 
 typedef	union PACKED _RSN_CAPABILITIES	{
 	struct	PACKED {
-#ifdef RT_BIG_ENDIAN
-        USHORT		Rsvd:10;
-        USHORT		GTKSA_R_Counter:2;
-        USHORT		PTKSA_R_Counter:2;
-        USHORT		No_Pairwise:1;
-		USHORT		PreAuth:1;
-#else
         USHORT		PreAuth:1;
 		USHORT		No_Pairwise:1;
 		USHORT		PTKSA_R_Counter:2;
 		USHORT		GTKSA_R_Counter:2;
 		USHORT		Rsvd:10;
-#endif
 	}	field;
 	USHORT			word;
 }	RSN_CAPABILITIES, *PRSN_CAPABILITIES;

@@ -157,30 +157,6 @@
 //
 // RXINFO appends at the end of each rx packet.
 //
-#ifdef RT_BIG_ENDIAN
-typedef	struct	PACKED _RXINFO_STRUC {
-	UINT32		PlcpSignal:12;
-	UINT32		LastAMSDU:1;
-	UINT32		CipherAlg:1;
-	UINT32		PlcpRssil:1;
-	UINT32		Decrypted:1;
-	UINT32		AMPDU:1;		// To be moved
-	UINT32		L2PAD:1;
-	UINT32		RSSI:1;
-	UINT32		HTC:1;
-	UINT32		AMSDU:1;		// rx with 802.3 header, not 802.11 header.
-	UINT32		CipherErr:2;        // 0: decryption okay, 1:ICV error, 2:MIC error, 3:KEY not valid
-	UINT32		Crc:1;              // 1: CRC error
-	UINT32		MyBss:1;  	// 1: this frame belongs to the same BSSID
-	UINT32		Bcast:1;            // 1: this is a broadcast frame
-	UINT32		Mcast:1;            // 1: this is a multicast frame
-	UINT32		U2M:1;              // 1: this RX frame is unicast to me
-	UINT32		FRAG:1;
-	UINT32		NULLDATA:1;
-	UINT32		DATA:1;
-	UINT32		BA:1;
-}	RXINFO_STRUC, *PRXINFO_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
-#else
 typedef	struct	PACKED _RXINFO_STRUC {
 	UINT32		BA:1;
 	UINT32		DATA:1;
@@ -203,25 +179,10 @@ typedef	struct	PACKED _RXINFO_STRUC {
 	UINT32		LastAMSDU:1;
 	UINT32		PlcpSignal:12;
 }	RXINFO_STRUC, *PRXINFO_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
-#endif
-
 
 //
 // TXINFO
 //
-#ifdef RT_BIG_ENDIAN
-typedef	struct	_TXINFO_STRUC {
-	// Word	0
-	UINT32		USBDMATxburst:1;//used ONLY in USB bulk Aggre. Force USB DMA transmit frame from current selected endpoint
-	UINT32		USBDMANextVLD:1;	//used ONLY in USB bulk Aggregation, NextValid
-	UINT32		rsv2:2;  // Software use.
-	UINT32		SwUseLastRound:1; // Software use.
-	UINT32		QSEL:2;	// select on-chip FIFO ID for 2nd-stage output scheduler.0:MGMT, 1:HCCA 2:EDCA
-	UINT32		WIV:1;	// Wireless Info Valid. 1 if Driver already fill WI,  o if DMA needs to copy WI to correctposition
-	UINT32		rsv:8;
-	UINT32		USBDMATxPktLen:16;	//used ONLY in USB bulk Aggregation,  Total byte counts of all sub-frame.
-}	TXINFO_STRUC, *PTXINFO_STRUC;
-#else
 typedef	struct	_TXINFO_STRUC {
 	// Word	0
 	UINT32		USBDMATxPktLen:16;	//used ONLY in USB bulk Aggregation,  Total byte counts of all sub-frame.
@@ -233,7 +194,6 @@ typedef	struct	_TXINFO_STRUC {
 	UINT32		USBDMANextVLD:1;	//used ONLY in USB bulk Aggregation, NextValid
 	UINT32		USBDMATxburst:1;//used ONLY in USB bulk Aggre. Force USB DMA transmit frame from current selected endpoint
 }	TXINFO_STRUC, *PTXINFO_STRUC;
-#endif
 
 #define TXINFO_SIZE				4
 #define RXINFO_SIZE				4

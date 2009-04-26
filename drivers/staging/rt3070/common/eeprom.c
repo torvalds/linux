@@ -361,11 +361,7 @@ UCHAR eFuseReadRegisters(
 		//Return 2-bytes
 		//The return byte statrs from S. Therefore, the little-endian will return BA, the Big-endian will return DC.
 		//For returning the bottom 2 bytes, the Big-endian should shift right 2-bytes.
-#ifdef RT_BIG_ENDIAN
-		data = data << (8*((Offset & 0x3)^0x2));
-#else
 		data = data >> (8*(Offset & 0x3));
-#endif
 
 		NdisMoveMemory(pData, &data, Length);
 	}
@@ -438,11 +434,7 @@ VOID eFusePhysicalReadRegisters(
 
 	RTMP_IO_READ32(pAd, efuseDataOffset, &data);
 
-#ifdef RT_BIG_ENDIAN
-		data = data << (8*((Offset & 0x3)^0x2));
-#else
 	data = data >> (8*(Offset & 0x3));
-#endif
 
 	NdisMoveMemory(pData, &data, Length);
 

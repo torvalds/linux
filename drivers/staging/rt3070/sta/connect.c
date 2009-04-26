@@ -2484,16 +2484,10 @@ ULONG MakeIbssBeacon(
 		ULONG TmpLen;
 		UCHAR HtLen, HtLen1;
 
-#ifdef RT_BIG_ENDIAN
-		HT_CAPABILITY_IE HtCapabilityTmp;
-		ADD_HT_INFO_IE	addHTInfoTmp;
-		USHORT	b2lTmp, b2lTmp2;
-#endif
-
 		// add HT Capability IE
 		HtLen = sizeof(pAd->CommonCfg.HtCapability);
 		HtLen1 = sizeof(pAd->CommonCfg.AddHTInfo);
-#ifndef RT_BIG_ENDIAN
+
 		MakeOutgoingFrame(pBeaconFrame+FrameLen,	&TmpLen,
 						  1,						&HtCapIe,
 						  1,						&HtLen,
@@ -2502,24 +2496,7 @@ ULONG MakeIbssBeacon(
 						  1,						&HtLen1,
 						  HtLen1,					&pAd->CommonCfg.AddHTInfo,
 						  END_OF_ARGS);
-#else
-		NdisMoveMemory(&HtCapabilityTmp, &pAd->CommonCfg.HtCapability, HtLen);
-		*(USHORT *)(&HtCapabilityTmp.HtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.HtCapInfo));
-		*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo) = SWAP16(*(USHORT *)(&HtCapabilityTmp.ExtHtCapInfo));
 
-		NdisMoveMemory(&addHTInfoTmp, &pAd->CommonCfg.AddHTInfo, HtLen1);
-		*(USHORT *)(&addHTInfoTmp.AddHtInfo2) = SWAP16(*(USHORT *)(&addHTInfoTmp.AddHtInfo2));
-		*(USHORT *)(&addHTInfoTmp.AddHtInfo3) = SWAP16(*(USHORT *)(&addHTInfoTmp.AddHtInfo3));
-
-		MakeOutgoingFrame(pBeaconFrame+FrameLen,	&TmpLen,
-						  1,						&HtCapIe,
-						  1,						&HtLen,
-						  HtLen,					&HtCapabilityTmp,
-						  1,						&AddHtInfoIe,
-						  1,						&HtLen1,
-						  HtLen1,					&addHTInfoTmp,
-						  END_OF_ARGS);
-#endif
 		FrameLen += TmpLen;
 	}
 #endif // DOT11_N_SUPPORT //
@@ -2538,11 +2515,6 @@ ULONG MakeIbssBeacon(
         RTMPWriteTxWI(pAd, pTxWI, FALSE, FALSE,  TRUE, FALSE, FALSE, TRUE, 0, 0xff, FrameLen,
     		PID_MGMT, PID_BEACON, RATE_1, IFS_HTTXOP, FALSE, &Transmit);
     }
-
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, pBeaconFrame, DIR_WRITE, FALSE);
-	RTMPWIEndianChange((PUCHAR)pTxWI, TYPE_TXWI);
-#endif
 
     DBGPRINT(RT_DEBUG_TRACE, ("MakeIbssBeacon (len=%ld), SupRateLen=%d, ExtRateLen=%d, Channel=%d, PhyMode=%d\n",
 					FrameLen, SupRateLen, ExtRateLen, pAd->CommonCfg.Channel, pAd->CommonCfg.PhyMode));

@@ -199,15 +199,9 @@ typedef	struct	PACKED _IV_CONTROL_
 			{
 				struct PACKED
 				{
-#ifdef RT_BIG_ENDIAN
-					UCHAR	KeyID:2;
-					UCHAR	ExtIV:1;
-					UCHAR	Rsvd:5;
-#else
 					UCHAR	Rsvd:5;
 					UCHAR	ExtIV:1;
 					UCHAR	KeyID:2;
-#endif
 				}	field;
 				UCHAR		Byte;
 			}	CONTROL;
@@ -1117,10 +1111,6 @@ BOOLEAN RTMPSoftDecryptTKIP(
 	UCHAR			MIC[8];
 	UCHAR			TrailMIC[8];
 
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)pData, DIR_READ, FALSE);
-#endif
-
 	fc0 = *pData;
 	fc1 = *(pData + 1);
 
@@ -1228,9 +1218,6 @@ BOOLEAN RTMPSoftDecryptTKIP(
 		return (FALSE);
 	}
 
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)pData, DIR_READ, FALSE);
-#endif
 	//DBGPRINT(RT_DEBUG_TRACE, "RTMPSoftDecryptTKIP Decript done!!\n");
 	return TRUE;
 }
@@ -1270,10 +1257,6 @@ BOOLEAN RTMPSoftDecryptAES(
 	UCHAR 			mic_header2[16];
 	UCHAR			MIC[8];
 	UCHAR			TrailMIC[8];
-
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)pData, DIR_READ, FALSE);
-#endif
 
 	fc0 = *pData;
 	fc1 = *(pData + 1);
@@ -1442,10 +1425,6 @@ BOOLEAN RTMPSoftDecryptAES(
 		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSoftDecryptAES, MIC Error !\n"));	 //MIC error.
 		return FALSE;
 	}
-
-#ifdef RT_BIG_ENDIAN
-	RTMPFrameEndianChange(pAd, (PUCHAR)pData, DIR_READ, FALSE);
-#endif
 
 	return TRUE;
 }
