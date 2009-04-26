@@ -1,3 +1,5 @@
+#include <linux/section-names.h>
+
 #ifndef LOAD_OFFSET
 #define LOAD_OFFSET 0
 #endif
@@ -331,7 +333,7 @@
 #endif
 
 /* Section used for early init (in .S files) */
-#define HEAD_TEXT  *(.head.text)
+#define HEAD_TEXT  *(HEAD_TEXT_SECTION)
 
 /* init and exit section handling */
 #define INIT_DATA							\
