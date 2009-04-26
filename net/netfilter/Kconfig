@@ -275,6 +275,8 @@ config NF_CT_NETLINK
 	help
 	  This option enables support for a netlink-based userspace interface
 
+endif # NF_CONNTRACK
+
 # transparent proxy support
 config NETFILTER_TPROXY
 	tristate "Transparent proxying support (EXPERIMENTAL)"
@@ -289,8 +291,6 @@ config NETFILTER_TPROXY
 	  see Documentation/networking/tproxy.txt.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
-
-endif # NF_CONNTRACK
 
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
