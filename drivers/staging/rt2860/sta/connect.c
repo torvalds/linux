@@ -1275,12 +1275,6 @@ VOID LinkUp(
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_ADHOC_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_INFRA_ON);
 
-#ifdef CARRIER_DETECTION_SUPPORT // Roger sync Carrier
-		// No carrier detection when adhoc
-		// CarrierDetectionStop(pAd);
-		pAd->CommonCfg.CarrierDetect.CD_State = CD_NORMAL;
-#endif // CARRIER_DETECTION_SUPPORT //
-
 		DBGPRINT(RT_DEBUG_TRACE, ("!!!Adhoc LINK UP !!! \n" ));
 	}
 	else
