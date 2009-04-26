@@ -492,7 +492,7 @@ static int tda10048_firmware_upload(struct dvb_frontend *fe)
 		TDA10048_DEFAULT_FIRMWARE);
 
 	ret = request_firmware(&fw, TDA10048_DEFAULT_FIRMWARE,
-		&state->i2c->dev);
+		state->i2c->dev.parent);
 	if (ret) {
 		printk(KERN_ERR "%s: Upload failed. (file not found?)\n",
 			__func__);

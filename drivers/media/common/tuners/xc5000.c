@@ -575,7 +575,7 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 		XC5000_DEFAULT_FIRMWARE);
 
 	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE,
-		&priv->i2c_props.adap->dev);
+		priv->i2c_props.adap->dev.parent);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
 		ret = XC_RESULT_RESET_FAILURE;
