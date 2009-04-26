@@ -41,12 +41,6 @@
 #define	__RT_CONFIG_H__
 
 #include    "rtmp_type.h"
-#ifdef UCOS
-#include "includes.h"
-#include <stdio.h>
-#include 	"rt_ucos.h"
-#endif
-
 #ifdef LINUX
 #include	"rt_linux.h"
 #endif

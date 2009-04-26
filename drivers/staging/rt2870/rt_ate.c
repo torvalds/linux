@@ -27,10 +27,6 @@
 
 #include "rt_config.h"
 
-#ifdef UCOS
-INT IoctlResponse(PUCHAR payload, PUCHAR msg, INT len);
-#endif // UCOS //
-
 #ifdef RALINK_ATE
 UCHAR TemplateFrame[24] = {0x08/* Data type */,0x00,0x00,0x00,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0x00,0xAA,0xBB,0x12,0x34,0x56,0x00,0x11,0x22,0xAA,0xBB,0xCC,0x00,0x00};	// 802.11 MAC Header, Type:Data, Length:24bytes
 extern RTMP_RF_REGS RF2850RegTable[];
@@ -40,11 +36,6 @@ extern UCHAR NUM_OF_2850_CHNL;
 extern UCHAR EpToQueue[];
 extern VOID	RTUSBRejectPendingPackets(	IN	PRTMP_ADAPTER	pAd);
 #endif // RT2870 //
-
-#ifdef UCOS
-extern INT ConsoleResponse(IN PUCHAR buff);
-extern int (*remote_display)(char *);
-#endif // UCOS //
 
 static CHAR CCKRateTable[] = {0, 1, 2, 3, 8, 9, 10, 11, -1}; /* CCK Mode. */
 static CHAR OFDMRateTable[] = {0, 1, 2, 3, 4, 5, 6, 7, -1}; /* OFDM Mode. */
@@ -2247,7 +2238,6 @@ INT Set_ATE_Write_RF4_Proc(
         	TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-#ifndef UCOS
 INT Set_ATE_Load_E2P_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
@@ -2342,44 +2332,6 @@ INT Set_ATE_Load_E2P_Proc(
     return ret;
 
 }
-#else
-INT Set_ATE_Load_E2P_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg)
-{
-	USHORT 			WriteEEPROM[(EEPROM_SIZE/2)];
-	struct iwreq	*wrq = (struct iwreq *)arg;
-
-	ATEDBGPRINT(RT_DEBUG_TRACE, ("===> %s (wrq->u.data.length = %d)\n\n", __func__, wrq->u.data.length));
-
-	if (wrq->u.data.length != EEPROM_SIZE)
-	{
-		ate_print("%s: error length (=%d) from host\n",
-			   __func__, wrq->u.data.length);
-		return FALSE;
-	}
-	else/* (wrq->u.data.length == EEPROM_SIZE) */
-	{
-		/* zero the e2p buffer */
-		NdisZeroMemory((PUCHAR)WriteEEPROM, EEPROM_SIZE);
-
-		/* fill the local buffer */
-		NdisMoveMemory((PUCHAR)WriteEEPROM, wrq->u.data.pointer, wrq->u.data.length);
-
-		do
-		{
-				/* write the content of .bin file to EEPROM */
-				rt_ee_write_all(pAd, WriteEEPROM);
-
-		} while(FALSE);
-		}
-
-    ATEDBGPRINT(RT_DEBUG_TRACE, ("<=== %s\n", __func__));
-
-    return TRUE;
-
-}
-#endif // !UCOS //
 
 INT Set_ATE_Read_E2P_Proc(
 	IN	PRTMP_ADAPTER	pAd,
@@ -4039,20 +3991,6 @@ static VOID memcpy_exl(PRTMP_ADAPTER pAd, UCHAR *dst, UCHAR *src, ULONG len);
 static VOID memcpy_exs(PRTMP_ADAPTER pAd, UCHAR *dst, UCHAR *src, ULONG len);
 static VOID RTMP_IO_READ_BULK(PRTMP_ADAPTER pAd, UCHAR *dst, UCHAR *src, UINT32 len);
 
-#ifdef UCOS
-int ate_copy_to_user(
-	IN PUCHAR payload,
-	IN PUCHAR msg,
-	IN INT    len)
-{
-	memmove(payload, msg, len);
-	return 0;
-}
-
-#undef	copy_to_user
-#define copy_to_user(x,y,z) ate_copy_to_user((PUCHAR)x, (PUCHAR)y, z)
-#endif // UCOS //
-
 #define	LEN_OF_ARG 16
 
 VOID RtmpDoAte(
@@ -4118,9 +4056,7 @@ VOID RtmpDoAte(
  		// We will get this command either QA is closed or ated is killed by user.
 		case RACFG_CMD_ATE_STOP:
 			{
-#ifndef UCOS
 				INT32 ret;
-#endif // !UCOS //
 
 				ATEDBGPRINT(RT_DEBUG_TRACE,("RACFG_CMD_ATE_STOP\n"));
 
@@ -4157,13 +4093,11 @@ VOID RtmpDoAte(
 					// kill ATE daemon when leaving ATE mode.
 					// We must kill ATE daemon first before setting ATESTOP,
 					// or Microsoft will report sth. wrong.
-#ifndef UCOS
 					ret = KILL_THREAD_PID(pAdapter->ate.AtePid, SIGTERM, 1);
 					if (ret)
 					{
 						ATEDBGPRINT(RT_DEBUG_ERROR, ("%s: unable to signal thread\n", pAdapter->net_dev->name));
 					}
-#endif // !UCOS //
 				}
 
 				// AP might have in ATE_STOP mode due to cmd from QA.
