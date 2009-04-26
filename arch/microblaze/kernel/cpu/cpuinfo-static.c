@@ -14,8 +14,8 @@
 #include <asm/cpuinfo.h>
 #include <asm/pvr.h>
 
-const static char family_string[] = CONFIG_XILINX_MICROBLAZE0_FAMILY;
-const static char cpu_ver_string[] = CONFIG_XILINX_MICROBLAZE0_HW_VER;
+static const char family_string[] = CONFIG_XILINX_MICROBLAZE0_FAMILY;
+static const char cpu_ver_string[] = CONFIG_XILINX_MICROBLAZE0_HW_VER;
 
 #define err_printk(x) \
 	early_printk("ERROR: Microblaze " x "- different for kernel and DTS\n");
