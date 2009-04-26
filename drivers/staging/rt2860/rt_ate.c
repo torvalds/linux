@@ -496,9 +496,7 @@ static INT	ATECmdHandler(
 	UINT			i=0, atemode;
 	PRXD_STRUC		pRxD;
 	PRTMP_TX_RING 	pTxRing = &pAd->TxRing[QID_AC_BE];
-#ifndef UCOS
 	NDIS_STATUS		Status = NDIS_STATUS_SUCCESS;
-#endif // UCOS //
 #ifdef	RT_BIG_ENDIAN
     PTXD_STRUC      pDestTxD;
     TXD_STRUC       TxD;
@@ -523,13 +521,12 @@ static INT	ATECmdHandler(
 	{
 		ATEDBGPRINT(RT_DEBUG_TRACE, ("ATE: ATESTART\n"));
 
-#ifndef UCOS
 		// check if we have removed the firmware
 		if (!(ATE_ON(pAd)))
 		{
 			NICEraseFirmware(pAd);
 		}
-#endif // !UCOS //
+
 		atemode = pAd->ate.Mode;
 		pAd->ate.Mode = ATE_START;
 //		pAd->ate.TxDoneCount = pAd->ate.TxCount;
@@ -658,9 +655,9 @@ static INT	ATECmdHandler(
 		//
 //      LinkDown(pAd, FALSE);
 //		AsicEnableBssSync(pAd);
-#ifndef UCOS
+
 		netif_stop_queue(pAd->net_dev);
-#endif // !UCOS //
+
 		//
 		// If we skip "LinkDown()", we should disable protection
 		// to prevent from sending out RTS or CTS-to-self.
@@ -694,7 +691,6 @@ static INT	ATECmdHandler(
 		// Abort Tx, RX DMA.
 		RtmpDmaEnable(pAd, 0);
 
-#ifndef UCOS
 		pAd->ate.bFWLoading = TRUE;
 		Status = NICLoadFirmware(pAd);
 		if (Status != NDIS_STATUS_SUCCESS)
@@ -702,7 +698,7 @@ static INT	ATECmdHandler(
 			ATEDBGPRINT(RT_DEBUG_ERROR, ("NICLoadFirmware failed, Status[=0x%08x]\n", Status));
 			return FALSE;
 		}
-#endif // !UCOS //
+
 		pAd->ate.Mode = ATE_STOP;
 
 
@@ -777,9 +773,8 @@ static INT	ATECmdHandler(
 #ifdef CONFIG_STA_SUPPORT
 		RTMPStationStart(pAd);
 #endif // CONFIG_STA_SUPPORT //
-#ifndef UCOS
+
 		netif_start_queue(pAd->net_dev);
-#endif // !UCOS //
 	}
 	else if (!strcmp(arg, "TXCARR"))	// Tx Carrier
 	{
@@ -2078,7 +2073,6 @@ INT Set_ATE_Write_RF4_Proc(
         	TRUE if all parameters are OK, FALSE otherwise
     ==========================================================================
 */
-#ifndef UCOS
 INT Set_ATE_Load_E2P_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
@@ -2173,44 +2167,6 @@ INT Set_ATE_Load_E2P_Proc(
     return ret;
 
 }
-#else
-INT Set_ATE_Load_E2P_Proc(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	PUCHAR			arg)
-{
-	USHORT 			WriteEEPROM[(EEPROM_SIZE/2)];
-	struct iwreq	*wrq = (struct iwreq *)arg;
-
-	ATEDBGPRINT(RT_DEBUG_TRACE, ("===> %s (wrq->u.data.length = %d)\n\n", __func__, wrq->u.data.length));
-
-	if (wrq->u.data.length != EEPROM_SIZE)
-	{
-		ate_print("%s: error length (=%d) from host\n",
-			   __func__, wrq->u.data.length);
-		return FALSE;
-	}
-	else/* (wrq->u.data.length == EEPROM_SIZE) */
-	{
-		/* zero the e2p buffer */
-		NdisZeroMemory((PUCHAR)WriteEEPROM, EEPROM_SIZE);
-
-		/* fill the local buffer */
-		NdisMoveMemory((PUCHAR)WriteEEPROM, wrq->u.data.pointer, wrq->u.data.length);
-
-		do
-		{
-				/* write the content of .bin file to EEPROM */
-				rt_ee_write_all(pAd, WriteEEPROM);
-
-		} while(FALSE);
-		}
-
-    ATEDBGPRINT(RT_DEBUG_TRACE, ("<=== %s\n", __func__));
-
-    return TRUE;
-
-}
-#endif // !UCOS //
 
 INT Set_ATE_Read_E2P_Proc(
 	IN	PRTMP_ADAPTER	pAd,
@@ -3590,20 +3546,6 @@ static VOID memcpy_exl(PRTMP_ADAPTER pAd, UCHAR *dst, UCHAR *src, ULONG len);
 static VOID memcpy_exs(PRTMP_ADAPTER pAd, UCHAR *dst, UCHAR *src, ULONG len);
 static VOID RTMP_IO_READ_BULK(PRTMP_ADAPTER pAd, UCHAR *dst, UCHAR *src, UINT32 len);
 
-#ifdef UCOS
-int ate_copy_to_user(
-	IN PUCHAR payload,
-	IN PUCHAR msg,
-	IN INT    len)
-{
-	memmove(payload, msg, len);
-	return 0;
-}
-
-#undef	copy_to_user
-#define copy_to_user(x,y,z) ate_copy_to_user((PUCHAR)x, (PUCHAR)y, z)
-#endif // UCOS //
-
 #define	LEN_OF_ARG 16
 
 VOID RtmpDoAte(
@@ -3669,9 +3611,7 @@ VOID RtmpDoAte(
  		// We will get this command either QA is closed or ated is killed by user.
 		case RACFG_CMD_ATE_STOP:
 			{
-#ifndef UCOS
 				INT32 ret;
-#endif // !UCOS //
 
 				ATEDBGPRINT(RT_DEBUG_TRACE,("RACFG_CMD_ATE_STOP\n"));
 
@@ -3708,13 +3648,11 @@ VOID RtmpDoAte(
 					// kill ATE daemon when leaving ATE mode.
 					// We must kill ATE daemon first before setting ATESTOP,
 					// or Microsoft will report sth. wrong.
-#ifndef UCOS
 					ret = KILL_THREAD_PID(pAdapter->ate.AtePid, SIGTERM, 1);
 					if (ret)
 					{
 						ATEDBGPRINT(RT_DEBUG_ERROR, ("%s: unable to signal thread\n", pAdapter->net_dev->name));
 					}
-#endif // !UCOS //
 				}
 
 				// AP might have in ATE_STOP mode due to cmd from QA.

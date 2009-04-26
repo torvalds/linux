@@ -1526,9 +1526,6 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(
 #ifdef LINUX
 			NdisMoveMemory(skb_push(pRxPkt, LENGTH_802_3), Header802_3, LENGTH_802_3);
 #endif
-#ifdef UCOS
-			NdisMoveMemory(net_pkt_push(pRxPkt, LENGTH_802_3), Header802_3, LENGTH_802_3);
-#endif
 		}
 #endif // CONFIG_STA_SUPPORT //
 	}
