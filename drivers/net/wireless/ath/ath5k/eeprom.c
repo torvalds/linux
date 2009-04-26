@@ -640,9 +640,9 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 static inline void
 ath5k_get_pcdac_intercepts(struct ath5k_hw *ah, u8 min, u8 max, u8 *vp)
 {
-	const static u16 intercepts3[] =
+	static const u16 intercepts3[] =
 		{ 0, 5, 10, 20, 30, 50, 70, 85, 90, 95, 100 };
-	const static u16 intercepts3_2[] =
+	static const u16 intercepts3_2[] =
 		{ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
 	const u16 *ip;
 	int i;
