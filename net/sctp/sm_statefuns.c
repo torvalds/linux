@@ -5432,9 +5432,13 @@ sctp_disposition_t sctp_sf_t2_timer_expire(const struct sctp_endpoint *ep,
 	if (!reply)
 		goto nomem;
 
-	/* Do some failure management (Section 8.2). */
-	sctp_add_cmd_sf(commands, SCTP_CMD_STRIKE,
-			SCTP_TRANSPORT(asoc->shutdown_last_sent_to));
+	/* Do some failure management (Section 8.2).
+	 * If we remove the transport an SHUTDOWN was last sent to, don't
+	 * do failure management.
+	 */
+	if (asoc->shutdown_last_sent_to)
+		sctp_add_cmd_sf(commands, SCTP_CMD_STRIKE,
+				SCTP_TRANSPORT(asoc->shutdown_last_sent_to));
 
 	/* Set the transport for the SHUTDOWN/ACK chunk and the timeout for
 	 * the T2-shutdown timer.

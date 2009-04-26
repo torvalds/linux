@@ -567,6 +567,14 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 	if (asoc->init_last_sent_to == peer)
 		asoc->init_last_sent_to = NULL;
 
+	/* If we remove the transport an SHUTDOWN was last sent to, set it
+	 * to NULL. Combined with the update of the retran path above, this
+	 * will cause the next SHUTDOWN to be sent to the next available
+	 * transport, maintaining the cycle.
+	 */
+	if (asoc->shutdown_last_sent_to == peer)
+		asoc->shutdown_last_sent_to = NULL;
+
 	asoc->peer.transport_count--;
 
 	sctp_transport_free(peer);
