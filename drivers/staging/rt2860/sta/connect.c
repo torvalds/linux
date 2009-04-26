@@ -390,7 +390,7 @@ VOID CntlOidSsidProc(
 			}
 
 			pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
+
             {
                 union iwreq_data    wrqu;
 
@@ -399,7 +399,6 @@ VOID CntlOidSsidProc(
                 wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 
             }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 		}
 	}
 	else if (INFRA_ON(pAd))
@@ -522,7 +521,7 @@ VOID CntlOidRTBssidProc(
 		// already connected to the same BSSID, go back to idle state directly
 		DBGPRINT(RT_DEBUG_TRACE, ("CNTL - already in this BSSID. ignore this SET_BSSID request\n"));
 		pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
+
             {
                 union iwreq_data    wrqu;
 
@@ -531,7 +530,6 @@ VOID CntlOidRTBssidProc(
                 wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 
             }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 	}
 	else
 	{
@@ -1994,25 +1992,11 @@ VOID LinkDown(
 	// Allow go to sleep after linkdown steps.
 	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-	if (pAd->StaCfg.WpaSupplicantUP) {
-		union iwreq_data    wrqu;
-		//send disassociate event to wpa_supplicant
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.flags = RT_DISASSOC_EVENT_FLAG;
-		wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-	}
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 	{
 		union iwreq_data    wrqu;
 		memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
 		wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 	}
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 }
 
 /*

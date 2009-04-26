@@ -2649,7 +2649,6 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 		return 0;
 	}
 
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 #ifdef SIOCSIWGENIE
 	if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 	{
@@ -2661,7 +2660,6 @@ int rt_ioctl_giwgenie(struct net_device *dev,
 	}
 	else
 #endif // SIOCSIWGENIE //
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 	{
 		UCHAR RSNIe = IE_WPA;
 

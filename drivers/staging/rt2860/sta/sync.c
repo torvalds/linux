@@ -1365,21 +1365,6 @@ VOID PeerBeacon(
 							}
 #endif // DOT11_N_SUPPORT //
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-	                        if (pAd->StaCfg.WpaSupplicantUP)
-	                        {
-	                            union iwreq_data    wrqu;
-
-	                            SendAssocIEsToWpaSupplicant(pAd);
-	                            memset(&wrqu, 0, sizeof(wrqu));
-	                            wrqu.data.flags = RT_ASSOC_EVENT_FLAG;
-	                            wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-	                        }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 	                        {
 	                            union iwreq_data    wrqu;
 	                            wext_notify_event_assoc(pAd);
@@ -1389,7 +1374,6 @@ VOID PeerBeacon(
 	                            wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 
 	                        }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 						}
 					}
 				}

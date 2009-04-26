@@ -5757,10 +5757,8 @@ VOID    SendAssocIEsToWpaSupplicant(
     IN  PRTMP_ADAPTER       pAd);
 #endif // WPA_SUPPLICANT_SUPPORT //
 
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 int wext_notify_event_assoc(
 	IN  RTMP_ADAPTER *pAd);
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 
 #ifdef DOT11_N_SUPPORT
 VOID Handle_BSS_Width_Trigger_Events(
