@@ -1833,7 +1833,6 @@ CHAR *GetAuthMode(CHAR auth)
     	return "UNKNOW";
 }
 
-#if 1 //#ifndef UCOS
 /*
     ==========================================================================
     Description:
@@ -2048,7 +2047,6 @@ VOID RTMPIoctlGetMacTable(
 
 	kfree(msg);
 }
-#endif // UCOS //
 
 #ifdef DOT11_N_SUPPORT
 INT	Set_BASetup_Proc(

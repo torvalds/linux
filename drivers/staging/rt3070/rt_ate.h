@@ -28,7 +28,6 @@
 #ifndef __ATE_H__
 #define __ATE_H__
 
-#ifndef UCOS
 #define ate_print printk
 #define ATEDBGPRINT DBGPRINT
 
@@ -38,33 +37,6 @@
 #define EEPROM_BIN_FILE_NAME  "/etc/Wireless/RT2870STA/e2p.bin"
 #endif // CONFIG_STA_SUPPORT //
 #endif // RT2870 //
-#else // !UCOS //
-#define fATE_LOAD_EEPROM						0x0C43
-#ifdef CONFIG_PRINTK
-extern INT ConsoleResponse(IN PUCHAR buff);
-extern int (*remote_display)(char *);
-extern void puts (const char *s);
-
-/* specificly defined to redirect and show ate-related messages to host. */
-/* Try to define ate_print as a macro. */
-#define ate_print(fmt, args...)                 \
-do{   int (*org_remote_display)(char *) = NULL;   \
-	org_remote_display = remote_display;\
-	/* Save original "remote_display" */\
-	remote_display = (int (*)(char *))ConsoleResponse;           \
-	printk(fmt, ## args);                       \
-	/* Restore the remote_display function pointer */        \
-	remote_display = org_remote_display; }while(0)
-
-#define ATEDBGPRINT(Level, Fmt)    	\
-{                                   \
-    if ((Level) <= RTDebugLevel)      \
-    {                               \
-        ate_print Fmt;					\
-    }                               \
-}
-#endif // CONFIG_PRINTK //
-#endif // !UCOS //
 
 #define ATE_ON(_p)              (((_p)->ate.Mode) != ATE_STOP)
 
