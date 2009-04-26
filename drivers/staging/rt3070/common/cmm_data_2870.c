@@ -931,15 +931,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 	Value &= (0xfffffff3);
 	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, Value);
 
-	// MAC_SYS_CTRL => value = 0x0 => 40mA
-	//RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0);
-
-	// PWR_PIN_CFG => value = 0x0 => 40mA
-	//RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0);
-
-	// TX_PIN_CFG => value = 0x0 => 20mA
-	//RTMP_IO_WRITE32(pAd, TX_PIN_CFG, 0);
-
 	AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
 }
 

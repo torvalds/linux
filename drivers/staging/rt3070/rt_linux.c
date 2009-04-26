@@ -30,7 +30,6 @@
 ULONG	RTDebugLevel = RT_DEBUG_ERROR;
 
 BUILD_TIMER_FUNCTION(MlmePeriodicExec);
-//BUILD_TIMER_FUNCTION(MlmeRssiReportExec);
 BUILD_TIMER_FUNCTION(AsicRxAntEvalTimeout);
 BUILD_TIMER_FUNCTION(APSDPeriodicExec);
 BUILD_TIMER_FUNCTION(AsicRfTuningExec);
@@ -668,9 +667,6 @@ void announce_802_3_packet(
 #else
 	pRxPkt->protocol = eth_type_trans(pRxPkt, pRxPkt->dev);
 
-//#ifdef CONFIG_5VT_ENHANCE
-//	*(int*)(pRxPkt->cb) = BRIDGE_TAG;
-//#endif
 	netif_rx(pRxPkt);
 #endif // IKANOS_VX_1X0 //
 }

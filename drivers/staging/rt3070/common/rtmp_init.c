@@ -172,18 +172,13 @@ RTMP_REG_PAIR	MACRegTable[] =	{
 	{MAC_SYS_CTRL,		0x00}, // 0x1004, , default Disable RX
 	{RX_FILTR_CFG,		0x17f97}, //0x1400  , RX filter control,
 	{BKOFF_SLOT_CFG,	0x209}, // default set short slot time, CC_DELAY_TIME should be 2
-	//{TX_SW_CFG0,		0x40a06}, // Gary,2006-08-23
 	{TX_SW_CFG0,		0x0}, 		// Gary,2008-05-21 for CWC test
 	{TX_SW_CFG1,		0x80606}, // Gary,2006-08-23
 	{TX_LINK_CFG,		0x1020},		// Gary,2006-08-23
 	{TX_TIMEOUT_CFG,	0x000a2090},
 	{MAX_LEN_CFG,		MAX_AGGREGATION_SIZE | 0x00001000},	// 0x3018, MAX frame length. Max PSDU = 16kbytes.
 	{LED_CFG,		0x7f031e46}, // Gary, 2006-08-23
-//	{WMM_AIFSN_CFG,		0x00002273},
-//	{WMM_CWMIN_CFG,		0x00002344},
-//	{WMM_CWMAX_CFG,		0x000034aa},
 	{PBF_MAX_PCNT,			0x1F3FBF9F}, 	//0x1F3f7f9f},		//Jan, 2006/04/20
-	//{TX_RTY_CFG,			0x6bb80408},	// Jan, 2006/11/16
 	{TX_RTY_CFG,			0x47d01f0f},	// Jan, 2006/11/16, Set TxWI->ACK =0 in Probe Rsp Modify for 2860E ,2007-08-03
 	{AUTO_RSP_CFG,			0x00000013},	// Initial Auto_Responder, because QA will turn off Auto-Responder
 	{CCK_PROT_CFG,			0x05740003 /*0x01740003*/},	// Initial Auto_Responder, because QA will turn off Auto-Responder. And RTS threshold is enabled.
@@ -199,11 +194,7 @@ RTMP_REG_PAIR	MACRegTable[] =	{
 	{MM20_PROT_CFG,			0x01744004},
 	{TXOP_CTRL_CFG,			0x0000583f, /*0x0000243f*/ /*0x000024bf*/},	//Extension channel backoff.
 	{TX_RTS_CFG,			0x00092b20},
-//#ifdef WIFI_TEST
 	{EXP_ACK_TIME,			0x002400ca},	// default value
-//#else
-//	{EXP_ACK_TIME,			0x005400ca},	// suggested by Gray @ 20070323 for 11n intel-sta throughput
-//#endif // end - WIFI_TEST //
 	{TXOP_HLDR_ET, 			0x00000002},
 
 	/* Jerry comments 2008/01/16: we use SIFS = 10us in CCK defaultly, but it seems that 10us
@@ -880,8 +871,6 @@ VOID	RTMPReadChannelPwr(
 	// 0. 11b/g, ch1 - ch 14
 	for (i = 0; i < 7; i++)
 	{
-//		Power.word = RTMP_EEPROM_READ16(pAd, EEPROM_G_TX_PWR_OFFSET + i * 2);
-//		Power2.word = RTMP_EEPROM_READ16(pAd, EEPROM_G_TX2_PWR_OFFSET + i * 2);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_G_TX_PWR_OFFSET + i * 2, Power.word);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_G_TX2_PWR_OFFSET + i * 2, Power2.word);
 		pAd->TxPower[i * 2].Channel = i * 2 + 1;
@@ -929,8 +918,6 @@ VOID	RTMPReadChannelPwr(
 	// 1.2 Fill up power
 	for (i = 0; i < 6; i++)
 	{
-//		Power.word = RTMP_EEPROM_READ16(pAd, EEPROM_A_TX_PWR_OFFSET + i * 2);
-//		Power2.word = RTMP_EEPROM_READ16(pAd, EEPROM_A_TX2_PWR_OFFSET + i * 2);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_A_TX_PWR_OFFSET + i * 2, Power.word);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_A_TX2_PWR_OFFSET + i * 2, Power2.word);
 
@@ -971,8 +958,6 @@ VOID	RTMPReadChannelPwr(
 	// 2.2 Fill up power
 	for (i = 0; i < 8; i++)
 	{
-//		Power.word = RTMP_EEPROM_READ16(pAd, EEPROM_A_TX_PWR_OFFSET + (choffset - 14) + i * 2);
-//		Power2.word = RTMP_EEPROM_READ16(pAd, EEPROM_A_TX2_PWR_OFFSET + (choffset - 14) + i * 2);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_A_TX_PWR_OFFSET + (choffset - 14) + i * 2, Power.word);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_A_TX2_PWR_OFFSET + (choffset - 14) + i * 2, Power2.word);
 
@@ -1013,8 +998,6 @@ VOID	RTMPReadChannelPwr(
 	// 3.2 Fill up power
 	for (i = 0; i < 4; i++)
 	{
-//		Power.word = RTMP_EEPROM_READ16(pAd, EEPROM_A_TX_PWR_OFFSET + (choffset - 14) + i * 2);
-//		Power2.word = RTMP_EEPROM_READ16(pAd, EEPROM_A_TX2_PWR_OFFSET + (choffset - 14) + i * 2);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_A_TX_PWR_OFFSET + (choffset - 14) + i * 2, Power.word);
 		RT28xx_EEPROM_READ16(pAd, EEPROM_A_TX2_PWR_OFFSET + (choffset - 14) + i * 2, Power2.word);
 
@@ -1860,7 +1843,6 @@ VOID	NICInitAsicFromEEPROM(
 			{
 				pAd->StaCfg.bHwRadio = FALSE;
 				pAd->StaCfg.bRadio = FALSE;
-//				RTMP_IO_WRITE32(pAd, PWR_PIN_CFG, 0x00001818);
 				RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 			}
 		}
@@ -1880,7 +1862,6 @@ VOID	NICInitAsicFromEEPROM(
 	// Turn off patching for cardbus controller
 	if (NicConfig2.field.CardbusAcceleration == 1)
 	{
-//		pAd->bTest1 = TRUE;
 	}
 
 	if (NicConfig2.field.DynamicTxAgcControl == 1)
@@ -1949,7 +1930,6 @@ NDIS_STATUS	NICInitializeAdapter(
 {
 	NDIS_STATUS     Status = NDIS_STATUS_SUCCESS;
 	WPDMA_GLO_CFG_STRUC	GloCfg;
-//	INT_MASK_CSR_STRUC		IntMask;
 	ULONG	i =0, j=0;
 	AC_TXOP_CSR0_STRUC	csr0;
 
@@ -2303,9 +2283,6 @@ NDIS_STATUS	NICInitializeAsic(
 	}
 	}
 
-	// assert HOST ready bit
-//  RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x0); // 2004-09-14 asked by Mark
-//  RTMP_IO_WRITE32(pAd, MAC_CSR1, 0x4);
 
 	// It isn't necessary to clear this space when not hard reset.
 	if (bHardReset == TRUE)
@@ -2381,9 +2358,6 @@ VOID	NICIssueReset(
 {
 	UINT32	Value = 0;
 	DBGPRINT(RT_DEBUG_TRACE, ("--> NICIssueReset\n"));
-
-	// Abort Tx, prevent ASIC from writing to Host memory
-	//RTMP_IO_WRITE32(pAd, TX_CNTL_CSR, 0x001f0000);
 
 	// Disable Rx, register value supposed will remain after reset
 	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
@@ -2566,9 +2540,7 @@ VOID NICUpdateFifoStaCounters(
 VOID NICUpdateRawCounters(
 	IN PRTMP_ADAPTER pAd)
 {
-	UINT32	OldValue;//, Value2;
-	//ULONG	PageSum, OneSecTransmitCount;
-	//ULONG	TxErrorRatio, Retry, Fail;
+	UINT32	OldValue;
 	RX_STA_CNT0_STRUC	 RxStaCnt0;
 	RX_STA_CNT1_STRUC   RxStaCnt1;
 	RX_STA_CNT2_STRUC   RxStaCnt2;
@@ -2615,7 +2587,6 @@ VOID NICUpdateRawCounters(
 	// Update RX Overflow counter
 	pAd->Counters8023.RxNoBuffer += (RxStaCnt2.field.RxFifoOverflowCount);
 
-	//pAd->RalinkCounters.RxCount = 0;
 #ifdef RT2870
 	if (pAd->RalinkCounters.RxCount != pAd->watchDogRxCnt)
 	{
@@ -2632,8 +2603,6 @@ VOID NICUpdateRawCounters(
 #endif // RT2870 //
 
 
-	//if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED) ||
-	//	(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED) && (pAd->MacTab.Size != 1)))
 	if (!pAd->bUpdateBcnCntDone)
 	{
 	// Update BEACON sent count
@@ -2649,7 +2618,6 @@ VOID NICUpdateRawCounters(
 	pAd->WlanCounters.FailedCount.u.LowPart += TxStaCnt0.field.TxFailCount;
 	}
 
-	//if (pAd->bStaFifoTest == TRUE)
 	{
 		RTMP_IO_READ32(pAd, TX_AGG_CNT, &TxAggCnt.word);
 		RTMP_IO_READ32(pAd, TX_AGG_CNT0, &TxAggCnt0.word);
@@ -2763,7 +2731,6 @@ VOID NICUpdateRawCounters(
 			pDiag->TxFailCnt[ArrayCurIdx] = 0;
 			pDiag->RxDataCnt[ArrayCurIdx] = 0;
 			pDiag->RxCrcErrCnt[ArrayCurIdx]  = 0;
-//			for (i = 9; i < 16; i++)
 			for (i = 9; i < 24; i++) // 3*3
 			{
 				pDiag->TxDescCnt[ArrayCurIdx][i] = 0;
@@ -3158,7 +3125,6 @@ VOID	RTMPMoveMemory(
 VOID	UserCfgInit(
 	IN	PRTMP_ADAPTER pAd)
 {
-//	EDCA_PARM DefaultEdcaParm;
     UINT key_index, bss_index;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("--> UserCfgInit\n"));
@@ -3404,16 +3370,10 @@ VOID	UserCfgInit(
 	pAd->Bbp94 = BBPR94_DEFAULT;
 	pAd->BbpForCCK = FALSE;
 
-	// Default is FALSE for test bit 1
-	//pAd->bTest1 = FALSE;
-
 	// initialize MAC table and allocate spin lock
 	NdisZeroMemory(&pAd->MacTab, sizeof(MAC_TABLE));
 	InitializeQueueHeader(&pAd->MacTab.McastPsQueue);
 	NdisAllocateSpinLock(&pAd->MacTabLock);
-
-	//RTMPInitTimer(pAd, &pAd->RECBATimer, RECBATimerTimeout, pAd, TRUE);
-	//RTMPSetTimer(&pAd->RECBATimer, REORDER_EXEC_INTV);
 
 	pAd->CommonCfg.bWiFiTest = FALSE;
 
@@ -3830,9 +3790,6 @@ VOID RTMPSetSignalLED(
 VOID RTMPEnableRxTx(
 	IN PRTMP_ADAPTER	pAd)
 {
-//	WPDMA_GLO_CFG_STRUC	GloCfg;
-//	ULONG	i = 0;
-
 	DBGPRINT(RT_DEBUG_TRACE, ("==> RTMPEnableRxTx\n"));
 
 	// Enable Rx DMA.

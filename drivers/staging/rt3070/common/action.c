@@ -152,7 +152,6 @@ VOID MlmeADDBAAction(
 		              sizeof(FRAME_ADDBA_REQ), &Frame,
 		              END_OF_ARGS);
 		MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
-		//MiniportDataMMRequest(pAd, MapUserPriorityToAccessCategory[pInfo->TID], pOutBuffer, FrameLen);
 		MlmeFreeMemory(pAd, pOutBuffer);
 
 		DBGPRINT(RT_DEBUG_TRACE, ("BA - Send ADDBA request. StartSeq = %x,  FrameLen = %ld. BufSize = %d\n", Frame.BaStartSeq.field.StartSeq, FrameLen, Frame.BaParm.BufSize));
@@ -468,11 +467,6 @@ VOID ORIBATimerTimeout(
 {
 	MAC_TABLE_ENTRY	*pEntry;
 	INT			i, total;
-//	FRAME_BAR			FrameBar;
-//	ULONG			FrameLen;
-//	NDIS_STATUS 	NStatus;
-//	PUCHAR			pOutBuffer = NULL;
-//	USHORT			Sequence;
 	UCHAR			TID;
 
 	total = pAd->MacTab.Size * NUM_OF_TID;
@@ -537,12 +531,9 @@ VOID SendRefreshBAR(
 			MakeOutgoingFrame(pOutBuffer,				&FrameLen,
 							  sizeof(FRAME_BAR),	  &FrameBar,
 							  END_OF_ARGS);
-			//if (!(CLIENT_STATUS_TEST_FLAG(pEntry, fCLIENT_STATUS_RALINK_CHIPSET)))
 			if (1)	// Now we always send BAR.
 			{
-				//MiniportMMRequestUnlock(pAd, 0, pOutBuffer, FrameLen);
 				MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
-				//MiniportDataMMRequest(pAd, MapUserPriorityToAccessCategory[TID], pOutBuffer, FrameLen);
 			}
 			MlmeFreeMemory(pAd, pOutBuffer);
 		}
@@ -571,8 +562,6 @@ VOID BarHeaderInit(
 	IN PUCHAR pDA,
 	IN PUCHAR pSA)
 {
-//	USHORT	Duration;
-
 	NdisZeroMemory(pCntlBar, sizeof(FRAME_BAR));
 	pCntlBar->FC.Type = BTYPE_CNTL;
 	pCntlBar->FC.SubType = SUBTYPE_BLOCK_ACK_REQ;

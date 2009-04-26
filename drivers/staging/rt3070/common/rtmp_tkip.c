@@ -464,7 +464,6 @@ VOID	RTMPInitTkipEngine(
 	tkipIv.IV16.field.rc2 = *pTSC;
 	tkipIv.IV16.field.CONTROL.field.ExtIV = 1;  // 0: non-extended IV, 1: an extended IV
 	tkipIv.IV16.field.CONTROL.field.KeyID = KeyId;
-//	tkipIv.IV32 = *(PULONG)(pTSC + 2);
 	NdisMoveMemory(&tkipIv.IV32, (pTSC + 2), 4);   // Copy IV
 
 	*pIV16 = tkipIv.IV16.word;
@@ -1211,11 +1210,9 @@ BOOLEAN RTMPSoftDecryptTKIP(
 	if (!NdisEqualMemory(MIC, TrailMIC, 8))
 	{
 		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSoftDecryptTKIP, WEP Data MIC Error !\n"));	 //MIC error.
-		//RTMPReportMicError(pAd, &pWpaKey[KeyID]);	// marked by AlbertY @ 20060630
 		return (FALSE);
 	}
 
-	//DBGPRINT(RT_DEBUG_TRACE, "RTMPSoftDecryptTKIP Decript done!!\n");
 	return TRUE;
 }
 

@@ -54,8 +54,6 @@
 #define NIC_TAG             ((ULONG)'0682')
 #define NIC_DBG_STRING      ("**RT28xx**")
 
-//#define PACKED
-
 #define RALINK_2883_VERSION		((UINT32)0x28830300)
 #define RALINK_2880E_VERSION	((UINT32)0x28720200)
 #define RALINK_3070_VERSION		((UINT32)0x30700200)
@@ -182,16 +180,6 @@
 #define fRTMP_ADAPTER_MEDIA_STATE_CHANGE    0x20000000
 #define fRTMP_ADAPTER_IDLE_RADIO_OFF        0x40000000
 
-// Lock bit for accessing different ring buffers
-//#define fRTMP_ADAPTER_TX_RING_BUSY        0x80000000
-//#define fRTMP_ADAPTER_MGMT_RING_BUSY      0x40000000
-//#define fRTMP_ADAPTER_ATIM_RING_BUSY      0x20000000
-//#define fRTMP_ADAPTER_RX_RING_BUSY        0x10000000
-
-// Lock bit for accessing different queue
-//#define   fRTMP_ADAPTER_TX_QUEUE_BUSY     0x08000000
-//#define   fRTMP_ADAPTER_MGMT_QUEUE_BUSY   0x04000000
-
 //
 //  STA operation status flags
 //
@@ -201,7 +189,6 @@
 #define fOP_STATUS_SHORT_SLOT_INUSED        0x00000008
 #define fOP_STATUS_SHORT_PREAMBLE_INUSED    0x00000010
 #define fOP_STATUS_RECEIVE_DTIM             0x00000020
-//#define fOP_STATUS_TX_RATE_SWITCH_ENABLED   0x00000040
 #define fOP_STATUS_MEDIA_STATE_CONNECTED    0x00000080
 #define fOP_STATUS_WMM_INUSED               0x00000100
 #define fOP_STATUS_AGGREGATION_INUSED       0x00000200
@@ -241,7 +228,6 @@
 //
 //  STA configuration flags
 //
-//#define fSTA_CFG_ENABLE_TX_BURST          0x00000001
 
 // 802.11n Operating Mode Definition. 0-3 also used in ASICUPdateProtect switch case
 #define HT_NO_PROTECT	0
@@ -440,14 +426,10 @@
 #define PWR_ACTIVE                      0
 #define PWR_SAVE                        1
 #define PWR_MMPS                        2			//MIMO power save
-//#define PWR_UNKNOWN                   2
 
 // Auth and Assoc mode related definitions
 #define AUTH_MODE_OPEN                  0x00
 #define AUTH_MODE_KEY                   0x01
-//#define AUTH_MODE_AUTO_SWITCH         0x03
-//#define AUTH_MODE_DEAUTH              0x04
-//#define AUTH_MODE_UPLAYER             0x05 // reserved for 802.11i use
 
 // BSS Type definitions
 #define BSS_ADHOC                       0  // = Ndis802_11IBSS
@@ -853,10 +835,6 @@
 #define MAX_AIRONET_MSG				    3
 
 #define	AIRONET_FUNC_SIZE				(MAX_AIRONET_STATE * MAX_AIRONET_MSG)
-
-//
-// WSC State machine: states, events, total function #
-//
 
 //
 // AP's CONTROL/CONNECT state machine: states, events, total function #

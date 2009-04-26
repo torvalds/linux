@@ -37,9 +37,6 @@
 #ifndef _OID_H_
 #define _OID_H_
 
-//#include <linux/wireless.h>
-
-
 #define TRUE				1
 #define FALSE				0
 //
@@ -588,19 +585,6 @@ typedef struct _NDIS_802_11_AUTHENTICATION_EVENT
     NDIS_802_11_AUTHENTICATION_REQUEST  Request[1];
 } NDIS_802_11_AUTHENTICATION_EVENT, *PNDIS_802_11_AUTHENTICATION_EVENT;
 
-/*
-typedef struct _NDIS_802_11_TEST
-{
-    ULONG Length;
-    ULONG Type;
-    union
-    {
-        NDIS_802_11_AUTHENTICATION_EVENT AuthenticationEvent;
-        NDIS_802_11_RSSI RssiTrigger;
-    };
-} NDIS_802_11_TEST, *PNDIS_802_11_TEST;
- */
-
 // 802.11 Media stream constraints, associated with OID_802_11_MEDIA_STREAM_MODE
 typedef enum _NDIS_802_11_MEDIA_STREAM_MODE
 {
@@ -683,8 +667,6 @@ enum {
 #define OID_802_11_GET_COUNTRY_CODE				0x0716
 #define OID_802_11_GET_CHANNEL_GEOGRAPHY		0x0717
 
-//#define RT_OID_802_11_STATISTICS              (OID_GET_SET_TOGGLE | OID_802_11_STATISTICS)
-
 #define RT_OID_WSC_SET_PASSPHRASE                   0x0740 // passphrase for wpa(2)-psk
 #define RT_OID_WSC_DRIVER_AUTO_CONNECT              0x0741
 #define RT_OID_WSC_QUERY_DEFAULT_PROFILE            0x0742
@@ -714,10 +696,6 @@ enum {
 #define RT_OID_GET_PHY_MODE                         0x761
 #endif // LLTD_SUPPORT //
 
-//Add Paul Chen for Accton
-//#define RT_OID_TX_POWER_LEVEL                 0xFF020010
-//#define RT_OID_SET_TX_POWER_LEVEL	          (OID_GET_SET_TOGGLE | RT_OID_TX_POWER_LEVEL)
-
 // New for MeetingHouse Api support
 #define OID_MH_802_1X_SUPPORTED               0xFFEDC100
 
@@ -728,7 +706,6 @@ typedef union  _HTTRANSMIT_SETTING {
 	USHORT		BW:1;	//channel bandwidth 20MHz or 40 MHz
 	USHORT		ShortGI:1;
 	USHORT		STBC:2;	//SPACE
-//	USHORT		rsv:3;
 	USHORT		rsv:2;
 	USHORT		TxBF:1;
 	USHORT		MODE:2;	// Use definition MODE_xxx.
@@ -743,7 +720,6 @@ typedef enum _RT_802_11_PREAMBLE {
 } RT_802_11_PREAMBLE, *PRT_802_11_PREAMBLE;
 
 // Only for STA, need to sync with AP
-// 2005-03-08 match current RaConfig.
 typedef enum _RT_802_11_PHY_MODE {
 	PHY_11BG_MIXED = 0,
 	PHY_11B,
@@ -816,15 +792,6 @@ typedef struct _RT_802_11_HARDWARE_REGISTER {
     ULONG   Offset;             // Q/S register offset addr
     ULONG   Data;               // R/W data buffer
 } RT_802_11_HARDWARE_REGISTER, *PRT_802_11_HARDWARE_REGISTER;
-
-// structure to tune BBP R17 "RX AGC VGC init"
-//typedef struct _RT_802_11_RX_AGC_VGC_TUNING {
-//    UCHAR   FalseCcaLowerThreshold;  // 0-255, def 10
-//    UCHAR   FalseCcaUpperThreshold;  // 0-255, def 100
-//    UCHAR   VgcDelta;                // R17 +-= VgcDelta whenever flase CCA over UpprThreshold
-//                                     // or lower than LowerThresholdupper threshold
-//    UCHAR   VgcUpperBound;           // max value of R17
-//} RT_802_11_RX_AGC_VGC_TUNING, *PRT_802_11_RX_AGC_VGC_TUNING;
 
 typedef struct _RT_802_11_AP_CONFIG {
     ULONG   EnableTxBurst;      // 0-disable, 1-enable

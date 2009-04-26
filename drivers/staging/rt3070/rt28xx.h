@@ -1049,11 +1049,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define MAX_FIRMWARE_IMAGE_SIZE 0x1000    // 4kbyte
 #endif // RT2870 //
 
-// TODO: ????? old RT2560 registers. to keep them or remove them?
-//#define MCAST0                  0x0178  // multicast filter register 0
-//#define MCAST1                  0x017c  // multicast filter register 1
-
-
 // ================================================================
 // Tx /	Rx / Mgmt ring descriptor definition
 // ================================================================
@@ -1181,11 +1176,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 
 #define BBPR94_DEFAULT              0x06 // Add 1 value will gain 1db
 
-//#define PHY_TR_SWITCH_TIME          5  // usec
-
-//#define BBP_R17_LOW_SENSIBILITY     0x50
-//#define BBP_R17_MID_SENSIBILITY     0x41
-//#define BBP_R17_DYNAMIC_UP_BOUND    0x40
 #define RSSI_FOR_VERY_LOW_SENSIBILITY -35
 #define RSSI_FOR_LOW_SENSIBILITY      -58
 #define RSSI_FOR_MID_LOW_SENSIBILITY  -80
@@ -1225,12 +1215,6 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define EEPROM_TXPOWER_BYRATE_40MHZ_5G		0x10a	// 40MHZ 5G tx power.
 #define EEPROM_A_TX_PWR_OFFSET      0x78
 #define EEPROM_A_TX2_PWR_OFFSET      0xa6
-//#define EEPROM_Japan_TX_PWR_OFFSET      0x90 // 802.11j
-//#define EEPROM_Japan_TX2_PWR_OFFSET      0xbe
-//#define EEPROM_TSSI_REF_OFFSET	0x54
-//#define EEPROM_TSSI_DELTA_OFFSET	0x24
-//#define EEPROM_CCK_TX_PWR_OFFSET  0x62
-//#define EEPROM_CALIBRATE_OFFSET	0x7c
 #define EEPROM_VERSION_OFFSET       0x02
 #define	EEPROM_FREQ_OFFSET			0x3a
 #define EEPROM_TXPOWER_BYRATE 	0xde	// 20MHZ power.
@@ -1334,7 +1318,6 @@ typedef	struct	PACKED _TXWI_STRUC {
 	UINT32		ShortGI:1;
 	UINT32		STBC:2;	// 1: STBC support MCS =0-7,   2,3 : RESERVE
 	UINT32		Ifs:1;	//
-//	UINT32		rsv2:2;	//channel bandwidth 20MHz or 40 MHz
 	UINT32		rsv2:1;
 	UINT32		TxBF:1;	// 3*3
 	UINT32		PHYMODE:2;

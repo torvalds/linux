@@ -142,7 +142,6 @@ typedef struct _RX_CONTEXT
 	PURB				pUrb;
 	//These 2 Boolean shouldn't both be 1 at the same time.
 	ULONG				BulkInOffset;	// number of packets waiting for reordering .
-//	BOOLEAN				ReorderInUse;	// At least one packet in this buffer are in reordering buffer and wait for receive indication
 	BOOLEAN				bRxHandling;	// Notify this packet is being process now.
 	BOOLEAN				InUse;			// USB Hardware Occupied. Wait for USB HW to put packet.
 	BOOLEAN				Readable;		// Receive Complete back. OK for driver to indicate receiving packet.
@@ -458,20 +457,6 @@ typedef struct  _QUEUE_HEADER   {
 }
 
 //
-// MACRO for 32-bit PCI register read / write
-//
-// Usage : RTMP_IO_READ32(
-//              PRTMP_ADAPTER pAd,
-//              ULONG Register_Offset,
-//              PULONG  pValue)
-//
-//         RTMP_IO_WRITE32(
-//              PRTMP_ADAPTER pAd,
-//              ULONG Register_Offset,
-//              ULONG Value)
-//
-
-//
 // BBP & RF are using indirect access. Before write any value into it.
 // We have to make sure there is no outstanding command pending via checking busy bit.
 //
@@ -607,8 +592,6 @@ typedef struct  _QUEUE_HEADER   {
 //
 // Common fragment list structure -  Identical to the scatter gather frag list structure
 //
-//#define RTMP_SCATTER_GATHER_ELEMENT         SCATTER_GATHER_ELEMENT
-//#define PRTMP_SCATTER_GATHER_ELEMENT        PSCATTER_GATHER_ELEMENT
 #define NIC_MAX_PHYS_BUF_COUNT              8
 
 typedef struct _RTMP_SCATTER_GATHER_ELEMENT {
@@ -1303,7 +1286,6 @@ typedef struct _MLME_STRUCT {
 
 // structure for radar detection and channel switch
 typedef struct _RADAR_DETECT_STRUCT {
-    //BOOLEAN		IEEE80211H;			// 0: disable, 1: enable IEEE802.11h
 	UCHAR		CSCount;			//Channel switch counter
 	UCHAR		CSPeriod;			//Channel switch period (beacon count)
 	UCHAR		RDCount;			//Radar detection counter
@@ -1355,21 +1337,14 @@ typedef struct _BA_REC_ENTRY {
 	UCHAR   Wcid;
 	UCHAR   TID;
 	UCHAR   BAWinSize;	// 7.3.1.14. each buffer is capable of holding a max AMSDU or MSDU.
-	//UCHAR	NumOfRxPkt;
-	//UCHAR    Curindidx; // the head in the RX reordering buffer
 	USHORT		LastIndSeq;
-//	USHORT		LastIndSeqAtTimer;
 	USHORT		TimeOutValue;
 	RALINK_TIMER_STRUCT RECBATimer;
 	ULONG		LastIndSeqAtTimer;
 	ULONG		nDropPacket;
 	ULONG		rcvSeq;
 	REC_BLOCKACK_STATUS  REC_BA_Status;
-//	UCHAR	RxBufIdxUsed;
-	// corresponding virtual address for RX reordering packet storage.
-	//RTMP_REORDERDMABUF MAP_RXBuf[MAX_RX_REORDERBUF];
 	NDIS_SPIN_LOCK          RxReRingLock;                 // Rx Ring spinlock
-//	struct _BA_REC_ENTRY *pNext;
 	PVOID	pAdapter;
 	struct reordering_list	list;
 } BA_REC_ENTRY, *PBA_REC_ENTRY;
@@ -1447,8 +1422,6 @@ typedef	struct	_IOT_STRUC	{
 // This is the registry setting for 802.11n transmit setting.  Used in advanced page.
 typedef union _REG_TRANSMIT_SETTING {
  struct {
-         //UINT32  PhyMode:4;
-         //UINT32  MCS:7;                 // MCS
 		 UINT32  rsv0:10;
 		 UINT32  TxBF:1;
          UINT32  BW:1; //channel bandwidth 20MHz or 40 MHz
@@ -1546,7 +1519,6 @@ typedef struct _MULTISSID_STRUCT {
 	DESIRED_TRANSMIT_SETTING        	DesiredTransmitSetting; // Desired transmit setting. this is for reading registry setting only. not useful.
 	BOOLEAN								bAutoTxRateSwitch;
 
-	//CIPHER_KEY                          SharedKey[SHARE_KEY_NUM]; // ref pAd->SharedKey[BSS][4]
 	UCHAR                               DefaultKeyId;
 
 	UCHAR								TxRate;       // RATE_1, RATE_2, RATE_5_5, RATE_11, ...
@@ -1554,8 +1526,6 @@ typedef struct _MULTISSID_STRUCT {
 	UCHAR								DesiredRatesIndex;
 	UCHAR     							MaxTxRate;            // RATE_1, RATE_2, RATE_5_5, RATE_11
 
-//	ULONG           					TimBitmap;      // bit0 for broadcast, 1 for AID1, 2 for AID2, ...so on
-//    ULONG           					TimBitmap2;     // b0 for AID32, b1 for AID33, ... and so on
 	UCHAR								TimBitmaps[WLAN_MAX_NUM_OF_TIM];
 
     // WPA
@@ -1673,15 +1643,11 @@ typedef struct _COMMON_CONFIG {
 	ULONG		TriggerTimerCount;
 	UCHAR		MaxSPLength;
 	UCHAR		BBPCurrentBW;	// BW_10, 	BW_20, BW_40
-	// move to MULTISSID_STRUCT for MBSS
-	//HTTRANSMIT_SETTING	HTPhyMode, MaxHTPhyMode, MinHTPhyMode;// For transmit phy setting in TXWI.
 	REG_TRANSMIT_SETTING        RegTransmitSetting; //registry transmit setting. this is for reading registry setting only. not useful.
-	//UCHAR       FixedTxMode;              // Fixed Tx Mode (CCK, OFDM), for HT fixed tx mode (GF, MIX) , refer to RegTransmitSetting.field.HTMode
 	UCHAR       TxRate;                 // Same value to fill in TXD. TxRate is 6-bit
 	UCHAR       MaxTxRate;              // RATE_1, RATE_2, RATE_5_5, RATE_11
 	UCHAR       TxRateIndex;            // Tx rate index in RateSwitchTable
 	UCHAR       TxRateTableSize;        // Valid Tx rate table size in RateSwitchTable
-	//BOOLEAN		bAutoTxRateSwitch;
 	UCHAR       MinTxRate;              // RATE_1, RATE_2, RATE_5_5, RATE_11
 	UCHAR       RtsRate;                // RATE_xxx
 	HTTRANSMIT_SETTING	MlmeTransmit;   // MGMT frame PHY rate setting when operatin at Ht rate.
@@ -1883,9 +1849,6 @@ typedef struct _STA_ADMIN_CONFIG {
 	BOOLEAN     bHardwareRadio;     // Hardware controlled Radio enabled
 	BOOLEAN     bShowHiddenSSID;    // Show all known SSID in SSID list get operation
 
-    //BOOLEAN		AdhocBOnlyJoined;	// Indicate Adhoc B Join.
-    //BOOLEAN		AdhocBGJoined;		// Indicate Adhoc B/G Join.
-    //BOOLEAN		Adhoc20NJoined;		// Indicate Adhoc 20MHz N Join.
 
 	// New for WPA, windows want us to to keep association information and
 	// Fixed IEs from last association response
@@ -2117,7 +2080,6 @@ typedef struct _MAC_TABLE_ENTRY {
 	UCHAR           CurrTxRateIndex;
 	// to record the each TX rate's quality. 0 is best, the bigger the worse.
 	USHORT          TxQuality[MAX_STEP_OF_TX_RATE_SWITCH];
-//	USHORT          OneSecTxOkCount;
 	UINT32			OneSecTxNoRetryOkCount;
 	UINT32          OneSecTxRetryOkCount;
 	UINT32          OneSecTxFailCount;
@@ -2286,15 +2248,10 @@ typedef struct _APCLI_STRUCT {
 	UCHAR		PSK[100];				// reserve PSK key material
 	UCHAR       PSKLen;
 	UCHAR       PMK[32];                // WPA PSK mode PMK
-	//UCHAR       PTK[64];                // WPA PSK mode PTK
 	UCHAR		GTK[32];				// GTK from authenticator
 
-	//CIPHER_KEY		PairwiseKey;
 	CIPHER_KEY      SharedKey[SHARE_KEY_NUM];
 	UCHAR           DefaultKeyId;
-
-	// WPA 802.1x port control, WPA_802_1X_PORT_SECURED, WPA_802_1X_PORT_NOT_SECURED
-	//UCHAR       PortSecured;
 
 	// store RSN_IE built by driver
 	UCHAR		RSN_IE[MAX_LEN_OF_RSNIE];  // The content saved here should be convert to little-endian format.
@@ -2302,13 +2259,9 @@ typedef struct _APCLI_STRUCT {
 
 	// For WPA countermeasures
 	ULONG       LastMicErrorTime;   // record last MIC error time
-	//ULONG       MicErrCnt;          // Should be 0, 1, 2, then reset to zero (after disassoiciation).
 	BOOLEAN                 bBlockAssoc; // Block associate attempt for 60 seconds after counter measure occurred.
 
 	// For WPA-PSK supplicant state
-	//WPA_STATE   	WpaState;           // Default is SS_NOTUSE
-	//UCHAR       	ReplayCounter[8];
-	//UCHAR       	ANonce[32];         // ANonce for WPA-PSK from authenticator
 	UCHAR       	SNonce[32];         // SNonce for WPA-PSK
 	UCHAR			GNonce[32];			// GNonce for WPA-PSK from authenticator
 
@@ -2362,15 +2315,12 @@ typedef struct _RtmpDiagStrcut_
 	// Tx Related Count
 	USHORT			TxDataCnt[DIAGNOSE_TIME];
 	USHORT			TxFailCnt[DIAGNOSE_TIME];
-//	USHORT			TxDescCnt[DIAGNOSE_TIME][16];		// TxDesc queue length in scale of 0~14, >=15
 	USHORT			TxDescCnt[DIAGNOSE_TIME][24]; // 3*3	// TxDesc queue length in scale of 0~14, >=15
-//	USHORT			TxMcsCnt[DIAGNOSE_TIME][16];			// TxDate MCS Count in range from 0 to 15, step in 1.
 	USHORT			TxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
 	USHORT			TxSWQueCnt[DIAGNOSE_TIME][9];		// TxSwQueue length in scale of 0, 1, 2, 3, 4, 5, 6, 7, >=8
 
 	USHORT			TxAggCnt[DIAGNOSE_TIME];
 	USHORT			TxNonAggCnt[DIAGNOSE_TIME];
-//	USHORT			TxAMPDUCnt[DIAGNOSE_TIME][16];		// 10 sec, TxDMA APMDU Aggregation count in range from 0 to 15, in setp of 1.
 	USHORT			TxAMPDUCnt[DIAGNOSE_TIME][24]; // 3*3 // 10 sec, TxDMA APMDU Aggregation count in range from 0 to 15, in setp of 1.
 	USHORT			TxRalinkCnt[DIAGNOSE_TIME];			// TxRalink Aggregation Count in 1 sec scale.
 	USHORT			TxAMSDUCnt[DIAGNOSE_TIME];			// TxAMSUD Aggregation Count in 1 sec scale.
@@ -2378,7 +2328,6 @@ typedef struct _RtmpDiagStrcut_
 	// Rx Related Count
 	USHORT			RxDataCnt[DIAGNOSE_TIME];			// Rx Total Data count.
 	USHORT			RxCrcErrCnt[DIAGNOSE_TIME];
-//	USHORT			RxMcsCnt[DIAGNOSE_TIME][16];		// Rx MCS Count in range from 0 to 15, step in 1.
 	USHORT			RxMcsCnt[DIAGNOSE_TIME][24]; // 3*3
 }RtmpDiagStruct;
 #endif // DBG_DIAGNOSE //
@@ -2630,8 +2579,6 @@ typedef struct _RTMP_ADAPTER
 	NDIS_MEDIA_STATE        IndicateMediaState;			// Base on Indication state, default is NdisMediaStateDisConnected
 
 
-	// MAT related parameters
-
 	// configuration: read from Registry & E2PROM
 	BOOLEAN                 bLocalAdminMAC;             // Use user changed MAC
 	UCHAR                   PermanentAddress[MAC_ADDR_LEN];    // Factory default MAC address
@@ -2717,7 +2664,6 @@ typedef struct _RTMP_ADAPTER
 	// ----------------------------
 	// DEBUG paramerts
 	// ----------------------------
-	//ULONG		DebugSetting[4];
 	BOOLEAN		bBanAllBaSetup;
 	BOOLEAN		bPromiscuous;
 
@@ -2833,7 +2779,6 @@ typedef struct  _CISCO_IAPP_CONTENT_
 
 typedef struct _RX_BLK_
 {
-//	RXD_STRUC		RxD; // sample
 	RT28XX_RXD_STRUC	RxD;
 	PRXWI_STRUC			pRxWI;
 	PHEADER_802_11		pHeader;
@@ -2921,7 +2866,6 @@ typedef struct _TX_BLK_
 #define fTX_bAckRequired       	0x0002	// the packet need ack response
 #define fTX_bPiggyBack     		0x0004	// Legacy device use Piggback or not
 #define fTX_bHTRate         	0x0008	// allow to use HT rate
-//#define fTX_bForceLowRate       0x0010	// force to use Low Rate
 #define fTX_bForceNonQoS       	0x0010	// force to transmit frame without WMM-QoS in HT mode
 #define fTX_bAllowFrag       	0x0020	// allow to fragment the packet, A-MPDU, A-MSDU, A-Ralink is not allowed to fragment
 #define fTX_bMoreData			0x0040	// there are more data packets in PowerSave Queue
@@ -5330,10 +5274,6 @@ VOID	RTMPSendTriggerFrame(
 VOID RTMPFilterCalibration(
 	IN PRTMP_ADAPTER pAd);
 #endif // RT30xx //
-
-
-//typedef void (*TIMER_FUNCTION)(unsigned long);
-
 
 /* timeout -- ms */
 VOID RTMP_SetPeriodicTimer(

@@ -445,9 +445,6 @@ void ba_flush_reordering_timeout_mpdus(
 		&& (pBAEntry->list.qlen > 0)
 	   )
 		{
-//		printk("timeout[%d] (%lx-%lx = %d > %d): %x, ", pBAEntry->list.qlen, Now32, (pBAEntry->LastIndSeqAtTimer),
-//			   (int)((long) Now32 - (long)(pBAEntry->LastIndSeqAtTimer)), REORDERING_PACKET_TIMEOUT,
-//			   pBAEntry->LastIndSeq);
     		//
 		// force LastIndSeq to shift to LastIndSeq+1
     		//
@@ -463,8 +460,6 @@ void ba_flush_reordering_timeout_mpdus(
     		{
     			pBAEntry->LastIndSeq = Sequence;
     		}
-
-		//printk("%x, flush one!\n", pBAEntry->LastIndSeq);
 
 	}
 }
@@ -1082,7 +1077,6 @@ VOID BAOriSessionSetupTimeout(
 		AddbaReq.Token = pBAEntry->Token;
 		MlmeEnqueue(pAd, ACTION_STATE_MACHINE, MT2_MLME_ADD_BA_CATE, sizeof(MLME_ADDBA_REQ_STRUCT), (PVOID)&AddbaReq);
 		RT28XX_MLME_HANDLER(pAd);
-		//DBGPRINT(RT_DEBUG_TRACE,("BA Ori Session Timeout(%d) : Send ADD BA again\n", pBAEntry->Token));
 
 		DBGPRINT(RT_DEBUG_TRACE,("BA Ori Session Timeout(%d) to %02x:%02x:%02x:%02x:%02x:%02x Tid:%d Wcid:%d\n"
 		,pBAEntry->Token

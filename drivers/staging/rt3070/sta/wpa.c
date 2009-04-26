@@ -1214,7 +1214,6 @@ VOID    Wpa2PairMsg3Action(
 	RTMPToWirelessSta(pAd, Header802_3, LENGTH_802_3, (PUCHAR)&Packet, Packet.Body_Len[1] + 4, TRUE);
 
 	// set 802.1x port control
-	//pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 	STA_PORT_SECURED(pAd);
 
     // Indicate Connected for GUI
@@ -1406,7 +1405,6 @@ VOID	WpaGroupMsg1Action(
 							  NULL);
 
 	// set 802.1x port control
-	//pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED;
 	STA_PORT_SECURED(pAd);
 
     // Indicate Connected for GUI
@@ -1889,17 +1887,6 @@ VOID	RTMPReportMicError(
 			pAd->StaCfg.LastMicErrorTime = Now;
 			// Violate MIC error counts, MIC countermeasures kicks in
 			pAd->StaCfg.MicErrCnt++;
-			// We shall block all reception
-			// We shall clean all Tx ring and disassoicate from AP after next EAPOL frame
-			//
-			// No necessary to clean all Tx ring, on RTMPHardTransmit will stop sending non-802.1X EAPOL packets
-			// if pAd->StaCfg.MicErrCnt greater than 2.
-			//
-			// RTMPRingCleanUp(pAd, QID_AC_BK);
-			// RTMPRingCleanUp(pAd, QID_AC_BE);
-			// RTMPRingCleanUp(pAd, QID_AC_VI);
-			// RTMPRingCleanUp(pAd, QID_AC_VO);
-			// RTMPRingCleanUp(pAd, QID_HCCA);
 		}
 	}
 	else

@@ -535,13 +535,6 @@ VOID CntlOidRTBssidProc(
 	pAd->MlmeAux.SsidBssTab.BssNr = 1;
 	NdisMoveMemory(&pAd->MlmeAux.SsidBssTab.BssEntry[0], &pAd->ScanTab.BssEntry[BssIdx], sizeof(BSS_ENTRY));
 
-	//pAd->MlmeAux.AutoReconnectSsidLen = pAd->ScanTab.BssEntry[BssIdx].SsidLen;
-	//NdisMoveMemory(pAd->MlmeAux.AutoReconnectSsid, pAd->ScanTab.BssEntry[BssIdx].Ssid, pAd->ScanTab.BssEntry[BssIdx].SsidLen);
-
-	// Add SSID into MlmeAux for site surey joining hidden SSID
-	//pAd->MlmeAux.SsidLen = pAd->ScanTab.BssEntry[BssIdx].SsidLen;
-	//NdisMoveMemory(pAd->MlmeAux.Ssid, pAd->ScanTab.BssEntry[BssIdx].Ssid, pAd->MlmeAux.SsidLen);
-
 	// 2002-11-26 skip the following checking. i.e. if user wants to re-connect to same AP
 	//   we just follow normal procedure. The reason of user doing this may because he/she changed
 	//   AP to another channel, but we still received BEACON from it thus don't claim Link Down.
@@ -1659,7 +1652,6 @@ VOID LinkUp(
 	// Txop can only be modified when RDG is off, WMM is disable and TxBurst is enable
 	//
 	// if 1. Legacy AP WMM on,  or 2. 11n AP, AMPDU disable.  Force turn off burst no matter what bEnableTxBurst is.
-//	if ((!IS_RT30xx(pAd)) &&
 	if (!((pAd->CommonCfg.RxStream == 1)&&(pAd->CommonCfg.TxStream == 1)) &&
 		(((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED))
 		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE))))
@@ -1934,9 +1926,6 @@ VOID LinkDown(
 	// Update extra information to link is up
 	pAd->ExtraInfo = GENERAL_LINK_DOWN;
 
-    //pAd->StaCfg.AdhocBOnlyJoined = FALSE;
-	//pAd->StaCfg.AdhocBGJoined = FALSE;
-	//pAd->StaCfg.Adhoc20NJoined = FALSE;
     pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
 
 	// Reset the Current AP's IP address

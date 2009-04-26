@@ -886,11 +886,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 	// Save uid and gid used for filesystem access.
 	// Set user and group to 0 (root)
-#if 0
-	orgfsuid = current->fsuid;
-	orgfsgid = current->fsgid;
-	current->fsuid=current->fsgid = 0;
-#endif
     orgfs = get_fs();
     set_fs(KERNEL_DS);
 
@@ -1121,14 +1116,10 @@ NDIS_STATUS	RTMPReadParametersHook(
 					//TxBurst
 					if(RTMPGetKeyParameter("TxBurst", tmpbuf, 10, buffer))
 					{
-//#ifdef WIFI_TEST
-//						pAd->CommonCfg.bEnableTxBurst = FALSE;
-//#else
 						if(simple_strtol(tmpbuf, 0, 10) != 0)  //Enable
 							pAd->CommonCfg.bEnableTxBurst = TRUE;
 						else //Disable
 							pAd->CommonCfg.bEnableTxBurst = FALSE;
-//#endif
 						DBGPRINT(RT_DEBUG_TRACE, ("TxBurst=%d\n", pAd->CommonCfg.bEnableTxBurst));
 					}
 
@@ -1296,7 +1287,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 							pAd->StaCfg.OrigWepStatus 	= pAd->StaCfg.WepStatus;
 							pAd->StaCfg.bMixCipher 		= FALSE;
 
-							//RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, 0);
 							DBGPRINT(RT_DEBUG_TRACE, ("%s::(EncrypType=%d)\n", __func__, pAd->StaCfg.WepStatus));
 						}
 					}
@@ -1342,21 +1332,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 								}
 								else if (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPANone)
 								{
-	/*
-									NdisZeroMemory(&pAd->SharedKey[BSS0][0], sizeof(CIPHER_KEY));
-									pAd->SharedKey[BSS0][0].KeyLen = LEN_TKIP_EK;
-									NdisMoveMemory(pAd->SharedKey[BSS0][0].Key, pAd->StaCfg.PMK, LEN_TKIP_EK);
-									NdisMoveMemory(pAd->SharedKey[BSS0][0].RxMic, &pAd->StaCfg.PMK[16], LEN_TKIP_RXMICK);
-									NdisMoveMemory(pAd->SharedKey[BSS0][0].TxMic, &pAd->StaCfg.PMK[16], LEN_TKIP_TXMICK);
-
-									// Decide its ChiperAlg
-									if (pAd->StaCfg.PairCipher == Ndis802_11Encryption2Enabled)
-										pAd->SharedKey[BSS0][0].CipherAlg = CIPHER_TKIP;
-									else if (pAd->StaCfg.PairCipher == Ndis802_11Encryption3Enabled)
-										pAd->SharedKey[BSS0][0].CipherAlg = CIPHER_AES;
-									else
-										pAd->SharedKey[BSS0][0].CipherAlg = CIPHER_NONE;
-	*/
 									pAd->StaCfg.WpaState = SS_NOTUSE;
 								}
 
@@ -1367,23 +1342,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 					//DefaultKeyID, KeyType, KeyStr
 					rtmp_read_key_parms_from_file(pAd, tmpbuf, buffer);
-
-
-					//HSCounter
-					/*if(RTMPGetKeyParameter("HSCounter", tmpbuf, 10, buffer))
-					{
-						switch (simple_strtol(tmpbuf, 0, 10))
-						{
-							case 1: //Enable
-								pAd->CommonCfg.bEnableHSCounter = TRUE;
-								break;
-							case 0: //Disable
-							default:
-								pAd->CommonCfg.bEnableHSCounter = FALSE;
-								break;
-						}
-						DBGPRINT(RT_DEBUG_TRACE, "HSCounter=%d\n", pAd->CommonCfg.bEnableHSCounter);
-					}*/
 
 					HTParametersHook(pAd, tmpbuf, buffer);
 
@@ -1506,10 +1464,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 	}
 
 	set_fs(orgfs);
-#if 0
-	current->fsuid = orgfsuid;
-	current->fsgid = orgfsgid;
-#endif
 
 	kfree(buffer);
 	kfree(tmpbuf);
@@ -1836,7 +1790,6 @@ static void	HTParametersHook(
 		{
 			Value = simple_strtol(pValueStr, 0, 10);
 
-//			if ((Value >= 0 && Value <= 15) || (Value == 32))
 			if ((Value >= 0 && Value <= 23) || (Value == 32)) // 3*3
 		{
 				pAd->StaCfg.DesiredTransmitSetting.field.MCS  = Value;

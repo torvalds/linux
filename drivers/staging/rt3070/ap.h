@@ -163,18 +163,6 @@ USHORT APBuildAssociation(
 	IN UCHAR		 HtCapabilityLen,
     OUT USHORT *pAid);
 
-/*
-VOID	RTMPAddClientSec(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR	BssIdx,
-	IN UCHAR		 KeyIdx,
-	IN UCHAR		 CipherAlg,
-	IN PUCHAR		 pKey,
-	IN PUCHAR		 pTxMic,
-	IN PUCHAR		 pRxMic,
-	IN MAC_TABLE_ENTRY *pEntry);
-*/
-
 // ap_auth.c
 
 void APAuthStateMachineInit(

@@ -55,12 +55,6 @@ MODULE_VERSION(STA_DRIVER_VERSION);
  * packets that have a "complete" function are sent here. This way, the
  * completion is run out of kernel context, and doesn't block the rest of
  * the stack. */
-//static int mlme_kill = 0;		// Mlme kernel thread
-//static int RTUSBCmd_kill = 0;	// Command kernel thread
-//static int TimerFunc_kill = 0;	// TimerQ kernel thread
-
-//static wait_queue_head_t 	timerWaitQ;
-//static wait_queue_t 		waitQ;
 
 extern INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
 									IN UINT argc, OUT PRTMP_ADAPTER *ppAd);
@@ -1224,7 +1218,6 @@ VOID RT28xx_UpdateBeaconToAsic(
 	UINT  			i, padding;
 	BEACON_SYNC_STRUCT	*pBeaconSync = pAd->CommonCfg.pBeaconSync;
 	UINT32			longValue;
-//	USHORT			shortValue;
 	BOOLEAN			bBcnReq = FALSE;
 	UCHAR			bcn_idx = 0;
 

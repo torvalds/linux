@@ -783,9 +783,6 @@ INT	Set_ResetStatCounter_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
 {
-	//UCHAR           i;
-	//MAC_TABLE_ENTRY *pEntry;
-
 	DBGPRINT(RT_DEBUG_TRACE, ("==>Set_ResetStatCounter_Proc\n"));
 
 	// add the most up-to-date h/w raw counters into software counters
@@ -1950,7 +1947,6 @@ INT	Set_BASetup_Proc(
 		=>The six 2 digit hex-decimal number previous are the Mac address,
 		=>The seventh decimal number is the tid value.
 */
-	//printk("\n%s\n", arg);
 
 	if(strlen(arg) < 19)  //Mac address acceptable format 01:02:03:04:05:06 length 17 plus the "-" and tid value in decimal format.
 		return FALSE;
@@ -2024,7 +2020,6 @@ INT	Set_BAOriTearDown_Proc(
 	INT i;
     MAC_TABLE_ENTRY *pEntry;
 
-    //printk("\n%s\n", arg);
 /*
 	The BAOriTearDown inupt string format should be xx:xx:xx:xx:xx:xx-d,
 		=>The six 2 digit hex-decimal number previous are the Mac address,

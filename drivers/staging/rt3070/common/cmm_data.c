@@ -67,7 +67,6 @@ UCHAR	 RxwiMCSToOfdmRate[12] = {
 char*   MCSToMbps[] = {"1Mbps","2Mbps","5.5Mbps","11Mbps","06Mbps","09Mbps","12Mbps","18Mbps","24Mbps","36Mbps","48Mbps","54Mbps","MM-0","MM-1","MM-2","MM-3","MM-4","MM-5","MM-6","MM-7","MM-8","MM-9","MM-10","MM-11","MM-12","MM-13","MM-14","MM-15","MM-32","ee1","ee2","ee3"};
 
 UCHAR default_cwmin[]={CW_MIN_IN_BITS, CW_MIN_IN_BITS, CW_MIN_IN_BITS-1, CW_MIN_IN_BITS-2};
-//UCHAR default_cwmax[]={CW_MAX_IN_BITS, CW_MAX_IN_BITS, CW_MIN_IN_BITS, CW_MIN_IN_BITS-1};
 UCHAR default_sta_aifsn[]={3,7,2,2};
 
 UCHAR MapUserPriorityToAccessCategory[8] = {QID_AC_BE, QID_AC_BK, QID_AC_BK, QID_AC_BE, QID_AC_VI, QID_AC_VI, QID_AC_VO, QID_AC_VO};
@@ -362,17 +361,11 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 
 	RTMP_QueryPacketInfo(pPacket, &PacketInfo, &pSrcBufVA, &SrcBufLen);
 
-	// Make sure MGMT ring resource won't be used by other threads
-// sample, for IRQ LOCK -> SEM LOCK
-//	IrqState = pAd->irq_disabled;
-//	if (!IrqState)
 		RTMP_SEM_LOCK(&pAd->MgmtRingLock);
 
 
 	if (pSrcBufVA == NULL)
 	{
-		// The buffer shouldn't be NULL
-//		if (!IrqState)
 			RTMP_SEM_UNLOCK(&pAd->MgmtRingLock);
 		return NDIS_STATUS_FAILURE;
 	}
@@ -447,9 +440,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 	}
 	else // BTYPE_MGMT or BTYPE_DATA(must be NULL frame)
 	{
-		//pAd->Sequence++;
-		//pHeader_802_11->Sequence = pAd->Sequence;
-
 		if (pHeader_802_11->Addr1[0] & 0x01) // MULTICAST, BROADCAST
 		{
 			bAckRequired = FALSE;
@@ -477,7 +467,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 		&& (pAd->CommonCfg.RadarDetect.RDMode != RD_NORMAL_MODE))
 	{
 		DBGPRINT(RT_DEBUG_ERROR,("MlmeHardTransmit --> radar detect not in normal mode !!!\n"));
-//		if (!IrqState)
 			RTMP_SEM_UNLOCK(&pAd->MgmtRingLock);
 		return (NDIS_STATUS_FAILURE);
 	}
@@ -491,7 +480,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 	// Initialize TX Descriptor
 	// For inter-frame gap, the number is for this frame and next frame
 	// For MLME rate, we will fix as 2Mb to match other vendor's implement
-//	pAd->CommonCfg.MlmeTransmit.field.MODE = 1;
 
 // management frame doesn't need encryption. so use RESERVED_WCID no matter u are sending to specific wcid or not.
 	if (pMacEntry == NULL)
@@ -513,7 +501,6 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 	HAL_KickOutMgmtTx(pAd, QueIdx, pPacket, pSrcBufVA, SrcBufLen);
 
 	// Make sure to release MGMT ring resource
-//	if (!IrqState)
 		RTMP_SEM_UNLOCK(&pAd->MgmtRingLock);
 	return NDIS_STATUS_SUCCESS;
 }
@@ -712,9 +699,6 @@ BOOLEAN RTMP_FillTxBlkInfo(
 			if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) &&
 				CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE))
 				TX_BLK_SET_FLAG(pTxBlk, fTX_bWMM);
-
-//			if (pAd->StaCfg.bAutoTxRateSwitch)
-//				TX_BLK_SET_FLAG(pTxBlk, fTX_AutoRateSwitch);
 		}
 
 		if (pTxBlk->TxFrameType == TX_LEGACY_FRAME)
@@ -905,7 +889,6 @@ VOID RTMPDeQueuePacket(
 
 			pTxBlk = &TxBlk;
 			NdisZeroMemory((PUCHAR)pTxBlk, sizeof(TX_BLK));
-			//InitializeQueueHeader(&pTxBlk->TxPacketList);		// Didn't need it because we already memzero it.
 			pTxBlk->QueIdx = QueIdx;
 
 			pPacket = QUEUE_ENTRY_TO_PKT(pEntry);
@@ -1266,7 +1249,7 @@ VOID RTMPWriteTxWI_Cache(
 	IN	OUT PTXWI_STRUC		pTxWI,
 	IN	TX_BLK				*pTxBlk)
 {
-	PHTTRANSMIT_SETTING	/*pTxHTPhyMode,*/ pTransmit;
+	PHTTRANSMIT_SETTING	pTransmit;
 	PMAC_TABLE_ENTRY	pMacEntry;
 
 	//
@@ -1275,9 +1258,6 @@ VOID RTMPWriteTxWI_Cache(
 	pMacEntry = pTxBlk->pMacEntry;
 	pTransmit = pTxBlk->pTransmit;
 
-	//if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))
-	//if (RTMPCheckEntryEnableAutoRateSwitch(pAd, pMacEntry))
-	//if (TX_BLK_TEST_FLAG(pTxBlk, fTX_AutoRateSwitch))
 	if (pMacEntry->bAutoTxRateSwitch)
 	{
 		pTxWI->txop = IFS_HTTXOP;
@@ -1471,9 +1451,6 @@ PQUEUE_HEADER	RTMPCheckTxSwQueue(
 {
 
 	ULONG	Number;
-	// 2004-11-15 to be removed. test aggregation only
-//	if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED)) && (*pNumber < 2))
-//		 return NULL;
 
 	Number = pAd->TxSwQueue[QID_AC_BK].Number
 			 + pAd->TxSwQueue[QID_AC_BE].Number
@@ -1573,8 +1550,6 @@ VOID	RTMPSuspendMsduTransmission(
 VOID RTMPResumeMsduTransmission(
 	IN	PRTMP_ADAPTER	pAd)
 {
-//    UCHAR			IrqState;
-
 	DBGPRINT(RT_DEBUG_TRACE,("SCAN done, resume MSDU transmission ...\n"));
 
 
@@ -1588,11 +1563,6 @@ VOID RTMPResumeMsduTransmission(
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R66, pAd->BbpTuning.R66CurrentValue);
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
-// sample, for IRQ LOCK to SEM LOCK
-//    IrqState = pAd->irq_disabled;
-//	if (IrqState)
-//		RTMPDeQueuePacket(pAd, TRUE, NUM_OF_TX_RING, MAX_TX_PROCESS);
-//    else
 	RTMPDeQueuePacket(pAd, FALSE, NUM_OF_TX_RING, MAX_TX_PROCESS);
 }
 
@@ -1621,9 +1591,7 @@ UINT deaggregate_AMSDU_announce(
 
 		nMSDU++;
 
-		//hex_dump("subheader", pData, 64);
 		pAMSDUsubheader = (PHEADER_802_3)pData;
-		//pData += LENGTH_802_3;
 		PayloadSize = pAMSDUsubheader->Octet[1] + (pAMSDUsubheader->Octet[0]<<8);
 		SubFrameSize = PayloadSize + LENGTH_802_3;
 
@@ -1632,8 +1600,6 @@ UINT deaggregate_AMSDU_announce(
 		{
 			break;
 		}
-
-		//printk("%d subframe: Size = %d\n",  nMSDU, PayloadSize);
 
 		pPayload = pData + LENGTH_802_3;
 		pDA = pData;
@@ -1754,8 +1720,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 	UCHAR HashIdx;
 	int i, FirstWcid;
 	MAC_TABLE_ENTRY *pEntry = NULL, *pCurrEntry;
-//	USHORT	offset;
-//	ULONG	addr;
 
 	// if FULL, return
 	if (pAd->MacTab.Size >= MAX_LEN_OF_MAC_TABLE)
@@ -1885,8 +1849,6 @@ BOOLEAN MacTableDeleteEntry(
 	USHORT HashIdx;
 	MAC_TABLE_ENTRY *pEntry, *pPrevEntry, *pProbeEntry;
 	BOOLEAN Cancelled;
-	//USHORT	offset;	// unused variable
-	//UCHAR	j;			// unused variable
 
 	if (wcid >= MAX_LEN_OF_MAC_TABLE)
 		return FALSE;
@@ -1894,7 +1856,6 @@ BOOLEAN MacTableDeleteEntry(
 	NdisAcquireSpinLock(&pAd->MacTabLock);
 
 	HashIdx = MAC_ADDR_HASH_INDEX(pAddr);
-	//pEntry = pAd->MacTab.Hash[HashIdx];
 	pEntry = &pAd->MacTab.Content[wcid];
 
 	if (pEntry && (pEntry->ValidAsCLI || pEntry->ValidAsApCli || pEntry->ValidAsWDS || pEntry->ValidAsMesh
@@ -1962,7 +1923,6 @@ BOOLEAN MacTableDeleteEntry(
 	if (pAd->MacTab.Size == 0)
 	{
 		pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode = 0;
-		//AsicUpdateProtect(pAd, 0 /*pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode*/, (ALLN_SETPROTECT), TRUE, 0 /*pAd->MacTab.fAnyStationNonGF*/);
 		RT28XX_UPDATE_PROTECT(pAd);  // edit by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
 	}
 
