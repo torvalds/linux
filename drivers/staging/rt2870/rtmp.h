@@ -284,92 +284,6 @@ extern UCHAR  PRE_N_HT_OUI[];
 
 #define	MAXSEQ		(0xFFF)
 
-#ifdef RALINK_ATE
-typedef	struct _ATE_INFO {
-	UCHAR	Mode;
-	CHAR	TxPower0;
-	CHAR	TxPower1;
-	CHAR    TxAntennaSel;
-	CHAR    RxAntennaSel;
-	TXWI_STRUC  TxWI; 	  // TXWI
-	USHORT	QID;
-	UCHAR	Addr1[MAC_ADDR_LEN];
-	UCHAR	Addr2[MAC_ADDR_LEN];
-	UCHAR	Addr3[MAC_ADDR_LEN];
-	UCHAR	Channel;
-	UINT32	TxLength;
-	UINT32	TxCount;
-	UINT32	TxDoneCount; // Tx DMA Done
-	UINT32	RFFreqOffset;
-	BOOLEAN	bRxFer;
-	BOOLEAN	bQATxStart; // Have compiled QA in and use it to ATE tx.
-	BOOLEAN	bQARxStart;	// Have compiled QA in and use it to ATE rx.
-	UINT32	RxTotalCnt;
-	UINT32	RxCntPerSec;
-
-	CHAR	LastSNR0;             // last received SNR
-	CHAR    LastSNR1;             // last received SNR for 2nd  antenna
-	CHAR    LastRssi0;            // last received RSSI
-	CHAR    LastRssi1;            // last received RSSI for 2nd  antenna
-	CHAR    LastRssi2;            // last received RSSI for 3rd  antenna
-	CHAR    AvgRssi0;             // last 8 frames' average RSSI
-	CHAR    AvgRssi1;             // last 8 frames' average RSSI
-	CHAR    AvgRssi2;             // last 8 frames' average RSSI
-	SHORT   AvgRssi0X8;           // sum of last 8 frames' RSSI
-	SHORT   AvgRssi1X8;           // sum of last 8 frames' RSSI
-	SHORT   AvgRssi2X8;           // sum of last 8 frames' RSSI
-
-	UINT32	NumOfAvgRssiSample;
-
-#ifdef RALINK_28xx_QA
-	// Tx frame
-#ifdef RT2870
-	/* not used in RT2860 */
-	TXINFO_STRUC		TxInfo; // TxInfo
-#endif // RT2870 //
-	USHORT		HLen; // Header Length
-	USHORT		PLen; // Pattern Length
-	UCHAR 		Header[32]; // Header buffer
-	UCHAR		Pattern[32]; // Pattern buffer
-	USHORT		DLen; // Data Length
-	USHORT		seq;
-	UINT32		CID;
-	THREAD_PID 		AtePid;
-	// counters
-	UINT32		U2M;
-	UINT32		OtherData;
-	UINT32		Beacon;
-	UINT32		OtherCount;
-	UINT32		TxAc0;
-	UINT32		TxAc1;
-	UINT32		TxAc2;
-	UINT32		TxAc3;
-	UINT32		TxHCCA;
-	UINT32		TxMgmt;
-	UINT32		RSSI0;
-	UINT32		RSSI1;
-	UINT32		RSSI2;
-	UINT32		SNR0;
-	UINT32		SNR1;
-	// control
-	//UINT32		Repeat; // Tx Cpu count
-	UCHAR		TxStatus; // task Tx status // 0 --> task is idle, 1 --> task is running
-#endif // RALINK_28xx_QA //
-}	ATE_INFO, *PATE_INFO;
-
-#ifdef RALINK_28xx_QA
-struct ate_racfghdr {
- 	UINT32		magic_no;
-	USHORT		command_type;
-	USHORT		command_id;
-	USHORT		length;
-	USHORT		sequence;
-	USHORT		status;
-	UCHAR		data[2046];
-}  __attribute__((packed));
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
-
 #ifdef DOT11_N_SUPPORT
 struct reordering_mpdu
 {
@@ -2702,12 +2616,6 @@ typedef struct _RTMP_ADAPTER
 	struct completion			mlmeComplete;
 	struct completion			CmdQComplete;
 	wait_queue_head_t			*wait;
-
-	//======Lock for 2870 ATE
-#ifdef RALINK_ATE
-	NDIS_SPIN_LOCK			GenericLock;		// ATE Tx/Rx generic spinlock
-#endif // RALINK_ATE //
-
 #endif // RT2870 //
 
 
@@ -3019,16 +2927,6 @@ typedef struct _RTMP_ADAPTER
 	//---
 
     struct wificonf			WIFItestbed;
-
-#ifdef RALINK_ATE
-	ATE_INFO				ate;
-#ifdef RT2870
-	BOOLEAN					ContinBulkOut;		//ATE bulk out control
-	BOOLEAN					ContinBulkIn;		//ATE bulk in control
-	atomic_t				BulkOutRemained;
-	atomic_t				BulkInRemained;
-#endif // RT2870 //
-#endif // RALINK_ATE //
 
 #ifdef DOT11_N_SUPPORT
 	struct reordering_mpdu_pool mpdu_blk_pool;

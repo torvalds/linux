@@ -1589,9 +1589,6 @@ VOID	RTUSBKickBulkOut(
 {
 	// BulkIn Reset will reset whole USB PHY. So we need to make sure fRTMP_ADAPTER_BULKIN_RESET not flaged.
 	if (!RTMP_TEST_FLAG(pAd ,fRTMP_ADAPTER_NEED_STOP_TX)
-#ifdef RALINK_ATE
-		&& !(ATE_ON(pAd))
-#endif // RALINK_ATE //
 		)
 	{
 #if 0	// not used now in RT28xx, but may used latter.
@@ -1700,18 +1697,6 @@ VOID	RTUSBKickBulkOut(
 
 		}
 	}
-#ifdef RALINK_ATE
-	/* If the mode is in ATE mode. */
-	else if((ATE_ON(pAd)) &&
-		!RTMP_TEST_FLAG(pAd ,fRTMP_ADAPTER_NEED_STOP_TX))// PETER : watch out !
-	{
-		if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_ATE))
-		{
-			ATE_RTUSBBulkOutDataPacket(pAd, 0);
-		}
-	}
-#endif // RALINK_ATE //
-
 }
 
 /*
@@ -1894,14 +1879,6 @@ VOID	RTUSBCancelPendingBulkOutIRP(
 			RTMPusecDelay(200);
 		}
 
-#ifdef RALINK_ATE
-		pHTTXContext->bCopySavePad = 0;
-		pHTTXContext->CurWritePosition = 0;
-		pHTTXContext->CurWriteRealPos = 0;
-		pHTTXContext->bCurWriting = FALSE;
-		pHTTXContext->NextBulkOutPosition = 0;
-		pHTTXContext->ENextBulkOutPosition = 0;
-#endif // RALINK_ATE //
 		pAd->BulkOutPending[Idx] = FALSE;
 	}
 

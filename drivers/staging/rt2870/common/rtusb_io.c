@@ -1327,13 +1327,6 @@ VOID CMDHandler(
 #ifdef CONFIG_STA_SUPPORT
 						UINT32 data;
 #endif // CONFIG_STA_SUPPORT //
-#ifdef RALINK_ATE
-       					if(ATE_ON(pAd))
-						{
-							DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-							break;
-						}
-#endif // RALINK_ATE //
 
 #ifdef CONFIG_STA_SUPPORT
 
@@ -1394,9 +1387,7 @@ VOID CMDHandler(
 						PHT_TX_CONTEXT	pHTTXContext;
 //						RTMP_TX_RING *pTxRing;
 						unsigned long IrqFlags;
-#ifdef RALINK_ATE
-						PTX_CONTEXT		pNullContext = &(pAd->NullContext);
-#endif // RALINK_ATE //
+
 						DBGPRINT_RAW(RT_DEBUG_TRACE, ("CmdThread : CMDTHREAD_RESET_BULK_OUT(ResetPipeid=0x%0x)===>\n", pAd->bulkResetPipeid));
 						// All transfers must be aborted or cancelled before attempting to reset the pipe.
 						//RTUSBCancelPendingBulkOutIRP(pAd);
@@ -1459,32 +1450,6 @@ VOID CMDHandler(
 								//NdisReleaseSpinLock(&pAd->BulkOutLock[pAd->bulkResetPipeid]);
 								RTMP_INT_UNLOCK(&pAd->BulkOutLock[pAd->bulkResetPipeid], IrqFlags);
 /*-----------------------------------------------------------------------------------------------*/
-#ifdef RALINK_ATE
-								if(ATE_ON(pAd))
-							    {
-									pNullContext->IRPPending = TRUE;
-									//
-									// If driver is still in ATE TXFRAME mode,
-									// keep on transmitting ATE frames.
-									//
-									DBGPRINT_RAW(RT_DEBUG_TRACE, ("pAd->ate.Mode == %d\npAd->ContinBulkOut == %d\npAd->BulkOutRemained == %d\n", pAd->ate.Mode, pAd->ContinBulkOut, atomic_read(&pAd->BulkOutRemained)));
-									if((pAd->ate.Mode == ATE_TXFRAME) && ((pAd->ContinBulkOut == TRUE) || (atomic_read(&pAd->BulkOutRemained) > 0)))
-								    {
-										DBGPRINT_RAW(RT_DEBUG_TRACE, ("After CMDTHREAD_RESET_BULK_OUT, continue to bulk out frames !\n"));
-
-										// Init Tx context descriptor
-										RTUSBInitTxDesc(pAd, pNullContext, 0/* pAd->bulkResetPipeid */, (usb_complete_t)ATE_RTUSBBulkOutDataPacketComplete);
-
-										if((ret = RTUSB_SUBMIT_URB(pNullContext->pUrb))!=0)
-										{
-											DBGPRINT(RT_DEBUG_ERROR, ("ATE_RTUSBBulkOutDataPacket: Submit Tx URB failed %d\n", ret));
-										}
-
-										pAd->BulkOutReq++;
-									}
-								}
-								else
-#endif // RALINK_ATE //
 /*-----------------------------------------------------------------------------------------------*/
 								{
 								RTUSBInitHTTxDesc(pAd, pHTTXContext, pAd->bulkResetPipeid, pHTTXContext->BulkOutSize, (usb_complete_t)RTUSBBulkOutDataPacketComplete);
@@ -1597,19 +1562,6 @@ VOID CMDHandler(
 					{
 						UINT32		MACValue;
 /*-----------------------------------------------------------------------------------------------*/
-#ifdef RALINK_ATE
-						if (ATE_ON(pAd))
-						{
-							if((pAd->PendingRx > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))
-							{
-								DBGPRINT_RAW(RT_DEBUG_ERROR, ("ATE : BulkIn IRP Pending!!!\n"));
-								ATE_RTUSBCancelPendingBulkInIRP(pAd);
-								RTMPusecDelay(100000);
-								pAd->PendingRx = 0;
-							}
-						}
-						else
-#endif // RALINK_ATE //
 /*-----------------------------------------------------------------------------------------------*/
 						{
 						//while ((atomic_read(&pAd->PendingRx) > 0) && (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)))

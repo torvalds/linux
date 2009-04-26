@@ -585,14 +585,6 @@ VOID MlmeHandler(
 			break;
 		}
 
-#ifdef RALINK_ATE
-		if(ATE_ON(pAd))
-		{
-			DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now in MlmeHandler\n"));
-			break;
-		}
-#endif // RALINK_ATE //
-
 		//From message type, determine which state machine I should drive
 		if (MlmeDequeue(&pAd->Mlme.Queue, &Elem))
 		{
@@ -823,18 +815,6 @@ VOID MlmePeriodicExec(
 
 	RT28XX_MLME_PRE_SANITY_CHECK(pAd);
 
-#ifdef RALINK_ATE
-	/* Do not show RSSI until "Normal 1 second Mlme PeriodicExec". */
-	if (ATE_ON(pAd))
-	{
-		if (pAd->Mlme.PeriodicRound % MLME_TASK_EXEC_MULTIPLE != (MLME_TASK_EXEC_MULTIPLE - 1))
-	{
-			pAd->Mlme.PeriodicRound ++;
-			return;
-		}
-	}
-#endif // RALINK_ATE //
-
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
@@ -887,30 +867,6 @@ VOID MlmePeriodicExec(
 	if (pAd->Mlme.PeriodicRound %MLME_TASK_EXEC_MULTIPLE == 0)
 	{
                 pAd->Mlme.OneSecPeriodicRound ++;
-
-#ifdef RALINK_ATE
-    	if (ATE_ON(pAd))
-    	{
-			/* request from Baron : move this routine from later to here */
-			/* for showing Rx error count in ATE RXFRAME */
-            NICUpdateRawCounters(pAd);
-			if (pAd->ate.bRxFer == 1)
-			{
-				pAd->ate.RxTotalCnt += pAd->ate.RxCntPerSec;
-			    ate_print(KERN_EMERG "MlmePeriodicExec: Rx packet cnt = %d/%d\n", pAd->ate.RxCntPerSec, pAd->ate.RxTotalCnt);
-				pAd->ate.RxCntPerSec = 0;
-
-				if (pAd->ate.RxAntennaSel == 0)
-					ate_print(KERN_EMERG "MlmePeriodicExec: Rx AvgRssi0=%d, AvgRssi1=%d, AvgRssi2=%d\n\n",
-						pAd->ate.AvgRssi0, pAd->ate.AvgRssi1, pAd->ate.AvgRssi2);
-				else
-					ate_print(KERN_EMERG "MlmePeriodicExec: Rx AvgRssi=%d\n\n", pAd->ate.AvgRssi0);
-			}
-			MlmeResetRalinkCounters(pAd);
-			return;
-    	}
-#endif // RALINK_ATE //
-
 
 		if (rx_Total)
 		{
@@ -1031,17 +987,6 @@ VOID STAMlmePeriodicExec(
 {
 	ULONG	TxTotalCnt;
 	int 	i;
-
-//
-// We return here in ATE mode, because the statistics
-// that ATE needs are not collected via this routine.
-//
-#ifdef RALINK_ATE
-	// It is supposed that we will never reach here in ATE mode.
-	ASSERT(!(ATE_ON(pAd)));
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
 
 #ifdef WPA_SUPPLICANT_SUPPORT
     if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_DISABLE)
@@ -2002,13 +1947,6 @@ VOID MlmeDynamicTxRateSwitching(
 	TX_STA_CNT0_STRUC		TxStaCnt0;
 	ULONG					TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
 	MAC_TABLE_ENTRY			*pEntry;
-
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-	{
-		return;
-	}
-#endif // RALINK_ATE //
 
 	//
 	// walk through MAC table, see if need to change AP's TX rate toward each entry
@@ -4851,12 +4789,6 @@ BOOLEAN MlmeEnqueueForRecv(
 	INT		 MsgType;
 	MLME_QUEUE	*Queue = (MLME_QUEUE *)&pAd->Mlme.Queue;
 
-#ifdef RALINK_ATE
-	/* Nothing to do in ATE mode */
-	if(ATE_ON(pAd))
-		return FALSE;
-#endif // RALINK_ATE //
-
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
@@ -5530,11 +5462,6 @@ VOID 	AsicUpdateProtect(
 	USHORT			offset;
 	UCHAR			i;
 	UINT32 MacReg = 0;
-
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
 
 #ifdef DOT11_N_SUPPORT
 	if (!(pAd->CommonCfg.bHTProtect) && (OperationMode != 8))
@@ -7972,12 +7899,6 @@ VOID AsicEvaluateRxAnt(
 {
 	UCHAR	BBPR3 = 0;
 
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
-
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
@@ -8054,12 +7975,6 @@ VOID AsicRxAntEvalTimeout(
 	UCHAR			BBPR3 = 0;
 	CHAR			larger = -127, rssi0, rssi1, rssi2;
 #endif // CONFIG_STA_SUPPORT //
-
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
 
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)

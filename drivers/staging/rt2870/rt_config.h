@@ -75,12 +75,6 @@
 #include "igmp_snoop.h"
 #endif // IGMP_SNOOP_SUPPORT //
 
-#ifdef RALINK_ATE
-#include "rt_ate.h"
-#endif // RALINK_ATE //
-
-
-
 #ifdef CONFIG_STA_SUPPORT
 #ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 #ifndef WPA_SUPPLICANT_SUPPORT

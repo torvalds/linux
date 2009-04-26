@@ -518,10 +518,6 @@ NDIS_STATUS	RTMPAllocTxRxRingMemory(
 			NdisAllocateSpinLock(&pAd->TxContextQueueLock[num]);
 		}
 
-#ifdef RALINK_ATE
-		NdisAllocateSpinLock(&pAd->GenericLock);
-#endif // RALINK_ATE //
-
 //		NdisAllocateSpinLock(&pAd->MemLock);	// Not used in RT28XX
 
 //		NdisAllocateSpinLock(&pAd->MacTabLock); // init it in UserCfgInit()
@@ -684,9 +680,7 @@ VOID	RTMPFreeTxRxRingMemory(
 	NdisFreeSpinLock(&pAd->MLMEBulkOutLock);
 
 	NdisFreeSpinLock(&pAd->CmdQLock);
-#ifdef RALINK_ATE
-	NdisFreeSpinLock(&pAd->GenericLock);
-#endif // RALINK_ATE //
+
 	// Clear all pending bulk-out request flags.
 	RTUSB_CLEAR_BULK_FLAG(pAd, 0xffffffff);
 
@@ -1197,17 +1191,6 @@ static void rx_done_tasklet(unsigned long data)
 
 	ASSERT((pRxContext->InUse == pRxContext->IRPPending));
 
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-    {
-		// If the driver is in ATE mode and Rx frame is set into here.
-		if (pAd->ContinBulkIn == TRUE)
-		{
-			RTUSBBulkReceive(pAd);
-		}
-	}
-	else
-#endif // RALINK_ATE //
 	RTUSBBulkReceive(pAd);
 
 	return;
