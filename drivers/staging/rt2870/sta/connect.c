@@ -176,13 +176,6 @@ VOID MlmeCntlMachinePerformAction(
 					pAd->bLedOnScanning = FALSE;
 					RTMPSetLED(pAd, pAd->LedStatus);
 				}
-#ifdef DOT11N_DRAFT3
-				// AP sent a 2040Coexistence mgmt frame, then station perform a scan, and then send back the respone.
-				if (pAd->CommonCfg.BSSCoexist2040.field.InfoReq == 1)
-				{
-					Update2040CoexistFrameAndNotify(pAd, BSSID_WCID, TRUE);
-				}
-#endif // DOT11N_DRAFT3 //
 			}
 			break;
 
@@ -1762,17 +1755,6 @@ VOID LinkUp(
 	}
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
-
-
-#ifdef DOT11_N_SUPPORT
-#ifdef DOT11N_DRAFT3
-	if ((pAd->CommonCfg.BACapability.field.b2040CoexistScanSup) && (pAd->CommonCfg.Channel <= 11))
-	{
-		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_SCAN_2040);
-		BuildEffectedChannelList(pAd);
-	}
-#endif // DOT11N_DRAFT3 //
-#endif // DOT11_N_SUPPORT //
 }
 
 /*
@@ -2029,18 +2011,6 @@ VOID LinkDown(
 	AsicDisableRDG(pAd);
 	pAd->CommonCfg.IOTestParm.bCurrentAtheros = FALSE;
 	pAd->CommonCfg.IOTestParm.bNowAtherosBurstOn = FALSE;
-
-#ifdef DOT11_N_SUPPORT
-#ifdef DOT11N_DRAFT3
-	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SCAN_2040);
-	pAd->CommonCfg.BSSCoexist2040.word = 0;
-	TriEventInit(pAd);
-	for (i = 0; i < (pAd->ChannelListNum - 1); i++)
-	{
-		pAd->ChannelList[i].bEffectedChannel = FALSE;
-	}
-#endif // DOT11N_DRAFT3 //
-#endif // DOT11_N_SUPPORT //
 
 	RTMP_IO_WRITE32(pAd, MAX_LEN_CFG, 0x1fff);
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);

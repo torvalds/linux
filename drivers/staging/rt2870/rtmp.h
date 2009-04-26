@@ -241,9 +241,6 @@ extern UCHAR  ExtRateIe;
 extern UCHAR  HtCapIe;
 extern UCHAR  AddHtInfoIe;
 extern UCHAR  NewExtChanIe;
-#ifdef DOT11N_DRAFT3
-extern UCHAR  ExtHtCapIe;
-#endif // DOT11N_DRAFT3 //
 #endif // DOT11_N_SUPPORT //
 
 extern UCHAR  ErpIe;
@@ -1215,9 +1212,6 @@ typedef struct _BBP_R66_TUNING {
 typedef struct _CHANNEL_TX_POWER {
 	USHORT     RemainingTimeForUse;		//unit: sec
 	UCHAR      Channel;
-#ifdef DOT11N_DRAFT3
-	BOOLEAN       bEffectedChannel;	// For BW 40 operating in 2.4GHz , the "effected channel" is the channel that is covered in 40Mhz.
-#endif // DOT11N_DRAFT3 //
 	CHAR       Power;
 	CHAR       Power2;
 	UCHAR      MaxTxPwr;
@@ -1663,17 +1657,6 @@ typedef struct _MULTISSID_STRUCT {
 	UCHAR					BcnBufIdx;
 } MULTISSID_STRUCT, *PMULTISSID_STRUCT;
 
-
-
-#ifdef DOT11N_DRAFT3
-typedef enum _BSS2040COEXIST_FLAG{
-	BSS_2040_COEXIST_DISABLE = 0,
-	BSS_2040_COEXIST_TIMER_FIRED  = 1,
-	BSS_2040_COEXIST_INFO_SYNC = 2,
-	BSS_2040_COEXIST_INFO_NOTIFY = 4,
-}BSS2040COEXIST_FLAG;
-#endif // DOT11N_DRAFT3 //
-
 // configuration common to OPMODE_AP as well as OPMODE_STA
 typedef struct _COMMON_CONFIG {
 
@@ -1805,33 +1788,6 @@ typedef struct _COMMON_CONFIG {
 	//This IE is used with channel switch announcement element when changing to a new 40MHz.
 	//This IE is included in channel switch ammouncement frames 7.4.1.5, beacons, probe Rsp.
 	NEW_EXT_CHAN_IE	NewExtChanOffset;	//7.3.2.20A, 1 if extension channel is above the control channel, 3 if below, 0 if not present
-
-#ifdef DOT11N_DRAFT3
-	UCHAR					Bss2040CoexistFlag;		// bit 0: bBssCoexistTimerRunning, bit 1: NeedSyncAddHtInfo.
-	RALINK_TIMER_STRUCT	Bss2040CoexistTimer;
-
-	//This IE is used for 20/40 BSS Coexistence.
-	BSS_2040_COEXIST_IE		BSS2040CoexistInfo;
-	// ====== 11n D3.0 =======================>
-	USHORT					Dot11OBssScanPassiveDwell;				// Unit : TU. 5~1000
-	USHORT					Dot11OBssScanActiveDwell;				// Unit : TU. 10~1000
-	USHORT					Dot11BssWidthTriggerScanInt;			// Unit : Second
-	USHORT					Dot11OBssScanPassiveTotalPerChannel;	// Unit : TU. 200~10000
-	USHORT					Dot11OBssScanActiveTotalPerChannel;	// Unit : TU. 20~10000
-	USHORT					Dot11BssWidthChanTranDelayFactor;
-	USHORT					Dot11OBssScanActivityThre;				// Unit : percentage
-
-	ULONG					Dot11BssWidthChanTranDelay;			// multiple of (Dot11BssWidthTriggerScanInt * Dot11BssWidthChanTranDelayFactor)
-	ULONG					CountDownCtr;	// CountDown Counter from (Dot11BssWidthTriggerScanInt * Dot11BssWidthChanTranDelayFactor)
-
-	NDIS_SPIN_LOCK          TriggerEventTabLock;
-	BSS_2040_COEXIST_IE		LastBSSCoexist2040;
-	BSS_2040_COEXIST_IE		BSSCoexist2040;
-	TRIGGER_EVENT_TAB		TriggerEventTab;
-	UCHAR					ChannelListIdx;
-	// <====== 11n D3.0 =======================
-	BOOLEAN					bOverlapScanning;
-#endif // DOT11N_DRAFT3 //
 
     BOOLEAN                 bHTProtect;
     BOOLEAN                 bMIMOPSEnable;
@@ -2259,10 +2215,6 @@ typedef struct _MAC_TABLE_ENTRY {
 	UCHAR		MmpsMode;	// MIMO power save more.
 
 	HT_CAPABILITY_IE		HTCapability;
-
-#ifdef DOT11N_DRAFT3
-	UCHAR		BSS2040CoexistenceMgmtSupport;
-#endif // DOT11N_DRAFT3 //
 #endif // DOT11_N_SUPPORT //
 
 	BOOLEAN		bAutoTxRateSwitch;
@@ -3576,46 +3528,6 @@ VOID SendPSMPAction(
 	IN UCHAR			Wcid,
 	IN UCHAR			Psmp);
 
-
-#ifdef DOT11N_DRAFT3
-VOID SendBSS2040CoexistMgmtAction(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	UCHAR	Wcid,
-	IN	UCHAR	apidx,
-	IN	UCHAR	InfoReq);
-
-VOID SendNotifyBWActionFrame(
-	IN PRTMP_ADAPTER pAd,
-	IN UCHAR  Wcid,
-	IN UCHAR apidx);
-
-BOOLEAN ChannelSwitchSanityCheck(
-	IN	PRTMP_ADAPTER	pAd,
-	IN    UCHAR  Wcid,
-	IN    UCHAR  NewChannel,
-	IN    UCHAR  Secondary);
-
-VOID ChannelSwitchAction(
-	IN	PRTMP_ADAPTER	pAd,
-	IN    UCHAR  Wcid,
-	IN    UCHAR  Channel,
-	IN    UCHAR  Secondary);
-
-ULONG BuildIntolerantChannelRep(
-	IN	PRTMP_ADAPTER	pAd,
-	IN    PUCHAR  pDest);
-
-VOID Update2040CoexistFrameAndNotify(
-	IN	PRTMP_ADAPTER	pAd,
-	IN    UCHAR  Wcid,
-	IN	BOOLEAN	bAddIntolerantCha);
-
-VOID Send2040CoexistAction(
-	IN	PRTMP_ADAPTER	pAd,
-	IN    UCHAR  Wcid,
-	IN	BOOLEAN	bAddIntolerantCha);
-#endif // DOT11N_DRAFT3 //
-
 VOID PeerRMAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem);
@@ -4320,30 +4232,6 @@ VOID BATableInsertEntry(
 	IN UCHAR BAWinSize,
 	IN UCHAR OriginatorStatus,
     IN BOOLEAN IsRecipient);
-
-#ifdef DOT11N_DRAFT3
-VOID Bss2040CoexistTimeOut(
-	IN PVOID SystemSpecific1,
-	IN PVOID FunctionContext,
-	IN PVOID SystemSpecific2,
-	IN PVOID SystemSpecific3);
-
-
-VOID  TriEventInit(
-	IN	PRTMP_ADAPTER	pAd);
-
-ULONG TriEventTableSetEntry(
-	IN	PRTMP_ADAPTER	pAd,
-	OUT TRIGGER_EVENT_TAB *Tab,
-	IN PUCHAR pBssid,
-	IN HT_CAPABILITY_IE *pHtCapability,
-	IN UCHAR			HtCapabilityLen,
-	IN UCHAR			RegClass,
-	IN UCHAR ChannelNo);
-
-VOID TriEventCounterMaintenance(
-	IN	PRTMP_ADAPTER	pAd);
-#endif // DOT11N_DRAFT3 //
 #endif // DOT11_N_SUPPORT //
 
 VOID BssTableSsidSort(
@@ -5540,13 +5428,6 @@ CHAR    ConvertToRssi(
 	IN PRTMP_ADAPTER  pAd,
 	IN CHAR				Rssi,
 	IN UCHAR    RssiNumber);
-
-
-#ifdef DOT11N_DRAFT3
-VOID BuildEffectedChannelList(
-	IN PRTMP_ADAPTER pAd);
-#endif // DOT11N_DRAFT3 //
-
 
 VOID APAsicEvaluateRxAnt(
 	IN PRTMP_ADAPTER	pAd);

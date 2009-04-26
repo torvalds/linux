@@ -1088,10 +1088,6 @@ VOID RTMPWriteTxWI(
 
 	// If CCK or OFDM, BW must be 20
 	pTxWI->BW = (pTransmit->field.MODE <= MODE_OFDM) ? (BW_20) : (pTransmit->field.BW);
-#ifdef DOT11N_DRAFT3
-	if (pTxWI->BW)
-		pTxWI->BW = (pAd->CommonCfg.AddHTInfo.AddHtInfo.RecomWidth == 0) ? (BW_20) : (pTransmit->field.BW);
-#endif // DOT11N_DRAFT3 //
 
 	pTxWI->MCS = pTransmit->field.MCS;
 	pTxWI->PHYMODE = pTransmit->field.MODE;
@@ -1171,10 +1167,6 @@ VOID RTMPWriteTxWI_Data(
 	// If CCK or OFDM, BW must be 20
 	pTxWI->BW = (pTransmit->field.MODE <= MODE_OFDM) ? (BW_20) : (pTransmit->field.BW);
 #ifdef DOT11_N_SUPPORT
-#ifdef DOT11N_DRAFT3
-	if (pTxWI->BW)
-		pTxWI->BW = (pAd->CommonCfg.AddHTInfo.AddHtInfo.RecomWidth == 0) ? (BW_20) : (pTransmit->field.BW);
-#endif // DOT11N_DRAFT3 //
 	pTxWI->AMPDU	= ((pTxBlk->TxFrameType == TX_AMPDU_FRAME) ? TRUE : FALSE);
 
 	// John tune the performace with Intel Client in 20 MHz performance
@@ -1276,11 +1268,6 @@ VOID RTMPWriteTxWI_Cache(
 #ifdef DOT11_N_SUPPORT
 	pTxWI->AMPDU = ((pMacEntry->NoBADataCountDown == 0) ? TRUE: FALSE);
 	pTxWI->MIMOps = 0;
-
-#ifdef DOT11N_DRAFT3
-	if (pTxWI->BW)
-		pTxWI->BW = (pAd->CommonCfg.AddHTInfo.AddHtInfo.RecomWidth == 0) ? (BW_20) : (pTransmit->field.BW);
-#endif // DOT11N_DRAFT3 //
 
 	if (pAd->CommonCfg.bMIMOPSEnable)
 	{
