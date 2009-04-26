@@ -51,7 +51,6 @@ VOID STARxEAPOLFrameIndicate(
 	UCHAR			*pTmpBuf;
 
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 	if (pAd->StaCfg.WpaSupplicantUP)
 	{
 		// All EAPoL frames have to pass to upper layer (ex. WPA_SUPPLICANT daemon)
@@ -117,7 +116,6 @@ VOID STARxEAPOLFrameIndicate(
 		}
 	}
 	else
-#endif // WPA_SUPPLICANT_SUPPORT //
 	{
 		// Special DATA frame that has to pass to MLME
 		//	 1. Cisco Aironet frames for CCX2. We need pass it to MLME for special process
@@ -238,13 +236,11 @@ BOOLEAN STACheckTkipMICValue(
 	{
 		DBGPRINT_RAW(RT_DEBUG_ERROR,("Rx MIC Value error 2\n"));
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 		if (pAd->StaCfg.WpaSupplicantUP)
 		{
 			WpaSendMicFailureToWpaSupplicant(pAd, (pWpaKey->Type == PAIRWISEKEY) ? TRUE : FALSE);
 		}
 		else
-#endif // WPA_SUPPLICANT_SUPPORT //
 		{
 			RTMPReportMicError(pAd, pWpaKey);
 		}
@@ -978,9 +974,7 @@ NDIS_STATUS STASendPacket(
 		 (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPAPSK) ||
 		 (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2) ||
 		 (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2PSK)
-#ifdef WPA_SUPPLICANT_SUPPORT
 		  || (pAd->StaCfg.IEEE8021X == TRUE)
-#endif // WPA_SUPPLICANT_SUPPORT //
 		  )
 		  && ((pAd->StaCfg.PortSecured == WPA_802_1X_PORT_NOT_SECURED) || (pAd->StaCfg.MicErrCnt >= 2))
 		  && (RTMP_GET_PACKET_EAPOL(pPacket)== FALSE)
@@ -1235,9 +1229,7 @@ VOID	RTMPSendNullFrame(
          (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPAPSK) ||
          (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2) ||
          (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2PSK)
-#ifdef WPA_SUPPLICANT_SUPPORT
 			  || (pAd->StaCfg.IEEE8021X == TRUE)
-#endif
         ) &&
        (pAd->StaCfg.PortSecured == WPA_802_1X_PORT_NOT_SECURED))
 	{
@@ -1358,13 +1350,11 @@ VOID STAFindCipherAlgorithm(
 			CipherAlg = CIPHER_NONE;
 		else if ((Cipher == Ndis802_11EncryptionDisabled) || (pAd->SharedKey[BSS0][KeyIdx].KeyLen == 0))
 			CipherAlg = CIPHER_NONE;
-#ifdef WPA_SUPPLICANT_SUPPORT
 	    else if ( pAd->StaCfg.WpaSupplicantUP &&
 	             (Cipher == Ndis802_11Encryption1Enabled) &&
 	             (pAd->StaCfg.IEEE8021X == TRUE) &&
 	             (pAd->StaCfg.PortSecured == WPA_802_1X_PORT_NOT_SECURED))
 	        CipherAlg = CIPHER_NONE;
-#endif // WPA_SUPPLICANT_SUPPORT //
 		else
 		{
 			//Header_802_11.FC.Wep = 1;

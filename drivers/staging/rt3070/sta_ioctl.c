@@ -167,11 +167,9 @@ INT Set_PSMode_Proc(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  PUCHAR          arg);
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 INT Set_Wpa_Support(
     IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg);
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 #ifdef DBG
 
@@ -267,13 +265,7 @@ static struct {
 #ifdef DBG
 	{"Debug",						Set_Debug_Proc},
 #endif
-
-#ifdef WPA_SUPPLICANT_SUPPORT
     {"WpaSupport",                  Set_Wpa_Support},
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-
-
 	{"FixedTxMode",                 Set_FixedTxMode_Proc},
 #ifdef DOT11_N_SUPPORT
     {"TGnWifiTest",                 Set_TGnWifiTest_Proc},
@@ -315,14 +307,13 @@ VOID RTMPAddKey(
 		    NdisZeroMemory(&pAd->SharedKey[BSS0][0], sizeof(CIPHER_KEY));
             pAd->SharedKey[BSS0][0].KeyLen = LEN_TKIP_EK;
             NdisMoveMemory(pAd->SharedKey[BSS0][0].Key, pKey->KeyMaterial, LEN_TKIP_EK);
-#ifdef WPA_SUPPLICANT_SUPPORT
+
             if (pAd->StaCfg.PairCipher == Ndis802_11Encryption2Enabled)
             {
                 NdisMoveMemory(pAd->SharedKey[BSS0][0].RxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][0].TxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
             }
             else
-#endif // WPA_SUPPLICANT_SUPPORT //
             {
             	NdisMoveMemory(pAd->SharedKey[BSS0][0].TxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][0].RxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
@@ -376,14 +367,13 @@ VOID RTMPAddKey(
             NdisZeroMemory(&pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId], sizeof(CIPHER_KEY));
             pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].KeyLen = LEN_TKIP_EK;
             NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].Key, pKey->KeyMaterial, LEN_TKIP_EK);
-#ifdef WPA_SUPPLICANT_SUPPORT
+
             if (pAd->StaCfg.GroupCipher == Ndis802_11Encryption2Enabled)
             {
                 NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].RxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].TxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
             }
             else
-#endif // WPA_SUPPLICANT_SUPPORT //
             {
             	NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].TxMic, pKey->KeyMaterial + LEN_TKIP_EK, LEN_TKIP_TXMICK);
                 NdisMoveMemory(pAd->SharedKey[BSS0][pAd->StaCfg.DefaultKeyId].RxMic, pKey->KeyMaterial + LEN_TKIP_EK + LEN_TKIP_TXMICK, LEN_TKIP_RXMICK);
@@ -807,14 +797,12 @@ int rt_ioctl_giwap(struct net_device *dev,
 		ap_addr->sa_family = ARPHRD_ETHER;
 		memcpy(ap_addr->sa_data, &pAdapter->CommonCfg.Bssid, ETH_ALEN);
 	}
-#ifdef WPA_SUPPLICANT_SUPPORT
     // Add for RT2870
     else if (pAdapter->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
     {
         ap_addr->sa_family = ARPHRD_ETHER;
         memcpy(ap_addr->sa_data, &pAdapter->MlmeAux.Bssid, ETH_ALEN);
     }
-#endif // WPA_SUPPLICANT_SUPPORT //
 	else
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("IOCTL::SIOCGIWAP(=EMPTY)\n"));
@@ -923,12 +911,10 @@ int rt_ioctl_siwscan(struct net_device *dev,
     }
 
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 	if (pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 	{
 		pAdapter->StaCfg.WpaSupplicantScanCount++;
 	}
-#endif // WPA_SUPPLICANT_SUPPORT //
 
     pAdapter->StaCfg.bScanReqIsFromWebUI = TRUE;
 	if (RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
@@ -936,7 +922,6 @@ int rt_ioctl_siwscan(struct net_device *dev,
 	do{
 		Now = jiffies;
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 		if ((pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE) &&
 			(pAdapter->StaCfg.WpaSupplicantScanCount > 3))
 		{
@@ -944,7 +929,6 @@ int rt_ioctl_siwscan(struct net_device *dev,
 			Status = NDIS_STATUS_SUCCESS;
 			break;
 		}
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 		if ((OPSTATUS_TEST_FLAG(pAdapter, fOP_STATUS_MEDIA_STATE_CONNECTED)) &&
 			((pAdapter->StaCfg.AuthMode == Ndis802_11AuthModeWPA) ||
@@ -1004,13 +988,10 @@ int rt_ioctl_giwscan(struct net_device *dev,
 		return -EAGAIN;
 	}
 
-
-#ifdef WPA_SUPPLICANT_SUPPORT
 	if (pAdapter->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_ENABLE)
 	{
 		pAdapter->StaCfg.WpaSupplicantScanCount = 0;
 	}
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 	if (pAdapter->ScanTab.BssNr == 0)
 	{
@@ -1411,14 +1392,12 @@ int rt_ioctl_giwessid(struct net_device *dev,
 		memcpy(essid, pAdapter->CommonCfg.Ssid, pAdapter->CommonCfg.SsidLen);
 	}
 #ifdef RT2870
-#ifdef WPA_SUPPLICANT_SUPPORT
     // Add for RT2870
     else if (pAdapter->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
     {
         data->length = pAdapter->CommonCfg.SsidLen;
 		memcpy(essid, pAdapter->CommonCfg.Ssid, pAdapter->CommonCfg.SsidLen);
 	}
-#endif // WPA_SUPPLICANT_SUPPORT //
 #endif // RT2870 //
 	else
 	{//the ANY ssid was specified
@@ -1841,10 +1820,7 @@ rt_private_get_statistics(struct net_device *dev, struct iw_request_info *info,
         sprintf(extra+strlen(extra), "RSSI-B (if available)           = %ld\n", (LONG)(pAd->StaCfg.RssiSample.LastRssi1 - pAd->BbpRssiToDbmDelta));
         sprintf(extra+strlen(extra), "RSSI-C (if available)           = %ld\n\n", (LONG)(pAd->StaCfg.RssiSample.LastRssi2 - pAd->BbpRssiToDbmDelta));
 	}
-#ifdef WPA_SUPPLICANT_SUPPORT
     sprintf(extra+strlen(extra), "WpaSupplicantUP                 = %d\n\n", pAd->StaCfg.WpaSupplicantUP);
-#endif // WPA_SUPPLICANT_SUPPORT //
-
 
     wrq->length = strlen(extra) + 1; // 1: size of '\0'
     DBGPRINT(RT_DEBUG_TRACE, ("<== rt_private_get_statistics, wrq->length = %d\n", wrq->length));
@@ -2153,9 +2129,7 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 pAdapter->StaCfg.WepStatus = Ndis802_11WEPEnabled;
                 pAdapter->StaCfg.OrigWepStatus = pAdapter->StaCfg.WepStatus;
                 pAdapter->StaCfg.PairCipher = Ndis802_11WEPEnabled;
-#ifdef WPA_SUPPLICANT_SUPPORT
                 pAdapter->StaCfg.IEEE8021X = FALSE;
-#endif // WPA_SUPPLICANT_SUPPORT //
             }
             else if (param->value == IW_AUTH_CIPHER_TKIP)
             {
@@ -2197,22 +2171,16 @@ int rt_ioctl_siwauth(struct net_device *dev,
                 if (pAdapter->StaCfg.AuthMode == Ndis802_11AuthModeWPAPSK)
                 {
                     pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA;
-#ifdef WPA_SUPPLICANT_SUPPORT
                     pAdapter->StaCfg.IEEE8021X = FALSE;
-#endif // WPA_SUPPLICANT_SUPPORT //
                 }
                 else if (pAdapter->StaCfg.AuthMode == Ndis802_11AuthModeWPA2PSK)
                 {
                     pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA2;
-#ifdef WPA_SUPPLICANT_SUPPORT
                     pAdapter->StaCfg.IEEE8021X = FALSE;
-#endif // WPA_SUPPLICANT_SUPPORT //
                 }
-#ifdef WPA_SUPPLICANT_SUPPORT
                 else
                     // WEP 1x
                     pAdapter->StaCfg.IEEE8021X = TRUE;
-#endif // WPA_SUPPLICANT_SUPPORT //
             }
             else if (param->value == 0)
             {
@@ -3080,12 +3048,10 @@ INT RTMPSetInformation(
 #ifdef DOT11_N_SUPPORT
 	OID_SET_HT_PHYMODE					HT_PhyMode;	//11n ,kathy
 #endif // DOT11_N_SUPPORT //
-#ifdef WPA_SUPPLICANT_SUPPORT
     PNDIS_802_11_PMKID                  pPmkId = NULL;
     BOOLEAN				                IEEE8021xState = FALSE;
     BOOLEAN				                IEEE8021x_required_keys = FALSE;
     UCHAR                               wpa_supplicant_enable = 0;
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 #ifdef DOT11_N_SUPPORT
 	MaxPhyMode = PHY_11N_5G;
@@ -4030,20 +3996,16 @@ INT RTMPSetInformation(
                     // Default key for tx (shared key)
                     if (pWepKey->KeyIndex & 0x80000000)
                     {
-#ifdef WPA_SUPPLICANT_SUPPORT
                         // set key material and key length
                         NdisZeroMemory(pAdapter->StaCfg.DesireSharedKey[KeyIdx].Key, 16);
                         pAdapter->StaCfg.DesireSharedKey[KeyIdx].KeyLen = (UCHAR) pWepKey->KeyLength;
                         NdisMoveMemory(pAdapter->StaCfg.DesireSharedKey[KeyIdx].Key, &pWepKey->KeyMaterial, pWepKey->KeyLength);
                         pAdapter->StaCfg.DesireSharedKeyId = KeyIdx;
                         pAdapter->StaCfg.DesireSharedKey[KeyIdx].CipherAlg = CipherAlg;
-#endif // WPA_SUPPLICANT_SUPPORT //
                         pAdapter->StaCfg.DefaultKeyId = (UCHAR) KeyIdx;
                     }
 
-#ifdef WPA_SUPPLICANT_SUPPORT
                     if (pAdapter->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)
-#endif // WPA_SUPPLICANT_SUPPORT
                     {
                         Key = pAdapter->SharedKey[BSS0][KeyIdx].Key;
 
@@ -4064,7 +4026,6 @@ INT RTMPSetInformation(
             }
             kfree(pWepKey);
             break;
-#ifdef WPA_SUPPLICANT_SUPPORT
 	    case OID_SET_COUNTERMEASURES:
             if (wrq->u.data.length != sizeof(int))
                 Status  = -EINVAL;
@@ -4198,8 +4159,6 @@ INT RTMPSetInformation(
 			if(pPmkId)
 				kfree(pPmkId);
 	        break;
-#endif // WPA_SUPPLICANT_SUPPORT //
-
         default:
             DBGPRINT(RT_DEBUG_TRACE, ("Set::unknown IOCTL's subcmd = 0x%08x\n", cmd));
             Status = -EOPNOTSUPP;
@@ -4735,7 +4694,6 @@ INT RTMPQueryInformation(
 			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.bWmmCapable, wrq->u.data.length);
 			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_QUERY_WMM (=%d)\n",	pAdapter->CommonCfg.bWmmCapable));
 			break;
-#ifdef WPA_SUPPLICANT_SUPPORT
         case RT_OID_NEW_DRIVER:
             {
                 UCHAR enabled = 1;
@@ -4749,8 +4707,6 @@ INT RTMPQueryInformation(
 	        Status = copy_to_user(wrq->u.data.pointer, &pAdapter->StaCfg.WpaSupplicantUP, wrq->u.data.length);
             DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_WPA_SUPPLICANT_SUPPORT (=%d)\n", pAdapter->StaCfg.WpaSupplicantUP));
 	        break;
-#endif // WPA_SUPPLICANT_SUPPORT //
-
         case RT_OID_DRIVER_DEVICE_NAME:
             DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_DRIVER_DEVICE_NAME \n"));
 			wrq->u.data.length = 16;
@@ -5440,12 +5396,10 @@ INT Set_AuthMode_Proc(
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPANone;
     else if ((strcmp(arg, "WPA2PSK") == 0) || (strcmp(arg, "wpa2psk") == 0))
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA2PSK;
-#ifdef WPA_SUPPLICANT_SUPPORT
     else if ((strcmp(arg, "WPA") == 0) || (strcmp(arg, "wpa") == 0))
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA;
     else if ((strcmp(arg, "WPA2") == 0) || (strcmp(arg, "wpa2") == 0))
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeWPA2;
-#endif // WPA_SUPPLICANT_SUPPORT //
     else
         return FALSE;
 
@@ -5987,7 +5941,6 @@ INT Set_PSMode_Proc(
     return TRUE;
 }
 
-#ifdef WPA_SUPPLICANT_SUPPORT
 /*
     ==========================================================================
     Description:
@@ -6018,7 +5971,6 @@ INT Set_Wpa_Support(
 
     return TRUE;
 }
-#endif // WPA_SUPPLICANT_SUPPORT //
 
 #ifdef DBG
 /*
