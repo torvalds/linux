@@ -1239,7 +1239,6 @@ typedef struct _MLME_STRUCT {
 
 // structure for radar detection and channel switch
 typedef struct _RADAR_DETECT_STRUCT {
-    //BOOLEAN		IEEE80211H;			// 0: disable, 1: enable IEEE802.11h
 	UCHAR		CSCount;			//Channel switch counter
 	UCHAR		CSPeriod;			//Channel switch period (beacon count)
 	UCHAR		RDCount;			//Radar detection counter

@@ -2516,7 +2516,6 @@ typedef struct _RTMP_ADAPTER
 
 	NDIS_MEDIA_STATE        IndicateMediaState;			// Base on Indication state, default is NdisMediaStateDisConnected
 
-	// MAT related parameters
 
 	// configuration: read from Registry & E2PROM
 	BOOLEAN                 bLocalAdminMAC;             // Use user changed MAC

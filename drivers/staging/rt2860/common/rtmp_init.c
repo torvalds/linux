@@ -969,67 +969,6 @@ VOID	RTMPReadChannelPwr(
 
 	// 4. Print and Debug
 	choffset = 14 + 12 + 16 + 7;
-
-
-#if 0
-	// Init the 802.11j channel number for TX channel power
-	// 0. 20MHz
-	for (i = 0; i < 3; i++)
-	{
-		pAd->TxPower11J[i].Channel = 8 + i * 4;
-		pAd->TxPower11J[i].BW = BW_20;
-	}
-
-	for (i = 0; i < 4; i++)
-	{
-		pAd->TxPower11J[i + 3].Channel = 34 + i * 4;
-		pAd->TxPower11J[i + 3].BW = BW_20;
-	}
-
-	for (i = 0; i < 4; i++)
-	{
-		pAd->TxPower11J[i + 7].Channel = 184 + i * 4;
-		pAd->TxPower11J[i + 7].BW = BW_20;
-	}
-
-	// 0. 10MHz
-	for (i = 0; i < 2; i++)
-	{
-		pAd->TxPower11J[i + 11].Channel = 7 + i;
-		pAd->TxPower11J[i + 11].BW = BW_10;
-	}
-	pAd->TxPower11J[13].Channel = 11;
-	pAd->TxPower11J[13].BW = BW_10;
-
-	for (i = 0; i < 3; i++)
-	{
-		pAd->TxPower11J[i + 14].Channel = 183 + i;
-		pAd->TxPower11J[i + 14].BW= BW_10;
-	}
-
-	for (i = 0; i < 3; i++)
-	{
-		pAd->TxPower11J[i + 17].Channel = 187 + i;
-		pAd->TxPower11J[i + 17].BW = BW_10;
-	}
-	for (i = 0; i < 10; i++)
-	{
-		Power.word = RTMP_EEPROM_READ16(pAd, EEPROM_Japan_TX_PWR_OFFSET + i * 2);
-		Power2.word = RTMP_EEPROM_READ16(pAd, EEPROM_Japan_TX2_PWR_OFFSET + i * 2);
-
-		if ((Power.field.Byte0 < 36) && (Power.field.Byte0 > -6))
-			pAd->TxPower11J[i * 2].Power = Power.field.Byte0;
-
-		if ((Power.field.Byte1 < 36) && (Power.field.Byte1 > -6))
-			pAd->TxPower11J[i * 2 + 1].Power = Power.field.Byte1;
-
-		if ((Power2.field.Byte0 < 36) && (Power2.field.Byte0 > -6))
-			pAd->TxPower11J[i * 2].Power2 = Power2.field.Byte0;
-
-		if ((Power2.field.Byte1 < 36) && (Power2.field.Byte1 > -6))
-			pAd->TxPower11J[i * 2 + 1].Power2 = Power2.field.Byte1;
-	}
-#endif
 }
 
 /*
@@ -2217,10 +2156,6 @@ VOID NICUpdateFifoStaCounters(
 				if (pEntry->FIFOCount >= 1)
 				{
 					DBGPRINT(RT_DEBUG_TRACE, ("#"));
-#if 0
-					SendRefreshBAR(pAd, pEntry);
-					pEntry->NoBADataCountDown = 64;
-#else
 					pEntry->NoBADataCountDown = 64;
 
 					if(pEntry->PsMode == PWR_ACTIVE)
@@ -2241,10 +2176,7 @@ VOID NICUpdateFifoStaCounters(
 						pEntry->FIFOCount = 0;
 						pEntry->ContinueTxFailCnt = 0;
 					}
-#endif
-					//pEntry->FIFOCount = 0;
 				}
-				//pEntry->bSendBAR = TRUE;
 			}
 			else
 			{

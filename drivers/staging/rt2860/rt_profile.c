@@ -1453,11 +1453,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 	set_fs(orgfs);
 
-#if 0
-	current->cred->fsuid = orgfsuid;
-	current->cred->fsgid = orgfsgid;
-#endif
-
 	kfree(buffer);
 	kfree(tmpbuf);
 

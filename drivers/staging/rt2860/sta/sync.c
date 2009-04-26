@@ -1499,7 +1499,6 @@ VOID PeerBeacon(
 						// Set a flag to go to sleep . Then after parse this RxDoneInterrupt, will go to sleep mode.
 						RTMP_SET_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
 						pAd->ThisTbttNumToNextWakeUp = TbttNumToNextWakeUp;
-						//AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
 					}
 				}
 			}

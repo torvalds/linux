@@ -516,9 +516,6 @@ BOOLEAN APPeerBeaconAndProbeRspSanity(
     OUT BOOLEAN *ExtendedRateIeExist,
     OUT UCHAR *Erp);
 
-// ap_info.c
-
-
 
 // ================== end of AP RTMP.h ========================
 

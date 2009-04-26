@@ -596,9 +596,6 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 	CHAR    slot_name[IFNAMSIZ];
 	struct net_device   *device;
 
-
-	//ether_setup(dev);
-
 #if WIRELESS_EXT >= 12
 	if (pAd->OpMode == OPMODE_STA)
 	{

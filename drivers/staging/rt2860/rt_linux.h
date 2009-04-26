@@ -647,10 +647,6 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 #define RTMP_GET_PACKET_MOREDATA(_p)				(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+7])
 
 
-#if 0
-//#define RTMP_SET_PACKET_DHCP(_p, _flg)   	(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+11] = _flg)
-//#define RTMP_GET_PACKET_DHCP(_p)         	(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+11])
-#else
 //
 //	Sepcific Pakcet Type definition
 //
@@ -729,8 +725,6 @@ void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 			}while(0)
 
 #define RTMP_GET_PACKET_IPV4(_p)		(RTPKT_TO_OSPKT(_p)->cb[CB_OFF+11] & RTMP_PACKET_SPECIFIC_IPV4)
-
-#endif
 
 
 // If this flag is set, it indicates that this EAPoL frame MUST be clear.

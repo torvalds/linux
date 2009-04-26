@@ -1145,11 +1145,6 @@ VOID	RTMPSetPhyMode(
 	INT i;
 	// the selected phymode must be supported by the RF IC encoded in E2PROM
 
-	// if no change, do nothing
-	/* bug fix
-	if (pAd->CommonCfg.PhyMode == phymode)
-		return;
-    */
 	pAd->CommonCfg.PhyMode = (UCHAR)phymode;
 
 	DBGPRINT(RT_DEBUG_TRACE,("RTMPSetPhyMode : PhyMode=%d, channel=%d \n", pAd->CommonCfg.PhyMode, pAd->CommonCfg.Channel));
@@ -1981,7 +1976,6 @@ INT	Set_BASetup_Proc(
 		=>The six 2 digit hex-decimal number previous are the Mac address,
 		=>The seventh decimal number is the tid value.
 */
-	//printk("\n%s\n", arg);
 
 	if(strlen(arg) < 19)  //Mac address acceptable format 01:02:03:04:05:06 length 17 plus the "-" and tid value in decimal format.
 		return FALSE;

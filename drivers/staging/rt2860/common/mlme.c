@@ -1921,11 +1921,6 @@ VOID MlmeDynamicTxRateSwitching(
 	ULONG					TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
 	MAC_TABLE_ENTRY			*pEntry;
 
-	/*if (pAd->Antenna.field.RxPath > 1)
-		Rssi = (pAd->StaCfg.RssiSample.AvgRssi0 + pAd->StaCfg.RssiSample.AvgRssi1) >> 1;
-	else
-		Rssi = pAd->StaCfg.RssiSample.AvgRssi0;*/
-
 	//
 	// walk through MAC table, see if need to change AP's TX rate toward each entry
 	//
@@ -2109,7 +2104,6 @@ VOID MlmeDynamicTxRateSwitching(
 				{
 					MCS14 = idx;
 				}
-				//else if ((pCurrTxRate->CurrMCS == MCS_15)/* && (pCurrTxRate->ShortGI == GI_800)*/)	//we hope to use ShortGI as initial rate
 				else if ((pCurrTxRate->CurrMCS == MCS_15) && (pCurrTxRate->ShortGI == GI_800))	//we hope to use ShortGI as initial rate, however Atheros's chip has bugs when short GI
 				{
 					MCS15 = idx;
@@ -5216,9 +5210,7 @@ VOID 	AsicUpdateProtect(
 	// Config ASIC RTS threshold register
 	RTMP_IO_READ32(pAd, TX_RTS_CFG, &MacReg);
 	MacReg &= 0xFF0000FF;
-#if 0
-	MacReg |= (pAd->CommonCfg.RtsThreshold << 8);
-#else
+
 	// If the user want disable RtsThreshold and enable Amsdu/Ralink-Aggregation, set the RtsThreshold as 4096
         if ((
 			(pAd->CommonCfg.BACapability.field.AmsduEnable) ||
@@ -5231,7 +5223,6 @@ VOID 	AsicUpdateProtect(
         {
 			MacReg |= (pAd->CommonCfg.RtsThreshold << 8);
         }
-#endif
 
 	RTMP_IO_WRITE32(pAd, TX_RTS_CFG, MacReg);
 
