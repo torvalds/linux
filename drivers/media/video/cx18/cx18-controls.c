@@ -176,8 +176,10 @@ static int cx18_setup_vbi_fmt(struct cx18 *cx,
 		return -EBUSY;
 
 	if (fmt != V4L2_MPEG_STREAM_VBI_FMT_IVTV ||
-	    type != V4L2_MPEG_STREAM_TYPE_MPEG2_PS) {
-		/* We don't do VBI insertion aside from IVTV format in a PS */
+	    !(type == V4L2_MPEG_STREAM_TYPE_MPEG2_PS ||
+	      type == V4L2_MPEG_STREAM_TYPE_MPEG2_DVD ||
+	      type == V4L2_MPEG_STREAM_TYPE_MPEG2_SVCD)) {
+		/* Only IVTV fmt VBI insertion & only MPEG-2 PS type streams */
 		cx->vbi.insert_mpeg = V4L2_MPEG_STREAM_VBI_FMT_NONE;
 		CX18_DEBUG_INFO("disabled insertion of sliced VBI data into "
 				"the MPEG stream\n");
