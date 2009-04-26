@@ -1273,12 +1273,10 @@ NDIS_STATUS	RTMPReadParametersHook(
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPANone;
 							else if ((strcmp(tmpbuf, "WPA2PSK") == 0) || (strcmp(tmpbuf, "wpa2psk") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPA2PSK;
-#ifdef WPA_SUPPLICANT_SUPPORT
 							else if ((strcmp(tmpbuf, "WPA") == 0) || (strcmp(tmpbuf, "wpa") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPA;
 							else if ((strcmp(tmpbuf, "WPA2") == 0) || (strcmp(tmpbuf, "wpa2") == 0))
 							    pAd->StaCfg.AuthMode = Ndis802_11AuthModeWPA2;
-#endif // WPA_SUPPLICANT_SUPPORT //
 				                        else
 				                            pAd->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
 

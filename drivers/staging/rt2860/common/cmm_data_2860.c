@@ -481,12 +481,11 @@ NDIS_STATUS RTMPCheckRxError(
 		if (pRxD->CipherErr == 2)
 		{
 			pWpaKey = &pAd->SharedKey[BSS0][pRxWI->KeyIndex];
-#ifdef WPA_SUPPLICANT_SUPPORT
+
             if (pAd->StaCfg.WpaSupplicantUP)
                 WpaSendMicFailureToWpaSupplicant(pAd,
                                    (pWpaKey->Type == PAIRWISEKEY) ? TRUE:FALSE);
             else
-#endif // WPA_SUPPLICANT_SUPPORT //
 			    RTMPReportMicError(pAd, pWpaKey);
 
             if (((pRxD->CipherErr & 2) == 2) && pAd->CommonCfg.bWirelessEvent && INFRA_ON(pAd))

@@ -1004,9 +1004,7 @@ VOID STAMlmePeriodicExec(
 {
 	ULONG			    TxTotalCnt;
 
-#ifdef WPA_SUPPLICANT_SUPPORT
     if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_DISABLE)
-#endif // WPA_SUPPLICANT_SUPPORT //
     {
     	// WPA MIC error should block association attempt for 60 seconds
     	if (pAd->StaCfg.bBlockAssoc && (pAd->StaCfg.LastMicErrorTime + (60 * OS_HZ) < pAd->Mlme.Now32))
