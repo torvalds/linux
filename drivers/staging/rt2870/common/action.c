@@ -533,7 +533,12 @@ VOID SendRefreshBAR(
 
 			if (1)	// Now we always send BAR.
 			{
+#ifndef RT30xx
 				MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
+#endif
+#ifdef RT30xx
+				MiniportMMRequest(pAd, QID_AC_BE, pOutBuffer, FrameLen);
+#endif
 			}
 			MlmeFreeMemory(pAd, pOutBuffer);
 		}

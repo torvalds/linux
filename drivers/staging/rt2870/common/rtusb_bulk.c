@@ -317,6 +317,7 @@ VOID	RTUSBBulkOutDataPacket(
 			break;
 		}
 
+		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 		if (pTxInfo->QSEL != FIFO_EDCA)
 		{
 			printk("%s(): ====> pTxInfo->QueueSel(%d)!= FIFO_EDCA!!!!\n", __func__, pTxInfo->QSEL);
@@ -349,7 +350,7 @@ VOID	RTUSBBulkOutDataPacket(
 		pLastTxInfo = pTxInfo;
 
 		// Make sure we use EDCA QUEUE.
-		pTxInfo->QSEL = FIFO_EDCA;
+		pTxInfo->QSEL = FIFO_EDCA;  //PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 		ThisBulkSize += (pTxInfo->USBDMATxPktLen+4);
 		TmpBulkEndPos += (pTxInfo->USBDMATxPktLen+4);
 
@@ -975,6 +976,17 @@ VOID	RTUSBKickBulkOut(
 				RTUSBBulkOutDataPacket(pAd, 3, pAd->NextBulkOutIndex[3]);
 			}
 		}
+#ifdef RT30xx
+		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
+		if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL_5))
+		{
+			if (((!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS)) ||
+				(!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED))
+				))
+			{
+			}
+		}
+#endif
 
 		// 7. Null frame is the last
 		else if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NULL))

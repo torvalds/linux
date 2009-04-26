@@ -639,7 +639,7 @@ VOID	RTMPFreeTxRxRingMemory(
 
 
 	// Free Tx frame resource
-	for (acidx = 0; acidx < 4; acidx++)
+		for(acidx=0; acidx<4; acidx++)
 		{
 		PHT_TX_CONTEXT pHTTXContext = &(pAd->TxContext[acidx]);
 			if (pHTTXContext)
@@ -699,9 +699,14 @@ NDIS_STATUS AdapterBlockAllocateMemory(
 
 	usb_dev = pObj->pUsb_Dev;
 
+#ifndef RT30xx
 	pObj->MLMEThr_task		= NULL;
 	pObj->RTUSBCmdThr_task	= NULL;
-
+#endif
+#ifdef RT30xx
+	pObj->MLMEThr_pid	= NULL;
+	pObj->RTUSBCmdThr_pid	= NULL;
+#endif
 	*ppAd = (PVOID)vmalloc(sizeof(RTMP_ADAPTER));
 
 	if (*ppAd)
@@ -737,7 +742,12 @@ NDIS_STATUS	 CreateThreads(
 {
 	PRTMP_ADAPTER pAd = net_dev->ml_priv;
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;
+#ifndef RT30xx
 	struct task_struct *tsk;
+#endif
+#ifdef RT30xx
+	pid_t pid_number;
+#endif
 
 	//init_MUTEX(&(pAd->usbdev_semaphore));
 
@@ -751,39 +761,76 @@ NDIS_STATUS	 CreateThreads(
 	init_completion (&pAd->TimerQComplete);
 
 	// Creat MLME Thread
+#ifndef RT30xx
 	pObj->MLMEThr_task = NULL;
 	tsk = kthread_run(MlmeThread, pAd, pAd->net_dev->name);
 
 	if (IS_ERR(tsk)) {
+#endif
+#ifdef RT30xx
+	pObj->MLMEThr_pid = NULL;
+	pid_number = kernel_thread(MlmeThread, pAd, CLONE_VM);
+	if (pid_number < 0)
+	{
+#endif
 		printk (KERN_WARNING "%s: unable to start Mlme thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
 
+#ifndef RT30xx
 	pObj->MLMEThr_task = tsk;
+#endif
+#ifdef RT30xx
+	pObj->MLMEThr_pid = find_get_pid(pid_number);
+#endif
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->mlmeComplete));
 
 	// Creat Command Thread
+#ifndef RT30xx
 	pObj->RTUSBCmdThr_task = NULL;
 	tsk = kthread_run(RTUSBCmdThread, pAd, pAd->net_dev->name);
 
 	if (IS_ERR(tsk) < 0)
+#endif
+#ifdef RT30xx
+	pObj->RTUSBCmdThr_pid = NULL;
+	pid_number = kernel_thread(RTUSBCmdThread, pAd, CLONE_VM);
+	if (pid_number < 0)
+#endif
 	{
 		printk (KERN_WARNING "%s: unable to start RTUSBCmd thread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
 
+#ifndef RT30xx
 	pObj->RTUSBCmdThr_task = tsk;
+#endif
+#ifdef RT30xx
+	pObj->RTUSBCmdThr_pid = find_get_pid(pid_number);
+#endif
 	wait_for_completion(&(pAd->CmdQComplete));
 
+#ifndef RT30xx
 	pObj->TimerQThr_task = NULL;
 	tsk = kthread_run(TimerQThread, pAd, pAd->net_dev->name);
 	if (IS_ERR(tsk) < 0)
+#endif
+#ifdef RT30xx
+	pObj->TimerQThr_pid = NULL;
+	pid_number = kernel_thread(TimerQThread, pAd, CLONE_VM);
+	if (pid_number < 0)
+#endif
 	{
 		printk (KERN_WARNING "%s: unable to start TimerQThread\n",pAd->net_dev->name);
 		return NDIS_STATUS_FAILURE;
 	}
+#ifndef RT30xx
 	pObj->TimerQThr_task = tsk;
+#endif
+#ifdef RT30xx
+	pObj->TimerQThr_pid = find_get_pid(pid_number);
+#endif
 	// Wait for the thread to start
 	wait_for_completion(&(pAd->TimerQComplete));
 
@@ -1260,9 +1307,9 @@ static void rt2870_hcca_dma_done_tasklet(unsigned long data)
 	UCHAR				BulkOutPipeId = 4;
 	purbb_t				pUrb;
 
-
+#ifndef RT30xx
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("--->hcca_dma_done_tasklet\n"));
-
+#endif
 
 	pUrb			= (purbb_t)data;
 	pHTTXContext	= (PHT_TX_CONTEXT)pUrb->context;
@@ -1292,13 +1339,19 @@ static void rt2870_hcca_dma_done_tasklet(unsigned long data)
 				RTMPDeQueuePacket(pAd, FALSE, BulkOutPipeId, MAX_TX_PROCESS);
 			}
 
+#ifndef RT30xx
 			RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL);
+#endif
+#ifdef RT30xx
+			RTUSB_SET_BULK_FLAG(pAd, fRTUSB_BULK_OUT_DATA_NORMAL<<4);
+#endif
 			RTUSBKickBulkOut(pAd);
 		}
 	}
 
+#ifndef RT30xx
 	DBGPRINT_RAW(RT_DEBUG_ERROR, ("<---hcca_dma_done_tasklet\n"));
-
+#endif
 		return;
 }
 
