@@ -6514,20 +6514,6 @@ PNDIS_PACKET RTMPDeFragmentDataFrame(
 
 ////////////////////////////////////////
 
-
-
-
-
-#ifdef SNMP_SUPPORT
-//for snmp , kathy
-typedef struct _DefaultKeyIdxValue
-{
-	UCHAR	KeyIdx;
-	UCHAR	Value[16];
-} DefaultKeyIdxValue, *PDefaultKeyIdxValue;
-#endif
-
-
 #ifdef CONFIG_STA_SUPPORT
 enum {
 	DIDmsg_lnxind_wlansniffrm		= 0x00000044,
