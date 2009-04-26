@@ -85,10 +85,6 @@ struct iw_priv_args privtab[] = {
 	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "radio_off" },
 	{ RAIO_ON,
 	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "radio_on" },
-#ifdef QOS_DLS_SUPPORT
-	{ SHOW_DLS_ENTRY_INFO,
-	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "dlsentryinfo" },
-#endif // QOS_DLS_SUPPORT //
 	{ SHOW_CFG_VALUE,
 	  IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "show" },
 	{ SHOW_ADHOC_ENTRY_INFO,
@@ -286,10 +282,6 @@ static struct {
     {"TGnWifiTest",                 Set_TGnWifiTest_Proc},
     {"ForceGF",		        		Set_ForceGF_Proc},
 #endif // DOT11_N_SUPPORT //
-#ifdef QOS_DLS_SUPPORT
-	{"DlsAddEntry",					Set_DlsAddEntry_Proc},
-	{"DlsTearDownEntry",			Set_DlsTearDownEntry_Proc},
-#endif // QOS_DLS_SUPPORT //
 	{"LongRetry",	        		Set_LongRetryLimit_Proc},
 	{"ShortRetry",	        		Set_ShortRetryLimit_Proc},
 #ifdef EXT_BUILD_CHANNEL_LIST
@@ -2116,16 +2108,6 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
             wrq->length = strlen(extra) + 1; // 1: size of '\0'
             break;
 
-
-#ifdef QOS_DLS_SUPPORT
-		case SHOW_DLS_ENTRY_INFO:
-			{
-				Set_DlsEntryInfo_Display_Proc(pAd, NULL);
-				wrq->length = 0; // 1: size of '\0'
-			}
-			break;
-#endif // QOS_DLS_SUPPORT //
-
 		case SHOW_CFG_VALUE:
 			{
 				Status = RTMPShowCfgValue(pAd, wrq->pointer, extra);
@@ -3874,62 +3856,7 @@ INT RTMPSetInformation(
 				DBGPRINT(RT_DEBUG_TRACE, ("Set::RT_OID_802_11_SET_APSD_PSM (bAPSDForcePowerSave:%d)\n",	pAdapter->CommonCfg.bAPSDForcePowerSave));
 			}
 			break;
-#ifdef QOS_DLS_SUPPORT
-		case RT_OID_802_11_SET_DLS:
-			if (wrq->u.data.length != sizeof(ULONG))
-				Status = -EINVAL;
-			else
-			{
-				BOOLEAN	oldvalue = pAdapter->CommonCfg.bDLSCapable;
-				Status = copy_from_user(&pAdapter->CommonCfg.bDLSCapable, wrq->u.data.pointer, wrq->u.data.length);
-				if (oldvalue &&	!pAdapter->CommonCfg.bDLSCapable)
-				{
-					int	i;
-					// tear	down local dls table entry
-					for	(i=0; i<MAX_NUM_OF_INIT_DLS_ENTRY; i++)
-					{
-						if (pAdapter->StaCfg.DLSEntry[i].Valid && (pAdapter->StaCfg.DLSEntry[i].Status == DLS_FINISH))
-						{
-							pAdapter->StaCfg.DLSEntry[i].Status	= DLS_NONE;
-							pAdapter->StaCfg.DLSEntry[i].Valid	= FALSE;
-							RTMPSendDLSTearDownFrame(pAdapter, pAdapter->StaCfg.DLSEntry[i].MacAddr);
-						}
-					}
 
-					// tear	down peer dls table	entry
-					for	(i=MAX_NUM_OF_INIT_DLS_ENTRY; i<MAX_NUM_OF_DLS_ENTRY; i++)
-					{
-						if (pAdapter->StaCfg.DLSEntry[i].Valid && (pAdapter->StaCfg.DLSEntry[i].Status == DLS_FINISH))
-						{
-							pAdapter->StaCfg.DLSEntry[i].Status	= DLS_NONE;
-							pAdapter->StaCfg.DLSEntry[i].Valid	= FALSE;
-							RTMPSendDLSTearDownFrame(pAdapter, pAdapter->StaCfg.DLSEntry[i].MacAddr);
-						}
-					}
-				}
-
-				DBGPRINT(RT_DEBUG_TRACE,("Set::RT_OID_802_11_SET_DLS (=%d)\n", pAdapter->CommonCfg.bDLSCapable));
-			}
-			break;
-
-		case RT_OID_802_11_SET_DLS_PARAM:
-			if (wrq->u.data.length	!= sizeof(RT_802_11_DLS_UI))
-				Status = -EINVAL;
-			else
-			{
-				RT_802_11_DLS	Dls;
-
-				NdisZeroMemory(&Dls, sizeof(RT_802_11_DLS));
-				RTMPMoveMemory(&Dls, wrq->u.data.pointer, sizeof(RT_802_11_DLS_UI));
-				MlmeEnqueue(pAdapter,
-							MLME_CNTL_STATE_MACHINE,
-							RT_OID_802_11_SET_DLS_PARAM,
-							sizeof(RT_802_11_DLS),
-							&Dls);
-				DBGPRINT(RT_DEBUG_TRACE,("Set::RT_OID_802_11_SET_DLS_PARAM \n"));
-			}
-			break;
-#endif // QOS_DLS_SUPPORT //
 		case RT_OID_802_11_SET_WMM:
 			if (wrq->u.data.length	!= sizeof(BOOLEAN))
 				Status = -EINVAL;
@@ -5280,35 +5207,6 @@ INT RTMPQueryInformation(
 			DBGPRINT(RT_DEBUG_TRACE, ("Status=%d\n", Status));
 			break;
 
-
-#ifdef QOS_DLS_SUPPORT
-		case RT_OID_802_11_QUERY_DLS:
-			wrq->u.data.length = sizeof(BOOLEAN);
-			Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.bDLSCapable, wrq->u.data.length);
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_QUERY_DLS(=%d)\n", pAdapter->CommonCfg.bDLSCapable));
-			break;
-
-		case RT_OID_802_11_QUERY_DLS_PARAM:
-			{
-				PRT_802_11_DLS_INFO	pDlsInfo = kmalloc(sizeof(RT_802_11_DLS_INFO), GFP_ATOMIC);
-				if (pDlsInfo == NULL)
-					break;
-
-				for (i=0; i<MAX_NUM_OF_DLS_ENTRY; i++)
-				{
-					RTMPMoveMemory(&pDlsInfo->Entry[i], &pAdapter->StaCfg.DLSEntry[i], sizeof(RT_802_11_DLS_UI));
-				}
-
-				pDlsInfo->num = MAX_NUM_OF_DLS_ENTRY;
-				wrq->u.data.length = sizeof(RT_802_11_DLS_INFO);
-				Status = copy_to_user(wrq->u.data.pointer, pDlsInfo, wrq->u.data.length);
-				DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_OID_802_11_QUERY_DLS_PARAM\n"));
-
-				if (pDlsInfo)
-					kfree(pDlsInfo);
-			}
-			break;
-#endif // QOS_DLS_SUPPORT //
         default:
             DBGPRINT(RT_DEBUG_TRACE, ("Query::unknown IOCTL's subcmd = 0x%08x\n", cmd));
             Status = -EOPNOTSUPP;

@@ -1773,34 +1773,6 @@ VOID CMDHandler(
 					}
 					break;
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-				// avoid in interrupt when write key
-				case RT_CMD_SET_KEY_TABLE: //General call for AsicAddPairwiseKeyEntry()
-					{
-						RT_ADD_PAIRWISE_KEY_ENTRY KeyInfo;
-						KeyInfo  = *((PRT_ADD_PAIRWISE_KEY_ENTRY)(pData));
-						AsicAddPairwiseKeyEntry(pAd,
-												KeyInfo.MacAddr,
-												(UCHAR)KeyInfo.MacTabMatchWCID,
-												&KeyInfo.CipherKey);
-					}
-					break;
-
-				case RT_CMD_SET_RX_WCID_TABLE: //General call for RTMPAddWcidAttributeEntry()
-					{
-						PMAC_TABLE_ENTRY pEntry ;
-						pEntry = (PMAC_TABLE_ENTRY)(pData);
-						RTMPAddWcidAttributeEntry(pAd,
-													BSS0,
-													0,
-													pEntry->PairwiseKey.CipherAlg,
-													pEntry);
-					}
-					break;
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
 				case CMDTHREAD_SET_CLIENT_MAC_ENTRY:
 					{
 						MAC_TABLE_ENTRY *pEntry;

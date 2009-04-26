@@ -52,9 +52,6 @@ BUILD_TIMER_FUNCTION(LeapAuthTimeout);
 #endif
 BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
-#ifdef QOS_DLS_SUPPORT
-BUILD_TIMER_FUNCTION(DlsTimeoutAction);
-#endif // QOS_DLS_SUPPORT //
 #endif // CONFIG_STA_SUPPORT //
 
 // for wireless system event message

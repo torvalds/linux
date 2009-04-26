@@ -1163,15 +1163,6 @@ VOID RTMPWriteTxWI_Data(
 	pTxWI->ACK		= TX_BLK_TEST_FLAG(pTxBlk, fTX_bAckRequired);
 	pTxWI->txop		= pTxBlk->FrameGap;
 
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-	if (pMacEntry &&
-		(pAd->StaCfg.BssType == BSS_INFRA) &&
-		(pMacEntry->ValidAsDls == TRUE))
-		pTxWI->WirelessCliID = BSSID_WCID;
-	else
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 		pTxWI->WirelessCliID		= pTxBlk->Wcid;
 
 	pTxWI->MPDUtotalByteCount	= pTxBlk->MpduHeaderLen + pTxBlk->SrcBufLen;
@@ -1774,11 +1765,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 			(pAd->MacTab.Content[i].ValidAsWDS == FALSE) &&
 			(pAd->MacTab.Content[i].ValidAsApCli== FALSE) &&
 			(pAd->MacTab.Content[i].ValidAsMesh == FALSE)
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-			&& (pAd->MacTab.Content[i].ValidAsDls == FALSE)
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 			)
 		{
 			pEntry = &pAd->MacTab.Content[i];
@@ -1790,20 +1776,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 				pEntry->PairwiseKey.KeyLen = 0;
 				pEntry->PairwiseKey.CipherAlg = CIPHER_NONE;
 			}
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-			if (apidx >= MIN_NET_DEVICE_FOR_DLS)
-			{
-				pEntry->ValidAsCLI = FALSE;
-				pEntry->ValidAsWDS = FALSE;
-				pEntry->ValidAsApCli = FALSE;
-				pEntry->ValidAsMesh = FALSE;
-				pEntry->ValidAsDls = TRUE;
-				pEntry->isCached = FALSE;
-			}
-			else
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 			{
 
 #ifdef CONFIG_STA_SUPPORT
@@ -1832,12 +1804,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 				pEntry->apidx = (apidx - MIN_NET_DEVICE_FOR_APCLI);
 			else if (pEntry->ValidAsWDS)
 				pEntry->apidx = (apidx - MIN_NET_DEVICE_FOR_WDS);
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-			else if (pEntry->ValidAsDls)
-				pEntry->apidx = (apidx - MIN_NET_DEVICE_FOR_DLS);
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 			else
 				pEntry->apidx = apidx;
 
@@ -1856,12 +1822,6 @@ MAC_TABLE_ENTRY *MacTableInsertEntry(
 			pEntry->GTKState = REKEY_NEGOTIATING;
 			pEntry->PairwiseKey.KeyLen = 0;
 			pEntry->PairwiseKey.CipherAlg = CIPHER_NONE;
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
-			if (pEntry->ValidAsDls == TRUE)
-				pEntry->PortSecured = WPA_802_1X_PORT_SECURED;
-#endif //QOS_DLS_SUPPORT
-#endif // CONFIG_STA_SUPPORT //
 			pEntry->PortSecured = WPA_802_1X_PORT_NOT_SECURED;
 			pEntry->PMKID_CacheIdx = ENTRY_NOT_FOUND;
 			COPY_MAC_ADDR(pEntry->Addr, pAddr);
@@ -1933,11 +1893,6 @@ BOOLEAN MacTableDeleteEntry(
 	pEntry = &pAd->MacTab.Content[wcid];
 
 	if (pEntry && (pEntry->ValidAsCLI || pEntry->ValidAsApCli || pEntry->ValidAsWDS || pEntry->ValidAsMesh
-#ifdef CONFIG_STA_SUPPORT
-#ifdef QOS_DLS_SUPPORT
- 		|| pEntry->ValidAsDls
-#endif // QOS_DLS_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 		))
 	{
 		if (MAC_ADDR_EQUAL(pEntry->Addr, pAddr))
