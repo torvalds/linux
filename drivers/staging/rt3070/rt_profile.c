@@ -1466,24 +1466,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 					HTParametersHook(pAd, tmpbuf, buffer);
 #endif // DOT11_N_SUPPORT //
 
-
-#ifdef CARRIER_DETECTION_SUPPORT
-						//CarrierDetect
-						if(RTMPGetKeyParameter("CarrierDetect", tmpbuf, 128, buffer))
-						{
-							if ((strncmp(tmpbuf, "0", 1) == 0))
-								pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-							else if ((strncmp(tmpbuf, "1", 1) == 0))
-								pAd->CommonCfg.CarrierDetect.Enable = TRUE;
-							else
-								pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-
-							DBGPRINT(RT_DEBUG_TRACE, ("CarrierDetect.Enable=%d\n", pAd->CommonCfg.CarrierDetect.Enable));
-						}
-						else
-							pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-#endif // CARRIER_DETECTION_SUPPORT //
-
 #ifdef CONFIG_STA_SUPPORT
 					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{

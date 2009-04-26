@@ -223,12 +223,6 @@ INT Set_Ieee80211dClientMode_Proc(
     IN  PUCHAR          arg);
 #endif // EXT_BUILD_CHANNEL_LIST //
 
-#ifdef CARRIER_DETECTION_SUPPORT
-INT Set_CarrierDetect_Proc(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          arg);
-#endif // CARRIER_DETECTION_SUPPORT //
-
 static struct {
 	CHAR *name;
 	INT (*set_proc)(PRTMP_ADAPTER pAdapter, PUCHAR arg);
@@ -304,9 +298,6 @@ static struct {
 #ifdef EXT_BUILD_CHANNEL_LIST
 	{"11dClientMode",				Set_Ieee80211dClientMode_Proc},
 #endif // EXT_BUILD_CHANNEL_LIST //
-#ifdef CARRIER_DETECTION_SUPPORT
-	{"CarrierDetect",				Set_CarrierDetect_Proc},
-#endif // CARRIER_DETECTION_SUPPORT //
 //2008/09/11:KH add to support efuse<--
 #ifdef RT30xx
 	{"efuseFreeNumber",				set_eFuseGetFreeBlockCount_Proc},
@@ -7003,19 +6994,3 @@ INT Set_Ieee80211dClientMode_Proc(
     return TRUE;
 }
 #endif // EXT_BUILD_CHANNEL_LIST //
-
-#ifdef CARRIER_DETECTION_SUPPORT
-INT Set_CarrierDetect_Proc(
-    IN  PRTMP_ADAPTER   pAd,
-    IN  PUCHAR          arg)
-{
-    if (simple_strtol(arg, 0, 10) == 0)
-        pAd->CommonCfg.CarrierDetect.Enable = FALSE;
-    else
-        pAd->CommonCfg.CarrierDetect.Enable = TRUE;
-
-    DBGPRINT(RT_DEBUG_TRACE, ("IF Set_CarrierDetect_Proc::(CarrierDetect.Enable=%d)\n", pAd->CommonCfg.CarrierDetect.Enable));
-	return TRUE;
-}
-#endif // CARRIER_DETECTION_SUPPORT //
-
