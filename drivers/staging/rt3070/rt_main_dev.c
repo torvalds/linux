@@ -58,11 +58,7 @@ UINT32 CW_MAX_IN_BITS;
 
 char *mac = "";		   // default 00:00:00:00:00:00
 char *hostname = "";		   // default CMPC
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,12)
-MODULE_PARM (mac, "s");
-#else
 module_param (mac, charp, 0);
-#endif
 MODULE_PARM_DESC (mac, "rt28xx: wireless mac addr");
 
 
@@ -83,13 +79,6 @@ INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
 // private function prototype
 static int rt28xx_init(IN struct net_device *net_dev);
 INT rt28xx_send_packets(IN struct sk_buff *skb_p, IN struct net_device *net_dev);
-
-#if LINUX_VERSION_CODE <= 0x20402	// Red Hat 7.1
-struct net_device *alloc_netdev(
-	int sizeof_priv,
-	const char *mask,
-	void (*setup)(struct net_device *));
-#endif // LINUX_VERSION_CODE //
 
 static void CfgInitHook(PRTMP_ADAPTER pAd);
 //static BOOLEAN RT28XXAvailRANameAssign(IN CHAR *name_p);
@@ -362,11 +351,7 @@ int rt28xx_close(IN PNET_DEV dev)
 		}
 		RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,9)
 		msleep(UNLINK_TIMEOUT_MS);	//Time in millisecond
-#else
-		RTMPusecDelay(UNLINK_TIMEOUT_MS*1000);	//Time in microsecond
-#endif
 		i++;
 	}
 	pAd->wait = NULL;
@@ -910,25 +895,11 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 #endif // MULTIPLE_CARD_SUPPORT //
 		sprintf(slot_name, "ra%d", i);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-        device = dev_get_by_name(dev_net(dev), slot_name);
-#else
-        device = dev_get_by_name(dev->nd_net, slot_name);
-#endif
-#else
-		device = dev_get_by_name(slot_name);
-#endif
-		if (device != NULL) dev_put(device);
-#else
-		for (device = dev_base; device != NULL; device = device->next)
-		{
-			if (strncmp(device->name, slot_name, 4) == 0)
-				break;
-		}
-#endif
-		if(device == NULL)
+		device = dev_get_by_name(dev_net(dev), slot_name);
+		if (device != NULL)
+			dev_put(device);
+
+		if (device == NULL)
 			break;
 	}
 
@@ -1346,14 +1317,10 @@ INT __devinit   rt28xx_probe(
     INT                 status;
 	PVOID				handle;
 #ifdef RT2870
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-	struct usb_device *dev_p = (struct usb_device *)_dev_p;
-#else
 	struct usb_interface *intf = (struct usb_interface *)_dev_p;
 	struct usb_device *dev_p = interface_to_usbdev(intf);
 
 	dev_p = usb_get_dev(dev_p);
-#endif // LINUX_VERSION_CODE //
 #endif // RT2870 //
 
 
@@ -1365,22 +1332,11 @@ INT __devinit   rt28xx_probe(
 //	if (RT28XXChipsetCheck(_dev_p) == FALSE)
 //		goto err_out;
 
-#if LINUX_VERSION_CODE <= 0x20402       // Red Hat 7.1
-    net_dev = alloc_netdev(sizeof(PRTMP_ADAPTER), "eth%d", ether_setup);
-#else
     net_dev = alloc_etherdev(sizeof(PRTMP_ADAPTER));
-#endif
     if (net_dev == NULL)
     {
         printk("alloc_netdev failed\n");
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-		module_put(THIS_MODULE);
-#endif //LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-#else
-		MOD_DEC_USE_COUNT;
-#endif
         goto err_out;
     }
 
@@ -1388,19 +1344,13 @@ INT __devinit   rt28xx_probe(
 //	if (rt_ieee80211_if_setup(net_dev) != NDIS_STATUS_SUCCESS)
 //		goto err_out;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-    SET_MODULE_OWNER(net_dev);
-#endif
-
 	netif_stop_queue(net_dev);
 #ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 /* for supporting Network Manager */
 /* Set the sysfs physical device reference for the network logical device
  * if set prior to registration will cause a symlink during initialization.
  */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0))
     SET_NETDEV_DEV(net_dev, &(dev_p->dev));
-#endif
 #endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 
 	// Allocate RTMP_ADAPTER miniport adapter structure
@@ -1424,13 +1374,8 @@ INT __devinit   rt28xx_probe(
 //	RT28XXAvailRANameAssign(net_dev->name);
 
 	// Post config
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	if (RT28XXProbePostConfig(_dev_p, pAd, argc) == FALSE)
-		goto err_out_unmap;
-#else
 	if (RT28XXProbePostConfig(_dev_p, pAd, 0) == FALSE)
 		goto err_out_unmap;
-#endif // LINUX_VERSION_CODE //
 
 #ifdef CONFIG_STA_SUPPORT
 	pAd->OpMode = OPMODE_STA;
@@ -1475,20 +1420,12 @@ err_out_unmap:
 	RT28XX_UNMAP();
 
 err_out_free_netdev:
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-    free_netdev(net_dev);
-#else
-	kfree(net_dev);
-#endif
+	free_netdev(net_dev);
 
 err_out:
 	RT28XX_PUT_DEVICE(dev_p);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-	return (LONG)NULL;
-#else
-    return -ENODEV; /* probe fail */
-#endif // LINUX_VERSION_CODE //
+	return -ENODEV; /* probe fail */
 } /* End of rt28xx_probe */
 
 
@@ -1607,41 +1544,6 @@ INT rt28xx_send_packets(
 } /* End of MBSS_VirtualIF_PacketSend */
 
 
-
-
-#if LINUX_VERSION_CODE <= 0x20402	// Red Hat 7.1
-//static struct net_device *alloc_netdev(int sizeof_priv, const char *mask, void (*setup)(struct net_device *)) //sample
-struct net_device *alloc_netdev(
-	int sizeof_priv,
-	const char *mask,
-	void (*setup)(struct net_device *))
-{
-    struct net_device	*dev;
-    INT					alloc_size;
-
-
-    /* ensure 32-byte alignment of the private area */
-    alloc_size = sizeof (*dev) + sizeof_priv + 31;
-
-    dev = (struct net_device *) kmalloc(alloc_size, GFP_KERNEL);
-    if (dev == NULL)
-    {
-        DBGPRINT(RT_DEBUG_ERROR,
-				("alloc_netdev: Unable to allocate device memory.\n"));
-        return NULL;
-    }
-
-    memset(dev, 0, alloc_size);
-
-    if (sizeof_priv)
-        dev->ml_priv = (void *) (((long)(dev + 1) + 31) & ~31);
-
-    setup(dev);
-    strcpy(dev->name, mask);
-
-    return dev;
-}
-#endif // LINUX_VERSION_CODE //
 
 
 void CfgInitHook(PRTMP_ADAPTER pAd)

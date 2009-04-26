@@ -83,26 +83,6 @@ MODULE_DEVICE_TABLE(usb, rtusb_usb_id);
 #endif
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-
-/**************************************************************************/
-/**************************************************************************/
-//tested for kernel 2.4 series
-/**************************************************************************/
-/**************************************************************************/
-static void *rtusb_probe(struct usb_device *dev, UINT interface,
-						const struct usb_device_id *id_table);
-static void rtusb_disconnect(struct usb_device *dev, void *ptr);
-
-struct usb_driver rtusb_driver = {
-		name:"rt2870",
-		probe:rtusb_probe,
-		disconnect:rtusb_disconnect,
-		id_table:rtusb_usb_id,
-	};
-
-#else
-
 #ifdef CONFIG_PM
 static int rt2870_suspend(struct usb_interface *intf, pm_message_t state);
 static int rt2870_resume(struct usb_interface *intf);
@@ -118,9 +98,6 @@ static int rtusb_probe (struct usb_interface *intf,
 static void rtusb_disconnect(struct usb_interface *intf);
 
 struct usb_driver rtusb_driver = {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-	.owner = THIS_MODULE,
-#endif
 	.name="rt2870",
 	.probe=rtusb_probe,
 	.disconnect=rtusb_disconnect,
@@ -182,7 +159,6 @@ static int rt2870_resume(
 	return 0;
 }
 #endif // CONFIG_PM //
-#endif // LINUX_VERSION_CODE //
 
 
 // Init driver module
@@ -811,14 +787,7 @@ static void _rtusb_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 			MC_CardUsed[pAd->MC_RowID] = 0; // not clear MAC address
 #endif // MULTIPLE_CARD_SUPPORT //
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-		while(MOD_IN_USE > 0)
-		{
-			MOD_DEC_USE_COUNT;
-		}
-#else
 		usb_put_dev(dev);
-#endif // LINUX_VERSION_CODE //
 
 		printk("rtusb_disconnect: pAd == NULL!\n");
 		return;
@@ -840,31 +809,17 @@ static void _rtusb_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 		unregister_netdev (pAd->net_dev);
 	}
 	udelay(1);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-#else
 	flush_scheduled_work();
-#endif // LINUX_VERSION_CODE //
 	udelay(1);
 
 	// free net_device memory
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-	kfree(net_dev);
-#else
 	free_netdev(net_dev);
-#endif // LINUX_VERSION_CODE //
 
 	// free adapter memory
 	RTMPFreeAdapter(pAd);
 
 	// release a use of the usb device structure
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-	while(MOD_IN_USE > 0)
-	{
-		MOD_DEC_USE_COUNT;
-	}
-#else
 	usb_put_dev(dev);
-#endif // LINUX_VERSION_CODE //
 	udelay(1);
 
 	DBGPRINT(RT_DEBUG_ERROR, (" RTUSB disconnect successfully\n"));
@@ -887,22 +842,6 @@ Return Value:
 Note:
 ========================================================================
 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-static void *rtusb_probe(struct usb_device *dev, UINT interface,
-						const struct usb_device_id *id)
-{
-	PRTMP_ADAPTER pAd;
-	rt28xx_probe((void *)dev, (void *)id, interface, &pAd);
-	return (void *)pAd;
-}
-
-//Disconnect function is called within exit routine
-static void rtusb_disconnect(struct usb_device *dev, void *ptr)
-{
-	_rtusb_disconnect(dev, ((PRTMP_ADAPTER)ptr));
-}
-
-#else	/* kernel 2.6 series */
 static int rtusb_probe (struct usb_interface *intf,
 						const struct usb_device_id *id)
 {
@@ -922,7 +861,6 @@ static void rtusb_disconnect(struct usb_interface *intf)
 
 	_rtusb_disconnect(dev, pAd);
 }
-#endif // LINUX_VERSION_CODE //
 
 
 /*
@@ -1062,12 +1000,8 @@ Note:
 BOOLEAN RT28XXChipsetCheck(
 	IN void *_dev_p)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-	struct usb_device *dev_p = (struct usb_device *)_dev_p;
-#else
 	struct usb_interface *intf = (struct usb_interface *)_dev_p;
 	struct usb_device *dev_p = interface_to_usbdev(intf);
-#endif // LINUX_VERSION_CODE //
 	UINT32 i;
 
 
@@ -1114,19 +1048,11 @@ BOOLEAN RT28XXNetDevInit(
 	IN struct  net_device	*net_dev,
 	IN RTMP_ADAPTER 		*pAd)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-	struct usb_device *dev_p = (struct usb_device *)_dev_p;
-#else
 	struct usb_interface *intf = (struct usb_interface *)_dev_p;
 	struct usb_device *dev_p = interface_to_usbdev(intf);
-#endif // LINUX_VERSION_CODE //
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)	/* kernel 2.4 series */
-	pAd->config = dev_p->config;
-#else
 	pAd->config = &dev_p->config->desc;
-#endif // LINUX_VERSION_CODE //
 	return TRUE;
 }
 
@@ -1147,70 +1073,6 @@ Return Value:
 Note:
 ========================================================================
 */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-BOOLEAN RT28XXProbePostConfig(
-	IN void 				*_dev_p,
-	IN RTMP_ADAPTER 		*pAd,
-	IN INT32				interface)
-{
-	struct usb_device *dev_p = (struct usb_device *)_dev_p;
-	struct usb_interface *intf;
-	struct usb_interface_descriptor *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	ULONG BulkOutIdx;
-	UINT32 i;
-
-
-	/* get the active interface descriptor */
-	intf = &dev_p->actconfig->interface[interface];
-	iface_desc = &intf->altsetting[0];
-
-	/* get # of enpoints */
-	pAd->NumberOfPipes = iface_desc->bNumEndpoints;
-	DBGPRINT(RT_DEBUG_TRACE, ("NumEndpoints=%d\n", iface_desc->bNumEndpoints));
-
-	/* Configure Pipes */
-	endpoint = &iface_desc->endpoint[0];
-	BulkOutIdx = 0;
-
-	for(i=0; i<pAd->NumberOfPipes; i++)
-	{
-		if ((endpoint[i].bmAttributes == USB_ENDPOINT_XFER_BULK) &&
-			((endpoint[i].bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN))
-		{
-			pAd->BulkInEpAddr = endpoint[i].bEndpointAddress;
-			pAd->BulkInMaxPacketSize = endpoint[i].wMaxPacketSize;
-
-			DBGPRINT_RAW(RT_DEBUG_TRACE,
-				("BULK IN MaximumPacketSize = %d\n", pAd->BulkInMaxPacketSize));
-			DBGPRINT_RAW(RT_DEBUG_TRACE,
-				("EP address = 0x%2x  \n", endpoint[i].bEndpointAddress));
-		}
-		else if ((endpoint[i].bmAttributes == USB_ENDPOINT_XFER_BULK) &&
-				((endpoint[i].bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT))
-		{
-			// There are 6 bulk out EP. EP6 highest priority.
-			// EP1-4 is EDCA.  EP5 is HCCA.
-			pAd->BulkOutEpAddr[BulkOutIdx++] = endpoint[i].bEndpointAddress;
-			pAd->BulkOutMaxPacketSize = endpoint[i].wMaxPacketSize;
-
-			DBGPRINT_RAW(RT_DEBUG_TRACE,
-				("BULK OUT MaximumPacketSize = %d\n", pAd->BulkOutMaxPacketSize));
-			DBGPRINT_RAW(RT_DEBUG_TRACE,
-				("EP address = 0x%2x  \n", endpoint[i].bEndpointAddress));
-		}
-	}
-
-	if (!(pAd->BulkInEpAddr && pAd->BulkOutEpAddr[0]))
-	{
-		printk("Could not find both bulk-in and bulk-out endpoints\n");
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-#else
 BOOLEAN RT28XXProbePostConfig(
 	IN void 				*_dev_p,
 	IN RTMP_ADAPTER 		*pAd,
@@ -1273,7 +1135,6 @@ BOOLEAN RT28XXProbePostConfig(
 
 	return TRUE;
 }
-#endif // LINUX_VERSION_CODE //
 
 
 /*

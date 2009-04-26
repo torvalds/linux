@@ -52,11 +52,7 @@ void RTUSB_FILL_BULK_URB (struct urb *pUrb,
 	void *pContext)
 {
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	usb_fill_bulk_urb(pUrb, pUsb_Dev, bulkpipe, pTransferBuf, BufSize, (usb_complete_t)Complete, pContext);
-#else
-	FILL_BULK_URB(pUrb, pUsb_Dev, bulkpipe, pTransferBuf, BufSize, Complete, pContext);
-#endif
 
 }
 
@@ -95,14 +91,12 @@ VOID	RTUSBInitTxDesc(
 						Func,
 						pTxContext);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	if (pTxContext->bAggregatible)
 		pUrb->transfer_dma	= (pTxContext->data_dma + TX_BUFFER_NORMSIZE + 2);
 	else
 		pUrb->transfer_dma	= pTxContext->data_dma;
 
 	pUrb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-#endif
 
 }
 
@@ -135,10 +129,8 @@ VOID	RTUSBInitHTTxDesc(
 						Func,
 						pTxContext);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	pUrb->transfer_dma	= (pTxContext->data_dma + pTxContext->NextBulkOutPosition);
 	pUrb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-#endif
 
 }
 
@@ -168,10 +160,8 @@ VOID	RTUSBInitRxDesc(
 						(usb_complete_t)RTUSBBulkRxComplete,
 						(void *)pRxContext);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	pUrb->transfer_dma	= pRxContext->data_dma + pAd->NextRxBulkInPosition;
 	pUrb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-#endif
 
 
 }
@@ -744,11 +734,9 @@ VOID	RTUSBBulkOutMLMEPacket(
 	// Init Tx context descriptor
 	RTUSBInitTxDesc(pAd, pMLMEContext, MGMTPIPEIDX, (usb_complete_t)RTUSBBulkOutMLMEPacketComplete);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	//For mgmt urb buffer, because we use sk_buff, so we need to notify the USB controller do dma mapping.
 	pUrb->transfer_dma	= 0;
 	pUrb->transfer_flags &= (~URB_NO_TRANSFER_DMA_MAP);
-#endif
 
 	pUrb = pMLMEContext->pUrb;
 	if((ret = RTUSB_SUBMIT_URB(pUrb))!=0)

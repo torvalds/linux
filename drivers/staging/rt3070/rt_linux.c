@@ -1014,35 +1014,14 @@ err_free_sk_buff:
 
 void rtmp_os_thread_init(PUCHAR pThreadName, PVOID pNotify)
 {
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 	daemonize(pThreadName /*"%s",pAd->net_dev->name*/);
 
 	allow_signal(SIGTERM);
 	allow_signal(SIGKILL);
 	current->flags |= PF_NOFREEZE;
-#else
-	unsigned long flags;
 
-	daemonize();
-	reparent_to_init();
-	strcpy(current->comm, pThreadName);
-
-	siginitsetinv(&current->blocked, sigmask(SIGTERM) | sigmask(SIGKILL));
-
-	/* Allow interception of SIGKILL only
-	 * Don't allow other signals to interrupt the transmission */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,4,22)
-	spin_lock_irqsave(&current->sigmask_lock, flags);
-	flush_signals(current);
-	recalc_sigpending(current);
-	spin_unlock_irqrestore(&current->sigmask_lock, flags);
-#endif
-#endif
-
-    /* signal that we've started the thread */
+	/* signal that we've started the thread */
 	complete(pNotify);
-
 }
 
 void RTMP_IndicateMediaState(

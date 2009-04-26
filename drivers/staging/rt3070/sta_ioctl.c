@@ -677,11 +677,9 @@ int rt_ioctl_siwmode(struct net_device *dev,
 		case IW_MODE_INFRA:
 			Set_NetworkType_Proc(pAdapter, "Infra");
 			break;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,20))
         case IW_MODE_MONITOR:
 			Set_NetworkType_Proc(pAdapter, "Monitor");
 			break;
-#endif
 		default:
 			DBGPRINT(RT_DEBUG_TRACE, ("===>rt_ioctl_siwmode::SIOCSIWMODE (unknown %d)\n", *mode));
 			return -EINVAL;
@@ -703,12 +701,10 @@ int rt_ioctl_giwmode(struct net_device *dev,
 		*mode = IW_MODE_ADHOC;
     else if (INFRA_ON(pAdapter))
 		*mode = IW_MODE_INFRA;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,20))
     else if (MONITOR_ON(pAdapter))
     {
         *mode = IW_MODE_MONITOR;
     }
-#endif
     else
         *mode = IW_MODE_AUTO;
 

@@ -33,7 +33,6 @@
 
 /* rtmp_def.h */
 //
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define BULKAGGRE_ZISE          100
 #define RT28XX_DRVDATA_SET(_a)                                             usb_set_intfdata(_a, pAd);
 #define RT28XX_PUT_DEVICE                                                  usb_put_dev
@@ -41,15 +40,6 @@
 #define RTUSB_SUBMIT_URB(pUrb)                                             usb_submit_urb(pUrb, GFP_ATOMIC)
 #define	RTUSB_URB_ALLOC_BUFFER(pUsb_Dev, BufSize, pDma_addr)               usb_buffer_alloc(pUsb_Dev, BufSize, GFP_ATOMIC, pDma_addr)
 #define	RTUSB_URB_FREE_BUFFER(pUsb_Dev, BufSize, pTransferBuf, Dma_addr)   usb_buffer_free(pUsb_Dev, BufSize, pTransferBuf, Dma_addr)
-#else
-#define BULKAGGRE_ZISE          60
-#define RT28XX_DRVDATA_SET(_a)
-#define RT28XX_PUT_DEVICE(dev_p)
-#define RTUSB_ALLOC_URB(iso)                                               usb_alloc_urb(iso)
-#define RTUSB_SUBMIT_URB(pUrb)                                             usb_submit_urb(pUrb)
-#define RTUSB_URB_ALLOC_BUFFER(pUsb_Dev, BufSize, pDma_addr)               kmalloc(BufSize, GFP_ATOMIC)
-#define	RTUSB_URB_FREE_BUFFER(pUsb_Dev, BufSize, pTransferBuf, Dma_addr)   kfree(pTransferBuf)
-#endif
 
 #define RXBULKAGGRE_ZISE        12
 #define MAX_TXBULK_LIMIT        (LOCAL_TXBUF_SIZE*(BULKAGGRE_ZISE-1))
@@ -542,23 +532,9 @@ typedef struct usb_ctrlrequest devctrlrequest;
 #define UNLINK_TIMEOUT_MS		3
 
 /* unlink urb	*/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,7)
 #define RTUSB_UNLINK_URB(pUrb)		usb_kill_urb(pUrb)
-#else
-#define RTUSB_UNLINK_URB(pUrb)		usb_unlink_urb(pUrb)
-#endif
 
 // Prototypes of completion funuc.
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#define RTUSBBulkOutDataPacketComplete(purb, pt_regs)    RTUSBBulkOutDataPacketComplete(purb)
-#define RTUSBBulkOutMLMEPacketComplete(pUrb, pt_regs)    RTUSBBulkOutMLMEPacketComplete(pUrb)
-#define RTUSBBulkOutNullFrameComplete(pUrb, pt_regs)     RTUSBBulkOutNullFrameComplete(pUrb)
-#define RTUSBBulkOutRTSFrameComplete(pUrb, pt_regs)      RTUSBBulkOutRTSFrameComplete(pUrb)
-#define RTUSBBulkOutPsPollComplete(pUrb, pt_regs)        RTUSBBulkOutPsPollComplete(pUrb)
-#define RTUSBBulkRxComplete(pUrb, pt_regs)               RTUSBBulkRxComplete(pUrb)
-#endif
-
-
 VOID RTUSBBulkOutDataPacketComplete(purbb_t purb, struct pt_regs *pt_regs);
 VOID RTUSBBulkOutMLMEPacketComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 VOID RTUSBBulkOutNullFrameComplete(purbb_t pUrb, struct pt_regs *pt_regs);

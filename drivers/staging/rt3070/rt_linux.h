@@ -103,8 +103,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #endif // CONFIG_STA_SUPPORT //
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-
 #define RTMP_TIME_AFTER(a,b)		\
 	(typecheck(unsigned long, (unsigned long)a) && \
 	 typecheck(unsigned long, (unsigned long)b) && \
@@ -115,11 +113,7 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 	 typecheck(unsigned long, (unsigned long)b) && \
 	 ((long)(a) - (long)(b) >= 0))
 #define RTMP_TIME_BEFORE(a,b)	RTMP_TIME_AFTER_EQ(b,a)
-#else
-#define RTMP_TIME_AFTER(a,b) time_after(a, b)
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define RT_MOD_INC_USE_COUNT() \
 	if (!try_module_get(THIS_MODULE)) \
 	{ \
@@ -128,10 +122,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 	}
 
 #define RT_MOD_DEC_USE_COUNT() module_put(THIS_MODULE);
-#else
-#define RT_MOD_INC_USE_COUNT()	MOD_INC_USE_COUNT;
-#define RT_MOD_DEC_USE_COUNT() MOD_DEC_USE_COUNT;
-#endif
 
 #define OS_HZ			HZ
 
