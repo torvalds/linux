@@ -1274,15 +1274,6 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 	int status = 0;
 	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
 
-	/* RT2870STA does this in RTMPSendPackets() */
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-	{
-		RELEASE_NDIS_PACKET(pAd, pPacket, NDIS_STATUS_RESOURCES);
-		return 0;
-	}
-#endif // RALINK_ATE //
-
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{

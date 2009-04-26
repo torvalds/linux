@@ -397,12 +397,6 @@ VOID ScanNextChannel(
 	}
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef RALINK_ATE
-	// Nothing to do in ATE mode.
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
 	if (pAd->MlmeAux.Channel == 0)
 	{
 		if ((pAd->CommonCfg.BBPCurrentBW == BW_40)

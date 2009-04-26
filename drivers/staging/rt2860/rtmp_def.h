@@ -1332,26 +1332,6 @@
 #define INT_APCLI                   0x0400
 #define INT_MESH                   	0x0500
 
-// Use bitmap to allow coexist of ATE_TXFRAME and ATE_RXFRAME(i.e.,to support LoopBack mode)
-#ifdef RALINK_ATE
-#define	ATE_START                   0x00   // Start ATE
-#define	ATE_STOP                    0x80   // Stop ATE
-#define	ATE_TXCONT                  0x05   // Continuous Transmit
-#define	ATE_TXCARR                  0x09   // Transmit Carrier
-#define	ATE_TXCARRSUPP              0x11   // Transmit Carrier Suppression
-#define	ATE_TXFRAME                 0x01   // Transmit Frames
-#define	ATE_RXFRAME                 0x02   // Receive Frames
-#ifdef RALINK_28xx_QA
-#define ATE_TXSTOP                  0xe2   // Stop Transmition(i.e., TXCONT, TXCARR, TXCARRSUPP, and TXFRAME)
-#define ATE_RXSTOP					0xfd   // Stop receiving Frames
-#define	BBP22_TXFRAME     			0x00   // Transmit Frames
-#define	BBP22_TXCONT_OR_CARRSUPP    0x80   // Continuous Transmit or Carrier Suppression
-#define	BBP22_TXCARR                0xc1   // Transmit Carrier
-#define	BBP24_TXCONT                0x00   // Continuous Transmit
-#define	BBP24_CARRSUPP              0x01   // Carrier Suppression
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
-
 // WEP Key TYPE
 #define WEP_HEXADECIMAL_TYPE    0
 #define WEP_ASCII_TYPE          1

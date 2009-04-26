@@ -589,14 +589,6 @@ VOID MlmeHandler(
 			break;
 		}
 
-#ifdef RALINK_ATE
-		if(ATE_ON(pAd))
-		{
-			DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now in MlmeHandler\n"));
-			break;
-		}
-#endif // RALINK_ATE //
-
 		//From message type, determine which state machine I should drive
 		if (MlmeDequeue(&pAd->Mlme.Queue, &Elem))
 		{
@@ -906,18 +898,6 @@ VOID MlmePeriodicExec(
 
 	RT28XX_MLME_PRE_SANITY_CHECK(pAd);
 
-#ifdef RALINK_ATE
-	/* Do not show RSSI until "Normal 1 second Mlme PeriodicExec". */
-	if (ATE_ON(pAd))
-	{
-		if (pAd->Mlme.PeriodicRound % MLME_TASK_EXEC_MULTIPLE != (MLME_TASK_EXEC_MULTIPLE - 1))
-	{
-			pAd->Mlme.PeriodicRound ++;
-			return;
-		}
-	}
-#endif // RALINK_ATE //
-
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
@@ -970,30 +950,6 @@ VOID MlmePeriodicExec(
 	if (pAd->Mlme.PeriodicRound %MLME_TASK_EXEC_MULTIPLE == 0)
 	{
                 pAd->Mlme.OneSecPeriodicRound ++;
-
-#ifdef RALINK_ATE
-    	if (ATE_ON(pAd))
-    	{
-			/* request from Baron : move this routine from later to here */
-			/* for showing Rx error count in ATE RXFRAME */
-            NICUpdateRawCounters(pAd);
-			if (pAd->ate.bRxFer == 1)
-			{
-				pAd->ate.RxTotalCnt += pAd->ate.RxCntPerSec;
-			    ate_print(KERN_EMERG "MlmePeriodicExec: Rx packet cnt = %d/%d\n", pAd->ate.RxCntPerSec, pAd->ate.RxTotalCnt);
-				pAd->ate.RxCntPerSec = 0;
-
-				if (pAd->ate.RxAntennaSel == 0)
-					ate_print(KERN_EMERG "MlmePeriodicExec: Rx AvgRssi0=%d, AvgRssi1=%d, AvgRssi2=%d\n\n",
-						pAd->ate.AvgRssi0, pAd->ate.AvgRssi1, pAd->ate.AvgRssi2);
-				else
-					ate_print(KERN_EMERG "MlmePeriodicExec: Rx AvgRssi=%d\n\n", pAd->ate.AvgRssi0);
-			}
-			MlmeResetRalinkCounters(pAd);
-			return;
-    	}
-#endif // RALINK_ATE //
-
 
 		if (rx_Total)
 		{
@@ -1102,17 +1058,6 @@ VOID STAMlmePeriodicExec(
 	PRTMP_ADAPTER pAd)
 {
 	ULONG			    TxTotalCnt;
-
-//
-// We return here in ATE mode, because the statistics
-// that ATE needs are not collected via this routine.
-//
-#ifdef RALINK_ATE
-	// It is supposed that we will never reach here in ATE mode.
-	ASSERT(!(ATE_ON(pAd)));
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
 
 #ifdef WPA_SUPPLICANT_SUPPORT
     if (pAd->StaCfg.WpaSupplicantUP == WPA_SUPPLICANT_DISABLE)
@@ -2126,13 +2071,6 @@ VOID MlmeDynamicTxRateSwitching(
 	TX_STA_CNT0_STRUC		TxStaCnt0;
 	ULONG					TxRetransmit = 0, TxSuccess = 0, TxFailCount = 0;
 	MAC_TABLE_ENTRY			*pEntry;
-
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-	{
-		return;
-	}
-#endif // RALINK_ATE //
 
 	/*if (pAd->Antenna.field.RxPath > 1)
 		Rssi = (pAd->StaCfg.RssiSample.AvgRssi0 + pAd->StaCfg.RssiSample.AvgRssi1) >> 1;
@@ -4922,12 +4860,6 @@ BOOLEAN MlmeEnqueueForRecv(
 	INT		 MsgType;
 	MLME_QUEUE	*Queue = (MLME_QUEUE *)&pAd->Mlme.Queue;
 
-#ifdef RALINK_ATE
-	/* Nothing to do in ATE mode */
-	if(ATE_ON(pAd))
-		return FALSE;
-#endif // RALINK_ATE //
-
 	// Do nothing if the driver is starting halt state.
 	// This might happen when timer already been fired before cancel timer with mlmehalt
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS | fRTMP_ADAPTER_NIC_NOT_EXIST))
@@ -5633,11 +5565,6 @@ VOID 	AsicUpdateProtect(
 	USHORT			offset;
 	UCHAR			i;
 	UINT32 MacReg = 0;
-
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
 
 #ifdef DOT11_N_SUPPORT
 	if (!(pAd->CommonCfg.bHTProtect) && (OperationMode != 8))
@@ -7596,9 +7523,7 @@ BOOLEAN AsicSendCommandToMcu(
 	HOST_CMD_CSR_STRUC	H2MCmd;
 	H2M_MAILBOX_STRUC	H2MMailbox;
 	ULONG				i = 0;
-#ifdef RALINK_ATE
-	static UINT32 j = 0;
-#endif // RALINK_ATE //
+
 	do
 	{
 		RTMP_IO_READ32(pAd, H2M_MAILBOX_CSR, &H2MMailbox.word);
@@ -7610,30 +7535,6 @@ BOOLEAN AsicSendCommandToMcu(
 
 	if (i >= 100)
 	{
-#ifdef RALINK_ATE
-		if (pAd->ate.bFWLoading == TRUE)
-		{
-			/* reloading firmware when received iwpriv cmd "ATE=ATESTOP" */
-			if (j > 0)
-			{
-				if (j % 64 != 0)
-				{
-					DBGPRINT(RT_DEBUG_ERROR, ("#"));
-				}
-				else
-				{
-					DBGPRINT(RT_DEBUG_ERROR, ("\n"));
-				}
-				++j;
-			}
-			else if (j == 0)
-			{
-				DBGPRINT(RT_DEBUG_ERROR, ("Loading firmware. Please wait for a moment...\n"));
-				++j;
-			}
-		}
-		else
-#endif // RALINK_ATE //
 		{
 			UINT32 Data;
 
@@ -7660,16 +7561,6 @@ BOOLEAN AsicSendCommandToMcu(
 		}
 		//return FALSE;
 	}
-
-#ifdef RALINK_ATE
-	else if (pAd->ate.bFWLoading == TRUE)
-	{
-		/* reloading of firmware is completed */
-		pAd->ate.bFWLoading = FALSE;
-		DBGPRINT(RT_DEBUG_ERROR, ("\n"));
-		j = 0;
-	}
-#endif // RALINK_ATE //
 
 	H2MMailbox.field.Owner	  = 1;	   // pass ownership to MCU
 	H2MMailbox.field.CmdToken = Token;
@@ -8126,12 +8017,6 @@ VOID AsicEvaluateRxAnt(
 {
 	UCHAR	BBPR3 = 0;
 
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
-
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
@@ -8210,12 +8095,6 @@ VOID AsicRxAntEvalTimeout(
 	UCHAR			BBPR3 = 0;
 	CHAR			larger = -127, rssi0, rssi1, rssi2;
 #endif // CONFIG_STA_SUPPORT //
-
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
 
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)

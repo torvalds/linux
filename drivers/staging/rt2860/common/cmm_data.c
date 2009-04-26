@@ -1771,85 +1771,6 @@ BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 	RTMP_IO_READ32(pAd, TX_DTX_IDX0 + QueIdx * RINGREG_DIFF, &pTxRing->TxDmaIdx);
 	while (pTxRing->TxSwFreeIdx != pTxRing->TxDmaIdx)
 	{
-#ifdef RALINK_ATE
-#ifdef RALINK_28xx_QA
-		PHEADER_802_11	pHeader80211;
-
-		if ((ATE_ON(pAd)) && (pAd->ate.bQATxStart == TRUE))
-		{
-			if (pAd->ate.QID == QueIdx)
-			{
-				pAd->ate.TxDoneCount++;
-				//pAd->ate.Repeat++;
-				pAd->RalinkCounters.KickTxCount++;
-
-				/* always use QID_AC_BE and FIFO_EDCA */
-				ASSERT(pAd->ate.QID == 0);
-				pAd->ate.TxAc0++;
-
-				FREE++;
-#ifndef RT_BIG_ENDIAN
-				pTxD = (PTXD_STRUC) (pTxRing->Cell[pTxRing->TxSwFreeIdx].AllocVa);
-				pOriTxD = pTxD;
-		        NdisMoveMemory(&TxD, pTxD, sizeof(TXD_STRUC));
-				pTxD = &TxD;
-#else
-		        pDestTxD = (PTXD_STRUC) (pTxRing->Cell[pTxRing->TxSwFreeIdx].AllocVa);
-		        pOriTxD = pDestTxD ;
-		        TxD = *pDestTxD;
-		        pTxD = &TxD;
-		        RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#endif
-				pTxD->DMADONE = 0;
-
-				pHeader80211 = pTxRing->Cell[pTxRing->TxSwFreeIdx].DmaBuf.AllocVa + sizeof(TXWI_STRUC);
-#ifdef RT_BIG_ENDIAN
-				RTMPFrameEndianChange(pAd, (PUCHAR)pHeader80211, DIR_READ, FALSE);
-#endif
-				pHeader80211->Sequence = ++pAd->ate.seq;
-#ifdef RT_BIG_ENDIAN
-				RTMPFrameEndianChange(pAd, (PUCHAR)pHeader80211, DIR_WRITE, FALSE);
-#endif
-
-				if  ((pAd->ate.bQATxStart == TRUE) && (pAd->ate.Mode & ATE_TXFRAME) && (pAd->ate.TxDoneCount < pAd->ate.TxCount))
-				{
-					pAd->RalinkCounters.TransmittedByteCount +=  (pTxD->SDLen1 + pTxD->SDLen0);
-					pAd->RalinkCounters.OneSecDmaDoneCount[QueIdx] ++;
-					INC_RING_INDEX(pTxRing->TxSwFreeIdx, TX_RING_SIZE);
-					/* get tx_tdx_idx again */
-					RTMP_IO_READ32(pAd, TX_DTX_IDX0 + QueIdx * RINGREG_DIFF ,  &pTxRing->TxDmaIdx);
-					goto kick_out;
-				}
-				else if ((pAd->ate.TxStatus == 1)/* or (pAd->ate.bQATxStart == TRUE) ??? */ && (pAd->ate.TxDoneCount == pAd->ate.TxCount))//<========================PETER
-				{
-					DBGPRINT(RT_DEBUG_TRACE,("all Tx is done\n"));
-					// Tx status enters idle mode.
-					pAd->ate.TxStatus = 0;
-				}
-				else if (!(pAd->ate.Mode & ATE_TXFRAME))
-				{
-					/* not complete sending yet, but someone press the Stop TX botton. */
-					DBGPRINT(RT_DEBUG_ERROR,("not complete sending yet, but someone pressed the Stop TX bottom\n"));
-					DBGPRINT(RT_DEBUG_ERROR,("pAd->ate.Mode = 0x%02x\n", pAd->ate.Mode));
-				}
-				else
-				{
-					DBGPRINT(RT_DEBUG_OFF,("pTxRing->TxSwFreeIdx = %d\n", pTxRing->TxSwFreeIdx));
-  				}
-#ifndef RT_BIG_ENDIAN
-	        	NdisMoveMemory(pOriTxD, pTxD, sizeof(TXD_STRUC));
-#else
-        		RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-        		*pDestTxD = TxD;
-#endif // RT_BIG_ENDIAN //
-
-				INC_RING_INDEX(pTxRing->TxSwFreeIdx, TX_RING_SIZE);
-				continue;
-			}
-		}
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
-
 		// static rate also need NICUpdateFifoStaCounters() function.
 		//if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))
 			NICUpdateFifoStaCounters(pAd);
@@ -1871,11 +1792,6 @@ BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 
 		pTxD->DMADONE = 0;
 
-
-#ifdef RALINK_ATE
-		/* Execution of this block is not allowed when ATE is running. */
-		if (!(ATE_ON(pAd)))
-#endif // RALINK_ATE //
 /*====================================================================*/
 		{
 			pPacket = pTxRing->Cell[pTxRing->TxSwFreeIdx].pNdisPacket;
@@ -1921,53 +1837,6 @@ BOOLEAN  RTMPFreeTXDUponTxDmaDone(
 #else
         NdisMoveMemory(pOriTxD, pTxD, sizeof(TXD_STRUC));
 #endif
-
-#ifdef RALINK_ATE
-#ifdef RALINK_28xx_QA
-kick_out:
-#endif // RALINK_28xx_QA //
-
-		//
-		// ATE_TXCONT mode also need to send some normal frames, so let it in.
-		// ATE_STOP must be changed not to be 0xff
-		// to prevent it from running into this block.
-		//
-		if ((pAd->ate.Mode & ATE_TXFRAME) && (pAd->ate.QID == QueIdx))
-		{
-			// TxDoneCount++ has been done if QA is used.
-			if (pAd->ate.bQATxStart == FALSE)
-			{
-				pAd->ate.TxDoneCount++;
-			}
-			if (((pAd->ate.TxCount - pAd->ate.TxDoneCount + 1) >= TX_RING_SIZE))
-			{
-				/* Note : We increase TxCpuIdx here, not TxSwFreeIdx ! */
-				INC_RING_INDEX(pAd->TxRing[QueIdx].TxCpuIdx, TX_RING_SIZE);
-#ifndef RT_BIG_ENDIAN//<==========================PETER
-				pTxD = (PTXD_STRUC) (pTxRing->Cell[pAd->TxRing[QueIdx].TxCpuIdx].AllocVa);
-				pOriTxD = pTxD;
-		        NdisMoveMemory(&TxD, pTxD, sizeof(TXD_STRUC));
-				pTxD = &TxD;
-#else
-		        pDestTxD = (PTXD_STRUC) (pTxRing->Cell[pAd->TxRing[QueIdx].TxCpuIdx].AllocVa);
-		        pOriTxD = pDestTxD ;
-		        TxD = *pDestTxD;
-		        pTxD = &TxD;
-		        RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-#endif
-				pTxD->DMADONE = 0;
-#ifndef RT_BIG_ENDIAN//<==========================PETER
-        		NdisMoveMemory(pOriTxD, pTxD, sizeof(TXD_STRUC));
-#else
-        		RTMPDescriptorEndianChange((PUCHAR)pTxD, TYPE_TXD);
-        		*pDestTxD = TxD;
-#endif
-				// kick Tx-Ring.
-				RTMP_IO_WRITE32(pAd, TX_CTX_IDX0 + QueIdx * RINGREG_DIFF, pAd->TxRing[QueIdx].TxCpuIdx);
-				pAd->RalinkCounters.KickTxCount++;
-			}
-		}
-#endif // RALINK_ATE //
 	}
 
 

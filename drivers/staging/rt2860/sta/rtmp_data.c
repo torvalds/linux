@@ -749,22 +749,6 @@ BOOLEAN STARxDoneInterruptHandle(
 			break;
 		}
 		/* RT2870 invokes STARxDoneInterruptHandle() in rtusb_bulk.c */
-#ifdef RALINK_ATE
-		if (ATE_ON(pAd))
-		{
-			pAd->ate.RxCntPerSec++;
-			ATESampleRssi(pAd, pRxWI);
-#ifdef RALINK_28xx_QA
-			if (pAd->ate.bQARxStart == TRUE)
-			{
-				/* (*pRxD) has been swapped in GetPacketFromRxRing() */
-				ATE_QA_Statistics(pAd, pRxWI, pRxD,	pHeader);
-			}
-#endif // RALINK_28xx_QA //
-			RELEASE_NDIS_PACKET(pAd, pRxPacket, NDIS_STATUS_SUCCESS);
-			continue;
-		}
-#endif // RALINK_ATE //
 
 		// Check for all RxD errors
 		Status = RTMPCheckRxError(pAd, pHeader, pRxWI, pRxD);
@@ -1282,14 +1266,6 @@ VOID	RTMPSendNullFrame(
 	UCHAR	NullFrame[48];
 	ULONG	Length;
 	PHEADER_802_11	pHeader_802_11;
-
-
-#ifdef RALINK_ATE
-	if(ATE_ON(pAd))
-	{
-		return;
-	}
-#endif // RALINK_ATE //
 
     // WPA 802.1x secured port control
     if (((pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA) ||

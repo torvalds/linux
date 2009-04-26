@@ -881,11 +881,6 @@ VOID ORIBATimerTimeout(
 	INT			i, total;
 	UCHAR			TID;
 
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
 	total = pAd->MacTab.Size * NUM_OF_TID;
 
 	for (i = 1; ((i <MAX_LEN_OF_BA_ORI_TABLE) && (total > 0)) ; i++)

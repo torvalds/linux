@@ -1018,14 +1018,6 @@ VOID PeerBeacon(
 	UCHAR			AddHtInfoLen;
 	UCHAR			NewExtChannelOffset = 0xff;
 
-
-#ifdef RALINK_ATE
-    if (ATE_ON(pAd))
-    {
-		return;
-    }
-#endif // RALINK_ATE //
-
 	if (!(INFRA_ON(pAd) || ADHOC_ON(pAd)
 		))
 		return;
@@ -1811,14 +1803,6 @@ VOID InvalidStateWhenStart(
 VOID EnqueuePsPoll(
 	IN PRTMP_ADAPTER pAd)
 {
-#ifdef RALINK_ATE
-    if (ATE_ON(pAd))
-    {
-		return;
-    }
-#endif // RALINK_ATE //
-
-
 	if (pAd->StaCfg.WindowsPowerMode == Ndis802_11PowerModeLegacy_PSP)
     	pAd->PsPollFrame.FC.PwrMgmt = PWR_SAVE;
 	MiniportMMRequest(pAd, 0, (PUCHAR)&pAd->PsPollFrame, sizeof(PSPOLL_FRAME));

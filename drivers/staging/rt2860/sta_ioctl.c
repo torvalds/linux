@@ -274,40 +274,6 @@ static struct {
 	{"Debug",						Set_Debug_Proc},
 #endif
 
-#ifdef RALINK_ATE
-	{"ATE",							Set_ATE_Proc},
-	{"ATEDA",						Set_ATE_DA_Proc},
-	{"ATESA",						Set_ATE_SA_Proc},
-	{"ATEBSSID",					Set_ATE_BSSID_Proc},
-	{"ATECHANNEL",					Set_ATE_CHANNEL_Proc},
-	{"ATETXPOW0",					Set_ATE_TX_POWER0_Proc},
-	{"ATETXPOW1",					Set_ATE_TX_POWER1_Proc},
-	{"ATETXANT",					Set_ATE_TX_Antenna_Proc},
-	{"ATERXANT",					Set_ATE_RX_Antenna_Proc},
-	{"ATETXFREQOFFSET",				Set_ATE_TX_FREQOFFSET_Proc},
-	{"ATETXBW",						Set_ATE_TX_BW_Proc},
-	{"ATETXLEN",					Set_ATE_TX_LENGTH_Proc},
-	{"ATETXCNT",					Set_ATE_TX_COUNT_Proc},
-	{"ATETXMCS",					Set_ATE_TX_MCS_Proc},
-	{"ATETXMODE",					Set_ATE_TX_MODE_Proc},
-	{"ATETXGI",						Set_ATE_TX_GI_Proc},
-	{"ATERXFER",					Set_ATE_RX_FER_Proc},
-	{"ATERRF",						Set_ATE_Read_RF_Proc},
-	{"ATEWRF1",						Set_ATE_Write_RF1_Proc},
-	{"ATEWRF2",						Set_ATE_Write_RF2_Proc},
-	{"ATEWRF3",						Set_ATE_Write_RF3_Proc},
-	{"ATEWRF4",						Set_ATE_Write_RF4_Proc},
-	{"ATELDE2P",				    Set_ATE_Load_E2P_Proc},
-	{"ATERE2P",						Set_ATE_Read_E2P_Proc},
-	{"ATESHOW",						Set_ATE_Show_Proc},
-	{"ATEHELP",						Set_ATE_Help_Proc},
-
-#ifdef RALINK_28xx_QA
-	{"TxStop",						Set_TxStop_Proc},
-	{"RxStop",						Set_RxStop_Proc},
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
-
 #ifdef WPA_SUPPLICANT_SUPPORT
     {"WpaSupport",                  Set_Wpa_Support},
 #endif // WPA_SUPPLICANT_SUPPORT //
@@ -1945,14 +1911,6 @@ rt_private_get_statistics(struct net_device *dev, struct iw_request_info *info,
     memset(extra, 0x00, IW_PRIV_SIZE_MASK);
     sprintf(extra, "\n\n");
 
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-	{
-	    sprintf(extra+strlen(extra), "Tx success                      = %ld\n", (ULONG)pAd->ate.TxDoneCount);
-	    //sprintf(extra+strlen(extra), "Tx success without retry        = %ld\n", (ULONG)pAd->ate.TxDoneCount);
-	}
-	else
-#endif // RALINK_ATE //
 	{
     sprintf(extra+strlen(extra), "Tx success                      = %ld\n", (ULONG)pAd->WlanCounters.TransmittedFragmentCount.QuadPart);
     sprintf(extra+strlen(extra), "Tx success without retry        = %ld\n", (ULONG)pAd->WlanCounters.TransmittedFragmentCount.QuadPart - (ULONG)pAd->WlanCounters.RetryCount.QuadPart);
@@ -1968,22 +1926,6 @@ rt_private_get_statistics(struct net_device *dev, struct iw_request_info *info,
     sprintf(extra+strlen(extra), "Rx duplicate frame              = %ld\n", (ULONG)pAd->WlanCounters.FrameDuplicateCount.QuadPart);
 
     sprintf(extra+strlen(extra), "False CCA (one second)          = %ld\n", (ULONG)pAd->RalinkCounters.OneSecFalseCCACnt);
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-	{
-		if (pAd->ate.RxAntennaSel == 0)
-		{
-    		sprintf(extra+strlen(extra), "RSSI-A                          = %ld\n", (LONG)(pAd->ate.LastRssi0 - pAd->BbpRssiToDbmDelta));
-			sprintf(extra+strlen(extra), "RSSI-B (if available)           = %ld\n", (LONG)(pAd->ate.LastRssi1 - pAd->BbpRssiToDbmDelta));
-			sprintf(extra+strlen(extra), "RSSI-C (if available)           = %ld\n\n", (LONG)(pAd->ate.LastRssi2 - pAd->BbpRssiToDbmDelta));
-		}
-		else
-		{
-    		sprintf(extra+strlen(extra), "RSSI                            = %ld\n", (LONG)(pAd->ate.LastRssi0 - pAd->BbpRssiToDbmDelta));
-		}
-	}
-	else
-#endif // RALINK_ATE //
 	{
     	sprintf(extra+strlen(extra), "RSSI-A                          = %ld\n", (LONG)(pAd->StaCfg.RssiSample.LastRssi0 - pAd->BbpRssiToDbmDelta));
         sprintf(extra+strlen(extra), "RSSI-B (if available)           = %ld\n", (LONG)(pAd->StaCfg.RssiSample.LastRssi1 - pAd->BbpRssiToDbmDelta));
@@ -2889,13 +2831,6 @@ rt_private_ioctl_bbp(struct net_device *dev, struct iw_request_info *info,
 			{
 				if (bbpId <= 136)
 				{
-#ifdef RALINK_ATE
-					if (ATE_ON(pAdapter))
-					{
-						ATE_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
-					}
-					else
-#endif // RALINK_ATE //
 					{
 					RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
 					}
@@ -2921,15 +2856,6 @@ rt_private_ioctl_bbp(struct net_device *dev, struct iw_request_info *info,
 			{
 				if (bbpId <= 136)
 				{
-#ifdef RALINK_ATE
-					if (ATE_ON(pAdapter))
-					{
-						ATE_BBP_IO_WRITE8_BY_REG_ID(pAdapter, bbpId, bbpValue);
-						//Read it back for showing
-						ATE_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
-					}
-					else
-#endif // RALINK_ATE //
 					{
 					    RTMP_BBP_IO_WRITE8_BY_REG_ID(pAdapter, bbpId, bbpValue);
     					//Read it back for showing
@@ -2964,13 +2890,6 @@ next:
 		{
 		    if (strlen(extra) >= (IW_PRIV_SIZE_MASK - 10))
                 break;
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				ATE_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
-			}
-			else
-#endif // RALINK_ATE //
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
 			sprintf(extra+strlen(extra), "R%02d[0x%02X]:%02X    ", bbpId, bbpId*2, regBBP);
 			if (bbpId%5 == 4)
@@ -3298,13 +3217,6 @@ INT RTMPSetInformation(
             }
             break;
         case OID_802_11_BSSID_LIST_SCAN:
- #ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				break;
-			}
-#endif // RALINK_ATE //
             Now = jiffies;
 			DBGPRINT(RT_DEBUG_TRACE, ("Set::OID_802_11_BSSID_LIST_SCAN, TxCnt = %d \n", pAdapter->RalinkCounters.LastOneSecTotalTxCount));
 
@@ -3406,13 +3318,6 @@ INT RTMPSetInformation(
             }
             break;
         case OID_802_11_BSSID:
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				break;
-			}
-#endif // RALINK_ATE //
             if (wrq->u.data.length != sizeof(NDIS_802_11_MAC_ADDRESS))
                 Status  = -EINVAL;
             else
@@ -4029,13 +3934,6 @@ INT RTMPSetInformation(
 			break;
 
 		case OID_802_11_DISASSOCIATE:
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				break;
-			}
-#endif // RALINK_ATE //
 			//
 			// Set NdisRadioStateOff to	TRUE, instead of called	MlmeRadioOff.
 			// Later on, NDIS_802_11_BSSID_LIST_EX->NumberOfItems should be	0
@@ -4617,16 +4515,6 @@ INT RTMPQueryInformation(
 				Status = -EFAULT;
             }
             break;
-#ifdef RALINK_ATE
-		case RT_QUERY_ATE_TXDONE_COUNT:
-			DBGPRINT(RT_DEBUG_TRACE, ("Query::RT_QUERY_ATE_TXDONE_COUNT \n"));
-			wrq->u.data.length = sizeof(UINT32);
-			if (copy_to_user(wrq->u.data.pointer, &pAdapter->ate.TxDoneCount, wrq->u.data.length))
-			{
-				Status = -EFAULT;
-			}
-			break;
-#endif // RALINK_ATE //
         case OID_802_11_BSSID_LIST:
             if (RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
             {
@@ -4768,14 +4656,6 @@ INT RTMPQueryInformation(
             Status = copy_to_user(wrq->u.data.pointer, &MediaState, wrq->u.data.length);
             break;
         case OID_802_11_BSSID:
-#ifdef RALINK_ATE
-			if (ATE_ON(pAdapter))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				Status = NDIS_STATUS_RESOURCES;
-				break;
-			}
-#endif // RALINK_ATE //
             if (INFRA_ON(pAdapter) || ADHOC_ON(pAdapter))
             {
                 Status = copy_to_user(wrq->u.data.pointer, &pAdapter->CommonCfg.Bssid, sizeof(NDIS_802_11_MAC_ADDRESS));
@@ -5485,15 +5365,6 @@ INT rt28xx_sta_ioctl(
 
 	switch(cmd)
 	{
-#ifdef RALINK_ATE
-#ifdef RALINK_28xx_QA
-		case RTPRIV_IOCTL_ATE:
-			{
-				RtmpDoAte(pAd, wrq);
-			}
-			break;
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
         case SIOCGIFHWADDR:
 			DBGPRINT(RT_DEBUG_TRACE, ("IOCTL::SIOCGIFHWADDR\n"));
 			memcpy(wrq->u.name, pAd->CurrentAddress, ETH_ALEN);
@@ -6714,13 +6585,6 @@ VOID RTMPIoctlMAC(
                         UCHAR R66;
                         pAdapter->BbpTuning.bEnable = FALSE;
                         R66 = 0x26 + GET_LNA_GAIN(pAdapter);
-#ifdef RALINK_ATE
-						if (ATE_ON(pAdapter))
-						{
-							ATE_BBP_IO_WRITE8_BY_REG_ID(pAdapter, BBP_R66, (0x26 + GET_LNA_GAIN(pAdapter)));
-						}
-						else
-#endif // RALINK_ATE //
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAdapter, BBP_R66, (0x26 + GET_LNA_GAIN(pAdapter)));
                         DBGPRINT(RT_DEBUG_TRACE,("turn off R17 tuning, restore to 0x%02x\n", R66));
                     }
