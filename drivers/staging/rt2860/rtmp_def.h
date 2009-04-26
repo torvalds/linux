@@ -1364,9 +1364,7 @@
 #define MAX_RX_REORDERBUF		64
 #define DEFAULT_TX_TIMEOUT		30
 #define DEFAULT_RX_TIMEOUT		30
-#ifndef CONFIG_AP_SUPPORT
 #define MAX_BARECI_SESSION		8
-#endif
 
 #ifndef IW_ESSID_MAX_SIZE
 /* Maximum size of the ESSID and pAd->nickname strings */

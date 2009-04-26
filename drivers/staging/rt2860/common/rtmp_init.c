@@ -1272,7 +1272,6 @@ VOID	NICReadEEPROMParameters(
 
 	NicConfig2.word = pAd->EEPROMDefaultValue[1];
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		NicConfig2.word = 0;
 		if ((NicConfig2.word & 0x00ff) == 0xff)
@@ -1538,7 +1537,6 @@ VOID	NICInitAsicFromEEPROM(
     pAd->LedIndicatorStregth = 0xFF;
     RTMPSetSignalLED(pAd, -100);	// Force signal strength Led to be turned off, before link up
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Read Hardware controlled Radio state enable bit
 		if (NicConfig2.field.HardwareRadioControl == 1)
@@ -1602,7 +1600,6 @@ VOID	NICInitAsicFromEEPROM(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Handle the difference when 1T
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R1, &BBPR1);
@@ -1862,7 +1859,6 @@ NDIS_STATUS	NICInitializeAsic(
 	}
 
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		for (Index = 0; Index < NUM_STA_MAC_REG_PARMS; Index++)
 		{
@@ -1932,7 +1928,6 @@ NDIS_STATUS	NICInitializeAsic(
 
 
 	// Add radio off control
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pAd->StaCfg.bRadio == FALSE)
 		{
@@ -1979,7 +1974,6 @@ NDIS_STATUS	NICInitializeAsic(
 		}
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// for rt2860E and after, init TXOP_CTRL_CFG with 0x583f. This is for extension channel overlapping IOT.
 		if ((pAd->MACVersion&0xffff) != 0x0101)
@@ -2972,7 +2966,6 @@ VOID	UserCfgInit(
 	//
 	// part II. intialize STA specific configuration
 	//
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		RX_FILTER_SET_FLAG(pAd, fRX_FILTER_ACCEPT_DIRECT);
 		RX_FILTER_CLEAR_FLAG(pAd, fRX_FILTER_ACCEPT_MULTICAST);
@@ -3020,7 +3013,6 @@ VOID	UserCfgInit(
 	pAd->CommonCfg.PhyMode = PHY_11BG_MIXED;		// default PHY mode
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);  // CCK use LONG preamble
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// user desired power mode
 		pAd->StaCfg.WindowsPowerMode = Ndis802_11PowerModeCAM;

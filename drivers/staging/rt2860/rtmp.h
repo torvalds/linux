@@ -47,14 +47,6 @@
 
 //#define DBG_DIAGNOSE		1
 
-#if defined(CONFIG_AP_SUPPORT)
-#define IF_DEV_CONFIG_OPMODE_ON_AP(_pAd)	if(_pAd->OpMode == OPMODE_AP)
-#define IF_DEV_CONFIG_OPMODE_ON_STA(_pAd)	if(_pAd->OpMode == OPMODE_STA)
-#else
-#define IF_DEV_CONFIG_OPMODE_ON_AP(_pAd)
-#define IF_DEV_CONFIG_OPMODE_ON_STA(_pAd)
-#endif
-
 #define VIRTUAL_IF_INC(__pAd) ((__pAd)->VirtualIfCnt++)
 #define VIRTUAL_IF_DEC(__pAd) ((__pAd)->VirtualIfCnt--)
 #define VIRTUAL_IF_NUM(__pAd) ((__pAd)->VirtualIfCnt)

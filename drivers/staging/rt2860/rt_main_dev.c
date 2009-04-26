@@ -195,7 +195,6 @@ int rt28xx_close(IN PNET_DEV dev)
 	if (pAd == NULL)
 		return 0; // close ok
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// If dirver doesn't wake up firmware here,
 		// NICLoadFirmware will hang forever when interface is up again.
@@ -260,11 +259,7 @@ int rt28xx_close(IN PNET_DEV dev)
 	// Close kernel threads or tasklets
 	kill_thread_task(pAd);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		MacTableReset(pAd);
-	}
-
+	MacTableReset(pAd);
 
 	MeasureReqTabExit(pAd);
 	TpcReqTabExit(pAd);
@@ -377,8 +372,7 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 	CfgInitHook(pAd);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		NdisAllocateSpinLock(&pAd->MacTabLock);
+	NdisAllocateSpinLock(&pAd->MacTabLock);
 
 	MeasureReqTabInit(pAd);
 	TpcReqTabInit(pAd);
@@ -547,11 +541,8 @@ int rt28xx_open(IN PNET_DEV dev)
 	if (rt28xx_init(net_dev) == FALSE)
 		goto err;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		NdisZeroMemory(pAd->StaCfg.dev_name, 16);
-		NdisMoveMemory(pAd->StaCfg.dev_name, net_dev->name, strlen(net_dev->name));
-	}
+	NdisZeroMemory(pAd->StaCfg.dev_name, 16);
+	NdisMoveMemory(pAd->StaCfg.dev_name, net_dev->name, strlen(net_dev->name));
 
 	// Set up the Mac address
 	NdisMoveMemory(net_dev->dev_addr, (void *) pAd->CurrentAddress, 6);
@@ -560,10 +551,6 @@ int rt28xx_open(IN PNET_DEV dev)
 	RT28XX_IRQ_INIT(pAd);
 
 	// Various AP function init
-
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-	}
 
 	// Enable Interrupt
 	RT28XX_IRQ_ENABLE(pAd);
@@ -578,7 +565,6 @@ int rt28xx_open(IN PNET_DEV dev)
 	printk("0x1300 = %08x\n", reg);
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
         RTMPInitPCIeLinkCtrlValue(pAd);
 
 	return (retval);
@@ -776,7 +762,6 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 	int status = 0;
 	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Drop send request since we are in monitor mode
 		if (MONITOR_ON(pAd))
@@ -802,11 +787,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
     }
 #endif
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-
-		STASendPackets((NDIS_HANDLE)pAd, (PPNDIS_PACKET) &pPacket, 1);
-	}
+	STASendPackets((NDIS_HANDLE)pAd, (PPNDIS_PACKET) &pPacket, 1);
 
 	status = 0;
 done:
@@ -928,10 +909,7 @@ INT rt28xx_ioctl(
 		return -ENETDOWN;
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		ret = rt28xx_sta_ioctl(net_dev, rq, cmd);
-	}
+	ret = rt28xx_sta_ioctl(net_dev, rq, cmd);
 
 	return ret;
 }

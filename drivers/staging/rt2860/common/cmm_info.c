@@ -225,8 +225,7 @@ INT Set_DriverVersion_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
 {
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		DBGPRINT(RT_DEBUG_TRACE, ("Driver version-%s\n", STA_DRIVER_VERSION));
+	DBGPRINT(RT_DEBUG_TRACE, ("Driver version-%s\n", STA_DRIVER_VERSION));
 
     return TRUE;
 }
@@ -336,7 +335,6 @@ INT	Set_WirelessMode_Proc(
 
 	WirelessMode = simple_strtol(arg, 0, 10);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		INT MaxPhyMode = PHY_11G;
 
@@ -405,7 +403,6 @@ INT	Set_Channel_Proc(
 	// check if this channel is valid
 	if (ChannelSanity(pAd, Channel) == TRUE)
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			pAd->CommonCfg.Channel = Channel;
 
@@ -433,8 +430,7 @@ INT	Set_Channel_Proc(
 	}
 	else
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			success = FALSE;
+		success = FALSE;
 	}
 
 
@@ -490,7 +486,6 @@ INT	Set_TxPower_Proc(
 	TxPower = (ULONG) simple_strtol(arg, 0, 10);
 	if (TxPower <= 100)
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			pAd->CommonCfg.TxPowerDefault = TxPower;
 			pAd->CommonCfg.TxPowerPercentage = pAd->CommonCfg.TxPowerDefault;
@@ -560,8 +555,7 @@ INT	Set_TxPreamble_Proc(
 		case Rt802_11PreambleShort:
 			pAd->CommonCfg.TxPreamble = Preamble;
 
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-				MlmeSetTxPreamble(pAd, Rt802_11PreambleShort);
+			MlmeSetTxPreamble(pAd, Rt802_11PreambleShort);
 			break;
 		case Rt802_11PreambleLong:
 		case Rt802_11PreambleAuto:
@@ -569,8 +563,7 @@ INT	Set_TxPreamble_Proc(
 			// capability upon association.
 			pAd->CommonCfg.TxPreamble = Preamble;
 
-			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-				MlmeSetTxPreamble(pAd, Rt802_11PreambleLong);
+			MlmeSetTxPreamble(pAd, Rt802_11PreambleLong);
 			break;
 		default: //Invalid argument
 			return FALSE;
@@ -641,7 +634,6 @@ INT	Set_FragThreshold_Proc(
 		pAd->CommonCfg.FragmentThreshold = (USHORT)FragThresh;
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pAd->CommonCfg.FragmentThreshold == MAX_FRAG_THRESHOLD)
 			pAd->CommonCfg.bUseZeroToDisableFragment = TRUE;
@@ -1173,8 +1165,7 @@ VOID	RTMPSetPhyMode(
 
 	if (i == pAd->ChannelListNum)
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			pAd->CommonCfg.Channel = FirstChannel(pAd);
+		pAd->CommonCfg.Channel = FirstChannel(pAd);
 		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSetPhyMode: channel is out of range, use first channel=%d \n", pAd->CommonCfg.Channel));
 	}
 
@@ -1479,10 +1470,7 @@ VOID	RTMPSetHT(
 	}
 	AsicSetEdcaParm(pAd, &pAd->CommonCfg.APEdcaParm);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		RTMPSetIndividualHT(pAd, 0);
-	}
+	RTMPSetIndividualHT(pAd, 0);
 }
 
 /*
@@ -1507,7 +1495,6 @@ VOID	RTMPSetIndividualHT(
 
 	do
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			pDesired_ht_phy = &pAd->StaCfg.DesiredHtPhyInfo;
 			DesiredMcs = pAd->StaCfg.DesiredTransmitSetting.field.MCS;
@@ -1664,7 +1651,6 @@ VOID	RTMPAddWcidAttributeEntry(
 	USHORT		Wcid = 0;
 
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (BssIdx > BSS0)
 			{
@@ -1689,7 +1675,6 @@ VOID	RTMPAddWcidAttributeEntry(
 	// Update WCID attribute table
 	offset = MAC_WCID_ATTRIBUTE_BASE + (Wcid * HW_WCID_ATTRI_SIZE);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pEntry && pEntry->ValidAsMesh)
 			WCIDAttri = (CipherAlg<<1) | PAIRWISEKEYTABLE;
@@ -2199,7 +2184,6 @@ INT	Set_HtMcs_Proc(
 	else
 		HtMcs = MCS_AUTO;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		pAd->StaCfg.DesiredTransmitSetting.field.MCS = HtMcs;
 		pAd->StaCfg.bAutoTxRateSwitch = (HtMcs == MCS_AUTO) ? TRUE:FALSE;
@@ -2703,8 +2687,7 @@ INT	Set_FixedTxMode_Proc(
         fix_tx_mode = FIXED_TXMODE_CCK;
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		pAd->StaCfg.DesiredTransmitSetting.field.FixedTxMode = fix_tx_mode;
+	pAd->StaCfg.DesiredTransmitSetting.field.FixedTxMode = fix_tx_mode;
 
 	DBGPRINT(RT_DEBUG_TRACE, ("Set_FixedTxMode_Proc::(FixedTxMode=%d)\n", fix_tx_mode));
 
@@ -2789,8 +2772,7 @@ INT	Show_SSID_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
 {
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		sprintf(pBuf, "\t%s", pAd->CommonCfg.Ssid);
+	sprintf(pBuf, "\t%s", pAd->CommonCfg.Ssid);
 	return 0;
 }
 
@@ -2948,8 +2930,7 @@ INT	Show_HtMcs_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
 {
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		sprintf(pBuf, "\t%u", pAd->StaCfg.DesiredTransmitSetting.field.MCS);
+	sprintf(pBuf, "\t%u", pAd->StaCfg.DesiredTransmitSetting.field.MCS);
 	return 0;
 }
 
@@ -3090,8 +3071,7 @@ INT	Show_WmmCapable_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
 {
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		sprintf(pBuf, "\t%s", pAd->CommonCfg.bWmmCapable ? "TRUE":"FALSE");
+	sprintf(pBuf, "\t%s", pAd->CommonCfg.bWmmCapable ? "TRUE":"FALSE");
 
 	return 0;
 }
@@ -3136,8 +3116,7 @@ INT	Show_AuthMode_Proc(
 {
 	NDIS_802_11_AUTHENTICATION_MODE	AuthMode = Ndis802_11AuthModeOpen;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		AuthMode = pAd->StaCfg.AuthMode;
+	AuthMode = pAd->StaCfg.AuthMode;
 
 	if ((AuthMode >= Ndis802_11AuthModeOpen) &&
 		(AuthMode <= Ndis802_11AuthModeWPA1PSKWPA2PSK))
@@ -3154,8 +3133,7 @@ INT	Show_EncrypType_Proc(
 {
 	NDIS_802_11_WEP_STATUS	WepStatus = Ndis802_11WEPDisabled;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		WepStatus = pAd->StaCfg.WepStatus;
+	WepStatus = pAd->StaCfg.WepStatus;
 
 	if ((WepStatus >= Ndis802_11WEPEnabled) &&
 		(WepStatus <= Ndis802_11Encryption4KeyAbsent))
@@ -3172,8 +3150,7 @@ INT	Show_DefaultKeyID_Proc(
 {
 	UCHAR DefaultKeyId = 0;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		DefaultKeyId = pAd->StaCfg.DefaultKeyId;
+	DefaultKeyId = pAd->StaCfg.DefaultKeyId;
 
 	sprintf(pBuf, "\t%d", DefaultKeyId);
 
@@ -3243,8 +3220,7 @@ INT	Show_WPAPSK_Proc(
 	INT 	idx;
 	UCHAR	PMK[32] = {0};
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		NdisMoveMemory(PMK, pAd->StaCfg.PMK, 32);
+	NdisMoveMemory(PMK, pAd->StaCfg.PMK, 32);
 
     sprintf(pBuf, "\tPMK = ");
     for (idx = 0; idx < 32; idx++)

@@ -1105,7 +1105,6 @@ VOID RT28xxPciMlmeRadioOFF(
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_OFF);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
     {
     	BOOLEAN		Cancelled;
 

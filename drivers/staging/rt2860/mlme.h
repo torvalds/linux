@@ -73,10 +73,7 @@
 #define MAX_CHANNEL_TIME            140       // unit: msec, for single band scan
 #define	FAST_ACTIVE_SCAN_TIME	    30 		  // Active scan waiting for probe response time
 #define CW_MIN_IN_BITS              4         // actual CwMin = 2^CW_MIN_IN_BITS - 1
-
-#ifndef CONFIG_AP_SUPPORT
 #define CW_MAX_IN_BITS              10        // actual CwMax = 2^CW_MAX_IN_BITS - 1
-#endif
 
 // Note: RSSI_TO_DBM_OFFSET has been changed to variable for new RF (2004-0720).
 // SHould not refer to this constant anymore

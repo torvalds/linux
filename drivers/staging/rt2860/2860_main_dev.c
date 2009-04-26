@@ -477,8 +477,7 @@ static void rx_done_tasklet(unsigned long data)
 
 	pAd->int_pending &= ~(INT_RX);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		bReschedule = STARxDoneInterruptHandle(pAd, 0);
+	bReschedule = STARxDoneInterruptHandle(pAd, 0);
 
 	RTMP_INT_LOCK(&pAd->irq_lock, flags);
 	/*
@@ -914,11 +913,8 @@ rt2860_interrupt(int irq, void *dev_instance)
 		RTMPHandleTBTTInterrupt(pAd);
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		if (IntSource.word & AutoWakeupInt)
-			RTMPHandleTwakeupInterrupt(pAd);
-	}
+	if (IntSource.word & AutoWakeupInt)
+		RTMPHandleTwakeupInterrupt(pAd);
 
     return  IRQ_HANDLED;
 }

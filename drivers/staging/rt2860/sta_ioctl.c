@@ -3007,11 +3007,7 @@ static const iw_handler rt_handler[] =
 static const iw_handler rt_priv_handlers[] = {
 	(iw_handler) NULL, /* + 0x00 */
 	(iw_handler) NULL, /* + 0x01 */
-#ifndef CONFIG_AP_SUPPORT
 	(iw_handler) rt_ioctl_setparam, /* + 0x02 */
-#else
-	(iw_handler) NULL, /* + 0x02 */
-#endif // CONFIG_AP_SUPPORT //
 #ifdef DBG
 	(iw_handler) rt_private_ioctl_bbp, /* + 0x03 */
 #else

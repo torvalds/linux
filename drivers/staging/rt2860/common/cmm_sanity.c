@@ -422,7 +422,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 				*(USHORT *)(&pHtCapability->HtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->HtCapInfo));
 				*(USHORT *)(&pHtCapability->ExtHtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->ExtHtCapInfo));
 
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 					*pPreNHtCapabilityLen = 0;	// Nnow we only support 26 bytes.
 
@@ -450,7 +449,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 				*(USHORT *)(&AddHtInfo->AddHtInfo2) = cpu2le16(*(USHORT *)(&AddHtInfo->AddHtInfo2));
 				*(USHORT *)(&AddHtInfo->AddHtInfo3) = cpu2le16(*(USHORT *)(&AddHtInfo->AddHtInfo3));
 
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 			                Ptr = (PUCHAR) pVIE;
 			                NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid, pEid->Len + 2);
@@ -483,7 +481,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                 {
                     *pChannel = *pEid->Octet;
 
-					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						if (ChannelSanity(pAd, *pChannel) == 0)
 						{
@@ -707,7 +704,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     }
 
     // For some 11a AP. it did not have the channel EID, patch here
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		UCHAR LatchRfChannel = MsgChannel;
 		if ((pAd->LatchRfRegs.Channel > 14) && ((Sanity & 0x4) == 0))

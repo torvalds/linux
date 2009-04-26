@@ -130,8 +130,7 @@ void Announce_Reordering_Packet(IN PRTMP_ADAPTER			pAd,
 		// pass this 802.3 packet to upper layer or forward this packet to WM directly
 		//
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pPacket, RTMP_GET_PACKET_IF(pPacket));
+		ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pPacket, RTMP_GET_PACKET_IF(pPacket));
 	}
 }
 
@@ -606,8 +605,7 @@ VOID BAOriSessionAdd(
 			return;
 		}
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			BarHeaderInit(pAd, &FrameBar, pAd->MacTab.Content[pBAEntry->Wcid].Addr, pAd->CurrentAddress);
+		BarHeaderInit(pAd, &FrameBar, pAd->MacTab.Content[pBAEntry->Wcid].Addr, pAd->CurrentAddress);
 
 		FrameBar.StartingSeq.field.FragNum = 0;	// make sure sequence not clear in DEL function.
 		FrameBar.StartingSeq.field.StartSeq = pBAEntry->Sequence; // make sure sequence not clear in DEL funciton.
@@ -1076,12 +1074,9 @@ VOID BAOriSessionSetupTimeout(
 
 	pAd = pBAEntry->pAdapter;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		// Do nothing if monitor mode is on
-		if (MONITOR_ON(pAd))
-			return;
-	}
+	// Do nothing if monitor mode is on
+	if (MONITOR_ON(pAd))
+		return;
 
 	pEntry = &pAd->MacTab.Content[pBAEntry->Wcid];
 
@@ -1216,7 +1211,6 @@ VOID PeerAddBAReqAction(
 	NdisZeroMemory(&ADDframe, sizeof(FRAME_ADDBA_RSP));
 
 	// 2-1. Prepare ADDBA Response frame.
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (ADHOC_ON(pAd))
 			ActHeaderInit(pAd, &ADDframe.Hdr, pAddr, pAd->CurrentAddress, pAd->CommonCfg.Bssid);
@@ -1412,8 +1406,7 @@ VOID SendPSMPAction(
 		return;
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		ActHeaderInit(pAd, &Frame.Hdr, pAd->CommonCfg.Bssid, pAd->CurrentAddress, pAd->MacTab.Content[Wcid].Addr);
+	ActHeaderInit(pAd, &Frame.Hdr, pAd->CommonCfg.Bssid, pAd->CurrentAddress, pAd->MacTab.Content[Wcid].Addr);
 
 	Frame.Category = CATEGORY_HT;
 	Frame.Action = SMPS_ACTION;
@@ -1478,8 +1471,7 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(
 	// 		a. pointer pRxBlk->pData to payload
 	//      b. modify pRxBlk->DataSize
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
+	RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
 
 	ASSERT(pRxBlk->pRxPacket);
 	pRxPkt = RTPKT_TO_OSPKT(pRxBlk->pRxPacket);
@@ -1494,12 +1486,9 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(
 	//
 	if (!RX_BLK_TEST_FLAG(pRxBlk, fRX_AMSDU))
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		{
 #ifdef LINUX
-			NdisMoveMemory(skb_push(pRxPkt, LENGTH_802_3), Header802_3, LENGTH_802_3);
+		NdisMoveMemory(skb_push(pRxPkt, LENGTH_802_3), Header802_3, LENGTH_802_3);
 #endif
-		}
 	}
 }
 
