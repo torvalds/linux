@@ -3320,9 +3320,7 @@ VOID	UserCfgInit(
 		pAd->StaCfg.IEEE8021X = FALSE;
 		pAd->StaCfg.IEEE8021x_required_keys = FALSE;
 		pAd->StaCfg.WpaSupplicantUP = WPA_SUPPLICANT_DISABLE;
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 		pAd->StaCfg.WpaSupplicantUP = WPA_SUPPLICANT_ENABLE;
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 #endif // WPA_SUPPLICANT_SUPPORT //
 
 	}

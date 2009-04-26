@@ -250,18 +250,6 @@ int rt28xx_close(IN PNET_DEV dev)
 		RTMPCancelTimer(&pAd->StaCfg.StaQuickResponeForRateUpTimer, &Cancelled);
 		RTMPCancelTimer(&pAd->StaCfg.WpaDisassocAndBlockAssocTimer, &Cancelled);
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-		{
-			union iwreq_data    wrqu;
-			// send wireless event to wpa_supplicant for infroming interface down.
-			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.flags = RT_INTERFACE_DOWN;
-			wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-		}
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
 		MlmeRadioOff(pAd);
 	}
 
@@ -671,18 +659,6 @@ int rt28xx_open(IN PNET_DEV dev)
 
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-		{
-			union iwreq_data    wrqu;
-			// send wireless event to wpa_supplicant for infroming interface down.
-			memset(&wrqu, 0, sizeof(wrqu));
-			wrqu.data.flags = RT_INTERFACE_UP;
-			wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-		}
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
 	}
 
 	// Enable Interrupt
@@ -854,13 +830,12 @@ INT __devinit   rt28xx_probe(
 //		goto err_out;
 
 	netif_stop_queue(net_dev);
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
+
 /* for supporting Network Manager */
 /* Set the sysfs physical device reference for the network logical device
  * if set prior to registration will cause a symlink during initialization.
  */
     SET_NETDEV_DEV(net_dev, &(dev_p->dev));
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 
 	// Allocate RTMP_ADAPTER miniport adapter structure
 	handle = kmalloc(sizeof(struct os_cookie), GFP_KERNEL);

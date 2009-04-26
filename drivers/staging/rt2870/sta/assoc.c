@@ -840,27 +840,11 @@ VOID MlmeDisassocReqAction(
 	RTMPSetTimer(&pAd->MlmeAux.DisassocTimer, Timeout); /* in mSec */
 	pAd->Mlme.AssocMachine.CurrState = DISASSOC_WAIT_RSP;
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-    if (pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
-	{
-        union iwreq_data    wrqu;
-        //send disassociate event to wpa_supplicant
-        memset(&wrqu, 0, sizeof(wrqu));
-        wrqu.data.flags = RT_DISASSOC_EVENT_FLAG;
-        wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-    }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
     {
         union iwreq_data    wrqu;
         memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
         wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
     }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-
 }
 
 /*
@@ -995,21 +979,6 @@ VOID PeerReassocRspAction(
 				AssocPostProc(pAd, Addr2, CapabilityInfo, Aid, SupRate, SupRateLen, ExtRate, ExtRateLen,
 					 &EdcaParm, &HtCapability, HtCapabilityLen, &AddHtInfo);
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-                if (pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
-                {
-                    union iwreq_data    wrqu;
-
-                    SendAssocIEsToWpaSupplicant(pAd);
-                    memset(&wrqu, 0, sizeof(wrqu));
-                    wrqu.data.flags = RT_ASSOC_EVENT_FLAG;
-                    wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-                }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
                 {
                     union iwreq_data    wrqu;
                     wext_notify_event_assoc(pAd);
@@ -1019,7 +988,6 @@ VOID PeerReassocRspAction(
                     wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 
                 }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 
 			}
 
@@ -1214,26 +1182,11 @@ VOID PeerDisassocAction(
 			LinkDown(pAd, TRUE);
 			pAd->Mlme.AssocMachine.CurrState = ASSOC_IDLE;
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-            if (pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
-			{
-                union iwreq_data    wrqu;
-                //send disassociate event to wpa_supplicant
-                memset(&wrqu, 0, sizeof(wrqu));
-                wrqu.data.flags = RT_DISASSOC_EVENT_FLAG;
-                wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-            }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
             {
                 union iwreq_data    wrqu;
                 memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
                 wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
             }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 		}
 	}
 	else
@@ -1516,36 +1469,6 @@ VOID SwitchBetweenWepAndCkip(
 	}
 }
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-VOID    SendAssocIEsToWpaSupplicant(
-    IN  PRTMP_ADAPTER pAd)
-{
-    union iwreq_data    wrqu;
-    unsigned char custom[IW_CUSTOM_MAX] = {0};
-
-    if ((pAd->StaCfg.ReqVarIELen + 17) <= IW_CUSTOM_MAX)
-    {
-        sprintf(custom, "ASSOCINFO_ReqIEs=");
-	    NdisMoveMemory(custom+17, pAd->StaCfg.ReqVarIEs, pAd->StaCfg.ReqVarIELen);
-	    memset(&wrqu, 0, sizeof(wrqu));
-        wrqu.data.length = pAd->StaCfg.ReqVarIELen + 17;
-        wrqu.data.flags = RT_REQIE_EVENT_FLAG;
-        wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, custom);
-
-        memset(&wrqu, 0, sizeof(wrqu));
-        wrqu.data.flags = RT_ASSOCINFO_EVENT_FLAG;
-        wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-    }
-    else
-        DBGPRINT(RT_DEBUG_TRACE, ("pAd->StaCfg.ReqVarIELen + 17 > MAX_CUSTOM_LEN\n"));
-
-    return;
-}
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
 int wext_notify_event_assoc(
 	IN  RTMP_ADAPTER *pAd)
 {
@@ -1578,8 +1501,6 @@ int wext_notify_event_assoc(
 	return 0;
 
 }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-
 
 BOOLEAN StaAddMacTableEntry(
 	IN  PRTMP_ADAPTER		pAd,
@@ -1795,21 +1716,6 @@ BOOLEAN StaAddMacTableEntry(
 
 	NdisReleaseSpinLock(&pAd->MacTabLock);
 
-#ifdef WPA_SUPPLICANT_SUPPORT
-#ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
-    if (pAd->StaCfg.WpaSupplicantUP)
-    {
-        union iwreq_data    wrqu;
-
-        SendAssocIEsToWpaSupplicant(pAd);
-        memset(&wrqu, 0, sizeof(wrqu));
-        wrqu.data.flags = RT_ASSOC_EVENT_FLAG;
-        wireless_send_event(pAd->net_dev, IWEVCUSTOM, &wrqu, NULL);
-    }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-#endif // WPA_SUPPLICANT_SUPPORT //
-
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
     {
         union iwreq_data    wrqu;
         wext_notify_event_assoc(pAd);
@@ -1819,7 +1725,6 @@ BOOLEAN StaAddMacTableEntry(
         wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 
     }
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 	return TRUE;
 }
 
