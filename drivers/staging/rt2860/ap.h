@@ -531,23 +531,6 @@ BOOLEAN APPeerBeaconAndProbeRspSanity(
 
 // ap_info.c
 
-#ifdef WIN_NDIS
-NDIS_STATUS APQueryInformation(
-    IN  NDIS_HANDLE MiniportAdapterContext,
-    IN  NDIS_OID    Oid,
-    IN  PVOID       pInformationBuffer,
-    IN  ULONG       InformationBufferLength,
-    OUT PULONG      pBytesWritten,
-    OUT PULONG      pBytesNeeded);
-
-NDIS_STATUS APSetInformation(
-    IN  NDIS_HANDLE MiniportAdapterContext,
-    IN  NDIS_OID    Oid,
-    IN  PVOID       pInformationBuffer,
-    IN  ULONG       InformationBufferLength,
-    OUT PULONG      pBytesRead,
-    OUT PULONG      pBytesNeeded);
-#endif
 
 
 // ================== end of AP RTMP.h ========================
