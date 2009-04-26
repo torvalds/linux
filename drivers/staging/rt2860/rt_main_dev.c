@@ -530,9 +530,7 @@ err1:
 
 	// shall not set ml_priv to NULL here because the ml_priv didn't been free yet.
 	//net_dev->ml_priv = 0;
-#ifdef INF_AMAZON_SE
-err0:
-#endif // INF_AMAZON_SE //
+
 	printk("!!! %s Initialized fail !!!\n", RT28xx_CHIP_NAME);
 	return FALSE;
 } /* End of rt28xx_init */
