@@ -72,7 +72,7 @@ sun4e_notsup:
 	.align 4
 
 	/* The Sparc trap table, bootloader gives us control at _start. */
-	.section .text.head,"ax"
+	__HEAD
 	.globl	start, _stext, _start, __stext
 	.globl  trapbase
 _start:   /* danger danger */
