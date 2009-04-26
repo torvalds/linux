@@ -43,10 +43,6 @@
 #include "link_list.h"
 #include "spectrum_def.h"
 
-#ifdef MLME_EX
-#include "mlme_ex_def.h"
-#endif // MLME_EX //
-
 #ifdef CONFIG_STA_SUPPORT
 #include "aironet.h"
 #endif // CONFIG_STA_SUPPORT //

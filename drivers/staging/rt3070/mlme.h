@@ -1210,9 +1210,6 @@ typedef struct _MLME_QUEUE_ELEM {
     UCHAR             Channel;
     UCHAR             Wcid;
     BOOLEAN           Occupied;
-#ifdef MLME_EX
-	USHORT            Idx;
-#endif // MLME_EX //
 } MLME_QUEUE_ELEM, *PMLME_QUEUE_ELEM;
 
 typedef struct _MLME_QUEUE {

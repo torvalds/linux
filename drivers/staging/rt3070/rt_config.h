@@ -67,10 +67,6 @@
 #include	"dfs.h"
 #include	"chlist.h"
 #include	"spectrum.h"
-#ifdef MLME_EX
-#include	"mlme_ex_def.h"
-#include	"mlme_ex.h"
-#endif // MLME_EX //
 
 #ifdef LEAP_SUPPORT
 #include    "leap.h"
