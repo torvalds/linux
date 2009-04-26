@@ -583,7 +583,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		err = mlx4_en_activate_cq(priv, cq);
 		if (err) {
 			mlx4_err(mdev, "Failed activating Rx CQ\n");
-			goto rx_err;
+			goto cq_err;
 		}
 		for (j = 0; j < cq->size; j++)
 			cq->buf[j].owner_sr_opcode = MLX4_CQE_OWNER_MASK;
