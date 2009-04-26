@@ -349,13 +349,6 @@ int rt28xx_close(IN PNET_DEV dev)
 	ba_reordering_resource_release(pAd);
 #endif // DOT11_N_SUPPORT //
 
-#ifdef RT2870
-#ifdef INF_AMAZON_SE
-	if (pAd->UsbVendorReqBuf)
-		os_free_mem(pAd, pAd->UsbVendorReqBuf);
-#endif // INF_AMAZON_SE //
-#endif // RT2870 //
-
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_START_UP);
 
 	return 0; // close ok
@@ -368,18 +361,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	UCHAR					TmpPhy;
 	NDIS_STATUS				Status;
 	UINT32 		MacCsr0 = 0;
-
-#ifdef RT2870
-#ifdef INF_AMAZON_SE
-	init_MUTEX(&(pAd->UsbVendorReq_semaphore));
-	os_alloc_mem(pAd, (PUCHAR)&pAd->UsbVendorReqBuf, MAX_PARAM_BUFFER_SIZE - 1);
-	if (pAd->UsbVendorReqBuf == NULL)
-	{
-		DBGPRINT(RT_DEBUG_ERROR, ("Allocate vendor request temp buffer failed!\n"));
-		goto err0;
-	}
-#endif // INF_AMAZON_SE //
-#endif // RT2870 //
 
 #ifdef DOT11_N_SUPPORT
 	// Allocate BA Reordering memory
@@ -632,9 +613,7 @@ err1:
 
 	// shall not set ml_priv to NULL here because the ml_priv didn't been free yet.
 	//net_dev->ml_priv = 0;
-#ifdef INF_AMAZON_SE
-err0:
-#endif // INF_AMAZON_SE //
+
 	printk("!!! %s Initialized fail !!!\n", RT28xx_CHIP_NAME);
 	return FALSE;
 } /* End of rt28xx_init */
