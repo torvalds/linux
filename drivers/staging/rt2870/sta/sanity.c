@@ -184,7 +184,6 @@ BOOLEAN PeerAssocRspSanity(
 			}
 
 		break;
-#ifdef DOT11_N_SUPPORT
             case IE_ADD_HT:
             case IE_ADD_HT2:
 			if (pEid->Len >= sizeof(ADD_HT_INFO_IE))
@@ -213,7 +212,6 @@ BOOLEAN PeerAssocRspSanity(
 			{
 				DBGPRINT(RT_DEBUG_WARN, ("PeerAssocRspSanity - wrong IE_SECONDARY_CH_OFFSET. \n"));
 			}
-#endif // DOT11_N_SUPPORT //
 		break;
             case IE_AIRONET_CKIP:
                 // 0. Check Aironet IE length, it must be larger or equal to 28

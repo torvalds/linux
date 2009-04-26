@@ -63,7 +63,6 @@ INT	Show_FragThreshold_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf);
 
-#ifdef DOT11_N_SUPPORT
 INT	Show_HtBw_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf);
@@ -103,7 +102,6 @@ INT	Show_HtAmsdu_Proc(
 INT	Show_HtAutoBa_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf);
-#endif // DOT11_N_SUPPORT //
 
 INT	Show_CountryRegion_Proc(
 	IN	PRTMP_ADAPTER	pAd,
@@ -182,7 +180,6 @@ static struct {
 	{"BGProtection",			Show_BGProtection_Proc},
 	{"RTSThreshold",			Show_RTSThreshold_Proc},
 	{"FragThreshold",			Show_FragThreshold_Proc},
-#ifdef DOT11_N_SUPPORT
 	{"HtBw",					Show_HtBw_Proc},
 	{"HtMcs",					Show_HtMcs_Proc},
 	{"HtGi",					Show_HtGi_Proc},
@@ -193,7 +190,6 @@ static struct {
 	{"HtRdg",		        	Show_HtRdg_Proc},
 	{"HtAmsdu",		        	Show_HtAmsdu_Proc},
 	{"HtAutoBa",		        Show_HtAutoBa_Proc},
-#endif // DOT11_N_SUPPORT //
 	{"CountryRegion",			Show_CountryRegion_Proc},
 	{"CountryRegionABand",		Show_CountryRegionABand_Proc},
 	{"CountryCode",				Show_CountryCode_Proc},
@@ -344,14 +340,12 @@ INT	Set_WirelessMode_Proc(
 	{
 		INT MaxPhyMode = PHY_11G;
 
-#ifdef DOT11_N_SUPPORT
 		MaxPhyMode = PHY_11N_5G;
-#endif // DOT11_N_SUPPORT //
 
 		if (WirelessMode <= MaxPhyMode)
 		{
 			RTMPSetPhyMode(pAd, WirelessMode);
-#ifdef DOT11_N_SUPPORT
+
 			if (WirelessMode >= PHY_11ABGN_MIXED)
 			{
 				pAd->CommonCfg.BACapability.field.AutoBA = TRUE;
@@ -362,7 +356,7 @@ INT	Set_WirelessMode_Proc(
 				pAd->CommonCfg.BACapability.field.AutoBA = FALSE;
 				pAd->CommonCfg.REGBACapability.field.AutoBA = FALSE;
 			}
-#endif // DOT11_N_SUPPORT //
+
 			// Set AdhocMode rates
 			if (pAd->StaCfg.BssType == BSS_ADHOC)
 			{
@@ -380,9 +374,7 @@ INT	Set_WirelessMode_Proc(
 	// it is needed to set SSID to take effect
 	if (success == TRUE)
 	{
-#ifdef DOT11_N_SUPPORT
 		SetCommonHT(pAd);
-#endif // DOT11_N_SUPPORT //
 		DBGPRINT(RT_DEBUG_TRACE, ("Set_WirelessMode_Proc::(=%ld)\n", WirelessMode));
 	}
 	else
@@ -419,7 +411,6 @@ INT	Set_Channel_Proc(
 
 			if (MONITOR_ON(pAd))
 			{
-#ifdef DOT11_N_SUPPORT
 				N_ChannelCheck(pAd);
 				if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED &&
 					pAd->CommonCfg.RegTransmitSetting.field.BW == BW_40)
@@ -431,7 +422,6 @@ INT	Set_Channel_Proc(
 								pAd->CommonCfg.Channel, pAd->CommonCfg.CentralChannel));
 				}
 				else
-#endif // DOT11_N_SUPPORT //
 				{
 					AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
 					AsicLockChannel(pAd, pAd->CommonCfg.Channel);
@@ -1489,12 +1479,10 @@ VOID	RTMPSetPhyMode(
 		case PHY_11G:
 		case PHY_11BG_MIXED:
 		case PHY_11ABG_MIXED:
-#ifdef DOT11_N_SUPPORT
 		case PHY_11N_2_4G:
 		case PHY_11ABGN_MIXED:
 		case PHY_11BGN_MIXED:
 		case PHY_11GN_MIXED:
-#endif // DOT11_N_SUPPORT //
 			pAd->CommonCfg.SupRate[0]  = 0x82;	  // 1 mbps, in units of 0.5 Mbps, basic rate
 			pAd->CommonCfg.SupRate[1]  = 0x84;	  // 2 mbps, in units of 0.5 Mbps, basic rate
 			pAd->CommonCfg.SupRate[2]  = 0x8B;	  // 5.5 mbps, in units of 0.5 Mbps, basic rate
@@ -1524,11 +1512,9 @@ VOID	RTMPSetPhyMode(
 			break;
 
 		case PHY_11A:
-#ifdef DOT11_N_SUPPORT
 		case PHY_11AN_MIXED:
 		case PHY_11AGN_MIXED:
 		case PHY_11N_5G:
-#endif // DOT11_N_SUPPORT //
 			pAd->CommonCfg.SupRate[0]  = 0x8C;	  // 6 mbps, in units of 0.5 Mbps, basic rate
 			pAd->CommonCfg.SupRate[1]  = 0x12;	  // 9 mbps, in units of 0.5 Mbps
 			pAd->CommonCfg.SupRate[2]  = 0x98;	  // 12 mbps, in units of 0.5 Mbps, basic rate
@@ -1558,8 +1544,6 @@ VOID	RTMPSetPhyMode(
 	pAd->CommonCfg.BandState = UNKNOWN_BAND;
 }
 
-
-#ifdef DOT11_N_SUPPORT
 /*
 	========================================================================
 	Routine Description:
@@ -1947,7 +1931,6 @@ VOID	RTMPUpdateHTIE(
 
         DBGPRINT(RT_DEBUG_TRACE,("RTMPUpdateHTIE <== \n"));
 }
-#endif // DOT11_N_SUPPORT //
 
 /*
 	========================================================================
@@ -2229,9 +2212,7 @@ VOID RTMPIoctlGetMacTable(
 			COPY_MAC_ADDR(MacTab.Entry[MacTab.Num].Addr, &pAd->MacTab.Content[i].Addr);
 			MacTab.Entry[MacTab.Num].Aid = (UCHAR)pAd->MacTab.Content[i].Aid;
 			MacTab.Entry[MacTab.Num].Psm = pAd->MacTab.Content[i].PsMode;
-#ifdef DOT11_N_SUPPORT
 			MacTab.Entry[MacTab.Num].MimoPs = pAd->MacTab.Content[i].MmpsMode;
-#endif // DOT11_N_SUPPORT //
 
 			// Fill in RSSI per entry
 			MacTab.Entry[MacTab.Num].AvgRssi0 = pAd->MacTab.Content[i].RssiSample.AvgRssi0;
@@ -2297,7 +2278,6 @@ VOID RTMPIoctlGetMacTable(
 	kfree(msg);
 }
 
-#ifdef DOT11_N_SUPPORT
 INT	Set_BASetup_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
@@ -2982,10 +2962,7 @@ INT	Set_HtMimoPs_Proc(
 
 	return TRUE;
 }
-#endif // DOT11_N_SUPPORT //
 
-
-#ifdef DOT11_N_SUPPORT
 INT	SetCommonHT(
 	IN	PRTMP_ADAPTER	pAd)
 {
@@ -3007,7 +2984,6 @@ INT	SetCommonHT(
 
 	return TRUE;
 }
-#endif // DOT11_N_SUPPORT //
 
 INT	Set_FixedTxMode_Proc(
 	IN	PRTMP_ADAPTER	pAd,
@@ -3138,7 +3114,6 @@ INT	Show_WirelessMode_Proc(
 		case PHY_11G:
 			sprintf(pBuf, "\t11G");
 			break;
-#ifdef DOT11_N_SUPPORT
 		case PHY_11ABGN_MIXED:
 			sprintf(pBuf, "\t11A/B/G/N");
 			break;
@@ -3160,7 +3135,6 @@ INT	Show_WirelessMode_Proc(
 		case PHY_11N_5G:
 			sprintf(pBuf, "\t11N only with 5G");
 			break;
-#endif // DOT11_N_SUPPORT //
 		default:
 			sprintf(pBuf, "\tUnknow Value(%d)", pAd->CommonCfg.PhyMode);
 			break;
@@ -3254,7 +3228,6 @@ INT	Show_FragThreshold_Proc(
 	return 0;
 }
 
-#ifdef DOT11_N_SUPPORT
 INT	Show_HtBw_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
@@ -3376,7 +3349,6 @@ INT	Show_HtAutoBa_Proc(
 	sprintf(pBuf, "\t%s", pAd->CommonCfg.BACapability.field.AutoBA ? "TRUE":"FALSE");
 	return 0;
 }
-#endif // DOT11_N_SUPPORT //
 
 INT	Show_CountryRegion_Proc(
 	IN	PRTMP_ADAPTER	pAd,

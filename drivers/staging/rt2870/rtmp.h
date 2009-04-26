@@ -234,11 +234,9 @@ extern UCHAR  SsidIe;
 extern UCHAR  SupRateIe;
 extern UCHAR  ExtRateIe;
 
-#ifdef DOT11_N_SUPPORT
 extern UCHAR  HtCapIe;
 extern UCHAR  AddHtInfoIe;
 extern UCHAR  NewExtChanIe;
-#endif // DOT11_N_SUPPORT //
 
 extern UCHAR  ErpIe;
 extern UCHAR  DsIe;
@@ -263,7 +261,6 @@ extern UCHAR  RateSwitchTable11B[];
 extern UCHAR  RateSwitchTable11G[];
 extern UCHAR  RateSwitchTable11BG[];
 
-#ifdef DOT11_N_SUPPORT
 extern UCHAR  RateSwitchTable11BGN1S[];
 extern UCHAR  RateSwitchTable11BGN2S[];
 extern UCHAR  RateSwitchTable11BGN2SForABand[];
@@ -272,11 +269,9 @@ extern UCHAR  RateSwitchTable11N2S[];
 extern UCHAR  RateSwitchTable11N2SForABand[];
 
 extern UCHAR  PRE_N_HT_OUI[];
-#endif // DOT11_N_SUPPORT //
 
 #define	MAXSEQ		(0xFFF)
 
-#ifdef DOT11_N_SUPPORT
 struct reordering_mpdu
 {
 	struct reordering_mpdu	*next;
@@ -297,7 +292,6 @@ struct reordering_mpdu_pool
 	NDIS_SPIN_LOCK			lock;
 	struct reordering_list 	freelist;
 };
-#endif // DOT11_N_SUPPORT //
 
 typedef struct 	_RSSI_SAMPLE {
 	CHAR			LastRssi0;             // last received RSSI
@@ -438,7 +432,6 @@ typedef struct  _QUEUE_HEADER   {
     }                                                   \
 }
 
-#ifdef DOT11_N_SUPPORT
 // StaActive.SupportedHtPhy.MCSSet is copied from AP beacon.  Don't need to update here.
 #define COPY_HTSETTINGS_FROM_MLME_AUX_TO_ACTIVE_CFG(_pAd)                                 \
 {                                                                                       \
@@ -462,7 +455,6 @@ typedef struct  _QUEUE_HEADER   {
 	_pAd->MacTab.Content[BSSID_WCID].MmpsMode= (UCHAR)(_pHtCapability->HtCapInfo.MimoPs);	\
 	_pAd->MacTab.Content[BSSID_WCID].MaxRAmpduFactor = (UCHAR)(_pHtCapability->HtCapParm.MaxRAmpduFactor);	\
 }
-#endif // DOT11_N_SUPPORT //
 
 //
 // BBP & RF are using indirect access. Before write any value into it.
@@ -1290,7 +1282,6 @@ typedef enum _ORI_BLOCKACK_STATUS
     Originator_Done
 } ORI_BLOCKACK_STATUS, *PORI_BLOCKACK_STATUS;
 
-#ifdef DOT11_N_SUPPORT
 typedef struct _BA_ORI_ENTRY{
 	UCHAR   Wcid;
 	UCHAR   TID;
@@ -1376,7 +1367,6 @@ typedef	union	_BACAP_STRUC	{
 	}	field;
 	UINT32			word;
 } BACAP_STRUC, *PBACAP_STRUC;
-#endif // DOT11_N_SUPPORT //
 
 //This structure is for all 802.11n card InterOptibilityTest action. Reset all Num every n second.  (Details see MLMEPeriodic)
 typedef	struct	_IOT_STRUC	{
@@ -1666,10 +1656,9 @@ typedef struct _COMMON_CONFIG {
 	ULONG       TxPowerPercentage;      // 0~100 %
 	ULONG       TxPowerDefault;         // keep for TxPowerPercentage
 
-#ifdef DOT11_N_SUPPORT
 	BACAP_STRUC        BACapability; //   NO USE = 0XFF  ;  IMMED_BA =1  ;  DELAY_BA=0
 	BACAP_STRUC        REGBACapability; //   NO USE = 0XFF  ;  IMMED_BA =1  ;  DELAY_BA=0
-#endif // DOT11_N_SUPPORT //
+
 	IOT_STRUC		IOTestParm;	// 802.11n InterOpbility Test Parameter;
 	ULONG       TxPreamble;             // Rt802_11PreambleLong, Rt802_11PreambleShort, Rt802_11PreambleAuto
 	BOOLEAN     bUseZeroToDisableFragment;     // Microsoft use 0 as disable
@@ -1681,9 +1670,8 @@ typedef struct _COMMON_CONFIG {
 	BOOLEAN     bIEEE80211H;			// 1: enable IEEE802.11h spec.
 	ULONG		DisableOLBCDetect;		// 0: enable OLBC detect; 1 disable OLBC detect
 
-#ifdef DOT11_N_SUPPORT
 	BOOLEAN				bRdg;
-#endif // DOT11_N_SUPPORT //
+
 	BOOLEAN             bWmmCapable;        // 0:disable WMM, 1:enable WMM
 	QOS_CAPABILITY_PARM APQosCapability;    // QOS capability of the current associated AP
 	EDCA_PARM           APEdcaParm;         // EDCA parameters of the current associated AP
@@ -1702,7 +1690,6 @@ typedef struct _COMMON_CONFIG {
 	// IEEE802.11H--DFS.
 	RADAR_DETECT_STRUCT	RadarDetect;
 
-#ifdef DOT11_N_SUPPORT
 	// HT
 	UCHAR			BASize;		// USer desired BAWindowSize. Should not exceed our max capability
 	//RT_HT_CAPABILITY	SupportedHtPhy;
@@ -1723,7 +1710,6 @@ typedef struct _COMMON_CONFIG {
 	ULONG					LastRcvBSSWidthTriggerEventsTime;
 
 	UCHAR					TxBASize;
-#endif // DOT11_N_SUPPORT //
 
 	// Enable wireless event
 	BOOLEAN				bWirelessEvent;
@@ -2069,14 +2055,11 @@ typedef struct _MAC_TABLE_ENTRY {
 
 	UINT32			StaConnectTime;		// the live time of this station since associated with AP
 
-
-#ifdef DOT11_N_SUPPORT
 	BOOLEAN			bSendBAR;
 	USHORT			NoBADataCountDown;
 
 	UINT32   		CachedBuf[16];		// UINT (4 bytes) for alignment
 	UINT			TxBFCount; // 3*3
-#endif // DOT11_N_SUPPORT //
 	UINT			FIFOCount;
 	UINT			DebugFIFOCount;
 	UINT			DebugTxCount;
@@ -2114,10 +2097,8 @@ typedef struct _MAC_TABLE_ENTRY {
 	// see fOP_STATUS_xxx in RTMP_DEF.C for detail bit definition. fCLIENT_STATUS_AMSDU_INUSED
 	ULONG           ClientStatusFlags;
 
-	// TODO: Shall we move that to DOT11_N_SUPPORT???
 	HTTRANSMIT_SETTING	HTPhyMode, MaxHTPhyMode, MinHTPhyMode;// For transmit phy setting in TXWI.
 
-#ifdef DOT11_N_SUPPORT
 	// HT EWC MIMO-N used parameters
 	USHORT		RXBAbitmap;	// fill to on-chip  RXWI_BA_BITMASK in 8.1.3RX attribute entry format
 	USHORT		TXBAbitmap;	// This bitmap as originator, only keep in software used to mark AMPDU bit in TXWI
@@ -2134,7 +2115,6 @@ typedef struct _MAC_TABLE_ENTRY {
 	UCHAR		MmpsMode;	// MIMO power save more.
 
 	HT_CAPABILITY_IE		HTCapability;
-#endif // DOT11_N_SUPPORT //
 
 	BOOLEAN		bAutoTxRateSwitch;
 
@@ -2163,16 +2143,13 @@ typedef struct _MAC_TABLE {
 	BOOLEAN         fAnyStationBadAtheros;	// Check if any Station is atheros 802.11n Chip.  We need to use RTS/CTS with Atheros 802,.11n chip.
 	BOOLEAN			fAnyTxOPForceDisable;	// Check if it is necessary to disable BE TxOP
 	BOOLEAN			fAllStationAsRalink; 	// Check if all stations are ralink-chipset
-#ifdef DOT11_N_SUPPORT
 	BOOLEAN         fAnyStationIsLegacy;	// Check if I use legacy rate to transmit to my BSS Station/
 	BOOLEAN         fAnyStationNonGF;		// Check if any Station can't support GF.
 	BOOLEAN         fAnyStation20Only;		// Check if any Station can't support GF.
 	BOOLEAN			fAnyStationMIMOPSDynamic; // Check if any Station is MIMO Dynamic
 	BOOLEAN         fAnyBASession;   // Check if there is BA session.  Force turn on RTS/CTS
-#endif // DOT11_N_SUPPORT //
 } MAC_TABLE, *PMAC_TABLE;
 
-#ifdef DOT11_N_SUPPORT
 #define IS_HT_STA(_pMacEntry)	\
 	(_pMacEntry->MaxHTPhyMode.field.MODE >= MODE_HTMIX)
 
@@ -2181,7 +2158,6 @@ typedef struct _MAC_TABLE {
 
 #define PEER_IS_HT_RATE(_pMacEntry)	\
 	(_pMacEntry->HTPhyMode.field.MODE >= MODE_HTMIX)
-#endif // DOT11_N_SUPPORT //
 
 typedef struct _WDS_ENTRY {
 	BOOLEAN         Valid;
@@ -2628,9 +2604,8 @@ typedef struct _RTMP_ADAPTER
 	MAC_TABLE                 MacTab;     // ASIC on-chip WCID entry table.  At TX, ASIC always use key according to this on-chip table.
 	NDIS_SPIN_LOCK          MacTabLock;
 
-#ifdef DOT11_N_SUPPORT
 	BA_TABLE			BATable;
-#endif // DOT11_N_SUPPORT //
+
 	NDIS_SPIN_LOCK          BATabLock;
 	RALINK_TIMER_STRUCT RECBATimer;
 
@@ -2729,9 +2704,7 @@ typedef struct _RTMP_ADAPTER
 
     struct wificonf			WIFItestbed;
 
-#ifdef DOT11_N_SUPPORT
 	struct reordering_mpdu_pool mpdu_blk_pool;
-#endif // DOT11_N_SUPPORT //
 
 	ULONG					OneSecondnonBEpackets;		// record non BE packets per second
 
@@ -3173,7 +3146,6 @@ VOID MlmeQOSAction(
     IN PRTMP_ADAPTER pAd,
     IN MLME_QUEUE_ELEM *Elem);
 
-#ifdef DOT11_N_SUPPORT
 VOID PeerAddBAReqAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem);
@@ -3189,7 +3161,6 @@ VOID PeerDelBAAction(
 VOID PeerBAAction(
     IN PRTMP_ADAPTER pAd,
     IN MLME_QUEUE_ELEM *Elem);
-#endif // DOT11_N_SUPPORT //
 
 VOID SendPSMPAction(
 	IN PRTMP_ADAPTER	pAd,
@@ -3212,17 +3183,14 @@ VOID PeerBSSTranAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem);
 
-#ifdef DOT11_N_SUPPORT
 VOID PeerHTAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem);
-#endif // DOT11_N_SUPPORT //
 
 VOID PeerQOSAction(
     IN PRTMP_ADAPTER pAd,
     IN MLME_QUEUE_ELEM *Elem);
 
-#ifdef DOT11_N_SUPPORT
 VOID RECBATimerTimeout(
     IN PVOID SystemSpecific1,
     IN PVOID FunctionContext,
@@ -3235,7 +3203,6 @@ VOID ORIBATimerTimeout(
 VOID SendRefreshBAR(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	MAC_TABLE_ENTRY	*pEntry);
-#endif // DOT11_N_SUPPORT //
 
 VOID ActHeaderInit(
     IN	PRTMP_ADAPTER	pAd,
@@ -3268,7 +3235,6 @@ BOOLEAN QosBADataParse(
 	IN USHORT Datasize,
 	IN UINT   CurRxIndex);
 
-#ifdef DOT11_N_SUPPORT
 BOOLEAN CntlEnqueueForRecv(
     IN	PRTMP_ADAPTER	pAd,
 	IN ULONG Wcid,
@@ -3277,7 +3243,6 @@ BOOLEAN CntlEnqueueForRecv(
 
 VOID BaAutoManSwitch(
 	IN	PRTMP_ADAPTER	pAd);
-#endif // DOT11_N_SUPPORT //
 
 VOID HTIOTCheck(
 	IN	PRTMP_ADAPTER	pAd,
@@ -3770,11 +3735,9 @@ VOID MlmeRadioOn(
 VOID BssTableInit(
 	IN BSS_TABLE *Tab);
 
-#ifdef DOT11_N_SUPPORT
 VOID BATableInit(
 	IN PRTMP_ADAPTER pAd,
     IN BA_TABLE *Tab);
-#endif // DOT11_N_SUPPORT //
 
 ULONG BssTableSearch(
 	IN BSS_TABLE *Tab,
@@ -3800,7 +3763,6 @@ VOID BssTableDeleteEntry(
 	IN      PUCHAR pBssid,
 	IN      UCHAR Channel);
 
-#ifdef DOT11_N_SUPPORT
 VOID BATableDeleteORIEntry(
 	IN OUT	PRTMP_ADAPTER pAd,
 	IN		BA_ORI_ENTRY	*pBAORIEntry);
@@ -3821,7 +3783,6 @@ VOID BATableTearRECEntry(
 	IN		UCHAR TID,
 	IN		UCHAR WCID,
 	IN		BOOLEAN ALL);
-#endif // DOT11_N_SUPPORT //
 
 VOID  BssEntrySet(
 	IN  PRTMP_ADAPTER   pAd,
@@ -3883,7 +3844,6 @@ ULONG  BssTableSetEntry(
 	IN USHORT LengthVIE,
 	IN PNDIS_802_11_VARIABLE_IEs pVIE);
 
-#ifdef DOT11_N_SUPPORT
 VOID BATableInsertEntry(
     IN	PRTMP_ADAPTER	pAd,
 	IN USHORT Aid,
@@ -3893,7 +3853,6 @@ VOID BATableInsertEntry(
 	IN UCHAR BAWinSize,
 	IN UCHAR OriginatorStatus,
     IN BOOLEAN IsRecipient);
-#endif // DOT11_N_SUPPORT //
 
 VOID BssTableSsidSort(
 	IN  PRTMP_ADAPTER   pAd,
@@ -4632,11 +4591,9 @@ VOID MlmeUpdateTxRates(
 	IN 	BOOLEAN		 	bLinkUp,
 	IN	UCHAR			apidx);
 
-#ifdef DOT11_N_SUPPORT
 VOID MlmeUpdateHtTxRates(
 	IN PRTMP_ADAPTER 		pAd,
 	IN	UCHAR				apidx);
-#endif // DOT11_N_SUPPORT //
 
 VOID    RTMPCheckRates(
 	IN      PRTMP_ADAPTER   pAd,
@@ -4899,7 +4856,6 @@ VOID    RTMPAddBSSIDCipher(
     IN  PNDIS_802_11_KEY    pKey,
     IN  UCHAR   CipherAlg);
 
-#ifdef DOT11_N_SUPPORT
 VOID	RTMPSetHT(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	OID_SET_HT_PHYMODE *pHTPhyMode);
@@ -4907,7 +4863,6 @@ VOID	RTMPSetHT(
 VOID	RTMPSetIndividualHT(
 	IN	PRTMP_ADAPTER		pAd,
 	IN	UCHAR				apidx);
-#endif // DOT11_N_SUPPORT //
 
 VOID RTMPSendWirelessEvent(
 	IN	PRTMP_ADAPTER	pAd,
@@ -5568,7 +5523,6 @@ UCHAR VLAN_8023_Header_Copy(
 	OUT PUCHAR			pData,
 	IN	UCHAR			FromWhichBSSID);
 
-#ifdef DOT11_N_SUPPORT
 void ba_flush_reordering_timeout_mpdus(
 	IN PRTMP_ADAPTER	pAd,
 	IN PBA_REC_ENTRY	pBAEntry,
@@ -5586,7 +5540,6 @@ VOID BAOriSessionSetUp(
 VOID BASessionTearDownALL(
 	IN OUT	PRTMP_ADAPTER pAd,
 	IN		UCHAR Wcid);
-#endif // DOT11_N_SUPPORT //
 
 BOOLEAN OS_Need_Clone_Packet(void);
 
@@ -5734,7 +5687,6 @@ INT	Set_ResetStatCounter_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg);
 
-#ifdef DOT11_N_SUPPORT
 INT	Set_BASetup_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg);
@@ -5835,19 +5787,16 @@ INT	Set_HtMIMOPSmode_Proc(
 INT	Set_HtTxBASize_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg);
-#endif // DOT11_N_SUPPORT //
 
 //Dls ,	kathy
 VOID RTMPSendDLSTearDownFrame(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			pDA);
 
-#ifdef DOT11_N_SUPPORT
 //Block ACK
 VOID QueryBATABLE(
 	IN  PRTMP_ADAPTER pAd,
 	OUT PQUERYBA_TABLE pBAT);
-#endif // DOT11_N_SUPPORT //
 
 INT	    WpaCheckEapCode(
 	IN  PRTMP_ADAPTER   	pAd,
@@ -5865,15 +5814,12 @@ VOID    SendAssocIEsToWpaSupplicant(
 int wext_notify_event_assoc(
 	IN  RTMP_ADAPTER *pAd);
 
-#ifdef DOT11_N_SUPPORT
 VOID Handle_BSS_Width_Trigger_Events(
 	IN PRTMP_ADAPTER pAd);
 
 void build_ext_channel_switch_ie(
 	IN PRTMP_ADAPTER pAd,
 	IN HT_EXT_CHANNEL_SWITCH_ANNOUNCEMENT_IE *pIE);
-#endif // DOT11_N_SUPPORT //
-
 
 BOOLEAN APRxDoneInterruptHandle(
 	IN	PRTMP_ADAPTER	pAd);
@@ -5882,7 +5828,6 @@ BOOLEAN STARxDoneInterruptHandle(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	BOOLEAN			argc);
 
-#ifdef DOT11_N_SUPPORT
 // AMPDU packet indication
 VOID Indicate_AMPDU_Packet(
 	IN	PRTMP_ADAPTER	pAd,
@@ -5894,7 +5839,6 @@ VOID Indicate_AMSDU_Packet(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	RX_BLK			*pRxBlk,
 	IN	UCHAR			FromWhichBSSID);
-#endif // DOT11_N_SUPPORT //
 
 // Normal legacy Rx packet indication
 VOID Indicate_Legacy_Packet(
@@ -6142,13 +6086,11 @@ static inline char* GetPhyMode(
 
 		case MODE_OFDM:
 			return "OFDM";
-#ifdef DOT11_N_SUPPORT
 		case MODE_HTMIX:
 			return "HTMIX";
 
 		case MODE_HTGREENFIELD:
 			return "GREEN";
-#endif // DOT11_N_SUPPORT //
 		default:
 			return "N/A";
 	}
@@ -6165,10 +6107,8 @@ static inline char* GetBW(
 
 		case BW_20:
 			return "20M";
-#ifdef DOT11_N_SUPPORT
 		case BW_40:
 			return "40M";
-#endif // DOT11_N_SUPPORT //
 		default:
 			return "N/A";
 	}

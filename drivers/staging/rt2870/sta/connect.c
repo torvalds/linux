@@ -816,7 +816,7 @@ VOID CntlWaitStartProc(
 				DBGPRINT(RT_DEBUG_TRACE, ("CNTL - Channel=%d, Start adhoc on W53(52,56,60,64) Channels are not accepted\n", pAd->CommonCfg.Channel));
 				return;
 			}
-#ifdef DOT11_N_SUPPORT
+
 			if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			{
 				N_ChannelCheck(pAd);
@@ -840,7 +840,6 @@ VOID CntlWaitStartProc(
 				}
 			}
 			else
-#endif // DOT11_N_SUPPORT //
 			{
 				pAd->StaActive.SupportedPhyInfo.bHtEnable = FALSE;
 			}
@@ -1127,9 +1126,8 @@ VOID LinkUp(
 
 	COPY_SETTINGS_FROM_MLME_AUX_TO_ACTIVE_CFG(pAd);
 
-#ifdef DOT11_N_SUPPORT
 	COPY_HTSETTINGS_FROM_MLME_AUX_TO_ACTIVE_CFG(pAd);
-#endif // DOT11_N_SUPPORT //
+
 	// It's quite difficult to tell if a newly added KEY is WEP or CKIP until a new BSS
 	// is formed (either ASSOC/RE-ASSOC done or IBSS started. LinkUP should be a safe place
 	// to examine if cipher algorithm switching is required.
@@ -1142,10 +1140,8 @@ VOID LinkUp(
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_ADHOC_ON);
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_INFRA_ON);
 
-#ifdef DOT11_N_SUPPORT
 		if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			AdhocTurnOnQos(pAd);
-#endif // DOT11_N_SUPPORT //
 
 		DBGPRINT(RT_DEBUG_TRACE, ("!!!Adhoc LINK UP !!! \n" ));
 	}
@@ -1164,7 +1160,6 @@ VOID LinkUp(
 	Value |= pAd->CommonCfg.RegTransmitSetting.field.TxBF;
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, Value);
 
-#ifdef DOT11_N_SUPPORT
 	// Change to AP channel
     if ((pAd->CommonCfg.CentralChannel > pAd->CommonCfg.Channel) && (pAd->MlmeAux.HtCapability.HtCapInfo.ChannelWidth == BW_40))
 	{
@@ -1228,7 +1223,6 @@ VOID LinkUp(
 	    DBGPRINT(RT_DEBUG_TRACE, ("!!! 40MHz Upper LINK UP !!! Control Channel at UpperCentral = %d \n", pAd->CommonCfg.CentralChannel ));
     }
     else
-#endif // DOT11_N_SUPPORT //
     {
 	    pAd->CommonCfg.BBPCurrentBW = BW_20;
 		pAd->CommonCfg.CentralChannel = pAd->CommonCfg.Channel;
@@ -1267,9 +1261,7 @@ VOID LinkUp(
 	DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK UP !!! (BssType=%d, AID=%d, ssid=%s, Channel=%d, CentralChannel = %d)\n",
 		BssType, pAd->StaActive.Aid, pAd->CommonCfg.Ssid, pAd->CommonCfg.Channel, pAd->CommonCfg.CentralChannel));
 
-#ifdef DOT11_N_SUPPORT
 	DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK UP !!! (Density =%d, )\n", pAd->MacTab.Content[BSSID_WCID].MpduDensity));
-#endif // DOT11_N_SUPPORT //
 
 		AsicSetBssid(pAd, pAd->CommonCfg.Bssid);
 
@@ -1279,7 +1271,6 @@ VOID LinkUp(
 	// Call this for RTS protectionfor legacy rate, we will always enable RTS threshold, but normally it will not hit
 	AsicUpdateProtect(pAd, 0, (OFDMSETPROTECT | CCKSETPROTECT), TRUE, FALSE);
 
-#ifdef DOT11_N_SUPPORT
 	if ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE))
 	{
 		// Update HT protectionfor based on AP's operating mode.
@@ -1290,7 +1281,6 @@ VOID LinkUp(
     	else
    			AsicUpdateProtect(pAd, pAd->MlmeAux.AddHtInfo.AddHtInfo2.OperaionMode,  ALLN_SETPROTECT, FALSE, FALSE);
 	}
-#endif // DOT11_N_SUPPORT //
 
 	NdisZeroMemory(&pAd->DrsCounters, sizeof(COUNTER_DRS));
 
@@ -1538,10 +1528,8 @@ VOID LinkUp(
 			pAd->MacTab.Content[BSSID_WCID].ClientStatusFlags));
 
 		MlmeUpdateTxRates(pAd, TRUE, BSS0);
-#ifdef DOT11_N_SUPPORT
 		MlmeUpdateHtTxRates(pAd, BSS0);
 		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK UP !! (StaActive.bHtEnable =%d, )\n", pAd->StaActive.SupportedPhyInfo.bHtEnable));
-#endif // DOT11_N_SUPPORT //
 
 		if (pAd->CommonCfg.bAggregationCapable)
 		{
@@ -1561,12 +1549,11 @@ VOID LinkUp(
 
 		if (pAd->MlmeAux.APRalinkIe != 0x0)
 		{
-#ifdef DOT11_N_SUPPORT
 			if (CLIENT_STATUS_TEST_FLAG(&pAd->MacTab.Content[BSSID_WCID], fCLIENT_STATUS_RDG_CAPABLE))
 			{
 				AsicEnableRDG(pAd);
 			}
-#endif // DOT11_N_SUPPORT //
+
 			OPSTATUS_SET_FLAG(pAd, fCLIENT_STATUS_RALINK_CHIPSET);
 			CLIENT_STATUS_SET_FLAG(&pAd->MacTab.Content[BSSID_WCID], fCLIENT_STATUS_RALINK_CHIPSET);
 		}
@@ -1577,9 +1564,7 @@ VOID LinkUp(
 		}
 	}
 
-#ifdef DOT11_N_SUPPORT
 	DBGPRINT(RT_DEBUG_TRACE, ("NDIS_STATUS_MEDIA_CONNECT Event B!.BACapability = %x. ClientStatusFlags = %lx\n", pAd->CommonCfg.BACapability.word, pAd->MacTab.Content[BSSID_WCID].ClientStatusFlags));
-#endif // DOT11_N_SUPPORT //
 
 	// Set LED
 	RTMPSetLED(pAd, LED_LINK_UP);
@@ -1604,13 +1589,13 @@ VOID LinkUp(
 	if (pAd->StaCfg.bAutoTxRateSwitch == FALSE)
 	{
 		pEntry->bAutoTxRateSwitch = FALSE;
-#ifdef DOT11_N_SUPPORT
+
 		if (pEntry->HTPhyMode.field.MCS == 32)
 			pEntry->HTPhyMode.field.ShortGI = GI_800;
 
 		if ((pEntry->HTPhyMode.field.MCS > MCS_7) || (pEntry->HTPhyMode.field.MCS == 32))
 			pEntry->HTPhyMode.field.STBC = STBC_NONE;
-#endif // DOT11_N_SUPPORT //
+
 		// If the legacy mode is set, overwrite the transmit setting of this entry.
 		if (pEntry->HTPhyMode.field.MODE <= MODE_OFDM)
 			RTMPUpdateLegacyTxSetting((UCHAR)pAd->StaCfg.DesiredTransmitSetting.field.FixedTxMode, pEntry);
@@ -1639,7 +1624,6 @@ VOID LinkUp(
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R1, Value);
 	}
 
-#ifdef DOT11_N_SUPPORT
 	if (pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE)
 	{
 	}
@@ -1649,7 +1633,6 @@ VOID LinkUp(
 	    // Because our Init value is 1 at MACRegTable.
 		RTMP_IO_WRITE32(pAd, MAX_LEN_CFG, 0x0fff);
 	}
-#endif // DOT11_N_SUPPORT //
 
 	// Patch for Marvel AP to gain high throughput
 	// Need to set as following,
@@ -1661,7 +1644,6 @@ VOID LinkUp(
 	// Txop can only be modified when RDG is off, WMM is disable and TxBurst is enable
 	//
 	// if 1. Legacy AP WMM on,  or 2. 11n AP, AMPDU disable.  Force turn off burst no matter what bEnableTxBurst is.
-#ifdef DOT11_N_SUPPORT
 	if (((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED)))
 		|| ((pAd->StaActive.SupportedPhyInfo.bHtEnable == TRUE) && (pAd->CommonCfg.BACapability.field.Policy == BA_NOTUSE)))
 	{
@@ -1673,7 +1655,6 @@ VOID LinkUp(
 		DBGPRINT(RT_DEBUG_TRACE, ("Txburst 1\n"));
 	}
 	else
-#endif // DOT11_N_SUPPORT //
 	if (pAd->CommonCfg.bEnableTxBurst)
 	{
 		RTMP_IO_READ32(pAd, EDCA_AC0_CFG, &Data);
@@ -1695,7 +1676,6 @@ VOID LinkUp(
 		DBGPRINT(RT_DEBUG_TRACE, ("Txburst 3\n"));
 	}
 
-#ifdef DOT11_N_SUPPORT
 	// Re-check to turn on TX burst or not.
 	if ((pAd->CommonCfg.IOTestParm.bLastAtheros == TRUE) && ((STA_WEP_ON(pAd))||(STA_TKIP_ON(pAd))))
 	{
@@ -1715,7 +1695,6 @@ VOID LinkUp(
 	{
 		pAd->CommonCfg.IOTestParm.bNextDisableRxBA = FALSE;
 	}
-#endif // DOT11_N_SUPPORT //
 
 	pAd->CommonCfg.IOTestParm.bLastAtheros = FALSE;
 	COPY_MAC_ADDR(pAd->CommonCfg.LastBssid, pAd->CommonCfg.Bssid);
@@ -1883,12 +1862,11 @@ VOID LinkDown(
 		NdisZeroMemory(pAd->CommonCfg.Ssid, MAX_LEN_OF_SSID);
 		pAd->CommonCfg.SsidLen = 0;
 	}
-#ifdef DOT11_N_SUPPORT
+
 	NdisZeroMemory(&pAd->MlmeAux.HtCapability, sizeof(HT_CAPABILITY_IE));
 	NdisZeroMemory(&pAd->MlmeAux.AddHtInfo, sizeof(ADD_HT_INFO_IE));
 	pAd->MlmeAux.HtCapabilityLen = 0;
 	pAd->MlmeAux.NewExtChannelOffset = 0xff;
-#endif // DOT11_N_SUPPORT //
 
 	// Reset WPA-PSK state. Only reset when supplicant enabled
 	if (pAd->StaCfg.WpaState != SS_NOTUSE)
@@ -1970,7 +1948,6 @@ VOID LinkDown(
 	pAd->CommonCfg.MlmeRate = pAd->CommonCfg.BasicMlmeRate;
 	pAd->CommonCfg.RtsRate = pAd->CommonCfg.BasicMlmeRate;
 
-#ifdef DOT11_N_SUPPORT
 	//
 	// After Link down, reset piggy-back setting in ASIC. Disable RDG.
 	//
@@ -1981,7 +1958,7 @@ VOID LinkDown(
 		ByteValue &= (~0x18);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R4, ByteValue);
 	}
-#endif // DOT11_N_SUPPORT //
+
 	// Reset DAC
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R1, &ByteValue);
 	ByteValue &= (~0x18);
@@ -1994,9 +1971,7 @@ VOID LinkDown(
 	RTMPSetPiggyBack(pAd,FALSE);
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_PIGGYBACK_INUSED);
 
-#ifdef DOT11_N_SUPPORT
 	pAd->CommonCfg.BACapability.word = pAd->CommonCfg.REGBACapability.word;
-#endif // DOT11_N_SUPPORT //
 
 	// Restore all settings in the following.
 	AsicUpdateProtect(pAd, 0, (ALLN_SETPROTECT|CCKSETPROTECT|OFDMSETPROTECT), TRUE, FALSE);
@@ -2420,7 +2395,6 @@ ULONG MakeIbssBeacon(
 		FrameLen += tmp;
 	}
 
-#ifdef DOT11_N_SUPPORT
 	if ((pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED))
 	{
 		ULONG TmpLen;
@@ -2441,7 +2415,6 @@ ULONG MakeIbssBeacon(
 
 		FrameLen += TmpLen;
 	}
-#endif // DOT11_N_SUPPORT //
 
 	//beacon use reserved WCID 0xff
     if (pAd->CommonCfg.Channel > 14)

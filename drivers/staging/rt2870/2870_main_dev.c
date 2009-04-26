@@ -709,7 +709,6 @@ VOID RT2870_WatchDog(IN RTMP_ADAPTER *pAd)
 		}
 	}
 
-#ifdef DOT11_N_SUPPORT
 	// For Sigma debug, dump the ba_reordering sequence.
 	if((needDumpSeq == TRUE) && (pAd->CommonCfg.bDisableReordering == 0))
 	{
@@ -737,7 +736,6 @@ VOID RT2870_WatchDog(IN RTMP_ADAPTER *pAd)
 			NdisReleaseSpinLock(&pBAEntry->RxReRingLock);
 		}
 	}
-#endif // DOT11_N_SUPPORT //
 }
 
 /*

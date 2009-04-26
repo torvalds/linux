@@ -1010,10 +1010,9 @@
 // Preamble MODE in TxD
 #define MODE_CCK	0
 #define MODE_OFDM   1
-#ifdef DOT11_N_SUPPORT
 #define MODE_HTMIX	2
 #define MODE_HTGREENFIELD	3
-#endif // DOT11_N_SUPPORT //
+
 // MCS for CCK.  BW.SGI.STBC are reserved
 #define MCS_LONGP_RATE_1                      0	 // long preamble CCK 1Mbps
 #define MCS_LONGP_RATE_2                      1	// long preamble CCK 1Mbps
@@ -1060,12 +1059,10 @@
 #define MCS_32		32
 #define MCS_AUTO		33
 
-#ifdef DOT11_N_SUPPORT
 // OID_HTPHYMODE
 // MODE
 #define HTMODE_MM	0
 #define HTMODE_GF	1
-#endif // DOT11_N_SUPPORT //
 
 // Fixed Tx MODE - HT, CCK or OFDM
 #define FIXED_TXMODE_HT		0
@@ -1077,15 +1074,12 @@
 #define BW_BOTH		BAND_WIDTH_BOTH
 #define BW_10		BAND_WIDTH_10	// 802.11j has 10MHz. This definition is for internal usage. doesn't fill in the IE or other field.
 
-#ifdef DOT11_N_SUPPORT
 // SHORTGI
 #define GI_400		GAP_INTERVAL_400	// only support in HT mode
 #define GI_BOTH		GAP_INTERVAL_BOTH
-#endif // DOT11_N_SUPPORT //
 #define GI_800		GAP_INTERVAL_800
 // STBC
 #define STBC_NONE	0
-#ifdef DOT11_N_SUPPORT
 #define STBC_USE	1	// limited use in rt2860b phy
 #define RXSTBC_ONE	1	// rx support of one spatial stream
 #define RXSTBC_TWO	2	// rx support of 1 and 2 spatial stream
@@ -1106,8 +1100,6 @@
 // A-MSDU size
 #define	AMSDU_0	0
 #define	AMSDU_1		1
-
-#endif // DOT11_N_SUPPORT //
 
 // MCS use 7 bits
 #define TXRATEMIMO		0x80

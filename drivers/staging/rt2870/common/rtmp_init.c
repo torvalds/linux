@@ -1504,13 +1504,11 @@ VOID	NICReadEEPROMParameters(
 		if ((pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED) ||
 			(pAd->CommonCfg.PhyMode == PHY_11A))
 			pAd->CommonCfg.PhyMode = PHY_11BG_MIXED;
-#ifdef DOT11_N_SUPPORT
 		else if ((pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED)	||
 				 (pAd->CommonCfg.PhyMode == PHY_11AN_MIXED) 	||
 				 (pAd->CommonCfg.PhyMode == PHY_11AGN_MIXED) 	||
 				 (pAd->CommonCfg.PhyMode == PHY_11N_5G))
 			pAd->CommonCfg.PhyMode = PHY_11BGN_MIXED;
-#endif // DOT11_N_SUPPORT //
 	}
 
 	// Read TSSI reference and TSSI boundary for temperature compensation. This is ugly
@@ -1601,9 +1599,7 @@ VOID	NICReadEEPROMParameters(
 		TmpPhy = pAd->CommonCfg.PhyMode;
 		pAd->CommonCfg.PhyMode = 0xff;
 		RTMPSetPhyMode(pAd, TmpPhy);
-#ifdef DOT11_N_SUPPORT
 		SetCommonHT(pAd);
-#endif // DOT11_N_SUPPORT //
 	}
 
 	//
@@ -2275,10 +2271,8 @@ VOID NICUpdateFifoStaCounters(
 
 			pEntry->DebugFIFOCount++;
 
-#ifdef DOT11_N_SUPPORT
 			if (StaFifo.field.TxBF) // 3*3
 				pEntry->TxBFCount++;
-#endif // DOT11_N_SUPPORT //
 
 #ifdef UAPSD_AP_SUPPORT
 			UAPSD_SP_AUE_Handle(pAd, pEntry, StaFifo.field.TxSuccess);
@@ -2296,19 +2290,15 @@ VOID NICUpdateFifoStaCounters(
 					SendRefreshBAR(pAd, pEntry);
 					pEntry->NoBADataCountDown = 64;
 #else
-#ifdef DOT11_N_SUPPORT
 					pEntry->NoBADataCountDown = 64;
-#endif // DOT11_N_SUPPORT //
 
 					if(pEntry->PsMode == PWR_ACTIVE)
 					{
-#ifdef DOT11_N_SUPPORT
 						int tid;
 						for (tid=0; tid<NUM_OF_TID; tid++)
 						{
 							BAOriSessionTearDown(pAd, pEntry->Aid,  tid, FALSE, FALSE);
 						}
-#endif // DOT11_N_SUPPORT //
 
 						// Update the continuous transmission counter except PS mode
 						pEntry->ContinueTxFailCnt++;
@@ -2327,7 +2317,6 @@ VOID NICUpdateFifoStaCounters(
 			}
 			else
 			{
-#ifdef DOT11_N_SUPPORT
 				if ((pEntry->PsMode != PWR_SAVE) && (pEntry->NoBADataCountDown > 0))
 				{
 					pEntry->NoBADataCountDown--;
@@ -2336,7 +2325,7 @@ VOID NICUpdateFifoStaCounters(
 						DBGPRINT(RT_DEBUG_TRACE, ("@\n"));
 					}
 				}
-#endif // DOT11_N_SUPPORT //
+
 				pEntry->FIFOCount = 0;
 				pEntry->OneSecTxNoRetryOkCount++;
 				// update NoDataIdleCount when sucessful send packet to STA.
@@ -3191,7 +3180,6 @@ VOID	UserCfgInit(
 
 	NdisZeroMemory(&pAd->BeaconTxWI, sizeof(pAd->BeaconTxWI));
 
-#ifdef DOT11_N_SUPPORT
 	NdisZeroMemory(&pAd->CommonCfg.HtCapability, sizeof(pAd->CommonCfg.HtCapability));
 	pAd->HTCEnable = FALSE;
 	pAd->bBroadComHT = FALSE;
@@ -3217,7 +3205,6 @@ VOID	UserCfgInit(
 	pAd->CommonCfg.TxBASize = 7;
 
 	pAd->CommonCfg.REGBACapability.word = pAd->CommonCfg.BACapability.word;
-#endif // DOT11_N_SUPPORT //
 
 	//pAd->CommonCfg.HTPhyMode.field.BW = BW_20;
 	//pAd->CommonCfg.HTPhyMode.field.MCS = MCS_AUTO;

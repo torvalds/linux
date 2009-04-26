@@ -1068,9 +1068,9 @@ static VOID StartDFSProcedure(
 {
 	// start DFS procedure
 	pAd->CommonCfg.Channel = Channel;
-#ifdef DOT11_N_SUPPORT
+
 	N_ChannelCheck(pAd);
-#endif // DOT11_N_SUPPORT //
+
 	pAd->CommonCfg.RadarDetect.RDMode = RD_SWITCHING_MODE;
 	pAd->CommonCfg.RadarDetect.CSCount = 0;
 }

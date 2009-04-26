@@ -182,13 +182,12 @@ VOID STARxDataFrameAnnounce(
 	else
 	{
 		RX_BLK_SET_FLAG(pRxBlk, fRX_EAP);
-#ifdef DOT11_N_SUPPORT
+
 		if (RX_BLK_TEST_FLAG(pRxBlk, fRX_AMPDU) && (pAd->CommonCfg.bDisableReordering == 0))
 		{
 			Indicate_AMPDU_Packet(pAd, pRxBlk, FromWhichBSSID);
 		}
 		else
-#endif // DOT11_N_SUPPORT //
 		{
 			// Determin the destination of the EAP frame
 			//  to WPA state machine or upper layer
@@ -439,12 +438,10 @@ VOID STAHandleRxDataFrame(
 		else
 #endif
 		{
-#ifdef DOT11_N_SUPPORT
 			RX_BLK_SET_FLAG(pRxBlk, fRX_HTC);
 			// skip HTC contorl field
 			pRxBlk->pData += 4;
 			pRxBlk->DataSize -= 4;
-#endif // DOT11_N_SUPPORT //
 		}
 	}
 
@@ -457,13 +454,10 @@ VOID STAHandleRxDataFrame(
 		pRxBlk->pData += 2;
 	}
 
-#ifdef DOT11_N_SUPPORT
 	if (pRxD->BA)
 	{
 		RX_BLK_SET_FLAG(pRxBlk, fRX_AMPDU);
 	}
-#endif // DOT11_N_SUPPORT //
-
 
 	//
 	// Case I  Process Broadcast & Multicast data frame
@@ -592,21 +586,17 @@ VOID STAHandleRxControlFrame(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	RX_BLK			*pRxBlk)
 {
-#ifdef DOT11_N_SUPPORT
 	PRXWI_STRUC		pRxWI = pRxBlk->pRxWI;
-#endif // DOT11_N_SUPPORT //
 	PHEADER_802_11	pHeader = pRxBlk->pHeader;
 	PNDIS_PACKET	pRxPacket = pRxBlk->pRxPacket;
 
 	switch (pHeader->FC.SubType)
 	{
 		case SUBTYPE_BLOCK_ACK_REQ:
-#ifdef DOT11_N_SUPPORT
 			{
 				CntlEnqueueForRecv(pAd, pRxWI->WirelessCliID, (pRxWI->MPDUtotalByteCount), (PFRAME_BA_REQ)pHeader);
 			}
 			break;
-#endif // DOT11_N_SUPPORT //
 		case SUBTYPE_BLOCK_ACK:
 		case SUBTYPE_ACK:
 		default:
@@ -983,10 +973,8 @@ NDIS_STATUS STASendPacket(
 		NumberOfFrag = 1;	// Aggregation overwhelms fragmentation
 	else if (CLIENT_STATUS_TEST_FLAG(pEntry, fCLIENT_STATUS_AMSDU_INUSED))
 		NumberOfFrag = 1;	// Aggregation overwhelms fragmentation
-#ifdef DOT11_N_SUPPORT
 	else if ((pAd->StaCfg.HTPhyMode.field.MODE == MODE_HTMIX) || (pAd->StaCfg.HTPhyMode.field.MODE == MODE_HTGREENFIELD))
 		NumberOfFrag = 1;	// MIMO RATE overwhelms fragmentation
-#endif // DOT11_N_SUPPORT //
 	else
 	{
 		// The calculated "NumberOfFrag" is a rough estimation because of various
@@ -1087,7 +1075,6 @@ NDIS_STATUS STASendPacket(
 	}
 	RTMP_IRQ_UNLOCK(&pAd->irq_lock, IrqFlags);
 
-#ifdef DOT11_N_SUPPORT
     if ((pAd->CommonCfg.BACapability.field.AutoBA == TRUE)&&
         IS_HT_STA(pEntry))
 	{
@@ -1106,7 +1093,6 @@ NDIS_STATUS STASendPacket(
 			BAOriSessionSetUp(pAd, pEntry, 0, 0, 10, FALSE);
 		}
 	}
-#endif // DOT11_N_SUPPORT //
 
 	pAd->RalinkCounters.OneSecOsTxCount[QueIdx]++; // TODO: for debug only. to be removed
 	return NDIS_STATUS_SUCCESS;
@@ -1426,7 +1412,6 @@ VOID STABuildCommon802_11Header(
     	pHeader_802_11->FC.PwrMgmt = (pAd->StaCfg.Psm == PWR_SAVE);
 }
 
-#ifdef DOT11_N_SUPPORT
 VOID STABuildCache802_11Header(
 	IN RTMP_ADAPTER		*pAd,
 	IN TX_BLK			*pTxBlk,
@@ -1468,7 +1453,6 @@ VOID STABuildCache802_11Header(
 	else
     	pHeader80211->FC.PwrMgmt = (pAd->StaCfg.Psm == PWR_SAVE);
 }
-#endif // DOT11_N_SUPPORT //
 
 static inline PUCHAR STA_Build_ARalink_Frame_Header(
 	IN RTMP_ADAPTER *pAd,
@@ -1528,7 +1512,6 @@ static inline PUCHAR STA_Build_ARalink_Frame_Header(
 
 }
 
-#ifdef DOT11_N_SUPPORT
 static inline PUCHAR STA_Build_AMSDU_Frame_Header(
 	IN RTMP_ADAPTER *pAd,
 	IN TX_BLK		*pTxBlk)
@@ -1850,7 +1833,6 @@ VOID STA_AMSDU_Frame_Tx(
 	//
 	HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
-#endif // DOT11_N_SUPPORT //
 
 VOID STA_Legacy_Frame_Tx(
 	IN	PRTMP_ADAPTER	pAd,
@@ -2361,14 +2343,12 @@ NDIS_STATUS STAHardTransmit(
 
 	switch (pTxBlk->TxFrameType)
 	{
-#ifdef DOT11_N_SUPPORT
 		case TX_AMPDU_FRAME:
 				STA_AMPDU_Frame_Tx(pAd, pTxBlk);
 			break;
 		case TX_AMSDU_FRAME:
 				STA_AMSDU_Frame_Tx(pAd, pTxBlk);
 			break;
-#endif // DOT11_N_SUPPORT //
 		case TX_LEGACY_FRAME:
 				STA_Legacy_Frame_Tx(pAd, pTxBlk);
 			break;
