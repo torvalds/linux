@@ -366,6 +366,7 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
  *	for @tx_power_a, @tx_power_bg and @channels.
  * @channels: Device/chipset specific channel values (See &struct rf_channel).
  * @channels_info: Additional information for channels (See &struct channel_info).
+ * @ht: Driver HT Capabilities (See &ieee80211_sta_ht_cap).
  */
 struct hw_mode_spec {
 	unsigned int supported_bands;
@@ -379,6 +380,8 @@ struct hw_mode_spec {
 	unsigned int num_channels;
 	const struct rf_channel *channels;
 	const struct channel_info *channels_info;
+
+	struct ieee80211_sta_ht_cap ht;
 };
 
 /*
@@ -616,6 +619,7 @@ enum rt2x00_flags {
 	CONFIG_EXTERNAL_LNA_BG,
 	CONFIG_DOUBLE_ANTENNA,
 	CONFIG_DISABLE_LINK_TUNING,
+	CONFIG_CHANNEL_HT40,
 };
 
 /*
@@ -786,6 +790,13 @@ struct rt2x00_dev {
 	 * Frequency offset (for rt61pci & rt73usb).
 	 */
 	u8 freq_offset;
+
+	/*
+	 * Calibration information (for rt2800usb & rt2800pci).
+	 * [0] -> BW20
+	 * [1] -> BW40
+	 */
+	u8 calibration[2];
 
 	/*
 	 * Low level statistics which will have

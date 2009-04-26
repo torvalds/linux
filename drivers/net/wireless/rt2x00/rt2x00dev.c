@@ -323,19 +323,54 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
+static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
+					struct rxdone_entry_desc *rxdesc)
+{
+	struct ieee80211_supported_band *sband;
+	const struct rt2x00_rate *rate;
+	unsigned int i;
+	int signal;
+	int type;
+
+	/*
+	 * For non-HT rates the MCS value needs to contain the
+	 * actually used rate modulation (CCK or OFDM).
+	 */
+	if (rxdesc->dev_flags & RXDONE_SIGNAL_MCS)
+		signal = RATE_MCS(rxdesc->rate_mode, rxdesc->signal);
+	else
+		signal = rxdesc->signal;
+
+	type = (rxdesc->dev_flags & RXDONE_SIGNAL_MASK);
+
+	sband = &rt2x00dev->bands[rt2x00dev->curr_band];
+	for (i = 0; i < sband->n_bitrates; i++) {
+		rate = rt2x00_get_rate(sband->bitrates[i].hw_value);
+
+		if (((type == RXDONE_SIGNAL_PLCP) &&
+		     (rate->plcp == signal)) ||
+		    ((type == RXDONE_SIGNAL_BITRATE) &&
+		      (rate->bitrate == signal)) ||
+		    ((type == RXDONE_SIGNAL_MCS) &&
+		      (rate->mcs == signal))) {
+			return i;
+		}
+	}
+
+	WARNING(rt2x00dev, "Frame received with unrecognized signal, "
+		"signal=0x%.4x, type=%d.\n", signal, type);
+	return 0;
+}
+
 void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 		      struct queue_entry *entry)
 {
 	struct rxdone_entry_desc rxdesc;
 	struct sk_buff *skb;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
-	struct ieee80211_supported_band *sband;
-	const struct rt2x00_rate *rate;
 	unsigned int header_length;
 	bool l2pad;
-	unsigned int i;
-	int idx = -1;
-
+	int rate_idx;
 	/*
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
 	 * received frame and reuse the existing buffer.
@@ -379,26 +414,17 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 		rt2x00queue_payload_align(entry->skb, l2pad, header_length);
 
 	/*
-	 * Update RX statistics.
+	 * Check if the frame was received using HT. In that case,
+	 * the rate is the MCS index and should be passed to mac80211
+	 * directly. Otherwise we need to translate the signal to
+	 * the correct bitrate index.
 	 */
-	sband = &rt2x00dev->bands[rt2x00dev->curr_band];
-	for (i = 0; i < sband->n_bitrates; i++) {
-		rate = rt2x00_get_rate(sband->bitrates[i].hw_value);
-
-		if (((rxdesc.dev_flags & RXDONE_SIGNAL_PLCP) &&
-		     (rate->plcp == rxdesc.signal)) ||
-		    ((rxdesc.dev_flags & RXDONE_SIGNAL_BITRATE) &&
-		      (rate->bitrate == rxdesc.signal))) {
-			idx = i;
-			break;
-		}
-	}
-
-	if (idx < 0) {
-		WARNING(rt2x00dev, "Frame received with unrecognized signal,"
-			"signal=0x%.2x, type=%d.\n", rxdesc.signal,
-			(rxdesc.dev_flags & RXDONE_SIGNAL_MASK));
-		idx = 0;
+	if (rxdesc.rate_mode == RATE_MODE_CCK ||
+	    rxdesc.rate_mode == RATE_MODE_OFDM) {
+		rate_idx = rt2x00lib_rxdone_read_signal(rt2x00dev, &rxdesc);
+	} else {
+		rxdesc.flags |= RX_FLAG_HT;
+		rate_idx = rxdesc.signal;
 	}
 
 	/*
@@ -408,7 +434,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	rt2x00debug_update_crypto(rt2x00dev, &rxdesc);
 
 	rx_status->mactime = rxdesc.timestamp;
-	rx_status->rate_idx = idx;
+	rx_status->rate_idx = rate_idx;
 	rx_status->qual = rt2x00link_calculate_signal(rt2x00dev, rxdesc.rssi);
 	rx_status->signal = rxdesc.rssi;
 	rx_status->noise = rxdesc.noise;
@@ -443,72 +469,84 @@ const struct rt2x00_rate rt2x00_supported_rates[12] = {
 		.bitrate = 10,
 		.ratemask = BIT(0),
 		.plcp = 0x00,
+		.mcs = RATE_MCS(RATE_MODE_CCK, 0),
 	},
 	{
 		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 20,
 		.ratemask = BIT(1),
 		.plcp = 0x01,
+		.mcs = RATE_MCS(RATE_MODE_CCK, 1),
 	},
 	{
 		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 55,
 		.ratemask = BIT(2),
 		.plcp = 0x02,
+		.mcs = RATE_MCS(RATE_MODE_CCK, 2),
 	},
 	{
 		.flags = DEV_RATE_CCK | DEV_RATE_SHORT_PREAMBLE,
 		.bitrate = 110,
 		.ratemask = BIT(3),
 		.plcp = 0x03,
+		.mcs = RATE_MCS(RATE_MODE_CCK, 3),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 60,
 		.ratemask = BIT(4),
 		.plcp = 0x0b,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 0),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 90,
 		.ratemask = BIT(5),
 		.plcp = 0x0f,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 1),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 120,
 		.ratemask = BIT(6),
 		.plcp = 0x0a,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 2),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 180,
 		.ratemask = BIT(7),
 		.plcp = 0x0e,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 3),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 240,
 		.ratemask = BIT(8),
 		.plcp = 0x09,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 4),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 360,
 		.ratemask = BIT(9),
 		.plcp = 0x0d,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 5),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 480,
 		.ratemask = BIT(10),
 		.plcp = 0x08,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 6),
 	},
 	{
 		.flags = DEV_RATE_OFDM,
 		.bitrate = 540,
 		.ratemask = BIT(11),
 		.plcp = 0x0c,
+		.mcs = RATE_MCS(RATE_MODE_OFDM, 7),
 	},
 };
 
@@ -584,6 +622,8 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 		rt2x00dev->bands[IEEE80211_BAND_2GHZ].bitrates = rates;
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 		    &rt2x00dev->bands[IEEE80211_BAND_2GHZ];
+		memcpy(&rt2x00dev->bands[IEEE80211_BAND_2GHZ].ht_cap,
+		       &spec->ht, sizeof(spec->ht));
 	}
 
 	/*
@@ -600,6 +640,8 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 		rt2x00dev->bands[IEEE80211_BAND_5GHZ].bitrates = &rates[4];
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 		    &rt2x00dev->bands[IEEE80211_BAND_5GHZ];
+		memcpy(&rt2x00dev->bands[IEEE80211_BAND_5GHZ].ht_cap,
+		       &spec->ht, sizeof(spec->ht));
 	}
 
 	return 0;

@@ -48,6 +48,7 @@ struct rt2x00_rate {
 	unsigned short ratemask;
 
 	unsigned short plcp;
+	unsigned short mcs;
 };
 
 extern const struct rt2x00_rate rt2x00_supported_rates[12];
@@ -55,6 +56,14 @@ extern const struct rt2x00_rate rt2x00_supported_rates[12];
 static inline const struct rt2x00_rate *rt2x00_get_rate(const u16 hw_value)
 {
 	return &rt2x00_supported_rates[hw_value & 0xff];
+}
+
+#define RATE_MCS(__mode, __mcs) \
+	( (((__mode) & 0x00ff) << 8) | ((__mcs) & 0x00ff) )
+
+static inline int rt2x00_get_rate_mcs(const u16 mcs_value)
+{
+	return (mcs_value & 0x00ff);
 }
 
 /*
@@ -358,6 +367,21 @@ static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, bool l2pad,
 {
 }
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
+
+/*
+ * HT handlers.
+ */
+#ifdef CONFIG_RT2X00_LIB_HT
+void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
+				   struct txentry_desc *txdesc,
+				   const struct rt2x00_rate *hwrate);
+#else
+static inline void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
+						 struct txentry_desc *txdesc,
+						 const struct rt2x00_rate *hwrate)
+{
+}
+#endif /* CONFIG_RT2X00_LIB_HT */
 
 /*
  * RFkill handlers.

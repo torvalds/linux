@@ -35,9 +35,12 @@
  * for USB devices this restriction does not apply, but the value of
  * 2432 makes sense since it is big enough to contain the maximum fragment
  * size according to the ieee802.11 specs.
+ * The aggregation size depends on support from the driver, but should
+ * be something around 3840 bytes.
  */
-#define DATA_FRAME_SIZE	2432
-#define MGMT_FRAME_SIZE	256
+#define DATA_FRAME_SIZE		2432
+#define MGMT_FRAME_SIZE		256
+#define AGGREGATION_SIZE	3840
 
 /**
  * DOC: Number of entries per queue
@@ -148,18 +151,20 @@ static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
  *
  * @RXDONE_SIGNAL_PLCP: Signal field contains the plcp value.
  * @RXDONE_SIGNAL_BITRATE: Signal field contains the bitrate value.
+ * @RXDONE_SIGNAL_MCS: Signal field contains the mcs value.
  * @RXDONE_MY_BSS: Does this frame originate from device's BSS.
  * @RXDONE_CRYPTO_IV: Driver provided IV/EIV data.
  * @RXDONE_CRYPTO_ICV: Driver provided ICV data.
  * @RXDONE_L2PAD: 802.11 payload has been padded to 4-byte boundary.
  */
 enum rxdone_entry_desc_flags {
-	RXDONE_SIGNAL_PLCP = 1 << 0,
-	RXDONE_SIGNAL_BITRATE = 1 << 1,
-	RXDONE_MY_BSS = 1 << 2,
-	RXDONE_CRYPTO_IV = 1 << 3,
-	RXDONE_CRYPTO_ICV = 1 << 4,
-	RXDONE_L2PAD = 1 << 5,
+	RXDONE_SIGNAL_PLCP = BIT(0),
+	RXDONE_SIGNAL_BITRATE = BIT(1),
+	RXDONE_SIGNAL_MCS = BIT(2),
+	RXDONE_MY_BSS = BIT(3),
+	RXDONE_CRYPTO_IV = BIT(4),
+	RXDONE_CRYPTO_ICV = BIT(5),
+	RXDONE_L2PAD = BIT(6),
 };
 
 /**
@@ -168,7 +173,7 @@ enum rxdone_entry_desc_flags {
  * from &rxdone_entry_desc to a signal value type.
  */
 #define RXDONE_SIGNAL_MASK \
-       ( RXDONE_SIGNAL_PLCP | RXDONE_SIGNAL_BITRATE )
+	( RXDONE_SIGNAL_PLCP | RXDONE_SIGNAL_BITRATE | RXDONE_SIGNAL_MCS )
 
 /**
  * struct rxdone_entry_desc: RX Entry descriptor
@@ -182,6 +187,7 @@ enum rxdone_entry_desc_flags {
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
  * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
+ * @rate_mode: Rate mode (See @enum rate_modulation).
  * @cipher: Cipher type used during decryption.
  * @cipher_status: Decryption status.
  * @iv: IV/EIV data used during decryption.
@@ -195,6 +201,7 @@ struct rxdone_entry_desc {
 	int size;
 	int flags;
 	int dev_flags;
+	u16 rate_mode;
 	u8 cipher;
 	u8 cipher_status;
 
@@ -248,6 +255,9 @@ struct txdone_entry_desc {
  * @ENTRY_TXD_ENCRYPT_PAIRWISE: Use pairwise key table (instead of shared).
  * @ENTRY_TXD_ENCRYPT_IV: Generate IV/EIV in hardware.
  * @ENTRY_TXD_ENCRYPT_MMIC: Generate MIC in hardware.
+ * @ENTRY_TXD_HT_AMPDU: This frame is part of an AMPDU.
+ * @ENTRY_TXD_HT_BW_40: Use 40MHz Bandwidth.
+ * @ENTRY_TXD_HT_SHORT_GI: Use short GI.
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
@@ -263,6 +273,9 @@ enum txentry_desc_flags {
 	ENTRY_TXD_ENCRYPT_PAIRWISE,
 	ENTRY_TXD_ENCRYPT_IV,
 	ENTRY_TXD_ENCRYPT_MMIC,
+	ENTRY_TXD_HT_AMPDU,
+	ENTRY_TXD_HT_BW_40,
+	ENTRY_TXD_HT_SHORT_GI,
 };
 
 /**
@@ -278,7 +291,11 @@ enum txentry_desc_flags {
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
  * @service: PLCP service.
+ * @msc: MCS.
+ * @stbc: STBC.
+ * @ba_size: BA size.
  * @rate_mode: Rate mode (See @enum rate_modulation).
+ * @mpdu_density: MDPU density.
  * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
@@ -302,7 +319,11 @@ struct txentry_desc {
 	u16 signal;
 	u16 service;
 
+	u16 mcs;
+	u16 stbc;
+	u16 ba_size;
 	u16 rate_mode;
+	u16 mpdu_density;
 
 	short retry_limit;
 	short aifs;

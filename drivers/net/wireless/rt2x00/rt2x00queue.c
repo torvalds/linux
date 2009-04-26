@@ -361,6 +361,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * Apply TX descriptor handling by components
 	 */
 	rt2x00crypto_create_tx_descriptor(entry, txdesc);
+	rt2x00ht_create_tx_descriptor(entry, txdesc, hwrate);
 	rt2x00queue_create_tx_descriptor_seq(entry, txdesc);
 	rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
 }
