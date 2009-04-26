@@ -46,12 +46,10 @@
 // Otherwise post to forum in ralinktech's web site(www.ralinktech.com) and let all users help you. ***
 MODULE_AUTHOR("Paul Lin <paul_lin@ralinktech.com>");
 MODULE_DESCRIPTION("RT2870 Wireless Lan Linux Driver");
-#ifdef CONFIG_STA_SUPPORT
 MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
-#endif // CONFIG_STA_SUPPORT //
 
 /* Kernel thread and vars, which handles packets that are completed. Only
  * packets that have a "complete" function are sent here. This way, the
@@ -1283,13 +1281,10 @@ VOID RT2870_BssBeaconStop(
 	{
 		INT NumOfBcn;
 
-
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			NumOfBcn = MAX_MESH_NUM;
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		RTMPCancelTimer(&pAd->CommonCfg.BeaconUpdateTimer, &Cancelled);
 
@@ -1322,13 +1317,10 @@ VOID RT2870_BssBeaconStart(
 	{
 		INT NumOfBcn;
 
-
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			NumOfBcn = MAX_MESH_NUM;
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		for(apidx=0; apidx<NumOfBcn; apidx++)
 		{

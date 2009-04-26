@@ -692,7 +692,6 @@ VOID RtmpUSBNullFrameKickOut(
 
 }
 
-#ifdef CONFIG_STA_SUPPORT
 /*
 	========================================================================
 
@@ -838,7 +837,6 @@ VOID RT28xxUsbStaAsicSleepThenAutoWakeup(
 	OPSTATUS_SET_FLAG(pAd, fOP_STATUS_DOZE);
 
 }
-#endif // CONFIG_STA_SUPPORT //
 
 VOID RT28xxUsbMlmeRadioOn(
 	IN PRTMP_ADAPTER pAd)
@@ -848,13 +846,12 @@ VOID RT28xxUsbMlmeRadioOn(
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
 		return;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
     	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x00);
 		RTMPusecDelay(10000);
 	}
-#endif // CONFIG_STA_SUPPORT //
+
 	NICResetFromError(pAd);
 
 	// Enable Tx/Rx
@@ -863,10 +860,8 @@ VOID RT28xxUsbMlmeRadioOn(
 	// Clear Radio off flag
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		RTUSBBulkReceive(pAd);
-#endif // CONFIG_STA_SUPPORT //
 
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_ON);
@@ -888,7 +883,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 	// Set Radio off flag
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Link down first if any association exists
@@ -900,8 +894,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 		// Clean up old bss table
 		BssTableInit(&pAd->ScanTab);
 	}
-#endif // CONFIG_STA_SUPPORT //
-
 
 	// Disable MAC Tx/Rx
 	RTMP_IO_READ32(pAd, MAC_SYS_CTRL, &Value);
@@ -939,9 +931,7 @@ VOID RT28xxUsbMlmeRadioOFF(
 		RTMPusecDelay(1000);
 	}while (i++ < 100);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
-#endif // CONFIG_STA_SUPPORT //
 }
 

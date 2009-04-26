@@ -370,7 +370,6 @@ static VOID RTMPInsertRsnIeCipher(
                 break;
         }
 
-#ifdef CONFIG_STA_SUPPORT
 		if ((pAd->OpMode == OPMODE_STA) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption2Enabled) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption3Enabled))
@@ -386,7 +385,6 @@ static VOID RTMPInsertRsnIeCipher(
 					break;
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		// swap for big-endian platform
 		pRsnie_cipher->version = cpu2le16(pRsnie_cipher->version);
@@ -448,7 +446,6 @@ static VOID RTMPInsertRsnIeCipher(
                 break;
         }
 
-#ifdef CONFIG_STA_SUPPORT
 		if ((pAd->OpMode == OPMODE_STA) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption2Enabled) &&
 			(pAd->StaCfg.GroupCipher != Ndis802_11Encryption3Enabled))
@@ -464,7 +461,6 @@ static VOID RTMPInsertRsnIeCipher(
 					break;
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		// swap for big-endian platform
 		pRsnie_cipher->version = cpu2le16(pRsnie_cipher->version);
@@ -627,7 +623,6 @@ VOID RTMPMakeRSNIE(
 	rsnielen_ex_cur_p = NULL;
 
 	{
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 #ifdef WPA_SUPPLICANT_SUPPORT
@@ -660,7 +655,6 @@ VOID RTMPMakeRSNIE(
 
 			bMixCipher = pAd->StaCfg.bMixCipher;
 		}
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 	// indicate primary RSNIE as WPA or WPA2
@@ -1130,11 +1124,6 @@ BOOLEAN RTMPParseEapolKeyData(
      	DBGPRINT(RT_DEBUG_ERROR, ("ERROR: GTK Key index(%d) is invalid in %s %s \n", DefaultIdx, ((bWPA2) ? "WPA2" : "WPA"), GetEapolMsgType(MsgType)));
         return FALSE;
     }
-
-
-#ifdef CONFIG_STA_SUPPORT
-	// Todo
-#endif // CONFIG_STA_SUPPORT //
 
 	return TRUE;
 

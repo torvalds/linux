@@ -89,17 +89,12 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 
 // add by kathy
 
-#ifdef CONFIG_STA_SUPPORT
-
 #ifdef RT2870
 #define STA_PROFILE_PATH			"/etc/Wireless/RT2870STA/RT2870STA.dat"
 #define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT2870STA/rt2870.bin"
 #define STA_NIC_DEVICE_NAME			"RT2870STA"
 #define STA_DRIVER_VERSION			"1.4.0.0"
 #endif // RT2870 //
-
-#endif // CONFIG_STA_SUPPORT //
-
 
 #define RTMP_TIME_AFTER(a,b)		\
 	(typecheck(unsigned long, (unsigned long)a) && \
@@ -139,17 +134,12 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define MIN_NET_DEVICE_FOR_WDS			0x10		//0x40,0x50,0x60,0x70
 #define MIN_NET_DEVICE_FOR_APCLI		0x20
 #define MIN_NET_DEVICE_FOR_MESH			0x30
-#ifdef CONFIG_STA_SUPPORT
 #define MIN_NET_DEVICE_FOR_DLS			0x40
-#endif // CONFIG_STA_SUPPORT //
 
-
-#ifdef CONFIG_STA_SUPPORT
 #define NDIS_PACKET_TYPE_DIRECTED		0
 #define NDIS_PACKET_TYPE_MULTICAST		1
 #define NDIS_PACKET_TYPE_BROADCAST		2
 #define NDIS_PACKET_TYPE_ALL_MULTICAST	3
-#endif // CONFIG_STA_SUPPORT //
 
 typedef	struct pid *	THREAD_PID;
 #define	GET_PID(_v)	find_get_pid(_v)
@@ -537,8 +527,6 @@ DECLARE_TIMER_FUNCTION(AsicRfTuningExec);
 DECLARE_TIMER_FUNCTION(BeaconUpdateExec);
 #endif // RT2870 //
 
-
-#ifdef CONFIG_STA_SUPPORT
 DECLARE_TIMER_FUNCTION(BeaconTimeout);
 DECLARE_TIMER_FUNCTION(ScanTimeout);
 DECLARE_TIMER_FUNCTION(AuthTimeout);
@@ -550,7 +538,6 @@ DECLARE_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 DECLARE_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
 DECLARE_TIMER_FUNCTION(PsPollWakeExec);
 DECLARE_TIMER_FUNCTION(RadioOnExec);
-#endif // CONFIG_STA_SUPPORT //
 
 void RTMP_GetCurrentSystemTime(LARGE_INTEGER *time);
 

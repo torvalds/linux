@@ -50,11 +50,9 @@ UCHAR	Ccx2QosInfo[] = {0x00, 0x40, 0x96, 0x04};
 UCHAR   RALINK_OUI[]  = {0x00, 0x0c, 0x43};
 UCHAR   BROADCOM_OUI[]  = {0x00, 0x90, 0x4c};
 UCHAR   WPS_OUI[] = {0x00, 0x50, 0xf2, 0x04};
-#ifdef CONFIG_STA_SUPPORT
 #ifdef DOT11_N_SUPPORT
 UCHAR	PRE_N_HT_OUI[]	= {0x00, 0x90, 0x4c};
 #endif // DOT11_N_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 
 UCHAR RateSwitchTable[] = {
 // Item No.   Mode   Curr-MCS   TrainUp   TrainDown		// Mode- Bit0: STBC, Bit1: Short GI, Bit4,5: Mode(0:CCK, 1:OFDM, 2:HT Mix, 3:HT GF)
@@ -494,7 +492,6 @@ NDIS_STATUS MlmeInit(
 		pAd->Mlme.bRunning = FALSE;
 		NdisAllocateSpinLock(&pAd->Mlme.TaskLock);
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			BssTableInit(&pAd->ScanTab);
@@ -511,9 +508,6 @@ NDIS_STATUS MlmeInit(
 			// state machine init
 			MlmeCntlInit(pAd, &pAd->Mlme.CntlMachine, NULL);
 		}
-#endif // CONFIG_STA_SUPPORT //
-
-
 
 		ActionStateMachineInit(pAd, &pAd->Mlme.ActMachine, pAd->Mlme.ActFunc);
 
@@ -595,7 +589,6 @@ VOID MlmeHandler(
 			switch (Elem->Machine)
 			{
 				// STA state machines
-#ifdef	CONFIG_STA_SUPPORT
 				case ASSOC_STATE_MACHINE:
 					StateMachinePerformAction(pAd, &pAd->Mlme.AssocMachine, Elem);
 					break;
@@ -617,8 +610,6 @@ VOID MlmeHandler(
 				case AIRONET_STATE_MACHINE:
 					StateMachinePerformAction(pAd, &pAd->Mlme.AironetMachine, Elem);
 					break;
-#endif // CONFIG_STA_SUPPORT //
-
 				case ACTION_STATE_MACHINE:
 					StateMachinePerformAction(pAd, &pAd->Mlme.ActMachine, Elem);
 					break;
@@ -672,7 +663,6 @@ VOID MlmeHalt(
 		AsicDisableSync(pAd);
 	}
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Cancel pending timers
@@ -683,7 +673,6 @@ VOID MlmeHalt(
 		RTMPCancelTimer(&pAd->MlmeAux.BeaconTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.ScanTimer,		&Cancelled);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	RTMPCancelTimer(&pAd->Mlme.PeriodicTimer,		&Cancelled);
 	RTMPCancelTimer(&pAd->Mlme.RxAntEvalTimer,		&Cancelled);
@@ -786,7 +775,6 @@ VOID MlmePeriodicExec(
 
 	RT28XX_MLME_PRE_SANITY_CHECK(pAd);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Do nothing if monitor mode is on
@@ -812,7 +800,6 @@ VOID MlmePeriodicExec(
 				}
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	pAd->bUpdateBcnCntDone = FALSE;
 
@@ -822,7 +809,6 @@ VOID MlmePeriodicExec(
 	// execute every 500ms
 	if ((pAd->Mlme.PeriodicRound % 5 == 0) && RTMPAutoRateSwitchCheck(pAd)/*(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))*/)
 	{
-#ifdef CONFIG_STA_SUPPORT
 		// perform dynamic tx rate switching based on past TX history
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
@@ -831,7 +817,6 @@ VOID MlmePeriodicExec(
 				&& (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)))
 				MlmeDynamicTxRateSwitching(pAd);
 		}
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 	// Normal 1 second Mlme PeriodicExec.
@@ -912,14 +897,11 @@ VOID MlmePeriodicExec(
 			}
 		}
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			STAMlmePeriodicExec(pAd);
-#endif // CONFIG_STA_SUPPORT //
 
 		MlmeResetRalinkCounters(pAd);
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			{
@@ -943,7 +925,6 @@ VOID MlmePeriodicExec(
 				}
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		RT28XX_MLME_HANDLER(pAd);
 	}
@@ -952,7 +933,6 @@ VOID MlmePeriodicExec(
 	pAd->bUpdateBcnCntDone = FALSE;
 }
 
-#ifdef CONFIG_STA_SUPPORT
 VOID STAMlmePeriodicExec(
 	PRTMP_ADAPTER pAd)
 {
@@ -1243,7 +1223,6 @@ VOID MlmeAutoReconnectLastSSID(
 		RT28XX_MLME_HANDLER(pAd);
 	}
 }
-#endif // CONFIG_STA_SUPPORT //
 
 /*
 	==========================================================================
@@ -1292,7 +1271,6 @@ VOID MlmeSelectTxRateTable(
 			break;
 		}
 
-#ifdef CONFIG_STA_SUPPORT
 		if ((pAd->OpMode == OPMODE_STA) && ADHOC_ON(pAd))
 		{
 #ifdef DOT11_N_SUPPORT
@@ -1353,7 +1331,6 @@ VOID MlmeSelectTxRateTable(
 			}
 			break;
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 #ifdef DOT11_N_SUPPORT
 		//if ((pAd->StaActive.SupRateLen + pAd->StaActive.ExtRateLen == 12) && (pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0xff) &&
@@ -1463,7 +1440,6 @@ VOID MlmeSelectTxRateTable(
 #ifdef DOT11_N_SUPPORT
 #endif // DOT11_N_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 #ifdef DOT11_N_SUPPORT
@@ -1531,11 +1507,9 @@ VOID MlmeSelectTxRateTable(
 			DBGPRINT_RAW(RT_DEBUG_ERROR,("DRS: unkown mode (SupRateLen=%d, ExtRateLen=%d, MCSSet[0]=0x%x, MCSSet[1]=0x%x)\n",
 				pAd->StaActive.SupRateLen, pAd->StaActive.ExtRateLen, pAd->StaActive.SupportedPhyInfo.MCSSet[0], pAd->StaActive.SupportedPhyInfo.MCSSet[1]));
 		}
-#endif // CONFIG_STA_SUPPORT //
 	} while(FALSE);
 }
 
-#ifdef CONFIG_STA_SUPPORT
 /*
 	==========================================================================
 	Description:
@@ -2658,8 +2632,6 @@ VOID MlmeSetPsmBit(
 	RTMP_IO_WRITE32(pAd, AUTO_RSP_CFG, csr4.word);
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeSetPsmBit = %d\n", psm));
 }
-#endif // CONFIG_STA_SUPPORT //
-
 
 // IRQL = DISPATCH_LEVEL
 VOID MlmeSetTxPreamble(
@@ -2798,8 +2770,6 @@ VOID MlmeUpdateTxRates(
 
 //===========================================================================
 //===========================================================================
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		pHtPhy 		= &pAd->StaCfg.HTPhyMode;
@@ -2816,7 +2786,6 @@ VOID MlmeUpdateTxRates(
 			MaxDesire = RATE_11;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	pAd->CommonCfg.MaxDesiredRate = MaxDesire;
 	pMinHtPhy->word = 0;
@@ -2853,7 +2822,6 @@ VOID MlmeUpdateTxRates(
 	}
 #endif
 
-#ifdef CONFIG_STA_SUPPORT
 	if ((ADHOC_ON(pAd) || INFRA_ON(pAd)) && (pAd->OpMode == OPMODE_STA))
 	{
 		pSupRate = &pAd->StaActive.SupRate[0];
@@ -2862,7 +2830,6 @@ VOID MlmeUpdateTxRates(
 		ExtRateLen = pAd->StaActive.ExtRateLen;
 	}
 	else
-#endif // CONFIG_STA_SUPPORT //
 	{
 		pSupRate = &pAd->CommonCfg.SupRate[0];
 		pExtRate = &pAd->CommonCfg.ExtRate[0];
@@ -2950,10 +2917,10 @@ VOID MlmeUpdateTxRates(
 	if (*auto_rate_cur_p)
 	{
 		short dbm = 0;
-#ifdef CONFIG_STA_SUPPORT
+
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			dbm = pAd->StaCfg.RssiSample.AvgRssi0 - pAd->BbpRssiToDbmDelta;
-#endif // CONFIG_STA_SUPPORT //
+
 		if (bLinkUp == TRUE)
 			pAd->CommonCfg.TxRate = RATE_24;
 		else
@@ -3117,7 +3084,6 @@ VOID MlmeUpdateHtTxRates(
 
 	auto_rate_cur_p = NULL;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		pDesireHtPhy	= &pAd->StaCfg.DesiredHtPhyInfo;
@@ -3128,9 +3094,7 @@ VOID MlmeUpdateHtTxRates(
 
 		auto_rate_cur_p = &pAd->StaCfg.bAutoTxRateSwitch;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
 	if ((ADHOC_ON(pAd) || INFRA_ON(pAd)) && (pAd->OpMode == OPMODE_STA))
 	{
 		if (pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE)
@@ -3146,7 +3110,6 @@ VOID MlmeUpdateHtTxRates(
 			pMaxHtPhy->field.STBC = STBC_NONE;
 	}
 	else
-#endif // CONFIG_STA_SUPPORT //
 	{
 		if (pDesireHtPhy->bHtEnable == FALSE)
 			return;
@@ -3197,7 +3160,6 @@ VOID MlmeUpdateHtTxRates(
 	pMinHtPhy->field.STBC = 0;
 	pMinHtPhy->field.ShortGI = 0;
 	//If STA assigns fixed rate. update to fixed here.
-#ifdef CONFIG_STA_SUPPORT
 	if ( (pAd->OpMode == OPMODE_STA) && (pDesireHtPhy->MCSSet[0] != 0xff))
 	{
 		if (pDesireHtPhy->MCSSet[4] != 0)
@@ -3221,8 +3183,6 @@ VOID MlmeUpdateHtTxRates(
 				break;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
-
 
 	// Decide ht rate
 	pHtPhy->field.STBC = pMaxHtPhy->field.STBC;
@@ -3604,7 +3564,6 @@ VOID BssEntrySet(
 	else
 		pBss->QbssLoad.bValid = FALSE;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		PEID_STRUCT     pEid;
@@ -3649,7 +3608,6 @@ VOID BssEntrySet(
 			pEid = (PEID_STRUCT)((UCHAR*)pEid + 2 + pEid->Len);
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 }
 
 /*!
@@ -3751,7 +3709,6 @@ ULONG BssTableSetEntry(
 	return Idx;
 }
 
-#ifdef CONFIG_STA_SUPPORT
 // IRQL = DISPATCH_LEVEL
 VOID BssTableSsidSort(
 	IN	PRTMP_ADAPTER	pAd,
@@ -4006,8 +3963,6 @@ VOID BssTableSortByRssi(
 		}
 	}
 }
-#endif // CONFIG_STA_SUPPORT //
-
 
 VOID BssCipherParse(
 	IN OUT	PBSS_ENTRY	pBss)
@@ -4413,10 +4368,10 @@ VOID MgtMacHeaderInit(
 //		pHdr80211->FC.Type = BTYPE_CNTL;
 	pHdr80211->FC.ToDs = ToDs;
 	COPY_MAC_ADDR(pHdr80211->Addr1, pDA);
-#ifdef CONFIG_STA_SUPPORT
+
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		COPY_MAC_ADDR(pHdr80211->Addr2, pAd->CurrentAddress);
-#endif // CONFIG_STA_SUPPORT //
+
 	COPY_MAC_ADDR(pHdr80211->Addr3, pBssid);
 }
 
@@ -4623,7 +4578,6 @@ BOOLEAN MlmeEnqueueForRecv(
 		return FALSE;
 	}
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (!MsgTypeSubst(pAd, pFrame, &Machine, &MsgType))
@@ -4632,7 +4586,6 @@ BOOLEAN MlmeEnqueueForRecv(
 			return FALSE;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// OK, we got all the informations, it is time to put things into queue
 	NdisAcquireSpinLock(&(Queue->Lock));
@@ -4700,14 +4653,10 @@ BOOLEAN MlmeDequeue(
 VOID	MlmeRestartStateMachine(
 	IN	PRTMP_ADAPTER	pAd)
 {
-#ifdef CONFIG_STA_SUPPORT
 	BOOLEAN				Cancelled;
-#endif // CONFIG_STA_SUPPORT //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeRestartStateMachine \n"));
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Cancel all timer events
@@ -4719,7 +4668,6 @@ VOID	MlmeRestartStateMachine(
 		RTMPCancelTimer(&pAd->MlmeAux.BeaconTimer,	   &Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.ScanTimer,	   &Cancelled);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// Change back to original channel in case of doing scan
 	AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
@@ -4728,7 +4676,6 @@ VOID	MlmeRestartStateMachine(
 	// Resume MSDU which is turned off durning scan
 	RTMPResumeMsduTransmission(pAd);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Set all state machines back IDLE
@@ -4739,8 +4686,6 @@ VOID	MlmeRestartStateMachine(
 		pAd->Mlme.SyncMachine.CurrState    = SYNC_IDLE;
 		pAd->Mlme.ActMachine.CurrState    = ACT_IDLE;
 	}
-#endif // CONFIG_STA_SUPPORT //
-
 }
 
 /*! \brief	test if the MLME Queue is empty
@@ -4818,7 +4763,6 @@ VOID MlmeQueueDestroy(
  IRQL = DISPATCH_LEVEL
 
  */
-#ifdef CONFIG_STA_SUPPORT
 BOOLEAN MsgTypeSubst(
 	IN PRTMP_ADAPTER  pAd,
 	IN PFRAME_802_11 pFrame,
@@ -4928,7 +4872,6 @@ BOOLEAN MsgTypeSubst(
 
 	return TRUE;
 }
-#endif // CONFIG_STA_SUPPORT //
 
 // ===========================================================================================
 // state_machine.c
@@ -6107,7 +6050,6 @@ VOID AsicAdjustTxPower(
 
 }
 
-#ifdef CONFIG_STA_SUPPORT
 /*
 	==========================================================================
 	Description:
@@ -6158,7 +6100,7 @@ VOID AsicForceWakeup(
     DBGPRINT(RT_DEBUG_TRACE, ("--> AsicForceWakeup \n"));
     RT28XX_STA_FORCE_WAKEUP(pAd, bFromTx);
 }
-#endif // CONFIG_STA_SUPPORT //
+
 /*
 	==========================================================================
 	Description:
@@ -6336,7 +6278,7 @@ VOID AsicEnableBssSync(
 
 	RTMP_IO_READ32(pAd, BCN_TIME_CFG, &csr.word);
 //	RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, 0x00000000);
-#ifdef CONFIG_STA_SUPPORT
+
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		csr.field.BeaconInterval = pAd->CommonCfg.BeaconPeriod << 4; // ASIC register in units of 1/16 TU
@@ -6345,7 +6287,7 @@ VOID AsicEnableBssSync(
 		csr.field.bBeaconGen  = 0; // do NOT generate BEACON
 		csr.field.bTBTTEnable = 1;
 	}
-#endif // CONFIG_STA_SUPPORT //
+
 	RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, csr.word);
 }
 
@@ -6555,7 +6497,7 @@ VOID AsicSetEdcaParm(
 		Ac2Cfg.field.Cwmin = pEdcaParm->Cwmin[QID_AC_VI];
 		Ac2Cfg.field.Cwmax = pEdcaParm->Cwmax[QID_AC_VI];
 		Ac2Cfg.field.Aifsn = pEdcaParm->Aifsn[QID_AC_VI];
-#ifdef CONFIG_STA_SUPPORT
+
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			// Tuning for Wi-Fi WMM S06
@@ -6572,7 +6514,6 @@ VOID AsicSetEdcaParm(
 				Ac2Cfg.field.AcTxop = 5;
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		Ac3Cfg.field.AcTxop = pEdcaParm->Txop[QID_AC_VO];
 		Ac3Cfg.field.Cwmin = pEdcaParm->Cwmin[QID_AC_VO];
@@ -6614,10 +6555,10 @@ VOID AsicSetEdcaParm(
 		CwminCsr.field.Cwmin0 = pEdcaParm->Cwmin[QID_AC_BE];
 		CwminCsr.field.Cwmin1 = pEdcaParm->Cwmin[QID_AC_BK];
 		CwminCsr.field.Cwmin2 = pEdcaParm->Cwmin[QID_AC_VI];
-#ifdef CONFIG_STA_SUPPORT
+
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			CwminCsr.field.Cwmin3 = pEdcaParm->Cwmin[QID_AC_VO] - 1; //for TGn wifi test
-#endif // CONFIG_STA_SUPPORT //
+
 		RTMP_IO_WRITE32(pAd, WMM_CWMIN_CFG, CwminCsr.word);
 
 		CwmaxCsr.word = 0;
@@ -6631,7 +6572,7 @@ VOID AsicSetEdcaParm(
 		AifsnCsr.field.Aifsn0 = Ac0Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_BE];
 		AifsnCsr.field.Aifsn1 = Ac1Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_BK];
 		AifsnCsr.field.Aifsn2 = Ac2Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_VI];
-#ifdef CONFIG_STA_SUPPORT
+
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			// Tuning for Wi-Fi WMM S06
@@ -6651,12 +6592,10 @@ VOID AsicSetEdcaParm(
 			if (INFRA_ON(pAd))
 				CLIENT_STATUS_SET_FLAG(&pAd->MacTab.Content[BSSID_WCID], fCLIENT_STATUS_WMM_CAPABLE);
 		}
-#endif // CONFIG_STA_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			AifsnCsr.field.Aifsn3 = Ac3Cfg.field.Aifsn - 1; //pEdcaParm->Aifsn[QID_AC_VO]; //for TGn wifi test
-#endif // CONFIG_STA_SUPPORT //
+
 		RTMP_IO_WRITE32(pAd, WMM_AIFSN_CFG, AifsnCsr.word);
 
 		NdisMoveMemory(&pAd->CommonCfg.APEdcaParm, pEdcaParm, sizeof(EDCA_PARM));
@@ -6707,10 +6646,8 @@ VOID 	AsicSetSlotTime(
 	ULONG	SlotTime;
 	UINT32	RegValue = 0;
 
-#ifdef CONFIG_STA_SUPPORT
 	if (pAd->CommonCfg.Channel > 14)
 		bUseShortSlotTime = TRUE;
-#endif // CONFIG_STA_SUPPORT //
 
 	if (bUseShortSlotTime)
 		OPSTATUS_SET_FLAG(pAd, fOP_STATUS_SHORT_SLOT_INUSED);
@@ -6719,7 +6656,6 @@ VOID 	AsicSetSlotTime(
 
 	SlotTime = (bUseShortSlotTime)? 9 : 20;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// force using short SLOT time for FAE to demo performance when TxBurst is ON
@@ -6735,20 +6671,17 @@ VOID 	AsicSetSlotTime(
 		else if (pAd->CommonCfg.bEnableTxBurst)
 			SlotTime = 9;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	//
 	// For some reasons, always set it to short slot time.
 	//
 	// ToDo: Should consider capability with 11B
 	//
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pAd->StaCfg.BssType == BSS_ADHOC)
 			SlotTime = 20;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	RTMP_IO_READ32(pAd, BKOFF_SLOT_CFG, &RegValue);
 	RegValue = RegValue & 0xFFFFFF00;
@@ -7269,7 +7202,6 @@ VOID	RTMPCheckRates(
 	NdisMoveMemory(SupRate, NewRate, NewRateLen);
 }
 
-#ifdef CONFIG_STA_SUPPORT
 #ifdef DOT11_N_SUPPORT
 BOOLEAN RTMPCheckChannel(
 	IN PRTMP_ADAPTER pAd,
@@ -7417,7 +7349,6 @@ BOOLEAN 	RTMPCheckHt(
 	return TRUE;
 }
 #endif // DOT11_N_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
 
 /*
 	========================================================================
@@ -7601,7 +7532,6 @@ VOID AsicEvaluateRxAnt(
 {
 	UCHAR	BBPR3 = 0;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
@@ -7614,7 +7544,6 @@ VOID AsicEvaluateRxAnt(
 		if (pAd->StaCfg.Psm == PWR_SAVE)
 			return;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &BBPR3);
 	BBPR3 &= (~0x18);
@@ -7631,8 +7560,7 @@ VOID AsicEvaluateRxAnt(
 		BBPR3 |= (0x0);
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
-#ifdef CONFIG_STA_SUPPORT
-#endif // CONFIG_STA_SUPPORT //
+
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 		)
 	{
@@ -7673,12 +7601,9 @@ VOID AsicRxAntEvalTimeout(
 	IN PVOID SystemSpecific3)
 {
 	RTMP_ADAPTER	*pAd = (RTMP_ADAPTER *)FunctionContext;
-#ifdef CONFIG_STA_SUPPORT
 	UCHAR			BBPR3 = 0;
 	CHAR			larger = -127, rssi0, rssi1, rssi2;
-#endif // CONFIG_STA_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS)	||
@@ -7738,9 +7663,6 @@ VOID AsicRxAntEvalTimeout(
 		}
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
 	}
-
-#endif // CONFIG_STA_SUPPORT //
-
 }
 
 
@@ -7819,8 +7741,6 @@ BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(
 {
 	BOOLEAN		result = TRUE;
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// only associated STA counts
@@ -7831,9 +7751,6 @@ BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(
 		else
 			result = FALSE;
 	}
-#endif // CONFIG_STA_SUPPORT //
-
-
 
 	return result;
 }
@@ -7842,14 +7759,12 @@ BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(
 BOOLEAN RTMPAutoRateSwitchCheck(
 	IN PRTMP_ADAPTER    pAd)
 {
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pAd->StaCfg.bAutoTxRateSwitch)
 			return TRUE;
 	}
-#endif // CONFIG_STA_SUPPORT //
+
 	return FALSE;
 }
 
@@ -7875,13 +7790,10 @@ UCHAR RTMPStaFixedTxMode(
 {
 	UCHAR	tx_mode = FIXED_TXMODE_HT;
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		tx_mode = (UCHAR)pAd->StaCfg.DesiredTransmitSetting.field.FixedTxMode;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	return tx_mode;
 }
@@ -7938,7 +7850,6 @@ VOID RTMPUpdateLegacyTxSetting(
 	}
 }
 
-#ifdef CONFIG_STA_SUPPORT
 /*
 	==========================================================================
 	Description:
@@ -8069,7 +7980,6 @@ VOID AsicStaBbpTuning(
 
 	}
 }
-#endif // CONFIG_STA_SUPPORT //
 
 VOID RTMPSetAGCInitValue(
 	IN PRTMP_ADAPTER	pAd,

@@ -72,9 +72,7 @@ INT rt28xx_send_packets(IN struct sk_buff *skb_p, IN struct net_device *net_dev)
 static void CfgInitHook(PRTMP_ADAPTER pAd);
 //static BOOLEAN RT28XXAvailRANameAssign(IN CHAR *name_p);
 
-#ifdef CONFIG_STA_SUPPORT
 extern	const struct iw_handler_def rt28xx_iw_handler_def;
-#endif // CONFIG_STA_SUPPORT //
 
 #if WIRELESS_EXT >= 12
 // This function will be called when query /proc
@@ -206,8 +204,6 @@ int rt28xx_close(IN PNET_DEV dev)
 	if (pAd == NULL)
 		return 0; // close ok
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 
@@ -268,7 +264,6 @@ int rt28xx_close(IN PNET_DEV dev)
 
 		MlmeRadioOff(pAd);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS);
 
@@ -324,14 +319,10 @@ int rt28xx_close(IN PNET_DEV dev)
 	// Close kernel threads or tasklets
 	kill_thread_task(pAd);
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		MacTableReset(pAd);
 	}
-#endif // CONFIG_STA_SUPPORT //
-
 
 	MeasureReqTabExit(pAd);
 	TpcReqTabExit(pAd);
@@ -436,10 +427,8 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 	CfgInitHook(pAd);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		NdisAllocateSpinLock(&pAd->MacTabLock);
-#endif // CONFIG_STA_SUPPORT //
 
 	MeasureReqTabInit(pAd);
 	TpcReqTabInit(pAd);
@@ -499,8 +488,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 	// We should read EEPROM for all cases.  rt2860b
 	NICReadEEPROMParameters(pAd, mac);
-#ifdef CONFIG_STA_SUPPORT
-#endif // CONFIG_STA_SUPPORT //
 
 	printk("3. Phy Mode = %d\n", pAd->CommonCfg.PhyMode);
 
@@ -650,9 +637,6 @@ int rt28xx_open(IN PNET_DEV dev)
 		return -1;
 	}
 
-#ifdef CONFIG_STA_SUPPORT
-#endif // CONFIG_STA_SUPPORT //
-
 	// Init
  	pObj = (POS_COOKIE)pAd->OS_Cookie;
 
@@ -671,13 +655,11 @@ int rt28xx_open(IN PNET_DEV dev)
 	if (rt28xx_init(net_dev) == FALSE)
 		goto err;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		NdisZeroMemory(pAd->StaCfg.dev_name, 16);
 		NdisMoveMemory(pAd->StaCfg.dev_name, net_dev->name, strlen(net_dev->name));
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// Set up the Mac address
 	NdisMoveMemory(net_dev->dev_addr, (void *) pAd->CurrentAddress, 6);
@@ -687,7 +669,6 @@ int rt28xx_open(IN PNET_DEV dev)
 
 	// Various AP function init
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 #ifdef WPA_SUPPLICANT_SUPPORT
@@ -703,7 +684,6 @@ int rt28xx_open(IN PNET_DEV dev)
 #endif // WPA_SUPPLICANT_SUPPORT //
 
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// Enable Interrupt
 	RT28XX_IRQ_ENABLE(pAd);
@@ -746,9 +726,6 @@ int rt28xx_open(IN PNET_DEV dev)
 	BUG();
 #endif
 
-#ifdef CONFIG_STA_SUPPORT
-#endif // CONFIG_STA_SUPPORT //
-
 	return (retval);
 
 err:
@@ -782,14 +759,12 @@ static NDIS_STATUS rt_ieee80211_if_setup(struct net_device *dev, PRTMP_ADAPTER p
 	//ether_setup(dev);
 //	dev->set_multicast_list = ieee80211_set_multicast_list;
 //	dev->change_mtu = ieee80211_change_mtu;
-#ifdef CONFIG_STA_SUPPORT
 #if WIRELESS_EXT >= 12
 	if (pAd->OpMode == OPMODE_STA)
 	{
 		dev->wireless_handlers = &rt28xx_iw_handler_def;
 	}
 #endif //WIRELESS_EXT >= 12
-#endif // CONFIG_STA_SUPPORT //
 
 #if WIRELESS_EXT < 21
 		dev->get_wireless_stats = rt28xx_get_wireless_stats;
@@ -860,9 +835,7 @@ INT __devinit   rt28xx_probe(
 #endif // RT2870 //
 
 
-#ifdef CONFIG_STA_SUPPORT
     DBGPRINT(RT_DEBUG_TRACE, ("STA Driver version-%s\n", STA_DRIVER_VERSION));
-#endif // CONFIG_STA_SUPPORT //
 
 	// Check chipset vendor/product ID
 //	if (RT28XXChipsetCheck(_dev_p) == FALSE)
@@ -902,9 +875,7 @@ INT __devinit   rt28xx_probe(
 
 	RT28XXNetDevInit(_dev_p, net_dev, pAd);
 
-#ifdef CONFIG_STA_SUPPORT
     pAd->StaCfg.OriDevType = net_dev->type;
-#endif // CONFIG_STA_SUPPORT //
 
 	// Find and assign a free interface name, raxx
 //	RT28XXAvailRANameAssign(net_dev->name);
@@ -913,9 +884,7 @@ INT __devinit   rt28xx_probe(
 	if (RT28XXProbePostConfig(_dev_p, pAd, 0) == FALSE)
 		goto err_out_unmap;
 
-#ifdef CONFIG_STA_SUPPORT
 	pAd->OpMode = OPMODE_STA;
-#endif // CONFIG_STA_SUPPORT //
 
 	// sample move
 	if (rt_ieee80211_if_setup(net_dev, pAd) != NDIS_STATUS_SUCCESS)
@@ -974,7 +943,6 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 	int status = 0;
 	PNDIS_PACKET pPacket = (PNDIS_PACKET) skb;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Drop send request since we are in monitor mode
@@ -984,7 +952,6 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 			goto done;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
         // EapolStart size is 18
 	if (skb->len < 14)
@@ -1011,16 +978,11 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
     }
 #endif
 
-
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 
 		STASendPackets((NDIS_HANDLE)pAd, (PPNDIS_PACKET) &pPacket, 1);
 	}
-
-#endif // CONFIG_STA_SUPPORT //
 
 	status = 0;
 done:
@@ -1138,10 +1100,8 @@ struct iw_statistics *rt28xx_get_wireless_stats(
 	if(pAd->iw_stats.qual.qual > 100)
 		pAd->iw_stats.qual.qual = 100;
 
-#ifdef CONFIG_STA_SUPPORT
 	if (pAd->OpMode == OPMODE_STA)
 		pAd->iw_stats.qual.level = RTMPMaxRssi(pAd, pAd->StaCfg.RssiSample.LastRssi0, pAd->StaCfg.RssiSample.LastRssi1, pAd->StaCfg.RssiSample.LastRssi2);
-#endif // CONFIG_STA_SUPPORT //
 
 	pAd->iw_stats.qual.noise = pAd->BbpWriteLatch[66]; // noise level (dBm)
 
@@ -1193,13 +1153,10 @@ INT rt28xx_ioctl(
 		return -ENETDOWN;
 	}
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		ret = rt28xx_sta_ioctl(net_dev, rq, cmd);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	return ret;
 }

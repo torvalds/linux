@@ -825,8 +825,6 @@ NDIS_STATUS	 CreateThreads(
 	return NDIS_STATUS_SUCCESS;
 }
 
-
-#ifdef CONFIG_STA_SUPPORT
 /*
 ========================================================================
 Routine Description:
@@ -1007,7 +1005,6 @@ VOID	RTMPAddBSSIDCipher(
 		DBGPRINT_RAW(RT_DEBUG_TRACE,(" %x:", pKey->KeyMaterial[i]));
 	DBGPRINT(RT_DEBUG_TRACE,("	 \n"));
 }
-#endif // CONFIG_STA_SUPPORT //
 
 /*
 ========================================================================

@@ -382,9 +382,6 @@ typedef struct PACKED _RADIUS_CONF
 	RADIUS_KEY_INFO	RadiusInfo[8/*MAX_MBSSID_NUM*/];
 } RADIUS_CONF, *PRADIUS_CONF;
 
-
-
-#ifdef CONFIG_STA_SUPPORT
 // Key mapping keys require a BSSID
 typedef struct _NDIS_802_11_KEY
 {
@@ -395,7 +392,6 @@ typedef struct _NDIS_802_11_KEY
     NDIS_802_11_KEY_RSC KeyRSC;
     UCHAR           KeyMaterial[1];     // variable length depending on above field
 } NDIS_802_11_KEY, *PNDIS_802_11_KEY;
-#endif // CONFIG_STA_SUPPORT //
 
 typedef struct _NDIS_802_11_REMOVE_KEY
 {
@@ -612,7 +608,6 @@ typedef enum _NDIS_802_11_MEDIA_STREAM_MODE
 // PMKID Structures
 typedef UCHAR   NDIS_802_11_PMKID_VALUE[16];
 
-#ifdef CONFIG_STA_SUPPORT
 typedef struct _BSSID_INFO
 {
     NDIS_802_11_MAC_ADDRESS BSSID;
@@ -625,8 +620,6 @@ typedef struct _NDIS_802_11_PMKID
     UINT    BSSIDInfoCount;
     BSSID_INFO BSSIDInfo[1];
 } NDIS_802_11_PMKID, *PNDIS_802_11_PMKID;
-#endif // CONFIG_STA_SUPPORT //
-
 
 typedef struct _NDIS_802_11_AUTHENTICATION_ENCRYPTION
 {
@@ -650,7 +643,6 @@ typedef struct _NDIS_802_11_CAPABILITY
 #define SIOCIWFIRSTPRIV								SIOCDEVPRIVATE
 #endif
 
-#ifdef CONFIG_STA_SUPPORT
 #define RTPRIV_IOCTL_SET							(SIOCIWFIRSTPRIV + 0x02)
 
 #ifdef DBG
@@ -681,9 +673,6 @@ enum {
 	SHOW_CFG_VALUE = 20,
 	SHOW_ADHOC_ENTRY_INFO = 21,
 };
-
-
-#endif // CONFIG_STA_SUPPORT //
 
 #define OID_802_11_BUILD_CHANNEL_EX				0x0714
 #define OID_802_11_GET_CH_LIST					0x0715
@@ -907,7 +896,6 @@ typedef struct _RT_LLTD_ASSOICATION_TABLE {
 } RT_LLTD_ASSOICATION_TABLE, *PRT_LLTD_ASSOICATION_TABLE;
 #endif // LLTD_SUPPORT //
 
-#ifdef CONFIG_STA_SUPPORT
 #ifdef WPA_SUPPLICANT_SUPPORT
 #ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
 #define	RT_ASSOC_EVENT_FLAG                         0x0101
@@ -920,19 +908,15 @@ typedef struct _RT_LLTD_ASSOICATION_TABLE {
 #define RT_INTERFACE_UP                             0x0108
 #endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 #endif // WPA_SUPPLICANT_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
-
 
 #define MAX_CUSTOM_LEN 128
 
-#ifdef CONFIG_STA_SUPPORT
 typedef enum _RT_802_11_D_CLIENT_MODE
 {
    Rt802_11_D_None,
    Rt802_11_D_Flexible,
    Rt802_11_D_Strict,
 } RT_802_11_D_CLIENT_MODE, *PRT_802_11_D_CLIENT_MODE;
-#endif // CONFIG_STA_SUPPORT //
 
 typedef struct _RT_CHANNEL_LIST_INFO
 {

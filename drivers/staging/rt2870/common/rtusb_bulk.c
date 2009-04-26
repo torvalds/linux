@@ -1211,9 +1211,7 @@ VOID	RTUSBBulkReceive(
 		RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
 
 		// read RxContext, Since not
-#ifdef CONFIG_STA_SUPPORT
 		STARxDoneInterruptHandle(pAd, TRUE);
-#endif // CONFIG_STA_SUPPORT //
 
 		//return;
 	}
@@ -1239,9 +1237,7 @@ VOID	RTUSBBulkReceive(
 	}
 
 	// read RxContext, Since not
-#ifdef CONFIG_STA_SUPPORT
 	STARxDoneInterruptHandle(pAd, FALSE);
-#endif // CONFIG_STA_SUPPORT //
 }
 
 /*
@@ -1463,10 +1459,8 @@ VOID	RTUSBBulkReceive(
 			RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
 
 			// read RxContext, Since not
-#ifdef CONFIG_STA_SUPPORT
 			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				STARxDoneInterruptHandle(pAd, TRUE);
-#endif // CONFIG_STA_SUPPORT //
 
 			// Finish to handle this bulkIn buffer.
 			RTMP_IRQ_LOCK(&pAd->BulkInLock, IrqFlags);

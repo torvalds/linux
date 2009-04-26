@@ -133,10 +133,8 @@ void Announce_Reordering_Packet(IN PRTMP_ADAPTER			pAd,
 		// pass this 802.3 packet to upper layer or forward this packet to WM directly
 		//
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			ANNOUNCE_OR_FORWARD_802_3_PACKET(pAd, pPacket, RTMP_GET_PACKET_IF(pPacket));
-#endif // CONFIG_STA_SUPPORT //
 	}
 }
 
@@ -606,11 +604,8 @@ VOID BAOriSessionAdd(
 			return;
 		}
 
-
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			BarHeaderInit(pAd, &FrameBar, pAd->MacTab.Content[pBAEntry->Wcid].Addr, pAd->CurrentAddress);
-#endif // CONFIG_STA_SUPPORT //
 
 		FrameBar.StartingSeq.field.FragNum = 0;	// make sure sequence not clear in DEL function.
 		FrameBar.StartingSeq.field.StartSeq = pBAEntry->Sequence; // make sure sequence not clear in DEL funciton.
@@ -1079,14 +1074,12 @@ VOID BAOriSessionSetupTimeout(
 
 	pAd = pBAEntry->pAdapter;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Do nothing if monitor mode is on
 		if (MONITOR_ON(pAd))
 			return;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	pEntry = &pAd->MacTab.Content[pBAEntry->Wcid];
 
@@ -1219,8 +1212,8 @@ VOID PeerAddBAReqAction(
 	}
 
 	NdisZeroMemory(&ADDframe, sizeof(FRAME_ADDBA_RSP));
+
 	// 2-1. Prepare ADDBA Response frame.
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (ADHOC_ON(pAd))
@@ -1228,7 +1221,7 @@ VOID PeerAddBAReqAction(
 		else
 			ActHeaderInit(pAd, &ADDframe.Hdr, pAd->CommonCfg.Bssid, pAd->CurrentAddress, pAddr);
 	}
-#endif // CONFIG_STA_SUPPORT //
+
 	ADDframe.Category = CATEGORY_BA;
 	ADDframe.Action = ADDBA_RESP;
 	ADDframe.Token = pAddreqFrame->Token;
@@ -1295,9 +1288,7 @@ VOID PeerAddBARspAction(
 		}
 		// Rcv Decline StatusCode
 		if ((pFrame->StatusCode == 37)
-#ifdef CONFIG_STA_SUPPORT
             || ((pAd->OpMode == OPMODE_STA) && STA_TGN_WIFI_ON(pAd) && (pFrame->StatusCode != 0))
-#endif // CONFIG_STA_SUPPORT //
             )
 		{
 			pAd->MacTab.Content[Elem->Wcid].BADeclineBitmap |= 1<<pFrame->BaParm.TID;
@@ -1418,10 +1409,9 @@ VOID SendPSMPAction(
 		DBGPRINT(RT_DEBUG_ERROR,("BA - MlmeADDBAAction() allocate memory failed \n"));
 		return;
 	}
-#ifdef CONFIG_STA_SUPPORT
+
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		ActHeaderInit(pAd, &Frame.Hdr, pAd->CommonCfg.Bssid, pAd->CurrentAddress, pAd->MacTab.Content[Wcid].Addr);
-#endif // CONFIG_STA_SUPPORT //
 
 	Frame.Category = CATEGORY_HT;
 	Frame.Action = SMPS_ACTION;
@@ -1486,10 +1476,8 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(
 	// 		a. pointer pRxBlk->pData to payload
 	//      b. modify pRxBlk->DataSize
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(pRxBlk, Header802_3);
-#endif // CONFIG_STA_SUPPORT //
 
 	ASSERT(pRxBlk->pRxPacket);
 	pRxPkt = RTPKT_TO_OSPKT(pRxBlk->pRxPacket);
@@ -1504,15 +1492,12 @@ void convert_reordering_packet_to_preAMSDU_or_802_3_packet(
 	//
 	if (!RX_BLK_TEST_FLAG(pRxBlk, fRX_AMSDU))
 	{
-
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 #ifdef LINUX
 			NdisMoveMemory(skb_push(pRxPkt, LENGTH_802_3), Header802_3, LENGTH_802_3);
 #endif
 		}
-#endif // CONFIG_STA_SUPPORT //
 	}
 }
 

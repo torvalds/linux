@@ -1303,12 +1303,7 @@ VOID CMDHandler(
 			{
 				case CMDTHREAD_CHECK_GPIO:
 					{
-#ifdef CONFIG_STA_SUPPORT
 						UINT32 data;
-#endif // CONFIG_STA_SUPPORT //
-
-#ifdef CONFIG_STA_SUPPORT
-
 
 						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
@@ -1346,17 +1341,14 @@ VOID CMDHandler(
 								}
 							}
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 					break;
 
-#ifdef CONFIG_STA_SUPPORT
 				case CMDTHREAD_QKERIODIC_EXECUT:
 					{
 						StaQuickResponeForRateUpExec(NULL, pAd, NULL, NULL);
 					}
 					break;
-#endif // CONFIG_STA_SUPPORT //
 
 				case CMDTHREAD_RESET_BULK_OUT:
 					{
@@ -1696,7 +1688,6 @@ VOID CMDHandler(
 
 				case CMDTHREAD_SET_ASIC_WCID_CIPHER:
 					{
-#ifdef CONFIG_STA_SUPPORT
 						RT_SET_ASIC_WCID_ATTRI	SetAsicWcidAttri;
 						USHORT		offset;
 						UINT32		MACRValue = 0;
@@ -1748,7 +1739,6 @@ VOID CMDHandler(
 
 							RTUSBWriteMACRegister(pAd, SHARED_KEY_MODE_BASE+4*(0/2), csr1.word);
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 					break;
 
@@ -1757,8 +1747,6 @@ VOID CMDHandler(
 						MAC_TABLE_ENTRY *pEntry;
 						pEntry = (MAC_TABLE_ENTRY *)pData;
 
-
-#ifdef CONFIG_STA_SUPPORT
 						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 						{
 							AsicRemovePairwiseKeyEntry(pAd, pEntry->apidx, (UCHAR)pEntry->Aid);
@@ -1794,7 +1782,6 @@ VOID CMDHandler(
 								RTUSBWriteMACRegister(pAd, offset, 0);
 							}
 						}
-#endif // CONFIG_STA_SUPPORT //
 
 						AsicUpdateRxWCIDTable(pAd, pEntry->Aid, pEntry->Addr);
 						printk("UpdateRxWCIDTable(): Aid=%d, Addr=%02x:%02x:%02x:%02x:%02x:%02x!\n", pEntry->Aid,
@@ -1804,7 +1791,6 @@ VOID CMDHandler(
 
 				case OID_802_11_ADD_WEP:
 					{
-#ifdef CONFIG_STA_SUPPORT
 						UINT	i;
 						UINT32	KeyIdx;
 						PNDIS_802_11_WEP	pWepKey;
@@ -1878,7 +1864,6 @@ VOID CMDHandler(
 							AsicAddSharedKeyEntry(pAd, BSS0, (UCHAR)KeyIdx, CipherAlg, pWepKey->KeyMaterial, NULL, NULL);
 							DBGPRINT(RT_DEBUG_TRACE, ("CmdThread::OID_802_11_ADD_WEP (KeyIdx=%d, Len=%d-byte)\n", KeyIdx, pWepKey->KeyLength));
 						}
-#endif // CONFIG_STA_SUPPORT //
 					}
 					break;
 
