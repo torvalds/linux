@@ -104,8 +104,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #endif // CONFIG_STA_SUPPORT //
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-
 #define RTMP_TIME_AFTER(a,b)		\
 	(typecheck(unsigned long, (unsigned long)a) && \
 	 typecheck(unsigned long, (unsigned long)b) && \
@@ -116,11 +114,7 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 	 typecheck(unsigned long, (unsigned long)b) && \
 	 ((long)(a) - (long)(b) >= 0))
 #define RTMP_TIME_BEFORE(a,b)	RTMP_TIME_AFTER_EQ(b,a)
-#else
-#define RTMP_TIME_AFTER(a,b) time_after(a, b)
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define RT_MOD_INC_USE_COUNT() \
 	if (!try_module_get(THIS_MODULE)) \
 	{ \
@@ -129,10 +123,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 	}
 
 #define RT_MOD_DEC_USE_COUNT() module_put(THIS_MODULE);
-#else
-#define RT_MOD_INC_USE_COUNT()	MOD_INC_USE_COUNT;
-#define RT_MOD_DEC_USE_COUNT() MOD_DEC_USE_COUNT;
-#endif
 
 #define OS_HZ			HZ
 
@@ -164,19 +154,11 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define NDIS_PACKET_TYPE_ALL_MULTICAST	3
 #endif // CONFIG_STA_SUPPORT //
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 typedef	struct pid *	THREAD_PID;
 #define	GET_PID(_v)	find_get_pid(_v)
 #define	GET_PID_NUMBER(_v)	pid_nr(_v)
 #define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) >= 0)
 #define KILL_THREAD_PID(_A, _B, _C)	kill_pid(_A, _B, _C)
-#else
-typedef	pid_t	THREAD_PID;
-#define	GET_PID(_v)	_v
-#define	GET_PID_NUMBER(_v)	_v
-#define CHECK_PID_LEGALITY(_pid)	if (_pid >= 0)
-#define KILL_THREAD_PID(_A, _B, _C)	kill_proc(_A, _B, _C)
-#endif
 
 struct os_lock  {
 	spinlock_t		lock;

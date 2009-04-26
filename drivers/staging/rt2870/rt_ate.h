@@ -92,10 +92,6 @@ do{   int (*org_remote_display)(char *) = NULL;   \
 			RTMP_IRQ_UNLOCK((pLock), IrqFlags);
 
 // Prototypes of completion funuc.
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#define ATE_RTUSBBulkOutDataPacketComplete(purb, pt_regs)    ATE_RTUSBBulkOutDataPacketComplete(purb)
-#endif
-
 VOID ATE_RTUSBBulkOutDataPacketComplete(
 	IN purbb_t purb,
 	OUT struct pt_regs *pt_regs);
