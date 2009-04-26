@@ -2663,28 +2663,6 @@ typedef struct _INF_USB_CONFIG
 	};
 #endif // IKANOS_VX_1X0 //
 
-#ifdef NINTENDO_AP
-typedef struct _NINDO_CTRL_BLOCK {
-
-	RT_NINTENDO_TABLE	DS_TABLE;
-
-#ifdef CHIP25XX
-	spinlock_t			NINTENDO_TABLE_Lock;
-#else
-	NDIS_SPIN_LOCK		NINTENDO_TABLE_Lock;
-#endif // CHIP25XX //
-
-	UCHAR				NINTENDO_UP_BUFFER[512];
-	UCHAR				Local_KeyIdx;
-	CIPHER_KEY			Local_SharedKey;
-	UCHAR				Local_bHideSsid;
-	UCHAR				Local_AuthMode;
-	UCHAR				Local_WepStatus;
-	USHORT				Local_CapabilityInfo;
-} NINDO_CTRL_BLOCK;
-#endif // NINTENDO_AP //
-
-
 #ifdef DBG_DIAGNOSE
 #define DIAGNOSE_TIME	10   // 10 sec
 typedef struct _RtmpDiagStrcut_
@@ -3142,11 +3120,6 @@ typedef struct _RTMP_ADAPTER
 #define TIME_ONE_SECOND		(1000000/TIME_BASE)
 	UCHAR					flg_be_adjust;
 	ULONG					be_adjust_last_time;
-
-#ifdef NINTENDO_AP
-	NINDO_CTRL_BLOCK		nindo_ctrl_block;
-#endif // NINTENDO_AP //
-
 
 #ifdef IKANOS_VX_1X0
 	struct IKANOS_TX_INFO	IkanosTxInfo;
@@ -6471,35 +6444,6 @@ void ChannelInfoDestroy(
 
 UCHAR New_ApAutoSelectChannel(
 	IN PRTMP_ADAPTER pAd);
-
-
-#ifdef NINTENDO_AP
-VOID	InitNINTENDO_TABLE(
-	IN PRTMP_ADAPTER pAd);
-
-UCHAR	CheckNINTENDO_TABLE(
-	IN PRTMP_ADAPTER pAd,
-	PCHAR pDS_Ssid,
-	UCHAR DS_SsidLen,
-	PUCHAR pDS_Addr);
-
-UCHAR	DelNINTENDO_ENTRY(
-	IN	PRTMP_ADAPTER pAd,
-	UCHAR * pDS_Addr);
-
-VOID	RTMPIoctlNintendoCapable(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	struct iwreq	*wrq);
-
-VOID	RTMPIoctlNintendoGetTable(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	struct iwreq	*wrq);
-
-VOID	RTMPIoctlNintendoSetTable(
-	IN	PRTMP_ADAPTER	pAd,
-	IN	struct iwreq	*wrq);
-
-#endif // NINTENDO_AP //
 
 BOOLEAN rtstrmactohex(
 	IN char *s1,
