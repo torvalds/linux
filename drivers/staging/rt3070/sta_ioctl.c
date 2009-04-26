@@ -213,12 +213,6 @@ INT Set_ShortRetryLimit_Proc(
 	IN	PRTMP_ADAPTER	pAdapter,
 	IN	PUCHAR			arg);
 
-#ifdef EXT_BUILD_CHANNEL_LIST
-INT Set_Ieee80211dClientMode_Proc(
-    IN  PRTMP_ADAPTER   pAdapter,
-    IN  PUCHAR          arg);
-#endif // EXT_BUILD_CHANNEL_LIST //
-
 static struct {
 	CHAR *name;
 	INT (*set_proc)(PRTMP_ADAPTER pAdapter, PUCHAR arg);
@@ -287,9 +281,6 @@ static struct {
 #endif // DOT11_N_SUPPORT //
 	{"LongRetry",	        		Set_LongRetryLimit_Proc},
 	{"ShortRetry",	        		Set_ShortRetryLimit_Proc},
-#ifdef EXT_BUILD_CHANNEL_LIST
-	{"11dClientMode",				Set_Ieee80211dClientMode_Proc},
-#endif // EXT_BUILD_CHANNEL_LIST //
 //2008/09/11:KH add to support efuse<--
 #ifdef RT30xx
 	{"efuseFreeNumber",				set_eFuseGetFreeBlockCount_Proc},
@@ -5073,13 +5064,8 @@ INT RTMPQueryInformation(
 				UCHAR value;
 				DBGPRINT(RT_DEBUG_TRACE, ("Query::OID_802_11_BUILD_CHANNEL_EX \n"));
 				wrq->u.data.length = sizeof(UCHAR);
-#ifdef EXT_BUILD_CHANNEL_LIST
-				DBGPRINT(RT_DEBUG_TRACE, ("Support EXT_BUILD_CHANNEL_LIST.\n"));
-				value = 1;
-#else
 				DBGPRINT(RT_DEBUG_TRACE, ("Doesn't support EXT_BUILD_CHANNEL_LIST.\n"));
 				value = 0;
-#endif // EXT_BUILD_CHANNEL_LIST //
 				Status = copy_to_user(wrq->u.data.pointer, &value, 1);
 				DBGPRINT(RT_DEBUG_TRACE, ("Status=%d\n", Status));
 			}
@@ -6870,22 +6856,3 @@ INT Set_ShortRetryLimit_Proc(
 	DBGPRINT(RT_DEBUG_TRACE, ("IF Set_ShortRetryLimit_Proc::(tx_rty_cfg=0x%x)\n", tx_rty_cfg.word));
 	return TRUE;
 }
-
-#ifdef EXT_BUILD_CHANNEL_LIST
-INT Set_Ieee80211dClientMode_Proc(
-    IN  PRTMP_ADAPTER   pAdapter,
-    IN  PUCHAR          arg)
-{
-    if (simple_strtol(arg, 0, 10) == 0)
-        pAdapter->StaCfg.IEEE80211dClientMode = Rt802_11_D_None;
-    else if (simple_strtol(arg, 0, 10) == 1)
-        pAdapter->StaCfg.IEEE80211dClientMode = Rt802_11_D_Flexible;
-    else if (simple_strtol(arg, 0, 10) == 2)
-        pAdapter->StaCfg.IEEE80211dClientMode = Rt802_11_D_Strict;
-    else
-        return FALSE;
-
-    DBGPRINT(RT_DEBUG_TRACE, ("Set_Ieee802dMode_Proc::(IEEEE0211dMode=%d)\n", pAdapter->StaCfg.IEEE80211dClientMode));
-    return TRUE;
-}
-#endif // EXT_BUILD_CHANNEL_LIST //

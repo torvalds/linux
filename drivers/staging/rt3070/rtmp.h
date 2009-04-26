@@ -2150,13 +2150,6 @@ typedef struct _STA_ADMIN_CONFIG {
 	DESIRED_TRANSMIT_SETTING       	DesiredTransmitSetting;
 	RT_HT_PHY_INFO					DesiredHtPhyInfo;
 	BOOLEAN							bAutoTxRateSwitch;
-
-
-#ifdef EXT_BUILD_CHANNEL_LIST
-	UCHAR				IEEE80211dClientMode;
-	UCHAR				StaOriCountryCode[3];
-	UCHAR				StaOriGeography;
-#endif // EXT_BUILD_CHANNEL_LIST //
 } STA_ADMIN_CONFIG, *PSTA_ADMIN_CONFIG;
 
 // This data structure keep the current active BSS/IBSS's configuration that this STA

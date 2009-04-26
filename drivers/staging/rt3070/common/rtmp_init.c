@@ -3396,10 +3396,6 @@ VOID	UserCfgInit(
 		pAd->StaCfg.bAutoTxRateSwitch = TRUE;
 		pAd->StaCfg.DesiredTransmitSetting.field.MCS = MCS_AUTO;
 	}
-
-#ifdef EXT_BUILD_CHANNEL_LIST
-	pAd->StaCfg.IEEE80211dClientMode = Rt802_11_D_None;
-#endif // EXT_BUILD_CHANNEL_LIST //
 #endif // CONFIG_STA_SUPPORT //
 
 	// global variables mXXXX used in MAC protocol state machines
