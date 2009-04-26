@@ -3702,11 +3702,9 @@ VOID BssEntrySet(
 
 		NdisZeroMemory(&pBss->WpaIE.IE[0], MAX_CUSTOM_LEN);
 		NdisZeroMemory(&pBss->RsnIE.IE[0], MAX_CUSTOM_LEN);
-#ifdef EXT_BUILD_CHANNEL_LIST
-		NdisZeroMemory(&pBss->CountryString[0], 3);
-		pBss->bHasCountryIE = FALSE;
-#endif // EXT_BUILD_CHANNEL_LIST //
+
 		pEid = (PEID_STRUCT) pVIE;
+
 		while ((Length + 2 + (USHORT)pEid->Len) <= LengthVIE)
 		{
 			switch(pEid->Eid)
@@ -3735,12 +3733,6 @@ VOID BssEntrySet(
 						NdisMoveMemory(pBss->RsnIE.IE, pEid, pBss->RsnIE.IELen);
 			}
 				break;
-#ifdef EXT_BUILD_CHANNEL_LIST
-				case IE_COUNTRY:
-					NdisMoveMemory(&pBss->CountryString[0], pEid->Octet, 3);
-					pBss->bHasCountryIE = TRUE;
-					break;
-#endif // EXT_BUILD_CHANNEL_LIST //
             }
 			Length = Length + 2 + (USHORT)pEid->Len;  // Eid[1] + Len[1]+ content[Len]
 			pEid = (PEID_STRUCT)((UCHAR*)pEid + 2 + pEid->Len);
@@ -3982,18 +3974,6 @@ VOID BssTableSsidSort(
 			(SSID_EQUAL(Ssid, SsidLen, pInBss->Ssid, pInBss->SsidLen) || bIsHiddenApIncluded))
 		{
 			BSS_ENTRY *pOutBss = &OutTab->BssEntry[OutTab->BssNr];
-
-
-#ifdef EXT_BUILD_CHANNEL_LIST
-			// If no Country IE exists no Connection will be established when IEEE80211dClientMode is strict.
-			if ((pAd->StaCfg.IEEE80211dClientMode == Rt802_11_D_Strict) &&
-				(pInBss->bHasCountryIE == FALSE))
-			{
-				DBGPRINT(RT_DEBUG_TRACE,("StaCfg.IEEE80211dClientMode == Rt802_11_D_Strict, but this AP doesn't have country IE.\n"));
-				continue;
-			}
-#endif // EXT_BUILD_CHANNEL_LIST //
-
 #ifdef DOT11_N_SUPPORT
 			// 2.4G/5G N only mode
 			if ((pInBss->HtCapabilityLen == 0) &&

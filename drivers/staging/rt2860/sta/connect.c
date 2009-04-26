@@ -1917,17 +1917,6 @@ VOID LinkDown(
 			NdisMoveMemory(pAd->StaCfg.CCXAdjacentAPSsid, pAd->CommonCfg.Ssid, pAd->StaCfg.CCXAdjacentAPSsidLen);
 			COPY_MAC_ADDR(pAd->StaCfg.CCXAdjacentAPBssid, pAd->CommonCfg.Bssid);
 		}
-
-#ifdef EXT_BUILD_CHANNEL_LIST
-		// Country IE of the AP will be evaluated and will be used.
-		if (pAd->StaCfg.IEEE80211dClientMode != Rt802_11_D_None)
-		{
-			NdisMoveMemory(&pAd->CommonCfg.CountryCode[0], &pAd->StaCfg.StaOriCountryCode[0], 2);
-			pAd->CommonCfg.Geography = pAd->StaCfg.StaOriGeography;
-			BuildChannelListEx(pAd);
-		}
-#endif // EXT_BUILD_CHANNEL_LIST //
-
 	}
 
 	for (i=1; i<MAX_LEN_OF_MAC_TABLE; i++)

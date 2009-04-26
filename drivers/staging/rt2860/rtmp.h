@@ -2111,12 +2111,6 @@ typedef struct _STA_ADMIN_CONFIG {
 	BOOLEAN							bAutoTxRateSwitch;
 
     UCHAR       BBPR3;
-
-#ifdef EXT_BUILD_CHANNEL_LIST
-	UCHAR				IEEE80211dClientMode;
-	UCHAR				StaOriCountryCode[3];
-	UCHAR				StaOriGeography;
-#endif // EXT_BUILD_CHANNEL_LIST //
 } STA_ADMIN_CONFIG, *PSTA_ADMIN_CONFIG;
 
 // This data structure keep the current active BSS/IBSS's configuration that this STA

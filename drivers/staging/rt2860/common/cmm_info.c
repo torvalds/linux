@@ -259,10 +259,6 @@ INT Set_CountryRegion_Proc(
 
 	region = simple_strtol(arg, 0, 10);
 
-#ifdef EXT_BUILD_CHANNEL_LIST
-	return -EOPNOTSUPP;
-#endif // EXT_BUILD_CHANNEL_LIST //
-
 	// Country can be set only when EEPROM not programmed
 	if (pAd->CommonCfg.CountryRegion & 0x80)
 	{
@@ -308,10 +304,6 @@ INT Set_CountryRegionABand_Proc(
 	ULONG region;
 
 	region = simple_strtol(arg, 0, 10);
-
-#ifdef EXT_BUILD_CHANNEL_LIST
-	return -EOPNOTSUPP;
-#endif // EXT_BUILD_CHANNEL_LIST //
 
 	// Country can be set only when EEPROM not programmed
 	if (pAd->CommonCfg.CountryRegionForABand & 0x80)
@@ -1210,11 +1202,8 @@ VOID	RTMPSetPhyMode(
 	pAd->CommonCfg.PhyMode = (UCHAR)phymode;
 
 	DBGPRINT(RT_DEBUG_TRACE,("RTMPSetPhyMode : PhyMode=%d, channel=%d \n", pAd->CommonCfg.PhyMode, pAd->CommonCfg.Channel));
-#ifdef EXT_BUILD_CHANNEL_LIST
-	BuildChannelListEx(pAd);
-#else
+
 	BuildChannelList(pAd);
-#endif // EXT_BUILD_CHANNEL_LIST //
 
 	// sanity check user setting
 	for (i = 0; i < pAd->ChannelListNum; i++)
