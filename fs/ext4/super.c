@@ -2645,6 +2645,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	sb->dq_op = &ext4_quota_operations;
 #endif
 	INIT_LIST_HEAD(&sbi->s_orphan); /* unlinked but open files */
+	mutex_init(&sbi->s_orphan_lock);
 
 	sb->s_root = NULL;
 
