@@ -103,13 +103,10 @@ static struct pci_device_id rt2860_pci_tbl[] __devinitdata =
 };
 
 MODULE_DEVICE_TABLE(pci, rt2860_pci_tbl);
-#ifdef CONFIG_STA_SUPPORT
 MODULE_LICENSE("GPL");
 #ifdef MODULE_VERSION
 MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
-#endif // CONFIG_STA_SUPPORT //
-
 
 //
 // Our PCI driver structure
@@ -479,10 +476,9 @@ static void rx_done_tasklet(unsigned long data)
     pObj = (POS_COOKIE) pAd->OS_Cookie;
 
 	pAd->int_pending &= ~(INT_RX);
-#ifdef CONFIG_STA_SUPPORT
+
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		bReschedule = STARxDoneInterruptHandle(pAd, 0);
-#endif // CONFIG_STA_SUPPORT //
 
 	RTMP_INT_LOCK(&pAd->irq_lock, flags);
 	/*
@@ -918,15 +914,11 @@ rt2860_interrupt(int irq, void *dev_instance)
 		RTMPHandleTBTTInterrupt(pAd);
 	}
 
-
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (IntSource.word & AutoWakeupInt)
 			RTMPHandleTwakeupInterrupt(pAd);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
     return  IRQ_HANDLED;
 }
@@ -1195,7 +1187,6 @@ VOID RT28xx_UpdateBeaconToAsic(
 
 }
 
-#ifdef CONFIG_STA_SUPPORT
 VOID RTMPInitPCIeLinkCtrlValue(
 	IN	PRTMP_ADAPTER	pAd)
 {
@@ -1239,7 +1230,6 @@ VOID RTMPPCIeLinkCtrlSetting(
 	IN 	USHORT		Max)
 {
 }
-#endif // CONFIG_STA_SUPPORT //
 
 VOID rt2860_stop(struct net_device *net_dev)
 {

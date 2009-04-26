@@ -1454,10 +1454,8 @@ static VOID PeerChSwAnnAction(
 {
 	CH_SW_ANN_INFO ChSwAnnInfo;
 	PFRAME_802_11 pFr = (PFRAME_802_11)Elem->Msg;
-#ifdef CONFIG_STA_SUPPORT
 	UCHAR index = 0, Channel = 0, NewChannel = 0;
 	ULONG Bssidx = 0;
-#endif // CONFIG_STA_SUPPORT //
 
 	NdisZeroMemory(&ChSwAnnInfo, sizeof(CH_SW_ANN_INFO));
 	if (! PeerChSwAnnSanity(pAd, Elem->Msg, Elem->MsgLen, &ChSwAnnInfo))
@@ -1466,8 +1464,6 @@ static VOID PeerChSwAnnAction(
 		return;
 	}
 
-
-#ifdef CONFIG_STA_SUPPORT
 	if (pAd->OpMode == OPMODE_STA)
 	{
 		Bssidx = BssTableSearch(&pAd->ScanTab, pFr->Hdr.Addr3, pAd->CommonCfg.Channel);
@@ -1514,7 +1510,6 @@ static VOID PeerChSwAnnAction(
 			}
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	return;
 }

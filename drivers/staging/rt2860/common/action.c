@@ -128,7 +128,6 @@ VOID MlmeADDBAAction(
 			pBAEntry =&pAd->BATable.BAOriEntry[Idx];
 		}
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (ADHOC_ON(pAd))
@@ -136,7 +135,6 @@ VOID MlmeADDBAAction(
 			else
 				ActHeaderInit(pAd, &Frame.Hdr, pAd->CommonCfg.Bssid, pAd->CurrentAddress, pInfo->pAddr);
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		Frame.Category = CATEGORY_BA;
 		Frame.Action = ADDBA_REQ;
@@ -211,10 +209,9 @@ VOID MlmeDELBAAction(
 
 		// SEND BAR (Send BAR to refresh peer reordering buffer.)
 		Idx = pAd->MacTab.Content[pInfo->Wcid].BAOriWcidArray[pInfo->TID];
-#ifdef CONFIG_STA_SUPPORT
+
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			BarHeaderInit(pAd, &FrameBar, pAd->MacTab.Content[pInfo->Wcid].Addr, pAd->CurrentAddress);
-#endif // CONFIG_STA_SUPPORT //
 
 		FrameBar.StartingSeq.field.FragNum = 0; // make sure sequence not clear in DEL funciton.
 		FrameBar.StartingSeq.field.StartSeq = pAd->MacTab.Content[pInfo->Wcid].TxSeq[pInfo->TID]; // make sure sequence not clear in DEL funciton.
@@ -232,7 +229,7 @@ VOID MlmeDELBAAction(
 
 		// SEND DELBA FRAME
 		FrameLen = 0;
-#ifdef CONFIG_STA_SUPPORT
+
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (ADHOC_ON(pAd))
@@ -240,7 +237,7 @@ VOID MlmeDELBAAction(
 			else
 				ActHeaderInit(pAd, &Frame.Hdr,  pAd->CommonCfg.Bssid, pAd->CurrentAddress, pAd->MacTab.Content[pInfo->Wcid].Addr);
 		}
-#endif // CONFIG_STA_SUPPORT //
+
 		Frame.Category = CATEGORY_BA;
 		Frame.Action = DELBA;
 		Frame.DelbaParm.Initiator = pInfo->Initiator;
@@ -367,7 +364,6 @@ static VOID respond_ht_information_exchange_action(
 
 	NdisZeroMemory(&HTINFOframe, sizeof(FRAME_HT_INFO));
 	// 2-1. Prepare ADDBA Response frame.
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (ADHOC_ON(pAd))
@@ -375,7 +371,6 @@ static VOID respond_ht_information_exchange_action(
 		else
 			ActHeaderInit(pAd, &HTINFOframe.Hdr, pAd->CommonCfg.Bssid, pAd->CurrentAddress, pAddr);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	HTINFOframe.Category = CATEGORY_HT;
 	HTINFOframe.Action = HT_INFO_EXCHANGE;
@@ -404,7 +399,7 @@ VOID PeerHTAction(
 	{
 		case NOTIFY_BW_ACTION:
 			DBGPRINT(RT_DEBUG_TRACE,("ACTION - HT Notify Channel bandwidth action----> \n"));
-#ifdef CONFIG_STA_SUPPORT
+
 			if(pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE)
 			{
 				// Note, this is to patch DIR-1353 AP. When the AP set to Wep, it will use legacy mode. But AP still keeps
@@ -414,7 +409,6 @@ VOID PeerHTAction(
 								Elem->Msg[LENGTH_802_11+2] ));
 				break;
 			}
-#endif // CONFIG_STA_SUPPORT //
 
 			if (Elem->Msg[LENGTH_802_11+2] == 0)	// 7.4.8.2. if value is 1, keep the same as supported channel bandwidth.
 				pAd->MacTab.Content[Elem->Wcid].HTPhyMode.field.BW = 0;
@@ -534,10 +528,9 @@ VOID SendRefreshBAR(
 			}
 
 			Sequence = pEntry->TxSeq[TID];
-#ifdef CONFIG_STA_SUPPORT
+
 			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				BarHeaderInit(pAd, &FrameBar, pEntry->Addr, pAd->CurrentAddress);
-#endif // CONFIG_STA_SUPPORT //
 
 			FrameBar.StartingSeq.field.FragNum = 0; // make sure sequence not clear in DEL function.
 			FrameBar.StartingSeq.field.StartSeq = Sequence; // make sure sequence not clear in DEL funciton.

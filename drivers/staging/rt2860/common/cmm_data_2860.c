@@ -386,8 +386,6 @@ int RtmpPCIMgmtKickOut(
 	return 0;
 }
 
-
-#ifdef CONFIG_STA_SUPPORT
 /*
 	========================================================================
 
@@ -1041,8 +1039,6 @@ VOID  RadioOnExec(
 	}
 }
 
-#endif // CONFIG_STA_SUPPORT //
-
 VOID RT28xxPciMlmeRadioOn(
 	IN PRTMP_ADAPTER pAd)
 {
@@ -1076,7 +1072,6 @@ VOID RT28xxPciMlmeRadioOn(
 	    RTMPSetLED(pAd, LED_RADIO_ON);
     }
 
-#ifdef CONFIG_STA_SUPPORT
     if ((pAd->OpMode == OPMODE_STA) &&
         (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)))
     {
@@ -1089,7 +1084,6 @@ VOID RT28xxPciMlmeRadioOn(
     	RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,	&Cancelled);
     	RTMPSetTimer(&pAd->Mlme.RadioOnOffTimer, 10);
     }
-#endif // CONFIG_STA_SUPPORT //
 }
 
 VOID RT28xxPciMlmeRadioOFF(
@@ -1112,7 +1106,6 @@ VOID RT28xxPciMlmeRadioOFF(
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
     {
     	BOOLEAN		Cancelled;
@@ -1162,7 +1155,6 @@ VOID RT28xxPciMlmeRadioOFF(
 			return;
 		}
     }
-#endif // CONFIG_STA_SUPPORT //
 
 	// Set Radio off flag
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);

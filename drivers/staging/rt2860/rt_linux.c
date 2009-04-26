@@ -34,8 +34,6 @@ BUILD_TIMER_FUNCTION(AsicRxAntEvalTimeout);
 BUILD_TIMER_FUNCTION(APSDPeriodicExec);
 BUILD_TIMER_FUNCTION(AsicRfTuningExec);
 
-
-#ifdef CONFIG_STA_SUPPORT
 BUILD_TIMER_FUNCTION(BeaconTimeout);
 BUILD_TIMER_FUNCTION(ScanTimeout);
 BUILD_TIMER_FUNCTION(AuthTimeout);
@@ -47,7 +45,6 @@ BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
 BUILD_TIMER_FUNCTION(PsPollWakeExec);
 BUILD_TIMER_FUNCTION(RadioOnExec);
-#endif // CONFIG_STA_SUPPORT //
 
 // for wireless system event message
 char const *pWirelessSysEventText[IW_SYS_EVENT_TYPE_NUM] = {
@@ -489,12 +486,10 @@ PNET_DEV get_netdev_from_bssid(
 {
     PNET_DEV dev_p = NULL;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		dev_p = pAd->net_dev;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	ASSERT(dev_p);
 	return dev_p; /* return one of MBSS */
@@ -650,10 +645,8 @@ void wlan_802_11_to_802_3_packet(
 	//
 	//
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		NdisMoveMemory(skb_push(pOSPkt, LENGTH_802_3), pHeader802_3, LENGTH_802_3);
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 
@@ -818,8 +811,6 @@ VOID RTMPSendWirelessEvent(
 #endif  /* WIRELESS_EXT >= 15 */
 }
 
-
-#ifdef CONFIG_STA_SUPPORT
 void send_monitor_packets(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	RX_BLK			*pRxBlk)
@@ -990,8 +981,6 @@ err_free_sk_buff:
 	return;
 
 }
-#endif // CONFIG_STA_SUPPORT //
-
 
 void rtmp_os_thread_init(PUCHAR pThreadName, PVOID pNotify)
 {

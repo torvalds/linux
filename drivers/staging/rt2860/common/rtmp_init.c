@@ -163,19 +163,14 @@ RTMP_REG_PAIR	MACRegTable[] =	{
 	{PWR_PIN_CFG,			0x00000003},	// patch for 2880-E
 };
 
-
-#ifdef CONFIG_STA_SUPPORT
 RTMP_REG_PAIR	STAMACRegTable[] =	{
 	{WMM_AIFSN_CFG,		0x00002273},
 	{WMM_CWMIN_CFG,	0x00002344},
 	{WMM_CWMAX_CFG,	0x000034aa},
 };
-#endif // CONFIG_STA_SUPPORT //
 
 #define	NUM_MAC_REG_PARMS		(sizeof(MACRegTable) / sizeof(RTMP_REG_PAIR))
-#ifdef CONFIG_STA_SUPPORT
 #define	NUM_STA_MAC_REG_PARMS	(sizeof(STAMACRegTable) / sizeof(RTMP_REG_PAIR))
-#endif // CONFIG_STA_SUPPORT //
 
 
 // New 8k byte firmware size for RT3071/RT3072
@@ -1277,9 +1272,6 @@ VOID	NICReadEEPROMParameters(
 
 	NicConfig2.word = pAd->EEPROMDefaultValue[1];
 
-
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		NicConfig2.word = 0;
@@ -1293,7 +1285,6 @@ VOID	NICReadEEPROMParameters(
 			NicConfig2.word &= 0x00ff;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	if (NicConfig2.field.DynamicTxAgcControl == 1)
 		pAd->bAutoTxAgcA = pAd->bAutoTxAgcG = TRUE;
@@ -1504,10 +1495,8 @@ VOID	NICReadEEPROMParameters(
 VOID	NICInitAsicFromEEPROM(
 	IN	PRTMP_ADAPTER	pAd)
 {
-#ifdef CONFIG_STA_SUPPORT
 	UINT32					data = 0;
 	UCHAR	BBPR1 = 0;
-#endif // CONFIG_STA_SUPPORT //
 	USHORT					i;
 	EEPROM_ANTENNA_STRUC	Antenna;
 	EEPROM_NIC_CONFIG2_STRUC    NicConfig2;
@@ -1553,7 +1542,6 @@ VOID	NICInitAsicFromEEPROM(
     pAd->LedIndicatorStregth = 0xFF;
     RTMPSetSignalLED(pAd, -100);	// Force signal strength Led to be turned off, before link up
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Read Hardware controlled Radio state enable bit
@@ -1586,7 +1574,6 @@ VOID	NICInitAsicFromEEPROM(
 			AsicCheckCommanOk(pAd, PowerWakeCID);
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// Turn off patching for cardbus controller
 	if (NicConfig2.field.CardbusAcceleration == 1)
@@ -1619,7 +1606,6 @@ VOID	NICInitAsicFromEEPROM(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Handle the difference when 1T
@@ -1632,7 +1618,7 @@ VOID	NICInitAsicFromEEPROM(
 
 		DBGPRINT(RT_DEBUG_TRACE, ("Use Hw Radio Control Pin=%d; if used Pin=%d;\n", pAd->CommonCfg.bHardwareRadio, pAd->CommonCfg.bHardwareRadio));
 	}
-#endif // CONFIG_STA_SUPPORT //
+
 	DBGPRINT(RT_DEBUG_TRACE, ("TxPath = %d, RxPath = %d, RFIC=%d, Polar+LED mode=%x\n", pAd->Antenna.field.TxPath, pAd->Antenna.field.RxPath, pAd->RfIcType, pAd->LedCntl.word));
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICInitAsicFromEEPROM\n"));
 }
@@ -1880,7 +1866,6 @@ NDIS_STATUS	NICInitializeAsic(
 	}
 
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		for (Index = 0; Index < NUM_STA_MAC_REG_PARMS; Index++)
@@ -1888,8 +1873,6 @@ NDIS_STATUS	NICInitializeAsic(
 			RTMP_IO_WRITE32(pAd, STAMACRegTable[Index].Register, STAMACRegTable[Index].Value);
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
-
 
 	//
 	// Before program BBP, we need to wait BBP/RF get wake up.
@@ -1953,7 +1936,6 @@ NDIS_STATUS	NICInitializeAsic(
 
 
 	// Add radio off control
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pAd->StaCfg.bRadio == FALSE)
@@ -1963,7 +1945,6 @@ NDIS_STATUS	NICInitializeAsic(
 			DBGPRINT(RT_DEBUG_TRACE, ("Set Radio Off\n"));
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// Clear raw counters
 	RTMP_IO_READ32(pAd, RX_STA_CNT0, &Counter);
@@ -2002,14 +1983,12 @@ NDIS_STATUS	NICInitializeAsic(
 		}
 	}
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// for rt2860E and after, init TXOP_CTRL_CFG with 0x583f. This is for extension channel overlapping IOT.
 		if ((pAd->MACVersion&0xffff) != 0x0101)
 			RTMP_IO_WRITE32(pAd, TXOP_CTRL_CFG, 0x583f);
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICInitializeAsic\n"));
 	return NDIS_STATUS_SUCCESS;
@@ -3006,7 +2985,6 @@ VOID	UserCfgInit(
 	//
 	// part II. intialize STA specific configuration
 	//
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		RX_FILTER_SET_FLAG(pAd, fRX_FILTER_ACCEPT_DIRECT);
@@ -3045,7 +3023,6 @@ VOID	UserCfgInit(
 		pAd->StaCfg.bAutoTxRateSwitch = TRUE;
 		pAd->StaCfg.DesiredTransmitSetting.field.MCS = MCS_AUTO;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// global variables mXXXX used in MAC protocol state machines
 	OPSTATUS_SET_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM);
@@ -3056,7 +3033,6 @@ VOID	UserCfgInit(
 	pAd->CommonCfg.PhyMode = PHY_11BG_MIXED;		// default PHY mode
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_SHORT_PREAMBLE_INUSED);  // CCK use LONG preamble
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// user desired power mode
@@ -3101,7 +3077,6 @@ VOID	UserCfgInit(
 #endif // WPA_SUPPLICANT_SUPPORT //
 
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// Default for extra information is not valid
 	pAd->ExtraInfo = EXTRA_INFO_CLEAR;

@@ -74,12 +74,9 @@
 #define	FAST_ACTIVE_SCAN_TIME	    30 		  // Active scan waiting for probe response time
 #define CW_MIN_IN_BITS              4         // actual CwMin = 2^CW_MIN_IN_BITS - 1
 
-
-#ifdef CONFIG_STA_SUPPORT
 #ifndef CONFIG_AP_SUPPORT
 #define CW_MAX_IN_BITS              10        // actual CwMax = 2^CW_MAX_IN_BITS - 1
 #endif
-#endif // CONFIG_STA_SUPPORT //
 
 // Note: RSSI_TO_DBM_OFFSET has been changed to variable for new RF (2004-0720).
 // SHould not refer to this constant anymore
@@ -111,10 +108,7 @@
 
 #define BSS_NOT_FOUND                    0xFFFFFFFF
 
-
-#ifdef CONFIG_STA_SUPPORT
 #define MAX_LEN_OF_MLME_QUEUE            40 //10
-#endif // CONFIG_STA_SUPPORT //
 
 #define SCAN_PASSIVE                     18		// scan with no probe request, only wait beacon and probe response
 #define SCAN_ACTIVE                      19		// scan with probe request, and wait beacon and probe response
@@ -842,13 +836,10 @@ typedef struct {
     UCHAR       EdcaUpdateCount;
 } QOS_CAPABILITY_PARM, *PQOS_CAPABILITY_PARM;
 
-#ifdef CONFIG_STA_SUPPORT
 typedef struct {
     UCHAR       IELen;
     UCHAR       IE[MAX_CUSTOM_LEN];
 } WPA_IE_;
-#endif // CONFIG_STA_SUPPORT //
-
 
 typedef struct {
     UCHAR   Bssid[MAC_ADDR_LEN];
@@ -908,10 +899,8 @@ typedef struct {
 	EDCA_PARM           EdcaParm;
 	QOS_CAPABILITY_PARM QosCapability;
 	QBSS_LOAD_PARM      QbssLoad;
-#ifdef CONFIG_STA_SUPPORT
     WPA_IE_     WpaIE;
     WPA_IE_     RsnIE;
-#endif // CONFIG_STA_SUPPORT //
 } BSS_ENTRY, *PBSS_ENTRY;
 
 typedef struct {

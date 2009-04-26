@@ -275,9 +275,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     OUT PQOS_CAPABILITY_PARM pQosCapability,
     OUT ULONG *pRalinkIe,
     OUT UCHAR		 *pHtCapabilityLen,
-#ifdef CONFIG_STA_SUPPORT
     OUT UCHAR		 *pPreNHtCapabilityLen,
-#endif // CONFIG_STA_SUPPORT //
     OUT HT_CAPABILITY_IE *pHtCapability,
 	OUT UCHAR		 *AddHtInfoLen,
 	OUT ADD_HT_INFO_IE *AddHtInfo,
@@ -286,9 +284,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     OUT	PNDIS_802_11_VARIABLE_IEs pVIE)
 {
     CHAR				*Ptr;
-#ifdef CONFIG_STA_SUPPORT
 	CHAR 				TimLen;
-#endif // CONFIG_STA_SUPPORT //
     PFRAME_802_11		pFrame;
     PEID_STRUCT         pEid;
     UCHAR				SubType;
@@ -316,10 +312,8 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     *pAironetCellPowerLimit = 0xFF;  // Default of AironetCellPowerLimit is 0xFF
     *LengthVIE = 0;					// Set the length of VIE to init value 0
     *pHtCapabilityLen = 0;					// Set the length of VIE to init value 0
-#ifdef CONFIG_STA_SUPPORT
 	if (pAd->OpMode == OPMODE_STA)
 		*pPreNHtCapabilityLen = 0;					// Set the length of VIE to init value 0
-#endif // CONFIG_STA_SUPPORT //
     *AddHtInfoLen = 0;					// Set the length of VIE to init value 0
     *pRalinkIe = 0;
     *pNewChannel = 0;
@@ -428,7 +422,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 				*(USHORT *)(&pHtCapability->HtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->HtCapInfo));
 				*(USHORT *)(&pHtCapability->ExtHtCapInfo) = cpu2le16(*(USHORT *)(&pHtCapability->ExtHtCapInfo));
 
-#ifdef CONFIG_STA_SUPPORT
 				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 					*pPreNHtCapabilityLen = 0;	// Nnow we only support 26 bytes.
@@ -437,7 +430,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 					NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid, pEid->Len + 2);
 					*LengthVIE += (pEid->Len + 2);
 				}
-#endif // CONFIG_STA_SUPPORT //
 			}
 			else
 			{
@@ -458,14 +450,12 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 				*(USHORT *)(&AddHtInfo->AddHtInfo2) = cpu2le16(*(USHORT *)(&AddHtInfo->AddHtInfo2));
 				*(USHORT *)(&AddHtInfo->AddHtInfo3) = cpu2le16(*(USHORT *)(&AddHtInfo->AddHtInfo3));
 
-#ifdef CONFIG_STA_SUPPORT
 				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 			                Ptr = (PUCHAR) pVIE;
 			                NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid, pEid->Len + 2);
 			                *LengthVIE += (pEid->Len + 2);
 				}
-#endif // CONFIG_STA_SUPPORT //
 			}
 			else
 			{
@@ -492,7 +482,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                 if(pEid->Len == 1)
                 {
                     *pChannel = *pEid->Octet;
-#ifdef CONFIG_STA_SUPPORT
+
 					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						if (ChannelSanity(pAd, *pChannel) == 0)
@@ -501,7 +491,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 							return FALSE;
 						}
 					}
-#endif // CONFIG_STA_SUPPORT //
+
                     Sanity |= 0x4;
                 }
                 else
@@ -539,14 +529,13 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                 }
                 break;
 
-#ifdef CONFIG_STA_SUPPORT
             case IE_TIM:
                 if(INFRA_ON(pAd) && SubType == SUBTYPE_BEACON)
                 {
                     GetTimBit((PUCHAR)pEid, pAd->StaActive.Aid, &TimLen, pBcastFlag, pDtimCount, pDtimPeriod, pMessageToMe);
                 }
                 break;
-#endif // CONFIG_STA_SUPPORT //
+
             case IE_CHANNEL_SWITCH_ANNOUNCEMENT:
                 if(pEid->Len == 3)
                 {
@@ -568,7 +557,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
         			else
         				*pRalinkIe = 0xf0000000; // Set to non-zero value (can't set bit0-2) to represent this is Ralink Chip. So at linkup, we will set ralinkchip flag.
                 }
-#ifdef CONFIG_STA_SUPPORT
 #ifdef DOT11_N_SUPPORT
 		// This HT IE is before IEEE draft set HT IE value.2006-09-28 by Jan.
 
@@ -589,7 +577,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                     }
                 }
 #endif // DOT11_N_SUPPORT //
-#endif // CONFIG_STA_SUPPORT //
                 else if (NdisEqualMemory(pEid->Octet, WPA_OUI, 4))
                 {
                     // Copy to pVIE which will report to microsoft bssid list.
@@ -722,7 +709,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
     }
 
     // For some 11a AP. it did not have the channel EID, patch here
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		UCHAR LatchRfChannel = MsgChannel;
@@ -735,7 +721,6 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 			Sanity |= 0x4;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	if (Sanity != 0x7)
 	{
@@ -776,10 +761,8 @@ BOOLEAN MlmeScanReqSanity(
 
 	if ((*pBssType == BSS_INFRA || *pBssType == BSS_ADHOC || *pBssType == BSS_ANY)
 		&& (*pScanType == SCAN_ACTIVE || *pScanType == SCAN_PASSIVE
-#ifdef CONFIG_STA_SUPPORT
 		|| *pScanType == SCAN_CISCO_PASSIVE || *pScanType == SCAN_CISCO_ACTIVE
 		|| *pScanType == SCAN_CISCO_CHANNEL_LOAD || *pScanType == SCAN_CISCO_NOISE
-#endif // CONFIG_STA_SUPPORT //
 		))
 	{
 		return TRUE;

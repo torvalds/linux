@@ -133,11 +133,9 @@ INT	Show_IEEE80211H_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf);
 
-#ifdef CONFIG_STA_SUPPORT
 INT	Show_NetworkType_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf);
-#endif // CONFIG_STA_SUPPORT //
 
 INT	Show_AuthMode_Proc(
 	IN	PRTMP_ADAPTER	pAd,
@@ -207,9 +205,7 @@ static struct {
 	{"WmmCapable",				Show_WmmCapable_Proc},
 #endif
 	{"IEEE80211H",				Show_IEEE80211H_Proc},
-#ifdef CONFIG_STA_SUPPORT
     {"NetworkType",				Show_NetworkType_Proc},
-#endif // CONFIG_STA_SUPPORT //
 	{"AuthMode",				Show_AuthMode_Proc},
 	{"EncrypType",				Show_EncrypType_Proc},
 	{"DefaultKeyID",			Show_DefaultKeyID_Proc},
@@ -233,11 +229,8 @@ INT Set_DriverVersion_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PUCHAR			arg)
 {
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		DBGPRINT(RT_DEBUG_TRACE, ("Driver version-%s\n", STA_DRIVER_VERSION));
-#endif // CONFIG_STA_SUPPORT //
 
     return TRUE;
 }
@@ -347,8 +340,6 @@ INT	Set_WirelessMode_Proc(
 
 	WirelessMode = simple_strtol(arg, 0, 10);
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		INT MaxPhyMode = PHY_11G;
@@ -385,7 +376,6 @@ INT	Set_WirelessMode_Proc(
 			success = FALSE;
 		}
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	// it is needed to set SSID to take effect
 	if (success == TRUE)
@@ -423,7 +413,6 @@ INT	Set_Channel_Proc(
 	// check if this channel is valid
 	if (ChannelSanity(pAd, Channel) == TRUE)
 	{
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			pAd->CommonCfg.Channel = Channel;
@@ -450,16 +439,12 @@ INT	Set_Channel_Proc(
 				}
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
 		success = TRUE;
 	}
 	else
 	{
-
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			success = FALSE;
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 
@@ -515,14 +500,11 @@ INT	Set_TxPower_Proc(
 	TxPower = (ULONG) simple_strtol(arg, 0, 10);
 	if (TxPower <= 100)
 	{
-
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			pAd->CommonCfg.TxPowerDefault = TxPower;
 			pAd->CommonCfg.TxPowerPercentage = pAd->CommonCfg.TxPowerDefault;
 		}
-#endif // CONFIG_STA_SUPPORT //
 		success = TRUE;
 	}
 	else
@@ -587,22 +569,18 @@ INT	Set_TxPreamble_Proc(
 	{
 		case Rt802_11PreambleShort:
 			pAd->CommonCfg.TxPreamble = Preamble;
-#ifdef CONFIG_STA_SUPPORT
+
 			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				MlmeSetTxPreamble(pAd, Rt802_11PreambleShort);
-#endif // CONFIG_STA_SUPPORT //
 			break;
 		case Rt802_11PreambleLong:
-#ifdef CONFIG_STA_SUPPORT
 		case Rt802_11PreambleAuto:
 			// if user wants AUTO, initialize to LONG here, then change according to AP's
 			// capability upon association.
-#endif // CONFIG_STA_SUPPORT //
 			pAd->CommonCfg.TxPreamble = Preamble;
-#ifdef CONFIG_STA_SUPPORT
+
 			IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				MlmeSetTxPreamble(pAd, Rt802_11PreambleLong);
-#endif // CONFIG_STA_SUPPORT //
 			break;
 		default: //Invalid argument
 			return FALSE;
@@ -631,10 +609,8 @@ INT	Set_RTSThreshold_Proc(
 
 	if((RtsThresh > 0) && (RtsThresh <= MAX_RTS_THRESHOLD))
 		pAd->CommonCfg.RtsThreshold  = (USHORT)RtsThresh;
-#ifdef CONFIG_STA_SUPPORT
 	else if (RtsThresh == 0)
 		pAd->CommonCfg.RtsThreshold = MAX_RTS_THRESHOLD;
-#endif // CONFIG_STA_SUPPORT //
 	else
 		return FALSE; //Invalid argument
 
@@ -675,7 +651,6 @@ INT	Set_FragThreshold_Proc(
 		pAd->CommonCfg.FragmentThreshold = (USHORT)FragThresh;
 	}
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pAd->CommonCfg.FragmentThreshold == MAX_FRAG_THRESHOLD)
@@ -683,7 +658,6 @@ INT	Set_FragThreshold_Proc(
 		else
 			pAd->CommonCfg.bUseZeroToDisableFragment = FALSE;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("Set_FragThreshold_Proc::(FragThreshold=%d)\n", pAd->CommonCfg.FragmentThreshold));
 
@@ -904,7 +878,6 @@ BOOLEAN RTMPCheckStrPrintAble(
 
 	========================================================================
 */
-#ifdef CONFIG_STA_SUPPORT
 VOID    RTMPSetDesiredRates(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  LONG            Rates)
@@ -1117,10 +1090,7 @@ NDIS_STATUS RTMPWPARemoveKeyProc(
 
 	return (Status);
 }
-#endif // CONFIG_STA_SUPPORT //
 
-
-#ifdef CONFIG_STA_SUPPORT
 /*
 	========================================================================
 
@@ -1170,7 +1140,6 @@ VOID	RTMPWPARemoveAllKeys(
 	}
 
 }
-#endif // CONFIG_STA_SUPPORT //
 
 /*
 	========================================================================
@@ -1214,10 +1183,8 @@ VOID	RTMPSetPhyMode(
 
 	if (i == pAd->ChannelListNum)
 	{
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			pAd->CommonCfg.Channel = FirstChannel(pAd);
-#endif // CONFIG_STA_SUPPORT //
 		DBGPRINT(RT_DEBUG_ERROR, ("RTMPSetPhyMode: channel is out of range, use first channel=%d \n", pAd->CommonCfg.Channel));
 	}
 
@@ -1528,14 +1495,10 @@ VOID	RTMPSetHT(
 	}
 	AsicSetEdcaParm(pAd, &pAd->CommonCfg.APEdcaParm);
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		RTMPSetIndividualHT(pAd, 0);
 	}
-#endif // CONFIG_STA_SUPPORT //
-
 }
 
 /*
@@ -1560,8 +1523,6 @@ VOID	RTMPSetIndividualHT(
 
 	do
 	{
-
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			pDesired_ht_phy = &pAd->StaCfg.DesiredHtPhyInfo;
@@ -1569,7 +1530,6 @@ VOID	RTMPSetIndividualHT(
 			//pAd->StaCfg.bAutoTxRateSwitch = (DesiredMcs == MCS_AUTO) ? TRUE : FALSE;
 				break;
 		}
-#endif // CONFIG_STA_SUPPORT //
 	} while (FALSE);
 
 	if (pDesired_ht_phy == NULL)
@@ -1721,7 +1681,6 @@ VOID	RTMPAddWcidAttributeEntry(
 	USHORT		Wcid = 0;
 
 	{
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (BssIdx > BSS0)
@@ -1742,13 +1701,11 @@ VOID	RTMPAddWcidAttributeEntry(
 			else
 				Wcid = MCAST_WCID;
 		}
-#endif // CONFIG_STA_SUPPORT //
 	}
 
 	// Update WCID attribute table
 	offset = MAC_WCID_ATTRIBUTE_BASE + (Wcid * HW_WCID_ATTRI_SIZE);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (pEntry && pEntry->ValidAsMesh)
@@ -1756,7 +1713,6 @@ VOID	RTMPAddWcidAttributeEntry(
 		else
 			WCIDAttri = (CipherAlg<<1) | SHAREDKEYTABLE;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	RTMP_IO_WRITE32(pAd, offset, WCIDAttri);
 
@@ -1887,11 +1843,10 @@ VOID RTMPIoctlGetSiteSurvey(
 	    "Ch", "SSID", "BSSID", "Enc", "Auth", "Siganl(%)", "W-Mode", " NT");
 
 	WaitCnt = 0;
-#ifdef CONFIG_STA_SUPPORT
 	pAdapter->StaCfg.bScanReqIsFromWebUI = TRUE;
+
 	while ((ScanRunning(pAdapter) == TRUE) && (WaitCnt++ < 200))
 		OS_WAIT(500);
-#endif // CONFIG_STA_SUPPORT //
 
 	for(i=0; i<pAdapter->ScanTab.BssNr ;i++)
 	{
@@ -1957,9 +1912,7 @@ VOID RTMPIoctlGetSiteSurvey(
         sprintf(msg+strlen(msg),"\n");
 	}
 
-#ifdef CONFIG_STA_SUPPORT
 	pAdapter->StaCfg.bScanReqIsFromWebUI = FALSE;
-#endif // CONFIG_STA_SUPPORT //
 	wrq->u.data.length = strlen(msg);
 	Status = copy_to_user(wrq->u.data.pointer, msg, wrq->u.data.length);
 
@@ -2257,9 +2210,7 @@ INT	Set_HtMcs_Proc(
 	IN	PUCHAR			arg)
 {
 	ULONG HtMcs, Mcs_tmp;
-#ifdef CONFIG_STA_SUPPORT
     BOOLEAN bAutoRate = FALSE;
-#endif // CONFIG_STA_SUPPORT //
 
 	Mcs_tmp = simple_strtol(arg, 0, 10);
 
@@ -2268,7 +2219,6 @@ INT	Set_HtMcs_Proc(
 	else
 		HtMcs = MCS_AUTO;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		pAd->StaCfg.DesiredTransmitSetting.field.MCS = HtMcs;
@@ -2304,7 +2254,6 @@ INT	Set_HtMcs_Proc(
         if (ADHOC_ON(pAd))
             return TRUE;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	SetCommonHT(pAd);
 
@@ -2778,10 +2727,8 @@ INT	Set_FixedTxMode_Proc(
         fix_tx_mode = FIXED_TXMODE_CCK;
 	}
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		pAd->StaCfg.DesiredTransmitSetting.field.FixedTxMode = fix_tx_mode;
-#endif // CONFIG_STA_SUPPORT //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("Set_FixedTxMode_Proc::(FixedTxMode=%d)\n", fix_tx_mode));
 
@@ -2866,11 +2813,8 @@ INT	Show_SSID_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
 {
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		sprintf(pBuf, "\t%s", pAd->CommonCfg.Ssid);
-#endif // CONFIG_STA_SUPPORT //
 	return 0;
 }
 
@@ -3031,11 +2975,8 @@ INT	Show_HtMcs_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
 {
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		sprintf(pBuf, "\t%u", pAd->StaCfg.DesiredTransmitSetting.field.MCS);
-#endif // CONFIG_STA_SUPPORT //
 	return 0;
 }
 
@@ -3177,11 +3118,8 @@ INT	Show_WmmCapable_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
 {
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		sprintf(pBuf, "\t%s", pAd->CommonCfg.bWmmCapable ? "TRUE":"FALSE");
-#endif // CONFIG_STA_SUPPORT //
 
 	return 0;
 }
@@ -3195,7 +3133,6 @@ INT	Show_IEEE80211H_Proc(
 	return 0;
 }
 
-#ifdef CONFIG_STA_SUPPORT
 INT	Show_NetworkType_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	OUT	PUCHAR			pBuf)
@@ -3220,7 +3157,6 @@ INT	Show_NetworkType_Proc(
 	}
 	return 0;
 }
-#endif // CONFIG_STA_SUPPORT //
 
 INT	Show_AuthMode_Proc(
 	IN	PRTMP_ADAPTER	pAd,
@@ -3228,10 +3164,8 @@ INT	Show_AuthMode_Proc(
 {
 	NDIS_802_11_AUTHENTICATION_MODE	AuthMode = Ndis802_11AuthModeOpen;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		AuthMode = pAd->StaCfg.AuthMode;
-#endif // CONFIG_STA_SUPPORT //
 
 	if ((AuthMode >= Ndis802_11AuthModeOpen) &&
 		(AuthMode <= Ndis802_11AuthModeWPA1PSKWPA2PSK))
@@ -3248,10 +3182,8 @@ INT	Show_EncrypType_Proc(
 {
 	NDIS_802_11_WEP_STATUS	WepStatus = Ndis802_11WEPDisabled;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		WepStatus = pAd->StaCfg.WepStatus;
-#endif // CONFIG_STA_SUPPORT //
 
 	if ((WepStatus >= Ndis802_11WEPEnabled) &&
 		(WepStatus <= Ndis802_11Encryption4KeyAbsent))
@@ -3268,10 +3200,8 @@ INT	Show_DefaultKeyID_Proc(
 {
 	UCHAR DefaultKeyId = 0;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		DefaultKeyId = pAd->StaCfg.DefaultKeyId;
-#endif // CONFIG_STA_SUPPORT //
 
 	sprintf(pBuf, "\t%d", DefaultKeyId);
 
@@ -3341,11 +3271,8 @@ INT	Show_WPAPSK_Proc(
 	INT 	idx;
 	UCHAR	PMK[32] = {0};
 
-
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		NdisMoveMemory(PMK, pAd->StaCfg.PMK, 32);
-#endif // CONFIG_STA_SUPPORT //
 
     sprintf(pBuf, "\tPMK = ");
     for (idx = 0; idx < 32; idx++)
