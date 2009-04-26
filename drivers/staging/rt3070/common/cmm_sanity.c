@@ -968,9 +968,6 @@ BOOLEAN PeerAuthSanity(
     NdisMoveMemory(pStatus, &pFrame->Octet[4], 2);
 
     if ((*pAlg == Ndis802_11AuthModeOpen)
-#ifdef LEAP_SUPPORT
-      || (*pAlg == CISCO_AuthModeLEAP)
-#endif // LEAP_SUPPORT //
       )
     {
         if (*pSeq == 1 || *pSeq == 2)
@@ -1031,9 +1028,6 @@ BOOLEAN MlmeAuthReqSanity(
     *pAlg = pInfo->Alg;
 
     if (((*pAlg == Ndis802_11AuthModeShared) ||(*pAlg == Ndis802_11AuthModeOpen)
-#ifdef LEAP_SUPPORT
-     || (*pAlg == CISCO_AuthModeLEAP)
-#endif // LEAP_SUPPORT //
      	) &&
         ((*pAddr & 0x01) == 0))
     {

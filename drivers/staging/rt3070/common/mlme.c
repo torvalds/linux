@@ -622,11 +622,6 @@ VOID MlmeHandler(
 				case WPA_PSK_STATE_MACHINE:
 					StateMachinePerformAction(pAd, &pAd->Mlme.WpaPskMachine, Elem);
 					break;
-#ifdef LEAP_SUPPORT
-				case LEAP_STATE_MACHINE:
-					LeapMachinePerformAction(pAd, &pAd->Mlme.LeapMachine, Elem);
-					break;
-#endif
 				case AIRONET_STATE_MACHINE:
 					StateMachinePerformAction(pAd, &pAd->Mlme.AironetMachine, Elem);
 					break;
@@ -4982,16 +4977,6 @@ BOOLEAN MsgTypeSubst(
 			*MsgType = MT2_AIRONET_MSG;
 			return (TRUE);
 		}
-#ifdef LEAP_SUPPORT
-		if ( pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP ) //LEAP
-		{
-			// LEAP frames
-			*Machine = LEAP_STATE_MACHINE;
-			EAPType = *((UCHAR*)pFrame + LENGTH_802_11 + LENGTH_802_1_H + 1);
-			return (LeapMsgTypeSubst(EAPType, MsgType));
-		}
-		else
-#endif // LEAP_SUPPORT //
 		{
 			*Machine = WPA_PSK_STATE_MACHINE;
 			EAPType = *((UCHAR*)pFrame + LENGTH_802_11 + LENGTH_802_1_H + 1);

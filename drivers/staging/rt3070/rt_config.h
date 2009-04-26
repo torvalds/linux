@@ -62,10 +62,6 @@
 #include	"chlist.h"
 #include	"spectrum.h"
 
-#ifdef LEAP_SUPPORT
-#include    "leap.h"
-#endif // LEAP_SUPPORT //
-
 #ifdef CONFIG_STA_SUPPORT
 #endif // CONFIG_STA_SUPPORT //
 

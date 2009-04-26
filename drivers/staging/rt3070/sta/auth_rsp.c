@@ -142,21 +142,6 @@ VOID PeerDeauthAction(
 				RTMPSendWirelessEvent(pAd, IW_DEAUTH_EVENT_FLAG, pAd->MacTab.Content[BSSID_WCID].Addr, BSS0, 0);
 
             LinkDown(pAd, TRUE);
-
-            // Authentication Mode Cisco_LEAP has start a timer
-            // We should cancel it if using LEAP
-#ifdef LEAP_SUPPORT
-            if (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-            {
-                RTMPCancelTimer(&pAd->StaCfg.LeapAuthTimer, &TimerCancelled);
-                //Check is it mach the LEAP Authentication failed as possible a Rogue AP
-                //on it's PortSecured not equal to WPA_802_1X_PORT_SECURED while process the Authenticaton.
-                if ((pAd->StaCfg.PortSecured != WPA_802_1X_PORT_SECURED) && (pAd->Mlme.LeapMachine.CurrState != LEAP_IDLE))
-                {
-                    RogueApTableSetEntry(pAd, &pAd->StaCfg.RogueApTab, Addr2, LEAP_REASON_AUTH_TIMEOUT);
-                }
-            }
-#endif // LEAP_SUPPORT //
         }
     }
     else

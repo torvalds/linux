@@ -385,9 +385,6 @@ VOID CntlOidSsidProc(
 			 (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPAPSK) ||
 			 (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2) ||
 			 (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2PSK)
-#ifdef LEAP_SUPPORT
-			 || (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-#endif // LEAP_SUPPORT //
 			 ) &&
 			(pAd->StaCfg.PortSecured == WPA_802_1X_PORT_NOT_SECURED))
 		{
@@ -772,14 +769,6 @@ VOID CntlWaitJoinProc(
 			// 2. joined a new INFRA network, start from authentication
 			else
 			{
-#ifdef LEAP_SUPPORT
-				// Add AuthMode "LEAP" for CCX 1.X
-				if (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-				{
-					AuthParmFill(pAd, &AuthReq, pAd->MlmeAux.Bssid, CISCO_AuthModeLEAP);
-				}
-				else
-#endif // LEAP_SUPPORT //
 				{
 					// either Ndis802_11AuthModeShared or Ndis802_11AuthModeAutoSwitch, try shared key first
 					if ((pAd->StaCfg.AuthMode == Ndis802_11AuthModeShared) ||
@@ -915,21 +904,6 @@ VOID CntlWaitAuthProc(
 			AssocParmFill(pAd, &AssocReq, pAd->MlmeAux.Bssid, pAd->MlmeAux.CapabilityInfo,
 						  ASSOC_TIMEOUT, pAd->StaCfg.DefaultListenCount);
 
-#ifdef LEAP_SUPPORT
-			//
-			// Cisco Leap CCKM supported Re-association.
-			//
-			if (LEAP_CCKM_ON(pAd) && (pAd->StaCfg.CCKMLinkUpFlag == TRUE))
-			{
-				//if CCKM is turn on , that's mean Fast Reauthentication
-				//Use CCKM Reassociation instead of normal association for Fast Roaming.
-				MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_MLME_REASSOC_REQ,
-							sizeof(MLME_ASSOC_REQ_STRUCT), &AssocReq);
-
-				pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_REASSOC;
-			}
-			else
-#endif // LEAP_SUPPORT //
 			{
 				MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_MLME_ASSOC_REQ,
 							sizeof(MLME_ASSOC_REQ_STRUCT), &AssocReq);
@@ -943,14 +917,7 @@ VOID CntlWaitAuthProc(
 			// ageing-out. The previous authentication attempt must have let it remove us.
 			// so try Authentication again may help. For D-Link DWL-900AP+ compatibility.
 			DBGPRINT(RT_DEBUG_TRACE, ("CNTL - AUTH FAIL, try again...\n"));
-#ifdef LEAP_SUPPORT
-			//Add AuthMode "LEAP" for CCX 1.X
-			if (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-			{
-				AuthParmFill(pAd, &AuthReq, pAd->MlmeAux.Bssid, CISCO_AuthModeLEAP);
-			}
-			else
-#endif // LEAP_SUPPORT //
+
 			{
 				if ((pAd->StaCfg.AuthMode == Ndis802_11AuthModeShared) ||
 					(pAd->StaCfg.AuthMode == Ndis802_11AuthModeAutoSwitch))
@@ -1002,20 +969,6 @@ VOID CntlWaitAuthProc2(
 		}
 		else
 		{
-#ifdef LEAP_SUPPORT
-			// Process LEAP first, since it use different control variable
-			// We don't want to affect other poven operation
-			if (pAd->StaCfg.LeapAuthMode == CISCO_AuthModeLEAP)
-			{
-				// LEAP Auth not success, try next BSS
-				DBGPRINT(RT_DEBUG_TRACE, ("CNTL - *LEAP* AUTH FAIL, give up; try next BSS\n"));
-				DBGPRINT(RT_DEBUG_TRACE, ("Total match BSSID [=%d]\n", pAd->MlmeAux.SsidBssTab.BssNr));
-				pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
-				pAd->MlmeAux.BssIdx++;
-				IterateOnBssTab(pAd);
-			}
-			else
-#endif // LEAP_SUPPORT //
 			if ((pAd->StaCfg.AuthMode == Ndis802_11AuthModeAutoSwitch) &&
 				 (pAd->MlmeAux.Alg == Ndis802_11AuthModeShared))
 			{
@@ -1104,14 +1057,6 @@ VOID CntlWaitReassocProc(
 			if (pAd->CommonCfg.bWirelessEvent)
 				RTMPSendWirelessEvent(pAd, IW_ASSOC_EVENT_FLAG, pAd->MacTab.Content[BSSID_WCID].Addr, BSS0, 0);
 
-
-#ifdef LEAP_SUPPORT
-			if (LEAP_CCKM_ON(pAd))
-			{
-				STA_PORT_SECURED(pAd);
-				pAd->StaCfg.WpaState = SS_FINISH;
-			}
-#endif // LEAP_SUPPORT //
 			pAd->Mlme.CntlMachine.CurrState = CNTL_IDLE;
 			DBGPRINT(RT_DEBUG_TRACE, ("CNTL - Re-assocition successful on BSS #%ld\n", pAd->MlmeAux.RoamIdx));
 		}
@@ -1628,13 +1573,6 @@ VOID LinkUp(
 		MlmeUpdateHtTxRates(pAd, BSS0);
 		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK UP !! (StaActive.bHtEnable =%d, )\n", pAd->StaActive.SupportedPhyInfo.bHtEnable));
 #endif // DOT11_N_SUPPORT //
-
-		//
-		// Report Adjacent AP report.
-		//
-#ifdef LEAP_SUPPORT
-		CCXAdjacentAPReport(pAd);
-#endif // LEAP_SUPPORT //
 
 		if (pAd->CommonCfg.bAggregationCapable)
 		{

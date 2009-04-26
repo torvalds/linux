@@ -3411,13 +3411,6 @@ VOID	UserCfgInit(
 		pAd->StaCfg.WindowsBatteryPowerMode = Ndis802_11PowerModeCAM;
 		pAd->StaCfg.bWindowsACCAMEnable = FALSE;
 
-#ifdef LEAP_SUPPORT
-		// CCX v1.0 releated init value
-		RTMPInitTimer(pAd, &pAd->StaCfg.LeapAuthTimer, GET_TIMER_FUNCTION(LeapAuthTimeout), pAd, FALSE);
-		pAd->StaCfg.LeapAuthMode = CISCO_AuthModeLEAPNone;
-		pAd->StaCfg.bCkipOn = FALSE;
-#endif // LEAP_SUPPORT //
-
 		RTMPInitTimer(pAd, &pAd->StaCfg.StaQuickResponeForRateUpTimer, GET_TIMER_FUNCTION(StaQuickResponeForRateUpExec), pAd, FALSE);
 		pAd->StaCfg.StaQuickResponeForRateUpTimerRunning = FALSE;
 
