@@ -69,10 +69,6 @@
 #define	fRTUSB_BULK_OUT_DATA_FRAG_3				0x00000100
 #define	fRTUSB_BULK_OUT_DATA_FRAG_4				0x00000200
 
-#ifdef RALINK_ATE
-#define	fRTUSB_BULK_OUT_DATA_ATE				0x00100000
-#endif // RALINK_ATE //
-
 #define RT2870_USB_DEVICES	\
 {	\
 	{USB_DEVICE(0x148F,0x2770)}, /* Ralink */		\

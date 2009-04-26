@@ -84,9 +84,6 @@
 
 #define OID_GEN_MACHINE_NAME               0x0001021A
 
-#ifdef RALINK_ATE
-#define RT_QUERY_ATE_TXDONE_COUNT			0x0401
-#endif // RALINK_ATE //
 #define RT_QUERY_SIGNAL_CONTEXT				0x0402
 #define RT_SET_IAPP_PID                 	0x0404
 #define RT_SET_APD_PID						0x0405
@@ -666,12 +663,6 @@ typedef struct _NDIS_802_11_CAPABILITY
 #define RTPRIV_IOCTL_RF                             (SIOCIWFIRSTPRIV + 0x13)
 #define RTPRIV_IOCTL_E2P                            (SIOCIWFIRSTPRIV + 0x07)
 #endif
-
-#ifdef RALINK_ATE
-#ifdef RALINK_28xx_QA
-#define RTPRIV_IOCTL_ATE							(SIOCIWFIRSTPRIV + 0x08)
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
 
 #define RTPRIV_IOCTL_STATISTICS                     (SIOCIWFIRSTPRIV + 0x09)
 #define RTPRIV_IOCTL_ADD_PMKID_CACHE                (SIOCIWFIRSTPRIV + 0x0A)

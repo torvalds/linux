@@ -1081,12 +1081,6 @@ VOID BAOriSessionSetupTimeout(
 	}
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef RALINK_ATE
-	// Nothing to do in ATE mode.
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
 	pEntry = &pAd->MacTab.Content[pBAEntry->Wcid];
 
 	if ((pBAEntry->ORI_BA_Status == Originator_WaitRes) && (pBAEntry->Token < ORI_SESSION_MAX_RETRY))

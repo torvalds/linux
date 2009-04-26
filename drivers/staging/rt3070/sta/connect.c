@@ -266,13 +266,6 @@ VOID CntlIdleProc(
 			break;
 
 		case OID_802_11_DISASSOCIATE:
-#ifdef RALINK_ATE
-			if(ATE_ON(pAd))
-			{
-				DBGPRINT(RT_DEBUG_TRACE, ("The driver is in ATE mode now\n"));
-				break;
-			}
-#endif // RALINK_ATE //
 			DisassocParmFill(pAd, &DisassocReq, pAd->CommonCfg.Bssid, REASON_DISASSOC_STA_LEAVING);
 			MlmeEnqueue(pAd, ASSOC_STATE_MACHINE, MT2_MLME_DISASSOC_REQ, sizeof(MLME_DISASSOC_REQ_STRUCT), &DisassocReq);
 			pAd->Mlme.CntlMachine.CurrState = CNTL_WAIT_OID_DISASSOC;
@@ -314,13 +307,6 @@ VOID CntlOidScanProc(
 	MLME_SCAN_REQ_STRUCT       ScanReq;
 	ULONG                      BssIdx = BSS_NOT_FOUND;
 	BSS_ENTRY                  CurrBss;
-
-#ifdef RALINK_ATE
-/* Disable scanning when ATE is running. */
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
 
 	// record current BSS if network is connected.
 	// 2003-2-13 do not include current IBSS if this is the only STA in this IBSS.
@@ -540,12 +526,6 @@ VOID CntlOidRTBssidProc(
 	PUCHAR      pOidBssid = (PUCHAR)Elem->Msg;
 	MLME_DISASSOC_REQ_STRUCT    DisassocReq;
 	MLME_JOIN_REQ_STRUCT        JoinReq;
-
-#ifdef RALINK_ATE
-/* No need to perform this routine when ATE is running. */
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
 
 	// record user desired settings
 	COPY_MAC_ADDR(pAd->MlmeAux.Bssid, pOidBssid);
@@ -2034,12 +2014,6 @@ VOID LinkDown(
 	// Do nothing if monitor mode is on
 	if (MONITOR_ON(pAd))
 		return;
-
-#ifdef RALINK_ATE
-	// Nothing to do in ATE mode.
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
 
     if (pAd->CommonCfg.bWirelessEvent)
 	{

@@ -2478,12 +2478,6 @@ VOID NICUpdateFifoStaCounters(
 	CHAR				reTry;
 	UCHAR				succMCS;
 
-#ifdef RALINK_ATE
-	/* Nothing to do in ATE mode */
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
-
 		do
 		{
 			RTMP_IO_READ32(pAd, TX_STA_FIFO, &StaFifo.word);
@@ -3512,36 +3506,6 @@ VOID	UserCfgInit(
 	//RTMPInitTimer(pAd, &pAd->RECBATimer, RECBATimerTimeout, pAd, TRUE);
 	//RTMPSetTimer(&pAd->RECBATimer, REORDER_EXEC_INTV);
 
-#ifdef RALINK_ATE
-	NdisZeroMemory(&pAd->ate, sizeof(ATE_INFO));
-	pAd->ate.Mode = ATE_STOP;
-	pAd->ate.TxCount = 200;/* to exceed TX_RING_SIZE ... */
-	pAd->ate.TxLength = 1024;
-	pAd->ate.TxWI.ShortGI = 0;// LONG GI : 800 ns
-	pAd->ate.TxWI.PHYMODE = MODE_CCK;
-	pAd->ate.TxWI.MCS = 3;
-	pAd->ate.TxWI.BW = BW_20;
-	pAd->ate.Channel = 1;
-	pAd->ate.QID = QID_AC_BE;
-	pAd->ate.Addr1[0] = 0x00;
-	pAd->ate.Addr1[1] = 0x11;
-	pAd->ate.Addr1[2] = 0x22;
-	pAd->ate.Addr1[3] = 0xAA;
-	pAd->ate.Addr1[4] = 0xBB;
-	pAd->ate.Addr1[5] = 0xCC;
-	NdisMoveMemory(pAd->ate.Addr2, pAd->ate.Addr1, ETH_LENGTH_OF_ADDRESS);
-	NdisMoveMemory(pAd->ate.Addr3, pAd->ate.Addr1, ETH_LENGTH_OF_ADDRESS);
-	pAd->ate.bRxFer = 0;
-	pAd->ate.bQATxStart = FALSE;
-	pAd->ate.bQARxStart = FALSE;
-#ifdef RALINK_28xx_QA
-	//pAd->ate.Repeat = 0;
-	pAd->ate.TxStatus = 0;
-	pAd->ate.AtePid = 0;
-#endif // RALINK_28xx_QA //
-#endif // RALINK_ATE //
-
-
 	pAd->CommonCfg.bWiFiTest = FALSE;
 
 
@@ -3819,13 +3783,6 @@ VOID RTMPSetLED(
 	//ULONG			data;
 	UCHAR			HighByte = 0;
 	UCHAR			LowByte;
-
-// In ATE mode of RT2860 AP/STA, we have erased 8051 firmware.
-// So LED mode is not supported when ATE is running.
-#ifdef RALINK_ATE
-	if (ATE_ON(pAd))
-		return;
-#endif // RALINK_ATE //
 
 	LowByte = pAd->LedCntl.field.LedMode&0x7f;
 	switch (Status)
