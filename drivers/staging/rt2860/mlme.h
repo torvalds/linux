@@ -124,10 +124,6 @@
 #define	SCAN_CISCO_CHANNEL_LOAD			 23		// Single channel passive scan for channel load collection
 #define FAST_SCAN_ACTIVE                 24		// scan with probe request, and wait beacon and probe response
 
-#ifdef DOT11N_DRAFT3
-#define SCAN_2040_BSS_COEXIST                  26
-#endif // DOT11N_DRAFT3 //
-
 #define MAC_ADDR_IS_GROUP(Addr)       (((Addr[0]) & 0x01))
 #define MAC_ADDR_HASH(Addr)            (Addr[0] ^ Addr[1] ^ Addr[2] ^ Addr[3] ^ Addr[4] ^ Addr[5])
 #define MAC_ADDR_HASH_INDEX(Addr)      (MAC_ADDR_HASH(Addr) % HASH_TABLE_SIZE)

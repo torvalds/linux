@@ -679,16 +679,7 @@ VOID PeerBeaconAtScanAction(
 						  &CfParm, AtimWin, CapabilityInfo, SupRate, SupRateLen, ExtRate, ExtRateLen,  &HtCapability,
 						 &AddHtInfo, HtCapabilityLen, AddHtInfoLen, NewExtChannelOffset, Channel, Rssi, TimeStamp, CkipFlag,
 						 &EdcaParm, &QosCapability, &QbssLoad, LenVIE, pVIE);
-#ifdef DOT11_N_SUPPORT
-#ifdef DOT11N_DRAFT3
-			if (pAd->ChannelList[pAd->CommonCfg.ChannelListIdx].bEffectedChannel == TRUE)
-			{
-				UCHAR		RegClass;
-				PeerBeaconAndProbeRspSanity2(pAd, Elem->Msg, Elem->MsgLen, &RegClass);
-				TriEventTableSetEntry(pAd, &pAd->CommonCfg.TriggerEventTab, Bssid, &HtCapability, HtCapabilityLen, RegClass, Channel);
-			}
-#endif // DOT11N_DRAFT3 //
-#endif // DOT11_N_SUPPORT //
+
 			if (Idx != BSS_NOT_FOUND)
 			{
 				NdisMoveMemory(pAd->ScanTab.BssEntry[Idx].PTSF, &Elem->Msg[24], 4);
@@ -1816,88 +1807,6 @@ VOID EnqueueProbeRequest(
 	}
 
 }
-
-#ifdef DOT11_N_SUPPORT
-#ifdef DOT11N_DRAFT3
-VOID BuildEffectedChannelList(
-	IN PRTMP_ADAPTER pAd)
-{
-	UCHAR		EChannel[11];
-	UCHAR		i, j, k;
-	UCHAR		UpperChannel = 0, LowerChannel = 0;
-
-	RTMPZeroMemory(EChannel, 11);
-	i = 0;
-	// Find upper channel and lower channel.
-	if (pAd->CommonCfg.CentralChannel < pAd->CommonCfg.Channel)
-	{
-		UpperChannel = pAd->CommonCfg.Channel;
-		LowerChannel = pAd->CommonCfg.CentralChannel;
-	}
-	else if (pAd->CommonCfg.CentralChannel > pAd->CommonCfg.Channel)
-	{
-		UpperChannel = pAd->CommonCfg.CentralChannel;
-		LowerChannel = pAd->CommonCfg.Channel;
-	}
-	else
-	{
-		return;
-	}
-
-	// Record channels that is below lower channel..
-	if (LowerChannel > 1)
-	{
-		EChannel[0] = LowerChannel - 1;
-		i = 1;
-		if (LowerChannel > 2)
-		{
-			EChannel[1] = LowerChannel - 2;
-			i = 2;
-			if (LowerChannel > 3)
-			{
-				EChannel[2] = LowerChannel - 3;
-				i = 3;
-			}
-		}
-	}
-	// Record channels that is between  lower channel and upper channel.
-	for (k = LowerChannel;k < UpperChannel;k++)
-	{
-		EChannel[i] = k;
-		i++;
-	}
-	// Record channels that is above upper channel..
-	if (LowerChannel < 11)
-	{
-		EChannel[i] = UpperChannel + 1;
-		i++;
-		if (LowerChannel < 10)
-		{
-			EChannel[i] = LowerChannel + 2;
-			i++;
-			if (LowerChannel < 9)
-			{
-				EChannel[i] = LowerChannel + 3;
-				i++;
-			}
-		}
-	}
-	//
-	for (j = 0;j < i;j++)
-	{
-		for (k = 0;k < pAd->ChannelListNum;k++)
-		{
-			if (pAd->ChannelList[k].Channel == EChannel[j])
-			{
-				pAd->ChannelList[k].bEffectedChannel = TRUE;
-				DBGPRINT(RT_DEBUG_TRACE,(" EffectedChannel( =%d)\n", EChannel[j]));
-				break;
-			}
-		}
-	}
-}
-#endif // DOT11N_DRAFT3 //
-#endif // DOT11_N_SUPPORT //
 
 BOOLEAN ScanRunning(
 		IN PRTMP_ADAPTER pAd)

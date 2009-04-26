@@ -159,9 +159,6 @@ USHORT APBuildAssociation(
     IN UCHAR  *pRSNLen,
     IN BOOLEAN bWmmCapable,
     IN ULONG  RalinkIe,
-#ifdef DOT11N_DRAFT3
-    IN EXT_CAP_INFO_ELEMENT ExtCapInfo,
-#endif // DOT11N_DRAFT3 //
 	IN HT_CAPABILITY_IE		*pHtCapability,
 	IN UCHAR		 HtCapabilityLen,
     OUT USHORT *pAid);
@@ -281,11 +278,6 @@ VOID SupportRate(
 
 BOOLEAN ApScanRunning(
 	IN PRTMP_ADAPTER pAd);
-
-#ifdef DOT11N_DRAFT3
-VOID APOverlappingBSSScan(
-	IN RTMP_ADAPTER *pAd);
-#endif // DOT11N_DRAFT3 //
 
 // ap_wpa.c
 
@@ -472,9 +464,6 @@ BOOLEAN PeerAssocReqCmmSanity(
     OUT UCHAR *pRSNLen,
     OUT BOOLEAN *pbWmmCapable,
     OUT ULONG  *pRalinkIe,
-#ifdef DOT11N_DRAFT3
-    OUT EXT_CAP_INFO_ELEMENT	*pExtCapInfo,
-#endif // DOT11N_DRAFT3 //
     OUT UCHAR		 *pHtCapabilityLen,
     OUT HT_CAPABILITY_IE *pHtCapability);
 

@@ -630,21 +630,6 @@ VOID ScanNextChannel(
 #endif // RT_BIG_ENDIAN //
 				}
 				FrameLen += Tmp;
-
-#ifdef DOT11N_DRAFT3
-				if (pAd->CommonCfg.BACapability.field.b2040CoexistScanSup == 1)
-				{
-					ULONG		Tmp;
-					HtLen = 1;
-					MakeOutgoingFrame(pOutBuffer + FrameLen,            &Tmp,
-									  1,					&ExtHtCapIe,
-									  1,					&HtLen,
-									  1,          			&pAd->CommonCfg.BSSCoexist2040.word,
-									  END_OF_ARGS);
-
-					FrameLen += Tmp;
-				}
-#endif // DOT11N_DRAFT3 //
 			}
 #endif // DOT11_N_SUPPORT //
 
