@@ -33,6 +33,9 @@ BUILD_TIMER_FUNCTION(MlmePeriodicExec);
 BUILD_TIMER_FUNCTION(AsicRxAntEvalTimeout);
 BUILD_TIMER_FUNCTION(APSDPeriodicExec);
 BUILD_TIMER_FUNCTION(AsicRfTuningExec);
+#ifdef RT2870
+BUILD_TIMER_FUNCTION(BeaconUpdateExec);
+#endif // RT2870 //
 
 BUILD_TIMER_FUNCTION(BeaconTimeout);
 BUILD_TIMER_FUNCTION(ScanTimeout);
@@ -43,8 +46,10 @@ BUILD_TIMER_FUNCTION(DisassocTimeout);
 BUILD_TIMER_FUNCTION(LinkDownExec);
 BUILD_TIMER_FUNCTION(StaQuickResponeForRateUpExec);
 BUILD_TIMER_FUNCTION(WpaDisassocApAndBlockAssoc);
+#ifdef RT2860
 BUILD_TIMER_FUNCTION(PsPollWakeExec);
 BUILD_TIMER_FUNCTION(RadioOnExec);
+#endif
 
 // for wireless system event message
 char const *pWirelessSysEventText[IW_SYS_EVENT_TYPE_NUM] = {
@@ -281,9 +286,9 @@ VOID	RTMPFreeAdapter(
 
 
 	NdisFreeSpinLock(&pAd->MgmtRingLock);
-
+#ifdef RT2860
 	NdisFreeSpinLock(&pAd->RxRingLock);
-
+#endif
 	for (index =0 ; index < NUM_OF_TX_RING; index++)
 	{
     	NdisFreeSpinLock(&pAd->TxSwQueueLock[index]);
@@ -829,7 +834,12 @@ void send_monitor_packets(
 
     if (pRxBlk->DataSize + sizeof(wlan_ng_prism2_header) > RX_BUFFER_AGGRESIZE)
     {
+#ifndef RT30xx
         DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%zu)\n", __func__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
+#endif
+#ifdef RT30xx
+        DBGPRINT(RT_DEBUG_ERROR, ("%s : Size is too large! (%d)\n", __func__, pRxBlk->DataSize + sizeof(wlan_ng_prism2_header)));
+#endif
 		goto err_free_sk_buff;
     }
 

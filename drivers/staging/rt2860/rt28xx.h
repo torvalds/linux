@@ -47,6 +47,15 @@
 #define PCI_EECTRL			0x0004
 #define PCI_MCUCTRL			0x0008
 
+#ifdef RT30xx
+#define	OPT_14			0x114
+
+typedef int				NTSTATUS;
+#define	RETRY_LIMIT             10
+#define STATUS_SUCCESS				0x00
+#define STATUS_UNSUCCESSFUL 		0x01
+#endif
+
 //
 // SCH/DMA registers - base address 0x0200
 //
@@ -281,6 +290,36 @@ typedef	union	_USB_DMA_CFG_STRUC	{
 #define 	TXRXQ_PCNT  	 0x0438
 #define 	PBF_DBG 	 	 0x043c
 #define     PBF_CAP_CTRL     0x0440
+
+#ifdef RT30xx
+// eFuse registers
+#define EFUSE_CTRL              0x0580
+#define EFUSE_DATA0             0x0590
+#define EFUSE_DATA1             0x0594
+#define EFUSE_DATA2             0x0598
+#define EFUSE_DATA3             0x059c
+#define EFUSE_USAGE_MAP_START   0x2d0
+#define EFUSE_USAGE_MAP_END     0x2fc
+#define EFUSE_TAG               0x2fe
+#define EFUSE_USAGE_MAP_SIZE    45
+
+typedef	union	_EFUSE_CTRL_STRUC {
+	struct	{
+		UINT32            EFSROM_AOUT:6;
+		UINT32            EFSROM_MODE:2;
+		UINT32            EFSROM_LDO_OFF_TIME:6;
+		UINT32            EFSROM_LDO_ON_TIME:2;
+		UINT32            EFSROM_AIN:10;
+		UINT32            RESERVED:4;
+		UINT32            EFSROM_KICK:1;
+		UINT32            SEL_EFUSE:1;
+	}	field;
+	UINT32			word;
+}	EFUSE_CTRL_STRUC, *PEFUSE_CTRL_STRUC;
+
+#define LDO_CFG0 				0x05d4
+#define GPIO_SWITCH				0x05dc
+#endif /* RT30xx */
 
 //
 //  4  MAC  registers
@@ -1007,10 +1046,16 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define E2PROM_CSR          0x0004
 #define IO_CNTL_CSR         0x77d0
 
+#ifdef RT2860
 // 8051 firmware image for RT2860 - base address = 0x4000
 #define FIRMWARE_IMAGE_BASE     0x2000
 #define MAX_FIRMWARE_IMAGE_SIZE 0x2000    // 8kbyte
-
+#endif
+#ifdef RT2870
+// 8051 firmware image for usb - use last-half base address = 0x3000
+#define FIRMWARE_IMAGE_BASE     0x3000
+#define MAX_FIRMWARE_IMAGE_SIZE 0x1000    // 4kbyte
+#endif // RT2870 //
 
 // ================================================================
 // Tx /	Rx / Mgmt ring descriptor definition
@@ -1091,6 +1136,9 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define BBP_R22                     22
 #define BBP_R24                     24
 #define BBP_R25                     25
+#ifdef RT30xx
+#define BBP_R31                     31
+#endif
 #define BBP_R49                     49 //TSSI
 #define BBP_R50                     50
 #define BBP_R51                     51
@@ -1108,6 +1156,10 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define BBP_R73                     73
 #define BBP_R75						75
 #define BBP_R77                     77
+#ifdef RT30xx
+#define BBP_R79                     79
+#define BBP_R80                     80
+#endif
 #define BBP_R81                     81
 #define BBP_R82                     82
 #define BBP_R83                     83
@@ -1129,6 +1181,9 @@ typedef struct _HW_WCID_ENTRY {  // 8-byte per entry
 #define BBP_R121                    121
 #define BBP_R122                    122
 #define BBP_R123                    123
+#ifdef RT30xx
+#define BBP_R138                    138 // add by johnli, RF power sequence setup, ADC dynamic on/off control
+#endif // RT30xx //
 
 
 #define BBPR94_DEFAULT              0x06 // Add 1 value will gain 1db
@@ -1294,6 +1349,7 @@ typedef	struct	PACKED _TXWI_STRUC {
 //
 // Rx descriptor format, Rx	Ring
 //
+#ifdef RT2860
 typedef	struct	PACKED _RXD_STRUC	{
 	// Word	0
 	UINT32		SDP0;
@@ -1326,6 +1382,7 @@ typedef	struct	PACKED _RXD_STRUC	{
 	UINT32		PlcpRssil:1;// To be moved
 	UINT32		Rsv1:13;
 }	RXD_STRUC, *PRXD_STRUC, RT28XX_RXD_STRUC, *PRT28XX_RXD_STRUC;
+#endif /* RT2860 */
 
 //
 // RXWI wireless information format, in PBF. invisible in driver.
@@ -1550,7 +1607,15 @@ typedef	union _EEPROM_NIC_CINFIG2_STRUC	{
 		USHORT		EnableWPSPBC:1;                 // WPS PBC Control bit
 		USHORT		BW40MAvailForG:1;			// 0:enable, 1:disable
 		USHORT		BW40MAvailForA:1;			// 0:enable, 1:disable
+#ifndef RT30xx
 		USHORT		Rsv2:6;                 // must be 0
+#endif
+#ifdef RT30xx
+		USHORT		Rsv1:1;					// must be 0
+		USHORT		AntDiversity:1;			// Antenna diversity
+		USHORT		Rsv2:3;					// must be 0
+		USHORT		DACTestBit:1;			// control if driver should patch the DAC issue
+#endif
 	}	field;
 	USHORT			word;
 }	EEPROM_NIC_CONFIG2_STRUC, *PEEPROM_NIC_CONFIG2_STRUC;

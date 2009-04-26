@@ -58,7 +58,9 @@ extern BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num);
 extern void ba_reordering_resource_release(PRTMP_ADAPTER pAd);
 extern NDIS_STATUS NICLoadRateSwitchingParams(IN PRTMP_ADAPTER pAd);
 
+#ifdef RT2860
 extern void init_thread_task(PRTMP_ADAPTER pAd);
+#endif
 
 // public function prototype
 INT __devinit rt28xx_probe(IN void *_dev_p, IN void *_dev_id_p,
@@ -187,6 +189,12 @@ int rt28xx_close(IN PNET_DEV dev)
     RTMP_ADAPTER	*pAd = net_dev->ml_priv;
 	BOOLEAN 		Cancelled = FALSE;
 	UINT32			i = 0;
+#ifdef RT2870
+	DECLARE_WAIT_QUEUE_HEAD(unlink_wakeup);
+	DECLARE_WAITQUEUE(wait, current);
+
+	//RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_REMOVE_IN_PROGRESS);
+#endif // RT2870 //
 
 
     DBGPRINT(RT_DEBUG_TRACE, ("===> rt28xx_close\n"));
@@ -198,11 +206,21 @@ int rt28xx_close(IN PNET_DEV dev)
 	{
 		// If dirver doesn't wake up firmware here,
 		// NICLoadFirmware will hang forever when interface is up again.
+#ifdef RT2860
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) ||
 			RTMP_SET_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND) ||
 			RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF))
+#endif
+#ifdef RT2870
+		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+#endif
         {
+#ifdef RT2860
 		    AsicForceWakeup(pAd, RTMP_HALT);
+#endif
+#ifdef RT2870
+		    AsicForceWakeup(pAd, TRUE);
+#endif
         }
 
 		if (INFRA_ON(pAd) &&
@@ -230,6 +248,9 @@ int rt28xx_close(IN PNET_DEV dev)
 			RTMPusecDelay(1000);
 		}
 
+#ifdef RT2870
+	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_REMOVE_IN_PROGRESS);
+#endif // RT2870 //
 
 #ifdef CCX_SUPPORT
 		RTMPCancelTimer(&pAd->StaCfg.LeapAuthTimer, &Cancelled);
@@ -239,7 +260,9 @@ int rt28xx_close(IN PNET_DEV dev)
 		RTMPCancelTimer(&pAd->StaCfg.WpaDisassocAndBlockAssocTimer, &Cancelled);
 
 		MlmeRadioOff(pAd);
+#ifdef RT2860
 		pAd->bPCIclkOff = FALSE;
+#endif
 	}
 
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS);
@@ -253,6 +276,40 @@ int rt28xx_close(IN PNET_DEV dev)
 		}
 	}
 
+#ifdef RT2870
+	// ensure there are no more active urbs.
+	add_wait_queue (&unlink_wakeup, &wait);
+	pAd->wait = &unlink_wakeup;
+
+	// maybe wait for deletions to finish.
+	i = 0;
+	//while((i < 25) && atomic_read(&pAd->PendingRx) > 0)
+	while(i < 25)
+	{
+		unsigned long IrqFlags;
+
+		RTMP_IRQ_LOCK(&pAd->BulkInLock, IrqFlags);
+		if (pAd->PendingRx == 0)
+		{
+			RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
+			break;
+		}
+		RTMP_IRQ_UNLOCK(&pAd->BulkInLock, IrqFlags);
+
+		msleep(UNLINK_TIMEOUT_MS);	//Time in millisecond
+		i++;
+	}
+	pAd->wait = NULL;
+	remove_wait_queue (&unlink_wakeup, &wait);
+#endif // RT2870 //
+
+#ifdef RT2870
+	// We need clear timerQ related structure before exits of the timer thread.
+	RT2870_TimerQ_Exit(pAd);
+	// Close kernel threads or tasklets
+	RT28xxThreadTerminate(pAd);
+#endif // RT2870 //
+
 	// Stop Mlme state machine
 	MlmeHalt(pAd);
 
@@ -264,7 +321,7 @@ int rt28xx_close(IN PNET_DEV dev)
 	MeasureReqTabExit(pAd);
 	TpcReqTabExit(pAd);
 
-
+#ifdef RT2860
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE))
 	{
 		NICDisableInterrupt(pAd);
@@ -280,7 +337,7 @@ int rt28xx_close(IN PNET_DEV dev)
 		RT28XX_IRQ_RELEASE(net_dev)
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_IN_USE);
 	}
-
+#endif
 
 	// Free Ring or USB buffers
 	RTMPFreeTxRxRingMemory(pAd);
@@ -297,7 +354,12 @@ int rt28xx_close(IN PNET_DEV dev)
 
 static int rt28xx_init(IN struct net_device *net_dev)
 {
+#ifdef RT2860
 	PRTMP_ADAPTER 			pAd = (PRTMP_ADAPTER)net_dev->ml_priv;
+#endif
+#ifdef RT2870
+	PRTMP_ADAPTER 			pAd = net_dev->ml_priv;
+#endif
 	UINT					index;
 	UCHAR					TmpPhy;
 	NDIS_STATUS				Status;
@@ -320,10 +382,10 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	} while (index++ < 100);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MAC_CSR0  [ Ver:Rev=0x%08x]\n", pAd->MACVersion));
+/*Iverson patch PCIE L1 issue */
 
 	// Disable DMA
 	RT28XXDMADisable(pAd);
-
 
 	// Load 8051 firmware
 	Status = NICLoadFirmware(pAd);
@@ -337,10 +399,12 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 	// Disable interrupts here which is as soon as possible
 	// This statement should never be true. We might consider to remove it later
+#ifdef RT2860
 	if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_INTERRUPT_ACTIVE))
 	{
 		NICDisableInterrupt(pAd);
 	}
+#endif
 
 	Status = RTMPAllocTxRxRingMemory(pAd);
 	if (Status != NDIS_STATUS_SUCCESS)
@@ -365,6 +429,10 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	//
 	UserCfgInit(pAd);
 
+#ifdef RT2870
+	// We need init timerQ related structure before create the timer thread.
+	RT2870_TimerQ_Init(pAd);
+#endif // RT2870 //
 
 	RT28XX_TASK_THREAD_INIT(pAd, Status);
 	if (Status != NDIS_STATUS_SUCCESS)
@@ -398,6 +466,14 @@ static int rt28xx_init(IN struct net_device *net_dev)
 		goto err4;
 	}
 
+#ifdef RT2870
+	pAd->CommonCfg.bMultipleIRP = FALSE;
+
+	if (pAd->CommonCfg.bMultipleIRP)
+		pAd->CommonCfg.NumOfBulkInIRP = RX_RING_SIZE;
+	else
+		pAd->CommonCfg.NumOfBulkInIRP = 1;
+#endif // RT2870 //
 
 
    	//Init Ba Capability parameters.
@@ -436,6 +512,11 @@ static int rt28xx_init(IN struct net_device *net_dev)
            pAd->CommonCfg.HtCapability.MCSSet[1], pAd->CommonCfg.HtCapability.MCSSet[2],
            pAd->CommonCfg.HtCapability.MCSSet[3], pAd->CommonCfg.HtCapability.MCSSet[4]);
 
+#ifdef RT2870
+    //Init RT30xx RFRegisters after read RFIC type from EEPROM
+	NICInitRT30xxRFRegisters(pAd);
+#endif // RT2870 //
+
 #ifdef IKANOS_VX_1X0
 	VR_IKANOS_FP_Init(pAd->ApCfg.BssidNum, pAd->PermanentAddress);
 #endif // IKANOS_VX_1X0 //
@@ -446,8 +527,10 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
 	AsicLockChannel(pAd, pAd->CommonCfg.Channel);
 
+#ifndef RT30xx
 	// 8051 firmware require the signal during booting time.
 	AsicSendCommandToMcu(pAd, 0x72, 0xFF, 0x00, 0x00);
+#endif
 
 	if (pAd && (Status != NDIS_STATUS_SUCCESS))
 	{
@@ -464,9 +547,24 @@ static int rt28xx_init(IN struct net_device *net_dev)
 		// Microsoft HCT require driver send a disconnect event after driver initialization.
 		OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED);
 		RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_MEDIA_STATE_CHANGE);
+
 		DBGPRINT(RT_DEBUG_TRACE, ("NDIS_STATUS_MEDIA_DISCONNECT Event B!\n"));
 
 
+#ifdef RT2870
+		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS);
+		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_REMOVE_IN_PROGRESS);
+
+		//
+		// Support multiple BulkIn IRP,
+		// the value on pAd->CommonCfg.NumOfBulkInIRP may be large than 1.
+		//
+		for(index=0; index<pAd->CommonCfg.NumOfBulkInIRP; index++)
+		{
+			RTUSBBulkReceive(pAd);
+			DBGPRINT(RT_DEBUG_TRACE, ("RTUSBBulkReceive!\n" ));
+		}
+#endif // RT2870 //
 	}// end of else
 
 
@@ -565,8 +663,9 @@ int rt28xx_open(IN PNET_DEV dev)
 	printk("0x1300 = %08x\n", reg);
 	}
 
+#ifdef RT2860
         RTMPInitPCIeLinkCtrlValue(pAd);
-
+#endif
 	return (retval);
 
 err:
@@ -662,8 +761,15 @@ INT __devinit   rt28xx_probe(
     PRTMP_ADAPTER       pAd = (PRTMP_ADAPTER) NULL;
     INT                 status;
 	PVOID				handle;
+#ifdef RT2860
 	struct pci_dev *dev_p = (struct pci_dev *)_dev_p;
+#endif
+#ifdef RT2870
+	struct usb_interface *intf = (struct usb_interface *)_dev_p;
+	struct usb_device *dev_p = interface_to_usbdev(intf);
 
+	dev_p = usb_get_dev(dev_p);
+#endif // RT2870 //
 
     DBGPRINT(RT_DEBUG_TRACE, ("STA Driver version-%s\n", STA_DRIVER_VERSION));
 

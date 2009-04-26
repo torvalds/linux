@@ -886,11 +886,13 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 	// Save uid and gid used for filesystem access.
 	// Set user and group to 0 (root)
+#ifndef RT30xx
 	orgfsuid = current_fsuid();
 	orgfsgid = current_fsgid();
 	/* Hm, can't really do this nicely anymore, so rely on these files
 	 * being set to the proper permission to read them... */
 	/* current->cred->fsuid = current->cred->fsgid = 0; */
+#endif
     orgfs = get_fs();
     set_fs(KERNEL_DS);
 
@@ -1352,7 +1354,12 @@ NDIS_STATUS	RTMPReadParametersHook(
 
 					{
 						//PSMode
+#ifdef RT2860
 						if (RTMPGetKeyParameter("PSMode", tmpbuf, 32, buffer))
+#endif
+#ifdef RT2870
+						if (RTMPGetKeyParameter("PSMode", tmpbuf, 10, buffer))
+#endif
 						{
 							if (pAd->StaCfg.BssType == BSS_INFRA)
 							{
@@ -1435,6 +1442,23 @@ NDIS_STATUS	RTMPReadParametersHook(
 								DBGPRINT(RT_DEBUG_TRACE, ("TGnWifiTest=%d\n", pAd->StaCfg.bTGnWifiTest));
 						}
 					}
+
+#ifdef RT30xx
+						{
+							if(RTMPGetKeyParameter("AntDiversity", tmpbuf, 10, buffer))
+							{
+								for (i = 0, macptr = rstrtok(tmpbuf,";"); macptr; macptr = rstrtok(NULL,";"), i++)
+								{
+									if(simple_strtol(macptr, 0, 10) != 0)  //Enable
+										pAd->CommonCfg.bRxAntDiversity = TRUE;
+									else //Disable
+										pAd->CommonCfg.bRxAntDiversity = FALSE;
+
+									DBGPRINT(RT_DEBUG_ERROR, ("AntDiversity=%d\n", pAd->CommonCfg.bRxAntDiversity));
+								}
+							}
+						}
+#endif // RT30xx //
 				}
 			}
 			else
@@ -1547,12 +1571,21 @@ static void	HTParametersHook(
         if (Value == 0)
         {
             pAd->CommonCfg.BACapability.field.AutoBA = FALSE;
+#ifdef RT30xx
+	    pAd->CommonCfg.BACapability.field.Policy = BA_NOTUSE;
+#endif
         }
         else
         {
             pAd->CommonCfg.BACapability.field.AutoBA = TRUE;
+#ifdef RT30xx
+	    pAd->CommonCfg.BACapability.field.Policy = IMMED_BA;
+#endif
         }
         pAd->CommonCfg.REGBACapability.field.AutoBA = pAd->CommonCfg.BACapability.field.AutoBA;
+#ifdef RT30xx
+	pAd->CommonCfg.REGBACapability.field.Policy = pAd->CommonCfg.BACapability.field.Policy;
+#endif
         DBGPRINT(RT_DEBUG_TRACE, ("HT: Auto BA  = %s\n", (Value==0) ? "Disable" : "Enable"));
     }
 

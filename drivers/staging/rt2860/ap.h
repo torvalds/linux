@@ -324,6 +324,13 @@ VOID APQuickResponeForRateUpExec(
     IN PVOID SystemSpecific2,
     IN PVOID SystemSpecific3);
 
+#ifdef RT2870
+VOID BeaconUpdateExec(
+    IN PVOID SystemSpecific1,
+    IN PVOID FunctionContext,
+    IN PVOID SystemSpecific2,
+    IN PVOID SystemSpecific3);
+#endif // RT2870 //
 
 VOID RTMPSetPiggyBack(
 	IN PRTMP_ADAPTER	pAd,

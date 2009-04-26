@@ -102,6 +102,7 @@
 // Entry number for each DMA descriptor ring
 //
 
+#ifdef RT2860
 #define TX_RING_SIZE            64 //64
 #define MGMT_RING_SIZE          128
 #define RX_RING_SIZE            128 //64
@@ -109,6 +110,15 @@
 #define MAX_DMA_DONE_PROCESS    TX_RING_SIZE
 #define MAX_TX_DONE_PROCESS     TX_RING_SIZE //8
 #define LOCAL_TXBUF_SIZE        2
+#endif
+#ifdef RT2870
+#define TX_RING_SIZE            8 // 1
+#define PRIO_RING_SIZE          8
+#define MGMT_RING_SIZE       32 // PRIO_RING_SIZE
+#define RX_RING_SIZE            8
+#define MAX_TX_PROCESS          4
+#define LOCAL_TXBUF_SIZE        2048
+#endif // RT2870 //
 
 #define MAX_RX_PROCESS          128 //64 //32
 #define NUM_OF_LOCAL_TXBUF      2
@@ -138,7 +148,11 @@
 #define MAX_PACKETS_IN_PS_QUEUE				128	//32
 #define WMM_NUM_OF_AC                       4  /* AC0, AC1, AC2, and AC3 */
 
-
+#ifdef RT30xx
+//2008/09/11:KH add to support efuse<--
+#define MAX_EEPROM_BIN_FILE_SIZE					1024
+//2008/09/11:KH add to support efuse-->
+#endif
 
 // RxFilter
 #define STANORMAL	 0x17f97
@@ -195,6 +209,7 @@
 #define fOP_STATUS_WAKEUP_NOW               0x00008000
 #define fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE       0x00020000
 
+#ifdef RT2860
 //
 //  RTMP_ADAPTER PSFlags : related to advanced power save.
 //
@@ -207,6 +222,7 @@
 // Indicate driver should IMMEDIATELY fo to sleep after receiving AP's beacon in which  doesn't indicate unicate nor multicast packets for me
 //. This flag is used ONLY in RTMPHandleRxDoneInterrupt routine.
 #define fRTMP_PS_GO_TO_SLEEP_NOW         0x00000008
+#endif
 
 #define CCKSETPROTECT		0x1
 #define OFDMSETPROTECT		0x2
@@ -309,10 +325,12 @@
 #define MAX_APCLI_NUM				0
 
 #define MAX_MBSSID_NUM				1
+#if defined(RT2860) || defined(RT30xx)
 #ifdef MBSS_SUPPORT
 #undef	MAX_MBSSID_NUM
 #define MAX_MBSSID_NUM				(8 - MAX_MESH_NUM - MAX_APCLI_NUM)
 #endif // MBSS_SUPPORT //
+#endif
 
 /* sanity check for apidx */
 #define MBSS_MR_APIDX_SANITY_CHECK(apidx) \
@@ -555,6 +573,9 @@
 // For 802.11n D3.03
 //#define IE_NEW_EXT_CHA_OFFSET             62    // 802.11n d1. New extension channel offset elemet
 #define IE_SECONDARY_CH_OFFSET		62	// 802.11n D3.03	Secondary Channel Offset element
+#ifdef RT2870
+#define IE_WAPI							68		// WAPI information element
+#endif
 #define IE_2040_BSS_COEXIST               72    // 802.11n D3.0.3
 #define IE_2040_BSS_INTOLERANT_REPORT     73    // 802.11n D3.03
 #define IE_OVERLAPBSS_SCAN_PARM           74    // 802.11n D3.03
@@ -603,6 +624,11 @@
 #define AP_CNTL_STATE_MACHINE           15
 #define AP_WPA_STATE_MACHINE            16
 
+#ifdef RT30xx
+#define WSC_STATE_MACHINE            17
+#define WSC_UPNP_STATE_MACHINE		    18
+#endif
+
 //
 // STA's CONTROL/CONNECT state machine: states, events, total function #
 //
@@ -616,6 +642,9 @@
 #define CNTL_WAIT_AUTH2                 7
 #define CNTL_WAIT_OID_LIST_SCAN         8
 #define CNTL_WAIT_OID_DISASSOC          9
+#ifdef RT2870
+#define CNTL_WAIT_SCAN_FOR_CONNECT      10
+#endif // RT2870 //
 
 #define MT2_ASSOC_CONF                  34
 #define MT2_AUTH_CONF                   35
@@ -1186,6 +1215,10 @@
 #define RFIC_2750                   4       // 2.4G/5G 1T2R
 #define RFIC_3020                   5       // 2.4G 1T1R
 #define RFIC_2020                   6       // 2.4G B/G
+#ifdef RT30xx
+#define RFIC_3021                   7       // 2.4G 1T2R
+#define RFIC_3022                   8       // 2.4G 2T2R
+#endif
 
 // LED Status.
 #define LED_LINK_DOWN               0
@@ -1286,6 +1319,8 @@
 #define INT_APCLI                   0x0400
 #define INT_MESH                   	0x0500
 
+// Use bitmap to allow coexist of ATE_TXFRAME and ATE_RXFRAME(i.e.,to support LoopBack mode)
+
 // WEP Key TYPE
 #define WEP_HEXADECIMAL_TYPE    0
 #define WEP_ASCII_TYPE          1
@@ -1378,6 +1413,7 @@
 #define MCAST_HTMIX		3
 #endif // MCAST_RATE_SPECIFIC //
 
+#ifdef RT2860
 // For AsicRadioOff/AsicRadioOn/AsicForceWakeup function
 // This is to indicate from where to call this function.
 #define DOT11POWERSAVE		0	// TO do .11 power save sleep
@@ -1385,8 +1421,14 @@
 #define RTMP_HALT			2	// Called from Halt handler.
 #define GUI_IDLE_POWER_SAVE	3	// Call to sleep before link up with AP
 #define FROM_TX				4	// Force wake up from Tx packet.
-
-
+#endif
+#ifdef RT2870
+// For AsicRadioOff/AsicRadioOn function
+#define DOT11POWERSAVE		0
+#define GUIRADIO_OFF		1
+#define RTMP_HALT		    2
+#define GUI_IDLE_POWER_SAVE		3
+#endif
 
 // definition for WpaSupport flag
 #define WPA_SUPPLICANT_DISABLE				0

@@ -47,8 +47,12 @@
 #include    "rtmp_def.h"
 #include    "rt28xx.h"
 
+#ifdef RT2860
 #include	"rt2860.h"
-
+#endif
+#ifdef RT2870
+#include	"../rt2870/rt2870.h"
+#endif // RT2870 //
 
 #include    "oid.h"
 #include    "mlme.h"
