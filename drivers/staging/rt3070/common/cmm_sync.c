@@ -383,27 +383,21 @@ VOID ScanNextChannel(
 	NDIS_STATUS     NStatus;
 	ULONG           FrameLen = 0;
 	UCHAR           SsidLen = 0, ScanType = pAd->MlmeAux.ScanType, BBPValue = 0;
-#ifdef CONFIG_STA_SUPPORT
 	USHORT          Status;
 	PHEADER_802_11  pHdr80211;
-#endif // CONFIG_STA_SUPPORT //
 	UINT			ScanTimeIn5gChannel = SHORT_CHANNEL_TIME;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (MONITOR_ON(pAd))
 			return;
 	}
-#endif // CONFIG_STA_SUPPORT //
 
 	if (pAd->MlmeAux.Channel == 0)
 	{
 		if ((pAd->CommonCfg.BBPCurrentBW == BW_40)
-#ifdef CONFIG_STA_SUPPORT
 			&& (INFRA_ON(pAd)
 				|| (pAd->OpMode == OPMODE_AP))
-#endif // CONFIG_STA_SUPPORT //
 			)
 		{
 			AsicSwitchChannel(pAd, pAd->CommonCfg.CentralChannel, FALSE);
@@ -421,7 +415,6 @@ VOID ScanNextChannel(
 			DBGPRINT(RT_DEBUG_TRACE, ("SYNC - End of SCAN, restore to channel %d, Total BSS[%02d]\n",pAd->CommonCfg.Channel, pAd->ScanTab.BssNr));
 		}
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			//
@@ -452,23 +445,18 @@ VOID ScanNextChannel(
 			Status = MLME_SUCCESS;
 			MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_SCAN_CONF, 2, &Status);
 		}
-#endif // CONFIG_STA_SUPPORT //
-
 
 		RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
 	}
 #ifdef RT2870
-#ifdef CONFIG_STA_SUPPORT
 	else if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST) && (pAd->OpMode == OPMODE_STA))
 	{
 		pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 		MlmeCntlConfirm(pAd, MT2_SCAN_CONF, MLME_FAIL_NO_RESOURCE);
 	}
-#endif // CONFIG_STA_SUPPORT //
 #endif // RT2870 //
 	else
 	{
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 		// BBP and RF are not accessible in PS mode, we has to wake them up first
@@ -479,12 +467,10 @@ VOID ScanNextChannel(
 			if (pAd->StaCfg.Psm == PWR_SAVE)
 				MlmeSetPsmBit(pAd, PWR_ACTIVE);
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		AsicSwitchChannel(pAd, pAd->MlmeAux.Channel, TRUE);
 		AsicLockChannel(pAd, pAd->MlmeAux.Channel);
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (pAd->MlmeAux.Channel > 14)
@@ -496,7 +482,6 @@ VOID ScanNextChannel(
 				}
 			}
 		}
-#endif // CONFIG_STA_SUPPORT //
 
 		//Global country domain(ch1-11:active scan, ch12-14 passive scan)
 		if ((pAd->MlmeAux.Channel <= 14) && (pAd->MlmeAux.Channel >= 12) && ((pAd->CommonCfg.CountryRegion & 0x7f) == REGION_31_BG_BAND))
@@ -508,7 +493,6 @@ VOID ScanNextChannel(
 		// Chnage the channel scan time for CISCO stuff based on its IAPP announcement
 		if (ScanType == FAST_SCAN_ACTIVE)
 			RTMPSetTimer(&pAd->MlmeAux.ScanTimer, FAST_ACTIVE_SCAN_TIME);
-#ifdef CONFIG_STA_SUPPORT
 		else if (((ScanType == SCAN_CISCO_ACTIVE) ||
 				(ScanType == SCAN_CISCO_PASSIVE) ||
 				(ScanType == SCAN_CISCO_CHANNEL_LOAD) ||
@@ -519,7 +503,6 @@ VOID ScanNextChannel(
 			else
 				RTMPSetTimer(&pAd->MlmeAux.ScanTimer, pAd->StaCfg.CCXScanTime);
 		}
-#endif // CONFIG_STA_SUPPORT //
 		else // must be SCAN_PASSIVE or SCAN_ACTIVE
 		{
 			if ((pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED)
@@ -544,14 +527,13 @@ VOID ScanNextChannel(
 			if (NStatus != NDIS_STATUS_SUCCESS)
 			{
 				DBGPRINT(RT_DEBUG_TRACE, ("SYNC - ScanNextChannel() allocate memory fail\n"));
-#ifdef CONFIG_STA_SUPPORT
+
 				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 					pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 					Status = MLME_FAIL_NO_RESOURCE;
 					MlmeEnqueue(pAd, MLME_CNTL_STATE_MACHINE, MT2_SCAN_CONF, 2, &Status);
 				}
-#endif // CONFIG_STA_SUPPORT //
 
 				return;
 			}
@@ -624,11 +606,8 @@ VOID ScanNextChannel(
 
 		// For SCAN_CISCO_PASSIVE, do nothing and silently wait for beacon or other probe reponse
 
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 			pAd->Mlme.SyncMachine.CurrState = SCAN_LISTEN;
-#endif // CONFIG_STA_SUPPORT //
-
 	}
 }
 

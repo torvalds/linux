@@ -691,9 +691,6 @@ VOID	RTMPCalculateMICValue(
 	// determine if this is a vlan packet
 	if (((*(pSrc + 12) << 8) + *(pSrc + 13)) == 0x8100)
 		vlan_offset = 4;
-
-#ifdef CONFIG_STA_SUPPORT
-#endif // CONFIG_STA_SUPPORT //
 	{
 		RTMPInitMICEngine(
 			pAd,

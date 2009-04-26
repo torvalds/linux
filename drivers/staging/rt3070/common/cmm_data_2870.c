@@ -293,10 +293,8 @@ USHORT RtmpUSB_WriteSingleTxResource(
 
 		// For TxInfo, the length of USBDMApktLen = TXWI_SIZE + 802.11 header + payload
 		//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		RTMPWriteTxInfo(pAd, pTxInfo, (USHORT)(USBDMApktLen), FALSE, FIFO_EDCA, FALSE /*NextValid*/,  FALSE);
-#endif // CONFIG_STA_SUPPORT //
 
 		if ((pHTTXContext->CurWritePosition + 3906 + pTxBlk->Priv) > MAX_TXBULK_LIMIT)
 		{
@@ -696,7 +694,6 @@ VOID RtmpUSBNullFrameKickOut(
 
 }
 
-#ifdef CONFIG_STA_SUPPORT
 /*
 	========================================================================
 
@@ -842,7 +839,6 @@ VOID RT28xxUsbStaAsicSleepThenAutoWakeup(
 	OPSTATUS_SET_FLAG(pAd, fOP_STATUS_DOZE);
 
 }
-#endif // CONFIG_STA_SUPPORT //
 
 VOID RT28xxUsbMlmeRadioOn(
 	IN PRTMP_ADAPTER pAd)
@@ -852,13 +848,12 @@ VOID RT28xxUsbMlmeRadioOn(
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF))
 		return;
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
     	AsicSendCommandToMcu(pAd, 0x31, 0xff, 0x00, 0x02);
 		RTMPusecDelay(10000);
 	}
-#endif // CONFIG_STA_SUPPORT //
+
 	NICResetFromError(pAd);
 
 	// Enable Tx/Rx
@@ -874,10 +869,8 @@ VOID RT28xxUsbMlmeRadioOn(
 	// Clear Radio off flag
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		RTUSBBulkReceive(pAd);
-#endif // CONFIG_STA_SUPPORT //
 
 	// Set LED
 	RTMPSetLED(pAd, LED_RADIO_ON);
@@ -899,7 +892,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 	// Set Radio off flag
 	RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_RADIO_OFF);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Link down first if any association exists
@@ -911,8 +903,6 @@ VOID RT28xxUsbMlmeRadioOFF(
 		// Clean up old bss table
 		BssTableInit(&pAd->ScanTab);
 	}
-#endif // CONFIG_STA_SUPPORT //
-
 
 	if (pAd->CommonCfg.BBPCurrentBW == BW_40)
 	{
@@ -956,9 +946,7 @@ VOID RT28xxUsbMlmeRadioOFF(
 	// TX_PIN_CFG => value = 0x0 => 20mA
 	//RTMP_IO_WRITE32(pAd, TX_PIN_CFG, 0);
 
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		AsicSendCommandToMcu(pAd, 0x30, 0xff, 0xff, 0x02);
-#endif // CONFIG_STA_SUPPORT //
 }
 

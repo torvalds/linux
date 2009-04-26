@@ -1392,7 +1392,6 @@
 
 // End - WIRELESS EVENTS definition
 
-#ifdef CONFIG_STA_SUPPORT
 // definition for DLS, kathy
 #define	MAX_NUM_OF_INIT_DLS_ENTRY   1
 #define	MAX_NUM_OF_DLS_ENTRY        MAX_NUMBER_OF_DLS_ENTRY
@@ -1410,7 +1409,6 @@
 /* Maximum size of the ESSID and pAd->nickname strings */
 #define IW_ESSID_MAX_SIZE   		32
 #endif
-#endif // CONFIG_STA_SUPPORT //
 
 #ifdef MCAST_RATE_SPECIFIC
 #define MCAST_DISABLE	0

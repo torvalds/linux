@@ -234,10 +234,8 @@ NDIS_STATUS	NICInitTransmit(
 		//
 		// TX_RING_SIZE, 4 ACs
 		//
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		for(acidx=0; acidx<4; acidx++)
-#endif // CONFIG_STA_SUPPORT //
 		{
 #if 1 //def DOT11_N_SUPPORT
 			PHT_TX_CONTEXT	pHTTXContext = &(pAd->TxContext[acidx]);
@@ -436,10 +434,8 @@ out2:
 	}
 
 out1:
-#ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	for(acidx=0; acidx<4; acidx++)
-#endif // CONFIG_STA_SUPPORT //
 	{
 		PHT_TX_CONTEXT pTxContext = &(pAd->TxContext[acidx]);
 		if (pTxContext)
@@ -646,10 +642,8 @@ VOID	RTMPFreeTxRxRingMemory(
 
 
 	// Free Tx frame resource
-#ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		for(acidx=0; acidx<4; acidx++)
-#endif // CONFIG_STA_SUPPORT //
 		{
 		PHT_TX_CONTEXT pHTTXContext = &(pAd->TxContext[acidx]);
 			if (pHTTXContext)
@@ -810,8 +804,6 @@ NDIS_STATUS	 CreateThreads(
 	return NDIS_STATUS_SUCCESS;
 }
 
-
-#ifdef CONFIG_STA_SUPPORT
 /*
 ========================================================================
 Routine Description:
@@ -992,7 +984,6 @@ VOID	RTMPAddBSSIDCipher(
 		DBGPRINT_RAW(RT_DEBUG_TRACE,(" %x:", pKey->KeyMaterial[i]));
 	DBGPRINT(RT_DEBUG_TRACE,("	 \n"));
 }
-#endif // CONFIG_STA_SUPPORT //
 
 /*
 ========================================================================

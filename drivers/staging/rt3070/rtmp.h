@@ -43,15 +43,13 @@
 #include "link_list.h"
 #include "spectrum_def.h"
 
-#ifdef CONFIG_STA_SUPPORT
 #include "aironet.h"
-#endif // CONFIG_STA_SUPPORT //
 
 //#define DBG		1
 
 //#define DBG_DIAGNOSE		1
 
-#if defined(CONFIG_AP_SUPPORT) && defined(CONFIG_STA_SUPPORT)
+#if defined(CONFIG_AP_SUPPORT)
 #define IF_DEV_CONFIG_OPMODE_ON_AP(_pAd)	if(_pAd->OpMode == OPMODE_AP)
 #define IF_DEV_CONFIG_OPMODE_ON_STA(_pAd)	if(_pAd->OpMode == OPMODE_STA)
 #else
@@ -275,9 +273,7 @@ extern UCHAR  RateSwitchTable11N1S[];
 extern UCHAR  RateSwitchTable11N2S[];
 extern UCHAR  RateSwitchTable11N2SForABand[];
 
-#ifdef CONFIG_STA_SUPPORT
 extern UCHAR  PRE_N_HT_OUI[];
-#endif // CONFIG_STA_SUPPORT //
 #endif // DOT11_N_SUPPORT //
 
 #define	MAXSEQ		(0xFFF)
@@ -392,14 +388,12 @@ typedef struct  _QUEUE_HEADER   {
 #define RX_FILTER_CLEAR_FLAG(_pAd, _F)  ((_pAd)->CommonCfg.PacketFilter &= ~(_F))
 #define RX_FILTER_TEST_FLAG(_pAd, _F)   (((_pAd)->CommonCfg.PacketFilter & (_F)) != 0)
 
-#ifdef CONFIG_STA_SUPPORT
 #define STA_NO_SECURITY_ON(_p)          (_p->StaCfg.WepStatus == Ndis802_11EncryptionDisabled)
 #define STA_WEP_ON(_p)                  (_p->StaCfg.WepStatus == Ndis802_11Encryption1Enabled)
 #define STA_TKIP_ON(_p)                 (_p->StaCfg.WepStatus == Ndis802_11Encryption2Enabled)
 #define STA_AES_ON(_p)                  (_p->StaCfg.WepStatus == Ndis802_11Encryption3Enabled)
 
 #define STA_TGN_WIFI_ON(_p)             (_p->StaCfg.bTGnWifiTest == TRUE)
-#endif // CONFIG_STA_SUPPORT //
 
 #define CKIP_KP_ON(_p)				((((_p)->StaCfg.CkipFlag) & 0x10) && ((_p)->StaCfg.bCkipCmicOn == TRUE))
 #define CKIP_CMIC_ON(_p)			((((_p)->StaCfg.CkipFlag) & 0x08) && ((_p)->StaCfg.bCkipCmicOn == TRUE))
@@ -819,7 +813,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 //
 #define JapanChannelCheck(channel)  ((channel == 52) || (channel == 56) || (channel == 60) || (channel == 64))
 
-#ifdef CONFIG_STA_SUPPORT
 #define STA_PORT_SECURED(_pAd) \
 { \
 	_pAd->StaCfg.PortSecured = WPA_802_1X_PORT_SECURED; \
@@ -827,8 +820,6 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
 	_pAd->MacTab.Content[BSSID_WCID].PortSecured = _pAd->StaCfg.PortSecured; \
 	NdisReleaseSpinLock(&_pAd->MacTabLock); \
 }
-#endif // CONFIG_STA_SUPPORT //
-
 
 //
 // Register set pair for initialzation register set definition
@@ -1119,9 +1110,7 @@ typedef struct _CIPHER_KEY {
 	UCHAR   RxTsc[6];           // 48bit TSC value
 	UCHAR   CipherAlg;          // 0-none, 1:WEP64, 2:WEP128, 3:TKIP, 4:AES, 5:CKIP64, 6:CKIP128
 	UCHAR   KeyLen;
-#ifdef CONFIG_STA_SUPPORT
 	UCHAR   BssId[6];
-#endif // CONFIG_STA_SUPPORT //
             // Key length for each key, 0: entry is invalid
 	UCHAR   Type;               // Indicate Pairwise/Group when reporting MIC error
 } CIPHER_KEY, *PCIPHER_KEY;
@@ -1280,7 +1269,6 @@ typedef enum _ABGBAND_STATE_ {
 } ABGBAND_STATE;
 
 typedef struct _MLME_STRUCT {
-#ifdef CONFIG_STA_SUPPORT
 	// STA state machines
 	STATE_MACHINE           CntlMachine;
 	STATE_MACHINE           AssocMachine;
@@ -1296,7 +1284,6 @@ typedef struct _MLME_STRUCT {
 	STATE_MACHINE_FUNC      SyncFunc[SYNC_FUNC_SIZE];
 	STATE_MACHINE_FUNC      WpaPskFunc[WPA_PSK_FUNC_SIZE];
 	STATE_MACHINE_FUNC      AironetFunc[AIRONET_FUNC_SIZE];
-#endif // CONFIG_STA_SUPPORT //
 	STATE_MACHINE_FUNC      ActFunc[ACT_FUNC_SIZE];
 	// Action
 	STATE_MACHINE           ActMachine;
@@ -1468,13 +1455,11 @@ typedef	struct	_IOT_STRUC	{
 	UCHAR			RTSShortProt;
 	UCHAR			RTSLongProt;
 	BOOLEAN			bRTSLongProtOn;
-#ifdef CONFIG_STA_SUPPORT
 	BOOLEAN			bLastAtheros;
     BOOLEAN			bCurrentAtheros;
     BOOLEAN         bNowAtherosBurstOn;
 	BOOLEAN			bNextDisableRxBA;
     BOOLEAN			bToggle;
-#endif // CONFIG_STA_SUPPORT //
 } IOT_STRUC, *PIOT_STRUC;
 
 // This is the registry setting for 802.11n transmit setting.  Used in advanced page.
@@ -1751,9 +1736,7 @@ typedef struct _COMMON_CONFIG {
 	EDCA_PARM           APEdcaParm;         // EDCA parameters of the current associated AP
 	QBSS_LOAD_PARM      APQbssLoad;         // QBSS load of the current associated AP
 	UCHAR               AckPolicy[4];       // ACK policy of the specified AC. see ACK_xxx
-#ifdef CONFIG_STA_SUPPORT
 	BOOLEAN				bDLSCapable;		// 0:disable DLS, 1:enable DLS
-#endif // CONFIG_STA_SUPPORT //
 	// a bitmap of BOOLEAN flags. each bit represent an operation status of a particular
 	// BOOLEAN control, either ON or OFF. These flags should always be accessed via
 	// OPSTATUS_TEST_FLAG(), OPSTATUS_SET_FLAG(), OP_STATUS_CLEAR_FLAG() macros.
@@ -1834,8 +1817,6 @@ typedef struct _COMMON_CONFIG {
 #endif // MCAST_RATE_SPECIFIC //
 } COMMON_CONFIG, *PCOMMON_CONFIG;
 
-
-#ifdef CONFIG_STA_SUPPORT
 /* Modified by Wu Xi-Kun 4/21/2006 */
 // STA configuration and status
 typedef struct _STA_ADMIN_CONFIG {
@@ -2067,7 +2048,6 @@ typedef struct _STA_ACTIVE_CONFIG {
 	RT_HT_PHY_INFO		SupportedPhyInfo;
 	RT_HT_CAPABILITY	SupportedHtPhy;
 } STA_ACTIVE_CONFIG, *PSTA_ACTIVE_CONFIG;
-#endif // CONFIG_STA_SUPPORT //
 
 #ifdef RT2870
 typedef struct   RT_ADD_PAIRWISE_KEY_ENTRY {
@@ -2222,9 +2202,7 @@ typedef struct _MAC_TABLE_ENTRY {
 	UINT32			TXMCSFailed[16];
 	UINT32			TXMCSAutoFallBack[16][16];
 
-#ifdef CONFIG_STA_SUPPORT
         ULONG                   LastBeaconRxTime;
-#endif // CONFIG_STA_SUPPORT //
 } MAC_TABLE_ENTRY, *PMAC_TABLE_ENTRY;
 
 typedef struct _MAC_TABLE {
@@ -2669,7 +2647,6 @@ typedef struct _RTMP_ADAPTER
 
 
 //=======STA===========
-#ifdef CONFIG_STA_SUPPORT
 /* Modified by Wu Xi-Kun 4/21/2006 */
 	// -----------------------------------------------
 	// STA specific configuration & operation status
@@ -2679,7 +2656,6 @@ typedef struct _RTMP_ADAPTER
 	STA_ACTIVE_CONFIG       StaActive;         // valid only when ADHOC_ON(pAd) || INFRA_ON(pAd)
 	CHAR                    nickname[IW_ESSID_MAX_SIZE+1]; // nickname, only used in the iwconfig i/f
 	NDIS_MEDIA_STATE        PreMediaState;
-#endif // CONFIG_STA_SUPPORT //
 
 //=======Common===========
 	// OP mode: either AP or STA
@@ -2990,12 +2966,6 @@ typedef struct _TX_BLK_
 
 #define fTX_bClearEAPFrame		0x0100
 
-
-#ifdef CONFIG_STA_SUPPORT
-#endif // CONFIG_STA_SUPPORT //
-
-
-
 #define TX_BLK_ASSIGN_FLAG(_pTxBlk, _flag, value)	\
 		do {										\
 			if (value) 								\
@@ -3290,12 +3260,9 @@ VOID PeerPublicAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem);
 
-#ifdef CONFIG_STA_SUPPORT
 VOID StaPublicAction(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR Bss2040Coexist);
-#endif // CONFIG_STA_SUPPORT //
-
 
 VOID PeerBSSTranAction(
 	IN PRTMP_ADAPTER pAd,
@@ -3557,7 +3524,6 @@ PQUEUE_HEADER   RTMPCheckTxSwQueue(
 	IN  PRTMP_ADAPTER   pAd,
 	OUT UCHAR           *QueIdx);
 
-#ifdef CONFIG_STA_SUPPORT
 VOID RTMPReportMicError(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  PCIPHER_KEY     pWpaKey);
@@ -3571,7 +3537,6 @@ VOID    WpaDisassocApAndBlockAssoc(
     IN  PVOID FunctionContext,
     IN  PVOID SystemSpecific2,
     IN  PVOID SystemSpecific3);
-#endif // CONFIG_STA_SUPPORT //
 
 NDIS_STATUS RTMPCloneNdisPacket(
 	IN  PRTMP_ADAPTER   pAd,
@@ -3711,7 +3676,6 @@ VOID AsicRfTuningExec(
 	IN PVOID SystemSpecific2,
 	IN PVOID SystemSpecific3);
 
-#ifdef CONFIG_STA_SUPPORT
 VOID AsicSleepThenAutoWakeup(
 	IN  PRTMP_ADAPTER   pAd,
 	IN  USHORT TbttNumToNextWakeUp);
@@ -3722,7 +3686,6 @@ VOID AsicForceSleep(
 VOID AsicForceWakeup(
 	IN PRTMP_ADAPTER pAd,
 	IN BOOLEAN    bFromTx);
-#endif // CONFIG_STA_SUPPORT //
 
 VOID AsicSetBssid(
 	IN  PRTMP_ADAPTER   pAd,
@@ -4468,9 +4431,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
 	OUT PQOS_CAPABILITY_PARM pQosCapability,
 	OUT ULONG *pRalinkIe,
 	OUT UCHAR		 *pHtCapabilityLen,
-#ifdef CONFIG_STA_SUPPORT
 	OUT UCHAR		 *pPreNHtCapabilityLen,
-#endif // CONFIG_STA_SUPPORT //
 	OUT HT_CAPABILITY_IE *pHtCapability,
 	OUT UCHAR		 *AddHtInfoLen,
 	OUT ADD_HT_INFO_IE *AddHtInfo,
@@ -4709,12 +4670,10 @@ VOID    RTMPCheckRates(
 	IN OUT  UCHAR           SupRate[],
 	IN OUT  UCHAR           *SupRateLen);
 
-#ifdef CONFIG_STA_SUPPORT
 BOOLEAN RTMPCheckChannel(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR		CentralChannel,
 	IN UCHAR		Channel);
-#endif // CONFIG_STA_SUPPORT //
 
 BOOLEAN 	RTMPCheckHt(
 	IN		PRTMP_ADAPTER	pAd,
@@ -4959,13 +4918,11 @@ VOID RTMPIndicateWPA2Status(
 VOID	RTMPOPModeSwitching(
 	IN	PRTMP_ADAPTER	pAd);
 
-#ifdef CONFIG_STA_SUPPORT
 VOID    RTMPAddBSSIDCipher(
     IN  PRTMP_ADAPTER   pAd,
 	IN	UCHAR	Aid,
     IN  PNDIS_802_11_KEY    pKey,
     IN  UCHAR   CipherAlg);
-#endif // CONFIG_STA_SUPPORT //
 
 #ifdef DOT11_N_SUPPORT
 VOID	RTMPSetHT(
@@ -5892,9 +5849,6 @@ INT	Set_HtTxBASize_Proc(
 	IN	PUCHAR			arg);
 #endif // DOT11_N_SUPPORT //
 
-
-
-#ifdef CONFIG_STA_SUPPORT
 //Dls ,	kathy
 VOID RTMPSendDLSTearDownFrame(
 	IN	PRTMP_ADAPTER	pAd,
@@ -5926,10 +5880,6 @@ VOID    SendAssocIEsToWpaSupplicant(
 int wext_notify_event_assoc(
 	IN  RTMP_ADAPTER *pAd);
 #endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-
-#endif // CONFIG_STA_SUPPORT //
-
-
 
 #ifdef DOT11_N_SUPPORT
 VOID Handle_BSS_Width_Trigger_Events(
@@ -5990,8 +5940,6 @@ UINT deaggregate_AMSDU_announce(
 	IN	PUCHAR			pData,
 	IN	ULONG			DataSize);
 
-
-#ifdef CONFIG_STA_SUPPORT
 // remove LLC and get 802_3 Header
 #define  RTMP_802_11_REMOVE_LLC_AND_CONVERT_TO_802_3(_pRxBlk, _pHeader802_3)	\
 {																				\
@@ -6022,8 +5970,6 @@ UINT deaggregate_AMSDU_announce(
 	CONVERT_TO_802_3(_pHeader802_3, _pDA, _pSA, _pRxBlk->pData, 				\
 		_pRxBlk->DataSize, _pRemovedLLCSNAP);                                   \
 }
-#endif // CONFIG_STA_SUPPORT //
-
 
 BOOLEAN APFowardWirelessStaToWirelessSta(
 	IN	PRTMP_ADAPTER	pAd,
@@ -6040,13 +5986,9 @@ VOID Sta_Announce_or_Forward_802_3_Packet(
 	IN	PNDIS_PACKET	pPacket,
 	IN	UCHAR			FromWhichBSSID);
 
-
-#ifdef CONFIG_STA_SUPPORT
 #define ANNOUNCE_OR_FORWARD_802_3_PACKET(_pAd, _pPacket, _FromWhichBSS)\
 			Sta_Announce_or_Forward_802_3_Packet(_pAd, _pPacket, _FromWhichBSS);
 			//announce_802_3_packet(_pAd, _pPacket);
-#endif // CONFIG_STA_SUPPORT //
-
 
 PNDIS_PACKET DuplicatePacket(
 	IN	PRTMP_ADAPTER	pAd,
@@ -6089,8 +6031,6 @@ PNDIS_PACKET RTMPDeFragmentDataFrame(
 	IN	RX_BLK			*pRxBlk);
 
 ////////////////////////////////////////
-
-#ifdef CONFIG_STA_SUPPORT
 enum {
 	DIDmsg_lnxind_wlansniffrm		= 0x00000044,
 	DIDmsg_lnxind_wlansniffrm_hosttime	= 0x00010044,
@@ -6203,7 +6143,6 @@ struct iw_statistics *rt28xx_get_wireless_stats(
 VOID    RTMPSetDesiredRates(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  LONG            Rates);
-#endif // CONFIG_STA_SUPPORT //
 
 INT	Set_FixedTxMode_Proc(
 	IN	PRTMP_ADAPTER	pAd,
@@ -6285,13 +6224,10 @@ INT rt28xx_ioctl(
 	IN	OUT	struct ifreq	*rq,
 	IN	INT			cmd);
 
-
-#ifdef CONFIG_STA_SUPPORT
 INT rt28xx_sta_ioctl(
 	IN	struct net_device	*net_dev,
 	IN	OUT	struct ifreq	*rq,
 	IN	INT			cmd);
-#endif // CONFIG_STA_SUPPORT //
 
 BOOLEAN RT28XXSecurityKeyAdd(
 	IN		PRTMP_ADAPTER		pAd,
@@ -6818,7 +6754,6 @@ PCHAR   RTMPGetRalinkEncryModeStr(
     IN  USHORT encryMode);
 //////////////////////////////////////
 
-#ifdef CONFIG_STA_SUPPORT
 VOID AsicStaBbpTuning(
 	IN PRTMP_ADAPTER pAd);
 
@@ -6829,7 +6764,6 @@ BOOLEAN StaAddMacTableEntry(
 	IN  HT_CAPABILITY_IE	*pHtCapability,
 	IN  UCHAR				HtCapabilityLen,
 	IN  USHORT        		CapabilityInfo);
-#endif // CONFIG_STA_SUPPORT //
 
 void RTMP_IndicateMediaState(
 	IN	PRTMP_ADAPTER	pAd);
