@@ -400,10 +400,8 @@ VOID ApLogEvent(
     IN PUCHAR           pAddr,
     IN USHORT           Event);
 
-#ifdef DOT11_N_SUPPORT
 VOID APUpdateOperationMode(
     IN PRTMP_ADAPTER pAd);
-#endif // DOT11_N_SUPPORT //
 
 VOID APUpdateCapabilityAndErpIe(
 	IN PRTMP_ADAPTER pAd);

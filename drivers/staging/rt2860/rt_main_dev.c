@@ -54,10 +54,8 @@ MODULE_PARM_DESC (mac, "rt28xx: wireless mac addr");
 /*---------------------------------------------------------------------*/
 /* Prototypes of Functions Used                                        */
 /*---------------------------------------------------------------------*/
-#ifdef DOT11_N_SUPPORT
 extern BOOLEAN ba_reordering_resource_init(PRTMP_ADAPTER pAd, int num);
 extern void ba_reordering_resource_release(PRTMP_ADAPTER pAd);
-#endif // DOT11_N_SUPPORT //
 extern NDIS_STATUS NICLoadRateSwitchingParams(IN PRTMP_ADAPTER pAd);
 
 extern void init_thread_task(PRTMP_ADAPTER pAd);
@@ -294,11 +292,8 @@ int rt28xx_close(IN PNET_DEV dev)
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS);
 
-#ifdef DOT11_N_SUPPORT
 	// Free BA reorder resource
 	ba_reordering_resource_release(pAd);
-#endif // DOT11_N_SUPPORT //
-
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_START_UP);
 
@@ -313,11 +308,8 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	NDIS_STATUS				Status;
 	UINT32 		MacCsr0 = 0;
 
-
-#ifdef DOT11_N_SUPPORT
 	// Allocate BA Reordering memory
 	ba_reordering_resource_init(pAd, MAX_REORDERING_MPDU_NUM);
-#endif // DOT11_N_SUPPORT //
 
 	// Make sure MAC gets ready.
 	index = 0;
@@ -415,7 +407,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 
 
    	//Init Ba Capability parameters.
-#ifdef DOT11_N_SUPPORT
 	pAd->CommonCfg.DesiredHtPhy.MpduDensity = (UCHAR)pAd->CommonCfg.BACapability.field.MpduDensity;
 	pAd->CommonCfg.DesiredHtPhy.AmsduEnable = (USHORT)pAd->CommonCfg.BACapability.field.AmsduEnable;
 	pAd->CommonCfg.DesiredHtPhy.AmsduSize = (USHORT)pAd->CommonCfg.BACapability.field.AmsduSize;
@@ -424,7 +415,6 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	pAd->CommonCfg.HtCapability.HtCapInfo.MimoPs = (USHORT)pAd->CommonCfg.BACapability.field.MMPSmode;
 	pAd->CommonCfg.HtCapability.HtCapInfo.AMsduSize = (USHORT)pAd->CommonCfg.BACapability.field.AmsduSize;
 	pAd->CommonCfg.HtCapability.HtCapParm.MpduDensity = (UCHAR)pAd->CommonCfg.BACapability.field.MpduDensity;
-#endif // DOT11_N_SUPPORT //
 
 	printk("2. Phy Mode = %d\n", pAd->CommonCfg.PhyMode);
 
@@ -439,9 +429,7 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	TmpPhy = pAd->CommonCfg.PhyMode;
 	pAd->CommonCfg.PhyMode = 0xff;
 	RTMPSetPhyMode(pAd, TmpPhy);
-#ifdef DOT11_N_SUPPORT
 	SetCommonHT(pAd);
-#endif // DOT11_N_SUPPORT //
 
 	// No valid channels.
 	if (pAd->ChannelListNum == 0)
@@ -450,11 +438,9 @@ static int rt28xx_init(IN struct net_device *net_dev)
 		goto err4;
 	}
 
-#ifdef DOT11_N_SUPPORT
 	printk("MCS Set = %02x %02x %02x %02x %02x\n", pAd->CommonCfg.HtCapability.MCSSet[0],
            pAd->CommonCfg.HtCapability.MCSSet[1], pAd->CommonCfg.HtCapability.MCSSet[2],
            pAd->CommonCfg.HtCapability.MCSSet[3], pAd->CommonCfg.HtCapability.MCSSet[4]);
-#endif // DOT11_N_SUPPORT //
 
 #ifdef IKANOS_VX_1X0
 	VR_IKANOS_FP_Init(pAd->ApCfg.BssidNum, pAd->PermanentAddress);
@@ -501,10 +487,7 @@ err3:
 err2:
 	RTMPFreeTxRxRingMemory(pAd);
 err1:
-
-#ifdef DOT11_N_SUPPORT
 	os_free_mem(pAd, pAd->mpdu_blk_pool.mem); // free BA pool
-#endif // DOT11_N_SUPPORT //
 	RT28XX_IRQ_RELEASE(net_dev);
 
 	// shall not set ml_priv to NULL here because the ml_priv didn't been free yet.

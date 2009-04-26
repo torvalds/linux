@@ -73,13 +73,11 @@ VOID ActionStateMachineInit(
 
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_DLS_CATE, (STATE_MACHINE_FUNC)ReservedAction);
 
-#ifdef DOT11_N_SUPPORT
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_BA_CATE, (STATE_MACHINE_FUNC)PeerBAAction);
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_HT_CATE, (STATE_MACHINE_FUNC)PeerHTAction);
 	StateMachineSetAction(S, ACT_IDLE, MT2_MLME_ADD_BA_CATE, (STATE_MACHINE_FUNC)MlmeADDBAAction);
 	StateMachineSetAction(S, ACT_IDLE, MT2_MLME_ORI_DELBA_CATE, (STATE_MACHINE_FUNC)MlmeDELBAAction);
 	StateMachineSetAction(S, ACT_IDLE, MT2_MLME_REC_DELBA_CATE, (STATE_MACHINE_FUNC)MlmeDELBAAction);
-#endif // DOT11_N_SUPPORT //
 
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_PUBLIC_CATE, (STATE_MACHINE_FUNC)PeerPublicAction);
 	StateMachineSetAction(S, ACT_IDLE, MT2_PEER_RM_CATE, (STATE_MACHINE_FUNC)PeerRMAction);
@@ -89,7 +87,6 @@ VOID ActionStateMachineInit(
 	StateMachineSetAction(S, ACT_IDLE, MT2_ACT_INVALID, (STATE_MACHINE_FUNC)MlmeInvalidAction);
 }
 
-#ifdef DOT11_N_SUPPORT
 VOID MlmeADDBAAction(
     IN PRTMP_ADAPTER pAd,
     IN MLME_QUEUE_ELEM *Elem)
@@ -254,7 +251,6 @@ VOID MlmeDELBAAction(
 		DBGPRINT(RT_DEBUG_TRACE, ("BA - MlmeDELBAAction() . 3 DELBA sent. Initiator(%d)\n", pInfo->Initiator));
     	}
 }
-#endif // DOT11_N_SUPPORT //
 
 VOID MlmeQOSAction(
     IN PRTMP_ADAPTER pAd,
@@ -282,7 +278,6 @@ VOID PeerQOSAction(
 {
 }
 
-#ifdef DOT11_N_SUPPORT
 VOID PeerBAAction(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem)
@@ -302,7 +297,6 @@ VOID PeerBAAction(
 			break;
 	}
 }
-#endif // DOT11_N_SUPPORT //
 
 VOID PeerPublicAction(
 	IN PRTMP_ADAPTER pAd,
@@ -337,7 +331,6 @@ VOID PeerRMAction(
 	return;
 }
 
-#ifdef DOT11_N_SUPPORT
 static VOID respond_ht_information_exchange_action(
 	IN PRTMP_ADAPTER pAd,
 	IN MLME_QUEUE_ELEM *Elem)
@@ -547,7 +540,6 @@ VOID SendRefreshBAR(
 		}
 	}
 }
-#endif // DOT11_N_SUPPORT //
 
 VOID ActHeaderInit(
     IN	PRTMP_ADAPTER	pAd,

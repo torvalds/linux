@@ -27,12 +27,10 @@
 
 #include "rt_config.h"
 
-#ifdef DOT11_N_SUPPORT
 static void HTParametersHook(
 	IN	PRTMP_ADAPTER pAd,
 	IN	CHAR		  *pValueStr,
 	IN	CHAR		  *pInput);
-#endif // DOT11_N_SUPPORT //
 
 #define ETH_MAC_ADDR_STR_LEN 17  // in format of xx:xx:xx:xx:xx:xx
 
@@ -1009,9 +1007,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 					{
 						int value  = 0, maxPhyMode = PHY_11G;
 
-#ifdef DOT11_N_SUPPORT
 						maxPhyMode = PHY_11N_5G;
-#endif // DOT11_N_SUPPORT //
 
 						value = simple_strtol(tmpbuf, 0, 10);
 
@@ -1362,9 +1358,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 					//DefaultKeyID, KeyType, KeyStr
 					rtmp_read_key_parms_from_file(pAd, tmpbuf, buffer);
 
-#ifdef DOT11_N_SUPPORT
 					HTParametersHook(pAd, tmpbuf, buffer);
-#endif // DOT11_N_SUPPORT //
 
 					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
@@ -1481,7 +1475,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 	return (NDIS_STATUS_SUCCESS);
 }
 
-#ifdef DOT11_N_SUPPORT
 static void	HTParametersHook(
 	IN	PRTMP_ADAPTER pAd,
 	IN	CHAR		  *pValueStr,
@@ -1888,5 +1881,3 @@ static void	HTParametersHook(
 	}
 
 }
-#endif // DOT11_N_SUPPORT //
-

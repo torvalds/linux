@@ -95,9 +95,7 @@ VOID BuildChannelList(
 
 	// if not 11a-only mode, channel list starts from 2.4Ghz band
 	if ((pAd->CommonCfg.PhyMode != PHY_11A)
-#ifdef DOT11_N_SUPPORT
 		&& (pAd->CommonCfg.PhyMode != PHY_11AN_MIXED) && (pAd->CommonCfg.PhyMode != PHY_11N_5G)
-#endif // DOT11_N_SUPPORT //
 	)
 	{
 		switch (pAd->CommonCfg.CountryRegion  & 0x7f)
@@ -146,10 +144,8 @@ VOID BuildChannelList(
 	}
 
 	if ((pAd->CommonCfg.PhyMode == PHY_11A) || (pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED)
-#ifdef DOT11_N_SUPPORT
 		|| (pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED) || (pAd->CommonCfg.PhyMode == PHY_11AN_MIXED)
 		|| (pAd->CommonCfg.PhyMode == PHY_11AGN_MIXED) || (pAd->CommonCfg.PhyMode == PHY_11N_5G)
-#endif // DOT11_N_SUPPORT //
 	)
 	{
 		switch (pAd->CommonCfg.CountryRegionForABand & 0x7f)
@@ -499,9 +495,7 @@ VOID ScanNextChannel(
 		else // must be SCAN_PASSIVE or SCAN_ACTIVE
 		{
 			if ((pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED)
-#ifdef DOT11_N_SUPPORT
 				|| (pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED) || (pAd->CommonCfg.PhyMode == PHY_11AGN_MIXED)
-#endif // DOT11_N_SUPPORT //
 			)
 			{
 				if (pAd->MlmeAux.Channel > 14)
@@ -560,7 +554,6 @@ VOID ScanNextChannel(
 				FrameLen += Tmp;
 			}
 
-#ifdef DOT11_N_SUPPORT
 			if (pAd->CommonCfg.PhyMode >= PHY_11ABGN_MIXED)
 			{
 				ULONG	Tmp;
@@ -590,8 +583,6 @@ VOID ScanNextChannel(
 				}
 				FrameLen += Tmp;
 			}
-#endif // DOT11_N_SUPPORT //
-
 
 			MiniportMMRequest(pAd, 0, pOutBuffer, FrameLen);
 			MlmeFreeMemory(pAd, pOutBuffer);

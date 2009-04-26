@@ -25,8 +25,6 @@
  *************************************************************************
  */
 
-#ifdef DOT11_N_SUPPORT
-
 #include "../rt_config.h"
 
 
@@ -1768,6 +1766,3 @@ VOID Indicate_AMPDU_Packet(
 #endif
 	}
 }
-
-#endif // DOT11_N_SUPPORT //
-

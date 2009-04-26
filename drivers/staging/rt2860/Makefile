@@ -3,7 +3,6 @@ obj-$(CONFIG_RT2860)	+= rt2860sta.o
 # TODO: all of these should be removed
 EXTRA_CFLAGS += -DLINUX -DAGGREGATION_SUPPORT -DPIGGYBACK_SUPPORT -DWMM_SUPPORT
 EXTRA_CFLAGS += -DDBG
-EXTRA_CFLAGS += -DDOT11_N_SUPPORT
 
 rt2860sta-objs :=	\
 	common/md5.o		\

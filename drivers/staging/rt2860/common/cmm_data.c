@@ -534,9 +534,7 @@ NDIS_STATUS MlmeHardTransmitMgmtRing(
 	{
 		// Fixed W52 with Activity scan issue in ABG_MIXED and ABGN_MIXED mode.
 		if (pAd->CommonCfg.PhyMode == PHY_11ABG_MIXED
-#ifdef DOT11_N_SUPPORT
 			|| pAd->CommonCfg.PhyMode == PHY_11ABGN_MIXED
-#endif // DOT11_N_SUPPORT //
 		)
 		{
 			if (pAd->LatchRfRegs.Channel > 14)
@@ -713,9 +711,7 @@ static UCHAR TxPktClassification(
 	UCHAR			TxFrameType = TX_UNKOWN_FRAME;
 	UCHAR			Wcid;
 	MAC_TABLE_ENTRY	*pMacEntry = NULL;
-#ifdef DOT11_N_SUPPORT
 	BOOLEAN			bHTRate = FALSE;
-#endif // DOT11_N_SUPPORT //
 
 	Wcid = RTMP_GET_PACKET_WCID(pPacket);
 	if (Wcid == MCAST_WCID)
@@ -729,7 +725,6 @@ static UCHAR TxPktClassification(
 	{	// It's a specific packet need to force low rate, i.e., bDHCPFrame, bEAPOLFrame, bWAIFrame
 		TxFrameType = TX_LEGACY_FRAME;
 	}
-#ifdef DOT11_N_SUPPORT
 	else if (IS_HT_RATE(pMacEntry))
 	{	// it's a 11n capable packet
 
@@ -749,7 +744,6 @@ static UCHAR TxPktClassification(
 		else
 			TxFrameType = TX_LEGACY_FRAME;
 	}
-#endif // DOT11_N_SUPPORT //
 	else
 	{	// it's a legacy b/g packet.
 		if ((CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_AGGREGATION_CAPABLE) && pAd->CommonCfg.bAggregationCapable) &&
@@ -850,7 +844,7 @@ BOOLEAN RTMP_FillTxBlkInfo(
                 ((pAd->OpMode == OPMODE_AP) && (pMacEntry->MaxHTPhyMode.field.MODE == MODE_CCK) && (pMacEntry->MaxHTPhyMode.field.MCS == RATE_1)))
 			{	// Specific packet, i.e., bDHCPFrame, bEAPOLFrame, bWAIFrame, need force low rate.
 				pTxBlk->pTransmit = &pAd->MacTab.Content[MCAST_WCID].HTPhyMode;
-#ifdef DOT11_N_SUPPORT
+
 				// Modify the WMM bit for ICV issue. If we have a packet with EOSP field need to set as 1, how to handle it???
 				if (IS_HT_STA(pTxBlk->pMacEntry) &&
 					(CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_RALINK_CHIPSET)) &&
@@ -859,16 +853,13 @@ BOOLEAN RTMP_FillTxBlkInfo(
 					TX_BLK_CLEAR_FLAG(pTxBlk, fTX_bWMM);
 					TX_BLK_SET_FLAG(pTxBlk, fTX_bForceNonQoS);
 				}
-#endif // DOT11_N_SUPPORT //
 			}
 
-#ifdef DOT11_N_SUPPORT
 			if ( (IS_HT_RATE(pMacEntry) == FALSE) &&
 				(CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_PIGGYBACK_CAPABLE)))
 			{	// Currently piggy-back only support when peer is operate in b/g mode.
 				TX_BLK_SET_FLAG(pTxBlk, fTX_bPiggyBack);
 			}
-#endif // DOT11_N_SUPPORT //
 
 			if (RTMP_GET_PACKET_MOREDATA(pPacket))
 			{
@@ -1261,7 +1252,6 @@ VOID RTMPWriteTxWI(
 
 	pTxWI->NSEQ = NSeq;
 	// John tune the performace with Intel Client in 20 MHz performance
-#ifdef DOT11_N_SUPPORT
 	BASize = pAd->CommonCfg.TxBASize;
 
 	if( BASize >7 )
@@ -1269,7 +1259,6 @@ VOID RTMPWriteTxWI(
 	pTxWI->BAWinSize = BASize;
 	pTxWI->ShortGI = pTransmit->field.ShortGI;
 	pTxWI->STBC = pTransmit->field.STBC;
-#endif // DOT11_N_SUPPORT //
 
 	pTxWI->WirelessCliID = WCID;
 	pTxWI->MPDUtotalByteCount = Length;
@@ -1282,7 +1271,6 @@ VOID RTMPWriteTxWI(
 	pTxWI->PHYMODE = pTransmit->field.MODE;
 	pTxWI->CFACK = CfAck;
 
-#ifdef DOT11_N_SUPPORT
 	if (pMac)
 	{
 		if (pAd->CommonCfg.bMIMOPSEnable)
@@ -1312,7 +1300,6 @@ VOID RTMPWriteTxWI(
 			pTxWI->MpduDensity = pMac->MpduDensity;
 		}
 	}
-#endif // DOT11_N_SUPPORT //
 
 	pTxWI->PacketId = pTxWI->MCS;
 	NdisMoveMemory(pOutTxWI, &TxWI, sizeof(TXWI_STRUC));
@@ -1326,10 +1313,7 @@ VOID RTMPWriteTxWI_Data(
 {
 	HTTRANSMIT_SETTING	*pTransmit;
 	PMAC_TABLE_ENTRY	pMacEntry;
-#ifdef DOT11_N_SUPPORT
 	UCHAR				BASize;
-#endif // DOT11_N_SUPPORT //
-
 
 	ASSERT(pTxWI);
 
@@ -1355,7 +1339,6 @@ VOID RTMPWriteTxWI_Data(
 
 	// If CCK or OFDM, BW must be 20
 	pTxWI->BW = (pTransmit->field.MODE <= MODE_OFDM) ? (BW_20) : (pTransmit->field.BW);
-#ifdef DOT11_N_SUPPORT
 	pTxWI->AMPDU	= ((pTxBlk->TxFrameType == TX_AMPDU_FRAME) ? TRUE : FALSE);
 
 	// John tune the performace with Intel Client in 20 MHz performance
@@ -1372,12 +1355,10 @@ VOID RTMPWriteTxWI_Data(
 	pTxWI->BAWinSize = BASize;
 	pTxWI->ShortGI = pTransmit->field.ShortGI;
 	pTxWI->STBC = pTransmit->field.STBC;
-#endif // DOT11_N_SUPPORT //
 
 	pTxWI->MCS = pTransmit->field.MCS;
 	pTxWI->PHYMODE = pTransmit->field.MODE;
 
-#ifdef DOT11_N_SUPPORT
 	if (pMacEntry)
 	{
 		if ((pMacEntry->MmpsMode == MMPS_DYNAMIC) && (pTransmit->field.MCS > 7))
@@ -1404,7 +1385,6 @@ VOID RTMPWriteTxWI_Data(
 			pTxWI->MpduDensity = pMacEntry->MpduDensity;
 		}
 	}
-#endif // DOT11_N_SUPPORT //
 
 #ifdef DBG_DIAGNOSE
 		if (pTxBlk->QueIdx== 0)
@@ -1449,7 +1429,6 @@ VOID RTMPWriteTxWI_Cache(
 		pTxWI->PacketId = pTransmit->field.MCS;
 	}
 
-#ifdef DOT11_N_SUPPORT
 	pTxWI->AMPDU = ((pMacEntry->NoBADataCountDown == 0) ? TRUE: FALSE);
 	pTxWI->MIMOps = 0;
 
@@ -1471,7 +1450,6 @@ VOID RTMPWriteTxWI_Cache(
 			}
 		}
 	}
-#endif // DOT11_N_SUPPORT //
 
 #ifdef DBG_DIAGNOSE
 	if (pTxBlk->QueIdx== 0)
@@ -1586,12 +1564,10 @@ BOOLEAN PeerIsAggreOn(
 
 	if (pMacEntry != NULL && CLIENT_STATUS_TEST_FLAG(pMacEntry, AFlags))
 	{
-#ifdef DOT11_N_SUPPORT
 		if (pMacEntry->HTPhyMode.field.MODE >= MODE_HTMIX)
 		{
 			return TRUE;
 		}
-#endif // DOT11_N_SUPPORT //
 
 #ifdef AGGREGATION_SUPPORT
 		if (TxRate >= RATE_6 && pAd->CommonCfg.bAggregationCapable && (!(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED) && CLIENT_STATUS_TEST_FLAG(pMacEntry, fCLIENT_STATUS_WMM_CAPABLE))))
@@ -2431,11 +2407,8 @@ BOOLEAN MacTableDeleteEntry(
 			// Delete this entry from ASIC on-chip WCID Table
 			RT28XX_STA_ENTRY_MAC_RESET(pAd, wcid);
 
-#ifdef DOT11_N_SUPPORT
 			// free resources of BA
 			BASessionTearDownALL(pAd, pEntry->Aid);
-#endif // DOT11_N_SUPPORT //
-
 
 			pPrevEntry = NULL;
 			pProbeEntry = pAd->MacTab.Hash[HashIdx];
@@ -2489,9 +2462,7 @@ BOOLEAN MacTableDeleteEntry(
 	//Reset operating mode when no Sta.
 	if (pAd->MacTab.Size == 0)
 	{
-#ifdef DOT11_N_SUPPORT
 		pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode = 0;
-#endif // DOT11_N_SUPPORT //
 		AsicUpdateProtect(pAd, 0 /*pAd->CommonCfg.AddHTInfo.AddHtInfo2.OperaionMode*/, (ALLN_SETPROTECT), TRUE, 0 /*pAd->MacTab.fAnyStationNonGF*/);
 	}
 
@@ -2519,11 +2490,8 @@ VOID MacTableReset(
 		RT28XX_STA_ENTRY_MAC_RESET(pAd, i);
 		if (pAd->MacTab.Content[i].ValidAsCLI == TRUE)
 	   {
-
-#ifdef DOT11_N_SUPPORT
 			// free resources of BA
 			BASessionTearDownALL(pAd, i);
-#endif // DOT11_N_SUPPORT //
 
 			pAd->MacTab.Content[i].ValidAsCLI = FALSE;
 
@@ -2859,22 +2827,18 @@ VOID CmmRxnonRalinkFrameIndicate(
 	IN	RX_BLK			*pRxBlk,
 	IN	UCHAR			FromWhichBSSID)
 {
-#ifdef DOT11_N_SUPPORT
 	if (RX_BLK_TEST_FLAG(pRxBlk, fRX_AMPDU) && (pAd->CommonCfg.bDisableReordering == 0))
 	{
 		Indicate_AMPDU_Packet(pAd, pRxBlk, FromWhichBSSID);
 	}
 	else
-#endif // DOT11_N_SUPPORT //
 	{
-#ifdef DOT11_N_SUPPORT
 		if (RX_BLK_TEST_FLAG(pRxBlk, fRX_AMSDU))
 		{
 			// handle A-MSDU
 			Indicate_AMSDU_Packet(pAd, pRxBlk, FromWhichBSSID);
 		}
 		else
-#endif // DOT11_N_SUPPORT //
 		{
 			Indicate_Legacy_Packet(pAd, pRxBlk, FromWhichBSSID);
 		}
