@@ -383,11 +383,8 @@ VOID ScanNextChannel(
 	PHEADER_802_11  pHdr80211;
 	UINT			ScanTimeIn5gChannel = SHORT_CHANNEL_TIME;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		if (MONITOR_ON(pAd))
-			return;
-	}
+	if (MONITOR_ON(pAd))
+		return;
 
 	if (pAd->MlmeAux.Channel == 0)
 	{
@@ -411,7 +408,6 @@ VOID ScanNextChannel(
 			DBGPRINT(RT_DEBUG_TRACE, ("SYNC - End of SCAN, restore to channel %d, Total BSS[%02d]\n",pAd->CommonCfg.Channel, pAd->ScanTab.BssNr));
 		}
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			//
 			// To prevent data lost.
@@ -453,7 +449,6 @@ VOID ScanNextChannel(
 #endif // RT2870 //
 	else
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 		// BBP and RF are not accessible in PS mode, we has to wake them up first
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
@@ -467,7 +462,6 @@ VOID ScanNextChannel(
 		AsicSwitchChannel(pAd, pAd->MlmeAux.Channel, TRUE);
 		AsicLockChannel(pAd, pAd->MlmeAux.Channel);
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (pAd->MlmeAux.Channel > 14)
 			{
@@ -522,7 +516,6 @@ VOID ScanNextChannel(
 			{
 				DBGPRINT(RT_DEBUG_TRACE, ("SYNC - ScanNextChannel() allocate memory fail\n"));
 
-				IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 				{
 					pAd->Mlme.SyncMachine.CurrState = SYNC_IDLE;
 					Status = MLME_FAIL_NO_RESOURCE;
@@ -597,8 +590,7 @@ VOID ScanNextChannel(
 
 		// For SCAN_CISCO_PASSIVE, do nothing and silently wait for beacon or other probe reponse
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			pAd->Mlme.SyncMachine.CurrState = SCAN_LISTEN;
+		pAd->Mlme.SyncMachine.CurrState = SCAN_LISTEN;
 	}
 }
 

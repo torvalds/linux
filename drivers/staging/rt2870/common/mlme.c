@@ -486,7 +486,6 @@ NDIS_STATUS MlmeInit(
 		pAd->Mlme.bRunning = FALSE;
 		NdisAllocateSpinLock(&pAd->Mlme.TaskLock);
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			BssTableInit(&pAd->ScanTab);
 
@@ -657,7 +656,6 @@ VOID MlmeHalt(
 		AsicDisableSync(pAd);
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Cancel pending timers
 		RTMPCancelTimer(&pAd->MlmeAux.AssocTimer,		&Cancelled);
@@ -769,7 +767,6 @@ VOID MlmePeriodicExec(
 
 	RT28XX_MLME_PRE_SANITY_CHECK(pAd);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Do nothing if monitor mode is on
 		if (MONITOR_ON(pAd))
@@ -804,7 +801,6 @@ VOID MlmePeriodicExec(
 	if ((pAd->Mlme.PeriodicRound % 5 == 0) && RTMPAutoRateSwitchCheck(pAd)/*(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_TX_RATE_SWITCH_ENABLED))*/)
 	{
 		// perform dynamic tx rate switching based on past TX history
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 					)
@@ -889,12 +885,10 @@ VOID MlmePeriodicExec(
 			}
 		}
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			STAMlmePeriodicExec(pAd);
+		STAMlmePeriodicExec(pAd);
 
 		MlmeResetRalinkCounters(pAd);
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			{
 				// When Adhoc beacon is enabled and RTS/CTS is enabled, there is a chance that hardware MAC FSM will run into a deadlock
@@ -1400,7 +1394,6 @@ VOID MlmeSelectTxRateTable(
 			break;
 		}
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			//else if ((pAd->StaActive.SupportedPhyInfo.MCSSet[0] == 0) && (pAd->StaActive.SupportedPhyInfo.MCSSet[1] == 0))
 			if ((pEntry->HTCapability.MCSSet[0] == 0) && (pEntry->HTCapability.MCSSet[1] == 0))
@@ -2716,7 +2709,6 @@ VOID MlmeUpdateTxRates(
 
 //===========================================================================
 //===========================================================================
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		pHtPhy 		= &pAd->StaCfg.HTPhyMode;
 		pMaxHtPhy	= &pAd->StaCfg.MaxHTPhyMode;
@@ -2864,8 +2856,7 @@ VOID MlmeUpdateTxRates(
 	{
 		short dbm = 0;
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			dbm = pAd->StaCfg.RssiSample.AvgRssi0 - pAd->BbpRssiToDbmDelta;
+		dbm = pAd->StaCfg.RssiSample.AvgRssi0 - pAd->BbpRssiToDbmDelta;
 
 		if (bLinkUp == TRUE)
 			pAd->CommonCfg.TxRate = RATE_24;
@@ -3023,7 +3014,6 @@ VOID MlmeUpdateHtTxRates(
 
 	auto_rate_cur_p = NULL;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		pDesireHtPhy	= &pAd->StaCfg.DesiredHtPhyInfo;
 		pActiveHtPhy	= &pAd->StaCfg.DesiredHtPhyInfo;
@@ -3497,7 +3487,6 @@ VOID BssEntrySet(
 	else
 		pBss->QbssLoad.bValid = FALSE;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		PEID_STRUCT     pEid;
 		USHORT          Length = 0;
@@ -4294,8 +4283,7 @@ VOID MgtMacHeaderInit(
 	pHdr80211->FC.ToDs = ToDs;
 	COPY_MAC_ADDR(pHdr80211->Addr1, pDA);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		COPY_MAC_ADDR(pHdr80211->Addr2, pAd->CurrentAddress);
+	COPY_MAC_ADDR(pHdr80211->Addr2, pAd->CurrentAddress);
 
 	COPY_MAC_ADDR(pHdr80211->Addr3, pBssid);
 }
@@ -4503,7 +4491,6 @@ BOOLEAN MlmeEnqueueForRecv(
 		return FALSE;
 	}
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (!MsgTypeSubst(pAd, pFrame, &Machine, &MsgType))
 		{
@@ -4582,7 +4569,6 @@ VOID	MlmeRestartStateMachine(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeRestartStateMachine \n"));
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Cancel all timer events
 		// Be careful to cancel new added timer
@@ -4601,7 +4587,6 @@ VOID	MlmeRestartStateMachine(
 	// Resume MSDU which is turned off durning scan
 	RTMPResumeMsduTransmission(pAd);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// Set all state machines back IDLE
 		pAd->Mlme.CntlMachine.CurrState    = CNTL_IDLE;
@@ -6194,7 +6179,6 @@ VOID AsicEnableBssSync(
 	RTMP_IO_READ32(pAd, BCN_TIME_CFG, &csr.word);
 //	RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, 0x00000000);
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		csr.field.BeaconInterval = pAd->CommonCfg.BeaconPeriod << 4; // ASIC register in units of 1/16 TU
 		csr.field.bTsfTicking = 1;
@@ -6413,7 +6397,6 @@ VOID AsicSetEdcaParm(
 		Ac2Cfg.field.Cwmax = pEdcaParm->Cwmax[QID_AC_VI];
 		Ac2Cfg.field.Aifsn = pEdcaParm->Aifsn[QID_AC_VI];
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			// Tuning for Wi-Fi WMM S06
 			if (pAd->CommonCfg.bWiFiTest &&
@@ -6471,8 +6454,7 @@ VOID AsicSetEdcaParm(
 		CwminCsr.field.Cwmin1 = pEdcaParm->Cwmin[QID_AC_BK];
 		CwminCsr.field.Cwmin2 = pEdcaParm->Cwmin[QID_AC_VI];
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			CwminCsr.field.Cwmin3 = pEdcaParm->Cwmin[QID_AC_VO] - 1; //for TGn wifi test
+		CwminCsr.field.Cwmin3 = pEdcaParm->Cwmin[QID_AC_VO] - 1; //for TGn wifi test
 
 		RTMP_IO_WRITE32(pAd, WMM_CWMIN_CFG, CwminCsr.word);
 
@@ -6488,7 +6470,6 @@ VOID AsicSetEdcaParm(
 		AifsnCsr.field.Aifsn1 = Ac1Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_BK];
 		AifsnCsr.field.Aifsn2 = Ac2Cfg.field.Aifsn; //pEdcaParm->Aifsn[QID_AC_VI];
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			// Tuning for Wi-Fi WMM S06
 			if (pAd->CommonCfg.bWiFiTest &&
@@ -6508,8 +6489,7 @@ VOID AsicSetEdcaParm(
 				CLIENT_STATUS_SET_FLAG(&pAd->MacTab.Content[BSSID_WCID], fCLIENT_STATUS_WMM_CAPABLE);
 		}
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-			AifsnCsr.field.Aifsn3 = Ac3Cfg.field.Aifsn - 1; //pEdcaParm->Aifsn[QID_AC_VO]; //for TGn wifi test
+		AifsnCsr.field.Aifsn3 = Ac3Cfg.field.Aifsn - 1; //pEdcaParm->Aifsn[QID_AC_VO]; //for TGn wifi test
 
 		RTMP_IO_WRITE32(pAd, WMM_AIFSN_CFG, AifsnCsr.word);
 
@@ -6571,7 +6551,6 @@ VOID 	AsicSetSlotTime(
 
 	SlotTime = (bUseShortSlotTime)? 9 : 20;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// force using short SLOT time for FAE to demo performance when TxBurst is ON
 		if (((pAd->StaActive.SupportedPhyInfo.bHtEnable == FALSE) && (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_WMM_INUSED)))
@@ -6590,11 +6569,8 @@ VOID 	AsicSetSlotTime(
 	//
 	// ToDo: Should consider capability with 11B
 	//
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		if (pAd->StaCfg.BssType == BSS_ADHOC)
-			SlotTime = 20;
-	}
+	if (pAd->StaCfg.BssType == BSS_ADHOC)
+		SlotTime = 20;
 
 	RTMP_IO_READ32(pAd, BKOFF_SLOT_CFG, &RegValue);
 	RegValue = RegValue & 0xFFFFFF00;
@@ -7439,7 +7415,6 @@ VOID AsicEvaluateRxAnt(
 {
 	UCHAR	BBPR3 = 0;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS	|
 								fRTMP_ADAPTER_HALT_IN_PROGRESS	|
@@ -7511,7 +7486,6 @@ VOID AsicRxAntEvalTimeout(
 	UCHAR			BBPR3 = 0;
 	CHAR			larger = -127, rssi0, rssi1, rssi2;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		if (RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_RESET_IN_PROGRESS)	||
 			RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS)		||
@@ -7648,7 +7622,6 @@ BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(
 {
 	BOOLEAN		result = TRUE;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		// only associated STA counts
 		if (pEntry && (pEntry->ValidAsCLI) && (pEntry->Sst == SST_ASSOC))
@@ -7666,11 +7639,8 @@ BOOLEAN RTMPCheckEntryEnableAutoRateSwitch(
 BOOLEAN RTMPAutoRateSwitchCheck(
 	IN PRTMP_ADAPTER    pAd)
 {
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-	{
-		if (pAd->StaCfg.bAutoTxRateSwitch)
-			return TRUE;
-	}
+	if (pAd->StaCfg.bAutoTxRateSwitch)
+		return TRUE;
 
 	return FALSE;
 }
@@ -7697,7 +7667,6 @@ UCHAR RTMPStaFixedTxMode(
 {
 	UCHAR	tx_mode = FIXED_TXMODE_HT;
 
-	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 		tx_mode = (UCHAR)pAd->StaCfg.DesiredTransmitSetting.field.FixedTxMode;
 	}

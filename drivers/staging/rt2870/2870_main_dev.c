@@ -1279,10 +1279,7 @@ VOID RT2870_BssBeaconStop(
 	{
 		INT NumOfBcn;
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		{
-			NumOfBcn = MAX_MESH_NUM;
-		}
+		NumOfBcn = MAX_MESH_NUM;
 
 		RTMPCancelTimer(&pAd->CommonCfg.BeaconUpdateTimer, &Cancelled);
 
@@ -1315,10 +1312,7 @@ VOID RT2870_BssBeaconStart(
 	{
 		INT NumOfBcn;
 
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-		{
-			NumOfBcn = MAX_MESH_NUM;
-		}
+		NumOfBcn = MAX_MESH_NUM;
 
 		for(apidx=0; apidx<NumOfBcn; apidx++)
 		{

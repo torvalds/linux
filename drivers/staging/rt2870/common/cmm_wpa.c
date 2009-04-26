@@ -623,7 +623,6 @@ VOID RTMPMakeRSNIE(
 	rsnielen_ex_cur_p = NULL;
 
 	{
-		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 			if (pAd->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE)
 			{
