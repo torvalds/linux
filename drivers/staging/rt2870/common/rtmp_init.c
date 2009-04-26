@@ -1679,11 +1679,6 @@ VOID	NICReadEEPROMParameters(
 
 	RTMPReadTxPwrPerRate(pAd);
 
-#ifdef SINGLE_SKU
-	//pAd->CommonCfg.DefineMaxTxPwr = RTMP_EEPROM_READ16(pAd, EEPROM_DEFINE_MAX_TXPWR);
-	RT28xx_EEPROM_READ16(pAd, EEPROM_DEFINE_MAX_TXPWR, pAd->CommonCfg.DefineMaxTxPwr);
-#endif // SINGLE_SKU //
-
 	DBGPRINT(RT_DEBUG_TRACE, ("<-- NICReadEEPROMParameters\n"));
 }
 

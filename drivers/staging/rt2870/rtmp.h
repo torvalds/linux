@@ -1887,12 +1887,6 @@ typedef struct _COMMON_CONFIG {
 #ifdef MCAST_RATE_SPECIFIC
 	HTTRANSMIT_SETTING		MCastPhyMode;
 #endif // MCAST_RATE_SPECIFIC //
-
-#ifdef SINGLE_SKU
-	UINT16					DefineMaxTxPwr;
-#endif // SINGLE_SKU //
-
-
 } COMMON_CONFIG, *PCOMMON_CONFIG;
 
 
