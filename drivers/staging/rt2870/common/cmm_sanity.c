@@ -743,15 +743,7 @@ BOOLEAN PeerBeaconAndProbeRspSanity(
                     *LengthVIE += (pEid->Len + 2);
                 }
                 break;
-#ifdef CONFIG_STA_SUPPORT
-#ifdef EXT_BUILD_CHANNEL_LIST
-			case IE_COUNTRY:
-				Ptr = (PUCHAR) pVIE;
-                NdisMoveMemory(Ptr + *LengthVIE, &pEid->Eid, pEid->Len + 2);
-                *LengthVIE += (pEid->Len + 2);
-				break;
-#endif // EXT_BUILD_CHANNEL_LIST //
-#endif // CONFIG_STA_SUPPORT //
+
             default:
                 break;
         }

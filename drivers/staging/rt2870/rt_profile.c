@@ -950,12 +950,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 					if(RTMPGetKeyParameter("CountryCode", tmpbuf, 25, buffer))
 					{
 						NdisMoveMemory(pAd->CommonCfg.CountryCode, tmpbuf , 2);
-#ifdef CONFIG_STA_SUPPORT
-#ifdef EXT_BUILD_CHANNEL_LIST
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-							NdisMoveMemory(pAd->StaCfg.StaOriCountryCode, tmpbuf , 2);
-#endif // EXT_BUILD_CHANNEL_LIST //
-#endif // CONFIG_STA_SUPPORT //
+
 						if (strlen(pAd->CommonCfg.CountryCode) != 0)
 						{
 							pAd->CommonCfg.bCountryFlag = TRUE;
@@ -971,12 +966,6 @@ NDIS_STATUS	RTMPReadParametersHook(
 							pAd->CommonCfg.Geography = Geography;
 							pAd->CommonCfg.CountryCode[2] =
 								(pAd->CommonCfg.Geography == BOTH) ? ' ' : ((pAd->CommonCfg.Geography == IDOR) ? 'I' : 'O');
-#ifdef CONFIG_STA_SUPPORT
-#ifdef EXT_BUILD_CHANNEL_LIST
-						IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
-							pAd->StaCfg.StaOriGeography = pAd->CommonCfg.Geography;
-#endif // EXT_BUILD_CHANNEL_LIST //
-#endif // CONFIG_STA_SUPPORT //
 							DBGPRINT(RT_DEBUG_TRACE, ("ChannelGeography=%d\n", pAd->CommonCfg.Geography));
 						}
 					}
