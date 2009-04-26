@@ -234,9 +234,15 @@ extern UCHAR  WpaIe;
 extern UCHAR  Wpa2Ie;
 extern UCHAR  IbssIe;
 extern UCHAR  Ccx2Ie;
+#ifdef RT30xx
+extern UCHAR  WapiIe;
+#endif
 
 extern UCHAR  WPA_OUI[];
 extern UCHAR  RSN_OUI[];
+#ifdef RT30xx
+extern UCHAR  WAPI_OUI[];
+#endif
 extern UCHAR  WME_INFO_ELEM[];
 extern UCHAR  WME_PARM_ELEM[];
 extern UCHAR  Ccx2QosInfo[];
@@ -385,7 +391,17 @@ typedef struct  _QUEUE_HEADER   {
     (_idx) = (_idx+1) % (_RingSize);       \
 }
 
+#ifdef RT30xx
+// We will have a cost down version which mac version is 0x3090xxxx
+#define IS_RT3090(_pAd)				((((_pAd)->MACVersion & 0xffff0000) == 0x30710000) || (((_pAd)->MACVersion & 0xffff0000) == 0x30900000))
+#endif
 #define IS_RT3070(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30700000)
+#ifdef RT30xx
+#define IS_RT3071(_pAd)				(((_pAd)->MACVersion & 0xffff0000) == 0x30710000)
+#define IS_RT2070(_pAd)				(((_pAd)->RfIcType == RFIC_2020) || ((_pAd)->EFuseTag == 0x27))
+
+#define IS_RT30xx(_pAd)				(((_pAd)->MACVersion & 0xfff00000) == 0x30700000)
+#endif
 
 #define RING_PACKET_INIT(_TxRing, _idx)    \
 {                                          \
@@ -460,6 +476,11 @@ typedef struct  _QUEUE_HEADER   {
 #define BBP_IO_WRITE8_BY_REG_ID(_A, _I, _V)			RTUSBWriteBBPRegister(_A, _I, _V)
 #define BBP_IO_READ8_BY_REG_ID(_A, _I, _pV)   		RTUSBReadBBPRegister(_A, _I, _pV)
 #endif // RT2870 //
+
+#ifdef RT30xx
+#define RTMP_RF_IO_READ8_BY_REG_ID(_A, _I, _pV)    RT30xxReadRFRegister(_A, _I, _pV)
+#define RTMP_RF_IO_WRITE8_BY_REG_ID(_A, _I, _V)    RT30xxWriteRFRegister(_A, _I, _V)
+#endif // RT30xx //
 
 #define     MAP_CHANNEL_ID_TO_KHZ(ch, khz)  {               \
                 switch (ch)                                 \
@@ -717,6 +738,41 @@ typedef struct _RTMP_SCATTER_GATHER_LIST {
     MlmeEnqueueForRecv(_pAd, Wcid, High32TSF, Low32TSF, (UCHAR)_Rssi0, (UCHAR)_Rssi1,(UCHAR)_Rssi2,_FrameSize, _pFrame, (UCHAR)_PlcpSignal);   \
 }
 #endif // RT2870 //
+
+#ifdef RT30xx
+//Need to collect each ant's rssi concurrently
+//rssi1 is report to pair2 Ant and rss2 is reprot to pair1 Ant when 4 Ant
+#define COLLECT_RX_ANTENNA_AVERAGE_RSSI(_pAd, _rssi1, _rssi2)					\
+{																				\
+	SHORT	AvgRssi;															\
+	UCHAR	UsedAnt;															\
+	if (_pAd->RxAnt.EvaluatePeriod == 0)									\
+	{																		\
+		UsedAnt = _pAd->RxAnt.Pair1PrimaryRxAnt;							\
+		AvgRssi = _pAd->RxAnt.Pair1AvgRssi[UsedAnt];						\
+		if (AvgRssi < 0)													\
+			AvgRssi = AvgRssi - (AvgRssi >> 3) + _rssi1;					\
+		else																\
+			AvgRssi = _rssi1 << 3;											\
+		_pAd->RxAnt.Pair1AvgRssi[UsedAnt] = AvgRssi;						\
+	}																		\
+	else																	\
+	{																		\
+		UsedAnt = _pAd->RxAnt.Pair1SecondaryRxAnt;							\
+		AvgRssi = _pAd->RxAnt.Pair1AvgRssi[UsedAnt];						\
+		if ((AvgRssi < 0) && (_pAd->RxAnt.FirstPktArrivedWhenEvaluate))		\
+			AvgRssi = AvgRssi - (AvgRssi >> 3) + _rssi1;					\
+		else																\
+		{																	\
+			_pAd->RxAnt.FirstPktArrivedWhenEvaluate = TRUE;					\
+			AvgRssi = _rssi1 << 3;											\
+		}																	\
+		_pAd->RxAnt.Pair1AvgRssi[UsedAnt] = AvgRssi;						\
+		_pAd->RxAnt.RcvPktNumWhenEvaluate++;								\
+	}																		\
+}
+#endif // RT30xx //
+
 
 #define NDIS_QUERY_BUFFER(_NdisBuf, _ppVA, _pBufLen)                    \
     NdisQueryBuffer(_NdisBuf, _ppVA, _pBufLen)
@@ -1042,6 +1098,9 @@ typedef struct _BBP_TUNING_STRUCT {
 
 typedef struct _SOFT_RX_ANT_DIVERSITY_STRUCT {
 	UCHAR     EvaluatePeriod;		 // 0:not evalute status, 1: evaluate status, 2: switching status
+#ifdef RT30xx
+	UCHAR     EvaluateStableCnt;
+#endif
 	UCHAR     Pair1PrimaryRxAnt;     // 0:Ant-E1, 1:Ant-E2
 	UCHAR     Pair1SecondaryRxAnt;   // 0:Ant-E1, 1:Ant-E2
 	UCHAR     Pair2PrimaryRxAnt;     // 0:Ant-E3, 1:Ant-E4
@@ -1639,6 +1698,9 @@ typedef struct _COMMON_CONFIG {
 
 	BOOLEAN				NdisRadioStateOff; //For HCT 12.0, set this flag to TRUE instead of called MlmeRadioOff.
 	ABGBAND_STATE		BandState;		// For setting BBP used on B/G or A mode.
+#ifdef RT30xx
+	BOOLEAN				bRxAntDiversity; // 0:disable, 1:enable Software Rx Antenna Diversity.
+#endif
 
 	// IEEE802.11H--DFS.
 	RADAR_DETECT_STRUCT	RadarDetect;
@@ -2402,6 +2464,10 @@ typedef struct _RTMP_ADAPTER
 	ULONG                   EepromVersion;          // byte 0: version, byte 1: revision, byte 2~3: unused
 	UCHAR                   EEPROMAddressNum;       // 93c46=6  93c66=8
 	USHORT                  EEPROMDefaultValue[NUM_EEPROM_BBP_PARMS];
+#ifdef RT30xx
+	BOOLEAN                 EepromAccess;
+	UCHAR                   EFuseTag;
+#endif
 	ULONG                   FirmwareVersion;        // byte 0: Minor version, byte 1: Major version, otherwise unused.
 
 	// ---------------------------
@@ -2678,6 +2744,13 @@ typedef struct _RTMP_ADAPTER
 
 
 	UINT8					PM_FlgSuspend;
+
+#ifdef RT30xx
+//======efuse
+	BOOLEAN		bUseEfuse;
+	BOOLEAN		bEEPROMFile;
+#endif // RT30xx //
+
 } RTMP_ADAPTER, *PRTMP_ADAPTER;
 
 //
@@ -4532,6 +4605,12 @@ CHAR RTMPMaxRssi(
 	IN CHAR				Rssi1,
 	IN CHAR				Rssi2);
 
+#ifdef RT30xx
+VOID AsicSetRxAnt(
+	IN PRTMP_ADAPTER	pAd,
+	IN UCHAR			Ant);
+#endif
+
 VOID AsicEvaluateRxAnt(
 	IN PRTMP_ADAPTER	pAd);
 
@@ -5205,6 +5284,10 @@ VOID	RTMPSendTriggerFrame(
 	IN  UCHAR           TxRate,
 	IN	BOOLEAN			bQosNull);
 
+#ifdef RT30xx
+VOID RTMPFilterCalibration(
+	IN PRTMP_ADAPTER pAd);
+#endif // RT30xx //
 
 /* timeout -- ms */
 VOID RTMP_SetPeriodicTimer(
@@ -6053,6 +6136,109 @@ VOID AsicTurnOnRFClk(
 	IN PRTMP_ADAPTER 	pAd,
 	IN	UCHAR			Channel);
 
+#ifdef RT30xx
+NTSTATUS RT30xxWriteRFRegister(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	UCHAR			RegID,
+	IN	UCHAR			Value);
+
+NTSTATUS RT30xxReadRFRegister(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	UCHAR			RegID,
+	IN	PUCHAR			pValue);
+
+//2008/09/11:KH add to support efuse<--
+UCHAR eFuseReadRegisters(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT Offset,
+	IN	USHORT Length,
+	OUT	USHORT* pData);
+
+VOID eFuseReadPhysical(
+	IN	PRTMP_ADAPTER	pAd,
+  	IN	PUSHORT lpInBuffer,
+  	IN	ULONG nInBufferSize,
+  	OUT	PUSHORT lpOutBuffer,
+  	IN	ULONG nOutBufferSize
+);
+
+NTSTATUS eFuseRead(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT			Offset,
+	OUT	PUCHAR			pData,
+	IN	USHORT			Length);
+
+VOID eFusePhysicalWriteRegisters(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT Offset,
+	IN	USHORT Length,
+	OUT	USHORT* pData);
+
+NTSTATUS eFuseWriteRegisters(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT Offset,
+	IN	USHORT Length,
+	IN	USHORT* pData);
+
+VOID eFuseWritePhysical(
+	IN	PRTMP_ADAPTER	pAd,
+  	PUSHORT lpInBuffer,
+	ULONG nInBufferSize,
+  	PUCHAR lpOutBuffer,
+  	ULONG nOutBufferSize
+);
+
+NTSTATUS eFuseWrite(
+   	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT			Offset,
+	IN	PUCHAR			pData,
+	IN	USHORT			length);
+
+INT set_eFuseGetFreeBlockCount_Proc(
+   	IN	PRTMP_ADAPTER	pAd,
+	IN	PUCHAR			arg);
+
+INT set_eFusedump_Proc(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	PUCHAR			arg);
+
+INT set_eFuseLoadFromBin_Proc(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	PUCHAR			arg);
+
+NTSTATUS eFuseWriteRegistersFromBin(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT Offset,
+	IN	USHORT Length,
+	IN	USHORT* pData);
+
+VOID eFusePhysicalReadRegisters(
+	IN	PRTMP_ADAPTER	pAd,
+	IN	USHORT Offset,
+	IN	USHORT Length,
+	OUT	USHORT* pData);
+
+NDIS_STATUS NICLoadEEPROM(
+	IN PRTMP_ADAPTER pAd);
+
+BOOLEAN bNeedLoadEEPROM(
+	IN	PRTMP_ADAPTER	pAd);
+//2008/09/11:KH add to support efuse-->
+#endif // RT30xx //
+
+#ifdef RT30xx
+// add by johnli, RF power sequence setup
+VOID RT30xxLoadRFNormalModeSetup(
+	IN PRTMP_ADAPTER 	pAd);
+
+VOID RT30xxLoadRFSleepModeSetup(
+	IN PRTMP_ADAPTER 	pAd);
+
+VOID RT30xxReverseRFSleepModeSetup(
+	IN PRTMP_ADAPTER 	pAd);
+// end johnli
+#endif // RT30xx //
+
 #ifdef RT2870
 //
 // Function Prototype in rtusb_bulk.c
@@ -6157,6 +6343,7 @@ NTSTATUS RTUSBWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UINT32			Value);
 
+#ifndef RT30xx
 NTSTATUS	RT30xxWriteRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
@@ -6166,6 +6353,7 @@ NTSTATUS	RT30xxReadRFRegister(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	UCHAR			RegID,
 	IN	PUCHAR			pValue);
+#endif
 
 NTSTATUS RTUSB_VendorRequest(
 	IN	PRTMP_ADAPTER	pAd,

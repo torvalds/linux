@@ -140,7 +140,11 @@
 #define MAX_PACKETS_IN_PS_QUEUE				128	//32
 #define WMM_NUM_OF_AC                       4  /* AC0, AC1, AC2, and AC3 */
 
-
+#ifdef RT30xx
+//2008/09/11:KH add to support efuse<--
+#define MAX_EEPROM_BIN_FILE_SIZE					1024
+//2008/09/11:KH add to support efuse-->
+#endif
 
 // RxFilter
 #define STANORMAL	 0x17f97
@@ -298,6 +302,12 @@
 #define MAX_APCLI_NUM				0
 
 #define MAX_MBSSID_NUM				1
+#ifdef RT30xx
+#ifdef MBSS_SUPPORT
+#undef	MAX_MBSSID_NUM
+#define MAX_MBSSID_NUM				(8 - MAX_MESH_NUM - MAX_APCLI_NUM)
+#endif // MBSS_SUPPORT //
+#endif
 
 /* sanity check for apidx */
 #define MBSS_MR_APIDX_SANITY_CHECK(apidx) \
@@ -588,6 +598,11 @@
 #define AP_SYNC_STATE_MACHINE           14
 #define AP_CNTL_STATE_MACHINE           15
 #define AP_WPA_STATE_MACHINE            16
+
+#ifdef RT30xx
+#define WSC_STATE_MACHINE            17
+#define WSC_UPNP_STATE_MACHINE		    18
+#endif
 
 //
 // STA's CONTROL/CONNECT state machine: states, events, total function #
@@ -1175,6 +1190,10 @@
 #define RFIC_2750                   4       // 2.4G/5G 1T2R
 #define RFIC_3020                   5       // 2.4G 1T1R
 #define RFIC_2020                   6       // 2.4G B/G
+#ifdef RT30xx
+#define RFIC_3021                   7       // 2.4G 1T2R
+#define RFIC_3022                   8       // 2.4G 2T2R
+#endif
 
 // LED Status.
 #define LED_LINK_DOWN               0

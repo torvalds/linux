@@ -346,6 +346,7 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	} while (index++ < 100);
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MAC_CSR0  [ Ver:Rev=0x%08x]\n", pAd->MACVersion));
+/*Iverson patch PCIE L1 issue */
 
 	// Disable DMA
 	RT28XXDMADisable(pAd);
@@ -485,8 +486,10 @@ static int rt28xx_init(IN struct net_device *net_dev)
 	AsicSwitchChannel(pAd, pAd->CommonCfg.Channel, FALSE);
 	AsicLockChannel(pAd, pAd->CommonCfg.Channel);
 
+#ifndef RT30xx
 	// 8051 firmware require the signal during booting time.
 	AsicSendCommandToMcu(pAd, 0x72, 0xFF, 0x00, 0x00);
+#endif
 
 	if (pAd && (Status != NDIS_STATUS_SUCCESS))
 	{

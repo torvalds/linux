@@ -524,7 +524,12 @@ static CH_REGION ChRegion[] =
 			JAP,
 			{
 				{ 1,   14,  20, BOTH, FALSE},	// 2.4 G, ch 1~14
+#ifndef RT30xx
 				{ 36, 	4,  23, IDOR, FALSE},	// 5G, ch 36~48
+#endif
+#ifdef RT30xx
+				{ 34, 	4,  23, IDOR, FALSE},	// 5G, ch 34~46
+#endif
 				{ 0},							// end
 			}
 		},

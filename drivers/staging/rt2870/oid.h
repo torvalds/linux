@@ -534,8 +534,10 @@ typedef enum _NDIS_802_11_WEP_STATUS
     Ndis802_11Encryption3KeyAbsent,
     Ndis802_11Encryption4Enabled,	// TKIP or AES mix
     Ndis802_11Encryption4KeyAbsent,
+#ifndef RT30xx
     Ndis802_11GroupWEP40Enabled,
 	Ndis802_11GroupWEP104Enabled,
+#endif
 } NDIS_802_11_WEP_STATUS, *PNDIS_802_11_WEP_STATUS,
   NDIS_802_11_ENCRYPTION_STATUS, *PNDIS_802_11_ENCRYPTION_STATUS;
 
@@ -630,11 +632,17 @@ typedef struct _NDIS_802_11_CAPABILITY
 #define SIOCIWFIRSTPRIV								SIOCDEVPRIVATE
 #endif
 
+#ifdef RT30xx
+#define RT_PRIV_IOCTL_EXT							(SIOCIWFIRSTPRIV + 0x01) // Sync. with AP for wsc upnp daemon
+#endif
 #define RTPRIV_IOCTL_SET							(SIOCIWFIRSTPRIV + 0x02)
 
 #ifdef DBG
 #define RTPRIV_IOCTL_BBP                            (SIOCIWFIRSTPRIV + 0x03)
 #define RTPRIV_IOCTL_MAC                            (SIOCIWFIRSTPRIV + 0x05)
+#ifdef RT30xx
+#define RTPRIV_IOCTL_RF                             (SIOCIWFIRSTPRIV + 0x13)
+#endif
 #define RTPRIV_IOCTL_E2P                            (SIOCIWFIRSTPRIV + 0x07)
 #endif
 
@@ -658,7 +666,9 @@ enum {
     RAIO_OFF = 10,
     RAIO_ON = 11,
 	SHOW_CFG_VALUE = 20,
+#ifndef RT30xx
 	SHOW_ADHOC_ENTRY_INFO = 21,
+#endif
 };
 
 #define OID_802_11_BUILD_CHANNEL_EX				0x0714
@@ -666,10 +676,41 @@ enum {
 #define OID_802_11_GET_COUNTRY_CODE				0x0716
 #define OID_802_11_GET_CHANNEL_GEOGRAPHY		0x0717
 
+#ifdef RT30xx
+#define RT_OID_WSC_SET_PASSPHRASE                   0x0740 // passphrase for wpa(2)-psk
+#define RT_OID_WSC_DRIVER_AUTO_CONNECT              0x0741
+#define RT_OID_WSC_QUERY_DEFAULT_PROFILE            0x0742
+#define RT_OID_WSC_SET_CONN_BY_PROFILE_INDEX        0x0743
+#define RT_OID_WSC_SET_ACTION                       0x0744
+#define RT_OID_WSC_SET_SSID                         0x0745
+#define RT_OID_WSC_SET_PIN_CODE                     0x0746
+#define RT_OID_WSC_SET_MODE                         0x0747 // PIN or PBC
+#define RT_OID_WSC_SET_CONF_MODE                    0x0748 // Enrollee or Registrar
+#define RT_OID_WSC_SET_PROFILE                      0x0749
+
+#define RT_OID_802_11_WSC_QUERY_PROFILE				0x0750
+// for consistency with RT61
+#define RT_OID_WSC_QUERY_STATUS						0x0751
+#define RT_OID_WSC_PIN_CODE							0x0752
+#define RT_OID_WSC_UUID								0x0753
+#define RT_OID_WSC_SET_SELECTED_REGISTRAR			0x0754
+#define RT_OID_WSC_EAPMSG							0x0755
+#define RT_OID_WSC_MANUFACTURER						0x0756
+#define RT_OID_WSC_MODEL_NAME						0x0757
+#define RT_OID_WSC_MODEL_NO							0x0758
+#define RT_OID_WSC_SERIAL_NO						0x0759
+#define RT_OID_WSC_MAC_ADDRESS						0x0760
+#endif
+
 #ifdef LLTD_SUPPORT
 // for consistency with RT61
 #define RT_OID_GET_PHY_MODE                         0x761
 #endif // LLTD_SUPPORT //
+
+#ifdef RT30xx
+// New for MeetingHouse Api support
+#define OID_MH_802_1X_SUPPORTED               0xFFEDC100
+#endif
 
 // MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition!!!
 typedef union  _HTTRANSMIT_SETTING {

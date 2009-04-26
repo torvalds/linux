@@ -234,7 +234,12 @@ INT MlmeThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
+#ifndef RT30xx
 	pObj->MLMEThr_task = NULL;
+#endif
+#ifdef RT30xx
+	pObj->MLMEThr_pid = NULL;
+#endif
 
 	complete_and_exit (&pAd->mlmeComplete, 0);
 	return 0;
@@ -342,7 +347,12 @@ INT RTUSBCmdThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---RTUSBCmdThread\n"));
 
+#ifndef RT30xx
 	pObj->RTUSBCmdThr_task = NULL;
+#endif
+#ifdef RT30xx
+	pObj->RTUSBCmdThr_pid = NULL;
+#endif
 
 	complete_and_exit (&pAd->CmdQComplete, 0);
 	return 0;
@@ -436,8 +446,12 @@ INT TimerQThread(
 	 */
 	DBGPRINT(RT_DEBUG_TRACE,( "<---%s\n",__func__));
 
+#ifndef RT30xx
 	pObj->TimerQThr_task = NULL;
-
+#endif
+#ifdef RT30xx
+	pObj->TimerQThr_pid = NULL;
+#endif
 	complete_and_exit(&pAd->TimerQComplete, 0);
 	return 0;
 
@@ -605,6 +619,7 @@ VOID RT2870_WatchDog(IN RTMP_ADAPTER *pAd)
 		RTMP_IO_WRITE32(pAd, PBF_CFG, 0xf40006);
 	}
 
+//PS packets use HCCA queue when dequeue from PS unicast queue (WiFi WPA2 MA9_DT1 for Marvell B STA)
 	idx = 0;
 	if ((MACValue & 0xff00) !=0 )
 	{
@@ -617,7 +632,6 @@ VOID RT2870_WatchDog(IN RTMP_ADAPTER *pAd)
 		}
 		RTMP_IO_WRITE32(pAd, PBF_CFG, 0xf40006);
 	}
-
 
 	if (pAd->watchDogRxOverFlowCnt >= 2)
 	{
@@ -868,6 +882,7 @@ VOID RT28xxThreadTerminate(
 	RTUSBCancelPendingIRPs(pAd);
 
 	// Terminate Threads
+#ifndef RT30xx
 	BUG_ON(pObj->TimerQThr_task == NULL);
 	CHECK_PID_LEGALITY(task_pid(pObj->TimerQThr_task))
 	{
@@ -909,7 +924,72 @@ VOID RT28xxThreadTerminate(
 		kthread_stop(pObj->RTUSBCmdThr_task);
 		pObj->RTUSBCmdThr_task = NULL;
 	}
+#endif
+#ifdef RT30xx
+	if (pObj->MLMEThr_pid)
+	{
+		printk("Terminate the MLMEThr_pid=%d!\n", pid_nr(pObj->MLMEThr_pid));
+		mb();
+		pAd->mlme_kill = 1;
+		//RT28XX_MLME_HANDLER(pAd);
+		mb();
+		ret = kill_pid(pObj->MLMEThr_pid, SIGTERM, 1);
+		if (ret)
+		{
+			printk (KERN_WARNING "%s: unable to Mlme thread, pid=%d, ret=%d!\n",
+					pAd->net_dev->name, pid_nr(pObj->MLMEThr_pid), ret);
+		}
+		else
+		{
+			//wait_for_completion (&pAd->notify);
+			wait_for_completion (&pAd->mlmeComplete);
+			pObj->MLMEThr_pid = NULL;
+		}
+	}
 
+	if (pObj->RTUSBCmdThr_pid >= 0)
+	{
+		printk("Terminate the RTUSBCmdThr_pid=%d!\n", pid_nr(pObj->RTUSBCmdThr_pid));
+		mb();
+		NdisAcquireSpinLock(&pAd->CmdQLock);
+		pAd->CmdQ.CmdQState = RT2870_THREAD_STOPED;
+		NdisReleaseSpinLock(&pAd->CmdQLock);
+		mb();
+		//RTUSBCMDUp(pAd);
+		ret = kill_pid(pObj->RTUSBCmdThr_pid, SIGTERM, 1);
+		if (ret)
+		{
+			printk(KERN_WARNING "%s: unable to RTUSBCmd thread, pid=%d, ret=%d!\n",
+					pAd->net_dev->name, pid_nr(pObj->RTUSBCmdThr_pid), ret);
+	}
+		else
+		{
+			//wait_for_completion (&pAd->notify);
+			wait_for_completion (&pAd->CmdQComplete);
+			pObj->RTUSBCmdThr_pid = NULL;
+		}
+	}
+	if (pObj->TimerQThr_pid >= 0)
+	{
+		POS_COOKIE pObj = (POS_COOKIE)pAd->OS_Cookie;
+		printk("Terminate the TimerQThr_pid=%d!\n", pid_nr(pObj->TimerQThr_pid));
+		mb();
+		pAd->TimerFunc_kill = 1;
+		mb();
+		ret = kill_pid(pObj->TimerQThr_pid, SIGTERM, 1);
+		if (ret)
+		{
+			printk(KERN_WARNING "%s: unable to stop TimerQThread, pid=%d, ret=%d!\n",
+					pAd->net_dev->name, pid_nr(pObj->TimerQThr_pid), ret);
+		}
+		else
+		{
+			printk("wait_for_completion TimerQThr\n");
+			wait_for_completion(&pAd->TimerQComplete);
+			pObj->TimerQThr_pid = NULL;
+		}
+	}
+#endif
 
 	// Kill tasklets
 	pAd->mlme_kill = 0;
@@ -964,7 +1044,12 @@ BOOLEAN RT28XXChipsetCheck(
 		if (dev_p->descriptor.idVendor == rtusb_usb_id[i].idVendor &&
 			dev_p->descriptor.idProduct == rtusb_usb_id[i].idProduct)
 		{
+#ifndef RT30xx
 			printk(KERN_DEBUG "rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
+#endif
+#ifdef RT30xx
+			printk("rt2870: idVendor = 0x%x, idProduct = 0x%x\n",
+#endif
 					dev_p->descriptor.idVendor, dev_p->descriptor.idProduct);
 			break;
 		}
@@ -1262,6 +1347,8 @@ VOID RT28xx_UpdateBeaconToAsic(
 		}
 
 		pBeaconSync->BeaconBitMap |= (1 << bcn_idx);
+
+		// For AP interface, set the DtimBitOn so that we can send Bcast/Mcast frame out after this beacon frame.
 	}
 
 }

@@ -87,9 +87,10 @@ struct iw_priv_args privtab[] = {
 	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "radio_on" },
 	{ SHOW_CFG_VALUE,
 	  IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "show" },
+#ifndef RT30xx
 	{ SHOW_ADHOC_ENTRY_INFO,
 	  0, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, "adhocEntry" },
-
+#endif
 /* --- sub-ioctls relations --- */
 
 #ifdef DBG
@@ -99,6 +100,11 @@ struct iw_priv_args privtab[] = {
 { RTPRIV_IOCTL_MAC,
   IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | 1024,
   "mac"},
+#ifdef RT30xx
+{ RTPRIV_IOCTL_RF,
+  IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK, IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_MASK,
+  "rf"},
+#endif // RT30xx //
 { RTPRIV_IOCTL_E2P,
   IW_PRIV_TYPE_CHAR | 1024, IW_PRIV_TYPE_CHAR | 1024,
   "e2p"},
@@ -168,9 +174,11 @@ INT Set_Wpa_Support(
 	IN	PUCHAR			arg);
 
 #ifdef DBG
+#ifndef RT30xx
 VOID RTMPIoctlBBP(
 	IN	PRTMP_ADAPTER	pAdapter,
 	IN	struct iwreq	*wrq);
+#endif
 
 VOID RTMPIoctlMAC(
 	IN	PRTMP_ADAPTER	pAdapter,
@@ -179,6 +187,12 @@ VOID RTMPIoctlMAC(
 VOID RTMPIoctlE2PROM(
     IN  PRTMP_ADAPTER   pAdapter,
     IN  struct iwreq    *wrq);
+
+#ifdef RT30xx
+VOID RTMPIoctlRF(
+    IN  PRTMP_ADAPTER   pAdapter,
+    IN  struct iwreq    *wrq);
+#endif // RT30xx //
 #endif // DBG //
 
 
@@ -202,9 +216,11 @@ INT Set_ShortRetryLimit_Proc(
 	IN	PRTMP_ADAPTER	pAdapter,
 	IN	PUCHAR			arg);
 
+#ifndef RT30xx
 INT	Show_Adhoc_MacTable_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PCHAR			extra);
+#endif
 
 static struct {
 	CHAR *name;
@@ -263,6 +279,13 @@ static struct {
     {"ForceGF",		        		Set_ForceGF_Proc},
 	{"LongRetry",	        		Set_LongRetryLimit_Proc},
 	{"ShortRetry",	        		Set_ShortRetryLimit_Proc},
+//2008/09/11:KH add to support efuse<--
+#ifdef RT30xx
+	{"efuseFreeNumber",				set_eFuseGetFreeBlockCount_Proc},
+	{"efuseDump",					set_eFusedump_Proc},
+	{"efuseLoadFromBin",				set_eFuseLoadFromBin_Proc},
+#endif // RT30xx //
+//2008/09/11:KH add to support efuse-->
 	{NULL,}
 };
 
@@ -533,7 +556,12 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 		   struct iw_freq *freq, char *extra)
 {
     VIRTUAL_ADAPTER *pVirtualAd = NULL;
+#ifndef RT30xx
 	PRTMP_ADAPTER pAdapter = NULL;
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter;
+#endif
 	UCHAR ch;
 	ULONG	m;
 
@@ -544,7 +572,9 @@ int rt_ioctl_giwfreq(struct net_device *dev,
 	else
 	{
 		pVirtualAd = dev->ml_priv;
+#ifndef RT30xx
 		if (pVirtualAd && pVirtualAd->RtmpDev)
+#endif
 			pAdapter = pVirtualAd->RtmpDev->ml_priv;
 	}
 
@@ -604,6 +634,7 @@ int rt_ioctl_giwmode(struct net_device *dev,
 		   struct iw_request_info *info,
 		   __u32 *mode, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -624,6 +655,10 @@ int rt_ioctl_giwmode(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	if (ADHOC_ON(pAdapter))
 		*mode = IW_MODE_ADHOC;
@@ -667,12 +702,18 @@ int rt_ioctl_giwrange(struct net_device *dev,
 		   struct iw_request_info *info,
 		   struct iw_point *data, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 	struct iw_range *range = (struct iw_range *) extra;
 	u16 val;
 	int i;
 
+#ifndef RT30xx
 	if (dev->priv_flags == INT_MAIN)
 	{
 		pAdapter = dev->ml_priv;
@@ -690,6 +731,7 @@ int rt_ioctl_giwrange(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
 
 	DBGPRINT(RT_DEBUG_TRACE ,("===>rt_ioctl_giwrange\n"));
 	data->length = sizeof(struct iw_range);
@@ -809,6 +851,7 @@ int rt_ioctl_giwap(struct net_device *dev,
 		      struct iw_request_info *info,
 		      struct sockaddr *ap_addr, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -829,6 +872,10 @@ int rt_ioctl_giwap(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	if (INFRA_ON(pAdapter) || ADHOC_ON(pAdapter))
 	{
@@ -1066,6 +1113,87 @@ int rt_ioctl_giwscan(struct net_device *dev,
 
         previous_ev = current_ev;
 		current_ev = iwe_stream_add_event(info, current_ev,end_buf, &iwe, IW_EV_ADDR_LEN);
+#ifdef RT30xx
+        if (current_ev == previous_ev)
+#if WIRELESS_EXT >= 17
+            return -E2BIG;
+#else
+			break;
+#endif
+
+		/*
+		Protocol:
+			it will show scanned AP's WirelessMode .
+			it might be
+					802.11a
+					802.11a/n
+					802.11g/n
+					802.11b/g/n
+					802.11g
+					802.11b/g
+		*/
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = SIOCGIWNAME;
+
+
+	{
+		PBSS_ENTRY pBssEntry=&pAdapter->ScanTab.BssEntry[i];
+		BOOLEAN isGonly=FALSE;
+		int rateCnt=0;
+
+		if (pBssEntry->Channel>14)
+		{
+			if (pBssEntry->HtCapabilityLen!=0)
+				strcpy(iwe.u.name,"802.11a/n");
+			else
+				strcpy(iwe.u.name,"802.11a");
+		}
+		else
+		{
+			/*
+				if one of non B mode rate is set supported rate . it mean G only.
+			*/
+			for (rateCnt=0;rateCnt<pBssEntry->SupRateLen;rateCnt++)
+			{
+				/*
+					6Mbps(140) 9Mbps(146) and >=12Mbps(152) are supported rate , it mean G only.
+				*/
+				if (pBssEntry->SupRate[rateCnt]==140 || pBssEntry->SupRate[rateCnt]==146 || pBssEntry->SupRate[rateCnt]>=152)
+					isGonly=TRUE;
+			}
+
+			for (rateCnt=0;rateCnt<pBssEntry->ExtRateLen;rateCnt++)
+			{
+				if (pBssEntry->ExtRate[rateCnt]==140 || pBssEntry->ExtRate[rateCnt]==146 || pBssEntry->ExtRate[rateCnt]>=152)
+					isGonly=TRUE;
+			}
+
+
+			if (pBssEntry->HtCapabilityLen!=0)
+			{
+				if (isGonly==TRUE)
+					strcpy(iwe.u.name,"802.11g/n");
+				else
+					strcpy(iwe.u.name,"802.11b/g/n");
+			}
+			else
+			{
+				if (isGonly==TRUE)
+					strcpy(iwe.u.name,"802.11g");
+				else
+				{
+					if (pBssEntry->SupRateLen==4 && pBssEntry->ExtRateLen==0)
+						strcpy(iwe.u.name,"802.11b");
+					else
+						strcpy(iwe.u.name,"802.11b/g");
+				}
+			}
+		}
+	}
+
+		previous_ev = current_ev;
+		current_ev	 = iwe_stream_add_event(info, current_ev, end_buf, &iwe, IW_EV_ADDR_LEN);
+#endif /* RT30xx */
         if (current_ev == previous_ev)
 #if WIRELESS_EXT >= 17
             return -E2BIG;
@@ -1335,6 +1463,7 @@ int rt_ioctl_giwessid(struct net_device *dev,
 			 struct iw_request_info *info,
 			 struct iw_point *data, char *essid)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1355,6 +1484,10 @@ int rt_ioctl_giwessid(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	data->flags = 1;
     if (MONITOR_ON(pAdapter))
@@ -1414,6 +1547,7 @@ int rt_ioctl_giwnickn(struct net_device *dev,
 			 struct iw_request_info *info,
 			 struct iw_point *data, char *nickname)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1434,6 +1568,10 @@ int rt_ioctl_giwnickn(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	if (data->length > strlen(pAdapter->nickname) + 1)
 		data->length = strlen(pAdapter->nickname) + 1;
@@ -1477,6 +1615,7 @@ int rt_ioctl_giwrts(struct net_device *dev,
 		       struct iw_request_info *info,
 		       struct iw_param *rts, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1497,6 +1636,10 @@ int rt_ioctl_giwrts(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	//check if the interface is down
 	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1543,6 +1686,7 @@ int rt_ioctl_giwfrag(struct net_device *dev,
 			struct iw_request_info *info,
 			struct iw_param *frag, char *extra)
 {
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1563,6 +1707,10 @@ int rt_ioctl_giwfrag(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 
 	//check if the interface is down
 	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -1603,8 +1751,13 @@ int rt_ioctl_siwencode(struct net_device *dev,
         pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
         goto done;
 	}
+#ifndef RT30xx
 	else if ((erq->length == 0) &&
              (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN))
+#endif
+#ifdef RT30xx
+	else if (erq->flags & IW_ENCODE_RESTRICTED || erq->flags & IW_ENCODE_OPEN)
+#endif
 	{
 		STA_PORT_SECURED(pAdapter);
 		pAdapter->StaCfg.PairCipher = Ndis802_11WEPEnabled;
@@ -1615,14 +1768,17 @@ int rt_ioctl_siwencode(struct net_device *dev,
 			pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeShared;
     	else
 			pAdapter->StaCfg.AuthMode = Ndis802_11AuthModeOpen;
+#ifndef RT30xx
         goto done;
+#endif
 	}
 
     if (erq->length > 0)
 	{
 		int keyIdx = (erq->flags & IW_ENCODE_INDEX) - 1;
 		/* Check the size of the key */
-		if (erq->length > MAX_WEP_KEY_SIZE) {
+		if (erq->length > MAX_WEP_KEY_SIZE)
+		{
 			return -EINVAL;
 		}
 		/* Check key index */
@@ -1634,6 +1790,12 @@ int rt_ioctl_siwencode(struct net_device *dev,
             //Using default key
 			keyIdx = pAdapter->StaCfg.DefaultKeyId;
         }
+#ifdef RT30xx
+		else
+		{
+			pAdapter->StaCfg.DefaultKeyId=keyIdx;
+		}
+#endif
 
         NdisZeroMemory(pAdapter->SharedKey[BSS0][keyIdx].Key,  16);
 
@@ -1652,7 +1814,8 @@ int rt_ioctl_siwencode(struct net_device *dev,
 			pAdapter->SharedKey[BSS0][keyIdx].KeyLen = 0;
 
 		/* Check if the key is not marked as invalid */
-		if(!(erq->flags & IW_ENCODE_NOKEY)) {
+		if(!(erq->flags & IW_ENCODE_NOKEY))
+		{
 			/* Copy the key in the driver */
 			NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, extra, erq->length);
         }
@@ -1667,7 +1830,8 @@ int rt_ioctl_siwencode(struct net_device *dev,
             }
         else
 			/* Don't complain if only change the mode */
-			if (!(erq->flags & IW_ENCODE_MODE)) {
+		if (!(erq->flags & IW_ENCODE_MODE))
+		{
 				return -EINVAL;
 		}
 	}
@@ -1685,7 +1849,11 @@ rt_ioctl_giwencode(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_point *erq, char *key)
 {
+#ifdef RT30xx
+	PRTMP_ADAPTER pAdapter = dev->ml_priv;
+#endif
 	int kid;
+#ifndef RT30xx
 	PRTMP_ADAPTER 	pAdapter = NULL;
 	VIRTUAL_ADAPTER *pVirtualAd = NULL;
 
@@ -1706,6 +1874,7 @@ rt_ioctl_giwencode(struct net_device *dev,
 		   So the net_dev->ml_priv will be NULL in 2rd open */
 		return -ENETDOWN;
 	}
+#endif
 
 	//check if the interface is down
 	if(!RTMP_TEST_FLAG(pAdapter, fRTMP_ADAPTER_INTERRUPT_IN_USE))
@@ -2066,10 +2235,12 @@ rt_private_show(struct net_device *dev, struct iw_request_info *info,
 					wrq->length = strlen(extra) + 1; // 1: size of '\0'
 			}
 			break;
+#ifndef RT30xx
 		case SHOW_ADHOC_ENTRY_INFO:
 			Show_Adhoc_MacTable_Proc(pAd, extra);
 			wrq->length = strlen(extra) + 1; // 1: size of '\0'
 			break;
+#endif
         default:
             DBGPRINT(RT_DEBUG_TRACE, ("%s - unknow subcmd = %d\n", __func__, subcmd));
             break;
@@ -2407,7 +2578,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
 
                 NdisZeroMemory(pAdapter->SharedKey[BSS0][keyIdx].Key,  16);
 			    NdisMoveMemory(pAdapter->SharedKey[BSS0][keyIdx].Key, ext->key, ext->key_len);
-
+#ifndef RT30xx
 				if (pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP40Enabled ||
 					pAdapter->StaCfg.GroupCipher == Ndis802_11GroupWEP104Enabled)
 				{
@@ -2422,6 +2593,7 @@ int rt_ioctl_siwencodeext(struct net_device *dev,
     				// Indicate Connected for GUI
     				pAdapter->IndicateMediaState = NdisMediaStateConnected;
 				}
+#endif
     			break;
             case IW_ENCODE_ALG_TKIP:
                 DBGPRINT(RT_DEBUG_TRACE, ("%s::IW_ENCODE_ALG_TKIP - keyIdx = %d, ext->key_len = %d\n", __func__, keyIdx, ext->key_len));
@@ -2733,7 +2905,12 @@ rt_private_ioctl_bbp(struct net_device *dev, struct iw_request_info *info,
 			DBGPRINT(RT_DEBUG_TRACE, ("this_char=%s, value=%s\n", this_char, value));
 			if (sscanf(this_char, "%d", &(bbpId)) == 1)
 			{
+#ifndef RT30xx
 				if (bbpId <= 136)
+#endif // RT30xx //
+#ifdef RT30xx
+				if (bbpId <= 138)  // edit by johnli, RF power sequence setup, add BBP R138 for ADC dynamic on/off control
+#endif // RT30xx //
 				{
 					{
 					RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
@@ -2758,7 +2935,12 @@ rt_private_ioctl_bbp(struct net_device *dev, struct iw_request_info *info,
 		{ //Write
 			if ((sscanf(this_char, "%d", &(bbpId)) == 1) && (sscanf(value, "%x", &(bbpValue)) == 1))
 			{
+#ifndef RT30xx
 				if (bbpId <= 136)
+#endif // RT30xx //
+#ifdef RT30xx
+				if (bbpId <= 138)  // edit by johnli, RF power sequence setup, add BBP R138 for ADC dynamic on/off control
+#endif // RT30xx //
 				{
 					{
 					    RTMP_BBP_IO_WRITE8_BY_REG_ID(pAdapter, bbpId, bbpValue);
@@ -2790,14 +2972,24 @@ next:
 	{
 		memset(extra, 0x00, IW_PRIV_SIZE_MASK);
 		sprintf(extra, "\n");
+#ifndef RT30xx
 		for (bbpId = 0; bbpId <= 136; bbpId++)
+#endif // RT30xx //
+#ifdef RT30xx
+		for (bbpId = 0; bbpId <= 138; bbpId++)  // edit by johnli, RF power sequence setup, add BBP R138 for ADC dynamic on/off control
+#endif // RT30xx //
 		{
 		    if (strlen(extra) >= (IW_PRIV_SIZE_MASK - 10))
                 break;
 			RTMP_BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+#ifndef RT30xx
 			sprintf(extra+strlen(extra), "R%02d[0x%02X]:%02X    ", bbpId, bbpId*2, regBBP);
 			if (bbpId%5 == 4)
 				sprintf(extra+strlen(extra), "\n");
+#endif
+#ifdef RT30xx
+			sprintf(extra+strlen(extra), "%03d = %02X\n", bbpId, regBBP);  // edit by johnli, change display format
+#endif
 		}
 
         wrq->length = strlen(extra) + 1; // 1: size of '\0'
@@ -3286,9 +3478,14 @@ INT RTMPSetInformation(
                 {
                     // allow dynamic change of "USE OFDM rate or not" in ADHOC mode
                     // if setting changed, need to reset current TX rate as well as BEACON frame format
+#ifdef RT30xx
+                    pAdapter->CommonCfg.PhyMode = StaConfig.AdhocMode;
+#endif
                     if (pAdapter->StaCfg.BssType == BSS_ADHOC)
                     {
+#ifndef RT30xx
 						pAdapter->CommonCfg.PhyMode = StaConfig.AdhocMode;
+#endif
                     	RTMPSetPhyMode(pAdapter, PhyMode);
                         MlmeUpdateTxRates(pAdapter, FALSE, 0);
                         MakeIbssBeacon(pAdapter);           // re-build BEACON frame
@@ -4007,7 +4204,7 @@ INT RTMPSetInformation(
                         pAdapter->StaCfg.DesireSharedKey[KeyIdx].CipherAlg = CipherAlg;
                         pAdapter->StaCfg.DefaultKeyId = (UCHAR) KeyIdx;
                     }
-
+#ifndef RT30xx
 					if ((pAdapter->StaCfg.WpaSupplicantUP != WPA_SUPPLICANT_DISABLE) &&
 						(pAdapter->StaCfg.AuthMode >= Ndis802_11AuthModeWPA))
 					{
@@ -4025,6 +4222,10 @@ INT RTMPSetInformation(
         				pAdapter->IndicateMediaState = NdisMediaStateConnected;
 					}
                     else if (pAdapter->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)
+#endif
+#ifdef RT30xx
+                    if (pAdapter->StaCfg.PortSecured == WPA_802_1X_PORT_SECURED)
+#endif
                     {
                         Key = pAdapter->SharedKey[BSS0][KeyIdx].Key;
 
@@ -5049,6 +5250,9 @@ INT rt28xx_sta_ioctl(
 			Status = -EOPNOTSUPP;
 			break;
 		case RT_PRIV_IOCTL:
+#ifdef RT30xx
+        case RT_PRIV_IOCTL_EXT:
+#endif
 			subcmd = wrq->u.data.flags;
 			if( subcmd & OID_GET_SET_TOGGLE)
 				Status = RTMPSetInformation(pAd, rq, subcmd);
@@ -5080,6 +5284,11 @@ INT rt28xx_sta_ioctl(
 		case RTPRIV_IOCTL_E2P:
 			RTMPIoctlE2PROM(pAd, wrq);
 			break;
+#ifdef RT30xx
+		case RTPRIV_IOCTL_RF:
+			RTMPIoctlRF(pAd, wrq);
+			break;
+#endif // RT30xx //
 #endif // DBG //
         case SIOCETHTOOL:
                 break;
@@ -6010,7 +6219,9 @@ VOID RTMPIoctlMAC(
 	UCHAR				temp[16], temp2[16];
 	UINT32				macValue = 0;
 	INT					Status;
-
+#ifdef RT30xx
+	BOOLEAN				bIsPrintAllMAC = FALSE;
+#endif
 
 	memset(msg, 0x00, 1024);
 	if (wrq->u.data.length > 1) //No parameters.
@@ -6061,7 +6272,13 @@ VOID RTMPIoctlMAC(
 					sprintf(msg+strlen(msg), "[0x%08lX]:%08X  ", macAddr , macValue);
 				}
 				else
+#ifndef RT30xx
 				{//Invalid parametes, so default printk all bbp
+#endif
+#ifdef RT30xx
+				{//Invalid parametes, so default printk all mac
+					bIsPrintAllMAC = TRUE;
+#endif
 					goto next;
 				}
 			}
@@ -6145,7 +6362,52 @@ VOID RTMPIoctlMAC(
 			}
 		}
 	}
+#ifdef RT30xx
+	else
+		bIsPrintAllMAC = TRUE;
+#endif
 next:
+#ifdef RT30xx
+	if (bIsPrintAllMAC)
+	{
+		struct file		*file_w;
+		PCHAR			fileName = "MacDump.txt";
+		mm_segment_t	orig_fs;
+
+		orig_fs = get_fs();
+		set_fs(KERNEL_DS);
+
+		// open file
+		file_w = filp_open(fileName, O_WRONLY|O_CREAT, 0);
+		if (IS_ERR(file_w))
+		{
+			DBGPRINT(RT_DEBUG_TRACE, ("-->2) %s: Error %ld opening %s\n", __func__, -PTR_ERR(file_w), fileName));
+		}
+		else
+		{
+			if (file_w->f_op && file_w->f_op->write)
+			{
+				file_w->f_pos = 0;
+				macAddr = 0x1000;
+
+				while (macAddr <= 0x1800)
+				{
+					RTMP_IO_READ32(pAdapter, macAddr, &macValue);
+					sprintf(msg, "%08lx = %08X\n", macAddr, macValue);
+
+					// write data to file
+					file_w->f_op->write(file_w, msg, strlen(msg), &file_w->f_pos);
+
+					printk("%s", msg);
+					macAddr += 4;
+				}
+				sprintf(msg, "\nDump all MAC values to %s\n", fileName);
+			}
+			filp_close(file_w, NULL);
+		}
+		set_fs(orig_fs);
+	}
+#endif /* RT30xx */
 	if(strlen(msg) == 1)
 		sprintf(msg+strlen(msg), "===>Error command format!");
 
@@ -6186,7 +6448,9 @@ VOID RTMPIoctlE2PROM(
 	UCHAR				temp[16], temp2[16];
 	USHORT				eepValue;
 	int					Status;
-
+#ifdef RT30xx
+	BOOLEAN				bIsPrintAllE2P = FALSE;
+#endif
 
 	memset(msg, 0x00, 1024);
 	if (wrq->u.data.length > 1) //No parameters.
@@ -6240,6 +6504,9 @@ VOID RTMPIoctlE2PROM(
 				}
 				else
 				{//Invalid parametes, so default printk all bbp
+#ifdef RT30xx
+					bIsPrintAllE2P = TRUE;
+#endif
 					goto next;
 				}
 			}
@@ -6298,7 +6565,52 @@ VOID RTMPIoctlE2PROM(
 			sprintf(msg+strlen(msg), "[0x%02X]:%02X  ", eepAddr, eepValue);
 		}
 	}
+#ifdef RT30xx
+	else
+		bIsPrintAllE2P = TRUE;
+#endif
 next:
+#ifdef RT30xx
+	if (bIsPrintAllE2P)
+	{
+		struct file		*file_w;
+		PCHAR			fileName = "EEPROMDump.txt";
+		mm_segment_t	orig_fs;
+
+		orig_fs = get_fs();
+		set_fs(KERNEL_DS);
+
+		// open file
+		file_w = filp_open(fileName, O_WRONLY|O_CREAT, 0);
+		if (IS_ERR(file_w))
+		{
+			DBGPRINT(RT_DEBUG_TRACE, ("-->2) %s: Error %ld opening %s\n", __func__, -PTR_ERR(file_w), fileName));
+		}
+		else
+		{
+			if (file_w->f_op && file_w->f_op->write)
+			{
+				file_w->f_pos = 0;
+				eepAddr = 0x00;
+
+				while (eepAddr <= 0xFE)
+				{
+					RT28xx_EEPROM_READ16(pAdapter, eepAddr, eepValue);
+					sprintf(msg, "%08x = %04x\n", eepAddr , eepValue);
+
+					// write data to file
+					file_w->f_op->write(file_w, msg, strlen(msg), &file_w->f_pos);
+
+					printk("%s", msg);
+					eepAddr += 2;
+				}
+				sprintf(msg, "\nDump all EEPROM values to %s\n", fileName);
+			}
+			filp_close(file_w, NULL);
+		}
+		set_fs(orig_fs);
+	}
+#endif /* RT30xx */
 	if(strlen(msg) == 1)
 		sprintf(msg+strlen(msg), "===>Error command format!");
 
@@ -6309,6 +6621,154 @@ next:
 
 	DBGPRINT(RT_DEBUG_TRACE, ("<==RTMPIoctlE2PROM\n"));
 }
+#ifdef RT30xx
+/*
+    ==========================================================================
+    Description:
+        Read / Write RF register
+Arguments:
+    pAdapter                    Pointer to our adapter
+    wrq                         Pointer to the ioctl argument
+
+    Return Value:
+        None
+
+    Note:
+        Usage:
+               1.) iwpriv ra0 rf                ==> read all RF registers
+               2.) iwpriv ra0 rf 1              ==> read RF where RegID=1
+               3.) iwpriv ra0 rf 1=10		    ==> write RF R1=0x10
+    ==========================================================================
+*/
+VOID RTMPIoctlRF(
+	IN	PRTMP_ADAPTER	pAdapter,
+	IN	struct iwreq	*wrq)
+{
+	CHAR				*this_char;
+	CHAR				*value;
+	UCHAR				regRF = 0;
+	CHAR				msg[2048];
+	CHAR				arg[255];
+	INT					rfId;
+	LONG				rfValue;
+	int					Status;
+	BOOLEAN				bIsPrintAllRF = FALSE;
+
+
+	memset(msg, 0x00, 2048);
+	if (wrq->u.data.length > 1) //No parameters.
+	{
+	    Status = copy_from_user(arg, wrq->u.data.pointer, (wrq->u.data.length > 255) ? 255 : wrq->u.data.length);
+		sprintf(msg, "\n");
+
+	    //Parsing Read or Write
+		this_char = arg;
+		if (!*this_char)
+			goto next;
+
+		if ((value = strchr(this_char, '=')) != NULL)
+			*value++ = 0;
+
+		if (!value || !*value)
+		{ //Read
+			if (sscanf(this_char, "%d", &(rfId)) == 1)
+			{
+				if (rfId <= 31)
+				{
+					// In RT2860 ATE mode, we do not load 8051 firmware.
+                                            //We must access RF directly.
+                    // For RT2870 ATE mode, ATE_RF_IO_WRITE8(/READ8)_BY_REG_ID are redefined.
+					// according to Andy, Gary, David require.
+					// the command rf shall read rf register directly for dubug.
+					// BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+					RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+
+					sprintf(msg+strlen(msg), "R%02d[0x%02x]:%02X  ", rfId, rfId*2, regRF);
+				}
+				else
+				{//Invalid parametes, so default printk all RF
+					bIsPrintAllRF = TRUE;
+					goto next;
+				}
+			}
+			else
+			{ //Invalid parametes, so default printk all RF
+				bIsPrintAllRF = TRUE;
+				goto next;
+			}
+		}
+		else
+		{ //Write
+			if ((sscanf(this_char, "%d", &(rfId)) == 1) && (sscanf(value, "%lx", &(rfValue)) == 1))
+			{
+				if (rfId <= 31)
+				{
+					// In RT2860 ATE mode, we do not load 8051 firmware.
+					// We should access RF registers directly.
+                    // For RT2870 ATE mode, ATE_RF_IO_WRITE8/READ8_BY_REG_ID are redefined.
+						{
+							// according to Andy, Gary, David require.
+							// the command RF shall read/write RF register directly for dubug.
+							//BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+					                //BBP_IO_WRITE8_BY_REG_ID(pAdapter, (UCHAR)bbpId,(UCHAR) bbpValue);
+							RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+							RT30xxWriteRFRegister(pAdapter, (UCHAR)rfId,(UCHAR) rfValue);
+					                //Read it back for showing
+							//BBP_IO_READ8_BY_REG_ID(pAdapter, bbpId, &regBBP);
+							RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+					                sprintf(msg+strlen(msg), "R%02d[0x%02X]:%02X\n", rfId, rfId*2, regRF);
+				                }
+				}
+				else
+				{//Invalid parametes, so default printk all RF
+					bIsPrintAllRF = TRUE;
+				}
+			}
+			else
+			{ //Invalid parametes, so default printk all RF
+				bIsPrintAllRF = TRUE;
+			}
+		}
+	}
+	else
+		bIsPrintAllRF = TRUE;
+next:
+	if (bIsPrintAllRF)
+	{
+		memset(msg, 0x00, 2048);
+		sprintf(msg, "\n");
+		for (rfId = 0; rfId <= 31; rfId++)
+		{
+			// according to Andy, Gary, David require.
+			// the command RF shall read/write RF register directly for dubug.
+			RT30xxReadRFRegister(pAdapter, rfId, &regRF);
+			sprintf(msg+strlen(msg), "%03d = %02X\n", rfId, regRF);
+		}
+		// Copy the information into the user buffer
+		DBGPRINT(RT_DEBUG_TRACE, ("strlen(msg)=%d\n", (UINT32)strlen(msg)));
+		wrq->u.data.length = strlen(msg);
+		if (copy_to_user(wrq->u.data.pointer, msg, wrq->u.data.length))
+		{
+			DBGPRINT(RT_DEBUG_TRACE, ("%s: copy_to_user() fail\n", __func__));
+		}
+	}
+	else
+	{
+		if(strlen(msg) == 1)
+			sprintf(msg+strlen(msg), "===>Error command format!");
+
+		DBGPRINT(RT_DEBUG_TRACE, ("copy to user [msg=%s]\n", msg));
+		// Copy the information into the user buffer
+		DBGPRINT(RT_DEBUG_TRACE, ("strlen(msg) =%d\n", (UINT32)strlen(msg)));
+
+		// Copy the information into the user buffer
+		wrq->u.data.length = strlen(msg);
+		Status = copy_to_user(wrq->u.data.pointer, msg, wrq->u.data.length);
+	}
+
+	DBGPRINT(RT_DEBUG_TRACE, ("<==RTMPIoctlRF\n\n"));
+}
+#endif // RT30xx //
 #endif // DBG //
 
 
@@ -6355,6 +6815,7 @@ INT Set_ShortRetryLimit_Proc(
 	return TRUE;
 }
 
+#ifndef RT30xx
 INT	Show_Adhoc_MacTable_Proc(
 	IN	PRTMP_ADAPTER	pAd,
 	IN	PCHAR			extra)
@@ -6397,5 +6858,4 @@ INT	Show_Adhoc_MacTable_Proc(
 
 	return TRUE;
 }
-
-
+#endif /* RT30xx */

@@ -46,7 +46,9 @@
 #define MAX_TXBULK_SIZE         (LOCAL_TXBUF_SIZE*BULKAGGRE_ZISE)
 #define MAX_RXBULK_SIZE         (LOCAL_TXBUF_SIZE*RXBULKAGGRE_ZISE)
 #define MAX_MLME_HANDLER_MEMORY 20
+#ifndef RT30xx
 #define	RETRY_LIMIT             10
+#endif
 #define BUFFER_SIZE				2400	//2048
 #define	TX_RING					0xa
 #define	PRIO_RING				0xc
@@ -62,6 +64,9 @@
 #define	fRTUSB_BULK_OUT_DATA_NORMAL_2			0x00020000
 #define	fRTUSB_BULK_OUT_DATA_NORMAL_3			0x00040000
 #define	fRTUSB_BULK_OUT_DATA_NORMAL_4			0x00080000
+#ifdef RT30xx
+#define	fRTUSB_BULK_OUT_DATA_NORMAL_5			0x00100000
+#endif
 
 #define	fRTUSB_BULK_OUT_PSPOLL					0x00000020
 #define	fRTUSB_BULK_OUT_DATA_FRAG				0x00000040
@@ -69,6 +74,7 @@
 #define	fRTUSB_BULK_OUT_DATA_FRAG_3				0x00000100
 #define	fRTUSB_BULK_OUT_DATA_FRAG_4				0x00000200
 
+#ifndef RT30xx
 #define RT2870_USB_DEVICES	\
 {	\
 	{USB_DEVICE(0x148F,0x2770)}, /* Ralink */		\
@@ -134,6 +140,84 @@
 	{USB_DEVICE(0x7392,0x7717)}, /* Edimax */		\
 	{ }/* Terminating entry */                      \
 }
+#endif
+#ifdef RT30xx
+#define RT2870_USB_DEVICES	\
+{	\
+	{USB_DEVICE(0x148F,0x2770)}, /* Ralink */		\
+	{USB_DEVICE(0x148F,0x2870)}, /* Ralink */		\
+	{USB_DEVICE(0x148F,0x3070)}, /* Ralink 3070 */	\
+	{USB_DEVICE(0x148F,0x3071)}, /* Ralink 3071 */	\
+	{USB_DEVICE(0x148F,0x3072)}, /* Ralink 3072 */	\
+	{USB_DEVICE(0x0B05,0x1731)}, /* Asus */			\
+	{USB_DEVICE(0x0B05,0x1732)}, /* Asus */			\
+	{USB_DEVICE(0x0B05,0x1742)}, /* Asus */			\
+	{USB_DEVICE(0x0DF6,0x0017)}, /* Sitecom */		\
+	{USB_DEVICE(0x0DF6,0x002B)}, /* Sitecom */		\
+	{USB_DEVICE(0x0DF6,0x002C)}, /* Sitecom */		\
+	{USB_DEVICE(0x0DF6,0x003E)}, /* Sitecom 3070 */	\
+	{USB_DEVICE(0x0DF6,0x002D)}, /* Sitecom */		\
+	{USB_DEVICE(0x0DF6,0x0039)}, /* Sitecom 2770 */	\
+	{USB_DEVICE(0x14B2,0x3C06)}, /* Conceptronic */		\
+	{USB_DEVICE(0x14B2,0x3C28)}, /* Conceptronic */		\
+	{USB_DEVICE(0x2019,0xED06)}, /* Planex Communications, Inc. */		\
+	{USB_DEVICE(0x2019,0xAB25)}, /* Planex Communications, Inc. RT3070 */		\
+	{USB_DEVICE(0x07D1,0x3C09)}, /* D-Link */		\
+	{USB_DEVICE(0x07D1,0x3C11)}, /* D-Link */		\
+	{USB_DEVICE(0x2001,0x3C09)}, /* D-Link */		\
+	{USB_DEVICE(0x2001,0x3C0A)}, /* D-Link 3072*/	\
+	{USB_DEVICE(0x14B2,0x3C07)}, /* AL */			\
+	{USB_DEVICE(0x14B2,0x3C12)}, /* AL 3070 */		\
+	{USB_DEVICE(0x050D,0x8053)}, /* Belkin */		\
+	{USB_DEVICE(0x14B2,0x3C23)}, /* Airlink */		\
+	{USB_DEVICE(0x14B2,0x3C27)}, /* Airlink */		\
+	{USB_DEVICE(0x07AA,0x002F)}, /* Corega */		\
+	{USB_DEVICE(0x07AA,0x003C)}, /* Corega */		\
+	{USB_DEVICE(0x07AA,0x003F)}, /* Corega */		\
+	{USB_DEVICE(0x18C5,0x0012)}, /* Corega 3070 */	\
+	{USB_DEVICE(0x1044,0x800B)}, /* Gigabyte */		\
+	{USB_DEVICE(0x1044,0x800D)}, /* Gigabyte GN-WB32L 3070 */		\
+	{USB_DEVICE(0x15A9,0x0006)}, /* Sparklan */		\
+	{USB_DEVICE(0x083A,0xB522)}, /* SMC */			\
+	{USB_DEVICE(0x083A,0xA618)}, /* SMC */			\
+	{USB_DEVICE(0x083A,0x8522)}, /* Arcadyan */		\
+	{USB_DEVICE(0x083A,0x7512)}, /* Arcadyan 2770 */		\
+	{USB_DEVICE(0x083A,0x7522)}, /* Arcadyan */		\
+	{USB_DEVICE(0x083A,0x7511)}, /* Arcadyan 3070 */ \
+	{USB_DEVICE(0x0CDE,0x0022)}, /* ZCOM */			\
+	{USB_DEVICE(0x0586,0x3416)}, /* Zyxel */		\
+	{USB_DEVICE(0x0CDE,0x0025)}, /* Zyxel */		\
+	{USB_DEVICE(0x1740,0x9701)}, /* EnGenius */		\
+	{USB_DEVICE(0x1740,0x9702)}, /* EnGenius */		\
+	{USB_DEVICE(0x1740,0x9703)}, /* EnGenius 3070 */		\
+	{USB_DEVICE(0x0471,0x200f)}, /* Philips */		\
+	{USB_DEVICE(0x14B2,0x3C25)}, /* Draytek */		\
+	{USB_DEVICE(0x13D3,0x3247)}, /* AzureWave */	\
+	{USB_DEVICE(0x13D3,0x3273)}, /* AzureWave 3070*/	\
+	{USB_DEVICE(0x083A,0x6618)}, /* Accton */		\
+	{USB_DEVICE(0x15c5,0x0008)}, /* Amit */			\
+	{USB_DEVICE(0x0E66,0x0001)}, /* Hawking */		\
+	{USB_DEVICE(0x0E66,0x0003)}, /* Hawking */		\
+	{USB_DEVICE(0x129B,0x1828)}, /* Siemens */		\
+	{USB_DEVICE(0x157E,0x300E)},	/* U-Media */	\
+	{USB_DEVICE(0x050d,0x805c)},					\
+	{USB_DEVICE(0x1482,0x3C09)}, /* Abocom*/		\
+	{USB_DEVICE(0x14B2,0x3C09)}, /* Alpha */		\
+	{USB_DEVICE(0x04E8,0x2018)}, /* samsung */  	\
+	{USB_DEVICE(0x07B8,0x3070)}, /* AboCom 3070 */	\
+	{USB_DEVICE(0x07B8,0x3071)}, /* AboCom 3071 */	\
+	{USB_DEVICE(0x07B8,0x3072)}, /* Abocom 3072 */	\
+	{USB_DEVICE(0x7392,0x7711)}, /* Edimax 3070 */	\
+	{USB_DEVICE(0x5A57,0x0280)}, /* Zinwell */		\
+	{USB_DEVICE(0x5A57,0x0282)}, /* Zinwell */		\
+	{USB_DEVICE(0x1A32,0x0304)}, /* Quanta 3070 */		\
+	{USB_DEVICE(0x0789,0x0162)}, /* Logitec 2870 */		\
+	{USB_DEVICE(0x0789,0x0163)}, /* Logitec 2870 */		\
+	{USB_DEVICE(0x0789,0x0164)}, /* Logitec 2870 */		\
+	{USB_DEVICE(0x1EDA,0x2310)}, /* AirTies 3070 */		\
+	{ }/* Terminating entry */                      \
+}
+#endif
 
 #define	FREE_HTTX_RING(_p, _b, _t)			\
 {										\
@@ -200,6 +284,23 @@ typedef	struct	_MGMT_STRUC	{
 
 
 /* ----------------- EEPROM Related MACRO ----------------- */
+#ifdef RT30xx
+#define RT28xx_EEPROM_READ16(pAd, offset, var)					\
+	do {														\
+		RTUSBReadEEPROM(pAd, offset, (PUCHAR)&(var), 2);		\
+		if(!pAd->bUseEfuse)										\
+		var = le2cpu16(var);									\
+	}while(0)
+
+#define RT28xx_EEPROM_WRITE16(pAd, offset, var)					\
+	do{															\
+		USHORT _tmpVar=var;										\
+		if(!pAd->bUseEfuse)									\
+		_tmpVar = cpu2le16(var);								\
+		RTUSBWriteEEPROM(pAd, offset, (PUCHAR)&(_tmpVar), 2);	\
+	}while(0)
+#endif // RT30xx //
+#ifndef RT30xx
 #define RT28xx_EEPROM_READ16(pAd, offset, var)					\
 	do {														\
 		RTUSBReadEEPROM(pAd, offset, (PUCHAR)&(var), 2);		\
@@ -212,6 +313,7 @@ typedef	struct	_MGMT_STRUC	{
 		_tmpVar = cpu2le16(var);								\
 		RTUSBWriteEEPROM(pAd, offset, (PUCHAR)&(_tmpVar), 2);	\
 	}while(0)
+#endif // RT30xx //
 
 /* ----------------- TASK/THREAD Related MACRO ----------------- */
 #define RT28XX_TASK_THREAD_INIT(pAd, Status)		\
@@ -327,6 +429,14 @@ extern UCHAR EpToQueue[6];
 	RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_SET_CLIENT_MAC_ENTRY, 	\
 							pEntry, sizeof(MAC_TABLE_ENTRY));
 
+#ifdef RT30xx
+// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+// Set MAC register value according operation mode
+#define RT28XX_UPDATE_PROTECT(pAd)	\
+ 	RTUSBEnqueueInternalCmd(pAd, CMDTHREAD_UPDATE_PROTECT, NULL, 0);
+// end johnli
+#endif
+
 // remove Pair-wise key material from ASIC
 // yet implement
 #define RT28XX_STA_ENTRY_KEY_DEL(pAd, BssIdx, Wcid)
@@ -414,8 +524,10 @@ extern UCHAR EpToQueue[6];
 
 #define RT28xx_CHIP_NAME            "RT2870"
 #define USB_CYC_CFG                 0x02a4
+#ifndef RT30xx
 #define STATUS_SUCCESS				0x00
 #define STATUS_UNSUCCESSFUL 		0x01
+#endif
 #define NT_SUCCESS(status)			(((status) > 0) ? (1):(0))
 #define InterlockedIncrement 	 	atomic_inc
 #define NdisInterlockedIncrement 	atomic_inc
@@ -440,7 +552,9 @@ extern UCHAR EpToQueue[6];
 //#undef MlmeAllocateMemory
 //#undef MlmeFreeMemory
 
+#ifndef RT30xx
 typedef int				NTSTATUS;
+#endif
 typedef struct usb_device	* PUSB_DEV;
 
 /* MACRO for linux usb */
@@ -468,7 +582,7 @@ VOID RTUSBBulkOutRTSFrameComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 VOID RTUSBBulkOutPsPollComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 
-
+#ifndef RT30xx
 #define RTUSBMlmeUp(pAd)	        \
 {								    \
 	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
@@ -484,7 +598,22 @@ VOID RTUSBBulkRxComplete(purbb_t pUrb, struct pt_regs *pt_regs);
 	CHECK_PID_LEGALITY(task_pid(pObj->RTUSBCmdThr_task))	    \
 	    up(&(pAd->RTUSBCmd_semaphore)); \
 }
+#endif
+#ifdef RT30xx
+#define RTUSBMlmeUp(pAd)	        \
+{								    \
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
+	if(pObj->MLMEThr_pid>0)		    \
+        up(&(pAd->mlme_semaphore)); \
+}
 
+#define RTUSBCMDUp(pAd)	                \
+{									    \
+	POS_COOKIE pObj = (POS_COOKIE) pAd->OS_Cookie;	\
+	if(pObj->RTUSBCmdThr_pid>0)		    \
+	    up(&(pAd->RTUSBCmd_semaphore)); \
+}
+#endif
 
 static inline NDIS_STATUS RTMPAllocateMemory(
 	OUT PVOID *ptr,
@@ -526,7 +655,9 @@ typedef struct   _RT_SET_ASIC_WCID {
 	ULONG WCID;          // mechanism for rekeying: 0:disable, 1: time-based, 2: packet-based
 	ULONG SetTid;        // time-based: seconds, packet-based: kilo-packets
 	ULONG DeleteTid;        // time-based: seconds, packet-based: kilo-packets
+#ifndef RT30xx
 	UCHAR Addr[MAC_ADDR_LEN];	// avoid in interrupt when write key
+#endif
 } RT_SET_ASIC_WCID,*PRT_SET_ASIC_WCID;
 
 typedef struct   _RT_SET_ASIC_WCID_ATTRI {
@@ -628,6 +759,11 @@ typedef	struct	_CMDHandler_TLV	{
 #define CMDTHREAD_802_11_SET_PREAMBLE               0x0D790101	// cmd
 #define CMDTHREAD_802_11_COUNTER_MEASURE			0x0D790102	// cmd
 
+#ifdef RT30xx
+// add by johnli, fix "in_interrupt" error when call "MacTableDeleteEntry" in Rx tasklet
+#define CMDTHREAD_UPDATE_PROTECT					0x0D790103	// cmd
+// end johnli
+#endif
 
 #define WPA1AKMBIT	    0x01
 #define WPA2AKMBIT	    0x02

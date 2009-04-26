@@ -44,7 +44,9 @@
 #include <linux/module.h>
 #include <linux/version.h>
 #include <linux/kernel.h>
+#ifndef RT30xx
 #include <linux/kthread.h>
+#endif
 
 #include <linux/spinlock.h>
 #include <linux/init.h>
@@ -66,6 +68,9 @@
 #include <linux/vmalloc.h>
 
 
+#ifdef RT30xx
+#include <linux/wireless.h>
+#endif
 #include <net/iw_handler.h>
 
 // load firmware
@@ -93,7 +98,12 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define STA_PROFILE_PATH			"/etc/Wireless/RT2870STA/RT2870STA.dat"
 #define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT2870STA/rt2870.bin"
 #define STA_NIC_DEVICE_NAME			"RT2870STA"
+#ifndef RT30xx
 #define STA_DRIVER_VERSION			"1.4.0.0"
+#endif
+#ifdef RT30xx
+#define STA_DRIVER_VERSION			"2.0.1.0"
+#endif
 #endif // RT2870 //
 
 #define RTMP_TIME_AFTER(a,b)		\
@@ -141,11 +151,13 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define NDIS_PACKET_TYPE_BROADCAST		2
 #define NDIS_PACKET_TYPE_ALL_MULTICAST	3
 
+#ifndef RT30xx
 typedef	struct pid *	THREAD_PID;
 #define	GET_PID(_v)	find_get_pid(_v)
 #define	GET_PID_NUMBER(_v)	pid_nr(_v)
 #define CHECK_PID_LEGALITY(_pid)	if (pid_nr(_pid) >= 0)
 #define KILL_THREAD_PID(_A, _B, _C)	kill_pid(_A, _B, _C)
+#endif
 
 struct os_lock  {
 	spinlock_t		lock;
@@ -158,9 +170,16 @@ struct os_cookie {
 #ifdef RT2870
 	struct usb_device	*pUsb_Dev;
 
+#ifndef RT30xx
 	struct task_struct	*MLMEThr_task;
 	struct task_struct	*RTUSBCmdThr_task;
 	struct task_struct	*TimerQThr_task;
+#endif
+#ifdef RT30xx
+	struct pid *		MLMEThr_pid;
+	struct pid *		RTUSBCmdThr_pid;
+	struct pid *		TimerQThr_pid;
+#endif
 #endif // RT2870 //
 
 	struct tasklet_struct 	rx_done_task;
