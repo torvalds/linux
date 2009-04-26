@@ -224,7 +224,7 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 
 
 			/* Sleep */
-			for (i = 0; i < 10000; i++) ;
+			msleep(1);
 
 		}
 		w_ReadWord =
