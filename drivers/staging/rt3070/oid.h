@@ -82,12 +82,6 @@
 #define MAX_LENGTH_OF_SUPPORT_RATES		12    // 1, 2, 5.5, 11, 6, 9, 12, 18, 24, 36, 48, 54
 #define MAX_NUMBER_OF_DLS_ENTRY			4
 
-
-
-#ifndef UNDER_CE
-// OID definition, since NDIS 5.0 didn't define these, we need to define for our own
-//#if _WIN32_WINNT<=0x0500
-
 #define OID_GEN_MACHINE_NAME               0x0001021A
 
 #ifdef RALINK_ATE
@@ -654,9 +648,6 @@ typedef struct _NDIS_802_11_CAPABILITY
      ULONG NoOfAuthEncryptPairsSupported;
      NDIS_802_11_AUTHENTICATION_ENCRYPTION AuthenticationEncryptionSupported[1];
 } NDIS_802_11_CAPABILITY, *PNDIS_802_11_CAPABILITY;
-
-//#endif //of WIN 2k
-#endif //UNDER_CE
 
 #if WIRELESS_EXT <= 11
 #ifndef SIOCDEVPRIVATE
