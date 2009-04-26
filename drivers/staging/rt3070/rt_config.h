@@ -69,10 +69,6 @@
 #ifdef CONFIG_STA_SUPPORT
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef BLOCK_NET_IF
-#include "netif_block.h"
-#endif // BLOCK_NET_IF //
-
 #ifdef IGMP_SNOOP_SUPPORT
 #include "igmp_snoop.h"
 #endif // IGMP_SNOOP_SUPPORT //
