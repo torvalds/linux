@@ -72,11 +72,6 @@
 #include	"mlme_ex.h"
 #endif // MLME_EX //
 
-#undef AP_WSC_INCLUDED
-#undef STA_WSC_INCLUDED
-#undef WSC_INCLUDED
-
-
 #ifdef LEAP_SUPPORT
 #include    "leap.h"
 #endif // LEAP_SUPPORT //
@@ -95,13 +90,6 @@
 #ifdef RALINK_ATE
 #include "rt_ate.h"
 #endif // RALINK_ATE //
-
-
-
-#if defined(AP_WSC_INCLUDED) || defined(STA_WSC_INCLUDED)
-#define WSC_INCLUDED
-#endif
-
 
 #ifdef CONFIG_STA_SUPPORT
 #ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
