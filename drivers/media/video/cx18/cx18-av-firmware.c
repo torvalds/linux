@@ -24,7 +24,13 @@
 #include "cx18-io.h"
 #include <linux/firmware.h>
 
-#define CX18_AUDIO_ENABLE 0xc72014
+#define CX18_AUDIO_ENABLE    0xc72014
+#define CX18_AI1_MUX_MASK    0x30
+#define CX18_AI1_MUX_I2S1    0x00
+#define CX18_AI1_MUX_I2S2    0x10
+#define CX18_AI1_MUX_843_I2S 0x20
+#define CX18_AI1_MUX_INVALID 0x30
+
 #define FWFILE "v4l-cx23418-dig.fw"
 
 static int cx18_av_verifyfw(struct cx18 *cx, const struct firmware *fw)
@@ -74,7 +80,7 @@ int cx18_av_loadfw(struct cx18 *cx)
 	struct v4l2_subdev *sd = &cx->av_state.sd;
 	const struct firmware *fw = NULL;
 	u32 size;
-	u32 v;
+	u32 u, v;
 	const u8 *ptr;
 	int i;
 	int retries1 = 0;
@@ -182,6 +188,28 @@ int cx18_av_loadfw(struct cx18 *cx)
 	if (v & 0x800)
 		cx18_write_reg_expect(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE,
 				      0, 0x400);
+
+	/* Toggle the AI1 MUX */
+	v = cx18_read_reg(cx, CX18_AUDIO_ENABLE);
+	u = v & CX18_AI1_MUX_MASK;
+	v &= ~CX18_AI1_MUX_MASK;
+	if (u == CX18_AI1_MUX_843_I2S || u == CX18_AI1_MUX_INVALID) {
+		/* Switch to I2S1 */
+		v |= CX18_AI1_MUX_I2S1;
+		cx18_write_reg_expect(cx, v | 0xb00, CX18_AUDIO_ENABLE,
+				      v, CX18_AI1_MUX_MASK);
+		/* Switch back to the A/V decoder core I2S output */
+		v = (v & ~CX18_AI1_MUX_MASK) | CX18_AI1_MUX_843_I2S;
+	} else {
+		/* Switch to the A/V decoder core I2S output */
+		v |= CX18_AI1_MUX_843_I2S;
+		cx18_write_reg_expect(cx, v | 0xb00, CX18_AUDIO_ENABLE,
+				      v, CX18_AI1_MUX_MASK);
+		/* Switch back to I2S1 or I2S2 */
+		v = (v & ~CX18_AI1_MUX_MASK) | u;
+	}
+	cx18_write_reg_expect(cx, v | 0xb00, CX18_AUDIO_ENABLE,
+			      v, CX18_AI1_MUX_MASK);
 
 	/* Enable WW auto audio standard detection */
 	v = cx18_av_read4(cx, CXADEC_STD_DET_CTL);
