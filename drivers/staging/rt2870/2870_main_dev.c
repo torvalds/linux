@@ -53,11 +53,6 @@ MODULE_VERSION(STA_DRIVER_VERSION);
 #endif
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef MULTIPLE_CARD_SUPPORT
-// record whether the card in the card list is used in the card file
-extern UINT8  MC_CardUsed[];
-#endif // MULTIPLE_CARD_SUPPORT //
-
 /* Kernel thread and vars, which handles packets that are completed. Only
  * packets that have a "complete" function are sent here. This way, the
  * completion is run out of kernel context, and doesn't block the rest of
@@ -771,11 +766,6 @@ static void _rtusb_disconnect(struct usb_device *dev, PRTMP_ADAPTER pAd)
 				dev->bus->bus_name, dev->devpath));
 	if (!pAd)
 	{
-#ifdef MULTIPLE_CARD_SUPPORT
-		if ((pAd->MC_RowID >= 0) && (pAd->MC_RowID <= MAX_NUM_OF_MULTIPLE_CARD))
-			MC_CardUsed[pAd->MC_RowID] = 0; // not clear MAC address
-#endif // MULTIPLE_CARD_SUPPORT //
-
 		usb_put_dev(dev);
 
 		printk("rtusb_disconnect: pAd == NULL!\n");

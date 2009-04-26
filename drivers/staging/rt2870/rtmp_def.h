@@ -123,11 +123,6 @@
 #define LOCAL_TXBUF_SIZE        2048
 #endif // RT2870 //
 
-#ifdef MULTIPLE_CARD_SUPPORT
-// MC: Multple Cards
-#define MAX_NUM_OF_MULTIPLE_CARD		32
-#endif // MULTIPLE_CARD_SUPPORT //
-
 #define MAX_RX_PROCESS          128 //64 //32
 #define NUM_OF_LOCAL_TXBUF      2
 #define TXD_SIZE                16

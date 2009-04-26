@@ -96,9 +96,6 @@ typedef int (*HARD_START_XMIT_FUNC)(struct sk_buff *skb, struct net_device *net_
 #define STA_RT2870_IMAGE_FILE_NAME  "/etc/Wireless/RT2870STA/rt2870.bin"
 #define STA_NIC_DEVICE_NAME			"RT2870STA"
 #define STA_DRIVER_VERSION			"1.4.0.0"
-#ifdef MULTIPLE_CARD_SUPPORT
-#define CARD_INFO_PATH			"/etc/Wireless/RT2870STA/RT2870STACard.dat"
-#endif // MULTIPLE_CARD_SUPPORT //
 #endif // RT2870 //
 
 #endif // CONFIG_STA_SUPPORT //

@@ -2911,11 +2911,6 @@ typedef struct _RTMP_ADAPTER
 
 	struct net_device_stats	stats;
 
-#ifdef MULTIPLE_CARD_SUPPORT
-	INT32					MC_RowID;
-	UCHAR					MC_FileName[256];
-#endif // MULTIPLE_CARD_SUPPORT //
-
 	ULONG					TbttTickCount;
 #ifdef PCI_MSI_SUPPORT
 	BOOLEAN					HaveMsi;
