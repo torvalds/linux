@@ -350,7 +350,7 @@ static int ar9170_usb_exec_cmd(struct ar9170 *ar, enum ar9170_cmd cmd,
 		goto err_unbuf;
 	}
 
-	if (outlen >= 0 && aru->readlen != outlen) {
+	if (aru->readlen != outlen) {
 		err = -EMSGSIZE;
 		goto err_unbuf;
 	}
