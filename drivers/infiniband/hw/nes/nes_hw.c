@@ -550,11 +550,8 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 			msleep(1);
 		}
 		if (int_cnt > 1) {
-			u32 sds;
 			spin_lock_irqsave(&nesadapter->phy_lock, flags);
-			sds = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1);
-			sds |= 0x00000040;
-			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1, sds);
+			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1, 0x0000F0C8);
 			mh_detected++;
 			reset_value = nes_read32(nesdev->regs+NES_SOFTWARE_RESET);
 			reset_value |= 0x0000003d;
@@ -579,7 +576,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 					if (++ext_cnt > int_cnt) {
 						spin_lock_irqsave(&nesadapter->phy_lock, flags);
 						nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1,
-								0x0000F0C8);
+								0x0000F088);
 						mh_detected++;
 						reset_value = nes_read32(nesdev->regs+NES_SOFTWARE_RESET);
 						reset_value |= 0x0000003d;
