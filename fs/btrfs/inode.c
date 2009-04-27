@@ -3047,8 +3047,8 @@ static noinline void init_btrfs_i(struct inode *inode)
 {
 	struct btrfs_inode *bi = BTRFS_I(inode);
 
-	bi->i_acl = NULL;
-	bi->i_default_acl = NULL;
+	bi->i_acl = BTRFS_ACL_NOT_CACHED;
+	bi->i_default_acl = BTRFS_ACL_NOT_CACHED;
 
 	bi->generation = 0;
 	bi->sequence = 0;
