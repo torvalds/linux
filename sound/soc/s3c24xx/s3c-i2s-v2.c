@@ -105,7 +105,9 @@ void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "TXEN: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "TXEN: Invalid MODE %x in IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
+			break;
 		}
 
 		writel(con, regs + S3C2412_IISCON);
@@ -132,7 +134,9 @@ void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "TXDIS: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "TXDIS: Invalid MODE %xin IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
+			break;
 		}
 
 		writel(mod, regs + S3C2412_IISMOD);
@@ -175,7 +179,8 @@ void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "RXEN: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "RXEN: Invalid MODE %x in IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
 		}
 
 		writel(mod, regs + S3C2412_IISMOD);
@@ -199,7 +204,8 @@ void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "RXEN: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "RXEN: Invalid MODE %x in IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
 		}
 
 		writel(con, regs + S3C2412_IISCON);
@@ -281,7 +287,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod |= IISMOD_MASTER;
 		break;
 	default:
-		pr_debug("unknwon master/slave format\n");
+		pr_err("unknwon master/slave format\n");
 		return -EINVAL;
 	}
 
@@ -298,7 +304,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 		iismod |= S3C2412_IISMOD_SDF_IIS;
 		break;
 	default:
-		pr_debug("Unknown data format\n");
+		pr_err("Unknown data format\n");
 		return -EINVAL;
 	}
 
