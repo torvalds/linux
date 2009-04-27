@@ -225,7 +225,7 @@ static __devinit int s3c64xx_iis_dev_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_clk;
 
-	ret = snd_soc_register_dai(dai);
+	ret = s3c_i2sv2_register_dai(dai);
 	if (ret != 0)
 		goto err_i2sv2;
 
