@@ -748,6 +748,8 @@ static int eeepc_hotk_add(struct acpi_device *device)
  wlan_fail:
 	if (ehotk->eeepc_wlan_rfkill)
 		rfkill_free(ehotk->eeepc_wlan_rfkill);
+	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P6");
+	eeepc_unregister_rfkill_notifier("\\_SB.PCI0.P0P7");
  ehotk_fail:
 	kfree(ehotk);
 	ehotk = NULL;
