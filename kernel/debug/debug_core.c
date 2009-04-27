@@ -203,12 +203,6 @@ int __weak kgdb_skipexception(int exception, struct pt_regs *regs)
 	return 0;
 }
 
-void __weak
-kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
-{
-	return;
-}
-
 /**
  *	kgdb_disable_hw_debug - Disable hardware debugging while we in kgdb.
  *	@regs: Current &struct pt_regs.
@@ -588,7 +582,6 @@ return_normal:
 	 * At this point the primary processor is completely
 	 * in the debugger and all secondary CPUs are quiescent
 	 */
-	kgdb_post_primary_code(ks->linux_regs, ks->ex_vector, ks->err_code);
 	dbg_deactivate_sw_breakpoints();
 	kgdb_single_step = 0;
 	kgdb_contthread = current;
@@ -678,7 +671,6 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 	ks->cpu			= raw_smp_processor_id();
 	ks->ex_vector		= evector;
 	ks->signo		= signo;
-	ks->ex_vector		= evector;
 	ks->err_code		= ecode;
 	ks->kgdb_usethreadid	= 0;
 	ks->linux_regs		= regs;

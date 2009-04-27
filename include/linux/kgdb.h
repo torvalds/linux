@@ -36,20 +36,6 @@ struct pt_regs;
 extern int kgdb_skipexception(int exception, struct pt_regs *regs);
 
 /**
- *	kgdb_post_primary_code - (optional) Save error vector/code numbers.
- *	@regs: Original pt_regs.
- *	@e_vector: Original error vector.
- *	@err_code: Original error code.
- *
- *	This is usually needed on architectures which support SMP and
- *	KGDB.  This function is called after all the secondary cpus have
- *	been put to a know spin state and the primary CPU has control over
- *	KGDB.
- */
-extern void kgdb_post_primary_code(struct pt_regs *regs, int e_vector,
-				  int err_code);
-
-/**
  *	kgdb_disable_hw_debug - (optional) Disable hardware debugging hook
  *	@regs: Current &struct pt_regs.
  *

@@ -47,19 +47,7 @@
 #include <asm/debugreg.h>
 #include <asm/apicdef.h>
 #include <asm/system.h>
-
 #include <asm/apic.h>
-
-/*
- * Put the error code here just in case the user cares:
- */
-static int gdb_x86errcode;
-
-/*
- * Likewise, the vector number here (since GDB only gets the signal
- * number through the usual means, and that's not very specific):
- */
-static int gdb_x86vector = -1;
 
 /**
  *	pt_regs_to_gdb_regs - Convert ptrace regs to GDB regs
@@ -397,23 +385,6 @@ void kgdb_disable_hw_debug(struct pt_regs *regs)
 		arch_uninstall_hw_breakpoint(bp);
 		bp->attr.disabled = 1;
 	}
-}
-
-/**
- *	kgdb_post_primary_code - Save error vector/code numbers.
- *	@regs: Original pt_regs.
- *	@e_vector: Original error vector.
- *	@err_code: Original error code.
- *
- *	This is needed on architectures which support SMP and KGDB.
- *	This function is called after all the slave cpus have been put
- *	to a know spin state and the primary CPU has control over KGDB.
- */
-void kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
-{
-	/* primary processor is completely in the debugger */
-	gdb_x86vector = e_vector;
-	gdb_x86errcode = err_code;
 }
 
 #ifdef CONFIG_SMP
