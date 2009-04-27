@@ -2757,7 +2757,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->read_subdev = s;
 			s->type = COMEDI_SUBD_AI;
 			s->subdev_flags =
-				SDF_READABLE | SDF_RT | SDF_COMMON | SDF_GROUND
+				SDF_READABLE | SDF_COMMON | SDF_GROUND
 				| SDF_DIFF;
 			if (this_board->i_NbrAiChannel) {
 				s->n_chan = this_board->i_NbrAiChannel;
@@ -2792,9 +2792,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s = dev->subdevices + 1;
 		if (this_board->i_NbrAoChannel) {
 			s->type = COMEDI_SUBD_AO;
-			s->subdev_flags =
-				SDF_WRITEABLE | SDF_GROUND | SDF_COMMON |
-				SDF_RT;
+			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrAoChannel;
 			s->maxdata = this_board->i_AoMaxdata;
 			s->len_chanlist = this_board->i_NbrAoChannel;
@@ -2810,8 +2808,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s = dev->subdevices + 2;
 		if (this_board->i_NbrDiChannel) {
 			s->type = COMEDI_SUBD_DI;
-			s->subdev_flags =
-				SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+			s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrDiChannel;
 			s->maxdata = 1;
 			s->len_chanlist = this_board->i_NbrDiChannel;
@@ -2831,8 +2828,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (this_board->i_NbrDoChannel) {
 			s->type = COMEDI_SUBD_DO;
 			s->subdev_flags =
-				SDF_READABLE | SDF_WRITEABLE | SDF_RT |
-				SDF_GROUND | SDF_COMMON;
+				SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrDoChannel;
 			s->maxdata = this_board->i_DoMaxdata;
 			s->len_chanlist = this_board->i_NbrDoChannel;
@@ -2854,9 +2850,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s = dev->subdevices + 4;
 		if (this_board->i_Timer) {
 			s->type = COMEDI_SUBD_TIMER;
-			s->subdev_flags =
-				SDF_WRITEABLE | SDF_RT | SDF_GROUND |
-				SDF_COMMON;
+			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = 1;
 			s->maxdata = 0;
 			s->len_chanlist = 1;
@@ -2875,8 +2869,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		if (this_board->i_NbrTTLChannel) {
 			s->type = COMEDI_SUBD_TTLIO;
 			s->subdev_flags =
-				SDF_WRITEABLE | SDF_READABLE | SDF_RT |
-				SDF_GROUND | SDF_COMMON;
+				SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 			s->n_chan = this_board->i_NbrTTLChannel;
 			s->maxdata = 1;
 			s->io_bits = 0;	/* all bits input */

@@ -1998,27 +1998,18 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (async->cb_mask & s->async->events) {
 		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
-			if (dev->rt) {
-				printk("BUG: comedi_event() code unreachable\n");
-			} else {
-				wake_up_interruptible(&async->wait_head);
-				if (s->subdev_flags & SDF_CMD_READ) {
-					kill_fasync(&dev->async_queue, SIGIO,
-						    POLL_IN);
-				}
-				if (s->subdev_flags & SDF_CMD_WRITE) {
-					kill_fasync(&dev->async_queue, SIGIO,
-						    POLL_OUT);
-				}
+			wake_up_interruptible(&async->wait_head);
+			if (s->subdev_flags & SDF_CMD_READ) {
+				kill_fasync(&dev->async_queue, SIGIO,
+					    POLL_IN);
+			}
+			if (s->subdev_flags & SDF_CMD_WRITE) {
+				kill_fasync(&dev->async_queue, SIGIO,
+					    POLL_OUT);
 			}
 		} else {
 			if (async->cb_func)
 				async->cb_func(s->async->events, async->cb_arg);
-			/* XXX bug here.  If subdevice A is rt, and
-			 * subdevice B tries to callback to a normal
-			 * linux kernel function, it will be at the
-			 * wrong priority.  Since this isn't very
-			 * common, I'm not going to worry about it. */
 		}
 	}
 	s->async->events = 0;

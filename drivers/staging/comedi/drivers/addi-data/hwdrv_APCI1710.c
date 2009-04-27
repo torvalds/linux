@@ -71,7 +71,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 0;
 
 	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITEABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 3;
 	s->maxdata = 0;
 	s->len_chanlist = 3;
@@ -86,7 +86,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 7;
 	s->maxdata = 1;
 	s->len_chanlist = 7;
@@ -100,7 +100,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 2;
 
 	s->type = COMEDI_SUBD_CHRONO;
-	s->subdev_flags = SDF_WRITEABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 4;
 	s->maxdata = 0;
 	s->len_chanlist = 4;
@@ -114,7 +114,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 3;
 	s->type = COMEDI_SUBD_PWM;
 	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 3;
 	s->maxdata = 1;
 	s->len_chanlist = 3;
@@ -129,7 +129,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 4;
 	s->type = COMEDI_SUBD_TTLIO;
 	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 8;
 	s->maxdata = 1;
 	s->len_chanlist = 8;
@@ -143,7 +143,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 5;
 	s->type = COMEDI_SUBD_TOR;
 	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 8;
 	s->maxdata = 1;
 	s->len_chanlist = 8;
@@ -158,7 +158,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 6;
 	s->type = COMEDI_SUBD_SSI;
 	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->len_chanlist = 4;
@@ -171,7 +171,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 7;
 	s->type = COMEDI_SUBD_PULSEENCODER;
 	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 4;
 	s->maxdata = 1;
 	s->len_chanlist = 4;
@@ -185,7 +185,7 @@ void i_ADDI_AttachPCI1710(struct comedi_device *dev)
 	s = dev->subdevices + 8;
 	s->type = COMEDI_SUBD_INCREMENTALCOUNTER;
 	s->subdev_flags =
-		SDF_WRITEABLE | SDF_READABLE | SDF_RT | SDF_GROUND | SDF_COMMON;
+		SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
 	s->n_chan = 500;
 	s->maxdata = 1;
 	s->len_chanlist = 500;

@@ -307,7 +307,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = dev->subdevices + 0;
 	/* digital i/o subdevice */
 	s->type = COMEDI_SUBD_DIO;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_RT;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	s->n_chan = 16;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
