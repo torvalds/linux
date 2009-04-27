@@ -89,7 +89,7 @@ static int acpi_processor_handle_eject(struct acpi_processor *pr);
 
 static const struct acpi_device_id processor_device_ids[] = {
 	{ACPI_PROCESSOR_OBJECT_HID, 0},
-	{ACPI_PROCESSOR_HID, 0},
+	{"ACPI0007", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, processor_device_ids);
