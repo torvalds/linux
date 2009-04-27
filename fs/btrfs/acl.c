@@ -60,14 +60,19 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		return ERR_PTR(-EINVAL);
 	}
 
-	spin_lock(&inode->i_lock);
-	if (*p_acl != BTRFS_ACL_NOT_CACHED)
-		acl = posix_acl_dup(*p_acl);
-	spin_unlock(&inode->i_lock);
-
-	if (acl)
+	/* Handle the cached NULL acl case without locking */
+	acl = ACCESS_ONCE(*p_acl);
+	if (!acl)
 		return acl;
 
+	spin_lock(&inode->i_lock);
+	acl = *p_acl;
+	if (acl != BTRFS_ACL_NOT_CACHED)
+		acl = posix_acl_dup(acl);
+	spin_unlock(&inode->i_lock);
+
+	if (acl != BTRFS_ACL_NOT_CACHED)
+		return acl;
 
 	size = __btrfs_getxattr(inode, name, "", 0);
 	if (size > 0) {
@@ -80,9 +85,12 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 			btrfs_update_cached_acl(inode, p_acl, acl);
 		}
 		kfree(value);
-	} else if (size == -ENOENT) {
+	} else if (size == -ENOENT || size == -ENODATA || size == 0) {
+		/* FIXME, who returns -ENOENT?  I think nobody */
 		acl = NULL;
 		btrfs_update_cached_acl(inode, p_acl, acl);
+	} else {
+		acl = ERR_PTR(-EIO);
 	}
 
 	return acl;

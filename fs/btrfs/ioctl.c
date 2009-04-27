@@ -477,11 +477,13 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		*devstr = '\0';
 		devstr = vol_args->name;
 		devid = simple_strtoull(devstr, &end, 10);
-		printk(KERN_INFO "resizing devid %llu\n", devid);
+		printk(KERN_INFO "resizing devid %llu\n",
+		       (unsigned long long)devid);
 	}
 	device = btrfs_find_device(root, devid, NULL, NULL);
 	if (!device) {
-		printk(KERN_INFO "resizer unable to find device %llu\n", devid);
+		printk(KERN_INFO "resizer unable to find device %llu\n",
+		       (unsigned long long)devid);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -805,7 +807,8 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	BUG_ON(!trans);
 
 	/* punch hole in destination first */
-	btrfs_drop_extents(trans, root, inode, off, off+len, 0, &hint_byte);
+	btrfs_drop_extents(trans, root, inode, off, off + len,
+			   off + len, 0, &hint_byte);
 
 	/* clone data */
 	key.objectid = src->i_ino;
