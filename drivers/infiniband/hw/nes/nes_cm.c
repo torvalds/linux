@@ -2955,6 +2955,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct nes_device *nesdev;
 	struct nes_cm_node *cm_node;
 	struct nes_cm_info cm_info;
+	int apbvt_set = 0;
 
 	ibqp = nes_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -2992,9 +2993,11 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		conn_param->private_data_len);
 
 	if (cm_id->local_addr.sin_addr.s_addr !=
-		cm_id->remote_addr.sin_addr.s_addr)
+		cm_id->remote_addr.sin_addr.s_addr) {
 		nes_manage_apbvt(nesvnic, ntohs(cm_id->local_addr.sin_port),
 			PCI_FUNC(nesdev->pcidev->devfn), NES_MANAGE_APBVT_ADD);
+		apbvt_set = 1;
+	}
 
 	/* set up the connection params for the node */
 	cm_info.loc_addr = htonl(cm_id->local_addr.sin_addr.s_addr);
@@ -3011,8 +3014,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		conn_param->private_data_len, (void *)conn_param->private_data,
 		&cm_info);
 	if (!cm_node) {
-		if (cm_id->local_addr.sin_addr.s_addr !=
-				cm_id->remote_addr.sin_addr.s_addr)
+		if (apbvt_set)
 			nes_manage_apbvt(nesvnic, ntohs(cm_id->local_addr.sin_port),
 				PCI_FUNC(nesdev->pcidev->devfn),
 				NES_MANAGE_APBVT_DEL);
@@ -3021,7 +3023,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		return -ENOMEM;
 	}
 
-	cm_node->apbvt_set = 1;
+	cm_node->apbvt_set = apbvt_set;
 	nesqp->cm_node = cm_node;
 	cm_node->nesqp = nesqp;
 	nes_add_ref(&nesqp->ibqp);
