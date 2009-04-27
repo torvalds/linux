@@ -476,10 +476,11 @@ config SH_TIMER_CMT
 	bool "CMT clockevents driver"
 	depends on SYS_SUPPORTS_CMT && !SH_CMT
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_TIME
 
 config SH_MTU2
 	bool "MTU2 timer support"
-	depends on CPU_SH2A
+	depends on CPU_SH2A && !GENERIC_TIME
 	default y
 	help
 	  This enables the use of the MTU2 as the system timer.
