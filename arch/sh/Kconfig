@@ -30,6 +30,7 @@ config SUPERH32
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_ARCH_KGDB
 	select ARCH_HIBERNATION_POSSIBLE if MMU
+	select RTC_LIB
 
 config SUPERH64
 	def_bool ARCH = "sh64"
