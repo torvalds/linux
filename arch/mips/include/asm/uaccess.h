@@ -104,11 +104,21 @@
 
 #define __access_mask get_fs().seg
 
-#define __access_ok(addr, size, mask)					\
-	(((signed long)((mask) & ((addr) | ((addr) + (size)) | __ua_size(size)))) == 0)
+#define __access_ok(addr, size, mask)							\
+({											\
+	const volatile void __user *__up = addr;					\
+	unsigned long __addr = (unsigned long) __up;					\
+	unsigned long __size = size;							\
+	unsigned long __mask = mask;							\
+	unsigned long __ok;								\
+											\
+	__ok = (signed long)(__mask & (__addr | (__addr + __size) |			\
+		__ua_size(__size)));							\
+	__ok == 0;									\
+})
 
 #define access_ok(type, addr, size)					\
-	likely(__access_ok((unsigned long)(addr), (size), __access_mask))
+	likely(__access_ok((addr), (size), __access_mask))
 
 /*
  * put_user: - Write a simple value into user space.
