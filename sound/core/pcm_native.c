@@ -312,9 +312,18 @@ int snd_pcm_hw_refine(struct snd_pcm_substream *substream,
 
 	hw = &substream->runtime->hw;
 	if (!params->info)
-		params->info = hw->info;
-	if (!params->fifo_size)
-		params->fifo_size = hw->fifo_size;
+		params->info = hw->info & ~SNDRV_PCM_INFO_FIFO_IN_FRAMES;
+	if (!params->fifo_size) {
+		if (snd_mask_min(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT]) ==
+		    snd_mask_max(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT]) &&
+                    snd_mask_min(&params->masks[SNDRV_PCM_HW_PARAM_CHANNELS]) ==
+                    snd_mask_max(&params->masks[SNDRV_PCM_HW_PARAM_CHANNELS])) {
+			changed = substream->ops->ioctl(substream,
+					SNDRV_PCM_IOCTL1_FIFO_SIZE, params);
+			if (params < 0)
+				return changed;
+		}
+	}
 	params->rmask = 0;
 	return 0;
 }

@@ -1524,6 +1524,23 @@ static int snd_pcm_lib_ioctl_channel_info(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int snd_pcm_lib_ioctl_fifo_size(struct snd_pcm_substream *substream,
+				       void *arg)
+{
+	struct snd_pcm_hw_params *params = arg;
+	snd_pcm_format_t format;
+	int channels, width;
+
+	params->fifo_size = substream->runtime->hw.fifo_size;
+	if (!(substream->runtime->hw.info & SNDRV_PCM_INFO_FIFO_IN_FRAMES)) {
+		format = params_format(params);
+		channels = params_channels(params);
+		width = snd_pcm_format_physical_width(format);
+		params->fifo_size /= width * channels;
+	}
+	return 0;
+}
+
 /**
  * snd_pcm_lib_ioctl - a generic PCM ioctl callback
  * @substream: the pcm substream instance
@@ -1545,6 +1562,8 @@ int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		return snd_pcm_lib_ioctl_reset(substream, arg);
 	case SNDRV_PCM_IOCTL1_CHANNEL_INFO:
 		return snd_pcm_lib_ioctl_channel_info(substream, arg);
+	case SNDRV_PCM_IOCTL1_FIFO_SIZE:
+		return snd_pcm_lib_ioctl_fifo_size(substream, arg);
 	}
 	return -ENXIO;
 }
