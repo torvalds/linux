@@ -641,9 +641,9 @@ EXPORT_SYMBOL(scsi_eh_prep_cmnd);
 /**
  * scsi_eh_restore_cmnd  - Restore a scsi command info as part of error recory
  * @scmd:       SCSI command structure to restore
- * @ses:        saved information from a coresponding call to scsi_prep_eh_cmnd
+ * @ses:        saved information from a coresponding call to scsi_eh_prep_cmnd
  *
- * Undo any damage done by above scsi_prep_eh_cmnd().
+ * Undo any damage done by above scsi_eh_prep_cmnd().
  */
 void scsi_eh_restore_cmnd(struct scsi_cmnd* scmd, struct scsi_eh_save *ses)
 {

@@ -1225,8 +1225,8 @@ EXPORT_SYMBOL(__scsi_device_lookup_by_target);
  * @starget:	SCSI target pointer
  * @lun:	SCSI Logical Unit Number
  *
- * Description: Looks up the scsi_device with the specified @channel, @id, @lun
- * for a given host.  The returned scsi_device has an additional reference that
+ * Description: Looks up the scsi_device with the specified @lun for a given
+ * @starget.  The returned scsi_device has an additional reference that
  * needs to be released with scsi_device_put once you're done with it.
  **/
 struct scsi_device *scsi_device_lookup_by_target(struct scsi_target *starget,
