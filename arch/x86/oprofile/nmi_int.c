@@ -417,6 +417,13 @@ static int __init ppro_init(char **cpu_type)
 	case 15: case 23:
 		*cpu_type = "i386/core_2";
 		break;
+	case 26:
+		arch_perfmon_setup_counters();
+		*cpu_type = "i386/core_i7";
+		break;
+	case 28:
+		*cpu_type = "i386/atom";
+		break;
 	default:
 		/* Unknown */
 		return 0;
