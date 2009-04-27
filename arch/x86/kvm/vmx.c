@@ -3577,9 +3577,17 @@ static int get_ept_level(void)
 	return VMX_EPT_DEFAULT_GAW + 1;
 }
 
-static int vmx_get_mt_mask_shift(void)
+static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 {
-	return VMX_EPT_MT_EPTE_SHIFT;
+	u64 ret;
+
+	if (is_mmio)
+		ret = MTRR_TYPE_UNCACHABLE << VMX_EPT_MT_EPTE_SHIFT;
+	else
+		ret = (kvm_get_guest_memory_type(vcpu, gfn) <<
+			VMX_EPT_MT_EPTE_SHIFT) | VMX_EPT_IGMT_BIT;
+
+	return ret;
 }
 
 static struct kvm_x86_ops vmx_x86_ops = {
@@ -3639,7 +3647,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 
 	.set_tss_addr = vmx_set_tss_addr,
 	.get_tdp_level = get_ept_level,
-	.get_mt_mask_shift = vmx_get_mt_mask_shift,
+	.get_mt_mask = vmx_get_mt_mask,
 };
 
 static int __init vmx_init(void)
@@ -3698,8 +3706,7 @@ static int __init vmx_init(void)
 		kvm_mmu_set_base_ptes(VMX_EPT_READABLE_MASK |
 			VMX_EPT_WRITABLE_MASK);
 		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
-				VMX_EPT_EXECUTABLE_MASK,
-				VMX_EPT_DEFAULT_MT << VMX_EPT_MT_EPTE_SHIFT);
+				VMX_EPT_EXECUTABLE_MASK);
 		kvm_enable_tdp();
 	} else
 		kvm_disable_tdp();

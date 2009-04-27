@@ -178,7 +178,6 @@ static u64 __read_mostly shadow_x_mask;	/* mutual exclusive with nx_mask */
 static u64 __read_mostly shadow_user_mask;
 static u64 __read_mostly shadow_accessed_mask;
 static u64 __read_mostly shadow_dirty_mask;
-static u64 __read_mostly shadow_mt_mask;
 
 static inline u64 rsvd_bits(int s, int e)
 {
@@ -199,14 +198,13 @@ void kvm_mmu_set_base_ptes(u64 base_pte)
 EXPORT_SYMBOL_GPL(kvm_mmu_set_base_ptes);
 
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
-		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 mt_mask)
+		u64 dirty_mask, u64 nx_mask, u64 x_mask)
 {
 	shadow_user_mask = user_mask;
 	shadow_accessed_mask = accessed_mask;
 	shadow_dirty_mask = dirty_mask;
 	shadow_nx_mask = nx_mask;
 	shadow_x_mask = x_mask;
-	shadow_mt_mask = mt_mask;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
@@ -1608,7 +1606,7 @@ static int get_mtrr_type(struct mtrr_state_type *mtrr_state,
 	return mtrr_state->def_type;
 }
 
-static u8 get_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
+u8 kvm_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
 	u8 mtrr;
 
@@ -1618,6 +1616,7 @@ static u8 get_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 		mtrr = MTRR_TYPE_WRBACK;
 	return mtrr;
 }
+EXPORT_SYMBOL_GPL(kvm_get_guest_memory_type);
 
 static int kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
@@ -1670,7 +1669,6 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 {
 	u64 spte;
 	int ret = 0;
-	u64 mt_mask = shadow_mt_mask;
 
 	/*
 	 * We don't set the accessed bit, since we sometimes want to see
@@ -1690,16 +1688,9 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 		spte |= shadow_user_mask;
 	if (largepage)
 		spte |= PT_PAGE_SIZE_MASK;
-	if (mt_mask) {
-		if (!kvm_is_mmio_pfn(pfn)) {
-			mt_mask = get_memory_type(vcpu, gfn) <<
-				kvm_x86_ops->get_mt_mask_shift();
-			mt_mask |= VMX_EPT_IGMT_BIT;
-		} else
-			mt_mask = MTRR_TYPE_UNCACHABLE <<
-				kvm_x86_ops->get_mt_mask_shift();
-		spte |= mt_mask;
-	}
+	if (tdp_enabled)
+		spte |= kvm_x86_ops->get_mt_mask(vcpu, gfn,
+			kvm_is_mmio_pfn(pfn));
 
 	spte |= (u64)pfn << PAGE_SHIFT;
 

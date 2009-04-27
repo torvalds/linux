@@ -2589,7 +2589,7 @@ static int get_npt_level(void)
 #endif
 }
 
-static int svm_get_mt_mask_shift(void)
+static u64 svm_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 {
 	return 0;
 }
@@ -2652,7 +2652,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
-	.get_mt_mask_shift = svm_get_mt_mask_shift,
+	.get_mt_mask = svm_get_mt_mask,
 };
 
 static int __init svm_init(void)
