@@ -356,14 +356,11 @@ static void exit_sysfs(void)
 #define exit_sysfs() do { } while (0)
 #endif /* CONFIG_PM */
 
-static int p4force;
-module_param(p4force, int, 0);
-
 static int __init p4_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
 
-	if (!p4force && (cpu_model > 6 || cpu_model == 5))
+	if (cpu_model > 6 || cpu_model == 5)
 		return 0;
 
 #ifndef CONFIG_SMP
