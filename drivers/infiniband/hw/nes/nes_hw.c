@@ -912,6 +912,12 @@ static void nes_init_csr_ne020(struct nes_device *nesdev, u8 hw_rev, u8 port_cou
 		u32temp &= 0x7fffffff;
 		u32temp |= 0x7fff0010;
 		nes_write_indexed(nesdev, 0x000021f8, u32temp);
+		if (port_count > 1) {
+			u32temp = nes_read_indexed(nesdev, 0x000023f8);
+			u32temp &= 0x7fffffff;
+			u32temp |= 0x7fff0010;
+			nes_write_indexed(nesdev, 0x000023f8, u32temp);
+		}
 	}
 }
 
