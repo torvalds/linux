@@ -124,7 +124,8 @@ const static struct ctrl s5k83a_ctrls[] = {
 static void s5k83a_dump_registers(struct sd *sd);
 static int s5k83a_get_rotation(struct sd *sd, u8 *reg_data);
 static int s5k83a_set_led_indication(struct sd *sd, u8 val);
-int s5k83a_set_flip_real(struct gspca_dev *gspca_dev, __s32 vflip, __s32 hflip);
+static int s5k83a_set_flip_real(struct gspca_dev *gspca_dev,
+				__s32 vflip, __s32 hflip);
 
 int s5k83a_probe(struct sd *sd)
 {
@@ -198,6 +199,7 @@ sensor_found:
 int s5k83a_init(struct sd *sd)
 {
 	int i, err = 0;
+	s32 *sensor_settings = sd->sensor_priv;
 
 	for (i = 0; i < ARRAY_SIZE(init_s5k83a) && !err; i++) {
 		u8 data[2] = {0x00, 0x00};
@@ -230,7 +232,27 @@ int s5k83a_init(struct sd *sd)
 	if (dump_sensor)
 		s5k83a_dump_registers(sd);
 
-	return (err < 0) ? err : 0;
+	err = s5k83a_set_gain(&sd->gspca_dev, sensor_settings[GAIN_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_set_brightness(&sd->gspca_dev,
+				     sensor_settings[BRIGHTNESS_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_set_exposure(&sd->gspca_dev,
+				   sensor_settings[EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_set_hflip(&sd->gspca_dev, sensor_settings[HFLIP_IDX]);
+	if (err < 0)
+		return err;
+
+	err = s5k83a_set_vflip(&sd->gspca_dev, sensor_settings[VFLIP_IDX]);
+
+	return err;
 }
 
 static int rotation_thread_function(void *data)
@@ -282,7 +304,8 @@ int s5k83a_start(struct sd *sd)
 	/* Create another thread, polling the GPIO ports of the camera to check
 	   if it got rotated. This is how the windows driver does it so we have
 	   to assume that there is no better way of accomplishing this */
-	sens_priv->rotation_thread = kthread_create(rotation_thread_function, sd, "rotation thread");
+	sens_priv->rotation_thread = kthread_create(rotation_thread_function,
+							sd, "rotation thread");
 	wake_up_process(sens_priv->rotation_thread);
 
 	return s5k83a_set_led_indication(sd, 1);
@@ -402,7 +425,8 @@ static int s5k83a_get_vflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-int s5k83a_set_flip_real(struct gspca_dev *gspca_dev, __s32 vflip, __s32 hflip)
+static int s5k83a_set_flip_real(struct gspca_dev *gspca_dev,
+				__s32 vflip, __s32 hflip)
 {
 	int err;
 	u8 data[1];
@@ -505,7 +529,7 @@ static int s5k83a_set_led_indication(struct sd *sd, u8 val)
 
 	err = m5602_write_bridge(sd, M5602_XB_GPIO_DAT, data[0]);
 
-	return (err < 0) ? err : 0;
+	return err;
 }
 
 /* Get camera rotation on Acer notebooks */
