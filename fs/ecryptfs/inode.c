@@ -690,7 +690,7 @@ ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 		}
 		/* Check for bufsiz <= 0 done in sys_readlinkat() */
 		rc = copy_to_user(buf, plaintext_name,
-				  min((unsigned) bufsiz, plaintext_name_size));
+				  min((size_t) bufsiz, plaintext_name_size));
 		if (rc)
 			rc = -EFAULT;
 		else
