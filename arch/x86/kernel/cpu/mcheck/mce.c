@@ -650,6 +650,12 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 			 */
 			mce_bootlog = 0;
 		}
+		/*
+		 * Various K7s with broken bank 0 around. Always disable
+		 * by default.
+		 */
+		 if (c->x86 == 6)
+			bank[0] = 0;
 	}
 
 	if (c->x86_vendor == X86_VENDOR_INTEL) {
