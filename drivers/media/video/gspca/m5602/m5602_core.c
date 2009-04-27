@@ -17,6 +17,7 @@
  */
 
 #include "m5602_ov9650.h"
+#include "m5602_ov7660.h"
 #include "m5602_mt9m111.h"
 #include "m5602_po1030.h"
 #include "m5602_s5k83a.h"
@@ -214,6 +215,11 @@ static int m5602_probe_sensor(struct sd *sd)
 
 	/* Try the ov9650 */
 	sd->sensor = &ov9650;
+	if (!sd->sensor->probe(sd))
+		return 0;
+
+	/* Try the ov7660 */
+	sd->sensor = &ov7660;
 	if (!sd->sensor->probe(sd))
 		return 0;
 
