@@ -126,15 +126,28 @@ extern struct ctl_path net_ipv6_ctl_path[];
 	SNMP_ADD_STATS##modifier((net)->mib.statname##_statistics, (field), (val));\
 })
 
+#define _DEVUPD(net, statname, modifier, idev, field, val)		\
+({									\
+	struct inet6_dev *_idev = (idev);				\
+	if (likely(_idev != NULL))					\
+		SNMP_UPD_PO_STATS##modifier((_idev)->stats.statname, field, (val)); \
+	SNMP_UPD_PO_STATS##modifier((net)->mib.statname##_statistics, field, (val));\
+})
+
 /* MIBs */
 
 #define IP6_INC_STATS(net, idev,field)		\
 		_DEVINC(net, ipv6, , idev, field)
 #define IP6_INC_STATS_BH(net, idev,field)	\
 		_DEVINC(net, ipv6, _BH, idev, field)
+#define IP6_ADD_STATS(net, idev,field,val)	\
+		_DEVADD(net, ipv6, , idev, field, val)
 #define IP6_ADD_STATS_BH(net, idev,field,val)	\
 		_DEVADD(net, ipv6, _BH, idev, field, val)
-
+#define IP6_UPD_PO_STATS(net, idev,field,val)   \
+		_DEVUPD(net, ipv6, , idev, field, val)
+#define IP6_UPD_PO_STATS_BH(net, idev,field,val)   \
+		_DEVUPD(net, ipv6, _BH, idev, field, val)
 #define ICMP6_INC_STATS(net, idev, field)	\
 		_DEVINC(net, icmpv6, , idev, field)
 #define ICMP6_INC_STATS_BH(net, idev, field)	\

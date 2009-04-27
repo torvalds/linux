@@ -159,7 +159,8 @@ static int ip6_output2(struct sk_buff *skb)
 			}
 		}
 
-		IP6_INC_STATS(dev_net(dev), idev, IPSTATS_MIB_OUTMCASTPKTS);
+		IP6_UPD_PO_STATS(dev_net(dev), idev, IPSTATS_MIB_OUTMCAST,
+				skb->len);
 	}
 
 	return NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, skb, NULL, skb->dev,
@@ -275,8 +276,8 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 
 	mtu = dst_mtu(dst);
 	if ((skb->len <= mtu) || skb->local_df || skb_is_gso(skb)) {
-		IP6_INC_STATS(net, ip6_dst_idev(skb->dst),
-			      IPSTATS_MIB_OUTREQUESTS);
+		IP6_UPD_PO_STATS(net, ip6_dst_idev(skb->dst),
+			      IPSTATS_MIB_OUT, skb->len);
 		return NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
 				dst_output);
 	}
@@ -1516,7 +1517,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	skb->mark = sk->sk_mark;
 
 	skb->dst = dst_clone(&rt->u.dst);
-	IP6_INC_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUTREQUESTS);
+	IP6_UPD_PO_STATS(net, rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	if (proto == IPPROTO_ICMPV6) {
 		struct inet6_dev *idev = ip6_dst_idev(skb->dst);
 
