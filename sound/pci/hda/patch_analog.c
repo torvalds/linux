@@ -3817,6 +3817,49 @@ static struct hda_verb ad1884a_laptop_verbs[] = {
 	{ } /* end */
 };
 
+static struct hda_verb ad1884a_mobile_verbs[] = {
+	/* DACs; unmute as default */
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, 0x27}, /* 0dB */
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, 0x27}, /* 0dB */
+	/* Port-A (HP) mixer - route only from analog mixer */
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	/* Port-A pin */
+	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	/* Port-A (HP) pin - always unmuted */
+	{0x11, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+	/* Port-B (mic jack) pin */
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, 0x7002}, /* raise mic as default */
+	/* Port-C (int mic) pin */
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, 0x7002}, /* raise mic as default */
+	/* Port-F (int speaker) mixer - route only from analog mixer */
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	/* Port-F pin */
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* Analog mixer; mute as default */
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	{0x20, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(5)},
+	/* Analog Mix output amp */
+	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* capture sources */
+	/* {0x0c, AC_VERB_SET_CONNECT_SEL, 0x0}, */ /* set via unsol */
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x0d, AC_VERB_SET_CONNECT_SEL, 0x0},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	/* unsolicited event for pin-sense */
+	{0x11, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1884A_HP_EVENT},
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | AD1884A_MIC_EVENT},
+	{ } /* end */
+};
+
 /*
  * Thinkpad X300
  * 0x11 - HP
@@ -3988,7 +4031,7 @@ static int patch_ad1884a(struct hda_codec *codec)
 		break;
 	case AD1884A_MOBILE:
 		spec->mixers[0] = ad1884a_mobile_mixers;
-		spec->init_verbs[spec->num_init_verbs++] = ad1884a_laptop_verbs;
+		spec->init_verbs[0] = ad1884a_mobile_verbs;
 		spec->multiout.dig_out_nid = 0;
 		codec->patch_ops.unsol_event = ad1884a_hp_unsol_event;
 		codec->patch_ops.init = ad1884a_hp_init;
