@@ -171,6 +171,7 @@ struct snd_soc_dai s3c64xx_i2s_dai[] = {
 			 .formats	= S3C64XX_I2S_FMTS,
 		 },
 		.ops = &s3c64xx_i2s_dai_ops,
+		.symmetric_rates = 1,
 	},
 	{
 		.name		= "s3c64xx-i2s",
@@ -189,6 +190,7 @@ struct snd_soc_dai s3c64xx_i2s_dai[] = {
 			 .formats	= S3C64XX_I2S_FMTS,
 		 },
 		.ops = &s3c64xx_i2s_dai_ops,
+		.symmetric_rates = 1,
 	},
 };
 EXPORT_SYMBOL_GPL(s3c64xx_i2s_dai);
