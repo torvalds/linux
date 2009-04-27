@@ -2808,10 +2808,9 @@ static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
 	struct nes_vnic *nesvnic = nesibdev->nesvnic;
 
 	nes_debug(NES_DBG_INIT, "\n");
-	return sprintf(buf, "%x.%x.%x\n",
-			(int)(nesvnic->nesdev->nesadapter->fw_ver >> 32),
-			(int)(nesvnic->nesdev->nesadapter->fw_ver >> 16) & 0xffff,
-			(int)(nesvnic->nesdev->nesadapter->fw_ver & 0xffff));
+	return sprintf(buf, "%u.%u\n",
+		(nesvnic->nesdev->nesadapter->firmware_version >> 16),
+		(nesvnic->nesdev->nesadapter->firmware_version & 0x000000ff));
 }
 
 
