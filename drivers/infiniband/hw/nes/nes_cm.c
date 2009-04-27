@@ -2705,7 +2705,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	/* associate the node with the QP */
 	nesqp->cm_node = (void *)cm_node;
 	cm_node->nesqp = nesqp;
-	nes_add_ref(&nesqp->ibqp);
 
 	nes_debug(NES_DBG_CM, "QP%u, cm_node=%p, jiffies = %lu listener = %p\n",
 		nesqp->hwqp.qp_id, cm_node, jiffies, cm_node->listener);
@@ -2758,6 +2757,9 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 			nes_debug(NES_DBG_CM, "Unable to register memory region"
 					"for lSMM for cm_node = %p \n",
 					cm_node);
+			pci_free_consistent(nesdev->pcidev,
+				nesqp->private_data_len+sizeof(struct ietf_mpa_frame),
+				nesqp->ietf_frame, nesqp->ietf_frame_pbase);
 			return -ENOMEM;
 		}
 
@@ -2874,6 +2876,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	/* notify OF layer that accept event was successful */
 	cm_id->add_ref(cm_id);
+	nes_add_ref(&nesqp->ibqp);
 
 	cm_event.event = IW_CM_EVENT_ESTABLISHED;
 	cm_event.status = IW_CM_EVENT_STATUS_ACCEPTED;
