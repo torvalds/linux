@@ -54,7 +54,7 @@
 #define	SR_SRWD			0x80	/* SR write protect */
 
 /* Define max times to check status register before we give up. */
-#define	MAX_READY_WAIT_COUNT	100000
+#define	MAX_READY_WAIT_COUNT	1000000
 #define	CMD_SIZE		4
 
 #ifdef CONFIG_M25PXX_USE_FAST_READ
@@ -246,10 +246,12 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	mutex_lock(&flash->lock);
 
 	/* whole-chip erase? */
-	if (len == flash->mtd.size && erase_chip(flash)) {
-		instr->state = MTD_ERASE_FAILED;
-		mutex_unlock(&flash->lock);
-		return -EIO;
+	if (len == flash->mtd.size) {
+		if (erase_chip(flash)) {
+			instr->state = MTD_ERASE_FAILED;
+			mutex_unlock(&flash->lock);
+			return -EIO;
+		}
 
 	/* REVISIT in some cases we could speed up erasing large regions
 	 * by using OPCODE_SE instead of OPCODE_BE_4K.  We may have set up
