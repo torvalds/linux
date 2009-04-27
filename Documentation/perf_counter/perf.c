@@ -1,8 +1,8 @@
 #include "builtin.h"
-#include "exec_cmd.h"
-#include "cache.h"
-#include "quote.h"
-#include "run-command.h"
+#include "util/exec_cmd.h"
+#include "util/cache.h"
+#include "util/quote.h"
+#include "util/run-command.h"
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] COMMAND [ARGS]";

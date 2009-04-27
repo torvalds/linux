@@ -1,5 +1,5 @@
 #include "cache.h"
-#include "builtin.h"
+#include "../builtin.h"
 #include "exec_cmd.h"
 #include "levenshtein.h"
 #include "help.h"

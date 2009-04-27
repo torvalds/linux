@@ -3,13 +3,13 @@
  *
  * Builtin help command
  */
-#include "cache.h"
+#include "util/cache.h"
 #include "builtin.h"
-#include "exec_cmd.h"
+#include "util/exec_cmd.h"
 #include "common-cmds.h"
-#include "parse-options.h"
-#include "run-command.h"
-#include "help.h"
+#include "util/parse-options.h"
+#include "util/run-command.h"
+#include "util/help.h"
 
 static struct man_viewer_list {
 	struct man_viewer_list *next;

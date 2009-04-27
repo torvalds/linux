@@ -469,9 +469,6 @@ int parse_options_usage(const char * const *usagestr,
 }
 
 
-/*----- some often used options -----*/
-#include "cache.h"
-
 int parse_opt_verbosity_cb(const struct option *opt, const char *arg,
 			   int unset)
 {

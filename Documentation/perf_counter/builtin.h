@@ -1,8 +1,8 @@
 #ifndef BUILTIN_H
 #define BUILTIN_H
 
-#include "util.h"
-#include "strbuf.h"
+#include "util/util.h"
+#include "util/strbuf.h"
 
 extern const char perf_version_string[];
 extern const char perf_usage_string[];

@@ -42,7 +42,7 @@
   * Released under the GPL v2. (and only v2, not any later version)
   */
 
-#include "util.h"
+#include "util/util.h"
 
 #include <getopt.h>
 #include <assert.h>

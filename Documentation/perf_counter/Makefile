@@ -147,7 +147,7 @@ all::
 # broken, or spawning external process is slower than built-in grep perf has).
 
 PERF-VERSION-FILE: .FORCE-PERF-VERSION-FILE
-	@$(SHELL_PATH) ./PERF-VERSION-GEN
+	@$(SHELL_PATH) util/PERF-VERSION-GEN
 -include PERF-VERSION-FILE
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
@@ -287,26 +287,28 @@ export PERL_PATH
 LIB_FILE=libperf.a
 
 LIB_H += ../../include/linux/perf_counter.h
-LIB_H += levenshtein.h
-LIB_H += parse-options.h
-LIB_H += quote.h
-LIB_H += strbuf.h
-LIB_H += run-command.h
+LIB_H += util/levenshtein.h
+LIB_H += util/parse-options.h
+LIB_H += util/quote.h
+LIB_H += util/util.h
+LIB_H += util/help.h
+LIB_H += util/strbuf.h
+LIB_H += util/run-command.h
 
-LIB_OBJS += abspath.o
-LIB_OBJS += alias.o
-LIB_OBJS += config.o
-LIB_OBJS += ctype.o
-LIB_OBJS += exec_cmd.o
-LIB_OBJS += help.o
-LIB_OBJS += levenshtein.o
-LIB_OBJS += parse-options.o
-LIB_OBJS += path.o
-LIB_OBJS += run-command.o
-LIB_OBJS += quote.o
-LIB_OBJS += strbuf.o
-LIB_OBJS += usage.o
-LIB_OBJS += wrapper.o
+LIB_OBJS += util/abspath.o
+LIB_OBJS += util/alias.o
+LIB_OBJS += util/config.o
+LIB_OBJS += util/ctype.o
+LIB_OBJS += util/exec_cmd.o
+LIB_OBJS += util/help.o
+LIB_OBJS += util/levenshtein.o
+LIB_OBJS += util/parse-options.o
+LIB_OBJS += util/path.o
+LIB_OBJS += util/run-command.o
+LIB_OBJS += util/quote.o
+LIB_OBJS += util/strbuf.o
+LIB_OBJS += util/usage.o
+LIB_OBJS += util/wrapper.o
 
 BUILTIN_OBJS += builtin-help.o
 BUILTIN_OBJS += builtin-record.o
@@ -620,10 +622,10 @@ $(BUILT_INS): perf$X
 	ln -s perf$X $@ 2>/dev/null || \
 	cp perf$X $@
 
-common-cmds.h: ./generate-cmdlist.sh command-list.txt
+common-cmds.h: util/generate-cmdlist.sh command-list.txt
 
 common-cmds.h: $(wildcard Documentation/perf-*.txt)
-	$(QUIET_GEN)./generate-cmdlist.sh > $@+ && mv $@+ $@
+	$(QUIET_GEN)util/generate-cmdlist.sh > $@+ && mv $@+ $@
 
 $(patsubst %.sh,%,$(SCRIPT_SH)) : % : %.sh
 	$(QUIET_GEN)$(RM) $@ $@+ && \
@@ -656,7 +658,7 @@ perf.o perf.spec \
 %.o: %.S
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) $<
 
-exec_cmd.o: exec_cmd.c PERF-CFLAGS
+util/exec_cmd.o: util/exec_cmd.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) \
 		'-DPERF_EXEC_PATH="$(perfexecdir_SQ)"' \
 		'-DBINDIR="$(bindir_relative_SQ)"' \
@@ -666,7 +668,7 @@ exec_cmd.o: exec_cmd.c PERF-CFLAGS
 builtin-init-db.o: builtin-init-db.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DDEFAULT_PERF_TEMPLATE_DIR='"$(template_dir_SQ)"' $<
 
-config.o: config.c PERF-CFLAGS
+util/config.o: util/config.c PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $*.o -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
 perf-%$X: %.o $(PERFLIBS)
@@ -729,7 +731,7 @@ export NO_SVN_TESTS
 check: common-cmds.h
 	if sparse; \
 	then \
-		for i in *.c; \
+		for i in *.c */*.c; \
 		do \
 			sparse $(ALL_CFLAGS) $(SPARSE_FLAGS) $$i || exit; \
 		done; \
@@ -795,7 +797,7 @@ distclean: clean
 	$(RM) configure
 
 clean:
-	$(RM) *.o $(LIB_FILE)
+	$(RM) *.o */*.o $(LIB_FILE)
 	$(RM) $(ALL_PROGRAMS) $(BUILT_INS) perf$X
 	$(RM) $(TEST_PROGRAMS)
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo common-cmds.h TAGS tags cscope*
@@ -836,7 +838,7 @@ coverage-build: coverage-clean
 		-j1 test
 
 coverage-report:
-	gcov -b *.c
-	grep '^function.*called 0 ' *.c.gcov \
+	gcov -b *.c */*.c
+	grep '^function.*called 0 ' *.c.gcov */*.c.gcov \
 		| sed -e 's/\([^:]*\)\.gcov: *function \([^ ]*\) called.*/\1: \2/' \
 		| tee coverage-untested-functions
