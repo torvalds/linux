@@ -1227,7 +1227,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 		dev->stats.rx_dropped++;
 		return;
 	}
-	skb->dev = dev;
 	if (!rx_in_place) {
 		skb_reserve(skb, NET_IP_ALIGN);
 		skb_put(skb, pkt_len);	/* Make room */
