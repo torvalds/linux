@@ -2097,6 +2097,9 @@ EXPORT_SYMBOL(kblockd_schedule_work);
 
 int __init blk_dev_init(void)
 {
+	BUILD_BUG_ON(__REQ_NR_BITS > 8 *
+			sizeof(((struct request *)0)->cmd_flags));
+
 	kblockd_workqueue = create_workqueue("kblockd");
 	if (!kblockd_workqueue)
 		panic("Failed to create kblockd\n");
