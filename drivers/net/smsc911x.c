@@ -47,6 +47,7 @@
 #include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/swab.h>
 #include <linux/phy.h>
 #include <linux/smsc911x.h>
 #include "smsc911x.h"
@@ -175,6 +176,12 @@ static inline void
 smsc911x_tx_writefifo(struct smsc911x_data *pdata, unsigned int *buf,
 		      unsigned int wordcount)
 {
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			smsc911x_reg_write(pdata, TX_DATA_FIFO, swab32(*buf++));
+		return;
+	}
+
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
 		writesl(pdata->ioaddr + TX_DATA_FIFO, buf, wordcount);
 		return;
@@ -194,6 +201,12 @@ static inline void
 smsc911x_rx_readfifo(struct smsc911x_data *pdata, unsigned int *buf,
 		     unsigned int wordcount)
 {
+	if (pdata->config.flags & SMSC911X_SWAP_FIFO) {
+		while (wordcount--)
+			*buf++ = swab32(smsc911x_reg_read(pdata, RX_DATA_FIFO));
+		return;
+	}
+
 	if (pdata->config.flags & SMSC911X_USE_32BIT) {
 		readsl(pdata->ioaddr + RX_DATA_FIFO, buf, wordcount);
 		return;
