@@ -55,6 +55,7 @@
 #define IFF_NO_PI	0x1000
 #define IFF_ONE_QUEUE	0x2000
 #define IFF_VNET_HDR	0x4000
+#define IFF_TUN_EXCL	0x8000
 
 /* Features for GSO (TUNSETOFFLOAD). */
 #define TUN_F_CSUM	0x01	/* You can hand me unchecksummed packets. */

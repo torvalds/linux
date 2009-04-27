@@ -874,6 +874,8 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
+		if (ifr->ifr_flags & IFF_TUN_EXCL)
+			return -EBUSY;
 		if ((ifr->ifr_flags & IFF_TUN) && dev->netdev_ops == &tun_netdev_ops)
 			tun = netdev_priv(dev);
 		else if ((ifr->ifr_flags & IFF_TAP) && dev->netdev_ops == &tap_netdev_ops)
