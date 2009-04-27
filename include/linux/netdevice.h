@@ -1137,7 +1137,7 @@ static inline void skb_gro_reset_offset(struct sk_buff *skb)
 
 static inline void *skb_gro_mac_header(struct sk_buff *skb)
 {
-	return skb_mac_header(skb) < skb->data ? skb_mac_header(skb) :
+	return skb_headlen(skb) ? skb_mac_header(skb) :
 	       page_address(skb_shinfo(skb)->frags[0].page) +
 	       skb_shinfo(skb)->frags[0].page_offset;
 }

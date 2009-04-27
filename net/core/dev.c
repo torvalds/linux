@@ -2378,18 +2378,13 @@ void *skb_gro_header(struct sk_buff *skb, unsigned int hlen)
 	unsigned int offset = skb_gro_offset(skb);
 
 	hlen += offset;
-	if (hlen <= skb_headlen(skb))
-		return skb->data + offset;
-
-	if (unlikely(!skb_shinfo(skb)->nr_frags ||
-		     skb_shinfo(skb)->frags[0].size <=
-		     hlen - skb_headlen(skb) ||
+	if (unlikely(skb_headlen(skb) ||
+		     skb_shinfo(skb)->frags[0].size < hlen ||
 		     PageHighMem(skb_shinfo(skb)->frags[0].page)))
 		return pskb_may_pull(skb, hlen) ? skb->data + offset : NULL;
 
 	return page_address(skb_shinfo(skb)->frags[0].page) +
-	       skb_shinfo(skb)->frags[0].page_offset +
-	       offset - skb_headlen(skb);
+	       skb_shinfo(skb)->frags[0].page_offset + offset;
 }
 EXPORT_SYMBOL(skb_gro_header);
 
