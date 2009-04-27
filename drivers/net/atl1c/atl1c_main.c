@@ -220,11 +220,11 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 		/* link down */
 		if (netif_carrier_ok(netdev)) {
 			hw->hibernate = true;
-			atl1c_set_aspm(hw, false);
 			if (atl1c_stop_mac(hw) != 0)
 				if (netif_msg_hw(adapter))
 					dev_warn(&pdev->dev,
 						"stop mac failed\n");
+			atl1c_set_aspm(hw, false);
 		}
 		netif_carrier_off(netdev);
 	} else {
@@ -240,10 +240,10 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 		    adapter->link_duplex != duplex) {
 			adapter->link_speed  = speed;
 			adapter->link_duplex = duplex;
+			atl1c_set_aspm(hw, true);
 			atl1c_enable_tx_ctrl(hw);
 			atl1c_enable_rx_ctrl(hw);
 			atl1c_setup_mac_ctrl(adapter);
-			atl1c_set_aspm(hw, true);
 			if (netif_msg_link(adapter))
 				dev_info(&pdev->dev,
 					"%s: %s NIC Link is Up<%d Mbps %s>\n",
@@ -1242,9 +1242,7 @@ static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup)
 
 	AT_READ_REG(hw, REG_PM_CTRL, &pm_ctrl_data);
 
-	pm_ctrl_data &= PM_CTRL_SERDES_PD_EX_L1;
-	pm_ctrl_data |= ~PM_CTRL_SERDES_BUDS_RX_L1_EN;
-	pm_ctrl_data |= ~PM_CTRL_SERDES_L1_EN;
+	pm_ctrl_data &= ~PM_CTRL_SERDES_PD_EX_L1;
 	pm_ctrl_data &=  ~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
 			PM_CTRL_L1_ENTRY_TIMER_SHIFT);
 
@@ -1254,19 +1252,11 @@ static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup)
 		pm_ctrl_data |= PM_CTRL_SERDES_PLL_L1_EN;
 		pm_ctrl_data &= ~PM_CTRL_CLK_SWH_L1;
 
-		if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT) {
-			pm_ctrl_data |= AT_ASPM_L1_TIMER <<
-				PM_CTRL_L1_ENTRY_TIMER_SHIFT;
-			pm_ctrl_data |= PM_CTRL_ASPM_L1_EN;
-		} else
-			pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
-
-		if (hw->ctrl_flags & ATL1C_ASPM_L0S_SUPPORT)
-			pm_ctrl_data |= PM_CTRL_ASPM_L0S_EN;
-		else
-			pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
-
+		pm_ctrl_data |= PM_CTRL_SERDES_BUDS_RX_L1_EN;
+		pm_ctrl_data |= PM_CTRL_SERDES_L1_EN;
 	} else {
+		pm_ctrl_data &= ~PM_CTRL_SERDES_BUDS_RX_L1_EN;
+		pm_ctrl_data &= ~PM_CTRL_SERDES_L1_EN;
 		pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
 		pm_ctrl_data &= ~PM_CTRL_SERDES_PLL_L1_EN;
 
