@@ -459,23 +459,16 @@ static void ixgbe_receive_skb(struct ixgbe_q_vector *q_vector,
 	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
 	skb_record_rx_queue(skb, q_vector - &adapter->q_vector[0]);
-	if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
 		if (adapter->vlgrp && is_vlan && (tag != 0))
 			vlan_gro_receive(napi, adapter->vlgrp, tag, skb);
 		else
 			napi_gro_receive(napi, skb);
 	} else {
-		if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
-			if (adapter->vlgrp && is_vlan && (tag != 0))
-				vlan_hwaccel_receive_skb(skb, adapter->vlgrp, tag);
-			else
-				netif_receive_skb(skb);
-		} else {
-			if (adapter->vlgrp && is_vlan && (tag != 0))
-				vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
-			else
-				netif_rx(skb);
-		}
+		if (adapter->vlgrp && is_vlan && (tag != 0))
+			vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
+		else
+			netif_rx(skb);
 	}
 }
 
