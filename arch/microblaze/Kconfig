@@ -59,7 +59,7 @@ config PCI
 
 config NO_DMA
 	depends on !MMU
-	def_bool n
+	def_bool y
 
 source "init/Kconfig"
 
