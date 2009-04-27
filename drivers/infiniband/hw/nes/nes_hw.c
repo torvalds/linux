@@ -1371,13 +1371,14 @@ int nes_init_phy(struct nes_device *nesdev)
 		if (phy_type == NES_PHY_TYPE_ARGUS) {
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x000C);
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0008);
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0001);
 		} else {
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x0004);
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0038);
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0013);
 		}
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc31a, 0x0098);
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0026, 0x0E00);
-		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0001);
 
 		/* setup LEDs */
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xd006, 0x0007);
