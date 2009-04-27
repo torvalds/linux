@@ -372,7 +372,7 @@ static int __devinit ohci_pci_start (struct usb_hcd *hcd)
 
 #ifdef	CONFIG_PM
 
-static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
+static int ohci_pci_suspend(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
 	unsigned long	flags;
@@ -394,10 +394,6 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 	ohci_writel(ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	(void)ohci_readl(ohci, &ohci->regs->intrdisable);
 
-	/* make sure snapshot being resumed re-enumerates everything */
-	if (message.event == PM_EVENT_PRETHAW)
-		ohci_usb_reset(ohci);
-
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
  bail:
 	spin_unlock_irqrestore (&ohci->lock, flags);
@@ -406,9 +402,14 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 }
 
 
-static int ohci_pci_resume (struct usb_hcd *hcd)
+static int ohci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
+
+	/* Make sure resume from hibernation re-enumerates everything */
+	if (hibernated)
+		ohci_usb_reset(hcd_to_ohci(hcd));
+
 	ohci_finish_controller_resume(hcd);
 	return 0;
 }

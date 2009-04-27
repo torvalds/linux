@@ -182,10 +182,10 @@ struct hc_driver {
 	 * a whole, not just the root hub; they're for PCI bus glue.
 	 */
 	/* called after suspending the hub, before entering D3 etc */
-	int	(*pci_suspend) (struct usb_hcd *hcd, pm_message_t message);
+	int	(*pci_suspend)(struct usb_hcd *hcd);
 
 	/* called after entering D0 (etc), before resuming the hub */
-	int	(*pci_resume) (struct usb_hcd *hcd);
+	int	(*pci_resume)(struct usb_hcd *hcd, bool hibernated);
 
 	/* cleanly make HCD stop writing memory and doing I/O */
 	void	(*stop) (struct usb_hcd *hcd);

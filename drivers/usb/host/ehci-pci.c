@@ -268,7 +268,7 @@ done:
  * Also they depend on separate root hub suspend/resume.
  */
 
-static int ehci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
+static int ehci_pci_suspend(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	unsigned long		flags;
@@ -293,12 +293,6 @@ static int ehci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 
-	/* make sure snapshot being resumed re-enumerates everything */
-	if (message.event == PM_EVENT_PRETHAW) {
-		ehci_halt(ehci);
-		ehci_reset(ehci);
-	}
-
 	clear_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
  bail:
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -309,7 +303,7 @@ static int ehci_pci_suspend(struct usb_hcd *hcd, pm_message_t message)
 	return rc;
 }
 
-static int ehci_pci_resume(struct usb_hcd *hcd)
+static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
@@ -322,10 +316,12 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 	/* Mark hardware accessible again as we are out of D3 state by now */
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);
 
-	/* If CF is still set, we maintained PCI Vaux power.
+	/* If CF is still set and we aren't resuming from hibernation
+	 * then we maintained PCI Vaux power.
 	 * Just undo the effect of ehci_pci_suspend().
 	 */
-	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF) {
+	if (ehci_readl(ehci, &ehci->regs->configured_flag) == FLAG_CF &&
+				!hibernated) {
 		int	mask = INTR_MASK;
 
 		if (!hcd->self.root_hub->do_remote_wakeup)
@@ -335,7 +331,6 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 		return 0;
 	}
 
-	ehci_dbg(ehci, "lost power, restarting\n");
 	usb_root_hub_lost_power(hcd->self.root_hub);
 
 	/* Else reset, to cope with power loss or flush-to-storage

@@ -237,7 +237,7 @@ static int hcd_pci_suspend(struct device *dev)
 		return retval;
 
 	if (hcd->driver->pci_suspend) {
-		retval = hcd->driver->pci_suspend(hcd, PMSG_SUSPEND);
+		retval = hcd->driver->pci_suspend(hcd);
 		suspend_report_result(hcd->driver->pci_suspend, retval);
 		if (retval)
 			return retval;
@@ -344,7 +344,7 @@ static int resume_common(struct device *dev, bool hibernated)
 	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
 
 	if (hcd->driver->pci_resume) {
-		retval = hcd->driver->pci_resume(hcd);
+		retval = hcd->driver->pci_resume(hcd, hibernated);
 		if (retval) {
 			dev_err(dev, "PCI post-resume error %d!\n", retval);
 			usb_hc_died(hcd);
