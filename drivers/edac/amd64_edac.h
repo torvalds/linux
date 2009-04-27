@@ -70,6 +70,7 @@
 #include <linux/slab.h>
 #include <linux/mmzone.h>
 #include <linux/edac.h>
+#include <asm/msr.h>
 #include "edac_core.h"
 
 #define amd64_printk(level, fmt, arg...) \
@@ -549,7 +550,7 @@ struct amd64_pvt {
 	/* Save old hw registers' values before we modified them */
 	u32 nbctl_mcgctl_saved;		/* When true, following 2 are valid */
 	u32 old_nbctl;
-	u32 *old_mcgctl;		/* per core on this node */
+	unsigned long old_mcgctl;	/* per core on this node */
 
 	/* MC Type Index value: socket F vs Family 10h */
 	u32 mc_type_index;
