@@ -307,7 +307,7 @@ static int dt3k_send_cmd(struct comedi_device *dev, unsigned int cmd)
 		status = readw(devpriv->io_addr + DPR_Command_Mbx);
 		if ((status & DT3000_COMPLETION_MASK) != DT3000_NOTPROCESSED)
 			break;
-		comedi_udelay(1);
+		udelay(1);
 	}
 	if ((status & DT3000_COMPLETION_MASK) == DT3000_NOERROR) {
 		return 0;
@@ -825,8 +825,8 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = this_board->name;
 
-	if (comedi_request_irq(devpriv->pci_dev->irq, dt3k_interrupt,
-			IRQF_SHARED, "dt3000", dev)) {
+	if (request_irq(devpriv->pci_dev->irq, dt3k_interrupt, IRQF_SHARED,
+			"dt3000", dev)) {
 		printk(" unable to allocate IRQ %u\n", devpriv->pci_dev->irq);
 		return -EINVAL;
 	}
@@ -895,7 +895,7 @@ static int dt3000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static int dt3000_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (devpriv) {
 		if (devpriv->pci_dev) {

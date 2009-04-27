@@ -2583,7 +2583,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */
 		pci_list_builded = 1;
 	}
-	/* rt_printk("comedi%d: addi_common: board=%s",dev->minor,this_board->pc_DriverName); */
+	/* printk("comedi%d: addi_common: board=%s",dev->minor,this_board->pc_DriverName); */
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
 		i_Dma = 1;
@@ -2648,16 +2648,16 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* ## */
 
 	if (irq > 0) {
-		if (comedi_request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
+		if (request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
 				c_Identifier, dev) < 0) {
 			printk(", unable to allocate IRQ %u, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
 		} else {
-			rt_printk("\nirq=%u", irq);
+			printk("\nirq=%u", irq);
 		}
 	} else {
-		rt_printk(", IRQ disabled");
+		printk(", IRQ disabled");
 	}
 
 	printk("\nOption %d %d %d\n", it->options[0], it->options[1],
@@ -2719,7 +2719,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				}
 			}
 			if (!devpriv->ul_DmaBufferVirtual[0]) {
-				rt_printk
+				printk
 					(", Can't allocate DMA buffer, DMA disabled!");
 				devpriv->us_UseDma = ADDI_DISABLE;
 			}
@@ -2730,7 +2730,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 
 		if ((devpriv->us_UseDma == ADDI_ENABLE)) {
-			rt_printk("\nDMA ENABLED\n");
+			printk("\nDMA ENABLED\n");
 		} else {
 			printk("\nDMA DISABLED\n");
 		}
@@ -2937,7 +2937,7 @@ static int i_ADDI_Detach(struct comedi_device *dev)
 		}
 
 		if (dev->irq) {
-			comedi_free_irq(dev->irq, dev);
+			free_irq(dev->irq, dev);
 		}
 
 		if ((devpriv->ps_BoardInfo->pc_EepromChip == NULL)

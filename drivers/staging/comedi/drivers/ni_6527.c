@@ -432,8 +432,8 @@ static int ni6527_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->mite->daq_io_addr + Clear_Register);
 	writeb(0x00, devpriv->mite->daq_io_addr + Master_Interrupt_Control);
 
-	ret = comedi_request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
-		IRQF_SHARED, "ni6527", dev);
+	ret = request_irq(mite_irq(devpriv->mite), ni6527_interrupt,
+			  IRQF_SHARED, "ni6527", dev);
 	if (ret < 0) {
 		printk(" irq not available");
 	} else
@@ -452,7 +452,7 @@ static int ni6527_detach(struct comedi_device *dev)
 	}
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	if (devpriv && devpriv->mite) {

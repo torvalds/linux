@@ -651,7 +651,7 @@ static int das1800_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	/* grab our IRQ */
 	if (irq) {
-		if (comedi_request_irq(irq, das1800_interrupt, 0,
+		if (request_irq(irq, das1800_interrupt, 0,
 				driver_das1800.driver_name, dev)) {
 			printk(" unable to allocate irq %u\n", irq);
 			return -EINVAL;
@@ -771,7 +771,7 @@ static int das1800_detach(struct comedi_device *dev)
 	if (dev->iobase)
 		release_region(dev->iobase, DAS1800_SIZE);
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (dev->private) {
 		if (devpriv->iobase2)
 			release_region(devpriv->iobase2, DAS1800_SIZE);
@@ -872,9 +872,9 @@ static int das1800_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s
 	unsigned long flags;
 
 	/*  prevent race with interrupt handler */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	das1800_ai_handler(dev);
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
@@ -1471,7 +1471,7 @@ static void program_chanlist(struct comedi_device *dev, struct comedi_cmd cmd)
 
 	n = cmd.chanlist_len;
 	/*  spinlock protects indirect addressing */
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(QRAM, dev->iobase + DAS1800_SELECT);	/* select QRAM for baseAddress + 0x0 */
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*set QRAM address start */
 	/* make channel / gain list */
@@ -1483,7 +1483,7 @@ static void program_chanlist(struct comedi_device *dev, struct comedi_cmd cmd)
 		outw(chan_range, dev->iobase + DAS1800_QRAM);
 	}
 	outb(n - 1, dev->iobase + DAS1800_QRAM_ADDRESS);	/*finish write to QRAM */
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return;
 }
@@ -1582,7 +1582,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *
 	/* mask of unipolar/bipolar bit from range */
 	range = CR_RANGE(insn->chanspec) & 0x3;
 	chan_range = chan | (range << 8);
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(QRAM, dev->iobase + DAS1800_SELECT);	/* select QRAM for baseAddress + 0x0 */
 	outb(0x0, dev->iobase + DAS1800_QRAM_ADDRESS);	/* set QRAM address start */
 	outw(chan_range, dev->iobase + DAS1800_QRAM);
@@ -1606,7 +1606,7 @@ static int das1800_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *
 			dpnt += 1 << (thisboard->resolution - 1);
 		data[n] = dpnt;
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return n;
 }
@@ -1627,7 +1627,7 @@ static int das1800_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *
 	if (chan == update_chan)
 		devpriv->ao_update_bits = output;
 	/*  write to channel */
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	outb(DAC(chan), dev->iobase + DAS1800_SELECT);	/* select dac channel for baseAddress + 0x0 */
 	outw(output, dev->iobase + DAS1800_DAC);
 	/*  now we need to write to 'update' channel to update all dac channels */
@@ -1635,7 +1635,7 @@ static int das1800_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *
 		outb(DAC(update_chan), dev->iobase + DAS1800_SELECT);	/* select 'update' channel for baseAddress + 0x0 */
 		outw(devpriv->ao_update_bits, dev->iobase + DAS1800_DAC);
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	return 1;
 }

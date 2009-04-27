@@ -66,7 +66,7 @@ static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 /* #define HPDI_DEBUG      enable debugging code */
 
 #ifdef HPDI_DEBUG
-#define DEBUG_PRINT(format, args...)  rt_printk(format , ## args)
+#define DEBUG_PRINT(format, args...)  printk(format , ## args)
 #else
 #define DEBUG_PRINT(format, args...)
 #endif
@@ -109,7 +109,7 @@ enum hpdi_registers {
 int command_channel_valid(unsigned int channel)
 {
 	if (channel == 0 || channel > 6) {
-		rt_printk("gsc_hpdi: bug! invalid cable command channel\n");
+		printk("gsc_hpdi: bug! invalid cable command channel\n");
 		return 0;
 	}
 	return 1;
@@ -465,7 +465,7 @@ static int init_hpdi(struct comedi_device *dev)
 	uint32_t plx_intcsr_bits;
 
 	writel(BOARD_RESET_BIT, priv(dev)->hpdi_iobase + BOARD_CONTROL_REG);
-	comedi_udelay(10);
+	udelay(10);
 
 	writel(almost_empty_bits(32) | almost_full_bits(32),
 		priv(dev)->hpdi_iobase + RX_PROG_ALMOST_REG);
@@ -622,7 +622,7 @@ static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	init_plx9080(dev);
 
 	/*  get irq */
-	if (comedi_request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
+	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
 			driver_hpdi.driver_name, dev)) {
 		printk(" unable to allocate irq %u\n", pcidev->irq);
 		return -EINVAL;
@@ -667,7 +667,7 @@ static int hpdi_detach(struct comedi_device *dev)
 	printk("comedi%d: gsc_hpdi: remove\n", dev->minor);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (priv(dev)) {
 		if (priv(dev)->hw_dev) {
 			if (priv(dev)->plx9080_iobase) {
@@ -862,11 +862,11 @@ static int di_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	writel(bits, priv(dev)->plx9080_iobase + PLX_DMA0_DESCRIPTOR_REG);
 
 	/*  spinlock for plx dma control/status reg */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	/*  enable dma transfer */
 	writeb(PLX_DMA_EN_BIT | PLX_DMA_START_BIT | PLX_CLEAR_DMA_INTR_BIT,
 		priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	if (cmd->stop_src == TRIG_COUNT)
 		priv(dev)->dio_count = cmd->stop_arg;
@@ -971,7 +971,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 			priv(dev)->hpdi_iobase + INTERRUPT_STATUS_REG);
 	}
 	/*  spin lock makes sure noone else changes plx dma control reg */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	dma0_status = readb(priv(dev)->plx9080_iobase + PLX_DMA0_CS_REG);
 	if (plx_status & ICS_DMA0_A) {	/*  dma chan 0 interrupt */
 		writeb((dma0_status & PLX_DMA_EN_BIT) | PLX_CLEAR_DMA_INTR_BIT,
@@ -983,10 +983,10 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 		}
 		DEBUG_PRINT(" cleared dma ch0 interrupt\n");
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  spin lock makes sure noone else changes plx dma control reg */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	dma1_status = readb(priv(dev)->plx9080_iobase + PLX_DMA1_CS_REG);
 	if (plx_status & ICS_DMA1_A)	/*  XXX */
 	{			/*  dma chan 1 interrupt */
@@ -996,7 +996,7 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 
 		DEBUG_PRINT(" cleared dma ch1 interrupt\n");
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	/*  clear possible plx9080 interrupt sources */
 	if (plx_status & ICS_LDIA) {	/*  clear local doorbell interrupt */
@@ -1036,11 +1036,11 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 	unsigned long flags;
 
 	/*  spinlock for plx dma control/status reg */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 
 	plx9080_abort_dma(priv(dev)->plx9080_iobase, channel);
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)

@@ -283,7 +283,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->insn_read = me4000_ai_insn_read;
 
 		if (info->irq > 0) {
-			if (comedi_request_irq(info->irq, me4000_ai_isr,
+			if (request_irq(info->irq, me4000_ai_isr,
 					IRQF_SHARED, "ME-4000", dev)) {
 				printk("comedi%d: me4000: me4000_attach(): Unable to allocate irq\n", dev->minor);
 			} else {

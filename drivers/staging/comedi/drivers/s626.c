@@ -596,8 +596,8 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (dev->irq == 0) {
 		printk(" unknown irq (bad)\n");
 	} else {
-		ret = comedi_request_irq(dev->irq, s626_irq_handler,
-					 IRQF_SHARED, "s626", dev);
+		ret = request_irq(dev->irq, s626_irq_handler, IRQF_SHARED,
+				  "s626", dev);
 
 		if (ret < 0) {
 			printk(" irq not available\n");
@@ -987,7 +987,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 	if (dev->attached == 0)
 		return IRQ_NONE;
 	/*  lock to avoid race with comedi_poll */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 
 	/* save interrupt enable register state */
 	irqstatus = readl(devpriv->base_addr + P_IER);
@@ -1264,7 +1264,7 @@ static irqreturn_t s626_irq_handler(int irq, void *d)
 
 	DEBUG("s626_irq_handler: exit interrupt service routine.\n");
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -1291,7 +1291,7 @@ static int s626_detach(struct comedi_device *dev)
 		}
 
 		if (dev->irq)
-			comedi_free_irq(dev->irq, dev);
+			free_irq(dev->irq, dev);
 
 		if (devpriv->base_addr)
 			iounmap(devpriv->base_addr);
@@ -1574,7 +1574,7 @@ static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 	for (n = 0; n < insn->n; n++) {
 
 		/*  Delay 10 microseconds for analog input settling. */
-		comedi_udelay(10);
+		udelay(10);
 
 		/*  Start ADC by pulsing GPIO1 low. */
 		GpioImage = RR7146(P_GPIO);
@@ -1606,7 +1606,7 @@ static int s626_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice 
 		 * data value is sometimes set to the previous
 		 * conversion's data value.
 		 */
-		comedi_udelay(4);
+		udelay(4);
 	}
 
 	/* Start a dummy conversion to cause the data from the

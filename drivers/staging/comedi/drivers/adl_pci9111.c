@@ -420,7 +420,7 @@ static void pci9111_timer_set(struct comedi_device *dev)
 		PCI9111_8254_READ_LOAD_LSB_MSB |
 		PCI9111_8254_MODE_2 | PCI9111_8254_BINARY_COUNTER);
 
-	comedi_udelay(1);
+	udelay(1);
 
 	pci9111_8254_counter_2_set(dev_private->timer_divisor_2);
 	pci9111_8254_counter_1_set(dev_private->timer_divisor_1);
@@ -901,7 +901,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 	async = subdevice->async;
 
-	comedi_spin_lock_irqsave(&dev->spinlock, irq_flags);
+	spin_lock_irqsave(&dev->spinlock, irq_flags);
 
 	/*  Check if we are source of interrupt */
 	intcsr = inb(dev_private->lcr_io_base +
@@ -919,7 +919,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 						PLX9050_LINTI2_STATUS))))) {
 		/*  Not the source of the interrupt. */
 		/*  (N.B. not using PLX9050_SOFTWARE_INTERRUPT) */
-		comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+		spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 		return IRQ_NONE;
 	}
 
@@ -928,7 +928,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 		/*  Interrupt comes from fifo_half-full signal */
 
 		if (pci9111_is_fifo_full()) {
-			comedi_spin_unlock_irqrestore(&dev->spinlock,
+			spin_unlock_irqrestore(&dev->spinlock,
 				irq_flags);
 			comedi_error(dev, PCI9111_DRIVER_NAME " fifo overflow");
 			pci9111_interrupt_clear();
@@ -1028,7 +1028,7 @@ static irqreturn_t pci9111_interrupt(int irq, void *p_device)
 
 	pci9111_interrupt_clear();
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, irq_flags);
+	spin_unlock_irqrestore(&dev->spinlock, irq_flags);
 
 	comedi_event(dev, subdevice);
 
@@ -1298,8 +1298,7 @@ static int pci9111_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	dev->irq = 0;
 	if (pci_device->irq > 0) {
-		if (comedi_request_irq(pci_device->irq,
-				pci9111_interrupt,
+		if (request_irq(pci_device->irq, pci9111_interrupt,
 				IRQF_SHARED, PCI9111_DRIVER_NAME, dev) != 0) {
 			printk("comedi%d: unable to allocate irq  %u\n",
 				dev->minor, pci_device->irq);
@@ -1379,7 +1378,7 @@ static int pci9111_detach(struct comedi_device *dev)
 	/*  Release previously allocated irq */
 
 	if (dev->irq != 0) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	if (dev_private != 0 && dev_private->pci_device != 0) {

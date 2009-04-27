@@ -655,12 +655,12 @@ dio200_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	subpriv = s->private;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	s->async->inttrig = 0;
 	if (subpriv->active) {
 		event = dio200_start_intr(dev, s);
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
 		comedi_event(dev, s);
@@ -684,7 +684,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev, struct comedi_subd
 
 	triggered = 0;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	oldevents = s->async->events;
 	if (subpriv->has_int_sce) {
 		/*
@@ -773,7 +773,7 @@ static int dio200_handle_read_intr(struct comedi_device *dev, struct comedi_subd
 			}
 		}
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (oldevents != s->async->events) {
 		comedi_event(dev, s);
@@ -790,11 +790,11 @@ static int dio200_subdev_intr_cancel(struct comedi_device *dev, struct comedi_su
 	struct dio200_subdev_intr *subpriv = s->private;
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	if (subpriv->active) {
 		dio200_stop_intr(dev, s);
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	return 0;
 }
@@ -916,7 +916,7 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev, struct comedi_subde
 	unsigned long flags;
 	int event = 0;
 
-	comedi_spin_lock_irqsave(&subpriv->spinlock, flags);
+	spin_lock_irqsave(&subpriv->spinlock, flags);
 	subpriv->active = 1;
 
 	/* Set up end of acquisition. */
@@ -942,7 +942,7 @@ static int dio200_subdev_intr_cmd(struct comedi_device *dev, struct comedi_subde
 		event = dio200_start_intr(dev, s);
 		break;
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->spinlock, flags);
 
 	if (event) {
 		comedi_event(dev, s);
@@ -1398,7 +1398,7 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (irq) {
 		unsigned long flags = share_irq ? IRQF_SHARED : 0;
 
-		if (comedi_request_irq(irq, dio200_interrupt, flags,
+		if (request_irq(irq, dio200_interrupt, flags,
 				DIO200_DRIVER_NAME, dev) >= 0) {
 			dev->irq = irq;
 		} else {
@@ -1444,7 +1444,7 @@ static int dio200_detach(struct comedi_device *dev)
 		DIO200_DRIVER_NAME);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->subdevices) {
 		layout = thislayout;

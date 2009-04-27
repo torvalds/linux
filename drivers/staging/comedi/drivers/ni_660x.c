@@ -695,7 +695,7 @@ static enum NI_660x_Register ni_gpct_to_660x_register(enum ni_gpct_register reg)
 		ni_660x_register = G3InterruptEnable;
 		break;
 	default:
-		rt_printk("%s: unhandled register 0x%x in switch.\n",
+		printk("%s: unhandled register 0x%x in switch.\n",
 			__func__, reg);
 		BUG();
 		return 0;
@@ -719,7 +719,7 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 		writel(bits, write_address);
 		break;
 	default:
-		rt_printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
+		printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
 			__FILE__, __func__, reg);
 		BUG();
 		break;
@@ -741,7 +741,7 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 		return readl(read_address);
 		break;
 	default:
-		rt_printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
+		printk("%s: %s: bug! unhandled case (reg=0x%x) in switch.\n",
 			__FILE__, __func__, reg);
 		BUG();
 		break;
@@ -777,7 +777,7 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 	unsigned mite_channel, struct ni_gpct *counter)
 {
 	unsigned long flags;
-	comedi_spin_lock_irqsave(&private(dev)->soft_reg_copy_lock, flags);
+	spin_lock_irqsave(&private(dev)->soft_reg_copy_lock, flags);
 	private(dev)->dma_configuration_soft_copies[counter->chip_index] &=
 		~dma_select_mask(mite_channel);
 	private(dev)->dma_configuration_soft_copies[counter->chip_index] |=
@@ -788,14 +788,14 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 			chip_index] | dma_reset_bit(mite_channel),
 		DMAConfigRegister);
 	mmiowb();
-	comedi_spin_unlock_irqrestore(&private(dev)->soft_reg_copy_lock, flags);
+	spin_unlock_irqrestore(&private(dev)->soft_reg_copy_lock, flags);
 }
 
 static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 	unsigned mite_channel, struct ni_gpct *counter)
 {
 	unsigned long flags;
-	comedi_spin_lock_irqsave(&private(dev)->soft_reg_copy_lock, flags);
+	spin_lock_irqsave(&private(dev)->soft_reg_copy_lock, flags);
 	private(dev)->dma_configuration_soft_copies[counter->chip_index] &=
 		~dma_select_mask(mite_channel);
 	private(dev)->dma_configuration_soft_copies[counter->chip_index] |=
@@ -804,7 +804,7 @@ static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 		private(dev)->dma_configuration_soft_copies[counter->
 			chip_index], DMAConfigRegister);
 	mmiowb();
-	comedi_spin_unlock_irqrestore(&private(dev)->soft_reg_copy_lock, flags);
+	spin_unlock_irqrestore(&private(dev)->soft_reg_copy_lock, flags);
 }
 
 static int ni_660x_request_mite_channel(struct comedi_device *dev,
@@ -813,13 +813,13 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 	unsigned long flags;
 	struct mite_channel *mite_chan;
 
-	comedi_spin_lock_irqsave(&private(dev)->mite_channel_lock, flags);
+	spin_lock_irqsave(&private(dev)->mite_channel_lock, flags);
 	BUG_ON(counter->mite_chan);
 	mite_chan =
 		mite_request_channel(private(dev)->mite, mite_ring(private(dev),
 			counter));
 	if (mite_chan == NULL) {
-		comedi_spin_unlock_irqrestore(&private(dev)->mite_channel_lock,
+		spin_unlock_irqrestore(&private(dev)->mite_channel_lock,
 			flags);
 		comedi_error(dev,
 			"failed to reserve mite dma channel for counter.");
@@ -828,7 +828,7 @@ static int ni_660x_request_mite_channel(struct comedi_device *dev,
 	mite_chan->dir = direction;
 	ni_tio_set_mite_channel(counter, mite_chan);
 	ni_660x_set_dma_channel(dev, mite_chan->channel, counter);
-	comedi_spin_unlock_irqrestore(&private(dev)->mite_channel_lock, flags);
+	spin_unlock_irqrestore(&private(dev)->mite_channel_lock, flags);
 	return 0;
 }
 
@@ -836,7 +836,7 @@ void ni_660x_release_mite_channel(struct comedi_device *dev, struct ni_gpct *cou
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&private(dev)->mite_channel_lock, flags);
+	spin_lock_irqsave(&private(dev)->mite_channel_lock, flags);
 	if (counter->mite_chan) {
 		struct mite_channel *mite_chan = counter->mite_chan;
 
@@ -844,7 +844,7 @@ void ni_660x_release_mite_channel(struct comedi_device *dev, struct ni_gpct *cou
 		ni_tio_set_mite_channel(counter, NULL);
 		mite_release_channel(mite_chan);
 	}
-	comedi_spin_unlock_irqrestore(&private(dev)->mite_channel_lock, flags);
+	spin_unlock_irqrestore(&private(dev)->mite_channel_lock, flags);
 }
 
 static int ni_660x_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -921,13 +921,13 @@ static irqreturn_t ni_660x_interrupt(int irq, void *d)
 	if (dev->attached == 0)
 		return IRQ_NONE;
 	/* lock to avoid race with comedi_poll */
-	comedi_spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
+	spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
 	smp_mb();
 	for (i = 0; i < ni_660x_num_counters(dev); ++i) {
 		s = dev->subdevices + NI_660X_GPCT_SUBDEV(i);
 		ni_660x_handle_gpct_interrupt(dev, s);
 	}
-	comedi_spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
+	spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -936,9 +936,9 @@ static int ni_660x_input_poll(struct comedi_device *dev,
 {
 	unsigned long flags;
 	/* lock to avoid race with comedi_poll */
-	comedi_spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
+	spin_lock_irqsave(&private(dev)->interrupt_lock, flags);
 	mite_sync_input_dma(subdev_to_counter(s)->mite_chan, s->async);
-	comedi_spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
+	spin_unlock_irqrestore(&private(dev)->interrupt_lock, flags);
 	return comedi_buf_read_n_available(s->async);
 }
 
@@ -1107,10 +1107,8 @@ static int ni_660x_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	for (i = 0; i < board(dev)->n_chips; ++i) {
 		set_tio_counterswap(dev, i);
 	}
-	ret = comedi_request_irq(mite_irq(private(dev)->mite),
-				 ni_660x_interrupt, IRQF_SHARED, "ni_660x",
-				 dev);
-
+	ret = request_irq(mite_irq(private(dev)->mite), ni_660x_interrupt,
+			  IRQF_SHARED, "ni_660x", dev);
 	if (ret < 0) {
 		printk(" irq not available\n");
 		return ret;
@@ -1131,7 +1129,7 @@ static int ni_660x_detach(struct comedi_device *dev)
 
 	/* Free irq */
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (dev->private) {
 		if (private(dev)->counter_dev)

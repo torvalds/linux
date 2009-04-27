@@ -335,7 +335,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 #if 0
 	outb(0, dev->iobase + DT2811_ADCSR);
-	comedi_udelay(100);
+	udelay(100);
 	i = inb(dev->iobase + DT2811_ADDATLO);
 	i = inb(dev->iobase + DT2811_ADDATHI);
 #endif
@@ -351,7 +351,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->iobase + DT2811_ADCSR);
 		outb(0, dev->iobase + DT2811_ADGCR);
 
-		comedi_udelay(100);
+		udelay(100);
 
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
@@ -366,7 +366,7 @@ static int dt2811_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			i = inb(dev->iobase + DT2811_ADDATLO);
 			i = inb(dev->iobase + DT2811_ADDATHI);
 			printk("(irq = %d)\n", irq);
-			ret = comedi_request_irq(irq, dt2811_interrupt, 0,
+			ret = request_irq(irq, dt2811_interrupt, 0,
 				driver_name, dev);
 			if (ret < 0)
 				return -EIO;
@@ -489,7 +489,7 @@ static int dt2811_detach(struct comedi_device *dev)
 	printk("comedi%d: dt2811: remove\n", dev->minor);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->iobase) {
 		release_region(dev->iobase, DT2811_SIZE);

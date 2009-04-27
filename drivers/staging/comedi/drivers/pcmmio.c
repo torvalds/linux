@@ -364,7 +364,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->iobase + 16 + asic * ASIC_IOSIZE;
 		devpriv->asics[asic].irq = 0;	/* this gets actually set at the end of
 						   this function when we
-						   comedi_request_irqs */
+						   request_irqs */
 		spin_lock_init(&devpriv->asics[asic].spinlock);
 	}
 
@@ -489,12 +489,12 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	for (asic = 0; irq[0] && asic < MAX_ASICS; ++asic) {
 		if (irq[asic]
-			&& comedi_request_irq(irq[asic], interrupt_pcmmio,
+			&& request_irq(irq[asic], interrupt_pcmmio,
 				IRQF_SHARED, thisboard->name, dev)) {
 			int i;
 			/* unroll the allocated irqs.. */
 			for (i = asic - 1; i >= 0; --i) {
-				comedi_free_irq(irq[i], dev);
+				free_irq(irq[i], dev);
 				devpriv->asics[i].irq = irq[i] = 0;
 			}
 			irq[asic] = 0;
@@ -536,7 +536,7 @@ static int pcmmio_detach(struct comedi_device *dev)
 
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv && devpriv->asics[i].irq)
-			comedi_free_irq(devpriv->asics[i].irq, dev);
+			free_irq(devpriv->asics[i].irq, dev);
 	}
 
 	if (devpriv && devpriv->sprivs)
@@ -778,8 +778,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 			/* it is an interrupt for ASIC #asic */
 			unsigned char int_pend;
 
-			comedi_spin_lock_irqsave(&devpriv->asics[asic].spinlock,
-				flags);
+			spin_lock_irqsave(&devpriv->asics[asic].spinlock, flags);
 
 			int_pend = inb(iobase + REG_INT_PENDING) & 0x07;
 
@@ -811,8 +810,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 				++got1;
 			}
 
-			comedi_spin_unlock_irqrestore(&devpriv->asics[asic].
-				spinlock, flags);
+			spin_unlock_irqrestore(&devpriv->asics[asic].  spinlock, flags);
 
 			if (triggered) {
 				struct comedi_subdevice *s;
@@ -825,9 +823,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 						unsigned long flags;
 						unsigned oldevents;
 
-						comedi_spin_lock_irqsave
-							(&subpriv->dio.intr.
-							spinlock, flags);
+						spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
 
 						oldevents = s->async->events;
 
@@ -896,9 +892,7 @@ static irqreturn_t interrupt_pcmmio(int irq, void *d)
 							}
 						}
 
-						comedi_spin_unlock_irqrestore
-							(&subpriv->dio.intr.
-							spinlock, flags);
+						spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
 
 						if (oldevents !=
 							s->async->events) {
@@ -1001,10 +995,10 @@ static int pcmmio_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
+	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
 	if (subpriv->dio.intr.active)
 		pcmmio_stop_intr(dev, s);
-	comedi_spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
 
 	return 0;
 }
@@ -1022,12 +1016,12 @@ pcmmio_inttrig_start_intr(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (trignum != 0)
 		return -EINVAL;
 
-	comedi_spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
+	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
 	s->async->inttrig = 0;
 	if (subpriv->dio.intr.active) {
 		event = pcmmio_start_intr(dev, s);
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
 
 	if (event) {
 		comedi_event(dev, s);
@@ -1045,7 +1039,7 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned long flags;
 	int event = 0;
 
-	comedi_spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
+	spin_lock_irqsave(&subpriv->dio.intr.spinlock, flags);
 	subpriv->dio.intr.active = 1;
 
 	/* Set up end of acquisition. */
@@ -1071,7 +1065,7 @@ static int pcmmio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		event = pcmmio_start_intr(dev, s);
 		break;
 	}
-	comedi_spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
+	spin_unlock_irqrestore(&subpriv->dio.intr.spinlock, flags);
 
 	if (event) {
 		comedi_event(dev, s);

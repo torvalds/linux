@@ -187,8 +187,8 @@ static int das16cs_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	}
 	printk("\n");
 
-	ret = comedi_request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
-		IRQF_SHARED, "cb_das16_cs", dev);
+	ret = request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
+			  IRQF_SHARED, "cb_das16_cs", dev);
 	if (ret < 0) {
 		return ret;
 	}
@@ -270,7 +270,7 @@ static int das16cs_detach(struct comedi_device *dev)
 	printk("comedi%d: das16cs: remove\n", dev->minor);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	return 0;
@@ -503,7 +503,7 @@ static int das16cs_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *
 		d = data[i];
 
 		outw(devpriv->status1, dev->iobase + 4);
-		comedi_udelay(1);
+		udelay(1);
 
 		status1 = devpriv->status1 & ~0xf;
 		if (chan)
@@ -513,17 +513,17 @@ static int das16cs_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *
 
 /* 		printk("0x%04x\n",status1);*/
 		outw(status1, dev->iobase + 4);
-		comedi_udelay(1);
+		udelay(1);
 
 		for (bit = 15; bit >= 0; bit--) {
 			int b = (d >> bit) & 0x1;
 			b <<= 1;
 /*			printk("0x%04x\n",status1 | b | 0x0000);*/
 			outw(status1 | b | 0x0000, dev->iobase + 4);
-			comedi_udelay(1);
+			udelay(1);
 /*			printk("0x%04x\n",status1 | b | 0x0004);*/
 			outw(status1 | b | 0x0004, dev->iobase + 4);
-			comedi_udelay(1);
+			udelay(1);
 		}
 /*		make high both DAC0CS and DAC1CS to load
 		new data and update analog output*/

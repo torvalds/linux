@@ -579,7 +579,7 @@ static int atmio16d_ai_insn_read(struct comedi_device *dev, struct comedi_subdev
 		}
 		/* end waiting, now check if it timed out */
 		if (t == ATMIO16D_TIMEOUT) {
-			rt_printk("atmio16d: timeout\n");
+			printk("atmio16d: timeout\n");
 
 			return -ETIME;
 		}
@@ -743,8 +743,7 @@ static int atmio16d_attach(struct comedi_device *dev, struct comedi_devconfig *i
 	irq = it->options[1];
 	if (irq) {
 
-		ret = comedi_request_irq(irq, atmio16d_interrupt,
-					  0, "atmio16d", dev);
+		ret = request_irq(irq, atmio16d_interrupt, 0, "atmio16d", dev);
 		if (ret < 0) {
 			printk("failed to allocate irq %u\n", irq);
 			return ret;
@@ -856,7 +855,7 @@ static int atmio16d_detach(struct comedi_device *dev)
 		subdev_8255_cleanup(dev, dev->subdevices + 3);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	reset_atmio16d(dev);
 

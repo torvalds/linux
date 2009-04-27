@@ -205,7 +205,7 @@ static int contec_do_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 	if (data[0]) {
 		s->state &= ~data[0];
 		s->state |= data[0] & data[1];
-		rt_printk("  out: %d on %lx\n", s->state,
+		printk("  out: %d on %lx\n", s->state,
 			dev->iobase + thisboard->out_offs);
 		outw(s->state, dev->iobase + thisboard->out_offs);
 	}
@@ -216,8 +216,8 @@ static int contec_di_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 	struct comedi_insn *insn, unsigned int *data)
 {
 
-	rt_printk("contec_di_insn_bits called\n");
-	rt_printk(" data: %d %d\n", data[0], data[1]);
+	printk("contec_di_insn_bits called\n");
+	printk(" data: %d %d\n", data[0], data[1]);
 
 	if (insn->n != 2)
 		return -EINVAL;

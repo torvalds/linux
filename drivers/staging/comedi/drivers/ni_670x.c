@@ -217,7 +217,7 @@ static int ni_670x_detach(struct comedi_device *dev)
 		mite_unsetup(devpriv->mite);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	return 0;
 }

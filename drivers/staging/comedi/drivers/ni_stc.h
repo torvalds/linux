@@ -339,7 +339,7 @@ static inline unsigned RTSI_Output_Bit(unsigned channel, int is_mseries)
 		max_channel = 6;
 	}
 	if (channel > max_channel) {
-		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
+		printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
 			channel);
 		return 0;
 	}
@@ -1085,7 +1085,7 @@ static inline int M_Offset_Static_AI_Control(int i)
 		0x263,
 	};
 	if (((unsigned)i) >= ARRAY_SIZE(offset)) {
-		rt_printk("%s: invalid channel=%i\n", __func__, i);
+		printk("%s: invalid channel=%i\n", __func__, i);
 		return offset[0];
 	}
 	return offset[i];
@@ -1099,7 +1099,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 		0x267
 	};
 	if (((unsigned)channel) >= ARRAY_SIZE(offset)) {
-		rt_printk("%s: invalid channel=%i\n", __func__, channel);
+		printk("%s: invalid channel=%i\n", __func__, channel);
 		return offset[0];
 	}
 	return offset[channel];
@@ -1107,7 +1107,7 @@ static inline int M_Offset_AO_Reference_Attenuation(int channel)
 static inline unsigned M_Offset_PFI_Output_Select(unsigned n)
 {
 	if (n < 1 || n > NUM_PFI_OUTPUT_SELECT_REGS) {
-		rt_printk("%s: invalid pfi output select register=%i\n",
+		printk("%s: invalid pfi output select register=%i\n",
 			__func__, n);
 		return M_Offset_PFI_Output_Select_1;
 	}
@@ -1162,7 +1162,7 @@ static inline unsigned MSeries_PLL_In_Source_Select_RTSI_Bits(unsigned
 	RTSI_channel)
 {
 	if (RTSI_channel > 7) {
-		rt_printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
+		printk("%s: bug, invalid RTSI_channel=%i\n", __func__,
 			RTSI_channel);
 		return 0;
 	}
@@ -1183,7 +1183,7 @@ static inline unsigned MSeries_PLL_Divisor_Bits(unsigned divisor)
 {
 	static const unsigned max_divisor = 0x10;
 	if (divisor < 1 || divisor > max_divisor) {
-		rt_printk("%s: bug, invalid divisor=%i\n", __func__,
+		printk("%s: bug, invalid divisor=%i\n", __func__,
 			divisor);
 		return 0;
 	}
@@ -1193,7 +1193,7 @@ static inline unsigned MSeries_PLL_Multiplier_Bits(unsigned multiplier)
 {
 	static const unsigned max_multiplier = 0x100;
 	if (multiplier < 1 || multiplier > max_multiplier) {
-		rt_printk("%s: bug, invalid multiplier=%i\n", __func__,
+		printk("%s: bug, invalid multiplier=%i\n", __func__,
 			multiplier);
 		return 0;
 	}

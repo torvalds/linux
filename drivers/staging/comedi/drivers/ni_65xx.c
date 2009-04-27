@@ -437,12 +437,12 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev, struct comedi_subdev
 			writeb(bits,
 				private(dev)->mite->daq_io_addr +
 				Port_Data(port));
-/* rt_printk("wrote 0x%x to port %i\n", bits, port); */
+/* printk("wrote 0x%x to port %i\n", bits, port); */
 		}
 		port_read_bits =
 			readb(private(dev)->mite->daq_io_addr +
 			Port_Data(port));
-/* rt_printk("read 0x%x from port %i\n", port_read_bits, port); */
+/* printk("read 0x%x from port %i\n", port_read_bits, port); */
 		if (bitshift > 0) {
 			port_read_bits <<= bitshift;
 		} else {
@@ -742,8 +742,8 @@ static int ni_65xx_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	/* Set filter interval to 0  (32bit reg) */
 	writeb(0x00000000, private(dev)->mite->daq_io_addr + Filter_Interval);
 
-	ret = comedi_request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
-		"ni_65xx", dev);
+	ret = request_irq(dev->irq, ni_65xx_interrupt, IRQF_SHARED,
+			  "ni_65xx", dev);
 	if (ret < 0) {
 		dev->irq = 0;
 		printk(" irq not available");
@@ -764,7 +764,7 @@ static int ni_65xx_detach(struct comedi_device *dev)
 	}
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	if (private(dev)) {

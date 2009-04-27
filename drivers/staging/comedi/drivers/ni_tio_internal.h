@@ -728,14 +728,14 @@ static inline void ni_tio_set_bits_transient(struct ni_gpct *counter,
 	unsigned long flags;
 
 	BUG_ON(register_index >= NITIO_Num_Registers);
-	comedi_spin_lock_irqsave(&counter_dev->regs_lock, flags);
+	spin_lock_irqsave(&counter_dev->regs_lock, flags);
 	counter_dev->regs[register_index] &= ~bit_mask;
 	counter_dev->regs[register_index] |= (bit_values & bit_mask);
 	write_register(counter,
 		counter_dev->regs[register_index] | transient_bit_values,
 		register_index);
 	mmiowb();
-	comedi_spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
+	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 }
 
 /* ni_tio_set_bits( ) is for safely writing to registers whose bits may be
@@ -761,9 +761,9 @@ static inline unsigned ni_tio_get_soft_copy(const struct ni_gpct *counter,
 	unsigned value;
 
 	BUG_ON(register_index >= NITIO_Num_Registers);
-	comedi_spin_lock_irqsave(&counter_dev->regs_lock, flags);
+	spin_lock_irqsave(&counter_dev->regs_lock, flags);
 	value = counter_dev->regs[register_index];
-	comedi_spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
+	spin_unlock_irqrestore(&counter_dev->regs_lock, flags);
 	return value;
 }
 

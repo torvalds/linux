@@ -40,7 +40,7 @@ Configuration options:
 
 #undef DPRINTK
 #ifdef PCI_DIO_EXTDEBUG
-#define DPRINTK(fmt, args...) rt_printk(fmt, ## args)
+#define DPRINTK(fmt, args...) printk(fmt, ## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
@@ -451,7 +451,7 @@ static int pci1760_unchecked_mbxrequest(struct comedi_device *dev,
 				ok = 1;
 				break;
 			}
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if (ok)
 			return 0;
@@ -896,11 +896,11 @@ static int pci_dio_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	unsigned long iobase;
 	struct pci_dev *pcidev;
 
-	rt_printk("comedi%d: adv_pci_dio: ", dev->minor);
+	printk("comedi%d: adv_pci_dio: ", dev->minor);
 
 	ret = alloc_private(dev, sizeof(struct pci_dio_private));
 	if (ret < 0) {
-		rt_printk(", Error: Cann't allocate private memory!\n");
+		printk(", Error: Cann't allocate private memory!\n");
 		return -ENOMEM;
 	}
 
@@ -932,18 +932,18 @@ static int pci_dio_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	}
 
 	if (!dev->board_ptr) {
-		rt_printk
+		printk
 			(", Error: Requested type of the card was not found!\n");
 		return -EIO;
 	}
 
 	if (comedi_pci_enable(pcidev, driver_pci_dio.driver_name)) {
-		rt_printk
+		printk
 			(", Error: Can't enable PCI device and request regions!\n");
 		return -EIO;
 	}
 	iobase = pci_resource_start(pcidev, this_board->main_pci_region);
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx",
+	printk(", b:s:f=%d:%d:%d, io=0x%4lx",
 		pcidev->bus->number, PCI_SLOT(pcidev->devfn),
 		PCI_FUNC(pcidev->devfn), iobase);
 
@@ -968,11 +968,11 @@ static int pci_dio_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	ret = alloc_subdevices(dev, n_subdevices);
 	if (ret < 0) {
-		rt_printk(", Error: Cann't allocate subdevice memory!\n");
+		printk(", Error: Cann't allocate subdevice memory!\n");
 		return ret;
 	}
 
-	rt_printk(".\n");
+	printk(".\n");
 
 	subdev = 0;
 

@@ -101,7 +101,7 @@ Bugs:
 
 	need to slow down DAC loading.  I don't trust NI's claim that
 	two writes to the PCI bus slows IO enough.  I would prefer to
-	use comedi_udelay().  Timing specs: (clock)
+	use udelay().  Timing specs: (clock)
 		AD8522		30ns
 		DAC8043		120ns
 		DAC8800		60ns
@@ -1246,10 +1246,10 @@ static void e_series_win_out(struct comedi_device *dev, uint16_t data, int reg)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	ni_writew(reg, Window_Address);
 	ni_writew(data, Window_Data);
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
 static uint16_t e_series_win_in(struct comedi_device *dev, int reg)
@@ -1257,10 +1257,10 @@ static uint16_t e_series_win_in(struct comedi_device *dev, int reg)
 	unsigned long flags;
 	uint16_t ret;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	ni_writew(reg, Window_Address);
 	ret = ni_readw(Window_Data);
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
 	return ret;
 }
@@ -1349,7 +1349,7 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data, int re
 		offset = M_Offset_AO_FIFO_Clear;
 		break;
 	case DIO_Control_Register:
-		rt_printk
+		printk
 			("%s: FIXME: register 0x%x does not map cleanly on to m-series boards.\n",
 			__func__, reg);
 		return;
@@ -1411,7 +1411,7 @@ static void m_series_stc_writew(struct comedi_device *dev, uint16_t data, int re
 		/* FIXME: DIO_Output_Register (16 bit reg) is replaced by M_Offset_Static_Digital_Output (32 bit)
 		   and M_Offset_SCXI_Serial_Data_Out (8 bit) */
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
 			__func__, reg);
 		BUG();
 		return;
@@ -1446,7 +1446,7 @@ static uint16_t m_series_stc_readw(struct comedi_device *dev, int reg)
 		offset = M_Offset_G01_Status;
 		break;
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
 			__func__, reg);
 		BUG();
 		return 0;
@@ -1487,7 +1487,7 @@ static void m_series_stc_writel(struct comedi_device *dev, uint32_t data, int re
 		offset = M_Offset_G1_Load_B;
 		break;
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
 			__func__, reg);
 		BUG();
 		return;
@@ -1513,7 +1513,7 @@ static uint32_t m_series_stc_readl(struct comedi_device *dev, int reg)
 		offset = M_Offset_G1_Save;
 		break;
 	default:
-		rt_printk("%s: bug! unhandled register=0x%x in switch.\n",
+		printk("%s: bug! unhandled register=0x%x in switch.\n",
 			__func__, reg);
 		BUG();
 		return 0;
@@ -1602,7 +1602,7 @@ static int pcimio_detach(struct comedi_device *dev)
 {
 	mio_common_detach(dev);
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->private) {
 		mite_free_ring(devpriv->ai_mite_ring);
@@ -1679,9 +1679,8 @@ static int pcimio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk(" unknown irq (bad)\n");
 	} else {
 		printk(" ( irq = %u )", dev->irq);
-		ret = comedi_request_irq(dev->irq, ni_E_interrupt,
-					 NI_E_IRQ_FLAGS, DRV_NAME,
-					 dev);
+		ret = request_irq(dev->irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+				  DRV_NAME, dev);
 		if (ret < 0) {
 			printk(" irq not available\n");
 			dev->irq = 0;

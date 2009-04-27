@@ -850,9 +850,9 @@ static int s526_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			}
 		}
 		if (i == TIMEOUT) {
-			/* rt_printk() should be used instead of printk()
+			/* printk() should be used instead of printk()
 			 * whenever the code can be called from real-time. */
-			rt_printk("s526: ADC(0x%04x) timeout\n",
+			printk("s526: ADC(0x%04x) timeout\n",
 				inw(ADDR_REG(REG_ISR)));
 			return -ETIMEDOUT;
 		}

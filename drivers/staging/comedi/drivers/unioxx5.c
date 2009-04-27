@@ -311,7 +311,7 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev, int subdev_iob
 			usp->usp_module_type[i] = inb(subdev_iobase + 6);
 
 		printk(" [%d] 0x%02x |", i, usp->usp_module_type[i]);
-		comedi_udelay(1);
+		udelay(1);
 	}
 
 	printk("\n");

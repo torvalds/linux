@@ -2637,7 +2637,7 @@ int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 	}
 
 /*
- * out put n values at the given channel. rt_printk("\nwaiting for
+ * out put n values at the given channel. printk("\nwaiting for
  * DA_READY BIT");
  */
 	do			/* Waiting of DA_READY BIT */

@@ -545,7 +545,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		/* clear over-range bits for 16-bit boards */
 		if (thisboard->ai_nbits == 16)
 			if (inb(dev->iobase + DAS08_MSB) & 0x80)
-				rt_printk("das08: over-range\n");
+				printk("das08: over-range\n");
 
 		/* trigger conversion */
 		outb_p(0, dev->iobase + DAS08_TRIG_12BIT);
@@ -555,7 +555,7 @@ static int das08_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				break;
 		}
 		if (i == TIMEOUT) {
-			rt_printk("das08: timeout\n");
+			printk("das08: timeout\n");
 			return -ETIME;
 		}
 		msb = inb(dev->iobase + DAS08_MSB);

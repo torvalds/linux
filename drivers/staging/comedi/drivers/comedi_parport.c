@@ -310,8 +310,8 @@ static int parport_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	irq = it->options[1];
 	if (irq) {
 		printk(" irq=%u", irq);
-		ret = comedi_request_irq(irq, parport_interrupt, 0,
-			"comedi_parport", dev);
+		ret = request_irq(irq, parport_interrupt, 0, "comedi_parport",
+				  dev);
 		if (ret < 0) {
 			printk(" irq not available\n");
 			return -EINVAL;
@@ -385,7 +385,7 @@ static int parport_detach(struct comedi_device *dev)
 		release_region(dev->iobase, PARPORT_SIZE);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	return 0;
 }

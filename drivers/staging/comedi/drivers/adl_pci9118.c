@@ -80,7 +80,7 @@ Configuration options:
 
 #undef DPRINTK
 #ifdef PCI9118_EXTDEBUG
-#define DPRINTK(fmt, args...) rt_printk(fmt, ## args)
+#define DPRINTK(fmt, args...) printk(fmt, ## args)
 #else
 #define DPRINTK(fmt, args...)
 #endif
@@ -345,12 +345,12 @@ static int pci9118_insn_read_ai(struct comedi_device *dev, struct comedi_subdevi
 
 	for (n = 0; n < insn->n; n++) {
 		outw(0, dev->iobase + PCI9118_SOFTTRG);	/* start conversion */
-		comedi_udelay(2);
+		udelay(2);
 		timeout = 100;
 		while (timeout--) {
 			if (inl(dev->iobase + PCI9118_ADSTAT) & AdStatus_ADrdy)
 				goto conv_finish;
-			comedi_udelay(1);
+			udelay(1);
 		}
 
 		comedi_error(dev, "A/D insn timeout");
@@ -569,7 +569,7 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 #ifdef PCI9118_PARANOIDCHECK
 	if (devpriv->ai16bits == 0) {
 		if ((sampl & 0x000f) != devpriv->chanlist[s->async->cur_chan]) {	/*  data dropout! */
-			rt_printk
+			printk
 				("comedi: A/D  SAMPL - data dropout: received channel %d, expected %d!\n",
 				sampl & 0x000f,
 				devpriv->chanlist[s->async->cur_chan]);
@@ -950,11 +950,11 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		tmp = cmd->scan_begin_arg;
-/* rt_printk("S1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
+/* printk("S1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &cmd->scan_begin_arg,
 			cmd->flags & TRIG_ROUND_MASK);
-/* rt_printk("S2 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
+/* printk("S2 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 		if (cmd->scan_begin_arg < this_board->ai_ns_min)
 			cmd->scan_begin_arg = this_board->ai_ns_min;
 		if (tmp != cmd->scan_begin_arg)
@@ -966,7 +966,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice
 		i8253_cascade_ns_to_timer(devpriv->i8254_osc_base, &divisor1,
 			&divisor2, &cmd->convert_arg,
 			cmd->flags & TRIG_ROUND_MASK);
-/* rt_printk("s1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
+/* printk("s1 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 		if (cmd->convert_arg < this_board->ai_ns_min)
 			cmd->convert_arg = this_board->ai_ns_min;
 		if (tmp != cmd->convert_arg)
@@ -980,7 +980,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice
 					cmd->scan_begin_arg =
 						this_board->ai_ns_min *
 						(cmd->scan_end_arg + 2);
-/* rt_printk("s2 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
+/* printk("s2 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 					err++;
 				}
 			} else {
@@ -989,7 +989,7 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice
 					cmd->scan_begin_arg =
 						cmd->convert_arg *
 						cmd->chanlist_len;
-/* rt_printk("s3 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
+/* printk("s3 timer1=%u timer2=%u\n",cmd->scan_begin_arg,cmd->convert_arg); */
 					err++;
 				}
 			}
@@ -1033,7 +1033,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		if (dmalen0 < (devpriv->ai_n_realscanlen << 1)) {
 			/*  uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
-			rt_printk
+			printk
 				("comedi%d: WAR: DMA0 buf too short, cann't support TRIG_WAKE_EOS (%d<%d)\n",
 				dev->minor, dmalen0,
 				devpriv->ai_n_realscanlen << 1);
@@ -1044,7 +1044,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 			if (devpriv->useeoshandle)
 				dmalen0 += 2;
 			if (dmalen0 < 4) {
-				rt_printk
+				printk
 					("comedi%d: ERR: DMA0 buf len bug? (%d<4)\n",
 					dev->minor, dmalen0);
 				dmalen0 = 4;
@@ -1055,7 +1055,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		if (dmalen1 < (devpriv->ai_n_realscanlen << 1)) {
 			/*  uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
-			rt_printk
+			printk
 				("comedi%d: WAR: DMA1 buf too short, cann't support TRIG_WAKE_EOS (%d<%d)\n",
 				dev->minor, dmalen1,
 				devpriv->ai_n_realscanlen << 1);
@@ -1066,7 +1066,7 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 			if (devpriv->useeoshandle)
 				dmalen1 -= 2;
 			if (dmalen1 < 4) {
-				rt_printk
+				printk
 					("comedi%d: ERR: DMA1 buf len bug? (%d<4)\n",
 					dev->minor, dmalen1);
 				dmalen1 = 4;
@@ -1464,7 +1464,7 @@ static int pci9118_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	outl(devpriv->AdControlReg, dev->iobase + PCI9118_ADCNTRL);
 	devpriv->AdFunctionReg = AdFunction_PDTrg | AdFunction_PETrg;	/*  positive triggers, no S&H, no burst, burst stop, no post trigger, no about trigger, trigger stop */
 	outl(devpriv->AdFunctionReg, dev->iobase + PCI9118_ADFUNC);
-	comedi_udelay(1);
+	udelay(1);
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/*  flush FIFO */
 	inl(dev->iobase + PCI9118_ADSTAT);	/*  flush A/D and INT status register */
 	inl(dev->iobase + PCI9118_INTSRC);
@@ -1497,7 +1497,7 @@ static int check_channel_list(struct comedi_device *dev, struct comedi_subdevice
 		return 0;
 	}
 	if ((frontadd + n_chan + backadd) > s->len_chanlist) {
-		rt_printk
+		printk
 			("comedi%d: range/channel list is too long for actual configuration (%d>%d)!",
 			dev->minor, n_chan,
 			s->len_chanlist - frontadd - backadd);
@@ -1641,7 +1641,7 @@ static int setup_channel_list(struct comedi_device *dev, struct comedi_subdevice
 #endif
 #endif
 	outl(0, dev->iobase + PCI9118_SCANMOD);	/*  close scan queue */
-/* comedi_udelay(100);                               important delay, or first sample will be cripled */
+/* udelay(100);                               important delay, or first sample will be cripled */
 
 	DPRINTK("adl_pci9118 EDBG: END: setup_channel_list()\n");
 	return 1;		/*  we can serve this with scan logic */
@@ -1716,7 +1716,7 @@ static void start_pacer(struct comedi_device *dev, int mode, unsigned int diviso
 	outl(0x74, dev->iobase + PCI9118_CNTCTRL);
 	outl(0xb4, dev->iobase + PCI9118_CNTCTRL);
 /* outl(0x30, dev->iobase + PCI9118_CNTCTRL); */
-	comedi_udelay(1);
+	udelay(1);
 
 	if ((mode == 1) || (mode == 2) || (mode == 4)) {
 		outl(divisor2 & 0xff, dev->iobase + PCI9118_CNT2);
@@ -1817,7 +1817,7 @@ static int pci9118_reset(struct comedi_device *dev)
 	outl(devpriv->ao_data[0], dev->iobase + PCI9118_DA1);	/*  reset A/D outs to 0V */
 	outl(devpriv->ao_data[1], dev->iobase + PCI9118_DA2);
 	outl(0, dev->iobase + PCI9118_DO);	/*  reset digi outs to L */
-	comedi_udelay(10);
+	udelay(10);
 	inl(dev->iobase + PCI9118_AD_DATA);
 	outl(0, dev->iobase + PCI9118_DELFIFO);	/*  flush FIFO */
 	outl(0, dev->iobase + PCI9118_INTSRC);	/*  remove INT requests */
@@ -1848,7 +1848,7 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	unsigned char pci_bus, pci_slot, pci_func;
 	u16 u16w;
 
-	rt_printk("comedi%d: adl_pci9118: board=%s", dev->minor,
+	printk("comedi%d: adl_pci9118: board=%s", dev->minor,
 		this_board->name);
 
 	opt_bus = it->options[0];
@@ -1861,7 +1861,7 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	ret = alloc_private(dev, sizeof(struct pci9118_private));
 	if (ret < 0) {
-		rt_printk(" - Allocation failed!\n");
+		printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
 
@@ -1890,10 +1890,10 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			rt_printk(" - Card at b:s %d:%d %s\n",
+			printk(" - Card at b:s %d:%d %s\n",
 				opt_bus, opt_slot, errstr);
 		} else {
-			rt_printk(" - Card %s\n", errstr);
+			printk(" - Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -1909,7 +1909,7 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	iobase_a = pci_resource_start(pcidev, 0);
 	iobase_9 = pci_resource_start(pcidev, 2);
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus, pci_slot,
+	printk(", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus, pci_slot,
 		pci_func, iobase_9, iobase_a);
 
 	dev->iobase = iobase_9;
@@ -1923,16 +1923,16 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	if (it->options[3] & 2)
 		irq = 0;	/*  user don't want use IRQ */
 	if (irq > 0) {
-		if (comedi_request_irq(irq, interrupt_pci9118, IRQF_SHARED,
+		if (request_irq(irq, interrupt_pci9118, IRQF_SHARED,
 				"ADLink PCI-9118", dev)) {
-			rt_printk(", unable to allocate IRQ %d, DISABLING IT",
+			printk(", unable to allocate IRQ %d, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
 		} else {
-			rt_printk(", irq=%u", irq);
+			printk(", irq=%u", irq);
 		}
 	} else {
-		rt_printk(", IRQ disabled");
+		printk(", IRQ disabled");
 	}
 
 	dev->irq = irq;
@@ -1958,7 +1958,7 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 			}
 		}
 		if (!devpriv->dmabuf_virt[0]) {
-			rt_printk(", Can't allocate DMA buffer, DMA disabled!");
+			printk(", Can't allocate DMA buffer, DMA disabled!");
 			master = 0;
 		}
 
@@ -1969,9 +1969,9 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	devpriv->master = master;
 	if (devpriv->master)
-		rt_printk(", bus master");
+		printk(", bus master");
 	else
-		rt_printk(", no bus master");
+		printk(", no bus master");
 
 	devpriv->usemux = 0;
 	if (it->options[2] > 0) {
@@ -1982,7 +1982,7 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 			if (devpriv->usemux > 128) {
 				devpriv->usemux = 128;	/*  max 128 channels with softare S&H! */
 			}
-		rt_printk(", ext. mux %d channels", devpriv->usemux);
+		printk(", ext. mux %d channels", devpriv->usemux);
 	}
 
 	devpriv->softsshdelay = it->options[4];
@@ -1995,7 +1995,7 @@ static int pci9118_attach(struct comedi_device *dev, struct comedi_devconfig *it
 		devpriv->softsshhold = 0x80;
 	}
 
-	rt_printk(".\n");
+	printk(".\n");
 
 	pci_read_config_word(devpriv->pcidev, PCI_COMMAND, &u16w);
 	pci_write_config_word(devpriv->pcidev, PCI_COMMAND, u16w | 64);	/*  Enable parity check for parity error */
@@ -2081,7 +2081,7 @@ static int pci9118_detach(struct comedi_device *dev)
 		if (devpriv->valid)
 			pci9118_reset(dev);
 		if (dev->irq)
-			comedi_free_irq(dev->irq, dev);
+			free_irq(dev->irq, dev);
 		if (devpriv->pcidev) {
 			if (dev->iobase) {
 				comedi_pci_disable(devpriv->pcidev);

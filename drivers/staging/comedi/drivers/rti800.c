@@ -200,7 +200,7 @@ static int rti800_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 		 * gets set, and you will have an error. */
 		if (insn->n > 0) {
 			BUG_ON(gain >= ARRAY_SIZE(gaindelay));
-			comedi_udelay(gaindelay[gain]);
+			udelay(gaindelay[gain]);
 		}
 	}
 
@@ -209,16 +209,16 @@ static int rti800_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 		for (t = RTI800_TIMEOUT; t; t--) {
 			status = inb(dev->iobase + RTI800_CSR);
 			if (status & RTI800_OVERRUN) {
-				rt_printk("rti800: a/d overrun\n");
+				printk("rti800: a/d overrun\n");
 				outb(0, dev->iobase + RTI800_CLRFLAGS);
 				return -EIO;
 			}
 			if (status & RTI800_DONE)
 				break;
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if (t == 0) {
-			rt_printk("rti800: timeout\n");
+			printk("rti800: timeout\n");
 			return -ETIME;
 		}
 		data[i] = inb(dev->iobase + RTI800_ADCLO);
@@ -338,8 +338,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	irq = it->options[1];
 	if (irq) {
 		printk("( irq = %u )", irq);
-		ret = comedi_request_irq(irq, rti800_interrupt, 0,
-					 "rti800", dev);
+		ret = request_irq(irq, rti800_interrupt, 0, "rti800", dev);
 		if (ret < 0) {
 			printk(" Failed to allocate IRQ\n");
 			return ret;
@@ -455,7 +454,7 @@ static int rti800_detach(struct comedi_device *dev)
 		release_region(dev->iobase, RTI800_SIZE);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	return 0;
 }

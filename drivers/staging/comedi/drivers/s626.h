@@ -63,7 +63,7 @@
 */
 
 #ifdef _DEBUG_
-#define DEBUG(...);        rt_printk(__VA_ARGS__);
+#define DEBUG(...);        printk(__VA_ARGS__);
 #else
 #define DEBUG(...)
 #endif

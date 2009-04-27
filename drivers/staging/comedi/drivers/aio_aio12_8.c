@@ -110,7 +110,7 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev, struct comedi_subdevic
 			!(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
 			printk("timeout %d\n", timeout);
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if (timeout == 0) {
 			comedi_error(dev, "ADC timeout");

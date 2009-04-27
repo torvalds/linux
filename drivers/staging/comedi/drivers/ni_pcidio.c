@@ -422,14 +422,13 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	BUG_ON(devpriv->di_mite_chan);
 	devpriv->di_mite_chan =
 		mite_request_channel_in_range(devpriv->mite,
 		devpriv->di_mite_ring, 1, 2);
 	if (devpriv->di_mite_chan == NULL) {
-		comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock,
-			flags);
+		spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 		comedi_error(dev, "failed to reserve mite dma channel.");
 		return -EBUSY;
 	}
@@ -437,7 +436,7 @@ static int ni_pcidio_request_di_mite_channel(struct comedi_device *dev)
 		secondary_DMAChannel_bits(devpriv->di_mite_chan->channel),
 		devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
 	mmiowb();
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 	return 0;
 }
 
@@ -445,7 +444,7 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
+	spin_lock_irqsave(&devpriv->mite_channel_lock, flags);
 	if (devpriv->di_mite_chan) {
 		mite_dma_disarm(devpriv->di_mite_chan);
 		mite_dma_reset(devpriv->di_mite_chan);
@@ -456,7 +455,7 @@ static void ni_pcidio_release_di_mite_channel(struct comedi_device *dev)
 			devpriv->mite->daq_io_addr + DMA_Line_Control_Group1);
 		mmiowb();
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
+	spin_unlock_irqrestore(&devpriv->mite_channel_lock, flags);
 }
 
 static int nidio96_8255_cb(int dir, int port, int data, unsigned long iobase)
@@ -514,7 +513,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	/* printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf); */
 	/* printk("buf[4096]=%08x\n",*(unsigned int *)(async->prealloc_buf+4096)); */
 
-	comedi_spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
+	spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
 	if (devpriv->di_mite_chan)
 		m_status = mite_get_status(devpriv->di_mite_chan);
 #ifdef MITE_DEBUG
@@ -537,7 +536,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 			disable_irq(dev->irq);
 		}
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->mite_channel_lock, irq_flags);
+	spin_unlock_irqrestore(&devpriv->mite_channel_lock, irq_flags);
 
 	while (status & DataLeft) {
 		work++;
@@ -1235,8 +1234,8 @@ static int nidio_attach(struct comedi_device * dev, struct comedi_devconfig * it
 			devpriv->mite->daq_io_addr +
 			Master_DMA_And_Interrupt_Control);
 
-		ret = comedi_request_irq(irq, nidio_interrupt, IRQF_SHARED,
-			"ni_pcidio", dev);
+		ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
+				  "ni_pcidio", dev);
 		if (ret < 0) {
 			printk(" irq not available");
 		}
@@ -1259,7 +1258,7 @@ static int nidio_detach(struct comedi_device * dev)
 	}
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (devpriv) {
 		if (devpriv->di_mite_ring) {

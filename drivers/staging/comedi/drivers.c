@@ -554,7 +554,7 @@ unsigned int comedi_buf_munge(struct comedi_async *async, unsigned int num_bytes
 
 		block_size = num_bytes - count;
 		if (block_size < 0) {
-			rt_printk("%s: %s: bug! block_size is negative\n",
+			printk("%s: %s: bug! block_size is negative\n",
 				__FILE__, __func__);
 			break;
 		}
@@ -633,8 +633,7 @@ unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes)
 {
 	if ((int)(async->buf_write_count + nbytes -
 			async->buf_write_alloc_count) > 0) {
-		rt_printk
-			("comedi: attempted to write-free more bytes than have been write-allocated.\n");
+		printk("comedi: attempted to write-free more bytes than have been write-allocated.\n");
 		nbytes = async->buf_write_alloc_count - async->buf_write_count;
 	}
 	async->buf_write_count += nbytes;
@@ -667,8 +666,7 @@ unsigned comedi_buf_read_free(struct comedi_async *async, unsigned int nbytes)
 	smp_mb();
 	if ((int)(async->buf_read_count + nbytes -
 			async->buf_read_alloc_count) > 0) {
-		rt_printk
-			("comedi: attempted to read-free more bytes than have been read-allocated.\n");
+		printk("comedi: attempted to read-free more bytes than have been read-allocated.\n");
 		nbytes = async->buf_read_alloc_count - async->buf_read_count;
 	}
 	async->buf_read_count += nbytes;

@@ -201,9 +201,9 @@ COMEDI_INITCLEANUP(driver_a2150);
 
 static void ni_dump_regs(struct comedi_device *dev)
 {
-	rt_printk("config bits 0x%x\n", devpriv->config_bits);
-	rt_printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
-	rt_printk("status bits 0x%x\n", inw(dev->iobase + STATUS_REG));
+	printk("config bits 0x%x\n", devpriv->config_bits);
+	printk("irq dma bits 0x%x\n", devpriv->irq_dma_bits);
+	printk("status bits 0x%x\n", inw(dev->iobase + STATUS_REG));
 }
 
 #endif
@@ -370,7 +370,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			printk(" invalid irq line %u\n", irq);
 			return -EINVAL;
 		}
-		if (comedi_request_irq(irq, a2150_interrupt, 0,
+		if (request_irq(irq, a2150_interrupt, 0,
 				driver_a2150.driver_name, dev)) {
 			printk("unable to allocate irq %u\n", irq);
 			return -EINVAL;
@@ -437,7 +437,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (i = 0; i < timeout; i++) {
 		if ((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
 			break;
-		comedi_udelay(1000);
+		udelay(1000);
 	}
 	if (i == timeout) {
 		printk(" timed out waiting for offset calibration to complete\n");
@@ -461,7 +461,7 @@ static int a2150_detach(struct comedi_device *dev)
 	}
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->dma)
 			free_dma(devpriv->dma);
@@ -764,7 +764,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		for (i = 0; i < timeout; i++) {
 			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
 				break;
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if (i == timeout) {
 			comedi_error(dev, "timeout");
@@ -778,7 +778,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		for (i = 0; i < timeout; i++) {
 			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
 				break;
-			comedi_udelay(1);
+			udelay(1);
 		}
 		if (i == timeout) {
 			comedi_error(dev, "timeout");
@@ -789,7 +789,7 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 #endif
 		data[n] = inw(dev->iobase + FIFO_DATA_REG);
 #ifdef A2150_DEBUG
-		rt_printk(" data is %i\n", data[n]);
+		printk(" data is %i\n", data[n]);
 #endif
 		data[n] ^= 0x8000;
 	}

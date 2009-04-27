@@ -107,12 +107,12 @@ static int ni_tio_input_inttrig(struct comedi_device *dev, struct comedi_subdevi
 	if (trignum != 0)
 		return -EINVAL;
 
-	comedi_spin_lock_irqsave(&counter->lock, flags);
+	spin_lock_irqsave(&counter->lock, flags);
 	if (counter->mite_chan)
 		mite_dma_arm(counter->mite_chan);
 	else
 		retval = -EIO;
-	comedi_spin_unlock_irqrestore(&counter->lock, flags);
+	spin_unlock_irqrestore(&counter->lock, flags);
 	if (retval < 0)
 		return retval;
 	retval = ni_tio_arm(counter, 1, NI_GPCT_ARM_IMMEDIATE);
@@ -171,7 +171,7 @@ static int ni_tio_input_cmd(struct ni_gpct *counter, struct comedi_async *async)
 
 static int ni_tio_output_cmd(struct ni_gpct *counter, struct comedi_async *async)
 {
-	rt_printk("ni_tio: output commands not yet implemented.\n");
+	printk("ni_tio: output commands not yet implemented.\n");
 	return -ENOTSUPP;
 
 	counter->mite_chan->dir = COMEDI_OUTPUT;
@@ -213,9 +213,9 @@ int ni_tio_cmd(struct ni_gpct *counter, struct comedi_async *async)
 	int retval = 0;
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&counter->lock, flags);
+	spin_lock_irqsave(&counter->lock, flags);
 	if (counter->mite_chan == NULL) {
-		rt_printk
+		printk
 			("ni_tio: commands only supported with DMA.  Interrupt-driven commands not yet implemented.\n");
 		retval = -EIO;
 	} else {
@@ -228,7 +228,7 @@ int ni_tio_cmd(struct ni_gpct *counter, struct comedi_async *async)
 			}
 		}
 	}
-	comedi_spin_unlock_irqrestore(&counter->lock, flags);
+	spin_unlock_irqrestore(&counter->lock, flags);
 	return retval;
 }
 
@@ -342,11 +342,11 @@ int ni_tio_cancel(struct ni_gpct *counter)
 	unsigned long flags;
 
 	ni_tio_arm(counter, 0, 0);
-	comedi_spin_lock_irqsave(&counter->lock, flags);
+	spin_lock_irqsave(&counter->lock, flags);
 	if (counter->mite_chan) {
 		mite_dma_disarm(counter->mite_chan);
 	}
-	comedi_spin_unlock_irqrestore(&counter->lock, flags);
+	spin_unlock_irqrestore(&counter->lock, flags);
 	ni_tio_configure_dma(counter, 0, 0);
 
 	ni_tio_set_bits(counter,
@@ -369,7 +369,7 @@ static int should_ack_gate(struct ni_gpct *counter)
 		return 1;
 		break;
 	case ni_gpct_variant_e_series:
-		comedi_spin_lock_irqsave(&counter->lock, flags);
+		spin_lock_irqsave(&counter->lock, flags);
 		{
 			if (counter->mite_chan == NULL ||
 				counter->mite_chan->dir != COMEDI_INPUT ||
@@ -377,7 +377,7 @@ static int should_ack_gate(struct ni_gpct *counter)
 				retval = 1;
 			}
 		}
-		comedi_spin_unlock_irqrestore(&counter->lock, flags);
+		spin_unlock_irqrestore(&counter->lock, flags);
 		break;
 	}
 	return retval;
@@ -439,7 +439,7 @@ void ni_tio_acknowledge_and_confirm(struct ni_gpct *counter, int *gate_error,
 				NITIO_Gxx_Joint_Status2_Reg(counter->
 					counter_index)) &
 			Gi_Permanent_Stale_Bit(counter->counter_index)) {
-			rt_printk("%s: Gi_Permanent_Stale_Data detected.\n",
+			printk("%s: Gi_Permanent_Stale_Data detected.\n",
 				__FUNCTION__);
 			if (perm_stale_data)
 				*perm_stale_data = 1;
@@ -458,7 +458,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter, struct comedi_subdevice * 
 	ni_tio_acknowledge_and_confirm(counter, &gate_error, &tc_error,
 		&perm_stale_data, NULL);
 	if (gate_error) {
-		rt_printk("%s: Gi_Gate_Error detected.\n", __FUNCTION__);
+		printk("%s: Gi_Gate_Error detected.\n", __FUNCTION__);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 	}
 	if (perm_stale_data) {
@@ -470,16 +470,16 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter, struct comedi_subdevice * 
 		if (read_register(counter,
 				NITIO_Gi_DMA_Status_Reg(counter->
 					counter_index)) & Gi_DRQ_Error_Bit) {
-			rt_printk("%s: Gi_DRQ_Error detected.\n", __FUNCTION__);
+			printk("%s: Gi_DRQ_Error detected.\n", __FUNCTION__);
 			s->async->events |= COMEDI_CB_OVERFLOW;
 		}
 		break;
 	case ni_gpct_variant_e_series:
 		break;
 	}
-	comedi_spin_lock_irqsave(&counter->lock, flags);
+	spin_lock_irqsave(&counter->lock, flags);
 	if (counter->mite_chan == NULL) {
-		comedi_spin_unlock_irqrestore(&counter->lock, flags);
+		spin_unlock_irqrestore(&counter->lock, flags);
 		return;
 	}
 	gpct_mite_status = mite_get_status(counter->mite_chan);
@@ -489,7 +489,7 @@ void ni_tio_handle_interrupt(struct ni_gpct *counter, struct comedi_subdevice * 
 			MITE_CHOR(counter->mite_chan->channel));
 	}
 	mite_sync_input_dma(counter->mite_chan, s->async);
-	comedi_spin_unlock_irqrestore(&counter->lock, flags);
+	spin_unlock_irqrestore(&counter->lock, flags);
 }
 
 void ni_tio_set_mite_channel(struct ni_gpct *counter,
@@ -497,9 +497,9 @@ void ni_tio_set_mite_channel(struct ni_gpct *counter,
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&counter->lock, flags);
+	spin_lock_irqsave(&counter->lock, flags);
 	counter->mite_chan = mite_chan;
-	comedi_spin_unlock_irqrestore(&counter->lock, flags);
+	spin_unlock_irqrestore(&counter->lock, flags);
 }
 
 static int __init ni_tiocmd_init_module(void)

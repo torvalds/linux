@@ -292,7 +292,7 @@ static int board_init(struct comedi_device *dev)
 static int das6402_detach(struct comedi_device *dev)
 {
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (dev->iobase)
 		release_region(dev->iobase, DAS6402_SIZE);
 
@@ -324,7 +324,7 @@ static int das6402_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	irq = it->options[0];
 	printk(" ( irq = %u )", irq);
-	ret = comedi_request_irq(irq, intr_handler, 0, "das6402", dev);
+	ret = request_irq(irq, intr_handler, 0, "das6402", dev);
 	if (ret < 0) {
 		printk("irq conflict\n");
 		return ret;

@@ -343,7 +343,7 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 				*card = amcc;
 				return 0;	/* ok, card is found */
 			} else {
-				rt_printk(" - \nCard on requested position is used b:s %d:%d!\n",
+				printk(" - \nCard on requested position is used b:s %d:%d!\n",
 					  pci_bus, pci_slot);
 				return 2;	/* card exist but is used */
 			}
@@ -447,7 +447,7 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 		/* use autodetection */
 		card = ptr_find_free_pci_card_by_device(vendor_id, device_id);
 		if (card == NULL) {
-			rt_printk(" - Unused card not found in system!\n");
+			printk(" - Unused card not found in system!\n");
 			return NULL;
 		}
 	} else {
@@ -455,18 +455,18 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 							 pci_bus, pci_slot,
 							 &card)) {
 		case 1:
-			rt_printk(" - Card not found on requested position b:s %d:%d!\n",
+			printk(" - Card not found on requested position b:s %d:%d!\n",
 				  pci_bus, pci_slot);
 			return NULL;
 		case 2:
-			rt_printk(" - Card on requested position is used b:s %d:%d!\n",
+			printk(" - Card on requested position is used b:s %d:%d!\n",
 				  pci_bus, pci_slot);
 			return NULL;
 		}
 	}
 
 	if (pci_card_alloc(card, i_Master) != 0) {
-		rt_printk(" - Can't allocate card!\n");
+		printk(" - Can't allocate card!\n");
 		return NULL;
 
 	}

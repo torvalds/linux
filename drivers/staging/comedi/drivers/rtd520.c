@@ -135,7 +135,7 @@ Configuration options:
 #define RTD_DMA_TIMEOUT	33000	/* 1 msec */
 #else
 /* by delaying, power and electrical noise are reduced somewhat */
-#define WAIT_QUIETLY	comedi_udelay (1)
+#define WAIT_QUIETLY	udelay (1)
 #define RTD_ADC_TIMEOUT	2000	/* in usec */
 #define RTD_DAC_TIMEOUT	2000	/* in usec */
 #define RTD_DMA_TIMEOUT	1000	/* in usec */
@@ -900,7 +900,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* initialize board, per RTD spec */
 	/* also, initialize shadow registers */
 	RtdResetBoard(dev);
-	comedi_udelay(100);	/* needed? */
+	udelay(100);	/* needed? */
 	RtdPlxInterruptWrite(dev, 0);
 	RtdInterruptMask(dev, 0);	/* and sets shadow */
 	RtdInterruptClearMask(dev, ~0);	/* and sets shadow */
@@ -919,7 +919,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* TODO: set user out source ??? */
 
 	/* check if our interrupt is available and get it */
-	ret = comedi_request_irq(devpriv->pci_dev->irq, rtd_interrupt,
+	ret = request_irq(devpriv->pci_dev->irq, rtd_interrupt,
 				 IRQF_SHARED, DRV_NAME, dev);
 
 	if (ret < 0) {
@@ -1032,7 +1032,7 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* disable interrupt controller */
 		RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
 			& ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	/* release all regions that were allocated */
@@ -1111,7 +1111,7 @@ static int rtd_detach(struct comedi_device *dev)
 			/* disable interrupt controller */
 			RtdPlxInterruptWrite(dev, RtdPlxInterruptRead(dev)
 				& ~(ICS_PLIE | ICS_DMA0_E | ICS_DMA1_E));
-			comedi_free_irq(dev->irq, dev);
+			free_irq(dev->irq, dev);
 		}
 
 		/* release all regions that were allocated */
@@ -1224,7 +1224,7 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		unsigned fifo_status;
 		/* trigger conversion */
 		RtdAdcStart(dev);
-		comedi_udelay(1);
+		udelay(1);
 		fifo_status = RtdFifoStatus(dev);
 		if ((fifo_status & FS_ADC_HEMPTY) == 0) {
 			fifo_size = 2 * i;
@@ -1233,13 +1233,13 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 	}
 	if (i == limit)
 	{
-		rt_printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
+		printk("\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
 		return -EIO;
 	}
 	RtdAdcClearFifo(dev);
 	if (fifo_size != 0x400 && fifo_size != 0x2000)
 	{
-		rt_printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
+		printk("\ncomedi: %s: unexpected fifo size of %i, expected 1024 or 8192.\n",
 			DRV_NAME, fifo_size);
 		return -EIO;
 	}
@@ -1386,7 +1386,7 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 		+ ((channel == 0) ? LCFG_DMACSR0 : LCFG_DMACSR1);
 
 	/*  spinlock for plx dma control/status reg */
-	/* comedi_spin_lock_irqsave( &dev->spinlock, flags ); */
+	/* spin_lock_irqsave( &dev->spinlock, flags ); */
 
 	/*  abort dma transfer if necessary */
 	status = readb(dma_cs_addr);
@@ -1409,7 +1409,7 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 
 	/* disable channel (required) */
 	writeb(0, dma_cs_addr);
-	comedi_udelay(1);	/* needed?? */
+	udelay(1);	/* needed?? */
 	/* set abort bit for channel */
 	writeb(PLX_DMA_ABORT_BIT, dma_cs_addr);
 
@@ -1427,7 +1427,7 @@ void abort_dma(struct comedi_device *dev, unsigned int channel)
 	}
 
       abortDmaExit:
-	/* comedi_spin_unlock_irqrestore( &dev->spinlock, flags ); */
+	/* spin_unlock_irqrestore( &dev->spinlock, flags ); */
 }
 
 /*

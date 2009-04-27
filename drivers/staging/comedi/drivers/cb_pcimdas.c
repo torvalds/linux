@@ -282,7 +282,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev, struct comedi_devconfig 
 
 /* Dont support IRQ yet */
 /*  get irq */
-/* if(comedi_request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
+/* if(request_irq(devpriv->pci_dev->irq, cb_pcimdas_interrupt, IRQF_SHARED, "cb_pcimdas", dev )) */
 /* { */
 /* printk(" unable to allocate irq %u\n", devpriv->pci_dev->irq); */
 /* return -EINVAL; */
@@ -355,7 +355,7 @@ static int cb_pcimdas_detach(struct comedi_device *dev)
 #endif
 	printk("comedi%d: cb_pcimdas: remove\n", dev->minor);
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->pci_dev) {
 			if (devpriv->BADR0) {

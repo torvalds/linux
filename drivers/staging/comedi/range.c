@@ -130,8 +130,7 @@ int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
 			if (CR_CHAN(chanlist[i]) >= s->n_chan ||
 				CR_RANGE(chanlist[i]) >= s->range_table->length
 				|| aref_invalid(s, chanlist[i])) {
-				rt_printk
-					("bad chanlist[%d]=0x%08x n_chan=%d range length=%d\n",
+				printk("bad chanlist[%d]=0x%08x n_chan=%d range length=%d\n",
 					i, chanlist[i], s->n_chan,
 					s->range_table->length);
 #if 0
@@ -147,13 +146,13 @@ int check_chanlist(struct comedi_subdevice *s, int n, unsigned int *chanlist)
 				CR_RANGE(chanlist[i]) >=
 				s->range_table_list[chan]->length
 				|| aref_invalid(s, chanlist[i])) {
-				rt_printk("bad chanlist[%d]=0x%08x\n", i,
+				printk("bad chanlist[%d]=0x%08x\n", i,
 					chanlist[i]);
 				return -EINVAL;
 			}
 		}
 	} else {
-		rt_printk("comedi: (bug) no range type list!\n");
+		printk("comedi: (bug) no range type list!\n");
 		return -EINVAL;
 	}
 	return 0;

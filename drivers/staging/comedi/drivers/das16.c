@@ -90,7 +90,7 @@ Computer boards manuals also available from their website www.measurementcomputi
 /* #define DEBUG */
 
 #ifdef DEBUG
-#define DEBUG_PRINT(format, args...) rt_printk("das16: " format, ## args)
+#define DEBUG_PRINT(format, args...) printk("das16: " format, ## args)
 #else
 #define DEBUG_PRINT(format, args...)
 #endif
@@ -998,7 +998,7 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	/* disable interrupts, dma and pacer clocked conversions */
 	devpriv->control_state &= ~DAS16_INTE & ~PACING_MASK & ~DMA_ENABLE;
 	outb(devpriv->control_state, dev->iobase + DAS16_CONTROL);
@@ -1016,7 +1016,7 @@ static int das16_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 		outb(0, dev->iobase + DAS1600_BURST);
 	}
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return 0;
 }
@@ -1062,7 +1062,7 @@ static int das16_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				break;
 		}
 		if (i == DAS16_TIMEOUT) {
-			rt_printk("das16: timeout\n");
+			printk("das16: timeout\n");
 			return -ETIME;
 		}
 		msb = inb(dev->iobase + DAS16_AI_MSB);
@@ -1180,7 +1180,7 @@ static int disable_dma_on_even(struct comedi_device *dev)
 		enable_dma(devpriv->dma_chan);
 		for (j = 0; j < enable_timeout; ++j) {
 			int new_residue;
-			comedi_udelay(2);
+			udelay(2);
 			new_residue = get_dma_residue(devpriv->dma_chan);
 			if (new_residue != residue)
 				break;
@@ -1217,9 +1217,9 @@ static void das16_interrupt(struct comedi_device *dev)
 		return;
 	}
 
-	comedi_spin_lock_irqsave(&dev->spinlock, spin_flags);
+	spin_lock_irqsave(&dev->spinlock, spin_flags);
 	if ((devpriv->control_state & DMA_ENABLE) == 0) {
-		comedi_spin_unlock_irqrestore(&dev->spinlock, spin_flags);
+		spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 		DEBUG_PRINT("interrupt while dma disabled?\n");
 		return;
 	}
@@ -1263,7 +1263,7 @@ static void das16_interrupt(struct comedi_device *dev)
 	}
 	release_dma_lock(dma_flags);
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, spin_flags);
+	spin_unlock_irqrestore(&dev->spinlock, spin_flags);
 
 	cfc_write_array_to_buffer(s,
 		devpriv->dma_buffer[buffer_index], num_bytes);
@@ -1449,8 +1449,7 @@ static int das16_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* now for the irq */
 	if (irq > 1 && irq < 8) {
-		ret = comedi_request_irq(irq, das16_dma_interrupt, 0,
-					 "das16", dev);
+		ret = request_irq(irq, das16_dma_interrupt, 0, "das16", dev);
 
 		if (ret < 0)
 			return ret;
@@ -1658,7 +1657,7 @@ static int das16_detach(struct comedi_device *dev)
 	}
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (dev->iobase) {
 		if (thisboard->size < 0x400) {

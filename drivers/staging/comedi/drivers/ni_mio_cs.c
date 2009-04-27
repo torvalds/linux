@@ -200,14 +200,14 @@ static void mio_cs_win_out(struct comedi_device *dev, uint16_t data, int addr)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
 		ni_writew(data, addr * 2);
 	} else {
 		ni_writew(addr, Window_Address);
 		ni_writew(data, Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 }
 
 static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
@@ -215,14 +215,14 @@ static uint16_t mio_cs_win_in(struct comedi_device *dev, int addr)
 	unsigned long flags;
 	uint16_t ret;
 
-	comedi_spin_lock_irqsave(&devpriv->window_lock, flags);
+	spin_lock_irqsave(&devpriv->window_lock, flags);
 	if (addr < 8) {
 		ret = ni_readw(addr * 2);
 	} else {
 		ni_writew(addr, Window_Address);
 		ret = ni_readw(Window_Data);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->window_lock, flags);
+	spin_unlock_irqrestore(&devpriv->window_lock, flags);
 
 	return ret;
 }
@@ -249,7 +249,7 @@ static int mio_cs_detach(struct comedi_device *dev)
 	/* PCMCIA layer frees the IO region */
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 
 	return 0;
@@ -446,7 +446,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk(" %s", boardtype.name);
 	dev->board_name = boardtype.name;
 
-	ret = comedi_request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
+	ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
 				 "ni_mio_cs", dev);
 	if (ret < 0) {
 		printk(" irq not available\n");

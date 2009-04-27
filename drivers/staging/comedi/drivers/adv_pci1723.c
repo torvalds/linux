@@ -304,7 +304,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	int opt_bus, opt_slot;
 	const char *errstr;
 
-	rt_printk("comedi%d: adv_pci1723: board=%s", dev->minor,
+	printk("comedi%d: adv_pci1723: board=%s", dev->minor,
 		this_board->name);
 
 	opt_bus = it->options[0];
@@ -312,7 +312,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	ret = alloc_private(dev, sizeof(struct pci1723_private));
 	if (ret < 0) {
-		rt_printk(" - Allocation failed!\n");
+		printk(" - Allocation failed!\n");
 		return -ENOMEM;
 	}
 
@@ -342,10 +342,10 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			rt_printk(" - Card at b:s %d:%d %s\n",
+			printk(" - Card at b:s %d:%d %s\n",
 				opt_bus, opt_slot, errstr);
 		} else {
-			rt_printk(" - Card %s\n", errstr);
+			printk(" - Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -355,7 +355,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	pci_func = PCI_FUNC(pcidev->devfn);
 	iobase = pci_resource_start(pcidev, 2);
 
-	rt_printk(", b:s:f=%d:%d:%d, io=0x%4x", pci_bus, pci_slot, pci_func,
+	printk(", b:s:f=%d:%d:%d, io=0x%4x", pci_bus, pci_slot, pci_func,
 		iobase);
 
 	dev->iobase = iobase;
@@ -372,7 +372,7 @@ static int pci1723_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	ret = alloc_subdevices(dev, n_subdevices);
 	if (ret < 0) {
-		rt_printk(" - Allocation failed!\n");
+		printk(" - Allocation failed!\n");
 		return ret;
 	}
 

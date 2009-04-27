@@ -325,7 +325,7 @@ static int adq12b_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
         channel = CR_CHAN(insn->chanspec);
         if (channel != devpriv->last_channel || range != devpriv->last_range) {
           outb((range << 4) | channel, dev->iobase + ADQ12B_CTREG);
-          comedi_udelay(50);   /* wait for the mux to settle */
+          udelay(50);   /* wait for the mux to settle */
         }
 
         /* trigger conversion */
@@ -337,7 +337,7 @@ static int adq12b_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
           /* wait for end of convertion */
 	  i = 0;
           do {
-/* comedi_udelay(1); */
+/* udelay(1); */
 	    status = inb(dev->iobase + ADQ12B_STINR);
             status = status & ADQ12B_EOC;
           } while (status == 0 && ++i < TIMEOUT);
@@ -347,7 +347,7 @@ static int adq12b_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
           hi = inb(dev->iobase + ADQ12B_ADHIG);
           lo = inb(dev->iobase + ADQ12B_ADLOW);
 
-          /* rt_printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n", channel, range, status,  hi, lo); */
+          /* printk("debug: chan=%d range=%d status=%d hi=%d lo=%d\n", channel, range, status,  hi, lo); */
           data[n] = (hi << 8) | lo;
 
         }

@@ -166,9 +166,9 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	rt_printk("comedi%d: mpc624 [0x%04lx, ", dev->minor, iobase);
+	printk("comedi%d: mpc624 [0x%04lx, ", dev->minor, iobase);
 	if (request_region(iobase, MPC624_SIZE, "mpc624") == NULL) {
-		rt_printk("I/O port(s) in use\n");
+		printk("I/O port(s) in use\n");
 		return -EIO;
 	}
 
@@ -182,46 +182,46 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	switch (it->options[1]) {
 	case 0:
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
-		rt_printk("3.52 kHz, ");
+		printk("3.52 kHz, ");
 		break;
 	case 1:
 		devpriv->ulConvertionRate = MPC624_SPEED_1_76_kHz;
-		rt_printk("1.76 kHz, ");
+		printk("1.76 kHz, ");
 		break;
 	case 2:
 		devpriv->ulConvertionRate = MPC624_SPEED_880_Hz;
-		rt_printk("880 Hz, ");
+		printk("880 Hz, ");
 		break;
 	case 3:
 		devpriv->ulConvertionRate = MPC624_SPEED_440_Hz;
-		rt_printk("440 Hz, ");
+		printk("440 Hz, ");
 		break;
 	case 4:
 		devpriv->ulConvertionRate = MPC624_SPEED_220_Hz;
-		rt_printk("220 Hz, ");
+		printk("220 Hz, ");
 		break;
 	case 5:
 		devpriv->ulConvertionRate = MPC624_SPEED_110_Hz;
-		rt_printk("110 Hz, ");
+		printk("110 Hz, ");
 		break;
 	case 6:
 		devpriv->ulConvertionRate = MPC624_SPEED_55_Hz;
-		rt_printk("55 Hz, ");
+		printk("55 Hz, ");
 		break;
 	case 7:
 		devpriv->ulConvertionRate = MPC624_SPEED_27_5_Hz;
-		rt_printk("27.5 Hz, ");
+		printk("27.5 Hz, ");
 		break;
 	case 8:
 		devpriv->ulConvertionRate = MPC624_SPEED_13_75_Hz;
-		rt_printk("13.75 Hz, ");
+		printk("13.75 Hz, ");
 		break;
 	case 9:
 		devpriv->ulConvertionRate = MPC624_SPEED_6_875_Hz;
-		rt_printk("6.875 Hz, ");
+		printk("6.875 Hz, ");
 		break;
 	default:
-		rt_printk
+		printk
 			("illegal convertion rate setting! Valid numbers are 0..9. Using 9 => 6.875 Hz, ");
 		devpriv->ulConvertionRate = MPC624_SPEED_3_52_kHz;
 	}
@@ -237,29 +237,29 @@ static int mpc624_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	switch (it->options[1]) {
 	default:
 		s->maxdata = 0x3FFFFFFF;
-		rt_printk("30 bit, ");
+		printk("30 bit, ");
 	}
 
 	switch (it->options[1]) {
 	case 0:
 		s->range_table = &range_mpc624_bipolar1;
-		rt_printk("1.01V]: ");
+		printk("1.01V]: ");
 		break;
 	default:
 		s->range_table = &range_mpc624_bipolar10;
-		rt_printk("10.1V]: ");
+		printk("10.1V]: ");
 	}
 	s->len_chanlist = 1;
 	s->insn_read = mpc624_ai_rinsn;
 
-	rt_printk("attached\n");
+	printk("attached\n");
 
 	return 1;
 }
 
 static int mpc624_detach(struct comedi_device *dev)
 {
-	rt_printk("comedi%d: mpc624: remove\n", dev->minor);
+	printk("comedi%d: mpc624: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, MPC624_SIZE);
@@ -279,48 +279,48 @@ static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 
 	/*  WARNING: We always write 0 to GNSWA bit, so the channel range is +-/10.1Vdc */
 	outb(insn->chanspec, dev->iobase + MPC624_GNMUXCH);
-/* rt_printk("Channel %d: \n", insn->chanspec); */
+/* printk("Channel %d: \n", insn->chanspec); */
 	if (!insn->n) {
-		rt_printk("MPC624: Warning, no data to aquire\n");
+		printk("MPC624: Warning, no data to aquire\n");
 		return 0;
 	}
 
 	for (n = 0; n < insn->n; n++) {
 		/*  Trigger the convertion */
 		outb(MPC624_ADSCK, dev->iobase + MPC624_ADC);
-		comedi_udelay(1);
+		udelay(1);
 		outb(MPC624_ADCS | MPC624_ADSCK, dev->iobase + MPC624_ADC);
-		comedi_udelay(1);
+		udelay(1);
 		outb(0, dev->iobase + MPC624_ADC);
-		comedi_udelay(1);
+		udelay(1);
 
 		/*  Wait for the convertion to end */
 		for (i = 0; i < TIMEOUT; i++) {
 			ucPort = inb(dev->iobase + MPC624_ADC);
 			if (ucPort & MPC624_ADBUSY)
-				comedi_udelay(1000);
+				udelay(1000);
 			else
 				break;
 		}
 		if (i == TIMEOUT) {
-			rt_printk("MPC624: timeout (%dms)\n", TIMEOUT);
+			printk("MPC624: timeout (%dms)\n", TIMEOUT);
 			data[n] = 0;
 			return -ETIMEDOUT;
 		}
 		/*  Start reading data */
 		data_in = 0;
 		data_out = devpriv->ulConvertionRate;
-		comedi_udelay(1);
+		udelay(1);
 		for (i = 0; i < 32; i++) {
 			/*  Set the clock low */
 			outb(0, dev->iobase + MPC624_ADC);
-			comedi_udelay(1);
+			udelay(1);
 
 			if (data_out & (1 << 31))	/*  the next bit is a 1 */
 			{
 				/*  Set the ADSDI line (send to MPC624) */
 				outb(MPC624_ADSDI, dev->iobase + MPC624_ADC);
-				comedi_udelay(1);
+				udelay(1);
 				/*  Set the clock high */
 				outb(MPC624_ADSCK | MPC624_ADSDI,
 					dev->iobase + MPC624_ADC);
@@ -328,17 +328,17 @@ static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 			{
 				/*  Set the ADSDI line (send to MPC624) */
 				outb(0, dev->iobase + MPC624_ADC);
-				comedi_udelay(1);
+				udelay(1);
 				/*  Set the clock high */
 				outb(MPC624_ADSCK, dev->iobase + MPC624_ADC);
 			}
 			/*  Read ADSDO on high clock (receive from MPC624) */
-			comedi_udelay(1);
+			udelay(1);
 			data_in <<= 1;
 			data_in |=
 				(inb(dev->iobase +
 					MPC624_ADC) & MPC624_ADSDO) >> 4;
-			comedi_udelay(1);
+			udelay(1);
 
 			data_out <<= 1;
 		}
@@ -357,10 +357,10 @@ static int mpc624_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s
 		/*    00: sub-LSB */
 
 		if (data_in & MPC624_EOC_BIT)
-			rt_printk("MPC624: EOC bit is set (data_in=%lu)!",
+			printk("MPC624: EOC bit is set (data_in=%lu)!",
 				data_in);
 		if (data_in & MPC624_DMY_BIT)
-			rt_printk("MPC624: DMY bit is set (data_in=%lu)!",
+			printk("MPC624: DMY bit is set (data_in=%lu)!",
 				data_in);
 		if (data_in & MPC624_SGN_BIT)	/*  check the sign bit */
 		{		/*  The voltage is positive */

@@ -223,7 +223,7 @@ static int tty_read(struct file *f, int timeout)
 					result = ch;
 					break;
 				}
-				comedi_udelay(100);
+				udelay(100);
 			}
 		}
 		set_fs(oldfs);

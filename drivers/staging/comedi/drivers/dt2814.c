@@ -97,7 +97,7 @@ static int dt2814_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 		for (i = 0; i < DT2814_TIMEOUT; i++) {
 			status = inb(dev->iobase + DT2814_CSR);
 			printk("dt2814: status: %02x\n", status);
-			comedi_udelay(10);
+			udelay(10);
 			if (status & DT2814_FINISH)
 				break;
 		}
@@ -262,7 +262,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = "dt2814";
 
 	outb(0, dev->iobase + DT2814_CSR);
-	comedi_udelay(100);
+	udelay(100);
 	if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
 		printk("reset error (fatal)\n");
 		return -EIO;
@@ -279,7 +279,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		outb(0, dev->iobase + DT2814_CSR);
 
-		comedi_udelay(100);
+		udelay(100);
 
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
@@ -293,7 +293,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	dev->irq = 0;
 	if (irq > 0) {
-		if (comedi_request_irq(irq, dt2814_interrupt, 0, "dt2814", dev)) {
+		if (request_irq(irq, dt2814_interrupt, 0, "dt2814", dev)) {
 			printk("(irq %d unavailable)\n", irq);
 		} else {
 			printk("( irq = %d )\n", irq);
@@ -337,7 +337,7 @@ static int dt2814_detach(struct comedi_device *dev)
 	printk("comedi%d: dt2814: remove\n", dev->minor);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->iobase) {
 		release_region(dev->iobase, DT2814_SIZE);

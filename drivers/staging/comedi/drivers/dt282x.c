@@ -389,7 +389,7 @@ struct dt282x_private {
 		int _i;					\
 		for (_i=0;_i<DT2821_TIMEOUT;_i++){	\
 			if (a){_i=0;break;}		\
-			comedi_udelay(5);			\
+			udelay(5);			\
 		}					\
 		if (_i){b}				\
 	}while (0)
@@ -463,7 +463,7 @@ static void dt282x_ao_dma_interrupt(struct comedi_device *dev)
 
 	size = cfc_read_array_from_buffer(s, ptr, devpriv->dma_maxsize);
 	if (size == 0) {
-		rt_printk("dt282x: AO underrun\n");
+		printk("dt282x: AO underrun\n");
 		dt282x_ao_cancel(dev, s);
 		s->async->events |= COMEDI_CB_OVERFLOW;
 		return;
@@ -1080,7 +1080,7 @@ static int dt282x_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice 
 	size = cfc_read_array_from_buffer(s, devpriv->dma[0].buf,
 		devpriv->dma_maxsize);
 	if (size == 0) {
-		rt_printk("dt282x: AO underrun\n");
+		printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
 	prep_ao_dma(dev, 0, size);
@@ -1088,7 +1088,7 @@ static int dt282x_ao_inttrig(struct comedi_device *dev, struct comedi_subdevice 
 	size = cfc_read_array_from_buffer(s, devpriv->dma[1].buf,
 		devpriv->dma_maxsize);
 	if (size == 0) {
-		rt_printk("dt282x: AO underrun\n");
+		printk("dt282x: AO underrun\n");
 		return -EPIPE;
 	}
 	prep_ao_dma(dev, 1, size);
@@ -1298,7 +1298,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		/* trigger interrupt */
 
-		comedi_udelay(100);
+		udelay(100);
 
 		irq = probe_irq_off(irqs);
 		restore_flags(flags);
@@ -1309,8 +1309,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	if (irq > 0) {
 		printk(" ( irq = %d )", irq);
-		ret = comedi_request_irq(irq, dt282x_interrupt, 0, "dt282x",
-			dev);
+		ret = request_irq(irq, dt282x_interrupt, 0, "dt282x", dev);
 		if (ret < 0) {
 			printk(" failed to get irq\n");
 			return -EIO;
@@ -1403,7 +1402,7 @@ static int dt282x_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void free_resources(struct comedi_device *dev)
 {
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->iobase)
 		release_region(dev->iobase, DT2821_SIZE);

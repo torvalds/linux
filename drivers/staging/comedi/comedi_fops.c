@@ -728,7 +728,7 @@ static int check_insn_config_length(struct comedi_insn *insn, unsigned int *data
 	/* by default we allow the insn since we don't have checks for
 	 * all possible cases yet */
 	default:
-		rt_printk("comedi: no check for data length of config insn id "
+		printk("comedi: no check for data length of config insn id "
 			  "%i is implemented.\n"
 			  " Add a check to %s in %s.\n"
 			  " Assuming n=%i is correct.\n", data[0], __func__,
@@ -1219,12 +1219,12 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg, void *file
 		return -EINVAL;
 	s = dev->subdevices + arg;
 
-	comedi_spin_lock_irqsave(&s->spin_lock, flags);
+	spin_lock_irqsave(&s->spin_lock, flags);
 	if (s->busy || s->lock)
 		ret = -EBUSY;
 	else
 		s->lock = file;
-	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
 
 	if (ret < 0)
 		return ret;
@@ -1984,8 +1984,7 @@ module_exit(comedi_cleanup);
 
 void comedi_error(const struct comedi_device *dev, const char *s)
 {
-	rt_printk("comedi%d: %s: %s\n", dev->minor, dev->driver->driver_name,
-		  s);
+	printk("comedi%d: %s: %s\n", dev->minor, dev->driver->driver_name, s);
 }
 
 void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
@@ -2054,10 +2053,10 @@ void comedi_set_subdevice_runflags(struct comedi_subdevice *s, unsigned mask,
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&s->spin_lock, flags);
+	spin_lock_irqsave(&s->spin_lock, flags);
 	s->runflags &= ~mask;
 	s->runflags |= (bits & mask);
-	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
 }
 
 unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
@@ -2065,9 +2064,9 @@ unsigned comedi_get_subdevice_runflags(struct comedi_subdevice *s)
 	unsigned long flags;
 	unsigned runflags;
 
-	comedi_spin_lock_irqsave(&s->spin_lock, flags);
+	spin_lock_irqsave(&s->spin_lock, flags);
 	runflags = s->runflags;
-	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
 	return runflags;
 }
 
@@ -2125,14 +2124,14 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		return -ENOMEM;
 	}
 	comedi_device_init(info->device);
-	comedi_spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
 			comedi_file_info_table[i] = info;
 			break;
 		}
 	}
-	comedi_spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
 	if (i == COMEDI_NUM_BOARD_MINORS) {
 		comedi_device_cleanup(info->device);
 		kfree(info->device);
@@ -2184,10 +2183,10 @@ void comedi_free_board_minor(unsigned minor)
 	struct comedi_device_file_info *info;
 
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
-	comedi_spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
 	info = comedi_file_info_table[minor];
 	comedi_file_info_table[minor] = NULL;
-	comedi_spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
 
 	if (info) {
 		struct comedi_device *dev = info->device;
@@ -2218,14 +2217,14 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	info->device = dev;
 	info->read_subdevice = s;
 	info->write_subdevice = s;
-	comedi_spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
 	for (i = COMEDI_FIRST_SUBDEVICE_MINOR; i < COMEDI_NUM_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
 			comedi_file_info_table[i] = info;
 			break;
 		}
 	}
-	comedi_spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
 	if (i == COMEDI_NUM_MINORS) {
 		kfree(info);
 		printk(KERN_ERR "comedi: error: ran out of minor numbers for board device files.\n");
@@ -2283,10 +2282,10 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 	BUG_ON(s->minor >= COMEDI_NUM_MINORS);
 	BUG_ON(s->minor < COMEDI_FIRST_SUBDEVICE_MINOR);
 
-	comedi_spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
 	info = comedi_file_info_table[s->minor];
 	comedi_file_info_table[s->minor] = NULL;
-	comedi_spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
 
 	if (s->class_dev) {
 		device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, s->minor));
@@ -2301,9 +2300,9 @@ struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor)
 	struct comedi_device_file_info *info;
 
 	BUG_ON(minor >= COMEDI_NUM_MINORS);
-	comedi_spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
 	info = comedi_file_info_table[minor];
-	comedi_spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
 	return info;
 }
 

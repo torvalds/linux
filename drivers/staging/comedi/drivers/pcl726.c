@@ -280,19 +280,19 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->first_chan = 2;
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & boardtypes[board].IRQbits) == 0) {
-				rt_printk
+				printk
 					(", IRQ %d is out of allowed range, DISABLING IT",
 					irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (comedi_request_irq(irq, interrupt_pcl818, 0,
+				if (request_irq(irq, interrupt_pcl818, 0,
 						"pcl726", dev)) {
-					rt_printk
+					printk
 						(", unable to allocate IRQ %d, DISABLING IT",
 						irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
-					rt_printk(", irq=%d", irq);
+					printk(", irq=%d", irq);
 				}
 			}
 		}
@@ -368,7 +368,7 @@ static int pcl726_detach(struct comedi_device *dev)
 
 #ifdef ACL6126_IRQ
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 #endif
 

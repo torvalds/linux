@@ -269,9 +269,9 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			hi = inb(dev->iobase + PCL711_AD_HI);
 			if (!(hi & PCL711_DRDY))
 				goto ok;
-			comedi_udelay(1);
+			udelay(1);
 		}
-		rt_printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
+		printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;
 
 	      ok:
@@ -503,7 +503,7 @@ static int pcl711_detach(struct comedi_device *dev)
 	printk("comedi%d: pcl711: remove\n", dev->minor);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (dev->iobase)
 		release_region(dev->iobase, PCL711_SIZE);
@@ -541,7 +541,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 	}
 	if (irq) {
-		if (comedi_request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
+		if (request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
 			printk("unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		} else {

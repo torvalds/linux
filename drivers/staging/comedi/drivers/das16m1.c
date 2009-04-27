@@ -466,10 +466,10 @@ static int das16m1_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	unsigned int status;
 
 	/*  prevent race with interrupt handler */
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	status = inb(dev->iobase + DAS16M1_CS);
 	das16m1_handler(dev, status);
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
@@ -669,8 +669,8 @@ static int das16m1_attach(struct comedi_device *dev, struct comedi_devconfig *it
 	irq = it->options[1];
 	/*  make sure it is valid */
 	if (das16m1_irq_bits(irq) >= 0) {
-		ret = comedi_request_irq(irq, das16m1_interrupt, 0,
-			driver_das16m1.driver_name, dev);
+		ret = request_irq(irq, das16m1_interrupt, 0,
+				  driver_das16m1.driver_name, dev);
 		if (ret < 0) {
 			printk(", irq unavailable\n");
 			return ret;
@@ -753,7 +753,7 @@ static int das16m1_detach(struct comedi_device *dev)
 		subdev_8255_cleanup(dev, dev->subdevices + 3);
 
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 
 	if (dev->iobase) {
 		release_region(dev->iobase, DAS16M1_SIZE);

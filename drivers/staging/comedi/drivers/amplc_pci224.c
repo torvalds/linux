@@ -542,7 +542,7 @@ static void pci224_ao_stop(struct comedi_device *dev, struct comedi_subdevice *s
 		return;
 	}
 
-	comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+	spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 	/* Kill the interrupts. */
 	devpriv->intsce = 0;
 	outb(0, devpriv->iobase1 + PCI224_INT_SCE);
@@ -558,10 +558,10 @@ static void pci224_ao_stop(struct comedi_device *dev, struct comedi_subdevice *s
 	 * routine.
 	 */
 	while (devpriv->intr_running && devpriv->intr_cpuid != THISCPU) {
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 	}
-	comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+	spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 	/* Reconfigure DAC for insn_write usage. */
 	outw(0, dev->iobase + PCI224_DACCEN);	/* Disable channels. */
 	devpriv->daccon = COMBINE(devpriv->daccon,
@@ -587,14 +587,14 @@ static void pci224_ao_start(struct comedi_device *dev, struct comedi_subdevice *
 		comedi_event(dev, s);
 	} else {
 		/* Enable interrupts. */
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		if (cmd->stop_src == TRIG_EXT) {
 			devpriv->intsce = PCI224_INTR_EXT | PCI224_INTR_DAC;
 		} else {
 			devpriv->intsce = PCI224_INTR_DAC;
 		}
 		outb(devpriv->intsce, devpriv->iobase1 + PCI224_INT_SCE);
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 	}
 }
 
@@ -655,7 +655,7 @@ static void pci224_ao_handle_fifo(struct comedi_device *dev, struct comedi_subde
 			/* Nothing left to put in the FIFO. */
 			pci224_ao_stop(dev, s);
 			s->async->events |= COMEDI_CB_OVERFLOW;
-			rt_printk(KERN_ERR "comedi%d: "
+			printk(KERN_ERR "comedi%d: "
 				"AO buffer underrun\n", dev->minor);
 		}
 	}
@@ -1155,16 +1155,16 @@ static int pci224_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 	switch (cmd->start_src) {
 	case TRIG_INT:
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		s->async->inttrig = &pci224_ao_inttrig_start;
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 		break;
 	case TRIG_EXT:
 		/* Enable external interrupt trigger to start acquisition. */
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		devpriv->intsce |= PCI224_INTR_EXT;
 		outb(devpriv->intsce, devpriv->iobase1 + PCI224_INT_SCE);
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 		break;
 	}
 
@@ -1227,14 +1227,14 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 	intstat = inb(devpriv->iobase1 + PCI224_INT_SCE) & 0x3F;
 	if (intstat) {
 		retval = 1;
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		valid_intstat = devpriv->intsce & intstat;
 		/* Temporarily disable interrupt sources. */
 		curenab = devpriv->intsce & ~intstat;
 		outb(curenab, devpriv->iobase1 + PCI224_INT_SCE);
 		devpriv->intr_running = 1;
 		devpriv->intr_cpuid = THISCPU;
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 		if (valid_intstat != 0) {
 			cmd = &s->async->cmd;
 			if (valid_intstat & PCI224_INTR_EXT) {
@@ -1250,13 +1250,13 @@ static irqreturn_t pci224_interrupt(int irq, void *d)
 			}
 		}
 		/* Reenable interrupt sources. */
-		comedi_spin_lock_irqsave(&devpriv->ao_spinlock, flags);
+		spin_lock_irqsave(&devpriv->ao_spinlock, flags);
 		if (curenab != devpriv->intsce) {
 			outb(devpriv->intsce,
 				devpriv->iobase1 + PCI224_INT_SCE);
 		}
 		devpriv->intr_running = 0;
-		comedi_spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
+		spin_unlock_irqrestore(&devpriv->ao_spinlock, flags);
 	}
 	return IRQ_RETVAL(retval);
 }
@@ -1478,8 +1478,8 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->board_name = thisboard->name;
 
 	if (irq) {
-		ret = comedi_request_irq(irq, pci224_interrupt, IRQF_SHARED,
-			DRIVER_NAME, dev);
+		ret = request_irq(irq, pci224_interrupt, IRQF_SHARED,
+				  DRIVER_NAME, dev);
 		if (ret < 0) {
 			printk(KERN_ERR "comedi%d: error! "
 				"unable to allocate irq %u\n", dev->minor, irq);
@@ -1515,7 +1515,7 @@ static int pci224_detach(struct comedi_device *dev)
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor, DRIVER_NAME);
 
 	if (dev->irq) {
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	}
 	if (dev->subdevices) {
 		struct comedi_subdevice *s;

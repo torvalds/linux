@@ -135,7 +135,7 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x00);
 		if (status != 0) {
-			rt_printk
+			printk
 				("dt2815: failed to write low byte on %d reason %x\n",
 				chan, status);
 			return -EBUSY;
@@ -145,7 +145,7 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x10);
 		if (status != 0x10) {
-			rt_printk
+			printk
 				("dt2815: failed to write high byte on %d reason %x\n",
 				chan, status);
 			return -EBUSY;
@@ -226,7 +226,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* This is incredibly slow (approx 20 ms) */
 		unsigned int status;
 
-		comedi_udelay(1000);
+		udelay(1000);
 		status = inb(dev->iobase + DT2815_STATUS);
 		if (status == 4) {
 			unsigned int program;

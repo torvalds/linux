@@ -380,8 +380,7 @@ static int dmm32at_attach(struct comedi_device *dev, struct comedi_devconfig *it
 
 	/* board is there, register interrupt */
 	if (irq) {
-		ret = comedi_request_irq(irq, dmm32at_isr, 0, thisboard->name,
-			dev);
+		ret = request_irq(irq, dmm32at_isr, 0, thisboard->name, dev);
 		if (ret < 0) {
 			printk("irq conflict\n");
 			return ret;
@@ -485,7 +484,7 @@ static int dmm32at_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: dmm32at: remove\n", dev->minor);
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (dev->iobase)
 		release_region(dev->iobase, DMM32AT_MEMSIZE);
 

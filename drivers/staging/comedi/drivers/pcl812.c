@@ -447,15 +447,15 @@ static int pcl812_ai_insn_read(struct comedi_device *dev, struct comedi_subdevic
 	setup_range_channel(dev, s, insn->chanspec, 1);	/*  select channel and renge */
 	for (n = 0; n < insn->n; n++) {
 		outb(255, dev->iobase + PCL812_SOFTTRIG);	/* start conversion */
-		comedi_udelay(5);
+		udelay(5);
 		timeout = 50;	/* wait max 50us, it must finish under 33us */
 		while (timeout--) {
 			hi = inb(dev->iobase + PCL812_AD_HI);
 			if (!(hi & PCL812_DRDY))
 				goto conv_finish;
-			comedi_udelay(1);
+			udelay(1);
 		}
-		rt_printk
+		printk
 			("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
 			dev->minor, dev->board_name, dev->iobase);
 		outb(devpriv->mode_reg_int | 0, dev->iobase + PCL812_MODE);
@@ -481,14 +481,14 @@ static int acl8216_ai_insn_read(struct comedi_device *dev, struct comedi_subdevi
 	setup_range_channel(dev, s, insn->chanspec, 1);	/*  select channel and renge */
 	for (n = 0; n < insn->n; n++) {
 		outb(255, dev->iobase + PCL812_SOFTTRIG);	/* start conversion */
-		comedi_udelay(5);
+		udelay(5);
 		timeout = 50;	/* wait max 50us, it must finish under 33us */
 		while (timeout--) {
 			if (!(inb(dev->iobase + ACL8216_STATUS) & ACL8216_DRDY))
 				goto conv_finish;
-			comedi_udelay(1);
+			udelay(1);
 		}
-		rt_printk
+		printk
 			("comedi%d: pcl812: (%s at 0x%lx) A/D insn read timeout\n",
 			dev->minor, dev->board_name, dev->iobase);
 		outb(0, dev->iobase + PCL812_MODE);
@@ -581,13 +581,13 @@ static int pcl812_do_insn_bits(struct comedi_device *dev, struct comedi_subdevic
 */
 static void pcl812_cmdtest_out(int e, struct comedi_cmd *cmd)
 {
-	rt_printk("pcl812 e=%d startsrc=%x scansrc=%x convsrc=%x\n", e,
+	printk("pcl812 e=%d startsrc=%x scansrc=%x convsrc=%x\n", e,
 		cmd->start_src, cmd->scan_begin_src, cmd->convert_src);
-	rt_printk("pcl812 e=%d startarg=%d scanarg=%d convarg=%d\n", e,
+	printk("pcl812 e=%d startarg=%d scanarg=%d convarg=%d\n", e,
 		cmd->start_arg, cmd->scan_begin_arg, cmd->convert_arg);
-	rt_printk("pcl812 e=%d stopsrc=%x scanend=%x\n", e, cmd->stop_src,
+	printk("pcl812 e=%d stopsrc=%x scanend=%x\n", e, cmd->stop_src,
 		cmd->scan_end_src);
-	rt_printk("pcl812 e=%d stoparg=%d scanendarg=%d chanlistlen=%d\n", e,
+	printk("pcl812 e=%d stoparg=%d scanendarg=%d chanlistlen=%d\n", e,
 		cmd->stop_arg, cmd->scan_end_arg, cmd->chanlist_len);
 }
 #endif
@@ -602,7 +602,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	int tmp, divisor1, divisor2;
 
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...)\n");
+	printk("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...)\n");
 	pcl812_cmdtest_out(-1, cmd);
 #endif
 	/* step 1: make sure trigger sources are trivially valid */
@@ -639,7 +639,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	if (err) {
 #ifdef PCL812_EXTDEBUG
 		pcl812_cmdtest_out(1, cmd);
-		rt_printk
+		printk
 			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=1\n",
 			err);
 #endif
@@ -681,7 +681,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	if (err) {
 #ifdef PCL812_EXTDEBUG
 		pcl812_cmdtest_out(2, cmd);
-		rt_printk
+		printk
 			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=2\n",
 			err);
 #endif
@@ -739,7 +739,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 	if (err) {
 #ifdef PCL812_EXTDEBUG
 		pcl812_cmdtest_out(3, cmd);
-		rt_printk
+		printk
 			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=3\n",
 			err);
 #endif
@@ -761,7 +761,7 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice 
 
 	if (err) {
 #ifdef PCL812_EXTDEBUG
-		rt_printk
+		printk
 			("pcl812 EDBG: BGN: pcl812_ai_cmdtest(...) err=%d ret=4\n",
 			err);
 #endif
@@ -780,7 +780,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: BGN: pcl812_ai_cmd(...)\n");
+	printk("pcl812 EDBG: BGN: pcl812_ai_cmd(...)\n");
 #endif
 
 	if (cmd->start_src != TRIG_NOW)
@@ -892,7 +892,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		release_dma_lock(dma_flags);
 		enable_dma(devpriv->dma);
 #ifdef PCL812_EXTDEBUG
-		rt_printk
+		printk
 			("pcl812 EDBG:   DMA %d PTR 0x%0x/0x%0x LEN %u/%u EOS %d\n",
 			devpriv->dma, devpriv->hwdmaptr[0],
 			devpriv->hwdmaptr[1], devpriv->dmabytestomove[0],
@@ -913,7 +913,7 @@ static int pcl812_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: END: pcl812_ai_cmd(...)\n");
+	printk("pcl812 EDBG: END: pcl812_ai_cmd(...)\n");
 #endif
 
 	return 0;
@@ -939,7 +939,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 				err = 0;
 				break;
 			}
-			comedi_udelay(1);
+			udelay(1);
 		}
 	} else {
 		mask = 0x0fff;
@@ -948,12 +948,12 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 				err = 0;
 				break;
 			}
-			comedi_udelay(1);
+			udelay(1);
 		}
 	}
 
 	if (err) {
-		rt_printk
+		printk
 			("comedi%d: pcl812: (%s at 0x%lx) A/D cmd IRQ without DRDY!\n",
 			dev->minor, dev->board_name, dev->iobase);
 		pcl812_ai_cancel(dev, s);
@@ -1019,7 +1019,7 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	short *ptr;
 
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: BGN: interrupt_pcl812_ai_dma(...)\n");
+	printk("pcl812 EDBG: BGN: interrupt_pcl812_ai_dma(...)\n");
 #endif
 	ptr = (short *) devpriv->dmabuf[devpriv->next_dma_buf];
 	len = (devpriv->dmabytestomove[devpriv->next_dma_buf] >> 1) -
@@ -1053,7 +1053,7 @@ static irqreturn_t interrupt_pcl812_ai_dma(int irq, void *d)
 	transfer_from_dma_buf(dev, s, ptr, bufptr, len);
 
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: END: interrupt_pcl812_ai_dma(...)\n");
+	printk("pcl812 EDBG: END: interrupt_pcl812_ai_dma(...)\n");
 #endif
 	return IRQ_HANDLED;
 }
@@ -1087,7 +1087,7 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (!devpriv->ai_dma)
 		return 0;	/*  poll is valid only for DMA transfer */
 
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 
 	for (i = 0; i < 10; i++) {
 		top1 = get_dma_residue(devpriv->ai_dma);	/*  where is now DMA */
@@ -1097,7 +1097,7 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	}
 
 	if (top1 != top2) {
-		comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+		spin_unlock_irqrestore(&dev->spinlock, flags);
 		return 0;
 	}
 
@@ -1105,7 +1105,7 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 	top1 >>= 1;		/*  sample position */
 	top2 = top1 - devpriv->ai_poll_ptr;
 	if (top2 < 1) {		/*  no new samples */
-		comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+		spin_unlock_irqrestore(&dev->spinlock, flags);
 		return 0;
 	}
 
@@ -1115,7 +1115,7 @@ static int pcl812_ai_poll(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	devpriv->ai_poll_ptr = top1;	/*  new buffer position */
 
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return s->async->buf_write_count - s->async->buf_read_count;
 }
@@ -1152,7 +1152,7 @@ static void setup_range_channel(struct comedi_device *dev, struct comedi_subdevi
 	outb(gain_reg, dev->iobase + PCL812_GAIN);	/* select gain */
 
 	if (wait) {
-		comedi_udelay(devpriv->max_812_ai_mode0_rangewait);	/*  XXX this depends on selected range and can be very long for some high gain ranges! */
+		udelay(devpriv->max_812_ai_mode0_rangewait);	/*  XXX this depends on selected range and can be very long for some high gain ranges! */
 	}
 }
 
@@ -1163,12 +1163,12 @@ static void start_pacer(struct comedi_device *dev, int mode, unsigned int diviso
 	unsigned int divisor2)
 {
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: BGN: start_pacer(%d,%u,%u)\n", mode, divisor1,
+	printk("pcl812 EDBG: BGN: start_pacer(%d,%u,%u)\n", mode, divisor1,
 		divisor2);
 #endif
 	outb(0xb4, dev->iobase + PCL812_CTRCTL);
 	outb(0x74, dev->iobase + PCL812_CTRCTL);
-	comedi_udelay(1);
+	udelay(1);
 
 	if (mode == 1) {
 		outb(divisor2 & 0xff, dev->iobase + PCL812_CTR2);
@@ -1177,7 +1177,7 @@ static void start_pacer(struct comedi_device *dev, int mode, unsigned int diviso
 		outb((divisor1 >> 8) & 0xff, dev->iobase + PCL812_CTR1);
 	}
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: END: start_pacer(...)\n");
+	printk("pcl812 EDBG: END: start_pacer(...)\n");
 #endif
 }
 
@@ -1196,7 +1196,7 @@ static void free_resources(struct comedi_device *dev)
 			free_dma(devpriv->dma);
 	}
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->io_range);
 }
@@ -1207,7 +1207,7 @@ static void free_resources(struct comedi_device *dev)
 static int pcl812_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: BGN: pcl812_ai_cancel(...)\n");
+	printk("pcl812 EDBG: BGN: pcl812_ai_cancel(...)\n");
 #endif
 	if (devpriv->ai_dma)
 		disable_dma(devpriv->dma);
@@ -1216,7 +1216,7 @@ static int pcl812_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *
 	start_pacer(dev, -1, 0, 0);	/*  stop 8254 */
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: END: pcl812_ai_cancel(...)\n");
+	printk("pcl812 EDBG: END: pcl812_ai_cancel(...)\n");
 #endif
 	return 0;
 }
@@ -1227,7 +1227,7 @@ static int pcl812_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *
 static void pcl812_reset(struct comedi_device *dev)
 {
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: BGN: pcl812_reset(...)\n");
+	printk("pcl812 EDBG: BGN: pcl812_reset(...)\n");
 #endif
 	outb(0, dev->iobase + PCL812_MUX);
 	outb(0 + devpriv->range_correction, dev->iobase + PCL812_GAIN);
@@ -1254,12 +1254,12 @@ static void pcl812_reset(struct comedi_device *dev)
 	case boardPCL813:
 	case boardISO813:
 	case boardACL8113:
-		comedi_udelay(5);
+		udelay(5);
 		break;
 	}
-	comedi_udelay(5);
+	udelay(5);
 #ifdef PCL812_EXTDEBUG
-	rt_printk("pcl812 EDBG: END: pcl812_reset(...)\n");
+	printk("pcl812 EDBG: END: pcl812_reset(...)\n");
 #endif
 }
 
@@ -1302,8 +1302,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				printk(", IRQ %u is out of allowed range, DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (comedi_request_irq(irq, interrupt_pcl812, 0,
-						"pcl812", dev)) {
+				if (request_irq(irq, interrupt_pcl812, 0, "pcl812", dev)) {
 					printk(", unable to allocate IRQ %u, DISABLING IT", irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
@@ -1600,7 +1599,7 @@ static int pcl812_detach(struct comedi_device *dev)
 {
 
 #ifdef PCL812_EXTDEBUG
-	rt_printk("comedi%d: pcl812: remove\n", dev->minor);
+	printk("comedi%d: pcl812: remove\n", dev->minor);
 #endif
 	free_resources(dev);
 	return 0;

@@ -78,7 +78,7 @@ static int fl512_ai_insn(struct comedi_device *dev,
 		outb(chan, iobase + 2);	/* select chan */
 		outb(0, iobase + 3);	/* start conversion */
 		/* XXX should test "done" flag instead of delay */
-		comedi_udelay(30);	/* sleep 30 usec */
+		udelay(30);	/* sleep 30 usec */
 		lo_byte = inb(iobase + 2);	/* low 8 byte */
 		hi_byte = inb(iobase + 3) & 0xf;	/* high 4 bit and mask */
 		data[n] = lo_byte + (hi_byte << 8);

@@ -372,7 +372,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (irq) {
 		unsigned long flags = share_irq ? IRQF_SHARED : 0;
 
-		if (comedi_request_irq(irq, pc236_interrupt, flags,
+		if (request_irq(irq, pc236_interrupt, flags,
 				PC236_DRIVER_NAME, dev) >= 0) {
 			dev->irq = irq;
 			s->type = COMEDI_SUBD_DI;
@@ -421,7 +421,7 @@ static int pc236_detach(struct comedi_device *dev)
 		pc236_intr_disable(dev);
 	}
 	if (dev->irq)
-		comedi_free_irq(dev->irq, dev);
+		free_irq(dev->irq, dev);
 	if (dev->subdevices) {
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
 	}
@@ -471,13 +471,13 @@ static void pc236_intr_disable(struct comedi_device *dev)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 0;
 #ifdef CONFIG_COMEDI_PCI
 	if (devpriv->lcr_iobase)
 		outl(PCI236_INTR_DISABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
 #endif
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 /*
@@ -489,13 +489,13 @@ static void pc236_intr_enable(struct comedi_device *dev)
 {
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	devpriv->enable_irq = 1;
 #ifdef CONFIG_COMEDI_PCI
 	if (devpriv->lcr_iobase)
 		outl(PCI236_INTR_ENABLE, devpriv->lcr_iobase + PLX9052_INTCSR);
 #endif
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 /*
@@ -510,7 +510,7 @@ static int pc236_intr_check(struct comedi_device *dev)
 	int retval = 0;
 	unsigned long flags;
 
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->enable_irq) {
 		retval = 1;
 #ifdef CONFIG_COMEDI_PCI
@@ -527,7 +527,7 @@ static int pc236_intr_check(struct comedi_device *dev)
 		}
 #endif
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	return retval;
 }

@@ -105,7 +105,7 @@ int comedi_loglevel(int newlevel)
 
 void comedi_perror(const char *message)
 {
-	rt_printk("%s: unknown error\n", message);
+	printk("%s: unknown error\n", message);
 }
 
 char *comedi_strerror(int err)
@@ -208,7 +208,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 				ret = -EINVAL;
 				break;
 			}
-			comedi_udelay(insn->data[0]);
+			udelay(insn->data[0]);
 			ret = 1;
 			break;
 		case INSN_INTTRIG:
@@ -217,19 +217,19 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 				break;
 			}
 			if (insn->subdev >= dev->n_subdevices) {
-				rt_printk("%d not usable subdevice\n",
+				printk("%d not usable subdevice\n",
 					insn->subdev);
 				ret = -EINVAL;
 				break;
 			}
 			s = dev->subdevices + insn->subdev;
 			if (!s->async) {
-				rt_printk("no async\n");
+				printk("no async\n");
 				ret = -EINVAL;
 				break;
 			}
 			if (!s->async->inttrig) {
-				rt_printk("no inttrig\n");
+				printk("no inttrig\n");
 				ret = -EAGAIN;
 				break;
 			}
@@ -249,7 +249,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 		s = dev->subdevices + insn->subdev;
 
 		if (s->type == COMEDI_SUBD_UNUSED) {
-			rt_printk("%d not useable subdevice\n", insn->subdev);
+			printk("%d not useable subdevice\n", insn->subdev);
 			ret = -EIO;
 			goto error;
 		}
@@ -258,7 +258,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 
 		ret = check_chanlist(s, 1, &insn->chanspec);
 		if (ret < 0) {
-			rt_printk("bad chanspec\n");
+			printk("bad chanspec\n");
 			ret = -EINVAL;
 			goto error;
 		}
@@ -295,7 +295,7 @@ int comedi_do_insn(void *d, struct comedi_insn *insn)
 #if 0
 	/* XXX do we want this? -- abbotti #if'ed it out for now. */
 	if (ret != insn->n) {
-		rt_printk("BUG: result of insn != insn.n\n");
+		printk("BUG: result of insn != insn.n\n");
 		ret = -EINVAL;
 		goto error;
 	}
@@ -336,7 +336,7 @@ int comedi_lock(void *d, unsigned int subdevice)
 
 	s = dev->subdevices + subdevice;
 
-	comedi_spin_lock_irqsave(&s->spin_lock, flags);
+	spin_lock_irqsave(&s->spin_lock, flags);
 
 	if (s->busy) {
 		ret = -EBUSY;
@@ -348,7 +348,7 @@ int comedi_lock(void *d, unsigned int subdevice)
 		}
 	}
 
-	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
 
 	return ret;
 }
@@ -382,7 +382,7 @@ int comedi_unlock(void *d, unsigned int subdevice)
 
 	async = s->async;
 
-	comedi_spin_lock_irqsave(&s->spin_lock, flags);
+	spin_lock_irqsave(&s->spin_lock, flags);
 
 	if (s->busy) {
 		ret = -EBUSY;
@@ -400,7 +400,7 @@ int comedi_unlock(void *d, unsigned int subdevice)
 		ret = 0;
 	}
 
-	comedi_spin_unlock_irqrestore(&s->spin_lock, flags);
+	spin_unlock_irqrestore(&s->spin_lock, flags);
 
 	return ret;
 }

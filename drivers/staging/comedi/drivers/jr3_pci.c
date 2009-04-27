@@ -185,10 +185,10 @@ static void set_transforms(volatile struct jr3_channel *channel,
 
 		set_u16(&channel->transforms[num].link[i].link_type,
 			transf.link[i].link_type);
-		comedi_udelay(1);
+		udelay(1);
 		set_s16(&channel->transforms[num].link[i].link_amount,
 			transf.link[i].link_amount);
-		comedi_udelay(1);
+		udelay(1);
 		if (transf.link[i].link_type == end_x_form) {
 			break;
 		}
@@ -496,12 +496,12 @@ static int jr3_download_firmware(struct comedi_device *dev, const u8 *data,
 								channel[i].
 								program_low
 								[addr], data1);
-							comedi_udelay(1);
+							udelay(1);
 							set_u16(&p->iobase->
 								channel[i].
 								program_high
 								[addr], data2);
-							comedi_udelay(1);
+							udelay(1);
 
 						}
 					}
@@ -734,7 +734,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	int delay;
 	int i;
 
-	comedi_spin_lock_irqsave(&dev->spinlock, flags);
+	spin_lock_irqsave(&dev->spinlock, flags);
 	delay = 1000;
 	now = jiffies;
 	/*  Poll all channels that are ready to be polled */
@@ -757,7 +757,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 			}
 		}
 	}
-	comedi_spin_unlock_irqrestore(&dev->spinlock, flags);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 
 	devpriv->timer.expires = jiffies + msecs_to_jiffies(delay);
 	add_timer(&devpriv->timer);

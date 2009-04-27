@@ -331,9 +331,9 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				break;
 		}
 		if (i == TIMEOUT) {
-			/* rt_printk() should be used instead of printk()
+			/* printk() should be used instead of printk()
 			 * whenever the code can be called from real-time. */
-			rt_printk("timeout\n");
+			printk("timeout\n");
 			return -ETIMEDOUT;
 		}
 

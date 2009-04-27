@@ -204,7 +204,7 @@ inline static int check_scan_timing(struct comedi_device *dev,
 	timing_error = now - (devpriv->start + scan * devpriv->scan_period);
 	if (timing_error > devpriv->scan_period) {
 		comedi_error(dev, "timing error");
-		rt_printk("scan started %i ns late\n", timing_error * 838);
+		printk("scan started %i ns late\n", timing_error * 838);
 		return -1;
 	}
 
@@ -222,7 +222,7 @@ inline static int check_conversion_timing(struct comedi_device *dev,
 		now - (scan_start + conversion * devpriv->convert_period);
 	if (timing_error > devpriv->convert_period) {
 		comedi_error(dev, "timing error");
-		rt_printk("conversion started %i ns late\n",
+		printk("conversion started %i ns late\n",
 			timing_error * 838);
 		return -1;
 	}
