@@ -649,6 +649,9 @@ static int eeepc_hotk_add(struct acpi_device *device)
 	if (ACPI_FAILURE(status))
 		printk(EEEPC_ERR "Error installing notify handler\n");
 
+	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P6");
+	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P7");
+
 	if (get_acpi(CM_ASL_WLAN) != -1) {
 		ehotk->eeepc_wlan_rfkill = rfkill_allocate(&device->dev,
 							   RFKILL_TYPE_WLAN);
@@ -703,9 +706,6 @@ static int eeepc_hotk_add(struct acpi_device *device)
 		if (result)
 			goto bluetooth_fail;
 	}
-
-	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P6");
-	eeepc_register_rfkill_notifier("\\_SB.PCI0.P0P7");
 
 	return 0;
 
