@@ -7,9 +7,13 @@
  * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
  */
 
-#include <linux/module.h>
 #include <linux/suspend.h>
+#include <linux/smp.h>
+
+#include <asm/pgtable.h>
+#include <asm/proto.h>
 #include <asm/mtrr.h>
+#include <asm/page.h>
 #include <asm/mce.h>
 #include <asm/xcr.h>
 #include <asm/suspend.h>
