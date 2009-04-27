@@ -4110,6 +4110,9 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 link_speed = adapter->link_speed;
 	bool link_up = adapter->link_up;
+	int i;
+	struct ixgbe_ring *tx_ring;
+	int some_tx_pending = 0;
 
 	adapter->flags |= IXGBE_FLAG_IN_WATCHDOG_TASK;
 
@@ -4164,6 +4167,25 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 			printk(KERN_INFO "ixgbe: %s NIC Link is Down\n",
 			       netdev->name);
 			netif_carrier_off(netdev);
+		}
+	}
+
+	if (!netif_carrier_ok(netdev)) {
+		for (i = 0; i < adapter->num_tx_queues; i++) {
+			tx_ring = &adapter->tx_ring[i];
+			if (tx_ring->next_to_use != tx_ring->next_to_clean) {
+				some_tx_pending = 1;
+				break;
+			}
+		}
+
+		if (some_tx_pending) {
+			/* We've lost link, so the controller stops DMA,
+			 * but we've got queued Tx work that's never going
+			 * to get done, so reset controller to flush Tx.
+			 * (Do the reset outside of interrupt context).
+			 */
+			 schedule_work(&adapter->reset_task);
 		}
 	}
 
