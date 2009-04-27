@@ -104,7 +104,7 @@ struct wireless_dev;
 # else
 #  define LL_MAX_HEADER 96
 # endif
-#elif defined(CONFIG_TR)
+#elif defined(CONFIG_TR) || defined(CONFIG_TR_MODULE)
 # define LL_MAX_HEADER 48
 #else
 # define LL_MAX_HEADER 32
