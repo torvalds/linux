@@ -293,6 +293,7 @@ void __fsync_super(struct super_block *sb)
 {
 	sync_inodes_sb(sb, 0);
 	vfs_dq_sync(sb);
+	sync_inodes_sb(sb, 1);
 	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
 		sb->s_op->write_super(sb);
@@ -300,7 +301,6 @@ void __fsync_super(struct super_block *sb)
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, 1);
 	sync_blockdev(sb->s_bdev);
-	sync_inodes_sb(sb, 1);
 }
 
 /*
@@ -521,6 +521,33 @@ restart:
 	spin_unlock(&sb_lock);
 	mutex_unlock(&mutex);
 }
+
+#ifdef CONFIG_BLOCK
+/*
+ *  Sync all block devices underlying some superblock
+ */
+void sync_blockdevs(void)
+{
+	struct super_block *sb;
+
+	spin_lock(&sb_lock);
+restart:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (!sb->s_bdev)
+			continue;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+		down_read(&sb->s_umount);
+		if (sb->s_root)
+			sync_blockdev(sb->s_bdev);
+		up_read(&sb->s_umount);
+		spin_lock(&sb_lock);
+		if (__put_super_and_need_restart(sb))
+			goto restart;
+	}
+	spin_unlock(&sb_lock);
+}
+#endif
 
 /**
  *	get_super - get the superblock of a device
