@@ -18,6 +18,91 @@
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
 			SYNC_FILE_RANGE_WAIT_AFTER)
 
+/*
+ * Do the filesystem syncing work. For simple filesystems sync_inodes_sb(sb, 0)
+ * just dirties buffers with inodes so we have to submit IO for these buffers
+ * via __sync_blockdev(). This also speeds up the wait == 1 case since in that
+ * case write_inode() functions do sync_dirty_buffer() and thus effectively
+ * write one block at a time.
+ */
+static int __fsync_super(struct super_block *sb, int wait)
+{
+	vfs_dq_sync(sb);
+	sync_inodes_sb(sb, wait);
+	lock_super(sb);
+	if (sb->s_dirt && sb->s_op->write_super)
+		sb->s_op->write_super(sb);
+	unlock_super(sb);
+	if (sb->s_op->sync_fs)
+		sb->s_op->sync_fs(sb, wait);
+	return __sync_blockdev(sb->s_bdev, wait);
+}
+
+/*
+ * Write out and wait upon all dirty data associated with this
+ * superblock.  Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.
+ */
+int fsync_super(struct super_block *sb)
+{
+	int ret;
+
+	ret = __fsync_super(sb, 0);
+	if (ret < 0)
+		return ret;
+	return __fsync_super(sb, 1);
+}
+EXPORT_SYMBOL_GPL(fsync_super);
+
+/*
+ * Sync all the data for all the filesystems (called by sys_sync() and
+ * emergency sync)
+ *
+ * This operation is careful to avoid the livelock which could easily happen
+ * if two or more filesystems are being continuously dirtied.  s_need_sync
+ * is used only here.  We set it against all filesystems and then clear it as
+ * we sync them.  So redirtied filesystems are skipped.
+ *
+ * But if process A is currently running sync_filesystems and then process B
+ * calls sync_filesystems as well, process B will set all the s_need_sync
+ * flags again, which will cause process A to resync everything.  Fix that with
+ * a local mutex.
+ */
+static void sync_filesystems(int wait)
+{
+	struct super_block *sb;
+	static DEFINE_MUTEX(mutex);
+
+	mutex_lock(&mutex);		/* Could be down_interruptible */
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (sb->s_flags & MS_RDONLY)
+			continue;
+		sb->s_need_sync = 1;
+	}
+
+restart:
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (!sb->s_need_sync)
+			continue;
+		sb->s_need_sync = 0;
+		if (sb->s_flags & MS_RDONLY)
+			continue;	/* hm.  Was remounted r/o meanwhile */
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+		down_read(&sb->s_umount);
+		if (sb->s_root)
+			__fsync_super(sb, wait);
+		up_read(&sb->s_umount);
+		/* restart only when sb is no longer on the list */
+		spin_lock(&sb_lock);
+		if (__put_super_and_need_restart(sb))
+			goto restart;
+	}
+	spin_unlock(&sb_lock);
+	mutex_unlock(&mutex);
+}
+
 SYSCALL_DEFINE0(sync)
 {
 	sync_filesystems(0);
