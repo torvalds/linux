@@ -28,7 +28,6 @@
 #include <linux/blkdev.h>
 #include <linux/quotaops.h>
 #include <linux/namei.h>
-#include <linux/buffer_head.h>		/* for fsync_super() */
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
@@ -304,7 +303,7 @@ void generic_shutdown_super(struct super_block *sb)
 
 	if (sb->s_root) {
 		shrink_dcache_for_umount(sb);
-		fsync_super(sb);
+		sync_filesystem(sb);
 		lock_super(sb);
 		sb->s_flags &= ~MS_ACTIVE;
 
@@ -543,7 +542,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	if (flags & MS_RDONLY)
 		acct_auto_close(sb);
 	shrink_dcache_sb(sb);
-	fsync_super(sb);
+	sync_filesystem(sb);
 
 	/* If we are remounting RDONLY and current sb is read/write,
 	   make sure there are no rw files opened */
