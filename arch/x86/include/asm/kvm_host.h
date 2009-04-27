@@ -393,6 +393,7 @@ struct kvm_arch{
 	struct list_head active_mmu_pages;
 	struct list_head assigned_dev_head;
 	struct iommu_domain *iommu_domain;
+	int iommu_flags;
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
 	struct kvm_pit *vpit;

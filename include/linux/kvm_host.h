@@ -367,6 +367,9 @@ void kvm_unregister_irq_ack_notifier(struct kvm_irq_ack_notifier *kian);
 int kvm_request_irq_source_id(struct kvm *kvm);
 void kvm_free_irq_source_id(struct kvm *kvm, int irq_source_id);
 
+/* For vcpu->arch.iommu_flags */
+#define KVM_IOMMU_CACHE_COHERENCY	0x1
+
 #ifdef CONFIG_IOMMU_API
 int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,
 			unsigned long npages);
