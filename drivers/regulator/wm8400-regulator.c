@@ -380,7 +380,7 @@ static int __init wm8400_regulator_init(void)
 {
 	return platform_driver_register(&wm8400_regulator_driver);
 }
-module_init(wm8400_regulator_init);
+subsys_initcall(wm8400_regulator_init);
 
 static void __exit wm8400_regulator_exit(void)
 {
