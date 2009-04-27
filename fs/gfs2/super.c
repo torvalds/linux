@@ -788,17 +788,6 @@ restart:
 }
 
 /**
- * gfs2_write_super
- * @sb: the superblock
- *
- */
-
-static void gfs2_write_super(struct super_block *sb)
-{
-	sb->s_dirt = 0;
-}
-
-/**
  * gfs2_sync_fs - sync the filesystem
  * @sb: the superblock
  *
@@ -807,7 +796,6 @@ static void gfs2_write_super(struct super_block *sb)
 
 static int gfs2_sync_fs(struct super_block *sb, int wait)
 {
-	sb->s_dirt = 0;
 	if (wait && sb->s_fs_info)
 		gfs2_log_flush(sb->s_fs_info, NULL);
 	return 0;
@@ -1324,7 +1312,6 @@ const struct super_operations gfs2_super_ops = {
 	.write_inode		= gfs2_write_inode,
 	.delete_inode		= gfs2_delete_inode,
 	.put_super		= gfs2_put_super,
-	.write_super		= gfs2_write_super,
 	.sync_fs		= gfs2_sync_fs,
 	.freeze_fs 		= gfs2_freeze,
 	.unfreeze_fs		= gfs2_unfreeze,
