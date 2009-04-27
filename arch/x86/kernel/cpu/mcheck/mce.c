@@ -65,12 +65,19 @@ static atomic_t			mce_events;
 static char			trigger[128];
 static char			*trigger_argv[2] = { trigger, NULL };
 
+static unsigned long		dont_init_banks;
+
 static DECLARE_WAIT_QUEUE_HEAD(mce_wait);
 
 /* MCA banks polled by the period polling timer for corrected events */
 DEFINE_PER_CPU(mce_banks_t, mce_poll_banks) = {
 	[0 ... BITS_TO_LONGS(MAX_NR_BANKS)-1] = ~0UL
 };
+
+static inline int skip_bank_init(int i)
+{
+	return i < BITS_PER_LONG && test_bit(i, &dont_init_banks);
+}
 
 /* Do initial initialization of a struct mce */
 void mce_setup(struct mce *m)
@@ -616,6 +623,8 @@ static void mce_init(void *dummy)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 
 	for (i = 0; i < banks; i++) {
+		if (skip_bank_init(i))
+			continue;
 		wrmsrl(MSR_IA32_MC0_CTL+4*i, bank[i]);
 		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	}
@@ -643,6 +652,19 @@ static void mce_cpu_quirks(struct cpuinfo_x86 *c)
 		}
 	}
 
+	if (c->x86_vendor == X86_VENDOR_INTEL) {
+		/*
+		 * SDM documents that on family 6 bank 0 should not be written
+		 * because it aliases to another special BIOS controlled
+		 * register.
+		 * But it's not aliased anymore on model 0x1a+
+		 * Don't ignore bank 0 completely because there could be a
+		 * valid event later, merely don't write CTL0.
+		 */
+
+		if (c->x86 == 6 && c->x86_model < 0x1A)
+			__set_bit(0, &dont_init_banks);
+	}
 }
 
 static void mce_cpu_features(struct cpuinfo_x86 *c)
@@ -911,8 +933,10 @@ static int mce_disable(void)
 {
 	int i;
 
-	for (i = 0; i < banks; i++)
-		wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+	for (i = 0; i < banks; i++) {
+		if (!skip_bank_init(i))
+			wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+	}
 	return 0;
 }
 
@@ -1119,8 +1143,10 @@ static void mce_disable_cpu(void *h)
 		return;
 	if (!(action & CPU_TASKS_FROZEN))
 		cmci_clear();
-	for (i = 0; i < banks; i++)
-		wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+	for (i = 0; i < banks; i++) {
+		if (!skip_bank_init(i))
+			wrmsrl(MSR_IA32_MC0_CTL + i*4, 0);
+	}
 }
 
 static void mce_reenable_cpu(void *h)
@@ -1133,8 +1159,10 @@ static void mce_reenable_cpu(void *h)
 
 	if (!(action & CPU_TASKS_FROZEN))
 		cmci_reenable();
-	for (i = 0; i < banks; i++)
-		wrmsrl(MSR_IA32_MC0_CTL + i*4, bank[i]);
+	for (i = 0; i < banks; i++) {
+		if (!skip_bank_init(i))
+			wrmsrl(MSR_IA32_MC0_CTL + i*4, bank[i]);
+	}
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
