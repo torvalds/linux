@@ -21,6 +21,11 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
  * declaration of quota_function calls in kernel.
  */
 void sync_quota_sb(struct super_block *sb, int type);
+static inline void writeout_quota_sb(struct super_block *sb, int type)
+{
+	if (sb->s_qcop->quota_sync)
+		sb->s_qcop->quota_sync(sb, type);
+}
 
 int dquot_initialize(struct inode *inode, int type);
 int dquot_drop(struct inode *inode);
@@ -330,6 +335,10 @@ static inline void vfs_dq_free_inode(struct inode *inode)
 }
 
 static inline void sync_quota_sb(struct super_block *sb, int type)
+{
+}
+
+static inline void writeout_quota_sb(struct super_block *sb, int type)
 {
 }
 
