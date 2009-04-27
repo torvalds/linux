@@ -168,16 +168,16 @@ static const char *wm8940_filter_mode_text[] = {"Audio", "Application"};
 static const struct soc_enum wm8940_filter_mode_enum
 = SOC_ENUM_SINGLE(WM8940_ADC, 7, 2, wm8940_filter_mode_text);
 
-DECLARE_TLV_DB_SCALE(wm8940_spk_vol_tlv, -5700, 100, 1);
-DECLARE_TLV_DB_SCALE(wm8940_att_tlv, -1000, 1000, 0);
-DECLARE_TLV_DB_SCALE(wm8940_pga_vol_tlv, -1200, 75, 0);
-DECLARE_TLV_DB_SCALE(wm8940_alc_min_tlv, -1200, 600, 0);
-DECLARE_TLV_DB_SCALE(wm8940_alc_max_tlv, 675, 600, 0);
-DECLARE_TLV_DB_SCALE(wm8940_alc_tar_tlv, -2250, 50, 0);
-DECLARE_TLV_DB_SCALE(wm8940_lim_boost_tlv, 0, 100, 0);
-DECLARE_TLV_DB_SCALE(wm8940_lim_thresh_tlv, -600, 100, 0);
-DECLARE_TLV_DB_SCALE(wm8940_adc_tlv, -12750, 50, 1);
-DECLARE_TLV_DB_SCALE(wm8940_capture_boost_vol_tlv, 0, 2000, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_spk_vol_tlv, -5700, 100, 1);
+static DECLARE_TLV_DB_SCALE(wm8940_att_tlv, -1000, 1000, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_pga_vol_tlv, -1200, 75, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_alc_min_tlv, -1200, 600, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_alc_max_tlv, 675, 600, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_alc_tar_tlv, -2250, 50, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_lim_boost_tlv, 0, 100, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_lim_thresh_tlv, -600, 100, 0);
+static DECLARE_TLV_DB_SCALE(wm8940_adc_tlv, -12750, 50, 1);
+static DECLARE_TLV_DB_SCALE(wm8940_capture_boost_vol_tlv, 0, 2000, 0);
 
 static const struct snd_kcontrol_new wm8940_snd_controls[] = {
 	SOC_SINGLE("Digital Loopback Switch", WM8940_COMPANDINGCTL,
@@ -253,7 +253,7 @@ static const struct snd_kcontrol_new wm8940_mono_mixer_controls[] = {
 	SOC_DAPM_SINGLE("PCM Playback Switch", WM8940_MONOMIX, 0, 1, 0),
 };
 
-DECLARE_TLV_DB_SCALE(wm8940_boost_vol_tlv, -1500, 300, 1);
+static DECLARE_TLV_DB_SCALE(wm8940_boost_vol_tlv, -1500, 300, 1);
 static const struct snd_kcontrol_new wm8940_input_boost_controls[] = {
 	SOC_DAPM_SINGLE("Mic PGA Switch", WM8940_PGAGAIN, 6, 1, 1),
 	SOC_DAPM_SINGLE_TLV("Aux Volume", WM8940_ADCBOOST,
