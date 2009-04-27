@@ -1210,8 +1210,10 @@ static int gdb_cmd_exception_pass(struct kgdb_state *ks)
 		return 1;
 
 	} else {
-		error_packet(remcom_out_buffer, -EINVAL);
-		return 0;
+		kgdb_msg_write("KGDB only knows signal 9 (pass)"
+			" and 15 (pass and disconnect)\n"
+			"Executing a continue without signal passing\n", 0);
+		remcom_in_buffer[0] = 'c';
 	}
 
 	/* Indicate fall through */
