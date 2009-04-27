@@ -854,7 +854,6 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 {
 	unsigned long flags;
 	struct nes_cm_listener *listen_node;
-	__be32 tmp_addr = cpu_to_be32(dst_addr);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
@@ -870,9 +869,6 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 		}
 	}
 	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
-
-	nes_debug(NES_DBG_CM, "Unable to find listener for %pI4:%x\n",
-		  &tmp_addr, dst_port);
 
 	/* no listener */
 	return NULL;
