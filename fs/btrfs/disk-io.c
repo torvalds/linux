@@ -232,10 +232,14 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			memcpy(&found, result, csum_size);
 
 			read_extent_buffer(buf, &val, 0, csum_size);
-			printk(KERN_INFO "btrfs: %s checksum verify failed "
-			       "on %llu wanted %X found %X level %d\n",
-			       root->fs_info->sb->s_id,
-			       buf->start, val, found, btrfs_header_level(buf));
+			if (printk_ratelimit()) {
+				printk(KERN_INFO "btrfs: %s checksum verify "
+				       "failed on %llu wanted %X found %X "
+				       "level %d\n",
+				       root->fs_info->sb->s_id,
+				       (unsigned long long)buf->start, val, found,
+				       btrfs_header_level(buf));
+			}
 			if (result != (char *)&inline_result)
 				kfree(result);
 			return 1;
@@ -268,10 +272,13 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		ret = 0;
 		goto out;
 	}
-	printk("parent transid verify failed on %llu wanted %llu found %llu\n",
-	       (unsigned long long)eb->start,
-	       (unsigned long long)parent_transid,
-	       (unsigned long long)btrfs_header_generation(eb));
+	if (printk_ratelimit()) {
+		printk("parent transid verify failed on %llu wanted %llu "
+		       "found %llu\n",
+		       (unsigned long long)eb->start,
+		       (unsigned long long)parent_transid,
+		       (unsigned long long)btrfs_header_generation(eb));
+	}
 	ret = 1;
 	clear_extent_buffer_uptodate(io_tree, eb);
 out:
@@ -415,9 +422,12 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
-		printk(KERN_INFO "btrfs bad tree block start %llu %llu\n",
-		       (unsigned long long)found_start,
-		       (unsigned long long)eb->start);
+		if (printk_ratelimit()) {
+			printk(KERN_INFO "btrfs bad tree block start "
+			       "%llu %llu\n",
+			       (unsigned long long)found_start,
+			       (unsigned long long)eb->start);
+		}
 		ret = -EIO;
 		goto err;
 	}
@@ -429,8 +439,10 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		goto err;
 	}
 	if (check_tree_block_fsid(root, eb)) {
-		printk(KERN_INFO "btrfs bad fsid on block %llu\n",
-		       (unsigned long long)eb->start);
+		if (printk_ratelimit()) {
+			printk(KERN_INFO "btrfs bad fsid on block %llu\n",
+			       (unsigned long long)eb->start);
+		}
 		ret = -EIO;
 		goto err;
 	}
