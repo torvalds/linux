@@ -156,15 +156,15 @@ static void print_mce(struct mce *m)
 	       "and contact your hardware vendor\n");
 }
 
-static void mce_panic(char *msg, struct mce *backup, unsigned long start)
+static void mce_panic(char *msg, struct mce *backup, u64 start)
 {
 	int i;
 
 	oops_begin();
 	for (i = 0; i < MCE_LOG_LEN; i++) {
-		unsigned long tsc = mcelog.entry[i].tsc;
+		u64 tsc = mcelog.entry[i].tsc;
 
-		if (time_before(tsc, start))
+		if ((s64)(tsc - start) < 0)
 			continue;
 		print_mce(&mcelog.entry[i]);
 		if (backup && mcelog.entry[i].tsc == backup->tsc)
@@ -970,13 +970,13 @@ void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 	static ssize_t show_ ## name(struct sys_device *s,		\
 				     struct sysdev_attribute *attr,	\
 				     char *buf) {			\
-		return sprintf(buf, "%lx\n", (unsigned long)var);	\
+		return sprintf(buf, "%Lx\n", (u64)var);			\
 	}								\
 	static ssize_t set_ ## name(struct sys_device *s,		\
 				    struct sysdev_attribute *attr,	\
 				    const char *buf, size_t siz) {	\
 		char *end;						\
-		unsigned long new = simple_strtoul(buf, &end, 0);	\
+		u64 new = simple_strtoull(buf, &end, 0);		\
 									\
 		if (end == buf)						\
 			return -EINVAL;					\
