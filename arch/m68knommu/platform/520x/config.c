@@ -85,15 +85,10 @@ static struct platform_device *m520x_devices[] __initdata = {
 
 static void __init m520x_uart_init_line(int line, int irq)
 {
-	u32 imr;
 	u16 par;
 	u8 par2;
 
 	writeb(0x03, INTC0 + MCFINTC_ICR0 + MCFINT_UART0 + line);
-
-	imr = readl(INTC0 + MCFINTC_IMRL);
-	imr &= ~((1 << (irq - MCFINT_VECBASE)) | 1);
-	writel(imr, INTC0 + MCFINTC_IMRL);
 
 	switch (line) {
 	case 0:
@@ -131,7 +126,6 @@ static void __init m520x_uarts_init(void)
 
 static void __init m520x_fec_init(void)
 {
-	u32 imr;
 	u8 v;
 
 	/* Unmask FEC interrupts at ColdFire interrupt controller */
@@ -139,27 +133,12 @@ static void __init m520x_fec_init(void)
 	writeb(0x4, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 40);
 	writeb(0x4, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 42);
 
-	imr = readl(MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH);
-	imr &= ~0x0001FFF0;
-	writel(imr, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_IMRH);
-
 	/* Set multi-function pins to ethernet mode */
 	v = readb(MCF_IPSBAR + MCF_GPIO_PAR_FEC);
 	writeb(v | 0xf0, MCF_IPSBAR + MCF_GPIO_PAR_FEC);
 
 	v = readb(MCF_IPSBAR + MCF_GPIO_PAR_FECI2C);
 	writeb(v | 0x0f, MCF_IPSBAR + MCF_GPIO_PAR_FECI2C);
-}
-
-/***************************************************************************/
-
-/*
- *  Program the vector to be an auto-vectored.
- */
-
-void mcf_autovector(unsigned int vec)
-{
-    /* Everything is auto-vectored on the 520x devices */
 }
 
 /***************************************************************************/
