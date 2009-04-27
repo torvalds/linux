@@ -158,6 +158,7 @@ enum { KE_KEY, KE_END };
 static struct key_entry eeepc_keymap[] = {
 	/* Sleep already handled via generic ACPI code */
 	{KE_KEY, 0x10, KEY_WLAN },
+	{KE_KEY, 0x11, KEY_WLAN },
 	{KE_KEY, 0x12, KEY_PROG1 },
 	{KE_KEY, 0x13, KEY_MUTE },
 	{KE_KEY, 0x14, KEY_VOLUMEDOWN },
@@ -528,6 +529,7 @@ static int notify_brn(void)
 
 static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 {
+	enum rfkill_state state;
 	struct pci_dev *dev;
 	struct pci_bus *bus = pci_find_bus(0, 1);
 
@@ -539,7 +541,9 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 		return;
 	}
 
-	if (get_acpi(CM_ASL_WLAN) == 1) {
+	eeepc_wlan_rfkill_state(ehotk->eeepc_wlan_rfkill, &state);
+
+	if (state == RFKILL_STATE_UNBLOCKED) {
 		dev = pci_get_slot(bus, 0);
 		if (dev) {
 			/* Device already present */
@@ -559,6 +563,8 @@ static void eeepc_rfkill_notify(acpi_handle handle, u32 event, void *data)
 			pci_dev_put(dev);
 		}
 	}
+
+	rfkill_force_state(ehotk->eeepc_wlan_rfkill, state);
 }
 
 static void eeepc_hotk_notify(acpi_handle handle, u32 event, void *data)
