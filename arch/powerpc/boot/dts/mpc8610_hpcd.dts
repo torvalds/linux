@@ -115,6 +115,19 @@
 		reg = <0xe0000000 0x1000>;
 		bus-frequency = <0>;
 
+		mcm-law@0 {
+			compatible = "fsl,mcm-law";
+			reg = <0x0 0x1000>;
+			fsl,num-laws = <10>;
+		};
+
+		mcm@1000 {
+			compatible = "fsl,mpc8610-mcm", "fsl,mcm";
+			reg = <0x1000 0x1000>;
+			interrupts = <17 2>;
+			interrupt-parent = <&mpic>;
+		};
+
 		i2c@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
