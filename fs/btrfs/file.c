@@ -272,83 +272,6 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end,
 	return 0;
 }
 
-int btrfs_check_file(struct btrfs_root *root, struct inode *inode)
-{
-	return 0;
-#if 0
-	struct btrfs_path *path;
-	struct btrfs_key found_key;
-	struct extent_buffer *leaf;
-	struct btrfs_file_extent_item *extent;
-	u64 last_offset = 0;
-	int nritems;
-	int slot;
-	int found_type;
-	int ret;
-	int err = 0;
-	u64 extent_end = 0;
-
-	path = btrfs_alloc_path();
-	ret = btrfs_lookup_file_extent(NULL, root, path, inode->i_ino,
-				       last_offset, 0);
-	while (1) {
-		nritems = btrfs_header_nritems(path->nodes[0]);
-		if (path->slots[0] >= nritems) {
-			ret = btrfs_next_leaf(root, path);
-			if (ret)
-				goto out;
-			nritems = btrfs_header_nritems(path->nodes[0]);
-		}
-		slot = path->slots[0];
-		leaf = path->nodes[0];
-		btrfs_item_key_to_cpu(leaf, &found_key, slot);
-		if (found_key.objectid != inode->i_ino)
-			break;
-		if (found_key.type != BTRFS_EXTENT_DATA_KEY)
-			goto out;
-
-		if (found_key.offset < last_offset) {
-			WARN_ON(1);
-			btrfs_print_leaf(root, leaf);
-			printk(KERN_ERR "inode %lu found offset %llu "
-			       "expected %llu\n", inode->i_ino,
-			       (unsigned long long)found_key.offset,
-			       (unsigned long long)last_offset);
-			err = 1;
-			goto out;
-		}
-		extent = btrfs_item_ptr(leaf, slot,
-					struct btrfs_file_extent_item);
-		found_type = btrfs_file_extent_type(leaf, extent);
-		if (found_type == BTRFS_FILE_EXTENT_REG) {
-			extent_end = found_key.offset +
-			     btrfs_file_extent_num_bytes(leaf, extent);
-		} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
-			struct btrfs_item *item;
-			item = btrfs_item_nr(leaf, slot);
-			extent_end = found_key.offset +
-			     btrfs_file_extent_inline_len(leaf, extent);
-			extent_end = (extent_end + root->sectorsize - 1) &
-				~((u64)root->sectorsize - 1);
-		}
-		last_offset = extent_end;
-		path->slots[0]++;
-	}
-	if (0 && last_offset < inode->i_size) {
-		WARN_ON(1);
-		btrfs_print_leaf(root, leaf);
-		printk(KERN_ERR "inode %lu found offset %llu size %llu\n",
-		       inode->i_ino, (unsigned long long)last_offset,
-		       (unsigned long long)inode->i_size);
-		err = 1;
-
-	}
-out:
-	btrfs_free_path(path);
-	return err;
-#endif
-}
-
 /*
  * this is very complex, but the basic idea is to drop all extents
  * in the range start - end.  hint_block is filled in with a block number
@@ -689,7 +612,6 @@ out:
 		unlock_extent(&BTRFS_I(inode)->io_tree, orig_locked_end,
 			      locked_end - 1, GFP_NOFS);
 	}
-	btrfs_check_file(root, inode);
 	return ret;
 }
 

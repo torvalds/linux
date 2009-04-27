@@ -584,18 +584,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 		btrfs_set_work_high_prio(&async->work);
 
 	btrfs_queue_worker(&fs_info->workers, &async->work);
-#if 0
-	int limit = btrfs_async_submit_limit(fs_info);
-	if (atomic_read(&fs_info->nr_async_submits) > limit) {
-		wait_event_timeout(fs_info->async_submit_wait,
-			   (atomic_read(&fs_info->nr_async_submits) < limit),
-			   HZ/10);
 
-		wait_event_timeout(fs_info->async_submit_wait,
-			   (atomic_read(&fs_info->nr_async_bios) < limit),
-			   HZ/10);
-	}
-#endif
 	while (atomic_read(&fs_info->async_submit_draining) &&
 	      atomic_read(&fs_info->nr_async_submits)) {
 		wait_event(fs_info->async_submit_wait,
@@ -769,27 +758,6 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 		page_cache_release(page);
 	}
 }
-
-#if 0
-static int btree_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct buffer_head *bh;
-	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-	struct buffer_head *head;
-	if (!page_has_buffers(page)) {
-		create_empty_buffers(page, root->fs_info->sb->s_blocksize,
-					(1 << BH_Dirty)|(1 << BH_Uptodate));
-	}
-	head = page_buffers(page);
-	bh = head;
-	do {
-		if (buffer_dirty(bh))
-			csum_tree_block(root, bh, 0);
-		bh = bh->b_this_page;
-	} while (bh != head);
-	return block_write_full_page(page, btree_get_block, wbc);
-}
-#endif
 
 static struct address_space_operations btree_aops = {
 	.readpage	= btree_readpage,
@@ -1278,11 +1246,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	int ret = 0;
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
-#if 0
-	if ((bdi_bits & (1 << BDI_write_congested)) &&
-	    btrfs_congested_async(info, 0))
-		return 1;
-#endif
+
 	list_for_each_entry(device, &info->fs_devices->devices, dev_list) {
 		if (!device->bdev)
 			continue;
@@ -2334,16 +2298,6 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 
-#if 0
-	while (!list_empty(&fs_info->hashers)) {
-		struct btrfs_hasher *hasher;
-		hasher = list_entry(fs_info->hashers.next, struct btrfs_hasher,
-				    hashers);
-		list_del(&hasher->hashers);
-		crypto_free_hash(&fs_info->hash_tfm);
-		kfree(hasher);
-	}
-#endif
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 
