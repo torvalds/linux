@@ -293,10 +293,16 @@ static u32 igb_get_tx_csum(struct net_device *netdev)
 
 static int igb_set_tx_csum(struct net_device *netdev, u32 data)
 {
-	if (data)
+	struct igb_adapter *adapter = netdev_priv(netdev);
+
+	if (data) {
 		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	else
-		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+		if (adapter->hw.mac.type == e1000_82576)
+			netdev->features |= NETIF_F_SCTP_CSUM;
+	} else {
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+		                      NETIF_F_SCTP_CSUM);
+	}
 
 	return 0;
 }

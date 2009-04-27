@@ -1345,6 +1345,9 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
+	if (adapter->hw.mac.type == e1000_82576)
+		netdev->features |= NETIF_F_SCTP_CSUM;
+
 	adapter->en_mng_pt = igb_enable_mng_pass_thru(&adapter->hw);
 
 	/* before reading the NVM, reset the controller to put the device in a
@@ -2249,6 +2252,10 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 	/* Don't need to set TUOFL or IPOFL, they default to 1 */
 	if (!adapter->rx_csum)
 		rxcsum &= ~(E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL);
+	else if (adapter->hw.mac.type == e1000_82576)
+		/* Enable Receive Checksum Offload for SCTP */
+		rxcsum |= E1000_RXCSUM_CRCOFL;
+
 	wr32(E1000_RXCSUM, rxcsum);
 
 	/* Set the default pool for the PF's first queue */
@@ -3064,11 +3071,15 @@ static inline bool igb_tx_csum_adv(struct igb_adapter *adapter,
 				tu_cmd |= E1000_ADVTXD_TUCMD_IPV4;
 				if (ip_hdr(skb)->protocol == IPPROTO_TCP)
 					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+				else if (ip_hdr(skb)->protocol == IPPROTO_SCTP)
+					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_SCTP;
 				break;
 			case cpu_to_be16(ETH_P_IPV6):
 				/* XXX what about other V6 headers?? */
 				if (ipv6_hdr(skb)->nexthdr == IPPROTO_TCP)
 					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_TCP;
+				else if (ipv6_hdr(skb)->nexthdr == IPPROTO_SCTP)
+					tu_cmd |= E1000_ADVTXD_TUCMD_L4T_SCTP;
 				break;
 			default:
 				if (unlikely(net_ratelimit()))
@@ -4449,14 +4460,22 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 	/* TCP/UDP checksum error bit is set */
 	if (status_err &
 	    (E1000_RXDEXT_STATERR_TCPE | E1000_RXDEXT_STATERR_IPE)) {
+		/*
+		 * work around errata with sctp packets where the TCPE aka
+		 * L4E bit is set incorrectly on 64 byte (60 byte w/o crc)
+		 * packets, (aka let the stack check the crc32c)
+		 */
+		if (!((adapter->hw.mac.type == e1000_82576) &&
+		      (skb->len == 60)))
+			adapter->hw_csum_err++;
 		/* let the stack verify checksum errors */
-		adapter->hw_csum_err++;
 		return;
 	}
 	/* It must be a TCP or UDP packet with a valid checksum */
 	if (status_err & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
+	dev_dbg(&adapter->pdev->dev, "cksum success: bits %08X\n", status_err);
 	adapter->hw_csum_good++;
 }
 
