@@ -311,10 +311,17 @@ static u32 ixgbe_get_tx_csum(struct net_device *netdev)
 
 static int ixgbe_set_tx_csum(struct net_device *netdev, u32 data)
 {
-	if (data)
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	if (data) {
 		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	else
+		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+			netdev->features |= NETIF_F_SCTP_CSUM;
+	} else {
 		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+		if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+			netdev->features &= ~NETIF_F_SCTP_CSUM;
+	}
 
 	return 0;
 }
