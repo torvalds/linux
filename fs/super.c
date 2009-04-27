@@ -510,7 +510,7 @@ restart:
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
-		if (sb->s_root && (wait || sb->s_dirt))
+		if (sb->s_root)
 			sb->s_op->sync_fs(sb, wait);
 		up_read(&sb->s_umount);
 		/* restart only when sb is no longer on the list */
