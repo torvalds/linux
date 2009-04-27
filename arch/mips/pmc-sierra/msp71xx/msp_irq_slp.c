@@ -45,7 +45,7 @@ static inline void mask_msp_slp_irq(unsigned int irq)
  */
 static inline void ack_msp_slp_irq(unsigned int irq)
 {
-	mask_slp_irq(irq);
+	mask_msp_slp_irq(irq);
 
 	/*
 	 * only really necessary for 18, 16-14 and sometimes 3:0 (since
@@ -79,7 +79,7 @@ void __init msp_slp_irq_init(void)
 
 	/* initialize all the IRQ descriptors */
 	for (i = MSP_SLP_INTBASE; i < MSP_PER_INTBASE + 32; i++)
-		set_irq_chip_and_handler(i, &msp_slp_irq_controller
+		set_irq_chip_and_handler(i, &msp_slp_irq_controller,
 					 handle_level_irq);
 }
 
