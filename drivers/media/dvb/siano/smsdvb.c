@@ -485,7 +485,6 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	client->coredev = coredev;
 
 	init_completion(&client->tune_done);
-	init_completion(&client->stat_done);
 
 	kmutex_lock(&g_smsdvb_clientslock);
 
