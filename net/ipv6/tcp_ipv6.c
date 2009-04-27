@@ -943,7 +943,7 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 
 struct sk_buff **tcp6_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 {
-	struct ipv6hdr *iph = ipv6_hdr(skb);
+	struct ipv6hdr *iph = skb_gro_network_header(skb);
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:

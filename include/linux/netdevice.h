@@ -1142,6 +1142,13 @@ static inline void *skb_gro_mac_header(struct sk_buff *skb)
 	       skb_shinfo(skb)->frags[0].page_offset;
 }
 
+static inline void *skb_gro_network_header(struct sk_buff *skb)
+{
+	return skb_headlen(skb) ? skb_network_header(skb) :
+	       page_address(skb_shinfo(skb)->frags[0].page) +
+	       skb_shinfo(skb)->frags[0].page_offset + skb_network_offset(skb);
+}
+
 static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 				  unsigned short type,
 				  const void *daddr, const void *saddr,
