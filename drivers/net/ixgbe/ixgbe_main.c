@@ -326,8 +326,18 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_adapter *adapter,
 	}
 
 	/* re-arm the interrupt */
-	if (count >= tx_ring->work_limit)
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, tx_ring->v_idx);
+	if (count >= tx_ring->work_limit) {
+		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS,
+					tx_ring->v_idx);
+		else if (tx_ring->v_idx & 0xFFFFFFFF)
+			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS_EX(0),
+					tx_ring->v_idx);
+		else
+			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS_EX(1),
+					(tx_ring->v_idx >> 32));
+	}
+
 
 	tx_ring->total_bytes += total_bytes;
 	tx_ring->total_packets += total_packets;
@@ -1166,7 +1176,13 @@ static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
 	rx_ring = &(adapter->rx_ring[r_idx]);
 	/* disable interrupts on this vector only */
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, rx_ring->v_idx);
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, rx_ring->v_idx);
+	else if (rx_ring->v_idx & 0xFFFFFFFF)
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(0), rx_ring->v_idx);
+	else
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(1),
+				(rx_ring->v_idx >> 32));
 	napi_schedule(&q_vector->napi);
 
 	return IRQ_HANDLED;
@@ -1178,6 +1194,23 @@ static irqreturn_t ixgbe_msix_clean_many(int irq, void *data)
 	ixgbe_msix_clean_tx(irq, data);
 
 	return IRQ_HANDLED;
+}
+
+static inline void ixgbe_irq_enable_queues(struct ixgbe_adapter *adapter,
+					   u64 qmask)
+{
+	u32 mask;
+
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		mask = (IXGBE_EIMS_RTX_QUEUE & qmask);
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
+	} else {
+		mask = (qmask & 0xFFFFFFFF);
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(0), mask);
+		mask = (qmask >> 32);
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(1), mask);
+	}
+	/* skip the flush */
 }
 
 /**
@@ -1212,7 +1245,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 		if (adapter->itr_setting & 1)
 			ixgbe_set_itr_msix(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, rx_ring->v_idx);
+			ixgbe_irq_enable_queues(adapter, rx_ring->v_idx);
 	}
 
 	return work_done;
@@ -1234,7 +1267,7 @@ static int ixgbe_clean_rxonly_many(struct napi_struct *napi, int budget)
 	struct ixgbe_ring *rx_ring = NULL;
 	int work_done = 0, i;
 	long r_idx;
-	u16 enable_mask = 0;
+	u64 enable_mask = 0;
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
 	 * the budget to go below 1 because we'll exit polling */
@@ -1261,7 +1294,7 @@ static int ixgbe_clean_rxonly_many(struct napi_struct *napi, int budget)
 		if (adapter->itr_setting & 1)
 			ixgbe_set_itr_msix(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, enable_mask);
+			ixgbe_irq_enable_queues(adapter, enable_mask);
 		return 0;
 	}
 
@@ -1481,7 +1514,8 @@ static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
 static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter)
 {
 	u32 mask;
-	mask = IXGBE_EIMS_ENABLE_MASK;
+
+	mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE)
 		mask |= IXGBE_EIMS_GPI_SDP1;
 	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
@@ -1491,14 +1525,7 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter)
 	}
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		/* enable the rest of the queue vectors */
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(1),
-		                (IXGBE_EIMS_RTX_QUEUE << 16));
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(2),
-		                ((IXGBE_EIMS_RTX_QUEUE << 16) |
-		                  IXGBE_EIMS_RTX_QUEUE));
-	}
+	ixgbe_irq_enable_queues(adapter, ~0);
 	IXGBE_WRITE_FLUSH(&adapter->hw);
 }
 
@@ -1622,10 +1649,12 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
  **/
 static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 {
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, ~0);
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+	if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, ~0);
+	} else {
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFF0000);
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(0), ~0);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(1), ~0);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(2), ~0);
 	}
 	IXGBE_WRITE_FLUSH(&adapter->hw);
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
@@ -1635,18 +1664,6 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 	} else {
 		synchronize_irq(adapter->pdev->irq);
 	}
-}
-
-static inline void ixgbe_irq_enable_queues(struct ixgbe_adapter *adapter)
-{
-	u32 mask = IXGBE_EIMS_RTX_QUEUE;
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, mask);
-	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(1), mask << 16);
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS_EX(2),
-		                (mask << 16 | mask));
-	}
-	/* skip the flush */
 }
 
 /**
@@ -2714,7 +2731,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 		if (adapter->itr_setting & 1)
 			ixgbe_set_itr(adapter);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			ixgbe_irq_enable_queues(adapter);
+			ixgbe_irq_enable_queues(adapter, IXGBE_EIMS_RTX_QUEUE);
 	}
 	return work_done;
 }
@@ -4005,16 +4022,9 @@ static void ixgbe_watchdog(unsigned long data)
 			break;
 		case ixgbe_mac_82599EB:
 			if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-				/*
-				 * EICS(0..15) first 0-15 q vectors
-				 * EICS[1] (16..31) q vectors 16-31
-				 * EICS[2] (0..31) q vectors 32-63
-				 */
-				IXGBE_WRITE_REG(hw, IXGBE_EICS,
-				                (u32)(eics & 0xFFFF));
+				IXGBE_WRITE_REG(hw, IXGBE_EICS_EX(0),
+				                (u32)(eics & 0xFFFFFFFF));
 				IXGBE_WRITE_REG(hw, IXGBE_EICS_EX(1),
-				                (u32)(eics & 0xFFFF0000));
-				IXGBE_WRITE_REG(hw, IXGBE_EICS_EX(2),
 				                (u32)(eics >> 32));
 			} else {
 				/*
