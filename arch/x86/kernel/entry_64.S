@@ -1382,7 +1382,7 @@ paranoiderrorentry stack_segment do_stack_segment
 errorentry general_protection do_general_protection
 errorentry page_fault do_page_fault
 #ifdef CONFIG_X86_MCE
-paranoidzeroentry machine_check do_machine_check
+paranoidzeroentry machine_check *machine_check_vector(%rip)
 #endif
 
 	/*

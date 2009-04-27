@@ -7,10 +7,11 @@ void intel_p5_mcheck_init(struct cpuinfo_x86 *c);
 void intel_p6_mcheck_init(struct cpuinfo_x86 *c);
 void winchip_mcheck_init(struct cpuinfo_x86 *c);
 
-#ifdef CONFIG_X86_32
 
 /* Call the installed machine check handler for this CPU setup. */
 extern void (*machine_check_vector)(struct pt_regs *, long error_code);
+
+#ifdef CONFIG_X86_32
 
 extern int nr_mce_banks;
 
