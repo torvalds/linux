@@ -755,23 +755,6 @@ static struct attribute_group usb_bus_attr_group = {
 
 /*-------------------------------------------------------------------------*/
 
-static struct class *usb_host_class;
-
-int usb_host_init(void)
-{
-	int retval = 0;
-
-	usb_host_class = class_create(THIS_MODULE, "usb_host");
-	if (IS_ERR(usb_host_class))
-		retval = PTR_ERR(usb_host_class);
-	return retval;
-}
-
-void usb_host_cleanup(void)
-{
-	class_destroy(usb_host_class);
-}
-
 /**
  * usb_bus_init - shared initialization code
  * @bus: the bus structure being initialized
@@ -818,12 +801,6 @@ static int usb_register_bus(struct usb_bus *bus)
 	set_bit (busnum, busmap.busmap);
 	bus->busnum = busnum;
 
-	bus->dev = device_create(usb_host_class, bus->controller, MKDEV(0, 0),
-				 bus, "usb_host%d", busnum);
-	result = PTR_ERR(bus->dev);
-	if (IS_ERR(bus->dev))
-		goto error_create_class_dev;
-
 	/* Add it to the local list of buses */
 	list_add (&bus->bus_list, &usb_bus_list);
 	mutex_unlock(&usb_bus_list_lock);
@@ -834,8 +811,6 @@ static int usb_register_bus(struct usb_bus *bus)
 		  "number %d\n", bus->busnum);
 	return 0;
 
-error_create_class_dev:
-	clear_bit(busnum, busmap.busmap);
 error_find_busnum:
 	mutex_unlock(&usb_bus_list_lock);
 	return result;
@@ -865,8 +840,6 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	usb_notify_remove_bus(bus);
 
 	clear_bit (bus->busnum, busmap.busmap);
-
-	device_unregister(bus->dev);
 }
 
 /**

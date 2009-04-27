@@ -1055,9 +1055,6 @@ static int __init usb_init(void)
 	retval = bus_register_notifier(&usb_bus_type, &usb_bus_nb);
 	if (retval)
 		goto bus_notifier_failed;
-	retval = usb_host_init();
-	if (retval)
-		goto host_init_failed;
 	retval = usb_major_init();
 	if (retval)
 		goto major_init_failed;
@@ -1087,8 +1084,6 @@ usb_devio_init_failed:
 driver_register_failed:
 	usb_major_cleanup();
 major_init_failed:
-	usb_host_cleanup();
-host_init_failed:
 	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
 bus_notifier_failed:
 	bus_unregister(&usb_bus_type);
@@ -1113,7 +1108,6 @@ static void __exit usb_exit(void)
 	usb_deregister(&usbfs_driver);
 	usb_devio_cleanup();
 	usb_hub_cleanup();
-	usb_host_cleanup();
 	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
 	bus_unregister(&usb_bus_type);
 	ksuspend_usb_cleanup();
