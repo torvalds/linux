@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.30-rc2
-# Thu Apr 16 15:42:20 2009
+# Linux kernel version: 2.6.30-rc3
+# Mon Apr 27 13:09:47 2009
 #
 CONFIG_SUPERH=y
 CONFIG_SUPERH32=y
