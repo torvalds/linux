@@ -27,7 +27,7 @@
  */
 static int __sync_filesystem(struct super_block *sb, int wait)
 {
-	vfs_dq_sync(sb);
+	sync_quota_sb(sb, -1);
 	sync_inodes_sb(sb, wait);
 	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
