@@ -1,5 +1,5 @@
 /*
- * Suspend and hibernation support for x86-64
+ * Suspend support specific for i386/x86-64.
  *
  * Distribute under GPLv2
  *
