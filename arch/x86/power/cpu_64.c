@@ -19,9 +19,19 @@
 #include <asm/xcr.h>
 #include <asm/suspend.h>
 
+#ifdef CONFIG_X86_32
+static struct saved_context saved_context;
+
+unsigned long saved_context_ebx;
+unsigned long saved_context_esp, saved_context_ebp;
+unsigned long saved_context_esi, saved_context_edi;
+unsigned long saved_context_eflags;
+#else
+/* CONFIG_X86_64 */
 static void fix_processor_context(void);
 
 struct saved_context saved_context;
+#endif
 
 /**
  *	__save_processor_state - save CPU registers before creating a
