@@ -794,15 +794,6 @@ static const char *init_exit_sections[] =
 /* data section */
 static const char *data_sections[] = { DATA_SECTIONS, NULL };
 
-/* sections that may refer to an init/exit section with no warning */
-static const char *initref_sections[] =
-{
-	".text.init.refok*",
-	".exit.text.refok*",
-	".data.init.refok*",
-	NULL
-};
-
 
 /* symbols in .data that may refer to init/exit sections */
 static const char *symbol_white_list[] =
@@ -915,11 +906,6 @@ static int section_mismatch(const char *fromsec, const char *tosec)
 /**
  * Whitelist to allow certain references to pass with no warning.
  *
- * Pattern 0:
- *   Do not warn if funtion/data are marked with __init_refok/__initdata_refok.
- *   The pattern is identified by:
- *   fromsec = .text.init.refok* | .data.init.refok*
- *
  * Pattern 1:
  *   If a module parameter is declared __initdata and permissions=0
  *   then this is legal despite the warning generated.
@@ -958,10 +944,6 @@ static int section_mismatch(const char *fromsec, const char *tosec)
 static int secref_whitelist(const char *fromsec, const char *fromsym,
 			    const char *tosec, const char *tosym)
 {
-	/* Check for pattern 0 */
-	if (match(fromsec, initref_sections))
-		return 0;
-
 	/* Check for pattern 1 */
 	if (match(tosec, init_data_sections) &&
 	    match(fromsec, data_sections) &&
