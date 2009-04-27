@@ -1491,7 +1491,7 @@ static int trace_recursive_lock(void)
 	/* Disable all tracing before we do anything else */
 	tracing_off_permanent();
 
-	printk_once(KERN_WARNING "Tracing recursion: depth[%d]:"
+	printk_once(KERN_WARNING "Tracing recursion: depth[%ld]:"
 		    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
 		    current->trace_recursion,
 		    hardirq_count() >> HARDIRQ_SHIFT,
