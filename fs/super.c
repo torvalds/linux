@@ -289,7 +289,7 @@ EXPORT_SYMBOL(unlock_super);
  * device.  Takes the superblock lock.  Requires a second blkdev
  * flush by the caller to complete the operation.
  */
-void __fsync_super(struct super_block *sb)
+static int __fsync_super(struct super_block *sb)
 {
 	sync_inodes_sb(sb, 0);
 	vfs_dq_sync(sb);
@@ -300,7 +300,7 @@ void __fsync_super(struct super_block *sb)
 	unlock_super(sb);
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, 1);
-	sync_blockdev(sb->s_bdev);
+	return sync_blockdev(sb->s_bdev);
 }
 
 /*
@@ -310,8 +310,7 @@ void __fsync_super(struct super_block *sb)
  */
 int fsync_super(struct super_block *sb)
 {
-	__fsync_super(sb);
-	return sync_blockdev(sb->s_bdev);
+	return __fsync_super(sb);
 }
 EXPORT_SYMBOL_GPL(fsync_super);
 
