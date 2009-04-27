@@ -2676,6 +2676,7 @@ config TEHUTI
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
+	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
 	help

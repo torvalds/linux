@@ -965,6 +965,21 @@ struct bnx2x {
 	int			gunzip_outlen;
 #define FW_BUF_SIZE			0x8000
 
+	struct raw_op          *init_ops;
+	/* Init blocks offsets inside init_ops */
+	u16                    *init_ops_offsets;
+	/* Data blob - has 32 bit granularity */
+	u32                    *init_data;
+	/* Zipped PRAM blobs - raw data */
+	const u8               *tsem_int_table_data;
+	const u8               *tsem_pram_data;
+	const u8               *usem_int_table_data;
+	const u8               *usem_pram_data;
+	const u8               *xsem_int_table_data;
+	const u8               *xsem_pram_data;
+	const u8               *csem_int_table_data;
+	const u8               *csem_pram_data;
+        const struct firmware  *firmware;
 };
 
 
