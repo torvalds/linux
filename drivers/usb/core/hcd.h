@@ -261,14 +261,11 @@ struct pci_device_id;
 extern int usb_hcd_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id);
 extern void usb_hcd_pci_remove(struct pci_dev *dev);
-
-#ifdef CONFIG_PM
-extern int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t msg);
-extern int usb_hcd_pci_resume(struct pci_dev *dev);
-#endif /* CONFIG_PM */
-
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);
 
+#ifdef CONFIG_PM_SLEEP
+extern struct dev_pm_ops	usb_hcd_pci_pm_ops;
+#endif
 #endif /* CONFIG_PCI */
 
 /* pci-ish (pdev null is ok) buffer alloc/mapping support */
