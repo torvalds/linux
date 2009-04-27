@@ -22,6 +22,8 @@
 #define MCFINTC_IMRL        0x0c        /* Interrupt mask 1-31 */
 #define MCFINTC_INTFRCH     0x10        /* Interrupt force 32-63 */
 #define MCFINTC_INTFRCL     0x14        /* Interrupt force 1-31 */
+#define MCFINTC_SIMR        0x1c        /* Set interrupt mask 0-63 */
+#define MCFINTC_CIMR        0x1d        /* Clear interrupt mask 0-63 */
 #define MCFINTC_ICR0        0x40        /* Base ICR register */
 
 #define MCFINT_VECBASE      64
