@@ -204,7 +204,7 @@ fiemap_check_flags() helper:
 
 int fiemap_check_flags(struct fiemap_extent_info *fieinfo, u32 fs_flags);
 
-The struct fieinfo should be passed in as recieved from ioctl_fiemap(). The
+The struct fieinfo should be passed in as received from ioctl_fiemap(). The
 set of fiemap flags which the fs understands should be passed via fs_flags. If
 fiemap_check_flags finds invalid user flags, it will place the bad values in
 fieinfo->fi_flags and return -EBADR. If the file system gets -EBADR, from

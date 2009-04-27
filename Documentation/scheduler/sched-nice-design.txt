@@ -55,7 +55,7 @@ To sum it up: we always wanted to make nice levels more consistent, but
 within the constraints of HZ and jiffies and their nasty design level
 coupling to timeslices and granularity it was not really viable.
 
-The second (less frequent but still periodically occuring) complaint
+The second (less frequent but still periodically occurring) complaint
 about Linux's nice level support was its assymetry around the origo
 (which you can see demonstrated in the picture above), or more
 accurately: the fact that nice level behavior depended on the _absolute_
