@@ -96,14 +96,15 @@ struct bt_data {
 	u8 rel_y;		/* relative y coordinate */
 };
 
-/* trackpad header structure */
-struct tp_header {
-	u8 unknown1[16];	/* constants, timers, etc */
-	u8 fingers;		/* number of fingers on trackpad */
-	u8 unknown2[9];		/* constants, timers, etc */
+/* trackpad header types */
+enum tp_type {
+	TYPE1			/* plain trackpad */
 };
 
-/* trackpad finger structure */
+/* trackpad finger data offsets, le16-aligned */
+#define FINGER_TYPE1		(13 * sizeof(__le16))
+
+/* trackpad finger structure, le16-aligned */
 struct tp_finger {
 	__le16 origin;		/* zero when switching track finger */
 	__le16 abs_x;		/* absolute x coodinate */
@@ -117,13 +118,11 @@ struct tp_finger {
 	__le16 force_minor;	/* trackpad force, minor axis? */
 	__le16 unused[3];	/* zeros */
 	__le16 multi;		/* one finger: varies, more fingers: constant */
-};
+} __attribute__((packed,aligned(2)));
 
-/* trackpad data structure, empirically at least ten fingers */
-struct tp_data {
-	struct tp_header header;
-	struct tp_finger finger[16];
-};
+/* trackpad finger data size, empirically at least ten fingers */
+#define SIZEOF_FINGER		sizeof(struct tp_finger)
+#define SIZEOF_ALL_FINGERS	(16 * SIZEOF_FINGER)
 
 /* device-specific parameters */
 struct bcm5974_param {
@@ -139,6 +138,8 @@ struct bcm5974_config {
 	int bt_ep;		/* the endpoint of the button interface */
 	int bt_datalen;		/* data length of the button interface */
 	int tp_ep;		/* the endpoint of the trackpad interface */
+	enum tp_type tp_type;	/* type of trackpad interface */
+	int tp_offset;		/* offset to trackpad finger data */
 	int tp_datalen;		/* data length of the trackpad interface */
 	struct bcm5974_param p;	/* finger pressure limits */
 	struct bcm5974_param w;	/* finger width limits */
@@ -158,7 +159,7 @@ struct bcm5974 {
 	struct urb *bt_urb;		/* button usb request block */
 	struct bt_data *bt_data;	/* button transferred data */
 	struct urb *tp_urb;		/* trackpad usb request block */
-	struct tp_data *tp_data;	/* trackpad transferred data */
+	u8 *tp_data;			/* trackpad transferred data */
 	int fingers;			/* number of fingers on trackpad */
 };
 
@@ -184,7 +185,7 @@ static const struct bcm5974_config bcm5974_config_table[] = {
 		USB_DEVICE_ID_APPLE_WELLSPRING_ISO,
 		USB_DEVICE_ID_APPLE_WELLSPRING_JIS,
 		0x84, sizeof(struct bt_data),
-		0x81, sizeof(struct tp_data),
+		0x81, TYPE1, FINGER_TYPE1, FINGER_TYPE1 + SIZEOF_ALL_FINGERS,
 		{ DIM_PRESSURE, DIM_PRESSURE / SN_PRESSURE, 0, 256 },
 		{ DIM_WIDTH, DIM_WIDTH / SN_WIDTH, 0, 2048 },
 		{ DIM_X, DIM_X / SN_COORD, -4824, 5342 },
@@ -195,7 +196,7 @@ static const struct bcm5974_config bcm5974_config_table[] = {
 		USB_DEVICE_ID_APPLE_WELLSPRING2_ISO,
 		USB_DEVICE_ID_APPLE_WELLSPRING2_JIS,
 		0x84, sizeof(struct bt_data),
-		0x81, sizeof(struct tp_data),
+		0x81, TYPE1, FINGER_TYPE1, FINGER_TYPE1 + SIZEOF_ALL_FINGERS,
 		{ DIM_PRESSURE, DIM_PRESSURE / SN_PRESSURE, 0, 256 },
 		{ DIM_WIDTH, DIM_WIDTH / SN_WIDTH, 0, 2048 },
 		{ DIM_X, DIM_X / SN_COORD, -4824, 4824 },
@@ -276,18 +277,21 @@ static int report_bt_state(struct bcm5974 *dev, int size)
 static int report_tp_state(struct bcm5974 *dev, int size)
 {
 	const struct bcm5974_config *c = &dev->cfg;
-	const struct tp_finger *f = dev->tp_data->finger;
+	const struct tp_finger *f;
 	struct input_dev *input = dev->input;
-	const int fingers = (size - 26) / 28;
-	int raw_p, raw_w, raw_x, raw_y;
+	int raw_p, raw_w, raw_x, raw_y, raw_n;
 	int ptest = 0, origin = 0, nmin = 0, nmax = 0;
 	int abs_p = 0, abs_w = 0, abs_x = 0, abs_y = 0;
 
-	if (size < 26 || (size - 26) % 28 != 0)
+	if (size < c->tp_offset || (size - c->tp_offset) % SIZEOF_FINGER != 0)
 		return -EIO;
 
+	/* finger data, le16-aligned */
+	f = (const struct tp_finger *)(dev->tp_data + c->tp_offset);
+	raw_n = (size - c->tp_offset) / SIZEOF_FINGER;
+
 	/* always track the first finger; when detached, start over */
-	if (fingers) {
+	if (raw_n) {
 		raw_p = raw2int(f->force_major);
 		raw_w = raw2int(f->size_major);
 		raw_x = raw2int(f->abs_x);
@@ -307,12 +311,13 @@ static int report_tp_state(struct bcm5974 *dev, int size)
 		abs_w = int2bound(&c->w, raw_w);
 		abs_x = int2bound(&c->x, raw_x - c->x.devmin);
 		abs_y = int2bound(&c->y, c->y.devmax - raw_y);
-		for (; f != dev->tp_data->finger + fingers; f++) {
+		while (raw_n--) {
 			ptest = int2bound(&c->p, raw2int(f->force_major));
 			if (ptest > PRESSURE_LOW)
 				nmax++;
 			if (ptest > PRESSURE_HIGH)
 				nmin++;
+			f++;
 		}
 	}
 
