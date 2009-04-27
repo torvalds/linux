@@ -1079,13 +1079,6 @@ static int do_cmd_ioctl(struct comedi_device *dev, void *arg, void *file)
 
 	comedi_set_subdevice_runflags(s, ~0, SRF_USER | SRF_RUNNING);
 
-#ifdef CONFIG_COMEDI_RT
-	if (async->cmd.flags & TRIG_RT) {
-		if (comedi_switch_to_rt(dev) == 0)
-			comedi_set_subdevice_runflags(s, SRF_RT, SRF_RT);
-	}
-#endif
-
 	ret = s->do_cmd(dev, s);
 	if (ret == 0)
 		return 0;
@@ -1720,12 +1713,6 @@ void do_become_nonbusy(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_async *async = s->async;
 
 	comedi_set_subdevice_runflags(s, SRF_RUNNING, 0);
-#ifdef CONFIG_COMEDI_RT
-	if (comedi_get_subdevice_runflags(s) & SRF_RT) {
-		comedi_switch_to_non_rt(dev);
-		comedi_set_subdevice_runflags(s, SRF_RT, 0);
-	}
-#endif
 	if (async) {
 		comedi_reset_async_buf(async);
 		async->inttrig = NULL;
@@ -1952,8 +1939,6 @@ static int __init comedi_init(void)
 		}
 	}
 
-	comedi_rt_init();
-
 	comedi_register_ioctl32();
 
 	return 0;
@@ -1973,8 +1958,6 @@ static void __exit comedi_cleanup(void)
 	unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
 
 	comedi_proc_cleanup();
-
-	comedi_rt_cleanup();
 
 	comedi_unregister_ioctl32();
 }
@@ -2015,15 +1998,8 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (async->cb_mask & s->async->events) {
 		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
-
 			if (dev->rt) {
-#ifdef CONFIG_COMEDI_RT
-				/* pend wake up */
-				comedi_rt_pend_wakeup(&async->wait_head);
-#else
-				printk
-				    ("BUG: comedi_event() code unreachable\n");
-#endif
+				printk("BUG: comedi_event() code unreachable\n");
 			} else {
 				wake_up_interruptible(&async->wait_head);
 				if (s->subdev_flags & SDF_CMD_READ) {

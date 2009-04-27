@@ -40,6 +40,7 @@ DAQ 6601/6602 User Manual (NI 322137B-01)
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 #include "mite.h"
 #include "ni_tio.h"

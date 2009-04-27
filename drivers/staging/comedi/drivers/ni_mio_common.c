@@ -61,6 +61,7 @@
 /* #define DEBUG_STATUS_A */
 /* #define DEBUG_STATUS_B */
 
+#include <linux/interrupt.h>
 #include "8255.h"
 #include "mite.h"
 #include "comedi_fc.h"

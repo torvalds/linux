@@ -62,6 +62,7 @@ cmd triggers supported:
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

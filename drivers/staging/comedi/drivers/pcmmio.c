@@ -73,6 +73,7 @@ Configuration Options:
   [1] - IRQ (optional -- for edge-detect interrupt support only, leave out if you don't need this feature)
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 #include <linux/pci.h>		/* for PCI devices */
 

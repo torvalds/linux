@@ -75,6 +75,7 @@ Configuration Options:
   [2] - IRQ for second ASIC (pcmuio96 only - IRQ for chans 48-72 .. can be the same as first irq!)
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/pci.h>		/* for PCI devices */

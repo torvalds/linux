@@ -29,6 +29,7 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

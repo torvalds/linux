@@ -43,6 +43,7 @@ See http://www.measurementcomputing.com/PDFManuals/pcim-das1602_16.pdf for more 
 #include "../comedidev.h"
 
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "comedi_pci.h"
 #include "plx9052.h"

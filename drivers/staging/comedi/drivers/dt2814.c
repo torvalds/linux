@@ -39,6 +39,7 @@ a power of 10, from 1 to 10^7, of which only 3 or 4 are useful.  In
 addition, the clock does not seem to be very accurate.
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

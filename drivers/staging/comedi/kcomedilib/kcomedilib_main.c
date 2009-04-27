@@ -150,10 +150,6 @@ int comedi_command(void *d, struct comedi_cmd *cmd)
 
 	runflags = SRF_RUNNING;
 
-#ifdef CONFIG_COMEDI_RT
-	if (comedi_switch_to_rt(dev) == 0)
-		runflags |= SRF_RT;
-#endif
 	comedi_set_subdevice_runflags(s, ~0, runflags);
 
 	comedi_reset_async_buf(async);
@@ -449,11 +445,6 @@ int comedi_cancel(void *d, unsigned int subdevice)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_COMEDI_RT
-	if (comedi_get_subdevice_runflags(s) & SRF_RT)
-		comedi_switch_to_non_rt(dev);
-
-#endif
 	comedi_set_subdevice_runflags(s, SRF_RUNNING | SRF_RT, 0);
 	s->async->inttrig = NULL;
 	s->busy = NULL;

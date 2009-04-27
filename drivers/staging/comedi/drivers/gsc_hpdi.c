@@ -45,6 +45,7 @@ support could be added to this driver.
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 #include <linux/delay.h>
 

@@ -119,6 +119,7 @@ Configuration options:
 #include "../comedidev.h"
 
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 
 #include "comedi_pci.h"
 #include "8255.h"

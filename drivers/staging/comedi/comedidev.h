@@ -523,8 +523,6 @@ struct usb_device;	/* forward declaration */
 int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name);
 void comedi_usb_auto_unconfig(struct usb_device *usbdev);
 
-#include "comedi_rt.h"
-
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 	#define CONFIG_COMEDI_PCI
 #endif

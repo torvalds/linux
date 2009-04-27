@@ -41,6 +41,7 @@ Configuration options:
           1 = two's complement
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

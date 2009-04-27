@@ -41,6 +41,7 @@ emu as port A output, port B input, port C N/A).
 IRQ is assigned but not used.
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

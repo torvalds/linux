@@ -52,6 +52,7 @@ Configuration options:
   [8] - DAC 1 encoding (same as DAC 0)
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

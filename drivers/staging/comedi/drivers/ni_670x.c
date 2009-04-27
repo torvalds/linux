@@ -41,6 +41,7 @@ Commands are not supported.
 
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include "mite.h"

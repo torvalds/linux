@@ -100,6 +100,7 @@ TODO:
 	read insn for analog out
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/ioport.h>

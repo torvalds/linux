@@ -74,6 +74,7 @@ Configuration Options:
  * options that are used with comedi_config.
  */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 #include <linux/ioport.h>
 

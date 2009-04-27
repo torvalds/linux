@@ -107,6 +107,7 @@ Options for ACL-8113, ISO-813:
         3= 20V unipolar inputs
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>

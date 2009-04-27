@@ -50,6 +50,7 @@ Options:
  [1] - PCI slot number
 */
 
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>

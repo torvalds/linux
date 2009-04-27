@@ -59,6 +59,7 @@ irq can be omitted, although the cmd interface will not work without it.
 */
 
 #include <linux/ioport.h>
+#include <linux/interrupt.h>
 #include "../comedidev.h"
 
 #include "8255.h"
