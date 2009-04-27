@@ -34,8 +34,6 @@ unsigned char sh7751se_inb(unsigned long port)
 {
 	if (PXSEG(port))
 		return *(volatile unsigned char *)port;
-	else if (is_pci_ioaddr(port))
-		return *(volatile unsigned char *)pci_ioaddr(port);
 	else
 		return (*port2adr(port)) & 0xff;
 }
@@ -46,8 +44,6 @@ unsigned char sh7751se_inb_p(unsigned long port)
 
         if (PXSEG(port))
                 v = *(volatile unsigned char *)port;
-	else if (is_pci_ioaddr(port))
-                v = *(volatile unsigned char *)pci_ioaddr(port);
 	else
 		v = (*port2adr(port)) & 0xff;
 	ctrl_delay();
@@ -58,8 +54,6 @@ unsigned short sh7751se_inw(unsigned long port)
 {
         if (PXSEG(port))
                 return *(volatile unsigned short *)port;
-	else if (is_pci_ioaddr(port))
-                return *(volatile unsigned short *)pci_ioaddr(port);
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else
@@ -71,8 +65,6 @@ unsigned int sh7751se_inl(unsigned long port)
 {
         if (PXSEG(port))
                 return *(volatile unsigned long *)port;
-	else if (is_pci_ioaddr(port))
-                return *(volatile unsigned int *)pci_ioaddr(port);
 	else if (port >= 0x2000)
 		return *port2adr(port);
 	else
@@ -85,8 +77,6 @@ void sh7751se_outb(unsigned char value, unsigned long port)
 
         if (PXSEG(port))
                 *(volatile unsigned char *)port = value;
-	else if (is_pci_ioaddr(port))
-		*((unsigned char*)pci_ioaddr(port)) = value;
 	else
 		*(port2adr(port)) = value;
 }
@@ -95,8 +85,6 @@ void sh7751se_outb_p(unsigned char value, unsigned long port)
 {
         if (PXSEG(port))
                 *(volatile unsigned char *)port = value;
-	else if (is_pci_ioaddr(port))
-		*((unsigned char*)pci_ioaddr(port)) = value;
 	else
 		*(port2adr(port)) = value;
 	ctrl_delay();
@@ -106,8 +94,6 @@ void sh7751se_outw(unsigned short value, unsigned long port)
 {
         if (PXSEG(port))
                 *(volatile unsigned short *)port = value;
-	else if (is_pci_ioaddr(port))
-		*((unsigned short *)pci_ioaddr(port)) = value;
 	else if (port >= 0x2000)
 		*port2adr(port) = value;
 	else
@@ -118,8 +104,6 @@ void sh7751se_outl(unsigned int value, unsigned long port)
 {
         if (PXSEG(port))
                 *(volatile unsigned long *)port = value;
-	else if (is_pci_ioaddr(port))
-		*((unsigned long*)pci_ioaddr(port)) = value;
 	else
 		maybebadio(port);
 }

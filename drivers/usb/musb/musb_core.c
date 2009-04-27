@@ -2191,7 +2191,7 @@ static int musb_resume_early(struct platform_device *pdev)
 
 #else
 #define	musb_suspend	NULL
-#define	musb_resume	NULL
+#define	musb_resume_early	NULL
 #endif
 
 static struct platform_driver musb_driver = {

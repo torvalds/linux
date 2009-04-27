@@ -1294,12 +1294,6 @@ tape_34xx_online(struct ccw_device *cdev)
 	);
 }
 
-static int
-tape_34xx_offline(struct ccw_device *cdev)
-{
-	return tape_generic_offline(cdev->dev.driver_data);
-}
-
 static struct ccw_driver tape_34xx_driver = {
 	.name = "tape_34xx",
 	.owner = THIS_MODULE,
@@ -1307,7 +1301,7 @@ static struct ccw_driver tape_34xx_driver = {
 	.probe = tape_generic_probe,
 	.remove = tape_generic_remove,
 	.set_online = tape_34xx_online,
-	.set_offline = tape_34xx_offline,
+	.set_offline = tape_generic_offline,
 };
 
 static int

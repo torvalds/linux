@@ -1337,12 +1337,9 @@ L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 F:	arch/powerpc/include/asm/cell*.h
-F:	arch/powerpc/include/asm/lv1call.h
-F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
-F:	arch/powerpc/platforms/ps3/
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 P:	David Vrabel
@@ -2761,7 +2758,7 @@ IDE SUBSYSTEM
 P:	Bartlomiej Zolnierkiewicz
 M:	bzolnier@gmail.com
 L:	linux-ide@vger.kernel.org
-T:	quilt kernel.org/pub/linux/kernel/people/bart/pata-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bart/ide-2.6.git
 S:	Maintained
 F:	Documentation/ide/
 F:	drivers/ide/
@@ -3994,8 +3991,8 @@ NETWORKING [GENERAL]
 P:	David S. Miller
 M:	davem@davemloft.net
 L:	netdev@vger.kernel.org
-W:	http://linux-net.osdl.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
+W:	http://www.linuxfoundation.org/en/Net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
 F:	include/net/
@@ -4035,6 +4032,13 @@ S:	Maintained
 F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/net/wireless.h
+
+NETWORKING DRIVERS
+L:	netdev@vger.kernel.org
+W:	http://www.linuxfoundation.org/en/Net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
+S:	Odd Fixes
+F:	drivers/net/
 
 NETXEN (1/10) GbE SUPPORT
 P:	Dhananjay Phadke
@@ -4507,7 +4511,9 @@ F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/platforms/ps3/
 F:	drivers/*/ps3*
 F:	drivers/ps3/
+F:	drivers/rtc/rtc-ps3.c
 F:	drivers/usb/host/*ps3.c
+F:	sound/ppc/snd_ps3*
 
 PS3VRAM DRIVER
 P:	Jim Paris

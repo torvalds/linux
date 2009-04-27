@@ -936,9 +936,6 @@ static int option_open(struct tty_struct *tty,
 				usb_pipeout(urb->pipe), 0); */
 	}
 
-	if (tty)
-		tty->low_latency = 1;
-
 	option_send_setup(tty, port);
 
 	return 0;

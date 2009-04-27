@@ -34,7 +34,7 @@ static int kstack_depth_to_print = 24;
 
 static int __init kstack_setup(char *s)
 {
-	kstack_depth_to_print = strict_strtoul(s, 0, 0);
+	kstack_depth_to_print = strict_strtoul(s, 0, NULL);
 
 	return 1;
 }

@@ -258,7 +258,8 @@ do {								\
 # define elf_read_implies_exec(ex, exec_stk) (test_thread_flag(TIF_32BIT) ? \
 		(exec_stk != EXSTACK_DISABLE_X) : 0)
 #else 
-# define SET_PERSONALITY(ex) set_personality(PER_LINUX)
+# define SET_PERSONALITY(ex) \
+  set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 #endif /* __powerpc64__ */
 
 extern int dcache_bsize;

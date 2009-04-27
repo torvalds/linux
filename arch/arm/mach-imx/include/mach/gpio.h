@@ -1,6 +1,7 @@
 #ifndef _IMX_GPIO_H
 
 #include <linux/kernel.h>
+#include <mach/hardware.h>
 #include <mach/imx-regs.h>
 
 #define IMX_GPIO_ALLOC_MODE_NORMAL	0

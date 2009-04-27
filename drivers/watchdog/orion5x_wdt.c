@@ -22,6 +22,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <mach/bridge-regs.h>
 #include <plat/orion5x_wdt.h>
 
 /*

@@ -30,7 +30,6 @@
 
 extern struct irq_chip systemasic_int;
 extern void aica_time_init(void);
-extern int gapspci_init(void);
 extern int systemasic_irq_demux(int);
 
 static void __init dreamcast_setup(char **cmdline_p)
@@ -51,11 +50,6 @@ static void __init dreamcast_setup(char **cmdline_p)
 					 handle_level_irq);
 
 	board_time_init = aica_time_init;
-
-#ifdef CONFIG_PCI
-	if (gapspci_init() < 0)
-		printk(KERN_WARNING "GAPSPCI was not detected.\n");
-#endif
 }
 
 static struct sh_machine_vector mv_dreamcast __initmv = {
