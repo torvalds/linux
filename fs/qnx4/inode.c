@@ -70,14 +70,6 @@ static void qnx4_delete_inode(struct inode *inode)
 	unlock_kernel();
 }
 
-static void qnx4_write_super(struct super_block *sb)
-{
-	lock_kernel();
-	QNX4DEBUG(("qnx4: write_super\n"));
-	sb->s_dirt = 0;
-	unlock_kernel();
-}
-
 static int qnx4_write_inode(struct inode *inode, int unused)
 {
 	struct qnx4_inode_entry *raw_inode;
@@ -138,7 +130,6 @@ static const struct super_operations qnx4_sops =
 #ifdef CONFIG_QNX4FS_RW
 	.write_inode	= qnx4_write_inode,
 	.delete_inode	= qnx4_delete_inode,
-	.write_super	= qnx4_write_super,
 #endif
 };
 
