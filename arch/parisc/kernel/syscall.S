@@ -288,6 +288,7 @@ tracesys:
 	STREG	%r18,PT_GR18(%r2)
 	/* Finished saving things for the debugger */
 
+	ldi	0,%r26				/* syscall entry */
 	ldil	L%syscall_trace,%r1
 	ldil	L%tracesys_next,%r2
 	be	R%syscall_trace(%sr7,%r1)
@@ -336,6 +337,7 @@ tracesys_exit:
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
+	ldi	1,%r26				/* syscall exit */
 	bl	syscall_trace, %r2
 	STREG   %r28,TASK_PT_GR28(%r1)          /* save return value now */
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
@@ -358,7 +360,7 @@ tracesys_sigexit:
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 	bl	syscall_trace, %r2
-	nop
+	ldi	1,%r26				/* syscall exit */
 
 	ldil	L%syscall_exit_rfi,%r1
 	be,n	R%syscall_exit_rfi(%sr7,%r1)

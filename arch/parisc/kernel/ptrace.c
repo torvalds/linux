@@ -13,6 +13,7 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
+#include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/personality.h>
 #include <linux/security.h>
@@ -264,21 +265,19 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 #endif
 
 
-void syscall_trace(void)
+void syscall_trace(int why)
 {
+	struct pt_regs *regs = &current->thread.regs;
+
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
 	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
+	 * Report the system call for tracing.  Entry tracing can
+	 * decide to abort the call.  We handle that by setting an
+	 * invalid syscall number (-1) to force an ENOSYS error.
 	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
+	if (why)
+		tracehook_report_syscall_exit(regs, 0);
+	else if (tracehook_report_syscall_entry(regs))
+		regs->gr[20] = -1;	/* force ENOSYS */
 }
