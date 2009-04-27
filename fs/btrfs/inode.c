@@ -70,7 +70,6 @@ static struct extent_io_ops btrfs_extent_io_ops;
 static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
-struct kmem_cache *btrfs_bit_radix_cachep;
 struct kmem_cache *btrfs_path_cachep;
 
 #define S_SHIFT 12
@@ -4641,8 +4640,6 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_trans_handle_cachep);
 	if (btrfs_transaction_cachep)
 		kmem_cache_destroy(btrfs_transaction_cachep);
-	if (btrfs_bit_radix_cachep)
-		kmem_cache_destroy(btrfs_bit_radix_cachep);
 	if (btrfs_path_cachep)
 		kmem_cache_destroy(btrfs_path_cachep);
 }
@@ -4673,11 +4670,6 @@ int btrfs_init_cachep(void)
 	if (!btrfs_path_cachep)
 		goto fail;
 
-	btrfs_bit_radix_cachep = kmem_cache_create("btrfs_radix", 256, 0,
-			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
-			SLAB_DESTROY_BY_RCU, NULL);
-	if (!btrfs_bit_radix_cachep)
-		goto fail;
 	return 0;
 fail:
 	btrfs_destroy_cachep();
