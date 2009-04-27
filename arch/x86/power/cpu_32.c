@@ -27,8 +27,6 @@ unsigned long saved_context_esi, saved_context_edi;
 unsigned long saved_context_eflags;
 #else
 /* CONFIG_X86_64 */
-static void fix_processor_context(void);
-
 struct saved_context saved_context;
 #endif
 
@@ -136,6 +134,11 @@ static void fix_processor_context(void)
 				 * similar stupidity.
 				 */
 
+#ifdef CONFIG_X86_64
+	get_cpu_gdt_table(cpu)[GDT_ENTRY_TSS].type = 9;
+
+	syscall_init();				/* This sets MSR_*STAR and related */
+#endif
 	load_TR_desc();				/* This does ltr */
 	load_LDT(&current->active_mm->context);	/* This does lldt */
 
@@ -143,6 +146,7 @@ static void fix_processor_context(void)
 	 * Now maybe reload the debug registers
 	 */
 	if (current->thread.debugreg7) {
+#ifdef CONFIG_X86_32
 		set_debugreg(current->thread.debugreg0, 0);
 		set_debugreg(current->thread.debugreg1, 1);
 		set_debugreg(current->thread.debugreg2, 2);
@@ -150,18 +154,40 @@ static void fix_processor_context(void)
 		/* no 4 and 5 */
 		set_debugreg(current->thread.debugreg6, 6);
 		set_debugreg(current->thread.debugreg7, 7);
+#else
+		/* CONFIG_X86_64 */
+		loaddebug(&current->thread, 0);
+		loaddebug(&current->thread, 1);
+		loaddebug(&current->thread, 2);
+		loaddebug(&current->thread, 3);
+		/* no 4 and 5 */
+		loaddebug(&current->thread, 6);
+		loaddebug(&current->thread, 7);
+#endif
 	}
 
 }
 
+/**
+ *	__restore_processor_state - restore the contents of CPU registers saved
+ *		by __save_processor_state()
+ *	@ctxt - structure to load the registers contents from
+ */
 static void __restore_processor_state(struct saved_context *ctxt)
 {
 	/*
 	 * control registers
 	 */
 	/* cr4 was introduced in the Pentium CPU */
+#ifdef CONFIG_X86_32
 	if (ctxt->cr4)
 		write_cr4(ctxt->cr4);
+#else
+/* CONFIG X86_64 */
+	wrmsrl(MSR_EFER, ctxt->efer);
+	write_cr8(ctxt->cr8);
+	write_cr4(ctxt->cr4);
+#endif
 	write_cr3(ctxt->cr3);
 	write_cr2(ctxt->cr2);
 	write_cr0(ctxt->cr0);
@@ -170,12 +196,19 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	 * now restore the descriptor tables to their proper values
 	 * ltr is done i fix_processor_context().
 	 */
+#ifdef CONFIG_X86_32
 	load_gdt(&ctxt->gdt);
 	load_idt(&ctxt->idt);
+#else
+/* CONFIG_X86_64 */
+	load_gdt((const struct desc_ptr *)&ctxt->gdt_limit);
+	load_idt((const struct desc_ptr *)&ctxt->idt_limit);
+#endif
 
 	/*
 	 * segment registers
 	 */
+#ifdef CONFIG_X86_32
 	loadsegment(es, ctxt->es);
 	loadsegment(fs, ctxt->fs);
 	loadsegment(gs, ctxt->gs);
@@ -186,6 +219,18 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	 */
 	if (boot_cpu_has(X86_FEATURE_SEP))
 		enable_sep_cpu();
+#else
+/* CONFIG_X86_64 */
+	asm volatile ("movw %0, %%ds" :: "r" (ctxt->ds));
+	asm volatile ("movw %0, %%es" :: "r" (ctxt->es));
+	asm volatile ("movw %0, %%fs" :: "r" (ctxt->fs));
+	load_gs_index(ctxt->gs);
+	asm volatile ("movw %0, %%ss" :: "r" (ctxt->ss));
+
+	wrmsrl(MSR_FS_BASE, ctxt->fs_base);
+	wrmsrl(MSR_GS_BASE, ctxt->gs_base);
+	wrmsrl(MSR_KERNEL_GS_BASE, ctxt->gs_kernel_base);
+#endif
 
 	/*
 	 * restore XCR0 for xsave capable cpu's.
@@ -194,9 +239,13 @@ static void __restore_processor_state(struct saved_context *ctxt)
 		xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
 
 	fix_processor_context();
+
 	do_fpu_end();
 	mtrr_ap_init();
+
+#ifdef CONFIG_X86_32
 	mcheck_init(&boot_cpu_data);
+#endif
 }
 
 /* Needed by apm.c */
@@ -204,4 +253,6 @@ void restore_processor_state(void)
 {
 	__restore_processor_state(&saved_context);
 }
+#ifdef CONFIG_X86_32
 EXPORT_SYMBOL(restore_processor_state);
+#endif
