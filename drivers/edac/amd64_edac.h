@@ -577,6 +577,21 @@ extern const char *ii_msgs[4];
 extern const char *ext_msgs[32];
 extern const char *htlink_msgs[8];
 
+#ifdef CONFIG_EDAC_DEBUG
+#define NUM_DBG_ATTRS 9
+#else
+#define NUM_DBG_ATTRS 0
+#endif
+
+#ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION
+#define NUM_INJ_ATTRS 5
+#else
+#define NUM_INJ_ATTRS 0
+#endif
+
+extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
+				     amd64_inj_attrs[NUM_INJ_ATTRS];
+
 /*
  * Each of the PCI Device IDs types have their own set of hardware accessor
  * functions and per device encoding/decoding logic.
