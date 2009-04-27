@@ -541,6 +541,7 @@ static void nes_cm_timer_tick(unsigned long pass)
 	struct list_head *list_node;
 	struct nes_cm_core *cm_core = g_cm_core;
 	u32 settimer = 0;
+	unsigned long timetosend;
 	int ret = NETDEV_TX_OK;
 
 	struct list_head timer_list;
@@ -645,8 +646,11 @@ static void nes_cm_timer_tick(unsigned long pass)
 				send_entry->retrycount);
 			if (send_entry->send_retrans) {
 				send_entry->retranscount--;
+				timetosend = (NES_RETRY_TIMEOUT <<
+					(NES_DEFAULT_RETRANS - send_entry->retranscount));
+
 				send_entry->timetosend = jiffies +
-					NES_RETRY_TIMEOUT;
+					min(timetosend, NES_MAX_TIMEOUT);
 				if (nexttimeout > send_entry->timetosend ||
 					!settimer) {
 					nexttimeout = send_entry->timetosend;
