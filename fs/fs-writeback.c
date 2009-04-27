@@ -679,55 +679,6 @@ void sync_inodes_sb(struct super_block *sb, int wait)
 }
 
 /**
- * sync_inodes - writes all inodes to disk
- * @wait: wait for completion
- *
- * sync_inodes() goes through each super block's dirty inode list, writes the
- * inodes out, waits on the writeout and puts the inodes back on the normal
- * list.
- *
- * This is for sys_sync().  fsync_dev() uses the same algorithm.  The subtle
- * part of the sync functions is that the blockdev "superblock" is processed
- * last.  This is because the write_inode() function of a typical fs will
- * perform no I/O, but will mark buffers in the blockdev mapping as dirty.
- * What we want to do is to perform all that dirtying first, and then write
- * back all those inode blocks via the blockdev mapping in one sweep.  So the
- * additional (somewhat redundant) sync_blockdev() calls here are to make
- * sure that really happens.  Because if we call sync_inodes_sb(wait=1) with
- * outstanding dirty inodes, the writeback goes block-at-a-time within the
- * filesystem's write_inode().  This is extremely slow.
- */
-static void __sync_inodes(int wait)
-{
-	struct super_block *sb;
-
-	spin_lock(&sb_lock);
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root) {
-			sync_inodes_sb(sb, wait);
-			sync_blockdev(sb->s_bdev);
-		}
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
-	}
-	spin_unlock(&sb_lock);
-}
-
-void sync_inodes(int wait)
-{
-	__sync_inodes(0);
-
-	if (wait)
-		__sync_inodes(1);
-}
-
-/**
  * write_inode_now	-	write an inode to disk
  * @inode: inode to write to disk
  * @sync: whether the write should be synchronous or not

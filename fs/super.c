@@ -284,23 +284,23 @@ EXPORT_SYMBOL(lock_super);
 EXPORT_SYMBOL(unlock_super);
 
 /*
- * Write out and wait upon all dirty data associated with this
- * superblock.  Filesystem data as well as the underlying block
- * device.  Takes the superblock lock.  Requires a second blkdev
- * flush by the caller to complete the operation.
+ * Do the filesystem syncing work. For simple filesystems sync_inodes_sb(sb, 0)
+ * just dirties buffers with inodes so we have to submit IO for these buffers
+ * via __sync_blockdev(). This also speeds up the wait == 1 case since in that
+ * case write_inode() functions do sync_dirty_buffer() and thus effectively
+ * write one block at a time.
  */
-static int __fsync_super(struct super_block *sb)
+static int __fsync_super(struct super_block *sb, int wait)
 {
-	sync_inodes_sb(sb, 0);
 	vfs_dq_sync(sb);
-	sync_inodes_sb(sb, 1);
+	sync_inodes_sb(sb, wait);
 	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
 		sb->s_op->write_super(sb);
 	unlock_super(sb);
 	if (sb->s_op->sync_fs)
-		sb->s_op->sync_fs(sb, 1);
-	return sync_blockdev(sb->s_bdev);
+		sb->s_op->sync_fs(sb, wait);
+	return __sync_blockdev(sb->s_bdev, wait);
 }
 
 /*
@@ -310,7 +310,12 @@ static int __fsync_super(struct super_block *sb)
  */
 int fsync_super(struct super_block *sb)
 {
-	return __fsync_super(sb);
+	int ret;
+
+	ret = __fsync_super(sb, 0);
+	if (ret < 0)
+		return ret;
+	return __fsync_super(sb, 1);
 }
 EXPORT_SYMBOL_GPL(fsync_super);
 
@@ -469,20 +474,18 @@ restart:
 }
 
 /*
- * Call the ->sync_fs super_op against all filesystems which are r/w and
- * which implement it.
+ * Sync all the data for all the filesystems (called by sys_sync() and
+ * emergency sync)
  *
  * This operation is careful to avoid the livelock which could easily happen
- * if two or more filesystems are being continuously dirtied.  s_need_sync_fs
+ * if two or more filesystems are being continuously dirtied.  s_need_sync
  * is used only here.  We set it against all filesystems and then clear it as
  * we sync them.  So redirtied filesystems are skipped.
  *
  * But if process A is currently running sync_filesystems and then process B
- * calls sync_filesystems as well, process B will set all the s_need_sync_fs
+ * calls sync_filesystems as well, process B will set all the s_need_sync
  * flags again, which will cause process A to resync everything.  Fix that with
  * a local mutex.
- *
- * (Fabian) Avoid sync_fs with clean fs & wait mode 0
  */
 void sync_filesystems(int wait)
 {
@@ -492,25 +495,23 @@ void sync_filesystems(int wait)
 	mutex_lock(&mutex);		/* Could be down_interruptible */
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (!sb->s_op->sync_fs)
-			continue;
 		if (sb->s_flags & MS_RDONLY)
 			continue;
-		sb->s_need_sync_fs = 1;
+		sb->s_need_sync = 1;
 	}
 
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (!sb->s_need_sync_fs)
+		if (!sb->s_need_sync)
 			continue;
-		sb->s_need_sync_fs = 0;
+		sb->s_need_sync = 0;
 		if (sb->s_flags & MS_RDONLY)
 			continue;	/* hm.  Was remounted r/o meanwhile */
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
 		if (sb->s_root)
-			sb->s_op->sync_fs(sb, wait);
+			__fsync_super(sb, wait);
 		up_read(&sb->s_umount);
 		/* restart only when sb is no longer on the list */
 		spin_lock(&sb_lock);
@@ -520,33 +521,6 @@ restart:
 	spin_unlock(&sb_lock);
 	mutex_unlock(&mutex);
 }
-
-#ifdef CONFIG_BLOCK
-/*
- *  Sync all block devices underlying some superblock
- */
-void sync_blockdevs(void)
-{
-	struct super_block *sb;
-
-	spin_lock(&sb_lock);
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (!sb->s_bdev)
-			continue;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root)
-			sync_blockdev(sb->s_bdev);
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
-	}
-	spin_unlock(&sb_lock);
-}
-#endif
 
 /**
  *	get_super - get the superblock of a device
