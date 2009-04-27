@@ -636,5 +636,6 @@ int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
 
 	return snd_soc_register_dai(dai);
 }
-
 EXPORT_SYMBOL_GPL(s3c_i2sv2_register_dai);
+
+MODULE_LICENSE("GPL");
