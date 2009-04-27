@@ -104,17 +104,17 @@
 
 #define __access_mask get_fs().seg
 
-#define __access_ok(addr, size, mask)							\
-({											\
-	const volatile void __user *__up = addr;					\
-	unsigned long __addr = (unsigned long) __up;					\
-	unsigned long __size = size;							\
-	unsigned long __mask = mask;							\
-	unsigned long __ok;								\
-											\
-	__ok = (signed long)(__mask & (__addr | (__addr + __size) |			\
-		__ua_size(__size)));							\
-	__ok == 0;									\
+#define __access_ok(addr, size, mask)					\
+({									\
+	unsigned long __addr = (unsigned long) (addr);			\
+	unsigned long __size = size;					\
+	unsigned long __mask = mask;					\
+	unsigned long __ok;						\
+									\
+	__chk_user_ptr(addr);						\
+	__ok = (signed long)(__mask & (__addr | (__addr + __size) |	\
+		__ua_size(__size)));					\
+	__ok == 0;							\
 })
 
 #define access_ok(type, addr, size)					\
@@ -235,6 +235,7 @@ do {									\
 ({									\
 	int __gu_err;							\
 									\
+	__chk_user_ptr(ptr);						\
 	__get_user_common((x), size, ptr);				\
 	__gu_err;							\
 })
@@ -315,6 +316,7 @@ do {									\
 	__typeof__(*(ptr)) __pu_val;					\
 	int __pu_err = 0;						\
 									\
+	__chk_user_ptr(ptr);						\
 	__pu_val = (x);							\
 	switch (size) {							\
 	case 1: __put_user_asm("sb", ptr); break;			\
@@ -882,7 +884,20 @@ extern size_t __copy_user_inatomic(void *__to, const void *__from, size_t __n);
 	__cu_len;							\
 })
 
-#define __copy_in_user(to, from, n)	__copy_from_user(to, from, n)
+#define __copy_in_user(to, from, n)					\
+({									\
+	void __user *__cu_to;						\
+	const void __user *__cu_from;					\
+	long __cu_len;							\
+									\
+	might_sleep();							\
+	__cu_to = (to);							\
+	__cu_from = (from);						\
+	__cu_len = (n);							\
+	__cu_len = __invoke_copy_from_user(__cu_to, __cu_from,		\
+	                                   __cu_len);			\
+	__cu_len;							\
+})
 
 #define copy_in_user(to, from, n)					\
 ({									\
