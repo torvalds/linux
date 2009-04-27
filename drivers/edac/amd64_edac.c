@@ -1824,3 +1824,75 @@ static int f10_probe_valid_hardware(struct amd64_pvt *pvt)
 	return ret;
 }
 
+/*
+ * There currently are 3 types type of MC devices for AMD Athlon/Opterons
+ * (as per PCI DEVICE_IDs):
+ *
+ * Family K8: That is the Athlon64 and Opteron CPUs. They all have the same PCI
+ * DEVICE ID, even though there is differences between the different Revisions
+ * (CG,D,E,F).
+ *
+ * Family F10h and F11h.
+ *
+ */
+static struct amd64_family_type amd64_family_types[] = {
+	[K8_CPUS] = {
+		.ctl_name = "RevF",
+		.addr_f1_ctl = PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP,
+		.misc_f3_ctl = PCI_DEVICE_ID_AMD_K8_NB_MISC,
+		.ops = {
+			.early_channel_count = k8_early_channel_count,
+			.get_error_address = k8_get_error_address,
+			.read_dram_base_limit = k8_read_dram_base_limit,
+			.map_sysaddr_to_csrow = k8_map_sysaddr_to_csrow,
+			.dbam_map_to_pages = k8_dbam_map_to_pages,
+		}
+	},
+	[F10_CPUS] = {
+		.ctl_name = "Family 10h",
+		.addr_f1_ctl = PCI_DEVICE_ID_AMD_10H_NB_MAP,
+		.misc_f3_ctl = PCI_DEVICE_ID_AMD_10H_NB_MISC,
+		.ops = {
+			.probe_valid_hardware = f10_probe_valid_hardware,
+			.early_channel_count = f10_early_channel_count,
+			.get_error_address = f10_get_error_address,
+			.read_dram_base_limit = f10_read_dram_base_limit,
+			.read_dram_ctl_register = f10_read_dram_ctl_register,
+			.map_sysaddr_to_csrow = f10_map_sysaddr_to_csrow,
+			.dbam_map_to_pages = f10_dbam_map_to_pages,
+		}
+	},
+	[F11_CPUS] = {
+		.ctl_name = "Family 11h",
+		.addr_f1_ctl = PCI_DEVICE_ID_AMD_11H_NB_MAP,
+		.misc_f3_ctl = PCI_DEVICE_ID_AMD_11H_NB_MISC,
+		.ops = {
+			.probe_valid_hardware = f10_probe_valid_hardware,
+			.early_channel_count = f10_early_channel_count,
+			.get_error_address = f10_get_error_address,
+			.read_dram_base_limit = f10_read_dram_base_limit,
+			.read_dram_ctl_register = f10_read_dram_ctl_register,
+			.map_sysaddr_to_csrow = f10_map_sysaddr_to_csrow,
+			.dbam_map_to_pages = f10_dbam_map_to_pages,
+		}
+	},
+};
+
+static struct pci_dev *pci_get_related_function(unsigned int vendor,
+						unsigned int device,
+						struct pci_dev *related)
+{
+	struct pci_dev *dev = NULL;
+
+	dev = pci_get_device(vendor, device, dev);
+	while (dev) {
+		if ((dev->bus->number == related->bus->number) &&
+		    (PCI_SLOT(dev->devfn) == PCI_SLOT(related->devfn)))
+			break;
+		dev = pci_get_device(vendor, device, dev);
+	}
+
+	return dev;
+}
+
+
