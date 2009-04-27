@@ -147,6 +147,7 @@ struct ixgbe_ring {
 
 	u16 work_limit;                /* max work per interrupt */
 	u16 rx_buf_len;
+	u64 rsc_count;                 /* stat for coalesced packets */
 };
 
 enum ixgbe_ring_f_enum {
@@ -294,6 +295,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 23)
 #define IXGBE_FLAG_IN_SFP_LINK_TASK             (u32)(1 << 24)
 #define IXGBE_FLAG_IN_SFP_MOD_TASK              (u32)(1 << 25)
+#define IXGBE_FLAG_RSC_CAPABLE                  (u32)(1 << 26)
+#define IXGBE_FLAG_RSC_ENABLED                  (u32)(1 << 27)
 
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
@@ -325,6 +328,7 @@ struct ixgbe_adapter {
 	struct timer_list sfp_timer;
 	struct work_struct multispeed_fiber_task;
 	struct work_struct sfp_config_module_task;
+	u64 rsc_count;
 	u32 wol;
 	u16 eeprom_version;
 };

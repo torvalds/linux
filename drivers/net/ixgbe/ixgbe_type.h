@@ -443,6 +443,21 @@
 
 #define IXGBE_SECTXCTRL_STORE_FORWARD_ENABLE    0x4
 
+/* HW RSC registers */
+#define IXGBE_RSCCTL(_i) (((_i) < 64) ? (0x0102C + ((_i) * 0x40)) : \
+                          (0x0D02C + ((_i - 64) * 0x40)))
+#define IXGBE_RSCDBU      0x03028
+#define IXGBE_RSCCTL_RSCEN          0x01
+#define IXGBE_RSCCTL_MAXDESC_1      0x00
+#define IXGBE_RSCCTL_MAXDESC_4      0x04
+#define IXGBE_RSCCTL_MAXDESC_8      0x08
+#define IXGBE_RSCCTL_MAXDESC_16     0x0C
+#define IXGBE_RXDADV_RSCCNT_SHIFT     17
+#define IXGBE_GPIE_RSC_DELAY_SHIFT    11
+#define IXGBE_RXDADV_RSCCNT_MASK    0x001E0000
+#define IXGBE_RSCDBU_RSCACKDIS      0x00000080
+#define IXGBE_RDRXCTL_RSCFRSTSIZE   0x003E0000
+
 /* DCB registers */
 #define IXGBE_RTRPCS      0x02430
 #define IXGBE_RTTDCS      0x04900

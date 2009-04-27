@@ -615,6 +615,40 @@ static inline u16 ixgbe_get_pkt_info(union ixgbe_adv_rx_desc *rx_desc)
 	return rx_desc->wb.lower.lo_dword.hs_rss.pkt_info;
 }
 
+static inline u32 ixgbe_get_rsc_count(union ixgbe_adv_rx_desc *rx_desc)
+{
+	return (le32_to_cpu(rx_desc->wb.lower.lo_dword.data) &
+	        IXGBE_RXDADV_RSCCNT_MASK) >>
+	        IXGBE_RXDADV_RSCCNT_SHIFT;
+}
+
+/**
+ * ixgbe_transform_rsc_queue - change rsc queue into a full packet
+ * @skb: pointer to the last skb in the rsc queue
+ *
+ * This function changes a queue full of hw rsc buffers into a completed
+ * packet.  It uses the ->prev pointers to find the first packet and then
+ * turns it into the frag list owner.
+ **/
+static inline struct sk_buff *ixgbe_transform_rsc_queue(struct sk_buff *skb)
+{
+	unsigned int frag_list_size = 0;
+
+	while (skb->prev) {
+		struct sk_buff *prev = skb->prev;
+		frag_list_size += skb->len;
+		skb->prev = NULL;
+		skb = prev;
+	}
+
+	skb_shinfo(skb)->frag_list = skb->next;
+	skb->next = NULL;
+	skb->len += frag_list_size;
+	skb->data_len += frag_list_size;
+	skb->truesize += frag_list_size;
+	return skb;
+}
+
 static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
                                struct ixgbe_ring *rx_ring,
                                int *work_done, int work_to_do)
@@ -624,7 +658,7 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	union ixgbe_adv_rx_desc *rx_desc, *next_rxd;
 	struct ixgbe_rx_buffer *rx_buffer_info, *next_buffer;
 	struct sk_buff *skb;
-	unsigned int i;
+	unsigned int i, rsc_count = 0;
 	u32 len, staterr;
 	u16 hdr_info;
 	bool cleaned = false;
@@ -690,20 +724,38 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		i++;
 		if (i == rx_ring->count)
 			i = 0;
-		next_buffer = &rx_ring->rx_buffer_info[i];
 
 		next_rxd = IXGBE_RX_DESC_ADV(*rx_ring, i);
 		prefetch(next_rxd);
-
 		cleaned_count++;
+
+		if (adapter->flags & IXGBE_FLAG_RSC_CAPABLE)
+			rsc_count = ixgbe_get_rsc_count(rx_desc);
+
+		if (rsc_count) {
+			u32 nextp = (staterr & IXGBE_RXDADV_NEXTP_MASK) >>
+				     IXGBE_RXDADV_NEXTP_SHIFT;
+			next_buffer = &rx_ring->rx_buffer_info[nextp];
+			rx_ring->rsc_count += (rsc_count - 1);
+		} else {
+			next_buffer = &rx_ring->rx_buffer_info[i];
+		}
+
 		if (staterr & IXGBE_RXD_STAT_EOP) {
+			if (skb->prev)
+				skb = ixgbe_transform_rsc_queue(skb);
 			rx_ring->stats.packets++;
 			rx_ring->stats.bytes += skb->len;
 		} else {
-			rx_buffer_info->skb = next_buffer->skb;
-			rx_buffer_info->dma = next_buffer->dma;
-			next_buffer->skb = skb;
-			next_buffer->dma = 0;
+			if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
+				rx_buffer_info->skb = next_buffer->skb;
+				rx_buffer_info->dma = next_buffer->dma;
+				next_buffer->skb = skb;
+				next_buffer->dma = 0;
+			} else {
+				skb->next = next_buffer->skb;
+				skb->next->prev = skb;
+			}
 			adapter->non_eop_descs++;
 			goto next_desc;
 		}
@@ -733,7 +785,7 @@ next_desc:
 
 		/* use prefetched values */
 		rx_desc = next_rxd;
-		rx_buffer_info = next_buffer;
+		rx_buffer_info = &rx_ring->rx_buffer_info[i];
 
 		staterr = le32_to_cpu(rx_desc->wb.upper.status_error);
 	}
@@ -1729,6 +1781,7 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	u32 fctrl, hlreg0;
 	u32 reta = 0, mrqc = 0;
 	u32 rdrxctl;
+	u32 rscctrl;
 	int rx_buf_len;
 
 	/* Decide whether to use packet split mode or not */
@@ -1746,7 +1799,8 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 			IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
 		}
 	} else {
-		if (netdev->mtu <= ETH_DATA_LEN)
+		if (!(adapter->flags & IXGBE_FLAG_RSC_ENABLED) &&
+		    (netdev->mtu <= ETH_DATA_LEN))
 			rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
 		else
 			rx_buf_len = ALIGN(max_frame, 1024);
@@ -1868,7 +1922,37 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	if (hw->mac.type == ixgbe_mac_82599EB) {
 		rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 		rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
+		rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
 		IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
+	}
+
+	if (adapter->flags & IXGBE_FLAG_RSC_ENABLED) {
+		/* Enable 82599 HW-RSC */
+		for (i = 0; i < adapter->num_rx_queues; i++) {
+			j = adapter->rx_ring[i].reg_idx;
+			rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(j));
+			rscctrl |= IXGBE_RSCCTL_RSCEN;
+			/*
+			 *  if packet split is enabled we can only support up
+			 *  to max frags + 1 descriptors.
+			 */
+			if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED)
+#if (MAX_SKB_FRAGS < 3)
+				rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
+#elif (MAX_SKB_FRAGS < 7)
+				rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
+#elif (MAX_SKB_FRAGS < 15)
+				rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
+#else
+				rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
+#endif
+			else
+				rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
+			IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(j), rscctrl);
+		}
+		/* Disable RSC for ACK packets */
+		IXGBE_WRITE_REG(hw, IXGBE_RSCDBU,
+		   (IXGBE_RSCDBU_RSCACKDIS | IXGBE_READ_REG(hw, IXGBE_RSCDBU)));
 	}
 }
 
@@ -2438,8 +2522,13 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 			rx_buffer_info->dma = 0;
 		}
 		if (rx_buffer_info->skb) {
-			dev_kfree_skb(rx_buffer_info->skb);
+			struct sk_buff *skb = rx_buffer_info->skb;
 			rx_buffer_info->skb = NULL;
+			do {
+				struct sk_buff *this = skb;
+				skb = skb->prev;
+				dev_kfree_skb(this);
+			} while (skb);
 		}
 		if (!rx_buffer_info->page)
 			continue;
@@ -3180,8 +3269,11 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_DCB].indices = IXGBE_MAX_DCB_INDICES;
 	if (hw->mac.type == ixgbe_mac_82598EB)
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
-	else if (hw->mac.type == ixgbe_mac_82599EB)
+	else if (hw->mac.type == ixgbe_mac_82599EB) {
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
+		adapter->flags |= IXGBE_FLAG_RSC_CAPABLE;
+		adapter->flags |= IXGBE_FLAG_RSC_ENABLED;
+	}
 
 #ifdef CONFIG_IXGBE_DCB
 	/* Configure DCB traffic classes */
@@ -3765,9 +3857,13 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	u32 i, missed_rx = 0, mpc, bprc, lxon, lxoff, xon_off_tot;
 
 	if (hw->mac.type == ixgbe_mac_82599EB) {
+		u64 rsc_count = 0;
 		for (i = 0; i < 16; i++)
 			adapter->hw_rx_no_dma_resources +=
 			                     IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			rsc_count += adapter->rx_ring[i].rsc_count;
+		adapter->rsc_count = rsc_count;
 	}
 
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
@@ -4741,6 +4837,9 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
+
+	if (adapter->flags & IXGBE_FLAG_RSC_ENABLED)
+		netdev->features |= NETIF_F_LRO;
 
 	/* make sure the EEPROM is good */
 	if (hw->eeprom.ops.validate_checksum(hw, NULL) < 0) {
