@@ -269,3 +269,169 @@ err_no_match:
 
 	return NULL;
 }
+
+/*
+ * Extract the DRAM CS base address from selected csrow register.
+ */
+static u64 base_from_dct_base(struct amd64_pvt *pvt, int csrow)
+{
+	return ((u64) (amd64_get_dct_base(pvt, 0, csrow) & pvt->dcsb_base)) <<
+				pvt->dcs_shift;
+}
+
+/*
+ * Extract the mask from the dcsb0[csrow] entry in a CPU revision-specific way.
+ */
+static u64 mask_from_dct_mask(struct amd64_pvt *pvt, int csrow)
+{
+	u64 dcsm_bits, other_bits;
+	u64 mask;
+
+	/* Extract bits from DRAM CS Mask. */
+	dcsm_bits = amd64_get_dct_mask(pvt, 0, csrow) & pvt->dcsm_mask;
+
+	other_bits = pvt->dcsm_mask;
+	other_bits = ~(other_bits << pvt->dcs_shift);
+
+	/*
+	 * The extracted bits from DCSM belong in the spaces represented by
+	 * the cleared bits in other_bits.
+	 */
+	mask = (dcsm_bits << pvt->dcs_shift) | other_bits;
+
+	return mask;
+}
+
+/*
+ * @input_addr is an InputAddr associated with the node given by mci. Return the
+ * csrow that input_addr maps to, or -1 on failure (no csrow claims input_addr).
+ */
+static int input_addr_to_csrow(struct mem_ctl_info *mci, u64 input_addr)
+{
+	struct amd64_pvt *pvt;
+	int csrow;
+	u64 base, mask;
+
+	pvt = mci->pvt_info;
+
+	/*
+	 * Here we use the DRAM CS Base and DRAM CS Mask registers. For each CS
+	 * base/mask register pair, test the condition shown near the start of
+	 * section 3.5.4 (p. 84, BKDG #26094, K8, revA-E).
+	 */
+	for (csrow = 0; csrow < CHIPSELECT_COUNT; csrow++) {
+
+		/* This DRAM chip select is disabled on this node */
+		if ((pvt->dcsb0[csrow] & K8_DCSB_CS_ENABLE) == 0)
+			continue;
+
+		base = base_from_dct_base(pvt, csrow);
+		mask = ~mask_from_dct_mask(pvt, csrow);
+
+		if ((input_addr & mask) == (base & mask)) {
+			debugf2("InputAddr 0x%lx matches csrow %d (node %d)\n",
+				(unsigned long)input_addr, csrow,
+				pvt->mc_node_id);
+
+			return csrow;
+		}
+	}
+
+	debugf2("no matching csrow for InputAddr 0x%lx (MC node %d)\n",
+		(unsigned long)input_addr, pvt->mc_node_id);
+
+	return -1;
+}
+
+/*
+ * Return the base value defined by the DRAM Base register for the node
+ * represented by mci.  This function returns the full 40-bit value despite the
+ * fact that the register only stores bits 39-24 of the value. See section
+ * 3.4.4.1 (BKDG #26094, K8, revA-E)
+ */
+static inline u64 get_dram_base(struct mem_ctl_info *mci)
+{
+	struct amd64_pvt *pvt = mci->pvt_info;
+
+	return pvt->dram_base[pvt->mc_node_id];
+}
+
+/*
+ * Obtain info from the DRAM Hole Address Register (section 3.4.8, pub #26094)
+ * for the node represented by mci. Info is passed back in *hole_base,
+ * *hole_offset, and *hole_size.  Function returns 0 if info is valid or 1 if
+ * info is invalid. Info may be invalid for either of the following reasons:
+ *
+ * - The revision of the node is not E or greater.  In this case, the DRAM Hole
+ *   Address Register does not exist.
+ *
+ * - The DramHoleValid bit is cleared in the DRAM Hole Address Register,
+ *   indicating that its contents are not valid.
+ *
+ * The values passed back in *hole_base, *hole_offset, and *hole_size are
+ * complete 32-bit values despite the fact that the bitfields in the DHAR
+ * only represent bits 31-24 of the base and offset values.
+ */
+int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
+			     u64 *hole_offset, u64 *hole_size)
+{
+	struct amd64_pvt *pvt = mci->pvt_info;
+	u64 base;
+
+	/* only revE and later have the DRAM Hole Address Register */
+	if (boot_cpu_data.x86 == 0xf && pvt->ext_model < OPTERON_CPU_REV_E) {
+		debugf1("  revision %d for node %d does not support DHAR\n",
+			pvt->ext_model, pvt->mc_node_id);
+		return 1;
+	}
+
+	/* only valid for Fam10h */
+	if (boot_cpu_data.x86 == 0x10 &&
+	    (pvt->dhar & F10_DRAM_MEM_HOIST_VALID) == 0) {
+		debugf1("  Dram Memory Hoisting is DISABLED on this system\n");
+		return 1;
+	}
+
+	if ((pvt->dhar & DHAR_VALID) == 0) {
+		debugf1("  Dram Memory Hoisting is DISABLED on this node %d\n",
+			pvt->mc_node_id);
+		return 1;
+	}
+
+	/* This node has Memory Hoisting */
+
+	/* +------------------+--------------------+--------------------+-----
+	 * | memory           | DRAM hole          | relocated          |
+	 * | [0, (x - 1)]     | [x, 0xffffffff]    | addresses from     |
+	 * |                  |                    | DRAM hole          |
+	 * |                  |                    | [0x100000000,      |
+	 * |                  |                    |  (0x100000000+     |
+	 * |                  |                    |   (0xffffffff-x))] |
+	 * +------------------+--------------------+--------------------+-----
+	 *
+	 * Above is a diagram of physical memory showing the DRAM hole and the
+	 * relocated addresses from the DRAM hole.  As shown, the DRAM hole
+	 * starts at address x (the base address) and extends through address
+	 * 0xffffffff.  The DRAM Hole Address Register (DHAR) relocates the
+	 * addresses in the hole so that they start at 0x100000000.
+	 */
+
+	base = dhar_base(pvt->dhar);
+
+	*hole_base = base;
+	*hole_size = (0x1ull << 32) - base;
+
+	if (boot_cpu_data.x86 > 0xf)
+		*hole_offset = f10_dhar_offset(pvt->dhar);
+	else
+		*hole_offset = k8_dhar_offset(pvt->dhar);
+
+	debugf1("  DHAR info for node %d base 0x%lx offset 0x%lx size 0x%lx\n",
+		pvt->mc_node_id, (unsigned long)*hole_base,
+		(unsigned long)*hole_offset, (unsigned long)*hole_size);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(amd64_get_dram_hole_info);
+
+
