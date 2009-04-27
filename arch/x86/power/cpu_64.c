@@ -50,19 +50,35 @@ struct saved_context saved_context;
  */
 static void __save_processor_state(struct saved_context *ctxt)
 {
+#ifdef CONFIG_X86_32
+	mtrr_save_fixed_ranges(NULL);
+#endif
 	kernel_fpu_begin();
 
 	/*
 	 * descriptor tables
 	 */
+#ifdef CONFIG_X86_32
+	store_gdt(&ctxt->gdt);
+	store_idt(&ctxt->idt);
+#else
+/* CONFIG_X86_64 */
 	store_gdt((struct desc_ptr *)&ctxt->gdt_limit);
 	store_idt((struct desc_ptr *)&ctxt->idt_limit);
+#endif
 	store_tr(ctxt->tr);
 
 	/* XMM0..XMM15 should be handled by kernel_fpu_begin(). */
 	/*
 	 * segment registers
 	 */
+#ifdef CONFIG_X86_32
+	savesegment(es, ctxt->es);
+	savesegment(fs, ctxt->fs);
+	savesegment(gs, ctxt->gs);
+	savesegment(ss, ctxt->ss);
+#else
+/* CONFIG_X86_64 */
 	asm volatile ("movw %%ds, %0" : "=m" (ctxt->ds));
 	asm volatile ("movw %%es, %0" : "=m" (ctxt->es));
 	asm volatile ("movw %%fs, %0" : "=m" (ctxt->fs));
@@ -74,21 +90,32 @@ static void __save_processor_state(struct saved_context *ctxt)
 	rdmsrl(MSR_KERNEL_GS_BASE, ctxt->gs_kernel_base);
 	mtrr_save_fixed_ranges(NULL);
 
+	rdmsrl(MSR_EFER, ctxt->efer);
+#endif
+
 	/*
 	 * control registers
 	 */
-	rdmsrl(MSR_EFER, ctxt->efer);
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
 	ctxt->cr3 = read_cr3();
+#ifdef CONFIG_X86_32
+	ctxt->cr4 = read_cr4_safe();
+#else
+/* CONFIG_X86_64 */
 	ctxt->cr4 = read_cr4();
 	ctxt->cr8 = read_cr8();
+#endif
 }
 
+/* Needed by apm.c */
 void save_processor_state(void)
 {
 	__save_processor_state(&saved_context);
 }
+#ifdef CONFIG_X86_32
+EXPORT_SYMBOL(save_processor_state);
+#endif
 
 static void do_fpu_end(void)
 {
