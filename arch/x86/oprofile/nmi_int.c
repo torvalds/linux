@@ -389,9 +389,15 @@ static int __init p4_init(char **cpu_type)
 	return 0;
 }
 
+int force_arch_perfmon;
+module_param(force_arch_perfmon, int, 0);
+
 static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
+
+	if (force_arch_perfmon && cpu_has_arch_perfmon)
+		return 0;
 
 	switch (cpu_model) {
 	case 0 ... 2:
