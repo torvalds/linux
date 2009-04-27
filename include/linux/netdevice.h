@@ -670,7 +670,9 @@ struct net_device
 #define NETIF_F_GRO		16384	/* Generic receive offload */
 #define NETIF_F_LRO		32768	/* large receive offload */
 
+/* the GSO_MASK reserves bits 16 through 23 */
 #define NETIF_F_FCOE_CRC	(1 << 24) /* FCoE CRC32 */
+#define NETIF_F_SCTP_CSUM	(1 << 25) /* SCTP checksum offload */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
