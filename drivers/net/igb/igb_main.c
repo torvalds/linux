@@ -2236,28 +2236,20 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 		mrqc |= (E1000_MRQC_RSS_FIELD_IPV6_UDP_EX |
 			 E1000_MRQC_RSS_FIELD_IPV6_TCP_EX);
 
-
 		wr32(E1000_MRQC, mrqc);
-
-		/* Multiqueue and raw packet checksumming are mutually
-		 * exclusive.  Note that this not the same as TCP/IP
-		 * checksumming, which works fine. */
-		rxcsum = rd32(E1000_RXCSUM);
-		rxcsum |= E1000_RXCSUM_PCSD;
-		wr32(E1000_RXCSUM, rxcsum);
-	} else {
+	} else if (adapter->vfs_allocated_count) {
 		/* Enable multi-queue for sr-iov */
-		if (adapter->vfs_allocated_count)
-			wr32(E1000_MRQC, E1000_MRQC_ENABLE_VMDQ);
-		/* Enable Receive Checksum Offload for TCP and UDP */
-		rxcsum = rd32(E1000_RXCSUM);
-		if (adapter->rx_csum)
-			rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPPCSE;
-		else
-			rxcsum &= ~(E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPPCSE);
-
-		wr32(E1000_RXCSUM, rxcsum);
+		wr32(E1000_MRQC, E1000_MRQC_ENABLE_VMDQ);
 	}
+
+	/* Enable Receive Checksum Offload for TCP and UDP */
+	rxcsum = rd32(E1000_RXCSUM);
+	/* Disable raw packet checksumming */
+	rxcsum |= E1000_RXCSUM_PCSD;
+	/* Don't need to set TUOFL or IPOFL, they default to 1 */
+	if (!adapter->rx_csum)
+		rxcsum &= ~(E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL);
+	wr32(E1000_RXCSUM, rxcsum);
 
 	/* Set the default pool for the PF's first queue */
 	igb_configure_vt_default_pool(adapter);
