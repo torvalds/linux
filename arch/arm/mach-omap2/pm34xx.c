@@ -613,6 +613,15 @@ static void __init prcm_setup_regs(void)
 	/* Clear any pending PRCM interrupts */
 	prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
+	/* Clear any pending 'reset' flags */
+	prm_write_mod_reg(0xffffffff, MPU_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, CORE_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD, RM_RSTST);
+
 	/* Clear any pending PRCM interrupts */
 	prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
 
