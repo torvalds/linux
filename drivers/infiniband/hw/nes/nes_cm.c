@@ -56,6 +56,7 @@
 #include <net/neighbour.h>
 #include <net/route.h>
 #include <net/ip_fib.h>
+#include <net/tcp.h>
 
 #include "nes.h"
 
@@ -1514,7 +1515,7 @@ static int check_seq(struct nes_cm_node *cm_node, struct tcphdr *tcph,
 	rcv_wnd = cm_node->tcp_cntxt.rcv_wnd;
 	if (ack_seq != loc_seq_num)
 		err = 1;
-	else if ((seq + rcv_wnd) < rcv_nxt)
+	else if (!between(seq, rcv_nxt, (rcv_nxt+rcv_wnd)))
 		err = 1;
 	if (err) {
 		nes_debug(NES_DBG_CM, "%s[%u] create abort for cm_node=%p "
