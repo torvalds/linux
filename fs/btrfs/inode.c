@@ -2016,6 +2016,57 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 }
 
 /*
+ * very simple check to peek ahead in the leaf looking for xattrs.  If we
+ * don't find any xattrs, we know there can't be any acls.
+ *
+ * slot is the slot the inode is in, objectid is the objectid of the inode
+ */
+static noinline int acls_after_inode_item(struct extent_buffer *leaf,
+					  int slot, u64 objectid)
+{
+	u32 nritems = btrfs_header_nritems(leaf);
+	struct btrfs_key found_key;
+	int scanned = 0;
+
+	slot++;
+	while (slot < nritems) {
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+
+		/* we found a different objectid, there must not be acls */
+		if (found_key.objectid != objectid)
+			return 0;
+
+		/* we found an xattr, assume we've got an acl */
+		if (found_key.type == BTRFS_XATTR_ITEM_KEY)
+			return 1;
+
+		/*
+		 * we found a key greater than an xattr key, there can't
+		 * be any acls later on
+		 */
+		if (found_key.type > BTRFS_XATTR_ITEM_KEY)
+			return 0;
+
+		slot++;
+		scanned++;
+
+		/*
+		 * it goes inode, inode backrefs, xattrs, extents,
+		 * so if there are a ton of hard links to an inode there can
+		 * be a lot of backrefs.  Don't waste time searching too hard,
+		 * this is just an optimization
+		 */
+		if (scanned >= 8)
+			break;
+	}
+	/* we hit the end of the leaf before we found an xattr or
+	 * something larger than an xattr.  We have to assume the inode
+	 * has acls
+	 */
+	return 1;
+}
+
+/*
  * read an inode from the btree into the in-memory inode
  */
 void btrfs_read_locked_inode(struct inode *inode)
@@ -2026,6 +2077,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_timespec *tspec;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key location;
+	int maybe_acls;
 	u64 alloc_group_block;
 	u32 rdev;
 	int ret;
@@ -2071,6 +2123,16 @@ void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
 	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
+
+	/*
+	 * try to precache a NULL acl entry for files that don't have
+	 * any xattrs or acls
+	 */
+	maybe_acls = acls_after_inode_item(leaf, path->slots[0], inode->i_ino);
+	if (!maybe_acls) {
+		BTRFS_I(inode)->i_acl = NULL;
+		BTRFS_I(inode)->i_default_acl = NULL;
+	}
 
 	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
 						alloc_group_block, 0);
