@@ -731,12 +731,16 @@ struct ftrace_event_field {
 	int			size;
 };
 
+struct event_filter {
+	int			n_preds;
+	struct filter_pred	**preds;
+};
+
 struct event_subsystem {
 	struct list_head	list;
 	const char		*name;
 	struct dentry		*entry;
-	int			n_preds;
-	struct filter_pred	**preds;
+	void			*filter;
 };
 
 struct filter_pred;
@@ -774,7 +778,7 @@ filter_check_discard(struct ftrace_event_call *call, void *rec,
 		     struct ring_buffer *buffer,
 		     struct ring_buffer_event *event)
 {
-	if (unlikely(call->n_preds) && !filter_match_preds(call, rec)) {
+	if (unlikely(call->filter_active) && !filter_match_preds(call, rec)) {
 		ring_buffer_discard_commit(buffer, event);
 		return 1;
 	}

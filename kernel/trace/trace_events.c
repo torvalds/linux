@@ -757,8 +757,7 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 
 	list_add(&system->list, &event_subsystems);
 
-	system->preds = NULL;
-	system->n_preds = 0;
+	system->filter = NULL;
 
 	entry = debugfs_create_file("filter", 0644, system->entry, system,
 				    &ftrace_subsystem_filter_fops);

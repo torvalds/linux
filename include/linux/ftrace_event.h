@@ -101,8 +101,8 @@ struct ftrace_event_call {
 	int			(*show_format)(struct trace_seq *s);
 	int			(*define_fields)(void);
 	struct list_head	fields;
-	int			n_preds;
-	struct filter_pred	**preds;
+	int			filter_active;
+	void			*filter;
 	void			*mod;
 
 #ifdef CONFIG_EVENT_PROFILE
