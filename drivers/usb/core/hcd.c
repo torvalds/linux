@@ -128,6 +128,27 @@ static inline int is_root_hub(struct usb_device *udev)
 #define KERNEL_REL	((LINUX_VERSION_CODE >> 16) & 0x0ff)
 #define KERNEL_VER	((LINUX_VERSION_CODE >> 8) & 0x0ff)
 
+/* usb 3.0 root hub device descriptor */
+static const u8 usb3_rh_dev_descriptor[18] = {
+	0x12,       /*  __u8  bLength; */
+	0x01,       /*  __u8  bDescriptorType; Device */
+	0x00, 0x03, /*  __le16 bcdUSB; v3.0 */
+
+	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
+	0x00,	    /*  __u8  bDeviceSubClass; */
+	0x03,       /*  __u8  bDeviceProtocol; USB 3.0 hub */
+	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
+
+	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
+	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
+	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
+
+	0x03,       /*  __u8  iManufacturer; */
+	0x02,       /*  __u8  iProduct; */
+	0x01,       /*  __u8  iSerialNumber; */
+	0x01        /*  __u8  bNumConfigurations; */
+};
+
 /* usb 2.0 root hub device descriptor */
 static const u8 usb2_rh_dev_descriptor [18] = {
 	0x12,       /*  __u8  bLength; */
@@ -271,6 +292,47 @@ static const u8 hs_rh_config_descriptor [] = {
 		     * see hub.c:hub_configure() for details. */
 	(USB_MAXCHILDREN + 1 + 7) / 8, 0x00,
 	0x0c        /*  __u8  ep_bInterval; (256ms -- usb 2.0 spec) */
+};
+
+static const u8 ss_rh_config_descriptor[] = {
+	/* one configuration */
+	0x09,       /*  __u8  bLength; */
+	0x02,       /*  __u8  bDescriptorType; Configuration */
+	0x19, 0x00, /*  __le16 wTotalLength; FIXME */
+	0x01,       /*  __u8  bNumInterfaces; (1) */
+	0x01,       /*  __u8  bConfigurationValue; */
+	0x00,       /*  __u8  iConfiguration; */
+	0xc0,       /*  __u8  bmAttributes;
+				 Bit 7: must be set,
+				     6: Self-powered,
+				     5: Remote wakeup,
+				     4..0: resvd */
+	0x00,       /*  __u8  MaxPower; */
+
+	/* one interface */
+	0x09,       /*  __u8  if_bLength; */
+	0x04,       /*  __u8  if_bDescriptorType; Interface */
+	0x00,       /*  __u8  if_bInterfaceNumber; */
+	0x00,       /*  __u8  if_bAlternateSetting; */
+	0x01,       /*  __u8  if_bNumEndpoints; */
+	0x09,       /*  __u8  if_bInterfaceClass; HUB_CLASSCODE */
+	0x00,       /*  __u8  if_bInterfaceSubClass; */
+	0x00,       /*  __u8  if_bInterfaceProtocol; */
+	0x00,       /*  __u8  if_iInterface; */
+
+	/* one endpoint (status change endpoint) */
+	0x07,       /*  __u8  ep_bLength; */
+	0x05,       /*  __u8  ep_bDescriptorType; Endpoint */
+	0x81,       /*  __u8  ep_bEndpointAddress; IN Endpoint 1 */
+	0x03,       /*  __u8  ep_bmAttributes; Interrupt */
+		    /* __le16 ep_wMaxPacketSize; 1 + (MAX_ROOT_PORTS / 8)
+		     * see hub.c:hub_configure() for details. */
+	(USB_MAXCHILDREN + 1 + 7) / 8, 0x00,
+	0x0c        /*  __u8  ep_bInterval; (256ms -- usb 2.0 spec) */
+	/*
+	 * All 3.0 hubs should have an endpoint companion descriptor,
+	 * but we're ignoring that for now.  FIXME?
+	 */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -426,7 +488,9 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
 		switch (wValue & 0xff00) {
 		case USB_DT_DEVICE << 8:
-			if (hcd->driver->flags & HCD_USB2)
+			if (hcd->driver->flags & HCD_USB3)
+				bufp = usb3_rh_dev_descriptor;
+			else if (hcd->driver->flags & HCD_USB2)
 				bufp = usb2_rh_dev_descriptor;
 			else if (hcd->driver->flags & HCD_USB11)
 				bufp = usb11_rh_dev_descriptor;
@@ -437,7 +501,10 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 				patch_protocol = 1;
 			break;
 		case USB_DT_CONFIG << 8:
-			if (hcd->driver->flags & HCD_USB2) {
+			if (hcd->driver->flags & HCD_USB3) {
+				bufp = ss_rh_config_descriptor;
+				len = sizeof ss_rh_config_descriptor;
+			} else if (hcd->driver->flags & HCD_USB2) {
 				bufp = hs_rh_config_descriptor;
 				len = sizeof hs_rh_config_descriptor;
 			} else {

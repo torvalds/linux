@@ -155,6 +155,8 @@ static inline char *portspeed(int portstatus)
     		return "480 Mb/s";
 	else if (portstatus & (1 << USB_PORT_FEAT_LOWSPEED))
 		return "1.5 Mb/s";
+	else if (portstatus & (1 << USB_PORT_FEAT_SUPERSPEED))
+		return "5.0 Gb/s";
 	else
 		return "12 Mb/s";
 }
@@ -950,6 +952,9 @@ static int hub_configure(struct usb_hub *hub,
 				dev_err(hub_dev, "Using single TT (err %d)\n",
 					ret);
 			hub->tt.hub = hdev;
+			break;
+		case 3:
+			/* USB 3.0 hubs don't have a TT */
 			break;
 		default:
 			dev_dbg(hub_dev, "Unrecognized hub protocol %d\n",
