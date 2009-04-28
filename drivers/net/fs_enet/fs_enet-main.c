@@ -941,30 +941,6 @@ extern void fs_mii_disconnect(struct net_device *dev);
 
 /**************************************************************************************/
 
-/* handy pointer to the immap */
-void __iomem *fs_enet_immap = NULL;
-
-static int setup_immap(void)
-{
-#ifdef CONFIG_CPM1
-	fs_enet_immap = ioremap(IMAP_ADDR, 0x4000);
-	WARN_ON(!fs_enet_immap);
-#elif defined(CONFIG_CPM2)
-	fs_enet_immap = cpm2_immr;
-#endif
-
-	return 0;
-}
-
-static void cleanup_immap(void)
-{
-#if defined(CONFIG_CPM1)
-	iounmap(fs_enet_immap);
-#endif
-}
-
-/**************************************************************************************/
-
 #ifdef CONFIG_FS_ENET_HAS_FEC
 #define IS_FEC(match) ((match)->data == &fs_fec_ops)
 #else
@@ -1144,25 +1120,12 @@ static struct of_platform_driver fs_enet_driver = {
 
 static int __init fs_init(void)
 {
-	int r = setup_immap();
-	if (r != 0)
-		return r;
-
-	r = of_register_platform_driver(&fs_enet_driver);
-	if (r != 0)
-		goto out;
-
-	return 0;
-
-out:
-	cleanup_immap();
-	return r;
+	return of_register_platform_driver(&fs_enet_driver);
 }
 
 static void __exit fs_cleanup(void)
 {
 	of_unregister_platform_driver(&fs_enet_driver);
-	cleanup_immap();
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

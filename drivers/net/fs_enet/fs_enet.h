@@ -194,9 +194,4 @@ extern const struct fs_ops fs_scc_ops;
 
 /*******************************************************************/
 
-/* handy pointer to the immap */
-extern void __iomem *fs_enet_immap;
-
-/*******************************************************************/
-
 #endif

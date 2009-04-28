@@ -245,10 +245,6 @@ static void set_multicast_list(struct net_device *dev)
 
 static void restart(struct net_device *dev)
 {
-#ifdef CONFIG_DUET
-	immap_t *immap = fs_enet_immap;
-	u32 cptr;
-#endif
 	struct fs_enet_private *fep = netdev_priv(dev);
 	fec_t __iomem *fecp = fep->fec.fecp;
 	const struct fs_platform_info *fpi = fep->fpi;
@@ -314,36 +310,6 @@ static void restart(struct net_device *dev)
 	 */
 	FW(fecp, ievent, 0xffc0);
 	FW(fecp, ivec, (virq_to_hw(fep->interrupt) / 2) << 29);
-
-	/*
-	 * adjust to speed (only for DUET & RMII)
-	 */
-#ifdef CONFIG_DUET
-	if (fpi->use_rmii) {
-		cptr = in_be32(&immap->im_cpm.cp_cptr);
-		switch (fs_get_fec_index(fpi->fs_no)) {
-		case 0:
-			cptr |= 0x100;
-			if (fep->speed == 10)
-				cptr |= 0x0000010;
-			else if (fep->speed == 100)
-				cptr &= ~0x0000010;
-			break;
-		case 1:
-			cptr |= 0x80;
-			if (fep->speed == 10)
-				cptr |= 0x0000008;
-			else if (fep->speed == 100)
-				cptr &= ~0x0000008;
-			break;
-		default:
-			BUG();	/* should never happen */
-			break;
-		}
-		out_be32(&immap->im_cpm.cp_cptr, cptr);
-	}
-#endif
-
 
 	FW(fecp, r_cntrl, FEC_RCNTRL_MII_MODE);	/* MII enable */
 	/*
