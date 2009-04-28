@@ -803,6 +803,15 @@ static void svm_get_segment(struct kvm_vcpu *vcpu,
 		if (!var->unusable)
 			var->type |= 0x1;
 		break;
+	case VCPU_SREG_SS:
+		/* On AMD CPUs sometimes the DB bit in the segment
+		 * descriptor is left as 1, although the whole segment has
+		 * been made unusable. Clear it here to pass an Intel VMX
+		 * entry check when cross vendor migrating.
+		 */
+		if (var->unusable)
+			var->db = 0;
+		break;
 	}
 }
 
