@@ -492,7 +492,7 @@ event_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	trace_seq_init(s);
 
-	filter_print_preds(call, s);
+	print_event_filter(call, s);
 	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
 
 	kfree(s);
@@ -505,40 +505,26 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		   loff_t *ppos)
 {
 	struct ftrace_event_call *call = filp->private_data;
-	char buf[64], *pbuf = buf;
-	struct filter_pred *pred;
+	char *buf;
 	int err;
 
-	if (cnt >= sizeof(buf))
+	if (cnt >= PAGE_SIZE)
 		return -EINVAL;
 
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-	buf[cnt] = '\0';
-
-	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
-	if (!pred)
+	buf = (char *)__get_free_page(GFP_TEMPORARY);
+	if (!buf)
 		return -ENOMEM;
 
-	err = filter_parse(&pbuf, pred);
-	if (err < 0) {
-		filter_free_pred(pred);
+	if (copy_from_user(buf, ubuf, cnt)) {
+		free_page((unsigned long) buf);
+		return -EFAULT;
+	}
+	buf[cnt] = '\0';
+
+	err = apply_event_filter(call, buf);
+	free_page((unsigned long) buf);
+	if (err < 0)
 		return err;
-	}
-
-	if (pred->clear) {
-		filter_disable_preds(call);
-		filter_free_pred(pred);
-		return cnt;
-	}
-
-	err = filter_add_pred(call, pred);
-	if (err < 0) {
-		filter_free_pred(pred);
-		return err;
-	}
-
-	filter_free_pred(pred);
 
 	*ppos += cnt;
 
@@ -562,7 +548,7 @@ subsystem_filter_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	trace_seq_init(s);
 
-	filter_print_subsystem_preds(system, s);
+	print_subsystem_event_filter(system, s);
 	r = simple_read_from_buffer(ubuf, cnt, ppos, s->buffer, s->len);
 
 	kfree(s);
@@ -575,38 +561,26 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		       loff_t *ppos)
 {
 	struct event_subsystem *system = filp->private_data;
-	char buf[64], *pbuf = buf;
-	struct filter_pred *pred;
+	char *buf;
 	int err;
 
-	if (cnt >= sizeof(buf))
+	if (cnt >= PAGE_SIZE)
 		return -EINVAL;
 
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-	buf[cnt] = '\0';
-
-	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
-	if (!pred)
+	buf = (char *)__get_free_page(GFP_TEMPORARY);
+	if (!buf)
 		return -ENOMEM;
 
-	err = filter_parse(&pbuf, pred);
-	if (err < 0) {
-		filter_free_pred(pred);
-		return err;
+	if (copy_from_user(buf, ubuf, cnt)) {
+		free_page((unsigned long) buf);
+		return -EFAULT;
 	}
+	buf[cnt] = '\0';
 
-	if (pred->clear) {
-		filter_free_subsystem_preds(system);
-		filter_free_pred(pred);
-		return cnt;
-	}
-
-	err = filter_add_subsystem_pred(system, pred);
-	if (err < 0) {
-		filter_free_pred(pred);
+	err = apply_subsystem_event_filter(system, buf);
+	free_page((unsigned long) buf);
+	if (err < 0)
 		return err;
-	}
 
 	*ppos += cnt;
 
@@ -760,11 +734,21 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 
 	system->filter = NULL;
 
+	system->filter = kzalloc(sizeof(struct event_filter), GFP_KERNEL);
+	if (!system->filter) {
+		pr_warning("Could not allocate filter for subsystem "
+			   "'%s'\n", name);
+		return system->entry;
+	}
+
 	entry = debugfs_create_file("filter", 0644, system->entry, system,
 				    &ftrace_subsystem_filter_fops);
-	if (!entry)
+	if (!entry) {
+		kfree(system->filter);
+		system->filter = NULL;
 		pr_warning("Could not create debugfs "
 			   "'%s/filter' entry\n", name);
+	}
 
 	return system->entry;
 }

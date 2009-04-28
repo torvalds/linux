@@ -112,7 +112,7 @@ struct ftrace_event_call {
 #endif
 };
 
-#define MAX_FILTER_PRED		8
+#define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	128
 
 extern int init_preds(struct ftrace_event_call *call);

@@ -735,6 +735,7 @@ struct ftrace_event_field {
 struct event_filter {
 	int			n_preds;
 	struct filter_pred	**preds;
+	char			*filter_string;
 };
 
 struct event_subsystem {
@@ -746,7 +747,8 @@ struct event_subsystem {
 
 struct filter_pred;
 
-typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event);
+typedef int (*filter_pred_fn_t) (struct filter_pred *pred, void *event,
+				 int val1, int val2);
 
 struct filter_pred {
 	filter_pred_fn_t fn;
@@ -756,23 +758,18 @@ struct filter_pred {
 	char *field_name;
 	int offset;
 	int not;
-	int or;
-	int compound;
-	int clear;
+	int op;
+	int pop_n;
 };
 
-extern void filter_free_pred(struct filter_pred *pred);
-extern void filter_print_preds(struct ftrace_event_call *call,
+extern void print_event_filter(struct ftrace_event_call *call,
 			       struct trace_seq *s);
-extern int filter_parse(char **pbuf, struct filter_pred *pred);
-extern int filter_add_pred(struct ftrace_event_call *call,
-			   struct filter_pred *pred);
-extern void filter_disable_preds(struct ftrace_event_call *call);
-extern void filter_free_subsystem_preds(struct event_subsystem *system);
-extern void filter_print_subsystem_preds(struct event_subsystem *system,
+extern int apply_event_filter(struct ftrace_event_call *call,
+			      char *filter_string);
+extern int apply_subsystem_event_filter(struct event_subsystem *system,
+					char *filter_string);
+extern void print_subsystem_event_filter(struct event_subsystem *system,
 					 struct trace_seq *s);
-extern int filter_add_subsystem_pred(struct event_subsystem *system,
-				     struct filter_pred *pred);
 
 static inline int
 filter_check_discard(struct ftrace_event_call *call, void *rec,
@@ -785,6 +782,47 @@ filter_check_discard(struct ftrace_event_call *call, void *rec,
 	}
 
 	return 0;
+}
+
+#define DEFINE_COMPARISON_PRED(type)					\
+static int filter_pred_##type(struct filter_pred *pred, void *event,	\
+			      int val1, int val2)			\
+{									\
+	type *addr = (type *)(event + pred->offset);			\
+	type val = (type)pred->val;					\
+	int match = 0;							\
+									\
+	switch (pred->op) {						\
+	case OP_LT:							\
+		match = (*addr < val);					\
+		break;							\
+	case OP_LE:							\
+		match = (*addr <= val);					\
+		break;							\
+	case OP_GT:							\
+		match = (*addr > val);					\
+		break;							\
+	case OP_GE:							\
+		match = (*addr >= val);					\
+		break;							\
+	default:							\
+		break;							\
+	}								\
+									\
+	return match;							\
+}
+
+#define DEFINE_EQUALITY_PRED(size)					\
+static int filter_pred_##size(struct filter_pred *pred, void *event,	\
+			      int val1, int val2)			\
+{									\
+	u##size *addr = (u##size *)(event + pred->offset);		\
+	u##size val = (u##size)pred->val;				\
+	int match;							\
+									\
+	match = (val == *addr) ^ pred->not;				\
+									\
+	return match;							\
 }
 
 extern struct list_head ftrace_events;
