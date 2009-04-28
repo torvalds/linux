@@ -42,6 +42,7 @@
 #include <linux/in.h>
 #include <linux/tcp.h>
 #include <linux/skbuff.h>
+#include <linux/firmware.h>
 
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -1255,8 +1256,6 @@ struct netxen_adapter {
 	u32 flags;
 	u32 irq;
 	u32 temp;
-	u32 fw_major;
-	u32 fw_version;
 
 	struct netxen_adapter_stats stats;
 
@@ -1295,6 +1294,10 @@ struct netxen_adapter {
 	struct net_device_stats net_stats;
 
 	nx_nic_intr_coalesce_t coal;
+
+	u32 fw_major;
+	u32 fw_version;
+	const struct firmware *fw;
 };
 
 /*
@@ -1376,6 +1379,8 @@ void netxen_free_adapter_offload(struct netxen_adapter *adapter);
 int netxen_initialize_adapter_offload(struct netxen_adapter *adapter);
 int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 int netxen_load_firmware(struct netxen_adapter *adapter);
+void netxen_request_firmware(struct netxen_adapter *adapter);
+void netxen_release_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
 
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);

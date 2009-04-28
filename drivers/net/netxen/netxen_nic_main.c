@@ -654,19 +654,17 @@ err_out:
 }
 
 static int
-netxen_start_firmware(struct netxen_adapter *adapter)
+netxen_start_firmware(struct netxen_adapter *adapter, int request_fw)
 {
 	int val, err, first_boot;
 	struct pci_dev *pdev = adapter->pdev;
 
 	int first_driver = 0;
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
-		if (adapter->ahw.pci_func == 0)
-			first_driver = 1;
-	} else {
-		if (adapter->portnum == 0)
-			first_driver = 1;
-	}
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		first_driver = (adapter->portnum == 0);
+	else
+		first_driver = (adapter->ahw.pci_func == 0);
 
 	if (!first_driver)
 		return 0;
@@ -678,6 +676,9 @@ netxen_start_firmware(struct netxen_adapter *adapter)
 		dev_err(&pdev->dev, "error in init HW init sequence\n");
 		return err;
 	}
+
+	if (request_fw)
+		netxen_request_firmware(adapter);
 
 	if (first_boot != 0x55555555) {
 		NXWR32(adapter, CRB_CMDPEG_STATE, 0);
@@ -1014,7 +1015,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	err = netxen_start_firmware(adapter);
+	err = netxen_start_firmware(adapter, 1);
 	if (err)
 		goto err_out_iounmap;
 
@@ -1125,6 +1126,8 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	netxen_cleanup_pci_map(adapter);
 
+	netxen_release_firmware(adapter);
+
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
@@ -1176,7 +1179,7 @@ netxen_nic_resume(struct pci_dev *pdev)
 
 	adapter->curr_window = 255;
 
-	err = netxen_start_firmware(adapter);
+	err = netxen_start_firmware(adapter, 0);
 	if (err) {
 		dev_err(&pdev->dev, "failed to start firmware\n");
 		return err;
