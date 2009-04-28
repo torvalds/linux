@@ -3958,7 +3958,8 @@ int __init io_apic_get_version(int ioapic)
 }
 #endif
 
-int io_apic_set_pci_routing (int ioapic, int pin, int irq, int triggering, int polarity)
+int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
+				 int triggering, int polarity)
 {
 	struct irq_desc *desc;
 	struct irq_cfg *cfg;

@@ -123,7 +123,7 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 	}
 
 	flags = irq_flags(triggering, polarity, shareable);
-	irq = acpi_register_gsi(gsi, triggering, polarity);
+	irq = acpi_register_gsi(&dev->dev, gsi, triggering, polarity);
 	if (irq >= 0)
 		pcibios_penalize_isa_irq(irq, 1);
 	else
