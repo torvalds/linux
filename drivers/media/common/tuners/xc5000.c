@@ -36,6 +36,12 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
+static int no_poweroff;
+module_param(no_poweroff, int, 0644);
+MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
+	"\t\t1 keep device energized and with tuner ready all the times.\n"
+	"\t\tFaster, but consumes more power and keeps the device hotter");
+
 static DEFINE_MUTEX(xc5000_list_mutex);
 static LIST_HEAD(hybrid_tuner_instance_list);
 
@@ -856,6 +862,10 @@ static int xc5000_sleep(struct dvb_frontend *fe)
 	int ret;
 
 	dprintk(1, "%s()\n", __func__);
+
+	/* Avoid firmware reload on slow devices */
+	if (no_poweroff)
+		return 0;
 
 	/* According to Xceive technical support, the "powerdown" register
 	   was removed in newer versions of the firmware.  The "supported"
