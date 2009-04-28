@@ -92,21 +92,6 @@ void nilfs_dat_abort_alloc(struct inode *dat, struct nilfs_palloc_req *req)
 	nilfs_palloc_abort_alloc_entry(dat, req);
 }
 
-int nilfs_dat_prepare_free(struct inode *dat, struct nilfs_palloc_req *req)
-{
-	int ret;
-
-	ret = nilfs_palloc_prepare_free_entry(dat, req);
-	if (ret < 0)
-		return ret;
-	ret = nilfs_dat_prepare_entry(dat, req, 0);
-	if (ret < 0) {
-		nilfs_palloc_abort_free_entry(dat, req);
-		return ret;
-	}
-	return 0;
-}
-
 void nilfs_dat_commit_free(struct inode *dat, struct nilfs_palloc_req *req)
 {
 	struct nilfs_dat_entry *entry;
