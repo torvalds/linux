@@ -2435,6 +2435,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	static DEFINE_MUTEX(usb_address0_mutex);
 
 	struct usb_device	*hdev = hub->hdev;
+	struct usb_hcd		*hcd = bus_to_hcd(hdev->bus);
 	int			i, j, retval;
 	unsigned		delay = HUB_SHORT_RESET_TIME;
 	enum usb_device_speed	oldspeed = udev->speed;
@@ -2457,11 +2458,24 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 
 	mutex_lock(&usb_address0_mutex);
 
-	/* Reset the device; full speed may morph to high speed */
-	retval = hub_port_reset(hub, port1, udev, delay);
-	if (retval < 0)		/* error or disconnect */
+	if ((hcd->driver->flags & HCD_USB3) && udev->config) {
+		/* FIXME this will need special handling by the xHCI driver. */
+		dev_dbg(&udev->dev,
+				"xHCI reset of configured device "
+				"not supported yet.\n");
+		retval = -EINVAL;
 		goto fail;
-				/* success, speed is known */
+	} else if (!udev->config && oldspeed == USB_SPEED_SUPER) {
+		/* Don't reset USB 3.0 devices during an initial setup */
+		usb_set_device_state(udev, USB_STATE_DEFAULT);
+	} else {
+		/* Reset the device; full speed may morph to high speed */
+		/* FIXME a USB 2.0 device may morph into SuperSpeed on reset. */
+		retval = hub_port_reset(hub, port1, udev, delay);
+		if (retval < 0)		/* error or disconnect */
+			goto fail;
+		/* success, speed is known */
+	}
 	retval = -ENODEV;
 
 	if (oldspeed != USB_SPEED_UNKNOWN && oldspeed != udev->speed) {
@@ -2859,7 +2873,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		}
 
 		usb_set_device_state(udev, USB_STATE_POWERED);
-		udev->speed = USB_SPEED_UNKNOWN;
  		udev->bus_mA = hub->mA_per_port;
 		udev->level = hdev->level + 1;
 		udev->wusb = hub_is_wusb(hub);
@@ -2871,7 +2884,24 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			goto loop;
 		}
 
-		/* reset and get descriptor */
+		/*
+		 * USB 3.0 devices are reset automatically before the connect
+		 * port status change appears, and the root hub port status
+		 * shows the correct speed.  We also get port change
+		 * notifications for USB 3.0 devices from the USB 3.0 portion of
+		 * an external USB 3.0 hub, but this isn't handled correctly yet
+		 * FIXME.
+		 */
+
+		if (!(hcd->driver->flags & HCD_USB3))
+			udev->speed = USB_SPEED_UNKNOWN;
+		else if ((hdev->parent == NULL) &&
+				(portstatus & (1 << USB_PORT_FEAT_SUPERSPEED)))
+			udev->speed = USB_SPEED_SUPER;
+		else
+			udev->speed = USB_SPEED_UNKNOWN;
+
+		/* reset (non-USB 3.0 devices) and get descriptor */
 		status = hub_port_init(hub, udev, port1, i);
 		if (status < 0)
 			goto loop;
