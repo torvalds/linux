@@ -321,6 +321,199 @@ static void handle_port_status(struct xhci_hcd *xhci,
 }
 
 /*
+ * This TD is defined by the TRBs starting at start_trb in start_seg and ending
+ * at end_trb, which may be in another segment.  If the suspect DMA address is a
+ * TRB in this TD, this function returns that TRB's segment.  Otherwise it
+ * returns 0.
+ */
+static struct xhci_segment *trb_in_td(
+		struct xhci_segment *start_seg,
+		union xhci_trb	*start_trb,
+		union xhci_trb	*end_trb,
+		dma_addr_t	suspect_dma)
+{
+	dma_addr_t start_dma;
+	dma_addr_t end_seg_dma;
+	dma_addr_t end_trb_dma;
+	struct xhci_segment *cur_seg;
+
+	start_dma = trb_virt_to_dma(start_seg, start_trb);
+	cur_seg = start_seg;
+
+	do {
+		/*
+		 * Last TRB is a link TRB (unless we start inserting links in
+		 * the middle, FIXME if you do)
+		 */
+		end_seg_dma = trb_virt_to_dma(cur_seg, &start_seg->trbs[TRBS_PER_SEGMENT - 2]);
+		/* If the end TRB isn't in this segment, this is set to 0 */
+		end_trb_dma = trb_virt_to_dma(cur_seg, end_trb);
+
+		if (end_trb_dma > 0) {
+			/* The end TRB is in this segment, so suspect should be here */
+			if (start_dma <= end_trb_dma) {
+				if (suspect_dma >= start_dma && suspect_dma <= end_trb_dma)
+					return cur_seg;
+			} else {
+				/* Case for one segment with
+				 * a TD wrapped around to the top
+				 */
+				if ((suspect_dma >= start_dma &&
+							suspect_dma <= end_seg_dma) ||
+						(suspect_dma >= cur_seg->dma &&
+						 suspect_dma <= end_trb_dma))
+					return cur_seg;
+			}
+			return 0;
+		} else {
+			/* Might still be somewhere in this segment */
+			if (suspect_dma >= start_dma && suspect_dma <= end_seg_dma)
+				return cur_seg;
+		}
+		cur_seg = cur_seg->next;
+		start_dma = trb_virt_to_dma(cur_seg, &cur_seg->trbs[0]);
+	} while (1);
+
+}
+
+/*
+ * If this function returns an error condition, it means it got a Transfer
+ * event with a corrupted Slot ID, Endpoint ID, or TRB DMA address.
+ * At this point, the host controller is probably hosed and should be reset.
+ */
+static int handle_tx_event(struct xhci_hcd *xhci,
+		struct xhci_transfer_event *event)
+{
+	struct xhci_virt_device *xdev;
+	struct xhci_ring *ep_ring;
+	int ep_index;
+	struct xhci_td *td = 0;
+	dma_addr_t event_dma;
+	struct xhci_segment *event_seg;
+	union xhci_trb *event_trb;
+	struct urb *urb = NULL;
+	int status = -EINPROGRESS;
+
+	xdev = xhci->devs[TRB_TO_SLOT_ID(event->flags)];
+	if (!xdev) {
+		xhci_err(xhci, "ERROR Transfer event pointed to bad slot\n");
+		return -ENODEV;
+	}
+
+	/* Endpoint ID is 1 based, our index is zero based */
+	ep_index = TRB_TO_EP_ID(event->flags) - 1;
+	ep_ring = xdev->ep_rings[ep_index];
+	if (!ep_ring || (xdev->out_ctx->ep[ep_index].ep_info & EP_STATE_MASK) == EP_STATE_DISABLED) {
+		xhci_err(xhci, "ERROR Transfer event pointed to disabled endpoint\n");
+		return -ENODEV;
+	}
+
+	event_dma = event->buffer[0];
+	if (event->buffer[1] != 0)
+		xhci_warn(xhci, "WARN ignoring upper 32-bits of 64-bit TRB dma address\n");
+
+	/* This TRB should be in the TD at the head of this ring's TD list */
+	if (list_empty(&ep_ring->td_list)) {
+		xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
+				TRB_TO_SLOT_ID(event->flags), ep_index);
+		xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
+				(unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
+		xhci_print_trb_offsets(xhci, (union xhci_trb *) event);
+		urb = NULL;
+		goto cleanup;
+	}
+	td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
+
+	/* Is this a TRB in the currently executing TD? */
+	event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
+			td->last_trb, event_dma);
+	if (!event_seg) {
+		/* HC is busted, give up! */
+		xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not part of current TD\n");
+		return -ESHUTDOWN;
+	}
+	event_trb = &event_seg->trbs[(event_dma - event_seg->dma) / sizeof(*event_trb)];
+
+	/* Now update the urb's actual_length and give back to the core */
+	/* Was this a control transfer? */
+	if (usb_endpoint_xfer_control(&td->urb->ep->desc)) {
+		xhci_debug_trb(xhci, xhci->event_ring->dequeue);
+		switch (GET_COMP_CODE(event->transfer_len)) {
+		case COMP_SUCCESS:
+			if (event_trb == ep_ring->dequeue) {
+				xhci_warn(xhci, "WARN: Success on ctrl setup TRB without IOC set??\n");
+				status = -ESHUTDOWN;
+			} else if (event_trb != td->last_trb) {
+				xhci_warn(xhci, "WARN: Success on ctrl data TRB without IOC set??\n");
+				status = -ESHUTDOWN;
+			} else {
+				xhci_dbg(xhci, "Successful control transfer!\n");
+				status = 0;
+			}
+			break;
+		case COMP_SHORT_TX:
+			xhci_warn(xhci, "WARN: short transfer on control ep\n");
+			status = -EREMOTEIO;
+			break;
+		case COMP_STALL:
+			xhci_warn(xhci, "WARN: Stalled control ep\n");
+			status = -EPIPE;
+			break;
+		case COMP_TRB_ERR:
+			xhci_warn(xhci, "WARN: TRB error on control ep\n");
+			status = -EILSEQ;
+			break;
+		case COMP_TX_ERR:
+			xhci_warn(xhci, "WARN: transfer error on control ep\n");
+			status = -EPROTO;
+			break;
+		case COMP_DB_ERR:
+			xhci_warn(xhci, "WARN: HC couldn't access mem fast enough on control TX\n");
+			status = -ENOSR;
+			break;
+		default:
+			xhci_dbg(xhci, "ERROR Unknown event condition, HC probably busted\n");
+			goto cleanup;
+		}
+		/*
+		 * Did we transfer any data, despite the errors that might have
+		 * happened?  I.e. did we get past the setup stage?
+		 */
+		if (event_trb != ep_ring->dequeue) {
+			/* The event was for the status stage */
+			if (event_trb == td->last_trb) {
+				td->urb->actual_length = td->urb->transfer_buffer_length;
+			} else {
+			/* The event was for the data stage */
+				td->urb->actual_length = td->urb->transfer_buffer_length -
+					TRB_LEN(event->transfer_len);
+			}
+		}
+		while (ep_ring->dequeue != td->last_trb)
+			inc_deq(xhci, ep_ring, false);
+		inc_deq(xhci, ep_ring, false);
+
+		/* Clean up the endpoint's TD list */
+		urb = td->urb;
+		list_del(&td->td_list);
+		kfree(td);
+	} else {
+		xhci_dbg(xhci, "FIXME do something for non-control transfers\n");
+	}
+cleanup:
+	inc_deq(xhci, xhci->event_ring, true);
+	set_hc_event_deq(xhci);
+
+	if (urb) {
+		usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
+		spin_unlock(&xhci->lock);
+		usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, status);
+		spin_lock(&xhci->lock);
+	}
+	return 0;
+}
+
+/*
  * This function handles all OS-owned events on the event ring.  It may drop
  * xhci->lock between event processing (e.g. to pass up port status changes).
  */
@@ -328,6 +521,7 @@ void handle_event(struct xhci_hcd *xhci)
 {
 	union xhci_trb *event;
 	int update_ptrs = 1;
+	int ret;
 
 	if (!xhci->event_ring || !xhci->event_ring->dequeue) {
 		xhci->error_bitmask |= 1 << 1;
@@ -351,6 +545,13 @@ void handle_event(struct xhci_hcd *xhci)
 		handle_port_status(xhci, event);
 		update_ptrs = 0;
 		break;
+	case TRB_TYPE(TRB_TRANSFER):
+		ret = handle_tx_event(xhci, &event->trans_event);
+		if (ret < 0)
+			xhci->error_bitmask |= 1 << 9;
+		else
+			update_ptrs = 0;
+		break;
 	default:
 		xhci->error_bitmask |= 1 << 3;
 	}
@@ -363,6 +564,8 @@ void handle_event(struct xhci_hcd *xhci)
 	/* Are there more items on the event ring? */
 	handle_event(xhci);
 }
+
+/****		Endpoint Ring Operations	****/
 
 /*
  * Generic function for queueing a TRB on a ring.
@@ -381,6 +584,186 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	trb->field[3] = field4;
 	inc_enq(xhci, ring, consumer);
 }
+
+/*
+ * Does various checks on the endpoint ring, and makes it ready to queue num_trbs.
+ * FIXME allocate segments if the ring is full.
+ */
+static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
+		u32 ep_state, unsigned int num_trbs, gfp_t mem_flags)
+{
+	/* Make sure the endpoint has been added to xHC schedule */
+	xhci_dbg(xhci, "Endpoint state = 0x%x\n", ep_state);
+	switch (ep_state) {
+	case EP_STATE_DISABLED:
+		/*
+		 * USB core changed config/interfaces without notifying us,
+		 * or hardware is reporting the wrong state.
+		 */
+		xhci_warn(xhci, "WARN urb submitted to disabled ep\n");
+		return -ENOENT;
+	case EP_STATE_HALTED:
+	case EP_STATE_ERROR:
+		xhci_warn(xhci, "WARN waiting for halt or error on ep "
+				"to be cleared\n");
+		/* FIXME event handling code for error needs to clear it */
+		/* XXX not sure if this should be -ENOENT or not */
+		return -EINVAL;
+	case EP_STATE_STOPPED:
+	case EP_STATE_RUNNING:
+		break;
+	default:
+		xhci_err(xhci, "ERROR unknown endpoint state for ep\n");
+		/*
+		 * FIXME issue Configure Endpoint command to try to get the HC
+		 * back into a known state.
+		 */
+		return -EINVAL;
+	}
+	if (!room_on_ring(xhci, ep_ring, num_trbs)) {
+		/* FIXME allocate more room */
+		xhci_err(xhci, "ERROR no room on ep ring\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+int xhci_prepare_transfer(struct xhci_hcd *xhci,
+		struct xhci_virt_device *xdev,
+		unsigned int ep_index,
+		unsigned int num_trbs,
+		struct urb *urb,
+		struct xhci_td **td,
+		gfp_t mem_flags)
+{
+	int ret;
+
+	ret = prepare_ring(xhci, xdev->ep_rings[ep_index],
+			xdev->out_ctx->ep[ep_index].ep_info & EP_STATE_MASK,
+			num_trbs, mem_flags);
+	if (ret)
+		return ret;
+	*td = kzalloc(sizeof(struct xhci_td), mem_flags);
+	if (!*td)
+		return -ENOMEM;
+	INIT_LIST_HEAD(&(*td)->td_list);
+
+	ret = usb_hcd_link_urb_to_ep(xhci_to_hcd(xhci), urb);
+	if (unlikely(ret)) {
+		kfree(*td);
+		return ret;
+	}
+
+	(*td)->urb = urb;
+	urb->hcpriv = (void *) (*td);
+	/* Add this TD to the tail of the endpoint ring's TD list */
+	list_add_tail(&(*td)->td_list, &xdev->ep_rings[ep_index]->td_list);
+
+	return 0;
+}
+
+/* Caller must have locked xhci->lock */
+int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
+		struct urb *urb, int slot_id, unsigned int ep_index)
+{
+	struct xhci_ring *ep_ring;
+	int num_trbs;
+	int ret;
+	struct usb_ctrlrequest *setup;
+	struct xhci_generic_trb *start_trb;
+	int start_cycle;
+	u32 field;
+	struct xhci_td *td;
+
+	ep_ring = xhci->devs[slot_id]->ep_rings[ep_index];
+
+	/*
+	 * Need to copy setup packet into setup TRB, so we can't use the setup
+	 * DMA address.
+	 */
+	if (!urb->setup_packet)
+		return -EINVAL;
+
+	if (!in_interrupt())
+		xhci_dbg(xhci, "Queueing ctrl tx for slot id %d, ep %d\n",
+				slot_id, ep_index);
+	/* 1 TRB for setup, 1 for status */
+	num_trbs = 2;
+	/*
+	 * Don't need to check if we need additional event data and normal TRBs,
+	 * since data in control transfers will never get bigger than 16MB
+	 * XXX: can we get a buffer that crosses 64KB boundaries?
+	 */
+	if (urb->transfer_buffer_length > 0)
+		num_trbs++;
+	ret = xhci_prepare_transfer(xhci, xhci->devs[slot_id], ep_index, num_trbs,
+			urb, &td, mem_flags);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Don't give the first TRB to the hardware (by toggling the cycle bit)
+	 * until we've finished creating all the other TRBs.  The ring's cycle
+	 * state may change as we enqueue the other TRBs, so save it too.
+	 */
+	start_trb = &ep_ring->enqueue->generic;
+	start_cycle = ep_ring->cycle_state;
+
+	/* Queue setup TRB - see section 6.4.1.2.1 */
+	/* FIXME better way to translate setup_packet into two u32 fields? */
+	setup = (struct usb_ctrlrequest *) urb->setup_packet;
+	queue_trb(xhci, ep_ring, false,
+			/* FIXME endianness is probably going to bite my ass here. */
+			setup->bRequestType | setup->bRequest << 8 | setup->wValue << 16,
+			setup->wIndex | setup->wLength << 16,
+			TRB_LEN(8) | TRB_INTR_TARGET(0),
+			/* Immediate data in pointer */
+			TRB_IDT | TRB_TYPE(TRB_SETUP));
+
+	/* If there's data, queue data TRBs */
+	field = 0;
+	if (urb->transfer_buffer_length > 0) {
+		if (setup->bRequestType & USB_DIR_IN)
+			field |= TRB_DIR_IN;
+		queue_trb(xhci, ep_ring, false,
+				lower_32_bits(urb->transfer_dma),
+				upper_32_bits(urb->transfer_dma),
+				TRB_LEN(urb->transfer_buffer_length) | TRB_INTR_TARGET(0),
+				/* Event on short tx */
+				field | TRB_ISP | TRB_TYPE(TRB_DATA) | ep_ring->cycle_state);
+	}
+
+	/* Save the DMA address of the last TRB in the TD */
+	td->last_trb = ep_ring->enqueue;
+
+	/* Queue status TRB - see Table 7 and sections 4.11.2.2 and 6.4.1.2.3 */
+	/* If the device sent data, the status stage is an OUT transfer */
+	if (urb->transfer_buffer_length > 0 && setup->bRequestType & USB_DIR_IN)
+		field = 0;
+	else
+		field = TRB_DIR_IN;
+	queue_trb(xhci, ep_ring, false,
+			0,
+			0,
+			TRB_INTR_TARGET(0),
+			/* Event on completion */
+			field | TRB_IOC | TRB_TYPE(TRB_STATUS) | ep_ring->cycle_state);
+
+	/*
+	 * Pass all the TRBs to the hardware at once and make sure this write
+	 * isn't reordered.
+	 */
+	wmb();
+	start_trb->field[3] |= start_cycle;
+	field = xhci_readl(xhci, &xhci->dba->doorbell[slot_id]) & DB_MASK;
+	xhci_writel(xhci, field | EPI_TO_DB(ep_index), &xhci->dba->doorbell[slot_id]);
+	/* Flush PCI posted writes */
+	xhci_readl(xhci, &xhci->dba->doorbell[slot_id]);
+
+	return 0;
+}
+
+/****		Command Ring Operations		****/
 
 /* Generic function for queueing a command TRB on the command ring */
 static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2, u32 field3, u32 field4)

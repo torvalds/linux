@@ -509,6 +509,99 @@ void xhci_shutdown(struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
+/**
+ * xhci_get_endpoint_index - Used for passing endpoint bitmasks between the core and
+ * HCDs.  Find the index for an endpoint given its descriptor.  Use the return
+ * value to right shift 1 for the bitmask.
+ *
+ * Index  = (epnum * 2) + direction - 1,
+ * where direction = 0 for OUT, 1 for IN.
+ * For control endpoints, the IN index is used (OUT index is unused), so
+ * index = (epnum * 2) + direction - 1 = (epnum * 2) + 1 - 1 = (epnum * 2)
+ */
+unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc)
+{
+	unsigned int index;
+	if (usb_endpoint_xfer_control(desc))
+		index = (unsigned int) (usb_endpoint_num(desc)*2);
+	else
+		index = (unsigned int) (usb_endpoint_num(desc)*2) +
+			(usb_endpoint_dir_in(desc) ? 1 : 0) - 1;
+	return index;
+}
+
+/* Returns 1 if the arguments are OK;
+ * returns 0 this is a root hub; returns -EINVAL for NULL pointers.
+ */
+int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint *ep, int check_ep, const char *func) {
+	if (!hcd || (check_ep && !ep) || !udev) {
+		printk(KERN_DEBUG "xHCI %s called with invalid args\n",
+				func);
+		return -EINVAL;
+	}
+	if (!udev->parent) {
+		printk(KERN_DEBUG "xHCI %s called for root hub\n",
+				func);
+		return 0;
+	}
+	if (!udev->slot_id) {
+		printk(KERN_DEBUG "xHCI %s called with unaddressed device\n",
+				func);
+		return -EINVAL;
+	}
+	return 1;
+}
+
+/*
+ * non-error returns are a promise to giveback() the urb later
+ * we drop ownership so next owner (or urb unlink) can get it
+ */
+int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	unsigned long flags;
+	int ret = 0;
+	unsigned int slot_id, ep_index;
+
+	if (!urb || xhci_check_args(hcd, urb->dev, urb->ep, true, __func__) <= 0)
+		return -EINVAL;
+
+	slot_id = urb->dev->slot_id;
+	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
+	/* Only support ep 0 control transfers for now */
+	if (ep_index != 0) {
+		xhci_dbg(xhci, "WARN: urb submitted to unsupported ep %x\n",
+				urb->ep->desc.bEndpointAddress);
+		return -ENOSYS;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!xhci->devs || !xhci->devs[slot_id]) {
+		if (!in_interrupt())
+			dev_warn(&urb->dev->dev, "WARN: urb submitted for dev with no Slot ID\n");
+		return -EINVAL;
+	}
+	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+		if (!in_interrupt())
+			xhci_dbg(xhci, "urb submitted during PCI suspend\n");
+		ret = -ESHUTDOWN;
+		goto exit;
+	}
+	ret = queue_ctrl_tx(xhci, mem_flags, urb, slot_id, ep_index);
+exit:
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return ret;
+}
+
+/* Remove from hardware lists
+ * completions normally happen asynchronously
+ */
+int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
+{
+	return -ENOSYS;
+}
+
 /*
  * At this point, the struct usb_device is about to go away, the device has
  * disconnected, and all traffic has been stopped and the endpoints have been

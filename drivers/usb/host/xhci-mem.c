@@ -141,6 +141,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	if (!ring)
 		return 0;
 
+	INIT_LIST_HEAD(&ring->td_list);
 	if (num_segs == 0)
 		return ring;
 
@@ -188,6 +189,7 @@ fail:
 	return 0;
 }
 
+/* All the xhci_tds in the ring's TD list should be freed at this point */
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 {
 	struct xhci_virt_device *dev;

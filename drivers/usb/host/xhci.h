@@ -448,6 +448,9 @@ struct xhci_doorbell_array {
 #define	DB_STREAM_ID_HOST	0x0
 #define	DB_MASK			(0xff << 8)
 
+/* Endpoint Target - bits 0:7 */
+#define EPI_TO_DB(p)		(((p) + 1) & 0xff)
+
 
 /**
  * struct xhci_slot_ctx
@@ -552,13 +555,18 @@ struct xhci_ep_ctx {
  * 4 - TRB error
  * 5-7 - reserved
  */
-#define EP_STATE	(0xf)
+#define EP_STATE_MASK		(0xf)
+#define EP_STATE_DISABLED	0
+#define EP_STATE_RUNNING	1
+#define EP_STATE_HALTED		2
+#define EP_STATE_STOPPED	3
+#define EP_STATE_ERROR		4
 /* Mult - Max number of burtst within an interval, in EP companion desc. */
 #define EP_MULT(p)		((p & 0x3) << 8)
 /* bits 10:14 are Max Primary Streams */
 /* bit 15 is Linear Stream Array */
 /* Interval - period between requests to an endpoint - 125u increments. */
-#define EP_INTERVAL	(0xff << 16)
+#define EP_INTERVAL		(0xff << 16)
 
 /* ep_info2 bitmasks */
 /*
@@ -618,7 +626,6 @@ struct xhci_virt_device {
 	dma_addr_t			in_ctx_dma;
 	/* FIXME when stream support is added */
 	struct xhci_ring		*ep_rings[31];
-	dma_addr_t			ep_dma[31];
 	/* Status of the last command issued for this device */
 	u32				cmd_status;
 };
@@ -656,6 +663,9 @@ struct xhci_transfer_event {
 	/* This field is interpreted differently based on the type of TRB */
 	u32	flags;
 } __attribute__ ((packed));
+
+/** Transfer Event bit fields **/
+#define	TRB_TO_EP_ID(p)	(((p) >> 16) & 0x1f)
 
 /* Completion Code - only applicable for some types of TRBs */
 #define	COMP_CODE_MASK		(0xff << 24)
@@ -877,6 +887,12 @@ union xhci_trb {
 #define TRBS_PER_SEGMENT	64
 #define SEGMENT_SIZE		(TRBS_PER_SEGMENT*16)
 
+struct xhci_td {
+	struct list_head	td_list;
+	struct urb		*urb;
+	union xhci_trb		*last_trb;
+};
+
 struct xhci_segment {
 	union xhci_trb		*trbs;
 	/* private to HCD */
@@ -892,6 +908,7 @@ struct xhci_ring {
 	union  xhci_trb		*dequeue;
 	struct xhci_segment	*deq_seg;
 	unsigned int		deq_updates;
+	struct list_head	td_list;
 	/*
 	 * Write the cycle state into the TRB cycle field to give ownership of
 	 * the TRB to the host controller (if we are the producer), or to check
@@ -1042,6 +1059,8 @@ void xhci_print_ir_set(struct xhci_hcd *xhci, struct intr_reg *ir_set, int set_n
 void xhci_print_registers(struct xhci_hcd *xhci);
 void xhci_dbg_regs(struct xhci_hcd *xhci);
 void xhci_print_run_regs(struct xhci_hcd *xhci);
+void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb);
+void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb);
 void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg);
 void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
@@ -1055,6 +1074,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags);
 void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id);
 int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id, struct usb_device *udev, gfp_t flags);
 int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev);
+unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc);
 
 #ifdef CONFIG_PCI
 /* xHCI PCI glue */
@@ -1074,6 +1094,8 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd);
 int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags);
+int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
 
 /* xHCI ring, segment, TRB, and TD functions */
 dma_addr_t trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
@@ -1083,6 +1105,7 @@ void handle_event(struct xhci_hcd *xhci);
 void set_hc_event_deq(struct xhci_hcd *xhci);
 int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
+int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,

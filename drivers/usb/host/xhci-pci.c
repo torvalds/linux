@@ -111,6 +111,8 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	/*
 	 * managing i/o requests and associated device resources
 	 */
+	.urb_enqueue =		xhci_urb_enqueue,
+	.urb_dequeue =		xhci_urb_dequeue,
 	.alloc_dev =		xhci_alloc_dev,
 	.free_dev =		xhci_free_dev,
 	.address_device =	xhci_address_device,
