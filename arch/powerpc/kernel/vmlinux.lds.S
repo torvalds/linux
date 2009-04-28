@@ -54,8 +54,8 @@ SECTIONS
 		ALIGN_FUNCTION();
 		HEAD_TEXT
 		_text = .;
-		TEXT_TEXT
-		*(.fixup __ftr_alt_*)
+		/* careful! __ftr_alt_* sections need to be close to .text */
+		*(.text .fixup __ftr_alt_* .ref.text)
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
