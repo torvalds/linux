@@ -281,7 +281,7 @@
 #define __NR_mbind		274
 #define __NR_get_mempolicy	275
 #define __NR_set_mempolicy	276
-#define __NR_mq_open 		277
+#define __NR_mq_open		277
 #define __NR_mq_unlink		(__NR_mq_open+1)
 #define __NR_mq_timedsend	(__NR_mq_open+2)
 #define __NR_mq_timedreceive	(__NR_mq_open+3)
@@ -331,10 +331,18 @@
 #define __NR_fallocate		324
 #define __NR_timerfd_settime	325
 #define __NR_timerfd_gettime	326
+#define __NR_signalfd4		327
+#define __NR_eventfd2		328
+#define __NR_epoll_create1	329
+#define __NR_dup3		330
+#define __NR_pipe2		331
+#define __NR_inotify_init1	332
+#define __NR_preadv		333
+#define __NR_pwritev		334
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 327
+#define NR_syscalls 335
 
 #include <arch/unistd.h>
 
