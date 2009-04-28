@@ -365,9 +365,9 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
  * Synchronous release for the case when something goes wrong in CREATE_OPEN
  */
 static void fuse_sync_release(struct fuse_conn *fc, struct fuse_file *ff,
-			      u64 nodeid, int flags)
+			      int flags)
 {
-	fuse_release_fill(ff, nodeid, flags, FUSE_RELEASE);
+	fuse_release_fill(ff, flags, FUSE_RELEASE);
 	ff->reserved_req->force = 1;
 	fuse_request_send(fc, ff->reserved_req);
 	fuse_put_request(fc, ff->reserved_req);
@@ -445,12 +445,14 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 		goto out_free_ff;
 
 	fuse_put_request(fc, req);
+	ff->fh = outopen.fh;
+	ff->nodeid = outentry.nodeid;
+	ff->open_flags = outopen.open_flags;
 	inode = fuse_iget(dir->i_sb, outentry.nodeid, outentry.generation,
 			  &outentry.attr, entry_attr_timeout(&outentry), 0);
 	if (!inode) {
 		flags &= ~(O_CREAT | O_EXCL | O_TRUNC);
-		ff->fh = outopen.fh;
-		fuse_sync_release(fc, ff, outentry.nodeid, flags);
+		fuse_sync_release(fc, ff, flags);
 		fuse_send_forget(fc, forget_req, outentry.nodeid, 1);
 		return -ENOMEM;
 	}
@@ -460,11 +462,11 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	fuse_invalidate_attr(dir);
 	file = lookup_instantiate_filp(nd, entry, generic_file_open);
 	if (IS_ERR(file)) {
-		ff->fh = outopen.fh;
-		fuse_sync_release(fc, ff, outentry.nodeid, flags);
+		fuse_sync_release(fc, ff, flags);
 		return PTR_ERR(file);
 	}
-	fuse_finish_open(inode, file, ff, &outopen);
+	file->private_data = fuse_file_get(ff);
+	fuse_finish_open(inode, file);
 	return 0;
 
  out_free_ff:

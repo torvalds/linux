@@ -79,7 +79,7 @@ void fuse_file_free(struct fuse_file *ff)
 	kfree(ff);
 }
 
-static struct fuse_file *fuse_file_get(struct fuse_file *ff)
+struct fuse_file *fuse_file_get(struct fuse_file *ff)
 {
 	atomic_inc(&ff->count);
 	return ff;
@@ -102,18 +102,16 @@ static void fuse_file_put(struct fuse_file *ff)
 	}
 }
 
-void fuse_finish_open(struct inode *inode, struct file *file,
-		      struct fuse_file *ff, struct fuse_open_out *outarg)
+void fuse_finish_open(struct inode *inode, struct file *file)
 {
-	if (outarg->open_flags & FOPEN_DIRECT_IO)
+	struct fuse_file *ff = file->private_data;
+
+	if (ff->open_flags & FOPEN_DIRECT_IO)
 		file->f_op = &fuse_direct_io_file_operations;
-	if (!(outarg->open_flags & FOPEN_KEEP_CACHE))
+	if (!(ff->open_flags & FOPEN_KEEP_CACHE))
 		invalidate_inode_pages2(inode->i_mapping);
-	if (outarg->open_flags & FOPEN_NONSEEKABLE)
+	if (ff->open_flags & FOPEN_NONSEEKABLE)
 		nonseekable_open(inode, file);
-	ff->fh = outarg->fh;
-	ff->nodeid = get_node_id(inode);
-	file->private_data = fuse_file_get(ff);
 }
 
 int fuse_open_common(struct inode *inode, struct file *file, int isdir)
@@ -141,13 +139,17 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 	else {
 		if (isdir)
 			outarg.open_flags &= ~FOPEN_DIRECT_IO;
-		fuse_finish_open(inode, file, ff, &outarg);
+		ff->fh = outarg.fh;
+		ff->nodeid = get_node_id(inode);
+		ff->open_flags = outarg.open_flags;
+		file->private_data = fuse_file_get(ff);
+		fuse_finish_open(inode, file);
 	}
 
 	return err;
 }
 
-void fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags, int opcode)
+void fuse_release_fill(struct fuse_file *ff, int flags, int opcode)
 {
 	struct fuse_req *req = ff->reserved_req;
 	struct fuse_release_in *inarg = &req->misc.release.in;
@@ -155,7 +157,7 @@ void fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags, int opcode)
 	inarg->fh = ff->fh;
 	inarg->flags = flags;
 	req->in.h.opcode = opcode;
-	req->in.h.nodeid = nodeid;
+	req->in.h.nodeid = ff->nodeid;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(struct fuse_release_in);
 	req->in.args[0].value = inarg;
@@ -174,7 +176,7 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 	fc = get_fuse_conn(inode);
 	req = ff->reserved_req;
 
-	fuse_release_fill(ff, get_node_id(inode), file->f_flags,
+	fuse_release_fill(ff, file->f_flags,
 			  isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
 
 	/* Hold vfsmount and dentry until release is finished */

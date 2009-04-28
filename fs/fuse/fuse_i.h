@@ -119,6 +119,9 @@ struct fuse_file {
 	/** Refcount */
 	atomic_t count;
 
+	/** FOPEN_* flags returned by open */
+	u32 open_flags;
+
 	/** Entry on inode's write_files list */
 	struct list_head write_entry;
 
@@ -528,12 +531,12 @@ void fuse_read_fill(struct fuse_req *req, struct file *file,
 int fuse_open_common(struct inode *inode, struct file *file, int isdir);
 
 struct fuse_file *fuse_file_alloc(struct fuse_conn *fc);
+struct fuse_file *fuse_file_get(struct fuse_file *ff);
 void fuse_file_free(struct fuse_file *ff);
-void fuse_finish_open(struct inode *inode, struct file *file,
-		      struct fuse_file *ff, struct fuse_open_out *outarg);
+void fuse_finish_open(struct inode *inode, struct file *file);
 
 /** Fill in ff->reserved_req with a RELEASE request */
-void fuse_release_fill(struct fuse_file *ff, u64 nodeid, int flags, int opcode);
+void fuse_release_fill(struct fuse_file *ff, int flags, int opcode);
 
 /**
  * Send RELEASE or RELEASEDIR request
