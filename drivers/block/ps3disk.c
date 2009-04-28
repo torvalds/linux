@@ -231,7 +231,6 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	struct request *req;
 	int res, read, error;
 	u64 tag, status;
-	unsigned long num_sectors;
 	const char *op;
 
 	res = lv1_storage_get_async_status(dev->sbd.dev_id, &tag, &status);
@@ -261,11 +260,9 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	if (req->cmd_type == REQ_TYPE_LINUX_BLOCK &&
 	    req->cmd[0] == REQ_LB_OP_FLUSH) {
 		read = 0;
-		num_sectors = req->hard_cur_sectors;
 		op = "flush";
 	} else {
 		read = !rq_data_dir(req);
-		num_sectors = req->nr_sectors;
 		op = read ? "read" : "write";
 	}
 	if (status) {
@@ -281,7 +278,7 @@ static irqreturn_t ps3disk_interrupt(int irq, void *data)
 	}
 
 	spin_lock(&priv->lock);
-	__blk_end_request(req, error, num_sectors << 9);
+	__blk_end_request_all(req, error);
 	priv->req = NULL;
 	ps3disk_do_request(dev, priv->queue);
 	spin_unlock(&priv->lock);
