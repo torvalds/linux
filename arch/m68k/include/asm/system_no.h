@@ -264,7 +264,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 	: /* No output */		\
 	: "o" (*(char *)MCF_MBAR) );	\
 })
-#elif defined(CONFIG_M528x) || defined(CONFIG_M527x)
+#elif defined(CONFIG_M523x) || defined(CONFIG_M528x) || defined(CONFIG_M527x)
 /*
  * Most of the newer ColdFire family members have a proper RESET unit.
  * Use the software reset control bit in the Reset Control Register (RCR).
@@ -275,16 +275,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 	asm("move.w #0x2700, %sr");					\
 	reset = ((volatile unsigned char *)(MCF_IPSBAR + 0x110000));	\
 	while (1)							\
-		*reset |= (0x01 << 7);					\
-})
-#elif defined(CONFIG_M523x)
-#define HARD_RESET_NOW() ({		\
-	asm("				\
-	movew #0x2700, %sr;		\
-	movel #0x01000000, %sp;		\
-	moveal #0x40110000, %a0;	\
-	moveb #0x80, (%a0);		\
-	");				\
+		*reset |= 0x80;						\
 })
 #elif defined(CONFIG_M520x)
 	/*
