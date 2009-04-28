@@ -613,20 +613,16 @@ static ssize_t fuse_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	return generic_file_aio_read(iocb, iov, nr_segs, pos);
 }
 
-static void fuse_write_fill(struct fuse_req *req, struct file *file,
-			    struct fuse_file *ff, struct inode *inode,
-			    loff_t pos, size_t count, int writepage)
+static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
+			    struct inode *inode, loff_t pos, size_t count)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_write_in *inarg = &req->misc.write.in;
 	struct fuse_write_out *outarg = &req->misc.write.out;
 
-	memset(inarg, 0, sizeof(struct fuse_write_in));
 	inarg->fh = ff->fh;
 	inarg->offset = pos;
 	inarg->size = count;
-	inarg->write_flags = writepage ? FUSE_WRITE_CACHE : 0;
-	inarg->flags = file ? file->f_flags : 0;
 	req->in.h.opcode = FUSE_WRITE;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 2;
@@ -646,9 +642,11 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
 			      fl_owner_t owner)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	fuse_write_fill(req, file, file->private_data, inode, pos, count, 0);
+	struct fuse_write_in *inarg = &req->misc.write.in;
+
+	fuse_write_fill(req, file->private_data, inode, pos, count);
+	inarg->flags = file->f_flags;
 	if (owner != NULL) {
-		struct fuse_write_in *inarg = &req->misc.write.in;
 		inarg->write_flags |= FUSE_WRITE_LOCKOWNER;
 		inarg->lock_owner = fuse_lock_owner_id(fc, owner);
 	}
@@ -1183,9 +1181,10 @@ static int fuse_writepage_locked(struct page *page)
 	req->ff = fuse_file_get(ff);
 	spin_unlock(&fc->lock);
 
-	fuse_write_fill(req, NULL, ff, inode, page_offset(page), 0, 1);
+	fuse_write_fill(req, ff, inode, page_offset(page), 0);
 
 	copy_highpage(tmp_page, page);
+	req->misc.write.in.write_flags |= FUSE_WRITE_CACHE;
 	req->in.argpages = 1;
 	req->num_pages = 1;
 	req->pages[0] = tmp_page;
