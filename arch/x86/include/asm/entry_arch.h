@@ -56,4 +56,8 @@ BUILD_INTERRUPT(perf_counter_interrupt, LOCAL_PERF_VECTOR)
 BUILD_INTERRUPT(thermal_interrupt,THERMAL_APIC_VECTOR)
 #endif
 
+#ifdef CONFIG_X86_MCE_THRESHOLD
+BUILD_INTERRUPT(threshold_interrupt,THRESHOLD_APIC_VECTOR)
+#endif
+
 #endif

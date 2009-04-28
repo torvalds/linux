@@ -17,7 +17,7 @@ static void default_threshold_interrupt(void)
 
 void (*mce_threshold_vector)(void) = default_threshold_interrupt;
 
-asmlinkage void mce_threshold_interrupt(void)
+asmlinkage void smp_threshold_interrupt(void)
 {
 	exit_idle();
 	irq_enter();

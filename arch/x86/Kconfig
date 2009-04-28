@@ -808,7 +808,7 @@ config X86_NEW_MCE
 config X86_MCE_INTEL
 	def_bool y
 	prompt "Intel MCE features"
-	depends on X86_64 && X86_MCE && X86_LOCAL_APIC
+	depends on X86_NEW_MCE && X86_LOCAL_APIC
 	---help---
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
