@@ -253,6 +253,15 @@ enum {
 /* for GPIO Poll */
 #define GPIO_MASK	0x03
 
+/* extra amp-initialization sequence types */
+enum {
+	ALC_INIT_NONE,
+	ALC_INIT_DEFAULT,
+	ALC_INIT_GPIO1,
+	ALC_INIT_GPIO2,
+	ALC_INIT_GPIO3,
+};
+
 struct alc_spec {
 	/* codec parameterization */
 	struct snd_kcontrol_new *mixers[5];	/* mixer arrays */
@@ -322,6 +331,7 @@ struct alc_spec {
 
 	/* other flags */
 	unsigned int no_analog :1; /* digital I/O only */
+	int init_amp;
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
@@ -994,74 +1004,21 @@ static void alc888_coef_init(struct hda_codec *codec)
 				    AC_VERB_SET_PROC_COEF, 0x3030);
 }
 
-/* 32-bit subsystem ID for BIOS loading in HD Audio codec.
- *	31 ~ 16 :	Manufacture ID
- *	15 ~ 8	:	SKU ID
- *	7  ~ 0	:	Assembly ID
- *	port-A --> pin 39/41, port-E --> pin 14/15, port-D --> pin 35/36
- */
-static void alc_subsystem_id(struct hda_codec *codec,
-			     unsigned int porta, unsigned int porte,
-			     unsigned int portd)
+static void alc_auto_init_amp(struct hda_codec *codec, int type)
 {
-	unsigned int ass, tmp, i;
-	unsigned nid;
-	struct alc_spec *spec = codec->spec;
+	unsigned int tmp;
 
-	ass = codec->subsystem_id & 0xffff;
-	if ((ass != codec->bus->pci->subsystem_device) && (ass & 1))
-		goto do_sku;
-
-	/*
-	 * 31~30	: port conetcivity
-	 * 29~21	: reserve
-	 * 20		: PCBEEP input
-	 * 19~16	: Check sum (15:1)
-	 * 15~1		: Custom
-	 * 0		: override
-	*/
-	nid = 0x1d;
-	if (codec->vendor_id == 0x10ec0260)
-		nid = 0x17;
-	ass = snd_hda_codec_get_pincfg(codec, nid);
-	snd_printd("realtek: No valid SSID, "
-		   "checking pincfg 0x%08x for NID 0x%x\n",
-		   ass, nid);
-	if (!(ass & 1) && !(ass & 0x100000))
-		return;
-	if ((ass >> 30) != 1)	/* no physical connection */
-		return;
-
-	/* check sum */
-	tmp = 0;
-	for (i = 1; i < 16; i++) {
-		if ((ass >> i) & 1)
-			tmp++;
-	}
-	if (((ass >> 16) & 0xf) != tmp)
-		return;
-do_sku:
-	snd_printd("realtek: Enabling init ASM_ID=0x%04x CODEC_ID=%08x\n",
-		   ass & 0xffff, codec->vendor_id);
-	/*
-	 * 0 : override
-	 * 1 :	Swap Jack
-	 * 2 : 0 --> Desktop, 1 --> Laptop
-	 * 3~5 : External Amplifier control
-	 * 7~6 : Reserved
-	*/
-	tmp = (ass & 0x38) >> 3;	/* external Amp control */
-	switch (tmp) {
-	case 1:
+	switch (type) {
+	case ALC_INIT_GPIO1:
 		snd_hda_sequence_write(codec, alc_gpio1_init_verbs);
 		break;
-	case 3:
+	case ALC_INIT_GPIO2:
 		snd_hda_sequence_write(codec, alc_gpio2_init_verbs);
 		break;
-	case 7:
+	case ALC_INIT_GPIO3:
 		snd_hda_sequence_write(codec, alc_gpio3_init_verbs);
 		break;
-	case 5:	/* set EAPD output high */
+	case ALC_INIT_DEFAULT:
 		switch (codec->vendor_id) {
 		case 0x10ec0260:
 			snd_hda_codec_write(codec, 0x0f, 0,
@@ -1115,7 +1072,7 @@ do_sku:
 					    tmp | 0x2010);
 			break;
 		case 0x10ec0888:
-			/*alc888_coef_init(codec);*/ /* called in alc_init() */
+			alc888_coef_init(codec);
 			break;
 		case 0x10ec0267:
 		case 0x10ec0268:
@@ -1130,22 +1087,17 @@ do_sku:
 					    tmp | 0x3000);
 			break;
 		}
-	default:
 		break;
 	}
+}
 
-	/* is laptop or Desktop and enable the function "Mute internal speaker
-	 * when the external headphone out jack is plugged"
-	 */
-	if (!(ass & 0x8000))
+static void alc_init_auto_hp(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (!spec->autocfg.hp_pins[0])
 		return;
-	/*
-	 * 10~8 : Jack location
-	 * 12~11: Headphone out -> 00: PortA, 01: PortE, 02: PortD, 03: Resvered
-	 * 14~13: Resvered
-	 * 15   : 1 --> enable the function "Mute internal speaker
-	 *	        when the external headphone out jack is plugged"
-	 */
+
 	if (!spec->autocfg.speaker_pins[0]) {
 		if (spec->autocfg.line_out_pins[0])
 			spec->autocfg.speaker_pins[0] =
@@ -1154,6 +1106,100 @@ do_sku:
 			return;
 	}
 
+	snd_hda_codec_write_cache(codec, spec->autocfg.hp_pins[0], 0,
+				  AC_VERB_SET_UNSOLICITED_ENABLE,
+				  AC_USRSP_EN | ALC880_HP_EVENT);
+	spec->unsol_event = alc_sku_unsol_event;
+}
+
+/* check subsystem ID and set up device-specific initialization;
+ * return 1 if initialized, 0 if invalid SSID
+ */
+/* 32-bit subsystem ID for BIOS loading in HD Audio codec.
+ *	31 ~ 16 :	Manufacture ID
+ *	15 ~ 8	:	SKU ID
+ *	7  ~ 0	:	Assembly ID
+ *	port-A --> pin 39/41, port-E --> pin 14/15, port-D --> pin 35/36
+ */
+static int alc_subsystem_id(struct hda_codec *codec,
+			    hda_nid_t porta, hda_nid_t porte,
+			    hda_nid_t portd)
+{
+	unsigned int ass, tmp, i;
+	unsigned nid;
+	struct alc_spec *spec = codec->spec;
+
+	ass = codec->subsystem_id & 0xffff;
+	if ((ass != codec->bus->pci->subsystem_device) && (ass & 1))
+		goto do_sku;
+
+	/* invalid SSID, check the special NID pin defcfg instead */
+	/*
+	 * 31~30	: port conetcivity
+	 * 29~21	: reserve
+	 * 20		: PCBEEP input
+	 * 19~16	: Check sum (15:1)
+	 * 15~1		: Custom
+	 * 0		: override
+	*/
+	nid = 0x1d;
+	if (codec->vendor_id == 0x10ec0260)
+		nid = 0x17;
+	ass = snd_hda_codec_get_pincfg(codec, nid);
+	snd_printd("realtek: No valid SSID, "
+		   "checking pincfg 0x%08x for NID 0x%x\n",
+		   nid, ass);
+	if (!(ass & 1) && !(ass & 0x100000))
+		return 0;
+	if ((ass >> 30) != 1)	/* no physical connection */
+		return 0;
+
+	/* check sum */
+	tmp = 0;
+	for (i = 1; i < 16; i++) {
+		if ((ass >> i) & 1)
+			tmp++;
+	}
+	if (((ass >> 16) & 0xf) != tmp)
+		return 0;
+do_sku:
+	snd_printd("realtek: Enabling init ASM_ID=0x%04x CODEC_ID=%08x\n",
+		   ass & 0xffff, codec->vendor_id);
+	/*
+	 * 0 : override
+	 * 1 :	Swap Jack
+	 * 2 : 0 --> Desktop, 1 --> Laptop
+	 * 3~5 : External Amplifier control
+	 * 7~6 : Reserved
+	*/
+	tmp = (ass & 0x38) >> 3;	/* external Amp control */
+	switch (tmp) {
+	case 1:
+		spec->init_amp = ALC_INIT_GPIO1;
+		break;
+	case 3:
+		spec->init_amp = ALC_INIT_GPIO2;
+		break;
+	case 7:
+		spec->init_amp = ALC_INIT_GPIO3;
+		break;
+	case 5:
+		spec->init_amp = ALC_INIT_DEFAULT;
+		break;
+	}
+
+	/* is laptop or Desktop and enable the function "Mute internal speaker
+	 * when the external headphone out jack is plugged"
+	 */
+	if (!(ass & 0x8000))
+		return 1;
+	/*
+	 * 10~8 : Jack location
+	 * 12~11: Headphone out -> 00: PortA, 01: PortE, 02: PortD, 03: Resvered
+	 * 14~13: Resvered
+	 * 15   : 1 --> enable the function "Mute internal speaker
+	 *	        when the external headphone out jack is plugged"
+	 */
 	if (!spec->autocfg.hp_pins[0]) {
 		tmp = (ass >> 11) & 0x3;	/* HP to chassis */
 		if (tmp == 0)
@@ -1163,23 +1209,23 @@ do_sku:
 		else if (tmp == 2)
 			spec->autocfg.hp_pins[0] = portd;
 		else
-			return;
+			return 1;
 	}
-	if (spec->autocfg.hp_pins[0])
-		snd_hda_codec_write(codec, spec->autocfg.hp_pins[0], 0,
-			AC_VERB_SET_UNSOLICITED_ENABLE,
-			AC_USRSP_EN | ALC880_HP_EVENT);
 
-#if 0 /* it's broken in some acses -- temporarily disabled */
-	if (spec->autocfg.input_pins[AUTO_PIN_MIC] &&
-		spec->autocfg.input_pins[AUTO_PIN_FRONT_MIC])
-		snd_hda_codec_write(codec,
-			spec->autocfg.input_pins[AUTO_PIN_MIC], 0,
-			AC_VERB_SET_UNSOLICITED_ENABLE,
-			AC_USRSP_EN | ALC880_MIC_EVENT);
-#endif /* disabled */
+	alc_init_auto_hp(codec);
+	return 1;
+}
 
-	spec->unsol_event = alc_sku_unsol_event;
+static void alc_ssid_check(struct hda_codec *codec,
+			   hda_nid_t porta, hda_nid_t porte, hda_nid_t portd)
+{
+	if (!alc_subsystem_id(codec, porta, porte, portd)) {
+		struct alc_spec *spec = codec->spec;
+		snd_printd("realtek: "
+			   "Enable default setup for auto mode as fallback\n");
+		spec->init_amp = ALC_INIT_DEFAULT;
+		alc_init_auto_hp(codec);
+	}
 }
 
 /*
@@ -2923,8 +2969,7 @@ static int alc_init(struct hda_codec *codec)
 	unsigned int i;
 
 	alc_fix_pll(codec);
-	if (codec->vendor_id == 0x10ec0888)
-		alc888_coef_init(codec);
+	alc_auto_init_amp(codec, spec->init_amp);
 
 	for (i = 0; i < spec->num_init_verbs; i++)
 		snd_hda_sequence_write(codec, spec->init_verbs[i]);
@@ -4198,7 +4243,6 @@ static void alc880_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
-	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i < spec->autocfg.line_outs; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
@@ -4302,6 +4346,8 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
+
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
 
 	return 1;
 }
@@ -5678,7 +5724,6 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t nid;
 
-	alc_subsystem_id(codec, 0x10, 0x15, 0x0f);
 	nid = spec->autocfg.line_out_pins[0];
 	if (nid) {
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
@@ -5787,6 +5832,8 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
+
+	alc_ssid_check(codec, 0x10, 0x15, 0x0f);
 
 	return 1;
 }
@@ -7013,7 +7060,6 @@ static void alc882_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
-	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
@@ -9154,7 +9200,6 @@ static void alc883_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
-	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
@@ -9317,6 +9362,7 @@ static int patch_alc883(struct hda_codec *codec)
 		if (!spec->capsrc_nids)
 			spec->capsrc_nids = alc883_capsrc_nids;
 		spec->capture_style = CAPT_MIX; /* matrix-style capture */
+		spec->init_amp = ALC_INIT_DEFAULT; /* always initialize */
 		break;
 	case 0x10ec0889:
 		spec->stream_name_analog = "ALC889 Analog";
@@ -10841,6 +10887,8 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
+
+	alc_ssid_check(codec, 0x15, 0x14, 0x1b);
 
 	return 1;
 }
@@ -13925,7 +13973,6 @@ static void alc861_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
-	alc_subsystem_id(codec, 0x0e, 0x0f, 0x0b);
 	for (i = 0; i < spec->autocfg.line_outs; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
@@ -14007,6 +14054,8 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	spec->adc_nids = alc861_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc861_adc_nids);
 	set_capture_mixer(spec);
+
+	alc_ssid_check(codec, 0x0e, 0x0f, 0x0b);
 
 	return 1;
 }
@@ -14889,7 +14938,6 @@ static void alc861vd_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
-	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
@@ -15106,6 +15154,8 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
+
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
 
 	return 1;
 }
@@ -16931,7 +16981,6 @@ static void alc662_auto_init_multi_out(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int i;
 
-	alc_subsystem_id(codec, 0x15, 0x1b, 0x14);
 	for (i = 0; i <= HDA_SIDE; i++) {
 		hda_nid_t nid = spec->autocfg.line_out_pins[i];
 		int pin_type = get_pin_type(spec->autocfg.line_out_type);
@@ -17027,6 +17076,8 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
+
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
 
 	return 1;
 }
