@@ -97,9 +97,7 @@ static struct irq_desc *__real_move_irq_desc(struct irq_desc *old_desc,
 
 	/* free the old one */
 	free_one_irq_desc(old_desc, desc);
-	spin_unlock(&old_desc->lock);
 	kfree(old_desc);
-	spin_lock(&desc->lock);
 
 	return desc;
 
