@@ -68,7 +68,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
-#include <ctype.h>
 #include <time.h>
 #include <sched.h>
 #include <pthread.h>
