@@ -46,5 +46,7 @@ extern int w1_ds2760_read(struct device *dev, char *buf, int addr,
 			  size_t count);
 extern int w1_ds2760_write(struct device *dev, char *buf, int addr,
 			   size_t count);
+extern int w1_ds2760_store_eeprom(struct device *dev, int addr);
+extern int w1_ds2760_recall_eeprom(struct device *dev, int addr);
 
 #endif /* !__w1_ds2760_h__ */
