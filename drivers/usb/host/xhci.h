@@ -486,8 +486,6 @@ struct xhci_slot_ctx {
 #define LAST_CTX_MASK	(0x1f << 27)
 #define LAST_CTX(p)	((p) << 27)
 #define LAST_CTX_TO_EP_NUM(p)	(((p) >> 27) - 1)
-/* Plus one for the slot context flag */
-#define EPI_TO_FLAG(p)	(1 << ((p) + 1))
 #define SLOT_FLAG	(1 << 0)
 #define EP0_FLAG	(1 << 1)
 
@@ -566,7 +564,7 @@ struct xhci_ep_ctx {
 /* bits 10:14 are Max Primary Streams */
 /* bit 15 is Linear Stream Array */
 /* Interval - period between requests to an endpoint - 125u increments. */
-#define EP_INTERVAL		(0xff << 16)
+#define EP_INTERVAL(p)		((p & 0xff) << 16)
 
 /* ep_info2 bitmasks */
 /*
@@ -626,6 +624,11 @@ struct xhci_virt_device {
 	dma_addr_t			in_ctx_dma;
 	/* FIXME when stream support is added */
 	struct xhci_ring		*ep_rings[31];
+	/* Temporary storage in case the configure endpoint command fails and we
+	 * have to restore the device state to the previous state
+	 */
+	struct xhci_ring		*new_ep_rings[31];
+	struct completion		cmd_completion;
 	/* Status of the last command issued for this device */
 	u32				cmd_status;
 };
@@ -1075,6 +1078,10 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id);
 int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id, struct usb_device *udev, gfp_t flags);
 int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev);
 unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc);
+unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc);
+void xhci_endpoint_zero(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev, struct usb_host_endpoint *ep);
+int xhci_endpoint_init(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev, struct usb_device *udev, struct usb_host_endpoint *ep);
+void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring);
 
 #ifdef CONFIG_PCI
 /* xHCI PCI glue */
@@ -1096,6 +1103,10 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev);
 int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags);
 int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
+int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
+int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev, struct usb_host_endpoint *ep);
+int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
+void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 
 /* xHCI ring, segment, TRB, and TD functions */
 dma_addr_t trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
@@ -1106,6 +1117,7 @@ void set_hc_event_deq(struct xhci_hcd *xhci);
 int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
 int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
+int queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,

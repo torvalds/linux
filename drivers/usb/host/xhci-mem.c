@@ -103,7 +103,7 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 }
 
 /* XXX: Do we need the hcd structure in all these functions? */
-static void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
+void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
 	struct xhci_segment *seg;
 	struct xhci_segment *first_seg;
@@ -257,6 +257,8 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	if (!dev->ep_rings[0])
 		goto fail;
 
+	init_completion(&dev->cmd_completion);
+
 	/*
 	 * Point to output device context in dcbaa; skip the output control
 	 * context, which is eight 32 bit fields (or 32 bytes long)
@@ -364,6 +366,176 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	/* Steps 7 and 8 were done in xhci_alloc_virt_device() */
 
 	return 0;
+}
+
+/* Return the polling or NAK interval.
+ *
+ * The polling interval is expressed in "microframes".  If xHCI's Interval field
+ * is set to N, it will service the endpoint every 2^(Interval)*125us.
+ *
+ * The NAK interval is one NAK per 1 to 255 microframes, or no NAKs if interval
+ * is set to 0.
+ */
+static inline unsigned int xhci_get_endpoint_interval(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	unsigned int interval = 0;
+
+	switch (udev->speed) {
+	case USB_SPEED_HIGH:
+		/* Max NAK rate */
+		if (usb_endpoint_xfer_control(&ep->desc) ||
+				usb_endpoint_xfer_bulk(&ep->desc))
+			interval = ep->desc.bInterval;
+		/* Fall through - SS and HS isoc/int have same decoding */
+	case USB_SPEED_SUPER:
+		if (usb_endpoint_xfer_int(&ep->desc) ||
+				usb_endpoint_xfer_isoc(&ep->desc)) {
+			if (ep->desc.bInterval == 0)
+				interval = 0;
+			else
+				interval = ep->desc.bInterval - 1;
+			if (interval > 15)
+				interval = 15;
+			if (interval != ep->desc.bInterval + 1)
+				dev_warn(&udev->dev, "ep %#x - rounding interval to %d microframes\n",
+						ep->desc.bEndpointAddress, 1 << interval);
+		}
+		break;
+	/* Convert bInterval (in 1-255 frames) to microframes and round down to
+	 * nearest power of 2.
+	 */
+	case USB_SPEED_FULL:
+	case USB_SPEED_LOW:
+		if (usb_endpoint_xfer_int(&ep->desc) ||
+				usb_endpoint_xfer_isoc(&ep->desc)) {
+			interval = fls(8*ep->desc.bInterval) - 1;
+			if (interval > 10)
+				interval = 10;
+			if (interval < 3)
+				interval = 3;
+			if ((1 << interval) != 8*ep->desc.bInterval)
+				dev_warn(&udev->dev, "ep %#x - rounding interval to %d microframes\n",
+						ep->desc.bEndpointAddress, 1 << interval);
+		}
+		break;
+	default:
+		BUG();
+	}
+	return EP_INTERVAL(interval);
+}
+
+static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	int in;
+	u32 type;
+
+	in = usb_endpoint_dir_in(&ep->desc);
+	if (usb_endpoint_xfer_control(&ep->desc)) {
+		type = EP_TYPE(CTRL_EP);
+	} else if (usb_endpoint_xfer_bulk(&ep->desc)) {
+		if (in)
+			type = EP_TYPE(BULK_IN_EP);
+		else
+			type = EP_TYPE(BULK_OUT_EP);
+	} else if (usb_endpoint_xfer_isoc(&ep->desc)) {
+		if (in)
+			type = EP_TYPE(ISOC_IN_EP);
+		else
+			type = EP_TYPE(ISOC_OUT_EP);
+	} else if (usb_endpoint_xfer_int(&ep->desc)) {
+		if (in)
+			type = EP_TYPE(INT_IN_EP);
+		else
+			type = EP_TYPE(INT_OUT_EP);
+	} else {
+		BUG();
+	}
+	return type;
+}
+
+int xhci_endpoint_init(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	unsigned int ep_index;
+	struct xhci_ep_ctx *ep_ctx;
+	struct xhci_ring *ep_ring;
+	unsigned int max_packet;
+	unsigned int max_burst;
+
+	ep_index = xhci_get_endpoint_index(&ep->desc);
+	ep_ctx = &virt_dev->in_ctx->ep[ep_index];
+
+	/* Set up the endpoint ring */
+	virt_dev->new_ep_rings[ep_index] = xhci_ring_alloc(xhci, 1, true, GFP_KERNEL);
+	if (!virt_dev->new_ep_rings[ep_index])
+		return -ENOMEM;
+	ep_ring = virt_dev->new_ep_rings[ep_index];
+	ep_ctx->deq[1] = 0;
+	ep_ctx->deq[0] = ep_ring->first_seg->dma | ep_ring->cycle_state;
+
+	ep_ctx->ep_info = xhci_get_endpoint_interval(udev, ep);
+
+	/* FIXME dig Mult and streams info out of ep companion desc */
+
+	/* Allow 3 retries for everything but isoc */
+	if (!usb_endpoint_xfer_isoc(&ep->desc))
+		ep_ctx->ep_info2 = ERROR_COUNT(3);
+	else
+		ep_ctx->ep_info2 = ERROR_COUNT(0);
+
+	ep_ctx->ep_info2 |= xhci_get_endpoint_type(udev, ep);
+
+	/* Set the max packet size and max burst */
+	switch (udev->speed) {
+	case USB_SPEED_SUPER:
+		max_packet = ep->desc.wMaxPacketSize;
+		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
+		/* FIXME dig out burst from ep companion desc */
+		break;
+	case USB_SPEED_HIGH:
+		/* bits 11:12 specify the number of additional transaction
+		 * opportunities per microframe (USB 2.0, section 9.6.6)
+		 */
+		if (usb_endpoint_xfer_isoc(&ep->desc) ||
+				usb_endpoint_xfer_int(&ep->desc)) {
+			max_burst = (ep->desc.wMaxPacketSize & 0x1800) >> 11;
+			ep_ctx->ep_info2 |= MAX_BURST(max_burst);
+		}
+		/* Fall through */
+	case USB_SPEED_FULL:
+	case USB_SPEED_LOW:
+		max_packet = ep->desc.wMaxPacketSize & 0x3ff;
+		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
+		break;
+	default:
+		BUG();
+	}
+	/* FIXME Debug endpoint context */
+	return 0;
+}
+
+void xhci_endpoint_zero(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		struct usb_host_endpoint *ep)
+{
+	unsigned int ep_index;
+	struct xhci_ep_ctx *ep_ctx;
+
+	ep_index = xhci_get_endpoint_index(&ep->desc);
+	ep_ctx = &virt_dev->in_ctx->ep[ep_index];
+
+	ep_ctx->ep_info = 0;
+	ep_ctx->ep_info2 = 0;
+	ep_ctx->deq[1] = 0;
+	ep_ctx->deq[0] = 0;
+	ep_ctx->tx_info = 0;
+	/* Don't free the endpoint ring until the set interface or configuration
+	 * request succeeds.
+	 */
 }
 
 void xhci_mem_cleanup(struct xhci_hcd *xhci)

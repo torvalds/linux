@@ -281,6 +281,10 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		if (xhci->devs[slot_id])
 			xhci_free_virt_device(xhci, slot_id);
 		break;
+	case TRB_TYPE(TRB_CONFIG_EP):
+		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
+		complete(&xhci->devs[slot_id]->cmd_completion);
+		break;
 	case TRB_TYPE(TRB_ADDR_DEV):
 		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
 		complete(&xhci->addr_dev);
@@ -808,4 +812,11 @@ int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_
 {
 	return queue_command(xhci, in_ctx_ptr, 0, 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id));
+}
+
+/* Queue a configure endpoint command TRB */
+int queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id)
+{
+	return queue_command(xhci, in_ctx_ptr, 0, 0,
+			TRB_TYPE(TRB_CONFIG_EP) | SLOT_ID_FOR_TRB(slot_id));
 }

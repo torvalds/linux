@@ -530,6 +530,26 @@ unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc)
 	return index;
 }
 
+/* Find the flag for this endpoint (for use in the control context).  Use the
+ * endpoint index to create a bitmask.  The slot context is bit 0, endpoint 0 is
+ * bit 1, etc.
+ */
+unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc)
+{
+	return 1 << (xhci_get_endpoint_index(desc) + 1);
+}
+
+/* Compute the last valid endpoint context index.  Basically, this is the
+ * endpoint index plus one.  For slot contexts with more than valid endpoint,
+ * we find the most significant bit set in the added contexts flags.
+ * e.g. ep 1 IN (with epnum 0x81) => added_ctxs = 0b1000
+ * fls(0b1000) = 4, but the endpoint context index is 3, so subtract one.
+ */
+static inline unsigned int xhci_last_valid_endpoint(u32 added_ctxs)
+{
+	return fls(added_ctxs) - 1;
+}
+
 /* Returns 1 if the arguments are OK;
  * returns 0 this is a root hub; returns -EINVAL for NULL pointers.
  */
@@ -600,6 +620,349 @@ exit:
 int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	return -ENOSYS;
+}
+
+/* Drop an endpoint from a new bandwidth configuration for this device.
+ * Only one call to this function is allowed per endpoint before
+ * check_bandwidth() or reset_bandwidth() must be called.
+ * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
+ * add the endpoint to the schedule with possibly new parameters denoted by a
+ * different endpoint descriptor in usb_host_endpoint.
+ * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
+ * not allowed.
+ */
+int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	unsigned long flags;
+	struct xhci_hcd *xhci;
+	struct xhci_device_control *in_ctx;
+	unsigned int last_ctx;
+	unsigned int ep_index;
+	struct xhci_ep_ctx *ep_ctx;
+	u32 drop_flag;
+	u32 new_add_flags, new_drop_flags, new_slot_info;
+	int ret;
+
+	ret = xhci_check_args(hcd, udev, ep, 1, __func__);
+	xhci_dbg(xhci, "%s called for udev %#x\n", __func__, (unsigned int) udev);
+	if (ret <= 0)
+		return ret;
+	xhci = hcd_to_xhci(hcd);
+
+	drop_flag = xhci_get_endpoint_flag(&ep->desc);
+	if (drop_flag == SLOT_FLAG || drop_flag == EP0_FLAG) {
+		xhci_dbg(xhci, "xHCI %s - can't drop slot or ep 0 %#x\n",
+				__func__, drop_flag);
+		return 0;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!xhci->devs || !xhci->devs[udev->slot_id]) {
+		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
+				__func__);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -EINVAL;
+	}
+
+	in_ctx = xhci->devs[udev->slot_id]->in_ctx;
+	ep_index = xhci_get_endpoint_index(&ep->desc);
+	ep_ctx = &xhci->devs[udev->slot_id]->out_ctx->ep[ep_index];
+	/* If the HC already knows the endpoint is disabled,
+	 * or the HCD has noted it is disabled, ignore this request
+	 */
+	if ((ep_ctx->ep_info & EP_STATE_MASK) == EP_STATE_DISABLED ||
+			in_ctx->drop_flags & xhci_get_endpoint_flag(&ep->desc)) {
+		xhci_warn(xhci, "xHCI %s called with disabled ep %#x\n",
+				__func__, (unsigned int) ep);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return 0;
+	}
+
+	in_ctx->drop_flags |= drop_flag;
+	new_drop_flags = in_ctx->drop_flags;
+
+	in_ctx->add_flags = ~drop_flag;
+	new_add_flags = in_ctx->add_flags;
+
+	last_ctx = xhci_last_valid_endpoint(in_ctx->add_flags);
+	/* Update the last valid endpoint context, if we deleted the last one */
+	if ((in_ctx->slot.dev_info & LAST_CTX_MASK) > LAST_CTX(last_ctx)) {
+		in_ctx->slot.dev_info &= ~LAST_CTX_MASK;
+		in_ctx->slot.dev_info |= LAST_CTX(last_ctx);
+	}
+	new_slot_info = in_ctx->slot.dev_info;
+
+	xhci_endpoint_zero(xhci, xhci->devs[udev->slot_id], ep);
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	xhci_dbg(xhci, "drop ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x, new slot info = %#x\n",
+			(unsigned int) ep->desc.bEndpointAddress,
+			udev->slot_id,
+			(unsigned int) new_drop_flags,
+			(unsigned int) new_add_flags,
+			(unsigned int) new_slot_info);
+	return 0;
+}
+
+/* Add an endpoint to a new possible bandwidth configuration for this device.
+ * Only one call to this function is allowed per endpoint before
+ * check_bandwidth() or reset_bandwidth() must be called.
+ * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
+ * add the endpoint to the schedule with possibly new parameters denoted by a
+ * different endpoint descriptor in usb_host_endpoint.
+ * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
+ * not allowed.
+ */
+int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint *ep)
+{
+	unsigned long flags;
+	struct xhci_hcd *xhci;
+	struct xhci_device_control *in_ctx;
+	unsigned int ep_index;
+	struct xhci_ep_ctx *ep_ctx;
+	u32 added_ctxs;
+	unsigned int last_ctx;
+	u32 new_add_flags, new_drop_flags, new_slot_info;
+	int ret = 0;
+
+	ret = xhci_check_args(hcd, udev, ep, 1, __func__);
+	if (ret <= 0)
+		return ret;
+	xhci = hcd_to_xhci(hcd);
+
+	added_ctxs = xhci_get_endpoint_flag(&ep->desc);
+	last_ctx = xhci_last_valid_endpoint(added_ctxs);
+	if (added_ctxs == SLOT_FLAG || added_ctxs == EP0_FLAG) {
+		/* FIXME when we have to issue an evaluate endpoint command to
+		 * deal with ep0 max packet size changing once we get the
+		 * descriptors
+		 */
+		xhci_dbg(xhci, "xHCI %s - can't add slot or ep 0 %#x\n",
+				__func__, added_ctxs);
+		return 0;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!xhci->devs || !xhci->devs[udev->slot_id]) {
+		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
+				__func__);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -EINVAL;
+	}
+
+	in_ctx = xhci->devs[udev->slot_id]->in_ctx;
+	ep_index = xhci_get_endpoint_index(&ep->desc);
+	ep_ctx = &xhci->devs[udev->slot_id]->out_ctx->ep[ep_index];
+	/* If the HCD has already noted the endpoint is enabled,
+	 * ignore this request.
+	 */
+	if (in_ctx->add_flags & xhci_get_endpoint_flag(&ep->desc)) {
+		xhci_warn(xhci, "xHCI %s called with enabled ep %#x\n",
+				__func__, (unsigned int) ep);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return 0;
+	}
+
+	if (xhci_endpoint_init(xhci, xhci->devs[udev->slot_id], udev, ep) < 0) {
+		dev_dbg(&udev->dev, "%s - could not initialize ep %#x\n",
+				__func__, ep->desc.bEndpointAddress);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -ENOMEM;
+	}
+
+	in_ctx->add_flags |= added_ctxs;
+	new_add_flags = in_ctx->add_flags;
+
+	/* If xhci_endpoint_disable() was called for this endpoint, but the
+	 * xHC hasn't been notified yet through the check_bandwidth() call,
+	 * this re-adds a new state for the endpoint from the new endpoint
+	 * descriptors.  We must drop and re-add this endpoint, so we leave the
+	 * drop flags alone.
+	 */
+	new_drop_flags = in_ctx->drop_flags;
+
+	/* Update the last valid endpoint context, if we just added one past */
+	if ((in_ctx->slot.dev_info & LAST_CTX_MASK) < LAST_CTX(last_ctx)) {
+		in_ctx->slot.dev_info &= ~LAST_CTX_MASK;
+		in_ctx->slot.dev_info |= LAST_CTX(last_ctx);
+	}
+	new_slot_info = in_ctx->slot.dev_info;
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	xhci_dbg(xhci, "add ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x, new slot info = %#x\n",
+			(unsigned int) ep->desc.bEndpointAddress,
+			udev->slot_id,
+			(unsigned int) new_drop_flags,
+			(unsigned int) new_add_flags,
+			(unsigned int) new_slot_info);
+	return 0;
+}
+
+static void xhci_zero_in_ctx(struct xhci_virt_device *virt_dev)
+{
+	struct xhci_ep_ctx *ep_ctx;
+	int i;
+
+	/* When a device's add flag and drop flag are zero, any subsequent
+	 * configure endpoint command will leave that endpoint's state
+	 * untouched.  Make sure we don't leave any old state in the input
+	 * endpoint contexts.
+	 */
+	virt_dev->in_ctx->drop_flags = 0;
+	virt_dev->in_ctx->add_flags = 0;
+	virt_dev->in_ctx->slot.dev_info &= ~LAST_CTX_MASK;
+	/* Endpoint 0 is always valid */
+	virt_dev->in_ctx->slot.dev_info |= LAST_CTX(1);
+	for (i = 1; i < 31; ++i) {
+		ep_ctx = &virt_dev->in_ctx->ep[i];
+		ep_ctx->ep_info = 0;
+		ep_ctx->ep_info2 = 0;
+		ep_ctx->deq[0] = 0;
+		ep_ctx->deq[1] = 0;
+		ep_ctx->tx_info = 0;
+	}
+}
+
+int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	int i;
+	int ret = 0;
+	int timeleft;
+	unsigned long flags;
+	struct xhci_hcd *xhci;
+	struct xhci_virt_device	*virt_dev;
+
+	ret = xhci_check_args(hcd, udev, NULL, 0, __func__);
+	if (ret <= 0)
+		return ret;
+	xhci = hcd_to_xhci(hcd);
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!udev->slot_id || !xhci->devs || !xhci->devs[udev->slot_id]) {
+		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
+				__func__);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -EINVAL;
+	}
+	xhci_dbg(xhci, "%s called for udev %#x\n", __func__, (unsigned int) udev);
+	virt_dev = xhci->devs[udev->slot_id];
+
+	/* See section 4.6.6 - A0 = 1; A1 = D0 = D1 = 0 */
+	virt_dev->in_ctx->add_flags |= SLOT_FLAG;
+	virt_dev->in_ctx->add_flags &= ~EP0_FLAG;
+	virt_dev->in_ctx->drop_flags &= ~SLOT_FLAG;
+	virt_dev->in_ctx->drop_flags &= ~EP0_FLAG;
+	xhci_dbg(xhci, "New Input Control Context:\n");
+	xhci_dbg_ctx(xhci, virt_dev->in_ctx, virt_dev->in_ctx_dma,
+			LAST_CTX_TO_EP_NUM(virt_dev->in_ctx->slot.dev_info));
+
+	ret = queue_configure_endpoint(xhci, virt_dev->in_ctx_dma, udev->slot_id);
+	if (ret < 0) {
+		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -ENOMEM;
+	}
+	ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Wait for the configure endpoint command to complete */
+	timeleft = wait_for_completion_interruptible_timeout(
+			&virt_dev->cmd_completion,
+			USB_CTRL_SET_TIMEOUT);
+	if (timeleft <= 0) {
+		xhci_warn(xhci, "%s while waiting for configure endpoint command\n",
+				timeleft == 0 ? "Timeout" : "Signal");
+		/* FIXME cancel the configure endpoint command */
+		return -ETIME;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	switch (virt_dev->cmd_status) {
+	case COMP_ENOMEM:
+		dev_warn(&udev->dev, "Not enough host controller resources "
+				"for new device state.\n");
+		ret = -ENOMEM;
+		/* FIXME: can we allocate more resources for the HC? */
+		break;
+	case COMP_BW_ERR:
+		dev_warn(&udev->dev, "Not enough bandwidth "
+				"for new device state.\n");
+		ret = -ENOSPC;
+		/* FIXME: can we go back to the old state? */
+		break;
+	case COMP_TRB_ERR:
+		/* the HCD set up something wrong */
+		dev_warn(&udev->dev, "ERROR: Endpoint drop flag = 0, add flag = 1, "
+				"and endpoint is not disabled.\n");
+		ret = -EINVAL;
+		break;
+	case COMP_SUCCESS:
+		dev_dbg(&udev->dev, "Successful Endpoint Configure command\n");
+		break;
+	default:
+		xhci_err(xhci, "ERROR: unexpected command completion "
+				"code 0x%x.\n", virt_dev->cmd_status);
+		ret = -EINVAL;
+		break;
+	}
+	if (ret) {
+		/* Callee should call reset_bandwidth() */
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return ret;
+	}
+
+	xhci_dbg(xhci, "Output context after successful config ep cmd:\n");
+	xhci_dbg_ctx(xhci, virt_dev->out_ctx, virt_dev->out_ctx_dma,
+			LAST_CTX_TO_EP_NUM(virt_dev->in_ctx->slot.dev_info));
+
+	xhci_zero_in_ctx(virt_dev);
+	/* Free any old rings */
+	for (i = 1; i < 31; ++i) {
+		if (virt_dev->new_ep_rings[i]) {
+			xhci_ring_free(xhci, virt_dev->ep_rings[i]);
+			virt_dev->ep_rings[i] = virt_dev->new_ep_rings[i];
+			virt_dev->new_ep_rings[i] = NULL;
+		}
+	}
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	return ret;
+}
+
+void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	unsigned long flags;
+	struct xhci_hcd *xhci;
+	struct xhci_virt_device	*virt_dev;
+	int i, ret;
+
+	ret = xhci_check_args(hcd, udev, NULL, 0, __func__);
+	if (ret <= 0)
+		return;
+	xhci = hcd_to_xhci(hcd);
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!xhci->devs || !xhci->devs[udev->slot_id]) {
+		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
+				__func__);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return;
+	}
+	xhci_dbg(xhci, "%s called for udev %#x\n", __func__, (unsigned int) udev);
+	virt_dev = xhci->devs[udev->slot_id];
+	/* Free any rings allocated for added endpoints */
+	for (i = 0; i < 31; ++i) {
+		if (virt_dev->new_ep_rings[i]) {
+			xhci_ring_free(xhci, virt_dev->new_ep_rings[i]);
+			virt_dev->new_ep_rings[i] = NULL;
+		}
+	}
+	xhci_zero_in_ctx(virt_dev);
+	spin_unlock_irqrestore(&xhci->lock, flags);
 }
 
 /*
@@ -783,7 +1146,12 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	 * address given back to us by the HC.
 	 */
 	udev->devnum = (virt_dev->out_ctx->slot.dev_state & DEV_ADDR_MASK) + 1;
-	/* FIXME: Zero the input context control for later use? */
+	/* Zero the input context control for later use */
+	virt_dev->in_ctx->add_flags = 0;
+	virt_dev->in_ctx->drop_flags = 0;
+	/* Mirror flags in the output context for future ep enable/disable */
+	virt_dev->out_ctx->add_flags = SLOT_FLAG | EP0_FLAG;
+	virt_dev->out_ctx->drop_flags = 0;
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	xhci_dbg(xhci, "Device address = %d\n", udev->devnum);
