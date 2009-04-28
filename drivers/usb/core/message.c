@@ -365,6 +365,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	int i;
 	int urb_flags;
 	int dma;
+	int use_sg;
 
 	if (!io || !dev || !sg
 			|| usb_pipecontrol(pipe)
@@ -392,7 +393,19 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (io->entries <= 0)
 		return io->entries;
 
-	io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
+	/* If we're running on an xHCI host controller, queue the whole scatter
+	 * gather list with one call to urb_enqueue().  This is only for bulk,
+	 * as that endpoint type does not care how the data gets broken up
+	 * across frames.
+	 */
+	if (usb_pipebulk(pipe) &&
+			bus_to_hcd(dev->bus)->driver->flags & HCD_USB3) {
+		io->urbs = kmalloc(sizeof *io->urbs, mem_flags);
+		use_sg = true;
+	} else {
+		io->urbs = kmalloc(io->entries * sizeof *io->urbs, mem_flags);
+		use_sg = false;
+	}
 	if (!io->urbs)
 		goto nomem;
 
@@ -402,62 +415,92 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	if (usb_pipein(pipe))
 		urb_flags |= URB_SHORT_NOT_OK;
 
-	for_each_sg(sg, sg, io->entries, i) {
-		unsigned len;
-
-		io->urbs[i] = usb_alloc_urb(0, mem_flags);
-		if (!io->urbs[i]) {
-			io->entries = i;
+	if (use_sg) {
+		io->urbs[0] = usb_alloc_urb(0, mem_flags);
+		if (!io->urbs[0]) {
+			io->entries = 0;
 			goto nomem;
 		}
 
-		io->urbs[i]->dev = NULL;
-		io->urbs[i]->pipe = pipe;
-		io->urbs[i]->interval = period;
-		io->urbs[i]->transfer_flags = urb_flags;
+		io->urbs[0]->dev = NULL;
+		io->urbs[0]->pipe = pipe;
+		io->urbs[0]->interval = period;
+		io->urbs[0]->transfer_flags = urb_flags;
 
-		io->urbs[i]->complete = sg_complete;
-		io->urbs[i]->context = io;
+		io->urbs[0]->complete = sg_complete;
+		io->urbs[0]->context = io;
+		/* A length of zero means transfer the whole sg list */
+		io->urbs[0]->transfer_buffer_length = length;
+		if (length == 0) {
+			for_each_sg(sg, sg, io->entries, i) {
+				io->urbs[0]->transfer_buffer_length +=
+					sg_dma_len(sg);
+			}
+		}
+		io->urbs[0]->sg = io;
+		io->urbs[0]->num_sgs = io->entries;
+		io->entries = 1;
+	} else {
+		for_each_sg(sg, sg, io->entries, i) {
+			unsigned len;
 
-		/*
-		 * Some systems need to revert to PIO when DMA is temporarily
-		 * unavailable.  For their sakes, both transfer_buffer and
-		 * transfer_dma are set when possible.  However this can only
-		 * work on systems without:
-		 *
-		 *  - HIGHMEM, since DMA buffers located in high memory are
-		 *    not directly addressable by the CPU for PIO;
-		 *
-		 *  - IOMMU, since dma_map_sg() is allowed to use an IOMMU to
-		 *    make virtually discontiguous buffers be "dma-contiguous"
-		 *    so that PIO and DMA need diferent numbers of URBs.
-		 *
-		 * So when HIGHMEM or IOMMU are in use, transfer_buffer is NULL
-		 * to prevent stale pointers and to help spot bugs.
-		 */
-		if (dma) {
-			io->urbs[i]->transfer_dma = sg_dma_address(sg);
-			len = sg_dma_len(sg);
+			io->urbs[i] = usb_alloc_urb(0, mem_flags);
+			if (!io->urbs[i]) {
+				io->entries = i;
+				goto nomem;
+			}
+
+			io->urbs[i]->dev = NULL;
+			io->urbs[i]->pipe = pipe;
+			io->urbs[i]->interval = period;
+			io->urbs[i]->transfer_flags = urb_flags;
+
+			io->urbs[i]->complete = sg_complete;
+			io->urbs[i]->context = io;
+
+			/*
+			 * Some systems need to revert to PIO when DMA is
+			 * temporarily unavailable.  For their sakes, both
+			 * transfer_buffer and transfer_dma are set when
+			 * possible.  However this can only work on systems
+			 * without:
+			 *
+			 *  - HIGHMEM, since DMA buffers located in high memory
+			 *    are not directly addressable by the CPU for PIO;
+			 *
+			 *  - IOMMU, since dma_map_sg() is allowed to use an
+			 *    IOMMU to make virtually discontiguous buffers be
+			 *    "dma-contiguous" so that PIO and DMA need diferent
+			 *    numbers of URBs.
+			 *
+			 * So when HIGHMEM or IOMMU are in use, transfer_buffer
+			 * is NULL to prevent stale pointers and to help spot
+			 * bugs.
+			 */
+			if (dma) {
+				io->urbs[i]->transfer_dma = sg_dma_address(sg);
+				len = sg_dma_len(sg);
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_GART_IOMMU)
-			io->urbs[i]->transfer_buffer = NULL;
+				io->urbs[i]->transfer_buffer = NULL;
 #else
-			io->urbs[i]->transfer_buffer = sg_virt(sg);
+				io->urbs[i]->transfer_buffer = sg_virt(sg);
 #endif
-		} else {
-			/* hc may use _only_ transfer_buffer */
-			io->urbs[i]->transfer_buffer = sg_virt(sg);
-			len = sg->length;
-		}
+			} else {
+				/* hc may use _only_ transfer_buffer */
+				io->urbs[i]->transfer_buffer = sg_virt(sg);
+				len = sg->length;
+			}
 
-		if (length) {
-			len = min_t(unsigned, len, length);
-			length -= len;
-			if (length == 0)
-				io->entries = i + 1;
+			if (length) {
+				len = min_t(unsigned, len, length);
+				length -= len;
+				if (length == 0)
+					io->entries = i + 1;
+			}
+			io->urbs[i]->transfer_buffer_length = len;
 		}
-		io->urbs[i]->transfer_buffer_length = len;
+		io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 	}
-	io->urbs[--i]->transfer_flags &= ~URB_NO_INTERRUPT;
 
 	/* transaction state */
 	io->count = io->entries;

@@ -1239,7 +1239,8 @@ static int map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
 
 	/* Map the URB's buffers for DMA access.
 	 * Lower level HCD code should use *_dma exclusively,
-	 * unless it uses pio or talks to another transport.
+	 * unless it uses pio or talks to another transport,
+	 * or uses the provided scatter gather list for bulk.
 	 */
 	if (is_root_hub(urb->dev))
 		return 0;
