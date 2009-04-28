@@ -113,7 +113,9 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	 */
 	.get_frame_number =	xhci_get_frame,
 
-	/* Implement root hub support later. */
+	/* Root hub support */
+	.hub_control =		xhci_hub_control,
+	.hub_status_data =	xhci_hub_status_data,
 };
 
 /*-------------------------------------------------------------------------*/

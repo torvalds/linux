@@ -349,6 +349,9 @@ int xhci_run(struct usb_hcd *hcd)
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 	void (*doorbell)(struct xhci_hcd *) = NULL;
 
+	hcd->uses_new_polling = 1;
+	hcd->poll_rh = 0;
+
 	xhci_dbg(xhci, "xhci_run\n");
 #if 0	/* FIXME: MSI not setup yet */
 	/* Do this at the very last minute */

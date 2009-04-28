@@ -152,6 +152,31 @@ void xhci_print_op_regs(struct xhci_hcd *xhci)
 	xhci_print_status(xhci);
 }
 
+void xhci_print_ports(struct xhci_hcd *xhci)
+{
+	u32 __iomem *addr;
+	int i, j;
+	int ports;
+	char *names[NUM_PORT_REGS] = {
+		"status",
+		"power",
+		"link",
+		"reserved",
+	};
+
+	ports = HCS_MAX_PORTS(xhci->hcs_params1);
+	addr = &xhci->op_regs->port_status_base;
+	for (i = 0; i < ports; i++) {
+		for (j = 0; j < NUM_PORT_REGS; ++j) {
+			xhci_dbg(xhci, "0x%x port %s reg = 0x%x\n",
+					(unsigned int) addr,
+					names[j],
+					(unsigned int) xhci_readl(xhci, addr));
+			addr++;
+		}
+	}
+}
+
 void xhci_print_ir_set(struct xhci_hcd *xhci, struct intr_reg *ir_set, int set_num)
 {
 	void *addr;
@@ -228,6 +253,7 @@ void xhci_print_registers(struct xhci_hcd *xhci)
 {
 	xhci_print_cap_regs(xhci);
 	xhci_print_op_regs(xhci);
+	xhci_print_ports(xhci);
 }
 
 void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb)

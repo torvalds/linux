@@ -35,6 +35,8 @@
 
 /* Max number of USB devices for any host controller - limit in section 6.1 */
 #define MAX_HC_SLOTS		256
+/* Section 5.3.3 - MaxPorts */
+#define MAX_HC_PORTS		127
 
 /*
  * xHCI register interface.
@@ -710,6 +712,10 @@ struct xhci_event_cmd {
 } __attribute__ ((packed));
 
 
+/* Port Status Change Event TRB fields */
+/* Port ID - bits 31:24 */
+#define GET_PORT_ID(p)		(((p) & (0xff << 24)) >> 24)
+
 /* Normal TRB fields */
 /* transfer_len bitmasks - bits 0:16 */
 #define	TRB_LEN(p)		((p) & 0x1ffff)
@@ -1023,5 +1029,10 @@ void ring_cmd_db(struct xhci_hcd *xhci);
 void *setup_one_noop(struct xhci_hcd *xhci);
 void handle_event(struct xhci_hcd *xhci);
 void set_hc_event_deq(struct xhci_hcd *xhci);
+
+/* xHCI roothub code */
+int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
+		char *buf, u16 wLength);
+int xhci_hub_status_data(struct usb_hcd *hcd, char *buf);
 
 #endif /* __LINUX_XHCI_HCD_H */

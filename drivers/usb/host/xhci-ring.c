@@ -284,9 +284,38 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	inc_deq(xhci, xhci->cmd_ring, false);
 }
 
+static void handle_port_status(struct xhci_hcd *xhci,
+		union xhci_trb *event)
+{
+	u32 port_id;
+
+	/* Port status change events always have a successful completion code */
+	if (GET_COMP_CODE(event->generic.field[2]) != COMP_SUCCESS) {
+		xhci_warn(xhci, "WARN: xHC returned failed port status event\n");
+		xhci->error_bitmask |= 1 << 8;
+	}
+	/* FIXME: core doesn't care about all port link state changes yet */
+	port_id = GET_PORT_ID(event->generic.field[0]);
+	xhci_dbg(xhci, "Port Status Change Event for port %d\n", port_id);
+
+	/* Update event ring dequeue pointer before dropping the lock */
+	inc_deq(xhci, xhci->event_ring, true);
+	set_hc_event_deq(xhci);
+
+	spin_unlock(&xhci->lock);
+	/* Pass this up to the core */
+	usb_hcd_poll_rh_status(xhci_to_hcd(xhci));
+	spin_lock(&xhci->lock);
+}
+
+/*
+ * This function handles all OS-owned events on the event ring.  It may drop
+ * xhci->lock between event processing (e.g. to pass up port status changes).
+ */
 void handle_event(struct xhci_hcd *xhci)
 {
 	union xhci_trb *event;
+	int update_ptrs = 1;
 
 	if (!xhci->event_ring || !xhci->event_ring->dequeue) {
 		xhci->error_bitmask |= 1 << 1;
@@ -301,18 +330,24 @@ void handle_event(struct xhci_hcd *xhci)
 		return;
 	}
 
-	/* FIXME: Only handles command completion events. */
+	/* FIXME: Handle more event types. */
 	switch ((event->event_cmd.flags & TRB_TYPE_BITMASK)) {
 	case TRB_TYPE(TRB_COMPLETION):
 		handle_cmd_completion(xhci, &event->event_cmd);
+		break;
+	case TRB_TYPE(TRB_PORT_STATUS):
+		handle_port_status(xhci, event);
+		update_ptrs = 0;
 		break;
 	default:
 		xhci->error_bitmask |= 1 << 3;
 	}
 
-	/* Update SW and HC event ring dequeue pointer */
-	inc_deq(xhci, xhci->event_ring, true);
-	set_hc_event_deq(xhci);
+	if (update_ptrs) {
+		/* Update SW and HC event ring dequeue pointer */
+		inc_deq(xhci, xhci->event_ring, true);
+		set_hc_event_deq(xhci);
+	}
 	/* Are there more items on the event ring? */
 	handle_event(xhci);
 }
