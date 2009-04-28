@@ -52,14 +52,15 @@ void qmgr_set_irq(unsigned int queue, int src,
 static irqreturn_t qmgr_irq1_a0(int irq, void *pdev)
 {
 	int i, ret = 0;
+	u32 en_bitmap, src, stat;
 
 	/* ACK - it may clear any bits so don't rely on it */
 	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[0]);
 
-	for (i = 0; i < HALF_QUEUES; i++) {
-		u32 src, stat;
-		if (!(qmgr_regs->irqen[0] & BIT(i)))
-			continue;
+	en_bitmap = qmgr_regs->irqen[0];
+	while (en_bitmap) {
+		i = __fls(en_bitmap); /* number of the last "low" queue */
+		en_bitmap &= ~BIT(i);
 		src = qmgr_regs->irqsrc[i >> 3];
 		stat = qmgr_regs->stat1[i >> 3];
 		if (src & 4) /* the IRQ condition is inverted */
@@ -82,9 +83,9 @@ static irqreturn_t qmgr_irq2_a0(int irq, void *pdev)
 	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[1]);
 
 	req_bitmap = qmgr_regs->irqen[1] & qmgr_regs->statne_h;
-	for (i = 0; i < HALF_QUEUES; i++) {
-		if (!(req_bitmap & BIT(i)))
-			continue;
+	while (req_bitmap) {
+		i = __fls(req_bitmap); /* number of the last "high" queue */
+		req_bitmap &= ~BIT(i);
 		irq_handlers[HALF_QUEUES + i](irq_pdevs[HALF_QUEUES + i]);
 		ret = IRQ_HANDLED;
 	}
@@ -95,15 +96,19 @@ static irqreturn_t qmgr_irq2_a0(int irq, void *pdev)
 static irqreturn_t qmgr_irq(int irq, void *pdev)
 {
 	int i, half = (irq == IRQ_IXP4XX_QM1 ? 0 : 1);
-	u32 val = __raw_readl(&qmgr_regs->irqstat[half]);
-	__raw_writel(val, &qmgr_regs->irqstat[half]); /* ACK */
+	u32 req_bitmap = __raw_readl(&qmgr_regs->irqstat[half]);
 
-	for (i = 0; i < HALF_QUEUES; i++)
-		if (val & (1 << i)) {
-			int irq = half * HALF_QUEUES + i;
-			irq_handlers[irq](irq_pdevs[irq]);
-		}
-	return val ? IRQ_HANDLED : 0;
+	if (!req_bitmap)
+		return 0;
+	__raw_writel(req_bitmap, &qmgr_regs->irqstat[half]); /* ACK */
+
+	while (req_bitmap) {
+		i = __fls(req_bitmap); /* number of the last queue */
+		req_bitmap &= ~BIT(i);
+		i += half * HALF_QUEUES;
+		irq_handlers[i](irq_pdevs[i]);
+	}
+	return IRQ_HANDLED;
 }
 
 
