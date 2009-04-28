@@ -375,18 +375,24 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	 */
 	if (unlikely(!parent)) {
 		dev->devpath[0] = '0';
+		dev->route = 0;
 
 		dev->dev.parent = bus->controller;
 		dev_set_name(&dev->dev, "usb%d", bus->busnum);
 		root_hub = 1;
 	} else {
 		/* match any labeling on the hubs; it's one-based */
-		if (parent->devpath[0] == '0')
+		if (parent->devpath[0] == '0') {
 			snprintf(dev->devpath, sizeof dev->devpath,
 				"%d", port1);
-		else
+			/* Root ports are not counted in route string */
+			dev->route = 0;
+		} else {
 			snprintf(dev->devpath, sizeof dev->devpath,
 				"%s.%d", parent->devpath, port1);
+			dev->route = parent->route +
+				(port1 << ((parent->level - 1)*4));
+		}
 
 		dev->dev.parent = &parent->dev;
 		dev_set_name(&dev->dev, "%d-%s", bus->busnum, dev->devpath);

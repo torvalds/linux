@@ -362,6 +362,7 @@ struct usb_tt;
  * struct usb_device - kernel's representation of a USB device
  * @devnum: device number; address on a USB bus
  * @devpath: device ID string for use in messages (e.g., /port/...)
+ * @route: tree topology hex string for use with xHCI
  * @state: device state: configured, not attached, etc.
  * @speed: device speed: high/full/low (or error)
  * @tt: Transaction Translator info; used with low/full speed dev, highspeed hub
@@ -427,6 +428,7 @@ struct usb_tt;
 struct usb_device {
 	int		devnum;
 	char		devpath [16];
+	u32		route;
 	enum usb_device_state	state;
 	enum usb_device_speed	speed;
 
