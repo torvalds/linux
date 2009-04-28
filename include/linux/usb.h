@@ -420,6 +420,7 @@ struct usb_tt;
  * @skip_sys_resume: skip the next system resume
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
+ * @slot_id: Slot ID assigned by xHCI
  *
  * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use
@@ -504,6 +505,7 @@ struct usb_device {
 	unsigned skip_sys_resume:1;
 #endif
 	struct wusb_dev *wusb_dev;
+	int slot_id;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 

@@ -226,6 +226,14 @@ struct hc_driver {
 	void	(*relinquish_port)(struct usb_hcd *, int);
 		/* has a port been handed over to a companion? */
 	int	(*port_handed_over)(struct usb_hcd *, int);
+
+	/* xHCI specific functions */
+		/* Called by usb_alloc_dev to alloc HC device structures */
+	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);
+		/* Called by usb_release_dev to free HC device structures */
+	void	(*free_dev)(struct usb_hcd *, struct usb_device *);
+		/* Returns the hardware-chosen device address */
+	int	(*address_device)(struct usb_hcd *, struct usb_device *udev);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

@@ -1328,6 +1328,11 @@ EXPORT_SYMBOL_GPL(usb_set_device_state);
  * 0 is reserved by USB for default address; (b) Linux's USB stack
  * uses always #1 for the root hub of the controller. So USB stack's
  * port #1, which is wusb virtual-port #0 has address #2.
+ *
+ * Devices connected under xHCI are not as simple.  The host controller
+ * supports virtualization, so the hardware assigns device addresses and
+ * the HCD must setup data structures before issuing a set address
+ * command to the hardware.
  */
 static void choose_address(struct usb_device *udev)
 {
@@ -1647,6 +1652,9 @@ int usb_new_device(struct usb_device *udev)
 	err = usb_configure_device(udev);	/* detect & probe dev/intfs */
 	if (err < 0)
 		goto fail;
+	dev_dbg(&udev->dev, "udev %d, busnum %d, minor = %d\n",
+			udev->devnum, udev->bus->busnum,
+			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
 	/* export the usbdev device-node for libusb */
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
@@ -2400,19 +2408,29 @@ EXPORT_SYMBOL_GPL(usb_ep0_reinit);
 static int hub_set_address(struct usb_device *udev, int devnum)
 {
 	int retval;
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
 
-	if (devnum <= 1)
+	/*
+	 * The host controller will choose the device address,
+	 * instead of the core having chosen it earlier
+	 */
+	if (!hcd->driver->address_device && devnum <= 1)
 		return -EINVAL;
 	if (udev->state == USB_STATE_ADDRESS)
 		return 0;
 	if (udev->state != USB_STATE_DEFAULT)
 		return -EINVAL;
-	retval = usb_control_msg(udev, usb_sndaddr0pipe(),
-		USB_REQ_SET_ADDRESS, 0, devnum, 0,
-		NULL, 0, USB_CTRL_SET_TIMEOUT);
+	if (hcd->driver->address_device) {
+		retval = hcd->driver->address_device(hcd, udev);
+	} else {
+		retval = usb_control_msg(udev, usb_sndaddr0pipe(),
+				USB_REQ_SET_ADDRESS, 0, devnum, 0,
+				NULL, 0, USB_CTRL_SET_TIMEOUT);
+		if (retval == 0)
+			update_address(udev, devnum);
+	}
 	if (retval == 0) {
 		/* Device now using proper address. */
-		update_address(udev, devnum);
 		usb_set_device_state(udev, USB_STATE_ADDRESS);
 		usb_ep0_reinit(udev);
 	}
@@ -2525,10 +2543,11 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 				break;
 	default: 		speed = "?";	break;
 	}
-	dev_info (&udev->dev,
-		  "%s %s speed %sUSB device using %s and address %d\n",
-		  (udev->config) ? "reset" : "new", speed, type,
-		  udev->bus->controller->driver->name, devnum);
+	if (udev->speed != USB_SPEED_SUPER)
+		dev_info(&udev->dev,
+				"%s %s speed %sUSB device using %s and address %d\n",
+				(udev->config) ? "reset" : "new", speed, type,
+				udev->bus->controller->driver->name, devnum);
 
 	/* Set up TT records, if needed  */
 	if (hdev->tt) {
@@ -2553,7 +2572,11 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	 * value.
 	 */
 	for (i = 0; i < GET_DESCRIPTOR_TRIES; (++i, msleep(100))) {
-		if (USE_NEW_SCHEME(retry_counter)) {
+		/*
+		 * An xHCI controller cannot send any packets to a device until
+		 * a set address command successfully completes.
+		 */
+		if (USE_NEW_SCHEME(retry_counter) && !(hcd->driver->flags & HCD_USB3)) {
 			struct usb_device_descriptor *buf;
 			int r = 0;
 
@@ -2619,7 +2642,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
  		 * unauthorized address in the Connect Ack sequence;
  		 * authorization will assign the final address.
  		 */
- 		if (udev->wusb == 0) {
+		if (udev->wusb == 0) {
 			for (j = 0; j < SET_ADDRESS_TRIES; ++j) {
 				retval = hub_set_address(udev, devnum);
 				if (retval >= 0)
@@ -2632,13 +2655,20 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 					devnum, retval);
 				goto fail;
 			}
+			if (udev->speed == USB_SPEED_SUPER) {
+				devnum = udev->devnum;
+				dev_info(&udev->dev,
+						"%s SuperSpeed USB device using %s and address %d\n",
+						(udev->config) ? "reset" : "new",
+						udev->bus->controller->driver->name, devnum);
+			}
 
 			/* cope with hardware quirkiness:
 			 *  - let SET_ADDRESS settle, some device hardware wants it
 			 *  - read ep0 maxpacket even for high and low speed,
 			 */
 			msleep(10);
-			if (USE_NEW_SCHEME(retry_counter))
+			if (USE_NEW_SCHEME(retry_counter) && !(hcd->driver->flags & HCD_USB3))
 				break;
   		}
 
@@ -2877,13 +2907,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		udev->level = hdev->level + 1;
 		udev->wusb = hub_is_wusb(hub);
 
-		/* set the address */
-		choose_address(udev);
-		if (udev->devnum <= 0) {
-			status = -ENOTCONN;	/* Don't retry */
-			goto loop;
-		}
-
 		/*
 		 * USB 3.0 devices are reset automatically before the connect
 		 * port status change appears, and the root hub port status
@@ -2900,6 +2923,19 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 			udev->speed = USB_SPEED_SUPER;
 		else
 			udev->speed = USB_SPEED_UNKNOWN;
+
+		/*
+		 * xHCI needs to issue an address device command later
+		 * in the hub_port_init sequence for SS/HS/FS/LS devices.
+		 */
+		if (!(hcd->driver->flags & HCD_USB3)) {
+			/* set the address */
+			choose_address(udev);
+			if (udev->devnum <= 0) {
+				status = -ENOTCONN;	/* Don't retry */
+				goto loop;
+			}
+		}
 
 		/* reset (non-USB 3.0 devices) and get descriptor */
 		status = hub_port_init(hub, udev, port1, i);

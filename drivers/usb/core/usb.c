@@ -184,11 +184,16 @@ EXPORT_SYMBOL_GPL(usb_find_interface);
 static void usb_release_dev(struct device *dev)
 {
 	struct usb_device *udev;
+	struct usb_hcd *hcd;
 
 	udev = to_usb_device(dev);
+	hcd = bus_to_hcd(udev->bus);
 
 	usb_destroy_configuration(udev);
-	usb_put_hcd(bus_to_hcd(udev->bus));
+	/* Root hubs aren't real devices, so don't free HCD resources */
+	if (hcd->driver->free_dev && udev->parent)
+		hcd->driver->free_dev(hcd, udev);
+	usb_put_hcd(hcd);
 	kfree(udev->product);
 	kfree(udev->manufacturer);
 	kfree(udev->serial);
@@ -345,6 +350,13 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 		return NULL;
 
 	if (!usb_get_hcd(bus_to_hcd(bus))) {
+		kfree(dev);
+		return NULL;
+	}
+	/* Root hubs aren't true devices, so don't allocate HCD resources */
+	if (usb_hcd->driver->alloc_dev && parent &&
+		!usb_hcd->driver->alloc_dev(usb_hcd, dev)) {
+		usb_put_hcd(bus_to_hcd(bus));
 		kfree(dev);
 		return NULL;
 	}
