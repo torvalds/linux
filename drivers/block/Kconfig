@@ -412,7 +412,7 @@ config ATA_OVER_ETH
 
 config MG_DISK
 	tristate "mGine mflash, gflash support"
-	depends on ARM && ATA && GPIOLIB
+	depends on ARM && GPIOLIB
 	help
 	  mGine mFlash(gFlash) block device driver
 

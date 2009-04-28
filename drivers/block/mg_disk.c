@@ -17,7 +17,7 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
-#include <linux/libata.h>
+#include <linux/ata.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
@@ -357,6 +357,42 @@ static irqreturn_t mg_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/* local copy of ata_id_string() */
+static void mg_id_string(const u16 *id, unsigned char *s,
+			 unsigned int ofs, unsigned int len)
+{
+	unsigned int c;
+
+	BUG_ON(len & 1);
+
+	while (len > 0) {
+		c = id[ofs] >> 8;
+		*s = c;
+		s++;
+
+		c = id[ofs] & 0xff;
+		*s = c;
+		s++;
+
+		ofs++;
+		len -= 2;
+	}
+}
+
+/* local copy of ata_id_c_string() */
+static void mg_id_c_string(const u16 *id, unsigned char *s,
+			   unsigned int ofs, unsigned int len)
+{
+	unsigned char *p;
+
+	mg_id_string(id, s, ofs, len - 1);
+
+	p = s + strnlen(s, len - 1);
+	while (p > s && p[-1] == ' ')
+		p--;
+	*p = '\0';
+}
+
 static int mg_get_disk_id(struct mg_host *host)
 {
 	u32 i;
@@ -403,9 +439,9 @@ static int mg_get_disk_id(struct mg_host *host)
 		host->n_sectors -= host->nres_sectors;
 	}
 
-	ata_id_c_string(id, fwrev, ATA_ID_FW_REV, sizeof(fwrev));
-	ata_id_c_string(id, model, ATA_ID_PROD, sizeof(model));
-	ata_id_c_string(id, serial, ATA_ID_SERNO, sizeof(serial));
+	mg_id_c_string(id, fwrev, ATA_ID_FW_REV, sizeof(fwrev));
+	mg_id_c_string(id, model, ATA_ID_PROD, sizeof(model));
+	mg_id_c_string(id, serial, ATA_ID_SERNO, sizeof(serial));
 	printk(KERN_INFO "mg_disk: model: %s\n", model);
 	printk(KERN_INFO "mg_disk: firm: %.8s\n", fwrev);
 	printk(KERN_INFO "mg_disk: serial: %s\n", serial);
