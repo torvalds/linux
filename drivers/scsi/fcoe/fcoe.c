@@ -1350,13 +1350,13 @@ out:
 /**
  * fcoe_dev_setup() - setup link change notification interface
  */
-static void fcoe_dev_setup()
+static void fcoe_dev_setup(void)
 {
 	register_netdevice_notifier(&fcoe_notifier);
 }
 
 /**
- * fcoe_dev_setup() - cleanup link change notification interface
+ * fcoe_dev_cleanup() - cleanup link change notification interface
  */
 static void fcoe_dev_cleanup(void)
 {

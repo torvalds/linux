@@ -1330,7 +1330,7 @@ int fc_rport_init(struct fc_lport *lport)
 }
 EXPORT_SYMBOL(fc_rport_init);
 
-int fc_setup_rport()
+int fc_setup_rport(void)
 {
 	rport_event_queue = create_singlethread_workqueue("fc_rport_eq");
 	if (!rport_event_queue)
@@ -1339,7 +1339,7 @@ int fc_setup_rport()
 }
 EXPORT_SYMBOL(fc_setup_rport);
 
-void fc_destroy_rport()
+void fc_destroy_rport(void)
 {
 	destroy_workqueue(rport_event_queue);
 }
