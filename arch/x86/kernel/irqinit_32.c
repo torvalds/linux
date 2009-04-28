@@ -181,7 +181,7 @@ void __init native_init_IRQ(void)
 	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
 #endif
 
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_MCE_P4THERMAL)
+#ifdef CONFIG_X86_THERMAL_VECTOR
 	/* thermal monitor LVT interrupt */
 	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 #endif

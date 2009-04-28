@@ -25,11 +25,11 @@
 #include <asm/ucontext.h>
 #include <asm/i387.h>
 #include <asm/vdso.h>
+#include <asm/mce.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
-#include <asm/mce.h>
 #endif /* CONFIG_X86_64 */
 
 #include <asm/syscall.h>
@@ -857,7 +857,7 @@ static void do_signal(struct pt_regs *regs)
 void
 do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 {
-#if defined(CONFIG_X86_64) && defined(CONFIG_X86_MCE)
+#ifdef CONFIG_X86_NEW_MCE
 	/* notify userspace of pending MCEs */
 	if (thread_info_flags & _TIF_MCE_NOTIFY)
 		mce_notify_user();

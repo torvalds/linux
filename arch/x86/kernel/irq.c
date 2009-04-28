@@ -89,7 +89,7 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_thermal_count);
 	seq_printf(p, "  Thermal event interrupts\n");
-# ifdef CONFIG_X86_64
+# ifdef CONFIG_X86_MCE_THRESHOLD
 	seq_printf(p, "%*s: ", prec, "THR");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->irq_threshold_count);
@@ -176,7 +176,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 #endif
 #ifdef CONFIG_X86_MCE
 	sum += irq_stats(cpu)->irq_thermal_count;
-# ifdef CONFIG_X86_64
+# ifdef CONFIG_X86_MCE_THRESHOLD
 	sum += irq_stats(cpu)->irq_threshold_count;
 #endif
 #endif
