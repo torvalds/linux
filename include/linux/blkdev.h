@@ -903,10 +903,14 @@ static inline void blk_end_request_all(struct request *rq, int error)
  *
  * Description:
  *     Complete the current consecutively mapped chunk from @rq.
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
  */
-static inline void blk_end_request_cur(struct request *rq, int error)
+static inline bool blk_end_request_cur(struct request *rq, int error)
 {
-	blk_end_request(rq, error, rq->hard_cur_sectors << 9);
+	return blk_end_request(rq, error, rq->hard_cur_sectors << 9);
 }
 
 /**
@@ -952,10 +956,14 @@ static inline void __blk_end_request_all(struct request *rq, int error)
  * Description:
  *     Complete the current consecutively mapped chunk from @rq.  Must
  *     be called with queue lock held.
+ *
+ * Return:
+ *     %false - we are done with this request
+ *     %true  - still buffers pending for this request
  */
-static inline void __blk_end_request_cur(struct request *rq, int error)
+static inline bool __blk_end_request_cur(struct request *rq, int error)
 {
-	__blk_end_request(rq, error, rq->hard_cur_sectors << 9);
+	return __blk_end_request(rq, error, rq->hard_cur_sectors << 9);
 }
 
 extern void blk_complete_request(struct request *);
