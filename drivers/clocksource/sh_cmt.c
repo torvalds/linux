@@ -18,7 +18,6 @@
  */
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -645,11 +644,7 @@ static int __devinit sh_cmt_probe(struct platform_device *pdev)
 		return 0;
 	}
 
-	if (is_early_platform_device(pdev))
-		p = alloc_bootmem(sizeof(*p));
-	else
-		p = kmalloc(sizeof(*p), GFP_KERNEL);
-
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
 	if (p == NULL) {
 		dev_err(&pdev->dev, "failed to allocate driver data\n");
 		return -ENOMEM;
@@ -657,11 +652,7 @@ static int __devinit sh_cmt_probe(struct platform_device *pdev)
 
 	ret = sh_cmt_setup(p, pdev);
 	if (ret) {
-		if (is_early_platform_device(pdev))
-			free_bootmem(__pa(p), sizeof(*p));
-		else
-			kfree(p);
-
+		kfree(p);
 		platform_set_drvdata(pdev, NULL);
 	}
 	return ret;

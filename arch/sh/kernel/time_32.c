@@ -237,21 +237,8 @@ unsigned long long sched_clock(void)
 }
 #endif
 
-void __init time_init(void)
+static void __init sh_late_time_init(void)
 {
-	if (board_time_init)
-		board_time_init();
-
-	clk_init();
-
-	rtc_sh_get_time(&xtime);
-	set_normalized_timespec(&wall_to_monotonic,
-				-xtime.tv_sec, -xtime.tv_nsec);
-
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	local_timer_setup(smp_processor_id());
-#endif
-
 	/*
 	 * Make sure all compiled-in early timers register themselves.
 	 * Run probe() for one "earlytimer" device.
@@ -270,3 +257,22 @@ void __init time_init(void)
 
 	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
 }
+
+void __init time_init(void)
+{
+	if (board_time_init)
+		board_time_init();
+
+	clk_init();
+
+	rtc_sh_get_time(&xtime);
+	set_normalized_timespec(&wall_to_monotonic,
+				-xtime.tv_sec, -xtime.tv_nsec);
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	local_timer_setup(smp_processor_id());
+#endif
+
+	late_time_init = sh_late_time_init;
+}
+
