@@ -516,14 +516,16 @@ static ssize_t
 nilfs_ioctl_do_free_segments(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			     void *buf, size_t size, size_t nmembs)
 {
-	struct nilfs_sb_info *sbi = nilfs_get_writer(nilfs);
+	struct nilfs_sb_info *sbi = nilfs->ns_writer;
 	int ret;
 
-	if (unlikely(!sbi))
+	if (unlikely(!sbi)) {
+		/* never happens because called for a writable mount */
+		WARN_ON(1);
 		return -EROFS;
+	}
 	ret = nilfs_segctor_add_segments_to_be_freed(
 		NILFS_SC(sbi), buf, nmembs);
-	nilfs_put_writer(nilfs);
 
 	return (ret < 0) ? ret : nmembs;
 }
