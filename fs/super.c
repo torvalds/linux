@@ -38,7 +38,6 @@
 #include <linux/kobject.h>
 #include <linux/mutex.h>
 #include <linux/file.h>
-#include <linux/async.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 
@@ -72,7 +71,6 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		INIT_HLIST_HEAD(&s->s_anon);
 		INIT_LIST_HEAD(&s->s_inodes);
 		INIT_LIST_HEAD(&s->s_dentry_lru);
-		INIT_LIST_HEAD(&s->s_async_list);
 		init_rwsem(&s->s_umount);
 		mutex_init(&s->s_lock);
 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
@@ -342,11 +340,6 @@ void generic_shutdown_super(struct super_block *sb)
 		lock_super(sb);
 		sb->s_flags &= ~MS_ACTIVE;
 
-		/*
-		 * wait for asynchronous fs operations to finish before going further
-		 */
-		async_synchronize_full_domain(&sb->s_async_list);
-
 		/* bad name - it should be evict_inodes() */
 		invalidate_inodes(sb);
 		lock_kernel();
@@ -517,7 +510,6 @@ restart:
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_read(&sb->s_umount);
-		async_synchronize_full_domain(&sb->s_async_list);
 		if (sb->s_root && (wait || sb->s_dirt))
 			sb->s_op->sync_fs(sb, wait);
 		up_read(&sb->s_umount);
