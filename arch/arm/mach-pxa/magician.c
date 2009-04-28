@@ -779,7 +779,7 @@ static void __init magician_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(magician_pin_config));
 
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(ARRAY_AND_SIZE(devices));
 
 	err = gpio_request(GPIO83_MAGICIAN_nIR_EN, "nIR_EN");
 	if (!err) {
