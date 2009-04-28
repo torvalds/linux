@@ -984,9 +984,9 @@ static void rt2800usb_config_ps(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, AUTOWAKEUP_CFG_AUTOWAKE, 1);
 		rt2x00usb_register_write(rt2x00dev, AUTOWAKEUP_CFG, reg);
 
-		rt2800usb_mcu_request(rt2x00dev, MCU_SLEEP, 0xff, 0, 0);
+		rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
 	} else {
-		rt2800usb_mcu_request(rt2x00dev, MCU_WAKEUP, 0xff, 0, 0);
+		rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
 
 		rt2x00usb_register_read(rt2x00dev, AUTOWAKEUP_CFG, &reg);
 		rt2x00_set_field32(&reg, AUTOWAKEUP_CFG_AUTO_LEAD_TIME, 0);
@@ -1171,7 +1171,9 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Check which section of the firmware we need.
 	 */
-	if ((chipset == 0x2860) || (chipset == 0x2872) || (chipset == 0x3070)) {
+	if ((chipset == 0x2860) ||
+	    (chipset == 0x2872) ||
+	    (chipset == 0x3070)) {
 		offset = 0;
 		length = 4096;
 	} else {
@@ -1216,6 +1218,22 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	if (status < 0) {
 		ERROR(rt2x00dev, "Failed to write Firmware to device.\n");
 		return status;
+	}
+
+	msleep(10);
+	rt2x00usb_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
+
+	/*
+	 * Send signal to firmware during boot time.
+	 */
+	rt2800usb_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0xff, 0, 0);
+
+	if ((chipset == 0x3070) ||
+	    (chipset == 0x3071) ||
+	    (chipset == 0x3572)) {
+		udelay(200);
+		rt2800usb_mcu_request(rt2x00dev, MCU_CURRENT, 0, 0, 0);
+		udelay(10);
 	}
 
 	/*
@@ -1566,6 +1584,14 @@ static int rt2800usb_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 	unsigned int i;
 	u8 value;
 
+	/*
+	 * BBP was enabled after firmware was loaded,
+	 * but we need to reactivate it now.
+	 */
+	rt2x00usb_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
+	rt2x00usb_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
+	msleep(1);
+
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		rt2800usb_bbp_read(rt2x00dev, 0, &value);
 		if ((value != 0xff) && (value != 0x00))
@@ -1823,8 +1849,12 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_EN,
 			   (rt2x00dev->rx->usb_maxpacket == 512));
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_TIMEOUT, 128);
-	/* FIXME: Calculate this value based on Aggregation defines */
-	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_LIMIT, 21);
+	/*
+	 * Total room for RX frames in kilobytes, PBF might still exceed
+	 * this limit so reduce the number to prevent errors.
+	 */
+	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_LIMIT,
+			   ((RX_ENTRIES * DATA_FRAME_SIZE) / 1024) - 3);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_EN, 1);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_TX_BULK_EN, 1);
 	rt2x00usb_register_write(rt2x00dev, USB_DMA_CFG, reg);
@@ -1833,11 +1863,6 @@ static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_TX, 1);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
 	rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	/*
-	 * Send signal to firmware during boot time.
-	 */
-	rt2800usb_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0xff, 0, 0);
 
 	/*
 	 * Initialize LED control
@@ -1879,8 +1904,6 @@ static void rt2800usb_disable_radio(struct rt2x00_dev *rt2x00dev)
 static int rt2800usb_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
-	rt2x00usb_register_write(rt2x00dev, AUTOWAKEUP_CFG, 0);
-
 	if (state == STATE_AWAKE)
 		rt2800usb_mcu_request(rt2x00dev, MCU_WAKEUP, 0xff, 0, 0);
 	else

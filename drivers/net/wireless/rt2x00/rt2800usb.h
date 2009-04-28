@@ -1375,6 +1375,10 @@ struct mac_iveiv_entry {
  * H2M_MAILBOX_CID:
  */
 #define H2M_MAILBOX_CID			0x7014
+#define H2M_MAILBOX_CID_CMD0		FIELD32(0x000000ff)
+#define H2M_MAILBOX_CID_CMD1		FIELD32(0x0000ff00)
+#define H2M_MAILBOX_CID_CMD2		FIELD32(0x00ff0000)
+#define H2M_MAILBOX_CID_CMD3		FIELD32(0xff000000)
 
 /*
  * H2M_MAILBOX_STATUS:
@@ -1715,6 +1719,7 @@ struct mac_iveiv_entry {
 #define MCU_SLEEP			0x30
 #define MCU_WAKEUP			0x31
 #define MCU_RADIO_OFF			0x35
+#define MCU_CURRENT			0x36
 #define MCU_LED				0x50
 #define MCU_LED_STRENGTH		0x51
 #define MCU_LED_1			0x52
@@ -1723,6 +1728,12 @@ struct mac_iveiv_entry {
 #define MCU_RADAR			0x60
 #define MCU_BOOT_SIGNAL			0x72
 #define MCU_BBP_SIGNAL			0x80
+#define MCU_POWER_SAVE			0x83
+
+/*
+ * MCU mailbox tokens
+ */
+#define TOKEN_WAKUP			3
 
 /*
  * DMA descriptor defines.
