@@ -535,13 +535,12 @@ struct fuse_file *fuse_file_get(struct fuse_file *ff);
 void fuse_file_free(struct fuse_file *ff);
 void fuse_finish_open(struct inode *inode, struct file *file);
 
-/** Fill in ff->reserved_req with a RELEASE request */
-void fuse_release_fill(struct fuse_file *ff, int flags, int opcode);
+void fuse_sync_release(struct fuse_file *ff, int flags);
 
 /**
  * Send RELEASE or RELEASEDIR request
  */
-int fuse_release_common(struct inode *inode, struct file *file, int isdir);
+void fuse_release_common(struct file *file, int opcode);
 
 /**
  * Send FSYNC or FSYNCDIR request

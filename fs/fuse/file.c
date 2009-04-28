@@ -93,10 +93,9 @@ static void fuse_file_put(struct fuse_file *ff)
 {
 	if (atomic_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
-		struct inode *inode = req->misc.release.path.dentry->d_inode;
-		struct fuse_conn *fc = get_fuse_conn(inode);
+
 		req->end = fuse_release_end;
-		fuse_request_send_background(fc, req);
+		fuse_request_send_background(ff->fc, req);
 		kfree(ff);
 	}
 }
@@ -164,10 +163,19 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 	return 0;
 }
 
-void fuse_release_fill(struct fuse_file *ff, int flags, int opcode)
+static void fuse_prepare_release(struct fuse_file *ff, int flags, int opcode)
 {
+	struct fuse_conn *fc = ff->fc;
 	struct fuse_req *req = ff->reserved_req;
 	struct fuse_release_in *inarg = &req->misc.release.in;
+
+	spin_lock(&fc->lock);
+	list_del(&ff->write_entry);
+	if (!RB_EMPTY_NODE(&ff->polled_node))
+		rb_erase(&ff->polled_node, &fc->polled_files);
+	spin_unlock(&fc->lock);
+
+	wake_up_interruptible_sync(&ff->poll_wait);
 
 	inarg->fh = ff->fh;
 	inarg->flags = flags;
@@ -178,40 +186,28 @@ void fuse_release_fill(struct fuse_file *ff, int flags, int opcode)
 	req->in.args[0].value = inarg;
 }
 
-int fuse_release_common(struct inode *inode, struct file *file, int isdir)
+void fuse_release_common(struct file *file, int opcode)
 {
-	struct fuse_conn *fc;
 	struct fuse_file *ff;
 	struct fuse_req *req;
 
 	ff = file->private_data;
 	if (unlikely(!ff))
-		return 0;	/* return value is ignored by VFS */
+		return;
 
-	fc = get_fuse_conn(inode);
 	req = ff->reserved_req;
-
-	fuse_release_fill(ff, file->f_flags,
-			  isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
+	fuse_prepare_release(ff, file->f_flags, opcode);
 
 	/* Hold vfsmount and dentry until release is finished */
 	path_get(&file->f_path);
 	req->misc.release.path = file->f_path;
 
-	spin_lock(&fc->lock);
-	list_del(&ff->write_entry);
-	if (!RB_EMPTY_NODE(&ff->polled_node))
-		rb_erase(&ff->polled_node, &fc->polled_files);
-	spin_unlock(&fc->lock);
-
-	wake_up_interruptible_sync(&ff->poll_wait);
 	/*
 	 * Normally this will send the RELEASE request, however if
 	 * some asynchronous READ or WRITE requests are outstanding,
 	 * the sending will be delayed.
 	 */
 	fuse_file_put(ff);
-	return 0;
 }
 
 static int fuse_open(struct inode *inode, struct file *file)
@@ -221,7 +217,20 @@ static int fuse_open(struct inode *inode, struct file *file)
 
 static int fuse_release(struct inode *inode, struct file *file)
 {
-	return fuse_release_common(inode, file, 0);
+	fuse_release_common(file, FUSE_RELEASE);
+
+	/* return value is ignored by VFS */
+	return 0;
+}
+
+void fuse_sync_release(struct fuse_file *ff, int flags)
+{
+	WARN_ON(atomic_read(&ff->count) > 1);
+	fuse_prepare_release(ff, flags, FUSE_RELEASE);
+	ff->reserved_req->force = 1;
+	fuse_request_send(ff->fc, ff->reserved_req);
+	fuse_put_request(ff->fc, ff->reserved_req);
+	kfree(ff);
 }
 
 /*

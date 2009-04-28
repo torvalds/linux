@@ -362,19 +362,6 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 }
 
 /*
- * Synchronous release for the case when something goes wrong in CREATE_OPEN
- */
-static void fuse_sync_release(struct fuse_conn *fc, struct fuse_file *ff,
-			      int flags)
-{
-	fuse_release_fill(ff, flags, FUSE_RELEASE);
-	ff->reserved_req->force = 1;
-	fuse_request_send(fc, ff->reserved_req);
-	fuse_put_request(fc, ff->reserved_req);
-	kfree(ff);
-}
-
-/*
  * Atomic create+open operation
  *
  * If the filesystem doesn't support this, then fall back to separate
@@ -452,7 +439,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 			  &outentry.attr, entry_attr_timeout(&outentry), 0);
 	if (!inode) {
 		flags &= ~(O_CREAT | O_EXCL | O_TRUNC);
-		fuse_sync_release(fc, ff, flags);
+		fuse_sync_release(ff, flags);
 		fuse_send_forget(fc, forget_req, outentry.nodeid, 1);
 		return -ENOMEM;
 	}
@@ -462,7 +449,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry, int mode,
 	fuse_invalidate_attr(dir);
 	file = lookup_instantiate_filp(nd, entry, generic_file_open);
 	if (IS_ERR(file)) {
-		fuse_sync_release(fc, ff, flags);
+		fuse_sync_release(ff, flags);
 		return PTR_ERR(file);
 	}
 	file->private_data = fuse_file_get(ff);
@@ -1108,7 +1095,9 @@ static int fuse_dir_open(struct inode *inode, struct file *file)
 
 static int fuse_dir_release(struct inode *inode, struct file *file)
 {
-	return fuse_release_common(inode, file, 1);
+	fuse_release_common(file, FUSE_RELEASEDIR);
+
+	return 0;
 }
 
 static int fuse_dir_fsync(struct file *file, struct dentry *de, int datasync)
