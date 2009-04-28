@@ -908,16 +908,6 @@ static struct miscdevice mce_log_device = {
 };
 
 /*
- * Old style boot options parsing. Only for compatibility.
- */
-static int __init mcheck_disable(char *str)
-{
-	mce_disabled = 1;
-	return 1;
-}
-__setup("nomce", mcheck_disable);
-
-/*
  * mce=off disables machine check
  * mce=TOLERANCELEVEL (number, see above)
  * mce=bootlog Log MCEs from before booting. Disabled by default on AMD.
@@ -1327,19 +1317,22 @@ void mcheck_init(struct cpuinfo_x86 *c)
 	printk(KERN_INFO "mce: CPU supports %d MCE banks\n", nr_mce_banks);
 }
 
-static int __init mcheck_disable(char *str)
-{
-	mce_disabled = 1;
-	return 1;
-}
-
 static int __init mcheck_enable(char *str)
 {
 	mce_disabled = -1;
 	return 1;
 }
 
-__setup("nomce", mcheck_disable);
 __setup("mce", mcheck_enable);
 
-#endif /* CONFIG_X86_32 */
+#endif /* CONFIG_X86_OLD_MCE */
+
+/*
+ * Old style boot options parsing. Only for compatibility.
+ */
+static int __init mcheck_disable(char *str)
+{
+	mce_disabled = 1;
+	return 1;
+}
+__setup("nomce", mcheck_disable);
