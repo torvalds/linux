@@ -86,11 +86,10 @@
 #define CALL_FUNCTION_VECTOR		0xfc
 #define CALL_FUNCTION_SINGLE_VECTOR	0xfb
 #define THERMAL_APIC_VECTOR		0xfa
-
 #define THRESHOLD_APIC_VECTOR		0xf9
 
 #ifdef CONFIG_X86_32
-/* 0xf9 : free */
+/* 0xf8 : free */
 #else
 # define UV_BAU_MESSAGE			0xf8
 #endif
