@@ -926,8 +926,10 @@ static int video_release(struct file *file)
 	file->private_data = NULL;
 	kfree(fh);
 
+	mutex_lock(&dev->core->lock);
 	if(atomic_dec_and_test(&dev->core->users))
 		call_all(dev->core, tuner, s_standby);
+	mutex_unlock(&dev->core->lock);
 
 	return 0;
 }
