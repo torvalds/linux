@@ -141,3 +141,4 @@ module_exit(regulator_fixed_voltage_exit);
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("Fixed voltage regulator");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:reg-fixed-voltage");
