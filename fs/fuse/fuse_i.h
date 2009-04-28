@@ -520,7 +520,7 @@ void fuse_send_forget(struct fuse_conn *fc, struct fuse_req *req,
  * Initialize READ or READDIR request
  */
 void fuse_read_fill(struct fuse_req *req, struct file *file,
-		    struct inode *inode, loff_t pos, size_t count, int opcode);
+		    loff_t pos, size_t count, int opcode);
 
 /**
  * Send OPEN or OPENDIR request
