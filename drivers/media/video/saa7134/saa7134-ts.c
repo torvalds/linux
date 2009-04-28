@@ -65,7 +65,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 	/* start DMA */
 	saa7134_set_dmabits(dev);
 
-	mod_timer(&dev->ts_q.timeout, jiffies+BUFFER_TIMEOUT);
+	mod_timer(&dev->ts_q.timeout, jiffies+TS_BUFFER_TIMEOUT);
 
 	if (dev->ts_state == SAA7134_TS_BUFF_DONE) {
 		/* Clear TS cache */

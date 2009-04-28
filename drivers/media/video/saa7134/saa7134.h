@@ -376,6 +376,7 @@ struct saa7134_board {
 #define INTERLACE_OFF          2
 
 #define BUFFER_TIMEOUT     msecs_to_jiffies(500)  /* 0.5 seconds */
+#define TS_BUFFER_TIMEOUT  msecs_to_jiffies(1000)  /* 1 second */
 
 struct saa7134_dev;
 struct saa7134_dma;
