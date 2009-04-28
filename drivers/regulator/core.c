@@ -703,10 +703,13 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		int	cmin = constraints->min_uV;
 		int	cmax = constraints->max_uV;
 
-		/* it's safe to autoconfigure fixed-voltage supplies */
+		/* it's safe to autoconfigure fixed-voltage supplies
+		   and the constraints are used by list_voltage. */
 		if (count == 1 && !cmin) {
-			cmin = INT_MIN;
+			cmin = 1;
 			cmax = INT_MAX;
+			constraints->min_uV = cmin;
+			constraints->max_uV = cmax;
 		}
 
 		/* voltage constraints are optional */
