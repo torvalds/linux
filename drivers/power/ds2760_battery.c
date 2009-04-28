@@ -344,7 +344,6 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 {
 	int retval = 0;
 	struct ds2760_device_info *di;
-	struct ds2760_platform_data *pdata;
 
 	di = kzalloc(sizeof(*di), GFP_KERNEL);
 	if (!di) {
@@ -354,14 +353,13 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, di);
 
-	pdata = pdev->dev.platform_data;
-	di->dev		= &pdev->dev;
-	di->w1_dev	     = pdev->dev.parent;
-	di->bat.name	   = dev_name(&pdev->dev);
-	di->bat.type	   = POWER_SUPPLY_TYPE_BATTERY;
-	di->bat.properties     = ds2760_battery_props;
-	di->bat.num_properties = ARRAY_SIZE(ds2760_battery_props);
-	di->bat.get_property   = ds2760_battery_get_property;
+	di->dev			= &pdev->dev;
+	di->w1_dev		= pdev->dev.parent;
+	di->bat.name		= dev_name(&pdev->dev);
+	di->bat.type		= POWER_SUPPLY_TYPE_BATTERY;
+	di->bat.properties	= ds2760_battery_props;
+	di->bat.num_properties	= ARRAY_SIZE(ds2760_battery_props);
+	di->bat.get_property	= ds2760_battery_get_property;
 	di->bat.external_power_changed =
 				  ds2760_battery_external_power_changed;
 
