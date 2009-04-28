@@ -535,10 +535,6 @@ static void redo_fd_request(struct request_queue *q)
 			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
-		if (req->current_nr_sectors == 0) {
-			__blk_end_request_cur(req, 0);
-			continue;
-		}
 		if (!fs->disk_in) {
 			__blk_end_request_cur(req, -EIO);
 			continue;
@@ -561,9 +557,6 @@ static void redo_fd_request(struct request_queue *q)
 				__blk_end_request_cur(req, -EIO);
 				continue;
 			}
-			req->nr_sectors -= req->current_nr_sectors;
-			req->sector += req->current_nr_sectors;
-			req->buffer += req->current_nr_sectors * 512;
 			__blk_end_request_cur(req, 0);
 			break;
 		}
