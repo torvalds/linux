@@ -241,6 +241,12 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  * If the USB subsystem can't allocate sufficient bandwidth to perform
  * the periodic request, submitting such a periodic request should fail.
  *
+ * For devices under xHCI, the bandwidth is reserved at configuration time, or
+ * when the alt setting is selected.  If there is not enough bus bandwidth, the
+ * configuration/alt setting request will fail.  Therefore, submissions to
+ * periodic endpoints on devices under xHCI should never fail due to bandwidth
+ * constraints.
+ *
  * Device drivers must explicitly request that repetition, by ensuring that
  * some URB is always on the endpoint's queue (except possibly for short
  * periods during completion callacks).  When there is no longer an urb

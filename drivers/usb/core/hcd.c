@@ -1560,6 +1560,92 @@ rescan:
 	}
 }
 
+/* Check whether a new configuration or alt setting for an interface
+ * will exceed the bandwidth for the bus (or the host controller resources).
+ * Only pass in a non-NULL config or interface, not both!
+ * Passing NULL for both new_config and new_intf means the device will be
+ * de-configured by issuing a set configuration 0 command.
+ */
+int usb_hcd_check_bandwidth(struct usb_device *udev,
+		struct usb_host_config *new_config,
+		struct usb_interface *new_intf)
+{
+	int num_intfs, i, j;
+	struct usb_interface_cache *intf_cache;
+	struct usb_host_interface *alt = 0;
+	int ret = 0;
+	struct usb_hcd *hcd;
+	struct usb_host_endpoint *ep;
+
+	hcd = bus_to_hcd(udev->bus);
+	if (!hcd->driver->check_bandwidth)
+		return 0;
+
+	/* Configuration is being removed - set configuration 0 */
+	if (!new_config && !new_intf) {
+		for (i = 1; i < 16; ++i) {
+			ep = udev->ep_out[i];
+			if (ep)
+				hcd->driver->drop_endpoint(hcd, udev, ep);
+			ep = udev->ep_in[i];
+			if (ep)
+				hcd->driver->drop_endpoint(hcd, udev, ep);
+		}
+		hcd->driver->check_bandwidth(hcd, udev);
+		return 0;
+	}
+	/* Check if the HCD says there's enough bandwidth.  Enable all endpoints
+	 * each interface's alt setting 0 and ask the HCD to check the bandwidth
+	 * of the bus.  There will always be bandwidth for endpoint 0, so it's
+	 * ok to exclude it.
+	 */
+	if (new_config) {
+		num_intfs = new_config->desc.bNumInterfaces;
+		/* Remove endpoints (except endpoint 0, which is always on the
+		 * schedule) from the old config from the schedule
+		 */
+		for (i = 1; i < 16; ++i) {
+			ep = udev->ep_out[i];
+			if (ep) {
+				ret = hcd->driver->drop_endpoint(hcd, udev, ep);
+				if (ret < 0)
+					goto reset;
+			}
+			ep = udev->ep_in[i];
+			if (ep) {
+				ret = hcd->driver->drop_endpoint(hcd, udev, ep);
+				if (ret < 0)
+					goto reset;
+			}
+		}
+		for (i = 0; i < num_intfs; ++i) {
+
+			/* Dig the endpoints for alt setting 0 out of the
+			 * interface cache for this interface
+			 */
+			intf_cache = new_config->intf_cache[i];
+			for (j = 0; j < intf_cache->num_altsetting; j++) {
+				if (intf_cache->altsetting[j].desc.bAlternateSetting == 0)
+					alt = &intf_cache->altsetting[j];
+			}
+			if (!alt) {
+				printk(KERN_DEBUG "Did not find alt setting 0 for intf %d\n", i);
+				continue;
+			}
+			for (j = 0; j < alt->desc.bNumEndpoints; j++) {
+				ret = hcd->driver->add_endpoint(hcd, udev, &alt->endpoint[j]);
+				if (ret < 0)
+					goto reset;
+			}
+		}
+	}
+	ret = hcd->driver->check_bandwidth(hcd, udev);
+reset:
+	if (ret < 0)
+		hcd->driver->reset_bandwidth(hcd, udev);
+	return ret;
+}
+
 /* Disables the endpoint: synchronizes with the hcd to make sure all
  * endpoint state is gone from hardware.  usb_hcd_flush_endpoint() must
  * have been called previously.  Use for set_configuration, set_interface,

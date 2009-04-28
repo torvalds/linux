@@ -510,6 +510,10 @@ EXPORT_SYMBOL_GPL(usb_sg_init);
  * could be transferred.  That capability is less useful for low or full
  * speed interrupt endpoints, which allow at most one packet per millisecond,
  * of at most 8 or 64 bytes (respectively).
+ *
+ * It is not necessary to call this function to reserve bandwidth for devices
+ * under an xHCI host controller, as the bandwidth is reserved when the
+ * configuration or interface alt setting is selected.
  */
 void usb_sg_wait(struct usb_sg_request *io)
 {
@@ -1653,6 +1657,21 @@ free_interfaces:
 	if (ret)
 		goto free_interfaces;
 
+	/* Make sure we have bandwidth (and available HCD resources) for this
+	 * configuration.  Remove endpoints from the schedule if we're dropping
+	 * this configuration to set configuration 0.  After this point, the
+	 * host controller will not allow submissions to dropped endpoints.  If
+	 * this call fails, the device state is unchanged.
+	 */
+	if (cp)
+		ret = usb_hcd_check_bandwidth(dev, cp, NULL);
+	else
+		ret = usb_hcd_check_bandwidth(dev, NULL, NULL);
+	if (ret < 0) {
+		usb_autosuspend_device(dev);
+		goto free_interfaces;
+	}
+
 	/* if it's already configured, clear out old state first.
 	 * getting rid of old interfaces means unbinding their drivers.
 	 */
@@ -1675,6 +1694,7 @@ free_interfaces:
 	dev->actconfig = cp;
 	if (!cp) {
 		usb_set_device_state(dev, USB_STATE_ADDRESS);
+		usb_hcd_check_bandwidth(dev, NULL, NULL);
 		usb_autosuspend_device(dev);
 		goto free_interfaces;
 	}

@@ -232,6 +232,35 @@ struct hc_driver {
 	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);
 		/* Called by usb_release_dev to free HC device structures */
 	void	(*free_dev)(struct usb_hcd *, struct usb_device *);
+
+	/* Bandwidth computation functions */
+	/* Note that add_endpoint() can only be called once per endpoint before
+	 * check_bandwidth() or reset_bandwidth() must be called.
+	 * drop_endpoint() can only be called once per endpoint also.
+	 * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
+	 * add the endpoint to the schedule with possibly new parameters denoted by a
+	 * different endpoint descriptor in usb_host_endpoint.
+	 * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
+	 * not allowed.
+	 */
+		/* Allocate endpoint resources and add them to a new schedule */
+	int 	(*add_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+		/* Drop an endpoint from a new schedule */
+	int 	(*drop_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+		/* Check that a new hardware configuration, set using
+		 * endpoint_enable and endpoint_disable, does not exceed bus
+		 * bandwidth.  This must be called before any set configuration
+		 * or set interface requests are sent to the device.
+		 */
+	int	(*check_bandwidth)(struct usb_hcd *, struct usb_device *);
+		/* Reset the device schedule to the last known good schedule,
+		 * which was set from a previous successful call to
+		 * check_bandwidth().  This reverts any add_endpoint() and
+		 * drop_endpoint() calls since that last successful call.
+		 * Used for when a check_bandwidth() call fails due to resource
+		 * or bandwidth constraints.
+		 */
+	void	(*reset_bandwidth)(struct usb_hcd *, struct usb_device *);
 		/* Returns the hardware-chosen device address */
 	int	(*address_device)(struct usb_hcd *, struct usb_device *udev);
 };
@@ -252,6 +281,9 @@ extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 extern void usb_hcd_reset_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_synchronize_unlinks(struct usb_device *udev);
+extern int usb_hcd_check_bandwidth(struct usb_device *udev,
+		struct usb_host_config *new_config,
+		struct usb_interface *new_intf);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
 extern struct usb_hcd *usb_create_hcd(const struct hc_driver *driver,
