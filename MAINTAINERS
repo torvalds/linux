@@ -3434,11 +3434,10 @@ L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED MPC5XXX
-P:	Sylvain Munaut
-M:	tnt@246tNt.com
 P:	Grant Likely
 M:	grant.likely@secretlab.ca
 L:	linuxppc-dev@ozlabs.org
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC4XX
@@ -3456,6 +3455,7 @@ P:	Grant Likely
 M:	grant.likely@secretlab.ca
 W:	http://wiki.secretlab.ca/index.php/Linux_on_Xilinx_Virtex
 L:	linuxppc-dev@ozlabs.org
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC8XX
