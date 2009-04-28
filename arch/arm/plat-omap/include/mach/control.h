@@ -144,6 +144,10 @@
 #define OMAP343X_CONTROL_PBIAS_LITE	(OMAP2_CONTROL_GENERAL + 0x02b0)
 #define OMAP343X_CONTROL_TEMP_SENSOR	(OMAP2_CONTROL_GENERAL + 0x02b4)
 
+/* 34xx D2D idle-related pins, handled by PM core */
+#define OMAP3_PADCONF_SAD2D_MSTANDBY   0x250
+#define OMAP3_PADCONF_SAD2D_IDLEACK    0x254
+
 /*
  * REVISIT: This list of registers is not comprehensive - there are more
  * that should be added.

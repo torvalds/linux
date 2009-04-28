@@ -415,14 +415,32 @@ static void __init omap3_iva_idle(void)
 			  OMAP3430_IVA2_MOD, RM_RSTCTRL);
 }
 
-static void __init prcm_setup_regs(void)
+static void __init omap3_d2d_idle(void)
 {
+	u16 mask, padconf;
+
+	/* In a stand alone OMAP3430 where there is not a stacked
+	 * modem for the D2D Idle Ack and D2D MStandby must be pulled
+	 * high. S CONTROL_PADCONF_SAD2D_IDLEACK and
+	 * CONTROL_PADCONF_SAD2D_MSTDBY to have a pull up. */
+	mask = (1 << 4) | (1 << 3); /* pull-up, enabled */
+	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_MSTANDBY);
+	padconf |= mask;
+	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_MSTANDBY);
+
+	padconf = omap_ctrl_readw(OMAP3_PADCONF_SAD2D_IDLEACK);
+	padconf |= mask;
+	omap_ctrl_writew(padconf, OMAP3_PADCONF_SAD2D_IDLEACK);
+
 	/* reset modem */
 	prm_write_mod_reg(OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RSTPWRON |
 			  OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RST,
 			  CORE_MOD, RM_RSTCTRL);
 	prm_write_mod_reg(0, CORE_MOD, RM_RSTCTRL);
+}
 
+static void __init prcm_setup_regs(void)
+{
 	/* XXX Reset all wkdeps. This should be done when initializing
 	 * powerdomains */
 	prm_write_mod_reg(0, OMAP3430_IVA2_MOD, PM_WKDEP);
@@ -442,6 +460,7 @@ static void __init prcm_setup_regs(void)
 	 * Note that in the long run this should be done by clockfw
 	 */
 	cm_write_mod_reg(
+		OMAP3430_AUTO_MODEM |
 		OMAP3430ES2_AUTO_MMC3 |
 		OMAP3430ES2_AUTO_ICR |
 		OMAP3430_AUTO_AES2 |
@@ -469,7 +488,7 @@ static void __init prcm_setup_regs(void)
 		OMAP3430_AUTO_OMAPCTRL |
 		OMAP3430ES1_AUTO_FSHOSTUSB |
 		OMAP3430_AUTO_HSOTGUSB |
-		OMAP3430ES1_AUTO_D2D | /* This is es1 only */
+		OMAP3430_AUTO_SAD2D |
 		OMAP3430_AUTO_SSI,
 		CORE_MOD, CM_AUTOIDLE1);
 
@@ -483,6 +502,7 @@ static void __init prcm_setup_regs(void)
 
 	if (omap_rev() > OMAP3430_REV_ES1_0) {
 		cm_write_mod_reg(
+			OMAP3430_AUTO_MAD2D |
 			OMAP3430ES2_AUTO_USBTLL,
 			CORE_MOD, CM_AUTOIDLE3);
 	}
@@ -576,6 +596,7 @@ static void __init prcm_setup_regs(void)
 			  OCP_MOD, OMAP3_PRM_IRQENABLE_MPU_OFFSET);
 
 	omap3_iva_idle();
+	omap3_d2d_idle();
 }
 
 static int __init pwrdms_setup(struct powerdomain *pwrdm)
