@@ -33,6 +33,15 @@ MODULE_LICENSE("GPL");
  * EV_ABS events which should not be cached are listed here.
  */
 static unsigned int input_abs_bypass_init_data[] __initdata = {
+	ABS_MT_TOUCH_MAJOR,
+	ABS_MT_TOUCH_MINOR,
+	ABS_MT_WIDTH_MAJOR,
+	ABS_MT_WIDTH_MINOR,
+	ABS_MT_ORIENTATION,
+	ABS_MT_POSITION_X,
+	ABS_MT_POSITION_Y,
+	ABS_MT_TOOL_TYPE,
+	ABS_MT_BLOB_ID,
 	0
 };
 static unsigned long input_abs_bypass[BITS_TO_LONGS(ABS_CNT)];
@@ -168,6 +177,10 @@ static void input_handle_event(struct input_dev *dev,
 				dev->sync = 1;
 				disposition = INPUT_PASS_TO_HANDLERS;
 			}
+			break;
+		case SYN_MT_REPORT:
+			dev->sync = 0;
+			disposition = INPUT_PASS_TO_HANDLERS;
 			break;
 		}
 		break;
