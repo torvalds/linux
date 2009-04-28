@@ -311,8 +311,6 @@ void generic_shutdown_super(struct super_block *sb)
 		invalidate_inodes(sb);
 		lock_kernel();
 
-		if (sop->write_super && sb->s_dirt)
-			sop->write_super(sb);
 		if (sop->put_super)
 			sop->put_super(sb);
 

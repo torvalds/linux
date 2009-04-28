@@ -258,6 +258,9 @@ static void exofs_put_super(struct super_block *sb)
 	int num_pend;
 	struct exofs_sb_info *sbi = sb->s_fs_info;
 
+	if (sb->s_dirt)
+		exofs_write_super(sb);
+
 	/* make sure there are no pending commands */
 	for (num_pend = atomic_read(&sbi->s_curr_pending); num_pend > 0;
 	     num_pend = atomic_read(&sbi->s_curr_pending)) {
