@@ -318,6 +318,16 @@ void event_ring_work(unsigned long arg)
 	xhci_debug_segment(xhci, xhci->cmd_ring->deq_seg);
 	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
 	xhci_dbg_cmd_ptrs(xhci);
+	for (i = 0; i < MAX_HC_SLOTS; ++i) {
+		if (xhci->devs[i]) {
+			for (j = 0; j < 31; ++j) {
+				if (xhci->devs[i]->ep_rings[j]) {
+					xhci_dbg(xhci, "Dev %d endpoint ring %d:\n", i, j);
+					xhci_debug_segment(xhci, xhci->devs[i]->ep_rings[j]->deq_seg);
+				}
+			}
+		}
+	}
 
 	if (xhci->noops_submitted != NUM_TEST_NOOPS)
 		if (setup_one_noop(xhci))
@@ -498,6 +508,197 @@ void xhci_shutdown(struct usb_hcd *hcd)
 }
 
 /*-------------------------------------------------------------------------*/
+
+/*
+ * At this point, the struct usb_device is about to go away, the device has
+ * disconnected, and all traffic has been stopped and the endpoints have been
+ * disabled.  Free any HC data structures associated with that device.
+ */
+void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	unsigned long flags;
+
+	if (udev->slot_id == 0)
+		return;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id)) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
+		return;
+	}
+	ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	/*
+	 * Event command completion handler will free any data structures
+	 * associated with the slot
+	 */
+}
+
+/*
+ * Returns 0 if the xHC ran out of device slots, the Enable Slot command
+ * timed out, or allocating memory failed.  Returns 1 on success.
+ */
+int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	unsigned long flags;
+	int timeleft;
+	int ret;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	ret = queue_slot_control(xhci, TRB_ENABLE_SLOT, 0);
+	if (ret) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
+		return 0;
+	}
+	ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* XXX: how much time for xHC slot assignment? */
+	timeleft = wait_for_completion_interruptible_timeout(&xhci->addr_dev,
+			USB_CTRL_SET_TIMEOUT);
+	if (timeleft <= 0) {
+		xhci_warn(xhci, "%s while waiting for a slot\n",
+				timeleft == 0 ? "Timeout" : "Signal");
+		/* FIXME cancel the enable slot request */
+		return 0;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (!xhci->slot_id) {
+		xhci_err(xhci, "Error while assigning device slot ID\n");
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return 0;
+	}
+	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_KERNEL)) {
+		/* Disable slot, if we can do it without mem alloc */
+		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
+		if (!queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id))
+			ring_cmd_db(xhci);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return 0;
+	}
+	udev->slot_id = xhci->slot_id;
+	/* Is this a LS or FS device under a HS hub? */
+	/* Hub or peripherial? */
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return 1;
+}
+
+/*
+ * Issue an Address Device command (which will issue a SetAddress request to
+ * the device).
+ * We should be protected by the usb_address0_mutex in khubd's hub_port_init, so
+ * we should only issue and wait on one address command at the same time.
+ *
+ * We add one to the device address issued by the hardware because the USB core
+ * uses address 1 for the root hubs (even though they're not really devices).
+ */
+int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
+{
+	unsigned long flags;
+	int timeleft;
+	struct xhci_virt_device *virt_dev;
+	int ret = 0;
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	u32 temp;
+
+	if (!udev->slot_id) {
+		xhci_dbg(xhci, "Bad Slot ID %d\n", udev->slot_id);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	virt_dev = xhci->devs[udev->slot_id];
+
+	/* If this is a Set Address to an unconfigured device, setup ep 0 */
+	if (!udev->config)
+		xhci_setup_addressable_virt_dev(xhci, udev);
+	/* Otherwise, assume the core has the device configured how it wants */
+
+	ret = queue_address_device(xhci, virt_dev->in_ctx_dma, udev->slot_id);
+	if (ret) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
+		return ret;
+	}
+	ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* ctrl tx can take up to 5 sec; XXX: need more time for xHC? */
+	timeleft = wait_for_completion_interruptible_timeout(&xhci->addr_dev,
+			USB_CTRL_SET_TIMEOUT);
+	/* FIXME: From section 4.3.4: "Software shall be responsible for timing
+	 * the SetAddress() "recovery interval" required by USB and aborting the
+	 * command on a timeout.
+	 */
+	if (timeleft <= 0) {
+		xhci_warn(xhci, "%s while waiting for a slot\n",
+				timeleft == 0 ? "Timeout" : "Signal");
+		/* FIXME cancel the address device command */
+		return -ETIME;
+	}
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	switch (virt_dev->cmd_status) {
+	case COMP_CTX_STATE:
+	case COMP_EBADSLT:
+		xhci_err(xhci, "Setup ERROR: address device command for slot %d.\n",
+				udev->slot_id);
+		ret = -EINVAL;
+		break;
+	case COMP_TX_ERR:
+		dev_warn(&udev->dev, "Device not responding to set address.\n");
+		ret = -EPROTO;
+		break;
+	case COMP_SUCCESS:
+		xhci_dbg(xhci, "Successful Address Device command\n");
+		break;
+	default:
+		xhci_err(xhci, "ERROR: unexpected command completion "
+				"code 0x%x.\n", virt_dev->cmd_status);
+		ret = -EINVAL;
+		break;
+	}
+	if (ret) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return ret;
+	}
+	temp = xhci_readl(xhci, &xhci->op_regs->dcbaa_ptr[0]);
+	xhci_dbg(xhci, "Op regs DCBAA ptr[0] = %#08x\n", temp);
+	temp = xhci_readl(xhci, &xhci->op_regs->dcbaa_ptr[1]);
+	xhci_dbg(xhci, "Op regs DCBAA ptr[1] = %#08x\n", temp);
+	xhci_dbg(xhci, "Slot ID %d dcbaa entry[0] @%08x = %#08x\n",
+			udev->slot_id,
+			(unsigned int) &xhci->dcbaa->dev_context_ptrs[2*udev->slot_id],
+			xhci->dcbaa->dev_context_ptrs[2*udev->slot_id]);
+	xhci_dbg(xhci, "Slot ID %d dcbaa entry[1] @%08x = %#08x\n",
+			udev->slot_id,
+			(unsigned int) &xhci->dcbaa->dev_context_ptrs[2*udev->slot_id+1],
+			xhci->dcbaa->dev_context_ptrs[2*udev->slot_id+1]);
+	xhci_dbg(xhci, "Output Context DMA address = %#08x\n",
+			virt_dev->out_ctx_dma);
+	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
+	xhci_dbg_ctx(xhci, virt_dev->in_ctx, virt_dev->in_ctx_dma, 2);
+	xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);
+	xhci_dbg_ctx(xhci, virt_dev->out_ctx, virt_dev->out_ctx_dma, 2);
+	/*
+	 * USB core uses address 1 for the roothubs, so we add one to the
+	 * address given back to us by the HC.
+	 */
+	udev->devnum = (virt_dev->out_ctx->slot.dev_state & DEV_ADDR_MASK) + 1;
+	/* FIXME: Zero the input context control for later use? */
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	xhci_dbg(xhci, "Device address = %d\n", udev->devnum);
+	/* XXX Meh, not sure if anyone else but choose_address uses this. */
+	set_bit(udev->devnum, udev->bus->devmap.devicemap);
+
+	return 0;
+}
 
 int xhci_get_frame(struct usb_hcd *hcd)
 {

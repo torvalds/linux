@@ -252,12 +252,9 @@ void ring_cmd_db(struct xhci_hcd *xhci)
 static void handle_cmd_completion(struct xhci_hcd *xhci,
 		struct xhci_event_cmd *event)
 {
+	int slot_id = TRB_TO_SLOT_ID(event->flags);
 	u64 cmd_dma;
 	dma_addr_t cmd_dequeue_dma;
-
-	/* Check completion code */
-	if (GET_COMP_CODE(event->status) != COMP_SUCCESS)
-		xhci_dbg(xhci, "WARN: unsuccessful no-op command\n");
 
 	cmd_dma = (((u64) event->cmd_trb[1]) << 32) + event->cmd_trb[0];
 	cmd_dequeue_dma = trb_virt_to_dma(xhci->cmd_ring->deq_seg,
@@ -273,6 +270,21 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		return;
 	}
 	switch (xhci->cmd_ring->dequeue->generic.field[3] & TRB_TYPE_BITMASK) {
+	case TRB_TYPE(TRB_ENABLE_SLOT):
+		if (GET_COMP_CODE(event->status) == COMP_SUCCESS)
+			xhci->slot_id = slot_id;
+		else
+			xhci->slot_id = 0;
+		complete(&xhci->addr_dev);
+		break;
+	case TRB_TYPE(TRB_DISABLE_SLOT):
+		if (xhci->devs[slot_id])
+			xhci_free_virt_device(xhci, slot_id);
+		break;
+	case TRB_TYPE(TRB_ADDR_DEV):
+		xhci->devs[slot_id]->cmd_status = GET_COMP_CODE(event->status);
+		complete(&xhci->addr_dev);
+		break;
 	case TRB_TYPE(TRB_CMD_NOOP):
 		++xhci->noops_handled;
 		break;
@@ -399,4 +411,18 @@ void *setup_one_noop(struct xhci_hcd *xhci)
 		return NULL;
 	xhci->noops_submitted++;
 	return ring_cmd_db;
+}
+
+/* Queue a slot enable or disable request on the command ring */
+int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
+{
+	return queue_command(xhci, 0, 0, 0,
+			TRB_TYPE(trb_type) | SLOT_ID_FOR_TRB(slot_id));
+}
+
+/* Queue an address device command TRB */
+int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id)
+{
+	return queue_command(xhci, in_ctx_ptr, 0, 0,
+			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id));
 }

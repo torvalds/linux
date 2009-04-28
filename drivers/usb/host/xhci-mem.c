@@ -188,12 +188,187 @@ fail:
 	return 0;
 }
 
+void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
+{
+	struct xhci_virt_device *dev;
+	int i;
+
+	/* Slot ID 0 is reserved */
+	if (slot_id == 0 || !xhci->devs[slot_id])
+		return;
+
+	dev = xhci->devs[slot_id];
+	xhci->dcbaa->dev_context_ptrs[2*slot_id] = 0;
+	xhci->dcbaa->dev_context_ptrs[2*slot_id + 1] = 0;
+	if (!dev)
+		return;
+
+	for (i = 0; i < 31; ++i)
+		if (dev->ep_rings[i])
+			xhci_ring_free(xhci, dev->ep_rings[i]);
+
+	if (dev->in_ctx)
+		dma_pool_free(xhci->device_pool,
+				dev->in_ctx, dev->in_ctx_dma);
+	if (dev->out_ctx)
+		dma_pool_free(xhci->device_pool,
+				dev->out_ctx, dev->out_ctx_dma);
+	kfree(xhci->devs[slot_id]);
+	xhci->devs[slot_id] = 0;
+}
+
+int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
+		struct usb_device *udev, gfp_t flags)
+{
+	dma_addr_t	dma;
+	struct xhci_virt_device *dev;
+
+	/* Slot ID 0 is reserved */
+	if (slot_id == 0 || xhci->devs[slot_id]) {
+		xhci_warn(xhci, "Bad Slot ID %d\n", slot_id);
+		return 0;
+	}
+
+	xhci->devs[slot_id] = kzalloc(sizeof(*xhci->devs[slot_id]), flags);
+	if (!xhci->devs[slot_id])
+		return 0;
+	dev = xhci->devs[slot_id];
+
+	/* Allocate the (output) device context that will be used in the HC */
+	dev->out_ctx = dma_pool_alloc(xhci->device_pool, flags, &dma);
+	if (!dev->out_ctx)
+		goto fail;
+	dev->out_ctx_dma = dma;
+	xhci_dbg(xhci, "Slot %d output ctx = 0x%x (dma)\n", slot_id, dma);
+	memset(dev->out_ctx, 0, sizeof(*dev->out_ctx));
+
+	/* Allocate the (input) device context for address device command */
+	dev->in_ctx = dma_pool_alloc(xhci->device_pool, flags, &dma);
+	if (!dev->in_ctx)
+		goto fail;
+	dev->in_ctx_dma = dma;
+	xhci_dbg(xhci, "Slot %d input ctx = 0x%x (dma)\n", slot_id, dma);
+	memset(dev->in_ctx, 0, sizeof(*dev->in_ctx));
+
+	/* Allocate endpoint 0 ring */
+	dev->ep_rings[0] = xhci_ring_alloc(xhci, 1, true, flags);
+	if (!dev->ep_rings[0])
+		goto fail;
+
+	/*
+	 * Point to output device context in dcbaa; skip the output control
+	 * context, which is eight 32 bit fields (or 32 bytes long)
+	 */
+	xhci->dcbaa->dev_context_ptrs[2*slot_id] =
+		(u32) dev->out_ctx_dma + (32);
+	xhci_dbg(xhci, "Set slot id %d dcbaa entry 0x%x to 0x%x\n",
+			slot_id,
+			(unsigned int) &xhci->dcbaa->dev_context_ptrs[2*slot_id],
+			dev->out_ctx_dma);
+	xhci->dcbaa->dev_context_ptrs[2*slot_id + 1] = 0;
+
+	return 1;
+fail:
+	xhci_free_virt_device(xhci, slot_id);
+	return 0;
+}
+
+/* Setup an xHCI virtual device for a Set Address command */
+int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev)
+{
+	struct xhci_virt_device *dev;
+	struct xhci_ep_ctx	*ep0_ctx;
+	struct usb_device	*top_dev;
+
+	dev = xhci->devs[udev->slot_id];
+	/* Slot ID 0 is reserved */
+	if (udev->slot_id == 0 || !dev) {
+		xhci_warn(xhci, "Slot ID %d is not assigned to this device\n",
+				udev->slot_id);
+		return -EINVAL;
+	}
+	ep0_ctx = &dev->in_ctx->ep[0];
+
+	/* 2) New slot context and endpoint 0 context are valid*/
+	dev->in_ctx->add_flags = SLOT_FLAG | EP0_FLAG;
+
+	/* 3) Only the control endpoint is valid - one endpoint context */
+	dev->in_ctx->slot.dev_info |= LAST_CTX(1);
+
+	switch (udev->speed) {
+	case USB_SPEED_SUPER:
+		dev->in_ctx->slot.dev_info |= (u32) udev->route;
+		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_SS;
+		break;
+	case USB_SPEED_HIGH:
+		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_HS;
+		break;
+	case USB_SPEED_FULL:
+		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_FS;
+		break;
+	case USB_SPEED_LOW:
+		dev->in_ctx->slot.dev_info |= (u32) SLOT_SPEED_LS;
+		break;
+	case USB_SPEED_VARIABLE:
+		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
+		return -EINVAL;
+		break;
+	default:
+		/* Speed was set earlier, this shouldn't happen. */
+		BUG();
+	}
+	/* Find the root hub port this device is under */
+	for (top_dev = udev; top_dev->parent && top_dev->parent->parent;
+			top_dev = top_dev->parent)
+		/* Found device below root hub */;
+	dev->in_ctx->slot.dev_info2 |= (u32) ROOT_HUB_PORT(top_dev->portnum);
+	xhci_dbg(xhci, "Set root hub portnum to %d\n", top_dev->portnum);
+
+	/* Is this a LS/FS device under a HS hub? */
+	/*
+	 * FIXME: I don't think this is right, where does the TT info for the
+	 * roothub or parent hub come from?
+	 */
+	if ((udev->speed == USB_SPEED_LOW || udev->speed == USB_SPEED_FULL) &&
+			udev->tt) {
+		dev->in_ctx->slot.tt_info = udev->tt->hub->slot_id;
+		dev->in_ctx->slot.tt_info |= udev->ttport << 8;
+	}
+	xhci_dbg(xhci, "udev->tt = 0x%x\n", (unsigned int) udev->tt);
+	xhci_dbg(xhci, "udev->ttport = 0x%x\n", udev->ttport);
+
+	/* Step 4 - ring already allocated */
+	/* Step 5 */
+	ep0_ctx->ep_info2 = EP_TYPE(CTRL_EP);
+	/*
+	 * See section 4.3 bullet 6:
+	 * The default Max Packet size for ep0 is "8 bytes for a USB2
+	 * LS/FS/HS device or 512 bytes for a USB3 SS device"
+	 * XXX: Not sure about wireless USB devices.
+	 */
+	if (udev->speed == USB_SPEED_SUPER)
+		ep0_ctx->ep_info2 |= MAX_PACKET(512);
+	else
+		ep0_ctx->ep_info2 |= MAX_PACKET(8);
+	/* EP 0 can handle "burst" sizes of 1, so Max Burst Size field is 0 */
+	ep0_ctx->ep_info2 |= MAX_BURST(0);
+	ep0_ctx->ep_info2 |= ERROR_COUNT(3);
+
+	ep0_ctx->deq[0] =
+		dev->ep_rings[0]->first_seg->dma;
+	ep0_ctx->deq[0] |= dev->ep_rings[0]->cycle_state;
+	ep0_ctx->deq[1] = 0;
+
+	/* Steps 7 and 8 were done in xhci_alloc_virt_device() */
+
+	return 0;
+}
+
 void xhci_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct pci_dev	*pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 	int size;
-
-	/* XXX: Free all the segments in the various rings */
+	int i;
 
 	/* Free the Event Ring Segment Table and the actual Event Ring */
 	xhci_writel(xhci, 0, &xhci->ir_set->erst_size);
@@ -218,16 +393,27 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 		xhci_ring_free(xhci, xhci->cmd_ring);
 	xhci->cmd_ring = NULL;
 	xhci_dbg(xhci, "Freed command ring\n");
+
+	for (i = 1; i < MAX_HC_SLOTS; ++i)
+		xhci_free_virt_device(xhci, i);
+
 	if (xhci->segment_pool)
 		dma_pool_destroy(xhci->segment_pool);
 	xhci->segment_pool = NULL;
 	xhci_dbg(xhci, "Freed segment pool\n");
+
+	if (xhci->device_pool)
+		dma_pool_destroy(xhci->device_pool);
+	xhci->device_pool = NULL;
+	xhci_dbg(xhci, "Freed device context pool\n");
+
 	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[1]);
 	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[0]);
 	if (xhci->dcbaa)
 		pci_free_consistent(pdev, sizeof(*xhci->dcbaa),
 				xhci->dcbaa, xhci->dcbaa->dma);
 	xhci->dcbaa = NULL;
+
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
 }
@@ -280,8 +466,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto fail;
 	memset(xhci->dcbaa, 0, sizeof *(xhci->dcbaa));
 	xhci->dcbaa->dma = dma;
-	xhci_dbg(xhci, "// Setting device context base array address to 0x%x\n",
-			xhci->dcbaa->dma);
+	xhci_dbg(xhci, "// Device context base array address = 0x%x (DMA), 0x%x (virt)\n",
+			xhci->dcbaa->dma, (unsigned int) xhci->dcbaa);
 	xhci_writel(xhci, (u32) 0, &xhci->op_regs->dcbaa_ptr[1]);
 	xhci_writel(xhci, dma, &xhci->op_regs->dcbaa_ptr[0]);
 
@@ -293,7 +479,12 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 */
 	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
 			SEGMENT_SIZE, 64, xhci->page_size);
-	if (!xhci->segment_pool)
+	/* See Table 46 and Note on Figure 55 */
+	/* FIXME support 64-byte contexts */
+	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev,
+			sizeof(struct xhci_device_control),
+			64, xhci->page_size);
+	if (!xhci->segment_pool || !xhci->device_pool)
 		goto fail;
 
 	/* Set up the command ring to have one segments for now. */
@@ -385,6 +576,9 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * something other than the default (~1ms minimum between interrupts).
 	 * See section 5.5.1.2.
 	 */
+	init_completion(&xhci->addr_dev);
+	for (i = 0; i < MAX_HC_SLOTS; ++i)
+		xhci->devs[i] = 0;
 
 	return 0;
 fail:

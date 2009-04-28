@@ -285,12 +285,21 @@ struct xhci_op_regs {
  * 4 - super speed
  * 5-15 reserved
  */
-#define DEV_SPEED_MASK		(0xf<<10)
+#define DEV_SPEED_MASK		(0xf << 10)
+#define	XDEV_FS			(0x1 << 10)
+#define	XDEV_LS			(0x2 << 10)
+#define	XDEV_HS			(0x3 << 10)
+#define	XDEV_SS			(0x4 << 10)
 #define DEV_UNDEFSPEED(p)	(((p) & DEV_SPEED_MASK) == (0x0<<10))
-#define DEV_FULLSPEED(p)	(((p) & DEV_SPEED_MASK) == (0x1<<10))
-#define DEV_LOWSPEED(p)		(((p) & DEV_SPEED_MASK) == (0x2<<10))
-#define DEV_HIGHSPEED(p)	(((p) & DEV_SPEED_MASK) == (0x3<<10))
-#define DEV_SUPERSPEED(p)	(((p) & DEV_SPEED_MASK) == (0x4<<10))
+#define DEV_FULLSPEED(p)	(((p) & DEV_SPEED_MASK) == XDEV_FS)
+#define DEV_LOWSPEED(p)		(((p) & DEV_SPEED_MASK) == XDEV_LS)
+#define DEV_HIGHSPEED(p)	(((p) & DEV_SPEED_MASK) == XDEV_HS)
+#define DEV_SUPERSPEED(p)	(((p) & DEV_SPEED_MASK) == XDEV_SS)
+/* Bits 20:23 in the Slot Context are the speed for the device */
+#define	SLOT_SPEED_FS		(XDEV_FS << 10)
+#define	SLOT_SPEED_LS		(XDEV_LS << 10)
+#define	SLOT_SPEED_HS		(XDEV_HS << 10)
+#define	SLOT_SPEED_SS		(XDEV_SS << 10)
 /* Port Indicator Control */
 #define PORT_LED_OFF	(0 << 14)
 #define PORT_LED_AMBER	(1 << 14)
@@ -471,14 +480,19 @@ struct xhci_slot_ctx {
 /* Set if the device is a hub - bit 26 */
 #define DEV_HUB		(0x1 << 26)
 /* Index of the last valid endpoint context in this device context - 27:31 */
-#define LAST_EP_MASK	(0x1f << 27)
-#define LAST_EP(p)	((p) << 27)
+#define LAST_CTX_MASK	(0x1f << 27)
+#define LAST_CTX(p)	((p) << 27)
+#define LAST_CTX_TO_EP_NUM(p)	(((p) >> 27) - 1)
+/* Plus one for the slot context flag */
+#define EPI_TO_FLAG(p)	(1 << ((p) + 1))
+#define SLOT_FLAG	(1 << 0)
+#define EP0_FLAG	(1 << 1)
 
 /* dev_info2 bitmasks */
 /* Max Exit Latency (ms) - worst case time to wake up all links in dev path */
 #define MAX_EXIT	(0xffff)
 /* Root hub port number that is needed to access the USB device */
-#define ROOT_HUB_PORT	(0xff << 16)
+#define ROOT_HUB_PORT(p)	(((p) & 0xff) << 16)
 
 /* tt_info bitmasks */
 /*
@@ -495,7 +509,7 @@ struct xhci_slot_ctx {
 
 /* dev_state bitmasks */
 /* USB device address - assigned by the HC */
-#define DEV_ADDR	(0xff)
+#define DEV_ADDR_MASK	(0xff)
 /* bits 8:26 reserved */
 /* Slot state */
 #define SLOT_STATE	(0x1f << 27)
@@ -507,12 +521,13 @@ struct xhci_slot_ctx {
  * @ep_info2:	information on endpoint type, max packet size, max burst size,
  * 		error count, and whether the HC will force an event for all
  * 		transactions.
- * @ep_ring:	64-bit ring address.  If the endpoint only defines one flow,
- * 		this points to the endpoint transfer ring.  Otherwise, it points
- * 		to a flow context array, which has a ring pointer for each flow.
- * @intr_target:
- * 		64-bit address of the Interrupter Target that will receive
- * 		events from this endpoint.
+ * @deq:	64-bit ring dequeue pointer address.  If the endpoint only
+ * 		defines one stream, this points to the endpoint transfer ring.
+ * 		Otherwise, it points to a stream context array, which has a
+ * 		ring pointer for each flow.
+ * @tx_info:
+ * 		Average TRB lengths for the endpoint ring and
+ * 		max payload within an Endpoint Service Interval Time (ESIT).
  *
  * Endpoint Context - section 6.2.1.2.  This assumes the HC uses 32-byte context
  * structures.  If the HC uses 64-byte contexts, there is an additional 32 bytes
@@ -521,12 +536,10 @@ struct xhci_slot_ctx {
 struct xhci_ep_ctx {
 	u32	ep_info;
 	u32	ep_info2;
-	/* 64-bit endpoint ring address */
-	u32	ep_ring[2];
-	/* 64-bit address of the interrupter target */
-	u32	intr_target[2];
+	u32	deq[2];
+	u32	tx_info;
 	/* offset 0x14 - 0x1f reserved for HC internal use */
-	u32	reserved[2];
+	u32	reserved[3];
 } __attribute__ ((packed));
 
 /* ep_info bitmasks */
@@ -587,6 +600,28 @@ struct xhci_device_control {
 #define	DROP_EP(x)	(0x1 << x)
 /* add context bitmasks */
 #define	ADD_EP(x)	(0x1 << x)
+
+
+struct xhci_virt_device {
+	/*
+	 * Commands to the hardware are passed an "input context" that
+	 * tells the hardware what to change in its data structures.
+	 * The hardware will return changes in an "output context" that
+	 * software must allocate for the hardware.  We need to keep
+	 * track of input and output contexts separately because
+	 * these commands might fail and we don't trust the hardware.
+	 */
+	struct xhci_device_control	*out_ctx;
+	dma_addr_t			out_ctx_dma;
+	/* Used for addressing devices and configuration changes */
+	struct xhci_device_control	*in_ctx;
+	dma_addr_t			in_ctx_dma;
+	/* FIXME when stream support is added */
+	struct xhci_ring		*ep_rings[31];
+	dma_addr_t			ep_dma[31];
+	/* Status of the last command issued for this device */
+	u32				cmd_status;
+};
 
 
 /**
@@ -711,6 +746,11 @@ struct xhci_event_cmd {
 	u32 flags;
 } __attribute__ ((packed));
 
+/* flags bitmasks */
+/* bits 16:23 are the virtual function ID */
+/* bits 24:31 are the slot ID */
+#define TRB_TO_SLOT_ID(p)	(((p) & (0xff<<24)) >> 24)
+#define SLOT_ID_FOR_TRB(p)	(((p) & 0xff) << 24)
 
 /* Port Status Change Event TRB fields */
 /* Port ID - bits 31:24 */
@@ -931,6 +971,11 @@ struct xhci_hcd {
 	struct xhci_ring	*cmd_ring;
 	struct xhci_ring	*event_ring;
 	struct xhci_erst	erst;
+	/* slot enabling and address device helpers */
+	struct completion	addr_dev;
+	int slot_id;
+	/* Internal mirror of the HW's dcbaa */
+	struct xhci_virt_device	*devs[MAX_HC_SLOTS];
 
 	/* DMA pools */
 	struct dma_pool	*device_pool;
@@ -1002,10 +1047,14 @@ void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
 void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring);
+void xhci_dbg_ctx(struct xhci_hcd *xhci, struct xhci_device_control *ctx, dma_addr_t dma, unsigned int last_ep);
 
 /* xHCI memory managment */
 void xhci_mem_cleanup(struct xhci_hcd *xhci);
 int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags);
+void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id);
+int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id, struct usb_device *udev, gfp_t flags);
+int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev);
 
 #ifdef CONFIG_PCI
 /* xHCI PCI glue */
@@ -1022,6 +1071,9 @@ void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
 int xhci_get_frame(struct usb_hcd *hcd);
 irqreturn_t xhci_irq(struct usb_hcd *hcd);
+int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev);
+void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev);
+int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev);
 
 /* xHCI ring, segment, TRB, and TD functions */
 dma_addr_t trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
@@ -1029,6 +1081,8 @@ void ring_cmd_db(struct xhci_hcd *xhci);
 void *setup_one_noop(struct xhci_hcd *xhci);
 void handle_event(struct xhci_hcd *xhci);
 void set_hc_event_deq(struct xhci_hcd *xhci);
+int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
+int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
