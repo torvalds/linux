@@ -86,15 +86,14 @@ static struct fuse_file *fuse_file_get(struct fuse_file *ff)
 
 static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
 {
-	dput(req->misc.release.dentry);
-	mntput(req->misc.release.vfsmount);
+	path_put(&req->misc.release.path);
 }
 
 static void fuse_file_put(struct fuse_file *ff)
 {
 	if (atomic_dec_and_test(&ff->count)) {
 		struct fuse_req *req = ff->reserved_req;
-		struct inode *inode = req->misc.release.dentry->d_inode;
+		struct inode *inode = req->misc.release.path.dentry->d_inode;
 		struct fuse_conn *fc = get_fuse_conn(inode);
 		req->end = fuse_release_end;
 		fuse_request_send_background(fc, req);
@@ -177,8 +176,8 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 			  isdir ? FUSE_RELEASEDIR : FUSE_RELEASE);
 
 	/* Hold vfsmount and dentry until release is finished */
-	req->misc.release.vfsmount = mntget(file->f_path.mnt);
-	req->misc.release.dentry = dget(file->f_path.dentry);
+	path_get(&file->f_path);
+	req->misc.release.path = file->f_path;
 
 	spin_lock(&fc->lock);
 	list_del(&ff->write_entry);

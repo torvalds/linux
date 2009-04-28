@@ -248,8 +248,7 @@ struct fuse_req {
 		struct fuse_forget_in forget_in;
 		struct {
 			struct fuse_release_in in;
-			struct vfsmount *vfsmount;
-			struct dentry *dentry;
+			struct path path;
 		} release;
 		struct fuse_init_in init_in;
 		struct fuse_init_out init_out;
