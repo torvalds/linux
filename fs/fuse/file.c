@@ -15,10 +15,9 @@
 
 static const struct file_operations fuse_direct_io_file_operations;
 
-static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
-			  struct fuse_open_out *outargp)
+static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
+			  int opcode, struct fuse_open_out *outargp)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_open_in inarg;
 	struct fuse_req *req;
 	int err;
@@ -31,8 +30,8 @@ static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
 	inarg.flags = file->f_flags & ~(O_CREAT | O_EXCL | O_NOCTTY);
 	if (!fc->atomic_o_trunc)
 		inarg.flags &= ~O_TRUNC;
-	req->in.h.opcode = isdir ? FUSE_OPENDIR : FUSE_OPEN;
-	req->in.h.nodeid = get_node_id(inode);
+	req->in.h.opcode = opcode;
+	req->in.h.nodeid = nodeid;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
@@ -102,6 +101,35 @@ static void fuse_file_put(struct fuse_file *ff)
 	}
 }
 
+static int fuse_do_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
+			bool isdir)
+{
+	struct fuse_open_out outarg;
+	struct fuse_file *ff;
+	int err;
+	int opcode = isdir ? FUSE_OPENDIR : FUSE_OPEN;
+
+	ff = fuse_file_alloc(fc);
+	if (!ff)
+		return -ENOMEM;
+
+	err = fuse_send_open(fc, nodeid, file, opcode, &outarg);
+	if (err) {
+		fuse_file_free(ff);
+		return err;
+	}
+
+	if (isdir)
+		outarg.open_flags &= ~FOPEN_DIRECT_IO;
+
+	ff->fh = outarg.fh;
+	ff->nodeid = nodeid;
+	ff->open_flags = outarg.open_flags;
+	file->private_data = fuse_file_get(ff);
+
+	return 0;
+}
+
 void fuse_finish_open(struct inode *inode, struct file *file)
 {
 	struct fuse_file *ff = file->private_data;
@@ -114,11 +142,9 @@ void fuse_finish_open(struct inode *inode, struct file *file)
 		nonseekable_open(inode, file);
 }
 
-int fuse_open_common(struct inode *inode, struct file *file, int isdir)
+int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_open_out outarg;
-	struct fuse_file *ff;
 	int err;
 
 	/* VFS checks this, but only _after_ ->open() */
@@ -129,24 +155,13 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 	if (err)
 		return err;
 
-	ff = fuse_file_alloc(fc);
-	if (!ff)
-		return -ENOMEM;
-
-	err = fuse_send_open(inode, file, isdir, &outarg);
+	err = fuse_do_open(fc, get_node_id(inode), file, isdir);
 	if (err)
-		fuse_file_free(ff);
-	else {
-		if (isdir)
-			outarg.open_flags &= ~FOPEN_DIRECT_IO;
-		ff->fh = outarg.fh;
-		ff->nodeid = get_node_id(inode);
-		ff->open_flags = outarg.open_flags;
-		file->private_data = fuse_file_get(ff);
-		fuse_finish_open(inode, file);
-	}
+		return err;
 
-	return err;
+	fuse_finish_open(inode, file);
+
+	return 0;
 }
 
 void fuse_release_fill(struct fuse_file *ff, int flags, int opcode)
@@ -201,7 +216,7 @@ int fuse_release_common(struct inode *inode, struct file *file, int isdir)
 
 static int fuse_open(struct inode *inode, struct file *file)
 {
-	return fuse_open_common(inode, file, 0);
+	return fuse_open_common(inode, file, false);
 }
 
 static int fuse_release(struct inode *inode, struct file *file)

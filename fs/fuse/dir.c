@@ -1103,7 +1103,7 @@ static void fuse_put_link(struct dentry *dentry, struct nameidata *nd, void *c)
 
 static int fuse_dir_open(struct inode *inode, struct file *file)
 {
-	return fuse_open_common(inode, file, 1);
+	return fuse_open_common(inode, file, true);
 }
 
 static int fuse_dir_release(struct inode *inode, struct file *file)
