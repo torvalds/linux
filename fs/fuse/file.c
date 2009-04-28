@@ -1647,12 +1647,11 @@ static int fuse_ioctl_copy_user(struct page **pages, struct iovec *iov,
  * limits ioctl data transfers to well-formed ioctls and is the forced
  * behavior for all FUSE servers.
  */
-static long fuse_file_do_ioctl(struct file *file, unsigned int cmd,
-			       unsigned long arg, unsigned int flags)
+static long fuse_do_ioctl(struct file *file, unsigned int cmd,
+			  unsigned long arg, unsigned int flags)
 {
-	struct inode *inode = file->f_dentry->d_inode;
 	struct fuse_file *ff = file->private_data;
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_conn *fc = ff->fc;
 	struct fuse_ioctl_in inarg = {
 		.fh = ff->fh,
 		.cmd = cmd,
@@ -1670,13 +1669,6 @@ static long fuse_file_do_ioctl(struct file *file, unsigned int cmd,
 
 	/* assume all the iovs returned by client always fits in a page */
 	BUILD_BUG_ON(sizeof(struct iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
-
-	if (!fuse_allow_task(fc, current))
-		return -EACCES;
-
-	err = -EIO;
-	if (is_bad_inode(inode))
-		goto out;
 
 	err = -ENOMEM;
 	pages = kzalloc(sizeof(pages[0]) * FUSE_MAX_PAGES_PER_REQ, GFP_KERNEL);
@@ -1738,7 +1730,7 @@ static long fuse_file_do_ioctl(struct file *file, unsigned int cmd,
 
 	/* okay, let's send it to the client */
 	req->in.h.opcode = FUSE_IOCTL;
-	req->in.h.nodeid = get_node_id(inode);
+	req->in.h.nodeid = ff->nodeid;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
@@ -1822,16 +1814,31 @@ static long fuse_file_do_ioctl(struct file *file, unsigned int cmd,
 	return err ? err : outarg.result;
 }
 
+static long fuse_file_ioctl_common(struct file *file, unsigned int cmd,
+				   unsigned long arg, unsigned int flags)
+{
+	struct inode *inode = file->f_dentry->d_inode;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+
+	if (!fuse_allow_task(fc, current))
+		return -EACCES;
+
+	if (is_bad_inode(inode))
+		return -EIO;
+
+	return fuse_do_ioctl(file, cmd, arg, flags);
+}
+
 static long fuse_file_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	return fuse_file_do_ioctl(file, cmd, arg, 0);
+	return fuse_file_ioctl_common(file, cmd, arg, 0);
 }
 
 static long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 				   unsigned long arg)
 {
-	return fuse_file_do_ioctl(file, cmd, arg, FUSE_IOCTL_COMPAT);
+	return fuse_file_ioctl_common(file, cmd, arg, FUSE_IOCTL_COMPAT);
 }
 
 /*
