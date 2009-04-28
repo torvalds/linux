@@ -1222,7 +1222,8 @@ static void do_ubd_request(struct request_queue *q)
 {
 	struct io_thread_req *io_req;
 	struct request *req;
-	int n, last_sectors;
+	sector_t sector;
+	int n;
 
 	while(1){
 		struct ubd *dev = q->queuedata;
@@ -1238,11 +1239,10 @@ static void do_ubd_request(struct request_queue *q)
 		}
 
 		req = dev->request;
-		last_sectors = 0;
+		sector = req->sector;
 		while(dev->start_sg < dev->end_sg){
 			struct scatterlist *sg = &dev->sg[dev->start_sg];
 
-			req->sector += last_sectors;
 			io_req = kmalloc(sizeof(struct io_thread_req),
 					 GFP_ATOMIC);
 			if(io_req == NULL){
@@ -1251,10 +1251,10 @@ static void do_ubd_request(struct request_queue *q)
 				return;
 			}
 			prepare_request(req, io_req,
-					(unsigned long long) req->sector << 9,
+					(unsigned long long)sector << 9,
 					sg->offset, sg->length, sg_page(sg));
 
-			last_sectors = sg->length >> 9;
+			sector += sg->length >> 9;
 			n = os_write_file(thread_fd, &io_req,
 					  sizeof(struct io_thread_req *));
 			if(n != sizeof(struct io_thread_req *)){
