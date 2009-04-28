@@ -1044,7 +1044,9 @@ typedef void (*usb_complete_t)(struct urb *);
  * @setup_dma: For control transfers with URB_NO_SETUP_DMA_MAP set, the
  *	device driver has provided this DMA address for the setup packet.
  *	The host controller driver should use this in preference to
- *	setup_packet.
+ *	setup_packet, but the HCD may chose to ignore the address if it must
+ *	copy the setup packet into internal structures.  Therefore, setup_packet
+ *	must always point to a valid buffer.
  * @start_frame: Returns the initial frame for isochronous transfers.
  * @number_of_packets: Lists the number of ISO transfer buffers.
  * @interval: Specifies the polling interval for interrupt or isochronous
