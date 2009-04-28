@@ -220,6 +220,12 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 		dma_pool_destroy(xhci->segment_pool);
 	xhci->segment_pool = NULL;
 	xhci_dbg(xhci, "Freed segment pool\n");
+	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[1]);
+	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[0]);
+	if (xhci->dcbaa)
+		pci_free_consistent(pdev, sizeof(*xhci->dcbaa),
+				xhci->dcbaa, xhci->dcbaa->dma);
+	xhci->dcbaa = NULL;
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
 }
@@ -261,6 +267,21 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg(xhci, "// Setting Max device slots reg = 0x%x.\n",
 			(unsigned int) val);
 	xhci_writel(xhci, val, &xhci->op_regs->config_reg);
+
+	/*
+	 * Section 5.4.8 - doorbell array must be
+	 * "physically contiguous and 64-byte (cache line) aligned".
+	 */
+	xhci->dcbaa = pci_alloc_consistent(to_pci_dev(dev),
+			sizeof(*xhci->dcbaa), &dma);
+	if (!xhci->dcbaa)
+		goto fail;
+	memset(xhci->dcbaa, 0, sizeof *(xhci->dcbaa));
+	xhci->dcbaa->dma = dma;
+	xhci_dbg(xhci, "// Setting device context base array address to 0x%x\n",
+			xhci->dcbaa->dma);
+	xhci_writel(xhci, (u32) 0, &xhci->op_regs->dcbaa_ptr[1]);
+	xhci_writel(xhci, dma, &xhci->op_regs->dcbaa_ptr[0]);
 
 	/*
 	 * Initialize the ring segment pool.  The ring must be a contiguous

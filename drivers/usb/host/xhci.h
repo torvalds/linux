@@ -436,6 +436,180 @@ struct xhci_doorbell_array {
 #define	DB_MASK			(0xff << 8)
 
 
+/**
+ * struct xhci_slot_ctx
+ * @dev_info:	Route string, device speed, hub info, and last valid endpoint
+ * @dev_info2:	Max exit latency for device number, root hub port number
+ * @tt_info:	tt_info is used to construct split transaction tokens
+ * @dev_state:	slot state and device address
+ *
+ * Slot Context - section 6.2.1.1.  This assumes the HC uses 32-byte context
+ * structures.  If the HC uses 64-byte contexts, there is an additional 32 bytes
+ * reserved at the end of the slot context for HC internal use.
+ */
+struct xhci_slot_ctx {
+	u32	dev_info;
+	u32	dev_info2;
+	u32	tt_info;
+	u32	dev_state;
+	/* offset 0x10 to 0x1f reserved for HC internal use */
+	u32	reserved[4];
+} __attribute__ ((packed));
+
+/* dev_info bitmasks */
+/* Route String - 0:19 */
+#define ROUTE_STRING_MASK	(0xfffff)
+/* Device speed - values defined by PORTSC Device Speed field - 20:23 */
+#define DEV_SPEED	(0xf << 20)
+/* bit 24 reserved */
+/* Is this LS/FS device connected through a HS hub? - bit 25 */
+#define DEV_MTT		(0x1 << 25)
+/* Set if the device is a hub - bit 26 */
+#define DEV_HUB		(0x1 << 26)
+/* Index of the last valid endpoint context in this device context - 27:31 */
+#define LAST_EP_MASK	(0x1f << 27)
+#define LAST_EP(p)	((p) << 27)
+
+/* dev_info2 bitmasks */
+/* Max Exit Latency (ms) - worst case time to wake up all links in dev path */
+#define MAX_EXIT	(0xffff)
+/* Root hub port number that is needed to access the USB device */
+#define ROOT_HUB_PORT	(0xff << 16)
+
+/* tt_info bitmasks */
+/*
+ * TT Hub Slot ID - for low or full speed devices attached to a high-speed hub
+ * The Slot ID of the hub that isolates the high speed signaling from
+ * this low or full-speed device.  '0' if attached to root hub port.
+ */
+#define TT_SLOT		(0xff)
+/*
+ * The number of the downstream facing port of the high-speed hub
+ * '0' if the device is not low or full speed.
+ */
+#define TT_PORT		(0xff << 8)
+
+/* dev_state bitmasks */
+/* USB device address - assigned by the HC */
+#define DEV_ADDR	(0xff)
+/* bits 8:26 reserved */
+/* Slot state */
+#define SLOT_STATE	(0x1f << 27)
+
+
+/**
+ * struct xhci_ep_ctx
+ * @ep_info:	endpoint state, streams, mult, and interval information.
+ * @ep_info2:	information on endpoint type, max packet size, max burst size,
+ * 		error count, and whether the HC will force an event for all
+ * 		transactions.
+ * @ep_ring:	64-bit ring address.  If the endpoint only defines one flow,
+ * 		this points to the endpoint transfer ring.  Otherwise, it points
+ * 		to a flow context array, which has a ring pointer for each flow.
+ * @intr_target:
+ * 		64-bit address of the Interrupter Target that will receive
+ * 		events from this endpoint.
+ *
+ * Endpoint Context - section 6.2.1.2.  This assumes the HC uses 32-byte context
+ * structures.  If the HC uses 64-byte contexts, there is an additional 32 bytes
+ * reserved at the end of the endpoint context for HC internal use.
+ */
+struct xhci_ep_ctx {
+	u32	ep_info;
+	u32	ep_info2;
+	/* 64-bit endpoint ring address */
+	u32	ep_ring[2];
+	/* 64-bit address of the interrupter target */
+	u32	intr_target[2];
+	/* offset 0x14 - 0x1f reserved for HC internal use */
+	u32	reserved[2];
+} __attribute__ ((packed));
+
+/* ep_info bitmasks */
+/*
+ * Endpoint State - bits 0:2
+ * 0 - disabled
+ * 1 - running
+ * 2 - halted due to halt condition - ok to manipulate endpoint ring
+ * 3 - stopped
+ * 4 - TRB error
+ * 5-7 - reserved
+ */
+#define EP_STATE	(0xf)
+/* Mult - Max number of burtst within an interval, in EP companion desc. */
+#define EP_MULT(p)		((p & 0x3) << 8)
+/* bits 10:14 are Max Primary Streams */
+/* bit 15 is Linear Stream Array */
+/* Interval - period between requests to an endpoint - 125u increments. */
+#define EP_INTERVAL	(0xff << 16)
+
+/* ep_info2 bitmasks */
+/*
+ * Force Event - generate transfer events for all TRBs for this endpoint
+ * This will tell the HC to ignore the IOC and ISP flags (for debugging only).
+ */
+#define	FORCE_EVENT	(0x1)
+#define ERROR_COUNT(p)	(((p) & 0x3) << 1)
+#define EP_TYPE(p)	((p) << 3)
+#define ISOC_OUT_EP	1
+#define BULK_OUT_EP	2
+#define INT_OUT_EP	3
+#define CTRL_EP		4
+#define ISOC_IN_EP	5
+#define BULK_IN_EP	6
+#define INT_IN_EP	7
+/* bit 6 reserved */
+/* bit 7 is Host Initiate Disable - for disabling stream selection */
+#define MAX_BURST(p)	(((p)&0xff) << 8)
+#define MAX_PACKET(p)	(((p)&0xffff) << 16)
+
+
+/**
+ * struct xhci_device_control
+ * Input/Output context; see section 6.2.5.
+ *
+ * @drop_context:	set the bit of the endpoint context you want to disable
+ * @add_context:	set the bit of the endpoint context you want to enable
+ */
+struct xhci_device_control {
+	u32	drop_flags;
+	u32	add_flags;
+	u32	rsvd[6];
+	struct xhci_slot_ctx	slot;
+	struct xhci_ep_ctx	ep[31];
+} __attribute__ ((packed));
+
+/* drop context bitmasks */
+#define	DROP_EP(x)	(0x1 << x)
+/* add context bitmasks */
+#define	ADD_EP(x)	(0x1 << x)
+
+
+/**
+ * struct xhci_device_context_array
+ * @dev_context_ptr	array of 64-bit DMA addresses for device contexts
+ */
+struct xhci_device_context_array {
+	/* 64-bit device addresses; we only write 32-bit addresses */
+	u32			dev_context_ptrs[2*MAX_HC_SLOTS];
+	/* private xHCD pointers */
+	dma_addr_t	dma;
+} __attribute__ ((packed));
+/* TODO: write function to set the 64-bit device DMA address */
+/*
+ * TODO: change this to be dynamically sized at HC mem init time since the HC
+ * might not be able to handle the maximum number of devices possible.
+ */
+
+
+struct xhci_stream_ctx {
+	/* 64-bit stream ring address, cycle state, and stream type */
+	u32	stream_ring[2];
+	/* offset 0x14 - 0x1f reserved for HC internal use */
+	u32	reserved[2];
+} __attribute__ ((packed));
+
+
 struct xhci_transfer_event {
 	/* 64-bit buffer address, or immediate data */
 	u32	buffer[2];
@@ -725,6 +899,7 @@ struct xhci_hcd {
 	int		msix_count;
 	struct msix_entry	*msix_entries;
 	/* data structures */
+	struct xhci_device_context_array *dcbaa;
 	struct xhci_ring	*cmd_ring;
 	struct xhci_ring	*event_ring;
 	struct xhci_erst	erst;
