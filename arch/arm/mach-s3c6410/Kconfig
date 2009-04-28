@@ -19,6 +19,14 @@ config S3C6410_SETUP_SDHCI
 	help
 	  Internal helper functions for S3C6410 based SDHCI systems
 
+config MACH_ANW6410
+	bool "A&W6410"
+	select CPU_S3C6410
+	select S3C_DEV_FB
+	select S3C64XX_SETUP_FB_24BPP
+	help
+	  Machine support for the A&W6410
+
 config MACH_SMDK6410
 	bool "SMDK6410"
 	select CPU_S3C6410
