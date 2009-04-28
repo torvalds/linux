@@ -111,16 +111,21 @@ static unsigned long sh_cmt_get_counter(struct sh_cmt_priv *p,
 					int *has_wrapped)
 {
 	unsigned long v1, v2, v3;
+	int o1, o2;
+
+	o1 = sh_cmt_read(p, CMCSR) & p->overflow_bit;
 
 	/* Make sure the timer value is stable. Stolen from acpi_pm.c */
 	do {
+		o2 = o1;
 		v1 = sh_cmt_read(p, CMCNT);
 		v2 = sh_cmt_read(p, CMCNT);
 		v3 = sh_cmt_read(p, CMCNT);
-	} while (unlikely((v1 > v2 && v1 < v3) || (v2 > v3 && v2 < v1)
-			  || (v3 > v1 && v3 < v2)));
+		o1 = sh_cmt_read(p, CMCSR) & p->overflow_bit;
+	} while (unlikely((o1 != o2) || (v1 > v2 && v1 < v3)
+			  || (v2 > v3 && v2 < v1) || (v3 > v1 && v3 < v2)));
 
-	*has_wrapped = sh_cmt_read(p, CMCSR) & p->overflow_bit;
+	*has_wrapped = o1;
 	return v2;
 }
 
@@ -394,7 +399,7 @@ static cycle_t sh_cmt_clocksource_read(struct clocksource *cs)
 	raw = sh_cmt_get_counter(p, &has_wrapped);
 
 	if (unlikely(has_wrapped))
-		raw = p->match_value;
+		raw += p->match_value;
 	spin_unlock_irqrestore(&p->lock, flags);
 
 	return value + raw;
