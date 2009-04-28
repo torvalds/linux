@@ -64,6 +64,7 @@
  *   endpoint rings; it generates events on the event ring for these.
  */
 
+#include <linux/scatterlist.h>
 #include "xhci.h"
 
 /*
@@ -758,6 +759,211 @@ int xhci_prepare_transfer(struct xhci_hcd *xhci,
 	return 0;
 }
 
+unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
+{
+	int num_sgs, num_trbs, running_total, temp, i;
+	struct scatterlist *sg;
+
+	sg = NULL;
+	num_sgs = urb->num_sgs;
+	temp = urb->transfer_buffer_length;
+
+	xhci_dbg(xhci, "count sg list trbs: \n");
+	num_trbs = 0;
+	for_each_sg(urb->sg->sg, sg, num_sgs, i) {
+		unsigned int previous_total_trbs = num_trbs;
+		unsigned int len = sg_dma_len(sg);
+
+		/* Scatter gather list entries may cross 64KB boundaries */
+		running_total = TRB_MAX_BUFF_SIZE -
+			(sg_dma_address(sg) & ((1 << TRB_MAX_BUFF_SHIFT) - 1));
+		if (running_total != 0)
+			num_trbs++;
+
+		/* How many more 64KB chunks to transfer, how many more TRBs? */
+		while (running_total < sg_dma_len(sg)) {
+			num_trbs++;
+			running_total += TRB_MAX_BUFF_SIZE;
+		}
+		xhci_dbg(xhci, " sg #%d: dma = %#x, len = %#x (%d), num_trbs = %d\n",
+				i, sg_dma_address(sg), len, len,
+				num_trbs - previous_total_trbs);
+
+		len = min_t(int, len, temp);
+		temp -= len;
+		if (temp == 0)
+			break;
+	}
+	xhci_dbg(xhci, "\n");
+	if (!in_interrupt())
+		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %d, sglist used, num_trbs = %d\n",
+				urb->ep->desc.bEndpointAddress,
+				urb->transfer_buffer_length,
+				num_trbs);
+	return num_trbs;
+}
+
+void check_trb_math(struct urb *urb, int num_trbs, int running_total)
+{
+	if (num_trbs != 0)
+		dev_dbg(&urb->dev->dev, "%s - ep %#x - Miscalculated number of "
+				"TRBs, %d left\n", __func__,
+				urb->ep->desc.bEndpointAddress, num_trbs);
+	if (running_total != urb->transfer_buffer_length)
+		dev_dbg(&urb->dev->dev, "%s - ep %#x - Miscalculated tx length, "
+				"queued %#x (%d), asked for %#x (%d)\n",
+				__func__,
+				urb->ep->desc.bEndpointAddress,
+				running_total, running_total,
+				urb->transfer_buffer_length,
+				urb->transfer_buffer_length);
+}
+
+void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
+		unsigned int ep_index, int start_cycle,
+		struct xhci_generic_trb *start_trb, struct xhci_td *td)
+{
+	u32 field;
+
+	/*
+	 * Pass all the TRBs to the hardware at once and make sure this write
+	 * isn't reordered.
+	 */
+	wmb();
+	start_trb->field[3] |= start_cycle;
+	field = xhci_readl(xhci, &xhci->dba->doorbell[slot_id]) & DB_MASK;
+	xhci_writel(xhci, field | EPI_TO_DB(ep_index),
+			&xhci->dba->doorbell[slot_id]);
+	/* Flush PCI posted writes */
+	xhci_readl(xhci, &xhci->dba->doorbell[slot_id]);
+}
+
+int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
+		struct urb *urb, int slot_id, unsigned int ep_index)
+{
+	struct xhci_ring *ep_ring;
+	unsigned int num_trbs;
+	struct xhci_td *td;
+	struct scatterlist *sg;
+	int num_sgs;
+	int trb_buff_len, this_sg_len, running_total;
+	bool first_trb;
+	u64 addr;
+
+	struct xhci_generic_trb *start_trb;
+	int start_cycle;
+
+	ep_ring = xhci->devs[slot_id]->ep_rings[ep_index];
+	num_trbs = count_sg_trbs_needed(xhci, urb);
+	num_sgs = urb->num_sgs;
+
+	trb_buff_len = xhci_prepare_transfer(xhci, xhci->devs[slot_id],
+			ep_index, num_trbs, urb, &td, mem_flags);
+	if (trb_buff_len < 0)
+		return trb_buff_len;
+	/*
+	 * Don't give the first TRB to the hardware (by toggling the cycle bit)
+	 * until we've finished creating all the other TRBs.  The ring's cycle
+	 * state may change as we enqueue the other TRBs, so save it too.
+	 */
+	start_trb = &ep_ring->enqueue->generic;
+	start_cycle = ep_ring->cycle_state;
+
+	running_total = 0;
+	/*
+	 * How much data is in the first TRB?
+	 *
+	 * There are three forces at work for TRB buffer pointers and lengths:
+	 * 1. We don't want to walk off the end of this sg-list entry buffer.
+	 * 2. The transfer length that the driver requested may be smaller than
+	 *    the amount of memory allocated for this scatter-gather list.
+	 * 3. TRBs buffers can't cross 64KB boundaries.
+	 */
+	sg = urb->sg->sg;
+	addr = (u64) sg_dma_address(sg);
+	this_sg_len = sg_dma_len(sg);
+	trb_buff_len = TRB_MAX_BUFF_SIZE -
+		(addr & ((1 << TRB_MAX_BUFF_SHIFT) - 1));
+	trb_buff_len = min_t(int, trb_buff_len, this_sg_len);
+	if (trb_buff_len > urb->transfer_buffer_length)
+		trb_buff_len = urb->transfer_buffer_length;
+	xhci_dbg(xhci, "First length to xfer from 1st sglist entry = %u\n",
+			trb_buff_len);
+
+	first_trb = true;
+	/* Queue the first TRB, even if it's zero-length */
+	do {
+		u32 field = 0;
+
+		/* Don't change the cycle bit of the first TRB until later */
+		if (first_trb)
+			first_trb = false;
+		else
+			field |= ep_ring->cycle_state;
+
+		/* Chain all the TRBs together; clear the chain bit in the last
+		 * TRB to indicate it's the last TRB in the chain.
+		 */
+		if (num_trbs > 1) {
+			field |= TRB_CHAIN;
+		} else {
+			/* FIXME - add check for ZERO_PACKET flag before this */
+			td->last_trb = ep_ring->enqueue;
+			field |= TRB_IOC;
+		}
+		xhci_dbg(xhci, " sg entry: dma = %#x, len = %#x (%d), "
+				"64KB boundary at %#x, end dma = %#x\n",
+				(unsigned int) addr, trb_buff_len, trb_buff_len,
+				(unsigned int) (addr + TRB_MAX_BUFF_SIZE) & ~(TRB_MAX_BUFF_SIZE - 1),
+				(unsigned int) addr + trb_buff_len);
+		if (TRB_MAX_BUFF_SIZE -
+				(addr & ((1 << TRB_MAX_BUFF_SHIFT) - 1)) < trb_buff_len) {
+			xhci_warn(xhci, "WARN: sg dma xfer crosses 64KB boundaries!\n");
+			xhci_dbg(xhci, "Next boundary at %#x, end dma = %#x\n",
+					(unsigned int) (addr + TRB_MAX_BUFF_SIZE) & ~(TRB_MAX_BUFF_SIZE - 1),
+					(unsigned int) addr + trb_buff_len);
+		}
+		queue_trb(xhci, ep_ring, false,
+				(u32) addr,
+				(u32) ((u64) addr >> 32),
+				TRB_LEN(trb_buff_len) | TRB_INTR_TARGET(0),
+				/* We always want to know if the TRB was short,
+				 * or we won't get an event when it completes.
+				 * (Unless we use event data TRBs, which are a
+				 * waste of space and HC resources.)
+				 */
+				field | TRB_ISP | TRB_TYPE(TRB_NORMAL));
+		--num_trbs;
+		running_total += trb_buff_len;
+
+		/* Calculate length for next transfer --
+		 * Are we done queueing all the TRBs for this sg entry?
+		 */
+		this_sg_len -= trb_buff_len;
+		if (this_sg_len == 0) {
+			--num_sgs;
+			if (num_sgs == 0)
+				break;
+			sg = sg_next(sg);
+			addr = (u64) sg_dma_address(sg);
+			this_sg_len = sg_dma_len(sg);
+		} else {
+			addr += trb_buff_len;
+		}
+
+		trb_buff_len = TRB_MAX_BUFF_SIZE -
+			(addr & ((1 << TRB_MAX_BUFF_SHIFT) - 1));
+		trb_buff_len = min_t(int, trb_buff_len, this_sg_len);
+		if (running_total + trb_buff_len > urb->transfer_buffer_length)
+			trb_buff_len =
+				urb->transfer_buffer_length - running_total;
+	} while (running_total < urb->transfer_buffer_length);
+
+	check_trb_math(urb, num_trbs, running_total);
+	giveback_first_trb(xhci, slot_id, ep_index, start_cycle, start_trb, td);
+	return 0;
+}
+
 /* This is very similar to what ehci-q.c qtd_fill() does */
 int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
@@ -772,6 +978,9 @@ int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	int running_total, trb_buff_len, ret;
 	u64 addr;
+
+	if (urb->sg)
+		return queue_bulk_sg_tx(xhci, mem_flags, urb, slot_id, ep_index);
 
 	ep_ring = xhci->devs[slot_id]->ep_rings[ep_index];
 
@@ -793,10 +1002,13 @@ int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* FIXME: this doesn't deal with URB_ZERO_PACKET - need one more */
 
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %d, addr = %#x, num_trbs = %d\n",
+		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %#x (%d), addr = %#x, num_trbs = %d\n",
 				urb->ep->desc.bEndpointAddress,
-				urb->transfer_buffer_length, urb->transfer_dma,
+				urb->transfer_buffer_length,
+				urb->transfer_buffer_length,
+				urb->transfer_dma,
 				num_trbs);
+
 	ret = xhci_prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
 			num_trbs, urb, &td, mem_flags);
 	if (ret < 0)
@@ -860,21 +1072,8 @@ int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			trb_buff_len = TRB_MAX_BUFF_SIZE;
 	} while (running_total < urb->transfer_buffer_length);
 
-	if (num_trbs != 0)
-		dev_dbg(&urb->dev->dev, "%s - ep %#x - Miscalculated number of "
-				"TRBs, %d left\n", __FUNCTION__,
-				urb->ep->desc.bEndpointAddress, num_trbs);
-	/*
-	 * Pass all the TRBs to the hardware at once and make sure this write
-	 * isn't reordered.
-	 */
-	wmb();
-	start_trb->field[3] |= start_cycle;
-	field = xhci_readl(xhci, &xhci->dba->doorbell[slot_id]) & DB_MASK;
-	xhci_writel(xhci, field | EPI_TO_DB(ep_index), &xhci->dba->doorbell[slot_id]);
-	/* Flush PCI posted writes */
-	xhci_readl(xhci, &xhci->dba->doorbell[slot_id]);
-
+	check_trb_math(urb, num_trbs, running_total);
+	giveback_first_trb(xhci, slot_id, ep_index, start_cycle, start_trb, td);
 	return 0;
 }
 
@@ -965,17 +1164,7 @@ int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			/* Event on completion */
 			field | TRB_IOC | TRB_TYPE(TRB_STATUS) | ep_ring->cycle_state);
 
-	/*
-	 * Pass all the TRBs to the hardware at once and make sure this write
-	 * isn't reordered.
-	 */
-	wmb();
-	start_trb->field[3] |= start_cycle;
-	field = xhci_readl(xhci, &xhci->dba->doorbell[slot_id]) & DB_MASK;
-	xhci_writel(xhci, field | EPI_TO_DB(ep_index), &xhci->dba->doorbell[slot_id]);
-	/* Flush PCI posted writes */
-	xhci_readl(xhci, &xhci->dba->doorbell[slot_id]);
-
+	giveback_first_trb(xhci, slot_id, ep_index, start_cycle, start_trb, td);
 	return 0;
 }
 
