@@ -97,8 +97,13 @@ struct fuse_inode {
 	struct list_head writepages;
 };
 
+struct fuse_conn;
+
 /** FUSE specific file data */
 struct fuse_file {
+	/** Fuse connection for this file */
+	struct fuse_conn *fc;
+
 	/** Request reserved for flush and release */
 	struct fuse_req *reserved_req;
 
@@ -107,6 +112,9 @@ struct fuse_file {
 
 	/** File handle used by userspace */
 	u64 fh;
+
+	/** Node id of this file */
+	u64 nodeid;
 
 	/** Refcount */
 	atomic_t count;
@@ -184,8 +192,6 @@ enum fuse_req_state {
 	FUSE_REQ_WRITING,
 	FUSE_REQ_FINISHED
 };
-
-struct fuse_conn;
 
 /**
  * A request to the client

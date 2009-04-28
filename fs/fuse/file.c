@@ -54,6 +54,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 	if (unlikely(!ff))
 		return NULL;
 
+	ff->fc = fc;
 	ff->reserved_req = fuse_request_alloc();
 	if (unlikely(!ff->reserved_req)) {
 		kfree(ff);
@@ -111,6 +112,7 @@ void fuse_finish_open(struct inode *inode, struct file *file,
 	if (outarg->open_flags & FOPEN_NONSEEKABLE)
 		nonseekable_open(inode, file);
 	ff->fh = outarg->fh;
+	ff->nodeid = get_node_id(inode);
 	file->private_data = fuse_file_get(ff);
 }
 
