@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *  Copyright (C) 2000  Philipp Rumpf <prumpf@tux.org>
- *  Copyright (C) 2002 - 2008  Paul Mundt
+ *  Copyright (C) 2002 - 2009  Paul Mundt
  *  Copyright (C) 2002  M. R. Brown  <mrbrown@linux-sh.org>
  *
  *  Some code taken from i386 version.
@@ -67,6 +67,21 @@ int set_rtc_time(struct rtc_time *tm)
 	return rtc_sh_set_time(secs);
 }
 EXPORT_SYMBOL(set_rtc_time);
+
+static int __init rtc_generic_init(void)
+{
+	struct platform_device *pdev;
+
+	if (rtc_sh_get_time == null_rtc_get_time)
+		return -ENODEV;
+
+	pdev = platform_device_register_simple("rtc-generic", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	return 0;
+}
+module_init(rtc_generic_init);
 
 #ifndef CONFIG_GENERIC_TIME
 void do_gettimeofday(struct timeval *tv)
