@@ -178,7 +178,8 @@ static void mce_panic(char *msg, struct mce *backup, u64 start)
 {
 	int i;
 
-	oops_begin();
+	bust_spinlocks(1);
+	console_verbose();
 	for (i = 0; i < MCE_LOG_LEN; i++) {
 		u64 tsc = mcelog.entry[i].tsc;
 
