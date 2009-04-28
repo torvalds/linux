@@ -447,12 +447,18 @@ enum netdev_queue_state_t
 };
 
 struct netdev_queue {
+/*
+ * read mostly part
+ */
 	struct net_device	*dev;
 	struct Qdisc		*qdisc;
 	unsigned long		state;
-	spinlock_t		_xmit_lock;
-	int			xmit_lock_owner;
 	struct Qdisc		*qdisc_sleeping;
+/*
+ * write mostly part
+ */
+	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
+	int			xmit_lock_owner;
 } ____cacheline_aligned_in_smp;
 
 
