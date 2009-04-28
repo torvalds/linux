@@ -729,6 +729,7 @@ struct ftrace_event_field {
 	char			*type;
 	int			offset;
 	int			size;
+	int			is_signed;
 };
 
 struct event_filter {

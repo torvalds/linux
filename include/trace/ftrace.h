@@ -225,7 +225,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 #define __field(type, item)						\
 	ret = trace_define_field(event_call, #type, #item,		\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item));			\
+				 sizeof(field.item), is_signed_type(type));	\
 	if (ret)							\
 		return ret;
 
@@ -234,7 +234,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 	BUILD_BUG_ON(len > MAX_FILTER_STR_VAL);				\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item));			\
+				 sizeof(field.item), 0);		\
 	if (ret)							\
 		return ret;
 
@@ -242,7 +242,7 @@ ftrace_format_##call(struct trace_seq *s)				\
 #define __string(item, src)						       \
 	ret = trace_define_field(event_call, "__str_loc", #item,	       \
 				offsetof(typeof(field), __str_loc_##item),     \
-				sizeof(field.__str_loc_##item));
+				 sizeof(field.__str_loc_##item), 0);
 
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, func, print)		\
@@ -253,11 +253,11 @@ ftrace_define_fields_##call(void)					\
 	struct ftrace_event_call *event_call = &event_##call;		\
 	int ret;							\
 									\
-	__common_field(int, type);					\
-	__common_field(unsigned char, flags);				\
-	__common_field(unsigned char, preempt_count);			\
-	__common_field(int, pid);					\
-	__common_field(int, tgid);					\
+	__common_field(int, type, 1);					\
+	__common_field(unsigned char, flags, 0);			\
+	__common_field(unsigned char, preempt_count, 0);		\
+	__common_field(int, pid, 1);					\
+	__common_field(int, tgid, 1);					\
 									\
 	tstruct;							\
 									\

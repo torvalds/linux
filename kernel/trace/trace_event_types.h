@@ -141,8 +141,8 @@ TRACE_EVENT_FORMAT(hw_branch, TRACE_HW_BRANCHES, hw_branch_entry, ignore,
 
 TRACE_EVENT_FORMAT(power, TRACE_POWER, trace_power, ignore,
 	TRACE_STRUCT(
-		TRACE_FIELD(ktime_t, state_data.stamp, stamp)
-		TRACE_FIELD(ktime_t, state_data.end, end)
+		TRACE_FIELD_SIGN(ktime_t, state_data.stamp, stamp, 1)
+		TRACE_FIELD_SIGN(ktime_t, state_data.end, end, 1)
 		TRACE_FIELD(int, state_data.type, type)
 		TRACE_FIELD(int, state_data.state, state)
 	),

@@ -50,6 +50,9 @@ extern void __bad_type_size(void);
 	if (!ret)							\
 		return 0;
 
+#undef TRACE_FIELD_SIGN
+#define TRACE_FIELD_SIGN(type, item, assign, is_signed)	\
+	TRACE_FIELD(type, item, assign)
 
 #undef TP_RAW_FMT
 #define TP_RAW_FMT(args...) args
@@ -97,6 +100,10 @@ ftrace_format_##call(struct trace_seq *s)				\
 #undef TRACE_FIELD
 #define TRACE_FIELD(type, item, assign)\
 	entry->item = assign;
+
+#undef TRACE_FIELD_SIGN
+#define TRACE_FIELD_SIGN(type, item, assign, is_signed)	\
+	TRACE_FIELD(type, item, assign)
 
 #undef TP_CMD
 #define TP_CMD(cmd...)	cmd
@@ -149,7 +156,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #define TRACE_FIELD(type, item, assign)					\
 	ret = trace_define_field(event_call, #type, #item,		\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item));			\
+				 sizeof(field.item), is_signed_type(type));	\
 	if (ret)							\
 		return ret;
 
@@ -157,7 +164,15 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #define TRACE_FIELD_SPECIAL(type, item, len, cmd)			\
 	ret = trace_define_field(event_call, #type "[" #len "]", #item,	\
 				 offsetof(typeof(field), item),		\
-				 sizeof(field.item));			\
+				 sizeof(field.item), 0);		\
+	if (ret)							\
+		return ret;
+
+#undef TRACE_FIELD_SIGN
+#define TRACE_FIELD_SIGN(type, item, assign, is_signed)			\
+	ret = trace_define_field(event_call, #type, #item,		\
+				 offsetof(typeof(field), item),		\
+				 sizeof(field.item), is_signed);	\
 	if (ret)							\
 		return ret;
 
@@ -173,11 +188,11 @@ ftrace_define_fields_##call(void)					\
 	struct args field;						\
 	int ret;							\
 									\
-	__common_field(unsigned char, type);				\
-	__common_field(unsigned char, flags);				\
-	__common_field(unsigned char, preempt_count);			\
-	__common_field(int, pid);					\
-	__common_field(int, tgid);					\
+	__common_field(unsigned char, type, 0);				\
+	__common_field(unsigned char, flags, 0);			\
+	__common_field(unsigned char, preempt_count, 0);		\
+	__common_field(int, pid, 1);					\
+	__common_field(int, tgid, 1);					\
 									\
 	tstruct;							\
 									\

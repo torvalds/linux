@@ -26,7 +26,7 @@ static DEFINE_MUTEX(event_mutex);
 LIST_HEAD(ftrace_events);
 
 int trace_define_field(struct ftrace_event_call *call, char *type,
-		       char *name, int offset, int size)
+		       char *name, int offset, int size, int is_signed)
 {
 	struct ftrace_event_field *field;
 
@@ -44,6 +44,7 @@ int trace_define_field(struct ftrace_event_call *call, char *type,
 
 	field->offset = offset;
 	field->size = size;
+	field->is_signed = is_signed;
 	list_add(&field->link, &call->fields);
 
 	return 0;
