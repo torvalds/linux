@@ -24,6 +24,7 @@
 #define __LINUX_XHCI_HCD_H
 
 #include <linux/usb.h>
+#include <linux/timer.h>
 
 #include "../core/hcd.h"
 /* Code sharing between pci-quirks and xhci hcd */
@@ -377,6 +378,7 @@ struct intr_reg {
 /* irq_pending bitmasks */
 #define	ER_IRQ_PENDING(p)	((p) & 0x1)
 /* bits 2:31 need to be preserved */
+/* THIS IS BUGGY - FIXME - IP IS WRITE 1 TO CLEAR */
 #define	ER_IRQ_CLEAR(p)		((p) & 0xfffffffe)
 #define	ER_IRQ_ENABLE(p)	((ER_IRQ_CLEAR(p)) | 0x2)
 #define	ER_IRQ_DISABLE(p)	((ER_IRQ_CLEAR(p)) & ~(0x2))
@@ -699,11 +701,14 @@ struct xhci_link_trb {
 /* control bitfields */
 #define LINK_TOGGLE	(0x1<<1)
 
+/* Command completion event TRB */
+struct xhci_event_cmd {
+	/* Pointer to command TRB, or the value passed by the event data trb */
+	u32 cmd_trb[2];
+	u32 status;
+	u32 flags;
+} __attribute__ ((packed));
 
-union xhci_trb {
-	struct xhci_link_trb		link;
-	struct xhci_transfer_event	trans_event;
-};
 
 /* Normal TRB fields */
 /* transfer_len bitmasks - bits 0:16 */
@@ -736,6 +741,17 @@ union xhci_trb {
 
 /* Control transfer TRB specific fields */
 #define TRB_DIR_IN		(1<<16)
+
+struct xhci_generic_trb {
+	u32 field[4];
+} __attribute__ ((packed));
+
+union xhci_trb {
+	struct xhci_link_trb		link;
+	struct xhci_transfer_event	trans_event;
+	struct xhci_event_cmd		event_cmd;
+	struct xhci_generic_trb		generic;
+};
 
 /* TRB bit mask */
 #define	TRB_TYPE_BITMASK	(0xfc00)
@@ -825,7 +841,11 @@ struct xhci_segment {
 struct xhci_ring {
 	struct xhci_segment	*first_seg;
 	union  xhci_trb		*enqueue;
+	struct xhci_segment	*enq_seg;
+	unsigned int		enq_updates;
 	union  xhci_trb		*dequeue;
+	struct xhci_segment	*deq_seg;
+	unsigned int		deq_updates;
 	/*
 	 * Write the cycle state into the TRB cycle field to give ownership of
 	 * the TRB to the host controller (if we are the producer), or to check
@@ -861,6 +881,8 @@ struct xhci_erst {
 #define	ERST_SIZE	64
 /* Initial number of event segment rings allocated */
 #define	ERST_ENTRIES	1
+/* Poll every 60 seconds */
+#define	POLL_TIMEOUT	60
 /* XXX: Make these module parameters */
 
 
@@ -907,7 +929,20 @@ struct xhci_hcd {
 	/* DMA pools */
 	struct dma_pool	*device_pool;
 	struct dma_pool	*segment_pool;
+
+#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
+	/* Poll the rings - for debugging */
+	struct timer_list	event_ring_timer;
+	int			zombie;
+#endif
+	/* Statistics */
+	int			noops_submitted;
+	int			noops_handled;
+	int			error_bitmask;
 };
+
+/* For testing purposes */
+#define NUM_TEST_NOOPS	0
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
 static inline struct xhci_hcd *hcd_to_xhci(struct usb_hcd *hcd)
@@ -956,9 +991,11 @@ void xhci_print_ir_set(struct xhci_hcd *xhci, struct intr_reg *ir_set, int set_n
 void xhci_print_registers(struct xhci_hcd *xhci);
 void xhci_dbg_regs(struct xhci_hcd *xhci);
 void xhci_print_run_regs(struct xhci_hcd *xhci);
+void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg);
 void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring);
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
 void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
+void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring);
 
 /* xHCI memory managment */
 void xhci_mem_cleanup(struct xhci_hcd *xhci);
@@ -978,5 +1015,13 @@ int xhci_run(struct usb_hcd *hcd);
 void xhci_stop(struct usb_hcd *hcd);
 void xhci_shutdown(struct usb_hcd *hcd);
 int xhci_get_frame(struct usb_hcd *hcd);
+irqreturn_t xhci_irq(struct usb_hcd *hcd);
+
+/* xHCI ring, segment, TRB, and TD functions */
+dma_addr_t trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
+void ring_cmd_db(struct xhci_hcd *xhci);
+void *setup_one_noop(struct xhci_hcd *xhci);
+void handle_event(struct xhci_hcd *xhci);
+void set_hc_event_deq(struct xhci_hcd *xhci);
 
 #endif /* __LINUX_XHCI_HCD_H */

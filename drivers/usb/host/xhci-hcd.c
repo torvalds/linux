@@ -218,6 +218,120 @@ int xhci_init(struct usb_hcd *hcd)
 }
 
 /*
+ * Called in interrupt context when there might be work
+ * queued on the event ring
+ *
+ * xhci->lock must be held by caller.
+ */
+static void xhci_work(struct xhci_hcd *xhci)
+{
+	u32 temp;
+
+	/*
+	 * Clear the op reg interrupt status first,
+	 * so we can receive interrupts from other MSI-X interrupters.
+	 * Write 1 to clear the interrupt status.
+	 */
+	temp = xhci_readl(xhci, &xhci->op_regs->status);
+	temp |= STS_EINT;
+	xhci_writel(xhci, temp, &xhci->op_regs->status);
+	/* FIXME when MSI-X is supported and there are multiple vectors */
+	/* Clear the MSI-X event interrupt status */
+
+	/* Acknowledge the interrupt */
+	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	temp |= 0x3;
+	xhci_writel(xhci, temp, &xhci->ir_set->irq_pending);
+	/* Flush posted writes */
+	xhci_readl(xhci, &xhci->ir_set->irq_pending);
+
+	/* FIXME this should be a delayed service routine that clears the EHB */
+	handle_event(xhci);
+
+	/* Clear the event handler busy flag; the event ring should be empty. */
+	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
+	xhci_writel(xhci, temp & ~ERST_EHB, &xhci->ir_set->erst_dequeue[0]);
+	/* Flush posted writes -- FIXME is this necessary? */
+	xhci_readl(xhci, &xhci->ir_set->irq_pending);
+}
+
+/*-------------------------------------------------------------------------*/
+
+/*
+ * xHCI spec says we can get an interrupt, and if the HC has an error condition,
+ * we might get bad data out of the event ring.  Section 4.10.2.7 has a list of
+ * indicators of an event TRB error, but we check the status *first* to be safe.
+ */
+irqreturn_t xhci_irq(struct usb_hcd *hcd)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	u32 temp, temp2;
+
+	spin_lock(&xhci->lock);
+	/* Check if the xHC generated the interrupt, or the irq is shared */
+	temp = xhci_readl(xhci, &xhci->op_regs->status);
+	temp2 = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	if (!(temp & STS_EINT) && !ER_IRQ_PENDING(temp2)) {
+		spin_unlock(&xhci->lock);
+		return IRQ_NONE;
+	}
+
+	temp = xhci_readl(xhci, &xhci->op_regs->status);
+	if (temp & STS_FATAL) {
+		xhci_warn(xhci, "WARNING: Host System Error\n");
+		xhci_halt(xhci);
+		xhci_to_hcd(xhci)->state = HC_STATE_HALT;
+		return -ESHUTDOWN;
+	}
+
+	xhci_work(xhci);
+	spin_unlock(&xhci->lock);
+
+	return IRQ_HANDLED;
+}
+
+#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
+void event_ring_work(unsigned long arg)
+{
+	unsigned long flags;
+	int temp;
+	struct xhci_hcd *xhci = (struct xhci_hcd *) arg;
+	int i, j;
+
+	xhci_dbg(xhci, "Poll event ring: %lu\n", jiffies);
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	temp = xhci_readl(xhci, &xhci->op_regs->status);
+	xhci_dbg(xhci, "op reg status = 0x%x\n", temp);
+	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
+	xhci_dbg(xhci, "ir_set 0 pending = 0x%x\n", temp);
+	xhci_dbg(xhci, "No-op commands handled = %d\n", xhci->noops_handled);
+	xhci_dbg(xhci, "HC error bitmask = 0x%x\n", xhci->error_bitmask);
+	xhci->error_bitmask = 0;
+	xhci_dbg(xhci, "Event ring:\n");
+	xhci_debug_segment(xhci, xhci->event_ring->deq_seg);
+	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
+	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
+	temp &= ERST_PTR_MASK;
+	xhci_dbg(xhci, "ERST deq = 0x%x\n", temp);
+	xhci_dbg(xhci, "Command ring:\n");
+	xhci_debug_segment(xhci, xhci->cmd_ring->deq_seg);
+	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
+	xhci_dbg_cmd_ptrs(xhci);
+
+	if (xhci->noops_submitted != NUM_TEST_NOOPS)
+		if (setup_one_noop(xhci))
+			ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	if (!xhci->zombie)
+		mod_timer(&xhci->event_ring_timer, jiffies + POLL_TIMEOUT * HZ);
+	else
+		xhci_dbg(xhci, "Quit polling the event ring.\n");
+}
+#endif
+
+/*
  * Start the HC after it was halted.
  *
  * This function is called by the USB core when the HC driver is added.
@@ -233,8 +347,9 @@ int xhci_run(struct usb_hcd *hcd)
 {
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
-	xhci_dbg(xhci, "xhci_run\n");
+	void (*doorbell)(struct xhci_hcd *) = NULL;
 
+	xhci_dbg(xhci, "xhci_run\n");
 #if 0	/* FIXME: MSI not setup yet */
 	/* Do this at the very last minute */
 	ret = xhci_setup_msix(xhci);
@@ -243,6 +358,17 @@ int xhci_run(struct usb_hcd *hcd)
 
 	return -ENOSYS;
 #endif
+#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
+	init_timer(&xhci->event_ring_timer);
+	xhci->event_ring_timer.data = (unsigned long) xhci;
+	xhci->event_ring_timer.function = event_ring_work;
+	/* Poll the event ring */
+	xhci->event_ring_timer.expires = jiffies + POLL_TIMEOUT * HZ;
+	xhci->zombie = 0;
+	xhci_dbg(xhci, "Setting event ring polling timer\n");
+	add_timer(&xhci->event_ring_timer);
+#endif
+
 	xhci_dbg(xhci, "// Set the interrupt modulation register\n");
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_control);
 	temp &= 0xffff;
@@ -266,10 +392,24 @@ int xhci_run(struct usb_hcd *hcd)
 			&xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, xhci->ir_set, 0);
 
+	if (NUM_TEST_NOOPS > 0)
+		doorbell = setup_one_noop(xhci);
+
 	xhci_dbg(xhci, "Command ring memory map follows:\n");
 	xhci_debug_ring(xhci, xhci->cmd_ring);
+	xhci_dbg_ring_ptrs(xhci, xhci->cmd_ring);
+	xhci_dbg_cmd_ptrs(xhci);
+
 	xhci_dbg(xhci, "ERST memory map follows:\n");
 	xhci_dbg_erst(xhci, &xhci->erst);
+	xhci_dbg(xhci, "Event ring:\n");
+	xhci_debug_ring(xhci, xhci->event_ring);
+	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
+	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[1]);
+	xhci_dbg(xhci, "ERST deq upper = 0x%x\n", temp);
+	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
+	temp &= ERST_PTR_MASK;
+	xhci_dbg(xhci, "ERST deq = 0x%x\n", temp);
 
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= (CMD_RUN);
@@ -280,6 +420,8 @@ int xhci_run(struct usb_hcd *hcd)
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	xhci_dbg(xhci, "// @%x = 0x%x\n",
 			(unsigned int) &xhci->op_regs->command, temp);
+	if (doorbell)
+		(*doorbell)(xhci);
 
 	xhci_dbg(xhci, "Finished xhci_run\n");
 	return 0;
@@ -309,6 +451,12 @@ void xhci_stop(struct usb_hcd *hcd)
 #if 0	/* No MSI yet */
 	xhci_cleanup_msix(xhci);
 #endif
+#ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
+	/* Tell the event ring poll function not to reschedule */
+	xhci->zombie = 1;
+	del_timer_sync(&xhci->event_ring_timer);
+#endif
+
 	xhci_dbg(xhci, "// Disabling event ring interrupts\n");
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	xhci_writel(xhci, temp & ~STS_EINT, &xhci->op_regs->status);
@@ -345,6 +493,8 @@ void xhci_shutdown(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "xhci_shutdown completed - status = %x\n",
 		    xhci_readl(xhci, &xhci->op_regs->status));
 }
+
+/*-------------------------------------------------------------------------*/
 
 int xhci_get_frame(struct usb_hcd *hcd)
 {

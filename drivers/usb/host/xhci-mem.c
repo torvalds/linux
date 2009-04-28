@@ -172,7 +172,9 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	}
 	/* The ring is empty, so the enqueue pointer == dequeue pointer */
 	ring->enqueue = ring->first_seg->trbs;
+	ring->enq_seg = ring->first_seg;
 	ring->dequeue = ring->enqueue;
+	ring->deq_seg = ring->first_seg;
 	/* The ring is initialized to 0. The producer must write 1 to the cycle
 	 * bit to handover ownership of the TRB, so PCS = 1.  The consumer must
 	 * compare CCS to the cycle bit to check ownership, so CCS = 1.
@@ -374,14 +376,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_writel(xhci, val, &xhci->ir_set->erst_base[0]);
 
 	/* Set the event ring dequeue address */
-	xhci_dbg(xhci, "// Set ERST dequeue address for ir_set 0 = 0x%x%x\n",
-			xhci->erst.entries[0].seg_addr[1], xhci->erst.entries[0].seg_addr[0]);
-	val = xhci_readl(xhci, &xhci->run_regs->ir_set[0].erst_dequeue[0]);
-	val &= ERST_PTR_MASK;
-	val |= (xhci->erst.entries[0].seg_addr[0] & ~ERST_PTR_MASK);
-	xhci_writel(xhci, val, &xhci->run_regs->ir_set[0].erst_dequeue[0]);
-	xhci_writel(xhci, xhci->erst.entries[0].seg_addr[1],
-			&xhci->run_regs->ir_set[0].erst_dequeue[1]);
+	set_hc_event_deq(xhci);
 	xhci_dbg(xhci, "Wrote ERST address to ir_set 0.\n");
 	xhci_print_ir_set(xhci, xhci->ir_set, 0);
 

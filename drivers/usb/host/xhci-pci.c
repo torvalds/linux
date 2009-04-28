@@ -96,6 +96,7 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	/*
 	 * generic hardware linkage
 	 */
+	.irq =			xhci_irq,
 	.flags =		HCD_MEMORY | HCD_USB3,
 
 	/*

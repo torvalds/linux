@@ -230,6 +230,64 @@ void xhci_print_registers(struct xhci_hcd *xhci)
 	xhci_print_op_regs(xhci);
 }
 
+void xhci_print_trb_offsets(struct xhci_hcd *xhci, union xhci_trb *trb)
+{
+	int i;
+	for (i = 0; i < 4; ++i)
+		xhci_dbg(xhci, "Offset 0x%x = 0x%x\n",
+				i*4, trb->generic.field[i]);
+}
+
+/**
+ * Debug a transfer request block (TRB).
+ */
+void xhci_debug_trb(struct xhci_hcd *xhci, union xhci_trb *trb)
+{
+	u64	address;
+	u32	type = xhci_readl(xhci, &trb->link.control) & TRB_TYPE_BITMASK;
+
+	switch (type) {
+	case TRB_TYPE(TRB_LINK):
+		xhci_dbg(xhci, "Link TRB:\n");
+		xhci_print_trb_offsets(xhci, trb);
+
+		address = trb->link.segment_ptr[0] +
+			(((u64) trb->link.segment_ptr[1]) << 32);
+		xhci_dbg(xhci, "Next ring segment DMA address = 0x%llx\n", address);
+
+		xhci_dbg(xhci, "Interrupter target = 0x%x\n",
+				GET_INTR_TARGET(trb->link.intr_target));
+		xhci_dbg(xhci, "Cycle bit = %u\n",
+				(unsigned int) (trb->link.control & TRB_CYCLE));
+		xhci_dbg(xhci, "Toggle cycle bit = %u\n",
+				(unsigned int) (trb->link.control & LINK_TOGGLE));
+		xhci_dbg(xhci, "No Snoop bit = %u\n",
+				(unsigned int) (trb->link.control & TRB_NO_SNOOP));
+		break;
+	case TRB_TYPE(TRB_TRANSFER):
+		address = trb->trans_event.buffer[0] +
+			(((u64) trb->trans_event.buffer[1]) << 32);
+		/*
+		 * FIXME: look at flags to figure out if it's an address or if
+		 * the data is directly in the buffer field.
+		 */
+		xhci_dbg(xhci, "DMA address or buffer contents= %llu\n", address);
+		break;
+	case TRB_TYPE(TRB_COMPLETION):
+		address = trb->event_cmd.cmd_trb[0] +
+			(((u64) trb->event_cmd.cmd_trb[1]) << 32);
+		xhci_dbg(xhci, "Command TRB pointer = %llu\n", address);
+		xhci_dbg(xhci, "Completion status = %u\n",
+				(unsigned int) GET_COMP_CODE(trb->event_cmd.status));
+		xhci_dbg(xhci, "Flags = 0x%x\n", (unsigned int) trb->event_cmd.flags);
+		break;
+	default:
+		xhci_dbg(xhci, "Unknown TRB with TRB type ID %u\n",
+				(unsigned int) type>>10);
+		xhci_print_trb_offsets(xhci, trb);
+		break;
+	}
+}
 
 /**
  * Debug a segment with an xHCI ring.
@@ -261,6 +319,20 @@ void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg)
 	}
 }
 
+void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring)
+{
+	xhci_dbg(xhci, "Ring deq = 0x%x (virt), 0x%x (dma)\n",
+			(unsigned int) ring->dequeue,
+			trb_virt_to_dma(ring->deq_seg, ring->dequeue));
+	xhci_dbg(xhci, "Ring deq updated %u times\n",
+			ring->deq_updates);
+	xhci_dbg(xhci, "Ring enq = 0x%x (virt), 0x%x (dma)\n",
+			(unsigned int) ring->enqueue,
+			trb_virt_to_dma(ring->enq_seg, ring->enqueue));
+	xhci_dbg(xhci, "Ring enq updated %u times\n",
+			ring->enq_updates);
+}
+
 /**
  * Debugging for an xHCI ring, which is a queue broken into multiple segments.
  *
@@ -277,6 +349,10 @@ void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring)
 	struct xhci_segment *first_seg = ring->first_seg;
 	xhci_debug_segment(xhci, first_seg);
 
+	if (!ring->enq_updates && !ring->deq_updates) {
+		xhci_dbg(xhci, "  Ring has not been updated\n");
+		return;
+	}
 	for (seg = first_seg->next; seg != first_seg; seg = seg->next)
 		xhci_debug_segment(xhci, seg);
 }
