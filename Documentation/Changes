@@ -48,6 +48,7 @@ o  procps                 3.2.0                   # ps --version
 o  oprofile               0.9                     # oprofiled --version
 o  udev                   081                     # udevinfo -V
 o  grub                   0.93                    # grub --version
+o  mcelog		  0.6
 
 Kernel compilation
 ==================
@@ -276,6 +277,16 @@ before running exportfs or mountd.  It is recommended that all NFS
 services be protected from the internet-at-large by a firewall where
 that is possible.
 
+mcelog
+------
+
+In Linux 2.6.31+ the i386 kernel needs to run the mcelog utility
+as a regular cronjob similar to the x86-64 kernel to process and log
+machine check events when CONFIG_X86_NEW_MCE is enabled. Machine check
+events are errors reported by the CPU. Processing them is strongly encouraged.
+All x86-64 kernels since 2.6.4 require the mcelog utility to
+process machine checks.
+
 Getting updated software
 ========================
 
@@ -364,6 +375,10 @@ o <http://www.kernel.org/pub/linux/utils/kernel/hotplug/udev.html>
 FUSE
 ----
 o <http://sourceforge.net/projects/fuse>
+
+mcelog
+------
+o <ftp://ftp.kernel.org/pub/linux/utils/cpu/mce/mcelog/>
 
 Networking
 **********
