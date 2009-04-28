@@ -784,7 +784,6 @@ int conf_write_autoconf(void)
 	const char *str;
 	const char *name;
 	FILE *out, *tristate, *out_h;
-	time_t now;
 	int i;
 
 	sym_clear_all_valid();
@@ -811,22 +810,19 @@ int conf_write_autoconf(void)
 		return 1;
 	}
 
-	time(&now);
 	fprintf(out, "#\n"
 		     "# Automatically generated make config: don't edit\n"
 		     "# %s\n"
-		     "# %s"
 		     "#\n",
-		     rootmenu.prompt->text, ctime(&now));
+		     rootmenu.prompt->text);
 	fprintf(tristate, "#\n"
 			  "# Automatically generated - do not edit\n"
 			  "\n");
 	fprintf(out_h, "/*\n"
 		       " * Automatically generated C config: don't edit\n"
 		       " * %s\n"
-		       " * %s"
 		       " */\n",
-		       rootmenu.prompt->text, ctime(&now));
+		       rootmenu.prompt->text);
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
