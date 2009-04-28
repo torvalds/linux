@@ -319,12 +319,8 @@ static void start_request(struct floppy_state *fs)
 		       req->errors, req->current_nr_sectors);
 #endif
 
-		if (req->sector < 0 || req->sector >= fs->total_secs) {
+		if (req->sector >= fs->total_secs) {
 			__blk_end_request_cur(req, -EIO);
-			continue;
-		}
-		if (req->current_nr_sectors == 0) {
-			__blk_end_request_cur(req, 0);
 			continue;
 		}
 		if (fs->ejected) {
@@ -593,8 +589,6 @@ static void xfer_timeout(unsigned long data)
 	struct floppy_state *fs = (struct floppy_state *) data;
 	struct swim3 __iomem *sw = fs->swim3;
 	struct dbdma_regs __iomem *dr = fs->dma;
-	struct dbdma_cmd *cp = fs->dma_cmd;
-	unsigned long s;
 	int n;
 
 	fs->timeout_pending = 0;
@@ -605,14 +599,6 @@ static void xfer_timeout(unsigned long data)
 	out_8(&sw->intr_enable, 0);
 	out_8(&sw->control_bic, WRITE_SECTORS | DO_ACTION);
 	out_8(&sw->select, RELAX);
-	if (rq_data_dir(fd_req) == WRITE)
-		++cp;
-	if (ld_le16(&cp->xfer_status) != 0)
-		s = fs->scount - ((ld_le16(&cp->res_count) + 511) >> 9);
-	else
-		s = 0;
-	fd_req->sector += s;
-	fd_req->current_nr_sectors -= s;
 	printk(KERN_ERR "swim3: timeout %sing sector %ld\n",
 	       (rq_data_dir(fd_req)==WRITE? "writ": "read"), (long)fd_req->sector);
 	__blk_end_request_cur(fd_req, -EIO);
@@ -719,9 +705,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 		if (intr & ERROR_INTR) {
 			n = fs->scount - 1 - resid / 512;
 			if (n > 0) {
-				fd_req->sector += n;
-				fd_req->current_nr_sectors -= n;
-				fd_req->buffer += n * 512;
+				blk_update_request(fd_req, 0, n << 9);
 				fs->req_sector += n;
 			}
 			if (fs->retries < 5) {
@@ -745,13 +729,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 				start_request(fs);
 				break;
 			}
-			fd_req->sector += fs->scount;
-			fd_req->current_nr_sectors -= fs->scount;
-			fd_req->buffer += fs->scount * 512;
-			if (fd_req->current_nr_sectors <= 0) {
-				__blk_end_request_cur(fd_req, 0);
-				fs->state = idle;
-			} else {
+			if (__blk_end_request(fd_req, 0, fs->scount << 9)) {
 				fs->req_sector += fs->scount;
 				if (fs->req_sector > fs->secpertrack) {
 					fs->req_sector -= fs->secpertrack;
@@ -761,7 +739,8 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 					}
 				}
 				act(fs);
-			}
+			} else
+				fs->state = idle;
 		}
 		if (fs->state == idle)
 			start_request(fs);
