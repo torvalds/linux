@@ -86,9 +86,7 @@ struct mce_log {
 
 #ifdef __KERNEL__
 
-#ifdef CONFIG_X86_32
 extern int mce_disabled;
-#endif
 
 #include <asm/atomic.h>
 

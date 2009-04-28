@@ -49,13 +49,14 @@ static void unexpected_machine_check(struct pt_regs *regs, long error_code)
 /* Call the installed machine check handler for this CPU setup. */
 void (*machine_check_vector)(struct pt_regs *, long error_code) =
 						unexpected_machine_check;
+
+int				mce_disabled;
+
 #ifdef CONFIG_X86_64
 
 #define MISC_MCELOG_MINOR	227
 
 atomic_t mce_entry;
-
-static int			mce_dont_init;
 
 /*
  * Tolerant levels:
@@ -194,7 +195,7 @@ static void mce_panic(char *msg, struct mce *backup, u64 start)
 
 int mce_available(struct cpuinfo_x86 *c)
 {
-	if (mce_dont_init)
+	if (mce_disabled)
 		return 0;
 	return cpu_has(c, X86_FEATURE_MCE) && cpu_has(c, X86_FEATURE_MCA);
 }
@@ -720,7 +721,7 @@ void __cpuinit mcheck_init(struct cpuinfo_x86 *c)
 		return;
 
 	if (mce_cap_init() < 0) {
-		mce_dont_init = 1;
+		mce_disabled = 1;
 		return;
 	}
 	mce_cpu_quirks(c);
@@ -911,7 +912,7 @@ static struct miscdevice mce_log_device = {
  */
 static int __init mcheck_disable(char *str)
 {
-	mce_dont_init = 1;
+	mce_disabled = 1;
 	return 1;
 }
 __setup("nomce", mcheck_disable);
@@ -925,7 +926,7 @@ __setup("nomce", mcheck_disable);
 static int __init mcheck_enable(char *str)
 {
 	if (!strcmp(str, "off"))
-		mce_dont_init = 1;
+		mce_disabled = 1;
 	else if (!strcmp(str, "bootlog") || !strcmp(str, "nobootlog"))
 		mce_bootlog = (str[0] == 'b');
 	else if (isdigit(str[0]))
@@ -1291,8 +1292,6 @@ static __init int mce_init_device(void)
 device_initcall(mce_init_device);
 
 #else /* CONFIG_X86_32: */
-
-int mce_disabled;
 
 int nr_mce_banks;
 EXPORT_SYMBOL_GPL(nr_mce_banks);	/* non-fatal.o */
