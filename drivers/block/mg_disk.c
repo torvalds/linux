@@ -79,7 +79,7 @@ static void mg_dump_status(const char *msg, unsigned int stat,
 			if (host->breq) {
 				req = elv_next_request(host->breq);
 				if (req)
-					printk(", sector=%ld", req->sector);
+					printk(", sector=%u", (u32)req->sector);
 			}
 
 		}
