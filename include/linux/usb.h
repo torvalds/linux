@@ -36,6 +36,7 @@ struct wusb_dev;
  *  - configs have one (often) or more interfaces;
  *  - interfaces have one (usually) or more settings;
  *  - each interface setting has zero or (usually) more endpoints.
+ *  - a SuperSpeed endpoint has a companion descriptor
  *
  * And there might be other descriptors mixed in with those.
  *
@@ -44,6 +45,19 @@ struct wusb_dev;
 
 struct ep_device;
 
+/* For SS devices */
+/**
+ * struct usb_host_ep_comp - Valid for SuperSpeed devices only
+ * @desc: endpoint companion descriptor, wMaxPacketSize in native byteorder
+ * @extra: descriptors following this endpoint companion descriptor
+ * @extralen: how many bytes of "extra" are valid
+ */
+struct usb_host_ep_comp {
+	struct usb_ep_comp_descriptor	desc;
+	unsigned char			*extra;   /* Extra descriptors */
+	int				extralen;
+};
+
 /**
  * struct usb_host_endpoint - host-side endpoint descriptor and queue
  * @desc: descriptor for this endpoint, wMaxPacketSize in native byteorder
@@ -51,6 +65,7 @@ struct ep_device;
  * @hcpriv: for use by HCD; typically holds hardware dma queue head (QH)
  *	with one or more transfer descriptors (TDs) per urb
  * @ep_dev: ep_device for sysfs info
+ * @ep_comp: companion descriptor information for this endpoint
  * @extra: descriptors following this endpoint in the configuration
  * @extralen: how many bytes of "extra" are valid
  * @enabled: URBs may be submitted to this endpoint
@@ -63,6 +78,7 @@ struct usb_host_endpoint {
 	struct list_head		urb_list;
 	void				*hcpriv;
 	struct ep_device 		*ep_dev;	/* For sysfs info */
+	struct usb_host_ep_comp		*ep_comp;	/* For SS devices */
 
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
