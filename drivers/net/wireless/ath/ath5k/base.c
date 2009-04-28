@@ -2505,7 +2505,7 @@ ath5k_intr(int irq, void *dev_id)
 				ath5k_hw_update_mib_counters(ah, &sc->ll_stats);
 			}
 		}
-	} while (ath5k_hw_is_intr_pending(ah) && counter-- > 0);
+	} while (ath5k_hw_is_intr_pending(ah) && --counter > 0);
 
 	if (unlikely(!counter))
 		ATH5K_WARN(sc, "too many interrupts, giving up for now\n");
