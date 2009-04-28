@@ -49,6 +49,7 @@ ifneq ($(SUBARCH),$(ARCH))
 endif
 
 cflags-y := -ffunction-sections
+cflags-y += $(call cc-option, -mno-check-zero-division)
 
 ifdef CONFIG_32BIT
 ld-emul			= $(32bit-emul)
