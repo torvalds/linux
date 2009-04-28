@@ -241,6 +241,18 @@ struct xhci_op_regs {
  */
 #define	DEV_NOTE_FWAKE		ENABLE_DEV_NOTE(1)
 
+/* CRCR - Command Ring Control Register - cmd_ring bitmasks */
+/* bit 0 is the command ring cycle state */
+/* stop ring operation after completion of the currently executing command */
+#define CMD_RING_PAUSE		(1 << 1)
+/* stop ring immediately - abort the currently executing command */
+#define CMD_RING_ABORT		(1 << 2)
+/* true: command ring is running */
+#define CMD_RING_RUNNING	(1 << 3)
+/* bits 4:5 reserved and should be preserved */
+/* Command Ring pointer - bit mask for the lower 32 bits. */
+#define CMD_RING_ADDR_MASK	(0xffffffc0)
+
 /* CONFIG - Configure Register - config_reg bitmasks */
 /* bits 0:7 - maximum number of device slots enabled (NumSlotsEn) */
 #define MAX_DEVS(p)	((p) & 0xff)
@@ -391,6 +403,7 @@ struct intr_reg {
  * a work queue (or delayed service routine)?
  */
 #define ERST_EHB		(1 << 3)
+#define ERST_PTR_MASK		(0xf)
 
 /**
  * struct xhci_run_regs
@@ -407,6 +420,275 @@ struct xhci_run_regs {
 	struct intr_reg	ir_set[128];
 } __attribute__ ((packed));
 
+/**
+ * struct doorbell_array
+ *
+ * Section 5.6
+ */
+struct xhci_doorbell_array {
+	u32	doorbell[256];
+} __attribute__ ((packed));
+
+#define	DB_TARGET_MASK		0xFFFFFF00
+#define	DB_STREAM_ID_MASK	0x0000FFFF
+#define	DB_TARGET_HOST		0x0
+#define	DB_STREAM_ID_HOST	0x0
+#define	DB_MASK			(0xff << 8)
+
+
+struct xhci_transfer_event {
+	/* 64-bit buffer address, or immediate data */
+	u32	buffer[2];
+	u32	transfer_len;
+	/* This field is interpreted differently based on the type of TRB */
+	u32	flags;
+} __attribute__ ((packed));
+
+/* Completion Code - only applicable for some types of TRBs */
+#define	COMP_CODE_MASK		(0xff << 24)
+#define GET_COMP_CODE(p)	(((p) & COMP_CODE_MASK) >> 24)
+#define COMP_SUCCESS	1
+/* Data Buffer Error */
+#define COMP_DB_ERR	2
+/* Babble Detected Error */
+#define COMP_BABBLE	3
+/* USB Transaction Error */
+#define COMP_TX_ERR	4
+/* TRB Error - some TRB field is invalid */
+#define COMP_TRB_ERR	5
+/* Stall Error - USB device is stalled */
+#define COMP_STALL	6
+/* Resource Error - HC doesn't have memory for that device configuration */
+#define COMP_ENOMEM	7
+/* Bandwidth Error - not enough room in schedule for this dev config */
+#define COMP_BW_ERR	8
+/* No Slots Available Error - HC ran out of device slots */
+#define COMP_ENOSLOTS	9
+/* Invalid Stream Type Error */
+#define COMP_STREAM_ERR	10
+/* Slot Not Enabled Error - doorbell rung for disabled device slot */
+#define COMP_EBADSLT	11
+/* Endpoint Not Enabled Error */
+#define COMP_EBADEP	12
+/* Short Packet */
+#define COMP_SHORT_TX	13
+/* Ring Underrun - doorbell rung for an empty isoc OUT ep ring */
+#define COMP_UNDERRUN	14
+/* Ring Overrun - isoc IN ep ring is empty when ep is scheduled to RX */
+#define COMP_OVERRUN	15
+/* Virtual Function Event Ring Full Error */
+#define COMP_VF_FULL	16
+/* Parameter Error - Context parameter is invalid */
+#define COMP_EINVAL	17
+/* Bandwidth Overrun Error - isoc ep exceeded its allocated bandwidth */
+#define COMP_BW_OVER	18
+/* Context State Error - illegal context state transition requested */
+#define COMP_CTX_STATE	19
+/* No Ping Response Error - HC didn't get PING_RESPONSE in time to TX */
+#define COMP_PING_ERR	20
+/* Event Ring is full */
+#define COMP_ER_FULL	21
+/* Missed Service Error - HC couldn't service an isoc ep within interval */
+#define COMP_MISSED_INT	23
+/* Successfully stopped command ring */
+#define COMP_CMD_STOP	24
+/* Successfully aborted current command and stopped command ring */
+#define COMP_CMD_ABORT	25
+/* Stopped - transfer was terminated by a stop endpoint command */
+#define COMP_STOP	26
+/* Same as COMP_EP_STOPPED, but the transfered length in the event is invalid */
+#define COMP_STOP_INVAL	27
+/* Control Abort Error - Debug Capability - control pipe aborted */
+#define COMP_DBG_ABORT	28
+/* TRB type 29 and 30 reserved */
+/* Isoc Buffer Overrun - an isoc IN ep sent more data than could fit in TD */
+#define COMP_BUFF_OVER	31
+/* Event Lost Error - xHC has an "internal event overrun condition" */
+#define COMP_ISSUES	32
+/* Undefined Error - reported when other error codes don't apply */
+#define COMP_UNKNOWN	33
+/* Invalid Stream ID Error */
+#define COMP_STRID_ERR	34
+/* Secondary Bandwidth Error - may be returned by a Configure Endpoint cmd */
+/* FIXME - check for this */
+#define COMP_2ND_BW_ERR	35
+/* Split Transaction Error */
+#define	COMP_SPLIT_ERR	36
+
+struct xhci_link_trb {
+	/* 64-bit segment pointer*/
+	u32 segment_ptr[2];
+	u32 intr_target;
+	u32 control;
+} __attribute__ ((packed));
+
+/* control bitfields */
+#define LINK_TOGGLE	(0x1<<1)
+
+
+union xhci_trb {
+	struct xhci_link_trb		link;
+	struct xhci_transfer_event	trans_event;
+};
+
+/* Normal TRB fields */
+/* transfer_len bitmasks - bits 0:16 */
+#define	TRB_LEN(p)		((p) & 0x1ffff)
+/* TD size - number of bytes remaining in the TD (including this TRB):
+ * bits 17 - 21.  Shift the number of bytes by 10. */
+#define TD_REMAINDER(p)		((((p) >> 10) & 0x1f) << 17)
+/* Interrupter Target - which MSI-X vector to target the completion event at */
+#define TRB_INTR_TARGET(p)	(((p) & 0x3ff) << 22)
+#define GET_INTR_TARGET(p)	(((p) >> 22) & 0x3ff)
+
+/* Cycle bit - indicates TRB ownership by HC or HCD */
+#define TRB_CYCLE		(1<<0)
+/*
+ * Force next event data TRB to be evaluated before task switch.
+ * Used to pass OS data back after a TD completes.
+ */
+#define TRB_ENT			(1<<1)
+/* Interrupt on short packet */
+#define TRB_ISP			(1<<2)
+/* Set PCIe no snoop attribute */
+#define TRB_NO_SNOOP		(1<<3)
+/* Chain multiple TRBs into a TD */
+#define TRB_CHAIN		(1<<4)
+/* Interrupt on completion */
+#define TRB_IOC			(1<<5)
+/* The buffer pointer contains immediate data */
+#define TRB_IDT			(1<<6)
+
+
+/* Control transfer TRB specific fields */
+#define TRB_DIR_IN		(1<<16)
+
+/* TRB bit mask */
+#define	TRB_TYPE_BITMASK	(0xfc00)
+#define TRB_TYPE(p)		((p) << 10)
+/* TRB type IDs */
+/* bulk, interrupt, isoc scatter/gather, and control data stage */
+#define TRB_NORMAL		1
+/* setup stage for control transfers */
+#define TRB_SETUP		2
+/* data stage for control transfers */
+#define TRB_DATA		3
+/* status stage for control transfers */
+#define TRB_STATUS		4
+/* isoc transfers */
+#define TRB_ISOC		5
+/* TRB for linking ring segments */
+#define TRB_LINK		6
+#define TRB_EVENT_DATA		7
+/* Transfer Ring No-op (not for the command ring) */
+#define TRB_TR_NOOP		8
+/* Command TRBs */
+/* Enable Slot Command */
+#define TRB_ENABLE_SLOT		9
+/* Disable Slot Command */
+#define TRB_DISABLE_SLOT	10
+/* Address Device Command */
+#define TRB_ADDR_DEV		11
+/* Configure Endpoint Command */
+#define TRB_CONFIG_EP		12
+/* Evaluate Context Command */
+#define TRB_EVAL_CONTEXT	13
+/* Reset Transfer Ring Command */
+#define TRB_RESET_RING		14
+/* Stop Transfer Ring Command */
+#define TRB_STOP_RING		15
+/* Set Transfer Ring Dequeue Pointer Command */
+#define TRB_SET_DEQ		16
+/* Reset Device Command */
+#define TRB_RESET_DEV		17
+/* Force Event Command (opt) */
+#define TRB_FORCE_EVENT		18
+/* Negotiate Bandwidth Command (opt) */
+#define TRB_NEG_BANDWIDTH	19
+/* Set Latency Tolerance Value Command (opt) */
+#define TRB_SET_LT		20
+/* Get port bandwidth Command */
+#define TRB_GET_BW		21
+/* Force Header Command - generate a transaction or link management packet */
+#define TRB_FORCE_HEADER	22
+/* No-op Command - not for transfer rings */
+#define TRB_CMD_NOOP		23
+/* TRB IDs 24-31 reserved */
+/* Event TRBS */
+/* Transfer Event */
+#define TRB_TRANSFER		32
+/* Command Completion Event */
+#define TRB_COMPLETION		33
+/* Port Status Change Event */
+#define TRB_PORT_STATUS		34
+/* Bandwidth Request Event (opt) */
+#define TRB_BANDWIDTH_EVENT	35
+/* Doorbell Event (opt) */
+#define TRB_DOORBELL		36
+/* Host Controller Event */
+#define TRB_HC_EVENT		37
+/* Device Notification Event - device sent function wake notification */
+#define TRB_DEV_NOTE		38
+/* MFINDEX Wrap Event - microframe counter wrapped */
+#define TRB_MFINDEX_WRAP	39
+/* TRB IDs 40-47 reserved, 48-63 is vendor-defined */
+
+/*
+ * TRBS_PER_SEGMENT must be a multiple of 4,
+ * since the command ring is 64-byte aligned.
+ * It must also be greater than 16.
+ */
+#define TRBS_PER_SEGMENT	64
+#define SEGMENT_SIZE		(TRBS_PER_SEGMENT*16)
+
+struct xhci_segment {
+	union xhci_trb		*trbs;
+	/* private to HCD */
+	struct xhci_segment	*next;
+	dma_addr_t		dma;
+} __attribute__ ((packed));
+
+struct xhci_ring {
+	struct xhci_segment	*first_seg;
+	union  xhci_trb		*enqueue;
+	union  xhci_trb		*dequeue;
+	/*
+	 * Write the cycle state into the TRB cycle field to give ownership of
+	 * the TRB to the host controller (if we are the producer), or to check
+	 * if we own the TRB (if we are the consumer).  See section 4.9.1.
+	 */
+	u32			cycle_state;
+};
+
+struct xhci_erst_entry {
+	/* 64-bit event ring segment address */
+	u32	seg_addr[2];
+	u32	seg_size;
+	/* Set to zero */
+	u32	rsvd;
+} __attribute__ ((packed));
+
+struct xhci_erst {
+	struct xhci_erst_entry	*entries;
+	unsigned int		num_entries;
+	/* xhci->event_ring keeps track of segment dma addresses */
+	dma_addr_t		erst_dma_addr;
+	/* Num entries the ERST can contain */
+	unsigned int		erst_size;
+};
+
+/*
+ * Each segment table entry is 4*32bits long.  1K seems like an ok size:
+ * (1K bytes * 8bytes/bit) / (4*32 bits) = 64 segment entries in the table,
+ * meaning 64 ring segments.
+ * Initial allocated size of the ERST, in number of entries */
+#define	ERST_NUM_SEGS	1
+/* Initial allocated size of the ERST, in number of entries */
+#define	ERST_SIZE	64
+/* Initial number of event segment rings allocated */
+#define	ERST_ENTRIES	1
+/* XXX: Make these module parameters */
+
 
 /* There is one ehci_hci structure per controller */
 struct xhci_hcd {
@@ -414,6 +696,7 @@ struct xhci_hcd {
 	struct xhci_cap_regs __iomem *cap_regs;
 	struct xhci_op_regs __iomem *op_regs;
 	struct xhci_run_regs __iomem *run_regs;
+	struct xhci_doorbell_array __iomem *dba;
 	/* Our HCD's current interrupter register set */
 	struct	intr_reg __iomem *ir_set;
 
@@ -441,6 +724,14 @@ struct xhci_hcd {
 	/* only one MSI vector for now, but might need more later */
 	int		msix_count;
 	struct msix_entry	*msix_entries;
+	/* data structures */
+	struct xhci_ring	*cmd_ring;
+	struct xhci_ring	*event_ring;
+	struct xhci_erst	erst;
+
+	/* DMA pools */
+	struct dma_pool	*device_pool;
+	struct dma_pool	*segment_pool;
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
@@ -488,6 +779,11 @@ static inline void xhci_writel(const struct xhci_hcd *xhci,
 /* xHCI debugging */
 void xhci_print_ir_set(struct xhci_hcd *xhci, struct intr_reg *ir_set, int set_num);
 void xhci_print_registers(struct xhci_hcd *xhci);
+void xhci_dbg_regs(struct xhci_hcd *xhci);
+void xhci_print_run_regs(struct xhci_hcd *xhci);
+void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring);
+void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst);
+void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci);
 
 /* xHCI memory managment */
 void xhci_mem_cleanup(struct xhci_hcd *xhci);

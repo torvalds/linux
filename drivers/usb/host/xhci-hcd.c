@@ -266,6 +266,11 @@ int xhci_run(struct usb_hcd *hcd)
 			&xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, xhci->ir_set, 0);
 
+	xhci_dbg(xhci, "Command ring memory map follows:\n");
+	xhci_debug_ring(xhci, xhci->cmd_ring);
+	xhci_dbg(xhci, "ERST memory map follows:\n");
+	xhci_dbg_erst(xhci, &xhci->erst);
+
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= (CMD_RUN);
 	xhci_dbg(xhci, "// Turn on HC, cmd = 0x%x.\n",

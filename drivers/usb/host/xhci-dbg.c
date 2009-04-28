@@ -56,6 +56,8 @@ void xhci_dbg_regs(struct xhci_hcd *xhci)
 	temp = xhci_readl(xhci, &xhci->cap_regs->db_off);
 	xhci_dbg(xhci, "// @%x = 0x%x DBOFF\n",
 			(unsigned int) &xhci->cap_regs->db_off, temp);
+	xhci_dbg(xhci, "// Doorbell array at 0x%x:\n",
+			(unsigned int) xhci->dba);
 }
 
 void xhci_print_cap_regs(struct xhci_hcd *xhci)
@@ -226,4 +228,83 @@ void xhci_print_registers(struct xhci_hcd *xhci)
 {
 	xhci_print_cap_regs(xhci);
 	xhci_print_op_regs(xhci);
+}
+
+
+/**
+ * Debug a segment with an xHCI ring.
+ *
+ * @return The Link TRB of the segment, or NULL if there is no Link TRB
+ * (which is a bug, since all segments must have a Link TRB).
+ *
+ * Prints out all TRBs in the segment, even those after the Link TRB.
+ *
+ * XXX: should we print out TRBs that the HC owns?  As long as we don't
+ * write, that should be fine...  We shouldn't expect that the memory pointed to
+ * by the TRB is valid at all.  Do we care about ones the HC owns?  Probably,
+ * for HC debugging.
+ */
+void xhci_debug_segment(struct xhci_hcd *xhci, struct xhci_segment *seg)
+{
+	int i;
+	u32 addr = (u32) seg->dma;
+	union xhci_trb *trb = seg->trbs;
+
+	for (i = 0; i < TRBS_PER_SEGMENT; ++i) {
+		trb = &seg->trbs[i];
+		xhci_dbg(xhci, "@%08x %08x %08x %08x %08x\n", addr,
+				(unsigned int) trb->link.segment_ptr[0],
+				(unsigned int) trb->link.segment_ptr[1],
+				(unsigned int) trb->link.intr_target,
+				(unsigned int) trb->link.control);
+		addr += sizeof(*trb);
+	}
+}
+
+/**
+ * Debugging for an xHCI ring, which is a queue broken into multiple segments.
+ *
+ * Print out each segment in the ring.  Check that the DMA address in
+ * each link segment actually matches the segment's stored DMA address.
+ * Check that the link end bit is only set at the end of the ring.
+ * Check that the dequeue and enqueue pointers point to real data in this ring
+ * (not some other ring).
+ */
+void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring)
+{
+	/* FIXME: Throw an error if any segment doesn't have a Link TRB */
+	struct xhci_segment *seg;
+	struct xhci_segment *first_seg = ring->first_seg;
+	xhci_debug_segment(xhci, first_seg);
+
+	for (seg = first_seg->next; seg != first_seg; seg = seg->next)
+		xhci_debug_segment(xhci, seg);
+}
+
+void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
+{
+	u32 addr = (u32) erst->erst_dma_addr;
+	int i;
+	struct xhci_erst_entry *entry;
+
+	for (i = 0; i < erst->num_entries; ++i) {
+		entry = &erst->entries[i];
+		xhci_dbg(xhci, "@%08x %08x %08x %08x %08x\n",
+				(unsigned int) addr,
+				(unsigned int) entry->seg_addr[0],
+				(unsigned int) entry->seg_addr[1],
+				(unsigned int) entry->seg_size,
+				(unsigned int) entry->rsvd);
+		addr += sizeof(*entry);
+	}
+}
+
+void xhci_dbg_cmd_ptrs(struct xhci_hcd *xhci)
+{
+	u32 val;
+
+	val = xhci_readl(xhci, &xhci->op_regs->cmd_ring[0]);
+	xhci_dbg(xhci, "// xHC command ring deq ptr low bits + flags = 0x%x\n", val);
+	val = xhci_readl(xhci, &xhci->op_regs->cmd_ring[1]);
+	xhci_dbg(xhci, "// xHC command ring deq ptr high bits = 0x%x\n", val);
 }
