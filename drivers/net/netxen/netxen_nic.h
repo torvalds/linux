@@ -775,8 +775,11 @@ struct netxen_recv_context {
 	u16 context_id;
 	u16 virt_port;
 
-	struct nx_host_rds_ring rds_rings[NUM_RCV_DESC_RINGS];
+	struct nx_host_rds_ring *rds_rings;
 	struct nx_host_sds_ring *sds_rings;
+
+	struct netxen_ring_ctx *hwctx;
+	dma_addr_t phys_addr;
 };
 
 /* New HW context creation */
@@ -1258,11 +1261,8 @@ struct netxen_adapter {
 	struct netxen_adapter_stats stats;
 
 	struct netxen_recv_context recv_ctx;
-	struct nx_host_tx_ring tx_ring;
+	struct nx_host_tx_ring *tx_ring;
 
-	/* Context interface shared between card and host */
-	struct netxen_ring_ctx *ctx_desc;
-	dma_addr_t ctx_desc_phys_addr;
 	int (*enable_phy_interrupts) (struct netxen_adapter *);
 	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);

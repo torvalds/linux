@@ -323,7 +323,8 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 	int	err = 0;
 	u64	offset, phys_addr;
 	dma_addr_t	rq_phys_addr, rsp_phys_addr;
-	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
+	struct nx_host_tx_ring *tx_ring = adapter->tx_ring;
+	struct netxen_recv_context *recv_ctx = &adapter->recv_ctx;
 
 	rq_size = SIZEOF_HOSTRQ_TX(nx_hostrq_tx_ctx_t);
 	rq_addr = pci_alloc_consistent(adapter->pdev,
@@ -358,7 +359,7 @@ nx_fw_cmd_create_tx_ctx(struct netxen_adapter *adapter)
 
 	prq->dummy_dma_addr = cpu_to_le64(adapter->dummy_dma.phys_addr);
 
-	offset = adapter->ctx_desc_phys_addr+sizeof(struct netxen_ring_ctx);
+	offset = recv_ctx->phys_addr + sizeof(struct netxen_ring_ctx);
 	prq->cmd_cons_dma_addr = cpu_to_le64(offset);
 
 	prq_cds = &prq->cds_ring;
@@ -541,14 +542,16 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 	struct nx_host_tx_ring *tx_ring;
 	int ring;
 	int port = adapter->portnum;
-	struct netxen_ring_ctx *hwctx = adapter->ctx_desc;
+	struct netxen_ring_ctx *hwctx;
 	u32 signature;
 
-	tx_ring = &adapter->tx_ring;
+	tx_ring = adapter->tx_ring;
+	recv_ctx = &adapter->recv_ctx;
+	hwctx = recv_ctx->hwctx;
+
 	hwctx->cmd_ring_addr = cpu_to_le64(tx_ring->phys_addr);
 	hwctx->cmd_ring_size = cpu_to_le32(tx_ring->num_desc);
 
-	recv_ctx = &adapter->recv_ctx;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
@@ -576,9 +579,9 @@ netxen_init_old_ctx(struct netxen_adapter *adapter)
 		NETXEN_CTX_SIGNATURE_V2 : NETXEN_CTX_SIGNATURE;
 
 	NXWR32(adapter, CRB_CTX_ADDR_REG_LO(port),
-			lower32(adapter->ctx_desc_phys_addr));
+			lower32(recv_ctx->phys_addr));
 	NXWR32(adapter, CRB_CTX_ADDR_REG_HI(port),
-			upper32(adapter->ctx_desc_phys_addr));
+			upper32(recv_ctx->phys_addr));
 	NXWR32(adapter, CRB_CTX_SIGNATURE_REG(port),
 			signature | port);
 	return 0;
@@ -592,25 +595,28 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_sds_ring *sds_ring;
-	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
+	struct nx_host_tx_ring *tx_ring;
 
 	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
 	int port = adapter->portnum;
 
+	recv_ctx = &adapter->recv_ctx;
+	tx_ring = adapter->tx_ring;
+
 	addr = pci_alloc_consistent(pdev,
 			sizeof(struct netxen_ring_ctx) + sizeof(uint32_t),
-			&adapter->ctx_desc_phys_addr);
-
+			&recv_ctx->phys_addr);
 	if (addr == NULL) {
 		dev_err(&pdev->dev, "failed to allocate hw context\n");
 		return -ENOMEM;
 	}
+
 	memset(addr, 0, sizeof(struct netxen_ring_ctx));
-	adapter->ctx_desc = (struct netxen_ring_ctx *)addr;
-	adapter->ctx_desc->ctx_id = cpu_to_le32(port);
-	adapter->ctx_desc->cmd_consumer_offset =
-		cpu_to_le64(adapter->ctx_desc_phys_addr +
+	recv_ctx->hwctx = (struct netxen_ring_ctx *)addr;
+	recv_ctx->hwctx->ctx_id = cpu_to_le32(port);
+	recv_ctx->hwctx->cmd_consumer_offset =
+		cpu_to_le64(recv_ctx->phys_addr +
 			sizeof(struct netxen_ring_ctx));
 	tx_ring->hw_consumer =
 		(__le32 *)(((char *)addr) + sizeof(struct netxen_ring_ctx));
@@ -626,8 +632,6 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 	}
 
 	tx_ring->desc_head = (struct cmd_desc_type0 *)addr;
-
-	recv_ctx = &adapter->recv_ctx;
 
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
@@ -713,16 +717,18 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 		netxen_api_unlock(adapter);
 	}
 
-	if (adapter->ctx_desc != NULL) {
+	recv_ctx = &adapter->recv_ctx;
+
+	if (recv_ctx->hwctx != NULL) {
 		pci_free_consistent(adapter->pdev,
 				sizeof(struct netxen_ring_ctx) +
 				sizeof(uint32_t),
-				adapter->ctx_desc,
-				adapter->ctx_desc_phys_addr);
-		adapter->ctx_desc = NULL;
+				recv_ctx->hwctx,
+				recv_ctx->phys_addr);
+		recv_ctx->hwctx = NULL;
 	}
 
-	tx_ring = &adapter->tx_ring;
+	tx_ring = adapter->tx_ring;
 	if (tx_ring->desc_head != NULL) {
 		pci_free_consistent(adapter->pdev,
 				TX_DESC_RINGSIZE(tx_ring),
@@ -730,7 +736,6 @@ void netxen_free_hw_resources(struct netxen_adapter *adapter)
 		tx_ring->desc_head = NULL;
 	}
 
-	recv_ctx = &adapter->recv_ctx;
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 

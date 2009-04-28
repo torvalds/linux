@@ -137,7 +137,7 @@ void netxen_release_tx_buffers(struct netxen_adapter *adapter)
 	struct netxen_cmd_buffer *cmd_buf;
 	struct netxen_skb_frag *buffrag;
 	int i, j;
-	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
+	struct nx_host_tx_ring *tx_ring = adapter->tx_ring;
 
 	cmd_buf = tx_ring->cmd_buf_arr;
 	for (i = 0; i < tx_ring->num_desc; i++) {
@@ -172,6 +172,10 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 	int ring;
 
 	recv_ctx = &adapter->recv_ctx;
+
+	if (recv_ctx->rds_rings == NULL)
+		goto skip_rds;
+
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 		if (rds_ring->rx_buf_arr) {
@@ -179,11 +183,15 @@ void netxen_free_sw_resources(struct netxen_adapter *adapter)
 			rds_ring->rx_buf_arr = NULL;
 		}
 	}
+	kfree(recv_ctx->rds_rings);
 
-	tx_ring = &adapter->tx_ring;
+skip_rds:
+	if (adapter->tx_ring == NULL)
+		return;
+
+	tx_ring = adapter->tx_ring;
 	if (tx_ring->cmd_buf_arr)
 		vfree(tx_ring->cmd_buf_arr);
-	return;
 }
 
 int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
@@ -191,17 +199,26 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	struct netxen_recv_context *recv_ctx;
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_sds_ring *sds_ring;
-	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
+	struct nx_host_tx_ring *tx_ring;
 	struct netxen_rx_buffer *rx_buf;
-	int ring, i, num_rx_bufs;
+	int ring, i, size;
 
 	struct netxen_cmd_buffer *cmd_buf_arr;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 
+	size = sizeof(struct nx_host_tx_ring);
+	tx_ring = kzalloc(size, GFP_KERNEL);
+	if (tx_ring == NULL) {
+		dev_err(&pdev->dev, "%s: failed to allocate tx ring struct\n",
+		       netdev->name);
+		return -ENOMEM;
+	}
+	adapter->tx_ring = tx_ring;
+
 	tx_ring->num_desc = adapter->num_txd;
-	cmd_buf_arr =
-		(struct netxen_cmd_buffer *)vmalloc(TX_BUFF_RINGSIZE(tx_ring));
+
+	cmd_buf_arr = vmalloc(TX_BUFF_RINGSIZE(tx_ring));
 	if (cmd_buf_arr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate cmd buffer ring\n",
 		       netdev->name);
@@ -211,6 +228,16 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	tx_ring->cmd_buf_arr = cmd_buf_arr;
 
 	recv_ctx = &adapter->recv_ctx;
+
+	size = adapter->max_rds_rings * sizeof (struct nx_host_rds_ring);
+	rds_ring = kzalloc(size, GFP_KERNEL);
+	if (rds_ring == NULL) {
+		dev_err(&pdev->dev, "%s: failed to allocate rds ring struct\n",
+		       netdev->name);
+		return -ENOMEM;
+	}
+	recv_ctx->rds_rings = rds_ring;
+
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 		switch (ring) {
@@ -262,9 +289,8 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 		 * Now go through all of them, set reference handles
 		 * and put them in the queues.
 		 */
-		num_rx_bufs = rds_ring->num_desc;
 		rx_buf = rds_ring->rx_buf_arr;
-		for (i = 0; i < num_rx_bufs; i++) {
+		for (i = 0; i < rds_ring->num_desc; i++) {
 			list_add_tail(&rx_buf->list,
 					&rds_ring->free_list);
 			rx_buf->ref_handle = i;
@@ -1064,7 +1090,7 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct netxen_skb_frag *frag;
 	int done = 0;
-	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
+	struct nx_host_tx_ring *tx_ring = adapter->tx_ring;
 
 	if (!spin_trylock(&adapter->tx_clean_lock))
 		return 1;

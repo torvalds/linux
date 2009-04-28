@@ -857,7 +857,7 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	}
 
 	if (adapter->fw_major < 4) {
-		tx_ring = &adapter->tx_ring;
+		tx_ring = adapter->tx_ring;
 		tx_ring->crb_cmd_producer = crb_cmd_producer[adapter->portnum];
 		tx_ring->crb_cmd_consumer = crb_cmd_consumer[adapter->portnum];
 
@@ -1315,7 +1315,7 @@ static int
 netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct nx_host_tx_ring *tx_ring = &adapter->tx_ring;
+	struct nx_host_tx_ring *tx_ring = adapter->tx_ring;
 	unsigned int first_seg_len = skb->len - skb->data_len;
 	struct netxen_cmd_buffer *pbuf;
 	struct netxen_skb_frag *buffrag;

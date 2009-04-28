@@ -521,7 +521,7 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 
 	i = 0;
 
-	tx_ring = &adapter->tx_ring;
+	tx_ring = adapter->tx_ring;
 	netif_tx_lock_bh(adapter->netdev);
 
 	producer = tx_ring->producer;
