@@ -317,7 +317,18 @@
     }									\
   }
 
-#define CPU_SCIF_FNS(name, scif_offset, scif_size)				\
+#ifdef CONFIG_H8300
+/* h8300 don't have SCIF */
+#define CPU_SCIF_FNS(name)						\
+  static inline unsigned int sci_##name##_in(struct uart_port *port)	\
+  {									\
+    return 0;								\
+  }									\
+  static inline void sci_##name##_out(struct uart_port *port, unsigned int value) \
+  {									\
+  }
+#else
+#define CPU_SCIF_FNS(name, scif_offset, scif_size)			\
   static inline unsigned int sci_##name##_in(struct uart_port *port)	\
   {									\
     SCI_IN(scif_size, scif_offset);					\
@@ -326,6 +337,7 @@
   {									\
     SCI_OUT(scif_size, scif_offset, value);				\
   }
+#endif
 
 #define CPU_SCI_FNS(name, sci_offset, sci_size)				\
   static inline unsigned int sci_##name##_in(struct uart_port* port)	\
@@ -363,7 +375,8 @@
 		 sh3_scif_offset, sh3_scif_size, sh4_scif_offset, sh4_scif_size, \
                  h8_sci_offset, h8_sci_size) \
   CPU_SCI_FNS(name, h8_sci_offset, h8_sci_size)
-#define SCIF_FNS(name, sh3_scif_offset, sh3_scif_size, sh4_scif_offset, sh4_scif_size)
+#define SCIF_FNS(name, sh3_scif_offset, sh3_scif_size, sh4_scif_offset, sh4_scif_size) \
+  CPU_SCIF_FNS(name)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723) ||\
       defined(CONFIG_CPU_SUBTYPE_SH7724)
         #define SCIx_FNS(name, sh4_scifa_offset, sh4_scifa_size, sh4_scif_offset, sh4_scif_size) \

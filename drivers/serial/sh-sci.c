@@ -54,6 +54,10 @@
 #include <asm/sh_bios.h>
 #endif
 
+#ifdef CONFIG_H8300
+#include <asm/gpio.h>
+#endif
+
 #include "sh-sci.h"
 
 struct sci_port {
