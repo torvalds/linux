@@ -32,6 +32,9 @@
 /* xHCI PCI Configuration Registers */
 #define XHCI_SBRN_OFFSET	(0x60)
 
+/* Max number of USB devices for any host controller - limit in section 6.1 */
+#define MAX_HC_SLOTS		256
+
 /*
  * xHCI register interface.
  * This corresponds to the eXtensible Host Controller Interface (xHCI)
@@ -359,10 +362,35 @@ struct intr_reg {
 	u32	erst_dequeue[2];
 } __attribute__ ((packed));
 
+/* irq_pending bitmasks */
 #define	ER_IRQ_PENDING(p)	((p) & 0x1)
-#define	ER_IRQ_ENABLE(p)	((p) | 0x2)
+/* bits 2:31 need to be preserved */
+#define	ER_IRQ_CLEAR(p)		((p) & 0xfffffffe)
+#define	ER_IRQ_ENABLE(p)	((ER_IRQ_CLEAR(p)) | 0x2)
+#define	ER_IRQ_DISABLE(p)	((ER_IRQ_CLEAR(p)) & ~(0x2))
+
+/* irq_control bitmasks */
+/* Minimum interval between interrupts (in 250ns intervals).  The interval
+ * between interrupts will be longer if there are no events on the event ring.
+ * Default is 4000 (1 ms).
+ */
+#define ER_IRQ_INTERVAL_MASK	(0xffff)
+/* Counter used to count down the time to the next interrupt - HW use only */
+#define ER_IRQ_COUNTER_MASK	(0xffff << 16)
+
+/* erst_size bitmasks */
 /* Preserve bits 16:31 of erst_size */
-#define	ERST_SIZE_MASK	(0xffff<<16)
+#define	ERST_SIZE_MASK		(0xffff << 16)
+
+/* erst_dequeue bitmasks */
+/* Dequeue ERST Segment Index (DESI) - Segment number (or alias)
+ * where the current dequeue pointer lies.  This is an optional HW hint.
+ */
+#define ERST_DESI_MASK		(0x7)
+/* Event Handler Busy (EHB) - is the event ring scheduled to be serviced by
+ * a work queue (or delayed service routine)?
+ */
+#define ERST_EHB		(1 << 3)
 
 /**
  * struct xhci_run_regs
@@ -386,6 +414,8 @@ struct xhci_hcd {
 	struct xhci_cap_regs __iomem *cap_regs;
 	struct xhci_op_regs __iomem *op_regs;
 	struct xhci_run_regs __iomem *run_regs;
+	/* Our HCD's current interrupter register set */
+	struct	intr_reg __iomem *ir_set;
 
 	/* Cached register copies of read-only HC data */
 	__u32		hcs_params1;
@@ -404,7 +434,13 @@ struct xhci_hcd {
 	u8		isoc_threshold;
 	int		event_ring_max;
 	int		addr_64;
+	/* 4KB min, 128MB max */
 	int		page_size;
+	/* Valid values are 12 to 20, inclusive */
+	int		page_shift;
+	/* only one MSI vector for now, but might need more later */
+	int		msix_count;
+	struct msix_entry	*msix_entries;
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */
@@ -448,5 +484,28 @@ static inline void xhci_writel(const struct xhci_hcd *xhci,
 				(unsigned int) regs, val);
 	writel(val, regs);
 }
+
+/* xHCI debugging */
+void xhci_print_ir_set(struct xhci_hcd *xhci, struct intr_reg *ir_set, int set_num);
+void xhci_print_registers(struct xhci_hcd *xhci);
+
+/* xHCI memory managment */
+void xhci_mem_cleanup(struct xhci_hcd *xhci);
+int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags);
+
+#ifdef CONFIG_PCI
+/* xHCI PCI glue */
+int xhci_register_pci(void);
+void xhci_unregister_pci(void);
+#endif
+
+/* xHCI host controller glue */
+int xhci_halt(struct xhci_hcd *xhci);
+int xhci_reset(struct xhci_hcd *xhci);
+int xhci_init(struct usb_hcd *hcd);
+int xhci_run(struct usb_hcd *hcd);
+void xhci_stop(struct usb_hcd *hcd);
+void xhci_shutdown(struct usb_hcd *hcd);
+int xhci_get_frame(struct usb_hcd *hcd);
 
 #endif /* __LINUX_XHCI_HCD_H */

@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/acpi.h>
 #include "pci-quirks.h"
+#include "xhci-ext-caps.h"
 
 
 #define UHCI_USBLEGSUP		0xc0		/* legacy support */
@@ -341,7 +342,127 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	return;
 }
 
+/*
+ * handshake - spin reading a register until handshake completes
+ * @ptr: address of hc register to be read
+ * @mask: bits to look at in result of read
+ * @done: value of those bits when handshake succeeds
+ * @wait_usec: timeout in microseconds
+ * @delay_usec: delay in microseconds to wait between polling
+ *
+ * Polls a register every delay_usec microseconds.
+ * Returns 0 when the mask bits have the value done.
+ * Returns -ETIMEDOUT if this condition is not true after
+ * wait_usec microseconds have passed.
+ */
+static int handshake(void __iomem *ptr, u32 mask, u32 done,
+		int wait_usec, int delay_usec)
+{
+	u32	result;
 
+	do {
+		result = readl(ptr);
+		result &= mask;
+		if (result == done)
+			return 0;
+		udelay(delay_usec);
+		wait_usec -= delay_usec;
+	} while (wait_usec > 0);
+	return -ETIMEDOUT;
+}
+
+/**
+ * PCI Quirks for xHCI.
+ *
+ * Takes care of the handoff between the Pre-OS (i.e. BIOS) and the OS.
+ * It signals to the BIOS that the OS wants control of the host controller,
+ * and then waits 5 seconds for the BIOS to hand over control.
+ * If we timeout, assume the BIOS is broken and take control anyway.
+ */
+static void __devinit quirk_usb_handoff_xhci(struct pci_dev *pdev)
+{
+	void __iomem *base;
+	int ext_cap_offset;
+	void __iomem *op_reg_base;
+	u32 val;
+	int timeout;
+
+	if (!mmio_resource_enabled(pdev, 0))
+		return;
+
+	base = ioremap_nocache(pci_resource_start(pdev, 0),
+				pci_resource_len(pdev, 0));
+	if (base == NULL)
+		return;
+
+	/*
+	 * Find the Legacy Support Capability register -
+	 * this is optional for xHCI host controllers.
+	 */
+	ext_cap_offset = xhci_find_next_cap_offset(base, XHCI_HCC_PARAMS_OFFSET);
+	do {
+		if (!ext_cap_offset)
+			/* We've reached the end of the extended capabilities */
+			goto hc_init;
+		val = readl(base + ext_cap_offset);
+		if (XHCI_EXT_CAPS_ID(val) == XHCI_EXT_CAPS_LEGACY)
+			break;
+		ext_cap_offset = xhci_find_next_cap_offset(base, ext_cap_offset);
+	} while (1);
+
+	/* If the BIOS owns the HC, signal that the OS wants it, and wait */
+	if (val & XHCI_HC_BIOS_OWNED) {
+		writel(val & XHCI_HC_OS_OWNED, base + ext_cap_offset);
+
+		/* Wait for 5 seconds with 10 microsecond polling interval */
+		timeout = handshake(base + ext_cap_offset, XHCI_HC_BIOS_OWNED,
+				0, 5000, 10);
+
+		/* Assume a buggy BIOS and take HC ownership anyway */
+		if (timeout) {
+			dev_warn(&pdev->dev, "xHCI BIOS handoff failed"
+					" (BIOS bug ?) %08x\n", val);
+			writel(val & ~XHCI_HC_BIOS_OWNED, base + ext_cap_offset);
+		}
+	}
+
+	/* Disable any BIOS SMIs */
+	writel(XHCI_LEGACY_DISABLE_SMI,
+			base + ext_cap_offset + XHCI_LEGACY_CONTROL_OFFSET);
+
+hc_init:
+	op_reg_base = base + XHCI_HC_LENGTH(readl(base));
+
+	/* Wait for the host controller to be ready before writing any
+	 * operational or runtime registers.  Wait 5 seconds and no more.
+	 */
+	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_CNR, 0,
+			5000, 10);
+	/* Assume a buggy HC and start HC initialization anyway */
+	if (timeout) {
+		val = readl(op_reg_base + XHCI_STS_OFFSET);
+		dev_warn(&pdev->dev,
+				"xHCI HW not ready after 5 sec (HC bug?) "
+				"status = 0x%x\n", val);
+	}
+
+	/* Send the halt and disable interrupts command */
+	val = readl(op_reg_base + XHCI_CMD_OFFSET);
+	val &= ~(XHCI_CMD_RUN | XHCI_IRQS);
+	writel(val, op_reg_base + XHCI_CMD_OFFSET);
+
+	/* Wait for the HC to halt - poll every 125 usec (one microframe). */
+	timeout = handshake(op_reg_base + XHCI_STS_OFFSET, XHCI_STS_HALT, 1,
+			XHCI_MAX_HALT_USEC, 125);
+	if (timeout) {
+		val = readl(op_reg_base + XHCI_STS_OFFSET);
+		dev_warn(&pdev->dev,
+				"xHCI HW did not halt within %d usec "
+				"status = 0x%x\n", XHCI_MAX_HALT_USEC, val);
+	}
+
+	iounmap(base);
+}
 
 static void __devinit quirk_usb_early_handoff(struct pci_dev *pdev)
 {
@@ -351,5 +472,7 @@ static void __devinit quirk_usb_early_handoff(struct pci_dev *pdev)
 		quirk_usb_handoff_ohci(pdev);
 	else if (pdev->class == PCI_CLASS_SERIAL_USB_EHCI)
 		quirk_usb_disable_ehci(pdev);
+	else if (pdev->class == PCI_CLASS_SERIAL_USB_XHCI)
+		quirk_usb_handoff_xhci(pdev);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, quirk_usb_early_handoff);
