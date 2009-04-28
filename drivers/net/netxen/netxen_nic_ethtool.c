@@ -247,6 +247,7 @@ skip:
 		case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN:
 		case LINKEVENT_MODULE_TWINAX:
 			ecmd->port = PORT_TP;
+			break;
 		default:
 			ecmd->port = -1;
 		}

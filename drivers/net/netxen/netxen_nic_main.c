@@ -797,7 +797,7 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (adapter->max_sds_rings > 1)
 		netxen_config_rss(adapter, 1);
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+	if (adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)
 		netxen_linkevent_request(adapter, 1);
 
 	return 0;
