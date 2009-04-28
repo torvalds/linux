@@ -452,32 +452,25 @@ static void read_intr(void)
 	bad_rw_intr();
 	hd_request();
 	return;
+
 ok_to_read:
 	req = CURRENT;
 	insw(HD_DATA, req->buffer, 256);
-	req->sector++;
-	req->buffer += 512;
-	req->errors = 0;
-	i = --req->nr_sectors;
-	--req->current_nr_sectors;
 #ifdef DEBUG
 	printk("%s: read: sector %ld, remaining = %ld, buffer=%p\n",
-		req->rq_disk->disk_name, req->sector, req->nr_sectors,
+		req->rq_disk->disk_name, req->sector + 1, req->nr_sectors - 1,
 		req->buffer+512);
 #endif
-	if (req->current_nr_sectors <= 0)
-		__blk_end_request_cur(req, 0);
-	if (i > 0) {
+	if (__blk_end_request(req, 0, 512)) {
 		SET_HANDLER(&read_intr);
 		return;
 	}
+
 	(void) inb_p(HD_STATUS);
 #if (HD_DELAY > 0)
 	last_req = read_timer();
 #endif
-	if (elv_next_request(QUEUE))
-		hd_request();
-	return;
+	hd_request();
 }
 
 static void write_intr(void)
@@ -499,23 +492,18 @@ static void write_intr(void)
 	bad_rw_intr();
 	hd_request();
 	return;
+
 ok_to_write:
-	req->sector++;
-	i = --req->nr_sectors;
-	--req->current_nr_sectors;
-	req->buffer += 512;
-	if (!i || (req->bio && req->current_nr_sectors <= 0))
-		__blk_end_request_cur(req, 0);
-	if (i > 0) {
+	if (__blk_end_request(req, 0, 512)) {
 		SET_HANDLER(&write_intr);
 		outsw(HD_DATA, req->buffer, 256);
-	} else {
-#if (HD_DELAY > 0)
-		last_req = read_timer();
-#endif
-		hd_request();
+		return;
 	}
-	return;
+
+#if (HD_DELAY > 0)
+	last_req = read_timer();
+#endif
+	hd_request();
 }
 
 static void recal_intr(void)
