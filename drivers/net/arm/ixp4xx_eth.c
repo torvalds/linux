@@ -338,12 +338,12 @@ static int ixp4xx_mdio_register(void)
 	if (cpu_is_ixp43x()) {
 		/* IXP43x lacks NPE-B and uses NPE-C for MII PHY access */
 		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEC_ETH))
-			return -ENOSYS;
+			return -ENODEV;
 		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthC_BASE_VIRT;
 	} else {
 		/* All MII PHY accesses use NPE-B Ethernet registers */
 		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEB_ETH0))
-			return -ENOSYS;
+			return -ENODEV;
 		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
 	}
 
@@ -1174,7 +1174,7 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 		regs_phys  = IXP4XX_EthC_BASE_PHYS;
 		break;
 	default:
-		err = -ENOSYS;
+		err = -ENODEV;
 		goto err_free;
 	}
 
