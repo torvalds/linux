@@ -32,7 +32,7 @@ struct userspace_consumer_data {
 	struct regulator_bulk_data *supplies;
 };
 
-static ssize_t show_name(struct device *dev,
+static ssize_t reg_show_name(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	struct userspace_consumer_data *data = dev_get_drvdata(dev);
@@ -40,7 +40,7 @@ static ssize_t show_name(struct device *dev,
 	return sprintf(buf, "%s\n", data->name);
 }
 
-static ssize_t show_state(struct device *dev,
+static ssize_t reg_show_state(struct device *dev,
 			  struct device_attribute *attr, char *buf)
 {
 	struct userspace_consumer_data *data = dev_get_drvdata(dev);
@@ -51,7 +51,7 @@ static ssize_t show_state(struct device *dev,
 	return sprintf(buf, "disabled\n");
 }
 
-static ssize_t set_state(struct device *dev, struct device_attribute *attr,
+static ssize_t reg_set_state(struct device *dev, struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
 	struct userspace_consumer_data *data = dev_get_drvdata(dev);
@@ -90,8 +90,8 @@ static ssize_t set_state(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(name, 0444, show_name, NULL);
-static DEVICE_ATTR(state, 0644, show_state, set_state);
+static DEVICE_ATTR(name, 0444, reg_show_name, NULL);
+static DEVICE_ATTR(state, 0644, reg_show_state, reg_set_state);
 
 static struct device_attribute *attributes[] = {
 	&dev_attr_name,
