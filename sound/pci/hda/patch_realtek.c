@@ -1099,13 +1099,16 @@ static void alc_init_auto_hp(struct hda_codec *codec)
 		return;
 
 	if (!spec->autocfg.speaker_pins[0]) {
-		if (spec->autocfg.line_out_pins[0])
+		if (spec->autocfg.line_out_pins[0] &&
+		    spec->autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT)
 			spec->autocfg.speaker_pins[0] =
 				spec->autocfg.line_out_pins[0];
 		else
 			return;
 	}
 
+	snd_printdd("realtek: Enable HP auto-muting on NID 0x%x\n",
+		    spec->autocfg.hp_pins[0]);
 	snd_hda_codec_write_cache(codec, spec->autocfg.hp_pins[0], 0,
 				  AC_VERB_SET_UNSOLICITED_ENABLE,
 				  AC_USRSP_EN | ALC880_HP_EVENT);
