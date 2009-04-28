@@ -2471,6 +2471,7 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	 * reported as 0xff in the device descriptor). WUSB1.0[4.8.1].
 	 */
 	switch (udev->speed) {
+	case USB_SPEED_SUPER:
 	case USB_SPEED_VARIABLE:	/* fixed at 512 */
 		udev->ep0.desc.wMaxPacketSize = cpu_to_le16(512);
 		break;
@@ -2496,6 +2497,9 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	case USB_SPEED_LOW:	speed = "low";	break;
 	case USB_SPEED_FULL:	speed = "full";	break;
 	case USB_SPEED_HIGH:	speed = "high";	break;
+	case USB_SPEED_SUPER:
+				speed = "super";
+				break;
 	case USB_SPEED_VARIABLE:
 				speed = "variable";
 				type = "Wireless ";
@@ -2634,8 +2638,11 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval)
 		goto fail;
 
-	i = udev->descriptor.bMaxPacketSize0 == 0xff?	/* wusb device? */
-	    512 : udev->descriptor.bMaxPacketSize0;
+	if (udev->descriptor.bMaxPacketSize0 == 0xff ||
+			udev->speed == USB_SPEED_SUPER)
+		i = 512;
+	else
+		i = udev->descriptor.bMaxPacketSize0;
 	if (le16_to_cpu(udev->ep0.desc.wMaxPacketSize) != i) {
 		if (udev->speed != USB_SPEED_FULL ||
 				!(i == 8 || i == 16 || i == 32 || i == 64)) {

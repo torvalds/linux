@@ -174,6 +174,7 @@ struct hc_driver {
 #define	HCD_USB11	0x0010		/* USB 1.1 */
 #define	HCD_USB2	0x0020		/* USB 2.0 */
 #define	HCD_USB3	0x0040		/* USB 3.0 */
+#define	HCD_MASK	0x0070
 
 	/* called to init HCD and root hub */
 	int	(*reset) (struct usb_hcd *hcd);

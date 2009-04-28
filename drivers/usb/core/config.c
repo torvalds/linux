@@ -92,6 +92,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 	if (usb_endpoint_xfer_int(d)) {
 		i = 1;
 		switch (to_usb_device(ddev)->speed) {
+		case USB_SPEED_SUPER:
 		case USB_SPEED_HIGH:
 			/* Many device manufacturers are using full-speed
 			 * bInterval values in high-speed interrupt endpoint

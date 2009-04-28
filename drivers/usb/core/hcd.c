@@ -1870,8 +1870,20 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		retval = -ENOMEM;
 		goto err_allocate_root_hub;
 	}
-	rhdev->speed = (hcd->driver->flags & HCD_USB2) ? USB_SPEED_HIGH :
-			USB_SPEED_FULL;
+
+	switch (hcd->driver->flags & HCD_MASK) {
+	case HCD_USB11:
+		rhdev->speed = USB_SPEED_FULL;
+		break;
+	case HCD_USB2:
+		rhdev->speed = USB_SPEED_HIGH;
+		break;
+	case HCD_USB3:
+		rhdev->speed = USB_SPEED_SUPER;
+		break;
+	default:
+		goto err_allocate_root_hub;
+	}
 	hcd->self.root_hub = rhdev;
 
 	/* wakeup flag init defaults to "everything works" for root hubs,
