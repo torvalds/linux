@@ -4114,7 +4114,8 @@ trace_printk_seq(struct trace_seq *s)
 
 static void __ftrace_dump(bool disable_tracing)
 {
-	static DEFINE_SPINLOCK(ftrace_dump_lock);
+	static raw_spinlock_t ftrace_dump_lock =
+		(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
 	/* use static because iter can be a bit big for the stack */
 	static struct trace_iterator iter;
 	unsigned int old_userobj;
@@ -4123,7 +4124,8 @@ static void __ftrace_dump(bool disable_tracing)
 	int cnt = 0, cpu;
 
 	/* only one dump */
-	spin_lock_irqsave(&ftrace_dump_lock, flags);
+	local_irq_save(flags);
+	__raw_spin_lock(&ftrace_dump_lock);
 	if (dump_ran)
 		goto out;
 
@@ -4195,7 +4197,8 @@ static void __ftrace_dump(bool disable_tracing)
 	}
 
  out:
-	spin_unlock_irqrestore(&ftrace_dump_lock, flags);
+	__raw_spin_unlock(&ftrace_dump_lock);
+	local_irq_restore(flags);
 }
 
 /* By default: disable tracing after the dump */
