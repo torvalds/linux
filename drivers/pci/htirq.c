@@ -98,6 +98,7 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	int max_irq;
 	int pos;
 	int irq;
+	int node;
 
 	pos = pci_find_ht_capability(dev, HT_CAPTYPE_IRQ);
 	if (!pos)
@@ -125,7 +126,8 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	cfg->msg.address_lo = 0xffffffff;
 	cfg->msg.address_hi = 0xffffffff;
 
-	irq = create_irq();
+	node = dev_to_node(&dev->dev);
+	irq = create_irq_nr(0, node);
 
 	if (irq <= 0) {
 		kfree(cfg);
