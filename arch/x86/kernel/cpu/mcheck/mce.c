@@ -555,29 +555,6 @@ int mce_notify_user(void)
 	return 0;
 }
 
-/* see if the idle task needs to notify userspace: */
-static int
-mce_idle_callback(struct notifier_block *nfb, unsigned long action,
-		  void *unused)
-{
-	/* IDLE_END should be safe - interrupts are back on */
-	if (action == IDLE_END && test_thread_flag(TIF_MCE_NOTIFY))
-		mce_notify_user();
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block mce_idle_notifier = {
-	.notifier_call		= mce_idle_callback,
-};
-
-static __init int periodic_mcheck_init(void)
-{
-       idle_notifier_register(&mce_idle_notifier);
-       return 0;
-}
-__initcall(periodic_mcheck_init);
-
 /*
  * Initialize Machine Checks for a CPU.
  */
