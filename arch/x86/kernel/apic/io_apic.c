@@ -3963,13 +3963,18 @@ int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
 {
 	struct irq_desc *desc;
 	struct irq_cfg *cfg;
-	int node = cpu_to_node(boot_cpu_id);
+	int node;
 
 	if (!IO_APIC_IRQ(irq)) {
 		apic_printk(APIC_QUIET,KERN_ERR "IOAPIC[%d]: Invalid reference to IRQ 0\n",
 			ioapic);
 		return -EINVAL;
 	}
+
+	if (dev)
+		node = dev_to_node(dev);
+	else
+		node = cpu_to_node(boot_cpu_id);
 
 	desc = irq_to_desc_alloc_node(irq, node);
 	if (!desc) {
