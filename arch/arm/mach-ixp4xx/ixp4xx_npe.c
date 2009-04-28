@@ -386,15 +386,6 @@ static int npe_reset(struct npe *npe)
 	/* reset the NPE */
 	ixp4xx_write_feature_bits(val &
 				  ~(IXP4XX_FEATURE_RESET_NPEA << npe->id));
-	for (i = 0; i < MAX_RETRIES; i++) {
-		if (!(ixp4xx_read_feature_bits() &
-		      (IXP4XX_FEATURE_RESET_NPEA << npe->id)))
-			break;	/* reset completed */
-		udelay(1);
-	}
-	if (i == MAX_RETRIES)
-		return -ETIMEDOUT;
-
 	/* deassert reset */
 	ixp4xx_write_feature_bits(val |
 				  (IXP4XX_FEATURE_RESET_NPEA << npe->id));
