@@ -395,7 +395,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	dma_addr_t event_dma;
 	struct xhci_segment *event_seg;
 	union xhci_trb *event_trb;
-	struct urb *urb = NULL;
+	struct urb *urb;
 	int status = -EINPROGRESS;
 
 	xdev = xhci->devs[TRB_TO_SLOT_ID(event->flags)];
@@ -437,7 +437,46 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		return -ESHUTDOWN;
 	}
 	event_trb = &event_seg->trbs[(event_dma - event_seg->dma) / sizeof(*event_trb)];
+	xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
+			(unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
+	xhci_dbg(xhci, "Offset 0x00 (buffer[0]) = 0x%x\n",
+			(unsigned int) event->buffer[0]);
+	xhci_dbg(xhci, "Offset 0x04 (buffer[0]) = 0x%x\n",
+			(unsigned int) event->buffer[1]);
+	xhci_dbg(xhci, "Offset 0x08 (transfer length) = 0x%x\n",
+			(unsigned int) event->transfer_len);
+	xhci_dbg(xhci, "Offset 0x0C (flags) = 0x%x\n",
+			(unsigned int) event->flags);
 
+	/* Look for common error cases */
+	switch (GET_COMP_CODE(event->transfer_len)) {
+	/* Skip codes that require special handling depending on
+	 * transfer type
+	 */
+	case COMP_SUCCESS:
+	case COMP_SHORT_TX:
+		break;
+	case COMP_STALL:
+		xhci_warn(xhci, "WARN: Stalled endpoint\n");
+		status = -EPIPE;
+		break;
+	case COMP_TRB_ERR:
+		xhci_warn(xhci, "WARN: TRB error on endpoint\n");
+		status = -EILSEQ;
+		break;
+	case COMP_TX_ERR:
+		xhci_warn(xhci, "WARN: transfer error on endpoint\n");
+		status = -EPROTO;
+		break;
+	case COMP_DB_ERR:
+		xhci_warn(xhci, "WARN: HC couldn't access mem fast enough\n");
+		status = -ENOSR;
+		break;
+	default:
+		xhci_warn(xhci, "ERROR Unknown event condition, HC probably busted\n");
+		urb = NULL;
+		goto cleanup;
+	}
 	/* Now update the urb's actual_length and give back to the core */
 	/* Was this a control transfer? */
 	if (usb_endpoint_xfer_control(&td->urb->ep->desc)) {
@@ -459,25 +498,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			xhci_warn(xhci, "WARN: short transfer on control ep\n");
 			status = -EREMOTEIO;
 			break;
-		case COMP_STALL:
-			xhci_warn(xhci, "WARN: Stalled control ep\n");
-			status = -EPIPE;
-			break;
-		case COMP_TRB_ERR:
-			xhci_warn(xhci, "WARN: TRB error on control ep\n");
-			status = -EILSEQ;
-			break;
-		case COMP_TX_ERR:
-			xhci_warn(xhci, "WARN: transfer error on control ep\n");
-			status = -EPROTO;
-			break;
-		case COMP_DB_ERR:
-			xhci_warn(xhci, "WARN: HC couldn't access mem fast enough on control TX\n");
-			status = -ENOSR;
-			break;
 		default:
-			xhci_dbg(xhci, "ERROR Unknown event condition, HC probably busted\n");
-			goto cleanup;
+			/* Others already handled above */
+			break;
 		}
 		/*
 		 * Did we transfer any data, despite the errors that might have
@@ -493,21 +516,90 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					TRB_LEN(event->transfer_len);
 			}
 		}
-		while (ep_ring->dequeue != td->last_trb)
-			inc_deq(xhci, ep_ring, false);
-		inc_deq(xhci, ep_ring, false);
-
-		/* Clean up the endpoint's TD list */
-		urb = td->urb;
-		list_del(&td->td_list);
-		kfree(td);
 	} else {
-		xhci_dbg(xhci, "FIXME do something for non-control transfers\n");
+		switch (GET_COMP_CODE(event->transfer_len)) {
+		case COMP_SUCCESS:
+			/* Double check that the HW transferred everything. */
+			if (event_trb != td->last_trb) {
+				xhci_warn(xhci, "WARN Successful completion "
+						"on short TX\n");
+				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+					status = -EREMOTEIO;
+				else
+					status = 0;
+			} else {
+				xhci_dbg(xhci, "Successful bulk transfer!\n");
+				status = 0;
+			}
+			break;
+		case COMP_SHORT_TX:
+			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+				status = -EREMOTEIO;
+			else
+				status = 0;
+			break;
+		default:
+			/* Others already handled above */
+			break;
+		}
+		dev_dbg(&td->urb->dev->dev,
+				"ep %#x - asked for %d bytes, "
+				"%d bytes untransferred\n",
+				td->urb->ep->desc.bEndpointAddress,
+				td->urb->transfer_buffer_length,
+				TRB_LEN(event->transfer_len));
+		/* Fast path - was this the last TRB in the TD for this URB? */
+		if (event_trb == td->last_trb) {
+			if (TRB_LEN(event->transfer_len) != 0) {
+				td->urb->actual_length =
+					td->urb->transfer_buffer_length -
+					TRB_LEN(event->transfer_len);
+				if (td->urb->actual_length < 0) {
+					xhci_warn(xhci, "HC gave bad length "
+							"of %d bytes left\n",
+							TRB_LEN(event->transfer_len));
+					td->urb->actual_length = 0;
+				}
+				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+					status = -EREMOTEIO;
+				else
+					status = 0;
+			} else {
+				td->urb->actual_length = td->urb->transfer_buffer_length;
+				/* Ignore a short packet completion if the
+				 * untransferred length was zero.
+				 */
+				status = 0;
+			}
+		} else {
+			/* Slow path - walk the list, starting from the first
+			 * TRB to get the actual length transferred
+			 */
+			td->urb->actual_length = 0;
+			while (ep_ring->dequeue != event_trb) {
+				td->urb->actual_length += TRB_LEN(ep_ring->dequeue->generic.field[2]);
+				inc_deq(xhci, ep_ring, false);
+			}
+			td->urb->actual_length += TRB_LEN(ep_ring->dequeue->generic.field[2]) -
+				TRB_LEN(event->transfer_len);
+
+		}
 	}
+	/* Update ring dequeue pointer */
+	while (ep_ring->dequeue != td->last_trb)
+		inc_deq(xhci, ep_ring, false);
+	inc_deq(xhci, ep_ring, false);
+
+	/* Clean up the endpoint's TD list */
+	urb = td->urb;
+	list_del(&td->td_list);
+	kfree(td);
+	urb->hcpriv = NULL;
 cleanup:
 	inc_deq(xhci, xhci->event_ring, true);
 	set_hc_event_deq(xhci);
 
+	/* FIXME for multi-TD URBs (who have buffers bigger than 64MB) */
 	if (urb) {
 		usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
 		spin_unlock(&xhci->lock);
@@ -662,6 +754,126 @@ int xhci_prepare_transfer(struct xhci_hcd *xhci,
 	urb->hcpriv = (void *) (*td);
 	/* Add this TD to the tail of the endpoint ring's TD list */
 	list_add_tail(&(*td)->td_list, &xdev->ep_rings[ep_index]->td_list);
+
+	return 0;
+}
+
+/* This is very similar to what ehci-q.c qtd_fill() does */
+int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
+		struct urb *urb, int slot_id, unsigned int ep_index)
+{
+	struct xhci_ring *ep_ring;
+	struct xhci_td *td;
+	int num_trbs;
+	struct xhci_generic_trb *start_trb;
+	bool first_trb;
+	int start_cycle;
+	u32 field;
+
+	int running_total, trb_buff_len, ret;
+	u64 addr;
+
+	ep_ring = xhci->devs[slot_id]->ep_rings[ep_index];
+
+	num_trbs = 0;
+	/* How much data is (potentially) left before the 64KB boundary? */
+	running_total = TRB_MAX_BUFF_SIZE -
+		(urb->transfer_dma & ((1 << TRB_MAX_BUFF_SHIFT) - 1));
+
+	/* If there's some data on this 64KB chunk, or we have to send a
+	 * zero-length transfer, we need at least one TRB
+	 */
+	if (running_total != 0 || urb->transfer_buffer_length == 0)
+		num_trbs++;
+	/* How many more 64KB chunks to transfer, how many more TRBs? */
+	while (running_total < urb->transfer_buffer_length) {
+		num_trbs++;
+		running_total += TRB_MAX_BUFF_SIZE;
+	}
+	/* FIXME: this doesn't deal with URB_ZERO_PACKET - need one more */
+
+	if (!in_interrupt())
+		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %d, addr = %#x, num_trbs = %d\n",
+				urb->ep->desc.bEndpointAddress,
+				urb->transfer_buffer_length, urb->transfer_dma,
+				num_trbs);
+	ret = xhci_prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
+			num_trbs, urb, &td, mem_flags);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Don't give the first TRB to the hardware (by toggling the cycle bit)
+	 * until we've finished creating all the other TRBs.  The ring's cycle
+	 * state may change as we enqueue the other TRBs, so save it too.
+	 */
+	start_trb = &ep_ring->enqueue->generic;
+	start_cycle = ep_ring->cycle_state;
+
+	running_total = 0;
+	/* How much data is in the first TRB? */
+	addr = (u64) urb->transfer_dma;
+	trb_buff_len = TRB_MAX_BUFF_SIZE -
+		(urb->transfer_dma & ((1 << TRB_MAX_BUFF_SHIFT) - 1));
+	if (urb->transfer_buffer_length < trb_buff_len)
+		trb_buff_len = urb->transfer_buffer_length;
+
+	first_trb = true;
+
+	/* Queue the first TRB, even if it's zero-length */
+	do {
+		field = 0;
+
+		/* Don't change the cycle bit of the first TRB until later */
+		if (first_trb)
+			first_trb = false;
+		else
+			field |= ep_ring->cycle_state;
+
+		/* Chain all the TRBs together; clear the chain bit in the last
+		 * TRB to indicate it's the last TRB in the chain.
+		 */
+		if (num_trbs > 1) {
+			field |= TRB_CHAIN;
+		} else {
+			/* FIXME - add check for ZERO_PACKET flag before this */
+			td->last_trb = ep_ring->enqueue;
+			field |= TRB_IOC;
+		}
+		queue_trb(xhci, ep_ring, false,
+				(u32) addr,
+				(u32) ((u64) addr >> 32),
+				TRB_LEN(trb_buff_len) | TRB_INTR_TARGET(0),
+				/* We always want to know if the TRB was short,
+				 * or we won't get an event when it completes.
+				 * (Unless we use event data TRBs, which are a
+				 * waste of space and HC resources.)
+				 */
+				field | TRB_ISP | TRB_TYPE(TRB_NORMAL));
+		--num_trbs;
+		running_total += trb_buff_len;
+
+		/* Calculate length for next transfer */
+		addr += trb_buff_len;
+		trb_buff_len = urb->transfer_buffer_length - running_total;
+		if (trb_buff_len > TRB_MAX_BUFF_SIZE)
+			trb_buff_len = TRB_MAX_BUFF_SIZE;
+	} while (running_total < urb->transfer_buffer_length);
+
+	if (num_trbs != 0)
+		dev_dbg(&urb->dev->dev, "%s - ep %#x - Miscalculated number of "
+				"TRBs, %d left\n", __FUNCTION__,
+				urb->ep->desc.bEndpointAddress, num_trbs);
+	/*
+	 * Pass all the TRBs to the hardware at once and make sure this write
+	 * isn't reordered.
+	 */
+	wmb();
+	start_trb->field[3] |= start_cycle;
+	field = xhci_readl(xhci, &xhci->dba->doorbell[slot_id]) & DB_MASK;
+	xhci_writel(xhci, field | EPI_TO_DB(ep_index), &xhci->dba->doorbell[slot_id]);
+	/* Flush PCI posted writes */
+	xhci_readl(xhci, &xhci->dba->doorbell[slot_id]);
 
 	return 0;
 }

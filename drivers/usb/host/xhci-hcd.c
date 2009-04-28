@@ -589,12 +589,6 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 
 	slot_id = urb->dev->slot_id;
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
-	/* Only support ep 0 control transfers for now */
-	if (ep_index != 0) {
-		xhci_dbg(xhci, "WARN: urb submitted to unsupported ep %x\n",
-				urb->ep->desc.bEndpointAddress);
-		return -ENOSYS;
-	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	if (!xhci->devs || !xhci->devs[slot_id]) {
@@ -608,7 +602,12 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		ret = -ESHUTDOWN;
 		goto exit;
 	}
-	ret = queue_ctrl_tx(xhci, mem_flags, urb, slot_id, ep_index);
+	if (usb_endpoint_xfer_control(&urb->ep->desc))
+		ret = queue_ctrl_tx(xhci, mem_flags, urb, slot_id, ep_index);
+	else if (usb_endpoint_xfer_bulk(&urb->ep->desc))
+		ret = queue_bulk_tx(xhci, mem_flags, urb, slot_id, ep_index);
+	else
+		ret = -EINVAL;
 exit:
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	return ret;

@@ -889,6 +889,9 @@ union xhci_trb {
  */
 #define TRBS_PER_SEGMENT	64
 #define SEGMENT_SIZE		(TRBS_PER_SEGMENT*16)
+/* TRB buffer pointers can't cross 64KB boundaries */
+#define TRB_MAX_BUFF_SHIFT		16
+#define TRB_MAX_BUFF_SIZE	(1 << TRB_MAX_BUFF_SHIFT)
 
 struct xhci_td {
 	struct list_head	td_list;
@@ -1117,6 +1120,7 @@ void set_hc_event_deq(struct xhci_hcd *xhci);
 int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
 int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
+int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
 int queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
 
 /* xHCI roothub code */

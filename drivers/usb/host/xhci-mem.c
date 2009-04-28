@@ -494,7 +494,9 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	case USB_SPEED_SUPER:
 		max_packet = ep->desc.wMaxPacketSize;
 		ep_ctx->ep_info2 |= MAX_PACKET(max_packet);
-		/* FIXME dig out burst from ep companion desc */
+		/* dig out max burst from ep companion desc */
+		max_packet = ep->ep_comp->desc.bMaxBurst;
+		ep_ctx->ep_info2 |= MAX_BURST(max_packet);
 		break;
 	case USB_SPEED_HIGH:
 		/* bits 11:12 specify the number of additional transaction
