@@ -32,7 +32,7 @@ struct kmmio_fault_page {
 	struct list_head list;
 	struct kmmio_fault_page *release_next;
 	unsigned long page; /* location of the fault page */
-	bool old_presence; /* page presence prior to arming */
+	pteval_t old_presence; /* page presence prior to arming */
 	bool armed;
 
 	/*
@@ -108,49 +108,51 @@ static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)
 	return NULL;
 }
 
-static void set_pmd_presence(pmd_t *pmd, bool present, bool *old)
+static void clear_pmd_presence(pmd_t *pmd, bool clear, pmdval_t *old)
 {
 	pmdval_t v = pmd_val(*pmd);
-	*old = !!(v & _PAGE_PRESENT);
-	v &= ~_PAGE_PRESENT;
-	if (present)
-		v |= _PAGE_PRESENT;
+	if (clear) {
+		*old = v & _PAGE_PRESENT;
+		v &= ~_PAGE_PRESENT;
+	} else	/* presume this has been called with clear==true previously */
+		v |= *old;
 	set_pmd(pmd, __pmd(v));
 }
 
-static void set_pte_presence(pte_t *pte, bool present, bool *old)
+static void clear_pte_presence(pte_t *pte, bool clear, pteval_t *old)
 {
 	pteval_t v = pte_val(*pte);
-	*old = !!(v & _PAGE_PRESENT);
-	v &= ~_PAGE_PRESENT;
-	if (present)
-		v |= _PAGE_PRESENT;
+	if (clear) {
+		*old = v & _PAGE_PRESENT;
+		v &= ~_PAGE_PRESENT;
+	} else	/* presume this has been called with clear==true previously */
+		v |= *old;
 	set_pte_atomic(pte, __pte(v));
 }
 
-static int set_page_presence(unsigned long addr, bool present, bool *old)
+static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
 {
 	unsigned int level;
-	pte_t *pte = lookup_address(addr, &level);
+	pte_t *pte = lookup_address(f->page, &level);
 
 	if (!pte) {
-		pr_err("kmmio: no pte for page 0x%08lx\n", addr);
+		pr_err("kmmio: no pte for page 0x%08lx\n", f->page);
 		return -1;
 	}
 
 	switch (level) {
 	case PG_LEVEL_2M:
-		set_pmd_presence((pmd_t *)pte, present, old);
+		clear_pmd_presence((pmd_t *)pte, clear, &f->old_presence);
 		break;
 	case PG_LEVEL_4K:
-		set_pte_presence(pte, present, old);
+		clear_pte_presence(pte, clear, &f->old_presence);
 		break;
 	default:
 		pr_err("kmmio: unexpected page level 0x%x.\n", level);
 		return -1;
 	}
 
-	__flush_tlb_one(addr);
+	__flush_tlb_one(f->page);
 	return 0;
 }
 
@@ -171,9 +173,9 @@ static int arm_kmmio_fault_page(struct kmmio_fault_page *f)
 	WARN_ONCE(f->armed, KERN_ERR "kmmio page already armed.\n");
 	if (f->armed) {
 		pr_warning("kmmio double-arm: page 0x%08lx, ref %d, old %d\n",
-					f->page, f->count, f->old_presence);
+					f->page, f->count, !!f->old_presence);
 	}
-	ret = set_page_presence(f->page, false, &f->old_presence);
+	ret = clear_page_presence(f, true);
 	WARN_ONCE(ret < 0, KERN_ERR "kmmio arming 0x%08lx failed.\n", f->page);
 	f->armed = true;
 	return ret;
@@ -182,8 +184,7 @@ static int arm_kmmio_fault_page(struct kmmio_fault_page *f)
 /** Restore the given page to saved presence state. */
 static void disarm_kmmio_fault_page(struct kmmio_fault_page *f)
 {
-	bool tmp;
-	int ret = set_page_presence(f->page, f->old_presence, &tmp);
+	int ret = clear_page_presence(f, false);
 	WARN_ONCE(ret < 0,
 			KERN_ERR "kmmio disarming 0x%08lx failed.\n", f->page);
 	f->armed = false;
