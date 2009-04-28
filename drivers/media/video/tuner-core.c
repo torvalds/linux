@@ -420,10 +420,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		if (!dvb_attach(xc5000_attach,
 				&t->fe, t->i2c->adapter, &xc5000_cfg))
 			goto attach_failed;
-
-		xc_tuner_ops = &t->fe.ops.tuner_ops;
-		if (xc_tuner_ops->init)
-			xc_tuner_ops->init(&t->fe);
 		break;
 	}
 	default:
