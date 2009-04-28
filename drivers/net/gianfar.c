@@ -1207,7 +1207,8 @@ static int gfar_enet_open(struct net_device *dev)
 static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 {
 	struct txfcb *fcb = (struct txfcb *)skb_push(skb, GMAC_FCB_LEN);
-	cacheable_memzero(fcb, GMAC_FCB_LEN);
+
+	memset(fcb, 0, GMAC_FCB_LEN);
 
 	return fcb;
 }
