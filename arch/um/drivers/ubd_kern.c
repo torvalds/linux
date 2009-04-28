@@ -451,23 +451,6 @@ static void do_ubd_request(struct request_queue * q);
 
 /* Only changed by ubd_init, which is an initcall. */
 static int thread_fd = -1;
-
-static void ubd_end_request(struct request *req, int bytes, int error)
-{
-	blk_end_request(req, error, bytes);
-}
-
-/* Callable only from interrupt context - otherwise you need to do
- * spin_lock_irq()/spin_lock_irqsave() */
-static inline void ubd_finish(struct request *req, int bytes)
-{
-	if(bytes < 0){
-		ubd_end_request(req, 0, -EIO);
-		return;
-	}
-	ubd_end_request(req, bytes, 0);
-}
-
 static LIST_HEAD(restart);
 
 /* XXX - move this inside ubd_intr. */
@@ -475,7 +458,6 @@ static LIST_HEAD(restart);
 static void ubd_handler(void)
 {
 	struct io_thread_req *req;
-	struct request *rq;
 	struct ubd *ubd;
 	struct list_head *list, *next_ele;
 	unsigned long flags;
@@ -492,10 +474,7 @@ static void ubd_handler(void)
 			return;
 		}
 
-		rq = req->req;
-		rq->nr_sectors -= req->length >> 9;
-		if(rq->nr_sectors == 0)
-			ubd_finish(rq, rq->hard_nr_sectors << 9);
+		blk_end_request(req->req, 0, req->length);
 		kfree(req);
 	}
 	reactivate_fd(thread_fd, UBD_IRQ);
