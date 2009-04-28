@@ -1894,9 +1894,8 @@ static void fuse_register_polled_file(struct fuse_conn *fc,
 
 static unsigned fuse_file_poll(struct file *file, poll_table *wait)
 {
-	struct inode *inode = file->f_dentry->d_inode;
 	struct fuse_file *ff = file->private_data;
-	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_conn *fc = ff->fc;
 	struct fuse_poll_in inarg = { .fh = ff->fh, .kh = ff->kh };
 	struct fuse_poll_out outarg;
 	struct fuse_req *req;
@@ -1921,7 +1920,7 @@ static unsigned fuse_file_poll(struct file *file, poll_table *wait)
 		return PTR_ERR(req);
 
 	req->in.h.opcode = FUSE_POLL;
-	req->in.h.nodeid = get_node_id(inode);
+	req->in.h.nodeid = ff->nodeid;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(inarg);
 	req->in.args[0].value = &inarg;
