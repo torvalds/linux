@@ -30,7 +30,7 @@ MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
 static int no_poweroff;
 module_param(no_poweroff, int, 0644);
-MODULE_PARM_DESC(debug, "0 (default) powers device off when not used.\n"
+MODULE_PARM_DESC(no_poweroff, "0 (default) powers device off when not used.\n"
 	"1 keep device energized and with tuner ready all the times.\n"
 	"  Faster, but consumes more power and keeps the device hotter\n");
 
