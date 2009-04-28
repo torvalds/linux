@@ -1371,11 +1371,6 @@ static void redo_fd_request(void)
 		       "0x%08lx\n", track, sector, data);
 #endif
 
-		if ((rq_data_dir(CURRENT) != READ) && (rq_data_dir(CURRENT) != WRITE)) {
-			printk(KERN_WARNING "do_fd_request: unknown command\n");
-			__blk_end_request_cur(CURRENT, -EIO);
-			goto repeat;
-		}
 		if (get_track(drive, track) == -1) {
 			__blk_end_request_cur(CURRENT, -EIO);
 			goto repeat;
@@ -1407,8 +1402,6 @@ static void redo_fd_request(void)
 			break;
 		}
 	}
-	CURRENT->nr_sectors -= CURRENT->current_nr_sectors;
-	CURRENT->sector += CURRENT->current_nr_sectors;
 
 	__blk_end_request_cur(CURRENT, 0);
 	goto repeat;

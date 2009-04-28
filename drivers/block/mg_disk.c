@@ -560,11 +560,6 @@ static void mg_request_poll(struct request_queue *q)
 			case WRITE:
 				mg_write(req);
 				break;
-			default:
-				printk(KERN_WARNING "%s:%d unknown command\n",
-						__func__, __LINE__);
-				__blk_end_request_cur(req, -EIO);
-				break;
 			}
 		}
 	}
@@ -613,11 +608,6 @@ static unsigned int mg_issue_req(struct request *req,
 		mod_timer(&host->timer, jiffies + 3 * HZ);
 		outb(MG_CMD_WR_CONF, (unsigned long)host->dev_base +
 				MG_REG_COMMAND);
-		break;
-	default:
-		printk(KERN_WARNING "%s:%d unknown command\n",
-				__func__, __LINE__);
-		__blk_end_request_cur(req, -EIO);
 		break;
 	}
 	return MG_ERR_NONE;

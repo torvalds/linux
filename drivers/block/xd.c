@@ -308,7 +308,6 @@ static void do_xd_request (struct request_queue * q)
 	while ((req = elv_next_request(q)) != NULL) {
 		unsigned block = req->sector;
 		unsigned count = req->nr_sectors;
-		int rw = rq_data_dir(req);
 		XD_INFO *disk = req->rq_disk->private_data;
 		int res = 0;
 		int retry;
@@ -321,13 +320,9 @@ static void do_xd_request (struct request_queue * q)
 			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
-		if (rw != READ && rw != WRITE) {
-			printk("do_xd_request: unknown request\n");
-			__blk_end_request_cur(req, -EIO);
-			continue;
-		}
 		for (retry = 0; (retry < XD_RETRIES) && !res; retry++)
-			res = xd_readwrite(rw, disk, req->buffer, block, count);
+			res = xd_readwrite(rq_data_dir(req), disk, req->buffer,
+					   block, count);
 		/* wrap up, 0 = success, -errno = fail */
 		__blk_end_request_cur(req, res);
 	}

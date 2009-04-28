@@ -732,8 +732,6 @@ static void do_fd_action( int drive )
 		    }
 		    else {
 			/* all sectors finished */
-			CURRENT->nr_sectors -= CURRENT->current_nr_sectors;
-			CURRENT->sector += CURRENT->current_nr_sectors;
 			__blk_end_request_cur(CURRENT, 0);
 			redo_fd_request();
 			return;
@@ -1139,8 +1137,6 @@ static void fd_rwsec_done1(int status)
 	}
 	else {
 		/* all sectors finished */
-		CURRENT->nr_sectors -= CURRENT->current_nr_sectors;
-		CURRENT->sector += CURRENT->current_nr_sectors;
 		__blk_end_request_cur(CURRENT, 0);
 		redo_fd_request();
 	}
