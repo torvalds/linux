@@ -491,11 +491,8 @@ static void empress_signal_update(struct work_struct *work)
 
 	if (dev->nosignal) {
 		dprintk("no video signal\n");
-		ts_reset_encoder(dev);
 	} else {
 		dprintk("video signal acquired\n");
-		if (atomic_read(&dev->empress_users))
-			ts_init_encoder(dev);
 	}
 }
 
