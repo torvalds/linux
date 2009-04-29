@@ -132,7 +132,7 @@ static u64 amd_pmu_raw_event(u64 event)
  * Can only be executed on the CPU where the counter is active.
  * Returns the delta events processed.
  */
-static void
+static u64
 x86_perf_counter_update(struct perf_counter *counter,
 			struct hw_perf_counter *hwc, int idx)
 {
@@ -165,6 +165,8 @@ again:
 
 	atomic64_add(delta, &counter->count);
 	atomic64_sub(delta, &hwc->period_left);
+
+	return new_raw_count;
 }
 
 static atomic_t num_counters;
@@ -785,8 +787,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 			continue;
 		counter = cpuc->counters[idx];
 		hwc = &counter->hw;
-		x86_perf_counter_update(counter, hwc, idx);
-		val = atomic64_read(&hwc->prev_count);
+		val = x86_perf_counter_update(counter, hwc, idx);
 		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
 			continue;
 		/* counter overflow */
