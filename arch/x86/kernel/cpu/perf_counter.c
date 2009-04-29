@@ -334,11 +334,13 @@ static u64 pmc_amd_save_disable_all(void)
 	for (idx = 0; idx < nr_counters_generic; idx++) {
 		u64 val;
 
+		if (!test_bit(idx, cpuc->active_mask))
+			continue;
 		rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
-		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE) {
-			val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
-			wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
-		}
+		if (!(val & ARCH_PERFMON_EVENTSEL0_ENABLE))
+			continue;
+		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+		wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
 	}
 
 	return enabled;
@@ -372,13 +374,15 @@ static void pmc_amd_restore_all(u64 ctrl)
 		return;
 
 	for (idx = 0; idx < nr_counters_generic; idx++) {
-		if (test_bit(idx, cpuc->active_mask)) {
-			u64 val;
+		u64 val;
 
-			rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
-			val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
-			wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
-		}
+		if (!test_bit(idx, cpuc->active_mask))
+			continue;
+		rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
+		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE)
+			continue;
+		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+		wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
 	}
 }
 
