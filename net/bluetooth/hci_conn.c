@@ -215,6 +215,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	conn->state = BT_OPEN;
 
 	conn->power_save = 1;
+	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 
 	switch (type) {
 	case ACL_LINK:
@@ -424,12 +425,9 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	if (sec_level == BT_SECURITY_SDP)
 		return 1;
 
-	if (sec_level == BT_SECURITY_LOW) {
-		if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0)
-			return hci_conn_auth(conn, sec_level, auth_type);
-		else
-			return 1;
-	}
+	if (sec_level == BT_SECURITY_LOW &&
+				(!conn->ssp_mode || !conn->hdev->ssp_mode))
+		return 1;
 
 	if (conn->link_mode & HCI_LM_ENCRYPT)
 		return hci_conn_auth(conn, sec_level, auth_type);
