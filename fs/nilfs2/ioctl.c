@@ -147,29 +147,12 @@ static ssize_t
 nilfs_ioctl_do_get_cpinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			  void *buf, size_t size, size_t nmembs)
 {
-	return nilfs_cpfile_get_cpinfo(nilfs->ns_cpfile, posp, flags, buf,
-				       nmembs);
-}
-
-static int nilfs_ioctl_get_cpinfo(struct inode *inode, struct file *filp,
-				  unsigned int cmd, void __user *argp)
-{
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
-	struct nilfs_argv argv;
 	int ret;
 
-	if (copy_from_user(&argv, argp, sizeof(argv)))
-		return -EFAULT;
-
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
-				    nilfs_ioctl_do_get_cpinfo);
+	ret = nilfs_cpfile_get_cpinfo(nilfs->ns_cpfile, posp, flags, buf,
+				      nmembs);
 	up_read(&nilfs->ns_segctor_sem);
-	if (ret < 0)
-		return ret;
-
-	if (copy_to_user(argp, &argv, sizeof(argv)))
-		ret = -EFAULT;
 	return ret;
 }
 
@@ -195,28 +178,11 @@ static ssize_t
 nilfs_ioctl_do_get_suinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			  void *buf, size_t size, size_t nmembs)
 {
-	return nilfs_sufile_get_suinfo(nilfs->ns_sufile, *posp, buf, nmembs);
-}
-
-static int nilfs_ioctl_get_suinfo(struct inode *inode, struct file *filp,
-				  unsigned int cmd, void __user *argp)
-{
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
-	struct nilfs_argv argv;
 	int ret;
 
-	if (copy_from_user(&argv, argp, sizeof(argv)))
-		return -EFAULT;
-
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
-				    nilfs_ioctl_do_get_suinfo);
+	ret = nilfs_sufile_get_suinfo(nilfs->ns_sufile, *posp, buf, nmembs);
 	up_read(&nilfs->ns_segctor_sem);
-	if (ret < 0)
-		return ret;
-
-	if (copy_to_user(argp, &argv, sizeof(argv)))
-		ret = -EFAULT;
 	return ret;
 }
 
@@ -242,28 +208,11 @@ static ssize_t
 nilfs_ioctl_do_get_vinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 			 void *buf, size_t size, size_t nmembs)
 {
-	return nilfs_dat_get_vinfo(nilfs_dat_inode(nilfs), buf, nmembs);
-}
-
-static int nilfs_ioctl_get_vinfo(struct inode *inode, struct file *filp,
-				 unsigned int cmd, void __user *argp)
-{
-	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
-	struct nilfs_argv argv;
 	int ret;
 
-	if (copy_from_user(&argv, argp, sizeof(argv)))
-		return -EFAULT;
-
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
-				    nilfs_ioctl_do_get_vinfo);
+	ret = nilfs_dat_get_vinfo(nilfs_dat_inode(nilfs), buf, nmembs);
 	up_read(&nilfs->ns_segctor_sem);
-	if (ret < 0)
-		return ret;
-
-	if (copy_to_user(argp, &argv, sizeof(argv)))
-		ret = -EFAULT;
 	return ret;
 }
 
@@ -276,17 +225,21 @@ nilfs_ioctl_do_get_bdescs(struct the_nilfs *nilfs, __u64 *posp, int flags,
 	struct nilfs_bdesc *bdescs = buf;
 	int ret, i;
 
+	down_read(&nilfs->ns_segctor_sem);
 	for (i = 0; i < nmembs; i++) {
 		ret = nilfs_bmap_lookup_at_level(bmap,
 						 bdescs[i].bd_offset,
 						 bdescs[i].bd_level + 1,
 						 &bdescs[i].bd_blocknr);
 		if (ret < 0) {
-			if (ret != -ENOENT)
+			if (ret != -ENOENT) {
+				up_read(&nilfs->ns_segctor_sem);
 				return ret;
+			}
 			bdescs[i].bd_blocknr = 0;
 		}
 	}
+	up_read(&nilfs->ns_segctor_sem);
 	return nmembs;
 }
 
@@ -300,10 +253,8 @@ static int nilfs_ioctl_get_bdescs(struct inode *inode, struct file *filp,
 	if (copy_from_user(&argv, argp, sizeof(argv)))
 		return -EFAULT;
 
-	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd),
 				    nilfs_ioctl_do_get_bdescs);
-	up_read(&nilfs->ns_segctor_sem);
 	if (ret < 0)
 		return ret;
 
@@ -623,6 +574,29 @@ static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
 	return 0;
 }
 
+static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
+				unsigned int cmd, void __user *argp,
+				ssize_t (*dofunc)(struct the_nilfs *,
+						  __u64 *, int,
+						  void *, size_t, size_t))
+
+{
+	struct the_nilfs *nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+	struct nilfs_argv argv;
+	int ret;
+
+	if (copy_from_user(&argv, argp, sizeof(argv)))
+		return -EFAULT;
+
+	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd), dofunc);
+	if (ret < 0)
+		return ret;
+
+	if (copy_to_user(argp, &argv, sizeof(argv)))
+		ret = -EFAULT;
+	return ret;
+}
+
 long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct inode *inode = filp->f_dentry->d_inode;
@@ -634,16 +608,18 @@ long nilfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case NILFS_IOCTL_DELETE_CHECKPOINT:
 		return nilfs_ioctl_delete_checkpoint(inode, filp, cmd, argp);
 	case NILFS_IOCTL_GET_CPINFO:
-		return nilfs_ioctl_get_cpinfo(inode, filp, cmd, argp);
+		return nilfs_ioctl_get_info(inode, filp, cmd, argp,
+					    nilfs_ioctl_do_get_cpinfo);
 	case NILFS_IOCTL_GET_CPSTAT:
 		return nilfs_ioctl_get_cpstat(inode, filp, cmd, argp);
 	case NILFS_IOCTL_GET_SUINFO:
-		return nilfs_ioctl_get_suinfo(inode, filp, cmd, argp);
+		return nilfs_ioctl_get_info(inode, filp, cmd, argp,
+					    nilfs_ioctl_do_get_suinfo);
 	case NILFS_IOCTL_GET_SUSTAT:
 		return nilfs_ioctl_get_sustat(inode, filp, cmd, argp);
 	case NILFS_IOCTL_GET_VINFO:
-		/* XXX: rename to ??? */
-		return nilfs_ioctl_get_vinfo(inode, filp, cmd, argp);
+		return nilfs_ioctl_get_info(inode, filp, cmd, argp,
+					    nilfs_ioctl_do_get_vinfo);
 	case NILFS_IOCTL_GET_BDESCS:
 		return nilfs_ioctl_get_bdescs(inode, filp, cmd, argp);
 	case NILFS_IOCTL_CLEAN_SEGMENTS:
