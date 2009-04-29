@@ -1837,8 +1837,8 @@ static void __init setup_cpu_spec(unsigned long offset, struct cpu_spec *s)
 		 * oprofile_cpu_type.
 		 */
 		if (old.oprofile_cpu_type == NULL) {
-			t->oprofile_cpu_type = s->oprofile_cpu_type;
-			t->oprofile_type = s->oprofile_type;
+			t->oprofile_cpu_type = old.oprofile_cpu_type;
+			t->oprofile_type = old.oprofile_type;
 		}
 	}
 
