@@ -3542,7 +3542,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		}
 
 		r = ring_buffer_read_page(ref->buffer, &ref->page,
-					  len, info->cpu, 0);
+					  len, info->cpu, 1);
 		if (r < 0) {
 			ring_buffer_free_read_page(ref->buffer,
 						   ref->page);
