@@ -425,33 +425,36 @@ static struct vm_operations_struct gfs2_vm_ops = {
 	.page_mkwrite = gfs2_page_mkwrite,
 };
 
-
 /**
  * gfs2_mmap -
  * @file: The file to map
  * @vma: The VMA which described the mapping
  *
- * Returns: 0 or error code
+ * There is no need to get a lock here unless we should be updating
+ * atime. We ignore any locking errors since the only consequence is
+ * a missed atime update (which will just be deferred until later).
+ *
+ * Returns: 0
  */
 
 static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
-	struct gfs2_holder i_gh;
-	int error;
 
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
-	error = gfs2_glock_nq(&i_gh);
-	if (error) {
-		gfs2_holder_uninit(&i_gh);
-		return error;
+	if (!(file->f_flags & O_NOATIME)) {
+		struct gfs2_holder i_gh;
+		int error;
+
+		gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &i_gh);
+		error = gfs2_glock_nq(&i_gh);
+		file_accessed(file);
+		if (error == 0)
+			gfs2_glock_dq_uninit(&i_gh);
 	}
-
 	vma->vm_ops = &gfs2_vm_ops;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
 
-	gfs2_glock_dq_uninit(&i_gh);
-
-	return error;
+	return 0;
 }
 
 /**
