@@ -3738,8 +3738,7 @@ static int ixgbe_resume(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 
-	pci_enable_wake(pdev, PCI_D3hot, 0);
-	pci_enable_wake(pdev, PCI_D3cold, 0);
+	pci_wake_from_d3(pdev, false);
 
 	err = ixgbe_init_interrupt_scheme(adapter);
 	if (err) {
@@ -3813,13 +3812,10 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		IXGBE_WRITE_REG(hw, IXGBE_WUFC, 0);
 	}
 
-	if (wufc && hw->mac.type == ixgbe_mac_82599EB) {
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
-	} else {
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
-	}
+	if (wufc && hw->mac.type == ixgbe_mac_82599EB)
+		pci_wake_from_d3(pdev, true);
+	else
+		pci_wake_from_d3(pdev, false);
 
 	*enable_wake = !!wufc;
 
@@ -5101,8 +5097,7 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 		pci_set_master(pdev);
 		pci_restore_state(pdev);
 
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
+		pci_wake_from_d3(pdev, false);
 
 		ixgbe_reset(adapter);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
