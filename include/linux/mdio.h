@@ -46,6 +46,7 @@
 
 /* Media-dependent registers. */
 #define MDIO_PMA_10GBT_TXPWR	131	/* 10GBASE-T TX power control */
+#define MDIO_PMA_10GBR_FECABLE	170	/* 10GBASE-R FEC ability */
 #define MDIO_PCS_10GBX_STAT1	24	/* 10GBASE-X PCS status 1 */
 #define MDIO_PCS_10GBRT_STAT1	32	/* 10GBASE-R/-T PCS status 1 */
 #define MDIO_PCS_10GBRT_STAT2	33	/* 10GBASE-R/-T PCS status 2 */
@@ -186,6 +187,10 @@
 
 /* PMA 10GBASE-T TX power register. */
 #define MDIO_PMA_10GBT_TXPWR_SHORT	0x0001	/* Short-reach mode */
+
+/* PMA 10GBASE-R FEC ability register. */
+#define MDIO_PMA_10GBR_FECABLE_ABLE	0x0001	/* FEC ability */
+#define MDIO_PMA_10GBR_FECABLE_ERRABLE	0x0002	/* FEC error indic. ability */
 
 /* PCS 10GBASE-R/-T status register 1. */
 #define MDIO_PCS_10GBRT_STAT1_BLKLK	0x0001	/* Block lock attained */

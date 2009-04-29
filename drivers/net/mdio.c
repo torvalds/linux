@@ -202,12 +202,29 @@ void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 		break;
 
 	case MDIO_PMA_CTRL2_10GBCX4:
+		ecmd->port = PORT_OTHER;
+		ecmd->supported = 0;
+		ecmd->advertising = 0;
+		break;
+
 	case MDIO_PMA_CTRL2_10GBKX4:
 	case MDIO_PMA_CTRL2_10GBKR:
 	case MDIO_PMA_CTRL2_1000BKX:
 		ecmd->port = PORT_OTHER;
-		ecmd->supported = 0;
-		ecmd->advertising = 0;
+		ecmd->supported = SUPPORTED_Backplane;
+		reg = mdio->mdio_read(mdio->dev, mdio->prtad, MDIO_MMD_PMAPMD,
+				      MDIO_PMA_EXTABLE);
+		if (reg & MDIO_PMA_EXTABLE_10GBKX4)
+			ecmd->supported |= SUPPORTED_10000baseKX4_Full;
+		if (reg & MDIO_PMA_EXTABLE_10GBKR)
+			ecmd->supported |= SUPPORTED_10000baseKR_Full;
+		if (reg & MDIO_PMA_EXTABLE_1000BKX)
+			ecmd->supported |= SUPPORTED_1000baseKX_Full;
+		reg = mdio->mdio_read(mdio->dev, mdio->prtad, MDIO_MMD_PMAPMD,
+				      MDIO_PMA_10GBR_FECABLE);
+		if (reg & MDIO_PMA_10GBR_FECABLE_ABLE)
+			ecmd->supported |= SUPPORTED_10000baseR_FEC;
+		ecmd->advertising = ADVERTISED_Backplane;
 		break;
 
 	/* All the other defined modes are flavours of optical */
@@ -252,13 +269,16 @@ void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 		if ((modes & ~ADVERTISED_Autoneg) == 0)
 			modes = ecmd->advertising;
 
-		if (modes & ADVERTISED_10000baseT_Full) {
+		if (modes & (ADVERTISED_10000baseT_Full |
+			     ADVERTISED_10000baseKX4_Full |
+			     ADVERTISED_10000baseKR_Full)) {
 			ecmd->speed = SPEED_10000;
 			ecmd->duplex = DUPLEX_FULL;
 		} else if (modes & (ADVERTISED_1000baseT_Full |
-				    ADVERTISED_1000baseT_Half)) {
+				    ADVERTISED_1000baseT_Half |
+				    ADVERTISED_1000baseKX_Full)) {
 			ecmd->speed = SPEED_1000;
-			ecmd->duplex = !!(modes & ADVERTISED_1000baseT_Full);
+			ecmd->duplex = !(modes & ADVERTISED_1000baseT_Half);
 		} else if (modes & (ADVERTISED_100baseT_Full |
 				    ADVERTISED_100baseT_Half)) {
 			ecmd->speed = SPEED_100;
