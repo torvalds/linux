@@ -194,6 +194,19 @@ static void mce_panic(char *msg, struct mce *backup, u64 start)
 	panic(msg);
 }
 
+/* MSR access wrappers used for error injection */
+static u64 mce_rdmsrl(u32 msr)
+{
+	u64 v;
+	rdmsrl(msr, v);
+	return v;
+}
+
+static void mce_wrmsrl(u32 msr, u64 v)
+{
+	wrmsrl(msr, v);
+}
+
 int mce_available(struct cpuinfo_x86 *c)
 {
 	if (mce_disabled)
@@ -213,7 +226,7 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
 	if (rip_msr) {
 		/* Assume the RIP in the MSR is exact. Is this true? */
 		m->mcgstatus |= MCG_STATUS_EIPV;
-		rdmsrl(rip_msr, m->ip);
+		m->ip = mce_rdmsrl(rip_msr);
 		m->cs = 0;
 	}
 }
@@ -231,7 +244,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 	mce_setup(&m);
 
-	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
+	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
 	for (i = 0; i < banks; i++) {
 		if (!bank[i] || !test_bit(i, *b))
 			continue;
@@ -242,7 +255,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		m.tsc = 0;
 
 		barrier();
-		rdmsrl(MSR_IA32_MC0_STATUS + i*4, m.status);
+		m.status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
 		if (!(m.status & MCI_STATUS_VAL))
 			continue;
 
@@ -257,9 +270,9 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 			continue;
 
 		if (m.status & MCI_STATUS_MISCV)
-			rdmsrl(MSR_IA32_MC0_MISC + i*4, m.misc);
+			m.misc = mce_rdmsrl(MSR_IA32_MC0_MISC + i*4);
 		if (m.status & MCI_STATUS_ADDRV)
-			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
+			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
 
 		if (!(flags & MCP_TIMESTAMP))
 			m.tsc = 0;
@@ -275,7 +288,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		/*
 		 * Clear state for this bank.
 		 */
-		wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+		mce_wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	}
 
 	/*
@@ -320,7 +333,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 
 	mce_setup(&m);
 
-	rdmsrl(MSR_IA32_MCG_STATUS, m.mcgstatus);
+	m.mcgstatus = mce_rdmsrl(MSR_IA32_MCG_STATUS);
 
 	/* if the restart IP is not valid, we're done for */
 	if (!(m.mcgstatus & MCG_STATUS_RIPV))
@@ -338,7 +351,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		m.addr = 0;
 		m.bank = i;
 
-		rdmsrl(MSR_IA32_MC0_STATUS + i*4, m.status);
+		m.status = mce_rdmsrl(MSR_IA32_MC0_STATUS + i*4);
 		if ((m.status & MCI_STATUS_VAL) == 0)
 			continue;
 
@@ -378,9 +391,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 		}
 
 		if (m.status & MCI_STATUS_MISCV)
-			rdmsrl(MSR_IA32_MC0_MISC + i*4, m.misc);
+			m.misc = mce_rdmsrl(MSR_IA32_MC0_MISC + i*4);
 		if (m.status & MCI_STATUS_ADDRV)
-			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
+			m.addr = mce_rdmsrl(MSR_IA32_MC0_ADDR + i*4);
 
 		mce_get_rip(&m, regs);
 		mce_log(&m);
@@ -449,9 +462,9 @@ void do_machine_check(struct pt_regs *regs, long error_code)
 	/* the last thing we do is clear state */
 	for (i = 0; i < banks; i++) {
 		if (test_bit(i, toclear))
-			wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
+			mce_wrmsrl(MSR_IA32_MC0_STATUS+4*i, 0);
 	}
-	wrmsrl(MSR_IA32_MCG_STATUS, 0);
+	mce_wrmsrl(MSR_IA32_MCG_STATUS, 0);
  out2:
 	atomic_dec(&mce_entry);
 }
