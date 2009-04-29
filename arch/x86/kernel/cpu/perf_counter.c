@@ -4,6 +4,7 @@
  *  Copyright(C) 2008 Thomas Gleixner <tglx@linutronix.de>
  *  Copyright(C) 2008 Red Hat, Inc., Ingo Molnar
  *  Copyright(C) 2009 Jaswinder Singh Rajput
+ *  Copyright(C) 2009 Advanced Micro Devices, Inc., Robert Richter
  *
  *  For licencing details see kernel-base/COPYING
  */
@@ -47,6 +48,7 @@ struct cpu_hw_counters {
  * struct x86_pmu - generic x86 pmu
  */
 struct x86_pmu {
+	int		(*handle_irq)(struct pt_regs *, int);
 	u64		(*save_disable_all)(void);
 	void		(*restore_all)(u64);
 	u64		(*get_status)(u64);
@@ -240,6 +242,10 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	struct perf_counter_hw_event *hw_event = &counter->hw_event;
 	struct hw_perf_counter *hwc = &counter->hw;
 	int err;
+
+	/* disable temporarily */
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		return -ENOSYS;
 
 	if (unlikely(!perf_counters_initialized))
 		return -EINVAL;
@@ -780,7 +786,7 @@ static void perf_save_and_restart(struct perf_counter *counter)
  * This handler is triggered by the local APIC, so the APIC IRQ handling
  * rules apply:
  */
-static int __smp_perf_counter_interrupt(struct pt_regs *regs, int nmi)
+static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 {
 	int bit, cpu = smp_processor_id();
 	u64 ack, status;
@@ -827,6 +833,8 @@ out:
 	return ret;
 }
 
+static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi) { return 0; }
+
 void perf_counter_unthrottle(void)
 {
 	struct cpu_hw_counters *cpuc;
@@ -851,7 +859,7 @@ void smp_perf_counter_interrupt(struct pt_regs *regs)
 	irq_enter();
 	apic_write(APIC_LVTPC, LOCAL_PERF_VECTOR);
 	ack_APIC_irq();
-	__smp_perf_counter_interrupt(regs, 0);
+	x86_pmu->handle_irq(regs, 0);
 	irq_exit();
 }
 
@@ -908,7 +916,7 @@ perf_counter_nmi_handler(struct notifier_block *self,
 	regs = args->regs;
 
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	ret = __smp_perf_counter_interrupt(regs, 1);
+	ret = x86_pmu->handle_irq(regs, 1);
 
 	return ret ? NOTIFY_STOP : NOTIFY_OK;
 }
@@ -920,6 +928,7 @@ static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
 };
 
 static struct x86_pmu intel_pmu = {
+	.handle_irq		= intel_pmu_handle_irq,
 	.save_disable_all	= intel_pmu_save_disable_all,
 	.restore_all		= intel_pmu_restore_all,
 	.get_status		= intel_pmu_get_status,
@@ -934,6 +943,7 @@ static struct x86_pmu intel_pmu = {
 };
 
 static struct x86_pmu amd_pmu = {
+	.handle_irq		= amd_pmu_handle_irq,
 	.save_disable_all	= amd_pmu_save_disable_all,
 	.restore_all		= amd_pmu_restore_all,
 	.get_status		= amd_pmu_get_status,
