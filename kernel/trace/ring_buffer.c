@@ -402,6 +402,8 @@ struct ring_buffer_per_cpu {
 	struct buffer_page		*tail_page;	/* write to tail */
 	struct buffer_page		*commit_page;	/* committed pages */
 	struct buffer_page		*reader_page;
+	unsigned long			nmi_dropped;
+	unsigned long			commit_overrun;
 	unsigned long			overrun;
 	unsigned long			entries;
 	u64				write_stamp;
@@ -1216,8 +1218,10 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		 * simply fail.
 		 */
 		if (unlikely(in_nmi())) {
-			if (!__raw_spin_trylock(&cpu_buffer->lock))
+			if (!__raw_spin_trylock(&cpu_buffer->lock)) {
+				cpu_buffer->nmi_dropped++;
 				goto out_reset;
+			}
 		} else
 			__raw_spin_lock(&cpu_buffer->lock);
 
@@ -1238,8 +1242,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		 * about it.
 		 */
 		if (unlikely(next_page == commit_page)) {
-			/* This can easily happen on small ring buffers */
-			WARN_ON_ONCE(buffer->pages > 2);
+			cpu_buffer->commit_overrun++;
 			goto out_reset;
 		}
 
@@ -1926,6 +1929,47 @@ unsigned long ring_buffer_overrun_cpu(struct ring_buffer *buffer, int cpu)
 EXPORT_SYMBOL_GPL(ring_buffer_overrun_cpu);
 
 /**
+ * ring_buffer_nmi_dropped_cpu - get the number of nmis that were dropped
+ * @buffer: The ring buffer
+ * @cpu: The per CPU buffer to get the number of overruns from
+ */
+unsigned long ring_buffer_nmi_dropped_cpu(struct ring_buffer *buffer, int cpu)
+{
+	struct ring_buffer_per_cpu *cpu_buffer;
+	unsigned long ret;
+
+	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+		return 0;
+
+	cpu_buffer = buffer->buffers[cpu];
+	ret = cpu_buffer->nmi_dropped;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_nmi_dropped_cpu);
+
+/**
+ * ring_buffer_commit_overrun_cpu - get the number of overruns caused by commits
+ * @buffer: The ring buffer
+ * @cpu: The per CPU buffer to get the number of overruns from
+ */
+unsigned long
+ring_buffer_commit_overrun_cpu(struct ring_buffer *buffer, int cpu)
+{
+	struct ring_buffer_per_cpu *cpu_buffer;
+	unsigned long ret;
+
+	if (!cpumask_test_cpu(cpu, buffer->cpumask))
+		return 0;
+
+	cpu_buffer = buffer->buffers[cpu];
+	ret = cpu_buffer->commit_overrun;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ring_buffer_commit_overrun_cpu);
+
+/**
  * ring_buffer_entries - get the number of entries in a buffer
  * @buffer: The ring buffer
  *
@@ -2595,6 +2639,8 @@ rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer)
 	local_set(&cpu_buffer->reader_page->page->commit, 0);
 	cpu_buffer->reader_page->read = 0;
 
+	cpu_buffer->nmi_dropped = 0;
+	cpu_buffer->commit_overrun = 0;
 	cpu_buffer->overrun = 0;
 	cpu_buffer->entries = 0;
 
