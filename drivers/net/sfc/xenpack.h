@@ -34,29 +34,24 @@
 /* Enable LASI interrupts for PHY */
 static inline void xenpack_enable_lasi_irqs(struct efx_nic *efx)
 {
-	int reg;
-	int phy_id = efx->mii.phy_id;
 	/* Read to clear LASI status register */
-	reg = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
-				 MDIO_XP_LASI_STAT);
+	efx_mdio_read(efx, MDIO_MMD_PMAPMD, MDIO_XP_LASI_STAT);
 
-	mdio_clause45_write(efx, phy_id, MDIO_MMD_PMAPMD,
-			    MDIO_XP_LASI_CTRL, XP_LASI_LS_ALARM);
+	efx_mdio_write(efx, MDIO_MMD_PMAPMD, MDIO_XP_LASI_CTRL,
+		       XP_LASI_LS_ALARM);
 }
 
 /* Read the LASI interrupt status to clear the interrupt. */
 static inline int xenpack_clear_lasi_irqs(struct efx_nic *efx)
 {
 	/* Read to clear link status alarm */
-	return mdio_clause45_read(efx, efx->mii.phy_id,
-				  MDIO_MMD_PMAPMD, MDIO_XP_LASI_STAT);
+	return efx_mdio_read(efx, MDIO_MMD_PMAPMD, MDIO_XP_LASI_STAT);
 }
 
 /* Turn off LASI interrupts */
 static inline void xenpack_disable_lasi_irqs(struct efx_nic *efx)
 {
-	mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
-			    MDIO_XP_LASI_CTRL, 0);
+	efx_mdio_write(efx, MDIO_MMD_PMAPMD, MDIO_XP_LASI_CTRL, 0);
 }
 
 #endif /* EFX_XENPACK_H */

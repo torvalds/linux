@@ -1300,10 +1300,16 @@ out_requeue:
 static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	struct mii_ioctl_data *data = if_mii(ifr);
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
-	return generic_mii_ioctl(&efx->mii, if_mii(ifr), cmd, NULL);
+	/* Convert phy_id from older PRTAD/DEVAD format */
+	if ((cmd == SIOCGMIIREG || cmd == SIOCSMIIREG) &&
+	    (data->phy_id & 0xfc00) == 0x0400)
+		data->phy_id ^= MDIO_PHY_ID_C45 | 0x0400;
+
+	return mdio_mii_ioctl(&efx->mdio, data, cmd);
 }
 
 /**************************************************************************
@@ -1945,7 +1951,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	mutex_init(&efx->mac_lock);
 	efx->mac_op = &efx_dummy_mac_operations;
 	efx->phy_op = &efx_dummy_phy_operations;
-	efx->mii.dev = net_dev;
+	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->phy_work, efx_phy_work);
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	atomic_set(&efx->netif_stop_count, 1);

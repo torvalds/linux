@@ -19,7 +19,7 @@
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
 #include <linux/timer.h>
-#include <linux/mii.h>
+#include <linux/mdio.h>
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/device.h>
@@ -458,8 +458,6 @@ enum phy_type {
 	PHY_TYPE_MAX	/* Insert any new items before this */
 };
 
-#define PHY_ADDR_INVALID 0xff
-
 #define EFX_IS10G(efx) ((efx)->link_speed == 10000)
 
 enum nic_state {
@@ -758,7 +756,7 @@ union efx_multicast_hash {
  * @phy_lock: PHY access lock
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
- * @mii: PHY interface
+ * @mdio: PHY MDIO interface
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @mac_up: MAC link state
  * @link_up: Link status
@@ -845,7 +843,7 @@ struct efx_nic {
 	struct work_struct phy_work;
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
-	struct mii_if_info mii;
+	struct mdio_if_info mdio;
 	enum efx_phy_mode phy_mode;
 
 	bool mac_up;

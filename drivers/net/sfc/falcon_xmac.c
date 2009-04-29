@@ -133,7 +133,7 @@ bool falcon_xaui_link_ok(struct efx_nic *efx)
 	/* If the link is up, then check the phy side of the xaui link */
 	if (efx->link_up && link_ok)
 		if (efx->phy_op->mmds & (1 << MDIO_MMD_PHYXS))
-			link_ok = mdio_clause45_phyxgxs_lane_sync(efx);
+			link_ok = efx_mdio_phyxgxs_lane_sync(efx);
 
 	return link_ok;
 }
