@@ -3,7 +3,8 @@
  *
  * Historic 32-bit version written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>
  *
- * Modernisation and unification done by Sam Ravnborg <sam@ravnborg.org>
+ * Modernisation, unification and other changes and fixes:
+ *   Copyright (C) 2007-2009  Sam Ravnborg <sam@ravnborg.org>
  *
  *
  * Don't define absolute symbols until and unless you know that symbol
