@@ -498,7 +498,7 @@ static DEFINE_PER_CPU(u64, prev_left[X86_PMC_IDX_MAX]);
  * To be called with the counter disabled in hw:
  */
 static void
-__hw_perf_counter_set_period(struct perf_counter *counter,
+x86_perf_counter_set_period(struct perf_counter *counter,
 			     struct hw_perf_counter *hwc, int idx)
 {
 	s64 left = atomic64_read(&hwc->period_left);
@@ -642,7 +642,7 @@ try_generic:
 	 */
 	barrier();
 
-	__hw_perf_counter_set_period(counter, hwc, idx);
+	x86_perf_counter_set_period(counter, hwc, idx);
 	__x86_pmu_enable(counter, hwc, idx);
 
 	return 0;
@@ -731,7 +731,7 @@ static void perf_save_and_restart(struct perf_counter *counter)
 	int idx = hwc->idx;
 
 	x86_perf_counter_update(counter, hwc, idx);
-	__hw_perf_counter_set_period(counter, hwc, idx);
+	x86_perf_counter_set_period(counter, hwc, idx);
 
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
 		__x86_pmu_enable(counter, hwc, idx);
