@@ -215,7 +215,7 @@ static __devinit int s3c64xx_iis_dev_probe(struct platform_device *pdev)
 
 	i2s->iis_cclk = clk_get(&pdev->dev, "audio-bus");
 	if (IS_ERR(i2s->iis_cclk)) {
-		dev_err(&pdev->dev, "failed to get audio-bus");
+		dev_err(&pdev->dev, "failed to get audio-bus\n");
 		ret = PTR_ERR(i2s->iis_cclk);
 		goto err;
 	}
