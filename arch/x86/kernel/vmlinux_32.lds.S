@@ -1,26 +1,3 @@
-/* ld script to make i386 Linux kernel
- * Written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>;
- *
- * Don't define absolute symbols until and unless you know that symbol
- * value is should remain constant even if kernel image is relocated
- * at run time. Absolute symbols are not relocated. If symbol value should
- * change if kernel is relocated, make the symbol section relative and
- * put it inside the section definition.
- */
-
-#define LOAD_OFFSET __PAGE_OFFSET
-
-#include <asm-generic/vmlinux.lds.h>
-#include <asm/thread_info.h>
-#include <asm/page_types.h>
-#include <asm/cache.h>
-#include <asm/boot.h>
-
-OUTPUT_FORMAT("elf32-i386", "elf32-i386", "elf32-i386")
-OUTPUT_ARCH(i386)
-ENTRY(phys_startup_32)
-jiffies = jiffies_64;
-
 PHDRS {
 	text PT_LOAD FLAGS(5);		/* R_E */
 	data PT_LOAD FLAGS(7);		/* RWE */
@@ -237,17 +214,3 @@ SECTIONS
 	STABS_DEBUG
 	DWARF_DEBUG
 }
-
-/*
- * Build-time check on the image size:
- */
-ASSERT((_end - LOAD_OFFSET <= KERNEL_IMAGE_SIZE),
-	"kernel image bigger than KERNEL_IMAGE_SIZE")
-
-#ifdef CONFIG_KEXEC
-/* Link time checks */
-#include <asm/kexec.h>
-
-ASSERT(kexec_control_code_size <= KEXEC_CONTROL_CODE_MAX_SIZE,
-       "kexec control code size is too big")
-#endif

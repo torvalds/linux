@@ -1,19 +1,3 @@
-/* ld script to make x86-64 Linux kernel
- * Written by Martin Mares <mj@atrey.karlin.mff.cuni.cz>;
- */
-
-#define LOAD_OFFSET __START_KERNEL_map
-
-#include <asm-generic/vmlinux.lds.h>
-#include <asm/asm-offsets.h>
-#include <asm/page_types.h>
-
-#undef i386	/* in case the preprocessor is a 32bit one */
-
-OUTPUT_FORMAT("elf64-x86-64", "elf64-x86-64", "elf64-x86-64")
-OUTPUT_ARCH(i386:x86-64)
-ENTRY(phys_startup_64)
-jiffies_64 = jiffies;
 PHDRS {
 	text PT_LOAD FLAGS(5);		/* R_E */
 	data PT_LOAD FLAGS(7);		/* RWE */
@@ -308,29 +292,3 @@ SECTIONS
 	STABS_DEBUG
 	DWARF_DEBUG
 }
-
-/*
- * Per-cpu symbols which need to be offset from __per_cpu_load
- * for the boot processor.
- */
-#define INIT_PER_CPU(x) init_per_cpu__##x = per_cpu__##x + __per_cpu_load
-INIT_PER_CPU(gdt_page);
-INIT_PER_CPU(irq_stack_union);
-
-/*
- * Build-time check on the image size:
- */
-ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
-	"kernel image bigger than KERNEL_IMAGE_SIZE")
-
-#ifdef CONFIG_SMP
-ASSERT((per_cpu__irq_stack_union == 0),
-        "irq_stack_union is not at start of per-cpu area");
-#endif
-
-#ifdef CONFIG_KEXEC
-#include <asm/kexec.h>
-
-ASSERT(kexec_control_code_size <= KEXEC_CONTROL_CODE_MAX_SIZE,
-       "kexec control code size is too big")
-#endif
