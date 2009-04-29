@@ -1,9 +1,9 @@
 /*
  * Performance counter core code
  *
- *  Copyright(C) 2008 Thomas Gleixner <tglx@linutronix.de>
- *  Copyright(C) 2008 Red Hat, Inc., Ingo Molnar
- *
+ *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
+ *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  *
  *  For licensing details see kernel-base/COPYING
  */

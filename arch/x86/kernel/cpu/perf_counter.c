@@ -1,10 +1,11 @@
 /*
  * Performance counter x86 architecture code
  *
- *  Copyright(C) 2008 Thomas Gleixner <tglx@linutronix.de>
- *  Copyright(C) 2008 Red Hat, Inc., Ingo Molnar
- *  Copyright(C) 2009 Jaswinder Singh Rajput
- *  Copyright(C) 2009 Advanced Micro Devices, Inc., Robert Richter
+ *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
+ *  Copyright (C) 2008-2009 Red Hat, Inc., Ingo Molnar
+ *  Copyright (C) 2009 Jaswinder Singh Rajput
+ *  Copyright (C) 2009 Advanced Micro Devices, Inc., Robert Richter
+ *  Copyright (C) 2008-2009 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
  *
  *  For licencing details see kernel-base/COPYING
  */
