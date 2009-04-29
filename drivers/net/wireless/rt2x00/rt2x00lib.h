@@ -32,8 +32,8 @@
  * Interval defines
  * Both the link tuner as the rfkill will be called once per second.
  */
-#define LINK_TUNE_INTERVAL	( round_jiffies_relative(HZ) )
-#define RFKILL_POLL_INTERVAL	( 1000 )
+#define LINK_TUNE_INTERVAL	round_jiffies_relative(HZ)
+#define RFKILL_POLL_INTERVAL	1000
 
 /*
  * rt2x00_rate: Per rate device information
