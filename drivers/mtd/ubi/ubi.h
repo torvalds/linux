@@ -38,6 +38,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/ubi.h>
+#include <linux/notifier.h>
 
 #include "ubi-media.h"
 #include "scan.h"
@@ -483,6 +484,7 @@ extern const struct file_operations ubi_cdev_operations;
 extern const struct file_operations ubi_vol_cdev_operations;
 extern struct class *ubi_class;
 extern struct mutex ubi_devices_mutex;
+extern struct blocking_notifier_head ubi_notifiers;
 
 /* vtbl.c */
 int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
@@ -575,6 +577,16 @@ struct ubi_device *ubi_get_device(int ubi_num);
 void ubi_put_device(struct ubi_device *ubi);
 struct ubi_device *ubi_get_by_major(int major);
 int ubi_major2num(int major);
+int ubi_volume_notify(struct ubi_device *ubi, struct ubi_volume *vol,
+		      int ntype);
+int ubi_notify_all(struct ubi_device *ubi, int ntype,
+		   struct notifier_block *nb);
+int ubi_enumerate_volumes(struct notifier_block *nb);
+
+/* kapi.c */
+void ubi_do_get_device_info(struct ubi_device *ubi, struct ubi_device_info *di);
+void ubi_do_get_volume_info(struct ubi_device *ubi, struct ubi_volume *vol,
+			    struct ubi_volume_info *vi);
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.

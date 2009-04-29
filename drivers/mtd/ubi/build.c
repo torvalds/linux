@@ -122,6 +122,94 @@ static struct device_attribute dev_mtd_num =
 	__ATTR(mtd_num, S_IRUGO, dev_attribute_show, NULL);
 
 /**
+ * ubi_volume_notify - send a volume change notification.
+ * @ubi: UBI device description object
+ * @vol: volume description object of the changed volume
+ * @ntype: notification type to send (%UBI_VOLUME_ADDED, etc)
+ *
+ * This is a helper function which notifies all subscribers about a volume
+ * change event (creation, removal, re-sizing, re-naming, updating). Returns
+ * zero in case of success and a negative error code in case of failure.
+ */
+int ubi_volume_notify(struct ubi_device *ubi, struct ubi_volume *vol, int ntype)
+{
+	struct ubi_notification nt;
+
+	ubi_do_get_device_info(ubi, &nt.di);
+	ubi_do_get_volume_info(ubi, vol, &nt.vi);
+	return blocking_notifier_call_chain(&ubi_notifiers, ntype, &nt);
+}
+
+/**
+ * ubi_notify_all - send a notification to all volumes.
+ * @ubi: UBI device description object
+ * @ntype: notification type to send (%UBI_VOLUME_ADDED, etc)
+ * @nb: the notifier to call
+ *
+ * This function walks all volumes of UBI device @ubi and sends the @ntype
+ * notification for each volume. If @nb is %NULL, then all registered notifiers
+ * are called, otherwise only the @nb notifier is called. Returns the number of
+ * sent notifications.
+ */
+int ubi_notify_all(struct ubi_device *ubi, int ntype, struct notifier_block *nb)
+{
+	struct ubi_notification nt;
+	int i, count = 0;
+
+	ubi_do_get_device_info(ubi, &nt.di);
+
+	mutex_lock(&ubi->device_mutex);
+	for (i = 0; i < ubi->vtbl_slots; i++) {
+		/*
+		 * Since the @ubi->device is locked, and we are not going to
+		 * change @ubi->volumes, we do not have to lock
+		 * @ubi->volumes_lock.
+		 */
+		if (!ubi->volumes[i])
+			continue;
+
+		ubi_do_get_volume_info(ubi, ubi->volumes[i], &nt.vi);
+		if (nb)
+			nb->notifier_call(nb, ntype, &nt);
+		else
+			blocking_notifier_call_chain(&ubi_notifiers, ntype,
+						     &nt);
+		count += 1;
+	}
+	mutex_unlock(&ubi->device_mutex);
+
+	return count;
+}
+
+/**
+ * ubi_enumerate_volumes - send "add" notification for all existing volumes.
+ * @nb: the notifier to call
+ *
+ * This function walks all UBI devices and volumes and sends the
+ * %UBI_VOLUME_ADDED notification for each volume. If @nb is %NULL, then all
+ * registered notifiers are called, otherwise only the @nb notifier is called.
+ * Returns the number of sent notifications.
+ */
+int ubi_enumerate_volumes(struct notifier_block *nb)
+{
+	int i, count = 0;
+
+	/*
+	 * Since the @ubi_devices_mutex is locked, and we are not going to
+	 * change @ubi_devices, we do not have to lock @ubi_devices_lock.
+	 */
+	for (i = 0; i < UBI_MAX_DEVICES; i++) {
+		struct ubi_device *ubi = ubi_devices[i];
+
+		if (!ubi)
+			continue;
+		count += ubi_notify_all(ubi, UBI_VOLUME_ADDED, nb);
+	}
+
+	return count;
+}
+
+/**
  * ubi_get_device - get UBI device.
  * @ubi_num: UBI device number
  *
@@ -891,6 +979,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	spin_unlock(&ubi->wl_lock);
 
 	ubi_devices[ubi_num] = ubi;
+	ubi_notify_all(ubi, UBI_VOLUME_ADDED, NULL);
 	return ubi_num;
 
 out_uif:
@@ -933,13 +1022,13 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
 		return -EINVAL;
 
-	spin_lock(&ubi_devices_lock);
-	ubi = ubi_devices[ubi_num];
-	if (!ubi) {
-		spin_unlock(&ubi_devices_lock);
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
 		return -EINVAL;
-	}
 
+	spin_lock(&ubi_devices_lock);
+	put_device(&ubi->dev);
+	ubi->ref_count -= 1;
 	if (ubi->ref_count) {
 		if (!anyway) {
 			spin_unlock(&ubi_devices_lock);
@@ -953,6 +1042,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	spin_unlock(&ubi_devices_lock);
 
 	ubi_assert(ubi_num == ubi->ubi_num);
+	ubi_notify_all(ubi, UBI_VOLUME_REMOVED, NULL);
 	dbg_msg("detaching mtd%d from ubi%d", ubi->mtd->index, ubi_num);
 
 	/*
