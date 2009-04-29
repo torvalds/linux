@@ -890,6 +890,7 @@ static void ieee80211_direct_probe(struct ieee80211_sub_if_data *sdata)
 		printk(KERN_DEBUG "%s: direct probe to AP %pM timed out\n",
 		       sdata->dev->name, ifmgd->bssid);
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_recalc_idle(local);
 		cfg80211_send_auth_timeout(sdata->dev, ifmgd->bssid);
 
 		/*
@@ -938,6 +939,7 @@ static void ieee80211_authenticate(struct ieee80211_sub_if_data *sdata)
 		       " timed out\n",
 		       sdata->dev->name, ifmgd->bssid);
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_recalc_idle(local);
 		cfg80211_send_auth_timeout(sdata->dev, ifmgd->bssid);
 		ieee80211_rx_bss_remove(sdata, ifmgd->bssid,
 				sdata->local->hw.conf.channel->center_freq,
@@ -1041,6 +1043,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_unlock();
 
+	ieee80211_recalc_idle(local);
+
 	/* channel(_type) changes are handled by ieee80211_hw_config */
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
 
@@ -1121,6 +1125,7 @@ static void ieee80211_associate(struct ieee80211_sub_if_data *sdata)
 		       " timed out\n",
 		       sdata->dev->name, ifmgd->bssid);
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_recalc_idle(local);
 		cfg80211_send_assoc_timeout(sdata->dev, ifmgd->bssid);
 		ieee80211_rx_bss_remove(sdata, ifmgd->bssid,
 				sdata->local->hw.conf.channel->center_freq,
@@ -1141,6 +1146,7 @@ static void ieee80211_associate(struct ieee80211_sub_if_data *sdata)
 		printk(KERN_DEBUG "%s: mismatch in privacy configuration and "
 		       "mixed-cell disabled - abort association\n", sdata->dev->name);
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_recalc_idle(local);
 		return;
 	}
 
@@ -1279,6 +1285,7 @@ static void ieee80211_auth_completed(struct ieee80211_sub_if_data *sdata)
 	if (ifmgd->flags & IEEE80211_STA_EXT_SME) {
 		/* Wait for SME to request association */
 		ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+		ieee80211_recalc_idle(sdata->local);
 	} else
 		ieee80211_associate(sdata);
 }
@@ -1515,6 +1522,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		if (ifmgd->flags & IEEE80211_STA_EXT_SME) {
 			/* Wait for SME to decide what to do next */
 			ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+			ieee80211_recalc_idle(local);
 		}
 		return;
 	}
@@ -2083,6 +2091,7 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata)
 		} else {
 			ifmgd->assoc_scan_tries = 0;
 			ifmgd->state = IEEE80211_STA_MLME_DISABLED;
+			ieee80211_recalc_idle(local);
 		}
 	}
 	return -1;
@@ -2125,6 +2134,8 @@ static void ieee80211_sta_work(struct work_struct *work)
 		clear_bit(IEEE80211_STA_REQ_RUN, &ifmgd->request);
 	} else if (!test_and_clear_bit(IEEE80211_STA_REQ_RUN, &ifmgd->request))
 		return;
+
+	ieee80211_recalc_idle(local);
 
 	switch (ifmgd->state) {
 	case IEEE80211_STA_MLME_DISABLED:

@@ -533,10 +533,16 @@ struct ieee80211_rx_status {
  *
  * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
  * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only)
+ * @IEEE80211_CONF_IDLE: The device is running, but idle; if the flag is set
+ *	the driver should be prepared to handle configuration requests but
+ *	may turn the device off as much as possible. Typically, this flag will
+ *	be set when an interface is set UP but not associated or scanning, but
+ *	it can also be unset in that case when monitor interfaces are active.
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_RADIOTAP		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
+	IEEE80211_CONF_IDLE		= (1<<2),
 };
 
 
@@ -551,6 +557,7 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
  * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
+ * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
@@ -561,6 +568,7 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
+	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
 };
 
 static inline __deprecated enum ieee80211_conf_changed

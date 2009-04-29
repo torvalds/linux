@@ -862,6 +862,8 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 
 	sdata->u.ibss.ssid_len = params->ssid_len;
 
+	ieee80211_recalc_idle(sdata->local);
+
 	set_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
 	queue_work(sdata->local->hw.workqueue, &sdata->u.ibss.work);
 
@@ -889,6 +891,9 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 
 	skb_queue_purge(&sdata->u.ibss.skb_queue);
 	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
+	sdata->u.ibss.ssid_len = 0;
+
+	ieee80211_recalc_idle(sdata->local);
 
 	return 0;
 }

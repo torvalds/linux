@@ -302,17 +302,9 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	/* we only have to protect scan_req and hw/sw scan */
 	mutex_unlock(&local->scan_mtx);
 
-	if (was_hw_scan) {
-		/*
-		 * Somebody might have requested channel change during scan
-		 * that we won't have acted upon, try now. ieee80211_hw_config
-		 * will set the flag based on actual changes.
-		 */
-		ieee80211_hw_config(local, 0);
-		goto done;
-	}
-
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (was_hw_scan)
+		goto done;
 
 	netif_tx_lock_bh(local->mdev);
 	netif_addr_lock(local->mdev);
@@ -351,6 +343,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	mutex_unlock(&local->iflist_mtx);
 
  done:
+	ieee80211_recalc_idle(local);
 	ieee80211_mlme_notify_scan_completed(local);
 	ieee80211_ibss_notify_scan_completed(local);
 	ieee80211_mesh_notify_scan_completed(local);
@@ -471,6 +464,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	 * dependency, so that the scan completed calls
 	 * have more locking freedom.
 	 */
+
+	ieee80211_recalc_idle(local);
 	mutex_unlock(&local->scan_mtx);
 
 	if (local->ops->hw_scan)
@@ -486,6 +481,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 			ieee80211_restore_scan_ies(local);
 		} else
 			local->sw_scanning = false;
+
+		ieee80211_recalc_idle(local);
 
 		local->scan_req = NULL;
 		local->scan_sdata = NULL;

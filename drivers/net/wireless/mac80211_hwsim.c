@@ -553,9 +553,11 @@ static int mac80211_hwsim_config(struct ieee80211_hw *hw, u32 changed)
 	struct mac80211_hwsim_data *data = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
 
-	printk(KERN_DEBUG "%s:%s (freq=%d radio_enabled=%d)\n",
+	printk(KERN_DEBUG "%s:%s (freq=%d radio_enabled=%d idle=%d ps=%d)\n",
 	       wiphy_name(hw->wiphy), __func__,
-	       conf->channel->center_freq, conf->radio_enabled);
+	       conf->channel->center_freq, conf->radio_enabled,
+	       !!(conf->flags & IEEE80211_CONF_IDLE),
+	       !!(conf->flags & IEEE80211_CONF_PS));
 
 	data->channel = conf->channel;
 	data->radio_enabled = conf->radio_enabled;

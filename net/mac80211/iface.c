@@ -301,6 +301,8 @@ static int ieee80211_open(struct net_device *dev)
 	if (sdata->flags & IEEE80211_SDATA_PROMISC)
 		atomic_inc(&local->iff_promiscs);
 
+	hw_reconf_flags |= __ieee80211_recalc_idle(local);
+
 	local->open_count++;
 	if (hw_reconf_flags) {
 		ieee80211_hw_config(local, hw_reconf_flags);
@@ -548,6 +550,10 @@ static int ieee80211_stop(struct net_device *dev)
 
 	sdata->bss = NULL;
 
+	hw_reconf_flags |= __ieee80211_recalc_idle(local);
+
+	ieee80211_recalc_ps(local, -1);
+
 	if (local->open_count == 0) {
 		if (netif_running(local->mdev))
 			dev_close(local->mdev);
@@ -564,8 +570,6 @@ static int ieee80211_stop(struct net_device *dev)
 		/* no reconfiguring after stop! */
 		hw_reconf_flags = 0;
 	}
-
-	ieee80211_recalc_ps(local, -1);
 
 	/* do after stop to avoid reconfiguring when we stop anyway */
 	if (hw_reconf_flags)
@@ -891,4 +895,74 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 
 		unregister_netdevice(sdata->dev);
 	}
+}
+
+static u32 ieee80211_idle_off(struct ieee80211_local *local,
+			      const char *reason)
+{
+	if (!(local->hw.conf.flags & IEEE80211_CONF_IDLE))
+		return 0;
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: device no longer idle - %s\n",
+	       wiphy_name(local->hw.wiphy), reason);
+#endif
+
+	local->hw.conf.flags &= ~IEEE80211_CONF_IDLE;
+	return IEEE80211_CONF_CHANGE_IDLE;
+}
+
+static u32 ieee80211_idle_on(struct ieee80211_local *local)
+{
+	if (local->hw.conf.flags & IEEE80211_CONF_IDLE)
+		return 0;
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+	printk(KERN_DEBUG "%s: device now idle\n",
+	       wiphy_name(local->hw.wiphy));
+#endif
+
+	local->hw.conf.flags |= IEEE80211_CONF_IDLE;
+	return IEEE80211_CONF_CHANGE_IDLE;
+}
+
+u32 __ieee80211_recalc_idle(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+	int count = 0;
+
+	if (local->hw_scanning || local->sw_scanning)
+		return ieee80211_idle_off(local, "scanning");
+
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
+		/* do not count disabled managed interfaces */
+		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+		    sdata->u.mgd.state == IEEE80211_STA_MLME_DISABLED)
+			continue;
+		/* do not count unused IBSS interfaces */
+		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
+		    !sdata->u.ibss.ssid_len)
+			continue;
+		/* count everything else */
+		count++;
+	}
+
+	if (!count)
+		return ieee80211_idle_on(local);
+	else
+		return ieee80211_idle_off(local, "in use");
+
+	return 0;
+}
+
+void ieee80211_recalc_idle(struct ieee80211_local *local)
+{
+	u32 chg;
+
+	mutex_lock(&local->iflist_mtx);
+	chg = __ieee80211_recalc_idle(local);
+	mutex_unlock(&local->iflist_mtx);
+	ieee80211_hw_config(local, chg);
 }
