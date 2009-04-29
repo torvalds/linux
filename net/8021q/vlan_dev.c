@@ -668,7 +668,8 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
 
-	if (!real_dev->ethtool_ops->get_settings)
+	if (!real_dev->ethtool_ops ||
+	    !real_dev->ethtool_ops->get_settings)
 		return -EOPNOTSUPP;
 
 	return real_dev->ethtool_ops->get_settings(real_dev, cmd);

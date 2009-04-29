@@ -713,18 +713,18 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("i915_dispatch_cmdbuffer failed\n");
-		goto fail_batch_free;
+		goto fail_clip_free;
 	}
 
 	if (sarea_priv)
 		sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
 
-fail_batch_free:
-	drm_free(batch_data, cmdbuf->sz, DRM_MEM_DRIVER);
 fail_clip_free:
 	drm_free(cliprects,
 		 cmdbuf->num_cliprects * sizeof(struct drm_clip_rect),
 		 DRM_MEM_DRIVER);
+fail_batch_free:
+	drm_free(batch_data, cmdbuf->sz, DRM_MEM_DRIVER);
 
 	return ret;
 }
@@ -1232,7 +1232,7 @@ int i915_driver_unload(struct drm_device *dev)
 	if (dev_priv->regs != NULL)
 		iounmap(dev_priv->regs);
 
-	intel_opregion_free(dev);
+	intel_opregion_free(dev, 0);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		intel_modeset_cleanup(dev);

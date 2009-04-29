@@ -229,21 +229,23 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 		goto out;
 	status = vfs_readdir(filp, nfsd4_build_namelist, &names);
 	fput(filp);
+	mutex_lock(&dir->d_inode->i_mutex);
 	while (!list_empty(&names)) {
 		entry = list_entry(names.next, struct name_list, list);
 
 		dentry = lookup_one_len(entry->name, dir, HEXDIR_LEN-1);
 		if (IS_ERR(dentry)) {
 			status = PTR_ERR(dentry);
-			goto out;
+			break;
 		}
 		status = f(dir, dentry);
 		dput(dentry);
 		if (status)
-			goto out;
+			break;
 		list_del(&entry->list);
 		kfree(entry);
 	}
+	mutex_unlock(&dir->d_inode->i_mutex);
 out:
 	while (!list_empty(&names)) {
 		entry = list_entry(names.next, struct name_list, list);
@@ -251,36 +253,6 @@ out:
 		kfree(entry);
 	}
 	nfs4_reset_creds(original_cred);
-	return status;
-}
-
-static int
-nfsd4_remove_clid_file(struct dentry *dir, struct dentry *dentry)
-{
-	int status;
-
-	if (!S_ISREG(dir->d_inode->i_mode)) {
-		printk("nfsd4: non-file found in client recovery directory\n");
-		return -EINVAL;
-	}
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	status = vfs_unlink(dir->d_inode, dentry);
-	mutex_unlock(&dir->d_inode->i_mutex);
-	return status;
-}
-
-static int
-nfsd4_clear_clid_dir(struct dentry *dir, struct dentry *dentry)
-{
-	int status;
-
-	/* For now this directory should already be empty, but we empty it of
-	 * any regular files anyway, just in case the directory was created by
-	 * a kernel from the future.... */
-	nfsd4_list_rec_dir(dentry, nfsd4_remove_clid_file);
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	status = vfs_rmdir(dir->d_inode, dentry);
-	mutex_unlock(&dir->d_inode->i_mutex);
 	return status;
 }
 
@@ -294,18 +266,18 @@ nfsd4_unlink_clid_dir(char *name, int namlen)
 
 	mutex_lock(&rec_dir.dentry->d_inode->i_mutex);
 	dentry = lookup_one_len(name, rec_dir.dentry, namlen);
-	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
-		return status;
+		goto out_unlock;
 	}
 	status = -ENOENT;
 	if (!dentry->d_inode)
 		goto out;
-
-	status = nfsd4_clear_clid_dir(rec_dir.dentry, dentry);
+	status = vfs_rmdir(rec_dir.dentry->d_inode, dentry);
 out:
 	dput(dentry);
+out_unlock:
+	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
 	return status;
 }
 
@@ -348,7 +320,7 @@ purge_old(struct dentry *parent, struct dentry *child)
 	if (nfs4_has_reclaimed_state(child->d_name.name, false))
 		return 0;
 
-	status = nfsd4_clear_clid_dir(parent, child);
+	status = vfs_rmdir(parent->d_inode, child);
 	if (status)
 		printk("failed to remove client recovery directory %s\n",
 				child->d_name.name);

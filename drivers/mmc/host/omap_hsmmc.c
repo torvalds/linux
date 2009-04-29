@@ -298,7 +298,6 @@ mmc_omap_xfer_done(struct mmc_omap_host *host, struct mmc_data *data)
 		struct mmc_request *mrq = host->mrq;
 
 		host->mrq = NULL;
-		mmc_omap_fclk_lazy_disable(host);
 		mmc_request_done(host->mmc, mrq);
 		return;
 	}
@@ -434,6 +433,8 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 	if (host->mrq == NULL) {
 		OMAP_HSMMC_WRITE(host->base, STAT,
 			OMAP_HSMMC_READ(host->base, STAT));
+		/* Flush posted write */
+		OMAP_HSMMC_READ(host->base, STAT);
 		return IRQ_HANDLED;
 	}
 
@@ -489,8 +490,10 @@ static irqreturn_t mmc_omap_irq(int irq, void *dev_id)
 	}
 
 	OMAP_HSMMC_WRITE(host->base, STAT, status);
+	/* Flush posted write */
+	OMAP_HSMMC_READ(host->base, STAT);
 
-	if (end_cmd || (status & CC))
+	if (end_cmd || ((status & CC) && host->cmd))
 		mmc_omap_cmd_done(host, host->cmd);
 	if (end_trans || (status & TC))
 		mmc_omap_xfer_done(host, data);

@@ -200,13 +200,17 @@ static struct snd_soc_device palm27x_snd_devdata = {
 
 static struct platform_device *palm27x_snd_device;
 
-static int __init palm27x_asoc_init(void)
+static int palm27x_asoc_probe(struct platform_device *pdev)
 {
 	int ret;
 
 	if (!(machine_is_palmtx() || machine_is_palmt5() ||
 		machine_is_palmld()))
 		return -ENODEV;
+
+	if (pdev->dev.platform_data)
+		palm27x_ep_gpio = ((struct palm27x_asoc_info *)
+			(pdev->dev.platform_data))->jack_gpio;
 
 	ret = gpio_request(palm27x_ep_gpio, "Headphone Jack");
 	if (ret)
@@ -245,16 +249,31 @@ err_alloc:
 	return ret;
 }
 
-static void __exit palm27x_asoc_exit(void)
+static int __devexit palm27x_asoc_remove(struct platform_device *pdev)
 {
 	free_irq(gpio_to_irq(palm27x_ep_gpio), NULL);
 	gpio_free(palm27x_ep_gpio);
 	platform_device_unregister(palm27x_snd_device);
+	return 0;
 }
 
-void __init palm27x_asoc_set_pdata(struct palm27x_asoc_info *data)
+static struct platform_driver palm27x_wm9712_driver = {
+	.probe		= palm27x_asoc_probe,
+	.remove		= __devexit_p(palm27x_asoc_remove),
+	.driver		= {
+		.name		= "palm27x-asoc",
+		.owner		= THIS_MODULE,
+	},
+};
+
+static int __init palm27x_asoc_init(void)
 {
-	palm27x_ep_gpio = data->jack_gpio;
+	return platform_driver_register(&palm27x_wm9712_driver);
+}
+
+static void __exit palm27x_asoc_exit(void)
+{
+	platform_driver_unregister(&palm27x_wm9712_driver);
 }
 
 module_init(palm27x_asoc_init);

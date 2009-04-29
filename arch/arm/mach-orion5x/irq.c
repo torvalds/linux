@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <asm/gpio.h>
-#include <mach/orion5x.h>
+#include <mach/bridge-regs.h>
 #include <plat/irq.h>
 #include "common.h"
 

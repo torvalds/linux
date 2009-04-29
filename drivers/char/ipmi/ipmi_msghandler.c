@@ -285,6 +285,11 @@ enum ipmi_stat_indexes {
 	/* Events that were received with the proper format. */
 	IPMI_STAT_events,
 
+	/* Retransmissions on IPMB that failed. */
+	IPMI_STAT_dropped_rexmit_ipmb_commands,
+
+	/* Retransmissions on LAN that failed. */
+	IPMI_STAT_dropped_rexmit_lan_commands,
 
 	/* This *must* remain last, add new values above this. */
 	IPMI_NUM_STATS
@@ -445,6 +450,20 @@ static DEFINE_MUTEX(smi_watchers_mutex);
 #define ipmi_get_stat(intf, stat) \
 	((unsigned int) atomic_read(&(intf)->stats[IPMI_STAT_ ## stat]))
 
+static int is_lan_addr(struct ipmi_addr *addr)
+{
+	return addr->addr_type == IPMI_LAN_ADDR_TYPE;
+}
+
+static int is_ipmb_addr(struct ipmi_addr *addr)
+{
+	return addr->addr_type == IPMI_IPMB_ADDR_TYPE;
+}
+
+static int is_ipmb_bcast_addr(struct ipmi_addr *addr)
+{
+	return addr->addr_type == IPMI_IPMB_BROADCAST_ADDR_TYPE;
+}
 
 static void free_recv_msg_list(struct list_head *q)
 {
@@ -601,8 +620,7 @@ ipmi_addr_equal(struct ipmi_addr *addr1, struct ipmi_addr *addr2)
 		return (smi_addr1->lun == smi_addr2->lun);
 	}
 
-	if ((addr1->addr_type == IPMI_IPMB_ADDR_TYPE)
-	    || (addr1->addr_type == IPMI_IPMB_BROADCAST_ADDR_TYPE)) {
+	if (is_ipmb_addr(addr1) || is_ipmb_bcast_addr(addr1)) {
 		struct ipmi_ipmb_addr *ipmb_addr1
 		    = (struct ipmi_ipmb_addr *) addr1;
 		struct ipmi_ipmb_addr *ipmb_addr2
@@ -612,7 +630,7 @@ ipmi_addr_equal(struct ipmi_addr *addr1, struct ipmi_addr *addr2)
 			&& (ipmb_addr1->lun == ipmb_addr2->lun));
 	}
 
-	if (addr1->addr_type == IPMI_LAN_ADDR_TYPE) {
+	if (is_lan_addr(addr1)) {
 		struct ipmi_lan_addr *lan_addr1
 			= (struct ipmi_lan_addr *) addr1;
 		struct ipmi_lan_addr *lan_addr2
@@ -644,14 +662,13 @@ int ipmi_validate_addr(struct ipmi_addr *addr, int len)
 	    || (addr->channel < 0))
 		return -EINVAL;
 
-	if ((addr->addr_type == IPMI_IPMB_ADDR_TYPE)
-	    || (addr->addr_type == IPMI_IPMB_BROADCAST_ADDR_TYPE)) {
+	if (is_ipmb_addr(addr) || is_ipmb_bcast_addr(addr)) {
 		if (len < sizeof(struct ipmi_ipmb_addr))
 			return -EINVAL;
 		return 0;
 	}
 
-	if (addr->addr_type == IPMI_LAN_ADDR_TYPE) {
+	if (is_lan_addr(addr)) {
 		if (len < sizeof(struct ipmi_lan_addr))
 			return -EINVAL;
 		return 0;
@@ -1503,8 +1520,7 @@ static int i_ipmi_request(ipmi_user_t          user,
 			memcpy(&(smi_msg->data[2]), msg->data, msg->data_len);
 		smi_msg->data_size = msg->data_len + 2;
 		ipmi_inc_stat(intf, sent_local_commands);
-	} else if ((addr->addr_type == IPMI_IPMB_ADDR_TYPE)
-		   || (addr->addr_type == IPMI_IPMB_BROADCAST_ADDR_TYPE)) {
+	} else if (is_ipmb_addr(addr) || is_ipmb_bcast_addr(addr)) {
 		struct ipmi_ipmb_addr *ipmb_addr;
 		unsigned char         ipmb_seq;
 		long                  seqid;
@@ -1583,8 +1599,6 @@ static int i_ipmi_request(ipmi_user_t          user,
 
 			spin_lock_irqsave(&(intf->seq_lock), flags);
 
-			ipmi_inc_stat(intf, sent_ipmb_commands);
-
 			/*
 			 * Create a sequence number with a 1 second
 			 * timeout and 4 retries.
@@ -1605,6 +1619,8 @@ static int i_ipmi_request(ipmi_user_t          user,
 						       flags);
 				goto out_err;
 			}
+
+			ipmi_inc_stat(intf, sent_ipmb_commands);
 
 			/*
 			 * Store the sequence number in the message,
@@ -1635,7 +1651,7 @@ static int i_ipmi_request(ipmi_user_t          user,
 			 */
 			spin_unlock_irqrestore(&(intf->seq_lock), flags);
 		}
-	} else if (addr->addr_type == IPMI_LAN_ADDR_TYPE) {
+	} else if (is_lan_addr(addr)) {
 		struct ipmi_lan_addr  *lan_addr;
 		unsigned char         ipmb_seq;
 		long                  seqid;
@@ -1696,8 +1712,6 @@ static int i_ipmi_request(ipmi_user_t          user,
 
 			spin_lock_irqsave(&(intf->seq_lock), flags);
 
-			ipmi_inc_stat(intf, sent_lan_commands);
-
 			/*
 			 * Create a sequence number with a 1 second
 			 * timeout and 4 retries.
@@ -1718,6 +1732,8 @@ static int i_ipmi_request(ipmi_user_t          user,
 						       flags);
 				goto out_err;
 			}
+
+			ipmi_inc_stat(intf, sent_lan_commands);
 
 			/*
 			 * Store the sequence number in the message,
@@ -1937,6 +1953,10 @@ static int stat_file_read_proc(char *page, char **start, off_t off,
 		       ipmi_get_stat(intf, invalid_events));
 	out += sprintf(out, "events:                      %u\n",
 		       ipmi_get_stat(intf, events));
+	out += sprintf(out, "failed rexmit LAN msgs:      %u\n",
+		       ipmi_get_stat(intf, dropped_rexmit_lan_commands));
+	out += sprintf(out, "failed rexmit IPMB msgs:     %u\n",
+		       ipmi_get_stat(intf, dropped_rexmit_ipmb_commands));
 
 	return (out - ((char *) page));
 }
@@ -3264,6 +3284,114 @@ static int handle_lan_get_msg_cmd(ipmi_smi_t          intf,
 	return rv;
 }
 
+/*
+ * This routine will handle "Get Message" command responses with
+ * channels that use an OEM Medium. The message format belongs to
+ * the OEM.  See IPMI 2.0 specification, Chapter 6 and
+ * Chapter 22, sections 22.6 and 22.24 for more details.
+ */
+static int handle_oem_get_msg_cmd(ipmi_smi_t          intf,
+				  struct ipmi_smi_msg *msg)
+{
+	struct cmd_rcvr       *rcvr;
+	int                   rv = 0;
+	unsigned char         netfn;
+	unsigned char         cmd;
+	unsigned char         chan;
+	ipmi_user_t           user = NULL;
+	struct ipmi_system_interface_addr *smi_addr;
+	struct ipmi_recv_msg  *recv_msg;
+
+	/*
+	 * We expect the OEM SW to perform error checking
+	 * so we just do some basic sanity checks
+	 */
+	if (msg->rsp_size < 4) {
+		/* Message not big enough, just ignore it. */
+		ipmi_inc_stat(intf, invalid_commands);
+		return 0;
+	}
+
+	if (msg->rsp[2] != 0) {
+		/* An error getting the response, just ignore it. */
+		return 0;
+	}
+
+	/*
+	 * This is an OEM Message so the OEM needs to know how
+	 * handle the message. We do no interpretation.
+	 */
+	netfn = msg->rsp[0] >> 2;
+	cmd = msg->rsp[1];
+	chan = msg->rsp[3] & 0xf;
+
+	rcu_read_lock();
+	rcvr = find_cmd_rcvr(intf, netfn, cmd, chan);
+	if (rcvr) {
+		user = rcvr->user;
+		kref_get(&user->refcount);
+	} else
+		user = NULL;
+	rcu_read_unlock();
+
+	if (user == NULL) {
+		/* We didn't find a user, just give up. */
+		ipmi_inc_stat(intf, unhandled_commands);
+
+		/*
+		 * Don't do anything with these messages, just allow
+		 * them to be freed.
+		 */
+
+		rv = 0;
+	} else {
+		/* Deliver the message to the user. */
+		ipmi_inc_stat(intf, handled_commands);
+
+		recv_msg = ipmi_alloc_recv_msg();
+		if (!recv_msg) {
+			/*
+			 * We couldn't allocate memory for the
+			 * message, so requeue it for handling
+			 * later.
+			 */
+			rv = 1;
+			kref_put(&user->refcount, free_user);
+		} else {
+			/*
+			 * OEM Messages are expected to be delivered via
+			 * the system interface to SMS software.  We might
+			 * need to visit this again depending on OEM
+			 * requirements
+			 */
+			smi_addr = ((struct ipmi_system_interface_addr *)
+				    &(recv_msg->addr));
+			smi_addr->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
+			smi_addr->channel = IPMI_BMC_CHANNEL;
+			smi_addr->lun = msg->rsp[0] & 3;
+
+			recv_msg->user = user;
+			recv_msg->user_msg_data = NULL;
+			recv_msg->recv_type = IPMI_OEM_RECV_TYPE;
+			recv_msg->msg.netfn = msg->rsp[0] >> 2;
+			recv_msg->msg.cmd = msg->rsp[1];
+			recv_msg->msg.data = recv_msg->msg_data;
+
+			/*
+			 * The message starts at byte 4 which follows the
+			 * the Channel Byte in the "GET MESSAGE" command
+			 */
+			recv_msg->msg.data_len = msg->rsp_size - 4;
+			memcpy(recv_msg->msg_data,
+			       &(msg->rsp[4]),
+			       msg->rsp_size - 4);
+			deliver_response(recv_msg);
+		}
+	}
+
+	return rv;
+}
+
 static void copy_event_into_recv_msg(struct ipmi_recv_msg *recv_msg,
 				     struct ipmi_smi_msg  *msg)
 {
@@ -3519,6 +3647,17 @@ static int handle_new_recv_msg(ipmi_smi_t          intf,
 			goto out;
 		}
 
+		/*
+		** We need to make sure the channels have been initialized.
+		** The channel_handler routine will set the "curr_channel"
+		** equal to or greater than IPMI_MAX_CHANNELS when all the
+		** channels for this interface have been initialized.
+		*/
+		if (intf->curr_channel < IPMI_MAX_CHANNELS) {
+			requeue = 1;     /* Just put the message back for now */
+			goto out;
+		}
+
 		switch (intf->channels[chan].medium) {
 		case IPMI_CHANNEL_MEDIUM_IPMB:
 			if (msg->rsp[4] & 0x04) {
@@ -3554,11 +3693,20 @@ static int handle_new_recv_msg(ipmi_smi_t          intf,
 			break;
 
 		default:
-			/*
-			 * We don't handle the channel type, so just
-			 * free the message.
-			 */
-			requeue = 0;
+			/* Check for OEM Channels.  Clients had better
+			   register for these commands. */
+			if ((intf->channels[chan].medium
+			     >= IPMI_CHANNEL_MEDIUM_OEM_MIN)
+			    && (intf->channels[chan].medium
+				<= IPMI_CHANNEL_MEDIUM_OEM_MAX)) {
+				requeue = handle_oem_get_msg_cmd(intf, msg);
+			} else {
+				/*
+				 * We don't handle the channel type, so just
+				 * free the message.
+				 */
+				requeue = 0;
+			}
 		}
 
 	} else if ((msg->rsp[0] == ((IPMI_NETFN_APP_REQUEST|1) << 2))
@@ -3730,7 +3878,7 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 		list_add_tail(&msg->link, timeouts);
 		if (ent->broadcast)
 			ipmi_inc_stat(intf, timed_out_ipmb_broadcasts);
-		else if (ent->recv_msg->addr.addr_type == IPMI_LAN_ADDR_TYPE)
+		else if (is_lan_addr(&ent->recv_msg->addr))
 			ipmi_inc_stat(intf, timed_out_lan_commands);
 		else
 			ipmi_inc_stat(intf, timed_out_ipmb_commands);
@@ -3744,15 +3892,17 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 		 */
 		ent->timeout = MAX_MSG_TIMEOUT;
 		ent->retries_left--;
-		if (ent->recv_msg->addr.addr_type == IPMI_LAN_ADDR_TYPE)
-			ipmi_inc_stat(intf, retransmitted_lan_commands);
-		else
-			ipmi_inc_stat(intf, retransmitted_ipmb_commands);
-
 		smi_msg = smi_from_recv_msg(intf, ent->recv_msg, slot,
 					    ent->seqid);
-		if (!smi_msg)
+		if (!smi_msg) {
+			if (is_lan_addr(&ent->recv_msg->addr))
+				ipmi_inc_stat(intf,
+					      dropped_rexmit_lan_commands);
+			else
+				ipmi_inc_stat(intf,
+					      dropped_rexmit_ipmb_commands);
 			return;
+		}
 
 		spin_unlock_irqrestore(&intf->seq_lock, *flags);
 
@@ -3764,10 +3914,17 @@ static void check_msg_timeout(ipmi_smi_t intf, struct seq_table *ent,
 		 * resent.
 		 */
 		handlers = intf->handlers;
-		if (handlers)
+		if (handlers) {
+			if (is_lan_addr(&ent->recv_msg->addr))
+				ipmi_inc_stat(intf,
+					      retransmitted_lan_commands);
+			else
+				ipmi_inc_stat(intf,
+					      retransmitted_ipmb_commands);
+
 			intf->handlers->sender(intf->send_info,
 					       smi_msg, 0);
-		else
+		} else
 			ipmi_free_smi_msg(smi_msg);
 
 		spin_lock_irqsave(&intf->seq_lock, *flags);

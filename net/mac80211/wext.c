@@ -417,6 +417,7 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_channel* chan = local->hw.conf.channel;
+	bool reconf = false;
 	u32 reconf_flags = 0;
 	int new_power_level;
 
@@ -427,14 +428,38 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 	if (!chan)
 		return -EINVAL;
 
-	if (data->txpower.fixed)
-		new_power_level = min(data->txpower.value, chan->max_power);
-	else /* Automatic power level setting */
-		new_power_level = chan->max_power;
+	/* only change when not disabling */
+	if (!data->txpower.disabled) {
+		if (data->txpower.fixed) {
+			if (data->txpower.value < 0)
+				return -EINVAL;
+			new_power_level = data->txpower.value;
+			/*
+			 * Debatable, but we cannot do a fixed power
+			 * level above the regulatory constraint.
+			 * Use "iwconfig wlan0 txpower 15dBm" instead.
+			 */
+			if (new_power_level > chan->max_power)
+				return -EINVAL;
+		} else {
+			/*
+			 * Automatic power level setting, max being the value
+			 * passed in from userland.
+			 */
+			if (data->txpower.value < 0)
+				new_power_level = -1;
+			else
+				new_power_level = data->txpower.value;
+		}
 
-	local->user_power_level = new_power_level;
-	if (local->hw.conf.power_level != new_power_level)
-		reconf_flags |= IEEE80211_CONF_CHANGE_POWER;
+		reconf = true;
+
+		/*
+		 * ieee80211_hw_config() will limit to the channel's
+		 * max power and possibly power constraint from AP.
+		 */
+		local->user_power_level = new_power_level;
+	}
 
 	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
 		local->hw.conf.radio_enabled = !(data->txpower.disabled);
@@ -442,7 +467,7 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
-	if (reconf_flags)
+	if (reconf || reconf_flags)
 		ieee80211_hw_config(local, reconf_flags);
 
 	return 0;
@@ -530,7 +555,7 @@ static int ieee80211_ioctl_giwfrag(struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
 	frag->value = local->fragmentation_threshold;
-	frag->disabled = (frag->value >= IEEE80211_MAX_RTS_THRESHOLD);
+	frag->disabled = (frag->value >= IEEE80211_MAX_FRAG_THRESHOLD);
 	frag->fixed = 1;
 
 	return 0;

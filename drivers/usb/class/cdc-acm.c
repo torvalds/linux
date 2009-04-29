@@ -546,10 +546,6 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	tty->driver_data = acm;
 	acm->tty = tty;
 
-	/* force low_latency on so that our tty_push actually forces the data through,
-	   otherwise it is scheduled, and with high data rates data can get lost. */
-	tty->low_latency = 1;
-
 	if (usb_autopm_get_interface(acm->control) < 0)
 		goto early_bail;
 	else

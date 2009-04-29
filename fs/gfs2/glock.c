@@ -597,7 +597,6 @@ __acquires(&gl->gl_spin)
 
 	GLOCK_BUG_ON(gl, test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags));
 
-	down_read(&gfs2_umount_flush_sem);
 	if (test_bit(GLF_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_demote_state != gl->gl_state) {
 		if (find_first_holder(gl))
@@ -614,15 +613,14 @@ __acquires(&gl->gl_spin)
 		if (ret == 0)
 			goto out_unlock;
 		if (ret == 2)
-			goto out_sem;
+			goto out;
 		gh = find_first_waiter(gl);
 		gl->gl_target = gh->gh_state;
 		if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
 			do_error(gl, 0); /* Fail queued try locks */
 	}
 	do_xmote(gl, gh, gl->gl_target);
-out_sem:
-	up_read(&gfs2_umount_flush_sem);
+out:
 	return;
 
 out_sched:
@@ -631,7 +629,7 @@ out_sched:
 		gfs2_glock_put(gl);
 out_unlock:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-	goto out_sem;
+	goto out;
 }
 
 static void glock_work_func(struct work_struct *work)
@@ -641,6 +639,7 @@ static void glock_work_func(struct work_struct *work)
 
 	if (test_and_clear_bit(GLF_REPLY_PENDING, &gl->gl_flags))
 		finish_xmote(gl, gl->gl_reply);
+	down_read(&gfs2_umount_flush_sem);
 	spin_lock(&gl->gl_spin);
 	if (test_and_clear_bit(GLF_PENDING_DEMOTE, &gl->gl_flags) &&
 	    gl->gl_state != LM_ST_UNLOCKED &&
@@ -653,6 +652,7 @@ static void glock_work_func(struct work_struct *work)
 	}
 	run_queue(gl, 0);
 	spin_unlock(&gl->gl_spin);
+	up_read(&gfs2_umount_flush_sem);
 	if (!delay ||
 	    queue_delayed_work(glock_workqueue, &gl->gl_work, delay) == 0)
 		gfs2_glock_put(gl);

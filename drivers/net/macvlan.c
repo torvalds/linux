@@ -376,7 +376,8 @@ static u32 macvlan_ethtool_get_rx_csum(struct net_device *dev)
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	if (lowerdev->ethtool_ops->get_rx_csum == NULL)
+	if (lowerdev->ethtool_ops == NULL ||
+	    lowerdev->ethtool_ops->get_rx_csum == NULL)
 		return 0;
 	return lowerdev->ethtool_ops->get_rx_csum(lowerdev);
 }
@@ -387,7 +388,8 @@ static int macvlan_ethtool_get_settings(struct net_device *dev,
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	if (!lowerdev->ethtool_ops->get_settings)
+	if (!lowerdev->ethtool_ops ||
+	    !lowerdev->ethtool_ops->get_settings)
 		return -EOPNOTSUPP;
 
 	return lowerdev->ethtool_ops->get_settings(lowerdev, cmd);
@@ -398,7 +400,8 @@ static u32 macvlan_ethtool_get_flags(struct net_device *dev)
 	const struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	if (!lowerdev->ethtool_ops->get_flags)
+	if (!lowerdev->ethtool_ops ||
+	    !lowerdev->ethtool_ops->get_flags)
 		return 0;
 	return lowerdev->ethtool_ops->get_flags(lowerdev);
 }

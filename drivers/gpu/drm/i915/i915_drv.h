@@ -446,6 +446,9 @@ struct drm_i915_gem_object {
 	uint32_t tiling_mode;
 	uint32_t stride;
 
+	/** Record of address bit 17 of each page at last unbind. */
+	long *bit_17;
+
 	/** AGP mapping type (AGP_USER_MEMORY or AGP_USER_CACHED_MEMORY */
 	uint32_t agp_type;
 
@@ -635,9 +638,13 @@ int i915_gem_attach_phys_object(struct drm_device *dev,
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
+int i915_gem_object_get_pages(struct drm_gem_object *obj);
+void i915_gem_object_put_pages(struct drm_gem_object *obj);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
+void i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj);
+void i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj);
 
 /* i915_gem_debug.c */
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
@@ -667,12 +674,12 @@ extern int i915_restore_state(struct drm_device *dev);
 #ifdef CONFIG_ACPI
 /* i915_opregion.c */
 extern int intel_opregion_init(struct drm_device *dev, int resume);
-extern void intel_opregion_free(struct drm_device *dev);
+extern void intel_opregion_free(struct drm_device *dev, int suspend);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);
 #else
 static inline int intel_opregion_init(struct drm_device *dev, int resume) { return 0; }
-static inline void intel_opregion_free(struct drm_device *dev) { return; }
+static inline void intel_opregion_free(struct drm_device *dev, int suspend) { return; }
 static inline void opregion_asle_intr(struct drm_device *dev) { return; }
 static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
@@ -780,7 +787,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2A42 || \
 		       (dev)->pci_device == 0x2E02 || \
 		       (dev)->pci_device == 0x2E12 || \
-		       (dev)->pci_device == 0x2E22)
+		       (dev)->pci_device == 0x2E22 || \
+		       (dev)->pci_device == 0x2E32)
 
 #define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
 
@@ -789,6 +797,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define IS_G4X(dev) ((dev)->pci_device == 0x2E02 || \
 		     (dev)->pci_device == 0x2E12 || \
 		     (dev)->pci_device == 0x2E22 || \
+		     (dev)->pci_device == 0x2E32 || \
 		     IS_GM45(dev))
 
 #define IS_IGDG(dev) ((dev)->pci_device == 0xa001)

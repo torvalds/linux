@@ -566,7 +566,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int printed_version;
 	unsigned int i;
 	int rc;
-	struct ata_host *host;
+	struct ata_host *host = NULL;
 	int board_id = (int) ent->driver_data;
 	const unsigned *bar_sizes;
 

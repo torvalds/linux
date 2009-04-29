@@ -503,6 +503,7 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
+	buf[cnt] = '\0';
 
 	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
 	if (!pred)
@@ -520,9 +521,10 @@ event_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		return cnt;
 	}
 
-	if (filter_add_pred(call, pred)) {
+	err = filter_add_pred(call, pred);
+	if (err < 0) {
 		filter_free_pred(pred);
-		return -EINVAL;
+		return err;
 	}
 
 	*ppos += cnt;
@@ -569,6 +571,7 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	if (copy_from_user(&buf, ubuf, cnt))
 		return -EFAULT;
+	buf[cnt] = '\0';
 
 	pred = kzalloc(sizeof(*pred), GFP_KERNEL);
 	if (!pred)
@@ -586,10 +589,11 @@ subsystem_filter_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		return cnt;
 	}
 
-	if (filter_add_subsystem_pred(system, pred)) {
+	err = filter_add_subsystem_pred(system, pred);
+	if (err < 0) {
 		filter_free_subsystem_preds(system);
 		filter_free_pred(pred);
-		return -EINVAL;
+		return err;
 	}
 
 	*ppos += cnt;

@@ -1461,7 +1461,6 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 		return ret;
 	}
 
-	usb_settoggle(hdw->usb_dev, 0 & 0xf, !(0 & USB_DIR_IN), 0);
 	usb_clear_halt(hdw->usb_dev, usb_sndbulkpipe(hdw->usb_dev, 0 & 0x7f));
 
 	pipe = usb_sndctrlpipe(hdw->usb_dev, 0);

@@ -50,7 +50,7 @@
 #ifdef CONFIG_X86_64
 #define NEED_PSE	0
 #define NEED_MSR	(1<<(X86_FEATURE_MSR & 31))
-#define NEED_PGE	(1<<(X86_FEATURE_PGE & 31))
+#define NEED_PGE	0
 #define NEED_FXSR	(1<<(X86_FEATURE_FXSR & 31))
 #define NEED_XMM	(1<<(X86_FEATURE_XMM & 31))
 #define NEED_XMM2	(1<<(X86_FEATURE_XMM2 & 31))

@@ -407,7 +407,7 @@ A NOTE ON SECURITY
 ==================
 
 CacheFiles makes use of the split security in the task_struct.  It allocates
-its own task_security structure, and redirects current->act_as to point to it
+its own task_security structure, and redirects current->cred to point to it
 when it acts on behalf of another process, in that process's context.
 
 The reason it does this is that it calls vfs_mkdir() and suchlike rather than
@@ -429,9 +429,9 @@ This means it may lose signals or ptrace events for example, and affects what
 the process looks like in /proc.
 
 So CacheFiles makes use of a logical split in the security between the
-objective security (task->sec) and the subjective security (task->act_as).  The
-objective security holds the intrinsic security properties of a process and is
-never overridden.  This is what appears in /proc, and is what is used when a
+objective security (task->real_cred) and the subjective security (task->cred).
+The objective security holds the intrinsic security properties of a process and
+is never overridden.  This is what appears in /proc, and is what is used when a
 process is the target of an operation by some other process (SIGKILL for
 example).
 

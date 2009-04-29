@@ -1583,8 +1583,10 @@ static void gfar_reset_task(struct work_struct *work)
 	struct net_device *dev = priv->ndev;
 
 	if (dev->flags & IFF_UP) {
+		netif_stop_queue(dev);
 		stop_gfar(dev);
 		startup_gfar(dev);
+		netif_start_queue(dev);
 	}
 
 	netif_tx_schedule_all(dev);

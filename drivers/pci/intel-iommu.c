@@ -733,8 +733,8 @@ static void dma_pte_clear_range(struct dmar_domain *domain, u64 start, u64 end)
 	start &= (((u64)1) << addr_width) - 1;
 	end &= (((u64)1) << addr_width) - 1;
 	/* in case it's partial page */
-	start = PAGE_ALIGN(start);
-	end &= PAGE_MASK;
+	start &= PAGE_MASK;
+	end = PAGE_ALIGN(end);
 	npages = (end - start) / VTD_PAGE_SIZE;
 
 	/* we don't need lock here, nobody else touches the iova range */

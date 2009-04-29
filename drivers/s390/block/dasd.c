@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/hdreg.h>
+#include <linux/async.h>
 
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
@@ -480,8 +481,10 @@ static void dasd_change_state(struct dasd_device *device)
         if (rc && rc != -EAGAIN)
                 device->target = device->state;
 
-	if (device->state == device->target)
+	if (device->state == device->target) {
 		wake_up(&dasd_init_waitq);
+		dasd_put_device(device);
+	}
 
 	/* let user-space know that the device status changed */
 	kobject_uevent(&device->cdev->dev.kobj, KOBJ_CHANGE);
@@ -513,12 +516,15 @@ void dasd_kick_device(struct dasd_device *device)
  */
 void dasd_set_target_state(struct dasd_device *device, int target)
 {
+	dasd_get_device(device);
 	/* If we are in probeonly mode stop at DASD_STATE_READY. */
 	if (dasd_probeonly && target > DASD_STATE_READY)
 		target = DASD_STATE_READY;
 	if (device->target != target) {
-                if (device->state == target)
+		if (device->state == target) {
 			wake_up(&dasd_init_waitq);
+			dasd_put_device(device);
+		}
 		device->target = target;
 	}
 	if (device->state != device->target)
@@ -2148,6 +2154,22 @@ dasd_exit(void)
  * SECTION: common functions for ccw_driver use
  */
 
+static void dasd_generic_auto_online(void *data, async_cookie_t cookie)
+{
+	struct ccw_device *cdev = data;
+	int ret;
+
+	ret = ccw_device_set_online(cdev);
+	if (ret)
+		pr_warning("%s: Setting the DASD online failed with rc=%d\n",
+			   dev_name(&cdev->dev), ret);
+	else {
+		struct dasd_device *device = dasd_device_from_cdev(cdev);
+		wait_event(dasd_init_waitq, _wait_for_device(device));
+		dasd_put_device(device);
+	}
+}
+
 /*
  * Initial attempt at a probe function. this can be simplified once
  * the other detection code is gone.
@@ -2180,10 +2202,7 @@ int dasd_generic_probe(struct ccw_device *cdev,
 	 */
 	if ((dasd_get_feature(cdev, DASD_FEATURE_INITIAL_ONLINE) > 0 ) ||
 	    (dasd_autodetect && dasd_busid_known(dev_name(&cdev->dev)) != 0))
-		ret = ccw_device_set_online(cdev);
-	if (ret)
-		pr_warning("%s: Setting the DASD online failed with rc=%d\n",
-		       dev_name(&cdev->dev), ret);
+		async_schedule(dasd_generic_auto_online, cdev);
 	return 0;
 }
 
@@ -2290,13 +2309,7 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	} else
 		pr_debug("dasd_generic device %s found\n",
 				dev_name(&cdev->dev));
-
-	/* FIXME: we have to wait for the root device but we don't want
-	 * to wait for each single device but for all at once. */
-	wait_event(dasd_init_waitq, _wait_for_device(device));
-
 	dasd_put_device(device);
-
 	return rc;
 }
 

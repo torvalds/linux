@@ -317,7 +317,8 @@ static void sony_laptop_report_input_event(u8 event)
 	struct input_dev *key_dev = sony_laptop_input.key_dev;
 	struct sony_laptop_keypress kp = { NULL };
 
-	if (event == SONYPI_EVENT_FNKEY_RELEASED) {
+	if (event == SONYPI_EVENT_FNKEY_RELEASED ||
+			event == SONYPI_EVENT_ANYBUTTON_RELEASED) {
 		/* Nothing, not all VAIOs generate this event */
 		return;
 	}
@@ -905,7 +906,6 @@ static struct sony_nc_event sony_127_events[] = {
 	{ 0x05, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0x86, SONYPI_EVENT_PKEY_P5 },
 	{ 0x06, SONYPI_EVENT_ANYBUTTON_RELEASED },
-	{ 0x06, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0x87, SONYPI_EVENT_SETTINGKEY_PRESSED },
 	{ 0x07, SONYPI_EVENT_ANYBUTTON_RELEASED },
 	{ 0, 0 },
@@ -914,7 +914,7 @@ static struct sony_nc_event sony_127_events[] = {
 /*
  * ACPI callbacks
  */
-static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
+static void sony_nc_notify(struct acpi_device *device, u32 event)
 {
 	u32 ev = event;
 
@@ -933,7 +933,7 @@ static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 			struct sony_nc_event *key_event;
 
 			if (sony_call_snc_handle(key_handle, 0x200, &result)) {
-				dprintk("sony_acpi_notify, unable to decode"
+				dprintk("sony_nc_notify, unable to decode"
 					" event 0x%.2x 0x%.2x\n", key_handle,
 					ev);
 				/* restore the original event */
@@ -968,7 +968,7 @@ static void sony_acpi_notify(acpi_handle handle, u32 event, void *data)
 	} else
 		sony_laptop_report_input_event(ev);
 
-	dprintk("sony_acpi_notify, event: 0x%.2x\n", ev);
+	dprintk("sony_nc_notify, event: 0x%.2x\n", ev);
 	acpi_bus_generate_proc_event(sony_nc_acpi_device, 1, ev);
 }
 
@@ -1004,6 +1004,7 @@ static int sony_nc_function_setup(struct acpi_device *device)
 	sony_call_snc_handle(0x0100, 0, &result);
 	sony_call_snc_handle(0x0101, 0, &result);
 	sony_call_snc_handle(0x0102, 0x100, &result);
+	sony_call_snc_handle(0x0127, 0, &result);
 
 	return 0;
 }
@@ -1040,7 +1041,7 @@ static int sony_nc_resume(struct acpi_device *device)
 
 	/* set the last requested brightness level */
 	if (sony_backlight_device &&
-			!sony_backlight_update_status(sony_backlight_device))
+			sony_backlight_update_status(sony_backlight_device) < 0)
 		printk(KERN_WARNING DRV_PFX "unable to restore brightness level\n");
 
 	return 0;
@@ -1102,8 +1103,11 @@ static int sony_nc_setup_wifi_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wifi_rfkill);
 	if (err)
 		rfkill_free(sony_wifi_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WIFI] = sony_wifi_rfkill;
+		sony_nc_rfkill_set(sony_wifi_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1124,8 +1128,11 @@ static int sony_nc_setup_bluetooth_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_bluetooth_rfkill);
 	if (err)
 		rfkill_free(sony_bluetooth_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_BLUETOOTH] = sony_bluetooth_rfkill;
+		sony_nc_rfkill_set(sony_bluetooth_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1145,8 +1152,11 @@ static int sony_nc_setup_wwan_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wwan_rfkill);
 	if (err)
 		rfkill_free(sony_wwan_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WWAN] = sony_wwan_rfkill;
+		sony_nc_rfkill_set(sony_wwan_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1166,8 +1176,11 @@ static int sony_nc_setup_wimax_rfkill(struct acpi_device *device)
 	err = rfkill_register(sony_wimax_rfkill);
 	if (err)
 		rfkill_free(sony_wimax_rfkill);
-	else
+	else {
 		sony_rfkill_devices[SONY_WIMAX] = sony_wimax_rfkill;
+		sony_nc_rfkill_set(sony_wimax_rfkill->data,
+				RFKILL_STATE_UNBLOCKED);
+	}
 	return err;
 }
 
@@ -1276,15 +1289,6 @@ static int sony_nc_add(struct acpi_device *device)
 		goto outwalk;
 	}
 
-	status = acpi_install_notify_handler(sony_nc_acpi_handle,
-					     ACPI_DEVICE_NOTIFY,
-					     sony_acpi_notify, NULL);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_WARNING DRV_PFX "unable to install notify handler (%u)\n", status);
-		result = -ENODEV;
-		goto outinput;
-	}
-
 	if (acpi_video_backlight_support()) {
 		printk(KERN_INFO DRV_PFX "brightness ignored, must be "
 		       "controlled by ACPI video driver\n");
@@ -1362,13 +1366,6 @@ static int sony_nc_add(struct acpi_device *device)
 	if (sony_backlight_device)
 		backlight_device_unregister(sony_backlight_device);
 
-	status = acpi_remove_notify_handler(sony_nc_acpi_handle,
-					    ACPI_DEVICE_NOTIFY,
-					    sony_acpi_notify);
-	if (ACPI_FAILURE(status))
-		printk(KERN_WARNING DRV_PFX "unable to remove notify handler\n");
-
-      outinput:
 	sony_laptop_remove_input();
 
       outwalk:
@@ -1378,19 +1375,12 @@ static int sony_nc_add(struct acpi_device *device)
 
 static int sony_nc_remove(struct acpi_device *device, int type)
 {
-	acpi_status status;
 	struct sony_nc_value *item;
 
 	if (sony_backlight_device)
 		backlight_device_unregister(sony_backlight_device);
 
 	sony_nc_acpi_device = NULL;
-
-	status = acpi_remove_notify_handler(sony_nc_acpi_handle,
-					    ACPI_DEVICE_NOTIFY,
-					    sony_acpi_notify);
-	if (ACPI_FAILURE(status))
-		printk(KERN_WARNING DRV_PFX "unable to remove notify handler\n");
 
 	for (item = sony_nc_values; item->name; ++item) {
 		device_remove_file(&sony_pf_device->dev, &item->devattr);
@@ -1425,6 +1415,7 @@ static struct acpi_driver sony_nc_driver = {
 		.add = sony_nc_add,
 		.remove = sony_nc_remove,
 		.resume = sony_nc_resume,
+		.notify = sony_nc_notify,
 		},
 };
 

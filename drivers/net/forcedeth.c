@@ -3745,14 +3745,14 @@ static int nv_napi_poll(struct napi_struct *napi, int budget)
 			mod_timer(&np->nic_poll, jiffies + POLL_WAIT);
 		}
 		spin_unlock_irqrestore(&np->lock, flags);
-		__napi_complete(napi);
+		napi_complete(napi);
 		return rx_work;
 	}
 
 	if (rx_work < budget) {
 		/* re-enable interrupts
 		   (msix not enabled in napi) */
-		__napi_complete(napi);
+		napi_complete(napi);
 
 		writel(np->irqmask, base + NvRegIrqMask);
 	}
