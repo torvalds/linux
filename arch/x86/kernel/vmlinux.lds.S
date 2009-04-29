@@ -54,11 +54,25 @@ PHDRS {
 	note PT_NOTE FLAGS(0);          /* ___ */
 }
 
+SECTIONS
+{
+#ifdef CONFIG_X86_32
+        . = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
+        phys_startup_32 = startup_32 - LOAD_OFFSET;
+#else
+        . = __START_KERNEL;
+        phys_startup_64 = startup_64 - LOAD_OFFSET;
+#endif
+
 #ifdef CONFIG_X86_32
 # include "vmlinux_32.lds.S"
 #else
 # include "vmlinux_64.lds.S"
 #endif
+
+        STABS_DEBUG
+        DWARF_DEBUG
+}
 
 
 #ifdef CONFIG_X86_32

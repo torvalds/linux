@@ -1,8 +1,3 @@
-SECTIONS
-{
-	. = __START_KERNEL;
-	phys_startup_64 = startup_64 - LOAD_OFFSET;
-
 	/* Text and read-only data */
 	.text :  AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = .;
@@ -277,7 +272,3 @@ SECTIONS
 		*(.eh_frame)
 		*(.discard)
 	}
-
-	STABS_DEBUG
-	DWARF_DEBUG
-}

@@ -1,8 +1,3 @@
-SECTIONS
-{
-	. = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
-	phys_startup_32 = startup_32 - LOAD_OFFSET;
-
 	/* Text and read-only data */
 	.text.head : AT(ADDR(.text.head) - LOAD_OFFSET) {
 		_text = .;
@@ -205,7 +200,3 @@ SECTIONS
 		*(.exitcall.exit)
 		*(.discard)
 	}
-
-	STABS_DEBUG
-	DWARF_DEBUG
-}
