@@ -45,12 +45,14 @@
 #define PPC_INST_STSWI			0x7c0005aa
 #define PPC_INST_STSWX			0x7c00052a
 #define PPC_INST_STXVD2X		0x7c000798
+#define PPC_INST_TLBIE			0x7c000264
 #define PPC_INST_TLBILX			0x7c000024
 #define PPC_INST_WAIT			0x7c00007c
 
 /* macros to insert fields into opcodes */
 #define __PPC_RA(a)	(((a) & 0x1f) << 16)
 #define __PPC_RB(b)	(((b) & 0x1f) << 11)
+#define __PPC_RS(s)	(((s) & 0x1f) << 21)
 #define __PPC_XS(s)	((((s) & 0x1f) << 21) | (((s) & 0x20) >> 5))
 #define __PPC_T_TLB(t)	(((t) & 0x3) << 21)
 #define __PPC_WC(w)	(((w) & 0x3) << 21)
@@ -72,6 +74,8 @@
 #define PPC_TLBILX_VA(a, b)	PPC_TLBILX(3, a, b)
 #define PPC_WAIT(w)		stringify_in_c(.long PPC_INST_WAIT | \
 					__PPC_WC(w))
+#define PPC_TLBIE(lp,a) 	stringify_in_c(.long PPC_INST_TLBIE | \
+					       __PPC_RB(a) | __PPC_RS(lp))
 
 /*
  * Define what the VSX XX1 form instructions will look like, then add

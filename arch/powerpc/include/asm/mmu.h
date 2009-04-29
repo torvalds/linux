@@ -52,6 +52,11 @@
  */
 #define MMU_FTR_NEED_DTLB_SW_LRU	ASM_CONST(0x00200000)
 
+/* This indicates that the processor uses the ISA 2.06 server tlbie
+ * mnemonics
+ */
+#define MMU_FTR_TLBIE_206		ASM_CONST(0x00400000)
+
 #ifndef __ASSEMBLY__
 #include <asm/cputable.h>
 
