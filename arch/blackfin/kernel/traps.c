@@ -222,7 +222,7 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 		show_regs(fp);
 	}
 #endif
-	panic("Double Fault - unrecoverable event\n");
+	panic("Double Fault - unrecoverable event");
 
 }
 
@@ -1246,5 +1246,5 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 	dump_bfin_mem(fp);
 	show_regs(fp);
 	dump_stack();
-	panic("Unrecoverable event\n");
+	panic("Unrecoverable event");
 }

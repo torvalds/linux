@@ -477,7 +477,7 @@ static __init void memory_setup(void)
 
 	if (DMA_UNCACHED_REGION > (_ramend - _ramstart)) {
 		console_init();
-		panic("DMA region exceeds memory limit: %lu.\n",
+		panic("DMA region exceeds memory limit: %lu.",
 			_ramend - _ramstart);
 	}
 	memory_end = _ramend - DMA_UNCACHED_REGION;
@@ -531,7 +531,7 @@ static __init void memory_setup(void)
 
 	if (mtd_size == 0) {
 		console_init();
-		panic("Don't boot kernel without rootfs attached.\n");
+		panic("Don't boot kernel without rootfs attached.");
 	}
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
@@ -886,7 +886,7 @@ void __init setup_arch(char **cmdline_p)
 				printk(KERN_ERR "Warning: Compiled for Rev %d, but running on Rev %d\n",
 				       bfin_compiled_revid(), bfin_revid());
 				if (bfin_compiled_revid() > bfin_revid())
-					panic("Error: you are missing anomaly workarounds for this rev\n");
+					panic("Error: you are missing anomaly workarounds for this rev");
 			}
 		}
 		if (bfin_revid() < CONFIG_BF_REV_MIN || bfin_revid() > CONFIG_BF_REV_MAX)
@@ -896,7 +896,7 @@ void __init setup_arch(char **cmdline_p)
 
 	/* We can't run on BF548-0.1 due to ANOMALY 05000448 */
 	if (bfin_cpuid() == 0x27de && bfin_revid() == 1)
-		panic("You can't run on this processor due to 05000448\n");
+		panic("You can't run on this processor due to 05000448");
 
 	printk(KERN_INFO "Blackfin Linux support by http://blackfin.uclinux.org/\n");
 
