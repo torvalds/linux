@@ -3,7 +3,7 @@
 
    Build with:
 
-     cc -O6 -Wall -c -o kerneltop.o kerneltop.c -lrt
+     make -C Documentation/perf_counter/
 
    Sample output:
 
