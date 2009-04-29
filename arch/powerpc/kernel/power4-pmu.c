@@ -320,7 +320,8 @@ static unsigned int ppc_inst_cmpl[] = {
 	0x1001, 0x4001, 0x6001, 0x7001, 0x8001
 };
 
-static int p4_get_alternatives(unsigned int event, unsigned int alt[])
+static int p4_get_alternatives(unsigned int event, unsigned int flags,
+			       unsigned int alt[])
 {
 	int i, j, na;
 

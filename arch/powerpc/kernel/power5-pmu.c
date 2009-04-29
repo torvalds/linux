@@ -269,7 +269,8 @@ static int find_alternative_bdecode(unsigned int event)
 	return -1;
 }
 
-static int power5_get_alternatives(unsigned int event, unsigned int alt[])
+static int power5_get_alternatives(unsigned int event, unsigned int flags,
+				   unsigned int alt[])
 {
 	int i, j, ae, nalt = 1;
 

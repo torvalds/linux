@@ -12,6 +12,7 @@
 
 #define MAX_HWCOUNTERS		8
 #define MAX_EVENT_ALTERNATIVES	8
+#define MAX_LIMITED_HWCOUNTERS	2
 
 /*
  * This struct provides the constants and functions needed to
@@ -25,13 +26,23 @@ struct power_pmu {
 	int	(*compute_mmcr)(unsigned int events[], int n_ev,
 				unsigned int hwc[], u64 mmcr[]);
 	int	(*get_constraint)(unsigned int event, u64 *mskp, u64 *valp);
-	int	(*get_alternatives)(unsigned int event, unsigned int alt[]);
+	int	(*get_alternatives)(unsigned int event, unsigned int flags,
+				    unsigned int alt[]);
 	void	(*disable_pmc)(unsigned int pmc, u64 mmcr[]);
+	int	(*limited_pmc_event)(unsigned int event);
+	int	limited_pmc5_6;	/* PMC5 and PMC6 have limited function */
 	int	n_generic;
 	int	*generic_events;
 };
 
 extern struct power_pmu *ppmu;
+
+/*
+ * Values for flags to get_alternatives()
+ */
+#define PPMU_LIMITED_PMC_OK	1	/* can put this on a limited PMC */
+#define PPMU_LIMITED_PMC_REQD	2	/* have to put this on a limited PMC */
+#define PPMU_ONLY_COUNT_RUN	4	/* only counting in run state */
 
 /*
  * The power_pmu.get_constraint function returns a 64-bit value and

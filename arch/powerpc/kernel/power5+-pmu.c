@@ -78,8 +78,8 @@
  * Layout of constraint bits:
  * 6666555555555544444444443333333333222222222211111111110000000000
  * 3210987654321098765432109876543210987654321098765432109876543210
- *             [  ><><>< ><> <><>[  >      <  ><  ><  ><  ><><><><>
- *             NC  G0G1G2 G3 T0T1 UC        B0  B1  B2  B3 P4P3P2P1
+ *             [  ><><>< ><> <><>[  >  <  ><  ><  ><  ><><><><><><>
+ *             NC  G0G1G2 G3 T0T1 UC    B0  B1  B2  B3 P6P5P4P3P2P1
  *
  * NC - number of counters
  *     51: NC error 0x0008_0000_0000_0000
@@ -105,18 +105,18 @@
  *     30: IDU|GRS events needed 0x00_4000_0000
  *
  * B0
- *     20-23: Byte 0 event source 0x00f0_0000
+ *     24-27: Byte 0 event source 0x0f00_0000
  *	      Encoding as for the event code
  *
  * B1, B2, B3
- *     16-19, 12-15, 8-11: Byte 1, 2, 3 event sources
+ *     20-23, 16-19, 12-15: Byte 1, 2, 3 event sources
  *
- * P4
- *     7: P1 error 0x80
- *     6-7: Count of events needing PMC4
+ * P6
+ *     11: P6 error 0x800
+ *     10-11: Count of events needing PMC6
  *
- * P1..P3
- *     0-6: Count of events needing PMC1..PMC3
+ * P1..P5
+ *     0-9: Count of events needing PMC1..PMC5
  */
 
 static const int grsel_shift[8] = {
@@ -143,11 +143,13 @@ static int power5p_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
 
 	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
 	if (pmc) {
-		if (pmc > 4)
+		if (pmc > 6)
 			return -1;
 		sh = (pmc - 1) * 2;
 		mask |= 2 << sh;
 		value |= 1 << sh;
+		if (pmc >= 5 && !(event == 0x500009 || event == 0x600005))
+			return -1;
 	}
 	if (event & PM_BUSEVENT_MSK) {
 		unit = (event >> PM_UNIT_SH) & PM_UNIT_MSK;
@@ -173,14 +175,24 @@ static int power5p_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
 			value |= (u64)((event >> PM_GRS_SH) & fmask) << sh;
 		}
 		/* Set byte lane select field */
-		mask  |= 0xfULL << (20 - 4 * byte);
-		value |= (u64)unit << (20 - 4 * byte);
+		mask  |= 0xfULL << (24 - 4 * byte);
+		value |= (u64)unit << (24 - 4 * byte);
 	}
-	mask  |= 0x8000000000000ull;
-	value |= 0x1000000000000ull;
+	if (pmc < 5) {
+		/* need a counter from PMC1-4 set */
+		mask  |= 0x8000000000000ull;
+		value |= 0x1000000000000ull;
+	}
 	*maskp = mask;
 	*valp = value;
 	return 0;
+}
+
+static int power5p_limited_pmc_event(unsigned int event)
+{
+	int pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
+
+	return pmc == 5 || pmc == 6;
 }
 
 #define MAX_ALT	3	/* at most 3 alternatives for any event */
@@ -193,6 +205,7 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ 0x410c7,  0x441084 },			/* PM_THRD_L2MISS_BOTH_CYC */
 	{ 0x800c4,  0xc20e0 },			/* PM_DTLB_MISS */
 	{ 0xc50c6,  0xc60e0 },			/* PM_MRK_DTLB_MISS */
+	{ 0x100005, 0x600005 },			/* PM_RUN_CYC */
 	{ 0x100009, 0x200009 },			/* PM_INST_CMPL */
 	{ 0x200015, 0x300015 },			/* PM_LSU_LMQ_SRQ_EMPTY_CYC */
 	{ 0x300009, 0x400009 },			/* PM_INST_DISP */
@@ -260,24 +273,85 @@ static int find_alternative_bdecode(unsigned int event)
 	return -1;
 }
 
-static int power5p_get_alternatives(unsigned int event, unsigned int alt[])
+static int power5p_get_alternatives(unsigned int event, unsigned int flags,
+				    unsigned int alt[])
 {
 	int i, j, ae, nalt = 1;
+	int nlim;
 
 	alt[0] = event;
 	nalt = 1;
+	nlim = power5p_limited_pmc_event(event);
 	i = find_alternative(event);
 	if (i >= 0) {
 		for (j = 0; j < MAX_ALT; ++j) {
 			ae = event_alternatives[i][j];
 			if (ae && ae != event)
 				alt[nalt++] = ae;
+			nlim += power5p_limited_pmc_event(ae);
 		}
 	} else {
 		ae = find_alternative_bdecode(event);
 		if (ae > 0)
 			alt[nalt++] = ae;
 	}
+
+	if (flags & PPMU_ONLY_COUNT_RUN) {
+		/*
+		 * We're only counting in RUN state,
+		 * so PM_CYC is equivalent to PM_RUN_CYC
+		 * and PM_INST_CMPL === PM_RUN_INST_CMPL.
+		 * This doesn't include alternatives that don't provide
+		 * any extra flexibility in assigning PMCs (e.g.
+		 * 0x100005 for PM_RUN_CYC vs. 0xf for PM_CYC).
+		 * Note that even with these additional alternatives
+		 * we never end up with more than 3 alternatives for any event.
+		 */
+		j = nalt;
+		for (i = 0; i < nalt; ++i) {
+			switch (alt[i]) {
+			case 0xf:	/* PM_CYC */
+				alt[j++] = 0x600005;	/* PM_RUN_CYC */
+				++nlim;
+				break;
+			case 0x600005:	/* PM_RUN_CYC */
+				alt[j++] = 0xf;
+				break;
+			case 0x100009:	/* PM_INST_CMPL */
+				alt[j++] = 0x500009;	/* PM_RUN_INST_CMPL */
+				++nlim;
+				break;
+			case 0x500009:	/* PM_RUN_INST_CMPL */
+				alt[j++] = 0x100009;	/* PM_INST_CMPL */
+				alt[j++] = 0x200009;
+				break;
+			}
+		}
+		nalt = j;
+	}
+
+	if (!(flags & PPMU_LIMITED_PMC_OK) && nlim) {
+		/* remove the limited PMC events */
+		j = 0;
+		for (i = 0; i < nalt; ++i) {
+			if (!power5p_limited_pmc_event(alt[i])) {
+				alt[j] = alt[i];
+				++j;
+			}
+		}
+		nalt = j;
+	} else if ((flags & PPMU_LIMITED_PMC_REQD) && nlim < nalt) {
+		/* remove all but the limited PMC events */
+		j = 0;
+		for (i = 0; i < nalt; ++i) {
+			if (power5p_limited_pmc_event(alt[i])) {
+				alt[j] = alt[i];
+				++j;
+			}
+		}
+		nalt = j;
+	}
+
 	return nalt;
 }
 
@@ -390,7 +464,7 @@ static int power5p_compute_mmcr(unsigned int event[], int n_ev,
 	unsigned char unituse[16];
 	int ttmuse;
 
-	if (n_ev > 4)
+	if (n_ev > 6)
 		return -1;
 
 	/* First pass to count resource use */
@@ -399,7 +473,7 @@ static int power5p_compute_mmcr(unsigned int event[], int n_ev,
 	for (i = 0; i < n_ev; ++i) {
 		pmc = (event[i] >> PM_PMC_SH) & PM_PMC_MSK;
 		if (pmc) {
-			if (pmc > 4)
+			if (pmc > 6)
 				return -1;
 			if (pmc_inuse & (1 << (pmc - 1)))
 				return -1;
@@ -488,13 +562,16 @@ static int power5p_compute_mmcr(unsigned int event[], int n_ev,
 			if (pmc >= 4)
 				return -1;
 			pmc_inuse |= 1 << pmc;
-		} else {
+		} else if (pmc <= 4) {
 			/* Direct event */
 			--pmc;
 			if (isbus && (byte & 2) &&
 			    (psel == 8 || psel == 0x10 || psel == 0x28))
 				/* add events on higher-numbered bus */
 				mmcr1 |= 1ull << (MMCR1_PMC1_ADDER_SEL_SH - pmc);
+		} else {
+			/* Instructions or run cycles on PMC5/6 */
+			--pmc;
 		}
 		if (isbus && unit == PM_GRS) {
 			bit = psel & 7;
@@ -538,7 +615,7 @@ static int power5p_generic_events[] = {
 };
 
 struct power_pmu power5p_pmu = {
-	.n_counter = 4,
+	.n_counter = 6,
 	.max_alternatives = MAX_ALT,
 	.add_fields = 0x7000000000055ull,
 	.test_adder = 0x3000040000000ull,
@@ -548,4 +625,6 @@ struct power_pmu power5p_pmu = {
 	.disable_pmc = power5p_disable_pmc,
 	.n_generic = ARRAY_SIZE(power5p_generic_events),
 	.generic_events = power5p_generic_events,
+	.limited_pmc5_6 = 1,
+	.limited_pmc_event = power5p_limited_pmc_event,
 };

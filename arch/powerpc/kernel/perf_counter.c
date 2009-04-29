@@ -23,10 +23,14 @@ struct cpu_hw_counters {
 	int n_percpu;
 	int disabled;
 	int n_added;
+	int n_limited;
+	u8  pmcs_enabled;
 	struct perf_counter *counter[MAX_HWCOUNTERS];
 	unsigned int events[MAX_HWCOUNTERS];
+	unsigned int flags[MAX_HWCOUNTERS];
 	u64 mmcr[3];
-	u8 pmcs_enabled;
+	struct perf_counter *limited_counter[MAX_LIMITED_HWCOUNTERS];
+	u8  limited_hwidx[MAX_LIMITED_HWCOUNTERS];
 };
 DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters);
 
@@ -127,7 +131,8 @@ static void write_pmc(int idx, unsigned long val)
  * and see if any combination of alternative codes is feasible.
  * The feasible set is returned in event[].
  */
-static int power_check_constraints(unsigned int event[], int n_ev)
+static int power_check_constraints(unsigned int event[], unsigned int cflags[],
+				   int n_ev)
 {
 	u64 mask, value, nv;
 	unsigned int alternatives[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
@@ -144,11 +149,15 @@ static int power_check_constraints(unsigned int event[], int n_ev)
 
 	/* First see if the events will go on as-is */
 	for (i = 0; i < n_ev; ++i) {
-		alternatives[i][0] = event[i];
+		if ((cflags[i] & PPMU_LIMITED_PMC_REQD)
+		    && !ppmu->limited_pmc_event(event[i])) {
+			ppmu->get_alternatives(event[i], cflags[i],
+					       alternatives[i]);
+			event[i] = alternatives[i][0];
+		}
 		if (ppmu->get_constraint(event[i], &amasks[i][0],
 					 &avalues[i][0]))
 			return -1;
-		choice[i] = 0;
 	}
 	value = mask = 0;
 	for (i = 0; i < n_ev; ++i) {
@@ -166,7 +175,9 @@ static int power_check_constraints(unsigned int event[], int n_ev)
 	if (!ppmu->get_alternatives)
 		return -1;
 	for (i = 0; i < n_ev; ++i) {
-		n_alt[i] = ppmu->get_alternatives(event[i], alternatives[i]);
+		choice[i] = 0;
+		n_alt[i] = ppmu->get_alternatives(event[i], cflags[i],
+						  alternatives[i]);
 		for (j = 1; j < n_alt[i]; ++j)
 			ppmu->get_constraint(alternatives[i][j],
 					     &amasks[i][j], &avalues[i][j]);
@@ -231,28 +242,41 @@ static int power_check_constraints(unsigned int event[], int n_ev)
  * exclude_{user,kernel,hv} with each other and any previously
  * added counters.
  */
-static int check_excludes(struct perf_counter **ctrs, int n_prev, int n_new)
+static int check_excludes(struct perf_counter **ctrs, unsigned int cflags[],
+			  int n_prev, int n_new)
 {
-	int eu, ek, eh;
-	int i, n;
+	int eu = 0, ek = 0, eh = 0;
+	int i, n, first;
 	struct perf_counter *counter;
 
 	n = n_prev + n_new;
 	if (n <= 1)
 		return 0;
 
-	eu = ctrs[0]->hw_event.exclude_user;
-	ek = ctrs[0]->hw_event.exclude_kernel;
-	eh = ctrs[0]->hw_event.exclude_hv;
-	if (n_prev == 0)
-		n_prev = 1;
-	for (i = n_prev; i < n; ++i) {
+	first = 1;
+	for (i = 0; i < n; ++i) {
+		if (cflags[i] & PPMU_LIMITED_PMC_OK) {
+			cflags[i] &= ~PPMU_LIMITED_PMC_REQD;
+			continue;
+		}
 		counter = ctrs[i];
-		if (counter->hw_event.exclude_user != eu ||
-		    counter->hw_event.exclude_kernel != ek ||
-		    counter->hw_event.exclude_hv != eh)
+		if (first) {
+			eu = counter->hw_event.exclude_user;
+			ek = counter->hw_event.exclude_kernel;
+			eh = counter->hw_event.exclude_hv;
+			first = 0;
+		} else if (counter->hw_event.exclude_user != eu ||
+			   counter->hw_event.exclude_kernel != ek ||
+			   counter->hw_event.exclude_hv != eh) {
 			return -EAGAIN;
+		}
 	}
+
+	if (eu || ek || eh)
+		for (i = 0; i < n; ++i)
+			if (cflags[i] & PPMU_LIMITED_PMC_OK)
+				cflags[i] |= PPMU_LIMITED_PMC_REQD;
+
 	return 0;
 }
 
@@ -277,6 +301,85 @@ static void power_pmu_read(struct perf_counter *counter)
 	delta = (val - prev) & 0xfffffffful;
 	atomic64_add(delta, &counter->count);
 	atomic64_sub(delta, &counter->hw.period_left);
+}
+
+/*
+ * On some machines, PMC5 and PMC6 can't be written, don't respect
+ * the freeze conditions, and don't generate interrupts.  This tells
+ * us if `counter' is using such a PMC.
+ */
+static int is_limited_pmc(int pmcnum)
+{
+	return ppmu->limited_pmc5_6 && (pmcnum == 5 || pmcnum == 6);
+}
+
+static void freeze_limited_counters(struct cpu_hw_counters *cpuhw,
+				    unsigned long pmc5, unsigned long pmc6)
+{
+	struct perf_counter *counter;
+	u64 val, prev, delta;
+	int i;
+
+	for (i = 0; i < cpuhw->n_limited; ++i) {
+		counter = cpuhw->limited_counter[i];
+		if (!counter->hw.idx)
+			continue;
+		val = (counter->hw.idx == 5) ? pmc5 : pmc6;
+		prev = atomic64_read(&counter->hw.prev_count);
+		counter->hw.idx = 0;
+		delta = (val - prev) & 0xfffffffful;
+		atomic64_add(delta, &counter->count);
+	}
+}
+
+static void thaw_limited_counters(struct cpu_hw_counters *cpuhw,
+				  unsigned long pmc5, unsigned long pmc6)
+{
+	struct perf_counter *counter;
+	u64 val;
+	int i;
+
+	for (i = 0; i < cpuhw->n_limited; ++i) {
+		counter = cpuhw->limited_counter[i];
+		counter->hw.idx = cpuhw->limited_hwidx[i];
+		val = (counter->hw.idx == 5) ? pmc5 : pmc6;
+		atomic64_set(&counter->hw.prev_count, val);
+		perf_counter_update_userpage(counter);
+	}
+}
+
+/*
+ * Since limited counters don't respect the freeze conditions, we
+ * have to read them immediately after freezing or unfreezing the
+ * other counters.  We try to keep the values from the limited
+ * counters as consistent as possible by keeping the delay (in
+ * cycles and instructions) between freezing/unfreezing and reading
+ * the limited counters as small and consistent as possible.
+ * Therefore, if any limited counters are in use, we read them
+ * both, and always in the same order, to minimize variability,
+ * and do it inside the same asm that writes MMCR0.
+ */
+static void write_mmcr0(struct cpu_hw_counters *cpuhw, unsigned long mmcr0)
+{
+	unsigned long pmc5, pmc6;
+
+	if (!cpuhw->n_limited) {
+		mtspr(SPRN_MMCR0, mmcr0);
+		return;
+	}
+
+	/*
+	 * Write MMCR0, then read PMC5 and PMC6 immediately.
+	 */
+	asm volatile("mtspr %3,%2; mfspr %0,%4; mfspr %1,%5"
+		     : "=&r" (pmc5), "=&r" (pmc6)
+		     : "r" (mmcr0), "i" (SPRN_MMCR0),
+		       "i" (SPRN_PMC5), "i" (SPRN_PMC6));
+
+	if (mmcr0 & MMCR0_FC)
+		freeze_limited_counters(cpuhw, pmc5, pmc6);
+	else
+		thaw_limited_counters(cpuhw, pmc5, pmc6);
 }
 
 /*
@@ -321,7 +424,7 @@ u64 hw_perf_save_disable(void)
 		 * executed and the PMU has frozen the counters
 		 * before we return.
 		 */
-		mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) | MMCR0_FC);
+		write_mmcr0(cpuhw, mfspr(SPRN_MMCR0) | MMCR0_FC);
 		mb();
 	}
 	local_irq_restore(flags);
@@ -342,6 +445,8 @@ void hw_perf_restore(u64 disable)
 	unsigned long val;
 	s64 left;
 	unsigned int hwc_index[MAX_HWCOUNTERS];
+	int n_lim;
+	int idx;
 
 	if (disable)
 		return;
@@ -414,10 +519,18 @@ void hw_perf_restore(u64 disable)
 	/*
 	 * Initialize the PMCs for all the new and moved counters.
 	 */
+	cpuhw->n_limited = n_lim = 0;
 	for (i = 0; i < cpuhw->n_counters; ++i) {
 		counter = cpuhw->counter[i];
 		if (counter->hw.idx)
 			continue;
+		idx = hwc_index[i] + 1;
+		if (is_limited_pmc(idx)) {
+			cpuhw->limited_counter[n_lim] = counter;
+			cpuhw->limited_hwidx[n_lim] = idx;
+			++n_lim;
+			continue;
+		}
 		val = 0;
 		if (counter->hw_event.irq_period) {
 			left = atomic64_read(&counter->hw.period_left);
@@ -425,15 +538,16 @@ void hw_perf_restore(u64 disable)
 				val = 0x80000000L - left;
 		}
 		atomic64_set(&counter->hw.prev_count, val);
-		counter->hw.idx = hwc_index[i] + 1;
-		write_pmc(counter->hw.idx, val);
+		counter->hw.idx = idx;
+		write_pmc(idx, val);
 		perf_counter_update_userpage(counter);
 	}
+	cpuhw->n_limited = n_lim;
 	cpuhw->mmcr[0] |= MMCR0_PMXE | MMCR0_FCECE;
 
  out_enable:
 	mb();
-	mtspr(SPRN_MMCR0, cpuhw->mmcr[0]);
+	write_mmcr0(cpuhw, cpuhw->mmcr[0]);
 
 	/*
 	 * Enable instruction sampling if necessary
@@ -448,7 +562,8 @@ void hw_perf_restore(u64 disable)
 }
 
 static int collect_events(struct perf_counter *group, int max_count,
-			  struct perf_counter *ctrs[], unsigned int *events)
+			  struct perf_counter *ctrs[], unsigned int *events,
+			  unsigned int *flags)
 {
 	int n = 0;
 	struct perf_counter *counter;
@@ -457,6 +572,7 @@ static int collect_events(struct perf_counter *group, int max_count,
 		if (n >= max_count)
 			return -1;
 		ctrs[n] = group;
+		flags[n] = group->hw.counter_base;
 		events[n++] = group->hw.config;
 	}
 	list_for_each_entry(counter, &group->sibling_list, list_entry) {
@@ -465,6 +581,7 @@ static int collect_events(struct perf_counter *group, int max_count,
 			if (n >= max_count)
 				return -1;
 			ctrs[n] = counter;
+			flags[n] = counter->hw.counter_base;
 			events[n++] = counter->hw.config;
 		}
 	}
@@ -497,12 +614,14 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 	n0 = cpuhw->n_counters;
 	n = collect_events(group_leader, ppmu->n_counter - n0,
-			   &cpuhw->counter[n0], &cpuhw->events[n0]);
+			   &cpuhw->counter[n0], &cpuhw->events[n0],
+			   &cpuhw->flags[n0]);
 	if (n < 0)
 		return -EAGAIN;
-	if (check_excludes(cpuhw->counter, n0, n))
+	if (check_excludes(cpuhw->counter, cpuhw->flags, n0, n))
 		return -EAGAIN;
-	if (power_check_constraints(cpuhw->events, n + n0))
+	i = power_check_constraints(cpuhw->events, cpuhw->flags, n + n0);
+	if (i < 0)
 		return -EAGAIN;
 	cpuhw->n_counters = n0 + n;
 	cpuhw->n_added += n;
@@ -554,9 +673,10 @@ static int power_pmu_enable(struct perf_counter *counter)
 		goto out;
 	cpuhw->counter[n0] = counter;
 	cpuhw->events[n0] = counter->hw.config;
-	if (check_excludes(cpuhw->counter, n0, 1))
+	cpuhw->flags[n0] = counter->hw.counter_base;
+	if (check_excludes(cpuhw->counter, cpuhw->flags, n0, 1))
 		goto out;
-	if (power_check_constraints(cpuhw->events, n0 + 1))
+	if (power_check_constraints(cpuhw->events, cpuhw->flags, n0 + 1))
 		goto out;
 
 	counter->hw.config = cpuhw->events[n0];
@@ -592,11 +712,23 @@ static void power_pmu_disable(struct perf_counter *counter)
 				cpuhw->counter[i-1] = cpuhw->counter[i];
 			--cpuhw->n_counters;
 			ppmu->disable_pmc(counter->hw.idx - 1, cpuhw->mmcr);
-			write_pmc(counter->hw.idx, 0);
-			counter->hw.idx = 0;
+			if (counter->hw.idx) {
+				write_pmc(counter->hw.idx, 0);
+				counter->hw.idx = 0;
+			}
 			perf_counter_update_userpage(counter);
 			break;
 		}
+	}
+	for (i = 0; i < cpuhw->n_limited; ++i)
+		if (counter == cpuhw->limited_counter[i])
+			break;
+	if (i < cpuhw->n_limited) {
+		while (++i < cpuhw->n_limited) {
+			cpuhw->limited_counter[i-1] = cpuhw->limited_counter[i];
+			cpuhw->limited_hwidx[i-1] = cpuhw->limited_hwidx[i];
+		}
+		--cpuhw->n_limited;
 	}
 	if (cpuhw->n_counters == 0) {
 		/* disable exceptions if no counters are running */
@@ -612,6 +744,61 @@ struct pmu power_pmu = {
 	.disable	= power_pmu_disable,
 	.read		= power_pmu_read,
 };
+
+/*
+ * Return 1 if we might be able to put counter on a limited PMC,
+ * or 0 if not.
+ * A counter can only go on a limited PMC if it counts something
+ * that a limited PMC can count, doesn't require interrupts, and
+ * doesn't exclude any processor mode.
+ */
+static int can_go_on_limited_pmc(struct perf_counter *counter, unsigned int ev,
+				 unsigned int flags)
+{
+	int n;
+	unsigned int alt[MAX_EVENT_ALTERNATIVES];
+
+	if (counter->hw_event.exclude_user
+	    || counter->hw_event.exclude_kernel
+	    || counter->hw_event.exclude_hv
+	    || counter->hw_event.irq_period)
+		return 0;
+
+	if (ppmu->limited_pmc_event(ev))
+		return 1;
+
+	/*
+	 * The requested event isn't on a limited PMC already;
+	 * see if any alternative code goes on a limited PMC.
+	 */
+	if (!ppmu->get_alternatives)
+		return 0;
+
+	flags |= PPMU_LIMITED_PMC_OK | PPMU_LIMITED_PMC_REQD;
+	n = ppmu->get_alternatives(ev, flags, alt);
+	if (n)
+		return alt[0];
+
+	return 0;
+}
+
+/*
+ * Find an alternative event that goes on a normal PMC, if possible,
+ * and return the event code, or 0 if there is no such alternative.
+ * (Note: event code 0 is "don't count" on all machines.)
+ */
+static unsigned long normal_pmc_alternative(unsigned long ev,
+					    unsigned long flags)
+{
+	unsigned int alt[MAX_EVENT_ALTERNATIVES];
+	int n;
+
+	flags &= ~(PPMU_LIMITED_PMC_OK | PPMU_LIMITED_PMC_REQD);
+	n = ppmu->get_alternatives(ev, flags, alt);
+	if (!n)
+		return 0;
+	return alt[0];
+}
 
 /* Number of perf_counters counting hardware events */
 static atomic_t num_counters;
@@ -633,9 +820,10 @@ static void hw_perf_counter_destroy(struct perf_counter *counter)
 
 const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 {
-	unsigned long ev;
+	unsigned long ev, flags;
 	struct perf_counter *ctrs[MAX_HWCOUNTERS];
 	unsigned int events[MAX_HWCOUNTERS];
+	unsigned int cflags[MAX_HWCOUNTERS];
 	int n;
 	int err;
 
@@ -661,7 +849,36 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	 */
 	if (!firmware_has_feature(FW_FEATURE_LPAR))
 		counter->hw_event.exclude_hv = 0;
-	
+
+	/*
+	 * If this is a per-task counter, then we can use
+	 * PM_RUN_* events interchangeably with their non RUN_*
+	 * equivalents, e.g. PM_RUN_CYC instead of PM_CYC.
+	 * XXX we should check if the task is an idle task.
+	 */
+	flags = 0;
+	if (counter->ctx->task)
+		flags |= PPMU_ONLY_COUNT_RUN;
+
+	/*
+	 * If this machine has limited counters, check whether this
+	 * event could go on a limited counter.
+	 */
+	if (ppmu->limited_pmc5_6) {
+		if (can_go_on_limited_pmc(counter, ev, flags)) {
+			flags |= PPMU_LIMITED_PMC_OK;
+		} else if (ppmu->limited_pmc_event(ev)) {
+			/*
+			 * The requested event is on a limited PMC,
+			 * but we can't use a limited PMC; see if any
+			 * alternative goes on a normal PMC.
+			 */
+			ev = normal_pmc_alternative(ev, flags);
+			if (!ev)
+				return ERR_PTR(-EINVAL);
+		}
+	}
+
 	/*
 	 * If this is in a group, check if it can go on with all the
 	 * other hardware counters in the group.  We assume the counter
@@ -670,18 +887,20 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	n = 0;
 	if (counter->group_leader != counter) {
 		n = collect_events(counter->group_leader, ppmu->n_counter - 1,
-				   ctrs, events);
+				   ctrs, events, cflags);
 		if (n < 0)
 			return ERR_PTR(-EINVAL);
 	}
 	events[n] = ev;
 	ctrs[n] = counter;
-	if (check_excludes(ctrs, n, 1))
+	cflags[n] = flags;
+	if (check_excludes(ctrs, cflags, n, 1))
 		return ERR_PTR(-EINVAL);
-	if (power_check_constraints(events, n + 1))
+	if (power_check_constraints(events, cflags, n + 1))
 		return ERR_PTR(-EINVAL);
 
 	counter->hw.config = events[n];
+	counter->hw.counter_base = cflags[n];
 	atomic64_set(&counter->hw.period_left, counter->hw_event.irq_period);
 
 	/*
@@ -763,6 +982,10 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	int found = 0;
 	int nmi;
 
+	if (cpuhw->n_limited)
+		freeze_limited_counters(cpuhw, mfspr(SPRN_PMC5),
+					mfspr(SPRN_PMC6));
+
 	/*
 	 * If interrupts were soft-disabled when this PMU interrupt
 	 * occurred, treat it as an NMI.
@@ -775,6 +998,8 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 
 	for (i = 0; i < cpuhw->n_counters; ++i) {
 		counter = cpuhw->counter[i];
+		if (is_limited_pmc(counter->hw.idx))
+			continue;
 		val = read_pmc(counter->hw.idx);
 		if ((int)val < 0) {
 			/* counter has overflowed */
@@ -791,6 +1016,8 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	 */
 	if (!found) {
 		for (i = 0; i < ppmu->n_counter; ++i) {
+			if (is_limited_pmc(i + 1))
+				continue;
 			val = read_pmc(i + 1);
 			if ((int)val < 0)
 				write_pmc(i + 1, 0);
@@ -804,7 +1031,7 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	 * XXX might want to use MSR.PM to keep the counters frozen until
 	 * we get back out of this interrupt.
 	 */
-	mtspr(SPRN_MMCR0, cpuhw->mmcr[0]);
+	write_mmcr0(cpuhw, cpuhw->mmcr[0]);
 
 	if (nmi)
 		nmi_exit();

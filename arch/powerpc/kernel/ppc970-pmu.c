@@ -243,7 +243,8 @@ static int p970_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
 	return 0;
 }
 
-static int p970_get_alternatives(unsigned int event, unsigned int alt[])
+static int p970_get_alternatives(unsigned int event, unsigned int flags,
+				 unsigned int alt[])
 {
 	alt[0] = event;
 

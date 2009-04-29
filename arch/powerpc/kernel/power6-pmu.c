@@ -182,7 +182,7 @@ static int p6_compute_mmcr(unsigned int event[], int n_ev,
 	unsigned int ttmset = 0;
 	unsigned int pmc_inuse = 0;
 
-	if (n_ev > 4)
+	if (n_ev > 6)
 		return -1;
 	for (i = 0; i < n_ev; ++i) {
 		pmc = (event[i] >> PM_PMC_SH) & PM_PMC_MSK;
@@ -202,6 +202,8 @@ static int p6_compute_mmcr(unsigned int event[], int n_ev,
 			for (pmc = 0; pmc < 4; ++pmc)
 				if (!(pmc_inuse & (1 << pmc)))
 					break;
+			if (pmc >= 4)
+				return -1;
 			pmc_inuse |= 1 << pmc;
 		}
 		hwc[i] = pmc;
@@ -240,7 +242,8 @@ static int p6_compute_mmcr(unsigned int event[], int n_ev,
 		}
 		if (power6_marked_instr_event(event[i]))
 			mmcra |= MMCRA_SAMPLE_ENABLE;
-		mmcr1 |= (u64)psel << MMCR1_PMCSEL_SH(pmc);
+		if (pmc < 4)
+			mmcr1 |= (u64)psel << MMCR1_PMCSEL_SH(pmc);
 	}
 	mmcr[0] = 0;
 	if (pmc_inuse & 1)
@@ -256,19 +259,20 @@ static int p6_compute_mmcr(unsigned int event[], int n_ev,
  * Layout of constraint bits:
  *
  *	0-1	add field: number of uses of PMC1 (max 1)
- *	2-3, 4-5, 6-7: ditto for PMC2, 3, 4
- *	8-10	select field: nest (subunit) event selector
+ *	2-3, 4-5, 6-7, 8-9, 10-11: ditto for PMC2, 3, 4, 5, 6
+ *	12-15	add field: number of uses of PMC1-4 (max 4)
  *	16-19	select field: unit on byte 0 of event bus
  *	20-23, 24-27, 28-31 ditto for bytes 1, 2, 3
+ *	32-34	select field: nest (subunit) event selector
  */
 static int p6_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
 {
-	int pmc, byte, sh;
-	unsigned int mask = 0, value = 0;
+	int pmc, byte, sh, subunit;
+	u64 mask = 0, value = 0;
 
 	pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
 	if (pmc) {
-		if (pmc > 4)
+		if (pmc > 4 && !(event == 0x500009 || event == 0x600005))
 			return -1;
 		sh = (pmc - 1) * 2;
 		mask |= 2 << sh;
@@ -276,17 +280,29 @@ static int p6_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
 	}
 	if (event & PM_BUSEVENT_MSK) {
 		byte = (event >> PM_BYTE_SH) & PM_BYTE_MSK;
-		sh = byte * 4;
+		sh = byte * 4 + (16 - PM_UNIT_SH);
 		mask |= PM_UNIT_MSKS << sh;
-		value |= (event & PM_UNIT_MSKS) << sh;
+		value |= (u64)(event & PM_UNIT_MSKS) << sh;
 		if ((event & PM_UNIT_MSKS) == (5 << PM_UNIT_SH)) {
-			mask |= PM_SUBUNIT_MSKS;
-			value |= event & PM_SUBUNIT_MSKS;
+			subunit = (event >> PM_SUBUNIT_SH) & PM_SUBUNIT_MSK;
+			mask  |= (u64)PM_SUBUNIT_MSK << 32;
+			value |= (u64)subunit << 32;
 		}
+	}
+	if (pmc <= 4) {
+		mask  |= 0x8000;	/* add field for count of PMC1-4 uses */
+		value |= 0x1000;
 	}
 	*maskp = mask;
 	*valp = value;
 	return 0;
+}
+
+static int p6_limited_pmc_event(unsigned int event)
+{
+	int pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
+
+	return pmc == 5 || pmc == 6;
 }
 
 #define MAX_ALT	4	/* at most 4 alternatives for any event */
@@ -295,7 +311,7 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
 	{ 0x0130e8, 0x2000f6, 0x3000fc },	/* PM_PTEG_RELOAD_VALID */
 	{ 0x080080, 0x10000d, 0x30000c, 0x4000f0 }, /* PM_LD_MISS_L1 */
 	{ 0x080088, 0x200054, 0x3000f0 },	/* PM_ST_MISS_L1 */
-	{ 0x10000a, 0x2000f4 },			/* PM_RUN_CYC */
+	{ 0x10000a, 0x2000f4, 0x600005 },	/* PM_RUN_CYC */
 	{ 0x10000b, 0x2000f5 },			/* PM_RUN_COUNT */
 	{ 0x10000e, 0x400010 },			/* PM_PURR */
 	{ 0x100010, 0x4000f8 },			/* PM_FLUSH */
@@ -340,13 +356,15 @@ static int find_alternatives_list(unsigned int event)
 	return -1;
 }
 
-static int p6_get_alternatives(unsigned int event, unsigned int alt[])
+static int p6_get_alternatives(unsigned int event, unsigned int flags,
+			       unsigned int alt[])
 {
-	int i, j;
+	int i, j, nlim;
 	unsigned int aevent, psel, pmc;
 	unsigned int nalt = 1;
 
 	alt[0] = event;
+	nlim = p6_limited_pmc_event(event);
 
 	/* check the alternatives table */
 	i = find_alternatives_list(event);
@@ -358,6 +376,7 @@ static int p6_get_alternatives(unsigned int event, unsigned int alt[])
 				break;
 			if (aevent != event)
 				alt[nalt++] = aevent;
+			nlim += p6_limited_pmc_event(aevent);
 		}
 
 	} else {
@@ -375,13 +394,75 @@ static int p6_get_alternatives(unsigned int event, unsigned int alt[])
 				((pmc > 2? pmc - 2: pmc + 2) << PM_PMC_SH);
 	}
 
+	if (flags & PPMU_ONLY_COUNT_RUN) {
+		/*
+		 * We're only counting in RUN state,
+		 * so PM_CYC is equivalent to PM_RUN_CYC,
+		 * PM_INST_CMPL === PM_RUN_INST_CMPL, PM_PURR === PM_RUN_PURR.
+		 * This doesn't include alternatives that don't provide
+		 * any extra flexibility in assigning PMCs (e.g.
+		 * 0x10000a for PM_RUN_CYC vs. 0x1e for PM_CYC).
+		 * Note that even with these additional alternatives
+		 * we never end up with more than 4 alternatives for any event.
+		 */
+		j = nalt;
+		for (i = 0; i < nalt; ++i) {
+			switch (alt[i]) {
+			case 0x1e:	/* PM_CYC */
+				alt[j++] = 0x600005;	/* PM_RUN_CYC */
+				++nlim;
+				break;
+			case 0x10000a:	/* PM_RUN_CYC */
+				alt[j++] = 0x1e;	/* PM_CYC */
+				break;
+			case 2:		/* PM_INST_CMPL */
+				alt[j++] = 0x500009;	/* PM_RUN_INST_CMPL */
+				++nlim;
+				break;
+			case 0x500009:	/* PM_RUN_INST_CMPL */
+				alt[j++] = 2;		/* PM_INST_CMPL */
+				break;
+			case 0x10000e:	/* PM_PURR */
+				alt[j++] = 0x4000f4;	/* PM_RUN_PURR */
+				break;
+			case 0x4000f4:	/* PM_RUN_PURR */
+				alt[j++] = 0x10000e;	/* PM_PURR */
+				break;
+			}
+		}
+		nalt = j;
+	}
+
+	if (!(flags & PPMU_LIMITED_PMC_OK) && nlim) {
+		/* remove the limited PMC events */
+		j = 0;
+		for (i = 0; i < nalt; ++i) {
+			if (!p6_limited_pmc_event(alt[i])) {
+				alt[j] = alt[i];
+				++j;
+			}
+		}
+		nalt = j;
+	} else if ((flags & PPMU_LIMITED_PMC_REQD) && nlim < nalt) {
+		/* remove all but the limited PMC events */
+		j = 0;
+		for (i = 0; i < nalt; ++i) {
+			if (p6_limited_pmc_event(alt[i])) {
+				alt[j] = alt[i];
+				++j;
+			}
+		}
+		nalt = j;
+	}
+
 	return nalt;
 }
 
 static void p6_disable_pmc(unsigned int pmc, u64 mmcr[])
 {
 	/* Set PMCxSEL to 0 to disable PMCx */
-	mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SH(pmc));
+	if (pmc <= 3)
+		mmcr[1] &= ~(0xffUL << MMCR1_PMCSEL_SH(pmc));
 }
 
 static int power6_generic_events[] = {
@@ -394,14 +475,16 @@ static int power6_generic_events[] = {
 };
 
 struct power_pmu power6_pmu = {
-	.n_counter = 4,
+	.n_counter = 6,
 	.max_alternatives = MAX_ALT,
-	.add_fields = 0x55,
-	.test_adder = 0,
+	.add_fields = 0x1555,
+	.test_adder = 0x3000,
 	.compute_mmcr = p6_compute_mmcr,
 	.get_constraint = p6_get_constraint,
 	.get_alternatives = p6_get_alternatives,
 	.disable_pmc = p6_disable_pmc,
 	.n_generic = ARRAY_SIZE(power6_generic_events),
 	.generic_events = power6_generic_events,
+	.limited_pmc5_6 = 1,
+	.limited_pmc_event = p6_limited_pmc_event,
 };
