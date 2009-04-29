@@ -2483,6 +2483,7 @@ config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
 	depends on CHELSIO_T3_DEPENDS
 	select FW_LOADER
+	select MDIO
 	help
 	  This driver supports Chelsio T3-based gigabit and 10Gb Ethernet
 	  adapters.
