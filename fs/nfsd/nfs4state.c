@@ -182,7 +182,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_file *fp = stp->st_file;
-	struct nfs4_callback *cb = &stp->st_stateowner->so_client->cl_callback;
+	struct nfs4_cb_conn *cb = &stp->st_stateowner->so_client->cl_cb_conn;
 
 	dprintk("NFSD alloc_init_deleg\n");
 	if (fp->fi_had_conflict)
@@ -633,19 +633,19 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 static void
 shutdown_callback_client(struct nfs4_client *clp)
 {
-	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
+	struct rpc_clnt *clnt = clp->cl_cb_conn.cb_client;
 
 	if (clnt) {
 		/*
 		 * Callback threads take a reference on the client, so there
 		 * should be no outstanding callbacks at this point.
 		 */
-		clp->cl_callback.cb_client = NULL;
+		clp->cl_cb_conn.cb_client = NULL;
 		rpc_shutdown_client(clnt);
 	}
-	if (clp->cl_callback.cb_cred) {
-		put_rpccred(clp->cl_callback.cb_cred);
-		clp->cl_callback.cb_cred = NULL;
+	if (clp->cl_cb_conn.cb_cred) {
+		put_rpccred(clp->cl_cb_conn.cb_cred);
+		clp->cl_cb_conn.cb_cred = NULL;
 	}
 }
 
@@ -719,7 +719,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir)
 		return NULL;
 	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
 	atomic_set(&clp->cl_count, 1);
-	atomic_set(&clp->cl_callback.cb_set, 0);
+	atomic_set(&clp->cl_cb_conn.cb_set, 0);
 	INIT_LIST_HEAD(&clp->cl_idhash);
 	INIT_LIST_HEAD(&clp->cl_strhash);
 	INIT_LIST_HEAD(&clp->cl_openowners);
@@ -971,7 +971,7 @@ parse_ipv4(unsigned int addr_len, char *addr_val, unsigned int *cbaddrp, unsigne
 static void
 gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se)
 {
-	struct nfs4_callback *cb = &clp->cl_callback;
+	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
 
 	/* Currently, we only support tcp for the callback channel */
 	if ((se->se_callback_netid_len != 3) || memcmp((char *)se->se_callback_netid_val, "tcp", 3))
@@ -1691,7 +1691,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		else {
 			/* XXX: We just turn off callbacks until we can handle
 			  * change request correctly. */
-			atomic_set(&conf->cl_callback.cb_set, 0);
+			atomic_set(&conf->cl_cb_conn.cb_set, 0);
 			expire_client(unconf);
 			status = nfs_ok;
 
@@ -2425,7 +2425,7 @@ nfs4_open_delegation(struct svc_fh *fh, struct nfsd4_open *open, struct nfs4_sta
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_stateowner *sop = stp->st_stateowner;
-	struct nfs4_callback *cb = &sop->so_client->cl_callback;
+	struct nfs4_cb_conn *cb = &sop->so_client->cl_cb_conn;
 	struct file_lock fl, *flp = &fl;
 	int status, flag = 0;
 
@@ -2617,7 +2617,7 @@ nfsd4_renew(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	renew_client(clp);
 	status = nfserr_cb_path_down;
 	if (!list_empty(&clp->cl_delegations)
-			&& !atomic_read(&clp->cl_callback.cb_set))
+			&& !atomic_read(&clp->cl_cb_conn.cb_set))
 		goto out;
 	status = nfs_ok;
 out:

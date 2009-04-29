@@ -369,7 +369,7 @@ static int max_cb_time(void)
 int setup_callback_client(struct nfs4_client *clp)
 {
 	struct sockaddr_in	addr;
-	struct nfs4_callback    *cb = &clp->cl_callback;
+	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
 	struct rpc_timeout	timeparms = {
 		.to_initval	= max_cb_time(),
 		.to_retries	= 0,
@@ -422,7 +422,7 @@ static void nfsd4_cb_probe_done(struct rpc_task *task, void *calldata)
 	if (task->tk_status)
 		warn_no_callback_path(clp, task->tk_status);
 	else
-		atomic_set(&clp->cl_callback.cb_set, 1);
+		atomic_set(&clp->cl_cb_conn.cb_set, 1);
 	put_nfs4_client(clp);
 }
 
@@ -430,7 +430,7 @@ static const struct rpc_call_ops nfsd4_cb_probe_ops = {
 	.rpc_call_done = nfsd4_cb_probe_done,
 };
 
-static struct rpc_cred *lookup_cb_cred(struct nfs4_callback *cb)
+static struct rpc_cred *lookup_cb_cred(struct nfs4_cb_conn *cb)
 {
 	struct auth_cred acred = {
 		.machine_cred = 1
@@ -448,7 +448,7 @@ static struct rpc_cred *lookup_cb_cred(struct nfs4_callback *cb)
 
 void do_probe_callback(struct nfs4_client *clp)
 {
-	struct nfs4_callback    *cb = &clp->cl_callback;
+	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
 	struct rpc_message msg = {
 		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
 		.rpc_argp       = clp,
@@ -480,7 +480,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 {
 	int status;
 
-	BUG_ON(atomic_read(&clp->cl_callback.cb_set));
+	BUG_ON(atomic_read(&clp->cl_cb_conn.cb_set));
 
 	status = setup_callback_client(clp);
 	if (status) {
@@ -501,12 +501,12 @@ void
 nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
 	struct nfs4_client *clp = dp->dl_client;
-	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
+	struct rpc_clnt *clnt = clp->cl_cb_conn.cb_client;
 	struct nfs4_cb_recall *cbr = &dp->dl_recall;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL],
 		.rpc_argp = cbr,
-		.rpc_cred = clp->cl_callback.cb_cred
+		.rpc_cred = clp->cl_cb_conn.cb_cred
 	};
 	int retries = 1;
 	int status = 0;
@@ -519,7 +519,7 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 		switch (status) {
 			case -EIO:
 				/* Network partition? */
-				atomic_set(&clp->cl_callback.cb_set, 0);
+				atomic_set(&clp->cl_cb_conn.cb_set, 0);
 			case -EBADHANDLE:
 			case -NFS4ERR_BAD_STATEID:
 				/* Race: client probably got cb_recall
