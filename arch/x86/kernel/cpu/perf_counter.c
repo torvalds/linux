@@ -28,8 +28,8 @@ static u64 perf_counter_mask __read_mostly;
 
 struct cpu_hw_counters {
 	struct perf_counter	*counters[X86_PMC_IDX_MAX];
-	unsigned long		used[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
-	unsigned long		active[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	unsigned long		used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
+	unsigned long		active_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		interrupts;
 	u64			throttle_ctrl;
 	int			enabled;
@@ -332,7 +332,7 @@ static u64 amd_pmu_save_disable_all(void)
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		u64 val;
 
-		if (!test_bit(idx, cpuc->active))
+		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 		rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
 		if (!(val & ARCH_PERFMON_EVENTSEL0_ENABLE))
@@ -373,7 +373,7 @@ static void amd_pmu_restore_all(u64 ctrl)
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		u64 val;
 
-		if (!test_bit(idx, cpuc->active))
+		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 		rdmsrl(MSR_K7_EVNTSEL0 + idx, val);
 		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE)
@@ -576,7 +576,7 @@ static int x86_pmu_enable(struct perf_counter *counter)
 		 * Try to get the fixed counter, if that is already taken
 		 * then try to get a generic counter:
 		 */
-		if (test_and_set_bit(idx, cpuc->used))
+		if (test_and_set_bit(idx, cpuc->used_mask))
 			goto try_generic;
 
 		hwc->config_base = MSR_ARCH_PERFMON_FIXED_CTR_CTRL;
@@ -590,14 +590,14 @@ static int x86_pmu_enable(struct perf_counter *counter)
 	} else {
 		idx = hwc->idx;
 		/* Try to get the previous generic counter again */
-		if (test_and_set_bit(idx, cpuc->used)) {
+		if (test_and_set_bit(idx, cpuc->used_mask)) {
 try_generic:
-			idx = find_first_zero_bit(cpuc->used,
+			idx = find_first_zero_bit(cpuc->used_mask,
 						  x86_pmu.num_counters);
 			if (idx == x86_pmu.num_counters)
 				return -EAGAIN;
 
-			set_bit(idx, cpuc->used);
+			set_bit(idx, cpuc->used_mask);
 			hwc->idx = idx;
 		}
 		hwc->config_base  = x86_pmu.eventsel;
@@ -609,7 +609,7 @@ try_generic:
 	x86_pmu.disable(hwc, idx);
 
 	cpuc->counters[idx] = counter;
-	set_bit(idx, cpuc->active);
+	set_bit(idx, cpuc->active_mask);
 
 	x86_perf_counter_set_period(counter, hwc, idx);
 	x86_pmu.enable(hwc, idx);
@@ -643,7 +643,7 @@ void perf_counter_print_debug(void)
 		pr_info("CPU#%d: overflow:   %016llx\n", cpu, overflow);
 		pr_info("CPU#%d: fixed:      %016llx\n", cpu, fixed);
 	}
-	pr_info("CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used);
+	pr_info("CPU#%d: used:       %016llx\n", cpu, *(u64 *)cpuc->used_mask);
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		rdmsrl(x86_pmu.eventsel + idx, pmc_ctrl);
@@ -677,7 +677,7 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	 * Must be done before we disable, otherwise the nmi handler
 	 * could reenable again:
 	 */
-	clear_bit(idx, cpuc->active);
+	clear_bit(idx, cpuc->active_mask);
 	x86_pmu.disable(hwc, idx);
 
 	/*
@@ -692,7 +692,7 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	 */
 	x86_perf_counter_update(counter, hwc, idx);
 	cpuc->counters[idx] = NULL;
-	clear_bit(idx, cpuc->used);
+	clear_bit(idx, cpuc->used_mask);
 }
 
 /*
@@ -741,7 +741,7 @@ again:
 		struct perf_counter *counter = cpuc->counters[bit];
 
 		clear_bit(bit, (unsigned long *) &status);
-		if (!test_bit(bit, cpuc->active))
+		if (!test_bit(bit, cpuc->active_mask))
 			continue;
 
 		intel_pmu_save_and_restart(counter);
@@ -779,7 +779,7 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 
 	++cpuc->interrupts;
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
-		if (!test_bit(idx, cpuc->active))
+		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 		counter = cpuc->counters[idx];
 		hwc = &counter->hw;
