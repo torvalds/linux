@@ -64,6 +64,37 @@ SECTIONS
         phys_startup_64 = startup_64 - LOAD_OFFSET;
 #endif
 
+	/* Text and read-only data */
+
+	/* bootstrapping code */
+	.text.head : AT(ADDR(.text.head) - LOAD_OFFSET) {
+		_text = .;
+		*(.text.head)
+	} :text = 0x9090
+
+	/* The rest of the text */
+	.text :  AT(ADDR(.text) - LOAD_OFFSET) {
+#ifdef CONFIG_X86_32
+		/* not really needed, already page aligned */
+		. = ALIGN(PAGE_SIZE);
+		*(.text.page_aligned)
+#endif
+		. = ALIGN(8);
+		_stext = .;
+		TEXT_TEXT
+		SCHED_TEXT
+		LOCK_TEXT
+		KPROBES_TEXT
+		IRQENTRY_TEXT
+		*(.fixup)
+		*(.gnu.warning)
+		/* End of text section */
+		_etext = .;
+	} :text = 0x9090
+
+	NOTES :text :note
+
+
 #ifdef CONFIG_X86_32
 # include "vmlinux_32.lds.S"
 #else

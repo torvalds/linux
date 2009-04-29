@@ -1,23 +1,3 @@
-	/* Text and read-only data */
-	.text :  AT(ADDR(.text) - LOAD_OFFSET) {
-		_text = .;
-		/* First the code that has to be first for bootstrapping */
-		*(.text.head)
-		_stext = .;
-		/* Then the rest */
-		TEXT_TEXT
-		SCHED_TEXT
-		LOCK_TEXT
-		KPROBES_TEXT
-		IRQENTRY_TEXT
-		*(.fixup)
-		*(.gnu.warning)
-		/* End of text section */
-		_etext = .;
-	} :text = 0x9090
-
-	NOTES :text :note
-
 	/* Exception table */
 	. = ALIGN(16);
 	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {

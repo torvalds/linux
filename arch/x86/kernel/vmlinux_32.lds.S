@@ -1,27 +1,3 @@
-	/* Text and read-only data */
-	.text.head : AT(ADDR(.text.head) - LOAD_OFFSET) {
-		_text = .;
-		*(.text.head)
-	} :text = 0x9090
-
-	/* read-only */
-	.text : AT(ADDR(.text) - LOAD_OFFSET) {
-		/* not really needed, already page aligned */
-		. = ALIGN(PAGE_SIZE);
-		*(.text.page_aligned)
-		TEXT_TEXT
-		SCHED_TEXT
-		LOCK_TEXT
-		KPROBES_TEXT
-		IRQENTRY_TEXT
-		*(.fixup)
-		*(.gnu.warning)
-		/* End of text section */
-		_etext = .;
-	} :text = 0x9090
-
-	NOTES :text :note
-
 	/* Exception table */
 	. = ALIGN(16);
 	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
