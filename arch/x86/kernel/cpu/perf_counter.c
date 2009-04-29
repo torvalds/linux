@@ -949,6 +949,9 @@ static struct pmc_x86_ops *pmc_intel_init(void)
 	unsigned int unused;
 	unsigned int ebx;
 
+	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
+		return NULL;
+
 	/*
 	 * Check whether the Architectural PerfMon supports
 	 * Branch Misses Retired Event or not.
@@ -987,9 +990,6 @@ static struct pmc_x86_ops *pmc_amd_init(void)
 
 void __init init_hw_perf_counters(void)
 {
-	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
-		return;
-
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
 		pmc_ops = pmc_intel_init();
