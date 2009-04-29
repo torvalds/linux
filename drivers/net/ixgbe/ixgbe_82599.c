@@ -314,14 +314,13 @@ static s32 ixgbe_get_copper_link_capabilities_82599(struct ixgbe_hw *hw,
 	*speed = 0;
 	*autoneg = true;
 
-	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_PHY_SPEED_ABILITY,
-	                              IXGBE_MDIO_PMA_PMD_DEV_TYPE,
+	status = hw->phy.ops.read_reg(hw, MDIO_SPEED, MDIO_MMD_PMAPMD,
 	                              &speed_ability);
 
 	if (status == 0) {
-		if (speed_ability & IXGBE_MDIO_PHY_SPEED_10G)
+		if (speed_ability & MDIO_SPEED_10G)
 		    *speed |= IXGBE_LINK_SPEED_10GB_FULL;
-		if (speed_ability & IXGBE_MDIO_PHY_SPEED_1G)
+		if (speed_ability & MDIO_PMA_SPEED_1000)
 		    *speed |= IXGBE_LINK_SPEED_1GB_FULL;
 	}
 
@@ -1153,13 +1152,13 @@ u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 
 	if (hw->phy.type == ixgbe_phy_tn ||
 	    hw->phy.type == ixgbe_phy_cu_unknown) {
-		hw->phy.ops.read_reg(hw, IXGBE_MDIO_PHY_EXT_ABILITY,
-		IXGBE_MDIO_PMA_PMD_DEV_TYPE, &ext_ability);
-		if (ext_ability & IXGBE_MDIO_PHY_10GBASET_ABILITY)
+		hw->phy.ops.read_reg(hw, MDIO_PMA_EXTABLE, MDIO_MMD_PMAPMD,
+				     &ext_ability);
+		if (ext_ability & MDIO_PMA_EXTABLE_10GBT)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_10GBASE_T;
-		if (ext_ability & IXGBE_MDIO_PHY_1000BASET_ABILITY)
+		if (ext_ability & MDIO_PMA_EXTABLE_1000BT)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_1000BASE_T;
-		if (ext_ability & IXGBE_MDIO_PHY_100BASETX_ABILITY)
+		if (ext_ability & MDIO_PMA_EXTABLE_100BTX)
 			physical_layer |= IXGBE_PHYSICAL_LAYER_100BASE_TX;
 		goto out;
 	}

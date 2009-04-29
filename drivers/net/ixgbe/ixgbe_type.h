@@ -29,6 +29,7 @@
 #define _IXGBE_TYPE_H_
 
 #include <linux/types.h>
+#include <linux/mdio.h>
 
 /* Vendor ID */
 #define IXGBE_INTEL_VENDOR_ID   0x8086
@@ -848,13 +849,7 @@
 /* Omer bit masks */
 #define IXGBE_CORECTL_WRITE_CMD         0x00010000
 
-/* Device Type definitions for new protocol MDIO commands */
-#define IXGBE_MDIO_PMA_PMD_DEV_TYPE               0x1
-#define IXGBE_MDIO_PCS_DEV_TYPE                   0x3
-#define IXGBE_MDIO_PHY_XS_DEV_TYPE                0x4
-#define IXGBE_MDIO_AUTO_NEG_DEV_TYPE              0x7
-#define IXGBE_MDIO_VENDOR_SPECIFIC_1_DEV_TYPE     0x1E   /* Device 30 */
-#define IXGBE_TWINAX_DEV                          1
+/* MDIO definitions */
 
 #define IXGBE_MDIO_COMMAND_TIMEOUT     100 /* PHY Timeout for 1 GB mode */
 
@@ -865,31 +860,9 @@
 #define IXGBE_MDIO_VENDOR_SPECIFIC_1_10G_SPEED    0x0018
 #define IXGBE_MDIO_VENDOR_SPECIFIC_1_1G_SPEED     0x0010
 
-#define IXGBE_MDIO_AUTO_NEG_CONTROL    0x0 /* AUTO_NEG Control Reg */
-#define IXGBE_MDIO_AUTO_NEG_STATUS     0x1 /* AUTO_NEG Status Reg */
-#define IXGBE_MDIO_PHY_XS_CONTROL      0x0 /* PHY_XS Control Reg */
-#define IXGBE_MDIO_PHY_XS_RESET        0x8000 /* PHY_XS Reset */
-#define IXGBE_MDIO_PHY_ID_HIGH         0x2 /* PHY ID High Reg*/
-#define IXGBE_MDIO_PHY_ID_LOW          0x3 /* PHY ID Low Reg*/
-#define IXGBE_MDIO_PHY_SPEED_ABILITY   0x4 /* Speed Ability Reg */
-#define IXGBE_MDIO_PHY_SPEED_10G       0x0001 /* 10G capable */
-#define IXGBE_MDIO_PHY_SPEED_1G        0x0010 /* 1G capable */
-#define IXGBE_MDIO_PHY_EXT_ABILITY        0xB /* Ext Ability Reg */
-#define IXGBE_MDIO_PHY_10GBASET_ABILITY   0x0004 /* 10GBaseT capable */
-#define IXGBE_MDIO_PHY_1000BASET_ABILITY  0x0020 /* 1000BaseT capable */
-#define IXGBE_MDIO_PHY_100BASETX_ABILITY  0x0080 /* 100BaseTX capable */
-
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_ADDR     0xC30A /* PHY_XS SDA/SCL Addr Reg */
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_DATA     0xC30B /* PHY_XS SDA/SCL Data Reg */
 #define IXGBE_MDIO_PMA_PMD_SDA_SCL_STAT     0xC30C /* PHY_XS SDA/SCL Status Reg */
-
-/* MII clause 22/28 definitions */
-#define IXGBE_MDIO_PHY_LOW_POWER_MODE  0x0800
-
-#define IXGBE_MII_SPEED_SELECTION_REG  0x10
-#define IXGBE_MII_RESTART              0x200
-#define IXGBE_MII_AUTONEG_COMPLETE     0x20
-#define IXGBE_MII_AUTONEG_REG          0x0
 
 #define IXGBE_PHY_REVISION_MASK        0xFFFFFFF0
 #define IXGBE_MAX_PHY_ADDR             32
@@ -2214,8 +2187,8 @@ struct ixgbe_mac_info {
 
 struct ixgbe_phy_info {
 	struct ixgbe_phy_operations     ops;
+	struct mdio_if_info		mdio;
 	enum ixgbe_phy_type             type;
-	u32                             addr;
 	u32                             id;
 	enum ixgbe_sfp_type             sfp_type;
 	bool                            sfp_setup_needed;

@@ -4642,6 +4642,40 @@ static int ixgbe_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
+static int
+ixgbe_mdio_read(struct net_device *netdev, int prtad, int devad, u16 addr)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u16 value;
+	int rc;
+
+	if (prtad != hw->phy.mdio.prtad)
+		return -EINVAL;
+	rc = hw->phy.ops.read_reg(hw, addr, devad, &value);
+	if (!rc)
+		rc = value;
+	return rc;
+}
+
+static int ixgbe_mdio_write(struct net_device *netdev, int prtad, int devad,
+			    u16 addr, u16 value)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	if (prtad != hw->phy.mdio.prtad)
+		return -EINVAL;
+	return hw->phy.ops.write_reg(hw, addr, devad, value);
+}
+
+static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
@@ -4675,6 +4709,7 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_vlan_rx_register	= ixgbe_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= ixgbe_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgbe_vlan_rx_kill_vid,
+	.ndo_do_ioctl		= ixgbe_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbe_netpoll,
 #endif
@@ -4789,6 +4824,13 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	/* PHY */
 	memcpy(&hw->phy.ops, ii->phy_ops, sizeof(hw->phy.ops));
 	hw->phy.sfp_type = ixgbe_sfp_type_unknown;
+	/* ixgbe_identify_phy_generic will set prtad and mmds properly */
+	hw->phy.mdio.prtad = MDIO_PRTAD_NONE;
+	hw->phy.mdio.mmds = 0;
+	hw->phy.mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
+	hw->phy.mdio.dev = netdev;
+	hw->phy.mdio.mdio_read = ixgbe_mdio_read;
+	hw->phy.mdio.mdio_write = ixgbe_mdio_write;
 
 	/* set up this timer and work struct before calling get_invariants
 	 * which might start the timer
