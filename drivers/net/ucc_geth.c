@@ -270,7 +270,7 @@ static int fill_init_enet_entries(struct ucc_geth_private *ugeth,
 				  u8 num_entries,
 				  u32 thread_size,
 				  u32 thread_alignment,
-				  enum qe_risc_allocation risc,
+				  unsigned int risc,
 				  int skip_page_for_first_entry)
 {
 	u32 init_enet_offset;
@@ -307,7 +307,7 @@ static int fill_init_enet_entries(struct ucc_geth_private *ugeth,
 static int return_init_enet_entries(struct ucc_geth_private *ugeth,
 				    u32 *p_start,
 				    u8 num_entries,
-				    enum qe_risc_allocation risc,
+				    unsigned int risc,
 				    int skip_page_for_first_entry)
 {
 	u32 init_enet_offset;
@@ -342,7 +342,7 @@ static int dump_init_enet_entries(struct ucc_geth_private *ugeth,
 				  u32 __iomem *p_start,
 				  u8 num_entries,
 				  u32 thread_size,
-				  enum qe_risc_allocation risc,
+				  unsigned int risc,
 				  int skip_page_for_first_entry)
 {
 	u32 init_enet_offset;
@@ -2133,6 +2133,14 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 		if (netif_msg_probe(ugeth))
 			ugeth_err("%s: Failed to init uccf.", __func__);
 		return -ENOMEM;
+	}
+
+	/* read the number of risc engines, update the riscTx and riscRx
+	 * if there are 4 riscs in QE
+	 */
+	if (qe_get_num_of_risc() == 4) {
+		ug_info->riscTx = QE_RISC_ALLOCATION_FOUR_RISCS;
+		ug_info->riscRx = QE_RISC_ALLOCATION_FOUR_RISCS;
 	}
 
 	ugeth->ug_regs = ioremap(uf_info->regs, sizeof(*ugeth->ug_regs));
