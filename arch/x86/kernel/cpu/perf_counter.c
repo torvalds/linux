@@ -1002,7 +1002,7 @@ void __init init_hw_perf_counters(void)
 	register_die_notifier(&perf_counter_nmi_notifier);
 }
 
-static void x86_pmu_read(struct perf_counter *counter)
+static inline void x86_pmu_read(struct perf_counter *counter)
 {
 	x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
 }
