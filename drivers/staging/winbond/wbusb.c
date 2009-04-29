@@ -264,14 +264,6 @@ static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 	return 0;
 }
 
-static int wbsoft_config_interface(struct ieee80211_hw *dev,
-				   struct ieee80211_vif *vif,
-				   struct ieee80211_if_conf *conf)
-{
-	printk("wbsoft_config_interface called\n");
-	return 0;
-}
-
 static u64 wbsoft_get_tsf(struct ieee80211_hw *dev)
 {
 	printk("wbsoft_get_tsf called\n");
@@ -285,7 +277,6 @@ static const struct ieee80211_ops wbsoft_ops = {
 	.add_interface		= wbsoft_add_interface,
 	.remove_interface	= wbsoft_remove_interface,
 	.config			= wbsoft_config,
-	.config_interface	= wbsoft_config_interface,
 	.configure_filter	= wbsoft_configure_filter,
 	.get_stats		= wbsoft_get_stats,
 	.get_tx_stats		= wbsoft_get_tx_stats,
