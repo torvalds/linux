@@ -234,9 +234,9 @@ static irqreturn_t mxc_timer_interrupt(int irq, void *dev_id)
 	uint32_t tstat;
 
 	if (cpu_is_mx3())
-		tstat = __raw_readl(timer_base + MX1_2_TSTAT);
-	else
 		tstat = __raw_readl(timer_base + MX3_TSTAT);
+	else
+		tstat = __raw_readl(timer_base + MX1_2_TSTAT);
 
 	gpt_irq_acknowledge();
 
