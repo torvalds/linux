@@ -359,12 +359,34 @@ SECTIONS
 	/* use another section data.init2, see PERCPU_VADDR() above */
 #endif
 
+	/* BSS */
+	. = ALIGN(PAGE_SIZE);
+	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
+		__bss_start = .;
+		*(.bss.page_aligned)
+		*(.bss)
+		. = ALIGN(4);
+		__bss_stop = .;
+	}
 
-#ifdef CONFIG_X86_32
-# include "vmlinux_32.lds.S"
-#else
-# include "vmlinux_64.lds.S"
-#endif
+	. = ALIGN(PAGE_SIZE);
+	.brk : AT(ADDR(.brk) - LOAD_OFFSET) {
+		__brk_base = .;
+		. += 64 * 1024;		/* 64k alignment slop space */
+		*(.brk_reservation)	/* areas brk users have reserved */
+		__brk_limit = .;
+	}
+
+	.end : AT(ADDR(.end) - LOAD_OFFSET) {
+		_end = .;
+	}
+
+	/* Sections to be discarded */
+	/DISCARD/ : {
+		*(.exitcall.exit)
+		*(.eh_frame)
+		*(.discard)
+	}
 
         STABS_DEBUG
         DWARF_DEBUG
