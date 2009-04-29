@@ -509,10 +509,10 @@ static void sierra_indat_callback(struct urb *urb)
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 
-	dbg("%s: %p", __func__, urb);
-
 	endpoint = usb_pipeendpoint(urb->pipe);
-	port =  urb->context;
+	port = urb->context;
+
+	dev_dbg(&port->dev, "%s: %p\n", __func__, urb);
 
 	if (status) {
 		dev_dbg(&port->dev, "%s: nonzero status: %d on"
@@ -520,22 +520,28 @@ static void sierra_indat_callback(struct urb *urb)
 	} else {
 		if (urb->actual_length) {
 			tty = tty_port_tty_get(&port->port);
+
 			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
+
 			tty_kref_put(tty);
-		} else
+			usb_serial_debug_data(debug, &port->dev, __func__,
+				urb->actual_length, data);
+		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"
 				" received\n", __func__);
-
-		/* Resubmit urb so we continue receiving */
-		if (port->port.count && status != -ESHUTDOWN && status != -EPERM) {
-			err = usb_submit_urb(urb, GFP_ATOMIC);
-			if (err)
-				dev_err(&port->dev, "resubmit read urb failed."
-					"(%d)\n", err);
 		}
 	}
+
+	/* Resubmit urb so we continue receiving */
+	if (port->port.count && status != -ESHUTDOWN && status != -EPERM) {
+		err = usb_submit_urb(urb, GFP_ATOMIC);
+		if (err)
+			dev_err(&port->dev, "resubmit read urb failed."
+				"(%d)\n", err);
+	}
+
 	return;
 }
 
