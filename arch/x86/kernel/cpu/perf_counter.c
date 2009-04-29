@@ -515,8 +515,8 @@ __pmc_fixed_disable(struct perf_counter *counter,
 }
 
 static inline void
-__pmc_generic_disable(struct perf_counter *counter,
-			   struct hw_perf_counter *hwc, unsigned int idx)
+__x86_pmu_disable(struct perf_counter *counter,
+		  struct hw_perf_counter *hwc, unsigned int idx)
 {
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
 		__pmc_fixed_disable(counter, hwc, idx);
@@ -591,8 +591,8 @@ __pmc_fixed_enable(struct perf_counter *counter,
 }
 
 static void
-__pmc_generic_enable(struct perf_counter *counter,
-			  struct hw_perf_counter *hwc, int idx)
+__x86_pmu_enable(struct perf_counter *counter,
+		 struct hw_perf_counter *hwc, int idx)
 {
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
 		__pmc_fixed_enable(counter, hwc, idx);
@@ -626,7 +626,7 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 /*
  * Find a PMC slot for the freshly enabled / scheduled in counter:
  */
-static int pmc_generic_enable(struct perf_counter *counter)
+static int x86_pmu_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
@@ -667,7 +667,7 @@ try_generic:
 
 	perf_counters_lapic_init(hwc->nmi);
 
-	__pmc_generic_disable(counter, hwc, idx);
+	__x86_pmu_disable(counter, hwc, idx);
 
 	cpuc->counters[idx] = counter;
 	/*
@@ -676,7 +676,7 @@ try_generic:
 	barrier();
 
 	__hw_perf_counter_set_period(counter, hwc, idx);
-	__pmc_generic_enable(counter, hwc, idx);
+	__x86_pmu_enable(counter, hwc, idx);
 
 	return 0;
 }
@@ -731,13 +731,13 @@ void perf_counter_print_debug(void)
 	local_irq_enable();
 }
 
-static void pmc_generic_disable(struct perf_counter *counter)
+static void x86_pmu_disable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
 	unsigned int idx = hwc->idx;
 
-	__pmc_generic_disable(counter, hwc, idx);
+	__x86_pmu_disable(counter, hwc, idx);
 
 	clear_bit(idx, cpuc->used);
 	cpuc->counters[idx] = NULL;
@@ -767,7 +767,7 @@ static void perf_save_and_restart(struct perf_counter *counter)
 	__hw_perf_counter_set_period(counter, hwc, idx);
 
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
-		__pmc_generic_enable(counter, hwc, idx);
+		__x86_pmu_enable(counter, hwc, idx);
 }
 
 /*
@@ -805,7 +805,7 @@ again:
 
 		perf_save_and_restart(counter);
 		if (perf_counter_overflow(counter, nmi, regs, 0))
-			__pmc_generic_disable(counter, &counter->hw, bit);
+			__x86_pmu_disable(counter, &counter->hw, bit);
 	}
 
 	hw_perf_ack_status(ack);
@@ -1034,19 +1034,18 @@ void __init init_hw_perf_counters(void)
 	register_die_notifier(&perf_counter_nmi_notifier);
 }
 
-static void pmc_generic_read(struct perf_counter *counter)
+static void x86_pmu_read(struct perf_counter *counter)
 {
 	x86_perf_counter_update(counter, &counter->hw, counter->hw.idx);
 }
 
-static const struct hw_perf_counter_ops x86_perf_counter_ops = {
-	.enable		= pmc_generic_enable,
-	.disable	= pmc_generic_disable,
-	.read		= pmc_generic_read,
+static const struct pmu pmu = {
+	.enable		= x86_pmu_enable,
+	.disable	= x86_pmu_disable,
+	.read		= x86_pmu_read,
 };
 
-const struct hw_perf_counter_ops *
-hw_perf_counter_init(struct perf_counter *counter)
+const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 {
 	int err;
 
@@ -1054,7 +1053,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 	if (err)
 		return ERR_PTR(err);
 
-	return &x86_perf_counter_ops;
+	return &pmu;
 }
 
 /*

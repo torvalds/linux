@@ -52,8 +52,7 @@ static DEFINE_MUTEX(perf_resource_mutex);
 /*
  * Architecture provided APIs - weak aliases:
  */
-extern __weak const struct hw_perf_counter_ops *
-hw_perf_counter_init(struct perf_counter *counter)
+extern __weak const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 {
 	return NULL;
 }
@@ -124,7 +123,7 @@ counter_sched_out(struct perf_counter *counter,
 
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
 	counter->tstamp_stopped = ctx->time;
-	counter->hw_ops->disable(counter);
+	counter->pmu->disable(counter);
 	counter->oncpu = -1;
 
 	if (!is_software_counter(counter))
@@ -417,7 +416,7 @@ counter_sched_in(struct perf_counter *counter,
 	 */
 	smp_wmb();
 
-	if (counter->hw_ops->enable(counter)) {
+	if (counter->pmu->enable(counter)) {
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
 		counter->oncpu = -1;
 		return -EAGAIN;
@@ -1096,7 +1095,7 @@ static void __read(void *info)
 	local_irq_save(flags);
 	if (ctx->is_active)
 		update_context_time(ctx);
-	counter->hw_ops->read(counter);
+	counter->pmu->read(counter);
 	update_counter_times(counter);
 	local_irq_restore(flags);
 }
@@ -1922,7 +1921,7 @@ static void perf_counter_output(struct perf_counter *counter,
 		leader = counter->group_leader;
 		list_for_each_entry(sub, &leader->sibling_list, list_entry) {
 			if (sub != counter)
-				sub->hw_ops->read(sub);
+				sub->pmu->read(sub);
 
 			group_entry.event = sub->hw_event.config;
 			group_entry.counter = atomic64_read(&sub->count);
@@ -2264,7 +2263,7 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 	struct pt_regs *regs;
 
 	counter	= container_of(hrtimer, struct perf_counter, hw.hrtimer);
-	counter->hw_ops->read(counter);
+	counter->pmu->read(counter);
 
 	regs = get_irq_regs();
 	/*
@@ -2410,7 +2409,7 @@ static void perf_swcounter_disable(struct perf_counter *counter)
 	perf_swcounter_update(counter);
 }
 
-static const struct hw_perf_counter_ops perf_ops_generic = {
+static const struct pmu perf_ops_generic = {
 	.enable		= perf_swcounter_enable,
 	.disable	= perf_swcounter_disable,
 	.read		= perf_swcounter_read,
@@ -2460,7 +2459,7 @@ static void cpu_clock_perf_counter_read(struct perf_counter *counter)
 	cpu_clock_perf_counter_update(counter);
 }
 
-static const struct hw_perf_counter_ops perf_ops_cpu_clock = {
+static const struct pmu perf_ops_cpu_clock = {
 	.enable		= cpu_clock_perf_counter_enable,
 	.disable	= cpu_clock_perf_counter_disable,
 	.read		= cpu_clock_perf_counter_read,
@@ -2522,7 +2521,7 @@ static void task_clock_perf_counter_read(struct perf_counter *counter)
 	task_clock_perf_counter_update(counter, time);
 }
 
-static const struct hw_perf_counter_ops perf_ops_task_clock = {
+static const struct pmu perf_ops_task_clock = {
 	.enable		= task_clock_perf_counter_enable,
 	.disable	= task_clock_perf_counter_disable,
 	.read		= task_clock_perf_counter_read,
@@ -2574,7 +2573,7 @@ static void cpu_migrations_perf_counter_disable(struct perf_counter *counter)
 	cpu_migrations_perf_counter_update(counter);
 }
 
-static const struct hw_perf_counter_ops perf_ops_cpu_migrations = {
+static const struct pmu perf_ops_cpu_migrations = {
 	.enable		= cpu_migrations_perf_counter_enable,
 	.disable	= cpu_migrations_perf_counter_disable,
 	.read		= cpu_migrations_perf_counter_read,
@@ -2600,8 +2599,7 @@ static void tp_perf_counter_destroy(struct perf_counter *counter)
 	ftrace_profile_disable(perf_event_id(&counter->hw_event));
 }
 
-static const struct hw_perf_counter_ops *
-tp_perf_counter_init(struct perf_counter *counter)
+static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 {
 	int event_id = perf_event_id(&counter->hw_event);
 	int ret;
@@ -2616,18 +2614,16 @@ tp_perf_counter_init(struct perf_counter *counter)
 	return &perf_ops_generic;
 }
 #else
-static const struct hw_perf_counter_ops *
-tp_perf_counter_init(struct perf_counter *counter)
+static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 {
 	return NULL;
 }
 #endif
 
-static const struct hw_perf_counter_ops *
-sw_perf_counter_init(struct perf_counter *counter)
+static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 {
 	struct perf_counter_hw_event *hw_event = &counter->hw_event;
-	const struct hw_perf_counter_ops *hw_ops = NULL;
+	const struct pmu *pmu = NULL;
 	struct hw_perf_counter *hwc = &counter->hw;
 
 	/*
@@ -2639,7 +2635,7 @@ sw_perf_counter_init(struct perf_counter *counter)
 	 */
 	switch (perf_event_id(&counter->hw_event)) {
 	case PERF_COUNT_CPU_CLOCK:
-		hw_ops = &perf_ops_cpu_clock;
+		pmu = &perf_ops_cpu_clock;
 
 		if (hw_event->irq_period && hw_event->irq_period < 10000)
 			hw_event->irq_period = 10000;
@@ -2650,9 +2646,9 @@ sw_perf_counter_init(struct perf_counter *counter)
 		 * use the cpu_clock counter instead.
 		 */
 		if (counter->ctx->task)
-			hw_ops = &perf_ops_task_clock;
+			pmu = &perf_ops_task_clock;
 		else
-			hw_ops = &perf_ops_cpu_clock;
+			pmu = &perf_ops_cpu_clock;
 
 		if (hw_event->irq_period && hw_event->irq_period < 10000)
 			hw_event->irq_period = 10000;
@@ -2661,18 +2657,18 @@ sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_PAGE_FAULTS_MIN:
 	case PERF_COUNT_PAGE_FAULTS_MAJ:
 	case PERF_COUNT_CONTEXT_SWITCHES:
-		hw_ops = &perf_ops_generic;
+		pmu = &perf_ops_generic;
 		break;
 	case PERF_COUNT_CPU_MIGRATIONS:
 		if (!counter->hw_event.exclude_kernel)
-			hw_ops = &perf_ops_cpu_migrations;
+			pmu = &perf_ops_cpu_migrations;
 		break;
 	}
 
-	if (hw_ops)
+	if (pmu)
 		hwc->irq_period = hw_event->irq_period;
 
-	return hw_ops;
+	return pmu;
 }
 
 /*
@@ -2685,7 +2681,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		   struct perf_counter *group_leader,
 		   gfp_t gfpflags)
 {
-	const struct hw_perf_counter_ops *hw_ops;
+	const struct pmu *pmu;
 	struct perf_counter *counter;
 	long err;
 
@@ -2713,46 +2709,46 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	counter->cpu			= cpu;
 	counter->hw_event		= *hw_event;
 	counter->group_leader		= group_leader;
-	counter->hw_ops			= NULL;
+	counter->pmu			= NULL;
 	counter->ctx			= ctx;
 
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
 	if (hw_event->disabled)
 		counter->state = PERF_COUNTER_STATE_OFF;
 
-	hw_ops = NULL;
+	pmu = NULL;
 
 	if (perf_event_raw(hw_event)) {
-		hw_ops = hw_perf_counter_init(counter);
+		pmu = hw_perf_counter_init(counter);
 		goto done;
 	}
 
 	switch (perf_event_type(hw_event)) {
 	case PERF_TYPE_HARDWARE:
-		hw_ops = hw_perf_counter_init(counter);
+		pmu = hw_perf_counter_init(counter);
 		break;
 
 	case PERF_TYPE_SOFTWARE:
-		hw_ops = sw_perf_counter_init(counter);
+		pmu = sw_perf_counter_init(counter);
 		break;
 
 	case PERF_TYPE_TRACEPOINT:
-		hw_ops = tp_perf_counter_init(counter);
+		pmu = tp_perf_counter_init(counter);
 		break;
 	}
 done:
 	err = 0;
-	if (!hw_ops)
+	if (!pmu)
 		err = -EINVAL;
-	else if (IS_ERR(hw_ops))
-		err = PTR_ERR(hw_ops);
+	else if (IS_ERR(pmu))
+		err = PTR_ERR(pmu);
 
 	if (err) {
 		kfree(counter);
 		return ERR_PTR(err);
 	}
 
-	counter->hw_ops = hw_ops;
+	counter->pmu = pmu;
 
 	if (counter->hw_event.mmap)
 		atomic_inc(&nr_mmap_tracking);

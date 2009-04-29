@@ -256,7 +256,7 @@ static int check_excludes(struct perf_counter **ctrs, int n_prev, int n_new)
 	return 0;
 }
 
-static void power_perf_read(struct perf_counter *counter)
+static void power_pmu_read(struct perf_counter *counter)
 {
 	long val, delta, prev;
 
@@ -405,7 +405,7 @@ void hw_perf_restore(u64 disable)
 	for (i = 0; i < cpuhw->n_counters; ++i) {
 		counter = cpuhw->counter[i];
 		if (counter->hw.idx && counter->hw.idx != hwc_index[i] + 1) {
-			power_perf_read(counter);
+			power_pmu_read(counter);
 			write_pmc(counter->hw.idx, 0);
 			counter->hw.idx = 0;
 		}
@@ -477,7 +477,7 @@ static void counter_sched_in(struct perf_counter *counter, int cpu)
 	counter->oncpu = cpu;
 	counter->tstamp_running += counter->ctx->time - counter->tstamp_stopped;
 	if (is_software_counter(counter))
-		counter->hw_ops->enable(counter);
+		counter->pmu->enable(counter);
 }
 
 /*
@@ -533,7 +533,7 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
  * re-enable the PMU in order to get hw_perf_restore to do the
  * actual work of reconfiguring the PMU.
  */
-static int power_perf_enable(struct perf_counter *counter)
+static int power_pmu_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuhw;
 	unsigned long flags;
@@ -573,7 +573,7 @@ static int power_perf_enable(struct perf_counter *counter)
 /*
  * Remove a counter from the PMU.
  */
-static void power_perf_disable(struct perf_counter *counter)
+static void power_pmu_disable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuhw;
 	long i;
@@ -583,7 +583,7 @@ static void power_perf_disable(struct perf_counter *counter)
 	local_irq_save(flags);
 	pmudis = hw_perf_save_disable();
 
-	power_perf_read(counter);
+	power_pmu_read(counter);
 
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 	for (i = 0; i < cpuhw->n_counters; ++i) {
@@ -607,10 +607,10 @@ static void power_perf_disable(struct perf_counter *counter)
 	local_irq_restore(flags);
 }
 
-struct hw_perf_counter_ops power_perf_ops = {
-	.enable = power_perf_enable,
-	.disable = power_perf_disable,
-	.read = power_perf_read
+struct pmu power_pmu = {
+	.enable		= power_pmu_enable,
+	.disable	= power_pmu_disable,
+	.read		= power_pmu_read,
 };
 
 /* Number of perf_counters counting hardware events */
@@ -631,8 +631,7 @@ static void hw_perf_counter_destroy(struct perf_counter *counter)
 	}
 }
 
-const struct hw_perf_counter_ops *
-hw_perf_counter_init(struct perf_counter *counter)
+const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 {
 	unsigned long ev;
 	struct perf_counter *ctrs[MAX_HWCOUNTERS];
@@ -705,7 +704,7 @@ hw_perf_counter_init(struct perf_counter *counter)
 
 	if (err)
 		return ERR_PTR(err);
-	return &power_perf_ops;
+	return &power_pmu;
 }
 
 /*

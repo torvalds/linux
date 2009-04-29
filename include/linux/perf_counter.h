@@ -334,9 +334,9 @@ struct hw_perf_counter {
 struct perf_counter;
 
 /**
- * struct hw_perf_counter_ops - performance counter hw ops
+ * struct pmu - generic performance monitoring unit
  */
-struct hw_perf_counter_ops {
+struct pmu {
 	int (*enable)			(struct perf_counter *counter);
 	void (*disable)			(struct perf_counter *counter);
 	void (*read)			(struct perf_counter *counter);
@@ -381,7 +381,7 @@ struct perf_counter {
 	struct list_head		sibling_list;
 	int 				nr_siblings;
 	struct perf_counter		*group_leader;
-	const struct hw_perf_counter_ops *hw_ops;
+	const struct pmu		*pmu;
 
 	enum perf_counter_active_state	state;
 	enum perf_counter_active_state	prev_state;
@@ -519,8 +519,7 @@ struct perf_cpu_context {
  */
 extern int perf_max_counters;
 
-extern const struct hw_perf_counter_ops *
-hw_perf_counter_init(struct perf_counter *counter);
+extern const struct pmu *hw_perf_counter_init(struct perf_counter *counter);
 
 extern void perf_counter_task_sched_in(struct task_struct *task, int cpu);
 extern void perf_counter_task_sched_out(struct task_struct *task, int cpu);
