@@ -240,10 +240,6 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	struct hw_perf_counter *hwc = &counter->hw;
 	int err;
 
-	/* disable temporarily */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
-		return -ENOSYS;
-
 	if (!x86_pmu_initialized())
 		return -ENODEV;
 
@@ -773,16 +769,49 @@ out:
 	return ret;
 }
 
-static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi) { return 0; }
+static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
+{
+	int cpu = smp_processor_id();
+	struct cpu_hw_counters *cpuc = &per_cpu(cpu_hw_counters, cpu);
+	u64 val;
+	int handled = 0;
+	struct perf_counter *counter;
+	struct hw_perf_counter *hwc;
+	int idx;
+
+	++cpuc->interrupts;
+	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+		if (!test_bit(idx, cpuc->active))
+			continue;
+		counter = cpuc->counters[idx];
+		hwc = &counter->hw;
+		x86_perf_counter_update(counter, hwc, idx);
+		val = atomic64_read(&hwc->prev_count);
+		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
+			continue;
+		/* counter overflow */
+		x86_perf_counter_set_period(counter, hwc, idx);
+		handled = 1;
+		inc_irq_stat(apic_perf_irqs);
+		if (perf_counter_overflow(counter, nmi, regs, 0))
+			amd_pmu_disable_counter(hwc, idx);
+		else if (cpuc->interrupts >= PERFMON_MAX_INTERRUPTS)
+			/*
+			 * do not reenable when throttled, but reload
+			 * the register
+			 */
+			amd_pmu_disable_counter(hwc, idx);
+		else if (counter->state == PERF_COUNTER_STATE_ACTIVE)
+			amd_pmu_enable_counter(hwc, idx);
+	}
+	return handled;
+}
 
 void perf_counter_unthrottle(void)
 {
 	struct cpu_hw_counters *cpuc;
 
 	if (!x86_pmu_initialized())
-		return;
-
-	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 		return;
 
 	cpuc = &__get_cpu_var(cpu_hw_counters);
