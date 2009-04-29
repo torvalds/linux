@@ -44,7 +44,7 @@ struct x86_pmu {
 	int		(*handle_irq)(struct pt_regs *, int);
 	u64		(*save_disable_all)(void);
 	void		(*restore_all)(u64);
-	void		(*enable)(int, u64);
+	void		(*enable)(struct hw_perf_counter *, int);
 	void		(*disable)(int, u64);
 	unsigned	eventsel;
 	unsigned	perfctr;
@@ -414,28 +414,15 @@ static inline void intel_pmu_ack_status(u64 ack)
 	wrmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack);
 }
 
-static void intel_pmu_enable_counter(int idx, u64 config)
+static inline void x86_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 {
-	wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx,
-			config | ARCH_PERFMON_EVENTSEL0_ENABLE);
-}
+	int err;
 
-static void amd_pmu_enable_counter(int idx, u64 config)
-{
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-
-	if (cpuc->enabled)
-		config |= ARCH_PERFMON_EVENTSEL0_ENABLE;
-
-	wrmsrl(MSR_K7_EVNTSEL0 + idx, config);
-}
-
-static void hw_perf_enable(int idx, u64 config)
-{
 	if (unlikely(!perf_counters_initialized))
 		return;
 
-	x86_pmu.enable(idx, config);
+	err = checking_wrmsrl(hwc->config_base + idx,
+			      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE);
 }
 
 static void intel_pmu_disable_counter(int idx, u64 config)
@@ -522,8 +509,7 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 }
 
 static inline void
-__pmc_fixed_enable(struct perf_counter *counter,
-		   struct hw_perf_counter *hwc, int __idx)
+intel_pmu_enable_fixed(struct hw_perf_counter *hwc, int __idx)
 {
 	int idx = __idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, bits, mask;
@@ -548,14 +534,24 @@ __pmc_fixed_enable(struct perf_counter *counter,
 	err = checking_wrmsrl(hwc->config_base, ctrl_val);
 }
 
-static void
-__x86_pmu_enable(struct perf_counter *counter,
-		 struct hw_perf_counter *hwc, int idx)
+static void intel_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 {
-	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
-		__pmc_fixed_enable(counter, hwc, idx);
+	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
+		intel_pmu_enable_fixed(hwc, idx);
+		return;
+	}
+
+	x86_pmu_enable_counter(hwc, idx);
+}
+
+static void amd_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
+{
+	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
+
+	if (cpuc->enabled)
+		x86_pmu_enable_counter(hwc, idx);
 	else
-		hw_perf_enable(idx, hwc->config);
+		amd_pmu_disable_counter(idx, hwc->config);
 }
 
 static int
@@ -632,7 +628,7 @@ try_generic:
 	set_bit(idx, cpuc->active);
 
 	x86_perf_counter_set_period(counter, hwc, idx);
-	__x86_pmu_enable(counter, hwc, idx);
+	x86_pmu.enable(hwc, idx);
 
 	return 0;
 }
@@ -728,7 +724,7 @@ static void intel_pmu_save_and_restart(struct perf_counter *counter)
 	x86_perf_counter_set_period(counter, hwc, idx);
 
 	if (counter->state == PERF_COUNTER_STATE_ACTIVE)
-		__x86_pmu_enable(counter, hwc, idx);
+		intel_pmu_enable_counter(hwc, idx);
 }
 
 /*
