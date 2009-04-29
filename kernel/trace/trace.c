@@ -3595,6 +3595,45 @@ static const struct file_operations tracing_buffers_fops = {
 	.llseek		= no_llseek,
 };
 
+static ssize_t
+tracing_stats_read(struct file *filp, char __user *ubuf,
+		   size_t count, loff_t *ppos)
+{
+	unsigned long cpu = (unsigned long)filp->private_data;
+	struct trace_array *tr = &global_trace;
+	struct trace_seq *s;
+	unsigned long cnt;
+
+	s = kmalloc(sizeof(*s), GFP_ATOMIC);
+	if (!s)
+		return ENOMEM;
+
+	trace_seq_init(s);
+
+	cnt = ring_buffer_entries_cpu(tr->buffer, cpu);
+	trace_seq_printf(s, "entries: %ld\n", cnt);
+
+	cnt = ring_buffer_overrun_cpu(tr->buffer, cpu);
+	trace_seq_printf(s, "overrun: %ld\n", cnt);
+
+	cnt = ring_buffer_commit_overrun_cpu(tr->buffer, cpu);
+	trace_seq_printf(s, "commit overrun: %ld\n", cnt);
+
+	cnt = ring_buffer_nmi_dropped_cpu(tr->buffer, cpu);
+	trace_seq_printf(s, "nmi dropped: %ld\n", cnt);
+
+	count = simple_read_from_buffer(ubuf, count, ppos, s->buffer, s->len);
+
+	kfree(s);
+
+	return count;
+}
+
+static const struct file_operations tracing_stats_fops = {
+	.open		= tracing_open_generic,
+	.read		= tracing_stats_read,
+};
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 int __weak ftrace_arch_read_dyn_info(char *buf, int size)
@@ -3708,6 +3747,9 @@ static void tracing_init_debugfs_percpu(long cpu)
 
 	trace_create_file("trace_pipe_raw", 0444, d_cpu,
 			(void *) cpu, &tracing_buffers_fops);
+
+	trace_create_file("stats", 0444, d_cpu,
+			(void *) cpu, &tracing_stats_fops);
 }
 
 #ifdef CONFIG_FTRACE_SELFTEST
