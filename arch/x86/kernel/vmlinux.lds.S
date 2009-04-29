@@ -104,6 +104,61 @@ SECTIONS
 
 	RODATA
 
+	/* Data */
+	. = ALIGN(PAGE_SIZE);
+	.data : AT(ADDR(.data) - LOAD_OFFSET) {
+		DATA_DATA
+		CONSTRUCTORS
+
+#ifdef CONFIG_X86_64
+		/* End of data section */
+		_edata = .;
+#endif
+	} :data
+
+#ifdef CONFIG_X86_32
+	/* 32 bit has nosave before _edata */
+	. = ALIGN(PAGE_SIZE);
+	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
+		__nosave_begin = .;
+		*(.data.nosave)
+		. = ALIGN(PAGE_SIZE);
+		__nosave_end = .;
+	}
+#endif
+
+	. = ALIGN(PAGE_SIZE);
+	.data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
+		*(.data.page_aligned)
+		*(.data.idt)
+	}
+
+#ifdef CONFIG_X86_32
+	. = ALIGN(32);
+#else
+	. = ALIGN(PAGE_SIZE);
+	. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
+#endif
+	.data.cacheline_aligned :
+		AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
+		*(.data.cacheline_aligned)
+	}
+
+	/* rarely changed data like cpu maps */
+#ifdef CONFIG_X86_32
+	. = ALIGN(32);
+#else
+	. = ALIGN(CONFIG_X86_INTERNODE_CACHE_BYTES);
+#endif
+	.data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) {
+		*(.data.read_mostly)
+
+#ifdef CONFIG_X86_32
+		/* End of data section */
+		_edata = .;
+#endif
+	}
+
 
 #ifdef CONFIG_X86_32
 # include "vmlinux_32.lds.S"

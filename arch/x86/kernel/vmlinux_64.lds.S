@@ -1,26 +1,3 @@
-	/* Align data segment to page size boundary */
-	. = ALIGN(PAGE_SIZE);
-	/* Data */
-	.data : AT(ADDR(.data) - LOAD_OFFSET) {
-		DATA_DATA
-		CONSTRUCTORS
-		/* End of data section */
-		_edata = .;
-	} :data
-
-
-	.data.cacheline_aligned :
-		AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
-		. = ALIGN(PAGE_SIZE);
-		. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
-		*(.data.cacheline_aligned)
-	}
-
-	. = ALIGN(CONFIG_X86_INTERNODE_CACHE_BYTES);
-	.data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) {
-		*(.data.read_mostly)
-	}
-
 #define VSYSCALL_ADDR (-10*1024*1024)
 #define VSYSCALL_PHYS_ADDR ((LOADADDR(.data.read_mostly) + \
                             SIZEOF(.data.read_mostly) + 4095) & ~(4095))
@@ -94,11 +71,6 @@
 		. = ALIGN(THREAD_SIZE);
 		*(.data.init_task)
 	} :data.init
-
-	.data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
-		. = ALIGN(PAGE_SIZE);
-		*(.data.page_aligned)
-	}
 
 	.smp_locks : AT(ADDR(.smp_locks) - LOAD_OFFSET) {
 		/* might get freed after init */
