@@ -280,7 +280,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
  */
 #define IISMOD_MASTER_MASK (1 << 11)
 #define IISMOD_SLAVE (1 << 11)
-#define IISMOD_MASTER (0x0)
+#define IISMOD_MASTER (0 << 11)
 #endif
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -341,6 +341,7 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: r: IISMOD: %x\n", __func__, iismod);
 
+#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S8:
 		iismod |= S3C2412_IISMOD_8BIT;
@@ -349,6 +350,25 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 		iismod &= ~S3C2412_IISMOD_8BIT;
 		break;
 	}
+#endif
+
+#ifdef CONFIG_PLAT_S3C64XX
+	iismod &= ~0x606;
+	/* Sample size */
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S8:
+		/* 8 bit sample, 16fs BCLK */
+		iismod |= 0x2004;
+		break;
+	case SNDRV_PCM_FORMAT_S16_LE:
+		/* 16 bit sample, 32fs BCLK */
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		/* 24 bit sample, 48fs BCLK */
+		iismod |= 0x4002;
+		break;
+	}
+#endif
 
 	writel(iismod, i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: w: IISMOD: %x\n", __func__, iismod);
