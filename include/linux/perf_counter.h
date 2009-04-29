@@ -512,12 +512,13 @@ struct perf_cpu_context {
 	int			recursion[4];
 };
 
+#ifdef CONFIG_PERF_COUNTERS
+
 /*
  * Set by architecture code:
  */
 extern int perf_max_counters;
 
-#ifdef CONFIG_PERF_COUNTERS
 extern const struct hw_perf_counter_ops *
 hw_perf_counter_init(struct perf_counter *counter);
 
