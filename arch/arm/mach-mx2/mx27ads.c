@@ -121,6 +121,8 @@ static unsigned int mx27ads_pins[] = {
 	PA29_PF_VSYNC,
 	PA30_PF_CONTRAST,
 	PA31_PF_OE_ACD,
+	/* OWIRE */
+	PE16_AF_OWIRE,
 };
 
 static struct mxc_nand_platform_data mx27ads_nand_board_info = {
@@ -200,6 +202,7 @@ static struct imx_fb_platform_data mx27ads_fb_data = {
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
 	&mxc_fec_device,
+	&mxc_w1_master_device,
 };
 
 static struct imxuart_platform_data uart_pdata[] = {
