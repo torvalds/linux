@@ -1,8 +1,3 @@
-PHDRS {
-	text PT_LOAD FLAGS(5);		/* R_E */
-	data PT_LOAD FLAGS(7);		/* RWE */
-	note PT_NOTE FLAGS(0);		/* ___ */
-}
 SECTIONS
 {
 	. = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;

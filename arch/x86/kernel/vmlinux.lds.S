@@ -40,6 +40,19 @@ ENTRY(phys_startup_64)
 jiffies_64 = jiffies;
 #endif
 
+PHDRS {
+	text PT_LOAD FLAGS(5);          /* R_E */
+	data PT_LOAD FLAGS(7);          /* RWE */
+#ifdef CONFIG_X86_64
+	user PT_LOAD FLAGS(7);          /* RWE */
+	data.init PT_LOAD FLAGS(7);     /* RWE */
+#ifdef CONFIG_SMP
+	percpu PT_LOAD FLAGS(7);        /* RWE */
+#endif
+	data.init2 PT_LOAD FLAGS(7);    /* RWE */
+#endif
+	note PT_NOTE FLAGS(0);          /* ___ */
+}
 
 #ifdef CONFIG_X86_32
 # include "vmlinux_32.lds.S"

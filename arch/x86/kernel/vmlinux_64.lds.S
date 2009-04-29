@@ -1,14 +1,3 @@
-PHDRS {
-	text PT_LOAD FLAGS(5);		/* R_E */
-	data PT_LOAD FLAGS(7);		/* RWE */
-	user PT_LOAD FLAGS(7);		/* RWE */
-	data.init PT_LOAD FLAGS(7);	/* RWE */
-#ifdef CONFIG_SMP
-	percpu PT_LOAD FLAGS(7);	/* RWE */
-#endif
-	data.init2 PT_LOAD FLAGS(7);	/* RWE */
-	note PT_NOTE FLAGS(0);		/* ___ */
-}
 SECTIONS
 {
 	. = __START_KERNEL;
