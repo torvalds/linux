@@ -445,7 +445,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	apic_debug("icr_high 0x%x, icr_low 0x%x, "
 		   "short_hand 0x%x, dest 0x%x, trig_mode 0x%x, level 0x%x, "
 		   "dest_mode 0x%x, delivery_mode 0x%x, vector 0x%x\n",
-		   icr_high, icr_low, irq.shorthand, irq.dest,
+		   icr_high, icr_low, irq.shorthand, irq.dest_id,
 		   irq.trig_mode, irq.level, irq.dest_mode, irq.delivery_mode,
 		   irq.vector);
 
@@ -560,7 +560,7 @@ static void update_divide_count(struct kvm_lapic *apic)
 	apic->divide_count = 0x1 << (tmp2 & 0x7);
 
 	apic_debug("timer divide count is 0x%x\n",
-				   apic->lapic_timer.divide_count);
+				   apic->divide_count);
 }
 
 static void start_apic_timer(struct kvm_lapic *apic)
