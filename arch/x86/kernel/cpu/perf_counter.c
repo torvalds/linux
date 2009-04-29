@@ -39,6 +39,8 @@ struct cpu_hw_counters {
  * struct x86_pmu - generic x86 pmu
  */
 struct x86_pmu {
+	const char	*name;
+	int		version;
 	int		(*handle_irq)(struct pt_regs *, int);
 	u64		(*save_disable_all)(void);
 	void		(*restore_all)(u64);
@@ -60,8 +62,6 @@ static struct x86_pmu x86_pmu __read_mostly;
 static DEFINE_PER_CPU(struct cpu_hw_counters, cpu_hw_counters) = {
 	.enabled = 1,
 };
-
-static __read_mostly int intel_perfmon_version;
 
 /*
  * Intel PerfMon v3. Used on Core2 and later.
@@ -658,7 +658,7 @@ void perf_counter_print_debug(void)
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
-	if (intel_perfmon_version >= 2) {
+	if (x86_pmu.version >= 2) {
 		rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 		rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 		rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
@@ -884,6 +884,7 @@ static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
 };
 
 static struct x86_pmu intel_pmu = {
+	.name			= "Intel",
 	.handle_irq		= intel_pmu_handle_irq,
 	.save_disable_all	= intel_pmu_save_disable_all,
 	.restore_all		= intel_pmu_restore_all,
@@ -897,6 +898,7 @@ static struct x86_pmu intel_pmu = {
 };
 
 static struct x86_pmu amd_pmu = {
+	.name			= "AMD",
 	.handle_irq		= amd_pmu_handle_irq,
 	.save_disable_all	= amd_pmu_save_disable_all,
 	.restore_all		= amd_pmu_restore_all,
@@ -918,6 +920,7 @@ static int intel_pmu_init(void)
 	union cpuid10_eax eax;
 	unsigned int unused;
 	unsigned int ebx;
+	int version;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
 		return -ENODEV;
@@ -930,16 +933,12 @@ static int intel_pmu_init(void)
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
 		return -ENODEV;
 
-	intel_perfmon_version = eax.split.version_id;
-	if (intel_perfmon_version < 2)
+	version = eax.split.version_id;
+	if (version < 2)
 		return -ENODEV;
 
-	pr_info("Intel Performance Monitoring support detected.\n");
-	pr_info("... version:         %d\n", intel_perfmon_version);
-	pr_info("... bit width:       %d\n", eax.split.bit_width);
-	pr_info("... mask length:     %d\n", eax.split.mask_length);
-
 	x86_pmu = intel_pmu;
+	x86_pmu.version = version;
 	x86_pmu.num_counters = eax.split.num_counters;
 	x86_pmu.num_counters_fixed = edx.split.num_counters_fixed;
 	x86_pmu.counter_bits = eax.split.bit_width;
@@ -951,7 +950,6 @@ static int intel_pmu_init(void)
 static int amd_pmu_init(void)
 {
 	x86_pmu = amd_pmu;
-	pr_info("AMD Performance Monitoring support detected.\n");
 	return 0;
 }
 
@@ -971,6 +969,10 @@ void __init init_hw_perf_counters(void)
 	}
 	if (err != 0)
 		return;
+
+	pr_info("%s Performance Monitoring support detected.\n", x86_pmu.name);
+	pr_info("... version:         %d\n", x86_pmu.version);
+	pr_info("... bit width:       %d\n", x86_pmu.counter_bits);
 
 	pr_info("... num counters:    %d\n", x86_pmu.num_counters);
 	if (x86_pmu.num_counters > X86_PMC_MAX_GENERIC) {
