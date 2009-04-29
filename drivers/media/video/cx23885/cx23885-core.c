@@ -1700,9 +1700,13 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	}
 
 	if (cx23885_boards[dev->board].cimax > 0 &&
-		((pci_status & PCI_MSK_GPIO0) || (pci_status & PCI_MSK_GPIO1)))
-		/* handled += cx23885_irq_gpio(dev, pci_status); */
-		handled += netup_ci_slot_status(dev, pci_status);
+		((pci_status & PCI_MSK_GPIO0) ||
+			(pci_status & PCI_MSK_GPIO1))) {
+
+		if (cx23885_boards[dev->board].cimax > 0)
+			handled += netup_ci_slot_status(dev, pci_status);
+
+	}
 
 	if (ts1_status) {
 		if (cx23885_boards[dev->board].portb == CX23885_MPEG_DVB)
