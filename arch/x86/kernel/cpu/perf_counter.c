@@ -51,7 +51,6 @@ struct x86_pmu {
 	int		(*handle_irq)(struct pt_regs *, int);
 	u64		(*save_disable_all)(void);
 	void		(*restore_all)(u64);
-	void		(*ack_status)(u64);
 	void		(*enable)(int, u64);
 	void		(*disable)(int, u64);
 	unsigned	eventsel;
@@ -415,21 +414,9 @@ static inline u64 intel_pmu_get_status(u64 mask)
 	return status;
 }
 
-static void intel_pmu_ack_status(u64 ack)
+static inline void intel_pmu_ack_status(u64 ack)
 {
 	wrmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack);
-}
-
-static void amd_pmu_ack_status(u64 ack)
-{
-}
-
-static void hw_perf_ack_status(u64 ack)
-{
-	if (unlikely(!perf_counters_initialized))
-		return;
-
-	x86_pmu->ack_status(ack);
 }
 
 static void intel_pmu_enable_counter(int idx, u64 config)
@@ -788,7 +775,7 @@ again:
 			__x86_pmu_disable(counter, &counter->hw, bit);
 	}
 
-	hw_perf_ack_status(ack);
+	intel_pmu_ack_status(ack);
 
 	/*
 	 * Repeat if there is more work to be done:
@@ -904,7 +891,6 @@ static struct x86_pmu intel_pmu = {
 	.handle_irq		= intel_pmu_handle_irq,
 	.save_disable_all	= intel_pmu_save_disable_all,
 	.restore_all		= intel_pmu_restore_all,
-	.ack_status		= intel_pmu_ack_status,
 	.enable			= intel_pmu_enable_counter,
 	.disable		= intel_pmu_disable_counter,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
@@ -918,7 +904,6 @@ static struct x86_pmu amd_pmu = {
 	.handle_irq		= amd_pmu_handle_irq,
 	.save_disable_all	= amd_pmu_save_disable_all,
 	.restore_all		= amd_pmu_restore_all,
-	.ack_status		= amd_pmu_ack_status,
 	.enable			= amd_pmu_enable_counter,
 	.disable		= amd_pmu_disable_counter,
 	.eventsel		= MSR_K7_EVNTSEL0,
