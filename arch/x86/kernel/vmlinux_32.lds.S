@@ -1,13 +1,3 @@
-	/* Exception table */
-	. = ALIGN(16);
-	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
-		__start___ex_table = .;
-		 *(__ex_table)
-		__stop___ex_table = .;
-	} :text = 0x9090
-
-	RODATA
-
 	/* writeable */
 	. = ALIGN(PAGE_SIZE);
 	/* Data */
