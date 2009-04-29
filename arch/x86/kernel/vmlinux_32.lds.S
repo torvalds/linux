@@ -1,11 +1,5 @@
-	PERCPU(PAGE_SIZE)
-
-	. = ALIGN(PAGE_SIZE);
-	/* freed after init ends here */
-
 	/* BSS */
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
-		__init_end = .;
 		__bss_start = .;
 		*(.bss.page_aligned)
 		*(.bss)
