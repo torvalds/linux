@@ -10,6 +10,9 @@ comment "DaVinci Core Type"
 config ARCH_DAVINCI_DM644x
 	bool "DaVinci 644x based system"
 
+config ARCH_DAVINCI_DM355
+        bool "DaVinci 355 based system"
+
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
@@ -27,6 +30,22 @@ config MACH_SFFSDR
 	help
 	  Say Y here to select the Lyrtech Small Form Factor
 	  Software Defined Radio (SFFSDR) board.
+
+config MACH_DAVINCI_DM355_EVM
+	bool "TI DM355 EVM"
+	default n
+	depends on ARCH_DAVINCI_DM355
+	help
+	  Configure this option to specify the whether the board used
+	  for development is a DM355 EVM
+
+config MACH_DM355_LEOPARD
+	bool "DM355 Leopard board"
+	default n
+	depends on ARCH_DAVINCI_DM355
+	help
+	  Configure this option to specify the whether the board used
+	  for development is a DM355 Leopard board.
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"

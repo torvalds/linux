@@ -12,7 +12,10 @@ obj-$(CONFIG_CP_INTC)			+= cp_intc.o
 
 # Chip specific
 obj-$(CONFIG_ARCH_DAVINCI_DM644x)       += dm644x.o
+obj-$(CONFIG_ARCH_DAVINCI_DM355)        += dm355.o
 
 # Board specific
 obj-$(CONFIG_MACH_DAVINCI_EVM)  	+= board-dm644x-evm.o
 obj-$(CONFIG_MACH_SFFSDR)		+= board-sffsdr.o
+obj-$(CONFIG_MACH_DAVINCI_DM355_EVM)	+= board-dm355-evm.o
+obj-$(CONFIG_MACH_DM355_LEOPARD)	+= board-dm355-leopard.o
