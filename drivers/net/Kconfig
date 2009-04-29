@@ -2443,6 +2443,9 @@ menuconfig NETDEV_10000
 
 if NETDEV_10000
 
+config MDIO
+	tristate
+
 config CHELSIO_T1
         tristate "Chelsio 10Gb Ethernet support"
         depends on PCI

@@ -95,6 +95,7 @@ obj-$(CONFIG_SH_ETH) += sh_eth.o
 #
 
 obj-$(CONFIG_MII) += mii.o
+obj-$(CONFIG_MDIO) += mdio.o
 obj-$(CONFIG_PHYLIB) += phy/
 
 obj-$(CONFIG_SUNDANCE) += sundance.o
