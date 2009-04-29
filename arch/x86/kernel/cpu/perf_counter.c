@@ -51,7 +51,6 @@ struct x86_pmu {
 	int		(*handle_irq)(struct pt_regs *, int);
 	u64		(*save_disable_all)(void);
 	void		(*restore_all)(u64);
-	u64		(*get_status)(u64);
 	void		(*ack_status)(u64);
 	void		(*enable)(int, u64);
 	void		(*disable)(int, u64);
@@ -405,41 +404,15 @@ void hw_perf_restore(u64 ctrl)
  */
 EXPORT_SYMBOL_GPL(hw_perf_restore);
 
-static u64 intel_pmu_get_status(u64 mask)
+static inline u64 intel_pmu_get_status(u64 mask)
 {
 	u64 status;
 
+	if (unlikely(!perf_counters_initialized))
+		return 0;
 	rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 
 	return status;
-}
-
-static u64 amd_pmu_get_status(u64 mask)
-{
-	u64 status = 0;
-	int idx;
-
-	for (idx = 0; idx < nr_counters_generic; idx++) {
-		s64 val;
-
-		if (!(mask & (1 << idx)))
-			continue;
-
-		rdmsrl(MSR_K7_PERFCTR0 + idx, val);
-		val <<= (64 - counter_value_bits);
-		if (val >= 0)
-			status |= (1 << idx);
-	}
-
-	return status;
-}
-
-static u64 hw_perf_get_status(u64 mask)
-{
-	if (unlikely(!perf_counters_initialized))
-		return 0;
-
-	return x86_pmu->get_status(mask);
 }
 
 static void intel_pmu_ack_status(u64 ack)
@@ -795,7 +768,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 
 	cpuc->throttle_ctrl = hw_perf_save_disable();
 
-	status = hw_perf_get_status(cpuc->throttle_ctrl);
+	status = intel_pmu_get_status(cpuc->throttle_ctrl);
 	if (!status)
 		goto out;
 
@@ -820,7 +793,7 @@ again:
 	/*
 	 * Repeat if there is more work to be done:
 	 */
-	status = hw_perf_get_status(cpuc->throttle_ctrl);
+	status = intel_pmu_get_status(cpuc->throttle_ctrl);
 	if (status)
 		goto again;
 out:
@@ -931,7 +904,6 @@ static struct x86_pmu intel_pmu = {
 	.handle_irq		= intel_pmu_handle_irq,
 	.save_disable_all	= intel_pmu_save_disable_all,
 	.restore_all		= intel_pmu_restore_all,
-	.get_status		= intel_pmu_get_status,
 	.ack_status		= intel_pmu_ack_status,
 	.enable			= intel_pmu_enable_counter,
 	.disable		= intel_pmu_disable_counter,
@@ -946,7 +918,6 @@ static struct x86_pmu amd_pmu = {
 	.handle_irq		= amd_pmu_handle_irq,
 	.save_disable_all	= amd_pmu_save_disable_all,
 	.restore_all		= amd_pmu_restore_all,
-	.get_status		= amd_pmu_get_status,
 	.ack_status		= amd_pmu_ack_status,
 	.enable			= amd_pmu_enable_counter,
 	.disable		= amd_pmu_disable_counter,
