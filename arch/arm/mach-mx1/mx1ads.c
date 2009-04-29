@@ -12,24 +12,24 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/platform_device.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/irqs.h>
-#include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
-#include <mach/irqs.h>
+#include <mach/hardware.h>
 #include <mach/i2c.h>
+#include <mach/imx-uart.h>
 #include <mach/iomux.h>
+#include <mach/irqs.h>
+
 #include "devices.h"
 
 /*
@@ -111,7 +111,6 @@ static struct platform_device flash_device = {
 /*
  * I2C
  */
-
 static int i2c_pins[] = {
 	PA15_PF_I2C_SDA,
 	PA16_PF_I2C_SCL,
