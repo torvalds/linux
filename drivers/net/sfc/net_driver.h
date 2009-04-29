@@ -495,8 +495,8 @@ struct efx_nic;
 
 /* Pseudo bit-mask flow control field */
 enum efx_fc_type {
-	EFX_FC_RX = 1,
-	EFX_FC_TX = 2,
+	EFX_FC_RX = FLOW_CTRL_RX,
+	EFX_FC_TX = FLOW_CTRL_TX,
 	EFX_FC_AUTO = 4,
 };
 
@@ -506,33 +506,15 @@ enum efx_mac_type {
 	EFX_XMAC = 2,
 };
 
-static inline unsigned int efx_fc_advertise(enum efx_fc_type wanted_fc)
-{
-	unsigned int adv = 0;
-	if (wanted_fc & EFX_FC_RX)
-		adv = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
-	if (wanted_fc & EFX_FC_TX)
-		adv ^= ADVERTISE_PAUSE_ASYM;
-	return adv;
-}
-
 static inline enum efx_fc_type efx_fc_resolve(enum efx_fc_type wanted_fc,
 					      unsigned int lpa)
 {
-	unsigned int adv = efx_fc_advertise(wanted_fc);
+	BUILD_BUG_ON(EFX_FC_AUTO & (EFX_FC_RX | EFX_FC_TX));
 
 	if (!(wanted_fc & EFX_FC_AUTO))
 		return wanted_fc;
 
-	if (adv & lpa & ADVERTISE_PAUSE_CAP)
-		return EFX_FC_RX | EFX_FC_TX;
-	if (adv & lpa & ADVERTISE_PAUSE_ASYM) {
-		if (adv & ADVERTISE_PAUSE_CAP)
-			return EFX_FC_RX;
-		if (lpa & ADVERTISE_PAUSE_CAP)
-			return EFX_FC_TX;
-	}
-	return 0;
+	return mii_resolve_flowctrl_fdx(mii_advertise_flowctrl(wanted_fc), lpa);
 }
 
 /**

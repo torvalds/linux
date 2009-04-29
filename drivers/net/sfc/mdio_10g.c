@@ -304,7 +304,7 @@ int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 		else if (ecmd->advertising & (ADVERTISED_1000baseT_Half |
 					      ADVERTISED_1000baseT_Full))
 			reg |= ADVERTISE_NPAGE;
-		reg |= efx_fc_advertise(efx->wanted_fc);
+		reg |= mii_advertise_flowctrl(efx->wanted_fc);
 		efx_mdio_write(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
 
 		/* Set up the (extended) next page if necessary */
@@ -338,26 +338,6 @@ int efx_mdio_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	}
 
 	return 0;
-}
-
-void efx_mdio_set_pause(struct efx_nic *efx)
-{
-	int reg;
-
-	if (efx->phy_op->mmds & MDIO_DEVS_AN) {
-		/* Set pause capability advertising */
-		reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE);
-		reg &= ~(ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM);
-		reg |= efx_fc_advertise(efx->wanted_fc);
-		efx_mdio_write(efx, MDIO_MMD_AN, MDIO_AN_ADVERTISE, reg);
-
-		/* Restart auto-negotiation */
-		reg = efx_mdio_read(efx, MDIO_MMD_AN, MDIO_CTRL1);
-		if (reg & MDIO_AN_CTRL1_ENABLE) {
-			reg |= MDIO_AN_CTRL1_RESTART;
-			efx_mdio_write(efx, MDIO_MMD_AN, MDIO_CTRL1, reg);
-		}
-	}
 }
 
 enum efx_fc_type efx_mdio_get_pause(struct efx_nic *efx)

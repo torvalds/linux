@@ -711,7 +711,8 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	mutex_lock(&efx->mac_lock);
 
 	efx->wanted_fc = wanted_fc;
-	efx_mdio_set_pause(efx);
+	if (efx->phy_op->mmds & MDIO_DEVS_AN)
+		mdio45_ethtool_spauseparam_an(&efx->mdio, pause);
 	__efx_reconfigure_port(efx);
 
 	mutex_unlock(&efx->mac_lock);
