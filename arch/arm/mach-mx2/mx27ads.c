@@ -23,6 +23,7 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/i2c.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -34,6 +35,7 @@
 #include <mach/iomux.h>
 #include <mach/board-mx27ads.h>
 #include <mach/mxc_nand.h>
+#include <mach/i2c.h>
 
 #include "devices.h"
 
@@ -87,6 +89,9 @@ static unsigned int mx27ads_pins[] = {
 	PD15_AOUT_FEC_COL,
 	PD16_AIN_FEC_TX_ER,
 	PF23_AIN_FEC_TX_EN,
+	/* I2C2 */
+	PC5_PF_I2C2_SDA,
+	PC6_PF_I2C2_SCL,
 };
 
 static struct mxc_nand_platform_data mx27ads_nand_board_info = {
@@ -114,6 +119,13 @@ static struct platform_device mx27ads_nor_mtd_device = {
 	},
 	.num_resources = 1,
 	.resource = &mx27ads_flash_resource,
+};
+
+static struct imxi2c_platform_data mx27ads_i2c_data = {
+	.bitrate = 100000,
+};
+
+static struct i2c_board_info mx27ads_i2c_devices[] = {
 };
 
 static struct platform_device *platform_devices[] __initdata = {
@@ -149,6 +161,11 @@ static void __init mx27ads_board_init(void)
 	mxc_register_device(&mxc_uart_device4, &uart_pdata[4]);
 	mxc_register_device(&mxc_uart_device5, &uart_pdata[5]);
 	mxc_register_device(&mxc_nand_device, &mx27ads_nand_board_info);
+
+	/* only the i2c master 1 is used on this CPU card */
+	i2c_register_board_info(1, mx27ads_i2c_devices,
+				ARRAY_SIZE(mx27ads_i2c_devices));
+	mxc_register_device(&mxc_i2c_device1, &mx27ads_i2c_data);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
