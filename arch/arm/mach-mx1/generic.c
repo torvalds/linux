@@ -26,6 +26,7 @@
 
 #include <asm/mach/map.h>
 
+#include <mach/common.h>
 #include <mach/hardware.h>
 
 static struct map_desc imx_io_desc[] __initdata = {
