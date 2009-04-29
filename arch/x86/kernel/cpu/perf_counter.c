@@ -673,7 +673,7 @@ try_generic:
 	/*
 	 * Make it visible before enabling the hw:
 	 */
-	smp_wmb();
+	barrier();
 
 	__hw_perf_counter_set_period(counter, hwc, idx);
 	__pmc_generic_enable(counter, hwc, idx);
@@ -745,7 +745,7 @@ static void pmc_generic_disable(struct perf_counter *counter)
 	 * Make sure the cleared pointer becomes visible before we
 	 * (potentially) free the counter:
 	 */
-	smp_wmb();
+	barrier();
 
 	/*
 	 * Drain the remaining delta count out of a counter
