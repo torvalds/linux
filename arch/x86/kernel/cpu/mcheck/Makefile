@@ -7,3 +7,4 @@ obj-$(CONFIG_X86_MCE_INTEL)	+= mce_intel_64.o mce_intel.o
 obj-$(CONFIG_X86_MCE_AMD)	+= mce_amd_64.o
 obj-$(CONFIG_X86_MCE_NONFATAL)	+= non-fatal.o
 obj-$(CONFIG_X86_MCE_THRESHOLD) += threshold.o
+obj-$(CONFIG_X86_MCE_INJECT)	+= mce-inject.o

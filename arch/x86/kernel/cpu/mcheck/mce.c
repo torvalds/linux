@@ -98,6 +98,9 @@ void mce_setup(struct mce *m)
 	rdtscll(m->tsc);
 }
 
+DEFINE_PER_CPU(struct mce, injectm);
+EXPORT_PER_CPU_SYMBOL_GPL(injectm);
+
 /*
  * Lockless MCE logging infrastructure.
  * This avoids deadlocks on printk locks without having to break locks. Also
@@ -194,16 +197,46 @@ static void mce_panic(char *msg, struct mce *backup, u64 start)
 	panic(msg);
 }
 
+/* Support code for software error injection */
+
+static int msr_to_offset(u32 msr)
+{
+	unsigned bank = __get_cpu_var(injectm.bank);
+	if (msr == rip_msr)
+		return offsetof(struct mce, ip);
+	if (msr == MSR_IA32_MC0_STATUS + bank*4)
+		return offsetof(struct mce, status);
+	if (msr == MSR_IA32_MC0_ADDR + bank*4)
+		return offsetof(struct mce, addr);
+	if (msr == MSR_IA32_MC0_MISC + bank*4)
+		return offsetof(struct mce, misc);
+	if (msr == MSR_IA32_MCG_STATUS)
+		return offsetof(struct mce, mcgstatus);
+	return -1;
+}
+
 /* MSR access wrappers used for error injection */
 static u64 mce_rdmsrl(u32 msr)
 {
 	u64 v;
+	if (__get_cpu_var(injectm).finished) {
+		int offset = msr_to_offset(msr);
+		if (offset < 0)
+			return 0;
+		return *(u64 *)((char *)&__get_cpu_var(injectm) + offset);
+	}
 	rdmsrl(msr, v);
 	return v;
 }
 
 static void mce_wrmsrl(u32 msr, u64 v)
 {
+	if (__get_cpu_var(injectm).finished) {
+		int offset = msr_to_offset(msr);
+		if (offset >= 0)
+			*(u64 *)((char *)&__get_cpu_var(injectm) + offset) = v;
+		return;
+	}
 	wrmsrl(msr, v);
 }
 
@@ -296,6 +329,7 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 	 * exceptions.
 	 */
 }
+EXPORT_SYMBOL_GPL(machine_check_poll);
 
 /*
  * The actual machine check handler. This only handles real
@@ -468,6 +502,7 @@ void do_machine_check(struct pt_regs *regs, long error_code)
  out2:
 	atomic_dec(&mce_entry);
 }
+EXPORT_SYMBOL_GPL(do_machine_check);
 
 #ifdef CONFIG_X86_MCE_INTEL
 /***
@@ -568,6 +603,7 @@ int mce_notify_user(void)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mce_notify_user);
 
 /*
  * Initialize Machine Checks for a CPU.
@@ -904,13 +940,14 @@ static long mce_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	}
 }
 
-static const struct file_operations mce_chrdev_ops = {
+struct file_operations mce_chrdev_ops = {
 	.open			= mce_open,
 	.release		= mce_release,
 	.read			= mce_read,
 	.poll			= mce_poll,
 	.unlocked_ioctl		= mce_ioctl,
 };
+EXPORT_SYMBOL_GPL(mce_chrdev_ops);
 
 static struct miscdevice mce_log_device = {
 	MISC_MCELOG_MINOR,

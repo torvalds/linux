@@ -141,6 +141,9 @@ extern void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
 
 extern int mce_notify_user(void);
 
+DECLARE_PER_CPU(struct mce, injectm);
+extern struct file_operations mce_chrdev_ops;
+
 #ifdef CONFIG_X86_MCE
 extern void mcheck_init(struct cpuinfo_x86 *c);
 #else

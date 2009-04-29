@@ -835,6 +835,14 @@ config X86_MCE_THRESHOLD
 	bool
 	default y
 
+config X86_MCE_INJECT
+	depends on X86_NEW_MCE
+	tristate "Machine check injector support"
+	---help---
+	  Provide support for injecting machine checks for testing purposes.
+	  If you don't know what a machine check is and you don't do kernel
+	  QA it is safe to say n.
+
 config X86_MCE_NONFATAL
 	tristate "Check for non-fatal errors on AMD Athlon/Duron / Intel Pentium 4"
 	depends on X86_OLD_MCE
