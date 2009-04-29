@@ -173,6 +173,8 @@ void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 
 	ecmd->transceiver = XCVR_INTERNAL;
 	ecmd->phy_address = mdio->prtad;
+	ecmd->mdio_support =
+		mdio->mode_support & (MDIO_SUPPORTS_C45 | MDIO_SUPPORTS_C22);
 
 	reg = mdio->mdio_read(mdio->dev, mdio->prtad, MDIO_MMD_PMAPMD,
 			      MDIO_CTRL2);
@@ -235,16 +237,19 @@ void mdio45_ethtool_gset_npage(const struct mdio_if_info *mdio,
 
 	if (ecmd->autoneg) {
 		u32 modes = 0;
+		int an_stat = mdio->mdio_read(mdio->dev, mdio->prtad,
+					      MDIO_MMD_AN, MDIO_STAT1);
 
 		/* If AN is complete and successful, report best common
 		 * mode, otherwise report best advertised mode. */
-		if (mdio->mdio_read(mdio->dev, mdio->prtad, MDIO_MMD_AN,
-				    MDIO_STAT1) &
-		    MDIO_AN_STAT1_COMPLETE)
-			modes = (ecmd->advertising &
-				 (mdio45_get_an(mdio, MDIO_AN_LPA) |
-				  npage_lpa));
-		if (modes == 0)
+		if (an_stat & MDIO_AN_STAT1_COMPLETE) {
+			ecmd->lp_advertising =
+				mdio45_get_an(mdio, MDIO_AN_LPA) | npage_lpa;
+			if (an_stat & MDIO_AN_STAT1_LPABLE)
+				ecmd->lp_advertising |= ADVERTISED_Autoneg;
+			modes = ecmd->advertising & ecmd->lp_advertising;
+		}
+		if ((modes & ~ADVERTISED_Autoneg) == 0)
 			modes = ecmd->advertising;
 
 		if (modes & ADVERTISED_10000baseT_Full) {

@@ -26,11 +26,13 @@ struct ethtool_cmd {
 	__u8	phy_address;
 	__u8	transceiver;	/* Which transceiver to use */
 	__u8	autoneg;	/* Enable or disable autonegotiation */
+	__u8	mdio_support;
 	__u32	maxtxpkt;	/* Tx pkts before generating tx int */
 	__u32	maxrxpkt;	/* Rx pkts before generating rx int */
 	__u16	speed_hi;
 	__u16	reserved2;
-	__u32	reserved[3];
+	__u32	lp_advertising;	/* Features the link partner advertises */
+	__u32	reserved[2];
 };
 
 static inline void ethtool_cmd_speed_set(struct ethtool_cmd *ep,
