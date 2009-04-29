@@ -913,7 +913,7 @@ static struct x86_pmu amd_pmu = {
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
 };
 
-static struct x86_pmu *intel_pmu_init(void)
+static int intel_pmu_init(void)
 {
 	union cpuid10_edx edx;
 	union cpuid10_eax eax;
@@ -921,7 +921,7 @@ static struct x86_pmu *intel_pmu_init(void)
 	unsigned int ebx;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON))
-		return NULL;
+		return -ENODEV;
 
 	/*
 	 * Check whether the Architectural PerfMon supports
@@ -929,49 +929,54 @@ static struct x86_pmu *intel_pmu_init(void)
 	 */
 	cpuid(10, &eax.full, &ebx, &unused, &edx.full);
 	if (eax.split.mask_length <= ARCH_PERFMON_BRANCH_MISSES_RETIRED)
-		return NULL;
+		return -ENODEV;
 
 	intel_perfmon_version = eax.split.version_id;
 	if (intel_perfmon_version < 2)
-		return NULL;
+		return -ENODEV;
 
 	pr_info("Intel Performance Monitoring support detected.\n");
 	pr_info("... version:         %d\n", intel_perfmon_version);
 	pr_info("... bit width:       %d\n", eax.split.bit_width);
 	pr_info("... mask length:     %d\n", eax.split.mask_length);
 
+	x86_pmu = &intel_pmu;
+
 	nr_counters_generic = eax.split.num_counters;
 	nr_counters_fixed = edx.split.num_counters_fixed;
 	counter_value_mask = (1ULL << eax.split.bit_width) - 1;
 
-	return &intel_pmu;
+	return 0;
 }
 
-static struct x86_pmu *amd_pmu_init(void)
+static int amd_pmu_init(void)
 {
+	x86_pmu = &amd_pmu;
+
 	nr_counters_generic = 4;
 	nr_counters_fixed = 0;
 	counter_value_mask = 0x0000FFFFFFFFFFFFULL;
 	counter_value_bits = 48;
 
 	pr_info("AMD Performance Monitoring support detected.\n");
-
-	return &amd_pmu;
+	return 0;
 }
 
 void __init init_hw_perf_counters(void)
 {
+	int err;
+
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_INTEL:
-		x86_pmu = intel_pmu_init();
+		err = intel_pmu_init();
 		break;
 	case X86_VENDOR_AMD:
-		x86_pmu = amd_pmu_init();
+		err = amd_pmu_init();
 		break;
 	default:
 		return;
 	}
-	if (!x86_pmu)
+	if (err != 0)
 		return;
 
 	pr_info("... num counters:    %d\n", nr_counters_generic);
