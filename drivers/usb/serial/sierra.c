@@ -1,7 +1,10 @@
 /*
   USB Driver for Sierra Wireless
 
-  Copyright (C) 2006, 2007, 2008  Kevin Lloyd <klloyd@sierrawireless.com>
+  Copyright (C) 2006, 2007, 2008  Kevin Lloyd <klloyd@sierrawireless.com>,
+
+  Copyright (C) 2008, 2009  Elina Pasheva, Matthew Safar, Rory Filer
+			<linux@sierrawireless.com>
 
   IMPORTANT DISCLAIMER: This driver is not commercially supported by
   Sierra Wireless. Use at your own risk.
@@ -14,8 +17,8 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.3.5"
-#define DRIVER_AUTHOR "Kevin Lloyd <klloyd@sierrawireless.com>"
+#define DRIVER_VERSION "v.1.3.6"
+#define DRIVER_AUTHOR "Kevin Lloyd, Elina Pasheva, Matthew Safar, Rory Filer"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
 #include <linux/kernel.h>
@@ -33,6 +36,11 @@
 #define N_IN_URB	8
 #define N_OUT_URB	64
 #define IN_BUFLEN	4096
+
+#define MAX_TRANSFER		(PAGE_SIZE - 512)
+/* MAX_TRANSFER is chosen so that the VM is not stressed by
+   allocations > PAGE_SIZE and the number of packets in a page
+   is an integer 512 is the largest possible packet on EHCI */
 
 static int debug;
 static int nmea;
@@ -419,50 +427,58 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned long flags;
 	unsigned char *buffer;
 	struct urb *urb;
-	int status;
+	size_t writesize = min((size_t)count, (size_t)MAX_TRANSFER);
+	int retval = 0;
+
+	/* verify that we actually have some data to write */
+	if (count == 0)
+		return 0;
 
 	portdata = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s: write (%d chars)\n", __func__, count);
+	dev_dbg(&port->dev, "%s: write (%d bytes)\n", __func__, writesize);
 
 	spin_lock_irqsave(&portdata->lock, flags);
+	dev_dbg(&port->dev, "%s - outstanding_urbs: %d\n", __func__,
+		portdata->outstanding_urbs);
 	if (portdata->outstanding_urbs > N_OUT_URB) {
 		spin_unlock_irqrestore(&portdata->lock, flags);
 		dev_dbg(&port->dev, "%s - write limit hit\n", __func__);
 		return 0;
 	}
 	portdata->outstanding_urbs++;
+	dev_dbg(&port->dev, "%s - 1, outstanding_urbs: %d\n", __func__,
+		portdata->outstanding_urbs);
 	spin_unlock_irqrestore(&portdata->lock, flags);
 
-	buffer = kmalloc(count, GFP_ATOMIC);
+	buffer = kmalloc(writesize, GFP_ATOMIC);
 	if (!buffer) {
 		dev_err(&port->dev, "out of memory\n");
-		count = -ENOMEM;
+		retval = -ENOMEM;
 		goto error_no_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
 		dev_err(&port->dev, "no more free urbs\n");
-		count = -ENOMEM;
+		retval = -ENOMEM;
 		goto error_no_urb;
 	}
 
-	memcpy(buffer, buf, count);
+	memcpy(buffer, buf, writesize);
 
-	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
+	usb_serial_debug_data(debug, &port->dev, __func__, writesize, buffer);
 
 	usb_fill_bulk_urb(urb, serial->dev,
 			  usb_sndbulkpipe(serial->dev,
 					  port->bulk_out_endpointAddress),
-			  buffer, count, sierra_outdat_callback, port);
+			  buffer, writesize, sierra_outdat_callback, port);
 
 	/* send it down the pipe */
-	status = usb_submit_urb(urb, GFP_ATOMIC);
-	if (status) {
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	if (retval) {
 		dev_err(&port->dev, "%s - usb_submit_urb(write bulk) failed "
-			"with status = %d\n", __func__, status);
-		count = status;
+			"with status = %d\n", __func__, retval);
 		goto error;
 	}
 
@@ -470,7 +486,7 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 	 * really free it when it is finished with it */
 	usb_free_urb(urb);
 
-	return count;
+	return writesize;
 error:
 	usb_free_urb(urb);
 error_no_urb:
@@ -478,8 +494,10 @@ error_no_urb:
 error_no_buffer:
 	spin_lock_irqsave(&portdata->lock, flags);
 	--portdata->outstanding_urbs;
+	dev_dbg(&port->dev, "%s - 2. outstanding_urbs: %d\n", __func__,
+		portdata->outstanding_urbs);
 	spin_unlock_irqrestore(&portdata->lock, flags);
-	return count;
+	return retval;
 }
 
 static void sierra_indat_callback(struct urb *urb)
