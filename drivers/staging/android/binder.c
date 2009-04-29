@@ -26,7 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/nsproxy.h>
 #include <linux/poll.h>
-#include <linux/proc_fs.h>
+#include <linux/debugfs.h>
 #include <linux/rbtree.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
@@ -42,8 +42,8 @@ static HLIST_HEAD(binder_procs);
 static HLIST_HEAD(binder_deferred_list);
 static HLIST_HEAD(binder_dead_nodes);
 
-static struct proc_dir_entry *binder_proc_dir_entry_root;
-static struct proc_dir_entry *binder_proc_dir_entry_proc;
+static struct dentry *binder_debugfs_dir_entry_root;
+static struct dentry *binder_debugfs_dir_entry_proc;
 static struct binder_node *binder_context_mgr_node;
 static uid_t binder_context_mgr_uid = -1;
 static int binder_last_id;
@@ -51,7 +51,7 @@ static int binder_last_id;
 #define BINDER_DEBUG_ENTRY(name) \
 static int binder_##name##_open(struct inode *inode, struct file *file) \
 { \
-	return single_open(file, binder_##name##_show, PDE(inode)->data); \
+	return single_open(file, binder_##name##_show, inode->i_private); \
 } \
 \
 static const struct file_operations binder_##name##_fops = { \
@@ -309,6 +309,7 @@ struct binder_proc {
 	int requested_threads_started;
 	int ready_threads;
 	long default_priority;
+	struct dentry *debugfs_entry;
 };
 
 enum {
@@ -2890,13 +2891,11 @@ static int binder_open(struct inode *nodp, struct file *filp)
 	filp->private_data = proc;
 	mutex_unlock(&binder_lock);
 
-	if (binder_proc_dir_entry_proc) {
+	if (binder_debugfs_dir_entry_proc) {
 		char strbuf[11];
 		snprintf(strbuf, sizeof(strbuf), "%u", proc->pid);
-		remove_proc_entry(strbuf, binder_proc_dir_entry_proc);
-		proc_create_data(strbuf, S_IRUGO,
-				 binder_proc_dir_entry_proc,
-				 &binder_proc_fops, proc);
+		proc->debugfs_entry = debugfs_create_file(strbuf, S_IRUGO,
+			binder_debugfs_dir_entry_proc, proc, &binder_proc_fops);
 	}
 
 	return 0;
@@ -2933,12 +2932,7 @@ static void binder_deferred_flush(struct binder_proc *proc)
 static int binder_release(struct inode *nodp, struct file *filp)
 {
 	struct binder_proc *proc = filp->private_data;
-	if (binder_proc_dir_entry_proc) {
-		char strbuf[11];
-		snprintf(strbuf, sizeof(strbuf), "%u", proc->pid);
-		remove_proc_entry(strbuf, binder_proc_dir_entry_proc);
-	}
-
+	debugfs_remove(proc->debugfs_entry);
 	binder_defer_work(proc, BINDER_DEFERRED_RELEASE);
 
 	return 0;
@@ -3557,34 +3551,37 @@ static int __init binder_init(void)
 {
 	int ret;
 
-	binder_proc_dir_entry_root = proc_mkdir("binder", NULL);
-	if (binder_proc_dir_entry_root)
-		binder_proc_dir_entry_proc = proc_mkdir("proc",
-						binder_proc_dir_entry_root);
+	binder_debugfs_dir_entry_root = debugfs_create_dir("binder", NULL);
+	if (binder_debugfs_dir_entry_root)
+		binder_debugfs_dir_entry_proc = debugfs_create_dir("proc",
+						 binder_debugfs_dir_entry_root);
 	ret = misc_register(&binder_miscdev);
-	if (binder_proc_dir_entry_root) {
-		proc_create("state",
-			    S_IRUGO,
-			    binder_proc_dir_entry_root,
-			    &binder_state_fops);
-		proc_create("stats",
-			    S_IRUGO,
-			    binder_proc_dir_entry_root,
-			    &binder_stats_fops);
-		proc_create("transactions",
-			    S_IRUGO,
-			    binder_proc_dir_entry_root,
-			    &binder_transactions_fops);
-		proc_create_data("transaction_log",
-				 S_IRUGO,
-				 binder_proc_dir_entry_root,
-				 &binder_transaction_log_fops,
-				 &binder_transaction_log);
-		proc_create_data("failed_transaction_log",
-				 S_IRUGO,
-				 binder_proc_dir_entry_root,
-				 &binder_transaction_log_fops,
-				 &binder_transaction_log_failed);
+	if (binder_debugfs_dir_entry_root) {
+		debugfs_create_file("state",
+				    S_IRUGO,
+				    binder_debugfs_dir_entry_root,
+				    NULL,
+				    &binder_state_fops);
+		debugfs_create_file("stats",
+				    S_IRUGO,
+				    binder_debugfs_dir_entry_root,
+				    NULL,
+				    &binder_stats_fops);
+		debugfs_create_file("transactions",
+				    S_IRUGO,
+				    binder_debugfs_dir_entry_root,
+				    NULL,
+				    &binder_transactions_fops);
+		debugfs_create_file("transaction_log",
+				    S_IRUGO,
+				    binder_debugfs_dir_entry_root,
+				    &binder_transaction_log,
+				    &binder_transaction_log_fops);
+		debugfs_create_file("failed_transaction_log",
+				    S_IRUGO,
+				    binder_debugfs_dir_entry_root,
+				    &binder_transaction_log_failed,
+				    &binder_transaction_log_fops);
 	}
 	return ret;
 }
