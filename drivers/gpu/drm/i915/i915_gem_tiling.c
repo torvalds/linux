@@ -283,7 +283,6 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 
 	if (args->tiling_mode == I915_TILING_NONE) {
-		obj_priv->tiling_mode = I915_TILING_NONE;
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
