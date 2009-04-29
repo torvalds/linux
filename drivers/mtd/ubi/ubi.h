@@ -231,10 +231,6 @@ struct ubi_volume_desc;
  * @changing_leb: %1 if the atomic LEB change ioctl command is in progress
  * @direct_writes: %1 if direct writes are enabled for this volume
  *
- * @gluebi_desc: gluebi UBI volume descriptor
- * @gluebi_refcount: reference count of the gluebi MTD device
- * @gluebi_mtd: MTD device description object of the gluebi MTD device
- *
  * The @corrupted field indicates that the volume's contents is corrupted.
  * Since UBI protects only static volumes, this field is not relevant to
  * dynamic volumes - it is user's responsibility to assure their data
@@ -278,17 +274,6 @@ struct ubi_volume {
 	unsigned int updating:1;
 	unsigned int changing_leb:1;
 	unsigned int direct_writes:1;
-
-#ifdef CONFIG_MTD_UBI_GLUEBI
-	/*
-	 * Gluebi-related stuff may be compiled out.
-	 * Note: this should not be built into UBI but should be a separate
-	 * ubimtd driver which works on top of UBI and emulates MTD devices.
-	 */
-	struct ubi_volume_desc *gluebi_desc;
-	int gluebi_refcount;
-	struct mtd_info gluebi_mtd;
-#endif
 };
 
 /**
@@ -516,17 +501,6 @@ int ubi_calc_data_len(const struct ubi_device *ubi, const void *buf,
 		      int length);
 int ubi_check_volume(struct ubi_device *ubi, int vol_id);
 void ubi_calculate_reserved(struct ubi_device *ubi);
-
-/* gluebi.c */
-#ifdef CONFIG_MTD_UBI_GLUEBI
-int ubi_create_gluebi(struct ubi_device *ubi, struct ubi_volume *vol);
-int ubi_destroy_gluebi(struct ubi_volume *vol);
-void ubi_gluebi_updated(struct ubi_volume *vol);
-#else
-#define ubi_create_gluebi(ubi, vol) 0
-#define ubi_destroy_gluebi(vol) 0
-#define ubi_gluebi_updated(vol)
-#endif
 
 /* eba.c */
 int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,

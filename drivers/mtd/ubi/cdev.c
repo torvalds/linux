@@ -395,7 +395,6 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 			vol->corrupted = 1;
 		}
 		vol->checked = 1;
-		ubi_gluebi_updated(vol);
 		ubi_volume_notify(ubi, vol, UBI_VOLUME_UPDATED);
 		revoke_exclusive(desc, UBI_READWRITE);
 	}
