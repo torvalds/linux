@@ -2754,7 +2754,7 @@ EXPIRED_STATEID(stateid_t *stateid)
 {
 	if (time_before((unsigned long)boot_time,
 			((unsigned long)stateid->si_boot)) &&
-	    time_before((stateid->si_boot + lease_time), get_seconds())) {
+	    time_before((unsigned long)(stateid->si_boot + lease_time), get_seconds())) {
 		dprintk("NFSD: expired stateid (%08x/%08x/%08x/%08x)!\n",
 			stateid->si_boot, stateid->si_stateownerid,
 			stateid->si_fileid, stateid->si_generation);
