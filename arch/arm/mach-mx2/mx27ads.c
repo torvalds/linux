@@ -36,6 +36,7 @@
 #include <mach/board-mx27ads.h>
 #include <mach/mxc_nand.h>
 #include <mach/i2c.h>
+#include <mach/imxfb.h>
 
 #include "devices.h"
 
@@ -92,6 +93,34 @@ static unsigned int mx27ads_pins[] = {
 	/* I2C2 */
 	PC5_PF_I2C2_SDA,
 	PC6_PF_I2C2_SCL,
+	/* FB */
+	PA5_PF_LSCLK,
+	PA6_PF_LD0,
+	PA7_PF_LD1,
+	PA8_PF_LD2,
+	PA9_PF_LD3,
+	PA10_PF_LD4,
+	PA11_PF_LD5,
+	PA12_PF_LD6,
+	PA13_PF_LD7,
+	PA14_PF_LD8,
+	PA15_PF_LD9,
+	PA16_PF_LD10,
+	PA17_PF_LD11,
+	PA18_PF_LD12,
+	PA19_PF_LD13,
+	PA20_PF_LD14,
+	PA21_PF_LD15,
+	PA22_PF_LD16,
+	PA23_PF_LD17,
+	PA24_PF_REV,
+	PA25_PF_CLS,
+	PA26_PF_PS,
+	PA27_PF_SPL_SPR,
+	PA28_PF_HSYNC,
+	PA29_PF_VSYNC,
+	PA30_PF_CONTRAST,
+	PA31_PF_OE_ACD,
 };
 
 static struct mxc_nand_platform_data mx27ads_nand_board_info = {
@@ -126,6 +155,46 @@ static struct imxi2c_platform_data mx27ads_i2c_data = {
 };
 
 static struct i2c_board_info mx27ads_i2c_devices[] = {
+};
+
+void lcd_power(int on)
+{
+	if (on)
+		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_SET_REG);
+	else
+		__raw_writew(PBC_BCTRL1_LCDON, PBC_BCTRL1_CLEAR_REG);
+}
+
+static struct imx_fb_platform_data mx27ads_fb_data = {
+	.pixclock	= 188679,
+	.xres		= 240,
+	.yres		= 320,
+
+	.bpp		= 16,
+	.hsync_len	= 1,
+	.left_margin	= 9,
+	.right_margin	= 16,
+
+	.vsync_len	= 1,
+	.upper_margin	= 7,
+	.lower_margin	= 9,
+	.fixed_screen_cpu = 0,
+
+	/*
+	 * - HSYNC active high
+	 * - VSYNC active high
+	 * - clk notenabled while idle
+	 * - clock inverted
+	 * - data not inverted
+	 * - data enable low active
+	 * - enable sharp mode
+	 */
+	.pcr		= 0xFB008BC0,
+	.pwmr		= 0x00A903FF,
+	.lscr1		= 0x00120300,
+	.dmacr		= 0x00020010,
+
+	.lcd_power	= lcd_power,
 };
 
 static struct platform_device *platform_devices[] __initdata = {
@@ -166,6 +235,7 @@ static void __init mx27ads_board_init(void)
 	i2c_register_board_info(1, mx27ads_i2c_devices,
 				ARRAY_SIZE(mx27ads_i2c_devices));
 	mxc_register_device(&mxc_i2c_device1, &mx27ads_i2c_data);
+	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
