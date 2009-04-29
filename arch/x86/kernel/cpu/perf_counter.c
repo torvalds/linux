@@ -997,6 +997,8 @@ void __init init_hw_perf_counters(void)
 	case X86_VENDOR_AMD:
 		pmc_ops = pmc_amd_init();
 		break;
+	default:
+		return;
 	}
 	if (!pmc_ops)
 		return;
