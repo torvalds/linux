@@ -46,7 +46,7 @@
 #include <linux/pci.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
-#include <linux/mii.h>
+#include <linux/mdio.h>
 #include <linux/crc32.h>
 #include <linux/init.h>
 #include <asm/io.h>
