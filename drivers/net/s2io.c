@@ -63,6 +63,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/mdio.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/delay.h>
@@ -3328,9 +3329,9 @@ static void s2io_updt_xpak_counter(struct net_device *dev)
 	struct stat_block *stat_info = sp->mac_control.stats_info;
 
 	/* Check the communication with the MDIO slave */
-	addr = 0x0000;
+	addr = MDIO_CTRL1;
 	val64 = 0x0;
-	val64 = s2io_mdio_read(MDIO_MMD_PMA_DEV_ADDR, addr, dev);
+	val64 = s2io_mdio_read(MDIO_MMD_PMAPMD, addr, dev);
 	if((val64 == 0xFFFF) || (val64 == 0x0000))
 	{
 		DBG_PRINT(ERR_DBG, "ERR: MDIO slave access failed - "
@@ -3338,24 +3339,24 @@ static void s2io_updt_xpak_counter(struct net_device *dev)
 		return;
 	}
 
-	/* Check for the expecte value of 2040 at PMA address 0x0000 */
-	if(val64 != 0x2040)
+	/* Check for the expected value of control reg 1 */
+	if(val64 != MDIO_CTRL1_SPEED10G)
 	{
 		DBG_PRINT(ERR_DBG, "Incorrect value at PMA address 0x0000 - ");
-		DBG_PRINT(ERR_DBG, "Returned: %llx- Expected: 0x2040\n",
-			  (unsigned long long)val64);
+		DBG_PRINT(ERR_DBG, "Returned: %llx- Expected: 0x%x\n",
+			  (unsigned long long)val64, MDIO_CTRL1_SPEED10G);
 		return;
 	}
 
 	/* Loading the DOM register to MDIO register */
 	addr = 0xA100;
-	s2io_mdio_write(MDIO_MMD_PMA_DEV_ADDR, addr, val16, dev);
-	val64 = s2io_mdio_read(MDIO_MMD_PMA_DEV_ADDR, addr, dev);
+	s2io_mdio_write(MDIO_MMD_PMAPMD, addr, val16, dev);
+	val64 = s2io_mdio_read(MDIO_MMD_PMAPMD, addr, dev);
 
 	/* Reading the Alarm flags */
 	addr = 0xA070;
 	val64 = 0x0;
-	val64 = s2io_mdio_read(MDIO_MMD_PMA_DEV_ADDR, addr, dev);
+	val64 = s2io_mdio_read(MDIO_MMD_PMAPMD, addr, dev);
 
 	flag = CHECKBIT(val64, 0x7);
 	type = 1;
@@ -3387,7 +3388,7 @@ static void s2io_updt_xpak_counter(struct net_device *dev)
 	/* Reading the Warning flags */
 	addr = 0xA074;
 	val64 = 0x0;
-	val64 = s2io_mdio_read(MDIO_MMD_PMA_DEV_ADDR, addr, dev);
+	val64 = s2io_mdio_read(MDIO_MMD_PMAPMD, addr, dev);
 
 	if(CHECKBIT(val64, 0x7))
 		stat_info->xpak_stat.warn_transceiver_temp_high++;
