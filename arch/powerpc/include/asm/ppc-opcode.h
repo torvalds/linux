@@ -47,10 +47,10 @@
 #define PPC_INST_WAIT			0x7c00007c
 
 /* macros to insert fields into opcodes */
-#define __PPC_RA(a)	((a & 0x1f) << 16)
-#define __PPC_RB(b)	((b & 0x1f) << 11)
-#define __PPC_T_TLB(t)	((t & 0x3) << 21)
-#define __PPC_WC(w)	((w & 0x3) << 21)
+#define __PPC_RA(a)	(((a) & 0x1f) << 16)
+#define __PPC_RB(b)	(((b) & 0x1f) << 11)
+#define __PPC_T_TLB(t)	(((t) & 0x3) << 21)
+#define __PPC_WC(w)	(((w) & 0x3) << 21)
 
 /* Deal with instructions that older assemblers aren't aware of */
 #define	PPC_DCBAL(a, b)		stringify_in_c(.long PPC_INST_DCBAL | \
