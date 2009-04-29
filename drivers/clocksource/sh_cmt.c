@@ -158,16 +158,18 @@ static int sh_cmt_enable(struct sh_cmt_priv *p, unsigned long *rate)
 		pr_err("sh_cmt: cannot enable clock \"%s\"\n", cfg->clk);
 		return ret;
 	}
-	*rate = clk_get_rate(p->clk) / 8;
 
 	/* make sure channel is disabled */
 	sh_cmt_start_stop_ch(p, 0);
 
 	/* configure channel, periodic mode and maximum timeout */
-	if (p->width == 16)
-		sh_cmt_write(p, CMCSR, 0);
-	else
+	if (p->width == 16) {
+		*rate = clk_get_rate(p->clk) / 512;
+		sh_cmt_write(p, CMCSR, 0x43);
+	} else {
+		*rate = clk_get_rate(p->clk) / 8;
 		sh_cmt_write(p, CMCSR, 0x01a4);
+	}
 
 	sh_cmt_write(p, CMCOR, 0xffffffff);
 	sh_cmt_write(p, CMCNT, 0);
@@ -615,7 +617,7 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 	if (resource_size(res) == 6) {
 		p->width = 16;
 		p->overflow_bit = 0x80;
-		p->clear_bits = ~0xc0;
+		p->clear_bits = ~0x80;
 	} else {
 		p->width = 32;
 		p->overflow_bit = 0x8000;
