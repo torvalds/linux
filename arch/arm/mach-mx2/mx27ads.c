@@ -36,6 +36,58 @@
 
 #include "devices.h"
 
+static unsigned int mx27ads_pins[] = {
+	/* UART0 */
+	PE12_PF_UART1_TXD,
+	PE13_PF_UART1_RXD,
+	PE14_PF_UART1_CTS,
+	PE15_PF_UART1_RTS,
+	/* UART1 */
+	PE3_PF_UART2_CTS,
+	PE4_PF_UART2_RTS,
+	PE6_PF_UART2_TXD,
+	PE7_PF_UART2_RXD,
+	/* UART2 */
+	PE8_PF_UART3_TXD,
+	PE9_PF_UART3_RXD,
+	PE10_PF_UART3_CTS,
+	PE11_PF_UART3_RTS,
+	/* UART3 */
+	PB26_AF_UART4_RTS,
+	PB28_AF_UART4_TXD,
+	PB29_AF_UART4_CTS,
+	PB31_AF_UART4_RXD,
+	/* UART4 */
+	PB18_AF_UART5_TXD,
+	PB19_AF_UART5_RXD,
+	PB20_AF_UART5_CTS,
+	PB21_AF_UART5_RTS,
+	/* UART5 */
+	PB10_AF_UART6_TXD,
+	PB12_AF_UART6_CTS,
+	PB11_AF_UART6_RXD,
+	PB13_AF_UART6_RTS,
+	/* FEC */
+	PD0_AIN_FEC_TXD0,
+	PD1_AIN_FEC_TXD1,
+	PD2_AIN_FEC_TXD2,
+	PD3_AIN_FEC_TXD3,
+	PD4_AOUT_FEC_RX_ER,
+	PD5_AOUT_FEC_RXD1,
+	PD6_AOUT_FEC_RXD2,
+	PD7_AOUT_FEC_RXD3,
+	PD8_AF_FEC_MDIO,
+	PD9_AIN_FEC_MDC,
+	PD10_AOUT_FEC_CRS,
+	PD11_AOUT_FEC_TX_CLK,
+	PD12_AOUT_FEC_RXD0,
+	PD13_AOUT_FEC_RX_DV,
+	PD14_AOUT_FEC_RX_CLK,
+	PD15_AOUT_FEC_COL,
+	PD16_AIN_FEC_TX_ER,
+	PF23_AIN_FEC_TX_EN,
+};
+
 /* ADS's NOR flash */
 static struct physmap_flash_data mx27ads_flash_data = {
 	.width = 2,
@@ -58,183 +110,31 @@ static struct platform_device mx27ads_nor_mtd_device = {
 	.resource = &mx27ads_flash_resource,
 };
 
-static int mxc_uart0_pins[] = {
-	PE12_PF_UART1_TXD,
-	PE13_PF_UART1_RXD,
-	PE14_PF_UART1_CTS,
-	PE15_PF_UART1_RTS
-};
-
-static int uart_mxc_port0_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins), "UART0");
-}
-
-static void uart_mxc_port0_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart0_pins,
-			ARRAY_SIZE(mxc_uart0_pins));
-}
-
-static int mxc_uart1_pins[] = {
-	PE3_PF_UART2_CTS,
-	PE4_PF_UART2_RTS,
-	PE6_PF_UART2_TXD,
-	PE7_PF_UART2_RXD
-};
-
-static int uart_mxc_port1_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins), "UART1");
-}
-
-static void uart_mxc_port1_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
-			ARRAY_SIZE(mxc_uart1_pins));
-}
-
-static int mxc_uart2_pins[] = {
-	PE8_PF_UART3_TXD,
-	PE9_PF_UART3_RXD,
-	PE10_PF_UART3_CTS,
-	PE11_PF_UART3_RTS
-};
-
-static int uart_mxc_port2_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins), "UART2");
-}
-
-static void uart_mxc_port2_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart2_pins,
-			ARRAY_SIZE(mxc_uart2_pins));
-}
-
-static int mxc_uart3_pins[] = {
-	PB26_AF_UART4_RTS,
-	PB28_AF_UART4_TXD,
-	PB29_AF_UART4_CTS,
-	PB31_AF_UART4_RXD
-};
-
-static int uart_mxc_port3_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart3_pins,
-			ARRAY_SIZE(mxc_uart3_pins), "UART3");
-}
-
-static void uart_mxc_port3_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart3_pins,
-			ARRAY_SIZE(mxc_uart3_pins));
-}
-
-static int mxc_uart4_pins[] = {
-	PB18_AF_UART5_TXD,
-	PB19_AF_UART5_RXD,
-	PB20_AF_UART5_CTS,
-	PB21_AF_UART5_RTS
-};
-
-static int uart_mxc_port4_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart4_pins,
-			ARRAY_SIZE(mxc_uart4_pins), "UART4");
-}
-
-static void uart_mxc_port4_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart4_pins,
-			ARRAY_SIZE(mxc_uart4_pins));
-}
-
-static int mxc_uart5_pins[] = {
-	PB10_AF_UART6_TXD,
-	PB12_AF_UART6_CTS,
-	PB11_AF_UART6_RXD,
-	PB13_AF_UART6_RTS
-};
-
-static int uart_mxc_port5_init(struct platform_device *pdev)
-{
-	return mxc_gpio_setup_multiple_pins(mxc_uart5_pins,
-			ARRAY_SIZE(mxc_uart5_pins), "UART5");
-}
-
-static void uart_mxc_port5_exit(struct platform_device *pdev)
-{
-	mxc_gpio_release_multiple_pins(mxc_uart5_pins,
-			ARRAY_SIZE(mxc_uart5_pins));
-}
-
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
 	&mxc_fec_device,
 };
 
-static int mxc_fec_pins[] = {
-	PD0_AIN_FEC_TXD0,
-	PD1_AIN_FEC_TXD1,
-	PD2_AIN_FEC_TXD2,
-	PD3_AIN_FEC_TXD3,
-	PD4_AOUT_FEC_RX_ER,
-	PD5_AOUT_FEC_RXD1,
-	PD6_AOUT_FEC_RXD2,
-	PD7_AOUT_FEC_RXD3,
-	PD8_AF_FEC_MDIO,
-	PD9_AIN_FEC_MDC,
-	PD10_AOUT_FEC_CRS,
-	PD11_AOUT_FEC_TX_CLK,
-	PD12_AOUT_FEC_RXD0,
-	PD13_AOUT_FEC_RX_DV,
-	PD14_AOUT_FEC_RX_CLK,
-	PD15_AOUT_FEC_COL,
-	PD16_AIN_FEC_TX_ER,
-	PF23_AIN_FEC_TX_EN
-};
-
-static void gpio_fec_active(void)
-{
-	mxc_gpio_setup_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins), "FEC");
-}
-
 static struct imxuart_platform_data uart_pdata[] = {
 	{
-		.init = uart_mxc_port0_init,
-		.exit = uart_mxc_port0_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port1_init,
-		.exit = uart_mxc_port1_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port2_init,
-		.exit = uart_mxc_port2_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port3_init,
-		.exit = uart_mxc_port3_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port4_init,
-		.exit = uart_mxc_port4_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	}, {
-		.init = uart_mxc_port5_init,
-		.exit = uart_mxc_port5_exit,
 		.flags = IMXUART_HAVE_RTSCTS,
 	},
 };
 
 static void __init mx27ads_board_init(void)
 {
-	gpio_fec_active();
+	mxc_gpio_setup_multiple_pins(mx27ads_pins, ARRAY_SIZE(mx27ads_pins),
+			"mx27ads");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
