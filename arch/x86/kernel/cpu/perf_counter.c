@@ -393,7 +393,7 @@ void hw_perf_restore(u64 ctrl)
  */
 EXPORT_SYMBOL_GPL(hw_perf_restore);
 
-static inline u64 intel_pmu_get_status(u64 mask)
+static inline u64 intel_pmu_get_status(void)
 {
 	u64 status;
 
@@ -728,7 +728,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 
 	cpuc->throttle_ctrl = intel_pmu_save_disable_all();
 
-	status = intel_pmu_get_status(cpuc->throttle_ctrl);
+	status = intel_pmu_get_status();
 	if (!status)
 		goto out;
 
@@ -753,7 +753,7 @@ again:
 	/*
 	 * Repeat if there is more work to be done:
 	 */
-	status = intel_pmu_get_status(cpuc->throttle_ctrl);
+	status = intel_pmu_get_status();
 	if (status)
 		goto again;
 out:
