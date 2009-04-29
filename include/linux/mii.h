@@ -240,6 +240,22 @@ static inline unsigned int mii_duplex (unsigned int duplex_lock,
 }
 
 /**
+ * mii_advertise_flowctrl - get flow control advertisement flags
+ * @cap: Flow control capabilities (FLOW_CTRL_RX, FLOW_CTRL_TX or both)
+ */
+static inline u16 mii_advertise_flowctrl(int cap)
+{
+	u16 adv = 0;
+
+	if (cap & FLOW_CTRL_RX)
+		adv = ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+	if (cap & FLOW_CTRL_TX)
+		adv ^= ADVERTISE_PAUSE_ASYM;
+
+	return adv;
+}
+
+/**
  * mii_resolve_flowctrl_fdx
  * @lcladv: value of MII ADVERTISE register
  * @rmtadv: value of MII LPA register
