@@ -757,6 +757,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.conf.long_frame_max_tx_count = 4;
 	local->hw.conf.short_frame_max_tx_count = 7;
 	local->hw.conf.radio_enabled = true;
+	local->user_power_level = -1;
 
 	INIT_LIST_HEAD(&local->interfaces);
 	mutex_init(&local->iflist_mtx);
@@ -909,6 +910,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (result < 0)
 		goto fail_sta_info;
 
+	result = ieee80211_wep_init(local);
+	if (result < 0) {
+		printk(KERN_DEBUG "%s: Failed to initialize wep: %d\n",
+		       wiphy_name(local->hw.wiphy), result);
+		goto fail_wep;
+	}
+
 	rtnl_lock();
 	result = dev_alloc_name(local->mdev, local->mdev->name);
 	if (result < 0)
@@ -928,14 +936,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		printk(KERN_DEBUG "%s: Failed to initialize rate control "
 		       "algorithm\n", wiphy_name(local->hw.wiphy));
 		goto fail_rate;
-	}
-
-	result = ieee80211_wep_init(local);
-
-	if (result < 0) {
-		printk(KERN_DEBUG "%s: Failed to initialize wep: %d\n",
-		       wiphy_name(local->hw.wiphy), result);
-		goto fail_wep;
 	}
 
 	/* add one default STA interface if supported */
@@ -967,13 +967,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	return 0;
 
-fail_wep:
-	rate_control_deinitialize(local);
 fail_rate:
 	unregister_netdevice(local->mdev);
 	local->mdev = NULL;
 fail_dev:
 	rtnl_unlock();
+	ieee80211_wep_free(local);
+fail_wep:
 	sta_info_stop(local);
 fail_sta_info:
 	debugfs_hw_del(local);
