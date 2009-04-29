@@ -3508,7 +3508,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		.spd_release	= buffer_spd_release,
 	};
 	struct buffer_ref *ref;
-	int size, i;
+	int entries, size, i;
 	size_t ret;
 
 	if (*ppos & (PAGE_SIZE - 1)) {
@@ -3523,7 +3523,9 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		len &= PAGE_MASK;
 	}
 
-	for (i = 0; i < PIPE_BUFFERS && len; i++, len -= PAGE_SIZE) {
+	entries = ring_buffer_entries_cpu(info->tr->buffer, info->cpu);
+
+	for (i = 0; i < PIPE_BUFFERS && len && entries; i++, len -= PAGE_SIZE) {
 		struct page *page;
 		int r;
 
@@ -3564,6 +3566,8 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		spd.partial[i].private = (unsigned long)ref;
 		spd.nr_pages++;
 		*ppos += PAGE_SIZE;
+
+		entries = ring_buffer_entries_cpu(info->tr->buffer, info->cpu);
 	}
 
 	spd.nr_pages = i;
