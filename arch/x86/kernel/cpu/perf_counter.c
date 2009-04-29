@@ -424,7 +424,6 @@ static void amd_pmu_enable_counter(int idx, u64 config)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 
-	set_bit(idx, cpuc->active);
 	if (cpuc->enabled)
 		config |= ARCH_PERFMON_EVENTSEL0_ENABLE;
 
@@ -446,9 +445,6 @@ static void intel_pmu_disable_counter(int idx, u64 config)
 
 static void amd_pmu_disable_counter(int idx, u64 config)
 {
-	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-
-	clear_bit(idx, cpuc->active);
 	wrmsrl(MSR_K7_EVNTSEL0 + idx, config);
 
 }
@@ -633,10 +629,7 @@ try_generic:
 	__x86_pmu_disable(counter, hwc, idx);
 
 	cpuc->counters[idx] = counter;
-	/*
-	 * Make it visible before enabling the hw:
-	 */
-	barrier();
+	set_bit(idx, cpuc->active);
 
 	x86_perf_counter_set_period(counter, hwc, idx);
 	__x86_pmu_enable(counter, hwc, idx);
@@ -700,10 +693,13 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	struct hw_perf_counter *hwc = &counter->hw;
 	unsigned int idx = hwc->idx;
 
+	/*
+	 * Must be done before we disable, otherwise the nmi handler
+	 * could reenable again:
+	 */
+	clear_bit(idx, cpuc->active);
 	__x86_pmu_disable(counter, hwc, idx);
 
-	clear_bit(idx, cpuc->used);
-	cpuc->counters[idx] = NULL;
 	/*
 	 * Make sure the cleared pointer becomes visible before we
 	 * (potentially) free the counter:
@@ -715,6 +711,8 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	 * that we are disabling:
 	 */
 	x86_perf_counter_update(counter, hwc, idx);
+	cpuc->counters[idx] = NULL;
+	clear_bit(idx, cpuc->used);
 }
 
 /*
@@ -763,7 +761,7 @@ again:
 		struct perf_counter *counter = cpuc->counters[bit];
 
 		clear_bit(bit, (unsigned long *) &status);
-		if (!counter)
+		if (!test_bit(bit, cpuc->active))
 			continue;
 
 		intel_pmu_save_and_restart(counter);
