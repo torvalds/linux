@@ -542,7 +542,7 @@ fixed_mode_idx(struct perf_counter *counter, struct hw_perf_counter *hwc)
 {
 	unsigned int event;
 
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+	if (!x86_pmu.num_counters_fixed)
 		return -1;
 
 	if (unlikely(hwc->nmi))
