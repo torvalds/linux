@@ -93,4 +93,7 @@ struct davinci_clk {
 	}
 
 int davinci_clk_init(struct davinci_clk *clocks);
+
+extern struct platform_device davinci_wdt_device;
+
 #endif

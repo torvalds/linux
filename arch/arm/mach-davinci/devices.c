@@ -54,3 +54,38 @@ void __init davinci_init_i2c(struct davinci_i2c_platform_data *pdata)
 	(void) platform_device_register(&davinci_i2c_device);
 }
 
+/*-------------------------------------------------------------------------*/
+
+static struct resource wdt_resources[] = {
+	{
+		.start	= 0x01c21c00,
+		.end	= 0x01c21fff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device davinci_wdt_device = {
+	.name		= "watchdog",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(wdt_resources),
+	.resource	= wdt_resources,
+};
+
+static void davinci_init_wdt(void)
+{
+	platform_device_register(&davinci_wdt_device);
+}
+
+/*-------------------------------------------------------------------------*/
+
+static int __init davinci_init_devices(void)
+{
+	/* please keep these calls, and their implementations above,
+	 * in alphabetical order so they're easier to sort through.
+	 */
+	davinci_init_wdt();
+
+	return 0;
+}
+arch_initcall(davinci_init_devices);
+
