@@ -45,7 +45,7 @@ struct x86_pmu {
 	u64		(*save_disable_all)(void);
 	void		(*restore_all)(u64);
 	void		(*enable)(struct hw_perf_counter *, int);
-	void		(*disable)(int, u64);
+	void		(*disable)(struct hw_perf_counter *, int);
 	unsigned	eventsel;
 	unsigned	perfctr;
 	u64		(*event_map)(int);
@@ -425,28 +425,19 @@ static inline void x86_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 			      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE);
 }
 
-static void intel_pmu_disable_counter(int idx, u64 config)
+static inline void x86_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 {
-	wrmsrl(MSR_ARCH_PERFMON_EVENTSEL0 + idx, config);
-}
+	int err;
 
-static void amd_pmu_disable_counter(int idx, u64 config)
-{
-	wrmsrl(MSR_K7_EVNTSEL0 + idx, config);
-
-}
-
-static void hw_perf_disable(int idx, u64 config)
-{
 	if (unlikely(!perf_counters_initialized))
 		return;
 
-	x86_pmu.disable(idx, config);
+	err = checking_wrmsrl(hwc->config_base + idx,
+			      hwc->config);
 }
 
 static inline void
-__pmc_fixed_disable(struct perf_counter *counter,
-		    struct hw_perf_counter *hwc, int __idx)
+intel_pmu_disable_fixed(struct hw_perf_counter *hwc, int __idx)
 {
 	int idx = __idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, mask;
@@ -460,13 +451,20 @@ __pmc_fixed_disable(struct perf_counter *counter,
 }
 
 static inline void
-__x86_pmu_disable(struct perf_counter *counter,
-		  struct hw_perf_counter *hwc, int idx)
+intel_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
 {
-	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
-		__pmc_fixed_disable(counter, hwc, idx);
-	else
-		hw_perf_disable(idx, hwc->config);
+	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
+		intel_pmu_disable_fixed(hwc, idx);
+		return;
+	}
+
+	x86_pmu_disable_counter(hwc, idx);
+}
+
+static inline void
+amd_pmu_disable_counter(struct hw_perf_counter *hwc, int idx)
+{
+	x86_pmu_disable_counter(hwc, idx);
 }
 
 static DEFINE_PER_CPU(u64, prev_left[X86_PMC_IDX_MAX]);
@@ -551,7 +549,7 @@ static void amd_pmu_enable_counter(struct hw_perf_counter *hwc, int idx)
 	if (cpuc->enabled)
 		x86_pmu_enable_counter(hwc, idx);
 	else
-		amd_pmu_disable_counter(idx, hwc->config);
+		x86_pmu_disable_counter(hwc, idx);
 }
 
 static int
@@ -622,7 +620,7 @@ try_generic:
 
 	perf_counters_lapic_init(hwc->nmi);
 
-	__x86_pmu_disable(counter, hwc, idx);
+	x86_pmu.disable(hwc, idx);
 
 	cpuc->counters[idx] = counter;
 	set_bit(idx, cpuc->active);
@@ -694,7 +692,7 @@ static void x86_pmu_disable(struct perf_counter *counter)
 	 * could reenable again:
 	 */
 	clear_bit(idx, cpuc->active);
-	__x86_pmu_disable(counter, hwc, idx);
+	x86_pmu.disable(hwc, idx);
 
 	/*
 	 * Make sure the cleared pointer becomes visible before we
@@ -762,7 +760,7 @@ again:
 
 		intel_pmu_save_and_restart(counter);
 		if (perf_counter_overflow(counter, nmi, regs, 0))
-			__x86_pmu_disable(counter, &counter->hw, bit);
+			intel_pmu_disable_counter(&counter->hw, bit);
 	}
 
 	intel_pmu_ack_status(ack);
