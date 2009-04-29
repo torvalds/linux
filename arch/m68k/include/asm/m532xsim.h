@@ -58,10 +58,12 @@
 
 #define	MCFSIM_IMR_MASKALL	0xFFFFFFFF	/* All SIM intr sources */
 
-#define MCFSIM_IMR_SIMR0	0xFC04801C
-#define MCFSIM_IMR_SIMR1	0xFC04C01C
-#define MCFSIM_IMR_CIMR0	0xFC04801D
-#define MCFSIM_IMR_CIMR1	0xFC04C01D
+#define	MCFINTC0_SIMR		0xFC04801C
+#define	MCFINTC0_CIMR		0xFC04801D
+#define	MCFINTC0_ICR0		0xFC048040
+#define	MCFINTC1_SIMR		0xFC04C01C
+#define	MCFINTC1_CIMR		0xFC04C01D
+#define	MCFINTC1_ICR0		0xFC04C040
 
 #define MCFSIM_ICR_TIMER1	(0xFC048040+32)
 #define MCFSIM_ICR_TIMER2	(0xFC048040+33)
@@ -87,16 +89,16 @@
 
 
 #define mcf_enable_irq0(irq)		\
-	*((volatile unsigned char*) (MCFSIM_IMR_CIMR0)) = (irq);
+	*((volatile unsigned char *) (MCFINTC0_CIMR)) = (irq);
 
 #define mcf_enable_irq1(irq)		\
-	*((volatile unsigned char*) (MCFSIM_IMR_CIMR1)) = (irq);
+	*((volatile unsigned char *) (MCFINTC1_CIMR)) = (irq);
 
 #define mcf_disable_irq0(irq)		\
-	*((volatile unsigned char*) (MCFSIM_IMR_SIMR0)) = (irq);
+	*((volatile unsigned char *) (MCFINTC0_SIMR)) = (irq);
 
 #define mcf_disable_irq1(irq)		\
-	*((volatile unsigned char*) (MCFSIM_IMR_SIMR1)) = (irq);
+	*((volatile unsigned char *) (MCFINTC1_SIMR)) = (irq);
 
 /*
  *	Define the Cache register flags.

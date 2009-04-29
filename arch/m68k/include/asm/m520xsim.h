@@ -11,9 +11,8 @@
 #define m520xsim_h
 /****************************************************************************/
 
-
 /*
- *  Define the 5282 SIM register set addresses.
+ *  Define the 520x SIM register set addresses.
  */
 #define MCFICM_INTC0        0x48000     /* Base for Interrupt Ctrl 0 */
 #define MCFINTC_IPRH        0x00        /* Interrupt pending 32-63 */
@@ -25,6 +24,18 @@
 #define MCFINTC_SIMR        0x1c        /* Set interrupt mask 0-63 */
 #define MCFINTC_CIMR        0x1d        /* Clear interrupt mask 0-63 */
 #define MCFINTC_ICR0        0x40        /* Base ICR register */
+
+/*
+ *  The common interrupt controller code just wants to know the absolute
+ *  address to the SIMR and CIMR registers (not offsets into IPSBAR).
+ *  The 520x family only has a single INTC unit.
+ */
+#define MCFINTC0_SIMR       (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_SIMR)
+#define MCFINTC0_CIMR       (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_CIMR)
+#define	MCFINTC0_ICR0       (MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0)
+#define MCFINTC1_SIMR       (0)
+#define MCFINTC1_CIMR       (0)
+#define	MCFINTC1_ICR0       (0)
 
 #define MCFINT_VECBASE      64
 #define MCFINT_UART0        26          /* Interrupt number for UART0 */
