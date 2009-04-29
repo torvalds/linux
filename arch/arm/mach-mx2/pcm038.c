@@ -17,24 +17,23 @@
  * MA 02110-1301, USA.
  */
 
-#include <linux/platform_device.h>
-#include <linux/mtd/physmap.h>
-#include <linux/mtd/plat-ram.h>
-#include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
+#include <linux/io.h>
+#include <linux/mtd/plat-ram.h>
+#include <linux/mtd/physmap.h>
+#include <linux/platform_device.h>
 
-#include <asm/mach/arch.h>
 #include <asm/mach-types.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/time.h>
+
+#include <mach/board-pcm038.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux.h>
-#ifdef CONFIG_I2C_IMX
 #include <mach/i2c.h>
-#endif
-#include <asm/mach/time.h>
+#include <mach/iomux.h>
 #include <mach/imx-uart.h>
-#include <mach/board-pcm038.h>
 #include <mach/mxc_nand.h>
 
 #include "devices.h"
@@ -176,7 +175,6 @@ static void __init pcm038_init_sram(void)
 	__raw_writel(0x22220a00, CSCR_A(1));
 }
 
-#ifdef CONFIG_I2C_IMX
 static struct imxi2c_platform_data pcm038_i2c_1_data = {
 	.bitrate = 100000,
 };
@@ -201,7 +199,6 @@ static struct i2c_board_info pcm038_i2c_devices[] = {
 		.type = "lm75"
 	}
 };
-#endif
 
 static void __init pcm038_init(void)
 {
@@ -217,13 +214,11 @@ static void __init pcm038_init(void)
 	mxc_gpio_mode(PE16_AF_OWIRE);
 	mxc_register_device(&mxc_nand_device, &pcm038_nand_board_info);
 
-#ifdef CONFIG_I2C_IMX
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, pcm038_i2c_devices,
 				ARRAY_SIZE(pcm038_i2c_devices));
 
 	mxc_register_device(&mxc_i2c_device1, &pcm038_i2c_1_data);
-#endif
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 

@@ -16,17 +16,17 @@
  * MA 02110-1301, USA.
  */
 
-#include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/irq.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
 
-#include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/mmc.h>
-#include <mach/imxfb.h>
 #include <mach/iomux.h>
+#include <mach/imxfb.h>
+#include <mach/hardware.h>
+#include <mach/mmc.h>
 
 #include "devices.h"
 
