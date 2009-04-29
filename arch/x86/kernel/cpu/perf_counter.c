@@ -725,7 +725,7 @@ static void x86_pmu_disable(struct perf_counter *counter)
  * Save and restart an expired counter. Called by NMI contexts,
  * so it has to be careful about preempting normal counter ops:
  */
-static void perf_save_and_restart(struct perf_counter *counter)
+static void intel_pmu_save_and_restart(struct perf_counter *counter)
 {
 	struct hw_perf_counter *hwc = &counter->hw;
 	int idx = hwc->idx;
@@ -753,7 +753,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 	struct cpu_hw_counters *cpuc = &per_cpu(cpu_hw_counters, cpu);
 	int ret = 0;
 
-	cpuc->throttle_ctrl = hw_perf_save_disable();
+	cpuc->throttle_ctrl = intel_pmu_save_disable_all();
 
 	status = intel_pmu_get_status(cpuc->throttle_ctrl);
 	if (!status)
@@ -770,7 +770,7 @@ again:
 		if (!counter)
 			continue;
 
-		perf_save_and_restart(counter);
+		intel_pmu_save_and_restart(counter);
 		if (perf_counter_overflow(counter, nmi, regs, 0))
 			__x86_pmu_disable(counter, &counter->hw, bit);
 	}
@@ -788,7 +788,7 @@ out:
 	 * Restore - do not reenable when global enable is off or throttled:
 	 */
 	if (++cpuc->interrupts < PERFMON_MAX_INTERRUPTS)
-		hw_perf_restore(cpuc->throttle_ctrl);
+		intel_pmu_restore_all(cpuc->throttle_ctrl);
 
 	return ret;
 }
