@@ -459,7 +459,7 @@ static void hw_perf_disable(int idx, u64 config)
 
 static inline void
 __pmc_fixed_disable(struct perf_counter *counter,
-		    struct hw_perf_counter *hwc, unsigned int __idx)
+		    struct hw_perf_counter *hwc, int __idx)
 {
 	int idx = __idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, mask;
@@ -474,7 +474,7 @@ __pmc_fixed_disable(struct perf_counter *counter,
 
 static inline void
 __x86_pmu_disable(struct perf_counter *counter,
-		  struct hw_perf_counter *hwc, unsigned int idx)
+		  struct hw_perf_counter *hwc, int idx)
 {
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL))
 		__pmc_fixed_disable(counter, hwc, idx);
@@ -523,7 +523,7 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 
 static inline void
 __pmc_fixed_enable(struct perf_counter *counter,
-		   struct hw_perf_counter *hwc, unsigned int __idx)
+		   struct hw_perf_counter *hwc, int __idx)
 {
 	int idx = __idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, bits, mask;
@@ -691,7 +691,7 @@ static void x86_pmu_disable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	struct hw_perf_counter *hwc = &counter->hw;
-	unsigned int idx = hwc->idx;
+	int idx = hwc->idx;
 
 	/*
 	 * Must be done before we disable, otherwise the nmi handler

@@ -318,7 +318,7 @@ struct hw_perf_counter {
 			unsigned long			config_base;
 			unsigned long			counter_base;
 			int				nmi;
-			unsigned int			idx;
+			int				idx;
 		};
 		union { /* software */
 			atomic64_t			count;
