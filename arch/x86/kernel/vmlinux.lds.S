@@ -255,8 +255,8 @@ SECTIONS
 
 	/* Init code and data - will be freed after init */
 	. = ALIGN(PAGE_SIZE);
-	__init_begin = .; /* paired with __init_end */
 	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
+		__init_begin = .; /* paired with __init_end */
 		_sinittext = .;
 		INIT_TEXT
 		_einittext = .;
@@ -346,8 +346,11 @@ SECTIONS
 #endif
 
 	. = ALIGN(PAGE_SIZE);
+
 	/* freed after init ends here */
-	__init_end = .;
+	.init.end : AT(ADDR(.init.end) - LOAD_OFFSET) {
+		__init_end = .;
+	}
 
 #ifdef CONFIG_X86_64
 	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {
