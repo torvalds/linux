@@ -54,6 +54,7 @@ struct x86_pmu {
 	int		num_counters_fixed;
 	int		counter_bits;
 	u64		counter_mask;
+	u64		max_period;
 };
 
 static struct x86_pmu x86_pmu __read_mostly;
@@ -279,14 +280,8 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		hwc->nmi = 1;
 
 	hwc->irq_period		= hw_event->irq_period;
-	/*
-	 * Intel PMCs cannot be accessed sanely above 32 bit width,
-	 * so we install an artificial 1<<31 period regardless of
-	 * the generic counter period:
-	 */
-	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-		if ((s64)hwc->irq_period <= 0 || hwc->irq_period > 0x7FFFFFFF)
-			hwc->irq_period = 0x7FFFFFFF;
+	if ((s64)hwc->irq_period <= 0 || hwc->irq_period > x86_pmu.max_period)
+		hwc->irq_period = x86_pmu.max_period;
 
 	atomic64_set(&hwc->period_left, hwc->irq_period);
 
@@ -910,6 +905,12 @@ static struct x86_pmu intel_pmu = {
 	.event_map		= intel_pmu_event_map,
 	.raw_event		= intel_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(intel_perfmon_event_map),
+	/*
+	 * Intel PMCs cannot be accessed sanely above 32 bit width,
+	 * so we install an artificial 1<<31 period regardless of
+	 * the generic counter period:
+	 */
+	.max_period		= (1ULL << 31) - 1,
 };
 
 static struct x86_pmu amd_pmu = {
@@ -927,6 +928,8 @@ static struct x86_pmu amd_pmu = {
 	.num_counters		= 4,
 	.counter_bits		= 48,
 	.counter_mask		= (1ULL << 48) - 1,
+	/* use highest bit to detect overflow */
+	.max_period		= (1ULL << 47) - 1,
 };
 
 static int intel_pmu_init(void)
@@ -999,6 +1002,7 @@ void __init init_hw_perf_counters(void)
 	perf_max_counters = x86_pmu.num_counters;
 
 	pr_info("... value mask:      %016Lx\n", x86_pmu.counter_mask);
+	pr_info("... max period:      %016Lx\n", x86_pmu.max_period);
 
 	if (x86_pmu.num_counters_fixed > X86_PMC_MAX_FIXED) {
 		x86_pmu.num_counters_fixed = X86_PMC_MAX_FIXED;
