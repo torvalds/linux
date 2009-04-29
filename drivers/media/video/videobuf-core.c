@@ -439,6 +439,7 @@ int videobuf_reqbufs(struct videobuf_queue *q,
 	}
 
 	req->count = retval;
+	retval = 0;
 
  done:
 	mutex_unlock(&q->vb_lock);
