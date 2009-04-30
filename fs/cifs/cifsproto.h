@@ -306,8 +306,6 @@ extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 *inode_number,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern int cifs_convertUCSpath(char *target, const __le16 *source, int maxlen,
-			const struct nls_table *codepage);
 extern int cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
 			const struct nls_table *cp, int mapChars);
 
