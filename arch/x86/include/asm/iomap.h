@@ -1,3 +1,6 @@
+#ifndef _ASM_X86_IOMAP_H
+#define _ASM_X86_IOMAP_H
+
 /*
  * Copyright © 2008 Ingo Molnar
  *
@@ -31,3 +34,5 @@ iomap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot);
 
 void
 iounmap_atomic(void *kvaddr, enum km_type type);
+
+#endif /* _ASM_X86_IOMAP_H */
