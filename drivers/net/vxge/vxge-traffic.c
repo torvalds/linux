@@ -505,7 +505,7 @@ enum vxge_hw_status vxge_hw_device_begin_irq(struct __vxge_hw_device *hldev,
 			ret = __vxge_hw_vpath_alarm_process(
 				&hldev->virtual_paths[i], skip_alarms);
 
-			error_level = max(ret, error_level);
+			error_level = VXGE_HW_SET_LEVEL(ret, error_level);
 
 			if (unlikely((ret == VXGE_HW_ERR_CRITICAL) ||
 				(ret == VXGE_HW_ERR_SLOT_FREEZE)))
@@ -1921,7 +1921,7 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 	struct vxge_hw_vpath_reg __iomem *vp_reg;
 
 	if (vpath == NULL) {
-		alarm_event = max(VXGE_HW_EVENT_UNKNOWN,
+		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
 			alarm_event);
 		goto out2;
 	}
@@ -1931,7 +1931,7 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 	alarm_status = readq(&vp_reg->vpath_general_int_status);
 
 	if (alarm_status == VXGE_HW_ALL_FOXES) {
-		alarm_event = max(VXGE_HW_EVENT_SLOT_FREEZE,
+		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_SLOT_FREEZE,
 			alarm_event);
 		goto out;
 	}
@@ -1945,7 +1945,7 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 		VXGE_HW_VPATH_GENERAL_INT_STATUS_XMAC_INT)) {
 		sw_stats->error_stats.unknown_alarms++;
 
-		alarm_event = max(VXGE_HW_EVENT_UNKNOWN,
+		alarm_event = VXGE_HW_SET_LEVEL(VXGE_HW_EVENT_UNKNOWN,
 			alarm_event);
 		goto out;
 	}
@@ -1975,8 +1975,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 					&vp_reg->asic_ntwk_vp_err_mask);
 
 				__vxge_hw_device_handle_link_down_ind(hldev);
-				alarm_event = max(VXGE_HW_EVENT_LINK_DOWN,
-					alarm_event);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_LINK_DOWN, alarm_event);
 			}
 
 			if (((val64 &
@@ -1996,15 +1996,15 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 					&vp_reg->asic_ntwk_vp_err_mask);
 
 				__vxge_hw_device_handle_link_up_ind(hldev);
-				alarm_event = max(VXGE_HW_EVENT_LINK_UP,
-					alarm_event);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_LINK_UP, alarm_event);
 			}
 
 			writeq(VXGE_HW_INTR_MASK_ALL,
 				&vp_reg->asic_ntwk_vp_err_reg);
 
-			alarm_event = max(VXGE_HW_EVENT_ALARM_CLEARED,
-				alarm_event);
+			alarm_event = VXGE_HW_SET_LEVEL(
+				VXGE_HW_EVENT_ALARM_CLEARED, alarm_event);
 
 			if (skip_alarms)
 				return VXGE_HW_OK;
@@ -2026,8 +2026,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				~mask64) {
 				sw_stats->error_stats.ini_serr_det++;
 
-				alarm_event = max(VXGE_HW_EVENT_SERR,
-					alarm_event);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_SERR, alarm_event);
 			}
 
 			if ((val64 &
@@ -2035,8 +2035,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				~mask64) {
 				sw_stats->error_stats.dblgen_fifo0_overflow++;
 
-				alarm_event = max(VXGE_HW_EVENT_FIFO_ERR,
-					alarm_event);
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR, alarm_event);
 			}
 
 			if ((val64 &
@@ -2057,7 +2057,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 			if (!skip_alarms) {
 				writeq(VXGE_HW_INTR_MASK_ALL,
 					&vp_reg->general_errors_reg);
-				alarm_event = max(VXGE_HW_EVENT_ALARM_CLEARED,
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_ALARM_CLEARED,
 					alarm_event);
 			}
 		}
@@ -2073,7 +2074,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				~mask64) {
 				sw_stats->error_stats.kdfcctl_fifo0_overwrite++;
 
-				alarm_event = max(VXGE_HW_EVENT_FIFO_ERR,
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR,
 					alarm_event);
 			}
 
@@ -2082,7 +2084,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				~mask64) {
 				sw_stats->error_stats.kdfcctl_fifo0_poison++;
 
-				alarm_event = max(VXGE_HW_EVENT_FIFO_ERR,
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR,
 					alarm_event);
 			}
 
@@ -2091,14 +2094,16 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				~mask64) {
 				sw_stats->error_stats.kdfcctl_fifo0_dma_error++;
 
-				alarm_event = max(VXGE_HW_EVENT_FIFO_ERR,
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_FIFO_ERR,
 					alarm_event);
 			}
 
 			if (!skip_alarms) {
 				writeq(VXGE_HW_INTR_MASK_ALL,
 					&vp_reg->kdfcctl_errors_reg);
-				alarm_event = max(VXGE_HW_EVENT_ALARM_CLEARED,
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_ALARM_CLEARED,
 					alarm_event);
 			}
 		}
@@ -2122,7 +2127,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				~mask64) {
 				sw_stats->error_stats.prc_rxdcm_sc_err++;
 
-				alarm_event = max(VXGE_HW_EVENT_VPATH_ERR,
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_VPATH_ERR,
 					alarm_event);
 			}
 
@@ -2130,7 +2136,8 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				& ~mask64) {
 				sw_stats->error_stats.prc_rxdcm_sc_abort++;
 
-				alarm_event = max(VXGE_HW_EVENT_VPATH_ERR,
+				alarm_event = VXGE_HW_SET_LEVEL(
+						VXGE_HW_EVENT_VPATH_ERR,
 						alarm_event);
 			}
 
@@ -2138,14 +2145,16 @@ enum vxge_hw_status __vxge_hw_vpath_alarm_process(
 				 & ~mask64) {
 				sw_stats->error_stats.prc_quanta_size_err++;
 
-				alarm_event = max(VXGE_HW_EVENT_VPATH_ERR,
+				alarm_event = VXGE_HW_SET_LEVEL(
+					VXGE_HW_EVENT_VPATH_ERR,
 					alarm_event);
 			}
 
 			if (!skip_alarms) {
 				writeq(VXGE_HW_INTR_MASK_ALL,
 					&vp_reg->prc_alarm_reg);
-				alarm_event = max(VXGE_HW_EVENT_ALARM_CLEARED,
+				alarm_event = VXGE_HW_SET_LEVEL(
+						VXGE_HW_EVENT_ALARM_CLEARED,
 						alarm_event);
 			}
 		}

@@ -110,6 +110,8 @@ enum vxge_hw_event {
 	VXGE_HW_EVENT_SLOT_FREEZE	= VXGE_HW_EVENT_BASE + 14,
 };
 
+#define VXGE_HW_SET_LEVEL(a, b) (((a) > (b)) ? (a) : (b))
+
 /*
  * struct vxge_hw_mempool_dma - Represents DMA objects passed to the
 	caller.
