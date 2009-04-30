@@ -573,6 +573,7 @@ int s3c_i2sv2_probe(struct platform_device *pdev,
 		    unsigned long base)
 {
 	struct device *dev = &pdev->dev;
+	unsigned int iismod;
 
 	i2s->dev = dev;
 
@@ -594,12 +595,16 @@ int s3c_i2sv2_probe(struct platform_device *pdev,
 
 	clk_enable(i2s->iis_pclk);
 
+	/* Mark ourselves as in TXRX mode so we can run through our cleanup
+	 * process without warnings. */
+	iismod = readl(i2s->regs + S3C2412_IISMOD);
+	iismod |= S3C2412_IISMOD_MODE_TXRX;
+	writel(iismod, i2s->regs + S3C2412_IISMOD);
 	s3c2412_snd_txctrl(i2s, 0);
 	s3c2412_snd_rxctrl(i2s, 0);
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(s3c_i2sv2_probe);
 
 #ifdef CONFIG_PM
