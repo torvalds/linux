@@ -29,9 +29,7 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 	set_irq_regs(oldregs);
 }
 
-#if !defined(CONFIG_M520x) && !defined(CONFIG_M523x) && \
-    !defined(CONFIG_M527x) && !defined(CONFIG_M528x) && \
-    !defined(CONFIG_M532x)
+#if !defined(CONFIG_COLDFIRE)
 
 static struct irq_chip m_irq_chip = {
 	.name		= "M68K-INTC",
