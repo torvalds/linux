@@ -17,9 +17,6 @@ static struct sys_timer *sys_timers[] = {
 #ifdef CONFIG_SH_TMU
 	&tmu_timer,
 #endif
-#ifdef CONFIG_SH_MTU2
-	&mtu2_timer,
-#endif
 	NULL,
 };
 

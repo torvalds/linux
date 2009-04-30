@@ -23,7 +23,7 @@ struct sys_timer {
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-extern struct sys_timer tmu_timer, mtu2_timer;
+extern struct sys_timer tmu_timer;
 extern struct sys_timer *sys_timer;
 
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
