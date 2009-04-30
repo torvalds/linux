@@ -183,13 +183,14 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 	while (last_trb(xhci, ring, ring->enq_seg, next)) {
 		if (!consumer) {
 			if (ring != xhci->event_ring) {
+				next->link.control &= ~TRB_CHAIN;
+				next->link.control |= chain;
 				/* Give this link TRB to the hardware */
+				wmb();
 				if (next->link.control & TRB_CYCLE)
 					next->link.control &= (u32) ~TRB_CYCLE;
 				else
 					next->link.control |= (u32) TRB_CYCLE;
-				next->link.control &= ~TRB_CHAIN;
-				next->link.control |= chain;
 			}
 			/* Toggle the cycle bit after the last ring segment. */
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
