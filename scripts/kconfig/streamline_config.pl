@@ -256,18 +256,31 @@ my %setconfigs;
 # Finally, read the .config file and turn off any module enabled that
 # we could not find a reason to keep enabled.
 while(<CIN>) {
-	if (/^(CONFIG.*)=(m|y)/) {
-		if (defined($configs{$1})) {
-		    $setconfigs{$1} = $2;
-		    print;
-		} elsif ($2 eq "m") {
-		    print "# $1 is not set\n";
-		} else {
-		    print;
-		}
+
+    if (/CONFIG_IKCONFIG/) {
+	if (/# CONFIG_IKCONFIG is not set/) {
+	    # enable IKCONFIG at least as a module
+	    print "CONFIG_IKCONFIG=m\n";
+	    # don't ask about PROC
+	    print "# CONFIG_IKCONFIG is not set\n";
 	} else {
-		print;
+	    print;
 	}
+	next;
+    }
+
+    if (/^(CONFIG.*)=(m|y)/) {
+	if (defined($configs{$1})) {
+	    $setconfigs{$1} = $2;
+	    print;
+	} elsif ($2 eq "m") {
+	    print "# $1 is not set\n";
+	} else {
+	    print;
+	}
+    } else {
+	print;
+    }
 }
 close(CIN);
 
