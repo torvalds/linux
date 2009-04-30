@@ -26,6 +26,130 @@
 #include "cifs_debug.h"
 
 /*
+ * cifs_mapchar - convert a little-endian char to proper char in codepage
+ * @target - where converted character should be copied
+ * @src_char - 2 byte little-endian source character
+ * @cp - codepage to which character should be converted
+ * @mapchar - should character be mapped according to mapchars mount option?
+ *
+ * This function handles the conversion of a single character. It is the
+ * responsibility of the caller to ensure that the target buffer is large
+ * enough to hold the result of the conversion (at least NLS_MAX_CHARSET_SIZE).
+ */
+static int
+cifs_mapchar(char *target, const __le16 src_char, const struct nls_table *cp,
+	     bool mapchar)
+{
+	int len = 1;
+
+	if (!mapchar)
+		goto cp_convert;
+
+	/*
+	 * BB: Cannot handle remapping UNI_SLASH until all the calls to
+	 *     build_path_from_dentry are modified, as they use slash as
+	 *     separator.
+	 */
+	switch (le16_to_cpu(src_char)) {
+	case UNI_COLON:
+		*target = ':';
+		break;
+	case UNI_ASTERIK:
+		*target = '*';
+		break;
+	case UNI_QUESTION:
+		*target = '?';
+		break;
+	case UNI_PIPE:
+		*target = '|';
+		break;
+	case UNI_GRTRTHAN:
+		*target = '>';
+		break;
+	case UNI_LESSTHAN:
+		*target = '<';
+		break;
+	default:
+		goto cp_convert;
+	}
+
+out:
+	return len;
+
+cp_convert:
+	len = cp->uni2char(le16_to_cpu(src_char), target,
+			   NLS_MAX_CHARSET_SIZE);
+	if (len <= 0) {
+		*target = '?';
+		len = 1;
+	}
+	goto out;
+}
+
+/*
+ * cifs_from_ucs2 - convert utf16le string to local charset
+ * @to - destination buffer
+ * @from - source buffer
+ * @tolen - destination buffer size (in bytes)
+ * @fromlen - source buffer size (in bytes)
+ * @codepage - codepage to which characters should be converted
+ * @mapchar - should characters be remapped according to the mapchars option?
+ *
+ * Convert a little-endian ucs2le string (as sent by the server) to a string
+ * in the provided codepage. The tolen and fromlen parameters are to ensure
+ * that the code doesn't walk off of the end of the buffer (which is always
+ * a danger if the alignment of the source buffer is off). The destination
+ * string is always properly null terminated and fits in the destination
+ * buffer. Returns the length of the destination string in bytes (including
+ * null terminator).
+ *
+ * Note that some windows versions actually send multiword UTF-16 characters
+ * instead of straight UCS-2. The linux nls routines however aren't able to
+ * deal with those characters properly. In the event that we get some of
+ * those characters, they won't be translated properly.
+ */
+int
+cifs_from_ucs2(char *to, const __le16 *from, int tolen, int fromlen,
+		 const struct nls_table *codepage, bool mapchar)
+{
+	int i, charlen, safelen;
+	int outlen = 0;
+	int nullsize = nls_nullsize(codepage);
+	int fromwords = fromlen / 2;
+	char tmp[NLS_MAX_CHARSET_SIZE];
+
+	/*
+	 * because the chars can be of varying widths, we need to take care
+	 * not to overflow the destination buffer when we get close to the
+	 * end of it. Until we get to this offset, we don't need to check
+	 * for overflow however.
+	 */
+	safelen = tolen - (NLS_MAX_CHARSET_SIZE + nullsize);
+
+	for (i = 0; i < fromwords && from[i]; i++) {
+		/*
+		 * check to see if converting this character might make the
+		 * conversion bleed into the null terminator
+		 */
+		if (outlen >= safelen) {
+			charlen = cifs_mapchar(tmp, from[i], codepage, mapchar);
+			if ((outlen + charlen) > (tolen - nullsize))
+				break;
+		}
+
+		/* put converted char into 'to' buffer */
+		charlen = cifs_mapchar(&to[outlen], from[i], codepage, mapchar);
+		outlen += charlen;
+	}
+
+	/* properly null-terminate string */
+	for (i = 0; i < nullsize; i++)
+		to[outlen++] = 0;
+
+	return outlen;
+}
+
+/*
  * NAME:	cifs_strfromUCS()
  *
  * FUNCTION:	Convert little-endian unicode string to character string
