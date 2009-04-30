@@ -284,7 +284,7 @@ static void __init setup_pci_cmd(struct pci_controller *hose)
 
 void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	int i;
 
 	if ((bus->parent == hose->bus) &&
@@ -422,7 +422,7 @@ struct mpc83xx_pcie_priv {
 
 static int mpc83xx_pcie_exclude_device(struct pci_bus *bus, unsigned int devfn)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -448,7 +448,7 @@ static int mpc83xx_pcie_exclude_device(struct pci_bus *bus, unsigned int devfn)
 static void __iomem *mpc83xx_pcie_remap_cfg(struct pci_bus *bus,
 					    unsigned int devfn, int offset)
 {
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct mpc83xx_pcie_priv *pcie = hose->dn->data;
 	u8 bus_no = bus->number - hose->first_busno;
 	u32 dev_base = bus_no << 24 | devfn << 16;
