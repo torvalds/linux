@@ -256,12 +256,14 @@ my %setconfigs;
 # Finally, read the .config file and turn off any module enabled that
 # we could not find a reason to keep enabled.
 while(<CIN>) {
-	if (/^(CONFIG.*)=m/) {
+	if (/^(CONFIG.*)=(m|y)/) {
 		if (defined($configs{$1})) {
-		    $setconfigs{$1} = 1;
+		    $setconfigs{$1} = $2;
 		    print;
-		} else {
+		} elsif ($2 eq "m") {
 		    print "# $1 is not set\n";
+		} else {
+		    print;
 		}
 	} else {
 		print;
