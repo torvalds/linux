@@ -1405,7 +1405,7 @@ static int pcnet32_poll(struct napi_struct *napi, int budget)
 
 		/* Set interrupt enable. */
 		lp->a.write_csr(ioaddr, CSR0, CSR0_INTEN);
-		mmiowb();
+
 		spin_unlock_irqrestore(&lp->lock, flags);
 	}
 	return work_done;
@@ -2597,7 +2597,7 @@ pcnet32_interrupt(int irq, void *dev_id)
 			val = lp->a.read_csr(ioaddr, CSR3);
 			val |= 0x5f00;
 			lp->a.write_csr(ioaddr, CSR3, val);
-			mmiowb();
+
 			__napi_schedule(&lp->napi);
 			break;
 		}
