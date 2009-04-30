@@ -276,11 +276,11 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		return IRQ_NONE;
 	}
 
-	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	if (temp & STS_FATAL) {
 		xhci_warn(xhci, "WARNING: Host System Error\n");
 		xhci_halt(xhci);
 		xhci_to_hcd(xhci)->state = HC_STATE_HALT;
+		spin_unlock(&xhci->lock);
 		return -ESHUTDOWN;
 	}
 
