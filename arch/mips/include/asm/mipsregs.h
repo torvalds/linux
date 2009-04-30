@@ -728,8 +728,8 @@ do {									\
 			".set\tmips64\n\t"				\
 			"dmfc0\t%M0, " #source "\n\t"			\
 			"dsll\t%L0, %M0, 32\n\t"			\
-			"dsrl\t%M0, %M0, 32\n\t"			\
-			"dsrl\t%L0, %L0, 32\n\t"			\
+			"dsra\t%M0, %M0, 32\n\t"			\
+			"dsra\t%L0, %L0, 32\n\t"			\
 			".set\tmips0"					\
 			: "=r" (__val));				\
 	else								\
@@ -737,8 +737,8 @@ do {									\
 			".set\tmips64\n\t"				\
 			"dmfc0\t%M0, " #source ", " #sel "\n\t"		\
 			"dsll\t%L0, %M0, 32\n\t"			\
-			"dsrl\t%M0, %M0, 32\n\t"			\
-			"dsrl\t%L0, %L0, 32\n\t"			\
+			"dsra\t%M0, %M0, 32\n\t"			\
+			"dsra\t%L0, %L0, 32\n\t"			\
 			".set\tmips0"					\
 			: "=r" (__val));				\
 	local_irq_restore(__flags);					\
