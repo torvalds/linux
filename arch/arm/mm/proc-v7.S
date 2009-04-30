@@ -188,6 +188,12 @@ __v7_setup:
 	orr	r10, r10, #(1 << 6)		@ set IBE to 1
 	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
+#ifdef CONFIG_ARM_ERRATA_458693
+	mrc	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orr	r10, r10, #(1 << 5)		@ set L1NEON to 1
+	orr	r10, r10, #(1 << 9)		@ set PLDNOP to 1
+	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
+#endif
 	mov	r10, #0
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate

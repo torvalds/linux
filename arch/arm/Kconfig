@@ -765,6 +765,19 @@ config ARM_ERRATA_430973
 	  Note that setting specific bits in the ACTLR register may not be
 	  available in non-secure mode.
 
+config ARM_ERRATA_458693
+	bool "ARM errata: Processor deadlock when a false hazard is created"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 458693 Cortex-A8 (r2p0)
+	  erratum. For very specific sequences of memory operations, it is
+	  possible for a hazard condition intended for a cache line to instead
+	  be incorrectly associated with a different cache line. This false
+	  hazard might then cause a processor deadlock. The workaround enables
+	  the L1 caching of the NEON accesses and disables the PLD instruction
+	  in the ACTLR register. Note that setting specific bits in the ACTLR
+	  register may not be available in non-secure mode.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
