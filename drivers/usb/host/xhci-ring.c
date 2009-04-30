@@ -1009,7 +1009,7 @@ cleanup:
  * This function handles all OS-owned events on the event ring.  It may drop
  * xhci->lock between event processing (e.g. to pass up port status changes).
  */
-void handle_event(struct xhci_hcd *xhci)
+void xhci_handle_event(struct xhci_hcd *xhci)
 {
 	union xhci_trb *event;
 	int update_ptrs = 1;
@@ -1054,7 +1054,7 @@ void handle_event(struct xhci_hcd *xhci)
 		set_hc_event_deq(xhci);
 	}
 	/* Are there more items on the event ring? */
-	handle_event(xhci);
+	xhci_handle_event(xhci);
 }
 
 /****		Endpoint Ring Operations	****/

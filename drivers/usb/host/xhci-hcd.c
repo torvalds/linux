@@ -246,7 +246,7 @@ static void xhci_work(struct xhci_hcd *xhci)
 	xhci_readl(xhci, &xhci->ir_set->irq_pending);
 
 	/* FIXME this should be a delayed service routine that clears the EHB */
-	handle_event(xhci);
+	xhci_handle_event(xhci);
 
 	/* Clear the event handler busy flag; the event ring should be empty. */
 	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);

@@ -1132,7 +1132,7 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 dma_addr_t trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
 void ring_cmd_db(struct xhci_hcd *xhci);
 void *setup_one_noop(struct xhci_hcd *xhci);
-void handle_event(struct xhci_hcd *xhci);
+void xhci_handle_event(struct xhci_hcd *xhci);
 void set_hc_event_deq(struct xhci_hcd *xhci);
 int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
