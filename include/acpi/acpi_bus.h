@@ -114,10 +114,13 @@ struct acpi_device_ops {
 	acpi_op_notify notify;
 };
 
+#define ACPI_DRIVER_ALL_NOTIFY_EVENTS	0x1	/* system AND device events */
+
 struct acpi_driver {
 	char name[80];
 	char class[80];
 	const struct acpi_device_id *ids; /* Supported Hardware IDs */
+	unsigned int flags;
 	struct acpi_device_ops ops;
 	struct device_driver drv;
 	struct module *owner;

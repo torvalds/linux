@@ -549,6 +549,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 {
 	int result = 0;
 	struct acpi_device *device = NULL;
+	struct acpi_driver *driver;
 
 	blocking_notifier_call_chain(&acpi_bus_notify_list,
 		type, (void *)handle);
@@ -629,7 +630,10 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
-	return;
+	driver = device->driver;
+	if (driver && driver->ops.notify &&
+	    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
+		driver->ops.notify(device, type);
 }
 
 /* --------------------------------------------------------------------------
