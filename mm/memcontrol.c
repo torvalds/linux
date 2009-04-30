@@ -1617,37 +1617,28 @@ void mem_cgroup_end_migration(struct mem_cgroup *mem,
 }
 
 /*
- * A call to try to shrink memory usage under specified resource controller.
- * This is typically used for page reclaiming for shmem for reducing side
- * effect of page allocation from shmem, which is used by some mem_cgroup.
+ * A call to try to shrink memory usage on charge failure at shmem's swapin.
+ * Calling hierarchical_reclaim is not enough because we should update
+ * last_oom_jiffies to prevent pagefault_out_of_memory from invoking global OOM.
+ * Moreover considering hierarchy, we should reclaim from the mem_over_limit,
+ * not from the memcg which this page would be charged to.
+ * try_charge_swapin does all of these works properly.
  */
-int mem_cgroup_shrink_usage(struct page *page,
+int mem_cgroup_shmem_charge_fallback(struct page *page,
 			    struct mm_struct *mm,
 			    gfp_t gfp_mask)
 {
 	struct mem_cgroup *mem = NULL;
-	int progress = 0;
-	int retry = MEM_CGROUP_RECLAIM_RETRIES;
+	int ret;
 
 	if (mem_cgroup_disabled())
 		return 0;
-	if (page)
-		mem = try_get_mem_cgroup_from_swapcache(page);
-	if (!mem && mm)
-		mem = try_get_mem_cgroup_from_mm(mm);
-	if (unlikely(!mem))
-		return 0;
 
-	do {
-		progress = mem_cgroup_hierarchical_reclaim(mem,
-					gfp_mask, true, false);
-		progress += mem_cgroup_check_under_limit(mem);
-	} while (!progress && --retry);
+	ret = mem_cgroup_try_charge_swapin(mm, page, gfp_mask, &mem);
+	if (!ret)
+		mem_cgroup_cancel_charge_swapin(mem); /* it does !mem check */
 
-	css_put(&mem->css);
-	if (!retry)
-		return -ENOMEM;
-	return 0;
+	return ret;
 }
 
 static DEFINE_MUTEX(set_limit_mutex);
