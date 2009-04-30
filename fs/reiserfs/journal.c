@@ -4232,7 +4232,9 @@ static int do_journal_end(struct reiserfs_transaction_handle *th,
 		next = cn->next;
 		free_cnode(sb, cn);
 		cn = next;
+		reiserfs_write_unlock(sb);
 		cond_resched();
+		reiserfs_write_lock(sb);
 	}
 
 	/* we are done  with both the c_bh and d_bh, but
