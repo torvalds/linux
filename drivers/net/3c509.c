@@ -653,11 +653,11 @@ static int __init el3_mca_probe(struct device *device)
 	netdev_boot_setup_check(dev);
 
 	el3_dev_fill(dev, phys_addr, ioaddr, irq, if_port, EL3_MCA);
-	device->driver_data = dev;
+	dev_set_drvdata(device, dev);
 	err = el3_common_init(dev);
 
 	if (err) {
-		device->driver_data = NULL;
+		dev_set_drvdata(device, NULL);
 		free_netdev(dev);
 		return -ENOMEM;
 	}
@@ -721,12 +721,12 @@ static int __init el3_eisa_probe (struct device *device)
 
 /* This remove works for all device types.
  *
- * The net dev must be stored in the driver_data field */
+ * The net dev must be stored in the driver data field */
 static int __devexit el3_device_remove (struct device *device)
 {
 	struct net_device *dev;
 
-	dev  = device->driver_data;
+	dev = dev_get_drvdata(device);
 
 	el3_common_remove (dev);
 	return 0;
@@ -1451,7 +1451,7 @@ el3_suspend(struct device *pdev, pm_message_t state)
 	struct el3_private *lp;
 	int ioaddr;
 
-	dev = pdev->driver_data;
+	dev = dev_get_drvdata(pdev);
 	lp = netdev_priv(dev);
 	ioaddr = dev->base_addr;
 
@@ -1475,7 +1475,7 @@ el3_resume(struct device *pdev)
 	struct el3_private *lp;
 	int ioaddr;
 
-	dev = pdev->driver_data;
+	dev = dev_get_drvdata(pdev);
 	lp = netdev_priv(dev);
 	ioaddr = dev->base_addr;
 

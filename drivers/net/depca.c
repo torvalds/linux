@@ -810,7 +810,7 @@ static int __init depca_hw_init (struct net_device *dev, struct device *device)
 
 	dev->mem_start = 0;
 
-	device->driver_data = dev;
+	dev_set_drvdata(device, dev);
 	SET_NETDEV_DEV (dev, device);
 
 	status = register_netdev(dev);
@@ -1614,7 +1614,7 @@ static int __devexit depca_device_remove (struct device *device)
 	struct depca_private *lp;
 	int bus;
 
-	dev  = device->driver_data;
+	dev  = dev_get_drvdata(device);
 	lp   = netdev_priv(dev);
 
 	unregister_netdev (dev);

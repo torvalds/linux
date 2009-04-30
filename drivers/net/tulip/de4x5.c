@@ -1099,7 +1099,7 @@ de4x5_hw_init(struct net_device *dev, u_long iobase, struct device *gendev)
     struct pci_dev *pdev = NULL;
     int i, status=0;
 
-    gendev->driver_data = dev;
+    dev_set_drvdata(gendev, dev);
 
     /* Ensure we're not sleeping */
     if (lp->bus == EISA) {
@@ -2094,7 +2094,7 @@ static int __devexit de4x5_eisa_remove (struct device *device)
 	struct net_device *dev;
 	u_long iobase;
 
-	dev = device->driver_data;
+	dev = dev_get_drvdata(device);
 	iobase = dev->base_addr;
 
 	unregister_netdev (dev);
@@ -2338,7 +2338,7 @@ static void __devexit de4x5_pci_remove (struct pci_dev *pdev)
 	struct net_device *dev;
 	u_long iobase;
 
-	dev = pdev->dev.driver_data;
+	dev = dev_get_drvdata(&pdev->dev);
 	iobase = dev->base_addr;
 
 	unregister_netdev (dev);

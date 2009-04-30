@@ -370,7 +370,7 @@ static int __init ultramca_probe(struct device *gen_dev)
 
 	outb(reg4, ioaddr + 4);
 
-	gen_dev->driver_data = dev;
+	dev_set_drvdata(gen_dev, dev);
 
 	/* The 8390 isn't at the base address, so fake the offset
 	 */
@@ -531,7 +531,7 @@ static int ultramca_close_card(struct net_device *dev)
 static int ultramca_remove(struct device *gen_dev)
 {
 	struct mca_device *mca_dev = to_mca_device(gen_dev);
-	struct net_device *dev = (struct net_device *)gen_dev->driver_data;
+	struct net_device *dev = dev_get_drvdata(gen_dev);
 
 	if (dev) {
 		/* NB: ultra_close_card() does free_irq */
