@@ -59,6 +59,8 @@ dump_config "$image"
 GZHDR1="0x1f 0x8b 0x08 0x00"
 GZHDR2="0x1f 0x8b 0x08 0x08"
 
+ELFHDR="0x7f 0x45 0x4c 0x46"
+
 # vmlinux.gz: Check for a compressed images
 off=`$binoffset "$image" $GZHDR1 2>/dev/null`
 [ "$?" != "0" ] && off="-1"
@@ -73,6 +75,14 @@ elif [ "$off" -ne "-1" ]; then
 	(dd ibs="$off" skip=1 count=0 && dd bs=512k) <"$image" 2>/dev/null | \
 		zcat >"$TMPFILE"
 	dump_config "$TMPFILE"
+
+# check if this is simply an ELF file
+else
+	off=`$binoffset "$image" $ELFHDR 2>/dev/null`
+	[ "$?" != "0" ] && off="-1"
+	if [ "$off" -eq "0" ]; then
+		dump_config "$image"
+	fi
 fi
 
 echo "ERROR: Unable to extract kernel configuration information."
