@@ -54,6 +54,10 @@ my @searchconfigs = (
 	    "exec" => "zcat",
 	},
 	{
+	    "file" => "/boot/config-$uname",
+	    "exec" => "cat",
+	},
+	{
 	    "file" => "/boot/vmlinuz-$uname",
 	    "exec" => "scripts/extract-ikconfig",
 	    "test" => "scripts/extract-ikconfig",
