@@ -4666,13 +4666,13 @@ F:	kernel/rcutorture.c
 
 RDC R-321X SoC
 P:	Florian Fainelli
-M:	florian.fainelli@telecomint.eu
+M:	florian@openwrt.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 RDC R6040 FAST ETHERNET DRIVER
 P:	Florian Fainelli
-M:	florian.fainelli@telecomint.eu
+M:	florian@openwrt.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/r6040.c
