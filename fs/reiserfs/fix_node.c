@@ -1971,7 +1971,9 @@ static int get_neighbors(struct tree_balance *tb, int h)
 		     tb->FL[h]) ? tb->lkey[h] : B_NR_ITEMS(tb->
 								       FL[h]);
 		son_number = B_N_CHILD_NUM(tb->FL[h], child_position);
+		reiserfs_write_unlock(sb);
 		bh = sb_bread(sb, son_number);
+		reiserfs_write_lock(sb);
 		if (!bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(tb)) {
@@ -2009,7 +2011,9 @@ static int get_neighbors(struct tree_balance *tb, int h)
 		child_position =
 		    (bh == tb->FR[h]) ? tb->rkey[h] + 1 : 0;
 		son_number = B_N_CHILD_NUM(tb->FR[h], child_position);
+		reiserfs_write_unlock(sb);
 		bh = sb_bread(sb, son_number);
+		reiserfs_write_lock(sb);
 		if (!bh)
 			return IO_ERROR;
 		if (FILESYSTEM_CHANGED_TB(tb)) {
