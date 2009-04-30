@@ -1278,6 +1278,11 @@ extern int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *chann
 /* PHY calibration */
 extern int ath5k_hw_phy_calibrate(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 extern int ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq);
+/* Spur mitigation */
+bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
+				struct ieee80211_channel *channel);
+void ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
+				struct ieee80211_channel *channel);
 /* Misc PHY functions */
 extern u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
 extern int ath5k_hw_phy_disable(struct ath5k_hw *ah);

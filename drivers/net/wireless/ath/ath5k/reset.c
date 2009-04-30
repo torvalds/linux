@@ -536,26 +536,6 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 	return;
 }
 
-static bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
-				struct ieee80211_channel *channel)
-{
-	u8 refclk_freq;
-
-	if ((ah->ah_radio == AR5K_RF5112) ||
-	(ah->ah_radio == AR5K_RF5413) ||
-	(ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4)))
-		refclk_freq = 40;
-	else
-		refclk_freq = 32;
-
-	if ((channel->center_freq % refclk_freq != 0) &&
-	((channel->center_freq % refclk_freq < 10) ||
-	(channel->center_freq % refclk_freq > 22)))
-		return true;
-	else
-		return false;
-}
-
 /* TODO: Half/Quarter rate */
 static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 				struct ieee80211_channel *channel)
@@ -998,7 +978,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		ath5k_hw_tweak_initval_settings(ah, channel);
 
 		/*
-		 * Set TX power (FIXME)
+		 * Set TX power
 		 */
 		ret = ath5k_hw_txpower(ah, channel, ee_mode,
 					ah->ah_txpower.txp_max_pwr / 2);
@@ -1024,9 +1004,22 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		/* Write OFDM timings on 5212*/
 		if (ah->ah_version == AR5K_AR5212 &&
 			channel->hw_value & CHANNEL_OFDM) {
+			struct ath5k_eeprom_info *ee =
+					&ah->ah_capabilities.cap_eeprom;
+
 			ret = ath5k_hw_write_ofdm_timings(ah, channel);
 			if (ret)
 				return ret;
+
+			/* Note: According to docs we can have a newer
+			 * EEPROM on old hardware, so we need to verify
+			 * that our hardware is new enough to have spur
+			 * mitigation registers (delta phase etc) */
+			if (ah->ah_mac_srev >= AR5K_SREV_AR5424 ||
+			(ah->ah_mac_srev >= AR5K_SREV_AR5424 &&
+			ee->ee_version >= AR5K_EEPROM_VERSION_5_3))
+				ath5k_hw_set_spur_mitigation_filter(ah,
+								channel);
 		}
 
 		/*Enable/disable 802.11b mode on 5111
