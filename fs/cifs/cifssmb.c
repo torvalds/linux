@@ -3928,27 +3928,6 @@ GetInodeNumOut:
 	return rc;
 }
 
-/* computes length of UCS string converted to host codepage
- * @src:	UCS string
- * @maxlen:	length of the input string in UCS characters
- * 		(not in bytes)
- *
- * return:	size of input string in host codepage
- */
-static int hostlen_fromUCS(const __le16 *src, const int maxlen,
-		const struct nls_table *nls_codepage) {
-	int i;
-	int hostlen = 0;
-	char to[4];
-	int charlen;
-	for (i = 0; (i < maxlen) && src[i]; ++i) {
-		charlen = nls_codepage->uni2char(le16_to_cpu(src[i]),
-				to, NLS_MAX_CHARSET_SIZE);
-		hostlen += charlen > 0 ? charlen : 1;
-	}
-	return hostlen;
-}
-
 /* parses DFS refferal V3 structure
  * caller is responsible for freeing target_nodes
  * returns:
@@ -4016,8 +3995,8 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 						GFP_KERNEL);
 			cifsConvertToUCS((__le16 *) tmp, searchName,
 					PATH_MAX, nls_codepage, remap);
-			node->path_consumed = hostlen_fromUCS(tmp,
-					le16_to_cpu(pSMBr->PathConsumed)/2,
+			node->path_consumed = cifs_ucs2_bytes(tmp,
+					le16_to_cpu(pSMBr->PathConsumed),
 					nls_codepage);
 			kfree(tmp);
 		} else

@@ -26,6 +26,37 @@
 #include "cifs_debug.h"
 
 /*
+ * cifs_ucs2_bytes - how long will a string be after conversion?
+ * @ucs - pointer to input string
+ * @maxbytes - don't go past this many bytes of input string
+ * @codepage - destination codepage
+ *
+ * Walk a ucs2le string and return the number of bytes that the string will
+ * be after being converted to the given charset, not including any null
+ * termination required. Don't walk past maxbytes in the source buffer.
+ */
+int
+cifs_ucs2_bytes(const __le16 *from, int maxbytes,
+		const struct nls_table *codepage)
+{
+	int i;
+	int charlen, outlen = 0;
+	int maxwords = maxbytes / 2;
+	char tmp[NLS_MAX_CHARSET_SIZE];
+
+	for (i = 0; from[i] && i < maxwords; i++) {
+		charlen = codepage->uni2char(le16_to_cpu(from[i]), tmp,
+					     NLS_MAX_CHARSET_SIZE);
+		if (charlen > 0)
+			outlen += charlen;
+		else
+			outlen++;
+	}
+
+	return outlen;
+}
+
+/*
  * cifs_mapchar - convert a little-endian char to proper char in codepage
  * @target - where converted character should be copied
  * @src_char - 2 byte little-endian source character
