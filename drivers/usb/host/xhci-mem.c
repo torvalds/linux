@@ -475,8 +475,8 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	if (!virt_dev->new_ep_rings[ep_index])
 		return -ENOMEM;
 	ep_ring = virt_dev->new_ep_rings[ep_index];
-	ep_ctx->deq[1] = 0;
 	ep_ctx->deq[0] = ep_ring->first_seg->dma | ep_ring->cycle_state;
+	ep_ctx->deq[1] = 0;
 
 	ep_ctx->ep_info = xhci_get_endpoint_interval(udev, ep);
 
@@ -533,8 +533,8 @@ void xhci_endpoint_zero(struct xhci_hcd *xhci,
 
 	ep_ctx->ep_info = 0;
 	ep_ctx->ep_info2 = 0;
-	ep_ctx->deq[1] = 0;
 	ep_ctx->deq[0] = 0;
+	ep_ctx->deq[1] = 0;
 	ep_ctx->tx_info = 0;
 	/* Don't free the endpoint ring until the set interface or configuration
 	 * request succeeds.
@@ -549,10 +549,10 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 
 	/* Free the Event Ring Segment Table and the actual Event Ring */
 	xhci_writel(xhci, 0, &xhci->ir_set->erst_size);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[1]);
 	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[0]);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_dequeue[1]);
+	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[1]);
 	xhci_writel(xhci, 0, &xhci->ir_set->erst_dequeue[0]);
+	xhci_writel(xhci, 0, &xhci->ir_set->erst_dequeue[1]);
 	size = sizeof(struct xhci_erst_entry)*(xhci->erst.num_entries);
 	if (xhci->erst.entries)
 		pci_free_consistent(pdev, size,
@@ -564,8 +564,8 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->event_ring = NULL;
 	xhci_dbg(xhci, "Freed event ring\n");
 
-	xhci_writel(xhci, 0, &xhci->op_regs->cmd_ring[1]);
 	xhci_writel(xhci, 0, &xhci->op_regs->cmd_ring[0]);
+	xhci_writel(xhci, 0, &xhci->op_regs->cmd_ring[1]);
 	if (xhci->cmd_ring)
 		xhci_ring_free(xhci, xhci->cmd_ring);
 	xhci->cmd_ring = NULL;
@@ -584,8 +584,8 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->device_pool = NULL;
 	xhci_dbg(xhci, "Freed device context pool\n");
 
-	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[1]);
 	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[0]);
+	xhci_writel(xhci, 0, &xhci->op_regs->dcbaa_ptr[1]);
 	if (xhci->dcbaa)
 		pci_free_consistent(pdev, sizeof(*xhci->dcbaa),
 				xhci->dcbaa, xhci->dcbaa->dma);
@@ -645,8 +645,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->dcbaa->dma = dma;
 	xhci_dbg(xhci, "// Device context base array address = 0x%llx (DMA), %p (virt)\n",
 			(unsigned long long)xhci->dcbaa->dma, xhci->dcbaa);
-	xhci_writel(xhci, (u32) 0, &xhci->op_regs->dcbaa_ptr[1]);
 	xhci_writel(xhci, dma, &xhci->op_regs->dcbaa_ptr[0]);
+	xhci_writel(xhci, (u32) 0, &xhci->op_regs->dcbaa_ptr[1]);
 
 	/*
 	 * Initialize the ring segment pool.  The ring must be a contiguous
@@ -677,10 +677,10 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	val = (val & ~CMD_RING_ADDR_MASK) |
 		(xhci->cmd_ring->first_seg->dma & CMD_RING_ADDR_MASK) |
 		xhci->cmd_ring->cycle_state;
-	xhci_dbg(xhci, "// Setting command ring address high bits to 0x0\n");
-	xhci_writel(xhci, (u32) 0, &xhci->op_regs->cmd_ring[1]);
 	xhci_dbg(xhci, "// Setting command ring address low bits to 0x%x\n", val);
 	xhci_writel(xhci, val, &xhci->op_regs->cmd_ring[0]);
+	xhci_dbg(xhci, "// Setting command ring address high bits to 0x0\n");
+	xhci_writel(xhci, (u32) 0, &xhci->op_regs->cmd_ring[1]);
 	xhci_dbg_cmd_ptrs(xhci);
 
 	val = xhci_readl(xhci, &xhci->cap_regs->db_off);
@@ -720,8 +720,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/* set ring base address and size for each segment table entry */
 	for (val = 0, seg = xhci->event_ring->first_seg; val < ERST_NUM_SEGS; val++) {
 		struct xhci_erst_entry *entry = &xhci->erst.entries[val];
-		entry->seg_addr[1] = 0;
 		entry->seg_addr[0] = seg->dma;
+		entry->seg_addr[1] = 0;
 		entry->seg_size = TRBS_PER_SEGMENT;
 		entry->rsvd = 0;
 		seg = seg->next;
@@ -739,11 +739,11 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/* set the segment table base address */
 	xhci_dbg(xhci, "// Set ERST base address for ir_set 0 = 0x%llx\n",
 			(unsigned long long)xhci->erst.erst_dma_addr);
-	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[1]);
 	val = xhci_readl(xhci, &xhci->ir_set->erst_base[0]);
 	val &= ERST_PTR_MASK;
 	val |= (xhci->erst.erst_dma_addr & ~ERST_PTR_MASK);
 	xhci_writel(xhci, val, &xhci->ir_set->erst_base[0]);
+	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[1]);
 
 	/* Set the event ring dequeue address */
 	set_hc_event_deq(xhci);

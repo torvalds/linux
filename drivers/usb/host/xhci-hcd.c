@@ -416,11 +416,11 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "Event ring:\n");
 	xhci_debug_ring(xhci, xhci->event_ring);
 	xhci_dbg_ring_ptrs(xhci, xhci->event_ring);
-	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[1]);
-	xhci_dbg(xhci, "ERST deq upper = 0x%x\n", temp);
 	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[0]);
 	temp &= ERST_PTR_MASK;
 	xhci_dbg(xhci, "ERST deq = 0x%x\n", temp);
+	temp = xhci_readl(xhci, &xhci->ir_set->erst_dequeue[1]);
+	xhci_dbg(xhci, "ERST deq upper = 0x%x\n", temp);
 
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
 	temp |= (CMD_RUN);
