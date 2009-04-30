@@ -206,9 +206,16 @@ extern void arch_free_chip_data(struct irq_desc *old_desc, struct irq_desc *desc
 
 #ifndef CONFIG_SPARSE_IRQ
 extern struct irq_desc irq_desc[NR_IRQS];
-#else /* CONFIG_SPARSE_IRQ */
+#endif
+
+#ifdef CONFIG_NUMA_IRQ_DESC
 extern struct irq_desc *move_irq_desc(struct irq_desc *old_desc, int node);
-#endif /* CONFIG_SPARSE_IRQ */
+#else
+static inline struct irq_desc *move_irq_desc(struct irq_desc *desc, int node)
+{
+	return desc;
+}
+#endif
 
 extern struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node);
 

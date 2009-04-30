@@ -274,6 +274,10 @@ config SPARSE_IRQ
 
 	  If you don't know what to do here, say N.
 
+config NUMA_IRQ_DESC
+	def_bool y
+	depends on SPARSE_IRQ && NUMA
+
 config X86_MPPARSE
 	bool "Enable MPS table" if ACPI
 	default y
