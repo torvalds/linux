@@ -62,7 +62,7 @@ void *high_memory;
 struct page *mem_map;
 unsigned long max_mapnr;
 unsigned long num_physpages;
-atomic_long_t vm_committed_space = ATOMIC_LONG_INIT(0);
+struct percpu_counter vm_committed_as;
 int sysctl_overcommit_memory = OVERCOMMIT_GUESS; /* heuristic overcommit */
 int sysctl_overcommit_ratio = 50; /* default is 50% */
 int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
@@ -463,6 +463,10 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
  */
 void __init mmap_init(void)
 {
+	int ret;
+
+	ret = percpu_counter_init(&vm_committed_as, 0);
+	VM_BUG_ON(ret);
 	vm_region_jar = KMEM_CACHE(vm_region, SLAB_PANIC);
 }
 
@@ -1847,12 +1851,9 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 	if (mm)
 		allowed -= mm->total_vm / 32;
 
-	/*
-	 * cast `allowed' as a signed long because vm_committed_space
-	 * sometimes has a negative value
-	 */
-	if (atomic_long_read(&vm_committed_space) < (long)allowed)
+	if (percpu_counter_read_positive(&vm_committed_as) < allowed)
 		return 0;
+
 error:
 	vm_unacct_memory(pages);
 
