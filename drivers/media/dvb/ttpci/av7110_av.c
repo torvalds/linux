@@ -193,8 +193,6 @@ int av7110_av_start_play(struct av7110 *av7110, int av)
 		ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Play, 2, AV_PES, 0);
 		break;
 	}
-	if (!ret)
-		ret = av7110->playing;
 	return ret;
 }
 
