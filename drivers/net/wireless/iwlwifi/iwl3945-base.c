@@ -1344,15 +1344,24 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv)
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
-	spin_lock_irqsave(&rxq->lock, flags);
-	while (!list_empty(&rxq->rx_used)) {
+
+	while (1) {
+		spin_lock_irqsave(&rxq->lock, flags);
+
+		if (list_empty(&rxq->rx_used)) {
+			spin_unlock_irqrestore(&rxq->lock, flags);
+			return;
+		}
+
 		element = rxq->rx_used.next;
 		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
+		list_del(element);
+		spin_unlock_irqrestore(&rxq->lock, flags);
 
 		/* Alloc a new receive buffer */
 		rxb->skb =
 		    alloc_skb(priv->hw_params.rx_buf_size,
-				__GFP_NOWARN | GFP_ATOMIC);
+				GFP_KERNEL);
 		if (!rxb->skb) {
 			if (net_ratelimit())
 				IWL_CRIT(priv, ": Can not allocate SKB buffers\n");
@@ -1370,18 +1379,18 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv)
 		 */
 		skb_reserve(rxb->skb, 4);
 
-		priv->alloc_rxb_skb++;
-		list_del(element);
-
 		/* Get physical address of RB/SKB */
 		rxb->real_dma_addr = pci_map_single(priv->pci_dev,
 						rxb->skb->data,
 						priv->hw_params.rx_buf_size,
 						PCI_DMA_FROMDEVICE);
+
+		spin_lock_irqsave(&rxq->lock, flags);
 		list_add_tail(&rxb->list, &rxq->rx_free);
+		priv->alloc_rxb_skb++;
 		rxq->free_count++;
+		spin_unlock_irqrestore(&rxq->lock, flags);
 	}
-	spin_unlock_irqrestore(&rxq->lock, flags);
 }
 
 void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
@@ -1413,18 +1422,6 @@ void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 }
-
-/*
- * this should be called while priv->lock is locked
- */
-static void __iwl3945_rx_replenish(void *data)
-{
-	struct iwl_priv *priv = data;
-
-	iwl3945_rx_allocate(priv);
-	iwl3945_rx_queue_restock(priv);
-}
-
 
 void iwl3945_rx_replenish(void *data)
 {
@@ -1644,7 +1641,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 			count++;
 			if (count >= 8) {
 				priv->rxq.read = i;
-				__iwl3945_rx_replenish(priv);
+				iwl3945_rx_queue_restock(priv);
 				count = 0;
 			}
 		}
