@@ -211,6 +211,23 @@
 #define AR5K_EEPROM_I_GAIN		10
 #define AR5K_EEPROM_CCK_OFDM_DELTA	15
 #define AR5K_EEPROM_N_IQ_CAL		2
+/* 5GHz/2GHz */
+enum ath5k_eeprom_freq_bands{
+	AR5K_EEPROM_BAND_5GHZ = 0,
+	AR5K_EEPROM_BAND_2GHZ = 1,
+	AR5K_EEPROM_N_FREQ_BANDS,
+};
+/* Spur chans per freq band */
+#define	AR5K_EEPROM_N_SPUR_CHANS	5
+/* fbin value for chan 2464 x2 */
+#define	AR5K_EEPROM_5413_SPUR_CHAN_1	1640
+/* fbin value for chan 2420 x2 */
+#define	AR5K_EEPROM_5413_SPUR_CHAN_2	1200
+#define	AR5K_EEPROM_SPUR_CHAN_MASK	0x3FFF
+#define	AR5K_EEPROM_NO_SPUR		0x8000
+#define	AR5K_SPUR_CHAN_WIDTH			87
+#define	AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz	3125
+#define	AR5K_SPUR_SYMBOL_WIDTH_TURBO_100Hz	6250
 
 #define AR5K_EEPROM_READ(_o, _v) do {			\
 	ret = ath5k_hw_eeprom_read(ah, (_o), &(_v));	\
@@ -435,6 +452,9 @@ struct ath5k_eeprom_info {
 	s8	ee_adc_desired_size_turbo[AR5K_EEPROM_N_MODES];
 	s8	ee_pga_desired_size_turbo[AR5K_EEPROM_N_MODES];
 	s8	ee_pd_gain_overlap;
+
+	/* Spur mitigation data (fbin values for spur channels) */
+	u16	ee_spur_chans[AR5K_EEPROM_N_SPUR_CHANS][AR5K_EEPROM_N_FREQ_BANDS];
 
 	u32	ee_antenna[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
 };
