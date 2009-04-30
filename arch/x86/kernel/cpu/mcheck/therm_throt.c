@@ -20,7 +20,6 @@
 #include <linux/cpu.h>
 
 #include <asm/therm_throt.h>
-#include <asm/cpu.h>
 
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL		(300 * HZ)
