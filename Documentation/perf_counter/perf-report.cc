@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <getopt.h>
+#include <assert.h>
 
 #include <sys/ioctl.h>
 #include <sys/poll.h>
@@ -226,7 +227,7 @@ void load_kallsyms(void)
 	while (!feof(file)) {
 		uint64_t start;
 		char c;
-		char sym[1024];
+		char sym[1024000];
 
 		if (getline(&line, &n, file) < 0)
 			break;
@@ -416,12 +417,23 @@ more:
 
 	if (head + event->header.size >= page_size * mmap_window) {
 		unsigned long shift = page_size * (head / page_size);
+		int ret;
 
-		munmap(buf, page_size * mmap_window);
+		ret = munmap(buf, page_size * mmap_window);
+		assert(ret == 0);
+
 		offset += shift;
 		head -= shift;
 		goto remap;
 	}
+
+
+	if (!event->header.size) {
+		fprintf(stderr, "zero-sized event at file offset %ld\n", offset + head);
+		fprintf(stderr, "skipping %ld bytes of events.\n", stat.st_size - offset - head);
+		goto done;
+	}
+
 	head += event->header.size;
 
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
@@ -457,6 +469,8 @@ more:
 
 	if (offset + head < stat.st_size)
 		goto more;
+
+done:
 
 	close(input);
 
