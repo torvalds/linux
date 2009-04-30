@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 30
-EXTRAVERSION = -rc3
-NAME = Temporary Tasmanian Devil
+EXTRAVERSION = -rc4
+NAME = Vindictive Armadillo
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
