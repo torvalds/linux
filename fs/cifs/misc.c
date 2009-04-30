@@ -635,17 +635,6 @@ dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
 	return;
 }
 
-/* Windows maps these to the user defined 16 bit Unicode range since they are
-   reserved symbols (along with \ and /), otherwise illegal to store
-   in filenames in NTFS */
-#define UNI_ASTERIK     (__u16) ('*' + 0xF000)
-#define UNI_QUESTION    (__u16) ('?' + 0xF000)
-#define UNI_COLON       (__u16) (':' + 0xF000)
-#define UNI_GRTRTHAN    (__u16) ('>' + 0xF000)
-#define UNI_LESSTHAN    (__u16) ('<' + 0xF000)
-#define UNI_PIPE        (__u16) ('|' + 0xF000)
-#define UNI_SLASH       (__u16) ('\\' + 0xF000)
-
 /* Convert 16 bit Unicode pathname from wire format to string in current code
    page.  Conversion may involve remapping up the seven characters that are
    only legal in POSIX-like OS (if they are present in the string). Path

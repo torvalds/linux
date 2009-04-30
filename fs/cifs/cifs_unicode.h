@@ -37,6 +37,19 @@
 
 #define  UNIUPR_NOLOWER		/* Example to not expand lower case tables */
 
+/*
+ * Windows maps these to the user defined 16 bit Unicode range since they are
+ * reserved symbols (along with \ and /), otherwise illegal to store
+ * in filenames in NTFS
+ */
+#define UNI_ASTERIK     (__u16) ('*' + 0xF000)
+#define UNI_QUESTION    (__u16) ('?' + 0xF000)
+#define UNI_COLON       (__u16) (':' + 0xF000)
+#define UNI_GRTRTHAN    (__u16) ('>' + 0xF000)
+#define UNI_LESSTHAN    (__u16) ('<' + 0xF000)
+#define UNI_PIPE        (__u16) ('|' + 0xF000)
+#define UNI_SLASH       (__u16) ('\\' + 0xF000)
+
 /* Just define what we want from uniupr.h.  We don't want to define the tables
  * in each source file.
  */
