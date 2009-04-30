@@ -188,7 +188,7 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 					next->link.control &= (u32) ~TRB_CYCLE;
 				else
 					next->link.control |= (u32) TRB_CYCLE;
-				next->link.control &= TRB_CHAIN;
+				next->link.control &= ~TRB_CHAIN;
 				next->link.control |= chain;
 			}
 			/* Toggle the cycle bit after the last ring segment. */
