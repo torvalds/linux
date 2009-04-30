@@ -610,6 +610,10 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 		used_frags = mlx4_en_complete_rx_desc(priv, rx_desc, skb_frags,
 						      skb_shinfo(skb)->frags,
 						      page_alloc, length);
+		if (unlikely(!used_frags)) {
+			kfree_skb(skb);
+			return NULL;
+		}
 		skb_shinfo(skb)->nr_frags = used_frags;
 
 		/* Copy headers into the skb linear buffer */

@@ -171,6 +171,7 @@ struct hci_conn {
 	__u8             auth_type;
 	__u8             sec_level;
 	__u8             power_save;
+	__u16            disc_timeout;
 	unsigned long	 pend;
 
 	unsigned int	 sent;
@@ -180,7 +181,8 @@ struct hci_conn {
 	struct timer_list disc_timer;
 	struct timer_list idle_timer;
 
-	struct work_struct work;
+	struct work_struct work_add;
+	struct work_struct work_del;
 
 	struct device	dev;
 
@@ -348,9 +350,9 @@ static inline void hci_conn_put(struct hci_conn *conn)
 		if (conn->type == ACL_LINK) {
 			del_timer(&conn->idle_timer);
 			if (conn->state == BT_CONNECTED) {
-				timeo = msecs_to_jiffies(HCI_DISCONN_TIMEOUT);
+				timeo = msecs_to_jiffies(conn->disc_timeout);
 				if (!conn->out)
-					timeo *= 5;
+					timeo *= 2;
 			} else
 				timeo = msecs_to_jiffies(10);
 		} else
