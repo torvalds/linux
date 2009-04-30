@@ -17,6 +17,26 @@ config USB_C67X00_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called c67x00.
 
+config USB_XHCI_HCD
+	tristate "xHCI HCD (USB 3.0) support (EXPERIMENTAL)"
+	depends on USB && EXPERIMENTAL
+	---help---
+	  The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
+	  "SuperSpeed" host controller hardware.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called xhci-hcd.
+
+config USB_XHCI_HCD_DEBUGGING
+	bool "Debugging for the xHCI host controller"
+	depends on USB_XHCI_HCD
+	---help---
+	  Say 'Y' to turn on debugging for the xHCI host controller driver.
+	  This will spew debugging output, even in interrupt context.
+	  This should only be used for debugging xHCI driver bugs.
+
+	  If unsure, say N.
+
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
 	depends on USB && USB_ARCH_HAS_EHCI

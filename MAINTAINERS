@@ -6164,6 +6164,12 @@ L:	linux-wireless@vger.kernel.org
 S:	Maintained
 F:	drivers/net/wireless/rndis_wlan.c
 
+USB XHCI DRIVER
+P:	Sarah Sharp
+M:	sarah.a.sharp@intel.com
+L:	linux-usb@vger.kernel.org
+S:	Supported
+
 USB ZC0301 DRIVER
 P:	Luca Risolia
 M:	luca.risolia@studio.unibo.it
