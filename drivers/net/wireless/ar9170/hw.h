@@ -310,7 +310,7 @@ struct ar9170_tx_control {
 
 struct ar9170_rx_head {
 	u8 plcp[12];
-};
+} __packed;
 
 struct ar9170_rx_tail {
 	union {
@@ -318,16 +318,16 @@ struct ar9170_rx_tail {
 			u8 rssi_ant0, rssi_ant1, rssi_ant2,
 			   rssi_ant0x, rssi_ant1x, rssi_ant2x,
 			   rssi_combined;
-		};
+		} __packed;
 		u8 rssi[7];
-	};
+	} __packed;
 
 	u8 evm_stream0[6], evm_stream1[6];
 	u8 phy_err;
 	u8 SAidx, DAidx;
 	u8 error;
 	u8 status;
-};
+} __packed;
 
 #define AR9170_ENC_ALG_NONE			0x0
 #define AR9170_ENC_ALG_WEP64			0x1

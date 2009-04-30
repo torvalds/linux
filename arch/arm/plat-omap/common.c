@@ -185,7 +185,7 @@ console_initcall(omap_add_serial_console);
 
 #include <linux/clocksource.h>
 
-static cycle_t omap_32k_read(void)
+static cycle_t omap_32k_read(struct clocksource *cs)
 {
 	return omap_readl(TIMER_32K_SYNCHRONIZED);
 }
@@ -207,7 +207,7 @@ unsigned long long sched_clock(void)
 {
 	unsigned long long ret;
 
-	ret = (unsigned long long)omap_32k_read();
+	ret = (unsigned long long)omap_32k_read(&clocksource_32k);
 	ret = (ret * clocksource_32k.mult_orig) >> clocksource_32k.shift;
 	return ret;
 }

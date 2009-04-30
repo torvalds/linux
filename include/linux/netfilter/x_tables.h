@@ -354,9 +354,6 @@ struct xt_table
 	/* What hooks you will enter on */
 	unsigned int valid_hooks;
 
-	/* Lock for the curtain */
-	struct mutex lock;
-
 	/* Man behind the curtain... */
 	struct xt_table_info *private;
 
@@ -434,8 +431,74 @@ extern void xt_proto_fini(struct net *net, u_int8_t af);
 
 extern struct xt_table_info *xt_alloc_table_info(unsigned int size);
 extern void xt_free_table_info(struct xt_table_info *info);
-extern void xt_table_entry_swap_rcu(struct xt_table_info *old,
-				    struct xt_table_info *new);
+
+/*
+ * Per-CPU spinlock associated with per-cpu table entries, and
+ * with a counter for the "reading" side that allows a recursive
+ * reader to avoid taking the lock and deadlocking.
+ *
+ * "reading" is used by ip/arp/ip6 tables rule processing which runs per-cpu.
+ * It needs to ensure that the rules are not being changed while the packet
+ * is being processed. In some cases, the read lock will be acquired
+ * twice on the same CPU; this is okay because of the count.
+ *
+ * "writing" is used when reading counters.
+ *  During replace any readers that are using the old tables have to complete
+ *  before freeing the old table. This is handled by the write locking
+ *  necessary for reading the counters.
+ */
+struct xt_info_lock {
+	spinlock_t lock;
+	unsigned char readers;
+};
+DECLARE_PER_CPU(struct xt_info_lock, xt_info_locks);
+
+/*
+ * Note: we need to ensure that preemption is disabled before acquiring
+ * the per-cpu-variable, so we do it as a two step process rather than
+ * using "spin_lock_bh()".
+ *
+ * We _also_ need to disable bottom half processing before updating our
+ * nesting count, to make sure that the only kind of re-entrancy is this
+ * code being called by itself: since the count+lock is not an atomic
+ * operation, we can allow no races.
+ *
+ * _Only_ that special combination of being per-cpu and never getting
+ * re-entered asynchronously means that the count is safe.
+ */
+static inline void xt_info_rdlock_bh(void)
+{
+	struct xt_info_lock *lock;
+
+	local_bh_disable();
+	lock = &__get_cpu_var(xt_info_locks);
+	if (!lock->readers++)
+		spin_lock(&lock->lock);
+}
+
+static inline void xt_info_rdunlock_bh(void)
+{
+	struct xt_info_lock *lock = &__get_cpu_var(xt_info_locks);
+
+	if (!--lock->readers)
+		spin_unlock(&lock->lock);
+	local_bh_enable();
+}
+
+/*
+ * The "writer" side needs to get exclusive access to the lock,
+ * regardless of readers.  This must be called with bottom half
+ * processing (and thus also preemption) disabled.
+ */
+static inline void xt_info_wrlock(unsigned int cpu)
+{
+	spin_lock(&per_cpu(xt_info_locks, cpu).lock);
+}
+
+static inline void xt_info_wrunlock(unsigned int cpu)
+{
+	spin_unlock(&per_cpu(xt_info_locks, cpu).lock);
+}
 
 /*
  * This helper is performance critical and must be inlined

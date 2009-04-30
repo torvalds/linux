@@ -31,6 +31,7 @@
  *
  */
 
+#include <linux/init.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -52,7 +53,7 @@
  *
  * This is all going to change RSN when we add bi_recs.......  -- Dan
  */
-	.section	.text.head, "ax"
+	__HEAD
 _ENTRY(_stext);
 _ENTRY(_start);
 

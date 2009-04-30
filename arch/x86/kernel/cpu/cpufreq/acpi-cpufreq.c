@@ -65,13 +65,17 @@ enum {
 struct acpi_cpufreq_data {
 	struct acpi_processor_performance *acpi_data;
 	struct cpufreq_frequency_table *freq_table;
-	unsigned int max_freq;
 	unsigned int resume;
 	unsigned int cpu_feature;
-	u64 saved_aperf, saved_mperf;
 };
 
 static DEFINE_PER_CPU(struct acpi_cpufreq_data *, drv_data);
+
+struct acpi_msr_data {
+	u64 saved_aperf, saved_mperf;
+};
+
+static DEFINE_PER_CPU(struct acpi_msr_data, msr_data);
 
 DEFINE_TRACE(power_mark);
 
@@ -287,11 +291,11 @@ static unsigned int get_measured_perf(struct cpufreq_policy *policy,
 		return 0;
 
 	cur.aperf.whole = readin.aperf.whole -
-				per_cpu(drv_data, cpu)->saved_aperf;
+				per_cpu(msr_data, cpu).saved_aperf;
 	cur.mperf.whole = readin.mperf.whole -
-				per_cpu(drv_data, cpu)->saved_mperf;
-	per_cpu(drv_data, cpu)->saved_aperf = readin.aperf.whole;
-	per_cpu(drv_data, cpu)->saved_mperf = readin.mperf.whole;
+				per_cpu(msr_data, cpu).saved_mperf;
+	per_cpu(msr_data, cpu).saved_aperf = readin.aperf.whole;
+	per_cpu(msr_data, cpu).saved_mperf = readin.mperf.whole;
 
 #ifdef __i386__
 	/*
@@ -335,7 +339,7 @@ static unsigned int get_measured_perf(struct cpufreq_policy *policy,
 
 #endif
 
-	retval = per_cpu(drv_data, policy->cpu)->max_freq * perf_percent / 100;
+	retval = (policy->cpuinfo.max_freq * perf_percent) / 100;
 
 	return retval;
 }
@@ -688,16 +692,11 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* Check for high latency (>20uS) from buggy BIOSes, like on T42 */
 	if (perf->control_register.space_id == ACPI_ADR_SPACE_FIXED_HARDWARE &&
 	    policy->cpuinfo.transition_latency > 20 * 1000) {
-		static int print_once;
 		policy->cpuinfo.transition_latency = 20 * 1000;
-		if (!print_once) {
-			print_once = 1;
-			printk(KERN_INFO "Capping off P-state tranision latency"
-				" at 20 uS\n");
-		}
+			printk_once(KERN_INFO "Capping off P-state tranision"
+				    " latency at 20 uS\n");
 	}
 
-	data->max_freq = perf->states[0].core_frequency * 1000;
 	/* table init */
 	for (i = 0; i < perf->state_count; i++) {
 		if (i > 0 && perf->states[i].core_frequency >=
@@ -715,6 +714,9 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	result = cpufreq_frequency_table_cpuinfo(policy, data->freq_table);
 	if (result)
 		goto err_freqfree;
+
+	if (perf->states[0].core_frequency * 1000 != policy->cpuinfo.max_freq)
+		printk(KERN_WARNING FW_WARN "P-state 0 is not max freq\n");
 
 	switch (perf->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:

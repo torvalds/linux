@@ -420,8 +420,20 @@ static struct wm97xx_batt_info wm97xx_batt_pdata = {
 /******************************************************************************
  * aSoC audio
  ******************************************************************************/
-static struct palm27x_asoc_info palm27x_asoc_pdata = {
+static struct palm27x_asoc_info palmt5_asoc_pdata = {
 	.jack_gpio	= GPIO_NR_PALMT5_EARPHONE_DETECT,
+};
+
+static pxa2xx_audio_ops_t palmt5_ac97_pdata = {
+	.reset_gpio	= 95,
+};
+
+static struct platform_device palmt5_asoc = {
+	.name = "palm27x-asoc",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &palmt5_asoc_pdata,
+	},
 };
 
 /******************************************************************************
@@ -486,6 +498,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&palmt5_backlight,
 	&power_supply,
+	&palmt5_asoc,
 };
 
 /* setup udc GPIOs initial state */
@@ -504,12 +517,11 @@ static void __init palmt5_init(void)
 	set_pxa_fb_info(&palmt5_lcd_screen);
 	pxa_set_mci_info(&palmt5_mci_platform_data);
 	palmt5_udc_init();
+	pxa_set_ac97_info(&palmt5_ac97_pdata);
 	pxa_set_udc_info(&palmt5_udc_info);
-	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&palmt5_ficp_platform_data);
 	pxa_set_keypad_info(&palmt5_keypad_platform_data);
 	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
-	palm27x_asoc_set_pdata(&palm27x_asoc_pdata);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

@@ -193,8 +193,6 @@ static const struct divisor_table_entry divisor_table[] = {
 /* local variables */
 static int debug;
 
-static int low_latency = 1;	/* tty low latency flag, on by default */
-
 static atomic_t CmdUrbs;	/* Number of outstanding Command Write Urbs */
 
 
@@ -866,9 +864,6 @@ static int edge_open(struct tty_struct *tty,
 
 	if (edge_port == NULL)
 		return -ENODEV;
-
-	if (tty)
-		tty->low_latency = low_latency;
 
 	/* see if we've set up our endpoint info yet (can't set it up
 	   in edge_startup as the structures were not set up at that time.) */
@@ -3299,6 +3294,3 @@ MODULE_FIRMWARE("edgeport/down2.fw");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-
-module_param(low_latency, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(low_latency, "Low latency enabled or not");

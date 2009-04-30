@@ -972,7 +972,7 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	int txq_id = skb_get_queue_mapping(skb);
-	u16 len, idx, len_org, hdr_len;
+	u16 len, idx, len_org, hdr_len; /* TODO: len_org is not used */
 	u8 id;
 	u8 unicast;
 	u8 sta_id;
@@ -1074,6 +1074,40 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx->hdr, hdr, hdr_len);
 
+
+	if (info->control.hw_key)
+		iwl3945_build_tx_cmd_hwcrypto(priv, info, out_cmd, skb, sta_id);
+
+	/* TODO need this for burst mode later on */
+	iwl3945_build_tx_cmd_basic(priv, out_cmd, info, hdr, sta_id);
+
+	/* set is_hcca to 0; it probably will never be implemented */
+	iwl3945_hw_build_tx_cmd_rate(priv, out_cmd, info, hdr, sta_id, 0);
+
+	/* Total # bytes to be transmitted */
+	len = (u16)skb->len;
+	tx->len = cpu_to_le16(len);
+
+
+	tx->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
+	tx->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
+
+	if (!ieee80211_has_morefrags(hdr->frame_control)) {
+		txq->need_update = 1;
+		if (qc)
+			priv->stations_39[sta_id].tid[tid].seq_number = seq_number;
+	} else {
+		wait_write_ptr = 1;
+		txq->need_update = 0;
+	}
+
+	IWL_DEBUG_TX(priv, "sequence nr = 0X%x \n",
+		     le16_to_cpu(out_cmd->hdr.sequence));
+	IWL_DEBUG_TX(priv, "tx_flags = 0X%x \n", le32_to_cpu(tx->tx_flags));
+	iwl_print_hex_dump(priv, IWL_DL_TX, tx, sizeof(*tx));
+	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx->hdr,
+			   ieee80211_hdrlen(fc));
+
 	/*
 	 * Use the first empty entry in this queue's command buffer array
 	 * to contain the Tx command and MAC header concatenated together
@@ -1096,22 +1130,18 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
-	txcmd_phys = pci_map_single(priv->pci_dev,
-				    out_cmd, sizeof(struct iwl_cmd),
-				    PCI_DMA_TODEVICE);
+	txcmd_phys = pci_map_single(priv->pci_dev, &out_cmd->hdr,
+				    len, PCI_DMA_TODEVICE);
+	/* we do not map meta data ... so we can safely access address to
+	 * provide to unmap command*/
 	pci_unmap_addr_set(&out_cmd->meta, mapping, txcmd_phys);
-	pci_unmap_len_set(&out_cmd->meta, len, sizeof(struct iwl_cmd));
-	/* Add buffer containing Tx command and MAC(!) header to TFD's
-	 * first entry */
-	txcmd_phys += offsetof(struct iwl_cmd, hdr);
+	pci_unmap_len_set(&out_cmd->meta, len, len);
 
 	/* Add buffer containing Tx command and MAC(!) header to TFD's
 	 * first entry */
 	priv->cfg->ops->lib->txq_attach_buf_to_tfd(priv, txq,
 						   txcmd_phys, len, 1, 0);
 
-	if (info->control.hw_key)
-		iwl3945_build_tx_cmd_hwcrypto(priv, info, out_cmd, skb, sta_id);
 
 	/* Set up TFD's 2nd entry to point directly to remainder of skb,
 	 * if any (802.11 null frames have no payload). */
@@ -1124,32 +1154,6 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 							   0, U32_PAD(len));
 	}
 
-	/* Total # bytes to be transmitted */
-	len = (u16)skb->len;
-	tx->len = cpu_to_le16(len);
-
-	/* TODO need this for burst mode later on */
-	iwl3945_build_tx_cmd_basic(priv, out_cmd, info, hdr, sta_id);
-
-	/* set is_hcca to 0; it probably will never be implemented */
-	iwl3945_hw_build_tx_cmd_rate(priv, out_cmd, info, hdr, sta_id, 0);
-
-	tx->tx_flags &= ~TX_CMD_FLG_ANT_A_MSK;
-	tx->tx_flags &= ~TX_CMD_FLG_ANT_B_MSK;
-
-	if (!ieee80211_has_morefrags(hdr->frame_control)) {
-		txq->need_update = 1;
-		if (qc)
-			priv->stations_39[sta_id].tid[tid].seq_number = seq_number;
-	} else {
-		wait_write_ptr = 1;
-		txq->need_update = 0;
-	}
-
-	iwl_print_hex_dump(priv, IWL_DL_TX, tx, sizeof(*tx));
-
-	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx->hdr,
-			   ieee80211_hdrlen(fc));
 
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
@@ -1661,6 +1665,37 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&rxq->lock, flags);
 }
 
+void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
+{
+	unsigned long flags;
+	int i;
+	spin_lock_irqsave(&rxq->lock, flags);
+	INIT_LIST_HEAD(&rxq->rx_free);
+	INIT_LIST_HEAD(&rxq->rx_used);
+	/* Fill the rx_used queue with _all_ of the Rx buffers */
+	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
+		/* In the reset function, these buffers may have been allocated
+		 * to an SKB, so we need to unmap and free potential storage */
+		if (rxq->pool[i].skb != NULL) {
+			pci_unmap_single(priv->pci_dev,
+					 rxq->pool[i].real_dma_addr,
+					 priv->hw_params.rx_buf_size,
+					 PCI_DMA_FROMDEVICE);
+			priv->alloc_rxb_skb--;
+			dev_kfree_skb(rxq->pool[i].skb);
+			rxq->pool[i].skb = NULL;
+		}
+		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
+	}
+
+	/* Set us so that we have processed and used all buffers, but have
+	 * not restocked the Rx queue with fresh buffers */
+	rxq->read = rxq->write = 0;
+	rxq->free_count = 0;
+	spin_unlock_irqrestore(&rxq->lock, flags);
+}
+EXPORT_SYMBOL(iwl3945_rx_queue_reset);
+
 /*
  * this should be called while priv->lock is locked
  */
@@ -1684,6 +1719,34 @@ void iwl3945_rx_replenish(void *data)
 	iwl3945_rx_queue_restock(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
+
+/* Assumes that the skb field of the buffers in 'pool' is kept accurate.
+ * If an SKB has been detached, the POOL needs to have its SKB set to NULL
+ * This free routine walks the list of POOL entries and if SKB is set to
+ * non NULL it is unmapped and freed
+ */
+static void iwl3945_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
+{
+	int i;
+	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
+		if (rxq->pool[i].skb != NULL) {
+			pci_unmap_single(priv->pci_dev,
+					 rxq->pool[i].real_dma_addr,
+					 priv->hw_params.rx_buf_size,
+					 PCI_DMA_FROMDEVICE);
+			dev_kfree_skb(rxq->pool[i].skb);
+		}
+	}
+
+	pci_free_consistent(priv->pci_dev, 4 * RX_QUEUE_SIZE, rxq->bd,
+			    rxq->dma_addr);
+	pci_free_consistent(priv->pci_dev, sizeof(struct iwl_rb_status),
+			    rxq->rb_stts, rxq->rb_stts_dma);
+	rxq->bd = NULL;
+	rxq->rb_stts  = NULL;
+}
+EXPORT_SYMBOL(iwl3945_rx_queue_free);
+
 
 /* Convert linear signal-to-noise ratio into dB */
 static u8 ratio2dB[100] = {
@@ -1802,9 +1865,9 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 
 		rxq->queue[i] = NULL;
 
-		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->real_dma_addr,
-					    priv->hw_params.rx_buf_size,
-					    PCI_DMA_FROMDEVICE);
+		pci_unmap_single(priv->pci_dev, rxb->real_dma_addr,
+				priv->hw_params.rx_buf_size,
+				PCI_DMA_FROMDEVICE);
 		pkt = (struct iwl_rx_packet *)rxb->skb->data;
 
 		/* Reclaim a command buffer only if this packet is a response
@@ -1852,9 +1915,6 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 			rxb->skb = NULL;
 		}
 
-		pci_unmap_single(priv->pci_dev, rxb->real_dma_addr,
-				priv->hw_params.rx_buf_size,
-				PCI_DMA_FROMDEVICE);
 		spin_lock_irqsave(&rxq->lock, flags);
 		list_add_tail(&rxb->list, &priv->rxq.rx_used);
 		spin_unlock_irqrestore(&rxq->lock, flags);
@@ -4075,7 +4135,7 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	if (!static_key) {
 		sta_id = iwl3945_hw_find_station(priv, addr);
 		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_MAC80211(priv, "leave - %pMnot in station map.\n",
+			IWL_DEBUG_MAC80211(priv, "leave - %pM not in station map.\n",
 					    addr);
 			return -EINVAL;
 		}
@@ -4913,6 +4973,8 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	hw->wiphy->custom_regulatory = true;
 
+	hw->wiphy->max_scan_ssids = 1; /* WILL FIX */
+
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 
@@ -5194,12 +5256,12 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 
 	iwl_rfkill_unregister(priv);
-	cancel_delayed_work(&priv->rfkill_poll);
+	cancel_delayed_work_sync(&priv->rfkill_poll);
 
 	iwl3945_dealloc_ucode_pci(priv);
 
 	if (priv->rxq.bd)
-		iwl_rx_queue_free(priv, &priv->rxq);
+		iwl3945_rx_queue_free(priv, &priv->rxq);
 	iwl3945_hw_txq_ctx_free(priv);
 
 	iwl3945_unset_hw_params(priv);

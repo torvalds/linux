@@ -483,15 +483,7 @@ int ecryptfs_encrypt_page(struct page *page)
 	ecryptfs_inode = page->mapping->host;
 	crypt_stat =
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
-	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		rc = ecryptfs_write_lower_page_segment(ecryptfs_inode, page,
-						       0, PAGE_CACHE_SIZE);
-		if (rc)
-			printk(KERN_ERR "%s: Error attempting to copy "
-			       "page at index [%ld]\n", __func__,
-			       page->index);
-		goto out;
-	}
+	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 	enc_extent_page = alloc_page(GFP_USER);
 	if (!enc_extent_page) {
 		rc = -ENOMEM;
@@ -620,16 +612,7 @@ int ecryptfs_decrypt_page(struct page *page)
 	ecryptfs_inode = page->mapping->host;
 	crypt_stat =
 		&(ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat);
-	if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
-						      PAGE_CACHE_SIZE,
-						      ecryptfs_inode);
-		if (rc)
-			printk(KERN_ERR "%s: Error attempting to copy "
-			       "page at index [%ld]\n", __func__,
-			       page->index);
-		goto out;
-	}
+	BUG_ON(!(crypt_stat->flags & ECRYPTFS_ENCRYPTED));
 	enc_extent_page = alloc_page(GFP_USER);
 	if (!enc_extent_page) {
 		rc = -ENOMEM;

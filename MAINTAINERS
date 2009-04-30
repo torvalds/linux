@@ -1337,12 +1337,9 @@ L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 F:	arch/powerpc/include/asm/cell*.h
-F:	arch/powerpc/include/asm/lv1call.h
-F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
-F:	arch/powerpc/platforms/ps3/
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 P:	David Vrabel
@@ -2065,6 +2062,8 @@ F:	drivers/infiniband/hw/ehca/
 EMBEDDED LINUX
 P:	Paul Gortmaker
 M:	paul.gortmaker@windriver.com
+P:	Matt Mackall
+M:	mpm@selenic.com
 P:	David Woodhouse
 M:	dwmw2@infradead.org
 L:	linux-embedded@vger.kernel.org
@@ -2562,7 +2561,6 @@ F:	kernel/power/
 F:	include/linux/suspend.h
 F:	include/linux/freezer.h
 F:	include/linux/pm.h
-F:	include/asm-*/suspend*.h
 F:	arch/*/include/asm/suspend*.h
 
 HID CORE LAYER
@@ -2760,7 +2758,7 @@ IDE SUBSYSTEM
 P:	Bartlomiej Zolnierkiewicz
 M:	bzolnier@gmail.com
 L:	linux-ide@vger.kernel.org
-T:	quilt kernel.org/pub/linux/kernel/people/bart/pata-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bart/ide-2.6.git
 S:	Maintained
 F:	Documentation/ide/
 F:	drivers/ide/
@@ -3340,7 +3338,7 @@ P:	Eduard - Gabriel Munteanu
 M:	eduard.munteanu@linux360.ro
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
-F:	Documentation/vm/kmemtrace.txt
+F:	Documentation/trace/kmemtrace.txt
 F:	include/trace/kmemtrace.h
 F:	kernel/trace/kmemtrace.c
 
@@ -3450,7 +3448,7 @@ P:	Matt Porter
 M:	mporter@kernel.crashing.org
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/powerpc.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/powerpc-4xx.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED XILINX VIRTEX
@@ -3993,8 +3991,8 @@ NETWORKING [GENERAL]
 P:	David S. Miller
 M:	davem@davemloft.net
 L:	netdev@vger.kernel.org
-W:	http://linux-net.osdl.org/
-T:	git kernel.org:/pub/scm/linux/kernel/git/davem/net-2.6.git
+W:	http://www.linuxfoundation.org/en/Net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
 S:	Maintained
 F:	net/
 F:	include/net/
@@ -4034,6 +4032,13 @@ S:	Maintained
 F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/net/wireless.h
+
+NETWORKING DRIVERS
+L:	netdev@vger.kernel.org
+W:	http://www.linuxfoundation.org/en/Net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
+S:	Odd Fixes
+F:	drivers/net/
 
 NETXEN (1/10) GbE SUPPORT
 P:	Dhananjay Phadke
@@ -4506,7 +4511,9 @@ F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/platforms/ps3/
 F:	drivers/*/ps3*
 F:	drivers/ps3/
+F:	drivers/rtc/rtc-ps3.c
 F:	drivers/usb/host/*ps3.c
+F:	sound/ppc/snd_ps3*
 
 PS3VRAM DRIVER
 P:	Jim Paris
@@ -5404,7 +5411,6 @@ F:	kernel/power/
 F:	include/linux/suspend.h
 F:	include/linux/freezer.h
 F:	include/linux/pm.h
-F:	include/asm-*/suspend.h
 
 SVGA HANDLING
 P:	Martin Mares
@@ -5638,7 +5644,7 @@ L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 F:	arch/m68knommu/
 
-UCLINUX FOR RENESAS H8/300
+UCLINUX FOR RENESAS H8/300 (H8300)
 P:	Yoshinori Sato
 M:	ysato@users.sourceforge.jp
 W:	http://uclinux-h8.sourceforge.jp/

@@ -42,19 +42,4 @@ extern int pxa2xx_ac97_hw_resume(void);
 extern int pxa2xx_ac97_hw_probe(struct platform_device *dev);
 extern void pxa2xx_ac97_hw_remove(struct platform_device *dev);
 
-/* AC97 platform_data */
-/**
- * struct pxa2xx_ac97_platform_data - pxa ac97 platform data
- * @reset_gpio: AC97 reset gpio (normally gpio113 or gpio95)
- *              a -1 value means no gpio will be used for reset
- *
- * Platform data should only be specified for pxa27x CPUs where a silicon bug
- * prevents correct operation of the reset line. If not specified, the default
- * behaviour is to consider gpio 113 as the AC97 reset line, which is the
- * default on most boards.
- */
-struct pxa2xx_ac97_platform_data {
-	int reset_gpio;
-};
-
 #endif

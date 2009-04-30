@@ -28,9 +28,9 @@ if NETDEVICES
 
 config COMPAT_NET_DEV_OPS
        default y
-       bool "Enable older network device API compatiablity"
+       bool "Enable older network device API compatibility"
        ---help---
-          This option enables kernel compatiability with older network devices
+          This option enables kernel compatibility with older network devices
           that do not use net_device_ops interface.
 
 	  If unsure, say Y.
