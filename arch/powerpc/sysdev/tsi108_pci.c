@@ -63,7 +63,7 @@ tsi108_direct_write_config(struct pci_bus *bus, unsigned int devfunc,
 			   int offset, int len, u32 val)
 {
 	volatile unsigned char *cfg_addr;
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 
 	if (ppc_md.pci_exclude_device)
 		if (ppc_md.pci_exclude_device(hose, bus->number, devfunc))
@@ -149,7 +149,7 @@ tsi108_direct_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 			  int len, u32 * val)
 {
 	volatile unsigned char *cfg_addr;
-	struct pci_controller *hose = bus->sysdata;
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	u32 temp;
 
 	if (ppc_md.pci_exclude_device)
