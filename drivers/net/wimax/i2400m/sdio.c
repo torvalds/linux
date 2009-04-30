@@ -409,19 +409,19 @@ int i2400ms_probe(struct sdio_func *func,
 	i2400m->bus_fw_names = i2400ms_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 1;
 
+	sdio_claim_host(func);
+	result = sdio_set_block_size(func, I2400MS_BLK_SIZE);
+	sdio_release_host(func);
+	if (result < 0) {
+		dev_err(dev, "Failed to set block size: %d\n", result);
+		goto error_set_blk_size;
+	}
+
 	result = i2400ms_enable_function(i2400ms->func);
 	if (result < 0) {
 		dev_err(dev, "Cannot enable SDIO function: %d\n", result);
 		goto error_func_enable;
 	}
-
-	sdio_claim_host(func);
-	result = sdio_set_block_size(func, I2400MS_BLK_SIZE);
-	if (result < 0) {
-		dev_err(dev, "Failed to set block size: %d\n", result);
-		goto error_set_blk_size;
-	}
-	sdio_release_host(func);
 
 	result = i2400m_setup(i2400m, I2400M_BRI_NO_REBOOT);
 	if (result < 0) {
@@ -440,12 +440,12 @@ int i2400ms_probe(struct sdio_func *func,
 error_debugfs_add:
 	i2400m_release(i2400m);
 error_setup:
-	sdio_set_drvdata(func, NULL);
 	sdio_claim_host(func);
-error_set_blk_size:
 	sdio_disable_func(func);
 	sdio_release_host(func);
 error_func_enable:
+error_set_blk_size:
+	sdio_set_drvdata(func, NULL);
 	free_netdev(net_dev);
 error_alloc_netdev:
 	return result;
