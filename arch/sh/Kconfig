@@ -462,22 +462,14 @@ config SH_TMU
 	help
 	  This enables the use of the TMU as the system timer.
 
-config SH_CMT
-	bool "CMT timer support"
-	depends on SYS_SUPPORTS_CMT && CPU_SH2
-	default y
-	help
-	  This enables the use of the CMT as the system timer.
-
-#
-# Support for the new-style CMT driver. This will replace SH_CMT
-# once its other dependencies are merged.
-#
 config SH_TIMER_CMT
-	bool "CMT clockevents driver"
-	depends on SYS_SUPPORTS_CMT && !SH_CMT
+	bool "CMT timer driver"
+	depends on SYS_SUPPORTS_CMT
+	default y
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_TIME
+	help
+	  This enables build of the CMT timer driver.
 
 config SH_MTU2
 	bool "MTU2 timer support"
