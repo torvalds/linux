@@ -1024,9 +1024,7 @@ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
 		return NULL;
 
 	pc = lookup_page_cgroup(page);
-	/*
-	 * Used bit of swapcache is solid under page lock.
-	 */
+	lock_page_cgroup(pc);
 	if (PageCgroupUsed(pc)) {
 		mem = pc->mem_cgroup;
 		if (mem && !css_tryget(&mem->css))
@@ -1040,6 +1038,7 @@ static struct mem_cgroup *try_get_mem_cgroup_from_swapcache(struct page *page)
 			mem = NULL;
 		rcu_read_unlock();
 	}
+	unlock_page_cgroup(pc);
 	return mem;
 }
 
