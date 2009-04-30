@@ -514,6 +514,7 @@ struct xhci_slot_ctx {
 /* bits 8:26 reserved */
 /* Slot state */
 #define SLOT_STATE	(0x1f << 27)
+#define GET_SLOT_STATE(p)	(((p) & (0x1f << 27)) >> 27)
 
 
 /**
@@ -765,6 +766,11 @@ struct xhci_event_cmd {
 #define TRB_TO_SLOT_ID(p)	(((p) & (0xff<<24)) >> 24)
 #define SLOT_ID_FOR_TRB(p)	(((p) & 0xff) << 24)
 
+/* Stop Endpoint TRB - ep_index to endpoint ID for this TRB */
+#define TRB_TO_EP_INDEX(p)		((((p) & (0x1f << 16)) >> 16) - 1)
+#define	EP_ID_FOR_TRB(p)		((((p) + 1) & 0x1f) << 16)
+
+
 /* Port Status Change Event TRB fields */
 /* Port ID - bits 31:24 */
 #define GET_PORT_ID(p)		(((p) & (0xff << 24)) >> 24)
@@ -893,18 +899,21 @@ union xhci_trb {
 #define TRB_MAX_BUFF_SHIFT		16
 #define TRB_MAX_BUFF_SIZE	(1 << TRB_MAX_BUFF_SHIFT)
 
-struct xhci_td {
-	struct list_head	td_list;
-	struct urb		*urb;
-	union xhci_trb		*last_trb;
-};
-
 struct xhci_segment {
 	union xhci_trb		*trbs;
 	/* private to HCD */
 	struct xhci_segment	*next;
 	dma_addr_t		dma;
 } __attribute__ ((packed));
+
+struct xhci_td {
+	struct list_head	td_list;
+	struct list_head	cancelled_td_list;
+	struct urb		*urb;
+	struct xhci_segment	*start_seg;
+	union xhci_trb		*first_trb;
+	union xhci_trb		*last_trb;
+};
 
 struct xhci_ring {
 	struct xhci_segment	*first_seg;
@@ -915,6 +924,14 @@ struct xhci_ring {
 	struct xhci_segment	*deq_seg;
 	unsigned int		deq_updates;
 	struct list_head	td_list;
+	/* ----  Related to URB cancellation ---- */
+	struct list_head	cancelled_td_list;
+	unsigned int		cancels_pending;
+	unsigned int		state;
+#define SET_DEQ_PENDING		(1 << 0)
+	/* The TRB that was last reported in a stopped endpoint ring */
+	union xhci_trb		*stopped_trb;
+	struct xhci_td		*stopped_td;
 	/*
 	 * Write the cycle state into the TRB cycle field to give ownership of
 	 * the TRB to the host controller (if we are the producer), or to check
@@ -1119,6 +1136,8 @@ void handle_event(struct xhci_hcd *xhci);
 void set_hc_event_deq(struct xhci_hcd *xhci);
 int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
 int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
+int queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
+		unsigned int ep_index);
 int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
 int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
 int queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);

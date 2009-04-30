@@ -142,6 +142,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		return 0;
 
 	INIT_LIST_HEAD(&ring->td_list);
+	INIT_LIST_HEAD(&ring->cancelled_td_list);
 	if (num_segs == 0)
 		return ring;
 

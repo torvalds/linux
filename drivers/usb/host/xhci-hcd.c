@@ -613,12 +613,70 @@ exit:
 	return ret;
 }
 
-/* Remove from hardware lists
- * completions normally happen asynchronously
+/*
+ * Remove the URB's TD from the endpoint ring.  This may cause the HC to stop
+ * USB transfers, potentially stopping in the middle of a TRB buffer.  The HC
+ * should pick up where it left off in the TD, unless a Set Transfer Ring
+ * Dequeue Pointer is issued.
+ *
+ * The TRBs that make up the buffers for the canceled URB will be "removed" from
+ * the ring.  Since the ring is a contiguous structure, they can't be physically
+ * removed.  Instead, there are two options:
+ *
+ *  1) If the HC is in the middle of processing the URB to be canceled, we
+ *     simply move the ring's dequeue pointer past those TRBs using the Set
+ *     Transfer Ring Dequeue Pointer command.  This will be the common case,
+ *     when drivers timeout on the last submitted URB and attempt to cancel.
+ *
+ *  2) If the HC is in the middle of a different TD, we turn the TRBs into a
+ *     series of 1-TRB transfer no-op TDs.  (No-ops shouldn't be chained.)  The
+ *     HC will need to invalidate the any TRBs it has cached after the stop
+ *     endpoint command, as noted in the xHCI 0.95 errata.
+ *
+ *  3) The TD may have completed by the time the Stop Endpoint Command
+ *     completes, so software needs to handle that case too.
+ *
+ * This function should protect against the TD enqueueing code ringing the
+ * doorbell while this code is waiting for a Stop Endpoint command to complete.
+ * It also needs to account for multiple cancellations on happening at the same
+ * time for the same endpoint.
+ *
+ * Note that this function can be called in any context, or so says
+ * usb_hcd_unlink_urb()
  */
 int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
-	return -ENOSYS;
+	unsigned long flags;
+	int ret;
+	struct xhci_hcd *xhci;
+	struct xhci_td *td;
+	unsigned int ep_index;
+	struct xhci_ring *ep_ring;
+
+	xhci = hcd_to_xhci(hcd);
+	spin_lock_irqsave(&xhci->lock, flags);
+	/* Make sure the URB hasn't completed or been unlinked already */
+	ret = usb_hcd_check_unlink_urb(hcd, urb, status);
+	if (ret || !urb->hcpriv)
+		goto done;
+
+	xhci_dbg(xhci, "Cancel URB 0x%x\n", (unsigned int) urb);
+	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
+	ep_ring = xhci->devs[urb->dev->slot_id]->ep_rings[ep_index];
+	td = (struct xhci_td *) urb->hcpriv;
+
+	ep_ring->cancels_pending++;
+	list_add_tail(&td->cancelled_td_list, &ep_ring->cancelled_td_list);
+	/* Queue a stop endpoint command, but only if this is
+	 * the first cancellation to be handled.
+	 */
+	if (ep_ring->cancels_pending == 1) {
+		queue_stop_endpoint(xhci, urb->dev->slot_id, ep_index);
+		ring_cmd_db(xhci);
+	}
+done:
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return ret;
 }
 
 /* Drop an endpoint from a new bandwidth configuration for this device.
