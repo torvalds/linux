@@ -323,7 +323,7 @@ while(<CIN>) {
 	    # enable IKCONFIG at least as a module
 	    print "CONFIG_IKCONFIG=m\n";
 	    # don't ask about PROC
-	    print "# CONFIG_IKCONFIG is not set\n";
+	    print "# CONFIG_IKCONFIG_PROC is not set\n";
 	} else {
 	    print;
 	}
@@ -333,15 +333,12 @@ while(<CIN>) {
     if (/^(CONFIG.*)=(m|y)/) {
 	if (defined($configs{$1})) {
 	    $setconfigs{$1} = $2;
-	    print;
 	} elsif ($2 eq "m") {
 	    print "# $1 is not set\n";
-	} else {
-	    print;
+	    next;
 	}
-    } else {
-	print;
     }
+    print;
 }
 close(CIN);
 
