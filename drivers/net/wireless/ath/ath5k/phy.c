@@ -1414,23 +1414,187 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan)
 	return ret;
 }
 
+/*****************\
+* Antenna control *
+\*****************/
+
 void /*TODO:Boundary check*/
-ath5k_hw_set_def_antenna(struct ath5k_hw *ah, unsigned int ant)
+ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant)
 {
 	ATH5K_TRACE(ah->ah_sc);
-	/*Just a try M.F.*/
+
 	if (ah->ah_version != AR5K_AR5210)
-		ath5k_hw_reg_write(ah, ant, AR5K_DEFAULT_ANTENNA);
+		ath5k_hw_reg_write(ah, ant & 0x7, AR5K_DEFAULT_ANTENNA);
 }
 
 unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
-	/*Just a try M.F.*/
+
 	if (ah->ah_version != AR5K_AR5210)
-		return ath5k_hw_reg_read(ah, AR5K_DEFAULT_ANTENNA);
+		return ath5k_hw_reg_read(ah, AR5K_DEFAULT_ANTENNA) & 0x7;
 
 	return false; /*XXX: What do we return for 5210 ?*/
+}
+
+/*
+ * Enable/disable fast rx antenna diversity
+ */
+static void
+ath5k_hw_set_fast_div(struct ath5k_hw *ah, u8 ee_mode, bool enable)
+{
+	switch (ee_mode) {
+	case AR5K_EEPROM_MODE_11G:
+		/* XXX: This is set to
+		 * disabled on initvals !!! */
+	case AR5K_EEPROM_MODE_11A:
+		if (enable)
+			AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_AGCCTL,
+					AR5K_PHY_AGCCTL_OFDM_DIV_DIS);
+		else
+			AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
+					AR5K_PHY_AGCCTL_OFDM_DIV_DIS);
+		break;
+	case AR5K_EEPROM_MODE_11B:
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
+					AR5K_PHY_AGCCTL_OFDM_DIV_DIS);
+		break;
+	default:
+		return;
+	}
+
+	if (enable) {
+		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_RESTART,
+				AR5K_PHY_RESTART_DIV_GC, 0xc);
+
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_FAST_ANT_DIV,
+					AR5K_PHY_FAST_ANT_DIV_EN);
+	} else {
+		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_RESTART,
+				AR5K_PHY_RESTART_DIV_GC, 0x8);
+
+		AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_FAST_ANT_DIV,
+					AR5K_PHY_FAST_ANT_DIV_EN);
+	}
+}
+
+/*
+ * Set antenna operating mode
+ */
+void
+ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
+{
+	struct ieee80211_channel *channel = &ah->ah_current_channel;
+	bool use_def_for_tx, update_def_on_tx, use_def_for_rts, fast_div;
+	bool use_def_for_sg;
+	u8 def_ant, tx_ant, ee_mode;
+	u32 sta_id1 = 0;
+
+	def_ant = ah->ah_def_ant;
+
+	ATH5K_TRACE(ah->ah_sc);
+
+	switch (channel->hw_value & CHANNEL_MODES) {
+	case CHANNEL_A:
+	case CHANNEL_T:
+	case CHANNEL_XR:
+		ee_mode = AR5K_EEPROM_MODE_11A;
+		break;
+	case CHANNEL_G:
+	case CHANNEL_TG:
+		ee_mode = AR5K_EEPROM_MODE_11G;
+		break;
+	case CHANNEL_B:
+		ee_mode = AR5K_EEPROM_MODE_11B;
+		break;
+	default:
+		ATH5K_ERR(ah->ah_sc,
+			"invalid channel: %d\n", channel->center_freq);
+		return;
+	}
+
+	switch (ant_mode) {
+	case AR5K_ANTMODE_DEFAULT:
+		tx_ant = 0;
+		use_def_for_tx = false;
+		update_def_on_tx = false;
+		use_def_for_rts = false;
+		use_def_for_sg = false;
+		fast_div = true;
+		break;
+	case AR5K_ANTMODE_FIXED_A:
+		def_ant = 1;
+		tx_ant = 0;
+		use_def_for_tx = true;
+		update_def_on_tx = false;
+		use_def_for_rts = true;
+		use_def_for_sg = true;
+		fast_div = false;
+		break;
+	case AR5K_ANTMODE_FIXED_B:
+		def_ant = 2;
+		tx_ant = 0;
+		use_def_for_tx = true;
+		update_def_on_tx = false;
+		use_def_for_rts = true;
+		use_def_for_sg = true;
+		fast_div = false;
+		break;
+	case AR5K_ANTMODE_SINGLE_AP:
+		def_ant = 1;	/* updated on tx */
+		tx_ant = 0;
+		use_def_for_tx = true;
+		update_def_on_tx = true;
+		use_def_for_rts = true;
+		use_def_for_sg = true;
+		fast_div = true;
+		break;
+	case AR5K_ANTMODE_SECTOR_AP:
+		tx_ant = 1;	/* variable */
+		use_def_for_tx = false;
+		update_def_on_tx = false;
+		use_def_for_rts = true;
+		use_def_for_sg = false;
+		fast_div = false;
+		break;
+	case AR5K_ANTMODE_SECTOR_STA:
+		tx_ant = 1;	/* variable */
+		use_def_for_tx = true;
+		update_def_on_tx = false;
+		use_def_for_rts = true;
+		use_def_for_sg = false;
+		fast_div = true;
+		break;
+	case AR5K_ANTMODE_DEBUG:
+		def_ant = 1;
+		tx_ant = 2;
+		use_def_for_tx = false;
+		update_def_on_tx = false;
+		use_def_for_rts = false;
+		use_def_for_sg = false;
+		fast_div = false;
+		break;
+	default:
+		return;
+	}
+
+	ah->ah_tx_ant = tx_ant;
+	ah->ah_ant_mode = ant_mode;
+
+	sta_id1 |= use_def_for_tx ? AR5K_STA_ID1_DEFAULT_ANTENNA : 0;
+	sta_id1 |= update_def_on_tx ? AR5K_STA_ID1_DESC_ANTENNA : 0;
+	sta_id1 |= use_def_for_rts ? AR5K_STA_ID1_RTS_DEF_ANTENNA : 0;
+	sta_id1 |= use_def_for_sg ? AR5K_STA_ID1_SELFGEN_DEF_ANT : 0;
+
+	AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_ANTENNA_SETTINGS);
+
+	if (sta_id1)
+		AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1, sta_id1);
+
+	/* Note: set diversity before default antenna
+	 * because it won't work correctly */
+	ath5k_hw_set_fast_div(ah, ee_mode, fast_div);
+	ath5k_hw_set_def_antenna(ah, def_ant);
 }
 
 

@@ -240,11 +240,11 @@ enum ath5k_eeprom_freq_bands{
 #define AR5K_EEPROM_READ_HDR(_o, _v)					\
 	AR5K_EEPROM_READ(_o, ah->ah_capabilities.cap_eeprom._v);	\
 
-enum ath5k_ant_setting {
-	AR5K_ANT_VARIABLE	= 0,	/* variable by programming */
-	AR5K_ANT_FIXED_A	= 1,	/* fixed to 11a frequencies */
-	AR5K_ANT_FIXED_B	= 2,	/* fixed to 11b frequencies */
-	AR5K_ANT_MAX		= 3,
+enum ath5k_ant_table {
+	AR5K_ANT_CTL		= 0,	/* Idle switch table settings */
+	AR5K_ANT_SWTABLE_A	= 1,	/* Switch table for antenna A */
+	AR5K_ANT_SWTABLE_B	= 2,	/* Switch table for antenna B */
+	AR5K_ANT_MAX,
 };
 
 enum ath5k_ctl_mode {
@@ -461,6 +461,7 @@ struct ath5k_eeprom_info {
 	/* Spur mitigation data (fbin values for spur channels) */
 	u16	ee_spur_chans[AR5K_EEPROM_N_SPUR_CHANS][AR5K_EEPROM_N_FREQ_BANDS];
 
+	/* Antenna raw switch tables */
 	u32	ee_antenna[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
 };
 

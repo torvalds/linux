@@ -209,7 +209,6 @@
 #define AR5K_TUNE_MAX_TXPOWER			63
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
 #define AR5K_TUNE_TPC_TXPOWER			false
-#define AR5K_TUNE_ANT_DIVERSITY			true
 #define AR5K_TUNE_HWTXTRIES			4
 
 #define AR5K_INIT_CARR_SENSE_EN			1
@@ -418,6 +417,17 @@ enum ath5k_driver_mode {
 	AR5K_MODE_11G_TURBO	=	4,
 	AR5K_MODE_XR		=	0,
 	AR5K_MODE_MAX		=	5
+};
+
+enum ath5k_ant_mode {
+	AR5K_ANTMODE_DEFAULT	= 0,	/* default antenna setup */
+	AR5K_ANTMODE_FIXED_A	= 1,	/* only antenna A is present */
+	AR5K_ANTMODE_FIXED_B	= 2,	/* only antenna B is present */
+	AR5K_ANTMODE_SINGLE_AP	= 3,	/* sta locked on a single ap */
+	AR5K_ANTMODE_SECTOR_AP	= 4,	/* AP with tx antenna set on tx desc */
+	AR5K_ANTMODE_SECTOR_STA	= 5,	/* STA with tx antenna set on tx desc */
+	AR5K_ANTMODE_DEBUG	= 6,	/* Debug mode -A -> Rx, B-> Tx- */
+	AR5K_ANTMODE_MAX,
 };
 
 
@@ -1051,8 +1061,11 @@ struct ath5k_hw {
 	bool			ah_software_retry;
 	u32			ah_limit_tx_retries;
 
-	u32			ah_antenna[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
-	bool			ah_ant_diversity;
+	/* Antenna Control */
+	u32			ah_ant_ctl[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
+	u8			ah_ant_mode;
+	u8			ah_tx_ant;
+	u8			ah_def_ant;
 
 	u8			ah_sta_id[ETH_ALEN];
 
@@ -1267,9 +1280,11 @@ extern int ath5k_hw_phy_calibrate(struct ath5k_hw *ah, struct ieee80211_channel 
 extern int ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq);
 /* Misc PHY functions */
 extern u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
-extern void ath5k_hw_set_def_antenna(struct ath5k_hw *ah, unsigned int ant);
-extern unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah);
 extern int ath5k_hw_phy_disable(struct ath5k_hw *ah);
+/* Antenna control */
+extern void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);
+extern void ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant);
+extern unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah);
 /* TX power setup */
 extern int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel, u8 ee_mode, u8 txpower);
 extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);

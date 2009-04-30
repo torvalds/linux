@@ -698,13 +698,13 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 	/* Set antenna idle switch table */
 	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_ANT_CTL,
 			AR5K_PHY_ANT_CTL_SWTABLE_IDLE,
-			(ah->ah_antenna[ee_mode][0] |
+			(ah->ah_ant_ctl[ee_mode][0] |
 			AR5K_PHY_ANT_CTL_TXRX_EN));
 
-	/* Set antenna switch table */
-	ath5k_hw_reg_write(ah, ah->ah_antenna[ee_mode][ant[0]],
+	/* Set antenna switch tables */
+	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[0]],
 		AR5K_PHY_ANT_SWITCH_TABLE_0);
-	ath5k_hw_reg_write(ah, ah->ah_antenna[ee_mode][ant[1]],
+	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[1]],
 		AR5K_PHY_ANT_SWITCH_TABLE_1);
 
 	/* Noise floor threshold */
@@ -1042,17 +1042,15 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 		/*
 		 * In case a fixed antenna was set as default
-		 * write the same settings on both AR5K_PHY_ANT_SWITCH_TABLE
-		 * registers.
+		 * use the same switch table twice.
 		 */
-		if (s_ant != 0) {
-			if (s_ant == AR5K_ANT_FIXED_A) /* 1 - Main */
-				ant[0] = ant[1] = AR5K_ANT_FIXED_A;
-			else	/* 2 - Aux */
-				ant[0] = ant[1] = AR5K_ANT_FIXED_B;
-		} else {
-			ant[0] = AR5K_ANT_FIXED_A;
-			ant[1] = AR5K_ANT_FIXED_B;
+		if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_A)
+				ant[0] = ant[1] = AR5K_ANT_SWTABLE_A;
+		else if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_B)
+				ant[0] = ant[1] = AR5K_ANT_SWTABLE_B;
+		else {
+			ant[0] = AR5K_ANT_SWTABLE_A;
+			ant[1] = AR5K_ANT_SWTABLE_B;
 		}
 
 		/* Commit values from EEPROM */
@@ -1260,6 +1258,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
+	/* Restore antenna mode */
+	ath5k_hw_set_antenna_mode(ah, ah->ah_ant_mode);
 
 	/*
 	 * Configure QCUs/DCUs
