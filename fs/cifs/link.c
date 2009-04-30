@@ -119,16 +119,11 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	full_path = build_path_from_dentry(direntry);
 
 	if (!full_path)
-		goto out_no_free;
+		goto out;
 
 	cFYI(1, ("Full path: %s inode = 0x%p", full_path, inode));
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
-	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
-	if (!target_path) {
-		target_path = ERR_PTR(-ENOMEM);
-		goto out;
-	}
 
 	/* We could change this to:
 		if (pTcon->unix_ext)
@@ -138,8 +133,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 
 	if (pTcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
-					     target_path,
-					     PATH_MAX-1,
+					     &target_path,
 					     cifs_sb->local_nls);
 	else {
 		/* BB add read reparse point symlink code here */
@@ -148,22 +142,16 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 		/* BB Add MAC style xsymlink check here if enabled */
 	}
 
-	if (rc == 0) {
-
-/* BB Add special case check for Samba DFS symlinks */
-
-		target_path[PATH_MAX-1] = 0;
-	} else {
+	if (rc != 0) {
 		kfree(target_path);
 		target_path = ERR_PTR(rc);
 	}
 
-out:
 	kfree(full_path);
-out_no_free:
+out:
 	FreeXid(xid);
 	nd_set_link(nd, target_path);
-	return NULL;	/* No cookie */
+	return NULL;
 }
 
 int

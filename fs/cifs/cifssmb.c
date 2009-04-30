@@ -2382,8 +2382,7 @@ winCreateHardLinkRetry:
 
 int
 CIFSSMBUnixQuerySymLink(const int xid, struct cifsTconInfo *tcon,
-			const unsigned char *searchName,
-			char *symlinkinfo, const int buflen,
+			const unsigned char *searchName, char **symlinkinfo,
 			const struct nls_table *nls_codepage)
 {
 /* SMB_QUERY_FILE_UNIX_LINK */
@@ -2393,6 +2392,7 @@ CIFSSMBUnixQuerySymLink(const int xid, struct cifsTconInfo *tcon,
 	int bytes_returned;
 	int name_len;
 	__u16 params, byte_count;
+	char *data_start;
 
 	cFYI(1, ("In QPathSymLinkInfo (Unix) for path %s", searchName));
 
@@ -2447,30 +2447,22 @@ querySymLinkRetry:
 		/* decode response */
 
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-		if (rc || (pSMBr->ByteCount < 2))
 		/* BB also check enough total bytes returned */
-			rc = -EIO;	/* bad smb */
+		if (rc || (pSMBr->ByteCount < 2))
+			rc = -EIO;
 		else {
-			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
-			__u16 count = le16_to_cpu(pSMBr->t2.DataCount);
+			u16 count = le16_to_cpu(pSMBr->t2.DataCount);
 
-			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) {
-				name_len = UniStrnlen((wchar_t *) ((char *)
-					&pSMBr->hdr.Protocol + data_offset),
-					min_t(const int, buflen, count) / 2);
+			data_start = ((char *) &pSMBr->hdr.Protocol) +
+					   le16_to_cpu(pSMBr->t2.DataOffset);
+
 			/* BB FIXME investigate remapping reserved chars here */
-				cifs_strfromUCS_le(symlinkinfo,
-					(__le16 *) ((char *)&pSMBr->hdr.Protocol
-							+ data_offset),
-					name_len, nls_codepage);
-			} else {
-				strncpy(symlinkinfo,
-					(char *) &pSMBr->hdr.Protocol +
-						data_offset,
-					min_t(const int, buflen, count));
-			}
-			symlinkinfo[buflen] = 0;
-	/* just in case so calling code does not go off the end of buffer */
+			*symlinkinfo = cifs_strndup(data_start, count,
+						    pSMBr->hdr.Flags2 &
+							SMBFLG2_UNICODE,
+						    nls_codepage);
+			if (!symlinkinfo)
+				rc = -ENOMEM;
 		}
 	}
 	cifs_buf_release(pSMB);
