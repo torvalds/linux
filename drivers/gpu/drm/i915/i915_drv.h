@@ -283,6 +283,7 @@ typedef struct drm_i915_private {
 	u8 saveAR[21];
 	u8 saveDACMASK;
 	u8 saveCR[37];
+	uint64_t saveFENCE[16];
 
 	struct {
 		struct drm_mm gtt_space;
