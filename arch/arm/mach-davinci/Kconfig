@@ -13,6 +13,9 @@ config ARCH_DAVINCI_DM644x
 config ARCH_DAVINCI_DM355
         bool "DaVinci 355 based system"
 
+config ARCH_DAVINCI_DM646x
+        bool "DaVinci 646x based system"
+
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
@@ -46,6 +49,15 @@ config MACH_DM355_LEOPARD
 	help
 	  Configure this option to specify the whether the board used
 	  for development is a DM355 Leopard board.
+
+config MACH_DAVINCI_DM6467_EVM
+	bool "TI DM6467 EVM"
+	default n
+	depends on ARCH_DAVINCI_DM646x
+	help
+	  Configure this option to specify the whether the board used
+	  for development is a DM6467 EVM
+
 
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"
