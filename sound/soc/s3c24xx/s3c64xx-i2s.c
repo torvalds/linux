@@ -220,8 +220,7 @@ static __devinit int s3c64xx_iis_dev_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = s3c_i2sv2_probe(pdev, dai, i2s,
-			      dai->id ? S3C64XX_PA_IIS1 : S3C64XX_PA_IIS0);
+	ret = s3c_i2sv2_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;
 
