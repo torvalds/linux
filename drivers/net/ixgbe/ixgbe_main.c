@@ -3749,6 +3749,8 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	ixgbe_reset(adapter);
 
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
+
 	if (netif_running(netdev)) {
 		err = ixgbe_open(adapter->netdev);
 		if (err)
@@ -4735,7 +4737,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	const struct ixgbe_info *ii = ixgbe_info_tbl[ent->driver_data];
 	static int cards_found;
 	int i, err, pci_using_dac;
-	u16 pm_value = 0;
 	u32 part_num, eec;
 
 	err = pci_enable_device(pdev);
@@ -4940,11 +4941,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	switch (pdev->device) {
 	case IXGBE_DEV_ID_82599_KX4:
-#define IXGBE_PCIE_PMCSR 0x44
-		adapter->wol = IXGBE_WUFC_MAG;
-		pci_read_config_word(pdev, IXGBE_PCIE_PMCSR, &pm_value);
-		pci_write_config_word(pdev, IXGBE_PCIE_PMCSR,
-		                      (pm_value | (1 << 8)));
+		adapter->wol = (IXGBE_WUFC_MAG | IXGBE_WUFC_EX |
+		                IXGBE_WUFC_MC | IXGBE_WUFC_BC);
 		break;
 	default:
 		adapter->wol = 0;

@@ -50,7 +50,6 @@ static u16 ixgbe_calc_eeprom_checksum(struct ixgbe_hw *hw);
 static void ixgbe_enable_rar(struct ixgbe_hw *hw, u32 index);
 static void ixgbe_disable_rar(struct ixgbe_hw *hw, u32 index);
 static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr);
-static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr);
 static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq);
 
 /**
@@ -1377,8 +1376,7 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
 	 * Clear accounting of old secondary address list,
 	 * don't count RAR[0]
 	 */
-	uc_addr_in_use = hw->addr_ctrl.rar_used_count -
-	                 hw->addr_ctrl.mc_addr_in_rar_count - 1;
+	uc_addr_in_use = hw->addr_ctrl.rar_used_count - 1;
 	hw->addr_ctrl.rar_used_count -= uc_addr_in_use;
 	hw->addr_ctrl.overflow_promisc = 0;
 
@@ -1493,40 +1491,6 @@ static void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 }
 
 /**
- *  ixgbe_add_mc_addr - Adds a multicast address.
- *  @hw: pointer to hardware structure
- *  @mc_addr: new multicast address
- *
- *  Adds it to unused receive address register or to the multicast table.
- **/
-static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
-{
-	u32 rar_entries = hw->mac.num_rar_entries;
-	u32 rar;
-
-	hw_dbg(hw, " MC Addr =%.2X %.2X %.2X %.2X %.2X %.2X\n",
-	       mc_addr[0], mc_addr[1], mc_addr[2],
-	       mc_addr[3], mc_addr[4], mc_addr[5]);
-
-	/*
-	 * Place this multicast address in the RAR if there is room,
-	 * else put it in the MTA
-	 */
-	if (hw->addr_ctrl.rar_used_count < rar_entries) {
-		/* use RAR from the end up for multicast */
-		rar = rar_entries - hw->addr_ctrl.mc_addr_in_rar_count - 1;
-		hw->mac.ops.set_rar(hw, rar, mc_addr, 0, IXGBE_RAH_AV);
-		hw_dbg(hw, "Added a multicast address to RAR[%d]\n", rar);
-		hw->addr_ctrl.rar_used_count++;
-		hw->addr_ctrl.mc_addr_in_rar_count++;
-	} else {
-		ixgbe_set_mta(hw, mc_addr);
-	}
-
-	hw_dbg(hw, "ixgbe_add_mc_addr Complete\n");
-}
-
-/**
  *  ixgbe_update_mc_addr_list_generic - Updates MAC list of multicast addresses
  *  @hw: pointer to hardware structure
  *  @mc_addr_list: the list of new multicast addresses
@@ -1542,7 +1506,6 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
                                       u32 mc_addr_count, ixgbe_mc_addr_itr next)
 {
 	u32 i;
-	u32 rar_entries = hw->mac.num_rar_entries;
 	u32 vmdq;
 
 	/*
@@ -1550,17 +1513,7 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
 	 * use.
 	 */
 	hw->addr_ctrl.num_mc_addrs = mc_addr_count;
-	hw->addr_ctrl.rar_used_count -= hw->addr_ctrl.mc_addr_in_rar_count;
-	hw->addr_ctrl.mc_addr_in_rar_count = 0;
 	hw->addr_ctrl.mta_in_use = 0;
-
-	/* Zero out the other receive addresses. */
-	hw_dbg(hw, "Clearing RAR[%d-%d]\n", hw->addr_ctrl.rar_used_count,
-	          rar_entries - 1);
-	for (i = hw->addr_ctrl.rar_used_count; i < rar_entries; i++) {
-		IXGBE_WRITE_REG(hw, IXGBE_RAL(i), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_RAH(i), 0);
-	}
 
 	/* Clear the MTA */
 	hw_dbg(hw, " Clearing MTA\n");
@@ -1570,7 +1523,7 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
 	/* Add the new addresses */
 	for (i = 0; i < mc_addr_count; i++) {
 		hw_dbg(hw, " Adding the multicast addresses:\n");
-		ixgbe_add_mc_addr(hw, next(hw, &mc_addr_list, &vmdq));
+		ixgbe_set_mta(hw, next(hw, &mc_addr_list, &vmdq));
 	}
 
 	/* Enable mta */

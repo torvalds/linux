@@ -8,10 +8,21 @@ INTERFACE
 	- description of isdn4linux Link Level and Hardware Level interfaces.
 INTERFACE.fax
 	- description of the fax subinterface of isdn4linux.
+INTERFACE.CAPI
+	- description of kernel CAPI Link Level to Hardware Level interface.
 README
 	- general info on what you need and what to do for Linux ISDN.
 README.FAQ
 	- general info for FAQ.
+README.audio
+	- info for running audio over ISDN.
+README.fax
+	- info for using Fax over ISDN.
+README.gigaset
+	- info on the drivers for Siemens Gigaset ISDN adapters.
+README.icn
+	- info on the ICN-ISDN-card and its driver.
+>>>>>>> 93af7aca44f0e82e67bda10a0fb73d383edcc8bd:Documentation/isdn/00-INDEX
 README.HiSax
 	- info on the HiSax driver which replaces the old teles.
 README.audio
@@ -45,6 +56,10 @@ README.sc
 README.syncppp
 	- info on running Sync PPP over ISDN.
 README.x25
-	- info on running X.25 over ISDN.
+	- info for running X.25 over ISDN.
 syncPPP.FAQ
 	- frequently asked questions about running PPP over ISDN.
+README.hysdn
+	- info on driver for Hypercope active HYSDN cards
+README.mISDN
+	- info on the Modular ISDN subsystem (mISDN).
