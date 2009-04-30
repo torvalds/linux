@@ -538,7 +538,7 @@ static inline int usb_endpoint_is_isoc_out(
 /*-------------------------------------------------------------------------*/
 
 /* USB_DT_SS_ENDPOINT_COMP: SuperSpeed Endpoint Companion descriptor */
-struct usb_ep_comp_descriptor {
+struct usb_ss_ep_comp_descriptor {
 	__u8  bLength;
 	__u8  bDescriptorType;
 
@@ -547,7 +547,7 @@ struct usb_ep_comp_descriptor {
 	__u16 wBytesPerInterval;
 } __attribute__ ((packed));
 
-#define USB_DT_EP_COMP_SIZE		6
+#define USB_DT_SS_EP_COMP_SIZE		6
 
 /*-------------------------------------------------------------------------*/
 

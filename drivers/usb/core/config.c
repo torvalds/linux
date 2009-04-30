@@ -69,30 +69,31 @@ static int find_next_descriptor(unsigned char *buffer, int size,
 	return buffer - buffer0;
 }
 
-static int usb_parse_endpoint_companion(struct device *ddev, int cfgno,
+static int usb_parse_ss_endpoint_companion(struct device *ddev, int cfgno,
 		int inum, int asnum, struct usb_host_endpoint *ep,
 		int num_ep, unsigned char *buffer, int size)
 {
 	unsigned char *buffer_start = buffer;
-	struct usb_ep_comp_descriptor	*desc;
+	struct usb_ss_ep_comp_descriptor	*desc;
 	int retval;
 	int num_skipped;
 	int max_tx;
 	int i;
 
-	/* Allocate space for the companion descriptor */
-	ep->ep_comp = kzalloc(sizeof(struct usb_host_ep_comp), GFP_KERNEL);
-	if (!ep->ep_comp)
+	/* Allocate space for the SS endpoint companion descriptor */
+	ep->ss_ep_comp = kzalloc(sizeof(struct usb_host_ss_ep_comp),
+			GFP_KERNEL);
+	if (!ep->ss_ep_comp)
 		return -ENOMEM;
-	desc = (struct usb_ep_comp_descriptor *) buffer;
+	desc = (struct usb_ss_ep_comp_descriptor *) buffer;
 	if (desc->bDescriptorType != USB_DT_SS_ENDPOINT_COMP) {
 		dev_warn(ddev, "No SuperSpeed endpoint companion for config %d "
 				" interface %d altsetting %d ep %d: "
 				"using minimum values\n",
 				cfgno, inum, asnum, ep->desc.bEndpointAddress);
-		ep->ep_comp->desc.bLength = USB_DT_EP_COMP_SIZE;
-		ep->ep_comp->desc.bDescriptorType = USB_DT_SS_ENDPOINT_COMP;
-		ep->ep_comp->desc.bMaxBurst = 0;
+		ep->ss_ep_comp->desc.bLength = USB_DT_SS_EP_COMP_SIZE;
+		ep->ss_ep_comp->desc.bDescriptorType = USB_DT_SS_ENDPOINT_COMP;
+		ep->ss_ep_comp->desc.bMaxBurst = 0;
 		/*
 		 * Leave bmAttributes as zero, which will mean no streams for
 		 * bulk, and isoc won't support multiple bursts of packets.
@@ -102,7 +103,7 @@ static int usb_parse_endpoint_companion(struct device *ddev, int cfgno,
 		 */
 		if (usb_endpoint_xfer_isoc(&ep->desc) ||
 				usb_endpoint_xfer_int(&ep->desc))
-			ep->ep_comp->desc.wBytesPerInterval =
+			ep->ss_ep_comp->desc.wBytesPerInterval =
 				ep->desc.wMaxPacketSize;
 		/*
 		 * The next descriptor is for an Endpoint or Interface,
@@ -112,16 +113,16 @@ static int usb_parse_endpoint_companion(struct device *ddev, int cfgno,
 		retval = 0;
 		goto valid;
 	}
-	memcpy(&ep->ep_comp->desc, desc, USB_DT_EP_COMP_SIZE);
-	desc = &ep->ep_comp->desc;
+	memcpy(&ep->ss_ep_comp->desc, desc, USB_DT_SS_EP_COMP_SIZE);
+	desc = &ep->ss_ep_comp->desc;
 	buffer += desc->bLength;
 	size -= desc->bLength;
 
 	/* Eat up the other descriptors we don't care about */
-	ep->ep_comp->extra = buffer;
+	ep->ss_ep_comp->extra = buffer;
 	i = find_next_descriptor(buffer, size, USB_DT_ENDPOINT,
 			USB_DT_INTERFACE, &num_skipped);
-	ep->ep_comp->extralen = i;
+	ep->ss_ep_comp->extralen = i;
 	buffer += i;
 	size -= i;
 	retval = buffer - buffer_start + i;
@@ -310,7 +311,7 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 				cfgno, inum, asnum, d->bEndpointAddress,
 				maxp);
 	}
-	/* Allocate room for and parse any endpoint companion descriptors */
+	/* Allocate room for and parse any SS endpoint companion descriptors */
 	if (to_usb_device(ddev)->speed == USB_SPEED_SUPER) {
 		endpoint->extra = buffer;
 		i = find_next_descriptor_more(buffer, size, USB_DT_SS_ENDPOINT_COMP,
@@ -320,8 +321,9 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno, int inum,
 		size -= i;
 
 		if (size > 0) {
-			retval = usb_parse_endpoint_companion(ddev, cfgno, inum, asnum,
-					endpoint, num_ep, buffer, size);
+			retval = usb_parse_ss_endpoint_companion(ddev, cfgno,
+					inum, asnum, endpoint, num_ep, buffer,
+					size);
 			if (retval >= 0) {
 				buffer += retval;
 				retval = buffer - buffer0;
