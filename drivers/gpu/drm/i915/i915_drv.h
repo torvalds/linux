@@ -705,13 +705,8 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 #define I915_WRITE16(reg, val)	writel(val, dev_priv->regs + (reg))
 #define I915_READ8(reg)		readb(dev_priv->regs + (reg))
 #define I915_WRITE8(reg, val)	writeb(val, dev_priv->regs + (reg))
-#ifdef writeq
 #define I915_WRITE64(reg, val)	writeq(val, dev_priv->regs + (reg))
-#else
-#define I915_WRITE64(reg, val)	(writel(val, dev_priv->regs + (reg)), \
-				 writel(upper_32_bits(val), dev_priv->regs + \
-					(reg) + 4))
-#endif
+#define I915_READ64(reg)	readq(dev_priv->regs + (reg))
 #define POSTING_READ(reg)	(void)I915_READ(reg)
 
 #define I915_VERBOSE 0
