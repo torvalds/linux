@@ -3509,8 +3509,6 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 					   struct nls_table *nls_info)
 {
 	int rc = 0;
-	char ntlm_session_key[CIFS_SESS_KEY_SIZE];
-	bool ntlmv2_flag = false;
 	int first_time = 0;
 	struct TCP_Server_Info *server = pSesInfo->server;
 

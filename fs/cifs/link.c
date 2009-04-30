@@ -257,13 +257,8 @@ cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
 
 /* BB add read reparse point symlink code and
 	Unix extensions symlink code here BB */
-/* We could disable this based on pTcon->unix_ext flag instead ... but why? */
-	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
-		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
-				tmpbuffer,
-				len - 1,
-				cifs_sb->local_nls);
-	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
 		cERROR(1, ("SFU style symlinks not implemented yet"));
 		/* add open and read as in fs/cifs/inode.c */
 	} else {
