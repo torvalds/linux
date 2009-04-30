@@ -55,7 +55,7 @@ void xhci_dbg_regs(struct xhci_hcd *xhci)
 	xhci_dbg(xhci, "// Doorbell array at %p:\n", xhci->dba);
 }
 
-void xhci_print_cap_regs(struct xhci_hcd *xhci)
+static void xhci_print_cap_regs(struct xhci_hcd *xhci)
 {
 	u32 temp;
 
@@ -106,7 +106,7 @@ void xhci_print_cap_regs(struct xhci_hcd *xhci)
 	xhci_dbg(xhci, "RTSOFF 0x%x:\n", temp & RTSOFF_MASK);
 }
 
-void xhci_print_command_reg(struct xhci_hcd *xhci)
+static void xhci_print_command_reg(struct xhci_hcd *xhci)
 {
 	u32 temp;
 
@@ -124,7 +124,7 @@ void xhci_print_command_reg(struct xhci_hcd *xhci)
 			(temp & CMD_LRESET) ? "not " : "");
 }
 
-void xhci_print_status(struct xhci_hcd *xhci)
+static void xhci_print_status(struct xhci_hcd *xhci)
 {
 	u32 temp;
 
@@ -138,14 +138,14 @@ void xhci_print_status(struct xhci_hcd *xhci)
 			(temp & STS_HALT) ? "halted" : "running");
 }
 
-void xhci_print_op_regs(struct xhci_hcd *xhci)
+static void xhci_print_op_regs(struct xhci_hcd *xhci)
 {
 	xhci_dbg(xhci, "xHCI operational registers at %p:\n", xhci->op_regs);
 	xhci_print_command_reg(xhci);
 	xhci_print_status(xhci);
 }
 
-void xhci_print_ports(struct xhci_hcd *xhci)
+static void xhci_print_ports(struct xhci_hcd *xhci)
 {
 	u32 __iomem *addr;
 	int i, j;
@@ -340,13 +340,13 @@ void xhci_dbg_ring_ptrs(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
 	xhci_dbg(xhci, "Ring deq = %p (virt), 0x%llx (dma)\n",
 			ring->dequeue,
-			(unsigned long long)trb_virt_to_dma(ring->deq_seg,
+			(unsigned long long)xhci_trb_virt_to_dma(ring->deq_seg,
 							    ring->dequeue));
 	xhci_dbg(xhci, "Ring deq updated %u times\n",
 			ring->deq_updates);
 	xhci_dbg(xhci, "Ring enq = %p (virt), 0x%llx (dma)\n",
 			ring->enqueue,
-			(unsigned long long)trb_virt_to_dma(ring->enq_seg,
+			(unsigned long long)xhci_trb_virt_to_dma(ring->enq_seg,
 							    ring->enqueue));
 	xhci_dbg(xhci, "Ring enq updated %u times\n",
 			ring->enq_updates);

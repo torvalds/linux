@@ -291,7 +291,7 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 }
 
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
-void event_ring_work(unsigned long arg)
+void xhci_event_ring_work(unsigned long arg)
 {
 	unsigned long flags;
 	int temp;
@@ -330,8 +330,8 @@ void event_ring_work(unsigned long arg)
 	}
 
 	if (xhci->noops_submitted != NUM_TEST_NOOPS)
-		if (setup_one_noop(xhci))
-			ring_cmd_db(xhci);
+		if (xhci_setup_one_noop(xhci))
+			xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	if (!xhci->zombie)
@@ -374,7 +374,7 @@ int xhci_run(struct usb_hcd *hcd)
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 	init_timer(&xhci->event_ring_timer);
 	xhci->event_ring_timer.data = (unsigned long) xhci;
-	xhci->event_ring_timer.function = event_ring_work;
+	xhci->event_ring_timer.function = xhci_event_ring_work;
 	/* Poll the event ring */
 	xhci->event_ring_timer.expires = jiffies + POLL_TIMEOUT * HZ;
 	xhci->zombie = 0;
@@ -404,7 +404,7 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_print_ir_set(xhci, xhci->ir_set, 0);
 
 	if (NUM_TEST_NOOPS > 0)
-		doorbell = setup_one_noop(xhci);
+		doorbell = xhci_setup_one_noop(xhci);
 
 	xhci_dbg(xhci, "Command ring memory map follows:\n");
 	xhci_debug_ring(xhci, xhci->cmd_ring);
@@ -600,9 +600,11 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		goto exit;
 	}
 	if (usb_endpoint_xfer_control(&urb->ep->desc))
-		ret = queue_ctrl_tx(xhci, mem_flags, urb, slot_id, ep_index);
+		ret = xhci_queue_ctrl_tx(xhci, mem_flags, urb,
+				slot_id, ep_index);
 	else if (usb_endpoint_xfer_bulk(&urb->ep->desc))
-		ret = queue_bulk_tx(xhci, mem_flags, urb, slot_id, ep_index);
+		ret = xhci_queue_bulk_tx(xhci, mem_flags, urb,
+				slot_id, ep_index);
 	else
 		ret = -EINVAL;
 exit:
@@ -668,8 +670,8 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	 * the first cancellation to be handled.
 	 */
 	if (ep_ring->cancels_pending == 1) {
-		queue_stop_endpoint(xhci, urb->dev->slot_id, ep_index);
-		ring_cmd_db(xhci);
+		xhci_queue_stop_endpoint(xhci, urb->dev->slot_id, ep_index);
+		xhci_ring_cmd_db(xhci);
 	}
 done:
 	spin_unlock_irqrestore(&xhci->lock, flags);
@@ -913,13 +915,14 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, virt_dev->in_ctx_dma,
 			LAST_CTX_TO_EP_NUM(virt_dev->in_ctx->slot.dev_info));
 
-	ret = queue_configure_endpoint(xhci, virt_dev->in_ctx_dma, udev->slot_id);
+	ret = xhci_queue_configure_endpoint(xhci, virt_dev->in_ctx_dma,
+			udev->slot_id);
 	if (ret < 0) {
 		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return -ENOMEM;
 	}
-	ring_cmd_db(xhci);
+	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* Wait for the configure endpoint command to complete */
@@ -1033,12 +1036,12 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		return;
 
 	spin_lock_irqsave(&xhci->lock, flags);
-	if (queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id)) {
+	if (xhci_queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id)) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
 		return;
 	}
-	ring_cmd_db(xhci);
+	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	/*
 	 * Event command completion handler will free any data structures
@@ -1058,13 +1061,13 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	int ret;
 
 	spin_lock_irqsave(&xhci->lock, flags);
-	ret = queue_slot_control(xhci, TRB_ENABLE_SLOT, 0);
+	ret = xhci_queue_slot_control(xhci, TRB_ENABLE_SLOT, 0);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
 		return 0;
 	}
-	ring_cmd_db(xhci);
+	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* XXX: how much time for xHC slot assignment? */
@@ -1086,8 +1089,8 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_KERNEL)) {
 		/* Disable slot, if we can do it without mem alloc */
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
-		if (!queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id))
-			ring_cmd_db(xhci);
+		if (!xhci_queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id))
+			xhci_ring_cmd_db(xhci);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return 0;
 	}
@@ -1129,13 +1132,14 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		xhci_setup_addressable_virt_dev(xhci, udev);
 	/* Otherwise, assume the core has the device configured how it wants */
 
-	ret = queue_address_device(xhci, virt_dev->in_ctx_dma, udev->slot_id);
+	ret = xhci_queue_address_device(xhci, virt_dev->in_ctx_dma,
+			udev->slot_id);
 	if (ret) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		xhci_dbg(xhci, "FIXME: allocate a command ring segment\n");
 		return ret;
 	}
-	ring_cmd_db(xhci);
+	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* ctrl tx can take up to 5 sec; XXX: need more time for xHC? */

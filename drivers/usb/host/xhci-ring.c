@@ -71,7 +71,7 @@
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
  * address of the TRB.
  */
-dma_addr_t trb_virt_to_dma(struct xhci_segment *seg,
+dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg,
 		union xhci_trb *trb)
 {
 	dma_addr_t offset;
@@ -235,12 +235,12 @@ static int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	return 1;
 }
 
-void set_hc_event_deq(struct xhci_hcd *xhci)
+void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 {
 	u32 temp;
 	dma_addr_t deq;
 
-	deq = trb_virt_to_dma(xhci->event_ring->deq_seg,
+	deq = xhci_trb_virt_to_dma(xhci->event_ring->deq_seg,
 			xhci->event_ring->dequeue);
 	if (deq == 0 && !in_interrupt())
 		xhci_warn(xhci, "WARN something wrong with SW event ring "
@@ -256,7 +256,7 @@ void set_hc_event_deq(struct xhci_hcd *xhci)
 }
 
 /* Ring the host controller doorbell after placing a command on the ring */
-void ring_cmd_db(struct xhci_hcd *xhci)
+void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 {
 	u32 temp;
 
@@ -371,7 +371,7 @@ static void find_new_dequeue_state(struct xhci_hcd *xhci,
 	ep_ring->deq_seg = state->new_deq_seg;
 }
 
-void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
+static void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 		struct xhci_td *cur_td)
 {
 	struct xhci_segment *cur_seg;
@@ -390,7 +390,7 @@ void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			xhci_dbg(xhci, "Address = %p (0x%llx dma); "
 					"in seg %p (0x%llx dma)\n",
 					cur_trb,
-					(unsigned long long)trb_virt_to_dma(cur_seg, cur_trb),
+					(unsigned long long)xhci_trb_virt_to_dma(cur_seg, cur_trb),
 					cur_seg,
 					(unsigned long long)cur_seg->dma);
 		} else {
@@ -403,7 +403,7 @@ void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			xhci_dbg(xhci, "Cancel TRB %p (0x%llx dma) "
 					"in seg %p (0x%llx dma)\n",
 					cur_trb,
-					(unsigned long long)trb_virt_to_dma(cur_seg, cur_trb),
+					(unsigned long long)xhci_trb_virt_to_dma(cur_seg, cur_trb),
 					cur_seg,
 					(unsigned long long)cur_seg->dma);
 		}
@@ -458,7 +458,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		cur_td = list_entry(entry, struct xhci_td, cancelled_td_list);
 		xhci_dbg(xhci, "Cancelling TD starting at %p, 0x%llx (dma).\n",
 				cur_td->first_trb,
-				(unsigned long long)trb_virt_to_dma(cur_td->start_seg, cur_td->first_trb));
+				(unsigned long long)xhci_trb_virt_to_dma(cur_td->start_seg, cur_td->first_trb));
 		/*
 		 * If we stopped on the TD we need to cancel, then we have to
 		 * move the xHC endpoint ring dequeue pointer past this TD.
@@ -485,7 +485,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 				deq_state.new_deq_seg,
 				(unsigned long long)deq_state.new_deq_seg->dma,
 				deq_state.new_deq_ptr,
-				(unsigned long long)trb_virt_to_dma(deq_state.new_deq_seg, deq_state.new_deq_ptr),
+				(unsigned long long)xhci_trb_virt_to_dma(deq_state.new_deq_seg, deq_state.new_deq_ptr),
 				deq_state.new_cycle_state);
 		queue_set_tr_deq(xhci, slot_id, ep_index,
 				deq_state.new_deq_seg,
@@ -497,7 +497,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		 * ring running.
 		 */
 		ep_ring->state |= SET_DEQ_PENDING;
-		ring_cmd_db(xhci);
+		xhci_ring_cmd_db(xhci);
 	} else {
 		/* Otherwise just ring the doorbell to restart the ring */
 		ring_ep_doorbell(xhci, slot_id, ep_index);
@@ -612,7 +612,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	dma_addr_t cmd_dequeue_dma;
 
 	cmd_dma = (((u64) event->cmd_trb[1]) << 32) + event->cmd_trb[0];
-	cmd_dequeue_dma = trb_virt_to_dma(xhci->cmd_ring->deq_seg,
+	cmd_dequeue_dma = xhci_trb_virt_to_dma(xhci->cmd_ring->deq_seg,
 			xhci->cmd_ring->dequeue);
 	/* Is the command ring deq ptr out of sync with the deq seg ptr? */
 	if (cmd_dequeue_dma == 0) {
@@ -677,7 +677,7 @@ static void handle_port_status(struct xhci_hcd *xhci,
 
 	/* Update event ring dequeue pointer before dropping the lock */
 	inc_deq(xhci, xhci->event_ring, true);
-	set_hc_event_deq(xhci);
+	xhci_set_hc_event_deq(xhci);
 
 	spin_unlock(&xhci->lock);
 	/* Pass this up to the core */
@@ -702,15 +702,15 @@ static struct xhci_segment *trb_in_td(
 	dma_addr_t end_trb_dma;
 	struct xhci_segment *cur_seg;
 
-	start_dma = trb_virt_to_dma(start_seg, start_trb);
+	start_dma = xhci_trb_virt_to_dma(start_seg, start_trb);
 	cur_seg = start_seg;
 
 	do {
 		/* We may get an event for a Link TRB in the middle of a TD */
-		end_seg_dma = trb_virt_to_dma(cur_seg,
+		end_seg_dma = xhci_trb_virt_to_dma(cur_seg,
 				&start_seg->trbs[TRBS_PER_SEGMENT - 1]);
 		/* If the end TRB isn't in this segment, this is set to 0 */
-		end_trb_dma = trb_virt_to_dma(cur_seg, end_trb);
+		end_trb_dma = xhci_trb_virt_to_dma(cur_seg, end_trb);
 
 		if (end_trb_dma > 0) {
 			/* The end TRB is in this segment, so suspect should be here */
@@ -734,7 +734,7 @@ static struct xhci_segment *trb_in_td(
 				return cur_seg;
 		}
 		cur_seg = cur_seg->next;
-		start_dma = trb_virt_to_dma(cur_seg, &cur_seg->trbs[0]);
+		start_dma = xhci_trb_virt_to_dma(cur_seg, &cur_seg->trbs[0]);
 	} while (1);
 
 }
@@ -992,7 +992,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	}
 cleanup:
 	inc_deq(xhci, xhci->event_ring, true);
-	set_hc_event_deq(xhci);
+	xhci_set_hc_event_deq(xhci);
 
 	/* FIXME for multi-TD URBs (who have buffers bigger than 64MB) */
 	if (urb) {
@@ -1050,7 +1050,7 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 	if (update_ptrs) {
 		/* Update SW and HC event ring dequeue pointer */
 		inc_deq(xhci, xhci->event_ring, true);
-		set_hc_event_deq(xhci);
+		xhci_set_hc_event_deq(xhci);
 	}
 	/* Are there more items on the event ring? */
 	xhci_handle_event(xhci);
@@ -1119,7 +1119,7 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	return 0;
 }
 
-int xhci_prepare_transfer(struct xhci_hcd *xhci,
+static int prepare_transfer(struct xhci_hcd *xhci,
 		struct xhci_virt_device *xdev,
 		unsigned int ep_index,
 		unsigned int num_trbs,
@@ -1156,7 +1156,7 @@ int xhci_prepare_transfer(struct xhci_hcd *xhci,
 	return 0;
 }
 
-unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
+static unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
 {
 	int num_sgs, num_trbs, running_total, temp, i;
 	struct scatterlist *sg;
@@ -1200,7 +1200,7 @@ unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
 	return num_trbs;
 }
 
-void check_trb_math(struct urb *urb, int num_trbs, int running_total)
+static void check_trb_math(struct urb *urb, int num_trbs, int running_total)
 {
 	if (num_trbs != 0)
 		dev_dbg(&urb->dev->dev, "%s - ep %#x - Miscalculated number of "
@@ -1216,7 +1216,7 @@ void check_trb_math(struct urb *urb, int num_trbs, int running_total)
 				urb->transfer_buffer_length);
 }
 
-void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
+static void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index, int start_cycle,
 		struct xhci_generic_trb *start_trb, struct xhci_td *td)
 {
@@ -1229,7 +1229,7 @@ void giveback_first_trb(struct xhci_hcd *xhci, int slot_id,
 	ring_ep_doorbell(xhci, slot_id, ep_index);
 }
 
-int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
+static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
 {
 	struct xhci_ring *ep_ring;
@@ -1248,7 +1248,7 @@ int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	num_trbs = count_sg_trbs_needed(xhci, urb);
 	num_sgs = urb->num_sgs;
 
-	trb_buff_len = xhci_prepare_transfer(xhci, xhci->devs[slot_id],
+	trb_buff_len = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, num_trbs, urb, &td, mem_flags);
 	if (trb_buff_len < 0)
 		return trb_buff_len;
@@ -1356,7 +1356,7 @@ int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 }
 
 /* This is very similar to what ehci-q.c qtd_fill() does */
-int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
+int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
 {
 	struct xhci_ring *ep_ring;
@@ -1400,7 +1400,7 @@ int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				(unsigned long long)urb->transfer_dma,
 				num_trbs);
 
-	ret = xhci_prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
+	ret = prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
 			num_trbs, urb, &td, mem_flags);
 	if (ret < 0)
 		return ret;
@@ -1469,7 +1469,7 @@ int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 }
 
 /* Caller must have locked xhci->lock */
-int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
+int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
 {
 	struct xhci_ring *ep_ring;
@@ -1502,7 +1502,7 @@ int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	 */
 	if (urb->transfer_buffer_length > 0)
 		num_trbs++;
-	ret = xhci_prepare_transfer(xhci, xhci->devs[slot_id], ep_index, num_trbs,
+	ret = prepare_transfer(xhci, xhci->devs[slot_id], ep_index, num_trbs,
 			urb, &td, mem_flags);
 	if (ret < 0)
 		return ret;
@@ -1584,36 +1584,38 @@ static int queue_cmd_noop(struct xhci_hcd *xhci)
  * Place a no-op command on the command ring to test the command and
  * event ring.
  */
-void *setup_one_noop(struct xhci_hcd *xhci)
+void *xhci_setup_one_noop(struct xhci_hcd *xhci)
 {
 	if (queue_cmd_noop(xhci) < 0)
 		return NULL;
 	xhci->noops_submitted++;
-	return ring_cmd_db;
+	return xhci_ring_cmd_db;
 }
 
 /* Queue a slot enable or disable request on the command ring */
-int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
+int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id)
 {
 	return queue_command(xhci, 0, 0, 0,
 			TRB_TYPE(trb_type) | SLOT_ID_FOR_TRB(slot_id));
 }
 
 /* Queue an address device command TRB */
-int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id)
+int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
+		u32 slot_id)
 {
 	return queue_command(xhci, in_ctx_ptr, 0, 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id));
 }
 
 /* Queue a configure endpoint command TRB */
-int queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id)
+int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
+		u32 slot_id)
 {
 	return queue_command(xhci, in_ctx_ptr, 0, 0,
 			TRB_TYPE(TRB_CONFIG_EP) | SLOT_ID_FOR_TRB(slot_id));
 }
 
-int queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
+int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index)
 {
 	u32 trb_slot_id = SLOT_ID_FOR_TRB(slot_id);
@@ -1636,7 +1638,7 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_SET_DEQ);
 
-	addr = trb_virt_to_dma(deq_seg, deq_ptr);
+	addr = xhci_trb_virt_to_dma(deq_seg, deq_ptr);
 	if (addr == 0)
 		xhci_warn(xhci, "WARN Cannot submit Set TR Deq Ptr\n");
 		xhci_warn(xhci, "WARN deq seg = %p, deq pt = %p\n",

@@ -1130,18 +1130,22 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev);
 
 /* xHCI ring, segment, TRB, and TD functions */
-dma_addr_t trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
-void ring_cmd_db(struct xhci_hcd *xhci);
-void *setup_one_noop(struct xhci_hcd *xhci);
+dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg, union xhci_trb *trb);
+void xhci_ring_cmd_db(struct xhci_hcd *xhci);
+void *xhci_setup_one_noop(struct xhci_hcd *xhci);
 void xhci_handle_event(struct xhci_hcd *xhci);
-void set_hc_event_deq(struct xhci_hcd *xhci);
-int queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
-int queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
-int queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
+void xhci_set_hc_event_deq(struct xhci_hcd *xhci);
+int xhci_queue_slot_control(struct xhci_hcd *xhci, u32 trb_type, u32 slot_id);
+int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
+		u32 slot_id);
+int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index);
-int queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
-int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb, int slot_id, unsigned int ep_index);
-int queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr, u32 slot_id);
+int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
+		int slot_id, unsigned int ep_index);
+int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
+		int slot_id, unsigned int ep_index);
+int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
+		u32 slot_id);
 
 /* xHCI roothub code */
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue, u16 wIndex,
