@@ -228,7 +228,7 @@ COMPAT_CFLAGS =
 COMPAT_OBJS =
 LIB_H =
 LIB_OBJS =
-PROGRAMS =
+PROGRAMS = perf-report
 SCRIPT_PERL =
 SCRIPT_SH =
 TEST_PROGRAMS =
@@ -807,6 +807,10 @@ clean:
 	$(RM) $(PERF_TARNAME).tar.gz perf-core_$(PERF_VERSION)-*.tar.gz
 	$(RM) $(htmldocs).tar.gz $(manpages).tar.gz
 	$(RM) PERF-VERSION-FILE PERF-CFLAGS PERF-BUILD-OPTIONS
+
+# temporary hack:
+perf-report: perf-report.cc ../../include/linux/perf_counter.h Makefile
+	g++ -g -O2 -Wall -lrt -o $@ $<
 
 .PHONY: all install clean strip
 .PHONY: shell_compatibility_test please_set_SHELL_PATH_to_a_more_modern_shell
