@@ -726,12 +726,18 @@ static const struct file_operations iowarrior_fops = {
 	.poll = iowarrior_poll,
 };
 
+static char *iowarrior_nodename(struct device *dev)
+{
+	return kasprintf(GFP_KERNEL, "usb/%s", dev_name(dev));
+}
+
 /*
  * usb class driver info in order to get a minor number from the usb core,
  * and to have the device registered with devfs and the driver core
  */
 static struct usb_class_driver iowarrior_class = {
 	.name = "iowarrior%d",
+	.nodename = iowarrior_nodename,
 	.fops = &iowarrior_fops,
 	.minor_base = IOWARRIOR_MINOR_BASE,
 };
