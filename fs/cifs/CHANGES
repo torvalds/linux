@@ -2,7 +2,11 @@ Version 1.58
 ------------
 Guard against buffer overruns in various UCS-2 to UTF-8 string conversions
 when the UTF-8 string is composed of unusually long (more than 4 byte) converted
-characters.
+characters. Add support for mounting root of a share which redirects immediately
+to DFS target. Convert string conversion functions from Unicode to more
+accurately mark string length before allocating memory (which may help the
+rare cases where a UTF-8 string is much larger than the UCS2 string that
+we converted from).
  
 Version 1.57
 ------------

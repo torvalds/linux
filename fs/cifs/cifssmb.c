@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifssmb.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2008
+ *   Copyright (C) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   Contains the routines for constructing the SMB PDUs themselves
@@ -2457,7 +2457,7 @@ querySymLinkRetry:
 					   le16_to_cpu(pSMBr->t2.DataOffset);
 
 			/* BB FIXME investigate remapping reserved chars here */
-			*symlinkinfo = cifs_strndup(data_start, count,
+			*symlinkinfo = cifs_strndup_from_ucs(data_start, count,
 						    pSMBr->hdr.Flags2 &
 							SMBFLG2_UNICODE,
 						    nls_codepage);
@@ -3965,8 +3965,8 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		/* copy DfsPath */
 		temp = (char *)ref + le16_to_cpu(ref->DfsPathOffset);
 		max_len = data_end - temp;
-		node->path_name = cifs_strndup(temp, max_len, is_unicode,
-					       nls_codepage);
+		node->path_name = cifs_strndup_from_ucs(temp, max_len,
+						      is_unicode, nls_codepage);
 		if (IS_ERR(node->path_name)) {
 			rc = PTR_ERR(node->path_name);
 			node->path_name = NULL;
@@ -3976,8 +3976,8 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		/* copy link target UNC */
 		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
 		max_len = data_end - temp;
-		node->node_name = cifs_strndup(temp, max_len, is_unicode,
-					       nls_codepage);
+		node->node_name = cifs_strndup_from_ucs(temp, max_len,
+						      is_unicode, nls_codepage);
 		if (IS_ERR(node->node_name)) {
 			rc = PTR_ERR(node->node_name);
 			node->node_name = NULL;

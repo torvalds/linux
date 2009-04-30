@@ -3,7 +3,7 @@
  *
  *   SMB/CIFS session setup handling routines
  *
- *   Copyright (c) International Business Machines  Corp., 2006, 2007
+ *   Copyright (c) International Business Machines  Corp., 2006, 2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -300,7 +300,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 	}
 
 	kfree(ses->serverOS);
-	ses->serverOS = cifs_strndup(data, bleft, true, nls_cp);
+	ses->serverOS = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
 	cFYI(1, ("serverOS=%s", ses->serverOS));
 	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
 	data += len;
@@ -309,7 +309,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 		return;
 
 	kfree(ses->serverNOS);
-	ses->serverNOS = cifs_strndup(data, bleft, true, nls_cp);
+	ses->serverNOS = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
 	cFYI(1, ("serverNOS=%s", ses->serverNOS));
 	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
 	data += len;
@@ -318,7 +318,7 @@ decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
 		return;
 
 	kfree(ses->serverDomain);
-	ses->serverDomain = cifs_strndup(data, bleft, true, nls_cp);
+	ses->serverDomain = cifs_strndup_from_ucs(data, bleft, true, nls_cp);
 	cFYI(1, ("serverDomain=%s", ses->serverDomain));
 
 	return;

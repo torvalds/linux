@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2008
+ *   Copyright (C) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -3463,7 +3463,8 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 		strncpy(tcon->treeName, tree, MAX_TREE_SIZE);
 
 		/* mostly informational -- no need to fail on error here */
-		tcon->nativeFileSystem = cifs_strndup(bcc_ptr, bytes_left,
+		tcon->nativeFileSystem = cifs_strndup_from_ucs(bcc_ptr,
+						      bytes_left,
 						      smb_buffer->Flags2 &
 							 SMBFLG2_UNICODE,
 						      nls_codepage);

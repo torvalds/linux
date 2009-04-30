@@ -5,7 +5,7 @@
  *     Convert a unicode character to upper or lower case using
  *     compressed tables.
  *
- *   Copyright (c) International Business Machines  Corp., 2000,2007
+ *   Copyright (c) International Business Machines  Corp., 2000,2009
  *
  *   This program is free software;  you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -78,8 +78,9 @@ int cifs_ucs2_bytes(const __le16 *from, int maxbytes,
 		    const struct nls_table *codepage);
 int cifs_strfromUCS_le(char *, const __le16 *, int, const struct nls_table *);
 int cifs_strtoUCS(__le16 *, const char *, int, const struct nls_table *);
-char *cifs_strndup(const char *src, const int maxlen, const bool is_unicode,
-		   const struct nls_table *codepage);
+char *cifs_strndup_from_ucs(const char *src, const int maxlen,
+			    const bool is_unicode,
+			    const struct nls_table *codepage);
 #endif
 
 /*

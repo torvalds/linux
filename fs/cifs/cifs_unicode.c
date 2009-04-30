@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/cifs_unicode.c
  *
- *   Copyright (c) International Business Machines  Corp., 2000,2005
+ *   Copyright (c) International Business Machines  Corp., 2000,2009
  *   Modified by Steve French (sfrench@us.ibm.com)
  *
  *   This program is free software;  you can redistribute it and/or modify
@@ -244,7 +244,7 @@ cifs_strtoUCS(__le16 *to, const char *from, int len,
 }
 
 /*
- * cifs_strndup - copy a string from wire format to the local codepage
+ * cifs_strndup_from_ucs - copy a string from wire format to the local codepage
  * @src - source string
  * @maxlen - don't walk past this many bytes in the source string
  * @is_unicode - is this a unicode string?
@@ -255,7 +255,7 @@ cifs_strtoUCS(__le16 *to, const char *from, int len,
  * error.
  */
 char *
-cifs_strndup(const char *src, const int maxlen, const bool is_unicode,
+cifs_strndup_from_ucs(const char *src, const int maxlen, const bool is_unicode,
 	     const struct nls_table *codepage)
 {
 	int len;
