@@ -162,10 +162,18 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	struct device *dev = to_dev(kobj);
 	int retval = 0;
 
-	/* add the major/minor if present */
+	/* add device node properties if present */
 	if (MAJOR(dev->devt)) {
+		const char *tmp;
+		const char *name;
+
 		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
 		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
+		name = device_get_nodename(dev, &tmp);
+		if (name) {
+			add_uevent_var(env, "DEVNAME=%s", name);
+			kfree(tmp);
+		}
 	}
 
 	if (dev->type && dev->type->name)
@@ -1126,6 +1134,47 @@ static struct device *next_device(struct klist_iter *i)
 		dev = p->device;
 	}
 	return dev;
+}
+
+/**
+ * device_get_nodename - path of device node file
+ * @dev: device
+ * @tmp: possibly allocated string
+ *
+ * Return the relative path of a possible device node.
+ * Non-default names may need to allocate a memory to compose
+ * a name. This memory is returned in tmp and needs to be
+ * freed by the caller.
+ */
+const char *device_get_nodename(struct device *dev, const char **tmp)
+{
+	char *s;
+
+	*tmp = NULL;
+
+	/* the device type may provide a specific name */
+	if (dev->type && dev->type->nodename)
+		*tmp = dev->type->nodename(dev);
+	if (*tmp)
+		return *tmp;
+
+	/* the class may provide a specific name */
+	if (dev->class && dev->class->nodename)
+		*tmp = dev->class->nodename(dev);
+	if (*tmp)
+		return *tmp;
+
+	/* return name without allocation, tmp == NULL */
+	if (strchr(dev_name(dev), '!') == NULL)
+		return dev_name(dev);
+
+	/* replace '!' in the name with '/' */
+	*tmp = kstrdup(dev_name(dev), GFP_KERNEL);
+	if (!*tmp)
+		return NULL;
+	while ((s = strchr(*tmp, '!')))
+		s[0] = '/';
+	return *tmp;
 }
 
 /**

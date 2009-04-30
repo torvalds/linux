@@ -194,6 +194,7 @@ struct class {
 	struct kobject			*dev_kobj;
 
 	int (*dev_uevent)(struct device *dev, struct kobj_uevent_env *env);
+	char *(*nodename)(struct device *dev);
 
 	void (*class_release)(struct class *class);
 	void (*dev_release)(struct device *dev);
@@ -289,6 +290,7 @@ struct device_type {
 	const char *name;
 	struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
+	char *(*nodename)(struct device *dev);
 	void (*release)(struct device *dev);
 
 	struct dev_pm_ops *pm;
@@ -488,6 +490,7 @@ extern struct device *device_find_child(struct device *dev, void *data,
 extern int device_rename(struct device *dev, char *new_name);
 extern int device_move(struct device *dev, struct device *new_parent,
 		       enum dpm_order dpm_order);
+extern const char *device_get_nodename(struct device *dev, const char **tmp);
 
 /*
  * Root device objects for grouping under /sys/devices
