@@ -277,12 +277,11 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifsSesInfo *ses,
 	*pbcc_area = bcc_ptr;
 }
 
-static int decode_unicode_ssetup(char **pbcc_area, int bleft,
-				 struct cifsSesInfo *ses,
-				 const struct nls_table *nls_cp)
+static void
+decode_unicode_ssetup(char **pbcc_area, int bleft, struct cifsSesInfo *ses,
+		      const struct nls_table *nls_cp)
 {
-	int rc = 0;
-	int words_left, len;
+	int len;
 	char *data = *pbcc_area;
 
 	cFYI(1, ("bleft %d", bleft));
@@ -300,63 +299,29 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 		++bleft;
 	}
 
-	words_left = bleft / 2;
-
-	/* save off server operating system */
-	len = UniStrnlen((wchar_t *) data, words_left);
-
-	if (len >= words_left)
-		return rc;
-
 	kfree(ses->serverOS);
-	/* UTF-8 string will not grow more than four times as big as UCS-16 */
-	ses->serverOS = kzalloc((4 * len) + 2 /* trailing null */, GFP_KERNEL);
-	if (ses->serverOS != NULL) {
-		cifs_strfromUCS_le(ses->serverOS, (__le16 *)data, len, nls_cp);
-		cFYI(1, ("serverOS=%s", ses->serverOS));
-	}
-	data += 2 * (len + 1);
-	words_left -= len + 1;
-
-	/* save off server network operating system */
-	len = UniStrnlen((wchar_t *) data, words_left);
-
-	if (len >= words_left)
-		return rc;
+	ses->serverOS = cifs_strndup(data, bleft, true, nls_cp);
+	cFYI(1, ("serverOS=%s", ses->serverOS));
+	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
+	data += len;
+	bleft -= len;
+	if (bleft <= 0)
+		return;
 
 	kfree(ses->serverNOS);
-	ses->serverNOS = kzalloc((4 * len) + 2 /* trailing null */, GFP_KERNEL);
-	if (ses->serverNOS != NULL) {
-		cifs_strfromUCS_le(ses->serverNOS, (__le16 *)data, len,
-				   nls_cp);
-		cFYI(1, ("serverNOS=%s", ses->serverNOS));
-		if (strncmp(ses->serverNOS, "NT LAN Manager 4", 16) == 0) {
-			cFYI(1, ("NT4 server"));
-			ses->flags |= CIFS_SES_NT4;
-		}
-	}
-	data += 2 * (len + 1);
-	words_left -= len + 1;
-
-	/* save off server domain */
-	len = UniStrnlen((wchar_t *) data, words_left);
-
-	if (len > words_left)
-		return rc;
+	ses->serverNOS = cifs_strndup(data, bleft, true, nls_cp);
+	cFYI(1, ("serverNOS=%s", ses->serverNOS));
+	len = (UniStrnlen((wchar_t *) data, bleft / 2) * 2) + 2;
+	data += len;
+	bleft -= len;
+	if (bleft <= 0)
+		return;
 
 	kfree(ses->serverDomain);
-	ses->serverDomain = kzalloc((4 * len) + 2, GFP_KERNEL);
-	if (ses->serverDomain != NULL) {
-		cifs_strfromUCS_le(ses->serverDomain, (__le16 *)data, len,
-				   nls_cp);
-		cFYI(1, ("serverDomain=%s", ses->serverDomain));
-	}
-	data += 2 * (len + 1);
-	words_left -= len + 1;
+	ses->serverDomain = cifs_strndup(data, bleft, true, nls_cp);
+	cFYI(1, ("serverDomain=%s", ses->serverDomain));
 
-	cFYI(1, ("words left: %d", words_left));
-
-	return rc;
+	return;
 }
 
 static int decode_ascii_ssetup(char **pbcc_area, int bleft,
@@ -709,8 +674,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 			++bcc_ptr;
 			--bytes_remaining;
 		}
-		rc = decode_unicode_ssetup(&bcc_ptr, bytes_remaining,
-					   ses, nls_cp);
+		decode_unicode_ssetup(&bcc_ptr, bytes_remaining, ses, nls_cp);
 	} else {
 		rc = decode_ascii_ssetup(&bcc_ptr, bytes_remaining,
 					 ses, nls_cp);
