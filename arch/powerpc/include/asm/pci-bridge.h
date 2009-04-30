@@ -223,6 +223,7 @@ struct pci_dn {
 #define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
 
 extern struct device_node *fetch_dev_dn(struct pci_dev *dev);
+extern void * update_dn_pci_info(struct device_node *dn, void *data);
 
 /* Get a device_node from a pci_dev.  This code must be fast except
  * in the case where the sysdata is incorrect and needs to be fixed
