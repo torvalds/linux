@@ -523,6 +523,8 @@ int s3c_i2sv2_iis_calc_rate(struct s3c_i2sv2_rate_calc *info,
 	unsigned int best_rate = 0;
 	unsigned int best_deviation = INT_MAX;
 
+	pr_debug("Input clock rate %ldHz\n", clkrate);
+
 	if (fstab == NULL)
 		fstab = iis_fs_tab;
 
