@@ -780,14 +780,13 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 {
 	unsigned char *tbuf;
 	int err;
-	unsigned int u;
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
 	if (size <= 0 || !buf || !index)
 		return -EINVAL;
 	buf[0] = 0;
-	tbuf = kmalloc(256 + 2, GFP_NOIO);
+	tbuf = kmalloc(256, GFP_NOIO);
 	if (!tbuf)
 		return -ENOMEM;
 
@@ -814,12 +813,9 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	if (err < 0)
 		goto errout;
 
-	for (u = 2; u < err; u += 2)
-		le16_to_cpus((u16 *)&tbuf[u]);
-	tbuf[u] = 0;
-	tbuf[u + 1] = 0;
 	size--;		/* leave room for trailing NULL char in output buffer */
-	err = utf8_wcstombs(buf, (u16 *)&tbuf[2], size);
+	err = utf16s_to_utf8s((wchar_t *) &tbuf[2], (err - 2) / 2,
+			UTF16_LITTLE_ENDIAN, buf, size);
 	buf[err] = 0;
 
 	if (tbuf[1] != USB_DT_STRING)
