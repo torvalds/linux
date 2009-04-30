@@ -26,6 +26,13 @@
 #define AR5K_EEPROM_MAGIC_5210		0x0000145a /* 5210 */
 
 #define	AR5K_EEPROM_IS_HB63		0x000b	/* Talon detect */
+
+#define AR5K_EEPROM_RFKILL		0x0f
+#define AR5K_EEPROM_RFKILL_GPIO_SEL	0x0000001c
+#define AR5K_EEPROM_RFKILL_GPIO_SEL_S	2
+#define AR5K_EEPROM_RFKILL_POLARITY	0x00000002
+#define AR5K_EEPROM_RFKILL_POLARITY_S	1
+
 #define AR5K_EEPROM_REG_DOMAIN		0x00bf	/* EEPROM regdom */
 #define AR5K_EEPROM_CHECKSUM		0x00c0	/* EEPROM checksum */
 #define AR5K_EEPROM_INFO_BASE		0x00c0	/* EEPROM header */
@@ -65,11 +72,6 @@
 #define AR5K_EEPROM_HDR_DEVICE(_v)	(((_v) >> 11) & 0x7)
 #define AR5K_EEPROM_HDR_RFKILL(_v)	(((_v) >> 14) & 0x1)	/* Device has RFKill support */
 #define AR5K_EEPROM_HDR_T_5GHZ_DIS(_v)	(((_v) >> 15) & 0x1)	/* Disable turbo for 5Ghz */
-
-#define AR5K_EEPROM_RFKILL_GPIO_SEL	0x0000001c
-#define AR5K_EEPROM_RFKILL_GPIO_SEL_S	2
-#define AR5K_EEPROM_RFKILL_POLARITY	0x00000002
-#define AR5K_EEPROM_RFKILL_POLARITY_S	1
 
 /* Newer EEPROMs are using a different offset */
 #define AR5K_EEPROM_OFF(_v, _v3_0, _v3_3) \
@@ -386,6 +388,9 @@ struct ath5k_eeprom_info {
 	u16	ee_version;
 	u16	ee_header;
 	u16	ee_ant_gain;
+	u8	ee_rfkill_pin;
+	bool	ee_rfkill_pol;
+	bool	ee_is_hb63;
 	u16	ee_misc0;
 	u16	ee_misc1;
 	u16	ee_misc2;

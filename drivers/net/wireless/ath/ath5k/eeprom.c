@@ -156,6 +156,17 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		ee->ee_db[AR5K_EEPROM_MODE_11G][0] = (val >> 3) & 0x7;
 	}
 
+	AR5K_EEPROM_READ(AR5K_EEPROM_IS_HB63, val);
+
+	if ((ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4)) && val)
+		ee->ee_is_hb63 = true;
+	else
+		ee->ee_is_hb63 = false;
+
+	AR5K_EEPROM_READ(AR5K_EEPROM_RFKILL, val);
+	ee->ee_rfkill_pin = (u8) AR5K_REG_MS(val, AR5K_EEPROM_RFKILL_GPIO_SEL);
+	ee->ee_rfkill_pol = val & AR5K_EEPROM_RFKILL_POLARITY ? true : false;
+
 	return 0;
 }
 
@@ -1789,16 +1800,3 @@ int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
 
 	return 0;
 }
-
-bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah)
-{
-	u16 data;
-
-	ath5k_hw_eeprom_read(ah, AR5K_EEPROM_IS_HB63, &data);
-
-	if ((ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4)) && data)
-		return true;
-	else
-		return false;
-}
-

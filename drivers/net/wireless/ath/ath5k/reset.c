@@ -507,7 +507,7 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 
 		if (ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4))
 			scal = AR5K_PHY_SCAL_32MHZ_2417;
-		else if (ath5k_eeprom_is_hb63(ah))
+		else if (ee->ee_is_hb63)
 			scal = AR5K_PHY_SCAL_32MHZ_HB63;
 		else
 			scal = AR5K_PHY_SCAL_32MHZ;
@@ -598,9 +598,10 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 	/* Set DAC/ADC delays */
 	if (ah->ah_version == AR5K_AR5212) {
 		u32 scal;
+		struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 		if (ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4))
 			scal = AR5K_PHY_SCAL_32MHZ_2417;
-		else if (ath5k_eeprom_is_hb63(ah))
+		else if (ee->ee_is_hb63)
 			scal = AR5K_PHY_SCAL_32MHZ_HB63;
 		else
 			scal = AR5K_PHY_SCAL_32MHZ;
