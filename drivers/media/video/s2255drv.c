@@ -2281,8 +2281,10 @@ static void read_pipe_completion(struct urb *purb)
 		return;
 	}
 	status = purb->status;
-	if (status != 0) {
-		dprintk(2, "read_pipe_completion: err\n");
+	/* if shutting down, do not resubmit, exit immediately */
+	if (status == -ESHUTDOWN) {
+		dprintk(2, "read_pipe_completion: err shutdown\n");
+		pipe_info->err_count++;
 		return;
 	}
 
@@ -2291,9 +2293,13 @@ static void read_pipe_completion(struct urb *purb)
 		return;
 	}
 
-	s2255_read_video_callback(dev, pipe_info);
+	if (status == 0)
+		s2255_read_video_callback(dev, pipe_info);
+	else {
+		pipe_info->err_count++;
+		dprintk(1, "s2255drv: failed URB %d\n", status);
+	}
 
-	pipe_info->err_count = 0;
 	pipe = usb_rcvbulkpipe(dev->udev, dev->read_endpoint);
 	/* reuse urb */
 	usb_fill_bulk_urb(pipe_info->stream_urb, dev->udev,
@@ -2305,7 +2311,6 @@ static void read_pipe_completion(struct urb *purb)
 	if (pipe_info->state != 0) {
 		if (usb_submit_urb(pipe_info->stream_urb, GFP_KERNEL)) {
 			dev_err(&dev->udev->dev, "error submitting urb\n");
-			usb_free_urb(pipe_info->stream_urb);
 		}
 	} else {
 		dprintk(2, "read pipe complete state 0\n");
