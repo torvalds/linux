@@ -591,7 +591,8 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	if (!xhci->devs || !xhci->devs[slot_id]) {
 		if (!in_interrupt())
 			dev_warn(&urb->dev->dev, "WARN: urb submitted for dev with no Slot ID\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
 		if (!in_interrupt())
