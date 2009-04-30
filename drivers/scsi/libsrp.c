@@ -135,7 +135,7 @@ int srp_target_alloc(struct srp_target *target, struct device *dev,
 	INIT_LIST_HEAD(&target->cmd_queue);
 
 	target->dev = dev;
-	target->dev->driver_data = target;
+	dev_set_drvdata(target->dev, target);
 
 	target->srp_iu_size = iu_size;
 	target->rx_ring_size = nr;
