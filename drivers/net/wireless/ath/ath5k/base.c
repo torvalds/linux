@@ -1738,35 +1738,6 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 	}
 }
 
-static void ath5k_tasklet_beacon(unsigned long data)
-{
-	struct ath5k_softc *sc = (struct ath5k_softc *) data;
-
-	/*
-	 * Software beacon alert--time to send a beacon.
-	 *
-	 * In IBSS mode we use this interrupt just to
-	 * keep track of the next TBTT (target beacon
-	 * transmission time) in order to detect wether
-	 * automatic TSF updates happened.
-	 */
-	if (sc->opmode == NL80211_IFTYPE_ADHOC) {
-		/* XXX: only if VEOL suppported */
-		u64 tsf = ath5k_hw_get_tsf64(sc->ah);
-		sc->nexttbtt += sc->bintval;
-		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
-				"SWBA nexttbtt: %x hw_tu: %x "
-				"TSF: %llx\n",
-				sc->nexttbtt,
-				TSF_TO_TU(tsf),
-				(unsigned long long) tsf);
-	} else {
-		spin_lock(&sc->block);
-		ath5k_beacon_send(sc);
-		spin_unlock(&sc->block);
-	}
-}
-
 static void
 ath5k_tasklet_rx(unsigned long data)
 {
@@ -2120,7 +2091,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		sc->bmisscount++;
 		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
 			"missed %u consecutive beacons\n", sc->bmisscount);
-		if (sc->bmisscount > 3) {		/* NB: 3 is a guess */
+		if (sc->bmisscount > 10) {	/* NB: 10 is a guess */
 			ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
 				"stuck beacon time (%u missed)\n",
 				sc->bmisscount);
@@ -2141,10 +2112,12 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	 * are still pending on the queue.
 	 */
 	if (unlikely(ath5k_hw_stop_tx_dma(ah, sc->bhalq))) {
-		ATH5K_WARN(sc, "beacon queue %u didn't stop?\n", sc->bhalq);
+		ATH5K_WARN(sc, "beacon queue %u didn't start/stop ?\n", sc->bhalq);
 		/* NB: hw still stops DMA, so proceed */
 	}
 
+	/* Note: Beacon buffer is updated on beacon_update when mac80211
+	 * calls config_interface */
 	ath5k_hw_set_txdp(ah, sc->bhalq, bf->daddr);
 	ath5k_hw_start_tx_dma(ah, sc->bhalq);
 	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON, "TXDP[%u] = %llx (%p)\n",
@@ -2299,6 +2272,35 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 	}
 
 	ath5k_hw_set_imr(ah, sc->imask);
+}
+
+static void ath5k_tasklet_beacon(unsigned long data)
+{
+	struct ath5k_softc *sc = (struct ath5k_softc *) data;
+
+	/*
+	 * Software beacon alert--time to send a beacon.
+	 *
+	 * In IBSS mode we use this interrupt just to
+	 * keep track of the next TBTT (target beacon
+	 * transmission time) in order to detect wether
+	 * automatic TSF updates happened.
+	 */
+	if (sc->opmode == NL80211_IFTYPE_ADHOC) {
+		/* XXX: only if VEOL suppported */
+		u64 tsf = ath5k_hw_get_tsf64(sc->ah);
+		sc->nexttbtt += sc->bintval;
+		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
+				"SWBA nexttbtt: %x hw_tu: %x "
+				"TSF: %llx\n",
+				sc->nexttbtt,
+				TSF_TO_TU(tsf),
+				(unsigned long long) tsf);
+	} else {
+		spin_lock(&sc->block);
+		ath5k_beacon_send(sc);
+		spin_unlock(&sc->block);
+	}
 }
 
 
