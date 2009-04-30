@@ -81,41 +81,6 @@ static struct {
 #endif /* CONFIG_CIFS_WEAK_PW_HASH */
 #endif /* CIFS_POSIX */
 
-/* Allocates buffer into dst and copies smb string from src to it.
- * caller is responsible for freeing dst if function returned 0.
- * returns:
- * 	on success - 0
- *	on failure - errno
- */
-static int
-cifs_strlcpy_to_host(char **dst, const char *src, const int maxlen,
-		 const bool is_unicode, const struct nls_table *nls_codepage)
-{
-	int plen;
-
-	if (is_unicode) {
-		plen = UniStrnlen((wchar_t *)src, maxlen);
-		*dst = kmalloc((4 * plen) + 2, GFP_KERNEL);
-		if (!*dst)
-			goto cifs_strlcpy_to_host_ErrExit;
-		cifs_strfromUCS_le(*dst, (__le16 *)src, plen, nls_codepage);
-		(*dst)[plen] = 0;
-		(*dst)[plen+1] = 0; /* needed for Unicode */
-	} else {
-		plen = strnlen(src, maxlen);
-		*dst = kmalloc(plen + 2, GFP_KERNEL);
-		if (!*dst)
-			goto cifs_strlcpy_to_host_ErrExit;
-		strlcpy(*dst, src, plen);
-	}
-	return 0;
-
-cifs_strlcpy_to_host_ErrExit:
-	cERROR(1, ("Failed to allocate buffer for string\n"));
-	return -ENOMEM;
-}
-
-
 /* Mark as invalid, all open files on tree connections since they
    were closed when session to server was lost */
 static void mark_open_files_invalid(struct cifsTconInfo *pTcon)
@@ -4008,20 +3973,24 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		/* copy DfsPath */
 		temp = (char *)ref + le16_to_cpu(ref->DfsPathOffset);
 		max_len = data_end - temp;
-		rc = cifs_strlcpy_to_host(&(node->path_name), temp,
-					max_len, is_unicode, nls_codepage);
-		if (rc)
+		node->path_name = cifs_strndup(temp, max_len, is_unicode,
+					       nls_codepage);
+		if (IS_ERR(node->path_name)) {
+			rc = PTR_ERR(node->path_name);
+			node->path_name = NULL;
 			goto parse_DFS_referrals_exit;
+		}
 
 		/* copy link target UNC */
 		temp = (char *)ref + le16_to_cpu(ref->NetworkAddressOffset);
 		max_len = data_end - temp;
-		rc = cifs_strlcpy_to_host(&(node->node_name), temp,
-					max_len, is_unicode, nls_codepage);
-		if (rc)
+		node->node_name = cifs_strndup(temp, max_len, is_unicode,
+					       nls_codepage);
+		if (IS_ERR(node->node_name)) {
+			rc = PTR_ERR(node->node_name);
+			node->node_name = NULL;
 			goto parse_DFS_referrals_exit;
-
-		ref += le16_to_cpu(ref->Size);
+		}
 	}
 
 parse_DFS_referrals_exit:

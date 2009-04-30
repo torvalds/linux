@@ -78,6 +78,8 @@ int cifs_ucs2_bytes(const __le16 *from, int maxbytes,
 		    const struct nls_table *codepage);
 int cifs_strfromUCS_le(char *, const __le16 *, int, const struct nls_table *);
 int cifs_strtoUCS(__le16 *, const char *, int, const struct nls_table *);
+char *cifs_strndup(const char *src, const int maxlen, const bool is_unicode,
+		   const struct nls_table *codepage);
 #endif
 
 /*

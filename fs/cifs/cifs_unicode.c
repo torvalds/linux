@@ -243,3 +243,41 @@ cifs_strtoUCS(__le16 *to, const char *from, int len,
 	return i;
 }
 
+/*
+ * cifs_strndup - copy a string from wire format to the local codepage
+ * @src - source string
+ * @maxlen - don't walk past this many bytes in the source string
+ * @is_unicode - is this a unicode string?
+ * @codepage - destination codepage
+ *
+ * Take a string given by the server, convert it to the local codepage and
+ * put it in a new buffer. Returns a pointer to the new string or NULL on
+ * error.
+ */
+char *
+cifs_strndup(const char *src, const int maxlen, const bool is_unicode,
+	     const struct nls_table *codepage)
+{
+	int len;
+	char *dst;
+
+	if (is_unicode) {
+		len = cifs_ucs2_bytes((__le16 *) src, maxlen, codepage);
+		len += nls_nullsize(codepage);
+		dst = kmalloc(len, GFP_KERNEL);
+		if (!dst)
+			return NULL;
+		cifs_from_ucs2(dst, (__le16 *) src, len, maxlen, codepage,
+			       false);
+	} else {
+		len = strnlen(src, maxlen);
+		len++;
+		dst = kmalloc(len, GFP_KERNEL);
+		if (!dst)
+			return NULL;
+		strlcpy(dst, src, len);
+	}
+
+	return dst;
+}
+
