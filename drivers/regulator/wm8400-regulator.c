@@ -320,7 +320,7 @@ static int __devinit wm8400_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 
 	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-		pdev->dev.platform_data, pdev->dev.driver_data);
+		pdev->dev.platform_data, dev_get_drvdata(&pdev->dev));
 
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
@@ -359,7 +359,7 @@ static struct platform_driver wm8400_regulator_driver = {
 int wm8400_register_regulator(struct device *dev, int reg,
 			      struct regulator_init_data *initdata)
 {
-	struct wm8400 *wm8400 = dev->driver_data;
+	struct wm8400 *wm8400 = dev_get_drvdata(dev);
 
 	if (wm8400->regulators[reg].name)
 		return -EBUSY;
@@ -369,8 +369,8 @@ int wm8400_register_regulator(struct device *dev, int reg,
 	wm8400->regulators[reg].name = "wm8400-regulator";
 	wm8400->regulators[reg].id = reg;
 	wm8400->regulators[reg].dev.parent = dev;
-	wm8400->regulators[reg].dev.driver_data = wm8400;
 	wm8400->regulators[reg].dev.platform_data = initdata;
+	dev_set_drvdata(&wm8400->regulators[reg].dev, wm8400);
 
 	return platform_device_register(&wm8400->regulators[reg]);
 }
