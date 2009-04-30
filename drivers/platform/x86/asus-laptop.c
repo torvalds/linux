@@ -207,13 +207,17 @@ MODULE_DEVICE_TABLE(acpi, asus_device_ids);
 
 static int asus_hotk_add(struct acpi_device *device);
 static int asus_hotk_remove(struct acpi_device *device, int type);
+static void asus_hotk_notify(struct acpi_device *device, u32 event);
+
 static struct acpi_driver asus_hotk_driver = {
 	.name = ASUS_HOTK_NAME,
 	.class = ASUS_HOTK_CLASS,
 	.ids = asus_device_ids,
+	.flags = ACPI_DRIVER_ALL_NOTIFY_EVENTS,
 	.ops = {
 		.add = asus_hotk_add,
 		.remove = asus_hotk_remove,
+		.notify = asus_hotk_notify,
 		},
 };
 
@@ -812,7 +816,7 @@ static int asus_setkeycode(struct input_dev *dev, int scancode, int keycode)
 	return -EINVAL;
 }
 
-static void asus_hotk_notify(acpi_handle handle, u32 event, void *data)
+static void asus_hotk_notify(struct acpi_device *device, u32 event)
 {
 	static struct key_entry *key;
 	u16 count;
@@ -1124,7 +1128,6 @@ static int asus_hotk_found;
 
 static int asus_hotk_add(struct acpi_device *device)
 {
-	acpi_status status = AE_OK;
 	int result;
 
 	if (!device)
@@ -1148,15 +1151,6 @@ static int asus_hotk_add(struct acpi_device *device)
 		goto end;
 
 	asus_hotk_add_fs();
-
-	/*
-	 * We install the handler, it will receive the hotk in parameter, so, we
-	 * could add other data to the hotk struct
-	 */
-	status = acpi_install_notify_handler(hotk->handle, ACPI_ALL_NOTIFY,
-					     asus_hotk_notify, hotk);
-	if (ACPI_FAILURE(status))
-		printk(ASUS_ERR "Error installing notify handler\n");
 
 	asus_hotk_found = 1;
 
@@ -1198,15 +1192,8 @@ end:
 
 static int asus_hotk_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
-
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
-
-	status = acpi_remove_notify_handler(hotk->handle, ACPI_ALL_NOTIFY,
-					    asus_hotk_notify);
-	if (ACPI_FAILURE(status))
-		printk(ASUS_ERR "Error removing notify handler\n");
 
 	kfree(hotk->name);
 	kfree(hotk);
