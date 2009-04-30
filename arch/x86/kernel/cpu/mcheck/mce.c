@@ -14,6 +14,7 @@
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
 #include <linux/kobject.h>
+#include <linux/uaccess.h>
 #include <linux/kdebug.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
@@ -27,14 +28,13 @@
 #include <linux/kmod.h>
 #include <linux/poll.h>
 #include <linux/cpu.h>
+#include <linux/smp.h>
 #include <linux/fs.h>
 
 #include <asm/processor.h>
-#include <asm/uaccess.h>
 #include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
-#include <asm/smp.h>
 
 #include "mce.h"
 
@@ -125,7 +125,8 @@ void mce_log(struct mce *mce)
 			 * interesting ones:
 			 */
 			if (entry >= MCE_LOG_LEN) {
-				set_bit(MCE_OVERFLOW, (unsigned long *)&mcelog.flags);
+				set_bit(MCE_OVERFLOW,
+					(unsigned long *)&mcelog.flags);
 				return;
 			}
 			/* Old left over entry. Skip: */
@@ -556,11 +557,10 @@ static void mcheck_timer(unsigned long data)
 	 * polling interval, otherwise increase the polling interval.
 	 */
 	n = &__get_cpu_var(next_interval);
-	if (mce_notify_user()) {
+	if (mce_notify_user())
 		*n = max(*n/2, HZ/100);
-	} else {
+	else
 		*n = min(*n*2, (int)round_jiffies_relative(check_interval*HZ));
-	}
 
 	t->expires = jiffies + *n;
 	add_timer(t);
