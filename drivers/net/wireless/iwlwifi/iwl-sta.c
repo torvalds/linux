@@ -490,7 +490,7 @@ void iwl_clear_stations_table(struct iwl_priv *priv)
 	/* keep track of static keys */
 	for (i = 0; i < WEP_KEYS_MAX ; i++) {
 		if (priv->wep_keys[i].key_size)
-			test_and_set_bit(i, &priv->ucode_key_table);
+			set_bit(i, &priv->ucode_key_table);
 	}
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
