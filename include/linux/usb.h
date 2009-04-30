@@ -1421,8 +1421,8 @@ struct usb_sg_request {
 	int			status;
 	size_t			bytes;
 
-	/*
-	 * members below are private: to usbcore,
+	/* private:
+	 * members below are private to usbcore,
 	 * and are not provided for driver access!
 	 */
 	spinlock_t		lock;
