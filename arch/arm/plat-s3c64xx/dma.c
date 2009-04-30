@@ -419,7 +419,7 @@ int s3c2410_dma_devconfig(int channel,
 	u32 peripheral;
 	u32 config = 0;
 
-	printk("%s: channel %d, source %d, dev %08lx, chan %p\n",
+	pr_debug("%s: channel %d, source %d, dev %08lx, chan %p\n",
 		 __func__, channel, source, devaddr, chan);
 
 	WARN_ON(!chan);
