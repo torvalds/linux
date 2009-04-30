@@ -237,12 +237,10 @@ while ($repeat) {
     foreach my $config (keys %configs) {
 	$config =~ s/^CONFIG_//;
 
-	if (!defined($depends{$config})) {
-	    next;
+	if (defined($depends{$config})) {
+	    # This config has dependencies. Make sure they are also included
+	    parse_config_dep_select $depends{$config};
 	}
-
-	# This config has dependencies. Make sure they are also included
-	parse_config_dep_select $depends{$config};
 
 	if (defined($prompt{$config}) || !defined($selects{$config})) {
 	    next;
