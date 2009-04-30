@@ -34,6 +34,8 @@
 #include "clock.h"
 #include "mux.h"
 
+#define DM355_UART2_BASE	(IO_PHYS + 0x206000)
+
 /*
  * Device specific clocks
  */
