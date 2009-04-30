@@ -24,6 +24,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
+#include <linux/irq.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -37,6 +38,7 @@
 #include <mach/mxc_nand.h>
 #include <mach/i2c.h>
 #include <mach/imxfb.h>
+#include <mach/mmc.h>
 
 #include "devices.h"
 
@@ -123,6 +125,20 @@ static unsigned int mx27ads_pins[] = {
 	PA31_PF_OE_ACD,
 	/* OWIRE */
 	PE16_AF_OWIRE,
+	/* SDHC1*/
+	PE18_PF_SD1_D0,
+	PE19_PF_SD1_D1,
+	PE20_PF_SD1_D2,
+	PE21_PF_SD1_D3,
+	PE22_PF_SD1_CMD,
+	PE23_PF_SD1_CLK,
+	/* SDHC2*/
+	PB4_PF_SD2_D0,
+	PB5_PF_SD2_D1,
+	PB6_PF_SD2_D2,
+	PB7_PF_SD2_D3,
+	PB8_PF_SD2_CMD,
+	PB9_PF_SD2_CLK,
 };
 
 static struct mxc_nand_platform_data mx27ads_nand_board_info = {
@@ -199,6 +215,40 @@ static struct imx_fb_platform_data mx27ads_fb_data = {
 	.lcd_power	= lcd_power,
 };
 
+static int mx27ads_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
+			      void *data)
+{
+	return request_irq(IRQ_GPIOE(21), detect_irq, IRQF_TRIGGER_RISING,
+			   "sdhc1-card-detect", data);
+}
+
+static int mx27ads_sdhc2_init(struct device *dev, irq_handler_t detect_irq,
+			      void *data)
+{
+	return request_irq(IRQ_GPIOB(7), detect_irq, IRQF_TRIGGER_RISING,
+			   "sdhc2-card-detect", data);
+}
+
+static void mx27ads_sdhc1_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_GPIOE(21), data);
+}
+
+static void mx27ads_sdhc2_exit(struct device *dev, void *data)
+{
+	free_irq(IRQ_GPIOB(7), data);
+}
+
+static struct imxmmc_platform_data sdhc1_pdata = {
+	.init = mx27ads_sdhc1_init,
+	.exit = mx27ads_sdhc1_exit,
+};
+
+static struct imxmmc_platform_data sdhc2_pdata = {
+	.init = mx27ads_sdhc2_init,
+	.exit = mx27ads_sdhc2_exit,
+};
+
 static struct platform_device *platform_devices[] __initdata = {
 	&mx27ads_nor_mtd_device,
 	&mxc_fec_device,
@@ -239,6 +289,8 @@ static void __init mx27ads_board_init(void)
 				ARRAY_SIZE(mx27ads_i2c_devices));
 	mxc_register_device(&mxc_i2c_device1, &mx27ads_i2c_data);
 	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
+	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
+	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
