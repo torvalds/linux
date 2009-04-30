@@ -22,6 +22,7 @@
 
 #include <linux/usb.h>
 #include <linux/pci.h>
+#include <linux/dmapool.h>
 
 #include "xhci.h"
 
