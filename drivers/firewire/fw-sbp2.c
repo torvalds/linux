@@ -1125,7 +1125,7 @@ static int sbp2_probe(struct device *dev)
 		return -ENOMEM;
 
 	tgt = (struct sbp2_target *)shost->hostdata;
-	unit->device.driver_data = tgt;
+	dev_set_drvdata(&unit->device, tgt);
 	tgt->unit = unit;
 	kref_init(&tgt->kref);
 	INIT_LIST_HEAD(&tgt->lu_list);
@@ -1180,7 +1180,7 @@ static int sbp2_probe(struct device *dev)
 static int sbp2_remove(struct device *dev)
 {
 	struct fw_unit *unit = fw_unit(dev);
-	struct sbp2_target *tgt = unit->device.driver_data;
+	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
 
 	sbp2_target_put(tgt);
 	return 0;
@@ -1240,7 +1240,7 @@ static void sbp2_reconnect(struct work_struct *work)
 
 static void sbp2_update(struct fw_unit *unit)
 {
-	struct sbp2_target *tgt = unit->device.driver_data;
+	struct sbp2_target *tgt = dev_get_drvdata(&unit->device);
 	struct sbp2_logical_unit *lu;
 
 	fw_device_enable_phys_dma(fw_device(unit->device.parent));
