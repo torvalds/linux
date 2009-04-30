@@ -89,7 +89,7 @@ static inline void dbg_showcon(const char *fn, u32 con)
 
 
 /* Turn on or off the transmission path. */
-void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
+static void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 {
 	void __iomem *regs = i2s->regs;
 	u32 fic, con, mod;
@@ -119,7 +119,9 @@ void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "TXEN: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "TXEN: Invalid MODE %x in IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
+			break;
 		}
 
 		writel(con, regs + S3C2412_IISCON);
@@ -146,7 +148,9 @@ void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "TXDIS: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "TXDIS: Invalid MODE %x in IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
+			break;
 		}
 
 		writel(mod, regs + S3C2412_IISMOD);
@@ -157,9 +161,8 @@ void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
 	dbg_showcon(__func__, con);
 	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 }
-EXPORT_SYMBOL_GPL(s3c2412_snd_txctrl);
 
-void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
+static void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 {
 	void __iomem *regs = i2s->regs;
 	u32 fic, con, mod;
@@ -189,7 +192,8 @@ void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "RXEN: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "RXEN: Invalid MODE %x in IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
 		}
 
 		writel(mod, regs + S3C2412_IISMOD);
@@ -213,7 +217,8 @@ void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 			break;
 
 		default:
-			dev_err(i2s->dev, "RXEN: Invalid MODE in IISMOD\n");
+			dev_err(i2s->dev, "RXDIS: Invalid MODE %x in IISMOD\n",
+				mod & S3C2412_IISMOD_MODE_MASK);
 		}
 
 		writel(con, regs + S3C2412_IISCON);
@@ -223,7 +228,6 @@ void s3c2412_snd_rxctrl(struct s3c_i2sv2_info *i2s, int on)
 	fic = readl(regs + S3C2412_IISFIC);
 	pr_debug("%s: IIS: CON=%x MOD=%x FIC=%x\n", __func__, con, mod, fic);
 }
-EXPORT_SYMBOL_GPL(s3c2412_snd_rxctrl);
 
 /*
  * Wait for the LR signal to allow synchronisation to the L/R clock
