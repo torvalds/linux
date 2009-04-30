@@ -783,7 +783,7 @@ static int __devinit probe(struct pci_dev *dev, const struct pci_device_id *id)
 		goto err_ape;
 	}
 	ape->pci_dev = dev;
-	dev->dev.driver_data = (void *)ape;
+	dev_set_drvdata(&dev->dev, ape);
 	printk(KERN_DEBUG "probe() ape = 0x%p\n", ape);
 
 	printk(KERN_DEBUG "sizeof(struct ape_chdma_table) = %d.\n",
@@ -946,19 +946,11 @@ end:
 
 static void __devexit remove(struct pci_dev *dev)
 {
-	struct ape_dev *ape;
+	struct ape_dev *ape = dev_get_drvdata(&dev->dev);
+
 	printk(KERN_DEBUG "remove(0x%p)\n", dev);
-	if ((dev == 0) || (dev->dev.driver_data == 0)) {
-		printk(KERN_DEBUG "remove(dev = 0x%p) dev->dev.driver_data = 0x%p\n",
-			dev, (dev? dev->dev.driver_data: NULL));
-		return;
-	}
-	ape = (struct ape_dev *)dev->dev.driver_data;
-	printk(KERN_DEBUG "remove(dev = 0x%p) where dev->dev.driver_data = 0x%p\n", dev, ape);
-	if (ape->pci_dev != dev) {
-		printk(KERN_DEBUG "dev->dev.driver_data->pci_dev (0x%08lx) != dev (0x%08lx)\n",
-		(unsigned long)ape->pci_dev, (unsigned long)dev);
-	}
+	printk(KERN_DEBUG "remove(dev = 0x%p) where ape = 0x%p\n", dev, ape);
+
 	/* remove character device */
 #if ALTPCIECHDMA_CDEV
 	sg_exit(ape);
