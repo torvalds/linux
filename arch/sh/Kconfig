@@ -113,6 +113,9 @@ config SYS_SUPPORTS_PCI
 config SYS_SUPPORTS_CMT
 	bool
 
+config SYS_SUPPORTS_MTU2
+	bool
+
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -477,6 +480,14 @@ config SH_MTU2
 	default y
 	help
 	  This enables the use of the MTU2 as the system timer.
+
+config SH_TIMER_MTU2
+	bool "MTU2 timer driver"
+	depends on SYS_SUPPORTS_MTU2 && !SH_MTU2
+	default y
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables build of the MTU2 timer driver.
 
 config SH_TIMER_IRQ
 	int
