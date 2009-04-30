@@ -40,16 +40,15 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci, gfp_t flag
 	seg = kzalloc(sizeof *seg, flags);
 	if (!seg)
 		return 0;
-	xhci_dbg(xhci, "Allocating priv segment structure at 0x%x\n",
-			(unsigned int) seg);
+	xhci_dbg(xhci, "Allocating priv segment structure at %p\n", seg);
 
 	seg->trbs = dma_pool_alloc(xhci->segment_pool, flags, &dma);
 	if (!seg->trbs) {
 		kfree(seg);
 		return 0;
 	}
-	xhci_dbg(xhci, "// Allocating segment at 0x%x (virtual) 0x%x (DMA)\n",
-			(unsigned int) seg->trbs, (u32) dma);
+	xhci_dbg(xhci, "// Allocating segment at %p (virtual) 0x%llx (DMA)\n",
+			seg->trbs, (unsigned long long)dma);
 
 	memset(seg->trbs, 0, SEGMENT_SIZE);
 	seg->dma = dma;
@@ -63,14 +62,12 @@ static void xhci_segment_free(struct xhci_hcd *xhci, struct xhci_segment *seg)
 	if (!seg)
 		return;
 	if (seg->trbs) {
-		xhci_dbg(xhci, "Freeing DMA segment at 0x%x"
-				" (virtual) 0x%x (DMA)\n",
-				(unsigned int) seg->trbs, (u32) seg->dma);
+		xhci_dbg(xhci, "Freeing DMA segment at %p (virtual) 0x%llx (DMA)\n",
+				seg->trbs, (unsigned long long)seg->dma);
 		dma_pool_free(xhci->segment_pool, seg->trbs, seg->dma);
 		seg->trbs = NULL;
 	}
-	xhci_dbg(xhci, "Freeing priv segment structure at 0x%x\n",
-			(unsigned int) seg);
+	xhci_dbg(xhci, "Freeing priv segment structure at %p\n", seg);
 	kfree(seg);
 }
 
@@ -98,8 +95,9 @@ static void xhci_link_segments(struct xhci_hcd *xhci, struct xhci_segment *prev,
 		val |= TRB_TYPE(TRB_LINK);
 		prev->trbs[TRBS_PER_SEGMENT-1].link.control = val;
 	}
-	xhci_dbg(xhci, "Linking segment 0x%x to segment 0x%x (DMA)\n",
-			prev->dma, next->dma);
+	xhci_dbg(xhci, "Linking segment 0x%llx to segment 0x%llx (DMA)\n",
+			(unsigned long long)prev->dma,
+			(unsigned long long)next->dma);
 }
 
 /* XXX: Do we need the hcd structure in all these functions? */
@@ -112,7 +110,7 @@ void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring)
 		return;
 	first_seg = ring->first_seg;
 	seg = first_seg->next;
-	xhci_dbg(xhci, "Freeing ring at 0x%x\n", (unsigned int) ring);
+	xhci_dbg(xhci, "Freeing ring at %p\n", ring);
 	while (seg != first_seg) {
 		struct xhci_segment *next = seg->next;
 		xhci_segment_free(xhci, seg);
@@ -137,7 +135,7 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 	struct xhci_segment	*prev;
 
 	ring = kzalloc(sizeof *(ring), flags);
-	xhci_dbg(xhci, "Allocating ring at 0x%x\n", (unsigned int) ring);
+	xhci_dbg(xhci, "Allocating ring at %p\n", ring);
 	if (!ring)
 		return 0;
 
@@ -169,8 +167,8 @@ static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		/* See section 4.9.2.1 and 6.4.4.1 */
 		prev->trbs[TRBS_PER_SEGMENT-1].link.control |= (LINK_TOGGLE);
 		xhci_dbg(xhci, "Wrote link toggle flag to"
-				" segment 0x%x (virtual), 0x%x (DMA)\n",
-				(unsigned int) prev, (u32) prev->dma);
+				" segment %p (virtual), 0x%llx (DMA)\n",
+				prev, (unsigned long long)prev->dma);
 	}
 	/* The ring is empty, so the enqueue pointer == dequeue pointer */
 	ring->enqueue = ring->first_seg->trbs;
@@ -242,7 +240,8 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	if (!dev->out_ctx)
 		goto fail;
 	dev->out_ctx_dma = dma;
-	xhci_dbg(xhci, "Slot %d output ctx = 0x%x (dma)\n", slot_id, dma);
+	xhci_dbg(xhci, "Slot %d output ctx = 0x%llx (dma)\n", slot_id,
+			(unsigned long long)dma);
 	memset(dev->out_ctx, 0, sizeof(*dev->out_ctx));
 
 	/* Allocate the (input) device context for address device command */
@@ -250,7 +249,8 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	if (!dev->in_ctx)
 		goto fail;
 	dev->in_ctx_dma = dma;
-	xhci_dbg(xhci, "Slot %d input ctx = 0x%x (dma)\n", slot_id, dma);
+	xhci_dbg(xhci, "Slot %d input ctx = 0x%llx (dma)\n", slot_id,
+			(unsigned long long)dma);
 	memset(dev->in_ctx, 0, sizeof(*dev->in_ctx));
 
 	/* Allocate endpoint 0 ring */
@@ -266,10 +266,10 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 	 */
 	xhci->dcbaa->dev_context_ptrs[2*slot_id] =
 		(u32) dev->out_ctx_dma + (32);
-	xhci_dbg(xhci, "Set slot id %d dcbaa entry 0x%x to 0x%x\n",
+	xhci_dbg(xhci, "Set slot id %d dcbaa entry %p to 0x%llx\n",
 			slot_id,
-			(unsigned int) &xhci->dcbaa->dev_context_ptrs[2*slot_id],
-			dev->out_ctx_dma);
+			&xhci->dcbaa->dev_context_ptrs[2*slot_id],
+			(unsigned long long)dev->out_ctx_dma);
 	xhci->dcbaa->dev_context_ptrs[2*slot_id + 1] = 0;
 
 	return 1;
@@ -339,7 +339,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		dev->in_ctx->slot.tt_info = udev->tt->hub->slot_id;
 		dev->in_ctx->slot.tt_info |= udev->ttport << 8;
 	}
-	xhci_dbg(xhci, "udev->tt = 0x%x\n", (unsigned int) udev->tt);
+	xhci_dbg(xhci, "udev->tt = %p\n", udev->tt);
 	xhci_dbg(xhci, "udev->ttport = 0x%x\n", udev->ttport);
 
 	/* Step 4 - ring already allocated */
@@ -643,8 +643,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto fail;
 	memset(xhci->dcbaa, 0, sizeof *(xhci->dcbaa));
 	xhci->dcbaa->dma = dma;
-	xhci_dbg(xhci, "// Device context base array address = 0x%x (DMA), 0x%x (virt)\n",
-			xhci->dcbaa->dma, (unsigned int) xhci->dcbaa);
+	xhci_dbg(xhci, "// Device context base array address = 0x%llx (DMA), %p (virt)\n",
+			(unsigned long long)xhci->dcbaa->dma, xhci->dcbaa);
 	xhci_writel(xhci, (u32) 0, &xhci->op_regs->dcbaa_ptr[1]);
 	xhci_writel(xhci, dma, &xhci->op_regs->dcbaa_ptr[0]);
 
@@ -668,8 +668,9 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci->cmd_ring = xhci_ring_alloc(xhci, 1, true, flags);
 	if (!xhci->cmd_ring)
 		goto fail;
-	xhci_dbg(xhci, "Allocated command ring at 0x%x\n", (unsigned int) xhci->cmd_ring);
-	xhci_dbg(xhci, "First segment DMA is 0x%x\n", (unsigned int) xhci->cmd_ring->first_seg->dma);
+	xhci_dbg(xhci, "Allocated command ring at %p\n", xhci->cmd_ring);
+	xhci_dbg(xhci, "First segment DMA is 0x%llx\n",
+			(unsigned long long)xhci->cmd_ring->first_seg->dma);
 
 	/* Set the address in the Command Ring Control register */
 	val = xhci_readl(xhci, &xhci->op_regs->cmd_ring[0]);
@@ -705,15 +706,16 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 			sizeof(struct xhci_erst_entry)*ERST_NUM_SEGS, &dma);
 	if (!xhci->erst.entries)
 		goto fail;
-	xhci_dbg(xhci, "// Allocated event ring segment table at 0x%x\n", dma);
+	xhci_dbg(xhci, "// Allocated event ring segment table at 0x%llx\n",
+			(unsigned long long)dma);
 
 	memset(xhci->erst.entries, 0, sizeof(struct xhci_erst_entry)*ERST_NUM_SEGS);
 	xhci->erst.num_entries = ERST_NUM_SEGS;
 	xhci->erst.erst_dma_addr = dma;
-	xhci_dbg(xhci, "Set ERST to 0; private num segs = %i, virt addr = 0x%x, dma addr = 0x%x\n",
+	xhci_dbg(xhci, "Set ERST to 0; private num segs = %i, virt addr = %p, dma addr = 0x%llx\n",
 			xhci->erst.num_entries,
-			(unsigned int) xhci->erst.entries,
-			xhci->erst.erst_dma_addr);
+			xhci->erst.entries,
+			(unsigned long long)xhci->erst.erst_dma_addr);
 
 	/* set ring base address and size for each segment table entry */
 	for (val = 0, seg = xhci->event_ring->first_seg; val < ERST_NUM_SEGS; val++) {
@@ -735,8 +737,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 
 	xhci_dbg(xhci, "// Set ERST entries to point to event ring.\n");
 	/* set the segment table base address */
-	xhci_dbg(xhci, "// Set ERST base address for ir_set 0 = 0x%x\n",
-			xhci->erst.erst_dma_addr);
+	xhci_dbg(xhci, "// Set ERST base address for ir_set 0 = 0x%llx\n",
+			(unsigned long long)xhci->erst.erst_dma_addr);
 	xhci_writel(xhci, 0, &xhci->ir_set->erst_base[1]);
 	val = xhci_readl(xhci, &xhci->ir_set->erst_base[0]);
 	val &= ERST_PTR_MASK;

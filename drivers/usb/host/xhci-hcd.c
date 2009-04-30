@@ -397,10 +397,8 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_writel(xhci, temp, &xhci->op_regs->command);
 
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-	xhci_dbg(xhci, "// Enabling event ring interrupter 0x%x"
-			" by writing 0x%x to irq_pending\n",
-			(unsigned int) xhci->ir_set,
-			(unsigned int) ER_IRQ_ENABLE(temp));
+	xhci_dbg(xhci, "// Enabling event ring interrupter %p by writing 0x%x to irq_pending\n",
+			xhci->ir_set, (unsigned int) ER_IRQ_ENABLE(temp));
 	xhci_writel(xhci, ER_IRQ_ENABLE(temp),
 			&xhci->ir_set->irq_pending);
 	xhci_print_ir_set(xhci, xhci->ir_set, 0);
@@ -431,8 +429,7 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_writel(xhci, temp, &xhci->op_regs->command);
 	/* Flush PCI posted writes */
 	temp = xhci_readl(xhci, &xhci->op_regs->command);
-	xhci_dbg(xhci, "// @%x = 0x%x\n",
-			(unsigned int) &xhci->op_regs->command, temp);
+	xhci_dbg(xhci, "// @%p = 0x%x\n", &xhci->op_regs->command, temp);
 	if (doorbell)
 		(*doorbell)(xhci);
 
@@ -660,7 +657,7 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	if (ret || !urb->hcpriv)
 		goto done;
 
-	xhci_dbg(xhci, "Cancel URB 0x%x\n", (unsigned int) urb);
+	xhci_dbg(xhci, "Cancel URB %p\n", urb);
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
 	ep_ring = xhci->devs[urb->dev->slot_id]->ep_rings[ep_index];
 	td = (struct xhci_td *) urb->hcpriv;
@@ -702,10 +699,10 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	int ret;
 
 	ret = xhci_check_args(hcd, udev, ep, 1, __func__);
-	xhci_dbg(xhci, "%s called for udev %#x\n", __func__, (unsigned int) udev);
 	if (ret <= 0)
 		return ret;
 	xhci = hcd_to_xhci(hcd);
+	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 
 	drop_flag = xhci_get_endpoint_flag(&ep->desc);
 	if (drop_flag == SLOT_FLAG || drop_flag == EP0_FLAG) {
@@ -730,8 +727,8 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 */
 	if ((ep_ctx->ep_info & EP_STATE_MASK) == EP_STATE_DISABLED ||
 			in_ctx->drop_flags & xhci_get_endpoint_flag(&ep->desc)) {
-		xhci_warn(xhci, "xHCI %s called with disabled ep %#x\n",
-				__func__, (unsigned int) ep);
+		xhci_warn(xhci, "xHCI %s called with disabled ep %p\n",
+				__func__, ep);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return 0;
 	}
@@ -817,8 +814,8 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 * ignore this request.
 	 */
 	if (in_ctx->add_flags & xhci_get_endpoint_flag(&ep->desc)) {
-		xhci_warn(xhci, "xHCI %s called with enabled ep %#x\n",
-				__func__, (unsigned int) ep);
+		xhci_warn(xhci, "xHCI %s called with enabled ep %p\n",
+				__func__, ep);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return 0;
 	}
@@ -904,7 +901,7 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return -EINVAL;
 	}
-	xhci_dbg(xhci, "%s called for udev %#x\n", __func__, (unsigned int) udev);
+	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
 
 	/* See section 4.6.6 - A0 = 1; A1 = D0 = D1 = 0 */
@@ -1009,7 +1006,7 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
-	xhci_dbg(xhci, "%s called for udev %#x\n", __func__, (unsigned int) udev);
+	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
 	virt_dev = xhci->devs[udev->slot_id];
 	/* Free any rings allocated for added endpoints */
 	for (i = 0; i < 31; ++i) {
@@ -1184,16 +1181,16 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg(xhci, "Op regs DCBAA ptr[0] = %#08x\n", temp);
 	temp = xhci_readl(xhci, &xhci->op_regs->dcbaa_ptr[1]);
 	xhci_dbg(xhci, "Op regs DCBAA ptr[1] = %#08x\n", temp);
-	xhci_dbg(xhci, "Slot ID %d dcbaa entry[0] @%08x = %#08x\n",
+	xhci_dbg(xhci, "Slot ID %d dcbaa entry[0] @%p = %#08x\n",
 			udev->slot_id,
-			(unsigned int) &xhci->dcbaa->dev_context_ptrs[2*udev->slot_id],
+			&xhci->dcbaa->dev_context_ptrs[2*udev->slot_id],
 			xhci->dcbaa->dev_context_ptrs[2*udev->slot_id]);
-	xhci_dbg(xhci, "Slot ID %d dcbaa entry[1] @%08x = %#08x\n",
+	xhci_dbg(xhci, "Slot ID %d dcbaa entry[1] @%p = %#08x\n",
 			udev->slot_id,
-			(unsigned int) &xhci->dcbaa->dev_context_ptrs[2*udev->slot_id+1],
+			&xhci->dcbaa->dev_context_ptrs[2*udev->slot_id+1],
 			xhci->dcbaa->dev_context_ptrs[2*udev->slot_id+1]);
-	xhci_dbg(xhci, "Output Context DMA address = %#08x\n",
-			virt_dev->out_ctx_dma);
+	xhci_dbg(xhci, "Output Context DMA address = %#08llx\n",
+			(unsigned long long)virt_dev->out_ctx_dma);
 	xhci_dbg(xhci, "Slot ID %d Input Context:\n", udev->slot_id);
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, virt_dev->in_ctx_dma, 2);
 	xhci_dbg(xhci, "Slot ID %d Output Context:\n", udev->slot_id);

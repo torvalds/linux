@@ -74,12 +74,12 @@
 dma_addr_t trb_virt_to_dma(struct xhci_segment *seg,
 		union xhci_trb *trb)
 {
-	unsigned int offset;
+	dma_addr_t offset;
 
 	if (!seg || !trb || (void *) trb < (void *) seg->trbs)
 		return 0;
 	/* offset in bytes, since these are byte-addressable */
-	offset = (unsigned int) trb - (unsigned int) seg->trbs;
+	offset = trb - seg->trbs;
 	/* SEGMENT_SIZE in bytes, trbs are 16-byte aligned */
 	if (offset > SEGMENT_SIZE || (offset % sizeof(*trb)) != 0)
 		return 0;
@@ -145,8 +145,8 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 		if (consumer && last_trb_on_last_seg(xhci, ring, ring->deq_seg, next)) {
 			ring->cycle_state = (ring->cycle_state ? 0 : 1);
 			if (!in_interrupt())
-				xhci_dbg(xhci, "Toggle cycle state for ring 0x%x = %i\n",
-						(unsigned int) ring,
+				xhci_dbg(xhci, "Toggle cycle state for ring %p = %i\n",
+						ring,
 						(unsigned int) ring->cycle_state);
 		}
 		ring->deq_seg = ring->deq_seg->next;
@@ -195,8 +195,8 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
 				ring->cycle_state = (ring->cycle_state ? 0 : 1);
 				if (!in_interrupt())
-					xhci_dbg(xhci, "Toggle cycle state for ring 0x%x = %i\n",
-							(unsigned int) ring,
+					xhci_dbg(xhci, "Toggle cycle state for ring %p = %i\n",
+							ring,
 							(unsigned int) ring->cycle_state);
 			}
 		}
@@ -387,12 +387,12 @@ void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			 */
 			cur_trb->generic.field[3] &= ~TRB_CHAIN;
 			xhci_dbg(xhci, "Cancel (unchain) link TRB\n");
-			xhci_dbg(xhci, "Address = 0x%x (0x%x dma); "
-					"in seg 0x%x (0x%x dma)\n",
-					(unsigned int) cur_trb,
-					trb_virt_to_dma(cur_seg, cur_trb),
-					(unsigned int) cur_seg,
-					cur_seg->dma);
+			xhci_dbg(xhci, "Address = %p (0x%llx dma); "
+					"in seg %p (0x%llx dma)\n",
+					cur_trb,
+					(unsigned long long)trb_virt_to_dma(cur_seg, cur_trb),
+					cur_seg,
+					(unsigned long long)cur_seg->dma);
 		} else {
 			cur_trb->generic.field[0] = 0;
 			cur_trb->generic.field[1] = 0;
@@ -400,12 +400,12 @@ void td_to_noop(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 			/* Preserve only the cycle bit of this TRB */
 			cur_trb->generic.field[3] &= TRB_CYCLE;
 			cur_trb->generic.field[3] |= TRB_TYPE(TRB_TR_NOOP);
-			xhci_dbg(xhci, "Cancel TRB 0x%x (0x%x dma) "
-					"in seg 0x%x (0x%x dma)\n",
-					(unsigned int) cur_trb,
-					trb_virt_to_dma(cur_seg, cur_trb),
-					(unsigned int) cur_seg,
-					cur_seg->dma);
+			xhci_dbg(xhci, "Cancel TRB %p (0x%llx dma) "
+					"in seg %p (0x%llx dma)\n",
+					cur_trb,
+					(unsigned long long)trb_virt_to_dma(cur_seg, cur_trb),
+					cur_seg,
+					(unsigned long long)cur_seg->dma);
 		}
 		if (cur_trb == cur_td->last_trb)
 			break;
@@ -456,9 +456,9 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 	 */
 	list_for_each(entry, &ep_ring->cancelled_td_list) {
 		cur_td = list_entry(entry, struct xhci_td, cancelled_td_list);
-		xhci_dbg(xhci, "Cancelling TD starting at 0x%x, 0x%x (dma).\n",
-				(unsigned int) cur_td->first_trb,
-				trb_virt_to_dma(cur_td->start_seg, cur_td->first_trb));
+		xhci_dbg(xhci, "Cancelling TD starting at %p, 0x%llx (dma).\n",
+				cur_td->first_trb,
+				(unsigned long long)trb_virt_to_dma(cur_td->start_seg, cur_td->first_trb));
 		/*
 		 * If we stopped on the TD we need to cancel, then we have to
 		 * move the xHC endpoint ring dequeue pointer past this TD.
@@ -480,12 +480,12 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 
 	/* If necessary, queue a Set Transfer Ring Dequeue Pointer command */
 	if (deq_state.new_deq_ptr && deq_state.new_deq_seg) {
-		xhci_dbg(xhci, "Set TR Deq Ptr cmd, new deq seg = 0x%x (0x%x dma), "
-				"new deq ptr = 0x%x (0x%x dma), new cycle = %u\n",
-				(unsigned int) deq_state.new_deq_seg,
-				deq_state.new_deq_seg->dma,
-				(unsigned int) deq_state.new_deq_ptr,
-				trb_virt_to_dma(deq_state.new_deq_seg, deq_state.new_deq_ptr),
+		xhci_dbg(xhci, "Set TR Deq Ptr cmd, new deq seg = %p (0x%llx dma), "
+				"new deq ptr = %p (0x%llx dma), new cycle = %u\n",
+				deq_state.new_deq_seg,
+				(unsigned long long)deq_state.new_deq_seg->dma,
+				deq_state.new_deq_ptr,
+				(unsigned long long)trb_virt_to_dma(deq_state.new_deq_seg, deq_state.new_deq_ptr),
 				deq_state.new_cycle_state);
 		queue_set_tr_deq(xhci, slot_id, ep_index,
 				deq_state.new_deq_seg,
@@ -522,8 +522,7 @@ static void handle_stopped_endpoint(struct xhci_hcd *xhci,
 		cur_td->urb->hcpriv = NULL;
 		usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), cur_td->urb);
 
-		xhci_dbg(xhci, "Giveback cancelled URB 0x%x\n",
-				(unsigned int) cur_td->urb);
+		xhci_dbg(xhci, "Giveback cancelled URB %p\n", cur_td->urb);
 		spin_unlock(&xhci->lock);
 		/* Doesn't matter what we pass for status, since the core will
 		 * just overwrite it (because the URB has been unlinked).
@@ -1183,9 +1182,9 @@ unsigned int count_sg_trbs_needed(struct xhci_hcd *xhci, struct urb *urb)
 			num_trbs++;
 			running_total += TRB_MAX_BUFF_SIZE;
 		}
-		xhci_dbg(xhci, " sg #%d: dma = %#x, len = %#x (%d), num_trbs = %d\n",
-				i, sg_dma_address(sg), len, len,
-				num_trbs - previous_total_trbs);
+		xhci_dbg(xhci, " sg #%d: dma = %#llx, len = %#x (%d), num_trbs = %d\n",
+				i, (unsigned long long)sg_dma_address(sg),
+				len, len, num_trbs - previous_total_trbs);
 
 		len = min_t(int, len, temp);
 		temp -= len;
@@ -1394,11 +1393,11 @@ int queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* FIXME: this doesn't deal with URB_ZERO_PACKET - need one more */
 
 	if (!in_interrupt())
-		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %#x (%d), addr = %#x, num_trbs = %d\n",
+		dev_dbg(&urb->dev->dev, "ep %#x - urb len = %#x (%d), addr = %#llx, num_trbs = %d\n",
 				urb->ep->desc.bEndpointAddress,
 				urb->transfer_buffer_length,
 				urb->transfer_buffer_length,
-				urb->transfer_dma,
+				(unsigned long long)urb->transfer_dma,
 				num_trbs);
 
 	ret = xhci_prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
@@ -1640,9 +1639,8 @@ static int queue_set_tr_deq(struct xhci_hcd *xhci, int slot_id,
 	addr = trb_virt_to_dma(deq_seg, deq_ptr);
 	if (addr == 0)
 		xhci_warn(xhci, "WARN Cannot submit Set TR Deq Ptr\n");
-		xhci_warn(xhci, "WARN deq seg = 0x%x, deq pt = 0x%x\n",
-				(unsigned int) deq_seg,
-				(unsigned int) deq_ptr);
+		xhci_warn(xhci, "WARN deq seg = %p, deq pt = %p\n",
+				deq_seg, deq_ptr);
 	return queue_command(xhci, (u32) addr | cycle_state, 0, 0,
 			trb_slot_id | trb_ep_index | type);
 }
