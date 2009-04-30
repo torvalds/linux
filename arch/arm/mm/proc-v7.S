@@ -194,6 +194,11 @@ __v7_setup:
 	orr	r10, r10, #(1 << 9)		@ set PLDNOP to 1
 	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
 #endif
+#ifdef CONFIG_ARM_ERRATA_460075
+	mrc	p15, 1, r10, c9, c0, 2		@ read L2 cache aux ctrl register
+	orr	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
+	mcr	p15, 1, r10, c9, c0, 2		@ write the L2 cache aux ctrl register
+#endif
 	mov	r10, #0
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
