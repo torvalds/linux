@@ -2747,12 +2747,21 @@ static int
 ath5k_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_hw *ah = sc->ah;
 	struct ieee80211_conf *conf = &hw->conf;
 	int ret;
 
 	mutex_lock(&sc->lock);
 
-	sc->power_level = conf->power_level;
+	sc->bintval = conf->beacon_int;
+
+	if ((changed & IEEE80211_CONF_CHANGE_POWER) &&
+	(sc->power_level != conf->power_level)) {
+		sc->power_level = conf->power_level;
+
+		/* Half dB steps */
+		ath5k_hw_set_txpower_limit(ah, (conf->power_level * 2));
+	}
 
 	ret = ath5k_chan_set(sc, conf->channel);
 

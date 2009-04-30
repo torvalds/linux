@@ -168,9 +168,6 @@ int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah)
  * tx power and a Peak to Average Power Detector (PAPD) will try
  * to measure the gain.
  *
- * TODO: Use propper tx power setting for the probe packet so
- * that we don't observe a serious power drop on the receiver
- *
  * XXX:  How about forcing a tx packet (bypassing PCU arbitrator etc)
  * just after we enable the probe so that we don't mess with
  * standard traffic ? Maybe it's time to use sw interrupts and
@@ -186,7 +183,7 @@ static void ath5k_hw_request_rfgain_probe(struct ath5k_hw *ah)
 
 	/* Send the packet with 2dB below max power as
 	 * patent doc suggest */
-	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txpower.txp_max_pwr - 4,
+	ath5k_hw_reg_write(ah, AR5K_REG_SM(ah->ah_txpower.txp_ofdm - 4,
 			AR5K_PHY_PAPD_PROBE_TXPOWER) |
 			AR5K_PHY_PAPD_PROBE_TX_NEXT, AR5K_PHY_PAPD_PROBE);
 
@@ -2482,8 +2479,19 @@ ath5k_setup_rate_powertable(struct ath5k_hw *ah, u16 max_pwr,
 		for (i = 8; i <= 15; i++)
 			rates[i] -= ah->ah_txpower.txp_cck_ofdm_gainf_delta;
 
-	ah->ah_txpower.txp_min_pwr = rates[7];
-	ah->ah_txpower.txp_max_pwr = rates[0];
+	/* Now that we have all rates setup use table offset to
+	 * match the power range set by user with the power indices
+	 * on PCDAC/PDADC table */
+	for (i = 0; i < 16; i++) {
+		rates[i] += ah->ah_txpower.txp_offset;
+		/* Don't get out of bounds */
+		if (rates[i] > 63)
+			rates[i] = 63;
+	}
+
+	/* Min/max in 0.25dB units */
+	ah->ah_txpower.txp_min_pwr = 2 * rates[7];
+	ah->ah_txpower.txp_max_pwr = 2 * rates[0];
 	ah->ah_txpower.txp_ofdm = rates[7];
 }
 
@@ -2591,16 +2599,37 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	return 0;
 }
 
-int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 mode, u8 txpower)
+int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 {
 	/*Just a try M.F.*/
 	struct ieee80211_channel *channel = &ah->ah_current_channel;
+	u8 ee_mode;
 
 	ATH5K_TRACE(ah->ah_sc);
+
+	switch (channel->hw_value & CHANNEL_MODES) {
+	case CHANNEL_A:
+	case CHANNEL_T:
+	case CHANNEL_XR:
+		ee_mode = AR5K_EEPROM_MODE_11A;
+		break;
+	case CHANNEL_G:
+	case CHANNEL_TG:
+		ee_mode = AR5K_EEPROM_MODE_11G;
+		break;
+	case CHANNEL_B:
+		ee_mode = AR5K_EEPROM_MODE_11B;
+		break;
+	default:
+		ATH5K_ERR(ah->ah_sc,
+			"invalid channel: %d\n", channel->center_freq);
+		return -EINVAL;
+	}
+
 	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_TXPOWER,
 		"changing txpower to %d\n", txpower);
 
-	return ath5k_hw_txpower(ah, channel, mode, txpower);
+	return ath5k_hw_txpower(ah, channel, ee_mode, txpower);
 }
 
 #undef _ATH5K_PHY

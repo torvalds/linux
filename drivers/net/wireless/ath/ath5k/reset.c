@@ -1000,7 +1000,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		 * Set TX power (FIXME)
 		 */
 		ret = ath5k_hw_txpower(ah, channel, ee_mode,
-					AR5K_TUNE_DEFAULT_TXPOWER);
+					ah->ah_txpower.txp_max_pwr / 2);
 		if (ret)
 			return ret;
 

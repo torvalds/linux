@@ -1100,11 +1100,12 @@ struct ath5k_hw {
 		/* Values in 0.25dB units */
 		s16		txp_min_pwr;
 		s16		txp_max_pwr;
+		/* Values in 0.5dB units */
 		s16		txp_offset;
 		s16		txp_ofdm;
-		/* Values in dB units */
-		s16		txp_cck_ofdm_pwr_delta;
 		s16		txp_cck_ofdm_gainf_delta;
+		/* Value in dB units */
+		s16		txp_cck_ofdm_pwr_delta;
 	} ah_txpower;
 
 	struct {
@@ -1271,7 +1272,7 @@ extern unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah);
 extern int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* TX power setup */
 extern int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel, u8 ee_mode, u8 txpower);
-extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 ee_mode, u8 txpower);
+extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
 
 /*
  * Functions used internaly
