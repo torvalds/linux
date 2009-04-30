@@ -31,8 +31,6 @@
 
 /***************************************************************************/
 
-void coldfire_reset(void);
-
 extern unsigned int mcf_timervector;
 extern unsigned int mcf_profilevector;
 extern unsigned int mcf_timerlevel;
@@ -164,6 +162,14 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 
 /***************************************************************************/
 
+static void m532x_cpu_reset(void)
+{
+	local_irq_disable();
+	__raw_writeb(MCF_RCR_SWRESET, MCF_RCR);
+}
+
+/***************************************************************************/
+
 void __init config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
@@ -181,7 +187,7 @@ void __init config_BSP(char *commandp, int size)
 
 	mcf_timervector = 64+32;
 	mcf_profilevector = 64+33;
-	mach_reset = coldfire_reset;
+	mach_reset = m532x_cpu_reset;
 
 #ifdef CONFIG_BDM_DISABLE
 	/*
