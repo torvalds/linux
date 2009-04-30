@@ -171,7 +171,7 @@ static unsigned int		page_size;
 
 static int			zero;
 
-static int			scale;
+static int			scale				=  1;
 
 static const unsigned int default_count[] = {
 	1000000,
