@@ -1126,7 +1126,6 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 			if (ret)
 				break;
 		}
-
 		if (av7110->videostate.stream_source == VIDEO_SOURCE_MEMORY) {
 			if (av7110->playing == RP_AV) {
 				ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY, __Stop, 0);
@@ -1186,20 +1185,16 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 	case VIDEO_SET_DISPLAY_FORMAT:
 	{
 		video_displayformat_t format = (video_displayformat_t) arg;
-
 		switch (format) {
 		case VIDEO_PAN_SCAN:
 			av7110->display_panscan = VID_PAN_SCAN_PREF;
 			break;
-
 		case VIDEO_LETTER_BOX:
 			av7110->display_panscan = VID_VC_AND_PS_PREF;
 			break;
-
 		case VIDEO_CENTER_CUT_OUT:
 			av7110->display_panscan = VID_CENTRE_CUT_PREF;
 			break;
-
 		default:
 			ret = -EINVAL;
 		}
@@ -1272,7 +1267,6 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 	case VIDEO_CLEAR_BUFFER:
 		dvb_ringbuffer_flush_spinlock_wakeup(&av7110->avout);
 		av7110_ipack_reset(&av7110->ipack[1]);
-
 		if (av7110->playing == RP_AV) {
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
 					    __Play, 2, AV_PES, 0);
@@ -1293,13 +1287,13 @@ static int dvb_video_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	case VIDEO_SET_STREAMTYPE:
-
 		break;
 
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
 	}
+
 	return ret;
 }
 
@@ -1374,7 +1368,6 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 
 	case AUDIO_CHANNEL_SELECT:
 		av7110->audiostate.channel_select = (audio_channel_select_t) arg;
-
 		switch(av7110->audiostate.channel_select) {
 		case AUDIO_STEREO:
 			ret = audcom(av7110, AUDIO_CMD_STEREO);
@@ -1385,7 +1378,6 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 					msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0220);
 			}
 			break;
-
 		case AUDIO_MONO_LEFT:
 			ret = audcom(av7110, AUDIO_CMD_MONO_L);
 			if (!ret) {
@@ -1395,7 +1387,6 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 					msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0200);
 			}
 			break;
-
 		case AUDIO_MONO_RIGHT:
 			ret = audcom(av7110, AUDIO_CMD_MONO_R);
 			if (!ret) {
@@ -1405,7 +1396,6 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 					msp_writereg(av7110, MSP_WR_DSP, 0x0008, 0x0210);
 			}
 			break;
-
 		default:
 			ret = -EINVAL;
 			break;
@@ -1431,21 +1421,24 @@ static int dvb_audio_ioctl(struct inode *inode, struct file *file,
 			ret = av7110_fw_cmd(av7110, COMTYPE_REC_PLAY,
 					    __Play, 2, AV_PES, 0);
 		break;
-	case AUDIO_SET_ID:
 
+	case AUDIO_SET_ID:
 		break;
+
 	case AUDIO_SET_MIXER:
 	{
 		struct audio_mixer *amix = (struct audio_mixer *)parg;
-
 		ret = av7110_set_volume(av7110, amix->volume_left, amix->volume_right);
 		break;
 	}
+
 	case AUDIO_SET_STREAMTYPE:
 		break;
+
 	default:
 		ret = -ENOIOCTLCMD;
 	}
+
 	return ret;
 }
 
