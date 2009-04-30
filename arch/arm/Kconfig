@@ -740,6 +740,15 @@ if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
 
+config ARM_ERRATA_411920
+	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
+	depends on CPU_V6 && !SMP
+	help
+	  Invalidation of the Instruction Cache operation can
+	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
+	  It does not affect the MPCore. This option enables the ARM Ltd.
+	  recommended workaround.
+
 endmenu
 
 source "arch/arm/common/Kconfig"
