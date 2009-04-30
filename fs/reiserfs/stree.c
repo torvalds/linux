@@ -1026,7 +1026,9 @@ static char prepare_for_delete_or_cut(struct reiserfs_transaction_handle *th, st
 			reiserfs_free_block(th, inode, block, 1);
 		    }
 
+		    reiserfs_write_unlock(sb);
 		    cond_resched();
+		    reiserfs_write_lock(sb);
 
 		    if (item_moved (&s_ih, path))  {
 			need_re_search = 1;
