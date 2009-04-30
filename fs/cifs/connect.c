@@ -3638,7 +3638,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	TCONX_RSP *pSMBr;
 	unsigned char *bcc_ptr;
 	int rc = 0;
-	int length;
+	int length, bytes_left;
 	__u16 count;
 
 	if (ses == NULL)
@@ -3726,14 +3726,15 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response, &length,
 			 CIFS_STD_OP);
 
-	/* if (rc) rc = map_smb_to_linux_error(smb_buffer_response); */
 	/* above now done in SendReceive */
 	if ((rc == 0) && (tcon != NULL)) {
 		tcon->tidStatus = CifsGood;
 		tcon->need_reconnect = false;
 		tcon->tid = smb_buffer_response->Tid;
 		bcc_ptr = pByteArea(smb_buffer_response);
-		length = strnlen(bcc_ptr, BCC(smb_buffer_response) - 2);
+		bytes_left = BCC(smb_buffer_response);
+		length = strnlen(bcc_ptr, bytes_left - 2);
+
 		/* skip service field (NB: this field is always ASCII) */
 		if (length == 3) {
 			if ((bcc_ptr[0] == 'I') && (bcc_ptr[1] == 'P') &&
@@ -3748,39 +3749,17 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			}
 		}
 		bcc_ptr += length + 1;
+		bytes_left -= (length + 1);
 		strncpy(tcon->treeName, tree, MAX_TREE_SIZE);
-		if (smb_buffer->Flags2 & SMBFLG2_UNICODE) {
-			length = UniStrnlen((wchar_t *) bcc_ptr, 512);
-			if ((bcc_ptr + (2 * length)) -
-			     pByteArea(smb_buffer_response) <=
-			    BCC(smb_buffer_response)) {
-				kfree(tcon->nativeFileSystem);
-				tcon->nativeFileSystem =
-				    kzalloc((4 * length) + 2, GFP_KERNEL);
-				if (tcon->nativeFileSystem) {
-					cifs_strfromUCS_le(
-						tcon->nativeFileSystem,
-						(__le16 *) bcc_ptr,
-						length, nls_codepage);
-					cFYI(1, ("nativeFileSystem=%s",
-						tcon->nativeFileSystem));
-				}
-			}
-			/* else do not bother copying these information fields*/
-		} else {
-			length = strnlen(bcc_ptr, 1024);
-			if ((bcc_ptr + length) -
-			    pByteArea(smb_buffer_response) <=
-			    BCC(smb_buffer_response)) {
-				kfree(tcon->nativeFileSystem);
-				tcon->nativeFileSystem =
-				    kzalloc(length + 1, GFP_KERNEL);
-				if (tcon->nativeFileSystem)
-					strncpy(tcon->nativeFileSystem, bcc_ptr,
-						length);
-			}
-			/* else do not bother copying these information fields*/
-		}
+
+		/* mostly informational -- no need to fail on error here */
+		tcon->nativeFileSystem = cifs_strndup(bcc_ptr, bytes_left,
+						      smb_buffer->Flags2 &
+							 SMBFLG2_UNICODE,
+						      nls_codepage);
+
+		cFYI(1, ("nativeFileSystem=%s", tcon->nativeFileSystem));
+
 		if ((smb_buffer_response->WordCount == 3) ||
 			 (smb_buffer_response->WordCount == 7))
 			/* field is in same location */
