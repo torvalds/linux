@@ -3,7 +3,7 @@
 # These targets are used from top-level makefile
 
 PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config \
-	localmodconfig
+	localmodconfig localyesconfig
 
 ifdef KBUILD_KCONFIG
 Kconfig := $(KBUILD_KCONFIG)
@@ -31,6 +31,16 @@ silentoldconfig: $(obj)/conf
 
 localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
 	$(Q)perl $< $(Kconfig) > .tmp.config
+	$(Q)cmp -s .tmp.config .config ||		\
+		(mv -f .config .config.old.1;		\
+		 mv -f .tmp.config .config;		\
+		 $(obj)/conf -s $(Kconfig);		\
+		 mv -f .config.old.1 .config.old)
+	$(Q)rm -f .tmp.config
+
+localyesconfig: $(obj)/streamline_config.pl
+	$(Q)perl $< $(Kconfig) > .tmp.config
+	$(Q)sed -i s/=m/=y/ .tmp.config
 	$(Q)cmp -s .tmp.config .config ||		\
 		(mv -f .config .config.old.1;		\
 		 mv -f .tmp.config .config;		\
@@ -94,6 +104,7 @@ help:
 	@echo  '  gconfig	  - Update current config utilising a GTK based front-end'
 	@echo  '  oldconfig	  - Update current config utilising a provided .config as base'
 	@echo  '  localmodconfig  - Update current config disabling modules not loaded'
+	@echo  '  localyesconfig  - Update current config converting local mods to core'
 	@echo  '  silentoldconfig - Same as oldconfig, but quietly, additionally update deps'
 	@echo  '  randconfig	  - New config with random answer to all options'
 	@echo  '  defconfig	  - New config with default answer to all options'
