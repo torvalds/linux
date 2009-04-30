@@ -268,7 +268,7 @@ struct firedtv *fdtv_alloc(struct device *dev,
 	if (!fdtv)
 		return NULL;
 
-	dev->driver_data	= fdtv;
+	dev_set_drvdata(dev, fdtv);
 	fdtv->device		= dev;
 	fdtv->isochannel	= -1;
 	fdtv->voltage		= 0xff;
