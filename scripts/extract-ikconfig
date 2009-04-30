@@ -17,6 +17,10 @@ dump_config() {
 	return
     fi
     end=`$binoffset $file $IKCFG_ED 2>/dev/null`
+    [ "$?" != "0" ] && end="-1"
+    if [ "$end" -eq "-1" ]; then
+	return
+    fi
 
     start=`expr $start + 8`
     size=`expr $end - $start`
