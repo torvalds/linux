@@ -173,6 +173,7 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
 			&regs, 0, NULL, NULL);
 }
+EXPORT_SYMBOL_GPL(kernel_thread);
 
 unsigned long get_wchan(struct task_struct *p)
 {

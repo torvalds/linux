@@ -24,7 +24,7 @@
 #include <asm/tlb.h>
 
 unsigned int __page_offset;
-/* EXPORT_SYMBOL(__page_offset); */
+EXPORT_SYMBOL(__page_offset);
 
 char *klimit = _end;
 
@@ -199,3 +199,4 @@ int ___range_ok(unsigned long addr, unsigned long size)
 	return ((addr < memory_start) ||
 		((addr + size) > memory_end));
 }
+EXPORT_SYMBOL(___range_ok);
