@@ -340,9 +340,9 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 		cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 
 	for (i = 0; i < num_referrals; i++) {
+		int len;
 		dump_referral(referrals+i);
 		/* connect to a node */
-		int len;
 		len = strlen(referrals[i].node_name);
 		if (len < 2) {
 			cERROR(1, ("%s: Net Address path too short: %s",
