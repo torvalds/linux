@@ -575,3 +575,31 @@ struct qe_firmware_info *qe_get_firmware_info(void)
 }
 EXPORT_SYMBOL(qe_get_firmware_info);
 
+unsigned int qe_get_num_of_risc(void)
+{
+	struct device_node *qe;
+	int size;
+	unsigned int num_of_risc = 0;
+	const u32 *prop;
+
+	qe = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!qe) {
+		/* Older devices trees did not have an "fsl,qe"
+		 * compatible property, so we need to look for
+		 * the QE node by name.
+		 */
+		qe = of_find_node_by_type(NULL, "qe");
+		if (!qe)
+			return num_of_risc;
+	}
+
+	prop = of_get_property(qe, "fsl,qe-num-riscs", &size);
+	if (prop && size == sizeof(*prop))
+		num_of_risc = *prop;
+
+	of_node_put(qe);
+
+	return num_of_risc;
+}
+EXPORT_SYMBOL(qe_get_num_of_risc);
+
