@@ -445,6 +445,38 @@ static void unix_fill_in_inode(struct inode *tmp_inode,
 	}
 }
 
+/* BB eventually need to add the following helper function to
+      resolve NT_STATUS_STOPPED_ON_SYMLINK return code when
+      we try to do FindFirst on (NTFS) directory symlinks */
+/*
+int get_symlink_reparse_path(char *full_path, struct cifs_sb_info *cifs_sb,
+			     int xid)
+{
+	__u16 fid;
+	int len;
+	int oplock = 0;
+	int rc;
+	struct cifsTconInfo *ptcon = cifs_sb->tcon;
+	char *tmpbuffer;
+
+	rc = CIFSSMBOpen(xid, ptcon, full_path, FILE_OPEN, GENERIC_READ,
+			OPEN_REPARSE_POINT, &fid, &oplock, NULL,
+			cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (!rc) {
+		tmpbuffer = kmalloc(maxpath);
+		rc = CIFSSMBQueryReparseLinkInfo(xid, ptcon, full_path,
+				tmpbuffer,
+				maxpath -1,
+				fid,
+				cifs_sb->local_nls);
+		if (CIFSSMBClose(xid, ptcon, fid)) {
+			cFYI(1, ("Error closing temporary reparsepoint open)"));
+		}
+	}
+}
+ */
+
 static int initiate_cifs_search(const int xid, struct file *file)
 {
 	int rc = 0;
@@ -500,7 +532,10 @@ ffirst_retry:
 			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if (rc == 0)
 		cifsFile->invalidHandle = false;
-	if ((rc == -EOPNOTSUPP) &&
+	/* BB add following call to handle readdir on new NTFS symlink errors 
+	else if STATUS_STOPPED_ON_SYMLINK
+		call get_symlink_reparse_path and retry with new path */
+	else if ((rc == -EOPNOTSUPP) &&
 		(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)) {
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
 		goto ffirst_retry;

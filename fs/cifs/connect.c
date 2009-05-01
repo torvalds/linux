@@ -2681,8 +2681,6 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	    /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN | */ NTLMSSP_NEGOTIATE_128;
 	if (sign_CIFS_PDUs)
 		negotiate_flags |= NTLMSSP_NEGOTIATE_SIGN;
-/*	if (ntlmv2_support)
-		negotiate_flags |= NTLMSSP_NEGOTIATE_NTLMV2;*/
 	/* setup pointers to domain name and workstation name */
 	bcc_ptr += SecurityBlobLength;
 
@@ -2780,9 +2778,10 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 				memcpy(ses->server->cryptKey,
 				       SecurityBlob2->Challenge,
 				       CIFS_CRYPTO_KEY_SIZE);
-				if (SecurityBlob2->NegotiateFlags &
+/* NTLMV2 flag is not for NTLMv2 password hash */
+/*				if (SecurityBlob2->NegotiateFlags &
 					cpu_to_le32(NTLMSSP_NEGOTIATE_NTLMV2))
-					*pNTLMv2_flag = true;
+					*pNTLMv2_flag = true; */ /* BB wrong */
 
 				if ((SecurityBlob2->NegotiateFlags &
 					cpu_to_le32(NTLMSSP_NEGOTIATE_ALWAYS_SIGN))
@@ -3012,11 +3011,10 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 	bcc_ptr += SecurityBlobLength;
 	negotiate_flags = NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET |
 			NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_TARGET_INFO |
-			0x80000000 | NTLMSSP_NEGOTIATE_128;
+			NTLMSSP_NEGOTIATE_56 | NTLMSSP_NEGOTIATE_128 |
+			NTLMSSP_NEGOTIATE_EXTENDED_SEC;
 	if (sign_CIFS_PDUs)
 		negotiate_flags |= /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN |*/ NTLMSSP_NEGOTIATE_SIGN;
-	if (ntlmv2_flag)
-		negotiate_flags |= NTLMSSP_NEGOTIATE_NTLMV2;
 
 /* setup pointers to domain name and workstation name */
 
@@ -3438,12 +3436,19 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 
 	/* above now done in SendReceive */
 	if ((rc == 0) && (tcon != NULL)) {
+		bool is_unicode;
+
 		tcon->tidStatus = CifsGood;
 		tcon->need_reconnect = false;
 		tcon->tid = smb_buffer_response->Tid;
 		bcc_ptr = pByteArea(smb_buffer_response);
 		bytes_left = BCC(smb_buffer_response);
 		length = strnlen(bcc_ptr, bytes_left - 2);
+		if (smb_buffer->Flags2 & SMBFLG2_UNICODE)
+			is_unicode = true;
+		else
+			is_unicode = false;
+
 
 		/* skip service field (NB: this field is always ASCII) */
 		if (length == 3) {
@@ -3464,9 +3469,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 
 		/* mostly informational -- no need to fail on error here */
 		tcon->nativeFileSystem = cifs_strndup_from_ucs(bcc_ptr,
-						      bytes_left,
-						      smb_buffer->Flags2 &
-							 SMBFLG2_UNICODE,
+						      bytes_left, is_unicode,
 						      nls_codepage);
 
 		cFYI(1, ("nativeFileSystem=%s", tcon->nativeFileSystem));

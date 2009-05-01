@@ -2451,16 +2451,20 @@ querySymLinkRetry:
 		if (rc || (pSMBr->ByteCount < 2))
 			rc = -EIO;
 		else {
+			bool is_unicode;
 			u16 count = le16_to_cpu(pSMBr->t2.DataCount);
 
 			data_start = ((char *) &pSMBr->hdr.Protocol) +
 					   le16_to_cpu(pSMBr->t2.DataOffset);
 
+			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
+				is_unicode = true;
+			else
+				is_unicode = false;
+
 			/* BB FIXME investigate remapping reserved chars here */
 			*symlinkinfo = cifs_strndup_from_ucs(data_start, count,
-						    pSMBr->hdr.Flags2 &
-							SMBFLG2_UNICODE,
-						    nls_codepage);
+						    is_unicode, nls_codepage);
 			if (!symlinkinfo)
 				rc = -ENOMEM;
 		}
@@ -3930,7 +3934,7 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 
 	cFYI(1, ("num_referrals: %d dfs flags: 0x%x ... \n",
 			*num_of_nodes,
-			le16_to_cpu(pSMBr->DFSFlags)));
+			le32_to_cpu(pSMBr->DFSFlags)));
 
 	*target_nodes = kzalloc(sizeof(struct dfs_info3_param) *
 			*num_of_nodes, GFP_KERNEL);
@@ -3946,7 +3950,7 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		int max_len;
 		struct dfs_info3_param *node = (*target_nodes)+i;
 
-		node->flags = le16_to_cpu(pSMBr->DFSFlags);
+		node->flags = le32_to_cpu(pSMBr->DFSFlags);
 		if (is_unicode) {
 			__le16 *tmp = kmalloc(strlen(searchName)*2 + 2,
 						GFP_KERNEL);
