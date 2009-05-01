@@ -172,8 +172,6 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	unsigned int cmd_len, sense_len;
 	int err;
 
-	debug_log("%s: enter\n", __func__);
-
 	switch (drive->media) {
 	case ide_floppy:
 		cmd_len = 255;
@@ -370,7 +368,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 						     ? "write" : "read");
 			pc->flags |= PC_FLAG_DMA_ERROR;
 		} else
-			pc->xferred = blk_rq_bytes(rq);
+			rq->resid_len = 0;
 		debug_log("%s: DMA finished\n", drive->name);
 	}
 
@@ -379,7 +377,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		int uptodate, error;
 
 		debug_log("Packet command completed, %d bytes transferred\n",
-			  pc->xferred);
+			  blk_rq_bytes(rq));
 
 		pc->flags &= ~PC_FLAG_DMA_IN_PROGRESS;
 
@@ -467,15 +465,15 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	ide_pio_bytes(drive, cmd, write, done);
 
 	/* Update transferred byte count */
-	pc->xferred += done;
+	rq->resid_len -= done;
 
 	bcount -= done;
 
 	if (bcount)
 		ide_pad_transfer(drive, write, bcount);
 
-	debug_log("[cmd %x] transferred %d bytes, padded %d bytes\n",
-		  rq->cmd[0], done, bcount);
+	debug_log("[cmd %x] transferred %d bytes, padded %d bytes, resid: %u\n",
+		  rq->cmd[0], done, bcount, rq->resid_len);
 
 	/* And set the interrupt handler again */
 	ide_set_handler(drive, ide_pc_intr, timeout);
@@ -643,15 +641,14 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 	} else {
 		pc = drive->pc;
 
-		/* We haven't transferred any data yet */
-		pc->xferred = 0;
-
 		valid_tf = IDE_VALID_DEVICE;
 		bytes = blk_rq_bytes(rq);
-
 		bcount = ((drive->media == ide_tape) ? bytes
 						     : min_t(unsigned int,
 							     bytes, 63 * 1024));
+
+		/* We haven't transferred any data yet */
+		rq->resid_len = bcount;
 
 		if (pc->flags & PC_FLAG_DMA_ERROR) {
 			pc->flags &= ~PC_FLAG_DMA_ERROR;

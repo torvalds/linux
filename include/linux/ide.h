@@ -357,8 +357,6 @@ struct ide_atapi_pc {
 
 	/* bytes to transfer */
 	int req_xfer;
-	/* bytes actually transferred */
-	int xferred;
 
 	/* data buffer */
 	u8 *buf;
