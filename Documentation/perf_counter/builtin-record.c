@@ -57,13 +57,13 @@
 #define asmlinkage
 
 #ifdef __x86_64__
-#define __NR_perf_counter_open 295
+#define __NR_perf_counter_open 298
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #endif
 
 #ifdef __i386__
-#define __NR_perf_counter_open 333
+#define __NR_perf_counter_open 336
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #endif
