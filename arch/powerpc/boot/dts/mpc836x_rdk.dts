@@ -198,6 +198,8 @@
 			clock-frequency = <0>;
 			bus-frequency = <0>;
 			brg-frequency = <0>;
+			fsl,qe-num-riscs = <2>;
+			fsl,qe-num-snums = <28>;
 
 			muram@10000 {
 				#address-cells = <1>;

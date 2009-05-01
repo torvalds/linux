@@ -362,6 +362,8 @@
 		reg = <0xe0080000 0x480>;
 		brg-frequency = <0>;
 		bus-frequency = <396000000>;
+		fsl,qe-num-riscs = <2>;
+		fsl,qe-num-snums = <28>;
 
 		muram@10000 {
  			#address-cells = <1>;
