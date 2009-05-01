@@ -23,7 +23,6 @@
 #include <linux/mutex.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
-#include "group.h"
 
 /*
  * with AGGRESSIVE_CHECK allocator runs consistency checks over

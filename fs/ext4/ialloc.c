@@ -27,7 +27,6 @@
 #include "ext4_jbd2.h"
 #include "xattr.h"
 #include "acl.h"
-#include "group.h"
 
 /*
  * ialloc.c contains the inodes allocation and deallocation routines

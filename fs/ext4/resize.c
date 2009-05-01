@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 
 #include "ext4_jbd2.h"
-#include "group.h"
 
 #define outside(b, first, last)	((b) < (first) || (b) >= (last))
 #define inside(b, first, last)	((b) >= (first) && (b) < (last))
