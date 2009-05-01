@@ -995,10 +995,28 @@ static const struct super_operations ext4_sops = {
 	.dirty_inode	= ext4_dirty_inode,
 	.delete_inode	= ext4_delete_inode,
 	.put_super	= ext4_put_super,
-	.write_super	= ext4_write_super,
 	.sync_fs	= ext4_sync_fs,
 	.freeze_fs	= ext4_freeze,
 	.unfreeze_fs	= ext4_unfreeze,
+	.statfs		= ext4_statfs,
+	.remount_fs	= ext4_remount,
+	.clear_inode	= ext4_clear_inode,
+	.show_options	= ext4_show_options,
+#ifdef CONFIG_QUOTA
+	.quota_read	= ext4_quota_read,
+	.quota_write	= ext4_quota_write,
+#endif
+	.bdev_try_to_free_page = bdev_try_to_free_page,
+};
+
+static const struct super_operations ext4_nojournal_sops = {
+	.alloc_inode	= ext4_alloc_inode,
+	.destroy_inode	= ext4_destroy_inode,
+	.write_inode	= ext4_write_inode,
+	.dirty_inode	= ext4_dirty_inode,
+	.delete_inode	= ext4_delete_inode,
+	.write_super	= ext4_write_super,
+	.put_super	= ext4_put_super,
 	.statfs		= ext4_statfs,
 	.remount_fs	= ext4_remount,
 	.clear_inode	= ext4_clear_inode,
@@ -2615,7 +2633,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	/*
 	 * set up enough so that it can read an inode
 	 */
-	sb->s_op = &ext4_sops;
+	if (!test_opt(sb, NOLOAD) &&
+	    EXT4_HAS_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_HAS_JOURNAL))
+		sb->s_op = &ext4_sops;
+	else
+		sb->s_op = &ext4_nojournal_sops;
 	sb->s_export_op = &ext4_export_ops;
 	sb->s_xattr = ext4_xattr_handlers;
 #ifdef CONFIG_QUOTA
@@ -3275,19 +3297,9 @@ int ext4_force_commit(struct super_block *sb)
 	return ret;
 }
 
-/*
- * Ext4 always journals updates to the superblock itself, so we don't
- * have to propagate any other updates to the superblock on disk at this
- * point if the journalling is enabled.
- */
 static void ext4_write_super(struct super_block *sb)
 {
-	if (EXT4_SB(sb)->s_journal) {
-		if (mutex_trylock(&sb->s_lock) != 0)
-			BUG();
-	} else {
-		ext4_commit_super(sb, 1);
-	}
+	ext4_commit_super(sb, 1);
 }
 
 static int ext4_sync_fs(struct super_block *sb, int wait)
@@ -3296,15 +3308,9 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	tid_t target;
 
 	trace_mark(ext4_sync_fs, "dev %s wait %d", sb->s_id, wait);
-	if (EXT4_SB(sb)->s_journal) {
-		if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal,
-					      &target)) {
-			if (wait)
-				jbd2_log_wait_commit(EXT4_SB(sb)->s_journal,
-						     target);
-		}
-	} else {
-		ext4_commit_super(sb, wait);
+	if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal, &target)) {
+		if (wait)
+			jbd2_log_wait_commit(EXT4_SB(sb)->s_journal, target);
 	}
 	return ret;
 }
@@ -3318,32 +3324,31 @@ static int ext4_freeze(struct super_block *sb)
 	int error = 0;
 	journal_t *journal;
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		journal = EXT4_SB(sb)->s_journal;
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
 
-		if (journal) {
-			/* Now we set up the journal barrier. */
-			jbd2_journal_lock_updates(journal);
+	journal = EXT4_SB(sb)->s_journal;
 
-			/*
-			 * We don't want to clear needs_recovery flag when we
-			 * failed to flush the journal.
-			 */
-			error = jbd2_journal_flush(journal);
-			if (error < 0)
-				goto out;
-		}
+	/* Now we set up the journal barrier. */
+	jbd2_journal_lock_updates(journal);
 
-		/* Journal blocked and flushed, clear needs_recovery flag. */
-		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-		error = ext4_commit_super(sb, 1);
-		if (error)
-			goto out;
+	/*
+	 * Don't clear the needs_recovery flag if we failed to flush
+	 * the journal.
+	 */
+	error = jbd2_journal_flush(journal);
+	if (error < 0) {
+	out:
+		jbd2_journal_unlock_updates(journal);
+		return error;
 	}
+
+	/* Journal blocked and flushed, clear needs_recovery flag. */
+	EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
+	error = ext4_commit_super(sb, 1);
+	if (error)
+		goto out;
 	return 0;
-out:
-	jbd2_journal_unlock_updates(journal);
-	return error;
 }
 
 /*
@@ -3352,14 +3357,15 @@ out:
  */
 static int ext4_unfreeze(struct super_block *sb)
 {
-	if (EXT4_SB(sb)->s_journal && !(sb->s_flags & MS_RDONLY)) {
-		lock_super(sb);
-		/* Reser the needs_recovery flag before the fs is unlocked. */
-		EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-		ext4_commit_super(sb, 1);
-		unlock_super(sb);
-		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
-	}
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
+	lock_super(sb);
+	/* Reset the needs_recovery flag before the fs is unlocked. */
+	EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
+	ext4_commit_super(sb, 1);
+	unlock_super(sb);
+	jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	return 0;
 }
 
