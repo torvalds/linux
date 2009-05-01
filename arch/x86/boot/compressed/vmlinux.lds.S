@@ -42,6 +42,7 @@ SECTIONS
 		*(.data.*)
 		_edata = . ;
 	}
+	. = ALIGN(CONFIG_X86_L1_CACHE_BYTES);
 	.bss : {
 		_bss = . ;
 		*(.bss)
