@@ -54,8 +54,7 @@ static struct kset *ext4_kset;
 
 static int ext4_load_journal(struct super_block *, struct ext4_super_block *,
 			     unsigned long journal_devnum);
-static int ext4_commit_super(struct super_block *sb,
-			      struct ext4_super_block *es, int sync);
+static int ext4_commit_super(struct super_block *sb, int sync);
 static void ext4_mark_recovery_complete(struct super_block *sb,
 					struct ext4_super_block *es);
 static void ext4_clear_journal_err(struct super_block *sb,
@@ -306,7 +305,7 @@ static void ext4_handle_error(struct super_block *sb)
 		printk(KERN_CRIT "Remounting filesystem read-only\n");
 		sb->s_flags |= MS_RDONLY;
 	}
-	ext4_commit_super(sb, es, 1);
+	ext4_commit_super(sb, 1);
 	if (test_opt(sb, ERRORS_PANIC))
 		panic("EXT4-fs (device %s): panic forced after error\n",
 			sb->s_id);
@@ -448,7 +447,7 @@ __acquires(bitlock)
 	if (test_opt(sb, ERRORS_CONT)) {
 		EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 		es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
-		ext4_commit_super(sb, es, 0);
+		ext4_commit_super(sb, 0);
 		return;
 	}
 	ext4_unlock_group(sb, grp);
@@ -577,7 +576,7 @@ static void ext4_put_super(struct super_block *sb)
 	if (!(sb->s_flags & MS_RDONLY)) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
-		ext4_commit_super(sb, es, 1);
+		ext4_commit_super(sb, 1);
 	}
 	if (sbi->s_proc) {
 		remove_proc_entry(sb->s_id, ext4_proc_root);
@@ -1596,7 +1595,7 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 	if (sbi->s_journal)
 		EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 
-	ext4_commit_super(sb, es, 1);
+	ext4_commit_super(sb, 1);
 	if (test_opt(sb, DEBUG))
 		printk(KERN_INFO "[EXT4 FS bs=%lu, gc=%u, "
 				"bpg=%lu, ipg=%lu, mo=%04lx]\n",
@@ -2655,7 +2654,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			if (test_opt(sb, ERRORS_PANIC)) {
 				EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 				es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
-				ext4_commit_super(sb, es, 1);
+				ext4_commit_super(sb, 1);
 				goto failed_mount4;
 			}
 		}
@@ -3132,15 +3131,15 @@ static int ext4_load_journal(struct super_block *sb,
 		sb->s_dirt = 1;
 
 		/* Make sure we flush the recovery flag to disk. */
-		ext4_commit_super(sb, es, 1);
+		ext4_commit_super(sb, 1);
 	}
 
 	return 0;
 }
 
-static int ext4_commit_super(struct super_block *sb,
-			      struct ext4_super_block *es, int sync)
+static int ext4_commit_super(struct super_block *sb, int sync)
 {
+	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 	struct buffer_head *sbh = EXT4_SB(sb)->s_sbh;
 	int error = 0;
 
@@ -3212,7 +3211,7 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 	    sb->s_flags & MS_RDONLY) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		sb->s_dirt = 0;
-		ext4_commit_super(sb, es, 1);
+		ext4_commit_super(sb, 1);
 	}
 	unlock_super(sb);
 
@@ -3253,7 +3252,7 @@ static void ext4_clear_journal_err(struct super_block *sb,
 
 		EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
 		es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
-		ext4_commit_super(sb, es, 1);
+		ext4_commit_super(sb, 1);
 
 		jbd2_journal_clear_err(journal);
 	}
@@ -3293,7 +3292,7 @@ static void ext4_write_super(struct super_block *sb)
 			BUG();
 		sb->s_dirt = 0;
 	} else {
-		ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
+		ext4_commit_super(sb, 1);
 	}
 }
 
@@ -3312,7 +3311,7 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 						     target);
 		}
 	} else {
-		ext4_commit_super(sb, EXT4_SB(sb)->s_es, wait);
+		ext4_commit_super(sb, wait);
 	}
 	return ret;
 }
@@ -3345,7 +3344,7 @@ static int ext4_freeze(struct super_block *sb)
 
 		/* Journal blocked and flushed, clear needs_recovery flag. */
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-		error = ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
+		error = ext4_commit_super(sb, 1);
 		if (error)
 			goto out;
 	}
@@ -3365,7 +3364,7 @@ static int ext4_unfreeze(struct super_block *sb)
 		lock_super(sb);
 		/* Reser the needs_recovery flag before the fs is unlocked. */
 		EXT4_SET_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-		ext4_commit_super(sb, EXT4_SB(sb)->s_es, 1);
+		ext4_commit_super(sb, 1);
 		unlock_super(sb);
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	}
@@ -3520,7 +3519,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		}
 	}
 	if (sbi->s_journal == NULL)
-		ext4_commit_super(sb, es, 1);
+		ext4_commit_super(sb, 1);
 
 #ifdef CONFIG_QUOTA
 	/* Release old quota file names */
