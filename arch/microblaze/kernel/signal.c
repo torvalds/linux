@@ -152,8 +152,8 @@ struct rt_sigframe {
 	unsigned long tramp[2];	/* signal trampoline */
 };
 
-static int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc, int *rval_p)
+static int restore_sigcontext(struct pt_regs *regs,
+				struct sigcontext __user *sc, int *rval_p)
 {
 	unsigned int err = 0;
 
@@ -211,11 +211,10 @@ badframe:
 
 asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 {
-	struct rt_sigframe *frame =
-			(struct rt_sigframe *)(regs->r1 + STATE_SAVE_ARG_SPACE);
+	struct rt_sigframe __user *frame =
+		(struct rt_sigframe __user *)(regs->r1 + STATE_SAVE_ARG_SPACE);
 
 	sigset_t set;
-	stack_t st;
 	int rval;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -233,11 +232,10 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &rval))
 		goto badframe;
 
-	if (__copy_from_user((void *)&st, &frame->uc.uc_stack, sizeof(st)))
-		goto badframe;
 	/* It is more difficult to avoid calling this function than to
 	 call it and ignore errors. */
-	do_sigaltstack(&st, NULL, regs->r1);
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1))
+		goto badframe;
 
 	return rval;
 
@@ -251,7 +249,7 @@ badframe:
  */
 
 static int
-setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
+setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 		unsigned long mask)
 {
 	int err = 0;
@@ -278,7 +276,7 @@ setup_sigcontext(struct sigcontext *sc, struct pt_regs *regs,
 /*
  * Determine which stack to use..
  */
-static inline void *
+static inline void __user *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 {
 	/* Default to using normal stack */
@@ -287,7 +285,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	if ((ka->sa.sa_flags & SA_ONSTACK) != 0 && !on_sig_stack(sp))
 		sp = current->sas_ss_sp + current->sas_ss_size;
 
-	return (void *)((sp - frame_size) & -8UL);
+	return (void __user *)((sp - frame_size) & -8UL);
 }
 
 static void setup_frame(int sig, struct k_sigaction *ka,
@@ -367,7 +365,7 @@ give_sigsegv:
 static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			sigset_t *set, struct pt_regs *regs)
 {
-	struct rt_sigframe *frame;
+	struct rt_sigframe __user *frame;
 	int err = 0;
 	int signal;
 
