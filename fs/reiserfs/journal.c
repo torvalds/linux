@@ -1120,8 +1120,11 @@ static int flush_commit_list(struct super_block *s,
 		    SB_ONDISK_JOURNAL_SIZE(s);
 		tbh = journal_find_get_block(s, bn);
 		if (tbh) {
-			if (buffer_dirty(tbh))
-			    ll_rw_block(WRITE, 1, &tbh) ;
+			if (buffer_dirty(tbh)) {
+		            reiserfs_write_unlock(s);
+			    ll_rw_block(WRITE, 1, &tbh);
+			    reiserfs_write_lock(s);
+			}
 			put_bh(tbh) ;
 		}
 	}
