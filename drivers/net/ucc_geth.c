@@ -3710,7 +3710,15 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 		ug_info->uf_info.utfet = UCC_GETH_UTFET_GIGA_INIT;
 		ug_info->uf_info.utftt = UCC_GETH_UTFTT_GIGA_INIT;
 		ug_info->numThreadsTx = UCC_GETH_NUM_OF_THREADS_4;
-		ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_4;
+
+		/* If QE's snum number is 46 which means we need to support
+		 * 4 UECs at 1000Base-T simultaneously, we need to allocate
+		 * more Threads to Rx.
+		 */
+		if (qe_get_num_of_snums() == 46)
+			ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_6;
+		else
+			ug_info->numThreadsRx = UCC_GETH_NUM_OF_THREADS_4;
 	}
 
 	if (netif_msg_probe(&debug))
