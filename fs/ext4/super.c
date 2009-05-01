@@ -3128,7 +3128,6 @@ static int ext4_load_journal(struct super_block *sb,
 	if (journal_devnum &&
 	    journal_devnum != le32_to_cpu(es->s_journal_dev)) {
 		es->s_journal_dev = cpu_to_le32(journal_devnum);
-		sb->s_dirt = 1;
 
 		/* Make sure we flush the recovery flag to disk. */
 		ext4_commit_super(sb, 1);
@@ -3168,7 +3167,7 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 					&EXT4_SB(sb)->s_freeblocks_counter));
 	es->s_free_inodes_count = cpu_to_le32(percpu_counter_sum_positive(
 					&EXT4_SB(sb)->s_freeinodes_counter));
-
+	sb->s_dirt = 0;
 	BUFFER_TRACE(sbh, "marking dirty");
 	mark_buffer_dirty(sbh);
 	if (sync) {
@@ -3210,7 +3209,6 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER) &&
 	    sb->s_flags & MS_RDONLY) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
-		sb->s_dirt = 0;
 		ext4_commit_super(sb, 1);
 	}
 	unlock_super(sb);
@@ -3271,10 +3269,8 @@ int ext4_force_commit(struct super_block *sb)
 		return 0;
 
 	journal = EXT4_SB(sb)->s_journal;
-	if (journal) {
-		sb->s_dirt = 0;
+	if (journal)
 		ret = ext4_journal_force_commit(journal);
-	}
 
 	return ret;
 }
@@ -3282,15 +3278,13 @@ int ext4_force_commit(struct super_block *sb)
 /*
  * Ext4 always journals updates to the superblock itself, so we don't
  * have to propagate any other updates to the superblock on disk at this
- * point.  (We can probably nuke this function altogether, and remove
- * any mention to sb->s_dirt in all of fs/ext4; eventual cleanup...)
+ * point if the journalling is enabled.
  */
 static void ext4_write_super(struct super_block *sb)
 {
 	if (EXT4_SB(sb)->s_journal) {
 		if (mutex_trylock(&sb->s_lock) != 0)
 			BUG();
-		sb->s_dirt = 0;
 	} else {
 		ext4_commit_super(sb, 1);
 	}
@@ -3302,7 +3296,6 @@ static int ext4_sync_fs(struct super_block *sb, int wait)
 	tid_t target;
 
 	trace_mark(ext4_sync_fs, "dev %s wait %d", sb->s_id, wait);
-	sb->s_dirt = 0;
 	if (EXT4_SB(sb)->s_journal) {
 		if (jbd2_journal_start_commit(EXT4_SB(sb)->s_journal,
 					      &target)) {
@@ -3324,7 +3317,6 @@ static int ext4_freeze(struct super_block *sb)
 {
 	int error = 0;
 	journal_t *journal;
-	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		journal = EXT4_SB(sb)->s_journal;
