@@ -402,6 +402,11 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
+	if (!stat.st_size) {
+		fprintf(stderr, "zero-sized file, nothing to do!\n");
+		exit(0);
+	}
+
 	load_kallsyms();
 
 remap:
