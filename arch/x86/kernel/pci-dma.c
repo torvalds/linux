@@ -32,6 +32,8 @@ int no_iommu __read_mostly;
 /* Set this to 1 if there is a HW IOMMU in the system */
 int iommu_detected __read_mostly = 0;
 
+int iommu_pass_through;
+
 dma_addr_t bad_dma_address __read_mostly = 0;
 EXPORT_SYMBOL(bad_dma_address);
 
@@ -159,8 +161,6 @@ again:
 	*dma_addr = addr;
 	return page_address(page);
 }
-
-extern int iommu_pass_through;
 
 /*
  * See <Documentation/x86_64/boot-options.txt> for the iommu kernel parameter
