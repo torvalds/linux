@@ -84,7 +84,7 @@ static int wl12xx_fetch_firmware(struct wl12xx *wl)
 	}
 
 	if (fw->size % 4) {
-		wl12xx_error("firmware size is not multiple of 32 bits: %d",
+		wl12xx_error("firmware size is not multiple of 32 bits: %zu",
 			     fw->size);
 		ret = -EILSEQ;
 		goto out;
@@ -122,7 +122,7 @@ static int wl12xx_fetch_nvs(struct wl12xx *wl)
 	}
 
 	if (fw->size % 4) {
-		wl12xx_error("nvs size is not multiple of 32 bits: %d",
+		wl12xx_error("nvs size is not multiple of 32 bits: %zu",
 			     fw->size);
 		ret = -EILSEQ;
 		goto out;
