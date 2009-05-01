@@ -8,13 +8,17 @@
 #define PR_TASK_PERF_COUNTERS_DISABLE   31
 #define PR_TASK_PERF_COUNTERS_ENABLE    32
 
-#define rdclock()					\
-({							\
-	struct timespec ts;				\
-							\
-	clock_gettime(CLOCK_MONOTONIC, &ts);		\
-	ts.tv_sec * 1000000000ULL + ts.tv_nsec;		\
-})
+#ifndef NSEC_PER_SEC
+# define NSEC_PER_SEC			1000000000ULL
+#endif
+
+static inline unsigned long long rdclock(void)
+{
+	struct timespec ts;
+
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+}
 
 /*
  * Pick up some kernel type conventions:
