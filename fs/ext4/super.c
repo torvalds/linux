@@ -3219,13 +3219,11 @@ static void ext4_mark_recovery_complete(struct super_block *sb,
 	if (jbd2_journal_flush(journal) < 0)
 		goto out;
 
-	lock_super(sb);
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER) &&
 	    sb->s_flags & MS_RDONLY) {
 		EXT4_CLEAR_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER);
 		ext4_commit_super(sb, 1);
 	}
-	unlock_super(sb);
 
 out:
 	jbd2_journal_unlock_updates(journal);
@@ -3436,15 +3434,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 			    (sbi->s_mount_state & EXT4_VALID_FS))
 				es->s_state = cpu_to_le16(sbi->s_mount_state);
 
-			/*
-			 * We have to unlock super so that we can wait for
-			 * transactions.
-			 */
-			if (sbi->s_journal) {
-				unlock_super(sb);
+			if (sbi->s_journal)
 				ext4_mark_recovery_complete(sb, es);
-				lock_super(sb);
-			}
 		} else {
 			int ret;
 			if ((ret = EXT4_HAS_RO_COMPAT_FEATURE(sb,
