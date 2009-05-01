@@ -2191,7 +2191,7 @@ static int __cpuinit set_multi(const struct dmi_system_id *d)
 {
 	if (multi)
 		return 0;
-	printk(KERN_INFO "APIC: %s detected, Multi Chassis\n", d->ident);
+	pr_info("APIC: %s detected, Multi Chassis\n", d->ident);
 	multi = 1;
 	return 0;
 }
