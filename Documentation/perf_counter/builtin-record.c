@@ -332,7 +332,7 @@ static void sigchld_handler(int sig)
 		done = 1;
 }
 
-int cmd_record(int argc, const char **argv)
+int cmd_record(int argc, char **argv)
 {
 	struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
 	struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
