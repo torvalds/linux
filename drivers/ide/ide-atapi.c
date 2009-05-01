@@ -370,7 +370,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 						     ? "write" : "read");
 			pc->flags |= PC_FLAG_DMA_ERROR;
 		} else
-			pc->xferred = pc->req_xfer;
+			pc->xferred = blk_rq_bytes(rq);
 		debug_log("%s: DMA finished\n", drive->name);
 	}
 
@@ -627,7 +627,7 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 	ide_hwif_t *hwif = drive->hwif;
 	ide_expiry_t *expiry = NULL;
 	struct request *rq = hwif->rq;
-	unsigned int timeout;
+	unsigned int timeout, bytes;
 	u16 bcount;
 	u8 valid_tf;
 	u8 drq_int = !!(drive->atapi_flags & IDE_AFLAG_DRQ_INTERRUPT);
@@ -647,9 +647,11 @@ ide_startstop_t ide_issue_pc(ide_drive_t *drive, struct ide_cmd *cmd)
 		pc->xferred = 0;
 
 		valid_tf = IDE_VALID_DEVICE;
-		bcount = ((drive->media == ide_tape) ?
-				pc->req_xfer :
-				min(pc->req_xfer, 63 * 1024));
+		bytes = blk_rq_bytes(rq);
+
+		bcount = ((drive->media == ide_tape) ? bytes
+						     : min_t(unsigned int,
+							     bytes, 63 * 1024));
 
 		if (pc->flags & PC_FLAG_DMA_ERROR) {
 			pc->flags &= ~PC_FLAG_DMA_ERROR;
