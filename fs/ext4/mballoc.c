@@ -1728,7 +1728,6 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 	unsigned free, fragments;
 	unsigned i, bits;
 	int flex_size = ext4_flex_bg_size(EXT4_SB(ac->ac_sb));
-	struct ext4_group_desc *desc;
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 
 	BUG_ON(cr < 0 || cr >= 4);
@@ -1744,10 +1743,6 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 	switch (cr) {
 	case 0:
 		BUG_ON(ac->ac_2order == 0);
-		/* If this group is uninitialized, skip it initially */
-		desc = ext4_get_group_desc(ac->ac_sb, group, NULL);
-		if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT))
-			return 0;
 
 		/* Avoid using the first bg of a flexgroup for data files */
 		if ((ac->ac_flags & EXT4_MB_HINT_DATA) &&
@@ -2067,9 +2062,7 @@ repeat:
 
 			ac->ac_groups_scanned++;
 			desc = ext4_get_group_desc(sb, group, NULL);
-			if (cr == 0 || (desc->bg_flags &
-					cpu_to_le16(EXT4_BG_BLOCK_UNINIT) &&
-					ac->ac_2order != 0))
+			if (cr == 0)
 				ext4_mb_simple_scan_group(ac, &e4b);
 			else if (cr == 1 &&
 					ac->ac_g_ex.fe_len == sbi->s_stripe)
