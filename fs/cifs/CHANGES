@@ -6,7 +6,9 @@ characters. Add support for mounting root of a share which redirects immediately
 to DFS target. Convert string conversion functions from Unicode to more
 accurately mark string length before allocating memory (which may help the
 rare cases where a UTF-8 string is much larger than the UCS2 string that
-we converted from).
+we converted from).  Fix endianness of the vcnum field used during
+session setup to distinguish multiple mounts to same server from different
+userids.
  
 Version 1.57
 ------------

@@ -532,7 +532,7 @@ ffirst_retry:
 			CIFS_MOUNT_MAP_SPECIAL_CHR, CIFS_DIR_SEP(cifs_sb));
 	if (rc == 0)
 		cifsFile->invalidHandle = false;
-	/* BB add following call to handle readdir on new NTFS symlink errors 
+	/* BB add following call to handle readdir on new NTFS symlink errors
 	else if STATUS_STOPPED_ON_SYMLINK
 		call get_symlink_reparse_path and retry with new path */
 	else if ((rc == -EOPNOTSUPP) &&
