@@ -423,6 +423,7 @@ config CPU_SUBTYPE_SH7722
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_CMT
+	select SYS_SUPPORTS_TMU
 
 config CPU_SUBTYPE_SH7366
 	bool "Support SH7366 processor"
