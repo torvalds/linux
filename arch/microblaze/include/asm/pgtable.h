@@ -27,6 +27,8 @@
 #define PAGE_READONLY		__pgprot(0) /* these mean nothing to non MMU */
 #define PAGE_KERNEL		__pgprot(0) /* these mean nothing to non MMU */
 
+#define pgprot_noncached(x)	(x)
+
 #define __swp_type(x)		(0)
 #define __swp_offset(x)		(0)
 #define __swp_entry(typ, off)	((swp_entry_t) { ((typ) | ((off) << 7)) })
