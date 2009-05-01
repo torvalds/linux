@@ -2686,13 +2686,13 @@ CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
 	/* setup pointers to domain name and workstation name */
 	bcc_ptr += SecurityBlobLength;
 
-	SecurityBlob->WorkstationName.Buffer = 0;
+	SecurityBlob->WorkstationName.BufferOffset = 0;
 	SecurityBlob->WorkstationName.Length = 0;
 	SecurityBlob->WorkstationName.MaximumLength = 0;
 
 	/* Domain not sent on first Sesssetup in NTLMSSP, instead it is sent
 	along with username on auth request (ie the response to challenge) */
-	SecurityBlob->DomainName.Buffer = 0;
+	SecurityBlob->DomainName.BufferOffset = 0;
 	SecurityBlob->DomainName.Length = 0;
 	SecurityBlob->DomainName.MaximumLength = 0;
 	if (ses->capabilities & CAP_UNICODE) {
@@ -3020,30 +3020,30 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 
 /* setup pointers to domain name and workstation name */
 
-	SecurityBlob->WorkstationName.Buffer = 0;
+	SecurityBlob->WorkstationName.BufferOffset = 0;
 	SecurityBlob->WorkstationName.Length = 0;
 	SecurityBlob->WorkstationName.MaximumLength = 0;
 	SecurityBlob->SessionKey.Length = 0;
 	SecurityBlob->SessionKey.MaximumLength = 0;
-	SecurityBlob->SessionKey.Buffer = 0;
+	SecurityBlob->SessionKey.BufferOffset = 0;
 
 	SecurityBlob->LmChallengeResponse.Length = 0;
 	SecurityBlob->LmChallengeResponse.MaximumLength = 0;
-	SecurityBlob->LmChallengeResponse.Buffer = 0;
+	SecurityBlob->LmChallengeResponse.BufferOffset = 0;
 
 	SecurityBlob->NtChallengeResponse.Length =
 	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
 	SecurityBlob->NtChallengeResponse.MaximumLength =
 	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
 	memcpy(bcc_ptr, ntlm_session_key, CIFS_SESS_KEY_SIZE);
-	SecurityBlob->NtChallengeResponse.Buffer =
+	SecurityBlob->NtChallengeResponse.BufferOffset =
 	    cpu_to_le32(SecurityBlobLength);
 	SecurityBlobLength += CIFS_SESS_KEY_SIZE;
 	bcc_ptr += CIFS_SESS_KEY_SIZE;
 
 	if (ses->capabilities & CAP_UNICODE) {
 		if (domain == NULL) {
-			SecurityBlob->DomainName.Buffer = 0;
+			SecurityBlob->DomainName.BufferOffset = 0;
 			SecurityBlob->DomainName.Length = 0;
 			SecurityBlob->DomainName.MaximumLength = 0;
 		} else {
@@ -3052,14 +3052,14 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			ln *= 2;
 			SecurityBlob->DomainName.MaximumLength =
 			    cpu_to_le16(ln);
-			SecurityBlob->DomainName.Buffer =
+			SecurityBlob->DomainName.BufferOffset =
 			    cpu_to_le32(SecurityBlobLength);
 			bcc_ptr += ln;
 			SecurityBlobLength += ln;
 			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
 		}
 		if (user == NULL) {
-			SecurityBlob->UserName.Buffer = 0;
+			SecurityBlob->UserName.BufferOffset = 0;
 			SecurityBlob->UserName.Length = 0;
 			SecurityBlob->UserName.MaximumLength = 0;
 		} else {
@@ -3068,7 +3068,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			ln *= 2;
 			SecurityBlob->UserName.MaximumLength =
 			    cpu_to_le16(ln);
-			SecurityBlob->UserName.Buffer =
+			SecurityBlob->UserName.BufferOffset =
 			    cpu_to_le32(SecurityBlobLength);
 			bcc_ptr += ln;
 			SecurityBlobLength += ln;
@@ -3080,7 +3080,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		   SecurityBlob->WorkstationName.Length *= 2;
 		   SecurityBlob->WorkstationName.MaximumLength =
 			cpu_to_le16(SecurityBlob->WorkstationName.Length);
-		   SecurityBlob->WorkstationName.Buffer =
+		   SecurityBlob->WorkstationName.BufferOffset =
 				 cpu_to_le32(SecurityBlobLength);
 		   bcc_ptr += SecurityBlob->WorkstationName.Length;
 		   SecurityBlobLength += SecurityBlob->WorkstationName.Length;
@@ -3112,7 +3112,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 		bcc_ptr += 2;	/* null domain */
 	} else {		/* ASCII */
 		if (domain == NULL) {
-			SecurityBlob->DomainName.Buffer = 0;
+			SecurityBlob->DomainName.BufferOffset = 0;
 			SecurityBlob->DomainName.Length = 0;
 			SecurityBlob->DomainName.MaximumLength = 0;
 		} else {
@@ -3122,14 +3122,14 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			ln = strnlen(domain, 64);
 			SecurityBlob->DomainName.MaximumLength =
 			    cpu_to_le16(ln);
-			SecurityBlob->DomainName.Buffer =
+			SecurityBlob->DomainName.BufferOffset =
 			    cpu_to_le32(SecurityBlobLength);
 			bcc_ptr += ln;
 			SecurityBlobLength += ln;
 			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
 		}
 		if (user == NULL) {
-			SecurityBlob->UserName.Buffer = 0;
+			SecurityBlob->UserName.BufferOffset = 0;
 			SecurityBlob->UserName.Length = 0;
 			SecurityBlob->UserName.MaximumLength = 0;
 		} else {
@@ -3137,7 +3137,7 @@ CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			strncpy(bcc_ptr, user, 63);
 			ln = strnlen(user, 64);
 			SecurityBlob->UserName.MaximumLength = cpu_to_le16(ln);
-			SecurityBlob->UserName.Buffer =
+			SecurityBlob->UserName.BufferOffset =
 						cpu_to_le32(SecurityBlobLength);
 			bcc_ptr += ln;
 			SecurityBlobLength += ln;
