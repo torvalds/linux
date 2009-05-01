@@ -259,6 +259,7 @@ static int __init board_fixups(void)
 	return 0;
 }
 machine_arch_initcall(mpc8568_mds, board_fixups);
+machine_arch_initcall(mpc8569_mds, board_fixups);
 
 static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "soc", },
@@ -278,6 +279,7 @@ static int __init mpc85xx_publish_devices(void)
 	return 0;
 }
 machine_device_initcall(mpc8568_mds, mpc85xx_publish_devices);
+machine_device_initcall(mpc8569_mds, mpc85xx_publish_devices);
 
 static void __init mpc85xx_mds_pic_init(void)
 {
@@ -325,6 +327,27 @@ static int __init mpc85xx_mds_probe(void)
 define_machine(mpc8568_mds) {
 	.name		= "MPC8568 MDS",
 	.probe		= mpc85xx_mds_probe,
+	.setup_arch	= mpc85xx_mds_setup_arch,
+	.init_IRQ	= mpc85xx_mds_pic_init,
+	.get_irq	= mpic_get_irq,
+	.restart	= fsl_rstcr_restart,
+	.calibrate_decr	= generic_calibrate_decr,
+	.progress	= udbg_progress,
+#ifdef CONFIG_PCI
+	.pcibios_fixup_bus	= fsl_pcibios_fixup_bus,
+#endif
+};
+
+static int __init mpc8569_mds_probe(void)
+{
+	unsigned long root = of_get_flat_dt_root();
+
+	return of_flat_dt_is_compatible(root, "fsl,MPC8569EMDS");
+}
+
+define_machine(mpc8569_mds) {
+	.name		= "MPC8569 MDS",
+	.probe		= mpc8569_mds_probe,
 	.setup_arch	= mpc85xx_mds_setup_arch,
 	.init_IRQ	= mpc85xx_mds_pic_init,
 	.get_irq	= mpic_get_irq,
