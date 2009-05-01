@@ -871,6 +871,9 @@ perf_counter_nmi_handler(struct notifier_block *self,
 	struct pt_regs *regs;
 	int ret;
 
+	if (!atomic_read(&num_counters))
+		return NOTIFY_DONE;
+
 	switch (cmd) {
 	case DIE_NMI:
 	case DIE_NMI_IPI:
