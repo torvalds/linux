@@ -132,6 +132,8 @@ SECTIONS {
 		__con_initcall_end = .;
 	}
 
+	SECURITY_INIT
+
 	__init_end_before_initramfs = .;
 
 	.init.ramfs ALIGN(4096) : {
