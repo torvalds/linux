@@ -271,7 +271,7 @@ static int setup_routing_entry(struct kvm_kernel_irq_routing_entry *e,
 			delta = 8;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
-				e->set = kvm_set_ioapic_irq;
+			e->set = kvm_set_ioapic_irq;
 			break;
 		default:
 			goto out;
