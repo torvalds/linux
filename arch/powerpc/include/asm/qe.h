@@ -22,7 +22,7 @@
 #include <asm/cpm.h>
 #include <asm/immap_qe.h>
 
-#define QE_NUM_OF_SNUM	28
+#define QE_NUM_OF_SNUM	256	/* There are 256 serial number in QE */
 #define QE_NUM_OF_BRGS	16
 #define QE_NUM_OF_PORTS	1024
 
@@ -153,6 +153,7 @@ int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier);
 int qe_get_snum(void);
 void qe_put_snum(u8 snum);
 unsigned int qe_get_num_of_risc(void);
+unsigned int qe_get_num_of_snums(void);
 
 /* we actually use cpm_muram implementation, define this for convenience */
 #define qe_muram_init cpm_muram_init
