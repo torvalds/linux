@@ -1594,6 +1594,7 @@ extern const struct file_operations ext4_file_operations;
 /* namei.c */
 extern const struct inode_operations ext4_dir_inode_operations;
 extern const struct inode_operations ext4_special_inode_operations;
+extern struct dentry *ext4_get_parent(struct dentry *child);
 
 /* symlink.c */
 extern const struct inode_operations ext4_symlink_inode_operations;
