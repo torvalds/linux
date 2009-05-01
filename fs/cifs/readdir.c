@@ -829,7 +829,7 @@ static int find_cifs_entry(const int xid, struct cifsTconInfo *pTcon,
 /* inode num, inode type and filename returned */
 static int cifs_get_name_from_search_buf(struct qstr *pqst,
 	char *current_entry, __u16 level, unsigned int unicode,
-	struct cifs_sb_info *cifs_sb, int max_len, __u64 *pinum)
+	struct cifs_sb_info *cifs_sb, unsigned int max_len, __u64 *pinum)
 {
 	int rc = 0;
 	unsigned int len = 0;
@@ -890,7 +890,8 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 	if (unicode) {
 		pqst->len = cifs_from_ucs2((char *) pqst->name,
 					   (__le16 *) filename,
-					   UNICODE_NAME_MAX, max_len, nlt,
+					   UNICODE_NAME_MAX,
+					   min(len, max_len), nlt,
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else {
@@ -902,8 +903,8 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 	return rc;
 }
 
-static int cifs_filldir(char *pfindEntry, struct file *file,
-	filldir_t filldir, void *direntry, char *scratch_buf, int max_len)
+static int cifs_filldir(char *pfindEntry, struct file *file, filldir_t filldir,
+			void *direntry, char *scratch_buf, unsigned int max_len)
 {
 	int rc = 0;
 	struct qstr qstring;
@@ -1000,7 +1001,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 	int num_to_fill = 0;
 	char *tmp_buf = NULL;
 	char *end_of_smb;
-	int max_len;
+	unsigned int max_len;
 
 	xid = GetXid();
 
