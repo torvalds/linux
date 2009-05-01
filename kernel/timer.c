@@ -1015,6 +1015,9 @@ cascade:
 		index = slot = timer_jiffies & TVN_MASK;
 		do {
 			list_for_each_entry(nte, varp->vec + slot, entry) {
+				if (tbase_get_deferrable(nte->base))
+					continue;
+
 				found = 1;
 				if (time_before(nte->expires, expires))
 					expires = nte->expires;
