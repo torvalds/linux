@@ -34,6 +34,7 @@
 
 #ifdef CONFIG_X86_32
 # define SYSCALL_VECTOR			0x80
+# define IA32_SYSCALL_VECTOR		0x80
 #else
 # define IA32_SYSCALL_VECTOR		0x80
 #endif

@@ -969,11 +969,8 @@ void __init trap_init(void)
 	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++)
 		set_bit(i, used_vectors);
 
-#ifdef CONFIG_X86_64
 	set_bit(IA32_SYSCALL_VECTOR, used_vectors);
-#else
-	set_bit(SYSCALL_VECTOR, used_vectors);
-#endif
+
 	/*
 	 * Should be a barrier for any external CPU state:
 	 */

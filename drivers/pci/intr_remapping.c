@@ -15,6 +15,14 @@ static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static int ir_ioapic_num;
 int intr_remapping_enabled;
 
+static int disable_intremap;
+static __init int setup_nointremap(char *str)
+{
+	disable_intremap = 1;
+	return 0;
+}
+early_param("nointremap", setup_nointremap);
+
 struct irq_2_iommu {
 	struct intel_iommu *iommu;
 	u16 irte_index;
@@ -420,20 +428,6 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 		      readl, (sts & DMA_GSTS_IRTPS), sts);
 	spin_unlock_irqrestore(&iommu->register_lock, flags);
 
-	if (mode == 0) {
-		spin_lock_irqsave(&iommu->register_lock, flags);
-
-		/* enable comaptiblity format interrupt pass through */
-		cmd = iommu->gcmd | DMA_GCMD_CFI;
-		iommu->gcmd |= DMA_GCMD_CFI;
-		writel(cmd, iommu->reg + DMAR_GCMD_REG);
-
-		IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
-			      readl, (sts & DMA_GSTS_CFIS), sts);
-
-		spin_unlock_irqrestore(&iommu->register_lock, flags);
-	}
-
 	/*
 	 * global invalidation of interrupt entry cache before enabling
 	 * interrupt-remapping.
@@ -511,6 +505,23 @@ static void iommu_disable_intr_remapping(struct intel_iommu *iommu)
 
 end:
 	spin_unlock_irqrestore(&iommu->register_lock, flags);
+}
+
+int __init intr_remapping_supported(void)
+{
+	struct dmar_drhd_unit *drhd;
+
+	if (disable_intremap)
+		return 0;
+
+	for_each_drhd_unit(drhd) {
+		struct intel_iommu *iommu = drhd->iommu;
+
+		if (!ecap_ir_support(iommu->ecap))
+			return 0;
+	}
+
+	return 1;
 }
 
 int __init enable_intr_remapping(int eim)

@@ -98,6 +98,29 @@ early_param("lapic", parse_lapic);
 /* Local APIC was disabled by the BIOS and enabled by the kernel */
 static int enabled_via_apicbase;
 
+/*
+ * Handle interrupt mode configuration register (IMCR).
+ * This register controls whether the interrupt signals
+ * that reach the BSP come from the master PIC or from the
+ * local APIC. Before entering Symmetric I/O Mode, either
+ * the BIOS or the operating system must switch out of
+ * PIC Mode by changing the IMCR.
+ */
+static inline void imcr_pic_to_apic(void)
+{
+	/* select IMCR register */
+	outb(0x70, 0x22);
+	/* NMI and 8259 INTR go through APIC */
+	outb(0x01, 0x23);
+}
+
+static inline void imcr_apic_to_pic(void)
+{
+	/* select IMCR register */
+	outb(0x70, 0x22);
+	/* NMI and 8259 INTR go directly to BSP */
+	outb(0x00, 0x23);
+}
 #endif
 
 #ifdef CONFIG_X86_64
@@ -111,13 +134,19 @@ static __init int setup_apicpmtimer(char *s)
 __setup("apicpmtimer", setup_apicpmtimer);
 #endif
 
+int x2apic_mode;
 #ifdef CONFIG_X86_X2APIC
-int x2apic;
 /* x2apic enabled before OS handover */
 static int x2apic_preenabled;
 static int disable_x2apic;
 static __init int setup_nox2apic(char *str)
 {
+	if (x2apic_enabled()) {
+		pr_warning("Bios already enabled x2apic, "
+			   "can't enforce nox2apic");
+		return 0;
+	}
+
 	disable_x2apic = 1;
 	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
 	return 0;
@@ -207,6 +236,24 @@ static int modern_apic(void)
 	    boot_cpu_data.x86 >= 0xf)
 		return 1;
 	return lapic_get_version() >= 0x14;
+}
+
+/*
+ * bare function to substitute write operation
+ * and it's _that_ fast :)
+ */
+void native_apic_write_dummy(u32 reg, u32 v)
+{
+	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
+}
+
+/*
+ * right after this call apic->write doesn't do anything
+ * note that there is no restore operation it works one way
+ */
+void apic_disable(void)
+{
+	apic->write = native_apic_write_dummy;
 }
 
 void native_apic_wait_icr_idle(void)
@@ -815,7 +862,7 @@ void clear_local_APIC(void)
 	u32 v;
 
 	/* APIC hasn't been mapped yet */
-	if (!x2apic && !apic_phys)
+	if (!x2apic_mode && !apic_phys)
 		return;
 
 	maxlvt = lapic_get_maxlvt();
@@ -1287,7 +1334,7 @@ void check_x2apic(void)
 {
 	if (x2apic_enabled()) {
 		pr_info("x2apic enabled by BIOS, switching to x2apic ops\n");
-		x2apic_preenabled = x2apic = 1;
+		x2apic_preenabled = x2apic_mode = 1;
 	}
 }
 
@@ -1295,7 +1342,7 @@ void enable_x2apic(void)
 {
 	int msr, msr2;
 
-	if (!x2apic)
+	if (!x2apic_mode)
 		return;
 
 	rdmsr(MSR_IA32_APICBASE, msr, msr2);
@@ -1304,6 +1351,7 @@ void enable_x2apic(void)
 		wrmsr(MSR_IA32_APICBASE, msr | X2APIC_ENABLE, 0);
 	}
 }
+#endif /* CONFIG_X86_X2APIC */
 
 void __init enable_IR_x2apic(void)
 {
@@ -1312,32 +1360,21 @@ void __init enable_IR_x2apic(void)
 	unsigned long flags;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
-	if (!cpu_has_x2apic)
-		return;
-
-	if (!x2apic_preenabled && disable_x2apic) {
-		pr_info("Skipped enabling x2apic and Interrupt-remapping "
-			"because of nox2apic\n");
-		return;
-	}
-
-	if (x2apic_preenabled && disable_x2apic)
-		panic("Bios already enabled x2apic, can't enforce nox2apic");
-
-	if (!x2apic_preenabled && skip_ioapic_setup) {
-		pr_info("Skipped enabling x2apic and Interrupt-remapping "
-			"because of skipping io-apic setup\n");
-		return;
-	}
-
 	ret = dmar_table_init();
 	if (ret) {
-		pr_info("dmar_table_init() failed with %d:\n", ret);
+		pr_debug("dmar_table_init() failed with %d:\n", ret);
+		goto ir_failed;
+	}
 
-		if (x2apic_preenabled)
-			panic("x2apic enabled by bios. But IR enabling failed");
-		else
-			pr_info("Not enabling x2apic,Intr-remapping\n");
+	if (!intr_remapping_supported()) {
+		pr_debug("intr-remapping not supported\n");
+		goto ir_failed;
+	}
+
+
+	if (!x2apic_preenabled && skip_ioapic_setup) {
+		pr_info("Skipped enabling intr-remap because of skipping "
+			"io-apic setup\n");
 		return;
 	}
 
@@ -1357,19 +1394,16 @@ void __init enable_IR_x2apic(void)
 	mask_IO_APIC_setup(ioapic_entries);
 	mask_8259A();
 
-	ret = enable_intr_remapping(EIM_32BIT_APIC_ID);
-
-	if (ret && x2apic_preenabled) {
-		local_irq_restore(flags);
-		panic("x2apic enabled by bios. But IR enabling failed");
-	}
-
+	ret = enable_intr_remapping(x2apic_supported());
 	if (ret)
 		goto end_restore;
 
-	if (!x2apic) {
-		x2apic = 1;
+	pr_info("Enabled Interrupt-remapping\n");
+
+	if (x2apic_supported() && !x2apic_mode) {
+		x2apic_mode = 1;
 		enable_x2apic();
+		pr_info("Enabled x2apic\n");
 	}
 
 end_restore:
@@ -1378,37 +1412,34 @@ end_restore:
 		 * IR enabling failed
 		 */
 		restore_IO_APIC_setup(ioapic_entries);
-	else
-		reinit_intr_remapped_IO_APIC(x2apic_preenabled, ioapic_entries);
 
 	unmask_8259A();
 	local_irq_restore(flags);
 
 end:
-	if (!ret) {
-		if (!x2apic_preenabled)
-			pr_info("Enabled x2apic and interrupt-remapping\n");
-		else
-			pr_info("Enabled Interrupt-remapping\n");
-	} else
-		pr_err("Failed to enable Interrupt-remapping and x2apic\n");
 	if (ioapic_entries)
 		free_ioapic_entries(ioapic_entries);
+
+	if (!ret)
+		return;
+
+ir_failed:
+	if (x2apic_preenabled)
+		panic("x2apic enabled by bios. But IR enabling failed");
+	else if (cpu_has_x2apic)
+		pr_info("Not enabling x2apic,Intr-remapping\n");
 #else
 	if (!cpu_has_x2apic)
 		return;
 
 	if (x2apic_preenabled)
 		panic("x2apic enabled prior OS handover,"
-		      " enable CONFIG_INTR_REMAP");
-
-	pr_info("Enable CONFIG_INTR_REMAP for enabling intr-remapping "
-		" and x2apic\n");
+		      " enable CONFIG_X86_X2APIC, CONFIG_INTR_REMAP");
 #endif
 
 	return;
 }
-#endif /* CONFIG_X86_X2APIC */
+
 
 #ifdef CONFIG_X86_64
 /*
@@ -1539,7 +1570,7 @@ void __init early_init_lapic_mapping(void)
  */
 void __init init_apic_mappings(void)
 {
-	if (x2apic) {
+	if (x2apic_mode) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
 	}
@@ -1565,6 +1596,12 @@ void __init init_apic_mappings(void)
 	 */
 	if (boot_cpu_physical_apicid == -1U)
 		boot_cpu_physical_apicid = read_apic_id();
+
+	/* lets check if we may to NOP'ify apic operations */
+	if (!cpu_has_apic) {
+		pr_info("APIC: disable apic facility\n");
+		apic_disable();
+	}
 }
 
 /*
@@ -1733,8 +1770,7 @@ void __init connect_bsp_APIC(void)
 		 */
 		apic_printk(APIC_VERBOSE, "leaving PIC mode, "
 				"enabling APIC mode.\n");
-		outb(0x70, 0x22);
-		outb(0x01, 0x23);
+		imcr_pic_to_apic();
 	}
 #endif
 	if (apic->enable_apic_mode)
@@ -1762,8 +1798,7 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		 */
 		apic_printk(APIC_VERBOSE, "disabling APIC mode, "
 				"entering PIC mode.\n");
-		outb(0x70, 0x22);
-		outb(0x00, 0x23);
+		imcr_apic_to_pic();
 		return;
 	}
 #endif
@@ -1969,10 +2004,10 @@ static int lapic_suspend(struct sys_device *dev, pm_message_t state)
 
 	local_irq_save(flags);
 	disable_local_APIC();
-#ifdef CONFIG_INTR_REMAP
+
 	if (intr_remapping_enabled)
 		disable_intr_remapping();
-#endif
+
 	local_irq_restore(flags);
 	return 0;
 }
@@ -1982,8 +2017,6 @@ static int lapic_resume(struct sys_device *dev)
 	unsigned int l, h;
 	unsigned long flags;
 	int maxlvt;
-
-#ifdef CONFIG_INTR_REMAP
 	int ret;
 	struct IO_APIC_route_entry **ioapic_entries = NULL;
 
@@ -1991,7 +2024,7 @@ static int lapic_resume(struct sys_device *dev)
 		return 0;
 
 	local_irq_save(flags);
-	if (x2apic) {
+	if (intr_remapping_enabled) {
 		ioapic_entries = alloc_ioapic_entries();
 		if (!ioapic_entries) {
 			WARN(1, "Alloc ioapic_entries in lapic resume failed.");
@@ -2007,17 +2040,10 @@ static int lapic_resume(struct sys_device *dev)
 
 		mask_IO_APIC_setup(ioapic_entries);
 		mask_8259A();
-		enable_x2apic();
 	}
-#else
-	if (!apic_pm_state.active)
-		return 0;
 
-	local_irq_save(flags);
-	if (x2apic)
+	if (x2apic_mode)
 		enable_x2apic();
-#endif
-
 	else {
 		/*
 		 * Make sure the APICBASE points to the right address
@@ -2055,19 +2081,14 @@ static int lapic_resume(struct sys_device *dev)
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
 
-#ifdef CONFIG_INTR_REMAP
-	if (intr_remapping_enabled)
-		reenable_intr_remapping(EIM_32BIT_APIC_ID);
-
-	if (x2apic) {
+	if (intr_remapping_enabled) {
+		reenable_intr_remapping(x2apic_mode);
 		unmask_8259A();
 		restore_IO_APIC_setup(ioapic_entries);
 		free_ioapic_entries(ioapic_entries);
 	}
-#endif
 
 	local_irq_restore(flags);
-
 
 	return 0;
 }
@@ -2117,30 +2138,13 @@ static void apic_pm_activate(void) { }
 #endif	/* CONFIG_PM */
 
 #ifdef CONFIG_X86_64
-/*
- * apic_is_clustered_box() -- Check if we can expect good TSC
- *
- * Thus far, the major user of this is IBM's Summit2 series:
- *
- * Clustered boxes may have unsynced TSC problems if they are
- * multi-chassis. Use available data to take a good guess.
- * If in doubt, go HPET.
- */
-__cpuinit int apic_is_clustered_box(void)
+
+static int __cpuinit apic_cluster_num(void)
 {
 	int i, clusters, zeros;
 	unsigned id;
 	u16 *bios_cpu_apicid;
 	DECLARE_BITMAP(clustermap, NUM_APIC_CLUSTERS);
-
-	/*
-	 * there is not this kind of box with AMD CPU yet.
-	 * Some AMD box with quadcore cpu and 8 sockets apicid
-	 * will be [4, 0x23] or [8, 0x27] could be thought to
-	 * vsmp box still need checking...
-	 */
-	if ((boot_cpu_data.x86_vendor == X86_VENDOR_AMD) && !is_vsmp_box())
-		return 0;
 
 	bios_cpu_apicid = early_per_cpu_ptr(x86_bios_cpu_apicid);
 	bitmap_zero(clustermap, NUM_APIC_CLUSTERS);
@@ -2177,18 +2181,67 @@ __cpuinit int apic_is_clustered_box(void)
 			++zeros;
 	}
 
-	/* ScaleMP vSMPowered boxes have one cluster per board and TSCs are
-	 * not guaranteed to be synced between boards
-	 */
-	if (is_vsmp_box() && clusters > 1)
+	return clusters;
+}
+
+static int __cpuinitdata multi_checked;
+static int __cpuinitdata multi;
+
+static int __cpuinit set_multi(const struct dmi_system_id *d)
+{
+	if (multi)
+		return 0;
+	printk(KERN_INFO "APIC: %s detected, Multi Chassis\n", d->ident);
+	multi = 1;
+	return 0;
+}
+
+static const __cpuinitconst struct dmi_system_id multi_dmi_table[] = {
+	{
+		.callback = set_multi,
+		.ident = "IBM System Summit2",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Summit2"),
+		},
+	},
+	{}
+};
+
+static void __cpuinit dmi_check_multi(void)
+{
+	if (multi_checked)
+		return;
+
+	dmi_check_system(multi_dmi_table);
+	multi_checked = 1;
+}
+
+/*
+ * apic_is_clustered_box() -- Check if we can expect good TSC
+ *
+ * Thus far, the major user of this is IBM's Summit2 series:
+ * Clustered boxes may have unsynced TSC problems if they are
+ * multi-chassis.
+ * Use DMI to check them
+ */
+__cpuinit int apic_is_clustered_box(void)
+{
+	dmi_check_multi();
+	if (multi)
 		return 1;
 
+	if (!is_vsmp_box())
+		return 0;
+
 	/*
-	 * If clusters > 2, then should be multi-chassis.
-	 * May have to revisit this when multi-core + hyperthreaded CPUs come
-	 * out, but AFAIK this will work even for them.
+	 * ScaleMP vSMPowered boxes have one cluster per board and TSCs are
+	 * not guaranteed to be synced between boards
 	 */
-	return (clusters > 2);
+	if (apic_cluster_num() > 1)
+		return 1;
+
+	return 0;
 }
 #endif
 
