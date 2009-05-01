@@ -111,7 +111,7 @@ static __le16 get_next_vcnum(struct cifsSesInfo *ses)
 get_vc_num_exit:
 	write_unlock(&cifs_tcp_ses_lock);
 
-	return le16_to_cpu(vcnum);
+	return cpu_to_le16(vcnum);
 }
 
 static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
