@@ -544,39 +544,39 @@ static int check_fmt(const struct v4l2_ioctl_ops *ops, enum v4l2_buf_type type)
 
 	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (ops->vidioc_try_fmt_vid_cap)
+		if (ops->vidioc_g_fmt_vid_cap)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OVERLAY:
-		if (ops->vidioc_try_fmt_vid_overlay)
+		if (ops->vidioc_g_fmt_vid_overlay)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		if (ops->vidioc_try_fmt_vid_out)
+		if (ops->vidioc_g_fmt_vid_out)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY:
-		if (ops->vidioc_try_fmt_vid_out_overlay)
+		if (ops->vidioc_g_fmt_vid_out_overlay)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		if (ops->vidioc_try_fmt_vbi_cap)
+		if (ops->vidioc_g_fmt_vbi_cap)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_VBI_OUTPUT:
-		if (ops->vidioc_try_fmt_vbi_out)
+		if (ops->vidioc_g_fmt_vbi_out)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		if (ops->vidioc_try_fmt_sliced_vbi_cap)
+		if (ops->vidioc_g_fmt_sliced_vbi_cap)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
-		if (ops->vidioc_try_fmt_sliced_vbi_out)
+		if (ops->vidioc_g_fmt_sliced_vbi_out)
 			return 0;
 		break;
 	case V4L2_BUF_TYPE_PRIVATE:
-		if (ops->vidioc_try_fmt_type_private)
+		if (ops->vidioc_g_fmt_type_private)
 			return 0;
 		break;
 	}
