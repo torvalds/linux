@@ -1279,14 +1279,12 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_counter *counter = file->private_data;
 	struct perf_mmap_data *data;
-	unsigned int events;
+	unsigned int events = POLL_HUP;
 
 	rcu_read_lock();
 	data = rcu_dereference(counter->data);
 	if (data)
-		events = atomic_xchg(&data->wakeup, 0);
-	else
-		events = POLL_HUP;
+		events = atomic_xchg(&data->poll, 0);
 	rcu_read_unlock();
 
 	poll_wait(file, &counter->waitq, wait);
@@ -1568,22 +1566,6 @@ static const struct file_operations perf_fops = {
 
 void perf_counter_wakeup(struct perf_counter *counter)
 {
-	struct perf_mmap_data *data;
-
-	rcu_read_lock();
-	data = rcu_dereference(counter->data);
-	if (data) {
-		atomic_set(&data->wakeup, POLL_IN);
-		/*
-		 * Ensure all data writes are issued before updating the
-		 * user-space data head information. The matching rmb()
-		 * will be in userspace after reading this value.
-		 */
-		smp_wmb();
-		data->user_page->data_head = atomic_read(&data->head);
-	}
-	rcu_read_unlock();
-
 	wake_up_all(&counter->waitq);
 
 	if (counter->pending_kill) {
@@ -1721,16 +1703,100 @@ struct perf_output_handle {
 	int			wakeup;
 	int			nmi;
 	int			overflow;
+	int			locked;
+	unsigned long		flags;
 };
 
-static inline void __perf_output_wakeup(struct perf_output_handle *handle)
+static void perf_output_wakeup(struct perf_output_handle *handle)
 {
+	atomic_set(&handle->data->poll, POLL_IN);
+
 	if (handle->nmi) {
 		handle->counter->pending_wakeup = 1;
 		perf_pending_queue(&handle->counter->pending,
 				   perf_pending_counter);
 	} else
 		perf_counter_wakeup(handle->counter);
+}
+
+/*
+ * Curious locking construct.
+ *
+ * We need to ensure a later event doesn't publish a head when a former
+ * event isn't done writing. However since we need to deal with NMIs we
+ * cannot fully serialize things.
+ *
+ * What we do is serialize between CPUs so we only have to deal with NMI
+ * nesting on a single CPU.
+ *
+ * We only publish the head (and generate a wakeup) when the outer-most
+ * event completes.
+ */
+static void perf_output_lock(struct perf_output_handle *handle)
+{
+	struct perf_mmap_data *data = handle->data;
+	int cpu;
+
+	handle->locked = 0;
+
+	local_irq_save(handle->flags);
+	cpu = smp_processor_id();
+
+	if (in_nmi() && atomic_read(&data->lock) == cpu)
+		return;
+
+	while (atomic_cmpxchg(&data->lock, 0, cpu) != 0)
+		cpu_relax();
+
+	handle->locked = 1;
+}
+
+static void perf_output_unlock(struct perf_output_handle *handle)
+{
+	struct perf_mmap_data *data = handle->data;
+	int head, cpu;
+
+	if (handle->wakeup)
+		data->wakeup_head = data->head;
+
+	if (!handle->locked)
+		goto out;
+
+again:
+	/*
+	 * The xchg implies a full barrier that ensures all writes are done
+	 * before we publish the new head, matched by a rmb() in userspace when
+	 * reading this position.
+	 */
+	while ((head = atomic_xchg(&data->wakeup_head, 0))) {
+		data->user_page->data_head = head;
+		handle->wakeup = 1;
+	}
+
+	/*
+	 * NMI can happen here, which means we can miss a wakeup_head update.
+	 */
+
+	cpu = atomic_xchg(&data->lock, 0);
+	WARN_ON_ONCE(cpu != smp_processor_id());
+
+	/*
+	 * Therefore we have to validate we did not indeed do so.
+	 */
+	if (unlikely(atomic_read(&data->wakeup_head))) {
+		/*
+		 * Since we had it locked, we can lock it again.
+		 */
+		while (atomic_cmpxchg(&data->lock, 0, cpu) != 0)
+			cpu_relax();
+
+		goto again;
+	}
+
+	if (handle->wakeup)
+		perf_output_wakeup(handle);
+out:
+	local_irq_restore(handle->flags);
 }
 
 static int perf_output_begin(struct perf_output_handle *handle,
@@ -1745,6 +1811,7 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	if (!data)
 		goto out;
 
+	handle->data	 = data;
 	handle->counter	 = counter;
 	handle->nmi	 = nmi;
 	handle->overflow = overflow;
@@ -1752,12 +1819,13 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	if (!data->nr_pages)
 		goto fail;
 
+	perf_output_lock(handle);
+
 	do {
 		offset = head = atomic_read(&data->head);
 		head += size;
 	} while (atomic_cmpxchg(&data->head, offset, head) != offset);
 
-	handle->data	= data;
 	handle->offset	= offset;
 	handle->head	= head;
 	handle->wakeup	= (offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT);
@@ -1765,7 +1833,7 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	return 0;
 
 fail:
-	__perf_output_wakeup(handle);
+	perf_output_wakeup(handle);
 out:
 	rcu_read_unlock();
 
@@ -1809,16 +1877,20 @@ static void perf_output_copy(struct perf_output_handle *handle,
 
 static void perf_output_end(struct perf_output_handle *handle)
 {
-	int wakeup_events = handle->counter->hw_event.wakeup_events;
+	struct perf_counter *counter = handle->counter;
+	struct perf_mmap_data *data = handle->data;
+
+	int wakeup_events = counter->hw_event.wakeup_events;
 
 	if (handle->overflow && wakeup_events) {
-		int events = atomic_inc_return(&handle->data->events);
+		int events = atomic_inc_return(&data->events);
 		if (events >= wakeup_events) {
-			atomic_sub(wakeup_events, &handle->data->events);
-			__perf_output_wakeup(handle);
+			atomic_sub(wakeup_events, &data->events);
+			handle->wakeup = 1;
 		}
-	} else if (handle->wakeup)
-		__perf_output_wakeup(handle);
+	}
+
+	perf_output_unlock(handle);
 	rcu_read_unlock();
 }
 
