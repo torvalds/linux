@@ -343,6 +343,7 @@ enum {
 #define NVREG_POWERSTATE2_POWERUP_MASK		0x0F15
 #define NVREG_POWERSTATE2_POWERUP_REV_A3	0x0001
 #define NVREG_POWERSTATE2_PHY_RESET		0x0004
+#define NVREG_POWERSTATE2_GATE_CLOCKS		0x0F00
 };
 
 /* Big endian: should work, but is untested */
@@ -1015,6 +1016,23 @@ static int using_multi_irqs(struct net_device *dev)
 		return 0;
 	else
 		return 1;
+}
+
+static void nv_txrx_gate(struct net_device *dev, bool gate)
+{
+	struct fe_priv *np = get_nvpriv(dev);
+	u8 __iomem *base = get_hwbase(dev);
+	u32 powerstate;
+
+	if (!np->mac_in_use &&
+	    (np->driver_data & DEV_HAS_POWER_CNTRL)) {
+		powerstate = readl(base + NvRegPowerState2);
+		if (gate)
+			powerstate |= NVREG_POWERSTATE2_GATE_CLOCKS;
+		else
+			powerstate &= ~NVREG_POWERSTATE2_GATE_CLOCKS;
+		writel(powerstate, base + NvRegPowerState2);
+	}
 }
 
 static void nv_enable_irq(struct net_device *dev)
@@ -3394,12 +3412,14 @@ static void nv_linkchange(struct net_device *dev)
 		if (!netif_carrier_ok(dev)) {
 			netif_carrier_on(dev);
 			printk(KERN_INFO "%s: link up.\n", dev->name);
+			nv_txrx_gate(dev, false);
 			nv_start_rx(dev);
 		}
 	} else {
 		if (netif_carrier_ok(dev)) {
 			netif_carrier_off(dev);
 			printk(KERN_INFO "%s: link down.\n", dev->name);
+			nv_txrx_gate(dev, true);
 			nv_stop_rx(dev);
 		}
 	}
@@ -5327,6 +5347,7 @@ static int nv_open(struct net_device *dev)
 	mii_rw(dev, np->phyaddr, MII_BMCR,
 	       mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ) & ~BMCR_PDOWN);
 
+	nv_txrx_gate(dev, false);
 	/* erase previous misconfiguration */
 	if (np->driver_data & DEV_HAS_POWER_CNTRL)
 		nv_mac_reset(dev);
@@ -5514,12 +5535,14 @@ static int nv_close(struct net_device *dev)
 	nv_drain_rxtx(dev);
 
 	if (np->wolenabled) {
+		nv_txrx_gate(dev, false);
 		writel(NVREG_PFF_ALWAYS|NVREG_PFF_MYADDR, base + NvRegPacketFilterFlags);
 		nv_start_rx(dev);
 	} else {
 		/* power down phy */
 		mii_rw(dev, np->phyaddr, MII_BMCR,
 		       mii_rw(dev, np->phyaddr, MII_BMCR, MII_READ)|BMCR_PDOWN);
+		nv_txrx_gate(dev, true);
 	}
 
 	/* FIXME: power down nic */
