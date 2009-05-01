@@ -405,7 +405,8 @@ struct ring_buffer_per_cpu {
 	unsigned long			nmi_dropped;
 	unsigned long			commit_overrun;
 	unsigned long			overrun;
-	unsigned long			entries;
+	unsigned long			read;
+	local_t				entries;
 	u64				write_stamp;
 	u64				read_stamp;
 	atomic_t			record_disabled;
@@ -997,7 +998,6 @@ static void rb_update_overflow(struct ring_buffer_per_cpu *cpu_buffer)
 		if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 			continue;
 		cpu_buffer->overrun++;
-		cpu_buffer->entries--;
 	}
 }
 
@@ -1588,7 +1588,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_lock_reserve);
 static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
 		      struct ring_buffer_event *event)
 {
-	cpu_buffer->entries++;
+	local_inc(&cpu_buffer->entries);
 
 	/* Only process further if we own the commit */
 	if (!rb_is_commit(cpu_buffer, event))
@@ -1722,7 +1722,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	 * The commit is still visible by the reader, so we
 	 * must increment entries.
 	 */
-	cpu_buffer->entries++;
+	local_inc(&cpu_buffer->entries);
  out:
 	/*
 	 * If a write came in and pushed the tail page
@@ -1902,7 +1902,8 @@ unsigned long ring_buffer_entries_cpu(struct ring_buffer *buffer, int cpu)
 		return 0;
 
 	cpu_buffer = buffer->buffers[cpu];
-	ret = cpu_buffer->entries;
+	ret = (local_read(&cpu_buffer->entries) - cpu_buffer->overrun)
+		- cpu_buffer->read;
 
 	return ret;
 }
@@ -1985,7 +1986,8 @@ unsigned long ring_buffer_entries(struct ring_buffer *buffer)
 	/* if you care about this being correct, lock the buffer */
 	for_each_buffer_cpu(buffer, cpu) {
 		cpu_buffer = buffer->buffers[cpu];
-		entries += cpu_buffer->entries;
+		entries += (local_read(&cpu_buffer->entries) -
+			    cpu_buffer->overrun) - cpu_buffer->read;
 	}
 
 	return entries;
@@ -2225,7 +2227,7 @@ static void rb_advance_reader(struct ring_buffer_per_cpu *cpu_buffer)
 
 	if (event->type_len <= RINGBUF_TYPE_DATA_TYPE_LEN_MAX
 			|| rb_discarded_event(event))
-		cpu_buffer->entries--;
+		cpu_buffer->read++;
 
 	rb_update_read_stamp(cpu_buffer, event);
 
@@ -2642,7 +2644,8 @@ rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer)
 	cpu_buffer->nmi_dropped = 0;
 	cpu_buffer->commit_overrun = 0;
 	cpu_buffer->overrun = 0;
-	cpu_buffer->entries = 0;
+	cpu_buffer->read = 0;
+	local_set(&cpu_buffer->entries, 0);
 
 	cpu_buffer->write_stamp = 0;
 	cpu_buffer->read_stamp = 0;
@@ -2813,7 +2816,7 @@ static void rb_remove_entries(struct ring_buffer_per_cpu *cpu_buffer,
 		/* Only count data entries */
 		if (event->type_len > RINGBUF_TYPE_DATA_TYPE_LEN_MAX)
 			continue;
-		cpu_buffer->entries--;
+		cpu_buffer->read++;
 	}
 	__raw_spin_unlock(&cpu_buffer->lock);
 }
