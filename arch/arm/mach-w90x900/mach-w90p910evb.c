@@ -135,6 +135,29 @@ struct platform_device w90x900_device_usb_ohci = {
 };
 EXPORT_SYMBOL(w90x900_device_usb_ohci);
 
+/*TouchScreen controller*/
+
+static struct resource w90x900_ts_resource[] = {
+	[0] = {
+		.start = W90X900_PA_ADC,
+		.end   = W90X900_PA_ADC + W90X900_SZ_ADC-1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_ADC,
+		.end   = IRQ_ADC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device w90x900_device_ts = {
+	.name		= "w90x900-ts",
+	.id		= -1,
+	.resource	= w90x900_ts_resource,
+	.num_resources	= ARRAY_SIZE(w90x900_ts_resource),
+};
+EXPORT_SYMBOL(w90x900_device_ts);
+
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
@@ -145,6 +168,7 @@ static struct platform_device *w90p910evb_dev[] __initdata = {
 	&w90p910_flash_device,
 	&w90x900_device_usb_ehci,
 	&w90x900_device_usb_ohci,
+	&w90x900_device_ts,
 };
 
 static void __init w90p910evb_map_io(void)
