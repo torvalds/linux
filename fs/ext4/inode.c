@@ -4965,7 +4965,8 @@ static int ext4_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
  */
 int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 {
-	int groups, gdpblocks;
+	ext4_group_t groups, ngroups = ext4_get_groups_count(inode->i_sb);
+	int gdpblocks;
 	int idxblocks;
 	int ret = 0;
 
@@ -4992,8 +4993,8 @@ int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 		groups += nrblocks;
 
 	gdpblocks = groups;
-	if (groups > EXT4_SB(inode->i_sb)->s_groups_count)
-		groups = EXT4_SB(inode->i_sb)->s_groups_count;
+	if (groups > ngroups)
+		groups = ngroups;
 	if (groups > EXT4_SB(inode->i_sb)->s_gdb_count)
 		gdpblocks = EXT4_SB(inode->i_sb)->s_gdb_count;
 

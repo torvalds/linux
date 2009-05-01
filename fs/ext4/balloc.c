@@ -88,6 +88,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 ext4_group_t block_group, struct ext4_group_desc *gdp)
 {
 	int bit, bit_max;
+	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	unsigned free_blocks, group_blocks;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
@@ -123,7 +124,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		bit_max += ext4_bg_num_gdb(sb, block_group);
 	}
 
-	if (block_group == sbi->s_groups_count - 1) {
+	if (block_group == ngroups - 1) {
 		/*
 		 * Even though mke2fs always initialize first and last group
 		 * if some other tool enabled the EXT4_BG_BLOCK_UNINIT we need
@@ -131,7 +132,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 */
 		group_blocks = ext4_blocks_count(sbi->s_es) -
 			le32_to_cpu(sbi->s_es->s_first_data_block) -
-			(EXT4_BLOCKS_PER_GROUP(sb) * (sbi->s_groups_count - 1));
+			(EXT4_BLOCKS_PER_GROUP(sb) * (ngroups - 1));
 	} else {
 		group_blocks = EXT4_BLOCKS_PER_GROUP(sb);
 	}
@@ -205,18 +206,18 @@ struct ext4_group_desc * ext4_get_group_desc(struct super_block *sb,
 {
 	unsigned int group_desc;
 	unsigned int offset;
+	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	struct ext4_group_desc *desc;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (block_group >= sbi->s_groups_count) {
+	if (block_group >= ngroups) {
 		ext4_error(sb, "ext4_get_group_desc",
 			   "block_group >= groups_count - "
 			   "block_group = %u, groups_count = %u",
-			   block_group, sbi->s_groups_count);
+			   block_group, ngroups);
 
 		return NULL;
 	}
-	smp_rmb();
 
 	group_desc = block_group >> EXT4_DESC_PER_BLOCK_BITS(sb);
 	offset = block_group & (EXT4_DESC_PER_BLOCK(sb) - 1);
@@ -665,7 +666,7 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 	ext4_fsblk_t desc_count;
 	struct ext4_group_desc *gdp;
 	ext4_group_t i;
-	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
+	ext4_group_t ngroups = ext4_get_groups_count(sb);
 #ifdef EXT4FS_DEBUG
 	struct ext4_super_block *es;
 	ext4_fsblk_t bitmap_count;
@@ -677,7 +678,6 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 	bitmap_count = 0;
 	gdp = NULL;
 
-	smp_rmb();
 	for (i = 0; i < ngroups; i++) {
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
@@ -700,7 +700,6 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 	return bitmap_count;
 #else
 	desc_count = 0;
-	smp_rmb();
 	for (i = 0; i < ngroups; i++) {
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)

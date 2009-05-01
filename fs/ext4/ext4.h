@@ -1228,6 +1228,18 @@ struct ext4_group_info *ext4_get_group_info(struct super_block *sb,
 	 return grp_info[indexv][indexh];
 }
 
+/*
+ * Reading s_groups_count requires using smp_rmb() afterwards.  See
+ * the locking protocol documented in the comments of ext4_group_add()
+ * in resize.c
+ */
+static inline ext4_group_t ext4_get_groups_count(struct super_block *sb)
+{
+	ext4_group_t	ngroups = EXT4_SB(sb)->s_groups_count;
+
+	smp_rmb();
+	return ngroups;
+}
 
 static inline ext4_group_t ext4_flex_group(struct ext4_sb_info *sbi,
 					     ext4_group_t block_group)

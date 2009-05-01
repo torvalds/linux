@@ -3557,9 +3557,8 @@ static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
 	if (test_opt(sb, MINIX_DF)) {
 		sbi->s_overhead_last = 0;
 	} else if (sbi->s_blocks_last != ext4_blocks_count(es)) {
-		ext4_group_t ngroups = sbi->s_groups_count, i;
+		ext4_group_t i, ngroups = ext4_get_groups_count(sb);
 		ext4_fsblk_t overhead = 0;
-		smp_rmb();
 
 		/*
 		 * Compute the overhead (FS structures).  This is constant

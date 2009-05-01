@@ -316,7 +316,7 @@ error_return:
 static int find_group_dir(struct super_block *sb, struct inode *parent,
 				ext4_group_t *best_group)
 {
-	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
+	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	unsigned int freei, avefreei;
 	struct ext4_group_desc *desc, *best_desc = NULL;
 	ext4_group_t group;
@@ -353,7 +353,7 @@ static int find_group_flex(struct super_block *sb, struct inode *parent,
 	struct flex_groups *flex_group = sbi->s_flex_groups;
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
 	ext4_group_t parent_fbg_group = ext4_flex_group(sbi, parent_group);
-	ext4_group_t ngroups = sbi->s_groups_count;
+	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	int flex_size = ext4_flex_bg_size(sbi);
 	ext4_group_t best_flex = parent_fbg_group;
 	int blocks_per_flex = sbi->s_blocks_per_group * flex_size;
@@ -362,7 +362,7 @@ static int find_group_flex(struct super_block *sb, struct inode *parent,
 	ext4_group_t n_fbg_groups;
 	ext4_group_t i;
 
-	n_fbg_groups = (sbi->s_groups_count + flex_size - 1) >>
+	n_fbg_groups = (ngroups + flex_size - 1) >>
 		sbi->s_log_groups_per_flex;
 
 find_close_to_parent:
@@ -478,20 +478,21 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 {
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	ext4_group_t ngroups = sbi->s_groups_count;
+	ext4_group_t real_ngroups = ext4_get_groups_count(sb);
 	int inodes_per_group = EXT4_INODES_PER_GROUP(sb);
 	unsigned int freei, avefreei;
 	ext4_fsblk_t freeb, avefreeb;
 	unsigned int ndirs;
 	int max_dirs, min_inodes;
 	ext4_grpblk_t min_blocks;
-	ext4_group_t i, grp, g;
+	ext4_group_t i, grp, g, ngroups;
 	struct ext4_group_desc *desc;
 	struct orlov_stats stats;
 	int flex_size = ext4_flex_bg_size(sbi);
 
+	ngroups = real_ngroups;
 	if (flex_size > 1) {
-		ngroups = (ngroups + flex_size - 1) >>
+		ngroups = (real_ngroups + flex_size - 1) >>
 			sbi->s_log_groups_per_flex;
 		parent_group >>= sbi->s_log_groups_per_flex;
 	}
@@ -543,7 +544,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 		 */
 		grp *= flex_size;
 		for (i = 0; i < flex_size; i++) {
-			if (grp+i >= sbi->s_groups_count)
+			if (grp+i >= real_ngroups)
 				break;
 			desc = ext4_get_group_desc(sb, grp+i, NULL);
 			if (desc && ext4_free_inodes_count(sb, desc)) {
@@ -583,7 +584,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 	}
 
 fallback:
-	ngroups = sbi->s_groups_count;
+	ngroups = real_ngroups;
 	avefreei = freei / ngroups;
 fallback_retry:
 	parent_group = EXT4_I(parent)->i_block_group;
@@ -613,9 +614,8 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 			    ext4_group_t *group, int mode)
 {
 	ext4_group_t parent_group = EXT4_I(parent)->i_block_group;
-	ext4_group_t ngroups = EXT4_SB(sb)->s_groups_count;
+	ext4_group_t i, last, ngroups = ext4_get_groups_count(sb);
 	struct ext4_group_desc *desc;
-	ext4_group_t i, last;
 	int flex_size = ext4_flex_bg_size(EXT4_SB(sb));
 
 	/*
@@ -799,11 +799,10 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
 	struct super_block *sb;
 	struct buffer_head *inode_bitmap_bh = NULL;
 	struct buffer_head *group_desc_bh;
-	ext4_group_t group = 0;
+	ext4_group_t ngroups, group = 0;
 	unsigned long ino = 0;
 	struct inode *inode;
 	struct ext4_group_desc *gdp = NULL;
-	struct ext4_super_block *es;
 	struct ext4_inode_info *ei;
 	struct ext4_sb_info *sbi;
 	int ret2, err = 0;
@@ -818,15 +817,14 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
 		return ERR_PTR(-EPERM);
 
 	sb = dir->i_sb;
+	ngroups = ext4_get_groups_count(sb);
 	trace_mark(ext4_request_inode, "dev %s dir %lu mode %d", sb->s_id,
 		   dir->i_ino, mode);
 	inode = new_inode(sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	ei = EXT4_I(inode);
-
 	sbi = EXT4_SB(sb);
-	es = sbi->s_es;
 
 	if (sbi->s_log_groups_per_flex && test_opt(sb, OLDALLOC)) {
 		ret2 = find_group_flex(sb, dir, &group);
@@ -856,7 +854,7 @@ got_group:
 	if (ret2 == -1)
 		goto out;
 
-	for (i = 0; i < sbi->s_groups_count; i++) {
+	for (i = 0; i < ngroups; i++) {
 		err = -EIO;
 
 		gdp = ext4_get_group_desc(sb, group, &group_desc_bh);
@@ -917,7 +915,7 @@ repeat_in_this_group:
 		 * group descriptor metadata has not yet been updated.
 		 * So we just go onto the next blockgroup.
 		 */
-		if (++group == sbi->s_groups_count)
+		if (++group == ngroups)
 			group = 0;
 	}
 	err = -ENOSPC;
@@ -1158,7 +1156,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 {
 	unsigned long desc_count;
 	struct ext4_group_desc *gdp;
-	ext4_group_t i;
+	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
 #ifdef EXT4FS_DEBUG
 	struct ext4_super_block *es;
 	unsigned long bitmap_count, x;
@@ -1168,7 +1166,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 	desc_count = 0;
 	bitmap_count = 0;
 	gdp = NULL;
-	for (i = 0; i < EXT4_SB(sb)->s_groups_count; i++) {
+	for (i = 0; i < ngroups; i++) {
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
@@ -1190,7 +1188,7 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 	return desc_count;
 #else
 	desc_count = 0;
-	for (i = 0; i < EXT4_SB(sb)->s_groups_count; i++) {
+	for (i = 0; i < ngroups; i++) {
 		gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
@@ -1205,9 +1203,9 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 unsigned long ext4_count_dirs(struct super_block * sb)
 {
 	unsigned long count = 0;
-	ext4_group_t i;
+	ext4_group_t i, ngroups = ext4_get_groups_count(sb);
 
-	for (i = 0; i < EXT4_SB(sb)->s_groups_count; i++) {
+	for (i = 0; i < ngroups; i++) {
 		struct ext4_group_desc *gdp = ext4_get_group_desc(sb, i, NULL);
 		if (!gdp)
 			continue;
