@@ -3,8 +3,7 @@
  *
  * Based on linux/arch/arm/plat-s3c24xx/s3c244x.c by Ben Dooks
  *
- * Copyright (c) 2008 Nuvoton technology corporation
- * All rights reserved.
+ * Copyright (c) 2008 Nuvoton technology corporation.
  *
  * Wan ZongShun <mcuos.com@gmail.com>
  *
@@ -12,8 +11,7 @@
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * the Free Software Foundation;version 2 of the License.
  *
  */
 
@@ -45,6 +43,9 @@ static struct map_desc w90p910_iodesc[] __initdata = {
 	IODESC_ENT(UART),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(EBI),
+	IODESC_ENT(USBEHCIHOST),
+	IODESC_ENT(USBOHCIHOST),
+	IODESC_ENT(ADC),
 	/*IODESC_ENT(LCD),*/
 };
 
