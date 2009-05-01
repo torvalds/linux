@@ -74,7 +74,6 @@ struct nfs4_delegation {
 	time_t			dl_time;
 /* For recall: */
 	u32			dl_ident;
-	int			dl_trunc;
 	stateid_t		dl_stateid;
 	struct knfsd_fh		dl_fh;
 };

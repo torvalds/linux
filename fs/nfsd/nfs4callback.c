@@ -224,7 +224,7 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_delegation *dp)
 	WRITE32(OP_CB_RECALL);
 	WRITE32(dp->dl_stateid.si_generation);
 	WRITEMEM(&dp->dl_stateid.si_opaque, sizeof(stateid_opaque_t));
-	WRITE32(dp->dl_trunc);
+	WRITE32(0); /* truncate optimization not implemented */
 	WRITE32(len);
 	WRITEMEM(&dp->dl_fh.fh_base, len);
 	return 0;
@@ -509,8 +509,6 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 	};
 	int retries = 1;
 	int status = 0;
-
-	dp->dl_trunc = 0; /* XXX need to implement truncate optimization */
 
 	status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT);
 	while (retries--) {
