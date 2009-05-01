@@ -287,6 +287,7 @@ export PERL_PATH
 LIB_FILE=libperf.a
 
 LIB_H += ../../include/linux/perf_counter.h
+LIB_H += perf.h
 LIB_H += util/levenshtein.h
 LIB_H += util/parse-options.h
 LIB_H += util/quote.h
