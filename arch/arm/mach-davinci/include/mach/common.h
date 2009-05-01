@@ -66,10 +66,16 @@ struct davinci_soc_info {
 	unsigned			gpio_irq;
 	struct platform_device		*serial_dev;
 	struct emac_platform_data	*emac_pdata;
+	dma_addr_t			sram_dma;
+	unsigned			sram_len;
 };
 
 extern struct davinci_soc_info davinci_soc_info;
 
 extern void davinci_common_init(struct davinci_soc_info *soc_info);
+
+/* standard place to map on-chip SRAMs; they *may* support DMA */
+#define SRAM_VIRT	0xfffe0000
+#define SRAM_SIZE	SZ_128K
 
 #endif /* __ARCH_ARM_MACH_DAVINCI_COMMON_H */

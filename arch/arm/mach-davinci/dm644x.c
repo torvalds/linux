@@ -539,6 +539,13 @@ static struct map_desc dm644x_io_desc[] = {
 		.length		= IO_SIZE,
 		.type		= MT_DEVICE
 	},
+	{
+		.virtual	= SRAM_VIRT,
+		.pfn		= __phys_to_pfn(0x00008000),
+		.length		= SZ_16K,
+		/* MT_MEMORY_NONCACHED requires supersection alignment */
+		.type		= MT_DEVICE,
+	},
 };
 
 /* Contents of JTAG ID register used to identify exact cpu type */
@@ -629,6 +636,8 @@ static struct davinci_soc_info davinci_soc_info_dm644x = {
 	.gpio_irq		= IRQ_GPIOBNK0,
 	.serial_dev		= &dm644x_serial_device,
 	.emac_pdata		= &dm644x_emac_pdata,
+	.sram_dma		= 0x00008000,
+	.sram_len		= SZ_16K,
 };
 
 void __init dm644x_init(void)
