@@ -318,7 +318,7 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive,
 
 	ide_floppy_create_mode_sense_cmd(pc, IDEFLOPPY_FLEXIBLE_DISK_PAGE);
 
-	if (ide_queue_pc_tail(drive, disk, pc)) {
+	if (ide_queue_pc_tail(drive, disk, pc, pc->req_xfer)) {
 		printk(KERN_ERR PFX "Can't get flexible disk page params\n");
 		return 1;
 	}
@@ -390,7 +390,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	pc.buf = &pc_buf[0];
 	pc.buf_size = sizeof(pc_buf);
 
-	if (ide_queue_pc_tail(drive, disk, &pc)) {
+	if (ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer)) {
 		printk(KERN_ERR PFX "Can't get floppy parameters\n");
 		return 1;
 	}

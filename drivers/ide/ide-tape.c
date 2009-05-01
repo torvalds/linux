@@ -770,7 +770,7 @@ static int idetape_flush_tape_buffers(ide_drive_t *drive)
 	int rc;
 
 	idetape_create_write_filemark_cmd(drive, &pc, 0);
-	rc = ide_queue_pc_tail(drive, tape->disk, &pc);
+	rc = ide_queue_pc_tail(drive, tape->disk, &pc, pc.req_xfer);
 	if (rc)
 		return rc;
 	idetape_wait_ready(drive, 60 * 5 * HZ);
@@ -793,7 +793,7 @@ static int idetape_read_position(ide_drive_t *drive)
 	debug_log(DBG_PROCS, "Enter %s\n", __func__);
 
 	idetape_create_read_position_cmd(&pc);
-	if (ide_queue_pc_tail(drive, tape->disk, &pc))
+	if (ide_queue_pc_tail(drive, tape->disk, &pc, pc.req_xfer))
 		return -1;
 	position = tape->first_frame;
 	return position;
@@ -846,12 +846,12 @@ static int idetape_position_tape(ide_drive_t *drive, unsigned int block,
 		__ide_tape_discard_merge_buffer(drive);
 	idetape_wait_ready(drive, 60 * 5 * HZ);
 	idetape_create_locate_cmd(drive, &pc, block, partition, skip);
-	retval = ide_queue_pc_tail(drive, disk, &pc);
+	retval = ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer);
 	if (retval)
 		return (retval);
 
 	idetape_create_read_position_cmd(&pc);
-	return ide_queue_pc_tail(drive, disk, &pc);
+	return ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer);
 }
 
 static void ide_tape_discard_merge_buffer(ide_drive_t *drive,
@@ -1047,12 +1047,12 @@ static int idetape_rewind_tape(ide_drive_t *drive)
 	debug_log(DBG_SENSE, "Enter %s\n", __func__);
 
 	idetape_create_rewind_cmd(drive, &pc);
-	retval = ide_queue_pc_tail(drive, disk, &pc);
+	retval = ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer);
 	if (retval)
 		return retval;
 
 	idetape_create_read_position_cmd(&pc);
-	retval = ide_queue_pc_tail(drive, disk, &pc);
+	retval = ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer);
 	if (retval)
 		return retval;
 	return 0;
@@ -1120,7 +1120,7 @@ static int idetape_space_over_filemarks(ide_drive_t *drive, short mt_op,
 	case MTBSF:
 		idetape_create_space_cmd(&pc, mt_count - count,
 					 IDETAPE_SPACE_OVER_FILEMARK);
-		return ide_queue_pc_tail(drive, disk, &pc);
+		return ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer);
 	case MTFSFM:
 	case MTBSFM:
 		if (!sprev)
@@ -1259,7 +1259,7 @@ static int idetape_write_filemark(ide_drive_t *drive)
 
 	/* Write a filemark */
 	idetape_create_write_filemark_cmd(drive, &pc, 1);
-	if (ide_queue_pc_tail(drive, tape->disk, &pc)) {
+	if (ide_queue_pc_tail(drive, tape->disk, &pc, pc.req_xfer)) {
 		printk(KERN_ERR "ide-tape: Couldn't write a filemark\n");
 		return -EIO;
 	}
@@ -1344,11 +1344,11 @@ static int idetape_mtioctop(ide_drive_t *drive, short mt_op, int mt_count)
 			IDETAPE_LU_RETENSION_MASK | IDETAPE_LU_LOAD_MASK);
 	case MTEOM:
 		idetape_create_space_cmd(&pc, 0, IDETAPE_SPACE_TO_EOD);
-		return ide_queue_pc_tail(drive, disk, &pc);
+		return ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer);
 	case MTERASE:
 		(void)idetape_rewind_tape(drive);
 		idetape_create_erase_cmd(&pc);
-		return ide_queue_pc_tail(drive, disk, &pc);
+		return ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer);
 	case MTSETBLK:
 		if (mt_count) {
 			if (mt_count < tape->blk_size ||
@@ -1457,7 +1457,7 @@ static void ide_tape_get_bsize_from_bdesc(ide_drive_t *drive)
 	struct ide_atapi_pc pc;
 
 	idetape_create_mode_sense_cmd(&pc, IDETAPE_BLOCK_DESCRIPTOR);
-	if (ide_queue_pc_tail(drive, tape->disk, &pc)) {
+	if (ide_queue_pc_tail(drive, tape->disk, &pc, pc.req_xfer)) {
 		printk(KERN_ERR "ide-tape: Can't get block descriptor\n");
 		if (tape->blk_size == 0) {
 			printk(KERN_WARNING "ide-tape: Cannot deal with zero "
@@ -1613,7 +1613,7 @@ static void idetape_get_inquiry_results(ide_drive_t *drive)
 	pc.buf = &pc_buf[0];
 	pc.buf_size = sizeof(pc_buf);
 
-	if (ide_queue_pc_tail(drive, tape->disk, &pc)) {
+	if (ide_queue_pc_tail(drive, tape->disk, &pc, pc.req_xfer)) {
 		printk(KERN_ERR "ide-tape: %s: can't get INQUIRY results\n",
 				tape->name);
 		return;
@@ -1642,7 +1642,7 @@ static void idetape_get_mode_sense_results(ide_drive_t *drive)
 	u8 speed, max_speed;
 
 	idetape_create_mode_sense_cmd(&pc, IDETAPE_CAPABILITIES_PAGE);
-	if (ide_queue_pc_tail(drive, tape->disk, &pc)) {
+	if (ide_queue_pc_tail(drive, tape->disk, &pc, pc.req_xfer)) {
 		printk(KERN_ERR "ide-tape: Can't get tape parameters - assuming"
 				" some default values\n");
 		tape->blk_size = 512;
