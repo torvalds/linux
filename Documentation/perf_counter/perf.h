@@ -26,20 +26,14 @@ static inline unsigned long long rdclock(void)
 #define __user
 #define asmlinkage
 
-#ifdef __x86_64__
-#define __NR_perf_counter_open 298
-#define rmb()		asm volatile("lfence" ::: "memory")
-#define cpu_relax()	asm volatile("rep; nop" ::: "memory");
-#endif
-
-#ifdef __i386__
-#define __NR_perf_counter_open 336
+#if defined(__x86_64__) || defined(__i386__)
+#include "../../arch/x86/include/asm/unistd.h"
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #endif
 
 #ifdef __powerpc__
-#define __NR_perf_counter_open 319
+#include "../../arch/powerpc/include/asm/unistd.h"
 #define rmb()		asm volatile ("sync" ::: "memory")
 #define cpu_relax()	asm volatile ("" ::: "memory");
 #endif
