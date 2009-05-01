@@ -120,25 +120,20 @@ static struct dentry *lookup_or_create_dir(struct dentry *parent,
 	struct dentry *dentry;
 	BUG_ON(!parent);
 
+	mutex_lock_nested(&parent->d_inode->i_mutex, I_MUTEX_XATTR);
 	dentry = lookup_one_len(name, parent, strlen(name));
-	if (IS_ERR(dentry))
-		return dentry;
-	else if (!dentry->d_inode) {
+	if (!IS_ERR(dentry) && !dentry->d_inode) {
 		int err = -ENODATA;
 
-		if (xattr_may_create(flags)) {
-			mutex_lock_nested(&parent->d_inode->i_mutex,
-					  I_MUTEX_XATTR);
+		if (xattr_may_create(flags))
 			err = xattr_mkdir(parent->d_inode, dentry, 0700);
-			mutex_unlock(&parent->d_inode->i_mutex);
-		}
 
 		if (err) {
 			dput(dentry);
 			dentry = ERR_PTR(err);
 		}
 	}
-
+	mutex_unlock(&parent->d_inode->i_mutex);
 	return dentry;
 }
 
@@ -184,6 +179,7 @@ fill_with_dentries(void *buf, const char *name, int namelen, loff_t offset,
 {
 	struct reiserfs_dentry_buf *dbuf = buf;
 	struct dentry *dentry;
+	WARN_ON_ONCE(!mutex_is_locked(&dbuf->xadir->d_inode->i_mutex));
 
 	if (dbuf->count == ARRAY_SIZE(dbuf->dentries))
 		return -ENOSPC;
@@ -349,6 +345,7 @@ static struct dentry *xattr_lookup(struct inode *inode, const char *name,
 	if (IS_ERR(xadir))
 		return ERR_CAST(xadir);
 
+	mutex_lock_nested(&xadir->d_inode->i_mutex, I_MUTEX_XATTR);
 	xafile = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(xafile)) {
 		err = PTR_ERR(xafile);
@@ -360,18 +357,15 @@ static struct dentry *xattr_lookup(struct inode *inode, const char *name,
 
 	if (!xafile->d_inode) {
 		err = -ENODATA;
-		if (xattr_may_create(flags)) {
-			mutex_lock_nested(&xadir->d_inode->i_mutex,
-					  I_MUTEX_XATTR);
+		if (xattr_may_create(flags))
 			err = xattr_create(xadir->d_inode, xafile,
 					      0700|S_IFREG);
-			mutex_unlock(&xadir->d_inode->i_mutex);
-		}
 	}
 
 	if (err)
 		dput(xafile);
 out:
+	mutex_unlock(&xadir->d_inode->i_mutex);
 	dput(xadir);
 	if (err)
 		return ERR_PTR(err);
@@ -435,6 +429,7 @@ static int lookup_and_delete_xattr(struct inode *inode, const char *name)
 	if (IS_ERR(xadir))
 		return PTR_ERR(xadir);
 
+	mutex_lock_nested(&xadir->d_inode->i_mutex, I_MUTEX_XATTR);
 	dentry = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -442,14 +437,13 @@ static int lookup_and_delete_xattr(struct inode *inode, const char *name)
 	}
 
 	if (dentry->d_inode) {
-		mutex_lock_nested(&xadir->d_inode->i_mutex, I_MUTEX_XATTR);
 		err = xattr_unlink(xadir->d_inode, dentry);
-		mutex_unlock(&xadir->d_inode->i_mutex);
 		update_ctime(inode);
 	}
 
 	dput(dentry);
 out_dput:
+	mutex_unlock(&xadir->d_inode->i_mutex);
 	dput(xadir);
 	return err;
 }
@@ -906,9 +900,9 @@ static int create_privroot(struct dentry *dentry)
 {
 	int err;
 	struct inode *inode = dentry->d_parent->d_inode;
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_XATTR);
+	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
+
 	err = xattr_mkdir(inode, dentry, 0700);
-	mutex_unlock(&inode->i_mutex);
 	if (err) {
 		dput(dentry);
 		dentry = NULL;
@@ -980,6 +974,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	/* If we don't have the privroot located yet - go find it */
 	if (!REISERFS_SB(s)->priv_root) {
 		struct dentry *dentry;
+		mutex_lock_nested(&s->s_root->d_inode->i_mutex, I_MUTEX_CHILD);
 		dentry = lookup_one_len(PRIVROOT_NAME, s->s_root,
 					strlen(PRIVROOT_NAME));
 		if (!IS_ERR(dentry)) {
@@ -993,6 +988,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 			}
 		} else
 			err = PTR_ERR(dentry);
+		mutex_unlock(&s->s_root->d_inode->i_mutex);
 
 		if (!err && dentry) {
 			s->s_root->d_op = &xattr_lookup_poison_ops;
