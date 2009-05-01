@@ -34,10 +34,9 @@ extern int ___range_ok(unsigned long addr, unsigned long size);
 #define access_ok(type, addr, size) (__range_ok((addr), (size)) == 0)
 #define __access_ok(add, size) (__range_ok((addr), (size)) == 0)
 
-extern inline int bad_user_access_length(void)
-{
-	return 0;
-}
+/* Undefined function to trigger linker error */
+extern int bad_user_access_length(void);
+
 /* FIXME this is function for optimalization -> memcpy */
 #define __get_user(var, ptr)					\
 	({							\
