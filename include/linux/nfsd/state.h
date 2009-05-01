@@ -61,15 +61,6 @@ typedef struct {
 #define si_stateownerid   si_opaque.so_stateownerid
 #define si_fileid         si_opaque.so_fileid
 
-
-struct nfs4_cb_recall {
-	u32			cbr_ident;
-	int			cbr_trunc;
-	stateid_t		cbr_stateid;
-	struct knfsd_fh		cbr_fh;
-	struct nfs4_delegation	*cbr_dp;
-};
-
 struct nfs4_delegation {
 	struct list_head	dl_perfile;
 	struct list_head	dl_perclnt;
@@ -81,11 +72,12 @@ struct nfs4_delegation {
 	struct file		*dl_vfs_file;
 	u32			dl_type;
 	time_t			dl_time;
-	struct nfs4_cb_recall	dl_recall;
+/* For recall: */
+	u32			dl_ident;
+	int			dl_trunc;
+	stateid_t		dl_stateid;
+	struct knfsd_fh		dl_fh;
 };
-
-#define dl_stateid      dl_recall.cbr_stateid
-#define dl_fh           dl_recall.cbr_fh
 
 /* client delegation callback info */
 struct nfs4_cb_conn {

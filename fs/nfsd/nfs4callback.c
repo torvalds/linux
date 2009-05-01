@@ -215,18 +215,18 @@ encode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr)
 }
 
 static int
-encode_cb_recall(struct xdr_stream *xdr, struct nfs4_cb_recall *cb_rec)
+encode_cb_recall(struct xdr_stream *xdr, struct nfs4_delegation *dp)
 {
 	__be32 *p;
-	int len = cb_rec->cbr_fh.fh_size;
+	int len = dp->dl_fh.fh_size;
 
-	RESERVE_SPACE(12+sizeof(cb_rec->cbr_stateid) + len);
+	RESERVE_SPACE(12+sizeof(dp->dl_stateid) + len);
 	WRITE32(OP_CB_RECALL);
-	WRITE32(cb_rec->cbr_stateid.si_generation);
-	WRITEMEM(&cb_rec->cbr_stateid.si_opaque, sizeof(stateid_opaque_t));
-	WRITE32(cb_rec->cbr_trunc);
+	WRITE32(dp->dl_stateid.si_generation);
+	WRITEMEM(&dp->dl_stateid.si_opaque, sizeof(stateid_opaque_t));
+	WRITE32(dp->dl_trunc);
 	WRITE32(len);
-	WRITEMEM(&cb_rec->cbr_fh.fh_base, len);
+	WRITEMEM(&dp->dl_fh.fh_base, len);
 	return 0;
 }
 
@@ -241,11 +241,11 @@ nfs4_xdr_enc_cb_null(struct rpc_rqst *req, __be32 *p)
 }
 
 static int
-nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, __be32 *p, struct nfs4_cb_recall *args)
+nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, __be32 *p, struct nfs4_delegation *args)
 {
 	struct xdr_stream xdr;
 	struct nfs4_cb_compound_hdr hdr = {
-		.ident = args->cbr_ident,
+		.ident = args->dl_ident,
 		.nops   = 1,
 	};
 
@@ -502,17 +502,15 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
 	struct nfs4_client *clp = dp->dl_client;
 	struct rpc_clnt *clnt = clp->cl_cb_conn.cb_client;
-	struct nfs4_cb_recall *cbr = &dp->dl_recall;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL],
-		.rpc_argp = cbr,
+		.rpc_argp = dp,
 		.rpc_cred = clp->cl_cb_conn.cb_cred
 	};
 	int retries = 1;
 	int status = 0;
 
-	cbr->cbr_trunc = 0; /* XXX need to implement truncate optimization */
-	cbr->cbr_dp = dp;
+	dp->dl_trunc = 0; /* XXX need to implement truncate optimization */
 
 	status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT);
 	while (retries--) {

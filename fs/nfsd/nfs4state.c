@@ -203,9 +203,8 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	get_file(stp->st_vfs_file);
 	dp->dl_vfs_file = stp->st_vfs_file;
 	dp->dl_type = type;
-	dp->dl_recall.cbr_dp = NULL;
-	dp->dl_recall.cbr_ident = cb->cb_ident;
-	dp->dl_recall.cbr_trunc = 0;
+	dp->dl_ident = cb->cb_ident;
+	dp->dl_trunc = 0;
 	dp->dl_stateid.si_boot = get_seconds();
 	dp->dl_stateid.si_stateownerid = current_delegid++;
 	dp->dl_stateid.si_fileid = 0;
