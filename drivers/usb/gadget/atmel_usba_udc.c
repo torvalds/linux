@@ -794,7 +794,8 @@ usba_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	if (ep->desc) {
 		list_add_tail(&req->queue, &ep->queue);
 
-		if (ep->is_in || (ep_is_control(ep)
+		if ((!ep_is_control(ep) && ep->is_in) ||
+			(ep_is_control(ep)
 				&& (ep->state == DATA_STAGE_IN
 					|| ep->state == STATUS_STAGE_IN)))
 			usba_ep_writel(ep, CTL_ENB, USBA_TX_PK_RDY);
