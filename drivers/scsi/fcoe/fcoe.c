@@ -146,6 +146,7 @@ static int fcoe_lport_config(struct fc_lport *lp)
 	lp->link_up = 0;
 	lp->qfull = 0;
 	lp->max_retry_count = 3;
+	lp->max_rport_retry_count = 3;
 	lp->e_d_tov = 2 * 1000;	/* FC-FS default */
 	lp->r_a_tov = 2 * 2 * 1000;
 	lp->service_params = (FCP_SPPF_INIT_FCN | FCP_SPPF_RD_XRDY_DIS |

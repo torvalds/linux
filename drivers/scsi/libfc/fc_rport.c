@@ -478,7 +478,7 @@ static void fc_rport_error_retry(struct fc_rport *rport, struct fc_frame *fp)
 	if (PTR_ERR(fp) == -FC_EX_CLOSED)
 		return fc_rport_error(rport, fp);
 
-	if (rdata->retries < rdata->local_port->max_retry_count) {
+	if (rdata->retries < rdata->local_port->max_rport_retry_count) {
 		FC_DEBUG_RPORT("Error %ld in state %s, retrying\n",
 			       PTR_ERR(fp), fc_rport_state(rport));
 		rdata->retries++;
