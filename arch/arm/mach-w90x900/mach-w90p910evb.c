@@ -3,15 +3,13 @@
  *
  * Based on mach-s3c2410/mach-smdk2410.c by Jonas Dietsche
  *
- * Copyright (C) 2008 Nuvoton technology corporation
- * All rights reserved.
+ * Copyright (C) 2008 Nuvoton technology corporation.
  *
  * Wan ZongShun <mcuos.com@gmail.com>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
+ * published by the Free Software Foundation;version 2 of the License.
  *
  */
 
@@ -80,6 +78,63 @@ static struct platform_device w90p910_flash_device = {
 	.num_resources	=	ARRAY_SIZE(w90p910_flash_resources),
 };
 
+/* USB EHCI Host Controller */
+
+static struct resource w90x900_usb_ehci_resource[] = {
+	[0] = {
+		.start = W90X900_PA_USBEHCIHOST,
+		.end   = W90X900_PA_USBEHCIHOST + W90X900_SZ_USBEHCIHOST - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_USBH,
+		.end   = IRQ_USBH,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static u64 w90x900_device_usb_ehci_dmamask = 0xffffffffUL;
+
+struct platform_device w90x900_device_usb_ehci = {
+	.name		  = "w90x900-ehci",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(w90x900_usb_ehci_resource),
+	.resource	  = w90x900_usb_ehci_resource,
+	.dev              = {
+		.dma_mask = &w90x900_device_usb_ehci_dmamask,
+		.coherent_dma_mask = 0xffffffffUL
+	}
+};
+EXPORT_SYMBOL(w90x900_device_usb_ehci);
+
+/* USB OHCI Host Controller */
+
+static struct resource w90x900_usb_ohci_resource[] = {
+	[0] = {
+		.start = W90X900_PA_USBOHCIHOST,
+		.end   = W90X900_PA_USBOHCIHOST + W90X900_SZ_USBOHCIHOST - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_USBH,
+		.end   = IRQ_USBH,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static u64 w90x900_device_usb_ohci_dmamask = 0xffffffffUL;
+struct platform_device w90x900_device_usb_ohci = {
+	.name		  = "w90x900-ohci",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(w90x900_usb_ohci_resource),
+	.resource	  = w90x900_usb_ohci_resource,
+	.dev              = {
+		.dma_mask = &w90x900_device_usb_ohci_dmamask,
+		.coherent_dma_mask = 0xffffffffUL
+	}
+};
+EXPORT_SYMBOL(w90x900_device_usb_ohci);
+
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
@@ -88,6 +143,8 @@ static struct map_desc w90p910_iodesc[] __initdata = {
 static struct platform_device *w90p910evb_dev[] __initdata = {
 	&w90p910_serial_device,
 	&w90p910_flash_device,
+	&w90x900_device_usb_ehci,
+	&w90x900_device_usb_ohci,
 };
 
 static void __init w90p910evb_map_io(void)
