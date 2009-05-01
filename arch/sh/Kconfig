@@ -116,6 +116,9 @@ config SYS_SUPPORTS_CMT
 config SYS_SUPPORTS_MTU2
 	bool
 
+config SYS_SUPPORTS_TMU
+	bool
+
 config STACKTRACE_SUPPORT
 	def_bool y
 
@@ -469,6 +472,15 @@ config SH_TMU
 	select GENERIC_CLOCKEVENTS
 	help
 	  This enables the use of the TMU as the system timer.
+
+config SH_TIMER_TMU
+	bool "TMU timer driver"
+	depends on !SH_TMU && SYS_SUPPORTS_TMU
+	default y
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  This enables the build of the TMU timer driver.
 
 config SH_TIMER_CMT
 	bool "CMT timer driver"
