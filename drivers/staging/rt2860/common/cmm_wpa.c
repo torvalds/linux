@@ -625,7 +625,7 @@ VOID RTMPMakeRSNIE(
 	UCHAR		PrimaryRsnie;
 	BOOLEAN		bMixCipher = FALSE;	// indicate the pairwise and group cipher are different
 	UCHAR		p_offset;
-	WPA_MIX_PAIR_CIPHER		FlexibleCipher = MIX_CIPHER_NOTUSE;	// it provide the more flexible cipher combination in WPA-WPA2 and TKIPAES mode
+	WPA_MIX_PAIR_CIPHER		FlexibleCipher = WPA_TKIPAES_WPA2_TKIPAES;	// it provide the more flexible cipher combination in WPA-WPA2 and TKIPAES mode
 
 	rsnielen_cur_p = NULL;
 	rsnielen_ex_cur_p = NULL;
