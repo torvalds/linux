@@ -49,6 +49,22 @@ int v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev)
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register);
 
+int v4l2_device_set_name(struct v4l2_device *v4l2_dev, const char *basename,
+						atomic_t *instance)
+{
+	int num = atomic_inc_return(instance) - 1;
+	int len = strlen(basename);
+
+	if (basename[len - 1] >= '0' && basename[len - 1] <= '9')
+		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
+				"%s-%d", basename, num);
+	else
+		snprintf(v4l2_dev->name, sizeof(v4l2_dev->name),
+				"%s%d", basename, num);
+	return num;
+}
+EXPORT_SYMBOL_GPL(v4l2_device_set_name);
+
 void v4l2_device_disconnect(struct v4l2_device *v4l2_dev)
 {
 	if (v4l2_dev->dev) {
