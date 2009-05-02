@@ -44,6 +44,65 @@ DEBUGFS_READONLY_FILE(short_retry_limit, 20, "%d",
 DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
 		      wiphy->retry_long);
 
+static int ht_print_chan(struct ieee80211_channel *chan,
+			 char *buf, int buf_size, int offset)
+{
+	if (WARN_ON(offset > buf_size))
+		return 0;
+
+	if (chan->flags & IEEE80211_CHAN_DISABLED)
+		return snprintf(buf + offset,
+				buf_size - offset,
+				"%d Disabled\n",
+				chan->center_freq);
+
+	return snprintf(buf + offset,
+			buf_size - offset,
+			"%d HT40 %c%c\n",
+			chan->center_freq,
+			(chan->flags & IEEE80211_CHAN_NO_HT40MINUS) ? ' ' : '-',
+			(chan->flags & IEEE80211_CHAN_NO_HT40PLUS)  ? ' ' : '+');
+}
+
+static ssize_t ht40allow_map_read(struct file *file,
+				  char __user *user_buf,
+				  size_t count, loff_t *ppos)
+{
+	struct wiphy *wiphy = file->private_data;
+	char *buf;
+	unsigned int offset = 0, buf_size = PAGE_SIZE, i, r;
+	enum ieee80211_band band;
+	struct ieee80211_supported_band *sband;
+
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&cfg80211_mutex);
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		sband = wiphy->bands[band];
+		if (!sband)
+			continue;
+		for (i = 0; i < sband->n_channels; i++)
+			offset += ht_print_chan(&sband->channels[i],
+						buf, buf_size, offset);
+	}
+
+	mutex_unlock(&cfg80211_mutex);
+
+	r = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
+
+	kfree(buf);
+
+	return r;
+}
+
+static const struct file_operations ht40allow_map_ops = {
+	.read = ht40allow_map_read,
+	.open = cfg80211_open_file_generic,
+};
+
 #define DEBUGFS_ADD(name)						\
 	drv->debugfs.name = debugfs_create_file(#name, S_IRUGO, phyd,	\
 						  &drv->wiphy, &name## _ops);
@@ -59,6 +118,7 @@ void cfg80211_debugfs_drv_add(struct cfg80211_registered_device *drv)
 	DEBUGFS_ADD(fragmentation_threshold);
 	DEBUGFS_ADD(short_retry_limit);
 	DEBUGFS_ADD(long_retry_limit);
+	DEBUGFS_ADD(ht40allow_map);
 }
 
 void cfg80211_debugfs_drv_del(struct cfg80211_registered_device *drv)
@@ -67,4 +127,5 @@ void cfg80211_debugfs_drv_del(struct cfg80211_registered_device *drv)
 	DEBUGFS_DEL(fragmentation_threshold);
 	DEBUGFS_DEL(short_retry_limit);
 	DEBUGFS_DEL(long_retry_limit);
+	DEBUGFS_DEL(ht40allow_map);
 }

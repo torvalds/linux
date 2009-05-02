@@ -58,6 +58,7 @@ struct cfg80211_registered_device {
 		struct dentry *fragmentation_threshold;
 		struct dentry *short_retry_limit;
 		struct dentry *long_retry_limit;
+		struct dentry *ht40allow_map;
 	} debugfs;
 #endif
 
