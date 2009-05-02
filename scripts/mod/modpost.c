@@ -716,41 +716,27 @@ int match(const char *sym, const char * const pat[])
 
 /* sections that we do not want to do full section mismatch check on */
 static const char *section_white_list[] =
-	{ ".debug*", ".stab*", ".note*", ".got*", ".toc*", NULL };
+	{ ".comment", ".debug*", ".stab*", ".note*", ".got*", ".toc*", NULL };
 
 /*
- * Is this section one we do not want to check?
- * This is often debug sections.
- * If we are going to check this section then
- * test if section name ends with a dot and a number.
- * This is used to find sections where the linker have
- * appended a dot-number to make the name unique.
+ * This is used to find sections missing the SHF_ALLOC flag.
  * The cause of this is often a section specified in assembler
- * without "ax" / "aw" and the same section used in .c
- * code where gcc add these.
+ * without "ax" / "aw".
  */
-static int check_section(const char *modname, const char *sec)
+static void check_section(const char *modname, struct elf_info *elf,
+                          Elf_Shdr *sechdr)
 {
-	const char *e = sec + strlen(sec) - 1;
-	if (match(sec, section_white_list))
-		return 1;
+	const char *sec = sech_name(elf, sechdr);
 
-	if (*e && isdigit(*e)) {
-		/* consume all digits */
-		while (*e && e != sec && isdigit(*e))
-			e--;
-		if (*e == '.' && !strstr(sec, ".linkonce")) {
-			warn("%s (%s): unexpected section name.\n"
-			     "The (.[number]+) following section name are "
-			     "ld generated and not expected.\n"
-			     "Did you forget to use \"ax\"/\"aw\" "
-			     "in a .S file?\n"
-			     "Note that for example <linux/init.h> contains\n"
-			     "section definitions for use in .S files.\n\n",
-			     modname, sec);
-		}
+	if (sechdr->sh_type == SHT_PROGBITS &&
+	    !(sechdr->sh_flags & SHF_ALLOC) &&
+	    !match(sec, section_white_list)) {
+		warn("%s (%s): unexpected non-allocatable section.\n"
+		     "Did you forget to use \"ax\"/\"aw\" in a .S file?\n"
+		     "Note that for example <linux/init.h> contains\n"
+		     "section definitions for use in .S files.\n\n",
+		     modname, sec);
 	}
-	return 0;
 }
 
 
@@ -928,8 +914,7 @@ static int section_mismatch(const char *fromsec, const char *tosec)
  *           *probe_one, *_console, *_timer
  *
  * Pattern 3:
- *   Whitelist all refereces from .text.head to .init.data
- *   Whitelist all refereces from .text.head to .init.text
+ *   Whitelist all references from .head.text to any init section
  *
  * Pattern 4:
  *   Some symbols belong to init section but still it is ok to reference
@@ -1359,7 +1344,7 @@ static void section_rela(const char *modname, struct elf_info *elf,
 	fromsec = sech_name(elf, sechdr);
 	fromsec += strlen(".rela");
 	/* if from section (name) is know good then skip it */
-	if (check_section(modname, fromsec))
+	if (match(fromsec, section_white_list))
 		return;
 
 	for (rela = start; rela < stop; rela++) {
@@ -1403,7 +1388,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
 	fromsec = sech_name(elf, sechdr);
 	fromsec += strlen(".rel");
 	/* if from section (name) is know good then skip it */
-	if (check_section(modname, fromsec))
+	if (match(fromsec, section_white_list))
 		return;
 
 	for (rel = start; rel < stop; rel++) {
@@ -1466,6 +1451,7 @@ static void check_sec_ref(struct module *mod, const char *modname,
 
 	/* Walk through all sections */
 	for (i = 0; i < elf->hdr->e_shnum; i++) {
+		check_section(modname, elf, &elf->sechdrs[i]);
 		/* We want to process only relocation sections and not .init */
 		if (sechdrs[i].sh_type == SHT_RELA)
 			section_rela(modname, elf, &elf->sechdrs[i]);
@@ -1990,6 +1976,7 @@ static void read_markers(const char *fname)
 		if (!mod->skip)
 			add_marker(mod, marker, fmt);
 	}
+	release_file(file, size);
 	return;
 fail:
 	fatal("parse error in markers list file\n");
