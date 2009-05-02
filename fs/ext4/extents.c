@@ -3196,7 +3196,7 @@ static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
 		       void *data)
 {
 	struct fiemap_extent_info *fieinfo = data;
-	unsigned long blksize_bits = inode->i_sb->s_blocksize_bits;
+	unsigned char blksize_bits = inode->i_sb->s_blocksize_bits;
 	__u64	logical;
 	__u64	physical;
 	__u64	length;
@@ -3243,8 +3243,8 @@ static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
 	 *
 	 * XXX this might miss a single-block extent at EXT_MAX_BLOCK
 	 */
-	if (logical + length - 1 == EXT_MAX_BLOCK ||
-	    ext4_ext_next_allocated_block(path) == EXT_MAX_BLOCK)
+	if (ext4_ext_next_allocated_block(path) == EXT_MAX_BLOCK ||
+	    newex->ec_block + newex->ec_len - 1 == EXT_MAX_BLOCK)
 		flags |= FIEMAP_EXTENT_LAST;
 
 	error = fiemap_fill_next_extent(fieinfo, logical, physical,
