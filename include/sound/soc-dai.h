@@ -45,24 +45,6 @@ struct snd_pcm_substream;
 #define SND_SOC_DAIFMT_GATED		(1 << 4) /* clock is gated */
 
 /*
- * DAI Left/Right Clocks.
- *
- * Specifies whether the DAI can support different samples for similtanious
- * playback and capture. This usually requires a seperate physical frame
- * clock for playback and capture.
- */
-#define SND_SOC_DAIFMT_SYNC		(0 << 5) /* Tx FRM = Rx FRM */
-#define SND_SOC_DAIFMT_ASYNC		(1 << 5) /* Tx FRM ~ Rx FRM */
-
-/*
- * TDM
- *
- * Time Division Multiplexing. Allows PCM data to be multplexed with other
- * data on the DAI.
- */
-#define SND_SOC_DAIFMT_TDM		(1 << 6)
-
-/*
  * DAI hardware signal inversions.
  *
  * Specifies whether the DAI can also support inverted clocks for the specified
