@@ -455,7 +455,7 @@ int videobuf_querybuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 		dprintk(1, "querybuf: Wrong type.\n");
 		goto done;
 	}
-	if (unlikely(b->index < 0 || b->index >= VIDEO_MAX_FRAME)) {
+	if (unlikely(b->index >= VIDEO_MAX_FRAME)) {
 		dprintk(1, "querybuf: index out of range.\n");
 		goto done;
 	}
@@ -496,7 +496,7 @@ int videobuf_qbuf(struct videobuf_queue *q,
 		dprintk(1, "qbuf: Wrong type.\n");
 		goto done;
 	}
-	if (b->index < 0 || b->index >= VIDEO_MAX_FRAME) {
+	if (b->index >= VIDEO_MAX_FRAME) {
 		dprintk(1, "qbuf: index out of range.\n");
 		goto done;
 	}

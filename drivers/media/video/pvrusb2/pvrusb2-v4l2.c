@@ -267,7 +267,7 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		memset(&tmp,0,sizeof(tmp));
 		tmp.index = vi->index;
 		ret = 0;
-		if ((vi->index < 0) || (vi->index >= fh->input_cnt)) {
+		if (vi->index >= fh->input_cnt) {
 			ret = -EINVAL;
 			break;
 		}
@@ -331,7 +331,7 @@ static long pvr2_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_S_INPUT:
 	{
 		struct v4l2_input *vi = (struct v4l2_input *)arg;
-		if ((vi->index < 0) || (vi->index >= fh->input_cnt)) {
+		if (vi->index >= fh->input_cnt) {
 			ret = -ERANGE;
 			break;
 		}
