@@ -83,8 +83,19 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 	v4l2_device_disconnect(v4l2_dev);
 
 	/* Unregister subdevs */
-	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list)
+	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list) {
 		v4l2_device_unregister_subdev(sd);
+		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C) {
+			struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+			/* We need to unregister the i2c client explicitly.
+			   We cannot rely on i2c_del_adapter to always
+			   unregister clients for us, since if the i2c bus
+			   is a platform bus, then it is never deleted. */
+			if (client)
+				i2c_unregister_device(client);
+		}
+	}
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
 

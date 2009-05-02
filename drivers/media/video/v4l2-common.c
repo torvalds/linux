@@ -746,6 +746,7 @@ void v4l2_i2c_subdev_init(struct v4l2_subdev *sd, struct i2c_client *client,
 		const struct v4l2_subdev_ops *ops)
 {
 	v4l2_subdev_init(sd, ops);
+	sd->flags |= V4L2_SUBDEV_FL_IS_I2C;
 	/* the owner is the same as the i2c_client's driver owner */
 	sd->owner = client->driver->driver.owner;
 	/* i2c_client and v4l2_subdev point to one another */
