@@ -53,13 +53,14 @@
 		#address-cells = <2>;
 		#size-cells = <1>;
 		compatible = "fsl,mpc8569-elbc", "fsl,elbc", "simple-bus";
-		reg = <0 0xe0005000 0 0x1000>;
-		interrupt = <19 2>;
+		reg = <0xe0005000 0x1000>;
+		interrupts = <19 2>;
 		interrupt-parent = <&mpic>;
 
 		ranges = <0x0 0x0 0xfe000000 0x02000000
 			  0x1 0x0 0xf8000000 0x00008000
 			  0x2 0x0 0xf0000000 0x04000000
+			  0x3 0x0 0xfc000000 0x00008000
 			  0x4 0x0 0xf8008000 0x00008000
 			  0x5 0x0 0xf8010000 0x00008000>;
 
@@ -75,6 +76,12 @@
 		bcsr@1,0 {
 			compatible = "fsl,mpc8569mds-bcsr";
 			reg = <1 0 0x8000>;
+		};
+
+		nand@3,0 {
+			compatible = "fsl,mpc8569-fcm-nand",
+				     "fsl,elbc-fcm-nand";
+			reg = <3 0 0x8000>;
 		};
 
 		pib@4,0 {
