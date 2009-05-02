@@ -3244,8 +3244,15 @@ static int ext4_ext_fiemap_cb(struct inode *inode, struct ext4_ext_path *path,
 	 * XXX this might miss a single-block extent at EXT_MAX_BLOCK
 	 */
 	if (ext4_ext_next_allocated_block(path) == EXT_MAX_BLOCK ||
-	    newex->ec_block + newex->ec_len - 1 == EXT_MAX_BLOCK)
+	    newex->ec_block + newex->ec_len - 1 == EXT_MAX_BLOCK) {
+		loff_t size = i_size_read(inode);
+		loff_t bs = EXT4_BLOCK_SIZE(inode->i_sb);
+
 		flags |= FIEMAP_EXTENT_LAST;
+		if ((flags & FIEMAP_EXTENT_DELALLOC) &&
+		    logical+length > size)
+			length = (size - logical + bs - 1) & ~(bs-1);
+	}
 
 	error = fiemap_fill_next_extent(fieinfo, logical, physical,
 					length, flags);
