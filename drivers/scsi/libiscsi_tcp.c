@@ -1036,8 +1036,11 @@ flush:
 
 	rc = conn->session->tt->init_pdu(task, r2t->data_offset + r2t->sent,
 					 r2t->data_count);
-	if (rc)
+	if (rc) {
+		iscsi_conn_failure(conn, ISCSI_ERR_XMIT_FAILED);
 		return rc;
+	}
+
 	r2t->sent += r2t->data_count;
 	goto flush;
 }
