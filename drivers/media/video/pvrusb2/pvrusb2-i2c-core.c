@@ -42,7 +42,7 @@ static int ir_mode[PVR_NUM] = { [0 ... PVR_NUM-1] = 1 };
 module_param_array(ir_mode, int, NULL, 0444);
 MODULE_PARM_DESC(ir_mode,"specify: 0=disable IR reception, 1=normal IR");
 
-static int pvr2_disable_ir_video;
+static int pvr2_disable_ir_video = 1;
 module_param_named(disable_autoload_ir_video, pvr2_disable_ir_video,
 		   int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(disable_autoload_ir_video,
