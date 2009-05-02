@@ -76,6 +76,7 @@ struct nfs4_delegation {
 	u32			dl_ident;
 	stateid_t		dl_stateid;
 	struct knfsd_fh		dl_fh;
+	int			dl_retries;
 };
 
 /* client delegation callback info */

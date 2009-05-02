@@ -507,11 +507,11 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 		.rpc_argp = dp,
 		.rpc_cred = clp->cl_cb_conn.cb_cred
 	};
-	int retries = 1;
 	int status = 0;
 
+	dp->dl_retries = 1;
 	status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT);
-	while (retries--) {
+	while (dp->dl_retries--) {
 		switch (status) {
 			case -EIO:
 				/* Network partition? */
