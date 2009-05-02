@@ -181,35 +181,6 @@ cifs_from_ucs2(char *to, const __le16 *from, int tolen, int fromlen,
 }
 
 /*
- * NAME:	cifs_strfromUCS()
- *
- * FUNCTION:	Convert little-endian unicode string to character string
- *
- */
-int
-cifs_strfromUCS_le(char *to, const __le16 *from,
-		   int len, const struct nls_table *codepage)
-{
-	int i;
-	int outlen = 0;
-
-	for (i = 0; (i < len) && from[i]; i++) {
-		int charlen;
-		/* 2.4.0 kernel or greater */
-		charlen =
-		    codepage->uni2char(le16_to_cpu(from[i]), &to[outlen],
-				       NLS_MAX_CHARSET_SIZE);
-		if (charlen > 0) {
-			outlen += charlen;
-		} else {
-			to[outlen++] = '?';
-		}
-	}
-	to[outlen] = 0;
-	return outlen;
-}
-
-/*
  * NAME:	cifs_strtoUCS()
  *
  * FUNCTION:	Convert character string to unicode string
