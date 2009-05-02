@@ -84,7 +84,7 @@ static void disable_intc_irq(unsigned int irq);
 static void mask_and_ack_intc(unsigned int);
 static void end_intc_irq(unsigned int irq);
 
-static struct hw_interrupt_type intc_irq_type = {
+static struct irq_chip intc_irq_type = {
 	.typename = "INTC",
 	.startup = startup_intc_irq,
 	.shutdown = shutdown_intc_irq,

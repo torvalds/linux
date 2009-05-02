@@ -39,7 +39,7 @@ static unsigned int startup_imask_irq(unsigned int irq)
 	return 0; /* never anything pending */
 }
 
-static struct hw_interrupt_type imask_irq_type = {
+static struct irq_chip imask_irq_type = {
 	.typename = "SR.IMASK",
 	.startup = startup_imask_irq,
 	.shutdown = shutdown_imask_irq,
