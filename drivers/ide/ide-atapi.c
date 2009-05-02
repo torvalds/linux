@@ -84,7 +84,7 @@ EXPORT_SYMBOL_GPL(ide_init_pc);
  * and wait for it to be serviced.
  */
 int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
-		      struct ide_atapi_pc *pc, unsigned int bufflen)
+		      struct ide_atapi_pc *pc, void *buf, unsigned int bufflen)
 {
 	struct request *rq;
 	int error;
@@ -93,8 +93,8 @@ int ide_queue_pc_tail(ide_drive_t *drive, struct gendisk *disk,
 	rq->cmd_type = REQ_TYPE_SPECIAL;
 	rq->special = (char *)pc;
 
-	if (bufflen) {
-		error = blk_rq_map_kern(drive->queue, rq, pc->buf, bufflen,
+	if (buf && bufflen) {
+		error = blk_rq_map_kern(drive->queue, rq, buf, bufflen,
 					GFP_NOIO);
 		if (error)
 			goto put_req;
@@ -117,7 +117,7 @@ int ide_do_test_unit_ready(ide_drive_t *drive, struct gendisk *disk)
 	ide_init_pc(&pc);
 	pc.c[0] = TEST_UNIT_READY;
 
-	return ide_queue_pc_tail(drive, disk, &pc, 0);
+	return ide_queue_pc_tail(drive, disk, &pc, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(ide_do_test_unit_ready);
 
@@ -132,7 +132,7 @@ int ide_do_start_stop(ide_drive_t *drive, struct gendisk *disk, int start)
 	if (drive->media == ide_tape)
 		pc.flags |= PC_FLAG_WAIT_FOR_DSC;
 
-	return ide_queue_pc_tail(drive, disk, &pc, 0);
+	return ide_queue_pc_tail(drive, disk, &pc, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(ide_do_start_stop);
 
@@ -147,7 +147,7 @@ int ide_set_media_lock(ide_drive_t *drive, struct gendisk *disk, int on)
 	pc.c[0] = ALLOW_MEDIUM_REMOVAL;
 	pc.c[4] = on;
 
-	return ide_queue_pc_tail(drive, disk, &pc, 0);
+	return ide_queue_pc_tail(drive, disk, &pc, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(ide_set_media_lock);
 

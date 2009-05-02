@@ -47,15 +47,14 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive,
 		return -EINVAL;
 
 	ide_floppy_create_read_capacity_cmd(pc);
-	pc->buf = &pc_buf[0];
 	pc->buf_size = sizeof(pc_buf);
 
-	if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->req_xfer)) {
+	if (ide_queue_pc_tail(drive, floppy->disk, pc, pc_buf, pc->req_xfer)) {
 		printk(KERN_ERR "ide-floppy: Can't get floppy parameters\n");
 		return -EIO;
 	}
 
-	header_len = pc->buf[3];
+	header_len = pc_buf[3];
 	desc_cnt = header_len / 8; /* capacity descriptor of 8 bytes */
 
 	u_index = 0;
@@ -72,8 +71,8 @@ static int ide_floppy_get_format_capacities(ide_drive_t *drive,
 		if (u_index >= u_array_size)
 			break;	/* User-supplied buffer too small */
 
-		blocks = be32_to_cpup((__be32 *)&pc->buf[desc_start]);
-		length = be16_to_cpup((__be16 *)&pc->buf[desc_start + 6]);
+		blocks = be32_to_cpup((__be32 *)&pc_buf[desc_start]);
+		length = be16_to_cpup((__be16 *)&pc_buf[desc_start + 6]);
 
 		if (put_user(blocks, argp))
 			return -EFAULT;
@@ -124,7 +123,7 @@ static int ide_floppy_get_sfrp_bit(ide_drive_t *drive, struct ide_atapi_pc *pc)
 	ide_floppy_create_mode_sense_cmd(pc, IDEFLOPPY_CAPABILITIES_PAGE);
 	pc->flags |= PC_FLAG_SUPPRESS_ERROR;
 
-	if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->req_xfer))
+	if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->buf, pc->req_xfer))
 		return 1;
 
 	if (pc->buf[8 + 2] & 0x40)
@@ -172,7 +171,7 @@ static int ide_floppy_format_unit(ide_drive_t *drive, struct ide_atapi_pc *pc,
 	ide_floppy_get_sfrp_bit(drive, pc);
 	ide_floppy_create_format_unit_cmd(pc, blocks, length, flags);
 
-	if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->req_xfer))
+	if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->buf, pc->req_xfer))
 		err = -EIO;
 
 out:
@@ -200,7 +199,8 @@ static int ide_floppy_get_format_progress(ide_drive_t *drive,
 
 	if (drive->atapi_flags & IDE_AFLAG_SRFP) {
 		ide_create_request_sense_cmd(drive, pc);
-		if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->req_xfer))
+		if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->buf,
+				      pc->req_xfer))
 			return -EIO;
 
 		if (floppy->sense_key == 2 &&

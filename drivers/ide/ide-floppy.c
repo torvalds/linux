@@ -318,7 +318,7 @@ static int ide_floppy_get_flexible_disk_page(ide_drive_t *drive,
 
 	ide_floppy_create_mode_sense_cmd(pc, IDEFLOPPY_FLEXIBLE_DISK_PAGE);
 
-	if (ide_queue_pc_tail(drive, disk, pc, pc->req_xfer)) {
+	if (ide_queue_pc_tail(drive, disk, pc, pc->buf, pc->req_xfer)) {
 		printk(KERN_ERR PFX "Can't get flexible disk page params\n");
 		return 1;
 	}
@@ -387,22 +387,21 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	drive->capacity64 = 0;
 
 	ide_floppy_create_read_capacity_cmd(&pc);
-	pc.buf = &pc_buf[0];
 	pc.buf_size = sizeof(pc_buf);
 
-	if (ide_queue_pc_tail(drive, disk, &pc, pc.req_xfer)) {
+	if (ide_queue_pc_tail(drive, disk, &pc, pc_buf, pc.req_xfer)) {
 		printk(KERN_ERR PFX "Can't get floppy parameters\n");
 		return 1;
 	}
-	header_len = pc.buf[3];
-	cap_desc = &pc.buf[4];
+	header_len = pc_buf[3];
+	cap_desc = &pc_buf[4];
 	desc_cnt = header_len / 8; /* capacity descriptor of 8 bytes */
 
 	for (i = 0; i < desc_cnt; i++) {
 		unsigned int desc_start = 4 + i*8;
 
-		blocks = be32_to_cpup((__be32 *)&pc.buf[desc_start]);
-		length = be16_to_cpup((__be16 *)&pc.buf[desc_start + 6]);
+		blocks = be32_to_cpup((__be32 *)&pc_buf[desc_start]);
+		length = be16_to_cpup((__be16 *)&pc_buf[desc_start + 6]);
 
 		ide_debug_log(IDE_DBG_PROBE, "Descriptor %d: %dkB, %d blocks, "
 					     "%d sector size",
@@ -415,7 +414,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 		 * the code below is valid only for the 1st descriptor, ie i=0
 		 */
 
-		switch (pc.buf[desc_start + 4] & 0x03) {
+		switch (pc_buf[desc_start + 4] & 0x03) {
 		/* Clik! drive returns this instead of CAPACITY_CURRENT */
 		case CAPACITY_UNFORMATTED:
 			if (!(drive->atapi_flags & IDE_AFLAG_CLIK_DRIVE))
@@ -464,7 +463,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 			break;
 		}
 		ide_debug_log(IDE_DBG_PROBE, "Descriptor 0 Code: %d",
-					     pc.buf[desc_start + 4] & 0x03);
+					     pc_buf[desc_start + 4] & 0x03);
 	}
 
 	/* Clik! disk does not support get_flexible_disk_page */
