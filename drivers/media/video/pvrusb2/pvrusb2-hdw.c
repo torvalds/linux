@@ -4841,65 +4841,35 @@ static unsigned int pvr2_hdw_report_clients(struct pvr2_hdw *hdw,
 	unsigned int tcnt = 0;
 	unsigned int ccnt;
 	struct i2c_client *client;
-	struct list_head *item;
-	void *cd;
 	const char *p;
 	unsigned int id;
 
-	ccnt = scnprintf(buf, acnt, "Associated v4l2-subdev drivers:");
+	ccnt = scnprintf(buf, acnt, "Associated v4l2-subdev drivers and I2C clients:\n");
 	tcnt += ccnt;
 	v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
 		id = sd->grp_id;
 		p = NULL;
 		if (id < ARRAY_SIZE(module_names)) p = module_names[id];
 		if (p) {
-			ccnt = scnprintf(buf + tcnt, acnt - tcnt, " %s", p);
+			ccnt = scnprintf(buf + tcnt, acnt - tcnt, "  %s:", p);
 			tcnt += ccnt;
 		} else {
 			ccnt = scnprintf(buf + tcnt, acnt - tcnt,
-					 " (unknown id=%u)", id);
+					 "  (unknown id=%u):", id);
+			tcnt += ccnt;
+		}
+		client = v4l2_get_subdevdata(sd);
+		if (client) {
+			ccnt = scnprintf(buf + tcnt, acnt - tcnt,
+					 " %s @ %02x\n", client->name,
+					 client->addr);
+			tcnt += ccnt;
+		} else {
+			ccnt = scnprintf(buf + tcnt, acnt - tcnt,
+					 " no i2c client\n");
 			tcnt += ccnt;
 		}
 	}
-	ccnt = scnprintf(buf + tcnt, acnt - tcnt, "\n");
-	tcnt += ccnt;
-
-	ccnt = scnprintf(buf + tcnt, acnt - tcnt, "I2C clients:\n");
-	tcnt += ccnt;
-
-	mutex_lock(&hdw->i2c_adap.clist_lock);
-	list_for_each(item, &hdw->i2c_adap.clients) {
-		client = list_entry(item, struct i2c_client, list);
-		ccnt = scnprintf(buf + tcnt, acnt - tcnt,
-				 "  %s: i2c=%02x", client->name, client->addr);
-		tcnt += ccnt;
-		cd = i2c_get_clientdata(client);
-		v4l2_device_for_each_subdev(sd, &hdw->v4l2_dev) {
-			if (cd == sd) {
-				id = sd->grp_id;
-				p = NULL;
-				if (id < ARRAY_SIZE(module_names)) {
-					p = module_names[id];
-				}
-				if (p) {
-					ccnt = scnprintf(buf + tcnt,
-							 acnt - tcnt,
-							 " subdev=%s", p);
-					tcnt += ccnt;
-				} else {
-					ccnt = scnprintf(buf + tcnt,
-							 acnt - tcnt,
-							 " subdev= id %u)",
-							 id);
-					tcnt += ccnt;
-				}
-				break;
-			}
-		}
-		ccnt = scnprintf(buf + tcnt, acnt - tcnt, "\n");
-		tcnt += ccnt;
-	}
-	mutex_unlock(&hdw->i2c_adap.clist_lock);
 	return tcnt;
 }
 
