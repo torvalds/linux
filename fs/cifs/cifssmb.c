@@ -2564,7 +2564,6 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 	*pparmlen = parm_count;
 	return 0;
 }
-#endif /* CIFS_EXPERIMENTAL */
 
 int
 CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
@@ -2611,59 +2610,55 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 	} else {		/* decode response */
 		__u32 data_offset = le32_to_cpu(pSMBr->DataOffset);
 		__u32 data_count = le32_to_cpu(pSMBr->DataCount);
-		if ((pSMBr->ByteCount < 2) || (data_offset > 512))
+		if ((pSMBr->ByteCount < 2) || (data_offset > 512)) {
 		/* BB also check enough total bytes returned */
 			rc = -EIO;	/* bad smb */
-		else {
-			if (data_count && (data_count < 2048)) {
-				char *end_of_smb = 2 /* sizeof byte count */ +
-						pSMBr->ByteCount +
-						(char *)&pSMBr->ByteCount;
+			goto qreparse_out;
+		}
+		if (data_count && (data_count < 2048)) {
+			char *end_of_smb = 2 /* sizeof byte count */ +
+				pSMBr->ByteCount + (char *)&pSMBr->ByteCount;
 
-				struct reparse_data *reparse_buf =
+			struct reparse_data *reparse_buf =
 						(struct reparse_data *)
 						((char *)&pSMBr->hdr.Protocol
 								 + data_offset);
-				if ((char *)reparse_buf >= end_of_smb) {
-					rc = -EIO;
-					goto qreparse_out;
-				}
-				if ((reparse_buf->LinkNamesBuf +
-					reparse_buf->TargetNameOffset +
-					reparse_buf->TargetNameLen) >
-						end_of_smb) {
-					cFYI(1, ("reparse buf beyond SMB"));
-					rc = -EIO;
-					goto qreparse_out;
-				}
+			if ((char *)reparse_buf >= end_of_smb) {
+				rc = -EIO;
+				goto qreparse_out;
+			}
+			if ((reparse_buf->LinkNamesBuf +
+				reparse_buf->TargetNameOffset +
+				reparse_buf->TargetNameLen) > end_of_smb) {
+				cFYI(1, ("reparse buf beyond SMB"));
+				rc = -EIO;
+				goto qreparse_out;
+			}
 
-				if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) {
-					name_len = UniStrnlen((wchar_t *)
+			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) {
+				cifs_from_ucs2(symlinkinfo, (__le16 *)
 						(reparse_buf->LinkNamesBuf +
 						reparse_buf->TargetNameOffset),
-						min(buflen/2,
-						reparse_buf->TargetNameLen / 2));
-					cifs_strfromUCS_le(symlinkinfo,
-						(__le16 *) (reparse_buf->LinkNamesBuf +
-						reparse_buf->TargetNameOffset),
-						name_len, nls_codepage);
-				} else { /* ASCII names */
-					strncpy(symlinkinfo,
-						reparse_buf->LinkNamesBuf +
-						reparse_buf->TargetNameOffset,
-						min_t(const int, buflen,
-						   reparse_buf->TargetNameLen));
-				}
-			} else {
-				rc = -EIO;
-				cFYI(1, ("Invalid return data count on "
-					 "get reparse info ioctl"));
+						buflen,
+						reparse_buf->TargetNameLen,
+						nls_codepage, 0);
+			} else { /* ASCII names */
+				strncpy(symlinkinfo,
+					reparse_buf->LinkNamesBuf +
+					reparse_buf->TargetNameOffset,
+					min_t(const int, buflen,
+					   reparse_buf->TargetNameLen));
 			}
-			symlinkinfo[buflen] = 0; /* just in case so the caller
-					does not go off the end of the buffer */
-			cFYI(1, ("readlink result - %s", symlinkinfo));
+		} else {
+			rc = -EIO;
+			cFYI(1, ("Invalid return data count on "
+				 "get reparse info ioctl"));
 		}
+		symlinkinfo[buflen] = 0; /* just in case so the caller
+					does not go off the end of the buffer */
+		cFYI(1, ("readlink result - %s", symlinkinfo));
 	}
+	
 qreparse_out:
 	cifs_buf_release(pSMB);
 
@@ -2672,6 +2667,7 @@ qreparse_out:
 
 	return rc;
 }
+#endif /* CIFS_EXPERIMENTAL */
 
 #ifdef CONFIG_CIFS_POSIX
 
