@@ -25,6 +25,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <asm/div64.h>
 #include "dvb_frontend.h"
 #include "dvb_math.h"
 #include "tda10048.h"
@@ -143,6 +144,15 @@ struct tda10048_state {
 	struct dvb_frontend frontend;
 
 	int fwloaded;
+
+	u32 freq_if_hz;
+	u32 xtal_hz;
+	u32 pll_mfactor;
+	u32 pll_nfactor;
+	u32 pll_pfactor;
+	u32 sample_freq;
+
+	enum fe_bandwidth bandwidth;
 };
 
 static struct init_tab {
@@ -267,6 +277,199 @@ static int tda10048_writeregbulk(struct tda10048_state *state, u8 reg,
 
 error:
 	kfree(buf);
+
+	return ret;
+}
+
+static int tda10048_set_phy2(struct dvb_frontend *fe, u32 sample_freq_hz,
+			     u32 if_hz)
+{
+	struct tda10048_state *state = fe->demodulator_priv;
+	u64 t;
+
+	dprintk(1, "%s()\n", __func__);
+
+	if (sample_freq_hz == 0)
+		return -EINVAL;
+
+	if (if_hz < (sample_freq_hz / 2)) {
+		/* PHY2 = (if2/fs) * 2^15 */
+		t = if_hz;
+		t *= 10;
+		t *= 32768;
+		do_div(t, sample_freq_hz);
+		t += 5;
+		do_div(t, 10);
+	} else {
+		/* PHY2 = ((IF1-fs)/fs) * 2^15 */
+		t = sample_freq_hz - if_hz;
+		t *= 10;
+		t *= 32768;
+		do_div(t, sample_freq_hz);
+		t += 5;
+		do_div(t, 10);
+		t = ~t + 1;
+	}
+
+	tda10048_writereg(state, TDA10048_FREQ_PHY2_LSB, (u8)t);
+	tda10048_writereg(state, TDA10048_FREQ_PHY2_MSB, (u8)(t >> 8));
+
+	return 0;
+}
+
+static int tda10048_set_wref(struct dvb_frontend *fe, u32 sample_freq_hz,
+			     u32 bw)
+{
+	struct tda10048_state *state = fe->demodulator_priv;
+	u64 t, z;
+	u32 b = 8000000;
+
+	dprintk(1, "%s()\n", __func__);
+
+	if (sample_freq_hz == 0)
+		return -EINVAL;
+
+	if (bw == BANDWIDTH_6_MHZ)
+		b = 6000000;
+	else
+	if (bw == BANDWIDTH_7_MHZ)
+		b = 7000000;
+
+	/* WREF = (B / (7 * fs)) * 2^31 */
+	t = b * 10;
+	/* avoid warning: this decimal constant is unsigned only in ISO C90 */
+	/* t *= 2147483648 on 32bit platforms */
+	t *= (2048 * 1024);
+	t *= 1024;
+	z = 7 * sample_freq_hz;
+	do_div(t, z);
+	t += 5;
+	do_div(t, 10);
+
+	tda10048_writereg(state, TDA10048_TIME_WREF_LSB, (u8)t);
+	tda10048_writereg(state, TDA10048_TIME_WREF_MID1, (u8)(t >> 8));
+	tda10048_writereg(state, TDA10048_TIME_WREF_MID2, (u8)(t >> 16));
+	tda10048_writereg(state, TDA10048_TIME_WREF_MSB, (u8)(t >> 24));
+
+	return 0;
+}
+
+static int tda10048_set_invwref(struct dvb_frontend *fe, u32 sample_freq_hz,
+				u32 bw)
+{
+	struct tda10048_state *state = fe->demodulator_priv;
+	u64 t;
+	u32 b = 8000000;
+
+	dprintk(1, "%s()\n", __func__);
+
+	if (sample_freq_hz == 0)
+		return -EINVAL;
+
+	if (bw == BANDWIDTH_6_MHZ)
+		b = 6000000;
+	else
+	if (bw == BANDWIDTH_7_MHZ)
+		b = 7000000;
+
+	/* INVWREF = ((7 * fs) / B) * 2^5 */
+	t = sample_freq_hz;
+	t *= 7;
+	t *= 32;
+	t *= 10;
+	do_div(t, b);
+	t += 5;
+	do_div(t, 10);
+
+	tda10048_writereg(state, TDA10048_TIME_INVWREF_LSB, (u8)t);
+	tda10048_writereg(state, TDA10048_TIME_INVWREF_MSB, (u8)(t >> 8));
+
+	return 0;
+}
+
+static int tda10048_set_bandwidth(struct dvb_frontend *fe,
+	enum fe_bandwidth bw)
+{
+	struct tda10048_state *state = fe->demodulator_priv;
+	dprintk(1, "%s(bw=%d)\n", __func__, bw);
+
+	/* Bandwidth setting may need to be adjusted */
+	switch (bw) {
+	case BANDWIDTH_6_MHZ:
+	case BANDWIDTH_7_MHZ:
+	case BANDWIDTH_8_MHZ:
+		tda10048_set_wref(fe, state->sample_freq, bw);
+		tda10048_set_invwref(fe, state->sample_freq, bw);
+		break;
+	default:
+		printk(KERN_ERR "%s() invalid bandwidth\n", __func__);
+		return -EINVAL;
+	}
+
+	state->bandwidth = bw;
+
+	return 0;
+}
+
+static int tda10048_set_pll(struct dvb_frontend *fe)
+{
+	struct tda10048_state *state = fe->demodulator_priv;
+	int ret = 0;
+
+	dprintk(1, "%s()\n", __func__);
+
+	if ((state->config->clk_freq_khz == TDA10048_CLK_4000) &&
+		(state->config->if_freq_khz == TDA10048_IF_36130)) {
+		state->freq_if_hz = TDA10048_IF_36130 * 1000;
+		state->xtal_hz = TDA10048_CLK_4000 * 1000;
+		state->pll_mfactor = 10;
+		state->pll_nfactor = 0;
+		state->pll_pfactor = 0;
+	} else
+	if ((state->config->clk_freq_khz == TDA10048_CLK_16000) &&
+		(state->config->if_freq_khz == TDA10048_IF_4300)) {
+		state->freq_if_hz = TDA10048_IF_4300 * 1000;
+		state->xtal_hz = TDA10048_CLK_16000 * 1000;
+		state->pll_mfactor = 10;
+		state->pll_nfactor = 3;
+		state->pll_pfactor = 0;
+	} else
+	if ((state->config->clk_freq_khz == TDA10048_CLK_16000) &&
+		(state->config->if_freq_khz == TDA10048_IF_4000)) {
+		state->freq_if_hz = TDA10048_IF_4000 * 1000;
+		state->xtal_hz = TDA10048_CLK_16000 * 1000;
+		state->pll_mfactor = 10;
+		state->pll_nfactor = 3;
+		state->pll_pfactor = 0;
+	} else
+	if ((state->config->clk_freq_khz == TDA10048_CLK_16000) &&
+		(state->config->if_freq_khz == TDA10048_IF_36130)) {
+		state->freq_if_hz = TDA10048_IF_36130 * 1000;
+		state->xtal_hz = TDA10048_CLK_16000 * 1000;
+		state->pll_mfactor = 10;
+		state->pll_nfactor = 3;
+		state->pll_pfactor = 0;
+	} else {
+		printk(KERN_ERR "%s() Incorrect attach settings\n", __func__);
+		ret = -EINVAL;
+	}
+
+	dprintk(1, "- freq_if_hz = %d\n", state->freq_if_hz);
+	dprintk(1, "- xtal_hz = %d\n", state->xtal_hz);
+	dprintk(1, "- pll_mfactor = %d\n", state->pll_mfactor);
+	dprintk(1, "- pll_nfactor = %d\n", state->pll_nfactor);
+	dprintk(1, "- pll_pfactor = %d\n", state->pll_pfactor);
+
+	/* Calculate the sample frequency */
+	state->sample_freq = state->xtal_hz * (state->pll_mfactor + 45);
+	state->sample_freq /= (state->pll_nfactor + 1);
+	state->sample_freq /= (state->pll_pfactor + 4);
+	dprintk(1, "- sample_freq = %d\n", state->sample_freq);
+
+	tda10048_set_phy2(fe, state->sample_freq,
+		state->config->if_freq_khz * 1000);
+	tda10048_set_wref(fe, state->sample_freq, state->bandwidth);
+	tda10048_set_invwref(fe, state->sample_freq, state->bandwidth);
 
 	return ret;
 }
@@ -523,6 +726,9 @@ static int tda10048_set_frontend(struct dvb_frontend *fe,
 
 	dprintk(1, "%s(frequency=%d)\n", __func__, p->frequency);
 
+	if (p->u.ofdm.bandwidth != state->bandwidth)
+		tda10048_set_bandwidth(fe, p->u.ofdm.bandwidth);
+
 	if (fe->ops.tuner_ops.set_params) {
 
 		if (fe->ops.i2c_gate_ctrl)
@@ -558,8 +764,14 @@ static int tda10048_init(struct dvb_frontend *fe)
 	/* Set either serial or parallel */
 	tda10048_output_mode(fe, state->config->output_mode);
 
-	/* set inversion */
+	/* Set inversion */
 	tda10048_set_inversion(fe, state->config->inversion);
+
+	/* Establish default PLL values */
+	tda10048_set_pll(fe);
+
+	/* Establish default bandwidth */
+	tda10048_set_bandwidth(fe, BANDWIDTH_8_MHZ);
 
 	/* Ensure we leave the gate closed */
 	tda10048_i2c_gate_ctrl(fe, 0);
@@ -830,6 +1042,7 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	state->config = config;
 	state->i2c = i2c;
 	state->fwloaded = 0;
+	state->bandwidth = BANDWIDTH_8_MHZ;
 
 	/* check if the demod is present */
 	if (tda10048_readreg(state, TDA10048_IDENTITY) != 0x048)
@@ -839,6 +1052,10 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	memcpy(&state->frontend.ops, &tda10048_ops,
 		sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
+
+	/* Set the xtal and freq defaults */
+	if (tda10048_set_pll(&state->frontend) != 0)
+		goto error;
 
 	/* Leave the gate closed */
 	tda10048_i2c_gate_ctrl(&state->frontend, 0);

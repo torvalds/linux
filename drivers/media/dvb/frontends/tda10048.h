@@ -43,6 +43,20 @@ struct tda10048_config {
 #define TDA10048_INVERSION_OFF 0
 #define TDA10048_INVERSION_ON  1
 	u8 inversion;
+
+#define TDA10048_IF_3300  3300
+#define TDA10048_IF_3500  3500
+#define TDA10048_IF_3800  3800
+#define TDA10048_IF_4000  4000
+#define TDA10048_IF_4300  4300
+#define TDA10048_IF_4500  4500
+#define TDA10048_IF_4750  4750
+#define TDA10048_IF_36130 36130
+	u16 if_freq_khz;
+
+#define TDA10048_CLK_4000  4000
+#define TDA10048_CLK_16000 16000
+	u16 clk_freq_khz;
 };
 
 #if defined(CONFIG_DVB_TDA10048) || \
