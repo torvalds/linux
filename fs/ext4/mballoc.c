@@ -2413,7 +2413,8 @@ static void ext4_mb_history_release(struct super_block *sb)
 
 	if (sbi->s_proc != NULL) {
 		remove_proc_entry("mb_groups", sbi->s_proc);
-		remove_proc_entry("mb_history", sbi->s_proc);
+		if (sbi->s_mb_history_max)
+			remove_proc_entry("mb_history", sbi->s_proc);
 	}
 	kfree(sbi->s_mb_history);
 }
@@ -2424,17 +2425,17 @@ static void ext4_mb_history_init(struct super_block *sb)
 	int i;
 
 	if (sbi->s_proc != NULL) {
-		proc_create_data("mb_history", S_IRUGO, sbi->s_proc,
-				 &ext4_mb_seq_history_fops, sb);
+		if (sbi->s_mb_history_max)
+			proc_create_data("mb_history", S_IRUGO, sbi->s_proc,
+					 &ext4_mb_seq_history_fops, sb);
 		proc_create_data("mb_groups", S_IRUGO, sbi->s_proc,
 				 &ext4_mb_seq_groups_fops, sb);
 	}
 
-	sbi->s_mb_history_max = 1000;
 	sbi->s_mb_history_cur = 0;
 	spin_lock_init(&sbi->s_mb_history_lock);
 	i = sbi->s_mb_history_max * sizeof(struct ext4_mb_history);
-	sbi->s_mb_history = kzalloc(i, GFP_KERNEL);
+	sbi->s_mb_history = i ? kzalloc(i, GFP_KERNEL) : NULL;
 	/* if we can't allocate history, then we simple won't use it */
 }
 
@@ -2444,7 +2445,7 @@ ext4_mb_store_history(struct ext4_allocation_context *ac)
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
 	struct ext4_mb_history h;
 
-	if (unlikely(sbi->s_mb_history == NULL))
+	if (sbi->s_mb_history == NULL)
 		return;
 
 	if (!(ac->ac_op & sbi->s_mb_history_filter))
