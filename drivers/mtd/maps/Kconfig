@@ -105,15 +105,6 @@ config MSP_FLASH_MAP_LIMIT
 	default "0x02000000"
 	depends on MSP_FLASH_MAP_LIMIT_32M
 
-config MTD_PMC_MSP_RAMROOT
-	tristate "Embedded RAM block device for root on PMC-Sierra MSP"
-	depends on PMC_MSP_EMBEDDED_ROOTFS && \
-			(MTD_BLOCK || MTD_BLOCK_RO) && \
-			MTD_RAM
-	help
-	  This provides support for the embedded root file system
-          on PMC MSP devices.  This memory is mapped as a MTD block device.
-
 config MTD_SUN_UFLASH
 	tristate "Sun Microsystems userflash support"
 	depends on SPARC && MTD_CFI && PCI
