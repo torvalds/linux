@@ -1040,13 +1040,13 @@ struct snd_soc_dai wm9713_dai[] = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM9713_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
+		.formats = SND_SOC_STD_AC97_FMTS,},
 	.capture = {
 		.stream_name = "HiFi Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = WM9713_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
+		.formats = SND_SOC_STD_AC97_FMTS,},
 	.ops = &wm9713_dai_ops_hifi,
 	},
 	{
@@ -1056,7 +1056,7 @@ struct snd_soc_dai wm9713_dai[] = {
 		.channels_min = 1,
 		.channels_max = 1,
 		.rates = WM9713_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
+		.formats = SND_SOC_STD_AC97_FMTS,},
 	.ops = &wm9713_dai_ops_aux,
 	},
 	{

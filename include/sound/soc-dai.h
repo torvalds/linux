@@ -96,6 +96,9 @@ struct snd_pcm_substream;
 #define SND_SOC_CLOCK_IN		0
 #define SND_SOC_CLOCK_OUT		1
 
+#define SND_SOC_STD_AC97_FMTS (SNDRV_PCM_FMTBIT_S16_LE |\
+                               SNDRV_PCM_FMTBIT_S32_LE)
+
 struct snd_soc_dai_ops;
 struct snd_soc_dai;
 struct snd_ac97_bus_ops;

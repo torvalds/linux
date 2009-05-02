@@ -53,13 +53,13 @@ struct snd_soc_dai ac97_dai = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = STD_AC97_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
+		.formats = SND_SOC_STD_AC97_FMTS,},
 	.capture = {
 		.stream_name = "AC97 Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = STD_AC97_RATES,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
+		.formats = SND_SOC_STD_AC97_FMTS,},
 	.ops = &ac97_dai_ops,
 };
 EXPORT_SYMBOL_GPL(ac97_dai);
