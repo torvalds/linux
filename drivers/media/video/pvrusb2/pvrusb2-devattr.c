@@ -284,6 +284,8 @@ static struct tda10048_config hauppauge_tda10048_config = {
 	.output_mode    = TDA10048_PARALLEL_OUTPUT,
 	.fwbulkwritelen = TDA10048_BULKWRITE_50,
 	.inversion      = TDA10048_INVERSION_ON,
+	.if_freq_khz    = TDA10048_IF_4300,
+	.clk_freq_khz   = TDA10048_CLK_16000,
 };
 
 static struct tda829x_config tda829x_no_probe = {
