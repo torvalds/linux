@@ -253,7 +253,9 @@ void ide_retry_pc(ide_drive_t *drive)
 	/* init pc from sense_rq */
 	ide_init_pc(pc);
 	memcpy(pc->c, sense_rq->cmd, 12);
-	pc->buf = bio_data(sense_rq->bio);	/* pointer to mapped address */
+
+	/* pointer to mapped address */
+	pc->buf = bio_data(sense_rq->bio);
 	pc->req_xfer = blk_rq_bytes(sense_rq);
 
 	if (drive->media == ide_tape)

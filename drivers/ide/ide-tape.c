@@ -288,11 +288,12 @@ static struct ide_tape_obj *ide_tape_chrdev_get(unsigned int i)
  * called on each failed packet command retry to analyze the request sense. We
  * currently do not utilize this information.
  */
-static void idetape_analyze_error(ide_drive_t *drive, u8 *sense)
+static void idetape_analyze_error(ide_drive_t *drive)
 {
 	idetape_tape_t *tape = drive->driver_data;
 	struct ide_atapi_pc *pc = drive->failed_pc;
 	struct request *rq = drive->hwif->rq;
+	u8 *sense = bio_data(rq->bio);
 
 	tape->sense_key = sense[2] & 0xF;
 	tape->asc       = sense[12];
@@ -362,7 +363,7 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
 
 	if (pc->c[0] == REQUEST_SENSE) {
 		if (uptodate)
-			idetape_analyze_error(drive, pc->buf);
+			idetape_analyze_error(drive);
 		else
 			printk(KERN_ERR "ide-tape: Error in REQUEST SENSE "
 					"itself - Aborting request!\n");

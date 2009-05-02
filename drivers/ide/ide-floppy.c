@@ -77,7 +77,8 @@ static int ide_floppy_callback(ide_drive_t *drive, int dsc)
 	    (rq && blk_pc_request(rq)))
 		uptodate = 1; /* FIXME */
 	else if (pc->c[0] == GPCMD_REQUEST_SENSE) {
-		u8 *buf = pc->buf;
+
+		u8 *buf = bio_data(rq->bio);
 
 		if (!pc->error) {
 			floppy->sense_key = buf[2] & 0x0F;
