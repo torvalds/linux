@@ -221,7 +221,7 @@
 			interrupt-parent = <&mpic>;
 			fsl,num-channels = <4>;
 			fsl,channel-fifo-len = <24>;
-			fsl,exec-units-mask = <0x9fe>;
+			fsl,exec-units-mask = <0xbfe>;
 			fsl,descriptor-types-mask = <0x3ab0ebf>;
 		};
 
