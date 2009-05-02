@@ -1878,6 +1878,11 @@ __apicdebuginit(void) print_PIC(void)
 __apicdebuginit(int) print_all_ICs(void)
 {
 	print_PIC();
+
+	/* don't print out if apic is not there */
+	if (!cpu_has_apic || disable_apic)
+		return 0;
+
 	print_all_local_APICs();
 	print_IO_APIC();
 

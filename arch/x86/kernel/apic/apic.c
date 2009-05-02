@@ -242,17 +242,24 @@ static int modern_apic(void)
  * bare function to substitute write operation
  * and it's _that_ fast :)
  */
-void native_apic_write_dummy(u32 reg, u32 v)
+static void native_apic_write_dummy(u32 reg, u32 v)
 {
 	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
 }
 
+static u32 native_apic_read_dummy(u32 reg)
+{
+	WARN_ON_ONCE((cpu_has_apic || !disable_apic));
+	return 0;
+}
+
 /*
- * right after this call apic->write doesn't do anything
+ * right after this call apic->write/read doesn't do anything
  * note that there is no restore operation it works one way
  */
 void apic_disable(void)
 {
+	apic->read = native_apic_read_dummy;
 	apic->write = native_apic_write_dummy;
 }
 
@@ -1576,32 +1583,23 @@ void __init init_apic_mappings(void)
 		return;
 	}
 
-	/*
-	 * If no local APIC can be found then set up a fake all
-	 * zeroes page to simulate the local APIC and another
-	 * one for the IO-APIC.
-	 */
+	/* If no local APIC can be found return early */
 	if (!smp_found_config && detect_init_APIC()) {
-		apic_phys = (unsigned long) alloc_bootmem_pages(PAGE_SIZE);
-		apic_phys = __pa(apic_phys);
-	} else
-		apic_phys = mp_lapic_addr;
-
-	/*
-	 * acpi lapic path already maps that address in
-	 * acpi_register_lapic_address()
-	 */
-	if (!acpi_lapic)
-		set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
-
-	apic_printk(APIC_VERBOSE, "mapped APIC to %08lx (%08lx)\n",
-			APIC_BASE, apic_phys);
-
-	/* lets check if we may NOP'ify apic operations */
-	if (!cpu_has_apic) {
+		/* lets NOP'ify apic operations */
 		pr_info("APIC: disable apic facility\n");
 		apic_disable();
-		return;
+	} else {
+		apic_phys = mp_lapic_addr;
+
+		/*
+		 * acpi lapic path already maps that address in
+		 * acpi_register_lapic_address()
+		 */
+		if (!acpi_lapic)
+			set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
+
+		apic_printk(APIC_VERBOSE, "mapped APIC to %08lx (%08lx)\n",
+					APIC_BASE, apic_phys);
 	}
 
 	/*
