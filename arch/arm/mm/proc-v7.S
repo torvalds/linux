@@ -96,6 +96,9 @@ ENTRY(cpu_v7_switch_mm)
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
 	orr	r0, r0, #TTB_FLAGS
+#ifdef CONFIG_ARM_ERRATA_430973
+	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
+#endif
 	mcr	p15, 0, r2, c13, c0, 1		@ set reserved context ID
 	isb
 1:	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
@@ -181,6 +184,22 @@ __v7_setup:
 	stmia	r12, {r0-r5, r7, r9, r11, lr}
 	bl	v7_flush_dcache_all
 	ldmia	r12, {r0-r5, r7, r9, r11, lr}
+#ifdef CONFIG_ARM_ERRATA_430973
+	mrc	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orr	r10, r10, #(1 << 6)		@ set IBE to 1
+	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
+#endif
+#ifdef CONFIG_ARM_ERRATA_458693
+	mrc	p15, 0, r10, c1, c0, 1		@ read aux control register
+	orr	r10, r10, #(1 << 5)		@ set L1NEON to 1
+	orr	r10, r10, #(1 << 9)		@ set PLDNOP to 1
+	mcr	p15, 0, r10, c1, c0, 1		@ write aux control register
+#endif
+#ifdef CONFIG_ARM_ERRATA_460075
+	mrc	p15, 1, r10, c9, c0, 2		@ read L2 cache aux ctrl register
+	orr	r10, r10, #(1 << 22)		@ set the Write Allocate disable bit
+	mcr	p15, 1, r10, c9, c0, 2		@ write the L2 cache aux ctrl register
+#endif
 	mov	r10, #0
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
