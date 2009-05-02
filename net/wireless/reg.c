@@ -1134,7 +1134,8 @@ static bool reg_is_world_roaming(struct wiphy *wiphy)
 	if (is_world_regdom(cfg80211_regdomain->alpha2) ||
 	    (wiphy->regd && is_world_regdom(wiphy->regd->alpha2)))
 		return true;
-	if (last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	if (last_request &&
+	    last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    wiphy->custom_regulatory)
 		return true;
 	return false;
@@ -1143,6 +1144,12 @@ static bool reg_is_world_roaming(struct wiphy *wiphy)
 /* Reap the advantages of previously found beacons */
 static void reg_process_beacons(struct wiphy *wiphy)
 {
+	/*
+	 * Means we are just firing up cfg80211, so no beacons would
+	 * have been processed yet.
+	 */
+	if (!last_request)
+		return;
 	if (!reg_is_world_roaming(wiphy))
 		return;
 	wiphy_update_beacon_reg(wiphy);
