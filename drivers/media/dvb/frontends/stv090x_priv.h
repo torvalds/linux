@@ -77,7 +77,18 @@
 
 #define MAKEWORD16(__a, __b)			(((__a) << 8) | (__b))
 
-#define STV090x_SEARCH_AGC2_TH		700
+#define MSB(__x)				((__x >> 8) & 0xff)
+#define LSB(__x)				(__x & 0xff)
+
+
+#define STV090x_IQPOWER_THRESHOLD	  30
+#define STV090x_SEARCH_AGC2_TH_CUT20	 700
+#define STV090x_SEARCH_AGC2_TH_CUT30	1200
+
+#define STV090x_SEARCH_AGC2_TH(__ver)	\
+	((__ver <= 0x20) ?		\
+	STV090x_SEARCH_AGC2_TH_CUT20 :	\
+	STV090x_SEARCH_AGC2_TH_CUT30)
 
 enum stv090x_signal_state {
 	STV090x_NOCARRIER,
@@ -201,24 +212,8 @@ struct stv090x_long_frame_crloop {
 struct stv090x_short_frame_crloop {
 	enum stv090x_modulation	modulation;
 
-	u8 crl_cut12_2; /* Cut 1.2, SR <= 3M */
-	u8 crl_cut20_2; /* Cut 2.0, SR <  3M */
-	u8 crl_cut12_5; /* Cut 1.2, 3 < SR <= 7M */
-	u8 crl_cut20_5; /* Cut 2.0, 3 < SR <= 7M */
-	u8 crl_cut12_10; /* Cut 1.2, 7 < SR <= 15M */
-	u8 crl_cut20_10; /* Cut 2.0, 7 < SR <= 15M */
-	u8 crl_cut12_20; /* Cut 1.2, 10 < SR <= 25M */
-	u8 crl_cut20_20; /* Cut 2.0, 10 < SR <= 25M */
-	u8 crl_cut12_30; /* Cut 1.2, 25 < SR <= 45M */
-	u8 crl_cut20_30; /* Cut 2.0, 10 < SR <= 45M */
-};
-
-
-struct stv090x_short_frame_vsmod_crloop {
-	enum stv090x_modulation	modulation;
-
-	u8 crl_2; /*           <  3M */
-	u8 crl_5; /*   3 < SR <=  7M */
+	u8 crl_2;  /*      SR <   3M */
+	u8 crl_5;  /*  3 < SR <=  7M */
 	u8 crl_10; /*  7 < SR <= 15M */
 	u8 crl_20; /* 10 < SR <= 25M */
 	u8 crl_30; /* 10 < SR <= 45M */
