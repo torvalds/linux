@@ -117,16 +117,17 @@ static void ide_floppy_create_format_unit_cmd(struct ide_atapi_pc *pc, int b,
 static int ide_floppy_get_sfrp_bit(ide_drive_t *drive, struct ide_atapi_pc *pc)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
+	u8 buf[20];
 
 	drive->atapi_flags &= ~IDE_AFLAG_SRFP;
 
 	ide_floppy_create_mode_sense_cmd(pc, IDEFLOPPY_CAPABILITIES_PAGE);
 	pc->flags |= PC_FLAG_SUPPRESS_ERROR;
 
-	if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->buf, pc->req_xfer))
+	if (ide_queue_pc_tail(drive, floppy->disk, pc, buf, pc->req_xfer))
 		return 1;
 
-	if (pc->buf[8 + 2] & 0x40)
+	if (buf[8 + 2] & 0x40)
 		drive->atapi_flags |= IDE_AFLAG_SRFP;
 
 	return 0;
