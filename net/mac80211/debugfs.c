@@ -52,14 +52,6 @@ static const struct file_operations name## _ops = {			\
 
 DEBUGFS_READONLY_FILE(frequency, 20, "%d",
 		      local->hw.conf.channel->center_freq);
-DEBUGFS_READONLY_FILE(rts_threshold, 20, "%d",
-		      local->hw.wiphy->rts_threshold);
-DEBUGFS_READONLY_FILE(fragmentation_threshold, 20, "%d",
-		      local->hw.wiphy->frag_threshold);
-DEBUGFS_READONLY_FILE(short_retry_limit, 20, "%d",
-		      local->hw.wiphy->retry_short);
-DEBUGFS_READONLY_FILE(long_retry_limit, 20, "%d",
-		      local->hw.wiphy->retry_long);
 DEBUGFS_READONLY_FILE(total_ps_buffered, 20, "%d",
 		      local->total_ps_buffered);
 DEBUGFS_READONLY_FILE(wep_iv, 20, "%#08x",
@@ -303,10 +295,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	local->debugfs.keys = debugfs_create_dir("keys", phyd);
 
 	DEBUGFS_ADD(frequency);
-	DEBUGFS_ADD(rts_threshold);
-	DEBUGFS_ADD(fragmentation_threshold);
-	DEBUGFS_ADD(short_retry_limit);
-	DEBUGFS_ADD(long_retry_limit);
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(tsf);
@@ -359,10 +347,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 void debugfs_hw_del(struct ieee80211_local *local)
 {
 	DEBUGFS_DEL(frequency);
-	DEBUGFS_DEL(rts_threshold);
-	DEBUGFS_DEL(fragmentation_threshold);
-	DEBUGFS_DEL(short_retry_limit);
-	DEBUGFS_DEL(long_retry_limit);
 	DEBUGFS_DEL(total_ps_buffered);
 	DEBUGFS_DEL(wep_iv);
 	DEBUGFS_DEL(tsf);
