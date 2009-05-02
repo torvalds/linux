@@ -230,10 +230,10 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 
 	v->rangelow = RSF16_MINFREQ;
 	v->rangehigh = RSF16_MAXFREQ;
-	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	v->capability = V4L2_TUNER_CAP_LOW;
-	v->audmode = fmr2->stereo ? V4L2_TUNER_MODE_STEREO:
-				V4L2_TUNER_MODE_MONO;
+	v->rxsubchans = fmr2->stereo ? V4L2_TUNER_SUB_STEREO :
+					V4L2_TUNER_SUB_MONO;
+	v->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LOW;
+	v->audmode = V4L2_TUNER_MODE_STEREO;
 	mutex_lock(&fmr2->lock);
 	v->signal = fmr2_getsigstr(fmr2);
 	mutex_unlock(&fmr2->lock);
