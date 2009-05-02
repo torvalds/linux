@@ -2060,19 +2060,6 @@ nfs4_file_downgrade(struct file *filp, unsigned int share_access)
 }
 
 /*
- * Recall a delegation
- */
-static int
-do_recall(void *__dp)
-{
-	struct nfs4_delegation *dp = __dp;
-
-	dp->dl_file->fi_had_conflict = true;
-	nfsd4_cb_recall(dp);
-	return 0;
-}
-
-/*
  * Spawn a thread to perform a recall on the delegation represented
  * by the lease (file_lock)
  *
@@ -2083,8 +2070,7 @@ do_recall(void *__dp)
 static
 void nfsd_break_deleg_cb(struct file_lock *fl)
 {
-	struct nfs4_delegation *dp=  (struct nfs4_delegation *)fl->fl_owner;
-	struct task_struct *t;
+	struct nfs4_delegation *dp = (struct nfs4_delegation *)fl->fl_owner;
 
 	dprintk("NFSD nfsd_break_deleg_cb: dp %p fl %p\n",dp,fl);
 	if (!dp)
@@ -2112,16 +2098,8 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 	 */
 	fl->fl_break_time = 0;
 
-	t = kthread_run(do_recall, dp, "%s", "nfs4_cb_recall");
-	if (IS_ERR(t)) {
-		struct nfs4_client *clp = dp->dl_client;
-
-		printk(KERN_INFO "NFSD: Callback thread failed for "
-			"for client (clientid %08x/%08x)\n",
-			clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
-		put_nfs4_client(dp->dl_client);
-		nfs4_put_delegation(dp);
-	}
+	dp->dl_file->fi_had_conflict = true;
+	nfsd4_cb_recall(dp);
 }
 
 /*

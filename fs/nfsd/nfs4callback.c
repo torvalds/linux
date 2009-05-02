@@ -494,6 +494,49 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	do_probe_callback(clp);
 }
 
+static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs4_delegation *dp = calldata;
+	struct nfs4_client *clp = dp->dl_client;
+
+	switch (task->tk_status) {
+	case -EIO:
+		/* Network partition? */
+		atomic_set(&clp->cl_cb_conn.cb_set, 0);
+		warn_no_callback_path(clp, task->tk_status);
+	case -EBADHANDLE:
+	case -NFS4ERR_BAD_STATEID:
+		/* Race: client probably got cb_recall
+		 * before open reply granting delegation */
+		break;
+	default:
+		/* success, or error we can't handle */
+		return;
+	}
+	if (dp->dl_retries--) {
+		rpc_delay(task, 2*HZ);
+		task->tk_status = 0;
+		rpc_restart_call(task);
+	} else {
+		atomic_set(&clp->cl_cb_conn.cb_set, 0);
+		warn_no_callback_path(clp, task->tk_status);
+	}
+}
+
+static void nfsd4_cb_recall_release(void *calldata)
+{
+	struct nfs4_delegation *dp = calldata;
+	struct nfs4_client *clp = dp->dl_client;
+
+	nfs4_put_delegation(dp);
+	put_nfs4_client(clp);
+}
+
+static const struct rpc_call_ops nfsd4_cb_recall_ops = {
+	.rpc_call_done = nfsd4_cb_recall_done,
+	.rpc_release = nfsd4_cb_recall_release,
+};
+
 /*
  * called with dp->dl_count inc'ed.
  */
@@ -507,32 +550,13 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 		.rpc_argp = dp,
 		.rpc_cred = clp->cl_cb_conn.cb_cred
 	};
-	int status = 0;
+	int status;
 
 	dp->dl_retries = 1;
-	status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT);
-	while (dp->dl_retries--) {
-		switch (status) {
-			case -EIO:
-				/* Network partition? */
-				atomic_set(&clp->cl_cb_conn.cb_set, 0);
-			case -EBADHANDLE:
-			case -NFS4ERR_BAD_STATEID:
-				/* Race: client probably got cb_recall
-				 * before open reply granting delegation */
-				break;
-			default:
-				goto out_put_cred;
-		}
-		ssleep(2);
-		status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT);
+	status = rpc_call_async(clnt, &msg, RPC_TASK_SOFT,
+				&nfsd4_cb_recall_ops, dp);
+	if (status) {
+		put_nfs4_client(clp);
+		nfs4_put_delegation(dp);
 	}
-out_put_cred:
-	/*
-	 * Success or failure, now we're either waiting for lease expiration
-	 * or deleg_return.
-	 */
-	put_nfs4_client(clp);
-	nfs4_put_delegation(dp);
-	return;
 }
