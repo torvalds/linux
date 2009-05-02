@@ -1456,7 +1456,6 @@ static int __init detect_init_APIC(void)
 	}
 
 	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
-	boot_cpu_physical_apicid = 0;
 	return 0;
 }
 #else
@@ -1570,6 +1569,8 @@ void __init early_init_lapic_mapping(void)
  */
 void __init init_apic_mappings(void)
 {
+	unsigned int new_apicid;
+
 	if (x2apic_mode) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
@@ -1586,21 +1587,31 @@ void __init init_apic_mappings(void)
 	} else
 		apic_phys = mp_lapic_addr;
 
-	set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
+	/* lets check if we may NOP'ify apic operations */
+	if (!cpu_has_apic) {
+		pr_info("APIC: disable apic facility\n");
+		apic_disable();
+		return;
+	}
+
+	/*
+	 * acpi lapic path already maps that address in
+	 * acpi_register_lapic_address()
+	 */
+	if (!acpi_lapic)
+		set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
+
 	apic_printk(APIC_VERBOSE, "mapped APIC to %08lx (%08lx)\n",
 				APIC_BASE, apic_phys);
-
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
 	 */
-	if (boot_cpu_physical_apicid == -1U)
-		boot_cpu_physical_apicid = read_apic_id();
-
-	/* lets check if we may to NOP'ify apic operations */
-	if (!cpu_has_apic) {
-		pr_info("APIC: disable apic facility\n");
-		apic_disable();
+	new_apicid = read_apic_id();
+	if (boot_cpu_physical_apicid != new_apicid) {
+		boot_cpu_physical_apicid = new_apicid;
+		apic_version[new_apicid] =
+			 GET_APIC_VERSION(apic_read(APIC_LVR));
 	}
 }
 
