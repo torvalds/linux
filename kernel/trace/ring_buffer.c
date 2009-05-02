@@ -2650,6 +2650,8 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	if (!cpumask_test_cpu(cpu, buffer->cpumask))
 		return;
 
+	atomic_inc(&cpu_buffer->record_disabled);
+
 	spin_lock_irqsave(&cpu_buffer->reader_lock, flags);
 
 	__raw_spin_lock(&cpu_buffer->lock);
@@ -2659,6 +2661,8 @@ void ring_buffer_reset_cpu(struct ring_buffer *buffer, int cpu)
 	__raw_spin_unlock(&cpu_buffer->lock);
 
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
+
+	atomic_dec(&cpu_buffer->record_disabled);
 }
 EXPORT_SYMBOL_GPL(ring_buffer_reset_cpu);
 
