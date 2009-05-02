@@ -259,9 +259,20 @@
 		};
 
 		par_io@e0100 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			reg = <0xe0100 0x100>;
+			ranges = <0x0 0xe0100 0x100>;
 			device_type = "par_io";
 			num-ports = <7>;
+
+			qe_pio_e: gpio-controller@80 {
+				#gpio-cells = <2>;
+				compatible = "fsl,mpc8569-qe-pario-bank",
+					     "fsl,mpc8323-qe-pario-bank";
+				reg = <0x80 0x18>;
+				gpio-controller;
+			};
 
 			pio1: ucc_pin@01 {
 				pio-map = <
@@ -368,12 +379,21 @@
 		};
 
 		spi@4c0 {
-			cell-index = <0>;
-			compatible = "fsl,spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc8569-qe-spi", "fsl,spi";
 			reg = <0x4c0 0x40>;
+			cell-index = <0>;
 			interrupts = <2>;
 			interrupt-parent = <&qeic>;
-			mode = "cpu";
+			gpios = <&qe_pio_e 30 0>;
+			mode = "cpu-qe";
+
+			serial-flash@0 {
+				compatible = "stm,m25p40";
+				reg = <0>;
+				spi-max-frequency = <25000000>;
+			};
 		};
 
 		spi@500 {
