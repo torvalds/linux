@@ -910,9 +910,6 @@ static void login_rsp(struct srp_event_struct *evt_struct)
 
 	dev_info(hostdata->dev, "SRP_LOGIN succeeded\n");
 
-	if (evt_struct->xfer_iu->srp.login_rsp.req_lim_delta < 0)
-		dev_err(hostdata->dev, "Invalid request_limit.\n");
-
 	/* Now we know what the real request-limit is.
 	 * This value is set rather than added to request_limit because
 	 * request_limit could have been set to -1 by this client.
