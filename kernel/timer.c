@@ -1356,37 +1356,17 @@ int do_sysinfo(struct sysinfo *info)
 {
 	unsigned long mem_total, sav_total;
 	unsigned int mem_unit, bitcount;
-	unsigned long seq;
+	struct timespec tp;
 
 	memset(info, 0, sizeof(struct sysinfo));
 
-	do {
-		struct timespec tp;
-		seq = read_seqbegin(&xtime_lock);
+	ktime_get_ts(&tp);
+	monotonic_to_bootbased(&tp);
+	info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
 
-		/*
-		 * This is annoying.  The below is the same thing
-		 * posix_get_clock_monotonic() does, but it wants to
-		 * take the lock which we want to cover the loads stuff
-		 * too.
-		 */
+	get_avenrun(info->loads, 0, SI_LOAD_SHIFT - FSHIFT);
 
-		getnstimeofday(&tp);
-		tp.tv_sec += wall_to_monotonic.tv_sec;
-		tp.tv_nsec += wall_to_monotonic.tv_nsec;
-		monotonic_to_bootbased(&tp);
-		if (tp.tv_nsec - NSEC_PER_SEC >= 0) {
-			tp.tv_nsec = tp.tv_nsec - NSEC_PER_SEC;
-			tp.tv_sec++;
-		}
-		info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
-
-		info->loads[0] = avenrun[0] << (SI_LOAD_SHIFT - FSHIFT);
-		info->loads[1] = avenrun[1] << (SI_LOAD_SHIFT - FSHIFT);
-		info->loads[2] = avenrun[2] << (SI_LOAD_SHIFT - FSHIFT);
-
-		info->procs = nr_threads;
-	} while (read_seqretry(&xtime_lock, seq));
+	info->procs = nr_threads;
 
 	si_meminfo(info);
 	si_swapinfo(info);
