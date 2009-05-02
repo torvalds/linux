@@ -220,6 +220,16 @@
 			};
 		};
 
+		sdhci@2e000 {
+			compatible = "fsl,mpc8569-esdhc", "fsl,esdhc";
+			reg = <0x2e000 0x1000>;
+			interrupts = <72 0x8>;
+			interrupt-parent = <&mpic>;
+			/* Filled in by U-Boot */
+			clock-frequency = <0>;
+			status = "disabled";
+		};
+
 		crypto@30000 {
 			compatible = "fsl,sec3.1", "fsl,sec3.0", "fsl,sec2.4",
 				"fsl,sec2.2", "fsl,sec2.1", "fsl,sec2.0";
