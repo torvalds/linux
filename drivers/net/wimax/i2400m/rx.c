@@ -177,7 +177,8 @@ void i2400m_report_hook_work(struct work_struct *ws)
 	struct i2400m_work *iw =
 		container_of(ws, struct i2400m_work, ws);
 	struct i2400m_report_hook_args *args = (void *) iw->pl;
-	i2400m_report_hook(iw->i2400m, args->l3l4_hdr, args->size);
+	if (iw->i2400m->ready)
+		i2400m_report_hook(iw->i2400m, args->l3l4_hdr, args->size);
 	kfree_skb(args->skb_rx);
 	i2400m_put(iw->i2400m);
 	kfree(iw);

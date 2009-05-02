@@ -292,8 +292,6 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 
 	d_fnstart(3, dev, "(i2400m %p ss %p [%u])\n", i2400m, ss, i2400m_state);
 
-	if (unlikely(i2400m->ready == 0))	/* act if up */
-		goto out;
 	if (i2400m->state != i2400m_state) {
 		i2400m->state = i2400m_state;
 		wake_up_all(&i2400m->state_wq);
@@ -341,7 +339,6 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 		i2400m->bus_reset(i2400m, I2400M_RT_WARM);
 		break;
 	};
-out:
 	d_fnend(3, dev, "(i2400m %p ss %p [%u]) = void\n",
 		i2400m, ss, i2400m_state);
 }
@@ -372,8 +369,6 @@ void i2400m_report_tlv_media_status(struct i2400m *i2400m,
 
 	d_fnstart(3, dev, "(i2400m %p ms %p [%u])\n", i2400m, ms, status);
 
-	if (unlikely(i2400m->ready == 0))	/* act if up */
-		goto out;
 	switch (status) {
 	case I2400M_MEDIA_STATUS_LINK_UP:
 		netif_carrier_on(net_dev);
@@ -393,7 +388,6 @@ void i2400m_report_tlv_media_status(struct i2400m *i2400m,
 		dev_err(dev, "HW BUG? unknown media status %u\n",
 			status);
 	};
-out:
 	d_fnend(3, dev, "(i2400m %p ms %p [%u]) = void\n",
 		i2400m, ms, status);
 }
