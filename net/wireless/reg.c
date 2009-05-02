@@ -1226,14 +1226,14 @@ static void reg_process_ht_flags_channel(struct wiphy *wiphy,
 	 * to include that as well.
 	 */
 	if (is_ht40_not_allowed(channel_before))
-		channel->flags |= IEEE80211_CHAN_NO_FAT_BELOW;
+		channel->flags |= IEEE80211_CHAN_NO_HT40MINUS;
 	else
-		channel->flags &= ~IEEE80211_CHAN_NO_FAT_BELOW;
+		channel->flags &= ~IEEE80211_CHAN_NO_HT40MINUS;
 
 	if (is_ht40_not_allowed(channel_after))
-		channel->flags |= IEEE80211_CHAN_NO_FAT_ABOVE;
+		channel->flags |= IEEE80211_CHAN_NO_HT40PLUS;
 	else
-		channel->flags &= ~IEEE80211_CHAN_NO_FAT_ABOVE;
+		channel->flags &= ~IEEE80211_CHAN_NO_HT40PLUS;
 }
 
 static void reg_process_ht_flags_band(struct wiphy *wiphy,

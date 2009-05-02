@@ -481,8 +481,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			/* First write that fat is not enabled, and then enable
 			 * one by one */
 			ch_info->fat_extension_channel =
-				(IEEE80211_CHAN_NO_FAT_ABOVE |
-				 IEEE80211_CHAN_NO_FAT_BELOW);
+				(IEEE80211_CHAN_NO_HT40PLUS |
+				 IEEE80211_CHAN_NO_HT40MINUS);
 
 			if (!(is_channel_valid(ch_info))) {
 				IWL_DEBUG_INFO(priv, "Ch. %d Flags %x [%sGHz] - "
@@ -561,7 +561,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 				fat_extension_chan = 0;
 			else
 				fat_extension_chan =
-					IEEE80211_CHAN_NO_FAT_BELOW;
+					IEEE80211_CHAN_NO_HT40MINUS;
 
 			/* Set up driver's info for lower half */
 			iwl_set_fat_chan_info(priv, ieeeband,
@@ -573,7 +573,7 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 			iwl_set_fat_chan_info(priv, ieeeband,
 						(eeprom_ch_index[ch] + 4),
 						&(eeprom_ch_info[ch]),
-						IEEE80211_CHAN_NO_FAT_ABOVE);
+						IEEE80211_CHAN_NO_HT40PLUS);
 		}
 	}
 

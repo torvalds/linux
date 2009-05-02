@@ -349,13 +349,13 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 		switch (ht_info->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-			if (flags & IEEE80211_CHAN_NO_FAT_ABOVE) {
+			if (flags & IEEE80211_CHAN_NO_HT40PLUS) {
 				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				cap &= ~IEEE80211_HT_CAP_SGI_40;
 			}
 			break;
 		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-			if (flags & IEEE80211_CHAN_NO_FAT_BELOW) {
+			if (flags & IEEE80211_CHAN_NO_HT40MINUS) {
 				cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 				cap &= ~IEEE80211_HT_CAP_SGI_40;
 			}

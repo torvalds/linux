@@ -603,10 +603,10 @@ static u8 iwl_is_channel_extension(struct iwl_priv *priv,
 
 	if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
 		return !(ch_info->fat_extension_channel &
-					IEEE80211_CHAN_NO_FAT_ABOVE);
+					IEEE80211_CHAN_NO_HT40PLUS);
 	else if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW)
 		return !(ch_info->fat_extension_channel &
-					IEEE80211_CHAN_NO_FAT_BELOW);
+					IEEE80211_CHAN_NO_HT40MINUS);
 
 	return 0;
 }
