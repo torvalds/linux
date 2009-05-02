@@ -121,10 +121,14 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		    (hti->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
 			switch(hti->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-				channel_type = NL80211_CHAN_HT40PLUS;
+				if (!(local->hw.conf.channel->flags &
+				    IEEE80211_CHAN_NO_HT40PLUS))
+					channel_type = NL80211_CHAN_HT40PLUS;
 				break;
 			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-				channel_type = NL80211_CHAN_HT40MINUS;
+				if (!(local->hw.conf.channel->flags &
+				    IEEE80211_CHAN_NO_HT40MINUS))
+					channel_type = NL80211_CHAN_HT40MINUS;
 				break;
 			}
 		}
