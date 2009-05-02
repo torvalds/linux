@@ -3749,6 +3749,8 @@ int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 	unsigned long flags;
 	int err;
 
+	BUILD_BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
+
 	cfg = irq_cfg(irq);
 
 	err = assign_irq_vector(irq, cfg, eligible_cpu);
@@ -3762,15 +3764,13 @@ int arch_enable_uv_irq(char *irq_name, unsigned int irq, int cpu, int mmr_blade,
 
 	mmr_value = 0;
 	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
-	BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
-
-	entry->vector = cfg->vector;
-	entry->delivery_mode = apic->irq_delivery_mode;
-	entry->dest_mode = apic->irq_dest_mode;
-	entry->polarity = 0;
-	entry->trigger = 0;
-	entry->mask = 0;
-	entry->dest = apic->cpu_mask_to_apicid(eligible_cpu);
+	entry->vector		= cfg->vector;
+	entry->delivery_mode	= apic->irq_delivery_mode;
+	entry->dest_mode	= apic->irq_dest_mode;
+	entry->polarity		= 0;
+	entry->trigger		= 0;
+	entry->mask		= 0;
+	entry->dest		= apic->cpu_mask_to_apicid(eligible_cpu);
 
 	mmr_pnode = uv_blade_to_pnode(mmr_blade);
 	uv_write_global_mmr64(mmr_pnode, mmr_offset, mmr_value);
@@ -3788,10 +3788,10 @@ void arch_disable_uv_irq(int mmr_blade, unsigned long mmr_offset)
 	struct uv_IO_APIC_route_entry *entry;
 	int mmr_pnode;
 
+	BUILD_BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
+
 	mmr_value = 0;
 	entry = (struct uv_IO_APIC_route_entry *)&mmr_value;
-	BUG_ON(sizeof(struct uv_IO_APIC_route_entry) != sizeof(unsigned long));
-
 	entry->mask = 1;
 
 	mmr_pnode = uv_blade_to_pnode(mmr_blade);
