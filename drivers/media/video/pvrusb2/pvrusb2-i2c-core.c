@@ -42,6 +42,18 @@ static int ir_mode[PVR_NUM] = { [0 ... PVR_NUM-1] = 1 };
 module_param_array(ir_mode, int, NULL, 0444);
 MODULE_PARM_DESC(ir_mode,"specify: 0=disable IR reception, 1=normal IR");
 
+static int pvr2_disable_ir_video;
+module_param_named(disable_autoload_ir_video, pvr2_disable_ir_video,
+		   int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(disable_autoload_ir_video,
+		 "1=do not try to autoload ir_video IR receiver");
+
+/* Mapping of IR schemes to known I2C addresses - if any */
+static const unsigned char ir_video_addresses[] = {
+	[PVR2_IR_SCHEME_29XXX] = 0x18,
+	[PVR2_IR_SCHEME_24XXX] = 0x18,
+};
+
 static int pvr2_i2c_write(struct pvr2_hdw *hdw, /* Context */
 			  u8 i2c_addr,      /* I2C address we're talking to */
 			  u8 *data,         /* Data to write */
@@ -559,6 +571,31 @@ static void do_i2c_scan(struct pvr2_hdw *hdw)
 	printk(KERN_INFO "%s: i2c scan done.\n", hdw->name);
 }
 
+static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
+{
+	struct i2c_board_info info;
+	unsigned char addr = 0;
+	if (pvr2_disable_ir_video) {
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Automatic binding of ir_video has been disabled.");
+		return;
+	}
+	if (hdw->ir_scheme_active < ARRAY_SIZE(ir_video_addresses)) {
+		addr = ir_video_addresses[hdw->ir_scheme_active];
+	}
+	if (!addr) {
+		/* The device either doesn't support I2C-based IR or we
+		   don't know (yet) how to operate IR on the device. */
+		return;
+	}
+	pvr2_trace(PVR2_TRACE_INFO,
+		   "Binding ir_video to i2c address 0x%02x.", addr);
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	info.addr = addr;
+	i2c_new_device(&hdw->i2c_adap, &info);
+}
+
 void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 {
 	unsigned int idx;
@@ -614,6 +651,8 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		}
 	}
 	if (i2c_scan) do_i2c_scan(hdw);
+
+	pvr2_i2c_register_ir(hdw);
 }
 
 void pvr2_i2c_core_done(struct pvr2_hdw *hdw)
