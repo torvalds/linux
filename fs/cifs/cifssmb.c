@@ -2658,7 +2658,7 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 					does not go off the end of the buffer */
 		cFYI(1, ("readlink result - %s", symlinkinfo));
 	}
-	
+
 qreparse_out:
 	cifs_buf_release(pSMB);
 
