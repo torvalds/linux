@@ -1005,12 +1005,34 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 {
 	u8 pwr;
 
-	if (host->power == power)
+	if (power == (unsigned short)-1)
+		pwr = 0;
+	else {
+		switch (1 << power) {
+		case MMC_VDD_165_195:
+			pwr = SDHCI_POWER_180;
+			break;
+		case MMC_VDD_29_30:
+		case MMC_VDD_30_31:
+			pwr = SDHCI_POWER_300;
+			break;
+		case MMC_VDD_32_33:
+		case MMC_VDD_33_34:
+			pwr = SDHCI_POWER_330;
+			break;
+		default:
+			BUG();
+		}
+	}
+
+	if (host->pwr == pwr)
 		return;
 
-	if (power == (unsigned short)-1) {
+	host->pwr = pwr;
+
+	if (pwr == 0) {
 		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
-		goto out;
+		return;
 	}
 
 	/*
@@ -1020,35 +1042,16 @@ static void sdhci_set_power(struct sdhci_host *host, unsigned short power)
 	if (!(host->quirks & SDHCI_QUIRK_SINGLE_POWER_WRITE))
 		sdhci_writeb(host, 0, SDHCI_POWER_CONTROL);
 
-	pwr = SDHCI_POWER_ON;
-
-	switch (1 << power) {
-	case MMC_VDD_165_195:
-		pwr |= SDHCI_POWER_180;
-		break;
-	case MMC_VDD_29_30:
-	case MMC_VDD_30_31:
-		pwr |= SDHCI_POWER_300;
-		break;
-	case MMC_VDD_32_33:
-	case MMC_VDD_33_34:
-		pwr |= SDHCI_POWER_330;
-		break;
-	default:
-		BUG();
-	}
-
 	/*
 	 * At least the Marvell CaFe chip gets confused if we set the voltage
 	 * and set turn on power at the same time, so set the voltage first.
 	 */
 	if ((host->quirks & SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER))
-		sdhci_writeb(host, pwr & ~SDHCI_POWER_ON, SDHCI_POWER_CONTROL);
+		sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
+
+	pwr |= SDHCI_POWER_ON;
 
 	sdhci_writeb(host, pwr, SDHCI_POWER_CONTROL);
-
-out:
-	host->power = power;
 }
 
 /*****************************************************************************\
