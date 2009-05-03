@@ -1735,8 +1735,12 @@ u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
 {
 	u32 hash;
 
-	if (skb_rx_queue_recorded(skb))
-		return skb_get_rx_queue(skb) % dev->real_num_tx_queues;
+	if (skb_rx_queue_recorded(skb)) {
+		hash = skb_get_rx_queue(skb);
+		while (unlikely (hash >= dev->real_num_tx_queues))
+			hash -= dev->real_num_tx_queues;
+		return hash;
+	}
 
 	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
