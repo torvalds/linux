@@ -727,7 +727,7 @@ int match(const char *sym, const char * const pat[])
 
 /* sections that we do not want to do full section mismatch check on */
 static const char *section_white_list[] =
-	{ ".comment", ".debug*", ".stab*", ".note*", ".got*", ".toc*", NULL };
+	{ ".comment*", ".debug*", ".stab*", ".note*", ".got*", ".toc*", NULL };
 
 /*
  * This is used to find sections missing the SHF_ALLOC flag.
