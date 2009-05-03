@@ -173,6 +173,8 @@
 #define VV6410_SUBSAMPLE		0x01
 #define VV6410_CROP_TO_QVGA		0x02
 
+#define VV6410_CIF_LINELENGTH		415
+
 static int vv6410_probe(struct sd *sd);
 static int vv6410_start(struct sd *sd);
 static int vv6410_init(struct sd *sd);
@@ -187,6 +189,8 @@ static int vv6410_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 static int vv6410_get_analog_gain(struct gspca_dev *gspca_dev, __s32 *val);
 static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int vv6410_get_exposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val);
 
 const struct stv06xx_sensor stv06xx_sensor_vv6410 = {
 	.name = "ST VV6410",
