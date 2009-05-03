@@ -124,14 +124,12 @@ struct fib_result_nl {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 
 #define FIB_RES_NH(res)		((res).fi->fib_nh[(res).nh_sel])
-#define FIB_RES_RESET(res)	((res).nh_sel = 0)
 
 #define FIB_TABLE_HASHSZ 2
 
 #else /* CONFIG_IP_ROUTE_MULTIPATH */
 
 #define FIB_RES_NH(res)		((res).fi->fib_nh[0])
-#define FIB_RES_RESET(res)
 
 #define FIB_TABLE_HASHSZ 256
 
