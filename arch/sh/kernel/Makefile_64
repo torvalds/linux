@@ -17,4 +17,6 @@ obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
 obj-$(CONFIG_IO_TRAPPED)	+= io_trapped.o
 obj-$(CONFIG_GENERIC_GPIO)	+= gpio.o
 
+obj-$(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)	+= localtimer.o
+
 EXTRA_CFLAGS += -Werror
