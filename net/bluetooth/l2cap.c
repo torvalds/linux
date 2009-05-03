@@ -52,7 +52,7 @@
 
 #define VERSION "2.13"
 
-static u32 l2cap_feat_mask = 0x0080;
+static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN;
 static u8 l2cap_fixed_chan[8] = { 0x02, };
 
 static const struct proto_ops l2cap_sock_ops;
@@ -1747,7 +1747,7 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 		len -= l2cap_get_conf_opt(&req, &type, &olen, &val);
 
 		hint  = type & L2CAP_CONF_HINT;
-		type &= 0x7f;
+		type &= L2CAP_CONF_MASK;
 
 		switch (type) {
 		case L2CAP_CONF_MTU:
@@ -2244,7 +2244,7 @@ static inline int l2cap_information_rsp(struct l2cap_conn *conn, struct l2cap_cm
 	if (type == L2CAP_IT_FEAT_MASK) {
 		conn->feat_mask = get_unaligned_le32(rsp->data);
 
-		if (conn->feat_mask & 0x0080) {
+		if (conn->feat_mask & L2CAP_FEAT_FIXED_CHAN) {
 			struct l2cap_info_req req;
 			req.type = cpu_to_le16(L2CAP_IT_FIXED_CHAN);
 
