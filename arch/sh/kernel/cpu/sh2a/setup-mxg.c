@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
-#include <linux/sh_mtu2.h>
+#include <linux/sh_timer.h>
 
 enum {
 	UNUSED = 0,
@@ -114,7 +114,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 static DECLARE_INTC_DESC(intc_desc, "mxg", vectors, groups,
 			 mask_registers, prio_registers, NULL);
 
-static struct sh_mtu2_config mtu2_0_platform_data = {
+static struct sh_timer_config mtu2_0_platform_data = {
 	.name = "MTU2_0",
 	.channel_offset = -0x80,
 	.timer_bit = 0,
@@ -145,7 +145,7 @@ static struct platform_device mtu2_0_device = {
 	.num_resources	= ARRAY_SIZE(mtu2_0_resources),
 };
 
-static struct sh_mtu2_config mtu2_1_platform_data = {
+static struct sh_timer_config mtu2_1_platform_data = {
 	.name = "MTU2_1",
 	.channel_offset = -0x100,
 	.timer_bit = 1,
@@ -176,7 +176,7 @@ static struct platform_device mtu2_1_device = {
 	.num_resources	= ARRAY_SIZE(mtu2_1_resources),
 };
 
-static struct sh_mtu2_config mtu2_2_platform_data = {
+static struct sh_timer_config mtu2_2_platform_data = {
 	.name = "MTU2_2",
 	.channel_offset = 0x80,
 	.timer_bit = 2,

@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
-#include <linux/sh_cmt.h>
+#include <linux/sh_timer.h>
 #include <linux/io.h>
 
 enum {
@@ -111,7 +111,7 @@ static struct platform_device eth_device = {
 	.resource = eth_resources,
 };
 
-static struct sh_cmt_config cmt0_platform_data = {
+static struct sh_timer_config cmt0_platform_data = {
 	.name = "CMT0",
 	.channel_offset = 0x02,
 	.timer_bit = 0,
@@ -143,7 +143,7 @@ static struct platform_device cmt0_device = {
 	.num_resources	= ARRAY_SIZE(cmt0_resources),
 };
 
-static struct sh_cmt_config cmt1_platform_data = {
+static struct sh_timer_config cmt1_platform_data = {
 	.name = "CMT1",
 	.channel_offset = 0x08,
 	.timer_bit = 1,

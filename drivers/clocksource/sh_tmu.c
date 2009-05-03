@@ -29,7 +29,7 @@
 #include <linux/err.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
-#include <linux/sh_tmu.h>
+#include <linux/sh_timer.h>
 
 struct sh_tmu_priv {
 	void __iomem *mapbase;
@@ -51,7 +51,7 @@ static DEFINE_SPINLOCK(sh_tmu_lock);
 
 static inline unsigned long sh_tmu_read(struct sh_tmu_priv *p, int reg_nr)
 {
-	struct sh_tmu_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	void __iomem *base = p->mapbase;
 	unsigned long offs;
 
@@ -69,7 +69,7 @@ static inline unsigned long sh_tmu_read(struct sh_tmu_priv *p, int reg_nr)
 static inline void sh_tmu_write(struct sh_tmu_priv *p, int reg_nr,
 				unsigned long value)
 {
-	struct sh_tmu_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	void __iomem *base = p->mapbase;
 	unsigned long offs;
 
@@ -88,7 +88,7 @@ static inline void sh_tmu_write(struct sh_tmu_priv *p, int reg_nr,
 
 static void sh_tmu_start_stop_ch(struct sh_tmu_priv *p, int start)
 {
-	struct sh_tmu_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
@@ -106,7 +106,7 @@ static void sh_tmu_start_stop_ch(struct sh_tmu_priv *p, int start)
 
 static int sh_tmu_enable(struct sh_tmu_priv *p)
 {
-	struct sh_tmu_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	int ret;
 
 	/* enable clock */
@@ -345,7 +345,7 @@ static int sh_tmu_register(struct sh_tmu_priv *p, char *name,
 
 static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 {
-	struct sh_tmu_config *cfg = pdev->dev.platform_data;
+	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	struct resource *res;
 	int irq, ret;
 	ret = -ENXIO;
@@ -407,7 +407,7 @@ static int sh_tmu_setup(struct sh_tmu_priv *p, struct platform_device *pdev)
 static int __devinit sh_tmu_probe(struct platform_device *pdev)
 {
 	struct sh_tmu_priv *p = platform_get_drvdata(pdev);
-	struct sh_tmu_config *cfg = pdev->dev.platform_data;
+	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	int ret;
 
 	if (p) {

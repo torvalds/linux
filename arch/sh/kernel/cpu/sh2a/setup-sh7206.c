@@ -12,8 +12,7 @@
 #include <linux/init.h>
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
-#include <linux/sh_cmt.h>
-#include <linux/sh_mtu2.h>
+#include <linux/sh_timer.h>
 #include <linux/io.h>
 
 enum {
@@ -168,7 +167,7 @@ static struct platform_device sci_device = {
 	},
 };
 
-static struct sh_cmt_config cmt0_platform_data = {
+static struct sh_timer_config cmt0_platform_data = {
 	.name = "CMT0",
 	.channel_offset = 0x02,
 	.timer_bit = 0,
@@ -200,7 +199,7 @@ static struct platform_device cmt0_device = {
 	.num_resources	= ARRAY_SIZE(cmt0_resources),
 };
 
-static struct sh_cmt_config cmt1_platform_data = {
+static struct sh_timer_config cmt1_platform_data = {
 	.name = "CMT1",
 	.channel_offset = 0x08,
 	.timer_bit = 1,
@@ -232,7 +231,7 @@ static struct platform_device cmt1_device = {
 	.num_resources	= ARRAY_SIZE(cmt1_resources),
 };
 
-static struct sh_mtu2_config mtu2_0_platform_data = {
+static struct sh_timer_config mtu2_0_platform_data = {
 	.name = "MTU2_0",
 	.channel_offset = -0x80,
 	.timer_bit = 0,
@@ -263,7 +262,7 @@ static struct platform_device mtu2_0_device = {
 	.num_resources	= ARRAY_SIZE(mtu2_0_resources),
 };
 
-static struct sh_mtu2_config mtu2_1_platform_data = {
+static struct sh_timer_config mtu2_1_platform_data = {
 	.name = "MTU2_1",
 	.channel_offset = -0x100,
 	.timer_bit = 1,
@@ -294,7 +293,7 @@ static struct platform_device mtu2_1_device = {
 	.num_resources	= ARRAY_SIZE(mtu2_1_resources),
 };
 
-static struct sh_mtu2_config mtu2_2_platform_data = {
+static struct sh_timer_config mtu2_2_platform_data = {
 	.name = "MTU2_2",
 	.channel_offset = 0x80,
 	.timer_bit = 2,

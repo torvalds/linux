@@ -28,7 +28,7 @@
 #include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/clockchips.h>
-#include <linux/sh_mtu2.h>
+#include <linux/sh_timer.h>
 
 struct sh_mtu2_priv {
 	void __iomem *mapbase;
@@ -63,7 +63,7 @@ static unsigned long mtu2_reg_offs[] = {
 
 static inline unsigned long sh_mtu2_read(struct sh_mtu2_priv *p, int reg_nr)
 {
-	struct sh_mtu2_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	void __iomem *base = p->mapbase;
 	unsigned long offs;
 
@@ -81,7 +81,7 @@ static inline unsigned long sh_mtu2_read(struct sh_mtu2_priv *p, int reg_nr)
 static inline void sh_mtu2_write(struct sh_mtu2_priv *p, int reg_nr,
 				unsigned long value)
 {
-	struct sh_mtu2_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	void __iomem *base = p->mapbase;
 	unsigned long offs;
 
@@ -100,7 +100,7 @@ static inline void sh_mtu2_write(struct sh_mtu2_priv *p, int reg_nr,
 
 static void sh_mtu2_start_stop_ch(struct sh_mtu2_priv *p, int start)
 {
-	struct sh_mtu2_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	unsigned long flags, value;
 
 	/* start stop register shared by multiple timer channels */
@@ -118,7 +118,7 @@ static void sh_mtu2_start_stop_ch(struct sh_mtu2_priv *p, int start)
 
 static int sh_mtu2_enable(struct sh_mtu2_priv *p)
 {
-	struct sh_mtu2_config *cfg = p->pdev->dev.platform_data;
+	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	int ret;
 
 	/* enable clock */
@@ -243,7 +243,7 @@ int sh_mtu2_register(struct sh_mtu2_priv *p, char *name,
 
 static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 {
-	struct sh_mtu2_config *cfg = pdev->dev.platform_data;
+	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	struct resource *res;
 	int irq, ret;
 	ret = -ENXIO;
@@ -303,7 +303,7 @@ static int sh_mtu2_setup(struct sh_mtu2_priv *p, struct platform_device *pdev)
 static int __devinit sh_mtu2_probe(struct platform_device *pdev)
 {
 	struct sh_mtu2_priv *p = platform_get_drvdata(pdev);
-	struct sh_mtu2_config *cfg = pdev->dev.platform_data;
+	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	int ret;
 
 	if (p) {

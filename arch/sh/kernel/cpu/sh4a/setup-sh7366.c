@@ -14,7 +14,7 @@
 #include <linux/serial.h>
 #include <linux/serial_sci.h>
 #include <linux/uio_driver.h>
-#include <linux/sh_cmt.h>
+#include <linux/sh_timer.h>
 #include <asm/clock.h>
 
 static struct resource iic_resources[] = {
@@ -148,7 +148,7 @@ static struct platform_device veu1_device = {
 	.num_resources	= ARRAY_SIZE(veu1_resources),
 };
 
-static struct sh_cmt_config cmt_platform_data = {
+static struct sh_timer_config cmt_platform_data = {
 	.name = "CMT",
 	.channel_offset = 0x60,
 	.timer_bit = 5,

@@ -13,8 +13,7 @@
 #include <linux/serial_sci.h>
 #include <linux/mm.h>
 #include <linux/uio_driver.h>
-#include <linux/sh_cmt.h>
-#include <linux/sh_tmu.h>
+#include <linux/sh_timer.h>
 #include <asm/clock.h>
 #include <asm/mmzone.h>
 
@@ -178,7 +177,7 @@ static struct platform_device jpu_device = {
 	.num_resources	= ARRAY_SIZE(jpu_resources),
 };
 
-static struct sh_cmt_config cmt_platform_data = {
+static struct sh_timer_config cmt_platform_data = {
 	.name = "CMT",
 	.channel_offset = 0x60,
 	.timer_bit = 5,
@@ -210,7 +209,7 @@ static struct platform_device cmt_device = {
 	.num_resources	= ARRAY_SIZE(cmt_resources),
 };
 
-static struct sh_tmu_config tmu0_platform_data = {
+static struct sh_timer_config tmu0_platform_data = {
 	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
@@ -241,7 +240,7 @@ static struct platform_device tmu0_device = {
 	.num_resources	= ARRAY_SIZE(tmu0_resources),
 };
 
-static struct sh_tmu_config tmu1_platform_data = {
+static struct sh_timer_config tmu1_platform_data = {
 	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
@@ -272,7 +271,7 @@ static struct platform_device tmu1_device = {
 	.num_resources	= ARRAY_SIZE(tmu1_resources),
 };
 
-static struct sh_tmu_config tmu2_platform_data = {
+static struct sh_timer_config tmu2_platform_data = {
 	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
