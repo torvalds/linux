@@ -80,7 +80,7 @@ static const struct ctrl vv6410_ctrl[] = {
 			.minimum	= 0,
 			.maximum	= 15,
 			.step		= 1,
-			.default_value  = 0
+			.default_value  = 10
 		},
 		.set = vv6410_set_analog_gain,
 		.get = vv6410_get_analog_gain
@@ -162,6 +162,11 @@ static int vv6410_init(struct sd *sd)
 
 	err = vv6410_set_exposure(&sd->gspca_dev,
 				   sensor_settings[EXPOSURE_IDX]);
+	if (err < 0)
+		return err;
+
+	err = vv6410_set_analog_gain(&sd->gspca_dev,
+				      sensor_settings[GAIN_IDX]);
 
 	return (err < 0) ? err : 0;
 }
