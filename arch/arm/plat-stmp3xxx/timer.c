@@ -45,7 +45,7 @@ stmp3xxx_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static cycle_t stmp3xxx_clock_read(void)
+static cycle_t stmp3xxx_clock_read(struct clocksource *cs)
 {
 	return ~((HW_TIMROT_TIMCOUNTn_RD(1) & 0xFFFF0000) >> 16);
 }
