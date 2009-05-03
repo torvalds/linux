@@ -1063,10 +1063,6 @@ static struct soc_camera_host_ops mx3_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= mx3_camera_add_device,
 	.remove		= mx3_camera_remove_device,
-#ifdef CONFIG_PM
-	.suspend	= mx3_camera_suspend,
-	.resume		= mx3_camera_resume,
-#endif
 	.set_crop	= mx3_camera_set_crop,
 	.set_fmt	= mx3_camera_set_fmt,
 	.try_fmt	= mx3_camera_try_fmt,

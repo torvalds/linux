@@ -232,10 +232,14 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 			memcpy(&found, result, csum_size);
 
 			read_extent_buffer(buf, &val, 0, csum_size);
-			printk(KERN_INFO "btrfs: %s checksum verify failed "
-			       "on %llu wanted %X found %X level %d\n",
-			       root->fs_info->sb->s_id,
-			       buf->start, val, found, btrfs_header_level(buf));
+			if (printk_ratelimit()) {
+				printk(KERN_INFO "btrfs: %s checksum verify "
+				       "failed on %llu wanted %X found %X "
+				       "level %d\n",
+				       root->fs_info->sb->s_id,
+				       (unsigned long long)buf->start, val, found,
+				       btrfs_header_level(buf));
+			}
 			if (result != (char *)&inline_result)
 				kfree(result);
 			return 1;
@@ -268,10 +272,13 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		ret = 0;
 		goto out;
 	}
-	printk("parent transid verify failed on %llu wanted %llu found %llu\n",
-	       (unsigned long long)eb->start,
-	       (unsigned long long)parent_transid,
-	       (unsigned long long)btrfs_header_generation(eb));
+	if (printk_ratelimit()) {
+		printk("parent transid verify failed on %llu wanted %llu "
+		       "found %llu\n",
+		       (unsigned long long)eb->start,
+		       (unsigned long long)parent_transid,
+		       (unsigned long long)btrfs_header_generation(eb));
+	}
 	ret = 1;
 	clear_extent_buffer_uptodate(io_tree, eb);
 out:
@@ -415,9 +422,12 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
-		printk(KERN_INFO "btrfs bad tree block start %llu %llu\n",
-		       (unsigned long long)found_start,
-		       (unsigned long long)eb->start);
+		if (printk_ratelimit()) {
+			printk(KERN_INFO "btrfs bad tree block start "
+			       "%llu %llu\n",
+			       (unsigned long long)found_start,
+			       (unsigned long long)eb->start);
+		}
 		ret = -EIO;
 		goto err;
 	}
@@ -429,8 +439,10 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 		goto err;
 	}
 	if (check_tree_block_fsid(root, eb)) {
-		printk(KERN_INFO "btrfs bad fsid on block %llu\n",
-		       (unsigned long long)eb->start);
+		if (printk_ratelimit()) {
+			printk(KERN_INFO "btrfs bad fsid on block %llu\n",
+			       (unsigned long long)eb->start);
+		}
 		ret = -EIO;
 		goto err;
 	}
@@ -584,18 +596,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 		btrfs_set_work_high_prio(&async->work);
 
 	btrfs_queue_worker(&fs_info->workers, &async->work);
-#if 0
-	int limit = btrfs_async_submit_limit(fs_info);
-	if (atomic_read(&fs_info->nr_async_submits) > limit) {
-		wait_event_timeout(fs_info->async_submit_wait,
-			   (atomic_read(&fs_info->nr_async_submits) < limit),
-			   HZ/10);
 
-		wait_event_timeout(fs_info->async_submit_wait,
-			   (atomic_read(&fs_info->nr_async_bios) < limit),
-			   HZ/10);
-	}
-#endif
 	while (atomic_read(&fs_info->async_submit_draining) &&
 	      atomic_read(&fs_info->nr_async_submits)) {
 		wait_event(fs_info->async_submit_wait,
@@ -769,27 +770,6 @@ static void btree_invalidatepage(struct page *page, unsigned long offset)
 		page_cache_release(page);
 	}
 }
-
-#if 0
-static int btree_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct buffer_head *bh;
-	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
-	struct buffer_head *head;
-	if (!page_has_buffers(page)) {
-		create_empty_buffers(page, root->fs_info->sb->s_blocksize,
-					(1 << BH_Dirty)|(1 << BH_Uptodate));
-	}
-	head = page_buffers(page);
-	bh = head;
-	do {
-		if (buffer_dirty(bh))
-			csum_tree_block(root, bh, 0);
-		bh = bh->b_this_page;
-	} while (bh != head);
-	return block_write_full_page(page, btree_get_block, wbc);
-}
-#endif
 
 static struct address_space_operations btree_aops = {
 	.readpage	= btree_readpage,
@@ -1278,11 +1258,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	int ret = 0;
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
-#if 0
-	if ((bdi_bits & (1 << BDI_write_congested)) &&
-	    btrfs_congested_async(info, 0))
-		return 1;
-#endif
+
 	list_for_each_entry(device, &info->fs_devices->devices, dev_list) {
 		if (!device->bdev)
 			continue;
@@ -1604,6 +1580,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;
+	fs_info->metadata_ratio = 8;
 
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
@@ -1694,7 +1671,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (features) {
 		printk(KERN_ERR "BTRFS: couldn't mount because of "
 		       "unsupported optional features (%Lx).\n",
-		       features);
+		       (unsigned long long)features);
 		err = -EINVAL;
 		goto fail_iput;
 	}
@@ -1704,7 +1681,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!(sb->s_flags & MS_RDONLY) && features) {
 		printk(KERN_ERR "BTRFS: couldn't mount RDWR because of "
 		       "unsupported option features (%Lx).\n",
-		       features);
+		       (unsigned long long)features);
 		err = -EINVAL;
 		goto fail_iput;
 	}
@@ -2296,7 +2273,7 @@ int close_ctree(struct btrfs_root *root)
 
 	if (fs_info->delalloc_bytes) {
 		printk(KERN_INFO "btrfs: at unmount delalloc count %llu\n",
-		       fs_info->delalloc_bytes);
+		       (unsigned long long)fs_info->delalloc_bytes);
 	}
 	if (fs_info->total_ref_cache_size) {
 		printk(KERN_INFO "btrfs: at umount reference cache size %llu\n",
@@ -2333,16 +2310,6 @@ int close_ctree(struct btrfs_root *root)
 	btrfs_stop_workers(&fs_info->endio_write_workers);
 	btrfs_stop_workers(&fs_info->submit_workers);
 
-#if 0
-	while (!list_empty(&fs_info->hashers)) {
-		struct btrfs_hasher *hasher;
-		hasher = list_entry(fs_info->hashers.next, struct btrfs_hasher,
-				    hashers);
-		list_del(&hasher->hashers);
-		crypto_free_hash(&fs_info->hash_tfm);
-		kfree(hasher);
-	}
-#endif
 	btrfs_close_devices(fs_info->fs_devices);
 	btrfs_mapping_tree_free(&fs_info->mapping_tree);
 

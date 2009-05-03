@@ -70,7 +70,6 @@ static struct extent_io_ops btrfs_extent_io_ops;
 static struct kmem_cache *btrfs_inode_cachep;
 struct kmem_cache *btrfs_trans_handle_cachep;
 struct kmem_cache *btrfs_transaction_cachep;
-struct kmem_cache *btrfs_bit_radix_cachep;
 struct kmem_cache *btrfs_path_cachep;
 
 #define S_SHIFT 12
@@ -234,7 +233,7 @@ static noinline int cow_file_range_inline(struct btrfs_trans_handle *trans,
 	}
 
 	ret = btrfs_drop_extents(trans, root, inode, start,
-				 aligned_end, start, &hint_byte);
+				 aligned_end, aligned_end, start, &hint_byte);
 	BUG_ON(ret);
 
 	if (isize > actual_end)
@@ -1439,6 +1438,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 				       struct inode *inode, u64 file_pos,
 				       u64 disk_bytenr, u64 disk_num_bytes,
 				       u64 num_bytes, u64 ram_bytes,
+				       u64 locked_end,
 				       u8 compression, u8 encryption,
 				       u16 other_encoding, int extent_type)
 {
@@ -1455,7 +1455,8 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 
 	path->leave_spinning = 1;
 	ret = btrfs_drop_extents(trans, root, inode, file_pos,
-				 file_pos + num_bytes, file_pos, &hint);
+				 file_pos + num_bytes, locked_end,
+				 file_pos, &hint);
 	BUG_ON(ret);
 
 	ins.objectid = inode->i_ino;
@@ -1589,6 +1590,8 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 						ordered_extent->start,
 						ordered_extent->disk_len,
 						ordered_extent->len,
+						ordered_extent->len,
+						ordered_extent->file_offset +
 						ordered_extent->len,
 						compressed, 0, 0,
 						BTRFS_FILE_EXTENT_REG);
@@ -1819,10 +1822,12 @@ good:
 	return 0;
 
 zeroit:
-	printk(KERN_INFO "btrfs csum failed ino %lu off %llu csum %u "
-	       "private %llu\n", page->mapping->host->i_ino,
-	       (unsigned long long)start, csum,
-	       (unsigned long long)private);
+	if (printk_ratelimit()) {
+		printk(KERN_INFO "btrfs csum failed ino %lu off %llu csum %u "
+		       "private %llu\n", page->mapping->host->i_ino,
+		       (unsigned long long)start, csum,
+		       (unsigned long long)private);
+	}
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr, KM_USER0);
@@ -2011,6 +2016,57 @@ void btrfs_orphan_cleanup(struct btrfs_root *root)
 }
 
 /*
+ * very simple check to peek ahead in the leaf looking for xattrs.  If we
+ * don't find any xattrs, we know there can't be any acls.
+ *
+ * slot is the slot the inode is in, objectid is the objectid of the inode
+ */
+static noinline int acls_after_inode_item(struct extent_buffer *leaf,
+					  int slot, u64 objectid)
+{
+	u32 nritems = btrfs_header_nritems(leaf);
+	struct btrfs_key found_key;
+	int scanned = 0;
+
+	slot++;
+	while (slot < nritems) {
+		btrfs_item_key_to_cpu(leaf, &found_key, slot);
+
+		/* we found a different objectid, there must not be acls */
+		if (found_key.objectid != objectid)
+			return 0;
+
+		/* we found an xattr, assume we've got an acl */
+		if (found_key.type == BTRFS_XATTR_ITEM_KEY)
+			return 1;
+
+		/*
+		 * we found a key greater than an xattr key, there can't
+		 * be any acls later on
+		 */
+		if (found_key.type > BTRFS_XATTR_ITEM_KEY)
+			return 0;
+
+		slot++;
+		scanned++;
+
+		/*
+		 * it goes inode, inode backrefs, xattrs, extents,
+		 * so if there are a ton of hard links to an inode there can
+		 * be a lot of backrefs.  Don't waste time searching too hard,
+		 * this is just an optimization
+		 */
+		if (scanned >= 8)
+			break;
+	}
+	/* we hit the end of the leaf before we found an xattr or
+	 * something larger than an xattr.  We have to assume the inode
+	 * has acls
+	 */
+	return 1;
+}
+
+/*
  * read an inode from the btree into the in-memory inode
  */
 void btrfs_read_locked_inode(struct inode *inode)
@@ -2021,6 +2077,7 @@ void btrfs_read_locked_inode(struct inode *inode)
 	struct btrfs_timespec *tspec;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key location;
+	int maybe_acls;
 	u64 alloc_group_block;
 	u32 rdev;
 	int ret;
@@ -2066,6 +2123,16 @@ void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->flags = btrfs_inode_flags(leaf, inode_item);
 
 	alloc_group_block = btrfs_inode_block_group(leaf, inode_item);
+
+	/*
+	 * try to precache a NULL acl entry for files that don't have
+	 * any xattrs or acls
+	 */
+	maybe_acls = acls_after_inode_item(leaf, path->slots[0], inode->i_ino);
+	if (!maybe_acls) {
+		BTRFS_I(inode)->i_acl = NULL;
+		BTRFS_I(inode)->i_default_acl = NULL;
+	}
 
 	BTRFS_I(inode)->block_group = btrfs_find_block_group(root, 0,
 						alloc_group_block, 0);
@@ -2877,6 +2944,7 @@ int btrfs_cont_expand(struct inode *inode, loff_t size)
 			err = btrfs_drop_extents(trans, root, inode,
 						 cur_offset,
 						 cur_offset + hole_size,
+						 block_end,
 						 cur_offset, &hint_byte);
 			if (err)
 				break;
@@ -3041,8 +3109,8 @@ static noinline void init_btrfs_i(struct inode *inode)
 {
 	struct btrfs_inode *bi = BTRFS_I(inode);
 
-	bi->i_acl = NULL;
-	bi->i_default_acl = NULL;
+	bi->i_acl = BTRFS_ACL_NOT_CACHED;
+	bi->i_default_acl = BTRFS_ACL_NOT_CACHED;
 
 	bi->generation = 0;
 	bi->sequence = 0;
@@ -4634,47 +4702,36 @@ void btrfs_destroy_cachep(void)
 		kmem_cache_destroy(btrfs_trans_handle_cachep);
 	if (btrfs_transaction_cachep)
 		kmem_cache_destroy(btrfs_transaction_cachep);
-	if (btrfs_bit_radix_cachep)
-		kmem_cache_destroy(btrfs_bit_radix_cachep);
 	if (btrfs_path_cachep)
 		kmem_cache_destroy(btrfs_path_cachep);
 }
 
-struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
-				       unsigned long extra_flags,
-				       void (*ctor)(void *))
-{
-	return kmem_cache_create(name, size, 0, (SLAB_RECLAIM_ACCOUNT |
-				 SLAB_MEM_SPREAD | extra_flags), ctor);
-}
-
 int btrfs_init_cachep(void)
 {
-	btrfs_inode_cachep = btrfs_cache_create("btrfs_inode_cache",
-					  sizeof(struct btrfs_inode),
-					  0, init_once);
+	btrfs_inode_cachep = kmem_cache_create("btrfs_inode_cache",
+			sizeof(struct btrfs_inode), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, init_once);
 	if (!btrfs_inode_cachep)
 		goto fail;
-	btrfs_trans_handle_cachep =
-			btrfs_cache_create("btrfs_trans_handle_cache",
-					   sizeof(struct btrfs_trans_handle),
-					   0, NULL);
+
+	btrfs_trans_handle_cachep = kmem_cache_create("btrfs_trans_handle_cache",
+			sizeof(struct btrfs_trans_handle), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_trans_handle_cachep)
 		goto fail;
-	btrfs_transaction_cachep = btrfs_cache_create("btrfs_transaction_cache",
-					     sizeof(struct btrfs_transaction),
-					     0, NULL);
+
+	btrfs_transaction_cachep = kmem_cache_create("btrfs_transaction_cache",
+			sizeof(struct btrfs_transaction), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_transaction_cachep)
 		goto fail;
-	btrfs_path_cachep = btrfs_cache_create("btrfs_path_cache",
-					 sizeof(struct btrfs_path),
-					 0, NULL);
+
+	btrfs_path_cachep = kmem_cache_create("btrfs_path_cache",
+			sizeof(struct btrfs_path), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!btrfs_path_cachep)
 		goto fail;
-	btrfs_bit_radix_cachep = btrfs_cache_create("btrfs_radix", 256,
-					      SLAB_DESTROY_BY_RCU, NULL);
-	if (!btrfs_bit_radix_cachep)
-		goto fail;
+
 	return 0;
 fail:
 	btrfs_destroy_cachep();
@@ -4972,7 +5029,7 @@ out_fail:
 
 static int prealloc_file_range(struct btrfs_trans_handle *trans,
 			       struct inode *inode, u64 start, u64 end,
-			       u64 alloc_hint, int mode)
+			       u64 locked_end, u64 alloc_hint, int mode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
@@ -4993,7 +5050,8 @@ static int prealloc_file_range(struct btrfs_trans_handle *trans,
 		ret = insert_reserved_file_extent(trans, inode,
 						  cur_offset, ins.objectid,
 						  ins.offset, ins.offset,
-						  ins.offset, 0, 0, 0,
+						  ins.offset, locked_end,
+						  0, 0, 0,
 						  BTRFS_FILE_EXTENT_PREALLOC);
 		BUG_ON(ret);
 		num_bytes -= ins.offset;
@@ -5022,6 +5080,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 	u64 alloc_start;
 	u64 alloc_end;
 	u64 alloc_hint = 0;
+	u64 locked_end;
 	u64 mask = BTRFS_I(inode)->root->sectorsize - 1;
 	struct extent_map *em;
 	struct btrfs_trans_handle *trans;
@@ -5043,6 +5102,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 			goto out;
 	}
 
+	locked_end = alloc_end - 1;
 	while (1) {
 		struct btrfs_ordered_extent *ordered;
 
@@ -5055,8 +5115,8 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		/* the extent lock is ordered inside the running
 		 * transaction
 		 */
-		lock_extent(&BTRFS_I(inode)->io_tree, alloc_start,
-			    alloc_end - 1, GFP_NOFS);
+		lock_extent(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
+			    GFP_NOFS);
 		ordered = btrfs_lookup_first_ordered_extent(inode,
 							    alloc_end - 1);
 		if (ordered &&
@@ -5064,7 +5124,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		    ordered->file_offset < alloc_end) {
 			btrfs_put_ordered_extent(ordered);
 			unlock_extent(&BTRFS_I(inode)->io_tree,
-				      alloc_start, alloc_end - 1, GFP_NOFS);
+				      alloc_start, locked_end, GFP_NOFS);
 			btrfs_end_transaction(trans, BTRFS_I(inode)->root);
 
 			/*
@@ -5089,7 +5149,8 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		last_byte = (last_byte + mask) & ~mask;
 		if (em->block_start == EXTENT_MAP_HOLE) {
 			ret = prealloc_file_range(trans, inode, cur_offset,
-					last_byte, alloc_hint, mode);
+					last_byte, locked_end + 1,
+					alloc_hint, mode);
 			if (ret < 0) {
 				free_extent_map(em);
 				break;
@@ -5105,7 +5166,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 			break;
 		}
 	}
-	unlock_extent(&BTRFS_I(inode)->io_tree, alloc_start, alloc_end - 1,
+	unlock_extent(&BTRFS_I(inode)->io_tree, alloc_start, locked_end,
 		      GFP_NOFS);
 
 	btrfs_end_transaction(trans, BTRFS_I(inode)->root);
