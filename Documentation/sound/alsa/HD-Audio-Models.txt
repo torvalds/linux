@@ -347,6 +347,7 @@ STAC92HD71B*
   hp-m4		HP mini 1000
   hp-dv5	HP dv series
   hp-hdx	HP HDX series
+  hp-dv4-1222nr	HP dv4-1222nr (with LED support)
   auto		BIOS setup (default)
 
 STAC92HD73*
