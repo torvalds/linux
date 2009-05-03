@@ -532,8 +532,8 @@ tShbError ShbIpcStartSignalingNewData(tShbInstance pShbInstance_p,
 
 	//create thread for signalling new data
 	pShbMemInst->m_tThreadNewDataId =
-	    kernel_thread(ShbIpcThreadSignalNewData, pShbInstance_p,
-			  CLONE_KERNEL);
+		kernel_thread(ShbIpcThreadSignalNewData, pShbInstance_p,
+				CLONE_FS | CLONE_FILES);
 
       Exit:
 	return ShbError;
@@ -636,8 +636,8 @@ tShbError ShbIpcStartSignalingJobReady(tShbInstance pShbInstance_p,
 	pShbMemHeader->m_fJobReady = FALSE;
 	//create thread for signalling new data
 	pShbMemInst->m_tThreadJobReadyId =
-	    kernel_thread(ShbIpcThreadSignalJobReady, pShbInstance_p,
-			  CLONE_KERNEL);
+		kernel_thread(ShbIpcThreadSignalJobReady, pShbInstance_p,
+				CLONE_FS | CLONE_FILES);
       Exit:
 	return ShbError;
 }
