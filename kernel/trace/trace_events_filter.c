@@ -151,10 +151,35 @@ static int filter_pred_or(struct filter_pred *pred __attribute((unused)),
 	return val1 || val2;
 }
 
+/* Filter predicate for fixed sized arrays of characters */
 static int filter_pred_string(struct filter_pred *pred, void *event,
 			      int val1, int val2)
 {
 	char *addr = (char *)(event + pred->offset);
+	int cmp, match;
+
+	cmp = strncmp(addr, pred->str_val, pred->str_len);
+
+	match = (!cmp) ^ pred->not;
+
+	return match;
+}
+
+/*
+ * Filter predicate for dynamic sized arrays of characters.
+ * These are implemented through a list of strings at the end
+ * of the entry.
+ * Also each of these strings have a field in the entry which
+ * contains its offset from the beginning of the entry.
+ * We have then first to get this field, dereference it
+ * and add it to the address of the entry, and at last we have
+ * the address of the string.
+ */
+static int filter_pred_strloc(struct filter_pred *pred, void *event,
+			      int val1, int val2)
+{
+	int str_loc = *(int *)(event + pred->offset);
+	char *addr = (char *)(event + str_loc);
 	int cmp, match;
 
 	cmp = strncmp(addr, pred->str_val, pred->str_len);
@@ -446,10 +471,18 @@ static int filter_add_pred_fn(struct filter_parse_state *ps,
 	return 0;
 }
 
+enum {
+	FILTER_STATIC_STRING = 1,
+	FILTER_DYN_STRING
+};
+
 static int is_string_field(const char *type)
 {
 	if (strchr(type, '[') && strstr(type, "char"))
-		return 1;
+		return FILTER_STATIC_STRING;
+
+	if (!strcmp(type, "__str_loc"))
+		return FILTER_DYN_STRING;
 
 	return 0;
 }
@@ -512,6 +545,7 @@ static int filter_add_pred(struct filter_parse_state *ps,
 	struct ftrace_event_field *field;
 	filter_pred_fn_t fn;
 	unsigned long long val;
+	int string_type;
 
 	pred->fn = filter_pred_none;
 
@@ -536,8 +570,12 @@ static int filter_add_pred(struct filter_parse_state *ps,
 		return -EINVAL;
 	}
 
-	if (is_string_field(field->type)) {
-		fn = filter_pred_string;
+	string_type = is_string_field(field->type);
+	if (string_type) {
+		if (string_type == FILTER_STATIC_STRING)
+			fn = filter_pred_string;
+		else
+			fn = filter_pred_strloc;
 		pred->str_len = field->size;
 		if (pred->op == OP_NE)
 			pred->not = 1;
