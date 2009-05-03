@@ -537,9 +537,9 @@ static void sh_cmt_register_clockevent(struct sh_cmt_priv *p,
 	clockevents_register_device(ced);
 }
 
-int sh_cmt_register(struct sh_cmt_priv *p, char *name,
-		    unsigned long clockevent_rating,
-		    unsigned long clocksource_rating)
+static int sh_cmt_register(struct sh_cmt_priv *p, char *name,
+			   unsigned long clockevent_rating,
+			   unsigned long clocksource_rating)
 {
 	if (p->width == (sizeof(p->max_match_value) * 8))
 		p->max_match_value = ~0;

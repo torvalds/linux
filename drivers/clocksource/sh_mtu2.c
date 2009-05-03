@@ -232,8 +232,8 @@ static void sh_mtu2_register_clockevent(struct sh_mtu2_priv *p,
 	clockevents_register_device(ced);
 }
 
-int sh_mtu2_register(struct sh_mtu2_priv *p, char *name,
-		     unsigned long clockevent_rating)
+static int sh_mtu2_register(struct sh_mtu2_priv *p, char *name,
+			    unsigned long clockevent_rating)
 {
 	if (clockevent_rating)
 		sh_mtu2_register_clockevent(p, name, clockevent_rating);
