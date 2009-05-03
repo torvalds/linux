@@ -851,10 +851,19 @@ static void postfix_clear(struct filter_parse_state *ps)
 
 static int filter_parse(struct filter_parse_state *ps)
 {
+	int in_string = 0;
 	int op, top_op;
 	char ch;
 
 	while ((ch = infix_next(ps))) {
+		if (ch == '"') {
+			in_string ^= 1;
+			continue;
+		}
+
+		if (in_string)
+			goto parse_operand;
+
 		if (isspace(ch))
 			continue;
 
@@ -908,6 +917,7 @@ static int filter_parse(struct filter_parse_state *ps)
 			}
 			continue;
 		}
+parse_operand:
 		if (append_operand_char(ps, ch)) {
 			parse_error(ps, FILT_ERR_OPERAND_TOO_LONG, 0);
 			return -EINVAL;
