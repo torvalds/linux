@@ -99,9 +99,39 @@ int cx18_av_and_or4(struct cx18 *cx, u16 addr, u32 and_mask,
 			     or_value);
 }
 
-static void cx18_av_initialize(struct cx18 *cx)
+static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
 {
-	struct cx18_av_state *state = &cx->av_state;
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
+
+	/*
+	 * The crystal freq used in calculations in this driver will be
+	 * 28.636360 MHz.
+	 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
+	 */
+
+	/*
+	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
+	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
+	 */
+	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
+
+	/* VDCLK Fraction = 0x2be2fe */
+	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
+	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
+
+	/* AIMCLK Fraction = 0x05227ad */
+	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
+	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
+
+	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
+	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
+	return 0;
+}
+
+static void cx18_av_initialize(struct v4l2_subdev *sd)
+{
+	struct cx18_av_state *state = to_cx18_av_state(sd);
+	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	u32 v;
 
 	cx18_av_loadfw(cx);
@@ -150,6 +180,26 @@ static void cx18_av_initialize(struct cx18 *cx)
 	cx18_av_write4(cx, CXADEC_SOFT_RST_CTRL, 0x8000);
 	cx18_av_write4(cx, CXADEC_SOFT_RST_CTRL, 0);
 
+	/*
+	 * Disable Video Auto-config of the Analog Front End and Video PLL.
+	 *
+	 * Since we only use BT.656 pixel mode, which works for both 525 and 625
+	 * line systems, it's just easier for us to set registers
+	 * 0x102 (CXADEC_CHIP_CTRL), 0x104-0x106 (CXADEC_AFE_CTRL),
+	 * 0x108-0x109 (CXADEC_PLL_CTRL1), and 0x10c-0x10f (CXADEC_VID_PLL_FRAC)
+	 * ourselves, than to run around cleaning up after the auto-config.
+	 *
+	 * (Note: my CX23418 chip doesn't seem to let the ACFG_DIS bit
+	 * get set to 1, but OTOH, it doesn't seem to do AFE and VID PLL
+	 * autoconfig either.)
+	 *
+	 * As a default, also turn off Dual mode for ADC2 and set ADC2 to CH3.
+	 */
+	cx18_av_and_or4(cx, CXADEC_CHIP_CTRL, 0xFFFBFFFF, 0x00120000);
+
+	/* Setup the Video and and Aux/Audio PLLs */
+	cx18_av_init(sd, 0);
+
 	/* set video to auto-detect */
 	/* Clear bits 11-12 to enable slow locking mode.  Set autodetect mode */
 	/* set the comb notch = 1 */
@@ -176,12 +226,23 @@ static void cx18_av_initialize(struct cx18 *cx)
 	/* EncSetSignalStd(dwDevNum, pEnc->dwSigStd); */
 	/* EncSetVideoInput(dwDevNum, pEnc->VidIndSelection); */
 
-	v = cx18_av_read4(cx, CXADEC_AFE_CTRL);
-	v &= 0xFFFBFFFF;            /* turn OFF bit 18 for droop_comp_ch1 */
-	v &= 0xFFFF7FFF;            /* turn OFF bit 9 for clamp_sel_ch1 */
-	v &= 0xFFFFFFFE;            /* turn OFF bit 0 for 12db_ch1 */
-	/* v |= 0x00000001;*/            /* turn ON bit 0 for 12db_ch1 */
-	cx18_av_write4(cx, CXADEC_AFE_CTRL, v);
+	/*
+	 * Analog Front End (AFE)
+	 * Default to luma on ch1/ADC1, chroma on ch2/ADC2, SIF on ch3/ADC2
+	 *  bypass_ch[1-3]     use filter
+	 *  droop_comp_ch[1-3] disable
+	 *  clamp_en_ch[1-3]   disable
+	 *  aud_in_sel         ADC2
+	 *  luma_in_sel        ADC1
+	 *  chroma_in_sel      ADC2
+	 *  clamp_sel_ch[2-3]  midcode
+	 *  clamp_sel_ch1      video decoder
+	 *  vga_sel_ch3        audio decoder
+	 *  vga_sel_ch[1-2]    video decoder
+	 *  half_bw_ch[1-3]    disable
+	 *  +12db_ch[1-3]      disable
+	 */
+	cx18_av_and_or4(cx, CXADEC_AFE_CTRL, 0xFF000000, 0x00005D00);
 
 /* 	if(dwEnable && dw3DCombAvailable) { */
 /*      	CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x7728021F); */
@@ -195,50 +256,18 @@ static void cx18_av_initialize(struct cx18 *cx)
 
 static int cx18_av_reset(struct v4l2_subdev *sd, u32 val)
 {
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
-	cx18_av_initialize(cx);
-	return 0;
-}
-
-static int cx18_av_init(struct v4l2_subdev *sd, u32 val)
-{
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
-	/*
-	 * The crystal freq used in calculations in this driver will be
-	 * 28.636360 MHz.
-	 * Aim to run the PLLs' VCOs near 400 MHz to minimze errors.
-	 */
-
-	/*
-	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
-	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
-	 */
-	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
-
-	/* VDCLK Fraction = 0x2be2fe */
-	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
-	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
-
-	/* AIMCLK Fraction = 0x05227ad */
-	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz pre post-div*/
-	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
-
-	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
-	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
+	cx18_av_initialize(sd);
 	return 0;
 }
 
 static int cx18_av_load_fw(struct v4l2_subdev *sd)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
 	if (!state->is_initialized) {
 		/* initialize on first use */
 		state->is_initialized = 1;
-		cx18_av_initialize(cx);
+		cx18_av_initialize(sd);
 	}
 	return 0;
 }
@@ -470,16 +499,23 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 {
 	struct cx18_av_state *state = &cx->av_state;
 	struct v4l2_subdev *sd = &state->sd;
-	u8 is_composite = (vid_input >= CX18_AV_COMPOSITE1 &&
-			   vid_input <= CX18_AV_COMPOSITE8);
-	u8 reg;
-	u8 v;
+
+	enum analog_signal_type {
+		NONE, CVBS, Y, C, SIF, Pb, Pr
+	} ch[3] = {NONE, NONE, NONE};
+
+	u8 afe_mux_cfg;
+	u8 adc2_cfg;
+	u32 afe_cfg;
+	int i;
 
 	CX18_DEBUG_INFO_DEV(sd, "decoder set video input %d, audio input %d\n",
 			    vid_input, aud_input);
 
-	if (is_composite) {
-		reg = 0xf0 + (vid_input - CX18_AV_COMPOSITE1);
+	if (vid_input >= CX18_AV_COMPOSITE1 &&
+	    vid_input <= CX18_AV_COMPOSITE8) {
+		afe_mux_cfg = 0xf0 + (vid_input - CX18_AV_COMPOSITE1);
+		ch[0] = CVBS;
 	} else {
 		int luma = vid_input & 0xf0;
 		int chroma = vid_input & 0xf00;
@@ -493,26 +529,45 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 				     vid_input);
 			return -EINVAL;
 		}
-		reg = 0xf0 + ((luma - CX18_AV_SVIDEO_LUMA1) >> 4);
+		afe_mux_cfg = 0xf0 + ((luma - CX18_AV_SVIDEO_LUMA1) >> 4);
+		ch[0] = Y;
 		if (chroma >= CX18_AV_SVIDEO_CHROMA7) {
-			reg &= 0x3f;
-			reg |= (chroma - CX18_AV_SVIDEO_CHROMA7) >> 2;
+			afe_mux_cfg &= 0x3f;
+			afe_mux_cfg |= (chroma - CX18_AV_SVIDEO_CHROMA7) >> 2;
+			ch[2] = C;
 		} else {
-			reg &= 0xcf;
-			reg |= (chroma - CX18_AV_SVIDEO_CHROMA4) >> 4;
+			afe_mux_cfg &= 0xcf;
+			afe_mux_cfg |= (chroma - CX18_AV_SVIDEO_CHROMA4) >> 4;
+			ch[1] = C;
 		}
 	}
+	/* TODO: LeadTek WinFast DVR3100 H & WinFast PVR2100 can do Y/Pb/Pr */
 
 	switch (aud_input) {
 	case CX18_AV_AUDIO_SERIAL1:
 	case CX18_AV_AUDIO_SERIAL2:
 		/* do nothing, use serial audio input */
 		break;
-	case CX18_AV_AUDIO4: reg &= ~0x30; break;
-	case CX18_AV_AUDIO5: reg &= ~0x30; reg |= 0x10; break;
-	case CX18_AV_AUDIO6: reg &= ~0x30; reg |= 0x20; break;
-	case CX18_AV_AUDIO7: reg &= ~0xc0; break;
-	case CX18_AV_AUDIO8: reg &= ~0xc0; reg |= 0x40; break;
+	case CX18_AV_AUDIO4:
+		afe_mux_cfg &= ~0x30;
+		ch[1] = SIF;
+		break;
+	case CX18_AV_AUDIO5:
+		afe_mux_cfg = (afe_mux_cfg & ~0x30) | 0x10;
+		ch[1] = SIF;
+		break;
+	case CX18_AV_AUDIO6:
+		afe_mux_cfg = (afe_mux_cfg & ~0x30) | 0x20;
+		ch[1] = SIF;
+		break;
+	case CX18_AV_AUDIO7:
+		afe_mux_cfg &= ~0xc0;
+		ch[2] = SIF;
+		break;
+	case CX18_AV_AUDIO8:
+		afe_mux_cfg = (afe_mux_cfg & ~0xc0) | 0x40;
+		ch[2] = SIF;
+		break;
 
 	default:
 		CX18_ERR_DEV(sd, "0x%04x is not a valid audio input!\n",
@@ -520,24 +575,65 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		return -EINVAL;
 	}
 
-	cx18_av_write_expect(cx, 0x103, reg, reg, 0xf7);
+	/* Set up analog front end multiplexers */
+	cx18_av_write_expect(cx, 0x103, afe_mux_cfg, afe_mux_cfg, 0xf7);
 	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
-	cx18_av_and_or(cx, 0x401, ~0x6, is_composite ? 0 : 0x02);
+	cx18_av_and_or(cx, 0x401, ~0x6, ch[0] == CVBS ? 0 : 0x02);
 
 	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
-	v = cx18_av_read(cx, 0x102);
-	if (reg & 0x80)
-		v &= ~0x2;
+	adc2_cfg = cx18_av_read(cx, 0x102);
+	if (ch[2] == NONE)
+		adc2_cfg &= ~0x2; /* No sig on CH3, set ADC2 to CH2 for input */
 	else
-		v |= 0x2;
-	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
-	if ((reg & 0xc0) != 0xc0 && (reg & 0x30) != 0x30)
-		v |= 0x4;
-	else
-		v &= ~0x4;
-	cx18_av_write_expect(cx, 0x102, v, v, 0x17);
+		adc2_cfg |= 0x2;  /* Signal on CH3, set ADC2 to CH3 for input */
 
-	/*cx18_av_and_or4(cx, 0x104, ~0x001b4180, 0x00004180);*/
+	/* Set DUAL_MODE_ADC2 to 1 if input comes from both CH2 and CH3 */
+	if (ch[1] != NONE && ch[2] != NONE)
+		adc2_cfg |= 0x4; /* Set dual mode */
+	else
+		adc2_cfg &= ~0x4; /* Clear dual mode */
+	cx18_av_write_expect(cx, 0x102, adc2_cfg, adc2_cfg, 0x17);
+
+	/* Configure the analog front end */
+	afe_cfg = cx18_av_read4(cx, CXADEC_AFE_CTRL);
+	afe_cfg &= 0xff000000;
+	afe_cfg |= 0x00005000; /* CHROMA_IN, AUD_IN: ADC2; LUMA_IN: ADC1 */
+	if (ch[1] != NONE && ch[2] != NONE)
+		afe_cfg |= 0x00000030; /* half_bw_ch[2-3] since in dual mode */
+
+	for (i = 0; i < 3; i++) {
+		switch (ch[i]) {
+		default:
+		case NONE:
+			/* CLAMP_SEL = Fixed to midcode clamp level */
+			afe_cfg |= (0x00000200 << i);
+			break;
+		case CVBS:
+		case Y:
+			if (i > 0)
+				afe_cfg |= 0x00002000; /* LUMA_IN_SEL: ADC2 */
+			break;
+		case C:
+		case Pb:
+		case Pr:
+			/* CLAMP_SEL = Fixed to midcode clamp level */
+			afe_cfg |= (0x00000200 << i);
+			if (i == 0 && ch[i] == C)
+				afe_cfg &= ~0x00001000; /* CHROMA_IN_SEL ADC1 */
+			break;
+		case SIF:
+			/*
+			 * VGA_GAIN_SEL = Audio Decoder
+			 * CLAMP_SEL = Fixed to midcode clamp level
+			 */
+			afe_cfg |= (0x00000240 << i);
+			if (i == 0)
+				afe_cfg &= ~0x00004000; /* AUD_IN_SEL ADC1 */
+			break;
+		}
+	}
+
+	cx18_av_write4(cx, CXADEC_AFE_CTRL, afe_cfg);
 
 	state->vid_input = vid_input;
 	state->aud_input = aud_input;
