@@ -1543,13 +1543,15 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-sc6000
   -----------------
 
-    Module for Gallant SC-6000 soundcard.
+    Module for Gallant SC-6000 soundcard and later models: SC-6600
+    and SC-7000.
 
     port	- Port # (0x220 or 0x240)
     mss_port	- MSS Port # (0x530 or 0xe80)
     irq		- IRQ # (5,7,9,10,11)
     mpu_irq	- MPU-401 IRQ # (5,7,9,10) ,0 - no MPU-401 irq
     dma		- DMA # (1,3,0)
+    joystick	- Enable gameport - 0 = disable (default), 1 = enable
 
     This module supports multiple cards.
 

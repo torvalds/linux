@@ -56,6 +56,7 @@ static long mpu_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 						/* 0x300, 0x310, 0x320, 0x330 */
 static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* 5, 7, 9, 10, 0 */
 static int dma[SNDRV_CARDS] = SNDRV_DEFAULT_DMA;	/* 0, 1, 3 */
+static bool joystick[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = false };
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for sc-6000 based soundcard.");
@@ -75,6 +76,8 @@ module_param_array(mpu_irq, int, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for sc-6000 driver.");
 module_param_array(dma, int, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for sc-6000 driver.");
+module_param_array(joystick, bool, NULL, 0444);
+MODULE_PARM_DESC(joystick, "Enable gameport.");
 
 /*
  * Commands of SC6000's DSP (SBPRO+special).
@@ -363,7 +366,7 @@ static int __devinit sc6000_init_mss(char __iomem *vport, int config,
 
 static void __devinit sc6000_hw_cfg_encode(char __iomem *vport, int *cfg,
 					   long xport, long xmpu,
-					   long xmss_port)
+					   long xmss_port, int joystick)
 {
 	cfg[0] = 0;
 	cfg[1] = 0;
@@ -376,6 +379,8 @@ static void __devinit sc6000_hw_cfg_encode(char __iomem *vport, int *cfg,
 	if (xmss_port == 0xe80)
 		cfg[0] |= 0x10;
 	cfg[0] |= 0x40;		/* always set */
+	if (!joystick)
+		cfg[0] |= 0x02;
 	cfg[1] |= 0x80;		/* enable WSS system */
 	cfg[1] &= ~0x40;	/* disable IDE */
 	snd_printd("hw cfg %x, %x\n", cfg[0], cfg[1]);
@@ -427,7 +432,7 @@ static int __devinit sc6000_init_board(char __iomem *vport,
 	if (!old) {
 		int cfg[2];
 		sc6000_hw_cfg_encode(vport, &cfg[0], port[dev], mpu_port[dev],
-				     mss_port[dev]);
+				     mss_port[dev], joystick[dev]);
 		if (sc6000_hw_cfg_write(vport, cfg) < 0) {
 			snd_printk(KERN_ERR "sc6000_hw_cfg_write: failed!\n");
 			return -EIO;
