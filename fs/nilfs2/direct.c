@@ -327,12 +327,9 @@ static int nilfs_direct_assign_v(struct nilfs_direct *direct,
 	int ret;
 
 	req.bpr_ptr = ptr;
-	ret = direct->d_bmap.b_pops->bpop_prepare_start_ptr(
-		&direct->d_bmap, &req);
-	if (ret < 0)
+	ret = nilfs_bmap_start_v(&direct->d_bmap, &req, blocknr);
+	if (unlikely(ret < 0))
 		return ret;
-	direct->d_bmap.b_pops->bpop_commit_start_ptr(&direct->d_bmap,
-						     &req, blocknr);
 
 	binfo->bi_v.bi_vblocknr = nilfs_bmap_ptr_to_dptr(ptr);
 	binfo->bi_v.bi_blkoff = nilfs_bmap_key_to_dkey(key);

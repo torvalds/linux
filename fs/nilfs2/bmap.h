@@ -96,13 +96,6 @@ struct nilfs_bmap_ptr_operations {
 				      union nilfs_bmap_ptr_req *);
 	void (*bpop_abort_alloc_ptr)(struct nilfs_bmap *,
 				     union nilfs_bmap_ptr_req *);
-	int (*bpop_prepare_start_ptr)(struct nilfs_bmap *,
-				      union nilfs_bmap_ptr_req *);
-	void (*bpop_commit_start_ptr)(struct nilfs_bmap *,
-				      union nilfs_bmap_ptr_req *,
-				      sector_t);
-	void (*bpop_abort_start_ptr)(struct nilfs_bmap *,
-				     union nilfs_bmap_ptr_req *);
 	int (*bpop_prepare_end_ptr)(struct nilfs_bmap *,
 				    union nilfs_bmap_ptr_req *);
 	void (*bpop_commit_end_ptr)(struct nilfs_bmap *,
@@ -183,6 +176,8 @@ void nilfs_bmap_commit_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
  * Internal use only
  */
 
+int nilfs_bmap_start_v(struct nilfs_bmap *, union nilfs_bmap_ptr_req *,
+		       sector_t);
 int nilfs_bmap_move_v(const struct nilfs_bmap *, __u64, sector_t);
 int nilfs_bmap_mark_dirty(const struct nilfs_bmap *, __u64);
 

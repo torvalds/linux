@@ -511,24 +511,16 @@ static void nilfs_bmap_abort_alloc_v(struct nilfs_bmap *bmap,
 	nilfs_dat_abort_alloc(nilfs_bmap_get_dat(bmap), &req->bpr_req);
 }
 
-static int nilfs_bmap_prepare_start_v(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req)
+int nilfs_bmap_start_v(struct nilfs_bmap *bmap, union nilfs_bmap_ptr_req *req,
+		       sector_t blocknr)
 {
-	return nilfs_dat_prepare_start(nilfs_bmap_get_dat(bmap), &req->bpr_req);
-}
+	struct inode *dat = nilfs_bmap_get_dat(bmap);
+	int ret;
 
-static void nilfs_bmap_commit_start_v(struct nilfs_bmap *bmap,
-				      union nilfs_bmap_ptr_req *req,
-				      sector_t blocknr)
-{
-	nilfs_dat_commit_start(nilfs_bmap_get_dat(bmap), &req->bpr_req,
-			       blocknr);
-}
-
-static void nilfs_bmap_abort_start_v(struct nilfs_bmap *bmap,
-				     union nilfs_bmap_ptr_req *req)
-{
-	nilfs_dat_abort_start(nilfs_bmap_get_dat(bmap), &req->bpr_req);
+	ret = nilfs_dat_prepare_start(dat, &req->bpr_req);
+	if (likely(!ret))
+		nilfs_dat_commit_start(dat, &req->bpr_req, blocknr);
+	return ret;
 }
 
 static int nilfs_bmap_prepare_end_v(struct nilfs_bmap *bmap,
@@ -636,9 +628,6 @@ static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_v = {
 	.bpop_prepare_alloc_ptr	=	nilfs_bmap_prepare_alloc_v,
 	.bpop_commit_alloc_ptr	=	nilfs_bmap_commit_alloc_v,
 	.bpop_abort_alloc_ptr	=	nilfs_bmap_abort_alloc_v,
-	.bpop_prepare_start_ptr	=	nilfs_bmap_prepare_start_v,
-	.bpop_commit_start_ptr	=	nilfs_bmap_commit_start_v,
-	.bpop_abort_start_ptr	=	nilfs_bmap_abort_start_v,
 	.bpop_prepare_end_ptr	=	nilfs_bmap_prepare_end_v,
 	.bpop_commit_end_ptr	=	nilfs_bmap_commit_end_v,
 	.bpop_abort_end_ptr	=	nilfs_bmap_abort_end_v,
@@ -650,9 +639,6 @@ static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_vmdt = {
 	.bpop_prepare_alloc_ptr	=	nilfs_bmap_prepare_alloc_v,
 	.bpop_commit_alloc_ptr	=	nilfs_bmap_commit_alloc_v,
 	.bpop_abort_alloc_ptr	=	nilfs_bmap_abort_alloc_v,
-	.bpop_prepare_start_ptr	=	nilfs_bmap_prepare_start_v,
-	.bpop_commit_start_ptr	=	nilfs_bmap_commit_start_v,
-	.bpop_abort_start_ptr	=	nilfs_bmap_abort_start_v,
 	.bpop_prepare_end_ptr	=	nilfs_bmap_prepare_end_v,
 	.bpop_commit_end_ptr	=	nilfs_bmap_commit_end_vmdt,
 	.bpop_abort_end_ptr	=	nilfs_bmap_abort_end_v,
@@ -664,9 +650,6 @@ static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_p = {
 	.bpop_prepare_alloc_ptr	=	nilfs_bmap_prepare_alloc_p,
 	.bpop_commit_alloc_ptr	=	nilfs_bmap_commit_alloc_p,
 	.bpop_abort_alloc_ptr	=	nilfs_bmap_abort_alloc_p,
-	.bpop_prepare_start_ptr	=	NULL,
-	.bpop_commit_start_ptr	=	NULL,
-	.bpop_abort_start_ptr	=	NULL,
 	.bpop_prepare_end_ptr	=	NULL,
 	.bpop_commit_end_ptr	=	NULL,
 	.bpop_abort_end_ptr	=	NULL,
@@ -678,9 +661,6 @@ static const struct nilfs_bmap_ptr_operations nilfs_bmap_ptr_ops_gc = {
 	.bpop_prepare_alloc_ptr	=	NULL,
 	.bpop_commit_alloc_ptr	=	NULL,
 	.bpop_abort_alloc_ptr	=	NULL,
-	.bpop_prepare_start_ptr	=	NULL,
-	.bpop_commit_start_ptr	=	NULL,
-	.bpop_abort_start_ptr	=	NULL,
 	.bpop_prepare_end_ptr	=	NULL,
 	.bpop_commit_end_ptr	=	NULL,
 	.bpop_abort_end_ptr	=	NULL,

@@ -2066,12 +2066,9 @@ static int nilfs_btree_assign_v(struct nilfs_btree *btree,
 	ptr = nilfs_btree_node_get_ptr(btree, parent,
 				       path[level + 1].bp_index);
 	req.bpr_ptr = ptr;
-	ret = btree->bt_bmap.b_pops->bpop_prepare_start_ptr(&btree->bt_bmap,
-							       &req);
-	if (ret < 0)
+	ret = nilfs_bmap_start_v(&btree->bt_bmap, &req, blocknr);
+	if (unlikely(ret < 0))
 		return ret;
-	btree->bt_bmap.b_pops->bpop_commit_start_ptr(&btree->bt_bmap,
-							&req, blocknr);
 
 	key = nilfs_btree_node_get_key(btree, parent,
 				       path[level + 1].bp_index);
