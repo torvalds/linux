@@ -190,7 +190,7 @@ struct l2cap_conf_rfc {
 #define L2CAP_MODE_RETRANS	0x01
 #define L2CAP_MODE_FLOWCTL	0x02
 #define L2CAP_MODE_ERTM		0x03
-#define L2CAP_MODE_STREAM	0x04
+#define L2CAP_MODE_STREAMING	0x04
 
 struct l2cap_disconn_req {
 	__le16     dcid;
@@ -271,9 +271,11 @@ struct l2cap_pinfo {
 	__u16		imtu;
 	__u16		omtu;
 	__u16		flush_to;
-	__u8            sec_level;
+	__u8		mode;
+	__u8		fcs;
+	__u8		sec_level;
 	__u8		role_switch;
-	__u8            force_reliable;
+	__u8		force_reliable;
 
 	__u8		conf_req[64];
 	__u8		conf_len;
