@@ -1784,18 +1784,18 @@ static int ext4_check_descriptors(struct super_block *sb)
 			       "(block %llu)!\n", i, inode_table);
 			return 0;
 		}
-		spin_lock(sb_bgl_lock(sbi, i));
+		ext4_lock_group(sb, i);
 		if (!ext4_group_desc_csum_verify(sbi, i, gdp)) {
 			printk(KERN_ERR "EXT4-fs: ext4_check_descriptors: "
 			       "Checksum for group %u failed (%u!=%u)\n",
 			       i, le16_to_cpu(ext4_group_desc_csum(sbi, i,
 			       gdp)), le16_to_cpu(gdp->bg_checksum));
 			if (!(sb->s_flags & MS_RDONLY)) {
-				spin_unlock(sb_bgl_lock(sbi, i));
+				ext4_unlock_group(sb, i);
 				return 0;
 			}
 		}
-		spin_unlock(sb_bgl_lock(sbi, i));
+		ext4_unlock_group(sb, i);
 		if (!flexbg_flag)
 			first_block += EXT4_BLOCKS_PER_GROUP(sb);
 	}

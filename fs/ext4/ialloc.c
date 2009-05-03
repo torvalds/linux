@@ -122,16 +122,16 @@ ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 		unlock_buffer(bh);
 		return bh;
 	}
-	spin_lock(sb_bgl_lock(EXT4_SB(sb), block_group));
+	ext4_lock_group(sb, block_group);
 	if (desc->bg_flags & cpu_to_le16(EXT4_BG_INODE_UNINIT)) {
 		ext4_init_inode_bitmap(sb, bh, block_group, desc);
 		set_bitmap_uptodate(bh);
 		set_buffer_uptodate(bh);
-		spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
+		ext4_unlock_group(sb, block_group);
 		unlock_buffer(bh);
 		return bh;
 	}
-	spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
+	ext4_unlock_group(sb, block_group);
 	if (buffer_uptodate(bh)) {
 		/*
 		 * if not uninit if bh is uptodate,
@@ -246,9 +246,8 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 		goto error_return;
 
 	/* Ok, now we can actually update the inode bitmaps.. */
-	spin_lock(sb_bgl_lock(sbi, block_group));
-	cleared = ext4_clear_bit(bit, bitmap_bh->b_data);
-	spin_unlock(sb_bgl_lock(sbi, block_group));
+	cleared = ext4_clear_bit_atomic(ext4_group_lock_ptr(sb, block_group),
+					bit, bitmap_bh->b_data);
 	if (!cleared)
 		ext4_error(sb, "ext4_free_inode",
 			   "bit already cleared for inode %lu", ino);
@@ -260,7 +259,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 		if (fatal) goto error_return;
 
 		if (gdp) {
-			spin_lock(sb_bgl_lock(sbi, block_group));
+			ext4_lock_group(sb, block_group);
 			count = ext4_free_inodes_count(sb, gdp) + 1;
 			ext4_free_inodes_set(sb, gdp, count);
 			if (is_directory) {
@@ -276,7 +275,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 			}
 			gdp->bg_checksum = ext4_group_desc_csum(sbi,
 							block_group, gdp);
-			spin_unlock(sb_bgl_lock(sbi, block_group));
+			ext4_unlock_group(sb, block_group);
 			percpu_counter_inc(&sbi->s_freeinodes_counter);
 			if (is_directory)
 				percpu_counter_dec(&sbi->s_dirs_counter);
@@ -707,10 +706,10 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
 
 /*
  * claim the inode from the inode bitmap. If the group
- * is uninit we need to take the groups's sb_bgl_lock
+ * is uninit we need to take the groups's ext4_group_lock
  * and clear the uninit flag. The inode bitmap update
  * and group desc uninit flag clear should be done
- * after holding sb_bgl_lock so that ext4_read_inode_bitmap
+ * after holding ext4_group_lock so that ext4_read_inode_bitmap
  * doesn't race with the ext4_claim_inode
  */
 static int ext4_claim_inode(struct super_block *sb,
@@ -721,7 +720,7 @@ static int ext4_claim_inode(struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	struct ext4_group_desc *gdp = ext4_get_group_desc(sb, group, NULL);
 
-	spin_lock(sb_bgl_lock(sbi, group));
+	ext4_lock_group(sb, group);
 	if (ext4_set_bit(ino, inode_bitmap_bh->b_data)) {
 		/* not a free inode */
 		retval = 1;
@@ -730,7 +729,7 @@ static int ext4_claim_inode(struct super_block *sb,
 	ino++;
 	if ((group == 0 && ino < EXT4_FIRST_INO(sb)) ||
 			ino > EXT4_INODES_PER_GROUP(sb)) {
-		spin_unlock(sb_bgl_lock(sbi, group));
+		ext4_unlock_group(sb, group);
 		ext4_error(sb, __func__,
 			   "reserved inode or inode > inodes count - "
 			   "block_group = %u, inode=%lu", group,
@@ -779,7 +778,7 @@ static int ext4_claim_inode(struct super_block *sb,
 	}
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
 err_ret:
-	spin_unlock(sb_bgl_lock(sbi, group));
+	ext4_unlock_group(sb, group);
 	return retval;
 }
 
@@ -935,7 +934,7 @@ got:
 		}
 
 		free = 0;
-		spin_lock(sb_bgl_lock(sbi, group));
+		ext4_lock_group(sb, group);
 		/* recheck and clear flag under lock if we still need to */
 		if (gdp->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 			free = ext4_free_blocks_after_init(sb, group, gdp);
@@ -944,7 +943,7 @@ got:
 			gdp->bg_checksum = ext4_group_desc_csum(sbi, group,
 								gdp);
 		}
-		spin_unlock(sb_bgl_lock(sbi, group));
+		ext4_unlock_group(sb, group);
 
 		/* Don't need to dirty bitmap block if we didn't change it */
 		if (free) {

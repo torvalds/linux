@@ -326,16 +326,16 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 		unlock_buffer(bh);
 		return bh;
 	}
-	spin_lock(sb_bgl_lock(EXT4_SB(sb), block_group));
+	ext4_lock_group(sb, block_group);
 	if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 		ext4_init_block_bitmap(sb, bh, block_group, desc);
 		set_bitmap_uptodate(bh);
 		set_buffer_uptodate(bh);
-		spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
+		ext4_unlock_group(sb, block_group);
 		unlock_buffer(bh);
 		return bh;
 	}
-	spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
+	ext4_unlock_group(sb, block_group);
 	if (buffer_uptodate(bh)) {
 		/*
 		 * if not uninit if bh is uptodate,
@@ -451,7 +451,7 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	down_write(&grp->alloc_sem);
 	for (i = 0, blocks_freed = 0; i < count; i++) {
 		BUFFER_TRACE(bitmap_bh, "clear bit");
-		if (!ext4_clear_bit_atomic(sb_bgl_lock(sbi, block_group),
+		if (!ext4_clear_bit_atomic(ext4_group_lock_ptr(sb, block_group),
 						bit + i, bitmap_bh->b_data)) {
 			ext4_error(sb, __func__,
 				   "bit already cleared for block %llu",
@@ -461,11 +461,11 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 			blocks_freed++;
 		}
 	}
-	spin_lock(sb_bgl_lock(sbi, block_group));
+	ext4_lock_group(sb, block_group);
 	blk_free_count = blocks_freed + ext4_free_blks_count(sb, desc);
 	ext4_free_blks_set(sb, desc, blk_free_count);
 	desc->bg_checksum = ext4_group_desc_csum(sbi, block_group, desc);
-	spin_unlock(sb_bgl_lock(sbi, block_group));
+	ext4_unlock_group(sb, block_group);
 	percpu_counter_add(&sbi->s_freeblocks_counter, blocks_freed);
 
 	if (sbi->s_log_groups_per_flex) {

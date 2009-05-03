@@ -963,12 +963,6 @@ static inline int ext4_valid_inum(struct super_block *sb, unsigned long ino)
 		(ino >= EXT4_FIRST_INO(sb) &&
 		 ino <= le32_to_cpu(EXT4_SB(sb)->s_es->s_inodes_count));
 }
-
-static inline spinlock_t *
-sb_bgl_lock(struct ext4_sb_info *sbi, unsigned int block_group)
-{
-	return bgl_lock_ptr(sbi->s_blockgroup_lock, block_group);
-}
 #else
 /* Assume that user mode programs are passing in an ext4fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
@@ -1568,33 +1562,31 @@ struct ext4_group_info {
 };
 
 #define EXT4_GROUP_INFO_NEED_INIT_BIT	0
-#define EXT4_GROUP_INFO_LOCKED_BIT	1
 
 #define EXT4_MB_GRP_NEED_INIT(grp)	\
 	(test_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &((grp)->bb_state)))
 
+static inline spinlock_t *ext4_group_lock_ptr(struct super_block *sb,
+					      ext4_group_t group)
+{
+	return bgl_lock_ptr(EXT4_SB(sb)->s_blockgroup_lock, group);
+}
+
 static inline void ext4_lock_group(struct super_block *sb, ext4_group_t group)
 {
-	struct ext4_group_info *grinfo = ext4_get_group_info(sb, group);
-
-	bit_spin_lock(EXT4_GROUP_INFO_LOCKED_BIT, &(grinfo->bb_state));
+	spin_lock(ext4_group_lock_ptr(sb, group));
 }
 
 static inline void ext4_unlock_group(struct super_block *sb,
 					ext4_group_t group)
 {
-	struct ext4_group_info *grinfo = ext4_get_group_info(sb, group);
-
-	bit_spin_unlock(EXT4_GROUP_INFO_LOCKED_BIT, &(grinfo->bb_state));
+	spin_unlock(ext4_group_lock_ptr(sb, group));
 }
 
 static inline int ext4_is_group_locked(struct super_block *sb,
 					ext4_group_t group)
 {
-	struct ext4_group_info *grinfo = ext4_get_group_info(sb, group);
-
-	return bit_spin_is_locked(EXT4_GROUP_INFO_LOCKED_BIT,
-						&(grinfo->bb_state));
+	return spin_is_locked(ext4_group_lock_ptr(sb, group));
 }
 
 /*
