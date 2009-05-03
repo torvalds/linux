@@ -280,7 +280,8 @@ static int rotation_thread_function(void *data)
 				vflip = !vflip;
 				hflip = !hflip;
 			}
-			s5k83a_set_flip_real((struct gspca_dev *) sd, vflip, hflip);
+			s5k83a_set_flip_real((struct gspca_dev *) sd,
+					      vflip, hflip);
 		}
 
 		mutex_unlock(&sd->gspca_dev.usb_lock);

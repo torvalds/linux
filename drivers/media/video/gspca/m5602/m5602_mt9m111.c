@@ -338,7 +338,8 @@ int mt9m111_start(struct sd *sd)
 			  (sensor_settings[VFLIP_IDX] << 0) |
 			  (sensor_settings[HFLIP_IDX] << 1);
 
-		err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
+		err = m5602_write_sensor(sd,
+					 MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 		break;
 
 	case 320:
@@ -348,7 +349,8 @@ int mt9m111_start(struct sd *sd)
 				MT9M111_RMB_COLUMN_SKIP_4X |
 				(sensor_settings[VFLIP_IDX] << 0) |
 				(sensor_settings[HFLIP_IDX] << 1);
-		err = m5602_write_sensor(sd, MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
+		err = m5602_write_sensor(sd,
+					 MT9M111_SC_R_MODE_CONTEXT_B, data, 2);
 		break;
 	}
 	return err;
