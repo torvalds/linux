@@ -50,7 +50,9 @@
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/l2cap.h>
 
-#define VERSION "2.13"
+#define VERSION "2.14"
+
+static int enable_ertm = 0;
 
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN;
 static u8 l2cap_fixed_chan[8] = { 0x02, };
@@ -2205,10 +2207,13 @@ static inline int l2cap_information_req(struct l2cap_conn *conn, struct l2cap_cm
 
 	if (type == L2CAP_IT_FEAT_MASK) {
 		u8 buf[8];
+		u32 feat_mask = l2cap_feat_mask;
 		struct l2cap_info_rsp *rsp = (struct l2cap_info_rsp *) buf;
 		rsp->type   = cpu_to_le16(L2CAP_IT_FEAT_MASK);
 		rsp->result = cpu_to_le16(L2CAP_IR_SUCCESS);
-		put_unaligned(cpu_to_le32(l2cap_feat_mask), (__le32 *) rsp->data);
+		if (enable_ertm)
+			feat_mask |= L2CAP_FEAT_ERTM;
+		put_unaligned(cpu_to_le32(feat_mask), (__le32 *) rsp->data);
 		l2cap_send_cmd(conn, cmd->ident,
 					L2CAP_INFO_RSP, sizeof(buf), buf);
 	} else if (type == L2CAP_IT_FIXED_CHAN) {
@@ -2827,6 +2832,9 @@ EXPORT_SYMBOL(l2cap_load);
 
 module_init(l2cap_init);
 module_exit(l2cap_exit);
+
+module_param(enable_ertm, bool, 0644);
+MODULE_PARM_DESC(enable_ertm, "Enable enhanced retransmission mode");
 
 MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth L2CAP ver " VERSION);
