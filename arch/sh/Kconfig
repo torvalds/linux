@@ -78,7 +78,7 @@ config GENERIC_TIME
 	def_bool y
 
 config GENERIC_CLOCKEVENTS
-	def_bool n
+	def_bool y
 
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
@@ -469,8 +469,6 @@ config SH_TMU
 	bool "TMU timer support"
 	depends on CPU_SH3 || CPU_SH4
 	default y
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
 	help
 	  This enables the use of the TMU as the system timer.
 
@@ -478,8 +476,6 @@ config SH_TIMER_TMU
 	bool "TMU timer driver"
 	depends on !SH_TMU && SYS_SUPPORTS_TMU
 	default y
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
 	help
 	  This enables the build of the TMU timer driver.
 
@@ -487,8 +483,6 @@ config SH_TIMER_CMT
 	bool "CMT timer driver"
 	depends on SYS_SUPPORTS_CMT
 	default y
-	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	help
 	  This enables build of the CMT timer driver.
 
@@ -496,7 +490,6 @@ config SH_TIMER_MTU2
 	bool "MTU2 timer driver"
 	depends on SYS_SUPPORTS_MTU2
 	default y
-	select GENERIC_CLOCKEVENTS
 	help
 	  This enables build of the MTU2 timer driver.
 
