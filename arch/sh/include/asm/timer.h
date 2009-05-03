@@ -9,9 +9,6 @@ struct sys_timer_ops {
 	int (*init)(void);
 	int (*start)(void);
 	int (*stop)(void);
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-	unsigned long (*get_offset)(void);
-#endif
 };
 
 struct sys_timer {
@@ -25,13 +22,6 @@ struct sys_timer {
 
 extern struct sys_timer tmu_timer;
 extern struct sys_timer *sys_timer;
-
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-static inline unsigned long get_timer_offset(void)
-{
-	return sys_timer->ops->get_offset();
-}
-#endif
 
 /* arch/sh/kernel/timers/timer.c */
 struct sys_timer *get_sys_timer(void);

@@ -83,13 +83,6 @@ static int __init rtc_generic_init(void)
 }
 module_init(rtc_generic_init);
 
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-u32 arch_gettimeoffset(void)
-{
-	return get_timer_offset() * 1000;
-}
-#endif /* CONFIG_ARCH_USES_GETTIMEOFFSET */
-
 /* last time the RTC clock got updated */
 static long last_rtc_update;
 
@@ -185,7 +178,6 @@ struct clocksource clocksource_sh = {
 	.name		= "SuperH",
 };
 
-#ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
 unsigned long long sched_clock(void)
 {
 	unsigned long long cycles;
@@ -197,7 +189,6 @@ unsigned long long sched_clock(void)
 	cycles = clocksource_sh.read(&clocksource_sh);
 	return cyc2ns(&clocksource_sh, cycles);
 }
-#endif
 
 static void __init sh_late_time_init(void)
 {
