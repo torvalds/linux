@@ -514,8 +514,6 @@ bad:
 static int is_errata93(struct pt_regs *regs, unsigned long address)
 {
 #ifdef CONFIG_X86_64
-	static int once;
-
 	if (address != regs->ip)
 		return 0;
 
@@ -525,10 +523,7 @@ static int is_errata93(struct pt_regs *regs, unsigned long address)
 	address |= 0xffffffffUL << 32;
 	if ((address >= (u64)_stext && address <= (u64)_etext) ||
 	    (address >= MODULES_VADDR && address <= MODULES_END)) {
-		if (!once) {
-			printk(errata93_warning);
-			once = 1;
-		}
+		printk_once(errata93_warning);
 		regs->ip = address;
 		return 1;
 	}
