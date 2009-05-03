@@ -903,16 +903,19 @@ static int create_privroot(struct dentry *dentry)
 	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
 
 	err = xattr_mkdir(inode, dentry, 0700);
-	if (err) {
-		dput(dentry);
-		dentry = NULL;
+	if (err || !dentry->d_inode) {
+		reiserfs_warning(dentry->d_sb, "jdm-20006",
+				 "xattrs/ACLs enabled and couldn't "
+				 "find/create .reiserfs_priv. "
+				 "Failing mount.");
+		return -EOPNOTSUPP;
 	}
 
-	if (dentry && dentry->d_inode)
-		reiserfs_info(dentry->d_sb, "Created %s - reserved for xattr "
-			      "storage.\n", PRIVROOT_NAME);
+	dentry->d_inode->i_flags |= S_PRIVATE;
+	reiserfs_info(dentry->d_sb, "Created %s - reserved for xattr "
+		      "storage.\n", PRIVROOT_NAME);
 
-	return err;
+	return 0;
 }
 
 static int xattr_mount_check(struct super_block *s)
@@ -944,11 +947,9 @@ static int
 xattr_lookup_poison(struct dentry *dentry, struct qstr *q1, struct qstr *name)
 {
 	struct dentry *priv_root = REISERFS_SB(dentry->d_sb)->priv_root;
-	if (name->len == priv_root->d_name.len &&
-	    name->hash == priv_root->d_name.hash &&
-	    !memcmp(name->name, priv_root->d_name.name, name->len)) {
+	if (container_of(q1, struct dentry, d_name) == priv_root)
 		return -ENOENT;
-	} else if (q1->len == name->len &&
+	if (q1->len == name->len &&
 		   !memcmp(q1->name, name->name, name->len))
 		return 0;
 	return 1;
@@ -957,6 +958,27 @@ xattr_lookup_poison(struct dentry *dentry, struct qstr *q1, struct qstr *name)
 static const struct dentry_operations xattr_lookup_poison_ops = {
 	.d_compare = xattr_lookup_poison,
 };
+
+int reiserfs_lookup_privroot(struct super_block *s)
+{
+	struct dentry *dentry;
+	int err = 0;
+
+	/* If we don't have the privroot located yet - go find it */
+	mutex_lock(&s->s_root->d_inode->i_mutex);
+	dentry = lookup_one_len(PRIVROOT_NAME, s->s_root,
+				strlen(PRIVROOT_NAME));
+	if (!IS_ERR(dentry)) {
+		REISERFS_SB(s)->priv_root = dentry;
+		s->s_root->d_op = &xattr_lookup_poison_ops;
+		if (dentry->d_inode)
+			dentry->d_inode->i_flags |= S_PRIVATE;
+	} else
+		err = PTR_ERR(dentry);
+	mutex_unlock(&s->s_root->d_inode->i_mutex);
+
+	return err;
+}
 
 /* We need to take a copy of the mount flags since things like
  * MS_RDONLY don't get set until *after* we're called.
@@ -969,48 +991,12 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	err = xattr_mount_check(s);
 	if (err)
 		goto error;
-#endif
 
-	/* If we don't have the privroot located yet - go find it */
-	if (!REISERFS_SB(s)->priv_root) {
-		struct dentry *dentry;
-		mutex_lock_nested(&s->s_root->d_inode->i_mutex, I_MUTEX_CHILD);
-		dentry = lookup_one_len(PRIVROOT_NAME, s->s_root,
-					strlen(PRIVROOT_NAME));
-		if (!IS_ERR(dentry)) {
-#ifdef CONFIG_REISERFS_FS_XATTR
-			if (!(mount_flags & MS_RDONLY) && !dentry->d_inode)
-				err = create_privroot(dentry);
-#endif
-			if (!dentry->d_inode) {
-				dput(dentry);
-				dentry = NULL;
-			}
-		} else
-			err = PTR_ERR(dentry);
+	if (!REISERFS_SB(s)->priv_root->d_inode && !(mount_flags & MS_RDONLY)) {
+		mutex_lock(&s->s_root->d_inode->i_mutex);
+		err = create_privroot(REISERFS_SB(s)->priv_root);
 		mutex_unlock(&s->s_root->d_inode->i_mutex);
-
-		if (!err && dentry) {
-			s->s_root->d_op = &xattr_lookup_poison_ops;
-			dentry->d_inode->i_flags |= S_PRIVATE;
-			REISERFS_SB(s)->priv_root = dentry;
-#ifdef CONFIG_REISERFS_FS_XATTR
-		/* xattrs are unavailable */
-		} else if (!(mount_flags & MS_RDONLY)) {
-			/* If we're read-only it just means that the dir
-			 * hasn't been created. Not an error -- just no
-			 * xattrs on the fs. We'll check again if we
-			 * go read-write */
-			reiserfs_warning(s, "jdm-20006",
-					 "xattrs/ACLs enabled and couldn't "
-					 "find/create .reiserfs_priv. "
-					 "Failing mount.");
-			err = -EOPNOTSUPP;
-#endif
-		}
 	}
-
-#ifdef CONFIG_REISERFS_FS_XATTR
 	if (!err)
 		s->s_xattr = reiserfs_xattr_handlers;
 
