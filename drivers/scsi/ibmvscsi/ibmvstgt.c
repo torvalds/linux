@@ -892,7 +892,7 @@ free_vport:
 
 static int ibmvstgt_remove(struct vio_dev *dev)
 {
-	struct srp_target *target = (struct srp_target *) dev->dev.driver_data;
+	struct srp_target *target = dev_get_drvdata(&dev->dev);
 	struct Scsi_Host *shost = target->shost;
 	struct vio_port *vport = target->ldata;
 
