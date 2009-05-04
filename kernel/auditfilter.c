@@ -135,18 +135,18 @@ static void audit_remove_watch(struct audit_watch *watch)
 static inline void audit_free_rule(struct audit_entry *e)
 {
 	int i;
-
+	struct audit_krule *erule = &e->rule;
 	/* some rules don't have associated watches */
-	if (e->rule.watch)
-		audit_put_watch(e->rule.watch);
-	if (e->rule.fields)
-		for (i = 0; i < e->rule.field_count; i++) {
-			struct audit_field *f = &e->rule.fields[i];
+	if (erule->watch)
+		audit_put_watch(erule->watch);
+	if (erule->fields)
+		for (i = 0; i < erule->field_count; i++) {
+			struct audit_field *f = &erule->fields[i];
 			kfree(f->lsm_str);
 			security_audit_rule_free(f->lsm_rule);
 		}
-	kfree(e->rule.fields);
-	kfree(e->rule.filterkey);
+	kfree(erule->fields);
+	kfree(erule->filterkey);
 	kfree(e);
 }
 

@@ -19,9 +19,8 @@
 #define __XFS_AOPS_H__
 
 extern struct workqueue_struct *xfsdatad_workqueue;
+extern struct workqueue_struct *xfsconvertd_workqueue;
 extern mempool_t *xfs_ioend_pool;
-
-typedef void (*xfs_ioend_func_t)(void *);
 
 /*
  * xfs_ioend struct manages large extent writes for XFS.

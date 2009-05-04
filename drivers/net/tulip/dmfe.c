@@ -288,7 +288,7 @@ enum dmfe_CR6_bits {
 
 /* Global variable declaration ----------------------------- */
 static int __devinitdata printed_version;
-static char version[] __devinitdata =
+static const char version[] __devinitconst =
 	KERN_INFO DRV_NAME ": Davicom DM9xxx net driver, version "
 	DRV_VERSION " (" DRV_RELDATE ")\n";
 
@@ -383,7 +383,7 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 		return -ENOMEM;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_WARNING DRV_NAME
 			": 32-bit PCI DMA not available.\n");
 		err = -ENODEV;

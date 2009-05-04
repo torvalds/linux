@@ -248,7 +248,7 @@ static struct clk *clks[] __initdata = {
 	&clk_48m,
 };
 
-void s3c64xx_register_clocks(void)
+void __init s3c64xx_register_clocks(void)
 {
 	struct clk *clkp;
 	int ret;

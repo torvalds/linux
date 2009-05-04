@@ -24,6 +24,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #include <scsi/scsi.h>
@@ -33,7 +34,48 @@
 #include "transport.h"
 #include "protocol.h"
 #include "debug.h"
-#include "sddr55.h"
+
+MODULE_DESCRIPTION("Driver for SanDisk SDDR-55 SmartMedia reader");
+MODULE_AUTHOR("Simon Munton");
+MODULE_LICENSE("GPL");
+
+/*
+ * The table of devices
+ */
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+
+struct usb_device_id sddr55_usb_ids[] = {
+#	include "unusual_sddr55.h"
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, sddr55_usb_ids);
+
+#undef UNUSUAL_DEV
+
+/*
+ * The flags table
+ */
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+
+static struct us_unusual_dev sddr55_unusual_dev_list[] = {
+#	include "unusual_sddr55.h"
+	{ }		/* Terminating entry */
+};
+
+#undef UNUSUAL_DEV
 
 
 #define short_pack(lsb,msb) ( ((u16)(lsb)) | ( ((u16)(msb))<<8 ) )
@@ -513,7 +555,8 @@ static int sddr55_read_deviceID(struct us_data *us,
 }
 
 
-int sddr55_reset(struct us_data *us) {
+static int sddr55_reset(struct us_data *us)
+{
 	return 0;
 }
 
@@ -703,7 +746,9 @@ static int sddr55_read_map(struct us_data *us) {
 		
 		if (info->lba_to_pba[lba + zone * 1000] != NOT_ALLOCATED &&
 		    !info->force_read_only) {
-			printk("sddr55: map inconsistency at LBA %04X\n", lba + zone * 1000);
+			printk(KERN_WARNING
+			       "sddr55: map inconsistency at LBA %04X\n",
+			       lba + zone * 1000);
 			info->force_read_only = 1;
 		}
 
@@ -732,7 +777,7 @@ static void sddr55_card_info_destructor(void *extra) {
 /*
  * Transport for the Sandisk SDDR-55
  */
-int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
+static int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	int result;
 	static unsigned char inquiry_response[8] = {
@@ -929,3 +974,49 @@ int sddr55_transport(struct scsi_cmnd *srb, struct us_data *us)
 	return USB_STOR_TRANSPORT_FAILED; // FIXME: sense buffer?
 }
 
+
+static int sddr55_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
+{
+	struct us_data *us;
+	int result;
+
+	result = usb_stor_probe1(&us, intf, id,
+			(id - sddr55_usb_ids) + sddr55_unusual_dev_list);
+	if (result)
+		return result;
+
+	us->transport_name = "SDDR55";
+	us->transport = sddr55_transport;
+	us->transport_reset = sddr55_reset;
+	us->max_lun = 0;
+
+	result = usb_stor_probe2(us);
+	return result;
+}
+
+static struct usb_driver sddr55_driver = {
+	.name =		"ums-sddr55",
+	.probe =	sddr55_probe,
+	.disconnect =	usb_stor_disconnect,
+	.suspend =	usb_stor_suspend,
+	.resume =	usb_stor_resume,
+	.reset_resume =	usb_stor_reset_resume,
+	.pre_reset =	usb_stor_pre_reset,
+	.post_reset =	usb_stor_post_reset,
+	.id_table =	sddr55_usb_ids,
+	.soft_unbind =	1,
+};
+
+static int __init sddr55_init(void)
+{
+	return usb_register(&sddr55_driver);
+}
+
+static void __exit sddr55_exit(void)
+{
+	usb_deregister(&sddr55_driver);
+}
+
+module_init(sddr55_init);
+module_exit(sddr55_exit);

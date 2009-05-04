@@ -494,7 +494,7 @@ static int mmc_test_basic_read(struct mmc_test_card *test)
 
 	sg_init_one(&sg, test->buffer, 512);
 
-	ret = mmc_test_simple_transfer(test, &sg, 1, 0, 1, 512, 1);
+	ret = mmc_test_simple_transfer(test, &sg, 1, 0, 1, 512, 0);
 	if (ret)
 		return ret;
 

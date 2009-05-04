@@ -334,15 +334,13 @@ static struct stub_priv *stub_priv_alloc(struct stub_device *sdev,
 
 	spin_lock_irqsave(&sdev->priv_lock, flags);
 
-	priv = kmem_cache_alloc(stub_priv_cache, GFP_ATOMIC);
+	priv = kmem_cache_zalloc(stub_priv_cache, GFP_ATOMIC);
 	if (!priv) {
 		dev_err(&sdev->interface->dev, "alloc stub_priv\n");
 		spin_unlock_irqrestore(&sdev->priv_lock, flags);
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return NULL;
 	}
-
-	memset(priv, 0, sizeof(struct stub_priv));
 
 	priv->seqnum = pdu->base.seqnum;
 	priv->sdev = sdev;

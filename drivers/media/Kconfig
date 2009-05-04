@@ -117,7 +117,7 @@ source "drivers/media/dvb/Kconfig"
 config DAB
 	boolean "DAB adapters"
 	---help---
-	  Allow selecting support for for Digital Audio Broadcasting (DAB)
+	  Allow selecting support for Digital Audio Broadcasting (DAB)
 	  Receiver adapters.
 
 if DAB

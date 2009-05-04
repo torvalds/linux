@@ -806,7 +806,7 @@ static int cas_reset_mii_phy(struct cas *cp)
 
 	cas_phy_write(cp, MII_BMCR, BMCR_RESET);
 	udelay(100);
-	while (limit--) {
+	while (--limit) {
 		val = cas_phy_read(cp, MII_BMCR);
 		if ((val & BMCR_RESET) == 0)
 			break;
@@ -979,7 +979,7 @@ static void cas_phy_init(struct cas *cp)
 		writel(val, cp->regs + REG_PCS_MII_CTRL);
 
 		limit = STOP_TRIES;
-		while (limit-- > 0) {
+		while (--limit > 0) {
 			udelay(10);
 			if ((readl(cp->regs + REG_PCS_MII_CTRL) &
 			     PCS_MII_RESET) == 0)
@@ -2506,7 +2506,7 @@ static irqreturn_t cas_interruptN(int irq, void *dev_id)
 	if (status & INTR_RX_DONE_ALT) { /* handle rx separately */
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(&cp->napi);
+		napi_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, ring, 0);
 #endif
@@ -2557,7 +2557,7 @@ static irqreturn_t cas_interrupt1(int irq, void *dev_id)
 	if (status & INTR_RX_DONE_ALT) { /* handle rx separately */
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(&cp->napi);
+		napi_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, 1, 0);
 #endif
@@ -2613,7 +2613,7 @@ static irqreturn_t cas_interrupt(int irq, void *dev_id)
 	if (status & INTR_RX_DONE) {
 #ifdef USE_NAPI
 		cas_mask_intr(cp);
-		netif_rx_schedule(&cp->napi);
+		napi_schedule(&cp->napi);
 #else
 		cas_rx_ringN(cp, 0, 0);
 #endif
@@ -2691,7 +2691,7 @@ rx_comp:
 #endif
 	spin_unlock_irqrestore(&cp->lock, flags);
 	if (enable_intr) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		cas_unmask_intr(cp);
 	}
 	return credits;
@@ -5074,10 +5074,10 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 
 
 	/* Configure DMA attributes. */
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 		err = pci_set_consistent_dma_mask(pdev,
-						  DMA_64BIT_MASK);
+						  DMA_BIT_MASK(64));
 		if (err < 0) {
 			dev_err(&pdev->dev, "Unable to obtain 64-bit DMA "
 			       "for consistent allocations\n");
@@ -5085,7 +5085,7 @@ static int __devinit cas_init_one(struct pci_dev *pdev,
 		}
 
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
 			dev_err(&pdev->dev, "No usable DMA configuration, "
 			       "aborting.\n");

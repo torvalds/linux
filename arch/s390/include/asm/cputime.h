@@ -145,7 +145,7 @@ cputime_to_timeval(const cputime_t cputime, struct timeval *value)
 	value->tv_usec = rp.subreg.even / 4096;
 	value->tv_sec = rp.subreg.odd;
 #else
-	value->tv_usec = cputime % 4096000000ULL;
+	value->tv_usec = (cputime % 4096000000ULL) / 4096;
 	value->tv_sec = cputime / 4096000000ULL;
 #endif
 }
@@ -173,5 +173,9 @@ cputime64_to_clock_t(cputime64_t cputime)
 {
        return __div(cputime, 4096000000ULL / USER_HZ);
 }
+
+cputime64_t s390_get_idle_time(int cpu);
+
+#define arch_idle_time(cpu) s390_get_idle_time(cpu)
 
 #endif /* _S390_CPUTIME_H */

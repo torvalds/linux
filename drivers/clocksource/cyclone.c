@@ -7,7 +7,7 @@
 #include <asm/pgtable.h>
 #include <asm/io.h>
 
-#include "mach_timer.h"
+#include <asm/mach_timer.h>
 
 #define CYCLONE_CBAR_ADDR	0xFEB00CD0	/* base address ptr */
 #define CYCLONE_PMCC_OFFSET	0x51A0		/* offset to control register */
@@ -19,7 +19,7 @@
 int use_cyclone = 0;
 static void __iomem *cyclone_ptr;
 
-static cycle_t read_cyclone(void)
+static cycle_t read_cyclone(struct clocksource *cs)
 {
 	return (cycle_t)readl(cyclone_ptr);
 }

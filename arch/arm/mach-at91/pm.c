@@ -198,17 +198,17 @@ static int at91_pm_verify_clocks(void)
 	/* USB must not be using PLLB */
 	if (cpu_is_at91rm9200()) {
 		if ((scsr & (AT91RM9200_PMC_UHP | AT91RM9200_PMC_UDP)) != 0) {
-			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
+			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
 			return 0;
 		}
 	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() || cpu_is_at91sam9263() || cpu_is_at91sam9g20()) {
 		if ((scsr & (AT91SAM926x_PMC_UHP | AT91SAM926x_PMC_UDP)) != 0) {
-			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
+			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
 			return 0;
 		}
 	} else if (cpu_is_at91cap9()) {
 		if ((scsr & AT91CAP9_PMC_UHP) != 0) {
-			pr_debug("AT91: PM - Suspend-to-RAM with USB still active\n");
+			pr_err("AT91: PM - Suspend-to-RAM with USB still active\n");
 			return 0;
 		}
 	}
@@ -223,7 +223,7 @@ static int at91_pm_verify_clocks(void)
 
 		css = at91_sys_read(AT91_PMC_PCKR(i)) & AT91_PMC_CSS;
 		if (css != AT91_PMC_CSS_SLOW) {
-			pr_debug("AT91: PM - Suspend-to-RAM with PCK%d src %d\n", i, css);
+			pr_err("AT91: PM - Suspend-to-RAM with PCK%d src %d\n", i, css);
 			return 0;
 		}
 	}
@@ -332,7 +332,6 @@ static int at91_pm_enter(suspend_state_t state)
 			at91_sys_read(AT91_AIC_IPR) & at91_sys_read(AT91_AIC_IMR));
 
 error:
-	sdram_selfrefresh_disable();
 	target_state = PM_SUSPEND_ON;
 	at91_irq_resume();
 	at91_gpio_resume();

@@ -3,11 +3,11 @@
  /,    /`      - or, A Young Coder's Illustrated Hypervisor
  \\"--\\    http://lguest.ozlabs.org
 
-Lguest is designed to be a minimal hypervisor for the Linux kernel, for
-Linux developers and users to experiment with virtualization with the
-minimum of complexity.  Nonetheless, it should have sufficient
-features to make it useful for specific tasks, and, of course, you are
-encouraged to fork and enhance it (see drivers/lguest/README).
+Lguest is designed to be a minimal 32-bit x86 hypervisor for the Linux kernel,
+for Linux developers and users to experiment with virtualization with the
+minimum of complexity.  Nonetheless, it should have sufficient features to
+make it useful for specific tasks, and, of course, you are encouraged to fork
+and enhance it (see drivers/lguest/README).
 
 Features:
 
@@ -37,6 +37,7 @@ Running Lguest:
      "Paravirtualized guest support" = Y
         "Lguest guest support" = Y
      "High Memory Support" = off/4GB
+     "PAE (Physical Address Extension) Support" = N
      "Alignment value to which kernel should be aligned" = 0x100000
         (CONFIG_PARAVIRT=y, CONFIG_LGUEST_GUEST=y, CONFIG_HIGHMEM64G=n and
          CONFIG_PHYSICAL_ALIGN=0x100000)

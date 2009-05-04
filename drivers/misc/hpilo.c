@@ -207,9 +207,9 @@ static void ilo_ccb_close(struct pci_dev *pdev, struct ccb_data *data)
 		  &device_ccb->recv_ctrl);
 
 	/* give iLO some time to process stop request */
-	for (retries = 1000; retries > 0; retries--) {
+	for (retries = MAX_WAIT; retries > 0; retries--) {
 		doorbell_set(driver_ccb);
-		udelay(1);
+		udelay(WAIT_TIME);
 		if (!(ioread32(&device_ccb->send_ctrl) & (1 << CTRL_BITPOS_A))
 		    &&
 		    !(ioread32(&device_ccb->recv_ctrl) & (1 << CTRL_BITPOS_A)))
@@ -309,10 +309,10 @@ static int ilo_ccb_open(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 	doorbell_clr(driver_ccb);
 
 	/* make sure iLO is really handling requests */
-	for (i = 1000; i > 0; i--) {
+	for (i = MAX_WAIT; i > 0; i--) {
 		if (ilo_pkt_dequeue(hw, driver_ccb, SENDQ, &pkt_id, NULL, NULL))
 			break;
-		udelay(1);
+		udelay(WAIT_TIME);
 	}
 
 	if (i) {
@@ -326,7 +326,7 @@ static int ilo_ccb_open(struct ilo_hwinfo *hw, struct ccb_data *data, int slot)
 
 	return 0;
 free:
-	pci_free_consistent(pdev, data->dma_size, data->dma_va, data->dma_pa);
+	ilo_ccb_close(pdev, data);
 out:
 	return error;
 }
@@ -710,6 +710,7 @@ out:
 
 static struct pci_device_id ilo_devices[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB204) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3307) },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, ilo_devices);
@@ -758,7 +759,7 @@ static void __exit ilo_exit(void)
 	class_destroy(ilo_class);
 }
 
-MODULE_VERSION("0.05");
+MODULE_VERSION("1.1");
 MODULE_ALIAS(ILO_NAME);
 MODULE_DESCRIPTION(ILO_NAME);
 MODULE_AUTHOR("David Altobelli <david.altobelli@hp.com>");

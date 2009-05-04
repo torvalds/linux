@@ -5,9 +5,8 @@
  *  May be copied or modified under the terms of the GNU General Public License
  *  Based in part on the ITE vendor provided SCSI driver.
  *
- *  Documentation available from
- * 	http://www.ite.com.tw/pc/IT8212F_V04.pdf
- *  Some other documents are NDA.
+ *  Documentation:
+ *	Datasheet is freely available, some other documents under NDA.
  *
  *  The ITE8212 isn't exactly a standard IDE controller. It has two
  *  modes. In pass through mode then it is an IDE controller. In its smart
@@ -68,6 +67,8 @@
 
 #define DRV_NAME "it821x"
 
+#define QUIRK_VORTEX86 1
+
 struct it821x_dev
 {
 	unsigned int smart:1,		/* Are we in smart raid mode */
@@ -79,6 +80,7 @@ struct it821x_dev
 	u16	pio[2];			/* Cached PIO values */
 	u16	mwdma[2];		/* Cached MWDMA values */
 	u16	udma[2];		/* Cached UDMA values (per drive) */
+	u16	quirks;
 };
 
 #define ATA_66		0
@@ -506,12 +508,11 @@ static void it821x_quirkproc(ide_drive_t *drive)
 static struct ide_dma_ops it821x_pass_through_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= it821x_dma_start,
 	.dma_end		= it821x_dma_end,
 	.dma_test_irq		= ide_dma_test_irq,
-	.dma_timeout		= ide_dma_timeout,
 	.dma_lost_irq		= ide_dma_lost_irq,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
@@ -557,8 +558,7 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 	 *	this is necessary.
 	 */
 
-	pci_read_config_byte(dev, 0x08, &conf);
-	if (conf == 0x10) {
+	if (dev->revision == 0x10) {
 		idev->timing10 = 1;
 		hwif->host_flags |= IDE_HFLAG_NO_ATAPI_DMA;
 		if (idev->smart == 0)
@@ -577,6 +577,12 @@ static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 
 	hwif->ultra_mask = ATA_UDMA6;
 	hwif->mwdma_mask = ATA_MWDMA2;
+
+	/* Vortex86SX quirk: prevent Ultra-DMA mode to fix BadCRC issue */
+	if (idev->quirks & QUIRK_VORTEX86) {
+		if (dev->revision == 0x11)
+			hwif->ultra_mask = 0;
+	}
 }
 
 static void it8212_disable_raid(struct pci_dev *dev)
@@ -596,7 +602,7 @@ static void it8212_disable_raid(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, 0x20);
 }
 
-static unsigned int init_chipset_it821x(struct pci_dev *dev)
+static int init_chipset_it821x(struct pci_dev *dev)
 {
 	u8 conf;
 	static char *mode[2] = { "pass through", "smart" };
@@ -649,6 +655,8 @@ static int __devinit it821x_init_one(struct pci_dev *dev, const struct pci_devic
 		return -ENOMEM;
 	}
 
+	itdevs->quirks = id->driver_data;
+
 	rc = ide_pci_init_one(dev, &it821x_chipset, itdevs);
 	if (rc)
 		kfree(itdevs);
@@ -668,6 +676,7 @@ static void __devexit it821x_remove(struct pci_dev *dev)
 static const struct pci_device_id it821x_pci_tbl[] = {
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8211), 0 },
 	{ PCI_VDEVICE(ITE, PCI_DEVICE_ID_ITE_8212), 0 },
+	{ PCI_VDEVICE(RDC, PCI_DEVICE_ID_RDC_D1010), QUIRK_VORTEX86 },
 	{ 0, },
 };
 

@@ -53,7 +53,6 @@ ACPI_MODULE_NAME("nsxfeval")
 /* Local prototypes */
 static void acpi_ns_resolve_references(struct acpi_evaluate_info *info);
 
-#ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
  *
  * FUNCTION:    acpi_evaluate_object_typed
@@ -147,7 +146,7 @@ acpi_evaluate_object_typed(acpi_handle handle,
 }
 
 ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
-#endif				/*  ACPI_FUTURE_USAGE  */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_evaluate_object
@@ -387,8 +386,7 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 
 	/* We are interested in reference objects only */
 
-	if (ACPI_GET_OBJECT_TYPE(info->return_object) !=
-	    ACPI_TYPE_LOCAL_REFERENCE) {
+	if ((info->return_object)->common.type != ACPI_TYPE_LOCAL_REFERENCE) {
 		return;
 	}
 
@@ -476,21 +474,40 @@ acpi_walk_namespace(acpi_object_type type,
 	}
 
 	/*
-	 * Lock the namespace around the walk.
-	 * The namespace will be unlocked/locked around each call
-	 * to the user function - since this function
-	 * must be allowed to make Acpi calls itself.
+	 * Need to acquire the namespace reader lock to prevent interference
+	 * with any concurrent table unloads (which causes the deletion of
+	 * namespace objects). We cannot allow the deletion of a namespace node
+	 * while the user function is using it. The exception to this are the
+	 * nodes created and deleted during control method execution -- these
+	 * nodes are marked as temporary nodes and are ignored by the namespace
+	 * walk. Thus, control methods can be executed while holding the
+	 * namespace deletion lock (and the user function can execute control
+	 * methods.)
+	 */
+	status = acpi_ut_acquire_read_lock(&acpi_gbl_namespace_rw_lock);
+	if (ACPI_FAILURE(status)) {
+		return status;
+	}
+
+	/*
+	 * Lock the namespace around the walk. The namespace will be
+	 * unlocked/locked around each call to the user function - since the user
+	 * function must be allowed to make ACPICA calls itself (for example, it
+	 * will typically execute control methods during device enumeration.)
 	 */
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+		goto unlock_and_exit;
 	}
 
 	status = acpi_ns_walk_namespace(type, start_object, max_depth,
-					ACPI_NS_WALK_UNLOCK,
-					user_function, context, return_value);
+					ACPI_NS_WALK_UNLOCK, user_function,
+					context, return_value);
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+
+      unlock_and_exit:
+	(void)acpi_ut_release_read_lock(&acpi_gbl_namespace_rw_lock);
 	return_ACPI_STATUS(status);
 }
 

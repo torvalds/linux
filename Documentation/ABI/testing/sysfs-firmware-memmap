@@ -1,6 +1,6 @@
 What:		/sys/firmware/memmap/
 Date:		June 2008
-Contact:	Bernhard Walle <bwalle@suse.de>
+Contact:	Bernhard Walle <bernhard.walle@gmx.de>
 Description:
 		On all platforms, the firmware provides a memory map which the
 		kernel reads. The resources from that memory map are registered

@@ -17,6 +17,8 @@
 #include "xc5000.h"
 #include "s5h1411.h"
 #include "dib0070.h"
+#include "lgdt3305.h"
+#include "mxl5007t.h"
 
 static int force_lna_activation;
 module_param(force_lna_activation, int, 0644);
@@ -262,7 +264,12 @@ static int stk7700P2_frontend_attach(struct dvb_usb_adapter *adap)
 		msleep(10);
 		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
 		msleep(10);
-		dib7000p_i2c_enumeration(&adap->dev->i2c_adap,1,18,stk7700d_dib7000p_mt2266_config);
+		if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+					     stk7700d_dib7000p_mt2266_config)
+		    != 0) {
+			err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n", __func__);
+			return -ENODEV;
+		}
 	}
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,0x80+(adap->id << 1),
@@ -284,7 +291,12 @@ static int stk7700d_frontend_attach(struct dvb_usb_adapter *adap)
 		dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
 		msleep(10);
 		dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
-		dib7000p_i2c_enumeration(&adap->dev->i2c_adap,2,18,stk7700d_dib7000p_mt2266_config);
+		if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 2, 18,
+					     stk7700d_dib7000p_mt2266_config)
+		    != 0) {
+			err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n", __func__);
+			return -ENODEV;
+		}
 	}
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap,0x80+(adap->id << 1),
@@ -421,8 +433,12 @@ static int stk7700ph_frontend_attach(struct dvb_usb_adapter *adap)
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 	msleep(10);
 
-	dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
-		&stk7700ph_dib7700_xc3028_config);
+	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+				     &stk7700ph_dib7700_xc3028_config) != 0) {
+		err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n",
+		    __func__);
+		return -ENODEV;
+	}
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
 		&stk7700ph_dib7700_xc3028_config);
@@ -1187,8 +1203,12 @@ static int stk7070p_frontend_attach(struct dvb_usb_adapter *adap)
 	msleep(10);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
-	dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
-		&dib7070p_dib7000p_config);
+	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+				     &dib7070p_dib7000p_config) != 0) {
+		err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n",
+		    __func__);
+		return -ENODEV;
+	}
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
 		&dib7070p_dib7000p_config);
@@ -1244,7 +1264,12 @@ static int stk7070pd_frontend_attach0(struct dvb_usb_adapter *adap)
 	msleep(10);
 	dib0700_set_gpio(adap->dev, GPIO0, GPIO_OUT, 1);
 
-	dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 2, 18, stk7070pd_dib7000p_config);
+	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 2, 18,
+				     stk7070pd_dib7000p_config) != 0) {
+		err("%s: dib7000p_i2c_enumeration failed.  Cannot continue\n",
+		    __func__);
+		return -ENODEV;
+	}
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80, &stk7070pd_dib7000p_config[0]);
 	return adap->fe == NULL ? -ENODEV : 0;
@@ -1347,6 +1372,72 @@ static int xc5000_tuner_attach(struct dvb_usb_adapter *adap)
 		== NULL ? -ENODEV : 0;
 }
 
+static struct lgdt3305_config hcw_lgdt3305_config = {
+	.i2c_addr           = 0x0e,
+	.mpeg_mode          = LGDT3305_MPEG_PARALLEL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_LOW,
+	.deny_i2c_rptr      = 0,
+	.spectral_inversion = 1,
+	.qam_if_khz         = 6000,
+	.vsb_if_khz         = 6000,
+	.usref_8vsb         = 0x0500,
+};
+
+static struct mxl5007t_config hcw_mxl5007t_config = {
+	.xtal_freq_hz = MxL_XTAL_25_MHZ,
+	.if_freq_hz = MxL_IF_6_MHZ,
+	.invert_if = 1,
+};
+
+/* TIGER-ATSC map:
+   GPIO0  - LNA_CTR  (H: LNA power enabled, L: LNA power disabled)
+   GPIO1  - ANT_SEL  (H: VPA, L: MCX)
+   GPIO4  - SCL2
+   GPIO6  - EN_TUNER
+   GPIO7  - SDA2
+   GPIO10 - DEM_RST
+
+   MXL is behind LG's i2c repeater.  LG is on SCL2/SDA2 gpios on the DIB
+ */
+static int lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dib0700_state *st = adap->dev->priv;
+
+	/* Make use of the new i2c functions from FW 1.20 */
+	st->fw_use_new_i2c_api = 1;
+
+	st->disable_streaming_master_mode = 1;
+
+	/* fe power enable */
+	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+	msleep(30);
+
+	/* demod reset */
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(30);
+
+	adap->fe = dvb_attach(lgdt3305_attach,
+			      &hcw_lgdt3305_config,
+			      &adap->dev->i2c_adap);
+
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
+static int mxl5007t_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	return dvb_attach(mxl5007t_attach, adap->fe,
+			  &adap->dev->i2c_adap, 0x60,
+			  &hcw_mxl5007t_config) == NULL ? -ENODEV : 0;
+}
+
+
 /* DVB-USB and USB stuff follows */
 struct usb_device_id dib0700_usb_id_table[] = {
 /* 0 */	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P) },
@@ -1393,6 +1484,15 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_ASUS,	USB_PID_ASUS_U3000H) },
 /* 40 */{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E) },
 	{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV801E_SE) },
+	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_CINERGY_T_EXPRESS) },
+	{ USB_DEVICE(USB_VID_TERRATEC,
+			USB_PID_TERRATEC_CINERGY_DT_XS_DIVERSITY_2) },
+	{ USB_DEVICE(USB_VID_SONY,	USB_PID_SONY_PLAYTV) },
+/* 45 */{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_PD378S) },
+	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC) },
+	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC_B210) },
+	{ USB_DEVICE(USB_VID_YUAN,	USB_PID_YUAN_MC770) },
+	{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1537,7 +1637,8 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "DiBcom STK7700D reference design",
 				{ &dib0700_usb_id_table[14], NULL },
 				{ NULL },
-			}
+			},
+
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
@@ -1557,7 +1658,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 2,
+		.num_device_descs = 3,
 		.devices = {
 			{   "ASUS My Cinema U3000 Mini DVBT Tuner",
 				{ &dib0700_usb_id_table[23], NULL },
@@ -1565,6 +1666,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Yuan EC372S",
 				{ &dib0700_usb_id_table[31], NULL },
+				{ NULL },
+			},
+			{   "Terratec Cinergy T Express",
+				{ &dib0700_usb_id_table[42], NULL },
 				{ NULL },
 			}
 		},
@@ -1587,7 +1692,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 9,
+		.num_device_descs = 11,
 		.devices = {
 			{   "DiBcom STK7070P reference design",
 				{ &dib0700_usb_id_table[15], NULL },
@@ -1625,6 +1730,14 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[33], NULL },
 				{ NULL },
 			},
+			{   "Elgato EyeTV DTT",
+				{ &dib0700_usb_id_table[49], NULL },
+				{ NULL },
+			},
+			{   "Yuan PD378S",
+				{ &dib0700_usb_id_table[45], NULL },
+				{ NULL },
+			},
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
@@ -1653,7 +1766,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 4,
+		.num_device_descs = 6,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -1670,8 +1783,20 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "Hauppauge Nova-TD-500 (84xxx)",
 				{ &dib0700_usb_id_table[36], NULL },
 				{ NULL },
+			},
+			{  "Terratec Cinergy DT USB XS Diversity",
+				{ &dib0700_usb_id_table[43], NULL },
+				{ NULL },
+			},
+			{  "Sony PlayTV",
+				{ &dib0700_usb_id_table[44], NULL },
+				{ NULL },
 			}
-		}
+		},
+		.rc_interval      = DEFAULT_RC_INTERVAL,
+		.rc_key_map       = dib0700_rc_keys,
+		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
+		.rc_query         = dib0700_rc_query
 	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
 
 		.num_adapters = 1,
@@ -1687,7 +1812,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 5,
+		.num_device_descs = 7,
 		.devices = {
 			{   "Terratec Cinergy HT USB XE",
 				{ &dib0700_usb_id_table[27], NULL },
@@ -1711,6 +1836,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Asus My Cinema-U3000Hybrid",
 				{ &dib0700_usb_id_table[39], NULL },
+				{ NULL },
+			},
+			{   "YUAN High-Tech MC770",
+				{ &dib0700_usb_id_table[48], NULL },
 				{ NULL },
 			},
 		},
@@ -1747,6 +1876,31 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 		.rc_key_map       = dib0700_rc_keys,
 		.rc_key_map_size  = ARRAY_SIZE(dib0700_rc_keys),
 		.rc_query         = dib0700_rc_query
+	}, { DIB0700_DEFAULT_DEVICE_PROPERTIES,
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = lgdt3305_frontend_attach,
+				.tuner_attach     = mxl5007t_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv = sizeof(struct
+						dib0700_adapter_state),
+			},
+		},
+
+		.num_device_descs = 2,
+		.devices = {
+			{   "Hauppauge ATSC MiniCard (B200)",
+				{ &dib0700_usb_id_table[46], NULL },
+				{ NULL },
+			},
+			{   "Hauppauge ATSC MiniCard (B210)",
+				{ &dib0700_usb_id_table[47], NULL },
+				{ NULL },
+			},
+		},
 	},
 };
 

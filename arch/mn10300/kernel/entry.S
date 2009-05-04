@@ -20,7 +20,7 @@
 #include <asm/intctl-regs.h>
 #include <asm/busctl-regs.h>
 #include <asm/timer-regs.h>
-#include <asm/unit/leds.h>
+#include <unit/leds.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/errno.h>
@@ -478,7 +478,7 @@ ENTRY(sys_call_table)
 	.long sys_uselib
 	.long sys_swapon
 	.long sys_reboot
-	.long old_readdir
+	.long sys_old_readdir
 	.long old_mmap		/* 90 */
 	.long sys_munmap
 	.long sys_truncate
@@ -723,6 +723,8 @@ ENTRY(sys_call_table)
 	.long sys_dup3
 	.long sys_pipe2
 	.long sys_inotify_init1
+	.long sys_preadv
+	.long sys_pwritev		/* 335 */
 
 
 nr_syscalls=(.-sys_call_table)/4

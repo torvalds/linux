@@ -38,8 +38,7 @@
 #include <linux/proc_fs.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/videodev.h>
-#include <media/v4l2-common.h>
+#include <linux/videodev2.h>
 #include <linux/spinlock.h>
 #include <linux/sem.h>
 #include <linux/kmod.h>
@@ -47,11 +46,10 @@
 
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/video_decoder.h>
-#include <linux/video_encoder.h>
 #include <linux/mutex.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
+#include <media/v4l2-common.h>
+#include <media/bt819.h>
 
 #include "videocodec.h"
 #include "zoran.h"
@@ -61,17 +59,17 @@
 
 extern const struct zoran_format zoran_formats[];
 
-static int card[BUZ_MAX] = { -1, -1, -1, -1 };
+static int card[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(card, int, NULL, 0444);
-MODULE_PARM_DESC(card, "The type of card");
+MODULE_PARM_DESC(card, "Card type");
 
-static int encoder[BUZ_MAX] = { -1, -1, -1, -1 };
+static int encoder[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(encoder, int, NULL, 0444);
-MODULE_PARM_DESC(encoder, "i2c TV encoder");
+MODULE_PARM_DESC(encoder, "Video encoder chip");
 
-static int decoder[BUZ_MAX] = { -1, -1, -1, -1 };
+static int decoder[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(decoder, int, NULL, 0444);
-MODULE_PARM_DESC(decoder, "i2c TV decoder");
+MODULE_PARM_DESC(decoder, "Video decoder chip");
 
 /*
    The video mem address of the video card.
@@ -104,29 +102,12 @@ module_param(default_norm, int, 0444);
 MODULE_PARM_DESC(default_norm, "Default norm (0=PAL, 1=NTSC, 2=SECAM)");
 
 /* /dev/videoN, -1 for autodetect */
-static int video_nr[BUZ_MAX] = {-1, -1, -1, -1};
+static int video_nr[BUZ_MAX] = { [0 ... (BUZ_MAX-1)] = -1 };
 module_param_array(video_nr, int, NULL, 0444);
-MODULE_PARM_DESC(video_nr, "video device number (-1=Auto)");
+MODULE_PARM_DESC(video_nr, "Video device number (-1=Auto)");
 
-/*
-   Number and size of grab buffers for Video 4 Linux
-   The vast majority of applications should not need more than 2,
-   the very popular BTTV driver actually does ONLY have 2.
-   Time sensitive applications might need more, the maximum
-   is VIDEO_MAX_FRAME (defined in <linux/videodev.h>).
-
-   The size is set so that the maximum possible request
-   can be satisfied. Decrease  it, if bigphys_area alloc'd
-   memory is low. If you don't have the bigphys_area patch,
-   set it to 128 KB. Will you allow only to grab small
-   images with V4L, but that's better than nothing.
-
-   v4l_bufsize has to be given in KB !
-
-*/
-
-int v4l_nbufs = 2;
-int v4l_bufsize = 128;		/* Everybody should be able to work with this setting */
+int v4l_nbufs = 4;
+int v4l_bufsize = 864;		/* Everybody should be able to work with this setting */
 module_param(v4l_nbufs, int, 0644);
 MODULE_PARM_DESC(v4l_nbufs, "Maximum number of V4L buffers to use");
 module_param(v4l_bufsize, int, 0644);
@@ -153,9 +134,21 @@ MODULE_DESCRIPTION("Zoran-36057/36067 JPEG codec driver");
 MODULE_AUTHOR("Serguei Miridonov");
 MODULE_LICENSE("GPL");
 
+#define ZR_DEVICE(subven, subdev, data)	{ \
+	.vendor = PCI_VENDOR_ID_ZORAN, .device = PCI_DEVICE_ID_ZORAN_36057, \
+	.subvendor = (subven), .subdevice = (subdev), .driver_data = (data) }
 
-int zoran_num;			/* number of Buzs in use */
-struct zoran *zoran[BUZ_MAX];
+static struct pci_device_id zr36067_pci_tbl[] = {
+	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC10PLUS, DC10plus),
+	ZR_DEVICE(PCI_VENDOR_ID_MIRO, PCI_DEVICE_ID_MIRO_DC30PLUS, DC30plus),
+	ZR_DEVICE(PCI_VENDOR_ID_ELECTRONICDESIGNGMBH, PCI_DEVICE_ID_LML_33R10, LML33R10),
+	ZR_DEVICE(PCI_VENDOR_ID_IOMEGA, PCI_DEVICE_ID_IOMEGA_BUZ, BUZ),
+	ZR_DEVICE(PCI_ANY_ID, PCI_ANY_ID, NUM_CARDS),
+	{0}
+};
+MODULE_DEVICE_TABLE(pci, zr36067_pci_tbl);
+
+static unsigned int zoran_num;		/* number of cards found */
 
 /* videocodec bus functions ZR36060 */
 static u32
@@ -261,7 +254,7 @@ zr36016_write (struct videocodec *codec,
 static void
 dc10_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: dc10_init()\n", ZR_DEVNAME(zr));
+	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
 
 	/* Pixel clock selection */
 	GPIO(zr, 4, 0);
@@ -273,13 +266,13 @@ dc10_init (struct zoran *zr)
 static void
 dc10plus_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: dc10plus_init()\n", ZR_DEVNAME(zr));
+	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
 }
 
 static void
 buz_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: buz_init()\n", ZR_DEVNAME(zr));
+	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
 
 	/* some stuff from Iomega */
 	pci_write_config_dword(zr->pci_dev, 0xfc, 0x90680f15);
@@ -290,7 +283,7 @@ buz_init (struct zoran *zr)
 static void
 lml33_init (struct zoran *zr)
 {
-	dprintk(3, KERN_DEBUG "%s: lml33_init()\n", ZR_DEVNAME(zr));
+	dprintk(3, KERN_DEBUG "%s: %s\n", ZR_DEVNAME(zr), __func__);
 
 	GPIO(zr, 2, 1);		// Set Composite input/output
 }
@@ -317,50 +310,6 @@ avs6eyes_init (struct zoran *zr)
 	GPIO(zr, 6, 0); /* ? */
 	GPIO(zr, 7, mux & 4);   /* MUX S2 */
 
-}
-
-static char *
-i2cid_to_modulename (u16 i2c_id)
-{
-	char *name = NULL;
-
-	switch (i2c_id) {
-	case I2C_DRIVERID_SAA7110:
-		name = "saa7110";
-		break;
-	case I2C_DRIVERID_SAA7111A:
-		name = "saa7111";
-		break;
-	case I2C_DRIVERID_SAA7114:
-		name = "saa7114";
-		break;
-	case I2C_DRIVERID_SAA7185B:
-		name = "saa7185";
-		break;
-	case I2C_DRIVERID_ADV7170:
-		name = "adv7170";
-		break;
-	case I2C_DRIVERID_ADV7175:
-		name = "adv7175";
-		break;
-	case I2C_DRIVERID_BT819:
-		name = "bt819";
-		break;
-	case I2C_DRIVERID_BT856:
-		name = "bt856";
-		break;
-	case I2C_DRIVERID_BT866:
-		name = "bt866";
-		break;
-	case I2C_DRIVERID_VPX3220:
-		name = "vpx3220";
-		break;
-	case I2C_DRIVERID_KS0127:
-		name = "ks0127";
-		break;
-	}
-
-	return name;
 }
 
 static char *
@@ -413,11 +362,24 @@ static struct tvnorm f60ccir601_lm33r10 = { 858, 720, 56+54, 788, 525, 480, 16 }
 static struct tvnorm f50ccir601_avs6eyes = { 864, 720, 74, 804, 625, 576, 18 };
 static struct tvnorm f60ccir601_avs6eyes = { 858, 720, 56, 788, 525, 480, 16 };
 
+static const unsigned short vpx3220_addrs[] = { 0x43, 0x47, I2C_CLIENT_END };
+static const unsigned short saa7110_addrs[] = { 0x4e, 0x4f, I2C_CLIENT_END };
+static const unsigned short saa7111_addrs[] = { 0x25, 0x24, I2C_CLIENT_END };
+static const unsigned short saa7114_addrs[] = { 0x21, 0x20, I2C_CLIENT_END };
+static const unsigned short adv717x_addrs[] = { 0x6a, 0x6b, 0x2a, 0x2b, I2C_CLIENT_END };
+static const unsigned short ks0127_addrs[] = { 0x6c, 0x6d, I2C_CLIENT_END };
+static const unsigned short saa7185_addrs[] = { 0x44, I2C_CLIENT_END };
+static const unsigned short bt819_addrs[] = { 0x45, I2C_CLIENT_END };
+static const unsigned short bt856_addrs[] = { 0x44, I2C_CLIENT_END };
+static const unsigned short bt866_addrs[] = { 0x44, I2C_CLIENT_END };
+
 static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	{
 		.type = DC10_old,
 		.name = "DC10(old)",
-		.i2c_decoder = I2C_DRIVERID_VPX3220,
+		.i2c_decoder = "vpx3220a",
+		.mod_decoder = "vpx3220",
+		.addrs_decoder = vpx3220_addrs,
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
 
@@ -427,7 +389,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -445,8 +407,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = DC10_new,
 		.name = "DC10(new)",
-		.i2c_decoder = I2C_DRIVERID_SAA7110,
-		.i2c_encoder = I2C_DRIVERID_ADV7175,
+		.i2c_decoder = "saa7110",
+		.mod_decoder = "saa7110",
+		.addrs_decoder = saa7110_addrs,
+		.i2c_encoder = "adv7175",
+		.mod_encoder = "adv7175",
+		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
 		.inputs = 3,
@@ -455,7 +421,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 				{ 7, "S-Video" },
 				{ 5, "Internal/comp" }
 			},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 				&f50sqpixel,
 				&f60sqpixel,
@@ -472,10 +438,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = DC10plus,
 		.name = "DC10plus",
-		.vendor_id = PCI_VENDOR_ID_MIRO,
-		.device_id = PCI_DEVICE_ID_MIRO_DC10PLUS,
-		.i2c_decoder = I2C_DRIVERID_SAA7110,
-		.i2c_encoder = I2C_DRIVERID_ADV7175,
+		.i2c_decoder = "saa7110",
+		.mod_decoder = "saa7110",
+		.addrs_decoder = saa7110_addrs,
+		.i2c_encoder = "adv7175",
+		.mod_encoder = "adv7175",
+		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
 		.inputs = 3,
@@ -484,7 +452,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 7, "S-Video" },
 			{ 5, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel,
 			&f60sqpixel,
@@ -502,8 +470,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = DC30,
 		.name = "DC30",
-		.i2c_decoder = I2C_DRIVERID_VPX3220,
-		.i2c_encoder = I2C_DRIVERID_ADV7175,
+		.i2c_decoder = "vpx3220a",
+		.mod_decoder = "vpx3220",
+		.addrs_decoder = vpx3220_addrs,
+		.i2c_encoder = "adv7175",
+		.mod_encoder = "adv7175",
+		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
 
@@ -513,7 +485,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -531,10 +503,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = DC30plus,
 		.name = "DC30plus",
-		.vendor_id = PCI_VENDOR_ID_MIRO,
-		.device_id = PCI_DEVICE_ID_MIRO_DC30PLUS,
-		.i2c_decoder = I2C_DRIVERID_VPX3220,
-		.i2c_encoder = I2C_DRIVERID_ADV7175,
+		.i2c_decoder = "vpx3220a",
+		.mod_decoder = "vpx3220",
+		.addrs_decoder = vpx3220_addrs,
+		.i2c_encoder = "adv7175",
+		.mod_encoder = "adv7175",
+		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36050,
 		.video_vfe = CODEC_TYPE_ZR36016,
 
@@ -544,7 +518,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 2, "S-Video" },
 			{ 0, "Internal/comp" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50sqpixel_dc10,
 			&f60sqpixel_dc10,
@@ -562,8 +536,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = LML33,
 		.name = "LML33",
-		.i2c_decoder = I2C_DRIVERID_BT819,
-		.i2c_encoder = I2C_DRIVERID_BT856,
+		.i2c_decoder = "bt819a",
+		.mod_decoder = "bt819",
+		.addrs_decoder = bt819_addrs,
+		.i2c_encoder = "bt856",
+		.mod_encoder = "bt856",
+		.addrs_encoder = bt856_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
 		.inputs = 2,
@@ -571,7 +549,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 0, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = 2,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_lml33,
 			&f60ccir601_lml33,
@@ -589,10 +567,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = LML33R10,
 		.name = "LML33R10",
-		.vendor_id = PCI_VENDOR_ID_ELECTRONICDESIGNGMBH,
-		.device_id = PCI_DEVICE_ID_LML_33R10,
-		.i2c_decoder = I2C_DRIVERID_SAA7114,
-		.i2c_encoder = I2C_DRIVERID_ADV7170,
+		.i2c_decoder = "saa7114",
+		.mod_decoder = "saa7115",
+		.addrs_decoder = saa7114_addrs,
+		.i2c_encoder = "adv7170",
+		.mod_encoder = "adv7170",
+		.addrs_encoder = adv717x_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
 		.inputs = 2,
@@ -600,7 +580,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 0, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = 2,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_lm33r10,
 			&f60ccir601_lm33r10,
@@ -618,10 +598,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 	}, {
 		.type = BUZ,
 		.name = "Buz",
-		.vendor_id = PCI_VENDOR_ID_IOMEGA,
-		.device_id = PCI_DEVICE_ID_IOMEGA_BUZ,
-		.i2c_decoder = I2C_DRIVERID_SAA7111A,
-		.i2c_encoder = I2C_DRIVERID_SAA7185B,
+		.i2c_decoder = "saa7111",
+		.mod_decoder = "saa7115",
+		.addrs_decoder = saa7111_addrs,
+		.i2c_encoder = "saa7185",
+		.mod_encoder = "saa7185",
+		.addrs_encoder = saa7185_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
 		.inputs = 2,
@@ -629,7 +611,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{ 3, "Composite" },
 			{ 7, "S-Video" }
 		},
-		.norms = 3,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL|V4L2_STD_SECAM,
 		.tvn = {
 			&f50ccir601,
 			&f60ccir601,
@@ -649,10 +631,12 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 		.name = "6-Eyes",
 		/* AverMedia chose not to brand the 6-Eyes. Thus it
 		   can't be autodetected, and requires card=x. */
-		.vendor_id = -1,
-		.device_id = -1,
-		.i2c_decoder = I2C_DRIVERID_KS0127,
-		.i2c_encoder = I2C_DRIVERID_BT866,
+		.i2c_decoder = "ks0127",
+		.mod_decoder = "ks0127",
+		.addrs_decoder = ks0127_addrs,
+		.i2c_encoder = "bt866",
+		.mod_encoder = "bt866",
+		.addrs_encoder = bt866_addrs,
 		.video_codec = CODEC_TYPE_ZR36060,
 
 		.inputs = 10,
@@ -668,7 +652,7 @@ static struct card_info zoran_cards[NUM_CARDS] __devinitdata = {
 			{10, "S-Video 3" },
 			{15, "YCbCr" }
 		},
-		.norms = 2,
+		.norms = V4L2_STD_NTSC|V4L2_STD_PAL,
 		.tvn = {
 			&f50ccir601_avs6eyes,
 			&f60ccir601_avs6eyes,
@@ -733,69 +717,6 @@ zoran_i2c_setscl (void *data,
 	btwrite(zr->i2cbr, ZR36057_I2CBR);
 }
 
-static int
-zoran_i2c_client_register (struct i2c_client *client)
-{
-	struct zoran *zr = (struct zoran *) i2c_get_adapdata(client->adapter);
-	int res = 0;
-
-	dprintk(2,
-		KERN_DEBUG "%s: i2c_client_register() - driver id = %d\n",
-		ZR_DEVNAME(zr), client->driver->id);
-
-	mutex_lock(&zr->resource_lock);
-
-	if (zr->user > 0) {
-		/* we're already busy, so we keep a reference to
-		 * them... Could do a lot of stuff here, but this
-		 * is easiest. (Did I ever mention I'm a lazy ass?)
-		 */
-		res = -EBUSY;
-		goto clientreg_unlock_and_return;
-	}
-
-	if (client->driver->id == zr->card.i2c_decoder)
-		zr->decoder = client;
-	else if (client->driver->id == zr->card.i2c_encoder)
-		zr->encoder = client;
-	else {
-		res = -ENODEV;
-		goto clientreg_unlock_and_return;
-	}
-
-clientreg_unlock_and_return:
-	mutex_unlock(&zr->resource_lock);
-
-	return res;
-}
-
-static int
-zoran_i2c_client_unregister (struct i2c_client *client)
-{
-	struct zoran *zr = (struct zoran *) i2c_get_adapdata(client->adapter);
-	int res = 0;
-
-	dprintk(2, KERN_DEBUG "%s: i2c_client_unregister()\n", ZR_DEVNAME(zr));
-
-	mutex_lock(&zr->resource_lock);
-
-	if (zr->user > 0) {
-		res = -EBUSY;
-		goto clientunreg_unlock_and_return;
-	}
-
-	/* try to locate it */
-	if (client == zr->encoder) {
-		zr->encoder = NULL;
-	} else if (client == zr->decoder) {
-		zr->decoder = NULL;
-		snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%d]", zr->id);
-	}
-clientunreg_unlock_and_return:
-	mutex_unlock(&zr->resource_lock);
-	return res;
-}
-
 static const struct i2c_algo_bit_data zoran_i2c_bit_data_template = {
 	.setsda = zoran_i2c_setsda,
 	.setscl = zoran_i2c_setscl,
@@ -811,13 +732,10 @@ zoran_register_i2c (struct zoran *zr)
 	memcpy(&zr->i2c_algo, &zoran_i2c_bit_data_template,
 	       sizeof(struct i2c_algo_bit_data));
 	zr->i2c_algo.data = zr;
-	zr->i2c_adapter.class = I2C_CLASS_TV_ANALOG;
 	zr->i2c_adapter.id = I2C_HW_B_ZR36067;
-	zr->i2c_adapter.client_register = zoran_i2c_client_register;
-	zr->i2c_adapter.client_unregister = zoran_i2c_client_unregister;
 	strlcpy(zr->i2c_adapter.name, ZR_DEVNAME(zr),
 		sizeof(zr->i2c_adapter.name));
-	i2c_set_adapdata(&zr->i2c_adapter, zr);
+	i2c_set_adapdata(&zr->i2c_adapter, &zr->v4l2_dev);
 	zr->i2c_adapter.algo_data = &zr->i2c_algo;
 	zr->i2c_adapter.dev.parent = &zr->pci_dev->dev;
 	return i2c_bit_add_bus(&zr->i2c_adapter);
@@ -833,19 +751,20 @@ zoran_unregister_i2c (struct zoran *zr)
 
 int
 zoran_check_jpg_settings (struct zoran              *zr,
-			  struct zoran_jpg_settings *settings)
+			  struct zoran_jpg_settings *settings,
+			  int try)
 {
 	int err = 0, err0 = 0;
 
 	dprintk(4,
 		KERN_DEBUG
-		"%s: check_jpg_settings() - dec: %d, Hdcm: %d, Vdcm: %d, Tdcm: %d\n",
-		ZR_DEVNAME(zr), settings->decimation, settings->HorDcm,
+		"%s: %s - dec: %d, Hdcm: %d, Vdcm: %d, Tdcm: %d\n",
+		ZR_DEVNAME(zr), __func__, settings->decimation, settings->HorDcm,
 		settings->VerDcm, settings->TmpDcm);
 	dprintk(4,
 		KERN_DEBUG
-		"%s: check_jpg_settings() - x: %d, y: %d, w: %d, y: %d\n",
-		ZR_DEVNAME(zr), settings->img_x, settings->img_y,
+		"%s: %s - x: %d, y: %d, w: %d, y: %d\n",
+		ZR_DEVNAME(zr), __func__, settings->img_x, settings->img_y,
 		settings->img_width, settings->img_height);
 	/* Check decimation, set default values for decimation = 1, 2, 4 */
 	switch (settings->decimation) {
@@ -877,8 +796,8 @@ zoran_check_jpg_settings (struct zoran              *zr,
 		if (zr->card.type == DC10_new) {
 			dprintk(1,
 				KERN_DEBUG
-				"%s: check_jpg_settings() - HDec by 4 is not supported on the DC10\n",
-				ZR_DEVNAME(zr));
+				"%s: %s - HDec by 4 is not supported on the DC10\n",
+				ZR_DEVNAME(zr), __func__);
 			err0++;
 			break;
 		}
@@ -898,50 +817,73 @@ zoran_check_jpg_settings (struct zoran              *zr,
 		/* We have to check the data the user has set */
 
 		if (settings->HorDcm != 1 && settings->HorDcm != 2 &&
-		    (zr->card.type == DC10_new || settings->HorDcm != 4))
+		    (zr->card.type == DC10_new || settings->HorDcm != 4)) {
+			settings->HorDcm = clamp(settings->HorDcm, 1, 2);
 			err0++;
-		if (settings->VerDcm != 1 && settings->VerDcm != 2)
+		}
+		if (settings->VerDcm != 1 && settings->VerDcm != 2) {
+			settings->VerDcm = clamp(settings->VerDcm, 1, 2);
 			err0++;
-		if (settings->TmpDcm != 1 && settings->TmpDcm != 2)
+		}
+		if (settings->TmpDcm != 1 && settings->TmpDcm != 2) {
+			settings->TmpDcm = clamp(settings->TmpDcm, 1, 2);
 			err0++;
+		}
 		if (settings->field_per_buff != 1 &&
-		    settings->field_per_buff != 2)
+		    settings->field_per_buff != 2) {
+			settings->field_per_buff = clamp(settings->field_per_buff, 1, 2);
 			err0++;
-		if (settings->img_x < 0)
+		}
+		if (settings->img_x < 0) {
+			settings->img_x = 0;
 			err0++;
-		if (settings->img_y < 0)
+		}
+		if (settings->img_y < 0) {
+			settings->img_y = 0;
 			err0++;
-		if (settings->img_width < 0)
+		}
+		if (settings->img_width < 0 || settings->img_width > BUZ_MAX_WIDTH) {
+			settings->img_width = clamp(settings->img_width, 0, (int)BUZ_MAX_WIDTH);
 			err0++;
-		if (settings->img_height < 0)
+		}
+		if (settings->img_height < 0 || settings->img_height > BUZ_MAX_HEIGHT / 2) {
+			settings->img_height = clamp(settings->img_height, 0, BUZ_MAX_HEIGHT / 2);
 			err0++;
-		if (settings->img_x + settings->img_width > BUZ_MAX_WIDTH)
+		}
+		if (settings->img_x + settings->img_width > BUZ_MAX_WIDTH) {
+			settings->img_x = BUZ_MAX_WIDTH - settings->img_width;
 			err0++;
-		if (settings->img_y + settings->img_height >
-		    BUZ_MAX_HEIGHT / 2)
+		}
+		if (settings->img_y + settings->img_height > BUZ_MAX_HEIGHT / 2) {
+			settings->img_y = BUZ_MAX_HEIGHT / 2 - settings->img_height;
 			err0++;
-		if (settings->HorDcm && settings->VerDcm) {
-			if (settings->img_width %
-			    (16 * settings->HorDcm) != 0)
-				err0++;
-			if (settings->img_height %
-			    (8 * settings->VerDcm) != 0)
-				err0++;
+		}
+		if (settings->img_width % (16 * settings->HorDcm) != 0) {
+			settings->img_width -= settings->img_width % (16 * settings->HorDcm);
+			if (settings->img_width == 0)
+				settings->img_width = 16 * settings->HorDcm;
+			err0++;
+		}
+		if (settings->img_height % (8 * settings->VerDcm) != 0) {
+			settings->img_height -= settings->img_height % (8 * settings->VerDcm);
+			if (settings->img_height == 0)
+				settings->img_height = 8 * settings->VerDcm;
+			err0++;
 		}
 
-		if (err0) {
+		if (!try && err0) {
 			dprintk(1,
 				KERN_ERR
-				"%s: check_jpg_settings() - error in params for decimation = 0\n",
-				ZR_DEVNAME(zr));
+				"%s: %s - error in params for decimation = 0\n",
+				ZR_DEVNAME(zr), __func__);
 			err++;
 		}
 		break;
 	default:
 		dprintk(1,
 			KERN_ERR
-			"%s: check_jpg_settings() - decimation = %d, must be 0, 1, 2 or 4\n",
-			ZR_DEVNAME(zr), settings->decimation);
+			"%s: %s - decimation = %d, must be 0, 1, 2 or 4\n",
+			ZR_DEVNAME(zr), __func__, settings->decimation);
 		err++;
 		break;
 	}
@@ -1019,12 +961,10 @@ zoran_open_init_params (struct zoran *zr)
 	       sizeof(zr->jpg_settings.jpg_comp.COM_data));
 	zr->jpg_settings.jpg_comp.jpeg_markers =
 	    JPEG_MARKER_DHT | JPEG_MARKER_DQT;
-	i = zoran_check_jpg_settings(zr, &zr->jpg_settings);
+	i = zoran_check_jpg_settings(zr, &zr->jpg_settings, 0);
 	if (i)
-		dprintk(1,
-			KERN_ERR
-			"%s: zoran_open_init_params() internal error\n",
-			ZR_DEVNAME(zr));
+		dprintk(1, KERN_ERR "%s: %s internal error\n",
+			ZR_DEVNAME(zr), __func__);
 
 	clear_interrupt_counters(zr);
 	zr->testing = 0;
@@ -1060,13 +1000,11 @@ static int __devinit
 zr36057_init (struct zoran *zr)
 {
 	int j, err;
-	int two = 2;
-	int zero = 0;
 
 	dprintk(1,
 		KERN_INFO
-		"%s: zr36057_init() - initializing card[%d], zr=%p\n",
-		ZR_DEVNAME(zr), zr->id, zr);
+		"%s: %s - initializing card[%d], zr=%p\n",
+		ZR_DEVNAME(zr), __func__, zr->id, zr);
 
 	/* default setup of all parameters which will persist between opens */
 	zr->user = 0;
@@ -1077,24 +1015,32 @@ zr36057_init (struct zoran *zr)
 	zr->jpg_buffers.allocated = 0;
 	zr->v4l_buffers.allocated = 0;
 
-	zr->buffer.base = (void *) vidmem;
-	zr->buffer.width = 0;
-	zr->buffer.height = 0;
-	zr->buffer.depth = 0;
-	zr->buffer.bytesperline = 0;
+	zr->vbuf_base = (void *) vidmem;
+	zr->vbuf_width = 0;
+	zr->vbuf_height = 0;
+	zr->vbuf_depth = 0;
+	zr->vbuf_bytesperline = 0;
 
 	/* Avoid nonsense settings from user for default input/norm */
-	if (default_norm < VIDEO_MODE_PAL &&
-	    default_norm > VIDEO_MODE_SECAM)
-		default_norm = VIDEO_MODE_PAL;
-	zr->norm = default_norm;
-	if (!(zr->timing = zr->card.tvn[zr->norm])) {
+	if (default_norm < 0 && default_norm > 2)
+		default_norm = 0;
+	if (default_norm == 0) {
+		zr->norm = V4L2_STD_PAL;
+		zr->timing = zr->card.tvn[0];
+	} else if (default_norm == 1) {
+		zr->norm = V4L2_STD_NTSC;
+		zr->timing = zr->card.tvn[1];
+	} else {
+		zr->norm = V4L2_STD_SECAM;
+		zr->timing = zr->card.tvn[2];
+	}
+	if (zr->timing == NULL) {
 		dprintk(1,
 			KERN_WARNING
-			"%s: zr36057_init() - default TV standard not supported by hardware. PAL will be used.\n",
-			ZR_DEVNAME(zr));
-		zr->norm = VIDEO_MODE_PAL;
-		zr->timing = zr->card.tvn[zr->norm];
+			"%s: %s - default TV standard not supported by hardware. PAL will be used.\n",
+			ZR_DEVNAME(zr), __func__);
+		zr->norm = V4L2_STD_PAL;
+		zr->timing = zr->card.tvn[0];
 	}
 
 	if (default_input > zr->card.inputs-1) {
@@ -1106,12 +1052,6 @@ zr36057_init (struct zoran *zr)
 	}
 	zr->input = default_input;
 
-	/* Should the following be reset at every open ? */
-	zr->hue = 32768;
-	zr->contrast = 32768;
-	zr->saturation = 32768;
-	zr->brightness = 32768;
-
 	/* default setup (will be repeated at every open) */
 	zoran_open_init_params(zr);
 
@@ -1122,8 +1062,8 @@ zr36057_init (struct zoran *zr)
 	if (!zr->stat_com || !zr->video_dev) {
 		dprintk(1,
 			KERN_ERR
-			"%s: zr36057_init() - kmalloc (STAT_COM) failed\n",
-			ZR_DEVNAME(zr));
+			"%s: %s - kmalloc (STAT_COM) failed\n",
+			ZR_DEVNAME(zr), __func__);
 		err = -ENOMEM;
 		goto exit_free;
 	}
@@ -1135,37 +1075,40 @@ zr36057_init (struct zoran *zr)
 	 *   Now add the template and register the device unit.
 	 */
 	memcpy(zr->video_dev, &zoran_template, sizeof(zoran_template));
+	zr->video_dev->parent = &zr->pci_dev->dev;
 	strcpy(zr->video_dev->name, ZR_DEVNAME(zr));
 	err = video_register_device(zr->video_dev, VFL_TYPE_GRABBER, video_nr[zr->id]);
 	if (err < 0)
-		goto exit_unregister;
+		goto exit_free;
+	video_set_drvdata(zr->video_dev, zr);
 
 	zoran_init_hardware(zr);
 	if (zr36067_debug > 2)
 		detect_guest_activity(zr);
 	test_interrupts(zr);
 	if (!pass_through) {
-		decoder_command(zr, DECODER_ENABLE_OUTPUT, &zero);
-		encoder_command(zr, ENCODER_SET_INPUT, &two);
+		decoder_call(zr, video, s_stream, 0);
+		encoder_call(zr, video, s_routing, 2, 0, 0);
 	}
 
 	zr->zoran_proc = NULL;
 	zr->initialized = 1;
 	return 0;
 
-exit_unregister:
-	zoran_unregister_i2c(zr);
 exit_free:
 	kfree(zr->stat_com);
 	kfree(zr->video_dev);
 	return err;
 }
 
-static void
-zoran_release (struct zoran *zr)
+static void __devexit zoran_remove(struct pci_dev *pdev)
 {
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct zoran *zr = to_zoran(v4l2_dev);
+
 	if (!zr->initialized)
 		goto exit_free;
+
 	/* unregister videocodec bus */
 	if (zr->codec) {
 		struct videocodec_master *master = zr->codec->master_data;
@@ -1194,6 +1137,7 @@ zoran_release (struct zoran *zr)
 	pci_disable_device(zr->pci_dev);
 	video_unregister_device(zr->video_dev);
 exit_free:
+	v4l2_device_unregister(&zr->v4l2_dev);
 	kfree(zr);
 }
 
@@ -1211,10 +1155,8 @@ zoran_setup_videocodec (struct zoran *zr,
 
 	m = kmalloc(sizeof(struct videocodec_master), GFP_KERNEL);
 	if (!m) {
-		dprintk(1,
-			KERN_ERR
-			"%s: zoran_setup_videocodec() - no memory\n",
-			ZR_DEVNAME(zr));
+		dprintk(1, KERN_ERR "%s: %s - no memory\n",
+			ZR_DEVNAME(zr), __func__);
 		return m;
 	}
 
@@ -1252,342 +1194,299 @@ zoran_setup_videocodec (struct zoran *zr,
 	return m;
 }
 
+static void zoran_subdev_notify(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct zoran *zr = to_zoran(sd->v4l2_dev);
+
+	/* Bt819 needs to reset its FIFO buffer using #FRST pin and
+	   LML33 card uses GPIO(7) for that. */
+	if (cmd == BT819_FIFO_RESET_LOW)
+		GPIO(zr, 7, 0);
+	else if (cmd == BT819_FIFO_RESET_HIGH)
+		GPIO(zr, 7, 1);
+}
+
 /*
  *   Scan for a Buz card (actually for the PCI controller ZR36057),
  *   request the irq and map the io memory
  */
-static int __devinit
-find_zr36057 (void)
+static int __devinit zoran_probe(struct pci_dev *pdev,
+				 const struct pci_device_id *ent)
 {
 	unsigned char latency, need_latency;
 	struct zoran *zr;
-	struct pci_dev *dev = NULL;
 	int result;
 	struct videocodec_master *master_vfe = NULL;
 	struct videocodec_master *master_codec = NULL;
 	int card_num;
-	char *i2c_enc_name, *i2c_dec_name, *codec_name, *vfe_name;
+	char *codec_name, *vfe_name;
+	unsigned int nr;
 
-	zoran_num = 0;
-	while (zoran_num < BUZ_MAX &&
-	       (dev = pci_get_device(PCI_VENDOR_ID_ZORAN, PCI_DEVICE_ID_ZORAN_36057, dev)) != NULL) {
-		card_num = card[zoran_num];
-		zr = kzalloc(sizeof(struct zoran), GFP_KERNEL);
-		if (!zr) {
-			dprintk(1,
-				KERN_ERR
-				"%s: find_zr36057() - kzalloc failed\n",
-				ZORAN_NAME);
-			continue;
-		}
-		zr->pci_dev = dev;
-		//zr->zr36057_mem = NULL;
-		zr->id = zoran_num;
-		snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%u]", zr->id);
-		spin_lock_init(&zr->spinlock);
-		mutex_init(&zr->resource_lock);
-		if (pci_enable_device(dev))
-			goto zr_free_mem;
-		zr->zr36057_adr = pci_resource_start(zr->pci_dev, 0);
-		pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION,
-				     &zr->revision);
+
+	nr = zoran_num++;
+	if (nr >= BUZ_MAX) {
+		dprintk(1, KERN_ERR "%s: driver limited to %d card(s) maximum\n",
+			ZORAN_NAME, BUZ_MAX);
+		return -ENOENT;
+	}
+
+	zr = kzalloc(sizeof(struct zoran), GFP_KERNEL);
+	if (!zr) {
+		dprintk(1, KERN_ERR "%s: %s - kzalloc failed\n",
+			ZORAN_NAME, __func__);
+		return -ENOMEM;
+	}
+	zr->v4l2_dev.notify = zoran_subdev_notify;
+	if (v4l2_device_register(&pdev->dev, &zr->v4l2_dev))
+		goto zr_free_mem;
+	zr->pci_dev = pdev;
+	zr->id = nr;
+	snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)), "MJPEG[%u]", zr->id);
+	spin_lock_init(&zr->spinlock);
+	mutex_init(&zr->resource_lock);
+	if (pci_enable_device(pdev))
+		goto zr_unreg;
+	pci_read_config_byte(zr->pci_dev, PCI_CLASS_REVISION, &zr->revision);
+
+	dprintk(1,
+		KERN_INFO
+		"%s: Zoran ZR360%c7 (rev %d), irq: %d, memory: 0x%08llx\n",
+		ZR_DEVNAME(zr), zr->revision < 2 ? '5' : '6', zr->revision,
+		zr->pci_dev->irq, (uint64_t)pci_resource_start(zr->pci_dev, 0));
+	if (zr->revision >= 2) {
+		dprintk(1,
+			KERN_INFO
+			"%s: Subsystem vendor=0x%04x id=0x%04x\n",
+			ZR_DEVNAME(zr), zr->pci_dev->subsystem_vendor,
+			zr->pci_dev->subsystem_device);
+	}
+
+	/* Use auto-detected card type? */
+	if (card[nr] == -1) {
 		if (zr->revision < 2) {
 			dprintk(1,
-				KERN_INFO
-				"%s: Zoran ZR36057 (rev %d) irq: %d, memory: 0x%08x.\n",
-				ZR_DEVNAME(zr), zr->revision, zr->pci_dev->irq,
-				zr->zr36057_adr);
-
-			if (card_num == -1) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - no card specified, please use the card=X insmod option\n",
-					ZR_DEVNAME(zr));
-				goto zr_free_mem;
-			}
-		} else {
-			int i;
-			unsigned short ss_vendor, ss_device;
-
-			ss_vendor = zr->pci_dev->subsystem_vendor;
-			ss_device = zr->pci_dev->subsystem_device;
-			dprintk(1,
-				KERN_INFO
-				"%s: Zoran ZR36067 (rev %d) irq: %d, memory: 0x%08x\n",
-				ZR_DEVNAME(zr), zr->revision, zr->pci_dev->irq,
-				zr->zr36057_adr);
-			dprintk(1,
-				KERN_INFO
-				"%s: subsystem vendor=0x%04x id=0x%04x\n",
-				ZR_DEVNAME(zr), ss_vendor, ss_device);
-			if (card_num == -1) {
-				dprintk(3,
-					KERN_DEBUG
-					"%s: find_zr36057() - trying to autodetect card type\n",
-					ZR_DEVNAME(zr));
-				for (i=0;i<NUM_CARDS;i++) {
-					if (ss_vendor == zoran_cards[i].vendor_id &&
-					    ss_device == zoran_cards[i].device_id) {
-						dprintk(3,
-							KERN_DEBUG
-							"%s: find_zr36057() - card %s detected\n",
-							ZR_DEVNAME(zr),
-							zoran_cards[i].name);
-						card_num = i;
-						break;
-					}
-				}
-				if (i == NUM_CARDS) {
-					dprintk(1,
-						KERN_ERR
-						"%s: find_zr36057() - unknown card\n",
-						ZR_DEVNAME(zr));
-					goto zr_free_mem;
-				}
-			}
-		}
-
-		if (card_num < 0 || card_num >= NUM_CARDS) {
-			dprintk(2,
 				KERN_ERR
-				"%s: find_zr36057() - invalid cardnum %d\n",
-				ZR_DEVNAME(zr), card_num);
-			goto zr_free_mem;
-		}
-
-		/* even though we make this a non pointer and thus
-		 * theoretically allow for making changes to this struct
-		 * on a per-individual card basis at runtime, this is
-		 * strongly discouraged. This structure is intended to
-		 * keep general card information, no settings or anything */
-		zr->card = zoran_cards[card_num];
-		snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)),
-			 "%s[%u]", zr->card.name, zr->id);
-
-		zr->zr36057_mem = ioremap_nocache(zr->zr36057_adr, 0x1000);
-		if (!zr->zr36057_mem) {
-			dprintk(1,
-				KERN_ERR
-				"%s: find_zr36057() - ioremap failed\n",
+				"%s: No card type specified, please use the card=X module parameter\n",
 				ZR_DEVNAME(zr));
-			goto zr_free_mem;
-		}
-
-		result = request_irq(zr->pci_dev->irq,
-				     zoran_irq,
-				     IRQF_SHARED | IRQF_DISABLED,
-				     ZR_DEVNAME(zr),
-				     (void *) zr);
-		if (result < 0) {
-			if (result == -EINVAL) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - bad irq number or handler\n",
-					ZR_DEVNAME(zr));
-			} else if (result == -EBUSY) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - IRQ %d busy, change your PnP config in BIOS\n",
-					ZR_DEVNAME(zr), zr->pci_dev->irq);
-			} else {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - can't assign irq, error code %d\n",
-					ZR_DEVNAME(zr), result);
-			}
-			goto zr_unmap;
-		}
-
-		/* set PCI latency timer */
-		pci_read_config_byte(zr->pci_dev, PCI_LATENCY_TIMER,
-				     &latency);
-		need_latency = zr->revision > 1 ? 32 : 48;
-		if (latency != need_latency) {
-			dprintk(2,
-				KERN_INFO
-				"%s: Changing PCI latency from %d to %d.\n",
-				ZR_DEVNAME(zr), latency, need_latency);
-			pci_write_config_byte(zr->pci_dev,
-					      PCI_LATENCY_TIMER,
-					      need_latency);
-		}
-
-		zr36057_restart(zr);
-		/* i2c */
-		dprintk(2, KERN_INFO "%s: Initializing i2c bus...\n",
-			ZR_DEVNAME(zr));
-
-		/* i2c decoder */
-		if (decoder[zr->id] != -1) {
-			i2c_dec_name = i2cid_to_modulename(decoder[zr->id]);
-			zr->card.i2c_decoder = decoder[zr->id];
-		} else if (zr->card.i2c_decoder != 0) {
-			i2c_dec_name =
-				i2cid_to_modulename(zr->card.i2c_decoder);
-		} else {
-			i2c_dec_name = NULL;
-		}
-
-		if (i2c_dec_name) {
-			if ((result = request_module(i2c_dec_name)) < 0) {
-				dprintk(1,
-					KERN_ERR
-					"%s: failed to load module %s: %d\n",
-					ZR_DEVNAME(zr), i2c_dec_name, result);
-			}
-		}
-
-		/* i2c encoder */
-		if (encoder[zr->id] != -1) {
-			i2c_enc_name = i2cid_to_modulename(encoder[zr->id]);
-			zr->card.i2c_encoder = encoder[zr->id];
-		} else if (zr->card.i2c_encoder != 0) {
-			i2c_enc_name =
-				i2cid_to_modulename(zr->card.i2c_encoder);
-		} else {
-			i2c_enc_name = NULL;
-		}
-
-		if (i2c_enc_name) {
-			if ((result = request_module(i2c_enc_name)) < 0) {
-				dprintk(1,
-					KERN_ERR
-					"%s: failed to load module %s: %d\n",
-					ZR_DEVNAME(zr), i2c_enc_name, result);
-			}
-		}
-
-		if (zoran_register_i2c(zr) < 0) {
 			dprintk(1,
 				KERN_ERR
-				"%s: find_zr36057() - can't initialize i2c bus\n",
+				"%s: It is not possible to auto-detect ZR36057 based cards\n",
 				ZR_DEVNAME(zr));
-			goto zr_free_irq;
+			goto zr_unreg;
 		}
 
-		dprintk(2,
-			KERN_INFO "%s: Initializing videocodec bus...\n",
-			ZR_DEVNAME(zr));
+		card_num = ent->driver_data;
+		if (card_num >= NUM_CARDS) {
+			dprintk(1,
+				KERN_ERR
+				"%s: Unknown card, try specifying card=X module parameter\n",
+				ZR_DEVNAME(zr));
+			goto zr_unreg;
+		}
+		dprintk(3,
+			KERN_DEBUG
+			"%s: %s() - card %s detected\n",
+			ZR_DEVNAME(zr), __func__, zoran_cards[card_num].name);
+	} else {
+		card_num = card[nr];
+		if (card_num >= NUM_CARDS || card_num < 0) {
+			dprintk(1,
+				KERN_ERR
+				"%s: User specified card type %d out of range (0 .. %d)\n",
+				ZR_DEVNAME(zr), card_num, NUM_CARDS - 1);
+			goto zr_unreg;
+		}
+	}
 
-		if (zr->card.video_codec != 0 &&
-		    (codec_name =
-		     codecid_to_modulename(zr->card.video_codec)) != NULL) {
-			if ((result = request_module(codec_name)) < 0) {
+	/* even though we make this a non pointer and thus
+	 * theoretically allow for making changes to this struct
+	 * on a per-individual card basis at runtime, this is
+	 * strongly discouraged. This structure is intended to
+	 * keep general card information, no settings or anything */
+	zr->card = zoran_cards[card_num];
+	snprintf(ZR_DEVNAME(zr), sizeof(ZR_DEVNAME(zr)),
+		 "%s[%u]", zr->card.name, zr->id);
+
+	zr->zr36057_mem = pci_ioremap_bar(zr->pci_dev, 0);
+	if (!zr->zr36057_mem) {
+		dprintk(1, KERN_ERR "%s: %s() - ioremap failed\n",
+			ZR_DEVNAME(zr), __func__);
+		goto zr_unreg;
+	}
+
+	result = request_irq(zr->pci_dev->irq, zoran_irq,
+			     IRQF_SHARED | IRQF_DISABLED, ZR_DEVNAME(zr), zr);
+	if (result < 0) {
+		if (result == -EINVAL) {
+			dprintk(1,
+				KERN_ERR
+				"%s: %s - bad irq number or handler\n",
+				ZR_DEVNAME(zr), __func__);
+		} else if (result == -EBUSY) {
+			dprintk(1,
+				KERN_ERR
+				"%s: %s - IRQ %d busy, change your PnP config in BIOS\n",
+				ZR_DEVNAME(zr), __func__, zr->pci_dev->irq);
+		} else {
+			dprintk(1,
+				KERN_ERR
+				"%s: %s - can't assign irq, error code %d\n",
+				ZR_DEVNAME(zr), __func__, result);
+		}
+		goto zr_unmap;
+	}
+
+	/* set PCI latency timer */
+	pci_read_config_byte(zr->pci_dev, PCI_LATENCY_TIMER,
+			     &latency);
+	need_latency = zr->revision > 1 ? 32 : 48;
+	if (latency != need_latency) {
+		dprintk(2, KERN_INFO "%s: Changing PCI latency from %d to %d\n",
+			ZR_DEVNAME(zr), latency, need_latency);
+		pci_write_config_byte(zr->pci_dev, PCI_LATENCY_TIMER,
+				      need_latency);
+	}
+
+	zr36057_restart(zr);
+	/* i2c */
+	dprintk(2, KERN_INFO "%s: Initializing i2c bus...\n",
+		ZR_DEVNAME(zr));
+
+	if (zoran_register_i2c(zr) < 0) {
+		dprintk(1, KERN_ERR "%s: %s - can't initialize i2c bus\n",
+			ZR_DEVNAME(zr), __func__);
+		goto zr_free_irq;
+	}
+
+	zr->decoder = v4l2_i2c_new_probed_subdev(&zr->v4l2_dev,
+		&zr->i2c_adapter, zr->card.mod_decoder, zr->card.i2c_decoder,
+		zr->card.addrs_decoder);
+
+	if (zr->card.mod_encoder)
+		zr->encoder = v4l2_i2c_new_probed_subdev(&zr->v4l2_dev,
+			&zr->i2c_adapter,
+			zr->card.mod_encoder, zr->card.i2c_encoder,
+			zr->card.addrs_encoder);
+
+	dprintk(2,
+		KERN_INFO "%s: Initializing videocodec bus...\n",
+		ZR_DEVNAME(zr));
+
+	if (zr->card.video_codec) {
+		codec_name = codecid_to_modulename(zr->card.video_codec);
+		if (codec_name) {
+			result = request_module(codec_name);
+			if (result) {
 				dprintk(1,
 					KERN_ERR
 					"%s: failed to load modules %s: %d\n",
 					ZR_DEVNAME(zr), codec_name, result);
 			}
 		}
-		if (zr->card.video_vfe != 0 &&
-		    (vfe_name =
-		     codecid_to_modulename(zr->card.video_vfe)) != NULL) {
-			if ((result = request_module(vfe_name)) < 0) {
+	}
+	if (zr->card.video_vfe) {
+		vfe_name = codecid_to_modulename(zr->card.video_vfe);
+		if (vfe_name) {
+			result = request_module(vfe_name);
+			if (result < 0) {
 				dprintk(1,
 					KERN_ERR
 					"%s: failed to load modules %s: %d\n",
 					ZR_DEVNAME(zr), vfe_name, result);
 			}
 		}
-
-		/* reset JPEG codec */
-		jpeg_codec_sleep(zr, 1);
-		jpeg_codec_reset(zr);
-		/* video bus enabled */
-		/* display codec revision */
-		if (zr->card.video_codec != 0) {
-			master_codec = zoran_setup_videocodec(zr,
-							      zr->card.video_codec);
-			if (!master_codec)
-				goto zr_unreg_i2c;
-			zr->codec = videocodec_attach(master_codec);
-			if (!zr->codec) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - no codec found\n",
-					ZR_DEVNAME(zr));
-				goto zr_free_codec;
-			}
-			if (zr->codec->type != zr->card.video_codec) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - wrong codec\n",
-					ZR_DEVNAME(zr));
-				goto zr_detach_codec;
-			}
-		}
-		if (zr->card.video_vfe != 0) {
-			master_vfe = zoran_setup_videocodec(zr,
-							    zr->card.video_vfe);
-			if (!master_vfe)
-				goto zr_detach_codec;
-			zr->vfe = videocodec_attach(master_vfe);
-			if (!zr->vfe) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() - no VFE found\n",
-					ZR_DEVNAME(zr));
-				goto zr_free_vfe;
-			}
-			if (zr->vfe->type != zr->card.video_vfe) {
-				dprintk(1,
-					KERN_ERR
-					"%s: find_zr36057() = wrong VFE\n",
-					ZR_DEVNAME(zr));
-				goto zr_detach_vfe;
-			}
-		}
-		/* Success so keep the pci_dev referenced */
-		pci_dev_get(zr->pci_dev);
-		zoran[zoran_num++] = zr;
-		continue;
-
-		// Init errors
-	      zr_detach_vfe:
-		videocodec_detach(zr->vfe);
-	      zr_free_vfe:
-		kfree(master_vfe);
-	      zr_detach_codec:
-		videocodec_detach(zr->codec);
-	      zr_free_codec:
-		kfree(master_codec);
-	      zr_unreg_i2c:
-		zoran_unregister_i2c(zr);
-	      zr_free_irq:
-		btwrite(0, ZR36057_SPGPPCR);
-		free_irq(zr->pci_dev->irq, zr);
-	      zr_unmap:
-		iounmap(zr->zr36057_mem);
-	      zr_free_mem:
-		kfree(zr);
-		continue;
 	}
-	if (dev)	/* Clean up ref count on early exit */
-		pci_dev_put(dev);
 
-	if (zoran_num == 0) {
-		dprintk(1, KERN_INFO "No known MJPEG cards found.\n");
+	/* reset JPEG codec */
+	jpeg_codec_sleep(zr, 1);
+	jpeg_codec_reset(zr);
+	/* video bus enabled */
+	/* display codec revision */
+	if (zr->card.video_codec != 0) {
+		master_codec = zoran_setup_videocodec(zr, zr->card.video_codec);
+		if (!master_codec)
+			goto zr_unreg_i2c;
+		zr->codec = videocodec_attach(master_codec);
+		if (!zr->codec) {
+			dprintk(1, KERN_ERR "%s: %s - no codec found\n",
+				ZR_DEVNAME(zr), __func__);
+			goto zr_free_codec;
+		}
+		if (zr->codec->type != zr->card.video_codec) {
+			dprintk(1, KERN_ERR "%s: %s - wrong codec\n",
+				ZR_DEVNAME(zr), __func__);
+			goto zr_detach_codec;
+		}
 	}
-	return zoran_num;
+	if (zr->card.video_vfe != 0) {
+		master_vfe = zoran_setup_videocodec(zr, zr->card.video_vfe);
+		if (!master_vfe)
+			goto zr_detach_codec;
+		zr->vfe = videocodec_attach(master_vfe);
+		if (!zr->vfe) {
+			dprintk(1, KERN_ERR "%s: %s - no VFE found\n",
+				ZR_DEVNAME(zr), __func__);
+			goto zr_free_vfe;
+		}
+		if (zr->vfe->type != zr->card.video_vfe) {
+			dprintk(1, KERN_ERR "%s: %s = wrong VFE\n",
+				ZR_DEVNAME(zr), __func__);
+			goto zr_detach_vfe;
+		}
+	}
+
+	/* take care of Natoma chipset and a revision 1 zr36057 */
+	if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
+		zr->jpg_buffers.need_contiguous = 1;
+		dprintk(1, KERN_INFO
+			"%s: ZR36057/Natoma bug, max. buffer size is 128K\n",
+			ZR_DEVNAME(zr));
+	}
+
+	if (zr36057_init(zr) < 0)
+		goto zr_detach_vfe;
+
+	zoran_proc_init(zr);
+
+	return 0;
+
+zr_detach_vfe:
+	videocodec_detach(zr->vfe);
+zr_free_vfe:
+	kfree(master_vfe);
+zr_detach_codec:
+	videocodec_detach(zr->codec);
+zr_free_codec:
+	kfree(master_codec);
+zr_unreg_i2c:
+	zoran_unregister_i2c(zr);
+zr_free_irq:
+	btwrite(0, ZR36057_SPGPPCR);
+	free_irq(zr->pci_dev->irq, zr);
+zr_unmap:
+	iounmap(zr->zr36057_mem);
+zr_unreg:
+	v4l2_device_unregister(&zr->v4l2_dev);
+zr_free_mem:
+	kfree(zr);
+
+	return -ENODEV;
 }
 
-static int __init
-init_dc10_cards (void)
-{
-	int i;
+static struct pci_driver zoran_driver = {
+	.name = "zr36067",
+	.id_table = zr36067_pci_tbl,
+	.probe = zoran_probe,
+	.remove = zoran_remove,
+};
 
-	memset(zoran, 0, sizeof(zoran));
+static int __init zoran_init(void)
+{
+	int res;
+
 	printk(KERN_INFO "Zoran MJPEG board driver version %d.%d.%d\n",
 	       MAJOR_VERSION, MINOR_VERSION, RELEASE_VERSION);
 
-	/* Look for cards */
-	if (find_zr36057() < 0) {
-		return -EIO;
-	}
-	if (zoran_num == 0)
-		return -ENODEV;
-	dprintk(1, KERN_INFO "%s: %d card(s) found\n", ZORAN_NAME,
-		zoran_num);
 	/* check the parameters we have been given, adjust if necessary */
 	if (v4l_nbufs < 2)
 		v4l_nbufs = 2;
@@ -1618,9 +1517,6 @@ init_dc10_cards (void)
 			ZORAN_NAME, vidmem);
 	}
 
-	/* random nonsense */
-	dprintk(6, KERN_DEBUG "Jotti is een held!\n");
-
 	/* some mainboards might not do PCI-PCI data transfer well */
 	if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL|PCIPCI_ALIMAGIK)) {
 		dprintk(1,
@@ -1629,37 +1525,22 @@ init_dc10_cards (void)
 			ZORAN_NAME);
 	}
 
-	/* take care of Natoma chipset and a revision 1 zr36057 */
-	for (i = 0; i < zoran_num; i++) {
-		struct zoran *zr = zoran[i];
-
-		if ((pci_pci_problems & PCIPCI_NATOMA) && zr->revision <= 1) {
-			zr->jpg_buffers.need_contiguous = 1;
-			dprintk(1,
-				KERN_INFO
-				"%s: ZR36057/Natoma bug, max. buffer size is 128K\n",
-				ZR_DEVNAME(zr));
-		}
-
-		if (zr36057_init(zr) < 0) {
-			for (i = 0; i < zoran_num; i++)
-				zoran_release(zoran[i]);
-			return -EIO;
-		}
-		zoran_proc_init(zr);
+	res = pci_register_driver(&zoran_driver);
+	if (res) {
+		dprintk(1,
+			KERN_ERR
+			"%s: Unable to register ZR36057 driver\n",
+			ZORAN_NAME);
+		return res;
 	}
 
 	return 0;
 }
 
-static void __exit
-unload_dc10_cards (void)
+static void __exit zoran_exit(void)
 {
-	int i;
-
-	for (i = 0; i < zoran_num; i++)
-		zoran_release(zoran[i]);
+	pci_unregister_driver(&zoran_driver);
 }
 
-module_init(init_dc10_cards);
-module_exit(unload_dc10_cards);
+module_init(zoran_init);
+module_exit(zoran_exit);

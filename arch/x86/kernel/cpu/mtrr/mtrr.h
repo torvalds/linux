@@ -79,6 +79,7 @@ extern struct mtrr_ops * mtrr_if;
 
 extern unsigned int num_var_ranges;
 extern u64 mtrr_tom2;
+extern struct mtrr_state_type mtrr_state;
 
 void mtrr_state_warn(void);
 const char *mtrr_attrib_to_str(int x);
@@ -88,3 +89,6 @@ void mtrr_wrmsr(unsigned, unsigned, unsigned);
 int amd_init_mtrr(void);
 int cyrix_init_mtrr(void);
 int centaur_init_mtrr(void);
+
+extern int changed_by_mtrr_cleanup;
+extern int mtrr_cleanup(unsigned address_bits);

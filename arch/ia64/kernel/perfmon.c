@@ -2196,7 +2196,7 @@ pfmfs_delete_dentry(struct dentry *dentry)
 	return 1;
 }
 
-static struct dentry_operations pfmfs_dentry_operations = {
+static const struct dentry_operations pfmfs_dentry_operations = {
 	.d_delete = pfmfs_delete_dentry,
 };
 
@@ -5603,7 +5603,7 @@ pfm_interrupt_handler(int irq, void *arg)
  * /proc/perfmon interface, for debug only
  */
 
-#define PFM_PROC_SHOW_HEADER	((void *)NR_CPUS+1)
+#define PFM_PROC_SHOW_HEADER	((void *)nr_cpu_ids+1)
 
 static void *
 pfm_proc_start(struct seq_file *m, loff_t *pos)
@@ -5612,7 +5612,7 @@ pfm_proc_start(struct seq_file *m, loff_t *pos)
 		return PFM_PROC_SHOW_HEADER;
 	}
 
-	while (*pos <= NR_CPUS) {
+	while (*pos <= nr_cpu_ids) {
 		if (cpu_online(*pos - 1)) {
 			return (void *)*pos;
 		}

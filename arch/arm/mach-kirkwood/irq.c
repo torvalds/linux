@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <mach/bridge-regs.h>
 #include <plat/irq.h>
 #include <asm/gpio.h>
 #include "common.h"
@@ -42,7 +43,7 @@ void __init kirkwood_init_irq(void)
 	writel(0, GPIO_EDGE_CAUSE(32));
 
 	for (i = IRQ_KIRKWOOD_GPIO_START; i < NR_IRQS; i++) {
-		set_irq_chip(i, &orion_gpio_irq_level_chip);
+		set_irq_chip(i, &orion_gpio_irq_chip);
 		set_irq_handler(i, handle_level_irq);
 		irq_desc[i].status |= IRQ_LEVEL;
 		set_irq_flags(i, IRQF_VALID);

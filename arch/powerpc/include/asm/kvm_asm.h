@@ -42,7 +42,12 @@
 #define BOOKE_INTERRUPT_DTLB_MISS 13
 #define BOOKE_INTERRUPT_ITLB_MISS 14
 #define BOOKE_INTERRUPT_DEBUG 15
-#define BOOKE_MAX_INTERRUPT 15
+
+/* E500 */
+#define BOOKE_INTERRUPT_SPE_UNAVAIL 32
+#define BOOKE_INTERRUPT_SPE_FP_DATA 33
+#define BOOKE_INTERRUPT_SPE_FP_ROUND 34
+#define BOOKE_INTERRUPT_PERFORMANCE_MONITOR 35
 
 #define RESUME_FLAG_NV          (1<<0)  /* Reload guest nonvolatile state? */
 #define RESUME_FLAG_HOST        (1<<1)  /* Resume host? */

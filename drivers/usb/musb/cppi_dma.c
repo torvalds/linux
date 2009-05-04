@@ -9,6 +9,7 @@
 #include <linux/usb.h>
 
 #include "musb_core.h"
+#include "musb_debug.h"
 #include "cppi_dma.h"
 
 
@@ -423,6 +424,7 @@ cppi_rndis_update(struct cppi_channel *c, int is_rx,
 	}
 }
 
+#ifdef CONFIG_USB_MUSB_DEBUG
 static void cppi_dump_rxbd(const char *tag, struct cppi_descriptor *bd)
 {
 	pr_debug("RXBD/%s %08x: "
@@ -431,10 +433,11 @@ static void cppi_dump_rxbd(const char *tag, struct cppi_descriptor *bd)
 			bd->hw_next, bd->hw_bufp, bd->hw_off_len,
 			bd->hw_options);
 }
+#endif
 
 static void cppi_dump_rxq(int level, const char *tag, struct cppi_channel *rx)
 {
-#if MUSB_DEBUG > 0
+#ifdef CONFIG_USB_MUSB_DEBUG
 	struct cppi_descriptor	*bd;
 
 	if (!_dbg_level(level))
@@ -576,6 +579,7 @@ cppi_next_tx_segment(struct musb *musb, struct cppi_channel *tx)
 	 * trigger the "send a ZLP?" confusion.
 	 */
 	rndis = (maxpacket & 0x3f) == 0
+		&& length > maxpacket
 		&& length < 0xffff
 		&& (length % maxpacket) != 0;
 
@@ -881,12 +885,14 @@ cppi_next_rx_segment(struct musb *musb, struct cppi_channel *rx, int onepacket)
 	bd->hw_options |= CPPI_SOP_SET;
 	tail->hw_options |= CPPI_EOP_SET;
 
-	if (debug >= 5) {
+#ifdef CONFIG_USB_MUSB_DEBUG
+	if (_dbg_level(5)) {
 		struct cppi_descriptor	*d;
 
 		for (d = rx->head; d; d = d->next)
 			cppi_dump_rxbd("S", d);
 	}
+#endif
 
 	/* in case the preceding transfer left some state... */
 	tail = rx->last_processed;
@@ -990,6 +996,7 @@ static int cppi_channel_program(struct dma_channel *ch,
 	cppi_ch->offset = 0;
 	cppi_ch->maxpacket = maxpacket;
 	cppi_ch->buf_len = len;
+	cppi_ch->channel.actual_len = 0;
 
 	/* TX channel? or RX? */
 	if (cppi_ch->transmit)
@@ -1222,27 +1229,7 @@ void cppi_completion(struct musb *musb, u32 rx, u32 tx)
 
 				hw_ep = tx_ch->hw_ep;
 
-				/* Peripheral role never repurposes the
-				 * endpoint, so immediate completion is
-				 * safe.  Host role waits for the fifo
-				 * to empty (TXPKTRDY irq) before going
-				 * to the next queued bulk transfer.
-				 */
-				if (is_host_active(cppi->musb)) {
-#if 0
-					/* WORKAROUND because we may
-					 * not always get TXKPTRDY ...
-					 */
-					int	csr;
-
-					csr = musb_readw(hw_ep->regs,
-						MUSB_TXCSR);
-					if (csr & MUSB_TXCSR_TXPKTRDY)
-#endif
-						completed = false;
-				}
-				if (completed)
-					musb_dma_completion(musb, index + 1, 1);
+				musb_dma_completion(musb, index + 1, 1);
 
 			} else {
 				/* Bigger transfer than we could fit in

@@ -12,7 +12,7 @@ obj-y    := entry.o traps.o process.o init_task.o osf_sys.o irq.o \
 
 obj-$(CONFIG_VGA_HOSE)	+= console.o
 obj-$(CONFIG_SMP)	+= smp.o
-obj-$(CONFIG_PCI)	+= pci.o pci_iommu.o
+obj-$(CONFIG_PCI)	+= pci.o pci_iommu.o pci-sysfs.o
 obj-$(CONFIG_SRM_ENV)	+= srm_env.o
 obj-$(CONFIG_MODULES)	+= module.o
 

@@ -25,40 +25,42 @@ struct ct_iter_state {
 	unsigned int bucket;
 };
 
-static struct hlist_node *ct_get_first(struct seq_file *seq)
+static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 {
 	struct net *net = seq_file_net(seq);
 	struct ct_iter_state *st = seq->private;
-	struct hlist_node *n;
+	struct hlist_nulls_node *n;
 
 	for (st->bucket = 0;
 	     st->bucket < nf_conntrack_htable_size;
 	     st->bucket++) {
 		n = rcu_dereference(net->ct.hash[st->bucket].first);
-		if (n)
+		if (!is_a_nulls(n))
 			return n;
 	}
 	return NULL;
 }
 
-static struct hlist_node *ct_get_next(struct seq_file *seq,
-				      struct hlist_node *head)
+static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
+				      struct hlist_nulls_node *head)
 {
 	struct net *net = seq_file_net(seq);
 	struct ct_iter_state *st = seq->private;
 
 	head = rcu_dereference(head->next);
-	while (head == NULL) {
-		if (++st->bucket >= nf_conntrack_htable_size)
-			return NULL;
+	while (is_a_nulls(head)) {
+		if (likely(get_nulls_value(head) == st->bucket)) {
+			if (++st->bucket >= nf_conntrack_htable_size)
+				return NULL;
+		}
 		head = rcu_dereference(net->ct.hash[st->bucket].first);
 	}
 	return head;
 }
 
-static struct hlist_node *ct_get_idx(struct seq_file *seq, loff_t pos)
+static struct hlist_nulls_node *ct_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct hlist_node *head = ct_get_first(seq);
+	struct hlist_nulls_node *head = ct_get_first(seq);
 
 	if (head)
 		while (pos && (head = ct_get_next(seq, head)))
@@ -87,69 +89,76 @@ static void ct_seq_stop(struct seq_file *s, void *v)
 
 static int ct_seq_show(struct seq_file *s, void *v)
 {
-	const struct nf_conntrack_tuple_hash *hash = v;
-	const struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(hash);
+	struct nf_conntrack_tuple_hash *hash = v;
+	struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(hash);
 	const struct nf_conntrack_l3proto *l3proto;
 	const struct nf_conntrack_l4proto *l4proto;
+	int ret = 0;
 
 	NF_CT_ASSERT(ct);
+	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
+		return 0;
+
 
 	/* we only want to print DIR_ORIGINAL */
 	if (NF_CT_DIRECTION(hash))
-		return 0;
+		goto release;
 	if (nf_ct_l3num(ct) != AF_INET)
-		return 0;
+		goto release;
 
 	l3proto = __nf_ct_l3proto_find(nf_ct_l3num(ct));
 	NF_CT_ASSERT(l3proto);
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
 	NF_CT_ASSERT(l4proto);
 
+	ret = -ENOSPC;
 	if (seq_printf(s, "%-8s %u %ld ",
 		      l4proto->name, nf_ct_protonum(ct),
 		      timer_pending(&ct->timeout)
 		      ? (long)(ct->timeout.expires - jiffies)/HZ : 0) != 0)
-		return -ENOSPC;
+		goto release;
 
 	if (l4proto->print_conntrack && l4proto->print_conntrack(s, ct))
-		return -ENOSPC;
+		goto release;
 
 	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
 			l3proto, l4proto))
-		return -ENOSPC;
+		goto release;
 
 	if (seq_print_acct(s, ct, IP_CT_DIR_ORIGINAL))
-		return -ENOSPC;
+		goto release;
 
 	if (!(test_bit(IPS_SEEN_REPLY_BIT, &ct->status)))
 		if (seq_printf(s, "[UNREPLIED] "))
-			return -ENOSPC;
+			goto release;
 
 	if (print_tuple(s, &ct->tuplehash[IP_CT_DIR_REPLY].tuple,
 			l3proto, l4proto))
-		return -ENOSPC;
+		goto release;
 
 	if (seq_print_acct(s, ct, IP_CT_DIR_REPLY))
-		return -ENOSPC;
+		goto release;
 
 	if (test_bit(IPS_ASSURED_BIT, &ct->status))
 		if (seq_printf(s, "[ASSURED] "))
-			return -ENOSPC;
+			goto release;
 
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	if (seq_printf(s, "mark=%u ", ct->mark))
-		return -ENOSPC;
+		goto release;
 #endif
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 	if (seq_printf(s, "secmark=%u ", ct->secmark))
-		return -ENOSPC;
+		goto release;
 #endif
 
 	if (seq_printf(s, "use=%u\n", atomic_read(&ct->ct_general.use)))
-		return -ENOSPC;
-
-	return 0;
+		goto release;
+	ret = 0;
+release:
+	nf_ct_put(ct);
+	return ret;
 }
 
 static const struct seq_operations ct_seq_ops = {

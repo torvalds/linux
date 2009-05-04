@@ -335,11 +335,20 @@ static int ixp4xx_mdio_register(void)
 	if (!(mdio_bus = mdiobus_alloc()))
 		return -ENOMEM;
 
-	/* All MII PHY accesses use NPE-B Ethernet registers */
-	spin_lock_init(&mdio_lock);
-	mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
-	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
+	if (cpu_is_ixp43x()) {
+		/* IXP43x lacks NPE-B and uses NPE-C for MII PHY access */
+		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEC_ETH))
+			return -ENOSYS;
+		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthC_BASE_VIRT;
+	} else {
+		/* All MII PHY accesses use NPE-B Ethernet registers */
+		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEB_ETH0))
+			return -ENOSYS;
+		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
+	}
 
+	__raw_writel(DEFAULT_CORE_CNTRL, &mdio_regs->core_control);
+	spin_lock_init(&mdio_lock);
 	mdio_bus->name = "IXP4xx MII Bus";
 	mdio_bus->read = &ixp4xx_mdio_read;
 	mdio_bus->write = &ixp4xx_mdio_write;
@@ -473,7 +482,7 @@ static void eth_rx_irq(void *pdev)
 	printk(KERN_DEBUG "%s: eth_rx_irq\n", dev->name);
 #endif
 	qmgr_disable_irq(port->plat->rxq);
-	netif_rx_schedule(&port->napi);
+	napi_schedule(&port->napi);
 }
 
 static int eth_poll(struct napi_struct *napi, int budget)
@@ -498,16 +507,16 @@ static int eth_poll(struct napi_struct *napi, int budget)
 
 		if ((n = queue_get_desc(rxq, port, 0)) < 0) {
 #if DEBUG_RX
-			printk(KERN_DEBUG "%s: eth_poll netif_rx_complete\n",
+			printk(KERN_DEBUG "%s: eth_poll napi_complete\n",
 			       dev->name);
 #endif
-			netif_rx_complete(napi);
+			napi_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_empty(rxq) &&
-			    netif_rx_reschedule(napi)) {
+			    napi_reschedule(napi)) {
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: eth_poll"
-				       " netif_rx_reschedule successed\n",
+				       " napi_reschedule successed\n",
 				       dev->name);
 #endif
 				qmgr_disable_irq(rxq);
@@ -1036,7 +1045,7 @@ static int eth_open(struct net_device *dev)
 	}
 	ports_open++;
 	/* we may already have RX data, enables IRQ */
-	netif_rx_schedule(&port->napi);
+	napi_schedule(&port->napi);
 	return 0;
 }
 
@@ -1250,9 +1259,6 @@ static struct platform_driver ixp4xx_eth_driver = {
 static int __init eth_init_module(void)
 {
 	int err;
-	if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEB_ETH0))
-		return -ENOSYS;
-
 	if ((err = ixp4xx_mdio_register()))
 		return err;
 	return platform_driver_register(&ixp4xx_eth_driver);

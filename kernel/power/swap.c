@@ -60,11 +60,10 @@ static struct block_device *resume_bdev;
 static int submit(int rw, pgoff_t page_off, struct page *page,
 			struct bio **bio_chain)
 {
+	const int bio_rw = rw | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_UNPLUG);
 	struct bio *bio;
 
 	bio = bio_alloc(__GFP_WAIT | __GFP_HIGH, 1);
-	if (!bio)
-		return -ENOMEM;
 	bio->bi_sector = page_off * (PAGE_SIZE >> 9);
 	bio->bi_bdev = resume_bdev;
 	bio->bi_end_io = end_swap_bio_read;
@@ -80,7 +79,7 @@ static int submit(int rw, pgoff_t page_off, struct page *page,
 	bio_get(bio);
 
 	if (bio_chain == NULL) {
-		submit_bio(rw | (1 << BIO_RW_SYNC), bio);
+		submit_bio(bio_rw, bio);
 		wait_on_page_locked(page);
 		if (rw == READ)
 			bio_set_pages_dirty(bio);
@@ -90,7 +89,7 @@ static int submit(int rw, pgoff_t page_off, struct page *page,
 			get_page(page);	/* These pages are freed later */
 		bio->bi_private = *bio_chain;
 		*bio_chain = bio;
-		submit_bio(rw | (1 << BIO_RW_SYNC), bio);
+		submit_bio(bio_rw, bio);
 	}
 	return 0;
 }

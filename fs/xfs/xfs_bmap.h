@@ -95,7 +95,6 @@ typedef	struct xfs_bmap_free
 					/* need write cache flushing and no */
 					/* additional allocation alignments */
 
-#define	XFS_BMAPI_AFLAG(w)	xfs_bmapi_aflag(w)
 static inline int xfs_bmapi_aflag(int w)
 {
 	return (w == XFS_ATTR_FORK ? XFS_BMAPI_ATTRFORK : 0);
@@ -107,7 +106,6 @@ static inline int xfs_bmapi_aflag(int w)
 #define	DELAYSTARTBLOCK		((xfs_fsblock_t)-1LL)
 #define	HOLESTARTBLOCK		((xfs_fsblock_t)-2LL)
 
-#define	XFS_BMAP_INIT(flp,fbp)	xfs_bmap_init(flp,fbp)
 static inline void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp)
 {
 	((flp)->xbf_first = NULL, (flp)->xbf_count = 0, \
@@ -127,7 +125,7 @@ typedef struct xfs_bmalloca {
 	struct xfs_bmbt_irec	*gotp;	/* extent after, or delayed */
 	xfs_extlen_t		alen;	/* i/o length asked/allocated */
 	xfs_extlen_t		total;	/* total blocks needed for xaction */
-	xfs_extlen_t		minlen;	/* mininum allocation size (blocks) */
+	xfs_extlen_t		minlen;	/* minimum allocation size (blocks) */
 	xfs_extlen_t		minleft; /* amount must be left after alloc */
 	char			eof;	/* set if allocating past last extent */
 	char			wasdel;	/* replacing a delayed allocation */
@@ -339,6 +337,10 @@ xfs_check_nostate_extents(
 	struct xfs_ifork	*ifp,
 	xfs_extnum_t		idx,
 	xfs_extnum_t		num);
+
+uint
+xfs_default_attroffset(
+	struct xfs_inode	*ip);
 
 #ifdef __KERNEL__
 

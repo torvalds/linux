@@ -361,8 +361,8 @@ static const struct ata_port_info k2_port_info[] = {
 	{
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | K2_FLAG_NO_ATAPI_DMA,
-		.pio_mask	= 0x1f,
-		.mwdma_mask	= 0x07,
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &k2_sata_ops,
 	},
@@ -371,8 +371,8 @@ static const struct ata_port_info k2_port_info[] = {
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | K2_FLAG_NO_ATAPI_DMA |
 				  K2_FLAG_SATA_8_PORTS,
-		.pio_mask	= 0x1f,
-		.mwdma_mask	= 0x07,
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &k2_sata_ops,
 	},
@@ -380,8 +380,8 @@ static const struct ata_port_info k2_port_info[] = {
 	{
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO | K2_FLAG_BAR_POS_3,
-		.pio_mask	= 0x1f,
-		.mwdma_mask	= 0x07,
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &k2_sata_ops,
 	},
@@ -389,8 +389,8 @@ static const struct ata_port_info k2_port_info[] = {
 	{
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				  ATA_FLAG_MMIO,
-		.pio_mask	= 0x1f,
-		.mwdma_mask	= 0x07,
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &k2_sata_ops,
 	},

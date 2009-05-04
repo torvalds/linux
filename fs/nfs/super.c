@@ -60,6 +60,7 @@
 #include "delegation.h"
 #include "iostat.h"
 #include "internal.h"
+#include "fscache.h"
 
 #define NFSDBG_FACILITY		NFSDBG_VFS
 
@@ -76,6 +77,7 @@ enum {
 	Opt_rdirplus, Opt_nordirplus,
 	Opt_sharecache, Opt_nosharecache,
 	Opt_resvport, Opt_noresvport,
+	Opt_fscache, Opt_nofscache,
 
 	/* Mount options that take integer arguments */
 	Opt_port,
@@ -93,6 +95,7 @@ enum {
 	Opt_sec, Opt_proto, Opt_mountproto, Opt_mounthost,
 	Opt_addr, Opt_mountaddr, Opt_clientaddr,
 	Opt_lookupcache,
+	Opt_fscache_uniq,
 
 	/* Special mount options */
 	Opt_userspace, Opt_deprecated, Opt_sloppy,
@@ -132,6 +135,9 @@ static const match_table_t nfs_mount_option_tokens = {
 	{ Opt_nosharecache, "nosharecache" },
 	{ Opt_resvport, "resvport" },
 	{ Opt_noresvport, "noresvport" },
+	{ Opt_fscache, "fsc" },
+	{ Opt_fscache_uniq, "fsc=%s" },
+	{ Opt_nofscache, "nofsc" },
 
 	{ Opt_port, "port=%u" },
 	{ Opt_rsize, "rsize=%u" },
@@ -563,6 +569,8 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	if (clp->rpc_ops->version == 4)
 		seq_printf(m, ",clientaddr=%s", clp->cl_ipaddr);
 #endif
+	if (nfss->options & NFS_OPTION_FSCACHE)
+		seq_printf(m, ",fsc");
 }
 
 /*
@@ -641,6 +649,10 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 			totals.events[i] += stats->events[i];
 		for (i = 0; i < __NFSIOS_BYTESMAX; i++)
 			totals.bytes[i] += stats->bytes[i];
+#ifdef CONFIG_NFS_FSCACHE
+		for (i = 0; i < __NFSIOS_FSCACHEMAX; i++)
+			totals.fscache[i] += stats->fscache[i];
+#endif
 
 		preempt_enable();
 	}
@@ -651,6 +663,13 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 	seq_printf(m, "\n\tbytes:\t");
 	for (i = 0; i < __NFSIOS_BYTESMAX; i++)
 		seq_printf(m, "%Lu ", totals.bytes[i]);
+#ifdef CONFIG_NFS_FSCACHE
+	if (nfss->options & NFS_OPTION_FSCACHE) {
+		seq_printf(m, "\n\tfsc:\t");
+		for (i = 0; i < __NFSIOS_FSCACHEMAX; i++)
+			seq_printf(m, "%Lu ", totals.bytes[i]);
+	}
+#endif
 	seq_printf(m, "\n");
 
 	rpc_print_iostats(m, nfss->client);
@@ -1018,6 +1037,7 @@ static int nfs_parse_mount_options(char *raw,
 		case Opt_rdma:
 			mnt->flags |= NFS_MOUNT_TCP; /* for side protocols */
 			mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
+			xprt_load_transport(p);
 			break;
 		case Opt_acl:
 			mnt->flags &= ~NFS_MOUNT_NOACL;
@@ -1042,6 +1062,24 @@ static int nfs_parse_mount_options(char *raw,
 			break;
 		case Opt_noresvport:
 			mnt->flags |= NFS_MOUNT_NORESVPORT;
+			break;
+		case Opt_fscache:
+			mnt->options |= NFS_OPTION_FSCACHE;
+			kfree(mnt->fscache_uniq);
+			mnt->fscache_uniq = NULL;
+			break;
+		case Opt_nofscache:
+			mnt->options &= ~NFS_OPTION_FSCACHE;
+			kfree(mnt->fscache_uniq);
+			mnt->fscache_uniq = NULL;
+			break;
+		case Opt_fscache_uniq:
+			string = match_strdup(args);
+			if (!string)
+				goto out_nomem;
+			kfree(mnt->fscache_uniq);
+			mnt->fscache_uniq = string;
+			mnt->options |= NFS_OPTION_FSCACHE;
 			break;
 
 		/*
@@ -1190,7 +1228,6 @@ static int nfs_parse_mount_options(char *raw,
 				goto out_nomem;
 			token = match_token(string,
 					    nfs_xprt_protocol_tokens, args);
-			kfree(string);
 
 			switch (token) {
 			case Opt_xprt_udp:
@@ -1205,12 +1242,14 @@ static int nfs_parse_mount_options(char *raw,
 				/* vector side protocols to TCP */
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
+				xprt_load_transport(string);
 				break;
 			default:
 				errors++;
 				dfprintk(MOUNT, "NFS:   unrecognized "
 						"transport protocol\n");
 			}
+			kfree(string);
 			break;
 		case Opt_mountproto:
 			string = match_strdup(args);
@@ -1868,8 +1907,6 @@ static void nfs_clone_super(struct super_block *sb,
  	nfs_initialise_sb(sb);
 }
 
-#define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
-
 static int nfs_compare_mount_options(const struct super_block *s, const struct nfs_server *b, int flags)
 {
 	const struct nfs_server *a = s->s_fs_info;
@@ -2034,6 +2071,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs_fill_super(s, data);
+		nfs_fscache_get_super_cookie(s, data);
 	}
 
 	mntroot = nfs_get_root(s, mntfh);
@@ -2054,6 +2092,7 @@ static int nfs_get_sb(struct file_system_type *fs_type,
 out:
 	kfree(data->nfs_server.hostname);
 	kfree(data->mount_server.hostname);
+	kfree(data->fscache_uniq);
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
 	kfree(mntfh);
@@ -2081,6 +2120,7 @@ static void nfs_kill_super(struct super_block *s)
 
 	bdi_unregister(&server->backing_dev_info);
 	kill_anon_super(s);
+	nfs_fscache_release_super_cookie(s);
 	nfs_free_server(server);
 }
 
@@ -2388,6 +2428,7 @@ static int nfs4_get_sb(struct file_system_type *fs_type,
 	if (!s->s_root) {
 		/* initial superblock/root creation */
 		nfs4_fill_super(s);
+		nfs_fscache_get_super_cookie(s, data);
 	}
 
 	mntroot = nfs4_get_root(s, mntfh);
@@ -2409,6 +2450,7 @@ out:
 	kfree(data->client_address);
 	kfree(data->nfs_server.export_path);
 	kfree(data->nfs_server.hostname);
+	kfree(data->fscache_uniq);
 	security_free_mnt_opts(&data->lsm_opts);
 out_free_fh:
 	kfree(mntfh);
@@ -2435,6 +2477,7 @@ static void nfs4_kill_super(struct super_block *sb)
 	kill_anon_super(sb);
 
 	nfs4_renewd_prepare_shutdown(server);
+	nfs_fscache_release_super_cookie(sb);
 	nfs_free_server(server);
 }
 

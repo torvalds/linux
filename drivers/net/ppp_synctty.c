@@ -206,6 +206,7 @@ ppp_sync_open(struct tty_struct *tty)
 {
 	struct syncppp *ap;
 	int err;
+	int speed;
 
 	if (tty->ops->write == NULL)
 		return -EOPNOTSUPP;
@@ -234,6 +235,8 @@ ppp_sync_open(struct tty_struct *tty)
 	ap->chan.ops = &sync_ops;
 	ap->chan.mtu = PPP_MRU;
 	ap->chan.hdrlen = 2;	/* for A/C bytes */
+	speed = tty_get_baud_rate(tty);
+	ap->chan.speed = speed;
 	err = ppp_register_channel(&ap->chan);
 	if (err)
 		goto out_free;
@@ -281,8 +284,7 @@ ppp_sync_close(struct tty_struct *tty)
 
 	ppp_unregister_channel(&ap->chan);
 	skb_queue_purge(&ap->rqueue);
-	if (ap->tpkt)
-		kfree_skb(ap->tpkt);
+	kfree_skb(ap->tpkt);
 	kfree(ap);
 }
 

@@ -448,7 +448,6 @@ xfs_dir2_block_getdents(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	char			*ptr;		/* current data entry */
 	int			wantoff;	/* starting block offset */
-	xfs_ino_t		ino;
 	xfs_off_t		cook;
 
 	mp = dp->i_mount;
@@ -509,17 +508,13 @@ xfs_dir2_block_getdents(
 
 		cook = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk,
 					    (char *)dep - (char *)block);
-		ino = be64_to_cpu(dep->inumber);
-#if XFS_BIG_INUMS
-		ino += mp->m_inoadd;
-#endif
 
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
-		if (filldir(dirent, dep->name, dep->namelen, cook,
-			    ino, DT_UNKNOWN)) {
-			*offset = cook;
+		if (filldir(dirent, dep->name, dep->namelen, cook & 0x7fffffff,
+			    be64_to_cpu(dep->inumber), DT_UNKNOWN)) {
+			*offset = cook & 0x7fffffff;
 			xfs_da_brelse(NULL, bp);
 			return 0;
 		}
@@ -529,7 +524,8 @@ xfs_dir2_block_getdents(
 	 * Reached the end of the block.
 	 * Set the offset to a non-existent block 1 and return.
 	 */
-	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0);
+	*offset = xfs_dir2_db_off_to_dataptr(mp, mp->m_dirdatablk + 1, 0) &
+			0x7fffffff;
 	xfs_da_brelse(NULL, bp);
 	return 0;
 }

@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -50,8 +50,8 @@
 #define EEPROM_SIZE			0x0100
 #define BBP_BASE			0x0000
 #define BBP_SIZE			0x0080
-#define RF_BASE				0x0000
-#define RF_SIZE				0x0014
+#define RF_BASE				0x0004
+#define RF_SIZE				0x0010
 
 /*
  * Number of TX queues.
@@ -267,6 +267,19 @@ struct hw_pairwise_ta_entry {
  * MAC_CSR13: GPIO.
  */
 #define MAC_CSR13			0x3034
+#define MAC_CSR13_BIT0			FIELD32(0x00000001)
+#define MAC_CSR13_BIT1			FIELD32(0x00000002)
+#define MAC_CSR13_BIT2			FIELD32(0x00000004)
+#define MAC_CSR13_BIT3			FIELD32(0x00000008)
+#define MAC_CSR13_BIT4			FIELD32(0x00000010)
+#define MAC_CSR13_BIT5			FIELD32(0x00000020)
+#define MAC_CSR13_BIT6			FIELD32(0x00000040)
+#define MAC_CSR13_BIT7			FIELD32(0x00000080)
+#define MAC_CSR13_BIT8			FIELD32(0x00000100)
+#define MAC_CSR13_BIT9			FIELD32(0x00000200)
+#define MAC_CSR13_BIT10			FIELD32(0x00000400)
+#define MAC_CSR13_BIT11			FIELD32(0x00000800)
+#define MAC_CSR13_BIT12			FIELD32(0x00001000)
 
 /*
  * MAC_CSR14: LED control register.

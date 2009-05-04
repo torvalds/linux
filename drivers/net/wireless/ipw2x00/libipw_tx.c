@@ -41,7 +41,7 @@
 #include <linux/etherdevice.h>
 #include <asm/uaccess.h>
 
-#include <net/ieee80211.h>
+#include "ieee80211.h"
 
 /*
 
@@ -260,7 +260,6 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, bytes_per_frag, nr_frags, bytes_last_frag, frag_size,
 	    rts_required;
 	unsigned long flags;
-	struct net_device_stats *stats = &ieee->stats;
 	int encrypt, host_encrypt, host_encrypt_msdu, host_build_iv;
 	__be16 ether_type;
 	int bytes, fc, hdr_len;
@@ -306,7 +305,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (!encrypt && ieee->ieee802_1x &&
 	    ieee->drop_unencrypted && ether_type != htons(ETH_P_PAE)) {
-		stats->tx_dropped++;
+		dev->stats.tx_dropped++;
 		goto success;
 	}
 
@@ -526,8 +525,8 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (txb) {
 		int ret = (*ieee->hard_start_xmit) (txb, dev, priority);
 		if (ret == 0) {
-			stats->tx_packets++;
-			stats->tx_bytes += txb->payload_size;
+			dev->stats.tx_packets++;
+			dev->stats.tx_bytes += txb->payload_size;
 			return 0;
 		}
 
@@ -539,8 +538,9 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
       failed:
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	netif_stop_queue(dev);
-	stats->tx_errors++;
+	dev->stats.tx_errors++;
 	return 1;
 }
+EXPORT_SYMBOL(ieee80211_xmit);
 
 EXPORT_SYMBOL(ieee80211_txb_free);

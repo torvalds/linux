@@ -231,7 +231,7 @@ CPU bandwidth control purposes:
 
    This options needs CONFIG_CGROUPS to be defined, and lets the administrator
    create arbitrary groups of tasks, using the "cgroup" pseudo filesystem.  See
-   Documentation/cgroups.txt for more information about this filesystem.
+   Documentation/cgroups/cgroups.txt for more information about this filesystem.
 
 Only one of these options to group tasks can be chosen and not both.
 

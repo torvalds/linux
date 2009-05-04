@@ -283,7 +283,7 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 						   struct sched_entity,
 						   run_node);
 
-		if (vruntime == cfs_rq->min_vruntime)
+		if (!cfs_rq->curr)
 			vruntime = se->vruntime;
 		else
 			vruntime = min_vruntime(vruntime, se->vruntime);
@@ -429,7 +429,10 @@ static u64 sched_slice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	u64 slice = __sched_period(cfs_rq->nr_running + !se->on_rq);
 
 	for_each_sched_entity(se) {
-		struct load_weight *load = &cfs_rq->load;
+		struct load_weight *load;
+
+		cfs_rq = cfs_rq_of(se);
+		load = &cfs_rq->load;
 
 		if (unlikely(!se->on_rq)) {
 			struct load_weight lw = cfs_rq->load;
@@ -677,9 +680,13 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 			unsigned long thresh = sysctl_sched_latency;
 
 			/*
-			 * convert the sleeper threshold into virtual time
+			 * Convert the sleeper threshold into virtual time.
+			 * SCHED_IDLE is a special sub-class.  We care about
+			 * fairness only relative to other SCHED_IDLE tasks,
+			 * all of which have the same weight.
 			 */
-			if (sched_feat(NORMALIZED_SLEEPER))
+			if (sched_feat(NORMALIZED_SLEEPER) &&
+					task_of(se)->policy != SCHED_IDLE)
 				thresh = calc_delta_fair(thresh, se);
 
 			vruntime -= thresh;
@@ -712,13 +719,19 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int wakeup)
 		__enqueue_entity(cfs_rq, se);
 }
 
-static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static void __clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->last == se)
 		cfs_rq->last = NULL;
 
 	if (cfs_rq->next == se)
 		cfs_rq->next = NULL;
+}
+
+static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	for_each_sched_entity(se)
+		__clear_buddies(cfs_rq_of(se), se);
 }
 
 static void
@@ -761,8 +774,14 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
-	if (delta_exec > ideal_runtime)
+	if (delta_exec > ideal_runtime) {
 		resched_task(rq_of(cfs_rq)->curr);
+		/*
+		 * The current task ran long enough, ensure it doesn't get
+		 * re-elected due to buddy favours.
+		 */
+		clear_buddies(cfs_rq, curr);
+	}
 }
 
 static void
@@ -1295,16 +1314,63 @@ out:
 }
 #endif /* CONFIG_SMP */
 
-static unsigned long wakeup_gran(struct sched_entity *se)
+/*
+ * Adaptive granularity
+ *
+ * se->avg_wakeup gives the average time a task runs until it does a wakeup,
+ * with the limit of wakeup_gran -- when it never does a wakeup.
+ *
+ * So the smaller avg_wakeup is the faster we want this task to preempt,
+ * but we don't want to treat the preemptee unfairly and therefore allow it
+ * to run for at least the amount of time we'd like to run.
+ *
+ * NOTE: we use 2*avg_wakeup to increase the probability of actually doing one
+ *
+ * NOTE: we use *nr_running to scale with load, this nicely matches the
+ *       degrading latency on load.
+ */
+static unsigned long
+adaptive_gran(struct sched_entity *curr, struct sched_entity *se)
+{
+	u64 this_run = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
+	u64 expected_wakeup = 2*se->avg_wakeup * cfs_rq_of(se)->nr_running;
+	u64 gran = 0;
+
+	if (this_run < expected_wakeup)
+		gran = expected_wakeup - this_run;
+
+	return min_t(s64, gran, sysctl_sched_wakeup_granularity);
+}
+
+static unsigned long
+wakeup_gran(struct sched_entity *curr, struct sched_entity *se)
 {
 	unsigned long gran = sysctl_sched_wakeup_granularity;
 
+	if (cfs_rq_of(curr)->curr && sched_feat(ADAPTIVE_GRAN))
+		gran = adaptive_gran(curr, se);
+
 	/*
-	 * More easily preempt - nice tasks, while not making it harder for
-	 * + nice tasks.
+	 * Since its curr running now, convert the gran from real-time
+	 * to virtual-time in his units.
 	 */
-	if (!sched_feat(ASYM_GRAN) || se->load.weight > NICE_0_LOAD)
-		gran = calc_delta_fair(sysctl_sched_wakeup_granularity, se);
+	if (sched_feat(ASYM_GRAN)) {
+		/*
+		 * By using 'se' instead of 'curr' we penalize light tasks, so
+		 * they get preempted easier. That is, if 'se' < 'curr' then
+		 * the resulting gran will be larger, therefore penalizing the
+		 * lighter, if otoh 'se' > 'curr' then the resulting gran will
+		 * be smaller, again penalizing the lighter task.
+		 *
+		 * This is especially important for buddies when the leftmost
+		 * task is higher priority than the buddy.
+		 */
+		if (unlikely(se->load.weight != NICE_0_LOAD))
+			gran = calc_delta_fair(gran, se);
+	} else {
+		if (unlikely(curr->load.weight != NICE_0_LOAD))
+			gran = calc_delta_fair(gran, curr);
+	}
 
 	return gran;
 }
@@ -1331,7 +1397,7 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 	if (vdiff <= 0)
 		return -1;
 
-	gran = wakeup_gran(curr);
+	gran = wakeup_gran(curr, se);
 	if (vdiff > gran)
 		return 1;
 
@@ -1340,14 +1406,18 @@ wakeup_preempt_entity(struct sched_entity *curr, struct sched_entity *se)
 
 static void set_last_buddy(struct sched_entity *se)
 {
-	for_each_sched_entity(se)
-		cfs_rq_of(se)->last = se;
+	if (likely(task_of(se)->policy != SCHED_IDLE)) {
+		for_each_sched_entity(se)
+			cfs_rq_of(se)->last = se;
+	}
 }
 
 static void set_next_buddy(struct sched_entity *se)
 {
-	for_each_sched_entity(se)
-		cfs_rq_of(se)->next = se;
+	if (likely(task_of(se)->policy != SCHED_IDLE)) {
+		for_each_sched_entity(se)
+			cfs_rq_of(se)->next = se;
+	}
 }
 
 /*
@@ -1393,11 +1463,17 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 		return;
 
 	/*
-	 * Batch tasks do not preempt (their preemption is driven by
+	 * Batch and idle tasks do not preempt (their preemption is driven by
 	 * the tick):
 	 */
-	if (unlikely(p->policy == SCHED_BATCH))
+	if (unlikely(p->policy != SCHED_NORMAL))
 		return;
+
+	/* Idle tasks are by definition preempted by everybody. */
+	if (unlikely(curr->policy == SCHED_IDLE)) {
+		resched_task(curr);
+		return;
+	}
 
 	if (!sched_feat(WAKEUP_PREEMPT))
 		return;
@@ -1435,6 +1511,11 @@ static struct task_struct *pick_next_task_fair(struct rq *rq)
 
 	do {
 		se = pick_next_entity(cfs_rq);
+		/*
+		 * If se was a buddy, clear it so that it will have to earn
+		 * the favour again.
+		 */
+		__clear_buddies(cfs_rq, se);
 		set_next_entity(cfs_rq, se);
 		cfs_rq = group_cfs_rq(se);
 	} while (cfs_rq);

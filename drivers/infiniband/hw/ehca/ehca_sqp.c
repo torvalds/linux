@@ -46,11 +46,11 @@
 #include "ehca_iverbs.h"
 #include "hcp_if.h"
 
-#define IB_MAD_STATUS_REDIRECT		__constant_htons(0x0002)
-#define IB_MAD_STATUS_UNSUP_VERSION	__constant_htons(0x0004)
-#define IB_MAD_STATUS_UNSUP_METHOD	__constant_htons(0x0008)
+#define IB_MAD_STATUS_REDIRECT		cpu_to_be16(0x0002)
+#define IB_MAD_STATUS_UNSUP_VERSION	cpu_to_be16(0x0004)
+#define IB_MAD_STATUS_UNSUP_METHOD	cpu_to_be16(0x0008)
 
-#define IB_PMA_CLASS_PORT_INFO		__constant_htons(0x0001)
+#define IB_PMA_CLASS_PORT_INFO		cpu_to_be16(0x0001)
 
 /**
  * ehca_define_sqp - Defines special queue pair 1 (GSI QP). When special queue
@@ -85,7 +85,7 @@ u64 ehca_define_sqp(struct ehca_shca *shca,
 
 		if (ret != H_SUCCESS) {
 			ehca_err(&shca->ib_device,
-				 "Can't define AQP1 for port %x. h_ret=%li",
+				 "Can't define AQP1 for port %x. h_ret=%lli",
 				 port, ret);
 			return ret;
 		}

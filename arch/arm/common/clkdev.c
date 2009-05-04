@@ -24,6 +24,15 @@
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
 
+/*
+ * Find the correct struct clk for the device and connection ID.
+ * We do slightly fuzzy matching here:
+ *  An entry with a NULL ID is assumed to be a wildcard.
+ *  If an entry has a device ID, it must match
+ *  If an entry has a connection ID, it must match
+ * Then we take the most specific entry - with the following
+ * order of precidence: dev+con > dev only > con only.
+ */
 static struct clk *clk_find(const char *dev_id, const char *con_id)
 {
 	struct clk_lookup *p;
@@ -31,13 +40,17 @@ static struct clk *clk_find(const char *dev_id, const char *con_id)
 	int match, best = 0;
 
 	list_for_each_entry(p, &clocks, node) {
-		if ((p->dev_id && !dev_id) || (p->con_id && !con_id))
-			continue;
 		match = 0;
-		if (p->dev_id)
-			match += 2 * (strcmp(p->dev_id, dev_id) == 0);
-		if (p->con_id)
-			match += 1 * (strcmp(p->con_id, con_id) == 0);
+		if (p->dev_id) {
+			if (!dev_id || strcmp(p->dev_id, dev_id))
+				continue;
+			match += 2;
+		}
+		if (p->con_id) {
+			if (!con_id || strcmp(p->con_id, con_id))
+				continue;
+			match += 1;
+		}
 		if (match == 0)
 			continue;
 
@@ -49,9 +62,8 @@ static struct clk *clk_find(const char *dev_id, const char *con_id)
 	return clk;
 }
 
-struct clk *clk_get(struct device *dev, const char *con_id)
+struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 {
-	const char *dev_id = dev ? dev_name(dev) : NULL;
 	struct clk *clk;
 
 	mutex_lock(&clocks_mutex);
@@ -61,6 +73,14 @@ struct clk *clk_get(struct device *dev, const char *con_id)
 	mutex_unlock(&clocks_mutex);
 
 	return clk ? clk : ERR_PTR(-ENOENT);
+}
+EXPORT_SYMBOL(clk_get_sys);
+
+struct clk *clk_get(struct device *dev, const char *con_id)
+{
+	const char *dev_id = dev ? dev_name(dev) : NULL;
+
+	return clk_get_sys(dev_id, con_id);
 }
 EXPORT_SYMBOL(clk_get);
 

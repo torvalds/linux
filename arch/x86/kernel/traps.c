@@ -54,15 +54,14 @@
 #include <asm/desc.h>
 #include <asm/i387.h>
 
-#include <mach_traps.h>
+#include <asm/mach_traps.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
-#include <asm/pda.h>
 #else
 #include <asm/processor-flags.h>
-#include <asm/arch_hooks.h>
+#include <asm/setup.h>
 #include <asm/traps.h>
 
 #include "cpu/mcheck/mce.h"
@@ -99,6 +98,12 @@ static inline void preempt_conditional_sti(struct pt_regs *regs)
 		local_irq_enable();
 }
 
+static inline void conditional_cli(struct pt_regs *regs)
+{
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_disable();
+}
+
 static inline void preempt_conditional_cli(struct pt_regs *regs)
 {
 	if (regs->flags & X86_EFLAGS_IF)
@@ -112,47 +117,6 @@ die_if_kernel(const char *str, struct pt_regs *regs, long err)
 {
 	if (!user_mode_vm(regs))
 		die(str, regs, err);
-}
-
-/*
- * Perform the lazy TSS's I/O bitmap copy. If the TSS has an
- * invalid offset set (the LAZY one) and the faulting thread has
- * a valid I/O bitmap pointer, we copy the I/O bitmap in the TSS,
- * we set the offset field correctly and return 1.
- */
-static int lazy_iobitmap_copy(void)
-{
-	struct thread_struct *thread;
-	struct tss_struct *tss;
-	int cpu;
-
-	cpu = get_cpu();
-	tss = &per_cpu(init_tss, cpu);
-	thread = &current->thread;
-
-	if (tss->x86_tss.io_bitmap_base == INVALID_IO_BITMAP_OFFSET_LAZY &&
-	    thread->io_bitmap_ptr) {
-		memcpy(tss->io_bitmap, thread->io_bitmap_ptr,
-		       thread->io_bitmap_max);
-		/*
-		 * If the previously set map was extending to higher ports
-		 * than the current one, pad extra space with 0xff (no access).
-		 */
-		if (thread->io_bitmap_max < tss->io_bitmap_max) {
-			memset((char *) tss->io_bitmap +
-				thread->io_bitmap_max, 0xff,
-				tss->io_bitmap_max - thread->io_bitmap_max);
-		}
-		tss->io_bitmap_max = thread->io_bitmap_max;
-		tss->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
-		tss->io_bitmap_owner = thread;
-		put_cpu();
-
-		return 1;
-	}
-	put_cpu();
-
-	return 0;
 }
 #endif
 
@@ -304,11 +268,6 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	conditional_sti(regs);
 
 #ifdef CONFIG_X86_32
-	if (lazy_iobitmap_copy()) {
-		/* restart the faulting instruction */
-		return;
-	}
-
 	if (regs->flags & X86_VM_MASK)
 		goto gp_in_vm86;
 #endif
@@ -626,8 +585,10 @@ clear_dr7:
 
 #ifdef CONFIG_X86_32
 debug_vm86:
+	/* reenable preemption: handle_vm86_trap() might sleep */
+	dec_preempt_count();
 	handle_vm86_trap((struct kernel_vm86_regs *) regs, error_code, 1);
-	preempt_conditional_cli(regs);
+	conditional_cli(regs);
 	return;
 #endif
 
@@ -896,7 +857,7 @@ asmlinkage void math_state_restore(void)
 EXPORT_SYMBOL_GPL(math_state_restore);
 
 #ifndef CONFIG_MATH_EMULATION
-asmlinkage void math_emulate(long arg)
+void math_emulate(struct math_emu_info *info)
 {
 	printk(KERN_EMERG
 		"math-emulation not enabled and no coprocessor found.\n");
@@ -907,12 +868,16 @@ asmlinkage void math_emulate(long arg)
 #endif /* CONFIG_MATH_EMULATION */
 
 dotraplinkage void __kprobes
-do_device_not_available(struct pt_regs *regs, long error)
+do_device_not_available(struct pt_regs *regs, long error_code)
 {
 #ifdef CONFIG_X86_32
 	if (read_cr0() & X86_CR0_EM) {
+		struct math_emu_info info = { };
+
 		conditional_sti(regs);
-		math_emulate(0);
+
+		info.regs = regs;
+		math_emulate(&info);
 	} else {
 		math_state_restore(); /* interrupts still off */
 		conditional_sti(regs);
@@ -931,7 +896,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code = ILL_BADSTK;
-	info.si_addr = 0;
+	info.si_addr = NULL;
 	if (notify_die(DIE_TRAP, "iret exception",
 			regs, error_code, 32, SIGILL) == NOTIFY_STOP)
 		return;
@@ -1015,6 +980,6 @@ void __init trap_init(void)
 	cpu_init();
 
 #ifdef CONFIG_X86_32
-	trap_init_hook();
+	x86_quirk_trap_init();
 #endif
 }

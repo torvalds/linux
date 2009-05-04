@@ -239,12 +239,12 @@ static void __iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 		if (printk_ratelimit()) {
 			printk(KERN_INFO "iommu_free: invalid entry\n");
 			printk(KERN_INFO "\tentry     = 0x%lx\n", entry); 
-			printk(KERN_INFO "\tdma_addr  = 0x%lx\n", (u64)dma_addr);
-			printk(KERN_INFO "\tTable     = 0x%lx\n", (u64)tbl);
-			printk(KERN_INFO "\tbus#      = 0x%lx\n", (u64)tbl->it_busno);
-			printk(KERN_INFO "\tsize      = 0x%lx\n", (u64)tbl->it_size);
-			printk(KERN_INFO "\tstartOff  = 0x%lx\n", (u64)tbl->it_offset);
-			printk(KERN_INFO "\tindex     = 0x%lx\n", (u64)tbl->it_index);
+			printk(KERN_INFO "\tdma_addr  = 0x%llx\n", (u64)dma_addr);
+			printk(KERN_INFO "\tTable     = 0x%llx\n", (u64)tbl);
+			printk(KERN_INFO "\tbus#      = 0x%llx\n", (u64)tbl->it_busno);
+			printk(KERN_INFO "\tsize      = 0x%llx\n", (u64)tbl->it_size);
+			printk(KERN_INFO "\tstartOff  = 0x%llx\n", (u64)tbl->it_offset);
+			printk(KERN_INFO "\tindex     = 0x%llx\n", (u64)tbl->it_index);
 			WARN_ON(1);
 		}
 		return;

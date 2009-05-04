@@ -65,12 +65,12 @@ static struct platform_device *m5307_devices[] __initdata = {
 static void __init m5307_uart_init_line(int line, int irq)
 {
 	if (line == 0) {
-		writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
-		writeb(irq, MCFUART_BASE1 + MCFUART_UIVR);
+		writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
+		writeb(irq, MCF_MBAR + MCFUART_BASE1 + MCFUART_UIVR);
 		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART1);
 	} else if (line == 1) {
-		writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
-		writeb(irq, MCFUART_BASE2 + MCFUART_UIVR);
+		writeb(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
+		writeb(irq, MCF_MBAR + MCFUART_BASE2 + MCFUART_UIVR);
 		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART2);
 	}
 }
@@ -123,7 +123,7 @@ void __init config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
 
-#if defined(CONFIG_NETtel) || defined(CONFIG_eLIA) || \
+#if defined(CONFIG_NETtel) || \
     defined(CONFIG_SECUREEDGEMP3) || defined(CONFIG_CLEOPATRA)
 	/* Copy command line from FLASH to local buffer... */
 	memcpy(commandp, (char *) 0xf0004000, size);

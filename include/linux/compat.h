@@ -125,6 +125,13 @@ struct compat_dirent {
 	char		d_name[256];
 };
 
+struct compat_ustat {
+	compat_daddr_t		f_tfree;
+	compat_ino_t		f_tinode;
+	char			f_fname[6];
+	char			f_fpack[6];
+};
+
 typedef union compat_sigval {
 	compat_int_t	sival_int;
 	compat_uptr_t	sival_ptr;
@@ -178,11 +185,18 @@ long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
 		unsigned nsems, const struct compat_timespec __user *timeout);
 asmlinkage long compat_sys_keyctl(u32 option,
 			      u32 arg2, u32 arg3, u32 arg4, u32 arg5);
+asmlinkage long compat_sys_ustat(unsigned dev, struct compat_ustat __user *u32);
 
 asmlinkage ssize_t compat_sys_readv(unsigned long fd,
 		const struct compat_iovec __user *vec, unsigned long vlen);
 asmlinkage ssize_t compat_sys_writev(unsigned long fd,
 		const struct compat_iovec __user *vec, unsigned long vlen);
+asmlinkage ssize_t compat_sys_preadv(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, u32 pos_low, u32 pos_high);
+asmlinkage ssize_t compat_sys_pwritev(unsigned long fd,
+		const struct compat_iovec __user *vec,
+		unsigned long vlen, u32 pos_low, u32 pos_high);
 
 int compat_do_execve(char * filename, compat_uptr_t __user *argv,
 	        compat_uptr_t __user *envp, struct pt_regs * regs);
@@ -279,6 +293,19 @@ asmlinkage long compat_sys_timerfd_settime(int ufd, int flags,
 				   struct compat_itimerspec __user *otmr);
 asmlinkage long compat_sys_timerfd_gettime(int ufd,
 				   struct compat_itimerspec __user *otmr);
+
+asmlinkage long compat_sys_move_pages(pid_t pid, unsigned long nr_page,
+				      __u32 __user *pages,
+				      const int __user *nodes,
+				      int __user *status,
+				      int flags);
+asmlinkage long compat_sys_futimesat(unsigned int dfd, char __user *filename,
+				     struct compat_timeval __user *t);
+asmlinkage long compat_sys_newfstatat(unsigned int dfd, char __user * filename,
+				      struct compat_stat __user *statbuf,
+				      int flag);
+asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
+				  int flags, int mode);
 
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

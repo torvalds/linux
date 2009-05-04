@@ -18,7 +18,6 @@
  */
 
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/i2c.h>
@@ -54,14 +53,15 @@ static inline int cs5345_read(struct v4l2_subdev *sd, u8 reg)
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int cs5345_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int cs5345_s_routing(struct v4l2_subdev *sd,
+			    u32 input, u32 output, u32 config)
 {
-	if ((route->input & 0xf) > 6) {
-		v4l2_err(sd, "Invalid input %d.\n", route->input);
+	if ((input & 0xf) > 6) {
+		v4l2_err(sd, "Invalid input %d.\n", input);
 		return -EINVAL;
 	}
-	cs5345_write(sd, 0x09, route->input & 0xf);
-	cs5345_write(sd, 0x05, route->input & 0xf0);
+	cs5345_write(sd, 0x09, input & 0xf);
+	cs5345_write(sd, 0x05, input & 0xf0);
 	return 0;
 }
 
@@ -142,11 +142,6 @@ static int cs5345_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int cs5345_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops cs5345_core_ops = {
@@ -215,8 +210,6 @@ MODULE_DEVICE_TABLE(i2c, cs5345_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cs5345",
-	.driverid = I2C_DRIVERID_CS5345,
-	.command = cs5345_command,
 	.probe = cs5345_probe,
 	.remove = cs5345_remove,
 	.id_table = cs5345_id,

@@ -16,48 +16,42 @@
 #include "smack.h"
 
 struct smack_known smack_known_huh = {
-	.smk_next	= NULL,
 	.smk_known	= "?",
 	.smk_secid	= 2,
 	.smk_cipso	= NULL,
 };
 
 struct smack_known smack_known_hat = {
-	.smk_next	= &smack_known_huh,
 	.smk_known	= "^",
 	.smk_secid	= 3,
 	.smk_cipso	= NULL,
 };
 
 struct smack_known smack_known_star = {
-	.smk_next	= &smack_known_hat,
 	.smk_known	= "*",
 	.smk_secid	= 4,
 	.smk_cipso	= NULL,
 };
 
 struct smack_known smack_known_floor = {
-	.smk_next	= &smack_known_star,
 	.smk_known	= "_",
 	.smk_secid	= 5,
 	.smk_cipso	= NULL,
 };
 
 struct smack_known smack_known_invalid = {
-	.smk_next	= &smack_known_floor,
 	.smk_known	= "",
 	.smk_secid	= 6,
 	.smk_cipso	= NULL,
 };
 
 struct smack_known smack_known_web = {
-	.smk_next	= &smack_known_invalid,
 	.smk_known	= "@",
 	.smk_secid	= 7,
 	.smk_cipso	= NULL,
 };
 
-struct smack_known *smack_known = &smack_known_web;
+LIST_HEAD(smack_known_list);
 
 /*
  * The initial value needs to be bigger than any of the
@@ -87,7 +81,6 @@ static u32 smack_next_secid = 10;
 int smk_access(char *subject_label, char *object_label, int request)
 {
 	u32 may = MAY_NOT;
-	struct smk_list_entry *sp;
 	struct smack_rule *srp;
 
 	/*
@@ -139,9 +132,8 @@ int smk_access(char *subject_label, char *object_label, int request)
 	 * access (e.g. read is included in readwrite) it's
 	 * good.
 	 */
-	for (sp = smack_list; sp != NULL; sp = sp->smk_next) {
-		srp = &sp->smk_rule;
-
+	rcu_read_lock();
+	list_for_each_entry_rcu(srp, &smack_rule_list, list) {
 		if (srp->smk_subject == subject_label ||
 		    strcmp(srp->smk_subject, subject_label) == 0) {
 			if (srp->smk_object == object_label ||
@@ -151,6 +143,7 @@ int smk_access(char *subject_label, char *object_label, int request)
 			}
 		}
 	}
+	rcu_read_unlock();
 	/*
 	 * This is a bit map operation.
 	 */
@@ -162,8 +155,8 @@ int smk_access(char *subject_label, char *object_label, int request)
 
 /**
  * smk_curacc - determine if current has a specific access to an object
- * @object_label: a pointer to the object's Smack label
- * @request: the access requested, in "MAY" format
+ * @obj_label: a pointer to the object's Smack label
+ * @mode: the access requested, in "MAY" format
  *
  * This function checks the current subject label/object label pair
  * in the access rule list and returns 0 if the access is permitted,
@@ -228,14 +221,17 @@ struct smack_known *smk_import_entry(const char *string, int len)
 
 	mutex_lock(&smack_known_lock);
 
-	for (skp = smack_known; skp != NULL; skp = skp->smk_next)
-		if (strncmp(skp->smk_known, smack, SMK_MAXLEN) == 0)
+	found = 0;
+	list_for_each_entry_rcu(skp, &smack_known_list, list) {
+		if (strncmp(skp->smk_known, smack, SMK_MAXLEN) == 0) {
+			found = 1;
 			break;
+		}
+	}
 
-	if (skp == NULL) {
+	if (found == 0) {
 		skp = kzalloc(sizeof(struct smack_known), GFP_KERNEL);
 		if (skp != NULL) {
-			skp->smk_next = smack_known;
 			strncpy(skp->smk_known, smack, SMK_MAXLEN);
 			skp->smk_secid = smack_next_secid++;
 			skp->smk_cipso = NULL;
@@ -244,8 +240,7 @@ struct smack_known *smk_import_entry(const char *string, int len)
 			 * Make sure that the entry is actually
 			 * filled before putting it on the list.
 			 */
-			smp_mb();
-			smack_known = skp;
+			list_add_rcu(&skp->list, &smack_known_list);
 		}
 	}
 
@@ -266,6 +261,9 @@ char *smk_import(const char *string, int len)
 {
 	struct smack_known *skp;
 
+	/* labels cannot begin with a '-' */
+	if (string[0] == '-')
+		return NULL;
 	skp = smk_import_entry(string, len);
 	if (skp == NULL)
 		return NULL;
@@ -283,14 +281,19 @@ char *smack_from_secid(const u32 secid)
 {
 	struct smack_known *skp;
 
-	for (skp = smack_known; skp != NULL; skp = skp->smk_next)
-		if (skp->smk_secid == secid)
+	rcu_read_lock();
+	list_for_each_entry_rcu(skp, &smack_known_list, list) {
+		if (skp->smk_secid == secid) {
+			rcu_read_unlock();
 			return skp->smk_known;
+		}
+	}
 
 	/*
 	 * If we got this far someone asked for the translation
 	 * of a secid that is not on the list.
 	 */
+	rcu_read_unlock();
 	return smack_known_invalid.smk_known;
 }
 
@@ -305,9 +308,14 @@ u32 smack_to_secid(const char *smack)
 {
 	struct smack_known *skp;
 
-	for (skp = smack_known; skp != NULL; skp = skp->smk_next)
-		if (strncmp(skp->smk_known, smack, SMK_MAXLEN) == 0)
+	rcu_read_lock();
+	list_for_each_entry_rcu(skp, &smack_known_list, list) {
+		if (strncmp(skp->smk_known, smack, SMK_MAXLEN) == 0) {
+			rcu_read_unlock();
 			return skp->smk_secid;
+		}
+	}
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -332,7 +340,8 @@ void smack_from_cipso(u32 level, char *cp, char *result)
 	struct smack_known *kp;
 	char *final = NULL;
 
-	for (kp = smack_known; final == NULL && kp != NULL; kp = kp->smk_next) {
+	rcu_read_lock();
+	list_for_each_entry(kp, &smack_known_list, list) {
 		if (kp->smk_cipso == NULL)
 			continue;
 
@@ -344,6 +353,7 @@ void smack_from_cipso(u32 level, char *cp, char *result)
 
 		spin_unlock_bh(&kp->smk_cipsolock);
 	}
+	rcu_read_unlock();
 	if (final == NULL)
 		final = smack_known_huh.smk_known;
 	strncpy(result, final, SMK_MAXLEN);
@@ -360,13 +370,19 @@ void smack_from_cipso(u32 level, char *cp, char *result)
 int smack_to_cipso(const char *smack, struct smack_cipso *cp)
 {
 	struct smack_known *kp;
+	int found = 0;
 
-	for (kp = smack_known; kp != NULL; kp = kp->smk_next)
+	rcu_read_lock();
+	list_for_each_entry_rcu(kp, &smack_known_list, list) {
 		if (kp->smk_known == smack ||
-		    strcmp(kp->smk_known, smack) == 0)
+		    strcmp(kp->smk_known, smack) == 0) {
+			found = 1;
 			break;
+		}
+	}
+	rcu_read_unlock();
 
-	if (kp == NULL || kp->smk_cipso == NULL)
+	if (found == 0 || kp->smk_cipso == NULL)
 		return -ENOENT;
 
 	memcpy(cp, kp->smk_cipso, sizeof(struct smack_cipso));

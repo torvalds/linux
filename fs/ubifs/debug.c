@@ -479,9 +479,9 @@ void dbg_dump_node(const struct ubifs_info *c, const void *node)
 					  "bad or corrupted node)");
 		else {
 			for (i = 0; i < nlen && dent->name[i]; i++)
-				printk("%c", dent->name[i]);
+				printk(KERN_CONT "%c", dent->name[i]);
 		}
-		printk("\n");
+		printk(KERN_CONT "\n");
 
 		break;
 	}
@@ -620,9 +620,11 @@ void dbg_dump_budg(struct ubifs_info *c)
 	       c->dark_wm, c->dead_wm, c->max_idx_node_sz);
 	printk(KERN_DEBUG "\tgc_lnum %d, ihead_lnum %d\n",
 	       c->gc_lnum, c->ihead_lnum);
-	for (i = 0; i < c->jhead_cnt; i++)
-		printk(KERN_DEBUG "\tjhead %d\t LEB %d\n",
-		       c->jheads[i].wbuf.jhead, c->jheads[i].wbuf.lnum);
+	/* If we are in R/O mode, journal heads do not exist */
+	if (c->jheads)
+		for (i = 0; i < c->jhead_cnt; i++)
+			printk(KERN_DEBUG "\tjhead %d\t LEB %d\n",
+			       c->jheads[i].wbuf.jhead, c->jheads[i].wbuf.lnum);
 	for (rb = rb_first(&c->buds); rb; rb = rb_next(rb)) {
 		bud = rb_entry(rb, struct ubifs_bud, rb);
 		printk(KERN_DEBUG "\tbud LEB %d\n", bud->lnum);
@@ -637,10 +639,7 @@ void dbg_dump_budg(struct ubifs_info *c)
 	/* Print budgeting predictions */
 	available = ubifs_calc_available(c, c->min_idx_lebs);
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
-	if (available > outstanding)
-		free = ubifs_reported_space(c, available - outstanding);
-	else
-		free = 0;
+	free = ubifs_get_free_space_nolock(c);
 	printk(KERN_DEBUG "Budgeting predictions:\n");
 	printk(KERN_DEBUG "\tavailable: %lld, outstanding %lld, free %lld\n",
 	       available, outstanding, free);
@@ -858,6 +857,65 @@ static int dump_znode(struct ubifs_info *c, struct ubifs_znode *znode,
 void dbg_dump_index(struct ubifs_info *c)
 {
 	dbg_walk_index(c, NULL, dump_znode, NULL);
+}
+
+/**
+ * dbg_save_space_info - save information about flash space.
+ * @c: UBIFS file-system description object
+ *
+ * This function saves information about UBIFS free space, dirty space, etc, in
+ * order to check it later.
+ */
+void dbg_save_space_info(struct ubifs_info *c)
+{
+	struct ubifs_debug_info *d = c->dbg;
+
+	ubifs_get_lp_stats(c, &d->saved_lst);
+
+	spin_lock(&c->space_lock);
+	d->saved_free = ubifs_get_free_space_nolock(c);
+	spin_unlock(&c->space_lock);
+}
+
+/**
+ * dbg_check_space_info - check flash space information.
+ * @c: UBIFS file-system description object
+ *
+ * This function compares current flash space information with the information
+ * which was saved when the 'dbg_save_space_info()' function was called.
+ * Returns zero if the information has not changed, and %-EINVAL it it has
+ * changed.
+ */
+int dbg_check_space_info(struct ubifs_info *c)
+{
+	struct ubifs_debug_info *d = c->dbg;
+	struct ubifs_lp_stats lst;
+	long long avail, free;
+
+	spin_lock(&c->space_lock);
+	avail = ubifs_calc_available(c, c->min_idx_lebs);
+	spin_unlock(&c->space_lock);
+	free = ubifs_get_free_space(c);
+
+	if (free != d->saved_free) {
+		ubifs_err("free space changed from %lld to %lld",
+			  d->saved_free, free);
+		goto out;
+	}
+
+	return 0;
+
+out:
+	ubifs_msg("saved lprops statistics dump");
+	dbg_dump_lstats(&d->saved_lst);
+	ubifs_get_lp_stats(c, &lst);
+	ubifs_msg("current lprops statistics dump");
+	dbg_dump_lstats(&d->saved_lst);
+	spin_lock(&c->space_lock);
+	dbg_dump_budg(c);
+	spin_unlock(&c->space_lock);
+	dump_stack();
+	return -EINVAL;
 }
 
 /**
@@ -1156,7 +1214,7 @@ static int dbg_check_znode(struct ubifs_info *c, struct ubifs_zbranch *zbr)
 
 			/*
 			 * Make sure the last key in our znode is less or
-			 * equivalent than the the key in zbranch which goes
+			 * equivalent than the key in the zbranch which goes
 			 * after our pointing zbranch.
 			 */
 			cmp = keys_cmp(c, max,
@@ -1349,7 +1407,7 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
  * @c: UBIFS file-system description object
  * @leaf_cb: called for each leaf node
  * @znode_cb: called for each indexing node
- * @priv: private date which is passed to callbacks
+ * @priv: private data which is passed to callbacks
  *
  * This function walks the UBIFS index and calls the @leaf_cb for each leaf
  * node and @znode_cb for each indexing node. Returns zero in case of success
@@ -2409,7 +2467,7 @@ void ubifs_debugging_exit(struct ubifs_info *c)
  * Root directory for UBIFS stuff in debugfs. Contains sub-directories which
  * contain the stuff specific to particular file-system mounts.
  */
-static struct dentry *debugfs_rootdir;
+static struct dentry *dfs_rootdir;
 
 /**
  * dbg_debugfs_init - initialize debugfs file-system.
@@ -2421,9 +2479,9 @@ static struct dentry *debugfs_rootdir;
  */
 int dbg_debugfs_init(void)
 {
-	debugfs_rootdir = debugfs_create_dir("ubifs", NULL);
-	if (IS_ERR(debugfs_rootdir)) {
-		int err = PTR_ERR(debugfs_rootdir);
+	dfs_rootdir = debugfs_create_dir("ubifs", NULL);
+	if (IS_ERR(dfs_rootdir)) {
+		int err = PTR_ERR(dfs_rootdir);
 		ubifs_err("cannot create \"ubifs\" debugfs directory, "
 			  "error %d\n", err);
 		return err;
@@ -2437,7 +2495,7 @@ int dbg_debugfs_init(void)
  */
 void dbg_debugfs_exit(void)
 {
-	debugfs_remove(debugfs_rootdir);
+	debugfs_remove(dfs_rootdir);
 }
 
 static int open_debugfs_file(struct inode *inode, struct file *file)
@@ -2452,13 +2510,13 @@ static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
 	struct ubifs_info *c = file->private_data;
 	struct ubifs_debug_info *d = c->dbg;
 
-	if (file->f_path.dentry == d->dump_lprops)
+	if (file->f_path.dentry == d->dfs_dump_lprops)
 		dbg_dump_lprops(c);
-	else if (file->f_path.dentry == d->dump_budg) {
+	else if (file->f_path.dentry == d->dfs_dump_budg) {
 		spin_lock(&c->space_lock);
 		dbg_dump_budg(c);
 		spin_unlock(&c->space_lock);
-	} else if (file->f_path.dentry == d->dump_tnc) {
+	} else if (file->f_path.dentry == d->dfs_dump_tnc) {
 		mutex_lock(&c->tnc_mutex);
 		dbg_dump_tnc(c);
 		mutex_unlock(&c->tnc_mutex);
@@ -2469,7 +2527,7 @@ static ssize_t write_debugfs_file(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations debugfs_fops = {
+static const struct file_operations dfs_fops = {
 	.open = open_debugfs_file,
 	.write = write_debugfs_file,
 	.owner = THIS_MODULE,
@@ -2494,36 +2552,32 @@ int dbg_debugfs_init_fs(struct ubifs_info *c)
 	struct dentry *dent;
 	struct ubifs_debug_info *d = c->dbg;
 
-	sprintf(d->debugfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
-	d->debugfs_dir = debugfs_create_dir(d->debugfs_dir_name,
-					      debugfs_rootdir);
-	if (IS_ERR(d->debugfs_dir)) {
-		err = PTR_ERR(d->debugfs_dir);
+	sprintf(d->dfs_dir_name, "ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
+	d->dfs_dir = debugfs_create_dir(d->dfs_dir_name, dfs_rootdir);
+	if (IS_ERR(d->dfs_dir)) {
+		err = PTR_ERR(d->dfs_dir);
 		ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
-			  d->debugfs_dir_name, err);
+			  d->dfs_dir_name, err);
 		goto out;
 	}
 
 	fname = "dump_lprops";
-	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
-				   &debugfs_fops);
+	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR(dent))
 		goto out_remove;
-	d->dump_lprops = dent;
+	d->dfs_dump_lprops = dent;
 
 	fname = "dump_budg";
-	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
-				   &debugfs_fops);
+	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR(dent))
 		goto out_remove;
-	d->dump_budg = dent;
+	d->dfs_dump_budg = dent;
 
 	fname = "dump_tnc";
-	dent = debugfs_create_file(fname, S_IWUGO, d->debugfs_dir, c,
-				   &debugfs_fops);
+	dent = debugfs_create_file(fname, S_IWUGO, d->dfs_dir, c, &dfs_fops);
 	if (IS_ERR(dent))
 		goto out_remove;
-	d->dump_tnc = dent;
+	d->dfs_dump_tnc = dent;
 
 	return 0;
 
@@ -2531,7 +2585,7 @@ out_remove:
 	err = PTR_ERR(dent);
 	ubifs_err("cannot create \"%s\" debugfs directory, error %d\n",
 		  fname, err);
-	debugfs_remove_recursive(d->debugfs_dir);
+	debugfs_remove_recursive(d->dfs_dir);
 out:
 	return err;
 }
@@ -2542,7 +2596,7 @@ out:
  */
 void dbg_debugfs_exit_fs(struct ubifs_info *c)
 {
-	debugfs_remove_recursive(c->dbg->debugfs_dir);
+	debugfs_remove_recursive(c->dbg->dfs_dir);
 }
 
 #endif /* CONFIG_UBIFS_FS_DEBUG */

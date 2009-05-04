@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2004 LSI Corporation.
+ *  Copyright (c) 2000-2008 LSI Corporation.
  *
  *
  *           Name:  mpi_type.h
  *          Title:  MPI Basic type definitions
  *  Creation Date:  June 6, 2000
  *
- *    mpi_type.h Version:  01.05.01
+ *    mpi_type.h Version:  01.05.02
  *
  *  Version History
  *  ---------------

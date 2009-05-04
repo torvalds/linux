@@ -855,10 +855,14 @@ fdd_out:
 static ssize_t show_docked(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
+	struct acpi_device *tmp;
+
 	struct dock_station *dock_station = *((struct dock_station **)
 		dev->platform_data);
-	return snprintf(buf, PAGE_SIZE, "%d\n", dock_present(dock_station));
 
+	if (ACPI_SUCCESS(acpi_bus_get_device(dock_station->handle, &tmp)))
+		return snprintf(buf, PAGE_SIZE, "1\n");
+	return snprintf(buf, PAGE_SIZE, "0\n");
 }
 static DEVICE_ATTR(docked, S_IRUGO, show_docked, NULL);
 
@@ -973,7 +977,7 @@ static int dock_add(acpi_handle handle)
 		sizeof(struct dock_station *));
 
 	/* we want the dock device to send uevents */
-	dock_device->dev.uevent_suppress = 0;
+	dev_set_uevent_suppress(&dock_device->dev, 0);
 
 	if (is_dock(handle))
 		dock_station->flags |= DOCK_IS_DOCK;
@@ -984,7 +988,7 @@ static int dock_add(acpi_handle handle)
 
 	ret = device_create_file(&dock_device->dev, &dev_attr_docked);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		platform_device_unregister(dock_device);
 		kfree(dock_station);
 		dock_station = NULL;
@@ -992,7 +996,7 @@ static int dock_add(acpi_handle handle)
 	}
 	ret = device_create_file(&dock_device->dev, &dev_attr_undock);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device->dev, &dev_attr_docked);
 		platform_device_unregister(dock_device);
 		kfree(dock_station);
@@ -1001,7 +1005,7 @@ static int dock_add(acpi_handle handle)
 	}
 	ret = device_create_file(&dock_device->dev, &dev_attr_uid);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device->dev, &dev_attr_docked);
 		device_remove_file(&dock_device->dev, &dev_attr_undock);
 		platform_device_unregister(dock_device);
@@ -1011,7 +1015,7 @@ static int dock_add(acpi_handle handle)
 	}
 	ret = device_create_file(&dock_device->dev, &dev_attr_flags);
 	if (ret) {
-		printk("Error %d adding sysfs file\n", ret);
+		printk(KERN_ERR "Error %d adding sysfs file\n", ret);
 		device_remove_file(&dock_device->dev, &dev_attr_docked);
 		device_remove_file(&dock_device->dev, &dev_attr_undock);
 		device_remove_file(&dock_device->dev, &dev_attr_uid);
@@ -1142,9 +1146,10 @@ static int __init dock_init(void)
 static void __exit dock_exit(void)
 {
 	struct dock_station *dock_station;
+	struct dock_station *tmp;
 
 	unregister_acpi_bus_notifier(&dock_acpi_notifier);
-	list_for_each_entry(dock_station, &dock_stations, sibiling)
+	list_for_each_entry_safe(dock_station, tmp, &dock_stations, sibiling)
 		dock_remove(dock_station);
 }
 

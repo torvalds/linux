@@ -26,7 +26,6 @@
 #include <linux/etherdevice.h>
 #include <net/net_namespace.h>
 #include <net/iw_handler.h>
-#include <net/ieee80211.h>
 #include <net/lib80211.h>
 #include <asm/uaccess.h>
 
@@ -543,7 +542,8 @@ void hostap_dump_rx_header(const char *name, const struct hfa384x_rx_frame *rx)
 	fc = __le16_to_cpu(rx->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d) dur=0x%04x seq=0x%04x "
 	       "data_len=%d%s%s\n",
-	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
+	       fc, (fc & IEEE80211_FCTL_FTYPE) >> 2,
+	       (fc & IEEE80211_FCTL_STYPE) >> 4,
 	       __le16_to_cpu(rx->duration_id), __le16_to_cpu(rx->seq_ctrl),
 	       __le16_to_cpu(rx->data_len),
 	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
@@ -570,7 +570,8 @@ void hostap_dump_tx_header(const char *name, const struct hfa384x_tx_frame *tx)
 	fc = __le16_to_cpu(tx->frame_control);
 	printk(KERN_DEBUG "   FC=0x%04x (type=%d:%d) dur=0x%04x seq=0x%04x "
 	       "data_len=%d%s%s\n",
-	       fc, WLAN_FC_GET_TYPE(fc) >> 2, WLAN_FC_GET_STYPE(fc) >> 4,
+	       fc, (fc & IEEE80211_FCTL_FTYPE) >> 2,
+	       (fc & IEEE80211_FCTL_STYPE) >> 4,
 	       __le16_to_cpu(tx->duration_id), __le16_to_cpu(tx->seq_ctrl),
 	       __le16_to_cpu(tx->data_len),
 	       fc & IEEE80211_FCTL_TODS ? " [ToDS]" : "",
@@ -593,37 +594,16 @@ static int hostap_80211_header_parse(const struct sk_buff *skb,
 }
 
 
-int hostap_80211_get_hdrlen(u16 fc)
+int hostap_80211_get_hdrlen(__le16 fc)
 {
-	int hdrlen = 24;
+	if (ieee80211_is_data(fc) && ieee80211_has_a4 (fc))
+		return 30; /* Addr4 */
+	else if (ieee80211_is_cts(fc) || ieee80211_is_ack(fc))
+		return 10;
+	else if (ieee80211_is_ctl(fc))
+		return 16;
 
-	switch (WLAN_FC_GET_TYPE(fc)) {
-	case IEEE80211_FTYPE_DATA:
-		if ((fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS))
-			hdrlen = 30; /* Addr4 */
-		break;
-	case IEEE80211_FTYPE_CTL:
-		switch (WLAN_FC_GET_STYPE(fc)) {
-		case IEEE80211_STYPE_CTS:
-		case IEEE80211_STYPE_ACK:
-			hdrlen = 10;
-			break;
-		default:
-			hdrlen = 16;
-			break;
-		}
-		break;
-	}
-
-	return hdrlen;
-}
-
-
-struct net_device_stats *hostap_get_stats(struct net_device *dev)
-{
-	struct hostap_interface *iface;
-	iface = netdev_priv(dev);
-	return &iface->stats;
+	return 24;
 }
 
 
@@ -835,6 +815,46 @@ const struct header_ops hostap_80211_ops = {
 };
 EXPORT_SYMBOL(hostap_80211_ops);
 
+
+static const struct net_device_ops hostap_netdev_ops = {
+	.ndo_start_xmit		= hostap_data_start_xmit,
+
+	.ndo_open		= prism2_open,
+	.ndo_stop		= prism2_close,
+	.ndo_do_ioctl		= hostap_ioctl,
+	.ndo_set_mac_address	= prism2_set_mac_address,
+	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_change_mtu 	= prism2_change_mtu,
+	.ndo_tx_timeout 	= prism2_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
+static const struct net_device_ops hostap_mgmt_netdev_ops = {
+	.ndo_start_xmit		= hostap_mgmt_start_xmit,
+
+	.ndo_open		= prism2_open,
+	.ndo_stop		= prism2_close,
+	.ndo_do_ioctl		= hostap_ioctl,
+	.ndo_set_mac_address	= prism2_set_mac_address,
+	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_change_mtu 	= prism2_change_mtu,
+	.ndo_tx_timeout 	= prism2_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
+static const struct net_device_ops hostap_master_ops = {
+	.ndo_start_xmit 	= hostap_master_start_xmit,
+
+	.ndo_open		= prism2_open,
+	.ndo_stop		= prism2_close,
+	.ndo_do_ioctl		= hostap_ioctl,
+	.ndo_set_mac_address	= prism2_set_mac_address,
+	.ndo_set_multicast_list = hostap_set_multicast_list,
+	.ndo_change_mtu 	= prism2_change_mtu,
+	.ndo_tx_timeout 	= prism2_tx_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 		      int type)
 {
@@ -844,37 +864,31 @@ void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 	ether_setup(dev);
 
 	/* kernel callbacks */
-	dev->get_stats = hostap_get_stats;
 	if (iface) {
 		/* Currently, we point to the proper spy_data only on
 		 * the main_dev. This could be fixed. Jean II */
 		iface->wireless_data.spy_data = &iface->spy_data;
 		dev->wireless_data = &iface->wireless_data;
 	}
-	dev->wireless_handlers =
-		(struct iw_handler_def *) &hostap_iw_handler_def;
-	dev->do_ioctl = hostap_ioctl;
-	dev->open = prism2_open;
-	dev->stop = prism2_close;
-	dev->set_mac_address = prism2_set_mac_address;
-	dev->set_multicast_list = hostap_set_multicast_list;
-	dev->change_mtu = prism2_change_mtu;
-	dev->tx_timeout = prism2_tx_timeout;
+	dev->wireless_handlers = &hostap_iw_handler_def;
 	dev->watchdog_timeo = TX_TIMEOUT;
 
-	if (type == HOSTAP_INTERFACE_AP) {
-		dev->hard_start_xmit = hostap_mgmt_start_xmit;
+	switch(type) {
+	case HOSTAP_INTERFACE_AP:
+		dev->netdev_ops = &hostap_mgmt_netdev_ops;
 		dev->type = ARPHRD_IEEE80211;
 		dev->header_ops = &hostap_80211_ops;
-	} else {
-		dev->hard_start_xmit = hostap_data_start_xmit;
+		break;
+	case HOSTAP_INTERFACE_MASTER:
+		dev->tx_queue_len = 0;	/* use main radio device queue */
+		dev->netdev_ops = &hostap_master_ops;
+		break;
+	default:
+		dev->netdev_ops = &hostap_netdev_ops;
 	}
 
 	dev->mtu = local->mtu;
-	if (type != HOSTAP_INTERFACE_MASTER) {
-		/* use main radio device queue */
-		dev->tx_queue_len = 0;
-	}
+
 
 	SET_ETHTOOL_OPS(dev, &prism2_ethtool_ops);
 
@@ -1124,7 +1138,6 @@ EXPORT_SYMBOL(hostap_set_auth_algs);
 EXPORT_SYMBOL(hostap_dump_rx_header);
 EXPORT_SYMBOL(hostap_dump_tx_header);
 EXPORT_SYMBOL(hostap_80211_get_hdrlen);
-EXPORT_SYMBOL(hostap_get_stats);
 EXPORT_SYMBOL(hostap_setup_dev);
 EXPORT_SYMBOL(hostap_set_multicast_list_queue);
 EXPORT_SYMBOL(hostap_set_hostapd);

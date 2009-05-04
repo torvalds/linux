@@ -44,8 +44,9 @@
  *	the value desired).
  */
 
+#ifndef MAX_DMA_ADDRESS
 #define MAX_DMA_ADDRESS		(PAGE_OFFSET + XCHAL_KIO_SIZE - 1)
-
+#endif
 
 /* Reserve and release a DMA channel */
 extern int request_dma(unsigned int dmanr, const char * device_id);

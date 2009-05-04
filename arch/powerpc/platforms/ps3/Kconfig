@@ -1,6 +1,6 @@
 config PPC_PS3
 	bool "Sony PS3"
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC64 && PPC_BOOK3S
 	select PPC_CELL
 	select USB_ARCH_HAS_OHCI
 	select USB_OHCI_LITTLE_ENDIAN
@@ -127,6 +127,13 @@ config PS3_FLASH
 	  As this driver needs a fixed buffer of 256 KiB of memory, it can
 	  be disabled on the kernel command line using "ps3flash=off", to
 	  not allocate this fixed buffer.
+
+config PS3_VRAM
+	tristate "PS3 Video RAM Storage Driver"
+	depends on FB_PS3=y && BLOCK && m
+	help
+	  This driver allows you to use excess PS3 video RAM as volatile
+	  storage or system swap.
 
 config PS3_LPM
 	tristate "PS3 Logical Performance Monitor support"

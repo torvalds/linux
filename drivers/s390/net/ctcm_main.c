@@ -105,7 +105,8 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 			return;
 		}
 		pskb->protocol = ntohs(header->type);
-		if (header->length <= LL_HEADER_LENGTH) {
+		if ((header->length <= LL_HEADER_LENGTH) ||
+		    (len <= LL_HEADER_LENGTH)) {
 			if (!(ch->logflags & LOG_FLAG_ILLEGALSIZE)) {
 				CTCM_DBF_TEXT_(ERROR, CTC_DBF_ERROR,
 					"%s(%s): Illegal packet size %d(%d,%d)"
@@ -167,11 +168,9 @@ void ctcm_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		if (len > 0) {
 			skb_pull(pskb, header->length);
 			if (skb_tailroom(pskb) < LL_HEADER_LENGTH) {
-				if (!(ch->logflags & LOG_FLAG_OVERRUN)) {
-					CTCM_DBF_DEV_NAME(TRACE, dev,
-						"Overrun in ctcm_unpack_skb");
-					ch->logflags |= LOG_FLAG_OVERRUN;
-				}
+				CTCM_DBF_DEV_NAME(TRACE, dev,
+					"Overrun in ctcm_unpack_skb");
+				ch->logflags |= LOG_FLAG_OVERRUN;
 				return;
 			}
 			skb_put(pskb, LL_HEADER_LENGTH);
@@ -906,11 +905,11 @@ static int ctcm_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (ctcm_test_and_set_busy(dev))
-		return -EBUSY;
+		return NETDEV_TX_BUSY;
 
 	dev->trans_start = jiffies;
 	if (ctcm_transmit_skb(priv->channel[WRITE], skb) != 0)
-		return 1;
+		return NETDEV_TX_BUSY;
 	return 0;
 }
 
@@ -1099,12 +1098,24 @@ static void ctcm_free_netdevice(struct net_device *dev)
 
 struct mpc_group *ctcmpc_init_mpc_group(struct ctcm_priv *priv);
 
+static const struct net_device_ops ctcm_netdev_ops = {
+	.ndo_open		= ctcm_open,
+	.ndo_stop		= ctcm_close,
+	.ndo_get_stats		= ctcm_stats,
+	.ndo_change_mtu	   	= ctcm_change_mtu,
+	.ndo_start_xmit		= ctcm_tx,
+};
+
+static const struct net_device_ops ctcm_mpc_netdev_ops = {
+	.ndo_open		= ctcm_open,
+	.ndo_stop		= ctcm_close,
+	.ndo_get_stats		= ctcm_stats,
+	.ndo_change_mtu	   	= ctcm_change_mtu,
+	.ndo_start_xmit		= ctcmpc_tx,
+};
+
 void static ctcm_dev_setup(struct net_device *dev)
 {
-	dev->open = ctcm_open;
-	dev->stop = ctcm_close;
-	dev->get_stats = ctcm_stats;
-	dev->change_mtu = ctcm_change_mtu;
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 100;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
@@ -1157,12 +1168,12 @@ static struct net_device *ctcm_init_netdevice(struct ctcm_priv *priv)
 		dev->mtu = MPC_BUFSIZE_DEFAULT -
 				TH_HEADER_LENGTH - PDU_HEADER_LENGTH;
 
-		dev->hard_start_xmit = ctcmpc_tx;
+		dev->netdev_ops = &ctcm_mpc_netdev_ops;
 		dev->hard_header_len = TH_HEADER_LENGTH + PDU_HEADER_LENGTH;
 		priv->buffer_size = MPC_BUFSIZE_DEFAULT;
 	} else {
 		dev->mtu = CTCM_BUFSIZE_DEFAULT - LL_HEADER_LENGTH - 2;
-		dev->hard_start_xmit = ctcm_tx;
+		dev->netdev_ops = &ctcm_netdev_ops;
 		dev->hard_header_len = LL_HEADER_LENGTH + 2;
 	}
 

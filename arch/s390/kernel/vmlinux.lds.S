@@ -29,8 +29,8 @@ SECTIONS
 	. = 0x00000000;
 	.text : {
 	_text = .;		/* Text and read-only data */
-		*(.text.head)
-	TEXT_TEXT
+		HEAD_TEXT
+		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
@@ -108,6 +108,8 @@ SECTIONS
 		EXIT_TEXT
 	}
 
+	/* early.c uses stsi, which requires page aligned data. */
+	. = ALIGN(PAGE_SIZE);
 	.init.data : {
 		INIT_DATA
 	}

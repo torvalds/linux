@@ -110,10 +110,18 @@ config B43_DEBUG
 	bool "Broadcom 43xx debugging"
 	depends on B43
 	---help---
-	  Broadcom 43xx debugging messages.
+	  Broadcom 43xx debugging.
 
-	  Say Y, if you want to find out why the driver does not
-	  work for you.
+	  This adds additional runtime sanity checks and statistics to the driver.
+	  These checks and statistics might me expensive and hurt runtime performance
+	  of your system.
+	  This also adds the b43 debugfs interface.
+
+	  Do not enable this, unless you are debugging the driver.
+
+	  Say N, if you are a distributor or user building a release kernel
+	  for production use.
+	  Only say Y, if you are debugging a problem in the b43 driver sourcecode.
 
 config B43_FORCE_PIO
 	bool "Force usage of PIO instead of DMA"

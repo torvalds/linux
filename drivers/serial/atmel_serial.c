@@ -579,7 +579,7 @@ static void atmel_tx_dma(struct uart_port *port)
 	/* disable PDC transmit */
 	UART_PUT_PTCR(port, ATMEL_PDC_TXTDIS);
 
-	if (!uart_circ_empty(xmit)) {
+	if (!uart_circ_empty(xmit) && !uart_tx_stopped(port)) {
 		dma_sync_single_for_device(port->dev,
 					   pdc->dma_addr,
 					   pdc->dma_size,
@@ -877,6 +877,10 @@ static int atmel_startup(struct uart_port *port)
 		}
 	}
 
+	/* Save current CSR for comparison in atmel_tasklet_func() */
+	atmel_port->irq_status_prev = UART_GET_CSR(port);
+	atmel_port->irq_status = atmel_port->irq_status_prev;
+
 	/*
 	 * Finally, enable the serial port
 	 */
@@ -1016,7 +1020,8 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	/* Get current mode register */
 	mode = UART_GET_MR(port) & ~(ATMEL_US_USCLKS | ATMEL_US_CHRL
-					| ATMEL_US_NBSTOP | ATMEL_US_PAR);
+					| ATMEL_US_NBSTOP | ATMEL_US_PAR
+					| ATMEL_US_USMODE);
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 	quot = uart_get_divisor(port, baud);
@@ -1060,6 +1065,12 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 			mode |= ATMEL_US_PAR_EVEN;
 	} else
 		mode |= ATMEL_US_PAR_NONE;
+
+	/* hardware handshake (RTS/CTS) */
+	if (termios->c_cflag & CRTSCTS)
+		mode |= ATMEL_US_USMODE_HWHS;
+	else
+		mode |= ATMEL_US_USMODE_NORMAL;
 
 	spin_lock_irqsave(&port->lock, flags);
 

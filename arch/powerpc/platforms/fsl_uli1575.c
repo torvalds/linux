@@ -249,6 +249,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5288, quirk_uli5288);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AL, 0x5229, quirk_uli5229);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x5249, quirk_final_uli5249);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AL, 0x1575, quirk_final_uli1575);
+DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_AL, 0x5229, quirk_uli5229);
 
 static void __devinit hpcd_quirk_uli1575(struct pci_dev *dev)
 {
@@ -273,11 +274,6 @@ static void __devinit hpcd_quirk_uli5288(struct pci_dev *dev)
 
 	if (!machine_is(mpc86xx_hpcd))
 		return;
-
-	/* Interrupt Disable, Needed when SATA disabled */
-	pci_read_config_word(dev, PCI_COMMAND, &temp);
-	temp |= 1<<10;
-	pci_write_config_word(dev, PCI_COMMAND, temp);
 
 	pci_read_config_byte(dev, 0x83, &c);
 	c |= 0x80;

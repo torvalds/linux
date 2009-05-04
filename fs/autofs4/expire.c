@@ -478,22 +478,16 @@ int autofs4_expire_run(struct super_block *sb,
 	return ret;
 }
 
-/* Call repeatedly until it returns -EAGAIN, meaning there's nothing
-   more to be done */
-int autofs4_expire_multi(struct super_block *sb, struct vfsmount *mnt,
-			struct autofs_sb_info *sbi, int __user *arg)
+int autofs4_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
+			    struct autofs_sb_info *sbi, int when)
 {
 	struct dentry *dentry;
 	int ret = -EAGAIN;
-	int do_now = 0;
-
-	if (arg && get_user(do_now, arg))
-		return -EFAULT;
 
 	if (autofs_type_trigger(sbi->type))
-		dentry = autofs4_expire_direct(sb, mnt, sbi, do_now);
+		dentry = autofs4_expire_direct(sb, mnt, sbi, when);
 	else
-		dentry = autofs4_expire_indirect(sb, mnt, sbi, do_now);
+		dentry = autofs4_expire_indirect(sb, mnt, sbi, when);
 
 	if (dentry) {
 		struct autofs_info *ino = autofs4_dentry_ino(dentry);
@@ -514,5 +508,18 @@ int autofs4_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 	}
 
 	return ret;
+}
+
+/* Call repeatedly until it returns -EAGAIN, meaning there's nothing
+   more to be done */
+int autofs4_expire_multi(struct super_block *sb, struct vfsmount *mnt,
+			struct autofs_sb_info *sbi, int __user *arg)
+{
+	int do_now = 0;
+
+	if (arg && get_user(do_now, arg))
+		return -EFAULT;
+
+	return autofs4_do_expire_multi(sb, mnt, sbi, do_now);
 }
 

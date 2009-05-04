@@ -218,7 +218,6 @@ srm_env_init(void)
 				BASE_DIR);
 		goto cleanup;
 	}
-	base_dir->owner = THIS_MODULE;
 
 	/*
 	 * Create per-name subdirectory
@@ -229,7 +228,6 @@ srm_env_init(void)
 				BASE_DIR, NAMED_DIR);
 		goto cleanup;
 	}
-	named_dir->owner = THIS_MODULE;
 
 	/*
 	 * Create per-number subdirectory
@@ -241,7 +239,6 @@ srm_env_init(void)
 		goto cleanup;
 
 	}
-	numbered_dir->owner = THIS_MODULE;
 
 	/*
 	 * Create all named nodes
@@ -254,7 +251,6 @@ srm_env_init(void)
 			goto cleanup;
 
 		entry->proc_entry->data		= (void *) entry;
-		entry->proc_entry->owner	= THIS_MODULE;
 		entry->proc_entry->read_proc	= srm_env_read;
 		entry->proc_entry->write_proc	= srm_env_write;
 
@@ -275,7 +271,6 @@ srm_env_init(void)
 
 		entry->id			= var_num;
 		entry->proc_entry->data		= (void *) entry;
-		entry->proc_entry->owner	= THIS_MODULE;
 		entry->proc_entry->read_proc	= srm_env_read;
 		entry->proc_entry->write_proc	= srm_env_write;
 	}

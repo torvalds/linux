@@ -20,8 +20,25 @@
 struct task_struct; /* one of the stranger aspects of C forward declarations */
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next);
+struct tss_struct;
+void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
+		      struct tss_struct *tss);
 
 #ifdef CONFIG_X86_32
+
+#ifdef CONFIG_CC_STACKPROTECTOR
+#define __switch_canary							\
+	"movl %P[task_canary](%[next]), %%ebx\n\t"			\
+	"movl %%ebx, "__percpu_arg([stack_canary])"\n\t"
+#define __switch_canary_oparam						\
+	, [stack_canary] "=m" (per_cpu_var(stack_canary))
+#define __switch_canary_iparam						\
+	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
+#else	/* CC_STACKPROTECTOR */
+#define __switch_canary
+#define __switch_canary_oparam
+#define __switch_canary_iparam
+#endif	/* CC_STACKPROTECTOR */
 
 /*
  * Saving eflags is important. It switches not only IOPL between tasks,
@@ -44,6 +61,7 @@ do {									\
 		     "movl %[next_sp],%%esp\n\t"	/* restore ESP   */ \
 		     "movl $1f,%[prev_ip]\n\t"	/* save    EIP   */	\
 		     "pushl %[next_ip]\n\t"	/* restore EIP   */	\
+		     __switch_canary					\
 		     "jmp __switch_to\n"	/* regparm call  */	\
 		     "1:\t"						\
 		     "popl %%ebp\n\t"		/* restore EBP   */	\
@@ -58,6 +76,8 @@ do {									\
 		       "=b" (ebx), "=c" (ecx), "=d" (edx),		\
 		       "=S" (esi), "=D" (edi)				\
 		       							\
+		       __switch_canary_oparam				\
+									\
 		       /* input parameters: */				\
 		     : [next_sp]  "m" (next->thread.sp),		\
 		       [next_ip]  "m" (next->thread.ip),		\
@@ -65,6 +85,8 @@ do {									\
 		       /* regparm parameters for __switch_to(): */	\
 		       [prev]     "a" (prev),				\
 		       [next]     "d" (next)				\
+									\
+		       __switch_canary_iparam				\
 									\
 		     : /* reloaded segment registers */			\
 			"memory");					\
@@ -86,27 +108,44 @@ do {									\
 	, "rcx", "rbx", "rdx", "r8", "r9", "r10", "r11", \
 	  "r12", "r13", "r14", "r15"
 
+#ifdef CONFIG_CC_STACKPROTECTOR
+#define __switch_canary							  \
+	"movq %P[task_canary](%%rsi),%%r8\n\t"				  \
+	"movq %%r8,"__percpu_arg([gs_canary])"\n\t"
+#define __switch_canary_oparam						  \
+	, [gs_canary] "=m" (per_cpu_var(irq_stack_union.stack_canary))
+#define __switch_canary_iparam						  \
+	, [task_canary] "i" (offsetof(struct task_struct, stack_canary))
+#else	/* CC_STACKPROTECTOR */
+#define __switch_canary
+#define __switch_canary_oparam
+#define __switch_canary_iparam
+#endif	/* CC_STACKPROTECTOR */
+
 /* Save restore flags to clear handle leaking NT */
 #define switch_to(prev, next, last) \
-	asm volatile(SAVE_CONTEXT						    \
+	asm volatile(SAVE_CONTEXT					  \
 	     "movq %%rsp,%P[threadrsp](%[prev])\n\t" /* save RSP */	  \
 	     "movq %P[threadrsp](%[next]),%%rsp\n\t" /* restore RSP */	  \
 	     "call __switch_to\n\t"					  \
 	     ".globl thread_return\n"					  \
 	     "thread_return:\n\t"					  \
-	     "movq %%gs:%P[pda_pcurrent],%%rsi\n\t"			  \
+	     "movq "__percpu_arg([current_task])",%%rsi\n\t"		  \
+	     __switch_canary						  \
 	     "movq %P[thread_info](%%rsi),%%r8\n\t"			  \
-	     LOCK_PREFIX "btr  %[tif_fork],%P[ti_flags](%%r8)\n\t"	  \
 	     "movq %%rax,%%rdi\n\t" 					  \
-	     "jc   ret_from_fork\n\t"					  \
+	     "testl  %[_tif_fork],%P[ti_flags](%%r8)\n\t"	  \
+	     "jnz   ret_from_fork\n\t"					  \
 	     RESTORE_CONTEXT						  \
 	     : "=a" (last)					  	  \
+	       __switch_canary_oparam					  \
 	     : [next] "S" (next), [prev] "D" (prev),			  \
 	       [threadrsp] "i" (offsetof(struct task_struct, thread.sp)), \
 	       [ti_flags] "i" (offsetof(struct thread_info, flags)),	  \
-	       [tif_fork] "i" (TIF_FORK),			  	  \
+	       [_tif_fork] "i" (_TIF_FORK),			  	  \
 	       [thread_info] "i" (offsetof(struct task_struct, stack)),   \
-	       [pda_pcurrent] "i" (offsetof(struct x8664_pda, pcurrent))  \
+	       [current_task] "m" (per_cpu_var(current_task))		  \
+	       __switch_canary_iparam					  \
 	     : "memory", "cc" __EXTRA_CLOBBER)
 #endif
 
@@ -164,6 +203,25 @@ extern void native_load_gs_index(unsigned);
  */
 #define savesegment(seg, value)				\
 	asm("mov %%" #seg ",%0":"=r" (value) : : "memory")
+
+/*
+ * x86_32 user gs accessors.
+ */
+#ifdef CONFIG_X86_32
+#ifdef CONFIG_X86_32_LAZY_GS
+#define get_user_gs(regs)	(u16)({unsigned long v; savesegment(gs, v); v;})
+#define set_user_gs(regs, v)	loadsegment(gs, (unsigned long)(v))
+#define task_user_gs(tsk)	((tsk)->thread.gs)
+#define lazy_save_gs(v)		savesegment(gs, (v))
+#define lazy_load_gs(v)		loadsegment(gs, (v))
+#else	/* X86_32_LAZY_GS */
+#define get_user_gs(regs)	(u16)((regs)->gs)
+#define set_user_gs(regs, v)	do { (regs)->gs = (v); } while (0)
+#define task_user_gs(tsk)	(task_pt_regs(tsk)->gs)
+#define lazy_save_gs(v)		do { } while (0)
+#define lazy_load_gs(v)		do { } while (0)
+#endif	/* X86_32_LAZY_GS */
+#endif	/* X86_32 */
 
 static inline unsigned long get_limit(unsigned long segment)
 {

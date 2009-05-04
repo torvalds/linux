@@ -63,8 +63,7 @@ static int descriptor_count;
 #define BIB_CMC			((1) << 30)
 #define BIB_IMC			((1) << 31)
 
-static u32 *
-generate_config_rom(struct fw_card *card, size_t *config_rom_length)
+static u32 *generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 {
 	struct fw_descriptor *desc;
 	static u32 config_rom[256];
@@ -128,8 +127,7 @@ generate_config_rom(struct fw_card *card, size_t *config_rom_length)
 	return config_rom;
 }
 
-static void
-update_config_roms(void)
+static void update_config_roms(void)
 {
 	struct fw_card *card;
 	u32 *config_rom;
@@ -141,8 +139,7 @@ update_config_roms(void)
 	}
 }
 
-int
-fw_core_add_descriptor(struct fw_descriptor *desc)
+int fw_core_add_descriptor(struct fw_descriptor *desc)
 {
 	size_t i;
 
@@ -171,8 +168,7 @@ fw_core_add_descriptor(struct fw_descriptor *desc)
 	return 0;
 }
 
-void
-fw_core_remove_descriptor(struct fw_descriptor *desc)
+void fw_core_remove_descriptor(struct fw_descriptor *desc)
 {
 	mutex_lock(&card_mutex);
 
@@ -185,12 +181,30 @@ fw_core_remove_descriptor(struct fw_descriptor *desc)
 	mutex_unlock(&card_mutex);
 }
 
+static int set_broadcast_channel(struct device *dev, void *data)
+{
+	fw_device_set_broadcast_channel(fw_device(dev), (long)data);
+	return 0;
+}
+
+static void allocate_broadcast_channel(struct fw_card *card, int generation)
+{
+	int channel, bandwidth = 0;
+
+	fw_iso_resource_manage(card, generation, 1ULL << 31,
+			       &channel, &bandwidth, true);
+	if (channel == 31) {
+		card->broadcast_channel_allocated = true;
+		device_for_each_child(card->device, (void *)(long)generation,
+				      set_broadcast_channel);
+	}
+}
+
 static const char gap_count_table[] = {
 	63, 5, 7, 8, 10, 13, 16, 18, 21, 24, 26, 29, 32, 35, 37, 40
 };
 
-void
-fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
+void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 {
 	int scheduled;
 
@@ -200,39 +214,40 @@ fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 		fw_card_put(card);
 }
 
-static void
-fw_card_bm_work(struct work_struct *work)
+static void fw_card_bm_work(struct work_struct *work)
 {
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
 	struct fw_device *root_device;
-	struct fw_node *root_node, *local_node;
+	struct fw_node *root_node;
 	unsigned long flags;
-	int root_id, new_root_id, irm_id, gap_count, generation, grace, rcode;
+	int root_id, new_root_id, irm_id, local_id;
+	int gap_count, generation, grace, rcode;
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
 	__be32 lock_data[2];
 
 	spin_lock_irqsave(&card->lock, flags);
-	local_node = card->local_node;
-	root_node  = card->root_node;
 
-	if (local_node == NULL) {
+	if (card->local_node == NULL) {
 		spin_unlock_irqrestore(&card->lock, flags);
 		goto out_put_card;
 	}
-	fw_node_get(local_node);
-	fw_node_get(root_node);
 
 	generation = card->generation;
+	root_node = card->root_node;
+	fw_node_get(root_node);
 	root_device = root_node->data;
 	root_device_is_running = root_device &&
 			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
 	root_device_is_cmc = root_device && root_device->cmc;
-	root_id = root_node->node_id;
-	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 10));
+	root_id  = root_node->node_id;
+	irm_id   = card->irm_node->node_id;
+	local_id = card->local_node->node_id;
 
-	if (card->bm_generation + 1 == generation ||
+	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
+
+	if (is_next_generation(generation, card->bm_generation) ||
 	    (card->bm_generation != generation && grace)) {
 		/*
 		 * This first step is to figure out who is IRM and
@@ -246,16 +261,15 @@ fw_card_bm_work(struct work_struct *work)
 		 * next generation.
 		 */
 
-		irm_id = card->irm_node->node_id;
 		if (!card->irm_node->link_on) {
-			new_root_id = local_node->node_id;
+			new_root_id = local_id;
 			fw_notify("IRM has link off, making local node (%02x) root.\n",
 				  new_root_id);
 			goto pick_me;
 		}
 
 		lock_data[0] = cpu_to_be32(0x3f);
-		lock_data[1] = cpu_to_be32(local_node->node_id);
+		lock_data[1] = cpu_to_be32(local_id);
 
 		spin_unlock_irqrestore(&card->lock, flags);
 
@@ -269,9 +283,14 @@ fw_card_bm_work(struct work_struct *work)
 			goto out;
 
 		if (rcode == RCODE_COMPLETE &&
-		    lock_data[0] != cpu_to_be32(0x3f))
-			/* Somebody else is BM, let them do the work. */
+		    lock_data[0] != cpu_to_be32(0x3f)) {
+
+			/* Somebody else is BM.  Only act as IRM. */
+			if (local_id == irm_id)
+				allocate_broadcast_channel(card, generation);
+
 			goto out;
+		}
 
 		spin_lock_irqsave(&card->lock, flags);
 
@@ -282,19 +301,18 @@ fw_card_bm_work(struct work_struct *work)
 			 * do a bus reset and pick the local node as
 			 * root, and thus, IRM.
 			 */
-			new_root_id = local_node->node_id;
+			new_root_id = local_id;
 			fw_notify("BM lock failed, making local node (%02x) root.\n",
 				  new_root_id);
 			goto pick_me;
 		}
 	} else if (card->bm_generation != generation) {
 		/*
-		 * OK, we weren't BM in the last generation, and it's
-		 * less than 100ms since last bus reset. Reschedule
-		 * this task 100ms from now.
+		 * We weren't BM in the last generation, and the last
+		 * bus reset is less than 125ms ago.  Reschedule this job.
 		 */
 		spin_unlock_irqrestore(&card->lock, flags);
-		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 10));
+		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
 		goto out;
 	}
 
@@ -310,7 +328,7 @@ fw_card_bm_work(struct work_struct *work)
 		 * Either link_on is false, or we failed to read the
 		 * config rom.  In either case, pick another root.
 		 */
-		new_root_id = local_node->node_id;
+		new_root_id = local_id;
 	} else if (!root_device_is_running) {
 		/*
 		 * If we haven't probed this device yet, bail out now
@@ -332,7 +350,7 @@ fw_card_bm_work(struct work_struct *work)
 		 * successfully read the config rom, but it's not
 		 * cycle master capable.
 		 */
-		new_root_id = local_node->node_id;
+		new_root_id = local_id;
 	}
 
  pick_me:
@@ -363,25 +381,28 @@ fw_card_bm_work(struct work_struct *work)
 			  card->index, new_root_id, gap_count);
 		fw_send_phy_config(card, new_root_id, generation, gap_count);
 		fw_core_initiate_bus_reset(card, 1);
+		/* Will allocate broadcast channel after the reset. */
+	} else {
+		if (local_id == irm_id)
+			allocate_broadcast_channel(card, generation);
 	}
+
  out:
 	fw_node_put(root_node);
-	fw_node_put(local_node);
  out_put_card:
 	fw_card_put(card);
 }
 
-static void
-flush_timer_callback(unsigned long data)
+static void flush_timer_callback(unsigned long data)
 {
 	struct fw_card *card = (struct fw_card *)data;
 
 	fw_flush_transactions(card);
 }
 
-void
-fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
-		   struct device *device)
+void fw_card_initialize(struct fw_card *card,
+			const struct fw_card_driver *driver,
+			struct device *device)
 {
 	static atomic_t index = ATOMIC_INIT(-1);
 
@@ -406,12 +427,12 @@ fw_card_initialize(struct fw_card *card, const struct fw_card_driver *driver,
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
-int
-fw_card_add(struct fw_card *card,
-	    u32 max_receive, u32 link_speed, u64 guid)
+int fw_card_add(struct fw_card *card,
+		u32 max_receive, u32 link_speed, u64 guid)
 {
 	u32 *config_rom;
 	size_t length;
+	int ret;
 
 	card->max_receive = max_receive;
 	card->link_speed = link_speed;
@@ -422,7 +443,14 @@ fw_card_add(struct fw_card *card,
 	list_add_tail(&card->link, &card_list);
 	mutex_unlock(&card_mutex);
 
-	return card->driver->enable(card, config_rom, length);
+	ret = card->driver->enable(card, config_rom, length);
+	if (ret < 0) {
+		mutex_lock(&card_mutex);
+		list_del(&card->link);
+		mutex_unlock(&card_mutex);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(fw_card_add);
 
@@ -435,23 +463,20 @@ EXPORT_SYMBOL(fw_card_add);
  * dummy driver just fails all IO.
  */
 
-static int
-dummy_enable(struct fw_card *card, u32 *config_rom, size_t length)
+static int dummy_enable(struct fw_card *card, u32 *config_rom, size_t length)
 {
 	BUG();
 	return -1;
 }
 
-static int
-dummy_update_phy_reg(struct fw_card *card, int address,
-		     int clear_bits, int set_bits)
+static int dummy_update_phy_reg(struct fw_card *card, int address,
+				int clear_bits, int set_bits)
 {
 	return -ENODEV;
 }
 
-static int
-dummy_set_config_rom(struct fw_card *card,
-		     u32 *config_rom, size_t length)
+static int dummy_set_config_rom(struct fw_card *card,
+				u32 *config_rom, size_t length)
 {
 	/*
 	 * We take the card out of card_list before setting the dummy
@@ -461,27 +486,23 @@ dummy_set_config_rom(struct fw_card *card,
 	return -1;
 }
 
-static void
-dummy_send_request(struct fw_card *card, struct fw_packet *packet)
+static void dummy_send_request(struct fw_card *card, struct fw_packet *packet)
 {
 	packet->callback(packet, card, -ENODEV);
 }
 
-static void
-dummy_send_response(struct fw_card *card, struct fw_packet *packet)
+static void dummy_send_response(struct fw_card *card, struct fw_packet *packet)
 {
 	packet->callback(packet, card, -ENODEV);
 }
 
-static int
-dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
+static int dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 {
 	return -ENOENT;
 }
 
-static int
-dummy_enable_phys_dma(struct fw_card *card,
-		      int node_id, int generation)
+static int dummy_enable_phys_dma(struct fw_card *card,
+				 int node_id, int generation)
 {
 	return -ENODEV;
 }
@@ -496,23 +517,21 @@ static struct fw_card_driver dummy_driver = {
 	.enable_phys_dma = dummy_enable_phys_dma,
 };
 
-void
-fw_card_release(struct kref *kref)
+void fw_card_release(struct kref *kref)
 {
 	struct fw_card *card = container_of(kref, struct fw_card, kref);
 
 	complete(&card->done);
 }
 
-void
-fw_core_remove_card(struct fw_card *card)
+void fw_core_remove_card(struct fw_card *card)
 {
 	card->driver->update_phy_reg(card, 4,
 				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
 	fw_core_initiate_bus_reset(card, 1);
 
 	mutex_lock(&card_mutex);
-	list_del(&card->link);
+	list_del_init(&card->link);
 	mutex_unlock(&card_mutex);
 
 	/* Set up the dummy driver. */
@@ -529,8 +548,7 @@ fw_core_remove_card(struct fw_card *card)
 }
 EXPORT_SYMBOL(fw_core_remove_card);
 
-int
-fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
+int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
 {
 	int reg = short_reset ? 5 : 1;
 	int bit = short_reset ? PHY_BUS_SHORT_RESET : PHY_BUS_RESET;

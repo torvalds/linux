@@ -29,13 +29,13 @@
 
 #define PCI_VENDOR_ID_NATINST		0x1093
 
-// #define DEBUG_MITE
+/*  #define DEBUG_MITE */
 #define PCIMIO_COMPAT
 
 #ifdef DEBUG_MITE
-#define MDPRINTK(format,args...)	printk(format , ## args )
+#define MDPRINTK(format, args...)	printk(format , ## args)
 #else
-#define MDPRINTK(format,args...)
+#define MDPRINTK(format, args...)
 #endif
 
 #define MAX_MITE_DMA_CHANNELS 8
@@ -142,8 +142,8 @@ void mite_release_channel(struct mite_channel *mite_chan);
 unsigned mite_dma_tcr(struct mite_channel *mite_chan);
 void mite_dma_arm(struct mite_channel *mite_chan);
 void mite_dma_disarm(struct mite_channel *mite_chan);
-int mite_sync_input_dma(struct mite_channel *mite_chan, comedi_async * async);
-int mite_sync_output_dma(struct mite_channel *mite_chan, comedi_async * async);
+int mite_sync_input_dma(struct mite_channel *mite_chan, struct comedi_async * async);
+int mite_sync_output_dma(struct mite_channel *mite_chan, struct comedi_async * async);
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan);
 u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan);
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan);
@@ -153,7 +153,7 @@ unsigned mite_get_status(struct mite_channel *mite_chan);
 int mite_done(struct mite_channel *mite_chan);
 
 #if 0
-unsigned long mite_ll_from_kvmem(struct mite_struct *mite, comedi_async * async,
+unsigned long mite_ll_from_kvmem(struct mite_struct *mite, struct comedi_async * async,
 	int len);
 void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan,
 	int dir);
@@ -162,7 +162,7 @@ void mite_setregs(struct mite_struct *mite, unsigned long ll_start, int chan,
 void mite_prep_dma(struct mite_channel *mite_chan,
 	unsigned int num_device_bits, unsigned int num_memory_bits);
 int mite_buf_change(struct mite_dma_descriptor_ring *ring,
-	comedi_async * async);
+	struct comedi_async *async);
 
 #ifdef DEBUG_MITE
 void mite_print_chsr(unsigned int chsr);
@@ -179,83 +179,83 @@ enum mite_registers {
 	   written and read back.  The bits 0x1f always read as 1.
 	   The rest always read as zero. */
 	MITE_UNKNOWN_DMA_BURST_REG = 0x28,
-	MITE_IODWBSR = 0xc0,	//IO Device Window Base Size Register
-	MITE_IODWBSR_1 = 0xc4,	// IO Device Window Base Size Register 1
+	MITE_IODWBSR = 0xc0,	/* IO Device Window Base Size Register */
+	MITE_IODWBSR_1 = 0xc4,	/*  IO Device Window Base Size Register 1 */
 	MITE_IODWCR_1 = 0xf4,
 	MITE_PCI_CONFIG_OFFSET = 0x300,
-	MITE_CSIGR = 0x460	//chip signature
+	MITE_CSIGR = 0x460	/* chip signature */
 };
-static inline int MITE_CHOR(int channel)	// channel operation
+static inline int MITE_CHOR(int channel)	/*  channel operation */
 {
 	return CHAN_OFFSET(channel) + 0x0;
 };
-static inline int MITE_CHCR(int channel)	// channel control
+static inline int MITE_CHCR(int channel)	/*  channel control */
 {
 	return CHAN_OFFSET(channel) + 0x4;
 };
-static inline int MITE_TCR(int channel)	// transfer count
+static inline int MITE_TCR(int channel)	/*  transfer count */
 {
 	return CHAN_OFFSET(channel) + 0x8;
 };
-static inline int MITE_MCR(int channel)	// memory configuration
+static inline int MITE_MCR(int channel)	/*  memory configuration */
 {
 	return CHAN_OFFSET(channel) + 0xc;
 };
-static inline int MITE_MAR(int channel)	// memory address
+static inline int MITE_MAR(int channel)	/*  memory address */
 {
 	return CHAN_OFFSET(channel) + 0x10;
 };
-static inline int MITE_DCR(int channel)	// device configuration
+static inline int MITE_DCR(int channel)	/*  device configuration */
 {
 	return CHAN_OFFSET(channel) + 0x14;
 };
-static inline int MITE_DAR(int channel)	// device address
+static inline int MITE_DAR(int channel)	/*  device address */
 {
 	return CHAN_OFFSET(channel) + 0x18;
 };
-static inline int MITE_LKCR(int channel)	// link configuration
+static inline int MITE_LKCR(int channel)	/*  link configuration */
 {
 	return CHAN_OFFSET(channel) + 0x1c;
 };
-static inline int MITE_LKAR(int channel)	// link address
+static inline int MITE_LKAR(int channel)	/*  link address */
 {
 	return CHAN_OFFSET(channel) + 0x20;
 };
-static inline int MITE_LLKAR(int channel)	// see mite section of tnt5002 manual
+static inline int MITE_LLKAR(int channel)	/*  see mite section of tnt5002 manual */
 {
 	return CHAN_OFFSET(channel) + 0x24;
 };
-static inline int MITE_BAR(int channel)	// base address
+static inline int MITE_BAR(int channel)	/*  base address */
 {
 	return CHAN_OFFSET(channel) + 0x28;
 };
-static inline int MITE_BCR(int channel)	// base count
+static inline int MITE_BCR(int channel)	/*  base count */
 {
 	return CHAN_OFFSET(channel) + 0x2c;
 };
-static inline int MITE_SAR(int channel)	// ? address
+static inline int MITE_SAR(int channel)	/*  ? address */
 {
 	return CHAN_OFFSET(channel) + 0x30;
 };
-static inline int MITE_WSCR(int channel)	// ?
+static inline int MITE_WSCR(int channel)	/*  ? */
 {
 	return CHAN_OFFSET(channel) + 0x34;
 };
-static inline int MITE_WSER(int channel)	// ?
+static inline int MITE_WSER(int channel)	/*  ? */
 {
 	return CHAN_OFFSET(channel) + 0x38;
 };
-static inline int MITE_CHSR(int channel)	// channel status
+static inline int MITE_CHSR(int channel)	/*  channel status */
 {
 	return CHAN_OFFSET(channel) + 0x3c;
 };
-static inline int MITE_FCR(int channel)	// fifo count
+static inline int MITE_FCR(int channel)	/*  fifo count */
 {
 	return CHAN_OFFSET(channel) + 0x40;
 };
 
 enum MITE_IODWBSR_bits {
-	WENAB = 0x80,		// window enable
+	WENAB = 0x80,		/*  window enable */
 };
 
 static inline unsigned MITE_IODWBSR_1_WSIZE_bits(unsigned size)
@@ -276,23 +276,23 @@ static inline int mite_csigr_version(u32 csigr_bits)
 	return csigr_bits & 0xf;
 };
 static inline int mite_csigr_type(u32 csigr_bits)
-{				// original mite = 0, minimite = 1
+{				/*  original mite = 0, minimite = 1 */
 	return (csigr_bits >> 4) & 0xf;
 };
 static inline int mite_csigr_mmode(u32 csigr_bits)
-{				// mite mode, minimite = 1
+{				/*  mite mode, minimite = 1 */
 	return (csigr_bits >> 8) & 0x3;
 };
 static inline int mite_csigr_imode(u32 csigr_bits)
-{				// cpu port interface mode, pci = 0x3
+{				/*  cpu port interface mode, pci = 0x3 */
 	return (csigr_bits >> 12) & 0x3;
 };
 static inline int mite_csigr_dmac(u32 csigr_bits)
-{				// number of dma channels
+{				/*  number of dma channels */
 	return (csigr_bits >> 16) & 0xf;
 };
 static inline int mite_csigr_wpdep(u32 csigr_bits)
-{				// write post fifo depth
+{				/*  write post fifo depth */
 	unsigned int wpdep_bits = (csigr_bits >> 20) & 0x7;
 	if (wpdep_bits == 0)
 		return 0;
@@ -304,7 +304,7 @@ static inline int mite_csigr_wins(u32 csigr_bits)
 	return (csigr_bits >> 24) & 0x1f;
 };
 static inline int mite_csigr_iowins(u32 csigr_bits)
-{				// number of io windows
+{				/*  number of io windows */
 	return (csigr_bits >> 29) & 0x7;
 };
 

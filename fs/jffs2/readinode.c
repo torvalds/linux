@@ -220,7 +220,7 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 				struct jffs2_tmp_dnode_info *tn)
 {
 	uint32_t fn_end = tn->fn->ofs + tn->fn->size;
-	struct jffs2_tmp_dnode_info *this;
+	struct jffs2_tmp_dnode_info *this, *ptn;
 
 	dbg_readinode("insert fragment %#04x-%#04x, ver %u at %08x\n", tn->fn->ofs, fn_end, tn->version, ref_offset(tn->fn->raw));
 
@@ -251,11 +251,18 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 	if (this) {
 		/* If the node is coincident with another at a lower address,
 		   back up until the other node is found. It may be relevant */
-		while (this->overlapped)
-			this = tn_prev(this);
-
-		/* First node should never be marked overlapped */
-		BUG_ON(!this);
+		while (this->overlapped) {
+			ptn = tn_prev(this);
+			if (!ptn) {
+				/*
+				 * We killed a node which set the overlapped
+				 * flags during the scan. Fix it up.
+				 */
+				this->overlapped = 0;
+				break;
+			}
+			this = ptn;
+		}
 		dbg_readinode("'this' found %#04x-%#04x (%s)\n", this->fn->ofs, this->fn->ofs + this->fn->size, this->fn ? "data" : "hole");
 	}
 
@@ -360,7 +367,17 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 			}
 			if (!this->overlapped)
 				break;
-			this = tn_prev(this);
+
+			ptn = tn_prev(this);
+			if (!ptn) {
+				/*
+				 * We killed a node which set the overlapped
+				 * flags during the scan. Fix it up.
+				 */
+				this->overlapped = 0;
+				break;
+			}
+			this = ptn;
 		}
 	}
 
@@ -456,8 +473,15 @@ static int jffs2_build_inode_fragtree(struct jffs2_sb_info *c,
 		eat_last(&rii->tn_root, &last->rb);
 		ver_insert(&ver_root, last);
 
-		if (unlikely(last->overlapped))
-			continue;
+		if (unlikely(last->overlapped)) {
+			if (pen)
+				continue;
+			/*
+			 * We killed a node which set the overlapped
+			 * flags during the scan. Fix it up.
+			 */
+			last->overlapped = 0;
+		}
 
 		/* Now we have a bunch of nodes in reverse version
 		   order, in the tree at ver_root. Most of the time,

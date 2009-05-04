@@ -35,6 +35,12 @@
 #include "kvm_cache_regs.h"
 #include "irq.h"
 
+#ifndef CONFIG_X86_64
+#define mod_64(x, y) ((x) - (y) * div64_u64(x, y))
+#else
+#define mod_64(x, y) ((x) % (y))
+#endif
+
 #define PRId64 "d"
 #define PRIx64 "llx"
 #define PRIu64 "u"
@@ -511,52 +517,22 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 
 static u32 apic_get_tmcct(struct kvm_lapic *apic)
 {
-	u64 counter_passed;
-	ktime_t passed, now;
+	ktime_t remaining;
+	s64 ns;
 	u32 tmcct;
 
 	ASSERT(apic != NULL);
 
-	now = apic->timer.dev.base->get_time();
-	tmcct = apic_get_reg(apic, APIC_TMICT);
-
 	/* if initial count is 0, current count should also be 0 */
-	if (tmcct == 0)
+	if (apic_get_reg(apic, APIC_TMICT) == 0)
 		return 0;
 
-	if (unlikely(ktime_to_ns(now) <=
-		ktime_to_ns(apic->timer.last_update))) {
-		/* Wrap around */
-		passed = ktime_add(( {
-				    (ktime_t) {
-				    .tv64 = KTIME_MAX -
-				    (apic->timer.last_update).tv64}; }
-				   ), now);
-		apic_debug("time elapsed\n");
-	} else
-		passed = ktime_sub(now, apic->timer.last_update);
+	remaining = hrtimer_expires_remaining(&apic->timer.dev);
+	if (ktime_to_ns(remaining) < 0)
+		remaining = ktime_set(0, 0);
 
-	counter_passed = div64_u64(ktime_to_ns(passed),
-				   (APIC_BUS_CYCLE_NS * apic->timer.divide_count));
-
-	if (counter_passed > tmcct) {
-		if (unlikely(!apic_lvtt_period(apic))) {
-			/* one-shot timers stick at 0 until reset */
-			tmcct = 0;
-		} else {
-			/*
-			 * periodic timers reset to APIC_TMICT when they
-			 * hit 0. The while loop simulates this happening N
-			 * times. (counter_passed %= tmcct) would also work,
-			 * but might be slower or not work on 32-bit??
-			 */
-			while (counter_passed > tmcct)
-				counter_passed -= tmcct;
-			tmcct -= counter_passed;
-		}
-	} else {
-		tmcct -= counter_passed;
-	}
+	ns = mod_64(ktime_to_ns(remaining), apic->timer.period);
+	tmcct = div64_u64(ns, (APIC_BUS_CYCLE_NS * apic->timer.divide_count));
 
 	return tmcct;
 }
@@ -652,8 +628,6 @@ static void update_divide_count(struct kvm_lapic *apic)
 static void start_apic_timer(struct kvm_lapic *apic)
 {
 	ktime_t now = apic->timer.dev.base->get_time();
-
-	apic->timer.last_update = now;
 
 	apic->timer.period = apic_get_reg(apic, APIC_TMICT) *
 		    APIC_BUS_CYCLE_NS * apic->timer.divide_count;
@@ -1108,16 +1082,6 @@ void kvm_inject_apic_timer_irqs(struct kvm_vcpu *vcpu)
 		if (kvm_apic_local_deliver(apic, APIC_LVTT))
 			atomic_dec(&apic->timer.pending);
 	}
-}
-
-void kvm_apic_timer_intr_post(struct kvm_vcpu *vcpu, int vec)
-{
-	struct kvm_lapic *apic = vcpu->arch.apic;
-
-	if (apic && apic_lvt_vector(apic, APIC_LVTT) == vec)
-		apic->timer.last_update = ktime_add_ns(
-				apic->timer.last_update,
-				apic->timer.period);
 }
 
 int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)

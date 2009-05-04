@@ -107,12 +107,12 @@ titan_parse_p_serror(int which, u64 serror, int print)
 	if (!print)
 		return status;
 
-	printk("%s  PChip %d SERROR: %016lx\n", 
+	printk("%s  PChip %d SERROR: %016llx\n",
 	       err_print_prefix, which, serror);
 	if (serror & TITAN__PCHIP_SERROR__ECCMASK) {
 		printk("%s    %sorrectable ECC Error:\n"
 		       "      Source: %-6s  Command: %-8s  Syndrome: 0x%08x\n"
-		       "      Address: 0x%lx\n", 
+		       "      Address: 0x%llx\n",
 		       err_print_prefix,
 		       (serror & TITAN__PCHIP_SERROR__UECC) ? "Unc" : "C",
 		       serror_src[EXTRACT(serror, TITAN__PCHIP_SERROR__SRC)],
@@ -223,7 +223,7 @@ titan_parse_p_perror(int which, int port, u64 perror, int print)
 	if (!print) 
 		return status;
 
-	printk("%s  PChip %d %cPERROR: %016lx\n", 
+	printk("%s  PChip %d %cPERROR: %016llx\n",
 	       err_print_prefix, which, 
 	       port ? 'A' : 'G', perror);
 	if (perror & TITAN__PCHIP_PERROR__IPTPW)
@@ -316,7 +316,7 @@ titan_parse_p_agperror(int which, u64 agperror, int print)
 	addr = EXTRACT(agperror, TITAN__PCHIP_AGPERROR__ADDR) << 3;
 	len = EXTRACT(agperror, TITAN__PCHIP_AGPERROR__LEN);
 
-	printk("%s  PChip %d AGPERROR: %016lx\n", err_print_prefix,
+	printk("%s  PChip %d AGPERROR: %016llx\n", err_print_prefix,
 	       which, agperror);
 	if (agperror & TITAN__PCHIP_AGPERROR__NOWINDOW)
 		printk("%s    No Window\n", err_print_prefix);
@@ -597,16 +597,16 @@ privateer_process_680_frame(struct el_common *mchk_header, int print)
 		return status;
 
 	/* TODO - decode instead of just dumping... */
-	printk("%s  Summary Flags:         %016lx\n"
- 	         "  CChip DIRx:            %016lx\n"
-		 "  System Management IR:  %016lx\n"
-		 "  CPU IR:                %016lx\n"
-		 "  Power Supply IR:       %016lx\n"
-		 "  LM78 Fault Status:     %016lx\n"
-		 "  System Doors:          %016lx\n"
-		 "  Temperature Warning:   %016lx\n"
-		 "  Fan Control:           %016lx\n"
-		 "  Fatal Power Down Code: %016lx\n",
+	printk("%s  Summary Flags:         %016llx\n"
+ 	         "  CChip DIRx:            %016llx\n"
+		 "  System Management IR:  %016llx\n"
+		 "  CPU IR:                %016llx\n"
+		 "  Power Supply IR:       %016llx\n"
+		 "  LM78 Fault Status:     %016llx\n"
+		 "  System Doors:          %016llx\n"
+		 "  Temperature Warning:   %016llx\n"
+		 "  Fan Control:           %016llx\n"
+		 "  Fatal Power Down Code: %016llx\n",
 	       err_print_prefix,
 	       emchk->summary,
 	       emchk->c_dirx,

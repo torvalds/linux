@@ -141,38 +141,38 @@ static const struct v4l2_pix_format sif_072a_mode[] = {
 #define SPCA561_OFFSET_WIN1GBAVE 14
 #define SPCA561_OFFSET_FREQ 15
 #define SPCA561_OFFSET_VSYNC 16
-#define SPCA561_OFFSET_DATA 1
 #define SPCA561_INDEX_I2C_BASE 0x8800
 #define SPCA561_SNAPBIT 0x20
 #define SPCA561_SNAPCTRL 0x40
 
-static const __u16 rev72a_init_data1[][2] = {
+static const u16 rev72a_reset[][2] = {
 	{0x0000, 0x8114},	/* Software GPIO output data */
 	{0x0001, 0x8114},	/* Software GPIO output data */
 	{0x0000, 0x8112},	/* Some kind of reset */
+	{}
+};
+static const __u16 rev72a_init_data1[][2] = {
 	{0x0003, 0x8701},	/* PCLK clock delay adjustment */
 	{0x0001, 0x8703},	/* HSYNC from cmos inverted */
 	{0x0011, 0x8118},	/* Enable and conf sensor */
 	{0x0001, 0x8118},	/* Conf sensor */
 	{0x0092, 0x8804},	/* I know nothing about these */
 	{0x0010, 0x8802},	/* 0x88xx registers, so I won't */
-	{0x000d, 0x8805},	/* sensor default setting */
 	{}
 };
-static const __u16 rev72a_init_sensor1[][2] = {
-				/* ms-win values */
-	{0x0001, 0x0018},	/* 0x01 <- 0x0d */
-	{0x0002, 0x0065},	/* 0x02 <- 0x18 */
-	{0x0004, 0x0121},	/* 0x04 <- 0x0165 */
-	{0x0005, 0x00aa},	/* 0x05 <- 0x21 */
-	{0x0007, 0x0004},	/* 0x07 <- 0xaa */
-	{0x0020, 0x1502},	/* 0x20 <- 0x1504 */
-	{0x0039, 0x0010},	/* 0x39 <- 0x02 */
-	{0x0035, 0x0049},	/* 0x35 <- 0x10 */
-	{0x0009, 0x100b},	/* 0x09 <- 0x1049 */
-	{0x0028, 0x000f},	/* 0x28 <- 0x0b */
-	{0x003b, 0x003c},	/* 0x3b <- 0x0f */
-	{0x003c, 0x0000},	/* 0x3c <- 0x00 */
+static const u16 rev72a_init_sensor1[][2] = {
+	{0x0001, 0x000d},
+	{0x0002, 0x0018},
+	{0x0004, 0x0165},
+	{0x0005, 0x0021},
+	{0x0007, 0x00aa},
+	{0x0020, 0x1504},
+	{0x0039, 0x0002},
+	{0x0035, 0x0010},
+	{0x0009, 0x1049},
+	{0x0028, 0x000b},
+	{0x003b, 0x000f},
+	{0x003c, 0x0000},
 	{}
 };
 static const __u16 rev72a_init_data2[][2] = {
@@ -190,15 +190,10 @@ static const __u16 rev72a_init_data2[][2] = {
 	{0x0002, 0x8201},	/* Output address for r/w serial EEPROM */
 	{0x0008, 0x8200},	/* Clear valid bit for serial EEPROM */
 	{0x0001, 0x8200},	/* OprMode to be executed by hardware */
-	{0x0007, 0x8201},	/* Output address for r/w serial EEPROM */
-	{0x0008, 0x8200},	/* Clear valid bit for serial EEPROM */
-	{0x0001, 0x8200},	/* OprMode to be executed by hardware */
-	{0x0010, 0x8660},	/* Compensation memory stuff */
-	{0x0018, 0x8660},	/* Compensation memory stuff */
-
-	{0x0004, 0x8611},	/* R offset for white balance */
-	{0x0004, 0x8612},	/* Gr offset for white balance */
-	{0x0007, 0x8613},	/* B offset for white balance */
+/* from ms-win */
+	{0x0000, 0x8611},	/* R offset for white balance */
+	{0x00fd, 0x8612},	/* Gr offset for white balance */
+	{0x0003, 0x8613},	/* B offset for white balance */
 	{0x0000, 0x8614},	/* Gb offset for white balance */
 /* from ms-win */
 	{0x0035, 0x8651},	/* R gain for white balance */
@@ -206,8 +201,8 @@ static const __u16 rev72a_init_data2[][2] = {
 	{0x005f, 0x8653},	/* B gain for white balance */
 	{0x0040, 0x8654},	/* Gb gain for white balance */
 	{0x0002, 0x8502},	/* Maximum average bit rate stuff */
-
 	{0x0011, 0x8802},
+
 	{0x0087, 0x8700},	/* Set master clock (96Mhz????) */
 	{0x0081, 0x8702},	/* Master clock output enable */
 
@@ -218,104 +213,15 @@ static const __u16 rev72a_init_data2[][2] = {
 	{0x0003, 0x865c},	/* Vertical offset for valid lines */
 	{}
 };
-static const __u16 rev72a_init_sensor2[][2] = {
-				/* ms-win values */
-	{0x0003, 0x0121},	/* 0x03 <- 0x01 0x21 //289 */
-	{0x0004, 0x0165},	/* 0x04 <- 0x01 0x65 //357 */
-	{0x0005, 0x002f},	/* 0x05 <- 0x2f */
-	{0x0006, 0x0000},	/* 0x06 <- 0 */
-	{0x000a, 0x0002},	/* 0x0a <- 2 */
-	{0x0009, 0x1061},	/* 0x09 <- 0x1061 */
-	{0x0035, 0x0014},	/* 0x35 <- 0x14 */
-	{}
-};
-static const __u16 rev72a_init_data3[][2] = {
-	{0x0030, 0x8112},	/* ISO and drop packet enable */
-/*fixme: should stop here*/
-	{0x0000, 0x8112},	/* Some kind of reset ???? */
-	{0x0009, 0x8118},	/* Enable sensor and set standby */
-	{0x0000, 0x8114},	/* Software GPIO output data */
-	{0x0000, 0x8114},	/* Software GPIO output data */
-	{0x0001, 0x8114},	/* Software GPIO output data */
-	{0x0000, 0x8112},	/* Some kind of reset ??? */
-	{0x0003, 0x8701},
-	{0x0001, 0x8703},
-	{0x0011, 0x8118},
-	{0x0001, 0x8118},
-	/***************/
-	{0x0092, 0x8804},
-	{0x0010, 0x8802},
-	{0x000d, 0x8805},
-	{0x0001, 0x8801},
-	{0x0000, 0x8800},
-	{0x0018, 0x8805},
-	{0x0002, 0x8801},
-	{0x0000, 0x8800},
-	{0x0065, 0x8805},
-	{0x0004, 0x8801},
-	{0x0001, 0x8800},
-	{0x0021, 0x8805},
-	{0x0005, 0x8801},
-	{0x0000, 0x8800},
-	{0x00aa, 0x8805},
-	{0x0007, 0x8801},	/* mode 0xaa */
-	{0x0000, 0x8800},
-	{0x0004, 0x8805},
-	{0x0020, 0x8801},
-	{0x0015, 0x8800},	/* mode 0x0415 */
-	{0x0002, 0x8805},
-	{0x0039, 0x8801},
-	{0x0000, 0x8800},
-	{0x0010, 0x8805},
-	{0x0035, 0x8801},
-	{0x0000, 0x8800},
-	{0x0049, 0x8805},
-	{0x0009, 0x8801},
-	{0x0010, 0x8800},
-	{0x000b, 0x8805},
-	{0x0028, 0x8801},
-	{0x0000, 0x8800},
-	{0x000f, 0x8805},
-	{0x003b, 0x8801},
-	{0x0000, 0x8800},
-	{0x0000, 0x8805},
-	{0x003c, 0x8801},
-	{0x0000, 0x8800},
-	{0x0002, 0x8502},
-	{0x0039, 0x8801},
-	{0x0000, 0x8805},
-	{0x0000, 0x8800},
-
-	{0x0087, 0x8700},	/* overwrite by start */
-	{0x0081, 0x8702},
-	{0x0000, 0x8500},
-/*	{0x0010, 0x8500},  -- Previous line was this */
-	{0x0002, 0x865b},
-	{0x0003, 0x865c},
-	/***************/
-	{0x0003, 0x8801},	/* 0x121-> 289 */
-	{0x0021, 0x8805},
-	{0x0001, 0x8800},
-	{0x0004, 0x8801},	/* 0x165 -> 357 */
-	{0x0065, 0x8805},
-	{0x0001, 0x8800},
-	{0x0005, 0x8801},	/* 0x2f //blanking control colonne */
-	{0x002f, 0x8805},
-	{0x0000, 0x8800},
-	{0x0006, 0x8801},	/* 0x00 //blanking mode row */
-	{0x0000, 0x8805},
-	{0x0000, 0x8800},
-	{0x000a, 0x8801},	/* 0x01 //0x02 */
-	{0x0001, 0x8805},
-	{0x0000, 0x8800},
-	{0x0009, 0x8801},	/* 0x1061 - setexposure times && pixel clock
+static const u16 rev72a_init_sensor2[][2] = {
+	{0x0003, 0x0121},
+	{0x0004, 0x0165},
+	{0x0005, 0x002f},	/* blanking control column */
+	{0x0006, 0x0000},	/* blanking mode row*/
+	{0x000a, 0x0002},
+	{0x0009, 0x1061},	/* setexposure times && pixel clock
 				 * 0001 0 | 000 0110 0001 */
-	{0x0061, 0x8805},	/* 61 31 */
-	{0x0008, 0x8800},	/* 08 */
-	{0x0035, 0x8801},	/* 0x14 - set gain general */
-	{0x001f, 0x8805},	/* 0x14 */
-	{0x0000, 0x8800},
-	{0x000e, 0x8112},	/* white balance - was 30 */
+	{0x0035, 0x0014},
 	{}
 };
 
@@ -460,6 +366,7 @@ static void i2c_write(struct gspca_dev *gspca_dev, __u16 value, __u16 reg)
 		reg_r(gspca_dev, 0x8803, 1);
 		if (!gspca_dev->usb_buf[0])
 			return;
+		msleep(10);
 	} while (--retry);
 }
 
@@ -479,6 +386,7 @@ static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
 			reg_r(gspca_dev, 0x8805, 1);
 			return ((int) value << 8) | gspca_dev->usb_buf[0];
 		}
+		msleep(10);
 	} while (--retry);
 	return -1;
 }
@@ -541,7 +449,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 	gspca_dev->nbalt = 7 + 1;	/* choose alternate 7 first */
 
 	sd->chip_revision = id->driver_info;
@@ -572,11 +479,13 @@ static int sd_init_12a(struct gspca_dev *gspca_dev)
 static int sd_init_72a(struct gspca_dev *gspca_dev)
 {
 	PDEBUG(D_STREAM, "Chip revision: 072a");
+	write_vector(gspca_dev, rev72a_reset);
+	msleep(200);
 	write_vector(gspca_dev, rev72a_init_data1);
 	write_sensor_72a(gspca_dev, rev72a_init_sensor1);
 	write_vector(gspca_dev, rev72a_init_data2);
 	write_sensor_72a(gspca_dev, rev72a_init_sensor2);
-	write_vector(gspca_dev, rev72a_init_data3);
+	reg_w_val(gspca_dev->dev, 0x8112, 0x30);
 	return 0;
 }
 
@@ -731,11 +640,18 @@ static int sd_start_72a(struct gspca_dev *gspca_dev)
 	int Clck;
 	int mode;
 
+	write_vector(gspca_dev, rev72a_reset);
+	msleep(200);
+	write_vector(gspca_dev, rev72a_init_data1);
+	write_sensor_72a(gspca_dev, rev72a_init_sensor1);
+
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	switch (mode) {
 	default:
-/*	case 0:
-	case 1: */
+	case 0:
+		Clck = 0x27;		/* ms-win 0x87 */
+		break;
+	case 1:
 		Clck = 0x25;
 		break;
 	case 2:
@@ -745,13 +661,14 @@ static int sd_start_72a(struct gspca_dev *gspca_dev)
 		Clck = 0x21;
 		break;
 	}
-	reg_w_val(dev, 0x8500, mode);	/* mode */
 	reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
-	reg_w_val(dev, 0x8112, 0x10 | 0x20);
+	reg_w_val(dev, 0x8702, 0x81);
+	reg_w_val(dev, 0x8500, mode);	/* mode */
+	write_sensor_72a(gspca_dev, rev72a_init_sensor2);
 	setcontrast(gspca_dev);
 /*	setbrightness(gspca_dev);	 * fixme: bad values */
-	setwhite(gspca_dev);
 	setautogain(gspca_dev);
+	reg_w_val(dev, 0x8112, 0x10 | 0x20);
 	return 0;
 }
 
@@ -867,12 +784,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (data[0]) {			/* sequence number */
+	len--;
+	switch (*data++) {			/* sequence number */
 	case 0:					/* start of frame */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
-		data += SPCA561_OFFSET_DATA;
-		len -= SPCA561_OFFSET_DATA;
 		if (data[1] & 0x10) {
 			/* compressed bayer */
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
@@ -893,8 +809,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	case 0xff:			/* drop (empty mpackets) */
 		return;
 	}
-	data++;
-	len--;
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
@@ -1197,8 +1111,10 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

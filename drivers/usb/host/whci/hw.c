@@ -87,3 +87,18 @@ out:
 
 	return ret;
 }
+
+/**
+ * whc_hw_error - recover from a hardware error
+ * @whc:    the WHCI HC that broke.
+ * @reason: a description of the failure.
+ *
+ * Recover from broken hardware with a full reset.
+ */
+void whc_hw_error(struct whc *whc, const char *reason)
+{
+	struct wusbhc *wusbhc = &whc->wusbhc;
+
+	dev_err(&whc->umc->dev, "hardware error: %s\n", reason);
+	wusbhc_reset_all(wusbhc);
+}

@@ -65,3 +65,4 @@ Vendor  Product  Distributor     Model
 0x06d6  0x003b   Trust           Powerc@m 970Z
 0x0a17  0x004e   Pentax          Optio 50
 0x041e  0x405d   Creative        DiVi CAM 516
+0x08ca  0x2102   Aiptek          DV T300

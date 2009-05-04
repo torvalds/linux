@@ -4,6 +4,7 @@
 
 menuconfig MEILHAUS
 	tristate "Meilhaus support"
+	depends on m
 	---help---
 	  If you have a Meilhaus card, say Y (or M) here.
 
@@ -18,7 +19,7 @@ if MEILHAUS
 config ME0600
 	tristate "Meilhaus ME-600 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-600 family of boards
 	  that do data collection and multipurpose I/O.
@@ -29,7 +30,7 @@ config ME0600
 config ME0900
 	tristate "Meilhaus ME-900 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-900 family of boards
 	  that do data collection and multipurpose I/O.
@@ -40,7 +41,7 @@ config ME0900
 config ME1000
 	tristate "Meilhaus ME-1000 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-1000 family of boards
 	  that do data collection and multipurpose I/O.
@@ -51,7 +52,7 @@ config ME1000
 config ME1400
 	tristate "Meilhaus ME-1400 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-1400 family of boards
 	  that do data collection and multipurpose I/O.
@@ -62,7 +63,7 @@ config ME1400
 config ME1600
 	tristate "Meilhaus ME-1600 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-1600 family of boards
 	  that do data collection and multipurpose I/O.
@@ -73,7 +74,7 @@ config ME1600
 config ME4600
 	tristate "Meilhaus ME-4600 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-4600 family of boards
 	  that do data collection and multipurpose I/O.
@@ -84,7 +85,7 @@ config ME4600
 config ME6000
 	tristate "Meilhaus ME-6000 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-6000 family of boards
 	  that do data collection and multipurpose I/O.
@@ -95,7 +96,7 @@ config ME6000
 config ME8100
 	tristate "Meilhaus ME-8100 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-8100 family of boards
 	  that do data collection and multipurpose I/O.
@@ -106,7 +107,7 @@ config ME8100
 config ME8200
 	tristate "Meilhaus ME-8200 support"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This driver supports the Meilhaus ME-8200 family of boards
 	  that do data collection and multipurpose I/O.
@@ -117,7 +118,7 @@ config ME8200
 config MEDUMMY
 	tristate "Meilhaus dummy driver"
 	default n
-	depends on PCI
+	depends on PCI && m
 	help
 	  This provides a dummy driver for the Meilhaus driver package
 

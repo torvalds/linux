@@ -18,7 +18,7 @@ obj-y += exconfig.o  exfield.o  exnames.o   exoparg6.o  exresolv.o  exstorob.o\
 	 excreate.o  exmisc.o   exoparg2.o  exregion.o  exstore.o   exutils.o \
 	 exdump.o    exmutex.o  exoparg3.o  exresnte.o  exstoren.o
 
-obj-y += hwacpi.o  hwgpe.o  hwregs.o  hwsleep.o hwxface.o
+obj-y += hwacpi.o  hwgpe.o  hwregs.o  hwsleep.o hwxface.o hwvalid.o
 
 obj-$(ACPI_FUTURE_USAGE) += hwtimer.o
 
@@ -41,4 +41,4 @@ obj-y += tbxface.o tbinstal.o tbutils.o tbfind.o tbfadt.o tbxfroot.o
 
 obj-y += utalloc.o utdebug.o uteval.o utinit.o utmisc.o utxface.o \
 		utcopy.o utdelete.o utglobal.o utmath.o utobject.o \
-		utstate.o utmutex.o utobject.o utresrc.o
+		utstate.o utmutex.o utobject.o utresrc.o utlock.o

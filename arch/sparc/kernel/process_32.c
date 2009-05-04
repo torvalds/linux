@@ -455,7 +455,7 @@ asmlinkage int sparc_do_fork(unsigned long clone_flags,
  */
 extern void ret_from_fork(void);
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
+int copy_thread(unsigned long clone_flags, unsigned long sp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {

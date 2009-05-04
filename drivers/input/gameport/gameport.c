@@ -50,9 +50,8 @@ static LIST_HEAD(gameport_list);
 
 static struct bus_type gameport_bus;
 
-static void gameport_add_driver(struct gameport_driver *drv);
 static void gameport_add_port(struct gameport *gameport);
-static void gameport_destroy_port(struct gameport *gameport);
+static void gameport_attach_driver(struct gameport_driver *drv);
 static void gameport_reconnect_port(struct gameport *gameport);
 static void gameport_disconnect_port(struct gameport *gameport);
 
@@ -230,7 +229,6 @@ static void gameport_find_driver(struct gameport *gameport)
 
 enum gameport_event_type {
 	GAMEPORT_REGISTER_PORT,
-	GAMEPORT_REGISTER_DRIVER,
 	GAMEPORT_ATTACH_DRIVER,
 };
 
@@ -374,8 +372,8 @@ static void gameport_handle_event(void)
 				gameport_add_port(event->object);
 				break;
 
-			case GAMEPORT_REGISTER_DRIVER:
-				gameport_add_driver(event->object);
+			case GAMEPORT_ATTACH_DRIVER:
+				gameport_attach_driver(event->object);
 				break;
 
 			default:
@@ -706,14 +704,14 @@ static int gameport_driver_remove(struct device *dev)
 	return 0;
 }
 
-static void gameport_add_driver(struct gameport_driver *drv)
+static void gameport_attach_driver(struct gameport_driver *drv)
 {
 	int error;
 
-	error = driver_register(&drv->driver);
+	error = driver_attach(&drv->driver);
 	if (error)
 		printk(KERN_ERR
-			"gameport: driver_register() failed for %s, error: %d\n",
+			"gameport: driver_attach() failed for %s, error: %d\n",
 			drv->driver.name, error);
 }
 

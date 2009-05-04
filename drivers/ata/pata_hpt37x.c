@@ -8,7 +8,7 @@
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
  * Portions Copyright (C) 2003		Red Hat Inc
- * Portions Copyright (C) 2005-2007	MontaVista Software, Inc.
+ * Portions Copyright (C) 2005-2009	MontaVista Software, Inc.
  *
  * TODO
  *	Look into engine reset on timeout errors. Should not be	required.
@@ -24,7 +24,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt37x"
-#define DRV_VERSION	"0.6.11"
+#define DRV_VERSION	"0.6.12"
 
 struct hpt_clock {
 	u8	xfer_speed;
@@ -445,23 +445,6 @@ static void hpt370_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	hpt370_bmdma_start		-	DMA engine begin
- *	@qc: ATA command
- *
- *	The 370 and 370A want us to reset the DMA engine each time we
- *	use it. The 372 and later are fine.
- */
-
-static void hpt370_bmdma_start(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
-	udelay(10);
-	ata_bmdma_start(qc);
-}
-
-/**
  *	hpt370_bmdma_end		-	DMA engine stop
  *	@qc: ATA command
  *
@@ -598,7 +581,6 @@ static struct scsi_host_template hpt37x_sht = {
 static struct ata_port_operations hpt370_port_ops = {
 	.inherits	= &ata_bmdma_port_ops,
 
-	.bmdma_start 	= hpt370_bmdma_start,
 	.bmdma_stop	= hpt370_bmdma_stop,
 
 	.mode_filter	= hpt370_filter,
@@ -753,55 +735,55 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	/* HPT370 - UDMA100 */
 	static const struct ata_port_info info_hpt370 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &hpt370_port_ops
 	};
 	/* HPT370A - UDMA100 */
 	static const struct ata_port_info info_hpt370a = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &hpt370a_port_ops
 	};
 	/* HPT370 - UDMA100 */
 	static const struct ata_port_info info_hpt370_33 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &hpt370_port_ops
 	};
 	/* HPT370A - UDMA100 */
 	static const struct ata_port_info info_hpt370a_33 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &hpt370a_port_ops
 	};
 	/* HPT371, 372 and friends - UDMA133 */
 	static const struct ata_port_info info_hpt372 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &hpt372_port_ops
 	};
 	/* HPT374 - UDMA100, function 1 uses different prereset method */
 	static const struct ata_port_info info_hpt374_fn0 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &hpt372_port_ops
 	};
 	static const struct ata_port_info info_hpt374_fn1 = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &hpt374_fn1_port_ops
 	};

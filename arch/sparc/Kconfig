@@ -36,6 +36,7 @@ config SPARC64
 	select HAVE_KRETPROBES
 	select HAVE_KPROBES
 	select HAVE_LMB
+	select HAVE_SYSCALL_WRAPPERS
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
@@ -122,6 +123,9 @@ config ARCH_NO_VIRT_TO_BUS
 
 config OF
 	def_bool y
+
+config ARCH_SUPPORTS_DEBUG_PAGEALLOC
+	def_bool y if SPARC64
 
 source "init/Kconfig"
 

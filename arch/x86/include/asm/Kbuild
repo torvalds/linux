@@ -22,4 +22,3 @@ unifdef-y += unistd_32.h
 unifdef-y += unistd_64.h
 unifdef-y += vm86.h
 unifdef-y += vsyscall.h
-unifdef-y += swab.h

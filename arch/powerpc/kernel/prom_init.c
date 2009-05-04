@@ -614,7 +614,7 @@ static unsigned char ibm_architecture_vec[] = {
 	W(0xffffffff),			/* virt_base */
 	W(0xffffffff),			/* virt_size */
 	W(0xffffffff),			/* load_base */
-	W(64),				/* 128MB min RMA */
+	W(64),				/* 64MB min RMA */
 	W(0xffffffff),			/* full client load */
 	0,				/* min RMA percentage of total RAM */
 	48,				/* max log_2(hash table size) */
@@ -732,15 +732,17 @@ static void __init prom_send_capabilities(void)
 	root = call_prom("open", 1, 1, ADDR("/"));
 	if (root != 0) {
 		/* try calling the ibm,client-architecture-support method */
+		prom_printf("Calling ibm,client-architecture...");
 		if (call_prom_ret("call-method", 3, 2, &ret,
 				  ADDR("ibm,client-architecture-support"),
 				  root,
 				  ADDR(ibm_architecture_vec)) == 0) {
 			/* the call exists... */
 			if (ret)
-				prom_printf("WARNING: ibm,client-architecture"
+				prom_printf("\nWARNING: ibm,client-architecture"
 					    "-support call FAILED!\n");
 			call_prom("close", 1, 0, root);
+			prom_printf(" done\n");
 			return;
 		}
 		call_prom("close", 1, 0, root);
@@ -1083,7 +1085,7 @@ static void __init prom_instantiate_rtas(void)
 		return;
 	}
 
-	prom_printf("instantiating rtas at 0x%x ...", base);
+	prom_printf("instantiating rtas at 0x%x...", base);
 
 	if (call_prom_ret("call-method", 3, 2, &entry,
 			  ADDR("instantiate-rtas"),
@@ -1495,7 +1497,7 @@ static int __init prom_find_machine_type(void)
 		return PLATFORM_GENERIC;
 	x = prom_getproplen(rtas, "ibm,hypertas-functions");
 	if (x != PROM_ERROR) {
-		prom_printf("Hypertas detected, assuming LPAR !\n");
+		prom_debug("Hypertas detected, assuming LPAR !\n");
 		return PLATFORM_PSERIES_LPAR;
 	}
 	return PLATFORM_PSERIES;
@@ -1544,7 +1546,7 @@ static void __init prom_check_displays(void)
 	};
 	const unsigned char *clut;
 
-	prom_printf("Looking for displays\n");
+	prom_debug("Looking for displays\n");
 	for (node = 0; prom_next_node(&node); ) {
 		memset(type, 0, sizeof(type));
 		prom_getprop(node, "device_type", type, sizeof(type));
@@ -1562,7 +1564,7 @@ static void __init prom_check_displays(void)
 		if (call_prom("package-to-path", 3, 1, node, path,
 			      PROM_SCRATCH_SIZE-10) == PROM_ERROR)
 			continue;
-		prom_printf("found display   : %s, opening ... ", path);
+		prom_printf("found display   : %s, opening... ", path);
 		
 		ih = call_prom("open", 1, 1, path);
 		if (ih == 0) {
@@ -2283,6 +2285,8 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	prom_init_stdout();
 
+	prom_printf("Preparing to boot %s", RELOC(linux_banner));
+
 	/*
 	 * Get default machine type. At this point, we do not differentiate
 	 * between pSeries SMP and pSeries LPAR
@@ -2385,7 +2389,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	/*
 	 * Now finally create the flattened device-tree
 	 */
-	prom_printf("copying OF device tree ...\n");
+	prom_printf("copying OF device tree...\n");
 	flatten_device_tree();
 
 	/*
@@ -2400,7 +2404,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Call OF "quiesce" method to shut down pending DMA's from
 	 * devices etc...
 	 */
-	prom_printf("Calling quiesce ...\n");
+	prom_printf("Calling quiesce...\n");
 	call_prom("quiesce", 0, 0);
 
 	/*

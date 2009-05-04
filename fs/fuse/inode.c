@@ -292,6 +292,7 @@ static void fuse_put_super(struct super_block *sb)
 	list_del(&fc->entry);
 	fuse_ctl_remove_conn(fc);
 	mutex_unlock(&fuse_mutex);
+	bdi_destroy(&fc->bdi);
 	fuse_conn_put(fc);
 }
 
@@ -532,7 +533,6 @@ void fuse_conn_put(struct fuse_conn *fc)
 		if (fc->destroy_req)
 			fuse_request_free(fc->destroy_req);
 		mutex_destroy(&fc->inst_mutex);
-		bdi_destroy(&fc->bdi);
 		fc->release(fc);
 	}
 }
@@ -805,16 +805,18 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	int err;
 	int is_bdev = sb->s_bdev != NULL;
 
+	err = -EINVAL;
 	if (sb->s_flags & MS_MANDLOCK)
-		return -EINVAL;
+		goto err;
 
 	if (!parse_fuse_opt((char *) data, &d, is_bdev))
-		return -EINVAL;
+		goto err;
 
 	if (is_bdev) {
 #ifdef CONFIG_BLOCK
+		err = -EINVAL;
 		if (!sb_set_blocksize(sb, d.blksize))
-			return -EINVAL;
+			goto err;
 #endif
 	} else {
 		sb->s_blocksize = PAGE_CACHE_SIZE;
@@ -826,20 +828,22 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_export_op = &fuse_export_operations;
 
 	file = fget(d.fd);
+	err = -EINVAL;
 	if (!file)
-		return -EINVAL;
+		goto err;
 
 	if (file->f_op != &fuse_dev_operations)
-		return -EINVAL;
+		goto err_fput;
 
 	fc = kmalloc(sizeof(*fc), GFP_KERNEL);
+	err = -ENOMEM;
 	if (!fc)
-		return -ENOMEM;
+		goto err_fput;
 
 	err = fuse_conn_init(fc, sb);
 	if (err) {
 		kfree(fc);
-		return err;
+		goto err_fput;
 	}
 
 	fc->release = fuse_free_conn;
@@ -854,12 +858,12 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	err = -ENOMEM;
 	root = fuse_get_root_inode(sb, d.rootmode);
 	if (!root)
-		goto err;
+		goto err_put_conn;
 
 	root_dentry = d_alloc_root(root);
 	if (!root_dentry) {
 		iput(root);
-		goto err;
+		goto err_put_conn;
 	}
 
 	init_req = fuse_request_alloc();
@@ -903,9 +907,11 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	fuse_request_free(init_req);
  err_put_root:
 	dput(root_dentry);
- err:
-	fput(file);
+ err_put_conn:
 	fuse_conn_put(fc);
+ err_fput:
+	fput(file);
+ err:
 	return err;
 }
 

@@ -1,9 +1,7 @@
 /*
- * This file is part of linux driver the digital TV devices equipped with B2C2 FlexcopII(b)/III
- *
- * flexcop-eeprom.c - eeprom access methods (currently only MAC address reading is used)
- *
- * see flexcop.c for copyright information.
+ * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
+ * flexcop-eeprom.c - eeprom access methods (currently only MAC address reading)
+ * see flexcop.c for copyright information
  */
 #include "flexcop.h"
 
@@ -14,17 +12,17 @@ static int eeprom_write(struct adapter *adapter, u16 addr, u8 *buf, u16 len)
 	return flex_i2c_write(adapter, 0x20000000, 0x50, addr, buf, len);
 }
 
-static int eeprom_lrc_write(struct adapter *adapter, u32 addr, u32 len, u8 *wbuf, u8 *rbuf, int retries)
+static int eeprom_lrc_write(struct adapter *adapter, u32 addr,
+		u32 len, u8 *wbuf, u8 *rbuf, int retries)
 {
-	int i;
+int i;
 
-	for (i = 0; i < retries; i++) {
-		if (eeprom_write(adapter, addr, wbuf, len) == len) {
-			if (eeprom_lrc_read(adapter, addr, len, rbuf, retries) == 1)
-				return 1;
+for (i = 0; i < retries; i++) {
+	if (eeprom_write(adapter, addr, wbuf, len) == len) {
+		if (eeprom_lrc_read(adapter, addr, len, rbuf, retries) == 1)
+			return 1;
 		}
 	}
-
 	return 0;
 }
 
@@ -39,12 +37,10 @@ static int eeprom_writeKey(struct adapter *adapter, u8 *key, u32 len)
 		return 0;
 
 	memcpy(wbuf, key, len);
-
 	wbuf[16] = 0;
 	wbuf[17] = 0;
 	wbuf[18] = 0;
 	wbuf[19] = calc_lrc(wbuf, 19);
-
 	return eeprom_lrc_write(adapter, 0x3e4, 20, wbuf, rbuf, 4);
 }
 
@@ -59,7 +55,6 @@ static int eeprom_readKey(struct adapter *adapter, u8 *key, u32 len)
 		return 0;
 
 	memcpy(key, buf, len);
-
 	return 1;
 }
 
@@ -74,9 +69,7 @@ static char eeprom_set_mac_addr(struct adapter *adapter, char type, u8 *mac)
 		tmp[3] = mac[5];
 		tmp[4] = mac[6];
 		tmp[5] = mac[7];
-
 	} else {
-
 		tmp[0] = mac[0];
 		tmp[1] = mac[1];
 		tmp[2] = mac[2];
@@ -90,11 +83,11 @@ static char eeprom_set_mac_addr(struct adapter *adapter, char type, u8 *mac)
 
 	if (eeprom_write(adapter, 0x3f8, tmp, 8) == 8)
 		return 1;
-
 	return 0;
 }
 
-static int flexcop_eeprom_read(struct flexcop_device *fc, u16 addr, u8 *buf, u16 len)
+static int flexcop_eeprom_read(struct flexcop_device *fc,
+		u16 addr, u8 *buf, u16 len)
 {
 	return fc->i2c_request(fc,FC_READ,FC_I2C_PORT_EEPROM,0x50,addr,buf,len);
 }
@@ -110,7 +103,8 @@ static u8 calc_lrc(u8 *buf, int len)
 	return sum;
 }
 
-static int flexcop_eeprom_request(struct flexcop_device *fc, flexcop_access_op_t op, u16 addr, u8 *buf, u16 len, int retries)
+static int flexcop_eeprom_request(struct flexcop_device *fc,
+	flexcop_access_op_t op, u16 addr, u8 *buf, u16 len, int retries)
 {
 	int i,ret = 0;
 	u8 chipaddr =  0x50 | ((addr >> 8) & 3);
@@ -123,7 +117,8 @@ static int flexcop_eeprom_request(struct flexcop_device *fc, flexcop_access_op_t
 	return ret;
 }
 
-static int flexcop_eeprom_lrc_read(struct flexcop_device *fc, u16 addr, u8 *buf, u16 len, int retries)
+static int flexcop_eeprom_lrc_read(struct flexcop_device *fc, u16 addr,
+		u8 *buf, u16 len, int retries)
 {
 	int ret = flexcop_eeprom_request(fc, FC_READ, addr, buf, len, retries);
 	if (ret == 0)
@@ -133,8 +128,7 @@ static int flexcop_eeprom_lrc_read(struct flexcop_device *fc, u16 addr, u8 *buf,
 }
 
 /* JJ's comment about extended == 1: it is not presently used anywhere but was
- * added to the low-level functions for possible support of EUI64
- */
+ * added to the low-level functions for possible support of EUI64 */
 int flexcop_eeprom_check_mac_addr(struct flexcop_device *fc, int extended)
 {
 	u8 buf[8];
@@ -142,12 +136,9 @@ int flexcop_eeprom_check_mac_addr(struct flexcop_device *fc, int extended)
 
 	if ((ret = flexcop_eeprom_lrc_read(fc,0x3f8,buf,8,4)) == 0) {
 		if (extended != 0) {
-			err("TODO: extended (EUI64) MAC addresses aren't completely supported yet");
+			err("TODO: extended (EUI64) MAC addresses aren't "
+				"completely supported yet");
 			ret = -EINVAL;
-/*			memcpy(fc->dvb_adapter.proposed_mac,buf,3);
-			mac[3] = 0xfe;
-			mac[4] = 0xff;
-			memcpy(&fc->dvb_adapter.proposed_mac[3],&buf[5],3); */
 		} else
 			memcpy(fc->dvb_adapter.proposed_mac,buf,6);
 	}

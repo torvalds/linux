@@ -8,7 +8,7 @@
 
 #include <asm/boot.h>
 #include <asm/asm.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 
 #include <xen/interface/elfnote.h>
 #include <asm/xen/interface.h>

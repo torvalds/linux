@@ -576,8 +576,13 @@ SET_LAYLA24_FREQUENCY_REG command.
 #define E3G_ASIC_NOT_LOADED		0xffff
 #define E3G_BOX_TYPE_MASK		0xf0
 
-#define EXT_3GBOX_NC			0x01
-#define EXT_3GBOX_NOT_SET		0x02
+/* Indigo express control register values */
+#define INDIGO_EXPRESS_32000		0x02
+#define INDIGO_EXPRESS_44100		0x01
+#define INDIGO_EXPRESS_48000		0x00
+#define INDIGO_EXPRESS_DOUBLE_SPEED	0x10
+#define INDIGO_EXPRESS_QUAD_SPEED	0x04
+#define INDIGO_EXPRESS_CLOCK_MASK	0x17
 
 
 /*

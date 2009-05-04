@@ -100,14 +100,19 @@ $P =~ s@.*/@@g;
 
 my $V = '0.1';
 
-if ($#ARGV < 6) {
-	print "usage: $P arch objdump objcopy cc ld nm rm mv inputfile\n";
+if ($#ARGV < 7) {
+	print "usage: $P arch bits objdump objcopy cc ld nm rm mv is_module inputfile\n";
 	print "version: $V\n";
 	exit(1);
 }
 
 my ($arch, $bits, $objdump, $objcopy, $cc,
-    $ld, $nm, $rm, $mv, $inputfile) = @ARGV;
+    $ld, $nm, $rm, $mv, $is_module, $inputfile) = @ARGV;
+
+# This file refers to mcount and shouldn't be ftraced, so lets' ignore it
+if ($inputfile eq "kernel/trace/ftrace.o") {
+    exit(0);
+}
 
 # Acceptable sections to record.
 my %text_sections = (
@@ -201,6 +206,13 @@ if ($arch eq "x86_64") {
     $alignment = 2;
     $section_type = '%progbits';
 
+} elsif ($arch eq "ia64") {
+    $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\s_mcount\$";
+    $type = "data8";
+
+    if ($is_module eq "0") {
+        $cc .= " -mconstant-gp";
+    }
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }
@@ -262,7 +274,6 @@ if (!$found_version) {
     print STDERR "WARNING: could not find objcopy version.\n" .
 	"\tDisabling local function references.\n";
 }
-
 
 #
 # Step 1: find all the local (static functions) and weak symbols.
@@ -331,13 +342,16 @@ sub update_funcs
 #
 # Step 2: find the sections and mcount call sites
 #
-open(IN, "$objdump -dr $inputfile|") || die "error running $objdump";
+open(IN, "$objdump -hdr $inputfile|") || die "error running $objdump";
 
 my $text;
+
+my $read_headers = 1;
 
 while (<IN>) {
     # is it a section?
     if (/$section_regex/) {
+	$read_headers = 0;
 
 	# Only record text sections that we know are safe
 	if (defined($text_sections{$1})) {
@@ -371,6 +385,19 @@ while (<IN>) {
 		$ref_func = $text;
 	    }
 	}
+    } elsif ($read_headers && /$mcount_section/) {
+	#
+	# Somehow the make process can execute this script on an
+	# object twice. If it does, we would duplicate the mcount
+	# section and it will cause the function tracer self test
+	# to fail. Check if the mcount section exists, and if it does,
+	# warn and exit.
+	#
+	print STDERR "ERROR: $mcount_section already in $inputfile\n" .
+	    "\tThis may be an indication that your build is corrupted.\n" .
+	    "\tDelete $inputfile and try again. If the same object file\n" .
+	    "\tstill causes an issue, then disable CONFIG_DYNAMIC_FTRACE.\n";
+	exit(-1);
     }
 
     # is this a call site to mcount? If so, record it to print later

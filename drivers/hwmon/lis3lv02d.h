@@ -22,12 +22,15 @@
 /*
  * The actual chip is STMicroelectronics LIS3LV02DL or LIS3LV02DQ that seems to
  * be connected via SPI. There exists also several similar chips (such as LIS302DL or
- * LIS3L02DQ) but not in the HP laptops and they have slightly different registers.
+ * LIS3L02DQ) and they have slightly different registers, but we can provide a
+ * common interface for all of them.
  * They can also be connected via I²C.
  */
 
-#define LIS3LV02DL_ID	0x3A /* Also the LIS3LV02DQ */
-#define LIS302DL_ID	0x3B /* Also the LIS202DL! */
+/* 2-byte registers */
+#define LIS_DOUBLE_ID	0x3A /* LIS3LV02D[LQ] */
+/* 1-byte registers */
+#define LIS_SINGLE_ID	0x3B /* LIS[32]02DL and others */
 
 enum lis3lv02d_reg {
 	WHO_AM_I	= 0x0F,
@@ -44,10 +47,13 @@ enum lis3lv02d_reg {
 	STATUS_REG	= 0x27,
 	OUTX_L		= 0x28,
 	OUTX_H		= 0x29,
+	OUTX		= 0x29,
 	OUTY_L		= 0x2A,
 	OUTY_H		= 0x2B,
+	OUTY		= 0x2B,
 	OUTZ_L		= 0x2C,
 	OUTZ_H		= 0x2D,
+	OUTZ		= 0x2D,
 	FF_WU_CFG	= 0x30,
 	FF_WU_SRC	= 0x31,
 	FF_WU_ACK	= 0x32,
@@ -153,11 +159,15 @@ struct axis_conversion {
 	s8	z;
 };
 
-struct acpi_lis3lv02d {
-	struct acpi_device	*device;   /* The ACPI device */
-	acpi_status (*init) (acpi_handle handle);
-	acpi_status (*write) (acpi_handle handle, int reg, u8 val);
-	acpi_status (*read) (acpi_handle handle, int reg, u8 *ret);
+struct lis3lv02d {
+	void			*bus_priv; /* used by the bus layer only */
+	int (*init) (struct lis3lv02d *lis3);
+	int (*write) (struct lis3lv02d *lis3, int reg, u8 val);
+	int (*read) (struct lis3lv02d *lis3, int reg, u8 *ret);
+
+	u8			whoami;    /* 3Ah: 2-byte registries, 3Bh: 1-byte registries */
+	s16 (*read_data) (struct lis3lv02d *lis3, int reg);
+	int			mdps_max_val;
 
 	struct input_dev	*idev;     /* input device */
 	struct task_struct	*kthread;  /* kthread for input */
@@ -170,13 +180,18 @@ struct acpi_lis3lv02d {
 	unsigned char		is_on;     /* whether the device is on or off */
 	unsigned char		usage;     /* usage counter */
 	struct axis_conversion	ac;        /* hw -> logical axis */
+
+	u32			irq;       /* IRQ number */
+	struct fasync_struct	*async_queue; /* queue for the misc device */
+	wait_queue_head_t	misc_wait; /* Wait queue for the misc device */
+	unsigned long		misc_opened; /* bit0: whether the device is open */
 };
 
-int lis3lv02d_init_device(struct acpi_lis3lv02d *dev);
+int lis3lv02d_init_device(struct lis3lv02d *lis3);
 int lis3lv02d_joystick_enable(void);
 void lis3lv02d_joystick_disable(void);
-void lis3lv02d_poweroff(acpi_handle handle);
-void lis3lv02d_poweron(acpi_handle handle);
+void lis3lv02d_poweroff(struct lis3lv02d *lis3);
+void lis3lv02d_poweron(struct lis3lv02d *lis3);
 int lis3lv02d_remove_fs(void);
 
-extern struct acpi_lis3lv02d adev;
+extern struct lis3lv02d lis3_dev;

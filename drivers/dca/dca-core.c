@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2007 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2009 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,7 @@
 #include <linux/device.h>
 #include <linux/dca.h>
 
-#define DCA_VERSION "1.4"
+#define DCA_VERSION "1.8"
 
 MODULE_VERSION(DCA_VERSION);
 MODULE_LICENSE("GPL");
@@ -60,16 +60,17 @@ int dca_add_requester(struct device *dev)
 {
 	struct dca_provider *dca;
 	int err, slot = -ENODEV;
+	unsigned long flags;
 
 	if (!dev)
 		return -EFAULT;
 
-	spin_lock(&dca_lock);
+	spin_lock_irqsave(&dca_lock, flags);
 
 	/* check if the requester has not been added already */
 	dca = dca_find_provider_by_dev(dev);
 	if (dca) {
-		spin_unlock(&dca_lock);
+		spin_unlock_irqrestore(&dca_lock, flags);
 		return -EEXIST;
 	}
 
@@ -78,19 +79,21 @@ int dca_add_requester(struct device *dev)
 		if (slot >= 0)
 			break;
 	}
-	if (slot < 0) {
-		spin_unlock(&dca_lock);
+
+	spin_unlock_irqrestore(&dca_lock, flags);
+
+	if (slot < 0)
 		return slot;
-	}
 
 	err = dca_sysfs_add_req(dca, dev, slot);
 	if (err) {
-		dca->ops->remove_requester(dca, dev);
-		spin_unlock(&dca_lock);
+		spin_lock_irqsave(&dca_lock, flags);
+		if (dca == dca_find_provider_by_dev(dev))
+			dca->ops->remove_requester(dca, dev);
+		spin_unlock_irqrestore(&dca_lock, flags);
 		return err;
 	}
 
-	spin_unlock(&dca_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dca_add_requester);
@@ -103,25 +106,25 @@ int dca_remove_requester(struct device *dev)
 {
 	struct dca_provider *dca;
 	int slot;
+	unsigned long flags;
 
 	if (!dev)
 		return -EFAULT;
 
-	spin_lock(&dca_lock);
+	spin_lock_irqsave(&dca_lock, flags);
 	dca = dca_find_provider_by_dev(dev);
 	if (!dca) {
-		spin_unlock(&dca_lock);
+		spin_unlock_irqrestore(&dca_lock, flags);
 		return -ENODEV;
 	}
 	slot = dca->ops->remove_requester(dca, dev);
-	if (slot < 0) {
-		spin_unlock(&dca_lock);
+	spin_unlock_irqrestore(&dca_lock, flags);
+
+	if (slot < 0)
 		return slot;
-	}
 
 	dca_sysfs_remove_req(dca, slot);
 
-	spin_unlock(&dca_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dca_remove_requester);
@@ -135,17 +138,18 @@ u8 dca_common_get_tag(struct device *dev, int cpu)
 {
 	struct dca_provider *dca;
 	u8 tag;
+	unsigned long flags;
 
-	spin_lock(&dca_lock);
+	spin_lock_irqsave(&dca_lock, flags);
 
 	dca = dca_find_provider_by_dev(dev);
 	if (!dca) {
-		spin_unlock(&dca_lock);
+		spin_unlock_irqrestore(&dca_lock, flags);
 		return -ENODEV;
 	}
 	tag = dca->ops->get_tag(dca, dev, cpu);
 
-	spin_unlock(&dca_lock);
+	spin_unlock_irqrestore(&dca_lock, flags);
 	return tag;
 }
 
@@ -217,11 +221,16 @@ static BLOCKING_NOTIFIER_HEAD(dca_provider_chain);
 int register_dca_provider(struct dca_provider *dca, struct device *dev)
 {
 	int err;
+	unsigned long flags;
 
 	err = dca_sysfs_add_provider(dca, dev);
 	if (err)
 		return err;
+
+	spin_lock_irqsave(&dca_lock, flags);
 	list_add(&dca->node, &dca_providers);
+	spin_unlock_irqrestore(&dca_lock, flags);
+
 	blocking_notifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_ADD, NULL);
 	return 0;
@@ -234,9 +243,15 @@ EXPORT_SYMBOL_GPL(register_dca_provider);
  */
 void unregister_dca_provider(struct dca_provider *dca)
 {
+	unsigned long flags;
+
 	blocking_notifier_call_chain(&dca_provider_chain,
 				     DCA_PROVIDER_REMOVE, NULL);
+
+	spin_lock_irqsave(&dca_lock, flags);
 	list_del(&dca->node);
+	spin_unlock_irqrestore(&dca_lock, flags);
+
 	dca_sysfs_remove_provider(dca);
 }
 EXPORT_SYMBOL_GPL(unregister_dca_provider);

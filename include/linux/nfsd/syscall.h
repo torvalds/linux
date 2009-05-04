@@ -9,9 +9,8 @@
 #ifndef NFSD_SYSCALL_H
 #define NFSD_SYSCALL_H
 
-#include <asm/types.h>
-#ifdef __KERNEL__
 # include <linux/types.h>
+#ifdef __KERNEL__
 # include <linux/in.h>
 #endif 
 #include <linux/posix_types.h>

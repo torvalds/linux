@@ -247,8 +247,8 @@ static unsigned submit_stpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	/* Prepare the data buffer */
 	memset(h->buff, 0, stpg_len);
 	h->buff[4] = TPGS_STATE_OPTIMIZED & 0x0f;
-	h->buff[6] = (h->group_id >> 8) & 0x0f;
-	h->buff[7] = h->group_id & 0x0f;
+	h->buff[6] = (h->group_id >> 8) & 0xff;
+	h->buff[7] = h->group_id & 0xff;
 
 	rq = get_alua_req(sdev, h->buff, stpg_len, WRITE);
 	if (!rq)
@@ -461,6 +461,15 @@ static int alua_check_sense(struct scsi_device *sdev,
 			 */
 			return ADD_TO_MLQUEUE;
 		}
+		if (sense_hdr->asc == 0x3f && sense_hdr->ascq == 0x0e) {
+			/*
+			 * REPORTED_LUNS_DATA_HAS_CHANGED is reported
+			 * when switching controllers on targets like
+			 * Intel Multi-Flex. We can just retry.
+			 */
+			return ADD_TO_MLQUEUE;
+		}
+
 		break;
 	}
 
@@ -691,6 +700,7 @@ static const struct scsi_dh_devlist alua_dev_list[] = {
 	{"IBM", "2107900" },
 	{"IBM", "2145" },
 	{"Pillar", "Axiom" },
+	{"Intel", "Multi-Flex"},
 	{NULL, NULL}
 };
 

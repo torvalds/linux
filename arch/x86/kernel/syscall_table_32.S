@@ -1,7 +1,7 @@
 ENTRY(sys_call_table)
 	.long sys_restart_syscall	/* 0 - old "setup()" system call, used for restarting */
 	.long sys_exit
-	.long sys_fork
+	.long ptregs_fork
 	.long sys_read
 	.long sys_write
 	.long sys_open		/* 5 */
@@ -10,7 +10,7 @@ ENTRY(sys_call_table)
 	.long sys_creat
 	.long sys_link
 	.long sys_unlink	/* 10 */
-	.long sys_execve
+	.long ptregs_execve
 	.long sys_chdir
 	.long sys_time
 	.long sys_mknod
@@ -88,7 +88,7 @@ ENTRY(sys_call_table)
 	.long sys_uselib
 	.long sys_swapon
 	.long sys_reboot
-	.long old_readdir
+	.long sys_old_readdir
 	.long old_mmap		/* 90 */
 	.long sys_munmap
 	.long sys_truncate
@@ -109,17 +109,17 @@ ENTRY(sys_call_table)
 	.long sys_newlstat
 	.long sys_newfstat
 	.long sys_uname
-	.long sys_iopl		/* 110 */
+	.long ptregs_iopl	/* 110 */
 	.long sys_vhangup
 	.long sys_ni_syscall	/* old "idle" system call */
-	.long sys_vm86old
+	.long ptregs_vm86old
 	.long sys_wait4
 	.long sys_swapoff	/* 115 */
 	.long sys_sysinfo
 	.long sys_ipc
 	.long sys_fsync
-	.long sys_sigreturn
-	.long sys_clone		/* 120 */
+	.long ptregs_sigreturn
+	.long ptregs_clone	/* 120 */
 	.long sys_setdomainname
 	.long sys_newuname
 	.long sys_modify_ldt
@@ -165,14 +165,14 @@ ENTRY(sys_call_table)
 	.long sys_mremap
 	.long sys_setresuid16
 	.long sys_getresuid16	/* 165 */
-	.long sys_vm86
+	.long ptregs_vm86
 	.long sys_ni_syscall	/* Old sys_query_module */
 	.long sys_poll
 	.long sys_nfsservctl
 	.long sys_setresgid16	/* 170 */
 	.long sys_getresgid16
 	.long sys_prctl
-	.long sys_rt_sigreturn
+	.long ptregs_rt_sigreturn
 	.long sys_rt_sigaction
 	.long sys_rt_sigprocmask	/* 175 */
 	.long sys_rt_sigpending
@@ -185,11 +185,11 @@ ENTRY(sys_call_table)
 	.long sys_getcwd
 	.long sys_capget
 	.long sys_capset	/* 185 */
-	.long sys_sigaltstack
+	.long ptregs_sigaltstack
 	.long sys_sendfile
 	.long sys_ni_syscall	/* reserved for streams1 */
 	.long sys_ni_syscall	/* reserved for streams2 */
-	.long sys_vfork		/* 190 */
+	.long ptregs_vfork	/* 190 */
 	.long sys_getrlimit
 	.long sys_mmap2
 	.long sys_truncate64
@@ -332,3 +332,5 @@ ENTRY(sys_call_table)
 	.long sys_dup3			/* 330 */
 	.long sys_pipe2
 	.long sys_inotify_init1
+	.long sys_preadv
+	.long sys_pwritev

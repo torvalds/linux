@@ -5,6 +5,9 @@
  *
  * Thanks goes out to P.A. Semi, Inc for supplying me with a PPC64 box.
  *
+ * Added function graph tracer code, taken from x86 that was written
+ * by Frederic Weisbecker, and ported to PPC by Steven Rostedt.
+ *
  */
 
 #include <linux/spinlock.h>
@@ -20,14 +23,6 @@
 #include <asm/code-patching.h>
 #include <asm/ftrace.h>
 
-#if 0
-#define DEBUGP printk
-#else
-#define DEBUGP(fmt , ...)	do { } while (0)
-#endif
-
-static unsigned int ftrace_nop = PPC_NOP_INSTR;
-
 #ifdef CONFIG_PPC32
 # define GET_ADDR(addr) addr
 #else
@@ -35,37 +30,23 @@ static unsigned int ftrace_nop = PPC_NOP_INSTR;
 # define GET_ADDR(addr) (*(unsigned long *)addr)
 #endif
 
-
-static unsigned int ftrace_calc_offset(long ip, long addr)
+#ifdef CONFIG_DYNAMIC_FTRACE
+static unsigned int ftrace_nop_replace(void)
 {
-	return (int)(addr - ip);
+	return PPC_INST_NOP;
 }
 
-static unsigned char *ftrace_nop_replace(void)
+static unsigned int
+ftrace_call_replace(unsigned long ip, unsigned long addr, int link)
 {
-	return (char *)&ftrace_nop;
-}
+	unsigned int op;
 
-static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
-{
-	static unsigned int op;
-
-	/*
-	 * It would be nice to just use create_function_call, but that will
-	 * update the code itself. Here we need to just return the
-	 * instruction that is going to be modified, without modifying the
-	 * code.
-	 */
 	addr = GET_ADDR(addr);
 
-	/* Set to "bl addr" */
-	op = 0x48000001 | (ftrace_calc_offset(ip, addr) & 0x03fffffc);
+	/* if (link) set op to 'bl' else 'b' */
+	op = create_branch((unsigned int *)ip, addr, link ? 1 : 0);
 
-	/*
-	 * No locking needed, this must be called via kstop_machine
-	 * which in essence is like running on a uniprocessor machine.
-	 */
-	return (unsigned char *)&op;
+	return op;
 }
 
 #ifdef CONFIG_PPC64
@@ -77,10 +58,9 @@ static unsigned char *ftrace_call_replace(unsigned long ip, unsigned long addr)
 #endif
 
 static int
-ftrace_modify_code(unsigned long ip, unsigned char *old_code,
-		   unsigned char *new_code)
+ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
 {
-	unsigned char replaced[MCOUNT_INSN_SIZE];
+	unsigned int replaced;
 
 	/*
 	 * Note: Due to modules and __init, code can
@@ -93,15 +73,15 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 */
 
 	/* read the text we want to modify */
-	if (probe_kernel_read(replaced, (void *)ip, MCOUNT_INSN_SIZE))
+	if (probe_kernel_read(&replaced, (void *)ip, MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/* Make sure it is what we expect it to be */
-	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
+	if (replaced != old)
 		return -EINVAL;
 
 	/* replace the text with the new text */
-	if (probe_kernel_write((void *)ip, new_code, MCOUNT_INSN_SIZE))
+	if (probe_kernel_write((void *)ip, &new, MCOUNT_INSN_SIZE))
 		return -EPERM;
 
 	flush_icache_range(ip, ip + 8);
@@ -118,6 +98,8 @@ static int test_24bit_addr(unsigned long ip, unsigned long addr)
 	/* use the create_branch to verify that this offset can be branched */
 	return create_branch((unsigned int *)ip, addr, 0);
 }
+
+#ifdef CONFIG_MODULES
 
 static int is_bl_op(unsigned int op)
 {
@@ -175,7 +157,7 @@ __ftrace_make_nop(struct module *mod,
 	 * 0xe8, 0x4c, 0x00, 0x28,    ld      r2,40(r12)
 	 */
 
-	DEBUGP("ip:%lx jumps to %lx r2: %lx", ip, tramp, mod->arch.toc);
+	pr_debug("ip:%lx jumps to %lx r2: %lx", ip, tramp, mod->arch.toc);
 
 	/* Find where the trampoline jumps to */
 	if (probe_kernel_read(jmp, (void *)tramp, sizeof(jmp))) {
@@ -183,7 +165,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EFAULT;
 	}
 
-	DEBUGP(" %08x %08x", jmp[0], jmp[1]);
+	pr_debug(" %08x %08x", jmp[0], jmp[1]);
 
 	/* verify that this is what we expect it to be */
 	if (((jmp[0] & 0xffff0000) != 0x3d820000) ||
@@ -195,21 +177,22 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
-	offset = (unsigned)((unsigned short)jmp[0]) << 16 |
-		(unsigned)((unsigned short)jmp[1]);
+	/* The bottom half is signed extended */
+	offset = ((unsigned)((unsigned short)jmp[0]) << 16) +
+		(int)((short)jmp[1]);
 
-	DEBUGP(" %x ", offset);
+	pr_debug(" %x ", offset);
 
 	/* get the address this jumps too */
 	tramp = mod->arch.toc + offset + 32;
-	DEBUGP("toc: %lx", tramp);
+	pr_debug("toc: %lx", tramp);
 
 	if (probe_kernel_read(jmp, (void *)tramp, 8)) {
 		printk(KERN_ERR "Failed to read %lx\n", tramp);
 		return -EFAULT;
 	}
 
-	DEBUGP(" %08x %08x\n", jmp[0], jmp[1]);
+	pr_debug(" %08x %08x\n", jmp[0], jmp[1]);
 
 	ptr = ((unsigned long)jmp[0] << 32) + jmp[1];
 
@@ -286,7 +269,7 @@ __ftrace_make_nop(struct module *mod,
 	 *  0x4e, 0x80, 0x04, 0x20  bctr
 	 */
 
-	DEBUGP("ip:%lx jumps to %lx", ip, tramp);
+	pr_debug("ip:%lx jumps to %lx", ip, tramp);
 
 	/* Find where the trampoline jumps to */
 	if (probe_kernel_read(jmp, (void *)tramp, sizeof(jmp))) {
@@ -294,7 +277,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EFAULT;
 	}
 
-	DEBUGP(" %08x %08x ", jmp[0], jmp[1]);
+	pr_debug(" %08x %08x ", jmp[0], jmp[1]);
 
 	/* verify that this is what we expect it to be */
 	if (((jmp[0] & 0xffff0000) != 0x3d600000) ||
@@ -310,7 +293,7 @@ __ftrace_make_nop(struct module *mod,
 	if (tramp & 0x8000)
 		tramp -= 0x10000;
 
-	DEBUGP(" %x ", tramp);
+	pr_debug(" %lx ", tramp);
 
 	if (tramp != addr) {
 		printk(KERN_ERR
@@ -319,7 +302,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EINVAL;
 	}
 
-	op = PPC_NOP_INSTR;
+	op = PPC_INST_NOP;
 
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
@@ -329,12 +312,13 @@ __ftrace_make_nop(struct module *mod,
 	return 0;
 }
 #endif /* PPC64 */
+#endif /* CONFIG_MODULES */
 
 int ftrace_make_nop(struct module *mod,
 		    struct dyn_ftrace *rec, unsigned long addr)
 {
-	unsigned char *old, *new;
 	unsigned long ip = rec->ip;
+	unsigned int old, new;
 
 	/*
 	 * If the calling address is more that 24 bits away,
@@ -343,11 +327,12 @@ int ftrace_make_nop(struct module *mod,
 	 */
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
-		old = ftrace_call_replace(ip, addr);
+		old = ftrace_call_replace(ip, addr, 1);
 		new = ftrace_nop_replace();
 		return ftrace_modify_code(ip, old, new);
 	}
 
+#ifdef CONFIG_MODULES
 	/*
 	 * Out of range jumps are called from modules.
 	 * We should either already have a pointer to the module
@@ -372,9 +357,13 @@ int ftrace_make_nop(struct module *mod,
 		mod = rec->arch.mod;
 
 	return __ftrace_make_nop(mod, rec, addr);
-
+#else
+	/* We should not get here without modules */
+	return -EINVAL;
+#endif /* CONFIG_MODULES */
 }
 
+#ifdef CONFIG_MODULES
 #ifdef CONFIG_PPC64
 static int
 __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
@@ -391,7 +380,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	 *  b +8; ld r2,40(r1)
 	 */
 	if (((op[0] != 0x48000008) || (op[1] != 0xe8410028)) &&
-	    ((op[0] != PPC_NOP_INSTR) || (op[1] != PPC_NOP_INSTR))) {
+	    ((op[0] != PPC_INST_NOP) || (op[1] != PPC_INST_NOP))) {
 		printk(KERN_ERR "Expected NOPs but have %x %x\n", op[0], op[1]);
 		return -EINVAL;
 	}
@@ -413,7 +402,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	/* ld r2,40(r1) */
 	op[1] = 0xe8410028;
 
-	DEBUGP("write to %lx\n", rec->ip);
+	pr_debug("write to %lx\n", rec->ip);
 
 	if (probe_kernel_write((void *)ip, op, MCOUNT_INSN_SIZE * 2))
 		return -EPERM;
@@ -434,7 +423,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EFAULT;
 
 	/* It should be pointing to a nop */
-	if (op != PPC_NOP_INSTR) {
+	if (op != PPC_INST_NOP) {
 		printk(KERN_ERR "Expected NOP but have %x\n", op);
 		return -EINVAL;
 	}
@@ -453,7 +442,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EINVAL;
 	}
 
-	DEBUGP("write to %lx\n", rec->ip);
+	pr_debug("write to %lx\n", rec->ip);
 
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
@@ -463,11 +452,12 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	return 0;
 }
 #endif /* CONFIG_PPC64 */
+#endif /* CONFIG_MODULES */
 
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
-	unsigned char *old, *new;
 	unsigned long ip = rec->ip;
+	unsigned int old, new;
 
 	/*
 	 * If the calling address is more that 24 bits away,
@@ -477,10 +467,11 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	if (test_24bit_addr(ip, addr)) {
 		/* within range */
 		old = ftrace_nop_replace();
-		new = ftrace_call_replace(ip, addr);
+		new = ftrace_call_replace(ip, addr, 1);
 		return ftrace_modify_code(ip, old, new);
 	}
 
+#ifdef CONFIG_MODULES
 	/*
 	 * Out of range jumps are called from modules.
 	 * Being that we are converting from nop, it had better
@@ -492,16 +483,20 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	}
 
 	return __ftrace_make_call(rec, addr);
+#else
+	/* We should not get here without modules */
+	return -EINVAL;
+#endif /* CONFIG_MODULES */
 }
 
 int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned long ip = (unsigned long)(&ftrace_call);
-	unsigned char old[MCOUNT_INSN_SIZE], *new;
+	unsigned int old, new;
 	int ret;
 
-	memcpy(old, &ftrace_call, MCOUNT_INSN_SIZE);
-	new = ftrace_call_replace(ip, (unsigned long)func);
+	old = *(unsigned int *)&ftrace_call;
+	new = ftrace_call_replace(ip, (unsigned long)func, 1);
 	ret = ftrace_modify_code(ip, old, new);
 
 	return ret;
@@ -516,3 +511,111 @@ int __init ftrace_dyn_arch_init(void *data)
 
 	return 0;
 }
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+extern void ftrace_graph_call(void);
+extern void ftrace_graph_stub(void);
+
+int ftrace_enable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	unsigned long addr = (unsigned long)(&ftrace_graph_caller);
+	unsigned long stub = (unsigned long)(&ftrace_graph_stub);
+	unsigned int old, new;
+
+	old = ftrace_call_replace(ip, stub, 0);
+	new = ftrace_call_replace(ip, addr, 0);
+
+	return ftrace_modify_code(ip, old, new);
+}
+
+int ftrace_disable_ftrace_graph_caller(void)
+{
+	unsigned long ip = (unsigned long)(&ftrace_graph_call);
+	unsigned long addr = (unsigned long)(&ftrace_graph_caller);
+	unsigned long stub = (unsigned long)(&ftrace_graph_stub);
+	unsigned int old, new;
+
+	old = ftrace_call_replace(ip, addr, 0);
+	new = ftrace_call_replace(ip, stub, 0);
+
+	return ftrace_modify_code(ip, old, new);
+}
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+#ifdef CONFIG_PPC64
+extern void mod_return_to_handler(void);
+#endif
+
+/*
+ * Hook the return address and push it in the stack of return addrs
+ * in current thread info.
+ */
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
+{
+	unsigned long old;
+	int faulted;
+	struct ftrace_graph_ent trace;
+	unsigned long return_hooker = (unsigned long)&return_to_handler;
+
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+		return;
+
+#ifdef CONFIG_PPC64
+	/* non core kernel code needs to save and restore the TOC */
+	if (REGION_ID(self_addr) != KERNEL_REGION_ID)
+		return_hooker = (unsigned long)&mod_return_to_handler;
+#endif
+
+	return_hooker = GET_ADDR(return_hooker);
+
+	/*
+	 * Protect against fault, even if it shouldn't
+	 * happen. This tool is too much intrusive to
+	 * ignore such a protection.
+	 */
+	asm volatile(
+		"1: " PPC_LL "%[old], 0(%[parent])\n"
+		"2: " PPC_STL "%[return_hooker], 0(%[parent])\n"
+		"   li %[faulted], 0\n"
+		"3:\n"
+
+		".section .fixup, \"ax\"\n"
+		"4: li %[faulted], 1\n"
+		"   b 3b\n"
+		".previous\n"
+
+		".section __ex_table,\"a\"\n"
+			PPC_LONG_ALIGN "\n"
+			PPC_LONG "1b,4b\n"
+			PPC_LONG "2b,4b\n"
+		".previous"
+
+		: [old] "=r" (old), [faulted] "=r" (faulted)
+		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
+		: "memory"
+	);
+
+	if (unlikely(faulted)) {
+		ftrace_graph_stop();
+		WARN_ON(1);
+		return;
+	}
+
+	if (ftrace_push_return_trace(old, self_addr, &trace.depth) == -EBUSY) {
+		*parent = old;
+		return;
+	}
+
+	trace.func = self_addr;
+
+	/* Only trace if the calling function expects to */
+	if (!ftrace_graph_entry(&trace)) {
+		current->curr_ret_stack--;
+		*parent = old;
+	}
+}
+#endif /* CONFIG_FUNCTION_GRAPH_TRACER */

@@ -24,10 +24,12 @@
 #include <linux/init.h>
 #include <linux/vfs.h>
 #include <linux/mount.h>
+#include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/swap.h>
+#include <linux/ima.h>
 
 static struct vfsmount *shm_mnt;
 
@@ -42,7 +44,6 @@ static struct vfsmount *shm_mnt;
 #include <linux/exportfs.h>
 #include <linux/generic_acl.h>
 #include <linux/mman.h>
-#include <linux/pagemap.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/backing-dev.h>
@@ -64,13 +65,28 @@ static struct vfsmount *shm_mnt;
 #include <asm/div64.h>
 #include <asm/pgtable.h>
 
+/*
+ * The maximum size of a shmem/tmpfs file is limited by the maximum size of
+ * its triple-indirect swap vector - see illustration at shmem_swp_entry().
+ *
+ * With 4kB page size, maximum file size is just over 2TB on a 32-bit kernel,
+ * but one eighth of that on a 64-bit kernel.  With 8kB page size, maximum
+ * file size is just over 4TB on a 64-bit kernel, but 16TB on a 32-bit kernel,
+ * MAX_LFS_FILESIZE being then more restrictive than swap vector layout.
+ *
+ * We use / and * instead of shifts in the definitions below, so that the swap
+ * vector can be tested with small even values (e.g. 20) for ENTRIES_PER_PAGE.
+ */
 #define ENTRIES_PER_PAGE (PAGE_CACHE_SIZE/sizeof(unsigned long))
-#define ENTRIES_PER_PAGEPAGE (ENTRIES_PER_PAGE*ENTRIES_PER_PAGE)
+#define ENTRIES_PER_PAGEPAGE ((unsigned long long)ENTRIES_PER_PAGE*ENTRIES_PER_PAGE)
+
+#define SHMSWP_MAX_INDEX (SHMEM_NR_DIRECT + (ENTRIES_PER_PAGEPAGE/2) * (ENTRIES_PER_PAGE+1))
+#define SHMSWP_MAX_BYTES (SHMSWP_MAX_INDEX << PAGE_CACHE_SHIFT)
+
+#define SHMEM_MAX_BYTES  min_t(unsigned long long, SHMSWP_MAX_BYTES, MAX_LFS_FILESIZE)
+#define SHMEM_MAX_INDEX  ((unsigned long)((SHMEM_MAX_BYTES+1) >> PAGE_CACHE_SHIFT))
+
 #define BLOCKS_PER_PAGE  (PAGE_CACHE_SIZE/512)
-
-#define SHMEM_MAX_INDEX  (SHMEM_NR_DIRECT + (ENTRIES_PER_PAGEPAGE/2) * (ENTRIES_PER_PAGE+1))
-#define SHMEM_MAX_BYTES  ((unsigned long long)SHMEM_MAX_INDEX << PAGE_CACHE_SHIFT)
-
 #define VM_ACCT(size)    (PAGE_CACHE_ALIGN(size) >> PAGE_SHIFT)
 
 /* info->flags needs VM_flags to handle pagein/truncate races efficiently */
@@ -169,13 +185,13 @@ static inline struct shmem_sb_info *SHMEM_SB(struct super_block *sb)
  */
 static inline int shmem_acct_size(unsigned long flags, loff_t size)
 {
-	return (flags & VM_ACCOUNT) ?
-		security_vm_enough_memory_kern(VM_ACCT(size)) : 0;
+	return (flags & VM_NORESERVE) ?
+		0 : security_vm_enough_memory_kern(VM_ACCT(size));
 }
 
 static inline void shmem_unacct_size(unsigned long flags, loff_t size)
 {
-	if (flags & VM_ACCOUNT)
+	if (!(flags & VM_NORESERVE))
 		vm_unacct_memory(VM_ACCT(size));
 }
 
@@ -187,13 +203,13 @@ static inline void shmem_unacct_size(unsigned long flags, loff_t size)
  */
 static inline int shmem_acct_block(unsigned long flags)
 {
-	return (flags & VM_ACCOUNT) ?
-		0 : security_vm_enough_memory_kern(VM_ACCT(PAGE_CACHE_SIZE));
+	return (flags & VM_NORESERVE) ?
+		security_vm_enough_memory_kern(VM_ACCT(PAGE_CACHE_SIZE)) : 0;
 }
 
 static inline void shmem_unacct_blocks(unsigned long flags, long pages)
 {
-	if (!(flags & VM_ACCOUNT))
+	if (flags & VM_NORESERVE)
 		vm_unacct_memory(pages * VM_ACCT(PAGE_CACHE_SIZE));
 }
 
@@ -1067,8 +1083,7 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 		swap_duplicate(swap);
 		BUG_ON(page_mapped(page));
 		page_cache_release(page);	/* pagecache ref */
-		set_page_dirty(page);
-		unlock_page(page);
+		swap_writepage(page, wbc);
 		if (inode) {
 			mutex_lock(&shmem_swaplist_mutex);
 			/* move instead of add in case we're racing */
@@ -1515,8 +1530,8 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct inode *
-shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
+static struct inode *shmem_get_inode(struct super_block *sb, int mode,
+					dev_t dev, unsigned long flags)
 {
 	struct inode *inode;
 	struct shmem_inode_info *info;
@@ -1537,6 +1552,7 @@ shmem_get_inode(struct super_block *sb, int mode, dev_t dev)
 		info = SHMEM_I(inode);
 		memset(info, 0, (char *)inode - (char *)info);
 		spin_lock_init(&info->lock);
+		info->flags = flags & VM_NORESERVE;
 		INIT_LIST_HEAD(&info->swaplist);
 
 		switch (mode & S_IFMT) {
@@ -1779,9 +1795,10 @@ static int shmem_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int
 shmem_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 {
-	struct inode *inode = shmem_get_inode(dir->i_sb, mode, dev);
+	struct inode *inode;
 	int error = -ENOSPC;
 
+	inode = shmem_get_inode(dir->i_sb, mode, dev, VM_NORESERVE);
 	if (inode) {
 		error = security_inode_init_security(inode, dir, NULL, NULL,
 						     NULL);
@@ -1920,7 +1937,7 @@ static int shmem_symlink(struct inode *dir, struct dentry *dentry, const char *s
 	if (len > PAGE_CACHE_SIZE)
 		return -ENAMETOOLONG;
 
-	inode = shmem_get_inode(dir->i_sb, S_IFLNK|S_IRWXUGO, 0);
+	inode = shmem_get_inode(dir->i_sb, S_IFLNK|S_IRWXUGO, 0, VM_NORESERVE);
 	if (!inode)
 		return -ENOSPC;
 
@@ -2332,7 +2349,7 @@ static int shmem_fill_super(struct super_block *sb,
 	sb->s_flags |= MS_POSIXACL;
 #endif
 
-	inode = shmem_get_inode(sb, S_IFDIR | sbinfo->mode, 0);
+	inode = shmem_get_inode(sb, S_IFDIR | sbinfo->mode, 0, VM_NORESERVE);
 	if (!inode)
 		goto failed;
 	inode->i_uid = sbinfo->uid;
@@ -2574,12 +2591,12 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 	return 0;
 }
 
-#define shmem_file_operations ramfs_file_operations
-#define shmem_vm_ops generic_file_vm_ops
-#define shmem_get_inode ramfs_get_inode
-#define shmem_acct_size(a, b) 0
-#define shmem_unacct_size(a, b) do {} while (0)
-#define SHMEM_MAX_BYTES LLONG_MAX
+#define shmem_vm_ops				generic_file_vm_ops
+#define shmem_file_operations			ramfs_file_operations
+#define shmem_get_inode(sb, mode, dev, flags)	ramfs_get_inode(sb, mode, dev)
+#define shmem_acct_size(flags, size)		0
+#define shmem_unacct_size(flags, size)		do {} while (0)
+#define SHMEM_MAX_BYTES				MAX_LFS_FILESIZE
 
 #endif /* CONFIG_SHMEM */
 
@@ -2589,7 +2606,7 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
  * shmem_file_setup - get an unlinked file living in tmpfs
  * @name: name for dentry (to be seen in /proc/<pid>/maps
  * @size: size to be set for the file
- * @flags: vm_flags
+ * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
  */
 struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 {
@@ -2623,13 +2640,10 @@ struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 		goto put_dentry;
 
 	error = -ENOSPC;
-	inode = shmem_get_inode(root->d_sb, S_IFREG | S_IRWXUGO, 0);
+	inode = shmem_get_inode(root->d_sb, S_IFREG | S_IRWXUGO, 0, flags);
 	if (!inode)
 		goto close_file;
 
-#ifdef CONFIG_SHMEM
-	SHMEM_I(inode)->flags = flags & VM_ACCOUNT;
-#endif
 	d_instantiate(dentry, inode);
 	inode->i_size = size;
 	inode->i_nlink = 0;	/* It is unlinked */
@@ -2666,6 +2680,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
+	ima_shm_check(file);
 	if (vma->vm_file)
 		fput(vma->vm_file);
 	vma->vm_file = file;

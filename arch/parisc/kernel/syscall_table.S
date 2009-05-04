@@ -130,7 +130,7 @@
 	ENTRY_OURS(newuname)
 	ENTRY_SAME(umask)		/* 60 */
 	ENTRY_SAME(chroot)
-	ENTRY_SAME(ustat)
+	ENTRY_COMP(ustat)
 	ENTRY_SAME(dup2)
 	ENTRY_SAME(getppid)
 	ENTRY_SAME(getpgrp)		/* 65 */

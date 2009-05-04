@@ -116,14 +116,14 @@ config USB_SERIAL_DIGI_ACCELEPORT
 	  To compile this driver as a module, choose M here: the
 	  module will be called digi_acceleport.
 
-config USB_SERIAL_CP2101
-	tristate "USB CP2101 UART Bridge Controller"
+config USB_SERIAL_CP210X
+	tristate "USB CP210x family of UART Bridge Controllers"
 	help
-	  Say Y here if you want to use a CP2101/CP2102 based USB to RS232
-	  converter.
+	  Say Y here if you want to use a CP2101/CP2102/CP2103 based USB
+	  to RS232 converters.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called cp2101.
+	  module will be called cp210x.
 
 config USB_SERIAL_CYPRESS_M8
 	tristate "USB Cypress M8 USB Serial Driver"
@@ -472,6 +472,15 @@ config USB_SERIAL_OTI6858
 	  To compile this driver as a module, choose M here: the
 	  module will be called oti6858.
 
+config USB_SERIAL_QUALCOMM
+	tristate "USB Qualcomm Serial modem"
+	help
+	  Say Y here if you have a Qualcomm USB modem device.  These are
+	  usually wireless cellular modems.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called qcserial.
+
 config USB_SERIAL_SPCP8X5
 	tristate "USB SPCP8x5 USB To Serial Driver"
 	help
@@ -509,11 +518,20 @@ config USB_SERIAL_SIERRAWIRELESS
 	help
 	  Say M here if you want to use Sierra Wireless devices.
 
-	  Many deviecs have a feature known as TRU-Install, for those devices
-	  to work properly the USB Storage Sierra feature must be enabled.
+	  Many devices have a feature known as TRU-Install. For those devices
+	  to work properly, the USB Storage Sierra feature must be enabled.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sierra.
+
+config USB_SERIAL_SYMBOL
+	tristate "USB Symbol Barcode driver (serial mode)"
+	help
+	  Say Y here if you want to use a Symbol USB Barcode device
+	  in serial emulation mode.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called symbolserial.
 
 config USB_SERIAL_TI
 	tristate "USB TI 3410/5052 Serial Driver"

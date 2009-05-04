@@ -68,22 +68,22 @@ static struct hpsb_highlevel csr_highlevel = {
 	.host_reset =	host_reset,
 };
 
-const static struct hpsb_address_ops map_ops = {
+static const struct hpsb_address_ops map_ops = {
 	.read = read_maps,
 };
 
-const static struct hpsb_address_ops fcp_ops = {
+static const struct hpsb_address_ops fcp_ops = {
 	.write = write_fcp,
 };
 
-const static struct hpsb_address_ops reg_ops = {
+static const struct hpsb_address_ops reg_ops = {
 	.read = read_regs,
 	.write = write_regs,
 	.lock = lock_regs,
 	.lock64 = lock64_regs,
 };
 
-const static struct hpsb_address_ops config_rom_ops = {
+static const struct hpsb_address_ops config_rom_ops = {
 	.read = read_config_rom,
 };
 

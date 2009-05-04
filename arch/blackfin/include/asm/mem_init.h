@@ -115,7 +115,7 @@
 #define mem_SDRRC       (((CONFIG_SCLK_HZ / 1000) * SDRAM_Tref) / SDRAM_NRA) - (SDRAM_tRAS_num + SDRAM_tRP_num)
 
 /* Enable SCLK Out */
-#define mem_SDGCTL        (0x80000000 | SCTLE | SDRAM_CL | SDRAM_tRAS | SDRAM_tRP | SDRAM_tRCD | SDRAM_tWR | PSS)
+#define mem_SDGCTL        (SCTLE | SDRAM_CL | SDRAM_tRAS | SDRAM_tRP | SDRAM_tRCD | SDRAM_tWR | PSS)
 #else
 #define mem_SDRRC 	CONFIG_MEM_SDRRC
 #define mem_SDGCTL	CONFIG_MEM_SDGCTL

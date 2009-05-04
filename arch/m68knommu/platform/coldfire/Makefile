@@ -14,7 +14,7 @@
 
 asflags-$(CONFIG_FULLDEBUG) := -DDEBUGGER_COMPATIBLE_CACHE=1
 
-obj-$(CONFIG_COLDFIRE)	+= dma.o entry.o vectors.o
+obj-$(CONFIG_COLDFIRE)	+= clk.o dma.o entry.o vectors.o
 obj-$(CONFIG_M5206)	+= timers.o
 obj-$(CONFIG_M5206e)	+= timers.o
 obj-$(CONFIG_M520x)	+= pit.o

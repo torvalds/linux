@@ -80,13 +80,14 @@ void io_subchannel_init_config(struct subchannel *sch);
 
 int ccw_device_cancel_halt_clear(struct ccw_device *);
 
-void ccw_device_do_unreg_rereg(struct work_struct *);
+void ccw_device_do_unbind_bind(struct work_struct *);
 void ccw_device_move_to_orphanage(struct work_struct *);
 int ccw_device_is_orphan(struct ccw_device *);
 
 int ccw_device_recognition(struct ccw_device *);
 int ccw_device_online(struct ccw_device *);
 int ccw_device_offline(struct ccw_device *);
+void ccw_device_schedule_sch_unregister(struct ccw_device *);
 int ccw_purge_blacklisted(void);
 
 /* Function prototypes for device status and basic sense stuff. */

@@ -126,6 +126,7 @@ static atomic_t n_rcu_torture_mberror;
 static atomic_t n_rcu_torture_error;
 static long n_rcu_torture_timers = 0;
 static struct list_head rcu_torture_removed;
+static cpumask_var_t shuffle_tmp_mask;
 
 static int stutter_pause_test = 0;
 
@@ -889,10 +890,9 @@ static int rcu_idle_cpu;	/* Force all torture tasks off this CPU */
  */
 static void rcu_torture_shuffle_tasks(void)
 {
-	cpumask_t tmp_mask;
 	int i;
 
-	cpus_setall(tmp_mask);
+	cpumask_setall(shuffle_tmp_mask);
 	get_online_cpus();
 
 	/* No point in shuffling if there is only one online CPU (ex: UP) */
@@ -902,29 +902,29 @@ static void rcu_torture_shuffle_tasks(void)
 	}
 
 	if (rcu_idle_cpu != -1)
-		cpu_clear(rcu_idle_cpu, tmp_mask);
+		cpumask_clear_cpu(rcu_idle_cpu, shuffle_tmp_mask);
 
-	set_cpus_allowed_ptr(current, &tmp_mask);
+	set_cpus_allowed_ptr(current, shuffle_tmp_mask);
 
 	if (reader_tasks) {
 		for (i = 0; i < nrealreaders; i++)
 			if (reader_tasks[i])
 				set_cpus_allowed_ptr(reader_tasks[i],
-						     &tmp_mask);
+						     shuffle_tmp_mask);
 	}
 
 	if (fakewriter_tasks) {
 		for (i = 0; i < nfakewriters; i++)
 			if (fakewriter_tasks[i])
 				set_cpus_allowed_ptr(fakewriter_tasks[i],
-						     &tmp_mask);
+						     shuffle_tmp_mask);
 	}
 
 	if (writer_task)
-		set_cpus_allowed_ptr(writer_task, &tmp_mask);
+		set_cpus_allowed_ptr(writer_task, shuffle_tmp_mask);
 
 	if (stats_task)
-		set_cpus_allowed_ptr(stats_task, &tmp_mask);
+		set_cpus_allowed_ptr(stats_task, shuffle_tmp_mask);
 
 	if (rcu_idle_cpu == -1)
 		rcu_idle_cpu = num_online_cpus() - 1;
@@ -1012,6 +1012,7 @@ rcu_torture_cleanup(void)
 	if (shuffler_task) {
 		VERBOSE_PRINTK_STRING("Stopping rcu_torture_shuffle task");
 		kthread_stop(shuffler_task);
+		free_cpumask_var(shuffle_tmp_mask);
 	}
 	shuffler_task = NULL;
 
@@ -1190,10 +1191,18 @@ rcu_torture_init(void)
 	}
 	if (test_no_idle_hz) {
 		rcu_idle_cpu = num_online_cpus() - 1;
+
+		if (!alloc_cpumask_var(&shuffle_tmp_mask, GFP_KERNEL)) {
+			firsterr = -ENOMEM;
+			VERBOSE_PRINTK_ERRSTRING("Failed to alloc mask");
+			goto unwind;
+		}
+
 		/* Create the shuffler thread */
 		shuffler_task = kthread_run(rcu_torture_shuffle, NULL,
 					  "rcu_torture_shuffle");
 		if (IS_ERR(shuffler_task)) {
+			free_cpumask_var(shuffle_tmp_mask);
 			firsterr = PTR_ERR(shuffler_task);
 			VERBOSE_PRINTK_ERRSTRING("Failed to create shuffler");
 			shuffler_task = NULL;

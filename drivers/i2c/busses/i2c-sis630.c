@@ -464,7 +464,6 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter sis630_adapter = {
 	.owner		= THIS_MODULE,
-	.id		= I2C_HW_SMBUS_SIS630,
 	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
 };

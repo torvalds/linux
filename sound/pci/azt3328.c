@@ -211,25 +211,25 @@ MODULE_SUPPORTED_DEVICE("{{Aztech,AZF3328}}");
 #endif
 
 #if DEBUG_MIXER
-#define snd_azf3328_dbgmixer(format, args...) printk(format, ##args)
+#define snd_azf3328_dbgmixer(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgmixer(format, args...)
 #endif
 
 #if DEBUG_PLAY_REC
-#define snd_azf3328_dbgplay(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbgplay(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgplay(format, args...)
 #endif
 
 #if DEBUG_MISC
-#define snd_azf3328_dbgtimer(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbgtimer(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbgtimer(format, args...)
 #endif
 
 #if DEBUG_GAME
-#define snd_azf3328_dbggame(format, args...) printk(KERN_ERR format, ##args)
+#define snd_azf3328_dbggame(format, args...) printk(KERN_DEBUG format, ##args)
 #else
 #define snd_azf3328_dbggame(format, args...)
 #endif
@@ -2125,8 +2125,8 @@ snd_azf3328_create(struct snd_card *card,
 	chip->irq = -1;
 
 	/* check if we can restrict PCI DMA transfers to 24 bits */
-	if (pci_set_dma_mask(pci, DMA_24BIT_MASK) < 0 ||
-	    pci_set_consistent_dma_mask(pci, DMA_24BIT_MASK) < 0) {
+	if (pci_set_dma_mask(pci, DMA_BIT_MASK(24)) < 0 ||
+	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(24)) < 0) {
 		snd_printk(KERN_ERR "architecture does not support "
 					"24bit PCI busmaster DMA\n"
 		);

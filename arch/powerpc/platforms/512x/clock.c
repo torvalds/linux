@@ -56,12 +56,12 @@ static struct clk *mpc5121_clk_get(struct device *dev, const char *id)
 	int dev_match = 0;
 	int id_match = 0;
 
-	if (dev == NULL && id == NULL)
+	if (dev == NULL || id == NULL)
 		return NULL;
 
 	mutex_lock(&clocks_mutex);
 	list_for_each_entry(p, &clocks, node) {
-		if (dev && dev == p->dev)
+		if (dev == p->dev)
 			dev_match++;
 		if (strcmp(id, p->name) == 0)
 			id_match++;

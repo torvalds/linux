@@ -277,7 +277,8 @@ static void __init bootmem_init(void)
 	 * not selected. Once that done we can determine the low bound
 	 * of usable memory.
 	 */
-	reserved_end = max(init_initrd(), PFN_UP(__pa_symbol(&_end)));
+	reserved_end = max(init_initrd(),
+			   (unsigned long) PFN_UP(__pa_symbol(&_end)));
 
 	/*
 	 * max_low_pfn is not a number of pages. The number of pages

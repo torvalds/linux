@@ -230,6 +230,7 @@ extern int		nla_validate(struct nlattr *head, int len, int maxtype,
 extern int		nla_parse(struct nlattr *tb[], int maxtype,
 				  struct nlattr *head, int len,
 				  const struct nla_policy *policy);
+extern int		nla_policy_len(const struct nla_policy *, int);
 extern struct nlattr *	nla_find(struct nlattr *head, int len, int attrtype);
 extern size_t		nla_strlcpy(char *dst, const struct nlattr *nla,
 				    size_t dstsize);

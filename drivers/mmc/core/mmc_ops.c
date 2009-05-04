@@ -248,12 +248,15 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 
 	sg_init_one(&sg, data_buf, len);
 
-	/*
-	 * The spec states that CSR and CID accesses have a timeout
-	 * of 64 clock cycles.
-	 */
-	data.timeout_ns = 0;
-	data.timeout_clks = 64;
+	if (opcode == MMC_SEND_CSD || opcode == MMC_SEND_CID) {
+		/*
+		 * The spec states that CSR and CID accesses have a timeout
+		 * of 64 clock cycles.
+		 */
+		data.timeout_ns = 0;
+		data.timeout_clks = 64;
+	} else
+		mmc_set_data_timeout(&data, card);
 
 	mmc_wait_for_req(host, &mrq);
 

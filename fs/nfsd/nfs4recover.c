@@ -182,36 +182,26 @@ out_unlock:
 
 typedef int (recdir_func)(struct dentry *, struct dentry *);
 
-struct dentry_list {
-	struct dentry *dentry;
+struct name_list {
+	char name[HEXDIR_LEN];
 	struct list_head list;
 };
 
-struct dentry_list_arg {
-	struct list_head dentries;
-	struct dentry *parent;
-};
-
 static int
-nfsd4_build_dentrylist(void *arg, const char *name, int namlen,
+nfsd4_build_namelist(void *arg, const char *name, int namlen,
 		loff_t offset, u64 ino, unsigned int d_type)
 {
-	struct dentry_list_arg *dla = arg;
-	struct list_head *dentries = &dla->dentries;
-	struct dentry *parent = dla->parent;
-	struct dentry *dentry;
-	struct dentry_list *child;
+	struct list_head *names = arg;
+	struct name_list *entry;
 
-	if (name && isdotent(name, namlen))
+	if (namlen != HEXDIR_LEN - 1)
 		return 0;
-	dentry = lookup_one_len(name, parent, namlen);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	child = kmalloc(sizeof(*child), GFP_KERNEL);
-	if (child == NULL)
+	entry = kmalloc(sizeof(struct name_list), GFP_KERNEL);
+	if (entry == NULL)
 		return -ENOMEM;
-	child->dentry = dentry;
-	list_add(&child->list, dentries);
+	memcpy(entry->name, name, HEXDIR_LEN - 1);
+	entry->name[HEXDIR_LEN - 1] = '\0';
+	list_add(&entry->list, names);
 	return 0;
 }
 
@@ -220,11 +210,9 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 {
 	const struct cred *original_cred;
 	struct file *filp;
-	struct dentry_list_arg dla = {
-		.parent = dir,
-	};
-	struct list_head *dentries = &dla.dentries;
-	struct dentry_list *child;
+	LIST_HEAD(names);
+	struct name_list *entry;
+	struct dentry *dentry;
 	int status;
 
 	if (!rec_dir_init)
@@ -233,63 +221,38 @@ nfsd4_list_rec_dir(struct dentry *dir, recdir_func *f)
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
 		return status;
-	INIT_LIST_HEAD(dentries);
 
 	filp = dentry_open(dget(dir), mntget(rec_dir.mnt), O_RDONLY,
 			   current_cred());
 	status = PTR_ERR(filp);
 	if (IS_ERR(filp))
 		goto out;
-	INIT_LIST_HEAD(dentries);
-	status = vfs_readdir(filp, nfsd4_build_dentrylist, &dla);
+	status = vfs_readdir(filp, nfsd4_build_namelist, &names);
 	fput(filp);
-	while (!list_empty(dentries)) {
-		child = list_entry(dentries->next, struct dentry_list, list);
-		status = f(dir, child->dentry);
+	mutex_lock(&dir->d_inode->i_mutex);
+	while (!list_empty(&names)) {
+		entry = list_entry(names.next, struct name_list, list);
+
+		dentry = lookup_one_len(entry->name, dir, HEXDIR_LEN-1);
+		if (IS_ERR(dentry)) {
+			status = PTR_ERR(dentry);
+			break;
+		}
+		status = f(dir, dentry);
+		dput(dentry);
 		if (status)
-			goto out;
-		list_del(&child->list);
-		dput(child->dentry);
-		kfree(child);
+			break;
+		list_del(&entry->list);
+		kfree(entry);
 	}
+	mutex_unlock(&dir->d_inode->i_mutex);
 out:
-	while (!list_empty(dentries)) {
-		child = list_entry(dentries->next, struct dentry_list, list);
-		list_del(&child->list);
-		dput(child->dentry);
-		kfree(child);
+	while (!list_empty(&names)) {
+		entry = list_entry(names.next, struct name_list, list);
+		list_del(&entry->list);
+		kfree(entry);
 	}
 	nfs4_reset_creds(original_cred);
-	return status;
-}
-
-static int
-nfsd4_remove_clid_file(struct dentry *dir, struct dentry *dentry)
-{
-	int status;
-
-	if (!S_ISREG(dir->d_inode->i_mode)) {
-		printk("nfsd4: non-file found in client recovery directory\n");
-		return -EINVAL;
-	}
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	status = vfs_unlink(dir->d_inode, dentry);
-	mutex_unlock(&dir->d_inode->i_mutex);
-	return status;
-}
-
-static int
-nfsd4_clear_clid_dir(struct dentry *dir, struct dentry *dentry)
-{
-	int status;
-
-	/* For now this directory should already be empty, but we empty it of
-	 * any regular files anyway, just in case the directory was created by
-	 * a kernel from the future.... */
-	nfsd4_list_rec_dir(dentry, nfsd4_remove_clid_file);
-	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	status = vfs_rmdir(dir->d_inode, dentry);
-	mutex_unlock(&dir->d_inode->i_mutex);
 	return status;
 }
 
@@ -303,18 +266,18 @@ nfsd4_unlink_clid_dir(char *name, int namlen)
 
 	mutex_lock(&rec_dir.dentry->d_inode->i_mutex);
 	dentry = lookup_one_len(name, rec_dir.dentry, namlen);
-	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
 	if (IS_ERR(dentry)) {
 		status = PTR_ERR(dentry);
-		return status;
+		goto out_unlock;
 	}
 	status = -ENOENT;
 	if (!dentry->d_inode)
 		goto out;
-
-	status = nfsd4_clear_clid_dir(rec_dir.dentry, dentry);
+	status = vfs_rmdir(rec_dir.dentry->d_inode, dentry);
 out:
 	dput(dentry);
+out_unlock:
+	mutex_unlock(&rec_dir.dentry->d_inode->i_mutex);
 	return status;
 }
 
@@ -353,10 +316,11 @@ purge_old(struct dentry *parent, struct dentry *child)
 {
 	int status;
 
-	if (nfs4_has_reclaimed_state(child->d_name.name))
+	/* note: we currently use this path only for minorversion 0 */
+	if (nfs4_has_reclaimed_state(child->d_name.name, false))
 		return 0;
 
-	status = nfsd4_clear_clid_dir(parent, child);
+	status = vfs_rmdir(parent->d_inode, child);
 	if (status)
 		printk("failed to remove client recovery directory %s\n",
 				child->d_name.name);

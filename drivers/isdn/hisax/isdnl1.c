@@ -18,11 +18,11 @@
  *
  */
 
-const char *l1_revision = "$Revision: 2.46.2.5 $";
-
 #include <linux/init.h>
 #include "hisax.h"
 #include "isdnl1.h"
+
+const char *l1_revision = "$Revision: 2.46.2.5 $";
 
 #define TIMER3_VALUE 7000
 

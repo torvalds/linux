@@ -157,11 +157,9 @@ static void sprintf_disk_child(char *buf, struct disk_child *dc)
 		dc_size(dc));
 }
 
-static char *is_there_reiserfs_struct(char *fmt, int *what, int *skip)
+static char *is_there_reiserfs_struct(char *fmt, int *what)
 {
 	char *k = fmt;
-
-	*skip = 0;
 
 	while ((k = strchr(k, '%')) != NULL) {
 		if (k[1] == 'k' || k[1] == 'K' || k[1] == 'h' || k[1] == 't' ||
@@ -169,7 +167,6 @@ static char *is_there_reiserfs_struct(char *fmt, int *what, int *skip)
 			*what = k[1];
 			break;
 		}
-		(*skip)++;
 		k++;
 	}
 	return k;
@@ -181,29 +178,28 @@ static char *is_there_reiserfs_struct(char *fmt, int *what, int *skip)
    appropriative printk. With this reiserfs_warning you can use format
    specification for complex structures like you used to do with
    printfs for integers, doubles and pointers. For instance, to print
-   out key structure you have to write just: 
-   reiserfs_warning ("bad key %k", key); 
-   instead of 
-   printk ("bad key %lu %lu %lu %lu", key->k_dir_id, key->k_objectid, 
-           key->k_offset, key->k_uniqueness); 
+   out key structure you have to write just:
+   reiserfs_warning ("bad key %k", key);
+   instead of
+   printk ("bad key %lu %lu %lu %lu", key->k_dir_id, key->k_objectid,
+           key->k_offset, key->k_uniqueness);
 */
-
+static DEFINE_SPINLOCK(error_lock);
 static void prepare_error_buf(const char *fmt, va_list args)
 {
 	char *fmt1 = fmt_buf;
 	char *k;
 	char *p = error_buf;
-	int i, j, what, skip;
+	int what;
+
+	spin_lock(&error_lock);
 
 	strcpy(fmt1, fmt);
 
-	while ((k = is_there_reiserfs_struct(fmt1, &what, &skip)) != NULL) {
+	while ((k = is_there_reiserfs_struct(fmt1, &what)) != NULL) {
 		*k = 0;
 
 		p += vsprintf(p, fmt1, args);
-
-		for (i = 0; i < skip; i++)
-			j = va_arg(args, int);
 
 		switch (what) {
 		case 'k':
@@ -243,15 +239,16 @@ static void prepare_error_buf(const char *fmt, va_list args)
 		fmt1 = k + 2;
 	}
 	vsprintf(p, fmt1, args);
+	spin_unlock(&error_lock);
 
 }
 
 /* in addition to usual conversion specifiers this accepts reiserfs
-   specific conversion specifiers: 
-   %k to print little endian key, 
-   %K to print cpu key, 
+   specific conversion specifiers:
+   %k to print little endian key,
+   %K to print cpu key,
    %h to print item_head,
-   %t to print directory entry 
+   %t to print directory entry
    %z to print block head (arg must be struct buffer_head *
    %b to print buffer_head
 */
@@ -264,14 +261,17 @@ static void prepare_error_buf(const char *fmt, va_list args)
     va_end( args );\
 }
 
-void reiserfs_warning(struct super_block *sb, const char *fmt, ...)
+void __reiserfs_warning(struct super_block *sb, const char *id,
+			 const char *function, const char *fmt, ...)
 {
 	do_reiserfs_warning(fmt);
 	if (sb)
-		printk(KERN_WARNING "ReiserFS: %s: warning: %s\n",
-		       reiserfs_bdevname(sb), error_buf);
+		printk(KERN_WARNING "REISERFS warning (device %s): %s%s%s: "
+		       "%s\n", sb->s_id, id ? id : "", id ? " " : "",
+		       function, error_buf);
 	else
-		printk(KERN_WARNING "ReiserFS: warning: %s\n", error_buf);
+		printk(KERN_WARNING "REISERFS warning: %s%s%s: %s\n",
+		       id ? id : "", id ? " " : "", function, error_buf);
 }
 
 /* No newline.. reiserfs_info calls can be followed by printk's */
@@ -279,10 +279,10 @@ void reiserfs_info(struct super_block *sb, const char *fmt, ...)
 {
 	do_reiserfs_warning(fmt);
 	if (sb)
-		printk(KERN_NOTICE "ReiserFS: %s: %s",
-		       reiserfs_bdevname(sb), error_buf);
+		printk(KERN_NOTICE "REISERFS (device %s): %s",
+		       sb->s_id, error_buf);
 	else
-		printk(KERN_NOTICE "ReiserFS: %s", error_buf);
+		printk(KERN_NOTICE "REISERFS %s:", error_buf);
 }
 
 /* No newline.. reiserfs_printk calls can be followed by printk's */
@@ -297,10 +297,10 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
 #ifdef CONFIG_REISERFS_CHECK
 	do_reiserfs_warning(fmt);
 	if (s)
-		printk(KERN_DEBUG "ReiserFS: %s: %s\n",
-		       reiserfs_bdevname(s), error_buf);
+		printk(KERN_DEBUG "REISERFS debug (device %s): %s\n",
+		       s->s_id, error_buf);
 	else
-		printk(KERN_DEBUG "ReiserFS: %s\n", error_buf);
+		printk(KERN_DEBUG "REISERFS debug: %s\n", error_buf);
 #endif
 }
 
@@ -314,17 +314,17 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
     maintainer-errorid.  Don't bother with reusing errorids, there are
     lots of numbers out there.
 
-    Example: 
-    
+    Example:
+
     reiserfs_panic(
 	p_sb, "reiser-29: reiserfs_new_blocknrs: "
 	"one of search_start or rn(%d) is equal to MAX_B_NUM,"
-	"which means that we are optimizing location based on the bogus location of a temp buffer (%p).", 
+	"which means that we are optimizing location based on the bogus location of a temp buffer (%p).",
 	rn, bh
     );
 
     Regular panic()s sometimes clear the screen before the message can
-    be read, thus the need for the while loop.  
+    be read, thus the need for the while loop.
 
     Numbering scheme for panic used by Vladimir and Anatoly( Hans completely ignores this scheme, and considers it
     pointless complexity):
@@ -353,14 +353,46 @@ void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...)
 extern struct tree_balance *cur_tb;
 #endif
 
-void reiserfs_panic(struct super_block *sb, const char *fmt, ...)
+void __reiserfs_panic(struct super_block *sb, const char *id,
+		      const char *function, const char *fmt, ...)
 {
 	do_reiserfs_warning(fmt);
 
+#ifdef CONFIG_REISERFS_CHECK
 	dump_stack();
+#endif
+	if (sb)
+		panic(KERN_WARNING "REISERFS panic (device %s): %s%s%s: %s\n",
+		      sb->s_id, id ? id : "", id ? " " : "",
+		      function, error_buf);
+	else
+		panic(KERN_WARNING "REISERFS panic: %s%s%s: %s\n",
+		      id ? id : "", id ? " " : "", function, error_buf);
+}
 
-	panic(KERN_EMERG "REISERFS: panic (device %s): %s\n",
-	       reiserfs_bdevname(sb), error_buf);
+void __reiserfs_error(struct super_block *sb, const char *id,
+		      const char *function, const char *fmt, ...)
+{
+	do_reiserfs_warning(fmt);
+
+	BUG_ON(sb == NULL);
+
+	if (reiserfs_error_panic(sb))
+		__reiserfs_panic(sb, id, function, error_buf);
+
+	if (id && id[0])
+		printk(KERN_CRIT "REISERFS error (device %s): %s %s: %s\n",
+		       sb->s_id, id, function, error_buf);
+	else
+		printk(KERN_CRIT "REISERFS error (device %s): %s: %s\n",
+		       sb->s_id, function, error_buf);
+
+	if (sb->s_flags & MS_RDONLY)
+		return;
+
+	reiserfs_info(sb, "Remounting filesystem read-only\n");
+	sb->s_flags |= MS_RDONLY;
+	reiserfs_abort_journal(sb, -EIO);
 }
 
 void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
@@ -368,18 +400,18 @@ void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...)
 	do_reiserfs_warning(fmt);
 
 	if (reiserfs_error_panic(sb)) {
-		panic(KERN_CRIT "REISERFS: panic (device %s): %s\n",
-		      reiserfs_bdevname(sb), error_buf);
+		panic(KERN_CRIT "REISERFS panic (device %s): %s\n", sb->s_id,
+		      error_buf);
 	}
 
-	if (sb->s_flags & MS_RDONLY)
+	if (reiserfs_is_journal_aborted(SB_JOURNAL(sb)))
 		return;
 
-	printk(KERN_CRIT "REISERFS: abort (device %s): %s\n",
-	       reiserfs_bdevname(sb), error_buf);
+	printk(KERN_CRIT "REISERFS abort (device %s): %s\n", sb->s_id,
+	       error_buf);
 
 	sb->s_flags |= MS_RDONLY;
-	reiserfs_journal_abort(sb, errno);
+	reiserfs_abort_journal(sb, errno);
 }
 
 /* this prints internal nodes (4 keys/items in line) (dc_number,
@@ -681,12 +713,10 @@ static void check_leaf_block_head(struct buffer_head *bh)
 	blkh = B_BLK_HEAD(bh);
 	nr = blkh_nr_item(blkh);
 	if (nr > (bh->b_size - BLKH_SIZE) / IH_SIZE)
-		reiserfs_panic(NULL,
-			       "vs-6010: check_leaf_block_head: invalid item number %z",
+		reiserfs_panic(NULL, "vs-6010", "invalid item number %z",
 			       bh);
 	if (blkh_free_space(blkh) > bh->b_size - BLKH_SIZE - IH_SIZE * nr)
-		reiserfs_panic(NULL,
-			       "vs-6020: check_leaf_block_head: invalid free space %z",
+		reiserfs_panic(NULL, "vs-6020", "invalid free space %z",
 			       bh);
 
 }
@@ -697,21 +727,15 @@ static void check_internal_block_head(struct buffer_head *bh)
 
 	blkh = B_BLK_HEAD(bh);
 	if (!(B_LEVEL(bh) > DISK_LEAF_NODE_LEVEL && B_LEVEL(bh) <= MAX_HEIGHT))
-		reiserfs_panic(NULL,
-			       "vs-6025: check_internal_block_head: invalid level %z",
-			       bh);
+		reiserfs_panic(NULL, "vs-6025", "invalid level %z", bh);
 
 	if (B_NR_ITEMS(bh) > (bh->b_size - BLKH_SIZE) / IH_SIZE)
-		reiserfs_panic(NULL,
-			       "vs-6030: check_internal_block_head: invalid item number %z",
-			       bh);
+		reiserfs_panic(NULL, "vs-6030", "invalid item number %z", bh);
 
 	if (B_FREE_SPACE(bh) !=
 	    bh->b_size - BLKH_SIZE - KEY_SIZE * B_NR_ITEMS(bh) -
 	    DC_SIZE * (B_NR_ITEMS(bh) + 1))
-		reiserfs_panic(NULL,
-			       "vs-6040: check_internal_block_head: invalid free space %z",
-			       bh);
+		reiserfs_panic(NULL, "vs-6040", "invalid free space %z", bh);
 
 }
 

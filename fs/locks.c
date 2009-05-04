@@ -1564,7 +1564,7 @@ EXPORT_SYMBOL(flock_lock_file_wait);
  *	%LOCK_MAND can be combined with %LOCK_READ or %LOCK_WRITE to allow other
  *	processes read and write access respectively.
  */
-asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
+SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 {
 	struct file *filp;
 	struct file_lock *lock;

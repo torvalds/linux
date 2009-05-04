@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/blkpg.h>
 #include <linux/buffer_head.h>
+#include <linux/pagevec.h>
 #include <linux/writeback.h>
 #include <linux/mpage.h>
 #include <linux/mount.h>
@@ -173,6 +174,152 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	return blockdev_direct_IO_no_locking(rw, iocb, inode, I_BDEV(inode),
 				iov, offset, nr_segs, blkdev_get_blocks, NULL);
 }
+
+/*
+ * Write out and wait upon all the dirty data associated with a block
+ * device via its mapping.  Does not take the superblock lock.
+ */
+int sync_blockdev(struct block_device *bdev)
+{
+	int ret = 0;
+
+	if (bdev)
+		ret = filemap_write_and_wait(bdev->bd_inode->i_mapping);
+	return ret;
+}
+EXPORT_SYMBOL(sync_blockdev);
+
+/*
+ * Write out and wait upon all dirty data associated with this
+ * device.   Filesystem data as well as the underlying block
+ * device.  Takes the superblock lock.
+ */
+int fsync_bdev(struct block_device *bdev)
+{
+	struct super_block *sb = get_super(bdev);
+	if (sb) {
+		int res = fsync_super(sb);
+		drop_super(sb);
+		return res;
+	}
+	return sync_blockdev(bdev);
+}
+EXPORT_SYMBOL(fsync_bdev);
+
+/**
+ * freeze_bdev  --  lock a filesystem and force it into a consistent state
+ * @bdev:	blockdevice to lock
+ *
+ * This takes the block device bd_mount_sem to make sure no new mounts
+ * happen on bdev until thaw_bdev() is called.
+ * If a superblock is found on this device, we take the s_umount semaphore
+ * on it to make sure nobody unmounts until the snapshot creation is done.
+ * The reference counter (bd_fsfreeze_count) guarantees that only the last
+ * unfreeze process can unfreeze the frozen filesystem actually when multiple
+ * freeze requests arrive simultaneously. It counts up in freeze_bdev() and
+ * count down in thaw_bdev(). When it becomes 0, thaw_bdev() will unfreeze
+ * actually.
+ */
+struct super_block *freeze_bdev(struct block_device *bdev)
+{
+	struct super_block *sb;
+	int error = 0;
+
+	mutex_lock(&bdev->bd_fsfreeze_mutex);
+	if (bdev->bd_fsfreeze_count > 0) {
+		bdev->bd_fsfreeze_count++;
+		sb = get_super(bdev);
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return sb;
+	}
+	bdev->bd_fsfreeze_count++;
+
+	down(&bdev->bd_mount_sem);
+	sb = get_super(bdev);
+	if (sb && !(sb->s_flags & MS_RDONLY)) {
+		sb->s_frozen = SB_FREEZE_WRITE;
+		smp_wmb();
+
+		__fsync_super(sb);
+
+		sb->s_frozen = SB_FREEZE_TRANS;
+		smp_wmb();
+
+		sync_blockdev(sb->s_bdev);
+
+		if (sb->s_op->freeze_fs) {
+			error = sb->s_op->freeze_fs(sb);
+			if (error) {
+				printk(KERN_ERR
+					"VFS:Filesystem freeze failed\n");
+				sb->s_frozen = SB_UNFROZEN;
+				drop_super(sb);
+				up(&bdev->bd_mount_sem);
+				bdev->bd_fsfreeze_count--;
+				mutex_unlock(&bdev->bd_fsfreeze_mutex);
+				return ERR_PTR(error);
+			}
+		}
+	}
+
+	sync_blockdev(bdev);
+	mutex_unlock(&bdev->bd_fsfreeze_mutex);
+
+	return sb;	/* thaw_bdev releases s->s_umount and bd_mount_sem */
+}
+EXPORT_SYMBOL(freeze_bdev);
+
+/**
+ * thaw_bdev  -- unlock filesystem
+ * @bdev:	blockdevice to unlock
+ * @sb:		associated superblock
+ *
+ * Unlocks the filesystem and marks it writeable again after freeze_bdev().
+ */
+int thaw_bdev(struct block_device *bdev, struct super_block *sb)
+{
+	int error = 0;
+
+	mutex_lock(&bdev->bd_fsfreeze_mutex);
+	if (!bdev->bd_fsfreeze_count) {
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return -EINVAL;
+	}
+
+	bdev->bd_fsfreeze_count--;
+	if (bdev->bd_fsfreeze_count > 0) {
+		if (sb)
+			drop_super(sb);
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return 0;
+	}
+
+	if (sb) {
+		BUG_ON(sb->s_bdev != bdev);
+		if (!(sb->s_flags & MS_RDONLY)) {
+			if (sb->s_op->unfreeze_fs) {
+				error = sb->s_op->unfreeze_fs(sb);
+				if (error) {
+					printk(KERN_ERR
+						"VFS:Filesystem thaw failed\n");
+					sb->s_frozen = SB_FREEZE_TRANS;
+					bdev->bd_fsfreeze_count++;
+					mutex_unlock(&bdev->bd_fsfreeze_mutex);
+					return error;
+				}
+			}
+			sb->s_frozen = SB_UNFROZEN;
+			smp_wmb();
+			wake_up(&sb->s_wait_unfrozen);
+		}
+		drop_super(sb);
+	}
+
+	up(&bdev->bd_mount_sem);
+	mutex_unlock(&bdev->bd_fsfreeze_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(thaw_bdev);
 
 static int blkdev_writepage(struct page *page, struct writeback_control *wbc)
 {

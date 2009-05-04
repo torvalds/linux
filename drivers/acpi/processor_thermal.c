@@ -373,7 +373,8 @@ static int acpi_processor_max_state(struct acpi_processor *pr)
 	return max_state;
 }
 static int
-processor_get_max_state(struct thermal_cooling_device *cdev, char *buf)
+processor_get_max_state(struct thermal_cooling_device *cdev,
+			unsigned long *state)
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_processor *pr = acpi_driver_data(device);
@@ -381,28 +382,29 @@ processor_get_max_state(struct thermal_cooling_device *cdev, char *buf)
 	if (!device || !pr)
 		return -EINVAL;
 
-	return sprintf(buf, "%d\n", acpi_processor_max_state(pr));
+	*state = acpi_processor_max_state(pr);
+	return 0;
 }
 
 static int
-processor_get_cur_state(struct thermal_cooling_device *cdev, char *buf)
+processor_get_cur_state(struct thermal_cooling_device *cdev,
+			unsigned long *cur_state)
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_processor *pr = acpi_driver_data(device);
-	int cur_state;
 
 	if (!device || !pr)
 		return -EINVAL;
 
-	cur_state = cpufreq_get_cur_state(pr->id);
+	*cur_state = cpufreq_get_cur_state(pr->id);
 	if (pr->flags.throttling)
-		cur_state += pr->throttling.state;
-
-	return sprintf(buf, "%d\n", cur_state);
+		*cur_state += pr->throttling.state;
+	return 0;
 }
 
 static int
-processor_set_cur_state(struct thermal_cooling_device *cdev, unsigned int state)
+processor_set_cur_state(struct thermal_cooling_device *cdev,
+			unsigned long state)
 {
 	struct acpi_device *device = cdev->devdata;
 	struct acpi_processor *pr = acpi_driver_data(device);
@@ -507,7 +509,7 @@ static ssize_t acpi_processor_write_limit(struct file * file,
 	return count;
 }
 
-struct file_operations acpi_processor_limit_fops = {
+const struct file_operations acpi_processor_limit_fops = {
 	.owner = THIS_MODULE,
 	.open = acpi_processor_limit_open_fs,
 	.read = seq_read,

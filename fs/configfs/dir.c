@@ -72,7 +72,7 @@ static int configfs_d_delete(struct dentry *dentry)
 	return 1;
 }
 
-static struct dentry_operations configfs_dentry_ops = {
+static const struct dentry_operations configfs_dentry_ops = {
 	.d_iput		= configfs_d_iput,
 	/* simple_delete_dentry() isn't exported */
 	.d_delete	= configfs_d_delete,

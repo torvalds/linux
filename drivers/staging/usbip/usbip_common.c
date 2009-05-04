@@ -406,8 +406,20 @@ void usbip_start_threads(struct usbip_device *ud)
 	/*
 	 * threads are invoked per one device (per one connection).
 	 */
-	kernel_thread(usbip_thread, (void *)&ud->tcp_rx, 0);
-	kernel_thread(usbip_thread, (void *)&ud->tcp_tx, 0);
+	int retval;
+
+	retval = kernel_thread(usbip_thread, (void *)&ud->tcp_rx, 0);
+	if (retval < 0) {
+		printk(KERN_ERR "Creating tcp_rx thread for ud %p failed.\n",
+				ud);
+		return;
+	}
+	retval = kernel_thread(usbip_thread, (void *)&ud->tcp_tx, 0);
+	if (retval < 0) {
+		printk(KERN_ERR "Creating tcp_tx thread for ud %p failed.\n",
+				ud);
+		return;
+	}
 
 	/* confirm threads are starting */
 	wait_for_completion(&ud->tcp_rx.thread_done);

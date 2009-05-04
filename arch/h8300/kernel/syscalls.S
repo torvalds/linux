@@ -103,7 +103,7 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	.long SYMBOL_NAME(sys_uselib)
 	.long SYMBOL_NAME(sys_swapon)
 	.long SYMBOL_NAME(sys_reboot)
-	.long SYMBOL_NAME(old_readdir)
+	.long SYMBOL_NAME(sys_old_readdir)
 	.long SYMBOL_NAME(old_mmap)		/* 90 */
 	.long SYMBOL_NAME(sys_munmap)
 	.long SYMBOL_NAME(sys_truncate)

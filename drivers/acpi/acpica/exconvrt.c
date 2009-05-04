@@ -82,7 +82,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_integer, obj_desc);
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_INTEGER:
 
 		/* No conversion necessary */
@@ -116,7 +116,7 @@ acpi_ex_convert_to_integer(union acpi_operand_object *obj_desc,
 
 	/* String conversion is different than Buffer conversion */
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_STRING:
 
 		/*
@@ -206,7 +206,7 @@ acpi_ex_convert_to_buffer(union acpi_operand_object *obj_desc,
 
 	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_buffer, obj_desc);
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_BUFFER:
 
 		/* No conversion necessary */
@@ -409,7 +409,7 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 
 	ACPI_FUNCTION_TRACE_PTR(ex_convert_to_string, obj_desc);
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_STRING:
 
 		/* No conversion necessary */
@@ -605,8 +605,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 		default:
 			/* No conversion allowed for these types */
 
-			if (destination_type !=
-			    ACPI_GET_OBJECT_TYPE(source_desc)) {
+			if (destination_type != source_desc->common.type) {
 				ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 						  "Explicit operator, will store (%s) over existing type (%s)\n",
 						  acpi_ut_get_object_type_name

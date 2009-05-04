@@ -184,6 +184,8 @@ void i2400mu_rx_size_maybe_shrink(struct i2400mu *i2400mu)
  *   NOTE: this function might realloc the skb (if it is too small),
  *   so always update with the one returned.
  *   ERR_PTR() is < 0 on error.
+ *   Will return NULL if it cannot reallocate -- this can be
+ *   considered a transient retryable error.
  */
 static
 struct sk_buff *i2400mu_rx(struct i2400mu *i2400mu, struct sk_buff *rx_skb)
@@ -243,8 +245,8 @@ retry:
 			if (printk_ratelimit())
 				dev_err(dev, "RX: Can't reallocate skb to %d; "
 					"RX dropped\n", rx_size);
-			kfree(rx_skb);
-			result = 0;
+			kfree_skb(rx_skb);
+			rx_skb = NULL;
 			goto out;	/* drop it...*/
 		}
 		kfree_skb(rx_skb);
@@ -344,7 +346,8 @@ int i2400mu_rxd(void *_i2400mu)
 		if (IS_ERR(rx_skb))
 			goto out;
 		atomic_dec(&i2400mu->rx_pending_count);
-		if (rx_skb->len == 0) {	/* some ignorable condition */
+		if (rx_skb == NULL || rx_skb->len == 0) {
+			/* some "ignorable" condition */
 			kfree_skb(rx_skb);
 			continue;
 		}

@@ -6,4 +6,3 @@ unifdef-y += unistd_32.h
 unifdef-y += unistd_64.h
 unifdef-y += posix_types_32.h
 unifdef-y += posix_types_64.h
-unifdef-y += swab.h

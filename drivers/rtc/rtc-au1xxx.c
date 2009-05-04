@@ -81,7 +81,7 @@ static int __devinit au1xtoy_rtc_probe(struct platform_device *pdev)
 	if (au_readl(SYS_TOYTRIM) != 32767) {
 		/* wait until hardware gives access to TRIM register */
 		t = 0x00100000;
-		while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T0S) && t--)
+		while ((au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T0S) && --t)
 			msleep(1);
 
 		if (!t) {

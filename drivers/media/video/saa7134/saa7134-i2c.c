@@ -255,7 +255,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 			addr  = msgs[i].addr << 1;
 			if (msgs[i].flags & I2C_M_RD)
 				addr |= 1;
-			if (i > 0 && msgs[i].flags & I2C_M_RD) {
+			if (i > 0 && msgs[i].flags & I2C_M_RD && msgs[i].addr != 0x40) {
 				/* workaround for a saa7134 i2c bug
 				 * needed to talk to the mt352 demux
 				 * thanks to pinnacle for the hint */
@@ -327,8 +327,6 @@ static int attach_inform(struct i2c_client *client)
 
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
-	if (client->addr == 0x20 && client->driver && client->driver->command)
-		dev->mpeg_i2c_client = client;
 
 	/* Am I an i2c remote control? */
 
@@ -357,7 +355,6 @@ static struct i2c_algorithm saa7134_algo = {
 
 static struct i2c_adapter saa7134_adap_template = {
 	.owner         = THIS_MODULE,
-	.class         = I2C_CLASS_TV_ANALOG,
 	.name          = "saa7134",
 	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,
@@ -421,29 +418,13 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 	}
 }
 
-void saa7134_i2c_call_clients(struct saa7134_dev *dev,
-			      unsigned int cmd, void *arg)
-{
-	BUG_ON(NULL == dev->i2c_adap.algo_data);
-	i2c_clients_command(&dev->i2c_adap, cmd, arg);
-}
-
-int saa7134_i2c_call_saa6752(struct saa7134_dev *dev,
-					      unsigned int cmd, void *arg)
-{
-	if (dev->mpeg_i2c_client == NULL)
-		return -EINVAL;
-	return dev->mpeg_i2c_client->driver->command(dev->mpeg_i2c_client,
-								cmd, arg);
-}
-EXPORT_SYMBOL_GPL(saa7134_i2c_call_saa6752);
-
 int saa7134_i2c_register(struct saa7134_dev *dev)
 {
 	dev->i2c_adap = saa7134_adap_template;
 	dev->i2c_adap.dev.parent = &dev->pci->dev;
 	strcpy(dev->i2c_adap.name,dev->name);
 	dev->i2c_adap.algo_data = dev;
+	i2c_set_adapdata(&dev->i2c_adap, &dev->v4l2_dev);
 	i2c_add_adapter(&dev->i2c_adap);
 
 	dev->i2c_client = saa7134_client_template;

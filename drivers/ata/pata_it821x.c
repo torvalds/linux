@@ -80,7 +80,7 @@
 
 
 #define DRV_NAME "pata_it821x"
-#define DRV_VERSION "0.4.0"
+#define DRV_VERSION "0.4.2"
 
 struct it821x_dev
 {
@@ -494,8 +494,6 @@ static int it821x_smart_set_mode(struct ata_link *link, struct ata_device **unus
  *	special. In our case we need to lock the sector count to avoid
  *	blowing the brains out of the firmware with large LBA48 requests
  *
- *	FIXME: When FUA appears we need to block FUA too. And SMART and
- *	basically we need to filter commands for this chip.
  */
 
 static void it821x_dev_config(struct ata_device *adev)
@@ -559,6 +557,9 @@ static unsigned int it821x_read_id(struct ata_device *adev,
 		id[83] |= 0x4400;	/* Word 83 is valid and LBA48 */
 		id[86] |= 0x0400;	/* LBA48 on */
 		id[ATA_ID_MAJOR_VER] |= 0x1F;
+		/* Clear the serial number because it's different each boot
+		   which breaks validation on resume */
+		memset(&id[ATA_ID_SERNO], 0x20, ATA_ID_SERNO_LEN);
 	}
 	return err_mask;
 }
@@ -874,22 +875,29 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	static const struct ata_port_info info_smart = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &it821x_smart_port_ops
 	};
 	static const struct ata_port_info info_passthru = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA6,
 		.port_ops = &it821x_passthru_port_ops
 	};
 	static const struct ata_port_info info_rdc = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
+		.udma_mask = ATA_UDMA6,
+		.port_ops = &it821x_rdc_port_ops
+	};
+	static const struct ata_port_info info_rdc_11 = {
+		.flags = ATA_FLAG_SLAVE_POSS,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		/* No UDMA */
 		.port_ops = &it821x_rdc_port_ops
 	};
@@ -903,7 +911,11 @@ static int it821x_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		return rc;
 		
 	if (pdev->vendor == PCI_VENDOR_ID_RDC) {
-		ppi[0] = &info_rdc;
+		/* Deal with Vortex86SX */
+		if (pdev->revision == 0x11)
+			ppi[0] = &info_rdc_11;
+		else
+			ppi[0] = &info_rdc;
 	} else {
 		/* Force the card into bypass mode if so requested */
 		if (it8212_noraid) {

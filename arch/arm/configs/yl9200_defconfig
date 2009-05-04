@@ -682,7 +682,7 @@ CONFIG_SPI_ATMEL=y
 #
 # SPI Protocol Masters
 #
-# CONFIG_SPI_AT25 is not set
+# CONFIG_EEPROM_AT25 is not set
 # CONFIG_SPI_TLE62X0 is not set
 # CONFIG_W1 is not set
 # CONFIG_POWER_SUPPLY is not set

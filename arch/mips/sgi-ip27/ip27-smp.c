@@ -221,7 +221,7 @@ static void __init ip27_smp_setup(void)
 	 * Assumption to be fixed: we're always booted on logical / physical
 	 * processor 0.  While we're always running on logical processor 0
 	 * this still means this is physical processor zero; it might for
-	 * example be disabled in the firwware.
+	 * example be disabled in the firmware.
 	 */
 	alloc_cpupda(0, 0);
 }

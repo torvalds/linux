@@ -145,6 +145,7 @@ extern const char *powerpc_base_platform;
 #define CPU_FTR_USE_TB			ASM_CONST(0x0000000000000040)
 #define CPU_FTR_L2CSR			ASM_CONST(0x0000000000000080)
 #define CPU_FTR_601			ASM_CONST(0x0000000000000100)
+#define CPU_FTR_DBELL			ASM_CONST(0x0000000000000200)
 #define CPU_FTR_CAN_NAP			ASM_CONST(0x0000000000000400)
 #define CPU_FTR_L3CR			ASM_CONST(0x0000000000000800)
 #define CPU_FTR_L3_DISABLE_NAP		ASM_CONST(0x0000000000001000)
@@ -241,9 +242,11 @@ extern const char *powerpc_base_platform;
 /* We need to mark all pages as being coherent if we're SMP or we have a
  * 74[45]x and an MPC107 host bridge. Also 83xx and PowerQUICC II
  * require it for PCI "streaming/prefetch" to work properly.
+ * This is also required by 52xx family.
  */
 #if defined(CONFIG_SMP) || defined(CONFIG_MPC10X_BRIDGE) \
-	|| defined(CONFIG_PPC_83xx) || defined(CONFIG_8260)
+	|| defined(CONFIG_PPC_83xx) || defined(CONFIG_8260) \
+	|| defined(CONFIG_PPC_MPC52xx)
 #define CPU_FTR_COMMON                  CPU_FTR_NEED_COHERENT
 #else
 #define CPU_FTR_COMMON                  0
@@ -373,7 +376,8 @@ extern const char *powerpc_base_platform;
 	    CPU_FTR_NODSISRALIGN | CPU_FTR_NOEXECUTE)
 #define CPU_FTRS_E500MC	(CPU_FTR_MAYBE_CAN_DOZE | CPU_FTR_USE_TB | \
 	    CPU_FTR_MAYBE_CAN_NAP | CPU_FTR_NODSISRALIGN | \
-	    CPU_FTR_L2CSR | CPU_FTR_LWSYNC | CPU_FTR_NOEXECUTE)
+	    CPU_FTR_L2CSR | CPU_FTR_LWSYNC | CPU_FTR_NOEXECUTE | \
+	    CPU_FTR_DBELL)
 #define CPU_FTRS_GENERIC_32	(CPU_FTR_COMMON | CPU_FTR_NODSISRALIGN)
 
 /* 64-bit CPUs */

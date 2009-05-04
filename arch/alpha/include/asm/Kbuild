@@ -9,4 +9,3 @@ unifdef-y += console.h
 unifdef-y += fpu.h
 unifdef-y += sysinfo.h
 unifdef-y += compiler.h
-unifdef-y += swab.h

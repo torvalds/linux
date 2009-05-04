@@ -395,7 +395,7 @@ struct drm_connector_funcs {
 	void (*save)(struct drm_connector *connector);
 	void (*restore)(struct drm_connector *connector);
 	enum drm_connector_status (*detect)(struct drm_connector *connector);
-	void (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
+	int (*fill_modes)(struct drm_connector *connector, uint32_t max_width, uint32_t max_height);
 	int (*set_property)(struct drm_connector *connector, struct drm_property *property,
 			     uint64_t val);
 	void (*destroy)(struct drm_connector *connector);
@@ -528,7 +528,8 @@ struct drm_mode_group {
  *
  */
 struct drm_mode_config {
-	struct mutex mutex; /* protects configuration and IDR */
+	struct mutex mutex; /* protects configuration (mode lists etc.) */
+	struct mutex idr_mutex; /* for IDR management */
 	struct idr crtc_idr; /* use this idr for all IDs, fb, crtc, connector, modes - just makes life easier */
 	/* this is limited to one for now */
 	int num_fb;
@@ -549,7 +550,7 @@ struct drm_mode_config {
 	int min_width, min_height;
 	int max_width, max_height;
 	struct drm_mode_config_funcs *funcs;
-	unsigned long fb_base;
+	resource_size_t fb_base;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
@@ -608,11 +609,12 @@ extern char *drm_get_dvi_i_subconnector_name(int val);
 extern char *drm_get_dvi_i_select_name(int val);
 extern char *drm_get_tv_subconnector_name(int val);
 extern char *drm_get_tv_select_name(int val);
-extern void drm_fb_release(struct file *filp);
+extern void drm_fb_release(struct drm_file *file_priv);
 extern int drm_mode_group_init_legacy_group(struct drm_device *dev, struct drm_mode_group *group);
 extern struct edid *drm_get_edid(struct drm_connector *connector,
 				 struct i2c_adapter *adapter);
-extern unsigned char *drm_do_probe_ddc_edid(struct i2c_adapter *adapter);
+extern int drm_do_probe_ddc_edid(struct i2c_adapter *adapter,
+				 unsigned char *buf, int len);
 extern int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
 extern void drm_mode_probed_add(struct drm_connector *connector, struct drm_display_mode *mode);
 extern void drm_mode_remove(struct drm_connector *connector, struct drm_display_mode *mode);
@@ -730,4 +732,5 @@ extern int drm_mode_gamma_get_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
 extern int drm_mode_gamma_set_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
+extern bool drm_detect_hdmi_monitor(struct edid *edid);
 #endif /* __DRM_CRTC_H__ */

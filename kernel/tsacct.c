@@ -122,8 +122,10 @@ void acct_update_integrals(struct task_struct *tsk)
 	if (likely(tsk->mm)) {
 		cputime_t time, dtime;
 		struct timeval value;
+		unsigned long flags;
 		u64 delta;
 
+		local_irq_save(flags);
 		time = tsk->stime + tsk->utime;
 		dtime = cputime_sub(time, tsk->acct_timexpd);
 		jiffies_to_timeval(cputime_to_jiffies(dtime), &value);
@@ -131,10 +133,12 @@ void acct_update_integrals(struct task_struct *tsk)
 		delta = delta * USEC_PER_SEC + value.tv_usec;
 
 		if (delta == 0)
-			return;
+			goto out;
 		tsk->acct_timexpd = time;
 		tsk->acct_rss_mem1 += delta * get_mm_rss(tsk->mm);
 		tsk->acct_vm_mem1 += delta * tsk->mm->total_vm;
+	out:
+		local_irq_restore(flags);
 	}
 }
 

@@ -1,7 +1,7 @@
 /*
  *	intel TCO vendor specific watchdog driver support
  *
- *	(c) Copyright 2006-2008 Wim Van Sebroeck <wim@iguana.be>.
+ *	(c) Copyright 2006-2009 Wim Van Sebroeck <wim@iguana.be>.
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -19,7 +19,7 @@
 
 /* Module and version information */
 #define DRV_NAME	"iTCO_vendor_support"
-#define DRV_VERSION	"1.02"
+#define DRV_VERSION	"1.03"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -47,7 +47,8 @@
 
 static int vendorsupport;
 module_param(vendorsupport, int, 0);
-MODULE_PARM_DESC(vendorsupport, "iTCO vendor specific support mode, default=0 (none), 1=SuperMicro Pent3, 2=SuperMicro Pent4+");
+MODULE_PARM_DESC(vendorsupport, "iTCO vendor specific support mode, default="
+			"0 (none), 1=SuperMicro Pent3, 2=SuperMicro Pent4+");
 
 /*
  *	Vendor Specific Support
@@ -76,6 +77,26 @@ MODULE_PARM_DESC(vendorsupport, "iTCO vendor specific support mode, default=0 (n
  *	    time is about 40 seconds, and the minimum hang time is about
  *	    20.6 seconds.
  */
+
+static void supermicro_old_pre_start(unsigned long acpibase)
+{
+	unsigned long val32;
+
+	/* Bit 13: TCO_EN -> 0 = Disables TCO logic generating an SMI# */
+	val32 = inl(SMI_EN);
+	val32 &= 0xffffdfff;	/* Turn off SMI clearing watchdog */
+	outl(val32, SMI_EN);	/* Needed to activate watchdog */
+}
+
+static void supermicro_old_pre_stop(unsigned long acpibase)
+{
+	unsigned long val32;
+
+	/* Bit 13: TCO_EN -> 1 = Enables the TCO logic to generate SMI# */
+	val32 = inl(SMI_EN);
+	val32 |= 0x00002000;	/* Turn on SMI clearing watchdog */
+	outl(val32, SMI_EN);	/* Needed to deactivate watchdog */
+}
 
 static void supermicro_old_pre_keepalive(unsigned long acpibase)
 {
@@ -228,14 +249,18 @@ static void supermicro_new_pre_set_heartbeat(unsigned int heartbeat)
 void iTCO_vendor_pre_start(unsigned long acpibase,
 			   unsigned int heartbeat)
 {
-	if (vendorsupport == SUPERMICRO_NEW_BOARD)
+	if (vendorsupport == SUPERMICRO_OLD_BOARD)
+		supermicro_old_pre_start(acpibase);
+	else if (vendorsupport == SUPERMICRO_NEW_BOARD)
 		supermicro_new_pre_start(heartbeat);
 }
 EXPORT_SYMBOL(iTCO_vendor_pre_start);
 
 void iTCO_vendor_pre_stop(unsigned long acpibase)
 {
-	if (vendorsupport == SUPERMICRO_NEW_BOARD)
+	if (vendorsupport == SUPERMICRO_OLD_BOARD)
+		supermicro_old_pre_stop(acpibase);
+	else if (vendorsupport == SUPERMICRO_NEW_BOARD)
 		supermicro_new_pre_stop();
 }
 EXPORT_SYMBOL(iTCO_vendor_pre_stop);
@@ -281,7 +306,8 @@ static void __exit iTCO_vendor_exit_module(void)
 module_init(iTCO_vendor_init_module);
 module_exit(iTCO_vendor_exit_module);
 
-MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>, R. Seretny <lkpatches@paypc.com>");
+MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>, "
+		"R. Seretny <lkpatches@paypc.com>");
 MODULE_DESCRIPTION("Intel TCO Vendor Specific WatchDog Timer Driver Support");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");

@@ -568,8 +568,7 @@ static void ipic_ack_irq(unsigned int virq)
 
 	spin_lock_irqsave(&ipic_lock, flags);
 
-	temp = ipic_read(ipic->regs, ipic_info[src].ack);
-	temp |= (1 << (31 - ipic_info[src].bit));
+	temp = 1 << (31 - ipic_info[src].bit);
 	ipic_write(ipic->regs, ipic_info[src].ack, temp);
 
 	/* mb() can't guarantee that ack is finished.  But it does finish
@@ -592,8 +591,7 @@ static void ipic_mask_irq_and_ack(unsigned int virq)
 	temp &= ~(1 << (31 - ipic_info[src].bit));
 	ipic_write(ipic->regs, ipic_info[src].mask, temp);
 
-	temp = ipic_read(ipic->regs, ipic_info[src].ack);
-	temp |= (1 << (31 - ipic_info[src].bit));
+	temp = 1 << (31 - ipic_info[src].bit);
 	ipic_write(ipic->regs, ipic_info[src].ack, temp);
 
 	/* mb() can't guarantee that ack is finished.  But it does finish
@@ -890,7 +888,7 @@ unsigned int ipic_get_irq(void)
 	return irq_linear_revmap(primary_ipic->irqhost, irq);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_SUSPEND
 static struct {
 	u32 sicfr;
 	u32 siprr[2];

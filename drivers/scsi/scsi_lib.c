@@ -277,196 +277,6 @@ int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 }
 EXPORT_SYMBOL(scsi_execute_req);
 
-struct scsi_io_context {
-	void *data;
-	void (*done)(void *data, char *sense, int result, int resid);
-	char sense[SCSI_SENSE_BUFFERSIZE];
-};
-
-static struct kmem_cache *scsi_io_context_cache;
-
-static void scsi_end_async(struct request *req, int uptodate)
-{
-	struct scsi_io_context *sioc = req->end_io_data;
-
-	if (sioc->done)
-		sioc->done(sioc->data, sioc->sense, req->errors, req->data_len);
-
-	kmem_cache_free(scsi_io_context_cache, sioc);
-	__blk_put_request(req->q, req);
-}
-
-static int scsi_merge_bio(struct request *rq, struct bio *bio)
-{
-	struct request_queue *q = rq->q;
-
-	bio->bi_flags &= ~(1 << BIO_SEG_VALID);
-	if (rq_data_dir(rq) == WRITE)
-		bio->bi_rw |= (1 << BIO_RW);
-	blk_queue_bounce(q, &bio);
-
-	return blk_rq_append_bio(q, rq, bio);
-}
-
-static void scsi_bi_endio(struct bio *bio, int error)
-{
-	bio_put(bio);
-}
-
-/**
- * scsi_req_map_sg - map a scatterlist into a request
- * @rq:		request to fill
- * @sgl:	scatterlist
- * @nsegs:	number of elements
- * @bufflen:	len of buffer
- * @gfp:	memory allocation flags
- *
- * scsi_req_map_sg maps a scatterlist into a request so that the
- * request can be sent to the block layer. We do not trust the scatterlist
- * sent to use, as some ULDs use that struct to only organize the pages.
- */
-static int scsi_req_map_sg(struct request *rq, struct scatterlist *sgl,
-			   int nsegs, unsigned bufflen, gfp_t gfp)
-{
-	struct request_queue *q = rq->q;
-	int nr_pages = (bufflen + sgl[0].offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	unsigned int data_len = bufflen, len, bytes, off;
-	struct scatterlist *sg;
-	struct page *page;
-	struct bio *bio = NULL;
-	int i, err, nr_vecs = 0;
-
-	for_each_sg(sgl, sg, nsegs, i) {
-		page = sg_page(sg);
-		off = sg->offset;
-		len = sg->length;
-
-		while (len > 0 && data_len > 0) {
-			/*
-			 * sg sends a scatterlist that is larger than
-			 * the data_len it wants transferred for certain
-			 * IO sizes
-			 */
-			bytes = min_t(unsigned int, len, PAGE_SIZE - off);
-			bytes = min(bytes, data_len);
-
-			if (!bio) {
-				nr_vecs = min_t(int, BIO_MAX_PAGES, nr_pages);
-				nr_pages -= nr_vecs;
-
-				bio = bio_alloc(gfp, nr_vecs);
-				if (!bio) {
-					err = -ENOMEM;
-					goto free_bios;
-				}
-				bio->bi_end_io = scsi_bi_endio;
-			}
-
-			if (bio_add_pc_page(q, bio, page, bytes, off) !=
-			    bytes) {
-				bio_put(bio);
-				err = -EINVAL;
-				goto free_bios;
-			}
-
-			if (bio->bi_vcnt >= nr_vecs) {
-				err = scsi_merge_bio(rq, bio);
-				if (err) {
-					bio_endio(bio, 0);
-					goto free_bios;
-				}
-				bio = NULL;
-			}
-
-			page++;
-			len -= bytes;
-			data_len -=bytes;
-			off = 0;
-		}
-	}
-
-	rq->buffer = rq->data = NULL;
-	rq->data_len = bufflen;
-	return 0;
-
-free_bios:
-	while ((bio = rq->bio) != NULL) {
-		rq->bio = bio->bi_next;
-		/*
-		 * call endio instead of bio_put incase it was bounced
-		 */
-		bio_endio(bio, 0);
-	}
-
-	return err;
-}
-
-/**
- * scsi_execute_async - insert request
- * @sdev:	scsi device
- * @cmd:	scsi command
- * @cmd_len:	length of scsi cdb
- * @data_direction: DMA_TO_DEVICE, DMA_FROM_DEVICE, or DMA_NONE
- * @buffer:	data buffer (this can be a kernel buffer or scatterlist)
- * @bufflen:	len of buffer
- * @use_sg:	if buffer is a scatterlist this is the number of elements
- * @timeout:	request timeout in seconds
- * @retries:	number of times to retry request
- * @privdata:	data passed to done()
- * @done:	callback function when done
- * @gfp:	memory allocation flags
- */
-int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
-		       int cmd_len, int data_direction, void *buffer, unsigned bufflen,
-		       int use_sg, int timeout, int retries, void *privdata,
-		       void (*done)(void *, char *, int, int), gfp_t gfp)
-{
-	struct request *req;
-	struct scsi_io_context *sioc;
-	int err = 0;
-	int write = (data_direction == DMA_TO_DEVICE);
-
-	sioc = kmem_cache_zalloc(scsi_io_context_cache, gfp);
-	if (!sioc)
-		return DRIVER_ERROR << 24;
-
-	req = blk_get_request(sdev->request_queue, write, gfp);
-	if (!req)
-		goto free_sense;
-	req->cmd_type = REQ_TYPE_BLOCK_PC;
-	req->cmd_flags |= REQ_QUIET;
-
-	if (use_sg)
-		err = scsi_req_map_sg(req, buffer, use_sg, bufflen, gfp);
-	else if (bufflen)
-		err = blk_rq_map_kern(req->q, req, buffer, bufflen, gfp);
-
-	if (err)
-		goto free_req;
-
-	req->cmd_len = cmd_len;
-	memset(req->cmd, 0, BLK_MAX_CDB); /* ATAPI hates garbage after CDB */
-	memcpy(req->cmd, cmd, req->cmd_len);
-	req->sense = sioc->sense;
-	req->sense_len = 0;
-	req->timeout = timeout;
-	req->retries = retries;
-	req->end_io_data = sioc;
-
-	sioc->data = privdata;
-	sioc->done = done;
-
-	blk_execute_rq_nowait(req->q, NULL, req, 1, scsi_end_async);
-	return 0;
-
-free_req:
-	blk_put_request(req);
-free_sense:
-	kmem_cache_free(scsi_io_context_cache, sioc);
-	return DRIVER_ERROR << 24;
-}
-EXPORT_SYMBOL_GPL(scsi_execute_async);
-
 /*
  * Function:    scsi_init_cmd_errh()
  *
@@ -981,7 +791,22 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				      "%d bytes done.\n",
 				      req->nr_sectors, good_bytes));
 
-	/* A number of bytes were successfully read.  If there
+	/*
+	 * Recovered errors need reporting, but they're always treated
+	 * as success, so fiddle the result code here.  For BLOCK_PC
+	 * we already took a copy of the original into rq->errors which
+	 * is what gets returned to the user
+	 */
+	if (sense_valid && sshdr.sense_key == RECOVERED_ERROR) {
+		if (!(req->cmd_flags & REQ_QUIET))
+			scsi_print_sense("", cmd);
+		result = 0;
+		/* BLOCK_PC may have set error */
+		error = 0;
+	}
+
+	/*
+	 * A number of bytes were successfully read.  If there
 	 * are leftovers and there is some kind of error
 	 * (result != 0), retry the rest.
 	 */
@@ -1040,12 +865,11 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				action = ACTION_FAIL;
 			break;
 		case ABORTED_COMMAND:
+			action = ACTION_FAIL;
 			if (sshdr.asc == 0x10) { /* DIF */
 				description = "Target Data Integrity Failure";
-				action = ACTION_FAIL;
 				error = -EILSEQ;
-			} else
-				action = ACTION_RETRY;
+			}
 			break;
 		case NOT_READY:
 			/* If the device is in the process of becoming
@@ -1921,20 +1745,12 @@ int __init scsi_init_queue(void)
 {
 	int i;
 
-	scsi_io_context_cache = kmem_cache_create("scsi_io_context",
-					sizeof(struct scsi_io_context),
-					0, 0, NULL);
-	if (!scsi_io_context_cache) {
-		printk(KERN_ERR "SCSI: can't init scsi io context cache\n");
-		return -ENOMEM;
-	}
-
 	scsi_sdb_cache = kmem_cache_create("scsi_data_buffer",
 					   sizeof(struct scsi_data_buffer),
 					   0, 0, NULL);
 	if (!scsi_sdb_cache) {
 		printk(KERN_ERR "SCSI: can't init scsi sdb cache\n");
-		goto cleanup_io_context;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {
@@ -1969,8 +1785,6 @@ cleanup_sdb:
 			kmem_cache_destroy(sgp->slab);
 	}
 	kmem_cache_destroy(scsi_sdb_cache);
-cleanup_io_context:
-	kmem_cache_destroy(scsi_io_context_cache);
 
 	return -ENOMEM;
 }
@@ -1979,7 +1793,6 @@ void scsi_exit_queue(void)
 {
 	int i;
 
-	kmem_cache_destroy(scsi_io_context_cache);
 	kmem_cache_destroy(scsi_sdb_cache);
 
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {

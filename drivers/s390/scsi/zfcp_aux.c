@@ -3,7 +3,7 @@
  *
  * Module interface and handling of zfcp data structures.
  *
- * Copyright IBM Corporation 2002, 2008
+ * Copyright IBM Corporation 2002, 2009
  */
 
 /*
@@ -249,8 +249,8 @@ struct zfcp_port *zfcp_get_port_by_wwpn(struct zfcp_adapter *adapter,
 	struct zfcp_port *port;
 
 	list_for_each_entry(port, &adapter->port_list_head, list)
-		if ((port->wwpn == wwpn) && !(atomic_read(&port->status) &
-		      (ZFCP_STATUS_PORT_NO_WWPN | ZFCP_STATUS_COMMON_REMOVE)))
+		if ((port->wwpn == wwpn) &&
+		    !(atomic_read(&port->status) & ZFCP_STATUS_COMMON_REMOVE))
 			return port;
 	return NULL;
 }
@@ -421,7 +421,8 @@ int zfcp_status_read_refill(struct zfcp_adapter *adapter)
 	while (atomic_read(&adapter->stat_miss) > 0)
 		if (zfcp_fsf_status_read(adapter)) {
 			if (atomic_read(&adapter->stat_miss) >= 16) {
-				zfcp_erp_adapter_reopen(adapter, 0, 103, NULL);
+				zfcp_erp_adapter_reopen(adapter, 0, "axsref1",
+							NULL);
 				return 1;
 			}
 			break;
@@ -501,6 +502,7 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	spin_lock_init(&adapter->scsi_dbf_lock);
 	spin_lock_init(&adapter->rec_dbf_lock);
 	spin_lock_init(&adapter->req_q_lock);
+	spin_lock_init(&adapter->qdio_stat_lock);
 
 	rwlock_init(&adapter->erp_lock);
 	rwlock_init(&adapter->abort_lock);
@@ -522,7 +524,6 @@ int zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 		goto sysfs_failed;
 
 	atomic_clear_mask(ZFCP_STATUS_COMMON_REMOVE, &adapter->status);
-	zfcp_fc_nameserver_init(adapter);
 
 	if (!zfcp_adapter_scsi_register(adapter))
 		return 0;
@@ -552,6 +553,7 @@ void zfcp_adapter_dequeue(struct zfcp_adapter *adapter)
 
 	cancel_work_sync(&adapter->scan_work);
 	cancel_work_sync(&adapter->stat_work);
+	cancel_delayed_work_sync(&adapter->nsp.work);
 	zfcp_adapter_scsi_unregister(adapter);
 	sysfs_remove_group(&adapter->ccw_device->dev.kobj,
 			   &zfcp_sysfs_adapter_attrs);
@@ -603,10 +605,13 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	init_waitqueue_head(&port->remove_wq);
 	INIT_LIST_HEAD(&port->unit_list_head);
 	INIT_WORK(&port->gid_pn_work, zfcp_erp_port_strategy_open_lookup);
+	INIT_WORK(&port->test_link_work, zfcp_fc_link_test_work);
+	INIT_WORK(&port->rport_work, zfcp_scsi_rport_work);
 
 	port->adapter = adapter;
 	port->d_id = d_id;
 	port->wwpn = wwpn;
+	port->rport_task = RPORT_NONE;
 
 	/* mark port unusable as long as sysfs registration is not complete */
 	atomic_set_mask(status | ZFCP_STATUS_COMMON_REMOVE, &port->status);
@@ -620,11 +625,10 @@ struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *adapter, u64 wwpn,
 	dev_set_drvdata(&port->sysfs_device, port);
 
 	read_lock_irq(&zfcp_data.config_lock);
-	if (!(status & ZFCP_STATUS_PORT_NO_WWPN))
-		if (zfcp_get_port_by_wwpn(adapter, wwpn)) {
-			read_unlock_irq(&zfcp_data.config_lock);
-			goto err_out_free;
-		}
+	if (zfcp_get_port_by_wwpn(adapter, wwpn)) {
+		read_unlock_irq(&zfcp_data.config_lock);
+		goto err_out_free;
+	}
 	read_unlock_irq(&zfcp_data.config_lock);
 
 	if (device_register(&port->sysfs_device))

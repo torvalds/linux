@@ -31,7 +31,7 @@ static u32 pit_cnt;		/* access only w/system irq blocked */
  * Clocksource:  just a monotonic counter of MCK/16 cycles.
  * We don't care whether or not PIT irqs are enabled.
  */
-static cycle_t read_pit_clk(void)
+static cycle_t read_pit_clk(struct clocksource *cs)
 {
 	unsigned long flags;
 	u32 elapsed;

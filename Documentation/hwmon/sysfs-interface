@@ -365,6 +365,7 @@ energy[1-*]_input		Cumulative energy use
 				Unit: microJoule
 				RO
 
+
 **********
 * Alarms *
 **********
@@ -450,6 +451,27 @@ beep_mask	Bitmask for beep.
 		Same format as 'alarms' with the same bit locations,
 		use discouraged for the same reason. Use individual
 		*_beep files instead.
+		RW
+
+
+***********************
+* Intrusion detection *
+***********************
+
+intrusion[0-*]_alarm
+		Chassis intrusion detection
+		0: OK
+		1: intrusion detected
+		RW
+		Contrary to regular alarm flags which clear themselves
+		automatically when read, this one sticks until cleared by
+		the user. This is done by writing 0 to the file. Writing
+		other values is unsupported.
+
+intrusion[0-*]_beep
+		Chassis intrusion beep
+		0: disable
+		1: enable
 		RW
 
 

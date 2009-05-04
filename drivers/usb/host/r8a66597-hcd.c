@@ -660,9 +660,9 @@ static u16 get_empty_pipenum(struct r8a66597 *r8a66597,
 	u16 array[R8A66597_MAX_NUM_PIPE], i = 0, min;
 
 	memset(array, 0, sizeof(array));
-	switch (ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
+	switch (usb_endpoint_type(ep)) {
 	case USB_ENDPOINT_XFER_BULK:
-		if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+		if (usb_endpoint_dir_in(ep))
 			array[i++] = 4;
 		else {
 			array[i++] = 3;
@@ -670,7 +670,7 @@ static u16 get_empty_pipenum(struct r8a66597 *r8a66597,
 		}
 		break;
 	case USB_ENDPOINT_XFER_INT:
-		if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK) {
+		if (usb_endpoint_dir_in(ep)) {
 			array[i++] = 6;
 			array[i++] = 7;
 			array[i++] = 8;
@@ -678,7 +678,7 @@ static u16 get_empty_pipenum(struct r8a66597 *r8a66597,
 			array[i++] = 9;
 		break;
 	case USB_ENDPOINT_XFER_ISOC:
-		if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+		if (usb_endpoint_dir_in(ep))
 			array[i++] = 2;
 		else
 			array[i++] = 1;
@@ -928,10 +928,9 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 
 	info.pipenum = get_empty_pipenum(r8a66597, ep);
 	info.address = get_urb_to_r8a66597_addr(r8a66597, urb);
-	info.epnum = ep->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK;
+	info.epnum = usb_endpoint_num(ep);
 	info.maxpacket = le16_to_cpu(ep->wMaxPacketSize);
-	info.type = get_r8a66597_type(ep->bmAttributes
-				      & USB_ENDPOINT_XFERTYPE_MASK);
+	info.type = get_r8a66597_type(usb_endpoint_type(ep));
 	info.bufnum = get_bufnum(info.pipenum);
 	info.buf_bsize = get_buf_bsize(info.pipenum);
 	if (info.type == R8A66597_BULK) {
@@ -941,7 +940,7 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 		info.interval = get_interval(urb, ep->bInterval);
 		info.timer_interval = get_timer_interval(urb, ep->bInterval);
 	}
-	if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
+	if (usb_endpoint_dir_in(ep))
 		info.dir_in = 1;
 	else
 		info.dir_in = 0;
@@ -1014,6 +1013,9 @@ static void r8a66597_check_syssts(struct r8a66597 *r8a66597, int port,
 
 	r8a66597_write(r8a66597, ~DTCH, get_intsts_reg(port));
 	r8a66597_bset(r8a66597, DTCHE, get_intenb_reg(port));
+
+	if (r8a66597->bus_suspended)
+		usb_hcd_resume_root_hub(r8a66597_to_hcd(r8a66597));
 }
 
 /* this function must be called with interrupt disabled */
@@ -1395,7 +1397,7 @@ static void packet_write(struct r8a66597 *r8a66597, u16 pipenum)
 			   (int)urb->iso_frame_desc[td->iso_cnt].length);
 	} else {
 		buf = (u16 *)(urb->transfer_buffer + urb->actual_length);
-		size = min((int)bufsize,
+		size = min_t(u32, bufsize,
 			   urb->transfer_buffer_length - urb->actual_length);
 	}
 
@@ -1615,6 +1617,11 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 			r8a66597_bclr(r8a66597, DTCHE, INTENB2);
 			r8a66597_usb_disconnect(r8a66597, 1);
 		}
+		if (mask2 & BCHG) {
+			r8a66597_write(r8a66597, ~BCHG, INTSTS2);
+			r8a66597_bclr(r8a66597, BCHGE, INTENB2);
+			usb_hcd_resume_root_hub(r8a66597_to_hcd(r8a66597));
+		}
 	}
 
 	if (mask1) {
@@ -1630,6 +1637,12 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 			r8a66597_bclr(r8a66597, DTCHE, INTENB1);
 			r8a66597_usb_disconnect(r8a66597, 0);
 		}
+		if (mask1 & BCHG) {
+			r8a66597_write(r8a66597, ~BCHG, INTSTS1);
+			r8a66597_bclr(r8a66597, BCHGE, INTENB1);
+			usb_hcd_resume_root_hub(r8a66597_to_hcd(r8a66597));
+		}
+
 		if (mask1 & SIGN) {
 			r8a66597_write(r8a66597, ~SIGN, INTSTS1);
 			status = get_urb_error(r8a66597, 0);
@@ -2141,7 +2154,7 @@ static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			rh->port &= (1 << USB_PORT_FEAT_POWER);
+			rh->port &= ~(1 << USB_PORT_FEAT_POWER);
 			break;
 		case USB_PORT_FEAT_SUSPEND:
 			break;
@@ -2213,6 +2226,68 @@ error:
 	return ret;
 }
 
+#if defined(CONFIG_PM)
+static int r8a66597_bus_suspend(struct usb_hcd *hcd)
+{
+	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
+	int port;
+
+	dbg("%s", __func__);
+
+	for (port = 0; port < R8A66597_MAX_ROOT_HUB; port++) {
+		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
+		unsigned long dvstctr_reg = get_dvstctr_reg(port);
+
+		if (!(rh->port & (1 << USB_PORT_FEAT_ENABLE)))
+			continue;
+
+		dbg("suspend port = %d", port);
+		r8a66597_bclr(r8a66597, UACT, dvstctr_reg);	/* suspend */
+		rh->port |= 1 << USB_PORT_FEAT_SUSPEND;
+
+		if (rh->dev->udev->do_remote_wakeup) {
+			msleep(3);	/* waiting last SOF */
+			r8a66597_bset(r8a66597, RWUPE, dvstctr_reg);
+			r8a66597_write(r8a66597, ~BCHG, get_intsts_reg(port));
+			r8a66597_bset(r8a66597, BCHGE, get_intenb_reg(port));
+		}
+	}
+
+	r8a66597->bus_suspended = 1;
+
+	return 0;
+}
+
+static int r8a66597_bus_resume(struct usb_hcd *hcd)
+{
+	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
+	int port;
+
+	dbg("%s", __func__);
+
+	for (port = 0; port < R8A66597_MAX_ROOT_HUB; port++) {
+		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
+		unsigned long dvstctr_reg = get_dvstctr_reg(port);
+
+		if (!(rh->port & (1 << USB_PORT_FEAT_SUSPEND)))
+			continue;
+
+		dbg("resume port = %d", port);
+		rh->port &= ~(1 << USB_PORT_FEAT_SUSPEND);
+		rh->port |= 1 << USB_PORT_FEAT_C_SUSPEND;
+		r8a66597_mdfy(r8a66597, RESUME, RESUME | UACT, dvstctr_reg);
+		msleep(50);
+		r8a66597_mdfy(r8a66597, UACT, RESUME | UACT, dvstctr_reg);
+	}
+
+	return 0;
+
+}
+#else
+#define	r8a66597_bus_suspend	NULL
+#define	r8a66597_bus_resume	NULL
+#endif
+
 static struct hc_driver r8a66597_hc_driver = {
 	.description =		hcd_name,
 	.hcd_priv_size =	sizeof(struct r8a66597),
@@ -2243,16 +2318,39 @@ static struct hc_driver r8a66597_hc_driver = {
 	 */
 	.hub_status_data =	r8a66597_hub_status_data,
 	.hub_control =		r8a66597_hub_control,
+	.bus_suspend =		r8a66597_bus_suspend,
+	.bus_resume =		r8a66597_bus_resume,
 };
 
 #if defined(CONFIG_PM)
 static int r8a66597_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	int port;
+
+	dbg("%s", __func__);
+
+	disable_controller(r8a66597);
+
+	for (port = 0; port < R8A66597_MAX_ROOT_HUB; port++) {
+		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
+
+		rh->port = 0x00000000;
+	}
+
 	return 0;
 }
 
 static int r8a66597_resume(struct platform_device *pdev)
 {
+	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	struct usb_hcd		*hcd = r8a66597_to_hcd(r8a66597);
+
+	dbg("%s", __func__);
+
+	enable_controller(r8a66597);
+	usb_root_hub_lost_power(hcd->self.root_hub);
+
 	return 0;
 }
 #else	/* if defined(CONFIG_PM) */

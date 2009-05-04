@@ -118,7 +118,8 @@ static void __init omap2_gp_clockevent_init(void)
 	clockevent_gpt.max_delta_ns =
 		clockevent_delta2ns(0xffffffff, &clockevent_gpt);
 	clockevent_gpt.min_delta_ns =
-		clockevent_delta2ns(1, &clockevent_gpt);
+		clockevent_delta2ns(3, &clockevent_gpt);
+		/* Timer internal resynch latency. */
 
 	clockevent_gpt.cpumask = cpumask_of(0);
 	clockevents_register_device(&clockevent_gpt);
@@ -137,7 +138,7 @@ static inline void __init omap2_gp_clocksource_init(void) {}
  * clocksource
  */
 static struct omap_dm_timer *gpt_clocksource;
-static cycle_t clocksource_read_cycles(void)
+static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
 	return (cycle_t)omap_dm_timer_read_counter(gpt_clocksource);
 }

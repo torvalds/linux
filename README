@@ -188,7 +188,7 @@ CONFIGURING the kernel:
 			   values to random values.
 
    You can find more information on using the Linux kernel config tools
-   in Documentation/kbuild/make-configs.txt.
+   in Documentation/kbuild/kconfig.txt.
 
 	NOTES on "make config":
 	- having unnecessary drivers will make the kernel bigger, and can

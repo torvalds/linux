@@ -204,7 +204,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 		}
 		buf->id = cx->buffer_id++;
 		INIT_LIST_HEAD(&buf->list);
-		buf->dma_handle = pci_map_single(s->cx->dev,
+		buf->dma_handle = pci_map_single(s->cx->pci_dev,
 				buf->buf, s->buf_size, s->dma);
 		cx18_buf_sync_for_cpu(s, buf);
 		cx18_enqueue(s, buf, &s->q_free);
@@ -227,7 +227,7 @@ void cx18_stream_free(struct cx18_stream *s)
 
 	/* empty q_free */
 	while ((buf = cx18_dequeue(s, &s->q_free))) {
-		pci_unmap_single(s->cx->dev, buf->dma_handle,
+		pci_unmap_single(s->cx->pci_dev, buf->dma_handle,
 				s->buf_size, s->dma);
 		kfree(buf->buf);
 		kfree(buf);

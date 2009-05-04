@@ -26,7 +26,6 @@
 #define SQUASHFS_CACHED_FRAGMENTS	CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE
 #define SQUASHFS_MAJOR			4
 #define SQUASHFS_MINOR			0
-#define SQUASHFS_MAGIC			0x73717368
 #define SQUASHFS_START			0
 
 /* size of metadata (inode and directory) blocks */

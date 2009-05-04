@@ -19,6 +19,7 @@
 #include <linux/ioport.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/bootmem.h>
 
 #include <asm/machvec.h>
 #include <asm/page.h>
@@ -747,6 +748,32 @@ static void __init set_pci_cacheline_size(void)
 	}
 	pci_cache_line_size = (1 << cci.pcci_line_size) / 4;
 }
+
+u64 ia64_dma_get_required_mask(struct device *dev)
+{
+	u32 low_totalram = ((max_pfn - 1) << PAGE_SHIFT);
+	u32 high_totalram = ((max_pfn - 1) >> (32 - PAGE_SHIFT));
+	u64 mask;
+
+	if (!high_totalram) {
+		/* convert to mask just covering totalram */
+		low_totalram = (1 << (fls(low_totalram) - 1));
+		low_totalram += low_totalram - 1;
+		mask = low_totalram;
+	} else {
+		high_totalram = (1 << (fls(high_totalram) - 1));
+		high_totalram += high_totalram - 1;
+		mask = (((u64)high_totalram) << 32) + 0xffffffff;
+	}
+	return mask;
+}
+EXPORT_SYMBOL_GPL(ia64_dma_get_required_mask);
+
+u64 dma_get_required_mask(struct device *dev)
+{
+	return platform_dma_get_required_mask(dev);
+}
+EXPORT_SYMBOL_GPL(dma_get_required_mask);
 
 static int __init pcibios_init(void)
 {

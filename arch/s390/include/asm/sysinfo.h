@@ -100,6 +100,7 @@ struct sysinfo_3_2_2 {
 		char reserved_1[24];
 
 	} vm[8];
+	char reserved_544[3552];
 };
 
 static inline int stsi(void *sysinfo, int fc, int sel1, int sel2)

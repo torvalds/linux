@@ -490,9 +490,9 @@ int tda18271_set_standby_mode(struct dvb_frontend *fe,
 		tda_dbg("sm = %d, sm_lt = %d, sm_xt = %d\n", sm, sm_lt, sm_xt);
 
 	regs[R_EP3]  &= ~0xe0; /* clear sm, sm_lt, sm_xt */
-	regs[R_EP3]  |= sm    ? (1 << 7) : 0 |
-			sm_lt ? (1 << 6) : 0 |
-			sm_xt ? (1 << 5) : 0;
+	regs[R_EP3]  |= (sm    ? (1 << 7) : 0) |
+			(sm_lt ? (1 << 6) : 0) |
+			(sm_xt ? (1 << 5) : 0);
 
 	return tda18271_write_regs(fe, R_EP3, 1);
 }

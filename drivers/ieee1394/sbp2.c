@@ -115,8 +115,8 @@
  */
 static int sbp2_max_speed = IEEE1394_SPEED_MAX;
 module_param_named(max_speed, sbp2_max_speed, int, 0644);
-MODULE_PARM_DESC(max_speed, "Force max speed "
-		 "(3 = 800Mb/s, 2 = 400Mb/s, 1 = 200Mb/s, 0 = 100Mb/s)");
+MODULE_PARM_DESC(max_speed, "Limit data transfer speed (5 <= 3200, "
+		 "4 <= 1600, 3 <= 800, 2 <= 400, 1 <= 200, 0 = 100 Mb/s)");
 
 /*
  * Set serialize_io to 0 or N to use dynamically appended lists of command ORBs.
@@ -256,7 +256,7 @@ static int sbp2_set_busy_timeout(struct sbp2_lu *);
 static int sbp2_max_speed_and_size(struct sbp2_lu *);
 
 
-static const u8 sbp2_speedto_max_payload[] = { 0x7, 0x8, 0x9, 0xA, 0xB, 0xC };
+static const u8 sbp2_speedto_max_payload[] = { 0x7, 0x8, 0x9, 0xa, 0xa, 0xa };
 
 static DEFINE_RWLOCK(sbp2_hi_logical_units_lock);
 
@@ -265,7 +265,7 @@ static struct hpsb_highlevel sbp2_highlevel = {
 	.host_reset	= sbp2_host_reset,
 };
 
-const static struct hpsb_address_ops sbp2_ops = {
+static const struct hpsb_address_ops sbp2_ops = {
 	.write		= sbp2_handle_status_write
 };
 
@@ -275,7 +275,7 @@ static int sbp2_handle_physdma_write(struct hpsb_host *, int, int, quadlet_t *,
 static int sbp2_handle_physdma_read(struct hpsb_host *, int, quadlet_t *, u64,
 				    size_t, u16);
 
-const static struct hpsb_address_ops sbp2_physdma_ops = {
+static const struct hpsb_address_ops sbp2_physdma_ops = {
 	.read		= sbp2_handle_physdma_read,
 	.write		= sbp2_handle_physdma_write,
 };
@@ -285,7 +285,7 @@ const static struct hpsb_address_ops sbp2_physdma_ops = {
 /*
  * Interface to driver core and IEEE 1394 core
  */
-static struct ieee1394_device_id sbp2_id_table[] = {
+static const struct ieee1394_device_id sbp2_id_table[] = {
 	{
 	 .match_flags	= IEEE1394_MATCH_SPECIFIER_ID | IEEE1394_MATCH_VERSION,
 	 .specifier_id	= SBP2_UNIT_SPEC_ID_ENTRY & 0xffffff,
@@ -347,8 +347,8 @@ static struct scsi_host_template sbp2_shost_template = {
 	.sdev_attrs		 = sbp2_sysfs_sdev_attrs,
 };
 
-/* for match-all entries in sbp2_workarounds_table */
-#define SBP2_ROM_VALUE_WILDCARD 0x1000000
+#define SBP2_ROM_VALUE_WILDCARD ~0         /* match all */
+#define SBP2_ROM_VALUE_MISSING  0xff000000 /* not present in the unit dir. */
 
 /*
  * List of devices with known bugs.
@@ -359,60 +359,70 @@ static struct scsi_host_template sbp2_shost_template = {
  */
 static const struct {
 	u32 firmware_revision;
-	u32 model_id;
+	u32 model;
 	unsigned workarounds;
 } sbp2_workarounds_table[] = {
 	/* DViCO Momobay CX-1 with TSB42AA9 bridge */ {
 		.firmware_revision	= 0x002800,
-		.model_id		= 0x001010,
+		.model			= 0x001010,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36 |
 					  SBP2_WORKAROUND_MODE_SENSE_8 |
 					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* DViCO Momobay FX-3A with TSB42AA9A bridge */ {
 		.firmware_revision	= 0x002800,
-		.model_id		= 0x000000,
+		.model			= 0x000000,
 		.workarounds		= SBP2_WORKAROUND_DELAY_INQUIRY |
 					  SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Initio bridges, actually only needed for some older ones */ {
 		.firmware_revision	= 0x000200,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_INQUIRY_36,
 	},
 	/* PL-3507 bridge with Prolific firmware */ {
 		.firmware_revision	= 0x012800,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_POWER_CONDITION,
 	},
 	/* Symbios bridge */ {
 		.firmware_revision	= 0xa0b800,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
 	},
 	/* Datafab MD2-FW2 with Symbios/LSILogic SYM13FW500 bridge */ {
 		.firmware_revision	= 0x002600,
-		.model_id		= SBP2_ROM_VALUE_WILDCARD,
+		.model			= SBP2_ROM_VALUE_WILDCARD,
 		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS,
+	},
+	/*
+	 * iPod 2nd generation: needs 128k max transfer size workaround
+	 * iPod 3rd generation: needs fix capacity workaround
+	 */
+	{
+		.firmware_revision	= 0x0a2700,
+		.model			= 0x000000,
+		.workarounds		= SBP2_WORKAROUND_128K_MAX_TRANS |
+					  SBP2_WORKAROUND_FIX_CAPACITY,
 	},
 	/* iPod 4th generation */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x000021,
+		.model			= 0x000021,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	},
 	/* iPod mini */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x000022,
+		.model			= 0x000022,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	},
 	/* iPod mini */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x000023,
+		.model			= 0x000023,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	},
 	/* iPod Photo */ {
 		.firmware_revision	= 0x0a2700,
-		.model_id		= 0x00007e,
+		.model			= 0x00007e,
 		.workarounds		= SBP2_WORKAROUND_FIX_CAPACITY,
 	}
 };
@@ -1341,13 +1351,15 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 	struct csr1212_keyval *kv;
 	struct csr1212_dentry *dentry;
 	u64 management_agent_addr;
-	u32 unit_characteristics, firmware_revision;
+	u32 unit_characteristics, firmware_revision, model;
 	unsigned workarounds;
 	int i;
 
 	management_agent_addr = 0;
 	unit_characteristics = 0;
-	firmware_revision = 0;
+	firmware_revision = SBP2_ROM_VALUE_MISSING;
+	model = ud->flags & UNIT_DIRECTORY_MODEL_ID ?
+				ud->model_id : SBP2_ROM_VALUE_MISSING;
 
 	csr1212_for_each_dir_entry(ud->ne->csr, kv, ud->ud_kv, dentry) {
 		switch (kv->key.id) {
@@ -1388,9 +1400,9 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 			    sbp2_workarounds_table[i].firmware_revision !=
 			    (firmware_revision & 0xffff00))
 				continue;
-			if (sbp2_workarounds_table[i].model_id !=
+			if (sbp2_workarounds_table[i].model !=
 			    SBP2_ROM_VALUE_WILDCARD &&
-			    sbp2_workarounds_table[i].model_id != ud->model_id)
+			    sbp2_workarounds_table[i].model != model)
 				continue;
 			workarounds |= sbp2_workarounds_table[i].workarounds;
 			break;
@@ -1401,9 +1413,8 @@ static void sbp2_parse_unit_directory(struct sbp2_lu *lu,
 			  "(firmware_revision 0x%06x, vendor_id 0x%06x,"
 			  " model_id 0x%06x)",
 			  NODE_BUS_ARGS(ud->ne->host, ud->ne->nodeid),
-			  workarounds, firmware_revision,
-			  ud->vendor_id ? ud->vendor_id : ud->ne->vendor_id,
-			  ud->model_id);
+			  workarounds, firmware_revision, ud->vendor_id,
+			  model);
 
 	/* We would need one SCSI host template for each target to adjust
 	 * max_sectors on the fly, therefore warn only. */

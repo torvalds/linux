@@ -67,7 +67,7 @@ static struct threshold_block threshold_defaults = {
 struct threshold_bank {
 	struct kobject *kobj;
 	struct threshold_block *blocks;
-	cpumask_t cpus;
+	cpumask_var_t cpus;
 };
 static DEFINE_PER_CPU(struct threshold_bank *, threshold_banks[NR_BANKS]);
 
@@ -78,6 +78,8 @@ static unsigned char shared_bank[NR_BANKS] = {
 #endif
 
 static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
+
+static void amd_threshold_interrupt(void);
 
 /*
  * CPU Initialization
@@ -90,7 +92,8 @@ struct thresh_restart {
 };
 
 /* must be called with correct cpu affinity */
-static long threshold_restart_bank(void *_tr)
+/* Called via smp_call_function_single() */
+static void threshold_restart_bank(void *_tr)
 {
 	struct thresh_restart *tr = _tr;
 	u32 mci_misc_hi, mci_misc_lo;
@@ -117,11 +120,10 @@ static long threshold_restart_bank(void *_tr)
 
 	mci_misc_hi |= MASK_COUNT_EN_HI;
 	wrmsr(tr->b->address, mci_misc_lo, mci_misc_hi);
-	return 0;
 }
 
 /* cpu init entry point, called from mce.c with preempt off */
-void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
+void mce_amd_feature_init(struct cpuinfo_x86 *c)
 {
 	unsigned int bank, block;
 	unsigned int cpu = smp_processor_id();
@@ -174,6 +176,8 @@ void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
 			tr.reset = 0;
 			tr.old_limit = 0;
 			threshold_restart_bank(&tr);
+
+			mce_threshold_vector = amd_threshold_interrupt;
 		}
 	}
 }
@@ -187,19 +191,13 @@ void __cpuinit mce_amd_feature_init(struct cpuinfo_x86 *c)
  * the interrupt goes off when error_count reaches threshold_limit.
  * the handler will simply log mcelog w/ software defined bank number.
  */
-asmlinkage void mce_threshold_interrupt(void)
+static void amd_threshold_interrupt(void)
 {
 	unsigned int bank, block;
 	struct mce m;
 	u32 low = 0, high = 0, address = 0;
 
-	ack_APIC_irq();
-	exit_idle();
-	irq_enter();
-
-	memset(&m, 0, sizeof(m));
-	rdtscll(m.tsc);
-	m.cpu = smp_processor_id();
+	mce_setup(&m);
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < NR_BANKS; ++bank) {
@@ -233,7 +231,8 @@ asmlinkage void mce_threshold_interrupt(void)
 
 			/* Log the machine check that caused the threshold
 			   event. */
-			do_machine_check(NULL, 0);
+			machine_check_poll(MCP_TIMESTAMP,
+					&__get_cpu_var(mce_poll_banks));
 
 			if (high & MASK_OVERFLOW_HI) {
 				rdmsrl(address, m.misc);
@@ -243,13 +242,10 @@ asmlinkage void mce_threshold_interrupt(void)
 				       + bank * NR_BLOCKS
 				       + block;
 				mce_log(&m);
-				goto out;
+				return;
 			}
 		}
 	}
-out:
-	inc_irq_stat(irq_threshold_count);
-	irq_exit();
 }
 
 /*
@@ -283,7 +279,7 @@ static ssize_t store_interrupt_enable(struct threshold_block *b,
 	tr.b = b;
 	tr.reset = 0;
 	tr.old_limit = 0;
-	work_on_cpu(b->cpu, threshold_restart_bank, &tr);
+	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
 
 	return end - buf;
 }
@@ -305,23 +301,32 @@ static ssize_t store_threshold_limit(struct threshold_block *b,
 	tr.b = b;
 	tr.reset = 0;
 
-	work_on_cpu(b->cpu, threshold_restart_bank, &tr);
+	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
 
 	return end - buf;
 }
 
-static long local_error_count(void *_b)
+struct threshold_block_cross_cpu {
+	struct threshold_block *tb;
+	long retval;
+};
+
+static void local_error_count_handler(void *_tbcc)
 {
-	struct threshold_block *b = _b;
+	struct threshold_block_cross_cpu *tbcc = _tbcc;
+	struct threshold_block *b = tbcc->tb;
 	u32 low, high;
 
 	rdmsr(b->address, low, high);
-	return (high & 0xFFF) - (THRESHOLD_MAX - b->threshold_limit);
+	tbcc->retval = (high & 0xFFF) - (THRESHOLD_MAX - b->threshold_limit);
 }
 
 static ssize_t show_error_count(struct threshold_block *b, char *buf)
 {
-	return sprintf(buf, "%lx\n", work_on_cpu(b->cpu, local_error_count, b));
+	struct threshold_block_cross_cpu tbcc = { .tb = b, };
+
+	smp_call_function_single(b->cpu, local_error_count_handler, &tbcc, 1);
+	return sprintf(buf, "%lx\n", tbcc.retval);
 }
 
 static ssize_t store_error_count(struct threshold_block *b,
@@ -329,7 +334,7 @@ static ssize_t store_error_count(struct threshold_block *b,
 {
 	struct thresh_restart tr = { .b = b, .reset = 1, .old_limit = 0 };
 
-	work_on_cpu(b->cpu, threshold_restart_bank, &tr);
+	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
 	return 1;
 }
 
@@ -398,7 +403,7 @@ static __cpuinit int allocate_threshold_blocks(unsigned int cpu,
 	if ((bank >= NR_BANKS) || (block >= NR_BLOCKS))
 		return 0;
 
-	if (rdmsr_safe(address, &low, &high))
+	if (rdmsr_safe_on_cpu(cpu, address, &low, &high))
 		return 0;
 
 	if (!(high & MASK_VALID_HI)) {
@@ -462,12 +467,11 @@ out_free:
 	return err;
 }
 
-static __cpuinit long local_allocate_threshold_blocks(void *_bank)
+static __cpuinit long
+local_allocate_threshold_blocks(int cpu, unsigned int bank)
 {
-	unsigned int *bank = _bank;
-
-	return allocate_threshold_blocks(smp_processor_id(), *bank, 0,
-					 MSR_IA32_MC0_MISC + *bank * 4);
+	return allocate_threshold_blocks(cpu, bank, 0,
+					 MSR_IA32_MC0_MISC + bank * 4);
 }
 
 /* symlinks sibling shared banks to first core.  first core owns dir/files. */
@@ -481,7 +485,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 #ifdef CONFIG_SMP
 	if (cpu_data(cpu).cpu_core_id && shared_bank[bank]) {	/* symlink */
-		i = first_cpu(per_cpu(cpu_core_map, cpu));
+		i = cpumask_first(cpu_core_mask(cpu));
 
 		/* first core not up yet */
 		if (cpu_data(i).cpu_core_id)
@@ -501,7 +505,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (err)
 			goto out;
 
-		b->cpus = per_cpu(cpu_core_map, cpu);
+		cpumask_copy(b->cpus, cpu_core_mask(cpu));
 		per_cpu(threshold_banks, cpu)[bank] = b;
 		goto out;
 	}
@@ -512,24 +516,29 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		err = -ENOMEM;
 		goto out;
 	}
+	if (!alloc_cpumask_var(&b->cpus, GFP_KERNEL)) {
+		kfree(b);
+		err = -ENOMEM;
+		goto out;
+	}
 
 	b->kobj = kobject_create_and_add(name, &per_cpu(device_mce, cpu).kobj);
 	if (!b->kobj)
 		goto out_free;
 
 #ifndef CONFIG_SMP
-	b->cpus = CPU_MASK_ALL;
+	cpumask_setall(b->cpus);
 #else
-	b->cpus = per_cpu(cpu_core_map, cpu);
+	cpumask_copy(b->cpus, cpu_core_mask(cpu));
 #endif
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
 
-	err = work_on_cpu(cpu, local_allocate_threshold_blocks, &bank);
+	err = local_allocate_threshold_blocks(cpu, bank);
 	if (err)
 		goto out_free;
 
-	for_each_cpu_mask_nr(i, b->cpus) {
+	for_each_cpu(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -545,6 +554,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 out_free:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
+	free_cpumask_var(b->cpus);
 	kfree(b);
 out:
 	return err;
@@ -619,7 +629,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 #endif
 
 	/* remove all sibling symlinks before unregistering */
-	for_each_cpu_mask_nr(i, b->cpus) {
+	for_each_cpu(i, b->cpus) {
 		if (i == cpu)
 			continue;
 
@@ -632,6 +642,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 free_out:
 	kobject_del(b->kobj);
 	kobject_put(b->kobj);
+	free_cpumask_var(b->cpus);
 	kfree(b);
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }

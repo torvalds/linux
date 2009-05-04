@@ -22,8 +22,7 @@
 #include <asm/div64.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/regs-ost.h>
 
 /*
  * This is PXA's sched_clock implementation. This has a resolution
@@ -126,7 +125,7 @@ static struct clock_event_device ckevt_pxa_osmr0 = {
 	.set_mode	= pxa_osmr0_set_mode,
 };
 
-static cycle_t pxa_read_oscr(void)
+static cycle_t pxa_read_oscr(struct clocksource *cs)
 {
 	return OSCR;
 }

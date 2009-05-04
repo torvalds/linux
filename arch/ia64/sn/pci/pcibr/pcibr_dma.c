@@ -135,11 +135,10 @@ pcibr_dmatrans_direct64(struct pcidev_info * info, u64 paddr,
 	if (SN_DMA_ADDRTYPE(dma_flags) == SN_DMA_ADDR_PHYS)
 		pci_addr = IS_PIC_SOFT(pcibus_info) ?
 				PHYS_TO_DMA(paddr) :
-		    		PHYS_TO_TIODMA(paddr) | dma_attributes;
+				PHYS_TO_TIODMA(paddr);
 	else
-		pci_addr = IS_PIC_SOFT(pcibus_info) ?
-				paddr :
-				paddr | dma_attributes;
+		pci_addr = paddr;
+	pci_addr |= dma_attributes;
 
 	/* Handle Bus mode */
 	if (IS_PCIX(pcibus_info))
@@ -257,9 +256,7 @@ void sn_dma_flush(u64 addr)
 
 	hubinfo = (NODEPDA(nasid_to_cnodeid(nasid)))->pdinfo;
 
-	if (!hubinfo) {
-		BUG();
-	}
+	BUG_ON(!hubinfo);
 
 	flush_nasid_list = &hubinfo->hdi_flush_nasid_list;
 	if (flush_nasid_list->widget_p == NULL)

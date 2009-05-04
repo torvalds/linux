@@ -1,8 +1,8 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 29
-EXTRAVERSION = -rc1
-NAME = Erotic Pickled Herring
+SUBLEVEL = 30
+EXTRAVERSION = -rc3
+NAME = Temporary Tasmanian Devil
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -169,7 +169,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 				  -e s/arm.*/arm/ -e s/sa110/arm/ \
 				  -e s/s390x/s390/ -e s/parisc64/parisc/ \
 				  -e s/ppc.*/powerpc/ -e s/mips.*/mips/ \
-				  -e s/sh.*/sh/ )
+				  -e s/sh[234].*/sh/ )
 
 # Cross compiling and selecting different set of gcc/bin-utils
 # ---------------------------------------------------------------------------
@@ -210,8 +210,17 @@ ifeq ($(ARCH),sparc64)
        SRCARCH := sparc
 endif
 
+# Additional ARCH settings for sh
+ifeq ($(ARCH),sh64)
+       SRCARCH := sh
+endif
+
 # Where to locate arch specific headers
 hdr-arch  := $(SRCARCH)
+
+ifeq ($(ARCH),m68knommu)
+       hdr-arch  := m68k
+endif
 
 KCONFIG_CONFIG	?= .config
 
@@ -385,6 +394,7 @@ PHONY += outputmakefile
 # output directory.
 outputmakefile:
 ifneq ($(KBUILD_SRC),)
+	$(Q)ln -fsn $(srctree) source
 	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/mkmakefile \
 	    $(srctree) $(objtree) $(VERSION) $(PATCHLEVEL)
 endif
@@ -528,8 +538,9 @@ KBUILD_CFLAGS += $(call cc-option,-Wframe-larger-than=${CONFIG_FRAME_WARN})
 endif
 
 # Force gcc to behave correct even for buggy distributions
-# Arch Makefiles may override this setting
+ifndef CONFIG_CC_STACKPROTECTOR
 KBUILD_CFLAGS += $(call cc-option, -fno-stack-protector)
+endif
 
 ifdef CONFIG_FRAME_POINTER
 KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
@@ -561,6 +572,12 @@ KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 # disable pointer signed / unsigned warnings in gcc 4.0
 KBUILD_CFLAGS += $(call cc-option,-Wno-pointer-sign,)
 
+# disable invalid "can't wrap" optimizations for signed / pointers
+KBUILD_CFLAGS	+= $(call cc-option,-fwrapv)
+
+# revert to pre-gcc-4.4 behaviour of .eh_frame
+KBUILD_CFLAGS	+= $(call cc-option,-fno-dwarf2-cfi-asm)
+
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
 # But warn user when we do so
 warn-assign = \
@@ -585,6 +602,10 @@ LDFLAGS_BUILD_ID = $(patsubst -Wl$(comma)%,%,\
 LDFLAGS_MODULE += $(LDFLAGS_BUILD_ID)
 LDFLAGS_vmlinux += $(LDFLAGS_BUILD_ID)
 
+ifeq ($(CONFIG_STRIP_ASM_SYMS),y)
+LDFLAGS_vmlinux	+= -X
+endif
+
 # Default kernel image to build when no specific target is given.
 # KBUILD_IMAGE may be overruled on the command line or
 # set in the environment
@@ -606,25 +627,20 @@ export	INSTALL_PATH ?= /boot
 MODLIB	= $(INSTALL_MOD_PATH)/lib/modules/$(KERNELRELEASE)
 export MODLIB
 
-strip-symbols := $(srctree)/scripts/strip-symbols \
-		 $(wildcard $(srctree)/arch/$(ARCH)/scripts/strip-symbols)
-
 #
-# INSTALL_MOD_STRIP, if defined, will cause modules to be stripped while
-# they get installed.  If INSTALL_MOD_STRIP is '1', then the default
-# options (see below) will be used.  Otherwise, INSTALL_MOD_STRIP will
-# be used as the option(s) to the objcopy command.
+#  INSTALL_MOD_STRIP, if defined, will cause modules to be
+#  stripped after they are installed.  If INSTALL_MOD_STRIP is '1', then
+#  the default option --strip-debug will be used.  Otherwise,
+#  INSTALL_MOD_STRIP will used as the options to the strip command.
+
 ifdef INSTALL_MOD_STRIP
 ifeq ($(INSTALL_MOD_STRIP),1)
-mod_strip_cmd = $(OBJCOPY) --strip-debug
-ifeq ($(CONFIG_KALLSYMS_ALL),$(CONFIG_KALLSYMS_STRIP_GENERATED))
-mod_strip_cmd += --wildcard $(addprefix --strip-symbols ,$(strip-symbols))
-endif
+mod_strip_cmd = $(STRIP) --strip-debug
 else
-mod_strip_cmd = $(OBJCOPY) $(INSTALL_MOD_STRIP)
+mod_strip_cmd = $(STRIP) $(INSTALL_MOD_STRIP)
 endif # INSTALL_MOD_STRIP=1
 else
-mod_strip_cmd = false
+mod_strip_cmd = true
 endif # INSTALL_MOD_STRIP
 export mod_strip_cmd
 
@@ -754,7 +770,6 @@ last_kallsyms := 2
 endif
 
 kallsyms.o := .tmp_kallsyms$(last_kallsyms).o
-kallsyms.h := $(wildcard include/config/kallsyms/*.h) $(wildcard include/config/kallsyms/*/*.h)
 
 define verify_kallsyms
 	$(Q)$(if $($(quiet)cmd_sysmap),                                      \
@@ -779,41 +794,24 @@ endef
 
 # Generate .S file with all kernel symbols
 quiet_cmd_kallsyms = KSYM    $@
-      cmd_kallsyms = { test $* -eq 0 || $(NM) -n $<; } \
-		     | $(KALLSYMS) $(if $(CONFIG_KALLSYMS_ALL),--all-symbols) >$@
+      cmd_kallsyms = $(NM) -n $< | $(KALLSYMS) \
+                     $(if $(CONFIG_KALLSYMS_ALL),--all-symbols) > $@
 
-quiet_cmd_kstrip = STRIP   $@
-      cmd_kstrip = $(OBJCOPY) --wildcard $(addprefix --strip$(if $(CONFIG_RELOCATABLE),-unneeded)-symbols ,$(filter %/scripts/strip-symbols,$^)) $< $@
-
-$(foreach n,0 1 2 3,.tmp_kallsyms$(n).o): KBUILD_AFLAGS += -Wa,--strip-local-absolute
-$(foreach n,0 1 2 3,.tmp_kallsyms$(n).o): %.o: %.S scripts FORCE
+.tmp_kallsyms1.o .tmp_kallsyms2.o .tmp_kallsyms3.o: %.o: %.S scripts FORCE
 	$(call if_changed_dep,as_o_S)
 
-ifeq ($(CONFIG_KALLSYMS_STRIP_GENERATED),y)
-strip-ext := .stripped
-endif
-
-.tmp_kallsyms%.S: .tmp_vmlinux%$(strip-ext) $(KALLSYMS) $(kallsyms.h)
+.tmp_kallsyms%.S: .tmp_vmlinux% $(KALLSYMS)
 	$(call cmd,kallsyms)
 
-# make -jN seems to have problems with intermediate files, see bug #3330.
-.SECONDARY: $(foreach n,1 2 3,.tmp_vmlinux$(n).stripped)
-.tmp_vmlinux%.stripped: .tmp_vmlinux% $(strip-symbols) $(kallsyms.h)
-	$(call cmd,kstrip)
-
-ifneq ($(CONFIG_DEBUG_INFO),y)
-.tmp_vmlinux%: LDFLAGS_vmlinux += -S
-endif
 # .tmp_vmlinux1 must be complete except kallsyms, so update vmlinux version
-.tmp_vmlinux%: $(vmlinux-lds) $(vmlinux-all) FORCE
-	$(if $(filter 1,$*),$(call if_changed_rule,ksym_ld),$(call if_changed,vmlinux__))
+.tmp_vmlinux1: $(vmlinux-lds) $(vmlinux-all) FORCE
+	$(call if_changed_rule,ksym_ld)
 
-.tmp_vmlinux0$(strip-ext):
-	$(Q)echo "placeholder" >$@
+.tmp_vmlinux2: $(vmlinux-lds) $(vmlinux-all) .tmp_kallsyms1.o FORCE
+	$(call if_changed,vmlinux__)
 
-.tmp_vmlinux1: .tmp_kallsyms0.o
-.tmp_vmlinux2: .tmp_kallsyms1.o
-.tmp_vmlinux3: .tmp_kallsyms2.o
+.tmp_vmlinux3: $(vmlinux-lds) $(vmlinux-all) .tmp_kallsyms2.o FORCE
+	$(call if_changed,vmlinux__)
 
 # Needs to visit scripts/ before $(KALLSYMS) can be used.
 $(KALLSYMS): scripts ;
@@ -922,12 +920,18 @@ localver = $(subst $(space),, $(string) \
 # and if the SCM is know a tag from the SCM is appended.
 # The appended tag is determined by the SCM used.
 #
-# Currently, only git is supported.
-# Other SCMs can edit scripts/setlocalversion and add the appropriate
-# checks as needed.
+# .scmversion is used when generating rpm packages so we do not loose
+# the version information from the SCM when we do the build of the kernel
+# from the copied source
 ifdef CONFIG_LOCALVERSION_AUTO
-	_localver-auto = $(shell $(CONFIG_SHELL) \
-	                  $(srctree)/scripts/setlocalversion $(srctree))
+
+ifeq ($(wildcard .scmversion),)
+        _localver-auto = $(shell $(CONFIG_SHELL) \
+                         $(srctree)/scripts/setlocalversion $(srctree))
+else
+        _localver-auto = $(shell cat .scmversion 2> /dev/null)
+endif
+
 	localver-auto  = $(LOCALVERSION)$(_localver-auto)
 endif
 
@@ -965,7 +969,6 @@ ifneq ($(KBUILD_SRC),)
 	    mkdir -p include2;                                          \
 	    ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm;     \
 	fi
-	ln -fsn $(srctree) source
 endif
 
 # prepare2 creates a makefile if using a separate output directory
@@ -1197,7 +1200,7 @@ CLEAN_FILES +=	vmlinux System.map \
                 .tmp_kallsyms* .tmp_version .tmp_vmlinux* .tmp_System.map
 
 # Directories & files removed with 'make mrproper'
-MRPROPER_DIRS  += include/config include2 usr/include
+MRPROPER_DIRS  += include/config include2 usr/include include/generated
 MRPROPER_FILES += .config .config.old include/asm .version .old_version \
                   include/linux/autoconf.h include/linux/version.h      \
                   include/linux/utsrelease.h                            \
@@ -1556,7 +1559,7 @@ quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
       cmd_depmod = \
 	if [ -r System.map -a -x $(DEPMOD) ]; then                              \
 		$(DEPMOD) -ae -F System.map                                     \
-		$(if $(strip $(INSTALL_MOD_PATH)), -b $(INSTALL_MOD_PATH) -r)   \
+		$(if $(strip $(INSTALL_MOD_PATH)), -b $(INSTALL_MOD_PATH) )     \
 		$(KERNELRELEASE);                                               \
 	fi
 
@@ -1593,5 +1596,5 @@ PHONY += FORCE
 FORCE:
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
-# information in a variable se we can use it in if_changed and friends.
+# information in a variable so we can use it in if_changed and friends.
 .PHONY: $(PHONY)

@@ -236,7 +236,6 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	struct tc_tbf_qopt *qopt;
 	struct qdisc_rate_table *rtab = NULL;
 	struct qdisc_rate_table *ptab = NULL;
-	struct qdisc_rate_table *tmp;
 	struct Qdisc *child = NULL;
 	int max_size,n;
 
@@ -295,13 +294,9 @@ static int tbf_change(struct Qdisc* sch, struct nlattr *opt)
 	q->tokens = q->buffer;
 	q->ptokens = q->mtu;
 
-	tmp = q->R_tab;
-	q->R_tab = rtab;
-	rtab = tmp;
+	swap(q->R_tab, rtab);
+	swap(q->P_tab, ptab);
 
-	tmp = q->P_tab;
-	q->P_tab = ptab;
-	ptab = tmp;
 	sch_tree_unlock(sch);
 	err = 0;
 done:

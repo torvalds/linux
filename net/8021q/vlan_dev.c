@@ -553,7 +553,7 @@ static int vlan_dev_neigh_setup(struct net_device *dev, struct neigh_parms *pa)
 	int err = 0;
 
 	if (netif_device_present(real_dev) && ops->ndo_neigh_setup)
-		err = ops->ndo_neigh_setup(dev, pa);
+		err = ops->ndo_neigh_setup(real_dev, pa);
 
 	return err;
 }
@@ -639,6 +639,7 @@ static int vlan_dev_init(struct net_device *dev)
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
 		dev->netdev_ops         = &vlan_netdev_ops;
 	}
+	netdev_resync_ops(dev);
 
 	if (is_vlan_dev(real_dev))
 		subclass = 1;
@@ -667,7 +668,8 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
 
-	if (!real_dev->ethtool_ops->get_settings)
+	if (!real_dev->ethtool_ops ||
+	    !real_dev->ethtool_ops->get_settings)
 		return -EOPNOTSUPP;
 
 	return real_dev->ethtool_ops->get_settings(real_dev, cmd);

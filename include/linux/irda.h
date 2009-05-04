@@ -25,6 +25,8 @@
 #ifndef KERNEL_IRDA_H
 #define KERNEL_IRDA_H
 
+#include <linux/types.h>
+
 /* Please do *not* add any #include in this file, this file is
  * included as-is in user space.
  * Please fix the calling file to properly included needed files before

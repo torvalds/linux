@@ -65,12 +65,6 @@
 #define FAST_READ_DUMMY_BYTE 0
 #endif
 
-#ifdef CONFIG_MTD_PARTITIONS
-#define	mtd_has_partitions()	(1)
-#else
-#define	mtd_has_partitions()	(0)
-#endif
-
 /****************************************************************************/
 
 struct m25p {
@@ -678,6 +672,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		flash->mtd.erasesize = info->sector_size;
 	}
 
+	flash->mtd.dev.parent = &spi->dev;
+
 	dev_info(&spi->dev, "%s (%lld Kbytes)\n", info->name,
 			(long long)flash->mtd.size >> 10);
 
@@ -708,12 +704,13 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		struct mtd_partition	*parts = NULL;
 		int			nr_parts = 0;
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-		static const char *part_probes[] = { "cmdlinepart", NULL, };
+		if (mtd_has_cmdlinepart()) {
+			static const char *part_probes[]
+					= { "cmdlinepart", NULL, };
 
-		nr_parts = parse_mtd_partitions(&flash->mtd,
-				part_probes, &parts, 0);
-#endif
+			nr_parts = parse_mtd_partitions(&flash->mtd,
+					part_probes, &parts, 0);
+		}
 
 		if (nr_parts <= 0 && data && data->parts) {
 			parts = data->parts;

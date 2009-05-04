@@ -45,6 +45,7 @@ struct soc_camera_device {
 	int num_formats;
 	struct soc_camera_format_xlate *user_formats;
 	int num_user_formats;
+	enum v4l2_field field;		/* Preserve field over close() */
 	struct module *owner;
 	void *host_priv;		/* Per-device host private data */
 	/* soc_camera.c private count. Only accessed with .video_lock held */
@@ -74,7 +75,8 @@ struct soc_camera_host_ops {
 	int (*resume)(struct soc_camera_device *);
 	int (*get_formats)(struct soc_camera_device *, int,
 			   struct soc_camera_format_xlate *);
-	int (*set_fmt)(struct soc_camera_device *, __u32, struct v4l2_rect *);
+	int (*set_crop)(struct soc_camera_device *, struct v4l2_rect *);
+	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	void (*init_videobuf)(struct videobuf_queue *,
 			      struct soc_camera_device *);
@@ -93,13 +95,18 @@ struct soc_camera_host_ops {
 struct soc_camera_link {
 	/* Camera bus id, used to match a camera and a bus */
 	int bus_id;
-	/* GPIO number to switch between 8 and 10 bit modes */
-	unsigned int gpio;
 	/* Per camera SOCAM_SENSOR_* bus flags */
 	unsigned long flags;
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
+	/*
+	 * some platforms may support different data widths than the sensors
+	 * native ones due to different data line routing. Let the board code
+	 * overwrite the width flags.
+	 */
+	int (*set_bus_param)(struct soc_camera_link *, unsigned long flags);
+	unsigned long (*query_bus_param)(struct soc_camera_link *);
 };
 
 static inline struct soc_camera_device *to_soc_camera_dev(struct device *dev)
@@ -159,7 +166,8 @@ struct soc_camera_ops {
 	int (*release)(struct soc_camera_device *);
 	int (*start_capture)(struct soc_camera_device *);
 	int (*stop_capture)(struct soc_camera_device *);
-	int (*set_fmt)(struct soc_camera_device *, __u32, struct v4l2_rect *);
+	int (*set_crop)(struct soc_camera_device *, struct v4l2_rect *);
+	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	unsigned long (*query_bus_param)(struct soc_camera_device *);
 	int (*set_bus_param)(struct soc_camera_device *, unsigned long);
@@ -239,15 +247,19 @@ static inline struct v4l2_queryctrl const *soc_camera_find_qctrl(
 static inline unsigned long soc_camera_bus_param_compatible(
 			unsigned long camera_flags, unsigned long bus_flags)
 {
-	unsigned long common_flags, hsync, vsync, pclk;
+	unsigned long common_flags, hsync, vsync, pclk, data, buswidth, mode;
 
 	common_flags = camera_flags & bus_flags;
 
 	hsync = common_flags & (SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_LOW);
 	vsync = common_flags & (SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW);
 	pclk = common_flags & (SOCAM_PCLK_SAMPLE_RISING | SOCAM_PCLK_SAMPLE_FALLING);
+	data = common_flags & (SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATA_ACTIVE_LOW);
+	mode = common_flags & (SOCAM_MASTER | SOCAM_SLAVE);
+	buswidth = common_flags & SOCAM_DATAWIDTH_MASK;
 
-	return (!hsync || !vsync || !pclk) ? 0 : common_flags;
+	return (!hsync || !vsync || !pclk || !data || !mode || !buswidth) ? 0 :
+		common_flags;
 }
 
 extern unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,

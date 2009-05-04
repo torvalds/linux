@@ -23,7 +23,8 @@ static const struct ide_port_ops ide_4drives_port_ops = {
 
 static const struct ide_port_info ide_4drives_port_info = {
 	.port_ops		= &ide_4drives_port_ops,
-	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_NO_DMA,
+	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_NO_DMA |
+				  IDE_HFLAG_4DRIVES,
 };
 
 static int __init ide_4drives_init(void)

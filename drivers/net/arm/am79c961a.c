@@ -27,9 +27,9 @@
 #include <linux/crc32.h>
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/system.h>
 
 #define TX_BUFFERS 15
@@ -208,9 +208,9 @@ am79c961_init_for_open(struct net_device *dev)
 	/*
 	 * Stop the chip.
 	 */
-	spin_lock_irqsave(priv->chip_lock, flags);
+	spin_lock_irqsave(&priv->chip_lock, flags);
 	write_rreg (dev->base_addr, CSR0, CSR0_BABL|CSR0_CERR|CSR0_MISS|CSR0_MERR|CSR0_TINT|CSR0_RINT|CSR0_STOP);
-	spin_unlock_irqrestore(priv->chip_lock, flags);
+	spin_unlock_irqrestore(&priv->chip_lock, flags);
 
 	write_ireg (dev->base_addr, 5, 0x00a0); /* Receive address LED */
 	write_ireg (dev->base_addr, 6, 0x0081); /* Collision LED */
@@ -332,10 +332,10 @@ am79c961_close(struct net_device *dev)
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
 
-	spin_lock_irqsave(priv->chip_lock, flags);
+	spin_lock_irqsave(&priv->chip_lock, flags);
 	write_rreg (dev->base_addr, CSR0, CSR0_STOP);
 	write_rreg (dev->base_addr, CSR3, CSR3_MASKALL);
-	spin_unlock_irqrestore(priv->chip_lock, flags);
+	spin_unlock_irqrestore(&priv->chip_lock, flags);
 
 	free_irq (dev->irq, dev);
 
@@ -391,7 +391,7 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 			am79c961_mc_hash(dmi, multi_hash);
 	}
 
-	spin_lock_irqsave(priv->chip_lock, flags);
+	spin_lock_irqsave(&priv->chip_lock, flags);
 
 	stopped = read_rreg(dev->base_addr, CSR0) & CSR0_STOP;
 
@@ -405,9 +405,9 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 		 * Spin waiting for chip to report suspend mode
 		 */
 		while ((read_rreg(dev->base_addr, CTRL1) & CTRL1_SPND) == 0) {
-			spin_unlock_irqrestore(priv->chip_lock, flags);
+			spin_unlock_irqrestore(&priv->chip_lock, flags);
 			nop();
-			spin_lock_irqsave(priv->chip_lock, flags);
+			spin_lock_irqsave(&priv->chip_lock, flags);
 		}
 	}
 
@@ -429,7 +429,7 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 		write_rreg(dev->base_addr, CTRL1, 0);
 	}
 
-	spin_unlock_irqrestore(priv->chip_lock, flags);
+	spin_unlock_irqrestore(&priv->chip_lock, flags);
 }
 
 static void am79c961_timeout(struct net_device *dev)
@@ -467,10 +467,10 @@ am79c961_sendpacket(struct sk_buff *skb, struct net_device *dev)
 	am_writeword (dev, hdraddr + 2, TMD_OWN|TMD_STP|TMD_ENP);
 	priv->txhead = head;
 
-	spin_lock_irqsave(priv->chip_lock, flags);
+	spin_lock_irqsave(&priv->chip_lock, flags);
 	write_rreg (dev->base_addr, CSR0, CSR0_TDMD|CSR0_IENA);
 	dev->trans_start = jiffies;
-	spin_unlock_irqrestore(priv->chip_lock, flags);
+	spin_unlock_irqrestore(&priv->chip_lock, flags);
 
 	/*
 	 * If the next packet is owned by the ethernet device,
@@ -665,6 +665,20 @@ static void __init am79c961_banner(void)
 	if (net_debug && version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 }
+static const struct net_device_ops am79c961_netdev_ops = {
+	.ndo_open		= am79c961_open,
+	.ndo_stop		= am79c961_close,
+	.ndo_start_xmit		= am79c961_sendpacket,
+	.ndo_get_stats		= am79c961_getstats,
+	.ndo_set_multicast_list	= am79c961_setmulticastlist,
+	.ndo_tx_timeout		= am79c961_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= am79c961_poll_controller,
+#endif
+};
 
 static int __init am79c961_probe(struct platform_device *pdev)
 {
@@ -732,15 +746,7 @@ static int __init am79c961_probe(struct platform_device *pdev)
 	if (am79c961_hw_init(dev))
 		goto release;
 
-	dev->open		= am79c961_open;
-	dev->stop		= am79c961_close;
-	dev->hard_start_xmit	= am79c961_sendpacket;
-	dev->get_stats		= am79c961_getstats;
-	dev->set_multicast_list	= am79c961_setmulticastlist;
-	dev->tx_timeout		= am79c961_timeout;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller	= am79c961_poll_controller;
-#endif
+	dev->netdev_ops = &am79c961_netdev_ops;
 
 	ret = register_netdev(dev);
 	if (ret == 0) {

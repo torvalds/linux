@@ -194,7 +194,7 @@ ccw_device_handle_oper(struct ccw_device *cdev)
 	    cdev->id.dev_type != cdev->private->senseid.dev_type ||
 	    cdev->id.dev_model != cdev->private->senseid.dev_model) {
 		PREPARE_WORK(&cdev->private->kick_work,
-			     ccw_device_do_unreg_rereg);
+			     ccw_device_do_unbind_bind);
 		queue_work(ccw_device_work, &cdev->private->kick_work);
 		return 0;
 	}
@@ -256,13 +256,12 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 		old_lpm = 0;
 	if (sch->lpm != old_lpm)
 		__recover_lost_chpids(sch, old_lpm);
-	if (cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID) {
-		if (state == DEV_STATE_NOT_OPER) {
-			cdev->private->flags.recog_done = 1;
-			cdev->private->state = DEV_STATE_DISCONNECTED;
-			return;
-		}
-		/* Boxed devices don't need extra treatment. */
+	if (cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID &&
+	    (state == DEV_STATE_NOT_OPER || state == DEV_STATE_BOXED)) {
+		cdev->private->flags.recog_done = 1;
+		cdev->private->state = DEV_STATE_DISCONNECTED;
+		wake_up(&cdev->private->wait_q);
+		return;
 	}
 	notify = 0;
 	same_dev = 0; /* Keep the compiler quiet... */
@@ -274,7 +273,7 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			      sch->schid.ssid, sch->schid.sch_no);
 		break;
 	case DEV_STATE_OFFLINE:
-		if (cdev->private->state == DEV_STATE_DISCONNECTED_SENSE_ID) {
+		if (cdev->online) {
 			same_dev = ccw_device_handle_oper(cdev);
 			notify = 1;
 		}
@@ -307,12 +306,17 @@ ccw_device_recog_done(struct ccw_device *cdev, int state)
 			      " subchannel 0.%x.%04x\n",
 			      cdev->private->dev_id.devno,
 			      sch->schid.ssid, sch->schid.sch_no);
+		if (cdev->id.cu_type != 0) { /* device was recognized before */
+			cdev->private->flags.recog_done = 1;
+			cdev->private->state = DEV_STATE_BOXED;
+			wake_up(&cdev->private->wait_q);
+			return;
+		}
 		break;
 	}
 	cdev->private->state = state;
 	io_subchannel_recog_done(cdev);
-	if (state != DEV_STATE_NOT_OPER)
-		wake_up(&cdev->private->wait_q);
+	wake_up(&cdev->private->wait_q);
 }
 
 /*
@@ -366,7 +370,7 @@ static void ccw_device_oper_notify(struct ccw_device *cdev)
 	}
 	/* Driver doesn't want device back. */
 	ccw_device_set_notoper(cdev);
-	PREPARE_WORK(&cdev->private->kick_work, ccw_device_do_unreg_rereg);
+	PREPARE_WORK(&cdev->private->kick_work, ccw_device_do_unbind_bind);
 	queue_work(ccw_device_work, &cdev->private->kick_work);
 }
 
@@ -390,10 +394,13 @@ ccw_device_done(struct ccw_device *cdev, int state)
 
 	cdev->private->state = state;
 
-
-	if (state == DEV_STATE_BOXED)
+	if (state == DEV_STATE_BOXED) {
 		CIO_MSG_EVENT(0, "Boxed device %04x on subchannel %04x\n",
 			      cdev->private->dev_id.devno, sch->schid.sch_no);
+		if (cdev->online && !ccw_device_notify(cdev, CIO_BOXED))
+			ccw_device_schedule_sch_unregister(cdev);
+		cdev->private->flags.donotify = 0;
+	}
 
 	if (cdev->private->flags.donotify) {
 		cdev->private->flags.donotify = 0;
@@ -728,7 +735,7 @@ static void ccw_device_generic_notoper(struct ccw_device *cdev,
 {
 	struct subchannel *sch;
 
-	cdev->private->state = DEV_STATE_NOT_OPER;
+	ccw_device_set_notoper(cdev);
 	sch = to_subchannel(cdev->dev.parent);
 	css_schedule_eval(sch->schid);
 }
@@ -1052,7 +1059,7 @@ ccw_device_offline_irq(struct ccw_device *cdev, enum dev_event dev_event)
 	sch = to_subchannel(cdev->dev.parent);
 	/*
 	 * An interrupt in state offline means a previous disable was not
-	 * successful. Try again.
+	 * successful - should not happen, but we try to disable again.
 	 */
 	cio_disable_subchannel(sch);
 }

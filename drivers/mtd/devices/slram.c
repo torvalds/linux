@@ -267,22 +267,28 @@ static int parse_cmdline(char *devname, char *szstart, char *szlength)
 	if (*(szlength) != '+') {
 		devlength = simple_strtoul(szlength, &buffer, 0);
 		devlength = handle_unit(devlength, buffer) - devstart;
+		if (devlength < devstart)
+			goto err_out;
+
+		devlength -= devstart;
 	} else {
 		devlength = simple_strtoul(szlength + 1, &buffer, 0);
 		devlength = handle_unit(devlength, buffer);
 	}
 	T("slram: devname=%s, devstart=0x%lx, devlength=0x%lx\n",
 			devname, devstart, devlength);
-	if ((devstart < 0) || (devlength < 0) || (devlength % SLRAM_BLK_SZ != 0)) {
-		E("slram: Illegal start / length parameter.\n");
-		return(-EINVAL);
-	}
+	if (devlength % SLRAM_BLK_SZ != 0)
+		goto err_out;
 
 	if ((devstart = register_device(devname, devstart, devlength))){
 		unregister_devices();
 		return((int)devstart);
 	}
 	return(0);
+
+err_out:
+	E("slram: Illegal length parameter.\n");
+	return(-EINVAL);
 }
 
 #ifndef MODULE

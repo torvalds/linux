@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 Intel Corporation.
+  Copyright(c) 2007-2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -73,8 +73,75 @@
 #define E1000_TCPTIMER 0x0104C  /* TCP Timer - RW */
 #define E1000_FCRTL    0x02160  /* Flow Control Receive Threshold Low - RW */
 #define E1000_FCRTH    0x02168  /* Flow Control Receive Threshold High - RW */
-#define E1000_RDFPCQ(_n)  (0x02430 + (0x4 * (_n)))
 #define E1000_FCRTV    0x02460  /* Flow Control Refresh Timer Value - RW */
+
+/* IEEE 1588 TIMESYNCH */
+#define E1000_TSYNCTXCTL 0x0B614
+#define E1000_TSYNCTXCTL_VALID (1<<0)
+#define E1000_TSYNCTXCTL_ENABLED (1<<4)
+#define E1000_TSYNCRXCTL 0x0B620
+#define E1000_TSYNCRXCTL_VALID (1<<0)
+#define E1000_TSYNCRXCTL_ENABLED (1<<4)
+enum {
+	E1000_TSYNCRXCTL_TYPE_L2_V2 = 0,
+	E1000_TSYNCRXCTL_TYPE_L4_V1 = (1<<1),
+	E1000_TSYNCRXCTL_TYPE_L2_L4_V2 = (1<<2),
+	E1000_TSYNCRXCTL_TYPE_ALL = (1<<3),
+	E1000_TSYNCRXCTL_TYPE_EVENT_V2 = (1<<3) | (1<<1),
+};
+#define E1000_TSYNCRXCFG 0x05F50
+enum {
+	E1000_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE = 0<<0,
+	E1000_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE = 1<<0,
+	E1000_TSYNCRXCFG_PTP_V1_FOLLOWUP_MESSAGE = 2<<0,
+	E1000_TSYNCRXCFG_PTP_V1_DELAY_RESP_MESSAGE = 3<<0,
+	E1000_TSYNCRXCFG_PTP_V1_MANAGEMENT_MESSAGE = 4<<0,
+
+	E1000_TSYNCRXCFG_PTP_V2_SYNC_MESSAGE = 0<<8,
+	E1000_TSYNCRXCFG_PTP_V2_DELAY_REQ_MESSAGE = 1<<8,
+	E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_REQ_MESSAGE = 2<<8,
+	E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_RESP_MESSAGE = 3<<8,
+	E1000_TSYNCRXCFG_PTP_V2_FOLLOWUP_MESSAGE = 8<<8,
+	E1000_TSYNCRXCFG_PTP_V2_DELAY_RESP_MESSAGE = 9<<8,
+	E1000_TSYNCRXCFG_PTP_V2_PATH_DELAY_FOLLOWUP_MESSAGE = 0xA<<8,
+	E1000_TSYNCRXCFG_PTP_V2_ANNOUNCE_MESSAGE = 0xB<<8,
+	E1000_TSYNCRXCFG_PTP_V2_SIGNALLING_MESSAGE = 0xC<<8,
+	E1000_TSYNCRXCFG_PTP_V2_MANAGEMENT_MESSAGE = 0xD<<8,
+};
+#define E1000_SYSTIML 0x0B600
+#define E1000_SYSTIMH 0x0B604
+#define E1000_TIMINCA 0x0B608
+
+#define E1000_RXMTRL     0x0B634
+#define E1000_RXSTMPL 0x0B624
+#define E1000_RXSTMPH 0x0B628
+#define E1000_RXSATRL 0x0B62C
+#define E1000_RXSATRH 0x0B630
+
+#define E1000_TXSTMPL 0x0B618
+#define E1000_TXSTMPH 0x0B61C
+
+#define E1000_ETQF0   0x05CB0
+#define E1000_ETQF1   0x05CB4
+#define E1000_ETQF2   0x05CB8
+#define E1000_ETQF3   0x05CBC
+#define E1000_ETQF4   0x05CC0
+#define E1000_ETQF5   0x05CC4
+#define E1000_ETQF6   0x05CC8
+#define E1000_ETQF7   0x05CCC
+
+/* Filtering Registers */
+#define E1000_SAQF(_n) (0x5980 + 4 * (_n))
+#define E1000_DAQF(_n) (0x59A0 + 4 * (_n))
+#define E1000_SPQF(_n) (0x59C0 + 4 * (_n))
+#define E1000_FTQF(_n) (0x59E0 + 4 * (_n))
+#define E1000_SAQF0 E1000_SAQF(0)
+#define E1000_DAQF0 E1000_DAQF(0)
+#define E1000_SPQF0 E1000_SPQF(0)
+#define E1000_FTQF0 E1000_FTQF(0)
+#define E1000_SYNQF(_n) (0x055FC + (4 * (_n))) /* SYN Packet Queue Fltr */
+#define E1000_ETQF(_n)  (0x05CB0 + (4 * (_n))) /* EType Queue Fltr */
+
 /* Split and Replication RX Control - RW */
 /*
  * Convenience macros
@@ -110,7 +177,6 @@
 				    : (0x0E018 + ((_n) * 0x40)))
 #define E1000_TXDCTL(_n)  ((_n) < 4 ? (0x03828 + ((_n) * 0x100)) \
 				    : (0x0E028 + ((_n) * 0x40)))
-#define E1000_TARC(_n)    (0x03840 + (_n << 8))
 #define E1000_DCA_TXCTRL(_n) (0x03814 + (_n << 8))
 #define E1000_DCA_RXCTRL(_n) (0x02814 + (_n << 8))
 #define E1000_TDWBAL(_n)  ((_n) < 4 ? (0x03838 + ((_n) * 0x100)) \
@@ -226,16 +292,14 @@
 #define E1000_RAH(_i)  (((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
                                        (0x054E4 + ((_i - 16) * 8)))
 #define E1000_VFTA     0x05600  /* VLAN Filter Table Array - RW Array */
-#define E1000_VMD_CTL  0x0581C  /* VMDq Control - RW */
+#define E1000_VT_CTL   0x0581C  /* VMDq Control - RW */
 #define E1000_WUC      0x05800  /* Wakeup Control - RW */
 #define E1000_WUFC     0x05808  /* Wakeup Filter Control - RW */
 #define E1000_WUS      0x05810  /* Wakeup Status - RO */
 #define E1000_MANC     0x05820  /* Management Control - RW */
 #define E1000_IPAV     0x05838  /* IP Address Valid - RW */
 #define E1000_WUPL     0x05900  /* Wakeup Packet Length - RW */
-#define E1000_HOST_IF  0x08800  /* Host Interface */
 
-#define E1000_MANC2H      0x05860 /* Management Control To Host - RW */
 #define E1000_SW_FW_SYNC  0x05B5C /* Software-Firmware Synchronization - RW */
 #define E1000_CCMCTL      0x05B48 /* CCM Control Register */
 #define E1000_GIOCTL      0x05B44 /* GIO Analog Control Register */
@@ -243,9 +307,7 @@
 #define E1000_FACTPS    0x05B30 /* Function Active and Power State to MNG */
 #define E1000_SWSM      0x05B50 /* SW Semaphore */
 #define E1000_FWSM      0x05B54 /* FW Semaphore */
-#define E1000_DCA_ID    0x05B70 /* DCA Requester ID Information - RO */
 #define E1000_DCA_CTRL  0x05B74 /* DCA Control - RW */
-#define E1000_HICR      0x08F00 /* Host Inteface Control */
 
 /* RSS registers */
 #define E1000_MRQC      0x05818 /* Multiple Receive Control - RW */
@@ -254,17 +316,26 @@
 #define E1000_IMIRVP    0x05AC0 /* Immediate Interrupt RX VLAN Priority - RW */
 /* MSI-X Allocation Register (_i) - RW */
 #define E1000_MSIXBM(_i)    (0x01600 + ((_i) * 4))
-/* MSI-X Table entry addr low reg 0 - RW */
-#define E1000_MSIXTADD(_i)  (0x0C000 + ((_i) * 0x10))
-/* MSI-X Table entry addr upper reg 0 - RW */
-#define E1000_MSIXTUADD(_i) (0x0C004 + ((_i) * 0x10))
-/* MSI-X Table entry message reg 0 - RW */
-#define E1000_MSIXTMSG(_i)  (0x0C008 + ((_i) * 0x10))
-/* MSI-X Table entry vector ctrl reg 0 - RW */
-#define E1000_MSIXVCTRL(_i) (0x0C00C + ((_i) * 0x10))
 /* Redirection Table - RW Array */
 #define E1000_RETA(_i)  (0x05C00 + ((_i) * 4))
 #define E1000_RSSRK(_i) (0x05C80 + ((_i) * 4)) /* RSS Random Key - RW Array */
+
+/* VT Registers */
+#define E1000_MBVFICR   0x00C80 /* Mailbox VF Cause - RWC */
+#define E1000_MBVFIMR   0x00C84 /* Mailbox VF int Mask - RW */
+#define E1000_VFLRE     0x00C88 /* VF Register Events - RWC */
+#define E1000_VFRE      0x00C8C /* VF Receive Enables */
+#define E1000_VFTE      0x00C90 /* VF Transmit Enables */
+#define E1000_QDE       0x02408 /* Queue Drop Enable - RW */
+#define E1000_DTXSWC    0x03500 /* DMA Tx Switch Control - RW */
+#define E1000_RPLOLR    0x05AF0 /* Replication Offload - RW */
+#define E1000_IOVTCL    0x05BBC /* IOV Control Register */
+/* These act per VF so an array friendly macro is used */
+#define E1000_P2VMAILBOX(_n)   (0x00C00 + (4 * (_n)))
+#define E1000_VMBMEM(_n)       (0x00800 + (64 * (_n)))
+#define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
+#define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
+                                                       * Filter - RW */
 
 #define wr32(reg, value) (writel(value, hw->hw_addr + reg))
 #define rd32(reg) (readl(hw->hw_addr + reg))

@@ -211,8 +211,13 @@ xfs_vn_mknod(
 	 * Irix uses Missed'em'V split, but doesn't want to see
 	 * the upper 5 bits of (14bit) major.
 	 */
-	if (unlikely(!sysv_valid_dev(rdev) || MAJOR(rdev) & ~0x1ff))
-		return -EINVAL;
+	if (S_ISCHR(mode) || S_ISBLK(mode)) {
+		if (unlikely(!sysv_valid_dev(rdev) || MAJOR(rdev) & ~0x1ff))
+			return -EINVAL;
+		rdev = sysv_encode_dev(rdev);
+	} else {
+		rdev = 0;
+	}
 
 	if (test_default_acl && test_default_acl(dir)) {
 		if (!_ACL_ALLOC(default_acl)) {
@@ -224,28 +229,11 @@ xfs_vn_mknod(
 		}
 	}
 
-	xfs_dentry_to_name(&name, dentry);
-
 	if (IS_POSIXACL(dir) && !default_acl)
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 
-	switch (mode & S_IFMT) {
-	case S_IFCHR:
-	case S_IFBLK:
-	case S_IFIFO:
-	case S_IFSOCK:
-		rdev = sysv_encode_dev(rdev);
-	case S_IFREG:
-		error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip, NULL);
-		break;
-	case S_IFDIR:
-		error = xfs_mkdir(XFS_I(dir), &name, mode, &ip, NULL);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-
+	xfs_dentry_to_name(&name, dentry);
+	error = xfs_create(XFS_I(dir), &name, mode, rdev, &ip, NULL);
 	if (unlikely(error))
 		goto out_free_acl;
 
@@ -416,7 +404,7 @@ xfs_vn_symlink(
 	mode_t		mode;
 
 	mode = S_IFLNK |
-		(irix_symlink_mode ? 0777 & ~current->fs->umask : S_IRWXUGO);
+		(irix_symlink_mode ? 0777 & ~current_umask() : S_IRWXUGO);
 	xfs_dentry_to_name(&name, dentry);
 
 	error = xfs_symlink(XFS_I(dir), &name, symname, mode, &cip, NULL);
@@ -553,9 +541,6 @@ xfs_vn_getattr(
 	stat->uid = ip->i_d.di_uid;
 	stat->gid = ip->i_d.di_gid;
 	stat->ino = ip->i_ino;
-#if XFS_BIG_INUMS
-	stat->ino += mp->m_inoadd;
-#endif
 	stat->atime = inode->i_atime;
 	stat->mtime.tv_sec = ip->i_d.di_mtime.t_sec;
 	stat->mtime.tv_nsec = ip->i_d.di_mtime.t_nsec;

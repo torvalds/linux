@@ -425,7 +425,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 
 asmlinkage void ret_from_fork(void);
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
+int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {
@@ -520,7 +520,6 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 	int error;
 	char *filename;
 
-	lock_kernel();
 	filename = getname((char __user *)ufilename);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
@@ -537,7 +536,6 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 	}
 	putname(filename);
 out:
-	unlock_kernel();
 	return error;
 }
 

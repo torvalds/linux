@@ -52,7 +52,7 @@ static void atiixp_set_pio_mode(ide_drive_t *drive, const u8 pio)
 {
 	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	unsigned long flags;
-	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
+	int timing_shift = (drive->dn ^ 1) * 8;
 	u32 pio_timing_data;
 	u16 pio_mode_data;
 
@@ -85,7 +85,7 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 {
 	struct pci_dev *dev = to_pci_dev(drive->hwif->dev);
 	unsigned long flags;
-	int timing_shift = (drive->dn & 2) ? 16 : 0 + (drive->dn & 1) ? 0 : 8;
+	int timing_shift = (drive->dn ^ 1) * 8;
 	u32 tmp32;
 	u16 tmp16;
 	u16 udma_ctl = 0;
@@ -142,7 +142,6 @@ static const struct ide_port_info atiixp_pci_info[] __devinitdata = {
 		.name		= DRV_NAME,
 		.enablebits	= {{0x48,0x01,0x00}, {0x48,0x08,0x00}},
 		.port_ops	= &atiixp_port_ops,
-		.host_flags	= IDE_HFLAG_LEGACY_IRQS,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,
@@ -151,7 +150,7 @@ static const struct ide_port_info atiixp_pci_info[] __devinitdata = {
 		.name		= DRV_NAME,
 		.enablebits	= {{0x48,0x01,0x00}, {0x00,0x00,0x00}},
 		.port_ops	= &atiixp_port_ops,
-		.host_flags	= IDE_HFLAG_SINGLE | IDE_HFLAG_LEGACY_IRQS,
+		.host_flags	= IDE_HFLAG_SINGLE,
 		.pio_mask	= ATA_PIO4,
 		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA5,

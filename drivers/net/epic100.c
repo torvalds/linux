@@ -1114,9 +1114,9 @@ static irqreturn_t epic_interrupt(int irq, void *dev_instance)
 
 	if ((status & EpicNapiEvent) && !ep->reschedule_in_poll) {
 		spin_lock(&ep->napi_lock);
-		if (netif_rx_schedule_prep(&ep->napi)) {
+		if (napi_schedule_prep(&ep->napi)) {
 			epic_napi_irq_off(dev, ep);
-			__netif_rx_schedule(&ep->napi);
+			__napi_schedule(&ep->napi);
 		} else
 			ep->reschedule_in_poll++;
 		spin_unlock(&ep->napi_lock);
@@ -1293,7 +1293,7 @@ rx_action:
 
 		more = ep->reschedule_in_poll;
 		if (!more) {
-			__netif_rx_complete(napi);
+			__napi_complete(napi);
 			outl(EpicNapiEvent, ioaddr + INTSTAT);
 			epic_napi_irq_on(dev, ep);
 		} else

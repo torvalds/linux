@@ -26,27 +26,6 @@
 #include <asm/bios_ebda.h>
 #include <asm/trampoline.h>
 
-/* boot cpu pda */
-static struct x8664_pda _boot_cpu_pda;
-
-#ifdef CONFIG_SMP
-/*
- * We install an empty cpu_pda pointer table to indicate to early users
- * (numa_set_node) that the cpu_pda pointer table for cpus other than
- * the boot cpu is not yet setup.
- */
-static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
-#else
-static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
-#endif
-
-void __init x86_64_init_pda(void)
-{
-	_cpu_pda = __cpu_pda;
-	cpu_pda(0) = &_boot_cpu_pda;
-	pda_init(0);
-}
-
 static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
@@ -112,8 +91,6 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
 
-	x86_64_init_pda();
-
 	x86_64_start_reservations(real_mode_data);
 }
 
@@ -123,7 +100,7 @@ void __init x86_64_start_reservations(char *real_mode_data)
 
 	reserve_trampoline_memory();
 
-	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
+	reserve_early(__pa_symbol(&_text), __pa_symbol(&__bss_stop), "TEXT DATA BSS");
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/* Reserve INITRD */

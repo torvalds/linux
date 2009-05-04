@@ -27,60 +27,6 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-/*
-*  Number     BF537/6/4    BF561    BF533/2/1
-*             BF527/5/2
-*
-*  GPIO_0       PF0         PF0        PF0
-*  GPIO_1       PF1         PF1        PF1
-*  GPIO_2       PF2         PF2        PF2
-*  GPIO_3       PF3         PF3        PF3
-*  GPIO_4       PF4         PF4        PF4
-*  GPIO_5       PF5         PF5        PF5
-*  GPIO_6       PF6         PF6        PF6
-*  GPIO_7       PF7         PF7        PF7
-*  GPIO_8       PF8         PF8        PF8
-*  GPIO_9       PF9         PF9        PF9
-*  GPIO_10      PF10        PF10       PF10
-*  GPIO_11      PF11        PF11       PF11
-*  GPIO_12      PF12        PF12       PF12
-*  GPIO_13      PF13        PF13       PF13
-*  GPIO_14      PF14        PF14       PF14
-*  GPIO_15      PF15        PF15       PF15
-*  GPIO_16      PG0         PF16
-*  GPIO_17      PG1         PF17
-*  GPIO_18      PG2         PF18
-*  GPIO_19      PG3         PF19
-*  GPIO_20      PG4         PF20
-*  GPIO_21      PG5         PF21
-*  GPIO_22      PG6         PF22
-*  GPIO_23      PG7         PF23
-*  GPIO_24      PG8         PF24
-*  GPIO_25      PG9         PF25
-*  GPIO_26      PG10        PF26
-*  GPIO_27      PG11        PF27
-*  GPIO_28      PG12        PF28
-*  GPIO_29      PG13        PF29
-*  GPIO_30      PG14        PF30
-*  GPIO_31      PG15        PF31
-*  GPIO_32      PH0         PF32
-*  GPIO_33      PH1         PF33
-*  GPIO_34      PH2         PF34
-*  GPIO_35      PH3         PF35
-*  GPIO_36      PH4         PF36
-*  GPIO_37      PH5         PF37
-*  GPIO_38      PH6         PF38
-*  GPIO_39      PH7         PF39
-*  GPIO_40      PH8         PF40
-*  GPIO_41      PH9         PF41
-*  GPIO_42      PH10        PF42
-*  GPIO_43      PH11        PF43
-*  GPIO_44      PH12        PF44
-*  GPIO_45      PH13        PF45
-*  GPIO_46      PH14        PF46
-*  GPIO_47      PH15        PF47
-*/
-
 #ifndef __ARCH_BLACKFIN_GPIO_H__
 #define __ARCH_BLACKFIN_GPIO_H__
 
@@ -164,7 +110,7 @@
 * MODIFICATION HISTORY :
 **************************************************************/
 
-#ifndef BF548_FAMILY
+#ifndef CONFIG_BF54x
 void set_gpio_dir(unsigned, unsigned short);
 void set_gpio_inen(unsigned, unsigned short);
 void set_gpio_polar(unsigned, unsigned short);
@@ -295,10 +241,6 @@ int bfin_gpio_direction_output(unsigned gpio, int value);
 int bfin_gpio_get_value(unsigned gpio);
 void bfin_gpio_set_value(unsigned gpio, int value);
 
-#ifndef BF548_FAMILY
-#define bfin_gpio_set_value(gpio, value)    set_gpio_data(gpio, value)
-#endif
-
 #ifdef CONFIG_GPIOLIB
 #include <asm-generic/gpio.h>		/* cansleep wrappers */
 
@@ -361,7 +303,10 @@ static inline void gpio_set_value(unsigned gpio, int value)
 
 static inline int gpio_to_irq(unsigned gpio)
 {
-	return (gpio + GPIO_IRQ_BASE);
+	if (likely(gpio < MAX_BLACKFIN_GPIOS))
+		return gpio + GPIO_IRQ_BASE;
+
+	return -EINVAL;
 }
 
 static inline int irq_to_gpio(unsigned irq)

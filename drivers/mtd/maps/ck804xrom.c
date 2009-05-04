@@ -342,9 +342,9 @@ static struct pci_device_id ck804xrom_pci_tbl[] = {
 	{ 0, }
 };
 
+#if 0
 MODULE_DEVICE_TABLE(pci, ck804xrom_pci_tbl);
 
-#if 0
 static struct pci_driver ck804xrom_driver = {
 	.name =		MOD_NAME,
 	.id_table =	ck804xrom_pci_tbl,

@@ -12,7 +12,7 @@
 #ifndef __LINUX_CAPI_H__
 #define __LINUX_CAPI_H__
 
-#include <asm/types.h>
+#include <linux/types.h>
 #include <linux/ioctl.h>
 #ifndef __KERNEL__
 #include <linux/kernelcapi.h>

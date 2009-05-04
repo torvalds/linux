@@ -50,7 +50,7 @@
 #include <net/net_namespace.h>
 #include <net/arp.h>
 
-#include <net/ieee80211.h>
+#include "ieee80211.h"
 
 #define DRV_DESCRIPTION "802.11 data/management/control stack"
 #define DRV_NAME        "ieee80211"
@@ -105,6 +105,21 @@ static inline void ieee80211_networks_free(struct ieee80211_device *ieee)
 	ieee->networks = NULL;
 }
 
+void ieee80211_networks_age(struct ieee80211_device *ieee,
+                            unsigned long age_secs)
+{
+	struct ieee80211_network *network = NULL;
+	unsigned long flags;
+	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
+
+	spin_lock_irqsave(&ieee->lock, flags);
+	list_for_each_entry(network, &ieee->network_list, list) {
+		network->last_scanned -= age_jiffies;
+	}
+	spin_unlock_irqrestore(&ieee->lock, flags);
+}
+EXPORT_SYMBOL(ieee80211_networks_age);
+
 static void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 {
 	int i;
@@ -116,20 +131,14 @@ static void ieee80211_networks_initialize(struct ieee80211_device *ieee)
 			      &ieee->network_free_list);
 }
 
-static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
+int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if ((new_mtu < 68) || (new_mtu > IEEE80211_DATA_LEN))
 		return -EINVAL;
 	dev->mtu = new_mtu;
 	return 0;
 }
-
-static struct net_device_stats *ieee80211_generic_get_stats(
-	struct net_device *dev)
-{
-	struct ieee80211_device *ieee = netdev_priv(dev);
-	return &ieee->stats;
-}
+EXPORT_SYMBOL(ieee80211_change_mtu);
 
 struct net_device *alloc_ieee80211(int sizeof_priv)
 {
@@ -145,12 +154,10 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 		goto failed;
 	}
 	ieee = netdev_priv(dev);
+#ifdef CONFIG_COMPAT_NET_DEV_OPS
 	dev->hard_start_xmit = ieee80211_xmit;
 	dev->change_mtu = ieee80211_change_mtu;
-
-	/* Drivers are free to override this if the generic implementation
-	 * does not meet their needs. */
-	dev->get_stats = ieee80211_generic_get_stats;
+#endif
 
 	ieee->dev = dev;
 
@@ -206,7 +213,7 @@ void free_ieee80211(struct net_device *dev)
 	free_netdev(dev);
 }
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 
 static int debug = 0;
 u32 ieee80211_debug_level = 0;
@@ -237,11 +244,11 @@ static int store_debug_level(struct file *file, const char __user * buffer,
 
 	return strnlen(buf, len);
 }
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 static int __init ieee80211_init(void)
 {
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 	struct proc_dir_entry *e;
 
 	ieee80211_debug_level = debug;
@@ -261,7 +268,7 @@ static int __init ieee80211_init(void)
 	e->read_proc = show_debug_level;
 	e->write_proc = store_debug_level;
 	e->data = NULL;
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
@@ -271,20 +278,20 @@ static int __init ieee80211_init(void)
 
 static void __exit ieee80211_exit(void)
 {
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		ieee80211_proc = NULL;
 	}
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 }
 
-#ifdef CONFIG_IEEE80211_DEBUG
+#ifdef CONFIG_LIBIPW_DEBUG
 #include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
-#endif				/* CONFIG_IEEE80211_DEBUG */
+#endif				/* CONFIG_LIBIPW_DEBUG */
 
 module_exit(ieee80211_exit);
 module_init(ieee80211_init);

@@ -38,7 +38,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/twl4030.h>
 
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 #include <mach/cpu.h>
 #endif
 
@@ -592,11 +592,9 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 
 	/* maybe add LDOs that are omitted on cost-reduced parts */
 	if (twl_has_regulator() && !(features & TPS_SUBSET)) {
-		/*
 		child = add_regulator(TWL4030_REG_VPLL2, pdata->vpll2);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
-		*/
 
 		child = add_regulator(TWL4030_REG_VMMC2, pdata->vmmc2);
 		if (IS_ERR(child))
@@ -649,7 +647,7 @@ static inline int __init unprotect_pm_master(void)
 	return e;
 }
 
-static void __init clocks_init(void)
+static void __init clocks_init(struct device *dev)
 {
 	int e = 0;
 	struct clk *osc;
@@ -658,9 +656,9 @@ static void __init clocks_init(void)
 
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	if (cpu_is_omap2430())
-		osc = clk_get(NULL, "osc_ck");
+		osc = clk_get(dev, "osc_ck");
 	else
-		osc = clk_get(NULL, "osc_sys_ck");
+		osc = clk_get(dev, "osc_sys_ck");
 
 	if (IS_ERR(osc)) {
 		printk(KERN_WARNING "Skipping twl4030 internal clock init and "
@@ -776,7 +774,7 @@ twl4030_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	inuse = true;
 
 	/* setup clock framework */
-	clocks_init();
+	clocks_init(&client->dev);
 
 	/* Maybe init the T2 Interrupt subsystem */
 	if (client->irq

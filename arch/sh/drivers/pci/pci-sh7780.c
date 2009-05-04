@@ -120,19 +120,15 @@ int __init sh7780_pcic_init(struct sh4_pci_address_map *map)
 
 	/* Set IO and Mem windows to local address
 	 * Make PCI and local address the same for easy 1 to 1 mapping
-	 * Window0 = map->window0.size @ non-cached area base = SDRAM
-	 * Window1 = map->window1.size @ cached area base = SDRAM
 	 */
-	word = (CONFIG_MEMORY_SIZE - 0x00100000) | 0x00000001;
-	pci_write_reg(word, SH4_PCILSR0);
-	pci_write_reg(0x00000001, SH4_PCILSR1);
+	pci_write_reg(map->window0.size - 0xfffff, SH4_PCILSR0);
+	pci_write_reg(map->window1.size - 0xfffff, SH4_PCILSR1);
 	/* Set the values on window 0 PCI config registers */
-	word = (CONFIG_MEMORY_SIZE > 0x08000000) ? 0x10000000 : 0x08000000;
-	pci_write_reg(word | 0xa0000000, SH4_PCILAR0);
-	pci_write_reg(word, SH7780_PCIMBAR0);
+	pci_write_reg(map->window0.base, SH4_PCILAR0);
+	pci_write_reg(map->window0.base, SH7780_PCIMBAR0);
 	/* Set the values on window 1 PCI config registers */
-	pci_write_reg(0x00000000, SH4_PCILAR1);
-	pci_write_reg(0x00000000, SH7780_PCIMBAR1);
+	pci_write_reg(map->window1.base, SH4_PCILAR1);
+	pci_write_reg(map->window1.base, SH7780_PCIMBAR1);
 
 	/* Map IO space into PCI IO window
 	 * The IO window is 64K-PCIBIOS_MIN_IO in size

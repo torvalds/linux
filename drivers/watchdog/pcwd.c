@@ -24,25 +24,25 @@
  *		version reporting.  Added read routine for temperature.
  *		Removed some extra defines, added an autodetect Revision
  *		routine.
- * 961006       Revised some documentation, fixed some cosmetic bugs.  Made
- *              drivers to panic the system if it's overheating at bootup.
+ * 961006	Revised some documentation, fixed some cosmetic bugs.  Made
+ *		drivers to panic the system if it's overheating at bootup.
  * 961118	Changed some verbiage on some of the output, tidied up
  *		code bits, and added compatibility to 2.1.x.
- * 970912       Enabled board on open and disable on close.
+ * 970912	Enabled board on open and disable on close.
  * 971107	Took account of recent VFS changes (broke read).
- * 971210       Disable board on initialisation in case board already ticking.
- * 971222       Changed open/close for temperature handling
- *              Michael Meskes <meskes@debian.org>.
- * 980112       Used minor numbers from include/linux/miscdevice.h
- * 990403       Clear reset status after reading control status register in
- *              pcwd_showprevstate(). [Marc Boucher <marc@mbsi.ca>]
+ * 971210	Disable board on initialisation in case board already ticking.
+ * 971222	Changed open/close for temperature handling
+ *		Michael Meskes <meskes@debian.org>.
+ * 980112	Used minor numbers from include/linux/miscdevice.h
+ * 990403	Clear reset status after reading control status register in
+ *		pcwd_showprevstate(). [Marc Boucher <marc@mbsi.ca>]
  * 990605	Made changes to code to support Firmware 1.22a, added
  *		fairly useless proc entry.
  * 990610	removed said useless proc code for the merge <alan>
  * 000403	Removed last traces of proc code. <davej>
  * 011214	Added nowayout module option to override
  *		CONFIG_WATCHDOG_NOWAYOUT <Matt_Domsch@dell.com>
- *              Added timeout module option to override default
+ *		Added timeout module option to override default
  */
 
 /*
@@ -76,8 +76,7 @@
 #define WATCHDOG_DRIVER_NAME "ISA-PC Watchdog"
 #define WATCHDOG_NAME "pcwd"
 #define PFX WATCHDOG_NAME ": "
-#define DRIVER_VERSION WATCHDOG_DRIVER_NAME " driver, v" WATCHDOG_VERSION " (" WATCHDOG_DATE ")\n"
-#define WD_VER WATCHDOG_VERSION " (" WATCHDOG_DATE ")"
+#define DRIVER_VERSION WATCHDOG_DRIVER_NAME " driver, v" WATCHDOG_VERSION "\n"
 
 /*
  * It should be noted that PCWD_REVISION_B was removed because A and B
@@ -200,7 +199,9 @@ MODULE_PARM_DESC(debug,
 #define WATCHDOG_HEARTBEAT 0
 static int heartbeat = WATCHDOG_HEARTBEAT;
 module_param(heartbeat, int, 0);
-MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. (2 <= heartbeat <= 7200 or 0=delay-time from dip-switches, default=" __MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
+MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds. "
+	"(2 <= heartbeat <= 7200 or 0=delay-time from dip-switches, default="
+				__MODULE_STRING(WATCHDOG_HEARTBEAT) ")");
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, int, 0);
@@ -239,7 +240,8 @@ static int send_isa_command(int cmd)
 	}
 
 	if (debug >= DEBUG)
-		printk(KERN_DEBUG PFX "received following data for cmd=0x%02x: port0=0x%02x last_port0=0x%02x\n",
+		printk(KERN_DEBUG PFX "received following data for "
+			"cmd=0x%02x: port0=0x%02x last_port0=0x%02x\n",
 			cmd, port0, last_port0);
 
 	return port0;
@@ -339,10 +341,12 @@ static void pcwd_show_card_info(void)
 							pcwd_private.io_addr);
 	else if (pcwd_private.revision == PCWD_REVISION_C) {
 		pcwd_get_firmware();
-		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.C) detected at port 0x%04x (Firmware version: %s)\n",
+		printk(KERN_INFO PFX "ISA-PC Watchdog (REV.C) detected at port "
+			"0x%04x (Firmware version: %s)\n",
 			pcwd_private.io_addr, pcwd_private.fw_ver_str);
 		option_switches = pcwd_get_option_switches();
-		printk(KERN_INFO PFX "Option switches (0x%02x): Temperature Reset Enable=%s, Power On Delay=%s\n",
+		printk(KERN_INFO PFX "Option switches (0x%02x): "
+			"Temperature Reset Enable=%s, Power On Delay=%s\n",
 			option_switches,
 			((option_switches & 0x10) ? "ON" : "OFF"),
 			((option_switches & 0x08) ? "ON" : "OFF"));
@@ -358,7 +362,8 @@ static void pcwd_show_card_info(void)
 		printk(KERN_INFO PFX "Temperature Option Detected\n");
 
 	if (pcwd_private.boot_status & WDIOF_CARDRESET)
-		printk(KERN_INFO PFX "Previous reboot was caused by the card\n");
+		printk(KERN_INFO PFX
+			"Previous reboot was caused by the card\n");
 
 	if (pcwd_private.boot_status & WDIOF_OVERHEAT) {
 		printk(KERN_EMERG PFX
@@ -871,7 +876,7 @@ static int __devinit pcwd_isa_probe(struct device *dev, unsigned int id)
 	cards_found++;
 	if (cards_found == 1)
 		printk(KERN_INFO PFX "v%s Ken Hollis (kenji@bitgate.com)\n",
-								WD_VER);
+							WATCHDOG_VERSION);
 
 	if (cards_found > 1) {
 		printk(KERN_ERR PFX "This driver only supports 1 device\n");
@@ -1026,7 +1031,8 @@ static void __exit pcwd_cleanup_module(void)
 module_init(pcwd_init_module);
 module_exit(pcwd_cleanup_module);
 
-MODULE_AUTHOR("Ken Hollis <kenji@bitgate.com>, Wim Van Sebroeck <wim@iguana.be>");
+MODULE_AUTHOR("Ken Hollis <kenji@bitgate.com>, "
+		"Wim Van Sebroeck <wim@iguana.be>");
 MODULE_DESCRIPTION("Berkshire ISA-PC Watchdog driver");
 MODULE_VERSION(WATCHDOG_VERSION);
 MODULE_LICENSE("GPL");

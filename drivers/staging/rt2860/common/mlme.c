@@ -527,7 +527,6 @@ NDIS_STATUS MlmeInit(
 
 
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
 	        if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
@@ -537,7 +536,6 @@ NDIS_STATUS MlmeInit(
 	    		RTMPInitTimer(pAd, &pAd->Mlme.RadioOnOffTimer, GET_TIMER_FUNCTION(RadioOnExec), pAd, FALSE);
 	        }
 		}
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 
 	} while (FALSE);
@@ -711,13 +709,11 @@ VOID MlmeHalt(
 		RTMPCancelTimer(&pAd->MlmeAux.AuthTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.BeaconTimer,		&Cancelled);
 		RTMPCancelTimer(&pAd->MlmeAux.ScanTimer,		&Cancelled);
-#ifdef RT2860
 	    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 	    {
 	   	    RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
 		    RTMPCancelTimer(&pAd->Mlme.RadioOnOffTimer,		&Cancelled);
 		}
-#endif // RT2860 //
 
 #ifdef QOS_DLS_SUPPORT
 		for (i=0; i<MAX_NUM_OF_DLS_ENTRY; i++)
@@ -808,21 +804,34 @@ VOID MlmePeriodicExec(
 	ULONG			TxTotalCnt;
 	PRTMP_ADAPTER	pAd = (RTMP_ADAPTER *)FunctionContext;
 
+	//Baron 2008/07/10
+	//printk("Baron_Test:\t%s", RTMPGetRalinkEncryModeStr(pAd->StaCfg.WepStatus));
+	//If the STA security setting is OPEN or WEP, pAd->StaCfg.WpaSupplicantUP = 0.
+	//If the STA security setting is WPAPSK or WPA2PSK, pAd->StaCfg.WpaSupplicantUP = 1.
+	if(pAd->StaCfg.WepStatus<2)
+	{
+		pAd->StaCfg.WpaSupplicantUP = 0;
+	}
+	else
+	{
+		pAd->StaCfg.WpaSupplicantUP = 1;
+	}
+
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 	{
 	    // If Hardware controlled Radio enabled, we have to check GPIO pin2 every 2 second.
 		// Move code to here, because following code will return when radio is off
-		if ((pAd->Mlme.PeriodicRound % (MLME_TASK_EXEC_MULTIPLE * 2) == 0) && (pAd->StaCfg.bHardwareRadio == TRUE) &&
+		if ((pAd->Mlme.PeriodicRound % (MLME_TASK_EXEC_MULTIPLE * 2) == 0) &&
+			(pAd->StaCfg.bHardwareRadio == TRUE) &&
+			(RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_START_UP)) &&
 			(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST)) &&
-			(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS)) &&
-			(pAd->bPCIclkOff == FALSE))
+			(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_HALT_IN_PROGRESS)))
 		{
 			UINT32				data = 0;
 
 			// Read GPIO pin2 as Hardware controlled radio state
-			RTMP_IO_READ32(pAd, GPIO_CTRL_CFG, &data);
+			RTMP_IO_FORCE_READ32(pAd, GPIO_CTRL_CFG, &data);
 			if (data & 0x04)
 			{
 				pAd->StaCfg.bHwRadio = TRUE;
@@ -849,7 +858,6 @@ VOID MlmePeriodicExec(
 			}
 		}
 	}
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 
 	// Do nothing if the driver is starting halt state.
@@ -859,6 +867,45 @@ VOID MlmePeriodicExec(
 								fRTMP_ADAPTER_RADIO_MEASUREMENT |
 								fRTMP_ADAPTER_RESET_IN_PROGRESS))))
 		return;
+
+	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
+	{
+		if ((pAd->RalinkCounters.LastReceivedByteCount == pAd->RalinkCounters.ReceivedByteCount) && (pAd->StaCfg.bRadio == TRUE))
+		{
+			// If ReceiveByteCount doesn't change,  increase SameRxByteCount by 1.
+			pAd->SameRxByteCount++;
+		}
+		else
+			pAd->SameRxByteCount = 0;
+
+		// If after BBP, still not work...need to check to reset PBF&MAC.
+		if (pAd->SameRxByteCount == 702)
+		{
+			pAd->SameRxByteCount = 0;
+			AsicResetPBF(pAd);
+			AsicResetMAC(pAd);
+		}
+
+		// If SameRxByteCount keeps happens for 2 second in infra mode, or for 60 seconds in idle mode.
+		if (((INFRA_ON(pAd)) && (pAd->SameRxByteCount > 20)) || ((IDLE_ON(pAd)) && (pAd->SameRxByteCount > 600)))
+		{
+			if ((pAd->StaCfg.bRadio == TRUE) && (pAd->SameRxByteCount < 700))
+			{
+				DBGPRINT(RT_DEBUG_TRACE, ("--->  SameRxByteCount = %lu !!!!!!!!!!!!!!! \n", pAd->SameRxByteCount));
+				pAd->SameRxByteCount = 700;
+				AsicResetBBP(pAd);
+			}
+		}
+
+		// Update lastReceiveByteCount.
+		pAd->RalinkCounters.LastReceivedByteCount = pAd->RalinkCounters.ReceivedByteCount;
+
+		if ((pAd->CheckDmaBusyCount > 3) && (IDLE_ON(pAd)))
+		{
+			pAd->CheckDmaBusyCount = 0;
+			AsicResetFromDMABusy(pAd);
+		}
+	}
 
 	RT28XX_MLME_PRE_SANITY_CHECK(pAd);
 
@@ -1022,9 +1069,7 @@ VOID MlmePeriodicExec(
 #ifdef CONFIG_STA_SUPPORT
 		IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 		{
-#ifdef RT2860
 			if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST) && (pAd->bPCIclkOff == FALSE))
-#endif // RT2860 //
 			{
 				// When Adhoc beacon is enabled and RTS/CTS is enabled, there is a chance that hardware MAC FSM will run into a deadlock
 				// and sending CTS-to-self over and over.
@@ -1081,6 +1126,19 @@ VOID STAMlmePeriodicExec(
     		pAd->StaCfg.bBlockAssoc = FALSE;
     }
 
+	//Baron 2008/07/10
+	//printk("Baron_Test:\t%s", RTMPGetRalinkEncryModeStr(pAd->StaCfg.WepStatus));
+	//If the STA security setting is OPEN or WEP, pAd->StaCfg.WpaSupplicantUP = 0.
+	//If the STA security setting is WPAPSK or WPA2PSK, pAd->StaCfg.WpaSupplicantUP = 1.
+	if(pAd->StaCfg.WepStatus<2)
+	{
+		pAd->StaCfg.WpaSupplicantUP = 0;
+	}
+	else
+	{
+		pAd->StaCfg.WpaSupplicantUP = 1;
+	}
+
     if ((pAd->PreMediaState != pAd->IndicateMediaState) && (pAd->CommonCfg.bWirelessEvent))
 	{
 		if (pAd->IndicateMediaState == NdisMediaStateConnected)
@@ -1090,6 +1148,15 @@ VOID STAMlmePeriodicExec(
 		pAd->PreMediaState = pAd->IndicateMediaState;
 	}
 
+	if ((pAd->OpMode == OPMODE_STA) && (IDLE_ON(pAd)) &&
+        (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
+		(pAd->Mlme.SyncMachine.CurrState == SYNC_IDLE) &&
+		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE) &&
+		(RTMP_SET_FLAG(pAd, fRTMP_ADAPTER_START_UP)) &&
+		(!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF)))
+	{
+		RT28xxPciAsicRadioOff(pAd, GUI_IDLE_POWER_SAVE, 0);
+	}
 
 
 
@@ -2781,7 +2848,7 @@ VOID MlmeCheckPsmChange(
 	if (INFRA_ON(pAd) &&
 		(PowerMode != Ndis802_11PowerModeCAM) &&
 		(pAd->StaCfg.Psm == PWR_ACTIVE) &&
-		(pAd->Mlme.CntlMachine.CurrState == CNTL_IDLE))
+		RTMP_TEST_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP))
 	{
 		NdisGetSystemUpTime(&pAd->Mlme.LastSendNULLpsmTime);
 		pAd->RalinkCounters.RxCountSinceLastNULL = 0;
@@ -4065,7 +4132,9 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
-					if (pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher)
+					if ((pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher) &&
+						(pInBss->WPA.GroupCipher != Ndis802_11GroupWEP40Enabled) &&
+						(pInBss->WPA.GroupCipher != Ndis802_11GroupWEP104Enabled))
 						continue;
 
 					// check pairwise cipher, skip if none matched
@@ -4084,7 +4153,9 @@ VOID BssTableSsidSort(
 							continue;
 
 					// check group cipher
-					if (pAd->StaCfg.WepStatus < pInBss->WPA2.GroupCipher)
+					if ((pAd->StaCfg.WepStatus < pInBss->WPA.GroupCipher) &&
+						(pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP40Enabled) &&
+						(pInBss->WPA2.GroupCipher != Ndis802_11GroupWEP104Enabled))
 						continue;
 
 					// check pairwise cipher, skip if none matched
@@ -4371,8 +4442,10 @@ VOID BssCipherParse(
 				switch (*pTmp)
 				{
 					case 1:
-					case 5:	// Although WEP is not allowed in WPA related auth mode, we parse it anyway
-						pBss->WPA.GroupCipher = Ndis802_11Encryption1Enabled;
+						pBss->WPA.GroupCipher = Ndis802_11GroupWEP40Enabled;
+						break;
+					case 5:
+						pBss->WPA.GroupCipher = Ndis802_11GroupWEP104Enabled;
 						break;
 					case 2:
 						pBss->WPA.GroupCipher = Ndis802_11Encryption2Enabled;
@@ -4489,8 +4562,10 @@ VOID BssCipherParse(
 				switch (pCipher->Type)
 				{
 					case 1:
-					case 5:	// Although WEP is not allowed in WPA related auth mode, we parse it anyway
-						pBss->WPA2.GroupCipher = Ndis802_11Encryption1Enabled;
+						pBss->WPA2.GroupCipher = Ndis802_11GroupWEP40Enabled;
+						break;
+					case 5:
+						pBss->WPA2.GroupCipher = Ndis802_11GroupWEP104Enabled;
 						break;
 					case 2:
 						pBss->WPA2.GroupCipher = Ndis802_11Encryption2Enabled;
@@ -4953,16 +5028,13 @@ BOOLEAN MlmeDequeue(
 VOID	MlmeRestartStateMachine(
 	IN	PRTMP_ADAPTER	pAd)
 {
-#ifdef RT2860
 	MLME_QUEUE_ELEM		*Elem = NULL;
-#endif // RT2860 //
 #ifdef CONFIG_STA_SUPPORT
 	BOOLEAN				Cancelled;
 #endif // CONFIG_STA_SUPPORT //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("MlmeRestartStateMachine \n"));
 
-#ifdef RT2860
 	NdisAcquireSpinLock(&pAd->Mlme.TaskLock);
 	if(pAd->Mlme.bRunning)
 	{
@@ -4990,7 +5062,6 @@ VOID	MlmeRestartStateMachine(
 			DBGPRINT_ERR(("MlmeRestartStateMachine: MlmeQueue empty\n"));
 		}
 	}
-#endif // RT2860 //
 
 #ifdef CONFIG_STA_SUPPORT
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
@@ -5039,12 +5110,10 @@ VOID	MlmeRestartStateMachine(
 	}
 #endif // CONFIG_STA_SUPPORT //
 
-#ifdef RT2860
 	// Remove running state
 	NdisAcquireSpinLock(&pAd->Mlme.TaskLock);
 	pAd->Mlme.bRunning = FALSE;
 	NdisReleaseSpinLock(&pAd->Mlme.TaskLock);
-#endif // RT2860 //
 }
 
 /*! \brief	test if the MLME Queue is empty
@@ -6149,6 +6218,12 @@ VOID AsicAdjustTxPower(
 	ULONG		TxPwr[5];
 	CHAR		Value;
 
+	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE)
+		|| (pAd->bPCIclkOff == TRUE)
+		|| RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF)
+		|| RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS))
+		return;
+
 	if (pAd->CommonCfg.BBPCurrentBW == BW_40)
 	{
 		if (pAd->CommonCfg.CentralChannel > 14)
@@ -6493,10 +6568,10 @@ VOID AsicForceSleep(
  */
 VOID AsicForceWakeup(
 	IN PRTMP_ADAPTER pAd,
-	IN BOOLEAN    bFromTx)
+	IN UCHAR    	 Level)
 {
     DBGPRINT(RT_DEBUG_TRACE, ("--> AsicForceWakeup \n"));
-    RT28XX_STA_FORCE_WAKEUP(pAd, bFromTx);
+    RT28XX_STA_FORCE_WAKEUP(pAd, Level);
 }
 #endif // CONFIG_STA_SUPPORT //
 /*
@@ -6710,7 +6785,6 @@ VOID AsicEnableIbssSync(
 	csr9.field.bTsfTicking = 0;
 	RTMP_IO_WRITE32(pAd, BCN_TIME_CFG, csr9.word);
 
-#ifdef RT2860
 	// move BEACON TXD and frame content to on-chip memory
 	ptr = (PUCHAR)&pAd->BeaconTxWI;
 	for (i=0; i<TXWI_SIZE; i+=4)  // 16-byte TXWI field
@@ -6728,7 +6802,6 @@ VOID AsicEnableIbssSync(
 		RTMP_IO_WRITE32(pAd, HW_BEACON_BASE0 + TXWI_SIZE + i, longptr);
 		ptr +=4;
 	}
-#endif // RT2860 //
 
 	// start sending BEACON
 	csr9.field.BeaconInterval = pAd->CommonCfg.BeaconPeriod << 4; // ASIC register in units of 1/16 TU
@@ -7097,9 +7170,7 @@ VOID AsicAddSharedKeyEntry(
 {
 	ULONG offset; //, csr0;
 	SHAREDKEY_MODE_STRUC csr1;
-#ifdef RT2860
 	INT   i;
-#endif // RT2860 //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("AsicAddSharedKeyEntry BssIndex=%d, KeyIdx=%d\n", BssIndex,KeyIdx));
 //============================================================================================
@@ -7121,7 +7192,6 @@ VOID AsicAddSharedKeyEntry(
 	//
 	// fill key material - key + TX MIC + RX MIC
 	//
-#ifdef RT2860
 	offset = SHARED_KEY_TABLE_BASE + (4*BssIndex + KeyIdx)*HW_KEY_ENTRY_SIZE;
 	for (i=0; i<MAX_LEN_OF_SHARE_KEY; i++)
 	{
@@ -7145,7 +7215,6 @@ VOID AsicAddSharedKeyEntry(
 			RTMP_IO_WRITE8(pAd, offset + i, pRxMic[i]);
 		}
 	}
-#endif // RT2860 //
 
 
 	//
@@ -7320,9 +7389,7 @@ VOID AsicAddKeyEntry(
 	PUCHAR		pTxtsc = pCipherKey->TxTsc;
 	UCHAR		CipherAlg = pCipherKey->CipherAlg;
 	SHAREDKEY_MODE_STRUC csr1;
-#ifdef RT2860
 	UCHAR		i;
-#endif // RT2860 //
 
 	DBGPRINT(RT_DEBUG_TRACE, ("==> AsicAddKeyEntry\n"));
 	//
@@ -7337,7 +7404,6 @@ VOID AsicAddKeyEntry(
 	// 2.) Set Key to Asic
 	//
 	//for (i = 0; i < KeyLen; i++)
-#ifdef RT2860
 	for (i = 0; i < MAX_LEN_OF_PEER_KEY; i++)
 	{
 		RTMP_IO_WRITE8(pAd, offset + i, pKey[i]);
@@ -7363,7 +7429,6 @@ VOID AsicAddKeyEntry(
 			RTMP_IO_WRITE8(pAd, offset + i, pRxMic[i]);
 		}
 	}
-#endif // RT2860 //
 
 
 	//
@@ -7372,7 +7437,6 @@ VOID AsicAddKeyEntry(
 	//
 	if (bTxKey)
 	{
-#ifdef RT2860
 		offset = MAC_IVEIV_TABLE_BASE + (WCID * HW_IVEIV_ENTRY_SIZE);
 		//
 		// Write IV
@@ -7395,7 +7459,6 @@ VOID AsicAddKeyEntry(
 		{
 			RTMP_IO_WRITE8(pAd, offset + i, pTxtsc[i + 2]);
 		}
-#endif // RT2860 //
 
 		AsicUpdateWCIDAttribute(pAd, WCID, BssIndex, CipherAlg, bUsePairewiseKeyTable);
 	}
@@ -7461,12 +7524,10 @@ VOID AsicAddPairwiseKeyEntry(
 
 	// EKEY
 	offset = PAIRWISE_KEY_TABLE_BASE + (WCID * HW_KEY_ENTRY_SIZE);
-#ifdef RT2860
 	for (i=0; i<MAX_LEN_OF_PEER_KEY; i++)
 	{
 		RTMP_IO_WRITE8(pAd, offset + i, pKey[i]);
 	}
-#endif // RT2860 //
 	for (i=0; i<MAX_LEN_OF_PEER_KEY; i+=4)
 	{
 		UINT32 Value;
@@ -7478,22 +7539,18 @@ VOID AsicAddPairwiseKeyEntry(
 	//  MIC KEY
 	if (pTxMic)
 	{
-#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset+i, pTxMic[i]);
 		}
-#endif // RT2860 //
 	}
 	offset += 8;
 	if (pRxMic)
 	{
-#ifdef RT2860
 		for (i=0; i<8; i++)
 		{
 			RTMP_IO_WRITE8(pAd, offset+i, pRxMic[i]);
 		}
-#endif // RT2860 //
 	}
 
 	DBGPRINT(RT_DEBUG_TRACE,("AsicAddPairwiseKeyEntry: WCID #%d Alg=%s\n",WCID, CipherName[CipherAlg]));
@@ -7542,11 +7599,9 @@ BOOLEAN AsicSendCommandToMcu(
 	HOST_CMD_CSR_STRUC	H2MCmd;
 	H2M_MAILBOX_STRUC	H2MMailbox;
 	ULONG				i = 0;
-#ifdef RT2860
 #ifdef RALINK_ATE
 	static UINT32 j = 0;
 #endif // RALINK_ATE //
-#endif // RT2860 //
 	do
 	{
 		RTMP_IO_READ32(pAd, H2M_MAILBOX_CSR, &H2MMailbox.word);
@@ -7558,7 +7613,6 @@ BOOLEAN AsicSendCommandToMcu(
 
 	if (i >= 100)
 	{
-#ifdef RT2860
 #ifdef RALINK_ATE
 		if (pAd->ate.bFWLoading == TRUE)
 		{
@@ -7583,14 +7637,33 @@ BOOLEAN AsicSendCommandToMcu(
 		}
 		else
 #endif // RALINK_ATE //
-#endif // RT2860 //
 		{
+			UINT32 Data;
+
+			// Reset DMA
+			RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &Data);
+			Data |= 0x2;
+			RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+
+			// After Reset DMA, DMA index will become Zero. So Driver need to reset all ring indexs too.
+			// Reset DMA/CPU ring index
+			RTMPRingCleanUp(pAd, QID_AC_BK);
+			RTMPRingCleanUp(pAd, QID_AC_BE);
+			RTMPRingCleanUp(pAd, QID_AC_VI);
+			RTMPRingCleanUp(pAd, QID_AC_VO);
+			RTMPRingCleanUp(pAd, QID_HCCA);
+			RTMPRingCleanUp(pAd, QID_MGMT);
+			RTMPRingCleanUp(pAd, QID_RX);
+
+			// Clear Reset
+			RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &Data);
+			Data &= 0xfffffffd;
+			RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
 		DBGPRINT_ERR(("H2M_MAILBOX still hold by MCU. command fail\n"));
 		}
-		return FALSE;
+		//return FALSE;
 	}
 
-#ifdef RT2860
 #ifdef RALINK_ATE
 	else if (pAd->ate.bFWLoading == TRUE)
 	{
@@ -7600,7 +7673,6 @@ BOOLEAN AsicSendCommandToMcu(
 		j = 0;
 	}
 #endif // RALINK_ATE //
-#endif // RT2860 //
 
 	H2MMailbox.field.Owner	  = 1;	   // pass ownership to MCU
 	H2MMailbox.field.CmdToken = Token;
@@ -7619,7 +7691,6 @@ BOOLEAN AsicSendCommandToMcu(
 	return TRUE;
 }
 
-#ifdef RT2860
 BOOLEAN AsicCheckCommanOk(
 	IN PRTMP_ADAPTER pAd,
 	IN UCHAR		 Command)
@@ -7684,7 +7755,6 @@ BOOLEAN AsicCheckCommanOk(
 
 	return FALSE;
 }
-#endif // RT2860 //
 
 /*
 	========================================================================
@@ -8096,10 +8166,8 @@ VOID AsicEvaluateRxAnt(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
 #ifdef CONFIG_STA_SUPPORT
-#ifdef RT2860
 	IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
     	pAd->StaCfg.BBPR3 = BBPR3;
-#endif // RT2860 //
 #endif // CONFIG_STA_SUPPORT //
 	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 		)
@@ -8211,9 +8279,7 @@ VOID AsicRxAntEvalTimeout(
 			BBPR3 |= (0x0);
 		}
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, BBPR3);
-#ifdef RT2860
-    pAd->StaCfg.BBPR3 = BBPR3;
-#endif // RT2860 //
+		pAd->StaCfg.BBPR3 = BBPR3;
 	}
 
 #endif // CONFIG_STA_SUPPORT //
@@ -8439,10 +8505,7 @@ VOID AsicStaBbpTuning(
 		&& (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_MEDIA_STATE_CONNECTED)
 			)
 		&& !(OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-#ifdef RT2860
-		&& (pAd->bPCIclkOff == FALSE)
-#endif // RT2860 //
-		)
+		&& (pAd->bPCIclkOff == FALSE))
 	{
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R66, &OrigR66Value);
 		R66 = OrigR66Value;
@@ -8516,6 +8579,106 @@ VOID AsicStaBbpTuning(
 		}
 
 
+	}
+}
+
+VOID AsicResetFromDMABusy(
+	IN PRTMP_ADAPTER pAd)
+{
+	UINT32		Data;
+	BOOLEAN		bCtrl = FALSE;
+
+	DBGPRINT(RT_DEBUG_TRACE, ("--->  AsicResetFromDMABusy  !!!!!!!!!!!!!!!!!!!!!!! \n"));
+
+	// Be sure restore link control value so we can write register.
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
+	{
+		DBGPRINT(RT_DEBUG_TRACE,("AsicResetFromDMABusy==>\n"));
+		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_HALT);
+		RTMPusecDelay(6000);
+		pAd->bPCIclkOff = FALSE;
+		bCtrl = TRUE;
+	}
+	// Reset DMA
+	RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &Data);
+	Data |= 0x2;
+	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+
+	// After Reset DMA, DMA index will become Zero. So Driver need to reset all ring indexs too.
+	// Reset DMA/CPU ring index
+	RTMPRingCleanUp(pAd, QID_AC_BK);
+	RTMPRingCleanUp(pAd, QID_AC_BE);
+	RTMPRingCleanUp(pAd, QID_AC_VI);
+	RTMPRingCleanUp(pAd, QID_AC_VO);
+	RTMPRingCleanUp(pAd, QID_HCCA);
+	RTMPRingCleanUp(pAd, QID_MGMT);
+	RTMPRingCleanUp(pAd, QID_RX);
+
+	// Clear Reset
+	RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &Data);
+	Data &= 0xfffffffd;
+	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+
+	// If in Radio off, should call RTMPPCIePowerLinkCtrl again.
+	if ((bCtrl == TRUE) && (pAd->StaCfg.bRadio == FALSE))
+		RTMPPCIeLinkCtrlSetting(pAd, 3);
+
+	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_NIC_NOT_EXIST | fRTMP_ADAPTER_HALT_IN_PROGRESS);
+	DBGPRINT(RT_DEBUG_TRACE, ("<---  AsicResetFromDMABusy !!!!!!!!!!!!!!!!!!!!!!!  \n"));
+}
+
+VOID AsicResetBBP(
+	IN PRTMP_ADAPTER pAd)
+{
+	DBGPRINT(RT_DEBUG_TRACE, ("--->  Asic HardReset BBP  !!!!!!!!!!!!!!!!!!!!!!! \n"));
+
+	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x0);
+	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0x2);
+	RTMP_IO_WRITE32(pAd, MAC_SYS_CTRL, 0xc);
+
+	// After hard-reset BBP, initialize all BBP values.
+	NICRestoreBBPValue(pAd);
+	DBGPRINT(RT_DEBUG_TRACE, ("<---  Asic HardReset BBP !!!!!!!!!!!!!!!!!!!!!!!  \n"));
+}
+
+VOID AsicResetMAC(
+	IN PRTMP_ADAPTER pAd)
+{
+	ULONG		Data;
+
+	DBGPRINT(RT_DEBUG_TRACE, ("--->  AsicResetMAC   !!!! \n"));
+	RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &Data);
+	Data |= 0x4;
+	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+	Data &= 0xfffffffb;
+	RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+
+	DBGPRINT(RT_DEBUG_TRACE, ("<---  AsicResetMAC   !!!! \n"));
+}
+
+VOID AsicResetPBF(
+	IN PRTMP_ADAPTER pAd)
+{
+	ULONG		Value1, Value2;
+	ULONG		Data;
+
+	RTMP_IO_READ32(pAd, TXRXQ_PCNT, &Value1);
+	RTMP_IO_READ32(pAd, PBF_DBG, &Value2);
+
+	Value2 &= 0xff;
+	// sum should be equals to 0xff, which is the total buffer size.
+	if ((Value1 + Value2) < 0xff)
+	{
+		DBGPRINT(RT_DEBUG_TRACE, ("--->  Asic HardReset PBF !!!! \n"));
+		RTMP_IO_READ32(pAd, PBF_SYS_CTRL, &Data);
+		Data |= 0x8;
+		RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+		Data &= 0xfffffff7;
+		RTMP_IO_WRITE32(pAd, PBF_SYS_CTRL, Data);
+
+		DBGPRINT(RT_DEBUG_TRACE, ("<---  Asic HardReset PBF !!!! \n"));
 	}
 }
 #endif // CONFIG_STA_SUPPORT //

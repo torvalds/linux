@@ -208,8 +208,13 @@ static struct platform_device rtc_device = {
 
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+static struct platform_device bfin_mii_bus = {
+	.name = "bfin_mii_bus",
+};
+
 static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
+	.dev.platform_data = &bfin_mii_bus,
 };
 #endif
 
@@ -251,9 +256,9 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-static struct bfin5xx_spi_chip spi_mmc_chip_info = {
-	.enable_dma = 1,
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
+static struct bfin5xx_spi_chip mmc_spi_chip_info = {
+	.enable_dma = 0,
 	.bits_per_word = 8,
 };
 #endif
@@ -361,23 +366,13 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
+#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 	{
-		.modalias = "spi_mmc_dummy",
+		.modalias = "mmc_spi",
 		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
-		.chip_select = 0,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-		.mode = SPI_MODE_3,
-	},
-	{
-		.modalias = "spi_mmc",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = CONFIG_SPI_MMC_CS_CHAN,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
+		.chip_select = 5,
+		.controller_data = &mmc_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
@@ -590,7 +585,6 @@ static struct platform_device i2c_bfin_twi_device = {
 };
 #endif
 
-#ifdef CONFIG_I2C_BOARDINFO
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_TWI_LCD) || defined(CONFIG_TWI_LCD_MODULE)
 	{
@@ -604,7 +598,6 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	},
 #endif
 };
-#endif
 
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
 static struct platform_device bfin_sport0_uart_device = {
@@ -720,6 +713,7 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
+	&bfin_mii_bus,
 	&bfin_mac_device,
 #endif
 
@@ -764,27 +758,23 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&bfin_gpios_device,
 };
 
-static int __init stamp_init(void)
+static int __init ezbrd_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
-
-#ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
-#endif
-
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 	return 0;
 }
 
-arch_initcall(stamp_init);
+arch_initcall(ezbrd_init);
 
 void native_machine_restart(char *cmd)
 {
 	/* workaround reboot hang when booting from SPI */
 	if ((bfin_read_SYSCR() & 0x7) == 0x3)
-		bfin_gpio_reset_spi0_ssel1();
+		bfin_reset_boot_spi_cs(P_DEFAULT_BOOT_SPI_CS);
 }
 
 void bfin_get_ether_addr(char *addr)

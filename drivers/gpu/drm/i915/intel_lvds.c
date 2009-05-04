@@ -27,6 +27,7 @@
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
 
+#include <linux/dmi.h>
 #include <linux/i2c.h>
 #include "drmP.h"
 #include "drm.h"
@@ -264,7 +265,7 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 		pfit_control = 0;
 
 	if (!IS_I965G(dev)) {
-		if (dev_priv->panel_wants_dither)
+		if (dev_priv->panel_wants_dither || dev_priv->lvds_dither)
 			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 	}
 	else
@@ -311,10 +312,8 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	if (dev_priv->panel_fixed_mode != NULL) {
 		struct drm_display_mode *mode;
 
-		mutex_unlock(&dev->mode_config.mutex);
 		mode = drm_mode_duplicate(dev, dev_priv->panel_fixed_mode);
 		drm_mode_probed_add(connector, mode);
-		mutex_unlock(&dev->mode_config.mutex);
 
 		return 1;
 	}
@@ -340,6 +339,18 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static int intel_lvds_set_property(struct drm_connector *connector,
+				   struct drm_property *property,
+				   uint64_t value)
+{
+	struct drm_device *dev = connector->dev;
+
+	if (property == dev->mode_config.dpms_property && connector->encoder)
+		intel_lvds_dpms(connector->encoder, (uint32_t)(value & 0xf));
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
 	.dpms = intel_lvds_dpms,
 	.mode_fixup = intel_lvds_mode_fixup,
@@ -359,6 +370,7 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.restore = intel_lvds_restore,
 	.detect = intel_lvds_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
+	.set_property = intel_lvds_set_property,
 	.destroy = intel_lvds_destroy,
 };
 
@@ -391,6 +403,16 @@ void intel_lvds_init(struct drm_device *dev)
 	struct drm_crtc *crtc;
 	u32 lvds;
 	int pipe;
+
+	/* Blacklist machines that we know falsely report LVDS. */
+	/* FIXME: add a check for the Aopen Mini PC */
+
+	/* Apple Mac Mini Core Duo and Mac Mini Core 2 Duo */
+	if(dmi_match(DMI_PRODUCT_NAME, "Macmini1,1") ||
+	   dmi_match(DMI_PRODUCT_NAME, "Macmini2,1")) {
+		DRM_DEBUG("Skipping LVDS initialization for Apple Mac Mini\n");
+		return;
+	}
 
 	intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
 	if (!intel_output) {
@@ -445,7 +467,7 @@ void intel_lvds_init(struct drm_device *dev)
 			dev_priv->panel_fixed_mode =
 				drm_mode_duplicate(dev, scan);
 			mutex_unlock(&dev->mode_config.mutex);
-			goto out; /* FIXME: check for quirks */
+			goto out;
 		}
 		mutex_unlock(&dev->mode_config.mutex);
 	}
@@ -456,6 +478,11 @@ void intel_lvds_init(struct drm_device *dev)
 		dev_priv->panel_fixed_mode =
 			drm_mode_duplicate(dev, dev_priv->vbt_mode);
 		mutex_unlock(&dev->mode_config.mutex);
+		if (dev_priv->panel_fixed_mode) {
+			dev_priv->panel_fixed_mode->type |=
+				DRM_MODE_TYPE_PREFERRED;
+			goto out;
+		}
 	}
 
 	/*
@@ -472,45 +499,13 @@ void intel_lvds_init(struct drm_device *dev)
 		if (dev_priv->panel_fixed_mode) {
 			dev_priv->panel_fixed_mode->type |=
 				DRM_MODE_TYPE_PREFERRED;
-			goto out; /* FIXME: check for quirks */
+			goto out;
 		}
 	}
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!dev_priv->panel_fixed_mode)
 		goto failed;
-
-	/* FIXME: detect aopen & mac mini type stuff automatically? */
-	/*
-	 * Blacklist machines with BIOSes that list an LVDS panel without
-	 * actually having one.
-	 */
-	if (IS_I945GM(dev)) {
-		/* aopen mini pc */
-		if (dev->pdev->subsystem_vendor == 0xa0a0)
-			goto failed;
-
-		if ((dev->pdev->subsystem_vendor == 0x8086) &&
-		    (dev->pdev->subsystem_device == 0x7270)) {
-			/* It's a Mac Mini or Macbook Pro.
-			 *
-			 * Apple hardware is out to get us.  The macbook pro
-			 * has a real LVDS panel, but the mac mini does not,
-			 * and they have the same device IDs.  We'll
-			 * distinguish by panel size, on the assumption
-			 * that Apple isn't about to make any machines with an
-			 * 800x600 display.
-			 */
-
-			if (dev_priv->panel_fixed_mode != NULL &&
-			    dev_priv->panel_fixed_mode->hdisplay == 800 &&
-			    dev_priv->panel_fixed_mode->vdisplay == 600) {
-				DRM_DEBUG("Suspected Mac Mini, ignoring the LVDS\n");
-				goto failed;
-			}
-		}
-	}
-
 
 out:
 	drm_sysfs_connector_add(connector);

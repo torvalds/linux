@@ -18,21 +18,6 @@
 	printk("%s:%d: bad pgd %p(%016Lx).\n",				\
 	       __FILE__, __LINE__, &(e), pgd_val(e))
 
-static inline int pud_none(pud_t pud)
-{
-	return pud_val(pud) == 0;
-}
-
-static inline int pud_bad(pud_t pud)
-{
-	return (pud_val(pud) & ~(PTE_PFN_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
-}
-
-static inline int pud_present(pud_t pud)
-{
-	return pud_val(pud) & _PAGE_PRESENT;
-}
-
 /* Rules for using set_pte: the pte being assigned *must* be
  * either not present or in a state where the hardware will
  * not attempt to update the pte.  In places where this is
@@ -41,23 +26,6 @@ static inline int pud_present(pud_t pud)
  */
 static inline void native_set_pte(pte_t *ptep, pte_t pte)
 {
-	ptep->pte_high = pte.pte_high;
-	smp_wmb();
-	ptep->pte_low = pte.pte_low;
-}
-
-/*
- * Since this is only called on user PTEs, and the page fault handler
- * must handle the already racy situation of simultaneous page faults,
- * we are justified in merely clearing the PTE present bit, followed
- * by a set.  The ordering here is important.
- */
-static inline void native_set_pte_present(struct mm_struct *mm,
-					  unsigned long addr,
-					  pte_t *ptep, pte_t pte)
-{
-	ptep->pte_low = 0;
-	smp_wmb();
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
@@ -120,15 +88,6 @@ static inline void pud_clear(pud_t *pudp)
 		write_cr3(pgd);
 }
 
-#define pud_page(pud) pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
-
-#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_PFN_MASK))
-
-
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(pud, address) ((pmd_t *)pud_page_vaddr(*(pud)) +	\
-				  pmd_index(address))
-
 #ifdef CONFIG_SMP
 static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 {
@@ -144,17 +103,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
 #else
 #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
 #endif
-
-#define __HAVE_ARCH_PTE_SAME
-static inline int pte_same(pte_t a, pte_t b)
-{
-	return a.pte_low == b.pte_low && a.pte_high == b.pte_high;
-}
-
-static inline int pte_none(pte_t pte)
-{
-	return !pte.pte_low && !pte.pte_high;
-}
 
 /*
  * Bits 0, 6 and 7 are taken in the low part of the pte,

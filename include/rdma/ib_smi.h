@@ -63,25 +63,25 @@ struct ib_smp {
 	u8	return_path[IB_SMP_MAX_PATH_HOPS];
 } __attribute__ ((packed));
 
-#define IB_SMP_DIRECTION			__constant_htons(0x8000)
+#define IB_SMP_DIRECTION			cpu_to_be16(0x8000)
 
 /* Subnet management attributes */
-#define IB_SMP_ATTR_NOTICE			__constant_htons(0x0002)
-#define IB_SMP_ATTR_NODE_DESC			__constant_htons(0x0010)
-#define IB_SMP_ATTR_NODE_INFO			__constant_htons(0x0011)
-#define IB_SMP_ATTR_SWITCH_INFO			__constant_htons(0x0012)
-#define IB_SMP_ATTR_GUID_INFO			__constant_htons(0x0014)
-#define IB_SMP_ATTR_PORT_INFO			__constant_htons(0x0015)
-#define IB_SMP_ATTR_PKEY_TABLE			__constant_htons(0x0016)
-#define IB_SMP_ATTR_SL_TO_VL_TABLE		__constant_htons(0x0017)
-#define IB_SMP_ATTR_VL_ARB_TABLE		__constant_htons(0x0018)
-#define IB_SMP_ATTR_LINEAR_FORWARD_TABLE	__constant_htons(0x0019)
-#define IB_SMP_ATTR_RANDOM_FORWARD_TABLE	__constant_htons(0x001A)
-#define IB_SMP_ATTR_MCAST_FORWARD_TABLE		__constant_htons(0x001B)
-#define IB_SMP_ATTR_SM_INFO			__constant_htons(0x0020)
-#define IB_SMP_ATTR_VENDOR_DIAG			__constant_htons(0x0030)
-#define IB_SMP_ATTR_LED_INFO			__constant_htons(0x0031)
-#define IB_SMP_ATTR_VENDOR_MASK			__constant_htons(0xFF00)
+#define IB_SMP_ATTR_NOTICE			cpu_to_be16(0x0002)
+#define IB_SMP_ATTR_NODE_DESC			cpu_to_be16(0x0010)
+#define IB_SMP_ATTR_NODE_INFO			cpu_to_be16(0x0011)
+#define IB_SMP_ATTR_SWITCH_INFO			cpu_to_be16(0x0012)
+#define IB_SMP_ATTR_GUID_INFO			cpu_to_be16(0x0014)
+#define IB_SMP_ATTR_PORT_INFO			cpu_to_be16(0x0015)
+#define IB_SMP_ATTR_PKEY_TABLE			cpu_to_be16(0x0016)
+#define IB_SMP_ATTR_SL_TO_VL_TABLE		cpu_to_be16(0x0017)
+#define IB_SMP_ATTR_VL_ARB_TABLE		cpu_to_be16(0x0018)
+#define IB_SMP_ATTR_LINEAR_FORWARD_TABLE	cpu_to_be16(0x0019)
+#define IB_SMP_ATTR_RANDOM_FORWARD_TABLE	cpu_to_be16(0x001A)
+#define IB_SMP_ATTR_MCAST_FORWARD_TABLE		cpu_to_be16(0x001B)
+#define IB_SMP_ATTR_SM_INFO			cpu_to_be16(0x0020)
+#define IB_SMP_ATTR_VENDOR_DIAG			cpu_to_be16(0x0030)
+#define IB_SMP_ATTR_LED_INFO			cpu_to_be16(0x0031)
+#define IB_SMP_ATTR_VENDOR_MASK			cpu_to_be16(0xFF00)
 
 struct ib_port_info {
 	__be64 mkey;

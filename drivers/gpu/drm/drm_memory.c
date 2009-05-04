@@ -159,7 +159,7 @@ static inline void *agp_remap(unsigned long offset, unsigned long size,
 
 #endif				/* debug_memory */
 
-void drm_core_ioremap(struct drm_map *map, struct drm_device *dev)
+void drm_core_ioremap(struct drm_local_map *map, struct drm_device *dev)
 {
 	if (drm_core_has_AGP(dev) &&
 	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
@@ -169,12 +169,17 @@ void drm_core_ioremap(struct drm_map *map, struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_core_ioremap);
 
-void drm_core_ioremap_wc(struct drm_map *map, struct drm_device *dev)
+void drm_core_ioremap_wc(struct drm_local_map *map, struct drm_device *dev)
 {
-	map->handle = ioremap_wc(map->offset, map->size);
+	if (drm_core_has_AGP(dev) &&
+	    dev->agp && dev->agp->cant_use_aperture && map->type == _DRM_AGP)
+		map->handle = agp_remap(map->offset, map->size, dev);
+	else
+		map->handle = ioremap_wc(map->offset, map->size);
 }
 EXPORT_SYMBOL(drm_core_ioremap_wc);
-void drm_core_ioremapfree(struct drm_map *map, struct drm_device *dev)
+
+void drm_core_ioremapfree(struct drm_local_map *map, struct drm_device *dev)
 {
 	if (!map->handle || !map->size)
 		return;

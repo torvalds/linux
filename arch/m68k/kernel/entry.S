@@ -513,7 +513,7 @@ sys_call_table:
 	.long sys_uselib
 	.long sys_swapon
 	.long sys_reboot
-	.long old_readdir
+	.long sys_old_readdir
 	.long old_mmap		/* 90 */
 	.long sys_munmap
 	.long sys_truncate
@@ -753,4 +753,6 @@ sys_call_table:
 	.long sys_dup3
 	.long sys_pipe2
 	.long sys_inotify_init1
+	.long sys_preadv
+	.long sys_pwritev		/* 330 */
 

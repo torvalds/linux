@@ -33,7 +33,6 @@
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <mach/ssp.h>
-#include <mach/pxa-regs.h>
 #include <mach/regs-ssp.h>
 
 #define TIMEOUT 100000

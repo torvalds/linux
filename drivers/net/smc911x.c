@@ -220,9 +220,9 @@ static void smc911x_reset(struct net_device *dev)
 
 	/* make sure EEPROM has finished loading before setting GPIO_CFG */
 	timeout=1000;
-	while ( timeout-- && (SMC_GET_E2P_CMD(lp) & E2P_CMD_EPC_BUSY_)) {
+	while (--timeout && (SMC_GET_E2P_CMD(lp) & E2P_CMD_EPC_BUSY_))
 		udelay(10);
-	}
+
 	if (timeout == 0){
 		PRINTK("%s: smc911x_reset timeout waiting for EEPROM busy\n", dev->name);
 		return;
@@ -1545,7 +1545,7 @@ smc911x_ethtool_getdrvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strncpy(info->driver, CARDNAME, sizeof(info->driver));
 	strncpy(info->version, version, sizeof(info->version));
-	strncpy(info->bus_info, dev->dev.parent->bus_id, sizeof(info->bus_info));
+	strncpy(info->bus_info, dev_name(dev->dev.parent), sizeof(info->bus_info));
 }
 
 static int smc911x_ethtool_nwayreset(struct net_device *dev)

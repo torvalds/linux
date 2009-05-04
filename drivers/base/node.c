@@ -24,7 +24,7 @@ static struct sysdev_class node_class = {
 static ssize_t node_read_cpumap(struct sys_device *dev, int type, char *buf)
 {
 	struct node *node_dev = to_node(dev);
-	node_to_cpumask_ptr(mask, node_dev->sysdev.id);
+	const struct cpumask *mask = cpumask_of_node(node_dev->sysdev.id);
 	int len;
 
 	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */
@@ -303,7 +303,7 @@ int unregister_mem_sect_under_nodes(struct memory_block *mem_blk)
 	sect_start_pfn = section_nr_to_pfn(mem_blk->phys_index);
 	sect_end_pfn = sect_start_pfn + PAGES_PER_SECTION - 1;
 	for (pfn = sect_start_pfn; pfn <= sect_end_pfn; pfn++) {
-		unsigned int nid;
+		int nid;
 
 		nid = get_nid_for_pfn(pfn);
 		if (nid < 0)

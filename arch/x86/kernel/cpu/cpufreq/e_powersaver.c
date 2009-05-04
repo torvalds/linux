@@ -12,12 +12,12 @@
 #include <linux/cpufreq.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
+#include <linux/timex.h>
+#include <linux/io.h>
+#include <linux/delay.h>
 
 #include <asm/msr.h>
 #include <asm/tsc.h>
-#include <asm/timex.h>
-#include <asm/io.h>
-#include <asm/delay.h>
 
 #define EPS_BRAND_C7M	0
 #define EPS_BRAND_C7	1
@@ -184,7 +184,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		break;
 	}
 
-	switch(brand) {
+	switch (brand) {
 	case EPS_BRAND_C7M:
 		printk(KERN_CONT "C7-M\n");
 		break;
@@ -204,12 +204,12 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	}
 	/* Enable Enhanced PowerSaver */
 	rdmsrl(MSR_IA32_MISC_ENABLE, val);
-	if (!(val & 1 << 16)) {
-		val |= 1 << 16;
+	if (!(val & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
+		val |= MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP;
 		wrmsrl(MSR_IA32_MISC_ENABLE, val);
 		/* Can be locked at 0 */
 		rdmsrl(MSR_IA32_MISC_ENABLE, val);
-		if (!(val & 1 << 16)) {
+		if (!(val & MSR_IA32_MISC_ENABLE_ENHANCED_SPEEDSTEP)) {
 			printk(KERN_INFO "eps: Can't enable Enhanced PowerSaver\n");
 			return -ENODEV;
 		}
@@ -218,17 +218,20 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	/* Print voltage and multiplier */
 	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
 	current_voltage = lo & 0xff;
-	printk(KERN_INFO "eps: Current voltage = %dmV\n", current_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Current voltage = %dmV\n",
+			current_voltage * 16 + 700);
 	current_multiplier = (lo >> 8) & 0xff;
 	printk(KERN_INFO "eps: Current multiplier = %d\n", current_multiplier);
 
 	/* Print limits */
 	max_voltage = hi & 0xff;
-	printk(KERN_INFO "eps: Highest voltage = %dmV\n", max_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Highest voltage = %dmV\n",
+			max_voltage * 16 + 700);
 	max_multiplier = (hi >> 8) & 0xff;
 	printk(KERN_INFO "eps: Highest multiplier = %d\n", max_multiplier);
 	min_voltage = (hi >> 16) & 0xff;
-	printk(KERN_INFO "eps: Lowest voltage = %dmV\n", min_voltage * 16 + 700);
+	printk(KERN_INFO "eps: Lowest voltage = %dmV\n",
+			min_voltage * 16 + 700);
 	min_multiplier = (hi >> 24) & 0xff;
 	printk(KERN_INFO "eps: Lowest multiplier = %d\n", min_multiplier);
 
@@ -318,7 +321,7 @@ static int eps_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static struct freq_attr* eps_attr[] = {
+static struct freq_attr *eps_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
@@ -356,7 +359,7 @@ static void __exit eps_exit(void)
 	cpufreq_unregister_driver(&eps_driver);
 }
 
-MODULE_AUTHOR("Rafa³ Bilski <rafalbilski@interia.pl>");
+MODULE_AUTHOR("Rafal Bilski <rafalbilski@interia.pl>");
 MODULE_DESCRIPTION("Enhanced PowerSaver driver for VIA C7 CPU's.");
 MODULE_LICENSE("GPL");
 

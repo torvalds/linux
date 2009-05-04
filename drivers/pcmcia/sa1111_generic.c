@@ -11,12 +11,12 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <pcmcia/ss.h>
 
 #include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 
 #include "sa1111_generic.h"

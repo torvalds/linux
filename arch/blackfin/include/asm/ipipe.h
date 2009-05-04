@@ -35,9 +35,9 @@
 #include <asm/atomic.h>
 #include <asm/traps.h>
 
-#define IPIPE_ARCH_STRING     "1.8-00"
+#define IPIPE_ARCH_STRING     "1.9-00"
 #define IPIPE_MAJOR_NUMBER    1
-#define IPIPE_MINOR_NUMBER    8
+#define IPIPE_MINOR_NUMBER    9
 #define IPIPE_PATCH_NUMBER    0
 
 #ifdef CONFIG_SMP
@@ -83,9 +83,9 @@ struct ipipe_sysinfo {
 				"%2 = CYCLES2\n"		\
 				"CC = %2 == %0\n"		\
 				"if ! CC jump 1b\n"		\
-				: "=r" (((unsigned long *)&t)[1]),	\
-				  "=r" (((unsigned long *)&t)[0]),	\
-				  "=r" (__cy2)				\
+				: "=d,a" (((unsigned long *)&t)[1]),	\
+				  "=d,a" (((unsigned long *)&t)[0]),	\
+				  "=d,a" (__cy2)				\
 				: /*no input*/ : "CC");			\
 	t;								\
 	})
@@ -118,34 +118,39 @@ void __ipipe_disable_irqdesc(struct ipipe_domain *ipd,
 
 #define __ipipe_disable_irq(irq)	(irq_desc[irq].chip->mask(irq))
 
-#define __ipipe_lock_root()					\
-	set_bit(IPIPE_ROOTLOCK_FLAG, &ipipe_root_domain->flags)
+static inline int __ipipe_check_tickdev(const char *devname)
+{
+	return 1;
+}
 
-#define __ipipe_unlock_root()					\
-	clear_bit(IPIPE_ROOTLOCK_FLAG, &ipipe_root_domain->flags)
+static inline void __ipipe_lock_root(void)
+{
+	set_bit(IPIPE_SYNCDEFER_FLAG, &ipipe_root_cpudom_var(status));
+}
+
+static inline void __ipipe_unlock_root(void)
+{
+	clear_bit(IPIPE_SYNCDEFER_FLAG, &ipipe_root_cpudom_var(status));
+}
 
 void __ipipe_enable_pipeline(void);
 
 #define __ipipe_hook_critical_ipi(ipd) do { } while (0)
 
-#define __ipipe_sync_pipeline(syncmask)					\
-	do {								\
-		struct ipipe_domain *ipd = ipipe_current_domain;	\
-		if (likely(ipd != ipipe_root_domain || !test_bit(IPIPE_ROOTLOCK_FLAG, &ipd->flags))) \
-			__ipipe_sync_stage(syncmask);			\
-	} while (0)
+#define __ipipe_sync_pipeline  ___ipipe_sync_pipeline
+void ___ipipe_sync_pipeline(unsigned long syncmask);
 
 void __ipipe_handle_irq(unsigned irq, struct pt_regs *regs);
 
 int __ipipe_get_irq_priority(unsigned irq);
-
-int __ipipe_get_irqthread_priority(unsigned irq);
 
 void __ipipe_stall_root_raw(void);
 
 void __ipipe_unstall_root_raw(void);
 
 void __ipipe_serial_debug(const char *fmt, ...);
+
+asmlinkage void __ipipe_call_irqtail(unsigned long addr);
 
 DECLARE_PER_CPU(struct pt_regs, __ipipe_tick_regs);
 
@@ -162,42 +167,25 @@ static inline unsigned long __ipipe_ffnz(unsigned long ul)
 
 #define __ipipe_run_irqtail()  /* Must be a macro */			\
 	do {								\
-		asmlinkage void __ipipe_call_irqtail(void);		\
 		unsigned long __pending;				\
-		CSYNC();					\
+		CSYNC();						\
 		__pending = bfin_read_IPEND();				\
 		if (__pending & 0x8000) {				\
 			__pending &= ~0x8010;				\
 			if (__pending && (__pending & (__pending - 1)) == 0) \
-				__ipipe_call_irqtail();			\
+				__ipipe_call_irqtail(__ipipe_irq_tail_hook); \
 		}							\
 	} while (0)
 
 #define __ipipe_run_isr(ipd, irq)					\
 	do {								\
 		if (ipd == ipipe_root_domain) {				\
-			/*						\
-			 * Note: the I-pipe implements a threaded interrupt model on \
-			 * this arch for Linux external IRQs. The interrupt handler we \
-			 * call here only wakes up the associated IRQ thread. \
-			 */						\
-			if (ipipe_virtual_irq_p(irq)) {			\
-				/* No irqtail here; virtual interrupts have no effect \
-				   on IPEND so there is no need for processing \
-				   deferral. */				\
-				local_irq_enable_nohead(ipd);		\
+			local_irq_enable_hw();				\
+			if (ipipe_virtual_irq_p(irq))			\
 				ipd->irqs[irq].handler(irq, ipd->irqs[irq].cookie); \
-				local_irq_disable_nohead(ipd);		\
-			} else						\
-				/*					\
-				 * No need to run the irqtail here either; \
-				 * we can't be preempted by hw IRQs, so	\
-				 * non-Linux IRQs cannot stack over the short \
-				 * thread wakeup code. Which in turn means \
-				 * that no irqtail condition could be pending \
-				 * for domains above Linux in the pipeline. \
-				 */					\
+			else						\
 				ipd->irqs[irq].handler(irq, &__raw_get_cpu_var(__ipipe_tick_regs)); \
+			local_irq_disable_hw();				\
 		} else {						\
 			__clear_bit(IPIPE_SYNC_FLAG, &ipipe_cpudom_var(ipd, status)); \
 			local_irq_enable_nohead(ipd);			\
@@ -217,42 +205,24 @@ void ipipe_init_irq_threads(void);
 
 int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 
-#define IS_SYSIRQ(irq)		((irq) > IRQ_CORETMR && (irq) <= SYS_IRQS)
-#define IS_GPIOIRQ(irq)		((irq) >= GPIO_IRQ_BASE && (irq) < NR_IRQS)
-
+#ifdef CONFIG_GENERIC_CLOCKEVENTS
+#define IRQ_SYSTMR		IRQ_CORETMR
+#define IRQ_PRIOTMR		IRQ_CORETMR
+#else
 #define IRQ_SYSTMR		IRQ_TIMER0
 #define IRQ_PRIOTMR		CONFIG_IRQ_TIMER0
+#endif
 
-#if defined(CONFIG_BF531) || defined(CONFIG_BF532) || defined(CONFIG_BF533)
-#define PRIO_GPIODEMUX(irq)	CONFIG_PFA
-#elif defined(CONFIG_BF534) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
-#define PRIO_GPIODEMUX(irq)	CONFIG_IRQ_PROG_INTA
-#elif defined(CONFIG_BF52x)
-#define PRIO_GPIODEMUX(irq)	((irq) == IRQ_PORTF_INTA ? CONFIG_IRQ_PORTF_INTA : \
-				 (irq) == IRQ_PORTG_INTA ? CONFIG_IRQ_PORTG_INTA : \
-				 (irq) == IRQ_PORTH_INTA ? CONFIG_IRQ_PORTH_INTA : \
-				 -1)
-#elif defined(CONFIG_BF561)
-#define PRIO_GPIODEMUX(irq)	((irq) == IRQ_PROG0_INTA ? CONFIG_IRQ_PROG0_INTA : \
-				 (irq) == IRQ_PROG1_INTA ? CONFIG_IRQ_PROG1_INTA : \
-				 (irq) == IRQ_PROG2_INTA ? CONFIG_IRQ_PROG2_INTA : \
-				 -1)
+#ifdef CONFIG_BF561
 #define bfin_write_TIMER_DISABLE(val)	bfin_write_TMRS8_DISABLE(val)
 #define bfin_write_TIMER_ENABLE(val)	bfin_write_TMRS8_ENABLE(val)
 #define bfin_write_TIMER_STATUS(val)	bfin_write_TMRS8_STATUS(val)
 #define bfin_read_TIMER_STATUS()	bfin_read_TMRS8_STATUS()
 #elif defined(CONFIG_BF54x)
-#define PRIO_GPIODEMUX(irq)	((irq) == IRQ_PINT0 ? CONFIG_IRQ_PINT0 : \
-				 (irq) == IRQ_PINT1 ? CONFIG_IRQ_PINT1 : \
-				 (irq) == IRQ_PINT2 ? CONFIG_IRQ_PINT2 : \
-				 (irq) == IRQ_PINT3 ? CONFIG_IRQ_PINT3 : \
-				 -1)
 #define bfin_write_TIMER_DISABLE(val)	bfin_write_TIMER_DISABLE0(val)
 #define bfin_write_TIMER_ENABLE(val)	bfin_write_TIMER_ENABLE0(val)
 #define bfin_write_TIMER_STATUS(val)	bfin_write_TIMER_STATUS0(val)
 #define bfin_read_TIMER_STATUS(val)	bfin_read_TIMER_STATUS0(val)
-#else
-# error "no PRIO_GPIODEMUX() for this part"
 #endif
 
 #define __ipipe_root_tick_p(regs)	((regs->ipend & 0x10) != 0)
@@ -274,5 +244,7 @@ int ipipe_start_irq_thread(unsigned irq, struct irq_desc *desc);
 #define __ipipe_root_tick_p(regs)	1
 
 #endif /* !CONFIG_IPIPE */
+
+#define ipipe_update_tick_evtdev(evtdev)	do { } while (0)
 
 #endif	/* !__ASM_BLACKFIN_IPIPE_H */

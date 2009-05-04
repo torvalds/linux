@@ -61,7 +61,7 @@ static __init int pm_simtec_init(void)
 
 	__raw_writel(gstatus4, S3C2410_GSTATUS4);
 
-	return s3c2410_pm_init();
+	return s3c_pm_init();
 }
 
 arch_initcall(pm_simtec_init);

@@ -4,9 +4,11 @@
 #ifndef _ASM_POWERPC_PPC_ASM_H
 #define _ASM_POWERPC_PPC_ASM_H
 
+#include <linux/init.h>
 #include <linux/stringify.h>
 #include <asm/asm-compat.h>
 #include <asm/processor.h>
+#include <asm/ppc-opcode.h>
 
 #ifndef __ASSEMBLY__
 #error __FILE__ should only be used in assembler files
@@ -167,11 +169,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_PURR);					\
 #define HMT_MEDIUM_HIGH or	5,5,5		# medium high priority
 #define HMT_HIGH	or	3,3,3
 
-/* handle instructions that older assemblers may not know */
-#define RFCI		.long 0x4c000066	/* rfci instruction */
-#define RFDI		.long 0x4c00004e	/* rfdi instruction */
-#define RFMCI		.long 0x4c00004c	/* rfmci instruction */
-
 #ifdef __KERNEL__
 #ifdef CONFIG_PPC64
 
@@ -193,7 +190,7 @@ name: \
 GLUE(.,name):
 
 #define _INIT_GLOBAL(name) \
-	.section ".text.init.refok"; \
+	__REF; \
 	.align 2 ; \
 	.globl name; \
 	.globl GLUE(.,name); \
@@ -233,7 +230,7 @@ name: \
 GLUE(.,name):
 
 #define _INIT_STATIC(name) \
-	.section ".text.init.refok"; \
+	__REF; \
 	.align 2 ; \
 	.section ".opd","aw"; \
 name: \

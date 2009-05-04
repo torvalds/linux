@@ -99,7 +99,7 @@ typedef struct {
 //---------------------------------------------------------------------------
 // local function prototypes
 //---------------------------------------------------------------------------
-static void PUBLIC EplTimeruCbMs(unsigned long ulParameter_p);
+static void EplTimeruCbMs(unsigned long ulParameter_p);
 
 /***************************************************************************/
 /*                                                                         */
@@ -134,7 +134,7 @@ static void PUBLIC EplTimeruCbMs(unsigned long ulParameter_p);
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruInit()
+tEplKernel EplTimeruInit(void)
 {
 	tEplKernel Ret;
 
@@ -157,7 +157,7 @@ tEplKernel PUBLIC EplTimeruInit()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruAddInstance()
+tEplKernel EplTimeruAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -182,7 +182,7 @@ tEplKernel PUBLIC EplTimeruAddInstance()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruDelInstance()
+tEplKernel EplTimeruDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -207,9 +207,9 @@ tEplKernel PUBLIC EplTimeruDelInstance()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruSetTimerMs(tEplTimerHdl * pTimerHdl_p,
-				      unsigned long ulTime_p,
-				      tEplTimerArg Argument_p)
+tEplKernel EplTimeruSetTimerMs(tEplTimerHdl *pTimerHdl_p,
+			       unsigned long ulTime_p,
+			       tEplTimerArg Argument_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplTimeruData *pData;
@@ -257,9 +257,9 @@ tEplKernel PUBLIC EplTimeruSetTimerMs(tEplTimerHdl * pTimerHdl_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruModifyTimerMs(tEplTimerHdl * pTimerHdl_p,
-					 unsigned long ulTime_p,
-					 tEplTimerArg Argument_p)
+tEplKernel EplTimeruModifyTimerMs(tEplTimerHdl *pTimerHdl_p,
+				  unsigned long ulTime_p,
+				  tEplTimerArg Argument_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplTimeruData *pData;
@@ -315,7 +315,7 @@ tEplKernel PUBLIC EplTimeruModifyTimerMs(tEplTimerHdl * pTimerHdl_p,
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplTimeruDeleteTimer(tEplTimerHdl * pTimerHdl_p)
+tEplKernel EplTimeruDeleteTimer(tEplTimerHdl *pTimerHdl_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplTimeruData *pData;
@@ -370,7 +370,7 @@ tEplKernel PUBLIC EplTimeruDeleteTimer(tEplTimerHdl * pTimerHdl_p)
 //
 //---------------------------------------------------------------------------
 
-BOOL PUBLIC EplTimeruIsTimerActive(tEplTimerHdl TimerHdl_p)
+BOOL EplTimeruIsTimerActive(tEplTimerHdl TimerHdl_p)
 {
 	BOOL fActive = FALSE;
 	tEplTimeruData *pData;
@@ -417,7 +417,7 @@ BOOL PUBLIC EplTimeruIsTimerActive(tEplTimerHdl TimerHdl_p)
 // State:
 //
 //---------------------------------------------------------------------------
-static void PUBLIC EplTimeruCbMs(unsigned long ulParameter_p)
+static void EplTimeruCbMs(unsigned long ulParameter_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	tEplTimeruData *pData;

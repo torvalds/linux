@@ -93,8 +93,8 @@ static int full_duplex[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 #include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */
-static char version[] =
-KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "\n";
+static const char version[] __devinitconst =
+	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE "\n";
 
 
 /* This driver was written to use PCI memory space, however some x86 systems

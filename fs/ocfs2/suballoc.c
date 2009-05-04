@@ -48,7 +48,8 @@
 #include "buffer_head_io.h"
 
 #define NOT_ALLOC_NEW_GROUP		0
-#define ALLOC_NEW_GROUP			1
+#define ALLOC_NEW_GROUP			0x1
+#define ALLOC_GROUPS_FROM_GLOBAL	0x2
 
 #define OCFS2_MAX_INODES_TO_STEAL	1024
 
@@ -64,7 +65,9 @@ static int ocfs2_block_group_fill(handle_t *handle,
 static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 				   struct inode *alloc_inode,
 				   struct buffer_head *bh,
-				   u64 max_block);
+				   u64 max_block,
+				   u64 *last_alloc_group,
+				   int flags);
 
 static int ocfs2_cluster_group_search(struct inode *inode,
 				      struct buffer_head *group_bh,
@@ -116,6 +119,7 @@ static inline void ocfs2_block_to_cluster_group(struct inode *inode,
 						u16 *bg_bit_off);
 static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 					     u32 bits_wanted, u64 max_block,
+					     int flags,
 					     struct ocfs2_alloc_context **ac);
 
 void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
@@ -403,7 +407,9 @@ static inline u16 ocfs2_find_smallest_chain(struct ocfs2_chain_list *cl)
 static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 				   struct inode *alloc_inode,
 				   struct buffer_head *bh,
-				   u64 max_block)
+				   u64 max_block,
+				   u64 *last_alloc_group,
+				   int flags)
 {
 	int status, credits;
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) bh->b_data;
@@ -423,7 +429,7 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	cl = &fe->id2.i_chain;
 	status = ocfs2_reserve_clusters_with_limit(osb,
 						   le16_to_cpu(cl->cl_cpg),
-						   max_block, &ac);
+						   max_block, flags, &ac);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -440,6 +446,11 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 		goto bail;
 	}
 
+	if (last_alloc_group && *last_alloc_group != 0) {
+		mlog(0, "use old allocation group %llu for block group alloc\n",
+		     (unsigned long long)*last_alloc_group);
+		ac->ac_last_group = *last_alloc_group;
+	}
 	status = ocfs2_claim_clusters(osb,
 				      handle,
 				      ac,
@@ -514,6 +525,11 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	alloc_inode->i_blocks = ocfs2_inode_sector_count(alloc_inode);
 
 	status = 0;
+
+	/* save the new last alloc group so that the caller can cache it. */
+	if (last_alloc_group)
+		*last_alloc_group = ac->ac_last_group;
+
 bail:
 	if (handle)
 		ocfs2_commit_trans(osb, handle);
@@ -531,7 +547,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 				       struct ocfs2_alloc_context *ac,
 				       int type,
 				       u32 slot,
-				       int alloc_new_group)
+				       u64 *last_alloc_group,
+				       int flags)
 {
 	int status;
 	u32 bits_wanted = ac->ac_bits_wanted;
@@ -587,7 +604,7 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 			goto bail;
 		}
 
-		if (alloc_new_group != ALLOC_NEW_GROUP) {
+		if (!(flags & ALLOC_NEW_GROUP)) {
 			mlog(0, "Alloc File %u Full: wanted=%u, free_bits=%u, "
 			     "and we don't alloc a new group for it.\n",
 			     slot, bits_wanted, free_bits);
@@ -596,7 +613,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 		}
 
 		status = ocfs2_block_group_alloc(osb, alloc_inode, bh,
-						 ac->ac_max_block);
+						 ac->ac_max_block,
+						 last_alloc_group, flags);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -640,7 +658,7 @@ int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),
 					     EXTENT_ALLOC_SYSTEM_INODE,
-					     slot, ALLOC_NEW_GROUP);
+					     slot, NULL, ALLOC_NEW_GROUP);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -686,7 +704,8 @@ static int ocfs2_steal_inode_from_other_nodes(struct ocfs2_super *osb,
 
 		status = ocfs2_reserve_suballoc_bits(osb, ac,
 						     INODE_ALLOC_SYSTEM_INODE,
-						     slot, NOT_ALLOC_NEW_GROUP);
+						     slot, NULL,
+						     NOT_ALLOC_NEW_GROUP);
 		if (status >= 0) {
 			ocfs2_set_inode_steal_slot(osb, slot);
 			break;
@@ -703,6 +722,7 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 {
 	int status;
 	s16 slot = ocfs2_get_inode_steal_slot(osb);
+	u64 alloc_group;
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
 	if (!(*ac)) {
@@ -738,11 +758,21 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 		goto inode_steal;
 
 	atomic_set(&osb->s_num_inodes_stolen, 0);
+	alloc_group = osb->osb_inode_alloc_group;
 	status = ocfs2_reserve_suballoc_bits(osb, *ac,
 					     INODE_ALLOC_SYSTEM_INODE,
-					     osb->slot_num, ALLOC_NEW_GROUP);
+					     osb->slot_num,
+					     &alloc_group,
+					     ALLOC_NEW_GROUP |
+					     ALLOC_GROUPS_FROM_GLOBAL);
 	if (status >= 0) {
 		status = 0;
+
+		spin_lock(&osb->osb_lock);
+		osb->osb_inode_alloc_group = alloc_group;
+		spin_unlock(&osb->osb_lock);
+		mlog(0, "after reservation, new allocation group is "
+		     "%llu\n", (unsigned long long)alloc_group);
 
 		/*
 		 * Some inodes must be freed by us, so try to allocate
@@ -790,7 +820,7 @@ int ocfs2_reserve_cluster_bitmap_bits(struct ocfs2_super *osb,
 
 	status = ocfs2_reserve_suballoc_bits(osb, ac,
 					     GLOBAL_BITMAP_SYSTEM_INODE,
-					     OCFS2_INVALID_SLOT,
+					     OCFS2_INVALID_SLOT, NULL,
 					     ALLOC_NEW_GROUP);
 	if (status < 0 && status != -ENOSPC) {
 		mlog_errno(status);
@@ -806,6 +836,7 @@ bail:
  * things a bit. */
 static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 					     u32 bits_wanted, u64 max_block,
+					     int flags,
 					     struct ocfs2_alloc_context **ac)
 {
 	int status;
@@ -823,7 +854,8 @@ static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 	(*ac)->ac_max_block = max_block;
 
 	status = -ENOSPC;
-	if (ocfs2_alloc_should_use_local(osb, bits_wanted)) {
+	if (!(flags & ALLOC_GROUPS_FROM_GLOBAL) &&
+	    ocfs2_alloc_should_use_local(osb, bits_wanted)) {
 		status = ocfs2_reserve_local_alloc_bits(osb,
 							bits_wanted,
 							*ac);
@@ -861,7 +893,8 @@ int ocfs2_reserve_clusters(struct ocfs2_super *osb,
 			   u32 bits_wanted,
 			   struct ocfs2_alloc_context **ac)
 {
-	return ocfs2_reserve_clusters_with_limit(osb, bits_wanted, 0, ac);
+	return ocfs2_reserve_clusters_with_limit(osb, bits_wanted, 0,
+						 ALLOC_NEW_GROUP, ac);
 }
 
 /*
@@ -1618,8 +1651,41 @@ bail:
 	return status;
 }
 
+static void ocfs2_init_inode_ac_group(struct inode *dir,
+				      struct buffer_head *parent_fe_bh,
+				      struct ocfs2_alloc_context *ac)
+{
+	struct ocfs2_dinode *fe = (struct ocfs2_dinode *)parent_fe_bh->b_data;
+	/*
+	 * Try to allocate inodes from some specific group.
+	 *
+	 * If the parent dir has recorded the last group used in allocation,
+	 * cool, use it. Otherwise if we try to allocate new inode from the
+	 * same slot the parent dir belongs to, use the same chunk.
+	 *
+	 * We are very careful here to avoid the mistake of setting
+	 * ac_last_group to a group descriptor from a different (unlocked) slot.
+	 */
+	if (OCFS2_I(dir)->ip_last_used_group &&
+	    OCFS2_I(dir)->ip_last_used_slot == ac->ac_alloc_slot)
+		ac->ac_last_group = OCFS2_I(dir)->ip_last_used_group;
+	else if (le16_to_cpu(fe->i_suballoc_slot) == ac->ac_alloc_slot)
+		ac->ac_last_group = ocfs2_which_suballoc_group(
+					le64_to_cpu(fe->i_blkno),
+					le16_to_cpu(fe->i_suballoc_bit));
+}
+
+static inline void ocfs2_save_inode_ac_group(struct inode *dir,
+					     struct ocfs2_alloc_context *ac)
+{
+	OCFS2_I(dir)->ip_last_used_group = ac->ac_last_group;
+	OCFS2_I(dir)->ip_last_used_slot = ac->ac_alloc_slot;
+}
+
 int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 			  handle_t *handle,
+			  struct inode *dir,
+			  struct buffer_head *parent_fe_bh,
 			  struct ocfs2_alloc_context *ac,
 			  u16 *suballoc_bit,
 			  u64 *fe_blkno)
@@ -1634,6 +1700,8 @@ int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 	BUG_ON(ac->ac_bits_given != 0);
 	BUG_ON(ac->ac_bits_wanted != 1);
 	BUG_ON(ac->ac_which != OCFS2_AC_USE_INODE);
+
+	ocfs2_init_inode_ac_group(dir, parent_fe_bh, ac);
 
 	status = ocfs2_claim_suballoc_bits(osb,
 					   ac,
@@ -1653,6 +1721,7 @@ int ocfs2_claim_new_inode(struct ocfs2_super *osb,
 
 	*fe_blkno = bg_blkno + (u64) (*suballoc_bit);
 	ac->ac_bits_given++;
+	ocfs2_save_inode_ac_group(dir, ac);
 	status = 0;
 bail:
 	mlog_exit(status);
@@ -2115,4 +2184,163 @@ out:
 	}
 
 	return ret;
+}
+
+/*
+ * Read the inode specified by blkno to get suballoc_slot and
+ * suballoc_bit.
+ */
+static int ocfs2_get_suballoc_slot_bit(struct ocfs2_super *osb, u64 blkno,
+				       u16 *suballoc_slot, u16 *suballoc_bit)
+{
+	int status;
+	struct buffer_head *inode_bh = NULL;
+	struct ocfs2_dinode *inode_fe;
+
+	mlog_entry("blkno: %llu\n", blkno);
+
+	/* dirty read disk */
+	status = ocfs2_read_blocks_sync(osb, blkno, 1, &inode_bh);
+	if (status < 0) {
+		mlog(ML_ERROR, "read block %llu failed %d\n", blkno, status);
+		goto bail;
+	}
+
+	inode_fe = (struct ocfs2_dinode *) inode_bh->b_data;
+	if (!OCFS2_IS_VALID_DINODE(inode_fe)) {
+		mlog(ML_ERROR, "invalid inode %llu requested\n", blkno);
+		status = -EINVAL;
+		goto bail;
+	}
+
+	if (le16_to_cpu(inode_fe->i_suballoc_slot) != OCFS2_INVALID_SLOT &&
+	    (u32)le16_to_cpu(inode_fe->i_suballoc_slot) > osb->max_slots - 1) {
+		mlog(ML_ERROR, "inode %llu has invalid suballoc slot %u\n",
+		     blkno, (u32)le16_to_cpu(inode_fe->i_suballoc_slot));
+		status = -EINVAL;
+		goto bail;
+	}
+
+	if (suballoc_slot)
+		*suballoc_slot = le16_to_cpu(inode_fe->i_suballoc_slot);
+	if (suballoc_bit)
+		*suballoc_bit = le16_to_cpu(inode_fe->i_suballoc_bit);
+
+bail:
+	brelse(inode_bh);
+
+	mlog_exit(status);
+	return status;
+}
+
+/*
+ * test whether bit is SET in allocator bitmap or not.  on success, 0
+ * is returned and *res is 1 for SET; 0 otherwise.  when fails, errno
+ * is returned and *res is meaningless.  Call this after you have
+ * cluster locked against suballoc, or you may get a result based on
+ * non-up2date contents
+ */
+static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
+				   struct inode *suballoc,
+				   struct buffer_head *alloc_bh, u64 blkno,
+				   u16 bit, int *res)
+{
+	struct ocfs2_dinode *alloc_fe;
+	struct ocfs2_group_desc *group;
+	struct buffer_head *group_bh = NULL;
+	u64 bg_blkno;
+	int status;
+
+	mlog_entry("blkno: %llu bit: %u\n", blkno, (unsigned int)bit);
+
+	alloc_fe = (struct ocfs2_dinode *)alloc_bh->b_data;
+	if ((bit + 1) > ocfs2_bits_per_group(&alloc_fe->id2.i_chain)) {
+		mlog(ML_ERROR, "suballoc bit %u out of range of %u\n",
+		     (unsigned int)bit,
+		     ocfs2_bits_per_group(&alloc_fe->id2.i_chain));
+		status = -EINVAL;
+		goto bail;
+	}
+
+	bg_blkno = ocfs2_which_suballoc_group(blkno, bit);
+	status = ocfs2_read_group_descriptor(suballoc, alloc_fe, bg_blkno,
+					     &group_bh);
+	if (status < 0) {
+		mlog(ML_ERROR, "read group %llu failed %d\n", bg_blkno, status);
+		goto bail;
+	}
+
+	group = (struct ocfs2_group_desc *) group_bh->b_data;
+	*res = ocfs2_test_bit(bit, (unsigned long *)group->bg_bitmap);
+
+bail:
+	brelse(group_bh);
+
+	mlog_exit(status);
+	return status;
+}
+
+/*
+ * Test if the bit representing this inode (blkno) is set in the
+ * suballocator.
+ *
+ * On success, 0 is returned and *res is 1 for SET; 0 otherwise.
+ *
+ * In the event of failure, a negative value is returned and *res is
+ * meaningless.
+ *
+ * Callers must make sure to hold nfs_sync_lock to prevent
+ * ocfs2_delete_inode() on another node from accessing the same
+ * suballocator concurrently.
+ */
+int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
+{
+	int status;
+	u16 suballoc_bit = 0, suballoc_slot = 0;
+	struct inode *inode_alloc_inode;
+	struct buffer_head *alloc_bh = NULL;
+
+	mlog_entry("blkno: %llu", blkno);
+
+	status = ocfs2_get_suballoc_slot_bit(osb, blkno, &suballoc_slot,
+					     &suballoc_bit);
+	if (status < 0) {
+		mlog(ML_ERROR, "get alloc slot and bit failed %d\n", status);
+		goto bail;
+	}
+
+	inode_alloc_inode =
+		ocfs2_get_system_file_inode(osb, INODE_ALLOC_SYSTEM_INODE,
+					    suballoc_slot);
+	if (!inode_alloc_inode) {
+		/* the error code could be inaccurate, but we are not able to
+		 * get the correct one. */
+		status = -EINVAL;
+		mlog(ML_ERROR, "unable to get alloc inode in slot %u\n",
+		     (u32)suballoc_slot);
+		goto bail;
+	}
+
+	mutex_lock(&inode_alloc_inode->i_mutex);
+	status = ocfs2_inode_lock(inode_alloc_inode, &alloc_bh, 0);
+	if (status < 0) {
+		mutex_unlock(&inode_alloc_inode->i_mutex);
+		mlog(ML_ERROR, "lock on alloc inode on slot %u failed %d\n",
+		     (u32)suballoc_slot, status);
+		goto bail;
+	}
+
+	status = ocfs2_test_suballoc_bit(osb, inode_alloc_inode, alloc_bh,
+					 blkno, suballoc_bit, res);
+	if (status < 0)
+		mlog(ML_ERROR, "test suballoc bit failed %d\n", status);
+
+	ocfs2_inode_unlock(inode_alloc_inode, 0);
+	mutex_unlock(&inode_alloc_inode->i_mutex);
+
+	iput(inode_alloc_inode);
+	brelse(alloc_bh);
+bail:
+	mlog_exit(status);
+	return status;
 }

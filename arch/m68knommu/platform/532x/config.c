@@ -41,15 +41,15 @@ extern unsigned int mcf_timerlevel;
 
 static struct mcf_platform_uart m532x_uart_platform[] = {
 	{
-		.mapbase	= MCF_MBAR + MCFUART_BASE1,
+		.mapbase	= MCFUART_BASE1,
 		.irq		= MCFINT_VECBASE + MCFINT_UART0,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE2,
+		.mapbase 	= MCFUART_BASE2,
 		.irq		= MCFINT_VECBASE + MCFINT_UART1,
 	},
 	{
-		.mapbase 	= MCF_MBAR + MCFUART_BASE3,
+		.mapbase 	= MCFUART_BASE3,
 		.irq		= MCFINT_VECBASE + MCFINT_UART2,
 	},
 	{ },
@@ -61,8 +61,38 @@ static struct platform_device m532x_uart = {
 	.dev.platform_data	= m532x_uart_platform,
 };
 
+static struct resource m532x_fec_resources[] = {
+	{
+		.start		= 0xfc030000,
+		.end		= 0xfc0307ff,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= 64 + 36,
+		.end		= 64 + 36,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= 64 + 40,
+		.end		= 64 + 40,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= 64 + 42,
+		.end		= 64 + 42,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device m532x_fec = {
+	.name			= "fec",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(m532x_fec_resources),
+	.resource		= m532x_fec_resources,
+};
 static struct platform_device *m532x_devices[] __initdata = {
 	&m532x_uart,
+	&m532x_fec,
 };
 
 /***************************************************************************/
@@ -93,6 +123,24 @@ static void __init m532x_uarts_init(void)
 	for (line = 0; (line < nrlines); line++)
 		m532x_uart_init_line(line, m532x_uart_platform[line].irq);
 }
+/***************************************************************************/
+
+static void __init m532x_fec_init(void)
+{
+	/* Unmask FEC interrupts at ColdFire interrupt controller */
+	MCF_INTC0_ICR36 = 0x2;
+	MCF_INTC0_ICR40 = 0x2;
+	MCF_INTC0_ICR42 = 0x2;
+
+	MCF_INTC0_IMRH &= ~(MCF_INTC_IMRH_INT_MASK36 |
+		MCF_INTC_IMRH_INT_MASK40 | MCF_INTC_IMRH_INT_MASK42);
+
+	/* Set multi-function pins to ethernet mode for fec0 */
+	MCF_GPIO_PAR_FECI2C |= (MCF_GPIO_PAR_FECI2C_PAR_MDC_EMDC |
+		MCF_GPIO_PAR_FECI2C_PAR_MDIO_EMDIO);
+	MCF_GPIO_PAR_FEC = (MCF_GPIO_PAR_FEC_PAR_FEC_7W_FEC |
+		MCF_GPIO_PAR_FEC_PAR_FEC_MII_FEC);
+}
 
 /***************************************************************************/
 
@@ -108,7 +156,7 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 		default: irq = 32; icr = MCFSIM_ICR_TIMER1; break;
 		}
 		
-		icrp = (volatile unsigned char *) (MCF_MBAR + icr);
+		icrp = (volatile unsigned char *) (icr);
 		*icrp = level;
 		mcf_enable_irq0(irq);
 	}
@@ -150,6 +198,7 @@ void __init config_BSP(char *commandp, int size)
 static int __init init_BSP(void)
 {
 	m532x_uarts_init();
+	m532x_fec_init();
 	platform_add_devices(m532x_devices, ARRAY_SIZE(m532x_devices));
 	return 0;
 }

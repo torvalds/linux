@@ -1,22 +1,20 @@
 /*
- * flexcop.c - driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
- *
- * Copyright (C) 2004-5 Patrick Boettcher <patrick.boettcher@desy.de>
- *
- * based on the skystar2-driver
- * Copyright (C) 2003 Vadim Catana, skystar@moldova.cc
+ * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
+ * flexcop.c - main module part
+ * Copyright (C) 2004-9 Patrick Boettcher <patrick.boettcher@desy.de>
+ * based on skystar2-driver Copyright (C) 2003 Vadim Catana, skystar@moldova.cc
  *
  * Acknowledgements:
- *     John Jurrius from BBTI, Inc. for extensive support with
- *         code examples and data books
- *
- *     Bjarne Steinsbo, bjarne at steinsbo.com (some ideas for rewriting)
+ *   John Jurrius from BBTI, Inc. for extensive support
+ *                    with code examples and data books
+ *   Bjarne Steinsbo, bjarne at steinsbo.com (some ideas for rewriting)
  *
  * Contributions to the skystar2-driver have been done by
- *     Vincenzo Di Massa, hawk.it at tiscalinet.it (several DiSEqC fixes)
- *     Roberto Ragusa, r.ragusa at libero.it (polishing, restyling the code)
- *     Niklas Peinecke, peinecke at gdv.uni-hannover.de (hardware pid/mac filtering)
- *
+ *   Vincenzo Di Massa, hawk.it at tiscalinet.it (several DiSEqC fixes)
+ *   Roberto Ragusa, r.ragusa at libero.it (polishing, restyling the code)
+ *   Uwe Bugla, uwe.bugla at gmx.de (doing tests, restyling code, writing docu)
+ *   Niklas Peinecke, peinecke at gdv.uni-hannover.de (hardware pid/mac
+ *               filtering)
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public License
@@ -46,7 +44,10 @@
 
 int b2c2_flexcop_debug;
 module_param_named(debug, b2c2_flexcop_debug,  int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (1=info,2=tuner,4=i2c,8=ts,16=sram,32=reg (|-able))." DEBSTATUS);
+MODULE_PARM_DESC(debug,
+		"set debug level (1=info,2=tuner,4=i2c,8=ts,"
+		"16=sram,32=reg (|-able))."
+		DEBSTATUS);
 #undef DEBSTATUS
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
@@ -57,37 +58,36 @@ flexcop_ibi_value ibi_zero;
 static int flexcop_dvb_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct flexcop_device *fc = dvbdmxfeed->demux->priv;
-	return flexcop_pid_feed_control(fc,dvbdmxfeed,1);
+	return flexcop_pid_feed_control(fc, dvbdmxfeed, 1);
 }
 
 static int flexcop_dvb_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 {
 	struct flexcop_device *fc = dvbdmxfeed->demux->priv;
-	return flexcop_pid_feed_control(fc,dvbdmxfeed,0);
+	return flexcop_pid_feed_control(fc, dvbdmxfeed, 0);
 }
 
 static int flexcop_dvb_init(struct flexcop_device *fc)
 {
 	int ret = dvb_register_adapter(&fc->dvb_adapter,
-				       "FlexCop Digital TV device", fc->owner,
-				       fc->dev, adapter_nr);
+			"FlexCop Digital TV device", fc->owner,
+			fc->dev, adapter_nr);
 	if (ret < 0) {
 		err("error registering DVB adapter");
 		return ret;
 	}
 	fc->dvb_adapter.priv = fc;
 
-	fc->demux.dmx.capabilities = (DMX_TS_FILTERING | DMX_SECTION_FILTERING | DMX_MEMORY_BASED_FILTERING);
+	fc->demux.dmx.capabilities = (DMX_TS_FILTERING | DMX_SECTION_FILTERING
+			| DMX_MEMORY_BASED_FILTERING);
 	fc->demux.priv = fc;
-
 	fc->demux.filternum = fc->demux.feednum = FC_MAX_FEED;
-
 	fc->demux.start_feed = flexcop_dvb_start_feed;
 	fc->demux.stop_feed = flexcop_dvb_stop_feed;
 	fc->demux.write_to_decoder = NULL;
 
 	if ((ret = dvb_dmx_init(&fc->demux)) < 0) {
-		err("dvb_dmx failed: error %d",ret);
+		err("dvb_dmx failed: error %d", ret);
 		goto err_dmx;
 	}
 
@@ -97,23 +97,23 @@ static int flexcop_dvb_init(struct flexcop_device *fc)
 	fc->dmxdev.demux = &fc->demux.dmx;
 	fc->dmxdev.capabilities = 0;
 	if ((ret = dvb_dmxdev_init(&fc->dmxdev, &fc->dvb_adapter)) < 0) {
-		err("dvb_dmxdev_init failed: error %d",ret);
+		err("dvb_dmxdev_init failed: error %d", ret);
 		goto err_dmx_dev;
 	}
 
 	if ((ret = fc->demux.dmx.add_frontend(&fc->demux.dmx, &fc->hw_frontend)) < 0) {
-		err("adding hw_frontend to dmx failed: error %d",ret);
+		err("adding hw_frontend to dmx failed: error %d", ret);
 		goto err_dmx_add_hw_frontend;
 	}
 
 	fc->mem_frontend.source = DMX_MEMORY_FE;
 	if ((ret = fc->demux.dmx.add_frontend(&fc->demux.dmx, &fc->mem_frontend)) < 0) {
-		err("adding mem_frontend to dmx failed: error %d",ret);
+		err("adding mem_frontend to dmx failed: error %d", ret);
 		goto err_dmx_add_mem_frontend;
 	}
 
 	if ((ret = fc->demux.dmx.connect_frontend(&fc->demux.dmx, &fc->hw_frontend)) < 0) {
-		err("connect frontend failed: error %d",ret);
+		err("connect frontend failed: error %d", ret);
 		goto err_connect_frontend;
 	}
 
@@ -123,9 +123,9 @@ static int flexcop_dvb_init(struct flexcop_device *fc)
 	return 0;
 
 err_connect_frontend:
-	fc->demux.dmx.remove_frontend(&fc->demux.dmx,&fc->mem_frontend);
+	fc->demux.dmx.remove_frontend(&fc->demux.dmx, &fc->mem_frontend);
 err_dmx_add_mem_frontend:
-	fc->demux.dmx.remove_frontend(&fc->demux.dmx,&fc->hw_frontend);
+	fc->demux.dmx.remove_frontend(&fc->demux.dmx, &fc->hw_frontend);
 err_dmx_add_hw_frontend:
 	dvb_dmxdev_release(&fc->dmxdev);
 err_dmx_dev:
@@ -141,12 +141,13 @@ static void flexcop_dvb_exit(struct flexcop_device *fc)
 		dvb_net_release(&fc->dvbnet);
 
 		fc->demux.dmx.close(&fc->demux.dmx);
-		fc->demux.dmx.remove_frontend(&fc->demux.dmx,&fc->mem_frontend);
-		fc->demux.dmx.remove_frontend(&fc->demux.dmx,&fc->hw_frontend);
+		fc->demux.dmx.remove_frontend(&fc->demux.dmx,
+			&fc->mem_frontend);
+		fc->demux.dmx.remove_frontend(&fc->demux.dmx,
+			&fc->hw_frontend);
 		dvb_dmxdev_release(&fc->dmxdev);
 		dvb_dmx_release(&fc->demux);
 		dvb_unregister_adapter(&fc->dvb_adapter);
-
 		deb_info("deinitialized dvb stuff\n");
 	}
 	fc->init_state &= ~FC_STATE_DVB_INIT;
@@ -168,9 +169,9 @@ EXPORT_SYMBOL(flexcop_pass_dmx_packets);
 
 static void flexcop_reset(struct flexcop_device *fc)
 {
-	flexcop_ibi_value v210,v204;
+	flexcop_ibi_value v210, v204;
 
-/* reset the flexcop itself */
+	/* reset the flexcop itself */
 	fc->write_ibi_reg(fc,ctrl_208,ibi_zero);
 
 	v210.raw = 0;
@@ -183,13 +184,11 @@ static void flexcop_reset(struct flexcop_device *fc)
 	v210.sw_reset_210.reset_block_600 = 1;
 	v210.sw_reset_210.reset_block_700 = 1;
 	v210.sw_reset_210.Block_reset_enable = 0xb2;
-
 	v210.sw_reset_210.Special_controls = 0xc259;
-
 	fc->write_ibi_reg(fc,sw_reset_210,v210);
 	msleep(1);
 
-/* reset the periphical devices */
+	/* reset the periphical devices */
 
 	v204 = fc->read_ibi_reg(fc,misc_204);
 	v204.misc_204.Per_reset_sig = 0;
@@ -201,26 +200,24 @@ static void flexcop_reset(struct flexcop_device *fc)
 
 void flexcop_reset_block_300(struct flexcop_device *fc)
 {
-	flexcop_ibi_value v208_save = fc->read_ibi_reg(fc,ctrl_208),
-					  v210 = fc->read_ibi_reg(fc,sw_reset_210);
+	flexcop_ibi_value v208_save = fc->read_ibi_reg(fc, ctrl_208),
+			  v210 = fc->read_ibi_reg(fc, sw_reset_210);
 
-	deb_rdump("208: %08x, 210: %08x\n",v208_save.raw,v210.raw);
-
+	deb_rdump("208: %08x, 210: %08x\n", v208_save.raw, v210.raw);
 	fc->write_ibi_reg(fc,ctrl_208,ibi_zero);
 
 	v210.sw_reset_210.reset_block_300 = 1;
 	v210.sw_reset_210.Block_reset_enable = 0xb2;
 
 	fc->write_ibi_reg(fc,sw_reset_210,v210);
-	msleep(1);
-
 	fc->write_ibi_reg(fc,ctrl_208,v208_save);
 }
 
 struct flexcop_device *flexcop_device_kmalloc(size_t bus_specific_len)
 {
 	void *bus;
-	struct flexcop_device *fc = kzalloc(sizeof(struct flexcop_device), GFP_KERNEL);
+	struct flexcop_device *fc = kzalloc(sizeof(struct flexcop_device),
+				GFP_KERNEL);
 	if (!fc) {
 		err("no memory");
 		return NULL;
@@ -255,7 +252,6 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 	flexcop_determine_revision(fc);
 	flexcop_sram_init(fc);
 	flexcop_hw_filter_init(fc);
-
 	flexcop_smc_ctrl(fc, 0);
 
 	if ((ret = flexcop_dvb_init(fc)))
@@ -280,7 +276,6 @@ int flexcop_device_initialize(struct flexcop_device *fc)
 		goto error;
 
 	flexcop_device_name(fc,"initialization of","complete");
-
 	return 0;
 
 error:

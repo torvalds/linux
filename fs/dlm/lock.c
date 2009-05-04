@@ -835,7 +835,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype)
 		lkb->lkb_wait_count++;
 		hold_lkb(lkb);
 
-		log_debug(ls, "add overlap %x cur %d new %d count %d flags %x",
+		log_debug(ls, "addwait %x cur %d overlap %d count %d f %x",
 			  lkb->lkb_id, lkb->lkb_wait_type, mstype,
 			  lkb->lkb_wait_count, lkb->lkb_flags);
 		goto out;
@@ -851,7 +851,7 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype)
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
  out:
 	if (error)
-		log_error(ls, "add_to_waiters %x error %d flags %x %d %d %s",
+		log_error(ls, "addwait error %x %d flags %x %d %d %s",
 			  lkb->lkb_id, error, lkb->lkb_flags, mstype,
 			  lkb->lkb_wait_type, lkb->lkb_resource->res_name);
 	mutex_unlock(&ls->ls_waiters_mutex);
@@ -863,20 +863,52 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype)
    request reply on the requestqueue) between dlm_recover_waiters_pre() which
    set RESEND and dlm_recover_waiters_post() */
 
-static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype)
+static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype,
+				struct dlm_message *ms)
 {
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
 	int overlap_done = 0;
 
 	if (is_overlap_unlock(lkb) && (mstype == DLM_MSG_UNLOCK_REPLY)) {
+		log_debug(ls, "remwait %x unlock_reply overlap", lkb->lkb_id);
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_UNLOCK;
 		overlap_done = 1;
 		goto out_del;
 	}
 
 	if (is_overlap_cancel(lkb) && (mstype == DLM_MSG_CANCEL_REPLY)) {
+		log_debug(ls, "remwait %x cancel_reply overlap", lkb->lkb_id);
 		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
 		overlap_done = 1;
+		goto out_del;
+	}
+
+	/* Cancel state was preemptively cleared by a successful convert,
+	   see next comment, nothing to do. */
+
+	if ((mstype == DLM_MSG_CANCEL_REPLY) &&
+	    (lkb->lkb_wait_type != DLM_MSG_CANCEL)) {
+		log_debug(ls, "remwait %x cancel_reply wait_type %d",
+			  lkb->lkb_id, lkb->lkb_wait_type);
+		return -1;
+	}
+
+	/* Remove for the convert reply, and premptively remove for the
+	   cancel reply.  A convert has been granted while there's still
+	   an outstanding cancel on it (the cancel is moot and the result
+	   in the cancel reply should be 0).  We preempt the cancel reply
+	   because the app gets the convert result and then can follow up
+	   with another op, like convert.  This subsequent op would see the
+	   lingering state of the cancel and fail with -EBUSY. */
+
+	if ((mstype == DLM_MSG_CONVERT_REPLY) &&
+	    (lkb->lkb_wait_type == DLM_MSG_CONVERT) &&
+	    is_overlap_cancel(lkb) && ms && !ms->m_result) {
+		log_debug(ls, "remwait %x convert_reply zap overlap_cancel",
+			  lkb->lkb_id);
+		lkb->lkb_wait_type = 0;
+		lkb->lkb_flags &= ~DLM_IFL_OVERLAP_CANCEL;
+		lkb->lkb_wait_count--;
 		goto out_del;
 	}
 
@@ -888,8 +920,8 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype)
 		goto out_del;
 	}
 
-	log_error(ls, "remove_from_waiters lkid %x flags %x types %d %d",
-		  lkb->lkb_id, lkb->lkb_flags, mstype, lkb->lkb_wait_type);
+	log_error(ls, "remwait error %x reply %d flags %x no wait_type",
+		  lkb->lkb_id, mstype, lkb->lkb_flags);
 	return -1;
 
  out_del:
@@ -899,7 +931,7 @@ static int _remove_from_waiters(struct dlm_lkb *lkb, int mstype)
 	   this would happen */
 
 	if (overlap_done && lkb->lkb_wait_type) {
-		log_error(ls, "remove_from_waiters %x reply %d give up on %d",
+		log_error(ls, "remwait error %x reply %d wait_type %d overlap",
 			  lkb->lkb_id, mstype, lkb->lkb_wait_type);
 		lkb->lkb_wait_count--;
 		lkb->lkb_wait_type = 0;
@@ -921,7 +953,7 @@ static int remove_from_waiters(struct dlm_lkb *lkb, int mstype)
 	int error;
 
 	mutex_lock(&ls->ls_waiters_mutex);
-	error = _remove_from_waiters(lkb, mstype);
+	error = _remove_from_waiters(lkb, mstype, NULL);
 	mutex_unlock(&ls->ls_waiters_mutex);
 	return error;
 }
@@ -936,7 +968,7 @@ static int remove_from_waiters_ms(struct dlm_lkb *lkb, struct dlm_message *ms)
 
 	if (ms != &ls->ls_stub_ms)
 		mutex_lock(&ls->ls_waiters_mutex);
-	error = _remove_from_waiters(lkb, ms->m_type);
+	error = _remove_from_waiters(lkb, ms->m_type, ms);
 	if (ms != &ls->ls_stub_ms)
 		mutex_unlock(&ls->ls_waiters_mutex);
 	return error;
@@ -2083,6 +2115,11 @@ static int validate_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_timeout_cs = args->timeout;
 	rv = 0;
  out:
+	if (rv)
+		log_debug(ls, "validate_lock_args %d %x %x %x %d %d %s",
+			  rv, lkb->lkb_id, lkb->lkb_flags, args->flags,
+			  lkb->lkb_status, lkb->lkb_wait_type,
+			  lkb->lkb_resource->res_name);
 	return rv;
 }
 
@@ -2145,6 +2182,13 @@ static int validate_unlock_args(struct dlm_lkb *lkb, struct dlm_args *args)
 
 		if (lkb->lkb_flags & DLM_IFL_RESEND) {
 			lkb->lkb_flags |= DLM_IFL_OVERLAP_CANCEL;
+			rv = -EBUSY;
+			goto out;
+		}
+
+		/* there's nothing to cancel */
+		if (lkb->lkb_status == DLM_LKSTS_GRANTED &&
+		    !lkb->lkb_wait_type) {
 			rv = -EBUSY;
 			goto out;
 		}

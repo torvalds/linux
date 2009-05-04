@@ -12,6 +12,7 @@
 #define _PLATFORM_DEVICE_H_
 
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 
 struct platform_device {
 	const char	* name;
@@ -19,7 +20,12 @@ struct platform_device {
 	struct device	dev;
 	u32		num_resources;
 	struct resource	* resource;
+	void		*platform_data;
+
+	struct platform_device_id	*id_entry;
 };
+
+#define platform_get_device_id(pdev)	((pdev)->id_entry)
 
 #define to_platform_device(x) container_of((x), struct platform_device, dev)
 
@@ -56,6 +62,7 @@ struct platform_driver {
 	int (*resume_early)(struct platform_device *);
 	int (*resume)(struct platform_device *);
 	struct device_driver driver;
+	struct platform_device_id *id_table;
 };
 
 extern int platform_driver_register(struct platform_driver *);
@@ -69,5 +76,47 @@ extern int platform_driver_probe(struct platform_driver *driver,
 
 #define platform_get_drvdata(_dev)	dev_get_drvdata(&(_dev)->dev)
 #define platform_set_drvdata(_dev,data)	dev_set_drvdata(&(_dev)->dev, (data))
+
+/* early platform driver interface */
+struct early_platform_driver {
+	const char *class_str;
+	struct platform_driver *pdrv;
+	struct list_head list;
+	int requested_id;
+};
+
+#define EARLY_PLATFORM_ID_UNSET -2
+#define EARLY_PLATFORM_ID_ERROR -3
+
+extern int early_platform_driver_register(struct early_platform_driver *epdrv,
+					  char *buf);
+extern void early_platform_add_devices(struct platform_device **devs, int num);
+
+static inline int is_early_platform_device(struct platform_device *pdev)
+{
+	return !pdev->dev.driver;
+}
+
+extern void early_platform_driver_register_all(char *class_str);
+extern int early_platform_driver_probe(char *class_str,
+				       int nr_probe, int user_only);
+extern void early_platform_cleanup(void);
+
+
+#ifndef MODULE
+#define early_platform_init(class_string, platform_driver)		\
+static __initdata struct early_platform_driver early_driver = {		\
+	.class_str = class_string,					\
+	.pdrv = platform_driver,					\
+	.requested_id = EARLY_PLATFORM_ID_UNSET,			\
+};									\
+static int __init early_platform_driver_setup_func(char *buf)		\
+{									\
+	return early_platform_driver_register(&early_driver, buf);	\
+}									\
+early_param(class_string, early_platform_driver_setup_func)
+#else /* MODULE */
+#define early_platform_init(class_string, platform_driver)
+#endif /* MODULE */
 
 #endif /* _PLATFORM_DEVICE_H_ */

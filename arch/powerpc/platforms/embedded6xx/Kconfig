@@ -1,6 +1,6 @@
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based boards"
-	depends on PPC32 && BROKEN_ON_SMP && PPC_MULTIPLATFORM
+	depends on 6xx && BROKEN_ON_SMP
 
 config LINKSTATION
 	bool "Linkstation / Kurobox(HG) from Buffalo"

@@ -41,14 +41,13 @@
 
 #include <net/bluetooth/bluetooth.h>
 
-#define VERSION "2.14"
+#define VERSION "2.15"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
 static struct net_proto_family *bt_proto[BT_MAX_PROTO];
 static DEFINE_RWLOCK(bt_proto_lock);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key bt_lock_key[BT_MAX_PROTO];
 static const char *bt_key_strings[BT_MAX_PROTO] = {
 	"sk_lock-AF_BLUETOOTH-BTPROTO_L2CAP",
@@ -86,11 +85,6 @@ static inline void bt_sock_reclassify_lock(struct socket *sock, int proto)
 			bt_slock_key_strings[proto], &bt_slock_key[proto],
 				bt_key_strings[proto], &bt_lock_key[proto]);
 }
-#else
-static inline void bt_sock_reclassify_lock(struct socket *sock, int proto)
-{
-}
-#endif
 
 int bt_sock_register(int proto, struct net_proto_family *ops)
 {
@@ -217,7 +211,8 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 			continue;
 		}
 
-		if (sk->sk_state == BT_CONNECTED || !newsock) {
+		if (sk->sk_state == BT_CONNECTED || !newsock ||
+						bt_sk(parent)->defer_setup) {
 			bt_accept_unlink(sk);
 			if (newsock)
 				sock_graft(sk, newsock);
@@ -232,7 +227,7 @@ struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock)
 EXPORT_SYMBOL(bt_accept_dequeue);
 
 int bt_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
-	struct msghdr *msg, size_t len, int flags)
+				struct msghdr *msg, size_t len, int flags)
 {
 	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
@@ -277,7 +272,9 @@ static inline unsigned int bt_accept_poll(struct sock *parent)
 
 	list_for_each_safe(p, n, &bt_sk(parent)->accept_q) {
 		sk = (struct sock *) list_entry(p, struct bt_sock, accept_q);
-		if (sk->sk_state == BT_CONNECTED)
+		if (sk->sk_state == BT_CONNECTED ||
+					(bt_sk(parent)->defer_setup &&
+						sk->sk_state == BT_CONNECT2))
 			return POLLIN | POLLRDNORM;
 	}
 

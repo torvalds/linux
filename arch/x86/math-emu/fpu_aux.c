@@ -30,20 +30,29 @@ static void fclex(void)
 }
 
 /* Needs to be externally visible */
-void finit(void)
+void finit_task(struct task_struct *tsk)
 {
-	control_word = 0x037f;
-	partial_status = 0;
-	top = 0;		/* We don't keep top in the status word internally. */
-	fpu_tag_word = 0xffff;
+	struct i387_soft_struct *soft = &tsk->thread.xstate->soft;
+	struct address *oaddr, *iaddr;
+	soft->cwd = 0x037f;
+	soft->swd = 0;
+	soft->ftop = 0;	/* We don't keep top in the status word internally. */
+	soft->twd = 0xffff;
 	/* The behaviour is different from that detailed in
 	   Section 15.1.6 of the Intel manual */
-	operand_address.offset = 0;
-	operand_address.selector = 0;
-	instruction_address.offset = 0;
-	instruction_address.selector = 0;
-	instruction_address.opcode = 0;
-	no_ip_update = 1;
+	oaddr = (struct address *)&soft->foo;
+	oaddr->offset = 0;
+	oaddr->selector = 0;
+	iaddr = (struct address *)&soft->fip;
+	iaddr->offset = 0;
+	iaddr->selector = 0;
+	iaddr->opcode = 0;
+	soft->no_update = 1;
+}
+
+void finit(void)
+{
+	finit_task(current);
 }
 
 /*

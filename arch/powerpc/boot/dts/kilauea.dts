@@ -90,8 +90,18 @@
 		clock-frequency = <0>; /* Filled in by U-Boot */
 
 		SDRAM0: memory-controller {
-			compatible = "ibm,sdram-405ex";
+			compatible = "ibm,sdram-405ex", "ibm,sdram-4xx-ddr2";
 			dcr-reg = <0x010 0x002>;
+			interrupt-parent = <&UIC2>;
+			interrupts = <0x5 0x4	/* ECC DED Error */ 
+				      0x6 0x4>;	/* ECC SEC Error */ 
+		};
+
+		CRYPTO: crypto@ef700000 {
+			compatible = "amcc,ppc405ex-crypto", "amcc,ppc4xx-crypto";
+			reg = <0xef700000 0x80400>;
+			interrupt-parent = <&UIC0>;
+			interrupts = <0x17 0x2>;
 		};
 
 		MAL0: mcmal {

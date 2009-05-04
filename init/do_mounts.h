@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/blkdev.h>
 #include <linux/init.h>
 #include <linux/syscalls.h>
 #include <linux/unistd.h>

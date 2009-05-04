@@ -130,9 +130,18 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 static int symbol_valid(struct sym_entry *s)
 {
 	/* Symbols which vary between passes.  Passes 1 and 2 must have
-	 * identical symbol lists.
+	 * identical symbol lists.  The kallsyms_* symbols below are only added
+	 * after pass 1, they would be included in pass 2 when --all-symbols is
+	 * specified so exclude them to get a stable symbol list.
 	 */
 	static char *special_symbols[] = {
+		"kallsyms_addresses",
+		"kallsyms_num_syms",
+		"kallsyms_names",
+		"kallsyms_markers",
+		"kallsyms_token_table",
+		"kallsyms_token_index",
+
 	/* Exclude linker generated symbols which vary between passes */
 		"_SDA_BASE_",		/* ppc */
 		"_SDA2_BASE_",		/* ppc */
@@ -164,9 +173,7 @@ static int symbol_valid(struct sym_entry *s)
 	}
 
 	/* Exclude symbols which vary between passes. */
-	if (strstr((char *)s->sym + offset, "_compiled.") ||
-	    strncmp((char*)s->sym + offset, "__compound_literal.", 19) == 0 ||
-	    strncmp((char*)s->sym + offset, "__compound_literal$", 19) == 0)
+	if (strstr((char *)s->sym + offset, "_compiled."))
 		return 0;
 
 	for (i = 0; special_symbols[i]; i++)
@@ -493,6 +500,51 @@ static void optimize_token_table(void)
 	optimize_result();
 }
 
+/* guess for "linker script provide" symbol */
+static int may_be_linker_script_provide_symbol(const struct sym_entry *se)
+{
+	const char *symbol = (char *)se->sym + 1;
+	int len = se->len - 1;
+
+	if (len < 8)
+		return 0;
+
+	if (symbol[0] != '_' || symbol[1] != '_')
+		return 0;
+
+	/* __start_XXXXX */
+	if (!memcmp(symbol + 2, "start_", 6))
+		return 1;
+
+	/* __stop_XXXXX */
+	if (!memcmp(symbol + 2, "stop_", 5))
+		return 1;
+
+	/* __end_XXXXX */
+	if (!memcmp(symbol + 2, "end_", 4))
+		return 1;
+
+	/* __XXXXX_start */
+	if (!memcmp(symbol + len - 6, "_start", 6))
+		return 1;
+
+	/* __XXXXX_end */
+	if (!memcmp(symbol + len - 4, "_end", 4))
+		return 1;
+
+	return 0;
+}
+
+static int prefix_underscores_count(const char *str)
+{
+	const char *tail = str;
+
+	while (*tail != '_')
+		tail++;
+
+	return tail - str;
+}
+
 static int compare_symbols(const void *a, const void *b)
 {
 	const struct sym_entry *sa;
@@ -511,6 +563,18 @@ static int compare_symbols(const void *a, const void *b)
 	/* sort by "weakness" type */
 	wa = (sa->sym[0] == 'w') || (sa->sym[0] == 'W');
 	wb = (sb->sym[0] == 'w') || (sb->sym[0] == 'W');
+	if (wa != wb)
+		return wa - wb;
+
+	/* sort by "linker script provide" type */
+	wa = may_be_linker_script_provide_symbol(sa);
+	wb = may_be_linker_script_provide_symbol(sb);
+	if (wa != wb)
+		return wa - wb;
+
+	/* sort by the number of prefix underscores */
+	wa = prefix_underscores_count((const char *)sa->sym + 1);
+	wb = prefix_underscores_count((const char *)sb->sym + 1);
 	if (wa != wb)
 		return wa - wb;
 
@@ -543,10 +607,8 @@ int main(int argc, char **argv)
 		usage();
 
 	read_map(stdin);
-	if (table_cnt) {
-		sort_symbols();
-		optimize_token_table();
-	}
+	sort_symbols();
+	optimize_token_table();
 	write_src();
 
 	return 0;

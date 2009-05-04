@@ -584,7 +584,8 @@ static void snd_es1370_codec_write(struct snd_ak4531 *ak4531,
 	unsigned long end_time = jiffies + HZ / 10;
 
 #if 0
-	printk("CODEC WRITE: reg = 0x%x, val = 0x%x (0x%x), creg = 0x%x\n",
+	printk(KERN_DEBUG
+	       "CODEC WRITE: reg = 0x%x, val = 0x%x (0x%x), creg = 0x%x\n",
 	       reg, val, ES_1370_CODEC_WRITE(reg, val), ES_REG(ensoniq, 1370_CODEC));
 #endif
 	do {

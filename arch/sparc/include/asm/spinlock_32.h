@@ -177,6 +177,8 @@ static inline int __read_trylock(raw_rwlock_t *rw)
 #define __raw_write_unlock(rw)	do { (rw)->lock = 0; } while(0)
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+#define __raw_read_lock_flags(rw, flags)   __raw_read_lock(rw)
+#define __raw_write_lock_flags(rw, flags)  __raw_write_lock(rw)
 
 #define _raw_spin_relax(lock)	cpu_relax()
 #define _raw_read_relax(lock)	cpu_relax()

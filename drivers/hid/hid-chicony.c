@@ -76,5 +76,3 @@ static void ch_exit(void)
 module_init(ch_init);
 module_exit(ch_exit);
 MODULE_LICENSE("GPL");
-
-HID_COMPAT_LOAD_DRIVER(chicony);

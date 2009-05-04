@@ -42,12 +42,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/bitfield.h>
+#include <mach/pxa25x.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
-#include <mach/mfp-pxa25x.h>
 #include <mach/i2c.h>
 #include <mach/viper.h>
 
@@ -956,7 +953,7 @@ static struct map_desc viper_io_desc[] __initdata = {
 	},
 	{
 		.virtual = VIPER_PC104IO_BASE,
-		.pfn     = __phys_to_pfn(_PCMCIA1IO),
+		.pfn     = __phys_to_pfn(0x30000000),
 		.length  = 0x00800000,
 		.type    = MT_DEVICE,
 	},

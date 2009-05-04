@@ -219,16 +219,20 @@ static int adfs_remount(struct super_block *sb, int *flags, char *data)
 
 static int adfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	struct adfs_sb_info *asb = ADFS_SB(dentry->d_sb);
+	struct super_block *sb = dentry->d_sb;
+	struct adfs_sb_info *sbi = ADFS_SB(sb);
+	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
 	buf->f_type    = ADFS_SUPER_MAGIC;
-	buf->f_namelen = asb->s_namelen;
-	buf->f_bsize   = dentry->d_sb->s_blocksize;
-	buf->f_blocks  = asb->s_size;
-	buf->f_files   = asb->s_ids_per_zone * asb->s_map_size;
+	buf->f_namelen = sbi->s_namelen;
+	buf->f_bsize   = sb->s_blocksize;
+	buf->f_blocks  = sbi->s_size;
+	buf->f_files   = sbi->s_ids_per_zone * sbi->s_map_size;
 	buf->f_bavail  =
-	buf->f_bfree   = adfs_map_free(dentry->d_sb);
+	buf->f_bfree   = adfs_map_free(sb);
 	buf->f_ffree   = (long)(buf->f_bfree * buf->f_files) / (long)buf->f_blocks;
+	buf->f_fsid.val[0] = (u32)id;
+	buf->f_fsid.val[1] = (u32)(id >> 32);
 
 	return 0;
 }

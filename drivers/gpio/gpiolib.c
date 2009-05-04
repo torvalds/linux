@@ -69,20 +69,24 @@ static inline void desc_set_label(struct gpio_desc *d, const char *label)
  * those calls have no teeth) we can't avoid autorequesting.  This nag
  * message should motivate switching to explicit requests... so should
  * the weaker cleanup after faults, compared to gpio_request().
+ *
+ * NOTE: the autorequest mechanism is going away; at this point it's
+ * only "legal" in the sense that (old) code using it won't break yet,
+ * but instead only triggers a WARN() stack dump.
  */
 static int gpio_ensure_requested(struct gpio_desc *desc, unsigned offset)
 {
-	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
-		struct gpio_chip *chip = desc->chip;
-		int gpio = chip->base + offset;
+	const struct gpio_chip *chip = desc->chip;
+	const int gpio = chip->base + offset;
 
+	if (WARN(test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0,
+			"autorequest GPIO-%d\n", gpio)) {
 		if (!try_module_get(chip->owner)) {
 			pr_err("GPIO-%d: module can't be gotten \n", gpio);
 			clear_bit(FLAG_REQUESTED, &desc->flags);
 			/* lose */
 			return -EIO;
 		}
-		pr_warning("GPIO-%d autorequested\n", gpio);
 		desc_set_label(desc, "[auto]");
 		/* caller must chip->request() w/o spinlock */
 		if (chip->request)
@@ -438,6 +442,7 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 	unsigned long		flags;
 	struct gpio_desc	*desc;
 	int			status = -EINVAL;
+	char			*ioname = NULL;
 
 	/* can't export until sysfs is available ... */
 	if (!gpio_class.p) {
@@ -461,11 +466,14 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
+	if (desc->chip->names && desc->chip->names[gpio - desc->chip->base])
+		ioname = desc->chip->names[gpio - desc->chip->base];
+
 	if (status == 0) {
 		struct device	*dev;
 
 		dev = device_create(&gpio_class, desc->chip->dev, MKDEV(0, 0),
-					desc, "gpio%d", gpio);
+				    desc, ioname ? ioname : "gpio%d", gpio);
 		if (dev) {
 			if (direction_may_change)
 				status = sysfs_create_group(&dev->kobj,
@@ -513,6 +521,7 @@ void gpio_unexport(unsigned gpio)
 	mutex_lock(&sysfs_lock);
 
 	desc = &gpio_desc[gpio];
+
 	if (test_bit(FLAG_EXPORT, &desc->flags)) {
 		struct device	*dev = NULL;
 
@@ -789,6 +798,7 @@ int gpio_request(unsigned gpio, const char *label)
 	} else {
 		status = -EBUSY;
 		module_put(chip->owner);
+		goto done;
 	}
 
 	if (chip->request) {

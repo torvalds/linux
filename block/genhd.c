@@ -98,7 +98,7 @@ void disk_part_iter_init(struct disk_part_iter *piter, struct gendisk *disk,
 
 	if (flags & DISK_PITER_REVERSE)
 		piter->idx = ptbl->len - 1;
-	else if (flags & DISK_PITER_INCL_PART0)
+	else if (flags & (DISK_PITER_INCL_PART0 | DISK_PITER_INCL_EMPTY_PART0))
 		piter->idx = 0;
 	else
 		piter->idx = 1;
@@ -134,7 +134,8 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 	/* determine iteration parameters */
 	if (piter->flags & DISK_PITER_REVERSE) {
 		inc = -1;
-		if (piter->flags & DISK_PITER_INCL_PART0)
+		if (piter->flags & (DISK_PITER_INCL_PART0 |
+				    DISK_PITER_INCL_EMPTY_PART0))
 			end = -1;
 		else
 			end = 0;
@@ -150,7 +151,10 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 		part = rcu_dereference(ptbl->part[piter->idx]);
 		if (!part)
 			continue;
-		if (!(piter->flags & DISK_PITER_INCL_EMPTY) && !part->nr_sects)
+		if (!part->nr_sects &&
+		    !(piter->flags & DISK_PITER_INCL_EMPTY) &&
+		    !(piter->flags & DISK_PITER_INCL_EMPTY_PART0 &&
+		      piter->idx == 0))
 			continue;
 
 		get_device(part_to_dev(part));
@@ -256,6 +260,22 @@ void blkdev_show(struct seq_file *seqf, off_t offset)
 }
 #endif /* CONFIG_PROC_FS */
 
+/**
+ * register_blkdev - register a new block device
+ *
+ * @major: the requested major device number [1..255]. If @major=0, try to
+ *         allocate any unused major number.
+ * @name: the name of the new block device as a zero terminated string
+ *
+ * The @name must be unique within the system.
+ *
+ * The return value depends on the @major input parameter.
+ *  - if a major device number was requested in range [1..255] then the
+ *    function returns zero on success, or a negative error code
+ *  - if any unused major number was requested with @major=0 parameter
+ *    then the return value is the allocated major number in range
+ *    [1..255] or a negative error code otherwise
+ */
 int register_blkdev(unsigned int major, const char *name)
 {
 	struct blk_major_name **n, *p;
@@ -995,7 +1015,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 				"\n\n");
 	*/
  
-	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_PART0);
+	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_EMPTY_PART0);
 	while ((hd = disk_part_iter_next(&piter))) {
 		cpu = part_stat_lock();
 		part_round_stats(cpu, hd);
@@ -1087,6 +1107,14 @@ dev_t blk_lookup_devt(const char *name, int partno)
 		if (strcmp(dev_name(dev), name))
 			continue;
 
+		if (partno < disk->minors) {
+			/* We need to return the right devno, even
+			 * if the partition doesn't exist yet.
+			 */
+			devt = MKDEV(MAJOR(dev->devt),
+				     MINOR(dev->devt) + partno);
+			break;
+		}
 		part = disk_get_part(disk, partno);
 		if (part) {
 			devt = part_devt(part);

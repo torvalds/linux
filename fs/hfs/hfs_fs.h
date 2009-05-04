@@ -213,7 +213,7 @@ extern void hfs_mdb_put(struct super_block *);
 extern int hfs_part_find(struct super_block *, sector_t *, sector_t *);
 
 /* string.c */
-extern struct dentry_operations hfs_dentry_operations;
+extern const struct dentry_operations hfs_dentry_operations;
 
 extern int hfs_hash_dentry(struct dentry *, struct qstr *);
 extern int hfs_strcmp(const unsigned char *, unsigned int,

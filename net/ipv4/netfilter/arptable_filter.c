@@ -48,8 +48,6 @@ static struct
 static struct xt_table packet_filter = {
 	.name		= "filter",
 	.valid_hooks	= FILTER_VALID_HOOKS,
-	.lock		= __RW_LOCK_UNLOCKED(packet_filter.lock),
-	.private	= NULL,
 	.me		= THIS_MODULE,
 	.af		= NFPROTO_ARP,
 };

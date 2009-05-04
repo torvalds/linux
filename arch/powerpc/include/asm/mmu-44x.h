@@ -83,6 +83,8 @@ typedef struct {
 #define PPC44x_TLBE_SIZE	PPC44x_TLB_16K
 #elif (PAGE_SHIFT == 16)
 #define PPC44x_TLBE_SIZE	PPC44x_TLB_64K
+#elif (PAGE_SHIFT == 18)
+#define PPC44x_TLBE_SIZE	PPC44x_TLB_256K
 #else
 #error "Unsupported PAGE_SIZE"
 #endif

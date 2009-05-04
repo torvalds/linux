@@ -3,6 +3,7 @@
 #
 obj-y				:= misc.o usb.o
 obj-$(CONFIG_SUSPEND)		+= suspend.o suspend-asm.o
+obj-$(CONFIG_MCU_MPC8349EMITX)	+= mcu_mpc8349emitx.o
 obj-$(CONFIG_MPC831x_RDB)	+= mpc831x_rdb.o
 obj-$(CONFIG_MPC832x_RDB)	+= mpc832x_rdb.o
 obj-$(CONFIG_MPC834x_MDS)	+= mpc834x_mds.o

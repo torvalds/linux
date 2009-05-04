@@ -224,156 +224,143 @@ int snd_rawmidi_drain_input(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
+/* look for an available substream for the given stream direction;
+ * if a specific subdevice is given, try to assign it
+ */
+static int assign_substream(struct snd_rawmidi *rmidi, int subdevice,
+			    int stream, int mode,
+			    struct snd_rawmidi_substream **sub_ret)
+{
+	struct snd_rawmidi_substream *substream;
+	struct snd_rawmidi_str *s = &rmidi->streams[stream];
+	static unsigned int info_flags[2] = {
+		[SNDRV_RAWMIDI_STREAM_OUTPUT] = SNDRV_RAWMIDI_INFO_OUTPUT,
+		[SNDRV_RAWMIDI_STREAM_INPUT] = SNDRV_RAWMIDI_INFO_INPUT,
+	};
+
+	if (!(rmidi->info_flags & info_flags[stream]))
+		return -ENXIO;
+	if (subdevice >= 0 && subdevice >= s->substream_count)
+		return -ENODEV;
+	if (s->substream_opened >= s->substream_count)
+		return -EAGAIN;
+
+	list_for_each_entry(substream, &s->substreams, list) {
+		if (substream->opened) {
+			if (stream == SNDRV_RAWMIDI_STREAM_INPUT ||
+			    !(mode & SNDRV_RAWMIDI_LFLG_APPEND))
+				continue;
+		}
+		if (subdevice < 0 || subdevice == substream->number) {
+			*sub_ret = substream;
+			return 0;
+		}
+	}
+	return -EAGAIN;
+}
+
+/* open and do ref-counting for the given substream */
+static int open_substream(struct snd_rawmidi *rmidi,
+			  struct snd_rawmidi_substream *substream,
+			  int mode)
+{
+	int err;
+
+	err = snd_rawmidi_runtime_create(substream);
+	if (err < 0)
+		return err;
+	err = substream->ops->open(substream);
+	if (err < 0)
+		return err;
+	substream->opened = 1;
+	if (substream->use_count++ == 0)
+		substream->active_sensing = 1;
+	if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
+		substream->append = 1;
+	rmidi->streams[substream->stream].substream_opened++;
+	return 0;
+}
+
+static void close_substream(struct snd_rawmidi *rmidi,
+			    struct snd_rawmidi_substream *substream,
+			    int cleanup);
+
+static int rawmidi_open_priv(struct snd_rawmidi *rmidi, int subdevice, int mode,
+			     struct snd_rawmidi_file *rfile)
+{
+	struct snd_rawmidi_substream *sinput = NULL, *soutput = NULL;
+	int err;
+
+	rfile->input = rfile->output = NULL;
+	if (mode & SNDRV_RAWMIDI_LFLG_INPUT) {
+		err = assign_substream(rmidi, subdevice,
+				       SNDRV_RAWMIDI_STREAM_INPUT,
+				       mode, &sinput);
+		if (err < 0)
+			goto __error;
+	}
+	if (mode & SNDRV_RAWMIDI_LFLG_OUTPUT) {
+		err = assign_substream(rmidi, subdevice,
+				       SNDRV_RAWMIDI_STREAM_OUTPUT,
+				       mode, &soutput);
+		if (err < 0)
+			goto __error;
+	}
+
+	if (sinput) {
+		err = open_substream(rmidi, sinput, mode);
+		if (err < 0)
+			goto __error;
+	}
+	if (soutput) {
+		err = open_substream(rmidi, soutput, mode);
+		if (err < 0) {
+			if (sinput)
+				close_substream(rmidi, sinput, 0);
+			goto __error;
+		}
+	}
+
+	rfile->rmidi = rmidi;
+	rfile->input = sinput;
+	rfile->output = soutput;
+	return 0;
+
+      __error:
+	if (sinput && sinput->runtime)
+		snd_rawmidi_runtime_free(sinput);
+	if (soutput && soutput->runtime)
+		snd_rawmidi_runtime_free(soutput);
+	return err;
+}
+
+/* called from sound/core/seq/seq_midi.c */
 int snd_rawmidi_kernel_open(struct snd_card *card, int device, int subdevice,
 			    int mode, struct snd_rawmidi_file * rfile)
 {
 	struct snd_rawmidi *rmidi;
-	struct list_head *list1, *list2;
-	struct snd_rawmidi_substream *sinput = NULL, *soutput = NULL;
-	struct snd_rawmidi_runtime *input = NULL, *output = NULL;
 	int err;
 
-	if (rfile)
-		rfile->input = rfile->output = NULL;
+	if (snd_BUG_ON(!rfile))
+		return -EINVAL;
+
 	mutex_lock(&register_mutex);
 	rmidi = snd_rawmidi_search(card, device);
-	mutex_unlock(&register_mutex);
 	if (rmidi == NULL) {
-		err = -ENODEV;
-		goto __error1;
+		mutex_unlock(&register_mutex);
+		return -ENODEV;
 	}
 	if (!try_module_get(rmidi->card->module)) {
-		err = -EFAULT;
-		goto __error1;
+		mutex_unlock(&register_mutex);
+		return -ENXIO;
 	}
-	if (!(mode & SNDRV_RAWMIDI_LFLG_NOOPENLOCK))
-		mutex_lock(&rmidi->open_mutex);
-	if (mode & SNDRV_RAWMIDI_LFLG_INPUT) {
-		if (!(rmidi->info_flags & SNDRV_RAWMIDI_INFO_INPUT)) {
-			err = -ENXIO;
-			goto __error;
-		}
-		if (subdevice >= 0 && (unsigned int)subdevice >= rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substream_count) {
-			err = -ENODEV;
-			goto __error;
-		}
-		if (rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substream_opened >=
-		    rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substream_count) {
-			err = -EAGAIN;
-			goto __error;
-		}
-	}
-	if (mode & SNDRV_RAWMIDI_LFLG_OUTPUT) {
-		if (!(rmidi->info_flags & SNDRV_RAWMIDI_INFO_OUTPUT)) {
-			err = -ENXIO;
-			goto __error;
-		}
-		if (subdevice >= 0 && (unsigned int)subdevice >= rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substream_count) {
-			err = -ENODEV;
-			goto __error;
-		}
-		if (rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substream_opened >=
-		    rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substream_count) {
-			err = -EAGAIN;
-			goto __error;
-		}
-	}
-	list1 = rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substreams.next;
-	while (1) {
-		if (list1 == &rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substreams) {
-			sinput = NULL;
-			if (mode & SNDRV_RAWMIDI_LFLG_INPUT) {
-				err = -EAGAIN;
-				goto __error;
-			}
-			break;
-		}
-		sinput = list_entry(list1, struct snd_rawmidi_substream, list);
-		if ((mode & SNDRV_RAWMIDI_LFLG_INPUT) && sinput->opened)
-			goto __nexti;
-		if (subdevice < 0 || (subdevice >= 0 && subdevice == sinput->number))
-			break;
-	      __nexti:
-		list1 = list1->next;
-	}
-	list2 = rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams.next;
-	while (1) {
-		if (list2 == &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substreams) {
-			soutput = NULL;
-			if (mode & SNDRV_RAWMIDI_LFLG_OUTPUT) {
-				err = -EAGAIN;
-				goto __error;
-			}
-			break;
-		}
-		soutput = list_entry(list2, struct snd_rawmidi_substream, list);
-		if (mode & SNDRV_RAWMIDI_LFLG_OUTPUT) {
-			if (mode & SNDRV_RAWMIDI_LFLG_APPEND) {
-				if (soutput->opened && !soutput->append)
-					goto __nexto;
-			} else {
-				if (soutput->opened)
-					goto __nexto;
-			}
-		}
-		if (subdevice < 0 || (subdevice >= 0 && subdevice == soutput->number))
-			break;
-	      __nexto:
-		list2 = list2->next;
-	}
-	if (mode & SNDRV_RAWMIDI_LFLG_INPUT) {
-		if ((err = snd_rawmidi_runtime_create(sinput)) < 0)
-			goto __error;
-		input = sinput->runtime;
-		if ((err = sinput->ops->open(sinput)) < 0)
-			goto __error;
-		sinput->opened = 1;
-		rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substream_opened++;
-	} else {
-		sinput = NULL;
-	}
-	if (mode & SNDRV_RAWMIDI_LFLG_OUTPUT) {
-		if (soutput->opened)
-			goto __skip_output;
-		if ((err = snd_rawmidi_runtime_create(soutput)) < 0) {
-			if (mode & SNDRV_RAWMIDI_LFLG_INPUT)
-				sinput->ops->close(sinput);
-			goto __error;
-		}
-		output = soutput->runtime;
-		if ((err = soutput->ops->open(soutput)) < 0) {
-			if (mode & SNDRV_RAWMIDI_LFLG_INPUT)
-				sinput->ops->close(sinput);
-			goto __error;
-		}
-	      __skip_output:
-		soutput->opened = 1;
-		if (mode & SNDRV_RAWMIDI_LFLG_APPEND)
-			soutput->append = 1;
-	      	if (soutput->use_count++ == 0)
-			soutput->active_sensing = 1;
-		rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substream_opened++;
-	} else {
-		soutput = NULL;
-	}
-	if (!(mode & SNDRV_RAWMIDI_LFLG_NOOPENLOCK))
-		mutex_unlock(&rmidi->open_mutex);
-	if (rfile) {
-		rfile->rmidi = rmidi;
-		rfile->input = sinput;
-		rfile->output = soutput;
-	}
-	return 0;
+	mutex_unlock(&register_mutex);
 
-      __error:
-	if (input != NULL)
-		snd_rawmidi_runtime_free(sinput);
-	if (output != NULL)
-		snd_rawmidi_runtime_free(soutput);
-	module_put(rmidi->card->module);
-	if (!(mode & SNDRV_RAWMIDI_LFLG_NOOPENLOCK))
-		mutex_unlock(&rmidi->open_mutex);
-      __error1:
+	mutex_lock(&rmidi->open_mutex);
+	err = rawmidi_open_priv(rmidi, subdevice, mode, rfile);
+	mutex_unlock(&rmidi->open_mutex);
+	if (err < 0)
+		module_put(rmidi->card->module);
 	return err;
 }
 
@@ -385,9 +372,12 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 	unsigned short fflags;
 	int err;
 	struct snd_rawmidi *rmidi;
-	struct snd_rawmidi_file *rawmidi_file;
+	struct snd_rawmidi_file *rawmidi_file = NULL;
 	wait_queue_t wait;
 	struct snd_ctl_file *kctl;
+
+	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK)) 
+		return -EINVAL;		/* invalid combination */
 
 	if (maj == snd_major) {
 		rmidi = snd_lookup_minor_data(iminor(inode),
@@ -402,24 +392,25 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 
 	if (rmidi == NULL)
 		return -ENODEV;
-	if ((file->f_flags & O_APPEND) && !(file->f_flags & O_NONBLOCK)) 
-		return -EINVAL;		/* invalid combination */
+
+	if (!try_module_get(rmidi->card->module))
+		return -ENXIO;
+
+	mutex_lock(&rmidi->open_mutex);
 	card = rmidi->card;
 	err = snd_card_file_add(card, file);
 	if (err < 0)
-		return -ENODEV;
+		goto __error_card;
 	fflags = snd_rawmidi_file_flags(file);
 	if ((file->f_flags & O_APPEND) || maj == SOUND_MAJOR) /* OSS emul? */
 		fflags |= SNDRV_RAWMIDI_LFLG_APPEND;
-	fflags |= SNDRV_RAWMIDI_LFLG_NOOPENLOCK;
 	rawmidi_file = kmalloc(sizeof(*rawmidi_file), GFP_KERNEL);
 	if (rawmidi_file == NULL) {
-		snd_card_file_remove(card, file);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto __error;
 	}
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&rmidi->open_wait, &wait);
-	mutex_lock(&rmidi->open_mutex);
 	while (1) {
 		subdevice = -1;
 		read_lock(&card->ctl_files_rwlock);
@@ -431,8 +422,7 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 			}
 		}
 		read_unlock(&card->ctl_files_rwlock);
-		err = snd_rawmidi_kernel_open(rmidi->card, rmidi->device,
-					      subdevice, fflags, rawmidi_file);
+		err = rawmidi_open_priv(rmidi, subdevice, fflags, rawmidi_file);
 		if (err >= 0)
 			break;
 		if (err == -EAGAIN) {
@@ -451,67 +441,89 @@ static int snd_rawmidi_open(struct inode *inode, struct file *file)
 			break;
 		}
 	}
+	remove_wait_queue(&rmidi->open_wait, &wait);
+	if (err < 0) {
+		kfree(rawmidi_file);
+		goto __error;
+	}
 #ifdef CONFIG_SND_OSSEMUL
 	if (rawmidi_file->input && rawmidi_file->input->runtime)
 		rawmidi_file->input->runtime->oss = (maj == SOUND_MAJOR);
 	if (rawmidi_file->output && rawmidi_file->output->runtime)
 		rawmidi_file->output->runtime->oss = (maj == SOUND_MAJOR);
 #endif
-	remove_wait_queue(&rmidi->open_wait, &wait);
-	if (err >= 0) {
-		file->private_data = rawmidi_file;
-	} else {
-		snd_card_file_remove(card, file);
-		kfree(rawmidi_file);
-	}
+	file->private_data = rawmidi_file;
 	mutex_unlock(&rmidi->open_mutex);
+	return 0;
+
+ __error:
+	snd_card_file_remove(card, file);
+ __error_card:
+	mutex_unlock(&rmidi->open_mutex);
+	module_put(rmidi->card->module);
 	return err;
 }
 
-int snd_rawmidi_kernel_release(struct snd_rawmidi_file * rfile)
+static void close_substream(struct snd_rawmidi *rmidi,
+			    struct snd_rawmidi_substream *substream,
+			    int cleanup)
 {
-	struct snd_rawmidi *rmidi;
-	struct snd_rawmidi_substream *substream;
-	struct snd_rawmidi_runtime *runtime;
+	rmidi->streams[substream->stream].substream_opened--;
+	if (--substream->use_count)
+		return;
 
-	if (snd_BUG_ON(!rfile))
-		return -ENXIO;
-	rmidi = rfile->rmidi;
-	mutex_lock(&rmidi->open_mutex);
-	if (rfile->input != NULL) {
-		substream = rfile->input;
-		rfile->input = NULL;
-		runtime = substream->runtime;
-		snd_rawmidi_input_trigger(substream, 0);
-		substream->ops->close(substream);
-		if (runtime->private_free != NULL)
-			runtime->private_free(substream);
-		snd_rawmidi_runtime_free(substream);
-		substream->opened = 0;
-		rmidi->streams[SNDRV_RAWMIDI_STREAM_INPUT].substream_opened--;
-	}
-	if (rfile->output != NULL) {
-		substream = rfile->output;
-		rfile->output = NULL;
-		if (--substream->use_count == 0) {
-			runtime = substream->runtime;
+	if (cleanup) {
+		if (substream->stream == SNDRV_RAWMIDI_STREAM_INPUT)
+			snd_rawmidi_input_trigger(substream, 0);
+		else {
 			if (substream->active_sensing) {
 				unsigned char buf = 0xfe;
-				/* sending single active sensing message to shut the device up */
+				/* sending single active sensing message
+				 * to shut the device up
+				 */
 				snd_rawmidi_kernel_write(substream, &buf, 1);
 			}
 			if (snd_rawmidi_drain_output(substream) == -ERESTARTSYS)
 				snd_rawmidi_output_trigger(substream, 0);
-			substream->ops->close(substream);
-			if (runtime->private_free != NULL)
-				runtime->private_free(substream);
-			snd_rawmidi_runtime_free(substream);
-			substream->opened = 0;
-			substream->append = 0;
 		}
-		rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT].substream_opened--;
 	}
+	substream->ops->close(substream);
+	if (substream->runtime->private_free)
+		substream->runtime->private_free(substream);
+	snd_rawmidi_runtime_free(substream);
+	substream->opened = 0;
+	substream->append = 0;
+}
+
+static void rawmidi_release_priv(struct snd_rawmidi_file *rfile)
+{
+	struct snd_rawmidi *rmidi;
+
+	rmidi = rfile->rmidi;
+	mutex_lock(&rmidi->open_mutex);
+	if (rfile->input) {
+		close_substream(rmidi, rfile->input, 1);
+		rfile->input = NULL;
+	}
+	if (rfile->output) {
+		close_substream(rmidi, rfile->output, 1);
+		rfile->output = NULL;
+	}
+	rfile->rmidi = NULL;
 	mutex_unlock(&rmidi->open_mutex);
+	wake_up(&rmidi->open_wait);
+}
+
+/* called from sound/core/seq/seq_midi.c */
+int snd_rawmidi_kernel_release(struct snd_rawmidi_file *rfile)
+{
+	struct snd_rawmidi *rmidi;
+
+	if (snd_BUG_ON(!rfile))
+		return -ENXIO;
+	
+	rmidi = rfile->rmidi;
+	rawmidi_release_priv(rfile);
 	module_put(rmidi->card->module);
 	return 0;
 }
@@ -520,15 +532,14 @@ static int snd_rawmidi_release(struct inode *inode, struct file *file)
 {
 	struct snd_rawmidi_file *rfile;
 	struct snd_rawmidi *rmidi;
-	int err;
 
 	rfile = file->private_data;
-	err = snd_rawmidi_kernel_release(rfile);
 	rmidi = rfile->rmidi;
-	wake_up(&rmidi->open_wait);
+	rawmidi_release_priv(rfile);
 	kfree(rfile);
 	snd_card_file_remove(rmidi->card, file);
-	return err;
+	module_put(rmidi->card->module);
+	return 0;
 }
 
 static int snd_rawmidi_info(struct snd_rawmidi_substream *substream,

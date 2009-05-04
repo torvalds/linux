@@ -227,9 +227,9 @@ static void i_usX2Y_In04Int(struct urb *urb)
 	
 	if (usX2Y->US04) {
 		if (0 == usX2Y->US04->submitted)
-			do
+			do {
 				err = usb_submit_urb(usX2Y->US04->urb[usX2Y->US04->submitted++], GFP_ATOMIC);
-			while (!err && usX2Y->US04->submitted < usX2Y->US04->len);
+			} while (!err && usX2Y->US04->submitted < usX2Y->US04->len);
 	} else
 		if (us428ctls && us428ctls->p4outLast >= 0 && us428ctls->p4outLast < N_us428_p4out_BUFS) {
 			if (us428ctls->p4outLast != us428ctls->p4outSent) {

@@ -32,30 +32,16 @@ int force_iommu __read_mostly = 1;
 int force_iommu __read_mostly;
 #endif
 
-/* Set this to 1 if there is a HW IOMMU in the system */
-int iommu_detected __read_mostly;
-
 /* Dummy device used for NULL arguments (normally ISA). Better would
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to i386. */
 struct device fallback_dev = {
 	.init_name = "fallback device",
-	.coherent_dma_mask = DMA_32BIT_MASK,
+	.coherent_dma_mask = DMA_BIT_MASK(32),
 	.dma_mask = &fallback_dev.coherent_dma_mask,
 };
 
-void __init pci_iommu_alloc(void)
-{
-	/*
-	 * The order of these functions is important for
-	 * fall-back/fail-over reasons
-	 */
-	detect_intel_iommu();
-
-#ifdef CONFIG_SWIOTLB
-	pci_swiotlb_init();
-#endif
-}
+extern struct dma_map_ops intel_dma_ops;
 
 static int __init pci_iommu_init(void)
 {
@@ -79,20 +65,17 @@ iommu_dma_init(void)
 	return;
 }
 
-struct dma_mapping_ops *dma_ops;
-EXPORT_SYMBOL(dma_ops);
-
 int iommu_dma_supported(struct device *dev, u64 mask)
 {
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
+	struct dma_map_ops *ops = platform_dma_get_ops(dev);
 
-	if (ops->dma_supported_op)
-		return ops->dma_supported_op(dev, mask);
+	if (ops->dma_supported)
+		return ops->dma_supported(dev, mask);
 
 	/* Copied from i386. Doesn't make much sense, because it will
 	   only work for pci_alloc_coherent.
 	   The caller just has to use GFP_DMA in this case. */
-	if (mask < DMA_24BIT_MASK)
+	if (mask < DMA_BIT_MASK(24))
 		return 0;
 
 	/* Tell the device to use SAC when IOMMU force is on.  This
@@ -107,7 +90,7 @@ int iommu_dma_supported(struct device *dev, u64 mask)
 	   SAC for these.  Assume all masks <= 40 bits are of this
 	   type. Normally this doesn't make any difference, but gives
 	   more gentle handling of IOMMU overflow. */
-	if (iommu_sac_force && (mask >= DMA_40BIT_MASK)) {
+	if (iommu_sac_force && (mask >= DMA_BIT_MASK(40))) {
 		dev_info(dev, "Force SAC with mask %lx\n", mask);
 		return 0;
 	}
@@ -115,5 +98,26 @@ int iommu_dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 EXPORT_SYMBOL(iommu_dma_supported);
+
+void __init pci_iommu_alloc(void)
+{
+	dma_ops = &intel_dma_ops;
+
+	dma_ops->sync_single_for_cpu = machvec_dma_sync_single;
+	dma_ops->sync_sg_for_cpu = machvec_dma_sync_sg;
+	dma_ops->sync_single_for_device = machvec_dma_sync_single;
+	dma_ops->sync_sg_for_device = machvec_dma_sync_sg;
+	dma_ops->dma_supported = iommu_dma_supported;
+
+	/*
+	 * The order of these functions is important for
+	 * fall-back/fail-over reasons
+	 */
+	detect_intel_iommu();
+
+#ifdef CONFIG_SWIOTLB
+	pci_swiotlb_init();
+#endif
+}
 
 #endif

@@ -278,17 +278,17 @@ static int gigaset_set_line_ctrl(struct cardstate *cs, unsigned cflag)
 static int gigaset_set_modem_ctrl(struct cardstate *cs, unsigned old_state,
 				  unsigned new_state)
 {
-	return -EINVAL;
+	return -ENOTTY;
 }
 
 static int gigaset_set_line_ctrl(struct cardstate *cs, unsigned cflag)
 {
-	return -EINVAL;
+	return -ENOTTY;
 }
 
 static int gigaset_baud_rate(struct cardstate *cs, unsigned cflag)
 {
-	return -EINVAL;
+	return -ENOTTY;
 }
 #endif
 
@@ -577,7 +577,7 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 	return usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x19, 0x41,
 			       0, 0, &buf, 6, 2000);
 #else
-	return -EINVAL;
+	return -ENOTTY;
 #endif
 }
 

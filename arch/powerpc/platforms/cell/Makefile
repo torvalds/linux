@@ -28,7 +28,7 @@ obj-$(CONFIG_SPU_BASE)			+= spu_callbacks.o spu_base.o \
 					   $(spu-manage-y) \
 					   spufs/
 
-obj-$(CONFIG_PCI_MSI)			+= axon_msi.o
+obj-$(CONFIG_AXON_MSI)			+= axon_msi.o
 
 # qpace setup
 obj-$(CONFIG_PPC_CELL_QPACE)		+= qpace_setup.o

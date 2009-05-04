@@ -258,9 +258,6 @@ static int sgiioc4_dma_end(ide_drive_t *drive)
 		}
 	}
 
-	drive->waiting_for_dma = 0;
-	ide_destroy_dmatable(drive);
-
 	return dma_stat;
 }
 
@@ -280,10 +277,12 @@ static void sgiioc4_dma_host_set(ide_drive_t *drive, int on)
 		sgiioc4_clearirq(drive);
 }
 
-static void
-sgiioc4_resetproc(ide_drive_t * drive)
+static void sgiioc4_resetproc(ide_drive_t *drive)
 {
+	struct ide_cmd *cmd = &drive->hwif->cmd;
+
 	sgiioc4_dma_end(drive);
+	ide_dma_unmap_sg(drive, cmd);
 	sgiioc4_clearirq(drive);
 }
 
@@ -412,7 +411,6 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 	writel(ending_dma_addr, (void __iomem *)(dma_base + IOC4_DMA_END_ADDR * 4));
 
 	writel(dma_direction, (void __iomem *)ioc4_dma_addr);
-	drive->waiting_for_dma = 1;
 }
 
 /* IOC4 Scatter Gather list Format 					 */
@@ -424,20 +422,13 @@ sgiioc4_configure_for_dma(int dma_direction, ide_drive_t * drive)
 /* | Upper 32 bits - Zero	    |EOL| 15 unused     | 16 Bit Length| */
 /* --------------------------------------------------------------------- */
 /* Creates the scatter gather list, DMA Table */
-static unsigned int
-sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
+static int sgiioc4_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned int *table = hwif->dmatable_cpu;
-	unsigned int count = 0, i = 1;
-	struct scatterlist *sg;
+	unsigned int count = 0, i = cmd->sg_nents;
+	struct scatterlist *sg = hwif->sg_table;
 
-	hwif->sg_nents = i = ide_build_sglist(drive, rq);
-
-	if (!i)
-		return 0;	/* sglist of length Zero */
-
-	sg = hwif->sg_table;
 	while (i && sg_dma_len(sg)) {
 		dma_addr_t cur_addr;
 		int cur_len;
@@ -449,7 +440,7 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 				printk(KERN_WARNING
 				       "%s: DMA table too small\n",
 				       drive->name);
-				goto use_pio_instead;
+				return 0;
 			} else {
 				u32 bcount =
 				    0x10000 - (cur_addr & 0xffff);
@@ -484,30 +475,19 @@ sgiioc4_build_dma_table(ide_drive_t * drive, struct request *rq, int ddir)
 		return count;
 	}
 
-use_pio_instead:
-	ide_destroy_dmatable(drive);
-
 	return 0;		/* revert to PIO for this request */
 }
 
-static int sgiioc4_dma_setup(ide_drive_t *drive)
+static int sgiioc4_dma_setup(ide_drive_t *drive, struct ide_cmd *cmd)
 {
-	struct request *rq = drive->hwif->rq;
-	unsigned int count = 0;
 	int ddir;
+	u8 write = !!(cmd->tf_flags & IDE_TFLAG_WRITE);
 
-	if (rq_data_dir(rq))
-		ddir = PCI_DMA_TODEVICE;
-	else
-		ddir = PCI_DMA_FROMDEVICE;
-
-	if (!(count = sgiioc4_build_dma_table(drive, rq, ddir))) {
+	if (sgiioc4_build_dmatable(drive, cmd) == 0)
 		/* try PIO instead of DMA */
-		ide_map_sg(drive, rq);
 		return 1;
-	}
 
-	if (rq_data_dir(rq))
+	if (write)
 		/* Writes TO the IOC4 FROM Main Memory */
 		ddir = IOC4_DMA_READ;
 	else
@@ -523,9 +503,9 @@ static const struct ide_tp_ops sgiioc4_tp_ops = {
 	.exec_command		= ide_exec_command,
 	.read_status		= sgiioc4_read_status,
 	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
 
-	.set_irq		= ide_set_irq,
-
+	.dev_select		= ide_dev_select,
 	.tf_load		= ide_tf_load,
 	.tf_read		= ide_tf_read,
 
@@ -546,7 +526,6 @@ static const struct ide_dma_ops sgiioc4_dma_ops = {
 	.dma_end		= sgiioc4_dma_end,
 	.dma_test_irq		= sgiioc4_dma_test_irq,
 	.dma_lost_irq		= sgiioc4_dma_lost_irq,
-	.dma_timeout		= ide_dma_timeout,
 };
 
 static const struct ide_port_info sgiioc4_port_info __devinitconst = {
@@ -557,6 +536,7 @@ static const struct ide_port_info sgiioc4_port_info __devinitconst = {
 	.port_ops		= &sgiioc4_port_ops,
 	.dma_ops		= &sgiioc4_dma_ops,
 	.host_flags		= IDE_HFLAG_MMIO,
+	.irq_flags		= IRQF_SHARED,
 	.mwdma_mask		= ATA_MWDMA2_ONLY,
 };
 

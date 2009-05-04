@@ -115,7 +115,7 @@
 
 
 unsigned musb_debug;
-module_param(musb_debug, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, musb_debug, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
@@ -767,8 +767,9 @@ static irqreturn_t musb_stage2_irq(struct musb *musb, u8 int_usb,
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 		case OTG_STATE_A_HOST:
 		case OTG_STATE_A_SUSPEND:
+			usb_hcd_resume_root_hub(musb_to_hcd(musb));
 			musb_root_disconnect(musb);
-			if (musb->a_wait_bcon != 0)
+			if (musb->a_wait_bcon != 0 && is_otg_enabled(musb))
 				musb_platform_try_idle(musb, jiffies
 					+ msecs_to_jiffies(musb->a_wait_bcon));
 			break;
@@ -1815,7 +1816,7 @@ static void musb_free(struct musb *musb)
 #ifdef CONFIG_SYSFS
 	device_remove_file(musb->controller, &dev_attr_mode);
 	device_remove_file(musb->controller, &dev_attr_vbus);
-#ifdef CONFIG_USB_MUSB_OTG
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	device_remove_file(musb->controller, &dev_attr_srp);
 #endif
 #endif
@@ -1824,8 +1825,9 @@ static void musb_free(struct musb *musb)
 	musb_gadget_cleanup(musb);
 #endif
 
-	if (musb->nIrq >= 0 && musb->irq_wake) {
-		disable_irq_wake(musb->nIrq);
+	if (musb->nIrq >= 0) {
+		if (musb->irq_wake)
+			disable_irq_wake(musb->nIrq);
 		free_irq(musb->nIrq, musb);
 	}
 	if (is_dma_capable() && musb->dma_controller) {
@@ -2062,7 +2064,7 @@ fail2:
 #ifdef CONFIG_SYSFS
 	device_remove_file(musb->controller, &dev_attr_mode);
 	device_remove_file(musb->controller, &dev_attr_vbus);
-#ifdef CONFIG_USB_MUSB_OTG
+#ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	device_remove_file(musb->controller, &dev_attr_srp);
 #endif
 #endif
@@ -2168,15 +2170,12 @@ static int musb_suspend(struct platform_device *pdev, pm_message_t message)
 	return 0;
 }
 
-static int musb_resume(struct platform_device *pdev)
+static int musb_resume_early(struct platform_device *pdev)
 {
-	unsigned long	flags;
 	struct musb	*musb = dev_to_musb(&pdev->dev);
 
 	if (!musb->clock)
 		return 0;
-
-	spin_lock_irqsave(&musb->lock, flags);
 
 	if (musb->set_clock)
 		musb->set_clock(musb->clock, 1);
@@ -2184,16 +2183,15 @@ static int musb_resume(struct platform_device *pdev)
 		clk_enable(musb->clock);
 
 	/* for static cmos like DaVinci, register values were preserved
-	 * unless for some reason the whole soc powered down and we're
-	 * not treating that as a whole-system restart (e.g. swsusp)
+	 * unless for some reason the whole soc powered down or the USB
+	 * module got reset through the PSC (vs just being disabled).
 	 */
-	spin_unlock_irqrestore(&musb->lock, flags);
 	return 0;
 }
 
 #else
 #define	musb_suspend	NULL
-#define	musb_resume	NULL
+#define	musb_resume_early	NULL
 #endif
 
 static struct platform_driver musb_driver = {
@@ -2205,7 +2203,7 @@ static struct platform_driver musb_driver = {
 	.remove		= __devexit_p(musb_remove),
 	.shutdown	= musb_shutdown,
 	.suspend	= musb_suspend,
-	.resume		= musb_resume,
+	.resume_early	= musb_resume_early,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -2242,10 +2240,10 @@ static int __init musb_init(void)
 	return platform_driver_probe(&musb_driver, musb_probe);
 }
 
-/* make us init after usbcore and before usb
- * gadget and host-side drivers start to register
+/* make us init after usbcore and i2c (transceivers, regulators, etc)
+ * and before usb gadget and host-side drivers start to register
  */
-subsys_initcall(musb_init);
+fs_initcall(musb_init);
 
 static void __exit musb_cleanup(void)
 {

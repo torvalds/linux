@@ -38,6 +38,7 @@ struct inet_bind_bucket *inet_bind_bucket_create(struct kmem_cache *cachep,
 		write_pnet(&tb->ib_net, hold_net(net));
 		tb->port      = snum;
 		tb->fastreuse = 0;
+		tb->num_owners = 0;
 		INIT_HLIST_HEAD(&tb->owners);
 		hlist_add_head(&tb->node, &head->chain);
 	}
@@ -59,8 +60,13 @@ void inet_bind_bucket_destroy(struct kmem_cache *cachep, struct inet_bind_bucket
 void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
 		    const unsigned short snum)
 {
+	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
+
+	atomic_inc(&hashinfo->bsockets);
+
 	inet_sk(sk)->num = snum;
 	sk_add_bind_node(sk, &tb->owners);
+	tb->num_owners++;
 	inet_csk(sk)->icsk_bind_hash = tb;
 }
 
@@ -75,9 +81,12 @@ static void __inet_put_port(struct sock *sk)
 	struct inet_bind_hashbucket *head = &hashinfo->bhash[bhash];
 	struct inet_bind_bucket *tb;
 
+	atomic_dec(&hashinfo->bsockets);
+
 	spin_lock(&head->lock);
 	tb = inet_csk(sk)->icsk_bind_hash;
 	__sk_del_bind_node(sk);
+	tb->num_owners--;
 	inet_csk(sk)->icsk_bind_hash = NULL;
 	inet_sk(sk)->num = 0;
 	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
@@ -444,9 +453,9 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 			 */
 			inet_bind_bucket_for_each(tb, node, &head->chain) {
 				if (ib_net(tb) == net && tb->port == port) {
-					WARN_ON(hlist_empty(&tb->owners));
 					if (tb->fastreuse >= 0)
 						goto next_port;
+					WARN_ON(hlist_empty(&tb->owners));
 					if (!check_established(death_row, sk,
 								port, &tw))
 						goto ok;
@@ -523,6 +532,7 @@ void inet_hashinfo_init(struct inet_hashinfo *h)
 {
 	int i;
 
+	atomic_set(&h->bsockets, 0);
 	for (i = 0; i < INET_LHTABLE_SIZE; i++) {
 		spin_lock_init(&h->listening_hash[i].lock);
 		INIT_HLIST_NULLS_HEAD(&h->listening_hash[i].head,

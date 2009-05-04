@@ -194,29 +194,26 @@ static int make_free_space(struct ubifs_info *c)
 }
 
 /**
- * ubifs_calc_min_idx_lebs - calculate amount of eraseblocks for the index.
+ * ubifs_calc_min_idx_lebs - calculate amount of LEBs for the index.
  * @c: UBIFS file-system description object
  *
- * This function calculates and returns the number of eraseblocks which should
- * be kept for index usage.
+ * This function calculates and returns the number of LEBs which should be kept
+ * for index usage.
  */
 int ubifs_calc_min_idx_lebs(struct ubifs_info *c)
 {
-	int idx_lebs, eff_leb_size = c->leb_size - c->max_idx_node_sz;
+	int idx_lebs;
 	long long idx_size;
 
 	idx_size = c->old_idx_sz + c->budg_idx_growth + c->budg_uncommitted_idx;
-
 	/* And make sure we have thrice the index size of space reserved */
-	idx_size = idx_size + (idx_size << 1);
-
+	idx_size += idx_size << 1;
 	/*
 	 * We do not maintain 'old_idx_size' as 'old_idx_lebs'/'old_idx_bytes'
 	 * pair, nor similarly the two variables for the new index size, so we
 	 * have to do this costly 64-bit division on fast-path.
 	 */
-	idx_size += eff_leb_size - 1;
-	idx_lebs = div_u64(idx_size, eff_leb_size);
+	idx_lebs = div_u64(idx_size + c->idx_leb_size - 1, c->idx_leb_size);
 	/*
 	 * The index head is not available for the in-the-gaps method, so add an
 	 * extra LEB to compensate.
@@ -310,23 +307,23 @@ static int can_use_rp(struct ubifs_info *c)
  * do_budget_space - reserve flash space for index and data growth.
  * @c: UBIFS file-system description object
  *
- * This function makes sure UBIFS has enough free eraseblocks for index growth
- * and data.
+ * This function makes sure UBIFS has enough free LEBs for index growth and
+ * data.
  *
  * When budgeting index space, UBIFS reserves thrice as many LEBs as the index
  * would take if it was consolidated and written to the flash. This guarantees
  * that the "in-the-gaps" commit method always succeeds and UBIFS will always
  * be able to commit dirty index. So this function basically adds amount of
  * budgeted index space to the size of the current index, multiplies this by 3,
- * and makes sure this does not exceed the amount of free eraseblocks.
+ * and makes sure this does not exceed the amount of free LEBs.
  *
  * Notes about @c->min_idx_lebs and @c->lst.idx_lebs variables:
  * o @c->lst.idx_lebs is the number of LEBs the index currently uses. It might
  *    be large, because UBIFS does not do any index consolidation as long as
  *    there is free space. IOW, the index may take a lot of LEBs, but the LEBs
  *    will contain a lot of dirt.
- * o @c->min_idx_lebs is the the index presumably takes. IOW, the index may be
- *   consolidated to take up to @c->min_idx_lebs LEBs.
+ * o @c->min_idx_lebs is the number of LEBS the index presumably takes. IOW,
+ *    the index may be consolidated to take up to @c->min_idx_lebs LEBs.
  *
  * This function returns zero in case of success, and %-ENOSPC in case of
  * failure.
@@ -689,31 +686,29 @@ long long ubifs_reported_space(const struct ubifs_info *c, long long free)
 }
 
 /**
- * ubifs_get_free_space - return amount of free space.
+ * ubifs_get_free_space_nolock - return amount of free space.
  * @c: UBIFS file-system description object
  *
  * This function calculates amount of free space to report to user-space.
  *
  * Because UBIFS may introduce substantial overhead (the index, node headers,
- * alignment, wastage at the end of eraseblocks, etc), it cannot report real
- * amount of free flash space it has (well, because not all dirty space is
- * reclaimable, UBIFS does not actually know the real amount). If UBIFS did so,
- * it would bread user expectations about what free space is. Users seem to
- * accustomed to assume that if the file-system reports N bytes of free space,
- * they would be able to fit a file of N bytes to the FS. This almost works for
+ * alignment, wastage at the end of LEBs, etc), it cannot report real amount of
+ * free flash space it has (well, because not all dirty space is reclaimable,
+ * UBIFS does not actually know the real amount). If UBIFS did so, it would
+ * bread user expectations about what free space is. Users seem to accustomed
+ * to assume that if the file-system reports N bytes of free space, they would
+ * be able to fit a file of N bytes to the FS. This almost works for
  * traditional file-systems, because they have way less overhead than UBIFS.
  * So, to keep users happy, UBIFS tries to take the overhead into account.
  */
-long long ubifs_get_free_space(struct ubifs_info *c)
+long long ubifs_get_free_space_nolock(struct ubifs_info *c)
 {
-	int min_idx_lebs, rsvd_idx_lebs, lebs;
+	int rsvd_idx_lebs, lebs;
 	long long available, outstanding, free;
 
-	spin_lock(&c->space_lock);
-	min_idx_lebs = c->min_idx_lebs;
-	ubifs_assert(min_idx_lebs == ubifs_calc_min_idx_lebs(c));
+	ubifs_assert(c->min_idx_lebs == ubifs_calc_min_idx_lebs(c));
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
-	available = ubifs_calc_available(c, min_idx_lebs);
+	available = ubifs_calc_available(c, c->min_idx_lebs);
 
 	/*
 	 * When reporting free space to user-space, UBIFS guarantees that it is
@@ -726,19 +721,36 @@ long long ubifs_get_free_space(struct ubifs_info *c)
 	 * Note, the calculations below are similar to what we have in
 	 * 'do_budget_space()', so refer there for comments.
 	 */
-	if (min_idx_lebs > c->lst.idx_lebs)
-		rsvd_idx_lebs = min_idx_lebs - c->lst.idx_lebs;
+	if (c->min_idx_lebs > c->lst.idx_lebs)
+		rsvd_idx_lebs = c->min_idx_lebs - c->lst.idx_lebs;
 	else
 		rsvd_idx_lebs = 0;
 	lebs = c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt -
 	       c->lst.taken_empty_lebs;
 	lebs -= rsvd_idx_lebs;
 	available += lebs * (c->dark_wm - c->leb_overhead);
-	spin_unlock(&c->space_lock);
 
 	if (available > outstanding)
 		free = ubifs_reported_space(c, available - outstanding);
 	else
 		free = 0;
+	return free;
+}
+
+/**
+ * ubifs_get_free_space - return amount of free space.
+ * @c: UBIFS file-system description object
+ *
+ * This function calculates and retuns amount of free space to report to
+ * user-space.
+ */
+long long ubifs_get_free_space(struct ubifs_info *c)
+{
+	long long free;
+
+	spin_lock(&c->space_lock);
+	free = ubifs_get_free_space_nolock(c);
+	spin_unlock(&c->space_lock);
+
 	return free;
 }

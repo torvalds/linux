@@ -921,8 +921,10 @@ static void wa_urb_enqueue_b(struct wa_xfer *xfer)
 	result = -ENODEV;
 	/* FIXME: segmentation broken -- kills DWA */
 	mutex_lock(&wusbhc->mutex);		/* get a WUSB dev */
-	if (urb->dev == NULL)
+	if (urb->dev == NULL) {
+		mutex_unlock(&wusbhc->mutex);
 		goto error_dev_gone;
+	}
 	wusb_dev = __wusb_dev_get_by_usb_dev(wusbhc, urb->dev);
 	if (wusb_dev == NULL) {
 		mutex_unlock(&wusbhc->mutex);

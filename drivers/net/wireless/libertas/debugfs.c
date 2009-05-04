@@ -629,7 +629,7 @@ static ssize_t lbs_rdrf_write(struct file *file,
 		res = -EFAULT;
 		goto out_unlock;
 	}
-	priv->rf_offset = simple_strtoul((char *)buf, NULL, 16);
+	priv->rf_offset = simple_strtoul(buf, NULL, 16);
 	res = count;
 out_unlock:
 	free_page(addr);
@@ -680,12 +680,12 @@ out_unlock:
 }
 
 struct lbs_debugfs_files {
-	char *name;
+	const char *name;
 	int perm;
 	struct file_operations fops;
 };
 
-static struct lbs_debugfs_files debugfs_files[] = {
+static const struct lbs_debugfs_files debugfs_files[] = {
 	{ "info", 0444, FOPS(lbs_dev_info, write_file_dummy), },
 	{ "getscantable", 0444, FOPS(lbs_getscantable,
 					write_file_dummy), },
@@ -693,7 +693,7 @@ static struct lbs_debugfs_files debugfs_files[] = {
 				lbs_sleepparams_write), },
 };
 
-static struct lbs_debugfs_files debugfs_events_files[] = {
+static const struct lbs_debugfs_files debugfs_events_files[] = {
 	{"low_rssi", 0644, FOPS(lbs_lowrssi_read,
 				lbs_lowrssi_write), },
 	{"low_snr", 0644, FOPS(lbs_lowsnr_read,
@@ -708,7 +708,7 @@ static struct lbs_debugfs_files debugfs_events_files[] = {
 				lbs_highsnr_write), },
 };
 
-static struct lbs_debugfs_files debugfs_regs_files[] = {
+static const struct lbs_debugfs_files debugfs_regs_files[] = {
 	{"rdmac", 0644, FOPS(lbs_rdmac_read, lbs_rdmac_write), },
 	{"wrmac", 0600, FOPS(NULL, lbs_wrmac_write), },
 	{"rdbbp", 0644, FOPS(lbs_rdbbp_read, lbs_rdbbp_write), },
@@ -735,7 +735,7 @@ void lbs_debugfs_remove(void)
 void lbs_debugfs_init_one(struct lbs_private *priv, struct net_device *dev)
 {
 	int i;
-	struct lbs_debugfs_files *files;
+	const struct lbs_debugfs_files *files;
 	if (!lbs_dir)
 		goto exit;
 
@@ -938,7 +938,7 @@ static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
 	return (ssize_t)cnt;
 }
 
-static struct file_operations lbs_debug_fops = {
+static const struct file_operations lbs_debug_fops = {
 	.owner = THIS_MODULE,
 	.open = open_file_generic,
 	.write = lbs_debugfs_write,

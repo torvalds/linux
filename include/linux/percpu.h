@@ -5,53 +5,22 @@
 #include <linux/slab.h> /* For kmalloc() */
 #include <linux/smp.h>
 #include <linux/cpumask.h>
+#include <linux/pfn.h>
 
 #include <asm/percpu.h>
 
-#ifdef CONFIG_SMP
-#define DEFINE_PER_CPU(type, name)					\
-	__attribute__((__section__(".data.percpu")))			\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
-
-#ifdef MODULE
-#define SHARED_ALIGNED_SECTION ".data.percpu"
-#else
-#define SHARED_ALIGNED_SECTION ".data.percpu.shared_aligned"
-#endif
-
-#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)			\
-	__attribute__((__section__(SHARED_ALIGNED_SECTION)))		\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name		\
-	____cacheline_aligned_in_smp
-
-#define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)			\
-	__attribute__((__section__(".data.percpu.page_aligned")))	\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
-#else
-#define DEFINE_PER_CPU(type, name)					\
-	PER_CPU_ATTRIBUTES __typeof__(type) per_cpu__##name
-
-#define DEFINE_PER_CPU_SHARED_ALIGNED(type, name)		      \
-	DEFINE_PER_CPU(type, name)
-
-#define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)		      \
-	DEFINE_PER_CPU(type, name)
-#endif
-
-#define EXPORT_PER_CPU_SYMBOL(var) EXPORT_SYMBOL(per_cpu__##var)
-#define EXPORT_PER_CPU_SYMBOL_GPL(var) EXPORT_SYMBOL_GPL(per_cpu__##var)
-
-/* Enough to cover all DEFINE_PER_CPUs in kernel, including modules. */
-#ifndef PERCPU_ENOUGH_ROOM
+/* enough to cover all DEFINE_PER_CPUs in modules */
 #ifdef CONFIG_MODULES
-#define PERCPU_MODULE_RESERVE	8192
+#define PERCPU_MODULE_RESERVE		(8 << 10)
 #else
-#define PERCPU_MODULE_RESERVE	0
+#define PERCPU_MODULE_RESERVE		0
 #endif
 
+#ifndef PERCPU_ENOUGH_ROOM
 #define PERCPU_ENOUGH_ROOM						\
-	(__per_cpu_end - __per_cpu_start + PERCPU_MODULE_RESERVE)
-#endif	/* PERCPU_ENOUGH_ROOM */
+	(ALIGN(__per_cpu_end - __per_cpu_start, SMP_CACHE_BYTES) +	\
+	 PERCPU_MODULE_RESERVE)
+#endif
 
 /*
  * Must be an lvalue. Since @var must be a simple identifier,
@@ -65,52 +34,146 @@
 
 #ifdef CONFIG_SMP
 
+#ifdef CONFIG_HAVE_DYNAMIC_PER_CPU_AREA
+
+/* minimum unit size, also is the maximum supported allocation size */
+#define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(64 << 10)
+
+/*
+ * PERCPU_DYNAMIC_RESERVE indicates the amount of free area to piggy
+ * back on the first chunk for dynamic percpu allocation if arch is
+ * manually allocating and mapping it for faster access (as a part of
+ * large page mapping for example).
+ *
+ * The following values give between one and two pages of free space
+ * after typical minimal boot (2-way SMP, single disk and NIC) with
+ * both defconfig and a distro config on x86_64 and 32.  More
+ * intelligent way to determine this would be nice.
+ */
+#if BITS_PER_LONG > 32
+#define PERCPU_DYNAMIC_RESERVE		(20 << 10)
+#else
+#define PERCPU_DYNAMIC_RESERVE		(12 << 10)
+#endif
+
+extern void *pcpu_base_addr;
+
+typedef struct page * (*pcpu_get_page_fn_t)(unsigned int cpu, int pageno);
+typedef void (*pcpu_populate_pte_fn_t)(unsigned long addr);
+
+extern size_t __init pcpu_setup_first_chunk(pcpu_get_page_fn_t get_page_fn,
+				size_t static_size, size_t reserved_size,
+				ssize_t dyn_size, ssize_t unit_size,
+				void *base_addr,
+				pcpu_populate_pte_fn_t populate_pte_fn);
+
+extern ssize_t __init pcpu_embed_first_chunk(
+				size_t static_size, size_t reserved_size,
+				ssize_t dyn_size, ssize_t unit_size);
+
+/*
+ * Use this to get to a cpu's version of the per-cpu object
+ * dynamically allocated. Non-atomic access to the current CPU's
+ * version should probably be combined with get_cpu()/put_cpu().
+ */
+#define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
+
+extern void *__alloc_reserved_percpu(size_t size, size_t align);
+
+#else /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+
 struct percpu_data {
 	void *ptrs[1];
 };
 
 #define __percpu_disguise(pdata) (struct percpu_data *)~(unsigned long)(pdata)
-/* 
- * Use this to get to a cpu's version of the per-cpu object dynamically
- * allocated. Non-atomic access to the current CPU's version should
- * probably be combined with get_cpu()/put_cpu().
- */ 
-#define percpu_ptr(ptr, cpu)                              \
-({                                                        \
-        struct percpu_data *__p = __percpu_disguise(ptr); \
-        (__typeof__(ptr))__p->ptrs[(cpu)];	          \
+
+#define per_cpu_ptr(ptr, cpu)						\
+({									\
+        struct percpu_data *__p = __percpu_disguise(ptr);		\
+        (__typeof__(ptr))__p->ptrs[(cpu)];				\
 })
 
-extern void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask);
-extern void percpu_free(void *__pdata);
+#endif /* CONFIG_HAVE_DYNAMIC_PER_CPU_AREA */
+
+extern void *__alloc_percpu(size_t size, size_t align);
+extern void free_percpu(void *__pdata);
 
 #else /* CONFIG_SMP */
 
-#define percpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
+#define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
 
-static __always_inline void *__percpu_alloc_mask(size_t size, gfp_t gfp, cpumask_t *mask)
+static inline void *__alloc_percpu(size_t size, size_t align)
 {
-	return kzalloc(size, gfp);
+	/*
+	 * Can't easily make larger alignment work with kmalloc.  WARN
+	 * on it.  Larger alignment should only be used for module
+	 * percpu sections on SMP for which this path isn't used.
+	 */
+	WARN_ON_ONCE(align > SMP_CACHE_BYTES);
+	return kzalloc(size, GFP_KERNEL);
 }
 
-static inline void percpu_free(void *__pdata)
+static inline void free_percpu(void *p)
 {
-	kfree(__pdata);
+	kfree(p);
 }
 
 #endif /* CONFIG_SMP */
 
-#define percpu_alloc_mask(size, gfp, mask) \
-	__percpu_alloc_mask((size), (gfp), &(mask))
+#define alloc_percpu(type)	(type *)__alloc_percpu(sizeof(type), \
+						       __alignof__(type))
 
-#define percpu_alloc(size, gfp) percpu_alloc_mask((size), (gfp), cpu_online_map)
+/*
+ * Optional methods for optimized non-lvalue per-cpu variable access.
+ *
+ * @var can be a percpu variable or a field of it and its size should
+ * equal char, int or long.  percpu_read() evaluates to a lvalue and
+ * all others to void.
+ *
+ * These operations are guaranteed to be atomic w.r.t. preemption.
+ * The generic versions use plain get/put_cpu_var().  Archs are
+ * encouraged to implement single-instruction alternatives which don't
+ * require preemption protection.
+ */
+#ifndef percpu_read
+# define percpu_read(var)						\
+  ({									\
+	typeof(per_cpu_var(var)) __tmp_var__;				\
+	__tmp_var__ = get_cpu_var(var);					\
+	put_cpu_var(var);						\
+	__tmp_var__;							\
+  })
+#endif
 
-/* (legacy) interface for use without CPU hotplug handling */
+#define __percpu_generic_to_op(var, val, op)				\
+do {									\
+	get_cpu_var(var) op val;					\
+	put_cpu_var(var);						\
+} while (0)
 
-#define __alloc_percpu(size)	percpu_alloc_mask((size), GFP_KERNEL, \
-						  cpu_possible_map)
-#define alloc_percpu(type)	(type *)__alloc_percpu(sizeof(type))
-#define free_percpu(ptr)	percpu_free((ptr))
-#define per_cpu_ptr(ptr, cpu)	percpu_ptr((ptr), (cpu))
+#ifndef percpu_write
+# define percpu_write(var, val)		__percpu_generic_to_op(var, (val), =)
+#endif
+
+#ifndef percpu_add
+# define percpu_add(var, val)		__percpu_generic_to_op(var, (val), +=)
+#endif
+
+#ifndef percpu_sub
+# define percpu_sub(var, val)		__percpu_generic_to_op(var, (val), -=)
+#endif
+
+#ifndef percpu_and
+# define percpu_and(var, val)		__percpu_generic_to_op(var, (val), &=)
+#endif
+
+#ifndef percpu_or
+# define percpu_or(var, val)		__percpu_generic_to_op(var, (val), |=)
+#endif
+
+#ifndef percpu_xor
+# define percpu_xor(var, val)		__percpu_generic_to_op(var, (val), ^=)
+#endif
 
 #endif /* __LINUX_PERCPU_H */

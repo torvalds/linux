@@ -10,7 +10,6 @@
 /*
  * TODO:
  * - IBSS mode simulation (Beacon transmission with competition for "air time")
- * - IEEE 802.11a and 802.11n modes
  * - RX filtering based on filter configuration (data->rx_filter)
  */
 
@@ -30,6 +29,112 @@ MODULE_LICENSE("GPL");
 static int radios = 2;
 module_param(radios, int, 0444);
 MODULE_PARM_DESC(radios, "Number of simulated radios");
+
+/**
+ * enum hwsim_regtest - the type of regulatory tests we offer
+ *
+ * These are the different values you can use for the regtest
+ * module parameter. This is useful to help test world roaming
+ * and the driver regulatory_hint() call and combinations of these.
+ * If you want to do specific alpha2 regulatory domain tests simply
+ * use the userspace regulatory request as that will be respected as
+ * well without the need of this module parameter. This is designed
+ * only for testing the driver regulatory request, world roaming
+ * and all possible combinations.
+ *
+ * @HWSIM_REGTEST_DISABLED: No regulatory tests are performed,
+ * 	this is the default value.
+ * @HWSIM_REGTEST_DRIVER_REG_FOLLOW: Used for testing the driver regulatory
+ *	hint, only one driver regulatory hint will be sent as such the
+ * 	secondary radios are expected to follow.
+ * @HWSIM_REGTEST_DRIVER_REG_ALL: Used for testing the driver regulatory
+ * 	request with all radios reporting the same regulatory domain.
+ * @HWSIM_REGTEST_DIFF_COUNTRY: Used for testing the drivers calling
+ * 	different regulatory domains requests. Expected behaviour is for
+ * 	an intersection to occur but each device will still use their
+ * 	respective regulatory requested domains. Subsequent radios will
+ * 	use the resulting intersection.
+ * @HWSIM_REGTEST_WORLD_ROAM: Used for testing the world roaming. We acomplish
+ *	this by using a custom beacon-capable regulatory domain for the first
+ *	radio. All other device world roam.
+ * @HWSIM_REGTEST_CUSTOM_WORLD: Used for testing the custom world regulatory
+ * 	domain requests. All radios will adhere to this custom world regulatory
+ * 	domain.
+ * @HWSIM_REGTEST_CUSTOM_WORLD_2: Used for testing 2 custom world regulatory
+ * 	domain requests. The first radio will adhere to the first custom world
+ * 	regulatory domain, the second one to the second custom world regulatory
+ * 	domain. All other devices will world roam.
+ * @HWSIM_REGTEST_STRICT_FOLLOW_: Used for testing strict regulatory domain
+ *	settings, only the first radio will send a regulatory domain request
+ *	and use strict settings. The rest of the radios are expected to follow.
+ * @HWSIM_REGTEST_STRICT_ALL: Used for testing strict regulatory domain
+ *	settings. All radios will adhere to this.
+ * @HWSIM_REGTEST_STRICT_AND_DRIVER_REG: Used for testing strict regulatory
+ *	domain settings, combined with secondary driver regulatory domain
+ *	settings. The first radio will get a strict regulatory domain setting
+ *	using the first driver regulatory request and the second radio will use
+ *	non-strict settings using the second driver regulatory request. All
+ *	other devices should follow the intersection created between the
+ *	first two.
+ * @HWSIM_REGTEST_ALL: Used for testing every possible mix. You will need
+ * 	at least 6 radios for a complete test. We will test in this order:
+ * 	1 - driver custom world regulatory domain
+ * 	2 - second custom world regulatory domain
+ * 	3 - first driver regulatory domain request
+ * 	4 - second driver regulatory domain request
+ * 	5 - strict regulatory domain settings using the third driver regulatory
+ * 	    domain request
+ * 	6 and on - should follow the intersection of the 3rd, 4rth and 5th radio
+ * 	           regulatory requests.
+ */
+enum hwsim_regtest {
+	HWSIM_REGTEST_DISABLED = 0,
+	HWSIM_REGTEST_DRIVER_REG_FOLLOW = 1,
+	HWSIM_REGTEST_DRIVER_REG_ALL = 2,
+	HWSIM_REGTEST_DIFF_COUNTRY = 3,
+	HWSIM_REGTEST_WORLD_ROAM = 4,
+	HWSIM_REGTEST_CUSTOM_WORLD = 5,
+	HWSIM_REGTEST_CUSTOM_WORLD_2 = 6,
+	HWSIM_REGTEST_STRICT_FOLLOW = 7,
+	HWSIM_REGTEST_STRICT_ALL = 8,
+	HWSIM_REGTEST_STRICT_AND_DRIVER_REG = 9,
+	HWSIM_REGTEST_ALL = 10,
+};
+
+/* Set to one of the HWSIM_REGTEST_* values above */
+static int regtest = HWSIM_REGTEST_DISABLED;
+module_param(regtest, int, 0444);
+MODULE_PARM_DESC(regtest, "The type of regulatory test we want to run");
+
+static const char *hwsim_alpha2s[] = {
+	"FI",
+	"AL",
+	"US",
+	"DE",
+	"JP",
+	"AL",
+};
+
+static const struct ieee80211_regdomain hwsim_world_regdom_custom_01 = {
+	.n_reg_rules = 4,
+	.alpha2 =  "99",
+	.reg_rules = {
+		REG_RULE(2412-10, 2462+10, 40, 0, 20, 0),
+		REG_RULE(2484-10, 2484+10, 40, 0, 20, 0),
+		REG_RULE(5150-10, 5240+10, 40, 0, 30, 0),
+		REG_RULE(5745-10, 5825+10, 40, 0, 30, 0),
+	}
+};
+
+static const struct ieee80211_regdomain hwsim_world_regdom_custom_02 = {
+	.n_reg_rules = 2,
+	.alpha2 =  "99",
+	.reg_rules = {
+		REG_RULE(2412-10, 2462+10, 40, 0, 20, 0),
+		REG_RULE(5725-10, 5850+10, 40, 0, 30,
+			NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS),
+	}
+};
 
 struct hwsim_vif_priv {
 	u32 magic;
@@ -86,22 +191,65 @@ static struct class *hwsim_class;
 
 static struct net_device *hwsim_mon; /* global monitor netdev */
 
+#define CHAN2G(_freq)  { \
+	.band = IEEE80211_BAND_2GHZ, \
+	.center_freq = (_freq), \
+	.hw_value = (_freq), \
+	.max_power = 20, \
+}
 
-static const struct ieee80211_channel hwsim_channels[] = {
-	{ .center_freq = 2412 },
-	{ .center_freq = 2417 },
-	{ .center_freq = 2422 },
-	{ .center_freq = 2427 },
-	{ .center_freq = 2432 },
-	{ .center_freq = 2437 },
-	{ .center_freq = 2442 },
-	{ .center_freq = 2447 },
-	{ .center_freq = 2452 },
-	{ .center_freq = 2457 },
-	{ .center_freq = 2462 },
-	{ .center_freq = 2467 },
-	{ .center_freq = 2472 },
-	{ .center_freq = 2484 },
+#define CHAN5G(_freq) { \
+	.band = IEEE80211_BAND_5GHZ, \
+	.center_freq = (_freq), \
+	.hw_value = (_freq), \
+	.max_power = 20, \
+}
+
+static const struct ieee80211_channel hwsim_channels_2ghz[] = {
+	CHAN2G(2412), /* Channel 1 */
+	CHAN2G(2417), /* Channel 2 */
+	CHAN2G(2422), /* Channel 3 */
+	CHAN2G(2427), /* Channel 4 */
+	CHAN2G(2432), /* Channel 5 */
+	CHAN2G(2437), /* Channel 6 */
+	CHAN2G(2442), /* Channel 7 */
+	CHAN2G(2447), /* Channel 8 */
+	CHAN2G(2452), /* Channel 9 */
+	CHAN2G(2457), /* Channel 10 */
+	CHAN2G(2462), /* Channel 11 */
+	CHAN2G(2467), /* Channel 12 */
+	CHAN2G(2472), /* Channel 13 */
+	CHAN2G(2484), /* Channel 14 */
+};
+
+static const struct ieee80211_channel hwsim_channels_5ghz[] = {
+	CHAN5G(5180), /* Channel 36 */
+	CHAN5G(5200), /* Channel 40 */
+	CHAN5G(5220), /* Channel 44 */
+	CHAN5G(5240), /* Channel 48 */
+
+	CHAN5G(5260), /* Channel 52 */
+	CHAN5G(5280), /* Channel 56 */
+	CHAN5G(5300), /* Channel 60 */
+	CHAN5G(5320), /* Channel 64 */
+
+	CHAN5G(5500), /* Channel 100 */
+	CHAN5G(5520), /* Channel 104 */
+	CHAN5G(5540), /* Channel 108 */
+	CHAN5G(5560), /* Channel 112 */
+	CHAN5G(5580), /* Channel 116 */
+	CHAN5G(5600), /* Channel 120 */
+	CHAN5G(5620), /* Channel 124 */
+	CHAN5G(5640), /* Channel 128 */
+	CHAN5G(5660), /* Channel 132 */
+	CHAN5G(5680), /* Channel 136 */
+	CHAN5G(5700), /* Channel 140 */
+
+	CHAN5G(5745), /* Channel 149 */
+	CHAN5G(5765), /* Channel 153 */
+	CHAN5G(5785), /* Channel 157 */
+	CHAN5G(5805), /* Channel 161 */
+	CHAN5G(5825), /* Channel 165 */
 };
 
 static const struct ieee80211_rate hwsim_rates[] = {
@@ -126,8 +274,9 @@ struct mac80211_hwsim_data {
 	struct list_head list;
 	struct ieee80211_hw *hw;
 	struct device *dev;
-	struct ieee80211_supported_band band;
-	struct ieee80211_channel channels[ARRAY_SIZE(hwsim_channels)];
+	struct ieee80211_supported_band bands[2];
+	struct ieee80211_channel channels_2ghz[ARRAY_SIZE(hwsim_channels_2ghz)];
+	struct ieee80211_channel channels_5ghz[ARRAY_SIZE(hwsim_channels_5ghz)];
 	struct ieee80211_rate rates[ARRAY_SIZE(hwsim_rates)];
 
 	struct ieee80211_channel *channel;
@@ -590,10 +739,16 @@ static struct device_driver mac80211_hwsim_driver = {
 	.name = "mac80211_hwsim"
 };
 
+static const struct net_device_ops hwsim_netdev_ops = {
+	.ndo_start_xmit 	= hwsim_mon_xmit,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 static void hwsim_mon_setup(struct net_device *dev)
 {
-	dev->hard_start_xmit = hwsim_mon_xmit;
+	dev->netdev_ops = &hwsim_netdev_ops;
 	dev->destructor = free_netdev;
 	ether_setup(dev);
 	dev->tx_queue_len = 0;
@@ -728,6 +883,7 @@ static int __init init_mac80211_hwsim(void)
 	u8 addr[ETH_ALEN];
 	struct mac80211_hwsim_data *data;
 	struct ieee80211_hw *hw;
+	enum ieee80211_band band;
 
 	if (radios < 1 || radios > 100)
 		return -EINVAL;
@@ -777,37 +933,167 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_AP) |
 			BIT(NL80211_IFTYPE_MESH_POINT);
-		hw->ampdu_queues = 1;
+
+		hw->flags = IEEE80211_HW_MFP_CAPABLE;
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
 		hw->sta_data_size = sizeof(struct hwsim_sta_priv);
 
-		memcpy(data->channels, hwsim_channels, sizeof(hwsim_channels));
+		memcpy(data->channels_2ghz, hwsim_channels_2ghz,
+			sizeof(hwsim_channels_2ghz));
+		memcpy(data->channels_5ghz, hwsim_channels_5ghz,
+			sizeof(hwsim_channels_5ghz));
 		memcpy(data->rates, hwsim_rates, sizeof(hwsim_rates));
-		data->band.channels = data->channels;
-		data->band.n_channels = ARRAY_SIZE(hwsim_channels);
-		data->band.bitrates = data->rates;
-		data->band.n_bitrates = ARRAY_SIZE(hwsim_rates);
-		data->band.ht_cap.ht_supported = true;
-		data->band.ht_cap.cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
-			IEEE80211_HT_CAP_GRN_FLD |
-			IEEE80211_HT_CAP_SGI_40 |
-			IEEE80211_HT_CAP_DSSSCCK40;
-		data->band.ht_cap.ampdu_factor = 0x3;
-		data->band.ht_cap.ampdu_density = 0x6;
-		memset(&data->band.ht_cap.mcs, 0,
-		       sizeof(data->band.ht_cap.mcs));
-		data->band.ht_cap.mcs.rx_mask[0] = 0xff;
-		data->band.ht_cap.mcs.rx_mask[1] = 0xff;
-		data->band.ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &data->band;
 
+		for (band = IEEE80211_BAND_2GHZ; band < IEEE80211_NUM_BANDS; band++) {
+			struct ieee80211_supported_band *sband = &data->bands[band];
+			switch (band) {
+			case IEEE80211_BAND_2GHZ:
+				sband->channels = data->channels_2ghz;
+				sband->n_channels =
+					ARRAY_SIZE(hwsim_channels_2ghz);
+				break;
+			case IEEE80211_BAND_5GHZ:
+				sband->channels = data->channels_5ghz;
+				sband->n_channels =
+					ARRAY_SIZE(hwsim_channels_5ghz);
+				break;
+			default:
+				break;
+			}
+
+			sband->bitrates = data->rates;
+			sband->n_bitrates = ARRAY_SIZE(hwsim_rates);
+
+			sband->ht_cap.ht_supported = true;
+			sband->ht_cap.cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+				IEEE80211_HT_CAP_GRN_FLD |
+				IEEE80211_HT_CAP_SGI_40 |
+				IEEE80211_HT_CAP_DSSSCCK40;
+			sband->ht_cap.ampdu_factor = 0x3;
+			sband->ht_cap.ampdu_density = 0x6;
+			memset(&sband->ht_cap.mcs, 0,
+			       sizeof(sband->ht_cap.mcs));
+			sband->ht_cap.mcs.rx_mask[0] = 0xff;
+			sband->ht_cap.mcs.rx_mask[1] = 0xff;
+			sband->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
+
+			hw->wiphy->bands[band] = sband;
+		}
+
+		/* Work to be done prior to ieee80211_register_hw() */
+		switch (regtest) {
+		case HWSIM_REGTEST_DISABLED:
+		case HWSIM_REGTEST_DRIVER_REG_FOLLOW:
+		case HWSIM_REGTEST_DRIVER_REG_ALL:
+		case HWSIM_REGTEST_DIFF_COUNTRY:
+			/*
+			 * Nothing to be done for driver regulatory domain
+			 * hints prior to ieee80211_register_hw()
+			 */
+			break;
+		case HWSIM_REGTEST_WORLD_ROAM:
+			if (i == 0) {
+				hw->wiphy->custom_regulatory = true;
+				wiphy_apply_custom_regulatory(hw->wiphy,
+					&hwsim_world_regdom_custom_01);
+			}
+			break;
+		case HWSIM_REGTEST_CUSTOM_WORLD:
+			hw->wiphy->custom_regulatory = true;
+			wiphy_apply_custom_regulatory(hw->wiphy,
+				&hwsim_world_regdom_custom_01);
+			break;
+		case HWSIM_REGTEST_CUSTOM_WORLD_2:
+			if (i == 0) {
+				hw->wiphy->custom_regulatory = true;
+				wiphy_apply_custom_regulatory(hw->wiphy,
+					&hwsim_world_regdom_custom_01);
+			} else if (i == 1) {
+				hw->wiphy->custom_regulatory = true;
+				wiphy_apply_custom_regulatory(hw->wiphy,
+					&hwsim_world_regdom_custom_02);
+			}
+			break;
+		case HWSIM_REGTEST_STRICT_ALL:
+			hw->wiphy->strict_regulatory = true;
+			break;
+		case HWSIM_REGTEST_STRICT_FOLLOW:
+		case HWSIM_REGTEST_STRICT_AND_DRIVER_REG:
+			if (i == 0)
+				hw->wiphy->strict_regulatory = true;
+			break;
+		case HWSIM_REGTEST_ALL:
+			if (i == 0) {
+				hw->wiphy->custom_regulatory = true;
+				wiphy_apply_custom_regulatory(hw->wiphy,
+					&hwsim_world_regdom_custom_01);
+			} else if (i == 1) {
+				hw->wiphy->custom_regulatory = true;
+				wiphy_apply_custom_regulatory(hw->wiphy,
+					&hwsim_world_regdom_custom_02);
+			} else if (i == 4)
+				hw->wiphy->strict_regulatory = true;
+			break;
+		default:
+			break;
+		}
+
+		/* give the regulatory workqueue a chance to run */
+		if (regtest)
+			schedule_timeout_interruptible(1);
 		err = ieee80211_register_hw(hw);
 		if (err < 0) {
 			printk(KERN_DEBUG "mac80211_hwsim: "
 			       "ieee80211_register_hw failed (%d)\n", err);
 			goto failed_hw;
+		}
+
+		/* Work to be done after to ieee80211_register_hw() */
+		switch (regtest) {
+		case HWSIM_REGTEST_WORLD_ROAM:
+		case HWSIM_REGTEST_DISABLED:
+			break;
+		case HWSIM_REGTEST_DRIVER_REG_FOLLOW:
+			if (!i)
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[0]);
+			break;
+		case HWSIM_REGTEST_DRIVER_REG_ALL:
+		case HWSIM_REGTEST_STRICT_ALL:
+			regulatory_hint(hw->wiphy, hwsim_alpha2s[0]);
+			break;
+		case HWSIM_REGTEST_DIFF_COUNTRY:
+			if (i < ARRAY_SIZE(hwsim_alpha2s))
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[i]);
+			break;
+		case HWSIM_REGTEST_CUSTOM_WORLD:
+		case HWSIM_REGTEST_CUSTOM_WORLD_2:
+			/*
+			 * Nothing to be done for custom world regulatory
+			 * domains after to ieee80211_register_hw
+			 */
+			break;
+		case HWSIM_REGTEST_STRICT_FOLLOW:
+			if (i == 0)
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[0]);
+			break;
+		case HWSIM_REGTEST_STRICT_AND_DRIVER_REG:
+			if (i == 0)
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[0]);
+			else if (i == 1)
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[1]);
+			break;
+		case HWSIM_REGTEST_ALL:
+			if (i == 2)
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[0]);
+			else if (i == 3)
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[1]);
+			else if (i == 4)
+				regulatory_hint(hw->wiphy, hwsim_alpha2s[2]);
+			break;
+		default:
+			break;
 		}
 
 		printk(KERN_DEBUG "%s: hwaddr %pM registered\n",

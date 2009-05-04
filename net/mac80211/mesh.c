@@ -275,16 +275,6 @@ u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata, struct mesh_t
 		& tbl->hash_mask;
 }
 
-u8 mesh_id_hash(u8 *mesh_id, int mesh_id_len)
-{
-	if (!mesh_id_len)
-		return 1;
-	else if (mesh_id_len == 1)
-		return (u8) mesh_id[0];
-	else
-		return (u8) (mesh_id[0] + 2 * mesh_id[1]);
-}
-
 struct mesh_table *mesh_table_alloc(int size_order)
 {
 	int i;
@@ -442,7 +432,8 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 
 	ifmsh->housekeeping = true;
 	queue_work(local->hw.workqueue, &ifmsh->work);
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
+	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON |
+				   IEEE80211_IFCC_BEACON_ENABLED);
 }
 
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
@@ -476,7 +467,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee802_11_elems elems;
 	struct ieee80211_channel *channel;
-	u64 supp_rates = 0;
+	u32 supp_rates = 0;
 	size_t baselen;
 	int freq;
 	enum ieee80211_band band = rx_status->band;

@@ -16,7 +16,7 @@ static void arch_idle(void)
 	/* nothing here yet */
 }
 
-static void arch_reset(char mode)
+static void arch_reset(char mode, const char *cmd)
 {
 	/* nothing here yet */
 }

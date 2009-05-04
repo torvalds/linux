@@ -36,8 +36,8 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -57,31 +57,31 @@
 /* Defines
  */
 
-static int me6000_ao_query_range_by_min_max(me_subdevice_t * subdevice,
+static int me6000_ao_query_range_by_min_max(me_subdevice_t *subdevice,
 					    int unit,
 					    int *min,
 					    int *max, int *maxdata, int *range);
 
-static int me6000_ao_query_number_ranges(me_subdevice_t * subdevice,
+static int me6000_ao_query_number_ranges(me_subdevice_t *subdevice,
 					 int unit, int *count);
 
-static int me6000_ao_query_range_info(me_subdevice_t * subdevice,
+static int me6000_ao_query_range_info(me_subdevice_t *subdevice,
 				      int range,
 				      int *unit,
 				      int *min, int *max, int *maxdata);
 
-static int me6000_ao_query_timer(me_subdevice_t * subdevice,
+static int me6000_ao_query_timer(me_subdevice_t *subdevice,
 				 int timer,
 				 int *base_frequency,
 				 long long *min_ticks, long long *max_ticks);
 
-static int me6000_ao_query_number_channels(me_subdevice_t * subdevice,
+static int me6000_ao_query_number_channels(me_subdevice_t *subdevice,
 					   int *number);
 
-static int me6000_ao_query_subdevice_type(me_subdevice_t * subdevice,
+static int me6000_ao_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype);
 
-static int me6000_ao_query_subdevice_caps(me_subdevice_t * subdevice,
+static int me6000_ao_query_subdevice_caps(me_subdevice_t *subdevice,
 					  int *caps);
 
 static int me6000_ao_query_subdevice_caps_args(struct me_subdevice *subdevice,
@@ -91,11 +91,11 @@ static int me6000_ao_query_subdevice_caps_args(struct me_subdevice *subdevice,
 static void me6000_ao_destructor(struct me_subdevice *subdevice);
 
 /** Reset subdevice. Stop all actions. Reset registry. Disable FIFO. Set output to 0V and status to 'none'. */
-static int me6000_ao_io_reset_subdevice(me_subdevice_t * subdevice,
+static int me6000_ao_io_reset_subdevice(me_subdevice_t *subdevice,
 					struct file *filep, int flags);
 
 /** Set output as single */
-static int me6000_ao_io_single_config(me_subdevice_t * subdevice,
+static int me6000_ao_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -104,89 +104,81 @@ static int me6000_ao_io_single_config(me_subdevice_t * subdevice,
 				      int trig_type, int trig_edge, int flags);
 
 /** Pass to user actual value of output. */
-static int me6000_ao_io_single_read(me_subdevice_t * subdevice,
+static int me6000_ao_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags);
 
 /** Write to output requed value. */
-static int me6000_ao_io_single_write(me_subdevice_t * subdevice,
+static int me6000_ao_io_single_write(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int channel,
 				     int value, int time_out, int flags);
 
 /** Set output as streamed device. */
-static int me6000_ao_io_stream_config(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_config(me_subdevice_t *subdevice,
 				      struct file *filep,
-				      meIOStreamConfig_t * config_list,
+				      meIOStreamConfig_t *config_list,
 				      int count,
-				      meIOStreamTrigger_t * trigger,
+				      meIOStreamTrigger_t *trigger,
 				      int fifo_irq_threshold, int flags);
 
 /** Wait for / Check empty space in buffer. */
-static int me6000_ao_io_stream_new_values(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_new_values(me_subdevice_t *subdevice,
 					  struct file *filep,
 					  int time_out, int *count, int flags);
 
 /** Start streaming. */
-static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_start(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int start_mode, int time_out, int flags);
 
 /** Check actual state. / Wait for end. */
-static int me6000_ao_io_stream_status(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_status(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int wait,
 				      int *status, int *values, int flags);
 
 /** Stop streaming. */
-static int me6000_ao_io_stream_stop(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_stop(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int stop_mode, int flags);
 
 /** Write datas to buffor. */
-static int me6000_ao_io_stream_write(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_write(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int write_mode,
 				     int *values, int *count, int flags);
 
 /** Interrupt handler. Copy from buffer to FIFO. */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me6000_ao_isr(int irq, void *dev_id);
-#else
-static irqreturn_t me6000_ao_isr(int irq, void *dev_id, struct pt_regs *regs);
-#endif
 
 /** Copy data from circular buffer to fifo (fast) in wraparound mode. */
-int inline ao_write_data_wraparound(me6000_ao_subdevice_t * instance, int count,
+inline int ao_write_data_wraparound(me6000_ao_subdevice_t *instance, int count,
 				    int start_pos);
 
 /** Copy data from circular buffer to fifo (fast).*/
-int inline ao_write_data(me6000_ao_subdevice_t * instance, int count,
+inline int ao_write_data(me6000_ao_subdevice_t *instance, int count,
 			 int start_pos);
 
 /** Copy data from circular buffer to fifo (slow).*/
-int inline ao_write_data_pooling(me6000_ao_subdevice_t * instance, int count,
+inline int ao_write_data_pooling(me6000_ao_subdevice_t *instance, int count,
 				 int start_pos);
 
 /** Copy data from user space to circular buffer. */
-int inline ao_get_data_from_user(me6000_ao_subdevice_t * instance, int count,
+inline int ao_get_data_from_user(me6000_ao_subdevice_t *instance, int count,
 				 int *user_values);
 
 /** Stop presentation. Preserve FIFOs. */
-int inline ao_stop_immediately(me6000_ao_subdevice_t * instance);
+inline int ao_stop_immediately(me6000_ao_subdevice_t *instance);
 
 /** Function for checking timeout in non-blocking mode. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-static void me6000_ao_work_control_task(void *subdevice);
-#else
 static void me6000_ao_work_control_task(struct work_struct *work);
-#endif
 
 /* Functions
  */
 
-static int me6000_ao_io_reset_subdevice(me_subdevice_t * subdevice,
+static int me6000_ao_io_reset_subdevice(me_subdevice_t *subdevice,
 					struct file *filep, int flags)
 {
 	me6000_ao_subdevice_t *instance;
@@ -274,7 +266,7 @@ static int me6000_ao_io_reset_subdevice(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_single_config(me_subdevice_t * subdevice,
+static int me6000_ao_io_single_config(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int channel,
 				      int single_config,
@@ -473,7 +465,7 @@ static int me6000_ao_io_single_config(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_single_read(me_subdevice_t * subdevice,
+static int me6000_ao_io_single_read(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int channel,
 				    int *value, int time_out, int flags)
@@ -555,7 +547,7 @@ static int me6000_ao_io_single_read(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_single_write(me_subdevice_t * subdevice,
+static int me6000_ao_io_single_write(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int channel,
 				     int value, int time_out, int flags)
@@ -1027,11 +1019,11 @@ static int me6000_ao_io_single_write(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_stream_config(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_config(me_subdevice_t *subdevice,
 				      struct file *filep,
-				      meIOStreamConfig_t * config_list,
+				      meIOStreamConfig_t *config_list,
 				      int count,
-				      meIOStreamTrigger_t * trigger,
+				      meIOStreamTrigger_t *trigger,
 				      int fifo_irq_threshold, int flags)
 {
 	me6000_ao_subdevice_t *instance;
@@ -1063,7 +1055,7 @@ static int me6000_ao_io_stream_config(me_subdevice_t * subdevice,
 	}
 
 	if (flags & ME_IO_STREAM_CONFIG_HARDWARE_ONLY) {
-		if (!flags & ME_IO_STREAM_CONFIG_WRAPAROUND) {
+		if (!(flags & ME_IO_STREAM_CONFIG_WRAPAROUND)) {
 			PERROR
 			    ("Hardware ME_IO_STREAM_CONFIG_HARDWARE_ONLY has to be with ME_IO_STREAM_CONFIG_WRAPAROUND.\n");
 			return ME_ERRNO_INVALID_FLAGS;
@@ -1359,7 +1351,7 @@ static int me6000_ao_io_stream_config(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_stream_new_values(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_new_values(me_subdevice_t *subdevice,
 					  struct file *filep,
 					  int time_out, int *count, int flags)
 {
@@ -1440,7 +1432,7 @@ static int me6000_ao_io_stream_new_values(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_start(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int start_mode, int time_out, int flags)
 {
@@ -1889,7 +1881,7 @@ static int me6000_ao_io_stream_start(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_stream_status(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_status(me_subdevice_t *subdevice,
 				      struct file *filep,
 				      int wait,
 				      int *status, int *values, int flags)
@@ -1987,7 +1979,7 @@ static int me6000_ao_io_stream_status(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_stream_stop(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_stop(me_subdevice_t *subdevice,
 				    struct file *filep,
 				    int stop_mode, int flags)
 {				/// @note Stop work and empty buffer and FIFO
@@ -2094,7 +2086,7 @@ static int me6000_ao_io_stream_stop(me_subdevice_t * subdevice,
 	return err;
 }
 
-static int me6000_ao_io_stream_write(me_subdevice_t * subdevice,
+static int me6000_ao_io_stream_write(me_subdevice_t *subdevice,
 				     struct file *filep,
 				     int write_mode,
 				     int *values, int *count, int flags)
@@ -2324,11 +2316,7 @@ static int me6000_ao_io_stream_write(me_subdevice_t * subdevice,
 	return err;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19)
 static irqreturn_t me6000_ao_isr(int irq, void *dev_id)
-#else
-static irqreturn_t me6000_ao_isr(int irq, void *dev_id, struct pt_regs *regs)
-#endif
 {
 	me6000_ao_subdevice_t *instance = dev_id;
 	uint32_t irq_status;
@@ -2544,9 +2532,9 @@ static void me6000_ao_destructor(struct me_subdevice *subdevice)
 }
 
 me6000_ao_subdevice_t *me6000_ao_constructor(uint32_t reg_base,
-					     spinlock_t * preload_reg_lock,
-					     uint32_t * preload_flags,
-					     uint32_t * triggering_flags,
+					     spinlock_t *preload_reg_lock,
+					     uint32_t *preload_flags,
+					     uint32_t *triggering_flags,
 					     int ao_idx,
 					     int fifo,
 					     int irq,
@@ -2797,13 +2785,8 @@ me6000_ao_subdevice_t *me6000_ao_constructor(uint32_t reg_base,
 	subdevice->me6000_workqueue = me6000_wq;
 
 /* workqueue API changed in kernel 2.6.20 */
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20) )
-	INIT_WORK(&subdevice->ao_control_task, me6000_ao_work_control_task,
-		  (void *)subdevice);
-#else
 	INIT_DELAYED_WORK(&subdevice->ao_control_task,
 			  me6000_ao_work_control_task);
-#endif
 
 	if (subdevice->fifo) {	//Set speed
 		outl(ME6000_AO_MIN_CHAN_TICKS - 1, subdevice->timer_reg);
@@ -2817,7 +2800,7 @@ me6000_ao_subdevice_t *me6000_ao_constructor(uint32_t reg_base,
 *
 * @param instance The subdevice instance (pointer).
 */
-int inline ao_stop_immediately(me6000_ao_subdevice_t * instance)
+inline int ao_stop_immediately(me6000_ao_subdevice_t *instance)
 {
 	unsigned long cpu_flags;
 	uint32_t ctrl;
@@ -2825,10 +2808,11 @@ int inline ao_stop_immediately(me6000_ao_subdevice_t * instance)
 	int i;
 	uint32_t single_mask;
 
-	single_mask =
-	    (instance->ao_idx - ME6000_AO_SINGLE_STATUS_OFFSET <
-	     0) ? 0x0000 : (0x0001 << (instance->ao_idx -
-				       ME6000_AO_SINGLE_STATUS_OFFSET));
+	if (instance->ao_idx < ME6000_AO_SINGLE_STATUS_OFFSET)
+		single_mask = 0x0000;
+	else
+		single_mask = 0x0001 << (instance->ao_idx -
+				ME6000_AO_SINGLE_STATUS_OFFSET);
 
 	timeout =
 	    (instance->hardware_stop_delay >
@@ -2887,7 +2871,7 @@ int inline ao_stop_immediately(me6000_ao_subdevice_t * instance)
 * @return On error/success: 0.	No datas were copied => no data in buffer.
 * @return On error: -ME_ERRNO_FIFO_BUFFER_OVERFLOW.
 */
-int inline ao_write_data_wraparound(me6000_ao_subdevice_t * instance, int count,
+inline int ao_write_data_wraparound(me6000_ao_subdevice_t *instance, int count,
 				    int start_pos)
 {				/// @note This is time critical function!
 	uint32_t status;
@@ -2952,7 +2936,7 @@ int inline ao_write_data_wraparound(me6000_ao_subdevice_t * instance, int count,
 * @return On error/success: 0.	No datas were copied => no data in buffer.
 * @return On error: -ME_ERRNO_FIFO_BUFFER_OVERFLOW.
 */
-int inline ao_write_data(me6000_ao_subdevice_t * instance, int count,
+inline int ao_write_data(me6000_ao_subdevice_t *instance, int count,
 			 int start_pos)
 {				/// @note This is time critical function!
 	uint32_t status;
@@ -3022,7 +3006,7 @@ int inline ao_write_data(me6000_ao_subdevice_t * instance, int count,
 * @return On error/success: 0.	FIFO was full at begining.
 * @return On error: -ME_ERRNO_RING_BUFFER_UNDEFFLOW.
 */
-int inline ao_write_data_pooling(me6000_ao_subdevice_t * instance, int count,
+inline int ao_write_data_pooling(me6000_ao_subdevice_t *instance, int count,
 				 int start_pos)
 {				/// @note This is slow function!
 	uint32_t status;
@@ -3080,7 +3064,7 @@ int inline ao_write_data_pooling(me6000_ao_subdevice_t * instance, int count,
 * @return On success: Number of copied values.
 * @return On error: -ME_ERRNO_INTERNAL.
 */
-int inline ao_get_data_from_user(me6000_ao_subdevice_t * instance, int count,
+inline int ao_get_data_from_user(me6000_ao_subdevice_t *instance, int count,
 				 int *user_values)
 {
 	int i, err;
@@ -3109,13 +3093,7 @@ int inline ao_get_data_from_user(me6000_ao_subdevice_t * instance, int count,
 	return copied;
 }
 
-static void me6000_ao_work_control_task(
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-					       void *subdevice
-#else
-					       struct work_struct *work
-#endif
-    )
+static void me6000_ao_work_control_task(struct work_struct *work)
 {
 	me6000_ao_subdevice_t *instance;
 	unsigned long cpu_flags = 0;
@@ -3126,12 +3104,8 @@ static void me6000_ao_work_control_task(
 	int signaling = 0;
 	uint32_t single_mask;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-	instance = (me6000_ao_subdevice_t *) subdevice;
-#else
 	instance =
 	    container_of((void *)work, me6000_ao_subdevice_t, ao_control_task);
-#endif
 	PINFO("<%s: %ld> executed. idx=%d\n", __func__, jiffies,
 	      instance->ao_idx);
 
@@ -3555,7 +3529,7 @@ static void me6000_ao_work_control_task(
 
 }
 
-static int me6000_ao_query_range_by_min_max(me_subdevice_t * subdevice,
+static int me6000_ao_query_range_by_min_max(me_subdevice_t *subdevice,
 					    int unit,
 					    int *min,
 					    int *max, int *maxdata, int *range)
@@ -3589,7 +3563,7 @@ static int me6000_ao_query_range_by_min_max(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me6000_ao_query_number_ranges(me_subdevice_t * subdevice,
+static int me6000_ao_query_number_ranges(me_subdevice_t *subdevice,
 					 int unit, int *count)
 {
 	me6000_ao_subdevice_t *instance;
@@ -3607,7 +3581,7 @@ static int me6000_ao_query_number_ranges(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me6000_ao_query_range_info(me_subdevice_t * subdevice,
+static int me6000_ao_query_range_info(me_subdevice_t *subdevice,
 				      int range,
 				      int *unit,
 				      int *min, int *max, int *maxdata)
@@ -3631,7 +3605,7 @@ static int me6000_ao_query_range_info(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me6000_ao_query_timer(me_subdevice_t * subdevice,
+static int me6000_ao_query_timer(me_subdevice_t *subdevice,
 				 int timer,
 				 int *base_frequency,
 				 long long *min_ticks, long long *max_ticks)
@@ -3660,7 +3634,7 @@ static int me6000_ao_query_timer(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me6000_ao_query_number_channels(me_subdevice_t * subdevice,
+static int me6000_ao_query_number_channels(me_subdevice_t *subdevice,
 					   int *number)
 {
 	me6000_ao_subdevice_t *instance;
@@ -3672,7 +3646,7 @@ static int me6000_ao_query_number_channels(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me6000_ao_query_subdevice_type(me_subdevice_t * subdevice,
+static int me6000_ao_query_subdevice_type(me_subdevice_t *subdevice,
 					  int *type, int *subtype)
 {
 	me6000_ao_subdevice_t *instance;
@@ -3690,7 +3664,7 @@ static int me6000_ao_query_subdevice_type(me_subdevice_t * subdevice,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int me6000_ao_query_subdevice_caps(me_subdevice_t * subdevice, int *caps)
+static int me6000_ao_query_subdevice_caps(me_subdevice_t *subdevice, int *caps)
 {
 	me6000_ao_subdevice_t *instance;
 	instance = (me6000_ao_subdevice_t *) subdevice;

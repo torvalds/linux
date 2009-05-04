@@ -12,6 +12,7 @@
 #define _LINUX_AUTO_FS4_H
 
 /* Include common v3 definitions */
+#include <linux/types.h>
 #include <linux/auto_fs.h>
 
 /* autofs v4 definitions */

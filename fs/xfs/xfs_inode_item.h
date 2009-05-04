@@ -40,7 +40,6 @@ typedef struct xfs_inode_log_format {
 	__int32_t		ilf_boffset;	/* off of inode in buffer */
 } xfs_inode_log_format_t;
 
-#ifndef HAVE_FORMAT32
 typedef struct xfs_inode_log_format_32 {
 	__uint16_t		ilf_type;	/* inode log item type */
 	__uint16_t		ilf_size;	/* size of this item */
@@ -56,7 +55,6 @@ typedef struct xfs_inode_log_format_32 {
 	__int32_t		ilf_len;	/* len of inode buffer */
 	__int32_t		ilf_boffset;	/* off of inode in buffer */
 } __attribute__((packed)) xfs_inode_log_format_32_t;
-#endif
 
 typedef struct xfs_inode_log_format_64 {
 	__uint16_t		ilf_type;	/* inode log item type */
@@ -111,20 +109,16 @@ typedef struct xfs_inode_log_format_64 {
 
 #define	XFS_ILI_IOLOCKED_ANY   (XFS_ILI_IOLOCKED_EXCL | XFS_ILI_IOLOCKED_SHARED)
 
-
-#define	XFS_ILOG_FBROOT(w)	xfs_ilog_fbroot(w)
 static inline int xfs_ilog_fbroot(int w)
 {
 	return (w == XFS_DATA_FORK ? XFS_ILOG_DBROOT : XFS_ILOG_ABROOT);
 }
 
-#define	XFS_ILOG_FEXT(w)	xfs_ilog_fext(w)
 static inline int xfs_ilog_fext(int w)
 {
 	return (w == XFS_DATA_FORK ? XFS_ILOG_DEXT : XFS_ILOG_AEXT);
 }
 
-#define	XFS_ILOG_FDATA(w)	xfs_ilog_fdata(w)
 static inline int xfs_ilog_fdata(int w)
 {
 	return (w == XFS_DATA_FORK ? XFS_ILOG_DDATA : XFS_ILOG_ADATA);

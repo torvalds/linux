@@ -209,13 +209,33 @@ void blk_abort_queue(struct request_queue *q)
 {
 	unsigned long flags;
 	struct request *rq, *tmp;
+	LIST_HEAD(list);
+
+	/*
+	 * Not a request based block device, nothing to abort
+	 */
+	if (!q->request_fn)
+		return;
 
 	spin_lock_irqsave(q->queue_lock, flags);
 
 	elv_abort_queue(q);
 
-	list_for_each_entry_safe(rq, tmp, &q->timeout_list, timeout_list)
+	/*
+	 * Splice entries to local list, to avoid deadlocking if entries
+	 * get readded to the timeout list by error handling
+	 */
+	list_splice_init(&q->timeout_list, &list);
+
+	list_for_each_entry_safe(rq, tmp, &list, timeout_list)
 		blk_abort_request(rq);
+
+	/*
+	 * Occasionally, blk_abort_request() will return without
+	 * deleting the element from the list. Make sure we add those back
+	 * instead of leaving them on the local stack list.
+	 */
+	list_splice(&list, &q->timeout_list);
 
 	spin_unlock_irqrestore(q->queue_lock, flags);
 

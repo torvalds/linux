@@ -554,7 +554,7 @@ CONFIG_SPI_OMAP_UWIRE=y
 #
 # SPI Protocol Masters
 #
-# CONFIG_SPI_AT25 is not set
+# CONFIG_EEPROM_AT25 is not set
 # CONFIG_SPI_TSC2101 is not set
 # CONFIG_SPI_TSC2102 is not set
 # CONFIG_SPI_TSC210X is not set

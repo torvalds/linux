@@ -200,14 +200,15 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 /*
  * Register MMC devices. Called from mach-omap1 and mach-omap2 device init.
  */
-int __init omap_mmc_add(int id, unsigned long base, unsigned long size,
-		unsigned int irq, struct omap_mmc_platform_data *data)
+int __init omap_mmc_add(const char *name, int id, unsigned long base,
+				unsigned long size, unsigned int irq,
+				struct omap_mmc_platform_data *data)
 {
 	struct platform_device *pdev;
 	struct resource res[OMAP_MMC_NR_RES];
 	int ret;
 
-	pdev = platform_device_alloc("mmci-omap", id);
+	pdev = platform_device_alloc(name, id);
 	if (!pdev)
 		return -ENOMEM;
 
@@ -227,6 +228,9 @@ int __init omap_mmc_add(int id, unsigned long base, unsigned long size,
 	ret = platform_device_add(pdev);
 	if (ret)
 		goto fail;
+
+	/* return device handle to board setup code */
+	data->dev = &pdev->dev;
 	return 0;
 
 fail:

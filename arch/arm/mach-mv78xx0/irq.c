@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <asm/gpio.h>
-#include <mach/mv78xx0.h>
+#include <mach/bridge-regs.h>
 #include <plat/irq.h>
 #include "common.h"
 
@@ -40,7 +40,7 @@ void __init mv78xx0_init_irq(void)
 	writel(0, GPIO_EDGE_CAUSE(0));
 
 	for (i = IRQ_MV78XX0_GPIO_START; i < NR_IRQS; i++) {
-		set_irq_chip(i, &orion_gpio_irq_level_chip);
+		set_irq_chip(i, &orion_gpio_irq_chip);
 		set_irq_handler(i, handle_level_irq);
 		irq_desc[i].status |= IRQ_LEVEL;
 		set_irq_flags(i, IRQF_VALID);

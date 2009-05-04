@@ -12,17 +12,17 @@
 
 /* processors */
 
-#define SPEEDSTEP_PROCESSOR_PIII_C_EARLY	0x00000001  /* Coppermine core */
-#define SPEEDSTEP_PROCESSOR_PIII_C		0x00000002  /* Coppermine core */
-#define SPEEDSTEP_PROCESSOR_PIII_T		0x00000003  /* Tualatin core */
-#define SPEEDSTEP_PROCESSOR_P4M			0x00000004  /* P4-M  */
+#define SPEEDSTEP_CPU_PIII_C_EARLY	0x00000001  /* Coppermine core */
+#define SPEEDSTEP_CPU_PIII_C		0x00000002  /* Coppermine core */
+#define SPEEDSTEP_CPU_PIII_T		0x00000003  /* Tualatin core */
+#define SPEEDSTEP_CPU_P4M		0x00000004  /* P4-M  */
 
 /* the following processors are not speedstep-capable and are not auto-detected
  * in speedstep_detect_processor(). However, their speed can be detected using
- * the speedstep_get_processor_frequency() call. */
-#define SPEEDSTEP_PROCESSOR_PM			0xFFFFFF03  /* Pentium M  */
-#define SPEEDSTEP_PROCESSOR_P4D			0xFFFFFF04  /* desktop P4  */
-#define SPEEDSTEP_PROCESSOR_PCORE		0xFFFFFF05  /* Core */
+ * the speedstep_get_frequency() call. */
+#define SPEEDSTEP_CPU_PM		0xFFFFFF03  /* Pentium M  */
+#define SPEEDSTEP_CPU_P4D		0xFFFFFF04  /* desktop P4  */
+#define SPEEDSTEP_CPU_PCORE		0xFFFFFF05  /* Core */
 
 /* speedstep states -- only two of them */
 
@@ -34,7 +34,7 @@
 extern unsigned int speedstep_detect_processor (void);
 
 /* detect the current speed (in khz) of the processor */
-extern unsigned int speedstep_get_processor_frequency(unsigned int processor);
+extern unsigned int speedstep_get_frequency(unsigned int processor);
 
 
 /* detect the low and high speeds of the processor. The callback

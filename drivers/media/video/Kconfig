@@ -249,11 +249,25 @@ config VIDEO_VP27SMPX
 	  To compile this driver as a module, choose M here: the
 	  module will be called vp27smpx.
 
+comment "RDS decoders"
+
+config VIDEO_SAA6588
+	tristate "SAA6588 Radio Chip RDS decoder support"
+	depends on VIDEO_V4L2 && I2C
+
+	help
+	  Support for this Radio Data System (RDS) decoder. This allows
+	  seeing radio station identification transmitted using this
+	  standard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called saa6588.
+
 comment "Video decoders"
 
 config VIDEO_BT819
 	tristate "BT819A VideoStream decoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for BT819A video decoder.
 
@@ -262,7 +276,7 @@ config VIDEO_BT819
 
 config VIDEO_BT856
 	tristate "BT856 VideoStream decoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for BT856 video decoder.
 
@@ -271,7 +285,7 @@ config VIDEO_BT856
 
 config VIDEO_BT866
 	tristate "BT866 VideoStream decoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for BT866 video decoder.
 
@@ -280,7 +294,7 @@ config VIDEO_BT866
 
 config VIDEO_KS0127
 	tristate "KS0127 video decoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for KS0127 video decoder.
 
@@ -307,38 +321,18 @@ config VIDEO_TCM825X
 
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7110 video decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7110.
 
-config VIDEO_SAA7111
-	tristate "Philips SAA7111 video decoder"
-	depends on VIDEO_V4L1 && I2C
-	---help---
-	  Support for the Philips SAA711 video decoder.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa7111.
-
-config VIDEO_SAA7114
-	tristate "Philips SAA7114 video decoder"
-	depends on VIDEO_V4L1 && I2C
-	---help---
-	  Support for the Philips SAA7114 video decoder. This driver
-	  is used only on Zoran driver and should be moved soon to
-	  SAA711x module.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa7114.
-
 config VIDEO_SAA711X
-	tristate "Philips SAA7113/4/5 video decoders"
+	tristate "Philips SAA7111/3/4/5 video decoders"
 	depends on VIDEO_V4L2 && I2C
 	---help---
-	  Support for the Philips SAA7113/4/5 video decoders.
+	  Support for the Philips SAA7111/3/4/5 video decoders.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa7115.
@@ -383,7 +377,7 @@ config VIDEO_TVP5150
 
 config VIDEO_VPX3220
 	tristate "vpx3220a, vpx3216b & vpx3214c video decoders"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for VPX322x video decoders.
 
@@ -421,7 +415,7 @@ config VIDEO_SAA7127
 
 config VIDEO_SAA7185
 	tristate "Philips SAA7185 video encoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Philips SAA7185 video encoder.
 
@@ -430,7 +424,7 @@ config VIDEO_SAA7185
 
 config VIDEO_ADV7170
 	tristate "Analog Devices ADV7170 video encoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Analog Devices ADV7170 video encoder driver
 
@@ -439,7 +433,7 @@ config VIDEO_ADV7170
 
 config VIDEO_ADV7175
 	tristate "Analog Devices ADV7175 video encoder"
-	depends on VIDEO_V4L1 && I2C
+	depends on VIDEO_V4L2 && I2C
 	---help---
 	  Support for the Analog Devices ADV7175 video encoder driver
 
@@ -486,18 +480,6 @@ config VIDEO_VIVI
 	  In doubt, say N.
 
 source "drivers/media/video/bt8xx/Kconfig"
-
-config VIDEO_SAA6588
-	tristate "SAA6588 Radio Chip RDS decoder support on BT848 cards"
-	depends on I2C && VIDEO_BT848
-
-	help
-	  Support for  Radio Data System (RDS) decoder. This allows seeing
-	  radio station identification transmitted using this standard.
-	  Currently, it works only with bt8x8 chips.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa6588.
 
 config VIDEO_PMS
 	tristate "Mediavision Pro Movie Studio Video For Linux"
@@ -602,7 +584,6 @@ config VIDEO_SAA5249
 config VIDEO_VINO
 	tristate "SGI Vino Video For Linux (EXPERIMENTAL)"
 	depends on I2C && SGI_IP22 && EXPERIMENTAL && VIDEO_V4L2
-	select I2C_ALGO_SGI
 	select VIDEO_SAA7191 if VIDEO_HELPER_CHIPS_AUTO
 	help
 	  Say Y here to build in support for the Vino video input system found
@@ -639,7 +620,7 @@ config VIDEO_MXB
 	depends on PCI && VIDEO_V4L1 && I2C
 	select VIDEO_SAA7146_VV
 	select VIDEO_TUNER
-	select VIDEO_SAA7115 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEO_SAA711X if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TDA9840 if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TEA6415C if VIDEO_HELPER_CHIPS_AUTO
 	select VIDEO_TEA6420 if VIDEO_HELPER_CHIPS_AUTO
@@ -728,13 +709,6 @@ config SOC_CAMERA_MT9M001
 	  This driver supports MT9M001 cameras from Micron, monochrome
 	  and colour models.
 
-config MT9M001_PCA9536_SWITCH
-	bool "pca9536 datawidth switch for mt9m001"
-	depends on SOC_CAMERA_MT9M001 && GENERIC_GPIO
-	help
-	  Select this if your MT9M001 camera uses a PCA9536 I2C GPIO
-	  extender to switch between 8 and 10 bit datawidth modes
-
 config SOC_CAMERA_MT9M111
 	tristate "mt9m111 and mt9m112 support"
 	depends on SOC_CAMERA && I2C
@@ -754,13 +728,6 @@ config SOC_CAMERA_MT9V022
 	help
 	  This driver supports MT9V022 cameras from Micron
 
-config MT9V022_PCA9536_SWITCH
-	bool "pca9536 datawidth switch for mt9v022"
-	depends on SOC_CAMERA_MT9V022 && GENERIC_GPIO
-	help
-	  Select this if your MT9V022 camera uses a PCA9536 I2C GPIO
-	  extender to switch between 8 and 10 bit datawidth modes
-
 config SOC_CAMERA_TW9910
 	tristate "tw9910 support"
 	depends on SOC_CAMERA && I2C
@@ -778,6 +745,25 @@ config SOC_CAMERA_OV772X
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a ov772x camera driver
+
+config MX1_VIDEO
+	bool
+
+config VIDEO_MX1
+	tristate "i.MX1/i.MXL CMOS Sensor Interface driver"
+	depends on VIDEO_DEV && ARCH_MX1 && SOC_CAMERA
+	select FIQ
+	select VIDEOBUF_DMA_CONTIG
+	select MX1_VIDEO
+	---help---
+	  This is a v4l2 driver for the i.MX1/i.MXL CMOS Sensor Interface
+
+config VIDEO_MX3
+	tristate "i.MX3x Camera Sensor Interface driver"
+	depends on VIDEO_DEV && MX3_IPU && SOC_CAMERA
+	select VIDEOBUF_DMA_CONTIG
+	---help---
+	  This is a v4l2 driver for the i.MX3x Camera Sensor Interface
 
 config VIDEO_PXA27x
 	tristate "PXA27x Quick Capture Interface driver"
@@ -817,7 +803,11 @@ source "drivers/media/video/gspca/Kconfig"
 
 source "drivers/media/video/pvrusb2/Kconfig"
 
+source "drivers/media/video/hdpvr/Kconfig"
+
 source "drivers/media/video/em28xx/Kconfig"
+
+source "drivers/media/video/cx231xx/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
@@ -928,5 +918,4 @@ config USB_S2255
 	  This driver can be compiled as a module, called s2255drv.
 
 endif # V4L_USB_DRIVERS
-
 endif # VIDEO_CAPTURE_DRIVERS

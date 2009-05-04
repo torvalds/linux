@@ -28,17 +28,6 @@
 #include "debug-levels.h"
 
 
-/* Debug framework control of debug levels */
-struct d_level D_LEVEL[] = {
-	D_SUBMODULE_DEFINE(debugfs),
-	D_SUBMODULE_DEFINE(id_table),
-	D_SUBMODULE_DEFINE(op_msg),
-	D_SUBMODULE_DEFINE(op_reset),
-	D_SUBMODULE_DEFINE(op_rfkill),
-	D_SUBMODULE_DEFINE(stack),
-};
-size_t D_LEVEL_SIZE = ARRAY_SIZE(D_LEVEL);
-
 #define __debugfs_register(prefix, name, parent)			\
 do {									\
 	result = d_level_register_debugfs(prefix, name, parent);	\

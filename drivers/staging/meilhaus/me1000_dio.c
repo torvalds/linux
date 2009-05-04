@@ -36,7 +36,7 @@
 
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/types.h>
 
 #include "medefines.h"
@@ -371,7 +371,7 @@ static int me1000_dio_query_subdevice_caps(struct me_subdevice *subdevice,
 
 me1000_dio_subdevice_t *me1000_dio_constructor(uint32_t reg_base,
 					       unsigned int dio_idx,
-					       spinlock_t * ctrl_reg_lock)
+					       spinlock_t *ctrl_reg_lock)
 {
 	me1000_dio_subdevice_t *subdevice;
 	int err;

@@ -1,0 +1,55 @@
+# IBM Integrity Measurement Architecture
+#
+config IMA
+	bool "Integrity Measurement Architecture(IMA)"
+	depends on ACPI
+	select SECURITYFS
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_MD5
+	select CRYPTO_SHA1
+	select TCG_TPM
+	select TCG_TIS
+	help
+	  The Trusted Computing Group(TCG) runtime Integrity
+	  Measurement Architecture(IMA) maintains a list of hash
+	  values of executables and other sensitive system files,
+	  as they are read or executed. If an attacker manages
+	  to change the contents of an important system file
+	  being measured, we can tell.
+
+	  If your system has a TPM chip, then IMA also maintains
+	  an aggregate integrity value over this list inside the
+	  TPM hardware, so that the TPM can prove to a third party
+	  whether or not critical system files have been modified.
+	  Read <http://www.usenix.org/events/sec04/tech/sailer.html>
+	  to learn more about IMA.
+	  If unsure, say N.
+
+config IMA_MEASURE_PCR_IDX
+	int
+	depends on IMA
+	range 8 14
+	default 10
+	help
+	  IMA_MEASURE_PCR_IDX determines the TPM PCR register index
+	  that IMA uses to maintain the integrity aggregate of the
+	  measurement list.  If unsure, use the default 10.
+
+config IMA_AUDIT
+	bool
+	depends on IMA
+	default y
+	help
+	  This option adds a kernel parameter 'ima_audit', which
+	  allows informational auditing messages to be enabled
+	  at boot.  If this option is selected, informational integrity
+	  auditing messages can be enabled with 'ima_audit=1' on
+	  the kernel command line.
+
+config IMA_LSM_RULES
+	bool
+	depends on IMA && AUDIT && (SECURITY_SELINUX || SECURITY_SMACK)
+	default y
+	help
+	  Disabling this option will disregard LSM based policy rules.

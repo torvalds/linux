@@ -13,4 +13,3 @@ unifdef-y += cmb.h
 unifdef-y += debug.h
 unifdef-y += chpid.h
 unifdef-y += schid.h
-unifdef-y += swab.h

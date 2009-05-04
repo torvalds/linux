@@ -883,6 +883,15 @@ static inline int dscc4_set_quartz(struct dscc4_dev_priv *dpriv, int hz)
 	return ret;
 }
 
+static const struct net_device_ops dscc4_ops = {
+	.ndo_open       = dscc4_open,
+	.ndo_stop       = dscc4_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = dscc4_ioctl,
+	.ndo_tx_timeout = dscc4_tx_timeout,
+};
+
 static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 {
 	struct dscc4_pci_priv *ppriv;
@@ -916,13 +925,8 @@ static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 		hdlc_device *hdlc = dev_to_hdlc(d);
 
 	        d->base_addr = (unsigned long)ioaddr;
-		d->init = NULL;
 	        d->irq = pdev->irq;
-	        d->open = dscc4_open;
-	        d->stop = dscc4_close;
-		d->set_multicast_list = NULL;
-	        d->do_ioctl = dscc4_ioctl;
-		d->tx_timeout = dscc4_tx_timeout;
+		d->netdev_ops = &dscc4_ops;
 		d->watchdog_timeo = TX_TIMEOUT;
 		SET_NETDEV_DEV(d, &pdev->dev);
 
@@ -1048,7 +1052,7 @@ static int dscc4_open(struct net_device *dev)
 	struct dscc4_pci_priv *ppriv;
 	int ret = -EAGAIN;
 
-	if ((dscc4_loopback_check(dpriv) < 0) || !dev->hard_start_xmit)
+	if ((dscc4_loopback_check(dpriv) < 0))
 		goto err;
 
 	if ((ret = hdlc_open(dev)))

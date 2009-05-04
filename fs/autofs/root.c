@@ -192,7 +192,7 @@ static int autofs_revalidate(struct dentry * dentry, struct nameidata *nd)
 	return 1;
 }
 
-static struct dentry_operations autofs_dentry_operations = {
+static const struct dentry_operations autofs_dentry_operations = {
 	.d_revalidate	= autofs_revalidate,
 };
 

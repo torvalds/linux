@@ -409,7 +409,7 @@ static int lnksts = 0;		/* CFG_LNKSTS bit polarity */
 struct rx_info {
 	spinlock_t	lock;
 	int		up;
-	long		idle;
+	unsigned long	idle;
 
 	struct sk_buff	*skbs[NR_RX_DESC];
 
@@ -822,8 +822,7 @@ static void ns83820_cleanup_rx(struct ns83820 *dev)
 		struct sk_buff *skb = dev->rx_info.skbs[i];
 		dev->rx_info.skbs[i] = NULL;
 		clear_rx_desc(dev, i);
-		if (skb)
-			kfree_skb(skb);
+		kfree_skb(skb);
 	}
 }
 
@@ -1974,9 +1973,9 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
 
 	/* See if we can set the dma mask early on; failure is fatal. */
 	if (sizeof(dma_addr_t) == 8 &&
-	 	!pci_set_dma_mask(pci_dev, DMA_64BIT_MASK)) {
+		!pci_set_dma_mask(pci_dev, DMA_BIT_MASK(64))) {
 		using_dac = 1;
-	} else if (!pci_set_dma_mask(pci_dev, DMA_32BIT_MASK)) {
+	} else if (!pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32))) {
 		using_dac = 0;
 	} else {
 		dev_warn(&pci_dev->dev, "pci_set_dma_mask failed!\n");

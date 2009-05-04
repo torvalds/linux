@@ -88,13 +88,9 @@ __bzero_done:
 
 #define EX_ST(x,y)		\
 98:	x,y;			\
-	.section .fixup;	\
-	.align 4;		\
-99:	retl;			\
-	 mov	%o1, %o0;	\
 	.section __ex_table,"a";\
 	.align 4;		\
-	.word 98b, 99b;		\
+	.word 98b, __retl_o1;	\
 	.text;			\
 	.align 4;
 

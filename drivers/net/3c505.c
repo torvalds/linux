@@ -493,21 +493,27 @@ static bool receive_pcb(struct net_device *dev, pcb_struct * pcb)
 	}
 	/* read the data */
 	spin_lock_irqsave(&adapter->lock, flags);
-	i = 0;
-	do {
-		j = 0;
-		while (((stat = get_status(dev->base_addr)) & ACRF) == 0 && j++ < 20000);
-		pcb->data.raw[i++] = inb_command(dev->base_addr);
-		if (i > MAX_PCB_DATA)
-			INVALID_PCB_MSG(i);
-	} while ((stat & ASF_PCB_MASK) != ASF_PCB_END && j < 20000);
+	for (i = 0; i < MAX_PCB_DATA; i++) {
+		for (j = 0; j < 20000; j++) {
+			stat = get_status(dev->base_addr);
+			if (stat & ACRF)
+				break;
+		}
+		pcb->data.raw[i] = inb_command(dev->base_addr);
+		if ((stat & ASF_PCB_MASK) == ASF_PCB_END || j >= 20000)
+			break;
+	}
 	spin_unlock_irqrestore(&adapter->lock, flags);
+	if (i >= MAX_PCB_DATA) {
+		INVALID_PCB_MSG(i);
+		return false;
+	}
 	if (j >= 20000) {
 		TIMEOUT_MSG(__LINE__);
 		return false;
 	}
-	/* woops, the last "data" byte was really the length! */
-	total_length = pcb->data.raw[--i];
+	/* the last "data" byte was really the length! */
+	total_length = pcb->data.raw[i];
 
 	/* safety check total length vs data length */
 	if (total_length != (pcb->length + 2)) {
@@ -1348,6 +1354,17 @@ static int __init elp_autodetect(struct net_device *dev)
 	return 0;		/* Because of this, the layer above will return -ENODEV */
 }
 
+static const struct net_device_ops elp_netdev_ops = {
+	.ndo_open		= elp_open,
+	.ndo_stop		= elp_close,
+	.ndo_get_stats 		= elp_get_stats,
+	.ndo_start_xmit		= elp_start_xmit,
+	.ndo_tx_timeout 	= elp_timeout,
+	.ndo_set_multicast_list = elp_set_mc_list,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
 
 /******************************************************
  *
@@ -1552,13 +1569,8 @@ static int __init elplus_setup(struct net_device *dev)
 		printk(KERN_ERR "%s: adapter configuration failed\n", dev->name);
 	}
 
-	dev->open = elp_open;				/* local */
-	dev->stop = elp_close;				/* local */
-	dev->get_stats = elp_get_stats;			/* local */
-	dev->hard_start_xmit = elp_start_xmit;		/* local */
-	dev->tx_timeout = elp_timeout;			/* local */
+	dev->netdev_ops = &elp_netdev_ops;
 	dev->watchdog_timeo = 10*HZ;
-	dev->set_multicast_list = elp_set_mc_list;	/* local */
 	dev->ethtool_ops = &netdev_ethtool_ops;		/* local */
 
 	dev->mem_start = dev->mem_end = 0;

@@ -665,6 +665,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 {
 	enum efx_loopback_mode loopback_mode = efx->loopback_mode;
 	int phy_mode = efx->phy_mode;
+	enum reset_type reset_method = RESET_TYPE_INVISIBLE;
 	struct ethtool_cmd ecmd;
 	struct efx_channel *channel;
 	int rc_test = 0, rc_reset = 0, rc;
@@ -718,21 +719,21 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	mutex_unlock(&efx->mac_lock);
 
 	/* free up all consumers of SRAM (including all the queues) */
-	efx_reset_down(efx, &ecmd);
+	efx_reset_down(efx, reset_method, &ecmd);
 
 	rc = efx_test_chip(efx, tests);
 	if (rc && !rc_test)
 		rc_test = rc;
 
 	/* reset the chip to recover from the register test */
-	rc_reset = falcon_reset_hw(efx, RESET_TYPE_ALL);
+	rc_reset = falcon_reset_hw(efx, reset_method);
 
 	/* Ensure that the phy is powered and out of loopback
 	 * for the bist and loopback tests */
 	efx->phy_mode &= ~PHY_MODE_LOW_POWER;
 	efx->loopback_mode = LOOPBACK_NONE;
 
-	rc = efx_reset_up(efx, &ecmd, rc_reset == 0);
+	rc = efx_reset_up(efx, reset_method, &ecmd, rc_reset == 0);
 	if (rc && !rc_reset)
 		rc_reset = rc;
 

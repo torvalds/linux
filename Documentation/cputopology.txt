@@ -18,11 +18,11 @@ For an architecture to support this feature, it must define some of
 these macros in include/asm-XXX/topology.h:
 #define topology_physical_package_id(cpu)
 #define topology_core_id(cpu)
-#define topology_thread_siblings(cpu)
-#define topology_core_siblings(cpu)
+#define topology_thread_cpumask(cpu)
+#define topology_core_cpumask(cpu)
 
 The type of **_id is int.
-The type of siblings is cpumask_t.
+The type of siblings is (const) struct cpumask *.
 
 To be consistent on all architectures, include/linux/topology.h
 provides default definitions for any of the above macros that are

@@ -18,7 +18,6 @@
 #include <linux/posix_acl.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
-#include <linux/lm_interface.h>
 #include <linux/fiemap.h>
 #include <asm/uaccess.h>
 
@@ -372,6 +371,7 @@ static int gfs2_symlink(struct inode *dir, struct dentry *dentry,
 	ip = ghs[1].gh_gl->gl_object;
 
 	ip->i_disksize = size;
+	i_size_write(inode, size);
 
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 

@@ -171,13 +171,19 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 	&iva2_pwrdm,
 	&mpu_34xx_pwrdm,
 	&neon_pwrdm,
-	&core_34xx_pwrdm,
+	&core_34xx_pre_es3_1_pwrdm,
+	&core_34xx_es3_1_pwrdm,
 	&cam_pwrdm,
 	&dss_pwrdm,
 	&per_pwrdm,
 	&emu_pwrdm,
 	&sgx_pwrdm,
 	&usbhost_pwrdm,
+	&dpll1_pwrdm,
+	&dpll2_pwrdm,
+	&dpll3_pwrdm,
+	&dpll4_pwrdm,
+	&dpll5_pwrdm,
 #endif
 
 	NULL

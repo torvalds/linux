@@ -77,7 +77,6 @@ config MIPS_COBALT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config MACH_DECSTATION
 	bool "DECstations"
@@ -132,11 +131,10 @@ config MACH_JAZZ
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if EXPERIMENTAL
 	select SYS_SUPPORTS_100HZ
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	 This a family of machines based on the MIPS R4030 chipset which was
 	 used by several vendors to build RISC/os and Windows NT workstations.
-	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millenium and
+	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
 	 Olivetti M700-10 workstations.
 
 config LASAT
@@ -154,7 +152,6 @@ config LASAT
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config LEMOTE_FULONG
 	bool "Lemote Fulong mini-PC"
@@ -175,7 +172,6 @@ config LEMOTE_FULONG
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_HAS_EARLY_PRINTK
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select CPU_HAS_WB
 	help
@@ -238,15 +234,18 @@ config MIPS_SIM
 	  This option enables support for MIPS Technologies MIPSsim software
 	  emulator.
 
-config MACH_EMMA
-	bool "NEC EMMA series based machines"
+config NEC_MARKEINS
+	bool "NEC EMMA2RH Mark-eins board"
+	select SOC_EMMA2RH
+	select HW_HAS_PCI
+	help
+	  This enables support for the NEC Electronics Mark-eins boards.
 
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
 	select CEVT_R4K
 	select CSRC_R4K
 	select SYS_HAS_CPU_VR41XX
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 
 config NXP_STB220
 	bool "NXP STB220 board"
@@ -351,7 +350,7 @@ config SGI_IP27
 	select ARC64
 	select BOOT_ELF64
 	select DEFAULT_SGI_PARTITION
-	select DMA_IP27
+	select DMA_COHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
 	select NR_CPUS_DEFAULT_64
@@ -360,7 +359,6 @@ config SGI_IP27
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	help
 	  This are the SGI Origin 200, Origin 2000 and Onyx 2 Graphics
 	  workstations.  To compile a Linux kernel that runs on these, say Y
@@ -559,7 +557,6 @@ config MIKROTIK_RB532
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select HW_HAS_PCI
 	select IRQ_CPU
 	select SYS_HAS_CPU_MIPS32_R1
@@ -603,7 +600,7 @@ config CAVIUM_OCTEON_SIMULATOR
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
-	select CPU_CAVIUM_OCTEON
+	select SYS_HAS_CPU_CAVIUM_OCTEON
 	help
 	  The Octeon simulator is software performance model of the Cavium
 	  Octeon Processor. It supports simulating Octeon processors on x86
@@ -618,7 +615,7 @@ config CAVIUM_OCTEON_REFERENCE_BOARD
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_HAS_EARLY_PRINTK
-	select CPU_CAVIUM_OCTEON
+	select SYS_HAS_CPU_CAVIUM_OCTEON
 	select SWAP_IO_SPACE
 	help
 	  This option supports all of the Octeon reference boards from Cavium
@@ -637,7 +634,6 @@ endchoice
 
 source "arch/mips/alchemy/Kconfig"
 source "arch/mips/basler/excite/Kconfig"
-source "arch/mips/emma/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
@@ -697,8 +693,7 @@ config SCHED_OMIT_FRAME_POINTER
 	default y
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
-	default n
+	def_bool y
 
 #
 # Select some configuration options automatically based on user selections.
@@ -759,9 +754,6 @@ config CFE
 	bool
 
 config DMA_COHERENT
-	bool
-
-config DMA_IP27
 	bool
 
 config DMA_NONCOHERENT
@@ -898,6 +890,18 @@ config MIPS_RM9122
 	bool
 	select SERIAL_RM9000
 
+config SOC_EMMA2RH
+	bool
+	select CEVT_R4K
+	select CSRC_R4K
+	select DMA_NONCOHERENT
+	select IRQ_CPU
+	select SWAP_IO_SPACE
+	select SYS_HAS_CPU_R5500
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_BIG_ENDIAN
+
 config SOC_PNX833X
 	bool
 	select CEVT_R4K
@@ -908,7 +912,6 @@ config SOC_PNX833X
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GENERIC_GPIO
 	select CPU_MIPSR2_IRQ_VI
 
@@ -927,16 +930,10 @@ config SOC_PNX8550
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_32BIT_KERNEL
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GENERIC_GPIO
 
 config SWAP_IO_SPACE
 	bool
-
-config EMMA2RH
-	bool
-	depends on MARKEINS
-	default y
 
 config SERIAL_RM9000
 	bool
@@ -1237,6 +1234,7 @@ config CPU_SB1
 
 config CPU_CAVIUM_OCTEON
 	bool "Cavium Octeon processor"
+	depends on SYS_HAS_CPU_CAVIUM_OCTEON
 	select IRQ_CPU
 	select IRQ_CPU_OCTEON
 	select CPU_HAS_PREFETCH
@@ -1317,6 +1315,9 @@ config SYS_HAS_CPU_RM9000
 config SYS_HAS_CPU_SB1
 	bool
 
+config SYS_HAS_CPU_CAVIUM_OCTEON
+	bool
+
 #
 # CPU may reorder R->R, R->W, W->R, W->W
 # Reordering beyond LL and SC is handled in WEAK_REORDERING_BEYOND_LLSC
@@ -1368,7 +1369,7 @@ config CPU_SUPPORTS_64BIT_KERNEL
 #
 config HARDWARE_WATCHPOINTS
        bool
-       default y if CPU_MIPS32 || CPU_MIPS64
+       default y if CPU_MIPSR1 || CPU_MIPSR2
 
 menu "Kernel type"
 
@@ -1390,6 +1391,7 @@ config 32BIT
 config 64BIT
 	bool "64-bit kernel"
 	depends on CPU_SUPPORTS_64BIT_KERNEL && SYS_SUPPORTS_64BIT_KERNEL
+	select HAVE_SYSCALL_WRAPPERS
 	help
 	  Select this option if you want to build a 64-bit kernel.
 

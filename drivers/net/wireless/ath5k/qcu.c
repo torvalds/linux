@@ -148,6 +148,7 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
  */
 u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 {
+	u32 pending;
 	ATH5K_TRACE(ah->ah_sc);
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
 
@@ -159,7 +160,15 @@ u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 	if (ah->ah_version == AR5K_AR5210)
 		return false;
 
-	return AR5K_QUEUE_STATUS(queue) & AR5K_QCU_STS_FRMPENDCNT;
+	pending = (AR5K_QUEUE_STATUS(queue) & AR5K_QCU_STS_FRMPENDCNT);
+
+	/* It's possible to have no frames pending even if TXE
+	 * is set. To indicate that q has not stopped return
+	 * true */
+	if (!pending && AR5K_REG_READ_Q(ah, AR5K_QCU_TXE, queue))
+		return true;
+
+	return pending;
 }
 
 /*
@@ -324,8 +333,18 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		/*
 		 * Set misc registers
 		 */
-		ath5k_hw_reg_write(ah, AR5K_QCU_MISC_DCU_EARLY,
-			AR5K_QUEUE_MISC(queue));
+		/* Enable DCU early termination for this queue */
+		AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_MISC(queue),
+					AR5K_QCU_MISC_DCU_EARLY);
+
+		/* Enable DCU to wait for next fragment from QCU */
+		AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_DFS_MISC(queue),
+					AR5K_DCU_MISC_FRAG_WAIT);
+
+		/* On Maui and Spirit use the global seqnum on DCU */
+		if (ah->ah_mac_version < AR5K_SREV_AR5211)
+			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_DFS_MISC(queue),
+						AR5K_DCU_MISC_SEQNUM_CTL);
 
 		if (tq->tqi_cbr_period) {
 			ath5k_hw_reg_write(ah, AR5K_REG_SM(tq->tqi_cbr_period,
@@ -341,7 +360,8 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 					AR5K_QCU_MISC_CBR_THRES_ENABLE);
 		}
 
-		if (tq->tqi_ready_time)
+		if (tq->tqi_ready_time &&
+		(tq->tqi_type != AR5K_TX_QUEUE_ID_CAB))
 			ath5k_hw_reg_write(ah, AR5K_REG_SM(tq->tqi_ready_time,
 				AR5K_QCU_RDYTIMECFG_INTVAL) |
 				AR5K_QCU_RDYTIMECFG_ENABLE,
@@ -383,13 +403,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 				AR5K_DCU_MISC_ARBLOCK_CTL_S) |
 				AR5K_DCU_MISC_POST_FR_BKOFF_DIS |
 				AR5K_DCU_MISC_BCN_ENABLE);
-
-			ath5k_hw_reg_write(ah, ((AR5K_TUNE_BEACON_INTERVAL -
-				(AR5K_TUNE_SW_BEACON_RESP -
-				AR5K_TUNE_DMA_BEACON_RESP) -
-				AR5K_TUNE_ADDITIONAL_SWBA_BACKOFF) * 1024) |
-				AR5K_QCU_RDYTIMECFG_ENABLE,
-				AR5K_QUEUE_RDYTIMECFG(queue));
 			break;
 
 		case AR5K_TX_QUEUE_CAB:
@@ -397,6 +410,13 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 				AR5K_QCU_MISC_FRSHED_DBA_GT |
 				AR5K_QCU_MISC_CBREXP_DIS |
 				AR5K_QCU_MISC_CBREXP_BCN_DIS);
+
+			ath5k_hw_reg_write(ah, ((AR5K_TUNE_BEACON_INTERVAL -
+				(AR5K_TUNE_SW_BEACON_RESP -
+				AR5K_TUNE_DMA_BEACON_RESP) -
+				AR5K_TUNE_ADDITIONAL_SWBA_BACKOFF) * 1024) |
+				AR5K_QCU_RDYTIMECFG_ENABLE,
+				AR5K_QUEUE_RDYTIMECFG(queue));
 
 			AR5K_REG_ENABLE_BITS(ah, AR5K_QUEUE_DFS_MISC(queue),
 				(AR5K_DCU_MISC_ARBLOCK_CTL_GLOBAL <<
@@ -412,6 +432,8 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		default:
 			break;
 		}
+
+		/* TODO: Handle frame compression */
 
 		/*
 		 * Enable interrupts for this tx queue
@@ -483,6 +505,9 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		 * by setting AR5K_TXNOFRM to zero */
 		if (ah->ah_txq_imr_nofrm == 0)
 			ath5k_hw_reg_write(ah, 0, AR5K_TXNOFRM);
+
+		/* Set QCU mask for this DCU to save power */
+		AR5K_REG_WRITE_Q(ah, AR5K_QUEUE_QCUMASK(queue), queue);
 	}
 
 	return 0;

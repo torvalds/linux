@@ -36,7 +36,6 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 #include <linux/lockdep.h>
@@ -51,6 +50,9 @@ struct rcu_head {
 	struct rcu_head *next;
 	void (*func)(struct rcu_head *head);
 };
+
+/* Internal to kernel, but needed by rcupreempt.h. */
+extern int rcu_scheduler_active;
 
 #if defined(CONFIG_CLASSIC_RCU)
 #include <linux/rcuclassic.h>
@@ -265,6 +267,7 @@ extern void rcu_barrier_sched(void);
 
 /* Internal to kernel */
 extern void rcu_init(void);
+extern void rcu_scheduler_starting(void);
 extern int rcu_needs_cpu(int cpu);
 
 #endif /* __LINUX_RCUPDATE_H */

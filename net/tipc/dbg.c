@@ -258,7 +258,7 @@ void tipc_printf(struct print_buf *pb, const char *fmt, ...)
 	}
 
 	if (pb->echo)
-		printk(print_string);
+		printk("%s", print_string);
 
 	spin_unlock_bh(&print_lock);
 }

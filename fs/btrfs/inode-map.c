@@ -79,12 +79,11 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 	}
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
-	search_start = max(search_start, BTRFS_FIRST_FREE_OBJECTID);
+	search_start = max(search_start, (u64)BTRFS_FIRST_FREE_OBJECTID);
 	search_key.objectid = search_start;
 	search_key.type = 0;
 	search_key.offset = 0;
 
-	btrfs_init_path(path);
 	start_found = 0;
 	ret = btrfs_search_slot(trans, root, &search_key, path, 0, 0);
 	if (ret < 0)

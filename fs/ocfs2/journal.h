@@ -38,6 +38,17 @@ enum ocfs2_journal_state {
 struct ocfs2_super;
 struct ocfs2_dinode;
 
+/*
+ * The recovery_list is a simple linked list of node numbers to recover.
+ * It is protected by the recovery_lock.
+ */
+
+struct ocfs2_recovery_map {
+	unsigned int rm_used;
+	unsigned int *rm_entries;
+};
+
+
 struct ocfs2_journal {
 	enum ocfs2_journal_state   j_state;    /* Journals current state   */
 
@@ -139,6 +150,7 @@ void ocfs2_wait_for_recovery(struct ocfs2_super *osb);
 int ocfs2_recovery_init(struct ocfs2_super *osb);
 void ocfs2_recovery_exit(struct ocfs2_super *osb);
 
+int ocfs2_compute_replay_slots(struct ocfs2_super *osb);
 /*
  *  Journal Control:
  *  Initialize, Load, Shutdown, Wipe a journal.
@@ -266,6 +278,12 @@ int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
 /* dirblock */
 int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
 			    struct buffer_head *bh, int type);
+/* ocfs2_dx_root_block */
+int ocfs2_journal_access_dr(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* ocfs2_dx_leaf */
+int ocfs2_journal_access_dl(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
 /* Anything that has no ecc */
 int ocfs2_journal_access(handle_t *handle, struct inode *inode,
 			 struct buffer_head *bh, int type);
@@ -368,14 +386,29 @@ static inline int ocfs2_remove_extent_credits(struct super_block *sb)
 }
 
 /* data block for new dir/symlink, 2 for bitmap updates (bitmap fe +
- * bitmap block for the new bit) */
-#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + 2)
+ * bitmap block for the new bit) dx_root update for free list */
+#define OCFS2_DIR_LINK_ADDITIONAL_CREDITS (1 + 2 + 1)
 
-/* parent fe, parent block, new file entry, inode alloc fe, inode alloc
- * group descriptor + mkdir/symlink blocks + quota update */
-static inline int ocfs2_mknod_credits(struct super_block *sb)
+static inline int ocfs2_add_dir_index_credits(struct super_block *sb)
 {
-	return 3 + OCFS2_SUBALLOC_ALLOC + OCFS2_DIR_LINK_ADDITIONAL_CREDITS +
+	/* 1 block for index, 2 allocs (data, metadata), 1 clusters
+	 * worth of blocks for initial extent. */
+	return 1 + 2 * OCFS2_SUBALLOC_ALLOC +
+		ocfs2_clusters_to_blocks(sb, 1);
+}
+
+/* parent fe, parent block, new file entry, index leaf, inode alloc fe, inode
+ * alloc group descriptor + mkdir/symlink blocks + dir blocks + xattr
+ * blocks + quota update */
+static inline int ocfs2_mknod_credits(struct super_block *sb, int is_dir,
+				      int xattr_credits)
+{
+	int dir_credits = OCFS2_DIR_LINK_ADDITIONAL_CREDITS;
+
+	if (is_dir)
+		dir_credits += ocfs2_add_dir_index_credits(sb);
+
+	return 4 + OCFS2_SUBALLOC_ALLOC + dir_credits + xattr_credits +
 	       ocfs2_quota_trans_credits(sb);
 }
 
@@ -388,31 +421,31 @@ static inline int ocfs2_mknod_credits(struct super_block *sb)
 #define OCFS2_SIMPLE_DIR_EXTEND_CREDITS (2)
 
 /* file update (nlink, etc) + directory mtime/ctime + dir entry block + quota
- * update on dir */
+ * update on dir + index leaf + dx root update for free list */
 static inline int ocfs2_link_credits(struct super_block *sb)
 {
-	return 2*OCFS2_INODE_UPDATE_CREDITS + 1 +
+	return 2*OCFS2_INODE_UPDATE_CREDITS + 3 +
 	       ocfs2_quota_trans_credits(sb);
 }
 
 /* inode + dir inode (if we unlink a dir), + dir entry block + orphan
- * dir inode link */
+ * dir inode link + dir inode index leaf + dir index root */
 static inline int ocfs2_unlink_credits(struct super_block *sb)
 {
 	/* The quota update from ocfs2_link_credits is unused here... */
-	return 2 * OCFS2_INODE_UPDATE_CREDITS + 1 + ocfs2_link_credits(sb);
+	return 2 * OCFS2_INODE_UPDATE_CREDITS + 3 + ocfs2_link_credits(sb);
 }
 
 /* dinode + orphan dir dinode + inode alloc dinode + orphan dir entry +
- * inode alloc group descriptor */
-#define OCFS2_DELETE_INODE_CREDITS (3 * OCFS2_INODE_UPDATE_CREDITS + 1 + 1)
+ * inode alloc group descriptor + orphan dir index leaf */
+#define OCFS2_DELETE_INODE_CREDITS (3 * OCFS2_INODE_UPDATE_CREDITS + 3)
 
 /* dinode update, old dir dinode update, new dir dinode update, old
  * dir dir entry, new dir dir entry, dir entry update for renaming
- * directory + target unlink */
+ * directory + target unlink + 3 x dir index leaves */
 static inline int ocfs2_rename_credits(struct super_block *sb)
 {
-	return 3 * OCFS2_INODE_UPDATE_CREDITS + 3 + ocfs2_unlink_credits(sb);
+	return 3 * OCFS2_INODE_UPDATE_CREDITS + 6 + ocfs2_unlink_credits(sb);
 }
 
 /* global bitmap dinode, group desc., relinked group,
@@ -421,6 +454,20 @@ static inline int ocfs2_rename_credits(struct super_block *sb)
 #define OCFS2_XATTR_BLOCK_CREATE_CREDITS (OCFS2_SUBALLOC_ALLOC * 2 + \
 					  + OCFS2_INODE_UPDATE_CREDITS \
 					  + OCFS2_XATTR_BLOCK_UPDATE_CREDITS)
+
+/* inode update, removal of dx root block from allocator */
+#define OCFS2_DX_ROOT_REMOVE_CREDITS (OCFS2_INODE_UPDATE_CREDITS +	\
+				      OCFS2_SUBALLOC_FREE)
+
+static inline int ocfs2_calc_dxi_expand_credits(struct super_block *sb)
+{
+	int credits = 1 + OCFS2_SUBALLOC_ALLOC;
+
+	credits += ocfs2_clusters_to_blocks(sb, 1);
+	credits += ocfs2_quota_trans_credits(sb);
+
+	return credits;
+}
 
 /*
  * Please note that the caller must make sure that root_el is the root
@@ -457,7 +504,7 @@ static inline int ocfs2_calc_extend_credits(struct super_block *sb,
 
 static inline int ocfs2_calc_symlink_credits(struct super_block *sb)
 {
-	int blocks = ocfs2_mknod_credits(sb);
+	int blocks = ocfs2_mknod_credits(sb, 0, 0);
 
 	/* links can be longer than one block so we may update many
 	 * within our single allocated extent. */
@@ -513,8 +560,10 @@ static inline int ocfs2_jbd2_file_inode(handle_t *handle, struct inode *inode)
 static inline int ocfs2_begin_ordered_truncate(struct inode *inode,
 					       loff_t new_size)
 {
-	return jbd2_journal_begin_ordered_truncate(&OCFS2_I(inode)->ip_jinode,
-						   new_size);
+	return jbd2_journal_begin_ordered_truncate(
+				OCFS2_SB(inode->i_sb)->journal->j_journal,
+				&OCFS2_I(inode)->ip_jinode,
+				new_size);
 }
 
 #endif /* OCFS2_JOURNAL_H */

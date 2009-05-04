@@ -954,6 +954,7 @@ static int compat_drm_sg_free(struct file *file, unsigned int cmd,
 			 DRM_IOCTL_SG_FREE, (unsigned long)request);
 }
 
+#if defined(CONFIG_X86) || defined(CONFIG_IA64)
 typedef struct drm_update_draw32 {
 	drm_drawable_t handle;
 	unsigned int type;
@@ -984,6 +985,7 @@ static int compat_drm_update_draw(struct file *file, unsigned int cmd,
 			DRM_IOCTL_UPDATE_DRAW, (unsigned long)request);
 	return err;
 }
+#endif
 
 struct drm_wait_vblank_request32 {
 	enum drm_vblank_seq_type type;
@@ -1066,7 +1068,9 @@ drm_ioctl_compat_t *drm_compat_ioctls[] = {
 #endif
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_ALLOC32)] = compat_drm_sg_alloc,
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_FREE32)] = compat_drm_sg_free,
+#if defined(CONFIG_X86) || defined(CONFIG_IA64)
 	[DRM_IOCTL_NR(DRM_IOCTL_UPDATE_DRAW32)] = compat_drm_update_draw,
+#endif
 	[DRM_IOCTL_NR(DRM_IOCTL_WAIT_VBLANK32)] = compat_drm_wait_vblank,
 };
 

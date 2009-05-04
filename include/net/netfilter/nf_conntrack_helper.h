@@ -14,6 +14,8 @@
 
 struct module;
 
+#define NF_CT_HELPER_NAME_LEN	16
+
 struct nf_conntrack_helper
 {
 	struct hlist_node hnode;	/* Internal use. */

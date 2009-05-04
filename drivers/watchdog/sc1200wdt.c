@@ -71,7 +71,7 @@
 #define UART2_IRQ	0x04	/* Serial1 */
 /* 5 -7 are reserved */
 
-static char banner[] __initdata = KERN_INFO PFX SC1200_MODULE_VER;
+static char banner[] __initdata = PFX SC1200_MODULE_VER;
 static int timeout = 1;
 static int io = -1;
 static int io_len = 2;		/* for non plug and play */
@@ -392,7 +392,7 @@ static int __init sc1200wdt_init(void)
 {
 	int ret;
 
-	printk("%s\n", banner);
+	printk(KERN_INFO "%s\n", banner);
 
 #if defined CONFIG_PNP
 	if (isapnp) {
@@ -477,6 +477,7 @@ module_init(sc1200wdt_init);
 module_exit(sc1200wdt_exit);
 
 MODULE_AUTHOR("Zwane Mwaikambo <zwane@commfireservices.com>");
-MODULE_DESCRIPTION("Driver for National Semiconductor PC87307/PC97307 watchdog component");
+MODULE_DESCRIPTION(
+	"Driver for National Semiconductor PC87307/PC97307 watchdog component");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

@@ -230,7 +230,7 @@ xfs_ialloc_ag_alloc(
 		args.minalignslop = xfs_ialloc_cluster_alignment(&args) - 1;
 
 		/* Allow space for the inode btree to split. */
-		args.minleft = XFS_IN_MAXLEVELS(args.mp) - 1;
+		args.minleft = args.mp->m_in_maxlevels - 1;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	} else
@@ -270,7 +270,7 @@ xfs_ialloc_ag_alloc(
 		/*
 		 * Allow space for the inode btree to split.
 		 */
-		args.minleft = XFS_IN_MAXLEVELS(args.mp) - 1;
+		args.minleft = args.mp->m_in_maxlevels - 1;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
@@ -349,7 +349,7 @@ xfs_ialloc_ag_alloc(
 		 * Initialize all inodes in this buffer and then log them.
 		 *
 		 * XXX: It would be much better if we had just one transaction to
-		 *      log a whole cluster of inodes instead of all the indivdual
+		 *      log a whole cluster of inodes instead of all the individual
 		 *      transactions causing a lot of log traffic.
 		 */
 		xfs_biozero(fbuf, 0, ninodes << args.mp->m_sb.sb_inodelog);
@@ -357,7 +357,7 @@ xfs_ialloc_ag_alloc(
 			int	ioffset = i << args.mp->m_sb.sb_inodelog;
 			uint	isize = sizeof(struct xfs_dinode);
 
-			free = XFS_MAKE_IPTR(args.mp, fbuf, i);
+			free = xfs_make_iptr(args.mp, fbuf, i);
 			free->di_magic = cpu_to_be16(XFS_DINODE_MAGIC);
 			free->di_version = version;
 			free->di_gen = cpu_to_be32(gen);
@@ -937,13 +937,13 @@ nextag:
 			}
 		}
 	}
-	offset = XFS_IALLOC_FIND_FREE(&rec.ir_free);
+	offset = xfs_ialloc_find_free(&rec.ir_free);
 	ASSERT(offset >= 0);
 	ASSERT(offset < XFS_INODES_PER_CHUNK);
 	ASSERT((XFS_AGINO_TO_OFFSET(mp, rec.ir_startino) %
 				   XFS_INODES_PER_CHUNK) == 0);
 	ino = XFS_AGINO_TO_INO(mp, agno, rec.ir_startino + offset);
-	XFS_INOBT_CLR_FREE(&rec, offset);
+	rec.ir_free &= ~XFS_INOBT_MASK(offset);
 	rec.ir_freecount--;
 	if ((error = xfs_inobt_update(cur, rec.ir_startino, rec.ir_freecount,
 			rec.ir_free)))
@@ -1105,11 +1105,11 @@ xfs_difree(
 	 */
 	off = agino - rec.ir_startino;
 	ASSERT(off >= 0 && off < XFS_INODES_PER_CHUNK);
-	ASSERT(!XFS_INOBT_IS_FREE(&rec, off));
+	ASSERT(!(rec.ir_free & XFS_INOBT_MASK(off)));
 	/*
 	 * Mark the inode free & increment the count.
 	 */
-	XFS_INOBT_SET_FREE(&rec, off);
+	rec.ir_free |= XFS_INOBT_MASK(off);
 	rec.ir_freecount++;
 
 	/*
@@ -1279,7 +1279,7 @@ xfs_imap(
 		offset = XFS_INO_TO_OFFSET(mp, ino);
 		ASSERT(offset < mp->m_sb.sb_inopblock);
 
-		cluster_agbno = XFS_DADDR_TO_AGBNO(mp, imap->im_blkno);
+		cluster_agbno = xfs_daddr_to_agbno(mp, imap->im_blkno);
 		offset += (agbno - cluster_agbno) * mp->m_sb.sb_inopblock;
 
 		imap->im_len = XFS_FSB_TO_BB(mp, blks_per_cluster);

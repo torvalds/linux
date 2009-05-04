@@ -120,6 +120,7 @@
 #include <net/net_namespace.h>
 #include <net/request_sock.h>
 #include <net/sock.h>
+#include <linux/net_tstamp.h>
 #include <net/xfrm.h>
 #include <linux/ipsec.h>
 
@@ -149,7 +150,7 @@ static const char *af_family_key_strings[AF_MAX+1] = {
   "sk_lock-AF_DECnet", "sk_lock-AF_NETBEUI"  , "sk_lock-AF_SECURITY" ,
   "sk_lock-AF_KEY"   , "sk_lock-AF_NETLINK"  , "sk_lock-AF_PACKET"   ,
   "sk_lock-AF_ASH"   , "sk_lock-AF_ECONET"   , "sk_lock-AF_ATMSVC"   ,
-  "sk_lock-21"       , "sk_lock-AF_SNA"      , "sk_lock-AF_IRDA"     ,
+  "sk_lock-AF_RDS"   , "sk_lock-AF_SNA"      , "sk_lock-AF_IRDA"     ,
   "sk_lock-AF_PPPOX" , "sk_lock-AF_WANPIPE"  , "sk_lock-AF_LLC"      ,
   "sk_lock-27"       , "sk_lock-28"          , "sk_lock-AF_CAN"      ,
   "sk_lock-AF_TIPC"  , "sk_lock-AF_BLUETOOTH", "sk_lock-IUCV"        ,
@@ -164,7 +165,7 @@ static const char *af_family_slock_key_strings[AF_MAX+1] = {
   "slock-AF_DECnet", "slock-AF_NETBEUI"  , "slock-AF_SECURITY" ,
   "slock-AF_KEY"   , "slock-AF_NETLINK"  , "slock-AF_PACKET"   ,
   "slock-AF_ASH"   , "slock-AF_ECONET"   , "slock-AF_ATMSVC"   ,
-  "slock-21"       , "slock-AF_SNA"      , "slock-AF_IRDA"     ,
+  "slock-AF_RDS"   , "slock-AF_SNA"      , "slock-AF_IRDA"     ,
   "slock-AF_PPPOX" , "slock-AF_WANPIPE"  , "slock-AF_LLC"      ,
   "slock-27"       , "slock-28"          , "slock-AF_CAN"      ,
   "slock-AF_TIPC"  , "slock-AF_BLUETOOTH", "slock-AF_IUCV"     ,
@@ -179,7 +180,7 @@ static const char *af_family_clock_key_strings[AF_MAX+1] = {
   "clock-AF_DECnet", "clock-AF_NETBEUI"  , "clock-AF_SECURITY" ,
   "clock-AF_KEY"   , "clock-AF_NETLINK"  , "clock-AF_PACKET"   ,
   "clock-AF_ASH"   , "clock-AF_ECONET"   , "clock-AF_ATMSVC"   ,
-  "clock-21"       , "clock-AF_SNA"      , "clock-AF_IRDA"     ,
+  "clock-AF_RDS"   , "clock-AF_SNA"      , "clock-AF_IRDA"     ,
   "clock-AF_PPPOX" , "clock-AF_WANPIPE"  , "clock-AF_LLC"      ,
   "clock-27"       , "clock-28"          , "clock-AF_CAN"      ,
   "clock-AF_TIPC"  , "clock-AF_BLUETOOTH", "clock-AF_IUCV"     ,
@@ -255,11 +256,14 @@ static void sock_warn_obsolete_bsdism(const char *name)
 	}
 }
 
-static void sock_disable_timestamp(struct sock *sk)
+static void sock_disable_timestamp(struct sock *sk, int flag)
 {
-	if (sock_flag(sk, SOCK_TIMESTAMP)) {
-		sock_reset_flag(sk, SOCK_TIMESTAMP);
-		net_disable_timestamp();
+	if (sock_flag(sk, flag)) {
+		sock_reset_flag(sk, flag);
+		if (!sock_flag(sk, SOCK_TIMESTAMP) &&
+		    !sock_flag(sk, SOCK_TIMESTAMPING_RX_SOFTWARE)) {
+			net_disable_timestamp();
+		}
 	}
 }
 
@@ -614,11 +618,36 @@ set_rcvbuf:
 			else
 				sock_set_flag(sk, SOCK_RCVTSTAMPNS);
 			sock_set_flag(sk, SOCK_RCVTSTAMP);
-			sock_enable_timestamp(sk);
+			sock_enable_timestamp(sk, SOCK_TIMESTAMP);
 		} else {
 			sock_reset_flag(sk, SOCK_RCVTSTAMP);
 			sock_reset_flag(sk, SOCK_RCVTSTAMPNS);
 		}
+		break;
+
+	case SO_TIMESTAMPING:
+		if (val & ~SOF_TIMESTAMPING_MASK) {
+			ret = EINVAL;
+			break;
+		}
+		sock_valbool_flag(sk, SOCK_TIMESTAMPING_TX_HARDWARE,
+				  val & SOF_TIMESTAMPING_TX_HARDWARE);
+		sock_valbool_flag(sk, SOCK_TIMESTAMPING_TX_SOFTWARE,
+				  val & SOF_TIMESTAMPING_TX_SOFTWARE);
+		sock_valbool_flag(sk, SOCK_TIMESTAMPING_RX_HARDWARE,
+				  val & SOF_TIMESTAMPING_RX_HARDWARE);
+		if (val & SOF_TIMESTAMPING_RX_SOFTWARE)
+			sock_enable_timestamp(sk,
+					      SOCK_TIMESTAMPING_RX_SOFTWARE);
+		else
+			sock_disable_timestamp(sk,
+					       SOCK_TIMESTAMPING_RX_SOFTWARE);
+		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SOFTWARE,
+				  val & SOF_TIMESTAMPING_SOFTWARE);
+		sock_valbool_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE,
+				  val & SOF_TIMESTAMPING_SYS_HARDWARE);
+		sock_valbool_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE,
+				  val & SOF_TIMESTAMPING_RAW_HARDWARE);
 		break;
 
 	case SO_RCVLOWAT:
@@ -696,6 +725,8 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	if (len < 0)
 		return -EINVAL;
 
+	memset(&v, 0, sizeof(v));
+
 	switch(optname) {
 	case SO_DEBUG:
 		v.val = sock_flag(sk, SOCK_DBG);
@@ -764,6 +795,24 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 
 	case SO_TIMESTAMPNS:
 		v.val = sock_flag(sk, SOCK_RCVTSTAMPNS);
+		break;
+
+	case SO_TIMESTAMPING:
+		v.val = 0;
+		if (sock_flag(sk, SOCK_TIMESTAMPING_TX_HARDWARE))
+			v.val |= SOF_TIMESTAMPING_TX_HARDWARE;
+		if (sock_flag(sk, SOCK_TIMESTAMPING_TX_SOFTWARE))
+			v.val |= SOF_TIMESTAMPING_TX_SOFTWARE;
+		if (sock_flag(sk, SOCK_TIMESTAMPING_RX_HARDWARE))
+			v.val |= SOF_TIMESTAMPING_RX_HARDWARE;
+		if (sock_flag(sk, SOCK_TIMESTAMPING_RX_SOFTWARE))
+			v.val |= SOF_TIMESTAMPING_RX_SOFTWARE;
+		if (sock_flag(sk, SOCK_TIMESTAMPING_SOFTWARE))
+			v.val |= SOF_TIMESTAMPING_SOFTWARE;
+		if (sock_flag(sk, SOCK_TIMESTAMPING_SYS_HARDWARE))
+			v.val |= SOF_TIMESTAMPING_SYS_HARDWARE;
+		if (sock_flag(sk, SOCK_TIMESTAMPING_RAW_HARDWARE))
+			v.val |= SOF_TIMESTAMPING_RAW_HARDWARE;
 		break;
 
 	case SO_RCVTIMEO:
@@ -967,7 +1016,8 @@ void sk_free(struct sock *sk)
 		rcu_assign_pointer(sk->sk_filter, NULL);
 	}
 
-	sock_disable_timestamp(sk);
+	sock_disable_timestamp(sk, SOCK_TIMESTAMP);
+	sock_disable_timestamp(sk, SOCK_TIMESTAMPING_RX_SOFTWARE);
 
 	if (atomic_read(&sk->sk_omem_alloc))
 		printk(KERN_DEBUG "%s: optmem leakage (%d bytes) detected.\n",
@@ -1135,7 +1185,6 @@ void sock_rfree(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 
-	skb_truesize_check(skb);
 	atomic_sub(skb->truesize, &sk->sk_rmem_alloc);
 	sk_mem_uncharge(skb->sk, skb->truesize);
 }
@@ -1254,10 +1303,9 @@ static long sock_wait_for_wmem(struct sock * sk, long timeo)
  *	Generic send/receive buffer handlers
  */
 
-static struct sk_buff *sock_alloc_send_pskb(struct sock *sk,
-					    unsigned long header_len,
-					    unsigned long data_len,
-					    int noblock, int *errcode)
+struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
+				     unsigned long data_len, int noblock,
+				     int *errcode)
 {
 	struct sk_buff *skb;
 	gfp_t gfp_mask;
@@ -1337,6 +1385,7 @@ failure:
 	*errcode = err;
 	return NULL;
 }
+EXPORT_SYMBOL(sock_alloc_send_pskb);
 
 struct sk_buff *sock_alloc_send_skb(struct sock *sk, unsigned long size,
 				    int noblock, int *errcode)
@@ -1628,7 +1677,7 @@ static void sock_def_error_report(struct sock *sk)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+		wake_up_interruptible_poll(sk->sk_sleep, POLLERR);
 	sk_wake_async(sk, SOCK_WAKE_IO, POLL_ERR);
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -1637,7 +1686,8 @@ static void sock_def_readable(struct sock *sk, int len)
 {
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible_sync(sk->sk_sleep);
+		wake_up_interruptible_sync_poll(sk->sk_sleep, POLLIN |
+						POLLRDNORM | POLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -1651,7 +1701,8 @@ static void sock_def_write_space(struct sock *sk)
 	 */
 	if ((atomic_read(&sk->sk_wmem_alloc) << 1) <= sk->sk_sndbuf) {
 		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-			wake_up_interruptible_sync(sk->sk_sleep);
+			wake_up_interruptible_sync_poll(sk->sk_sleep, POLLOUT |
+						POLLWRNORM | POLLWRBAND);
 
 		/* Should agree with poll, otherwise some programs break */
 		if (sock_writeable(sk))
@@ -1785,7 +1836,7 @@ int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 {
 	struct timeval tv;
 	if (!sock_flag(sk, SOCK_TIMESTAMP))
-		sock_enable_timestamp(sk);
+		sock_enable_timestamp(sk, SOCK_TIMESTAMP);
 	tv = ktime_to_timeval(sk->sk_stamp);
 	if (tv.tv_sec == -1)
 		return -ENOENT;
@@ -1801,7 +1852,7 @@ int sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
 {
 	struct timespec ts;
 	if (!sock_flag(sk, SOCK_TIMESTAMP))
-		sock_enable_timestamp(sk);
+		sock_enable_timestamp(sk, SOCK_TIMESTAMP);
 	ts = ktime_to_timespec(sk->sk_stamp);
 	if (ts.tv_sec == -1)
 		return -ENOENT;
@@ -1813,11 +1864,20 @@ int sock_get_timestampns(struct sock *sk, struct timespec __user *userstamp)
 }
 EXPORT_SYMBOL(sock_get_timestampns);
 
-void sock_enable_timestamp(struct sock *sk)
+void sock_enable_timestamp(struct sock *sk, int flag)
 {
-	if (!sock_flag(sk, SOCK_TIMESTAMP)) {
-		sock_set_flag(sk, SOCK_TIMESTAMP);
-		net_enable_timestamp();
+	if (!sock_flag(sk, flag)) {
+		sock_set_flag(sk, flag);
+		/*
+		 * we just set one of the two flags which require net
+		 * time stamping, but time stamping might have been on
+		 * already because of the other one
+		 */
+		if (!sock_flag(sk,
+				flag == SOCK_TIMESTAMP ?
+				SOCK_TIMESTAMPING_RX_SOFTWARE :
+				SOCK_TIMESTAMP))
+			net_enable_timestamp();
 	}
 }
 

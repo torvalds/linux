@@ -33,10 +33,10 @@
 #include <linux/serio.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/hardware/iomd.h>
 #include <asm/system.h>
 

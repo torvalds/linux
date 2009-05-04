@@ -127,6 +127,13 @@
 			dcr-reg = <0x010 0x002>;
 		};
 
+		CRYPTO: crypto@180000 {
+			compatible = "amcc,ppc460ex-crypto", "amcc,ppc4xx-crypto";
+			reg = <4 0x00180000 0x80400>;
+			interrupt-parent = <&UIC0>;
+			interrupts = <0x1d 0x4>;
+		};
+
 		MAL0: mcmal {
 			compatible = "ibm,mcmal-460ex", "ibm,mcmal2";
 			dcr-reg = <0x180 0x062>;
@@ -141,6 +148,20 @@
 					/*TXDE*/  0x4 0x4
 					/*RXDE*/  0x5 0x4>;
 		};
+
+                USB0: ehci@bffd0400 {
+                        compatible = "ibm,usb-ehci-460ex", "usb-ehci";
+                        interrupt-parent = <&UIC2>;
+                        interrupts = <0x1d 4>;
+                        reg = <4 0xbffd0400 0x90 4 0xbffd0490 0x70>;
+                };
+
+                USB1: usb@bffd0000 {
+                        compatible = "ohci-le";
+                        reg = <4 0xbffd0000 0x60>;
+                        interrupt-parent = <&UIC2>;
+                        interrupts = <0x1e 4>;
+                };
 
 		POB0: opb {
 			compatible = "ibm,opb-460ex", "ibm,opb";
@@ -245,6 +266,20 @@
 				reg = <0xef600700 0x00000014>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x2 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+                                rtc@68 {
+                                        compatible = "stm,m41t80";
+                                        reg = <0x68>;
+					interrupt-parent = <&UIC2>;
+					interrupts = <0x19 0x8>;
+                                };
+                                sttm@48 {
+                                        compatible = "ad,ad7414";
+                                        reg = <0x48>;
+					interrupt-parent = <&UIC1>;
+					interrupts = <0x14 0x8>;
+                                };
 			};
 
 			IIC1: i2c@ef600800 {

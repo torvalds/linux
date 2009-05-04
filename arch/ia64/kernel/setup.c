@@ -52,6 +52,7 @@
 #include <asm/meminit.h>
 #include <asm/page.h>
 #include <asm/paravirt.h>
+#include <asm/paravirt_patch.h>
 #include <asm/patch.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -537,6 +538,7 @@ setup_arch (char **cmdline_p)
 	paravirt_arch_setup_early();
 
 	ia64_patch_vtop((u64) __start___vtop_patchlist, (u64) __end___vtop_patchlist);
+	paravirt_patch_apply();
 
 	*cmdline_p = __va(ia64_boot_param->command_line);
 	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
@@ -730,10 +732,10 @@ static void *
 c_start (struct seq_file *m, loff_t *pos)
 {
 #ifdef CONFIG_SMP
-	while (*pos < NR_CPUS && !cpu_isset(*pos, cpu_online_map))
+	while (*pos < nr_cpu_ids && !cpu_online(*pos))
 		++*pos;
 #endif
-	return *pos < NR_CPUS ? cpu_data(*pos) : NULL;
+	return *pos < nr_cpu_ids ? cpu_data(*pos) : NULL;
 }
 
 static void *
@@ -1016,8 +1018,7 @@ cpu_init (void)
 					| IA64_DCR_DA | IA64_DCR_DD | IA64_DCR_LC));
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
-	if (current->mm)
-		BUG();
+	BUG_ON(current->mm);
 
 	ia64_mmu_init(ia64_imva(cpu_data));
 	ia64_mca_cpu_init(ia64_imva(cpu_data));

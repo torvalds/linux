@@ -42,6 +42,8 @@
 #include <linux/ata.h>
 #include <linux/hdreg.h>
 
+#define HD_IRQ 14
+
 #define REALLY_SLOW_IO
 #include <asm/system.h>
 #include <asm/io.h>

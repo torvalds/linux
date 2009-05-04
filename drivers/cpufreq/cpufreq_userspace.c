@@ -24,9 +24,6 @@
 #include <linux/sysfs.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
-
-
 /**
  * A few values needed by the userspace governor
  */
@@ -37,7 +34,7 @@ static DEFINE_PER_CPU(unsigned int, cpu_set_freq); /* CPU freq desired by
 							userspace */
 static DEFINE_PER_CPU(unsigned int, cpu_is_managed);
 
-static DEFINE_MUTEX	(userspace_mutex);
+static DEFINE_MUTEX(userspace_mutex);
 static int cpus_using_userspace_governor;
 
 #define dprintk(msg...) \
@@ -46,9 +43,9 @@ static int cpus_using_userspace_governor;
 /* keep track of frequency transitions */
 static int
 userspace_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
-                       void *data)
+	void *data)
 {
-        struct cpufreq_freqs *freq = data;
+	struct cpufreq_freqs *freq = data;
 
 	if (!per_cpu(cpu_is_managed, freq->cpu))
 		return 0;
@@ -57,11 +54,11 @@ userspace_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 			freq->cpu, freq->new);
 	per_cpu(cpu_cur_freq, freq->cpu) = freq->new;
 
-        return 0;
+	return 0;
 }
 
 static struct notifier_block userspace_cpufreq_notifier_block = {
-        .notifier_call  = userspace_cpufreq_notifier
+	.notifier_call  = userspace_cpufreq_notifier
 };
 
 
@@ -93,8 +90,11 @@ static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 	 * We're safe from concurrent calls to ->target() here
 	 * as we hold the userspace_mutex lock. If we were calling
 	 * cpufreq_driver_target, a deadlock situation might occur:
-	 * A: cpufreq_set (lock userspace_mutex) -> cpufreq_driver_target(lock policy->lock)
-	 * B: cpufreq_set_policy(lock policy->lock) -> __cpufreq_governor -> cpufreq_governor_userspace (lock userspace_mutex)
+	 * A: cpufreq_set (lock userspace_mutex) ->
+	 *      cpufreq_driver_target(lock policy->lock)
+	 * B: cpufreq_set_policy(lock policy->lock) ->
+	 *      __cpufreq_governor ->
+	 *         cpufreq_governor_userspace (lock userspace_mutex)
 	 */
 	ret = __cpufreq_driver_target(policy, freq, CPUFREQ_RELATION_L);
 
@@ -210,9 +210,10 @@ static void __exit cpufreq_gov_userspace_exit(void)
 }
 
 
-MODULE_AUTHOR ("Dominik Brodowski <linux@brodo.de>, Russell King <rmk@arm.linux.org.uk>");
-MODULE_DESCRIPTION ("CPUfreq policy governor 'userspace'");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Dominik Brodowski <linux@brodo.de>, "
+		"Russell King <rmk@arm.linux.org.uk>");
+MODULE_DESCRIPTION("CPUfreq policy governor 'userspace'");
+MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_USERSPACE
 fs_initcall(cpufreq_gov_userspace_init);

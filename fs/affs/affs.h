@@ -199,8 +199,7 @@ extern const struct address_space_operations	 affs_symlink_aops;
 extern const struct address_space_operations	 affs_aops;
 extern const struct address_space_operations	 affs_aops_ofs;
 
-extern struct dentry_operations	 affs_dentry_operations;
-extern struct dentry_operations	 affs_dentry_operations_intl;
+extern const struct dentry_operations	 affs_dentry_operations;
 
 static inline void
 affs_set_blocksize(struct super_block *sb, int size)

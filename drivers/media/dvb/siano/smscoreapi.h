@@ -29,13 +29,13 @@
 #include <linux/scatterlist.h>
 #include <linux/types.h>
 #include <asm/page.h>
+#include <linux/mutex.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
 
-#include <linux/mutex.h>
 
 #define kmutex_init(_p_) mutex_init(_p_)
 #define kmutex_lock(_p_) mutex_lock(_p_)
@@ -369,27 +369,6 @@ struct smscore_gpio_config {
 	u8 outputdriving;
 };
 
-struct smsdvb_client_t {
-	struct list_head entry;
-
-	struct smscore_device_t	*coredev;
-	struct smscore_client_t	*smsclient;
-
-	struct dvb_adapter	adapter;
-	struct dvb_demux	demux;
-	struct dmxdev		dmxdev;
-	struct dvb_frontend	frontend;
-
-	fe_status_t		fe_status;
-	int			fe_ber, fe_snr, fe_unc, fe_signal_strength;
-
-	struct completion	tune_done, stat_done;
-
-	/* todo: save freq/band instead whole struct */
-	struct dvb_frontend_parameters fe_params;
-
-};
-
 extern void smscore_registry_setmode(char *devpath, int mode);
 extern int smscore_registry_getmode(char *devpath);
 
@@ -418,6 +397,13 @@ extern int smsclient_sendrequest(struct smscore_client_t *client,
 extern void smscore_onresponse(struct smscore_device_t *coredev,
 			       struct smscore_buffer_t *cb);
 
+extern int smscore_get_common_buffer_size(struct smscore_device_t *coredev);
+extern int smscore_map_common_buffer(struct smscore_device_t *coredev,
+				      struct vm_area_struct *vma);
+extern int smscore_get_fw_filename(struct smscore_device_t *coredev,
+				   int mode, char *filename);
+extern int smscore_send_fw_file(struct smscore_device_t *coredev,
+				u8 *ufwbuf, int size);
 
 extern
 struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev);
@@ -433,17 +419,8 @@ int smscore_get_board_id(struct smscore_device_t *core);
 
 int smscore_led_state(struct smscore_device_t *core, int led);
 
-/* smsdvb.c */
-int smsdvb_register(void);
-void smsdvb_unregister(void);
-
-/* smsusb.c */
-int smsusb_register(void);
-void smsusb_unregister(void);
 
 /* ------------------------------------------------------------------------ */
-
-extern int sms_debug;
 
 #define DBG_INFO 1
 #define DBG_ADV  2
@@ -452,7 +429,7 @@ extern int sms_debug;
 	printk(kern "%s: " fmt "\n", __func__, ##arg)
 
 #define dprintk(kern, lvl, fmt, arg...) do {\
-	if (sms_debug & lvl) \
+	if (sms_dbg & lvl) \
 		sms_printk(kern, fmt, ##arg); } while (0)
 
 #define sms_log(fmt, arg...) sms_printk(KERN_INFO, fmt, ##arg)

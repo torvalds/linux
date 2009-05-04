@@ -166,6 +166,7 @@ struct fujitsu_hotkey_t {
 	struct platform_device *pf_device;
 	struct kfifo *fifo;
 	spinlock_t fifo_lock;
+	int rfkill_supported;
 	int rfkill_state;
 	int logolamp_registered;
 	int kblamps_registered;
@@ -173,8 +174,7 @@ struct fujitsu_hotkey_t {
 
 static struct fujitsu_hotkey_t *fujitsu_hotkey;
 
-static void acpi_fujitsu_hotkey_notify(acpi_handle handle, u32 event,
-				       void *data);
+static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event);
 
 #ifdef CONFIG_LEDS_CLASS
 static enum led_brightness logolamp_get(struct led_classdev *cdev);
@@ -202,7 +202,7 @@ struct led_classdev kblamps_led = {
 static u32 dbg_level = 0x03;
 #endif
 
-static void acpi_fujitsu_notify(acpi_handle handle, u32 event, void *data);
+static void acpi_fujitsu_notify(struct acpi_device *device, u32 event);
 
 /* Fujitsu ACPI interface function */
 
@@ -526,7 +526,7 @@ static ssize_t
 show_lid_state(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	if (fujitsu_hotkey->rfkill_state == UNSUPPORTED_CMD)
+	if (!(fujitsu_hotkey->rfkill_supported & 0x100))
 		return sprintf(buf, "unknown\n");
 	if (fujitsu_hotkey->rfkill_state & 0x100)
 		return sprintf(buf, "open\n");
@@ -538,7 +538,7 @@ static ssize_t
 show_dock_state(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	if (fujitsu_hotkey->rfkill_state == UNSUPPORTED_CMD)
+	if (!(fujitsu_hotkey->rfkill_supported & 0x200))
 		return sprintf(buf, "unknown\n");
 	if (fujitsu_hotkey->rfkill_state & 0x200)
 		return sprintf(buf, "docked\n");
@@ -550,7 +550,7 @@ static ssize_t
 show_radios_state(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	if (fujitsu_hotkey->rfkill_state == UNSUPPORTED_CMD)
+	if (!(fujitsu_hotkey->rfkill_supported & 0x20))
 		return sprintf(buf, "unknown\n");
 	if (fujitsu_hotkey->rfkill_state & 0x20)
 		return sprintf(buf, "on\n");
@@ -657,7 +657,6 @@ static struct dmi_system_id fujitsu_dmi_table[] = {
 
 static int acpi_fujitsu_add(struct acpi_device *device)
 {
-	acpi_status status;
 	acpi_handle handle;
 	int result = 0;
 	int state = 0;
@@ -672,20 +671,10 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
 	device->driver_data = fujitsu;
 
-	status = acpi_install_notify_handler(device->handle,
-					     ACPI_DEVICE_NOTIFY,
-					     acpi_fujitsu_notify, fujitsu);
-
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR "Error installing notify handler\n");
-		error = -ENODEV;
-		goto err_stop;
-	}
-
 	fujitsu->input = input = input_allocate_device();
 	if (!input) {
 		error = -ENOMEM;
-		goto err_uninstall_notify;
+		goto err_stop;
 	}
 
 	snprintf(fujitsu->phys, sizeof(fujitsu->phys),
@@ -742,9 +731,6 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 end:
 err_free_input_dev:
 	input_free_device(input);
-err_uninstall_notify:
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_fujitsu_notify);
 err_stop:
 
 	return result;
@@ -752,17 +738,12 @@ err_stop:
 
 static int acpi_fujitsu_remove(struct acpi_device *device, int type)
 {
-	acpi_status status;
 	struct fujitsu_t *fujitsu = NULL;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	fujitsu = acpi_driver_data(device);
-
-	status = acpi_remove_notify_handler(fujitsu->acpi_handle,
-					    ACPI_DEVICE_NOTIFY,
-					    acpi_fujitsu_notify);
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
@@ -774,7 +755,7 @@ static int acpi_fujitsu_remove(struct acpi_device *device, int type)
 
 /* Brightness notify */
 
-static void acpi_fujitsu_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_fujitsu_notify(struct acpi_device *device, u32 event)
 {
 	struct input_dev *input;
 	int keycode;
@@ -828,15 +809,12 @@ static void acpi_fujitsu_notify(acpi_handle handle, u32 event, void *data)
 		input_report_key(input, keycode, 0);
 		input_sync(input);
 	}
-
-	return;
 }
 
 /* ACPI device for hotkey handling */
 
 static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 {
-	acpi_status status;
 	acpi_handle handle;
 	int result = 0;
 	int state = 0;
@@ -853,17 +831,6 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	sprintf(acpi_device_class(device), "%s", ACPI_FUJITSU_CLASS);
 	device->driver_data = fujitsu_hotkey;
 
-	status = acpi_install_notify_handler(device->handle,
-					     ACPI_DEVICE_NOTIFY,
-					     acpi_fujitsu_hotkey_notify,
-					     fujitsu_hotkey);
-
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR "Error installing notify handler\n");
-		error = -ENODEV;
-		goto err_stop;
-	}
-
 	/* kfifo */
 	spin_lock_init(&fujitsu_hotkey->fifo_lock);
 	fujitsu_hotkey->fifo =
@@ -878,7 +845,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 	fujitsu_hotkey->input = input = input_allocate_device();
 	if (!input) {
 		error = -ENOMEM;
-		goto err_uninstall_notify;
+		goto err_free_fifo;
 	}
 
 	snprintf(fujitsu_hotkey->phys, sizeof(fujitsu_hotkey->phys),
@@ -928,8 +895,17 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 		; /* No action, result is discarded */
 	vdbg_printk(FUJLAPTOP_DBG_INFO, "Discarded %i ringbuffer entries\n", i);
 
-	fujitsu_hotkey->rfkill_state =
-		call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0);
+	fujitsu_hotkey->rfkill_supported =
+		call_fext_func(FUNC_RFKILL, 0x0, 0x0, 0x0);
+
+	/* Make sure our bitmask of supported functions is cleared if the
+	   RFKILL function block is not implemented, like on the S7020. */
+	if (fujitsu_hotkey->rfkill_supported == UNSUPPORTED_CMD)
+		fujitsu_hotkey->rfkill_supported = 0;
+
+	if (fujitsu_hotkey->rfkill_supported)
+		fujitsu_hotkey->rfkill_state =
+			call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0);
 
 	/* Suspect this is a keymap of the application panel, print it */
 	printk(KERN_INFO "fujitsu-laptop: BTNI: [0x%x]\n",
@@ -965,9 +941,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 end:
 err_free_input_dev:
 	input_free_device(input);
-err_uninstall_notify:
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_fujitsu_hotkey_notify);
+err_free_fifo:
 	kfifo_free(fujitsu_hotkey->fifo);
 err_stop:
 
@@ -976,17 +950,12 @@ err_stop:
 
 static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
 {
-	acpi_status status;
 	struct fujitsu_hotkey_t *fujitsu_hotkey = NULL;
 
 	if (!device || !acpi_driver_data(device))
 		return -EINVAL;
 
 	fujitsu_hotkey = acpi_driver_data(device);
-
-	status = acpi_remove_notify_handler(fujitsu_hotkey->acpi_handle,
-					    ACPI_DEVICE_NOTIFY,
-					    acpi_fujitsu_hotkey_notify);
 
 	fujitsu_hotkey->acpi_handle = NULL;
 
@@ -995,8 +964,7 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
 	return 0;
 }
 
-static void acpi_fujitsu_hotkey_notify(acpi_handle handle, u32 event,
-				       void *data)
+static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 {
 	struct input_dev *input;
 	int keycode, keycode_r;
@@ -1005,8 +973,9 @@ static void acpi_fujitsu_hotkey_notify(acpi_handle handle, u32 event,
 
 	input = fujitsu_hotkey->input;
 
-	fujitsu_hotkey->rfkill_state =
-		call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0);
+	if (fujitsu_hotkey->rfkill_supported)
+		fujitsu_hotkey->rfkill_state =
+			call_fext_func(FUNC_RFKILL, 0x4, 0x0, 0x0);
 
 	switch (event) {
 	case ACPI_FUJITSU_NOTIFY_CODE1:
@@ -1078,8 +1047,6 @@ static void acpi_fujitsu_hotkey_notify(acpi_handle handle, u32 event,
 		input_sync(input);
 		break;
 	}
-
-	return;
 }
 
 /* Initialization */
@@ -1096,6 +1063,7 @@ static struct acpi_driver acpi_fujitsu_driver = {
 	.ops = {
 		.add = acpi_fujitsu_add,
 		.remove = acpi_fujitsu_remove,
+		.notify = acpi_fujitsu_notify,
 		},
 };
 
@@ -1111,6 +1079,7 @@ static struct acpi_driver acpi_fujitsu_hotkey_driver = {
 	.ops = {
 		.add = acpi_fujitsu_hotkey_add,
 		.remove = acpi_fujitsu_hotkey_remove,
+		.notify = acpi_fujitsu_hotkey_notify,
 		},
 };
 

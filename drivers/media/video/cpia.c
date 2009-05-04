@@ -1381,9 +1381,7 @@ static void proc_cpia_create(void)
 {
 	cpia_proc_root = proc_mkdir("cpia", NULL);
 
-	if (cpia_proc_root)
-		cpia_proc_root->owner = THIS_MODULE;
-	else
+	if (!cpia_proc_root)
 		LOG("Unable to initialise /proc/cpia\n");
 }
 

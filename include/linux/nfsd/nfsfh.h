@@ -14,9 +14,8 @@
 #ifndef _LINUX_NFSD_FH_H
 #define _LINUX_NFSD_FH_H
 
-#include <asm/types.h>
-#ifdef __KERNEL__
 # include <linux/types.h>
+#ifdef __KERNEL__
 # include <linux/string.h>
 # include <linux/fs.h>
 #endif
@@ -268,6 +267,13 @@ fh_copy(struct svc_fh *dst, struct svc_fh *src)
 			
 	*dst = *src;
 	return dst;
+}
+
+static inline void
+fh_copy_shallow(struct knfsd_fh *dst, struct knfsd_fh *src)
+{
+	dst->fh_size = src->fh_size;
+	memcpy(&dst->fh_base, &src->fh_base, src->fh_size);
 }
 
 static __inline__ struct svc_fh *

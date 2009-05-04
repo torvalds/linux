@@ -43,8 +43,8 @@
 
 #define SH7763_SKB_ALIGN 32
 /* Chip Base Address */
-# define SH_TSU_ADDR  0xFFE01800
-# define ARSTR 		  0xFFE01800
+# define SH_TSU_ADDR	0xFEE01800
+# define ARSTR			SH_TSU_ADDR
 
 /* Chip Registers */
 /* E-DMAC */

@@ -17,9 +17,6 @@
 
 #include "localpara.h"
 
-/****************** INCLUDE FILES SECTION ***********************************/
-//#include "GL\gl_core.h"
-
 /****************** CONSTANT AND MACRO SECTION ******************************/
 #define _INLINE      __inline
 

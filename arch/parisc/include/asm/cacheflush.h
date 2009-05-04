@@ -97,6 +97,9 @@ void mark_rodata_ro(void);
 
 #ifdef CONFIG_PA8X00
 /* Only pa8800, pa8900 needs this */
+
+#include <asm/kmap_types.h>
+
 #define ARCH_HAS_KMAP
 
 void kunmap_parisc(void *addr);

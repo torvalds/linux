@@ -443,6 +443,11 @@ static int tnc_read_node_nm(struct ubifs_info *c, struct ubifs_zbranch *zbr,
  * This function performs that same function as ubifs_read_node except that
  * it does not require that there is actually a node present and instead
  * the return code indicates if a node was read.
+ *
+ * Note, this function does not check CRC of data nodes if @c->no_chk_data_crc
+ * is true (it is controlled by corresponding mount option). However, if
+ * @c->always_chk_crc is true, @c->no_chk_data_crc is ignored and CRC is always
+ * checked.
  */
 static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 			 int len, int lnum, int offs)
@@ -470,9 +475,8 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (node_len != len)
 		return 0;
 
-	if (type == UBIFS_DATA_NODE && !c->always_chk_crc)
-		if (c->no_chk_data_crc)
-			return 0;
+	if (type == UBIFS_DATA_NODE && !c->always_chk_crc && c->no_chk_data_crc)
+		return 1;
 
 	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
 	node_crc = le32_to_cpu(ch->crc);
@@ -1248,7 +1252,7 @@ int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 	 * splitting in the middle of the colliding sequence. Also, when
 	 * removing the leftmost key, we would have to correct the key of the
 	 * parent node, which would introduce additional complications. Namely,
-	 * if we changed the the leftmost key of the parent znode, the garbage
+	 * if we changed the leftmost key of the parent znode, the garbage
 	 * collector would be unable to find it (GC is doing this when GC'ing
 	 * indexing LEBs). Although we already have an additional RB-tree where
 	 * we save such changed znodes (see 'ins_clr_old_idx_znode()') until
@@ -1506,7 +1510,7 @@ out:
  *
  * Note, if the bulk-read buffer length (@bu->buf_len) is known, this function
  * makes sure bulk-read nodes fit the buffer. Otherwise, this function prepares
- * maxumum possible amount of nodes for bulk-read.
+ * maximum possible amount of nodes for bulk-read.
  */
 int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu)
 {

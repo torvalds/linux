@@ -44,7 +44,7 @@ static int simple_delete_dentry(struct dentry *dentry)
  */
 struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 {
-	static struct dentry_operations simple_dentry_operations = {
+	static const struct dentry_operations simple_dentry_operations = {
 		.d_delete = simple_delete_dentry,
 	};
 
@@ -242,7 +242,8 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 	d_instantiate(dentry, root);
 	s->s_root = dentry;
 	s->s_flags |= MS_ACTIVE;
-	return simple_set_mnt(mnt, s);
+	simple_set_mnt(mnt, s);
+	return 0;
 
 Enomem:
 	up_write(&s->s_umount);
@@ -574,6 +575,21 @@ ssize_t memory_read_from_buffer(void *to, size_t count, loff_t *ppos,
  * possibly a read which collects the result - which is stored in a
  * file-local buffer.
  */
+
+void simple_transaction_set(struct file *file, size_t n)
+{
+	struct simple_transaction_argresp *ar = file->private_data;
+
+	BUG_ON(n > SIMPLE_TRANSACTION_LIMIT);
+
+	/*
+	 * The barrier ensures that ar->size will really remain zero until
+	 * ar->data is ready for reading.
+	 */
+	smp_mb();
+	ar->size = n;
+}
+
 char *simple_transaction_get(struct file *file, const char __user *buf, size_t size)
 {
 	struct simple_transaction_argresp *ar;
@@ -819,6 +835,7 @@ EXPORT_SYMBOL(simple_sync_file);
 EXPORT_SYMBOL(simple_unlink);
 EXPORT_SYMBOL(simple_read_from_buffer);
 EXPORT_SYMBOL(memory_read_from_buffer);
+EXPORT_SYMBOL(simple_transaction_set);
 EXPORT_SYMBOL(simple_transaction_get);
 EXPORT_SYMBOL(simple_transaction_read);
 EXPORT_SYMBOL(simple_transaction_release);

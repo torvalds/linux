@@ -24,14 +24,15 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+
+#include <mach/pxa25x.h>
 #include <mach/h5000.h>
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
 #include <mach/udc.h>
+
 #include "generic.h"
 
 /*

@@ -36,7 +36,7 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/spinlock.h>
 #include <linux/sem.h>
 #include <linux/seq_file.h>

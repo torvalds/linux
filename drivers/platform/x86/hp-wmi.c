@@ -53,6 +53,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 
 static int __init hp_wmi_bios_setup(struct platform_device *device);
 static int __exit hp_wmi_bios_remove(struct platform_device *device);
+static int hp_wmi_resume_handler(struct platform_device *device);
 
 struct bios_args {
 	u32 signature;
@@ -101,6 +102,7 @@ static struct platform_driver hp_wmi_driver = {
 	},
 	.probe = hp_wmi_bios_setup,
 	.remove = hp_wmi_bios_remove,
+	.resume = hp_wmi_resume_handler,
 };
 
 static int hp_wmi_perform_query(int query, int write, int value)
@@ -382,6 +384,11 @@ static int __init hp_wmi_input_setup(void)
 		case KE_SW:
 			set_bit(EV_SW, hp_wmi_input_dev->evbit);
 			set_bit(key->keycode, hp_wmi_input_dev->swbit);
+
+			/* Set initial dock state */
+			input_report_switch(hp_wmi_input_dev, key->keycode,
+					    hp_wmi_dock_state());
+			input_sync(hp_wmi_input_dev);
 			break;
 		}
 	}
@@ -441,6 +448,7 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 		bluetooth_rfkill->toggle_radio = hp_wmi_bluetooth_set;
 		bluetooth_rfkill->user_claim_unsupported = 1;
 		err = rfkill_register(bluetooth_rfkill);
+		if (err)
 			goto register_bluetooth_error;
 	}
 
@@ -457,9 +465,11 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 
 	return 0;
 register_wwan_err:
-	rfkill_unregister(bluetooth_rfkill);
+	if (bluetooth_rfkill)
+		rfkill_unregister(bluetooth_rfkill);
 register_bluetooth_error:
-	rfkill_unregister(wifi_rfkill);
+	if (wifi_rfkill)
+		rfkill_unregister(wifi_rfkill);
 add_sysfs_error:
 	cleanup_sysfs(device);
 	return err;
@@ -475,6 +485,29 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 		rfkill_unregister(bluetooth_rfkill);
 	if (wwan_rfkill)
 		rfkill_unregister(wwan_rfkill);
+
+	return 0;
+}
+
+static int hp_wmi_resume_handler(struct platform_device *device)
+{
+	struct key_entry *key;
+
+	/*
+	 * Docking state may have changed while suspended, so trigger
+	 * an input event for the current state. As this is a switch,
+	 * the input layer will only actually pass it on if the state
+	 * changed.
+	 */
+	for (key = hp_wmi_keymap; key->type != KE_END; key++) {
+		switch (key->type) {
+		case KE_SW:
+			input_report_switch(hp_wmi_input_dev, key->keycode,
+					    hp_wmi_dock_state());
+			input_sync(hp_wmi_input_dev);
+			break;
+		}
+	}
 
 	return 0;
 }

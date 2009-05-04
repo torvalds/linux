@@ -108,6 +108,37 @@ int pci_cleanup_aer_correct_error_status(struct pci_dev *dev)
 }
 #endif  /*  0  */
 
+
+static void set_device_error_reporting(struct pci_dev *dev, void *data)
+{
+	bool enable = *((bool *)data);
+
+	if (dev->pcie_type != PCIE_RC_PORT &&
+	    dev->pcie_type != PCIE_SW_UPSTREAM_PORT &&
+	    dev->pcie_type != PCIE_SW_DOWNSTREAM_PORT)
+		return;
+
+	if (enable)
+		pci_enable_pcie_error_reporting(dev);
+	else
+		pci_disable_pcie_error_reporting(dev);
+}
+
+/**
+ * set_downstream_devices_error_reporting - enable/disable the error reporting  bits on the root port and its downstream ports.
+ * @dev: pointer to root port's pci_dev data structure
+ * @enable: true = enable error reporting, false = disable error reporting.
+ */
+static void set_downstream_devices_error_reporting(struct pci_dev *dev,
+						   bool enable)
+{
+	set_device_error_reporting(dev, &enable);
+
+	if (!dev->subordinate)
+		return;
+	pci_walk_bus(dev->subordinate, set_device_error_reporting, &enable);
+}
+
 static int find_device_iter(struct device *device, void *data)
 {
 	struct pci_dev *dev;
@@ -320,21 +351,21 @@ static int find_aer_service_iter(struct device *device, void *data)
 {
 	struct device_driver *driver;
 	struct pcie_port_service_driver *service_driver;
-	struct pcie_device *pcie_dev;
 	struct find_aer_service_data *result;
 
 	result = (struct find_aer_service_data *) data;
 
 	if (device->bus == &pcie_port_bus_type) {
-		pcie_dev = to_pcie_device(device);
-		if (pcie_dev->id.port_type == PCIE_SW_DOWNSTREAM_PORT)
+		struct pcie_port_data *port_data;
+
+		port_data = pci_get_drvdata(to_pcie_device(device)->port);
+		if (port_data->port_type == PCIE_SW_DOWNSTREAM_PORT)
 			result->is_downstream = 1;
 
 		driver = device->driver;
 		if (driver) {
 			service_driver = to_service_driver(driver);
-			if (service_driver->id_table->service_type ==
-					PCIE_PORT_SERVICE_AER) {
+			if (service_driver->service == PCIE_PORT_SERVICE_AER) {
 				result->aer_driver = service_driver;
 				return 1;
 			}
@@ -525,15 +556,11 @@ void aer_enable_rootport(struct aer_rpc *rpc)
 	pci_read_config_dword(pdev, aer_pos + PCI_ERR_UNCOR_STATUS, &reg32);
 	pci_write_config_dword(pdev, aer_pos + PCI_ERR_UNCOR_STATUS, reg32);
 
-	/* Enable Root Port device reporting error itself */
-	pci_read_config_word(pdev, pos+PCI_EXP_DEVCTL, &reg16);
-	reg16 = reg16 |
-		PCI_EXP_DEVCTL_CERE |
-		PCI_EXP_DEVCTL_NFERE |
-		PCI_EXP_DEVCTL_FERE |
-		PCI_EXP_DEVCTL_URRE;
-	pci_write_config_word(pdev, pos+PCI_EXP_DEVCTL,
-		reg16);
+	/*
+	 * Enable error reporting for the root port device and downstream port
+	 * devices.
+	 */
+	set_downstream_devices_error_reporting(pdev, true);
 
 	/* Enable Root Port's interrupt in response to error messages */
 	pci_write_config_dword(pdev,
@@ -552,6 +579,12 @@ static void disable_root_aer(struct aer_rpc *rpc)
 	struct pci_dev *pdev = rpc->rpd->port;
 	u32 reg32;
 	int pos;
+
+	/*
+	 * Disable error reporting for the root port device and downstream port
+	 * devices.
+	 */
+	set_downstream_devices_error_reporting(pdev, false);
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
 	/* Disable Root's interrupt in response to error messages */

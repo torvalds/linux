@@ -34,15 +34,99 @@
 extern void SMBNTencrypt(unsigned char *passwd, unsigned char *c8,
 			 unsigned char *p24);
 
+/* Checks if this is the first smb session to be reconnected after
+   the socket has been reestablished (so we know whether to use vc 0).
+   Called while holding the cifs_tcp_ses_lock, so do not block */
+static bool is_first_ses_reconnect(struct cifsSesInfo *ses)
+{
+	struct list_head *tmp;
+	struct cifsSesInfo *tmp_ses;
+
+	list_for_each(tmp, &ses->server->smb_ses_list) {
+		tmp_ses = list_entry(tmp, struct cifsSesInfo,
+				     smb_ses_list);
+		if (tmp_ses->need_reconnect == false)
+			return false;
+	}
+	/* could not find a session that was already connected,
+	   this must be the first one we are reconnecting */
+	return true;
+}
+
+/*
+ *	vc number 0 is treated specially by some servers, and should be the
+ *      first one we request.  After that we can use vcnumbers up to maxvcs,
+ *	one for each smb session (some Windows versions set maxvcs incorrectly
+ *	so maxvc=1 can be ignored).  If we have too many vcs, we can reuse
+ *	any vc but zero (some servers reset the connection on vcnum zero)
+ *
+ */
+static __le16 get_next_vcnum(struct cifsSesInfo *ses)
+{
+	__u16 vcnum = 0;
+	struct list_head *tmp;
+	struct cifsSesInfo *tmp_ses;
+	__u16 max_vcs = ses->server->max_vcs;
+	__u16 i;
+	int free_vc_found = 0;
+
+	/* Quoting the MS-SMB specification: "Windows-based SMB servers set this
+	field to one but do not enforce this limit, which allows an SMB client
+	to establish more virtual circuits than allowed by this value ... but
+	other server implementations can enforce this limit." */
+	if (max_vcs < 2)
+		max_vcs = 0xFFFF;
+
+	write_lock(&cifs_tcp_ses_lock);
+	if ((ses->need_reconnect) && is_first_ses_reconnect(ses))
+			goto get_vc_num_exit;  /* vcnum will be zero */
+	for (i = ses->server->srv_count - 1; i < max_vcs; i++) {
+		if (i == 0) /* this is the only connection, use vc 0 */
+			break;
+
+		free_vc_found = 1;
+
+		list_for_each(tmp, &ses->server->smb_ses_list) {
+			tmp_ses = list_entry(tmp, struct cifsSesInfo,
+					     smb_ses_list);
+			if (tmp_ses->vcnum == i) {
+				free_vc_found = 0;
+				break; /* found duplicate, try next vcnum */
+			}
+		}
+		if (free_vc_found)
+			break; /* we found a vcnumber that will work - use it */
+	}
+
+	if (i == 0)
+		vcnum = 0; /* for most common case, ie if one smb session, use
+			      vc zero.  Also for case when no free vcnum, zero
+			      is safest to send (some clients only send zero) */
+	else if (free_vc_found == 0)
+		vcnum = 1;  /* we can not reuse vc=0 safely, since some servers
+				reset all uids on that, but 1 is ok. */
+	else
+		vcnum = i;
+	ses->vcnum = vcnum;
+get_vc_num_exit:
+	write_unlock(&cifs_tcp_ses_lock);
+
+	return le16_to_cpu(vcnum);
+}
+
 static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
 {
 	__u32 capabilities = 0;
 
 	/* init fields common to all four types of SessSetup */
-	/* note that header is initialized to zero in header_assemble */
+	/* Note that offsets for first seven fields in req struct are same  */
+	/*	in CIFS Specs so does not matter which of 3 forms of struct */
+	/*	that we use in next few lines                               */
+	/* Note that header is initialized to zero in header_assemble */
 	pSMB->req.AndXCommand = 0xFF;
 	pSMB->req.MaxBufferSize = cpu_to_le16(ses->server->maxBuf);
 	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
+	pSMB->req.VcNumber = get_next_vcnum(ses);
 
 	/* Now no need to set SMBFLG_CASELESS or obsolete CANONICAL PATH */
 
@@ -71,7 +155,6 @@ static __u32 cifs_ssetup_hdr(struct cifsSesInfo *ses, SESSION_SETUP_ANDX *pSMB)
 	if (ses->capabilities & CAP_UNIX)
 		capabilities |= CAP_UNIX;
 
-	/* BB check whether to init vcnum BB */
 	return capabilities;
 }
 
@@ -202,35 +285,36 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 	int words_left, len;
 	char *data = *pbcc_area;
 
-
-
 	cFYI(1, ("bleft %d", bleft));
 
-
-	/* SMB header is unaligned, so cifs servers word align start of
-	   Unicode strings */
-	data++;
-	bleft--; /* Windows servers do not always double null terminate
-		    their final Unicode string - in which case we
-		    now will not attempt to decode the byte of junk
-		    which follows it */
+	/*
+	 * Windows servers do not always double null terminate their final
+	 * Unicode string. Check to see if there are an uneven number of bytes
+	 * left. If so, then add an extra NULL pad byte to the end of the
+	 * response.
+	 *
+	 * See section 2.7.2 in "Implementing CIFS" for details
+	 */
+	if (bleft % 2) {
+		data[bleft] = 0;
+		++bleft;
+	}
 
 	words_left = bleft / 2;
 
 	/* save off server operating system */
 	len = UniStrnlen((wchar_t *) data, words_left);
 
-/* We look for obvious messed up bcc or strings in response so we do not go off
-   the end since (at least) WIN2K and Windows XP have a major bug in not null
-   terminating last Unicode string in response  */
 	if (len >= words_left)
 		return rc;
 
 	kfree(ses->serverOS);
 	/* UTF-8 string will not grow more than four times as big as UCS-16 */
-	ses->serverOS = kzalloc(4 * len, GFP_KERNEL);
-	if (ses->serverOS != NULL)
+	ses->serverOS = kzalloc((4 * len) + 2 /* trailing null */, GFP_KERNEL);
+	if (ses->serverOS != NULL) {
 		cifs_strfromUCS_le(ses->serverOS, (__le16 *)data, len, nls_cp);
+		cFYI(1, ("serverOS=%s", ses->serverOS));
+	}
 	data += 2 * (len + 1);
 	words_left -= len + 1;
 
@@ -241,10 +325,11 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 		return rc;
 
 	kfree(ses->serverNOS);
-	ses->serverNOS = kzalloc(4 * len, GFP_KERNEL); /* BB this is wrong length FIXME BB */
+	ses->serverNOS = kzalloc((4 * len) + 2 /* trailing null */, GFP_KERNEL);
 	if (ses->serverNOS != NULL) {
 		cifs_strfromUCS_le(ses->serverNOS, (__le16 *)data, len,
 				   nls_cp);
+		cFYI(1, ("serverNOS=%s", ses->serverNOS));
 		if (strncmp(ses->serverNOS, "NT LAN Manager 4", 16) == 0) {
 			cFYI(1, ("NT4 server"));
 			ses->flags |= CIFS_SES_NT4;
@@ -260,12 +345,11 @@ static int decode_unicode_ssetup(char **pbcc_area, int bleft,
 		return rc;
 
 	kfree(ses->serverDomain);
-	ses->serverDomain = kzalloc(2 * (len + 1), GFP_KERNEL); /* BB FIXME wrong length */
+	ses->serverDomain = kzalloc((4 * len) + 2, GFP_KERNEL);
 	if (ses->serverDomain != NULL) {
 		cifs_strfromUCS_le(ses->serverDomain, (__le16 *)data, len,
 				   nls_cp);
-		ses->serverDomain[2*len] = 0;
-		ses->serverDomain[(2*len) + 1] = 0;
+		cFYI(1, ("serverDomain=%s", ses->serverDomain));
 	}
 	data += 2 * (len + 1);
 	words_left -= len + 1;
@@ -619,12 +703,18 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	}
 
 	/* BB check if Unicode and decode strings */
-	if (smb_buf->Flags2 & SMBFLG2_UNICODE)
+	if (smb_buf->Flags2 & SMBFLG2_UNICODE) {
+		/* unicode string area must be word-aligned */
+		if (((unsigned long) bcc_ptr - (unsigned long) smb_buf) % 2) {
+			++bcc_ptr;
+			--bytes_remaining;
+		}
 		rc = decode_unicode_ssetup(&bcc_ptr, bytes_remaining,
-						   ses, nls_cp);
-	else
+					   ses, nls_cp);
+	} else {
 		rc = decode_ascii_ssetup(&bcc_ptr, bytes_remaining,
 					 ses, nls_cp);
+	}
 
 ssetup_exit:
 	if (spnego_key) {

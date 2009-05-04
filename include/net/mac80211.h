@@ -93,12 +93,9 @@ struct ieee80211_ht_bss_info {
  * enum ieee80211_max_queues - maximum number of queues
  *
  * @IEEE80211_MAX_QUEUES: Maximum number of regular device queues.
- * @IEEE80211_MAX_AMPDU_QUEUES: Maximum number of queues usable
- *	for A-MPDU operation.
  */
 enum ieee80211_max_queues {
-	IEEE80211_MAX_QUEUES =		16,
-	IEEE80211_MAX_AMPDU_QUEUES =	16,
+	IEEE80211_MAX_QUEUES =		4,
 };
 
 /**
@@ -207,7 +204,7 @@ struct ieee80211_bss_conf {
 	u16 beacon_int;
 	u16 assoc_capability;
 	u64 timestamp;
-	u64 basic_rates;
+	u32 basic_rates;
 	struct ieee80211_bss_ht_conf ht;
 };
 
@@ -245,6 +242,12 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_RATE_CTRL_PROBE: internal to mac80211, can be
  *	set by rate control algorithms to indicate probe rate, will
  *	be cleared for fragmented frames (except on the last fragment)
+ * @IEEE80211_TX_INTFL_RCALGO: mac80211 internal flag, do not test or
+ *	set this flag in the driver; indicates that the rate control
+ *	algorithm was used and should be notified of TX status
+ * @IEEE80211_TX_INTFL_NEED_TXPROCESSING: completely internal to mac80211,
+ *	used to indicate that a pending frame requires TX processing before
+ *	it can be sent out.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -260,8 +263,30 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_STAT_AMPDU			= BIT(10),
 	IEEE80211_TX_STAT_AMPDU_NO_BACK		= BIT(11),
 	IEEE80211_TX_CTL_RATE_CTRL_PROBE	= BIT(12),
+	IEEE80211_TX_INTFL_RCALGO		= BIT(13),
+	IEEE80211_TX_INTFL_NEED_TXPROCESSING	= BIT(14),
 };
 
+/**
+ * enum mac80211_rate_control_flags - per-rate flags set by the
+ *	Rate Control algorithm.
+ *
+ * These flags are set by the Rate control algorithm for each rate during tx,
+ * in the @flags member of struct ieee80211_tx_rate.
+ *
+ * @IEEE80211_TX_RC_USE_RTS_CTS: Use RTS/CTS exchange for this rate.
+ * @IEEE80211_TX_RC_USE_CTS_PROTECT: CTS-to-self protection is required.
+ *	This is set if the current BSS requires ERP protection.
+ * @IEEE80211_TX_RC_USE_SHORT_PREAMBLE: Use short preamble.
+ * @IEEE80211_TX_RC_MCS: HT rate.
+ * @IEEE80211_TX_RC_GREEN_FIELD: Indicates whether this rate should be used in
+ *	Greenfield mode.
+ * @IEEE80211_TX_RC_40_MHZ_WIDTH: Indicates if the Channel Width should be 40 MHz.
+ * @IEEE80211_TX_RC_DUP_DATA: The frame should be transmitted on both of the
+ *	adjacent 20 MHz channels, if the current channel type is
+ *	NL80211_CHAN_HT40MINUS or NL80211_CHAN_HT40PLUS.
+ * @IEEE80211_TX_RC_SHORT_GI: Short Guard interval should be used for this rate.
+ */
 enum mac80211_rate_control_flags {
 	IEEE80211_TX_RC_USE_RTS_CTS		= BIT(0),
 	IEEE80211_TX_RC_USE_CTS_PROTECT		= BIT(1),
@@ -322,7 +347,6 @@ struct ieee80211_tx_rate {
  * @control: union for control data
  * @status: union for status data
  * @driver_data: array of driver_data pointers
- * @retry_count: number of retries
  * @ampdu_ack_len: number of aggregated frames.
  * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
  * @ampdu_ack_map: block ack bit map for the aggregation.
@@ -501,17 +525,6 @@ enum ieee80211_conf_flags {
 	IEEE80211_CONF_PS		= (1<<1),
 };
 
-/* XXX: remove all this once drivers stop trying to use it */
-static inline int __deprecated __IEEE80211_CONF_SHORT_SLOT_TIME(void)
-{
-	return 0;
-}
-#define IEEE80211_CONF_SHORT_SLOT_TIME (__IEEE80211_CONF_SHORT_SLOT_TIME())
-
-struct ieee80211_ht_conf {
-	bool enabled;
-	enum nl80211_channel_type channel_type;
-};
 
 /**
  * enum ieee80211_conf_changed - denotes which configuration changed
@@ -521,10 +534,10 @@ struct ieee80211_ht_conf {
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag changed
+ * @IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT: the dynamic PS timeout changed
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
- * @IEEE80211_CONF_CHANGE_CHANNEL: the channel changed
+ * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
- * @IEEE80211_CONF_CHANGE_HT: HT configuration changed
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
@@ -532,10 +545,10 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
-	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
-	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
-	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
-	IEEE80211_CONF_CHANGE_HT		= BIT(8),
+	IEEE80211_CONF_CHANGE_DYNPS_TIMEOUT	= BIT(5),
+	IEEE80211_CONF_CHANGE_POWER		= BIT(6),
+	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(7),
+	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(8),
 };
 
 /**
@@ -548,8 +561,9 @@ enum ieee80211_conf_changed {
  * @listen_interval: listen interval in units of beacon interval
  * @flags: configuration flags defined above
  * @power_level: requested transmit power (in dBm)
+ * @dynamic_ps_timeout: dynamic powersave timeout (in ms)
  * @channel: the channel to tune to
- * @ht: the HT configuration for the device
+ * @channel_type: the channel (HT) type
  * @long_frame_max_tx_count: Maximum number of transmissions for a "long" frame
  *    (a frame not RTS protected), called "dot11LongRetryLimit" in 802.11,
  *    but actually means the number of transmissions not the number of retries
@@ -560,7 +574,7 @@ enum ieee80211_conf_changed {
 struct ieee80211_conf {
 	int beacon_int;
 	u32 flags;
-	int power_level;
+	int power_level, dynamic_ps_timeout;
 
 	u16 listen_interval;
 	bool radio_enabled;
@@ -568,7 +582,7 @@ struct ieee80211_conf {
 	u8 long_frame_max_tx_count, short_frame_max_tx_count;
 
 	struct ieee80211_channel *channel;
-	struct ieee80211_ht_conf ht;
+	enum nl80211_channel_type channel_type;
 };
 
 /**
@@ -631,10 +645,12 @@ struct ieee80211_if_init_conf {
  * @IEEE80211_IFCC_BSSID: The BSSID changed.
  * @IEEE80211_IFCC_BEACON: The beacon for this interface changed
  *	(currently AP and MESH only), use ieee80211_beacon_get().
+ * @IEEE80211_IFCC_BEACON_ENABLED: The enable_beacon value changed.
  */
 enum ieee80211_if_conf_change {
-	IEEE80211_IFCC_BSSID	= BIT(0),
-	IEEE80211_IFCC_BEACON	= BIT(1),
+	IEEE80211_IFCC_BSSID		= BIT(0),
+	IEEE80211_IFCC_BEACON		= BIT(1),
+	IEEE80211_IFCC_BEACON_ENABLED	= BIT(2),
 };
 
 /**
@@ -642,13 +658,16 @@ enum ieee80211_if_conf_change {
  *
  * @changed: parameters that have changed, see &enum ieee80211_if_conf_change.
  * @bssid: BSSID of the network we are associated to/creating.
+ * @enable_beacon: Indicates whether beacons can be sent.
+ *	This is valid only for AP/IBSS/MESH modes.
  *
  * This structure is passed to the config_interface() callback of
  * &struct ieee80211_hw.
  */
 struct ieee80211_if_conf {
 	u32 changed;
-	u8 *bssid;
+	const u8 *bssid;
+	bool enable_beacon;
 };
 
 /**
@@ -656,11 +675,13 @@ struct ieee80211_if_conf {
  * @ALG_WEP: WEP40 or WEP104
  * @ALG_TKIP: TKIP
  * @ALG_CCMP: CCMP (AES)
+ * @ALG_AES_CMAC: AES-128-CMAC
  */
 enum ieee80211_key_alg {
 	ALG_WEP,
 	ALG_TKIP,
 	ALG_CCMP,
+	ALG_AES_CMAC,
 };
 
 /**
@@ -689,12 +710,16 @@ enum ieee80211_key_len {
  *	generation in software.
  * @IEEE80211_KEY_FLAG_PAIRWISE: Set by mac80211, this flag indicates
  *	that the key is pairwise rather then a shared key.
+ * @IEEE80211_KEY_FLAG_SW_MGMT: This flag should be set by the driver for a
+ *	CCMP key if it requires CCMP encryption of management frames (MFP) to
+ *	be done in software.
  */
 enum ieee80211_key_flags {
 	IEEE80211_KEY_FLAG_WMM_STA	= 1<<0,
 	IEEE80211_KEY_FLAG_GENERATE_IV	= 1<<1,
 	IEEE80211_KEY_FLAG_GENERATE_MMIC= 1<<2,
 	IEEE80211_KEY_FLAG_PAIRWISE	= 1<<3,
+	IEEE80211_KEY_FLAG_SW_MGMT	= 1<<4,
 };
 
 /**
@@ -715,8 +740,8 @@ enum ieee80211_key_flags {
  * 	- Temporal Encryption Key (128 bits)
  * 	- Temporal Authenticator Tx MIC Key (64 bits)
  * 	- Temporal Authenticator Rx MIC Key (64 bits)
- * @icv_len: FIXME
- * @iv_len: FIXME
+ * @icv_len: The ICV length for this key type
+ * @iv_len: The IV length for this key type
  */
 struct ieee80211_key_conf {
 	enum ieee80211_key_alg alg;
@@ -760,7 +785,7 @@ enum set_key_cmd {
  *	sizeof(void *), size is determined in hw information.
  */
 struct ieee80211_sta {
-	u64 supp_rates[IEEE80211_NUM_BANDS];
+	u32 supp_rates[IEEE80211_NUM_BANDS];
 	u8 addr[ETH_ALEN];
 	u16 aid;
 	struct ieee80211_sta_ht_cap ht_cap;
@@ -834,11 +859,6 @@ enum ieee80211_tkip_key_type {
  *	expect values between 0 and @max_signal.
  *	If possible please provide dB or dBm instead.
  *
- * @IEEE80211_HW_SIGNAL_DB:
- *	Hardware gives signal values in dB, decibel difference from an
- *	arbitrary, fixed reference. We expect values between 0 and @max_signal.
- *	If possible please provide dBm instead.
- *
  * @IEEE80211_HW_SIGNAL_DBM:
  *	Hardware gives signal values in dBm, decibel difference from
  *	one milliwatt. This is the preferred method since it is standardized
@@ -855,10 +875,22 @@ enum ieee80211_tkip_key_type {
  * @IEEE80211_HW_AMPDU_AGGREGATION:
  *	Hardware supports 11n A-MPDU aggregation.
  *
- * @IEEE80211_HW_NO_STACK_DYNAMIC_PS:
- *	Hardware which has dynamic power save support, meaning
- *	that power save is enabled in idle periods, and don't need support
- *	from stack.
+ * @IEEE80211_HW_SUPPORTS_PS:
+ *	Hardware has power save support (i.e. can go to sleep).
+ *
+ * @IEEE80211_HW_PS_NULLFUNC_STACK:
+ *	Hardware requires nullfunc frame handling in stack, implies
+ *	stack support for dynamic PS.
+ *
+ * @IEEE80211_HW_SUPPORTS_DYNAMIC_PS:
+ *	Hardware has support for dynamic PS.
+ *
+ * @IEEE80211_HW_MFP_CAPABLE:
+ *	Hardware supports management frame protection (MFP, IEEE 802.11w).
+ *
+ * @IEEE80211_HW_BEACON_FILTER:
+ *	Hardware supports dropping of irrelevant beacon frames to
+ *	avoid waking up cpu.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
@@ -866,12 +898,15 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE		= 1<<3,
 	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE	= 1<<4,
 	IEEE80211_HW_SIGNAL_UNSPEC			= 1<<5,
-	IEEE80211_HW_SIGNAL_DB				= 1<<6,
-	IEEE80211_HW_SIGNAL_DBM				= 1<<7,
-	IEEE80211_HW_NOISE_DBM				= 1<<8,
-	IEEE80211_HW_SPECTRUM_MGMT			= 1<<9,
-	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<10,
-	IEEE80211_HW_NO_STACK_DYNAMIC_PS		= 1<<11,
+	IEEE80211_HW_SIGNAL_DBM				= 1<<6,
+	IEEE80211_HW_NOISE_DBM				= 1<<7,
+	IEEE80211_HW_SPECTRUM_MGMT			= 1<<8,
+	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<9,
+	IEEE80211_HW_SUPPORTS_PS			= 1<<10,
+	IEEE80211_HW_PS_NULLFUNC_STACK			= 1<<11,
+	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<12,
+	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
+	IEEE80211_HW_BEACON_FILTER			= 1<<14,
 };
 
 /**
@@ -891,9 +926,8 @@ enum ieee80211_hw_flags {
  * @workqueue: single threaded workqueue available for driver use,
  *	allocated by mac80211 on registration and flushed when an
  *	interface is removed.
- *	NOTICE: All work performed on this workqueue should NEVER
- *	acquire the RTNL lock (i.e. Don't use the function
- *	ieee80211_iterate_active_interfaces())
+ *	NOTICE: All work performed on this workqueue must not
+ *	acquire the RTNL lock.
  *
  * @priv: pointer to private area that was allocated for driver use
  *	along with this structure.
@@ -914,12 +948,6 @@ enum ieee80211_hw_flags {
  * @queues: number of available hardware transmit queues for
  *	data packets. WMM/QoS requires at least four, these
  *	queues need to have configurable access parameters.
- *
- * @ampdu_queues: number of available hardware transmit queues
- *	for A-MPDU packets, these have no access parameters
- *	because they're used only for A-MPDU frames. Note that
- *	mac80211 will not currently use any of the regular queues
- *	for aggregation.
  *
  * @rate_control_algorithm: rate control algorithm for this hardware.
  *	If unset (NULL), the default algorithm will be used. Must be
@@ -945,12 +973,24 @@ struct ieee80211_hw {
 	int vif_data_size;
 	int sta_data_size;
 	u16 queues;
-	u16 ampdu_queues;
 	u16 max_listen_interval;
 	s8 max_signal;
 	u8 max_rates;
 	u8 max_rate_tries;
 };
+
+/**
+ * wiphy_to_ieee80211_hw - return a mac80211 driver hw struct from a wiphy
+ *
+ * @wiphy: the &struct wiphy which we want to query
+ *
+ * mac80211 drivers can use this to get to their respective
+ * &struct ieee80211_hw. Drivers wishing to get to their own private
+ * structure can then access it via hw->priv. Note that mac802111 drivers should
+ * not use wiphy_priv() to try to get their private driver structure as this
+ * is already used internally by mac80211.
+ */
+struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy);
 
 /**
  * SET_IEEE80211_DEV - set device for 802.11 hardware
@@ -972,16 +1012,6 @@ static inline void SET_IEEE80211_DEV(struct ieee80211_hw *hw, struct device *dev
 static inline void SET_IEEE80211_PERM_ADDR(struct ieee80211_hw *hw, u8 *addr)
 {
 	memcpy(hw->wiphy->perm_addr, addr, ETH_ALEN);
-}
-
-static inline int ieee80211_num_regular_queues(struct ieee80211_hw *hw)
-{
-	return hw->queues;
-}
-
-static inline int ieee80211_num_queues(struct ieee80211_hw *hw)
-{
-	return hw->queues + hw->ampdu_queues;
 }
 
 static inline struct ieee80211_rate *
@@ -1019,15 +1049,11 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  *
  * The set_key() callback in the &struct ieee80211_ops for a given
  * device is called to enable hardware acceleration of encryption and
- * decryption. The callback takes an @address parameter that will be
- * the broadcast address for default keys, the other station's hardware
- * address for individual keys or the zero address for keys that will
- * be used only for transmission.
+ * decryption. The callback takes a @sta parameter that will be NULL
+ * for default keys or keys used for transmission only, or point to
+ * the station information for the peer for individual keys.
  * Multiple transmission keys with the same key index may be used when
  * VLANs are configured for an access point.
- *
- * The @local_address parameter will always be set to our own address,
- * this is only relevant if you support multiple local addresses.
  *
  * When transmitting, the TX control data will use the @hw_key_idx
  * selected by the driver by modifying the &struct ieee80211_key_conf
@@ -1059,6 +1085,60 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * rekeying), it will not include a valid phase 1 key. The valid phase 1 key is
  * provided by update_tkip_key only. The trigger that makes mac80211 call this
  * handler is software decryption with wrap around of iv16.
+ */
+
+/**
+ * DOC: Powersave support
+ *
+ * mac80211 has support for various powersave implementations.
+ *
+ * First, it can support hardware that handles all powersaving by
+ * itself, such hardware should simply set the %IEEE80211_HW_SUPPORTS_PS
+ * hardware flag. In that case, it will be told about the desired
+ * powersave mode depending on the association status, and the driver
+ * must take care of sending nullfunc frames when necessary, i.e. when
+ * entering and leaving powersave mode. The driver is required to look at
+ * the AID in beacons and signal to the AP that it woke up when it finds
+ * traffic directed to it. This mode supports dynamic PS by simply
+ * enabling/disabling PS.
+ *
+ * Additionally, such hardware may set the %IEEE80211_HW_SUPPORTS_DYNAMIC_PS
+ * flag to indicate that it can support dynamic PS mode itself (see below).
+ *
+ * Other hardware designs cannot send nullfunc frames by themselves and also
+ * need software support for parsing the TIM bitmap. This is also supported
+ * by mac80211 by combining the %IEEE80211_HW_SUPPORTS_PS and
+ * %IEEE80211_HW_PS_NULLFUNC_STACK flags. The hardware is of course still
+ * required to pass up beacons. Additionally, in this case, mac80211 will
+ * wake up the hardware when multicast traffic is announced in the beacon.
+ *
+ * FIXME: I don't think we can be fast enough in software when we want to
+ *	  receive multicast traffic?
+ *
+ * Dynamic powersave mode is an extension to normal powersave mode in which
+ * the hardware stays awake for a user-specified period of time after sending
+ * a frame so that reply frames need not be buffered and therefore delayed
+ * to the next wakeup. This can either be supported by hardware, in which case
+ * the driver needs to look at the @dynamic_ps_timeout hardware configuration
+ * value, or by the stack if all nullfunc handling is in the stack.
+ */
+
+/**
+ * DOC: Beacon filter support
+ *
+ * Some hardware have beacon filter support to reduce host cpu wakeups
+ * which will reduce system power consumption. It usuallly works so that
+ * the firmware creates a checksum of the beacon but omits all constantly
+ * changing elements (TSF, TIM etc). Whenever the checksum changes the
+ * beacon is forwarded to the host, otherwise it will be just dropped. That
+ * way the host will only receive beacons where some relevant information
+ * (for example ERP protection or WMM settings) have changed.
+ *
+ * Beacon filter support is informed with %IEEE80211_HW_BEACON_FILTER flag.
+ * The driver needs to enable beacon filter support whenever power save is
+ * enabled, that is %IEEE80211_CONF_PS is set. When power save is enabled,
+ * the stack will not check for beacon miss at all and the driver needs to
+ * notify about complete loss of beacons with ieee80211_beacon_loss().
  */
 
 /**
@@ -1150,14 +1230,14 @@ enum ieee80211_filter_flags {
  * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
  * @IEEE80211_AMPDU_TX_START: start Tx aggregation
  * @IEEE80211_AMPDU_TX_STOP: stop Tx aggregation
- * @IEEE80211_AMPDU_TX_RESUME: resume TX aggregation
+ * @IEEE80211_AMPDU_TX_OPERATIONAL: TX aggregation has become operational
  */
 enum ieee80211_ampdu_mlme_action {
 	IEEE80211_AMPDU_RX_START,
 	IEEE80211_AMPDU_RX_STOP,
 	IEEE80211_AMPDU_TX_START,
 	IEEE80211_AMPDU_TX_STOP,
-	IEEE80211_AMPDU_TX_RESUME,
+	IEEE80211_AMPDU_TX_OPERATIONAL,
 };
 
 /**
@@ -1173,6 +1253,8 @@ enum ieee80211_ampdu_mlme_action {
  *	configuration in the TX control data. This handler should,
  *	preferably, never fail and stop queues appropriately, more
  *	importantly, however, it must never fail for A-MPDU-queues.
+ *	This function should return NETDEV_TX_OK except in very
+ *	limited cases.
  *	Must be implemented and atomic.
  *
  * @start: Called before the first netdevice attached to the hardware
@@ -1213,9 +1295,12 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @config: Handler for configuration requests. IEEE 802.11 code calls this
  *	function to change hardware configuration, e.g., channel.
+ *	This function should never fail but returns a negative error code
+ *	if it does.
  *
  * @config_interface: Handler for configuration requests related to interfaces
  *	(e.g. BSSID changes.)
+ *	Returns a negative error code which will be seen in userspace.
  *
  * @bss_info_changed: Handler for configuration requests related to BSS
  *	parameters that may vary during BSS's lifespan, and may affect low
@@ -1233,8 +1318,9 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @set_key: See the section "Hardware crypto acceleration"
  *	This callback can sleep, and is only called between add_interface
- *	and remove_interface calls, i.e. while the interface with the
- *	given local_address is enabled.
+ *	and remove_interface calls, i.e. while the given virtual interface
+ *	is enabled.
+ *	Returns a negative error code if the key can't be added.
  *
  * @update_tkip_key: See the section "Hardware crypto acceleration"
  * 	This callback will be called in the context of Rx. Called for drivers
@@ -1242,12 +1328,22 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
- *	configuration done by the regulatory agent in the wiphy's registered
- *	bands. When the scan finishes, ieee80211_scan_completed() must be
- *	called; note that it also must be called when the scan cannot finish
- *	because the hardware is turned off! Anything else is a bug!
+ *	configuration done by the regulatory agent in the wiphy's
+ *	registered bands. The hardware (or the driver) needs to make sure
+ *	that power save is disabled. When the scan finishes,
+ *	ieee80211_scan_completed() must be called; note that it also must
+ *	be called when the scan cannot finish because the hardware is
+ *	turned off! Anything else is a bug! Returns a negative error code
+ *	which will be seen in userspace.
  *
- * @get_stats: return low-level statistics
+ * @sw_scan_start: Notifier function that is called just before a software scan
+ *	is started. Can be NULL, if the driver doesn't need this notification.
+ *
+ * @sw_scan_complete: Notifier function that is called just after a software scan
+ *	finished. Can be NULL, if the driver doesn't need this notification.
+ *
+ * @get_stats: Return low-level statistics.
+ * 	Returns zero if statistics are available.
  *
  * @get_tkip_seq: If your device implements TKIP encryption in hardware this
  *	callback should be provided to read the TKIP transmit IVs (both IV32
@@ -1261,16 +1357,21 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
+ *	Returns a negative error code on failure.
  *
  * @get_tx_stats: Get statistics of the current TX queue status. This is used
  *	to get number of currently queued packets (queue length), maximum queue
  *	size (limit), and total number of packets sent using each TX queue
- *	(count). The 'stats' pointer points to an array that has hw->queues +
- *	hw->ampdu_queues items.
+ *	(count). The 'stats' pointer points to an array that has hw->queues
+ *	items.
  *
  * @get_tsf: Get the current TSF timer value from firmware/hardware. Currently,
- *	this is only used for IBSS mode debugging and, as such, is not a
- *	required function. Must be atomic.
+ *	this is only used for IBSS mode BSSID merging and debugging. Is not a
+ *	required function.
+ *
+ * @set_tsf: Set the TSF timer to the specified value in the firmware/hardware.
+ *      Currently, this is only used for IBSS mode debugging. Is not a
+ *	required function.
  *
  * @reset_tsf: Reset the TSF timer and allow firmware/hardware to synchronize
  *	with other STAs in the IBSS. This is only used in IBSS mode. This
@@ -1280,13 +1381,15 @@ enum ieee80211_ampdu_mlme_action {
  * @tx_last_beacon: Determine whether the last IBSS beacon was sent by us.
  *	This is needed only for IBSS mode and the result of this function is
  *	used to determine whether to reply to Probe Requests.
+ *	Returns non-zero if this device sent the last beacon.
  *
  * @ampdu_action: Perform a certain A-MPDU action
  * 	The RA/TID combination determines the destination and TID we want
  * 	the ampdu action to be performed for. The action is defined through
  * 	ieee80211_ampdu_mlme_action. Starting sequence number (@ssn)
- * 	is the first frame we expect to perform the action on. notice
+ * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
+ *	Returns a negative error code on failure.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1311,12 +1414,15 @@ struct ieee80211_ops {
 	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-		       const u8 *local_address, const u8 *address,
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		       struct ieee80211_key_conf *key);
 	void (*update_tkip_key)(struct ieee80211_hw *hw,
 			struct ieee80211_key_conf *conf, const u8 *address,
 			u32 iv32, u16 *phase1key);
-	int (*hw_scan)(struct ieee80211_hw *hw, u8 *ssid, size_t len);
+	int (*hw_scan)(struct ieee80211_hw *hw,
+		       struct cfg80211_scan_request *req);
+	void (*sw_scan_start)(struct ieee80211_hw *hw);
+	void (*sw_scan_complete)(struct ieee80211_hw *hw);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
 	void (*get_tkip_seq)(struct ieee80211_hw *hw, u8 hw_key_idx,
@@ -1329,6 +1435,7 @@ struct ieee80211_ops {
 	int (*get_tx_stats)(struct ieee80211_hw *hw,
 			    struct ieee80211_tx_queue_stats *stats);
 	u64 (*get_tsf)(struct ieee80211_hw *hw);
+	void (*set_tsf)(struct ieee80211_hw *hw, u64 tsf);
 	void (*reset_tsf)(struct ieee80211_hw *hw);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
@@ -1753,8 +1860,9 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  * mac80211 that the scan finished.
  *
  * @hw: the hardware that finished the scan
+ * @aborted: set to true if scan was aborted
  */
-void ieee80211_scan_completed(struct ieee80211_hw *hw);
+void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted);
 
 /**
  * ieee80211_iterate_active_interfaces - iterate active interfaces
@@ -1883,8 +1991,28 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
 struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
 					 const u8 *addr);
 
+/**
+ * ieee80211_beacon_loss - inform hardware does not receive beacons
+ *
+ * @vif: &struct ieee80211_vif pointer from &struct ieee80211_if_init_conf.
+ *
+ * When beacon filtering is enabled with IEEE80211_HW_BEACON_FILTERING and
+ * IEEE80211_CONF_PS is set, the driver needs to inform whenever the
+ * hardware is not receiving beacons with this function.
+ */
+void ieee80211_beacon_loss(struct ieee80211_vif *vif);
 
 /* Rate control API */
+
+/**
+ * enum rate_control_changed - flags to indicate which parameter changed
+ *
+ * @IEEE80211_RC_HT_CHANGED: The HT parameters of the operating channel have
+ *	changed, rate control algorithm can update its internal state if needed.
+ */
+enum rate_control_changed {
+	IEEE80211_RC_HT_CHANGED = BIT(0)
+};
 
 /**
  * struct ieee80211_tx_rate_control - rate control information for/from RC algo
@@ -1922,6 +2050,9 @@ struct rate_control_ops {
 	void *(*alloc_sta)(void *priv, struct ieee80211_sta *sta, gfp_t gfp);
 	void (*rate_init)(void *priv, struct ieee80211_supported_band *sband,
 			  struct ieee80211_sta *sta, void *priv_sta);
+	void (*rate_update)(void *priv, struct ieee80211_supported_band *sband,
+			    struct ieee80211_sta *sta,
+			    void *priv_sta, u32 changed);
 	void (*free_sta)(void *priv, struct ieee80211_sta *sta,
 			 void *priv_sta);
 
@@ -1962,5 +2093,35 @@ rate_lowest_index(struct ieee80211_supported_band *sband,
 
 int ieee80211_rate_control_register(struct rate_control_ops *ops);
 void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
+
+static inline bool
+conf_is_ht20(struct ieee80211_conf *conf)
+{
+	return conf->channel_type == NL80211_CHAN_HT20;
+}
+
+static inline bool
+conf_is_ht40_minus(struct ieee80211_conf *conf)
+{
+	return conf->channel_type == NL80211_CHAN_HT40MINUS;
+}
+
+static inline bool
+conf_is_ht40_plus(struct ieee80211_conf *conf)
+{
+	return conf->channel_type == NL80211_CHAN_HT40PLUS;
+}
+
+static inline bool
+conf_is_ht40(struct ieee80211_conf *conf)
+{
+	return conf_is_ht40_minus(conf) || conf_is_ht40_plus(conf);
+}
+
+static inline bool
+conf_is_ht(struct ieee80211_conf *conf)
+{
+	return conf->channel_type != NL80211_CHAN_NO_HT;
+}
 
 #endif /* MAC80211_H */

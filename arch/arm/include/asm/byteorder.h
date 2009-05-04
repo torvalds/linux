@@ -15,8 +15,6 @@
 #ifndef __ASM_ARM_BYTEORDER_H
 #define __ASM_ARM_BYTEORDER_H
 
-#include <asm/swab.h>
-
 #ifdef __ARMEB__
 #include <linux/byteorder/big_endian.h>
 #else

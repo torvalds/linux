@@ -27,15 +27,17 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/cpumask.h>
+#include <linux/timex.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
-#include <asm/timex.h>
+#include <asm/timer.h>
 
 #include "speedstep-lib.h"
 
 #define PFX	"p4-clockmod: "
-#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "p4-clockmod", msg)
+#define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, \
+		"p4-clockmod", msg)
 
 /*
  * Duty Cycle (3bits), note DC_DISABLE is not specified in
@@ -58,7 +60,8 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 {
 	u32 l, h;
 
-	if (!cpu_online(cpu) || (newstate > DC_DISABLE) || (newstate == DC_RESV))
+	if (!cpu_online(cpu) ||
+	    (newstate > DC_DISABLE) || (newstate == DC_RESV))
 		return -EINVAL;
 
 	rdmsr_on_cpu(cpu, MSR_IA32_THERM_STATUS, &l, &h);
@@ -66,7 +69,8 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 	if (l & 0x01)
 		dprintk("CPU#%d currently thermal throttled\n", cpu);
 
-	if (has_N44_O17_errata[cpu] && (newstate == DC_25PT || newstate == DC_DFLT))
+	if (has_N44_O17_errata[cpu] &&
+	    (newstate == DC_25PT || newstate == DC_DFLT))
 		newstate = DC_38PT;
 
 	rdmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL, &l, &h);
@@ -112,7 +116,8 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 	struct cpufreq_freqs freqs;
 	int i;
 
-	if (cpufreq_frequency_table_target(policy, &p4clockmod_table[0], target_freq, relation, &newstate))
+	if (cpufreq_frequency_table_target(policy, &p4clockmod_table[0],
+				target_freq, relation, &newstate))
 		return -EINVAL;
 
 	freqs.old = cpufreq_p4_get(policy->cpu);
@@ -127,7 +132,8 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	}
 
-	/* run on each logical CPU, see section 13.15.3 of IA32 Intel Architecture Software
+	/* run on each logical CPU,
+	 * see section 13.15.3 of IA32 Intel Architecture Software
 	 * Developer's Manual, Volume 3
 	 */
 	for_each_cpu(i, policy->cpus)
@@ -153,28 +159,30 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 {
 	if (c->x86 == 0x06) {
 		if (cpu_has(c, X86_FEATURE_EST))
-			printk(KERN_WARNING PFX "Warning: EST-capable CPU detected. "
-			       "The acpi-cpufreq module offers voltage scaling"
-			       " in addition of frequency scaling. You should use "
-			       "that instead of p4-clockmod, if possible.\n");
+			printk(KERN_WARNING PFX "Warning: EST-capable CPU "
+			       "detected. The acpi-cpufreq module offers "
+			       "voltage scaling in addition of frequency "
+			       "scaling. You should use that instead of "
+			       "p4-clockmod, if possible.\n");
 		switch (c->x86_model) {
 		case 0x0E: /* Core */
 		case 0x0F: /* Core Duo */
 		case 0x16: /* Celeron Core */
 			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
-			return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PCORE);
+			return speedstep_get_frequency(SPEEDSTEP_CPU_PCORE);
 		case 0x0D: /* Pentium M (Dothan) */
 			p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
 			/* fall through */
 		case 0x09: /* Pentium M (Banias) */
-			return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_PM);
+			return speedstep_get_frequency(SPEEDSTEP_CPU_PM);
 		}
 	}
 
 	if (c->x86 != 0xF) {
 		if (!cpu_has(c, X86_FEATURE_EST))
-			printk(KERN_WARNING PFX "Unknown p4-clockmod-capable CPU. "
-				"Please send an e-mail to <cpufreq@vger.kernel.org>\n");
+			printk(KERN_WARNING PFX "Unknown CPU. "
+				"Please send an e-mail to "
+				"<cpufreq@vger.kernel.org>\n");
 		return 0;
 	}
 
@@ -182,16 +190,16 @@ static unsigned int cpufreq_p4_get_frequency(struct cpuinfo_x86 *c)
 	 * throttling is active or not. */
 	p4clockmod_driver.flags |= CPUFREQ_CONST_LOOPS;
 
-	if (speedstep_detect_processor() == SPEEDSTEP_PROCESSOR_P4M) {
+	if (speedstep_detect_processor() == SPEEDSTEP_CPU_P4M) {
 		printk(KERN_WARNING PFX "Warning: Pentium 4-M detected. "
 		       "The speedstep-ich or acpi cpufreq modules offer "
 		       "voltage scaling in addition of frequency scaling. "
 		       "You should use either one instead of p4-clockmod, "
 		       "if possible.\n");
-		return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_P4M);
+		return speedstep_get_frequency(SPEEDSTEP_CPU_P4M);
 	}
 
-	return speedstep_get_processor_frequency(SPEEDSTEP_PROCESSOR_P4D);
+	return speedstep_get_frequency(SPEEDSTEP_CPU_P4D);
 }
 
 
@@ -203,7 +211,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	unsigned int i;
 
 #ifdef CONFIG_SMP
-	cpumask_copy(policy->cpus, &per_cpu(cpu_sibling_map, policy->cpu));
+	cpumask_copy(policy->cpus, cpu_sibling_mask(policy->cpu));
 #endif
 
 	/* Errata workaround */
@@ -217,14 +225,20 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 		dprintk("has errata -- disabling low frequencies\n");
 	}
 
+	if (speedstep_detect_processor() == SPEEDSTEP_CPU_P4D &&
+	    c->x86_model < 2) {
+		/* switch to maximum frequency and measure result */
+		cpufreq_p4_setdc(policy->cpu, DC_DISABLE);
+		recalibrate_cpu_khz();
+	}
 	/* get max frequency */
 	stock_freq = cpufreq_p4_get_frequency(c);
 	if (!stock_freq)
 		return -EINVAL;
 
 	/* table init */
-	for (i=1; (p4clockmod_table[i].frequency != CPUFREQ_TABLE_END); i++) {
-		if ((i<2) && (has_N44_O17_errata[policy->cpu]))
+	for (i = 1; (p4clockmod_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+		if ((i < 2) && (has_N44_O17_errata[policy->cpu]))
 			p4clockmod_table[i].frequency = CPUFREQ_ENTRY_INVALID;
 		else
 			p4clockmod_table[i].frequency = (stock_freq * i)/8;
@@ -232,7 +246,10 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	cpufreq_frequency_table_get_attr(p4clockmod_table, policy->cpu);
 
 	/* cpuinfo and default policy values */
-	policy->cpuinfo.transition_latency = 1000000; /* assumed */
+
+	/* the transition latency is set to be 1 higher than the maximum
+	 * transition latency of the ondemand governor */
+	policy->cpuinfo.transition_latency = 10000001;
 	policy->cur = stock_freq;
 
 	return cpufreq_frequency_table_cpuinfo(policy, &p4clockmod_table[0]);
@@ -258,12 +275,12 @@ static unsigned int cpufreq_p4_get(unsigned int cpu)
 		l = DC_DISABLE;
 
 	if (l != DC_DISABLE)
-		return (stock_freq * l / 8);
+		return stock_freq * l / 8;
 
 	return stock_freq;
 }
 
-static struct freq_attr* p4clockmod_attr[] = {
+static struct freq_attr *p4clockmod_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
 	NULL,
 };
@@ -277,7 +294,6 @@ static struct cpufreq_driver p4clockmod_driver = {
 	.name		= "p4-clockmod",
 	.owner		= THIS_MODULE,
 	.attr		= p4clockmod_attr,
-	.hide_interface	= 1,
 };
 
 
@@ -299,9 +315,10 @@ static int __init cpufreq_p4_init(void)
 
 	ret = cpufreq_register_driver(&p4clockmod_driver);
 	if (!ret)
-		printk(KERN_INFO PFX "P4/Xeon(TM) CPU On-Demand Clock Modulation available\n");
+		printk(KERN_INFO PFX "P4/Xeon(TM) CPU On-Demand Clock "
+				"Modulation available\n");
 
-	return (ret);
+	return ret;
 }
 
 
@@ -311,9 +328,9 @@ static void __exit cpufreq_p4_exit(void)
 }
 
 
-MODULE_AUTHOR ("Zwane Mwaikambo <zwane@commfireservices.com>");
-MODULE_DESCRIPTION ("cpufreq driver for Pentium(TM) 4/Xeon(TM)");
-MODULE_LICENSE ("GPL");
+MODULE_AUTHOR("Zwane Mwaikambo <zwane@commfireservices.com>");
+MODULE_DESCRIPTION("cpufreq driver for Pentium(TM) 4/Xeon(TM)");
+MODULE_LICENSE("GPL");
 
 late_initcall(cpufreq_p4_init);
 module_exit(cpufreq_p4_exit);

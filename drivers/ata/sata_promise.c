@@ -176,7 +176,9 @@ static const struct ata_port_operations pdc_common_ops = {
 	.check_atapi_dma	= pdc_check_atapi_dma,
 	.qc_prep		= pdc_qc_prep,
 	.qc_issue		= pdc_qc_issue,
+
 	.sff_irq_clear		= pdc_irq_clear,
+	.lost_interrupt		= ATA_OP_NULL,
 
 	.post_internal_cmd	= pdc_post_internal_cmd,
 	.error_handler		= pdc_error_handler,
@@ -213,8 +215,8 @@ static const struct ata_port_info pdc_port_info[] = {
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_SATA_PATA,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_old_sata_ops,
 	},
@@ -222,8 +224,8 @@ static const struct ata_port_info pdc_port_info[] = {
 	[board_2037x_pata] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_pata_ops,
 	},
@@ -232,8 +234,8 @@ static const struct ata_port_info pdc_port_info[] = {
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_4_PORTS,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_old_sata_ops,
 	},
@@ -242,8 +244,8 @@ static const struct ata_port_info pdc_port_info[] = {
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS |
 				  PDC_FLAG_4_PORTS,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_pata_ops,
 	},
@@ -252,8 +254,8 @@ static const struct ata_port_info pdc_port_info[] = {
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_GEN_II | PDC_FLAG_SATA_PATA,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_sata_ops,
 	},
@@ -262,8 +264,8 @@ static const struct ata_port_info pdc_port_info[] = {
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS |
 				  PDC_FLAG_GEN_II,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_pata_ops,
 	},
@@ -272,8 +274,8 @@ static const struct ata_port_info pdc_port_info[] = {
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_GEN_II | PDC_FLAG_4_PORTS,
-		.pio_mask	= 0x1f, /* pio0-4 */
-		.mwdma_mask	= 0x07, /* mwdma0-2 */
+		.pio_mask	= ATA_PIO4,
+		.mwdma_mask	= ATA_MWDMA2,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &pdc_sata_ops,
 	},

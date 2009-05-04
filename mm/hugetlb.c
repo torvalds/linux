@@ -918,7 +918,7 @@ static void return_unused_surplus_pages(struct hstate *h,
  * an instantiated the change should be committed via vma_commit_reservation.
  * No action is required on failure.
  */
-static int vma_needs_reservation(struct hstate *h,
+static long vma_needs_reservation(struct hstate *h,
 			struct vm_area_struct *vma, unsigned long addr)
 {
 	struct address_space *mapping = vma->vm_file->f_mapping;
@@ -933,7 +933,7 @@ static int vma_needs_reservation(struct hstate *h,
 		return 1;
 
 	} else  {
-		int err;
+		long err;
 		pgoff_t idx = vma_hugecache_offset(h, vma, addr);
 		struct resv_map *reservations = vma_resv_map(vma);
 
@@ -969,7 +969,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	struct page *page;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
-	unsigned int chg;
+	long chg;
 
 	/*
 	 * Processes that did not create the mapping will have no reserves and
@@ -2269,12 +2269,18 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 
 int hugetlb_reserve_pages(struct inode *inode,
 					long from, long to,
-					struct vm_area_struct *vma)
+					struct vm_area_struct *vma,
+					int acctflag)
 {
 	long ret, chg;
 	struct hstate *h = hstate_inode(inode);
 
-	if (vma && vma->vm_flags & VM_NORESERVE)
+	/*
+	 * Only apply hugepage reservation if asked. At fault time, an
+	 * attempt will be made for VM_NORESERVE to allocate a page
+	 * and filesystem quota without using reserves
+	 */
+	if (acctflag & VM_NORESERVE)
 		return 0;
 
 	/*
@@ -2299,13 +2305,31 @@ int hugetlb_reserve_pages(struct inode *inode,
 	if (chg < 0)
 		return chg;
 
+	/* There must be enough filesystem quota for the mapping */
 	if (hugetlb_get_quota(inode->i_mapping, chg))
 		return -ENOSPC;
+
+	/*
+	 * Check enough hugepages are available for the reservation.
+	 * Hand back the quota if there are not
+	 */
 	ret = hugetlb_acct_memory(h, chg);
 	if (ret < 0) {
 		hugetlb_put_quota(inode->i_mapping, chg);
 		return ret;
 	}
+
+	/*
+	 * Account for the reservations made. Shared mappings record regions
+	 * that have reservations as they are shared by multiple VMAs.
+	 * When the last VMA disappears, the region map says how much
+	 * the reservation was and the page cache tells how much of
+	 * the reservation was consumed. Private mappings are per-VMA and
+	 * only the consumed reservations are tracked. When the VMA
+	 * disappears, the original reservation is the VMA size and the
+	 * consumed reservations are stored in the map. Hence, nothing
+	 * else has to be done for private mappings here
+	 */
 	if (!vma || vma->vm_flags & VM_SHARED)
 		region_add(&inode->i_mapping->private_list, from, to);
 	return 0;

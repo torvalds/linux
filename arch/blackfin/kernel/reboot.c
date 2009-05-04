@@ -20,8 +20,8 @@
  * reset while the Core B bit (on dual core parts) is cleared by
  * the core reset.
  */
-__attribute__((l1_text))
-static void _bfin_reset(void)
+__attribute__ ((__l1_text__, __noreturn__))
+static void bfin_reset(void)
 {
 	/* Wait for completion of "system" events such as cache line
 	 * line fills so that we avoid infinite stalls later on as
@@ -30,7 +30,11 @@ static void _bfin_reset(void)
 	 */
 	__builtin_bfin_ssync();
 
-	while (1) {
+	/* The bootrom checks to see how it was reset and will
+	 * automatically perform a software reset for us when
+	 * it starts executing after the core reset.
+	 */
+	if (ANOMALY_05000353 || ANOMALY_05000386) {
 		/* Initiate System software reset. */
 		bfin_write_SWRST(0x7);
 
@@ -50,6 +54,11 @@ static void _bfin_reset(void)
 		/* Clear System software reset */
 		bfin_write_SWRST(0);
 
+		/* The BF526 ROM will crash during reset */
+#if defined(__ADSPBF522__) || defined(__ADSPBF524__) || defined(__ADSPBF526__)
+		bfin_read_SWRST();
+#endif
+
 		/* Wait for the SWRST write to complete.  Cannot rely on SSYNC
 		 * though as the System state is all reset now.
 		 */
@@ -60,22 +69,11 @@ static void _bfin_reset(void)
 			: "a" (15 * 1)
 			: "LC1", "LB1", "LT1"
 		);
+	}
 
+	while (1)
 		/* Issue core reset */
 		asm("raise 1");
-	}
-}
-
-static void bfin_reset(void)
-{
-	if (ANOMALY_05000353 || ANOMALY_05000386)
-		_bfin_reset();
-	else
-		/* the bootrom checks to see how it was reset and will
-		 * automatically perform a software reset for us when
-		 * it starts executing boot
-		 */
-		asm("raise 1;");
 }
 
 __attribute__((weak))

@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/security.h>
 #include <asm/pgtable.h>
 #include "gru.h"
 #include "grutables.h"
@@ -266,6 +267,44 @@ err:
 	return 1;
 }
 
+static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+		    int write, int atomic, unsigned long *gpa, int *pageshift)
+{
+	struct mm_struct *mm = gts->ts_mm;
+	struct vm_area_struct *vma;
+	unsigned long paddr;
+	int ret, ps;
+
+	vma = find_vma(mm, vaddr);
+	if (!vma)
+		goto inval;
+
+	/*
+	 * Atomic lookup is faster & usually works even if called in non-atomic
+	 * context.
+	 */
+	rmb();	/* Must/check ms_range_active before loading PTEs */
+	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
+	if (ret) {
+		if (atomic)
+			goto upm;
+		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
+			goto inval;
+	}
+	if (is_gru_paddr(paddr))
+		goto inval;
+	paddr = paddr & ~((1UL << ps) - 1);
+	*gpa = uv_soc_phys_ram_to_gpa(paddr);
+	*pageshift = ps;
+	return 0;
+
+inval:
+	return -1;
+upm:
+	return -2;
+}
+
+
 /*
  * Drop a TLB entry into the GRU. The fault is described by info in an TFH.
  *	Input:
@@ -280,10 +319,8 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 			  struct gru_tlb_fault_handle *tfh,
 			  unsigned long __user *cb)
 {
-	struct mm_struct *mm = gts->ts_mm;
-	struct vm_area_struct *vma;
-	int pageshift, asid, write, ret;
-	unsigned long paddr, gpa, vaddr;
+	int pageshift = 0, asid, write, ret, atomic = !cb;
+	unsigned long gpa = 0, vaddr = 0;
 
 	/*
 	 * NOTE: The GRU contains magic hardware that eliminates races between
@@ -317,28 +354,19 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	if (atomic_read(&gts->ts_gms->ms_range_active))
 		goto failactive;
 
-	vma = find_vma(mm, vaddr);
-	if (!vma)
+	ret = gru_vtop(gts, vaddr, write, atomic, &gpa, &pageshift);
+	if (ret == -1)
 		goto failinval;
+	if (ret == -2)
+		goto failupm;
 
-	/*
-	 * Atomic lookup is faster & usually works even if called in non-atomic
-	 * context.
-	 */
-	rmb();	/* Must/check ms_range_active before loading PTEs */
-	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &pageshift);
-	if (ret) {
-		if (!cb)
+	if (!(gts->ts_sizeavail & GRU_SIZEAVAIL(pageshift))) {
+		gts->ts_sizeavail |= GRU_SIZEAVAIL(pageshift);
+		if (atomic || !gru_update_cch(gts, 0)) {
+			gts->ts_force_cch_reload = 1;
 			goto failupm;
-		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr,
-					  &pageshift))
-			goto failinval;
+		}
 	}
-	if (is_gru_paddr(paddr))
-		goto failinval;
-
-	paddr = paddr & ~((1UL << pageshift) - 1);
-	gpa = uv_soc_phys_ram_to_gpa(paddr);
 	gru_cb_set_istatus_active(cb);
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
@@ -368,6 +396,7 @@ failupm:
 
 failfmm:
 	/* FMM state on UPM call */
+	gru_flush_cache(tfh);
 	STAT(tlb_dropin_fail_fmm);
 	gru_dbg(grudev, "FAILED fmm tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
@@ -448,6 +477,7 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 			up_read(&gts->ts_mm->mmap_sem);
 		} else {
 			tfh_user_polling_mode(tfh);
+			STAT(intr_mm_lock_failed);
 		}
 	}
 	return IRQ_HANDLED;
@@ -497,10 +527,8 @@ int gru_handle_user_call_os(unsigned long cb)
 	if (!gts)
 		return -EINVAL;
 
-	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE) {
-		ret = -EINVAL;
+	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE)
 		goto exit;
-	}
 
 	/*
 	 * If force_unload is set, the UPM TLB fault is phony. The task
@@ -508,6 +536,20 @@ int gru_handle_user_call_os(unsigned long cb)
 	 * unload the context. The task will page fault and assign a new
 	 * context.
 	 */
+	if (gts->ts_tgid_owner == current->tgid && gts->ts_blade >= 0 &&
+				gts->ts_blade != uv_numa_blade_id()) {
+		STAT(call_os_offnode_reference);
+		gts->ts_force_unload = 1;
+	}
+
+	/*
+	 * CCH may contain stale data if ts_force_cch_reload is set.
+	 */
+	if (gts->ts_gru && gts->ts_force_cch_reload) {
+		gru_update_cch(gts, 0);
+		gts->ts_force_cch_reload = 0;
+	}
+
 	ret = -EAGAIN;
 	cbrnum = thread_cbr_number(gts, ucbnum);
 	if (gts->ts_force_unload) {
@@ -541,11 +583,13 @@ int gru_get_exception_detail(unsigned long arg)
 	if (!gts)
 		return -EINVAL;
 
-	if (gts->ts_gru) {
-		ucbnum = get_cb_number((void *)excdet.cb);
+	ucbnum = get_cb_number((void *)excdet.cb);
+	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE) {
+		ret = -EINVAL;
+	} else if (gts->ts_gru) {
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
-		prefetchw(cbe);		/* Harmless on hardware, required for emulator */
+		prefetchw(cbe);/* Harmless on hardware, required for emulator */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
 		excdet.ecause = cbe->ecause;
@@ -567,6 +611,31 @@ int gru_get_exception_detail(unsigned long arg)
 /*
  * User request to unload a context. Content is saved for possible reload.
  */
+static int gru_unload_all_contexts(void)
+{
+	struct gru_thread_state *gts;
+	struct gru_state *gru;
+	int gid, ctxnum;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	foreach_gid(gid) {
+		gru = GID_TO_GRU(gid);
+		spin_lock(&gru->gs_lock);
+		for (ctxnum = 0; ctxnum < GRU_NUM_CCH; ctxnum++) {
+			gts = gru->gs_gts[ctxnum];
+			if (gts && mutex_trylock(&gts->ts_ctxlock)) {
+				spin_unlock(&gru->gs_lock);
+				gru_unload_context(gts, 1);
+				gru_unlock_gts(gts);
+				spin_lock(&gru->gs_lock);
+			}
+		}
+		spin_unlock(&gru->gs_lock);
+	}
+	return 0;
+}
+
 int gru_user_unload_context(unsigned long arg)
 {
 	struct gru_thread_state *gts;
@@ -577,6 +646,9 @@ int gru_user_unload_context(unsigned long arg)
 		return -EFAULT;
 
 	gru_dbg(grudev, "gseg 0x%lx\n", req.gseg);
+
+	if (!req.gseg)
+		return gru_unload_all_contexts();
 
 	gts = gru_find_lock_gts(req.gseg);
 	if (!gts)
@@ -609,7 +681,7 @@ int gru_user_flush_tlb(unsigned long arg)
 	if (!gts)
 		return -EINVAL;
 
-	gru_flush_tlb_range(gts->ts_gms, req.vaddr, req.vaddr + req.len);
+	gru_flush_tlb_range(gts->ts_gms, req.vaddr, req.len);
 	gru_unlock_gts(gts);
 
 	return 0;

@@ -95,17 +95,16 @@ EXPORT_SYMBOL(arcnet_unregister_proto);
 EXPORT_SYMBOL(arcnet_debug);
 EXPORT_SYMBOL(alloc_arcdev);
 EXPORT_SYMBOL(arcnet_interrupt);
+EXPORT_SYMBOL(arcnet_open);
+EXPORT_SYMBOL(arcnet_close);
+EXPORT_SYMBOL(arcnet_send_packet);
+EXPORT_SYMBOL(arcnet_timeout);
 
 /* Internal function prototypes */
-static int arcnet_open(struct net_device *dev);
-static int arcnet_close(struct net_device *dev);
-static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev);
-static void arcnet_timeout(struct net_device *dev);
 static int arcnet_header(struct sk_buff *skb, struct net_device *dev,
 			 unsigned short type, const void *daddr,
 			 const void *saddr, unsigned len);
 static int arcnet_rebuild_header(struct sk_buff *skb);
-static struct net_device_stats *arcnet_get_stats(struct net_device *dev);
 static int go_tx(struct net_device *dev);
 
 static int debug = ARCNET_DEBUG;
@@ -322,11 +321,18 @@ static const struct header_ops arcnet_header_ops = {
 	.rebuild = arcnet_rebuild_header,
 };
 
+static const struct net_device_ops arcnet_netdev_ops = {
+	.ndo_open	= arcnet_open,
+	.ndo_stop	= arcnet_close,
+	.ndo_start_xmit = arcnet_send_packet,
+	.ndo_tx_timeout = arcnet_timeout,
+};
 
 /* Setup a struct device for ARCnet. */
 static void arcdev_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_ARCNET;
+	dev->netdev_ops = &arcnet_netdev_ops;
 	dev->header_ops = &arcnet_header_ops;
 	dev->hard_header_len = sizeof(struct archdr);
 	dev->mtu = choose_mtu();
@@ -339,18 +345,9 @@ static void arcdev_setup(struct net_device *dev)
 	/* New-style flags. */
 	dev->flags = IFF_BROADCAST;
 
-	/*
-	 * Put in this stuff here, so we don't have to export the symbols to
-	 * the chipset drivers.
-	 */
-	dev->open = arcnet_open;
-	dev->stop = arcnet_close;
-	dev->hard_start_xmit = arcnet_send_packet;
-	dev->tx_timeout = arcnet_timeout;
-	dev->get_stats = arcnet_get_stats;
 }
 
-struct net_device *alloc_arcdev(char *name)
+struct net_device *alloc_arcdev(const char *name)
 {
 	struct net_device *dev;
 
@@ -372,7 +369,7 @@ struct net_device *alloc_arcdev(char *name)
  * that "should" only need to be set once at boot, so that there is
  * non-reboot way to recover if something goes wrong.
  */
-static int arcnet_open(struct net_device *dev)
+int arcnet_open(struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	int count, newmtu, error;
@@ -383,7 +380,6 @@ static int arcnet_open(struct net_device *dev)
 		return -ENODEV;
 
 	BUGLVL(D_PROTO) {
-		int count;
 		BUGMSG(D_PROTO, "protocol map (default is '%c'): ",
 		       arc_proto_default->suffix);
 		for (count = 0; count < 256; count++)
@@ -472,7 +468,7 @@ static int arcnet_open(struct net_device *dev)
 
 
 /* The inverse routine to arcnet_open - shuts down the card. */
-static int arcnet_close(struct net_device *dev)
+int arcnet_close(struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 
@@ -583,8 +579,8 @@ static int arcnet_rebuild_header(struct sk_buff *skb)
 	} else {
 		BUGMSG(D_NORMAL,
 		       "I don't understand ethernet protocol %Xh addresses!\n", type);
-		lp->stats.tx_errors++;
-		lp->stats.tx_aborted_errors++;
+		dev->stats.tx_errors++;
+		dev->stats.tx_aborted_errors++;
 	}
 
 	/* if we couldn't resolve the address... give up. */
@@ -601,7 +597,7 @@ static int arcnet_rebuild_header(struct sk_buff *skb)
 
 
 /* Called by the kernel in order to transmit a packet. */
-static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
+int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 {
 	struct arcnet_local *lp = netdev_priv(dev);
 	struct archdr *pkt;
@@ -645,7 +641,7 @@ static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 		    !proto->ack_tx) {
 			/* done right away and we don't want to acknowledge
 			   the package later - forget about it now */
-			lp->stats.tx_bytes += skb->len;
+			dev->stats.tx_bytes += skb->len;
 			freeskb = 1;
 		} else {
 			/* do it the 'split' way */
@@ -709,7 +705,7 @@ static int go_tx(struct net_device *dev)
 	/* start sending */
 	ACOMMAND(TXcmd | (lp->cur_tx << 3));
 
-	lp->stats.tx_packets++;
+	dev->stats.tx_packets++;
 	lp->lasttrans_dest = lp->lastload_dest;
 	lp->lastload_dest = 0;
 	lp->excnak_pending = 0;
@@ -720,7 +716,7 @@ static int go_tx(struct net_device *dev)
 
 
 /* Called by the kernel when transmit times out */
-static void arcnet_timeout(struct net_device *dev)
+void arcnet_timeout(struct net_device *dev)
 {
 	unsigned long flags;
 	struct arcnet_local *lp = netdev_priv(dev);
@@ -732,11 +728,11 @@ static void arcnet_timeout(struct net_device *dev)
 		msg = " - missed IRQ?";
 	} else {
 		msg = "";
-		lp->stats.tx_aborted_errors++;
+		dev->stats.tx_aborted_errors++;
 		lp->timed_out = 1;
 		ACOMMAND(NOTXcmd | (lp->cur_tx << 3));
 	}
-	lp->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	/* make sure we didn't miss a TX or a EXC NAK IRQ */
 	AINTMASK(0);
@@ -865,8 +861,8 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 						       "transmit was not acknowledged! "
 						       "(status=%Xh, dest=%02Xh)\n",
 						       status, lp->lasttrans_dest);
-						lp->stats.tx_errors++;
-						lp->stats.tx_carrier_errors++;
+						dev->stats.tx_errors++;
+						dev->stats.tx_carrier_errors++;
 					} else {
 						BUGMSG(D_DURING,
 						       "broadcast was not acknowledged; that's normal "
@@ -905,7 +901,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 				if (txbuf != -1) {
 					if (lp->outgoing.proto->continue_tx(dev, txbuf)) {
 						/* that was the last segment */
-						lp->stats.tx_bytes += lp->outgoing.skb->len;
+						dev->stats.tx_bytes += lp->outgoing.skb->len;
 						if(!lp->outgoing.proto->ack_tx)
 						  {
 						    dev_kfree_skb_irq(lp->outgoing.skb);
@@ -930,7 +926,7 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id)
 		}
 		if (status & lp->intmask & RECONflag) {
 			ACOMMAND(CFLAGScmd | CONFIGclear);
-			lp->stats.tx_carrier_errors++;
+			dev->stats.tx_carrier_errors++;
 
 			BUGMSG(D_RECON, "Network reconfiguration detected (status=%Xh)\n",
 			       status);
@@ -1038,8 +1034,8 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 	       "(%d+4 bytes)\n",
 	       bufnum, pkt.hard.source, pkt.hard.dest, length);
 
-	lp->stats.rx_packets++;
-	lp->stats.rx_bytes += length + ARC_HDR_SIZE;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += length + ARC_HDR_SIZE;
 
 	/* call the right receiver for the protocol */
 	if (arc_proto_map[soft->proto]->is_ip) {
@@ -1064,18 +1060,6 @@ static void arcnet_rx(struct net_device *dev, int bufnum)
 	}
 	/* call the protocol-specific receiver. */
 	arc_proto_map[soft->proto]->rx(dev, bufnum, &pkt, length);
-}
-
-
-
-/* 
- * Get the current statistics.  This may be called with the card open or
- * closed.
- */
-static struct net_device_stats *arcnet_get_stats(struct net_device *dev)
-{
-	struct arcnet_local *lp = netdev_priv(dev);
-	return &lp->stats;
 }
 
 

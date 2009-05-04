@@ -18,6 +18,7 @@
 #include <linux/syscalls.h>
 #include <linux/sysctl.h>
 #include <linux/types.h>
+#include <linux/fs_struct.h>
 
 
 static void default_handler(int, struct pt_regs *);
@@ -145,28 +146,6 @@ __set_personality(u_long personality)
 		return 0;
 	}
 
-	if (atomic_read(&current->fs->count) != 1) {
-		struct fs_struct *fsp, *ofsp;
-
-		fsp = copy_fs_struct(current->fs);
-		if (fsp == NULL) {
-			module_put(ep->module);
-			return -ENOMEM;
-		}
-
-		task_lock(current);
-		ofsp = current->fs;
-		current->fs = fsp;
-		task_unlock(current);
-
-		put_fs_struct(ofsp);
-	}
-
-	/*
-	 * At that point we are guaranteed to be the sole owner of
-	 * current->fs.
-	 */
-
 	current->personality = personality;
 	oep = current_thread_info()->exec_domain;
 	current_thread_info()->exec_domain = ep;
@@ -209,8 +188,7 @@ static int __init proc_execdomains_init(void)
 module_init(proc_execdomains_init);
 #endif
 
-asmlinkage long
-sys_personality(u_long personality)
+SYSCALL_DEFINE1(personality, u_long, personality)
 {
 	u_long old = current->personality;
 

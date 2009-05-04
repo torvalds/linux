@@ -21,6 +21,7 @@
 
 #include "afs.h"
 #include "afs_vl.h"
+#include "cache.h"
 
 #define AFS_CELL_MAX_ADDRS 15
 
@@ -193,8 +194,8 @@ struct afs_cell {
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
 	struct list_head	proc_link;	/* /proc cell list link */
 	struct proc_dir_entry	*proc_dir;	/* /proc dir for this cell */
-#ifdef AFS_CACHING_SUPPORT
-	struct cachefs_cookie	*cache;		/* caching cookie */
+#ifdef CONFIG_AFS_FSCACHE
+	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
 
 	/* server record management */
@@ -249,8 +250,8 @@ struct afs_vlocation {
 	struct list_head	grave;		/* link in master graveyard list */
 	struct list_head	update;		/* link in master update list */
 	struct afs_cell		*cell;		/* cell to which volume belongs */
-#ifdef AFS_CACHING_SUPPORT
-	struct cachefs_cookie	*cache;		/* caching cookie */
+#ifdef CONFIG_AFS_FSCACHE
+	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
 	struct afs_cache_vlocation vldb;	/* volume information DB record */
 	struct afs_volume	*vols[3];	/* volume access record pointer (index by type) */
@@ -302,8 +303,8 @@ struct afs_volume {
 	atomic_t		usage;
 	struct afs_cell		*cell;		/* cell to which belongs (unrefd ptr) */
 	struct afs_vlocation	*vlocation;	/* volume location */
-#ifdef AFS_CACHING_SUPPORT
-	struct cachefs_cookie	*cache;		/* caching cookie */
+#ifdef CONFIG_AFS_FSCACHE
+	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
 	afs_volid_t		vid;		/* volume ID */
 	afs_voltype_t		type;		/* type of volume */
@@ -333,8 +334,8 @@ struct afs_vnode {
 	struct afs_server	*server;	/* server currently supplying this file */
 	struct afs_fid		fid;		/* the file identifier for this inode */
 	struct afs_file_status	status;		/* AFS status info for this file */
-#ifdef AFS_CACHING_SUPPORT
-	struct cachefs_cookie	*cache;		/* caching cookie */
+#ifdef CONFIG_AFS_FSCACHE
+	struct fscache_cookie	*cache;		/* caching cookie */
 #endif
 	struct afs_permits	*permits;	/* cache of permits so far obtained */
 	struct mutex		permits_lock;	/* lock for altering permits list */
@@ -428,6 +429,22 @@ struct afs_uuid {
 
 /*****************************************************************************/
 /*
+ * cache.c
+ */
+#ifdef CONFIG_AFS_FSCACHE
+extern struct fscache_netfs afs_cache_netfs;
+extern struct fscache_cookie_def afs_cell_cache_index_def;
+extern struct fscache_cookie_def afs_vlocation_cache_index_def;
+extern struct fscache_cookie_def afs_volume_cache_index_def;
+extern struct fscache_cookie_def afs_vnode_cache_index_def;
+#else
+#define afs_cell_cache_index_def	(*(struct fscache_cookie_def *) NULL)
+#define afs_vlocation_cache_index_def	(*(struct fscache_cookie_def *) NULL)
+#define afs_volume_cache_index_def	(*(struct fscache_cookie_def *) NULL)
+#define afs_vnode_cache_index_def	(*(struct fscache_cookie_def *) NULL)
+#endif
+
+/*
  * callback.c
  */
 extern void afs_init_callback_state(struct afs_server *);
@@ -446,9 +463,6 @@ extern void afs_callback_update_kill(void);
  */
 extern struct rw_semaphore afs_proc_cells_sem;
 extern struct list_head afs_proc_cells;
-#ifdef AFS_CACHING_SUPPORT
-extern struct cachefs_index_def afs_cache_cell_index_def;
-#endif
 
 #define afs_get_cell(C) do { atomic_inc(&(C)->usage); } while(0)
 extern int afs_cell_init(char *);
@@ -554,9 +568,6 @@ extern void afs_clear_inode(struct inode *);
  * main.c
  */
 extern struct afs_uuid afs_uuid;
-#ifdef AFS_CACHING_SUPPORT
-extern struct cachefs_netfs afs_cache_netfs;
-#endif
 
 /*
  * misc.c
@@ -637,10 +648,6 @@ extern int afs_get_MAC_address(u8 *, size_t);
 /*
  * vlclient.c
  */
-#ifdef AFS_CACHING_SUPPORT
-extern struct cachefs_index_def afs_vlocation_cache_index_def;
-#endif
-
 extern int afs_vl_get_entry_by_name(struct in_addr *, struct key *,
 				    const char *, struct afs_cache_vlocation *,
 				    const struct afs_wait_mode *);
@@ -664,12 +671,6 @@ extern void afs_vlocation_purge(void);
 /*
  * vnode.c
  */
-#ifdef AFS_CACHING_SUPPORT
-extern struct cachefs_index_def afs_vnode_cache_index_def;
-#endif
-
-extern struct afs_timer_ops afs_vnode_cb_timed_out_ops;
-
 static inline struct afs_vnode *AFS_FS_I(struct inode *inode)
 {
 	return container_of(inode, struct afs_vnode, vfs_inode);
@@ -711,10 +712,6 @@ extern int afs_vnode_release_lock(struct afs_vnode *, struct key *);
 /*
  * volume.c
  */
-#ifdef AFS_CACHING_SUPPORT
-extern struct cachefs_index_def afs_volume_cache_index_def;
-#endif
-
 #define afs_get_volume(V) do { atomic_inc(&(V)->usage); } while(0)
 
 extern void afs_put_volume(struct afs_volume *);

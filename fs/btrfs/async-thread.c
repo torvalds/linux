@@ -16,16 +16,16 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/version.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-# include <linux/freezer.h>
+#include <linux/freezer.h>
 #include "async-thread.h"
 
 #define WORK_QUEUED_BIT 0
 #define WORK_DONE_BIT 1
 #define WORK_ORDER_DONE_BIT 2
+#define WORK_HIGH_PRIO_BIT 3
 
 /*
  * container for the kthread task pointer and the list of pending work
@@ -37,6 +37,7 @@ struct btrfs_worker_thread {
 
 	/* list of struct btrfs_work that are waiting for service */
 	struct list_head pending;
+	struct list_head prio_pending;
 
 	/* list of worker threads from struct btrfs_workers */
 	struct list_head worker_list;
@@ -104,10 +105,16 @@ static noinline int run_ordered_completions(struct btrfs_workers *workers,
 
 	spin_lock_irqsave(&workers->lock, flags);
 
-	while (!list_empty(&workers->order_list)) {
-		work = list_entry(workers->order_list.next,
-				  struct btrfs_work, order_list);
-
+	while (1) {
+		if (!list_empty(&workers->prio_order_list)) {
+			work = list_entry(workers->prio_order_list.next,
+					  struct btrfs_work, order_list);
+		} else if (!list_empty(&workers->order_list)) {
+			work = list_entry(workers->order_list.next,
+					  struct btrfs_work, order_list);
+		} else {
+			break;
+		}
 		if (!test_bit(WORK_DONE_BIT, &work->flags))
 			break;
 
@@ -143,8 +150,15 @@ static int worker_loop(void *arg)
 	struct btrfs_work *work;
 	do {
 		spin_lock_irq(&worker->lock);
-		while (!list_empty(&worker->pending)) {
-			cur = worker->pending.next;
+again_locked:
+		while (1) {
+			if (!list_empty(&worker->prio_pending))
+				cur = worker->prio_pending.next;
+			else if (!list_empty(&worker->pending))
+				cur = worker->pending.next;
+			else
+				break;
+
 			work = list_entry(cur, struct btrfs_work, list);
 			list_del(&work->list);
 			clear_bit(WORK_QUEUED_BIT, &work->flags);
@@ -163,16 +177,58 @@ static int worker_loop(void *arg)
 
 			spin_lock_irq(&worker->lock);
 			check_idle_worker(worker);
-
 		}
-		worker->working = 0;
 		if (freezing(current)) {
+			worker->working = 0;
+			spin_unlock_irq(&worker->lock);
 			refrigerator();
 		} else {
-			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(&worker->lock);
-			if (!kthread_should_stop())
-				schedule();
+			if (!kthread_should_stop()) {
+				cpu_relax();
+				/*
+				 * we've dropped the lock, did someone else
+				 * jump_in?
+				 */
+				smp_mb();
+				if (!list_empty(&worker->pending) ||
+				    !list_empty(&worker->prio_pending))
+					continue;
+
+				/*
+				 * this short schedule allows more work to
+				 * come in without the queue functions
+				 * needing to go through wake_up_process()
+				 *
+				 * worker->working is still 1, so nobody
+				 * is going to try and wake us up
+				 */
+				schedule_timeout(1);
+				smp_mb();
+				if (!list_empty(&worker->pending) ||
+				    !list_empty(&worker->prio_pending))
+					continue;
+
+				if (kthread_should_stop())
+					break;
+
+				/* still no more work?, sleep for real */
+				spin_lock_irq(&worker->lock);
+				set_current_state(TASK_INTERRUPTIBLE);
+				if (!list_empty(&worker->pending) ||
+				    !list_empty(&worker->prio_pending))
+					goto again_locked;
+
+				/*
+				 * this makes sure we get a wakeup when someone
+				 * adds something new to the queue
+				 */
+				worker->working = 0;
+				spin_unlock_irq(&worker->lock);
+
+				if (!kthread_should_stop())
+					schedule();
+			}
 			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
@@ -208,6 +264,7 @@ void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max)
 	INIT_LIST_HEAD(&workers->worker_list);
 	INIT_LIST_HEAD(&workers->idle_list);
 	INIT_LIST_HEAD(&workers->order_list);
+	INIT_LIST_HEAD(&workers->prio_order_list);
 	spin_lock_init(&workers->lock);
 	workers->max_workers = max;
 	workers->idle_thresh = 32;
@@ -233,6 +290,7 @@ int btrfs_start_workers(struct btrfs_workers *workers, int num_workers)
 		}
 
 		INIT_LIST_HEAD(&worker->pending);
+		INIT_LIST_HEAD(&worker->prio_pending);
 		INIT_LIST_HEAD(&worker->worker_list);
 		spin_lock_init(&worker->lock);
 		atomic_set(&worker->num_pending, 0);
@@ -350,13 +408,17 @@ int btrfs_requeue_work(struct btrfs_work *work)
 {
 	struct btrfs_worker_thread *worker = work->worker;
 	unsigned long flags;
+	int wake = 0;
 
 	if (test_and_set_bit(WORK_QUEUED_BIT, &work->flags))
 		goto out;
 
 	spin_lock_irqsave(&worker->lock, flags);
+	if (test_bit(WORK_HIGH_PRIO_BIT, &work->flags))
+		list_add_tail(&work->list, &worker->prio_pending);
+	else
+		list_add_tail(&work->list, &worker->pending);
 	atomic_inc(&worker->num_pending);
-	list_add_tail(&work->list, &worker->pending);
 
 	/* by definition we're busy, take ourselves off the idle
 	 * list
@@ -368,11 +430,22 @@ int btrfs_requeue_work(struct btrfs_work *work)
 			       &worker->workers->worker_list);
 		spin_unlock_irqrestore(&worker->workers->lock, flags);
 	}
+	if (!worker->working) {
+		wake = 1;
+		worker->working = 1;
+	}
 
 	spin_unlock_irqrestore(&worker->lock, flags);
-
+	if (wake)
+		wake_up_process(worker->task);
 out:
+
 	return 0;
+}
+
+void btrfs_set_work_high_prio(struct btrfs_work *work)
+{
+	set_bit(WORK_HIGH_PRIO_BIT, &work->flags);
 }
 
 /*
@@ -391,16 +464,25 @@ int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work)
 	worker = find_worker(workers);
 	if (workers->ordered) {
 		spin_lock_irqsave(&workers->lock, flags);
-		list_add_tail(&work->order_list, &workers->order_list);
+		if (test_bit(WORK_HIGH_PRIO_BIT, &work->flags)) {
+			list_add_tail(&work->order_list,
+				      &workers->prio_order_list);
+		} else {
+			list_add_tail(&work->order_list, &workers->order_list);
+		}
 		spin_unlock_irqrestore(&workers->lock, flags);
 	} else {
 		INIT_LIST_HEAD(&work->order_list);
 	}
 
 	spin_lock_irqsave(&worker->lock, flags);
+
+	if (test_bit(WORK_HIGH_PRIO_BIT, &work->flags))
+		list_add_tail(&work->list, &worker->prio_pending);
+	else
+		list_add_tail(&work->list, &worker->pending);
 	atomic_inc(&worker->num_pending);
 	check_busy_worker(worker);
-	list_add_tail(&work->list, &worker->pending);
 
 	/*
 	 * avoid calling into wake_up_process if this thread has already

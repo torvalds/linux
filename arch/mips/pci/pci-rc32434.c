@@ -205,12 +205,23 @@ static int __init rc32434_pcibridge_init(void)
 
 static int __init rc32434_pci_init(void)
 {
+	void __iomem *io_map_base;
+
 	pr_info("PCI: Initializing PCI\n");
 
 	ioport_resource.start = rc32434_res_pci_io1.start;
 	ioport_resource.end = rc32434_res_pci_io1.end;
 
 	rc32434_pcibridge_init();
+
+	io_map_base = ioremap(rc32434_res_pci_io1.start,
+		rc32434_res_pci_io1.end - rc32434_res_pci_io1.start + 1);
+
+	if (!io_map_base)
+		return -ENOMEM;
+
+	rc32434_controller.io_map_base =
+		(unsigned long)io_map_base - rc32434_res_pci_io1.start;
 
 	register_pci_controller(&rc32434_controller);
 	rc32434_sync();

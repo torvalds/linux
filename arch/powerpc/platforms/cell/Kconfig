@@ -23,7 +23,7 @@ config PPC_CELL_NATIVE
 
 config PPC_IBM_CELL_BLADE
 	bool "IBM Cell Blade"
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC64 && PPC_BOOK3S
 	select PPC_CELL_NATIVE
 	select MMIO_NVRAM
 	select PPC_UDBG_16550
@@ -31,7 +31,7 @@ config PPC_IBM_CELL_BLADE
 
 config PPC_CELLEB
 	bool "Toshiba's Cell Reference Set 'Celleb' Architecture"
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC64 && PPC_BOOK3S
 	select PPC_CELL_NATIVE
 	select HAS_TXX9_SERIAL
 	select PPC_UDBG_BEAT
@@ -40,8 +40,13 @@ config PPC_CELLEB
 
 config PPC_CELL_QPACE
 	bool "IBM Cell - QPACE"
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC64 && PPC_BOOK3S
 	select PPC_CELL_COMMON
+
+config AXON_MSI
+	bool
+	depends on PPC_IBM_CELL_BLADE && PCI_MSI
+	default y
 
 menu "Cell Broadband Engine options"
 	depends on PPC_CELL
@@ -98,7 +103,7 @@ config PPC_IBM_CELL_RESETBUTTON
 
 config PPC_IBM_CELL_POWERBUTTON
 	tristate "IBM Cell Blade power button"
-	depends on PPC_IBM_CELL_BLADE && PPC_PMI && INPUT_EVDEV
+	depends on PPC_IBM_CELL_BLADE && INPUT_EVDEV
 	default y
 	help
 	  Support Powerbutton on IBM Cell blades.
@@ -118,15 +123,29 @@ config CBE_CPUFREQ
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 	  If you don't have such processor, say N
 
-config CBE_CPUFREQ_PMI
-	tristate "CBE frequency scaling using PMI interface"
-	depends on CBE_CPUFREQ && PPC_PMI && EXPERIMENTAL
+config CBE_CPUFREQ_PMI_ENABLE
+	bool "CBE frequency scaling using PMI interface"
+	depends on CBE_CPUFREQ && EXPERIMENTAL
 	default n
 	help
 	  Select this, if you want to use the PMI interface
 	  to switch frequencies. Using PMI, the
 	  processor will not only be able to run at lower speed,
 	  but also at lower core voltage.
+
+config CBE_CPUFREQ_PMI
+	tristate
+	depends on CBE_CPUFREQ_PMI_ENABLE
+	default CBE_CPUFREQ
+
+config PPC_PMI
+	tristate
+	default y
+	depends on CBE_CPUFREQ_PMI || PPC_IBM_CELL_POWERBUTTON
+	help
+	  PMI (Platform Management Interrupt) is a way to
+	  communicate with the BMC (Baseboard Management Controller).
+	  It is used in some IBM Cell blades.
 
 config CBE_CPUFREQ_SPU_GOVERNOR
 	tristate "CBE frequency scaling based on SPU usage"

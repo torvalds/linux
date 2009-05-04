@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
+#include <linux/percpu.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -224,6 +225,30 @@ cannot_handle:
 	unhandled_fault (address, current, regs);
 }
 
+static void noinline bogus_32bit_fault_tpc(struct pt_regs *regs)
+{
+	static int times;
+
+	if (times++ < 10)
+		printk(KERN_ERR "FAULT[%s:%d]: 32-bit process reports "
+		       "64-bit TPC [%lx]\n",
+		       current->comm, current->pid,
+		       regs->tpc);
+	show_regs(regs);
+}
+
+static void noinline bogus_32bit_fault_address(struct pt_regs *regs,
+					       unsigned long addr)
+{
+	static int times;
+
+	if (times++ < 10)
+		printk(KERN_ERR "FAULT[%s:%d]: 32-bit process "
+		       "reports 64-bit fault address [%lx]\n",
+		       current->comm, current->pid, addr);
+	show_regs(regs);
+}
+
 asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 {
 	struct mm_struct *mm = current->mm;
@@ -244,6 +269,19 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	    (fault_code & FAULT_CODE_DTLB))
 		BUG();
 
+	if (test_thread_flag(TIF_32BIT)) {
+		if (!(regs->tstate & TSTATE_PRIV)) {
+			if (unlikely((regs->tpc >> 32) != 0)) {
+				bogus_32bit_fault_tpc(regs);
+				goto intr_or_no_mm;
+			}
+		}
+		if (unlikely((address >> 32) != 0)) {
+			bogus_32bit_fault_address(regs, address);
+			goto intr_or_no_mm;
+		}
+	}
+
 	if (regs->tstate & TSTATE_PRIV) {
 		unsigned long tpc = regs->tpc;
 
@@ -263,12 +301,6 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
 	 */
 	if (in_atomic() || !mm)
 		goto intr_or_no_mm;
-
-	if (test_thread_flag(TIF_32BIT)) {
-		if (!(regs->tstate & TSTATE_PRIV))
-			regs->tpc &= 0xffffffff;
-		address &= 0xffffffff;
-	}
 
 	if (!down_read_trylock(&mm->mmap_sem)) {
 		if ((regs->tstate & TSTATE_PRIV) &&

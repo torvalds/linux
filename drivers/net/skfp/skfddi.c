@@ -135,14 +135,11 @@ void dump_data(unsigned char *Data, int length);
 
 // External functions from the hardware module
 extern u_int mac_drv_check_space(void);
-extern void read_address(struct s_smc *smc, u_char * mac_addr);
-extern void card_stop(struct s_smc *smc);
 extern int mac_drv_init(struct s_smc *smc);
 extern void hwm_tx_frag(struct s_smc *smc, char far * virt, u_long phys,
 			int len, int frame_status);
 extern int hwm_tx_init(struct s_smc *smc, u_char fc, int frag_count,
 		       int frame_len, int frame_status);
-extern int init_smt(struct s_smc *smc, u_char * mac_addr);
 extern void fddi_isr(struct s_smc *smc);
 extern void hwm_rx_frag(struct s_smc *smc, char far * virt, u_long phys,
 			int len, int frame_status);
@@ -1003,9 +1000,9 @@ static int skfp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	case SKFP_CLR_STATS:	/* Zero out the driver statistics */
 		if (!capable(CAP_NET_ADMIN)) {
-			memset(&lp->MacStat, 0, sizeof(lp->MacStat));
-		} else {
 			status = -EPERM;
+		} else {
+			memset(&lp->MacStat, 0, sizeof(lp->MacStat));
 		}
 		break;
 	default:

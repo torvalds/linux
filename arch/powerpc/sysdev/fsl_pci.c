@@ -1,12 +1,16 @@
 /*
  * MPC83xx/85xx/86xx PCI/PCIE support routing.
  *
- * Copyright 2007,2008 Freescale Semiconductor, Inc
+ * Copyright 2007-2009 Freescale Semiconductor, Inc.
+ * Copyright 2008-2009 MontaVista Software, Inc.
  *
  * Initial author: Xianghua Xiao <x.xiao@freescale.com>
  * Recode: ZHANG WEI <wei.zhang@freescale.com>
  * Rewrite the routing for Frescale PCI and PCI Express
  * 	Roy Zang <tie-fei.zang@freescale.com>
+ * MPC83xx PCI-Express support:
+ * 	Tony Li <tony.li@freescale.com>
+ * 	Anton Vorontsov <avorontsov@ru.mvista.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -27,64 +31,128 @@
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 
+static int fsl_pcie_bus_fixup;
+
+static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
+{
+	/* if we aren't a PCIe don't bother */
+	if (!pci_find_capability(dev, PCI_CAP_ID_EXP))
+		return;
+
+	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
+	fsl_pcie_bus_fixup = 1;
+	return;
+}
+
+static int __init fsl_pcie_check_link(struct pci_controller *hose)
+{
+	u32 val;
+
+	early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
+	if (val < PCIE_LTSSM_L0)
+		return 1;
+	return 0;
+}
+
 #if defined(CONFIG_PPC_85xx) || defined(CONFIG_PPC_86xx)
+static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
+	unsigned int index, const struct resource *res,
+	resource_size_t offset)
+{
+	resource_size_t pci_addr = res->start - offset;
+	resource_size_t phys_addr = res->start;
+	resource_size_t size = res->end - res->start + 1;
+	u32 flags = 0x80044000; /* enable & mem R/W */
+	unsigned int i;
+
+	pr_debug("PCI MEM resource start 0x%016llx, size 0x%016llx.\n",
+		(u64)res->start, (u64)size);
+
+	if (res->flags & IORESOURCE_PREFETCH)
+		flags |= 0x10000000; /* enable relaxed ordering */
+
+	for (i = 0; size > 0; i++) {
+		unsigned int bits = min(__ilog2(size),
+					__ffs(pci_addr | phys_addr));
+
+		if (index + i >= 5)
+			return -1;
+
+		out_be32(&pci->pow[index + i].potar, pci_addr >> 12);
+		out_be32(&pci->pow[index + i].potear, (u64)pci_addr >> 44);
+		out_be32(&pci->pow[index + i].powbar, phys_addr >> 12);
+		out_be32(&pci->pow[index + i].powar, flags | (bits - 1));
+
+		pci_addr += (resource_size_t)1U << bits;
+		phys_addr += (resource_size_t)1U << bits;
+		size -= (resource_size_t)1U << bits;
+	}
+
+	return i;
+}
+
 /* atmu setup for fsl pci/pcie controller */
 static void __init setup_pci_atmu(struct pci_controller *hose,
 				  struct resource *rsrc)
 {
 	struct ccsr_pci __iomem *pci;
-	int i;
+	int i, j, n;
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		    (u64)rsrc->start, (u64)rsrc->end - (u64)rsrc->start + 1);
 	pci = ioremap(rsrc->start, rsrc->end - rsrc->start + 1);
+	if (!pci) {
+	    dev_err(hose->parent, "Unable to map ATMU registers\n");
+	    return;
+	}
 
-	/* Disable all windows (except powar0 since its ignored) */
+	/* Disable all windows (except powar0 since it's ignored) */
 	for(i = 1; i < 5; i++)
 		out_be32(&pci->pow[i].powar, 0);
 	for(i = 0; i < 3; i++)
 		out_be32(&pci->piw[i].piwar, 0);
 
 	/* Setup outbound MEM window */
-	for(i = 0; i < 3; i++)
-		if (hose->mem_resources[i].flags & IORESOURCE_MEM){
-			resource_size_t pci_addr_start =
-				 hose->mem_resources[i].start -
-				 hose->pci_mem_offset;
-			pr_debug("PCI MEM resource start 0x%016llx, size 0x%016llx.\n",
-				(u64)hose->mem_resources[i].start,
-				(u64)hose->mem_resources[i].end
-				  - (u64)hose->mem_resources[i].start + 1);
-			out_be32(&pci->pow[i+1].potar, (pci_addr_start >> 12));
-			out_be32(&pci->pow[i+1].potear, 0);
-			out_be32(&pci->pow[i+1].powbar,
-				(hose->mem_resources[i].start >> 12));
-			/* Enable, Mem R/W */
-			out_be32(&pci->pow[i+1].powar, 0x80044000
-				| (__ilog2(hose->mem_resources[i].end
-				- hose->mem_resources[i].start + 1) - 1));
-		}
+	for(i = 0, j = 1; i < 3; i++) {
+		if (!(hose->mem_resources[i].flags & IORESOURCE_MEM))
+			continue;
+
+		n = setup_one_atmu(pci, j, &hose->mem_resources[i],
+				   hose->pci_mem_offset);
+
+		if (n < 0 || j >= 5) {
+			pr_err("Ran out of outbound PCI ATMUs for resource %d!\n", i);
+			hose->mem_resources[i].flags |= IORESOURCE_DISABLED;
+		} else
+			j += n;
+	}
 
 	/* Setup outbound IO window */
-	if (hose->io_resource.flags & IORESOURCE_IO){
-		pr_debug("PCI IO resource start 0x%016llx, size 0x%016llx, "
-			 "phy base 0x%016llx.\n",
-			(u64)hose->io_resource.start,
-			(u64)hose->io_resource.end - (u64)hose->io_resource.start + 1,
-			(u64)hose->io_base_phys);
-		out_be32(&pci->pow[i+1].potar, (hose->io_resource.start >> 12));
-		out_be32(&pci->pow[i+1].potear, 0);
-		out_be32(&pci->pow[i+1].powbar, (hose->io_base_phys >> 12));
-		/* Enable, IO R/W */
-		out_be32(&pci->pow[i+1].powar, 0x80088000
-			| (__ilog2(hose->io_resource.end
-			- hose->io_resource.start + 1) - 1));
+	if (hose->io_resource.flags & IORESOURCE_IO) {
+		if (j >= 5) {
+			pr_err("Ran out of outbound PCI ATMUs for IO resource\n");
+		} else {
+			pr_debug("PCI IO resource start 0x%016llx, size 0x%016llx, "
+				 "phy base 0x%016llx.\n",
+				(u64)hose->io_resource.start,
+				(u64)hose->io_resource.end - (u64)hose->io_resource.start + 1,
+				(u64)hose->io_base_phys);
+			out_be32(&pci->pow[j].potar, (hose->io_resource.start >> 12));
+			out_be32(&pci->pow[j].potear, 0);
+			out_be32(&pci->pow[j].powbar, (hose->io_base_phys >> 12));
+			/* Enable, IO R/W */
+			out_be32(&pci->pow[j].powar, 0x80088000
+				| (__ilog2(hose->io_resource.end
+				- hose->io_resource.start + 1) - 1));
+		}
 	}
 
 	/* Setup 2G inbound Memory Window @ 1 */
 	out_be32(&pci->piw[2].pitar, 0x00000000);
 	out_be32(&pci->piw[2].piwbar,0x00000000);
 	out_be32(&pci->piw[2].piwar, PIWAR_2G);
+
+	iounmap(pci);
 }
 
 static void __init setup_pci_cmd(struct pci_controller *hose)
@@ -116,28 +184,6 @@ static void __init setup_pci_pcsrbar(struct pci_controller *hose)
 	immr_base = get_immrbase();
 	early_write_config_dword(hose, 0, 0, PCI_BASE_ADDRESS_0, immr_base);
 #endif
-}
-
-static int fsl_pcie_bus_fixup;
-
-static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
-{
-	/* if we aren't a PCIe don't bother */
-	if (!pci_find_capability(dev, PCI_CAP_ID_EXP))
-		return ;
-
-	dev->class = PCI_CLASS_BRIDGE_PCI << 8;
-	fsl_pcie_bus_fixup = 1;
-	return ;
-}
-
-static int __init fsl_pcie_check_link(struct pci_controller *hose)
-{
-	u32 val;
-	early_read_config_dword(hose, 0, 0, PCIE_LTSSM, &val);
-	if (val < PCIE_LTSSM_L0)
-		return 1;
-	return 0;
 }
 
 void fsl_pcibios_fixup_bus(struct pci_bus *bus)
@@ -253,8 +299,184 @@ DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8610, quirk_fsl_pcie_header);
 #endif /* CONFIG_PPC_85xx || CONFIG_PPC_86xx */
 
 #if defined(CONFIG_PPC_83xx) || defined(CONFIG_PPC_MPC512x)
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8314E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8314, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8315E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8315, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8377E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8377, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8378E, quirk_fsl_pcie_header);
+DECLARE_PCI_FIXUP_HEADER(0x1957, PCI_DEVICE_ID_MPC8378, quirk_fsl_pcie_header);
+
+struct mpc83xx_pcie_priv {
+	void __iomem *cfg_type0;
+	void __iomem *cfg_type1;
+	u32 dev_base;
+};
+
+/*
+ * With the convention of u-boot, the PCIE outbound window 0 serves
+ * as configuration transactions outbound.
+ */
+#define PEX_OUTWIN0_BAR		0xCA4
+#define PEX_OUTWIN0_TAL		0xCA8
+#define PEX_OUTWIN0_TAH		0xCAC
+
+static int mpc83xx_pcie_exclude_device(struct pci_bus *bus, unsigned int devfn)
+{
+	struct pci_controller *hose = bus->sysdata;
+
+	if (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+	/*
+	 * Workaround for the HW bug: for Type 0 configure transactions the
+	 * PCI-E controller does not check the device number bits and just
+	 * assumes that the device number bits are 0.
+	 */
+	if (bus->number == hose->first_busno ||
+			bus->primary == hose->first_busno) {
+		if (devfn & 0xf8)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	if (ppc_md.pci_exclude_device) {
+		if (ppc_md.pci_exclude_device(hose, bus->number, devfn))
+			return PCIBIOS_DEVICE_NOT_FOUND;
+	}
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static void __iomem *mpc83xx_pcie_remap_cfg(struct pci_bus *bus,
+					    unsigned int devfn, int offset)
+{
+	struct pci_controller *hose = bus->sysdata;
+	struct mpc83xx_pcie_priv *pcie = hose->dn->data;
+	u8 bus_no = bus->number - hose->first_busno;
+	u32 dev_base = bus_no << 24 | devfn << 16;
+	int ret;
+
+	ret = mpc83xx_pcie_exclude_device(bus, devfn);
+	if (ret)
+		return NULL;
+
+	offset &= 0xfff;
+
+	/* Type 0 */
+	if (bus->number == hose->first_busno)
+		return pcie->cfg_type0 + offset;
+
+	if (pcie->dev_base == dev_base)
+		goto mapped;
+
+	out_le32(pcie->cfg_type0 + PEX_OUTWIN0_TAL, dev_base);
+
+	pcie->dev_base = dev_base;
+mapped:
+	return pcie->cfg_type1 + offset;
+}
+
+static int mpc83xx_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
+				    int offset, int len, u32 *val)
+{
+	void __iomem *cfg_addr;
+
+	cfg_addr = mpc83xx_pcie_remap_cfg(bus, devfn, offset);
+	if (!cfg_addr)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	switch (len) {
+	case 1:
+		*val = in_8(cfg_addr);
+		break;
+	case 2:
+		*val = in_le16(cfg_addr);
+		break;
+	default:
+		*val = in_le32(cfg_addr);
+		break;
+	}
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static int mpc83xx_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
+				     int offset, int len, u32 val)
+{
+	void __iomem *cfg_addr;
+
+	cfg_addr = mpc83xx_pcie_remap_cfg(bus, devfn, offset);
+	if (!cfg_addr)
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	switch (len) {
+	case 1:
+		out_8(cfg_addr, val);
+		break;
+	case 2:
+		out_le16(cfg_addr, val);
+		break;
+	default:
+		out_le32(cfg_addr, val);
+		break;
+	}
+
+	return PCIBIOS_SUCCESSFUL;
+}
+
+static struct pci_ops mpc83xx_pcie_ops = {
+	.read = mpc83xx_pcie_read_config,
+	.write = mpc83xx_pcie_write_config,
+};
+
+static int __init mpc83xx_pcie_setup(struct pci_controller *hose,
+				     struct resource *reg)
+{
+	struct mpc83xx_pcie_priv *pcie;
+	u32 cfg_bar;
+	int ret = -ENOMEM;
+
+	pcie = zalloc_maybe_bootmem(sizeof(*pcie), GFP_KERNEL);
+	if (!pcie)
+		return ret;
+
+	pcie->cfg_type0 = ioremap(reg->start, resource_size(reg));
+	if (!pcie->cfg_type0)
+		goto err0;
+
+	cfg_bar = in_le32(pcie->cfg_type0 + PEX_OUTWIN0_BAR);
+	if (!cfg_bar) {
+		/* PCI-E isn't configured. */
+		ret = -ENODEV;
+		goto err1;
+	}
+
+	pcie->cfg_type1 = ioremap(cfg_bar, 0x1000);
+	if (!pcie->cfg_type1)
+		goto err1;
+
+	WARN_ON(hose->dn->data);
+	hose->dn->data = pcie;
+	hose->ops = &mpc83xx_pcie_ops;
+
+	out_le32(pcie->cfg_type0 + PEX_OUTWIN0_TAH, 0);
+	out_le32(pcie->cfg_type0 + PEX_OUTWIN0_TAL, 0);
+
+	if (fsl_pcie_check_link(hose))
+		hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
+
+	return 0;
+err1:
+	iounmap(pcie->cfg_type0);
+err0:
+	kfree(pcie);
+	return ret;
+
+}
+
 int __init mpc83xx_add_bridge(struct device_node *dev)
 {
+	int ret;
 	int len;
 	struct pci_controller *hose;
 	struct resource rsrc_reg;
@@ -262,6 +484,11 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	const int *bus_range;
 	int primary;
 
+	if (!of_device_is_available(dev)) {
+		pr_warning("%s: disabled by the firmware.\n",
+			   dev->full_name);
+		return -ENODEV;
+	}
 	pr_debug("Adding PCI host bridge %s\n", dev->full_name);
 
 	/* Fetch host bridge registers address */
@@ -309,7 +536,14 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	hose->first_busno = bus_range ? bus_range[0] : 0;
 	hose->last_busno = bus_range ? bus_range[1] : 0xff;
 
-	setup_indirect_pci(hose, rsrc_cfg.start, rsrc_cfg.start + 4, 0);
+	if (of_device_is_compatible(dev, "fsl,mpc8314-pcie")) {
+		ret = mpc83xx_pcie_setup(hose, &rsrc_reg);
+		if (ret)
+			goto err0;
+	} else {
+		setup_indirect_pci(hose, rsrc_cfg.start,
+				   rsrc_cfg.start + 4, 0);
+	}
 
 	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx. "
 	       "Firmware bus number: %d->%d\n",
@@ -324,5 +558,8 @@ int __init mpc83xx_add_bridge(struct device_node *dev)
 	pci_process_bridge_OF_ranges(hose, dev, primary);
 
 	return 0;
+err0:
+	pcibios_free_controller(hose);
+	return ret;
 }
 #endif /* CONFIG_PPC_83xx */

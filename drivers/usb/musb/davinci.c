@@ -32,9 +32,10 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <mach/arch/hardware.h>
-#include <mach/arch/memory.h>
-#include <mach/arch/gpio.h>
+#include <mach/hardware.h>
+#include <mach/memory.h>
+#include <mach/gpio.h>
+
 #include <asm/mach-types.h>
 
 #include "musb_core.h"
@@ -47,6 +48,9 @@
 #include "cppi_dma.h"
 
 
+#define USB_PHY_CTRL	IO_ADDRESS(USBPHY_CTL_PADDR)
+#define DM355_DEEPSLEEP	IO_ADDRESS(DM355_DEEPSLEEP_PADDR)
+
 /* REVISIT (PM) we should be able to keep the PHY in low power mode most
  * of the time (24 MHZ oscillator and PLL off, etc) by setting POWER.D0
  * and, when in host mode, autosuspending idle root ports... PHYPLLON
@@ -55,20 +59,26 @@
 
 static inline void phy_on(void)
 {
-	/* start the on-chip PHY and its PLL */
-	__raw_writel(USBPHY_SESNDEN | USBPHY_VBDTCTEN | USBPHY_PHYPLLON,
-			(void __force __iomem *) IO_ADDRESS(USBPHY_CTL_PADDR));
-	while ((__raw_readl((void __force __iomem *)
-				IO_ADDRESS(USBPHY_CTL_PADDR))
-			& USBPHY_PHYCLKGD) == 0)
+	u32	phy_ctrl = __raw_readl(USB_PHY_CTRL);
+
+	/* power everything up; start the on-chip PHY and its PLL */
+	phy_ctrl &= ~(USBPHY_OSCPDWN | USBPHY_OTGPDWN | USBPHY_PHYPDWN);
+	phy_ctrl |= USBPHY_SESNDEN | USBPHY_VBDTCTEN | USBPHY_PHYPLLON;
+	__raw_writel(phy_ctrl, USB_PHY_CTRL);
+
+	/* wait for PLL to lock before proceeding */
+	while ((__raw_readl(USB_PHY_CTRL) & USBPHY_PHYCLKGD) == 0)
 		cpu_relax();
 }
 
 static inline void phy_off(void)
 {
-	/* powerdown the on-chip PHY and its oscillator */
-	__raw_writel(USBPHY_OSCPDWN | USBPHY_PHYPDWN, (void __force __iomem *)
-			IO_ADDRESS(USBPHY_CTL_PADDR));
+	u32	phy_ctrl = __raw_readl(USB_PHY_CTRL);
+
+	/* powerdown the on-chip PHY, its PLL, and the OTG block */
+	phy_ctrl &= ~(USBPHY_SESNDEN | USBPHY_VBDTCTEN | USBPHY_PHYPLLON);
+	phy_ctrl |= USBPHY_OSCPDWN | USBPHY_OTGPDWN | USBPHY_PHYPDWN;
+	__raw_writel(phy_ctrl, USB_PHY_CTRL);
 }
 
 static int dma_off = 1;
@@ -125,10 +135,6 @@ void musb_platform_disable(struct musb *musb)
 }
 
 
-/* REVISIT it's not clear whether DaVinci can support full OTG.  */
-
-static int vbus_state = -1;
-
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 #define	portstate(stmt)		stmt
 #else
@@ -136,9 +142,18 @@ static int vbus_state = -1;
 #endif
 
 
-/* VBUS SWITCHING IS BOARD-SPECIFIC */
+/*
+ * VBUS SWITCHING IS BOARD-SPECIFIC ... at least for the DM6446 EVM,
+ * which doesn't wire DRVVBUS to the FET that switches it.  Unclear
+ * if that's a problem with the DM6446 chip or just with that board.
+ *
+ * In either case, the DM355 EVM automates DRVVBUS the normal way,
+ * when J10 is out, and TI documents it as handling OTG.
+ */
 
 #ifdef CONFIG_MACH_DAVINCI_EVM
+
+static int vbus_state = -1;
 
 /* I2C operations are always synchronous, and require a task context.
  * With unloaded systems, using the shared workqueue seems to suffice
@@ -149,12 +164,12 @@ static void evm_deferred_drvvbus(struct work_struct *ignored)
 	gpio_set_value_cansleep(GPIO_nVBUS_DRV, vbus_state);
 	vbus_state = !vbus_state;
 }
-static DECLARE_WORK(evm_vbus_work, evm_deferred_drvvbus);
 
 #endif	/* EVM */
 
 static void davinci_source_power(struct musb *musb, int is_on, int immediate)
 {
+#ifdef CONFIG_MACH_DAVINCI_EVM
 	if (is_on)
 		is_on = 1;
 
@@ -162,16 +177,17 @@ static void davinci_source_power(struct musb *musb, int is_on, int immediate)
 		return;
 	vbus_state = !is_on;		/* 0/1 vs "-1 == unknown/init" */
 
-#ifdef CONFIG_MACH_DAVINCI_EVM
 	if (machine_is_davinci_evm()) {
+		static DECLARE_WORK(evm_vbus_work, evm_deferred_drvvbus);
+
 		if (immediate)
 			gpio_set_value_cansleep(GPIO_nVBUS_DRV, vbus_state);
 		else
 			schedule_work(&evm_vbus_work);
 	}
-#endif
 	if (immediate)
 		vbus_state = is_on;
+#endif
 }
 
 static void davinci_set_vbus(struct musb *musb, int is_on)
@@ -370,30 +386,14 @@ int musb_platform_set_mode(struct musb *musb, u8 mode)
 	return -EIO;
 }
 
-int musb_platform_set_mode(struct musb *musb, u8 mode)
-{
-       /* EVM can't do this (right?) */
-       return -EIO;
-}
-
 int __init musb_platform_init(struct musb *musb)
 {
 	void __iomem	*tibase = musb->ctrl_base;
 	u32		revision;
 
 	musb->mregs += DAVINCI_BASE_OFFSET;
-#if 0
-	/* REVISIT there's something odd about clocking, this
-	 * didn't appear do the job ...
-	 */
-	musb->clock = clk_get(pDevice, "usb");
-	if (IS_ERR(musb->clock))
-		return PTR_ERR(musb->clock);
 
-	status = clk_enable(musb->clock);
-	if (status < 0)
-		return -ENODEV;
-#endif
+	clk_enable(musb->clock);
 
 	/* returns zero if e.g. not clocked */
 	revision = musb_readl(tibase, DAVINCI_USB_VERSION_REG);
@@ -406,6 +406,17 @@ int __init musb_platform_init(struct musb *musb)
 	musb->board_set_vbus = davinci_set_vbus;
 	davinci_source_power(musb, 0, 1);
 
+	/* dm355 EVM swaps D+/D- for signal integrity, and
+	 * is clocked from the main 24 MHz crystal.
+	 */
+	if (machine_is_davinci_dm355_evm()) {
+		u32	phy_ctrl = __raw_readl(USB_PHY_CTRL);
+
+		phy_ctrl &= ~(3 << 9);
+		phy_ctrl |= USBPHY_DATAPOL;
+		__raw_writel(phy_ctrl, USB_PHY_CTRL);
+	}
+
 	/* reset the controller */
 	musb_writel(tibase, DAVINCI_USB_CTRL_REG, 0x1);
 
@@ -416,8 +427,7 @@ int __init musb_platform_init(struct musb *musb)
 
 	/* NOTE:  irqs are in mixed mode, not bypass to pure-musb */
 	pr_debug("DaVinci OTG revision %08x phy %03x control %02x\n",
-		revision, __raw_readl((void __force __iomem *)
-				IO_ADDRESS(USBPHY_CTL_PADDR)),
+		revision, __raw_readl(USB_PHY_CTRL),
 		musb_readb(tibase, DAVINCI_USB_CTRL_REG));
 
 	musb->isr = davinci_interrupt;
@@ -458,5 +468,8 @@ int musb_platform_exit(struct musb *musb)
 	}
 
 	phy_off();
+
+	clk_disable(musb->clock);
+
 	return 0;
 }

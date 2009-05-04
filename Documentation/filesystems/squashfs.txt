@@ -22,7 +22,7 @@ Squashfs filesystem features versus Cramfs:
 
 				Squashfs		Cramfs
 
-Max filesystem size:		2^64			16 MiB
+Max filesystem size:		2^64			256 MiB
 Max file size:			~ 2 TiB			16 MiB
 Max files:			unlimited		unlimited
 Max directories:		unlimited		unlimited

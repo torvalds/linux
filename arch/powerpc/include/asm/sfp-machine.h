@@ -29,9 +29,9 @@
 
 /* basic word size definitions */
 #define _FP_W_TYPE_SIZE		32
-#define _FP_W_TYPE		unsigned long
-#define _FP_WS_TYPE		signed long
-#define _FP_I_TYPE		long
+#define _FP_W_TYPE		unsigned int
+#define _FP_WS_TYPE		signed int
+#define _FP_I_TYPE		int
 
 #define __ll_B			((UWtype) 1 << (W_TYPE_SIZE / 2))
 #define __ll_lowpart(t)		((UWtype) (t) & (__ll_B - 1))

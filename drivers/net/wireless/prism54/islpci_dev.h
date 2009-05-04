@@ -158,9 +158,6 @@ typedef struct {
 	dma_addr_t pci_map_tx_address[ISL38XX_CB_TX_QSIZE];
 	dma_addr_t pci_map_rx_address[ISL38XX_CB_RX_QSIZE];
 
-	/* driver network interface members */
-	struct net_device_stats statistics;
-
 	/* wait for a reset interrupt */
 	wait_queue_head_t reset_done;
 

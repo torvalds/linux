@@ -415,11 +415,11 @@ static int mii_probe(struct net_device *dev)
 	}
 
 #if defined(CONFIG_BFIN_MAC_RMII)
-	phydev = phy_connect(dev, phydev->dev.bus_id, &bfin_mac_adjust_link, 0,
-			PHY_INTERFACE_MODE_RMII);
+	phydev = phy_connect(dev, dev_name(&phydev->dev), &bfin_mac_adjust_link,
+			0, PHY_INTERFACE_MODE_RMII);
 #else
-	phydev = phy_connect(dev, phydev->dev.bus_id, &bfin_mac_adjust_link, 0,
-			PHY_INTERFACE_MODE_MII);
+	phydev = phy_connect(dev, dev_name(&phydev->dev), &bfin_mac_adjust_link,
+			0, PHY_INTERFACE_MODE_MII);
 #endif
 
 	if (IS_ERR(phydev)) {
@@ -447,7 +447,7 @@ static int mii_probe(struct net_device *dev)
 	printk(KERN_INFO "%s: attached PHY driver [%s] "
 	       "(mii_bus:phy_addr=%s, irq=%d, mdc_clk=%dHz(mdc_div=%d)"
 	       "@sclk=%dMHz)\n",
-	       DRV_NAME, phydev->drv->name, phydev->dev.bus_id, phydev->irq,
+	       DRV_NAME, phydev->drv->name, dev_name(&phydev->dev), phydev->irq,
 	       MDC_CLK, mdc_div, sclk/1000000);
 
 	return 0;
@@ -488,7 +488,7 @@ static void bfin_mac_ethtool_getdrvinfo(struct net_device *dev,
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
 	strcpy(info->fw_version, "N/A");
-	strcpy(info->bus_info, dev->dev.bus_id);
+	strcpy(info->bus_info, dev_name(&dev->dev));
 }
 
 static struct ethtool_ops bfin_mac_ethtool_ops = {
@@ -979,6 +979,20 @@ static int bfin_mac_open(struct net_device *dev)
 	return 0;
 }
 
+static const struct net_device_ops bfin_mac_netdev_ops = {
+	.ndo_open		= bfin_mac_open,
+	.ndo_stop		= bfin_mac_close,
+	.ndo_start_xmit		= bfin_mac_hard_start_xmit,
+	.ndo_set_mac_address	= bfin_mac_set_mac_address,
+	.ndo_tx_timeout		= bfin_mac_timeout,
+	.ndo_set_multicast_list	= bfin_mac_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= bfin_mac_poll,
+#endif
+};
+
 /*
  *
  * this makes the board clean up everything that it can
@@ -1086,15 +1100,7 @@ static int __devinit bfin_mac_probe(struct platform_device *pdev)
 	/* Fill in the fields of the device structure with ethernet values. */
 	ether_setup(ndev);
 
-	ndev->open = bfin_mac_open;
-	ndev->stop = bfin_mac_close;
-	ndev->hard_start_xmit = bfin_mac_hard_start_xmit;
-	ndev->set_mac_address = bfin_mac_set_mac_address;
-	ndev->tx_timeout = bfin_mac_timeout;
-	ndev->set_multicast_list = bfin_mac_set_multicast_list;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	ndev->poll_controller = bfin_mac_poll;
-#endif
+	ndev->netdev_ops = &bfin_mac_netdev_ops;
 	ndev->ethtool_ops = &bfin_mac_ethtool_ops;
 
 	spin_lock_init(&lp->lock);

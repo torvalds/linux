@@ -464,7 +464,7 @@ static void sil_sata_pre_reset(ide_drive_t *drive)
  *	to 133 MHz clocking if the system isn't already set up to do it.
  */
 
-static unsigned int init_chipset_siimage(struct pci_dev *dev)
+static int init_chipset_siimage(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	void __iomem *ioaddr = host->host_priv;
@@ -711,11 +711,10 @@ static const struct ide_port_ops sil_sata_port_ops = {
 static const struct ide_dma_ops sil_dma_ops = {
 	.dma_host_set		= ide_dma_host_set,
 	.dma_setup		= ide_dma_setup,
-	.dma_exec_cmd		= ide_dma_exec_cmd,
 	.dma_start		= ide_dma_start,
 	.dma_end		= ide_dma_end,
 	.dma_test_irq		= siimage_dma_test_irq,
-	.dma_timeout		= ide_dma_timeout,
+	.dma_timer_expiry	= ide_dma_sff_timer_expiry,
 	.dma_lost_irq		= ide_dma_lost_irq,
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };

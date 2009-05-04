@@ -19,15 +19,15 @@
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/ip.h>
-#include <linux/reboot.h>
+#include <linux/ipv6.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
 
 #include <net/ip.h>
 #include <net/arp.h>
+#include <net/ip6_checksum.h>
 
 #include "qeth_l3.h"
-#include "qeth_core_offl.h"
 
 static int qeth_l3_set_offline(struct ccwgroup_device *);
 static int qeth_l3_recover(void *);
@@ -1038,7 +1038,7 @@ static int qeth_l3_setadapter_parms(struct qeth_card *card)
 	rc = qeth_query_setadapterparms(card);
 	if (rc) {
 		QETH_DBF_MESSAGE(2, "%s couldn't set adapter parameters: "
-			"0x%x\n", card->gdev->dev.bus_id, rc);
+			"0x%x\n", dev_name(&card->gdev->dev), rc);
 		return rc;
 	}
 	if (qeth_adp_supported(card, IPA_SETADP_ALTER_MAC_ADDRESS)) {
@@ -1838,6 +1838,10 @@ static void qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	unsigned long flags;
 
 	QETH_DBF_TEXT_(TRACE, 4, "kid:%d", vid);
+	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
+		QETH_DBF_TEXT(TRACE, 3, "kidREC");
+		return;
+	}
 	spin_lock_irqsave(&card->vlanlock, flags);
 	/* unregister IP addresses of vlan device */
 	qeth_l3_free_vlan_addresses(card, vid);
@@ -2101,6 +2105,9 @@ static void qeth_l3_set_multicast_list(struct net_device *dev)
 	struct qeth_card *card = dev->ml_priv;
 
 	QETH_DBF_TEXT(TRACE, 3, "setmulti");
+	if (qeth_threads_running(card, QETH_RECOVER_THREAD) &&
+	    (card->state != CARD_STATE_UP))
+		return;
 	qeth_l3_delete_mc_addresses(card);
 	qeth_l3_add_multicast_ipv4(card);
 #ifdef CONFIG_QETH_IPV6
@@ -2577,12 +2584,63 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	}
 }
 
+static void qeth_tso_fill_header(struct qeth_card *card,
+		struct qeth_hdr *qhdr, struct sk_buff *skb)
+{
+	struct qeth_hdr_tso *hdr = (struct qeth_hdr_tso *)qhdr;
+	struct tcphdr *tcph = tcp_hdr(skb);
+	struct iphdr *iph = ip_hdr(skb);
+	struct ipv6hdr *ip6h = ipv6_hdr(skb);
+
+	/*fix header to TSO values ...*/
+	hdr->hdr.hdr.l3.id = QETH_HEADER_TYPE_TSO;
+	/*set values which are fix for the first approach ...*/
+	hdr->ext.hdr_tot_len = (__u16) sizeof(struct qeth_hdr_ext_tso);
+	hdr->ext.imb_hdr_no  = 1;
+	hdr->ext.hdr_type    = 1;
+	hdr->ext.hdr_version = 1;
+	hdr->ext.hdr_len     = 28;
+	/*insert non-fix values */
+	hdr->ext.mss = skb_shinfo(skb)->gso_size;
+	hdr->ext.dg_hdr_len = (__u16)(iph->ihl*4 + tcph->doff*4);
+	hdr->ext.payload_len = (__u16)(skb->len - hdr->ext.dg_hdr_len -
+				       sizeof(struct qeth_hdr_tso));
+	tcph->check = 0;
+	if (skb->protocol == ETH_P_IPV6) {
+		ip6h->payload_len = 0;
+		tcph->check = ~csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
+					       0, IPPROTO_TCP, 0);
+	} else {
+		/*OSA want us to set these values ...*/
+		tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
+					 0, IPPROTO_TCP, 0);
+		iph->tot_len = 0;
+		iph->check = 0;
+	}
+}
+
+static void qeth_tx_csum(struct sk_buff *skb)
+{
+	__wsum csum;
+	int offset;
+
+	skb_set_transport_header(skb, skb->csum_start - skb_headroom(skb));
+	offset = skb->csum_start - skb_headroom(skb);
+	BUG_ON(offset >= skb_headlen(skb));
+	csum = skb_checksum(skb, offset, skb->len - offset, 0);
+
+	offset += skb->csum_offset;
+	BUG_ON(offset + sizeof(__sum16) > skb_headlen(skb));
+	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
+}
+
 static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	int rc;
 	u16 *tag;
 	struct qeth_hdr *hdr = NULL;
 	int elements_needed = 0;
+	int elems;
 	struct qeth_card *card = dev->ml_priv;
 	struct sk_buff *new_skb = NULL;
 	int ipv = qeth_get_ip_version(skb);
@@ -2591,8 +2649,8 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		[qeth_get_priority_queue(card, skb, ipv, cast_type)];
 	int tx_bytes = skb->len;
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
-	struct qeth_eddp_context *ctx = NULL;
 	int data_offset = -1;
+	int nr_frags;
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) &&
 	    (skb->protocol != htons(ETH_P_IPV6)) &&
@@ -2615,6 +2673,12 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb_is_gso(skb))
 		large_send = card->options.large_send;
+	else
+		if (skb->ip_summed == CHECKSUM_PARTIAL) {
+			qeth_tx_csum(skb);
+			if (card->options.performance_stats)
+				card->perf_stats.tx_csum++;
+		}
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) && (!large_send) &&
 	    (skb_shinfo(skb)->nr_frags == 0)) {
@@ -2661,12 +2725,13 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_stop_queue(dev);
 
 	/* fix hardware limitation: as long as we do not have sbal
-	 * chaining we can not send long frag lists so we temporary
-	 * switch to EDDP
+	 * chaining we can not send long frag lists
 	 */
 	if ((large_send == QETH_LARGE_SEND_TSO) &&
-		((skb_shinfo(new_skb)->nr_frags + 2) > 16))
-		large_send = QETH_LARGE_SEND_EDDP;
+	    ((skb_shinfo(new_skb)->nr_frags + 2) > 16)) {
+		if (skb_linearize(new_skb))
+			goto tx_drop;
+	}
 
 	if ((large_send == QETH_LARGE_SEND_TSO) &&
 	    (cast_type == RTN_UNSPEC)) {
@@ -2689,37 +2754,22 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	if (large_send == QETH_LARGE_SEND_EDDP) {
-		/* new_skb is not owned by a socket so we use skb to get
-		 * the protocol
-		 */
-		ctx = qeth_eddp_create_context(card, new_skb, hdr,
-						skb->sk->sk_protocol);
-		if (ctx == NULL) {
-			QETH_DBF_MESSAGE(2, "could not create eddp context\n");
-			goto tx_drop;
-		}
-	} else {
-		int elems = qeth_get_elements_no(card, (void *)hdr, new_skb,
+	elems = qeth_get_elements_no(card, (void *)hdr, new_skb,
 						 elements_needed);
-		if (!elems) {
-			if (data_offset >= 0)
-				kmem_cache_free(qeth_core_header_cache, hdr);
-			goto tx_drop;
-		}
-		elements_needed += elems;
+	if (!elems) {
+		if (data_offset >= 0)
+			kmem_cache_free(qeth_core_header_cache, hdr);
+		goto tx_drop;
 	}
-
-	if ((large_send == QETH_LARGE_SEND_NO) &&
-	    (new_skb->ip_summed == CHECKSUM_PARTIAL))
-		qeth_tx_csum(new_skb);
+	elements_needed += elems;
+	nr_frags = skb_shinfo(new_skb)->nr_frags;
 
 	if (card->info.type != QETH_CARD_TYPE_IQD)
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
-					 elements_needed, ctx);
+					 elements_needed);
 	else
 		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					elements_needed, ctx, data_offset, 0);
+					elements_needed, data_offset, 0);
 
 	if (!rc) {
 		card->stats.tx_packets++;
@@ -2731,22 +2781,13 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				card->perf_stats.large_send_bytes += tx_bytes;
 				card->perf_stats.large_send_cnt++;
 			}
-			if (skb_shinfo(new_skb)->nr_frags > 0) {
+			if (nr_frags) {
 				card->perf_stats.sg_skbs_sent++;
 				/* nr_frags + skb->data */
-				card->perf_stats.sg_frags_sent +=
-					skb_shinfo(new_skb)->nr_frags + 1;
+				card->perf_stats.sg_frags_sent += nr_frags + 1;
 			}
 		}
-
-		if (ctx != NULL) {
-			qeth_eddp_put_context(ctx);
-			dev_kfree_skb_any(new_skb);
-		}
 	} else {
-		if (ctx != NULL)
-			qeth_eddp_put_context(ctx);
-
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);
 
@@ -2841,7 +2882,7 @@ static int qeth_l3_ethtool_set_tso(struct net_device *dev, u32 data)
 	if (data) {
 		if (card->options.large_send == QETH_LARGE_SEND_NO) {
 			if (card->info.type == QETH_CARD_TYPE_IQD)
-				card->options.large_send = QETH_LARGE_SEND_EDDP;
+				return -EPERM;
 			else
 				card->options.large_send = QETH_LARGE_SEND_TSO;
 			dev->features |= NETIF_F_TSO;

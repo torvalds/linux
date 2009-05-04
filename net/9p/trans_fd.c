@@ -417,7 +417,7 @@ static int p9_fd_write(struct p9_client *client, void *v, int len)
 	oldfs = get_fs();
 	set_fs(get_ds());
 	/* The cast to a user pointer is valid due to the set_fs() */
-	ret = vfs_write(ts->wr, (void __user *)v, len, &ts->wr->f_pos);
+	ret = vfs_write(ts->wr, (__force void __user *)v, len, &ts->wr->f_pos);
 	set_fs(oldfs);
 
 	if (ret <= 0 && ret != -ERESTARTSYS && ret != -EAGAIN)

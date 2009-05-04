@@ -380,8 +380,9 @@ static inline struct iommu_table *find_iommu_table(struct device *dev)
 	return tbl;
 }
 
-static void calgary_unmap_sg(struct device *dev,
-	struct scatterlist *sglist, int nelems, int direction)
+static void calgary_unmap_sg(struct device *dev, struct scatterlist *sglist,
+			     int nelems,enum dma_data_direction dir,
+			     struct dma_attrs *attrs)
 {
 	struct iommu_table *tbl = find_iommu_table(dev);
 	struct scatterlist *s;
@@ -404,7 +405,8 @@ static void calgary_unmap_sg(struct device *dev,
 }
 
 static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
-	int nelems, int direction)
+			  int nelems, enum dma_data_direction dir,
+			  struct dma_attrs *attrs)
 {
 	struct iommu_table *tbl = find_iommu_table(dev);
 	struct scatterlist *s;
@@ -429,15 +431,14 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 		s->dma_address = (entry << PAGE_SHIFT) | s->offset;
 
 		/* insert into HW table */
-		tce_build(tbl, entry, npages, vaddr & PAGE_MASK,
-			  direction);
+		tce_build(tbl, entry, npages, vaddr & PAGE_MASK, dir);
 
 		s->dma_length = s->length;
 	}
 
 	return nelems;
 error:
-	calgary_unmap_sg(dev, sg, nelems, direction);
+	calgary_unmap_sg(dev, sg, nelems, dir, NULL);
 	for_each_sg(sg, s, nelems, i) {
 		sg->dma_address = bad_dma_address;
 		sg->dma_length = 0;
@@ -445,10 +446,12 @@ error:
 	return 0;
 }
 
-static dma_addr_t calgary_map_single(struct device *dev, phys_addr_t paddr,
-	size_t size, int direction)
+static dma_addr_t calgary_map_page(struct device *dev, struct page *page,
+				   unsigned long offset, size_t size,
+				   enum dma_data_direction dir,
+				   struct dma_attrs *attrs)
 {
-	void *vaddr = phys_to_virt(paddr);
+	void *vaddr = page_address(page) + offset;
 	unsigned long uaddr;
 	unsigned int npages;
 	struct iommu_table *tbl = find_iommu_table(dev);
@@ -456,17 +459,18 @@ static dma_addr_t calgary_map_single(struct device *dev, phys_addr_t paddr,
 	uaddr = (unsigned long)vaddr;
 	npages = iommu_num_pages(uaddr, size, PAGE_SIZE);
 
-	return iommu_alloc(dev, tbl, vaddr, npages, direction);
+	return iommu_alloc(dev, tbl, vaddr, npages, dir);
 }
 
-static void calgary_unmap_single(struct device *dev, dma_addr_t dma_handle,
-	size_t size, int direction)
+static void calgary_unmap_page(struct device *dev, dma_addr_t dma_addr,
+			       size_t size, enum dma_data_direction dir,
+			       struct dma_attrs *attrs)
 {
 	struct iommu_table *tbl = find_iommu_table(dev);
 	unsigned int npages;
 
-	npages = iommu_num_pages(dma_handle, size, PAGE_SIZE);
-	iommu_free(tbl, dma_handle, npages);
+	npages = iommu_num_pages(dma_addr, size, PAGE_SIZE);
+	iommu_free(tbl, dma_addr, npages);
 }
 
 static void* calgary_alloc_coherent(struct device *dev, size_t size,
@@ -515,13 +519,13 @@ static void calgary_free_coherent(struct device *dev, size_t size,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
-static struct dma_mapping_ops calgary_dma_ops = {
+static struct dma_map_ops calgary_dma_ops = {
 	.alloc_coherent = calgary_alloc_coherent,
 	.free_coherent = calgary_free_coherent,
-	.map_single = calgary_map_single,
-	.unmap_single = calgary_unmap_single,
 	.map_sg = calgary_map_sg,
 	.unmap_sg = calgary_unmap_sg,
+	.map_page = calgary_map_page,
+	.unmap_page = calgary_unmap_page,
 };
 
 static inline void __iomem * busno_to_bbar(unsigned char num)

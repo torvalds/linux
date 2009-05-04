@@ -1,5 +1,6 @@
 #ifndef _LINUX_VIRTIO_CONSOLE_H
 #define _LINUX_VIRTIO_CONSOLE_H
+#include <linux/types.h>
 #include <linux/virtio_config.h>
 /* This header, excluding the #ifdef __KERNEL__ part, is BSD licensed so
  * anyone can use the definitions to implement compatible drivers/servers. */

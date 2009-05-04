@@ -169,8 +169,18 @@ config BF542
 	help
 	  BF542 Processor Support.
 
+config BF542M
+	bool "BF542m"
+	help
+	  BF542 Processor Support.
+
 config BF544
 	bool "BF544"
+	help
+	  BF544 Processor Support.
+
+config BF544M
+	bool "BF544m"
 	help
 	  BF544 Processor Support.
 
@@ -179,13 +189,28 @@ config BF547
 	help
 	  BF547 Processor Support.
 
+config BF547M
+	bool "BF547m"
+	help
+	  BF547 Processor Support.
+
 config BF548
 	bool "BF548"
 	help
 	  BF548 Processor Support.
 
+config BF548M
+	bool "BF548m"
+	help
+	  BF548 Processor Support.
+
 config BF549
 	bool "BF549"
+	help
+	  BF549 Processor Support.
+
+config BF549M
+	bool "BF549m"
 	help
 	  BF549 Processor Support.
 
@@ -224,39 +249,39 @@ config TICK_SOURCE_SYSTMR0
 
 config BF_REV_MIN
 	int
-	default 0 if (BF51x || BF52x || BF54x)
+	default 0 if (BF51x || BF52x || (BF54x && !BF54xM))
 	default 2 if (BF537 || BF536 || BF534)
-	default 3 if (BF561 ||BF533 || BF532 || BF531)
+	default 3 if (BF561 || BF533 || BF532 || BF531 || BF54xM)
 	default 4 if (BF538 || BF539)
 
 config BF_REV_MAX
 	int
-	default 2 if (BF51x || BF52x || BF54x)
-	default 3 if (BF537 || BF536 || BF534)
+	default 2 if (BF51x || BF52x || (BF54x && !BF54xM))
+	default 3 if (BF537 || BF536 || BF534 || BF54xM)
 	default 5 if (BF561 || BF538 || BF539)
 	default 6 if (BF533 || BF532 || BF531)
 
 choice
 	prompt "Silicon Rev"
-	default BF_REV_0_1 if (BF51x || BF52x || BF54x)
+	default BF_REV_0_1 if (BF51x || BF52x || (BF54x && !BF54xM))
 	default BF_REV_0_2 if (BF534 || BF536 || BF537)
-	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF561)
+	default BF_REV_0_3 if (BF531 || BF532 || BF533 || BF54xM || BF561)
 
 config BF_REV_0_0
 	bool "0.0"
-	depends on (BF51x || BF52x || BF54x)
+	depends on (BF51x || BF52x || (BF54x && !BF54xM))
 
 config BF_REV_0_1
 	bool "0.1"
-	depends on (BF52x || BF54x)
+	depends on (BF52x || (BF54x && !BF54xM))
 
 config BF_REV_0_2
 	bool "0.2"
-	depends on (BF52x || BF537 || BF536 || BF534 || BF54x)
+	depends on (BF52x || BF537 || BF536 || BF534 || (BF54x && !BF54xM))
 
 config BF_REV_0_3
 	bool "0.3"
-	depends on (BF561 || BF537 || BF536 || BF534 || BF533 || BF532 || BF531)
+	depends on (BF54xM || BF561 || BF537 || BF536 || BF534 || BF533 || BF532 || BF531)
 
 config BF_REV_0_4
 	bool "0.4"
@@ -293,9 +318,14 @@ config BF53x
 	depends on (BF531 || BF532 || BF533 || BF534 || BF536 || BF537)
 	default y
 
+config BF54xM
+	bool
+	depends on (BF542M || BF544M || BF547M || BF548M || BF549M)
+	default y
+
 config BF54x
 	bool
-	depends on (BF542 || BF544 || BF547 || BF548 || BF549)
+	depends on (BF542 || BF544 || BF547 || BF548 || BF549 || BF54xM)
 	default y
 
 config MEM_GENERIC_BOARD
@@ -747,7 +777,7 @@ config CACHELINE_ALIGNED_L1
 	default n if BF54x
 	depends on !BF531
 	help
-	  If enabled, cacheline_anligned data is linked
+	  If enabled, cacheline_aligned data is linked
 	  into L1 data memory. (less latency)
 
 config SYSCALL_TAB_L1
@@ -927,7 +957,7 @@ config MPU
 	  memory they do not own.  This comes at a performance penalty
 	  and is recommended only for debugging.
 
-comment "Asynchonous Memory Configuration"
+comment "Asynchronous Memory Configuration"
 
 menu "EBIU_AMGCTL Global Control"
 config C_AMCKEN
@@ -959,7 +989,7 @@ config C_B3PEN
 	default n
 
 choice
-	prompt"Enable Asynchonous Memory Banks"
+	prompt "Enable Asynchronous Memory Banks"
 	default C_AMBEN_ALL
 
 config C_AMBEN
@@ -1099,6 +1129,7 @@ endchoice
 
 config PM_WAKEUP_BY_GPIO
 	bool "Allow Wakeup from Standby by GPIO"
+	depends on PM && !BF54x
 
 config PM_WAKEUP_GPIO_NUMBER
 	int "GPIO number"
@@ -1138,6 +1169,12 @@ config PM_BFIN_WAKE_GP
 	default n
 	help
 	  Enable General-Purpose Wake-Up (Voltage Regulator Power-Up)
+	  (all processors, except ADSP-BF549). This option sets
+	  the general-purpose wake-up enable (GPWE) control bit to enable
+	  wake-up upon detection of an active low signal on the /GPW (PH7) pin.
+	  On ADSP-BF549 this option enables the the same functionality on the
+	  /MRXON pin also PH7.
+
 endmenu
 
 menu "CPU Frequency scaling"

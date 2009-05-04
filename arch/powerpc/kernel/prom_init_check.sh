@@ -20,7 +20,7 @@ WHITELIST="add_reloc_offset __bss_start __bss_stop copy_and_flush
 _end enter_prom memcpy memset reloc_offset __secondary_hold
 __secondary_hold_acknowledge __secondary_hold_spinloop __start
 strcmp strcpy strlcpy strlen strncmp strstr logo_linux_clut224
-reloc_got2 kernstart_addr memstart_addr"
+reloc_got2 kernstart_addr memstart_addr linux_banner"
 
 NM="$1"
 OBJ="$2"

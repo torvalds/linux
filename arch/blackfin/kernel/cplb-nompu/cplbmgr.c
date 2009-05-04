@@ -163,12 +163,14 @@ MGR_ATTR static int icplb_miss(int cpu)
 		nr_icplb_supv_miss[cpu]++;
 
 	base = 0;
-	for (idx = 0; idx < icplb_nr_bounds; idx++) {
+	idx = 0;
+	do {
 		eaddr = icplb_bounds[idx].eaddr;
 		if (addr < eaddr)
 			break;
 		base = eaddr;
-	}
+	} while (++idx < icplb_nr_bounds);
+
 	if (unlikely(idx == icplb_nr_bounds))
 		return CPLB_NO_ADDR_MATCH;
 
@@ -208,12 +210,14 @@ MGR_ATTR static int dcplb_miss(int cpu)
 		nr_dcplb_supv_miss[cpu]++;
 
 	base = 0;
-	for (idx = 0; idx < dcplb_nr_bounds; idx++) {
+	idx = 0;
+	do {
 		eaddr = dcplb_bounds[idx].eaddr;
 		if (addr < eaddr)
 			break;
 		base = eaddr;
-	}
+	} while (++idx < dcplb_nr_bounds);
+
 	if (unlikely(idx == dcplb_nr_bounds))
 		return CPLB_NO_ADDR_MATCH;
 

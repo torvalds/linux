@@ -84,7 +84,7 @@ static int l_show(struct seq_file *m, void *v)
 {
 	struct lock_class *class = v;
 	struct lock_list *entry;
-	char c1, c2, c3, c4;
+	char usage[LOCK_USAGE_CHARS];
 
 	if (v == SEQ_START_TOKEN) {
 		seq_printf(m, "all lock classes:\n");
@@ -100,8 +100,8 @@ static int l_show(struct seq_file *m, void *v)
 	seq_printf(m, " BD:%5ld", lockdep_count_backward_deps(class));
 #endif
 
-	get_usage_chars(class, &c1, &c2, &c3, &c4);
-	seq_printf(m, " %c%c%c%c", c1, c2, c3, c4);
+	get_usage_chars(class, usage);
+	seq_printf(m, " %s", usage);
 
 	seq_printf(m, ": ");
 	print_name(m, class);
@@ -300,27 +300,27 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 			nr_uncategorized++;
 		if (class->usage_mask & LOCKF_USED_IN_IRQ)
 			nr_irq_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_IRQS)
+		if (class->usage_mask & LOCKF_ENABLED_IRQ)
 			nr_irq_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ)
 			nr_softirq_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS)
+		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ)
 			nr_softirq_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_HARDIRQ)
 			nr_hardirq_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS)
+		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ)
 			nr_hardirq_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_IRQ_READ)
 			nr_irq_read_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_IRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_IRQ_READ)
 			nr_irq_read_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_SOFTIRQ_READ)
 			nr_softirq_read_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_SOFTIRQ_READ)
 			nr_softirq_read_unsafe++;
 		if (class->usage_mask & LOCKF_USED_IN_HARDIRQ_READ)
 			nr_hardirq_read_safe++;
-		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS_READ)
+		if (class->usage_mask & LOCKF_ENABLED_HARDIRQ_READ)
 			nr_hardirq_read_unsafe++;
 
 #ifdef CONFIG_PROVE_LOCKING
@@ -601,6 +601,10 @@ static void seq_stats(struct seq_file *m, struct lock_stat_data *data)
 static void seq_header(struct seq_file *m)
 {
 	seq_printf(m, "lock_stat version 0.3\n");
+
+	if (unlikely(!debug_locks))
+		seq_printf(m, "*WARNING* lock debugging disabled!! - possibly due to a lockdep warning\n");
+
 	seq_line(m, '-', 0, 40 + 1 + 10 * (14 + 1));
 	seq_printf(m, "%40s %14s %14s %14s %14s %14s %14s %14s %14s "
 			"%14s %14s\n",

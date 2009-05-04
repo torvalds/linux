@@ -415,7 +415,7 @@ static int iic_wait_for_tc(struct ibm_iic_private* dev){
 	if (dev->irq >= 0){
 		/* Interrupt mode */
 		ret = wait_event_interruptible_timeout(dev->wq,
-			!(in_8(&iic->sts) & STS_PT), dev->adap.timeout * HZ);
+			!(in_8(&iic->sts) & STS_PT), dev->adap.timeout);
 
 		if (unlikely(ret < 0))
 			DBG("%d: wait interrupted\n", dev->idx);
@@ -426,7 +426,7 @@ static int iic_wait_for_tc(struct ibm_iic_private* dev){
 	}
 	else {
 		/* Polling mode */
-		unsigned long x = jiffies + dev->adap.timeout * HZ;
+		unsigned long x = jiffies + dev->adap.timeout;
 
 		while (in_8(&iic->sts) & STS_PT){
 			if (unlikely(time_after(jiffies, x))){
@@ -746,10 +746,9 @@ static int __devinit iic_probe(struct of_device *ofdev,
 	adap->dev.parent = &ofdev->dev;
 	strlcpy(adap->name, "IBM IIC", sizeof(adap->name));
 	i2c_set_adapdata(adap, dev);
-	adap->id = I2C_HW_OCP;
 	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	adap->algo = &iic_algo;
-	adap->timeout = 1;
+	adap->timeout = HZ;
 
 	ret = i2c_add_adapter(adap);
 	if (ret  < 0) {

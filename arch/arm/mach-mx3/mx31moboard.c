@@ -32,6 +32,7 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/board-mx31moboard.h>
 
 #include "devices.h"
 
@@ -63,6 +64,18 @@ static struct platform_device *devices[] __initdata = {
 	&mx31moboard_flash,
 };
 
+static int mxc_uart0_pins[] = {
+	MX31_PIN_CTS1__CTS1, MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1, MX31_PIN_RXD1__RXD1,
+};
+static int mxc_uart4_pins[] = {
+	MX31_PIN_PC_RST__CTS5, MX31_PIN_PC_VS2__RTS5,
+	MX31_PIN_PC_BVD2__TXD5, MX31_PIN_PC_BVD1__RXD5,
+};
+
+static int mx31moboard_baseboard;
+core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
+
 /*
  * Board specific initialization.
  */
@@ -70,58 +83,29 @@ static void __init mxc_board_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_iomux_mode(MX31_PIN_CTS1__CTS1);
-	mxc_iomux_mode(MX31_PIN_RTS1__RTS1);
-	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
-	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
-
+	mxc_iomux_setup_multiple_pins(mxc_uart0_pins, ARRAY_SIZE(mxc_uart0_pins), "uart0");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
-	mxc_iomux_mode(MX31_PIN_CTS2__CTS2);
-	mxc_iomux_mode(MX31_PIN_RTS2__RTS2);
-	mxc_iomux_mode(MX31_PIN_TXD2__TXD2);
-	mxc_iomux_mode(MX31_PIN_RXD2__RXD2);
-
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
-
-	mxc_iomux_mode(MX31_PIN_PC_RST__CTS5);
-	mxc_iomux_mode(MX31_PIN_PC_VS2__RTS5);
-	mxc_iomux_mode(MX31_PIN_PC_BVD2__TXD5);
-	mxc_iomux_mode(MX31_PIN_PC_BVD1__RXD5);
-
+	mxc_iomux_setup_multiple_pins(mxc_uart4_pins, ARRAY_SIZE(mxc_uart4_pins), "uart4");
 	mxc_register_device(&mxc_uart_device4, &uart_pdata);
-}
 
-/*
- * This structure defines static mappings for the mx31moboard.
- */
-static struct map_desc mx31moboard_io_desc[] __initdata = {
-	{
-		.virtual	= AIPS1_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS1_BASE_ADDR),
-		.length		= AIPS1_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	}, {
-		.virtual	= AIPS2_BASE_ADDR_VIRT,
-		.pfn		= __phys_to_pfn(AIPS2_BASE_ADDR),
-		.length		= AIPS2_SIZE,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-/*
- * Set up static virtual mappings.
- */
-void __init mx31moboard_map_io(void)
-{
-	mxc_map_io();
-	iotable_init(mx31moboard_io_desc, ARRAY_SIZE(mx31moboard_io_desc));
+	switch (mx31moboard_baseboard) {
+	case MX31NOBOARD:
+		break;
+	case MX31DEVBOARD:
+		mx31moboard_devboard_init();
+		break;
+	case MX31MARXBOT:
+		mx31moboard_marxbot_init();
+		break;
+	default:
+		printk(KERN_ERR "Illegal mx31moboard_baseboard type %d\n", mx31moboard_baseboard);
+	}
 }
 
 static void __init mx31moboard_timer_init(void)
 {
-	mxc_clocks_init(26000000);
-	mxc_timer_init("ipg_clk.0");
+	mx31_clocks_init(26000000);
 }
 
 struct sys_timer mx31moboard_timer = {
@@ -133,7 +117,7 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.phys_io	= AIPS1_BASE_ADDR,
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
-	.map_io         = mx31moboard_map_io,
+	.map_io         = mxc_map_io,
 	.init_irq       = mxc_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &mx31moboard_timer,

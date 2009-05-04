@@ -45,8 +45,6 @@
 #include <linux/crc32.h>
 #include <linux/workqueue.h>
 #include <linux/ethtool.h>
-#include <linux/fsl_devices.h>
-#include "gianfar_mii.h"
 
 /* The maximum number of packets to be handled in one call of gfar_poll */
 #define GFAR_DEV_WEIGHT 64
@@ -126,9 +124,12 @@ extern const char gfar_driver_version[];
 #define DEFAULT_RX_COALESCE 0
 #define DEFAULT_RXCOUNT	0
 
-#define MIIMCFG_INIT_VALUE	0x00000007
-#define MIIMCFG_RESET           0x80000000
-#define MIIMIND_BUSY            0x00000001
+#define GFAR_SUPPORTED (SUPPORTED_10baseT_Half \
+		| SUPPORTED_10baseT_Full \
+		| SUPPORTED_100baseT_Half \
+		| SUPPORTED_100baseT_Full \
+		| SUPPORTED_Autoneg \
+		| SUPPORTED_MII)
 
 /* TBI register addresses */
 #define MII_TBICON		0x11
@@ -312,7 +313,7 @@ extern const char gfar_driver_version[];
 #define ATTRELI_EI(x) (x)
 
 #define BD_LFLAG(flags) ((flags) << 16)
-#define BD_LENGTH_MASK		0x00ff
+#define BD_LENGTH_MASK		0x0000ffff
 
 /* TxBD status field bits */
 #define TXBD_READY		0x8000
@@ -736,7 +737,8 @@ struct gfar_private {
 	spinlock_t rxlock;
 
 	struct device_node *node;
-	struct net_device *dev;
+	struct net_device *ndev;
+	struct of_device *ofdev;
 	struct napi_struct napi;
 
 	/* skb array and index */
@@ -755,6 +757,8 @@ struct gfar_private {
 	unsigned int rx_buffer_size;
 	unsigned int rx_stash_size;
 	unsigned int rx_stash_index;
+
+	struct sk_buff_head rx_recycle;
 
 	struct vlan_group *vlgrp;
 
@@ -826,8 +830,7 @@ extern void gfar_halt(struct net_device *dev);
 extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 		int enable, u32 regnum, u32 read);
 void gfar_init_sysfs(struct net_device *dev);
-int gfar_local_mdio_write(struct gfar_mii __iomem *regs, int mii_id,
-			  int regnum, u16 value);
-int gfar_local_mdio_read(struct gfar_mii __iomem *regs, int mii_id, int regnum);
+
+extern const struct ethtool_ops gfar_ethtool_ops;
 
 #endif /* __GIANFAR_H */

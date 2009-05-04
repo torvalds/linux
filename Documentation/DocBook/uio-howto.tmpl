@@ -42,6 +42,19 @@ GPL version 2.
 
 <revhistory>
 	<revision>
+	<revnumber>0.8</revnumber>
+	<date>2008-12-24</date>
+	<authorinitials>hjk</authorinitials>
+	<revremark>Added name attributes in mem and portio sysfs directories.
+		</revremark>
+	</revision>
+	<revision>
+	<revnumber>0.7</revnumber>
+	<date>2008-12-23</date>
+	<authorinitials>hjk</authorinitials>
+	<revremark>Added generic platform drivers and offset attribute.</revremark>
+	</revision>
+	<revision>
 	<revnumber>0.6</revnumber>
 	<date>2008-12-05</date>
 	<authorinitials>hjk</authorinitials>
@@ -297,10 +310,17 @@ interested in translating it, please email me
 	appear if the size of the mapping is not 0.
 </para>
 <para>
-	Each <filename>mapX/</filename> directory contains two read-only files
-	that show start address and size of the memory:
+	Each <filename>mapX/</filename> directory contains four read-only files
+	that show attributes of the memory:
 </para>
 <itemizedlist>
+<listitem>
+	<para>
+	<filename>name</filename>: A string identifier for this mapping. This
+	is optional, the string can be empty. Drivers can set this to make it
+	easier for userspace to find the correct mapping.
+	</para>
+</listitem>
 <listitem>
 	<para>
 	<filename>addr</filename>: The address of memory that can be mapped.
@@ -310,6 +330,16 @@ interested in translating it, please email me
 	<para>
 	<filename>size</filename>: The size, in bytes, of the memory
 	pointed to by addr.
+	</para>
+</listitem>
+<listitem>
+	<para>
+	<filename>offset</filename>: The offset, in bytes, that has to be
+	added to the pointer returned by <function>mmap()</function> to get
+	to the actual device memory. This is important if the device's memory
+	is not page aligned. Remember that pointers returned by
+	<function>mmap()</function> are always page aligned, so it is good
+	style to always add this offset.
 	</para>
 </listitem>
 </itemizedlist>
@@ -350,10 +380,17 @@ offset = N * getpagesize();
 	<filename>/sys/class/uio/uioX/portio/</filename>.
 </para>
 <para>
-	Each <filename>portX/</filename> directory contains three read-only
-	files that show start, size, and type of the port region:
+	Each <filename>portX/</filename> directory contains four read-only
+	files that show name, start, size, and type of the port region:
 </para>
 <itemizedlist>
+<listitem>
+	<para>
+	<filename>name</filename>: A string identifier for this port region.
+	The string is optional and can be empty. Drivers can set it to make it
+	easier for userspace to find a certain port region.
+	</para>
+</listitem>
 <listitem>
 	<para>
 	<filename>start</filename>: The first port of this region.
@@ -591,6 +628,78 @@ framework to set up sysfs files for this region. Simply leave it alone.
 	won't work in computers with no free interrupts. As this
 	frequently happens on the PC platform, you can save yourself a
 	lot of trouble by supporting interrupt sharing.
+	</para>
+</sect1>
+
+<sect1 id="using_uio_pdrv">
+<title>Using uio_pdrv for platform devices</title>
+	<para>
+	In many cases, UIO drivers for platform devices can be handled in a
+	generic way. In the same place where you define your
+	<varname>struct platform_device</varname>, you simply also implement
+	your interrupt handler and fill your
+	<varname>struct uio_info</varname>. A pointer to this
+	<varname>struct uio_info</varname> is then used as
+	<varname>platform_data</varname> for your platform device.
+	</para>
+	<para>
+	You also need to set up an array of <varname>struct resource</varname>
+	containing addresses and sizes of your memory mappings. This
+	information is passed to the driver using the
+	<varname>.resource</varname> and <varname>.num_resources</varname>
+	elements of <varname>struct platform_device</varname>.
+	</para>
+	<para>
+	You now have to set the <varname>.name</varname> element of
+	<varname>struct platform_device</varname> to
+	<varname>"uio_pdrv"</varname> to use the generic UIO platform device
+	driver. This driver will fill the <varname>mem[]</varname> array
+	according to the resources given, and register the device.
+	</para>
+	<para>
+	The advantage of this approach is that you only have to edit a file
+	you need to edit anyway. You do not have to create an extra driver.
+	</para>
+</sect1>
+
+<sect1 id="using_uio_pdrv_genirq">
+<title>Using uio_pdrv_genirq for platform devices</title>
+	<para>
+	Especially in embedded devices, you frequently find chips where the
+	irq pin is tied to its own dedicated interrupt line. In such cases,
+	where you can be really sure the interrupt is not shared, we can take
+	the concept of <varname>uio_pdrv</varname> one step further and use a
+	generic interrupt handler. That's what
+	<varname>uio_pdrv_genirq</varname> does.
+	</para>
+	<para>
+	The setup for this driver is the same as described above for
+	<varname>uio_pdrv</varname>, except that you do not implement an
+	interrupt handler. The <varname>.handler</varname> element of
+	<varname>struct uio_info</varname> must remain
+	<varname>NULL</varname>. The  <varname>.irq_flags</varname> element
+	must not contain <varname>IRQF_SHARED</varname>.
+	</para>
+	<para>
+	You will set the <varname>.name</varname> element of
+	<varname>struct platform_device</varname> to
+	<varname>"uio_pdrv_genirq"</varname> to use this driver.
+	</para>
+	<para>
+	The generic interrupt handler of <varname>uio_pdrv_genirq</varname>
+	will simply disable the interrupt line using
+	<function>disable_irq_nosync()</function>. After doing its work,
+	userspace can reenable the interrupt by writing 0x00000001 to the UIO
+	device file. The driver already implements an
+	<function>irq_control()</function> to make this possible, you must not
+	implement your own.
+	</para>
+	<para>
+	Using <varname>uio_pdrv_genirq</varname> not only saves a few lines of
+	interrupt handler code. You also do not need to know anything about
+	the chip's internal registers to create the kernel part of the driver.
+	All you need to know is the irq number of the pin the chip is
+	connected to.
 	</para>
 </sect1>
 

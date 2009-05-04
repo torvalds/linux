@@ -1,5 +1,5 @@
 /*
-    cx23415/6 header containing common defines.
+    cx23415/6/8 header containing common defines.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ enum cx2341x_port {
 enum cx2341x_cap {
 	CX2341X_CAP_HAS_SLICED_VBI = 1 << 0,
 	CX2341X_CAP_HAS_TS 	   = 1 << 1,
+	CX2341X_CAP_HAS_AC3 	   = 1 << 2,
 };
 
 struct cx2341x_mpeg_params {
@@ -47,11 +48,12 @@ struct cx2341x_mpeg_params {
 	enum v4l2_mpeg_audio_sampling_freq audio_sampling_freq;
 	enum v4l2_mpeg_audio_encoding audio_encoding;
 	enum v4l2_mpeg_audio_l2_bitrate audio_l2_bitrate;
+	enum v4l2_mpeg_audio_ac3_bitrate audio_ac3_bitrate;
 	enum v4l2_mpeg_audio_mode audio_mode;
 	enum v4l2_mpeg_audio_mode_extension audio_mode_extension;
 	enum v4l2_mpeg_audio_emphasis audio_emphasis;
 	enum v4l2_mpeg_audio_crc audio_crc;
-	u16 audio_properties;
+	u32 audio_properties;
 	u16 audio_mute;
 
 	/* video */

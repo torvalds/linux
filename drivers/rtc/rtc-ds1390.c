@@ -122,7 +122,6 @@ static const struct rtc_class_ops ds1390_rtc_ops = {
 
 static int __devinit ds1390_probe(struct spi_device *spi)
 {
-	struct rtc_device *rtc;
 	unsigned char tmp;
 	struct ds1390 *chip;
 	int res;

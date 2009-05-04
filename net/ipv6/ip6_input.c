@@ -75,8 +75,7 @@ int ipv6_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL ||
 	    !idev || unlikely(idev->cnf.disable_ipv6)) {
 		IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDISCARDS);
-		rcu_read_unlock();
-		goto out;
+		goto drop;
 	}
 
 	memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
@@ -147,7 +146,6 @@ err:
 drop:
 	rcu_read_unlock();
 	kfree_skb(skb);
-out:
 	return 0;
 }
 
@@ -255,6 +253,7 @@ int ip6_mc_input(struct sk_buff *skb)
 	 *      IPv6 multicast router mode is now supported ;)
 	 */
 	if (dev_net(skb->dev)->ipv6.devconf_all->mc_forwarding &&
+	    !(ipv6_addr_type(&hdr->daddr) & IPV6_ADDR_LINKLOCAL) &&
 	    likely(!(IP6CB(skb)->flags & IP6SKB_FORWARDED))) {
 		/*
 		 * Okay, we try to forward - split and duplicate
@@ -316,7 +315,6 @@ int ip6_mc_input(struct sk_buff *skb)
 		}
 
 		if (skb2) {
-			skb2->dev = skb2->dst->dev;
 			ip6_mr_input(skb2);
 		}
 	}

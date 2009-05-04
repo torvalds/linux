@@ -1,6 +1,6 @@
 #include <linux/serial_core.h>
 #include <asm/io.h>
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 #if defined(CONFIG_H83007) || defined(CONFIG_H83068)
 #include <asm/regs306x.h>
@@ -32,7 +32,9 @@
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
       defined(CONFIG_CPU_SUBTYPE_SH7721)
 # define SCSCR_INIT(port)  0x0030 /* TIE=0,RIE=0,TE=1,RE=1 */
-#define SCIF_ORER    0x0200   /* overrun error bit */
+# define PORT_PTCR	   0xA405011EUL
+# define PORT_PVCR	   0xA4050122UL
+# define SCIF_ORER	   0x0200   /* overrun error bit */
 #elif defined(CONFIG_SH_RTS7751R2D)
 # define SCSPTR1 0xFFE0001C /* 8 bit SCIF */
 # define SCSPTR2 0xFFE80020 /* 16 bit SCIF */
@@ -124,14 +126,15 @@
 # define SCSPTR1	0xffe10024	/* 16 bit SCIF */
 # define SCIF_ORER	0x0001		/* Overrun error bit */
 # define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
-#elif defined(CONFIG_CPU_SUBTYPE_SH7785)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7786)
 # define SCSPTR0	0xffea0024	/* 16 bit SCIF */
 # define SCSPTR1	0xffeb0024	/* 16 bit SCIF */
 # define SCSPTR2	0xffec0024	/* 16 bit SCIF */
 # define SCSPTR3	0xffed0024	/* 16 bit SCIF */
 # define SCSPTR4	0xffee0024	/* 16 bit SCIF */
 # define SCSPTR5	0xffef0024	/* 16 bit SCIF */
-# define SCIF_OPER	0x0001		/* Overrun error bit */
+# define SCIF_ORER	0x0001		/* Overrun error bit */
 # define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7201) || \
       defined(CONFIG_CPU_SUBTYPE_SH7203) || \
@@ -180,6 +183,7 @@
     defined(CONFIG_CPU_SUBTYPE_SH7763)  || \
     defined(CONFIG_CPU_SUBTYPE_SH7780)  || \
     defined(CONFIG_CPU_SUBTYPE_SH7785)  || \
+    defined(CONFIG_CPU_SUBTYPE_SH7786)  || \
     defined(CONFIG_CPU_SUBTYPE_SHX3)
 #define SCI_CTRL_FLAGS_REIE 0x08 /* 7750 SCIF */
 #else
@@ -393,6 +397,7 @@ SCIx_FNS(SCSCR,  0x08, 16, 0x08, 16)
 SCIx_FNS(SCxTDR, 0x20,  8, 0x0c,  8)
 SCIx_FNS(SCxSR,  0x14, 16, 0x10, 16)
 SCIx_FNS(SCxRDR, 0x24,  8, 0x14,  8)
+SCIx_FNS(SCSPTR, 0,     0,    0,  0)
 SCIF_FNS(SCTDSR, 0x0c,  8)
 SCIF_FNS(SCFER,  0x10, 16)
 SCIF_FNS(SCFCR,  0x18, 16)
@@ -410,7 +415,8 @@ SCIx_FNS(SCxRDR, 0x0a,  8, 0x14,  8, 0x0A,  8, 0x14,  8, 0x05,  8)
 SCIF_FNS(SCFCR,                      0x0c,  8, 0x18, 16)
 #if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
     defined(CONFIG_CPU_SUBTYPE_SH7780) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7785)
+    defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7786)
 SCIF_FNS(SCFDR,			     0x0e, 16, 0x1C, 16)
 SCIF_FNS(SCTFDR,		     0x0e, 16, 0x1C, 16)
 SCIF_FNS(SCRFDR,		     0x0e, 16, 0x20, 16)
@@ -641,7 +647,8 @@ static inline int sci_rxd_in(struct uart_port *port)
 		return ctrl_inw(SCSPTR1) & 0x0001 ? 1 : 0; /* SCIF */
 	return 1;
 }
-#elif defined(CONFIG_CPU_SUBTYPE_SH7785)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7786)
 static inline int sci_rxd_in(struct uart_port *port)
 {
 	if (port->mapbase == 0xffea0000)
@@ -743,7 +750,8 @@ static inline int sci_rxd_in(struct uart_port *port)
  */
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7780) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7785)
+    defined(CONFIG_CPU_SUBTYPE_SH7785) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7786)
 #define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(16*bps)-1)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705) || \
       defined(CONFIG_CPU_SUBTYPE_SH7720) || \

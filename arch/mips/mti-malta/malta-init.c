@@ -48,7 +48,7 @@ int *_prom_argv, *_prom_envp;
 
 int init_debug = 0;
 
-int mips_revision_corid;
+static int mips_revision_corid;
 int mips_revision_sconid;
 
 /* Bonito64 system controller register base. */

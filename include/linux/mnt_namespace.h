@@ -22,6 +22,8 @@ struct proc_mounts {
 	int event;
 };
 
+struct fs_struct;
+
 extern struct mnt_namespace *copy_mnt_ns(unsigned long, struct mnt_namespace *,
 		struct fs_struct *);
 extern void __put_mnt_ns(struct mnt_namespace *ns);

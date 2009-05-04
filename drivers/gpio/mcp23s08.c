@@ -310,8 +310,10 @@ static int mcp23s08_probe(struct spi_device *spi)
 	unsigned			base;
 
 	pdata = spi->dev.platform_data;
-	if (!pdata || !gpio_is_valid(pdata->base))
-		return -ENODEV;
+	if (!pdata || !gpio_is_valid(pdata->base)) {
+		dev_dbg(&spi->dev, "invalid or missing platform data\n");
+		return -EINVAL;
+	}
 
 	for (addr = 0; addr < 4; addr++) {
 		if (!pdata->chip[addr].is_present)

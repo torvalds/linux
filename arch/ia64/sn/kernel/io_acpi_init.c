@@ -443,7 +443,7 @@ sn_acpi_slot_fixup(struct pci_dev *dev)
 		size = pci_resource_len(dev, PCI_ROM_RESOURCE);
 		addr = ioremap(pcidev_info->pdi_pio_mapped_addr[PCI_ROM_RESOURCE],
 			       size);
-		image_size = pci_get_rom_size(addr, size);
+		image_size = pci_get_rom_size(dev, addr, size);
 		dev->resource[PCI_ROM_RESOURCE].start = (unsigned long) addr;
 		dev->resource[PCI_ROM_RESOURCE].end =
 					(unsigned long) addr + image_size - 1;

@@ -118,8 +118,8 @@ static int ata_generic_init_one(struct pci_dev *dev, const struct pci_device_id 
 	u16 command;
 	static const struct ata_port_info info = {
 		.flags = ATA_FLAG_SLAVE_POSS,
-		.pio_mask = 0x1f,
-		.mwdma_mask = 0x07,
+		.pio_mask = ATA_PIO4,
+		.mwdma_mask = ATA_MWDMA2,
 		.udma_mask = ATA_UDMA5,
 		.port_ops = &generic_port_ops
 	};

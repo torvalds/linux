@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -106,10 +107,10 @@ static int at91_wdt_close(struct inode *inode, struct file *file)
 static int at91_wdt_settimeout(int new_time)
 {
 	/*
-	 * All counting occurs at SLOW_CLOCK / 128 = 0.256 Hz
+	 * All counting occurs at SLOW_CLOCK / 128 = 256 Hz
 	 *
 	 * Since WDV is a 16-bit counter, the maximum period is
-	 * 65536 / 0.256 = 256 seconds.
+	 * 65536 / 256 = 256 seconds.
 	 */
 	if ((new_time <= 0) || (new_time > WDT_MAX_TIME))
 		return -EINVAL;
@@ -196,7 +197,7 @@ static struct miscdevice at91wdt_miscdev = {
 	.fops		= &at91wdt_fops,
 };
 
-static int __init at91wdt_probe(struct platform_device *pdev)
+static int __devinit at91wdt_probe(struct platform_device *pdev)
 {
 	int res;
 
@@ -213,7 +214,7 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit at91wdt_remove(struct platform_device *pdev)
+static int __devexit at91wdt_remove(struct platform_device *pdev)
 {
 	int res;
 
@@ -251,7 +252,7 @@ static int at91wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver at91wdt_driver = {
 	.probe		= at91wdt_probe,
-	.remove		= __exit_p(at91wdt_remove),
+	.remove		= __devexit_p(at91wdt_remove),
 	.shutdown	= at91wdt_shutdown,
 	.suspend	= at91wdt_suspend,
 	.resume		= at91wdt_resume,

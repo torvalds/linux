@@ -36,16 +36,7 @@ void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
  */
 #define STRICT_MM_TYPECHECKS
 #ifdef STRICT_MM_TYPECHECKS
-typedef struct { unsigned long pte;
-#if !defined(CONFIG_64BIT)
-                 unsigned long future_flags;
- /* XXX: it's possible to remove future_flags and change BITS_PER_PTE_ENTRY
-	 to 2, but then strangely the identical 32bit kernel boots on a
-	 c3000(pa20), but not any longer on a 715(pa11).
-	 Still investigating... HelgeD.
-  */
-#endif
-} pte_t; /* either 32 or 64bit */
+typedef struct { unsigned long pte; } pte_t; /* either 32 or 64bit */
 
 /* NOTE: even on 64 bits, these entries are __u32 because we allocate
  * the pmd and pgd in ZONE_DMA (i.e. under 4GB) */
@@ -111,7 +102,7 @@ extern int npmem_ranges;
 #define BITS_PER_PMD_ENTRY	2
 #define BITS_PER_PGD_ENTRY	2
 #else
-#define BITS_PER_PTE_ENTRY	3
+#define BITS_PER_PTE_ENTRY	2
 #define BITS_PER_PMD_ENTRY	2
 #define BITS_PER_PGD_ENTRY	BITS_PER_PMD_ENTRY
 #endif

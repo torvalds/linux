@@ -137,7 +137,7 @@ zalon_probe(struct parisc_device *dev)
 		goto fail;
 
 	if (request_irq(dev->irq, ncr53c8xx_intr, IRQF_SHARED, "zalon", host)) {
-	  dev_printk(KERN_ERR, dev, "irq problem with %d, detaching\n ",
+	  dev_printk(KERN_ERR, &dev->dev, "irq problem with %d, detaching\n ",
 		     dev->irq);
 		goto fail;
 	}

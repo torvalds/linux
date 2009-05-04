@@ -15,8 +15,8 @@
  * - buffer allocation (memory accounting)
  *
  *
- * Copyright (C) 2007-2008 Intel Corporation.
- * Markus Metzger <markus.t.metzger@intel.com>, 2007-2008
+ * Copyright (C) 2007-2009 Intel Corporation.
+ * Markus Metzger <markus.t.metzger@intel.com>, 2007-2009
  */
 
 
@@ -729,7 +729,7 @@ struct pebs_tracer *ds_request_pebs(struct task_struct *task,
 
 	spin_unlock_irqrestore(&ds_lock, irq);
 
-	ds_write_config(tracer->ds.context, &tracer->trace.ds, ds_bts);
+	ds_write_config(tracer->ds.context, &tracer->trace.ds, ds_pebs);
 	ds_resume_pebs(tracer);
 
 	return tracer;
@@ -890,7 +890,7 @@ int ds_set_pebs_reset(struct pebs_tracer *tracer, u64 value)
 }
 
 static const struct ds_configuration ds_cfg_netburst = {
-	.name = "netburst",
+	.name = "Netburst",
 	.ctl[dsf_bts]		= (1 << 2) | (1 << 3),
 	.ctl[dsf_bts_kernel]	= (1 << 5),
 	.ctl[dsf_bts_user]	= (1 << 6),
@@ -904,7 +904,7 @@ static const struct ds_configuration ds_cfg_netburst = {
 #endif
 };
 static const struct ds_configuration ds_cfg_pentium_m = {
-	.name = "pentium m",
+	.name = "Pentium M",
 	.ctl[dsf_bts]		= (1 << 6) | (1 << 7),
 
 	.sizeof_field		= sizeof(long),
@@ -915,8 +915,8 @@ static const struct ds_configuration ds_cfg_pentium_m = {
 	.sizeof_rec[ds_pebs]	= sizeof(long) * 18,
 #endif
 };
-static const struct ds_configuration ds_cfg_core2 = {
-	.name = "core 2",
+static const struct ds_configuration ds_cfg_core2_atom = {
+	.name = "Core 2/Atom",
 	.ctl[dsf_bts]		= (1 << 6) | (1 << 7),
 	.ctl[dsf_bts_kernel]	= (1 << 9),
 	.ctl[dsf_bts_user]	= (1 << 10),
@@ -949,19 +949,22 @@ void __cpuinit ds_init_intel(struct cpuinfo_x86 *c)
 	switch (c->x86) {
 	case 0x6:
 		switch (c->x86_model) {
-		case 0 ... 0xC:
-			/* sorry, don't know about them */
-			break;
-		case 0xD:
-		case 0xE: /* Pentium M */
+		case 0x9:
+		case 0xd: /* Pentium M */
 			ds_configure(&ds_cfg_pentium_m);
 			break;
-		default: /* Core2, Atom, ... */
-			ds_configure(&ds_cfg_core2);
+		case 0xf:
+		case 0x17: /* Core2 */
+		case 0x1c: /* Atom */
+			ds_configure(&ds_cfg_core2_atom);
+			break;
+		case 0x1a: /* i7 */
+		default:
+			/* sorry, don't know about them */
 			break;
 		}
 		break;
-	case 0xF:
+	case 0xf:
 		switch (c->x86_model) {
 		case 0x0:
 		case 0x1:
@@ -1026,5 +1029,4 @@ void ds_copy_thread(struct task_struct *tsk, struct task_struct *father)
 
 void ds_exit_thread(struct task_struct *tsk)
 {
-	WARN_ON(tsk->thread.ds_ctx);
 }

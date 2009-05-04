@@ -75,7 +75,8 @@ void o2hb_unregister_callback(const char *region_uuid,
 			      struct o2hb_callback_func *hc);
 void o2hb_fill_node_map(unsigned long *map,
 			unsigned bytes);
-void o2hb_init(void);
+void o2hb_exit(void);
+int o2hb_init(void);
 int o2hb_check_node_heartbeating(u8 node_num);
 int o2hb_check_node_heartbeating_from_callback(u8 node_num);
 int o2hb_check_local_node_heartbeating(void);

@@ -700,7 +700,7 @@ CONFIG_I2C_OMAP=y
 # Miscellaneous I2C Chip support
 #
 # CONFIG_DS1682 is not set
-# CONFIG_SENSORS_EEPROM is not set
+# CONFIG_EEPROM_LEGACY is not set
 # CONFIG_SENSORS_PCF8574 is not set
 # CONFIG_PCF8575 is not set
 # CONFIG_SENSORS_PCF8591 is not set
@@ -731,7 +731,7 @@ CONFIG_SPI_OMAP_UWIRE=y
 #
 # SPI Protocol Masters
 #
-# CONFIG_SPI_AT25 is not set
+# CONFIG_EEPROM_AT25 is not set
 CONFIG_SPI_TSC2101=y
 # CONFIG_SPI_TSC2102 is not set
 # CONFIG_SPI_TSC210X is not set

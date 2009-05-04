@@ -5,7 +5,7 @@
 
 This document describes the DMA API.  For a more gentle introduction
 phrased in terms of the pci_ equivalents (and actual examples) see
-DMA-mapping.txt
+Documentation/PCI/PCI-DMA-mapping.txt.
 
 This API is split into two pieces.  Part I describes the API and the
 corresponding pci_ API.  Part II describes the extensions to the API
@@ -170,16 +170,15 @@ Returns: 0 if successful and a negative error if not.
 u64
 dma_get_required_mask(struct device *dev)
 
-After setting the mask with dma_set_mask(), this API returns the
-actual mask (within that already set) that the platform actually
-requires to operate efficiently.  Usually this means the returned mask
+This API returns the mask that the platform requires to
+operate efficiently.  Usually this means the returned mask
 is the minimum required to cover all of memory.  Examining the
 required mask gives drivers with variable descriptor sizes the
 opportunity to use smaller descriptors as necessary.
 
 Requesting the required mask does not alter the current mask.  If you
-wish to take advantage of it, you should issue another dma_set_mask()
-call to lower the mask again.
+wish to take advantage of it, you should issue a dma_set_mask()
+call to set the mask to the value returned.
 
 
 Part Id - Streaming DMA mappings
@@ -610,3 +609,109 @@ size is the size (and should be a page-sized multiple).
 The return value will be either a pointer to the processor virtual
 address of the memory, or an error (via PTR_ERR()) if any part of the
 region is occupied.
+
+Part III - Debug drivers use of the DMA-API
+-------------------------------------------
+
+The DMA-API as described above as some constraints. DMA addresses must be
+released with the corresponding function with the same size for example. With
+the advent of hardware IOMMUs it becomes more and more important that drivers
+do not violate those constraints. In the worst case such a violation can
+result in data corruption up to destroyed filesystems.
+
+To debug drivers and find bugs in the usage of the DMA-API checking code can
+be compiled into the kernel which will tell the developer about those
+violations. If your architecture supports it you can select the "Enable
+debugging of DMA-API usage" option in your kernel configuration. Enabling this
+option has a performance impact. Do not enable it in production kernels.
+
+If you boot the resulting kernel will contain code which does some bookkeeping
+about what DMA memory was allocated for which device. If this code detects an
+error it prints a warning message with some details into your kernel log. An
+example warning message may look like this:
+
+------------[ cut here ]------------
+WARNING: at /data2/repos/linux-2.6-iommu/lib/dma-debug.c:448
+	check_unmap+0x203/0x490()
+Hardware name:
+forcedeth 0000:00:08.0: DMA-API: device driver frees DMA memory with wrong
+	function [device address=0x00000000640444be] [size=66 bytes] [mapped as
+single] [unmapped as page]
+Modules linked in: nfsd exportfs bridge stp llc r8169
+Pid: 0, comm: swapper Tainted: G        W  2.6.28-dmatest-09289-g8bb99c0 #1
+Call Trace:
+ <IRQ>  [<ffffffff80240b22>] warn_slowpath+0xf2/0x130
+ [<ffffffff80647b70>] _spin_unlock+0x10/0x30
+ [<ffffffff80537e75>] usb_hcd_link_urb_to_ep+0x75/0xc0
+ [<ffffffff80647c22>] _spin_unlock_irqrestore+0x12/0x40
+ [<ffffffff8055347f>] ohci_urb_enqueue+0x19f/0x7c0
+ [<ffffffff80252f96>] queue_work+0x56/0x60
+ [<ffffffff80237e10>] enqueue_task_fair+0x20/0x50
+ [<ffffffff80539279>] usb_hcd_submit_urb+0x379/0xbc0
+ [<ffffffff803b78c3>] cpumask_next_and+0x23/0x40
+ [<ffffffff80235177>] find_busiest_group+0x207/0x8a0
+ [<ffffffff8064784f>] _spin_lock_irqsave+0x1f/0x50
+ [<ffffffff803c7ea3>] check_unmap+0x203/0x490
+ [<ffffffff803c8259>] debug_dma_unmap_page+0x49/0x50
+ [<ffffffff80485f26>] nv_tx_done_optimized+0xc6/0x2c0
+ [<ffffffff80486c13>] nv_nic_irq_optimized+0x73/0x2b0
+ [<ffffffff8026df84>] handle_IRQ_event+0x34/0x70
+ [<ffffffff8026ffe9>] handle_edge_irq+0xc9/0x150
+ [<ffffffff8020e3ab>] do_IRQ+0xcb/0x1c0
+ [<ffffffff8020c093>] ret_from_intr+0x0/0xa
+ <EOI> <4>---[ end trace f6435a98e2a38c0e ]---
+
+The driver developer can find the driver and the device including a stacktrace
+of the DMA-API call which caused this warning.
+
+Per default only the first error will result in a warning message. All other
+errors will only silently counted. This limitation exist to prevent the code
+from flooding your kernel log. To support debugging a device driver this can
+be disabled via debugfs. See the debugfs interface documentation below for
+details.
+
+The debugfs directory for the DMA-API debugging code is called dma-api/. In
+this directory the following files can currently be found:
+
+	dma-api/all_errors	This file contains a numeric value. If this
+				value is not equal to zero the debugging code
+				will print a warning for every error it finds
+				into the kernel log. Be carefull with this
+				option. It can easily flood your logs.
+
+	dma-api/disabled	This read-only file contains the character 'Y'
+				if the debugging code is disabled. This can
+				happen when it runs out of memory or if it was
+				disabled at boot time
+
+	dma-api/error_count	This file is read-only and shows the total
+				numbers of errors found.
+
+	dma-api/num_errors	The number in this file shows how many
+				warnings will be printed to the kernel log
+				before it stops. This number is initialized to
+				one at system boot and be set by writing into
+				this file
+
+	dma-api/min_free_entries
+				This read-only file can be read to get the
+				minimum number of free dma_debug_entries the
+				allocator has ever seen. If this value goes
+				down to zero the code will disable itself
+				because it is not longer reliable.
+
+	dma-api/num_free_entries
+				The current number of free dma_debug_entries
+				in the allocator.
+
+If you have this code compiled into your kernel it will be enabled by default.
+If you want to boot without the bookkeeping anyway you can provide
+'dma_debug=off' as a boot parameter. This will disable DMA-API debugging.
+Notice that you can not enable it again at runtime. You have to reboot to do
+so.
+
+When the code disables itself at runtime this is most likely because it ran
+out of dma_debug_entries. These entries are preallocated at boot. The number
+of preallocated entries is defined per architecture. If it is too low for you
+boot with 'dma_debug_entries=<your_desired_number>' to overwrite the
+architectural default.

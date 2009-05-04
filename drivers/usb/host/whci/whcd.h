@@ -137,6 +137,7 @@ void whc_clean_up(struct whc *whc);
 /* hw.c */
 void whc_write_wusbcmd(struct whc *whc, u32 mask, u32 val);
 int whc_do_gencmd(struct whc *whc, u32 cmd, u32 params, void *addr, size_t len);
+void whc_hw_error(struct whc *whc, const char *reason);
 
 /* wusb.c */
 int whc_wusbhc_start(struct wusbhc *wusbhc);
@@ -183,6 +184,7 @@ void qset_free(struct whc *whc, struct whc_qset *qset);
 struct whc_qset *get_qset(struct whc *whc, struct urb *urb, gfp_t mem_flags);
 void qset_delete(struct whc *whc, struct whc_qset *qset);
 void qset_clear(struct whc *whc, struct whc_qset *qset);
+void qset_reset(struct whc *whc, struct whc_qset *qset);
 int qset_add_urb(struct whc *whc, struct whc_qset *qset, struct urb *urb,
 		 gfp_t mem_flags);
 void qset_free_std(struct whc *whc, struct whc_std *std);

@@ -378,7 +378,7 @@ int au0828_dvb_register(struct au0828_dev *dev)
 	dprintk(1, "%s()\n", __func__);
 
 	/* init frontend */
-	switch (dev->board) {
+	switch (dev->boardnr) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 		dvb->frontend = dvb_attach(au8522_attach,

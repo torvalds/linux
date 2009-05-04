@@ -4,10 +4,12 @@
 /*
  * OMAP2/3 SDRC/SMS register definitions
  *
- * Copyright (C) 2007 Texas Instruments, Inc.
- * Copyright (C) 2007 Nokia Corporation
+ * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2008 Nokia Corporation
  *
- * Written by Paul Walmsley
+ * Tony Lindgren
+ * Paul Walmsley
+ * Richard Woodruff
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -64,14 +66,62 @@
  * SMS register access
  */
 
-
-#define OMAP242X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP2420_SMS_BASE + reg)
-#define OMAP243X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP243X_SMS_BASE + reg)
-#define OMAP343X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP343X_SMS_BASE + reg)
+#define OMAP242X_SMS_REGADDR(reg)					\
+			(void __iomem *)IO_ADDRESS(OMAP2420_SMS_BASE + reg)
+#define OMAP243X_SMS_REGADDR(reg)					\
+			(void __iomem *)IO_ADDRESS(OMAP243X_SMS_BASE + reg)
+#define OMAP343X_SMS_REGADDR(reg)					\
+			(void __iomem *)IO_ADDRESS(OMAP343X_SMS_BASE + reg)
 
 /* SMS register offsets - read/write with sms_{read,write}_reg() */
 
 #define SMS_SYSCONFIG		0x010
 /* REVISIT: fill in other SMS registers here */
+
+
+#ifndef __ASSEMBLER__
+
+/**
+ * struct omap_sdrc_params - SDRC parameters for a given SDRC clock rate
+ * @rate: SDRC clock rate (in Hz)
+ * @actim_ctrla: Value to program to SDRC_ACTIM_CTRLA for this rate
+ * @actim_ctrlb: Value to program to SDRC_ACTIM_CTRLB for this rate
+ * @rfr_ctrl: Value to program to SDRC_RFR_CTRL for this rate
+ * @mr: Value to program to SDRC_MR for this rate
+ *
+ * This structure holds a pre-computed set of register values for the
+ * SDRC for a given SDRC clock rate and SDRAM chip.  These are
+ * intended to be pre-computed and specified in an array in the board-*.c
+ * files.  The structure is keyed off the 'rate' field.
+ */
+struct omap_sdrc_params {
+	unsigned long rate;
+	u32 actim_ctrla;
+	u32 actim_ctrlb;
+	u32 rfr_ctrl;
+	u32 mr;
+};
+
+void __init omap2_sdrc_init(struct omap_sdrc_params *sp);
+struct omap_sdrc_params *omap2_sdrc_get_params(unsigned long r);
+
+#ifdef CONFIG_ARCH_OMAP2
+
+struct memory_timings {
+	u32 m_type;		/* ddr = 1, sdr = 0 */
+	u32 dll_mode;		/* use lock mode = 1, unlock mode = 0 */
+	u32 slow_dll_ctrl;	/* unlock mode, dll value for slow speed */
+	u32 fast_dll_ctrl;	/* unlock mode, dll value for fast speed */
+	u32 base_cs;		/* base chip select to use for calculations */
+};
+
+extern void omap2xxx_sdrc_init_params(u32 force_lock_to_unlock_mode);
+
+u32 omap2xxx_sdrc_dll_is_unlocked(void);
+u32 omap2xxx_sdrc_reprogram(u32 level, u32 force);
+
+#endif  /* CONFIG_ARCH_OMAP2 */
+
+#endif  /* __ASSEMBLER__ */
 
 #endif

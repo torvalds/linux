@@ -3655,7 +3655,7 @@ VOID	UserCfgInit(
 #ifdef RALINK_28xx_QA
 	//pAd->ate.Repeat = 0;
 	pAd->ate.TxStatus = 0;
-	pAd->ate.AtePid = THREAD_PID_INIT_VALUE;
+	pAd->ate.AtePid = NULL;
 #endif // RALINK_28xx_QA //
 #endif // RALINK_ATE //
 

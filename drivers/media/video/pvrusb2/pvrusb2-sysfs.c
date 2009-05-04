@@ -153,14 +153,16 @@ static ssize_t show_def(struct device *class_dev,
 	struct pvr2_sysfs_ctl_item *cip;
 	int val;
 	int ret;
+	unsigned int cnt = 0;
 	cip = container_of(attr, struct pvr2_sysfs_ctl_item, attr_def);
 	ret = pvr2_ctrl_get_def(cip->cptr, &val);
-	pvr2_sysfs_trace("pvr2_sysfs(%p) show_def(cid=%d) is %d, stat=%d",
-			 cip->chptr, cip->ctl_id, val, ret);
-	if (ret < 0) {
-		return ret;
-	}
-	return scnprintf(buf, PAGE_SIZE, "%d\n", val);
+	if (ret < 0) return ret;
+	ret = pvr2_ctrl_value_to_sym(cip->cptr, ~0, val,
+				     buf, PAGE_SIZE - 1, &cnt);
+	pvr2_sysfs_trace("pvr2_sysfs(%p) show_def(cid=%d) is %.*s (%d)",
+			 cip->chptr, cip->ctl_id, cnt, buf, val);
+	buf[cnt] = '\n';
+	return cnt + 1;
 }
 
 static ssize_t show_val_norm(struct device *class_dev,
@@ -627,16 +629,8 @@ static void class_dev_create(struct pvr2_sysfs *sfp,
 	pvr2_sysfs_trace("Creating class_dev id=%p",class_dev);
 
 	class_dev->class = &class_ptr->class;
-	if (pvr2_hdw_get_sn(sfp->channel.hdw)) {
-		dev_set_name(class_dev, "sn-%lu",
-			 pvr2_hdw_get_sn(sfp->channel.hdw));
-	} else if (pvr2_hdw_get_unit_number(sfp->channel.hdw) >= 0) {
-		dev_set_name(class_dev, "unit-%c",
-			 pvr2_hdw_get_unit_number(sfp->channel.hdw) + 'a');
-	} else {
-		kfree(class_dev);
-		return;
-	}
+	dev_set_name(class_dev, "%s",
+		     pvr2_hdw_get_device_identifier(sfp->channel.hdw));
 
 	class_dev->parent = &usb_dev->dev;
 

@@ -5258,6 +5258,7 @@ lpfc_send_els_event(struct lpfc_vport *vport,
 			sizeof(struct lpfc_name));
 		break;
 	default:
+		kfree(els_data);
 		return;
 	}
 	memcpy(els_data->wwpn, &ndlp->nlp_portname, sizeof(struct lpfc_name));

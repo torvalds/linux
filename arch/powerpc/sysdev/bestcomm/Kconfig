@@ -9,8 +9,8 @@ config PPC_BESTCOMM
 	select PPC_LIB_RHEAP
 	help
 	  BestComm is the name of the communication coprocessor found
-	  on the Freescale MPC5200 family of processor. It's usage is
-	  optionnal for some drivers (like ATA), but required for
+	  on the Freescale MPC5200 family of processor.  Its usage is
+	  optional for some drivers (like ATA), but required for
 	  others (like FEC).
 
 	  If you want to use drivers that require DMA operations,

@@ -459,11 +459,9 @@ static const char	*version	= "wavelan.c : v24 (SMP + wireless extensions) 11/12/
 /****************************** TYPES ******************************/
 
 /* Shortcuts */
-typedef struct net_device_stats	en_stats;
 typedef struct iw_statistics	iw_stats;
 typedef struct iw_quality	iw_qual;
-typedef struct iw_freq		iw_freq;
-typedef struct net_local	net_local;
+typedef struct iw_freq		iw_freq;typedef struct net_local	net_local;
 typedef struct timer_list	timer_list;
 
 /* Basic types */
@@ -475,15 +473,12 @@ typedef u_char		mac_addr[WAVELAN_ADDR_SIZE];	/* Hardware address */
  * For each network interface, Linux keeps data in two structures:  "device"
  * keeps the generic data (same format for everybody) and "net_local" keeps
  * additional specific data.
- * Note that some of this specific data is in fact generic (en_stats, for
- * example).
  */
 struct net_local
 {
   net_local *	next;		/* linked list of the devices */
   struct net_device *	dev;		/* reverse link */
   spinlock_t	spinlock;	/* Serialize access to the hardware (SMP) */
-  en_stats	stats;		/* Ethernet interface statistics */
   int		nresets;	/* number of hardware resets */
   u_char	reconfig_82586;	/* We need to reconfigure the controller. */
   u_char	promiscuous;	/* promiscuous mode */
@@ -601,8 +596,6 @@ static void
 static inline void
 	wv_init_info(struct net_device *);	/* display startup info */
 /* ------------------- IOCTL, STATS & RECONFIG ------------------- */
-static en_stats	*
-	wavelan_get_stats(struct net_device *);	/* Give stats /proc/net/dev */
 static iw_stats *
 	wavelan_get_wireless_stats(struct net_device *);
 static void

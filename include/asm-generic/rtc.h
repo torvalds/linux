@@ -42,7 +42,7 @@ static inline unsigned char rtc_is_updating(void)
 	return uip;
 }
 
-static inline unsigned int get_rtc_time(struct rtc_time *time)
+static inline unsigned int __get_rtc_time(struct rtc_time *time)
 {
 	unsigned char ctrl;
 	unsigned long flags;
@@ -108,8 +108,12 @@ static inline unsigned int get_rtc_time(struct rtc_time *time)
 	return RTC_24H;
 }
 
+#ifndef get_rtc_time
+#define get_rtc_time	__get_rtc_time
+#endif
+
 /* Set the current date and time in the real time clock. */
-static inline int set_rtc_time(struct rtc_time *time)
+static inline int __set_rtc_time(struct rtc_time *time)
 {
 	unsigned long flags;
 	unsigned char mon, day, hrs, min, sec;
@@ -190,11 +194,15 @@ static inline int set_rtc_time(struct rtc_time *time)
 	return 0;
 }
 
+#ifndef set_rtc_time
+#define set_rtc_time	__set_rtc_time
+#endif
+
 static inline unsigned int get_rtc_ss(void)
 {
 	struct rtc_time h;
 
-	get_rtc_time(&h);
+	__get_rtc_time(&h);
 	return h.tm_sec;
 }
 

@@ -49,11 +49,15 @@
 #include <asm/iseries/alpaca.h>
 #endif
 #ifdef CONFIG_KVM
-#include <asm/kvm_44x.h>
+#include <linux/kvm_host.h>
 #endif
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 #include "head_booke.h"
+#endif
+
+#if defined(CONFIG_FSL_BOOKE)
+#include "../mm/mmu_decl.h"
 #endif
 
 int main(void)
@@ -280,9 +284,6 @@ int main(void)
 #endif /* ! CONFIG_PPC64 */
 
 	/* About the CPU features table */
-	DEFINE(CPU_SPEC_ENTRY_SIZE, sizeof(struct cpu_spec));
-	DEFINE(CPU_SPEC_PVR_MASK, offsetof(struct cpu_spec, pvr_mask));
-	DEFINE(CPU_SPEC_PVR_VALUE, offsetof(struct cpu_spec, pvr_value));
 	DEFINE(CPU_SPEC_FEATURES, offsetof(struct cpu_spec, cpu_features));
 	DEFINE(CPU_SPEC_SETUP, offsetof(struct cpu_spec, cpu_setup));
 	DEFINE(CPU_SPEC_RESTORE, offsetof(struct cpu_spec, cpu_restore));
@@ -357,8 +358,6 @@ int main(void)
 	DEFINE(PTE_SIZE, sizeof(pte_t));
 
 #ifdef CONFIG_KVM
-	DEFINE(TLBE_BYTES, sizeof(struct kvmppc_44x_tlbe));
-
 	DEFINE(VCPU_HOST_STACK, offsetof(struct kvm_vcpu, arch.host_stack));
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
@@ -381,6 +380,9 @@ int main(void)
 #ifdef CONFIG_44x
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
+#endif
+#ifdef CONFIG_FSL_BOOKE
+	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING

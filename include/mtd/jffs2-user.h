@@ -7,6 +7,7 @@
 
 /* This file is blessed for inclusion by userspace */
 #include <linux/jffs2.h>
+#include <linux/types.h>
 #include <endian.h>
 #include <byteswap.h>
 
@@ -19,8 +20,8 @@
 
 extern int target_endian;
 
-#define t16(x) ({ uint16_t __b = (x); (target_endian==__BYTE_ORDER)?__b:bswap_16(__b); })
-#define t32(x) ({ uint32_t __b = (x); (target_endian==__BYTE_ORDER)?__b:bswap_32(__b); })
+#define t16(x) ({ __u16 __b = (x); (target_endian==__BYTE_ORDER)?__b:bswap_16(__b); })
+#define t32(x) ({ __u32 __b = (x); (target_endian==__BYTE_ORDER)?__b:bswap_32(__b); })
 
 #define cpu_to_je16(x) ((jint16_t){t16(x)})
 #define cpu_to_je32(x) ((jint32_t){t32(x)})

@@ -10,7 +10,7 @@ stkwebcam-objs	:=	stk-webcam.o stk-sensor.o
 
 omap2cam-objs	:=	omap24xxcam.o omap24xxcam-dma.o
 
-videodev-objs	:=	v4l2-dev.o v4l2-ioctl.o v4l2-device.o v4l2-subdev.o
+videodev-objs	:=	v4l2-dev.o v4l2-ioctl.o v4l2-device.o
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-int-device.o
 ifeq ($(CONFIG_COMPAT),y)
@@ -30,7 +30,6 @@ obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
 obj-$(CONFIG_VIDEO_TVAUDIO) += tvaudio.o
 obj-$(CONFIG_VIDEO_TDA7432) += tda7432.o
 obj-$(CONFIG_VIDEO_TDA9875) += tda9875.o
-obj-$(CONFIG_SOUND_TVMIXER) += tvmixer.o
 
 obj-$(CONFIG_VIDEO_SAA6588) += saa6588.o
 obj-$(CONFIG_VIDEO_SAA5246A) += saa5246a.o
@@ -43,8 +42,6 @@ obj-$(CONFIG_VIDEO_TDA9840) += tda9840.o
 obj-$(CONFIG_VIDEO_TEA6415C) += tea6415c.o
 obj-$(CONFIG_VIDEO_TEA6420) += tea6420.o
 obj-$(CONFIG_VIDEO_SAA7110) += saa7110.o
-obj-$(CONFIG_VIDEO_SAA7111) += saa7111.o
-obj-$(CONFIG_VIDEO_SAA7114) += saa7114.o
 obj-$(CONFIG_VIDEO_SAA711X) += saa7115.o
 obj-$(CONFIG_VIDEO_SAA717X) += saa717x.o
 obj-$(CONFIG_VIDEO_SAA7127) += saa7127.o
@@ -70,6 +67,7 @@ obj-$(CONFIG_VIDEO_MEYE) += meye.o
 obj-$(CONFIG_VIDEO_SAA7134) += saa7134/
 obj-$(CONFIG_VIDEO_CX88) += cx88/
 obj-$(CONFIG_VIDEO_EM28XX) += em28xx/
+obj-$(CONFIG_VIDEO_CX231XX) += cx231xx/
 obj-$(CONFIG_VIDEO_USBVISION) += usbvision/
 obj-$(CONFIG_VIDEO_TVP5150) += tvp5150.o
 obj-$(CONFIG_VIDEO_TVP514X) += tvp514x.o
@@ -122,6 +120,8 @@ obj-$(CONFIG_USB_PWC)           += pwc/
 obj-$(CONFIG_USB_ZC0301)        += zc0301/
 obj-$(CONFIG_USB_GSPCA)         += gspca/
 
+obj-$(CONFIG_VIDEO_HDPVR)	+= hdpvr/
+
 obj-$(CONFIG_USB_IBMCAM)        += usbvideo/
 obj-$(CONFIG_USB_KONICAWC)      += usbvideo/
 obj-$(CONFIG_USB_VICAM)         += usbvideo/
@@ -134,10 +134,12 @@ obj-$(CONFIG_VIDEO_CX18) += cx18/
 obj-$(CONFIG_VIDEO_VIVI) += vivi.o
 obj-$(CONFIG_VIDEO_CX23885) += cx23885/
 
-obj-$(CONFIG_VIDEO_PXA27x)	+= pxa_camera.o
+obj-$(CONFIG_VIDEO_MX1)			+= mx1_camera.o
+obj-$(CONFIG_VIDEO_MX3)			+= mx3_camera.o
+obj-$(CONFIG_VIDEO_PXA27x)		+= pxa_camera.o
 obj-$(CONFIG_VIDEO_SH_MOBILE_CEU)	+= sh_mobile_ceu_camera.o
 obj-$(CONFIG_VIDEO_OMAP2)		+= omap2cam.o
-obj-$(CONFIG_SOC_CAMERA)	+= soc_camera.o
+obj-$(CONFIG_SOC_CAMERA)		+= soc_camera.o
 obj-$(CONFIG_SOC_CAMERA_MT9M001)	+= mt9m001.o
 obj-$(CONFIG_SOC_CAMERA_MT9M111)	+= mt9m111.o
 obj-$(CONFIG_SOC_CAMERA_MT9T031)	+= mt9t031.o

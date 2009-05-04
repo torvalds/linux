@@ -15,7 +15,8 @@
  * Copyright (C) 2000, David Gibson, Linuxcare Australia.
  * (C) Copyright David Gibson, IBM Corp. 2001-2003.
  *
- * Portions taken from hfa384x.h, Copyright (C) 1999 AbsoluteValue Systems, Inc. All Rights Reserved.
+ * Portions taken from hfa384x.h.
+ * Copyright (C) 1999 AbsoluteValue Systems, Inc. All Rights Reserved.
  *
  * This file distributed under the GPL, version 2.
  */
@@ -31,7 +32,7 @@
 */
 
 #include <linux/if_ether.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /*
  * Limits and constants
@@ -203,7 +204,7 @@ struct hermes_tx_descriptor {
 	__le32 sw_support;
 	u8 retry_count;
 	u8 tx_rate;
-	__le16 tx_control;	
+	__le16 tx_control;
 } __attribute__ ((packed));
 
 #define HERMES_TXSTAT_RETRYERR		(0x0001)
@@ -298,7 +299,7 @@ struct symbol_scan_apinfo {
 	/* bits: 0-ess, 1-ibss, 4-privacy [wep] */
 	__le16 essid_len;	/* ESSID length */
 	u8 essid[32];		/* ESSID of the network */
-    	__le16 rates[5];	/* Bit rate supported */
+	__le16 rates[5];	/* Bit rate supported */
 	__le16 basic_rates;	/* Basic rates bitmask */
 	u8 unknown2[6];		/* Always FF:FF:FF:FF:00:00 */
 	u8 unknown3[8];		/* Always 0, appeared in f/w 3.91-68 */
@@ -344,14 +345,14 @@ struct agere_ext_scan_info {
 	u8	data[316];
 } __attribute__ ((packed));
 
-#define HERMES_LINKSTATUS_NOT_CONNECTED   (0x0000)  
+#define HERMES_LINKSTATUS_NOT_CONNECTED   (0x0000)
 #define HERMES_LINKSTATUS_CONNECTED       (0x0001)
 #define HERMES_LINKSTATUS_DISCONNECTED    (0x0002)
 #define HERMES_LINKSTATUS_AP_CHANGE       (0x0003)
 #define HERMES_LINKSTATUS_AP_OUT_OF_RANGE (0x0004)
 #define HERMES_LINKSTATUS_AP_IN_RANGE     (0x0005)
 #define HERMES_LINKSTATUS_ASSOC_FAILED    (0x0006)
-  
+
 struct hermes_linkstatus {
 	__le16 linkstatus;         /* Link status */
 } __attribute__ ((packed));
@@ -384,11 +385,12 @@ typedef struct hermes {
 
 /* Register access convenience macros */
 #define hermes_read_reg(hw, off) \
-	(ioread16((hw)->iobase + ( (off) << (hw)->reg_spacing )))
+	(ioread16((hw)->iobase + ((off) << (hw)->reg_spacing)))
 #define hermes_write_reg(hw, off, val) \
 	(iowrite16((val), (hw)->iobase + ((off) << (hw)->reg_spacing)))
 #define hermes_read_regn(hw, name) hermes_read_reg((hw), HERMES_##name)
-#define hermes_write_regn(hw, name, val) hermes_write_reg((hw), HERMES_##name, (val))
+#define hermes_write_regn(hw, name, val) \
+	hermes_write_reg((hw), HERMES_##name, (val))
 
 /* Function prototypes */
 void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing);
@@ -430,7 +432,7 @@ static inline int hermes_enable_port(hermes_t *hw, int port)
 
 static inline int hermes_disable_port(hermes_t *hw, int port)
 {
-	return hermes_docmd_wait(hw, HERMES_CMD_DISABLE | (port << 8), 
+	return hermes_docmd_wait(hw, HERMES_CMD_DISABLE | (port << 8),
 				 0, NULL);
 }
 
@@ -441,11 +443,12 @@ static inline int hermes_inquire(hermes_t *hw, u16 rid)
 	return hermes_docmd_wait(hw, HERMES_CMD_INQUIRE, rid, NULL);
 }
 
-#define HERMES_BYTES_TO_RECLEN(n) ( (((n)+1)/2) + 1 )
-#define HERMES_RECLEN_TO_BYTES(n) ( ((n)-1) * 2 )
+#define HERMES_BYTES_TO_RECLEN(n) ((((n)+1)/2) + 1)
+#define HERMES_RECLEN_TO_BYTES(n) (((n)-1) * 2)
 
 /* Note that for the next two, the count is in 16-bit words, not bytes */
-static inline void hermes_read_words(struct hermes *hw, int off, void *buf, unsigned count)
+static inline void hermes_read_words(struct hermes *hw, int off,
+				     void *buf, unsigned count)
 {
 	off = off << hw->reg_spacing;
 	ioread16_rep(hw->iobase + off, buf, count);
@@ -460,7 +463,8 @@ static inline void hermes_write_bytes(struct hermes *hw, int off,
 		iowrite8(buf[count - 1], hw->iobase + off);
 }
 
-static inline void hermes_clear_words(struct hermes *hw, int off, unsigned count)
+static inline void hermes_clear_words(struct hermes *hw, int off,
+				      unsigned count)
 {
 	unsigned i;
 
@@ -471,9 +475,10 @@ static inline void hermes_clear_words(struct hermes *hw, int off, unsigned count
 }
 
 #define HERMES_READ_RECORD(hw, bap, rid, buf) \
-	(hermes_read_ltv((hw),(bap),(rid), sizeof(*buf), NULL, (buf)))
+	(hermes_read_ltv((hw), (bap), (rid), sizeof(*buf), NULL, (buf)))
 #define HERMES_WRITE_RECORD(hw, bap, rid, buf) \
-	(hermes_write_ltv((hw),(bap),(rid),HERMES_BYTES_TO_RECLEN(sizeof(*buf)),(buf)))
+	(hermes_write_ltv((hw), (bap), (rid), \
+			  HERMES_BYTES_TO_RECLEN(sizeof(*buf)), (buf)))
 
 static inline int hermes_read_wordrec(hermes_t *hw, int bap, u16 rid, u16 *word)
 {

@@ -55,7 +55,7 @@ static DEFINE_SPINLOCK(zone_scan_lock);
 
 unsigned long badness(struct task_struct *p, unsigned long uptime)
 {
-	unsigned long points, cpu_time, run_time, s;
+	unsigned long points, cpu_time, run_time;
 	struct mm_struct *mm;
 	struct task_struct *child;
 
@@ -110,12 +110,10 @@ unsigned long badness(struct task_struct *p, unsigned long uptime)
 	else
 		run_time = 0;
 
-	s = int_sqrt(cpu_time);
-	if (s)
-		points /= s;
-	s = int_sqrt(int_sqrt(run_time));
-	if (s)
-		points /= s;
+	if (cpu_time)
+		points /= int_sqrt(cpu_time);
+	if (run_time)
+		points /= int_sqrt(int_sqrt(run_time));
 
 	/*
 	 * Niced processes are most likely less important, so double
@@ -396,6 +394,7 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		cpuset_print_task_mems_allowed(current);
 		task_unlock(current);
 		dump_stack();
+		mem_cgroup_print_oom_info(mem, current);
 		show_mem();
 		if (sysctl_oom_dump_tasks)
 			dump_tasks(mem);

@@ -180,8 +180,6 @@ int scsi_complete_async_scans(void)
 	spin_unlock(&async_scan_lock);
 
 	kfree(data);
-	/* Synchronize async operations globally */
-	async_synchronize_full();
 	return 0;
 }
 
@@ -317,6 +315,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	return sdev;
 
 out_device_destroy:
+	scsi_device_set_state(sdev, SDEV_DEL);
 	transport_destroy_device(&sdev->sdev_gendev);
 	put_device(&sdev->sdev_gendev);
 out:
@@ -796,6 +795,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	case TYPE_ENCLOSURE:
 	case TYPE_COMM:
 	case TYPE_RAID:
+	case TYPE_OSD:
 		sdev->writeable = 1;
 		break;
 	case TYPE_ROM:

@@ -250,7 +250,7 @@ out:
  * The number of remaining references must be:
  * 1 for anonymous pages without a mapping
  * 2 for pages with a mapping
- * 3 for pages with a mapping and PagePrivate set.
+ * 3 for pages with a mapping and PagePrivate/PagePrivate2 set.
  */
 static int migrate_page_move_mapping(struct address_space *mapping,
 		struct page *newpage, struct page *page)
@@ -270,7 +270,7 @@ static int migrate_page_move_mapping(struct address_space *mapping,
 	pslot = radix_tree_lookup_slot(&mapping->page_tree,
  					page_index(page));
 
-	expected_count = 2 + !!PagePrivate(page);
+	expected_count = 2 + !!page_has_private(page);
 	if (page_count(page) != expected_count ||
 			(struct page *)radix_tree_deref_slot(pslot) != page) {
 		spin_unlock_irq(&mapping->tree_lock);
@@ -386,7 +386,7 @@ EXPORT_SYMBOL(fail_migrate_page);
 
 /*
  * Common logic to directly migrate a single page suitable for
- * pages that do not use PagePrivate.
+ * pages that do not use PagePrivate/PagePrivate2.
  *
  * Pages are locked upon entry and exit.
  */
@@ -522,7 +522,7 @@ static int fallback_migrate_page(struct address_space *mapping,
 	 * Buffers may be managed in a filesystem specific way.
 	 * We must have no buffers or drop them.
 	 */
-	if (PagePrivate(page) &&
+	if (page_has_private(page) &&
 	    !try_to_release_page(page, GFP_KERNEL))
 		return -EAGAIN;
 
@@ -655,7 +655,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	 * free the metadata, so the page can be freed.
 	 */
 	if (!page->mapping) {
-		if (!PageAnon(page) && PagePrivate(page)) {
+		if (!PageAnon(page) && page_has_private(page)) {
 			/*
 			 * Go direct to try_to_free_buffers() here because
 			 * a) that's what try_to_release_page() would do anyway
@@ -1055,10 +1055,10 @@ out:
  * Move a list of pages in the address space of the currently executing
  * process.
  */
-asmlinkage long sys_move_pages(pid_t pid, unsigned long nr_pages,
-			const void __user * __user *pages,
-			const int __user *nodes,
-			int __user *status, int flags)
+SYSCALL_DEFINE6(move_pages, pid_t, pid, unsigned long, nr_pages,
+		const void __user * __user *, pages,
+		const int __user *, nodes,
+		int __user *, status, int, flags)
 {
 	const struct cred *cred = current_cred(), *tcred;
 	struct task_struct *task;
@@ -1129,7 +1129,7 @@ int migrate_vmas(struct mm_struct *mm, const nodemask_t *to,
  	struct vm_area_struct *vma;
  	int err = 0;
 
- 	for(vma = mm->mmap; vma->vm_next && !err; vma = vma->vm_next) {
+	for (vma = mm->mmap; vma && !err; vma = vma->vm_next) {
  		if (vma->vm_ops && vma->vm_ops->migrate) {
  			err = vma->vm_ops->migrate(vma, to, from, flags);
  			if (err)

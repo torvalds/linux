@@ -1,6 +1,6 @@
 /* bnx2x_reg.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2008 Broadcom Corporation
+ * Copyright (c) 2007-2009 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,8 +30,20 @@
    address BRB1_IND_FREE_LIST_PRS_CRDT+1 initialize free tail. At address
    BRB1_IND_FREE_LIST_PRS_CRDT+2 initialize parser initial credit. */
 #define BRB1_REG_FREE_LIST_PRS_CRDT				 0x60200
+/* [RW 10] The number of free blocks above which the High_llfc signal to
+   interface #n is de-asserted. */
+#define BRB1_REG_HIGH_LLFC_HIGH_THRESHOLD_0			 0x6014c
+/* [RW 10] The number of free blocks below which the High_llfc signal to
+   interface #n is asserted. */
+#define BRB1_REG_HIGH_LLFC_LOW_THRESHOLD_0			 0x6013c
 /* [RW 23] LL RAM data. */
 #define BRB1_REG_LL_RAM 					 0x61000
+/* [RW 10] The number of free blocks above which the Low_llfc signal to
+   interface #n is de-asserted. */
+#define BRB1_REG_LOW_LLFC_HIGH_THRESHOLD_0			 0x6016c
+/* [RW 10] The number of free blocks below which the Low_llfc signal to
+   interface #n is asserted. */
+#define BRB1_REG_LOW_LLFC_LOW_THRESHOLD_0			 0x6015c
 /* [R 24] The number of full blocks. */
 #define BRB1_REG_NUM_OF_FULL_BLOCKS				 0x60090
 /* [ST 32] The number of cycles that the write_full signal towards MAC #0
@@ -125,6 +137,10 @@
    stands for weight 8 (the most prioritised); 1 stands for weight 1(least
    prioritised); 2 stands for weight 2; tc. */
 #define CCM_REG_CQM_P_WEIGHT					 0xd00b8
+/* [RW 3] The weight of the QM (secondary) input in the WRR mechanism. 0
+   stands for weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define CCM_REG_CQM_S_WEIGHT					 0xd00bc
 /* [RW 1] Input SDM Interface enable. If 0 - the valid input is disregarded;
    acknowledge output is deasserted; all other signals are treated as usual;
    if 1 - normal activity. */
@@ -132,6 +148,10 @@
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the SDM interface is detected. */
 #define CCM_REG_CSDM_LENGTH_MIS 				 0xd0170
+/* [RW 3] The weight of the SDM input in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define CCM_REG_CSDM_WEIGHT					 0xd00b4
 /* [RW 28] The CM header for QM formatting in case of an error in the QM
    inputs. */
 #define CCM_REG_ERR_CCM_HDR					 0xd0094
@@ -211,6 +231,11 @@
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the STORM interface is detected. */
 #define CCM_REG_STORM_LENGTH_MIS				 0xd016c
+/* [RW 3] The weight of the STORM input in the WRR (Weighted Round robin)
+   mechanism. 0 stands for weight 8 (the most prioritised); 1 stands for
+   weight 1(least prioritised); 2 stands for weight 2 (more prioritised);
+   tc. */
+#define CCM_REG_STORM_WEIGHT					 0xd009c
 /* [RW 1] Input tsem Interface enable. If 0 - the valid input is
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
@@ -323,7 +348,11 @@
    set one of these bits. the bit description can be found in CFC
    specifications */
 #define CFC_REG_ERROR_VECTOR					 0x10403c
+/* [WB 93] LCID info ram access */
+#define CFC_REG_INFO_RAM					 0x105000
+#define CFC_REG_INFO_RAM_SIZE					 1024
 #define CFC_REG_INIT_REG					 0x10404c
+#define CFC_REG_INTERFACES					 0x104058
 /* [RW 24] {weight_load_client7[2:0] to weight_load_client0[2:0]}. this
    field allows changing the priorities of the weighted-round-robin arbiter
    which selects which CFC load client should be served next */
@@ -337,8 +366,6 @@
 #define CFC_REG_NUM_LCIDS_ALLOC 				 0x104020
 /* [R 9] Number of Arriving LCIDs in Link List Block */
 #define CFC_REG_NUM_LCIDS_ARRIVING				 0x104004
-/* [R 9] Number of Inside LCIDs in Link List Block */
-#define CFC_REG_NUM_LCIDS_INSIDE				 0x104008
 /* [R 9] Number of Leaving LCIDs in Link List Block */
 #define CFC_REG_NUM_LCIDS_LEAVING				 0x104018
 /* [RW 8] The event id for aggregated interrupt 0 */
@@ -730,6 +757,7 @@
 #define DORQ_REG_SHRT_CMHEAD					 0x170054
 #define HC_CONFIG_0_REG_ATTN_BIT_EN_0				 (0x1<<4)
 #define HC_CONFIG_0_REG_INT_LINE_EN_0				 (0x1<<3)
+#define HC_CONFIG_0_REG_MSI_ATTN_EN_0				 (0x1<<7)
 #define HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0			 (0x1<<2)
 #define HC_CONFIG_0_REG_SINGLE_ISR_EN_0 			 (0x1<<1)
 #define HC_REG_AGG_INT_0					 0x108050
@@ -1410,6 +1438,29 @@
    This is the result value of the pin; not the drive value. Writing these
    bits will have not effect. */
 #define MISC_REG_GPIO						 0xa490
+/* [RW 8] These bits enable the GPIO_INTs to signals event to the
+   IGU/MCP.according to the following map: [0] p0_gpio_0; [1] p0_gpio_1; [2]
+   p0_gpio_2; [3] p0_gpio_3; [4] p1_gpio_0; [5] p1_gpio_1; [6] p1_gpio_2;
+   [7] p1_gpio_3; */
+#define MISC_REG_GPIO_EVENT_EN					 0xa2bc
+/* [RW 32] GPIO INT. [31-28] OLD_CLR port1; [27-24] OLD_CLR port0; Writing a
+   '1' to these bit clears the corresponding bit in the #OLD_VALUE register.
+   This will acknowledge an interrupt on the falling edge of corresponding
+   GPIO input (reset value 0). [23-16] OLD_SET [23-16] port1; OLD_SET port0;
+   Writing a '1' to these bit sets the corresponding bit in the #OLD_VALUE
+   register. This will acknowledge an interrupt on the rising edge of
+   corresponding SPIO input (reset value 0). [15-12] OLD_VALUE [11-8] port1;
+   OLD_VALUE port0; RO; These bits indicate the old value of the GPIO input
+   value. When the ~INT_STATE bit is set; this bit indicates the OLD value
+   of the pin such that if ~INT_STATE is set and this bit is '0'; then the
+   interrupt is due to a low to high edge. If ~INT_STATE is set and this bit
+   is '1'; then the interrupt is due to a high to low edge (reset value 0).
+   [7-4] INT_STATE port1; [3-0] INT_STATE RO port0; These bits indicate the
+   current GPIO interrupt state for each GPIO pin. This bit is cleared when
+   the appropriate #OLD_SET or #OLD_CLR command bit is written. This bit is
+   set when the GPIO input does not match the current value in #OLD_VALUE
+   (reset value 0). */
+#define MISC_REG_GPIO_INT					 0xa494
 /* [R 28] this field hold the last information that caused reserved
    attention. bits [19:0] - address; [22:20] function; [23] reserved;
    [27:24] the master that caused the attention - according to the following
@@ -1554,6 +1605,14 @@
    command bit is written. This bit is set when the SPIO input does not
    match the current value in #OLD_VALUE (reset value 0). */
 #define MISC_REG_SPIO_INT					 0xa500
+/* [RW 32] reload value for counter 4 if reload; the value will be reload if
+   the counter reached zero and the reload bit
+   (~misc_registers_sw_timer_cfg_4.sw_timer_cfg_4[1] ) is set */
+#define MISC_REG_SW_TIMER_RELOAD_VAL_4				 0xa2fc
+/* [RW 32] the value of the counter for sw timers1-8. there are 8 addresses
+   in this register. addres 0 - timer 1; address - timer 2�address 7 -
+   timer 8 */
+#define MISC_REG_SW_TIMER_VAL					 0xa5c0
 /* [RW 1] Set by the MCP to remember if one or more of the drivers is/are
    loaded; 0-prepare; -unprepare */
 #define MISC_REG_UNPREPARED					 0xa424
@@ -1660,6 +1719,19 @@
 /* [RW 4] led mode for port0: 0 MAC; 1-3 PHY1; 4 MAC2; 5-7 PHY4; 8-MAC3;
    9-11PHY7; 12 MAC4; 13-15 PHY10; */
 #define NIG_REG_LED_MODE_P0					 0x102f0
+/* [RW 3] for port0 enable for llfc ppp and pause. b0 - brb1 enable; b1-
+   tsdm enable; b2- usdm enable */
+#define NIG_REG_LLFC_EGRESS_SRC_ENABLE_0			 0x16070
+/* [RW 1] SAFC enable for port0. This register may get 1 only when
+   ~ppp_enable.ppp_enable = 0 and pause_enable.pause_enable =0 for the same
+   port */
+#define NIG_REG_LLFC_ENABLE_0					 0x16208
+/* [RW 16] classes are high-priority for port0 */
+#define NIG_REG_LLFC_HIGH_PRIORITY_CLASSES_0			 0x16058
+/* [RW 16] classes are low-priority for port0 */
+#define NIG_REG_LLFC_LOW_PRIORITY_CLASSES_0			 0x16060
+/* [RW 1] Output enable of message to LLFC BMAC IF for port0 */
+#define NIG_REG_LLFC_OUT_EN_0					 0x160c8
 #define NIG_REG_LLH0_ACPI_PAT_0_CRC				 0x1015c
 #define NIG_REG_LLH0_ACPI_PAT_6_LEN				 0x10154
 #define NIG_REG_LLH0_BRB1_DRV_MASK				 0x10244
@@ -1730,6 +1802,10 @@
 #define NIG_REG_NIG_INT_STS_1					 0x103c0
 /* [R 32] Parity register #0 read */
 #define NIG_REG_NIG_PRTY_STS					 0x103d0
+/* [RW 1] Pause enable for port0. This register may get 1 only when
+   ~safc_enable.safc_enable = 0 and ppp_enable.ppp_enable =0 for the same
+   port */
+#define NIG_REG_PAUSE_ENABLE_0					 0x160c0
 /* [RW 1] Input enable for RX PBF LP IF */
 #define NIG_REG_PBF_LB_IN_EN					 0x100b4
 /* [RW 1] Value of this register will be transmitted to port swap when
@@ -1739,6 +1815,10 @@
 #define NIG_REG_PRS_EOP_OUT_EN					 0x10104
 /* [RW 1] Input enable for RX parser request IF */
 #define NIG_REG_PRS_REQ_IN_EN					 0x100b8
+/* [RW 5] control to serdes - CL45 DEVAD */
+#define NIG_REG_SERDES0_CTRL_MD_DEVAD				 0x10370
+/* [RW 1] control to serdes; 0 - clause 45; 1 - clause 22 */
+#define NIG_REG_SERDES0_CTRL_MD_ST				 0x1036c
 /* [RW 5] control to serdes - CL22 PHY_ADD and CL45 PRTAD */
 #define NIG_REG_SERDES0_CTRL_PHY_ADDR				 0x10374
 /* [R 1] status from serdes0 that inputs to interrupt logic of link status */
@@ -1885,6 +1965,7 @@
 #define PRS_REG_CM_HDR_FLUSH_LOAD_TYPE_2			 0x400e4
 #define PRS_REG_CM_HDR_FLUSH_LOAD_TYPE_3			 0x400e8
 #define PRS_REG_CM_HDR_FLUSH_LOAD_TYPE_4			 0x400ec
+#define PRS_REG_CM_HDR_FLUSH_LOAD_TYPE_5			 0x400f0
 /* [RW 32] The CM header for flush message where 'load existed' bit in CFC
    load response is set and packet type is 0. Used in packet start message
    to TCM. */
@@ -1893,6 +1974,7 @@
 #define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_2			 0x400c4
 #define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_3			 0x400c8
 #define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_4			 0x400cc
+#define PRS_REG_CM_HDR_FLUSH_NO_LOAD_TYPE_5			 0x400d0
 /* [RW 32] The CM header for a match and packet type 1 for loopback port.
    Used in packet start message to TCM. */
 #define PRS_REG_CM_HDR_LOOPBACK_TYPE_1				 0x4009c
@@ -2035,6 +2117,19 @@
 #define PXP2_REG_PGL_INT_XSDM_5 				 0x1204e8
 #define PXP2_REG_PGL_INT_XSDM_6 				 0x1204ec
 #define PXP2_REG_PGL_INT_XSDM_7 				 0x1204f0
+/* [RW 3] this field allows one function to pretend being another function
+   when accessing any BAR mapped resource within the device. the value of
+   the field is the number of the function that will be accessed
+   effectively. after software write to this bit it must read it in order to
+   know that the new value is updated */
+#define PXP2_REG_PGL_PRETEND_FUNC_F0				 0x120674
+#define PXP2_REG_PGL_PRETEND_FUNC_F1				 0x120678
+#define PXP2_REG_PGL_PRETEND_FUNC_F2				 0x12067c
+#define PXP2_REG_PGL_PRETEND_FUNC_F3				 0x120680
+#define PXP2_REG_PGL_PRETEND_FUNC_F4				 0x120684
+#define PXP2_REG_PGL_PRETEND_FUNC_F5				 0x120688
+#define PXP2_REG_PGL_PRETEND_FUNC_F6				 0x12068c
+#define PXP2_REG_PGL_PRETEND_FUNC_F7				 0x120690
 /* [R 1] this bit indicates that a read request was blocked because of
    bus_master_en was deasserted */
 #define PXP2_REG_PGL_READ_BLOCKED				 0x120568
@@ -2498,6 +2593,11 @@
    considered zero so practically there are only 20 bits in this register;
    queues 63-0 */
 #define QM_REG_BASEADDR 					 0x168900
+/* [RW 32] The base logical address (in bytes) of each physical queue. The
+   index I represents the physical queue number. The 12 lsbs are ignore and
+   considered zero so practically there are only 20 bits in this register;
+   queues 127-64 */
+#define QM_REG_BASEADDR_EXT_A					 0x16e100
 /* [RW 16] The byte credit cost for each task. This value is for both ports */
 #define QM_REG_BYTECRDCOST					 0x168234
 /* [RW 16] The initial byte credit value for both ports. */
@@ -3438,6 +3538,16 @@
 #define SRC_REG_KEYRSS0_0					 0x40408
 #define SRC_REG_KEYRSS0_7					 0x40424
 #define SRC_REG_KEYRSS1_9					 0x40454
+#define SRC_REG_KEYSEARCH_0					 0x40458
+#define SRC_REG_KEYSEARCH_1					 0x4045c
+#define SRC_REG_KEYSEARCH_2					 0x40460
+#define SRC_REG_KEYSEARCH_3					 0x40464
+#define SRC_REG_KEYSEARCH_4					 0x40468
+#define SRC_REG_KEYSEARCH_5					 0x4046c
+#define SRC_REG_KEYSEARCH_6					 0x40470
+#define SRC_REG_KEYSEARCH_7					 0x40474
+#define SRC_REG_KEYSEARCH_8					 0x40478
+#define SRC_REG_KEYSEARCH_9					 0x4047c
 #define SRC_REG_LASTFREE0					 0x40530
 #define SRC_REG_NUMBER_HASH_BITS0				 0x40400
 /* [RW 1] Reset internal state machines. */
@@ -3481,6 +3591,10 @@
 /* [RC 1] Message length mismatch (relative to last indication) at the In#9
    interface. */
 #define TCM_REG_CSEM_LENGTH_MIS 				 0x50174
+/* [RW 3] The weight of the input csem in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define TCM_REG_CSEM_WEIGHT					 0x500bc
 /* [RW 8] The Event ID in case of ErrorFlg is set in the input message. */
 #define TCM_REG_ERR_EVNT_ID					 0x500a0
 /* [RW 28] The CM erroneous header for QM and Timers formatting. */
@@ -3524,6 +3638,7 @@
 #define TCM_REG_N_SM_CTX_LD_2					 0x50058
 #define TCM_REG_N_SM_CTX_LD_3					 0x5005c
 #define TCM_REG_N_SM_CTX_LD_4					 0x50060
+#define TCM_REG_N_SM_CTX_LD_5					 0x50064
 /* [RW 1] Input pbf Interface enable. If 0 - the valid input is disregarded;
    acknowledge output is deasserted; all other signals are treated as usual;
    if 1 - normal activity. */
@@ -3563,6 +3678,10 @@
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
 #define TCM_REG_STORM_TCM_IFEN					 0x50010
+/* [RW 3] The weight of the STORM input in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define TCM_REG_STORM_WEIGHT					 0x500ac
 /* [RW 1] CM - CFC Interface enable. If 0 - the valid input is disregarded;
    acknowledge output is deasserted; all other signals are treated as usual;
    if 1 - normal activity. */
@@ -3598,10 +3717,22 @@
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
 #define TCM_REG_TM_TCM_IFEN					 0x5001c
+/* [RW 3] The weight of the Timers input in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define TCM_REG_TM_WEIGHT					 0x500d0
 /* [RW 6] QM output initial credit. Max credit available - 32.Write writes
    the initial credit value; read returns the current value of the credit
    counter. Must be initialized to 32 at start-up. */
 #define TCM_REG_TQM_INIT_CRD					 0x5021c
+/* [RW 3] The weight of the QM (primary) input in the WRR mechanism. 0
+   stands for weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define TCM_REG_TQM_P_WEIGHT					 0x500c8
+/* [RW 3] The weight of the QM (secondary) input in the WRR mechanism. 0
+   stands for weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define TCM_REG_TQM_S_WEIGHT					 0x500cc
 /* [RW 28] The CM header value for QM request (primary). */
 #define TCM_REG_TQM_TCM_HDR_P					 0x50090
 /* [RW 28] The CM header value for QM request (secondary). */
@@ -3628,6 +3759,10 @@
 /* [RC 1] Message length mismatch (relative to last indication) at the In#8
    interface. */
 #define TCM_REG_USEM_LENGTH_MIS 				 0x50170
+/* [RW 3] The weight of the input usem in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define TCM_REG_USEM_WEIGHT					 0x500b8
 /* [RW 21] Indirect access to the descriptor table of the XX protection
    mechanism. The fields are: [5:0] - length of the message; 15:6] - message
    pointer; 20:16] - next pointer. */
@@ -3677,6 +3812,7 @@
 #define TM_REG_EN_CL1_INPUT					 0x16400c
 /* [RW 1] Enable client2 input. */
 #define TM_REG_EN_CL2_INPUT					 0x164010
+#define TM_REG_EN_LINEAR0_TIMER 				 0x164014
 /* [RW 1] Enable real time counter. */
 #define TM_REG_EN_REAL_TIME_CNT 				 0x1640d8
 /* [RW 1] Enable for Timers state machines. */
@@ -3684,14 +3820,22 @@
 /* [RW 4] Load value for expiration credit cnt. CFC max number of
    outstanding load requests for timers (expiration) context loading. */
 #define TM_REG_EXP_CRDCNT_VAL					 0x164238
+/* [RW 32] Linear0 logic address. */
+#define TM_REG_LIN0_LOGIC_ADDR					 0x164240
 /* [RW 18] Linear0 Max active cid (in banks of 32 entries). */
 #define TM_REG_LIN0_MAX_ACTIVE_CID				 0x164048
 /* [WB 64] Linear0 phy address. */
 #define TM_REG_LIN0_PHY_ADDR					 0x164270
+/* [RW 1] Linear0 physical address valid. */
+#define TM_REG_LIN0_PHY_ADDR_VALID				 0x164248
 /* [RW 24] Linear0 array scan timeout. */
 #define TM_REG_LIN0_SCAN_TIME					 0x16403c
+/* [RW 32] Linear1 logic address. */
+#define TM_REG_LIN1_LOGIC_ADDR					 0x164250
 /* [WB 64] Linear1 phy address. */
 #define TM_REG_LIN1_PHY_ADDR					 0x164280
+/* [RW 1] Linear1 physical address valid. */
+#define TM_REG_LIN1_PHY_ADDR_VALID				 0x164258
 /* [RW 6] Linear timer set_clear fifo threshold. */
 #define TM_REG_LIN_SETCLR_FIFO_ALFULL_THR			 0x164070
 /* [RW 2] Load value for pci arbiter credit cnt. */
@@ -3708,6 +3852,17 @@
 #define TM_REG_TM_INT_STS					 0x1640f0
 /* [RW 8] The event id for aggregated interrupt 0 */
 #define TSDM_REG_AGG_INT_EVENT_0				 0x42038
+#define TSDM_REG_AGG_INT_EVENT_1				 0x4203c
+#define TSDM_REG_AGG_INT_EVENT_10				 0x42060
+#define TSDM_REG_AGG_INT_EVENT_11				 0x42064
+#define TSDM_REG_AGG_INT_EVENT_12				 0x42068
+#define TSDM_REG_AGG_INT_EVENT_13				 0x4206c
+#define TSDM_REG_AGG_INT_EVENT_14				 0x42070
+#define TSDM_REG_AGG_INT_EVENT_15				 0x42074
+#define TSDM_REG_AGG_INT_EVENT_16				 0x42078
+#define TSDM_REG_AGG_INT_EVENT_17				 0x4207c
+#define TSDM_REG_AGG_INT_EVENT_18				 0x42080
+#define TSDM_REG_AGG_INT_EVENT_19				 0x42084
 #define TSDM_REG_AGG_INT_EVENT_2				 0x42040
 #define TSDM_REG_AGG_INT_EVENT_20				 0x42088
 #define TSDM_REG_AGG_INT_EVENT_21				 0x4208c
@@ -3723,6 +3878,19 @@
 #define TSDM_REG_AGG_INT_EVENT_30				 0x420b0
 #define TSDM_REG_AGG_INT_EVENT_31				 0x420b4
 #define TSDM_REG_AGG_INT_EVENT_4				 0x42048
+/* [RW 1] The T bit for aggregated interrupt 0 */
+#define TSDM_REG_AGG_INT_T_0					 0x420b8
+#define TSDM_REG_AGG_INT_T_1					 0x420bc
+#define TSDM_REG_AGG_INT_T_10					 0x420e0
+#define TSDM_REG_AGG_INT_T_11					 0x420e4
+#define TSDM_REG_AGG_INT_T_12					 0x420e8
+#define TSDM_REG_AGG_INT_T_13					 0x420ec
+#define TSDM_REG_AGG_INT_T_14					 0x420f0
+#define TSDM_REG_AGG_INT_T_15					 0x420f4
+#define TSDM_REG_AGG_INT_T_16					 0x420f8
+#define TSDM_REG_AGG_INT_T_17					 0x420fc
+#define TSDM_REG_AGG_INT_T_18					 0x42100
+#define TSDM_REG_AGG_INT_T_19					 0x42104
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define TSDM_REG_CFC_RSP_START_ADDR				 0x42008
 /* [RW 16] The maximum value of the competion counter #0 */
@@ -3967,6 +4135,10 @@
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the dorq interface is detected. */
 #define UCM_REG_DORQ_LENGTH_MIS 				 0xe0168
+/* [RW 3] The weight of the input dorq in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define UCM_REG_DORQ_WEIGHT					 0xe00c0
 /* [RW 8] The Event ID in case ErrorFlg input message bit is set. */
 #define UCM_REG_ERR_EVNT_ID					 0xe00a4
 /* [RW 28] The CM erroneous header for QM and Timers formatting. */
@@ -4030,6 +4202,10 @@
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
 #define UCM_REG_STORM_UCM_IFEN					 0xe0010
+/* [RW 3] The weight of the STORM input in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define UCM_REG_STORM_WEIGHT					 0xe00b0
 /* [RW 4] Timers output initial credit. Max credit available - 15.Write
    writes the initial credit value; read returns the current value of the
    credit counter. Must be initialized to 4 at start-up. */
@@ -4040,6 +4216,10 @@
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
 #define UCM_REG_TM_UCM_IFEN					 0xe001c
+/* [RW 3] The weight of the Timers input in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define UCM_REG_TM_WEIGHT					 0xe00d4
 /* [RW 1] Input tsem Interface enable. If 0 - the valid input is
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
@@ -4092,6 +4272,10 @@
    stands for weight 8 (the most prioritised); 1 stands for weight 1(least
    prioritised); 2 stands for weight 2; tc. */
 #define UCM_REG_UQM_P_WEIGHT					 0xe00cc
+/* [RW 3] The weight of the QM (secondary) input in the WRR mechanism. 0
+   stands for weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define UCM_REG_UQM_S_WEIGHT					 0xe00d0
 /* [RW 28] The CM header value for QM request (primary). */
 #define UCM_REG_UQM_UCM_HDR_P					 0xe0094
 /* [RW 28] The CM header value for QM request (secondary). */
@@ -4107,6 +4291,10 @@
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the SDM interface is detected. */
 #define UCM_REG_USDM_LENGTH_MIS 				 0xe0158
+/* [RW 3] The weight of the SDM input in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define UCM_REG_USDM_WEIGHT					 0xe00c8
 /* [RW 1] Input xsem Interface enable. If 0 - the valid input is
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
@@ -4114,6 +4302,10 @@
 /* [RC 1] Set when the message length mismatch (relative to last indication)
    at the xsem interface isdetected. */
 #define UCM_REG_XSEM_LENGTH_MIS 				 0xe0164
+/* [RW 3] The weight of the input xsem in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define UCM_REG_XSEM_WEIGHT					 0xe00bc
 /* [RW 20] Indirect access to the descriptor table of the XX protection
    mechanism. The fields are:[5:0] - message length; 14:6] - message
    pointer; 19:15] - next pointer. */
@@ -4163,6 +4355,7 @@
 #define USDM_REG_AGG_INT_EVENT_30				 0xc40b0
 #define USDM_REG_AGG_INT_EVENT_31				 0xc40b4
 #define USDM_REG_AGG_INT_EVENT_4				 0xc4048
+#define USDM_REG_AGG_INT_EVENT_5				 0xc404c
 /* [RW 1] For each aggregated interrupt index whether the mode is normal (0)
    or auto-mask-mode (1) */
 #define USDM_REG_AGG_INT_MODE_0 				 0xc41b8
@@ -4177,6 +4370,8 @@
 #define USDM_REG_AGG_INT_MODE_17				 0xc41fc
 #define USDM_REG_AGG_INT_MODE_18				 0xc4200
 #define USDM_REG_AGG_INT_MODE_19				 0xc4204
+#define USDM_REG_AGG_INT_MODE_4 				 0xc41c8
+#define USDM_REG_AGG_INT_MODE_5 				 0xc41cc
 /* [RW 13] The start address in the internal RAM for the cfc_rsp lcid */
 #define USDM_REG_CFC_RSP_START_ADDR				 0xc4008
 /* [RW 16] The maximum value of the competion counter #0 */
@@ -4427,6 +4622,10 @@
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the dorq interface. */
 #define XCM_REG_DORQ_LENGTH_MIS 				 0x20230
+/* [RW 3] The weight of the input dorq in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define XCM_REG_DORQ_WEIGHT					 0x200cc
 /* [RW 8] The Event ID in case the ErrorFlg input message bit is set. */
 #define XCM_REG_ERR_EVNT_ID					 0x200b0
 /* [RW 28] The CM erroneous header for QM and Timers formatting. */
@@ -4465,6 +4664,10 @@
 /* [RC 1] Set at message length mismatch (relative to last indication) at
    the nig0 interface. */
 #define XCM_REG_NIG0_LENGTH_MIS 				 0x20238
+/* [RW 3] The weight of the input nig0 in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define XCM_REG_NIG0_WEIGHT					 0x200d4
 /* [RW 1] Input nig1 Interface enable. If 0 - the valid input is
    disregarded; acknowledge output is deasserted; all other signals are
    treated as usual; if 1 - normal activity. */
@@ -4523,6 +4726,10 @@
    writes the initial credit value; read returns the current value of the
    credit counter. Must be initialized to 4 at start-up. */
 #define XCM_REG_TM_INIT_CRD					 0x2041c
+/* [RW 3] The weight of the Timers input in the WRR mechanism. 0 stands for
+   weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define XCM_REG_TM_WEIGHT					 0x200ec
 /* [RW 28] The CM header for Timers expiration command. */
 #define XCM_REG_TM_XCM_HDR					 0x200a8
 /* [RW 1] Timers - CM Interface enable. If 0 - the valid input is
@@ -4608,6 +4815,10 @@
    stands for weight 8 (the most prioritised); 1 stands for weight 1(least
    prioritised); 2 stands for weight 2; tc. */
 #define XCM_REG_XQM_P_WEIGHT					 0x200e4
+/* [RW 3] The weight of the QM (secondary) input in the WRR mechanism. 0
+   stands for weight 8 (the most prioritised); 1 stands for weight 1(least
+   prioritised); 2 stands for weight 2; tc. */
+#define XCM_REG_XQM_S_WEIGHT					 0x200e8
 /* [RW 28] The CM header value for QM request (primary). */
 #define XCM_REG_XQM_XCM_HDR_P					 0x200a0
 /* [RW 28] The CM header value for QM request (secondary). */
@@ -4665,6 +4876,8 @@
 #define XSDM_REG_AGG_INT_EVENT_10				 0x166060
 #define XSDM_REG_AGG_INT_EVENT_11				 0x166064
 #define XSDM_REG_AGG_INT_EVENT_12				 0x166068
+#define XSDM_REG_AGG_INT_EVENT_13				 0x16606c
+#define XSDM_REG_AGG_INT_EVENT_14				 0x166070
 #define XSDM_REG_AGG_INT_EVENT_2				 0x166040
 #define XSDM_REG_AGG_INT_EVENT_20				 0x166088
 #define XSDM_REG_AGG_INT_EVENT_21				 0x16608c
@@ -4964,9 +5177,11 @@
 #define EMAC_RX_MODE_FLOW_EN					 (1L<<2)
 #define EMAC_RX_MODE_KEEP_VLAN_TAG				 (1L<<10)
 #define EMAC_RX_MODE_PROMISCUOUS				 (1L<<8)
+#define EMAC_RX_MODE_RESET					 (1L<<0)
 #define EMAC_RX_MTU_SIZE_JUMBO_ENA				 (1L<<31)
 #define EMAC_TX_MODE_EXT_PAUSE_EN				 (1L<<3)
 #define EMAC_TX_MODE_FLOW_EN					 (1L<<4)
+#define EMAC_TX_MODE_RESET					 (1L<<0)
 #define MISC_REGISTERS_GPIO_0					 0
 #define MISC_REGISTERS_GPIO_1					 1
 #define MISC_REGISTERS_GPIO_2					 2
@@ -4976,6 +5191,10 @@
 #define MISC_REGISTERS_GPIO_FLOAT_POS				 24
 #define MISC_REGISTERS_GPIO_HIGH				 1
 #define MISC_REGISTERS_GPIO_INPUT_HI_Z				 2
+#define MISC_REGISTERS_GPIO_INT_CLR_POS 			 24
+#define MISC_REGISTERS_GPIO_INT_OUTPUT_CLR			 0
+#define MISC_REGISTERS_GPIO_INT_OUTPUT_SET			 1
+#define MISC_REGISTERS_GPIO_INT_SET_POS 			 16
 #define MISC_REGISTERS_GPIO_LOW 				 0
 #define MISC_REGISTERS_GPIO_OUTPUT_HIGH 			 1
 #define MISC_REGISTERS_GPIO_OUTPUT_LOW				 0
@@ -5015,11 +5234,12 @@
 #define MISC_REGISTERS_SPIO_OUTPUT_LOW				 0
 #define MISC_REGISTERS_SPIO_SET_POS				 8
 #define HW_LOCK_MAX_RESOURCE_VALUE				 31
-#define HW_LOCK_RESOURCE_8072_MDIO				 0
 #define HW_LOCK_RESOURCE_GPIO					 1
+#define HW_LOCK_RESOURCE_MDIO					 0
 #define HW_LOCK_RESOURCE_PORT0_ATT_MASK 			 3
 #define HW_LOCK_RESOURCE_SPIO					 2
 #define HW_LOCK_RESOURCE_UNDI					 5
+#define PRS_FLAG_OVERETH_IPV4					 1
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
 #define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT		      (1<<31)
 #define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT		      (1<<9)
@@ -5034,6 +5254,8 @@
 #define AEU_INPUTS_ATTN_BITS_DMAE_HW_INTERRUPT		      (1<<11)
 #define AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT	      (1<<13)
 #define AEU_INPUTS_ATTN_BITS_DOORBELLQ_PARITY_ERROR	      (1<<12)
+#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0		      (1<<5)
+#define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1		      (1<<9)
 #define AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR		      (1<<12)
 #define AEU_INPUTS_ATTN_BITS_MISC_HW_INTERRUPT		      (1<<15)
 #define AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR		      (1<<14)
@@ -5188,7 +5410,7 @@
 #define PCICFG_COMMAND_INT_DISABLE		(1<<10)
 #define PCICFG_COMMAND_RESERVED 		(0x1f<<11)
 #define PCICFG_STATUS_OFFSET				0x06
-#define PCICFG_REVESION_ID				0x08
+#define PCICFG_REVESION_ID_OFFSET			0x08
 #define PCICFG_CACHE_LINE_SIZE				0x0c
 #define PCICFG_LATENCY_TIMER				0x0d
 #define PCICFG_BAR_1_LOW				0x10
@@ -5216,9 +5438,28 @@
 #define PCICFG_PM_CSR_STATE			(0x3<<0)
 #define PCICFG_PM_CSR_PME_ENABLE		(1<<8)
 #define PCICFG_PM_CSR_PME_STATUS		(1<<15)
+#define PCICFG_MSI_CAP_ID_OFFSET			0x58
+#define PCICFG_MSI_CONTROL_ENABLE		(0x1<<16)
+#define PCICFG_MSI_CONTROL_MCAP 		(0x7<<17)
+#define PCICFG_MSI_CONTROL_MENA 		(0x7<<20)
+#define PCICFG_MSI_CONTROL_64_BIT_ADDR_CAP	(0x1<<23)
+#define PCICFG_MSI_CONTROL_MSI_PVMASK_CAPABLE	(0x1<<24)
 #define PCICFG_GRC_ADDRESS				0x78
 #define PCICFG_GRC_DATA 				0x80
+#define PCICFG_MSIX_CAP_ID_OFFSET			0xa0
+#define PCICFG_MSIX_CONTROL_TABLE_SIZE		(0x7ff<<16)
+#define PCICFG_MSIX_CONTROL_RESERVED		(0x7<<27)
+#define PCICFG_MSIX_CONTROL_FUNC_MASK		(0x1<<30)
+#define PCICFG_MSIX_CONTROL_MSIX_ENABLE 	(0x1<<31)
+
 #define PCICFG_DEVICE_CONTROL				0xb4
+#define PCICFG_DEVICE_STATUS				0xb6
+#define PCICFG_DEVICE_STATUS_CORR_ERR_DET	(1<<0)
+#define PCICFG_DEVICE_STATUS_NON_FATAL_ERR_DET	(1<<1)
+#define PCICFG_DEVICE_STATUS_FATAL_ERR_DET	(1<<2)
+#define PCICFG_DEVICE_STATUS_UNSUP_REQ_DET	(1<<3)
+#define PCICFG_DEVICE_STATUS_AUX_PWR_DET	(1<<4)
+#define PCICFG_DEVICE_STATUS_NO_PEND		(1<<5)
 #define PCICFG_LINK_CONTROL				0xbc
 
 
@@ -5353,6 +5594,42 @@
 
 #define MDIO_REG_BANK_TX0				0x8060
 #define MDIO_TX0_TX_DRIVER				0x17
+#define MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK		0xf000
+#define MDIO_TX0_TX_DRIVER_PREEMPHASIS_SHIFT		12
+#define MDIO_TX0_TX_DRIVER_IDRIVER_MASK 		0x0f00
+#define MDIO_TX0_TX_DRIVER_IDRIVER_SHIFT		8
+#define MDIO_TX0_TX_DRIVER_IPREDRIVER_MASK		0x00f0
+#define MDIO_TX0_TX_DRIVER_IPREDRIVER_SHIFT		4
+#define MDIO_TX0_TX_DRIVER_IFULLSPD_MASK		0x000e
+#define MDIO_TX0_TX_DRIVER_IFULLSPD_SHIFT		1
+#define MDIO_TX0_TX_DRIVER_ICBUF1T			1
+
+#define MDIO_REG_BANK_TX1				0x8070
+#define MDIO_TX1_TX_DRIVER				0x17
+#define MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK		0xf000
+#define MDIO_TX0_TX_DRIVER_PREEMPHASIS_SHIFT		12
+#define MDIO_TX0_TX_DRIVER_IDRIVER_MASK 		0x0f00
+#define MDIO_TX0_TX_DRIVER_IDRIVER_SHIFT		8
+#define MDIO_TX0_TX_DRIVER_IPREDRIVER_MASK		0x00f0
+#define MDIO_TX0_TX_DRIVER_IPREDRIVER_SHIFT		4
+#define MDIO_TX0_TX_DRIVER_IFULLSPD_MASK		0x000e
+#define MDIO_TX0_TX_DRIVER_IFULLSPD_SHIFT		1
+#define MDIO_TX0_TX_DRIVER_ICBUF1T			1
+
+#define MDIO_REG_BANK_TX2				0x8080
+#define MDIO_TX2_TX_DRIVER				0x17
+#define MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK		0xf000
+#define MDIO_TX0_TX_DRIVER_PREEMPHASIS_SHIFT		12
+#define MDIO_TX0_TX_DRIVER_IDRIVER_MASK 		0x0f00
+#define MDIO_TX0_TX_DRIVER_IDRIVER_SHIFT		8
+#define MDIO_TX0_TX_DRIVER_IPREDRIVER_MASK		0x00f0
+#define MDIO_TX0_TX_DRIVER_IPREDRIVER_SHIFT		4
+#define MDIO_TX0_TX_DRIVER_IFULLSPD_MASK		0x000e
+#define MDIO_TX0_TX_DRIVER_IFULLSPD_SHIFT		1
+#define MDIO_TX0_TX_DRIVER_ICBUF1T			1
+
+#define MDIO_REG_BANK_TX3				0x8090
+#define MDIO_TX3_TX_DRIVER				0x17
 #define MDIO_TX0_TX_DRIVER_PREEMPHASIS_MASK		0xf000
 #define MDIO_TX0_TX_DRIVER_PREEMPHASIS_SHIFT		12
 #define MDIO_TX0_TX_DRIVER_IDRIVER_MASK 		0x0f00
@@ -5566,8 +5843,29 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_ROM_VER2		0xca1a
 #define MDIO_PMA_REG_EDC_FFE_MAIN	0xca1b
 #define MDIO_PMA_REG_PLL_BANDWIDTH	0xca1d
+#define MDIO_PMA_REG_GEN_CTRL2		0xca1e
+#define MDIO_PMA_REG_MISC_CTRL0 	0xca23
+#define MDIO_PMA_REG_LRM_MODE		0xca3f
 #define MDIO_PMA_REG_CDR_BANDWIDTH	0xca46
 #define MDIO_PMA_REG_MISC_CTRL1 	0xca85
+
+#define MDIO_PMA_REG_8726_TWO_WIRE_CTRL 	0x8000
+#define MDIO_PMA_REG_8726_TWO_WIRE_CTRL_STATUS_MASK	0x000c
+#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_IDLE		0x0000
+#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_COMPLETE	0x0004
+#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_IN_PROGRESS	0x0008
+#define MDIO_PMA_REG_8726_TWO_WIRE_STATUS_FAILED	0x000c
+#define MDIO_PMA_REG_8726_TWO_WIRE_BYTE_CNT	0x8002
+#define MDIO_PMA_REG_8726_TWO_WIRE_MEM_ADDR	0x8003
+#define MDIO_PMA_REG_8726_TWO_WIRE_DATA_BUF	0xc820
+#define MDIO_PMA_REG_8726_TWO_WIRE_DATA_MASK 0xff
+#define MDIO_PMA_REG_8726_TX_CTRL1		0xca01
+#define MDIO_PMA_REG_8726_TX_CTRL2		0xca05
+
+
+#define MDIO_PMA_REG_8073_CHIP_REV			0xc801
+#define MDIO_PMA_REG_8073_SPEED_LINK_STATUS		0xc820
+#define MDIO_PMA_REG_8073_XAUI_WA			0xc841
 
 #define MDIO_PMA_REG_7101_RESET 	0xc000
 #define MDIO_PMA_REG_7107_LED_CNTL	0xc007
@@ -5598,6 +5896,12 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_XS_PLL_SEQUENCER		0x8000
 #define MDIO_XS_SFX7101_XGXS_TEST1	0xc00a
 
+#define MDIO_XS_8706_REG_BANK_RX0	0x80bc
+#define MDIO_XS_8706_REG_BANK_RX1	0x80cc
+#define MDIO_XS_8706_REG_BANK_RX2	0x80dc
+#define MDIO_XS_8706_REG_BANK_RX3	0x80ec
+#define MDIO_XS_8706_REG_BANK_RXA	0x80fc
+
 #define MDIO_AN_DEVAD			0x7
 /*ieee*/
 #define MDIO_AN_REG_CTRL		0x0000
@@ -5618,6 +5922,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_AN_REG_CL37_AN		0xffe0
 #define MDIO_AN_REG_CL37_FC_LD		0xffe4
 #define MDIO_AN_REG_CL37_FC_LP		0xffe5
+
+#define MDIO_AN_REG_8073_2_5G		0x8329
 
 
 #define IGU_FUNC_BASE			0x0400

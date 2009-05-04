@@ -318,7 +318,6 @@ static int simple_std_setup(struct dvb_frontend *fe,
 			    u8 *config, u8 *cb)
 {
 	struct tuner_simple_priv *priv = fe->tuner_priv;
-	u8 tuneraddr;
 	int rc;
 
 	/* tv norm specific stuff for multi-norm tuners */
@@ -387,6 +386,7 @@ static int simple_std_setup(struct dvb_frontend *fe,
 
 	case TUNER_PHILIPS_TUV1236D:
 	{
+		struct tuner_i2c_props i2c = priv->i2c_props;
 		/* 0x40 -> ATSC antenna input 1 */
 		/* 0x48 -> ATSC antenna input 2 */
 		/* 0x00 -> NTSC antenna input 1 */
@@ -398,17 +398,15 @@ static int simple_std_setup(struct dvb_frontend *fe,
 			buffer[1] = 0x04;
 		}
 		/* set to the correct mode (analog or digital) */
-		tuneraddr = priv->i2c_props.addr;
-		priv->i2c_props.addr = 0x0a;
-		rc = tuner_i2c_xfer_send(&priv->i2c_props, &buffer[0], 2);
+		i2c.addr = 0x0a;
+		rc = tuner_i2c_xfer_send(&i2c, &buffer[0], 2);
 		if (2 != rc)
 			tuner_warn("i2c i/o error: rc == %d "
 				   "(should be 2)\n", rc);
-		rc = tuner_i2c_xfer_send(&priv->i2c_props, &buffer[2], 2);
+		rc = tuner_i2c_xfer_send(&i2c, &buffer[2], 2);
 		if (2 != rc)
 			tuner_warn("i2c i/o error: rc == %d "
 				   "(should be 2)\n", rc);
-		priv->i2c_props.addr = tuneraddr;
 		break;
 	}
 	}

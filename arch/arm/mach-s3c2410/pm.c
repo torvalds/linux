@@ -37,21 +37,14 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 
-#ifdef CONFIG_S3C2410_PM_DEBUG
-extern void pm_dbg(const char *fmt, ...);
-#define DBG(fmt...) pm_dbg(fmt)
-#else
-#define DBG(fmt...) printk(KERN_DEBUG fmt)
-#endif
-
 static void s3c2410_pm_prepare(void)
 {
 	/* ensure at least GSTATUS3 has the resume address */
 
-	__raw_writel(virt_to_phys(s3c2410_cpu_resume), S3C2410_GSTATUS3);
+	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C2410_GSTATUS3);
 
-	DBG("GSTATUS3 0x%08x\n", __raw_readl(S3C2410_GSTATUS3));
-	DBG("GSTATUS4 0x%08x\n", __raw_readl(S3C2410_GSTATUS4));
+	S3C_PMDBG("GSTATUS3 0x%08x\n", __raw_readl(S3C2410_GSTATUS3));
+	S3C_PMDBG("GSTATUS4 0x%08x\n", __raw_readl(S3C2410_GSTATUS4));
 
 	if (machine_is_h1940()) {
 		void *base = phys_to_virt(H1940_SUSPEND_CHECK);

@@ -51,8 +51,20 @@
 #include <mach/mux.h>
 #include <mach/tc.h>
 #include <mach/common.h>
-#include <mach/mcbsp.h>
-#include <mach/omap-alsa.h>
+
+/* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
+#define OMAP_OSK_ETHR_START		0x04800300
+
+/* TPS65010 has four GPIOs.  nPG and LED2 can be treated like GPIOs with
+ * alternate pin configurations for hardware-controlled blinking.
+ */
+#define OSK_TPS_GPIO_BASE		(OMAP_MAX_GPIO_LINES + 16 /* MPUIO */)
+#	define OSK_TPS_GPIO_USB_PWR_EN	(OSK_TPS_GPIO_BASE + 0)
+#	define OSK_TPS_GPIO_LED_D3	(OSK_TPS_GPIO_BASE + 1)
+#	define OSK_TPS_GPIO_LAN_RESET	(OSK_TPS_GPIO_BASE + 2)
+#	define OSK_TPS_GPIO_DSP_PWR_EN	(OSK_TPS_GPIO_BASE + 3)
+#	define OSK_TPS_GPIO_LED_D9	(OSK_TPS_GPIO_BASE + 4)
+#	define OSK_TPS_GPIO_LED_D2	(OSK_TPS_GPIO_BASE + 5)
 
 static struct mtd_partition osk_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -141,47 +153,10 @@ static struct platform_device osk5912_cf_device = {
 	.resource	= osk5912_cf_resources,
 };
 
-#define DEFAULT_BITPERSAMPLE 16
-
-static struct omap_mcbsp_reg_cfg mcbsp_regs = {
-	.spcr2 = FREE | FRST | GRST | XRST | XINTM(3),
-	.spcr1 = RINTM(3) | RRST,
-	.rcr2 = RPHASE | RFRLEN2(OMAP_MCBSP_WORD_8) |
-	    RWDLEN2(OMAP_MCBSP_WORD_16) | RDATDLY(0),
-	.rcr1 = RFRLEN1(OMAP_MCBSP_WORD_8) | RWDLEN1(OMAP_MCBSP_WORD_16),
-	.xcr2 = XPHASE | XFRLEN2(OMAP_MCBSP_WORD_8) |
-	    XWDLEN2(OMAP_MCBSP_WORD_16) | XDATDLY(0) | XFIG,
-	.xcr1 = XFRLEN1(OMAP_MCBSP_WORD_8) | XWDLEN1(OMAP_MCBSP_WORD_16),
-	.srgr1 = FWID(DEFAULT_BITPERSAMPLE - 1),
-	.srgr2 = GSYNC | CLKSP | FSGM | FPER(DEFAULT_BITPERSAMPLE * 2 - 1),
-	/*.pcr0 = FSXM | FSRM | CLKXM | CLKRM | CLKXP | CLKRP,*/ /* mcbsp: master */
-	.pcr0 = CLKXP | CLKRP,  /* mcbsp: slave */
-};
-
-static struct omap_alsa_codec_config alsa_config = {
-	.name			= "OSK AIC23",
-	.mcbsp_regs_alsa	= &mcbsp_regs,
-	.codec_configure_dev	= NULL, /* aic23_configure, */
-	.codec_set_samplerate	= NULL, /* aic23_set_samplerate, */
-	.codec_clock_setup	= NULL, /* aic23_clock_setup, */
-	.codec_clock_on		= NULL, /* aic23_clock_on, */
-	.codec_clock_off	= NULL, /* aic23_clock_off, */
-	.get_default_samplerate	= NULL, /* aic23_get_default_samplerate, */
-};
-
-static struct platform_device osk5912_mcbsp1_device = {
-	.name	= "omap_alsa_mcbsp",
-	.id	= 1,
-	.dev = {
-		.platform_data	= &alsa_config,
-	},
-};
-
 static struct platform_device *osk5912_devices[] __initdata = {
 	&osk5912_flash_device,
 	&osk5912_smc91x_device,
 	&osk5912_cf_device,
-	&osk5912_mcbsp1_device,
 };
 
 static struct gpio_led tps_leds[] = {
@@ -259,8 +234,10 @@ static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 		.platform_data	= &tps_board,
 
 	},
+	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1B),
+	},
 	/* TODO when driver support is ready:
-	 *  - aic23 audio chip at 0x1a
 	 *  - optionally on Mistral, ov9640 camera sensor at 0x30
 	 */
 };
@@ -327,7 +304,6 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 #endif
 
 static struct omap_board_config_kernel osk_config[] __initdata = {
-	{ OMAP_TAG_USB,           &osk_usb_config },
 	{ OMAP_TAG_UART,		&osk_uart_config },
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 	{ OMAP_TAG_LCD,			&osk_lcd_config },
@@ -577,6 +553,8 @@ static void __init osk_init(void)
 	l = omap_readl(USB_TRANSCEIVER_CTRL);
 	l |= (3 << 1);
 	omap_writel(l, USB_TRANSCEIVER_CTRL);
+
+	omap_usb_init(&osk_usb_config);
 
 	/* irq for tps65010 chip */
 	/* bootloader effectively does:  omap_cfg_reg(U19_1610_MPUIO1); */

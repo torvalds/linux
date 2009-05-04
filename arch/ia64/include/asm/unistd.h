@@ -308,11 +308,13 @@
 #define __NR_dup3			1316
 #define __NR_pipe2			1317
 #define __NR_inotify_init1		1318
+#define __NR_preadv			1319
+#define __NR_pwritev			1320
 
 #ifdef __KERNEL__
 
 
-#define NR_syscalls			295 /* length of syscall table */
+#define NR_syscalls			297 /* length of syscall table */
 
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about
@@ -364,7 +366,7 @@ struct pt_regs;
 struct sigaction;
 long sys_execve(char __user *filename, char __user * __user *argv,
 			   char __user * __user *envp, struct pt_regs *regs);
-asmlinkage long sys_pipe(void);
+asmlinkage long sys_ia64_pipe(void);
 asmlinkage long sys_rt_sigaction(int sig,
 				 const struct sigaction __user *act,
 				 struct sigaction __user *oact,

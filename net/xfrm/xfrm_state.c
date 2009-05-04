@@ -748,12 +748,51 @@ static void xfrm_hash_grow_check(struct net *net, int have_hash_collision)
 		schedule_work(&net->xfrm.state_hash_work);
 }
 
+static void xfrm_state_look_at(struct xfrm_policy *pol, struct xfrm_state *x,
+			       struct flowi *fl, unsigned short family,
+			       xfrm_address_t *daddr, xfrm_address_t *saddr,
+			       struct xfrm_state **best, int *acq_in_progress,
+			       int *error)
+{
+	/* Resolution logic:
+	 * 1. There is a valid state with matching selector. Done.
+	 * 2. Valid state with inappropriate selector. Skip.
+	 *
+	 * Entering area of "sysdeps".
+	 *
+	 * 3. If state is not valid, selector is temporary, it selects
+	 *    only session which triggered previous resolution. Key
+	 *    manager will do something to install a state with proper
+	 *    selector.
+	 */
+	if (x->km.state == XFRM_STATE_VALID) {
+		if ((x->sel.family &&
+		     !xfrm_selector_match(&x->sel, fl, x->sel.family)) ||
+		    !security_xfrm_state_pol_flow_match(x, pol, fl))
+			return;
+
+		if (!*best ||
+		    (*best)->km.dying > x->km.dying ||
+		    ((*best)->km.dying == x->km.dying &&
+		     (*best)->curlft.add_time < x->curlft.add_time))
+			*best = x;
+	} else if (x->km.state == XFRM_STATE_ACQ) {
+		*acq_in_progress = 1;
+	} else if (x->km.state == XFRM_STATE_ERROR ||
+		   x->km.state == XFRM_STATE_EXPIRED) {
+		if (xfrm_selector_match(&x->sel, fl, x->sel.family) &&
+		    security_xfrm_state_pol_flow_match(x, pol, fl))
+			*error = -ESRCH;
+	}
+}
+
 struct xfrm_state *
 xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		struct flowi *fl, struct xfrm_tmpl *tmpl,
 		struct xfrm_policy *pol, int *err,
 		unsigned short family)
 {
+	static xfrm_address_t saddr_wildcard = { };
 	struct net *net = xp_net(pol);
 	unsigned int h;
 	struct hlist_node *entry;
@@ -773,40 +812,27 @@ xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr,
 		    xfrm_state_addr_check(x, daddr, saddr, family) &&
 		    tmpl->mode == x->props.mode &&
 		    tmpl->id.proto == x->id.proto &&
-		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi)) {
-			/* Resolution logic:
-			   1. There is a valid state with matching selector.
-			      Done.
-			   2. Valid state with inappropriate selector. Skip.
+		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
+			xfrm_state_look_at(pol, x, fl, family, daddr, saddr,
+					   &best, &acquire_in_progress, &error);
+	}
+	if (best)
+		goto found;
 
-			   Entering area of "sysdeps".
-
-			   3. If state is not valid, selector is temporary,
-			      it selects only session which triggered
-			      previous resolution. Key manager will do
-			      something to install a state with proper
-			      selector.
-			 */
-			if (x->km.state == XFRM_STATE_VALID) {
-				if ((x->sel.family && !xfrm_selector_match(&x->sel, fl, x->sel.family)) ||
-				    !security_xfrm_state_pol_flow_match(x, pol, fl))
-					continue;
-				if (!best ||
-				    best->km.dying > x->km.dying ||
-				    (best->km.dying == x->km.dying &&
-				     best->curlft.add_time < x->curlft.add_time))
-					best = x;
-			} else if (x->km.state == XFRM_STATE_ACQ) {
-				acquire_in_progress = 1;
-			} else if (x->km.state == XFRM_STATE_ERROR ||
-				   x->km.state == XFRM_STATE_EXPIRED) {
-				if (xfrm_selector_match(&x->sel, fl, x->sel.family) &&
-				    security_xfrm_state_pol_flow_match(x, pol, fl))
-					error = -ESRCH;
-			}
-		}
+	h = xfrm_dst_hash(net, daddr, &saddr_wildcard, tmpl->reqid, family);
+	hlist_for_each_entry(x, entry, net->xfrm.state_bydst+h, bydst) {
+		if (x->props.family == family &&
+		    x->props.reqid == tmpl->reqid &&
+		    !(x->props.flags & XFRM_STATE_WILDRECV) &&
+		    xfrm_state_addr_check(x, daddr, saddr, family) &&
+		    tmpl->mode == x->props.mode &&
+		    tmpl->id.proto == x->id.proto &&
+		    (tmpl->id.spi == x->id.spi || !tmpl->id.spi))
+			xfrm_state_look_at(pol, x, fl, family, daddr, saddr,
+					   &best, &acquire_in_progress, &error);
 	}
 
+found:
 	x = best;
 	if (!x && !error && !acquire_in_progress) {
 		if (tmpl->id.spi &&
@@ -1589,7 +1615,7 @@ void xfrm_state_walk_done(struct xfrm_state_walk *walk)
 
 	spin_lock_bh(&xfrm_state_lock);
 	list_del(&walk->all);
-	spin_lock_bh(&xfrm_state_lock);
+	spin_unlock_bh(&xfrm_state_lock);
 }
 EXPORT_SYMBOL(xfrm_state_walk_done);
 

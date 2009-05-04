@@ -6,6 +6,8 @@
 #ifndef _LINUX_BFS_FS_H
 #define _LINUX_BFS_FS_H
 
+#include <linux/types.h>
+
 #define BFS_BSIZE_BITS		9
 #define BFS_BSIZE		(1<<BFS_BSIZE_BITS)
 
@@ -16,7 +18,6 @@
 /* SVR4 vnode type values (bfs_inode->i_vtype) */
 #define BFS_VDIR 2L
 #define BFS_VREG 1L
-
 
 /* BFS inode layout on disk */
 struct bfs_inode {

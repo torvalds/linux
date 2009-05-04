@@ -137,7 +137,6 @@ int hpux_getdents(unsigned int fd, struct hpux_dirent __user *dirent, unsigned i
 			error = count - buf.count;
 	}
 
-out_putf:
 	fput(file);
 out:
 	return error;

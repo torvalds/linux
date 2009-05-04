@@ -87,6 +87,10 @@
 #define OMAP_MCBSP_REG_XCERG	0x3A
 #define OMAP_MCBSP_REG_XCERH	0x3C
 
+/* Dummy defines, these are not available on omap1 */
+#define OMAP_MCBSP_REG_XCCR	0x00
+#define OMAP_MCBSP_REG_RCCR	0x00
+
 #define AUDIO_MCBSP_DATAWRITE	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DXR1)
 #define AUDIO_MCBSP_DATAREAD	(OMAP1510_MCBSP1_BASE + OMAP_MCBSP_REG_DRR1)
 
@@ -231,11 +235,16 @@
 #define XPBBLK(value)		((value)<<7)	/* Bits 7:8 */
 
 /*********************** McBSP XCCR bit definitions *************************/
+#define EXTCLKGATE		0x8000
+#define PPCONNECT		0x4000
+#define DXENDLY(value)		((value)<<12)	/* Bits 12:13 */
+#define XFULL_CYCLE		0x0800
 #define DILB			0x0020
 #define XDMAEN			0x0008
 #define XDISABLE		0x0001
 
 /********************** McBSP RCCR bit definitions *************************/
+#define RFULL_CYCLE		0x0800
 #define RDMAEN			0x0008
 #define RDISABLE		0x0001
 
@@ -267,6 +276,8 @@ struct omap_mcbsp_reg_cfg {
 	u16 rcerh;
 	u16 xcerg;
 	u16 xcerh;
+	u16 xccr;
+	u16 rccr;
 };
 
 typedef enum {
@@ -333,7 +344,6 @@ struct omap_mcbsp_platform_data {
 	u8 dma_rx_sync, dma_tx_sync;
 	u16 rx_irq, tx_irq;
 	struct omap_mcbsp_ops *ops;
-	char const *clk_name;
 };
 
 struct omap_mcbsp {
@@ -365,7 +375,8 @@ struct omap_mcbsp {
 	/* Protect the field .free, while checking if the mcbsp is in use */
 	spinlock_t lock;
 	struct omap_mcbsp_platform_data *pdata;
-	struct clk *clk;
+	struct clk *iclk;
+	struct clk *fclk;
 };
 extern struct omap_mcbsp **mcbsp_ptr;
 extern int omap_mcbsp_count;

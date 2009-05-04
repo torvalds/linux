@@ -87,22 +87,7 @@
 
 /* Driver interface definitions */
 
-#define INDYCAM_CONTROL_AGC			0	/* boolean */
-#define INDYCAM_CONTROL_AWB			1	/* boolean */
-#define INDYCAM_CONTROL_SHUTTER			2
-#define INDYCAM_CONTROL_GAIN			3
-#define INDYCAM_CONTROL_RED_BALANCE		4
-#define INDYCAM_CONTROL_BLUE_BALANCE		5
-#define INDYCAM_CONTROL_RED_SATURATION		6
-#define INDYCAM_CONTROL_BLUE_SATURATION		7
-#define INDYCAM_CONTROL_GAMMA			8
-
-struct indycam_control {
-	u8 type;
-	s32 value;
-};
-
-#define	DECODER_INDYCAM_GET_CONTROL	_IOR('d', 193, struct indycam_control)
-#define	DECODER_INDYCAM_SET_CONTROL	_IOW('d', 194, struct indycam_control)
+#define INDYCAM_CONTROL_RED_SATURATION		(V4L2_CID_PRIVATE_BASE + 0)
+#define INDYCAM_CONTROL_BLUE_SATURATION		(V4L2_CID_PRIVATE_BASE + 1)
 
 #endif

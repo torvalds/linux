@@ -327,7 +327,7 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	if (t->parms.iph.ttl == 0 && type == ICMP_TIME_EXCEEDED)
 		goto out;
 
-	if (jiffies - t->err_time < IPTUNNEL_ERR_TIMEO)
+	if (time_before(jiffies, t->err_time + IPTUNNEL_ERR_TIMEO))
 		t->err_count++;
 	else
 		t->err_count = 1;
@@ -466,7 +466,8 @@ static int ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (tunnel->err_count > 0) {
-		if (jiffies - tunnel->err_time < IPTUNNEL_ERR_TIMEO) {
+		if (time_before(jiffies,
+				tunnel->err_time + IPTUNNEL_ERR_TIMEO)) {
 			tunnel->err_count--;
 			dst_link_failure(skb);
 		} else
@@ -750,7 +751,7 @@ static struct xfrm_tunnel ipip_handler = {
 	.priority	=	1,
 };
 
-static char banner[] __initdata =
+static const char banner[] __initconst =
 	KERN_INFO "IPv4 over IPv4 tunneling driver\n";
 
 static void ipip_destroy_tunnels(struct ipip_net *ipn)

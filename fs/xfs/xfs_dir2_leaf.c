@@ -549,7 +549,7 @@ xfs_dir2_leaf_addname(
  * Check the internal consistency of a leaf1 block.
  * Pop an assert if something is wrong.
  */
-void
+STATIC void
 xfs_dir2_leaf_check(
 	xfs_inode_t		*dp,		/* incore directory inode */
 	xfs_dabuf_t		*bp)		/* leaf's buffer */
@@ -780,7 +780,6 @@ xfs_dir2_leaf_getdents(
 	int			ra_index;	/* *map index for read-ahead */
 	int			ra_offset;	/* map entry offset for ra */
 	int			ra_want;	/* readahead count wanted */
-	xfs_ino_t		ino;
 
 	/*
 	 * If the offset is at or past the largest allowed value,
@@ -1076,24 +1075,12 @@ xfs_dir2_leaf_getdents(
 			continue;
 		}
 
-		/*
-		 * Copy the entry into the putargs, and try formatting it.
-		 */
 		dep = (xfs_dir2_data_entry_t *)ptr;
-
 		length = xfs_dir2_data_entsize(dep->namelen);
 
-		ino = be64_to_cpu(dep->inumber);
-#if XFS_BIG_INUMS
-		ino += mp->m_inoadd;
-#endif
-
-		/*
-		 * Won't fit.  Return to caller.
-		 */
 		if (filldir(dirent, dep->name, dep->namelen,
-			    xfs_dir2_byte_to_dataptr(mp, curoff),
-			    ino, DT_UNKNOWN))
+			    xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff,
+			    be64_to_cpu(dep->inumber), DT_UNKNOWN))
 			break;
 
 		/*
@@ -1108,9 +1095,9 @@ xfs_dir2_leaf_getdents(
 	 * All done.  Set output offset value to current offset.
 	 */
 	if (curoff > xfs_dir2_dataptr_to_byte(mp, XFS_DIR2_MAX_DATAPTR))
-		*offset = XFS_DIR2_MAX_DATAPTR;
+		*offset = XFS_DIR2_MAX_DATAPTR & 0x7fffffff;
 	else
-		*offset = xfs_dir2_byte_to_dataptr(mp, curoff);
+		*offset = xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff;
 	kmem_free(map);
 	if (bp)
 		xfs_da_brelse(NULL, bp);

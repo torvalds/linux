@@ -404,7 +404,10 @@ static void struct_ep_qh_setup(struct fsl_udc *udc, unsigned char ep_num,
 	}
 	if (zlt)
 		tmp |= EP_QUEUE_HEAD_ZLT_SEL;
+
 	p_QH->max_pkt_length = cpu_to_le32(tmp);
+	p_QH->next_dtd_ptr = 1;
+	p_QH->size_ioc_int_sts = 0;
 
 	return;
 }
@@ -1799,7 +1802,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 out:
 	if (retval)
-		printk("gadget driver register failed %d\n", retval);
+		printk(KERN_WARNING "gadget driver register failed %d\n",
+		       retval);
 	return retval;
 }
 EXPORT_SYMBOL(usb_gadget_register_driver);
@@ -1844,7 +1848,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	udc_controller->gadget.dev.driver = NULL;
 	udc_controller->driver = NULL;
 
-	printk("unregistered gadget driver '%s'\n", driver->driver.name);
+	printk(KERN_WARNING "unregistered gadget driver '%s'\n",
+	       driver->driver.name);
 	return 0;
 }
 EXPORT_SYMBOL(usb_gadget_unregister_driver);
@@ -2452,7 +2457,7 @@ module_init(udc_init);
 static void __exit udc_exit(void)
 {
 	platform_driver_unregister(&udc_driver);
-	printk("%s unregistered\n", driver_desc);
+	printk(KERN_WARNING "%s unregistered\n", driver_desc);
 }
 
 module_exit(udc_exit);

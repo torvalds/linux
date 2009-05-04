@@ -35,9 +35,16 @@
 #include <linux/module.h>
 #include <linux/usb/input.h>
 #include "usb.h"
-#include "onetouch.h"
 #include "debug.h"
 
+MODULE_DESCRIPTION("Maxtor USB OneTouch hard drive button driver");
+MODULE_AUTHOR("Nick Sillik <n.sillik@temple.edu>");
+MODULE_LICENSE("GPL");
+
+#define ONETOUCH_PKT_LEN        0x02
+#define ONETOUCH_BUTTON         KEY_PROG1
+
+static int onetouch_connect_input(struct us_data *ss);
 static void onetouch_release_input(void *onetouch_);
 
 struct usb_onetouch {
@@ -51,6 +58,46 @@ struct usb_onetouch {
 	dma_addr_t data_dma;
 	unsigned int is_open:1;
 };
+
+
+/*
+ * The table of devices
+ */
+#define UNUSUAL_DEV(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax, \
+		    vendorName, productName, useProtocol, useTransport, \
+		    initFunction, flags) \
+{ USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
+  .driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+
+struct usb_device_id onetouch_usb_ids[] = {
+#	include "unusual_onetouch.h"
+	{ }		/* Terminating entry */
+};
+MODULE_DEVICE_TABLE(usb, onetouch_usb_ids);
+
+#undef UNUSUAL_DEV
+
+/*
+ * The flags table
+ */
+#define UNUSUAL_DEV(idVendor, idProduct, bcdDeviceMin, bcdDeviceMax, \
+		    vendor_name, product_name, use_protocol, use_transport, \
+		    init_function, Flags) \
+{ \
+	.vendorName = vendor_name,	\
+	.productName = product_name,	\
+	.useProtocol = use_protocol,	\
+	.useTransport = use_transport,	\
+	.initFunction = init_function,	\
+}
+
+static struct us_unusual_dev onetouch_unusual_dev_list[] = {
+#	include "unusual_onetouch.h"
+	{ }		/* Terminating entry */
+};
+
+#undef UNUSUAL_DEV
+
 
 static void usb_onetouch_irq(struct urb *urb)
 {
@@ -127,7 +174,7 @@ static void usb_onetouch_pm_hook(struct us_data *us, int action)
 }
 #endif /* CONFIG_PM */
 
-int onetouch_connect_input(struct us_data *ss)
+static int onetouch_connect_input(struct us_data *ss)
 {
 	struct usb_device *udev = ss->pusb_dev;
 	struct usb_host_interface *interface;
@@ -236,3 +283,46 @@ static void onetouch_release_input(void *onetouch_)
 				onetouch->data, onetouch->data_dma);
 	}
 }
+
+static int onetouch_probe(struct usb_interface *intf,
+			 const struct usb_device_id *id)
+{
+	struct us_data *us;
+	int result;
+
+	result = usb_stor_probe1(&us, intf, id,
+			(id - onetouch_usb_ids) + onetouch_unusual_dev_list);
+	if (result)
+		return result;
+
+	/* Use default transport and protocol */
+
+	result = usb_stor_probe2(us);
+	return result;
+}
+
+static struct usb_driver onetouch_driver = {
+	.name =		"ums-onetouch",
+	.probe =	onetouch_probe,
+	.disconnect =	usb_stor_disconnect,
+	.suspend =	usb_stor_suspend,
+	.resume =	usb_stor_resume,
+	.reset_resume =	usb_stor_reset_resume,
+	.pre_reset =	usb_stor_pre_reset,
+	.post_reset =	usb_stor_post_reset,
+	.id_table =	onetouch_usb_ids,
+	.soft_unbind =	1,
+};
+
+static int __init onetouch_init(void)
+{
+	return usb_register(&onetouch_driver);
+}
+
+static void __exit onetouch_exit(void)
+{
+	usb_deregister(&onetouch_driver);
+}
+
+module_init(onetouch_init);
+module_exit(onetouch_exit);

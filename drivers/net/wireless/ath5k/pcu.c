@@ -65,7 +65,7 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 		if (ah->ah_version == AR5K_AR5210)
 			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
 		else
-			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
+			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
 		break;
 
 	case NL80211_IFTYPE_AP:
@@ -75,7 +75,7 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 		if (ah->ah_version == AR5K_AR5210)
 			pcu_reg |= AR5K_STA_ID1_NO_PSPOLL;
 		else
-			AR5K_REG_ENABLE_BITS(ah, AR5K_CFG, AR5K_CFG_ADHOC);
+			AR5K_REG_DISABLE_BITS(ah, AR5K_CFG, AR5K_CFG_IBSS);
 		break;
 
 	case NL80211_IFTYPE_STATION:
@@ -646,6 +646,22 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 }
 
 /**
+ * ath5k_hw_set_tsf64 - Set a new 64bit TSF
+ *
+ * @ah: The &struct ath5k_hw
+ * @tsf64: The new 64bit TSF
+ *
+ * Sets the new TSF
+ */
+void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64)
+{
+	ATH5K_TRACE(ah->ah_sc);
+
+	ath5k_hw_reg_write(ah, tsf64 & 0xffffffff, AR5K_TSF_L32);
+	ath5k_hw_reg_write(ah, (tsf64 >> 32) & 0xffffffff, AR5K_TSF_U32);
+}
+
+/**
  * ath5k_hw_reset_tsf - Force a TSF reset
  *
  * @ah: The &struct ath5k_hw
@@ -1026,6 +1042,9 @@ int ath5k_keycache_type(const struct ieee80211_key_conf *key)
 			return AR5K_KEYTABLE_TYPE_40;
 		else if (key->keylen == LEN_WEP104)
 			return AR5K_KEYTABLE_TYPE_104;
+		return -EINVAL;
+	default:
+		return -EINVAL;
 	}
 	return -EINVAL;
 }
@@ -1041,7 +1060,7 @@ int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
 	__le32 key_v[5] = {};
 	__le32 key0 = 0, key1 = 0;
 	__le32 *rxmic, *txmic;
-	u32 keytype;
+	int keytype;
 	u16 micentry = entry + AR5K_KEYTABLE_MIC_OFFSET;
 	bool is_tkip;
 	const u8 *key_ptr;
@@ -1139,7 +1158,7 @@ int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac)
 
 	/* MAC may be NULL if it's a broadcast key. In this case no need to
 	 * to compute AR5K_LOW_ID and AR5K_HIGH_ID as we already know it. */
-	if (unlikely(mac == NULL)) {
+	if (!mac) {
 		low_id = 0xffffffff;
 		high_id = 0xffff | AR5K_KEYTABLE_VALID;
 	} else {

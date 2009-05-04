@@ -18,7 +18,7 @@ config EXT4_FS
 	  filesystem; while there will be some performance gains from
 	  the delayed allocation and inode table readahead, the best
 	  performance gains will require enabling ext4 features in the
-	  filesystem, or formating a new filesystem as an ext4
+	  filesystem, or formatting a new filesystem as an ext4
 	  filesystem initially.
 
 	  To compile this file system support as a module, choose M here. The

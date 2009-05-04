@@ -30,7 +30,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -932,7 +931,7 @@ static int saa717x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -127 || ctrl->value > 127) {
+		if (ctrl->value < -128 || ctrl->value > 127) {
 			v4l2_err(sd, "invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
@@ -1105,22 +1104,22 @@ static struct v4l2_queryctrl saa717x_qctrl[] = {
 	},
 };
 
-static int saa717x_s_video_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa717x_s_video_routing(struct v4l2_subdev *sd,
+				   u32 input, u32 output, u32 config)
 {
 	struct saa717x_state *decoder = to_state(sd);
-	int inp = route->input;
-	int is_tuner = inp & 0x80;  /* tuner input flag */
+	int is_tuner = input & 0x80;  /* tuner input flag */
 
-	inp &= 0x7f;
+	input &= 0x7f;
 
-	v4l2_dbg(1, debug, sd, "decoder set input (%d)\n", inp);
+	v4l2_dbg(1, debug, sd, "decoder set input (%d)\n", input);
 	/* inputs from 0-9 are available*/
 	/* saa717x have mode0-mode9 but mode5 is reserved. */
-	if (inp < 0 || inp > 9 || inp == 5)
+	if (input < 0 || input > 9 || input == 5)
 		return -EINVAL;
 
-	if (decoder->input != inp) {
-		int input_line = inp;
+	if (decoder->input != input) {
+		int input_line = input;
 
 		decoder->input = input_line;
 		v4l2_dbg(1, debug, sd,  "now setting %s input %d\n",
@@ -1277,12 +1276,13 @@ static int saa717x_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int saa717x_s_audio_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa717x_s_audio_routing(struct v4l2_subdev *sd,
+				   u32 input, u32 output, u32 config)
 {
 	struct saa717x_state *decoder = to_state(sd);
 
-	if (route->input < 3) { /* FIXME! --tadachi */
-		decoder->audio_input = route->input;
+	if (input < 3) { /* FIXME! --tadachi */
+		decoder->audio_input = input;
 		v4l2_dbg(1, debug, sd,
 				"set decoder audio input to %d\n",
 				decoder->audio_input);
@@ -1381,11 +1381,6 @@ static int saa717x_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int saa717x_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa717x_core_ops = {
@@ -1396,12 +1391,12 @@ static const struct v4l2_subdev_core_ops saa717x_core_ops = {
 	.queryctrl = saa717x_queryctrl,
 	.g_ctrl = saa717x_g_ctrl,
 	.s_ctrl = saa717x_s_ctrl,
+	.s_std = saa717x_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops saa717x_tuner_ops = {
 	.g_tuner = saa717x_g_tuner,
 	.s_tuner = saa717x_s_tuner,
-	.s_std = saa717x_s_std,
 	.s_radio = saa717x_s_radio,
 };
 
@@ -1529,10 +1524,7 @@ MODULE_DEVICE_TABLE(i2c, saa717x_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa717x",
-	.driverid = I2C_DRIVERID_SAA717X,
-	.command = saa717x_command,
 	.probe = saa717x_probe,
 	.remove = saa717x_remove,
-	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.id_table = saa717x_id,
 };

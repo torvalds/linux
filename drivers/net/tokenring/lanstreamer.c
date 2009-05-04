@@ -207,7 +207,6 @@ static int streamer_xmit(struct sk_buff *skb, struct net_device *dev);
 static int streamer_close(struct net_device *dev);
 static void streamer_set_rx_mode(struct net_device *dev);
 static irqreturn_t streamer_interrupt(int irq, void *dev_id);
-static struct net_device_stats *streamer_get_stats(struct net_device *dev);
 static int streamer_set_mac_address(struct net_device *dev, void *addr);
 static void streamer_arb_cmd(struct net_device *dev);
 static int streamer_change_mtu(struct net_device *dev, int mtu);
@@ -221,6 +220,18 @@ static int sprintf_info(char *buffer, struct net_device *dev);
 struct streamer_private *dev_streamer=NULL;
 #endif
 #endif
+
+static const struct net_device_ops streamer_netdev_ops = {
+	.ndo_open		= streamer_open,
+	.ndo_stop		= streamer_close,
+	.ndo_start_xmit		= streamer_xmit,
+	.ndo_change_mtu		= streamer_change_mtu,
+#if STREAMER_IOCTL
+	.ndo_do_ioctl		= streamer_ioctl,
+#endif
+	.ndo_set_multicast_list = streamer_set_rx_mode,
+	.ndo_set_mac_address	= streamer_set_mac_address,
+};
 
 static int __devinit streamer_init_one(struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
@@ -256,7 +267,7 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 #endif
 #endif
 
-	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc) {
 		printk(KERN_ERR "%s: No suitable PCI mapping available.\n",
 				dev->name);
@@ -321,18 +332,7 @@ static int __devinit streamer_init_one(struct pci_dev *pdev,
 	init_waitqueue_head(&streamer_priv->srb_wait);
 	init_waitqueue_head(&streamer_priv->trb_wait);
 
-	dev->open = &streamer_open;
-	dev->hard_start_xmit = &streamer_xmit;
-	dev->change_mtu = &streamer_change_mtu;
-	dev->stop = &streamer_close;
-#if STREAMER_IOCTL
-	dev->do_ioctl = &streamer_ioctl;
-#else
-	dev->do_ioctl = NULL;
-#endif
-	dev->set_multicast_list = &streamer_set_rx_mode;
-	dev->get_stats = &streamer_get_stats;
-	dev->set_mac_address = &streamer_set_mac_address;
+	dev->netdev_ops = &streamer_netdev_ops;
 	dev->irq = pdev->irq;
 	dev->base_addr=pio_start;
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -616,8 +616,6 @@ static int streamer_open(struct net_device *dev)
 	printk("SISR Mask = %04x\n", readw(streamer_mmio + SISR_MASK));
 #endif
 	do {
-		int i;
-
 		for (i = 0; i < SRB_COMMAND_SIZE; i += 2) {
 			writew(0, streamer_mmio + LAPDINC);
 		}
@@ -937,7 +935,7 @@ static void streamer_rx(struct net_device *dev)
 			if (skb == NULL) 
 			{
 				printk(KERN_WARNING "%s: Not enough memory to copy packet to upper layers. \n",	dev->name);
-				streamer_priv->streamer_stats.rx_dropped++;
+				dev->stats.rx_dropped++;
 			} else {	/* we allocated an skb OK */
 				if (buffer_cnt == 1) {
 					/* release the DMA mapping */
@@ -1009,8 +1007,8 @@ static void streamer_rx(struct net_device *dev)
 					/* send up to the protocol */
 					netif_rx(skb);
 				}
-				streamer_priv->streamer_stats.rx_packets++;
-				streamer_priv->streamer_stats.rx_bytes += length;
+				dev->stats.rx_packets++;
+				dev->stats.rx_bytes += length;
 			}	/* if skb == null */
 		}		/* end received without errors */
 
@@ -1053,8 +1051,8 @@ static irqreturn_t streamer_interrupt(int irq, void *dev_id)
 				while(streamer_priv->streamer_tx_ring[(streamer_priv->tx_ring_last_status + 1) & (STREAMER_TX_RING_SIZE - 1)].status) {
 				streamer_priv->tx_ring_last_status = (streamer_priv->tx_ring_last_status + 1) & (STREAMER_TX_RING_SIZE - 1);
 				streamer_priv->free_tx_ring_entries++;
-				streamer_priv->streamer_stats.tx_bytes += streamer_priv->tx_ring_skb[streamer_priv->tx_ring_last_status]->len;
-				streamer_priv->streamer_stats.tx_packets++;
+				dev->stats.tx_bytes += streamer_priv->tx_ring_skb[streamer_priv->tx_ring_last_status]->len;
+				dev->stats.tx_packets++;
 				dev_kfree_skb_irq(streamer_priv->tx_ring_skb[streamer_priv->tx_ring_last_status]);
 				streamer_priv->streamer_tx_ring[streamer_priv->tx_ring_last_status].buffer = 0xdeadbeef;
 				streamer_priv->streamer_tx_ring[streamer_priv->tx_ring_last_status].status = 0;
@@ -1482,13 +1480,6 @@ static void streamer_srb_bh(struct net_device *dev)
 		printk(KERN_WARNING "%s: Unrecognized srb bh return value.\n", dev->name);
 		break;
 	}			/* switch srb[0] */
-}
-
-static struct net_device_stats *streamer_get_stats(struct net_device *dev)
-{
-	struct streamer_private *streamer_priv;
-	streamer_priv = netdev_priv(dev);
-	return (struct net_device_stats *) &streamer_priv->streamer_stats;
 }
 
 static int streamer_set_mac_address(struct net_device *dev, void *addr)

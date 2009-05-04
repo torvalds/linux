@@ -241,6 +241,7 @@ config ARCH_VERSATILE
 config ARCH_AT91
 	bool "Atmel AT91"
 	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
@@ -274,6 +275,14 @@ config ARCH_EP93XX
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
+
+config ARCH_GEMINI
+	bool "Cortina Systems Gemini"
+	select CPU_FA526
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	help
+	  Support for the Cortina Systems Gemini family SoCs
 
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
@@ -477,11 +486,28 @@ config ARCH_PXA
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_CLK
+	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
+	select PLAT_PXA
 	help
 	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
+
+config ARCH_MMP
+	bool "Marvell PXA168/910"
+	depends on MMU
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select TICK_ONESHOT
+	select PLAT_PXA
+	help
+	  Support for Marvell's PXA168/910 processor line.
 
 config ARCH_RPC
 	bool "RiscPC"
@@ -598,6 +624,8 @@ source "arch/arm/mach-ep93xx/Kconfig"
 
 source "arch/arm/mach-footbridge/Kconfig"
 
+source "arch/arm/mach-gemini/Kconfig"
+
 source "arch/arm/mach-integrator/Kconfig"
 
 source "arch/arm/mach-iop32x/Kconfig"
@@ -617,6 +645,9 @@ source "arch/arm/mach-loki/Kconfig"
 source "arch/arm/mach-mv78xx0/Kconfig"
 
 source "arch/arm/mach-pxa/Kconfig"
+source "arch/arm/plat-pxa/Kconfig"
+
+source "arch/arm/mach-mmp/Kconfig"
 
 source "arch/arm/mach-sa1100/Kconfig"
 
@@ -686,12 +717,15 @@ config PLAT_IOP
 config PLAT_ORION
 	bool
 
+config PLAT_PXA
+	bool
+
 source arch/arm/mm/Kconfig
 
 config IWMMXT
 	bool "Enable iWMMXt support"
-	depends on CPU_XSCALE || CPU_XSC3
-	default y if PXA27x || PXA3xx
+	depends on CPU_XSCALE || CPU_XSC3 || CPU_MOHAWK
+	default y if PXA27x || PXA3xx || ARCH_MMP
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
@@ -915,6 +949,23 @@ config NODES_SHIFT
 	default "2"
 	depends on NEED_MULTIPLE_NODES
 
+config HIGHMEM
+	bool "High Memory Support (EXPERIMENTAL)"
+	depends on MMU && EXPERIMENTAL
+	help
+	  The address space of ARM processors is only 4 Gigabytes large
+	  and it has to accommodate user address space, kernel address
+	  space as well as some memory mapped IO. That means that, if you
+	  have a large amount of physical memory and/or IO, not all of the
+	  memory can be "permanently mapped" by the kernel. The physical
+	  memory that is not permanently mapped is called "high memory".
+
+	  Depending on the selected kernel/user memory split, minimum
+	  vmalloc space and actual amount of RAM, you may not need this
+	  option which should result in a slightly faster kernel.
+
+	  If unsure, say n.
+
 source "mm/Kconfig"
 
 config LEDS
@@ -1092,7 +1143,7 @@ source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_SA1100
 	bool
-	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_H3800 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
+	depends on CPU_FREQ && (SA1100_H3100 || SA1100_H3600 || SA1100_LART || SA1100_PLEB || SA1100_BADGE4 || SA1100_HACKKIT)
 	default y
 
 config CPU_FREQ_SA1110

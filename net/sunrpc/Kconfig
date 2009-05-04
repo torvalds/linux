@@ -1,0 +1,56 @@
+config SUNRPC
+	tristate
+
+config SUNRPC_GSS
+	tristate
+
+config SUNRPC_XPRT_RDMA
+	tristate
+	depends on SUNRPC && INFINIBAND && INFINIBAND_ADDR_TRANS && EXPERIMENTAL
+	default SUNRPC && INFINIBAND
+	help
+	  This option allows the NFS client and server to support
+	  an RDMA-enabled transport.
+
+	  To compile RPC client RDMA transport support as a module,
+	  choose M here: the module will be called xprtrdma.
+
+	  If unsure, say N.
+
+config RPCSEC_GSS_KRB5
+	tristate "Secure RPC: Kerberos V mechanism (EXPERIMENTAL)"
+	depends on SUNRPC && EXPERIMENTAL
+	select SUNRPC_GSS
+	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_DES
+	select CRYPTO_CBC
+	help
+	  Choose Y here to enable Secure RPC using the Kerberos version 5
+	  GSS-API mechanism (RFC 1964).
+
+	  Secure RPC calls with Kerberos require an auxiliary user-space
+	  daemon which may be found in the Linux nfs-utils package
+	  available from http://linux-nfs.org/.  In addition, user-space
+	  Kerberos support should be installed.
+
+	  If unsure, say N.
+
+config RPCSEC_GSS_SPKM3
+	tristate "Secure RPC: SPKM3 mechanism (EXPERIMENTAL)"
+	depends on SUNRPC && EXPERIMENTAL
+	select SUNRPC_GSS
+	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_DES
+	select CRYPTO_CAST5
+	select CRYPTO_CBC
+	help
+	  Choose Y here to enable Secure RPC using the SPKM3 public key
+	  GSS-API mechanism (RFC 2025).
+
+	  Secure RPC calls with SPKM3 require an auxiliary userspace
+	  daemon which may be found in the Linux nfs-utils package
+	  available from http://linux-nfs.org/.
+
+	  If unsure, say N.

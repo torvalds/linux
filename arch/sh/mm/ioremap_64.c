@@ -71,9 +71,9 @@ void *__ioremap(unsigned long phys_addr, unsigned long size,
 	 * Ok, go for it..
 	 */
 	area = get_vm_area(size, VM_IOREMAP);
-	pr_debug("Get vm_area returns %p addr %p\n",area,area->addr);
 	if (!area)
 		return NULL;
+	pr_debug("Get vm_area returns %p addr %p\n", area, area->addr);
 	area->phys_addr = phys_addr;
 	addr = area->addr;
 	if (ioremap_page_range((unsigned long)addr, (unsigned long)addr + size,

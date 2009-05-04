@@ -345,7 +345,7 @@ static ssize_t dvb_ca_read(struct file *file, char __user *buf,
 	return ci_ll_read(&av7110->ci_rbuffer, file, buf, count, ppos);
 }
 
-static struct file_operations dvb_ca_fops = {
+static const struct file_operations dvb_ca_fops = {
 	.owner		= THIS_MODULE,
 	.read		= dvb_ca_read,
 	.write		= dvb_ca_write,

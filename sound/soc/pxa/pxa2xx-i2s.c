@@ -24,7 +24,7 @@
 #include <sound/pxa2xx-lib.h>
 
 #include <mach/hardware.h>
-#include <mach/pxa-regs.h>
+#include <mach/dma.h>
 #include <mach/audio.h>
 
 #include "pxa2xx-pcm.h"

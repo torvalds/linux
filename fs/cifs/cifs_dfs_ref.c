@@ -104,9 +104,9 @@ static char *cifs_get_share_name(const char *node_name)
 
 
 /**
- * compose_mount_options	-	creates mount options for refferral
+ * cifs_compose_mount_options	-	creates mount options for refferral
  * @sb_mountdata:	parent/root DFS mount options (template)
- * @dentry:		point where we are going to mount
+ * @fullpath:		full path in UNC format
  * @ref:		server's referral
  * @devname:		pointer for saving device name
  *
@@ -116,8 +116,8 @@ static char *cifs_get_share_name(const char *node_name)
  * Returns: pointer to new mount options or ERR_PTR.
  * Caller is responcible for freeing retunrned value if it is not error.
  */
-static char *compose_mount_options(const char *sb_mountdata,
-				   struct dentry *dentry,
+char *cifs_compose_mount_options(const char *sb_mountdata,
+				   const char *fullpath,
 				   const struct dfs_info3_param *ref,
 				   char **devname)
 {
@@ -128,7 +128,6 @@ static char *compose_mount_options(const char *sb_mountdata,
 	char *srvIP = NULL;
 	char sep = ',';
 	int off, noff;
-	char *fullpath;
 
 	if (sb_mountdata == NULL)
 		return ERR_PTR(-EINVAL);
@@ -202,17 +201,6 @@ static char *compose_mount_options(const char *sb_mountdata,
 		goto compose_mount_options_err;
 	}
 
-	/*
-	 * this function gives us a path with a double backslash prefix. We
-	 * require a single backslash for DFS. Temporarily increment fullpath
-	 * to put it in the proper form and decrement before freeing it.
-	 */
-	fullpath = build_path_from_dentry(dentry);
-	if (!fullpath) {
-		rc = -ENOMEM;
-		goto compose_mount_options_err;
-	}
-	++fullpath;
 	tkn_e = strchr(tkn_e + 1, '\\');
 	if (tkn_e || (strlen(fullpath) - ref->path_consumed)) {
 		strncat(mountdata, &sep, 1);
@@ -221,8 +209,6 @@ static char *compose_mount_options(const char *sb_mountdata,
 			strcat(mountdata, tkn_e + 1);
 		strcat(mountdata, fullpath + ref->path_consumed);
 	}
-	--fullpath;
-	kfree(fullpath);
 
 	/*cFYI(1,("%s: parent mountdata: %s", __func__,sb_mountdata));*/
 	/*cFYI(1, ("%s: submount mountdata: %s", __func__, mountdata ));*/
@@ -245,10 +231,20 @@ static struct vfsmount *cifs_dfs_do_refmount(const struct vfsmount *mnt_parent,
 	struct vfsmount *mnt;
 	char *mountdata;
 	char *devname = NULL;
+	char *fullpath;
 
 	cifs_sb = CIFS_SB(dentry->d_inode->i_sb);
-	mountdata = compose_mount_options(cifs_sb->mountdata,
-						dentry, ref, &devname);
+	/*
+	 * this function gives us a path with a double backslash prefix. We
+	 * require a single backslash for DFS.
+	 */
+	fullpath = build_path_from_dentry(dentry);
+	if (!fullpath)
+		return ERR_PTR(-ENOMEM);
+
+	mountdata = cifs_compose_mount_options(cifs_sb->mountdata,
+			fullpath + 1, ref, &devname);
+	kfree(fullpath);
 
 	if (IS_ERR(mountdata))
 		return (struct vfsmount *)mountdata;

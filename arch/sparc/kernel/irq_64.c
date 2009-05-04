@@ -185,7 +185,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #endif
 		seq_printf(p, " %9s", irq_desc[i].chip->typename);
 		seq_printf(p, "  %s", action->name);
@@ -196,6 +196,11 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+	} else if (i == NR_IRQS) {
+		seq_printf(p, "NMI: ");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", cpu_data(j).__nmi_count);
+		seq_printf(p, "     Non-maskable interrupts\n");
 	}
 	return 0;
 }
@@ -247,9 +252,10 @@ struct irq_handler_data {
 #ifdef CONFIG_SMP
 static int irq_choose_cpu(unsigned int virt_irq)
 {
-	cpumask_t mask = irq_desc[virt_irq].affinity;
+	cpumask_t mask;
 	int cpuid;
 
+	cpumask_copy(&mask, irq_desc[virt_irq].affinity);
 	if (cpus_equal(mask, CPU_MASK_ALL)) {
 		static int irq_rover;
 		static DEFINE_SPINLOCK(irq_rover_lock);
@@ -260,12 +266,12 @@ static int irq_choose_cpu(unsigned int virt_irq)
 		spin_lock_irqsave(&irq_rover_lock, flags);
 
 		while (!cpu_online(irq_rover)) {
-			if (++irq_rover >= NR_CPUS)
+			if (++irq_rover >= nr_cpu_ids)
 				irq_rover = 0;
 		}
 		cpuid = irq_rover;
 		do {
-			if (++irq_rover >= NR_CPUS)
+			if (++irq_rover >= nr_cpu_ids)
 				irq_rover = 0;
 		} while (!cpu_online(irq_rover));
 
@@ -318,17 +324,25 @@ static void sun4u_set_affinity(unsigned int virt_irq,
 	sun4u_irq_enable(virt_irq);
 }
 
+/* Don't do anything.  The desc->status check for IRQ_DISABLED in
+ * handler_irq() will skip the handler call and that will leave the
+ * interrupt in the sent state.  The next ->enable() call will hit the
+ * ICLR register to reset the state machine.
+ *
+ * This scheme is necessary, instead of clearing the Valid bit in the
+ * IMAP register, to handle the case of IMAP registers being shared by
+ * multiple INOs (and thus ICLR registers).  Since we use a different
+ * virtual IRQ for each shared IMAP instance, the generic code thinks
+ * there is only one user so it prematurely calls ->disable() on
+ * free_irq().
+ *
+ * We have to provide an explicit ->disable() method instead of using
+ * NULL to get the default.  The reason is that if the generic code
+ * sees that, it also hooks up a default ->shutdown method which
+ * invokes ->mask() which we do not want.  See irq_chip_set_defaults().
+ */
 static void sun4u_irq_disable(unsigned int virt_irq)
 {
-	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-
-	if (likely(data)) {
-		unsigned long imap = data->imap;
-		unsigned long tmp = upa_readq(imap);
-
-		tmp &= ~IMAP_VALID;
-		upa_writeq(tmp, imap);
-	}
 }
 
 static void sun4u_irq_eoi(unsigned int virt_irq)
@@ -741,7 +755,8 @@ void handler_irq(int irq, struct pt_regs *regs)
 
 		desc = irq_desc + virt_irq;
 
-		desc->handle_irq(virt_irq, desc);
+		if (!(desc->status & IRQ_DISABLED))
+			desc->handle_irq(virt_irq, desc);
 
 		bucket_pa = next_pa;
 	}
@@ -778,69 +793,6 @@ void do_softirq(void)
 	local_irq_restore(flags);
 }
 
-static void unhandled_perf_irq(struct pt_regs *regs)
-{
-	unsigned long pcr, pic;
-
-	read_pcr(pcr);
-	read_pic(pic);
-
-	write_pcr(0);
-
-	printk(KERN_EMERG "CPU %d: Got unexpected perf counter IRQ.\n",
-	       smp_processor_id());
-	printk(KERN_EMERG "CPU %d: PCR[%016lx] PIC[%016lx]\n",
-	       smp_processor_id(), pcr, pic);
-}
-
-/* Almost a direct copy of the powerpc PMC code.  */
-static DEFINE_SPINLOCK(perf_irq_lock);
-static void *perf_irq_owner_caller; /* mostly for debugging */
-static void (*perf_irq)(struct pt_regs *regs) = unhandled_perf_irq;
-
-/* Invoked from level 15 PIL handler in trap table.  */
-void perfctr_irq(int irq, struct pt_regs *regs)
-{
-	clear_softint(1 << irq);
-	perf_irq(regs);
-}
-
-int register_perfctr_intr(void (*handler)(struct pt_regs *))
-{
-	int ret;
-
-	if (!handler)
-		return -EINVAL;
-
-	spin_lock(&perf_irq_lock);
-	if (perf_irq != unhandled_perf_irq) {
-		printk(KERN_WARNING "register_perfctr_intr: "
-		       "perf IRQ busy (reserved by caller %p)\n",
-		       perf_irq_owner_caller);
-		ret = -EBUSY;
-		goto out;
-	}
-
-	perf_irq_owner_caller = __builtin_return_address(0);
-	perf_irq = handler;
-
-	ret = 0;
-out:
-	spin_unlock(&perf_irq_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(register_perfctr_intr);
-
-void release_perfctr_intr(void (*handler)(struct pt_regs *))
-{
-	spin_lock(&perf_irq_lock);
-	perf_irq_owner_caller = NULL;
-	perf_irq = unhandled_perf_irq;
-	spin_unlock(&perf_irq_lock);
-}
-EXPORT_SYMBOL_GPL(release_perfctr_intr);
-
 #ifdef CONFIG_HOTPLUG_CPU
 void fixup_irqs(void)
 {
@@ -854,7 +806,7 @@ void fixup_irqs(void)
 		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
 			if (irq_desc[irq].chip->set_affinity)
 				irq_desc[irq].chip->set_affinity(irq,
-					&irq_desc[irq].affinity);
+					irq_desc[irq].affinity);
 		}
 		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	}

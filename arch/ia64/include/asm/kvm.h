@@ -21,9 +21,12 @@
  *
  */
 
-#include <asm/types.h>
-
+#include <linux/types.h>
 #include <linux/ioctl.h>
+
+/* Select x86 specific features in <linux/kvm.h> */
+#define __KVM_HAVE_IOAPIC
+#define __KVM_HAVE_DEVICE_ASSIGNMENT
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
@@ -162,7 +165,40 @@ struct saved_vpd {
 	unsigned long  vcpuid[5];
 	unsigned long  vpsr;
 	unsigned long  vpr;
-	unsigned long  vcr[128];
+	union {
+		unsigned long  vcr[128];
+		struct {
+			unsigned long dcr;
+			unsigned long itm;
+			unsigned long iva;
+			unsigned long rsv1[5];
+			unsigned long pta;
+			unsigned long rsv2[7];
+			unsigned long ipsr;
+			unsigned long isr;
+			unsigned long rsv3;
+			unsigned long iip;
+			unsigned long ifa;
+			unsigned long itir;
+			unsigned long iipa;
+			unsigned long ifs;
+			unsigned long iim;
+			unsigned long iha;
+			unsigned long rsv4[38];
+			unsigned long lid;
+			unsigned long ivr;
+			unsigned long tpr;
+			unsigned long eoi;
+			unsigned long irr[4];
+			unsigned long itv;
+			unsigned long pmv;
+			unsigned long cmcv;
+			unsigned long rsv5[5];
+			unsigned long lrr0;
+			unsigned long lrr1;
+			unsigned long rsv6[46];
+		};
+	};
 };
 
 struct kvm_regs {
@@ -208,6 +244,20 @@ struct kvm_sregs {
 };
 
 struct kvm_fpu {
+};
+
+#define KVM_IA64_VCPU_STACK_SHIFT	16
+#define KVM_IA64_VCPU_STACK_SIZE	(1UL << KVM_IA64_VCPU_STACK_SHIFT)
+
+struct kvm_ia64_vcpu_stack {
+	unsigned char stack[KVM_IA64_VCPU_STACK_SIZE];
+};
+
+struct kvm_debug_exit_arch {
+};
+
+/* for KVM_SET_GUEST_DEBUG */
+struct kvm_guest_debug_arch {
 };
 
 #endif

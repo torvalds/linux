@@ -27,8 +27,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware/locomo.h>
-#include <mach/pxa-regs.h>
-#include <mach/hardware.h>
 #include <mach/poodle.h>
 #include <mach/audio.h>
 

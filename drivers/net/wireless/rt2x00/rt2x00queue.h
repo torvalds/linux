@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -158,6 +158,14 @@ enum rxdone_entry_desc_flags {
 };
 
 /**
+ * RXDONE_SIGNAL_MASK - Define to mask off all &rxdone_entry_desc_flags flags
+ * except for the RXDONE_SIGNAL_* flags. This is useful to convert the dev_flags
+ * from &rxdone_entry_desc to a signal value type.
+ */
+#define RXDONE_SIGNAL_MASK \
+       ( RXDONE_SIGNAL_PLCP | RXDONE_SIGNAL_BITRATE )
+
+/**
  * struct rxdone_entry_desc: RX Entry descriptor
  *
  * Summary of information that has been read from the RX frame descriptor.
@@ -165,6 +173,7 @@ enum rxdone_entry_desc_flags {
  * @timestamp: RX Timestamp
  * @signal: Signal of the received frame.
  * @rssi: RSSI of the received frame.
+ * @noise: Measured noise during frame reception.
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
  * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
@@ -177,6 +186,7 @@ struct rxdone_entry_desc {
 	u64 timestamp;
 	int signal;
 	int rssi;
+	int noise;
 	int size;
 	int flags;
 	int dev_flags;
@@ -222,7 +232,6 @@ struct txdone_entry_desc {
  *
  * @ENTRY_TXD_RTS_FRAME: This frame is a RTS frame.
  * @ENTRY_TXD_CTS_FRAME: This frame is a CTS-to-self frame.
- * @ENTRY_TXD_OFDM_RATE: This frame is send out with an OFDM rate.
  * @ENTRY_TXD_GENERATE_SEQ: This frame requires sequence counter.
  * @ENTRY_TXD_FIRST_FRAGMENT: This is the first frame.
  * @ENTRY_TXD_MORE_FRAG: This frame is followed by another fragment.
@@ -238,7 +247,6 @@ struct txdone_entry_desc {
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
 	ENTRY_TXD_CTS_FRAME,
-	ENTRY_TXD_OFDM_RATE,
 	ENTRY_TXD_GENERATE_SEQ,
 	ENTRY_TXD_FIRST_FRAGMENT,
 	ENTRY_TXD_MORE_FRAG,
@@ -263,6 +271,7 @@ enum txentry_desc_flags {
  * @length_low: PLCP length low word.
  * @signal: PLCP signal.
  * @service: PLCP service.
+ * @rate_mode: Rate mode (See @enum rate_modulation).
  * @retry_limit: Max number of retries.
  * @aifs: AIFS value.
  * @ifs: IFS value.
@@ -281,6 +290,8 @@ struct txentry_desc {
 	u16 length_low;
 	u16 signal;
 	u16 service;
+
+	u16 rate_mode;
 
 	short retry_limit;
 	short aifs;

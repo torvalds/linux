@@ -28,13 +28,121 @@
 #include <mach/eac.h>
 #include <mach/mmc.h>
 
-#if defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
-#define OMAP2_MBOX_BASE		IO_ADDRESS(OMAP24XX_MAILBOX_BASE)
+#if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
 
-static struct resource mbox_resources[] = {
+static struct resource cam_resources[] = {
 	{
-		.start		= OMAP2_MBOX_BASE,
-		.end		= OMAP2_MBOX_BASE + 0x11f,
+		.start		= OMAP24XX_CAMERA_BASE,
+		.end		= OMAP24XX_CAMERA_BASE + 0xfff,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= INT_24XX_CAM_IRQ,
+		.flags		= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device omap_cam_device = {
+	.name		= "omap24xxcam",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(cam_resources),
+	.resource	= cam_resources,
+};
+
+static inline void omap_init_camera(void)
+{
+	platform_device_register(&omap_cam_device);
+}
+
+#elif defined(CONFIG_VIDEO_OMAP3) || defined(CONFIG_VIDEO_OMAP3_MODULE)
+
+static struct resource omap3isp_resources[] = {
+	{
+		.start		= OMAP3430_ISP_BASE,
+		.end		= OMAP3430_ISP_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_CBUFF_BASE,
+		.end		= OMAP3430_ISP_CBUFF_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_CCP2_BASE,
+		.end		= OMAP3430_ISP_CCP2_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_CCDC_BASE,
+		.end		= OMAP3430_ISP_CCDC_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_HIST_BASE,
+		.end		= OMAP3430_ISP_HIST_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_H3A_BASE,
+		.end		= OMAP3430_ISP_H3A_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_PREV_BASE,
+		.end		= OMAP3430_ISP_PREV_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_RESZ_BASE,
+		.end		= OMAP3430_ISP_RESZ_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_SBL_BASE,
+		.end		= OMAP3430_ISP_SBL_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_CSI2A_BASE,
+		.end		= OMAP3430_ISP_CSI2A_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= OMAP3430_ISP_CSI2PHY_BASE,
+		.end		= OMAP3430_ISP_CSI2PHY_END,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= INT_34XX_CAM_IRQ,
+		.flags		= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device omap3isp_device = {
+	.name		= "omap3isp",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(omap3isp_resources),
+	.resource	= omap3isp_resources,
+};
+
+static inline void omap_init_camera(void)
+{
+	platform_device_register(&omap3isp_device);
+}
+#else
+static inline void omap_init_camera(void)
+{
+}
+#endif
+
+#if defined(CONFIG_OMAP_MBOX_FWK) || defined(CONFIG_OMAP_MBOX_FWK_MODULE)
+
+#define MBOX_REG_SIZE	0x120
+
+static struct resource omap2_mbox_resources[] = {
+	{
+		.start		= OMAP24XX_MAILBOX_BASE,
+		.end		= OMAP24XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -47,20 +155,40 @@ static struct resource mbox_resources[] = {
 	},
 };
 
+static struct resource omap3_mbox_resources[] = {
+	{
+		.start		= OMAP34XX_MAILBOX_BASE,
+		.end		= OMAP34XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= INT_24XX_MAIL_U0_MPU,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
 static struct platform_device mbox_device = {
-	.name		= "mailbox",
+	.name		= "omap2-mailbox",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(mbox_resources),
-	.resource	= mbox_resources,
 };
 
 static inline void omap_init_mbox(void)
 {
+	if (cpu_is_omap2420()) {
+		mbox_device.num_resources = ARRAY_SIZE(omap2_mbox_resources);
+		mbox_device.resource = omap2_mbox_resources;
+	} else if (cpu_is_omap3430()) {
+		mbox_device.num_resources = ARRAY_SIZE(omap3_mbox_resources);
+		mbox_device.resource = omap3_mbox_resources;
+	} else {
+		pr_err("%s: platform not supported\n", __func__);
+		return;
+	}
 	platform_device_register(&mbox_device);
 }
 #else
 static inline void omap_init_mbox(void) { }
-#endif
+#endif /* CONFIG_OMAP_MBOX_FWK */
 
 #if defined(CONFIG_OMAP_STI)
 
@@ -348,11 +476,12 @@ static void __init omap_hsmmc_reset(void)
 		}
 
 		dummy_pdev.id = i;
-		iclk = clk_get(dev, "mmchs_ick");
+		dev_set_name(&dummy_pdev.dev, "mmci-omap-hs.%d", i);
+		iclk = clk_get(dev, "ick");
 		if (iclk && clk_enable(iclk))
 			iclk = NULL;
 
-		fclk = clk_get(dev, "mmchs_fck");
+		fclk = clk_get(dev, "fck");
 		if (fclk && clk_enable(fclk))
 			fclk = NULL;
 
@@ -421,6 +550,7 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			int nr_controllers)
 {
 	int i;
+	char *name;
 
 	for (i = 0; i < nr_controllers; i++) {
 		unsigned long base, size;
@@ -450,12 +580,14 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			continue;
 		}
 
-		if (cpu_is_omap2420())
+		if (cpu_is_omap2420()) {
 			size = OMAP2420_MMC_SIZE;
-		else
+			name = "mmci-omap";
+		} else {
 			size = HSMMC_SIZE;
-
-		omap_mmc_add(i, base, size, irq, mmc_data[i]);
+			name = "mmci-omap-hs";
+		}
+		omap_mmc_add(name, i, base, size, irq, mmc_data[i]);
 	};
 }
 
@@ -503,6 +635,7 @@ static int __init omap2_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_hsmmc_reset();
+	omap_init_camera();
 	omap_init_mbox();
 	omap_init_mcspi();
 	omap_hdq_init();

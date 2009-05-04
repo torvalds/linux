@@ -35,12 +35,23 @@
 #include <linux/jiffies.h>
 
 #include <net/lib80211.h>
-#include <net/ieee80211.h>
 #include <linux/wireless.h>
+
+#include "ieee80211.h"
 
 static const char *ieee80211_modes[] = {
 	"?", "a", "b", "ab", "g", "ag", "bg", "abg"
 };
+
+static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
+{
+	unsigned long end = jiffies;
+
+	if (end >= start)
+		return jiffies_to_msecs(end - start);
+
+	return jiffies_to_msecs(end + (MAX_JIFFY_OFFSET - start) + 1);
+}
 
 #define MAX_CUSTOM_LEN 64
 static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
@@ -215,8 +226,8 @@ static char *ieee80211_translate_scan(struct ieee80211_device *ieee,
 	iwe.cmd = IWEVCUSTOM;
 	p = custom;
 	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
-		      " Last beacon: %dms ago",
-		      jiffies_to_msecs(jiffies - network->last_scanned));
+		      " Last beacon: %ums ago",
+		      elapsed_jiffies_msecs(network->last_scanned));
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
@@ -276,15 +287,15 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 		    time_after(network->last_scanned + ieee->scan_age, jiffies))
 			ev = ieee80211_translate_scan(ieee, ev, stop, network,
 						      info);
-		else
+		else {
 			IEEE80211_DEBUG_SCAN("Not showing network '%s ("
-					     "%pM)' due to age (%dms).\n",
+					     "%pM)' due to age (%ums).\n",
 					     print_ssid(ssid, network->ssid,
 							 network->ssid_len),
 					     network->bssid,
-					     jiffies_to_msecs(jiffies -
-							      network->
-							      last_scanned));
+					     elapsed_jiffies_msecs(
+					               network->last_scanned));
+		}
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);

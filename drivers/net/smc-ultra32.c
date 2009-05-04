@@ -153,6 +153,22 @@ out:
 	return ERR_PTR(err);
 }
 
+
+static const struct net_device_ops ultra32_netdev_ops = {
+	.ndo_open 		= ultra32_open,
+	.ndo_stop 		= ultra32_close,
+	.ndo_start_xmit		= ei_start_xmit,
+	.ndo_tx_timeout		= ei_tx_timeout,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= ei_poll,
+#endif
+};
+
 static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
 {
 	int i, edge, media, retval;
@@ -273,11 +289,8 @@ static int __init ultra32_probe1(struct net_device *dev, int ioaddr)
 	ei_status.block_output = &ultra32_block_output;
 	ei_status.get_8390_hdr = &ultra32_get_8390_hdr;
 	ei_status.reset_8390 = &ultra32_reset_8390;
-	dev->open = &ultra32_open;
-	dev->stop = &ultra32_close;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = ei_poll;
-#endif
+
+	dev->netdev_ops = &ultra32_netdev_ops;
 	NS8390_init(dev, 0);
 
 	return 0;

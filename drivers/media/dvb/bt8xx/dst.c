@@ -1683,7 +1683,7 @@ static int dst_tune_frontend(struct dvb_frontend* fe,
 
 static int dst_get_tuning_algo(struct dvb_frontend *fe)
 {
-	return dst_algo;
+	return dst_algo ? DVBFE_ALGO_HW : DVBFE_ALGO_SW;
 }
 
 static int dst_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)

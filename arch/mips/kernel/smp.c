@@ -44,7 +44,7 @@
 #include <asm/mipsmtregs.h>
 #endif /* CONFIG_MIPS_MT_SMTC */
 
-volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
+static volatile cpumask_t cpu_callin_map;	/* Bitmask of started secondaries */
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
 

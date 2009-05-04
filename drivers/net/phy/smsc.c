@@ -81,6 +81,9 @@ static struct phy_driver lan83c185_driver = {
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
 
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+
 	.driver		= { .owner = THIS_MODULE, }
 };
 
@@ -101,6 +104,9 @@ static struct phy_driver lan8187_driver = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
 
 	.driver		= { .owner = THIS_MODULE, }
 };
@@ -123,6 +129,9 @@ static struct phy_driver lan8700_driver = {
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
 
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+
 	.driver		= { .owner = THIS_MODULE, }
 };
 
@@ -143,6 +152,33 @@ static struct phy_driver lan911x_int_driver = {
 	/* IRQ related */
 	.ack_interrupt	= smsc_phy_ack_interrupt,
 	.config_intr	= smsc_phy_config_intr,
+
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+
+	.driver		= { .owner = THIS_MODULE, }
+};
+
+static struct phy_driver lan8710_driver = {
+	.phy_id		= 0x0007c0f0, /* OUI=0x00800f, Model#=0x0f */
+	.phy_id_mask	= 0xfffffff0,
+	.name		= "SMSC LAN8710/LAN8720",
+
+	.features	= (PHY_BASIC_FEATURES | SUPPORTED_Pause
+				| SUPPORTED_Asym_Pause),
+	.flags		= PHY_HAS_INTERRUPT | PHY_HAS_MAGICANEG,
+
+	/* basic functions */
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
+	.config_init	= smsc_phy_config_init,
+
+	/* IRQ related */
+	.ack_interrupt	= smsc_phy_ack_interrupt,
+	.config_intr	= smsc_phy_config_intr,
+
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
 
 	.driver		= { .owner = THIS_MODULE, }
 };
@@ -167,8 +203,14 @@ static int __init smsc_init(void)
 	if (ret)
 		goto err4;
 
+	ret = phy_driver_register (&lan8710_driver);
+	if (ret)
+		goto err5;
+
 	return 0;
 
+err5:
+	phy_driver_unregister (&lan911x_int_driver);
 err4:
 	phy_driver_unregister (&lan8700_driver);
 err3:
@@ -181,6 +223,7 @@ err1:
 
 static void __exit smsc_exit(void)
 {
+	phy_driver_unregister (&lan8710_driver);
 	phy_driver_unregister (&lan911x_int_driver);
 	phy_driver_unregister (&lan8700_driver);
 	phy_driver_unregister (&lan8187_driver);

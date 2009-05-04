@@ -143,7 +143,7 @@ config HOTPLUG_PCI_SHPC
 
 config HOTPLUG_PCI_RPA
 	tristate "RPA PCI Hotplug driver"
-	depends on PPC_PSERIES && PPC64 && !HOTPLUG_PCI_FAKE
+	depends on PPC_PSERIES && EEH && !HOTPLUG_PCI_FAKE
 	help
 	  Say Y here if you have a RPA system that supports PCI Hotplug.
 

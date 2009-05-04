@@ -63,10 +63,8 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 	dcplb_tbl[cpu][i_d].addr = 0;
 	dcplb_tbl[cpu][i_d++].data = SDRAM_OOPS | PAGE_SIZE_1KB;
 
-#if 0
 	icplb_tbl[cpu][i_i].addr = 0;
-	icplb_tbl[cpu][i_i++].data = i_cache | CPLB_USER_RD | PAGE_SIZE_4KB;
-#endif
+	icplb_tbl[cpu][i_i++].data = i_cache | CPLB_USER_RD | PAGE_SIZE_1KB;
 
 	/* Cover kernel memory with 4M pages.  */
 	addr = 0;

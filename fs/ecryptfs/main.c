@@ -190,14 +190,14 @@ int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
 		init_special_inode(inode, lower_inode->i_mode,
 				   lower_inode->i_rdev);
 	dentry->d_op = &ecryptfs_dops;
-	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
-		d_add(dentry, inode);
-	else
-		d_instantiate(dentry, inode);
 	fsstack_copy_attr_all(inode, lower_inode, NULL);
 	/* This size will be overwritten for real files w/ headers and
 	 * other metadata */
 	fsstack_copy_inode_size(inode, lower_inode);
+	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
+		d_add(dentry, inode);
+	else
+		d_instantiate(dentry, inode);
 out:
 	return rc;
 }
@@ -208,7 +208,7 @@ enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig,
        ecryptfs_opt_passthrough, ecryptfs_opt_xattr_metadata,
        ecryptfs_opt_encrypted_view, ecryptfs_opt_fnek_sig,
        ecryptfs_opt_fn_cipher, ecryptfs_opt_fn_cipher_key_bytes,
-       ecryptfs_opt_err };
+       ecryptfs_opt_unlink_sigs, ecryptfs_opt_err };
 
 static const match_table_t tokens = {
 	{ecryptfs_opt_sig, "sig=%s"},
@@ -222,6 +222,7 @@ static const match_table_t tokens = {
 	{ecryptfs_opt_fnek_sig, "ecryptfs_fnek_sig=%s"},
 	{ecryptfs_opt_fn_cipher, "ecryptfs_fn_cipher=%s"},
 	{ecryptfs_opt_fn_cipher_key_bytes, "ecryptfs_fn_key_bytes=%u"},
+	{ecryptfs_opt_unlink_sigs, "ecryptfs_unlink_sigs"},
 	{ecryptfs_opt_err, NULL}
 };
 
@@ -319,7 +320,7 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 		case ecryptfs_opt_ecryptfs_sig:
 			sig_src = args[0].from;
 			rc = ecryptfs_add_global_auth_tok(mount_crypt_stat,
-							  sig_src);
+							  sig_src, 0);
 			if (rc) {
 				printk(KERN_ERR "Error attempting to register "
 				       "global sig; rc = [%d]\n", rc);
@@ -370,7 +371,8 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 				ECRYPTFS_SIG_SIZE_HEX] = '\0';
 			rc = ecryptfs_add_global_auth_tok(
 				mount_crypt_stat,
-				mount_crypt_stat->global_default_fnek_sig);
+				mount_crypt_stat->global_default_fnek_sig,
+				ECRYPTFS_AUTH_TOK_FNEK);
 			if (rc) {
 				printk(KERN_ERR "Error attempting to register "
 				       "global fnek sig [%s]; rc = [%d]\n",
@@ -400,6 +402,9 @@ static int ecryptfs_parse_options(struct super_block *sb, char *options)
 			mount_crypt_stat->global_default_fn_cipher_key_bytes =
 				fn_cipher_key_bytes;
 			fn_cipher_key_bytes_set = 1;
+			break;
+		case ecryptfs_opt_unlink_sigs:
+			mount_crypt_stat->flags |= ECRYPTFS_UNLINK_SIGS;
 			break;
 		case ecryptfs_opt_err:
 		default:

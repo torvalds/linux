@@ -35,7 +35,7 @@
  * Leave an at least ~128 MB hole.
  */
 #define MIN_GAP (128*1024*1024)
-#define MAX_GAP (TASK_SIZE/6*5)
+#define MAX_GAP (STACK_TOP/6*5)
 
 static inline unsigned long mmap_base(void)
 {
@@ -46,7 +46,7 @@ static inline unsigned long mmap_base(void)
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
 
-	return TASK_SIZE - (gap & PAGE_MASK);
+	return STACK_TOP - (gap & PAGE_MASK);
 }
 
 static inline int mmap_is_legacy(void)
@@ -89,42 +89,58 @@ EXPORT_SYMBOL_GPL(arch_pick_mmap_layout);
 
 #else
 
+int s390_mmap_check(unsigned long addr, unsigned long len)
+{
+	if (!test_thread_flag(TIF_31BIT) &&
+	    len >= TASK_SIZE && TASK_SIZE < (1UL << 53))
+		return crst_table_upgrade(current->mm, 1UL << 53);
+	return 0;
+}
+
 static unsigned long
 s390_get_unmapped_area(struct file *filp, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
+	unsigned long area;
 	int rc;
 
-	addr = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
-	if (addr & ~PAGE_MASK)
-		return addr;
-	if (unlikely(mm->context.asce_limit < addr + len)) {
-		rc = crst_table_upgrade(mm, addr + len);
+	area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
+	if (!(area & ~PAGE_MASK))
+		return area;
+	if (area == -ENOMEM &&
+	    !test_thread_flag(TIF_31BIT) && TASK_SIZE < (1UL << 53)) {
+		/* Upgrade the page table to 4 levels and retry. */
+		rc = crst_table_upgrade(mm, 1UL << 53);
 		if (rc)
 			return (unsigned long) rc;
+		area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
 	}
-	return addr;
+	return area;
 }
 
 static unsigned long
-s390_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
+s390_get_unmapped_area_topdown(struct file *filp, const unsigned long addr,
 			  const unsigned long len, const unsigned long pgoff,
 			  const unsigned long flags)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long addr = addr0;
+	unsigned long area;
 	int rc;
 
-	addr = arch_get_unmapped_area_topdown(filp, addr, len, pgoff, flags);
-	if (addr & ~PAGE_MASK)
-		return addr;
-	if (unlikely(mm->context.asce_limit < addr + len)) {
-		rc = crst_table_upgrade(mm, addr + len);
+	area = arch_get_unmapped_area_topdown(filp, addr, len, pgoff, flags);
+	if (!(area & ~PAGE_MASK))
+		return area;
+	if (area == -ENOMEM &&
+	    !test_thread_flag(TIF_31BIT) && TASK_SIZE < (1UL << 53)) {
+		/* Upgrade the page table to 4 levels and retry. */
+		rc = crst_table_upgrade(mm, 1UL << 53);
 		if (rc)
 			return (unsigned long) rc;
+		area = arch_get_unmapped_area_topdown(filp, addr, len,
+						      pgoff, flags);
 	}
-	return addr;
+	return area;
 }
 /*
  * This function, called very early during the creation of a new

@@ -10,6 +10,12 @@
  * published by the Free Software Foundation.
 */
 
+#include <linux/io.h>
+
+#include <mach/hardware.h>
+#include <mach/regs-irq.h>
+#include <mach/regs-gpio.h>
+
 #define irqdbf(x...)
 #define irqdbf2(x...)
 

@@ -1,5 +1,6 @@
 #include <linux/delay.h>
-#include <linux/raid/md.h>
+#include <linux/raid/md_u.h>
+#include <linux/raid/md_p.h>
 
 #include "do_mounts.h"
 
@@ -111,8 +112,6 @@ static int __init md_setup(char *str)
 
 	return 1;
 }
-
-#define MdpMinorShift 6
 
 static void __init md_setup_drive(void)
 {
@@ -281,8 +280,9 @@ static void __init autodetect_raid(void)
 	 */
 	printk(KERN_INFO "md: Waiting for all devices to be available before autodetect\n");
 	printk(KERN_INFO "md: If you don't use raid, use raid=noautodetect\n");
-	while (driver_probe_done() < 0)
-		msleep(100);
+
+	wait_for_device_probe();
+
 	fd = sys_open("/dev/md0", 0, 0);
 	if (fd >= 0) {
 		sys_ioctl(fd, RAID_AUTORUN, raid_autopart);

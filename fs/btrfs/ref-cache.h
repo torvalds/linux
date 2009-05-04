@@ -73,5 +73,4 @@ int btrfs_add_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref,
 int btrfs_remove_leaf_refs(struct btrfs_root *root, u64 max_root_gen,
 			   int shared);
 int btrfs_remove_leaf_ref(struct btrfs_root *root, struct btrfs_leaf_ref *ref);
-
 #endif

@@ -1622,7 +1622,7 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 
 /* AU1200 LCD controller device driver */
 
-static int au1200fb_drv_probe(struct device *dev)
+static int au1200fb_drv_probe(struct platform_device *dev)
 {
 	struct au1200fb_device *fbdev;
 	unsigned long page;
@@ -1645,7 +1645,7 @@ static int au1200fb_drv_probe(struct device *dev)
 		/* Allocate the framebuffer to the maximum screen size */
 		fbdev->fb_len = (win->w[plane].xres * win->w[plane].yres * bpp) / 8;
 
-		fbdev->fb_mem = dma_alloc_noncoherent(dev,
+		fbdev->fb_mem = dma_alloc_noncoherent(&dev->dev,
 				PAGE_ALIGN(fbdev->fb_len),
 				&fbdev->fb_phys, GFP_KERNEL);
 		if (!fbdev->fb_mem) {
@@ -1715,7 +1715,7 @@ failed:
 	return ret;
 }
 
-static int au1200fb_drv_remove(struct device *dev)
+static int au1200fb_drv_remove(struct platform_device *dev)
 {
 	struct au1200fb_device *fbdev;
 	int plane;
@@ -1733,7 +1733,8 @@ static int au1200fb_drv_remove(struct device *dev)
 		/* Clean up all probe data */
 		unregister_framebuffer(&fbdev->fb_info);
 		if (fbdev->fb_mem)
-			dma_free_noncoherent(dev, PAGE_ALIGN(fbdev->fb_len),
+			dma_free_noncoherent(&dev->dev,
+					PAGE_ALIGN(fbdev->fb_len),
 					fbdev->fb_mem, fbdev->fb_phys);
 		if (fbdev->fb_info.cmap.len != 0)
 			fb_dealloc_cmap(&fbdev->fb_info.cmap);
@@ -1747,22 +1748,24 @@ static int au1200fb_drv_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int au1200fb_drv_suspend(struct device *dev, u32 state, u32 level)
+static int au1200fb_drv_suspend(struct platform_device *dev, u32 state)
 {
 	/* TODO */
 	return 0;
 }
 
-static int au1200fb_drv_resume(struct device *dev, u32 level)
+static int au1200fb_drv_resume(struct platform_device *dev)
 {
 	/* TODO */
 	return 0;
 }
 #endif /* CONFIG_PM */
 
-static struct device_driver au1200fb_driver = {
-	.name		= "au1200-lcd",
-	.bus		= &platform_bus_type,
+static struct platform_driver au1200fb_driver = {
+	.driver = {
+		.name		= "au1200-lcd",
+		.owner          = THIS_MODULE,
+	},
 	.probe		= au1200fb_drv_probe,
 	.remove		= au1200fb_drv_remove,
 #ifdef CONFIG_PM
@@ -1906,12 +1909,12 @@ static int __init au1200fb_init(void)
 		printk(KERN_INFO "Power management device entry for the au1200fb loaded.\n");
 	#endif
 
-	return driver_register(&au1200fb_driver);
+	return platform_driver_register(&au1200fb_driver);
 }
 
 static void __exit au1200fb_cleanup(void)
 {
-	driver_unregister(&au1200fb_driver);
+	platform_driver_unregister(&au1200fb_driver);
 }
 
 module_init(au1200fb_init);

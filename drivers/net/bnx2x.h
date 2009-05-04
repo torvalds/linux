@@ -1,6 +1,6 @@
 /* bnx2x.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2008 Broadcom Corporation
+ * Copyright (c) 2007-2009 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,6 +19,21 @@
 /* define this to make the driver freeze on error to allow getting debug info
  * (you will need to reboot afterwards) */
 /* #define BNX2X_STOP_ON_ERROR */
+
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#define BCM_VLAN			1
+#endif
+
+
+#define BNX2X_MULTI_QUEUE
+
+#define BNX2X_NEW_NAPI
+
+
+#include "bnx2x_reg.h"
+#include "bnx2x_fw_defs.h"
+#include "bnx2x_hsi.h"
+#include "bnx2x_link.h"
 
 /* error/debug prints */
 
@@ -78,11 +93,6 @@
 #endif
 
 
-#ifdef NETIF_F_HW_VLAN_TX
-#define BCM_VLAN			1
-#endif
-
-
 #define U64_LO(x)			(u32)(((u64)(x)) & 0xffffffff)
 #define U64_HI(x)			(u32)(((u64)(x)) >> 32)
 #define HILO_U64(hi, lo)		((((u64)(hi)) << 32) + (lo))
@@ -92,12 +102,10 @@
 
 #define REG_RD(bp, offset)		readl(REG_ADDR(bp, offset))
 #define REG_RD8(bp, offset)		readb(REG_ADDR(bp, offset))
-#define REG_RD64(bp, offset)		readq(REG_ADDR(bp, offset))
 
 #define REG_WR(bp, offset, val)		writel((u32)val, REG_ADDR(bp, offset))
 #define REG_WR8(bp, offset, val)	writeb((u8)val, REG_ADDR(bp, offset))
 #define REG_WR16(bp, offset, val)	writew((u16)val, REG_ADDR(bp, offset))
-#define REG_WR32(bp, offset, val)	REG_WR(bp, offset, val)
 
 #define REG_RD_IND(bp, offset)		bnx2x_reg_rd_ind(bp, offset)
 #define REG_WR_IND(bp, offset, val)	bnx2x_reg_wr_ind(bp, offset, val)
@@ -150,8 +158,9 @@ struct sw_rx_page {
 
 #define PAGES_PER_SGE_SHIFT		0
 #define PAGES_PER_SGE			(1 << PAGES_PER_SGE_SHIFT)
-
-#define BCM_RX_ETH_PAYLOAD_ALIGN	64
+#define SGE_PAGE_SIZE			PAGE_SIZE
+#define SGE_PAGE_SHIFT			PAGE_SHIFT
+#define SGE_PAGE_ALIGN(addr)		PAGE_ALIGN((typeof(PAGE_SIZE))addr)
 
 /* SGE ring related macros */
 #define NUM_RX_SGE_PAGES		2
@@ -183,6 +192,43 @@ struct sw_rx_page {
 #define RX_SGE_MASK_LEN_MASK		(RX_SGE_MASK_LEN - 1)
 #define NEXT_SGE_MASK_ELEM(el)		(((el) + 1) & RX_SGE_MASK_LEN_MASK)
 
+
+struct bnx2x_eth_q_stats {
+	u32 total_bytes_received_hi;
+	u32 total_bytes_received_lo;
+	u32 total_bytes_transmitted_hi;
+	u32 total_bytes_transmitted_lo;
+	u32 total_unicast_packets_received_hi;
+	u32 total_unicast_packets_received_lo;
+	u32 total_multicast_packets_received_hi;
+	u32 total_multicast_packets_received_lo;
+	u32 total_broadcast_packets_received_hi;
+	u32 total_broadcast_packets_received_lo;
+	u32 total_unicast_packets_transmitted_hi;
+	u32 total_unicast_packets_transmitted_lo;
+	u32 total_multicast_packets_transmitted_hi;
+	u32 total_multicast_packets_transmitted_lo;
+	u32 total_broadcast_packets_transmitted_hi;
+	u32 total_broadcast_packets_transmitted_lo;
+	u32 valid_bytes_received_hi;
+	u32 valid_bytes_received_lo;
+
+	u32 error_bytes_received_hi;
+	u32 error_bytes_received_lo;
+	u32 etherstatsoverrsizepkts_hi;
+	u32 etherstatsoverrsizepkts_lo;
+	u32 no_buff_discard_hi;
+	u32 no_buff_discard_lo;
+
+	u32 driver_xoff;
+	u32 rx_err_discard_pkt;
+	u32 rx_skb_alloc_failed;
+	u32 hw_csum_err;
+};
+
+#define BNX2X_NUM_Q_STATS		11
+#define Q_STATS_OFFSET32(stat_name) \
+			(offsetof(struct bnx2x_eth_q_stats, stat_name) / 4)
 
 struct bnx2x_fastpath {
 
@@ -225,20 +271,15 @@ struct bnx2x_fastpath {
 	u8			index;	/* number in fp array */
 	u8			cl_id;	/* eth client id */
 	u8			sb_id;	/* status block number in HW */
-#define FP_IDX(fp)			(fp->index)
-#define FP_CL_ID(fp)			(fp->cl_id)
-#define BP_CL_ID(bp)			(bp->fp[0].cl_id)
-#define FP_SB_ID(fp)			(fp->sb_id)
-#define CNIC_SB_ID			0
 
 	u16			tx_pkt_prod;
 	u16			tx_pkt_cons;
 	u16			tx_bd_prod;
 	u16			tx_bd_cons;
-	u16			*tx_cons_sb;
+	__le16			*tx_cons_sb;
 
-	u16			fp_c_idx;
-	u16			fp_u_idx;
+	__le16			fp_c_idx;
+	__le16			fp_u_idx;
 
 	u16			rx_bd_prod;
 	u16			rx_bd_cons;
@@ -247,8 +288,8 @@ struct bnx2x_fastpath {
 	u16			rx_sge_prod;
 	/* The last maximal completed SGE */
 	u16			last_max_sge;
-	u16			*rx_cons_sb;
-	u16			*rx_bd_cons_sb;
+	__le16			*rx_cons_sb;
+	__le16			*rx_bd_cons_sb;
 
 	unsigned long		tx_pkt,
 				rx_pkt,
@@ -263,19 +304,18 @@ struct bnx2x_fastpath {
 	u64			tpa_queue_used;
 #endif
 
+	struct tstorm_per_client_stats old_tclient;
+	struct ustorm_per_client_stats old_uclient;
+	struct xstorm_per_client_stats old_xclient;
+	struct bnx2x_eth_q_stats eth_q_stats;
+
+	char			name[IFNAMSIZ];
 	struct bnx2x		*bp; /* parent */
 };
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
 
-#define BNX2X_HAS_TX_WORK(fp) \
-			((fp->tx_pkt_prod != le16_to_cpu(*fp->tx_cons_sb)) || \
-			 (fp->tx_pkt_prod != fp->tx_pkt_cons))
-
-#define BNX2X_HAS_RX_WORK(fp) \
-			(fp->rx_comp_cons != rx_cons_sb)
-
-#define BNX2X_HAS_WORK(fp)	(BNX2X_HAS_RX_WORK(fp) || BNX2X_HAS_TX_WORK(fp))
+#define BNX2X_HAS_WORK(fp)	(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))
 
 
 /* MC hsi */
@@ -405,10 +445,13 @@ struct bnx2x_fastpath {
 #define BNX2X_RX_CSUM_OK(cqe) \
 			(!(BNX2X_L4_CSUM_ERR(cqe) || BNX2X_IP_CSUM_ERR(cqe)))
 
+#define BNX2X_PRS_FLAG_OVERETH_IPV4(flags) \
+				(((le16_to_cpu(flags) & \
+				   PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) >> \
+				  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT) \
+				 == PRS_FLAG_OVERETH_IPV4)
 #define BNX2X_RX_SUM_FIX(cqe) \
-			((le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) & \
-			  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) == \
-			 (1 << PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT))
+	BNX2X_PRS_FLAG_OVERETH_IPV4(cqe->fast_path_cqe.pars_flags.flags)
 
 
 #define FP_USB_FUNC_OFF			(2 + 2*HC_USTORM_SB_NUM_INDICES)
@@ -482,11 +525,8 @@ struct bnx2x_common {
 	u32			shmem_base;
 
 	u32			hw_config;
-	u32			board;
 
 	u32			bc_ver;
-
-	char			*name;
 };
 
 
@@ -532,6 +572,7 @@ struct bnx2x_port {
 
 	/* used to synchronize phy accesses */
 	struct mutex		phy_mutex;
+	int			need_hw_lock;
 
 	u32			port_stx;
 
@@ -577,6 +618,10 @@ struct bnx2x_eth_stats {
 
 	u32 error_bytes_received_hi;
 	u32 error_bytes_received_lo;
+	u32 etherstatsoverrsizepkts_hi;
+	u32 etherstatsoverrsizepkts_lo;
+	u32 no_buff_discard_hi;
+	u32 no_buff_discard_lo;
 
 	u32 rx_stat_ifhcinbadoctets_hi;
 	u32 rx_stat_ifhcinbadoctets_lo;
@@ -655,19 +700,20 @@ struct bnx2x_eth_stats {
 	u32 tx_stat_bmac_ufl_hi;
 	u32 tx_stat_bmac_ufl_lo;
 
-	u32 brb_drop_hi;
-	u32 brb_drop_lo;
-	u32 brb_truncate_hi;
-	u32 brb_truncate_lo;
-
-	u32 jabber_packets_received;
+	u32 pause_frames_received_hi;
+	u32 pause_frames_received_lo;
+	u32 pause_frames_sent_hi;
+	u32 pause_frames_sent_lo;
 
 	u32 etherstatspkts1024octetsto1522octets_hi;
 	u32 etherstatspkts1024octetsto1522octets_lo;
 	u32 etherstatspktsover1522octets_hi;
 	u32 etherstatspktsover1522octets_lo;
 
-	u32 no_buff_discard;
+	u32 brb_drop_hi;
+	u32 brb_drop_lo;
+	u32 brb_truncate_hi;
+	u32 brb_truncate_lo;
 
 	u32 mac_filter_discard;
 	u32 xxoverflow_discard;
@@ -678,17 +724,16 @@ struct bnx2x_eth_stats {
 	u32 rx_err_discard_pkt;
 	u32 rx_skb_alloc_failed;
 	u32 hw_csum_err;
+
+	u32 nig_timer_max;
 };
 
+#define BNX2X_NUM_STATS			41
 #define STATS_OFFSET32(stat_name) \
 			(offsetof(struct bnx2x_eth_stats, stat_name) / 4)
 
 
-#ifdef BNX2X_MULTI
 #define MAX_CONTEXT			16
-#else
-#define MAX_CONTEXT			1
-#endif
 
 union cdu_context {
 	struct eth_context eth;
@@ -736,13 +781,16 @@ struct bnx2x {
 	struct bnx2x_fastpath	fp[MAX_CONTEXT];
 	void __iomem		*regview;
 	void __iomem		*doorbells;
-#define BNX2X_DB_SIZE		(16*2048)
+#define BNX2X_DB_SIZE		(16*BCM_PAGE_SIZE)
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
 	atomic_t		intr_sem;
 	struct msix_entry	msix_table[MAX_CONTEXT+1];
+#define INT_MODE_INTx			1
+#define INT_MODE_MSI			2
+#define INT_MODE_MSIX			3
 
 	int			tx_ring_size;
 
@@ -751,23 +799,26 @@ struct bnx2x {
 #endif
 
 	u32			rx_csum;
-	u32			rx_offset;
 	u32			rx_buf_size;
 #define ETH_OVREHEAD			(ETH_HLEN + 8)	/* 8 for CRC + VLAN */
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
 
+	/* Max supported alignment is 256 (8 shift) */
+#define BNX2X_RX_ALIGN_SHIFT		((L1_CACHE_SHIFT < 8) ? \
+					 L1_CACHE_SHIFT : 8)
+#define BNX2X_RX_ALIGN			(1 << BNX2X_RX_ALIGN_SHIFT)
+
 	struct host_def_status_block *def_status_blk;
 #define DEF_SB_ID			16
-	u16			def_c_idx;
-	u16			def_u_idx;
-	u16			def_x_idx;
-	u16			def_t_idx;
-	u16			def_att_idx;
+	__le16			def_c_idx;
+	__le16			def_u_idx;
+	__le16			def_x_idx;
+	__le16			def_t_idx;
+	__le16			def_att_idx;
 	u32			attn_state;
 	struct attn_route	attn_group[MAX_DYNAMIC_ATTN_GRPS];
-	u32			nig_mask;
 
 	/* slow path ring */
 	struct eth_spe		*spq;
@@ -775,7 +826,7 @@ struct bnx2x {
 	u16			spq_prod_idx;
 	struct eth_spe		*spq_prod_bd;
 	struct eth_spe		*spq_last_bd;
-	u16			*dsb_sp_prod;
+	__le16			*dsb_sp_prod;
 	u16			spq_left; /* serialize spq */
 	/* used to synchronize spq accesses */
 	spinlock_t		spq_lock;
@@ -793,14 +844,16 @@ struct bnx2x {
 	u32			flags;
 #define PCIX_FLAG			1
 #define PCI_32BIT_FLAG			2
-#define ONE_TDMA_FLAG			4	/* no longer used */
+#define ONE_PORT_FLAG			4
 #define NO_WOL_FLAG			8
 #define USING_DAC_FLAG			0x10
 #define USING_MSIX_FLAG			0x20
-#define ASF_ENABLE_FLAG			0x40
+#define USING_MSI_FLAG			0x40
 #define TPA_ENABLE_FLAG			0x80
 #define NO_MCP_FLAG			0x100
 #define BP_NOMCP(bp)			(bp->flags & NO_MCP_FLAG)
+#define HW_VLAN_TX_FLAG			0x400
+#define HW_VLAN_RX_FLAG			0x800
 
 	int			func;
 #define BP_PORT(bp)			(bp->func % PORT_MAX)
@@ -810,12 +863,12 @@ struct bnx2x {
 
 	int			pm_cap;
 	int			pcie_cap;
+	int			mrrs;
 
-	struct work_struct	sp_task;
+	struct delayed_work	sp_task;
 	struct work_struct	reset_task;
 
 	struct timer_list	timer;
-	int			timer_interval;
 	int			current_interval;
 
 	u16			fw_seq;
@@ -827,6 +880,9 @@ struct bnx2x {
 
 	struct bnx2x_common	common;
 	struct bnx2x_port	port;
+
+	struct cmng_struct_per_port cmng;
+	u32			vn_weight_sum;
 
 	u32			mf_config;
 	u16			e1hov;
@@ -850,7 +906,7 @@ struct bnx2x {
 	u32			lin_cnt;
 
 	int			state;
-#define BNX2X_STATE_CLOSED		0x0
+#define BNX2X_STATE_CLOSED		0
 #define BNX2X_STATE_OPENING_WAIT4_LOAD	0x1000
 #define BNX2X_STATE_OPENING_WAIT4_PORT	0x2000
 #define BNX2X_STATE_OPEN		0x3000
@@ -861,8 +917,9 @@ struct bnx2x {
 #define BNX2X_STATE_DIAG		0xe000
 #define BNX2X_STATE_ERROR		0xf000
 
-	int			num_queues;
-#define BP_MAX_QUEUES(bp)		(IS_E1HMF(bp) ? 4 : 16)
+	int			multi_mode;
+	int			num_rx_queues;
+	int			num_tx_queues;
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
@@ -900,8 +957,6 @@ struct bnx2x {
 	int			executer_idx;
 
 	u16			stats_counter;
-	struct tstorm_per_client_stats old_tclient;
-	struct xstorm_per_client_stats old_xclient;
 	struct bnx2x_eth_stats	eth_stats;
 
 	struct z_stream_s	*strm;
@@ -913,17 +968,27 @@ struct bnx2x {
 };
 
 
-#define for_each_queue(bp, var)	for (var = 0; var < bp->num_queues; var++)
+#define BNX2X_MAX_QUEUES(bp)	(IS_E1HMF(bp) ? (MAX_CONTEXT / E1HVN_MAX) : \
+						 MAX_CONTEXT)
+#define BNX2X_NUM_QUEUES(bp)	max(bp->num_rx_queues, bp->num_tx_queues)
+#define is_multi(bp)		(BNX2X_NUM_QUEUES(bp) > 1)
 
+#define for_each_rx_queue(bp, var) \
+			for (var = 0; var < bp->num_rx_queues; var++)
+#define for_each_tx_queue(bp, var) \
+			for (var = 0; var < bp->num_tx_queues; var++)
+#define for_each_queue(bp, var) \
+			for (var = 0; var < BNX2X_NUM_QUEUES(bp); var++)
 #define for_each_nondefault_queue(bp, var) \
-				for (var = 1; var < bp->num_queues; var++)
-#define is_multi(bp)		(bp->num_queues > 1)
+			for (var = 1; var < BNX2X_NUM_QUEUES(bp); var++)
 
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
 void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		      u32 len32);
+int bnx2x_get_gpio(struct bnx2x *bp, int gpio_num, u8 port);
 int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
+int bnx2x_set_gpio_int(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
@@ -994,13 +1059,12 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED_SHIFT		16
 
 
-#define BNX2X_NUM_STATS			42
-#define BNX2X_NUM_TESTS			8
+#define BNX2X_NUM_TESTS			7
 
-#define BNX2X_MAC_LOOPBACK		0
-#define BNX2X_PHY_LOOPBACK		1
-#define BNX2X_MAC_LOOPBACK_FAILED	1
-#define BNX2X_PHY_LOOPBACK_FAILED	2
+#define BNX2X_PHY_LOOPBACK		0
+#define BNX2X_MAC_LOOPBACK		1
+#define BNX2X_PHY_LOOPBACK_FAILED	1
+#define BNX2X_MAC_LOOPBACK_FAILED	2
 #define BNX2X_LOOPBACK_FAILED		(BNX2X_MAC_LOOPBACK_FAILED | \
 					 BNX2X_PHY_LOOPBACK_FAILED)
 
@@ -1063,9 +1127,6 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_MCP_ASSERT \
 	GENERAL_ATTEN_OFFSET(MCP_FATAL_ASSERT_ATTENTION_BIT)
 
-#define BNX2X_DOORQ_ASSERT \
-	AEU_INPUTS_ATTN_BITS_DOORBELLQ_HW_INTERRUPT
-
 #define BNX2X_GRC_TIMEOUT	GENERAL_ATTEN_OFFSET(LATCHED_ATTN_TIMEOUT_GRC)
 #define BNX2X_GRC_RSV		(GENERAL_ATTEN_OFFSET(LATCHED_ATTN_RBCR) | \
 				 GENERAL_ATTEN_OFFSET(LATCHED_ATTN_RBCT) | \
@@ -1122,12 +1183,13 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 				 AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR)
 
 
-#define MULTI_FLAGS \
+#define MULTI_FLAGS(bp) \
 		(TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_CAPABILITY | \
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV4_TCP_CAPABILITY | \
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_CAPABILITY | \
 		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_IPV6_TCP_CAPABILITY | \
-		 TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_ENABLE)
+		 (bp->multi_mode << \
+		  TSTORM_ETH_FUNCTION_COMMON_CONFIG_RSS_MODE_SHIFT))
 
 #define MULTI_MASK			0x7f
 

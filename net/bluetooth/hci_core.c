@@ -1565,8 +1565,7 @@ static void hci_cmd_task(unsigned long arg)
 
 	/* Send queued commands */
 	if (atomic_read(&hdev->cmd_cnt) && (skb = skb_dequeue(&hdev->cmd_q))) {
-		if (hdev->sent_cmd)
-			kfree_skb(hdev->sent_cmd);
+		kfree_skb(hdev->sent_cmd);
 
 		if ((hdev->sent_cmd = skb_clone(skb, GFP_ATOMIC))) {
 			atomic_dec(&hdev->cmd_cnt);

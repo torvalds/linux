@@ -34,6 +34,12 @@
 #include <linux/backing-dev.h>
 #include <linux/freezer.h>
 
+#include "xfs_sb.h"
+#include "xfs_inum.h"
+#include "xfs_ag.h"
+#include "xfs_dmapi.h"
+#include "xfs_mount.h"
+
 static kmem_zone_t *xfs_buf_zone;
 STATIC int xfsbufd(void *);
 STATIC int xfsbufd_wakeup(int, gfp_t);
@@ -45,6 +51,7 @@ static struct shrinker xfs_buf_shake = {
 
 static struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
+struct workqueue_struct *xfsconvertd_workqueue;
 
 #ifdef XFS_BUF_TRACE
 void
@@ -1435,10 +1442,12 @@ xfs_unregister_buftarg(
 
 void
 xfs_free_buftarg(
-	xfs_buftarg_t		*btp)
+	struct xfs_mount	*mp,
+	struct xfs_buftarg	*btp)
 {
 	xfs_flush_buftarg(btp, 1);
-	xfs_blkdev_issue_flush(btp);
+	if (mp->m_flags & XFS_MOUNT_BARRIER)
+		xfs_blkdev_issue_flush(btp);
 	xfs_free_bufhash(btp);
 	iput(btp->bt_mapping->host);
 
@@ -1767,6 +1776,7 @@ xfs_flush_buftarg(
 	xfs_buf_t	*bp, *n;
 	int		pincount = 0;
 
+	xfs_buf_runall_queues(xfsconvertd_workqueue);
 	xfs_buf_runall_queues(xfsdatad_workqueue);
 	xfs_buf_runall_queues(xfslogd_workqueue);
 
@@ -1823,9 +1833,15 @@ xfs_buf_init(void)
 	if (!xfsdatad_workqueue)
 		goto out_destroy_xfslogd_workqueue;
 
+	xfsconvertd_workqueue = create_workqueue("xfsconvertd");
+	if (!xfsconvertd_workqueue)
+		goto out_destroy_xfsdatad_workqueue;
+
 	register_shrinker(&xfs_buf_shake);
 	return 0;
 
+ out_destroy_xfsdatad_workqueue:
+	destroy_workqueue(xfsdatad_workqueue);
  out_destroy_xfslogd_workqueue:
 	destroy_workqueue(xfslogd_workqueue);
  out_free_buf_zone:
@@ -1841,6 +1857,7 @@ void
 xfs_buf_terminate(void)
 {
 	unregister_shrinker(&xfs_buf_shake);
+	destroy_workqueue(xfsconvertd_workqueue);
 	destroy_workqueue(xfsdatad_workqueue);
 	destroy_workqueue(xfslogd_workqueue);
 	kmem_zone_destroy(xfs_buf_zone);

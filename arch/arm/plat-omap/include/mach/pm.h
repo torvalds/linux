@@ -108,7 +108,7 @@
 	!defined(CONFIG_ARCH_OMAP15XX) && \
 	!defined(CONFIG_ARCH_OMAP16XX) && \
 	!defined(CONFIG_ARCH_OMAP24XX)
-#error "Power management for this processor not implemented yet"
+#warning "Power management for this processor not implemented yet"
 #endif
 
 #ifndef __ASSEMBLER__
@@ -117,18 +117,6 @@
 
 extern void prevent_idle_sleep(void);
 extern void allow_idle_sleep(void);
-
-/**
- * clk_deny_idle - Prevents the clock from being idled during MPU idle
- * @clk: clock signal handle
- */
-void clk_deny_idle(struct clk *clk);
-
-/**
- * clk_allow_idle - Counters previous clk_deny_idle
- * @clk: clock signal handle
- */
-void clk_allow_idle(struct clk *clk);
 
 extern void omap_pm_idle(void);
 extern void omap_pm_suspend(void);

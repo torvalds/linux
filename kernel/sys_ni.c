@@ -131,6 +131,7 @@ cond_syscall(sys_io_destroy);
 cond_syscall(sys_io_submit);
 cond_syscall(sys_io_cancel);
 cond_syscall(sys_io_getevents);
+cond_syscall(sys_syslog);
 
 /* arch-specific weak syscall entries */
 cond_syscall(sys_pciconfig_read);

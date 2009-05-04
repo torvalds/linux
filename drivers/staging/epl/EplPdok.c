@@ -73,11 +73,6 @@
 #include "kernel/EplEventk.h"
 #include "kernel/EplObdk.h"
 
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-#include "plccore.h"
-#define PDO_LED 0x08
-#endif
-
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_PDOK)) != 0)
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_DLLK)) == 0)
@@ -226,22 +221,12 @@ tEplKernel EplPdokCbPdoReceived(tEplFrameInfo * pFrameInfo_p)
 	tEplKernel Ret = kEplSuccessful;
 	tEplEvent Event;
 
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// reset LED
-//    MCF_GPIO_PODR_PCIBG &= ~PDO_LED;  // Level
-#endif
-
 	Event.m_EventSink = kEplEventSinkPdok;
 	Event.m_EventType = kEplEventTypePdoRx;
 	// limit copied data to size of PDO (because from some CNs the frame is larger than necessary)
 	Event.m_uiSize = AmiGetWordFromLe(&pFrameInfo_p->m_pFrame->m_Data.m_Pres.m_le_wSize) + 24;	// pFrameInfo_p->m_uiFrameSize;
 	Event.m_pArg = pFrameInfo_p->m_pFrame;
 	Ret = EplEventkPost(&Event);
-
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// set LED
-//    MCF_GPIO_PODR_PCIBG |= PDO_LED;  // Level
-#endif
 
 	return Ret;
 }
@@ -269,21 +254,11 @@ tEplKernel EplPdokCbPdoTransmitted(tEplFrameInfo * pFrameInfo_p)
 	tEplKernel Ret = kEplSuccessful;
 	tEplEvent Event;
 
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// reset LED
-	MCF_GPIO_PODR_PCIBG &= ~PDO_LED;	// Level
-#endif
-
 	Event.m_EventSink = kEplEventSinkPdok;
 	Event.m_EventType = kEplEventTypePdoTx;
 	Event.m_uiSize = sizeof(tEplFrameInfo);
 	Event.m_pArg = pFrameInfo_p;
 	Ret = EplEventkPost(&Event);
-
-#if (DEV_SYSTEM == _DEV_GNU_CF548X_)
-	// set LED
-	MCF_GPIO_PODR_PCIBG |= PDO_LED;	// Level
-#endif
 
 	return Ret;
 }
@@ -339,19 +314,19 @@ tEplKernel EplPdokCbSoa(tEplFrameInfo * pFrameInfo_p)
 tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 {
 	tEplKernel Ret = kEplSuccessful;
-	WORD wPdoSize;
-	WORD wBitOffset;
-	WORD wBitSize;
-	WORD wVarSize;
-	QWORD qwObjectMapping;
-	BYTE bMappSubindex;
-	BYTE bObdSubindex;
-	WORD wObdMappIndex;
-	WORD wObdCommIndex;
-	WORD wPdoId;
-	BYTE bObdData;
-	BYTE bObjectCount;
-	BYTE bFrameData;
+	u16 wPdoSize;
+	u16 wBitOffset;
+	u16 wBitSize;
+	u16 wVarSize;
+	u64 qwObjectMapping;
+	u8 bMappSubindex;
+	u8 bObdSubindex;
+	u16 wObdMappIndex;
+	u16 wObdCommIndex;
+	u16 wPdoId;
+	u8 bObdData;
+	u8 bObjectCount;
+	u8 bFrameData;
 	BOOL fValid;
 	tEplObdSize ObdSize;
 	tEplFrame *pFrame;
@@ -448,7 +423,7 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 			// process mapping
 			for (bMappSubindex = 1; bMappSubindex <= bObjectCount;
 			     bMappSubindex++) {
-				ObdSize = 8;	// QWORD
+				ObdSize = 8;	// u64
 				// read object mapping from OD
 				Ret =
 				    EplObdReadEntry(wObdMappIndex,
@@ -463,16 +438,16 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 				}
 				// decode object mapping
 				wObdCommIndex =
-				    (WORD) (qwObjectMapping &
+				    (u16) (qwObjectMapping &
 					    0x000000000000FFFFLL);
 				bObdSubindex =
-				    (BYTE) ((qwObjectMapping &
+				    (u8) ((qwObjectMapping &
 					     0x0000000000FF0000LL) >> 16);
 				wBitOffset =
-				    (WORD) ((qwObjectMapping &
+				    (u16) ((qwObjectMapping &
 					     0x0000FFFF00000000LL) >> 32);
 				wBitSize =
-				    (WORD) ((qwObjectMapping &
+				    (u16) ((qwObjectMapping &
 					     0xFFFF000000000000LL) >> 48);
 
 				// check if object exceeds PDO size
@@ -578,7 +553,7 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 			// process mapping
 			for (bMappSubindex = 1; bMappSubindex <= bObjectCount;
 			     bMappSubindex++) {
-				ObdSize = 8;	// QWORD
+				ObdSize = 8;	// u64
 				// read object mapping from OD
 				Ret =
 				    EplObdReadEntry(wObdMappIndex,
@@ -593,21 +568,21 @@ tEplKernel EplPdokProcess(tEplEvent * pEvent_p)
 				}
 				// decode object mapping
 				wObdCommIndex =
-				    (WORD) (qwObjectMapping &
+				    (u16) (qwObjectMapping &
 					    0x000000000000FFFFLL);
 				bObdSubindex =
-				    (BYTE) ((qwObjectMapping &
+				    (u8) ((qwObjectMapping &
 					     0x0000000000FF0000LL) >> 16);
 				wBitOffset =
-				    (WORD) ((qwObjectMapping &
+				    (u16) ((qwObjectMapping &
 					     0x0000FFFF00000000LL) >> 32);
 				wBitSize =
-				    (WORD) ((qwObjectMapping &
+				    (u16) ((qwObjectMapping &
 					     0xFFFF000000000000LL) >> 48);
 
 				// calculate max PDO size
 				ObdSize = wBitSize >> 3;
-				wVarSize = (wBitOffset >> 3) + (WORD) ObdSize;
+				wVarSize = (wBitOffset >> 3) + (u16) ObdSize;
 				if ((unsigned int)(wVarSize + 24) > pFrameInfo->m_uiFrameSize) {	// TPDO is too short
 					// $$$ raise PDO error, set Ret
 					goto Exit;

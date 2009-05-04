@@ -135,7 +135,7 @@
 134 -> Adlink RTV24
 135 -> DViCO FusionHDTV 5 Lite                             [18ac:d500]
 136 -> Acorp Y878F                                         [9511:1540]
-137 -> Conceptronic CTVFMi v2
+137 -> Conceptronic CTVFMi v2                              [036e:109e]
 138 -> Prolink Pixelview PV-BT878P+ (Rev.2E)
 139 -> Prolink PixelView PlayTV MPEG2 PV-M4900
 140 -> Osprey 440                                          [0070:ff07]
@@ -154,3 +154,7 @@
 153 -> PHYTEC VD-012 (bt878)
 154 -> PHYTEC VD-012-X1 (bt878)
 155 -> PHYTEC VD-012-X2 (bt878)
+156 -> IVCE-8784                                           [0000:f050,0001:f050,0002:f050,0003:f050]
+157 -> Geovision GV-800(S) (master)                        [800a:763d]
+158 -> Geovision GV-800(S) (slave)                         [800b:763d,800c:763d,800d:763d]
+159 -> ProVideo PV183                                      [1830:1540,1831:1540,1832:1540,1833:1540,1834:1540,1835:1540,1836:1540,1837:1540]

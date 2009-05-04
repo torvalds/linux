@@ -34,14 +34,14 @@
 
 #include <mach/gpio.h>
 #include <mach/mux.h>
+#include <mach/dma.h>
 #include <mach/irda.h>
 #include <mach/usb.h>
 #include <mach/tc.h>
 #include <mach/board.h>
 #include <mach/common.h>
-#include <mach/mcbsp.h>
-#include <mach/omap-alsa.h>
 #include <mach/keypad.h>
+#include <mach/board-sx1.h>
 
 /* Write to I2C device */
 int sx1_i2c_write_byte(u8 devaddr, u8 regoffset, u8 value)
@@ -254,35 +254,6 @@ static struct platform_device sx1_irda_device = {
 	.resource	= sx1_irda_resources,
 };
 
-/*----------- McBSP & Sound -------------------------*/
-
-/* Playback interface - McBSP1 */
-static struct omap_mcbsp_reg_cfg mcbsp1_regs = {
-	.spcr2	= XINTM(3),	/* SPCR2=30 */
-	.spcr1	= RINTM(3),	/* SPCR1=30 */
-	.rcr2	= 0,	/* RCR2 =00 */
-	.rcr1	= RFRLEN1(1) | RWDLEN1(OMAP_MCBSP_WORD_16),	/* RCR1=140 */
-	.xcr2	= 0,	/* XCR2 = 0 */
-	.xcr1	= XFRLEN1(1) | XWDLEN1(OMAP_MCBSP_WORD_16),	/* XCR1 = 140 */
-	.srgr1	= FWID(15) | CLKGDV(12),	/* SRGR1=0f0c */
-	.srgr2	= FSGM | FPER(31),	/* SRGR2=101f */
-	.pcr0	= FSXM | FSRM | CLKXM | CLKRM | FSXP | FSRP | CLKXP | CLKRP,
-						/* PCR0 =0f0f */
-};
-
-static struct omap_alsa_codec_config sx1_alsa_config = {
-	.name			= "SX1 EGold",
-	.mcbsp_regs_alsa	= &mcbsp1_regs,
-};
-
-static struct platform_device sx1_mcbsp1_device = {
-	.name	= "omap_alsa_mcbsp",
-	.id	= 1,
-	.dev = {
-		.platform_data	= &sx1_alsa_config,
-	},
-};
-
 /*----------- MTD -------------------------*/
 
 static struct mtd_partition sx1_partitions[] = {
@@ -394,7 +365,6 @@ static struct platform_device *sx1_devices[] __initdata = {
 	&sx1_flash_device,
 	&sx1_kp_device,
 	&sx1_lcd_device,
-	&sx1_mcbsp1_device,
 	&sx1_irda_device,
 };
 /*-----------------------------------------*/
@@ -404,7 +374,6 @@ static struct omap_uart_config sx1_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel sx1_config[] __initdata = {
-	{ OMAP_TAG_USB,	&sx1_usb_config },
 	{ OMAP_TAG_LCD,	&sx1_lcd_config },
 	{ OMAP_TAG_UART,	&sx1_uart_config },
 };
@@ -419,13 +388,14 @@ static void __init omap_sx1_init(void)
 	omap_board_config_size = ARRAY_SIZE(sx1_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
+	omap_usb_init(&sx1_usb_config);
 	sx1_mmc_init();
 
 	/* turn on USB power */
 	/* sx1_setusbpower(1); cant do it here because i2c is not ready */
-	omap_request_gpio(1);	/* A_IRDA_OFF */
-	omap_request_gpio(11);	/* A_SWITCH */
-	omap_request_gpio(15);	/* A_USB_ON */
+	gpio_request(1, "A_IRDA_OFF");
+	gpio_request(11, "A_SWITCH");
+	gpio_request(15, "A_USB_ON");
 	gpio_direction_output(1, 1);	/*A_IRDA_OFF = 1 */
 	gpio_direction_output(11, 0);	/*A_SWITCH = 0 */
 	gpio_direction_output(15, 0);	/*A_USB_ON = 0 */

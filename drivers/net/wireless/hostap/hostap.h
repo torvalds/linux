@@ -31,7 +31,7 @@ void hostap_dump_rx_header(const char *name,
 void hostap_dump_tx_header(const char *name,
 			   const struct hfa384x_tx_frame *tx);
 extern const struct header_ops hostap_80211_ops;
-int hostap_80211_get_hdrlen(u16 fc);
+int hostap_80211_get_hdrlen(__le16 fc);
 struct net_device_stats *hostap_get_stats(struct net_device *dev);
 void hostap_setup_dev(struct net_device *dev, local_info_t *local,
 		      int type);

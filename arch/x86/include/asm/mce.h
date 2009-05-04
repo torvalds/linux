@@ -3,14 +3,16 @@
 
 #ifdef __x86_64__
 
+#include <linux/types.h>
 #include <asm/ioctls.h>
-#include <asm/types.h>
 
 /*
  * Machine Check support for x86
  */
 
 #define MCG_CTL_P	 (1UL<<8)   /* MCG_CAP register available */
+#define MCG_EXT_P	 (1ULL<<9)   /* Extended registers available */
+#define MCG_CMCI_P	 (1ULL<<10)  /* CMCI supported */
 
 #define MCG_STATUS_RIPV  (1UL<<0)   /* restart ip valid */
 #define MCG_STATUS_EIPV  (1UL<<1)   /* ip points to correct instruction */
@@ -90,14 +92,29 @@ extern int mce_disabled;
 
 #include <asm/atomic.h>
 
+void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
 DECLARE_PER_CPU(struct sys_device, device_mce);
 extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
+/*
+ * To support more than 128 would need to escape the predefined
+ * Linux defined extended banks first.
+ */
+#define MAX_NR_BANKS (MCE_EXTENDED_BANK - 1)
+
 #ifdef CONFIG_X86_MCE_INTEL
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
+void cmci_clear(void);
+void cmci_reenable(void);
+void cmci_rediscover(int dying);
+void cmci_recheck(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
+static inline void cmci_clear(void) {}
+static inline void cmci_reenable(void) {}
+static inline void cmci_rediscover(int dying) {}
+static inline void cmci_recheck(void) {}
 #endif
 
 #ifdef CONFIG_X86_MCE_AMD
@@ -106,25 +123,34 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c);
 static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
 #endif
 
-void mce_log_therm_throt_event(unsigned int cpu, __u64 status);
+extern int mce_available(struct cpuinfo_x86 *c);
+
+void mce_log_therm_throt_event(__u64 status);
 
 extern atomic_t mce_entry;
 
 extern void do_machine_check(struct pt_regs *, long);
+
+typedef DECLARE_BITMAP(mce_banks_t, MAX_NR_BANKS);
+DECLARE_PER_CPU(mce_banks_t, mce_poll_banks);
+
+enum mcp_flags {
+	MCP_TIMESTAMP = (1 << 0),	/* log time stamp */
+	MCP_UC = (1 << 1),		/* log uncorrected errors */
+};
+extern void machine_check_poll(enum mcp_flags flags, mce_banks_t *b);
+
 extern int mce_notify_user(void);
 
 #endif /* !CONFIG_X86_32 */
-
-
 
 #ifdef CONFIG_X86_MCE
 extern void mcheck_init(struct cpuinfo_x86 *c);
 #else
 #define mcheck_init(c) do { } while (0)
 #endif
-extern void stop_mce(void);
-extern void restart_mce(void);
+
+extern void (*mce_threshold_vector)(void);
 
 #endif /* __KERNEL__ */
-
 #endif /* _ASM_X86_MCE_H */

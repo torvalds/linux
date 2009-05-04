@@ -109,12 +109,12 @@ void rf_chips_init(struct agnx_priv *priv)
 	}
 
 	/* Set SPI clock speed to 200NS */
-        reg = agnx_read32(ctl, AGNX_SPI_CFG);
-        reg &= ~0xF;
-        reg |= 0x3;
-        agnx_write32(ctl, AGNX_SPI_CFG, reg);
+	reg = agnx_read32(ctl, AGNX_SPI_CFG);
+	reg &= ~0xF;
+	reg |= 0x3;
+	agnx_write32(ctl, AGNX_SPI_CFG, reg);
 
-        /* Set SPI clock speed to 50NS */
+	/* Set SPI clock speed to 50NS */
 	reg = agnx_read32(ctl, AGNX_SPI_CFG);
 	reg &= ~0xF;
 	reg |= 0x1;
@@ -256,7 +256,7 @@ static void antenna_init(struct agnx_priv *priv, int num_antenna)
 		agnx_write32(ctl, AGNX_GCR_THD0BTFEST, 70);
 		agnx_write32(ctl, AGNX_GCR_SIGHTH, 100);
 		agnx_write32(ctl, AGNX_GCR_SIGLTH, 48);
-//		agnx_write32(ctl, AGNX_GCR_SIGLTH, 16);
+/*		agnx_write32(ctl, AGNX_GCR_SIGLTH, 16); */
 		break;
 	default:
 		printk(KERN_WARNING PFX "Unknow antenna number\n");
@@ -275,8 +275,8 @@ static void chain_update(struct agnx_priv *priv, u32 chain)
 	if (reg == 0x4)
 		spi_rf_write(ctl, RF_CHIP0|RF_CHIP1, reg|0x1000);
 	else if (reg != 0x0)
-     		spi_rf_write(ctl, RF_CHIP0|RF_CHIP1|RF_CHIP2, reg|0x1000);
-        else {
+		spi_rf_write(ctl, RF_CHIP0|RF_CHIP1|RF_CHIP2, reg|0x1000);
+	else {
 		if (chain == 3 || chain == 6) {
 			spi_rf_write(ctl, RF_CHIP0|RF_CHIP1|RF_CHIP2, reg|0x1000);
 			agnx_write32(ctl, AGNX_GCR_RXOVERIDE, 0x0);
@@ -634,8 +634,7 @@ static void chain_calibrate(struct agnx_priv *priv, struct chains *chains,
 	}
 } /* chain_calibrate */
 
-
-static void inline get_calibrete_value(struct agnx_priv *priv, struct chains *chains,
+static inline void get_calibrete_value(struct agnx_priv *priv, struct chains *chains,
 				       unsigned int num)
 {
 	void __iomem *ctl = priv->ctl;
@@ -652,7 +651,7 @@ static void inline get_calibrete_value(struct agnx_priv *priv, struct chains *ch
 	}
 
 	if (num == 0 || num == 1 || num == 2) {
-		if ( 0 == chains[num].cali)
+		if (0 == chains[num].cali)
 			chains[num].cali = 0xff;
 		else
 			chains[num].cali--;
@@ -669,7 +668,7 @@ static inline void calibra_delay(struct agnx_priv *priv)
 	unsigned int i = 100;
 
 	wmb();
-	while (i--) {
+	while (--i) {
 		reg = (ioread32(ctl + AGNX_ACI_STATUS));
 		if (reg == 0x4000)
 			break;

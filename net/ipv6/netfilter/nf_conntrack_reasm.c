@@ -528,12 +528,12 @@ find_prev_fhdr(struct sk_buff *skb, u8 *prevhdrp, int *prevhoff, int *fhoff)
 		if (!ipv6_ext_hdr(nexthdr)) {
 			return -1;
 		}
-		if (len < (int)sizeof(struct ipv6_opt_hdr)) {
-			pr_debug("too short\n");
-			return -1;
-		}
 		if (nexthdr == NEXTHDR_NONE) {
 			pr_debug("next header is none\n");
+			return -1;
+		}
+		if (len < (int)sizeof(struct ipv6_opt_hdr)) {
+			pr_debug("too short\n");
 			return -1;
 		}
 		if (skb_copy_bits(skb, start, &hdr, sizeof(hdr)))

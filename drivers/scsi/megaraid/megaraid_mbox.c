@@ -473,7 +473,7 @@ megaraid_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	// Setup the default DMA mask. This would be changed later on
 	// depending on hardware capabilities
-	if (pci_set_dma_mask(adapter->pdev, DMA_32BIT_MASK) != 0) {
+	if (pci_set_dma_mask(adapter->pdev, DMA_BIT_MASK(32)) != 0) {
 
 		con_log(CL_ANN, (KERN_WARNING
 			"megaraid: pci_set_dma_mask failed:%d\n", __LINE__));
@@ -900,11 +900,11 @@ megaraid_init_mbox(adapter_t *adapter)
 		adapter->pdev->device == PCI_DEVICE_ID_PERC4_DI_EVERGLADES) ||
 		(adapter->pdev->vendor == PCI_VENDOR_ID_DELL &&
 		adapter->pdev->device == PCI_DEVICE_ID_PERC4E_DI_KOBUK)) {
-		if (pci_set_dma_mask(adapter->pdev, DMA_64BIT_MASK)) {
+		if (pci_set_dma_mask(adapter->pdev, DMA_BIT_MASK(64))) {
 			con_log(CL_ANN, (KERN_WARNING
 				"megaraid: DMA mask for 64-bit failed\n"));
 
-			if (pci_set_dma_mask (adapter->pdev, DMA_32BIT_MASK)) {
+			if (pci_set_dma_mask (adapter->pdev, DMA_BIT_MASK(32))) {
 				con_log(CL_ANN, (KERN_WARNING
 					"megaraid: 32-bit DMA mask failed\n"));
 				goto out_free_sysfs_res;

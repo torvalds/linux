@@ -400,6 +400,26 @@ config SND_INDIGODJ
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-indigodj
 
+config SND_INDIGOIOX
+	tristate "(Echoaudio) Indigo IOx"
+	select FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Indigo IOx.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-indigoiox
+
+config SND_INDIGODJX
+	tristate "(Echoaudio) Indigo DJx"
+	select FW_LOADER
+	select SND_PCM
+	help
+	  Say 'Y' or 'M' to include support for Echoaudio Indigo DJx.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-indigodjx
+
 config SND_EMU10K1
 	tristate "Emu10k1 (SB Live!, Audigy, E-mu APS)"
 	select FW_LOADER
@@ -487,7 +507,7 @@ config SND_FM801
 config SND_FM801_TEA575X_BOOL
 	bool "ForteMedia FM801 + TEA5757 tuner"
 	depends on SND_FM801
-	depends on VIDEO_V4L1=y || VIDEO_V4L1=SND_FM801
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=SND_FM801
 	help
 	  Say Y here to include support for soundcards based on the ForteMedia
 	  FM801 chip with a TEA5757 tuner connected to GPIO1-3 pins (Media
@@ -744,8 +764,9 @@ config SND_VIRTUOSO
 	select SND_OXYGEN_LIB
 	help
 	  Say Y here to include support for sound cards based on the
-	  Asus AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X and
-	  HDAV1.3 (Deluxe).
+	  Asus AV100/AV200 chips, i.e., Xonar D1, DX, D2, D2X, and
+	  Essence STX.
+	  Support for the HDAV1.3 (Deluxe) is very experimental.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-virtuoso.

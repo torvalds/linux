@@ -11,7 +11,7 @@ static inline void atomic_add(int i, atomic_t *v)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	*(long *)v += i;
+	v->counter += i;
 	local_irq_restore(flags);
 }
 
@@ -20,7 +20,7 @@ static inline void atomic_sub(int i, atomic_t *v)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	*(long *)v -= i;
+	v->counter -= i;
 	local_irq_restore(flags);
 }
 
@@ -29,9 +29,9 @@ static inline int atomic_add_return(int i, atomic_t *v)
 	unsigned long temp, flags;
 
 	local_irq_save(flags);
-	temp = *(long *)v;
+	temp = v->counter;
 	temp += i;
-	*(long *)v = temp;
+	v->counter = temp;
 	local_irq_restore(flags);
 
 	return temp;
@@ -42,9 +42,9 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	unsigned long temp, flags;
 
 	local_irq_save(flags);
-	temp = *(long *)v;
+	temp = v->counter;
 	temp -= i;
-	*(long *)v = temp;
+	v->counter = temp;
 	local_irq_restore(flags);
 
 	return temp;
@@ -55,7 +55,7 @@ static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	*(long *)v &= ~mask;
+	v->counter &= ~mask;
 	local_irq_restore(flags);
 }
 
@@ -64,7 +64,7 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	*(long *)v |= mask;
+	v->counter |= mask;
 	local_irq_restore(flags);
 }
 

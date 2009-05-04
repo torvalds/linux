@@ -172,9 +172,13 @@ void __init omap34xx_check_revision(void)
 			omap_revision = OMAP3430_REV_ES3_0;
 			rev_name = "ES3.0";
 			break;
+		case 4:
+			omap_revision = OMAP3430_REV_ES3_1;
+			rev_name = "ES3.1";
+			break;
 		default:
 			/* Use the latest known revision as default */
-			omap_revision = OMAP3430_REV_ES3_0;
+			omap_revision = OMAP3430_REV_ES3_1;
 			rev_name = "Unknown revision\n";
 		}
 	}
@@ -213,8 +217,13 @@ void __init omap2_check_revision(void)
 		omap_chip.oc = CHIP_IS_OMAP3430;
 		if (omap_rev() == OMAP3430_REV_ES1_0)
 			omap_chip.oc |= CHIP_IS_OMAP3430ES1;
-		else if (omap_rev() > OMAP3430_REV_ES1_0)
+		else if (omap_rev() >= OMAP3430_REV_ES2_0 &&
+			 omap_rev() <= OMAP3430_REV_ES2_1)
 			omap_chip.oc |= CHIP_IS_OMAP3430ES2;
+		else if (omap_rev() == OMAP3430_REV_ES3_0)
+			omap_chip.oc |= CHIP_IS_OMAP3430ES3_0;
+		else if (omap_rev() == OMAP3430_REV_ES3_1)
+			omap_chip.oc |= CHIP_IS_OMAP3430ES3_1;
 	} else {
 		pr_err("Uninitialized omap_chip, please fix!\n");
 	}

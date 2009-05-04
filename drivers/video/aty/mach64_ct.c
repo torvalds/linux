@@ -8,6 +8,9 @@
 #include <asm/io.h>
 #include <video/mach64.h>
 #include "atyfb.h"
+#ifdef CONFIG_PPC
+#include <asm/machdep.h>
+#endif
 
 #undef DEBUG
 
@@ -535,6 +538,14 @@ static int __devinit aty_init_pll_ct(const struct fb_info *info,
 	}
 	pll->ct.xclk_post_div_real = postdividers[xpost_div];
 	pll->ct.mclk_fb_div = q * pll->ct.xclk_post_div_real / 8;
+
+#ifdef CONFIG_PPC
+	if (machine_is(powermac)) {
+		/* Override PLL_EXT_CNTL & 0x07. */
+		pll->ct.xclk_post_div = xpost_div;
+		pll->ct.xclk_ref_div = 1;
+	}
+#endif
 
 #ifdef DEBUG
 	pllmclk = (1000000 * pll->ct.mclk_fb_mult * pll->ct.mclk_fb_div) /

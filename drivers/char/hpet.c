@@ -72,7 +72,7 @@ static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 #ifdef CONFIG_IA64
 static void __iomem *hpet_mctr;
 
-static cycle_t read_hpet(void)
+static cycle_t read_hpet(struct clocksource *cs)
 {
 	return (cycle_t)read_counter((void __iomem *)hpet_mctr);
 }
@@ -713,7 +713,7 @@ static struct ctl_table_header *sysctl_header;
  */
 #define	TICK_CALIBRATE	(1000UL)
 
-static unsigned long hpet_calibrate(struct hpets *hpetp)
+static unsigned long __hpet_calibrate(struct hpets *hpetp)
 {
 	struct hpet_timer __iomem *timer = NULL;
 	unsigned long t, m, count, i, flags, start;
@@ -748,6 +748,26 @@ static unsigned long hpet_calibrate(struct hpets *hpetp)
 	local_irq_restore(flags);
 
 	return (m - start) / i;
+}
+
+static unsigned long hpet_calibrate(struct hpets *hpetp)
+{
+	unsigned long ret = -1;
+	unsigned long tmp;
+
+	/*
+	 * Try to calibrate until return value becomes stable small value.
+	 * If SMI interruption occurs in calibration loop, the return value
+	 * will be big. This avoids its impact.
+	 */
+	for ( ; ; ) {
+		tmp = __hpet_calibrate(hpetp);
+		if (ret <= tmp)
+			break;
+		ret = tmp;
+	}
+
+	return ret;
 }
 
 int hpet_alloc(struct hpet_data *hdp)

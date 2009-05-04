@@ -170,18 +170,30 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 
 asmlinkage void ret_from_fork(void);
 
-int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
+int copy_thread(unsigned long clone_flags, unsigned long usp,
 		unsigned long unused,
 		struct task_struct *p, struct pt_regs *regs)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
-#if defined(CONFIG_SH_FPU)
+#if defined(CONFIG_SH_FPU) || defined(CONFIG_SH_DSP)
 	struct task_struct *tsk = current;
+#endif
 
+#if defined(CONFIG_SH_FPU)
 	unlazy_fpu(tsk, regs);
 	p->thread.fpu = tsk->thread.fpu;
 	copy_to_stopped_child_used_math(p);
+#endif
+
+#if defined(CONFIG_SH_DSP)
+	if (is_dsp_enabled(tsk)) {
+		/* We can use the __save_dsp or just copy the struct:
+		 * __save_dsp(p);
+		 * p->thread.dsp_status.status |= SR_DSP
+		 */
+		p->thread.dsp_status = tsk->thread.dsp_status;
+	}
 #endif
 
 	childregs = task_pt_regs(p);

@@ -635,10 +635,10 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
  * @c: UBIFS file-system description object
  * @st: return statistics
  */
-void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *st)
+void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *lst)
 {
 	spin_lock(&c->space_lock);
-	memcpy(st, &c->lst, sizeof(struct ubifs_lp_stats));
+	memcpy(lst, &c->lst, sizeof(struct ubifs_lp_stats));
 	spin_unlock(&c->space_lock);
 }
 
@@ -678,6 +678,9 @@ int ubifs_change_one_lp(struct ubifs_info *c, int lnum, int free, int dirty,
 
 out:
 	ubifs_release_lprops(c);
+	if (err)
+		ubifs_err("cannot change properties of LEB %d, error %d",
+			  lnum, err);
 	return err;
 }
 
@@ -714,6 +717,9 @@ int ubifs_update_one_lp(struct ubifs_info *c, int lnum, int free, int dirty,
 
 out:
 	ubifs_release_lprops(c);
+	if (err)
+		ubifs_err("cannot update properties of LEB %d, error %d",
+			  lnum, err);
 	return err;
 }
 
@@ -737,6 +743,8 @@ int ubifs_read_one_lp(struct ubifs_info *c, int lnum, struct ubifs_lprops *lp)
 	lpp = ubifs_lpt_lookup(c, lnum);
 	if (IS_ERR(lpp)) {
 		err = PTR_ERR(lpp);
+		ubifs_err("cannot read properties of LEB %d, error %d",
+			  lnum, err);
 		goto out;
 	}
 

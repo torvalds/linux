@@ -1,11 +1,11 @@
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/bitops.h>
 
 #include <asm/processor.h>
-#include <asm/msr.h>
 #include <asm/e820.h>
 #include <asm/mtrr.h>
+#include <asm/msr.h>
 
 #include "cpu.h"
 
@@ -276,7 +276,7 @@ static void __cpuinit init_c3(struct cpuinfo_x86 *c)
 		 */
 		c->x86_capability[5] = cpuid_edx(0xC0000001);
 	}
-
+#ifdef CONFIG_X86_32
 	/* Cyrix III family needs CX8 & PGE explicitly enabled. */
 	if (c->x86_model >= 6 && c->x86_model <= 9) {
 		rdmsr(MSR_VIA_FCR, lo, hi);
@@ -288,6 +288,11 @@ static void __cpuinit init_c3(struct cpuinfo_x86 *c)
 	/* Before Nehemiah, the C3's had 3dNOW! */
 	if (c->x86_model >= 6 && c->x86_model < 9)
 		set_cpu_cap(c, X86_FEATURE_3DNOW);
+#endif
+	if (c->x86 == 0x6 && c->x86_model >= 0xf) {
+		c->x86_cache_alignment = c->x86_clflush_size * 2;
+		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
+	}
 
 	display_cacheinfo(c);
 }
@@ -316,16 +321,25 @@ enum {
 static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
 {
 	switch (c->x86) {
+#ifdef CONFIG_X86_32
 	case 5:
 		/* Emulate MTRRs using Centaur's MCR. */
 		set_cpu_cap(c, X86_FEATURE_CENTAUR_MCR);
 		break;
+#endif
+	case 6:
+		if (c->x86_model >= 0xf)
+			set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
+		break;
 	}
+#ifdef CONFIG_X86_64
+	set_cpu_cap(c, X86_FEATURE_SYSENTER32);
+#endif
 }
 
 static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 {
-
+#ifdef CONFIG_X86_32
 	char *name;
 	u32  fcr_set = 0;
 	u32  fcr_clr = 0;
@@ -337,8 +351,10 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
-
+#endif
+	early_init_centaur(c);
 	switch (c->x86) {
+#ifdef CONFIG_X86_32
 	case 5:
 		switch (c->x86_model) {
 		case 4:
@@ -442,16 +458,20 @@ static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 		}
 		sprintf(c->x86_model_id, "WinChip %s", name);
 		break;
-
+#endif
 	case 6:
 		init_c3(c);
 		break;
 	}
+#ifdef CONFIG_X86_64
+	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
+#endif
 }
 
 static unsigned int __cpuinit
 centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 {
+#ifdef CONFIG_X86_32
 	/* VIA C3 CPUs (670-68F) need further shifting. */
 	if ((c->x86 == 6) && ((c->x86_model == 7) || (c->x86_model == 8)))
 		size >>= 8;
@@ -464,11 +484,11 @@ centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 	if ((c->x86 == 6) && (c->x86_model == 9) &&
 				(c->x86_mask == 1) && (size == 65))
 		size -= 1;
-
+#endif
 	return size;
 }
 
-static struct cpu_dev centaur_cpu_dev __cpuinitdata = {
+static const struct cpu_dev __cpuinitconst centaur_cpu_dev = {
 	.c_vendor	= "Centaur",
 	.c_ident	= { "CentaurHauls" },
 	.c_early_init	= early_init_centaur,

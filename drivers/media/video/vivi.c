@@ -28,17 +28,14 @@
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 #include <linux/dma-mapping.h>
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-/* Include V4L1 specific functions. Should be removed soon */
-#include <linux/videodev.h>
-#endif
 #include <linux/interrupt.h>
-#include <media/videobuf-vmalloc.h>
-#include <media/v4l2-common.h>
-#include <media/v4l2-ioctl.h>
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/freezer.h>
+#include <media/videobuf-vmalloc.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-ioctl.h>
+#include "font.h"
 
 #define VIVI_MODULE_NAME "vivi"
 
@@ -47,18 +44,32 @@
 #define WAKE_DENOMINATOR 1001
 #define BUFFER_TIMEOUT     msecs_to_jiffies(500)  /* 0.5 seconds */
 
-#include "font.h"
-
 #define VIVI_MAJOR_VERSION 0
-#define VIVI_MINOR_VERSION 5
+#define VIVI_MINOR_VERSION 6
 #define VIVI_RELEASE 0
 #define VIVI_VERSION \
 	KERNEL_VERSION(VIVI_MAJOR_VERSION, VIVI_MINOR_VERSION, VIVI_RELEASE)
 
-/* Declare static vars that will be used as parameters */
-static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
-static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
-static int n_devs = 1;			/* Number of virtual devices */
+MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
+MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
+MODULE_LICENSE("Dual BSD/GPL");
+
+static unsigned video_nr = -1;
+module_param(video_nr, uint, 0644);
+MODULE_PARM_DESC(video_nr, "videoX start number, -1 is autodetect");
+
+static unsigned n_devs = 1;
+module_param(n_devs, uint, 0644);
+MODULE_PARM_DESC(n_devs, "number of video devices to create");
+
+static unsigned debug;
+module_param(debug, uint, 0644);
+MODULE_PARM_DESC(debug, "activates debug info");
+
+static unsigned int vid_limit = 16;
+module_param(vid_limit, uint, 0644);
+MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
+
 
 /* supported controls */
 static struct v4l2_queryctrl vivi_qctrl[] = {
@@ -69,7 +80,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 65535,
 		.step          = 65535/100,
 		.default_value = 65535,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
 	}, {
 		.id            = V4L2_CID_BRIGHTNESS,
@@ -79,7 +90,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 255,
 		.step          = 1,
 		.default_value = 127,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.id            = V4L2_CID_CONTRAST,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
@@ -88,7 +99,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 255,
 		.step          = 0x1,
 		.default_value = 0x10,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.id            = V4L2_CID_SATURATION,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
@@ -97,7 +108,7 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 255,
 		.step          = 0x1,
 		.default_value = 127,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}, {
 		.id            = V4L2_CID_HUE,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
@@ -106,17 +117,12 @@ static struct v4l2_queryctrl vivi_qctrl[] = {
 		.maximum       = 127,
 		.step          = 0x1,
 		.default_value = 0,
-		.flags         = 0,
+		.flags         = V4L2_CTRL_FLAG_SLIDER,
 	}
 };
 
-static int qctl_regs[ARRAY_SIZE(vivi_qctrl)];
-
-#define dprintk(dev, level, fmt, arg...)				\
-	do {								\
-		if (dev->vfd->debug >= (level))				\
-			printk(KERN_DEBUG "vivi: " fmt , ## arg);	\
-	} while (0)
+#define dprintk(dev, level, fmt, arg...) \
+	v4l2_dbg(level, debug, &dev->v4l2_dev, fmt, ## arg)
 
 /* ------------------------------------------------------------------
 	Basic structures
@@ -206,6 +212,7 @@ static LIST_HEAD(vivi_devlist);
 
 struct vivi_dev {
 	struct list_head           vivi_devlist;
+	struct v4l2_device 	   v4l2_dev;
 
 	spinlock_t                 slock;
 	struct mutex		   mutex;
@@ -223,6 +230,12 @@ struct vivi_dev {
 	char                       timestr[13];
 
 	int			   mv_count;	/* Controls bars movement */
+
+	/* Input Number */
+	int			   input;
+
+	/* Control 'registers' */
+	int 			   qctl_regs[ARRAY_SIZE(vivi_qctrl)];
 };
 
 struct vivi_fh {
@@ -235,6 +248,7 @@ struct vivi_fh {
 
 	enum v4l2_buf_type         type;
 	unsigned char              bars[8][3];
+	int			   input; 	/* Input Number on bars */
 };
 
 /* ------------------------------------------------------------------
@@ -254,17 +268,71 @@ enum colors {
 	BLACK,
 };
 
-static u8 bars[8][3] = {
 	/* R   G   B */
-	{204, 204, 204},  /* white */
-	{208, 208,   0},  /* ambar */
-	{  0, 206, 206},  /* cyan */
-	{  0, 239,   0},  /* green */
-	{239,   0, 239},  /* magenta */
-	{205,   0,   0},  /* red */
-	{  0,   0, 255},  /* blue */
-	{  0,   0,   0},  /* black */
+#define COLOR_WHITE	{204, 204, 204}
+#define COLOR_AMBAR	{208, 208,   0}
+#define COLOR_CIAN	{  0, 206, 206}
+#define	COLOR_GREEN	{  0, 239,   0}
+#define COLOR_MAGENTA	{239,   0, 239}
+#define COLOR_RED	{205,   0,   0}
+#define COLOR_BLUE	{  0,   0, 255}
+#define COLOR_BLACK	{  0,   0,   0}
+
+struct bar_std {
+	u8 bar[8][3];
 };
+
+/* Maximum number of bars are 10 - otherwise, the input print code
+   should be modified */
+static struct bar_std bars[] = {
+	{	/* Standard ITU-R color bar sequence */
+		{
+			COLOR_WHITE,
+			COLOR_AMBAR,
+			COLOR_CIAN,
+			COLOR_GREEN,
+			COLOR_MAGENTA,
+			COLOR_RED,
+			COLOR_BLUE,
+			COLOR_BLACK,
+		}
+	}, {
+		{
+			COLOR_WHITE,
+			COLOR_AMBAR,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_AMBAR,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_AMBAR,
+		}
+	}, {
+		{
+			COLOR_WHITE,
+			COLOR_CIAN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_CIAN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_CIAN,
+		}
+	}, {
+		{
+			COLOR_WHITE,
+			COLOR_GREEN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_GREEN,
+			COLOR_BLACK,
+			COLOR_WHITE,
+			COLOR_GREEN,
+		}
+	},
+};
+
+#define NUM_INPUTS ARRAY_SIZE(bars)
 
 #define TO_Y(r, g, b) \
 	(((16829 * r + 33039 * g + 6416 * b  + 32768) >> 16) + 16)
@@ -275,9 +343,10 @@ static u8 bars[8][3] = {
 #define TO_U(r, g, b) \
 	(((-9714 * r - 19070 * g + 28784 * b + 32768) >> 16) + 128)
 
-#define TSTAMP_MIN_Y 24
-#define TSTAMP_MAX_Y TSTAMP_MIN_Y+15
-#define TSTAMP_MIN_X 64
+#define TSTAMP_MIN_Y	24
+#define TSTAMP_MAX_Y	(TSTAMP_MIN_Y + 15)
+#define TSTAMP_INPUT_X	10
+#define TSTAMP_MIN_X	(54 + TSTAMP_INPUT_X)
 
 static void gen_twopix(struct vivi_fh *fh, unsigned char *buf, int colorpos)
 {
@@ -392,9 +461,29 @@ static void gen_line(struct vivi_fh *fh, char *basep, int inipos, int wmax,
 		pos += 4; /* only 16 bpp supported for now */
 	}
 
-	/* Checks if it is possible to show timestamp */
+	/* Prints input entry number */
+
+	/* Checks if it is possible to input number */
 	if (TSTAMP_MAX_Y >= hmax)
 		goto end;
+
+	if (TSTAMP_INPUT_X + strlen(timestr) >= wmax)
+		goto end;
+
+	if (line >= TSTAMP_MIN_Y && line <= TSTAMP_MAX_Y) {
+		chr = rom8x16_bits[fh->input * 16 + line - TSTAMP_MIN_Y];
+		pos = TSTAMP_INPUT_X;
+		for (i = 0; i < 7; i++) {
+			/* Draw white font on black background */
+			if (chr & 1 << (7 - i))
+				gen_twopix(fh, basep + pos, WHITE);
+			else
+				gen_twopix(fh, basep + pos, BLACK);
+			pos += 2;
+		}
+	}
+
+	/* Checks if it is possible to show timestamp */
 	if (TSTAMP_MIN_X + strlen(timestr) >= wmax)
 		goto end;
 
@@ -577,7 +666,7 @@ static int vivi_start_thread(struct vivi_fh *fh)
 	dma_q->kthread = kthread_run(vivi_thread, fh, "vivi");
 
 	if (IS_ERR(dma_q->kthread)) {
-		printk(KERN_ERR "vivi: kernel_thread() failed\n");
+		v4l2_err(&dev->v4l2_dev, "kernel_thread() failed\n");
 		return PTR_ERR(dma_q->kthread);
 	}
 	/* Wakes thread */
@@ -720,8 +809,12 @@ static struct videobuf_queue_ops vivi_video_qops = {
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
+	struct vivi_fh  *fh  = priv;
+	struct vivi_dev *dev = fh->dev;
+
 	strcpy(cap->driver, "vivi");
 	strcpy(cap->card, "vivi");
+	strlcpy(cap->bus_info, dev->v4l2_dev.name, sizeof(cap->bus_info));
 	cap->version = VIVI_VERSION;
 	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
 				V4L2_CAP_STREAMING     |
@@ -807,38 +900,19 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	return 0;
 }
 
-/*FIXME: This seems to be generic enough to be at videodev2 */
-static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
-					struct v4l2_format *f)
+/* precalculate color bar values to speed up rendering */
+static void precalculate_bars(struct vivi_fh *fh)
 {
-	struct vivi_fh  *fh = priv;
-	struct videobuf_queue *q = &fh->vb_vidq;
+	struct vivi_dev *dev = fh->dev;
 	unsigned char r, g, b;
 	int k, is_yuv;
 
-	int ret = vidioc_try_fmt_vid_cap(file, fh, f);
-	if (ret < 0)
-		return (ret);
+	fh->input = dev->input;
 
-	mutex_lock(&q->vb_lock);
-
-	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
-		dprintk(fh->dev, 1, "%s queue busy\n", __func__);
-		ret = -EBUSY;
-		goto out;
-	}
-
-	fh->fmt           = get_format(f);
-	fh->width         = f->fmt.pix.width;
-	fh->height        = f->fmt.pix.height;
-	fh->vb_vidq.field = f->fmt.pix.field;
-	fh->type          = f->type;
-
-	/* precalculate color bar values to speed up rendering */
 	for (k = 0; k < 8; k++) {
-		r = bars[k][0];
-		g = bars[k][1];
-		b = bars[k][2];
+		r = bars[fh->input].bar[k][0];
+		g = bars[fh->input].bar[k][1];
+		b = bars[fh->input].bar[k][2];
 		is_yuv = 0;
 
 		switch (fh->fmt->fourcc) {
@@ -871,11 +945,40 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		}
 	}
 
+}
+
+/*FIXME: This seems to be generic enough to be at videodev2 */
+static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
+					struct v4l2_format *f)
+{
+	struct vivi_fh *fh = priv;
+	struct videobuf_queue *q = &fh->vb_vidq;
+
+	int ret = vidioc_try_fmt_vid_cap(file, fh, f);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&q->vb_lock);
+
+	if (videobuf_queue_is_busy(&fh->vb_vidq)) {
+		dprintk(fh->dev, 1, "%s queue busy\n", __func__);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	fh->fmt           = get_format(f);
+	fh->width         = f->fmt.pix.width;
+	fh->height        = f->fmt.pix.height;
+	fh->vb_vidq.field = f->fmt.pix.field;
+	fh->type          = f->type;
+
+	precalculate_bars(fh);
+
 	ret = 0;
 out:
 	mutex_unlock(&q->vb_lock);
 
-	return (ret);
+	return ret;
 }
 
 static int vidioc_reqbufs(struct file *file, void *priv,
@@ -950,26 +1053,35 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 static int vidioc_enum_input(struct file *file, void *priv,
 				struct v4l2_input *inp)
 {
-	if (inp->index != 0)
+	if (inp->index >= NUM_INPUTS)
 		return -EINVAL;
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = V4L2_STD_525_60;
-	strcpy(inp->name, "Camera");
+	sprintf(inp->name, "Camera %u", inp->index);
 
 	return (0);
 }
 
 static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
-	*i = 0;
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
+
+	*i = dev->input;
 
 	return (0);
 }
 static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
-	if (i > 0)
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
+
+	if (i >= NUM_INPUTS)
 		return -EINVAL;
+
+	dev->input = i;
+	precalculate_bars(fh);
 
 	return (0);
 }
@@ -993,12 +1105,14 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
 		if (ctrl->id == vivi_qctrl[i].id) {
-			ctrl->value = qctl_regs[i];
-			return (0);
+			ctrl->value = dev->qctl_regs[i];
+			return 0;
 		}
 
 	return -EINVAL;
@@ -1006,16 +1120,18 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
+	struct vivi_fh *fh = priv;
+	struct vivi_dev *dev = fh->dev;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
 		if (ctrl->id == vivi_qctrl[i].id) {
-			if (ctrl->value < vivi_qctrl[i].minimum
-			    || ctrl->value > vivi_qctrl[i].maximum) {
-					return (-ERANGE);
-				}
-			qctl_regs[i] = ctrl->value;
-			return (0);
+			if (ctrl->value < vivi_qctrl[i].minimum ||
+			    ctrl->value > vivi_qctrl[i].maximum) {
+				return -ERANGE;
+			}
+			dev->qctl_regs[i] = ctrl->value;
+			return 0;
 		}
 	return -EINVAL;
 }
@@ -1026,32 +1142,20 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 static int vivi_open(struct file *file)
 {
-	int minor = video_devdata(file)->minor;
-	struct vivi_dev *dev;
+	struct vivi_dev *dev = video_drvdata(file);
 	struct vivi_fh *fh = NULL;
-	int i;
 	int retval = 0;
 
-	printk(KERN_DEBUG "vivi: open called (minor=%d)\n", minor);
-
-	lock_kernel();
-	list_for_each_entry(dev, &vivi_devlist, vivi_devlist)
-		if (dev->vfd->minor == minor)
-			goto found;
-	unlock_kernel();
-	return -ENODEV;
-
-found:
 	mutex_lock(&dev->mutex);
 	dev->users++;
 
 	if (dev->users > 1) {
 		dev->users--;
-		retval = -EBUSY;
-		goto unlock;
+		mutex_unlock(&dev->mutex);
+		return -EBUSY;
 	}
 
-	dprintk(dev, 1, "open minor=%d type=%s users=%d\n", minor,
+	dprintk(dev, 1, "open /dev/video%d type=%s users=%d\n", dev->vfd->num,
 		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
 
 	/* allocate + initialize per filehandle data */
@@ -1059,14 +1163,11 @@ found:
 	if (NULL == fh) {
 		dev->users--;
 		retval = -ENOMEM;
-		goto unlock;
 	}
-unlock:
 	mutex_unlock(&dev->mutex);
-	if (retval) {
-		unlock_kernel();
+
+	if (retval)
 		return retval;
-	}
 
 	file->private_data = fh;
 	fh->dev      = dev;
@@ -1075,10 +1176,6 @@ unlock:
 	fh->fmt      = &formats[0];
 	fh->width    = 640;
 	fh->height   = 480;
-
-	/* Put all controls at a sane state */
-	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
-		qctl_regs[i] = vivi_qctrl[i].default_value;
 
 	/* Resets frame counters */
 	dev->h = 0;
@@ -1095,7 +1192,6 @@ unlock:
 			sizeof(struct vivi_buffer), fh);
 
 	vivi_start_thread(fh);
-	unlock_kernel();
 
 	return 0;
 }
@@ -1147,32 +1243,6 @@ static int vivi_close(struct file *file)
 
 	dprintk(dev, 1, "close called (minor=%d, users=%d)\n",
 		minor, dev->users);
-
-	return 0;
-}
-
-static int vivi_release(void)
-{
-	struct vivi_dev *dev;
-	struct list_head *list;
-
-	while (!list_empty(&vivi_devlist)) {
-		list = vivi_devlist.next;
-		list_del(list);
-		dev = list_entry(list, struct vivi_dev, vivi_devlist);
-
-		if (-1 != dev->vfd->minor) {
-			printk(KERN_INFO "%s: unregistering /dev/video%d\n",
-				VIVI_MODULE_NAME, dev->vfd->num);
-			video_unregister_device(dev->vfd);
-		} else {
-			printk(KERN_INFO "%s: releasing /dev/video%d\n",
-				VIVI_MODULE_NAME, dev->vfd->num);
-			video_device_release(dev->vfd);
-		}
-
-		kfree(dev);
-	}
 
 	return 0;
 }
@@ -1239,87 +1309,130 @@ static struct video_device vivi_template = {
 	.tvnorms              = V4L2_STD_525_60,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
+
 /* -----------------------------------------------------------------
 	Initialization and module stuff
    ------------------------------------------------------------------*/
+
+static int vivi_release(void)
+{
+	struct vivi_dev *dev;
+	struct list_head *list;
+
+	while (!list_empty(&vivi_devlist)) {
+		list = vivi_devlist.next;
+		list_del(list);
+		dev = list_entry(list, struct vivi_dev, vivi_devlist);
+
+		v4l2_info(&dev->v4l2_dev, "unregistering /dev/video%d\n",
+			dev->vfd->num);
+		video_unregister_device(dev->vfd);
+		v4l2_device_unregister(&dev->v4l2_dev);
+		kfree(dev);
+	}
+
+	return 0;
+}
+
+static int __init vivi_create_instance(int inst)
+{
+	struct vivi_dev *dev;
+	struct video_device *vfd;
+	int ret, i;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	snprintf(dev->v4l2_dev.name, sizeof(dev->v4l2_dev.name),
+			"%s-%03d", VIVI_MODULE_NAME, inst);
+	ret = v4l2_device_register(NULL, &dev->v4l2_dev);
+	if (ret)
+		goto free_dev;
+
+	/* init video dma queues */
+	INIT_LIST_HEAD(&dev->vidq.active);
+	init_waitqueue_head(&dev->vidq.wq);
+
+	/* initialize locks */
+	spin_lock_init(&dev->slock);
+	mutex_init(&dev->mutex);
+
+	ret = -ENOMEM;
+	vfd = video_device_alloc();
+	if (!vfd)
+		goto unreg_dev;
+
+	*vfd = vivi_template;
+
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
+	if (ret < 0)
+		goto rel_vdev;
+
+	video_set_drvdata(vfd, dev);
+
+	/* Set all controls to their default value. */
+	for (i = 0; i < ARRAY_SIZE(vivi_qctrl); i++)
+		dev->qctl_regs[i] = vivi_qctrl[i].default_value;
+
+	/* Now that everything is fine, let's add it to device list */
+	list_add_tail(&dev->vivi_devlist, &vivi_devlist);
+
+	snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
+			vivi_template.name, vfd->num);
+
+	if (video_nr >= 0)
+		video_nr++;
+
+	dev->vfd = vfd;
+	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as /dev/video%d\n",
+			vfd->num);
+	return 0;
+
+rel_vdev:
+	video_device_release(vfd);
+unreg_dev:
+	v4l2_device_unregister(&dev->v4l2_dev);
+free_dev:
+	kfree(dev);
+	return ret;
+}
 
 /* This routine allocates from 1 to n_devs virtual drivers.
 
    The real maximum number of virtual drivers will depend on how many drivers
    will succeed. This is limited to the maximum number of devices that
-   videodev supports. Since there are 64 minors for video grabbers, this is
-   currently the theoretical maximum limit. However, a further limit does
-   exist at videodev that forbids any driver to register more than 32 video
-   grabbers.
+   videodev supports, which is equal to VIDEO_NUM_DEVICES.
  */
 static int __init vivi_init(void)
 {
-	int ret = -ENOMEM, i;
-	struct vivi_dev *dev;
-	struct video_device *vfd;
+	int ret = 0, i;
 
 	if (n_devs <= 0)
 		n_devs = 1;
 
 	for (i = 0; i < n_devs; i++) {
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-		if (!dev)
-			break;
-
-		/* init video dma queues */
-		INIT_LIST_HEAD(&dev->vidq.active);
-		init_waitqueue_head(&dev->vidq.wq);
-
-		/* initialize locks */
-		spin_lock_init(&dev->slock);
-		mutex_init(&dev->mutex);
-
-		vfd = video_device_alloc();
-		if (!vfd) {
-			kfree(dev);
-			break;
-		}
-
-		*vfd = vivi_template;
-
-		ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
-		if (ret < 0) {
-			video_device_release(vfd);
-			kfree(dev);
-
-			/* If some registers succeeded, keep driver */
+		ret = vivi_create_instance(i);
+		if (ret) {
+			/* If some instantiations succeeded, keep driver */
 			if (i)
 				ret = 0;
-
 			break;
 		}
-
-		/* Now that everything is fine, let's add it to device list */
-		list_add_tail(&dev->vivi_devlist, &vivi_devlist);
-
-		snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
-			 vivi_template.name, vfd->minor);
-
-		if (video_nr >= 0)
-			video_nr++;
-
-		dev->vfd = vfd;
-		printk(KERN_INFO "%s: V4L2 device registered as /dev/video%d\n",
-			VIVI_MODULE_NAME, vfd->num);
 	}
 
 	if (ret < 0) {
-		vivi_release();
 		printk(KERN_INFO "Error %d while loading vivi driver\n", ret);
-	} else {
-		printk(KERN_INFO "Video Technology Magazine Virtual Video "
+		return ret;
+	}
+
+	printk(KERN_INFO "Video Technology Magazine Virtual Video "
 			"Capture Board ver %u.%u.%u successfully loaded.\n",
 			(VIVI_VERSION >> 16) & 0xFF, (VIVI_VERSION >> 8) & 0xFF,
 			VIVI_VERSION & 0xFF);
 
-		/* n_devs will reflect the actual number of allocated devices */
-		n_devs = i;
-	}
+	/* n_devs will reflect the actual number of allocated devices */
+	n_devs = i;
 
 	return ret;
 }
@@ -1331,19 +1444,3 @@ static void __exit vivi_exit(void)
 
 module_init(vivi_init);
 module_exit(vivi_exit);
-
-MODULE_DESCRIPTION("Video Technology Magazine Virtual Video Capture Board");
-MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
-MODULE_LICENSE("Dual BSD/GPL");
-
-module_param(video_nr, uint, 0444);
-MODULE_PARM_DESC(video_nr, "video iminor start number");
-
-module_param(n_devs, uint, 0444);
-MODULE_PARM_DESC(n_devs, "number of video devices to create");
-
-module_param_named(debug, vivi_template.debug, int, 0444);
-MODULE_PARM_DESC(debug, "activates debug info");
-
-module_param(vid_limit, int, 0644);
-MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");

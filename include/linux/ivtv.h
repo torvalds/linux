@@ -60,10 +60,10 @@ struct ivtv_dma_frame {
 
 #define IVTV_IOC_DMA_FRAME  _IOW ('V', BASE_VIDIOC_PRIVATE+0, struct ivtv_dma_frame)
 
-/* These are the VBI types as they appear in the embedded VBI private packets. */
-#define IVTV_SLICED_TYPE_TELETEXT_B     (1)
-#define IVTV_SLICED_TYPE_CAPTION_525    (4)
-#define IVTV_SLICED_TYPE_WSS_625        (5)
-#define IVTV_SLICED_TYPE_VPS            (7)
+/* Deprecated defines: applications should use the defines from videodev2.h */
+#define IVTV_SLICED_TYPE_TELETEXT_B     V4L2_MPEG_VBI_IVTV_TELETEXT_B
+#define IVTV_SLICED_TYPE_CAPTION_525    V4L2_MPEG_VBI_IVTV_CAPTION_525
+#define IVTV_SLICED_TYPE_WSS_625        V4L2_MPEG_VBI_IVTV_WSS_625
+#define IVTV_SLICED_TYPE_VPS            V4L2_MPEG_VBI_IVTV_VPS
 
 #endif /* _LINUX_IVTV_H */

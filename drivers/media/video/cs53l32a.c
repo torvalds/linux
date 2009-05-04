@@ -29,7 +29,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
@@ -41,9 +41,6 @@ module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debugging messages, 0=Off (default), 1=On");
 
-static unsigned short normal_i2c[] = { 0x22 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 
@@ -61,17 +58,18 @@ static int cs53l32a_read(struct v4l2_subdev *sd, u8 reg)
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int cs53l32a_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int cs53l32a_s_routing(struct v4l2_subdev *sd,
+			      u32 input, u32 output, u32 config)
 {
 	/* There are 2 physical inputs, but the second input can be
 	   placed in two modes, the first mode bypasses the PGA (gain),
 	   the second goes through the PGA. Hence there are three
 	   possible inputs to choose from. */
-	if (route->input > 2) {
-		v4l2_err(sd, "Invalid input %d.\n", route->input);
+	if (input > 2) {
+		v4l2_err(sd, "Invalid input %d.\n", input);
 		return -EINVAL;
 	}
-	cs53l32a_write(sd, 0x01, 0x01 + (route->input << 4));
+	cs53l32a_write(sd, 0x01, 0x01 + (input << 4));
 	return 0;
 }
 
@@ -120,11 +118,6 @@ static int cs53l32a_log_status(struct v4l2_subdev *sd)
 			(m & 0xC0) ? " (muted)" : "");
 	v4l2_info(sd, "Volume: %d dB\n", vol);
 	return 0;
-}
-
-static int cs53l32a_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -218,8 +211,6 @@ MODULE_DEVICE_TABLE(i2c, cs53l32a_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "cs53l32a",
-	.driverid = I2C_DRIVERID_CS53L32A,
-	.command = cs53l32a_command,
 	.remove = cs53l32a_remove,
 	.probe = cs53l32a_probe,
 	.id_table = cs53l32a_id,

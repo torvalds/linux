@@ -1238,6 +1238,16 @@ static int pcic_init(struct pcmcia_socket *s)
 	return 0;
 }
 
+static int i82365_drv_pcmcia_suspend(struct platform_device *dev,
+				     pm_message_t state)
+{
+	return pcmcia_socket_dev_suspend(&dev->dev, state);
+}
+
+static int i82365_drv_pcmcia_resume(struct platform_device *dev)
+{
+	return pcmcia_socket_dev_resume(&dev->dev);
+}
 static struct pccard_operations pcic_operations = {
 	.init			= pcic_init,
 	.get_status		= pcic_get_status,
@@ -1248,11 +1258,13 @@ static struct pccard_operations pcic_operations = {
 
 /*====================================================================*/
 
-static struct device_driver i82365_driver = {
-	.name = "i82365",
-	.bus = &platform_bus_type,
-	.suspend = pcmcia_socket_dev_suspend,
-	.resume = pcmcia_socket_dev_resume,
+static struct platform_driver i82365_driver = {
+	.driver = {
+		.name = "i82365",
+		.owner		= THIS_MODULE,
+	},
+	.suspend 	= i82365_drv_pcmcia_suspend,
+	.resume 	= i82365_drv_pcmcia_resume,
 };
 
 static struct platform_device *i82365_device;
@@ -1261,7 +1273,7 @@ static int __init init_i82365(void)
 {
     int i, ret;
 
-    ret = driver_register(&i82365_driver);
+    ret = platform_driver_register(&i82365_driver);
     if (ret)
 	goto err_out;
 
@@ -1337,7 +1349,7 @@ err_dev_unregister:
 	pnp_disable_dev(i82365_pnpdev);
 #endif
 err_driver_unregister:
-    driver_unregister(&i82365_driver);
+    platform_driver_unregister(&i82365_driver);
 err_out:
     return ret;
 } /* init_i82365 */
@@ -1365,7 +1377,7 @@ static void __exit exit_i82365(void)
     if (i82365_pnpdev)
     		pnp_disable_dev(i82365_pnpdev);
 #endif
-    driver_unregister(&i82365_driver);
+    platform_driver_unregister(&i82365_driver);
 } /* exit_i82365 */
 
 module_init(init_i82365);

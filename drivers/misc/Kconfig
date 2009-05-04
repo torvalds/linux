@@ -18,8 +18,8 @@ config ATMEL_PWM
 	depends on AVR32 || ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || ARCH_AT91CAP9
 	help
 	  This option enables device driver support for the PWM channels
-	  on certain Atmel prcoessors.  Pulse Width Modulation is used for
-	  purposes including software controlled power-efficent backlights
+	  on certain Atmel processors.  Pulse Width Modulation is used for
+	  purposes including software controlled power-efficient backlights
 	  on LCD displays, motor control, and waveform generation.
 
 config ATMEL_TCLIB
@@ -87,14 +87,6 @@ config PHANTOM
 	  If you choose to build module, its name will be phantom. If unsure,
 	  say N here.
 
-config EEPROM_93CX6
-	tristate "EEPROM 93CX6 support"
-	---help---
-	  This is a driver for the EEPROM chipsets 93c46 and 93c66.
-	  The driver supports both read as well as write commands.
-
-	  If unsure, say N.
-
 config SGI_IOC4
 	tristate "SGI IOC4 Base IO support"
 	depends on PCI
@@ -150,7 +142,7 @@ config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
 	depends on AVR32 || ARCH_AT91
 	---help---
-	  This option enables device driver support for Atmel Syncronized
+	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
 
 	  The SSC peripheral supports a wide variety of serial frame based
@@ -170,10 +162,10 @@ config ENCLOSURE_SERVICES
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
 	depends on NET
-	depends on (IA64_GENERIC || IA64_SGI_SN2 || IA64_SGI_UV || X86_64) && SMP
+	depends on (IA64_GENERIC || IA64_SGI_SN2 || IA64_SGI_UV || X86_UV) && SMP
 	select IA64_UNCACHED_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
 	select GENERIC_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
-	select SGI_GRU if (IA64_GENERIC || IA64_SGI_UV || X86_64) && SMP
+	select SGI_GRU if X86_64 && SMP
 	---help---
 	  An SGI machine can be divided into multiple Single System
 	  Images which act independently of each other and have
@@ -197,7 +189,7 @@ config HP_ILO
 
 config SGI_GRU
 	tristate "SGI GRU driver"
-	depends on (X86_64 || IA64_SGI_UV || IA64_GENERIC) && SMP
+	depends on X86_UV && SMP
 	default n
 	select MMU_NOTIFIER
 	---help---
@@ -225,11 +217,23 @@ config DELL_LAPTOP
 	depends on EXPERIMENTAL
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL
+	depends on POWER_SUPPLY
 	default n
 	---help---
 	This driver adds support for rfkill and backlight control to Dell
 	laptops.
 
+config ISL29003
+	tristate "Intersil ISL29003 ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Intersil ISL29003
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called isl29003.
+
 source "drivers/misc/c2port/Kconfig"
+source "drivers/misc/eeprom/Kconfig"
 
 endif # MISC_DEVICES

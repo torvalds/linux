@@ -80,10 +80,8 @@
 
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
-#ifdef CONFIG_X86_PTRACE_BTS
-
 #ifndef __ASSEMBLY__
-#include <asm/types.h>
+#include <linux/types.h>
 
 /* configuration/status structure used in PTRACE_BTS_CONFIG and
    PTRACE_BTS_STATUS commands.
@@ -140,6 +138,5 @@ struct ptrace_bts_config {
    BTS records are read from oldest to newest.
    Returns number of BTS records drained.
 */
-#endif /* CONFIG_X86_PTRACE_BTS */
 
 #endif /* _ASM_X86_PTRACE_ABI_H */

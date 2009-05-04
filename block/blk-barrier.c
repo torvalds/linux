@@ -302,7 +302,7 @@ static void bio_end_empty_barrier(struct bio *bio, int err)
  * Description:
  *    Issue a flush for the block device in question. Caller can supply
  *    room for storing the error offset in case of a flush error, if they
- *    wish to.  Caller must run wait_for_completion() on its own.
+ *    wish to.
  */
 int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 {
@@ -319,9 +319,6 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 		return -ENXIO;
 
 	bio = bio_alloc(GFP_KERNEL, 0);
-	if (!bio)
-		return -ENOMEM;
-
 	bio->bi_end_io = bio_end_empty_barrier;
 	bio->bi_private = &wait;
 	bio->bi_bdev = bdev;

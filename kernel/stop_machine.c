@@ -44,7 +44,7 @@ static DEFINE_MUTEX(setup_lock);
 static int refcount;
 static struct workqueue_struct *stop_machine_wq;
 static struct stop_machine_data active, idle;
-static const cpumask_t *active_cpus;
+static const struct cpumask *active_cpus;
 static void *stop_machine_work;
 
 static void set_state(enum stopmachine_state newstate)
@@ -170,7 +170,7 @@ int __stop_machine(int (*fn)(void *), void *data, const struct cpumask *cpus)
 	 * doesn't hit this CPU until we're ready. */
 	get_cpu();
 	for_each_online_cpu(i) {
-		sm_work = percpu_ptr(stop_machine_work, i);
+		sm_work = per_cpu_ptr(stop_machine_work, i);
 		INIT_WORK(sm_work, stop_cpu);
 		queue_work_on(i, stop_machine_wq, sm_work);
 	}

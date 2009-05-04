@@ -24,7 +24,7 @@
 #ifndef _DVBDMX_H_
 #define _DVBDMX_H_
 
-#include <asm/types.h>
+#include <linux/types.h>
 #ifdef __KERNEL__
 #include <linux/time.h>
 #else

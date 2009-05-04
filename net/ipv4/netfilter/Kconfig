@@ -31,7 +31,7 @@ config NF_CONNTRACK_PROC_COMPAT
 	default y
 	help
 	  This option enables /proc and sysctl compatibility with the old
-	  layer 3 dependant connection tracking. This is needed to keep
+	  layer 3 dependent connection tracking. This is needed to keep
 	  old programs that have not been adapted to the new names working.
 
 	  If unsure, say Y.
@@ -95,11 +95,11 @@ config IP_NF_MATCH_ECN
 config IP_NF_MATCH_TTL
 	tristate '"ttl" match support'
 	depends on NETFILTER_ADVANCED
-	help
-	  This adds CONFIG_IP_NF_MATCH_TTL option, which enabled the user
-	  to match packets by their TTL value.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	select NETFILTER_XT_MATCH_HL
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MATCH_HL.
 
 # `filter', generic and specific targets
 config IP_NF_FILTER
@@ -323,19 +323,13 @@ config IP_NF_TARGET_ECN
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_TARGET_TTL
-	tristate  'TTL target support'
-	depends on IP_NF_MANGLE
+	tristate '"TTL" target support'
 	depends on NETFILTER_ADVANCED
-	help
-	  This option adds a `TTL' target, which enables the user to modify
-	  the TTL value of the IP header.
-
-	  While it is safe to decrement/lower the TTL, this target also enables
-	  functionality to increment and set the TTL value of the IP header to
-	  arbitrary values.  This is EXTREMELY DANGEROUS since you can easily
-	  create immortal packets that loop forever on the network.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	select NETFILTER_XT_TARGET_HL
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_TARGET_HL.
 
 # raw + specific targets
 config IP_NF_RAW

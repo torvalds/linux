@@ -731,7 +731,8 @@ static int rfcomm_tty_open(struct tty_struct *tty, struct file *filp)
 	remove_wait_queue(&dev->wait, &wait);
 
 	if (err == 0)
-		device_move(dev->tty_dev, rfcomm_get_device(dev));
+		device_move(dev->tty_dev, rfcomm_get_device(dev),
+			    DPM_ORDER_DEV_AFTER_PARENT);
 
 	rfcomm_tty_copy_pending(dev);
 
@@ -751,7 +752,7 @@ static void rfcomm_tty_close(struct tty_struct *tty, struct file *filp)
 
 	if (atomic_dec_and_test(&dev->opened)) {
 		if (dev->tty_dev->parent)
-			device_move(dev->tty_dev, NULL);
+			device_move(dev->tty_dev, NULL, DPM_ORDER_DEV_LAST);
 
 		/* Close DLC and dettach TTY */
 		rfcomm_dlc_close(dev->dlc, 0);
@@ -1092,11 +1093,6 @@ static void rfcomm_tty_hangup(struct tty_struct *tty)
 	}
 }
 
-static int rfcomm_tty_read_proc(char *buf, char **start, off_t offset, int len, int *eof, void *unused)
-{
-	return 0;
-}
-
 static int rfcomm_tty_tiocmget(struct tty_struct *tty, struct file *filp)
 {
 	struct rfcomm_dev *dev = (struct rfcomm_dev *) tty->driver_data;
@@ -1155,7 +1151,6 @@ static const struct tty_operations rfcomm_ops = {
 	.send_xchar		= rfcomm_tty_send_xchar,
 	.hangup			= rfcomm_tty_hangup,
 	.wait_until_sent	= rfcomm_tty_wait_until_sent,
-	.read_proc		= rfcomm_tty_read_proc,
 	.tiocmget		= rfcomm_tty_tiocmget,
 	.tiocmset		= rfcomm_tty_tiocmset,
 };

@@ -18,7 +18,6 @@ static const u32 host_save_user_msrs[] = {
 };
 
 #define NR_HOST_SAVE_USER_MSRS ARRAY_SIZE(host_save_user_msrs)
-#define NUM_DB_REGS 4
 
 struct kvm_vcpu;
 
@@ -29,18 +28,23 @@ struct vcpu_svm {
 	struct svm_cpu_data *svm_data;
 	uint64_t asid_generation;
 
-	unsigned long db_regs[NUM_DB_REGS];
-
 	u64 next_rip;
 
 	u64 host_user_msrs[NR_HOST_SAVE_USER_MSRS];
 	u64 host_gs_base;
 	unsigned long host_cr2;
-	unsigned long host_db_regs[NUM_DB_REGS];
-	unsigned long host_dr6;
-	unsigned long host_dr7;
 
 	u32 *msrpm;
+	struct vmcb *hsave;
+	u64 hsave_msr;
+
+	u64 nested_vmcb;
+
+	/* These are the merged vectors */
+	u32 *nested_msrpm;
+
+	/* gpa pointers to the real vectors */
+	u64 nested_vmcb_msrpm;
 };
 
 #endif

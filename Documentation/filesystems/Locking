@@ -437,8 +437,11 @@ grab BKL for cases when we close a file that had been opened r/w, but that
 can and should be done using the internal locking with smaller critical areas).
 Current worst offender is ext2_get_block()...
 
-->fasync() is a mess. This area needs a big cleanup and that will probably
-affect locking.
+->fasync() is called without BKL protection, and is responsible for
+maintaining the FASYNC bit in filp->f_flags.  Most instances call
+fasync_helper(), which does that maintenance, so it's not normally
+something one needs to worry about.  Return values > 0 will be mapped to
+zero in the VFS layer.
 
 ->readdir() and ->ioctl() on directories must be changed. Ideally we would
 move ->readdir() to inode_operations and use a separate method for directory
@@ -502,7 +505,7 @@ prototypes:
 	void (*open)(struct vm_area_struct*);
 	void (*close)(struct vm_area_struct*);
 	int (*fault)(struct vm_area_struct*, struct vm_fault *);
-	int (*page_mkwrite)(struct vm_area_struct *, struct page *);
+	int (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:

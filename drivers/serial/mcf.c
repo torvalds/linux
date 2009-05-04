@@ -212,10 +212,18 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	unsigned long flags;
 	unsigned int baud, baudclk;
+#if defined(CONFIG_M5272)
+	unsigned int baudfr;
+#endif
 	unsigned char mr1, mr2;
 
 	baud = uart_get_baud_rate(port, termios, old, 0, 230400);
+#if defined(CONFIG_M5272)
+	baudclk = (MCF_BUSCLK / baud) / 32;
+	baudfr = (((MCF_BUSCLK / baud) + 1) / 2) % 16;
+#else
 	baudclk = ((MCF_BUSCLK / baud) + 16) / 32;
+#endif
 
 	mr1 = MCFUART_MR1_RXIRQRDY | MCFUART_MR1_RXERRCHAR;
 	mr2 = 0;
@@ -262,6 +270,9 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 	writeb(mr2, port->membase + MCFUART_UMR);
 	writeb((baudclk & 0xff00) >> 8, port->membase + MCFUART_UBG1);
 	writeb((baudclk & 0xff), port->membase + MCFUART_UBG2);
+#if defined(CONFIG_M5272)
+	writeb((baudfr & 0x0f), port->membase + MCFUART_UFPD);
+#endif
 	writeb(MCFUART_UCSR_RXCLKTIMER | MCFUART_UCSR_TXCLKTIMER,
 		port->membase + MCFUART_UCSR);
 	writeb(MCFUART_UCR_RXENABLE | MCFUART_UCR_TXENABLE,
@@ -502,7 +513,7 @@ static int __init mcf_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	if ((co->index >= 0) && (co->index <= MCF_MAXPORTS))
+	if ((co->index < 0) || (co->index >= MCF_MAXPORTS))
 		co->index = 0;
 	port = &mcf_ports[co->index].port;
 	if (port->membase == 0)

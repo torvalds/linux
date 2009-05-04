@@ -606,7 +606,7 @@ struct wl3501_card {
 	u8				reg_domain;
 	u8				version[2];
 	struct wl3501_scan_confirm	bss_set[20];
-	struct net_device_stats 	stats;
+
 	struct iw_statistics		wstats;
 	struct iw_spy_data		spy_data;
 	struct iw_public_data		wireless_data;

@@ -307,9 +307,8 @@ static int close(struct inode *inode, struct file *file)
 	 * kmalloc()ed string, either of which is ok to hand to kfree(). */
 	if (!IS_ERR(lg->dead))
 		kfree(lg->dead);
-	/* We clear the entire structure, which also marks it as free for the
-	 * next user. */
-	memset(lg, 0, sizeof(*lg));
+	/* Free the memory allocated to the lguest_struct */
+	kfree(lg);
 	/* Release lock and exit. */
 	mutex_unlock(&lguest_lock);
 

@@ -78,8 +78,8 @@ extern int cifs_dir_open(struct inode *inode, struct file *file);
 extern int cifs_readdir(struct file *file, void *direntry, filldir_t filldir);
 
 /* Functions related to dir entries */
-extern struct dentry_operations cifs_dentry_ops;
-extern struct dentry_operations cifs_ci_dentry_ops;
+extern const struct dentry_operations cifs_dentry_ops;
+extern const struct dentry_operations cifs_ci_dentry_ops;
 
 /* Functions related to symlinks */
 extern void *cifs_follow_link(struct dentry *direntry, struct nameidata *nd);
@@ -100,5 +100,5 @@ extern long cifs_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
 extern const struct export_operations cifs_export_ops;
 #endif /* EXPERIMENTAL */
 
-#define CIFS_VERSION   "1.56"
+#define CIFS_VERSION   "1.57"
 #endif				/* _CIFSFS_H */

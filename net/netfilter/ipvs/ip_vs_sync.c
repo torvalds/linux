@@ -149,8 +149,8 @@ static struct task_struct *sync_backup_thread;
 /* multicast addr */
 static struct sockaddr_in mcast_addr = {
 	.sin_family		= AF_INET,
-	.sin_port		= __constant_htons(IP_VS_SYNC_PORT),
-	.sin_addr.s_addr	= __constant_htonl(IP_VS_SYNC_GROUP),
+	.sin_port		= cpu_to_be16(IP_VS_SYNC_PORT),
+	.sin_addr.s_addr	= cpu_to_be32(IP_VS_SYNC_GROUP),
 };
 
 

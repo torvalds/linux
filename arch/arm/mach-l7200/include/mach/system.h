@@ -19,7 +19,7 @@ static inline void arch_idle(void)
 	*(unsigned long *)(IO_BASE + 0x50004) = 1;	/* idle mode */
 }
 
-static inline void arch_reset(char mode)
+static inline void arch_reset(char mode, const char *cmd)
 {
 	if (mode == 's') {
 		cpu_reset(0);

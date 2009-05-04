@@ -293,7 +293,6 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 	int i = 0, count = 0;
 	__le32 *buffer = dev->d_i2c.cpu_addr;
 	int err = 0;
-	int address_err = 0;
 	int short_delay = 0;
 
 	if (mutex_lock_interruptible(&dev->i2c_lock))
@@ -333,17 +332,10 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 				   i2c address probing, however, and address errors indicate that a
 				   device is really *not* there. retrying in that case
 				   increases the time the device needs to probe greatly, so
-				   it should be avoided. because of the fact, that only
-				   analog based cards use irq based i2c transactions (for dvb
-				   cards, this screwes up other interrupt sources), we bail out
-				   completely for analog cards after an address error and trust
-				   the saa7146 address error detection. */
-				if ( -EREMOTEIO == err ) {
-					if( 0 != (SAA7146_USE_I2C_IRQ & dev->ext->flags)) {
-						goto out;
-					}
-					address_err++;
-				}
+				   it should be avoided. So we bail out in irq mode after an
+				   address error and trust the saa7146 address error detection. */
+				if (-EREMOTEIO == err && 0 != (SAA7146_USE_I2C_IRQ & dev->ext->flags))
+					goto out;
 				DEB_I2C(("error while sending message(s). starting again.\n"));
 				break;
 			}
@@ -358,10 +350,9 @@ static int saa7146_i2c_transfer(struct saa7146_dev *dev, const struct i2c_msg *m
 
 	} while (err != num && retries--);
 
-	/* if every retry had an address error, exit right away */
-	if (address_err == retries) {
+	/* quit if any error occurred */
+	if (err != num)
 		goto out;
-	}
 
 	/* if any things had to be read, get the results */
 	if ( 0 != saa7146_i2c_msg_cleanup(msgs, num, buffer)) {
@@ -390,7 +381,8 @@ out:
 /* utility functions */
 static int saa7146_i2c_xfer(struct i2c_adapter* adapter, struct i2c_msg *msg, int num)
 {
-	struct saa7146_dev* dev = i2c_get_adapdata(adapter);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(adapter);
+	struct saa7146_dev *dev = to_saa7146_dev(v4l2_dev);
 
 	/* use helper function to transfer data */
 	return saa7146_i2c_transfer(dev, msg, num, adapter->retries);
@@ -417,9 +409,8 @@ int saa7146_i2c_adapter_prepare(struct saa7146_dev *dev, struct i2c_adapter *i2c
 	dev->i2c_bitrate = bitrate;
 	saa7146_i2c_reset(dev);
 
-	if( NULL != i2c_adapter ) {
-		BUG_ON(!i2c_adapter->class);
-		i2c_set_adapdata(i2c_adapter,dev);
+	if (i2c_adapter) {
+		i2c_set_adapdata(i2c_adapter, &dev->v4l2_dev);
 		i2c_adapter->dev.parent    = &dev->pci->dev;
 		i2c_adapter->algo	   = &saa7146_algo;
 		i2c_adapter->algo_data     = NULL;

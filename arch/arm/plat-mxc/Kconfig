@@ -3,7 +3,7 @@ if ARCH_MXC
 menu "Freescale MXC Implementations"
 
 choice
-	prompt "MXC/iMX Base Type"
+	prompt "Freescale CPU family:"
 	default ARCH_MX3
 
 config ARCH_MX1
@@ -15,12 +15,14 @@ config ARCH_MX1
 config ARCH_MX2
 	bool "MX2-based"
 	select CPU_ARM926T
+	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
 config ARCH_MX3
 	bool "MX3-based"
 	select CPU_V6
+	select COMMON_CLKDEV
 	help
 	  This enables support for systems based on the Freescale i.MX3 family
 
@@ -42,5 +44,11 @@ config MXC_IRQ_PRIOR
 	  This may be useful in embedded applications, where are strong
 	  requirements for timing.
 	  Say N here, unless you have a specialized requirement.
+
+config MXC_PWM
+	tristate "Enable PWM driver"
+	depends on ARCH_MXC
+	help
+	  Enable support for the i.MX PWM controller(s).
 
 endif

@@ -61,7 +61,7 @@
 #include <mach-dreamcast/mach/sysasic.h>
 #endif
 
-#ifdef CONFIG_SH_DMA
+#ifdef CONFIG_PVR2_DMA
 #include <linux/pagemap.h>
 #include <mach/dma.h>
 #include <asm/dma.h>
@@ -188,7 +188,7 @@ static unsigned int is_blanked = 0;		/* Is the screen blanked? */
 static unsigned long pvr2fb_map;
 #endif
 
-#ifdef CONFIG_SH_DMA
+#ifdef CONFIG_PVR2_DMA
 static unsigned int shdma = PVR2_CASCADE_CHAN;
 static unsigned int pvr2dma = ONCHIP_NR_DMA_CHANNELS;
 #endif
@@ -207,7 +207,7 @@ static irqreturn_t pvr2fb_interrupt(int irq, void *dev_id);
 static int pvr2_init_cable(void);
 static int pvr2_get_param(const struct pvr2_params *p, const char *s,
                             int val, int size);
-#ifdef CONFIG_SH_DMA
+#ifdef CONFIG_PVR2_DMA
 static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 			    size_t count, loff_t *ppos);
 #endif
@@ -218,7 +218,7 @@ static struct fb_ops pvr2fb_ops = {
 	.fb_blank	= pvr2fb_blank,
 	.fb_check_var	= pvr2fb_check_var,
 	.fb_set_par	= pvr2fb_set_par,
-#ifdef CONFIG_SH_DMA
+#ifdef CONFIG_PVR2_DMA
 	.fb_write	= pvr2fb_write,
 #endif
 	.fb_fillrect	= cfb_fillrect,
@@ -671,7 +671,7 @@ static int pvr2_init_cable(void)
 	return cable_type;
 }
 
-#ifdef CONFIG_SH_DMA
+#ifdef CONFIG_PVR2_DMA
 static ssize_t pvr2fb_write(struct fb_info *info, const char *buf,
 			    size_t count, loff_t *ppos)
 {
@@ -743,7 +743,7 @@ out_unmap:
 
 	return ret;
 }
-#endif /* CONFIG_SH_DMA */
+#endif /* CONFIG_PVR2_DMA */
 
 /**
  * pvr2fb_common_init
@@ -893,7 +893,7 @@ static int __init pvr2fb_dc_init(void)
 		return -EBUSY;
 	}
 
-#ifdef CONFIG_SH_DMA
+#ifdef CONFIG_PVR2_DMA
 	if (request_dma(pvr2dma, "pvr2") != 0) {
 		free_irq(HW_EVENT_VSYNC, 0);
 		return -EBUSY;
@@ -915,7 +915,7 @@ static void __exit pvr2fb_dc_exit(void)
 	}
 
 	free_irq(HW_EVENT_VSYNC, 0);
-#ifdef CONFIG_SH_DMA
+#ifdef CONFIG_PVR2_DMA
 	free_dma(pvr2dma);
 #endif
 }

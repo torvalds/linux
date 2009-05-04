@@ -129,7 +129,7 @@ static int wait_for_pin(struct bbc_i2c_bus *bp, u8 *status)
 	bp->waiting = 1;
 	add_wait_queue(&bp->wq, &wait);
 	while (limit-- > 0) {
-		unsigned long val;
+		long val;
 
 		val = wait_event_interruptible_timeout(
 				bp->wq,

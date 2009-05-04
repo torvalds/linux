@@ -781,7 +781,6 @@ static struct platform_device i2c_bfin_twi1_device = {
 #endif
 #endif
 
-#ifdef CONFIG_I2C_BOARDINFO
 static struct i2c_board_info __initdata bfin_i2c_board_info0[] = {
 };
 
@@ -799,7 +798,6 @@ static struct i2c_board_info __initdata bfin_i2c_board_info1[] = {
 	},
 #endif
 };
-#endif
 #endif
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
@@ -956,13 +954,11 @@ static int __init ezkit_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 
-#ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(0, bfin_i2c_board_info0,
 				ARRAY_SIZE(bfin_i2c_board_info0));
 #if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
 	i2c_register_board_info(1, bfin_i2c_board_info1,
 				ARRAY_SIZE(bfin_i2c_board_info1));
-#endif
 #endif
 
 	platform_add_devices(ezkit_devices, ARRAY_SIZE(ezkit_devices));

@@ -498,7 +498,7 @@ ext3_xattr_release_block(handle_t *handle, struct inode *inode,
 		error = ext3_journal_dirty_metadata(handle, bh);
 		if (IS_SYNC(inode))
 			handle->h_sync = 1;
-		DQUOT_FREE_BLOCK(inode, 1);
+		vfs_dq_free_block(inode, 1);
 		ea_bdebug(bh, "refcount now=%d; releasing",
 			  le32_to_cpu(BHDR(bh)->h_refcount));
 		if (ce)
@@ -774,7 +774,7 @@ inserted:
 				/* The old block is released after updating
 				   the inode. */
 				error = -EDQUOT;
-				if (DQUOT_ALLOC_BLOCK(inode, 1))
+				if (vfs_dq_alloc_block(inode, 1))
 					goto cleanup;
 				error = ext3_journal_get_write_access(handle,
 								      new_bh);
@@ -848,7 +848,7 @@ cleanup:
 	return error;
 
 cleanup_dquot:
-	DQUOT_FREE_BLOCK(inode, 1);
+	vfs_dq_free_block(inode, 1);
 	goto cleanup;
 
 bad_block:

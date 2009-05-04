@@ -1068,10 +1068,9 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
 	return copy_to_user(mask, nodes_addr(*nodes), copy) ? -EFAULT : 0;
 }
 
-asmlinkage long sys_mbind(unsigned long start, unsigned long len,
-			unsigned long mode,
-			unsigned long __user *nmask, unsigned long maxnode,
-			unsigned flags)
+SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
+		unsigned long, mode, unsigned long __user *, nmask,
+		unsigned long, maxnode, unsigned, flags)
 {
 	nodemask_t nodes;
 	int err;
@@ -1091,8 +1090,8 @@ asmlinkage long sys_mbind(unsigned long start, unsigned long len,
 }
 
 /* Set the process memory policy */
-asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
-		unsigned long maxnode)
+SYSCALL_DEFINE3(set_mempolicy, int, mode, unsigned long __user *, nmask,
+		unsigned long, maxnode)
 {
 	int err;
 	nodemask_t nodes;
@@ -1110,9 +1109,9 @@ asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 	return do_set_mempolicy(mode, flags, &nodes);
 }
 
-asmlinkage long sys_migrate_pages(pid_t pid, unsigned long maxnode,
-		const unsigned long __user *old_nodes,
-		const unsigned long __user *new_nodes)
+SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
+		const unsigned long __user *, old_nodes,
+		const unsigned long __user *, new_nodes)
 {
 	const struct cred *cred = current_cred(), *tcred;
 	struct mm_struct *mm;
@@ -1185,10 +1184,9 @@ out:
 
 
 /* Retrieve NUMA policy */
-asmlinkage long sys_get_mempolicy(int __user *policy,
-				unsigned long __user *nmask,
-				unsigned long maxnode,
-				unsigned long addr, unsigned long flags)
+SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
+		unsigned long __user *, nmask, unsigned long, maxnode,
+		unsigned long, addr, unsigned long, flags)
 {
 	int err;
 	int uninitialized_var(pval);

@@ -278,31 +278,31 @@ static int fr_hard_header(struct sk_buff **skb_p, u16 dlci)
 	struct sk_buff *skb = *skb_p;
 
 	switch (skb->protocol) {
-	case __constant_htons(NLPID_CCITT_ANSI_LMI):
+	case cpu_to_be16(NLPID_CCITT_ANSI_LMI):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_CCITT_ANSI_LMI;
 		break;
 
-	case __constant_htons(NLPID_CISCO_LMI):
+	case cpu_to_be16(NLPID_CISCO_LMI):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_CISCO_LMI;
 		break;
 
-	case __constant_htons(ETH_P_IP):
+	case cpu_to_be16(ETH_P_IP):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_IP;
 		break;
 
-	case __constant_htons(ETH_P_IPV6):
+	case cpu_to_be16(ETH_P_IPV6):
 		head_len = 4;
 		skb_push(skb, head_len);
 		skb->data[3] = NLPID_IPV6;
 		break;
 
-	case __constant_htons(ETH_P_802_3):
+	case cpu_to_be16(ETH_P_802_3):
 		head_len = 10;
 		if (skb_headroom(skb) < head_len) {
 			struct sk_buff *skb2 = skb_realloc_headroom(skb,
@@ -426,7 +426,7 @@ static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 				skb_put(skb, pad);
 				memset(skb->data + len, 0, pad);
 			}
-			skb->protocol = __constant_htons(ETH_P_802_3);
+			skb->protocol = cpu_to_be16(ETH_P_802_3);
 		}
 		if (!fr_hard_header(&skb, pvc->dlci)) {
 			dev->stats.tx_bytes += skb->len;
@@ -443,18 +443,6 @@ static int pvc_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 	return 0;
 }
-
-
-
-static int pvc_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > HDLC_MAX_MTU))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
-
 
 static inline void fr_log_dlci_active(pvc_device *pvc)
 {
@@ -508,10 +496,10 @@ static void fr_lmi_send(struct net_device *dev, int fullrep)
 	memset(skb->data, 0, len);
 	skb_reserve(skb, 4);
 	if (lmi == LMI_CISCO) {
-		skb->protocol = __constant_htons(NLPID_CISCO_LMI);
+		skb->protocol = cpu_to_be16(NLPID_CISCO_LMI);
 		fr_hard_header(&skb, LMI_CISCO_DLCI);
 	} else {
-		skb->protocol = __constant_htons(NLPID_CCITT_ANSI_LMI);
+		skb->protocol = cpu_to_be16(NLPID_CCITT_ANSI_LMI);
 		fr_hard_header(&skb, LMI_CCITT_ANSI_DLCI);
 	}
 	data = skb_tail_pointer(skb);
@@ -1068,6 +1056,14 @@ static void pvc_setup(struct net_device *dev)
 	dev->addr_len = 2;
 }
 
+static const struct net_device_ops pvc_ops = {
+	.ndo_open       = pvc_open,
+	.ndo_stop       = pvc_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = pvc_xmit,
+	.ndo_do_ioctl   = pvc_ioctl,
+};
+
 static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 {
 	hdlc_device *hdlc = dev_to_hdlc(frad);
@@ -1104,11 +1100,7 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		*(__be16*)dev->dev_addr = htons(dlci);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
-	dev->hard_start_xmit = pvc_xmit;
-	dev->open = pvc_open;
-	dev->stop = pvc_close;
-	dev->do_ioctl = pvc_ioctl;
-	dev->change_mtu = pvc_change_mtu;
+	dev->netdev_ops = &pvc_ops;
 	dev->mtu = HDLC_MAX_MTU;
 	dev->tx_queue_len = 0;
 	dev->ml_priv = pvc;
@@ -1260,8 +1252,6 @@ static int fr_ioctl(struct net_device *dev, struct ifreq *ifr)
 			state(hdlc)->dce_pvc_count = 0;
 		}
 		memcpy(&state(hdlc)->settings, &new_settings, size);
-
-		dev->hard_start_xmit = hdlc->xmit;
 		dev->type = ARPHRD_FRAD;
 		return 0;
 

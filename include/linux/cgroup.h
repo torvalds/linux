@@ -15,6 +15,7 @@
 #include <linux/cgroupstats.h>
 #include <linux/prio_heap.h>
 #include <linux/rwsem.h>
+#include <linux/idr.h>
 
 #ifdef CONFIG_CGROUPS
 
@@ -22,6 +23,7 @@ struct cgroupfs_root;
 struct cgroup_subsys;
 struct inode;
 struct cgroup;
+struct css_id;
 
 extern int cgroup_init_early(void);
 extern int cgroup_init(void);
@@ -47,18 +49,24 @@ enum cgroup_subsys_id {
 
 /* Per-subsystem/per-cgroup state maintained by the system. */
 struct cgroup_subsys_state {
-	/* The cgroup that this subsystem is attached to. Useful
+	/*
+	 * The cgroup that this subsystem is attached to. Useful
 	 * for subsystems that want to know about the cgroup
-	 * hierarchy structure */
+	 * hierarchy structure
+	 */
 	struct cgroup *cgroup;
 
-	/* State maintained by the cgroup system to allow subsystems
+	/*
+	 * State maintained by the cgroup system to allow subsystems
 	 * to be "busy". Should be accessed via css_get(),
-	 * css_tryget() and and css_put(). */
+	 * css_tryget() and and css_put().
+	 */
 
 	atomic_t refcnt;
 
 	unsigned long flags;
+	/* ID for this css, if possible */
+	struct css_id *id;
 };
 
 /* bits in struct cgroup_subsys_state flags field */
@@ -99,6 +107,7 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
 	while (!atomic_inc_not_zero(&css->refcnt)) {
 		if (test_bit(CSS_REMOVED, &css->flags))
 			return false;
+		cpu_relax();
 	}
 	return true;
 }
@@ -119,19 +128,26 @@ static inline void css_put(struct cgroup_subsys_state *css)
 enum {
 	/* Control Group is dead */
 	CGRP_REMOVED,
-	/* Control Group has previously had a child cgroup or a task,
-	 * but no longer (only if CGRP_NOTIFY_ON_RELEASE is set) */
+	/*
+	 * Control Group has previously had a child cgroup or a task,
+	 * but no longer (only if CGRP_NOTIFY_ON_RELEASE is set)
+	 */
 	CGRP_RELEASABLE,
 	/* Control Group requires release notifications to userspace */
 	CGRP_NOTIFY_ON_RELEASE,
+	/*
+	 * A thread in rmdir() is wating for this cgroup.
+	 */
+	CGRP_WAIT_ON_RMDIR,
 };
 
 struct cgroup {
 	unsigned long flags;		/* "unsigned long" so bitops work */
 
-	/* count users of this cgroup. >0 means busy, but doesn't
-	 * necessarily indicate the number of tasks in the
-	 * cgroup */
+	/*
+	 * count users of this cgroup. >0 means busy, but doesn't
+	 * necessarily indicate the number of tasks in the cgroup
+	 */
 	atomic_t count;
 
 	/*
@@ -141,7 +157,7 @@ struct cgroup {
 	struct list_head sibling;	/* my parent's children */
 	struct list_head children;	/* my children */
 
-	struct cgroup *parent;	/* my parent */
+	struct cgroup *parent;		/* my parent */
 	struct dentry *dentry;	  	/* cgroup fs entry, RCU protected */
 
 	/* Private pointers for each registered subsystem */
@@ -176,11 +192,12 @@ struct cgroup {
 	struct rcu_head rcu_head;
 };
 
-/* A css_set is a structure holding pointers to a set of
+/*
+ * A css_set is a structure holding pointers to a set of
  * cgroup_subsys_state objects. This saves space in the task struct
  * object and speeds up fork()/exit(), since a single inc/dec and a
- * list_add()/del() can bump the reference count on the entire
- * cgroup set for a task.
+ * list_add()/del() can bump the reference count on the entire cgroup
+ * set for a task.
  */
 
 struct css_set {
@@ -225,13 +242,8 @@ struct cgroup_map_cb {
 	void *state;
 };
 
-/* struct cftype:
- *
- * The files in the cgroup filesystem mostly have a very simple read/write
- * handling, some common function will take care of it. Nevertheless some cases
- * (read tasks) are special and therefore I define this structure for every
- * kind of file.
- *
+/*
+ * struct cftype: handler definitions for cgroup control files
  *
  * When reading/writing to a file:
  *	- the cgroup to use is file->f_dentry->d_parent->d_fsdata
@@ -240,10 +252,17 @@ struct cgroup_map_cb {
 
 #define MAX_CFTYPE_NAME 64
 struct cftype {
-	/* By convention, the name should begin with the name of the
-	 * subsystem, followed by a period */
+	/*
+	 * By convention, the name should begin with the name of the
+	 * subsystem, followed by a period
+	 */
 	char name[MAX_CFTYPE_NAME];
 	int private;
+	/*
+	 * If not 0, file mode is set to this value, otherwise it will
+	 * be figured out automatically
+	 */
+	mode_t mode;
 
 	/*
 	 * If non-zero, defines the maximum length of string that can
@@ -318,15 +337,20 @@ struct cgroup_scanner {
 	void (*process_task)(struct task_struct *p,
 			struct cgroup_scanner *scan);
 	struct ptr_heap *heap;
+	void *data;
 };
 
-/* Add a new file to the given cgroup directory. Should only be
- * called by subsystems from within a populate() method */
+/*
+ * Add a new file to the given cgroup directory. Should only be
+ * called by subsystems from within a populate() method
+ */
 int cgroup_add_file(struct cgroup *cgrp, struct cgroup_subsys *subsys,
 		       const struct cftype *cft);
 
-/* Add a set of new files to the given cgroup directory. Should
- * only be called by subsystems from within a populate() method */
+/*
+ * Add a set of new files to the given cgroup directory. Should
+ * only be called by subsystems from within a populate() method
+ */
 int cgroup_add_files(struct cgroup *cgrp,
 			struct cgroup_subsys *subsys,
 			const struct cftype cft[],
@@ -338,15 +362,18 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen);
 
 int cgroup_task_count(const struct cgroup *cgrp);
 
-/* Return true if the cgroup is a descendant of the current cgroup */
-int cgroup_is_descendant(const struct cgroup *cgrp);
+/* Return true if cgrp is a descendant of the task's cgroup */
+int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
 
-/* Control Group subsystem type. See Documentation/cgroups.txt for details */
+/*
+ * Control Group subsystem type.
+ * See Documentation/cgroups/cgroups.txt for details
+ */
 
 struct cgroup_subsys {
 	struct cgroup_subsys_state *(*create)(struct cgroup_subsys *ss,
 						  struct cgroup *cgrp);
-	void (*pre_destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
+	int (*pre_destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
 	void (*destroy)(struct cgroup_subsys *ss, struct cgroup *cgrp);
 	int (*can_attach)(struct cgroup_subsys *ss,
 			  struct cgroup *cgrp, struct task_struct *tsk);
@@ -363,6 +390,11 @@ struct cgroup_subsys {
 	int active;
 	int disabled;
 	int early_init;
+	/*
+	 * True if this subsys uses ID. ID is not available before cgroup_init()
+	 * (not available in early_init time.)
+	 */
+	bool use_id;
 #define MAX_CGROUP_TYPE_NAMELEN 32
 	const char *name;
 
@@ -377,6 +409,7 @@ struct cgroup_subsys {
 	 * - initiating hotplug events
 	 */
 	struct mutex hierarchy_mutex;
+	struct lock_class_key subsys_key;
 
 	/*
 	 * Link to parent, and list entry in parent's children.
@@ -384,6 +417,9 @@ struct cgroup_subsys {
 	 */
 	struct cgroupfs_root *root;
 	struct list_head sibling;
+	/* used when use_id == true */
+	struct idr idr;
+	spinlock_t id_lock;
 };
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _subsys;
@@ -417,7 +453,8 @@ struct cgroup_iter {
 	struct list_head *task;
 };
 
-/* To iterate across the tasks in a cgroup:
+/*
+ * To iterate across the tasks in a cgroup:
  *
  * 1) call cgroup_iter_start to intialize an iterator
  *
@@ -426,9 +463,10 @@ struct cgroup_iter {
  *
  * 3) call cgroup_iter_end() to destroy the iterator.
  *
- * Or, call cgroup_scan_tasks() to iterate through every task in a cpuset.
- *    - cgroup_scan_tasks() holds the css_set_lock when calling the test_task()
- *      callback, but not while calling the process_task() callback.
+ * Or, call cgroup_scan_tasks() to iterate through every task in a
+ * cgroup - cgroup_scan_tasks() holds the css_set_lock when calling
+ * the test_task() callback, but not while calling the process_task()
+ * callback.
  */
 void cgroup_iter_start(struct cgroup *cgrp, struct cgroup_iter *it);
 struct task_struct *cgroup_iter_next(struct cgroup *cgrp,
@@ -436,6 +474,44 @@ struct task_struct *cgroup_iter_next(struct cgroup *cgrp,
 void cgroup_iter_end(struct cgroup *cgrp, struct cgroup_iter *it);
 int cgroup_scan_tasks(struct cgroup_scanner *scan);
 int cgroup_attach_task(struct cgroup *, struct task_struct *);
+
+/*
+ * CSS ID is ID for cgroup_subsys_state structs under subsys. This only works
+ * if cgroup_subsys.use_id == true. It can be used for looking up and scanning.
+ * CSS ID is assigned at cgroup allocation (create) automatically
+ * and removed when subsys calls free_css_id() function. This is because
+ * the lifetime of cgroup_subsys_state is subsys's matter.
+ *
+ * Looking up and scanning function should be called under rcu_read_lock().
+ * Taking cgroup_mutex()/hierarchy_mutex() is not necessary for following calls.
+ * But the css returned by this routine can be "not populated yet" or "being
+ * destroyed". The caller should check css and cgroup's status.
+ */
+
+/*
+ * Typically Called at ->destroy(), or somewhere the subsys frees
+ * cgroup_subsys_state.
+ */
+void free_css_id(struct cgroup_subsys *ss, struct cgroup_subsys_state *css);
+
+/* Find a cgroup_subsys_state which has given ID */
+
+struct cgroup_subsys_state *css_lookup(struct cgroup_subsys *ss, int id);
+
+/*
+ * Get a cgroup whose id is greater than or equal to id under tree of root.
+ * Returning a cgroup_subsys_state or NULL.
+ */
+struct cgroup_subsys_state *css_get_next(struct cgroup_subsys *ss, int id,
+		struct cgroup_subsys_state *root, int *foundid);
+
+/* Returns true if root is ancestor of cg */
+bool css_is_ancestor(struct cgroup_subsys_state *cg,
+		     const struct cgroup_subsys_state *root);
+
+/* Get id and depth of css */
+unsigned short css_id(struct cgroup_subsys_state *css);
+unsigned short css_depth(struct cgroup_subsys_state *css);
 
 #else /* !CONFIG_CGROUPS */
 

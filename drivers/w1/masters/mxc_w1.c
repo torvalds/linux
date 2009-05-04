@@ -116,7 +116,7 @@ static int __init mxc_w1_probe(struct platform_device *pdev)
 	if (!mdev)
 		return -ENOMEM;
 
-	mdev->clk = clk_get(&pdev->dev, "owire_clk");
+	mdev->clk = clk_get(&pdev->dev, "owire");
 	if (!mdev->clk) {
 		err = -ENODEV;
 		goto failed_clk;

@@ -32,11 +32,13 @@
 #include <linux/kvm_host.h>
 
 static void pic_lock(struct kvm_pic *s)
+	__acquires(&s->lock)
 {
 	spin_lock(&s->lock);
 }
 
 static void pic_unlock(struct kvm_pic *s)
+	__releases(&s->lock)
 {
 	struct kvm *kvm = s->kvm;
 	unsigned acks = s->pending_acks;
@@ -49,7 +51,8 @@ static void pic_unlock(struct kvm_pic *s)
 	spin_unlock(&s->lock);
 
 	while (acks) {
-		kvm_notify_acked_irq(kvm, __ffs(acks));
+		kvm_notify_acked_irq(kvm, SELECT_PIC(__ffs(acks)),
+				     __ffs(acks));
 		acks &= acks - 1;
 	}
 
@@ -76,12 +79,13 @@ void kvm_pic_clear_isr_ack(struct kvm *kvm)
 /*
  * set irq level. If an edge is detected, then the IRR is set to 1
  */
-static inline void pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
+static inline int pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
 {
-	int mask;
+	int mask, ret = 1;
 	mask = 1 << irq;
 	if (s->elcr & mask)	/* level triggered */
 		if (level) {
+			ret = !(s->irr & mask);
 			s->irr |= mask;
 			s->last_irr |= mask;
 		} else {
@@ -90,11 +94,15 @@ static inline void pic_set_irq1(struct kvm_kpic_state *s, int irq, int level)
 		}
 	else	/* edge triggered */
 		if (level) {
-			if ((s->last_irr & mask) == 0)
+			if ((s->last_irr & mask) == 0) {
+				ret = !(s->irr & mask);
 				s->irr |= mask;
+			}
 			s->last_irr |= mask;
 		} else
 			s->last_irr &= ~mask;
+
+	return (s->imr & mask) ? -1 : ret;
 }
 
 /*
@@ -171,16 +179,19 @@ void kvm_pic_update_irq(struct kvm_pic *s)
 	pic_unlock(s);
 }
 
-void kvm_pic_set_irq(void *opaque, int irq, int level)
+int kvm_pic_set_irq(void *opaque, int irq, int level)
 {
 	struct kvm_pic *s = opaque;
+	int ret = -1;
 
 	pic_lock(s);
 	if (irq >= 0 && irq < PIC_NUM_PINS) {
-		pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
+		ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
 		pic_update_irq(s);
 	}
 	pic_unlock(s);
+
+	return ret;
 }
 
 /*
@@ -232,7 +243,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 	}
 	pic_update_irq(s);
 	pic_unlock(s);
-	kvm_notify_acked_irq(kvm, irq);
+	kvm_notify_acked_irq(kvm, SELECT_PIC(irq), irq);
 
 	return intno;
 }

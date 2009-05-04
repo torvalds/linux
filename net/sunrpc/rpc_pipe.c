@@ -480,7 +480,7 @@ static int rpc_delete_dentry(struct dentry *dentry)
 	return 1;
 }
 
-static struct dentry_operations rpc_dentry_operations = {
+static const struct dentry_operations rpc_dentry_operations = {
 	.d_delete = rpc_delete_dentry,
 };
 

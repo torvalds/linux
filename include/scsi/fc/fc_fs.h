@@ -337,4 +337,9 @@ enum fc_pf_rjt_reason {
 	FC_RJT_VENDOR =		0xff,	/* vendor specific reject */
 };
 
+/* default timeout values */
+
+#define FC_DEF_E_D_TOV	2000UL
+#define FC_DEF_R_A_TOV	10000UL
+
 #endif /* _FC_FS_H_ */

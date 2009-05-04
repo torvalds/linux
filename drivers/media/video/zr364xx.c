@@ -26,7 +26,6 @@
  */
 
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/usb.h>
@@ -96,6 +95,7 @@ static struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x06d6, 0x003b), .driver_info = METHOD0 },
 	{USB_DEVICE(0x0a17, 0x004e), .driver_info = METHOD2 },
 	{USB_DEVICE(0x041e, 0x405d), .driver_info = METHOD2 },
+	{USB_DEVICE(0x08ca, 0x2102), .driver_info = METHOD2 },
 	{}			/* Terminating entry */
 };
 
@@ -425,7 +425,6 @@ static ssize_t zr364xx_read(struct file *file, char __user *buf, size_t cnt,
 static int zr364xx_vidioc_querycap(struct file *file, void *priv,
 				   struct v4l2_capability *cap)
 {
-	memset(cap, 0, sizeof(*cap));
 	strcpy(cap->driver, DRIVER_DESC);
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE;
 	return 0;
@@ -436,8 +435,6 @@ static int zr364xx_vidioc_enum_input(struct file *file, void *priv,
 {
 	if (i->index != 0)
 		return -EINVAL;
-	memset(i, 0, sizeof(*i));
-	i->index = 0;
 	strcpy(i->name, DRIVER_DESC " Camera");
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	return 0;
@@ -529,11 +526,6 @@ static int zr364xx_vidioc_enum_fmt_vid_cap(struct file *file,
 {
 	if (f->index > 0)
 		return -EINVAL;
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	memset(f, 0, sizeof(*f));
-	f->index = 0;
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->flags = V4L2_FMT_FLAG_COMPRESSED;
 	strcpy(f->description, "JPEG");
 	f->pixelformat = V4L2_PIX_FMT_JPEG;
@@ -550,8 +542,6 @@ static int zr364xx_vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -ENODEV;
 	cam = video_get_drvdata(vdev);
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 	if (f->fmt.pix.pixelformat != V4L2_PIX_FMT_JPEG)
 		return -EINVAL;
 	if (f->fmt.pix.field != V4L2_FIELD_ANY &&
@@ -577,10 +567,6 @@ static int zr364xx_vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 		return -ENODEV;
 	cam = video_get_drvdata(vdev);
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-	memset(&f->fmt.pix, 0, sizeof(struct v4l2_pix_format));
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	f->fmt.pix.pixelformat = V4L2_PIX_FMT_JPEG;
 	f->fmt.pix.field = V4L2_FIELD_NONE;
 	f->fmt.pix.width = cam->width;
@@ -602,8 +588,6 @@ static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		return -ENODEV;
 	cam = video_get_drvdata(vdev);
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 	if (f->fmt.pix.pixelformat != V4L2_PIX_FMT_JPEG)
 		return -EINVAL;
 	if (f->fmt.pix.field != V4L2_FIELD_ANY &&

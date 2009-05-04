@@ -604,7 +604,7 @@ rx_next:
 
 		spin_lock_irqsave(&cp->lock, flags);
 		cpw16_f(IntrMask, cp_intr_mask);
-		__netif_rx_complete(napi);
+		__napi_complete(napi);
 		spin_unlock_irqrestore(&cp->lock, flags);
 	}
 
@@ -641,9 +641,9 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
 	}
 
 	if (status & (RxOK | RxErr | RxEmpty | RxFIFOOvr))
-		if (netif_rx_schedule_prep(&cp->napi)) {
+		if (napi_schedule_prep(&cp->napi)) {
 			cpw16_f(IntrMask, cp_norx_intr_mask);
-			__netif_rx_schedule(&cp->napi);
+			__napi_schedule(&cp->napi);
 		}
 
 	if (status & (TxOK | TxErr | TxEmpty | SWInt))
@@ -1530,7 +1530,7 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 
 	/* begin NIC statistics dump */
 	cpw32(StatsAddr + 4, (u64)dma >> 32);
-	cpw32(StatsAddr, ((u64)dma & DMA_32BIT_MASK) | DumpStats);
+	cpw32(StatsAddr, ((u64)dma & DMA_BIT_MASK(32)) | DumpStats);
 	cpr32(StatsAddr);
 
 	for (i = 0; i < 1000; i++) {
@@ -1600,6 +1600,28 @@ static int cp_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
 	rc = generic_mii_ioctl(&cp->mii_if, if_mii(rq), cmd, NULL);
 	spin_unlock_irqrestore(&cp->lock, flags);
 	return rc;
+}
+
+static int cp_set_mac_address(struct net_device *dev, void *p)
+{
+	struct cp_private *cp = netdev_priv(dev);
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+
+	spin_lock_irq(&cp->lock);
+
+	cpw8_f(Cfg9346, Cfg9346_Unlock);
+	cpw32_f(MAC0 + 0, le32_to_cpu (*(__le32 *) (dev->dev_addr + 0)));
+	cpw32_f(MAC0 + 4, le32_to_cpu (*(__le32 *) (dev->dev_addr + 4)));
+	cpw8_f(Cfg9346, Cfg9346_Lock);
+
+	spin_unlock_irq(&cp->lock);
+
+	return 0;
 }
 
 /* Serial EEPROM section. */
@@ -1821,7 +1843,7 @@ static const struct net_device_ops cp_netdev_ops = {
 	.ndo_open		= cp_open,
 	.ndo_stop		= cp_close,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= cp_set_mac_address,
 	.ndo_set_multicast_list	= cp_set_rx_mode,
 	.ndo_get_stats		= cp_get_stats,
 	.ndo_do_ioctl		= cp_ioctl,
@@ -1907,19 +1929,19 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* Configure DMA attributes. */
 	if ((sizeof(dma_addr_t) > 4) &&
-	    !pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK) &&
-	    !pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+	    !pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) &&
+	    !pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		pci_using_dac = 1;
 	} else {
 		pci_using_dac = 0;
 
-		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_err(&pdev->dev,
 				   "No usable DMA configuration, aborting.\n");
 			goto err_out_res;
 		}
-		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+		rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (rc) {
 			dev_err(&pdev->dev,
 				   "No usable consistent DMA configuration, "

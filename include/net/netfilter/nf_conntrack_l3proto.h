@@ -53,9 +53,16 @@ struct nf_conntrack_l3proto
 	int (*tuple_to_nlattr)(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *t);
 
+	/*
+	 * Calculate size of tuple nlattr
+	 */
+	int (*nlattr_tuple_size)(void);
+
 	int (*nlattr_to_tuple)(struct nlattr *tb[],
 			       struct nf_conntrack_tuple *t);
 	const struct nla_policy *nla_policy;
+
+	size_t nla_size;
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*ctl_table_header;

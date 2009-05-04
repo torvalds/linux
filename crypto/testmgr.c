@@ -72,6 +72,13 @@ struct comp_test_suite {
 	} comp, decomp;
 };
 
+struct pcomp_test_suite {
+	struct {
+		struct pcomp_testvec *vecs;
+		unsigned int count;
+	} comp, decomp;
+};
+
 struct hash_test_suite {
 	struct hash_testvec *vecs;
 	unsigned int count;
@@ -86,6 +93,7 @@ struct alg_test_desc {
 		struct aead_test_suite aead;
 		struct cipher_test_suite cipher;
 		struct comp_test_suite comp;
+		struct pcomp_test_suite pcomp;
 		struct hash_test_suite hash;
 	} suite;
 };
@@ -898,6 +906,159 @@ out:
 	return ret;
 }
 
+static int test_pcomp(struct crypto_pcomp *tfm,
+		      struct pcomp_testvec *ctemplate,
+		      struct pcomp_testvec *dtemplate, int ctcount,
+		      int dtcount)
+{
+	const char *algo = crypto_tfm_alg_driver_name(crypto_pcomp_tfm(tfm));
+	unsigned int i;
+	char result[COMP_BUF_SIZE];
+	int error;
+
+	for (i = 0; i < ctcount; i++) {
+		struct comp_request req;
+
+		error = crypto_compress_setup(tfm, ctemplate[i].params,
+					      ctemplate[i].paramsize);
+		if (error) {
+			pr_err("alg: pcomp: compression setup failed on test "
+			       "%d for %s: error=%d\n", i + 1, algo, error);
+			return error;
+		}
+
+		error = crypto_compress_init(tfm);
+		if (error) {
+			pr_err("alg: pcomp: compression init failed on test "
+			       "%d for %s: error=%d\n", i + 1, algo, error);
+			return error;
+		}
+
+		memset(result, 0, sizeof(result));
+
+		req.next_in = ctemplate[i].input;
+		req.avail_in = ctemplate[i].inlen / 2;
+		req.next_out = result;
+		req.avail_out = ctemplate[i].outlen / 2;
+
+		error = crypto_compress_update(tfm, &req);
+		if (error && (error != -EAGAIN || req.avail_in)) {
+			pr_err("alg: pcomp: compression update failed on test "
+			       "%d for %s: error=%d\n", i + 1, algo, error);
+			return error;
+		}
+
+		/* Add remaining input data */
+		req.avail_in += (ctemplate[i].inlen + 1) / 2;
+
+		error = crypto_compress_update(tfm, &req);
+		if (error && (error != -EAGAIN || req.avail_in)) {
+			pr_err("alg: pcomp: compression update failed on test "
+			       "%d for %s: error=%d\n", i + 1, algo, error);
+			return error;
+		}
+
+		/* Provide remaining output space */
+		req.avail_out += COMP_BUF_SIZE - ctemplate[i].outlen / 2;
+
+		error = crypto_compress_final(tfm, &req);
+		if (error) {
+			pr_err("alg: pcomp: compression final failed on test "
+			       "%d for %s: error=%d\n", i + 1, algo, error);
+			return error;
+		}
+
+		if (COMP_BUF_SIZE - req.avail_out != ctemplate[i].outlen) {
+			pr_err("alg: comp: Compression test %d failed for %s: "
+			       "output len = %d (expected %d)\n", i + 1, algo,
+			       COMP_BUF_SIZE - req.avail_out,
+			       ctemplate[i].outlen);
+			return -EINVAL;
+		}
+
+		if (memcmp(result, ctemplate[i].output, ctemplate[i].outlen)) {
+			pr_err("alg: pcomp: Compression test %d failed for "
+			       "%s\n", i + 1, algo);
+			hexdump(result, ctemplate[i].outlen);
+			return -EINVAL;
+		}
+	}
+
+	for (i = 0; i < dtcount; i++) {
+		struct comp_request req;
+
+		error = crypto_decompress_setup(tfm, dtemplate[i].params,
+						dtemplate[i].paramsize);
+		if (error) {
+			pr_err("alg: pcomp: decompression setup failed on "
+			       "test %d for %s: error=%d\n", i + 1, algo,
+			       error);
+			return error;
+		}
+
+		error = crypto_decompress_init(tfm);
+		if (error) {
+			pr_err("alg: pcomp: decompression init failed on test "
+			       "%d for %s: error=%d\n", i + 1, algo, error);
+			return error;
+		}
+
+		memset(result, 0, sizeof(result));
+
+		req.next_in = dtemplate[i].input;
+		req.avail_in = dtemplate[i].inlen / 2;
+		req.next_out = result;
+		req.avail_out = dtemplate[i].outlen / 2;
+
+		error = crypto_decompress_update(tfm, &req);
+		if (error  && (error != -EAGAIN || req.avail_in)) {
+			pr_err("alg: pcomp: decompression update failed on "
+			       "test %d for %s: error=%d\n", i + 1, algo,
+			       error);
+			return error;
+		}
+
+		/* Add remaining input data */
+		req.avail_in += (dtemplate[i].inlen + 1) / 2;
+
+		error = crypto_decompress_update(tfm, &req);
+		if (error  && (error != -EAGAIN || req.avail_in)) {
+			pr_err("alg: pcomp: decompression update failed on "
+			       "test %d for %s: error=%d\n", i + 1, algo,
+			       error);
+			return error;
+		}
+
+		/* Provide remaining output space */
+		req.avail_out += COMP_BUF_SIZE - dtemplate[i].outlen / 2;
+
+		error = crypto_decompress_final(tfm, &req);
+		if (error  && (error != -EAGAIN || req.avail_in)) {
+			pr_err("alg: pcomp: decompression final failed on "
+			       "test %d for %s: error=%d\n", i + 1, algo,
+			       error);
+			return error;
+		}
+
+		if (COMP_BUF_SIZE - req.avail_out != dtemplate[i].outlen) {
+			pr_err("alg: comp: Decompression test %d failed for "
+			       "%s: output len = %d (expected %d)\n", i + 1,
+			       algo, COMP_BUF_SIZE - req.avail_out,
+			       dtemplate[i].outlen);
+			return -EINVAL;
+		}
+
+		if (memcmp(result, dtemplate[i].output, dtemplate[i].outlen)) {
+			pr_err("alg: pcomp: Decompression test %d failed for "
+			       "%s\n", i + 1, algo);
+			hexdump(result, dtemplate[i].outlen);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 			 u32 type, u32 mask)
 {
@@ -1004,6 +1165,28 @@ static int alg_test_comp(const struct alg_test_desc *desc, const char *driver,
 			desc->suite.comp.decomp.count);
 
 	crypto_free_comp(tfm);
+	return err;
+}
+
+static int alg_test_pcomp(const struct alg_test_desc *desc, const char *driver,
+			  u32 type, u32 mask)
+{
+	struct crypto_pcomp *tfm;
+	int err;
+
+	tfm = crypto_alloc_pcomp(driver, type, mask);
+	if (IS_ERR(tfm)) {
+		pr_err("alg: pcomp: Failed to load transform for %s: %ld\n",
+		       driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
+	err = test_pcomp(tfm, desc->suite.pcomp.comp.vecs,
+			 desc->suite.pcomp.decomp.vecs,
+			 desc->suite.pcomp.comp.count,
+			 desc->suite.pcomp.decomp.count);
+
+	crypto_free_pcomp(tfm);
 	return err;
 }
 
@@ -1832,6 +2015,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 				.dec = {
 					.vecs = aes_xts_dec_tv_template,
 					.count = AES_XTS_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
+		.alg = "zlib",
+		.test = alg_test_pcomp,
+		.suite = {
+			.pcomp = {
+				.comp = {
+					.vecs = zlib_comp_tv_template,
+					.count = ZLIB_COMP_TEST_VECTORS
+				},
+				.decomp = {
+					.vecs = zlib_decomp_tv_template,
+					.count = ZLIB_DECOMP_TEST_VECTORS
 				}
 			}
 		}

@@ -196,8 +196,8 @@ struct ip6_flowlabel
 	struct net		*fl_net;
 };
 
-#define IPV6_FLOWINFO_MASK	__constant_htonl(0x0FFFFFFF)
-#define IPV6_FLOWLABEL_MASK	__constant_htonl(0x000FFFFF)
+#define IPV6_FLOWINFO_MASK	cpu_to_be32(0x0FFFFFFF)
+#define IPV6_FLOWLABEL_MASK	cpu_to_be32(0x000FFFFF)
 
 struct ipv6_fl_socklist
 {

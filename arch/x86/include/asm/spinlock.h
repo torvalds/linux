@@ -172,70 +172,8 @@ static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
 	return (((tmp >> TICKET_SHIFT) - tmp) & ((1 << TICKET_SHIFT) - 1)) > 1;
 }
 
-#ifdef CONFIG_PARAVIRT
-/*
- * Define virtualization-friendly old-style lock byte lock, for use in
- * pv_lock_ops if desired.
- *
- * This differs from the pre-2.6.24 spinlock by always using xchgb
- * rather than decb to take the lock; this allows it to use a
- * zero-initialized lock structure.  It also maintains a 1-byte
- * contention counter, so that we can implement
- * __byte_spin_is_contended.
- */
-struct __byte_spinlock {
-	s8 lock;
-	s8 spinners;
-};
+#ifndef CONFIG_PARAVIRT
 
-static inline int __byte_spin_is_locked(raw_spinlock_t *lock)
-{
-	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
-	return bl->lock != 0;
-}
-
-static inline int __byte_spin_is_contended(raw_spinlock_t *lock)
-{
-	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
-	return bl->spinners != 0;
-}
-
-static inline void __byte_spin_lock(raw_spinlock_t *lock)
-{
-	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
-	s8 val = 1;
-
-	asm("1: xchgb %1, %0\n"
-	    "   test %1,%1\n"
-	    "   jz 3f\n"
-	    "   " LOCK_PREFIX "incb %2\n"
-	    "2: rep;nop\n"
-	    "   cmpb $1, %0\n"
-	    "   je 2b\n"
-	    "   " LOCK_PREFIX "decb %2\n"
-	    "   jmp 1b\n"
-	    "3:"
-	    : "+m" (bl->lock), "+q" (val), "+m" (bl->spinners): : "memory");
-}
-
-static inline int __byte_spin_trylock(raw_spinlock_t *lock)
-{
-	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
-	u8 old = 1;
-
-	asm("xchgb %1,%0"
-	    : "+m" (bl->lock), "+q" (old) : : "memory");
-
-	return old == 0;
-}
-
-static inline void __byte_spin_unlock(raw_spinlock_t *lock)
-{
-	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
-	smp_wmb();
-	bl->lock = 0;
-}
-#else  /* !CONFIG_PARAVIRT */
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
 	return __ticket_spin_is_locked(lock);
@@ -245,6 +183,7 @@ static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 {
 	return __ticket_spin_is_contended(lock);
 }
+#define __raw_spin_is_contended	__raw_spin_is_contended
 
 static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
@@ -267,7 +206,7 @@ static __always_inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 	__raw_spin_lock(lock);
 }
 
-#endif	/* CONFIG_PARAVIRT */
+#endif
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {
@@ -329,8 +268,7 @@ static inline int __raw_read_trylock(raw_rwlock_t *lock)
 {
 	atomic_t *count = (atomic_t *)lock;
 
-	atomic_dec(count);
-	if (atomic_read(count) >= 0)
+	if (atomic_dec_return(count) >= 0)
 		return 1;
 	atomic_inc(count);
 	return 0;
@@ -356,6 +294,9 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
 	asm volatile(LOCK_PREFIX "addl %1, %0"
 		     : "+m" (rw->lock) : "i" (RW_LOCK_BIAS) : "memory");
 }
+
+#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
+#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
 
 #define _raw_spin_relax(lock)	cpu_relax()
 #define _raw_read_relax(lock)	cpu_relax()

@@ -548,23 +548,21 @@ static int hpc_power_on_slot(struct slot * slot)
 
 	slot_cmd = POWER_ON;
 	cmd_mask = PCI_EXP_SLTCTL_PCC;
-	/* Enable detection that we turned off at slot power-off time */
 	if (!pciehp_poll_mode) {
-		slot_cmd |= (PCI_EXP_SLTCTL_PFDE | PCI_EXP_SLTCTL_MRLSCE |
-			     PCI_EXP_SLTCTL_PDCE);
-		cmd_mask |= (PCI_EXP_SLTCTL_PFDE | PCI_EXP_SLTCTL_MRLSCE |
-			     PCI_EXP_SLTCTL_PDCE);
+		/* Enable power fault detection turned off at power off time */
+		slot_cmd |= PCI_EXP_SLTCTL_PFDE;
+		cmd_mask |= PCI_EXP_SLTCTL_PFDE;
 	}
 
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
-
 	if (retval) {
 		ctrl_err(ctrl, "Write %x command failed!\n", slot_cmd);
-		return -1;
+		return retval;
 	}
 	ctrl_dbg(ctrl, "%s: SLOTCTRL %x write cmd %x\n",
 		 __func__, ctrl->cap_base + PCI_EXP_SLTCTL, slot_cmd);
 
+	ctrl->power_fault_detected = 0;
 	return retval;
 }
 
@@ -621,18 +619,10 @@ static int hpc_power_off_slot(struct slot * slot)
 
 	slot_cmd = POWER_OFF;
 	cmd_mask = PCI_EXP_SLTCTL_PCC;
-	/*
-	 * If we get MRL or presence detect interrupts now, the isr
-	 * will notice the sticky power-fault bit too and issue power
-	 * indicator change commands. This will lead to an endless loop
-	 * of command completions, since the power-fault bit remains on
-	 * till the slot is powered on again.
-	 */
 	if (!pciehp_poll_mode) {
-		slot_cmd &= ~(PCI_EXP_SLTCTL_PFDE | PCI_EXP_SLTCTL_MRLSCE |
-			      PCI_EXP_SLTCTL_PDCE);
-		cmd_mask |= (PCI_EXP_SLTCTL_PFDE | PCI_EXP_SLTCTL_MRLSCE |
-			     PCI_EXP_SLTCTL_PDCE);
+		/* Disable power fault detection */
+		slot_cmd &= ~PCI_EXP_SLTCTL_PFDE;
+		cmd_mask |= PCI_EXP_SLTCTL_PFDE;
 	}
 
 	retval = pcie_write_cmd(ctrl, slot_cmd, cmd_mask);
@@ -672,10 +662,11 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		detected &= (PCI_EXP_SLTSTA_ABP | PCI_EXP_SLTSTA_PFD |
 			     PCI_EXP_SLTSTA_MRLSC | PCI_EXP_SLTSTA_PDC |
 			     PCI_EXP_SLTSTA_CC);
+		detected &= ~intr_loc;
 		intr_loc |= detected;
 		if (!intr_loc)
 			return IRQ_NONE;
-		if (detected && pciehp_writew(ctrl, PCI_EXP_SLTSTA, detected)) {
+		if (detected && pciehp_writew(ctrl, PCI_EXP_SLTSTA, intr_loc)) {
 			ctrl_err(ctrl, "%s: Cannot write to SLOTSTATUS\n",
 				 __func__);
 			return IRQ_NONE;
@@ -709,9 +700,10 @@ static irqreturn_t pcie_isr(int irq, void *dev_id)
 		pciehp_handle_presence_change(p_slot);
 
 	/* Check Power Fault Detected */
-	if (intr_loc & PCI_EXP_SLTSTA_PFD)
+	if ((intr_loc & PCI_EXP_SLTSTA_PFD) && !ctrl->power_fault_detected) {
+		ctrl->power_fault_detected = 1;
 		pciehp_handle_power_fault(p_slot);
-
+	}
 	return IRQ_HANDLED;
 }
 
@@ -934,7 +926,7 @@ static void pcie_disable_notification(struct controller *ctrl)
 		ctrl_warn(ctrl, "Cannot disable software notification\n");
 }
 
-static int pcie_init_notification(struct controller *ctrl)
+int pcie_init_notification(struct controller *ctrl)
 {
 	if (pciehp_request_irq(ctrl))
 		return -1;
@@ -942,13 +934,17 @@ static int pcie_init_notification(struct controller *ctrl)
 		pciehp_free_irq(ctrl);
 		return -1;
 	}
+	ctrl->notification_enabled = 1;
 	return 0;
 }
 
 static void pcie_shutdown_notification(struct controller *ctrl)
 {
-	pcie_disable_notification(ctrl);
-	pciehp_free_irq(ctrl);
+	if (ctrl->notification_enabled) {
+		pcie_disable_notification(ctrl);
+		pciehp_free_irq(ctrl);
+		ctrl->notification_enabled = 0;
+	}
 }
 
 static int pcie_init_slot(struct controller *ctrl)
@@ -1110,13 +1106,8 @@ struct controller *pcie_init(struct pcie_device *dev)
 	if (pcie_init_slot(ctrl))
 		goto abort_ctrl;
 
-	if (pcie_init_notification(ctrl))
-		goto abort_slot;
-
 	return ctrl;
 
-abort_slot:
-	pcie_cleanup_slot(ctrl);
 abort_ctrl:
 	kfree(ctrl);
 abort:

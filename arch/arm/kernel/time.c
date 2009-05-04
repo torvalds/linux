@@ -33,6 +33,7 @@
 
 #include <asm/leds.h>
 #include <asm/thread_info.h>
+#include <asm/stacktrace.h>
 #include <asm/mach/time.h>
 
 /*
@@ -55,14 +56,22 @@ EXPORT_SYMBOL(rtc_lock);
 #ifdef CONFIG_SMP
 unsigned long profile_pc(struct pt_regs *regs)
 {
-	unsigned long fp, pc = instruction_pointer(regs);
+	struct stackframe frame;
 
-	if (in_lock_functions(pc)) {
-		fp = regs->ARM_fp;
-		pc = ((unsigned long *)fp)[-1];
-	}
+	if (!in_lock_functions(regs->ARM_pc))
+		return regs->ARM_pc;
 
-	return pc;
+	frame.fp = regs->ARM_fp;
+	frame.sp = regs->ARM_sp;
+	frame.lr = regs->ARM_lr;
+	frame.pc = regs->ARM_pc;
+	do {
+		int ret = unwind_frame(&frame);
+		if (ret < 0)
+			return 0;
+	} while (in_lock_functions(frame.pc));
+
+	return frame.pc;
 }
 EXPORT_SYMBOL(profile_pc);
 #endif

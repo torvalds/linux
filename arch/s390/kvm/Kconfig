@@ -4,6 +4,9 @@
 config HAVE_KVM
        bool
 
+config HAVE_KVM_IRQCHIP
+       bool
+
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
 	default y

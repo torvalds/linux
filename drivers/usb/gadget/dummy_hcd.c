@@ -1437,7 +1437,7 @@ restart:
 					}
 					if (urb->transfer_buffer_length > 1)
 						buf [1] = 0;
-					urb->actual_length = min (2,
+					urb->actual_length = min_t(u32, 2,
 						urb->transfer_buffer_length);
 					value = 0;
 					status = 0;
@@ -1626,7 +1626,7 @@ static int dummy_hub_control (
 		hub_descriptor ((struct usb_hub_descriptor *) buf);
 		break;
 	case GetHubStatus:
-		*(__le32 *) buf = __constant_cpu_to_le32 (0);
+		*(__le32 *) buf = cpu_to_le32 (0);
 		break;
 	case GetPortStatus:
 		if (wIndex != 1)

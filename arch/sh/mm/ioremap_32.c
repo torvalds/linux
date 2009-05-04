@@ -59,11 +59,13 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	if (is_pci_memaddr(phys_addr) && is_pci_memaddr(last_addr))
 		return (void __iomem *)phys_addr;
 
+#if !defined(CONFIG_PMB_FIXED)
 	/*
 	 * Don't allow anybody to remap normal RAM that we're using..
 	 */
 	if (phys_addr < virt_to_phys(high_memory))
 		return NULL;
+#endif
 
 	/*
 	 * Mappings have to be page-aligned
@@ -81,7 +83,7 @@ void __iomem *__ioremap(unsigned long phys_addr, unsigned long size,
 	area->phys_addr = phys_addr;
 	orig_addr = addr = (unsigned long)area->addr;
 
-#ifdef CONFIG_32BIT
+#ifdef CONFIG_PMB
 	/*
 	 * First try to remap through the PMB once a valid VMA has been
 	 * established. Smaller allocations (or the rest of the size
@@ -119,10 +121,10 @@ void __iounmap(void __iomem *addr)
 	unsigned long seg = PXSEG(vaddr);
 	struct vm_struct *p;
 
-	if (seg < P3SEG || seg >= P3_ADDR_MAX || is_pci_memaddr(vaddr))
+	if (seg < P3SEG || vaddr >= P3_ADDR_MAX || is_pci_memaddr(vaddr))
 		return;
 
-#ifdef CONFIG_32BIT
+#ifdef CONFIG_PMB
 	/*
 	 * Purge any PMB entries that may have been established for this
 	 * mapping, then proceed with conventional VMA teardown.

@@ -208,7 +208,7 @@ struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
-	kfree_skb(skb);
+	consume_skb(skb);
 	sk_mem_reclaim_partial(sk);
 }
 

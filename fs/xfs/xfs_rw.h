@@ -28,7 +28,6 @@ struct xfs_mount;
  * file is a real time file or not, because the bmap code
  * does.
  */
-#define	XFS_FSB_TO_DB(ip,fsb)	xfs_fsb_to_db(ip,fsb)
 static inline xfs_daddr_t
 xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 {

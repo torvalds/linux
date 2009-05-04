@@ -686,7 +686,7 @@ void smtc_forward_irq(unsigned int irq)
 	 * and efficiency, we just pick the easiest one to find.
 	 */
 
-	target = first_cpu(irq_desc[irq].affinity);
+	target = cpumask_first(irq_desc[irq].affinity);
 
 	/*
 	 * We depend on the platform code to have correctly processed
@@ -921,11 +921,13 @@ void ipi_decode(struct smtc_ipi *pipi)
 	struct clock_event_device *cd;
 	void *arg_copy = pipi->arg;
 	int type_copy = pipi->type;
+	int irq = MIPS_CPU_IRQ_BASE + 1;
+
 	smtc_ipi_nq(&freeIPIq, pipi);
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
 		irq_enter();
-		kstat_this_cpu.irqs[MIPS_CPU_IRQ_BASE + 1]++;
+		kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 		cd = &per_cpu(mips_clockevent_device, cpu);
 		cd->event_handler(cd);
 		irq_exit();

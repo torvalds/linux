@@ -341,7 +341,7 @@ static int smsc9420_eeprom_send_cmd(struct smsc9420_pdata *pd, u32 op)
 	do {
 		msleep(1);
 		e2cmd = smsc9420_reg_read(pd, E2P_CMD);
-	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (timeout--));
+	} while ((e2cmd & E2P_CMD_EPC_BUSY_) && (--timeout));
 
 	if (!timeout) {
 		smsc_info(HW, "TIMED OUT");
@@ -413,6 +413,7 @@ static int smsc9420_ethtool_get_eeprom(struct net_device *dev,
 	}
 
 	memcpy(data, &eeprom_data[eeprom->offset], len);
+	eeprom->magic = SMSC9420_EEPROM_MAGIC;
 	eeprom->len = len;
 	return 0;
 }
@@ -422,6 +423,9 @@ static int smsc9420_ethtool_set_eeprom(struct net_device *dev,
 {
 	struct smsc9420_pdata *pd = netdev_priv(dev);
 	int ret;
+
+	if (eeprom->magic != SMSC9420_EEPROM_MAGIC)
+		return -EINVAL;
 
 	smsc9420_eeprom_enable_access(pd);
 	smsc9420_eeprom_send_cmd(pd, E2P_CMD_EPC_CMD_EWEN_);
@@ -498,7 +502,7 @@ static void smsc9420_check_mac_address(struct net_device *dev)
 static void smsc9420_stop_tx(struct smsc9420_pdata *pd)
 {
 	u32 dmac_control, mac_cr, dma_intr_ena;
-	int timeOut = 1000;
+	int timeout = 1000;
 
 	/* disable TX DMAC */
 	dmac_control = smsc9420_reg_read(pd, DMAC_CONTROL);
@@ -506,13 +510,13 @@ static void smsc9420_stop_tx(struct smsc9420_pdata *pd)
 	smsc9420_reg_write(pd, DMAC_CONTROL, dmac_control);
 
 	/* Wait max 10ms for transmit process to stop */
-	while (timeOut--) {
+	while (--timeout) {
 		if (smsc9420_reg_read(pd, DMAC_STATUS) & DMAC_STS_TS_)
 			break;
 		udelay(10);
 	}
 
-	if (!timeOut)
+	if (!timeout)
 		smsc_warn(IFDOWN, "TX DMAC failed to stop");
 
 	/* ACK Tx DMAC stop bit */
@@ -596,7 +600,7 @@ static void smsc9420_free_rx_ring(struct smsc9420_pdata *pd)
 
 static void smsc9420_stop_rx(struct smsc9420_pdata *pd)
 {
-	int timeOut = 1000;
+	int timeout = 1000;
 	u32 mac_cr, dmac_control, dma_intr_ena;
 
 	/* mask RX DMAC interrupts */
@@ -617,13 +621,13 @@ static void smsc9420_stop_rx(struct smsc9420_pdata *pd)
 	smsc9420_pci_flush_write(pd);
 
 	/* wait up to 10ms for receive to stop */
-	while (timeOut--) {
+	while (--timeout) {
 		if (smsc9420_reg_read(pd, DMAC_STATUS) & DMAC_STS_RS_)
 			break;
 		udelay(10);
 	}
 
-	if (!timeOut)
+	if (!timeout)
 		smsc_warn(IFDOWN, "RX DMAC did not stop! timeout.");
 
 	/* ACK the Rx DMAC stop bit */
@@ -666,7 +670,7 @@ static irqreturn_t smsc9420_isr(int irq, void *dev_id)
 			smsc9420_pci_flush_write(pd);
 
 			ints_to_clear |= (DMAC_STS_RX_ | DMAC_STS_NIS_);
-			netif_rx_schedule(&pd->napi);
+			napi_schedule(&pd->napi);
 		}
 
 		if (ints_to_clear)
@@ -803,7 +807,7 @@ static void smsc9420_rx_handoff(struct smsc9420_pdata *pd, const int index,
 	if (pd->rx_csum) {
 		u16 hw_csum = get_unaligned_le16(skb_tail_pointer(skb) +
 			NET_IP_ALIGN + packet_length + 4);
-		put_unaligned_le16(cpu_to_le16(hw_csum), &skb->csum);
+		put_unaligned_le16(hw_csum, &skb->csum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 
@@ -889,7 +893,7 @@ static int smsc9420_rx_poll(struct napi_struct *napi, int budget)
 	smsc9420_pci_flush_write(pd);
 
 	if (work_done < budget) {
-		netif_rx_complete(&pd->napi);
+		napi_complete(&pd->napi);
 
 		/* re-enable RX DMA interrupts */
 		dma_intr_ena = smsc9420_reg_read(pd, DMAC_INTR_ENA);
@@ -1156,7 +1160,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 	smsc_info(PROBE, "PHY addr %d, phy_id 0x%08X", phydev->addr,
 		phydev->phy_id);
 
-	phydev = phy_connect(dev, phydev->dev.bus_id,
+	phydev = phy_connect(dev, dev_name(&phydev->dev),
 		&smsc9420_phy_adjust_link, 0, PHY_INTERFACE_MODE_MII);
 
 	if (IS_ERR(phydev)) {
@@ -1165,7 +1169,7 @@ static int smsc9420_mii_probe(struct net_device *dev)
 	}
 
 	pr_info("%s: attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		dev->name, phydev->drv->name, phydev->dev.bus_id, phydev->irq);
+		dev->name, phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
 
 	/* mask with MAC supported features */
 	phydev->supported &= (PHY_BASIC_FEATURES | SUPPORTED_Pause |
@@ -1378,6 +1382,7 @@ static int smsc9420_open(struct net_device *dev)
 
 	/* test the IRQ connection to the ISR */
 	smsc_dbg(IFUP, "Testing ISR using IRQ %d", dev->irq);
+	pd->software_irq_signal = false;
 
 	spin_lock_irqsave(&pd->int_lock, flags);
 	/* configure interrupt deassertion timer and enable interrupts */
@@ -1393,8 +1398,6 @@ static int smsc9420_open(struct net_device *dev)
 	smsc9420_pci_flush_write(pd);
 
 	timeout = 1000;
-	pd->software_irq_signal = false;
-	smp_wmb();
 	while (timeout--) {
 		if (pd->software_irq_signal)
 			break;
@@ -1595,7 +1598,7 @@ smsc9420_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_free_netdev_2;
 	}
 
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "No usable DMA configuration, aborting.\n");
 		goto out_free_regions_3;
 	}

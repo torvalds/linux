@@ -24,9 +24,8 @@
 
 #include <mach/dma.h>
 #include <mach/irda.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/regs-uart.h>
+#include <mach/regs-ost.h>
 
 #define FICP		__REG(0x40800000)  /* Start of FICP area */
 #define ICCR0		__REG(0x40800000)  /* ICP Control Register 0 */

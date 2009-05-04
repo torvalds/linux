@@ -266,6 +266,8 @@ static int crypto_ccm_auth(struct aead_request *req, struct scatterlist *plain,
 	if (assoclen) {
 		pctx->ilen = format_adata(idata, assoclen);
 		get_data_to_compute(cipher, pctx, req->assoc, req->assoclen);
+	} else {
+		pctx->ilen = 0;
 	}
 
 	/* compute plaintext into mac */

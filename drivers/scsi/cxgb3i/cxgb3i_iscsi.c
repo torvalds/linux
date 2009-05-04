@@ -53,36 +53,52 @@ static LIST_HEAD(cxgb3i_snic_list);
 static DEFINE_RWLOCK(cxgb3i_snic_rwlock);
 
 /**
- * cxgb3i_adapter_add - init a s3 adapter structure and any h/w settings
- * @t3dev: t3cdev adapter
- * return the resulting cxgb3i_adapter struct
+ * cxgb3i_adpater_find_by_tdev - find the cxgb3i_adapter structure via t3cdev
+ * @tdev: t3cdev pointer
  */
-struct cxgb3i_adapter *cxgb3i_adapter_add(struct t3cdev *t3dev)
+struct cxgb3i_adapter *cxgb3i_adapter_find_by_tdev(struct t3cdev *tdev)
 {
 	struct cxgb3i_adapter *snic;
-	struct adapter *adapter = tdev2adap(t3dev);
-	int i;
 
-	snic = kzalloc(sizeof(*snic), GFP_KERNEL);
-	if (!snic) {
-		cxgb3i_api_debug("cxgb3 %s, OOM.\n", t3dev->name);
-		return NULL;
+	read_lock(&cxgb3i_snic_rwlock);
+	list_for_each_entry(snic, &cxgb3i_snic_list, list_head) {
+		if (snic->tdev == tdev) {
+			read_unlock(&cxgb3i_snic_rwlock);
+			return snic;
+		}
 	}
-	spin_lock_init(&snic->lock);
+	read_unlock(&cxgb3i_snic_rwlock);
+	return NULL;
+}
 
-	snic->tdev = t3dev;
+static inline int adapter_update(struct cxgb3i_adapter *snic)
+{
+	cxgb3i_log_info("snic 0x%p, t3dev 0x%p, updating.\n",
+			snic, snic->tdev);
+	return cxgb3i_adapter_ddp_info(snic->tdev, &snic->tag_format,
+					&snic->tx_max_size,
+					&snic->rx_max_size);
+}
+
+static int adapter_add(struct cxgb3i_adapter *snic)
+{
+	struct t3cdev *t3dev = snic->tdev;
+	struct adapter *adapter = tdev2adap(t3dev);
+	int i, err;
+
 	snic->pdev = adapter->pdev;
 	snic->tag_format.sw_bits = sw_tag_idx_bits + sw_tag_age_bits;
 
-	if (cxgb3i_adapter_ddp_init(t3dev, &snic->tag_format,
+	err = cxgb3i_adapter_ddp_info(t3dev, &snic->tag_format,
 				    &snic->tx_max_size,
-				    &snic->rx_max_size) < 0)
-		goto free_snic;
+				    &snic->rx_max_size);
+	if (err < 0)
+		return err;
 
 	for_each_port(adapter, i) {
 		snic->hba[i] = cxgb3i_hba_host_add(snic, adapter->port[i]);
 		if (!snic->hba[i])
-			goto ulp_cleanup;
+			return -EINVAL;
 	}
 	snic->hba_cnt = adapter->params.nports;
 
@@ -91,52 +107,75 @@ struct cxgb3i_adapter *cxgb3i_adapter_add(struct t3cdev *t3dev)
 	list_add_tail(&snic->list_head, &cxgb3i_snic_list);
 	write_unlock(&cxgb3i_snic_rwlock);
 
-	return snic;
-
-ulp_cleanup:
-	cxgb3i_adapter_ddp_cleanup(t3dev);
-free_snic:
-	kfree(snic);
-	return NULL;
+	cxgb3i_log_info("t3dev 0x%p open, snic 0x%p, %u scsi hosts added.\n",
+			t3dev, snic, snic->hba_cnt);
+	return 0;
 }
 
 /**
- * cxgb3i_adapter_remove - release all the resources held and cleanup any
- *	h/w settings
+ * cxgb3i_adapter_open - init a s3 adapter structure and any h/w settings
  * @t3dev: t3cdev adapter
  */
-void cxgb3i_adapter_remove(struct t3cdev *t3dev)
+void cxgb3i_adapter_open(struct t3cdev *t3dev)
 {
+	struct cxgb3i_adapter *snic = cxgb3i_adapter_find_by_tdev(t3dev);
+	int err;
+
+	if (snic)
+		err = adapter_update(snic);
+	else {
+		snic = kzalloc(sizeof(*snic), GFP_KERNEL);
+		if (snic) {
+			spin_lock_init(&snic->lock);
+			snic->tdev = t3dev;
+			err = adapter_add(snic);
+		} else
+			err = -ENOMEM;
+	}
+
+	if (err < 0) {
+		cxgb3i_log_info("snic 0x%p, f 0x%x, t3dev 0x%p open, err %d.\n",
+				snic, snic ? snic->flags : 0, t3dev, err);
+		if (snic) {
+			snic->flags &= ~CXGB3I_ADAPTER_FLAG_RESET;
+			cxgb3i_adapter_close(t3dev);
+		}
+	}
+}
+
+/**
+ * cxgb3i_adapter_close - release the resources held and cleanup h/w settings
+ * @t3dev: t3cdev adapter
+ */
+void cxgb3i_adapter_close(struct t3cdev *t3dev)
+{
+	struct cxgb3i_adapter *snic = cxgb3i_adapter_find_by_tdev(t3dev);
 	int i;
-	struct cxgb3i_adapter *snic;
+
+	if (!snic || snic->flags & CXGB3I_ADAPTER_FLAG_RESET) {
+		cxgb3i_log_info("t3dev 0x%p close, snic 0x%p, f 0x%x.\n",
+				t3dev, snic, snic ? snic->flags : 0);
+		return;
+	}
 
 	/* remove from the list */
 	write_lock(&cxgb3i_snic_rwlock);
-	list_for_each_entry(snic, &cxgb3i_snic_list, list_head) {
-		if (snic->tdev == t3dev) {
-			list_del(&snic->list_head);
-			break;
-		}
-	}
+	list_del(&snic->list_head);
 	write_unlock(&cxgb3i_snic_rwlock);
 
-	if (snic) {
-		for (i = 0; i < snic->hba_cnt; i++) {
-			if (snic->hba[i]) {
-				cxgb3i_hba_host_remove(snic->hba[i]);
-				snic->hba[i] = NULL;
-			}
+	for (i = 0; i < snic->hba_cnt; i++) {
+		if (snic->hba[i]) {
+			cxgb3i_hba_host_remove(snic->hba[i]);
+			snic->hba[i] = NULL;
 		}
-
-		/* release ddp resources */
-		cxgb3i_adapter_ddp_cleanup(snic->tdev);
-		kfree(snic);
 	}
+	cxgb3i_log_info("t3dev 0x%p close, snic 0x%p, %u scsi hosts removed.\n",
+			t3dev, snic, snic->hba_cnt);
+	kfree(snic);
 }
 
 /**
- * cxgb3i_hba_find_by_netdev - find the cxgb3i_hba structure with a given
- *	net_device
+ * cxgb3i_hba_find_by_netdev - find the cxgb3i_hba structure via net_device
  * @t3dev: t3cdev adapter
  */
 struct cxgb3i_hba *cxgb3i_hba_find_by_netdev(struct net_device *ndev)
@@ -170,10 +209,10 @@ struct cxgb3i_hba *cxgb3i_hba_host_add(struct cxgb3i_adapter *snic,
 	int err;
 
 	shost = iscsi_host_alloc(&cxgb3i_host_template,
-				 sizeof(struct cxgb3i_hba),
-				 CXGB3I_SCSI_QDEPTH_DFLT);
+				 sizeof(struct cxgb3i_hba), 1);
 	if (!shost) {
-		cxgb3i_log_info("iscsi_host_alloc failed.\n");
+		cxgb3i_log_info("snic 0x%p, ndev 0x%p, host_alloc failed.\n",
+				snic, ndev);
 		return NULL;
 	}
 
@@ -191,7 +230,8 @@ struct cxgb3i_hba *cxgb3i_hba_host_add(struct cxgb3i_adapter *snic,
 	pci_dev_get(snic->pdev);
 	err = iscsi_host_add(shost, &snic->pdev->dev);
 	if (err) {
-		cxgb3i_log_info("iscsi_host_add failed.\n");
+		cxgb3i_log_info("snic 0x%p, ndev 0x%p, host_add failed.\n",
+				snic, ndev);
 		goto pci_dev_put;
 	}
 
@@ -335,13 +375,12 @@ static void cxgb3i_ep_disconnect(struct iscsi_endpoint *ep)
  * @cmds_max:		max # of commands
  * @qdepth:		scsi queue depth
  * @initial_cmdsn:	initial iscsi CMDSN for this session
- * @host_no:		pointer to return host no
  *
  * Creates a new iSCSI session
  */
 static struct iscsi_cls_session *
 cxgb3i_session_create(struct iscsi_endpoint *ep, u16 cmds_max, u16 qdepth,
-		      u32 initial_cmdsn, u32 *host_no)
+		      u32 initial_cmdsn)
 {
 	struct cxgb3i_endpoint *cep;
 	struct cxgb3i_hba *hba;
@@ -360,11 +399,10 @@ cxgb3i_session_create(struct iscsi_endpoint *ep, u16 cmds_max, u16 qdepth,
 	cxgb3i_api_debug("ep 0x%p, cep 0x%p, hba 0x%p.\n", ep, cep, hba);
 	BUG_ON(hba != iscsi_host_priv(shost));
 
-	*host_no = shost->host_no;
-
 	cls_session = iscsi_session_setup(&cxgb3i_iscsi_transport, shost,
 					  cmds_max,
-					  sizeof(struct iscsi_tcp_task),
+					  sizeof(struct iscsi_tcp_task) +
+					  sizeof(struct cxgb3i_task_data),
 					  initial_cmdsn, ISCSI_MAX_TARGET);
 	if (!cls_session)
 		return NULL;
@@ -393,33 +431,30 @@ static void cxgb3i_session_destroy(struct iscsi_cls_session *cls_session)
 }
 
 /**
- * cxgb3i_conn_max_xmit_dlength -- check the max. xmit pdu segment size,
- * reduce it to be within the hardware limit if needed
+ * cxgb3i_conn_max_xmit_dlength -- calc the max. xmit pdu segment size
  * @conn: iscsi connection
+ * check the max. xmit pdu payload, reduce it if needed
  */
 static inline int cxgb3i_conn_max_xmit_dlength(struct iscsi_conn *conn)
 
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgb3i_conn *cconn = tcp_conn->dd_data;
-	unsigned int max = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				 cconn->hba->snic->tx_max_size -
-				 ISCSI_PDU_NONPAYLOAD_MAX);
+	unsigned int max = max(512 * MAX_SKB_FRAGS, SKB_TX_HEADROOM);
 
+	max = min(cconn->hba->snic->tx_max_size, max);
 	if (conn->max_xmit_dlength)
-		conn->max_xmit_dlength = min_t(unsigned int,
-						conn->max_xmit_dlength, max);
+		conn->max_xmit_dlength = min(conn->max_xmit_dlength, max);
 	else
 		conn->max_xmit_dlength = max;
 	align_pdu_size(conn->max_xmit_dlength);
-	cxgb3i_log_info("conn 0x%p, max xmit %u.\n",
+	cxgb3i_api_debug("conn 0x%p, max xmit %u.\n",
 			 conn, conn->max_xmit_dlength);
 	return 0;
 }
 
 /**
- * cxgb3i_conn_max_recv_dlength -- check the max. recv pdu segment size against
- * the hardware limit
+ * cxgb3i_conn_max_recv_dlength -- check the max. recv pdu segment size
  * @conn: iscsi connection
  * return 0 if the value is valid, < 0 otherwise.
  */
@@ -427,9 +462,7 @@ static inline int cxgb3i_conn_max_recv_dlength(struct iscsi_conn *conn)
 {
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct cxgb3i_conn *cconn = tcp_conn->dd_data;
-	unsigned int max = min_t(unsigned int, ULP2_MAX_PDU_PAYLOAD,
-				 cconn->hba->snic->rx_max_size -
-				 ISCSI_PDU_NONPAYLOAD_MAX);
+	unsigned int max = cconn->hba->snic->rx_max_size;
 
 	align_pdu_size(max);
 	if (conn->max_recv_dlength) {
@@ -439,8 +472,7 @@ static inline int cxgb3i_conn_max_recv_dlength(struct iscsi_conn *conn)
 					 conn->max_recv_dlength, max);
 			return -EINVAL;
 		}
-		conn->max_recv_dlength = min_t(unsigned int,
-						conn->max_recv_dlength, max);
+		conn->max_recv_dlength = min(conn->max_recv_dlength, max);
 		align_pdu_size(conn->max_recv_dlength);
 	} else
 		conn->max_recv_dlength = max;
@@ -763,9 +795,9 @@ static void cxgb3i_parse_itt(struct iscsi_conn *conn, itt_t itt,
 
 /**
  * cxgb3i_reserve_itt - generate tag for a give task
- * Try to set up ddp for a scsi read task.
  * @task: iscsi task
  * @hdr_itt: tag, filled in by this function
+ * Set up ddp for scsi read tasks if possible.
  */
 int cxgb3i_reserve_itt(struct iscsi_task *task, itt_t *hdr_itt)
 {
@@ -813,9 +845,9 @@ int cxgb3i_reserve_itt(struct iscsi_task *task, itt_t *hdr_itt)
 
 /**
  * cxgb3i_release_itt - release the tag for a given task
- * if the tag is a ddp tag, release the ddp setup
  * @task:	iscsi task
  * @hdr_itt:	tag
+ * If the tag is a ddp tag, release the ddp setup
  */
 void cxgb3i_release_itt(struct iscsi_task *task, itt_t hdr_itt)
 {
@@ -844,10 +876,10 @@ static struct scsi_host_template cxgb3i_host_template = {
 	.proc_name		= "cxgb3i",
 	.queuecommand		= iscsi_queuecommand,
 	.change_queue_depth	= iscsi_change_queue_depth,
-	.can_queue		= 128 * (ISCSI_DEF_XMIT_CMDS_MAX - 1),
+	.can_queue		= CXGB3I_SCSI_QDEPTH_DFLT - 1,
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= 0xFFFF,
-	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
+	.cmd_per_lun		= CXGB3I_SCSI_QDEPTH_DFLT,
 	.eh_abort_handler	= iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_target_reset,

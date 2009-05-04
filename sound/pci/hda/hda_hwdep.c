@@ -30,6 +30,12 @@
 #include <sound/hda_hwdep.h>
 #include <sound/minors.h>
 
+/* hint string pair */
+struct hda_hint {
+	const char *key;
+	const char *val;	/* contained in the same alloc as key */
+};
+
 /*
  * write/read an out-of-bound verb
  */
@@ -99,16 +105,17 @@ static int hda_hwdep_open(struct snd_hwdep *hw, struct file *file)
 
 static void clear_hwdep_elements(struct hda_codec *codec)
 {
-	char **head;
 	int i;
 
 	/* clear init verbs */
 	snd_array_free(&codec->init_verbs);
 	/* clear hints */
-	head = codec->hints.list;
-	for (i = 0; i < codec->hints.used; i++, head++)
-		kfree(*head);
+	for (i = 0; i < codec->hints.used; i++) {
+		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+		kfree(hint->key); /* we don't need to free hint->val */
+	}
 	snd_array_free(&codec->hints);
+	snd_array_free(&codec->user_pins);
 }
 
 static void hwdep_free(struct snd_hwdep *hwdep)
@@ -140,7 +147,8 @@ int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
 #endif
 
 	snd_array_init(&codec->init_verbs, sizeof(struct hda_verb), 32);
-	snd_array_init(&codec->hints, sizeof(char *), 32);
+	snd_array_init(&codec->hints, sizeof(struct hda_hint), 32);
+	snd_array_init(&codec->user_pins, sizeof(struct hda_pincfg), 16);
 
 	return 0;
 }
@@ -153,7 +161,13 @@ int /*__devinit*/ snd_hda_create_hwdep(struct hda_codec *codec)
 
 static int clear_codec(struct hda_codec *codec)
 {
-	snd_hda_codec_reset(codec);
+	int err;
+
+	err = snd_hda_codec_reset(codec);
+	if (err < 0) {
+		snd_printk(KERN_ERR "The codec is being used, can't free.\n");
+		return err;
+	}
 	clear_hwdep_elements(codec);
 	return 0;
 }
@@ -162,20 +176,29 @@ static int reconfig_codec(struct hda_codec *codec)
 {
 	int err;
 
+	snd_hda_power_up(codec);
 	snd_printk(KERN_INFO "hda-codec: reconfiguring\n");
-	snd_hda_codec_reset(codec);
+	err = snd_hda_codec_reset(codec);
+	if (err < 0) {
+		snd_printk(KERN_ERR
+			   "The codec is being used, can't reconfigure.\n");
+		goto error;
+	}
 	err = snd_hda_codec_configure(codec);
 	if (err < 0)
-		return err;
+		goto error;
 	/* rebuild PCMs */
 	err = snd_hda_codec_build_pcms(codec);
 	if (err < 0)
-		return err;
+		goto error;
 	/* rebuild mixers */
 	err = snd_hda_codec_build_controls(codec);
 	if (err < 0)
-		return err;
-	return 0;
+		goto error;
+	err = snd_card_register(codec->bus->card);
+ error:
+	snd_hda_power_down(codec);
+	return err;
 }
 
 /*
@@ -271,26 +294,85 @@ static ssize_t type##_store(struct device *dev,			\
 CODEC_ACTION_STORE(reconfig);
 CODEC_ACTION_STORE(clear);
 
+static ssize_t init_verbs_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	int i, len = 0;
+	for (i = 0; i < codec->init_verbs.used; i++) {
+		struct hda_verb *v = snd_array_elem(&codec->init_verbs, i);
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"0x%02x 0x%03x 0x%04x\n",
+				v->nid, v->verb, v->param);
+	}
+	return len;
+}
+
 static ssize_t init_verbs_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
 	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
 	struct hda_codec *codec = hwdep->private_data;
-	char *p;
-	struct hda_verb verb, *v;
+	struct hda_verb *v;
+	int nid, verb, param;
 
-	verb.nid = simple_strtoul(buf, &p, 0);
-	verb.verb = simple_strtoul(p, &p, 0);
-	verb.param = simple_strtoul(p, &p, 0);
-	if (!verb.nid || !verb.verb || !verb.param)
+	if (sscanf(buf, "%i %i %i", &nid, &verb, &param) != 3)
+		return -EINVAL;
+	if (!nid || !verb)
 		return -EINVAL;
 	v = snd_array_new(&codec->init_verbs);
 	if (!v)
 		return -ENOMEM;
-	*v = verb;
+	v->nid = nid;
+	v->verb = verb;
+	v->param = param;
 	return count;
 }
+
+static ssize_t hints_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	int i, len = 0;
+	for (i = 0; i < codec->hints.used; i++) {
+		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"%s = %s\n", hint->key, hint->val);
+	}
+	return len;
+}
+
+static struct hda_hint *get_hint(struct hda_codec *codec, const char *key)
+{
+	int i;
+
+	for (i = 0; i < codec->hints.used; i++) {
+		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+		if (!strcmp(hint->key, key))
+			return hint;
+	}
+	return NULL;
+}
+
+static void remove_trail_spaces(char *str)
+{
+	char *p;
+	if (!*str)
+		return;
+	p = str + strlen(str) - 1;
+	for (; isspace(*p); p--) {
+		*p = 0;
+		if (p == str)
+			return;
+	}
+}
+
+#define MAX_HINTS	1024
 
 static ssize_t hints_store(struct device *dev,
 			   struct device_attribute *attr,
@@ -298,20 +380,109 @@ static ssize_t hints_store(struct device *dev,
 {
 	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
 	struct hda_codec *codec = hwdep->private_data;
-	char *p;
-	char **hint;
+	char *key, *val;
+	struct hda_hint *hint;
 
-	if (!*buf || isspace(*buf) || *buf == '#' || *buf == '\n')
+	while (isspace(*buf))
+		buf++;
+	if (!*buf || *buf == '#' || *buf == '\n')
 		return count;
-	p = kstrndup_noeol(buf, 1024);
-	if (!p)
+	if (*buf == '=')
+		return -EINVAL;
+	key = kstrndup_noeol(buf, 1024);
+	if (!key)
 		return -ENOMEM;
-	hint = snd_array_new(&codec->hints);
+	/* extract key and val */
+	val = strchr(key, '=');
+	if (!val) {
+		kfree(key);
+		return -EINVAL;
+	}
+	*val++ = 0;
+	while (isspace(*val))
+		val++;
+	remove_trail_spaces(key);
+	remove_trail_spaces(val);
+	hint = get_hint(codec, key);
+	if (hint) {
+		/* replace */
+		kfree(hint->key);
+		hint->key = key;
+		hint->val = val;
+		return count;
+	}
+	/* allocate a new hint entry */
+	if (codec->hints.used >= MAX_HINTS)
+		hint = NULL;
+	else
+		hint = snd_array_new(&codec->hints);
 	if (!hint) {
-		kfree(p);
+		kfree(key);
 		return -ENOMEM;
 	}
-	*hint = p;
+	hint->key = key;
+	hint->val = val;
+	return count;
+}
+
+static ssize_t pin_configs_show(struct hda_codec *codec,
+				struct snd_array *list,
+				char *buf)
+{
+	int i, len = 0;
+	for (i = 0; i < list->used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(list, i);
+		len += sprintf(buf + len, "0x%02x 0x%08x\n",
+			       pin->nid, pin->cfg);
+	}
+	return len;
+}
+
+static ssize_t init_pin_configs_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	return pin_configs_show(codec, &codec->init_pins, buf);
+}
+
+static ssize_t user_pin_configs_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	return pin_configs_show(codec, &codec->user_pins, buf);
+}
+
+static ssize_t driver_pin_configs_show(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	return pin_configs_show(codec, &codec->driver_pins, buf);
+}
+
+#define MAX_PIN_CONFIGS		32
+
+static ssize_t user_pin_configs_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct snd_hwdep *hwdep = dev_get_drvdata(dev);
+	struct hda_codec *codec = hwdep->private_data;
+	int nid, cfg;
+	int err;
+
+	if (sscanf(buf, "%i %i", &nid, &cfg) != 2)
+		return -EINVAL;
+	if (!nid)
+		return -EINVAL;
+	err = snd_hda_add_pincfg(codec, &codec->user_pins, nid, cfg);
+	if (err < 0)
+		return err;
 	return count;
 }
 
@@ -330,8 +501,11 @@ static struct device_attribute codec_attrs[] = {
 	CODEC_ATTR_RO(mfg),
 	CODEC_ATTR_RW(name),
 	CODEC_ATTR_RW(modelname),
-	CODEC_ATTR_WO(init_verbs),
-	CODEC_ATTR_WO(hints),
+	CODEC_ATTR_RW(init_verbs),
+	CODEC_ATTR_RW(hints),
+	CODEC_ATTR_RO(init_pin_configs),
+	CODEC_ATTR_RW(user_pin_configs),
+	CODEC_ATTR_RO(driver_pin_configs),
 	CODEC_ATTR_WO(reconfig),
 	CODEC_ATTR_WO(clear),
 };
@@ -349,5 +523,30 @@ int snd_hda_hwdep_add_sysfs(struct hda_codec *codec)
 					  hwdep->device, &codec_attrs[i]);
 	return 0;
 }
+
+/*
+ * Look for hint string
+ */
+const char *snd_hda_get_hint(struct hda_codec *codec, const char *key)
+{
+	struct hda_hint *hint = get_hint(codec, key);
+	return hint ? hint->val : NULL;
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_hint);
+
+int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
+{
+	const char *p = snd_hda_get_hint(codec, key);
+	if (!p || !*p)
+		return -ENOENT;
+	switch (toupper(*p)) {
+	case 'T': /* true */
+	case 'Y': /* yes */
+	case '1':
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_bool_hint);
 
 #endif /* CONFIG_SND_HDA_RECONFIG */

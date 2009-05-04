@@ -399,7 +399,7 @@ acpi_status acpi_ex_opcode_2A_1T_1R(struct acpi_walk_state *walk_state)
 		 * At this point, the Source operand is a String, Buffer, or Package.
 		 * Verify that the index is within range.
 		 */
-		switch (ACPI_GET_OBJECT_TYPE(operand[0])) {
+		switch ((operand[0])->common.type) {
 		case ACPI_TYPE_STRING:
 
 			if (index >= operand[0]->string.length) {

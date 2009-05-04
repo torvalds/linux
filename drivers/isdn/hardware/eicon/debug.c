@@ -1198,7 +1198,7 @@ int SuperTraceASSIGN (void* AdapterHandle, byte* data) {
         pC->xbuffer[5] = (byte)(rx_dma_magic >>  8);
         pC->xbuffer[6] = (byte)(rx_dma_magic >> 16);
         pC->xbuffer[7] = (byte)(rx_dma_magic >> 24);
-        pC->xbuffer[8] = (byte)DIVA_MAX_MANAGEMENT_TRANSFER_SIZE;
+	pC->xbuffer[8] = (byte)(DIVA_MAX_MANAGEMENT_TRANSFER_SIZE & 0xFF);
         pC->xbuffer[9] = (byte)(DIVA_MAX_MANAGEMENT_TRANSFER_SIZE >> 8);
         pC->xbuffer[10] = 0;
 

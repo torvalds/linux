@@ -14,6 +14,7 @@
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ethtool.h>
+#include <linux/i2c.h>
 #include <mach/mv78xx0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -28,20 +29,21 @@ static struct mv643xx_eth_platform_data db78x00_ge01_data = {
 };
 
 static struct mv643xx_eth_platform_data db78x00_ge10_data = {
-	.phy_addr	= MV643XX_ETH_PHY_NONE,
-	.speed		= SPEED_1000,
-	.duplex		= DUPLEX_FULL,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(10),
 };
 
 static struct mv643xx_eth_platform_data db78x00_ge11_data = {
-	.phy_addr	= MV643XX_ETH_PHY_NONE,
-	.speed		= SPEED_1000,
-	.duplex		= DUPLEX_FULL,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR(11),
 };
 
 static struct mv_sata_platform_data db78x00_sata_data = {
 	.n_ports	= 2,
 };
+
+static struct i2c_board_info __initdata db78x00_i2c_rtc = {
+	I2C_BOARD_INFO("ds1338", 0x68),
+};
+
 
 static void __init db78x00_init(void)
 {
@@ -64,6 +66,8 @@ static void __init db78x00_init(void)
 		mv78xx0_sata_init(&db78x00_sata_data);
 		mv78xx0_uart0_init();
 		mv78xx0_uart2_init();
+		mv78xx0_i2c_init();
+		i2c_register_board_info(0, &db78x00_i2c_rtc, 1);
 	} else {
 		mv78xx0_uart1_init();
 		mv78xx0_uart3_init();

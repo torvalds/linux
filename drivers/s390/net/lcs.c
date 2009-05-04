@@ -39,6 +39,7 @@
 #include <linux/in.h>
 #include <linux/igmp.h>
 #include <linux/delay.h>
+#include <linux/kthread.h>
 #include <net/arp.h>
 #include <net/ip.h>
 
@@ -70,7 +71,9 @@ static char debug_buffer[255];
 static void lcs_tasklet(unsigned long);
 static void lcs_start_kernel_thread(struct work_struct *);
 static void lcs_get_frames_cb(struct lcs_channel *, struct lcs_buffer *);
+#ifdef CONFIG_IP_MULTICAST
 static int lcs_send_delipm(struct lcs_card *, struct lcs_ipm_list *);
+#endif /* CONFIG_IP_MULTICAST */
 static int lcs_recovery(void *ptr);
 
 /**
@@ -1257,7 +1260,6 @@ lcs_register_mc_addresses(void *data)
 	struct in_device *in4_dev;
 
 	card = (struct lcs_card *) data;
-	daemonize("regipm");
 
 	if (!lcs_do_run_thread(card, LCS_SET_MC_THREAD))
 		return 0;
@@ -1285,6 +1287,8 @@ out:
 	lcs_clear_thread_running_bit(card, LCS_SET_MC_THREAD);
 	return 0;
 }
+#endif /* CONFIG_IP_MULTICAST */
+
 /**
  * function called by net device to
  * handle multicast address relevant things
@@ -1292,6 +1296,7 @@ out:
 static void
 lcs_set_multicast_list(struct net_device *dev)
 {
+#ifdef CONFIG_IP_MULTICAST
         struct lcs_card *card;
 
         LCS_DBF_TEXT(4, trace, "setmulti");
@@ -1299,9 +1304,8 @@ lcs_set_multicast_list(struct net_device *dev)
 
         if (!lcs_set_thread_start_bit(card, LCS_SET_MC_THREAD))
 		schedule_work(&card->kernel_thread_starter);
-}
-
 #endif /* CONFIG_IP_MULTICAST */
+}
 
 static long
 lcs_check_irb_error(struct ccw_device *cdev, struct irb *irb)
@@ -1558,7 +1562,7 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 	if (skb == NULL) {
 		card->stats.tx_dropped++;
 		card->stats.tx_errors++;
-		return -EIO;
+		return 0;
 	}
 	if (card->state != DEV_STATE_UP) {
 		dev_kfree_skb(skb);
@@ -1583,7 +1587,7 @@ __lcs_start_xmit(struct lcs_card *card, struct sk_buff *skb,
 		card->tx_buffer = lcs_get_buffer(&card->write);
 		if (card->tx_buffer == NULL) {
 			card->stats.tx_dropped++;
-			rc = -EBUSY;
+			rc = NETDEV_TX_BUSY;
 			goto out;
 		}
 		card->tx_buffer->callback = lcs_txbuffer_cb;
@@ -1749,11 +1753,10 @@ lcs_start_kernel_thread(struct work_struct *work)
 	struct lcs_card *card = container_of(work, struct lcs_card, kernel_thread_starter);
 	LCS_DBF_TEXT(5, trace, "krnthrd");
 	if (lcs_do_start_thread(card, LCS_RECOVERY_THREAD))
-		kernel_thread(lcs_recovery, (void *) card, SIGCHLD);
+		kthread_run(lcs_recovery, card, "lcs_recover");
 #ifdef CONFIG_IP_MULTICAST
 	if (lcs_do_start_thread(card, LCS_SET_MC_THREAD))
-		kernel_thread(lcs_register_mc_addresses,
-				(void *) card, SIGCHLD);
+		kthread_run(lcs_register_mc_addresses, card, "regipm");
 #endif
 }
 
@@ -2097,6 +2100,20 @@ lcs_register_netdev(struct ccwgroup_device *ccwgdev)
 /**
  * lcs_new_device will be called by setting the group device online.
  */
+static const struct net_device_ops lcs_netdev_ops = {
+	.ndo_open		= lcs_open_device,
+	.ndo_stop		= lcs_stop_device,
+	.ndo_get_stats		= lcs_getstats,
+	.ndo_start_xmit		= lcs_start_xmit,
+};
+
+static const struct net_device_ops lcs_mc_netdev_ops = {
+	.ndo_open		= lcs_open_device,
+	.ndo_stop		= lcs_stop_device,
+	.ndo_get_stats		= lcs_getstats,
+	.ndo_start_xmit		= lcs_start_xmit,
+	.ndo_set_multicast_list = lcs_set_multicast_list,
+};
 
 static int
 lcs_new_device(struct ccwgroup_device *ccwgdev)
@@ -2164,14 +2181,11 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 		goto out;
 	card->dev = dev;
 	card->dev->ml_priv = card;
-	card->dev->open = lcs_open_device;
-	card->dev->stop = lcs_stop_device;
-	card->dev->hard_start_xmit = lcs_start_xmit;
-	card->dev->get_stats = lcs_getstats;
+	card->dev->netdev_ops = &lcs_netdev_ops;
 	memcpy(card->dev->dev_addr, card->mac, LCS_MAC_LENGTH);
 #ifdef CONFIG_IP_MULTICAST
 	if (!lcs_check_multicast_support(card))
-		card->dev->set_multicast_list = lcs_set_multicast_list;
+		card->dev->netdev_ops = &lcs_mc_netdev_ops;
 #endif
 netdev_out:
 	lcs_set_allowed_threads(card,0xffffffff);
@@ -2254,7 +2268,6 @@ lcs_recovery(void *ptr)
         int rc;
 
 	card = (struct lcs_card *) ptr;
-	daemonize("lcs_recover");
 
 	LCS_DBF_TEXT(4, trace, "recover1");
 	if (!lcs_do_run_thread(card, LCS_RECOVERY_THREAD))

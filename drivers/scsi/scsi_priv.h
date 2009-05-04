@@ -38,9 +38,6 @@ static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 	{ };
 #endif
 
-/* scsi_scan.c */
-int scsi_complete_async_scans(void);
-
 /* scsi_devinfo.c */
 extern int scsi_get_device_flags(struct scsi_device *sdev,
 				 const unsigned char *vendor,

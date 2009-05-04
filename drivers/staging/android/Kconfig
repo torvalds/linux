@@ -27,6 +27,7 @@ menuconfig ANDROID_RAM_CONSOLE_ERROR_CORRECTION
 	bool "Android RAM Console Enable error correction"
 	default n
 	depends on ANDROID_RAM_CONSOLE
+	depends on !ANDROID_RAM_CONSOLE_EARLY_INIT
 	select REED_SOLOMON
 	select REED_SOLOMON_ENC8
 	select REED_SOLOMON_DEC8

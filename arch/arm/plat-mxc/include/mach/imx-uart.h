@@ -27,6 +27,4 @@ struct imxuart_platform_data {
 	unsigned int flags;
 };
 
-int __init imx_init_uart(int uart_no, struct imxuart_platform_data *pdata);
-
 #endif

@@ -20,7 +20,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/random.h>
-#include <linux/version.h>
+#include <linux/iocontext.h>
 #include <asm/div64.h>
 #include "compat.h"
 #include "ctree.h"
@@ -104,10 +104,8 @@ static noinline struct btrfs_device *__find_device(struct list_head *head,
 						   u64 devid, u8 *uuid)
 {
 	struct btrfs_device *dev;
-	struct list_head *cur;
 
-	list_for_each(cur, head) {
-		dev = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(dev, head, dev_list) {
 		if (dev->devid == devid &&
 		    (!uuid || !memcmp(dev->uuid, uuid, BTRFS_UUID_SIZE))) {
 			return dev;
@@ -118,15 +116,27 @@ static noinline struct btrfs_device *__find_device(struct list_head *head,
 
 static noinline struct btrfs_fs_devices *find_fsid(u8 *fsid)
 {
-	struct list_head *cur;
 	struct btrfs_fs_devices *fs_devices;
 
-	list_for_each(cur, &fs_uuids) {
-		fs_devices = list_entry(cur, struct btrfs_fs_devices, list);
+	list_for_each_entry(fs_devices, &fs_uuids, list) {
 		if (memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE) == 0)
 			return fs_devices;
 	}
 	return NULL;
+}
+
+static void requeue_list(struct btrfs_pending_bios *pending_bios,
+			struct bio *head, struct bio *tail)
+{
+
+	struct bio *old_head;
+
+	old_head = pending_bios->head;
+	pending_bios->head = head;
+	if (pending_bios->tail)
+		tail->bi_next = old_head;
+	else
+		pending_bios->tail = tail;
 }
 
 /*
@@ -145,30 +155,44 @@ static noinline int run_scheduled_bios(struct btrfs_device *device)
 	struct bio *pending;
 	struct backing_dev_info *bdi;
 	struct btrfs_fs_info *fs_info;
+	struct btrfs_pending_bios *pending_bios;
 	struct bio *tail;
 	struct bio *cur;
 	int again = 0;
-	unsigned long num_run = 0;
+	unsigned long num_run;
+	unsigned long num_sync_run;
 	unsigned long limit;
+	unsigned long last_waited = 0;
 
-	bdi = device->bdev->bd_inode->i_mapping->backing_dev_info;
+	bdi = blk_get_backing_dev_info(device->bdev);
 	fs_info = device->dev_root->fs_info;
 	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
 
+	/* we want to make sure that every time we switch from the sync
+	 * list to the normal list, we unplug
+	 */
+	num_sync_run = 0;
+
 loop:
 	spin_lock(&device->io_lock);
+	num_run = 0;
+
+loop_lock:
 
 	/* take all the bios off the list at once and process them
 	 * later on (without the lock held).  But, remember the
 	 * tail and other pointers so the bios can be properly reinserted
 	 * into the list if we hit congestion
 	 */
-	pending = device->pending_bios;
-	tail = device->pending_bio_tail;
+	if (device->pending_sync_bios.head)
+		pending_bios = &device->pending_sync_bios;
+	else
+		pending_bios = &device->pending_bios;
+
+	pending = pending_bios->head;
+	tail = pending_bios->tail;
 	WARN_ON(pending && !tail);
-	device->pending_bios = NULL;
-	device->pending_bio_tail = NULL;
 
 	/*
 	 * if pending was null this time around, no bios need processing
@@ -178,16 +202,41 @@ loop:
 	 * device->running_pending is used to synchronize with the
 	 * schedule_bio code.
 	 */
-	if (pending) {
-		again = 1;
-		device->running_pending = 1;
-	} else {
+	if (device->pending_sync_bios.head == NULL &&
+	    device->pending_bios.head == NULL) {
 		again = 0;
 		device->running_pending = 0;
+	} else {
+		again = 1;
+		device->running_pending = 1;
 	}
+
+	pending_bios->head = NULL;
+	pending_bios->tail = NULL;
+
 	spin_unlock(&device->io_lock);
 
+	/*
+	 * if we're doing the regular priority list, make sure we unplug
+	 * for any high prio bios we've sent down
+	 */
+	if (pending_bios == &device->pending_bios && num_sync_run > 0) {
+		num_sync_run = 0;
+		blk_run_backing_dev(bdi, NULL);
+	}
+
 	while (pending) {
+
+		rmb();
+		if (pending_bios != &device->pending_sync_bios &&
+		    device->pending_sync_bios.head &&
+		    num_run > 16) {
+			cond_resched();
+			spin_lock(&device->io_lock);
+			requeue_list(pending_bios, pending, tail);
+			goto loop_lock;
+		}
+
 		cur = pending;
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
@@ -198,36 +247,94 @@ loop:
 			wake_up(&fs_info->async_submit_wait);
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
-		bio_get(cur);
 		submit_bio(cur->bi_rw, cur);
-		bio_put(cur);
 		num_run++;
+		if (bio_sync(cur))
+			num_sync_run++;
+
+		if (need_resched()) {
+			if (num_sync_run) {
+				blk_run_backing_dev(bdi, NULL);
+				num_sync_run = 0;
+			}
+			cond_resched();
+		}
 
 		/*
 		 * we made progress, there is more work to do and the bdi
 		 * is now congested.  Back off and let other work structs
 		 * run instead
 		 */
-		if (pending && bdi_write_congested(bdi) &&
+		if (pending && bdi_write_congested(bdi) && num_run > 16 &&
 		    fs_info->fs_devices->open_devices > 1) {
-			struct bio *old_head;
+			struct io_context *ioc;
 
+			ioc = current->io_context;
+
+			/*
+			 * the main goal here is that we don't want to
+			 * block if we're going to be able to submit
+			 * more requests without blocking.
+			 *
+			 * This code does two great things, it pokes into
+			 * the elevator code from a filesystem _and_
+			 * it makes assumptions about how batching works.
+			 */
+			if (ioc && ioc->nr_batch_requests > 0 &&
+			    time_before(jiffies, ioc->last_waited + HZ/50UL) &&
+			    (last_waited == 0 ||
+			     ioc->last_waited == last_waited)) {
+				/*
+				 * we want to go through our batch of
+				 * requests and stop.  So, we copy out
+				 * the ioc->last_waited time and test
+				 * against it before looping
+				 */
+				last_waited = ioc->last_waited;
+				if (need_resched()) {
+					if (num_sync_run) {
+						blk_run_backing_dev(bdi, NULL);
+						num_sync_run = 0;
+					}
+					cond_resched();
+				}
+				continue;
+			}
 			spin_lock(&device->io_lock);
-
-			old_head = device->pending_bios;
-			device->pending_bios = pending;
-			if (device->pending_bio_tail)
-				tail->bi_next = old_head;
-			else
-				device->pending_bio_tail = tail;
+			requeue_list(pending_bios, pending, tail);
+			device->running_pending = 1;
 
 			spin_unlock(&device->io_lock);
 			btrfs_requeue_work(&device->work);
 			goto done;
 		}
 	}
+
+	if (num_sync_run) {
+		num_sync_run = 0;
+		blk_run_backing_dev(bdi, NULL);
+	}
+
+	cond_resched();
 	if (again)
 		goto loop;
+
+	spin_lock(&device->io_lock);
+	if (device->pending_bios.head || device->pending_sync_bios.head)
+		goto loop_lock;
+	spin_unlock(&device->io_lock);
+
+	/*
+	 * IO has already been through a long path to get here.  Checksumming,
+	 * async helper threads, perhaps compression.  We've done a pretty
+	 * good job of collecting a batch of IO and should just unplug
+	 * the device right away.
+	 *
+	 * This will help anyone who is waiting on the IO, they might have
+	 * already unplugged, but managed to do so before the bio they
+	 * cared about found its way down here.
+	 */
+	blk_run_backing_dev(bdi, NULL);
 done:
 	return 0;
 }
@@ -344,14 +451,11 @@ error:
 
 int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices)
 {
-	struct list_head *tmp;
-	struct list_head *cur;
-	struct btrfs_device *device;
+	struct btrfs_device *device, *next;
 
 	mutex_lock(&uuid_mutex);
 again:
-	list_for_each_safe(cur, tmp, &fs_devices->devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
 		if (device->in_fs_metadata)
 			continue;
 
@@ -382,14 +486,12 @@ again:
 
 static int __btrfs_close_devices(struct btrfs_fs_devices *fs_devices)
 {
-	struct list_head *cur;
 	struct btrfs_device *device;
 
 	if (--fs_devices->opened > 0)
 		return 0;
 
-	list_for_each(cur, &fs_devices->devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		if (device->bdev) {
 			close_bdev_exclusive(device->bdev, device->mode);
 			fs_devices->open_devices--;
@@ -438,7 +540,6 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 {
 	struct block_device *bdev;
 	struct list_head *head = &fs_devices->devices;
-	struct list_head *cur;
 	struct btrfs_device *device;
 	struct block_device *latest_bdev = NULL;
 	struct buffer_head *bh;
@@ -449,8 +550,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 	int seeding = 1;
 	int ret = 0;
 
-	list_for_each(cur, head) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, head, dev_list) {
 		if (device->bdev)
 			continue;
 		if (!device->name)
@@ -577,7 +677,7 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 		       *(unsigned long long *)disk_super->fsid,
 		       *(unsigned long long *)(disk_super->fsid + 8));
 	}
-	printk(KERN_INFO "devid %llu transid %llu %s\n",
+	printk(KERN_CONT "devid %llu transid %llu %s\n",
 	       (unsigned long long)devid, (unsigned long long)transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
 
@@ -1016,14 +1116,12 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	}
 
 	if (strcmp(device_path, "missing") == 0) {
-		struct list_head *cur;
 		struct list_head *devices;
 		struct btrfs_device *tmp;
 
 		device = NULL;
 		devices = &root->fs_info->fs_devices->devices;
-		list_for_each(cur, devices) {
-			tmp = list_entry(cur, struct btrfs_device, dev_list);
+		list_for_each_entry(tmp, devices, dev_list) {
 			if (tmp->in_fs_metadata && !tmp->bdev) {
 				device = tmp;
 				break;
@@ -1279,7 +1377,6 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
 	struct block_device *bdev;
-	struct list_head *cur;
 	struct list_head *devices;
 	struct super_block *sb = root->fs_info->sb;
 	u64 total_bytes;
@@ -1303,8 +1400,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	mutex_lock(&root->fs_info->volume_mutex);
 
 	devices = &root->fs_info->fs_devices->devices;
-	list_for_each(cur, devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, devices, dev_list) {
 		if (device->bdev == bdev) {
 			ret = -EEXIST;
 			goto error;
@@ -1382,6 +1478,12 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		ret = btrfs_add_device(trans, root, device);
 	}
 
+	/*
+	 * we've got more storage, clear any full flags on the space
+	 * infos
+	 */
+	btrfs_clear_space_info_full(root->fs_info);
+
 	unlock_chunks(root);
 	btrfs_commit_transaction(trans, root);
 
@@ -1441,7 +1543,7 @@ static noinline int btrfs_update_device(struct btrfs_trans_handle *trans,
 	btrfs_set_device_io_align(leaf, dev_item, device->io_align);
 	btrfs_set_device_io_width(leaf, dev_item, device->io_width);
 	btrfs_set_device_sector_size(leaf, dev_item, device->sector_size);
-	btrfs_set_device_total_bytes(leaf, dev_item, device->total_bytes);
+	btrfs_set_device_total_bytes(leaf, dev_item, device->disk_total_bytes);
 	btrfs_set_device_bytes_used(leaf, dev_item, device->bytes_used);
 	btrfs_mark_buffer_dirty(leaf);
 
@@ -1467,6 +1569,8 @@ static int __btrfs_grow_device(struct btrfs_trans_handle *trans,
 	device->fs_devices->total_rw_bytes += diff;
 
 	device->total_bytes = new_size;
+	btrfs_clear_space_info_full(device->dev_root->fs_info);
+
 	return btrfs_update_device(trans, device);
 }
 
@@ -1703,7 +1807,6 @@ static u64 div_factor(u64 num, int factor)
 int btrfs_balance(struct btrfs_root *dev_root)
 {
 	int ret;
-	struct list_head *cur;
 	struct list_head *devices = &dev_root->fs_info->fs_devices->devices;
 	struct btrfs_device *device;
 	u64 old_size;
@@ -1722,8 +1825,7 @@ int btrfs_balance(struct btrfs_root *dev_root)
 	dev_root = dev_root->fs_info->dev_root;
 
 	/* step one make some room on all the devices */
-	list_for_each(cur, devices) {
-		device = list_entry(cur, struct btrfs_device, dev_list);
+	list_for_each_entry(device, devices, dev_list) {
 		old_size = device->total_bytes;
 		size_to_free = div_factor(old_size, 1);
 		size_to_free = min(size_to_free, (u64)1 * 1024 * 1024);
@@ -1838,14 +1940,6 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	device->total_bytes = new_size;
 	if (device->writeable)
 		device->fs_devices->total_rw_bytes -= diff;
-	ret = btrfs_update_device(trans, device);
-	if (ret) {
-		unlock_chunks(root);
-		btrfs_end_transaction(trans, root);
-		goto done;
-	}
-	WARN_ON(diff > old_total);
-	btrfs_set_super_total_bytes(super_copy, old_total - diff);
 	unlock_chunks(root);
 	btrfs_end_transaction(trans, root);
 
@@ -1877,7 +1971,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 		length = btrfs_dev_extent_length(l, dev_extent);
 
 		if (key.offset + length <= new_size)
-			goto done;
+			break;
 
 		chunk_tree = btrfs_dev_extent_chunk_tree(l, dev_extent);
 		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
@@ -1890,6 +1984,26 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 			goto done;
 	}
 
+	/* Shrinking succeeded, else we would be at "done". */
+	trans = btrfs_start_transaction(root, 1);
+	if (!trans) {
+		ret = -ENOMEM;
+		goto done;
+	}
+	lock_chunks(root);
+
+	device->disk_total_bytes = new_size;
+	/* Now btrfs_update_device() will change the on-disk size. */
+	ret = btrfs_update_device(trans, device);
+	if (ret) {
+		unlock_chunks(root);
+		btrfs_end_transaction(trans, root);
+		goto done;
+	}
+	WARN_ON(diff > old_total);
+	btrfs_set_super_total_bytes(super_copy, old_total - diff);
+	unlock_chunks(root);
+	btrfs_end_transaction(trans, root);
 done:
 	btrfs_free_path(path);
 	return ret;
@@ -2460,7 +2574,7 @@ again:
 			max_errors = 1;
 		}
 	}
-	if (multi_ret && rw == WRITE &&
+	if (multi_ret && (rw & (1 << BIO_RW)) &&
 	    stripes_allocated < stripes_required) {
 		stripes_allocated = map->num_stripes;
 		free_extent_map(em);
@@ -2725,6 +2839,7 @@ static noinline int schedule_bio(struct btrfs_root *root,
 				 int rw, struct bio *bio)
 {
 	int should_queue = 1;
+	struct btrfs_pending_bios *pending_bios;
 
 	/* don't bother with additional async steps for reads, right now */
 	if (!(rw & (1 << BIO_RW))) {
@@ -2746,13 +2861,17 @@ static noinline int schedule_bio(struct btrfs_root *root,
 	bio->bi_rw |= rw;
 
 	spin_lock(&device->io_lock);
+	if (bio_sync(bio))
+		pending_bios = &device->pending_sync_bios;
+	else
+		pending_bios = &device->pending_bios;
 
-	if (device->pending_bio_tail)
-		device->pending_bio_tail->bi_next = bio;
+	if (pending_bios->tail)
+		pending_bios->tail->bi_next = bio;
 
-	device->pending_bio_tail = bio;
-	if (!device->pending_bios)
-		device->pending_bios = bio;
+	pending_bios->tail = bio;
+	if (!pending_bios->head)
+		pending_bios->head = bio;
 	if (device->running_pending)
 		should_queue = 0;
 
@@ -2904,10 +3023,6 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		free_extent_map(em);
 	}
 
-	map = kzalloc(sizeof(*map), GFP_NOFS);
-	if (!map)
-		return -ENOMEM;
-
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em)
 		return -ENOMEM;
@@ -2973,7 +3088,8 @@ static int fill_device_from_item(struct extent_buffer *leaf,
 	unsigned long ptr;
 
 	device->devid = btrfs_device_id(leaf, dev_item);
-	device->total_bytes = btrfs_device_total_bytes(leaf, dev_item);
+	device->disk_total_bytes = btrfs_device_total_bytes(leaf, dev_item);
+	device->total_bytes = device->disk_total_bytes;
 	device->bytes_used = btrfs_device_bytes_used(leaf, dev_item);
 	device->type = btrfs_device_type(leaf, dev_item);
 	device->io_align = btrfs_device_io_align(leaf, dev_item);
@@ -3116,6 +3232,8 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 	if (!sb)
 		return -ENOMEM;
 	btrfs_set_buffer_uptodate(sb);
+	btrfs_set_buffer_lockdep_class(sb, 0);
+
 	write_extent_buffer(sb, super_copy, 0, BTRFS_SUPER_INFO_SIZE);
 	array_size = btrfs_super_sys_array_size(super_copy);
 

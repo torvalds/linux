@@ -121,10 +121,11 @@ config BLK_DEV_SR
 	tristate "SCSI CDROM support"
 	depends on SCSI
 	---help---
-	  If you want to use a SCSI or FireWire CD-ROM under Linux,
-	  say Y and read the SCSI-HOWTO and the CDROM-HOWTO at
-	  <http://www.tldp.org/docs.html#howto>. Also make sure to say
-	  Y or M to "ISO 9660 CD-ROM file system support" later.
+	  If you want to use a CD or DVD drive attached to your computer
+	  by SCSI, FireWire, USB or ATAPI, say Y and read the SCSI-HOWTO
+	  and the CDROM-HOWTO at <http://www.tldp.org/docs.html#howto>.
+
+	  Make sure to say Y or M to "ISO 9660 CD-ROM file system support".
 
 	  To compile this driver as a module, choose M here and read
 	  <file:Documentation/scsi/scsi.txt>.
@@ -224,14 +225,15 @@ config SCSI_LOGGING
 	  can enable logging by saying Y to "/proc file system support" and
 	  "Sysctl support" below and executing the command
 
-	  echo "scsi log token [level]" > /proc/scsi/scsi
+	  echo <bitmask> > /proc/sys/dev/scsi/logging_level
 
-	  at boot time after the /proc file system has been mounted.
+	  where <bitmask> is a four byte value representing the logging type
+	  and logging level for each type of logging selected.
 
-	  There are a number of things that can be used for 'token' (you can
-	  find them in the source: <file:drivers/scsi/scsi.c>), and this
-	  allows you to select the types of information you want, and the
-	  level allows you to select the level of verbosity.
+	  There are a number of logging types and you can find them in the
+	  source at <file:drivers/scsi/scsi_logging.h>. The logging levels
+	  are also described in that file and they determine the verbosity of
+	  the logging for each logging type.
 
 	  If you say N here, it may be harder to track down some types of SCSI
 	  problems. If you say Y here your kernel will be somewhat larger, but
@@ -570,6 +572,7 @@ config SCSI_ARCMSR_AER
 	  To enable this function, choose Y here.
 
 source "drivers/scsi/megaraid/Kconfig.megaraid"
+source "drivers/scsi/mpt2sas/Kconfig"
 
 config SCSI_HPTIOP
 	tristate "HighPoint RocketRAID 3xxx/4xxx Controller support"
@@ -608,13 +611,20 @@ config SCSI_FLASHPOINT
 config LIBFC
 	tristate "LibFC module"
 	select SCSI_FC_ATTRS
+	select CRC32
 	---help---
 	  Fibre Channel library module
+
+config LIBFCOE
+	tristate "LibFCoE module"
+	select LIBFC
+	---help---
+	  Library for Fibre Channel over Ethernet module
 
 config FCOE
 	tristate "FCoE module"
 	depends on PCI
-	select LIBFC
+	select LIBFCOE
 	---help---
 	  Fibre Channel over Ethernet module
 
@@ -1377,7 +1387,7 @@ config SCSI_LPFC_DEBUG_FS
 	bool "Emulex LightPulse Fibre Channel debugfs Support"
 	depends on SCSI_LPFC && DEBUG_FS
 	help
-	  This makes debugging infomation from the lpfc driver
+	  This makes debugging information from the lpfc driver
 	  available via the debugfs filesystem.
 
 config SCSI_SIM710
@@ -1385,7 +1395,7 @@ config SCSI_SIM710
 	depends on (EISA || MCA) && SCSI
 	select SCSI_SPI_ATTRS
 	---help---
-	  This driver for NCR53c710 based SCSI host adapters.
+	  This driver is for NCR53c710 based SCSI host adapters.
 
 	  It currently supports Compaq EISA cards and NCR MCA cards
 
@@ -1535,6 +1545,7 @@ config SCSI_NSP32
 config SCSI_DEBUG
 	tristate "SCSI debugging host simulator"
 	depends on SCSI
+	select CRC_T10DIF
 	help
 	  This is a host adapter simulator that can simulate multiple hosts
 	  each with multiple dummy SCSI devices (disks). It defaults to one
@@ -1802,5 +1813,7 @@ endif # SCSI_LOWLEVEL
 source "drivers/scsi/pcmcia/Kconfig"
 
 source "drivers/scsi/device_handler/Kconfig"
+
+source "drivers/scsi/osd/Kconfig"
 
 endmenu

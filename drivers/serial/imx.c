@@ -1129,7 +1129,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 	sport->timer.function = imx_timeout;
 	sport->timer.data     = (unsigned long)sport;
 
-	sport->clk = clk_get(&pdev->dev, "uart_clk");
+	sport->clk = clk_get(&pdev->dev, "uart");
 	if (IS_ERR(sport->clk)) {
 		ret = PTR_ERR(sport->clk);
 		goto unmap;

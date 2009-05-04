@@ -2,7 +2,7 @@
  *	w83697ug/uf WDT driver
  *
  *	(c) Copyright 2008 Flemming Fransen <ff@nrvissing.net>
- *              reused original code to supoprt w83697ug/uf.
+ *		reused original code to support w83697ug/uf.
  *
  *	Based on w83627hf_wdt.c which is based on advantechwdt.c
  *	which is based on wdt.c.
@@ -79,7 +79,7 @@ MODULE_PARM_DESC(nowayout,
 							(same as EFER) */
 #define WDT_EFDR (WDT_EFIR+1) /* Extended Function Data Register */
 
-static void w83697ug_select_wd_register(void)
+static int w83697ug_select_wd_register(void)
 {
 	unsigned char c;
 	unsigned char version;
@@ -102,7 +102,7 @@ static void w83697ug_select_wd_register(void)
 
 	} else {
 		printk(KERN_ERR PFX "No W83697UG/UF could be found\n");
-		return;
+		return -ENODEV;
 	}
 
 	outb_p(0x07, WDT_EFER); /* point to logical device number reg */
@@ -110,6 +110,8 @@ static void w83697ug_select_wd_register(void)
 	outb_p(0x30, WDT_EFER); /* select CR30 */
 	c = inb_p(WDT_EFDR);
 	outb_p(c || 0x01, WDT_EFDR); /* set bit 0 to activate GPIO2 */
+
+	return 0;
 }
 
 static void w83697ug_unselect_wd_register(void)
@@ -117,11 +119,14 @@ static void w83697ug_unselect_wd_register(void)
 	outb_p(0xAA, WDT_EFER); /* Leave extended function mode */
 }
 
-static void w83697ug_init(void)
+static int w83697ug_init(void)
 {
+	int ret;
 	unsigned char t;
 
-	w83697ug_select_wd_register();
+	ret = w83697ug_select_wd_register();
+	if (ret != 0)
+		return ret;
 
 	outb_p(0xF6, WDT_EFER); /* Select CRF6 */
 	t = inb_p(WDT_EFDR);    /* read CRF6 */
@@ -137,13 +142,15 @@ static void w83697ug_init(void)
 	outb_p(t, WDT_EFDR);    /* Write back to CRF5 */
 
 	w83697ug_unselect_wd_register();
+	return 0;
 }
 
 static void wdt_ctrl(int timeout)
 {
 	spin_lock(&io_lock);
 
-	w83697ug_select_wd_register();
+	if (w83697ug_select_wd_register() < 0)
+		return;
 
 	outb_p(0xF4, WDT_EFER);    /* Select CRF4 */
 	outb_p(timeout, WDT_EFDR); /* Write Timeout counter to CRF4 */
@@ -347,7 +354,9 @@ static int __init wdt_init(void)
 		goto out;
 	}
 
-	w83697ug_init();
+	ret = w83697ug_init();
+	if (ret != 0)
+		goto unreg_regions;
 
 	ret = register_reboot_notifier(&wdt_notifier);
 	if (ret != 0) {

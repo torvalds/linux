@@ -9,6 +9,7 @@
 #ifndef _INCLUDE_GUARD_LATENCYTOP_H_
 #define _INCLUDE_GUARD_LATENCYTOP_H_
 
+#include <linux/compiler.h>
 #ifdef CONFIG_LATENCYTOP
 
 #define LT_SAVECOUNT		32
@@ -24,7 +25,14 @@ struct latency_record {
 
 struct task_struct;
 
-void account_scheduler_latency(struct task_struct *task, int usecs, int inter);
+extern int latencytop_enabled;
+void __account_scheduler_latency(struct task_struct *task, int usecs, int inter);
+static inline void
+account_scheduler_latency(struct task_struct *task, int usecs, int inter)
+{
+	if (unlikely(latencytop_enabled))
+		__account_scheduler_latency(task, usecs, inter);
+}
 
 void clear_all_latency_tracing(struct task_struct *p);
 

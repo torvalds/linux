@@ -29,10 +29,14 @@
 #include "viosrp.h"
 
 #define IBMVFC_NAME	"ibmvfc"
-#define IBMVFC_DRIVER_VERSION		"1.0.4"
-#define IBMVFC_DRIVER_DATE		"(November 14, 2008)"
+#define IBMVFC_DRIVER_VERSION		"1.0.5"
+#define IBMVFC_DRIVER_DATE		"(March 19, 2009)"
 
-#define IBMVFC_DEFAULT_TIMEOUT	15
+#define IBMVFC_DEFAULT_TIMEOUT	60
+#define IBMVFC_ADISC_CANCEL_TIMEOUT	45
+#define IBMVFC_ADISC_TIMEOUT		15
+#define IBMVFC_ADISC_PLUS_CANCEL_TIMEOUT	\
+		(IBMVFC_ADISC_TIMEOUT + IBMVFC_ADISC_CANCEL_TIMEOUT)
 #define IBMVFC_INIT_TIMEOUT		120
 #define IBMVFC_MAX_REQUESTS_DEFAULT	100
 
@@ -53,9 +57,9 @@
  * Ensure we have resources for ERP and initialization:
  * 1 for ERP
  * 1 for initialization
- * 1 for each discovery thread
+ * 2 for each discovery thread
  */
-#define IBMVFC_NUM_INTERNAL_REQ	(1 + 1 + disc_threads)
+#define IBMVFC_NUM_INTERNAL_REQ	(1 + 1 + (disc_threads * 2))
 
 #define IBMVFC_MAD_SUCCESS		0x00
 #define IBMVFC_MAD_NOT_SUPPORTED	0xF1
@@ -585,10 +589,12 @@ struct ibmvfc_target {
 	enum ibmvfc_target_action action;
 	int need_login;
 	int init_retries;
+	u32 cancel_key;
 	struct ibmvfc_service_parms service_parms;
 	struct ibmvfc_service_parms service_parms_change;
 	struct fc_rport_identifiers ids;
 	void (*job_step) (struct ibmvfc_target *);
+	struct timer_list timer;
 	struct kref kref;
 };
 
@@ -672,6 +678,7 @@ struct ibmvfc_host {
 	int task_set;
 	int init_retries;
 	int discovery_threads;
+	int abort_threads;
 	int client_migrated;
 	int reinit;
 	int delay_init;
@@ -684,6 +691,7 @@ struct ibmvfc_host {
 	char partition_name[97];
 	void (*job_step) (struct ibmvfc_host *);
 	struct task_struct *work_thread;
+	struct tasklet_struct tasklet;
 	wait_queue_head_t init_wait_q;
 	wait_queue_head_t work_wait_q;
 };
@@ -691,13 +699,13 @@ struct ibmvfc_host {
 #define DBG_CMD(CMD) do { if (ibmvfc_debug) CMD; } while (0)
 
 #define tgt_dbg(t, fmt, ...)			\
-	DBG_CMD(dev_info((t)->vhost->dev, "%lX: " fmt, (t)->scsi_id, ##__VA_ARGS__))
+	DBG_CMD(dev_info((t)->vhost->dev, "%llX: " fmt, (t)->scsi_id, ##__VA_ARGS__))
 
 #define tgt_info(t, fmt, ...)		\
-	dev_info((t)->vhost->dev, "%lX: " fmt, (t)->scsi_id, ##__VA_ARGS__)
+	dev_info((t)->vhost->dev, "%llX: " fmt, (t)->scsi_id, ##__VA_ARGS__)
 
 #define tgt_err(t, fmt, ...)		\
-	dev_err((t)->vhost->dev, "%lX: " fmt, (t)->scsi_id, ##__VA_ARGS__)
+	dev_err((t)->vhost->dev, "%llX: " fmt, (t)->scsi_id, ##__VA_ARGS__)
 
 #define ibmvfc_dbg(vhost, ...) \
 	DBG_CMD(dev_info((vhost)->dev, ##__VA_ARGS__))

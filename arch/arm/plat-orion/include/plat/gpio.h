@@ -25,14 +25,17 @@ void gpio_set_value(unsigned pin, int value);
  * Orion-specific GPIO API extensions.
  */
 void orion_gpio_set_unused(unsigned pin);
-void orion_gpio_set_valid(unsigned pin, int valid);
 void orion_gpio_set_blink(unsigned pin, int blink);
+
+#define GPIO_BIDI_OK		(1 << 0)
+#define GPIO_INPUT_OK		(1 << 1)
+#define GPIO_OUTPUT_OK		(1 << 2)
+void orion_gpio_set_valid(unsigned pin, int mode);
 
 /*
  * GPIO interrupt handling.
  */
-extern struct irq_chip orion_gpio_irq_edge_chip;
-extern struct irq_chip orion_gpio_irq_level_chip;
+extern struct irq_chip orion_gpio_irq_chip;
 void orion_gpio_irq_handler(int irqoff);
 
 

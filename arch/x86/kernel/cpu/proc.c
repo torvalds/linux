@@ -7,15 +7,14 @@
 /*
  *	Get CPU information for use by the procfs.
  */
-#ifdef CONFIG_X86_32
 static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
 			      unsigned int cpu)
 {
-#ifdef CONFIG_X86_HT
+#ifdef CONFIG_SMP
 	if (c->x86_max_cores * smp_num_siblings > 1) {
 		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
 		seq_printf(m, "siblings\t: %d\n",
-			   cpus_weight(per_cpu(cpu_core_map, cpu)));
+			   cpumask_weight(cpu_sibling_mask(cpu)));
 		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
 		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
 		seq_printf(m, "apicid\t\t: %d\n", c->apicid);
@@ -24,6 +23,7 @@ static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
 #endif
 }
 
+#ifdef CONFIG_X86_32
 static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 {
 	/*
@@ -50,22 +50,6 @@ static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 		   c->wp_works_ok ? "yes" : "no");
 }
 #else
-static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
-			      unsigned int cpu)
-{
-#ifdef CONFIG_SMP
-	if (c->x86_max_cores * smp_num_siblings > 1) {
-		seq_printf(m, "physical id\t: %d\n", c->phys_proc_id);
-		seq_printf(m, "siblings\t: %d\n",
-			   cpus_weight(per_cpu(cpu_core_map, cpu)));
-		seq_printf(m, "core id\t\t: %d\n", c->cpu_core_id);
-		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
-		seq_printf(m, "apicid\t\t: %d\n", c->apicid);
-		seq_printf(m, "initial apicid\t: %d\n", c->initial_apicid);
-	}
-#endif
-}
-
 static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 {
 	seq_printf(m,
@@ -159,9 +143,9 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 static void *c_start(struct seq_file *m, loff_t *pos)
 {
 	if (*pos == 0)	/* just in case, cpu 0 is not the first */
-		*pos = first_cpu(cpu_online_map);
+		*pos = cpumask_first(cpu_online_mask);
 	else
-		*pos = next_cpu_nr(*pos - 1, cpu_online_map);
+		*pos = cpumask_next(*pos - 1, cpu_online_mask);
 	if ((*pos) < nr_cpu_ids)
 		return &cpu_data(*pos);
 	return NULL;

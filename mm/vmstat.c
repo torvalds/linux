@@ -27,7 +27,7 @@ static void sum_vm_events(unsigned long *ret, const struct cpumask *cpumask)
 
 	memset(ret, 0, NR_VM_EVENT_ITEMS * sizeof(unsigned long));
 
-	for_each_cpu_mask_nr(cpu, *cpumask) {
+	for_each_cpu(cpu, cpumask) {
 		struct vm_event_state *this = &per_cpu(vm_event_states, cpu);
 
 		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
@@ -135,11 +135,7 @@ static void refresh_zone_stat_thresholds(void)
 	int cpu;
 	int threshold;
 
-	for_each_zone(zone) {
-
-		if (!zone->present_pages)
-			continue;
-
+	for_each_populated_zone(zone) {
 		threshold = calculate_threshold(zone);
 
 		for_each_online_cpu(cpu)
@@ -301,11 +297,8 @@ void refresh_cpu_vm_stats(int cpu)
 	int i;
 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		struct per_cpu_pageset *p;
-
-		if (!populated_zone(zone))
-			continue;
 
 		p = zone_pcp(zone, cpu);
 
@@ -898,7 +891,7 @@ static void vmstat_update(struct work_struct *w)
 {
 	refresh_cpu_vm_stats(smp_processor_id());
 	schedule_delayed_work(&__get_cpu_var(vmstat_work),
-		sysctl_stat_interval);
+		round_jiffies_relative(sysctl_stat_interval));
 }
 
 static void __cpuinit start_cpu_timer(int cpu)
@@ -906,7 +899,8 @@ static void __cpuinit start_cpu_timer(int cpu)
 	struct delayed_work *vmstat_work = &per_cpu(vmstat_work, cpu);
 
 	INIT_DELAYED_WORK_DEFERRABLE(vmstat_work, vmstat_update);
-	schedule_delayed_work_on(cpu, vmstat_work, HZ + cpu);
+	schedule_delayed_work_on(cpu, vmstat_work,
+				 __round_jiffies_relative(HZ, cpu));
 }
 
 /*

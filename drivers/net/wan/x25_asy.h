@@ -28,10 +28,6 @@ struct x25_asy {
   unsigned char		*xbuff;		/* transmitter buffer		*/
   unsigned char         *xhead;         /* pointer to next byte to XMIT */
   int                   xleft;          /* bytes left in XMIT queue     */
-
-  /* X.25 interface statistics. */
-  struct net_device_stats stats;
-
   int                   buffsize;       /* Max buffers sizes            */
 
   unsigned long		flags;		/* Flag values/ mode etc	*/

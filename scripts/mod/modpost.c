@@ -415,8 +415,9 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		const char *secstrings
 			= (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 		const char *secname;
+		int nobits = sechdrs[i].sh_type == SHT_NOBITS;
 
-		if (sechdrs[i].sh_offset > info->size) {
+		if (!nobits && sechdrs[i].sh_offset > info->size) {
 			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > "
 			      "sizeof(*hrd)=%zu\n", filename,
 			      (unsigned long)sechdrs[i].sh_offset,
@@ -425,6 +426,8 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		}
 		secname = secstrings + sechdrs[i].sh_name;
 		if (strcmp(secname, ".modinfo") == 0) {
+			if (nobits)
+				fatal("%s has NOBITS .modinfo\n", filename);
 			info->modinfo = (void *)hdr + sechdrs[i].sh_offset;
 			info->modinfo_len = sechdrs[i].sh_size;
 		} else if (strcmp(secname, "__ksymtab") == 0)
@@ -791,15 +794,6 @@ static const char *init_exit_sections[] =
 /* data section */
 static const char *data_sections[] = { DATA_SECTIONS, NULL };
 
-/* sections that may refer to an init/exit section with no warning */
-static const char *initref_sections[] =
-{
-	".text.init.refok*",
-	".exit.text.refok*",
-	".data.init.refok*",
-	NULL
-};
-
 
 /* symbols in .data that may refer to init/exit sections */
 static const char *symbol_white_list[] =
@@ -912,11 +906,6 @@ static int section_mismatch(const char *fromsec, const char *tosec)
 /**
  * Whitelist to allow certain references to pass with no warning.
  *
- * Pattern 0:
- *   Do not warn if funtion/data are marked with __init_refok/__initdata_refok.
- *   The pattern is identified by:
- *   fromsec = .text.init.refok* | .data.init.refok*
- *
  * Pattern 1:
  *   If a module parameter is declared __initdata and permissions=0
  *   then this is legal despite the warning generated.
@@ -955,10 +944,6 @@ static int section_mismatch(const char *fromsec, const char *tosec)
 static int secref_whitelist(const char *fromsec, const char *fromsym,
 			    const char *tosec, const char *tosym)
 {
-	/* Check for pattern 0 */
-	if (match(fromsec, initref_sections))
-		return 0;
-
 	/* Check for pattern 1 */
 	if (match(tosec, init_data_sections) &&
 	    match(fromsec, data_sections) &&
@@ -1604,12 +1589,12 @@ static void read_symbols(char *modname)
 
 	parse_elf_finish(&info);
 
-	/* Our trick to get versioning for struct_module - it's
+	/* Our trick to get versioning for module struct etc. - it's
 	 * never passed as an argument to an exported function, so
 	 * the automatic versioning doesn't pick it up, but it's really
 	 * important anyhow */
 	if (modversions)
-		mod->unres = alloc_symbol("struct_module", 0, mod->unres);
+		mod->unres = alloc_symbol("module_layout", 0, mod->unres);
 }
 
 #define SZ 500
@@ -1910,7 +1895,7 @@ static void read_dump(const char *fname, unsigned int kernel)
 		if (!mod) {
 			if (is_vmlinux(modname))
 				have_vmlinux = 1;
-			mod = new_module(NOFAIL(strdup(modname)));
+			mod = new_module(modname);
 			mod->skip = 1;
 		}
 		s = sym_add_exported(symname, mod, export_no(export));
@@ -1994,7 +1979,7 @@ static void read_markers(const char *fname)
 
 		mod = find_module(modname);
 		if (!mod) {
-			mod = new_module(NOFAIL(strdup(modname)));
+			mod = new_module(modname);
 			mod->skip = 1;
 		}
 		if (is_vmlinux(modname)) {

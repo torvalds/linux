@@ -37,6 +37,8 @@
 #define OMAP_MMC_MAX_SLOTS	2
 
 struct omap_mmc_platform_data {
+	/* back-link to device */
+	struct device *dev;
 
 	/* number of slots per controller */
 	unsigned nr_slots:2;
@@ -115,8 +117,9 @@ void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers);
 void omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers);
-int omap_mmc_add(int id, unsigned long base, unsigned long size,
-			unsigned int irq, struct omap_mmc_platform_data *data);
+int omap_mmc_add(const char *name, int id, unsigned long base,
+				unsigned long size, unsigned int irq,
+				struct omap_mmc_platform_data *data);
 #else
 static inline void omap1_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers)
@@ -126,8 +129,9 @@ static inline void omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 				int nr_controllers)
 {
 }
-static inline int omap_mmc_add(int id, unsigned long base, unsigned long size,
-		unsigned int irq, struct omap_mmc_platform_data *data)
+static inline int omap_mmc_add(const char *name, int id, unsigned long base,
+				unsigned long size, unsigned int irq,
+				struct omap_mmc_platform_data *data)
 {
 	return 0;
 }

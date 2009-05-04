@@ -70,7 +70,6 @@ void __init irda_proc_register(void)
 	proc_irda = proc_mkdir("irda", init_net.proc_net);
 	if (proc_irda == NULL)
 		return;
-	proc_irda->owner = THIS_MODULE;
 
 	for (i = 0; i < ARRAY_SIZE(irda_dirs); i++)
 		d = proc_create(irda_dirs[i].name, 0, proc_irda,

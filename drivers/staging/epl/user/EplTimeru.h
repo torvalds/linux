@@ -68,40 +68,28 @@
 
 ****************************************************************************/
 
-#include "../EplTimer.h"
-#include "EplEventu.h"
-
 #ifndef _EPLTIMERU_H_
 #define _EPLTIMERU_H_
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
+#include "../EplTimer.h"
+#include "EplEventu.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
+tEplKernel EplTimeruInit(void);
 
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
+tEplKernel EplTimeruAddInstance(void);
 
-tEplKernel PUBLIC EplTimeruInit(void);
+tEplKernel EplTimeruDelInstance(void);
 
-tEplKernel PUBLIC EplTimeruAddInstance(void);
+tEplKernel EplTimeruSetTimerMs(tEplTimerHdl *pTimerHdl_p,
+			       unsigned long ulTime_p,
+			       tEplTimerArg Argument_p);
 
-tEplKernel PUBLIC EplTimeruDelInstance(void);
+tEplKernel EplTimeruModifyTimerMs(tEplTimerHdl *pTimerHdl_p,
+				  unsigned long ulTime_p,
+				  tEplTimerArg Argument_p);
 
-tEplKernel PUBLIC EplTimeruSetTimerMs(tEplTimerHdl * pTimerHdl_p,
-				      unsigned long ulTime_p,
-				      tEplTimerArg Argument_p);
+tEplKernel EplTimeruDeleteTimer(tEplTimerHdl *pTimerHdl_p);
 
-tEplKernel PUBLIC EplTimeruModifyTimerMs(tEplTimerHdl * pTimerHdl_p,
-					 unsigned long ulTime_p,
-					 tEplTimerArg Argument_p);
-
-tEplKernel PUBLIC EplTimeruDeleteTimer(tEplTimerHdl * pTimerHdl_p);
-
-BOOL PUBLIC EplTimeruIsTimerActive(tEplTimerHdl TimerHdl_p);
+BOOL EplTimeruIsTimerActive(tEplTimerHdl TimerHdl_p);
 
 #endif // #ifndef _EPLTIMERU_H_

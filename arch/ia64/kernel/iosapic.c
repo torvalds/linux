@@ -507,7 +507,7 @@ static int iosapic_find_sharable_irq(unsigned long trigger, unsigned long pol)
 	if (trigger == IOSAPIC_EDGE)
 		return -EINVAL;
 
-	for (i = 0; i <= NR_IRQS; i++) {
+	for (i = 0; i < NR_IRQS; i++) {
 		info = &iosapic_intr_info[i];
 		if (info->trigger == trigger && info->polarity == pol &&
 		    (info->dmode == IOSAPIC_FIXED ||
@@ -880,7 +880,7 @@ iosapic_unregister_intr (unsigned int gsi)
 	if (iosapic_intr_info[irq].count == 0) {
 #ifdef CONFIG_SMP
 		/* Clear affinity */
-		cpus_setall(idesc->affinity);
+		cpumask_setall(idesc->affinity);
 #endif
 		/* Clear the interrupt information */
 		iosapic_intr_info[irq].dest = 0;

@@ -58,7 +58,7 @@ extern struct smp_boot_data {
 extern char no_int_routing __devinitdata;
 
 extern cpumask_t cpu_core_map[NR_CPUS];
-DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
+DECLARE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
 extern int smp_num_siblings;
 extern void __iomem *ipi_base_addr;
 extern unsigned char smp_int_redirect;
@@ -126,7 +126,8 @@ extern void identify_siblings (struct cpuinfo_ia64 *);
 extern int is_multithreading_enabled(void);
 
 extern void arch_send_call_function_single_ipi(int cpu);
-extern void arch_send_call_function_ipi(cpumask_t mask);
+extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
+#define arch_send_call_function_ipi_mask arch_send_call_function_ipi_mask
 
 #else /* CONFIG_SMP */
 

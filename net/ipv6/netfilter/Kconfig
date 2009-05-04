@@ -95,13 +95,13 @@ config IP6_NF_MATCH_OPTS
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_HL
-	tristate '"hl" match support'
+	tristate '"hl" hoplimit match support'
 	depends on NETFILTER_ADVANCED
-	help
-	  HL matching allows you to match packets based on the hop
-	  limit of the packet.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	select NETFILTER_XT_MATCH_HL
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MATCH_HL.
 
 config IP6_NF_MATCH_IPV6HEADER
 	tristate '"ipv6header" IPv6 Extension Headers Match'
@@ -130,6 +130,15 @@ config IP6_NF_MATCH_RT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 # The targets
+config IP6_NF_TARGET_HL
+	tristate '"HL" hoplimit target support'
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_TARGET_HL
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_TARGET_HL.
+
 config IP6_NF_TARGET_LOG
 	tristate "LOG target support"
 	default m if NETFILTER_ADVANCED=n
@@ -167,23 +176,6 @@ config IP6_NF_MANGLE
 	  This option adds a `mangle' table to iptables: see the man page for
 	  iptables(8).  This table is used for various packet alterations
 	  which can effect how the packet is routed.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
-config IP6_NF_TARGET_HL
-	tristate  'HL (hoplimit) target support'
-	depends on IP6_NF_MANGLE
-	depends on NETFILTER_ADVANCED
-	help
-	  This option adds a `HL' target, which enables the user to decrement
-	  the hoplimit value of the IPv6 header or set it to a given (lower)
-	  value.
-
-	  While it is safe to decrement the hoplimit value, this option also
-	  enables functionality to increment and set the hoplimit value of the
-	  IPv6 header to arbitrary values.  This is EXTREMELY DANGEROUS since
-	  you can easily create immortal packets that loop forever on the
-	  network.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

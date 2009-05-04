@@ -2,7 +2,6 @@ config SFC
 	tristate "Solarflare Solarstorm SFC4000 support"
 	depends on PCI && INET
 	select MII
-	select INET_LRO
 	select CRC32
 	select I2C
 	select I2C_ALGOBIT

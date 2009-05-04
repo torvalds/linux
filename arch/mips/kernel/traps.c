@@ -944,6 +944,9 @@ asmlinkage void do_mdmx(struct pt_regs *regs)
 	force_sig(SIGILL, current);
 }
 
+/*
+ * Called with interrupts disabled.
+ */
 asmlinkage void do_watch(struct pt_regs *regs)
 {
 	u32 cause;
@@ -963,9 +966,12 @@ asmlinkage void do_watch(struct pt_regs *regs)
 	 */
 	if (test_tsk_thread_flag(current, TIF_LOAD_WATCH)) {
 		mips_read_watch_registers();
+		local_irq_enable();
 		force_sig(SIGTRAP, current);
-	} else
+	} else {
 		mips_clear_watch_registers();
+		local_irq_enable();
+	}
 }
 
 asmlinkage void do_mcheck(struct pt_regs *regs)
@@ -1271,8 +1277,7 @@ static void *set_vi_srs_handler(int n, vi_handler_t addr, int srs)
 	u32 *w;
 	unsigned char *b;
 
-	if (!cpu_has_veic && !cpu_has_vint)
-		BUG();
+	BUG_ON(!cpu_has_veic && !cpu_has_vint);
 
 	if (addr == NULL) {
 		handler = (unsigned long) do_default_vi;
@@ -1514,7 +1519,9 @@ void __cpuinit per_cpu_trap_init(void)
 #endif /* CONFIG_MIPS_MT_SMTC */
 
 	if (cpu_has_veic || cpu_has_vint) {
+		unsigned long sr = set_c0_status(ST0_BEV);
 		write_c0_ebase(ebase);
+		write_c0_status(sr);
 		/* Setting vector spacing enables EI/VI mode  */
 		change_c0_intctl(0x3e0, VECTORSPACING);
 	}
@@ -1582,7 +1589,11 @@ void __init set_handler(unsigned long offset, void *addr, unsigned long size)
 static char panic_null_cerr[] __cpuinitdata =
 	"Trying to set NULL cache error exception handler";
 
-/* Install uncached CPU exception handler */
+/*
+ * Install uncached CPU exception handler.
+ * This is suitable only for the cache error exception which is the only
+ * exception handler that is being run uncached.
+ */
 void __cpuinit set_uncached_handler(unsigned long offset, void *addr,
 	unsigned long size)
 {
@@ -1592,8 +1603,6 @@ void __cpuinit set_uncached_handler(unsigned long offset, void *addr,
 #ifdef CONFIG_64BIT
 	unsigned long uncached_ebase = TO_UNCAC(ebase);
 #endif
-	if (cpu_has_mips_r2)
-		ebase += (read_c0_ebase() & 0x3ffff000);
 
 	if (!addr)
 		panic(panic_null_cerr);
@@ -1625,9 +1634,11 @@ void __init trap_init(void)
 		return;	/* Already done */
 #endif
 
-	if (cpu_has_veic || cpu_has_vint)
-		ebase = (unsigned long) alloc_bootmem_low_pages(0x200 + VECTORSPACING*64);
-	else {
+	if (cpu_has_veic || cpu_has_vint) {
+		unsigned long size = 0x200 + VECTORSPACING*64;
+		ebase = (unsigned long)
+			__alloc_bootmem(size, 1 << fls(size), 0);
+	} else {
 		ebase = CAC_BASE;
 		if (cpu_has_mips_r2)
 			ebase += (read_c0_ebase() & 0x3ffff000);

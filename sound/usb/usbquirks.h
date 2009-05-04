@@ -39,6 +39,16 @@
 	.idProduct = prod, \
 	.bInterfaceClass = USB_CLASS_VENDOR_SPEC
 
+/* Creative/Toshiba Multimedia Center SB-0500 */
+{
+	USB_DEVICE(0x041e, 0x3048),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Toshiba",
+		.product_name = "SB-0500",
+		.ifnum = QUIRK_NO_INTERFACE
+	}
+},
+
 /* Creative/E-Mu devices */
 {
 	USB_DEVICE(0x041e, 0x3010),
@@ -127,6 +137,14 @@
 	.idProduct = 0x08f6,
 	.bInterfaceClass = USB_CLASS_AUDIO,
 	.bInterfaceSubClass = USB_SUBCLASS_AUDIO_CONTROL
+},
+{
+	USB_DEVICE(0x046d, 0x0990),
+	.driver_info = (unsigned long) & (const struct snd_usb_audio_quirk) {
+		.vendor_name = "Logitech, Inc.",
+		.product_name = "QuickCam Pro 9000",
+		.ifnum = QUIRK_NO_INTERFACE
+	}
 },
 
 /*

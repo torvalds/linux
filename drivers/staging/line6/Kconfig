@@ -1,0 +1,21 @@
+config LINE6_USB
+	tristate "Line6 USB support"
+	depends on USB && SND
+	select SND_RAWMIDI
+	help
+	  This is a driver for the guitar amp, cab, and effects modeller
+	  PODxt Pro by Line6 (and similar devices), supporting the
+	  following features:
+	    * Reading/writing individual parameters
+	    * Reading/writing complete channel, effects setup, and amp
+	      setup data
+	    * Channel switching
+	    * Virtual MIDI interface
+	    * Tuner access
+	    * Playback/capture/mixer device for any ALSA-compatible PCM
+	      audio application
+	    * Signal routing (record clean/processed guitar signal,
+	      re-amping)
+
+	  Preliminary support for the Variax Workbench is included.
+

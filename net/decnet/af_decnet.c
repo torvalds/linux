@@ -1246,11 +1246,12 @@ static int dn_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 
 	case TIOCINQ:
 		lock_sock(sk);
-		if ((skb = skb_peek(&scp->other_receive_queue)) != NULL) {
+		skb = skb_peek(&scp->other_receive_queue);
+		if (skb) {
 			amount = skb->len;
 		} else {
-			struct sk_buff *skb = sk->sk_receive_queue.next;
-			for(;;) {
+			skb = sk->sk_receive_queue.next;
+			for (;;) {
 				if (skb ==
 				    (struct sk_buff *)&sk->sk_receive_queue)
 					break;
@@ -1579,16 +1580,16 @@ static int __dn_getsockopt(struct socket *sock, int level,int optname, char __us
 		default:
 #ifdef CONFIG_NETFILTER
 		{
-			int val, len;
+			int ret, len;
 
 			if(get_user(len, optlen))
 				return -EFAULT;
 
-			val = nf_getsockopt(sk, PF_DECnet, optname,
+			ret = nf_getsockopt(sk, PF_DECnet, optname,
 							optval, &len);
-			if (val >= 0)
-				val = put_user(len, optlen);
-			return val;
+			if (ret >= 0)
+				ret = put_user(len, optlen);
+			return ret;
 		}
 #endif
 		case DSO_STREAM:
@@ -2071,8 +2072,7 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 	}
 out:
 
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 
 	release_sock(sk);
 
@@ -2112,9 +2112,8 @@ static struct notifier_block dn_dev_notifier = {
 
 extern int dn_route_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 
-static struct packet_type dn_dix_packet_type = {
-	.type =		__constant_htons(ETH_P_DNA_RT),
-	.dev =		NULL,		/* All devices */
+static struct packet_type dn_dix_packet_type __read_mostly = {
+	.type =		cpu_to_be16(ETH_P_DNA_RT),
 	.func =		dn_route_rcv,
 };
 

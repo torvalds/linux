@@ -38,6 +38,7 @@
 /*
  * CPU Address Decode Windows registers
  */
+#define BRIDGE_REG(x)		(BRIDGE_VIRT_BASE | (x))
 #define CPU_WIN_CTRL(n)		BRIDGE_REG(0x000 | ((n) << 4))
 #define CPU_WIN_BASE(n)		BRIDGE_REG(0x004 | ((n) << 4))
 #define CPU_WIN_REMAP_LO(n)	BRIDGE_REG(0x008 | ((n) << 4))

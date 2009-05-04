@@ -46,7 +46,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/saa7115.h>
 #include <asm/div64.h>
 
@@ -62,12 +62,6 @@ module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-static unsigned short normal_i2c[] = {
-		0x4a >> 1, 0x48 >> 1,	/* SAA7111, SAA7111A and SAA7113 */
-		0x42 >> 1, 0x40 >> 1,	/* SAA7114, SAA7115 and SAA7118 */
-		I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 struct saa711x_state {
 	struct v4l2_subdev sd;
@@ -778,7 +772,7 @@ static int saa711x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 
 	case V4L2_CID_HUE:
-		if (ctrl->value < -127 || ctrl->value > 127) {
+		if (ctrl->value < -128 || ctrl->value > 127) {
 			v4l2_err(sd, "invalid hue setting %d\n", ctrl->value);
 			return -ERANGE;
 		}
@@ -931,8 +925,8 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	/* Prevent unnecessary standard changes. During a standard
 	   change the I-Port is temporarily disabled. Any devices
 	   reading from that port can get confused.
-	   Note that VIDIOC_S_STD is also used to switch from
-	   radio to TV mode, so if a VIDIOC_S_STD is broadcast to
+	   Note that s_std is also used to switch from
+	   radio to TV mode, so if a s_std is broadcast to
 	   all I2C devices then you do not want to have an unwanted
 	   side-effect here. */
 	if (std == state->std)
@@ -1206,10 +1200,12 @@ static int saa711x_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 {
 	switch (qc->id) {
 	case V4L2_CID_BRIGHTNESS:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_CONTRAST:
 	case V4L2_CID_SATURATION:
+		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
 	case V4L2_CID_HUE:
-		return v4l2_ctrl_query_fill_std(qc);
+		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
 	default:
 		return -EINVAL;
 	}
@@ -1232,30 +1228,32 @@ static int saa711x_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int saa711x_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int saa711x_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct saa711x_state *state = to_state(sd);
-	u32 input = route->input;
 	u8 mask = (state->ident == V4L2_IDENT_SAA7111) ? 0xf8 : 0xf0;
 
-	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n", route->input, route->output);
+	v4l2_dbg(1, debug, sd, "decoder set input %d output %d\n",
+		input, output);
+
 	/* saa7111/3 does not have these inputs */
 	if ((state->ident == V4L2_IDENT_SAA7113 ||
 	     state->ident == V4L2_IDENT_SAA7111) &&
-	    (route->input == SAA7115_COMPOSITE4 ||
-	     route->input == SAA7115_COMPOSITE5)) {
+	    (input == SAA7115_COMPOSITE4 ||
+	     input == SAA7115_COMPOSITE5)) {
 		return -EINVAL;
 	}
-	if (route->input > SAA7115_SVIDEO3)
+	if (input > SAA7115_SVIDEO3)
 		return -EINVAL;
-	if (route->output > SAA7115_IPORT_ON)
+	if (output > SAA7115_IPORT_ON)
 		return -EINVAL;
-	if (state->input == route->input && state->output == route->output)
+	if (state->input == input && state->output == output)
 		return 0;
 	v4l2_dbg(1, debug, sd, "now setting %s input %s output\n",
-		(route->input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite",
-		(route->output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
-	state->input = route->input;
+		(input >= SAA7115_SVIDEO0) ? "S-Video" : "Composite",
+		(output == SAA7115_IPORT_ON) ? "iport on" : "iport off");
+	state->input = input;
 
 	/* saa7111 has slightly different input numbering */
 	if (state->ident == V4L2_IDENT_SAA7111) {
@@ -1264,10 +1262,10 @@ static int saa711x_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *
 		/* saa7111 specific */
 		saa711x_write(sd, R_10_CHROMA_CNTL_2,
 				(saa711x_read(sd, R_10_CHROMA_CNTL_2) & 0x3f) |
-				((route->output & 0xc0) ^ 0x40));
+				((output & 0xc0) ^ 0x40));
 		saa711x_write(sd, R_13_RT_X_PORT_OUT_CNTL,
 				(saa711x_read(sd, R_13_RT_X_PORT_OUT_CNTL) & 0xf0) |
-				((route->output & 2) ? 0x0a : 0));
+				((output & 2) ? 0x0a : 0));
 	}
 
 	/* select mode */
@@ -1280,7 +1278,7 @@ static int saa711x_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *
 			(saa711x_read(sd, R_09_LUMA_CNTL) & 0x7f) |
 			(state->input >= SAA7115_SVIDEO0 ? 0x80 : 0x0));
 
-	state->output = route->output;
+	state->output = output;
 	if (state->ident == V4L2_IDENT_SAA7114 ||
 			state->ident == V4L2_IDENT_SAA7115) {
 		saa711x_write(sd, R_83_X_PORT_I_O_ENA_AND_OUT_CLK,
@@ -1308,25 +1306,25 @@ static int saa711x_s_stream(struct v4l2_subdev *sd, int enable)
 	v4l2_dbg(1, debug, sd, "%s output\n",
 			enable ? "enable" : "disable");
 
-	if (state->enable != enable) {
-		state->enable = enable;
-		saa711x_write(sd, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED,
-				state->enable);
-	}
+	if (state->enable == enable)
+		return 0;
+	state->enable = enable;
+	if (!saa711x_has_reg(state->ident, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED))
+		return 0;
+	saa711x_write(sd, R_87_I_PORT_I_O_ENA_OUT_CLK_AND_GATED, state->enable);
 	return 0;
 }
 
-static int saa711x_s_crystal_freq(struct v4l2_subdev *sd, struct v4l2_crystal_freq *freq)
+static int saa711x_s_crystal_freq(struct v4l2_subdev *sd, u32 freq, u32 flags)
 {
 	struct saa711x_state *state = to_state(sd);
 
-	if (freq->freq != SAA7115_FREQ_32_11_MHZ &&
-			freq->freq != SAA7115_FREQ_24_576_MHZ)
+	if (freq != SAA7115_FREQ_32_11_MHZ && freq != SAA7115_FREQ_24_576_MHZ)
 		return -EINVAL;
-	state->crystal_freq = freq->freq;
-	state->cgcdiv = (freq->flags & SAA7115_FREQ_FL_CGCDIV) ? 3 : 4;
-	state->ucgc = (freq->flags & SAA7115_FREQ_FL_UCGC) ? 1 : 0;
-	state->apll = (freq->flags & SAA7115_FREQ_FL_APLL) ? 1 : 0;
+	state->crystal_freq = freq;
+	state->cgcdiv = (flags & SAA7115_FREQ_FL_CGCDIV) ? 3 : 4;
+	state->ucgc = (flags & SAA7115_FREQ_FL_UCGC) ? 1 : 0;
+	state->apll = (flags & SAA7115_FREQ_FL_APLL) ? 1 : 0;
 	saa711x_s_clock_freq(sd, state->audclk_freq);
 	return 0;
 }
@@ -1368,6 +1366,47 @@ static int saa711x_g_vbi_data(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_dat
 	default:
 		return -EINVAL;
 	}
+}
+
+static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
+{
+	struct saa711x_state *state = to_state(sd);
+	int reg1e;
+
+	*std = V4L2_STD_ALL;
+	if (state->ident != V4L2_IDENT_SAA7115)
+		return 0;
+	reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+
+	switch (reg1e & 0x03) {
+	case 1:
+		*std = V4L2_STD_NTSC;
+		break;
+	case 2:
+		*std = V4L2_STD_PAL;
+		break;
+	case 3:
+		*std = V4L2_STD_SECAM;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int saa711x_g_input_status(struct v4l2_subdev *sd, u32 *status)
+{
+	struct saa711x_state *state = to_state(sd);
+	int reg1e = 0x80;
+	int reg1f;
+
+	*status = V4L2_IN_ST_NO_SIGNAL;
+	if (state->ident == V4L2_IDENT_SAA7115)
+		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
+	if ((reg1f & 0xc1) == 0x81 && (reg1e & 0xc0) == 0x80)
+		*status = 0;
+	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1454,11 +1493,6 @@ static int saa711x_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int saa711x_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops saa711x_core_ops = {
@@ -1467,6 +1501,7 @@ static const struct v4l2_subdev_core_ops saa711x_core_ops = {
 	.g_ctrl = saa711x_g_ctrl,
 	.s_ctrl = saa711x_s_ctrl,
 	.queryctrl = saa711x_queryctrl,
+	.s_std = saa711x_s_std,
 	.reset = saa711x_reset,
 	.s_gpio = saa711x_s_gpio,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -1476,7 +1511,6 @@ static const struct v4l2_subdev_core_ops saa711x_core_ops = {
 };
 
 static const struct v4l2_subdev_tuner_ops saa711x_tuner_ops = {
-	.s_std = saa711x_s_std,
 	.s_radio = saa711x_s_radio,
 	.g_tuner = saa711x_g_tuner,
 };
@@ -1493,6 +1527,8 @@ static const struct v4l2_subdev_video_ops saa711x_video_ops = {
 	.g_vbi_data = saa711x_g_vbi_data,
 	.decode_vbi_line = saa711x_decode_vbi_line,
 	.s_stream = saa711x_s_stream,
+	.querystd = saa711x_querystd,
+	.g_input_status = saa711x_g_input_status,
 };
 
 static const struct v4l2_subdev_ops saa711x_ops = {
@@ -1630,10 +1666,7 @@ MODULE_DEVICE_TABLE(i2c, saa7115_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "saa7115",
-	.driverid = I2C_DRIVERID_SAA711X,
-	.command = saa711x_command,
 	.probe = saa711x_probe,
 	.remove = saa711x_remove,
-	.legacy_class = I2C_CLASS_TV_ANALOG | I2C_CLASS_TV_DIGITAL,
 	.id_table = saa7115_id,
 };

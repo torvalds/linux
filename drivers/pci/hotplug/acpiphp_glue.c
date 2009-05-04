@@ -38,6 +38,8 @@
  *  - The one in acpiphp_bridge has its refcount elevated by pci_get_slot()
  *    when the bridge is scanned and it loses a refcount when the bridge
  *    is removed.
+ *  - When a P2P bridge is present, we elevate the refcount on the subordinate
+ *    bus. It loses the refcount when the the driver unloads.
  */
 
 #include <linux/init.h>
@@ -266,6 +268,8 @@ static int detect_ejectable_slots(struct pci_bus *pbus)
 	int found = acpi_pci_detect_ejectable(pbus);
 	if (!found) {
 		acpi_handle bridge_handle = acpi_pci_get_bridge_handle(pbus);
+		if (!bridge_handle)
+			return 0;
 		acpi_walk_namespace(ACPI_TYPE_DEVICE, bridge_handle, (u32)1,
 				    is_pci_dock_device, (void *)&found, NULL);
 	}
@@ -438,6 +442,12 @@ static void add_p2p_bridge(acpi_handle *handle, struct pci_dev *pci_dev)
 		goto err;
 	}
 
+	/*
+	 * Grab a ref to the subordinate PCI bus in case the bus is
+	 * removed via PCI core logical hotplug. The ref pins the bus
+	 * (which we access during module unload).
+	 */
+	get_device(&bridge->pci_bus->dev);
 	spin_lock_init(&bridge->res_lock);
 
 	init_bridge_misc(bridge);
@@ -616,6 +626,12 @@ static void cleanup_bridge(struct acpiphp_bridge *bridge)
 		kfree(slot);
 		slot = next;
 	}
+
+	/*
+	 * Only P2P bridges have a pci_dev
+	 */
+	if (bridge->pci_dev)
+		put_device(&bridge->pci_bus->dev);
 
 	pci_dev_put(bridge->pci_dev);
 	list_del(&bridge->list);

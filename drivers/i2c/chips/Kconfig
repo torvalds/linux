@@ -16,43 +16,6 @@ config DS1682
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1682.
 
-config AT24
-	tristate "EEPROMs from most vendors"
-	depends on SYSFS && EXPERIMENTAL
-	help
-	  Enable this driver to get read/write support to most I2C EEPROMs,
-	  after you configure the driver to know about each EEPROM on
-	  your target board.  Use these generic chip names, instead of
-	  vendor-specific ones like at24c64 or 24lc02:
-
-	     24c00, 24c01, 24c02, spd (readonly 24c02), 24c04, 24c08,
-	     24c16, 24c32, 24c64, 24c128, 24c256, 24c512, 24c1024
-
-	  Unless you like data loss puzzles, always be sure that any chip
-	  you configure as a 24c32 (32 kbit) or larger is NOT really a
-	  24c16 (16 kbit) or smaller, and vice versa. Marking the chip
-	  as read-only won't help recover from this. Also, if your chip
-	  has any software write-protect mechanism you may want to review the
-	  code to make sure this driver won't turn it on by accident.
-
-	  If you use this with an SMBus adapter instead of an I2C adapter,
-	  full functionality is not available.  Only smaller devices are
-	  supported (24c16 and below, max 4 kByte).
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called at24.
-
-config SENSORS_EEPROM
-	tristate "EEPROM reader"
-	depends on EXPERIMENTAL
-	help
-	  If you say yes here you get read-only access to the EEPROM data
-	  available on modern memory DIMMs and Sony Vaio laptops.  Such
-	  EEPROMs could theoretically be available on other devices as well.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called eeprom.
-
 config SENSORS_PCF8574
 	tristate "Philips PCF8574 and PCF8574A (DEPRECATED)"
 	depends on EXPERIMENTAL && GPIO_PCF857X = "n"
@@ -101,19 +64,6 @@ config SENSORS_PCA9539
 	  This driver is deprecated and will be dropped soon. Use
 	  drivers/gpio/pca953x.c instead.
 
-config SENSORS_PCF8591
-	tristate "Philips PCF8591"
-	depends on EXPERIMENTAL
-	default n
-	help
-	  If you say yes here you get support for Philips PCF8591 chips.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called pcf8591.
-
-	  These devices are hard to detect and rarely found on mainstream
-	  hardware.  If unsure, say N.
-
 config SENSORS_MAX6875
 	tristate "Maxim MAX6875 Power supply supervisor"
 	depends on EXPERIMENTAL
@@ -138,16 +88,5 @@ config SENSORS_TSL2550
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
-
-config MCU_MPC8349EMITX
-	tristate "MPC8349E-mITX MCU driver"
-	depends on I2C && PPC_83xx
-	select GENERIC_GPIO
-	select ARCH_REQUIRE_GPIOLIB
-	help
-	  Say Y here to enable soft power-off functionality on the Freescale
-	  boards with the MPC8349E-mITX-compatible MCU chips. This driver will
-	  also register MCU GPIOs with the generic GPIO API, so you'll able
-	  to use MCU pins as GPIOs.
 
 endmenu

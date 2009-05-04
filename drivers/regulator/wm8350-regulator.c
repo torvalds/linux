@@ -24,6 +24,9 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 
+/* Maximum value possible for VSEL */
+#define WM8350_DCDC_MAX_VSEL 0x66
+
 /* Microamps */
 static const int isink_cur[] = {
 	4,
@@ -383,6 +386,14 @@ static int wm8350_dcdc_get_voltage(struct regulator_dev *rdev)
 	/* all DCDCs have same mV bits */
 	val = wm8350_reg_read(wm8350, volt_reg) & WM8350_DC1_VSEL_MASK;
 	return wm8350_dcdc_val_to_mvolts(val) * 1000;
+}
+
+static int wm8350_dcdc_list_voltage(struct regulator_dev *rdev,
+				    unsigned selector)
+{
+	if (selector > WM8350_DCDC_MAX_VSEL)
+		return -EINVAL;
+	return wm8350_dcdc_val_to_mvolts(selector) * 1000;
 }
 
 static int wm8350_dcdc_set_suspend_voltage(struct regulator_dev *rdev, int uV)
@@ -775,6 +786,14 @@ static int wm8350_ldo_get_voltage(struct regulator_dev *rdev)
 	return wm8350_ldo_val_to_mvolts(val) * 1000;
 }
 
+static int wm8350_ldo_list_voltage(struct regulator_dev *rdev,
+				    unsigned selector)
+{
+	if (selector > WM8350_LDO1_VSEL_MASK)
+		return -EINVAL;
+	return wm8350_ldo_val_to_mvolts(selector) * 1000;
+}
+
 int wm8350_dcdc_set_slot(struct wm8350 *wm8350, int dcdc, u16 start,
 			 u16 stop, u16 fault)
 {
@@ -1031,18 +1050,30 @@ static unsigned int wm8350_dcdc_get_mode(struct regulator_dev *rdev)
 	int dcdc = rdev_get_id(rdev);
 	u16 mask, sleep, active, force;
 	int mode = REGULATOR_MODE_NORMAL;
+	int reg;
 
-	if (dcdc < WM8350_DCDC_1 || dcdc > WM8350_DCDC_6)
+	switch (dcdc) {
+	case WM8350_DCDC_1:
+		reg = WM8350_DCDC1_FORCE_PWM;
+		break;
+	case WM8350_DCDC_3:
+		reg = WM8350_DCDC3_FORCE_PWM;
+		break;
+	case WM8350_DCDC_4:
+		reg = WM8350_DCDC4_FORCE_PWM;
+		break;
+	case WM8350_DCDC_6:
+		reg = WM8350_DCDC6_FORCE_PWM;
+		break;
+	default:
 		return -EINVAL;
-
-	if (dcdc == WM8350_DCDC_2 || dcdc == WM8350_DCDC_5)
-		return -EINVAL;
+	}
 
 	mask = 1 << (dcdc - WM8350_DCDC_1);
 	active = wm8350_reg_read(wm8350, WM8350_DCDC_ACTIVE_OPTIONS) & mask;
+	force = wm8350_reg_read(wm8350, reg) & WM8350_DCDC1_FORCE_PWM_ENA;
 	sleep = wm8350_reg_read(wm8350, WM8350_DCDC_SLEEP_OPTIONS) & mask;
-	force = wm8350_reg_read(wm8350, WM8350_DCDC1_FORCE_PWM)
-	    & WM8350_DCDC1_FORCE_PWM_ENA;
+
 	dev_dbg(wm8350->dev, "mask %x active %x sleep %x force %x",
 		mask, active, sleep, force);
 
@@ -1150,6 +1181,7 @@ static int wm8350_ldo_is_enabled(struct regulator_dev *rdev)
 static struct regulator_ops wm8350_dcdc_ops = {
 	.set_voltage = wm8350_dcdc_set_voltage,
 	.get_voltage = wm8350_dcdc_get_voltage,
+	.list_voltage = wm8350_dcdc_list_voltage,
 	.enable = wm8350_dcdc_enable,
 	.disable = wm8350_dcdc_disable,
 	.get_mode = wm8350_dcdc_get_mode,
@@ -1173,6 +1205,7 @@ static struct regulator_ops wm8350_dcdc2_5_ops = {
 static struct regulator_ops wm8350_ldo_ops = {
 	.set_voltage = wm8350_ldo_set_voltage,
 	.get_voltage = wm8350_ldo_get_voltage,
+	.list_voltage = wm8350_ldo_list_voltage,
 	.enable = wm8350_ldo_enable,
 	.disable = wm8350_ldo_disable,
 	.is_enabled = wm8350_ldo_is_enabled,
@@ -1197,6 +1230,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC1,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1213,6 +1247,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC3,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1221,6 +1256,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC4,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1237,6 +1273,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_dcdc_ops,
 		.irq = WM8350_IRQ_UV_DC6,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_DCDC_MAX_VSEL + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1245,6 +1282,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO1,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO1_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1253,6 +1291,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO2,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO2_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1261,6 +1300,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO3,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO3_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1269,6 +1309,7 @@ static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 		.ops = &wm8350_ldo_ops,
 		.irq = WM8350_IRQ_UV_LDO4,
 		.type = REGULATOR_VOLTAGE,
+		.n_voltages = WM8350_LDO4_VSEL_MASK + 1,
 		.owner = THIS_MODULE,
 	},
 	{
@@ -1293,6 +1334,7 @@ static void pmic_uv_handler(struct wm8350 *wm8350, int irq, void *data)
 {
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
 
+	mutex_lock(&rdev->mutex);
 	if (irq == WM8350_IRQ_CS1 || irq == WM8350_IRQ_CS2)
 		regulator_notifier_call_chain(rdev,
 					      REGULATOR_EVENT_REGULATION_OUT,
@@ -1301,6 +1343,7 @@ static void pmic_uv_handler(struct wm8350 *wm8350, int irq, void *data)
 		regulator_notifier_call_chain(rdev,
 					      REGULATOR_EVENT_UNDER_VOLTAGE,
 					      wm8350);
+	mutex_unlock(&rdev->mutex);
 }
 
 static int wm8350_regulator_probe(struct platform_device *pdev)
@@ -1333,9 +1376,9 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 		break;
 	}
 
-
 	/* register regulator */
 	rdev = regulator_register(&wm8350_reg[pdev->id], &pdev->dev,
+				  pdev->dev.platform_data,
 				  dev_get_drvdata(&pdev->dev));
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register %s\n",
@@ -1435,7 +1478,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	struct platform_device *pdev;
 	int ret;
 
-	if (lednum > ARRAY_SIZE(wm8350->pmic.led) || lednum < 0) {
+	if (lednum >= ARRAY_SIZE(wm8350->pmic.led) || lednum < 0) {
 		dev_err(wm8350->dev, "Invalid LED index %d\n", lednum);
 		return -ENODEV;
 	}

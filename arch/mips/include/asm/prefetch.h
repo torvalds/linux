@@ -26,7 +26,7 @@
  * Pref_WriteBackInvalidate is a nop and Pref_PrepareForStore is broken in
  * current versions due to erratum G105.
  *
- * VR7701 only implements the Load prefetch.
+ * VR5500 (including VR5701 and VR7701) only implement load prefetch.
  *
  * Finally MIPS32 and MIPS64 implement all of the following hints.
  */

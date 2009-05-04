@@ -651,7 +651,6 @@ static int i2c_bfin_twi_probe(struct platform_device *pdev)
 	iface->timeout_timer.data = (unsigned long)iface;
 
 	p_adap = &iface->adap;
-	p_adap->id = I2C_HW_BLACKFIN;
 	p_adap->nr = pdev->id;
 	strlcpy(p_adap->name, pdev->name, sizeof(p_adap->name));
 	p_adap->algo = &bfin_twi_algorithm;

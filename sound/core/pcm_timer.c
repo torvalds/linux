@@ -85,25 +85,19 @@ static unsigned long snd_pcm_timer_resolution(struct snd_timer * timer)
 
 static int snd_pcm_timer_start(struct snd_timer * timer)
 {
-	unsigned long flags;
 	struct snd_pcm_substream *substream;
 	
 	substream = snd_timer_chip(timer);
-	spin_lock_irqsave(&substream->timer_lock, flags);
 	substream->timer_running = 1;
-	spin_unlock_irqrestore(&substream->timer_lock, flags);
 	return 0;
 }
 
 static int snd_pcm_timer_stop(struct snd_timer * timer)
 {
-	unsigned long flags;
 	struct snd_pcm_substream *substream;
 	
 	substream = snd_timer_chip(timer);
-	spin_lock_irqsave(&substream->timer_lock, flags);
 	substream->timer_running = 0;
-	spin_unlock_irqrestore(&substream->timer_lock, flags);
 	return 0;
 }
 

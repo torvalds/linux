@@ -21,9 +21,11 @@
 #define _IEEE1394_NODEMGR_H
 
 #include <linux/device.h>
+#include <asm/system.h>
 #include <asm/types.h>
 
 #include "ieee1394_core.h"
+#include "ieee1394_transactions.h"
 #include "ieee1394_types.h"
 
 struct csr1212_csr;
@@ -123,7 +125,7 @@ struct hpsb_protocol_driver {
 	 * probe function below can implement further protocol
 	 * dependent or vendor dependent checking.
 	 */
-	struct ieee1394_device_id *id_table;
+	const struct ieee1394_device_id *id_table;
 
 	/*
 	 * The update function is called when the node has just
@@ -154,6 +156,22 @@ static inline int hpsb_node_entry_valid(struct node_entry *ne)
 void hpsb_node_fill_packet(struct node_entry *ne, struct hpsb_packet *packet);
 int hpsb_node_write(struct node_entry *ne, u64 addr,
 		    quadlet_t *buffer, size_t length);
+static inline int hpsb_node_read(struct node_entry *ne, u64 addr,
+				 quadlet_t *buffer, size_t length)
+{
+	unsigned int g = ne->generation;
+
+	smp_rmb();
+	return hpsb_read(ne->host, ne->nodeid, g, addr, buffer, length);
+}
+static inline int hpsb_node_lock(struct node_entry *ne, u64 addr, int extcode,
+				 quadlet_t *buffer, quadlet_t arg)
+{
+	unsigned int g = ne->generation;
+
+	smp_rmb();
+	return hpsb_lock(ne->host, ne->nodeid, g, addr, extcode, buffer, arg);
+}
 int nodemgr_for_each_host(void *data, int (*cb)(struct hpsb_host *, void *));
 
 int init_ieee1394_nodemgr(void);

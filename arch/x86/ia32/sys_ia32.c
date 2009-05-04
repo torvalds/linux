@@ -129,21 +129,12 @@ asmlinkage long sys32_fstatat(unsigned int dfd, char __user *filename,
 			      struct stat64 __user *statbuf, int flag)
 {
 	struct kstat stat;
-	int error = -EINVAL;
+	int error;
 
-	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
-		goto out;
-
-	if (flag & AT_SYMLINK_NOFOLLOW)
-		error = vfs_lstat_fd(dfd, filename, &stat);
-	else
-		error = vfs_stat_fd(dfd, filename, &stat);
-
-	if (!error)
-		error = cp_stat64(statbuf, &stat);
-
-out:
-	return error;
+	error = vfs_fstatat(dfd, filename, &stat, flag);
+	if (error)
+		return error;
+	return cp_stat64(statbuf, &stat);
 }
 
 /*
@@ -636,28 +627,6 @@ long sys32_uname(struct old_utsname __user *name)
 		err |= copy_to_user(&name->machine, "i686", 5);
 
 	return err ? -EFAULT : 0;
-}
-
-long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
-{
-	struct ustat u;
-	mm_segment_t seg;
-	int ret;
-
-	seg = get_fs();
-	set_fs(KERNEL_DS);
-	ret = sys_ustat(dev, (struct ustat __user *)&u);
-	set_fs(seg);
-	if (ret < 0)
-		return ret;
-
-	if (!access_ok(VERIFY_WRITE, u32p, sizeof(struct ustat32)) ||
-	    __put_user((__u32) u.f_tfree, &u32p->f_tfree) ||
-	    __put_user((__u32) u.f_tinode, &u32p->f_tfree) ||
-	    __copy_to_user(&u32p->f_fname, u.f_fname, sizeof(u.f_fname)) ||
-	    __copy_to_user(&u32p->f_fpack, u.f_fpack, sizeof(u.f_fpack)))
-		ret = -EFAULT;
-	return ret;
 }
 
 asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,

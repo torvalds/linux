@@ -1,0 +1,16 @@
+#
+# Kbuild for the EXOFS module
+#
+# Copyright (C) 2008 Panasas Inc.  All rights reserved.
+#
+# Authors:
+#   Boaz Harrosh <bharrosh@panasas.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2
+#
+# Kbuild - Gets included from the Kernels Makefile and build system
+#
+
+exofs-y := osd.o inode.o file.o symlink.o namei.o dir.o super.o
+obj-$(CONFIG_EXOFS_FS) += exofs.o

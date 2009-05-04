@@ -88,7 +88,7 @@ struct iscsi_transport {
 	uint64_t host_param_mask;
 	struct iscsi_cls_session *(*create_session) (struct iscsi_endpoint *ep,
 					uint16_t cmds_max, uint16_t qdepth,
-					uint32_t sn, uint32_t *hn);
+					uint32_t sn);
 	void (*destroy_session) (struct iscsi_cls_session *session);
 	struct iscsi_cls_conn *(*create_conn) (struct iscsi_cls_session *sess,
 				uint32_t cid);
@@ -206,8 +206,6 @@ struct iscsi_cls_session {
 struct iscsi_cls_host {
 	atomic_t nr_scans;
 	struct mutex mutex;
-	struct workqueue_struct *scan_workq;
-	char scan_workq_name[20];
 };
 
 extern void iscsi_host_for_each_session(struct Scsi_Host *shost,

@@ -64,6 +64,7 @@
  */
 #define VENDOR_ID_NOKIA		0x0421
 #define VENDOR_ID_NIKON		0x04b0
+#define VENDOR_ID_PENTAX	0x0a17
 #define VENDOR_ID_MOTOROLA	0x22b8
 
 /***********************************************************************
@@ -134,6 +135,12 @@ static int slave_configure(struct scsi_device *sdev)
 		if (sdev->request_queue->max_sectors > max_sectors)
 			blk_queue_max_sectors(sdev->request_queue,
 					      max_sectors);
+	} else if (sdev->type == TYPE_TAPE) {
+		/* Tapes need much higher max_sector limits, so just
+		 * raise it to the maximum possible (4 GB / 512) and
+		 * let the queue segment size sort out the real limit.
+		 */
+		blk_queue_max_sectors(sdev->request_queue, 0x7FFFFF);
 	}
 
 	/* Some USB host controllers can't do DMA; they have to use PIO.
@@ -158,6 +165,7 @@ static int slave_configure(struct scsi_device *sdev)
 		switch (le16_to_cpu(us->pusb_dev->descriptor.idVendor)) {
 		case VENDOR_ID_NOKIA:
 		case VENDOR_ID_NIKON:
+		case VENDOR_ID_PENTAX:
 		case VENDOR_ID_MOTOROLA:
 			if (!(us->fflags & (US_FL_FIX_CAPACITY |
 					US_FL_CAPACITY_OK)))
@@ -561,4 +569,4 @@ unsigned char usb_stor_sense_invalidCDB[18] = {
 	[7]	= 0x0a,			    /* additional length */
 	[12]	= 0x24			    /* Invalid Field in CDB */
 };
-
+EXPORT_SYMBOL_GPL(usb_stor_sense_invalidCDB);

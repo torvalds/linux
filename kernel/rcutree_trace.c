@@ -43,18 +43,18 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include "rcutree.h"
+
 static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d pqc=%ld qp=%d rpfq=%ld rp=%x",
+	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d pqc=%ld qp=%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
 		   rdp->completed, rdp->gpnum,
 		   rdp->passed_quiesc, rdp->passed_quiesc_completed,
-		   rdp->qs_pending,
-		   rdp->n_rcu_pending_force_qs - rdp->n_rcu_pending,
-		   (int)(rdp->n_rcu_pending & 0xffff));
+		   rdp->qs_pending);
 #ifdef CONFIG_NO_HZ
 	seq_printf(m, " dt=%d/%d dn=%d df=%lu",
 		   rdp->dynticks->dynticks,
@@ -100,14 +100,12 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 {
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%d,%s,%ld,%ld,%d,%ld,%d,%ld,%ld",
+	seq_printf(m, "%d,%s,%ld,%ld,%d,%ld,%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? "\"Y\"" : "\"N\"",
 		   rdp->completed, rdp->gpnum,
 		   rdp->passed_quiesc, rdp->passed_quiesc_completed,
-		   rdp->qs_pending,
-		   rdp->n_rcu_pending_force_qs - rdp->n_rcu_pending,
-		   rdp->n_rcu_pending);
+		   rdp->qs_pending);
 #ifdef CONFIG_NO_HZ
 	seq_printf(m, ",%d,%d,%d,%lu",
 		   rdp->dynticks->dynticks,
@@ -121,7 +119,7 @@ static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
 
 static int show_rcudata_csv(struct seq_file *m, void *unused)
 {
-	seq_puts(m, "\"CPU\",\"Online?\",\"c\",\"g\",\"pq\",\"pqc\",\"pq\",\"rpfq\",\"rp\",");
+	seq_puts(m, "\"CPU\",\"Online?\",\"c\",\"g\",\"pq\",\"pqc\",\"pq\",");
 #ifdef CONFIG_NO_HZ
 	seq_puts(m, "\"dt\",\"dt nesting\",\"dn\",\"df\",");
 #endif /* #ifdef CONFIG_NO_HZ */

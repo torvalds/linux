@@ -112,8 +112,8 @@ ENTRY(ia32_sysenter_target)
 	CFI_DEF_CFA	rsp,0
 	CFI_REGISTER	rsp,rbp
 	SWAPGS_UNSAFE_STACK
-	movq	%gs:pda_kernelstack, %rsp
-	addq	$(PDA_STACKOFFSET),%rsp	
+	movq	PER_CPU_VAR(kernel_stack), %rsp
+	addq	$(KERNEL_STACK_OFFSET),%rsp
 	/*
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs, here we enable it straight after entry:
@@ -273,13 +273,13 @@ ENDPROC(ia32_sysenter_target)
 ENTRY(ia32_cstar_target)
 	CFI_STARTPROC32	simple
 	CFI_SIGNAL_FRAME
-	CFI_DEF_CFA	rsp,PDA_STACKOFFSET
+	CFI_DEF_CFA	rsp,KERNEL_STACK_OFFSET
 	CFI_REGISTER	rip,rcx
 	/*CFI_REGISTER	rflags,r11*/
 	SWAPGS_UNSAFE_STACK
 	movl	%esp,%r8d
 	CFI_REGISTER	rsp,r8
-	movq	%gs:pda_kernelstack,%rsp
+	movq	PER_CPU_VAR(kernel_stack),%rsp
 	/*
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs and here we enable it straight after entry:
@@ -418,9 +418,9 @@ ENTRY(ia32_syscall)
 	orl   $TS_COMPAT,TI_status(%r10)
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%r10)
 	jnz ia32_tracesys
-ia32_do_syscall:	
 	cmpl $(IA32_NR_syscalls-1),%eax
-	ja  int_ret_from_sys_call	/* ia32_tracesys has set RAX(%rsp) */
+	ja ia32_badsys
+ia32_do_call:
 	IA32_ARG_FIXUP
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
 ia32_sysret:
@@ -435,7 +435,9 @@ ia32_tracesys:
 	call syscall_trace_enter
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
-	jmp ia32_do_syscall
+	cmpl $(IA32_NR_syscalls-1),%eax
+	ja  int_ret_from_sys_call	/* ia32_tracesys has set RAX(%rsp) */
+	jmp ia32_do_call
 END(ia32_syscall)
 
 ia32_badsys:
@@ -555,7 +557,7 @@ ia32_sys_call_table:
 	.quad sys32_olduname
 	.quad sys_umask		/* 60 */
 	.quad sys_chroot
-	.quad sys32_ustat
+	.quad compat_sys_ustat
 	.quad sys_dup2
 	.quad sys_getppid
 	.quad sys_getpgrp		/* 65 */
@@ -826,4 +828,6 @@ ia32_sys_call_table:
 	.quad sys_dup3			/* 330 */
 	.quad sys_pipe2
 	.quad sys_inotify_init1
+	.quad compat_sys_preadv
+	.quad compat_sys_pwritev
 ia32_syscall_end:

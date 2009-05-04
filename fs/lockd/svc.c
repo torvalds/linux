@@ -53,17 +53,6 @@ static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
 /*
- * If the kernel has IPv6 support available, always listen for
- * both AF_INET and AF_INET6 requests.
- */
-#if (defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)) && \
-	defined(CONFIG_SUNRPC_REGISTER_V4)
-static const sa_family_t	nlmsvc_family = AF_INET6;
-#else	/* (CONFIG_IPV6 || CONFIG_IPV6_MODULE) && CONFIG_SUNRPC_REGISTER_V4 */
-static const sa_family_t	nlmsvc_family = AF_INET;
-#endif	/* (CONFIG_IPV6 || CONFIG_IPV6_MODULE) && CONFIG_SUNRPC_REGISTER_V4 */
-
-/*
  * These can be set at insmod time (useful for NFS as root filesystem),
  * and also changed through the sysctl interface.  -- Jamie Lokier, Aug 2003
  */
@@ -204,17 +193,28 @@ lockd(void *vrqstp)
 	return 0;
 }
 
-static int create_lockd_listener(struct svc_serv *serv, char *name,
-				 unsigned short port)
+static int create_lockd_listener(struct svc_serv *serv, const char *name,
+				 const int family, const unsigned short port)
 {
 	struct svc_xprt *xprt;
 
-	xprt = svc_find_xprt(serv, name, 0, 0);
+	xprt = svc_find_xprt(serv, name, family, 0);
 	if (xprt == NULL)
-		return svc_create_xprt(serv, name, port, SVC_SOCK_DEFAULTS);
-
+		return svc_create_xprt(serv, name, family, port,
+						SVC_SOCK_DEFAULTS);
 	svc_xprt_put(xprt);
 	return 0;
+}
+
+static int create_lockd_family(struct svc_serv *serv, const int family)
+{
+	int err;
+
+	err = create_lockd_listener(serv, "udp", family, nlm_udpport);
+	if (err < 0)
+		return err;
+
+	return create_lockd_listener(serv, "tcp", family, nlm_tcpport);
 }
 
 /*
@@ -232,13 +232,15 @@ static int make_socks(struct svc_serv *serv)
 	static int warned;
 	int err;
 
-	err = create_lockd_listener(serv, "udp", nlm_udpport);
+	err = create_lockd_family(serv, PF_INET);
 	if (err < 0)
 		goto out_err;
 
-	err = create_lockd_listener(serv, "tcp", nlm_tcpport);
-	if (err < 0)
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	err = create_lockd_family(serv, PF_INET6);
+	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_err;
+#endif	/* CONFIG_IPV6 || CONFIG_IPV6_MODULE */
 
 	warned = 0;
 	return 0;
@@ -274,7 +276,7 @@ int lockd_up(void)
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
 	error = -ENOMEM;
-	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, nlmsvc_family, NULL);
+	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, NULL);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		goto out;

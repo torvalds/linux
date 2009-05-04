@@ -165,9 +165,15 @@ static void nuke(struct musb_ep *ep, const int status)
 	if (is_dma_capable() && ep->dma) {
 		struct dma_controller	*c = ep->musb->dma_controller;
 		int value;
+
 		if (ep->is_in) {
+			/*
+			 * The programming guide says that we must not clear
+			 * the DMAMODE bit before DMAENAB, so we only
+			 * clear it in the second write...
+			 */
 			musb_writew(epio, MUSB_TXCSR,
-					0 | MUSB_TXCSR_FLUSHFIFO);
+				    MUSB_TXCSR_DMAMODE | MUSB_TXCSR_FLUSHFIFO);
 			musb_writew(epio, MUSB_TXCSR,
 					0 | MUSB_TXCSR_FLUSHFIFO);
 		} else {
@@ -230,7 +236,7 @@ static inline int max_ep_writesize(struct musb *musb, struct musb_ep *ep)
 		  |	IN token(s) are recd from Host.
 		  |		-> DMA interrupt on completion
 		  |		   calls TxAvail.
-		  |		      -> stop DMA, ~DmaEenab,
+		  |		      -> stop DMA, ~DMAENAB,
 		  |		      -> set TxPktRdy for last short pkt or zlp
 		  |		      -> Complete Request
 		  |		      -> Continue next request (call txstate)
@@ -315,9 +321,17 @@ static void txstate(struct musb *musb, struct musb_request *req)
 					request->dma, request_size);
 			if (use_dma) {
 				if (musb_ep->dma->desired_mode == 0) {
-					/* ASSERT: DMAENAB is clear */
-					csr &= ~(MUSB_TXCSR_AUTOSET |
-							MUSB_TXCSR_DMAMODE);
+					/*
+					 * We must not clear the DMAMODE bit
+					 * before the DMAENAB bit -- and the
+					 * latter doesn't always get cleared
+					 * before we get here...
+					 */
+					csr &= ~(MUSB_TXCSR_AUTOSET
+						| MUSB_TXCSR_DMAENAB);
+					musb_writew(epio, MUSB_TXCSR, csr
+						| MUSB_TXCSR_P_WZC_BITS);
+					csr &= ~MUSB_TXCSR_DMAMODE;
 					csr |= (MUSB_TXCSR_DMAENAB |
 							MUSB_TXCSR_MODE);
 					/* against programming guide */
@@ -334,10 +348,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 
 #elif defined(CONFIG_USB_TI_CPPI_DMA)
 		/* program endpoint CSR first, then setup DMA */
-		csr &= ~(MUSB_TXCSR_AUTOSET
-				| MUSB_TXCSR_DMAMODE
-				| MUSB_TXCSR_P_UNDERRUN
-				| MUSB_TXCSR_TXPKTRDY);
+		csr &= ~(MUSB_TXCSR_P_UNDERRUN | MUSB_TXCSR_TXPKTRDY);
 		csr |= MUSB_TXCSR_MODE | MUSB_TXCSR_DMAENAB;
 		musb_writew(epio, MUSB_TXCSR,
 			(MUSB_TXCSR_P_WZC_BITS & ~MUSB_TXCSR_P_UNDERRUN)
@@ -364,8 +375,8 @@ static void txstate(struct musb *musb, struct musb_request *req)
 		if (!use_dma) {
 			c->channel_release(musb_ep->dma);
 			musb_ep->dma = NULL;
-			/* ASSERT: DMAENAB clear */
-			csr &= ~(MUSB_TXCSR_DMAMODE | MUSB_TXCSR_MODE);
+			csr &= ~MUSB_TXCSR_DMAENAB;
+			musb_writew(epio, MUSB_TXCSR, csr);
 			/* invariant: prequest->buf is non-null */
 		}
 #elif defined(CONFIG_USB_TUSB_OMAP_DMA)
@@ -575,7 +586,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 	struct usb_request	*request = &req->request;
 	struct musb_ep		*musb_ep = &musb->endpoints[epnum].ep_out;
 	void __iomem		*epio = musb->endpoints[epnum].regs;
-	u16			fifo_count = 0;
+	unsigned		fifo_count = 0;
 	u16			len = musb_ep->packet_sz;
 
 	csr = musb_readw(epio, MUSB_RXCSR);
@@ -687,7 +698,7 @@ static void rxstate(struct musb *musb, struct musb_request *req)
 					len, fifo_count,
 					musb_ep->packet_sz);
 
-			fifo_count = min(len, fifo_count);
+			fifo_count = min_t(unsigned, len, fifo_count);
 
 #ifdef	CONFIG_USB_TUSB_OMAP_DMA
 			if (tusb_dma_omap() && musb_ep->dma) {
@@ -874,10 +885,10 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		status = -EBUSY;
 		goto fail;
 	}
-	musb_ep->type = desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK;
+	musb_ep->type = usb_endpoint_type(desc);
 
 	/* check direction and (later) maxpacket size against endpoint */
-	if ((desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK) != epnum)
+	if (usb_endpoint_num(desc) != epnum)
 		goto fail;
 
 	/* REVISIT this rules out high bandwidth periodic transfers */
@@ -890,7 +901,7 @@ static int musb_gadget_enable(struct usb_ep *ep,
 	 * packet size (or fail), set the mode, clear the fifo
 	 */
 	musb_ep_select(mbase, epnum);
-	if (desc->bEndpointAddress & USB_DIR_IN) {
+	if (usb_endpoint_dir_in(desc)) {
 		u16 int_txe = musb_readw(mbase, MUSB_INTRTXE);
 
 		if (hw_ep->is_shared_fifo)

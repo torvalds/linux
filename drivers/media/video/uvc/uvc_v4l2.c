@@ -1,7 +1,7 @@
 /*
  *      uvc_v4l2.c  --  USB Video Class driver - V4L2 API
  *
- *      Copyright (C) 2005-2008
+ *      Copyright (C) 2005-2009
  *          Laurent Pinchart (laurent.pinchart@skynet.be)
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -37,7 +37,7 @@
  * must be grouped (for instance the Red Balance, Blue Balance and Do White
  * Balance V4L2 controls use the White Balance Component UVC control) or
  * otherwise translated. The approach we take here is to use a translation
- * table for the controls which can be mapped directly, and handle the others
+ * table for the controls that can be mapped directly, and handle the others
  * manually.
  */
 static int uvc_v4l2_query_menu(struct uvc_video_device *video,
@@ -55,7 +55,7 @@ static int uvc_v4l2_query_menu(struct uvc_video_device *video,
 		return -EINVAL;
 
 	menu_info = &mapping->menu_info[query_menu->index];
-	strncpy(query_menu->name, menu_info->name, 32);
+	strlcpy(query_menu->name, menu_info->name, sizeof query_menu->name);
 	return 0;
 }
 
@@ -189,7 +189,7 @@ static int uvc_v4l2_try_format(struct uvc_video_device *video,
 		probe->dwMaxVideoFrameSize =
 			video->streaming->ctrl.dwMaxVideoFrameSize;
 
-	/* Probe the device */
+	/* Probe the device. */
 	if ((ret = uvc_probe_video(video, probe)) < 0)
 		goto done;
 
@@ -354,11 +354,11 @@ static int uvc_v4l2_set_streamparm(struct uvc_video_device *video,
  *
  * Each open instance of a UVC device can either be in a privileged or
  * unprivileged state. Only a single instance can be in a privileged state at
- * a given time. Trying to perform an operation which requires privileges will
+ * a given time. Trying to perform an operation that requires privileges will
  * automatically acquire the required privileges if possible, or return -EBUSY
  * otherwise. Privileges are dismissed when closing the instance.
  *
- * Operations which require privileges are:
+ * Operations that require privileges are:
  *
  * - VIDIOC_S_INPUT
  * - VIDIOC_S_PARM
@@ -486,10 +486,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		struct v4l2_capability *cap = arg;
 
 		memset(cap, 0, sizeof *cap);
-		strncpy(cap->driver, "uvcvideo", sizeof cap->driver);
-		strncpy(cap->card, vdev->name, 32);
-		strncpy(cap->bus_info, video->dev->udev->bus->bus_name,
-			sizeof cap->bus_info);
+		strlcpy(cap->driver, "uvcvideo", sizeof cap->driver);
+		strlcpy(cap->card, vdev->name, sizeof cap->card);
+		usb_make_path(video->dev->udev,
+			      cap->bus_info, sizeof(cap->bus_info));
 		cap->version = DRIVER_VERSION_NUMBER;
 		if (video->streaming->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 			cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
@@ -620,7 +620,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		memset(input, 0, sizeof *input);
 		input->index = index;
-		strncpy(input->name, iterm->name, sizeof input->name);
+		strlcpy(input->name, iterm->name, sizeof input->name);
 		if (UVC_ENTITY_TYPE(iterm) == ITT_CAMERA)
 			input->type = V4L2_INPUT_TYPE_CAMERA;
 		break;
@@ -673,16 +673,22 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	{
 		struct v4l2_fmtdesc *fmt = arg;
 		struct uvc_format *format;
+		enum v4l2_buf_type type = fmt->type;
+		__u32 index = fmt->index;
 
 		if (fmt->type != video->streaming->type ||
 		    fmt->index >= video->streaming->nformats)
 			return -EINVAL;
 
+		memset(fmt, 0, sizeof(*fmt));
+		fmt->index = index;
+		fmt->type = type;
+
 		format = &video->streaming->format[fmt->index];
 		fmt->flags = 0;
 		if (format->flags & UVC_FMT_FLAG_COMPRESSED)
 			fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
-		strncpy(fmt->description, format->name,
+		strlcpy(fmt->description, format->name,
 			sizeof fmt->description);
 		fmt->description[sizeof fmt->description - 1] = 0;
 		fmt->pixelformat = format->fcc;

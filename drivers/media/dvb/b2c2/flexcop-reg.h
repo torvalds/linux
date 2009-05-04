@@ -1,13 +1,10 @@
 /*
- * This file is part of linux driver the digital TV devices equipped with B2C2 FlexcopII(b)/III
- *
+ * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
  * flexcop-reg.h - register abstraction for FlexCopII, FlexCopIIb and FlexCopIII
- *
- * see flexcop.c for copyright information.
+ * see flexcop.c for copyright information
  */
 #ifndef __FLEXCOP_REG_H__
 #define __FLEXCOP_REG_H__
-
 
 typedef enum {
 	FLEXCOP_UNK = 0,
@@ -18,13 +15,13 @@ typedef enum {
 
 typedef enum {
 	FC_UNK = 0,
-	FC_AIR_DVB,
+	FC_CABLE,
+	FC_AIR_DVBT,
 	FC_AIR_ATSC1,
 	FC_AIR_ATSC2,
-	FC_SKY,
-	FC_SKY_OLD,
-	FC_CABLE,
 	FC_AIR_ATSC3,
+	FC_SKY_REV23,
+	FC_SKY_REV26,
 	FC_SKY_REV27,
 	FC_SKY_REV28,
 } flexcop_device_type_t;
@@ -36,12 +33,12 @@ typedef enum {
 
 /* FlexCop IBI Registers */
 #if defined(__LITTLE_ENDIAN)
-	#include "flexcop_ibi_value_le.h"
+#include "flexcop_ibi_value_le.h"
 #else
 #if defined(__BIG_ENDIAN)
-	#include "flexcop_ibi_value_be.h"
+#include "flexcop_ibi_value_be.h"
 #else
-	#error no endian defined
+#error no endian defined
 #endif
 #endif
 

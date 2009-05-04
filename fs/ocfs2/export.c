@@ -31,6 +31,7 @@
 
 #include "ocfs2.h"
 
+#include "alloc.h"
 #include "dir.h"
 #include "dlmglue.h"
 #include "dcache.h"
@@ -38,6 +39,7 @@
 #include "inode.h"
 
 #include "buffer_head_io.h"
+#include "suballoc.h"
 
 struct ocfs2_inode_handle
 {
@@ -49,29 +51,97 @@ static struct dentry *ocfs2_get_dentry(struct super_block *sb,
 		struct ocfs2_inode_handle *handle)
 {
 	struct inode *inode;
+	struct ocfs2_super *osb = OCFS2_SB(sb);
+	u64 blkno = handle->ih_blkno;
+	int status, set;
 	struct dentry *result;
 
 	mlog_entry("(0x%p, 0x%p)\n", sb, handle);
 
-	if (handle->ih_blkno == 0) {
-		mlog_errno(-ESTALE);
-		return ERR_PTR(-ESTALE);
+	if (blkno == 0) {
+		mlog(0, "nfs wants inode with blkno: 0\n");
+		result = ERR_PTR(-ESTALE);
+		goto bail;
 	}
 
-	inode = ocfs2_iget(OCFS2_SB(sb), handle->ih_blkno, 0, 0);
+	inode = ocfs2_ilookup(sb, blkno);
+	/*
+	 * If the inode exists in memory, we only need to check it's
+	 * generation number
+	 */
+	if (inode)
+		goto check_gen;
 
-	if (IS_ERR(inode))
-		return (void *)inode;
+	/*
+	 * This will synchronize us against ocfs2_delete_inode() on
+	 * all nodes
+	 */
+	status = ocfs2_nfs_sync_lock(osb, 1);
+	if (status < 0) {
+		mlog(ML_ERROR, "getting nfs sync lock(EX) failed %d\n", status);
+		goto check_err;
+	}
 
+	status = ocfs2_test_inode_bit(osb, blkno, &set);
+	if (status < 0) {
+		if (status == -EINVAL) {
+			/*
+			 * The blkno NFS gave us doesn't even show up
+			 * as an inode, we return -ESTALE to be
+			 * nice
+			 */
+			mlog(0, "test inode bit failed %d\n", status);
+			status = -ESTALE;
+		} else {
+			mlog(ML_ERROR, "test inode bit failed %d\n", status);
+		}
+		goto unlock_nfs_sync;
+	}
+
+	/* If the inode allocator bit is clear, this inode must be stale */
+	if (!set) {
+		mlog(0, "inode %llu suballoc bit is clear\n", blkno);
+		status = -ESTALE;
+		goto unlock_nfs_sync;
+	}
+
+	inode = ocfs2_iget(osb, blkno, 0, 0);
+
+unlock_nfs_sync:
+	ocfs2_nfs_sync_unlock(osb, 1);
+
+check_err:
+	if (status < 0) {
+		if (status == -ESTALE) {
+			mlog(0, "stale inode ino: %llu generation: %u\n",
+			     blkno, handle->ih_generation);
+		}
+		result = ERR_PTR(status);
+		goto bail;
+	}
+
+	if (IS_ERR(inode)) {
+		mlog_errno(PTR_ERR(inode));
+		result = (void *)inode;
+		goto bail;
+	}
+
+check_gen:
 	if (handle->ih_generation != inode->i_generation) {
 		iput(inode);
-		return ERR_PTR(-ESTALE);
+		mlog(0, "stale inode ino: %llu generation: %u\n", blkno,
+		     handle->ih_generation);
+		result = ERR_PTR(-ESTALE);
+		goto bail;
 	}
 
 	result = d_obtain_alias(inode);
 	if (!IS_ERR(result))
 		result->d_op = &ocfs2_dentry_ops;
+	else
+		mlog_errno(PTR_ERR(result));
 
+bail:
 	mlog_exit_ptr(result);
 	return result;
 }

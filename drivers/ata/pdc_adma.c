@@ -148,6 +148,8 @@ static struct scsi_host_template adma_ata_sht = {
 static struct ata_port_operations adma_ata_ops = {
 	.inherits		= &ata_sff_port_ops,
 
+	.lost_interrupt		= ATA_OP_NULL,
+
 	.check_atapi_dma	= adma_check_atapi_dma,
 	.qc_prep		= adma_qc_prep,
 	.qc_issue		= adma_qc_issue,
@@ -166,7 +168,7 @@ static struct ata_port_info adma_port_info[] = {
 		.flags		= ATA_FLAG_SLAVE_POSS |
 				  ATA_FLAG_NO_LEGACY | ATA_FLAG_MMIO |
 				  ATA_FLAG_PIO_POLLING,
-		.pio_mask	= 0x10, /* pio4 */
+		.pio_mask	= ATA_PIO4_ONLY,
 		.udma_mask	= ATA_UDMA4,
 		.port_ops	= &adma_ata_ops,
 	},
@@ -605,13 +607,13 @@ static int adma_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 {
 	int rc;
 
-	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			"32-bit DMA enable failed\n");
 		return rc;
 	}
-	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+	rc = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			"32-bit consistent DMA enable failed\n");

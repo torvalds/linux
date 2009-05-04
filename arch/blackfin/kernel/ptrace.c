@@ -45,6 +45,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/dma.h>
 #include <asm/fixed_code.h>
+#include <asm/cacheflush.h>
 #include <asm/mem_map.h>
 
 #define TEXT_OFFSET 0
@@ -240,7 +241,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 			} else if (addr >= FIXED_CODE_START
 			    && addr + sizeof(tmp) <= FIXED_CODE_END) {
-				memcpy(&tmp, (const void *)(addr), sizeof(tmp));
+				copy_from_user_page(0, 0, 0, &tmp, (const void *)(addr), sizeof(tmp));
 				copied = sizeof(tmp);
 
 			} else
@@ -320,7 +321,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 			} else if (addr >= FIXED_CODE_START
 			    && addr + sizeof(data) <= FIXED_CODE_END) {
-				memcpy((void *)(addr), &data, sizeof(data));
+				copy_to_user_page(0, 0, 0, (void *)(addr), &data, sizeof(data));
 				copied = sizeof(data);
 
 			} else

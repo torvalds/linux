@@ -1,0 +1,85 @@
+config OCFS2_FS
+	tristate "OCFS2 file system support"
+	depends on NET && SYSFS
+	select CONFIGFS_FS
+	select JBD2
+	select CRC32
+	select QUOTA
+	select QUOTA_TREE
+	help
+	  OCFS2 is a general purpose extent based shared disk cluster file
+	  system with many similarities to ext3. It supports 64 bit inode
+	  numbers, and has automatically extending metadata groups which may
+	  also make it attractive for non-clustered use.
+
+	  You'll want to install the ocfs2-tools package in order to at least
+	  get "mount.ocfs2".
+
+	  Project web page:    http://oss.oracle.com/projects/ocfs2
+	  Tools web page:      http://oss.oracle.com/projects/ocfs2-tools
+	  OCFS2 mailing lists: http://oss.oracle.com/projects/ocfs2/mailman/
+
+	  For more information on OCFS2, see the file
+	  <file:Documentation/filesystems/ocfs2.txt>.
+
+config OCFS2_FS_O2CB
+	tristate "O2CB Kernelspace Clustering"
+	depends on OCFS2_FS
+	default y
+	help
+	  OCFS2 includes a simple kernelspace clustering package, the OCFS2
+	  Cluster Base.  It only requires a very small userspace component
+	  to configure it. This comes with the standard ocfs2-tools package.
+	  O2CB is limited to maintaining a cluster for OCFS2 file systems.
+	  It cannot manage any other cluster applications.
+
+	  It is always safe to say Y here, as the clustering method is
+	  run-time selectable.
+
+config OCFS2_FS_USERSPACE_CLUSTER
+	tristate "OCFS2 Userspace Clustering"
+	depends on OCFS2_FS && DLM
+	default y
+	help
+	  This option will allow OCFS2 to use userspace clustering services
+	  in conjunction with the DLM in fs/dlm.  If you are using a
+	  userspace cluster manager, say Y here.
+
+	  It is safe to say Y, as the clustering method is run-time
+	  selectable.
+
+config OCFS2_FS_STATS
+	bool "OCFS2 statistics"
+	depends on OCFS2_FS
+	default y
+	help
+	  This option allows some fs statistics to be captured. Enabling
+	  this option may increase the memory consumption.
+
+config OCFS2_DEBUG_MASKLOG
+	bool "OCFS2 logging support"
+	depends on OCFS2_FS
+	default y
+	help
+	  The ocfs2 filesystem has an extensive logging system.  The system
+	  allows selection of events to log via files in /sys/o2cb/logmask/.
+	  This option will enlarge your kernel, but it allows debugging of
+	  ocfs2 filesystem issues.
+
+config OCFS2_DEBUG_FS
+	bool "OCFS2 expensive checks"
+	depends on OCFS2_FS
+	default n
+	help
+	  This option will enable expensive consistency checks. Enable
+	  this option for debugging only as it is likely to decrease
+	  performance of the filesystem.
+
+config OCFS2_FS_POSIX_ACL
+	bool "OCFS2 POSIX Access Control Lists"
+	depends on OCFS2_FS
+	select FS_POSIX_ACL
+	default n
+	help
+	  Posix Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.

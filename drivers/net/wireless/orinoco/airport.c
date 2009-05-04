@@ -3,10 +3,10 @@
  * A driver for "Hermes" chipset based Apple Airport wireless
  * card.
  *
- * Copyright notice & release notes in file orinoco.c
- * 
+ * Copyright notice & release notes in file main.c
+ *
  * Note specific to airport stub:
- * 
+ *
  *  0.05 : first version of the new split driver
  *  0.06 : fix possible hang on powerup, add sleep support
  */
@@ -60,7 +60,8 @@ airport_suspend(struct macio_dev *mdev, pm_message_t state)
 	orinoco_unlock(priv, &flags);
 
 	disable_irq(dev->irq);
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
+			  macio_get_of_node(mdev), 0, 0);
 
 	return 0;
 }
@@ -75,7 +76,8 @@ airport_resume(struct macio_dev *mdev)
 
 	printk(KERN_DEBUG "%s: Airport waking up\n", dev->name);
 
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 1);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
+			  macio_get_of_node(mdev), 0, 1);
 	msleep(200);
 
 	enable_irq(dev->irq);
@@ -93,7 +95,7 @@ airport_resume(struct macio_dev *mdev)
 
 	priv->hw_unavailable--;
 
-	if (priv->open && (! priv->hw_unavailable)) {
+	if (priv->open && (!priv->hw_unavailable)) {
 		err = __orinoco_up(dev);
 		if (err)
 			printk(KERN_ERR "%s: Error %d restarting card on PBOOK_WAKE\n",
@@ -127,7 +129,8 @@ airport_detach(struct macio_dev *mdev)
 
 	macio_release_resource(mdev, 0);
 
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
+			  macio_get_of_node(mdev), 0, 0);
 	ssleep(1);
 
 	macio_set_drvdata(mdev, NULL);
@@ -153,9 +156,11 @@ static int airport_hard_reset(struct orinoco_private *priv)
 	 * off. */
 	disable_irq(dev->irq);
 
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(card->mdev), 0, 0);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
+			  macio_get_of_node(card->mdev), 0, 0);
 	ssleep(1);
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(card->mdev), 0, 1);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
+			  macio_get_of_node(card->mdev), 0, 1);
 	ssleep(1);
 
 	enable_irq(dev->irq);
@@ -182,7 +187,7 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Allocate space for private device-specific data */
 	dev = alloc_orinocodev(sizeof(*card), &mdev->ofdev.dev,
 			       airport_hard_reset, NULL);
-	if (! dev) {
+	if (!dev) {
 		printk(KERN_ERR PFX "Cannot allocate network device\n");
 		return -ENODEV;
 	}
@@ -214,9 +219,10 @@ airport_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	}
 
 	hermes_struct_init(hw, card->vaddr, HERMES_16BIT_REGSPACING);
-		
+
 	/* Power up card */
-	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE, macio_get_of_node(mdev), 0, 1);
+	pmac_call_feature(PMAC_FTR_AIRPORT_ENABLE,
+			  macio_get_of_node(mdev), 0, 1);
 	ssleep(1);
 
 	/* Reset it before we get the interrupt */
@@ -248,7 +254,7 @@ MODULE_AUTHOR("Benjamin Herrenschmidt <benh@kernel.crashing.org>");
 MODULE_DESCRIPTION("Driver for the Apple Airport wireless card.");
 MODULE_LICENSE("Dual MPL/GPL");
 
-static struct of_device_id airport_match[] = 
+static struct of_device_id airport_match[] =
 {
 	{
 	.name 		= "radio",
@@ -256,10 +262,9 @@ static struct of_device_id airport_match[] =
 	{},
 };
 
-MODULE_DEVICE_TABLE (of, airport_match);
+MODULE_DEVICE_TABLE(of, airport_match);
 
-static struct macio_driver airport_driver = 
-{
+static struct macio_driver airport_driver = {
 	.name 		= DRIVER_NAME,
 	.match_table	= airport_match,
 	.probe		= airport_attach,

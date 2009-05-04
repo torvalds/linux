@@ -78,7 +78,7 @@ dns_resolver_instantiate(struct key *key, const void *data,
 	}
 
 	key->type_data.x[0] = datalen;
-	rcu_assign_pointer(key->payload.data, ip);
+	key->payload.data = ip;
 
 	return rc;
 }

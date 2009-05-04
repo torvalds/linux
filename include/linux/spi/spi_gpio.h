@@ -25,9 +25,15 @@
  *	...
  *	};
  *
+ * If chipselect is not used (there's only one device on the bus), assign
+ * SPI_GPIO_NO_CHIPSELECT to the controller_data:
+ *		.controller_data = (void *) SPI_GPIO_NO_CHIPSELECT;
+ *
  * If the bitbanged bus is later switched to a "native" controller,
  * that platform_device and controller_data should be removed.
  */
+
+#define SPI_GPIO_NO_CHIPSELECT		((unsigned long)-1l)
 
 /**
  * struct spi_gpio_platform_data - parameter for bitbanged SPI master

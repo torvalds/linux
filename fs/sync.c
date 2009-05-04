@@ -25,7 +25,7 @@ static void do_sync(unsigned long wait)
 {
 	wakeup_pdflush(0);
 	sync_inodes(0);		/* All mappings, inodes and their blockdevs */
-	DQUOT_SYNC(NULL);
+	vfs_dq_sync(NULL);
 	sync_supers();		/* Write the superblocks */
 	sync_filesystems(0);	/* Start syncing the filesystems */
 	sync_filesystems(wait);	/* Waitingly sync the filesystems */
@@ -36,15 +36,27 @@ static void do_sync(unsigned long wait)
 		laptop_sync_completion();
 }
 
-asmlinkage long sys_sync(void)
+SYSCALL_DEFINE0(sync)
 {
 	do_sync(1);
 	return 0;
 }
 
+static void do_sync_work(struct work_struct *work)
+{
+	do_sync(0);
+	kfree(work);
+}
+
 void emergency_sync(void)
 {
-	pdflush_operation(do_sync, 0);
+	struct work_struct *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (work) {
+		INIT_WORK(work, do_sync_work);
+		schedule_work(work);
+	}
 }
 
 /*
@@ -144,12 +156,12 @@ static int do_fsync(unsigned int fd, int datasync)
 	return ret;
 }
 
-asmlinkage long sys_fsync(unsigned int fd)
+SYSCALL_DEFINE1(fsync, unsigned int, fd)
 {
 	return do_fsync(fd, 0);
 }
 
-asmlinkage long sys_fdatasync(unsigned int fd)
+SYSCALL_DEFINE1(fdatasync, unsigned int, fd)
 {
 	return do_fsync(fd, 1);
 }
@@ -201,8 +213,8 @@ asmlinkage long sys_fdatasync(unsigned int fd)
  * already-instantiated disk blocks, there are no guarantees here that the data
  * will be available after a crash.
  */
-asmlinkage long sys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
-					unsigned int flags)
+SYSCALL_DEFINE(sync_file_range)(int fd, loff_t offset, loff_t nbytes,
+				unsigned int flags)
 {
 	int ret;
 	struct file *file;
@@ -262,14 +274,32 @@ out_put:
 out:
 	return ret;
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_sync_file_range(long fd, loff_t offset, loff_t nbytes,
+				    long flags)
+{
+	return SYSC_sync_file_range((int) fd, offset, nbytes,
+				    (unsigned int) flags);
+}
+SYSCALL_ALIAS(sys_sync_file_range, SyS_sync_file_range);
+#endif
 
 /* It would be nice if people remember that not all the world's an i386
    when they introduce new system calls */
-asmlinkage long sys_sync_file_range2(int fd, unsigned int flags,
-				     loff_t offset, loff_t nbytes)
+SYSCALL_DEFINE(sync_file_range2)(int fd, unsigned int flags,
+				 loff_t offset, loff_t nbytes)
 {
 	return sys_sync_file_range(fd, offset, nbytes, flags);
 }
+#ifdef CONFIG_HAVE_SYSCALL_WRAPPERS
+asmlinkage long SyS_sync_file_range2(long fd, long flags,
+				     loff_t offset, loff_t nbytes)
+{
+	return SYSC_sync_file_range2((int) fd, (unsigned int) flags,
+				     offset, nbytes);
+}
+SYSCALL_ALIAS(sys_sync_file_range2, SyS_sync_file_range2);
+#endif
 
 /*
  * `endbyte' is inclusive

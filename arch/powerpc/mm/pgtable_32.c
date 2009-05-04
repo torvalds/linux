@@ -61,8 +61,8 @@ void setbat(int index, unsigned long virt, phys_addr_t phys,
 
 #ifdef HAVE_TLBCAM
 extern unsigned int tlbcam_index;
-extern unsigned long v_mapped_by_tlbcam(unsigned long va);
-extern unsigned long p_mapped_by_tlbcam(unsigned long pa);
+extern phys_addr_t v_mapped_by_tlbcam(unsigned long va);
+extern unsigned long p_mapped_by_tlbcam(phys_addr_t pa);
 #else /* !HAVE_TLBCAM */
 #define v_mapped_by_tlbcam(x)	(0UL)
 #define p_mapped_by_tlbcam(x)	(0UL)
@@ -129,7 +129,8 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 void __iomem *
 ioremap(phys_addr_t addr, unsigned long size)
 {
-	return __ioremap(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED);
+	return __ioremap_caller(addr, size, _PAGE_NO_CACHE | _PAGE_GUARDED,
+				__builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap);
 
@@ -143,12 +144,19 @@ ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
 	flags &= ~(_PAGE_USER | _PAGE_EXEC | _PAGE_HWEXEC);
 
-	return __ioremap(addr, size, flags);
+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_flags);
 
 void __iomem *
 __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
+{
+	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
+}
+
+void __iomem *
+__ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
+		 void *caller)
 {
 	unsigned long v, i;
 	phys_addr_t p;
@@ -156,7 +164,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 
 	/* Make sure we have the base flags */
 	if ((flags & _PAGE_PRESENT) == 0)
-		flags |= _PAGE_KERNEL;
+		flags |= PAGE_KERNEL;
 
 	/* Non-cacheable page cannot be coherent */
 	if (flags & _PAGE_NO_CACHE)
@@ -212,7 +220,7 @@ __ioremap(phys_addr_t addr, unsigned long size, unsigned long flags)
 
 	if (mem_init_done) {
 		struct vm_struct *area;
-		area = get_vm_area(size, VM_IOREMAP);
+		area = get_vm_area_caller(size, VM_IOREMAP, caller);
 		if (area == 0)
 			return NULL;
 		v = (unsigned long) area->addr;
@@ -288,7 +296,7 @@ void __init mapin_ram(void)
 	p = memstart_addr + s;
 	for (; s < total_lowmem; s += PAGE_SIZE) {
 		ktext = ((char *) v >= _stext && (char *) v < etext);
-		f = ktext ?_PAGE_RAM_TEXT : _PAGE_RAM;
+		f = ktext ? PAGE_KERNEL_TEXT : PAGE_KERNEL;
 		map_page(v, p, f);
 #ifdef CONFIG_PPC_STD_MMU_32
 		if (ktext)

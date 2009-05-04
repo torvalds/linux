@@ -205,6 +205,7 @@ struct fw_ohci {
 
 	u32 it_context_mask;
 	struct iso_context *it_context_list;
+	u64 ir_context_channels;
 	u32 ir_context_mask;
 	struct iso_context *ir_context_list;
 };
@@ -226,7 +227,7 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define CONTEXT_DEAD	0x0800
 #define CONTEXT_ACTIVE	0x0400
 
-#define OHCI1394_MAX_AT_REQ_RETRIES	0x2
+#define OHCI1394_MAX_AT_REQ_RETRIES	0xf
 #define OHCI1394_MAX_AT_RESP_RETRIES	0x2
 #define OHCI1394_MAX_PHYS_RESP_RETRIES	0x8
 
@@ -441,9 +442,8 @@ static inline void flush_writes(const struct fw_ohci *ohci)
 	reg_read(ohci, OHCI1394_Version);
 }
 
-static int
-ohci_update_phy_reg(struct fw_card *card, int addr,
-		    int clear_bits, int set_bits)
+static int ohci_update_phy_reg(struct fw_card *card, int addr,
+			       int clear_bits, int set_bits)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	u32 val, old;
@@ -658,8 +658,8 @@ static void ar_context_tasklet(unsigned long data)
 	}
 }
 
-static int
-ar_context_init(struct ar_context *ctx, struct fw_ohci *ohci, u32 regs)
+static int ar_context_init(struct ar_context *ctx,
+			   struct fw_ohci *ohci, u32 regs)
 {
 	struct ar_buffer ab;
 
@@ -690,8 +690,7 @@ static void ar_context_run(struct ar_context *ctx)
 	flush_writes(ctx->ohci);
 }
 
-static struct descriptor *
-find_branch_descriptor(struct descriptor *d, int z)
+static struct descriptor *find_branch_descriptor(struct descriptor *d, int z)
 {
 	int b, key;
 
@@ -751,8 +750,7 @@ static void context_tasklet(unsigned long data)
  * Allocate a new buffer and add it to the list of free buffers for this
  * context.  Must be called with ohci->lock held.
  */
-static int
-context_add_buffer(struct context *ctx)
+static int context_add_buffer(struct context *ctx)
 {
 	struct descriptor_buffer *desc;
 	dma_addr_t uninitialized_var(bus_addr);
@@ -781,9 +779,8 @@ context_add_buffer(struct context *ctx)
 	return 0;
 }
 
-static int
-context_init(struct context *ctx, struct fw_ohci *ohci,
-	     u32 regs, descriptor_callback_t callback)
+static int context_init(struct context *ctx, struct fw_ohci *ohci,
+			u32 regs, descriptor_callback_t callback)
 {
 	ctx->ohci = ohci;
 	ctx->regs = regs;
@@ -814,8 +811,7 @@ context_init(struct context *ctx, struct fw_ohci *ohci,
 	return 0;
 }
 
-static void
-context_release(struct context *ctx)
+static void context_release(struct context *ctx)
 {
 	struct fw_card *card = &ctx->ohci->card;
 	struct descriptor_buffer *desc, *tmp;
@@ -827,8 +823,8 @@ context_release(struct context *ctx)
 }
 
 /* Must be called with ohci->lock held */
-static struct descriptor *
-context_get_descriptors(struct context *ctx, int z, dma_addr_t *d_bus)
+static struct descriptor *context_get_descriptors(struct context *ctx,
+						  int z, dma_addr_t *d_bus)
 {
 	struct descriptor *d = NULL;
 	struct descriptor_buffer *desc = ctx->buffer_tail;
@@ -896,11 +892,11 @@ static void context_stop(struct context *ctx)
 	for (i = 0; i < 10; i++) {
 		reg = reg_read(ctx->ohci, CONTROL_SET(ctx->regs));
 		if ((reg & CONTEXT_ACTIVE) == 0)
-			break;
+			return;
 
-		fw_notify("context_stop: still active (0x%08x)\n", reg);
 		mdelay(1);
 	}
+	fw_error("Error: DMA context still active (0x%08x)\n", reg);
 }
 
 struct driver_data {
@@ -912,8 +908,8 @@ struct driver_data {
  * Must always be called with the ochi->lock held to ensure proper
  * generation handling and locking around packet queue manipulation.
  */
-static int
-at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
+static int at_context_queue_packet(struct context *ctx,
+				   struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->ohci;
 	dma_addr_t d_bus, uninitialized_var(payload_bus);
@@ -940,7 +936,9 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 	 */
 
 	header = (__le32 *) &d[1];
-	if (packet->header_length > 8) {
+	switch (packet->header_length) {
+	case 16:
+	case 12:
 		header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
 					(packet->speed << 16));
 		header[1] = cpu_to_le32((packet->header[1] & 0xffff) |
@@ -954,12 +952,27 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 			header[3] = (__force __le32) packet->header[3];
 
 		d[0].req_count = cpu_to_le16(packet->header_length);
-	} else {
+		break;
+
+	case 8:
 		header[0] = cpu_to_le32((OHCI1394_phy_tcode << 4) |
 					(packet->speed << 16));
 		header[1] = cpu_to_le32(packet->header[0]);
 		header[2] = cpu_to_le32(packet->header[1]);
 		d[0].req_count = cpu_to_le16(12);
+		break;
+
+	case 4:
+		header[0] = cpu_to_le32((packet->header[0] & 0xffff) |
+					(packet->speed << 16));
+		header[1] = cpu_to_le32(packet->header[0] & 0xffff0000);
+		d[0].req_count = cpu_to_le16(8);
+		break;
+
+	default:
+		/* BUG(); */
+		packet->ack = RCODE_SEND_ERROR;
+		return -1;
 	}
 
 	driver_data = (struct driver_data *) &d[3];
@@ -1095,8 +1108,8 @@ static int handle_at_packet(struct context *context,
 #define HEADER_GET_DATA_LENGTH(q)	(((q) >> 16) & 0xffff)
 #define HEADER_GET_EXTENDED_TCODE(q)	(((q) >> 0) & 0xffff)
 
-static void
-handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
+static void handle_local_rom(struct fw_ohci *ohci,
+			     struct fw_packet *packet, u32 csr)
 {
 	struct fw_packet response;
 	int tcode, length, i;
@@ -1122,8 +1135,8 @@ handle_local_rom(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 	fw_core_handle_response(&ohci->card, &response);
 }
 
-static void
-handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
+static void handle_local_lock(struct fw_ohci *ohci,
+			      struct fw_packet *packet, u32 csr)
 {
 	struct fw_packet response;
 	int tcode, length, ext_tcode, sel;
@@ -1164,8 +1177,7 @@ handle_local_lock(struct fw_ohci *ohci, struct fw_packet *packet, u32 csr)
 	fw_core_handle_response(&ohci->card, &response);
 }
 
-static void
-handle_local_request(struct context *ctx, struct fw_packet *packet)
+static void handle_local_request(struct context *ctx, struct fw_packet *packet)
 {
 	u64 offset;
 	u32 csr;
@@ -1205,11 +1217,10 @@ handle_local_request(struct context *ctx, struct fw_packet *packet)
 	}
 }
 
-static void
-at_context_transmit(struct context *ctx, struct fw_packet *packet)
+static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
 {
 	unsigned long flags;
-	int retval;
+	int ret;
 
 	spin_lock_irqsave(&ctx->ohci->lock, flags);
 
@@ -1220,10 +1231,10 @@ at_context_transmit(struct context *ctx, struct fw_packet *packet)
 		return;
 	}
 
-	retval = at_context_queue_packet(ctx, packet);
+	ret = at_context_queue_packet(ctx, packet);
 	spin_unlock_irqrestore(&ctx->ohci->lock, flags);
 
-	if (retval < 0)
+	if (ret < 0)
 		packet->callback(packet, &ctx->ohci->card, packet->ack);
 
 }
@@ -1590,12 +1601,12 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 	return 0;
 }
 
-static int
-ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
+static int ohci_set_config_rom(struct fw_card *card,
+			       u32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci;
 	unsigned long flags;
-	int retval = -EBUSY;
+	int ret = -EBUSY;
 	__be32 *next_config_rom;
 	dma_addr_t uninitialized_var(next_config_rom_bus);
 
@@ -1649,7 +1660,7 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 
 		reg_write(ohci, OHCI1394_ConfigROMmap,
 			  ohci->next_config_rom_bus);
-		retval = 0;
+		ret = 0;
 	}
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
@@ -1661,13 +1672,13 @@ ohci_set_config_rom(struct fw_card *card, u32 *config_rom, size_t length)
 	 * controller could need to access it before the bus reset
 	 * takes effect.
 	 */
-	if (retval == 0)
+	if (ret == 0)
 		fw_core_initiate_bus_reset(&ohci->card, 1);
 	else
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
 				  next_config_rom, next_config_rom_bus);
 
-	return retval;
+	return ret;
 }
 
 static void ohci_send_request(struct fw_card *card, struct fw_packet *packet)
@@ -1689,7 +1700,7 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct context *ctx = &ohci->at_request_ctx;
 	struct driver_data *driver_data = packet->driver_data;
-	int retval = -ENOENT;
+	int ret = -ENOENT;
 
 	tasklet_disable(&ctx->tasklet);
 
@@ -1704,23 +1715,22 @@ static int ohci_cancel_packet(struct fw_card *card, struct fw_packet *packet)
 	driver_data->packet = NULL;
 	packet->ack = RCODE_CANCELLED;
 	packet->callback(packet, &ohci->card, packet->ack);
-	retval = 0;
-
+	ret = 0;
  out:
 	tasklet_enable(&ctx->tasklet);
 
-	return retval;
+	return ret;
 }
 
-static int
-ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
+static int ohci_enable_phys_dma(struct fw_card *card,
+				int node_id, int generation)
 {
 #ifdef CONFIG_FIREWIRE_OHCI_REMOTE_DMA
 	return 0;
 #else
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
-	int n, retval = 0;
+	int n, ret = 0;
 
 	/*
 	 * FIXME:  Make sure this bitmask is cleared when we clear the busReset
@@ -1730,7 +1740,7 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 	spin_lock_irqsave(&ohci->lock, flags);
 
 	if (ohci->generation != generation) {
-		retval = -ESTALE;
+		ret = -ESTALE;
 		goto out;
 	}
 
@@ -1748,12 +1758,12 @@ ohci_enable_phys_dma(struct fw_card *card, int node_id, int generation)
 	flush_writes(ohci);
  out:
 	spin_unlock_irqrestore(&ohci->lock, flags);
-	return retval;
+
+	return ret;
 #endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
-static u64
-ohci_get_bus_time(struct fw_card *card)
+static u64 ohci_get_bus_time(struct fw_card *card)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	u32 cycle_time;
@@ -1763,6 +1773,28 @@ ohci_get_bus_time(struct fw_card *card)
 	bus_time = ((u64) ohci->bus_seconds << 32) | cycle_time;
 
 	return bus_time;
+}
+
+static void copy_iso_headers(struct iso_context *ctx, void *p)
+{
+	int i = ctx->header_length;
+
+	if (i + ctx->base.header_size > PAGE_SIZE)
+		return;
+
+	/*
+	 * The iso header is byteswapped to little endian by
+	 * the controller, but the remaining header quadlets
+	 * are big endian.  We want to present all the headers
+	 * as big endian, so we have to swap the first quadlet.
+	 */
+	if (ctx->base.header_size > 0)
+		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
+	if (ctx->base.header_size > 4)
+		*(u32 *) (ctx->header + i + 4) = __swab32(*(u32 *) p);
+	if (ctx->base.header_size > 8)
+		memcpy(ctx->header + i + 8, p + 8, ctx->base.header_size - 8);
+	ctx->header_length += ctx->base.header_size;
 }
 
 static int handle_ir_dualbuffer_packet(struct context *context,
@@ -1775,7 +1807,6 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	__le32 *ir_header;
 	size_t header_length;
 	void *p, *end;
-	int i;
 
 	if (db->first_res_count != 0 && db->second_res_count != 0) {
 		if (ctx->excess_bytes <= le16_to_cpu(db->second_req_count)) {
@@ -1788,25 +1819,14 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	header_length = le16_to_cpu(db->first_req_count) -
 		le16_to_cpu(db->first_res_count);
 
-	i = ctx->header_length;
 	p = db + 1;
 	end = p + header_length;
-	while (p < end && i + ctx->base.header_size <= PAGE_SIZE) {
-		/*
-		 * The iso header is byteswapped to little endian by
-		 * the controller, but the remaining header quadlets
-		 * are big endian.  We want to present all the headers
-		 * as big endian, so we have to swap the first
-		 * quadlet.
-		 */
-		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
-		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
-		i += ctx->base.header_size;
+	while (p < end) {
+		copy_iso_headers(ctx, p);
 		ctx->excess_bytes +=
 			(le32_to_cpu(*(__le32 *)(p + 4)) >> 16) & 0xffff;
-		p += ctx->base.header_size + 4;
+		p += max(ctx->base.header_size, (size_t)8);
 	}
-	ctx->header_length = i;
 
 	ctx->excess_bytes -= le16_to_cpu(db->second_req_count) -
 		le16_to_cpu(db->second_res_count);
@@ -1832,7 +1852,6 @@ static int handle_ir_packet_per_buffer(struct context *context,
 	struct descriptor *pd;
 	__le32 *ir_header;
 	void *p;
-	int i;
 
 	for (pd = d; pd <= last; pd++) {
 		if (pd->transfer_status)
@@ -1842,21 +1861,8 @@ static int handle_ir_packet_per_buffer(struct context *context,
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
 
-	i   = ctx->header_length;
-	p   = last + 1;
-
-	if (ctx->base.header_size > 0 &&
-			i + ctx->base.header_size <= PAGE_SIZE) {
-		/*
-		 * The iso header is byteswapped to little endian by
-		 * the controller, but the remaining header quadlets
-		 * are big endian.  We want to present all the headers
-		 * as big endian, so we have to swap the first quadlet.
-		 */
-		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
-		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
-		ctx->header_length += ctx->base.header_size;
-	}
+	p = last + 1;
+	copy_iso_headers(ctx, p);
 
 	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
 		ir_header = (__le32 *) p;
@@ -1888,21 +1894,24 @@ static int handle_it_packet(struct context *context,
 	return 1;
 }
 
-static struct fw_iso_context *
-ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
+static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
+				int type, int channel, size_t header_size)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct iso_context *ctx, *list;
 	descriptor_callback_t callback;
+	u64 *channels, dont_care = ~0ULL;
 	u32 *mask, regs;
 	unsigned long flags;
-	int index, retval = -ENOMEM;
+	int index, ret = -ENOMEM;
 
 	if (type == FW_ISO_CONTEXT_TRANSMIT) {
+		channels = &dont_care;
 		mask = &ohci->it_context_mask;
 		list = ohci->it_context_list;
 		callback = handle_it_packet;
 	} else {
+		channels = &ohci->ir_context_channels;
 		mask = &ohci->ir_context_mask;
 		list = ohci->ir_context_list;
 		if (ohci->use_dualbuffer)
@@ -1912,9 +1921,11 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	}
 
 	spin_lock_irqsave(&ohci->lock, flags);
-	index = ffs(*mask) - 1;
-	if (index >= 0)
+	index = *channels & 1ULL << channel ? ffs(*mask) - 1 : -1;
+	if (index >= 0) {
+		*channels &= ~(1ULL << channel);
 		*mask &= ~(1 << index);
+	}
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
 	if (index < 0)
@@ -1932,8 +1943,8 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	if (ctx->header == NULL)
 		goto out;
 
-	retval = context_init(&ctx->context, ohci, regs, callback);
-	if (retval < 0)
+	ret = context_init(&ctx->context, ohci, regs, callback);
+	if (ret < 0)
 		goto out_with_header;
 
 	return &ctx->base;
@@ -1945,7 +1956,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	*mask |= 1 << index;
 	spin_unlock_irqrestore(&ohci->lock, flags);
 
-	return ERR_PTR(retval);
+	return ERR_PTR(ret);
 }
 
 static int ohci_start_iso(struct fw_iso_context *base,
@@ -2024,16 +2035,16 @@ static void ohci_free_iso_context(struct fw_iso_context *base)
 	} else {
 		index = ctx - ohci->ir_context_list;
 		ohci->ir_context_mask |= 1 << index;
+		ohci->ir_context_channels |= 1ULL << base->channel;
 	}
 
 	spin_unlock_irqrestore(&ohci->lock, flags);
 }
 
-static int
-ohci_queue_iso_transmit(struct fw_iso_context *base,
-			struct fw_iso_packet *packet,
-			struct fw_iso_buffer *buffer,
-			unsigned long payload)
+static int ohci_queue_iso_transmit(struct fw_iso_context *base,
+				   struct fw_iso_packet *packet,
+				   struct fw_iso_buffer *buffer,
+				   unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d, *last, *pd;
@@ -2128,11 +2139,10 @@ ohci_queue_iso_transmit(struct fw_iso_context *base,
 	return 0;
 }
 
-static int
-ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
-				  struct fw_iso_packet *packet,
-				  struct fw_iso_buffer *buffer,
-				  unsigned long payload)
+static int ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
+					     struct fw_iso_packet *packet,
+					     struct fw_iso_buffer *buffer,
+					     unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct db_descriptor *db = NULL;
@@ -2151,11 +2161,11 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	z = 2;
 
 	/*
-	 * The OHCI controller puts the status word in the header
-	 * buffer too, so we need 4 extra bytes per packet.
+	 * The OHCI controller puts the isochronous header and trailer in the
+	 * buffer, so we need at least 8 bytes.
 	 */
 	packet_count = p->header_length / ctx->base.header_size;
-	header_size = packet_count * (ctx->base.header_size + 4);
+	header_size = packet_count * max(ctx->base.header_size, (size_t)8);
 
 	/* Get header size in number of descriptors. */
 	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
@@ -2173,7 +2183,8 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db = (struct db_descriptor *) d;
 		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
 					  DESCRIPTOR_BRANCH_ALWAYS);
-		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
+		db->first_size =
+		    cpu_to_le16(max(ctx->base.header_size, (size_t)8));
 		if (p->skip && rest == p->payload_length) {
 			db->control |= cpu_to_le16(DESCRIPTOR_WAIT);
 			db->first_req_count = db->first_size;
@@ -2208,11 +2219,10 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	return 0;
 }
 
-static int
-ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
-					 struct fw_iso_packet *packet,
-					 struct fw_iso_buffer *buffer,
-					 unsigned long payload)
+static int ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
+					struct fw_iso_packet *packet,
+					struct fw_iso_buffer *buffer,
+					unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d = NULL, *pd = NULL;
@@ -2223,11 +2233,11 @@ ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 	int page, offset, packet_count, header_size, payload_per_buffer;
 
 	/*
-	 * The OHCI controller puts the status word in the
-	 * buffer too, so we need 4 extra bytes per packet.
+	 * The OHCI controller puts the isochronous header and trailer in the
+	 * buffer, so we need at least 8 bytes.
 	 */
 	packet_count = p->header_length / ctx->base.header_size;
-	header_size  = ctx->base.header_size + 4;
+	header_size  = max(ctx->base.header_size, (size_t)8);
 
 	/* Get header size in number of descriptors. */
 	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
@@ -2286,29 +2296,27 @@ ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 	return 0;
 }
 
-static int
-ohci_queue_iso(struct fw_iso_context *base,
-	       struct fw_iso_packet *packet,
-	       struct fw_iso_buffer *buffer,
-	       unsigned long payload)
+static int ohci_queue_iso(struct fw_iso_context *base,
+			  struct fw_iso_packet *packet,
+			  struct fw_iso_buffer *buffer,
+			  unsigned long payload)
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	unsigned long flags;
-	int retval;
+	int ret;
 
 	spin_lock_irqsave(&ctx->context.ohci->lock, flags);
 	if (base->type == FW_ISO_CONTEXT_TRANSMIT)
-		retval = ohci_queue_iso_transmit(base, packet, buffer, payload);
+		ret = ohci_queue_iso_transmit(base, packet, buffer, payload);
 	else if (ctx->context.ohci->use_dualbuffer)
-		retval = ohci_queue_iso_receive_dualbuffer(base, packet,
-							 buffer, payload);
+		ret = ohci_queue_iso_receive_dualbuffer(base, packet,
+							buffer, payload);
 	else
-		retval = ohci_queue_iso_receive_packet_per_buffer(base, packet,
-								buffer,
-								payload);
+		ret = ohci_queue_iso_receive_packet_per_buffer(base, packet,
+							buffer, payload);
 	spin_unlock_irqrestore(&ctx->context.ohci->lock, flags);
 
-	return retval;
+	return ret;
 }
 
 static const struct fw_card_driver ohci_driver = {
@@ -2357,8 +2365,8 @@ static void ohci_pmac_off(struct pci_dev *dev)
 #define ohci_pmac_off(dev)
 #endif /* CONFIG_PPC_PMAC */
 
-static int __devinit
-pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
+static int __devinit pci_probe(struct pci_dev *dev,
+			       const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
 	u32 bus_options, max_receive, link_speed, version;
@@ -2440,6 +2448,7 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
+	ohci->ir_context_channels = ~0ULL;
 	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
 	size = sizeof(struct iso_context) * hweight32(ohci->ir_context_mask);
@@ -2467,11 +2476,12 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 		reg_read(ohci, OHCI1394_GUIDLo);
 
 	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
-	if (err < 0)
+	if (err)
 		goto fail_self_id;
 
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
 		  dev_name(&dev->dev), version >> 16, version & 0xff);
+
 	return 0;
 
  fail_self_id:

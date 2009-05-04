@@ -65,6 +65,19 @@ static void ram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 }
 
+/*
+ * Allow NOMMU mmap() to directly map the device (if not NULL)
+ * - return the address to which the offset maps
+ * - return -ENOSYS to indicate refusal to do the mapping
+ */
+static unsigned long ram_get_unmapped_area(struct mtd_info *mtd,
+					   unsigned long len,
+					   unsigned long offset,
+					   unsigned long flags)
+{
+	return (unsigned long) mtd->priv + offset;
+}
+
 static int ram_read(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u_char *buf)
 {
@@ -116,6 +129,7 @@ int mtdram_init_device(struct mtd_info *mtd, void *mapped_address,
 	mtd->erase = ram_erase;
 	mtd->point = ram_point;
 	mtd->unpoint = ram_unpoint;
+	mtd->get_unmapped_area = ram_get_unmapped_area;
 	mtd->read = ram_read;
 	mtd->write = ram_write;
 

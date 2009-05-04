@@ -155,7 +155,7 @@ xfs_imap_to_bmap(
 			iomapp->iomap_bn = IOMAP_DADDR_NULL;
 			iomapp->iomap_flags |= IOMAP_DELAY;
 		} else {
-			iomapp->iomap_bn = XFS_FSB_TO_DB(ip, start_block);
+			iomapp->iomap_bn = xfs_fsb_to_db(ip, start_block);
 			if (ISUNWRITTEN(imap))
 				iomapp->iomap_flags |= IOMAP_UNWRITTEN;
 		}
@@ -261,7 +261,7 @@ xfs_iomap(
 		xfs_iunlock(ip, lockmode);
 		lockmode = 0;
 
-		if (nimaps && !ISNULLSTARTBLOCK(imap.br_startblock)) {
+		if (nimaps && !isnullstartblock(imap.br_startblock)) {
 			xfs_iomap_map_trace(XFS_IOMAP_WRITE_MAP, ip,
 					offset, count, iomapp, &imap, flags);
 			break;
@@ -335,38 +335,6 @@ xfs_iomap_eof_align_last_fsb(
 			*last_fsb = new_last_fsb;
 	}
 	return 0;
-}
-
-STATIC int
-xfs_flush_space(
-	xfs_inode_t	*ip,
-	int		*fsynced,
-	int		*ioflags)
-{
-	switch (*fsynced) {
-	case 0:
-		if (ip->i_delayed_blks) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-			xfs_flush_inode(ip);
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
-			*fsynced = 1;
-		} else {
-			*ioflags |= BMAPI_SYNC;
-			*fsynced = 2;
-		}
-		return 0;
-	case 1:
-		*fsynced = 2;
-		*ioflags |= BMAPI_SYNC;
-		return 0;
-	case 2:
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		xfs_flush_device(ip);
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-		*fsynced = 3;
-		return 0;
-	}
-	return 1;
 }
 
 STATIC int
@@ -491,7 +459,7 @@ xfs_iomap_write_direct(
 	/*
 	 * Issue the xfs_bmapi() call to allocate the blocks
 	 */
-	XFS_BMAP_INIT(&free_list, &firstfsb);
+	xfs_bmap_init(&free_list, &firstfsb);
 	nimaps = 1;
 	error = xfs_bmapi(tp, ip, offset_fsb, count_fsb, bmapi_flag,
 		&firstfsb, 0, &imap, &nimaps, &free_list, NULL);
@@ -538,15 +506,9 @@ error_out:
 }
 
 /*
- * If the caller is doing a write at the end of the file,
- * then extend the allocation out to the file system's write
- * iosize.  We clean up any extra space left over when the
- * file is closed in xfs_inactive().
- *
- * For sync writes, we are flushing delayed allocate space to
- * try to make additional space available for allocation near
- * the filesystem full boundary - preallocation hurts in that
- * situation, of course.
+ * If the caller is doing a write at the end of the file, then extend the
+ * allocation out to the file system's write iosize.  We clean up any extra
+ * space left over when the file is closed in xfs_inactive().
  */
 STATIC int
 xfs_iomap_eof_want_preallocate(
@@ -565,7 +527,7 @@ xfs_iomap_eof_want_preallocate(
 	int		n, error, imaps;
 
 	*prealloc = 0;
-	if ((ioflag & BMAPI_SYNC) || (offset + count) <= ip->i_size)
+	if ((offset + count) <= ip->i_size)
 		return 0;
 
 	/*
@@ -611,7 +573,7 @@ xfs_iomap_write_delay(
 	xfs_extlen_t	extsz;
 	int		nimaps;
 	xfs_bmbt_irec_t imap[XFS_WRITE_IMAPS];
-	int		prealloc, fsynced = 0;
+	int		prealloc, flushed = 0;
 	int		error;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
@@ -627,12 +589,12 @@ xfs_iomap_write_delay(
 	extsz = xfs_get_extsz_hint(ip);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 
-retry:
 	error = xfs_iomap_eof_want_preallocate(mp, ip, offset, count,
 				ioflag, imap, XFS_WRITE_IMAPS, &prealloc);
 	if (error)
 		return error;
 
+retry:
 	if (prealloc) {
 		aligned_offset = XFS_WRITEIO_ALIGN(mp, (offset + count - 1));
 		ioalign = XFS_B_TO_FSBT(mp, aligned_offset);
@@ -659,15 +621,22 @@ retry:
 
 	/*
 	 * If bmapi returned us nothing, and if we didn't get back EDQUOT,
-	 * then we must have run out of space - flush delalloc, and retry..
+	 * then we must have run out of space - flush all other inodes with
+	 * delalloc blocks and retry without EOF preallocation.
 	 */
 	if (nimaps == 0) {
 		xfs_iomap_enter_trace(XFS_IOMAP_WRITE_NOSPACE,
 					ip, offset, count);
-		if (xfs_flush_space(ip, &fsynced, &ioflag))
+		if (flushed)
 			return XFS_ERROR(ENOSPC);
 
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_flush_inodes(ip);
+		xfs_ilock(ip, XFS_ILOCK_EXCL);
+
+		flushed = 1;
 		error = 0;
+		prealloc = 0;
 		goto retry;
 	}
 
@@ -751,7 +720,7 @@ xfs_iomap_write_allocate(
 			xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 			xfs_trans_ihold(tp, ip);
 
-			XFS_BMAP_INIT(&free_list, &first_block);
+			xfs_bmap_init(&free_list, &first_block);
 
 			/*
 			 * it is possible that the extents have changed since
@@ -911,7 +880,7 @@ xfs_iomap_write_unwritten(
 		/*
 		 * Modify the unwritten extent state of the buffer.
 		 */
-		XFS_BMAP_INIT(&free_list, &firstfsb);
+		xfs_bmap_init(&free_list, &firstfsb);
 		nimaps = 1;
 		error = xfs_bmapi(tp, ip, offset_fsb, count_fsb,
 				  XFS_BMAPI_WRITE|XFS_BMAPI_CONVERT, &firstfsb,

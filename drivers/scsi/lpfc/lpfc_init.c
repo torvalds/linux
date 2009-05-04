@@ -2660,8 +2660,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	pci_save_state(pdev);
 	pci_try_set_mwi(pdev);
 
-	if (pci_set_dma_mask(phba->pcidev, DMA_64BIT_MASK) != 0)
-		if (pci_set_dma_mask(phba->pcidev, DMA_32BIT_MASK) != 0)
+	if (pci_set_dma_mask(phba->pcidev, DMA_BIT_MASK(64)) != 0)
+		if (pci_set_dma_mask(phba->pcidev, DMA_BIT_MASK(32)) != 0)
 			goto out_idr_remove;
 
 	/*

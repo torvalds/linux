@@ -381,10 +381,12 @@ struct dev_pm_info {
 
 #ifdef CONFIG_PM_SLEEP
 extern void device_pm_lock(void);
+extern int sysdev_resume(void);
 extern void device_power_up(pm_message_t state);
 extern void device_resume(pm_message_t state);
 
 extern void device_pm_unlock(void);
+extern int sysdev_suspend(pm_message_t state);
 extern int device_power_down(pm_message_t state);
 extern int device_suspend(pm_message_t state);
 extern int device_prepare_suspend(pm_message_t state);
@@ -398,6 +400,9 @@ extern void __suspend_report_result(const char *function, void *fn, int ret);
 
 #else /* !CONFIG_PM_SLEEP */
 
+#define device_pm_lock() do {} while (0)
+#define device_pm_unlock() do {} while (0)
+
 static inline int device_suspend(pm_message_t state)
 {
 	return 0;
@@ -406,6 +411,14 @@ static inline int device_suspend(pm_message_t state)
 #define suspend_report_result(fn, ret)		do {} while (0)
 
 #endif /* !CONFIG_PM_SLEEP */
+
+/* How to reorder dpm_list after device_move() */
+enum dpm_order {
+	DPM_ORDER_NONE,
+	DPM_ORDER_DEV_AFTER_PARENT,
+	DPM_ORDER_PARENT_BEFORE_DEV,
+	DPM_ORDER_DEV_LAST,
+};
 
 /*
  * Global Power Management flags

@@ -279,7 +279,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "OTES1 Fan",		36, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x0011, "AT8 32X(ATI RD580-ULI M1575)", {
+	{ 0x0011, "AT8 32X", {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR",		 1, 0, 20, 1, 0 },
 		{ "DDR VTT",		 2, 0, 10, 1, 0 },
@@ -402,7 +402,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX3 Fan",		36, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x0016, "AW9D-MAX       (Intel i975-ICH7)", {
+	{ 0x0016, "AW9D-MAX", {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR2",		 1, 0, 20, 1, 0 },
 		{ "DDR2 VTT",		 2, 0, 10, 1, 0 },
@@ -482,7 +482,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX3 Fan",		36, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x0019, NULL /* Unknown, need DMI string */, {
+	{ 0x0019, "IN9 32X MAX", {
 		{ "CPU Core",		 7, 0, 10, 1, 0 },
 		{ "DDR2",		13, 0, 20, 1, 0 },
 		{ "DDR2 VTT",		14, 0, 10, 1, 0 },
@@ -509,7 +509,7 @@ static const struct abituguru3_motherboard_info abituguru3_motherboards[] = {
 		{ "AUX3 FAN",		36, 2, 60, 1, 0 },
 		{ NULL, 0, 0, 0, 0, 0 } }
 	},
-	{ 0x001A, "IP35 Pro(Intel P35-ICH9R)", {
+	{ 0x001A, "IP35 Pro", {
 		{ "CPU Core",		 0, 0, 10, 1, 0 },
 		{ "DDR2",		 1, 0, 20, 1, 0 },
 		{ "DDR2 VTT",		 2, 0, 10, 1, 0 },
@@ -760,8 +760,11 @@ static int abituguru3_read_increment_offset(struct abituguru3_data *data,
 
 	for (i = 0; i < offset_count; i++)
 		if ((x = abituguru3_read(data, bank, offset + i, count,
-				buf + i * count)) != count)
-			return i * count + (i && (x < 0)) ? 0 : x;
+				buf + i * count)) != count) {
+			if (x < 0)
+				return x;
+			return i * count + x;
+		}
 
 	return i * count;
 }
@@ -1128,6 +1131,7 @@ static int __init abituguru3_dmi_detect(void)
 {
 	const char *board_vendor, *board_name;
 	int i, err = (force) ? 1 : -ENODEV;
+	size_t sublen;
 
 	board_vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
 	if (!board_vendor || strcmp(board_vendor, "http://www.abit.com.tw/"))
@@ -1137,9 +1141,20 @@ static int __init abituguru3_dmi_detect(void)
 	if (!board_name)
 		return err;
 
+	/* At the moment, we don't care about the part of the vendor
+	 * DMI string contained in brackets. Truncate the string at
+	 * the first occurrence of a bracket. Trim any trailing space
+	 * from the substring.
+	 */
+	sublen = strcspn(board_name, "(");
+	while (sublen > 0 && board_name[sublen - 1] == ' ')
+		sublen--;
+
 	for (i = 0; abituguru3_motherboards[i].id; i++) {
 		const char *dmi_name = abituguru3_motherboards[i].dmi_name;
-		if (dmi_name && !strcmp(dmi_name, board_name))
+		if (!dmi_name || strlen(dmi_name) != sublen)
+			continue;
+		if (!strncasecmp(board_name, dmi_name, sublen))
 			break;
 	}
 
@@ -1153,7 +1168,7 @@ static int __init abituguru3_dmi_detect(void)
 
 static inline int abituguru3_dmi_detect(void)
 {
-	return -ENODEV;
+	return 1;
 }
 
 #endif /* CONFIG_DMI */

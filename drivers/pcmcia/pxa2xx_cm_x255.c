@@ -16,7 +16,6 @@
 #include <linux/gpio.h>
 
 #include <asm/mach-types.h>
-#include <mach/pxa-regs.h>
 
 #include "soc_common.h"
 
@@ -64,7 +63,7 @@ static void cmx255_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 				       struct pcmcia_state *state)
 {
 	int cd = skt->nr ? GPIO_PCMCIA_S1_CD_VALID : GPIO_PCMCIA_S0_CD_VALID;
-	int rdy = skt->nr ? GPIO_PCMCIA_S0_RDYINT : GPIO_PCMCIA_S1_RDYINT;
+	int rdy = skt->nr ? GPIO_PCMCIA_S1_RDYINT : GPIO_PCMCIA_S0_RDYINT;
 
 	state->detect = !gpio_get_value(cd);
 	state->ready  = !!gpio_get_value(rdy);

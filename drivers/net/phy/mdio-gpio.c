@@ -125,6 +125,8 @@ static int __devinit mdio_gpio_bus_init(struct device *dev,
 	if (gpio_request(bitbang->mdio, "mdio"))
 		goto out_free_mdc;
 
+	gpio_direction_output(bitbang->mdc, 0);
+
 	dev_set_drvdata(dev, new_bus);
 
 	ret = mdiobus_register(new_bus);
@@ -200,16 +202,21 @@ static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
 {
 	struct device_node *np = NULL;
 	struct mdio_gpio_platform_data *pdata;
+	int ret;
 
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->mdc = of_get_gpio(ofdev->node, 0);
-	pdata->mdio = of_get_gpio(ofdev->node, 1);
-
-	if (pdata->mdc < 0 || pdata->mdio < 0)
+	ret = of_get_gpio(ofdev->node, 0);
+	if (ret < 0)
 		goto out_free;
+	pdata->mdc = ret;
+
+	ret = of_get_gpio(ofdev->node, 1);
+	if (ret < 0)
+                goto out_free;
+	pdata->mdio = ret;
 
 	while ((np = of_get_next_child(ofdev->node, np)))
 		if (!strcmp(np->type, "ethernet-phy"))

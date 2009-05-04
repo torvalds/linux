@@ -43,7 +43,8 @@ EXPORT_SYMBOL(otg_get_transceiver);
  */
 void otg_put_transceiver(struct otg_transceiver *x)
 {
-	put_device(x->dev);
+	if (x)
+		put_device(x->dev);
 }
 EXPORT_SYMBOL(otg_put_transceiver);
 

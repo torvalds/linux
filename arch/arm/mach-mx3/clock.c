@@ -23,9 +23,13 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+
+#include <asm/clkdev.h>
+#include <asm/div64.h>
+
 #include <mach/clock.h>
 #include <mach/hardware.h>
-#include <asm/div64.h>
+#include <mach/common.h>
 
 #include "crm_regs.h"
 
@@ -64,16 +68,16 @@ static void __calc_pre_post_dividers(u32 div, u32 *pre, u32 *post)
 }
 
 static struct clk mcu_pll_clk;
-static struct clk mcu_main_clk;
-static struct clk usb_pll_clk;
 static struct clk serial_pll_clk;
 static struct clk ipg_clk;
 static struct clk ckih_clk;
-static struct clk ahb_clk;
 
-static int _clk_enable(struct clk *clk)
+static int cgr_enable(struct clk *clk)
 {
 	u32 reg;
+
+	if (!clk->enable_reg)
+		return 0;
 
 	reg = __raw_readl(clk->enable_reg);
 	reg |= 3 << clk->enable_shift;
@@ -82,133 +86,69 @@ static int _clk_enable(struct clk *clk)
 	return 0;
 }
 
-static void _clk_disable(struct clk *clk)
+static void cgr_disable(struct clk *clk)
 {
 	u32 reg;
+
+	if (!clk->enable_reg)
+		return;
 
 	reg = __raw_readl(clk->enable_reg);
 	reg &= ~(3 << clk->enable_shift);
+
+	/* special case for EMI clock */
+	if (clk->enable_reg == MXC_CCM_CGR2 && clk->enable_shift == 8)
+		reg |= (1 << clk->enable_shift);
+
 	__raw_writel(reg, clk->enable_reg);
 }
 
-static void _clk_emi_disable(struct clk *clk)
+static unsigned long pll_ref_get_rate(void)
 {
-	u32 reg;
-
-	reg = __raw_readl(clk->enable_reg);
-	reg &= ~(3 << clk->enable_shift);
-	reg |= (1 << clk->enable_shift);
-	__raw_writel(reg, clk->enable_reg);
-}
-
-static int _clk_pll_set_rate(struct clk *clk, unsigned long rate)
-{
-	u32 reg;
-	signed long pd = 1;	/* Pre-divider */
-	signed long mfi;	/* Multiplication Factor (Integer part) */
-	signed long mfn;	/* Multiplication Factor (Integer part) */
-	signed long mfd;	/* Multiplication Factor (Denominator Part) */
-	signed long tmp;
-	u32 ref_freq = clk_get_rate(clk->parent);
-
-	while (((ref_freq / pd) * 10) > rate)
-		pd++;
-
-	if ((ref_freq / pd) < PRE_DIV_MIN_FREQ)
-		return -EINVAL;
-
-	/* the ref_freq/2 in the following is to round up */
-	mfi = (((rate / 2) * pd) + (ref_freq / 2)) / ref_freq;
-	if (mfi < 5 || mfi > 15)
-		return -EINVAL;
-
-	/* pick a mfd value that will work
-	 * then solve for mfn */
-	mfd = ref_freq / 50000;
-
-	/*
-	 *          pll_freq * pd * mfd
-	 *   mfn = --------------------  -  (mfi * mfd)
-	 *           2 * ref_freq
-	 */
-	/* the tmp/2 is for rounding */
-	tmp = ref_freq / 10000;
-	mfn =
-	    ((((((rate / 2) + (tmp / 2)) / tmp) * pd) * mfd) / 10000) -
-	    (mfi * mfd);
-
-	mfn = mfn & 0x3ff;
-	pd--;
-	mfd--;
-
-	/* Change the Pll value */
-	reg = (mfi << MXC_CCM_PCTL_MFI_OFFSET) |
-	    (mfn << MXC_CCM_PCTL_MFN_OFFSET) |
-	    (mfd << MXC_CCM_PCTL_MFD_OFFSET) | (pd << MXC_CCM_PCTL_PD_OFFSET);
-
-	if (clk == &mcu_pll_clk)
-		__raw_writel(reg, MXC_CCM_MPCTL);
-	else if (clk == &usb_pll_clk)
-		__raw_writel(reg, MXC_CCM_UPCTL);
-	else if (clk == &serial_pll_clk)
-		__raw_writel(reg, MXC_CCM_SRPCTL);
-
-	return 0;
-}
-
-static unsigned long _clk_pll_get_rate(struct clk *clk)
-{
-	long mfi, mfn, mfd, pdf, ref_clk, mfn_abs;
-	unsigned long reg, ccmr;
-	s64 temp;
+	unsigned long ccmr;
 	unsigned int prcs;
 
 	ccmr = __raw_readl(MXC_CCM_CCMR);
 	prcs = (ccmr & MXC_CCM_CCMR_PRCS_MASK) >> MXC_CCM_CCMR_PRCS_OFFSET;
 	if (prcs == 0x1)
-		ref_clk = CKIL_CLK_FREQ * 1024;
+		return CKIL_CLK_FREQ * 1024;
 	else
-		ref_clk = clk_get_rate(&ckih_clk);
-
-	if (clk == &mcu_pll_clk) {
-		if ((ccmr & MXC_CCM_CCMR_MPE) == 0)
-			return ref_clk;
-		if ((ccmr & MXC_CCM_CCMR_MDS) != 0)
-			return ref_clk;
-		reg = __raw_readl(MXC_CCM_MPCTL);
-	} else if (clk == &usb_pll_clk)
-		reg = __raw_readl(MXC_CCM_UPCTL);
-	else if (clk == &serial_pll_clk)
-		reg = __raw_readl(MXC_CCM_SRPCTL);
-	else {
-		BUG();
-		return 0;
-	}
-
-	pdf = (reg & MXC_CCM_PCTL_PD_MASK) >> MXC_CCM_PCTL_PD_OFFSET;
-	mfd = (reg & MXC_CCM_PCTL_MFD_MASK) >> MXC_CCM_PCTL_MFD_OFFSET;
-	mfi = (reg & MXC_CCM_PCTL_MFI_MASK) >> MXC_CCM_PCTL_MFI_OFFSET;
-	mfi = (mfi <= 5) ? 5 : mfi;
-	mfn = mfn_abs = reg & MXC_CCM_PCTL_MFN_MASK;
-
-	if (mfn >= 0x200) {
-		mfn |= 0xFFFFFE00;
-		mfn_abs = -mfn;
-	}
-
-	ref_clk *= 2;
-	ref_clk /= pdf + 1;
-
-	temp = (u64) ref_clk * mfn_abs;
-	do_div(temp, mfd + 1);
-	if (mfn < 0)
-		temp = -temp;
-	temp = (ref_clk * mfi) + temp;
-
-	return temp;
+		return clk_get_rate(&ckih_clk);
 }
 
-static int _clk_usb_pll_enable(struct clk *clk)
+static unsigned long usb_pll_get_rate(struct clk *clk)
+{
+	unsigned long reg;
+
+	reg = __raw_readl(MXC_CCM_UPCTL);
+
+	return mxc_decode_pll(reg, pll_ref_get_rate());
+}
+
+static unsigned long serial_pll_get_rate(struct clk *clk)
+{
+	unsigned long reg;
+
+	reg = __raw_readl(MXC_CCM_SRPCTL);
+
+	return mxc_decode_pll(reg, pll_ref_get_rate());
+}
+
+static unsigned long mcu_pll_get_rate(struct clk *clk)
+{
+	unsigned long reg, ccmr;
+
+	ccmr = __raw_readl(MXC_CCM_CCMR);
+
+	if (!(ccmr & MXC_CCM_CCMR_MPE) || (ccmr & MXC_CCM_CCMR_MDS))
+		return clk_get_rate(&ckih_clk);
+
+	reg = __raw_readl(MXC_CCM_MPCTL);
+
+	return mxc_decode_pll(reg, pll_ref_get_rate());
+}
+
+static int usb_pll_enable(struct clk *clk)
 {
 	u32 reg;
 
@@ -222,7 +162,7 @@ static int _clk_usb_pll_enable(struct clk *clk)
 	return 0;
 }
 
-static void _clk_usb_pll_disable(struct clk *clk)
+static void usb_pll_disable(struct clk *clk)
 {
 	u32 reg;
 
@@ -231,7 +171,7 @@ static void _clk_usb_pll_disable(struct clk *clk)
 	__raw_writel(reg, MXC_CCM_CCMR);
 }
 
-static int _clk_serial_pll_enable(struct clk *clk)
+static int serial_pll_enable(struct clk *clk)
 {
 	u32 reg;
 
@@ -245,7 +185,7 @@ static int _clk_serial_pll_enable(struct clk *clk)
 	return 0;
 }
 
-static void _clk_serial_pll_disable(struct clk *clk)
+static void serial_pll_disable(struct clk *clk)
 {
 	u32 reg;
 
@@ -258,7 +198,7 @@ static void _clk_serial_pll_disable(struct clk *clk)
 #define PDR1(mask, off) ((__raw_readl(MXC_CCM_PDR1) & mask) >> off)
 #define PDR2(mask, off) ((__raw_readl(MXC_CCM_PDR2) & mask) >> off)
 
-static unsigned long _clk_mcu_main_get_rate(struct clk *clk)
+static unsigned long mcu_main_get_rate(struct clk *clk)
 {
 	u32 pmcr0 = __raw_readl(MXC_CCM_PMCR0);
 
@@ -268,7 +208,7 @@ static unsigned long _clk_mcu_main_get_rate(struct clk *clk)
 		return clk_get_rate(&mcu_pll_clk);
 }
 
-static unsigned long _clk_hclk_get_rate(struct clk *clk)
+static unsigned long ahb_get_rate(struct clk *clk)
 {
 	unsigned long max_pdf;
 
@@ -277,7 +217,7 @@ static unsigned long _clk_hclk_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (max_pdf + 1);
 }
 
-static unsigned long _clk_ipg_get_rate(struct clk *clk)
+static unsigned long ipg_get_rate(struct clk *clk)
 {
 	unsigned long ipg_pdf;
 
@@ -286,7 +226,7 @@ static unsigned long _clk_ipg_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (ipg_pdf + 1);
 }
 
-static unsigned long _clk_nfc_get_rate(struct clk *clk)
+static unsigned long nfc_get_rate(struct clk *clk)
 {
 	unsigned long nfc_pdf;
 
@@ -295,7 +235,7 @@ static unsigned long _clk_nfc_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (nfc_pdf + 1);
 }
 
-static unsigned long _clk_hsp_get_rate(struct clk *clk)
+static unsigned long hsp_get_rate(struct clk *clk)
 {
 	unsigned long hsp_pdf;
 
@@ -304,7 +244,7 @@ static unsigned long _clk_hsp_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (hsp_pdf + 1);
 }
 
-static unsigned long _clk_usb_get_rate(struct clk *clk)
+static unsigned long usb_get_rate(struct clk *clk)
 {
 	unsigned long usb_pdf, usb_prepdf;
 
@@ -315,7 +255,7 @@ static unsigned long _clk_usb_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (usb_prepdf + 1) / (usb_pdf + 1);
 }
 
-static unsigned long _clk_csi_get_rate(struct clk *clk)
+static unsigned long csi_get_rate(struct clk *clk)
 {
 	u32 reg, pre, post;
 
@@ -329,7 +269,7 @@ static unsigned long _clk_csi_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (pre * post);
 }
 
-static unsigned long _clk_csi_round_rate(struct clk *clk, unsigned long rate)
+static unsigned long csi_round_rate(struct clk *clk, unsigned long rate)
 {
 	u32 pre, post, parent = clk_get_rate(clk->parent);
 	u32 div = parent / rate;
@@ -342,7 +282,7 @@ static unsigned long _clk_csi_round_rate(struct clk *clk, unsigned long rate)
 	return parent / (pre * post);
 }
 
-static int _clk_csi_set_rate(struct clk *clk, unsigned long rate)
+static int csi_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 reg, div, pre, post, parent = clk_get_rate(clk->parent);
 
@@ -363,16 +303,7 @@ static int _clk_csi_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static unsigned long _clk_per_get_rate(struct clk *clk)
-{
-	unsigned long per_pdf;
-
-	per_pdf = PDR0(MXC_CCM_PDR0_PER_PODF_MASK,
-		       MXC_CCM_PDR0_PER_PODF_OFFSET);
-	return clk_get_rate(clk->parent) / (per_pdf + 1);
-}
-
-static unsigned long _clk_ssi1_get_rate(struct clk *clk)
+static unsigned long ssi1_get_rate(struct clk *clk)
 {
 	unsigned long ssi1_pdf, ssi1_prepdf;
 
@@ -383,7 +314,7 @@ static unsigned long _clk_ssi1_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (ssi1_prepdf + 1) / (ssi1_pdf + 1);
 }
 
-static unsigned long _clk_ssi2_get_rate(struct clk *clk)
+static unsigned long ssi2_get_rate(struct clk *clk)
 {
 	unsigned long ssi2_pdf, ssi2_prepdf;
 
@@ -394,7 +325,7 @@ static unsigned long _clk_ssi2_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (ssi2_prepdf + 1) / (ssi2_pdf + 1);
 }
 
-static unsigned long _clk_firi_get_rate(struct clk *clk)
+static unsigned long firi_get_rate(struct clk *clk)
 {
 	unsigned long firi_pdf, firi_prepdf;
 
@@ -405,7 +336,7 @@ static unsigned long _clk_firi_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (firi_prepdf + 1) / (firi_pdf + 1);
 }
 
-static unsigned long _clk_firi_round_rate(struct clk *clk, unsigned long rate)
+static unsigned long firi_round_rate(struct clk *clk, unsigned long rate)
 {
 	u32 pre, post;
 	u32 parent = clk_get_rate(clk->parent);
@@ -420,7 +351,7 @@ static unsigned long _clk_firi_round_rate(struct clk *clk, unsigned long rate)
 
 }
 
-static int _clk_firi_set_rate(struct clk *clk, unsigned long rate)
+static int firi_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 reg, div, pre, post, parent = clk_get_rate(clk->parent);
 
@@ -441,12 +372,12 @@ static int _clk_firi_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-static unsigned long _clk_mbx_get_rate(struct clk *clk)
+static unsigned long mbx_get_rate(struct clk *clk)
 {
 	return clk_get_rate(clk->parent) / 2;
 }
 
-static unsigned long _clk_mstick1_get_rate(struct clk *clk)
+static unsigned long mstick1_get_rate(struct clk *clk)
 {
 	unsigned long msti_pdf;
 
@@ -455,7 +386,7 @@ static unsigned long _clk_mstick1_get_rate(struct clk *clk)
 	return clk_get_rate(clk->parent) / (msti_pdf + 1);
 }
 
-static unsigned long _clk_mstick2_get_rate(struct clk *clk)
+static unsigned long mstick2_get_rate(struct clk *clk)
 {
 	unsigned long msti_pdf;
 
@@ -472,661 +403,185 @@ static unsigned long clk_ckih_get_rate(struct clk *clk)
 }
 
 static struct clk ckih_clk = {
-	.name = "ckih",
 	.get_rate = clk_ckih_get_rate,
 };
 
-static unsigned long clk_ckil_get_rate(struct clk *clk)
-{
-	return CKIL_CLK_FREQ;
-}
-
-static struct clk ckil_clk = {
-	.name = "ckil",
-	.get_rate = clk_ckil_get_rate,
-};
-
 static struct clk mcu_pll_clk = {
-	.name = "mcu_pll",
 	.parent = &ckih_clk,
-	.set_rate = _clk_pll_set_rate,
-	.get_rate = _clk_pll_get_rate,
+	.get_rate = mcu_pll_get_rate,
 };
 
 static struct clk mcu_main_clk = {
-	.name = "mcu_main_clk",
 	.parent = &mcu_pll_clk,
-	.get_rate = _clk_mcu_main_get_rate,
+	.get_rate = mcu_main_get_rate,
 };
 
 static struct clk serial_pll_clk = {
-	.name = "serial_pll",
 	.parent = &ckih_clk,
-	.set_rate = _clk_pll_set_rate,
-	.get_rate = _clk_pll_get_rate,
-	.enable = _clk_serial_pll_enable,
-	.disable = _clk_serial_pll_disable,
+	.get_rate = serial_pll_get_rate,
+	.enable = serial_pll_enable,
+	.disable = serial_pll_disable,
 };
 
 static struct clk usb_pll_clk = {
-	.name = "usb_pll",
 	.parent = &ckih_clk,
-	.set_rate = _clk_pll_set_rate,
-	.get_rate = _clk_pll_get_rate,
-	.enable = _clk_usb_pll_enable,
-	.disable = _clk_usb_pll_disable,
+	.get_rate = usb_pll_get_rate,
+	.enable = usb_pll_enable,
+	.disable = usb_pll_disable,
 };
 
 static struct clk ahb_clk = {
-	.name = "ahb_clk",
 	.parent = &mcu_main_clk,
-	.get_rate = _clk_hclk_get_rate,
+	.get_rate = ahb_get_rate,
 };
 
-static struct clk per_clk = {
-	.name = "per_clk",
-	.parent = &usb_pll_clk,
-	.get_rate = _clk_per_get_rate,
+#define DEFINE_CLOCK(name, i, er, es, gr, s, p)		\
+	static struct clk name = {			\
+		.id		= i,			\
+		.enable_reg	= er,			\
+		.enable_shift	= es,			\
+		.get_rate	= gr,			\
+		.enable		= cgr_enable,		\
+		.disable	= cgr_disable,		\
+		.secondary	= s,			\
+		.parent		= p,			\
+	}
+
+#define DEFINE_CLOCK1(name, i, er, es, getsetround, s, p)	\
+	static struct clk name = {				\
+		.id		= i,				\
+		.enable_reg	= er,				\
+		.enable_shift	= es,				\
+		.get_rate	= getsetround##_get_rate,	\
+		.set_rate	= getsetround##_set_rate,	\
+		.round_rate	= getsetround##_round_rate,	\
+		.enable		= cgr_enable,			\
+		.disable	= cgr_disable,			\
+		.secondary	= s,				\
+		.parent		= p,				\
+	}
+
+DEFINE_CLOCK(perclk_clk,  0, NULL,          0, NULL, NULL, &ipg_clk);
+
+DEFINE_CLOCK(sdhc1_clk,   0, MXC_CCM_CGR0,  0, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(sdhc2_clk,   1, MXC_CCM_CGR0,  2, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(gpt_clk,     0, MXC_CCM_CGR0,  4, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(epit1_clk,   0, MXC_CCM_CGR0,  6, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(epit2_clk,   1, MXC_CCM_CGR0,  8, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(iim_clk,     0, MXC_CCM_CGR0, 10, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(ata_clk,     0, MXC_CCM_CGR0, 12, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(sdma_clk1,   0, MXC_CCM_CGR0, 14, NULL, &sdma_clk1, &ahb_clk);
+DEFINE_CLOCK(cspi3_clk,   2, MXC_CCM_CGR0, 16, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(rng_clk,     0, MXC_CCM_CGR0, 18, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(uart1_clk,   0, MXC_CCM_CGR0, 20, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(uart2_clk,   1, MXC_CCM_CGR0, 22, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(ssi1_clk,    0, MXC_CCM_CGR0, 24, ssi1_get_rate, NULL, &serial_pll_clk);
+DEFINE_CLOCK(i2c1_clk,    0, MXC_CCM_CGR0, 26, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(i2c2_clk,    1, MXC_CCM_CGR0, 28, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(i2c3_clk,    2, MXC_CCM_CGR0, 30, NULL, NULL, &perclk_clk);
+
+DEFINE_CLOCK(mpeg4_clk,   0, MXC_CCM_CGR1,  0, NULL, NULL, &ahb_clk);
+DEFINE_CLOCK(mstick1_clk, 0, MXC_CCM_CGR1,  2, mstick1_get_rate, NULL, &usb_pll_clk);
+DEFINE_CLOCK(mstick2_clk, 1, MXC_CCM_CGR1,  4, mstick2_get_rate, NULL, &usb_pll_clk);
+DEFINE_CLOCK1(csi_clk,    0, MXC_CCM_CGR1,  6, csi, NULL, &ahb_clk);
+DEFINE_CLOCK(rtc_clk,     0, MXC_CCM_CGR1,  8, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(wdog_clk,    0, MXC_CCM_CGR1, 10, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(pwm_clk,     0, MXC_CCM_CGR1, 12, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(usb_clk2,    0, MXC_CCM_CGR1, 18, usb_get_rate, NULL, &ahb_clk);
+DEFINE_CLOCK(kpp_clk,     0, MXC_CCM_CGR1, 20, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(ipu_clk,     0, MXC_CCM_CGR1, 22, hsp_get_rate, NULL, &mcu_main_clk);
+DEFINE_CLOCK(uart3_clk,   2, MXC_CCM_CGR1, 24, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(uart4_clk,   3, MXC_CCM_CGR1, 26, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(uart5_clk,   4, MXC_CCM_CGR1, 28, NULL, NULL, &perclk_clk);
+DEFINE_CLOCK(owire_clk,   0, MXC_CCM_CGR1, 30, NULL, NULL, &perclk_clk);
+
+DEFINE_CLOCK(ssi2_clk,    1, MXC_CCM_CGR2,  0, ssi2_get_rate, NULL, &serial_pll_clk);
+DEFINE_CLOCK(cspi1_clk,   0, MXC_CCM_CGR2,  2, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(cspi2_clk,   1, MXC_CCM_CGR2,  4, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(mbx_clk,     0, MXC_CCM_CGR2,  6, mbx_get_rate, NULL, &ahb_clk);
+DEFINE_CLOCK(emi_clk,     0, MXC_CCM_CGR2,  8, NULL, NULL, &ahb_clk);
+DEFINE_CLOCK(rtic_clk,    0, MXC_CCM_CGR2, 10, NULL, NULL, &ahb_clk);
+DEFINE_CLOCK1(firi_clk,   0, MXC_CCM_CGR2, 12, firi, NULL, &usb_pll_clk);
+
+DEFINE_CLOCK(sdma_clk2,   0, NULL,          0, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(usb_clk1,    0, NULL,          0, usb_get_rate, NULL, &usb_pll_clk);
+DEFINE_CLOCK(nfc_clk,     0, NULL,          0, nfc_get_rate, NULL, &ahb_clk);
+DEFINE_CLOCK(scc_clk,     0, NULL,          0, NULL, NULL, &ipg_clk);
+DEFINE_CLOCK(ipg_clk,     0, NULL,          0, ipg_get_rate, NULL, &ahb_clk);
+
+#define _REGISTER_CLOCK(d, n, c) \
+	{ \
+		.dev_id = d, \
+		.con_id = n, \
+		.clk = &c, \
+	},
+
+static struct clk_lookup lookups[] __initdata = {
+	_REGISTER_CLOCK(NULL, "emi", emi_clk)
+	_REGISTER_CLOCK(NULL, "cspi", cspi1_clk)
+	_REGISTER_CLOCK(NULL, "cspi", cspi2_clk)
+	_REGISTER_CLOCK(NULL, "cspi", cspi3_clk)
+	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
+	_REGISTER_CLOCK(NULL, "pwm", pwm_clk)
+	_REGISTER_CLOCK(NULL, "wdog", wdog_clk)
+	_REGISTER_CLOCK(NULL, "rtc", rtc_clk)
+	_REGISTER_CLOCK(NULL, "epit", epit1_clk)
+	_REGISTER_CLOCK(NULL, "epit", epit2_clk)
+	_REGISTER_CLOCK("mxc_nand.0", NULL, nfc_clk)
+	_REGISTER_CLOCK("ipu-core", NULL, ipu_clk)
+	_REGISTER_CLOCK("mx3_sdc_fb", NULL, ipu_clk)
+	_REGISTER_CLOCK(NULL, "kpp", kpp_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk1)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usb_clk2)
+	_REGISTER_CLOCK("mx3-camera.0", NULL, csi_clk)
+	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
+	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
+	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK("imx-uart.3", NULL, uart4_clk)
+	_REGISTER_CLOCK("imx-uart.4", NULL, uart5_clk)
+	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
+	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)
+	_REGISTER_CLOCK("imx-i2c.2", NULL, i2c3_clk)
+	_REGISTER_CLOCK("mxc_w1.0", NULL, owire_clk)
+	_REGISTER_CLOCK("mxc-mmc.0", NULL, sdhc1_clk)
+	_REGISTER_CLOCK("mxc-mmc.1", NULL, sdhc2_clk)
+	_REGISTER_CLOCK(NULL, "ssi", ssi1_clk)
+	_REGISTER_CLOCK(NULL, "ssi", ssi2_clk)
+	_REGISTER_CLOCK(NULL, "firi", firi_clk)
+	_REGISTER_CLOCK(NULL, "ata", ata_clk)
+	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
+	_REGISTER_CLOCK(NULL, "rng", rng_clk)
+	_REGISTER_CLOCK(NULL, "sdma_ahb", sdma_clk1)
+	_REGISTER_CLOCK(NULL, "sdma_ipg", sdma_clk2)
+	_REGISTER_CLOCK(NULL, "mstick", mstick1_clk)
+	_REGISTER_CLOCK(NULL, "mstick", mstick2_clk)
+	_REGISTER_CLOCK(NULL, "scc", scc_clk)
+	_REGISTER_CLOCK(NULL, "iim", iim_clk)
+	_REGISTER_CLOCK(NULL, "mpeg4", mpeg4_clk)
+	_REGISTER_CLOCK(NULL, "mbx", mbx_clk)
 };
 
-static struct clk perclk_clk = {
-	.name = "perclk_clk",
-	.parent = &ipg_clk,
-};
-
-static struct clk cspi_clk[] = {
-	{
-	 .name = "cspi_clk",
-	 .id = 0,
-	 .parent = &ipg_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR2,
-	 .enable_shift = MXC_CCM_CGR2_CSPI1_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "cspi_clk",
-	 .id = 1,
-	 .parent = &ipg_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR2,
-	 .enable_shift = MXC_CCM_CGR2_CSPI2_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "cspi_clk",
-	 .id = 2,
-	 .parent = &ipg_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_CSPI3_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk ipg_clk = {
-	.name = "ipg_clk",
-	.parent = &ahb_clk,
-	.get_rate = _clk_ipg_get_rate,
-};
-
-static struct clk emi_clk = {
-	.name = "emi_clk",
-	.parent = &ahb_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR2,
-	.enable_shift = MXC_CCM_CGR2_EMI_OFFSET,
-	.disable = _clk_emi_disable,
-};
-
-static struct clk gpt_clk = {
-	.name = "gpt_clk",
-	.parent = &perclk_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR0,
-	.enable_shift = MXC_CCM_CGR0_GPT_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk pwm_clk = {
-	.name = "pwm_clk",
-	.parent = &perclk_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR0,
-	.enable_shift = MXC_CCM_CGR1_PWM_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk epit_clk[] = {
-	{
-	 .name = "epit_clk",
-	 .id = 0,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_EPIT1_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "epit_clk",
-	 .id = 1,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_EPIT2_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk nfc_clk = {
-	.name = "nfc_clk",
-	.parent = &ahb_clk,
-	.get_rate = _clk_nfc_get_rate,
-};
-
-static struct clk scc_clk = {
-	.name = "scc_clk",
-	.parent = &ipg_clk,
-};
-
-static struct clk ipu_clk = {
-	.name = "ipu_clk",
-	.parent = &mcu_main_clk,
-	.get_rate = _clk_hsp_get_rate,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_IPU_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk kpp_clk = {
-	.name = "kpp_clk",
-	.parent = &ipg_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_KPP_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk wdog_clk = {
-	.name = "wdog_clk",
-	.parent = &ipg_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_WDOG_OFFSET,
-	.disable = _clk_disable,
-};
-static struct clk rtc_clk = {
-	.name = "rtc_clk",
-	.parent = &ipg_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_RTC_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk usb_clk[] = {
-	{
-	 .name = "usb_clk",
-	 .parent = &usb_pll_clk,
-	 .get_rate = _clk_usb_get_rate,},
-	{
-	 .name = "usb_ahb_clk",
-	 .parent = &ahb_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR1,
-	 .enable_shift = MXC_CCM_CGR1_USBOTG_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk csi_clk = {
-	.name = "csi_clk",
-	.parent = &serial_pll_clk,
-	.get_rate = _clk_csi_get_rate,
-	.round_rate = _clk_csi_round_rate,
-	.set_rate = _clk_csi_set_rate,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_CSI_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk uart_clk[] = {
-	{
-	 .name = "uart_clk",
-	 .id = 0,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_UART1_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "uart_clk",
-	 .id = 1,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_UART2_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "uart_clk",
-	 .id = 2,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR1,
-	 .enable_shift = MXC_CCM_CGR1_UART3_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "uart_clk",
-	 .id = 3,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR1,
-	 .enable_shift = MXC_CCM_CGR1_UART4_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "uart_clk",
-	 .id = 4,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR1,
-	 .enable_shift = MXC_CCM_CGR1_UART5_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk i2c_clk[] = {
-	{
-	 .name = "i2c_clk",
-	 .id = 0,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_I2C1_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "i2c_clk",
-	 .id = 1,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_I2C2_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "i2c_clk",
-	 .id = 2,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_I2C3_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk owire_clk = {
-	.name = "owire_clk",
-	.parent = &perclk_clk,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_OWIRE_OFFSET,
-	.enable = _clk_enable,
-	.disable = _clk_disable,
-};
-
-static struct clk sdhc_clk[] = {
-	{
-	 .name = "sdhc_clk",
-	 .id = 0,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_SD_MMC1_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "sdhc_clk",
-	 .id = 1,
-	 .parent = &perclk_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_SD_MMC2_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk ssi_clk[] = {
-	{
-	 .name = "ssi_clk",
-	 .parent = &serial_pll_clk,
-	 .get_rate = _clk_ssi1_get_rate,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_SSI1_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "ssi_clk",
-	 .id = 1,
-	 .parent = &serial_pll_clk,
-	 .get_rate = _clk_ssi2_get_rate,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR2,
-	 .enable_shift = MXC_CCM_CGR2_SSI2_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk firi_clk = {
-	.name = "firi_clk",
-	.parent = &usb_pll_clk,
-	.round_rate = _clk_firi_round_rate,
-	.set_rate = _clk_firi_set_rate,
-	.get_rate = _clk_firi_get_rate,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR2,
-	.enable_shift = MXC_CCM_CGR2_FIRI_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk ata_clk = {
-	.name = "ata_clk",
-	.parent = &ipg_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR0,
-	.enable_shift = MXC_CCM_CGR0_ATA_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk mbx_clk = {
-	.name = "mbx_clk",
-	.parent = &ahb_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR2,
-	.enable_shift = MXC_CCM_CGR2_GACC_OFFSET,
-	.get_rate = _clk_mbx_get_rate,
-};
-
-static struct clk vpu_clk = {
-	.name = "vpu_clk",
-	.parent = &ahb_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR2,
-	.enable_shift = MXC_CCM_CGR2_GACC_OFFSET,
-	.get_rate = _clk_mbx_get_rate,
-};
-
-static struct clk rtic_clk = {
-	.name = "rtic_clk",
-	.parent = &ahb_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR2,
-	.enable_shift = MXC_CCM_CGR2_RTIC_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk rng_clk = {
-	.name = "rng_clk",
-	.parent = &ipg_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR0,
-	.enable_shift = MXC_CCM_CGR0_RNG_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk sdma_clk[] = {
-	{
-	 .name = "sdma_ahb_clk",
-	 .parent = &ahb_clk,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR0,
-	 .enable_shift = MXC_CCM_CGR0_SDMA_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "sdma_ipg_clk",
-	 .parent = &ipg_clk,}
-};
-
-static struct clk mpeg4_clk = {
-	.name = "mpeg4_clk",
-	.parent = &ahb_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_HANTRO_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk vl2cc_clk = {
-	.name = "vl2cc_clk",
-	.parent = &ahb_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR1,
-	.enable_shift = MXC_CCM_CGR1_HANTRO_OFFSET,
-	.disable = _clk_disable,
-};
-
-static struct clk mstick_clk[] = {
-	{
-	 .name = "mstick_clk",
-	 .id = 0,
-	 .parent = &usb_pll_clk,
-	 .get_rate = _clk_mstick1_get_rate,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR1,
-	 .enable_shift = MXC_CCM_CGR1_MEMSTICK1_OFFSET,
-	 .disable = _clk_disable,},
-	{
-	 .name = "mstick_clk",
-	 .id = 1,
-	 .parent = &usb_pll_clk,
-	 .get_rate = _clk_mstick2_get_rate,
-	 .enable = _clk_enable,
-	 .enable_reg = MXC_CCM_CGR1,
-	 .enable_shift = MXC_CCM_CGR1_MEMSTICK2_OFFSET,
-	 .disable = _clk_disable,},
-};
-
-static struct clk iim_clk = {
-	.name = "iim_clk",
-	.parent = &ipg_clk,
-	.enable = _clk_enable,
-	.enable_reg = MXC_CCM_CGR0,
-	.enable_shift = MXC_CCM_CGR0_IIM_OFFSET,
-	.disable = _clk_disable,
-};
-
-static unsigned long _clk_cko1_round_rate(struct clk *clk, unsigned long rate)
-{
-	u32 div, parent = clk_get_rate(clk->parent);
-
-	div = parent / rate;
-	if (parent % rate)
-		div++;
-
-	if (div > 8)
-		div = 16;
-	else if (div > 4)
-		div = 8;
-	else if (div > 2)
-		div = 4;
-
-	return parent / div;
-}
-
-static int _clk_cko1_set_rate(struct clk *clk, unsigned long rate)
-{
-	u32 reg, div, parent = clk_get_rate(clk->parent);
-
-	div = parent / rate;
-
-	if (div == 16)
-		div = 4;
-	else if (div == 8)
-		div = 3;
-	else if (div == 4)
-		div = 2;
-	else if (div == 2)
-		div = 1;
-	else if (div == 1)
-		div = 0;
-	else
-		return -EINVAL;
-
-	reg = __raw_readl(MXC_CCM_COSR) & ~MXC_CCM_COSR_CLKOUTDIV_MASK;
-	reg |= div << MXC_CCM_COSR_CLKOUTDIV_OFFSET;
-	__raw_writel(reg, MXC_CCM_COSR);
-
-	return 0;
-}
-
-static unsigned long _clk_cko1_get_rate(struct clk *clk)
-{
-	u32 div;
-
-	div = __raw_readl(MXC_CCM_COSR) & MXC_CCM_COSR_CLKOUTDIV_MASK >>
-	    MXC_CCM_COSR_CLKOUTDIV_OFFSET;
-
-	return clk_get_rate(clk->parent) / (1 << div);
-}
-
-static int _clk_cko1_set_parent(struct clk *clk, struct clk *parent)
+int __init mx31_clocks_init(unsigned long fref)
 {
 	u32 reg;
+	int i;
 
-	reg = __raw_readl(MXC_CCM_COSR) & ~MXC_CCM_COSR_CLKOSEL_MASK;
-
-	if (parent == &mcu_main_clk)
-		reg |= 0 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &ipg_clk)
-		reg |= 1 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &usb_pll_clk)
-		reg |= 2 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == mcu_main_clk.parent)
-		reg |= 3 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &ahb_clk)
-		reg |= 5 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &serial_pll_clk)
-		reg |= 7 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &ckih_clk)
-		reg |= 8 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &emi_clk)
-		reg |= 9 << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &ipu_clk)
-		reg |= 0xA << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &nfc_clk)
-		reg |= 0xB << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else if (parent == &uart_clk[0])
-		reg |= 0xC << MXC_CCM_COSR_CLKOSEL_OFFSET;
-	else
-		return -EINVAL;
-
-	__raw_writel(reg, MXC_CCM_COSR);
-
-	return 0;
-}
-
-static int _clk_cko1_enable(struct clk *clk)
-{
-	u32 reg;
-
-	reg = __raw_readl(MXC_CCM_COSR) | MXC_CCM_COSR_CLKOEN;
-	__raw_writel(reg, MXC_CCM_COSR);
-
-	return 0;
-}
-
-static void _clk_cko1_disable(struct clk *clk)
-{
-	u32 reg;
-
-	reg = __raw_readl(MXC_CCM_COSR) & ~MXC_CCM_COSR_CLKOEN;
-	__raw_writel(reg, MXC_CCM_COSR);
-}
-
-static struct clk cko1_clk = {
-	.name = "cko1_clk",
-	.get_rate = _clk_cko1_get_rate,
-	.set_rate = _clk_cko1_set_rate,
-	.round_rate = _clk_cko1_round_rate,
-	.set_parent = _clk_cko1_set_parent,
-	.enable = _clk_cko1_enable,
-	.disable = _clk_cko1_disable,
-};
-
-static struct clk *mxc_clks[] = {
-	&ckih_clk,
-	&ckil_clk,
-	&mcu_pll_clk,
-	&usb_pll_clk,
-	&serial_pll_clk,
-	&mcu_main_clk,
-	&ahb_clk,
-	&per_clk,
-	&perclk_clk,
-	&cko1_clk,
-	&emi_clk,
-	&cspi_clk[0],
-	&cspi_clk[1],
-	&cspi_clk[2],
-	&ipg_clk,
-	&gpt_clk,
-	&pwm_clk,
-	&wdog_clk,
-	&rtc_clk,
-	&epit_clk[0],
-	&epit_clk[1],
-	&nfc_clk,
-	&ipu_clk,
-	&kpp_clk,
-	&usb_clk[0],
-	&usb_clk[1],
-	&csi_clk,
-	&uart_clk[0],
-	&uart_clk[1],
-	&uart_clk[2],
-	&uart_clk[3],
-	&uart_clk[4],
-	&i2c_clk[0],
-	&i2c_clk[1],
-	&i2c_clk[2],
-	&owire_clk,
-	&sdhc_clk[0],
-	&sdhc_clk[1],
-	&ssi_clk[0],
-	&ssi_clk[1],
-	&firi_clk,
-	&ata_clk,
-	&rtic_clk,
-	&rng_clk,
-	&sdma_clk[0],
-	&sdma_clk[1],
-	&mstick_clk[0],
-	&mstick_clk[1],
-	&scc_clk,
-	&iim_clk,
-};
-
-int __init mxc_clocks_init(unsigned long fref)
-{
-	u32 reg;
-	struct clk **clkp;
+	mxc_set_cpu_type(MXC_CPU_MX31);
 
 	ckih_rate = fref;
 
-	for (clkp = mxc_clks; clkp < mxc_clks + ARRAY_SIZE(mxc_clks); clkp++)
-		clk_register(*clkp);
-
-	if (cpu_is_mx31()) {
-		clk_register(&mpeg4_clk);
-		clk_register(&mbx_clk);
-	} else {
-		clk_register(&vpu_clk);
-		clk_register(&vl2cc_clk);
-	}
+	for (i = 0; i < ARRAY_SIZE(lookups); i++)
+		clkdev_add(&lookups[i]);
 
 	/* Turn off all possible clocks */
-	__raw_writel(MXC_CCM_CGR0_GPT_MASK, MXC_CCM_CGR0);
+	__raw_writel((3 << 4), MXC_CCM_CGR0);
 	__raw_writel(0, MXC_CCM_CGR1);
-
-	__raw_writel(MXC_CCM_CGR2_EMI_MASK |
-		     MXC_CCM_CGR2_IPMUX1_MASK |
-		     MXC_CCM_CGR2_IPMUX2_MASK |
-		     MXC_CCM_CGR2_MXCCLKENSEL_MASK |	/* for MX32 */
-		     MXC_CCM_CGR2_CHIKCAMPEN_MASK |	/* for MX32 */
-		     MXC_CCM_CGR2_OVRVPUBUSY_MASK |	/* for MX32 */
+	__raw_writel((3 << 8) | (3 << 14) | (3 << 16)|
 		     1 << 27 | 1 << 28, /* Bit 27 and 28 are not defined for
 					   MX32, but still required to be set */
 		     MXC_CCM_CGR2);
 
-	clk_disable(&cko1_clk);
-	clk_disable(&usb_pll_clk);
+	usb_pll_disable(&usb_pll_clk);
 
 	pr_info("Clock input source is %ld\n", clk_get_rate(&ckih_clk));
 
@@ -1142,6 +597,8 @@ int __init mxc_clocks_init(unsigned long fref)
 		reg |= MXC_CCM_PMCR1_PLLRDIS | MXC_CCM_PMCR1_EMIRQ_EN;
 		__raw_writel(reg, MXC_CCM_PMCR1);
 	}
+
+	mxc_timer_init(&ipg_clk);
 
 	return 0;
 }

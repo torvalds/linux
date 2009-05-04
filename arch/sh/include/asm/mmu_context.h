@@ -19,13 +19,18 @@
  *    (a) TLB cache version (or round, cycle whatever expression you like)
  *    (b) ASID (Address Space IDentifier)
  */
+#ifdef CONFIG_CPU_HAS_PTEAEX
+#define MMU_CONTEXT_ASID_MASK		0x0000ffff
+#else
 #define MMU_CONTEXT_ASID_MASK		0x000000ff
-#define MMU_CONTEXT_VERSION_MASK	0xffffff00
-#define MMU_CONTEXT_FIRST_VERSION	0x00000100
-#define NO_CONTEXT			0UL
+#endif
 
-/* ASID is 8-bit value, so it can't be 0x100 */
-#define MMU_NO_ASID			0x100
+#define MMU_CONTEXT_VERSION_MASK	(~0UL & ~MMU_CONTEXT_ASID_MASK)
+#define MMU_CONTEXT_FIRST_VERSION	(MMU_CONTEXT_ASID_MASK + 1)
+
+/* Impossible ASID value, to differentiate from NO_CONTEXT. */
+#define MMU_NO_ASID			MMU_CONTEXT_FIRST_VERSION
+#define NO_CONTEXT			0UL
 
 #define asid_cache(cpu)		(cpu_data[cpu].asid_cache)
 

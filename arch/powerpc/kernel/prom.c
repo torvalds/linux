@@ -590,6 +590,11 @@ static void __init check_cpu_slb_size(unsigned long node)
 {
 	u32 *slb_size_ptr;
 
+	slb_size_ptr = of_get_flat_dt_prop(node, "slb-size", NULL);
+	if (slb_size_ptr != NULL) {
+		mmu_slb_size = *slb_size_ptr;
+		return;
+	}
 	slb_size_ptr = of_get_flat_dt_prop(node, "ibm,slb-size", NULL);
 	if (slb_size_ptr != NULL) {
 		mmu_slb_size = *slb_size_ptr;
@@ -1070,11 +1075,6 @@ static void __init early_reserve_mem(void)
 		DBG("reserving: %llx -> %llx\n", base, size);
 		lmb_reserve(base, size);
 	}
-
-#if 0
-	DBG("memory reserved, lmbs :\n");
-      	lmb_dump_all();
-#endif
 }
 
 #ifdef CONFIG_PHYP_DUMP
@@ -1216,6 +1216,7 @@ void __init early_init_devtree(void *params)
 	lmb_enforce_memory_limit(limit);
 
 	lmb_analyze();
+	lmb_dump_all();
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
 

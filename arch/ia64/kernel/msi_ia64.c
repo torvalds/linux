@@ -7,44 +7,7 @@
 #include <linux/msi.h>
 #include <linux/dmar.h>
 #include <asm/smp.h>
-
-/*
- * Shifts for APIC-based data
- */
-
-#define MSI_DATA_VECTOR_SHIFT		0
-#define	    MSI_DATA_VECTOR(v)		(((u8)v) << MSI_DATA_VECTOR_SHIFT)
-#define MSI_DATA_VECTOR_MASK		0xffffff00
-
-#define MSI_DATA_DELIVERY_SHIFT		8
-#define     MSI_DATA_DELIVERY_FIXED	(0 << MSI_DATA_DELIVERY_SHIFT)
-#define     MSI_DATA_DELIVERY_LOWPRI	(1 << MSI_DATA_DELIVERY_SHIFT)
-
-#define MSI_DATA_LEVEL_SHIFT		14
-#define     MSI_DATA_LEVEL_DEASSERT	(0 << MSI_DATA_LEVEL_SHIFT)
-#define     MSI_DATA_LEVEL_ASSERT	(1 << MSI_DATA_LEVEL_SHIFT)
-
-#define MSI_DATA_TRIGGER_SHIFT		15
-#define     MSI_DATA_TRIGGER_EDGE	(0 << MSI_DATA_TRIGGER_SHIFT)
-#define     MSI_DATA_TRIGGER_LEVEL	(1 << MSI_DATA_TRIGGER_SHIFT)
-
-/*
- * Shift/mask fields for APIC-based bus address
- */
-
-#define MSI_TARGET_CPU_SHIFT		4
-#define MSI_ADDR_HEADER			0xfee00000
-
-#define MSI_ADDR_DESTID_MASK		0xfff0000f
-#define     MSI_ADDR_DESTID_CPU(cpu)	((cpu) << MSI_TARGET_CPU_SHIFT)
-
-#define MSI_ADDR_DESTMODE_SHIFT		2
-#define     MSI_ADDR_DESTMODE_PHYS	(0 << MSI_ADDR_DESTMODE_SHIFT)
-#define	    MSI_ADDR_DESTMODE_LOGIC	(1 << MSI_ADDR_DESTMODE_SHIFT)
-
-#define MSI_ADDR_REDIRECTION_SHIFT	3
-#define     MSI_ADDR_REDIRECTION_CPU	(0 << MSI_ADDR_REDIRECTION_SHIFT)
-#define     MSI_ADDR_REDIRECTION_LOWPRI	(1 << MSI_ADDR_REDIRECTION_SHIFT)
+#include <asm/msidef.h>
 
 static struct irq_chip	ia64_msi_chip;
 
@@ -65,8 +28,8 @@ static void ia64_set_msi_irq_affinity(unsigned int irq,
 	read_msi_msg(irq, &msg);
 
 	addr = msg.address_lo;
-	addr &= MSI_ADDR_DESTID_MASK;
-	addr |= MSI_ADDR_DESTID_CPU(cpu_physical_id(cpu));
+	addr &= MSI_ADDR_DEST_ID_MASK;
+	addr |= MSI_ADDR_DEST_ID_CPU(cpu_physical_id(cpu));
 	msg.address_lo = addr;
 
 	data = msg.data;
@@ -75,7 +38,7 @@ static void ia64_set_msi_irq_affinity(unsigned int irq,
 	msg.data = data;
 
 	write_msi_msg(irq, &msg);
-	irq_desc[irq].affinity = cpumask_of_cpu(cpu);
+	cpumask_copy(irq_desc[irq].affinity, cpumask_of(cpu));
 }
 #endif /* CONFIG_SMP */
 
@@ -98,9 +61,9 @@ int ia64_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 	msg.address_hi = 0;
 	msg.address_lo =
 		MSI_ADDR_HEADER |
-		MSI_ADDR_DESTMODE_PHYS |
+		MSI_ADDR_DEST_MODE_PHYS |
 		MSI_ADDR_REDIRECTION_CPU |
-		MSI_ADDR_DESTID_CPU(dest_phys_id);
+		MSI_ADDR_DEST_ID_CPU(dest_phys_id);
 
 	msg.data =
 		MSI_DATA_TRIGGER_EDGE |
@@ -183,11 +146,11 @@ static void dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 
 	msg.data &= ~MSI_DATA_VECTOR_MASK;
 	msg.data |= MSI_DATA_VECTOR(cfg->vector);
-	msg.address_lo &= ~MSI_ADDR_DESTID_MASK;
-	msg.address_lo |= MSI_ADDR_DESTID_CPU(cpu_physical_id(cpu));
+	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
+	msg.address_lo |= MSI_ADDR_DEST_ID_CPU(cpu_physical_id(cpu));
 
 	dmar_msi_write(irq, &msg);
-	irq_desc[irq].affinity = *mask;
+	cpumask_copy(irq_desc[irq].affinity, mask);
 }
 #endif /* CONFIG_SMP */
 
@@ -215,9 +178,9 @@ msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)
 	msg->address_hi = 0;
 	msg->address_lo =
 		MSI_ADDR_HEADER |
-		MSI_ADDR_DESTMODE_PHYS |
+		MSI_ADDR_DEST_MODE_PHYS |
 		MSI_ADDR_REDIRECTION_CPU |
-		MSI_ADDR_DESTID_CPU(dest);
+		MSI_ADDR_DEST_ID_CPU(dest);
 
 	msg->data =
 		MSI_DATA_TRIGGER_EDGE |

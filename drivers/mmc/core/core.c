@@ -21,6 +21,7 @@
 #include <linux/leds.h>
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -297,6 +298,21 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			data->timeout_clks = 0;
 		}
 	}
+	/*
+	 * Some cards need very high timeouts if driven in SPI mode.
+	 * The worst observed timeout was 900ms after writing a
+	 * continuous stream of data until the internal logic
+	 * overflowed.
+	 */
+	if (mmc_host_is_spi(card->host)) {
+		if (data->flags & MMC_DATA_WRITE) {
+			if (data->timeout_ns < 1000000000)
+				data->timeout_ns = 1000000000;	/* 1s */
+		} else {
+			if (data->timeout_ns < 100000000)
+				data->timeout_ns =  100000000;	/* 100ms */
+		}
+	}
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
@@ -522,6 +538,105 @@ u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max)
 	return mask;
 }
 EXPORT_SYMBOL(mmc_vddrange_to_ocrmask);
+
+#ifdef CONFIG_REGULATOR
+
+/**
+ * mmc_regulator_get_ocrmask - return mask of supported voltages
+ * @supply: regulator to use
+ *
+ * This returns either a negative errno, or a mask of voltages that
+ * can be provided to MMC/SD/SDIO devices using the specified voltage
+ * regulator.  This would normally be called before registering the
+ * MMC host adapter.
+ */
+int mmc_regulator_get_ocrmask(struct regulator *supply)
+{
+	int			result = 0;
+	int			count;
+	int			i;
+
+	count = regulator_count_voltages(supply);
+	if (count < 0)
+		return count;
+
+	for (i = 0; i < count; i++) {
+		int		vdd_uV;
+		int		vdd_mV;
+
+		vdd_uV = regulator_list_voltage(supply, i);
+		if (vdd_uV <= 0)
+			continue;
+
+		vdd_mV = vdd_uV / 1000;
+		result |= mmc_vddrange_to_ocrmask(vdd_mV, vdd_mV);
+	}
+
+	return result;
+}
+EXPORT_SYMBOL(mmc_regulator_get_ocrmask);
+
+/**
+ * mmc_regulator_set_ocr - set regulator to match host->ios voltage
+ * @vdd_bit: zero for power off, else a bit number (host->ios.vdd)
+ * @supply: regulator to use
+ *
+ * Returns zero on success, else negative errno.
+ *
+ * MMC host drivers may use this to enable or disable a regulator using
+ * a particular supply voltage.  This would normally be called from the
+ * set_ios() method.
+ */
+int mmc_regulator_set_ocr(struct regulator *supply, unsigned short vdd_bit)
+{
+	int			result = 0;
+	int			min_uV, max_uV;
+	int			enabled;
+
+	enabled = regulator_is_enabled(supply);
+	if (enabled < 0)
+		return enabled;
+
+	if (vdd_bit) {
+		int		tmp;
+		int		voltage;
+
+		/* REVISIT mmc_vddrange_to_ocrmask() may have set some
+		 * bits this regulator doesn't quite support ... don't
+		 * be too picky, most cards and regulators are OK with
+		 * a 0.1V range goof (it's a small error percentage).
+		 */
+		tmp = vdd_bit - ilog2(MMC_VDD_165_195);
+		if (tmp == 0) {
+			min_uV = 1650 * 1000;
+			max_uV = 1950 * 1000;
+		} else {
+			min_uV = 1900 * 1000 + tmp * 100 * 1000;
+			max_uV = min_uV + 100 * 1000;
+		}
+
+		/* avoid needless changes to this voltage; the regulator
+		 * might not allow this operation
+		 */
+		voltage = regulator_get_voltage(supply);
+		if (voltage < 0)
+			result = voltage;
+		else if (voltage < min_uV || voltage > max_uV)
+			result = regulator_set_voltage(supply, min_uV, max_uV);
+		else
+			result = 0;
+
+		if (result == 0 && !enabled)
+			result = regulator_enable(supply);
+	} else if (enabled) {
+		result = regulator_disable(supply);
+	}
+
+	return result;
+}
+EXPORT_SYMBOL(mmc_regulator_set_ocr);
+
+#endif
 
 /*
  * Mask off any voltages we don't support and select
@@ -815,6 +930,7 @@ void mmc_stop_host(struct mmc_host *host)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
+	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
 
 	mmc_bus_get(host);
@@ -842,6 +958,7 @@ void mmc_stop_host(struct mmc_host *host)
  */
 int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
 {
+	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
 
 	mmc_bus_get(host);
@@ -875,6 +992,7 @@ int mmc_resume_host(struct mmc_host *host)
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
 		mmc_power_up(host);
+		mmc_select_voltage(host, host->ocr);
 		BUG_ON(!host->bus_ops->resume);
 		host->bus_ops->resume(host);
 	}

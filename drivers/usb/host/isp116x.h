@@ -563,7 +563,7 @@ static void urb_dbg(struct urb *urb, char *msg)
 */
 static inline void dump_ptd(struct ptd *ptd)
 {
-	printk("td: %x %d%c%d %d,%d,%d  %x %x%x%x\n",
+	printk(KERN_WARNING "td: %x %d%c%d %d,%d,%d  %x %x%x%x\n",
 	       PTD_GET_CC(ptd), PTD_GET_FA(ptd),
 	       PTD_DIR_STR(ptd), PTD_GET_EP(ptd),
 	       PTD_GET_COUNT(ptd), PTD_GET_LEN(ptd), PTD_GET_MPS(ptd),
@@ -576,7 +576,7 @@ static inline void dump_ptd_out_data(struct ptd *ptd, u8 * buf)
 	int k;
 
 	if (PTD_GET_DIR(ptd) != PTD_DIR_IN && PTD_GET_LEN(ptd)) {
-		printk("-> ");
+		printk(KERN_WARNING "-> ");
 		for (k = 0; k < PTD_GET_LEN(ptd); ++k)
 			printk("%02x ", ((u8 *) buf)[k]);
 		printk("\n");
@@ -588,13 +588,13 @@ static inline void dump_ptd_in_data(struct ptd *ptd, u8 * buf)
 	int k;
 
 	if (PTD_GET_DIR(ptd) == PTD_DIR_IN && PTD_GET_COUNT(ptd)) {
-		printk("<- ");
+		printk(KERN_WARNING "<- ");
 		for (k = 0; k < PTD_GET_COUNT(ptd); ++k)
 			printk("%02x ", ((u8 *) buf)[k]);
 		printk("\n");
 	}
 	if (PTD_GET_LAST(ptd))
-		printk("-\n");
+		printk(KERN_WARNING "-\n");
 }
 
 #else

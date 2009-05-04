@@ -226,13 +226,17 @@ static ssize_t set_mode(struct device *dev, struct device_attribute *attr,
 	unsigned int mode;
 	int ret;
 
-	if (strncmp(buf, "fast", strlen("fast")) == 0)
+	/*
+	 * sysfs_streq() doesn't need the \n's, but we add them so the strings
+	 * will be shared with show_mode(), above.
+	 */
+	if (sysfs_streq(buf, "fast\n") == 0)
 		mode = REGULATOR_MODE_FAST;
-	else if (strncmp(buf, "normal", strlen("normal")) == 0)
+	else if (sysfs_streq(buf, "normal\n") == 0)
 		mode = REGULATOR_MODE_NORMAL;
-	else if (strncmp(buf, "idle", strlen("idle")) == 0)
+	else if (sysfs_streq(buf, "idle\n") == 0)
 		mode = REGULATOR_MODE_IDLE;
-	else if (strncmp(buf, "standby", strlen("standby")) == 0)
+	else if (sysfs_streq(buf, "standby\n") == 0)
 		mode = REGULATOR_MODE_STANDBY;
 	else {
 		dev_err(dev, "Configuring invalid mode\n");
@@ -256,7 +260,7 @@ static DEVICE_ATTR(min_microamps, 0666, show_min_uA, set_min_uA);
 static DEVICE_ATTR(max_microamps, 0666, show_max_uA, set_max_uA);
 static DEVICE_ATTR(mode, 0666, show_mode, set_mode);
 
-struct device_attribute *attributes[] = {
+static struct device_attribute *attributes[] = {
 	&dev_attr_min_microvolts,
 	&dev_attr_max_microvolts,
 	&dev_attr_min_microamps,

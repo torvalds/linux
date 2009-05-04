@@ -29,7 +29,7 @@ static unsigned long max_pages(unsigned long min_pages)
 	int node = numa_node_id();
 	struct zone *zones = NODE_DATA(node)->node_zones;
 	int num_cpus_on_node;
-	node_to_cpumask_ptr(cpumask_on_node, node);
+	const struct cpumask *cpumask_on_node = cpumask_of_node(node);
 
 	node_free_pages =
 #ifdef CONFIG_ZONE_DMA

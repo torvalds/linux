@@ -73,6 +73,28 @@ static inline int arp_devaddr_compare(const struct arpt_devaddr_info *ap,
 	return (ret != 0);
 }
 
+/*
+ * Unfortunatly, _b and _mask are not aligned to an int (or long int)
+ * Some arches dont care, unrolling the loop is a win on them.
+ * For other arches, we only have a 16bit alignement.
+ */
+static unsigned long ifname_compare(const char *_a, const char *_b, const char *_mask)
+{
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	unsigned long ret = ifname_compare_aligned(_a, _b, _mask);
+#else
+	unsigned long ret = 0;
+	const u16 *a = (const u16 *)_a;
+	const u16 *b = (const u16 *)_b;
+	const u16 *mask = (const u16 *)_mask;
+	int i;
+
+	for (i = 0; i < IFNAMSIZ/sizeof(u16); i++)
+		ret |= (a[i] ^ b[i]) & mask[i];
+#endif
+	return ret;
+}
+
 /* Returns whether packet matches rule or not. */
 static inline int arp_packet_match(const struct arphdr *arphdr,
 				   struct net_device *dev,
@@ -83,7 +105,7 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	const char *arpptr = (char *)(arphdr + 1);
 	const char *src_devaddr, *tgt_devaddr;
 	__be32 src_ipaddr, tgt_ipaddr;
-	int i, ret;
+	long ret;
 
 #define FWINV(bool, invflg) ((bool) ^ !!(arpinfo->invflags & (invflg)))
 
@@ -156,10 +178,7 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	}
 
 	/* Look for ifname matches.  */
-	for (i = 0, ret = 0; i < IFNAMSIZ; i++) {
-		ret |= (indev[i] ^ arpinfo->iniface[i])
-			& arpinfo->iniface_mask[i];
-	}
+	ret = ifname_compare(indev, arpinfo->iniface, arpinfo->iniface_mask);
 
 	if (FWINV(ret != 0, ARPT_INV_VIA_IN)) {
 		dprintf("VIA in mismatch (%s vs %s).%s\n",
@@ -168,10 +187,7 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 		return 0;
 	}
 
-	for (i = 0, ret = 0; i < IFNAMSIZ; i++) {
-		ret |= (outdev[i] ^ arpinfo->outiface[i])
-			& arpinfo->outiface_mask[i];
-	}
+	ret = ifname_compare(outdev, arpinfo->outiface, arpinfo->outiface_mask);
 
 	if (FWINV(ret != 0, ARPT_INV_VIA_OUT)) {
 		dprintf("VIA out mismatch (%s vs %s).%s\n",
@@ -221,7 +237,7 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 			   const struct net_device *out,
 			   struct xt_table *table)
 {
-	static const char nulldevname[IFNAMSIZ];
+	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	unsigned int verdict = NF_DROP;
 	const struct arphdr *arp;
 	bool hotdrop = false;
@@ -237,9 +253,10 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	indev = in ? in->name : nulldevname;
 	outdev = out ? out->name : nulldevname;
 
-	read_lock_bh(&table->lock);
-	private = table->private;
-	table_base = (void *)private->entries[smp_processor_id()];
+	rcu_read_lock_bh();
+	private = rcu_dereference(table->private);
+	table_base = rcu_dereference(private->entries[smp_processor_id()]);
+
 	e = get_entry(table_base, private->hook_entry[hook]);
 	back = get_entry(table_base, private->underflow[hook]);
 
@@ -311,7 +328,8 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 			e = (void *)e + e->next_offset;
 		}
 	} while (!hotdrop);
-	read_unlock_bh(&table->lock);
+
+	rcu_read_unlock_bh();
 
 	if (hotdrop)
 		return NF_DROP;
@@ -374,7 +392,9 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 			    && unconditional(&e->arp)) || visited) {
 				unsigned int oldpos, size;
 
-				if (t->verdict < -NF_MAX_VERDICT - 1) {
+				if ((strcmp(t->target.u.user.name,
+					    ARPT_STANDARD_TARGET) == 0) &&
+				    t->verdict < -NF_MAX_VERDICT - 1) {
 					duprintf("mark_source_chains: bad "
 						"negative verdict (%i)\n",
 								t->verdict);
@@ -714,11 +734,65 @@ static void get_counters(const struct xt_table_info *t,
 	}
 }
 
-static inline struct xt_counters *alloc_counters(struct xt_table *table)
+
+/* We're lazy, and add to the first CPU; overflow works its fey magic
+ * and everything is OK. */
+static int
+add_counter_to_entry(struct arpt_entry *e,
+		     const struct xt_counters addme[],
+		     unsigned int *i)
+{
+	ADD_COUNTER(e->counters, addme[*i].bcnt, addme[*i].pcnt);
+
+	(*i)++;
+	return 0;
+}
+
+/* Take values from counters and add them back onto the current cpu */
+static void put_counters(struct xt_table_info *t,
+			 const struct xt_counters counters[])
+{
+	unsigned int i, cpu;
+
+	local_bh_disable();
+	cpu = smp_processor_id();
+	i = 0;
+	ARPT_ENTRY_ITERATE(t->entries[cpu],
+			  t->size,
+			  add_counter_to_entry,
+			  counters,
+			  &i);
+	local_bh_enable();
+}
+
+static inline int
+zero_entry_counter(struct arpt_entry *e, void *arg)
+{
+	e->counters.bcnt = 0;
+	e->counters.pcnt = 0;
+	return 0;
+}
+
+static void
+clone_counters(struct xt_table_info *newinfo, const struct xt_table_info *info)
+{
+	unsigned int cpu;
+	const void *loc_cpu_entry = info->entries[raw_smp_processor_id()];
+
+	memcpy(newinfo, info, offsetof(struct xt_table_info, entries));
+	for_each_possible_cpu(cpu) {
+		memcpy(newinfo->entries[cpu], loc_cpu_entry, info->size);
+		ARPT_ENTRY_ITERATE(newinfo->entries[cpu], newinfo->size,
+				  zero_entry_counter, NULL);
+	}
+}
+
+static struct xt_counters *alloc_counters(struct xt_table *table)
 {
 	unsigned int countersize;
 	struct xt_counters *counters;
-	const struct xt_table_info *private = table->private;
+	struct xt_table_info *private = table->private;
+	struct xt_table_info *info;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	 * (other than comefrom, which userspace doesn't care
@@ -728,14 +802,30 @@ static inline struct xt_counters *alloc_counters(struct xt_table *table)
 	counters = vmalloc_node(countersize, numa_node_id());
 
 	if (counters == NULL)
-		return ERR_PTR(-ENOMEM);
+		goto nomem;
 
-	/* First, sum counters... */
-	write_lock_bh(&table->lock);
-	get_counters(private, counters);
-	write_unlock_bh(&table->lock);
+	info = xt_alloc_table_info(private->size);
+	if (!info)
+		goto free_counters;
+
+	clone_counters(info, private);
+
+	mutex_lock(&table->lock);
+	xt_table_entry_swap_rcu(private, info);
+	synchronize_net();	/* Wait until smoke has cleared */
+
+	get_counters(info, counters);
+	put_counters(private, counters);
+	mutex_unlock(&table->lock);
+
+	xt_free_table_info(info);
 
 	return counters;
+
+ free_counters:
+	vfree(counters);
+ nomem:
+	return ERR_PTR(-ENOMEM);
 }
 
 static int copy_entries_to_user(unsigned int total_size,
@@ -1075,20 +1165,6 @@ static int do_replace(struct net *net, void __user *user, unsigned int len)
 	return ret;
 }
 
-/* We're lazy, and add to the first CPU; overflow works its fey magic
- * and everything is OK.
- */
-static inline int add_counter_to_entry(struct arpt_entry *e,
-				       const struct xt_counters addme[],
-				       unsigned int *i)
-{
-
-	ADD_COUNTER(e->counters, addme[*i].bcnt, addme[*i].pcnt);
-
-	(*i)++;
-	return 0;
-}
-
 static int do_add_counters(struct net *net, void __user *user, unsigned int len,
 			   int compat)
 {
@@ -1148,13 +1224,14 @@ static int do_add_counters(struct net *net, void __user *user, unsigned int len,
 		goto free;
 	}
 
-	write_lock_bh(&t->lock);
+	mutex_lock(&t->lock);
 	private = t->private;
 	if (private->number != num_counters) {
 		ret = -EINVAL;
 		goto unlock_up_free;
 	}
 
+	preempt_disable();
 	i = 0;
 	/* Choose the copy that is on our node */
 	loc_cpu_entry = private->entries[smp_processor_id()];
@@ -1163,8 +1240,10 @@ static int do_add_counters(struct net *net, void __user *user, unsigned int len,
 			   add_counter_to_entry,
 			   paddc,
 			   &i);
+	preempt_enable();
  unlock_up_free:
-	write_unlock_bh(&t->lock);
+	mutex_unlock(&t->lock);
+
 	xt_table_unlock(t);
 	module_put(t->me);
  free:

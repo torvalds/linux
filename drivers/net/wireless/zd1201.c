@@ -328,8 +328,8 @@ static void zd1201_usbrx(struct urb *urb)
 			memcpy(skb_put(skb, 2), &data[datalen-24], 2);
 			memcpy(skb_put(skb, len), data, len);
 			skb->protocol = eth_type_trans(skb, zd->dev);
-			zd->stats.rx_packets++;
-			zd->stats.rx_bytes += skb->len;
+			zd->dev->stats.rx_packets++;
+			zd->dev->stats.rx_bytes += skb->len;
 			netif_rx(skb);
 			goto resubmit;
 		}
@@ -384,8 +384,8 @@ static void zd1201_usbrx(struct urb *urb)
 			memcpy(skb_put(skb, len), data+8, len);
 		}
 		skb->protocol = eth_type_trans(skb, zd->dev);
-		zd->stats.rx_packets++;
-		zd->stats.rx_bytes += skb->len;
+		zd->dev->stats.rx_packets++;
+		zd->dev->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 	}
 resubmit:
@@ -787,7 +787,7 @@ static int zd1201_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct urb *urb = zd->tx_urb;
 
 	if (!zd->mac_enabled || zd->monitor) {
-		zd->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		kfree_skb(skb);
 		return 0;
 	}
@@ -817,12 +817,12 @@ static int zd1201_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	err = usb_submit_urb(zd->tx_urb, GFP_ATOMIC);
 	if (err) {
-		zd->stats.tx_errors++;
+		dev->stats.tx_errors++;
 		netif_start_queue(dev);
 		return err;
 	}
-	zd->stats.tx_packets++;
-	zd->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 	dev->trans_start = jiffies;
 	kfree_skb(skb);
 
@@ -838,7 +838,7 @@ static void zd1201_tx_timeout(struct net_device *dev)
 	dev_warn(&zd->usb->dev, "%s: TX timeout, shooting down urb\n",
 	    dev->name);
 	usb_unlink_urb(zd->tx_urb);
-	zd->stats.tx_errors++;
+	dev->stats.tx_errors++;
 	/* Restart the timeout to quiet the watchdog: */
 	dev->trans_start = jiffies;
 }
@@ -859,13 +859,6 @@ static int zd1201_set_mac_address(struct net_device *dev, void *p)
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	return zd1201_mac_reset(zd);
-}
-
-static struct net_device_stats *zd1201_get_stats(struct net_device *dev)
-{
-	struct zd1201 *zd = netdev_priv(dev);
-
-	return &zd->stats;
 }
 
 static struct iw_statistics *zd1201_get_wireless_stats(struct net_device *dev)
@@ -919,10 +912,9 @@ static int zd1201_set_freq(struct net_device *dev,
 	if (freq->e == 0)
 		channel = freq->m;
 	else {
-		if (freq->m >= 2482)
-			channel = 14;
-		if (freq->m >= 2407)
-			channel = (freq->m-2407)/5;
+		channel = ieee80211_freq_to_dsss_chan(freq->m);
+		if (channel < 0)
+			channel = 0;
 	}
 
 	err = zd1201_setconfig16(zd, ZD1201_RID_CNFOWNCHANNEL, channel);
@@ -1725,6 +1717,17 @@ static const struct iw_handler_def zd1201_iw_handlers = {
 	.get_wireless_stats	= zd1201_get_wireless_stats,
 };
 
+static const struct net_device_ops zd1201_netdev_ops = {
+	.ndo_open		= zd1201_net_open,
+	.ndo_stop		= zd1201_net_stop,
+	.ndo_start_xmit		= zd1201_hard_start_xmit,
+	.ndo_tx_timeout		= zd1201_tx_timeout,
+	.ndo_set_multicast_list = zd1201_set_multicast,
+	.ndo_set_mac_address	= zd1201_set_mac_address,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int zd1201_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
@@ -1777,16 +1780,9 @@ static int zd1201_probe(struct usb_interface *interface,
 	if (err)
 		goto err_start;
 
-	dev->open = zd1201_net_open;
-	dev->stop = zd1201_net_stop;
-	dev->get_stats = zd1201_get_stats;
-	dev->wireless_handlers =
-	    (struct iw_handler_def *)&zd1201_iw_handlers;
-	dev->hard_start_xmit = zd1201_hard_start_xmit;
+	dev->netdev_ops = &zd1201_netdev_ops;
+	dev->wireless_handlers = &zd1201_iw_handlers;
 	dev->watchdog_timeo = ZD1201_TX_TIMEOUT;
-	dev->tx_timeout = zd1201_tx_timeout;
-	dev->set_multicast_list = zd1201_set_multicast;
-	dev->set_mac_address = zd1201_set_mac_address;
 	strcpy(dev->name, "wlan%d");
 
 	err = zd1201_getconfig(zd, ZD1201_RID_CNFOWNMACADDR, 

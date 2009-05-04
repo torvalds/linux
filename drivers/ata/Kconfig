@@ -86,7 +86,7 @@ config ATA_SFF
 
 	  For users with exclusively modern controllers like AHCI,
 	  Silicon Image 3124, or Marvell 6440, you may choose to
-	  disable this uneeded SFF support.
+	  disable this unneeded SFF support.
 
 	  If unsure, say Y.
 
@@ -112,11 +112,11 @@ config ATA_PIIX
 	  If unsure, say N.
 
 config SATA_MV
-	tristate "Marvell SATA support (HIGHLY EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Marvell SATA support"
 	help
 	  This option enables support for the Marvell Serial ATA family.
-	  Currently supports 88SX[56]0[48][01] chips.
+	  Currently supports 88SX[56]0[48][01] PCI(-X) chips,
+	  as well as the newer [67]042 PCI-X/PCIe and SOC devices.
 
 	  If unsure, say N.
 
@@ -695,6 +695,15 @@ config PATA_IXP4XX_CF
 	  This option enables support for a Compact Flash connected on
 	  the ixp4xx expansion bus. This driver had been written for
 	  Loft/Avila boards in mind but can work with others.
+
+	  If unsure, say N.
+
+config PATA_OCTEON_CF
+	tristate "OCTEON Boot Bus Compact Flash support"
+	depends on CPU_CAVIUM_OCTEON
+	help
+	  This option enables a polled compact flash driver for use with
+	  compact flash cards attached to the OCTEON boot bus.
 
 	  If unsure, say N.
 

@@ -340,6 +340,7 @@ extern int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
 			    struct scsi_sense_hdr *);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries, struct scsi_sense_hdr *sshdr);
+extern unsigned char *scsi_get_vpd_page(struct scsi_device *, u8 page);
 extern int scsi_device_set_state(struct scsi_device *sdev,
 				 enum scsi_device_state state);
 extern struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
@@ -370,12 +371,6 @@ extern int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 			    int data_direction, void *buffer, unsigned bufflen,
 			    struct scsi_sense_hdr *, int timeout, int retries,
 			    int *resid);
-extern int scsi_execute_async(struct scsi_device *sdev,
-			      const unsigned char *cmd, int cmd_len, int data_direction,
-			      void *buffer, unsigned bufflen, int use_sg,
-			      int timeout, int retries, void *privdata,
-			      void (*done)(void *, char *, int, int),
-			      gfp_t gfp);
 
 static inline int __must_check scsi_device_reprobe(struct scsi_device *sdev)
 {
@@ -400,7 +395,8 @@ static inline unsigned int sdev_id(struct scsi_device *sdev)
  */
 static inline int scsi_device_online(struct scsi_device *sdev)
 {
-	return sdev->sdev_state != SDEV_OFFLINE;
+	return (sdev->sdev_state != SDEV_OFFLINE &&
+		sdev->sdev_state != SDEV_DEL);
 }
 static inline int scsi_device_blocked(struct scsi_device *sdev)
 {

@@ -12,7 +12,7 @@ config PPC_MPC5121
 
 config MPC5121_ADS
 	bool "Freescale MPC5121E ADS"
-	depends on PPC_MULTIPLATFORM && PPC32
+	depends on 6xx
 	select DEFAULT_UIMAGE
 	select PPC_MPC5121
 	select MPC5121_ADS_CPLD
@@ -21,7 +21,7 @@ config MPC5121_ADS
 
 config MPC5121_GENERIC
 	bool "Generic support for simple MPC5121 based boards"
-	depends on PPC_MULTIPLATFORM && PPC32
+	depends on 6xx
 	select DEFAULT_UIMAGE
 	select PPC_MPC5121
 	help

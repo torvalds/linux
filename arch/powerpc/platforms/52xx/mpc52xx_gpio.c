@@ -354,91 +354,6 @@ static struct of_platform_driver mpc52xx_simple_gpiochip_driver = {
 	.remove = mpc52xx_gpiochip_remove,
 };
 
-/*
- * GPIO LIB API implementation for gpt GPIOs.
- *
- * Each gpt only has a single GPIO.
- */
-static int mpc52xx_gpt_gpio_get(struct gpio_chip *gc, unsigned int gpio)
-{
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpt __iomem *regs = mm_gc->regs;
-	unsigned int ret;
-
-	return (in_be32(&regs->status) & (1 << (31 - 23))) ? 1 : 0;
-
-	return ret;
-}
-
-static void
-mpc52xx_gpt_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
-{
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpt __iomem *regs = mm_gc->regs;
-
-	if (val)
-		out_be32(&regs->mode, 0x34);
-	else
-		out_be32(&regs->mode, 0x24);
-
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
-}
-
-static int mpc52xx_gpt_gpio_dir_in(struct gpio_chip *gc, unsigned int gpio)
-{
-	struct of_mm_gpio_chip *mm_gc = to_of_mm_gpio_chip(gc);
-	struct mpc52xx_gpt __iomem *regs = mm_gc->regs;
-
-	out_be32(&regs->mode, 0x04);
-
-	return 0;
-}
-
-static int
-mpc52xx_gpt_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
-{
-	mpc52xx_gpt_gpio_set(gc, gpio, val);
-	pr_debug("%s: gpio: %d val: %d\n", __func__, gpio, val);
-
-	return 0;
-}
-
-static int __devinit mpc52xx_gpt_gpiochip_probe(struct of_device *ofdev,
-					const struct of_device_id *match)
-{
-	struct of_mm_gpio_chip *mmchip;
-	struct of_gpio_chip *chip;
-
-	mmchip = kzalloc(sizeof(*mmchip), GFP_KERNEL);
-	if (!mmchip)
-		return -ENOMEM;
-
-	chip = &mmchip->of_gc;
-
-	chip->gpio_cells          = 2;
-	chip->gc.ngpio            = 1;
-	chip->gc.direction_input  = mpc52xx_gpt_gpio_dir_in;
-	chip->gc.direction_output = mpc52xx_gpt_gpio_dir_out;
-	chip->gc.get              = mpc52xx_gpt_gpio_get;
-	chip->gc.set              = mpc52xx_gpt_gpio_set;
-
-	return of_mm_gpiochip_add(ofdev->node, mmchip);
-}
-
-static const struct of_device_id mpc52xx_gpt_gpiochip_match[] = {
-	{
-		.compatible = "fsl,mpc5200-gpt-gpio",
-	},
-	{}
-};
-
-static struct of_platform_driver mpc52xx_gpt_gpiochip_driver = {
-	.name = "gpio_gpt",
-	.match_table = mpc52xx_gpt_gpiochip_match,
-	.probe = mpc52xx_gpt_gpiochip_probe,
-	.remove = mpc52xx_gpiochip_remove,
-};
-
 static int __init mpc52xx_gpio_init(void)
 {
 	if (of_register_platform_driver(&mpc52xx_wkup_gpiochip_driver))
@@ -446,9 +361,6 @@ static int __init mpc52xx_gpio_init(void)
 
 	if (of_register_platform_driver(&mpc52xx_simple_gpiochip_driver))
 		printk(KERN_ERR "Unable to register simple GPIO driver\n");
-
-	if (of_register_platform_driver(&mpc52xx_gpt_gpiochip_driver))
-		printk(KERN_ERR "Unable to register gpt GPIO driver\n");
 
 	return 0;
 }

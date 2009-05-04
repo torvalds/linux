@@ -83,7 +83,12 @@ xfs_bulkstat_one_iget(
 	buf->bs_uid = dic->di_uid;
 	buf->bs_gid = dic->di_gid;
 	buf->bs_size = dic->di_size;
-	vn_atime_to_bstime(VFS_I(ip), &buf->bs_atime);
+	/*
+	 * We are reading the atime from the Linux inode because the
+	 * dinode might not be uptodate.
+	 */
+	buf->bs_atime.tv_sec = VFS_I(ip)->i_atime.tv_sec;
+	buf->bs_atime.tv_nsec = VFS_I(ip)->i_atime.tv_nsec;
 	buf->bs_mtime.tv_sec = dic->di_mtime.t_sec;
 	buf->bs_mtime.tv_nsec = dic->di_mtime.t_nsec;
 	buf->bs_ctime.tv_sec = dic->di_ctime.t_sec;
@@ -453,7 +458,7 @@ xfs_bulkstat(
 			    (chunkidx = agino - gino + 1) <
 				    XFS_INODES_PER_CHUNK &&
 					/* there are some left allocated */
-			    XFS_INOBT_MASKN(chunkidx,
+			    xfs_inobt_maskn(chunkidx,
 				    XFS_INODES_PER_CHUNK - chunkidx) & ~gfree) {
 				/*
 				 * Grab the chunk record.  Mark all the
@@ -464,7 +469,7 @@ xfs_bulkstat(
 					if (XFS_INOBT_MASK(i) & ~gfree)
 						gcnt++;
 				}
-				gfree |= XFS_INOBT_MASKN(0, chunkidx);
+				gfree |= xfs_inobt_maskn(0, chunkidx);
 				irbp->ir_startino = gino;
 				irbp->ir_freecount = gcnt;
 				irbp->ir_free = gfree;
@@ -535,7 +540,7 @@ xfs_bulkstat(
 				     chunkidx < XFS_INODES_PER_CHUNK;
 				     chunkidx += nicluster,
 				     agbno += nbcluster) {
-					if (XFS_INOBT_MASKN(chunkidx,
+					if (xfs_inobt_maskn(chunkidx,
 							    nicluster) & ~gfree)
 						xfs_btree_reada_bufs(mp, agno,
 							agbno, nbcluster);
@@ -579,7 +584,7 @@ xfs_bulkstat(
 				 * first inode of the cluster.
 				 *
 				 * Careful with clustidx.   There can be
-				 * multple clusters per chunk, a single
+				 * multiple clusters per chunk, a single
 				 * cluster per chunk or a cluster that has
 				 * inodes represented from several different
 				 * chunks (if blocksize is large).

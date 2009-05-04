@@ -227,7 +227,7 @@ static int qe_init(struct sunqe *qep, int from_irq)
 	if (!(sbus_readb(mregs + MREGS_PHYCONFIG) & MREGS_PHYCONFIG_LTESTDIS)) {
 		int tries = 50;
 
-		while (tries--) {
+		while (--tries) {
 			u8 tmp;
 
 			mdelay(5);
@@ -829,6 +829,17 @@ fail:
 	return NULL;
 }
 
+static const struct net_device_ops qec_ops = {
+	.ndo_open		= qe_open,
+	.ndo_stop		= qe_close,
+	.ndo_start_xmit		= qe_start_xmit,
+	.ndo_set_multicast_list	= qe_set_multicast,
+	.ndo_tx_timeout		= qe_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 static int __devinit qec_ether_init(struct of_device *op)
 {
 	static unsigned version_printed;
@@ -893,15 +904,11 @@ static int __devinit qec_ether_init(struct of_device *op)
 
 	SET_NETDEV_DEV(dev, &op->dev);
 
-	dev->open = qe_open;
-	dev->stop = qe_close;
-	dev->hard_start_xmit = qe_start_xmit;
-	dev->set_multicast_list = qe_set_multicast;
-	dev->tx_timeout = qe_tx_timeout;
 	dev->watchdog_timeo = 5*HZ;
 	dev->irq = op->irqs[0];
 	dev->dma = 0;
 	dev->ethtool_ops = &qe_ethtool_ops;
+	dev->netdev_ops = &qec_ops;
 
 	res = register_netdev(dev);
 	if (res)

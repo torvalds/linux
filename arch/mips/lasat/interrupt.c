@@ -104,7 +104,6 @@ asmlinkage void plat_irq_dispatch(void)
 
 static struct irqaction cascade = {
 	.handler	= no_action,
-	.mask		= CPU_MASK_NONE,
 	.name		= "cascade",
 };
 

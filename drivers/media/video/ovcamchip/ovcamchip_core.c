@@ -15,6 +15,9 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/i2c.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-i2c-drv.h>
 #include "ovcamchip_priv.h"
 
 #define DRIVER_VERSION "v2.27 for Linux 2.6"
@@ -44,6 +47,7 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
+
 /* Registers common to all chips, that are needed for detection */
 #define GENERIC_REG_ID_HIGH       0x1C	/* manufacturer ID MSB */
 #define GENERIC_REG_ID_LOW        0x1D	/* manufacturer ID LSB */
@@ -60,10 +64,6 @@ static char *chip_names[NUM_CC_TYPES] = {
 	[CC_OV6630AE]	= "OV6630AE",
 	[CC_OV6630AF]	= "OV6630AF",
 };
-
-/* Forward declarations */
-static struct i2c_driver driver;
-static struct i2c_client client_template;
 
 /* ----------------------------------------------------------------------- */
 
@@ -253,112 +253,36 @@ static int ovcamchip_detect(struct i2c_client *c)
 
 	/* Test for 7xx0 */
 	PDEBUG(3, "Testing for 0V7xx0");
-	c->addr = OV7xx0_SID;
-	if (init_camchip(c) < 0) {
-		/* Test for 6xx0 */
-		PDEBUG(3, "Testing for 0V6xx0");
-		c->addr = OV6xx0_SID;
-		if (init_camchip(c) < 0) {
-			return -ENODEV;
-		} else {
-			if (ov6xx0_detect(c) < 0) {
-				PERROR("Failed to init OV6xx0");
-				return -EIO;
-			}
-		}
-	} else {
+	if (init_camchip(c) < 0)
+		return -ENODEV;
+	/* 7-bit addresses with bit 0 set are for the OV7xx0 */
+	if (c->addr & 1) {
 		if (ov7xx0_detect(c) < 0) {
 			PERROR("Failed to init OV7xx0");
 			return -EIO;
 		}
+		return 0;
 	}
-
+	/* Test for 6xx0 */
+	PDEBUG(3, "Testing for 0V6xx0");
+	if (ov6xx0_detect(c) < 0) {
+		PERROR("Failed to init OV6xx0");
+		return -EIO;
+	}
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static int ovcamchip_attach(struct i2c_adapter *adap)
+static long ovcamchip_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
-	int rc = 0;
-	struct ovcamchip *ov;
-	struct i2c_client *c;
-
-	/* I2C is not a PnP bus, so we can never be certain that we're talking
-	 * to the right chip. To prevent damage to EEPROMS and such, only
-	 * attach to adapters that are known to contain OV camera chips. */
-
-	switch (adap->id) {
-	case I2C_HW_SMBUS_OV511:
-	case I2C_HW_SMBUS_OV518:
-	case I2C_HW_SMBUS_W9968CF:
-		PDEBUG(1, "Adapter ID 0x%06x accepted", adap->id);
-		break;
-	default:
-		PDEBUG(1, "Adapter ID 0x%06x rejected", adap->id);
-		return -ENODEV;
-	}
-
-	c = kmalloc(sizeof *c, GFP_KERNEL);
-	if (!c) {
-		rc = -ENOMEM;
-		goto no_client;
-	}
-	memcpy(c, &client_template, sizeof *c);
-	c->adapter = adap;
-	strcpy(c->name, "OV????");
-
-	ov = kzalloc(sizeof *ov, GFP_KERNEL);
-	if (!ov) {
-		rc = -ENOMEM;
-		goto no_ov;
-	}
-	i2c_set_clientdata(c, ov);
-
-	rc = ovcamchip_detect(c);
-	if (rc < 0)
-		goto error;
-
-	strcpy(c->name, chip_names[ov->subtype]);
-
-	PDEBUG(1, "Camera chip detection complete");
-
-	i2c_attach_client(c);
-
-	return rc;
-error:
-	kfree(ov);
-no_ov:
-	kfree(c);
-no_client:
-	PDEBUG(1, "returning %d", rc);
-	return rc;
-}
-
-static int ovcamchip_detach(struct i2c_client *c)
-{
-	struct ovcamchip *ov = i2c_get_clientdata(c);
-	int rc;
-
-	rc = ov->sops->free(c);
-	if (rc < 0)
-		return rc;
-
-	i2c_detach_client(c);
-
-	kfree(ov);
-	kfree(c);
-	return 0;
-}
-
-static int ovcamchip_command(struct i2c_client *c, unsigned int cmd, void *arg)
-{
-	struct ovcamchip *ov = i2c_get_clientdata(c);
+	struct ovcamchip *ov = to_ovcamchip(sd);
+	struct i2c_client *c = v4l2_get_subdevdata(sd);
 
 	if (!ov->initialized &&
 	    cmd != OVCAMCHIP_CMD_Q_SUBTYPE &&
 	    cmd != OVCAMCHIP_CMD_INITIALIZE) {
-		dev_err(&c->dev, "ERROR: Camera chip not initialized yet!\n");
+		v4l2_err(sd, "Camera chip not initialized yet!\n");
 		return -EPERM;
 	}
 
@@ -379,10 +303,10 @@ static int ovcamchip_command(struct i2c_client *c, unsigned int cmd, void *arg)
 
 		if (ov->mono) {
 			if (ov->subtype != CC_OV7620)
-				dev_warn(&c->dev, "Warning: Monochrome not "
+				v4l2_warn(sd, "Monochrome not "
 					"implemented for this chip\n");
 			else
-				dev_info(&c->dev, "Initializing chip as "
+				v4l2_info(sd, "Initializing chip as "
 					"monochrome\n");
 		}
 
@@ -400,35 +324,72 @@ static int ovcamchip_command(struct i2c_client *c, unsigned int cmd, void *arg)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver driver = {
-	.driver = {
-		.name =		"ovcamchip",
-	},
-	.id =			I2C_DRIVERID_OVCAMCHIP,
-	.attach_adapter =	ovcamchip_attach,
-	.detach_client =	ovcamchip_detach,
-	.command =		ovcamchip_command,
+static const struct v4l2_subdev_core_ops ovcamchip_core_ops = {
+	.ioctl = ovcamchip_ioctl,
 };
 
-static struct i2c_client client_template = {
-	.name =		"(unset)",
-	.driver =	&driver,
+static const struct v4l2_subdev_ops ovcamchip_ops = {
+	.core = &ovcamchip_core_ops,
 };
 
-static int __init ovcamchip_init(void)
+static int ovcamchip_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
-#ifdef DEBUG
-	ovcamchip_debug = debug;
-#endif
+	struct ovcamchip *ov;
+	struct v4l2_subdev *sd;
+	int rc = 0;
 
-	PINFO(DRIVER_VERSION " : " DRIVER_DESC);
-	return i2c_add_driver(&driver);
+	ov = kzalloc(sizeof *ov, GFP_KERNEL);
+	if (!ov) {
+		rc = -ENOMEM;
+		goto no_ov;
+	}
+	sd = &ov->sd;
+	v4l2_i2c_subdev_init(sd, client, &ovcamchip_ops);
+
+	rc = ovcamchip_detect(client);
+	if (rc < 0)
+		goto error;
+
+	v4l_info(client, "%s found @ 0x%02x (%s)\n",
+			chip_names[ov->subtype], client->addr << 1, client->adapter->name);
+
+	PDEBUG(1, "Camera chip detection complete");
+
+	return rc;
+error:
+	kfree(ov);
+no_ov:
+	PDEBUG(1, "returning %d", rc);
+	return rc;
 }
 
-static void __exit ovcamchip_exit(void)
+static int ovcamchip_remove(struct i2c_client *client)
 {
-	i2c_del_driver(&driver);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ovcamchip *ov = to_ovcamchip(sd);
+	int rc;
+
+	v4l2_device_unregister_subdev(sd);
+	rc = ov->sops->free(client);
+	if (rc < 0)
+		return rc;
+
+	kfree(ov);
+	return 0;
 }
 
-module_init(ovcamchip_init);
-module_exit(ovcamchip_exit);
+/* ----------------------------------------------------------------------- */
+
+static const struct i2c_device_id ovcamchip_id[] = {
+	{ "ovcamchip", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ovcamchip_id);
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "ovcamchip",
+	.probe = ovcamchip_probe,
+	.remove = ovcamchip_remove,
+	.id_table = ovcamchip_id,
+};

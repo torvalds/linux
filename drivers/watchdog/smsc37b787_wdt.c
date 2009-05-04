@@ -2,7 +2,7 @@
  *	SMsC 37B787 Watchdog Timer driver for Linux 2.6.x.x
  *
  *	Based on acquirewdt.c by Alan Cox <alan@lxorguk.ukuu.org.uk>
- *       and some other existing drivers
+ *	and some other existing drivers
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
@@ -11,7 +11,7 @@
  *
  *	The authors do NOT admit liability nor provide warranty for
  *	any of this software. This material is provided "AS-IS" in
- *      the hope that it may be useful for others.
+ *	the hope that it may be useful for others.
  *
  *	(C) Copyright 2003-2006  Sven Anders <anders@anduras.de>
  *
@@ -22,19 +22,19 @@
  *
  *  Theory of operation:
  *
- *      A Watchdog Timer (WDT) is a hardware circuit that can
- *      reset the computer system in case of a software fault.
- *      You probably knew that already.
+ *	A Watchdog Timer (WDT) is a hardware circuit that can
+ *	reset the computer system in case of a software fault.
+ *	You probably knew that already.
  *
- *      Usually a userspace daemon will notify the kernel WDT driver
- *      via the /dev/watchdog special device file that userspace is
- *      still alive, at regular intervals.  When such a notification
- *      occurs, the driver will usually tell the hardware watchdog
- *      that everything is in order, and that the watchdog should wait
- *      for yet another little while to reset the system.
- *      If userspace fails (RAM error, kernel bug, whatever), the
- *      notifications cease to occur, and the hardware watchdog will
- *      reset the system (causing a reboot) after the timeout occurs.
+ *	Usually a userspace daemon will notify the kernel WDT driver
+ *	via the /dev/watchdog special device file that userspace is
+ *	still alive, at regular intervals.  When such a notification
+ *	occurs, the driver will usually tell the hardware watchdog
+ *	that everything is in order, and that the watchdog should wait
+ *	for yet another little while to reset the system.
+ *	If userspace fails (RAM error, kernel bug, whatever), the
+ *	notifications cease to occur, and the hardware watchdog will
+ *	reset the system (causing a reboot) after the timeout occurs.
  *
  * Create device with:
  *  mknod /dev/watchdog c 10 130
@@ -485,7 +485,7 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 	case WDIOC_GETTIMEOUT:
 		new_timeout = timeout;
 		if (unit == UNIT_MINUTE)
-			  new_timeout *= 60;
+			new_timeout *= 60;
 		return put_user(new_timeout, uarg.i);
 	default:
 		return -ENOTTY;

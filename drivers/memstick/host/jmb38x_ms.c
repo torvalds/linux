@@ -877,7 +877,7 @@ static int jmb38x_ms_probe(struct pci_dev *pdev,
 	int pci_dev_busy = 0;
 	int rc, cnt;
 
-	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc)
 		return rc;
 

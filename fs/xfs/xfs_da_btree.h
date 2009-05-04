@@ -91,9 +91,9 @@ enum xfs_dacmp {
  * Structure to ease passing around component names.
  */
 typedef struct xfs_da_args {
-	const uchar_t	*name;		/* string (maybe not NULL terminated) */
+	const __uint8_t	*name;		/* string (maybe not NULL terminated) */
 	int		namelen;	/* length of string (maybe no NULL) */
-	uchar_t		*value;		/* set of bytes (maybe contain NULLs) */
+	__uint8_t	*value;		/* set of bytes (maybe contain NULLs) */
 	int		valuelen;	/* length of value */
 	int		flags;		/* argument flags (eg: ATTR_NOCREATE) */
 	xfs_dahash_t	hashval;	/* hash value of name */
@@ -185,7 +185,7 @@ typedef struct xfs_da_state {
 	unsigned char		inleaf;		/* insert into 1->lf, 0->splf */
 	unsigned char		extravalid;	/* T/F: extrablk is in use */
 	unsigned char		extraafter;	/* T/F: extrablk is after new */
-	xfs_da_state_blk_t	extrablk;	/* for double-splits on leafs */
+	xfs_da_state_blk_t	extrablk;	/* for double-splits on leaves */
 						/* for dirv2 extrablk is data */
 } xfs_da_state_t;
 
@@ -251,7 +251,7 @@ xfs_daddr_t	xfs_da_reada_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  xfs_dabuf_t *dead_buf);
 
-uint xfs_da_hashname(const uchar_t *name_string, int name_length);
+uint xfs_da_hashname(const __uint8_t *name_string, int name_length);
 enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
 				const char *name, int len);
 
@@ -268,5 +268,6 @@ xfs_daddr_t xfs_da_blkno(xfs_dabuf_t *dabuf);
 
 extern struct kmem_zone *xfs_da_state_zone;
 extern struct kmem_zone *xfs_dabuf_zone;
+extern const struct xfs_nameops xfs_default_nameops;
 
 #endif	/* __XFS_DA_BTREE_H__ */

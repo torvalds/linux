@@ -70,13 +70,12 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	extern void smp4m_smp_done(void);
 	extern void smp4d_smp_done(void);
 	unsigned long bogosum = 0;
-	int cpu, num;
+	int cpu, num = 0;
 
-	for (cpu = 0, num = 0; cpu < NR_CPUS; cpu++)
-		if (cpu_online(cpu)) {
-			num++;
-			bogosum += cpu_data(cpu).udelay_val;
-		}
+	for_each_online_cpu(cpu) {
+		num++;
+		bogosum += cpu_data(cpu).udelay_val;
+	}
 
 	printk("Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
 		num, bogosum/(500000/HZ),
@@ -144,7 +143,7 @@ void smp_flush_tlb_all(void)
 void smp_flush_cache_mm(struct mm_struct *mm)
 {
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpumask_t cpu_mask = *mm_cpumask(mm);
 		cpu_clear(smp_processor_id(), cpu_mask);
 		if (!cpus_empty(cpu_mask))
 			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_cache_mm), (unsigned long) mm);
@@ -155,12 +154,13 @@ void smp_flush_cache_mm(struct mm_struct *mm)
 void smp_flush_tlb_mm(struct mm_struct *mm)
 {
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpumask_t cpu_mask = *mm_cpumask(mm);
 		cpu_clear(smp_processor_id(), cpu_mask);
 		if (!cpus_empty(cpu_mask)) {
 			xc1((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_mm), (unsigned long) mm);
 			if(atomic_read(&mm->mm_users) == 1 && current->active_mm == mm)
-				mm->cpu_vm_mask = cpumask_of_cpu(smp_processor_id());
+				cpumask_copy(mm_cpumask(mm),
+					     cpumask_of(smp_processor_id()));
 		}
 		local_flush_tlb_mm(mm);
 	}
@@ -172,7 +172,7 @@ void smp_flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpumask_t cpu_mask = *mm_cpumask(mm);
 		cpu_clear(smp_processor_id(), cpu_mask);
 		if (!cpus_empty(cpu_mask))
 			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_cache_range), (unsigned long) vma, start, end);
@@ -186,7 +186,7 @@ void smp_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 
 	if (mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpumask_t cpu_mask = *mm_cpumask(mm);
 		cpu_clear(smp_processor_id(), cpu_mask);
 		if (!cpus_empty(cpu_mask))
 			xc3((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_range), (unsigned long) vma, start, end);
@@ -199,7 +199,7 @@ void smp_flush_cache_page(struct vm_area_struct *vma, unsigned long page)
 	struct mm_struct *mm = vma->vm_mm;
 
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpumask_t cpu_mask = *mm_cpumask(mm);
 		cpu_clear(smp_processor_id(), cpu_mask);
 		if (!cpus_empty(cpu_mask))
 			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_cache_page), (unsigned long) vma, page);
@@ -212,7 +212,7 @@ void smp_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	struct mm_struct *mm = vma->vm_mm;
 
 	if(mm->context != NO_CONTEXT) {
-		cpumask_t cpu_mask = mm->cpu_vm_mask;
+		cpumask_t cpu_mask = *mm_cpumask(mm);
 		cpu_clear(smp_processor_id(), cpu_mask);
 		if (!cpus_empty(cpu_mask))
 			xc2((smpfunc_t) BTFIXUP_CALL(local_flush_tlb_page), (unsigned long) vma, page);
@@ -241,7 +241,7 @@ void smp_flush_page_to_ram(unsigned long page)
 
 void smp_flush_sig_insns(struct mm_struct *mm, unsigned long insn_addr)
 {
-	cpumask_t cpu_mask = mm->cpu_vm_mask;
+	cpumask_t cpu_mask = *mm_cpumask(mm);
 	cpu_clear(smp_processor_id(), cpu_mask);
 	if (!cpus_empty(cpu_mask))
 		xc2((smpfunc_t) BTFIXUP_CALL(local_flush_sig_insns), (unsigned long) mm, insn_addr);
@@ -332,8 +332,8 @@ void __init smp_setup_cpu_possible_map(void)
 	instance = 0;
 	while (!cpu_find_by_instance(instance, NULL, &mid)) {
 		if (mid < NR_CPUS) {
-			cpu_set(mid, cpu_possible_map);
-			cpu_set(mid, cpu_present_map);
+			set_cpu_possible(mid, true);
+			set_cpu_present(mid, true);
 		}
 		instance++;
 	}
@@ -351,8 +351,8 @@ void __init smp_prepare_boot_cpu(void)
 		printk("boot cpu id != 0, this could work but is untested\n");
 
 	current_thread_info()->cpu = cpuid;
-	cpu_set(cpuid, cpu_online_map);
-	cpu_set(cpuid, cpu_possible_map);
+	set_cpu_online(cpuid, true);
+	set_cpu_possible(cpuid, true);
 }
 
 int __cpuinit __cpu_up(unsigned int cpu)

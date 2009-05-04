@@ -93,9 +93,34 @@ void __init reserve_crashkernel(void)
 				KDUMP_KERNELBASE);
 
 	crashk_res.start = KDUMP_KERNELBASE;
+#else
+	if (!crashk_res.start) {
+		/*
+		 * unspecified address, choose a region of specified size
+		 * can overlap with initrd (ignoring corruption when retained)
+		 * ppc64 requires kernel and some stacks to be in first segemnt
+		 */
+		crashk_res.start = KDUMP_KERNELBASE;
+	}
+
+	crash_base = PAGE_ALIGN(crashk_res.start);
+	if (crash_base != crashk_res.start) {
+		printk("Crash kernel base must be aligned to 0x%lx\n",
+				PAGE_SIZE);
+		crashk_res.start = crash_base;
+	}
+
 #endif
 	crash_size = PAGE_ALIGN(crash_size);
 	crashk_res.end = crashk_res.start + crash_size - 1;
+
+	/* The crash region must not overlap the current kernel */
+	if (overlaps_crashkernel(__pa(_stext), _end - _stext)) {
+		printk(KERN_WARNING
+			"Crash kernel can not overlap current kernel\n");
+		crashk_res.start = crashk_res.end = 0;
+		return;
+	}
 
 	/* Crash kernel trumps memory limit */
 	if (memory_limit && memory_limit <= crashk_res.end) {

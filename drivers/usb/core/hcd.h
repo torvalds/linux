@@ -206,6 +206,11 @@ struct hc_driver {
 	void 	(*endpoint_disable)(struct usb_hcd *hcd,
 			struct usb_host_endpoint *ep);
 
+	/* (optional) reset any endpoint state such as sequence number
+	   and current window */
+	void 	(*endpoint_reset)(struct usb_hcd *hcd,
+			struct usb_host_endpoint *ep);
+
 	/* root hub support */
 	int	(*hub_status_data) (struct usb_hcd *hcd, char *buf);
 	int	(*hub_control) (struct usb_hcd *hcd,
@@ -234,6 +239,8 @@ extern void usb_hcd_flush_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
 extern void usb_hcd_disable_endpoint(struct usb_device *udev,
 		struct usb_host_endpoint *ep);
+extern void usb_hcd_reset_endpoint(struct usb_device *udev,
+		struct usb_host_endpoint *ep);
 extern void usb_hcd_synchronize_unlinks(struct usb_device *udev);
 extern int usb_hcd_get_frame_number(struct usb_device *udev);
 
@@ -257,8 +264,6 @@ extern void usb_hcd_pci_remove(struct pci_dev *dev);
 
 #ifdef CONFIG_PM
 extern int usb_hcd_pci_suspend(struct pci_dev *dev, pm_message_t msg);
-extern int usb_hcd_pci_suspend_late(struct pci_dev *dev, pm_message_t msg);
-extern int usb_hcd_pci_resume_early(struct pci_dev *dev);
 extern int usb_hcd_pci_resume(struct pci_dev *dev);
 #endif /* CONFIG_PM */
 
@@ -280,6 +285,13 @@ extern irqreturn_t usb_hcd_irq(int irq, void *__hcd);
 
 extern void usb_hc_died(struct usb_hcd *hcd);
 extern void usb_hcd_poll_rh_status(struct usb_hcd *hcd);
+
+/* The D0/D1 toggle bits ... USE WITH CAUTION (they're almost hcd-internal) */
+#define usb_gettoggle(dev, ep, out) (((dev)->toggle[out] >> (ep)) & 1)
+#define	usb_dotoggle(dev, ep, out)  ((dev)->toggle[out] ^= (1 << (ep)))
+#define usb_settoggle(dev, ep, out, bit) \
+		((dev)->toggle[out] = ((dev)->toggle[out] & ~(1 << (ep))) | \
+		 ((bit) << (ep)))
 
 /* -------------------------------------------------------------------------- */
 

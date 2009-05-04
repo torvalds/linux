@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
@@ -200,7 +201,7 @@ static long at91_wdt_ioctl(struct file *file,
  * Pat the watchdog whenever device is written to.
  */
 static ssize_t at91_wdt_write(struct file *file, const char *data, size_t len,
-      loff_t *ppos)
+								loff_t *ppos)
 {
 	if (!len)
 		return 0;

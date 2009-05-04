@@ -448,32 +448,9 @@ void pagevec_strip(struct pagevec *pvec)
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
 
-		if (PagePrivate(page) && trylock_page(page)) {
-			if (PagePrivate(page))
+		if (page_has_private(page) && trylock_page(page)) {
+			if (page_has_private(page))
 				try_to_release_page(page, 0);
-			unlock_page(page);
-		}
-	}
-}
-
-/**
- * pagevec_swap_free - try to free swap space from the pages in a pagevec
- * @pvec: pagevec with swapcache pages to free the swap space of
- *
- * The caller needs to hold an extra reference to each page and
- * not hold the page lock on the pages.  This function uses a
- * trylock on the page lock so it may not always free the swap
- * space associated with a page.
- */
-void pagevec_swap_free(struct pagevec *pvec)
-{
-	int i;
-
-	for (i = 0; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
-
-		if (PageSwapCache(page) && trylock_page(page)) {
-			try_to_free_swap(page);
 			unlock_page(page);
 		}
 	}

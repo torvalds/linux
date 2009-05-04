@@ -19,6 +19,12 @@
 #define MAX_ILO_DEV	1
 /* max number of files */
 #define MAX_OPEN	(MAX_CCB * MAX_ILO_DEV)
+/* total wait time in usec */
+#define MAX_WAIT_TIME	10000
+/* per spin wait time in usec */
+#define WAIT_TIME	10
+/* spin counter for open/close delay */
+#define MAX_WAIT	(MAX_WAIT_TIME / WAIT_TIME)
 
 /*
  * Per device, used to track global memory allocations.

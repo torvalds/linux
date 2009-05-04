@@ -130,7 +130,7 @@ static void die(const char * str, ...)
 
 static void usage(void)
 {
-	die("Usage: build [-b] setup system [rootdev] [> image]");
+	die("Usage: build setup system [rootdev] [> image]");
 }
 
 int main(int argc, char ** argv)
@@ -145,11 +145,6 @@ int main(int argc, char ** argv)
 	void *kernel;
 	u32 crc = 0xffffffffUL;
 
-	if (argc > 2 && !strcmp(argv[1], "-b"))
-	  {
-	    is_big_kernel = 1;
-	    argc--, argv++;
-	  }
 	if ((argc < 3) || (argc > 4))
 		usage();
 	if (argc > 3) {
@@ -216,8 +211,6 @@ int main(int argc, char ** argv)
 		die("Unable to mmap '%s': %m", argv[2]);
 	/* Number of 16-byte paragraphs, including space for a 4-byte CRC */
 	sys_size = (sz + 15 + 4) / 16;
-	if (!is_big_kernel && sys_size > DEF_SYSSIZE)
-		die("System is too big. Try using bzImage or modules.");
 
 	/* Patch the setup code with the appropriate size parameters */
 	buf[0x1f1] = setup_sectors-1;

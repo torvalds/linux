@@ -23,9 +23,10 @@
 #ifndef _SPU_INFO_H
 #define _SPU_INFO_H
 
+#include <linux/types.h>
+
 #ifdef __KERNEL__
 #include <asm/spu.h>
-#include <linux/types.h>
 #else
 struct mfc_cq_sr {
 	__u64 mfc_cq_data0_RW;

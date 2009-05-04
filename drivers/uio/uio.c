@@ -61,6 +61,14 @@ struct uio_map {
 };
 #define to_map(map) container_of(map, struct uio_map, kobj)
 
+static ssize_t map_name_show(struct uio_mem *mem, char *buf)
+{
+	if (unlikely(!mem->name))
+		mem->name = "";
+
+	return sprintf(buf, "%s\n", mem->name);
+}
+
 static ssize_t map_addr_show(struct uio_mem *mem, char *buf)
 {
 	return sprintf(buf, "0x%lx\n", mem->addr);
@@ -82,6 +90,8 @@ struct map_sysfs_entry {
 	ssize_t (*store)(struct uio_mem *, const char *, size_t);
 };
 
+static struct map_sysfs_entry name_attribute =
+	__ATTR(name, S_IRUGO, map_name_show, NULL);
 static struct map_sysfs_entry addr_attribute =
 	__ATTR(addr, S_IRUGO, map_addr_show, NULL);
 static struct map_sysfs_entry size_attribute =
@@ -90,6 +100,7 @@ static struct map_sysfs_entry offset_attribute =
 	__ATTR(offset, S_IRUGO, map_offset_show, NULL);
 
 static struct attribute *attrs[] = {
+	&name_attribute.attr,
 	&addr_attribute.attr,
 	&size_attribute.attr,
 	&offset_attribute.attr,
@@ -133,6 +144,14 @@ struct uio_portio {
 };
 #define to_portio(portio) container_of(portio, struct uio_portio, kobj)
 
+static ssize_t portio_name_show(struct uio_port *port, char *buf)
+{
+	if (unlikely(!port->name))
+		port->name = "";
+
+	return sprintf(buf, "%s\n", port->name);
+}
+
 static ssize_t portio_start_show(struct uio_port *port, char *buf)
 {
 	return sprintf(buf, "0x%lx\n", port->start);
@@ -159,6 +178,8 @@ struct portio_sysfs_entry {
 	ssize_t (*store)(struct uio_port *, const char *, size_t);
 };
 
+static struct portio_sysfs_entry portio_name_attribute =
+	__ATTR(name, S_IRUGO, portio_name_show, NULL);
 static struct portio_sysfs_entry portio_start_attribute =
 	__ATTR(start, S_IRUGO, portio_start_show, NULL);
 static struct portio_sysfs_entry portio_size_attribute =
@@ -167,6 +188,7 @@ static struct portio_sysfs_entry portio_porttype_attribute =
 	__ATTR(porttype, S_IRUGO, portio_porttype_show, NULL);
 
 static struct attribute *portio_attrs[] = {
+	&portio_name_attribute.attr,
 	&portio_start_attribute.attr,
 	&portio_size_attribute.attr,
 	&portio_porttype_attribute.attr,
@@ -686,7 +708,8 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	requested_pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
-	actual_pages = (idev->info->mem[mi].size + PAGE_SIZE -1) >> PAGE_SHIFT;
+	actual_pages = ((idev->info->mem[mi].addr & ~PAGE_MASK)
+			+ idev->info->mem[mi].size + PAGE_SIZE -1) >> PAGE_SHIFT;
 	if (requested_pages > actual_pages)
 		return -EINVAL;
 

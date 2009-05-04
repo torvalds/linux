@@ -165,7 +165,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Audiowerk2 soundcard.");
 
 static struct pci_device_id snd_aw2_ids[] = {
-	{PCI_VENDOR_ID_SAA7146, PCI_DEVICE_ID_SAA7146, PCI_ANY_ID, PCI_ANY_ID,
+	{PCI_VENDOR_ID_SAA7146, PCI_DEVICE_ID_SAA7146, 0, 0,
 	 0, 0, 0},
 	{0}
 };
@@ -279,8 +279,8 @@ static int __devinit snd_aw2_create(struct snd_card *card,
 	pci_set_master(pci);
 
 	/* check PCI availability (32bit DMA) */
-	if ((pci_set_dma_mask(pci, DMA_32BIT_MASK) < 0) ||
-	    (pci_set_consistent_dma_mask(pci, DMA_32BIT_MASK) < 0)) {
+	if ((pci_set_dma_mask(pci, DMA_BIT_MASK(32)) < 0) ||
+	    (pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(32)) < 0)) {
 		printk(KERN_ERR "aw2: Impossible to set 32bit mask DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;

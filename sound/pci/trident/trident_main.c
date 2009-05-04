@@ -68,40 +68,40 @@ static void snd_trident_print_voice_regs(struct snd_trident *trident, int voice)
 {
 	unsigned int val, tmp;
 
-	printk("Trident voice %i:\n", voice);
+	printk(KERN_DEBUG "Trident voice %i:\n", voice);
 	outb(voice, TRID_REG(trident, T4D_LFO_GC_CIR));
 	val = inl(TRID_REG(trident, CH_LBA));
-	printk("LBA: 0x%x\n", val);
+	printk(KERN_DEBUG "LBA: 0x%x\n", val);
 	val = inl(TRID_REG(trident, CH_GVSEL_PAN_VOL_CTRL_EC));
-	printk("GVSel: %i\n", val >> 31);
-	printk("Pan: 0x%x\n", (val >> 24) & 0x7f);
-	printk("Vol: 0x%x\n", (val >> 16) & 0xff);
-	printk("CTRL: 0x%x\n", (val >> 12) & 0x0f);
-	printk("EC: 0x%x\n", val & 0x0fff);
+	printk(KERN_DEBUG "GVSel: %i\n", val >> 31);
+	printk(KERN_DEBUG "Pan: 0x%x\n", (val >> 24) & 0x7f);
+	printk(KERN_DEBUG "Vol: 0x%x\n", (val >> 16) & 0xff);
+	printk(KERN_DEBUG "CTRL: 0x%x\n", (val >> 12) & 0x0f);
+	printk(KERN_DEBUG "EC: 0x%x\n", val & 0x0fff);
 	if (trident->device != TRIDENT_DEVICE_ID_NX) {
 		val = inl(TRID_REG(trident, CH_DX_CSO_ALPHA_FMS));
-		printk("CSO: 0x%x\n", val >> 16);
+		printk(KERN_DEBUG "CSO: 0x%x\n", val >> 16);
 		printk("Alpha: 0x%x\n", (val >> 4) & 0x0fff);
-		printk("FMS: 0x%x\n", val & 0x0f);
+		printk(KERN_DEBUG "FMS: 0x%x\n", val & 0x0f);
 		val = inl(TRID_REG(trident, CH_DX_ESO_DELTA));
-		printk("ESO: 0x%x\n", val >> 16);
-		printk("Delta: 0x%x\n", val & 0xffff);
+		printk(KERN_DEBUG "ESO: 0x%x\n", val >> 16);
+		printk(KERN_DEBUG "Delta: 0x%x\n", val & 0xffff);
 		val = inl(TRID_REG(trident, CH_DX_FMC_RVOL_CVOL));
 	} else {		// TRIDENT_DEVICE_ID_NX
 		val = inl(TRID_REG(trident, CH_NX_DELTA_CSO));
 		tmp = (val >> 24) & 0xff;
-		printk("CSO: 0x%x\n", val & 0x00ffffff);
+		printk(KERN_DEBUG "CSO: 0x%x\n", val & 0x00ffffff);
 		val = inl(TRID_REG(trident, CH_NX_DELTA_ESO));
 		tmp |= (val >> 16) & 0xff00;
-		printk("Delta: 0x%x\n", tmp);
-		printk("ESO: 0x%x\n", val & 0x00ffffff);
+		printk(KERN_DEBUG "Delta: 0x%x\n", tmp);
+		printk(KERN_DEBUG "ESO: 0x%x\n", val & 0x00ffffff);
 		val = inl(TRID_REG(trident, CH_NX_ALPHA_FMS_FMC_RVOL_CVOL));
-		printk("Alpha: 0x%x\n", val >> 20);
-		printk("FMS: 0x%x\n", (val >> 16) & 0x0f);
+		printk(KERN_DEBUG "Alpha: 0x%x\n", val >> 20);
+		printk(KERN_DEBUG "FMS: 0x%x\n", (val >> 16) & 0x0f);
 	}
-	printk("FMC: 0x%x\n", (val >> 14) & 3);
-	printk("RVol: 0x%x\n", (val >> 7) & 0x7f);
-	printk("CVol: 0x%x\n", val & 0x7f);
+	printk(KERN_DEBUG "FMC: 0x%x\n", (val >> 14) & 3);
+	printk(KERN_DEBUG "RVol: 0x%x\n", (val >> 7) & 0x7f);
+	printk(KERN_DEBUG "CVol: 0x%x\n", val & 0x7f);
 }
 #endif
 
@@ -496,12 +496,17 @@ void snd_trident_write_voice_regs(struct snd_trident * trident,
 	outl(regs[4], TRID_REG(trident, CH_START + 16));
 
 #if 0
-	printk("written %i channel:\n", voice->number);
-	printk("  regs[0] = 0x%x/0x%x\n", regs[0], inl(TRID_REG(trident, CH_START + 0)));
-	printk("  regs[1] = 0x%x/0x%x\n", regs[1], inl(TRID_REG(trident, CH_START + 4)));
-	printk("  regs[2] = 0x%x/0x%x\n", regs[2], inl(TRID_REG(trident, CH_START + 8)));
-	printk("  regs[3] = 0x%x/0x%x\n", regs[3], inl(TRID_REG(trident, CH_START + 12)));
-	printk("  regs[4] = 0x%x/0x%x\n", regs[4], inl(TRID_REG(trident, CH_START + 16)));
+	printk(KERN_DEBUG "written %i channel:\n", voice->number);
+	printk(KERN_DEBUG "  regs[0] = 0x%x/0x%x\n",
+	       regs[0], inl(TRID_REG(trident, CH_START + 0)));
+	printk(KERN_DEBUG "  regs[1] = 0x%x/0x%x\n",
+	       regs[1], inl(TRID_REG(trident, CH_START + 4)));
+	printk(KERN_DEBUG "  regs[2] = 0x%x/0x%x\n",
+	       regs[2], inl(TRID_REG(trident, CH_START + 8)));
+	printk(KERN_DEBUG "  regs[3] = 0x%x/0x%x\n",
+	       regs[3], inl(TRID_REG(trident, CH_START + 12)));
+	printk(KERN_DEBUG "  regs[4] = 0x%x/0x%x\n",
+	       regs[4], inl(TRID_REG(trident, CH_START + 16)));
 #endif
 }
 
@@ -583,7 +588,7 @@ static void snd_trident_write_vol_reg(struct snd_trident * trident,
 		outb(voice->Vol >> 2, TRID_REG(trident, CH_GVSEL_PAN_VOL_CTRL_EC + 2));
 		break;
 	case TRIDENT_DEVICE_ID_SI7018:
-		// printk("voice->Vol = 0x%x\n", voice->Vol);
+		/* printk(KERN_DEBUG "voice->Vol = 0x%x\n", voice->Vol); */
 		outw((voice->CTRL << 12) | voice->Vol,
 		     TRID_REG(trident, CH_GVSEL_PAN_VOL_CTRL_EC));
 		break;
@@ -3554,8 +3559,8 @@ int __devinit snd_trident_create(struct snd_card *card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 	/* check, if we can restrict PCI DMA transfers to 30 bits */
-	if (pci_set_dma_mask(pci, DMA_30BIT_MASK) < 0 ||
-	    pci_set_consistent_dma_mask(pci, DMA_30BIT_MASK) < 0) {
+	if (pci_set_dma_mask(pci, DMA_BIT_MASK(30)) < 0 ||
+	    pci_set_consistent_dma_mask(pci, DMA_BIT_MASK(30)) < 0) {
 		snd_printk(KERN_ERR "architecture does not support 30bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;

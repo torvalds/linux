@@ -1132,7 +1132,7 @@ lpfc_debugfs_dumpDataDif_release(struct inode *inode, struct file *file)
 }
 
 #undef lpfc_debugfs_op_disc_trc
-static struct file_operations lpfc_debugfs_op_disc_trc = {
+static const struct file_operations lpfc_debugfs_op_disc_trc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_disc_trc_open,
 	.llseek =       lpfc_debugfs_lseek,
@@ -1141,7 +1141,7 @@ static struct file_operations lpfc_debugfs_op_disc_trc = {
 };
 
 #undef lpfc_debugfs_op_nodelist
-static struct file_operations lpfc_debugfs_op_nodelist = {
+static const struct file_operations lpfc_debugfs_op_nodelist = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_nodelist_open,
 	.llseek =       lpfc_debugfs_lseek,
@@ -1150,7 +1150,7 @@ static struct file_operations lpfc_debugfs_op_nodelist = {
 };
 
 #undef lpfc_debugfs_op_hbqinfo
-static struct file_operations lpfc_debugfs_op_hbqinfo = {
+static const struct file_operations lpfc_debugfs_op_hbqinfo = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_hbqinfo_open,
 	.llseek =       lpfc_debugfs_lseek,
@@ -1159,7 +1159,7 @@ static struct file_operations lpfc_debugfs_op_hbqinfo = {
 };
 
 #undef lpfc_debugfs_op_dumpHBASlim
-static struct file_operations lpfc_debugfs_op_dumpHBASlim = {
+static const struct file_operations lpfc_debugfs_op_dumpHBASlim = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_dumpHBASlim_open,
 	.llseek =       lpfc_debugfs_lseek,
@@ -1168,7 +1168,7 @@ static struct file_operations lpfc_debugfs_op_dumpHBASlim = {
 };
 
 #undef lpfc_debugfs_op_dumpHostSlim
-static struct file_operations lpfc_debugfs_op_dumpHostSlim = {
+static const struct file_operations lpfc_debugfs_op_dumpHostSlim = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_dumpHostSlim_open,
 	.llseek =       lpfc_debugfs_lseek,
@@ -1177,7 +1177,7 @@ static struct file_operations lpfc_debugfs_op_dumpHostSlim = {
 };
 
 #undef lpfc_debugfs_op_dumpData
-static struct file_operations lpfc_debugfs_op_dumpData = {
+static const struct file_operations lpfc_debugfs_op_dumpData = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_dumpData_open,
 	.llseek =       lpfc_debugfs_lseek,
@@ -1187,7 +1187,7 @@ static struct file_operations lpfc_debugfs_op_dumpData = {
 };
 
 #undef lpfc_debugfs_op_dumpDif
-static struct file_operations lpfc_debugfs_op_dumpDif = {
+static const struct file_operations lpfc_debugfs_op_dumpDif = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_dumpDif_open,
 	.llseek =       lpfc_debugfs_lseek,
@@ -1197,7 +1197,7 @@ static struct file_operations lpfc_debugfs_op_dumpDif = {
 };
 
 #undef lpfc_debugfs_op_slow_ring_trc
-static struct file_operations lpfc_debugfs_op_slow_ring_trc = {
+static const struct file_operations lpfc_debugfs_op_slow_ring_trc = {
 	.owner =        THIS_MODULE,
 	.open =         lpfc_debugfs_slow_ring_trc_open,
 	.llseek =       lpfc_debugfs_lseek,

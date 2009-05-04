@@ -103,7 +103,7 @@ void oom_timer(unsigned long data)
 {
         struct net_device *dev = (struct net_device *)data;
 	struct tulip_private *tp = netdev_priv(dev);
-	netif_rx_schedule(&tp->napi);
+	napi_schedule(&tp->napi);
 }
 
 int tulip_poll(struct napi_struct *napi, int budget)
@@ -140,6 +140,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
                /* If we own the next entry, it is a new packet. Send it up. */
                while ( ! (tp->rx_ring[entry].status & cpu_to_le32(DescOwned))) {
                        s32 status = le32_to_cpu(tp->rx_ring[entry].status);
+		       short pkt_len;
 
                        if (tp->dirty_rx + RX_RING_SIZE == tp->cur_rx)
                                break;
@@ -151,8 +152,28 @@ int tulip_poll(struct napi_struct *napi, int budget)
 		       if (++work_done >= budget)
                                goto not_done;
 
-                       if ((status & 0x38008300) != 0x0300) {
-                               if ((status & 0x38000300) != 0x0300) {
+		       /*
+			* Omit the four octet CRC from the length.
+			* (May not be considered valid until we have
+			* checked status for RxLengthOver2047 bits)
+			*/
+		       pkt_len = ((status >> 16) & 0x7ff) - 4;
+
+		       /*
+			* Maximum pkt_len is 1518 (1514 + vlan header)
+			* Anything higher than this is always invalid
+			* regardless of RxLengthOver2047 bits
+			*/
+
+		       if ((status & (RxLengthOver2047 |
+				      RxDescCRCError |
+				      RxDescCollisionSeen |
+				      RxDescRunt |
+				      RxDescDescErr |
+				      RxWholePkt)) != RxWholePkt
+			   || pkt_len > 1518) {
+			       if ((status & (RxLengthOver2047 |
+					      RxWholePkt)) != RxWholePkt) {
                                 /* Ingore earlier buffers. */
                                        if ((status & 0xffff) != 0x7fff) {
                                                if (tulip_debug > 1)
@@ -161,30 +182,23 @@ int tulip_poll(struct napi_struct *napi, int budget)
                                                               dev->name, status);
                                                tp->stats.rx_length_errors++;
                                        }
-                               } else if (status & RxDescFatalErr) {
+			       } else {
                                 /* There was a fatal error. */
                                        if (tulip_debug > 2)
                                                printk(KERN_DEBUG "%s: Receive error, Rx status %8.8x.\n",
                                                       dev->name, status);
                                        tp->stats.rx_errors++; /* end of a packet.*/
-                                       if (status & 0x0890) tp->stats.rx_length_errors++;
+				       if (pkt_len > 1518 ||
+					   (status & RxDescRunt))
+					       tp->stats.rx_length_errors++;
+
                                        if (status & 0x0004) tp->stats.rx_frame_errors++;
                                        if (status & 0x0002) tp->stats.rx_crc_errors++;
                                        if (status & 0x0001) tp->stats.rx_fifo_errors++;
                                }
                        } else {
-                               /* Omit the four octet CRC from the length. */
-                               short pkt_len = ((status >> 16) & 0x7ff) - 4;
                                struct sk_buff *skb;
 
-#ifndef final_version
-                               if (pkt_len > 1518) {
-                                       printk(KERN_WARNING "%s: Bogus packet size of %d (%#x).\n",
-                                              dev->name, pkt_len, pkt_len);
-                                       pkt_len = 1518;
-                                       tp->stats.rx_length_errors++;
-                               }
-#endif
                                /* Check if the packet is long enough to accept without copying
                                   to a minimally-sized skbuff. */
                                if (pkt_len < tulip_rx_copybreak
@@ -300,7 +314,7 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
          /* Remove us from polling list and enable RX intr. */
 
-         netif_rx_complete(napi);
+         napi_complete(napi);
          iowrite32(tulip_tbl[tp->chip_id].valid_intrs, tp->base_addr+CSR7);
 
          /* The last op happens after poll completion. Which means the following:
@@ -333,10 +347,10 @@ int tulip_poll(struct napi_struct *napi, int budget)
 
          /* Think: timer_pending() was an explicit signature of bug.
           * Timer can be pending now but fired and completed
-          * before we did netif_rx_complete(). See? We would lose it. */
+          * before we did napi_complete(). See? We would lose it. */
 
          /* remove ourselves from the polling list */
-         netif_rx_complete(napi);
+         napi_complete(napi);
 
          return work_done;
 }
@@ -356,14 +370,35 @@ static int tulip_rx(struct net_device *dev)
 	/* If we own the next entry, it is a new packet. Send it up. */
 	while ( ! (tp->rx_ring[entry].status & cpu_to_le32(DescOwned))) {
 		s32 status = le32_to_cpu(tp->rx_ring[entry].status);
+		short pkt_len;
 
 		if (tulip_debug > 5)
 			printk(KERN_DEBUG "%s: In tulip_rx(), entry %d %8.8x.\n",
 				   dev->name, entry, status);
 		if (--rx_work_limit < 0)
 			break;
-		if ((status & 0x38008300) != 0x0300) {
-			if ((status & 0x38000300) != 0x0300) {
+
+		/*
+		  Omit the four octet CRC from the length.
+		  (May not be considered valid until we have
+		  checked status for RxLengthOver2047 bits)
+		*/
+		pkt_len = ((status >> 16) & 0x7ff) - 4;
+		/*
+		  Maximum pkt_len is 1518 (1514 + vlan header)
+		  Anything higher than this is always invalid
+		  regardless of RxLengthOver2047 bits
+		*/
+
+		if ((status & (RxLengthOver2047 |
+			       RxDescCRCError |
+			       RxDescCollisionSeen |
+			       RxDescRunt |
+			       RxDescDescErr |
+			       RxWholePkt))        != RxWholePkt
+		     || pkt_len > 1518) {
+			if ((status & (RxLengthOver2047 |
+			     RxWholePkt))         != RxWholePkt) {
 				/* Ingore earlier buffers. */
 				if ((status & 0xffff) != 0x7fff) {
 					if (tulip_debug > 1)
@@ -372,30 +407,21 @@ static int tulip_rx(struct net_device *dev)
 							   dev->name, status);
 					tp->stats.rx_length_errors++;
 				}
-			} else if (status & RxDescFatalErr) {
+			} else {
 				/* There was a fatal error. */
 				if (tulip_debug > 2)
 					printk(KERN_DEBUG "%s: Receive error, Rx status %8.8x.\n",
 						   dev->name, status);
 				tp->stats.rx_errors++; /* end of a packet.*/
-				if (status & 0x0890) tp->stats.rx_length_errors++;
+				if (pkt_len > 1518 ||
+				    (status & RxDescRunt))
+					tp->stats.rx_length_errors++;
 				if (status & 0x0004) tp->stats.rx_frame_errors++;
 				if (status & 0x0002) tp->stats.rx_crc_errors++;
 				if (status & 0x0001) tp->stats.rx_fifo_errors++;
 			}
 		} else {
-			/* Omit the four octet CRC from the length. */
-			short pkt_len = ((status >> 16) & 0x7ff) - 4;
 			struct sk_buff *skb;
-
-#ifndef final_version
-			if (pkt_len > 1518) {
-				printk(KERN_WARNING "%s: Bogus packet size of %d (%#x).\n",
-					   dev->name, pkt_len, pkt_len);
-				pkt_len = 1518;
-				tp->stats.rx_length_errors++;
-			}
-#endif
 
 			/* Check if the packet is long enough to accept without copying
 			   to a minimally-sized skbuff. */
@@ -519,7 +545,7 @@ irqreturn_t tulip_interrupt(int irq, void *dev_instance)
 			rxd++;
 			/* Mask RX intrs and add the device to poll list. */
 			iowrite32(tulip_tbl[tp->chip_id].valid_intrs&~RxPollInt, ioaddr + CSR7);
-			netif_rx_schedule(&tp->napi);
+			napi_schedule(&tp->napi);
 
 			if (!(csr5&~(AbnormalIntr|NormalIntr|RxPollInt|TPLnkPass)))
                                break;

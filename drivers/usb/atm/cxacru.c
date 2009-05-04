@@ -485,7 +485,7 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 			usb_err(instance->usbatm, "requested transfer size too large (%d, %d)\n",
 				wbuflen, rbuflen);
 		ret = -ENOMEM;
-		goto fail;
+		goto err;
 	}
 
 	mutex_lock(&instance->cm_serialize);
@@ -565,6 +565,7 @@ static int cxacru_cm(struct cxacru_data *instance, enum cxacru_cm_request cm,
 	dbg("cm %#x", cm);
 fail:
 	mutex_unlock(&instance->cm_serialize);
+err:
 	return ret;
 }
 

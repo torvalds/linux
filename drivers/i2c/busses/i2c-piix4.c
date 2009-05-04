@@ -20,7 +20,7 @@
 /*
    Supports:
 	Intel PIIX4, 440MX
-	Serverworks OSB4, CSB5, CSB6, HT-1000
+	Serverworks OSB4, CSB5, CSB6, HT-1000, HT-1100
 	ATI IXP200, IXP300, IXP400, SB600, SB700, SB800
 	SMSC Victory66
 
@@ -226,6 +226,70 @@ static int __devinit piix4_setup(struct pci_dev *PIIX4_dev,
 	return 0;
 }
 
+static int __devinit piix4_setup_sb800(struct pci_dev *PIIX4_dev,
+				const struct pci_device_id *id)
+{
+	unsigned short smba_idx = 0xcd6;
+	u8 smba_en_lo, smba_en_hi, i2ccfg, i2ccfg_offset = 0x10, smb_en = 0x2c;
+
+	/* SB800 SMBus does not support forcing address */
+	if (force || force_addr) {
+		dev_err(&PIIX4_dev->dev, "SB800 SMBus does not support "
+			"forcing address!\n");
+		return -EINVAL;
+	}
+
+	/* Determine the address of the SMBus areas */
+	if (!request_region(smba_idx, 2, "smba_idx")) {
+		dev_err(&PIIX4_dev->dev, "SMBus base address index region "
+			"0x%x already in use!\n", smba_idx);
+		return -EBUSY;
+	}
+	outb_p(smb_en, smba_idx);
+	smba_en_lo = inb_p(smba_idx + 1);
+	outb_p(smb_en + 1, smba_idx);
+	smba_en_hi = inb_p(smba_idx + 1);
+	release_region(smba_idx, 2);
+
+	if ((smba_en_lo & 1) == 0) {
+		dev_err(&PIIX4_dev->dev,
+			"Host SMBus controller not enabled!\n");
+		return -ENODEV;
+	}
+
+	piix4_smba = ((smba_en_hi << 8) | smba_en_lo) & 0xffe0;
+	if (acpi_check_region(piix4_smba, SMBIOSIZE, piix4_driver.name))
+		return -EBUSY;
+
+	if (!request_region(piix4_smba, SMBIOSIZE, piix4_driver.name)) {
+		dev_err(&PIIX4_dev->dev, "SMBus region 0x%x already in use!\n",
+			piix4_smba);
+		return -EBUSY;
+	}
+
+	/* Request the SMBus I2C bus config region */
+	if (!request_region(piix4_smba + i2ccfg_offset, 1, "i2ccfg")) {
+		dev_err(&PIIX4_dev->dev, "SMBus I2C bus config region "
+			"0x%x already in use!\n", piix4_smba + i2ccfg_offset);
+		release_region(piix4_smba, SMBIOSIZE);
+		piix4_smba = 0;
+		return -EBUSY;
+	}
+	i2ccfg = inb_p(piix4_smba + i2ccfg_offset);
+	release_region(piix4_smba + i2ccfg_offset, 1);
+
+	if (i2ccfg & 1)
+		dev_dbg(&PIIX4_dev->dev, "Using IRQ for SMBus.\n");
+	else
+		dev_dbg(&PIIX4_dev->dev, "Using SMI# for SMBus.\n");
+
+	dev_info(&PIIX4_dev->dev,
+		 "SMBus Host Controller at 0x%x, revision %d\n",
+		 piix4_smba, i2ccfg >> 4);
+
+	return 0;
+}
+
 static int piix4_transaction(void)
 {
 	int temp;
@@ -403,7 +467,6 @@ static const struct i2c_algorithm smbus_algorithm = {
 
 static struct i2c_adapter piix4_adapter = {
 	.owner		= THIS_MODULE,
-	.id		= I2C_HW_SMBUS_PIIX4,
 	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
 	.algo		= &smbus_algorithm,
 };
@@ -424,6 +487,8 @@ static struct pci_device_id piix4_ids[] = {
 		     PCI_DEVICE_ID_SERVERWORKS_CSB6) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS,
 		     PCI_DEVICE_ID_SERVERWORKS_HT1000SB) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS,
+		     PCI_DEVICE_ID_SERVERWORKS_HT1100LD) },
 	{ 0, }
 };
 
@@ -434,7 +499,14 @@ static int __devinit piix4_probe(struct pci_dev *dev,
 {
 	int retval;
 
-	retval = piix4_setup(dev, id);
+	if ((dev->vendor == PCI_VENDOR_ID_ATI) &&
+	    (dev->device == PCI_DEVICE_ID_ATI_SBX00_SMBUS) &&
+	    (dev->revision >= 0x40))
+		/* base address location etc changed in SB800 */
+		retval = piix4_setup_sb800(dev, id);
+	else
+		retval = piix4_setup(dev, id);
+
 	if (retval)
 		return retval;
 

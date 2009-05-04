@@ -28,7 +28,7 @@
 
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/errno.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>

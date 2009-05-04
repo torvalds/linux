@@ -22,6 +22,56 @@
 #ifndef __ASM_PARAVIRT_H
 #define __ASM_PARAVIRT_H
 
+#ifndef __ASSEMBLY__
+/******************************************************************************
+ * fsys related addresses
+ */
+struct pv_fsys_data {
+	unsigned long *fsyscall_table;
+	void *fsys_bubble_down;
+};
+
+extern struct pv_fsys_data pv_fsys_data;
+
+unsigned long *paravirt_get_fsyscall_table(void);
+char *paravirt_get_fsys_bubble_down(void);
+
+/******************************************************************************
+ * patchlist addresses for gate page
+ */
+enum pv_gate_patchlist {
+	PV_GATE_START_FSYSCALL,
+	PV_GATE_END_FSYSCALL,
+
+	PV_GATE_START_BRL_FSYS_BUBBLE_DOWN,
+	PV_GATE_END_BRL_FSYS_BUBBLE_DOWN,
+
+	PV_GATE_START_VTOP,
+	PV_GATE_END_VTOP,
+
+	PV_GATE_START_MCKINLEY_E9,
+	PV_GATE_END_MCKINLEY_E9,
+};
+
+struct pv_patchdata {
+	unsigned long start_fsyscall_patchlist;
+	unsigned long end_fsyscall_patchlist;
+	unsigned long start_brl_fsys_bubble_down_patchlist;
+	unsigned long end_brl_fsys_bubble_down_patchlist;
+	unsigned long start_vtop_patchlist;
+	unsigned long end_vtop_patchlist;
+	unsigned long start_mckinley_e9_patchlist;
+	unsigned long end_mckinley_e9_patchlist;
+
+	void *gate_section;
+};
+
+extern struct pv_patchdata pv_patchdata;
+
+unsigned long paravirt_get_gate_patchlist(enum pv_gate_patchlist type);
+void *paravirt_get_gate_section(void);
+#endif
+
 #ifdef CONFIG_PARAVIRT_GUEST
 
 #define PARAVIRT_HYPERVISOR_TYPE_DEFAULT	0
@@ -68,6 +118,14 @@ struct pv_init_ops {
 	int (*arch_setup_nomca)(void);
 
 	void (*post_smp_prepare_boot_cpu)(void);
+
+#ifdef ASM_SUPPORTED
+	unsigned long (*patch_bundle)(void *sbundle, void *ebundle,
+				      unsigned long type);
+	unsigned long (*patch_inst)(unsigned long stag, unsigned long etag,
+				    unsigned long type);
+#endif
+	void (*patch_branch)(unsigned long tag, unsigned long type);
 };
 
 extern struct pv_init_ops pv_init_ops;
@@ -210,6 +268,8 @@ struct pv_time_ops {
 	int (*do_steal_accounting)(unsigned long *new_itm);
 
 	void (*clocksource_resume)(void);
+
+	unsigned long long (*sched_clock)(void);
 };
 
 extern struct pv_time_ops pv_time_ops;
@@ -225,6 +285,11 @@ static inline int
 paravirt_do_steal_accounting(unsigned long *new_itm)
 {
 	return pv_time_ops.do_steal_accounting(new_itm);
+}
+
+static inline unsigned long long paravirt_sched_clock(void)
+{
+	return pv_time_ops.sched_clock();
 }
 
 #endif /* !__ASSEMBLY__ */

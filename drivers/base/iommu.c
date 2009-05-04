@@ -31,7 +31,7 @@ void register_iommu(struct iommu_ops *ops)
 	iommu_ops = ops;
 }
 
-bool iommu_found()
+bool iommu_found(void)
 {
 	return iommu_ops != NULL;
 }
@@ -98,3 +98,10 @@ phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
 	return iommu_ops->iova_to_phys(domain, iova);
 }
 EXPORT_SYMBOL_GPL(iommu_iova_to_phys);
+
+int iommu_domain_has_cap(struct iommu_domain *domain,
+			 unsigned long cap)
+{
+	return iommu_ops->domain_has_cap(domain, cap);
+}
+EXPORT_SYMBOL_GPL(iommu_domain_has_cap);

@@ -204,6 +204,7 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 	struct file *file = vma->vm_file;
 	int flags = vma->vm_flags;
 	unsigned long ino = 0;
+	unsigned long long pgoff = 0;
 	dev_t dev = 0;
 	int len;
 
@@ -211,6 +212,7 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 		struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 		dev = inode->i_sb->s_dev;
 		ino = inode->i_ino;
+		pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
 	}
 
 	seq_printf(m, "%08lx-%08lx %c%c%c%c %08llx %02x:%02x %lu %n",
@@ -220,7 +222,7 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 			flags & VM_WRITE ? 'w' : '-',
 			flags & VM_EXEC ? 'x' : '-',
 			flags & VM_MAYSHARE ? 's' : 'p',
-			((loff_t)vma->vm_pgoff) << PAGE_SHIFT,
+			pgoff,
 			MAJOR(dev), MINOR(dev), ino, &len);
 
 	/*
@@ -693,8 +695,8 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		goto out_pages;
 	}
 
-	pm.out = (u64 *)buf;
-	pm.end = (u64 *)(buf + count);
+	pm.out = (u64 __user *)buf;
+	pm.end = (u64 __user *)(buf + count);
 
 	pagemap_walk.pmd_entry = pagemap_pte_range;
 	pagemap_walk.pte_hole = pagemap_pte_hole;
@@ -720,9 +722,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 	if (ret == PM_END_OF_BUFFER)
 		ret = 0;
 	/* don't need mmap_sem for these, but this looks cleaner */
-	*ppos += (char *)pm.out - buf;
+	*ppos += (char __user *)pm.out - buf;
 	if (!ret)
-		ret = (char *)pm.out - buf;
+		ret = (char __user *)pm.out - buf;
 
 out_pages:
 	for (; pagecount; pagecount--) {

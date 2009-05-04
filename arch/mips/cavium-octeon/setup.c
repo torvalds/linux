@@ -15,13 +15,11 @@
 #include <linux/serial.h>
 #include <linux/types.h>
 #include <linux/string.h>	/* for memset */
-#include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/time.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
-#include <linux/string.h>
 
 #include <asm/processor.h>
 #include <asm/reboot.h>

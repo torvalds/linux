@@ -337,6 +337,10 @@ VOID CntlOidSsidProc(
 	MLME_DISASSOC_REQ_STRUCT   DisassocReq;
 	ULONG					   Now;
 
+	// BBP and RF are not accessible in PS mode, we has to wake them up first
+	if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+		AsicForceWakeup(pAd, RTMP_HALT);
+
 	// Step 1. record the desired user settings to MlmeAux
 	NdisZeroMemory(pAd->MlmeAux.Ssid, MAX_LEN_OF_SSID);
 	NdisMoveMemory(pAd->MlmeAux.Ssid, pOidSsid->Ssid, pOidSsid->SsidLength);
@@ -1240,6 +1244,13 @@ VOID LinkUp(
 	UCHAR	Value = 0, idx;
 	MAC_TABLE_ENTRY *pEntry = NULL, *pCurrEntry;
 
+	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND))
+	{
+		RTMPPCIeLinkCtrlValueRestore(pAd, RESTORE_HALT);
+		RTMPusecDelay(6000);
+		pAd->bPCIclkOff = FALSE;
+	}
+
 	pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
 	//
@@ -1264,7 +1275,6 @@ VOID LinkUp(
 	//rt2860b. Don't know why need this
 	SwitchBetweenWepAndCkip(pAd);
 
-#ifdef RT2860
 	// Before power save before link up function, We will force use 1R.
 	// So after link up, check Rx antenna # again.
 	RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
@@ -1282,7 +1292,6 @@ VOID LinkUp(
 	}
 	RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
 	pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 	if (BssType == BSS_ADHOC)
 	{
@@ -1330,9 +1339,7 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 		RTMP_IO_READ32(pAd, TX_BAND_CFG, &Data);
 		Data &= 0xfffffffe;
@@ -1367,9 +1374,7 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 	    Value |= (0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -1400,9 +1405,7 @@ VOID LinkUp(
 		RTMP_BBP_IO_READ8_BY_REG_ID(pAd, BBP_R3, &Value);
 		Value &= (~0x20);
 		RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, Value);
-#ifdef RT2860
         pAd->StaCfg.BBPR3 = Value;
-#endif // RT2860 //
 
 		if (pAd->MACVersion == 0x28600100)
 		{
@@ -1598,6 +1601,8 @@ VOID LinkUp(
 			IV = 0;
 			IV |= (pAd->StaCfg.DefaultKeyId << 30);
 			AsicUpdateWCIDIVEIV(pAd, BSSID_WCID, IV, 0);
+
+			RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
 		}
 		// NOTE:
 		// the decision of using "short slot time" or not may change dynamically due to
@@ -1919,6 +1924,7 @@ VOID LinkUp(
 	}
 
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
 
 #ifdef DOT11_N_SUPPORT
 #ifdef DOT11N_DRAFT3
@@ -1961,6 +1967,7 @@ VOID LinkDown(
 	IN  BOOLEAN      IsReqFromAP)
 {
 	UCHAR			    i, ByteValue = 0;
+	BOOLEAN		Cancelled;
 
 	// Do nothing if monitor mode is on
 	if (MONITOR_ON(pAd))
@@ -1972,6 +1979,12 @@ VOID LinkDown(
 		return;
 #endif // RALINK_ATE //
 
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
+	RTMPCancelTimer(&pAd->Mlme.PsPollTimer,		&Cancelled);
+
+	// Not allow go to sleep within linkdown function.
+	RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+
     if (pAd->CommonCfg.bWirelessEvent)
 	{
 		RTMPSendWirelessEvent(pAd, IW_STA_LINKDOWN_EVENT_FLAG, pAd->MacTab.Content[BSSID_WCID].Addr, BSS0, 0);
@@ -1980,7 +1993,6 @@ VOID LinkDown(
 	DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN !!!\n"));
 	OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_AGGREGATION_INUSED);
 
-#ifdef RT2860
     if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
     {
 	    BOOLEAN Cancelled;
@@ -1988,17 +2000,15 @@ VOID LinkDown(
         RTMPCancelTimer(&pAd->Mlme.PsPollTimer,	&Cancelled);
     }
 
-    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
+    if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE) ||
+		RTMP_TEST_PSFLAG(pAd, fRTMP_PS_SET_PCI_CLK_OFF_COMMAND) ||
+		RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_IDLE_RADIO_OFF))
     {
-        AUTO_WAKEUP_STRUC AutoWakeupCfg;
-		AsicForceWakeup(pAd, TRUE);
-        AutoWakeupCfg.word = 0;
-	    RTMP_IO_WRITE32(pAd, AUTO_WAKEUP_CFG, AutoWakeupCfg.word);
+		AsicForceWakeup(pAd, RTMP_HALT);
         OPSTATUS_CLEAR_FLAG(pAd, fOP_STATUS_DOZE);
     }
 
     pAd->bPCIclkOff = FALSE;
-#endif // RT2860 //
 	if (ADHOC_ON(pAd))		// Adhoc mode link down
 	{
 		DBGPRINT(RT_DEBUG_TRACE, ("!!! LINK DOWN 1!!!\n"));
@@ -2266,6 +2276,9 @@ VOID LinkDown(
 	RTMP_IO_WRITE32(pAd, MAX_LEN_CFG, 0x1fff);
 	RTMP_CLEAR_FLAG(pAd, fRTMP_ADAPTER_BSS_SCAN_IN_PROGRESS);
 
+	// Allow go to sleep after linkdown steps.
+	RTMP_SET_PSFLAG(pAd, fRTMP_PS_CAN_GO_SLEEP);
+
 #ifdef WPA_SUPPLICANT_SUPPORT
 #ifndef NATIVE_WPA_SUPPLICANT_SUPPORT
 	if (pAd->StaCfg.WpaSupplicantUP) {
@@ -2510,7 +2523,6 @@ VOID AuthParmFill(
 
 	==========================================================================
  */
-#ifdef RT2860
 VOID ComposePsPoll(
 	IN PRTMP_ADAPTER pAd)
 {
@@ -2534,7 +2546,6 @@ VOID ComposeNullFrame(
 	COPY_MAC_ADDR(pAd->NullFrame.Addr2, pAd->CurrentAddress);
 	COPY_MAC_ADDR(pAd->NullFrame.Addr3, pAd->CommonCfg.Bssid);
 }
-#endif // RT2860 //
 
 
 

@@ -294,6 +294,10 @@ static int omap3_onenand_read_bufferram(struct mtd_info *mtd, int area,
 	if (bram_offset & 3 || (size_t)buf & 3 || count < 384)
 		goto out_copy;
 
+	/* panic_write() may be in an interrupt context */
+	if (in_interrupt())
+		goto out_copy;
+
 	if (buf >= high_memory) {
 		struct page *p1;
 
@@ -629,7 +633,7 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	}
 
 	if (c->gpio_irq) {
-		if ((r = omap_request_gpio(c->gpio_irq)) < 0) {
+		if ((r = gpio_request(c->gpio_irq, "OneNAND irq")) < 0) {
 			dev_err(&pdev->dev,  "Failed to request GPIO%d for "
 				"OneNAND\n", c->gpio_irq);
 			goto err_iounmap;
@@ -671,6 +675,8 @@ static int __devinit omap2_onenand_probe(struct platform_device *pdev)
 	c->mtd.name = dev_name(&pdev->dev);
 	c->mtd.priv = &c->onenand;
 	c->mtd.owner = THIS_MODULE;
+
+	c->mtd.dev.parent = &pdev->dev;
 
 	if (c->dma_channel >= 0) {
 		struct onenand_chip *this = &c->onenand;
@@ -726,7 +732,7 @@ err_release_dma:
 		free_irq(gpio_to_irq(c->gpio_irq), c);
 err_release_gpio:
 	if (c->gpio_irq)
-		omap_free_gpio(c->gpio_irq);
+		gpio_free(c->gpio_irq);
 err_iounmap:
 	iounmap(c->onenand.base);
 err_release_mem_region:
@@ -761,7 +767,7 @@ static int __devexit omap2_onenand_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	if (c->gpio_irq) {
 		free_irq(gpio_to_irq(c->gpio_irq), c);
-		omap_free_gpio(c->gpio_irq);
+		gpio_free(c->gpio_irq);
 	}
 	iounmap(c->onenand.base);
 	release_mem_region(c->phys_base, ONENAND_IO_SIZE);

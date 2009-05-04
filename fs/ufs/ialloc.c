@@ -95,8 +95,8 @@ void ufs_free_inode (struct inode * inode)
 
 	is_directory = S_ISDIR(inode->i_mode);
 
-	DQUOT_FREE_INODE(inode);
-	DQUOT_DROP(inode);
+	vfs_dq_free_inode(inode);
+	vfs_dq_drop(inode);
 
 	clear_inode (inode);
 
@@ -355,8 +355,8 @@ cg_found:
 
 	unlock_super (sb);
 
-	if (DQUOT_ALLOC_INODE(inode)) {
-		DQUOT_DROP(inode);
+	if (vfs_dq_alloc_inode(inode)) {
+		vfs_dq_drop(inode);
 		err = -EDQUOT;
 		goto fail_without_unlock;
 	}

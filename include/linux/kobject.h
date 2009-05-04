@@ -68,10 +68,13 @@ struct kobject {
 	unsigned int state_in_sysfs:1;
 	unsigned int state_add_uevent_sent:1;
 	unsigned int state_remove_uevent_sent:1;
+	unsigned int uevent_suppress:1;
 };
 
 extern int kobject_set_name(struct kobject *kobj, const char *name, ...)
 			    __attribute__((format(printf, 2, 3)));
+extern int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
+				  va_list vargs);
 
 static inline const char *kobject_name(const struct kobject *kobj)
 {

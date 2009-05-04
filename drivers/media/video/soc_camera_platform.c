@@ -79,8 +79,14 @@ soc_camera_platform_query_bus_param(struct soc_camera_device *icd)
 	return p->bus_param;
 }
 
+static int soc_camera_platform_set_crop(struct soc_camera_device *icd,
+					struct v4l2_rect *rect)
+{
+	return 0;
+}
+
 static int soc_camera_platform_set_fmt(struct soc_camera_device *icd,
-				       __u32 pixfmt, struct v4l2_rect *rect)
+				       struct v4l2_format *f)
 {
 	return 0;
 }
@@ -125,6 +131,7 @@ static struct soc_camera_ops soc_camera_platform_ops = {
 	.release		= soc_camera_platform_release,
 	.start_capture		= soc_camera_platform_start_capture,
 	.stop_capture		= soc_camera_platform_stop_capture,
+	.set_crop		= soc_camera_platform_set_crop,
 	.set_fmt		= soc_camera_platform_set_fmt,
 	.try_fmt		= soc_camera_platform_try_fmt,
 	.set_bus_param		= soc_camera_platform_set_bus_param,

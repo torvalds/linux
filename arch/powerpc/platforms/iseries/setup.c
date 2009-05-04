@@ -617,7 +617,7 @@ static void iseries_dedicated_idle(void)
 }
 
 static void __iomem *iseries_ioremap(phys_addr_t address, unsigned long size,
-				     unsigned long flags)
+				     unsigned long flags, void *caller)
 {
 	return (void __iomem *)address;
 }

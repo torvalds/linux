@@ -226,6 +226,7 @@ static const struct quirk_printer_struct quirk_printers[] = {
 	{ 0x0409, 0xf0be, USBLP_QUIRK_BIDIR }, /* NEC Picty920 (HP OEM) */
 	{ 0x0409, 0xf1be, USBLP_QUIRK_BIDIR }, /* NEC Picty800 (HP OEM) */
 	{ 0x0482, 0x0010, USBLP_QUIRK_BIDIR }, /* Kyocera Mita FS 820, by zut <kernel@zut.de> */
+	{ 0x04f9, 0x000d, USBLP_QUIRK_BIDIR }, /* Brother Industries, Ltd HL-1440 Laser Printer */
 	{ 0x04b8, 0x0202, USBLP_QUIRK_BAD_CLASS }, /* Seiko Epson Receipt Printer M129C */
 	{ 0, 0 }
 };
@@ -879,16 +880,19 @@ static int usblp_wwait(struct usblp *usblp, int nonblock)
 		if (rc <= 0)
 			break;
 
-		if (usblp->flags & LP_ABORT) {
-			if (schedule_timeout(msecs_to_jiffies(5000)) == 0) {
+		if (schedule_timeout(msecs_to_jiffies(1500)) == 0) {
+			if (usblp->flags & LP_ABORT) {
 				err = usblp_check_status(usblp, err);
 				if (err == 1) {	/* Paper out */
 					rc = -ENOSPC;
 					break;
 				}
+			} else {
+				/* Prod the printer, Gentoo#251237. */
+				mutex_lock(&usblp->mut);
+				usblp_read_status(usblp, usblp->statusbuf);
+				mutex_unlock(&usblp->mut);
 			}
-		} else {
-			schedule();
 		}
 	}
 	set_current_state(TASK_RUNNING);

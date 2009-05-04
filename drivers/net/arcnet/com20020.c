@@ -149,6 +149,14 @@ int com20020_check(struct net_device *dev)
 	return 0;
 }
 
+const struct net_device_ops com20020_netdev_ops = {
+	.ndo_open	= arcnet_open,
+	.ndo_stop	= arcnet_close,
+	.ndo_start_xmit = arcnet_send_packet,
+	.ndo_tx_timeout = arcnet_timeout,
+	.ndo_set_multicast_list = com20020_set_mc_list,
+};
+
 /* Set up the struct net_device associated with this card.  Called after
  * probing succeeds.
  */
@@ -169,8 +177,6 @@ int com20020_found(struct net_device *dev, int shared)
 	lp->hw.copy_to_card = com20020_copy_to_card;
 	lp->hw.copy_from_card = com20020_copy_from_card;
 	lp->hw.close = com20020_close;
-
-	dev->set_multicast_list = com20020_set_mc_list;
 
 	if (!dev->dev_addr[0])
 		dev->dev_addr[0] = inb(ioaddr + BUS_ALIGN*8);	/* FIXME: do this some other way! */
@@ -342,6 +348,7 @@ static void com20020_set_mc_list(struct net_device *dev)
     defined(CONFIG_ARCNET_COM20020_CS_MODULE)
 EXPORT_SYMBOL(com20020_check);
 EXPORT_SYMBOL(com20020_found);
+EXPORT_SYMBOL(com20020_netdev_ops);
 #endif
 
 MODULE_LICENSE("GPL");

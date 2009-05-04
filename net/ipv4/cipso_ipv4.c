@@ -3,10 +3,15 @@
  *
  * This is an implementation of the CIPSO 2.2 protocol as specified in
  * draft-ietf-cipso-ipsecurity-01.txt with additional tag types as found in
- * FIPS-188, copies of both documents can be found in the Documentation
- * directory.  While CIPSO never became a full IETF RFC standard many vendors
+ * FIPS-188.  While CIPSO never became a full IETF RFC standard many vendors
  * have chosen to adopt the protocol and over the years it has become a
  * de-facto standard for labeled networking.
+ *
+ * The CIPSO draft specification can be found in the kernel's Documentation
+ * directory as well as the following URL:
+ *   http://netlabel.sourceforge.net/files/draft-ietf-cipso-ipsecurity-01.txt
+ * The FIPS-188 specification can be found at the following URL:
+ *   http://www.itl.nist.gov/fipspubs/fip188.htm
  *
  * Author: Paul Moore <paul.moore@hp.com>
  *
@@ -1937,23 +1942,85 @@ socket_setattr_failure:
 }
 
 /**
- * cipso_v4_sock_delattr - Delete the CIPSO option from a socket
- * @sk: the socket
+ * cipso_v4_req_setattr - Add a CIPSO option to a connection request socket
+ * @req: the connection request socket
+ * @doi_def: the CIPSO DOI to use
+ * @secattr: the specific security attributes of the socket
  *
  * Description:
- * Removes the CIPSO option from a socket, if present.
+ * Set the CIPSO option on the given socket using the DOI definition and
+ * security attributes passed to the function.  Returns zero on success and
+ * negative values on failure.
  *
  */
-void cipso_v4_sock_delattr(struct sock *sk)
+int cipso_v4_req_setattr(struct request_sock *req,
+			 const struct cipso_v4_doi *doi_def,
+			 const struct netlbl_lsm_secattr *secattr)
 {
-	u8 hdr_delta;
-	struct ip_options *opt;
-	struct inet_sock *sk_inet;
+	int ret_val = -EPERM;
+	unsigned char *buf = NULL;
+	u32 buf_len;
+	u32 opt_len;
+	struct ip_options *opt = NULL;
+	struct inet_request_sock *req_inet;
 
-	sk_inet = inet_sk(sk);
-	opt = sk_inet->opt;
-	if (opt == NULL || opt->cipso == 0)
-		return;
+	/* We allocate the maximum CIPSO option size here so we are probably
+	 * being a little wasteful, but it makes our life _much_ easier later
+	 * on and after all we are only talking about 40 bytes. */
+	buf_len = CIPSO_V4_OPT_LEN_MAX;
+	buf = kmalloc(buf_len, GFP_ATOMIC);
+	if (buf == NULL) {
+		ret_val = -ENOMEM;
+		goto req_setattr_failure;
+	}
+
+	ret_val = cipso_v4_genopt(buf, buf_len, doi_def, secattr);
+	if (ret_val < 0)
+		goto req_setattr_failure;
+	buf_len = ret_val;
+
+	/* We can't use ip_options_get() directly because it makes a call to
+	 * ip_options_get_alloc() which allocates memory with GFP_KERNEL and
+	 * we won't always have CAP_NET_RAW even though we _always_ want to
+	 * set the IPOPT_CIPSO option. */
+	opt_len = (buf_len + 3) & ~3;
+	opt = kzalloc(sizeof(*opt) + opt_len, GFP_ATOMIC);
+	if (opt == NULL) {
+		ret_val = -ENOMEM;
+		goto req_setattr_failure;
+	}
+	memcpy(opt->__data, buf, buf_len);
+	opt->optlen = opt_len;
+	opt->cipso = sizeof(struct iphdr);
+	kfree(buf);
+	buf = NULL;
+
+	req_inet = inet_rsk(req);
+	opt = xchg(&req_inet->opt, opt);
+	kfree(opt);
+
+	return 0;
+
+req_setattr_failure:
+	kfree(buf);
+	kfree(opt);
+	return ret_val;
+}
+
+/**
+ * cipso_v4_delopt - Delete the CIPSO option from a set of IP options
+ * @opt_ptr: IP option pointer
+ *
+ * Description:
+ * Deletes the CIPSO IP option from a set of IP options and makes the necessary
+ * adjustments to the IP option structure.  Returns zero on success, negative
+ * values on failure.
+ *
+ */
+int cipso_v4_delopt(struct ip_options **opt_ptr)
+{
+	int hdr_delta = 0;
+	struct ip_options *opt = *opt_ptr;
 
 	if (opt->srr || opt->rr || opt->ts || opt->router_alert) {
 		u8 cipso_len;
@@ -1998,16 +2065,60 @@ void cipso_v4_sock_delattr(struct sock *sk)
 	} else {
 		/* only the cipso option was present on the socket so we can
 		 * remove the entire option struct */
-		sk_inet->opt = NULL;
+		*opt_ptr = NULL;
 		hdr_delta = opt->optlen;
 		kfree(opt);
 	}
 
+	return hdr_delta;
+}
+
+/**
+ * cipso_v4_sock_delattr - Delete the CIPSO option from a socket
+ * @sk: the socket
+ *
+ * Description:
+ * Removes the CIPSO option from a socket, if present.
+ *
+ */
+void cipso_v4_sock_delattr(struct sock *sk)
+{
+	int hdr_delta;
+	struct ip_options *opt;
+	struct inet_sock *sk_inet;
+
+	sk_inet = inet_sk(sk);
+	opt = sk_inet->opt;
+	if (opt == NULL || opt->cipso == 0)
+		return;
+
+	hdr_delta = cipso_v4_delopt(&sk_inet->opt);
 	if (sk_inet->is_icsk && hdr_delta > 0) {
 		struct inet_connection_sock *sk_conn = inet_csk(sk);
 		sk_conn->icsk_ext_hdr_len -= hdr_delta;
 		sk_conn->icsk_sync_mss(sk, sk_conn->icsk_pmtu_cookie);
 	}
+}
+
+/**
+ * cipso_v4_req_delattr - Delete the CIPSO option from a request socket
+ * @reg: the request socket
+ *
+ * Description:
+ * Removes the CIPSO option from a request socket, if present.
+ *
+ */
+void cipso_v4_req_delattr(struct request_sock *req)
+{
+	struct ip_options *opt;
+	struct inet_request_sock *req_inet;
+
+	req_inet = inet_rsk(req);
+	opt = req_inet->opt;
+	if (opt == NULL || opt->cipso == 0)
+		return;
+
+	cipso_v4_delopt(&req_inet->opt);
 }
 
 /**

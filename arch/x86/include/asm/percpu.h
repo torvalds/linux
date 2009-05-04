@@ -2,53 +2,12 @@
 #define _ASM_X86_PERCPU_H
 
 #ifdef CONFIG_X86_64
-#include <linux/compiler.h>
-
-/* Same as asm-generic/percpu.h, except that we store the per cpu offset
-   in the PDA. Longer term the PDA and every per cpu variable
-   should be just put into a single section and referenced directly
-   from %gs */
-
-#ifdef CONFIG_SMP
-#include <asm/pda.h>
-
-#define __per_cpu_offset(cpu) (cpu_pda(cpu)->data_offset)
-#define __my_cpu_offset read_pda(data_offset)
-
-#define per_cpu_offset(x) (__per_cpu_offset(x))
-
+#define __percpu_seg		gs
+#define __percpu_mov_op		movq
+#else
+#define __percpu_seg		fs
+#define __percpu_mov_op		movl
 #endif
-#include <asm-generic/percpu.h>
-
-DECLARE_PER_CPU(struct x8664_pda, pda);
-
-/*
- * These are supposed to be implemented as a single instruction which
- * operates on the per-cpu data base segment.  x86-64 doesn't have
- * that yet, so this is a fairly inefficient workaround for the
- * meantime.  The single instruction is atomic with respect to
- * preemption and interrupts, so we need to explicitly disable
- * interrupts here to achieve the same effect.  However, because it
- * can be used from within interrupt-disable/enable, we can't actually
- * disable interrupts; disabling preemption is enough.
- */
-#define x86_read_percpu(var)						\
-	({								\
-		typeof(per_cpu_var(var)) __tmp;				\
-		preempt_disable();					\
-		__tmp = __get_cpu_var(var);				\
-		preempt_enable();					\
-		__tmp;							\
-	})
-
-#define x86_write_percpu(var, val)					\
-	do {								\
-		preempt_disable();					\
-		__get_cpu_var(var) = (val);				\
-		preempt_enable();					\
-	} while(0)
-
-#else /* CONFIG_X86_64 */
 
 #ifdef __ASSEMBLY__
 
@@ -65,47 +24,48 @@ DECLARE_PER_CPU(struct x8664_pda, pda);
  *    PER_CPU(cpu_gdt_descr, %ebx)
  */
 #ifdef CONFIG_SMP
-#define PER_CPU(var, reg)				\
-	movl %fs:per_cpu__##this_cpu_off, reg;		\
+#define PER_CPU(var, reg)						\
+	__percpu_mov_op %__percpu_seg:per_cpu__this_cpu_off, reg;	\
 	lea per_cpu__##var(reg), reg
-#define PER_CPU_VAR(var)	%fs:per_cpu__##var
+#define PER_CPU_VAR(var)	%__percpu_seg:per_cpu__##var
 #else /* ! SMP */
-#define PER_CPU(var, reg)			\
-	movl $per_cpu__##var, reg
+#define PER_CPU(var, reg)						\
+	__percpu_mov_op $per_cpu__##var, reg
 #define PER_CPU_VAR(var)	per_cpu__##var
 #endif	/* SMP */
 
+#ifdef CONFIG_X86_64_SMP
+#define INIT_PER_CPU_VAR(var)  init_per_cpu__##var
+#else
+#define INIT_PER_CPU_VAR(var)  per_cpu__##var
+#endif
+
 #else /* ...!ASSEMBLY */
 
-/*
- * PER_CPU finds an address of a per-cpu variable.
- *
- * Args:
- *    var - variable name
- *    cpu - 32bit register containing the current CPU number
- *
- * The resulting address is stored in the "cpu" argument.
- *
- * Example:
- *    PER_CPU(cpu_gdt_descr, %ebx)
- */
+#include <linux/stringify.h>
+
 #ifdef CONFIG_SMP
+#define __percpu_arg(x)		"%%"__stringify(__percpu_seg)":%P" #x
+#define __my_cpu_offset		percpu_read(this_cpu_off)
+#else
+#define __percpu_arg(x)		"%" #x
+#endif
 
-#define __my_cpu_offset x86_read_percpu(this_cpu_off)
+/*
+ * Initialized pointers to per-cpu variables needed for the boot
+ * processor need to use these macros to get the proper address
+ * offset from __per_cpu_load on SMP.
+ *
+ * There also must be an entry in vmlinux_64.lds.S
+ */
+#define DECLARE_INIT_PER_CPU(var) \
+       extern typeof(per_cpu_var(var)) init_per_cpu_var(var)
 
-/* fs segment starts at (positive) offset == __per_cpu_offset[cpu] */
-#define __percpu_seg "%%fs:"
-
-#else  /* !SMP */
-
-#define __percpu_seg ""
-
-#endif	/* SMP */
-
-#include <asm-generic/percpu.h>
-
-/* We can use this directly for local CPU (faster). */
-DECLARE_PER_CPU(unsigned long, this_cpu_off);
+#ifdef CONFIG_X86_64_SMP
+#define init_per_cpu_var(var)  init_per_cpu__##var
+#else
+#define init_per_cpu_var(var)  per_cpu_var(var)
+#endif
 
 /* For arch-specific code, we can use direct single-insn ops (they
  * don't give an lvalue though). */
@@ -120,19 +80,24 @@ do {							\
 	}						\
 	switch (sizeof(var)) {				\
 	case 1:						\
-		asm(op "b %1,"__percpu_seg"%0"		\
+		asm(op "b %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
 		break;					\
 	case 2:						\
-		asm(op "w %1,"__percpu_seg"%0"		\
+		asm(op "w %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
 		break;					\
 	case 4:						\
-		asm(op "l %1,"__percpu_seg"%0"		\
+		asm(op "l %1,"__percpu_arg(0)		\
 		    : "+m" (var)			\
 		    : "ri" ((T__)val));			\
+		break;					\
+	case 8:						\
+		asm(op "q %1,"__percpu_arg(0)		\
+		    : "+m" (var)			\
+		    : "re" ((T__)val));			\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\
@@ -143,17 +108,22 @@ do {							\
 	typeof(var) ret__;				\
 	switch (sizeof(var)) {				\
 	case 1:						\
-		asm(op "b "__percpu_seg"%1,%0"		\
+		asm(op "b "__percpu_arg(1)",%0"		\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 2:						\
-		asm(op "w "__percpu_seg"%1,%0"		\
+		asm(op "w "__percpu_arg(1)",%0"		\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
 	case 4:						\
-		asm(op "l "__percpu_seg"%1,%0"		\
+		asm(op "l "__percpu_arg(1)",%0"		\
+		    : "=r" (ret__)			\
+		    : "m" (var));			\
+		break;					\
+	case 8:						\
+		asm(op "q "__percpu_arg(1)",%0"		\
 		    : "=r" (ret__)			\
 		    : "m" (var));			\
 		break;					\
@@ -162,13 +132,30 @@ do {							\
 	ret__;						\
 })
 
-#define x86_read_percpu(var) percpu_from_op("mov", per_cpu__##var)
-#define x86_write_percpu(var, val) percpu_to_op("mov", per_cpu__##var, val)
-#define x86_add_percpu(var, val) percpu_to_op("add", per_cpu__##var, val)
-#define x86_sub_percpu(var, val) percpu_to_op("sub", per_cpu__##var, val)
-#define x86_or_percpu(var, val) percpu_to_op("or", per_cpu__##var, val)
+#define percpu_read(var)	percpu_from_op("mov", per_cpu__##var)
+#define percpu_write(var, val)	percpu_to_op("mov", per_cpu__##var, val)
+#define percpu_add(var, val)	percpu_to_op("add", per_cpu__##var, val)
+#define percpu_sub(var, val)	percpu_to_op("sub", per_cpu__##var, val)
+#define percpu_and(var, val)	percpu_to_op("and", per_cpu__##var, val)
+#define percpu_or(var, val)	percpu_to_op("or", per_cpu__##var, val)
+#define percpu_xor(var, val)	percpu_to_op("xor", per_cpu__##var, val)
+
+/* This is not atomic against other CPUs -- CPU preemption needs to be off */
+#define x86_test_and_clear_bit_percpu(bit, var)				\
+({									\
+	int old__;							\
+	asm volatile("btr %2,"__percpu_arg(1)"\n\tsbbl %0,%0"		\
+		     : "=r" (old__), "+m" (per_cpu__##var)		\
+		     : "dIr" (bit));					\
+	old__;								\
+})
+
+#include <asm-generic/percpu.h>
+
+/* We can use this directly for local CPU (faster). */
+DECLARE_PER_CPU(unsigned long, this_cpu_off);
+
 #endif /* !__ASSEMBLY__ */
-#endif /* !CONFIG_X86_64 */
 
 #ifdef CONFIG_SMP
 
@@ -195,9 +182,9 @@ do {							\
 #define	early_per_cpu_ptr(_name) (_name##_early_ptr)
 #define	early_per_cpu_map(_name, _idx) (_name##_early_map[_idx])
 #define	early_per_cpu(_name, _cpu) 				\
-	(early_per_cpu_ptr(_name) ?				\
-		early_per_cpu_ptr(_name)[_cpu] :		\
-		per_cpu(_name, _cpu))
+	*(early_per_cpu_ptr(_name) ?				\
+		&early_per_cpu_ptr(_name)[_cpu] :		\
+		&per_cpu(_name, _cpu))
 
 #else	/* !CONFIG_SMP */
 #define	DEFINE_EARLY_PER_CPU(_type, _name, _initvalue)		\

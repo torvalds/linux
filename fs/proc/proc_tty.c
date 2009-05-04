@@ -144,17 +144,12 @@ void proc_tty_register_driver(struct tty_driver *driver)
 {
 	struct proc_dir_entry *ent;
 		
-	if (!driver->ops->read_proc || !driver->driver_name ||
-	    driver->proc_entry)
+	if (!driver->driver_name || driver->proc_entry ||
+	    !driver->ops->proc_fops)
 		return;
 
-	ent = create_proc_entry(driver->driver_name, 0, proc_tty_driver);
-	if (!ent)
-		return;
-	ent->read_proc = driver->ops->read_proc;
-	ent->owner = driver->owner;
-	ent->data = driver;
-
+	ent = proc_create_data(driver->driver_name, 0, proc_tty_driver,
+			       driver->ops->proc_fops, driver);
 	driver->proc_entry = ent;
 }
 

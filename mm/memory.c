@@ -1151,6 +1151,11 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
 		if ((flags & FOLL_WRITE) &&
 		    !pte_dirty(pte) && !PageDirty(page))
 			set_page_dirty(page);
+		/*
+		 * pte_mkyoung() would be more correct here, but atomic care
+		 * is needed to avoid losing the dirty bit: it is easier to use
+		 * mark_page_accessed().
+		 */
 		mark_page_accessed(page);
 	}
 unlock:
@@ -1511,6 +1516,7 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 			unsigned long pfn)
 {
 	int ret;
+	pgprot_t pgprot = vma->vm_page_prot;
 	/*
 	 * Technically, architectures with pte_special can avoid all these
 	 * restrictions (same for remap_pfn_range).  However we would like
@@ -1525,10 +1531,10 @@ int vm_insert_pfn(struct vm_area_struct *vma, unsigned long addr,
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return -EFAULT;
-	if (track_pfn_vma_new(vma, vma->vm_page_prot, pfn, PAGE_SIZE))
+	if (track_pfn_vma_new(vma, &pgprot, pfn, PAGE_SIZE))
 		return -EINVAL;
 
-	ret = insert_pfn(vma, addr, pfn, vma->vm_page_prot);
+	ret = insert_pfn(vma, addr, pfn, pgprot);
 
 	if (ret)
 		untrack_pfn_vma(vma, pfn, PAGE_SIZE);
@@ -1664,16 +1670,24 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 * behaviour that some programs depend on. We mark the "original"
 	 * un-COW'ed pages by matching them up with "vma->vm_pgoff".
 	 */
-	if (addr == vma->vm_start && end == vma->vm_end)
+	if (addr == vma->vm_start && end == vma->vm_end) {
 		vma->vm_pgoff = pfn;
-	else if (is_cow_mapping(vma->vm_flags))
+		vma->vm_flags |= VM_PFN_AT_MMAP;
+	} else if (is_cow_mapping(vma->vm_flags))
 		return -EINVAL;
 
 	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
 
-	err = track_pfn_vma_new(vma, prot, pfn, PAGE_ALIGN(size));
-	if (err)
+	err = track_pfn_vma_new(vma, &prot, pfn, PAGE_ALIGN(size));
+	if (err) {
+		/*
+		 * To indicate that track_pfn related cleanup is not
+		 * needed from higher level routine calling unmap_vmas
+		 */
+		vma->vm_flags &= ~(VM_IO | VM_RESERVED | VM_PFNMAP);
+		vma->vm_flags &= ~VM_PFN_AT_MMAP;
 		return -EINVAL;
+	}
 
 	BUG_ON(addr >= end);
 	pfn -= addr >> PAGE_SHIFT;
@@ -1931,6 +1945,15 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		 * get_user_pages(.write=1, .force=1).
 		 */
 		if (vma->vm_ops && vma->vm_ops->page_mkwrite) {
+			struct vm_fault vmf;
+			int tmp;
+
+			vmf.virtual_address = (void __user *)(address &
+								PAGE_MASK);
+			vmf.pgoff = old_page->index;
+			vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+			vmf.page = old_page;
+
 			/*
 			 * Notify the address space that the page is about to
 			 * become writable so that it can prohibit this or wait
@@ -1942,8 +1965,12 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			page_cache_get(old_page);
 			pte_unmap_unlock(page_table, ptl);
 
-			if (vma->vm_ops->page_mkwrite(vma, old_page) < 0)
+			tmp = vma->vm_ops->page_mkwrite(vma, &vmf);
+			if (unlikely(tmp &
+					(VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
+				ret = tmp;
 				goto unwritable_page;
+			}
 
 			/*
 			 * Since we dropped the lock we need to revalidate
@@ -1992,7 +2019,7 @@ gotten:
 	 * Don't let another task, with possibly unlocked vma,
 	 * keep the mlocked page.
 	 */
-	if (vma->vm_flags & VM_LOCKED) {
+	if ((vma->vm_flags & VM_LOCKED) && old_page) {
 		lock_page(old_page);	/* for LRU manipulation */
 		clear_page_mlock(old_page);
 		unlock_page(old_page);
@@ -2092,7 +2119,7 @@ oom:
 
 unwritable_page:
 	page_cache_release(old_page);
-	return VM_FAULT_SIGBUS;
+	return ret;
 }
 
 /*
@@ -2426,8 +2453,6 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(PGMAJFAULT);
 	}
 
-	mark_page_accessed(page);
-
 	lock_page(page);
 	delayacct_clear_flag(DELAYACCT_PF_SWAPIN);
 
@@ -2636,9 +2661,14 @@ static int __do_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			 * to become writable
 			 */
 			if (vma->vm_ops->page_mkwrite) {
+				int tmp;
+
 				unlock_page(page);
-				if (vma->vm_ops->page_mkwrite(vma, page) < 0) {
-					ret = VM_FAULT_SIGBUS;
+				vmf.flags |= FAULT_FLAG_MKWRITE;
+				tmp = vma->vm_ops->page_mkwrite(vma, &vmf);
+				if (unlikely(tmp &
+					  (VM_FAULT_ERROR | VM_FAULT_NOPAGE))) {
+					ret = tmp;
 					anon = 1; /* no anon but release vmf.page */
 					goto out_unlocked;
 				}
@@ -3165,6 +3195,15 @@ void print_vma_addr(char *prefix, unsigned long ip)
 #ifdef CONFIG_PROVE_LOCKING
 void might_fault(void)
 {
+	/*
+	 * Some code (nfs/sunrpc) uses socket ops on kernel memory while
+	 * holding the mmap_sem, this is safe because kernel memory doesn't
+	 * get paged out, therefore we'll never actually fault, and the
+	 * below annotations will generate false positives.
+	 */
+	if (segment_eq(get_fs(), KERNEL_DS))
+		return;
+
 	might_sleep();
 	/*
 	 * it would be nicer only to annotate paths which are not under

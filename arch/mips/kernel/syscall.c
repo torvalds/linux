@@ -152,9 +152,9 @@ out:
 	return error;
 }
 
-asmlinkage unsigned long
-old_mmap(unsigned long addr, unsigned long len, int prot,
-	int flags, int fd, off_t offset)
+SYSCALL_DEFINE6(mips_mmap, unsigned long, addr, unsigned long, len,
+	unsigned long, prot, unsigned long, flags, unsigned long,
+	fd, off_t, offset)
 {
 	unsigned long result;
 
@@ -168,9 +168,9 @@ out:
 	return result;
 }
 
-asmlinkage unsigned long
-sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
-          unsigned long flags, unsigned long fd, unsigned long pgoff)
+SYSCALL_DEFINE6(mips_mmap2, unsigned long, addr, unsigned long, len,
+	unsigned long, prot, unsigned long, flags, unsigned long, fd,
+	unsigned long, pgoff)
 {
 	if (pgoff & (~PAGE_MASK >> 12))
 		return -EINVAL;
@@ -240,7 +240,7 @@ out:
 /*
  * Compacrapability ...
  */
-asmlinkage int sys_uname(struct old_utsname __user * name)
+SYSCALL_DEFINE1(uname, struct old_utsname __user *, name)
 {
 	if (name && !copy_to_user(name, utsname(), sizeof (*name)))
 		return 0;
@@ -250,7 +250,7 @@ asmlinkage int sys_uname(struct old_utsname __user * name)
 /*
  * Compacrapability ...
  */
-asmlinkage int sys_olduname(struct oldold_utsname __user * name)
+SYSCALL_DEFINE1(olduname, struct oldold_utsname __user *, name)
 {
 	int error;
 
@@ -279,7 +279,7 @@ asmlinkage int sys_olduname(struct oldold_utsname __user * name)
 	return error;
 }
 
-asmlinkage int sys_set_thread_area(unsigned long addr)
+SYSCALL_DEFINE1(set_thread_area, unsigned long, addr)
 {
 	struct thread_info *ti = task_thread_info(current);
 
@@ -290,7 +290,7 @@ asmlinkage int sys_set_thread_area(unsigned long addr)
 	return 0;
 }
 
-asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
+asmlinkage int _sys_sysmips(long cmd, long arg1, long arg2, long arg3)
 {
 	switch (cmd) {
 	case MIPS_ATOMIC_SET:
@@ -325,8 +325,8 @@ asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)
  *
  * This is really horribly ugly.
  */
-asmlinkage int sys_ipc(unsigned int call, int first, int second,
-		       unsigned long third, void __user *ptr, long fifth)
+SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, int, second,
+	unsigned long, third, void __user *, ptr, long, fifth)
 {
 	int version, ret;
 
@@ -411,7 +411,7 @@ asmlinkage int sys_ipc(unsigned int call, int first, int second,
 /*
  * No implemented yet ...
  */
-asmlinkage int sys_cachectl(char *addr, int nbytes, int op)
+SYSCALL_DEFINE3(cachectl, char *, addr, int, nbytes, int, op)
 {
 	return -ENOSYS;
 }

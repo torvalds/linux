@@ -67,7 +67,6 @@ static struct
 static struct xt_table packet_mangler = {
 	.name		= "mangle",
 	.valid_hooks	= MANGLE_VALID_HOOKS,
-	.lock		= __RW_LOCK_UNLOCKED(packet_mangler.lock),
 	.me		= THIS_MODULE,
 	.af		= AF_INET,
 };
@@ -132,12 +131,8 @@ ipt_local_hook(unsigned int hook,
 
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct iphdr)
-	    || ip_hdrlen(skb) < sizeof(struct iphdr)) {
-		if (net_ratelimit())
-			printk("iptable_mangle: ignoring short SOCK_RAW "
-			       "packet.\n");
+	    || ip_hdrlen(skb) < sizeof(struct iphdr))
 		return NF_ACCEPT;
-	}
 
 	/* Save things which could affect route */
 	mark = skb->mark;

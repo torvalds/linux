@@ -26,7 +26,6 @@
 #include "cx18-irq.h"
 #include "cx18-firmware.h"
 #include "cx18-cards.h"
-#include "cx18-av-core.h"
 #include <linux/firmware.h>
 
 #define CX18_PROC_SOFT_RESET 		0xc70010
@@ -107,7 +106,7 @@ static int load_cpu_fw_direct(const char *fn, u8 __iomem *mem, struct cx18 *cx)
 	u32 __iomem *dst = (u32 __iomem *)mem;
 	const u32 *src;
 
-	if (request_firmware(&fw, fn, &cx->dev->dev)) {
+	if (request_firmware(&fw, fn, &cx->pci_dev->dev)) {
 		CX18_ERR("Unable to open firmware %s\n", fn);
 		CX18_ERR("Did you put the firmware in the hotplug firmware directory?\n");
 		return -ENOMEM;
@@ -151,7 +150,7 @@ static int load_apu_fw_direct(const char *fn, u8 __iomem *dst, struct cx18 *cx,
 	u32 apu_version = 0;
 	int sz;
 
-	if (request_firmware(&fw, fn, &cx->dev->dev)) {
+	if (request_firmware(&fw, fn, &cx->pci_dev->dev)) {
 		CX18_ERR("unable to open firmware %s\n", fn);
 		CX18_ERR("did you put the firmware in the hotplug firmware directory?\n");
 		cx18_setup_page(cx, 0);
@@ -285,23 +284,6 @@ void cx18_init_power(struct cx18 *cx, int lowpwr)
 	cx18_write_reg(cx, 0xF, CX18_MPEG_CLOCK_PLL_INT);
 	cx18_write_reg(cx, 0x2BE2FE, CX18_MPEG_CLOCK_PLL_FRAC);
 	cx18_write_reg(cx, 8, CX18_MPEG_CLOCK_PLL_POST);
-
-	/*
-	 * VDCLK  Integer = 0x0f, Post Divider = 0x04
-	 * AIMCLK Integer = 0x0e, Post Divider = 0x16
-	 */
-	cx18_av_write4(cx, CXADEC_PLL_CTRL1, 0x160e040f);
-
-	/* VDCLK Fraction = 0x2be2fe */
-	/* xtal * 0xf.15f17f0/4 = 108 MHz: 432 MHz before post divide */
-	cx18_av_write4(cx, CXADEC_VID_PLL_FRAC, 0x002be2fe);
-
-	/* AIMCLK Fraction = 0x05227ad */
-	/* xtal * 0xe.2913d68/0x16 = 48000 * 384: 406 MHz before post-divide */
-	cx18_av_write4(cx, CXADEC_AUX_PLL_FRAC, 0x005227ad);
-
-	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x16 */
-	cx18_av_write(cx, CXADEC_I2S_MCLK, 0x56);
 
 	/* Defaults */
 	/* APU = SC or SC/2 = 125/62.5 */

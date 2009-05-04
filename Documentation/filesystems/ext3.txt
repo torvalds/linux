@@ -14,6 +14,11 @@ Options
 When mounting an ext3 filesystem, the following option are accepted:
 (*) == default
 
+ro			Mount filesystem read only. Note that ext3 will replay
+			the journal (and thus write to the partition) even when
+			mounted "read only". Mount options "ro,noload" can be
+			used to prevent writes to the filesystem.
+
 journal=update		Update the ext3 file system's journal to the current
 			format.
 
@@ -27,7 +32,9 @@ journal_dev=devnum	When the external journal device's major/minor numbers
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting.
+noload			Don't load the journal on mounting. Note that this forces
+			mount of inconsistent filesystem, which can lead to
+			various problems.
 
 data=journal		All data are committed into the journal prior to being
 			written into the main file system.
@@ -92,9 +99,12 @@ nocheck
 
 debug			Extra debugging information is sent to syslog.
 
-errors=remount-ro(*)	Remount the filesystem read-only on an error.
+errors=remount-ro	Remount the filesystem read-only on an error.
 errors=continue		Keep going on a filesystem error.
 errors=panic		Panic and halt the machine if an error occurs.
+			(These mount options override the errors behavior
+			specified in the superblock, which can be
+			configured using tune2fs.)
 
 data_err=ignore(*)	Just print an error message if an error occurs
 			in a file data buffer in ordered mode.
@@ -198,5 +208,5 @@ kernel source:	<file:fs/ext3/>
 programs: 	http://e2fsprogs.sourceforge.net/
 		http://ext2resize.sourceforge.net
 
-useful links:	http://www-106.ibm.com/developerworks/linux/library/l-fs7/
-		http://www-106.ibm.com/developerworks/linux/library/l-fs8/
+useful links:	http://www.ibm.com/developerworks/library/l-fs7.html
+		http://www.ibm.com/developerworks/library/l-fs8.html

@@ -31,12 +31,10 @@
 #ifndef UCOS
 #define ate_print printk
 #define ATEDBGPRINT DBGPRINT
-#ifdef RT2860
 #define EEPROM_SIZE								0x200
 #ifdef CONFIG_STA_SUPPORT
 #define EEPROM_BIN_FILE_NAME  "/etc/Wireless/RT2860STA/e2p.bin"
 #endif // CONFIG_STA_SUPPORT //
-#endif // RT2860 //
 
 #else // !UCOS //
 #define fATE_LOAD_EEPROM						0x0C43
@@ -69,7 +67,6 @@ do{   int (*org_remote_display)(char *) = NULL;   \
 #define ATE_ON(_p)              (((_p)->ate.Mode) != ATE_STOP)
 
 /* RT2880_iNIC will define "RT2860". */
-#ifdef RT2860
 #define ATE_BBP_IO_READ8_BY_REG_ID(_A, _I, _pV)        \
 {                                                       \
     BBP_CSR_CFG_STRUC  BbpCsr;                             \
@@ -131,10 +128,8 @@ do{   int (*org_remote_display)(char *) = NULL;   \
         ATEDBGPRINT(RT_DEBUG_ERROR, ("BBP write R%d fail\n", _I));     \
     }                                                   \
 }
-#endif // RT2860 //
 
 /* RT2880_iNIC will define RT2860. */
-#ifdef RT2860
 #define EEPROM_SIZE								0x200
 /* iNIC has its own EEPROM_BIN_FILE_NAME */
 #ifndef UCOS
@@ -142,7 +137,6 @@ do{   int (*org_remote_display)(char *) = NULL;   \
 #define EEPROM_BIN_FILE_NAME  "/etc/Wireless/RT2860STA/e2p.bin"
 #endif // CONFIG_STA_SUPPORT //
 #endif // !UCOS //
-#endif // RT2860 //
 
 
 

@@ -50,8 +50,6 @@ static int __init pci_legacy_init(void)
 	if (pci_root_bus)
 		pci_bus_add_devices(pci_root_bus);
 
-	pcibios_fixup_peer_bridges();
-
 	return 0;
 }
 
@@ -67,6 +65,7 @@ int __init pci_subsys_init(void)
 	pci_visws_init();
 #endif
 	pci_legacy_init();
+	pcibios_fixup_peer_bridges();
 	pcibios_irq_init();
 	pcibios_init();
 

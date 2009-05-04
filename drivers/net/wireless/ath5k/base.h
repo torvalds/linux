@@ -112,7 +112,7 @@ struct ath5k_softc {
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[ATH_CHAN_MAX];
 	struct ieee80211_rate	rates[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
-	u8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
+	s8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
 	enum nl80211_iftype	opmode;
 	struct ath5k_hw		*ah;		/* Atheros HW */
 
@@ -148,8 +148,7 @@ struct ath5k_softc {
 	u8			bssidmask[ETH_ALEN];
 
 	unsigned int		led_pin,	/* GPIO pin for driving LED */
-				led_on,		/* pin setting for LED on */
-				led_off;	/* off time for current blink */
+				led_on;		/* pin setting for LED on */
 
 	struct tasklet_struct	restq;		/* reset tasklet */
 
@@ -170,6 +169,7 @@ struct ath5k_softc {
 	struct ath5k_led	tx_led;		/* tx led */
 
 	spinlock_t		block;		/* protects beacon */
+	struct tasklet_struct	beacontq;	/* beacon intr tasklet */
 	struct ath5k_buf	*bbuf;		/* beacon buffer */
 	unsigned int		bhalq,		/* SW q for outgoing beacons */
 				bmisscount,	/* missed beacon transmits */

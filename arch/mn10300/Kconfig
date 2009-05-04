@@ -7,6 +7,7 @@ mainmenu "Linux Kernel Configuration"
 
 config MN10300
 	def_bool y
+	select HAVE_OPROFILE
 
 config AM33
 	def_bool y
@@ -369,5 +370,3 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-source "arch/mn10300/oprofile/Kconfig"
