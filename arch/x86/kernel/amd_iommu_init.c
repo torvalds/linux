@@ -826,13 +826,6 @@ out_free:
 static int __init iommu_setup_msi(struct amd_iommu *iommu)
 {
 	int r;
-	struct amd_iommu *curr;
-
-	for_each_iommu(curr) {
-		if (curr->dev == iommu->dev)
-			curr->int_enabled = true;
-	}
-
 
 	if (pci_enable_msi(iommu->dev))
 		return 1;
@@ -847,6 +840,7 @@ static int __init iommu_setup_msi(struct amd_iommu *iommu)
 		return 1;
 	}
 
+	iommu->int_enabled = true;
 	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
 
 	return 0;
