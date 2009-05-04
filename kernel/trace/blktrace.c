@@ -830,7 +830,6 @@ static void blk_add_trace_split(struct request_queue *q, struct bio *bio,
  * @q:		queue the io is for
  * @bio:	the source bio
  * @dev:	target device
- * @to:		target sector
  * @from:	source sector
  *
  * Description:
@@ -839,7 +838,7 @@ static void blk_add_trace_split(struct request_queue *q, struct bio *bio,
  *
  **/
 static void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
-				       dev_t dev, sector_t to, sector_t from)
+				       dev_t dev, sector_t from)
 {
 	struct blk_trace *bt = q->blk_trace;
 	struct blk_io_trace_remap r;
@@ -851,8 +850,9 @@ static void blk_add_trace_remap(struct request_queue *q, struct bio *bio,
 	r.device_to   = cpu_to_be32(bio->bi_bdev->bd_dev);
 	r.sector_from = cpu_to_be64(from);
 
-	__blk_add_trace(bt, from, bio->bi_size, bio->bi_rw, BLK_TA_REMAP,
-			!bio_flagged(bio, BIO_UPTODATE), sizeof(r), &r);
+	__blk_add_trace(bt, bio->bi_sector, bio->bi_size, bio->bi_rw,
+			BLK_TA_REMAP, !bio_flagged(bio, BIO_UPTODATE),
+			sizeof(r), &r);
 }
 
 /**

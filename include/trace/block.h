@@ -70,7 +70,7 @@ DECLARE_TRACE(block_split,
 
 DECLARE_TRACE(block_remap,
 	TP_PROTO(struct request_queue *q, struct bio *bio, dev_t dev,
-		 sector_t to, sector_t from),
-	      TP_ARGS(q, bio, dev, to, from));
+		 sector_t to),
+	      TP_ARGS(q, bio, dev, to));
 
 #endif
