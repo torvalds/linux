@@ -689,7 +689,9 @@ static int ar9170_usb_probe(struct usb_interface *intf,
 	aru->common.exec_cmd = ar9170_usb_exec_cmd;
 	aru->common.callback_cmd = ar9170_usb_callback_cmd;
 
+#ifdef CONFIG_PM
 	udev->reset_resume = 1;
+#endif
 	err = ar9170_usb_reset(aru);
 	if (err)
 		goto err_freehw;
