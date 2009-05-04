@@ -341,11 +341,6 @@ enum {
 	PC_FLAG_WRITING			= (1 << 6),
 };
 
-/*
- * With each packet command, we allocate a buffer of IDE_PC_BUFFER_SIZE bytes.
- * This is used for several packet commands (not for READ/WRITE commands).
- */
-#define IDE_PC_BUFFER_SIZE	64
 #define ATAPI_WAIT_PC		(60 * HZ)
 
 struct ide_atapi_pc {
@@ -358,10 +353,6 @@ struct ide_atapi_pc {
 	/* bytes to transfer */
 	int req_xfer;
 
-	/* data buffer */
-	u8 *buf;
-	int buf_size;
-
 	/* the corresponding request */
 	struct request *rq;
 
@@ -371,8 +362,6 @@ struct ide_atapi_pc {
 	 * those are more or less driver-specific and some of them are subject
 	 * to change/removal later.
 	 */
-	u8 pc_buf[IDE_PC_BUFFER_SIZE];
-
 	unsigned long timeout;
 };
 

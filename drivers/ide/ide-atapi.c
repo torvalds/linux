@@ -74,8 +74,6 @@ EXPORT_SYMBOL_GPL(ide_check_atapi_device);
 void ide_init_pc(struct ide_atapi_pc *pc)
 {
 	memset(pc, 0, sizeof(*pc));
-	pc->buf = pc->pc_buf;
-	pc->buf_size = IDE_PC_BUFFER_SIZE;
 }
 EXPORT_SYMBOL_GPL(ide_init_pc);
 
@@ -253,10 +251,6 @@ void ide_retry_pc(ide_drive_t *drive)
 	/* init pc from sense_rq */
 	ide_init_pc(pc);
 	memcpy(pc->c, sense_rq->cmd, 12);
-
-	/* pointer to mapped address */
-	pc->buf = bio_data(sense_rq->bio);
-	pc->req_xfer = blk_rq_bytes(sense_rq);
 
 	if (drive->media == ide_tape)
 		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);

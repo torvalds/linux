@@ -210,8 +210,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 	pc->rq = rq;
 	if (rq->cmd_flags & REQ_RW)
 		pc->flags |= PC_FLAG_WRITING;
-	pc->buf = NULL;
-	pc->buf_size = blk_rq_bytes(rq);
+
 	pc->flags |= PC_FLAG_DMA_OK;
 }
 
@@ -226,9 +225,6 @@ static void idefloppy_blockpc_cmd(struct ide_disk_obj *floppy,
 		if (rq_data_dir(rq) == WRITE)
 			pc->flags |= PC_FLAG_WRITING;
 	}
-	/* pio will be performed by ide_pio_bytes() which handles sg fine */
-	pc->buf = NULL;
-	pc->buf_size = blk_rq_bytes(rq);
 }
 
 static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
@@ -388,8 +384,6 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 	drive->capacity64 = 0;
 
 	ide_floppy_create_read_capacity_cmd(&pc);
-	pc.buf_size = sizeof(pc_buf);
-
 	if (ide_queue_pc_tail(drive, disk, &pc, pc_buf, pc.req_xfer)) {
 		printk(KERN_ERR PFX "Can't get floppy parameters\n");
 		return 1;
