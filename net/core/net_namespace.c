@@ -120,10 +120,8 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 	struct net *new_net = NULL;
 	int err;
 
-	get_net(old_net);
-
 	if (!(flags & CLONE_NEWNET))
-		return old_net;
+		return get_net(old_net);
 
 	err = -ENOMEM;
 	new_net = net_alloc();
@@ -142,7 +140,6 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 	if (err)
 		goto out_free;
 out:
-	put_net(old_net);
 	return new_net;
 
 out_free:
