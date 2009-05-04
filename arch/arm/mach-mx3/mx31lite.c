@@ -38,6 +38,7 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/irqs.h>
+#include <mach/mxc_nand.h>
 #include "devices.h"
 
 /*
@@ -56,6 +57,11 @@ static unsigned int mx31lite_pins[] = {
 
 static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
+};
+
+static struct mxc_nand_platform_data mx31lite_nand_board_info = {
+	.width = 1,
+	.hw_ecc = 1,
 };
 
 static struct smsc911x_platform_config smsc911x_config = {
@@ -124,6 +130,7 @@ static void __init mxc_board_init(void)
 				      "mx31lite");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&mxc_nand_device, &mx31lite_nand_board_info);
 
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");
