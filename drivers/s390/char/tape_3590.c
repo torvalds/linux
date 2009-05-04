@@ -1703,7 +1703,7 @@ static struct ccw_device_id tape_3590_ids[] = {
 static int
 tape_3590_online(struct ccw_device *cdev)
 {
-	return tape_generic_online(cdev->dev.driver_data,
+	return tape_generic_online(dev_get_drvdata(&cdev->dev),
 				   &tape_discipline_3590);
 }
 
