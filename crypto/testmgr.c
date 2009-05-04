@@ -1879,6 +1879,21 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "rfc4309(ccm(aes))",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = {
+				.enc = {
+					.vecs = aes_ccm_rfc4309_enc_tv_template,
+					.count = AES_CCM_4309_ENC_TEST_VECTORS
+				},
+				.dec = {
+					.vecs = aes_ccm_rfc4309_dec_tv_template,
+					.count = AES_CCM_4309_DEC_TEST_VECTORS
+				}
+			}
+		}
+	}, {
 		.alg = "rmd128",
 		.test = alg_test_hash,
 		.suite = {

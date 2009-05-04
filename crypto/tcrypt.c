@@ -667,6 +667,10 @@ static void do_test(int m)
 		tcrypt_test("zlib");
 		break;
 
+	case 45:
+		tcrypt_test("rfc4309(ccm(aes))");
+		break;
+
 	case 100:
 		tcrypt_test("hmac(md5)");
 		break;
