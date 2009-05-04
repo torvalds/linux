@@ -573,6 +573,8 @@ extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
 extern int sysctl_perf_counter_priv;
 
+extern void perf_counter_init(void);
+
 #else
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
@@ -600,9 +602,10 @@ perf_counter_mmap(unsigned long addr, unsigned long len,
 
 static inline void
 perf_counter_munmap(unsigned long addr, unsigned long len,
-		    unsigned long pgoff, struct file *file) 		{ }
+		    unsigned long pgoff, struct file *file)		{ }
 
 static inline void perf_counter_comm(struct task_struct *tsk)		{ }
+static inline void perf_counter_init(void)				{ }
 #endif
 
 #endif /* __KERNEL__ */

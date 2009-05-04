@@ -3265,15 +3265,12 @@ static struct notifier_block __cpuinitdata perf_cpu_nb = {
 	.notifier_call		= perf_cpu_notify,
 };
 
-static int __init perf_counter_init(void)
+void __init perf_counter_init(void)
 {
 	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_UP_PREPARE,
 			(void *)(long)smp_processor_id());
 	register_cpu_notifier(&perf_cpu_nb);
-
-	return 0;
 }
-early_initcall(perf_counter_init);
 
 static ssize_t perf_show_reserve_percpu(struct sysdev_class *class, char *buf)
 {
