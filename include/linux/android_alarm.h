@@ -33,6 +33,50 @@ enum android_alarm_type {
 	/* ANDROID_ALARM_TIME_CHANGE = 16 */
 };
 
+#ifdef __KERNEL__
+
+#include <linux/ktime.h>
+#include <linux/rbtree.h>
+
+/*
+ * The alarm interface is similar to the hrtimer interface but adds support
+ * for wakeup from suspend. It also adds an elapsed realtime clock that can
+ * be used for periodic timers that need to keep runing while the system is
+ * suspended and not be disrupted when the wall time is set.
+ */
+
+/**
+ * struct alarm - the basic alarm structure
+ * @node:	red black tree node for time ordered insertion
+ * @type:	alarm type. rtc/elapsed-realtime/systemtime, wakeup/non-wakeup.
+ * @softexpires: the absolute earliest expiry time of the alarm.
+ * @expires:	the absolute expiry time.
+ * @function:	alarm expiry callback function
+ *
+ * The alarm structure must be initialized by alarm_init()
+ *
+ */
+
+struct alarm {
+	struct rb_node 		node;
+	enum android_alarm_type type;
+	ktime_t			softexpires;
+	ktime_t			expires;
+	void			(*function)(struct alarm *);
+};
+
+void alarm_init(struct alarm *alarm,
+	enum android_alarm_type type, void (*function)(struct alarm *));
+void alarm_start_range(struct alarm *alarm, ktime_t start, ktime_t end);
+int alarm_try_to_cancel(struct alarm *alarm);
+int alarm_cancel(struct alarm *alarm);
+ktime_t alarm_get_elapsed_realtime(void);
+
+/* set rtc while preserving elapsed realtime */
+int alarm_set_rtc(const struct timespec ts);
+
+#endif
+
 enum android_alarm_return_flags {
 	ANDROID_ALARM_RTC_WAKEUP_MASK = 1U << ANDROID_ALARM_RTC_WAKEUP,
 	ANDROID_ALARM_RTC_MASK = 1U << ANDROID_ALARM_RTC,
