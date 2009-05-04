@@ -187,10 +187,15 @@ static void gpio_irq_enable(unsigned irq)
 {
 	struct gpio_controller *__iomem g = get_irq_chip_data(irq);
 	u32 mask = __gpio_mask(irq_to_gpio(irq));
+	unsigned status = irq_desc[irq].status;
 
-	if (irq_desc[irq].status & IRQ_TYPE_EDGE_FALLING)
+	status &= IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING;
+	if (!status)
+		status = IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING;
+
+	if (status & IRQ_TYPE_EDGE_FALLING)
 		__raw_writel(mask, &g->set_falling);
-	if (irq_desc[irq].status & IRQ_TYPE_EDGE_RISING)
+	if (status & IRQ_TYPE_EDGE_RISING)
 		__raw_writel(mask, &g->set_rising);
 }
 
@@ -205,10 +210,13 @@ static int gpio_irq_type(unsigned irq, unsigned trigger)
 	irq_desc[irq].status &= ~IRQ_TYPE_SENSE_MASK;
 	irq_desc[irq].status |= trigger;
 
-	__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_FALLING)
-		     ? &g->set_falling : &g->clr_falling);
-	__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_RISING)
-		     ? &g->set_rising : &g->clr_rising);
+	/* don't enable the IRQ if it's currently disabled */
+	if (irq_desc[irq].depth == 0) {
+		__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_FALLING)
+			     ? &g->set_falling : &g->clr_falling);
+		__raw_writel(mask, (trigger & IRQ_TYPE_EDGE_RISING)
+			     ? &g->set_rising : &g->clr_rising);
+	}
 	return 0;
 }
 
