@@ -19,6 +19,7 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <crypto/rng.h>
 
 #include "internal.h"
 #include "testmgr.h"
@@ -84,6 +85,11 @@ struct hash_test_suite {
 	unsigned int count;
 };
 
+struct cprng_test_suite {
+	struct cprng_testvec *vecs;
+	unsigned int count;
+};
+
 struct alg_test_desc {
 	const char *alg;
 	int (*test)(const struct alg_test_desc *desc, const char *driver,
@@ -95,6 +101,7 @@ struct alg_test_desc {
 		struct comp_test_suite comp;
 		struct pcomp_test_suite pcomp;
 		struct hash_test_suite hash;
+		struct cprng_test_suite cprng;
 	} suite;
 };
 
@@ -1089,6 +1096,68 @@ static int test_pcomp(struct crypto_pcomp *tfm,
 	return 0;
 }
 
+
+static int test_cprng(struct crypto_rng *tfm, struct cprng_testvec *template,
+		      unsigned int tcount)
+{
+	const char *algo = crypto_tfm_alg_driver_name(crypto_rng_tfm(tfm));
+	int err, i, j, seedsize;
+	u8 *seed;
+	char result[32];
+
+	seedsize = crypto_rng_seedsize(tfm);
+
+	seed = kmalloc(seedsize, GFP_KERNEL);
+	if (!seed) {
+		printk(KERN_ERR "alg: cprng: Failed to allocate seed space "
+		       "for %s\n", algo);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < tcount; i++) {
+		memset(result, 0, 32);
+
+		memcpy(seed, template[i].v, template[i].vlen);
+		memcpy(seed + template[i].vlen, template[i].key,
+		       template[i].klen);
+		memcpy(seed + template[i].vlen + template[i].klen,
+		       template[i].dt, template[i].dtlen);
+
+		err = crypto_rng_reset(tfm, seed, seedsize);
+		if (err) {
+			printk(KERN_ERR "alg: cprng: Failed to reset rng "
+			       "for %s\n", algo);
+			goto out;
+		}
+
+		for (j = 0; j < template[i].loops; j++) {
+			err = crypto_rng_get_bytes(tfm, result,
+						   template[i].rlen);
+			if (err != template[i].rlen) {
+				printk(KERN_ERR "alg: cprng: Failed to obtain "
+				       "the correct amount of random data for "
+				       "%s (requested %d, got %d)\n", algo,
+				       template[i].rlen, err);
+				goto out;
+			}
+		}
+
+		err = memcmp(result, template[i].result,
+			     template[i].rlen);
+		if (err) {
+			printk(KERN_ERR "alg: cprng: Test %d failed for %s\n",
+			       i, algo);
+			hexdump(result, template[i].rlen);
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+out:
+	kfree(seed);
+	return err;
+}
+
 static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 			 u32 type, u32 mask)
 {
@@ -1285,6 +1354,26 @@ static int alg_test_crc32c(const struct alg_test_desc *desc,
 	crypto_free_shash(tfm);
 
 out:
+	return err;
+}
+
+static int alg_test_cprng(const struct alg_test_desc *desc, const char *driver,
+			  u32 type, u32 mask)
+{
+	struct crypto_rng *rng;
+	int err;
+
+	rng = crypto_alloc_rng(driver, type, mask);
+	if (IS_ERR(rng)) {
+		printk(KERN_ERR "alg: cprng: Failed to load transform for %s: "
+		       "%ld\n", driver, PTR_ERR(rng));
+		return PTR_ERR(rng);
+	}
+
+	err = test_cprng(rng, desc->suite.cprng.vecs, desc->suite.cprng.count);
+
+	crypto_free_rng(rng);
+
 	return err;
 }
 

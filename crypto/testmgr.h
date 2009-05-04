@@ -70,6 +70,18 @@ struct aead_testvec {
 	unsigned short rlen;
 };
 
+struct cprng_testvec {
+	char *key;
+	char *dt;
+	char *v;
+	char *result;
+	unsigned char klen;
+	unsigned short dtlen;
+	unsigned short vlen;
+	unsigned short rlen;
+	unsigned short loops;
+};
+
 static char zeroed_string[48];
 
 /*
