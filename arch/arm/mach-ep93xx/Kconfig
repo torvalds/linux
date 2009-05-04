@@ -15,44 +15,62 @@ config MACH_ADSSPHERE
 	  Say 'Y' here if you want your kernel to support the ADS
 	  Sphere board.
 
+config MACH_EDB93XX
+	bool
+	default n
+
+config MACH_EDB9301
+	bool "Support Cirrus Logic EDB9301"
+	select MACH_EDB93XX
+	help
+	  Say 'Y' here if you want your kernel to support the Cirrus
+	  Logic EDB9301 Evaluation Board.
+
 config MACH_EDB9302
 	bool "Support Cirrus Logic EDB9302"
+	select MACH_EDB93XX
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9302 Evaluation Board.
 
 config MACH_EDB9302A
 	bool "Support Cirrus Logic EDB9302A"
+	select MACH_EDB93XX
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9302A Evaluation Board.
 
 config MACH_EDB9307
 	bool "Support Cirrus Logic EDB9307"
+	select MACH_EDB93XX
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9307 Evaluation Board.
 
 config MACH_EDB9307A
 	bool "Support Cirrus Logic EDB9307A"
+	select MACH_EDB93XX
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9307A Evaluation Board.
 
 config MACH_EDB9312
 	bool "Support Cirrus Logic EDB9312"
+	select MACH_EDB93XX
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9312 Evaluation Board.
 
 config MACH_EDB9315
 	bool "Support Cirrus Logic EDB9315"
+	select MACH_EDB93XX
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9315 Evaluation Board.
 
 config MACH_EDB9315A
 	bool "Support Cirrus Logic EDB9315A"
+	select MACH_EDB93XX
 	help
 	  Say 'Y' here if you want your kernel to support the Cirrus
 	  Logic EDB9315A Evaluation Board.
@@ -64,29 +82,29 @@ config MACH_GESBC9312
 	  GESBC-9312-sx board.
 
 config MACH_MICRO9
-        bool
-        default n
+	bool
+	default n
 
 config MACH_MICRO9H
-       bool "Support Contec Hypercontrol Micro9-H"
-       select MACH_MICRO9
-       help
-         Say 'Y' here if you want your kernel to support the
-         Contec Hypercontrol Micro9-H board.
+	bool "Support Contec Hypercontrol Micro9-H"
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Hypercontrol Micro9-H board.
 
 config MACH_MICRO9M
-       bool "Support Contec Hypercontrol Micro9-M"
-       select MACH_MICRO9
-       help
-         Say 'Y' here if you want your kernel to support the
-         Contec Hypercontrol Micro9-M board.
+	bool "Support Contec Hypercontrol Micro9-M"
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Hypercontrol Micro9-M board.
 
 config MACH_MICRO9L
-       bool "Support Contec Hypercontrol Micro9-L"
-       select MACH_MICRO9
-       help
-         Say 'Y' here if you want your kernel to support the
-         Contec Hypercontrol Micro9-L board.
+	bool "Support Contec Hypercontrol Micro9-L"
+	select MACH_MICRO9
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Contec Hypercontrol Micro9-L board.
 
 config MACH_TS72XX
 	bool "Support Technologic Systems TS-72xx SBC"
