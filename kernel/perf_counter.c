@@ -1069,18 +1069,14 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 {
 	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
 	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
-	const int rotate_percpu = 0;
 
-	if (rotate_percpu)
-		perf_counter_cpu_sched_out(cpuctx);
+	perf_counter_cpu_sched_out(cpuctx);
 	perf_counter_task_sched_out(curr, cpu);
 
-	if (rotate_percpu)
-		rotate_ctx(&cpuctx->ctx);
+	rotate_ctx(&cpuctx->ctx);
 	rotate_ctx(ctx);
 
-	if (rotate_percpu)
-		perf_counter_cpu_sched_in(cpuctx, cpu);
+	perf_counter_cpu_sched_in(cpuctx, cpu);
 	perf_counter_task_sched_in(curr, cpu);
 }
 
