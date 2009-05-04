@@ -2220,7 +2220,8 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 		if (i < 0)
 			goto notest;
 
-		return alg_test_cipher(alg_test_descs + i, driver, type, mask);
+		rc = alg_test_cipher(alg_test_descs + i, driver, type, mask);
+		goto test_done;
 	}
 
 	i = alg_find_test(alg);
@@ -2229,6 +2230,7 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 
 	rc = alg_test_descs[i].test(alg_test_descs + i, driver,
 				      type, mask);
+test_done:
 	if (fips_enabled && rc)
 		panic("%s: %s alg self test failed in fips mode!\n", driver, alg);
 
