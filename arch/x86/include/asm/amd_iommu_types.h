@@ -196,6 +196,14 @@
 					      domain for an IOMMU */
 
 /*
+ * Make iterating over all IOMMUs easier
+ */
+#define for_each_iommu(iommu) \
+	list_for_each_entry((iommu), &amd_iommu_list, list)
+#define for_each_iommu_safe(iommu, next) \
+	list_for_each_entry_safe((iommu), (next), &amd_iommu_list, list)
+
+/*
  * This structure contains generic data for  IOMMU protection domains
  * independent of their use.
  */

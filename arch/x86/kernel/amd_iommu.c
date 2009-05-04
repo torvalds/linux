@@ -213,7 +213,7 @@ irqreturn_t amd_iommu_int_handler(int irq, void *data)
 {
 	struct amd_iommu *iommu;
 
-	list_for_each_entry(iommu, &amd_iommu_list, list)
+	for_each_iommu(iommu)
 		iommu_poll_events(iommu);
 
 	return IRQ_HANDLED;
@@ -440,7 +440,7 @@ static void iommu_flush_domain(u16 domid)
 	__iommu_build_inv_iommu_pages(&cmd, CMD_INV_IOMMU_ALL_PAGES_ADDRESS,
 				      domid, 1, 1);
 
-	list_for_each_entry(iommu, &amd_iommu_list, list) {
+	for_each_iommu(iommu) {
 		spin_lock_irqsave(&iommu->lock, flags);
 		__iommu_queue_command(iommu, &cmd);
 		__iommu_completion_wait(iommu);
@@ -1672,7 +1672,7 @@ int __init amd_iommu_init_dma_ops(void)
 	 * found in the system. Devices not assigned to any other
 	 * protection domain will be assigned to the default one.
 	 */
-	list_for_each_entry(iommu, &amd_iommu_list, list) {
+	for_each_iommu(iommu) {
 		iommu->default_dom = dma_ops_domain_alloc(iommu, order);
 		if (iommu->default_dom == NULL)
 			return -ENOMEM;
@@ -1710,7 +1710,7 @@ int __init amd_iommu_init_dma_ops(void)
 
 free_domains:
 
-	list_for_each_entry(iommu, &amd_iommu_list, list) {
+	for_each_iommu(iommu) {
 		if (iommu->default_dom)
 			dma_ops_domain_free(iommu->default_dom);
 	}

@@ -679,7 +679,7 @@ static void __init free_iommu_all(void)
 {
 	struct amd_iommu *iommu, *next;
 
-	list_for_each_entry_safe(iommu, next, &amd_iommu_list, list) {
+	for_each_iommu_safe(iommu, next) {
 		list_del(&iommu->list);
 		free_iommu_one(iommu);
 		kfree(iommu);
@@ -779,7 +779,7 @@ static int __init iommu_setup_msix(struct amd_iommu *iommu)
 	struct msix_entry entries[32]; /* only 32 supported by AMD IOMMU */
 	int nvec = 0, i;
 
-	list_for_each_entry(curr, &amd_iommu_list, list) {
+	for_each_iommu(curr) {
 		if (curr->dev == iommu->dev) {
 			entries[nvec].entry = curr->evt_msi_num;
 			entries[nvec].vector = 0;
@@ -818,7 +818,7 @@ static int __init iommu_setup_msi(struct amd_iommu *iommu)
 	int r;
 	struct amd_iommu *curr;
 
-	list_for_each_entry(curr, &amd_iommu_list, list) {
+	for_each_iommu(curr) {
 		if (curr->dev == iommu->dev)
 			curr->int_enabled = true;
 	}
@@ -971,7 +971,7 @@ static void __init enable_iommus(void)
 {
 	struct amd_iommu *iommu;
 
-	list_for_each_entry(iommu, &amd_iommu_list, list) {
+	for_each_iommu(iommu) {
 		iommu_set_exclusion_range(iommu);
 		iommu_init_msi(iommu);
 		iommu_enable_event_logging(iommu);
