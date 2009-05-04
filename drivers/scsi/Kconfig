@@ -191,20 +191,19 @@ config SCSI_ENCLOSURE
 	  it has an enclosure device.  Selecting this option will just allow
 	  certain enclosure conditions to be reported and is not required.
 
-comment "Some SCSI devices (e.g. CD jukebox) support multiple LUNs"
-	depends on SCSI
-
 config SCSI_MULTI_LUN
 	bool "Probe all LUNs on each SCSI device"
 	depends on SCSI
 	help
-	  If you have a SCSI device that supports more than one LUN (Logical
-	  Unit Number), e.g. a CD jukebox, and only one LUN is detected, you
-	  can say Y here to force the SCSI driver to probe for multiple LUNs.
-	  A SCSI device with multiple LUNs acts logically like multiple SCSI
-	  devices. The vast majority of SCSI devices have only one LUN, and
-	  so most people can say N here. The max_luns boot/module parameter 
-	  allows to override this setting.
+	  Some devices support more than one LUN (Logical Unit Number) in order
+	  to allow access to several media, e.g. CD jukebox, USB card reader,
+	  mobile phone in mass storage mode. This option forces the kernel to
+	  probe for all LUNs by default. This setting can be overriden by
+	  max_luns boot/module parameter. Note that this option does not affect
+	  devices conforming to SCSI-3 or higher as they can explicitely report
+	  their number of LUNs. It is safe to say Y here unless you have one of
+	  those rare devices which reacts in an unexpected way when probed for
+	  multiple LUNs.
 
 config SCSI_CONSTANTS
 	bool "Verbose SCSI error reporting (kernel size +=12K)"
