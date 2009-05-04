@@ -962,7 +962,13 @@ static int intel_pmu_init(void)
 	x86_pmu = intel_pmu;
 	x86_pmu.version = version;
 	x86_pmu.num_counters = eax.split.num_counters;
-	x86_pmu.num_counters_fixed = edx.split.num_counters_fixed;
+
+	/*
+	 * Quirk: v2 perfmon does not report fixed-purpose counters, so
+	 * assume at least 3 counters:
+	 */
+	x86_pmu.num_counters_fixed = max((int)edx.split.num_counters_fixed, 3);
+
 	x86_pmu.counter_bits = eax.split.bit_width;
 	x86_pmu.counter_mask = (1ULL << eax.split.bit_width) - 1;
 
