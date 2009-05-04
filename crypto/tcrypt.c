@@ -707,6 +707,10 @@ static void do_test(int m)
 		tcrypt_test("hmac(rmd160)");
 		break;
 
+	case 150:
+		tcrypt_test("ansi_cprng");
+		break;
+
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
