@@ -62,6 +62,7 @@ struct aead_testvec {
 	int np;
 	int anp;
 	unsigned char fail;
+	unsigned char novrfy;	/* ccm dec verification failure expected */
 	unsigned char wk; /* weak key flag */
 	unsigned char klen;
 	unsigned short ilen;
