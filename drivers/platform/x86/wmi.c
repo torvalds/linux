@@ -81,6 +81,7 @@ static struct wmi_block wmi_blocks;
 
 static int acpi_wmi_remove(struct acpi_device *device, int type);
 static int acpi_wmi_add(struct acpi_device *device);
+static void acpi_wmi_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id wmi_device_ids[] = {
 	{"PNP0C14", 0},
@@ -96,6 +97,7 @@ static struct acpi_driver acpi_wmi_driver = {
 	.ops = {
 		.add = acpi_wmi_add,
 		.remove = acpi_wmi_remove,
+		.notify = acpi_wmi_notify,
 		},
 };
 
@@ -643,12 +645,11 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 	}
 }
 
-static void acpi_wmi_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 {
 	struct guid_block *block;
 	struct wmi_block *wblock;
 	struct list_head *p;
-	struct acpi_device *device = data;
 
 	list_for_each(p, &wmi_blocks.list) {
 		wblock = list_entry(p, struct wmi_block, list);
@@ -669,9 +670,6 @@ static void acpi_wmi_notify(acpi_handle handle, u32 event, void *data)
 
 static int acpi_wmi_remove(struct acpi_device *device, int type)
 {
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-		acpi_wmi_notify);
-
 	acpi_remove_address_space_handler(device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);
 
@@ -682,13 +680,6 @@ static int __init acpi_wmi_add(struct acpi_device *device)
 {
 	acpi_status status;
 	int result = 0;
-
-	status = acpi_install_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-		acpi_wmi_notify, device);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX "Error installing notify handler\n");
-		return -ENODEV;
-	}
 
 	status = acpi_install_address_space_handler(device->handle,
 						    ACPI_ADR_SPACE_EC,

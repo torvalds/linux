@@ -58,10 +58,17 @@ typedef int __bitwise suspend_state_t;
  *	by @begin().
  *	@prepare() is called right after devices have been suspended (ie. the
  *	appropriate .suspend() method has been executed for each device) and
- *	before the nonboot CPUs are disabled (it is executed with IRQs enabled).
- *	This callback is optional.  It returns 0 on success or a negative
- *	error code otherwise, in which case the system cannot enter the desired
- *	sleep state (@enter() and @finish() will not be called in that case).
+ *	before device drivers' late suspend callbacks are executed.  It returns
+ *	0 on success or a negative error code otherwise, in which case the
+ *	system cannot enter the desired sleep state (@prepare_late(), @enter(),
+ *	@wake(), and @finish() will not be called in that case).
+ *
+ * @prepare_late: Finish preparing the platform for entering the system sleep
+ *	state indicated by @begin().
+ *	@prepare_late is called before disabling nonboot CPUs and after
+ *	device drivers' late suspend callbacks have been executed.  It returns
+ *	0 on success or a negative error code otherwise, in which case the
+ *	system cannot enter the desired sleep state (@enter() and @wake()).
  *
  * @enter: Enter the system sleep state indicated by @begin() or represented by
  *	the argument if @begin() is not implemented.
@@ -69,19 +76,26 @@ typedef int __bitwise suspend_state_t;
  *	error code otherwise, in which case the system cannot enter the desired
  *	sleep state.
  *
- * @finish: Called when the system has just left a sleep state, right after
- *	the nonboot CPUs have been enabled and before devices are resumed (it is
- *	executed with IRQs enabled).
+ * @wake: Called when the system has just left a sleep state, right after
+ *	the nonboot CPUs have been enabled and before device drivers' early
+ *	resume callbacks are executed.
+ *	This callback is optional, but should be implemented by the platforms
+ *	that implement @prepare_late().  If implemented, it is always called
+ *	after @enter(), even if @enter() fails.
+ *
+ * @finish: Finish wake-up of the platform.
+ *	@finish is called right prior to calling device drivers' regular suspend
+ *	callbacks.
  *	This callback is optional, but should be implemented by the platforms
  *	that implement @prepare().  If implemented, it is always called after
- *	@enter() (even if @enter() fails).
+ *	@enter() and @wake(), if implemented, even if any of them fails.
  *
  * @end: Called by the PM core right after resuming devices, to indicate to
  *	the platform that the system has returned to the working state or
  *	the transition to the sleep state has been aborted.
  *	This callback is optional, but should be implemented by the platforms
- *	that implement @begin(), but platforms implementing @begin() should
- *	also provide a @end() which cleans up transitions aborted before
+ *	that implement @begin().  Accordingly, platforms implementing @begin()
+ *	should also provide a @end() which cleans up transitions aborted before
  *	@enter().
  *
  * @recover: Recover the platform from a suspend failure.
@@ -93,7 +107,9 @@ struct platform_suspend_ops {
 	int (*valid)(suspend_state_t state);
 	int (*begin)(suspend_state_t state);
 	int (*prepare)(void);
+	int (*prepare_late)(void);
 	int (*enter)(suspend_state_t state);
+	void (*wake)(void);
 	void (*finish)(void);
 	void (*end)(void);
 	void (*recover)(void);

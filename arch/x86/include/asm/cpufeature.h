@@ -154,6 +154,7 @@
  * CPUID levels like 0x6, 0xA etc
  */
 #define X86_FEATURE_IDA		(7*32+ 0) /* Intel Dynamic Acceleration */
+#define X86_FEATURE_ARAT	(7*32+ 1) /* Always Running APIC Timer */
 
 /* Virtualization flags: Linux defined */
 #define X86_FEATURE_TPR_SHADOW  (8*32+ 0) /* Intel TPR Shadow */

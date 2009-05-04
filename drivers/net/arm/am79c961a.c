@@ -665,6 +665,20 @@ static void __init am79c961_banner(void)
 	if (net_debug && version_printed++ == 0)
 		printk(KERN_INFO "%s", version);
 }
+static const struct net_device_ops am79c961_netdev_ops = {
+	.ndo_open		= am79c961_open,
+	.ndo_stop		= am79c961_close,
+	.ndo_start_xmit		= am79c961_sendpacket,
+	.ndo_get_stats		= am79c961_getstats,
+	.ndo_set_multicast_list	= am79c961_setmulticastlist,
+	.ndo_tx_timeout		= am79c961_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address	= eth_mac_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= am79c961_poll_controller,
+#endif
+};
 
 static int __init am79c961_probe(struct platform_device *pdev)
 {
@@ -732,15 +746,7 @@ static int __init am79c961_probe(struct platform_device *pdev)
 	if (am79c961_hw_init(dev))
 		goto release;
 
-	dev->open		= am79c961_open;
-	dev->stop		= am79c961_close;
-	dev->hard_start_xmit	= am79c961_sendpacket;
-	dev->get_stats		= am79c961_getstats;
-	dev->set_multicast_list	= am79c961_setmulticastlist;
-	dev->tx_timeout		= am79c961_timeout;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller	= am79c961_poll_controller;
-#endif
+	dev->netdev_ops = &am79c961_netdev_ops;
 
 	ret = register_netdev(dev);
 	if (ret == 0) {

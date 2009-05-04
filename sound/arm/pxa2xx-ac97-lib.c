@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_resume);
 int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 {
 	int ret;
-	struct pxa2xx_ac97_platform_data *pdata = dev->dev.platform_data;
+	pxa2xx_audio_ops_t *pdata = dev->dev.platform_data;
 
 	if (pdata) {
 		switch (pdata->reset_gpio) {

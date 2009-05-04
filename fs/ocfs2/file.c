@@ -1912,6 +1912,22 @@ out_sems:
 	return written ? written : ret;
 }
 
+static int ocfs2_splice_to_file(struct pipe_inode_info *pipe,
+				struct file *out,
+				struct splice_desc *sd)
+{
+	int ret;
+
+	ret = ocfs2_prepare_inode_for_write(out->f_path.dentry,	&sd->pos,
+					    sd->total_len, 0, NULL);
+	if (ret < 0) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	return splice_from_pipe_feed(pipe, sd, pipe_to_file);
+}
+
 static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 				       struct file *out,
 				       loff_t *ppos,
@@ -1919,38 +1935,76 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 				       unsigned int flags)
 {
 	int ret;
-	struct inode *inode = out->f_path.dentry->d_inode;
+	struct address_space *mapping = out->f_mapping;
+	struct inode *inode = mapping->host;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.u.file = out,
+	};
 
 	mlog_entry("(0x%p, 0x%p, %u, '%.*s')\n", out, pipe,
 		   (unsigned int)len,
 		   out->f_path.dentry->d_name.len,
 		   out->f_path.dentry->d_name.name);
 
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_PARENT);
-
-	ret = ocfs2_rw_lock(inode, 1);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out;
-	}
-
-	ret = ocfs2_prepare_inode_for_write(out->f_path.dentry, ppos, len, 0,
-					    NULL);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_unlock;
-	}
-
 	if (pipe->inode)
-		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_CHILD);
-	ret = generic_file_splice_write_nolock(pipe, out, ppos, len, flags);
+		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_PARENT);
+
+	splice_from_pipe_begin(&sd);
+	do {
+		ret = splice_from_pipe_next(pipe, &sd);
+		if (ret <= 0)
+			break;
+
+		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
+		ret = ocfs2_rw_lock(inode, 1);
+		if (ret < 0)
+			mlog_errno(ret);
+		else {
+			ret = ocfs2_splice_to_file(pipe, out, &sd);
+			ocfs2_rw_unlock(inode, 1);
+		}
+		mutex_unlock(&inode->i_mutex);
+	} while (ret > 0);
+	splice_from_pipe_end(pipe, &sd);
+
 	if (pipe->inode)
 		mutex_unlock(&pipe->inode->i_mutex);
 
-out_unlock:
-	ocfs2_rw_unlock(inode, 1);
-out:
-	mutex_unlock(&inode->i_mutex);
+	if (sd.num_spliced)
+		ret = sd.num_spliced;
+
+	if (ret > 0) {
+		unsigned long nr_pages;
+
+		*ppos += ret;
+		nr_pages = (ret + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+
+		/*
+		 * If file or inode is SYNC and we actually wrote some data,
+		 * sync it.
+		 */
+		if (unlikely((out->f_flags & O_SYNC) || IS_SYNC(inode))) {
+			int err;
+
+			mutex_lock(&inode->i_mutex);
+			err = ocfs2_rw_lock(inode, 1);
+			if (err < 0) {
+				mlog_errno(err);
+			} else {
+				err = generic_osync_inode(inode, mapping,
+						  OSYNC_METADATA|OSYNC_DATA);
+				ocfs2_rw_unlock(inode, 1);
+			}
+			mutex_unlock(&inode->i_mutex);
+
+			if (err)
+				ret = err;
+		}
+		balance_dirty_pages_ratelimited_nr(mapping, nr_pages);
+	}
 
 	mlog_exit(ret);
 	return ret;

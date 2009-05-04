@@ -128,7 +128,6 @@ enum pcf50633_reg_mbcs3 {
 int pcf50633_mbc_usb_curlim_set(struct pcf50633 *pcf, int ma);
 
 int pcf50633_mbc_get_status(struct pcf50633 *);
-void pcf50633_mbc_set_status(struct pcf50633 *, int what, int status);
 
 #endif
 

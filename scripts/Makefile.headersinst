@@ -14,6 +14,8 @@ _dst := $(if $(dst),$(dst),$(obj))
 kbuild-file := $(srctree)/$(obj)/Kbuild
 include $(kbuild-file)
 
+_dst := $(if $(destination-y),$(destination-y),$(_dst))
+
 include scripts/Kbuild.include
 
 install       := $(INSTALL_HDR_PATH)/$(_dst)

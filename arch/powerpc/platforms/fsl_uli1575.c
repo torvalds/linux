@@ -275,11 +275,6 @@ static void __devinit hpcd_quirk_uli5288(struct pci_dev *dev)
 	if (!machine_is(mpc86xx_hpcd))
 		return;
 
-	/* Interrupt Disable, Needed when SATA disabled */
-	pci_read_config_word(dev, PCI_COMMAND, &temp);
-	temp |= 1<<10;
-	pci_write_config_word(dev, PCI_COMMAND, temp);
-
 	pci_read_config_byte(dev, 0x83, &c);
 	c |= 0x80;
 	pci_write_config_byte(dev, 0x83, c);

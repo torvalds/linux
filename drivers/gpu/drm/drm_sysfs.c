@@ -132,6 +132,7 @@ void drm_sysfs_destroy(void)
  */
 static void drm_sysfs_device_release(struct device *dev)
 {
+	memset(dev, 0, sizeof(struct device));
 	return;
 }
 

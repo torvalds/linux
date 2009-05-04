@@ -153,23 +153,6 @@ xfs_find_bdev_for_inode(
 }
 
 /*
- * Schedule IO completion handling on a xfsdatad if this was
- * the final hold on this ioend. If we are asked to wait,
- * flush the workqueue.
- */
-STATIC void
-xfs_finish_ioend(
-	xfs_ioend_t	*ioend,
-	int		wait)
-{
-	if (atomic_dec_and_test(&ioend->io_remaining)) {
-		queue_work(xfsdatad_workqueue, &ioend->io_work);
-		if (wait)
-			flush_workqueue(xfsdatad_workqueue);
-	}
-}
-
-/*
  * We're now finished for good with this ioend structure.
  * Update the page state via the associated buffer_heads,
  * release holds on the inode and bio, and finally free
@@ -307,6 +290,27 @@ xfs_end_bio_read(
 		container_of(work, xfs_ioend_t, io_work);
 
 	xfs_destroy_ioend(ioend);
+}
+
+/*
+ * Schedule IO completion handling on a xfsdatad if this was
+ * the final hold on this ioend. If we are asked to wait,
+ * flush the workqueue.
+ */
+STATIC void
+xfs_finish_ioend(
+	xfs_ioend_t	*ioend,
+	int		wait)
+{
+	if (atomic_dec_and_test(&ioend->io_remaining)) {
+		struct workqueue_struct *wq = xfsdatad_workqueue;
+		if (ioend->io_work.func == xfs_end_bio_unwritten)
+			wq = xfsconvertd_workqueue;
+
+		queue_work(wq, &ioend->io_work);
+		if (wait)
+			flush_workqueue(wq);
+	}
 }
 
 /*

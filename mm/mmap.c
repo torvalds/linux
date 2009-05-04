@@ -1575,7 +1575,7 @@ static int acct_stack_growth(struct vm_area_struct *vma, unsigned long size, uns
 	 * Overcommit..  This must be the final test, as it will
 	 * update security statistics.
 	 */
-	if (security_vm_enough_memory(grow))
+	if (security_vm_enough_memory_mm(mm, grow))
 		return -ENOMEM;
 
 	/* Ok, everything looks good - let it rip */

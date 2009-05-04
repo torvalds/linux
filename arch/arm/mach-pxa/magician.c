@@ -25,6 +25,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
+#include <linux/regulator/bq24022.h>
+#include <linux/regulator/machine.h>
 #include <linux/usb/gpio_vbus.h>
 
 #include <mach/hardware.h>
@@ -552,33 +554,7 @@ static struct platform_device gpio_vbus = {
 
 static int power_supply_init(struct device *dev)
 {
-	int ret;
-
-	ret = gpio_request(EGPIO_MAGICIAN_CABLE_STATE_AC, "CABLE_STATE_AC");
-	if (ret)
-		goto err_cs_ac;
-	ret = gpio_request(EGPIO_MAGICIAN_CABLE_STATE_USB, "CABLE_STATE_USB");
-	if (ret)
-		goto err_cs_usb;
-	ret = gpio_request(EGPIO_MAGICIAN_CHARGE_EN, "CHARGE_EN");
-	if (ret)
-		goto err_chg_en;
-	ret = gpio_request(GPIO30_MAGICIAN_nCHARGE_EN, "nCHARGE_EN");
-	if (!ret)
-		ret = gpio_direction_output(GPIO30_MAGICIAN_nCHARGE_EN, 0);
-	if (ret)
-		goto err_nchg_en;
-
-	return 0;
-
-err_nchg_en:
-	gpio_free(EGPIO_MAGICIAN_CHARGE_EN);
-err_chg_en:
-	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_USB);
-err_cs_usb:
-	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_AC);
-err_cs_ac:
-	return ret;
+	return gpio_request(EGPIO_MAGICIAN_CABLE_STATE_AC, "CABLE_STATE_AC");
 }
 
 static int magician_is_ac_online(void)
@@ -586,22 +562,8 @@ static int magician_is_ac_online(void)
 	return gpio_get_value(EGPIO_MAGICIAN_CABLE_STATE_AC);
 }
 
-static int magician_is_usb_online(void)
-{
-	return gpio_get_value(EGPIO_MAGICIAN_CABLE_STATE_USB);
-}
-
-static void magician_set_charge(int flags)
-{
-	gpio_set_value(GPIO30_MAGICIAN_nCHARGE_EN, !flags);
-	gpio_set_value(EGPIO_MAGICIAN_CHARGE_EN, flags);
-}
-
 static void power_supply_exit(struct device *dev)
 {
-	gpio_free(GPIO30_MAGICIAN_nCHARGE_EN);
-	gpio_free(EGPIO_MAGICIAN_CHARGE_EN);
-	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_USB);
 	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_AC);
 }
 
@@ -612,8 +574,6 @@ static char *magician_supplicants[] = {
 static struct pda_power_pdata power_supply_info = {
 	.init            = power_supply_init,
 	.is_ac_online    = magician_is_ac_online,
-	.is_usb_online   = magician_is_usb_online,
-	.set_charge      = magician_set_charge,
 	.exit            = power_supply_exit,
 	.supplied_to     = magician_supplicants,
 	.num_supplicants = ARRAY_SIZE(magician_supplicants),
@@ -646,6 +606,43 @@ static struct platform_device power_supply = {
 	.num_resources = ARRAY_SIZE(power_supply_resources),
 };
 
+/*
+ * Battery charger
+ */
+
+static struct regulator_consumer_supply bq24022_consumers[] = {
+	{
+		.dev = &gpio_vbus.dev,
+		.supply = "vbus_draw",
+	},
+	{
+		.dev = &power_supply.dev,
+		.supply = "ac_draw",
+	},
+};
+
+static struct regulator_init_data bq24022_init_data = {
+	.constraints = {
+		.max_uA         = 500000,
+		.valid_ops_mask = REGULATOR_CHANGE_CURRENT,
+	},
+	.num_consumer_supplies  = ARRAY_SIZE(bq24022_consumers),
+	.consumer_supplies      = bq24022_consumers,
+};
+
+static struct bq24022_mach_info bq24022_info = {
+	.gpio_nce   = GPIO30_MAGICIAN_BQ24022_nCHARGE_EN,
+	.gpio_iset2 = EGPIO_MAGICIAN_BQ24022_ISET2,
+	.init_data  = &bq24022_init_data,
+};
+
+static struct platform_device bq24022 = {
+	.name = "bq24022",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &bq24022_info,
+	},
+};
 
 /*
  * MMC/SD
@@ -756,6 +753,7 @@ static struct platform_device *devices[] __initdata = {
 	&egpio,
 	&backlight,
 	&pasic3,
+	&bq24022,
 	&gpio_vbus,
 	&power_supply,
 	&strataflash,

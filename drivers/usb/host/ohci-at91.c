@@ -280,7 +280,7 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 		 * are always powered while this driver is active, and use
 		 * active-low power switches.
 		 */
-		for (i = 0; i < pdata->ports; i++) {
+		for (i = 0; i < ARRAY_SIZE(pdata->vbus_pin); i++) {
 			if (pdata->vbus_pin[i] <= 0)
 				continue;
 			gpio_request(pdata->vbus_pin[i], "ohci_vbus");
@@ -298,7 +298,7 @@ static int ohci_hcd_at91_drv_remove(struct platform_device *pdev)
 	int			i;
 
 	if (pdata) {
-		for (i = 0; i < pdata->ports; i++) {
+		for (i = 0; i < ARRAY_SIZE(pdata->vbus_pin); i++) {
 			if (pdata->vbus_pin[i] <= 0)
 				continue;
 			gpio_direction_output(pdata->vbus_pin[i], 1);

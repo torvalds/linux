@@ -240,8 +240,8 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 			goto error;
 
 		/* try to match the first 16 bytes of name */
-		ret = romfs_dev_strncmp(dir->i_sb, offset + ROMFH_SIZE, name,
-					len);
+		ret = romfs_dev_strcmp(dir->i_sb, offset + ROMFH_SIZE, name,
+				       len);
 		if (ret < 0)
 			goto error;
 		if (ret == 1)

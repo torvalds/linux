@@ -446,11 +446,11 @@ static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 	if (buffer->event != atomic_read(&od->event))
 		goto trigger;
 
-	return 0;
+	return DEFAULT_POLLMASK;
 
  trigger:
 	buffer->needs_read_fill = 1;
-	return POLLERR|POLLPRI;
+	return DEFAULT_POLLMASK|POLLERR|POLLPRI;
 }
 
 void sysfs_notify_dirent(struct sysfs_dirent *sd)
@@ -667,6 +667,7 @@ struct sysfs_schedule_callback_struct {
 	struct work_struct	work;
 };
 
+static struct workqueue_struct *sysfs_workqueue;
 static DEFINE_MUTEX(sysfs_workq_mutex);
 static LIST_HEAD(sysfs_workq);
 static void sysfs_schedule_callback_work(struct work_struct *work)
@@ -715,10 +716,19 @@ int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
 	mutex_lock(&sysfs_workq_mutex);
 	list_for_each_entry_safe(ss, tmp, &sysfs_workq, workq_list)
 		if (ss->kobj == kobj) {
+			module_put(owner);
 			mutex_unlock(&sysfs_workq_mutex);
 			return -EAGAIN;
 		}
 	mutex_unlock(&sysfs_workq_mutex);
+
+	if (sysfs_workqueue == NULL) {
+		sysfs_workqueue = create_workqueue("sysfsd");
+		if (sysfs_workqueue == NULL) {
+			module_put(owner);
+			return -ENOMEM;
+		}
+	}
 
 	ss = kmalloc(sizeof(*ss), GFP_KERNEL);
 	if (!ss) {
@@ -735,7 +745,7 @@ int sysfs_schedule_callback(struct kobject *kobj, void (*func)(void *),
 	mutex_lock(&sysfs_workq_mutex);
 	list_add_tail(&ss->workq_list, &sysfs_workq);
 	mutex_unlock(&sysfs_workq_mutex);
-	schedule_work(&ss->work);
+	queue_work(sysfs_workqueue, &ss->work);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sysfs_schedule_callback);

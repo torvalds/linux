@@ -52,9 +52,10 @@ SECTIONS
 	/* Text and gots */
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		ALIGN_FUNCTION();
-		*(.text.head)
+		HEAD_TEXT
 		_text = .;
-		*(.text .fixup .text.init.refok .exit.text.refok __ftr_alt_*)
+		TEXT_TEXT
+		*(.fixup __ftr_alt_*)
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT

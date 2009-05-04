@@ -621,7 +621,6 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	struct e1000_buffer *buffer_info;
 	unsigned int i, eop;
 	unsigned int count = 0;
-	bool cleaned;
 	unsigned int total_tx_bytes = 0, total_tx_packets = 0;
 
 	i = tx_ring->next_to_clean;
@@ -630,7 +629,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 
 	while ((eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
-		for (cleaned = 0; !cleaned; count++) {
+		bool cleaned = false;
+		for (; !cleaned; count++) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
 			cleaned = (i == eop);
@@ -661,8 +661,8 @@ static bool e1000_clean_tx_irq(struct e1000_adapter *adapter)
 	tx_ring->next_to_clean = i;
 
 #define TX_WAKE_THRESHOLD 32
-	if (cleaned && netif_carrier_ok(netdev) &&
-		     e1000_desc_unused(tx_ring) >= TX_WAKE_THRESHOLD) {
+	if (count && netif_carrier_ok(netdev) &&
+	    e1000_desc_unused(tx_ring) >= TX_WAKE_THRESHOLD) {
 		/* Make sure that anybody stopping the queue after this
 		 * sees the new next_to_clean.
 		 */
@@ -4346,7 +4346,7 @@ static int e1000_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	}
 }
 
-static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
+static int __e1000_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct e1000_adapter *adapter = netdev_priv(netdev);
@@ -4409,20 +4409,16 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 
 		ew32(WUC, E1000_WUC_PME_EN);
 		ew32(WUFC, wufc);
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
 	} else {
 		ew32(WUC, 0);
 		ew32(WUFC, 0);
-		pci_enable_wake(pdev, PCI_D3hot, 0);
-		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
+	*enable_wake = !!wufc;
+
 	/* make sure adapter isn't asleep if manageability is enabled */
-	if (adapter->flags & FLAG_MNG_PT_ENABLED) {
-		pci_enable_wake(pdev, PCI_D3hot, 1);
-		pci_enable_wake(pdev, PCI_D3cold, 1);
-	}
+	if (adapter->flags & FLAG_MNG_PT_ENABLED)
+		*enable_wake = true;
 
 	if (adapter->hw.phy.type == e1000_phy_igp_3)
 		e1000e_igp3_phy_powerdown_workaround_ich8lan(&adapter->hw);
@@ -4434,6 +4430,26 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	e1000_release_hw_control(adapter);
 
 	pci_disable_device(pdev);
+
+	return 0;
+}
+
+static void e1000_power_off(struct pci_dev *pdev, bool sleep, bool wake)
+{
+	if (sleep && wake) {
+		pci_prepare_to_sleep(pdev);
+		return;
+	}
+
+	pci_wake_from_d3(pdev, wake);
+	pci_set_power_state(pdev, PCI_D3hot);
+}
+
+static void e1000_complete_shutdown(struct pci_dev *pdev, bool sleep,
+                                    bool wake)
+{
+	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct e1000_adapter *adapter = netdev_priv(netdev);
 
 	/*
 	 * The pci-e switch on some quad port adapters will report a
@@ -4450,14 +4466,12 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_write_config_word(us_dev, pos + PCI_EXP_DEVCTL,
 		                      (devctl & ~PCI_EXP_DEVCTL_CERE));
 
-		pci_set_power_state(pdev, pci_choose_state(pdev, state));
+		e1000_power_off(pdev, sleep, wake);
 
 		pci_write_config_word(us_dev, pos + PCI_EXP_DEVCTL, devctl);
 	} else {
-		pci_set_power_state(pdev, pci_choose_state(pdev, state));
+		e1000_power_off(pdev, sleep, wake);
 	}
-
-	return 0;
 }
 
 static void e1000e_disable_l1aspm(struct pci_dev *pdev)
@@ -4486,6 +4500,18 @@ static void e1000e_disable_l1aspm(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
+static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	int retval;
+	bool wake;
+
+	retval = __e1000_shutdown(pdev, &wake);
+	if (!retval)
+		e1000_complete_shutdown(pdev, true, wake);
+
+	return retval;
+}
+
 static int e1000_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -4549,7 +4575,12 @@ static int e1000_resume(struct pci_dev *pdev)
 
 static void e1000_shutdown(struct pci_dev *pdev)
 {
-	e1000_suspend(pdev, PMSG_SUSPEND);
+	bool wake = false;
+
+	__e1000_shutdown(pdev, &wake);
+
+	if (system_state == SYSTEM_POWER_OFF)
+		e1000_complete_shutdown(pdev, false, wake);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
