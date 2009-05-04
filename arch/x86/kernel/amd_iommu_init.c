@@ -783,46 +783,6 @@ static int __init init_iommu_all(struct acpi_table_header *table)
  *
  ****************************************************************************/
 
-static int __init iommu_setup_msix(struct amd_iommu *iommu)
-{
-	struct amd_iommu *curr;
-	struct msix_entry entries[32]; /* only 32 supported by AMD IOMMU */
-	int nvec = 0, i;
-
-	for_each_iommu(curr) {
-		if (curr->dev == iommu->dev) {
-			entries[nvec].entry = curr->evt_msi_num;
-			entries[nvec].vector = 0;
-			curr->int_enabled = true;
-			nvec++;
-		}
-	}
-
-	if (pci_enable_msix(iommu->dev, entries, nvec)) {
-		pci_disable_msix(iommu->dev);
-		return 1;
-	}
-
-	for (i = 0; i < nvec; ++i) {
-		int r = request_irq(entries->vector, amd_iommu_int_handler,
-				    IRQF_SAMPLE_RANDOM,
-				    "AMD IOMMU",
-				    NULL);
-		if (r)
-			goto out_free;
-	}
-
-	return 0;
-
-out_free:
-	for (i -= 1; i >= 0; --i)
-		free_irq(entries->vector, NULL);
-
-	pci_disable_msix(iommu->dev);
-
-	return 1;
-}
-
 static int __init iommu_setup_msi(struct amd_iommu *iommu)
 {
 	int r;
@@ -851,9 +811,7 @@ static int __init iommu_init_msi(struct amd_iommu *iommu)
 	if (iommu->int_enabled)
 		return 0;
 
-	if (pci_find_capability(iommu->dev, PCI_CAP_ID_MSIX))
-		return iommu_setup_msix(iommu);
-	else if (pci_find_capability(iommu->dev, PCI_CAP_ID_MSI))
+	if (pci_find_capability(iommu->dev, PCI_CAP_ID_MSI))
 		return iommu_setup_msi(iommu);
 
 	return 1;
