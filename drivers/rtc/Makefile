@@ -9,7 +9,8 @@ obj-$(CONFIG_RTC_HCTOSYS)	+= hctosys.o
 obj-$(CONFIG_RTC_CLASS)		+= rtc-core.o
 rtc-core-y			:= class.o interface.o
 
-rtc-core-$(CONFIG_RTC_INTF_ALARM) += alarm.o
+obj-$(CONFIG_RTC_INTF_ALARM) += alarm.o
+obj-$(CONFIG_RTC_INTF_ALARM_DEV) += alarm-dev.o
 rtc-core-$(CONFIG_RTC_INTF_DEV)	+= rtc-dev.o
 rtc-core-$(CONFIG_RTC_INTF_PROC) += rtc-proc.o
 rtc-core-$(CONFIG_RTC_INTF_SYSFS) += rtc-sysfs.o
