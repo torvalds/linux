@@ -742,6 +742,14 @@ static int r6040_up(struct net_device *dev)
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	int ret;
+	u16 val;
+
+	/* Check presence of a second PHY */
+	val = r6040_phy_read(ioaddr, lp->phy_addr, 2);
+	if (val == 0xFFFF) {
+		printk(KERN_ERR DRV_NAME " no second PHY attached\n");
+		return -EIO;
+	}
 
 	/* Initialise and alloc RX/TX buffers */
 	r6040_init_txbufs(dev);
