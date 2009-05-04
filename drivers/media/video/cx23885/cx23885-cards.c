@@ -183,6 +183,7 @@ struct cx23885_board cx23885_boards[] = {
 	},
 	[CX23885_BOARD_HAUPPAUGE_HVR1270] = {
 		.name		= "Hauppauge WinTV-HVR1270",
+		.portc		= CX23885_MPEG_DVB,
 	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);

@@ -51,6 +51,7 @@
 #include "cimax2.h"
 #include "netup-eeprom.h"
 #include "netup-init.h"
+#include "lgdt3305.h"
 
 static unsigned int debug;
 
@@ -226,6 +227,28 @@ static struct tda18271_config hauppauge_hvr1200_tuner_config = {
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
+static struct tda18271_std_map hcw_lgdt3305_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x58 },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x58 },
+};
+
+static struct tda18271_config hcw_lgdt3305_tda18271_config = {
+	.std_map = &hcw_lgdt3305_tda18271_std_map,
+};
+
+static struct lgdt3305_config hcw_lgdt3305_config = {
+	.i2c_addr           = 0x0e,
+	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.deny_i2c_rptr      = 1,
+	.spectral_inversion = 1,
+	.qam_if_khz         = 4000,
+	.vsb_if_khz         = 3250,
+};
+
 static struct dibx000_agc_config xc3028_agc_config = {
 	BAND_VHF | BAND_UHF,	/* band_caps */
 
@@ -396,6 +419,17 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(mt2131_attach, fe0->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1270:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(lgdt3305_attach,
+					       &hcw_lgdt3305_config,
+					       &i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_bus[1].i2c_adap,
+				   &hcw_lgdt3305_tda18271_config);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
