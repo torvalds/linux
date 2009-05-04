@@ -1189,15 +1189,10 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	if (register_netdev(dev)) {
-		err = -EIO;
-		goto err_npe_rel;
-	}
-
 	port->mem_res = request_mem_region(regs_phys, REGS_SIZE, dev->name);
 	if (!port->mem_res) {
 		err = -EBUSY;
-		goto err_unreg;
+		goto err_npe_rel;
 	}
 
 	port->plat = plat;
@@ -1215,20 +1210,25 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT, "0", plat->phy);
 	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link, 0,
 				   PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(port->phydev)) {
-		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
-		return PTR_ERR(port->phydev);
-	}
+	if ((err = IS_ERR(port->phydev)))
+		goto err_free_mem;
 
 	port->phydev->irq = PHY_POLL;
+
+	if ((err = register_netdev(dev)))
+		goto err_phy_dis;
 
 	printk(KERN_INFO "%s: MII PHY %i on %s\n", dev->name, plat->phy,
 	       npe_name(port->npe));
 
 	return 0;
 
-err_unreg:
-	unregister_netdev(dev);
+err_phy_dis:
+	phy_disconnect(port->phydev);
+err_free_mem:
+	npe_port_tab[NPE_ID(port->id)] = NULL;
+	platform_set_drvdata(pdev, NULL);
+	release_resource(port->mem_res);
 err_npe_rel:
 	npe_release(port->npe);
 err_free:
@@ -1242,6 +1242,7 @@ static int __devexit eth_remove_one(struct platform_device *pdev)
 	struct port *port = netdev_priv(dev);
 
 	unregister_netdev(dev);
+	phy_disconnect(port->phydev);
 	npe_port_tab[NPE_ID(port->id)] = NULL;
 	platform_set_drvdata(pdev, NULL);
 	npe_release(port->npe);
