@@ -8,7 +8,8 @@ accurately mark string length before allocating memory (which may help the
 rare cases where a UTF-8 string is much larger than the UCS2 string that
 we converted from).  Fix endianness of the vcnum field used during
 session setup to distinguish multiple mounts to same server from different
-userids.
+userids. Raw NTLMSSP fixed (it requires /proc/fs/cifs/experimental
+flag to be set to 2, and mount must enable krb5 to turn on extended security).
  
 Version 1.57
 ------------
