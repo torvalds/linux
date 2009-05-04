@@ -252,13 +252,6 @@ static void __init iommu_enable(struct amd_iommu *iommu)
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
 
-/* Function to enable IOMMU event logging and event interrupts */
-static void __init iommu_enable_event_logging(struct amd_iommu *iommu)
-{
-	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
-	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
-}
-
 /*
  * mapping and unmapping functions for the IOMMU MMIO space. Each AMD IOMMU in
  * the system has one.
@@ -413,25 +406,36 @@ static u8 * __init alloc_command_buffer(struct amd_iommu *iommu)
 {
 	u8 *cmd_buf = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 			get_order(CMD_BUFFER_SIZE));
-	u64 entry;
 
 	if (cmd_buf == NULL)
 		return NULL;
 
 	iommu->cmd_buf_size = CMD_BUFFER_SIZE;
 
-	entry = (u64)virt_to_phys(cmd_buf);
+	return cmd_buf;
+}
+
+/*
+ * This function writes the command buffer address to the hardware and
+ * enables it.
+ */
+static void iommu_enable_command_buffer(struct amd_iommu *iommu)
+{
+	u64 entry;
+
+	BUG_ON(iommu->cmd_buf == NULL);
+
+	entry = (u64)virt_to_phys(iommu->cmd_buf);
 	entry |= MMIO_CMD_SIZE_512;
+
 	memcpy_toio(iommu->mmio_base + MMIO_CMD_BUF_OFFSET,
-			&entry, sizeof(entry));
+		    &entry, sizeof(entry));
 
 	/* set head and tail to zero manually */
 	writel(0x00, iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);
 	writel(0x00, iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
 
 	iommu_feature_enable(iommu, CONTROL_CMDBUF_EN);
-
-	return cmd_buf;
 }
 
 static void __init free_command_buffer(struct amd_iommu *iommu)
@@ -443,20 +447,27 @@ static void __init free_command_buffer(struct amd_iommu *iommu)
 /* allocates the memory where the IOMMU will log its events to */
 static u8 * __init alloc_event_buffer(struct amd_iommu *iommu)
 {
-	u64 entry;
 	iommu->evt_buf = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
 						get_order(EVT_BUFFER_SIZE));
 
 	if (iommu->evt_buf == NULL)
 		return NULL;
 
+	return iommu->evt_buf;
+}
+
+static void iommu_enable_event_buffer(struct amd_iommu *iommu)
+{
+	u64 entry;
+
+	BUG_ON(iommu->evt_buf == NULL);
+
 	entry = (u64)virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
+
 	memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
 		    &entry, sizeof(entry));
 
-	iommu->evt_buf_size = EVT_BUFFER_SIZE;
-
-	return iommu->evt_buf;
+	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
 }
 
 static void __init free_event_buffer(struct amd_iommu *iommu)
@@ -710,7 +721,6 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	if (!iommu->mmio_base)
 		return -ENOMEM;
 
-	iommu_set_device_table(iommu);
 	iommu->cmd_buf = alloc_command_buffer(iommu);
 	if (!iommu->cmd_buf)
 		return -ENOMEM;
@@ -836,6 +846,8 @@ static int __init iommu_setup_msi(struct amd_iommu *iommu)
 		pci_disable_msi(iommu->dev);
 		return 1;
 	}
+
+	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
 
 	return 0;
 }
@@ -972,9 +984,11 @@ static void __init enable_iommus(void)
 	struct amd_iommu *iommu;
 
 	for_each_iommu(iommu) {
+		iommu_set_device_table(iommu);
+		iommu_enable_command_buffer(iommu);
+		iommu_enable_event_buffer(iommu);
 		iommu_set_exclusion_range(iommu);
 		iommu_init_msi(iommu);
-		iommu_enable_event_logging(iommu);
 		iommu_enable(iommu);
 	}
 }
