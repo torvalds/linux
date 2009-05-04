@@ -171,7 +171,7 @@ again:
 	return new_raw_count;
 }
 
-static atomic_t num_counters;
+static atomic_t active_counters;
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
 static bool reserve_pmc_hardware(void)
@@ -224,7 +224,7 @@ static void release_pmc_hardware(void)
 
 static void hw_perf_counter_destroy(struct perf_counter *counter)
 {
-	if (atomic_dec_and_mutex_lock(&num_counters, &pmc_reserve_mutex)) {
+	if (atomic_dec_and_mutex_lock(&active_counters, &pmc_reserve_mutex)) {
 		release_pmc_hardware();
 		mutex_unlock(&pmc_reserve_mutex);
 	}
@@ -248,12 +248,12 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		return -ENODEV;
 
 	err = 0;
-	if (atomic_inc_not_zero(&num_counters)) {
+	if (!atomic_inc_not_zero(&active_counters)) {
 		mutex_lock(&pmc_reserve_mutex);
-		if (atomic_read(&num_counters) == 0 && !reserve_pmc_hardware())
+		if (atomic_read(&active_counters) == 0 && !reserve_pmc_hardware())
 			err = -EBUSY;
 		else
-			atomic_inc(&num_counters);
+			atomic_inc(&active_counters);
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 	if (err)
@@ -280,7 +280,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	if (capable(CAP_SYS_ADMIN) && hw_event->nmi)
 		hwc->nmi = 1;
 
-	hwc->irq_period		= hw_event->irq_period;
+	hwc->irq_period	= hw_event->irq_period;
 	if ((s64)hwc->irq_period <= 0 || hwc->irq_period > x86_pmu.max_period)
 		hwc->irq_period = x86_pmu.max_period;
 
@@ -871,7 +871,7 @@ perf_counter_nmi_handler(struct notifier_block *self,
 	struct pt_regs *regs;
 	int ret;
 
-	if (!atomic_read(&num_counters))
+	if (!atomic_read(&active_counters))
 		return NOTIFY_DONE;
 
 	switch (cmd) {
