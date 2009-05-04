@@ -154,15 +154,10 @@ static const struct usb_device_id *usb_match_dynamic_id(struct usb_interface *in
 static int usb_probe_device(struct device *dev)
 {
 	struct usb_device_driver *udriver = to_usb_device_driver(dev->driver);
-	struct usb_device *udev;
+	struct usb_device *udev = to_usb_device(dev);
 	int error = -ENODEV;
 
 	dev_dbg(dev, "%s\n", __func__);
-
-	if (!is_usb_device(dev))	/* Sanity check */
-		return error;
-
-	udev = to_usb_device(dev);
 
 	/* TODO: Add real matching code */
 
@@ -203,18 +198,13 @@ static void usb_cancel_queued_reset(struct usb_interface *iface)
 static int usb_probe_interface(struct device *dev)
 {
 	struct usb_driver *driver = to_usb_driver(dev->driver);
-	struct usb_interface *intf;
-	struct usb_device *udev;
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_device *udev = interface_to_usbdev(intf);
 	const struct usb_device_id *id;
 	int error = -ENODEV;
 
 	dev_dbg(dev, "%s\n", __func__);
 
-	if (is_usb_device(dev))		/* Sanity check */
-		return error;
-
-	intf = to_usb_interface(dev);
-	udev = interface_to_usbdev(intf);
 	intf->needs_binding = 0;
 
 	if (udev->authorized == 0) {
@@ -593,7 +583,7 @@ static int usb_device_match(struct device *dev, struct device_driver *drv)
 		/* TODO: Add real matching code */
 		return 1;
 
-	} else {
+	} else if (is_usb_interface(dev)) {
 		struct usb_interface *intf;
 		struct usb_driver *usb_drv;
 		const struct usb_device_id *id;
@@ -625,11 +615,14 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	/* driver is often null here; dev_dbg() would oops */
 	pr_debug("usb %s: uevent\n", dev_name(dev));
 
-	if (is_usb_device(dev))
+	if (is_usb_device(dev)) {
 		usb_dev = to_usb_device(dev);
-	else {
+	} else if (is_usb_interface(dev)) {
 		struct usb_interface *intf = to_usb_interface(dev);
+
 		usb_dev = interface_to_usbdev(intf);
+	} else {
+		return 0;
 	}
 
 	if (usb_dev->devnum < 0) {
