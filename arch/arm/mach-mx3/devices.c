@@ -17,6 +17,7 @@
  * Boston, MA  02110-1301, USA.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/serial.h>
@@ -347,6 +348,32 @@ struct platform_device mx3_fb = {
 	.dev		= {
 		.coherent_dma_mask = 0xffffffff,
        },
+};
+
+static struct resource otg_resources[] = {
+	{
+		.start	= OTG_BASE_ADDR,
+		.end	= OTG_BASE_ADDR + 0x1ff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= MXC_INT_USB3,
+		.end	= MXC_INT_USB3,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 otg_dmamask = DMA_BIT_MASK(32);
+
+/* OTG gadget device */
+struct platform_device mxc_otg_udc_device = {
+	.name		= "fsl-usb2-udc",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &otg_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= otg_resources,
+	.num_resources	= ARRAY_SIZE(otg_resources),
 };
 
 #ifdef CONFIG_ARCH_MX35

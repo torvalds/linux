@@ -31,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
 #include <linux/irq.h>
+#include <linux/fsl_devices.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -129,6 +130,54 @@ static struct resource pcm037_flash_resource = {
 	.start	= 0xa0000000,
 	.end	= 0xa1ffffff,
 	.flags	= IORESOURCE_MEM,
+};
+
+static int usbotg_pins[] = {
+	MX31_PIN_USBOTG_DATA0__USBOTG_DATA0,
+	MX31_PIN_USBOTG_DATA1__USBOTG_DATA1,
+	MX31_PIN_USBOTG_DATA2__USBOTG_DATA2,
+	MX31_PIN_USBOTG_DATA3__USBOTG_DATA3,
+	MX31_PIN_USBOTG_DATA4__USBOTG_DATA4,
+	MX31_PIN_USBOTG_DATA5__USBOTG_DATA5,
+	MX31_PIN_USBOTG_DATA6__USBOTG_DATA6,
+	MX31_PIN_USBOTG_DATA7__USBOTG_DATA7,
+	MX31_PIN_USBOTG_CLK__USBOTG_CLK,
+	MX31_PIN_USBOTG_DIR__USBOTG_DIR,
+	MX31_PIN_USBOTG_NXT__USBOTG_NXT,
+	MX31_PIN_USBOTG_STP__USBOTG_STP,
+};
+
+/* USB OTG HS port */
+static int __init gpio_usbotg_hs_activate(void)
+{
+	int ret = mxc_iomux_setup_multiple_pins(usbotg_pins,
+					ARRAY_SIZE(usbotg_pins), "usbotg");
+
+	if (ret < 0) {
+		printk(KERN_ERR "Cannot set up OTG pins\n");
+		return ret;
+	}
+
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA0, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA1, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA2, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA3, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA4, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA5, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA6, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DATA7, PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_CLK,   PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_DIR,   PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_NXT,   PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+	mxc_iomux_set_pad(MX31_PIN_USBOTG_STP,   PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST);
+
+	return 0;
+}
+
+/* OTG config */
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
 static struct platform_device pcm037_flash = {
@@ -345,6 +394,8 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
+	if (!gpio_usbotg_hs_activate())
+		mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 }
 
 static void __init pcm037_timer_init(void)
