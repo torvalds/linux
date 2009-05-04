@@ -1037,7 +1037,7 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 	}
 	ldev->selfptr_headphone.ptr = ldev;
 	ldev->selfptr_lineout.ptr = ldev;
-	sdev->ofdev.dev.driver_data = ldev;
+	dev_set_drvdata(&sdev->ofdev.dev, ldev);
 	list_add(&ldev->list, &layouts_list);
 	layouts_list_items++;
 
@@ -1081,7 +1081,7 @@ static int aoa_fabric_layout_probe(struct soundbus_dev *sdev)
 
 static int aoa_fabric_layout_remove(struct soundbus_dev *sdev)
 {
-	struct layout_dev *ldev = sdev->ofdev.dev.driver_data;
+	struct layout_dev *ldev = dev_get_drvdata(&sdev->ofdev.dev);
 	int i;
 
 	for (i=0; i<MAX_CODECS_PER_BUS; i++) {
@@ -1114,7 +1114,7 @@ static int aoa_fabric_layout_remove(struct soundbus_dev *sdev)
 #ifdef CONFIG_PM
 static int aoa_fabric_layout_suspend(struct soundbus_dev *sdev, pm_message_t state)
 {
-	struct layout_dev *ldev = sdev->ofdev.dev.driver_data;
+	struct layout_dev *ldev = dev_get_drvdata(&sdev->ofdev.dev);
 
 	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_off)
 		ldev->gpio.methods->all_amps_off(&ldev->gpio);
@@ -1124,7 +1124,7 @@ static int aoa_fabric_layout_suspend(struct soundbus_dev *sdev, pm_message_t sta
 
 static int aoa_fabric_layout_resume(struct soundbus_dev *sdev)
 {
-	struct layout_dev *ldev = sdev->ofdev.dev.driver_data;
+	struct layout_dev *ldev = dev_get_drvdata(&sdev->ofdev.dev);
 
 	if (ldev->gpio.methods && ldev->gpio.methods->all_amps_off)
 		ldev->gpio.methods->all_amps_restore(&ldev->gpio);
