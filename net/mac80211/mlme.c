@@ -2076,10 +2076,6 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata)
 		return 0;
 	} else {
 		if (ifmgd->assoc_scan_tries < IEEE80211_ASSOC_SCANS_MAX_TRIES) {
-			u8 ssid_len = 0;
-
-			if (!(ifmgd->flags & IEEE80211_STA_AUTO_SSID_SEL))
-				ssid_len = ifmgd->ssid_len;
 
 			ifmgd->assoc_scan_tries++;
 
