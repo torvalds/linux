@@ -738,10 +738,18 @@ static void perf_counter_enable(struct perf_counter *counter)
 	spin_unlock_irq(&ctx->lock);
 }
 
-static void perf_counter_refresh(struct perf_counter *counter, int refresh)
+static int perf_counter_refresh(struct perf_counter *counter, int refresh)
 {
+	/*
+	 * not supported on inherited counters
+	 */
+	if (counter->hw_event.inherit)
+		return -EINVAL;
+
 	atomic_add(refresh, &counter->event_limit);
 	perf_counter_enable(counter);
+
+	return 0;
 }
 
 /*
@@ -1307,7 +1315,7 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		perf_counter_disable_family(counter);
 		break;
 	case PERF_COUNTER_IOC_REFRESH:
-		perf_counter_refresh(counter, arg);
+		err = perf_counter_refresh(counter, arg);
 		break;
 	case PERF_COUNTER_IOC_RESET:
 		perf_counter_reset(counter);
@@ -1814,6 +1822,12 @@ static int perf_output_begin(struct perf_output_handle *handle,
 	struct perf_mmap_data *data;
 	unsigned int offset, head;
 
+	/*
+	 * For inherited counters we send all the output towards the parent.
+	 */
+	if (counter->parent)
+		counter = counter->parent;
+
 	rcu_read_lock();
 	data = rcu_dereference(counter->data);
 	if (!data)
@@ -1995,6 +2009,9 @@ static void perf_counter_output(struct perf_counter *counter,
 	if (record_type & PERF_RECORD_ADDR)
 		perf_output_put(&handle, addr);
 
+	/*
+	 * XXX PERF_RECORD_GROUP vs inherited counters seems difficult.
+	 */
 	if (record_type & PERF_RECORD_GROUP) {
 		struct perf_counter *leader, *sub;
 		u64 nr = counter->nr_siblings;
@@ -2280,6 +2297,11 @@ int perf_counter_overflow(struct perf_counter *counter,
 {
 	int events = atomic_read(&counter->event_limit);
 	int ret = 0;
+
+	/*
+	 * XXX event_limit might not quite work as expected on inherited
+	 * counters
+	 */
 
 	counter->pending_kill = POLL_IN;
 	if (events && atomic_dec_and_test(&counter->event_limit)) {
@@ -2800,6 +2822,12 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		counter->state = PERF_COUNTER_STATE_OFF;
 
 	pmu = NULL;
+
+	/*
+	 * we currently do not support PERF_RECORD_GROUP on inherited counters
+	 */
+	if (hw_event->inherit && (hw_event->record_type & PERF_RECORD_GROUP))
+		goto done;
 
 	if (perf_event_raw(hw_event)) {
 		pmu = hw_perf_counter_init(counter);
