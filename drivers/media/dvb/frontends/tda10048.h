@@ -57,6 +57,9 @@ struct tda10048_config {
 #define TDA10048_CLK_4000  4000
 #define TDA10048_CLK_16000 16000
 	u16 clk_freq_khz;
+
+	/* Disable I2C gate access */
+	u8 disable_gate_access;
 };
 
 #if defined(CONFIG_DVB_TDA10048) || \

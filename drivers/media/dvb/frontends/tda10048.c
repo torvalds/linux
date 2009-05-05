@@ -689,6 +689,9 @@ static int tda10048_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	struct tda10048_state *state = fe->demodulator_priv;
 	dprintk(1, "%s(%d)\n", __func__, enable);
 
+	if (state->config->disable_gate_access)
+		return 0;
+
 	if (enable)
 		return tda10048_writereg(state, TDA10048_CONF_C4_1,
 			tda10048_readreg(state, TDA10048_CONF_C4_1) | 0x02);
