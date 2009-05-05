@@ -56,6 +56,7 @@
 #define CS4270_FIRSTREG	0x01
 #define CS4270_LASTREG	0x08
 #define CS4270_NUMREGS	(CS4270_LASTREG - CS4270_FIRSTREG + 1)
+#define CS4270_I2C_INCR	0x80
 
 /* Bit masks for the CS4270 registers */
 #define CS4270_CHIPID_ID	0xF0
@@ -296,7 +297,7 @@ static int cs4270_fill_cache(struct snd_soc_codec *codec)
 	s32 length;
 
 	length = i2c_smbus_read_i2c_block_data(i2c_client,
-		CS4270_FIRSTREG | 0x80, CS4270_NUMREGS, cache);
+		CS4270_FIRSTREG | CS4270_I2C_INCR, CS4270_NUMREGS, cache);
 
 	if (length != CS4270_NUMREGS) {
 		dev_err(codec->dev, "i2c read failure, addr=0x%x\n",
