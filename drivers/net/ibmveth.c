@@ -1255,7 +1255,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 		return -ENOMEM;
 
 	adapter = netdev_priv(netdev);
-	dev->dev.driver_data = netdev;
+	dev_set_drvdata(&dev->dev, netdev);
 
 	adapter->vdev = dev;
 	adapter->netdev = netdev;
@@ -1341,7 +1341,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
 
 static int __devexit ibmveth_remove(struct vio_dev *dev)
 {
-	struct net_device *netdev = dev->dev.driver_data;
+	struct net_device *netdev = dev_get_drvdata(&dev->dev);
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
 	int i;
 
@@ -1474,8 +1474,8 @@ const char * buf, size_t count)
 	struct ibmveth_buff_pool *pool = container_of(kobj,
 						      struct ibmveth_buff_pool,
 						      kobj);
-	struct net_device *netdev =
-	    container_of(kobj->parent, struct device, kobj)->driver_data;
+	struct net_device *netdev = dev_get_drvdata(
+	    container_of(kobj->parent, struct device, kobj));
 	struct ibmveth_adapter *adapter = netdev_priv(netdev);
 	long value = simple_strtol(buf, NULL, 10);
 	long rc;
