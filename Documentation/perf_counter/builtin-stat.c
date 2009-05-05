@@ -87,6 +87,9 @@
 
 #include "perf.h"
 
+#define EVENT_MASK_KERNEL		1
+#define EVENT_MASK_USER			2
+
 static int			system_wide			=  0;
 
 static int			nr_counters			=  0;
@@ -104,6 +107,7 @@ static __u64			event_id[MAX_COUNTERS]		= {
 static int			default_interval = 100000;
 static int			event_count[MAX_COUNTERS];
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+static int			event_mask[MAX_COUNTERS];
 
 static int			tid				= -1;
 static int			profile_cpu			= -1;
@@ -258,12 +262,23 @@ static __u64 match_event_symbols(char *str)
 	__u64 config, id;
 	int type;
 	unsigned int i;
+	char mask_str[4];
 
 	if (sscanf(str, "r%llx", &config) == 1)
 		return config | PERF_COUNTER_RAW_MASK;
 
-	if (sscanf(str, "%d:%llu", &type, &id) == 2)
-		return EID(type, id);
+	switch (sscanf(str, "%d:%llu:%2s", &type, &id, mask_str)) {
+		case 3:
+			if (strchr(mask_str, 'u'))
+				event_mask[nr_counters] |= EVENT_MASK_USER;
+			if (strchr(mask_str, 'k'))
+				event_mask[nr_counters] |= EVENT_MASK_KERNEL;
+		case 2:
+			return EID(type, id);
+
+		default:
+			break;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(event_symbols); i++) {
 		if (!strncmp(str, event_symbols[i].symbol,
@@ -313,6 +328,11 @@ static void create_perfstat_counter(int counter)
 	hw_event.config		= event_id[counter];
 	hw_event.record_type	= 0;
 	hw_event.nmi		= 0;
+	hw_event.exclude_kernel = event_mask[counter] & EVENT_MASK_KERNEL;
+	hw_event.exclude_user   = event_mask[counter] & EVENT_MASK_USER;
+
+printf("exclude: %d\n", event_mask[counter]);
+
 	if (scale)
 		hw_event.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 					  PERF_FORMAT_TOTAL_TIME_RUNNING;

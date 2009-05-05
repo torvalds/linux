@@ -45,7 +45,10 @@ static unsigned int		mmap_pages			= 16;
 static int			output;
 static char 			*output_name			= "output.perf";
 static int			group				= 0;
-static unsigned int		realtime_prio			=  0;
+static unsigned int		realtime_prio			= 0;
+static int			system_wide			= 0;
+static int			inherit				= 1;
+static int			nmi				= 1;
 
 const unsigned int default_count[] = {
 	1000000,
@@ -167,7 +170,7 @@ static void display_events_help(void)
 static void display_help(void)
 {
 	printf(
-	"Usage: perf-record [<options>]\n"
+	"Usage: perf-record [<options>] <cmd>\n"
 	"perf-record Options (up to %d event types can be specified at once):\n\n",
 		 MAX_COUNTERS);
 
@@ -178,12 +181,13 @@ static void display_help(void)
 	" -m pages  --mmap_pages=<pages> # number of mmap data pages\n"
 	" -o file   --output=<file>      # output file\n"
 	" -r prio   --realtime=<prio>    # use RT prio\n"
+	" -s        --system             # system wide profiling\n"
 	);
 
 	exit(0);
 }
 
-static void process_options(int argc, char *argv[])
+static void process_options(int argc, const char *argv[])
 {
 	int error = 0, counter;
 
@@ -196,9 +200,12 @@ static void process_options(int argc, char *argv[])
 			{"mmap_pages",	required_argument,	NULL, 'm'},
 			{"output",	required_argument,	NULL, 'o'},
 			{"realtime",	required_argument,	NULL, 'r'},
+			{"system",	no_argument,		NULL, 's'},
+			{"inherit",	no_argument,		NULL, 'i'},
+			{"nmi",		no_argument,		NULL, 'n'},
 			{NULL,		0,			NULL,  0 }
 		};
-		int c = getopt_long(argc, argv, "+:c:e:m:o:r:",
+		int c = getopt_long(argc, argv, "+:c:e:m:o:r:sin",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -209,9 +216,16 @@ static void process_options(int argc, char *argv[])
 		case 'm': mmap_pages			=   atoi(optarg); break;
 		case 'o': output_name			= strdup(optarg); break;
 		case 'r': realtime_prio			=   atoi(optarg); break;
+		case 's': system_wide                   ^=             1; break;
+		case 'i': inherit			^=	       1; break;
+		case 'n': nmi				^=	       1; break;
 		default: error = 1; break;
 		}
 	}
+
+	if (argc - optind == 0)
+		error = 1;
+
 	if (error)
 		display_help();
 
@@ -325,18 +339,82 @@ static void mmap_read(struct mmap_data *md)
 
 static volatile int done = 0;
 
-static void sigchld_handler(int sig)
+static void sig_handler(int sig)
 {
-	if (sig == SIGCHLD)
-		done = 1;
+	done = 1;
 }
 
-int cmd_record(int argc, char **argv)
+static struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
+static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
+
+static int nr_poll;
+static int nr_cpu;
+
+static void open_counters(int cpu)
 {
-	struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
-	struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 	struct perf_counter_hw_event hw_event;
-	int i, counter, group_fd, nr_poll = 0;
+	int counter, group_fd;
+	int track = 1;
+	pid_t pid = -1;
+
+	if (cpu < 0)
+		pid = 0;
+
+	group_fd = -1;
+	for (counter = 0; counter < nr_counters; counter++) {
+
+		memset(&hw_event, 0, sizeof(hw_event));
+		hw_event.config		= event_id[counter];
+		hw_event.irq_period	= event_count[counter];
+		hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
+		hw_event.nmi		= nmi;
+		hw_event.mmap		= track;
+		hw_event.comm		= track;
+		hw_event.inherit	= (cpu < 0) && inherit;
+
+		track = 0; // only the first counter needs these
+
+		fd[nr_cpu][counter] =
+			sys_perf_counter_open(&hw_event, pid, cpu, group_fd, 0);
+
+		if (fd[nr_cpu][counter] < 0) {
+			int err = errno;
+			printf("kerneltop error: syscall returned with %d (%s)\n",
+					fd[nr_cpu][counter], strerror(err));
+			if (err == EPERM)
+				printf("Are you root?\n");
+			exit(-1);
+		}
+		assert(fd[nr_cpu][counter] >= 0);
+		fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
+
+		/*
+		 * First counter acts as the group leader:
+		 */
+		if (group && group_fd == -1)
+			group_fd = fd[nr_cpu][counter];
+
+		event_array[nr_poll].fd = fd[nr_cpu][counter];
+		event_array[nr_poll].events = POLLIN;
+		nr_poll++;
+
+		mmap_array[nr_cpu][counter].counter = counter;
+		mmap_array[nr_cpu][counter].prev = 0;
+		mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
+		mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
+				PROT_READ, MAP_SHARED, fd[nr_cpu][counter], 0);
+		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
+			printf("kerneltop error: failed to mmap with %d (%s)\n",
+					errno, strerror(errno));
+			exit(-1);
+		}
+	}
+	nr_cpu++;
+}
+
+int cmd_record(int argc, const char **argv)
+{
+	int i, counter;
 	pid_t pid;
 	int ret;
 
@@ -357,54 +435,13 @@ int cmd_record(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	for (i = 0; i < nr_cpus; i++) {
-		group_fd = -1;
-		for (counter = 0; counter < nr_counters; counter++) {
+	if (!system_wide)
+		open_counters(-1);
+	else for (i = 0; i < nr_cpus; i++)
+		open_counters(i);
 
-			memset(&hw_event, 0, sizeof(hw_event));
-			hw_event.config		= event_id[counter];
-			hw_event.irq_period	= event_count[counter];
-			hw_event.record_type	= PERF_RECORD_IP | PERF_RECORD_TID;
-			hw_event.nmi		= 1;
-			hw_event.mmap		= 1;
-			hw_event.comm		= 1;
-
-			fd[i][counter] = sys_perf_counter_open(&hw_event, -1, i, group_fd, 0);
-			if (fd[i][counter] < 0) {
-				int err = errno;
-				printf("kerneltop error: syscall returned with %d (%s)\n",
-					fd[i][counter], strerror(err));
-				if (err == EPERM)
-					printf("Are you root?\n");
-				exit(-1);
-			}
-			assert(fd[i][counter] >= 0);
-			fcntl(fd[i][counter], F_SETFL, O_NONBLOCK);
-
-			/*
-			 * First counter acts as the group leader:
-			 */
-			if (group && group_fd == -1)
-				group_fd = fd[i][counter];
-
-			event_array[nr_poll].fd = fd[i][counter];
-			event_array[nr_poll].events = POLLIN;
-			nr_poll++;
-
-			mmap_array[i][counter].counter = counter;
-			mmap_array[i][counter].prev = 0;
-			mmap_array[i][counter].mask = mmap_pages*page_size - 1;
-			mmap_array[i][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-					PROT_READ, MAP_SHARED, fd[i][counter], 0);
-			if (mmap_array[i][counter].base == MAP_FAILED) {
-				printf("kerneltop error: failed to mmap with %d (%s)\n",
-						errno, strerror(errno));
-				exit(-1);
-			}
-		}
-	}
-
-	signal(SIGCHLD, sigchld_handler);
+	signal(SIGCHLD, sig_handler);
+	signal(SIGINT, sig_handler);
 
 	pid = fork();
 	if (pid < 0)
@@ -434,7 +471,7 @@ int cmd_record(int argc, char **argv)
 	while (!done) {
 		int hits = events;
 
-		for (i = 0; i < nr_cpus; i++) {
+		for (i = 0; i < nr_cpu; i++) {
 			for (counter = 0; counter < nr_counters; counter++)
 				mmap_read(&mmap_array[i][counter]);
 		}

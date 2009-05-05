@@ -33,8 +33,13 @@
 #include <string>
 
 
+#define SHOW_KERNEL	1
+#define SHOW_USER	2
+#define SHOW_HV		4
+
 static char 		const *input_name = "output.perf";
 static int		input;
+static int		show_mask = SHOW_KERNEL | SHOW_USER | SHOW_HV;
 
 static unsigned long	page_size;
 static unsigned long	mmap_window = 32;
@@ -359,15 +364,21 @@ static void process_options(int argc, char *argv[])
 		/** Options for getopt */
 		static struct option long_options[] = {
 			{"input",	required_argument,	NULL, 'i'},
+			{"no-user",	no_argument,		NULL, 'u'},
+			{"no-kernel",	no_argument,		NULL, 'k'},
+			{"no-hv",	no_argument,		NULL, 'h'},
 			{NULL,		0,			NULL,  0 }
 		};
-		int c = getopt_long(argc, argv, "+:i:",
+		int c = getopt_long(argc, argv, "+:i:kuh",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
 
 		switch (c) {
 		case 'i': input_name			= strdup(optarg); break;
+		case 'k': show_mask &= ~SHOW_KERNEL; break;
+		case 'u': show_mask &= ~SHOW_USER; break;
+		case 'h': show_mask &= ~SHOW_HV; break;
 		default: error = 1; break;
 		}
 	}
@@ -443,22 +454,28 @@ more:
 
 	if (event->header.misc & PERF_EVENT_MISC_OVERFLOW) {
 		std::string comm, sym, level;
+		int show = 0;
 		char output[1024];
 
 		if (event->header.misc & PERF_EVENT_MISC_KERNEL) {
+			show |= SHOW_KERNEL;
 			level = " [k] ";
 			sym = resolve_kernel_symbol(event->ip.ip);
 		} else if (event->header.misc & PERF_EVENT_MISC_USER) {
+			show |= SHOW_USER;
 			level = " [.] ";
 			sym = resolve_user_symbol(event->ip.pid, event->ip.ip);
 		} else {
+			show |= SHOW_HV;
 			level = " [H] ";
 		}
-		comm = resolve_comm(event->ip.pid);
 
-		snprintf(output, sizeof(output), "%16s %s %s",
-				comm.c_str(), level.c_str(), sym.c_str());
-		hist[output]++;
+		if (show & show_mask) {
+			comm = resolve_comm(event->ip.pid);
+			snprintf(output, sizeof(output), "%16s %s %s",
+					comm.c_str(), level.c_str(), sym.c_str());
+			hist[output]++;
+		}
 
 		total++;
 
