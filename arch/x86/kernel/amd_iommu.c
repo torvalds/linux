@@ -460,6 +460,24 @@ void amd_iommu_flush_all_domains(void)
 	}
 }
 
+void amd_iommu_flush_all_devices(void)
+{
+	struct amd_iommu *iommu;
+	int i;
+
+	for (i = 0; i <= amd_iommu_last_bdf; ++i) {
+		if (amd_iommu_pd_table[i] == NULL)
+			continue;
+
+		iommu = amd_iommu_rlookup_table[i];
+		if (!iommu)
+			continue;
+
+		iommu_queue_inv_dev_entry(iommu, i);
+		iommu_completion_wait(iommu);
+	}
+}
+
 /****************************************************************************
  *
  * The functions below are used the create the page table mappings for
