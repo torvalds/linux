@@ -262,7 +262,7 @@ static int xc5000_TunerReset(struct dvb_frontend *fe)
 static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 {
 	u8 buf[4];
-	int WatchDogTimer = 5;
+	int WatchDogTimer = 100;
 	int result;
 
 	buf[0] = (regAddr >> 8) & 0xFF;
@@ -284,7 +284,7 @@ static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 						/* busy flag cleared */
 					break;
 					} else {
-						xc_wait(100); /* wait 5 ms */
+						xc_wait(5); /* wait 5 ms */
 						WatchDogTimer--;
 					}
 				}
