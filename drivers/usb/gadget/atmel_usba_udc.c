@@ -1941,7 +1941,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	usba_writel(udc, CTRL, USBA_DISABLE_MASK);
 	clk_disable(pclk);
 
-	usba_ep = kmalloc(sizeof(struct usba_ep) * pdata->num_ep,
+	usba_ep = kzalloc(sizeof(struct usba_ep) * pdata->num_ep,
 			  GFP_KERNEL);
 	if (!usba_ep)
 		goto err_alloc_ep;
