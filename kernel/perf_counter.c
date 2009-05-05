@@ -1409,6 +1409,7 @@ static int perf_mmap_data_alloc(struct perf_counter *counter, int nr_pages)
 	}
 
 	data->nr_pages = nr_pages;
+	atomic_set(&data->lock, -1);
 
 	rcu_assign_pointer(counter->data, data);
 
@@ -1755,7 +1756,7 @@ static void perf_output_lock(struct perf_output_handle *handle)
 	if (in_nmi() && atomic_read(&data->lock) == cpu)
 		return;
 
-	while (atomic_cmpxchg(&data->lock, 0, cpu) != 0)
+	while (atomic_cmpxchg(&data->lock, -1, cpu) != -1)
 		cpu_relax();
 
 	handle->locked = 1;
@@ -1784,7 +1785,7 @@ again:
 	 * NMI can happen here, which means we can miss a done_head update.
 	 */
 
-	cpu = atomic_xchg(&data->lock, 0);
+	cpu = atomic_xchg(&data->lock, -1);
 	WARN_ON_ONCE(cpu != smp_processor_id());
 
 	/*
@@ -1794,7 +1795,7 @@ again:
 		/*
 		 * Since we had it locked, we can lock it again.
 		 */
-		while (atomic_cmpxchg(&data->lock, 0, cpu) != 0)
+		while (atomic_cmpxchg(&data->lock, -1, cpu) != -1)
 			cpu_relax();
 
 		goto again;
