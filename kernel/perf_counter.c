@@ -1288,6 +1288,11 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 	return events;
 }
 
+static void perf_counter_reset(struct perf_counter *counter)
+{
+	atomic_set(&counter->count, 0);
+}
+
 static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct perf_counter *counter = file->private_data;
@@ -1302,6 +1307,9 @@ static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case PERF_COUNTER_IOC_REFRESH:
 		perf_counter_refresh(counter, arg);
+		break;
+	case PERF_COUNTER_IOC_RESET:
+		perf_counter_reset(counter);
 		break;
 	default:
 		err = -ENOTTY;
