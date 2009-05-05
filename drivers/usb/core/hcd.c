@@ -488,28 +488,39 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
 		switch (wValue & 0xff00) {
 		case USB_DT_DEVICE << 8:
-			if (hcd->driver->flags & HCD_USB3)
+			switch (hcd->driver->flags & HCD_MASK) {
+			case HCD_USB3:
 				bufp = usb3_rh_dev_descriptor;
-			else if (hcd->driver->flags & HCD_USB2)
+				break;
+			case HCD_USB2:
 				bufp = usb2_rh_dev_descriptor;
-			else if (hcd->driver->flags & HCD_USB11)
+				break;
+			case HCD_USB11:
 				bufp = usb11_rh_dev_descriptor;
-			else
+				break;
+			default:
 				goto error;
+			}
 			len = 18;
 			if (hcd->has_tt)
 				patch_protocol = 1;
 			break;
 		case USB_DT_CONFIG << 8:
-			if (hcd->driver->flags & HCD_USB3) {
+			switch (hcd->driver->flags & HCD_MASK) {
+			case HCD_USB3:
 				bufp = ss_rh_config_descriptor;
 				len = sizeof ss_rh_config_descriptor;
-			} else if (hcd->driver->flags & HCD_USB2) {
+				break;
+			case HCD_USB2:
 				bufp = hs_rh_config_descriptor;
 				len = sizeof hs_rh_config_descriptor;
-			} else {
+				break;
+			case HCD_USB11:
 				bufp = fs_rh_config_descriptor;
 				len = sizeof fs_rh_config_descriptor;
+				break;
+			default:
+				goto error;
 			}
 			if (device_can_wakeup(&hcd->self.root_hub->dev))
 				patch_wakeup = 1;
