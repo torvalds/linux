@@ -86,7 +86,7 @@ struct _version {
 #define VCAM_SIZE           32
 #define TX_QUEUE_NO         8
 
-#define DEVICE_NAME         "viawget"
+#define DEVICE_NAME         "vt6655"
 #define DEVICE_FULL_DRV_NAM "VIA Networking Solomon-A/B/G Wireless LAN Adapter Driver"
 
 #ifndef MAJOR_VERSION
