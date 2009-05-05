@@ -287,6 +287,7 @@ static struct tda10048_config hauppauge_tda10048_config = {
 	.inversion      = TDA10048_INVERSION_ON,
 	.if_freq_khz    = TDA10048_IF_4300,
 	.clk_freq_khz   = TDA10048_CLK_16000,
+	.disable_gate_access = 1,
 };
 
 static struct tda829x_config tda829x_no_probe = {
