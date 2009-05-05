@@ -300,7 +300,7 @@ int nilfs_mdt_delete_block(struct inode *inode, unsigned long block)
 	int err;
 
 	err = nilfs_bmap_delete(ii->i_bmap, block);
-	if (likely(!err)) {
+	if (!err || err == -ENOENT) {
 		nilfs_mdt_mark_dirty(inode);
 		nilfs_mdt_forget_block(inode, block);
 	}
