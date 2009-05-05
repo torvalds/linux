@@ -210,6 +210,16 @@ struct dev_addr_list
 #define dmi_users	da_users
 #define dmi_gusers	da_gusers
 
+struct netdev_hw_addr {
+	struct list_head	list;
+	unsigned char		addr[MAX_ADDR_LEN];
+	unsigned char		type;
+#define NETDEV_HW_ADDR_T_LAN	1
+#define NETDEV_HW_ADDR_T_SAN	2
+#define NETDEV_HW_ADDR_T_SLAVE	3
+	struct rcu_head		rcu_head;
+};
+
 struct hh_cache
 {
 	struct hh_cache *hh_next;	/* Next entry			     */
@@ -784,8 +794,11 @@ struct net_device
  */
 	unsigned long		last_rx;	/* Time of last Rx	*/
 	/* Interface address info used in eth_type_trans() */
-	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address, (before bcast
-							   because most packets are unicast) */
+	unsigned char		*dev_addr;	/* hw address, (before bcast
+						   because most packets are
+						   unicast) */
+
+	struct list_head	dev_addr_list; /* list of device hw addresses */
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
@@ -1791,6 +1804,13 @@ static inline void netif_addr_unlock_bh(struct net_device *dev)
 	spin_unlock_bh(&dev->addr_list_lock);
 }
 
+/*
+ * dev_addr_list walker. Should be used only for read access. Call with
+ * rcu_read_lock held.
+ */
+#define for_each_dev_addr(dev, ha) \
+		list_for_each_entry_rcu(ha, &dev->dev_addr_list, list)
+
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */
 
 extern void		ether_setup(struct net_device *dev);
@@ -1803,6 +1823,19 @@ extern struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	alloc_netdev_mq(sizeof_priv, name, setup, 1)
 extern int		register_netdev(struct net_device *dev);
 extern void		unregister_netdev(struct net_device *dev);
+
+/* Functions used for device addresses handling */
+extern int dev_addr_add(struct net_device *dev, unsigned char *addr,
+			unsigned char addr_type);
+extern int dev_addr_del(struct net_device *dev, unsigned char *addr,
+			unsigned char addr_type);
+extern int dev_addr_add_multiple(struct net_device *to_dev,
+				 struct net_device *from_dev,
+				 unsigned char addr_type);
+extern int dev_addr_del_multiple(struct net_device *to_dev,
+				 struct net_device *from_dev,
+				 unsigned char addr_type);
+
 /* Functions used for secondary unicast and multicast support */
 extern void		dev_set_rx_mode(struct net_device *dev);
 extern void		__dev_set_rx_mode(struct net_device *dev);
