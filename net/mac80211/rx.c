@@ -2284,6 +2284,34 @@ static inline u16 seq_sub(u16 sq1, u16 sq2)
 }
 
 
+static void ieee80211_release_reorder_frame(struct ieee80211_hw *hw,
+					    struct tid_ampdu_rx *tid_agg_rx,
+					    int index)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *rate;
+	struct ieee80211_rx_status status;
+
+	if (!tid_agg_rx->reorder_buf[index])
+		goto no_frame;
+
+	/* release the reordered frames to stack */
+	memcpy(&status, tid_agg_rx->reorder_buf[index]->cb, sizeof(status));
+	sband = hw->wiphy->bands[status.band];
+	if (status.flag & RX_FLAG_HT)
+		rate = sband->bitrates; /* TODO: HT rates */
+	else
+		rate = &sband->bitrates[status.rate_idx];
+	__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
+				     &status, rate);
+	tid_agg_rx->stored_mpdu_num--;
+	tid_agg_rx->reorder_buf[index] = NULL;
+
+no_frame:
+	tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
+}
+
+
 /*
  * As it function blongs to Rx path it must be called with
  * the proper rcu_read_lock protection for its flow.
@@ -2295,12 +2323,8 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 					   u16 mpdu_seq_num,
 					   int bar_req)
 {
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_rx_status status;
 	u16 head_seq_num, buf_size;
 	int index;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *rate;
 
 	buf_size = tid_agg_rx->buf_size;
 	head_seq_num = tid_agg_rx->head_seq_num;
@@ -2325,28 +2349,8 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 			index = seq_sub(tid_agg_rx->head_seq_num,
 				tid_agg_rx->ssn)
 				% tid_agg_rx->buf_size;
-
-			if (tid_agg_rx->reorder_buf[index]) {
-				/* release the reordered frames to stack */
-				memcpy(&status,
-					tid_agg_rx->reorder_buf[index]->cb,
-					sizeof(status));
-				sband = local->hw.wiphy->bands[status.band];
-				if (status.flag & RX_FLAG_HT) {
-					/* TODO: HT rates */
-					rate = sband->bitrates;
-				} else {
-					rate = &sband->bitrates
-						[status.rate_idx];
-				}
-				__ieee80211_rx_handle_packet(hw,
-					tid_agg_rx->reorder_buf[index],
-					&status, rate);
-				tid_agg_rx->stored_mpdu_num--;
-				tid_agg_rx->reorder_buf[index] = NULL;
-			}
-			tid_agg_rx->head_seq_num =
-				seq_inc(tid_agg_rx->head_seq_num);
+			ieee80211_release_reorder_frame(hw, tid_agg_rx,
+							index);
 		}
 		if (bar_req)
 			return 1;
@@ -2380,19 +2384,7 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 	index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn)
 						% tid_agg_rx->buf_size;
 	while (tid_agg_rx->reorder_buf[index]) {
-		/* release the reordered frame back to stack */
-		memcpy(&status, tid_agg_rx->reorder_buf[index]->cb,
-			sizeof(status));
-		sband = local->hw.wiphy->bands[status.band];
-		if (status.flag & RX_FLAG_HT)
-			rate = sband->bitrates; /* TODO: HT rates */
-		else
-			rate = &sband->bitrates[status.rate_idx];
-		__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
-					     &status, rate);
-		tid_agg_rx->stored_mpdu_num--;
-		tid_agg_rx->reorder_buf[index] = NULL;
-		tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
+		ieee80211_release_reorder_frame(hw, tid_agg_rx, index);
 		index =	seq_sub(tid_agg_rx->head_seq_num,
 			tid_agg_rx->ssn) % tid_agg_rx->buf_size;
 	}
