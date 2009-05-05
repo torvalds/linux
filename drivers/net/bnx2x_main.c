@@ -11630,13 +11630,20 @@ static struct pci_driver bnx2x_pci_driver = {
 
 static int __init bnx2x_init(void)
 {
+	int ret;
+
 	bnx2x_wq = create_singlethread_workqueue("bnx2x");
 	if (bnx2x_wq == NULL) {
 		printk(KERN_ERR PFX "Cannot create workqueue\n");
 		return -ENOMEM;
 	}
 
-	return pci_register_driver(&bnx2x_pci_driver);
+	ret = pci_register_driver(&bnx2x_pci_driver);
+	if (ret) {
+		printk(KERN_ERR PFX "Cannot register driver\n");
+		destroy_workqueue(bnx2x_wq);
+	}
+	return ret;
 }
 
 static void __exit bnx2x_cleanup(void)
