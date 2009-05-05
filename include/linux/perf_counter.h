@@ -358,6 +358,7 @@ struct file;
 struct perf_mmap_data {
 	struct rcu_head			rcu_head;
 	int				nr_pages;	/* nr of data pages  */
+	int				nr_locked;	/* nr pages mlocked  */
 
 	atomic_t			poll;		/* POLL_ for wakeups */
 	atomic_t			head;		/* write position    */
@@ -575,6 +576,7 @@ struct perf_callchain_entry {
 extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
 extern int sysctl_perf_counter_priv;
+extern int sysctl_perf_counter_mlock;
 
 extern void perf_counter_init(void);
 

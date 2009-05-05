@@ -44,6 +44,7 @@ static atomic_t nr_munmap_tracking __read_mostly;
 static atomic_t nr_comm_tracking __read_mostly;
 
 int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
+int sysctl_perf_counter_mlock __read_mostly = 128; /* 'free' kb per counter */
 
 /*
  * Lock for (sysadmin-configurable) counter reservations:
@@ -1461,7 +1462,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 
 	if (atomic_dec_and_mutex_lock(&counter->mmap_count,
 				      &counter->mmap_mutex)) {
-		vma->vm_mm->locked_vm -= counter->data->nr_pages + 1;
+		vma->vm_mm->locked_vm -= counter->data->nr_locked;
 		perf_mmap_data_free(counter);
 		mutex_unlock(&counter->mmap_mutex);
 	}
@@ -1480,6 +1481,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long nr_pages;
 	unsigned long locked, lock_limit;
 	int ret = 0;
+	long extra;
 
 	if (!(vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_WRITE))
 		return -EINVAL;
@@ -1507,8 +1509,12 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		goto unlock;
 	}
 
-	locked = vma->vm_mm->locked_vm;
-	locked += nr_pages + 1;
+	extra = nr_pages /* + 1 only account the data pages */;
+	extra -= sysctl_perf_counter_mlock >> (PAGE_SHIFT - 10);
+	if (extra < 0)
+		extra = 0;
+
+	locked = vma->vm_mm->locked_vm + extra;
 
 	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
 	lock_limit >>= PAGE_SHIFT;
@@ -1524,7 +1530,8 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		goto unlock;
 
 	atomic_set(&counter->mmap_count, 1);
-	vma->vm_mm->locked_vm += nr_pages + 1;
+	vma->vm_mm->locked_vm += extra;
+	counter->data->nr_locked = extra;
 unlock:
 	mutex_unlock(&counter->mmap_mutex);
 

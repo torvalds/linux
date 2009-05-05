@@ -920,6 +920,14 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "perf_counter_mlock_kb",
+		.data		= &sysctl_perf_counter_mlock,
+		.maxlen		= sizeof(sysctl_perf_counter_mlock),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+	},
 #endif
 /*
  * NOTE: do not add new entries to this table unless you have read
