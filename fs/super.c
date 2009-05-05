@@ -399,16 +399,14 @@ void drop_super(struct super_block *sb)
 
 EXPORT_SYMBOL(drop_super);
 
-static inline void write_super(struct super_block *sb)
-{
-	lock_super(sb);
-	if (sb->s_root && sb->s_dirt)
-		if (sb->s_op->write_super)
-			sb->s_op->write_super(sb);
-	unlock_super(sb);
-}
-
-/*
+/**
+ * sync_supers - helper for periodic superblock writeback
+ *
+ * Call the write_super method if present on all dirty superblocks in
+ * the system.  This is for the periodic writeback used by most older
+ * filesystems.  For data integrity superblock writeback use
+ * sync_filesystems() instead.
+ *
  * Note: check the dirty flag before waiting, so we don't
  * hold up the sync while mounting a device. (The newly
  * mounted device won't need syncing.)
@@ -420,12 +418,17 @@ void sync_supers(void)
 	spin_lock(&sb_lock);
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_dirt) {
+		if (sb->s_op->write_super && sb->s_dirt) {
 			sb->s_count++;
 			spin_unlock(&sb_lock);
+
 			down_read(&sb->s_umount);
-			write_super(sb);
+			lock_super(sb);
+			if (sb->s_root && sb->s_dirt)
+				sb->s_op->write_super(sb);
+			unlock_super(sb);
 			up_read(&sb->s_umount);
+
 			spin_lock(&sb_lock);
 			if (__put_super_and_need_restart(sb))
 				goto restart;
