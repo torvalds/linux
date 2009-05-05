@@ -42,8 +42,6 @@ struct netxen_adapter;
 
 void netxen_nic_set_link_parameters(struct netxen_adapter *adapter);
 
-typedef u8 netxen_ethernet_macaddr_t[6];
-
 /* Nibble or Byte mode for phy interface (GbE mode only) */
 
 #define _netxen_crb_get_bit(var, bit)  ((var >> bit) & 0x1)
@@ -394,14 +392,6 @@ int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
 				    u32 mode);
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 				       u32 mode);
-
-/* set the MAC address for a given MAC */
-int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
-			   netxen_ethernet_macaddr_t addr);
-
-/* XG version */
-int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
-			      netxen_ethernet_macaddr_t addr);
 
 /* Generic enable for GbE ports. Will detect the speed of the link. */
 int netxen_niu_gbe_init_port(struct netxen_adapter *adapter, int port);

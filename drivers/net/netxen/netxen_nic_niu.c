@@ -402,76 +402,6 @@ int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 	return 0;
 }
 
-/*
- * Return the current station MAC address.
- * Note that the passed-in value must already be in network byte order.
- */
-static int netxen_niu_macaddr_get(struct netxen_adapter *adapter,
-				  netxen_ethernet_macaddr_t * addr)
-{
-	u32 stationhigh;
-	u32 stationlow;
-	int phy = adapter->physical_port;
-	u8 val[8];
-
-	if (addr == NULL)
-		return -EINVAL;
-	if ((phy < 0) || (phy > 3))
-		return -EINVAL;
-
-	stationhigh = NXRD32(adapter, NETXEN_NIU_GB_STATION_ADDR_0(phy));
-	stationlow = NXRD32(adapter, NETXEN_NIU_GB_STATION_ADDR_1(phy));
-	((__le32 *)val)[1] = cpu_to_le32(stationhigh);
-	((__le32 *)val)[0] = cpu_to_le32(stationlow);
-
-	memcpy(addr, val + 2, 6);
-
-	return 0;
-}
-
-/*
- * Set the station MAC address.
- * Note that the passed-in value must already be in network byte order.
- */
-int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
-			   netxen_ethernet_macaddr_t addr)
-{
-	u8 temp[4];
-	u32 val;
-	int phy = adapter->physical_port;
-	unsigned char mac_addr[6];
-	int i;
-
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		return 0;
-
-	for (i = 0; i < 10; i++) {
-		temp[0] = temp[1] = 0;
-		memcpy(temp + 2, addr, 2);
-		val = le32_to_cpu(*(__le32 *)temp);
-		if (NXWR32(adapter, NETXEN_NIU_GB_STATION_ADDR_1(phy), val))
-			return -EIO;
-
-		memcpy(temp, ((u8 *) addr) + 2, sizeof(__le32));
-		val = le32_to_cpu(*(__le32 *)temp);
-		if (NXWR32(adapter, NETXEN_NIU_GB_STATION_ADDR_0(phy), val))
-			return -2;
-
-		netxen_niu_macaddr_get(adapter,
-				       (netxen_ethernet_macaddr_t *) mac_addr);
-		if (memcmp(mac_addr, addr, 6) == 0)
-			break;
-	}
-
-	if (i == 10) {
-		printk(KERN_ERR "%s: cannot set Mac addr for %s\n",
-		       netxen_nic_driver_name, adapter->netdev->name);
-		printk(KERN_ERR "MAC address set: %pM.\n", addr);
-		printk(KERN_ERR "MAC address get: %pM.\n", mac_addr);
-	}
-	return 0;
-}
-
 /* Disable a GbE interface */
 int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter)
 {
@@ -561,57 +491,6 @@ int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
 	return 0;
 }
 
-/*
- * Set the MAC address for an XG port
- * Note that the passed-in value must already be in network byte order.
- */
-int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
-			      netxen_ethernet_macaddr_t addr)
-{
-	int phy = adapter->physical_port;
-	u8 temp[4];
-	u32 val;
-
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		return 0;
-
-	if ((phy < 0) || (phy > NETXEN_NIU_MAX_XG_PORTS))
-		return -EIO;
-
-	temp[0] = temp[1] = 0;
-	switch (phy) {
-	case 0:
-	    memcpy(temp + 2, addr, 2);
-	    val = le32_to_cpu(*(__le32 *)temp);
-	    if (NXWR32(adapter, NETXEN_NIU_XGE_STATION_ADDR_0_1, val))
-		return -EIO;
-
-	    memcpy(&temp, ((u8 *) addr) + 2, sizeof(__le32));
-	    val = le32_to_cpu(*(__le32 *)temp);
-	    if (NXWR32(adapter, NETXEN_NIU_XGE_STATION_ADDR_0_HI, val))
-		return -EIO;
-	    break;
-
-	case 1:
-	    memcpy(temp + 2, addr, 2);
-	    val = le32_to_cpu(*(__le32 *)temp);
-	    if (NXWR32(adapter, NETXEN_NIU_XG1_STATION_ADDR_0_1, val))
-		return -EIO;
-
-	    memcpy(&temp, ((u8 *) addr) + 2, sizeof(__le32));
-	    val = le32_to_cpu(*(__le32 *)temp);
-	    if (NXWR32(adapter, NETXEN_NIU_XG1_STATION_ADDR_0_HI, val))
-		return -EIO;
-	    break;
-
-	default:
-	    printk(KERN_ERR "Unknown port %d\n", phy);
-	    break;
-	}
-
-	return 0;
-}
-
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 		u32 mode)
 {
@@ -633,6 +512,39 @@ int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
 		reg = (reg & ~0x1000UL);
 
 	NXWR32(adapter, NETXEN_NIU_XGE_CONFIG_1 + (0x10000 * port), reg);
+
+	return 0;
+}
+
+int netxen_p2_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
+{
+	u32 mac_hi, mac_lo;
+	u32 reg_hi, reg_lo;
+
+	u8 phy = adapter->physical_port;
+	u8 phy_count = (adapter->ahw.port_type == NETXEN_NIC_XGBE) ?
+		NETXEN_NIU_MAX_XG_PORTS : NETXEN_NIU_MAX_GBE_PORTS;
+
+	if (phy >= phy_count)
+		return -EINVAL;
+
+	mac_lo = ((u32)addr[0] << 16) | ((u32)addr[1] << 24);
+	mac_hi = addr[2] | ((u32)addr[3] << 8) |
+		((u32)addr[4] << 16) | ((u32)addr[5] << 24);
+
+	if (adapter->ahw.port_type == NETXEN_NIC_XGBE) {
+		reg_lo = NETXEN_NIU_XGE_STATION_ADDR_0_1 + (0x10000 * phy);
+		reg_hi = NETXEN_NIU_XGE_STATION_ADDR_0_HI + (0x10000 * phy);
+	} else {
+		reg_lo = NETXEN_NIU_GB_STATION_ADDR_1(phy);
+		reg_hi = NETXEN_NIU_GB_STATION_ADDR_0(phy);
+	}
+
+	/* write twice to flush */
+	if (NXWR32(adapter, reg_lo, mac_lo) || NXWR32(adapter, reg_hi, mac_hi))
+		return -EIO;
+	if (NXWR32(adapter, reg_lo, mac_lo) || NXWR32(adapter, reg_hi, mac_hi))
+		return -EIO;
 
 	return 0;
 }

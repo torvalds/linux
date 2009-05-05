@@ -321,27 +321,6 @@ static unsigned crb_hub_agt[64] =
 
 #define NETXEN_WINDOW_ONE 	0x2000000 /*CRB Window: bit 25 of CRB address */
 
-int netxen_nic_set_mac(struct net_device *netdev, void *p)
-{
-	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct sockaddr *addr = p;
-
-	if (netif_running(netdev))
-		return -EBUSY;
-
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
-
-	/* For P3, MAC addr is not set in NIU */
-	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
-		if (adapter->macaddr_set)
-			adapter->macaddr_set(adapter, addr->sa_data);
-
-	return 0;
-}
-
 #define NETXEN_UNICAST_ADDR(port, index) \
 	(NETXEN_UNICAST_ADDR_BASE+(port*32)+(index*8))
 #define NETXEN_MCAST_ADDR(port, index) \
@@ -641,6 +620,13 @@ void netxen_p3_free_mac_list(struct netxen_adapter *adapter)
 		list_del(&cur->list);
 		kfree(cur);
 	}
+}
+
+int netxen_p3_nic_set_mac_addr(struct netxen_adapter *adapter, u8 *addr)
+{
+	/* assuming caller has already copied new addr to netdev */
+	netxen_p3_nic_set_multi(adapter->netdev);
+	return 0;
 }
 
 #define	NETXEN_CONFIG_INTR_COALESCE	3

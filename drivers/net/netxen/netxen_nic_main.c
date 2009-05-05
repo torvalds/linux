@@ -442,9 +442,30 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 
 	if (!is_valid_ether_addr(netdev->perm_addr))
 		dev_warn(&pdev->dev, "Bad MAC address %pM.\n", netdev->dev_addr);
-	else
-		adapter->macaddr_set(adapter, netdev->dev_addr);
 
+	return 0;
+}
+
+int netxen_nic_set_mac(struct net_device *netdev, void *p)
+{
+	struct netxen_adapter *adapter = netdev_priv(netdev);
+	struct sockaddr *addr = p;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	if (netif_running(netdev)) {
+		netif_device_detach(netdev);
+		netxen_napi_disable(adapter);
+	}
+
+	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	adapter->macaddr_set(adapter, addr->sa_data);
+
+	if (netif_running(netdev)) {
+		netif_device_attach(netdev);
+		netxen_napi_enable(adapter);
+	}
 	return 0;
 }
 
@@ -452,10 +473,7 @@ static void netxen_set_multicast_list(struct net_device *dev)
 {
 	struct netxen_adapter *adapter = netdev_priv(dev);
 
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		netxen_p3_nic_set_multi(dev);
-	else
-		netxen_p2_nic_set_multi(dev);
+	adapter->set_multi(dev);
 }
 
 static const struct net_device_ops netxen_netdev_ops = {
@@ -782,16 +800,13 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 				netxen_nic_driver_name, adapter->portnum);
 		return err;
 	}
-	adapter->macaddr_set(adapter, netdev->dev_addr);
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+		adapter->macaddr_set(adapter, netdev->dev_addr);
 
-	netxen_nic_set_link_parameters(adapter);
-
-	netxen_set_multicast_list(netdev);
-	if (adapter->set_mtu)
-		adapter->set_mtu(adapter, netdev->mtu);
+	adapter->set_multi(netdev);
+	adapter->set_mtu(adapter, netdev->mtu);
 
 	adapter->ahw.linkup = 0;
-	mod_timer(&adapter->watchdog_timer, jiffies);
 
 	netxen_napi_enable(adapter);
 
@@ -800,6 +815,10 @@ netxen_nic_up(struct netxen_adapter *adapter, struct net_device *netdev)
 
 	if (adapter->capabilities & NX_FW_CAPABILITY_LINK_NOTIFICATION)
 		netxen_linkevent_request(adapter, 1);
+	else
+		netxen_nic_set_link_parameters(adapter);
+
+	mod_timer(&adapter->watchdog_timer, jiffies);
 
 	return 0;
 }

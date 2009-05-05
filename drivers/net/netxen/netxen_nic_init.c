@@ -319,13 +319,15 @@ err_out:
 
 void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 {
+	adapter->macaddr_set = netxen_p2_nic_set_mac_addr;
+	adapter->set_multi = netxen_p2_nic_set_multi;
+
 	switch (adapter->ahw.port_type) {
 	case NETXEN_NIC_GBE:
 		adapter->enable_phy_interrupts =
 		    netxen_niu_gbe_enable_phy_interrupts;
 		adapter->disable_phy_interrupts =
 		    netxen_niu_gbe_disable_phy_interrupts;
-		adapter->macaddr_set = netxen_niu_macaddr_set;
 		adapter->set_mtu = netxen_nic_set_mtu_gb;
 		adapter->set_promisc = netxen_niu_set_promiscuous_mode;
 		adapter->phy_read = netxen_niu_gbe_phy_read;
@@ -339,7 +341,6 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 		    netxen_niu_xgbe_enable_phy_interrupts;
 		adapter->disable_phy_interrupts =
 		    netxen_niu_xgbe_disable_phy_interrupts;
-		adapter->macaddr_set = netxen_niu_xg_macaddr_set;
 		adapter->set_mtu = netxen_nic_set_mtu_xgb;
 		adapter->init_port = netxen_niu_xg_init_port;
 		adapter->set_promisc = netxen_niu_xg_set_promiscuous_mode;
@@ -353,6 +354,8 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		adapter->set_mtu = nx_fw_cmd_set_mtu;
 		adapter->set_promisc = netxen_p3_nic_set_promisc;
+		adapter->macaddr_set = netxen_p3_nic_set_mac_addr;
+		adapter->set_multi = netxen_p3_nic_set_multi;
 	}
 }
 
