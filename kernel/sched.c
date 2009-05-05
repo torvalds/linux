@@ -1954,7 +1954,7 @@ void set_task_cpu(struct task_struct *p, unsigned int new_cpu)
 
 	clock_offset = old_rq->clock - new_rq->clock;
 
-	trace_sched_migrate_task(p, task_cpu(p), new_cpu);
+	trace_sched_migrate_task(p, new_cpu);
 
 #ifdef CONFIG_SCHEDSTATS
 	if (p->se.wait_start)
