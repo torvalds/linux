@@ -2109,12 +2109,58 @@ out_0:
 	return retval;
 }
 
+#ifdef CONFIG_PM
+/* This implementation assumes the devices remains powered on its VDDVARIO
+ * pins during suspend. */
+
+static int smsc911x_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(dev);
+
+	/* enable wake on LAN, energy detection and the external PME
+	 * signal. */
+	smsc911x_reg_write(pdata, PMT_CTRL,
+		PMT_CTRL_PM_MODE_D1_ | PMT_CTRL_WOL_EN_ |
+		PMT_CTRL_ED_EN_ | PMT_CTRL_PME_EN_);
+
+	return 0;
+}
+
+static int smsc911x_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct smsc911x_data *pdata = netdev_priv(dev);
+	unsigned int to = 100;
+
+	/* Note 3.11 from the datasheet:
+	 * 	"When the LAN9220 is in a power saving state, a write of any
+	 * 	 data to the BYTE_TEST register will wake-up the device."
+	 */
+	smsc911x_reg_write(pdata, BYTE_TEST, 0);
+
+	/* poll the READY bit in PMT_CTRL. Any other access to the device is
+	 * forbidden while this bit isn't set. Try for 100ms and return -EIO
+	 * if it failed. */
+	while (!(smsc911x_reg_read(pdata, PMT_CTRL) & PMT_CTRL_READY_) && --to)
+		udelay(1000);
+
+	return (to == 0) ? -EIO : 0;
+}
+
+#else
+#define smsc911x_suspend	NULL
+#define smsc911x_resume		NULL
+#endif
+
 static struct platform_driver smsc911x_driver = {
 	.probe = smsc911x_drv_probe,
 	.remove = smsc911x_drv_remove,
 	.driver = {
 		.name = SMSC_CHIPNAME,
 	},
+	.suspend = smsc911x_suspend,
+	.resume = smsc911x_resume,
 };
 
 /* Entry point for loading the module */
