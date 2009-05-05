@@ -2519,6 +2519,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case SENSOR_MI1320_SOC:
 			cam->cam_mode = bi_mode;
 			cam->nmodes = ARRAY_SIZE(bi_mode);
+			cam->input_flags = V4L2_IN_ST_VFLIP |
+					   V4L2_IN_ST_HFLIP;
 			break;
 		default:
 			cam->cam_mode = vc0323_mode;
