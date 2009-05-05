@@ -636,25 +636,52 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 
 	dprintk(1, "%s() frequency=%d (Hz)\n", __func__, params->frequency);
 
-	switch (params->u.vsb.modulation) {
-	case VSB_8:
-	case VSB_16:
-		dprintk(1, "%s() VSB modulation\n", __func__);
+	if (fe->ops.info.type == FE_ATSC) {
+		dprintk(1, "%s() ATSC\n", __func__);
+		switch (params->u.vsb.modulation) {
+		case VSB_8:
+		case VSB_16:
+			dprintk(1, "%s() VSB modulation\n", __func__);
+			priv->rf_mode = XC_RF_MODE_AIR;
+			priv->freq_hz = params->frequency - 1750000;
+			priv->bandwidth = BANDWIDTH_6_MHZ;
+			priv->video_standard = DTV6;
+			break;
+		case QAM_64:
+		case QAM_256:
+		case QAM_AUTO:
+			dprintk(1, "%s() QAM modulation\n", __func__);
+			priv->rf_mode = XC_RF_MODE_CABLE;
+			priv->freq_hz = params->frequency - 1750000;
+			priv->bandwidth = BANDWIDTH_6_MHZ;
+			priv->video_standard = DTV6;
+			break;
+		default:
+			return -EINVAL;
+		}
+	} else if (fe->ops.info.type == FE_OFDM) {
+		dprintk(1, "%s() OFDM\n", __func__);
+		switch (params->u.ofdm.bandwidth) {
+		case BANDWIDTH_6_MHZ:
+			priv->bandwidth = BANDWIDTH_6_MHZ;
+			priv->video_standard = DTV6;
+			priv->freq_hz = params->frequency - 1750000;
+			break;
+		case BANDWIDTH_7_MHZ:
+			printk(KERN_ERR "xc5000 bandwidth 7MHz not supported\n");
+			return -EINVAL;
+		case BANDWIDTH_8_MHZ:
+			priv->bandwidth = BANDWIDTH_8_MHZ;
+			priv->video_standard = DTV8;
+			priv->freq_hz = params->frequency - 2750000;
+			break;
+		default:
+			printk(KERN_ERR "xc5000 bandwidth not set!\n");
+			return -EINVAL;
+		}
 		priv->rf_mode = XC_RF_MODE_AIR;
-		priv->freq_hz = params->frequency - 1750000;
-		priv->bandwidth = BANDWIDTH_6_MHZ;
-		priv->video_standard = DTV6;
-		break;
-	case QAM_64:
-	case QAM_256:
-	case QAM_AUTO:
-		dprintk(1, "%s() QAM modulation\n", __func__);
-		priv->rf_mode = XC_RF_MODE_CABLE;
-		priv->freq_hz = params->frequency - 1750000;
-		priv->bandwidth = BANDWIDTH_6_MHZ;
-		priv->video_standard = DTV6;
-		break;
-	default:
+	} else {
+		printk(KERN_ERR "xc5000 modulation type not supported!\n");
 		return -EINVAL;
 	}
 
