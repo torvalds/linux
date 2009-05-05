@@ -574,8 +574,6 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 
-	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask_reg = ~I915_INTERRUPT_ENABLE_FIX;
 

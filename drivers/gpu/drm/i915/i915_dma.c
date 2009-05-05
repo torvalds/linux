@@ -1161,8 +1161,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 #endif
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
-	if (IS_GM45(dev))
+	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
+	if (IS_G4X(dev)) {
+		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
+	}
 
 	i915_gem_load(dev);
 
