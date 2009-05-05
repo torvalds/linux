@@ -447,14 +447,6 @@ static int __init pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-/* the next one is stolen from the alpha port... */
-void __init
-pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-	/* XXX FIXME - update OF device tree node interrupt property */
-}
-
 static struct pci_controller*
 pci_bus_to_hose(int bus)
 {

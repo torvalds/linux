@@ -86,17 +86,12 @@ struct pci_controller {
 	void *io_base_alloc;
 #endif
 	resource_size_t io_base_phys;
-#ifndef CONFIG_PPC64
 	resource_size_t pci_io_size;
-#endif
 
 	/* Some machines (PReP) have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
 	resource_size_t pci_mem_offset;
-#ifdef CONFIG_PPC64
-	unsigned long pci_io_size;
-#endif
 
 	/* Some machines have a special region to forward the ISA
 	 * "memory" cycles such as VGA memory regions. Left to 0
@@ -187,7 +182,6 @@ extern int early_find_capability(struct pci_controller *hose, int bus,
 extern void setup_indirect_pci(struct pci_controller* hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
-extern void setup_grackle(struct pci_controller *hose);
 #else	/* CONFIG_PPC64 */
 
 /*
