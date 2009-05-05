@@ -822,7 +822,6 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct ieee80211_tx_info *info;
 	struct p54_tx_info *range;
 	unsigned long flags;
-	u32 freed = 0, last_addr = priv->rx_start;
 
 	if (unlikely(!skb || !dev || !skb_queue_len(&priv->tx_queue)))
 		return;
@@ -842,7 +841,6 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 		ni = IEEE80211_SKB_CB(skb->prev);
 		mr = (struct p54_tx_info *)ni->rate_driver_data;
-		last_addr = mr->end_addr;
 	}
 	if (skb->next != (struct sk_buff *)&priv->tx_queue) {
 		struct ieee80211_tx_info *ni;
@@ -850,16 +848,11 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 		ni = IEEE80211_SKB_CB(skb->next);
 		mr = (struct p54_tx_info *)ni->rate_driver_data;
-		freed = mr->start_addr - last_addr;
-	} else
-		freed = priv->rx_end - last_addr;
+	}
 	__skb_unlink(skb, &priv->tx_queue);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 	dev_kfree_skb_any(skb);
-
-	if (freed >= priv->headroom + sizeof(struct p54_hdr) + 48 +
-		     IEEE80211_MAX_RTS_THRESHOLD + priv->tailroom)
-		p54_wake_free_queues(dev);
+	p54_wake_free_queues(dev);
 }
 EXPORT_SYMBOL_GPL(p54_free_skb);
 
@@ -893,8 +886,6 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct sk_buff *entry;
 	u32 addr = le32_to_cpu(hdr->req_id) - priv->headroom;
 	struct p54_tx_info *range = NULL;
-	u32 freed = 0;
-	u32 last_addr = priv->rx_start;
 	unsigned long flags;
 	int count, idx;
 
@@ -908,7 +899,6 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 		range = (void *)info->rate_driver_data;
 		if (range->start_addr != addr) {
-			last_addr = range->end_addr;
 			entry = entry->next;
 			continue;
 		}
@@ -919,11 +909,8 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 			ni = IEEE80211_SKB_CB(entry->next);
 			mr = (struct p54_tx_info *)ni->rate_driver_data;
-			freed = mr->start_addr - last_addr;
-		} else
-			freed = priv->rx_end - last_addr;
+		}
 
-		last_addr = range->end_addr;
 		__skb_unlink(entry, &priv->tx_queue);
 		spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
@@ -1010,9 +997,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
 out:
-	if (freed >= priv->headroom + sizeof(struct p54_hdr) + 48 +
-		     IEEE80211_MAX_RTS_THRESHOLD + priv->tailroom)
-		p54_wake_free_queues(dev);
+	p54_wake_free_queues(dev);
 }
 
 static void p54_rx_eeprom_readback(struct ieee80211_hw *dev,
