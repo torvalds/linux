@@ -96,7 +96,7 @@ static bool ima_match_rules(struct ima_measure_rule_entry *rule,
 	if ((rule->flags & IMA_UID) && rule->uid != tsk->cred->uid)
 		return false;
 	for (i = 0; i < MAX_LSM_RULES; i++) {
-		int rc;
+		int rc = 0;
 		u32 osid, sid;
 
 		if (!rule->lsm[i].rule)
@@ -109,7 +109,7 @@ static bool ima_match_rules(struct ima_measure_rule_entry *rule,
 			security_inode_getsecid(inode, &osid);
 			rc = security_filter_rule_match(osid,
 							rule->lsm[i].type,
-							AUDIT_EQUAL,
+							Audit_equal,
 							rule->lsm[i].rule,
 							NULL);
 			break;
@@ -119,7 +119,7 @@ static bool ima_match_rules(struct ima_measure_rule_entry *rule,
 			security_task_getsecid(tsk, &sid);
 			rc = security_filter_rule_match(sid,
 							rule->lsm[i].type,
-							AUDIT_EQUAL,
+							Audit_equal,
 							rule->lsm[i].rule,
 							NULL);
 		default:
@@ -227,7 +227,7 @@ static int ima_lsm_rule_init(struct ima_measure_rule_entry *entry,
 
 	entry->lsm[lsm_rule].type = audit_type;
 	result = security_filter_rule_init(entry->lsm[lsm_rule].type,
-					   AUDIT_EQUAL, args,
+					   Audit_equal, args,
 					   &entry->lsm[lsm_rule].rule);
 	return result;
 }
