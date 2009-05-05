@@ -5277,6 +5277,7 @@ L:	alsa-devel@alsa-project.org (subscribers-only)
 W:	http://alsa-project.org/main/index.php/ASoC
 S:	Supported
 F:	sound/soc/
+F:	include/sound/soc*
 
 SPARC + UltraSPARC (sparc/sparc64)
 P:	David S. Miller
