@@ -1696,7 +1696,6 @@ struct perf_output_handle {
 	struct perf_mmap_data	*data;
 	unsigned int		offset;
 	unsigned int		head;
-	int			wakeup;
 	int			nmi;
 	int			overflow;
 	int			locked;
@@ -1752,8 +1751,7 @@ static void perf_output_unlock(struct perf_output_handle *handle)
 	struct perf_mmap_data *data = handle->data;
 	int head, cpu;
 
-	if (handle->wakeup)
-		data->wakeup_head = data->head;
+	data->done_head = data->head;
 
 	if (!handle->locked)
 		goto out;
@@ -1764,13 +1762,11 @@ again:
 	 * before we publish the new head, matched by a rmb() in userspace when
 	 * reading this position.
 	 */
-	while ((head = atomic_xchg(&data->wakeup_head, 0))) {
+	while ((head = atomic_xchg(&data->done_head, 0)))
 		data->user_page->data_head = head;
-		handle->wakeup = 1;
-	}
 
 	/*
-	 * NMI can happen here, which means we can miss a wakeup_head update.
+	 * NMI can happen here, which means we can miss a done_head update.
 	 */
 
 	cpu = atomic_xchg(&data->lock, 0);
@@ -1779,7 +1775,7 @@ again:
 	/*
 	 * Therefore we have to validate we did not indeed do so.
 	 */
-	if (unlikely(atomic_read(&data->wakeup_head))) {
+	if (unlikely(atomic_read(&data->done_head))) {
 		/*
 		 * Since we had it locked, we can lock it again.
 		 */
@@ -1789,7 +1785,7 @@ again:
 		goto again;
 	}
 
-	if (handle->wakeup)
+	if (atomic_xchg(&data->wakeup, 0))
 		perf_output_wakeup(handle);
 out:
 	local_irq_restore(handle->flags);
@@ -1824,7 +1820,9 @@ static int perf_output_begin(struct perf_output_handle *handle,
 
 	handle->offset	= offset;
 	handle->head	= head;
-	handle->wakeup	= (offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT);
+
+	if ((offset >> PAGE_SHIFT) != (head >> PAGE_SHIFT))
+		atomic_set(&data->wakeup, 1);
 
 	return 0;
 
@@ -1882,7 +1880,7 @@ static void perf_output_end(struct perf_output_handle *handle)
 		int events = atomic_inc_return(&data->events);
 		if (events >= wakeup_events) {
 			atomic_sub(wakeup_events, &data->events);
-			handle->wakeup = 1;
+			atomic_set(&data->wakeup, 1);
 		}
 	}
 

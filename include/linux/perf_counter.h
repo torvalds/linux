@@ -362,8 +362,10 @@ struct perf_mmap_data {
 	atomic_t			head;		/* write position    */
 	atomic_t			events;		/* event limit       */
 
-	atomic_t			wakeup_head;	/* completed head    */
+	atomic_t			done_head;	/* completed head    */
 	atomic_t			lock;		/* concurrent writes */
+
+	atomic_t			wakeup;		/* needs a wakeup    */
 
 	struct perf_counter_mmap_page   *user_page;
 	void 				*data_pages[0];
