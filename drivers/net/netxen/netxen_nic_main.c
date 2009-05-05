@@ -809,6 +809,7 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 {
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
+	smp_mb();
 	netxen_napi_disable(adapter);
 
 	if (adapter->stop_port)
@@ -1340,7 +1341,7 @@ netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	producer = tx_ring->producer;
 	smp_mb();
 	consumer = tx_ring->sw_consumer;
-	if ((no_of_desc+2) > find_diff_among(producer, consumer, num_txd)) {
+	if ((no_of_desc+2) >= find_diff_among(producer, consumer, num_txd)) {
 		netif_stop_queue(netdev);
 		smp_mb();
 		return NETDEV_TX_BUSY;

@@ -1319,10 +1319,11 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter)
 			break;
 	}
 
-	if (count) {
-		tx_ring->sw_consumer = sw_consumer;
+	tx_ring->sw_consumer = sw_consumer;
+
+	if (count && netif_running(netdev)) {
 		smp_mb();
-		if (netif_queue_stopped(netdev) && netif_running(netdev)) {
+		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev)) {
 			netif_tx_lock(netdev);
 			netif_wake_queue(netdev);
 			smp_mb();
@@ -1450,7 +1451,6 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 		rds_ring->producer = producer;
 		NXWR32(adapter, rds_ring->crb_rcv_producer,
 				(producer - 1) & (rds_ring->num_desc - 1));
-			wmb();
 	}
 	spin_unlock(&rds_ring->lock);
 }

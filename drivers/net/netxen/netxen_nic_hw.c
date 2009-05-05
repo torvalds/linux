@@ -526,7 +526,7 @@ netxen_send_cmd_descs(struct netxen_adapter *adapter,
 	producer = tx_ring->producer;
 	consumer = tx_ring->sw_consumer;
 
-	if (nr_desc > find_diff_among(producer, consumer, tx_ring->num_desc)) {
+	if (nr_desc >= find_diff_among(producer, consumer, tx_ring->num_desc)) {
 		netif_tx_unlock_bh(adapter->netdev);
 		return -EBUSY;
 	}
@@ -752,7 +752,7 @@ int netxen_linkevent_request(struct netxen_adapter *adapter, int enable)
 
 	word = NX_NIC_H2C_OPCODE_GET_LINKEVENT | ((u64)adapter->portnum << 16);
 	req.req_hdr = cpu_to_le64(word);
-	req.words[0] = cpu_to_le64(enable);
+	req.words[0] = cpu_to_le64(enable | (enable << 8));
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
