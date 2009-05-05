@@ -454,6 +454,7 @@ config ARCH_MXC
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_CLK
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
