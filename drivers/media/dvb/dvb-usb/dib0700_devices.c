@@ -1346,9 +1346,9 @@ static int dib0700_xc5000_tuner_callback(void *priv, int component,
 	if (command == XC5000_TUNER_RESET) {
 		/* Reset the tuner */
 		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 0);
-		msleep(330); /* from Windows USB trace */
+		msleep(10);
 		dib0700_set_gpio(adap->dev, GPIO1, GPIO_OUT, 1);
-		msleep(330); /* from Windows USB trace */
+		msleep(10);
 	} else {
 		err("xc5000: unknown tuner callback command: %d\n", command);
 		return -EINVAL;
