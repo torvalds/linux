@@ -915,11 +915,10 @@ static inline u32 rt2x00_rev(const struct rt2x00_chip *chipset)
 	return chipset->rev;
 }
 
-static inline u16 rt2x00_check_rev(const struct rt2x00_chip *chipset,
-				   const u32 rev)
+static inline bool rt2x00_check_rev(const struct rt2x00_chip *chipset,
+				    const u32 mask, const u32 rev)
 {
-	return (((chipset->rev & 0xffff0) == rev) &&
-		!!(chipset->rev & 0x0000f));
+	return ((chipset->rev & mask) == rev);
 }
 
 /**

@@ -2348,9 +2348,10 @@ static int rt2800usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * The check for rt2860 is not a typo, some rt2870 hardware
 	 * identifies itself as rt2860 in the CSR register.
 	 */
-	if ((rt2x00_get_field32(reg, MAC_CSR0_ASIC_VER) != 0x2860) &&
-	    (rt2x00_get_field32(reg, MAC_CSR0_ASIC_VER) != 0x2870) &&
-	    (rt2x00_get_field32(reg, MAC_CSR0_ASIC_VER) != 0x3070)) {
+	if (!rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28600000) &&
+	    !rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28700000) &&
+	    !rt2x00_check_rev(&rt2x00dev->chip, 0xfff00000, 0x28800000) &&
+	    !rt2x00_check_rev(&rt2x00dev->chip, 0xffff0000, 0x30700000)) {
 		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
 		return -ENODEV;
 	}
