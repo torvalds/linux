@@ -841,7 +841,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 	if (!dentry->d_inode)
 		return -EINVAL;
 
-	if (!reiserfs_xattrs(dentry->d_sb) ||
+	if (!dentry->d_sb->s_xattr ||
 	    get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
