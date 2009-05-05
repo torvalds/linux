@@ -387,8 +387,11 @@ tape_cleanup_device(struct tape_device *device)
  * Manual offline is only allowed while the drive is not in use.
  */
 int
-tape_generic_offline(struct tape_device *device)
+tape_generic_offline(struct ccw_device *cdev)
 {
+	struct tape_device *device;
+
+	device = cdev->dev.driver_data;
 	if (!device) {
 		return -ENODEV;
 	}

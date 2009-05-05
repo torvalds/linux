@@ -2019,15 +2019,23 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 				ccw++;
 				recid += count;
 				new_track = 0;
+				/* first idaw for a ccw may start anywhere */
+				if (!idaw_dst)
+					idaw_dst = dst;
 			}
-			/* If we start a new idaw, everything is fine and the
-			 * start of the new idaw is the start of this segment.
+			/* If we start a new idaw, we must make sure that it
+			 * starts on an IDA_BLOCK_SIZE boundary.
 			 * If we continue an idaw, we must make sure that the
 			 * current segment begins where the so far accumulated
 			 * idaw ends
 			 */
-			if (!idaw_dst)
-				idaw_dst = dst;
+			if (!idaw_dst) {
+				if (__pa(dst) & (IDA_BLOCK_SIZE-1)) {
+					dasd_sfree_request(cqr, startdev);
+					return ERR_PTR(-ERANGE);
+				} else
+					idaw_dst = dst;
+			}
 			if ((idaw_dst + idaw_len) != dst) {
 				dasd_sfree_request(cqr, startdev);
 				return ERR_PTR(-ERANGE);

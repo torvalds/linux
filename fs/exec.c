@@ -1060,7 +1060,6 @@ EXPORT_SYMBOL(install_exec_creds);
 int check_unsafe_exec(struct linux_binprm *bprm)
 {
 	struct task_struct *p = current, *t;
-	unsigned long flags;
 	unsigned n_fs;
 	int res = 0;
 
@@ -1068,21 +1067,22 @@ int check_unsafe_exec(struct linux_binprm *bprm)
 
 	n_fs = 1;
 	write_lock(&p->fs->lock);
-	lock_task_sighand(p, &flags);
+	rcu_read_lock();
 	for (t = next_thread(p); t != p; t = next_thread(t)) {
 		if (t->fs == p->fs)
 			n_fs++;
 	}
+	rcu_read_unlock();
 
 	if (p->fs->users > n_fs) {
 		bprm->unsafe |= LSM_UNSAFE_SHARE;
 	} else {
-		if (p->fs->in_exec)
-			res = -EAGAIN;
-		p->fs->in_exec = 1;
+		res = -EAGAIN;
+		if (!p->fs->in_exec) {
+			p->fs->in_exec = 1;
+			res = 1;
+		}
 	}
-
-	unlock_task_sighand(p, &flags);
 	write_unlock(&p->fs->lock);
 
 	return res;
@@ -1284,6 +1284,7 @@ int do_execve(char * filename,
 	struct linux_binprm *bprm;
 	struct file *file;
 	struct files_struct *displaced;
+	bool clear_in_exec;
 	int retval;
 
 	retval = unshare_files(&displaced);
@@ -1306,8 +1307,9 @@ int do_execve(char * filename,
 		goto out_unlock;
 
 	retval = check_unsafe_exec(bprm);
-	if (retval)
+	if (retval < 0)
 		goto out_unlock;
+	clear_in_exec = retval;
 
 	file = open_exec(filename);
 	retval = PTR_ERR(file);
@@ -1355,9 +1357,7 @@ int do_execve(char * filename,
 		goto out;
 
 	/* execve succeeded */
-	write_lock(&current->fs->lock);
 	current->fs->in_exec = 0;
-	write_unlock(&current->fs->lock);
 	current->in_execve = 0;
 	mutex_unlock(&current->cred_exec_mutex);
 	acct_update_integrals(current);
@@ -1377,9 +1377,8 @@ out_file:
 	}
 
 out_unmark:
-	write_lock(&current->fs->lock);
-	current->fs->in_exec = 0;
-	write_unlock(&current->fs->lock);
+	if (clear_in_exec)
+		current->fs->in_exec = 0;
 
 out_unlock:
 	current->in_execve = 0;

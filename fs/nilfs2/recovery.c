@@ -413,7 +413,6 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	struct nilfs_segment_entry *ent, *n;
 	struct inode *sufile = nilfs->ns_sufile;
 	__u64 segnum[4];
-	time_t mtime;
 	int err;
 	int i;
 
@@ -442,24 +441,13 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	 * Collecting segments written after the latest super root.
 	 * These are marked dirty to avoid being reallocated in the next write.
 	 */
-	mtime = get_seconds();
 	list_for_each_entry_safe(ent, n, head, list) {
-		if (ent->segnum == segnum[0]) {
-			list_del(&ent->list);
-			nilfs_free_segment_entry(ent);
-			continue;
-		}
-		err = nilfs_open_segment_entry(ent, sufile);
-		if (unlikely(err))
-			goto failed;
-		if (!nilfs_segment_usage_dirty(ent->raw_su)) {
-			/* make the segment garbage */
-			ent->raw_su->su_nblocks = cpu_to_le32(0);
-			ent->raw_su->su_lastmod = cpu_to_le32(mtime);
-			nilfs_segment_usage_set_dirty(ent->raw_su);
+		if (ent->segnum != segnum[0]) {
+			err = nilfs_sufile_scrap(sufile, ent->segnum);
+			if (unlikely(err))
+				goto failed;
 		}
 		list_del(&ent->list);
-		nilfs_close_segment_entry(ent, sufile);
 		nilfs_free_segment_entry(ent);
 	}
 

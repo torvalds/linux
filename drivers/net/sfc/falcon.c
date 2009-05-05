@@ -1176,9 +1176,9 @@ void falcon_sim_phy_event(struct efx_nic *efx)
 
 	EFX_POPULATE_QWORD_1(phy_event, EV_CODE, GLOBAL_EV_DECODE);
 	if (EFX_IS10G(efx))
-		EFX_SET_OWORD_FIELD(phy_event, XG_PHY_INTR, 1);
+		EFX_SET_QWORD_FIELD(phy_event, XG_PHY_INTR, 1);
 	else
-		EFX_SET_OWORD_FIELD(phy_event, G_PHY0_INTR, 1);
+		EFX_SET_QWORD_FIELD(phy_event, G_PHY0_INTR, 1);
 
 	falcon_generate_event(&efx->channel[0], &phy_event);
 }

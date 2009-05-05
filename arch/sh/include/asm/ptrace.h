@@ -9,7 +9,7 @@
 struct pt_regs {
 	unsigned long long pc;
 	unsigned long long sr;
-	unsigned long long syscall_nr;
+	long long syscall_nr;
 	unsigned long long regs[63];
 	unsigned long long tregs[8];
 	unsigned long long pad[2];

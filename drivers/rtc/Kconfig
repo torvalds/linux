@@ -573,7 +573,7 @@ config RTC_DRV_SA1100
 
 config RTC_DRV_SH
 	tristate "SuperH On-Chip RTC"
-	depends on RTC_CLASS && SUPERH
+	depends on RTC_CLASS && SUPERH && HAVE_CLK
 	help
 	  Say Y here to enable support for the on-chip RTC found in
 	  most SuperH processors.

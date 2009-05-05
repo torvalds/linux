@@ -563,7 +563,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 	case ACE_FSM_STATE_IDENTIFY_PREPARE:
 		/* Send identify command */
 		ace->fsm_task = ACE_TASK_IDENTIFY;
-		ace->data_ptr = &ace->cf_id;
+		ace->data_ptr = ace->cf_id;
 		ace->data_count = ACE_BUF_PER_SECTOR;
 		ace_out(ace, ACE_SECCNTCMD, ACE_SECCNTCMD_IDENTIFY);
 
@@ -608,8 +608,8 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		break;
 
 	case ACE_FSM_STATE_IDENTIFY_COMPLETE:
-		ace_fix_driveid(&ace->cf_id[0]);
-		ace_dump_mem(&ace->cf_id, 512);	/* Debug: Dump out disk ID */
+		ace_fix_driveid(ace->cf_id);
+		ace_dump_mem(ace->cf_id, 512);	/* Debug: Dump out disk ID */
 
 		if (ace->data_result) {
 			/* Error occured, disable the disk */
@@ -622,9 +622,9 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 			/* Record disk parameters */
 			set_capacity(ace->gd,
-				ata_id_u32(&ace->cf_id, ATA_ID_LBA_CAPACITY));
+				ata_id_u32(ace->cf_id, ATA_ID_LBA_CAPACITY));
 			dev_info(ace->dev, "capacity: %i sectors\n",
-				ata_id_u32(&ace->cf_id, ATA_ID_LBA_CAPACITY));
+				ata_id_u32(ace->cf_id, ATA_ID_LBA_CAPACITY));
 		}
 
 		/* We're done, drop to IDLE state and notify waiters */
@@ -923,7 +923,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
 	struct ace_device *ace = bdev->bd_disk->private_data;
-	u16 *cf_id = &ace->cf_id[0];
+	u16 *cf_id = ace->cf_id;
 
 	dev_dbg(ace->dev, "ace_getgeo()\n");
 

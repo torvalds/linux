@@ -289,8 +289,8 @@ static inline __le32 get_crc_value(struct nes_v4_quad *nes_quad)
 static inline void
 set_wqe_64bit_value(__le32 *wqe_words, u32 index, u64 value)
 {
-	wqe_words[index]     = cpu_to_le32((u32) ((unsigned long)value));
-	wqe_words[index + 1] = cpu_to_le32((u32)(upper_32_bits((unsigned long)value)));
+	wqe_words[index]     = cpu_to_le32((u32) value);
+	wqe_words[index + 1] = cpu_to_le32(upper_32_bits(value));
 }
 
 static inline void

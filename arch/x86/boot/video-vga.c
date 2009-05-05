@@ -129,22 +129,18 @@ u16 vga_crtc(void)
 	return (inb(0x3cc) & 1) ? 0x3d4 : 0x3b4;
 }
 
-static void vga_set_480_scanlines(int lines)
+static void vga_set_480_scanlines(void)
 {
 	u16 crtc;		/* CRTC base address */
 	u8  csel;		/* CRTC miscellaneous output register */
-	u8  ovfw;		/* CRTC overflow register */
-	int end = lines-1;
 
 	crtc = vga_crtc();
 
-	ovfw = 0x3c | ((end >> (8-1)) & 0x02) | ((end >> (9-6)) & 0x40);
-
 	out_idx(0x0c, crtc, 0x11); /* Vertical sync end, unlock CR0-7 */
 	out_idx(0x0b, crtc, 0x06); /* Vertical total */
-	out_idx(ovfw, crtc, 0x07); /* Vertical overflow */
+	out_idx(0x3e, crtc, 0x07); /* Vertical overflow */
 	out_idx(0xea, crtc, 0x10); /* Vertical sync start */
-	out_idx(end,  crtc, 0x12); /* Vertical display end */
+	out_idx(0xdf, crtc, 0x12); /* Vertical display end */
 	out_idx(0xe7, crtc, 0x15); /* Vertical blank start */
 	out_idx(0x04, crtc, 0x16); /* Vertical blank end */
 	csel = inb(0x3cc);
@@ -153,21 +149,38 @@ static void vga_set_480_scanlines(int lines)
 	outb(csel, 0x3c2);
 }
 
+static void vga_set_vertical_end(int lines)
+{
+	u16 crtc;		/* CRTC base address */
+	u8  ovfw;		/* CRTC overflow register */
+	int end = lines-1;
+
+	crtc = vga_crtc();
+
+	ovfw = 0x3c | ((end >> (8-1)) & 0x02) | ((end >> (9-6)) & 0x40);
+
+	out_idx(ovfw, crtc, 0x07); /* Vertical overflow */
+	out_idx(end,  crtc, 0x12); /* Vertical display end */
+}
+
 static void vga_set_80x30(void)
 {
-	vga_set_480_scanlines(30*16);
+	vga_set_480_scanlines();
+	vga_set_vertical_end(30*16);
 }
 
 static void vga_set_80x34(void)
 {
+	vga_set_480_scanlines();
 	vga_set_14font();
-	vga_set_480_scanlines(34*14);
+	vga_set_vertical_end(34*14);
 }
 
 static void vga_set_80x60(void)
 {
+	vga_set_480_scanlines();
 	vga_set_8font();
-	vga_set_480_scanlines(60*8);
+	vga_set_vertical_end(60*8);
 }
 
 static int vga_set_mode(struct mode_info *mode)

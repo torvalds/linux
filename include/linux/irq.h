@@ -487,6 +487,16 @@ static inline void init_copy_desc_masks(struct irq_desc *old_desc,
 #endif
 }
 
+static inline void free_desc_masks(struct irq_desc *old_desc,
+				   struct irq_desc *new_desc)
+{
+	free_cpumask_var(old_desc->affinity);
+
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+	free_cpumask_var(old_desc->pending_mask);
+#endif
+}
+
 #else /* !CONFIG_SMP */
 
 static inline bool init_alloc_desc_masks(struct irq_desc *desc, int cpu,
@@ -500,6 +510,10 @@ static inline void init_copy_desc_masks(struct irq_desc *old_desc,
 {
 }
 
+static inline void free_desc_masks(struct irq_desc *old_desc,
+				   struct irq_desc *new_desc)
+{
+}
 #endif	/* CONFIG_SMP */
 
 #endif /* _LINUX_IRQ_H */

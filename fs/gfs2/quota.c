@@ -81,7 +81,7 @@ struct gfs2_quota_change_host {
 
 static LIST_HEAD(qd_lru_list);
 static atomic_t qd_lru_count = ATOMIC_INIT(0);
-static spinlock_t qd_lru_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(qd_lru_lock);
 
 int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask)
 {
@@ -1364,7 +1364,7 @@ int gfs2_quotad(void *data)
 			refrigerator();
 		t = min(quotad_timeo, statfs_timeo);
 
-		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_UNINTERRUPTIBLE);
+		prepare_to_wait(&sdp->sd_quota_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_lock(&sdp->sd_trunc_lock);
 		empty = list_empty(&sdp->sd_trunc_list);
 		spin_unlock(&sdp->sd_trunc_lock);

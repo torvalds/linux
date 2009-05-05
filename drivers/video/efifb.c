@@ -210,12 +210,15 @@ static int __init efifb_probe(struct platform_device *dev)
 	unsigned int size_total;
 	int request_succeeded = 0;
 
-	printk(KERN_INFO "efifb: probing for efifb\n");
-
 	if (!screen_info.lfb_depth)
 		screen_info.lfb_depth = 32;
 	if (!screen_info.pages)
 		screen_info.pages = 1;
+	if (!screen_info.lfb_base) {
+		printk(KERN_DEBUG "efifb: invalid framebuffer address\n");
+		return -ENODEV;
+	}
+	printk(KERN_INFO "efifb: probing for efifb\n");
 
 	/* just assume they're all unset if any are */
 	if (!screen_info.blue_size) {

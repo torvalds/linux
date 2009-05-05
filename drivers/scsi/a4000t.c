@@ -129,7 +129,7 @@ static int __init a4000t_scsi_init(void)
 	a4000t_scsi_device = platform_device_register_simple("a4000t-scsi",
 			-1, NULL, 0);
 	if (IS_ERR(a4000t_scsi_device)) {
-		platform_driver_register(&a4000t_scsi_driver);
+		platform_driver_unregister(&a4000t_scsi_driver);
 		return PTR_ERR(a4000t_scsi_device);
 	}
 

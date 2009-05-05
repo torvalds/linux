@@ -79,6 +79,7 @@ module_param(brightness_switch_enabled, bool, 0644);
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
 static int acpi_video_resume(struct acpi_device *device);
+static void acpi_video_bus_notify(struct acpi_device *device, u32 event);
 
 static const struct acpi_device_id video_device_ids[] = {
 	{ACPI_VIDEO_HID, 0},
@@ -94,6 +95,7 @@ static struct acpi_driver acpi_video_bus = {
 		.add = acpi_video_bus_add,
 		.remove = acpi_video_bus_remove,
 		.resume = acpi_video_resume,
+		.notify = acpi_video_bus_notify,
 		},
 };
 
@@ -768,10 +770,12 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	 * In this case, the first two elements in _BCL packages
 	 * are also supported brightness levels that OS should take care of.
 	 */
-	for (i = 2; i < count; i++)
-		if (br->levels[i] == br->levels[0] ||
-		    br->levels[i] == br->levels[1])
+	for (i = 2; i < count; i++) {
+		if (br->levels[i] == br->levels[0])
 			level_ac_battery++;
+		if (br->levels[i] == br->levels[1])
+			level_ac_battery++;
+	}
 
 	if (level_ac_battery < 2) {
 		level_ac_battery = 2 - level_ac_battery;
@@ -805,12 +809,19 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	br->flags._BCM_use_index = br->flags._BCL_use_index;
 
 	/* _BQC uses INDEX while _BCL uses VALUE in some laptops */
-	br->curr = max_level;
+	br->curr = level_old = max_level;
+
+	if (!device->cap._BQC)
+		goto set_level;
+
 	result = acpi_video_device_lcd_get_level_current(device, &level_old);
 	if (result)
 		goto out_free_levels;
 
-	result = acpi_video_device_lcd_set_level(device, br->curr);
+	/*
+	 * Set the level to maximum and check if _BQC uses indexed value
+	 */
+	result = acpi_video_device_lcd_set_level(device, max_level);
 	if (result)
 		goto out_free_levels;
 
@@ -818,25 +829,19 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	if (result)
 		goto out_free_levels;
 
-	if ((level != level_old) && !br->flags._BCM_use_index) {
-		/* Note:
-		 * This piece of code does not work correctly if the current
-		 * brightness levels is 0.
-		 * But I guess boxes that boot with such a dark screen are rare
-		 * and no more code is needed to cover this specifial case.
-		 */
+	br->flags._BQC_use_index = (level == max_level ? 0 : 1);
 
-		if (level_ac_battery != 2) {
-			/*
-			 * For now, we don't support the _BCL like this:
-			 * 16, 15, 0, 1, 2, 3, ..., 14, 15, 16
-			 * because we may mess up the index returned by _BQC.
-			 * Plus: we have not got a box like this.
-			 */
-			ACPI_ERROR((AE_INFO, "_BCL not supported\n"));
-		}
-		br->flags._BQC_use_index = 1;
-	}
+	if (!br->flags._BQC_use_index)
+		goto set_level;
+
+	if (br->flags._BCL_reversed)
+		level_old = (br->count - 1) - level_old;
+	level_old = br->levels[level_old];
+
+set_level:
+	result = acpi_video_device_lcd_set_level(device, level_old);
+	if (result)
+		goto out_free_levels;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "found %d brightness levels\n", count - 2));
@@ -1986,17 +1991,15 @@ static int acpi_video_bus_stop_devices(struct acpi_video_bus *video)
 	return acpi_video_bus_DOS(video, 0, 1);
 }
 
-static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
+static void acpi_video_bus_notify(struct acpi_device *device, u32 event)
 {
-	struct acpi_video_bus *video = data;
-	struct acpi_device *device = NULL;
+	struct acpi_video_bus *video = acpi_driver_data(device);
 	struct input_dev *input;
 	int keycode;
 
 	if (!video)
 		return;
 
-	device = video->device;
 	input = video->input;
 
 	switch (event) {
@@ -2127,7 +2130,6 @@ static int acpi_video_resume(struct acpi_device *device)
 
 static int acpi_video_bus_add(struct acpi_device *device)
 {
-	acpi_status status;
 	struct acpi_video_bus *video;
 	struct input_dev *input;
 	int error;
@@ -2169,20 +2171,10 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	acpi_video_bus_get_devices(video, device);
 	acpi_video_bus_start_devices(video);
 
-	status = acpi_install_notify_handler(device->handle,
-					     ACPI_DEVICE_NOTIFY,
-					     acpi_video_bus_notify, video);
-	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR PREFIX
-				  "Error installing notify handler\n");
-		error = -ENODEV;
-		goto err_stop_video;
-	}
-
 	video->input = input = input_allocate_device();
 	if (!input) {
 		error = -ENOMEM;
-		goto err_uninstall_notify;
+		goto err_stop_video;
 	}
 
 	snprintf(video->phys, sizeof(video->phys),
@@ -2218,9 +2210,6 @@ static int acpi_video_bus_add(struct acpi_device *device)
 
  err_free_input_dev:
 	input_free_device(input);
- err_uninstall_notify:
-	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
-				   acpi_video_bus_notify);
  err_stop_video:
 	acpi_video_bus_stop_devices(video);
 	acpi_video_bus_put_devices(video);
@@ -2235,7 +2224,6 @@ static int acpi_video_bus_add(struct acpi_device *device)
 
 static int acpi_video_bus_remove(struct acpi_device *device, int type)
 {
-	acpi_status status = 0;
 	struct acpi_video_bus *video = NULL;
 
 
@@ -2245,11 +2233,6 @@ static int acpi_video_bus_remove(struct acpi_device *device, int type)
 	video = acpi_driver_data(device);
 
 	acpi_video_bus_stop_devices(video);
-
-	status = acpi_remove_notify_handler(video->device->handle,
-					    ACPI_DEVICE_NOTIFY,
-					    acpi_video_bus_notify);
-
 	acpi_video_bus_put_devices(video);
 	acpi_video_bus_remove_fs(device);
 

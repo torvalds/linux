@@ -180,8 +180,6 @@ int scsi_complete_async_scans(void)
 	spin_unlock(&async_scan_lock);
 
 	kfree(data);
-	/* Synchronize async operations globally */
-	async_synchronize_full();
 	return 0;
 }
 

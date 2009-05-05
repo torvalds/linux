@@ -1975,7 +1975,8 @@ static struct snd_pcm_hardware snd_dbri_pcm_hw = {
 	.info		= SNDRV_PCM_INFO_MMAP |
 			  SNDRV_PCM_INFO_INTERLEAVED |
 			  SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			  SNDRV_PCM_INFO_MMAP_VALID,
+			  SNDRV_PCM_INFO_MMAP_VALID |
+			  SNDRV_PCM_INFO_BATCH,
 	.formats	= SNDRV_PCM_FMTBIT_MU_LAW |
 			  SNDRV_PCM_FMTBIT_A_LAW |
 			  SNDRV_PCM_FMTBIT_U8 |

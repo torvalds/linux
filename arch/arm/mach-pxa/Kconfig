@@ -343,6 +343,15 @@ config ARCH_PXA_PALM
 	bool "PXA based Palm PDAs"
 	select HAVE_PWM
 
+config MACH_PALMTE2
+	bool "Palm Tungsten|E2"
+	default y
+	depends on ARCH_PXA_PALM
+	select PXA25x
+	help
+	  Say Y here if you intend to run this kernel on a Palm Tungsten|E2
+	  handheld computer.
+
 config MACH_PALMT5
 	bool "Palm Tungsten|T5"
 	default y

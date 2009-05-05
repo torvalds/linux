@@ -258,7 +258,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 			(chan->max_power - local->power_constr_level) :
 			chan->max_power;
 
-	if (local->user_power_level)
+	if (local->user_power_level >= 0)
 		power = min(power, local->user_power_level);
 
 	if (local->hw.conf.power_level != power) {

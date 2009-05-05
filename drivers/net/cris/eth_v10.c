@@ -257,6 +257,23 @@ struct transceiver_ops transceivers[] =
 
 struct transceiver_ops* transceiver = &transceivers[0];
 
+static const struct net_device_ops e100_netdev_ops = {
+	.ndo_open		= e100_open,
+	.ndo_stop		= e100_close,
+	.ndo_start_xmit		= e100_send_packet,
+	.ndo_tx_timeout		= e100_tx_timeout,
+	.ndo_get_stats		= e100_get_stats,
+	.ndo_set_multicast_list	= set_multicast_list,
+	.ndo_do_ioctl		= e100_ioctl,
+	.ndo_set_mac_address	= e100_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_config		= e100_set_config,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller	= e100_netpoll,
+#endif
+};
+
 #define tx_done(dev) (*R_DMA_CH0_CMD == 0)
 
 /*
@@ -300,19 +317,8 @@ etrax_ethernet_init(void)
 
 	/* fill in our handlers so the network layer can talk to us in the future */
 
-	dev->open               = e100_open;
-	dev->hard_start_xmit    = e100_send_packet;
-	dev->stop               = e100_close;
-	dev->get_stats          = e100_get_stats;
-	dev->set_multicast_list = set_multicast_list;
-	dev->set_mac_address    = e100_set_mac_address;
 	dev->ethtool_ops	= &e100_ethtool_ops;
-	dev->do_ioctl           = e100_ioctl;
-	dev->set_config		= e100_set_config;
-	dev->tx_timeout         = e100_tx_timeout;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	dev->poll_controller = e100_netpoll;
-#endif
+	dev->netdev_ops		= &e100_netdev_ops;
 
 	spin_lock_init(&np->lock);
 	spin_lock_init(&np->led_lock);

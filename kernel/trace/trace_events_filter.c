@@ -215,7 +215,7 @@ static int __filter_add_pred(struct ftrace_event_call *call,
 		}
 	}
 
-	return -ENOMEM;
+	return -ENOSPC;
 }
 
 static int is_string_field(const char *type)
@@ -319,7 +319,7 @@ int filter_add_subsystem_pred(struct event_subsystem *system,
 	}
 
 	if (i == MAX_FILTER_PRED)
-		return -EINVAL;
+		return -ENOSPC;
 
 	events_for_each(call) {
 		int err;
@@ -410,16 +410,22 @@ int filter_parse(char **pbuf, struct filter_pred *pred)
 		}
 	}
 
+	if (!val_str) {
+		pred->field_name = NULL;
+		return -EINVAL;
+	}
+
 	pred->field_name = kstrdup(pred->field_name, GFP_KERNEL);
 	if (!pred->field_name)
 		return -ENOMEM;
 
-	pred->val = simple_strtoull(val_str, &tmp, 10);
+	pred->val = simple_strtoull(val_str, &tmp, 0);
 	if (tmp == val_str) {
 		pred->str_val = kstrdup(val_str, GFP_KERNEL);
 		if (!pred->str_val)
 			return -ENOMEM;
-	}
+	} else if (*tmp != '\0')
+		return -EINVAL;
 
 	return 0;
 }
