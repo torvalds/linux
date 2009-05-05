@@ -815,6 +815,9 @@ netxen_nic_down(struct netxen_adapter *adapter, struct net_device *netdev)
 	if (adapter->stop_port)
 		adapter->stop_port(adapter);
 
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		netxen_p3_free_mac_list(adapter);
+
 	netxen_release_tx_buffers(adapter);
 
 	FLUSH_SCHEDULED_WORK();
@@ -961,6 +964,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	rwlock_init(&adapter->adapter_lock);
 	spin_lock_init(&adapter->tx_clean_lock);
+	INIT_LIST_HEAD(&adapter->mac_list);
 
 	err = netxen_setup_pci_map(adapter);
 	if (err)
@@ -1114,9 +1118,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		netxen_nic_detach(adapter);
-
-		if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-			netxen_p3_free_mac_list(adapter);
 	}
 
 	if (adapter->portnum == 0)

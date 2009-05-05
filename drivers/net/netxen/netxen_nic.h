@@ -1019,8 +1019,8 @@ typedef struct {
 #define NETXEN_MAC_DEL	2
 
 typedef struct nx_mac_list_s {
-	struct nx_mac_list_s *next;
-	uint8_t mac_addr[MAX_ADDR_LEN];
+	struct list_head list;
+	uint8_t mac_addr[ETH_ALEN+2];
 } nx_mac_list_t;
 
 /*
@@ -1213,7 +1213,7 @@ struct netxen_adapter {
 
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	nx_mac_list_t	*mac_list;
+	struct list_head mac_list;
 
 	u32 curr_window;
 	u32 crb_win;
