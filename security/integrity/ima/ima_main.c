@@ -29,20 +29,8 @@ int ima_initialized;
 char *ima_hash = "sha1";
 static int __init hash_setup(char *str)
 {
-	const char *op = "hash_setup";
-	const char *hash = "sha1";
-	int result = 0;
-	int audit_info = 0;
-
-	if (strncmp(str, "md5", 3) == 0) {
-		hash = "md5";
-		ima_hash = str;
-	} else if (strncmp(str, "sha1", 4) != 0) {
-		hash = "invalid_hash_type";
-		result = 1;
-	}
-	integrity_audit_msg(AUDIT_INTEGRITY_HASH, NULL, NULL, op, hash,
-			    result, audit_info);
+	if (strncmp(str, "md5", 3) == 0)
+		ima_hash = "md5";
 	return 1;
 }
 __setup("ima_hash=", hash_setup);

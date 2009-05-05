@@ -22,18 +22,9 @@ static int ima_audit;
 static int __init ima_audit_setup(char *str)
 {
 	unsigned long audit;
-	int rc, result = 0;
-	char *op = "ima_audit";
-	char *cause;
 
-	rc = strict_strtoul(str, 0, &audit);
-	if (rc || audit > 1)
-		result = 1;
-	else
-		ima_audit = audit;
-	cause = ima_audit ? "enabled" : "not_enabled";
-	integrity_audit_msg(AUDIT_INTEGRITY_STATUS, NULL, NULL,
-			    op, cause, result, 0);
+	if (!strict_strtoul(str, 0, &audit))
+		ima_audit = audit ? 1 : 0;
 	return 1;
 }
 __setup("ima_audit=", ima_audit_setup);
