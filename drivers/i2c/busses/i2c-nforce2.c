@@ -173,7 +173,7 @@ static int nforce2_check_status(struct i2c_adapter *adap)
 		temp = inb_p(NVIDIA_SMB_STS);
 	} while ((!temp) && (timeout++ < MAX_TIMEOUT));
 
-	if (timeout >= MAX_TIMEOUT) {
+	if (timeout > MAX_TIMEOUT) {
 		dev_dbg(&adap->dev, "SMBus Timeout!\n");
 		if (smbus->can_abort)
 			nforce2_abort(adap);
