@@ -1546,7 +1546,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 						    len, cqe, comp_ring_cons);
 #ifdef BNX2X_STOP_ON_ERROR
 					if (bp->panic)
-						return -EINVAL;
+						return 0;
 #endif
 
 					bnx2x_update_sge_prod(fp,
