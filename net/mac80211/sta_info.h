@@ -88,6 +88,7 @@ struct tid_ampdu_tx {
  * struct tid_ampdu_rx - TID aggregation information (Rx).
  *
  * @reorder_buf: buffer to reorder incoming aggregated MPDUs
+ * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
  * @head_seq_num: head sequence number in reordering buffer.
  * @stored_mpdu_num: number of MPDUs in reordering buffer
@@ -99,6 +100,7 @@ struct tid_ampdu_tx {
  */
 struct tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
+	unsigned long *reorder_time;
 	struct timer_list session_timer;
 	u16 head_seq_num;
 	u16 stored_mpdu_num;

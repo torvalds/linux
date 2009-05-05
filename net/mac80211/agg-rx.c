@@ -68,6 +68,7 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	spin_lock_bh(&sta->lock);
 	/* free resources */
 	kfree(sta->ampdu_mlme.tid_rx[tid]->reorder_buf);
+	kfree(sta->ampdu_mlme.tid_rx[tid]->reorder_time);
 
 	if (!sta->ampdu_mlme.tid_rx[tid]->shutdown) {
 		kfree(sta->ampdu_mlme.tid_rx[tid]);
@@ -268,13 +269,18 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
 		kcalloc(buf_size, sizeof(struct sk_buff *), GFP_ATOMIC);
-	if (!tid_agg_rx->reorder_buf) {
+	tid_agg_rx->reorder_time =
+		kcalloc(buf_size, sizeof(unsigned long), GFP_ATOMIC);
+	if (!tid_agg_rx->reorder_buf || !tid_agg_rx->reorder_time) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_ERR "can not allocate reordering buffer "
 			       "to tid %d\n", tid);
 #endif
+		kfree(tid_agg_rx->reorder_buf);
+		kfree(tid_agg_rx->reorder_time);
 		kfree(sta->ampdu_mlme.tid_rx[tid]);
+		sta->ampdu_mlme.tid_rx[tid] = NULL;
 		goto end;
 	}
 
