@@ -449,6 +449,17 @@ static void iommu_flush_domain(u16 domid)
 	}
 }
 
+void amd_iommu_flush_all_domains(void)
+{
+	int i;
+
+	for (i = 1; i < MAX_DOMAIN_ID; ++i) {
+		if (!test_bit(i, amd_iommu_pd_alloc_bitmap))
+			continue;
+		iommu_flush_domain(i);
+	}
+}
+
 /****************************************************************************
  *
  * The functions below are used the create the page table mappings for
