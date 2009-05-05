@@ -43,16 +43,6 @@ unsigned long pci_probe_only = 1;
 unsigned long pci_io_base = ISA_IO_BASE;
 EXPORT_SYMBOL(pci_io_base);
 
-static void fixup_broken_pcnet32(struct pci_dev* dev)
-{
-	if ((dev->class>>8 == PCI_CLASS_NETWORK_ETHERNET)) {
-		dev->vendor = PCI_VENDOR_ID_AMD;
-		pci_write_config_word(dev, PCI_VENDOR_ID, PCI_VENDOR_ID_AMD);
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TRIDENT, PCI_ANY_ID, fixup_broken_pcnet32);
-
-
 static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
 {
 	const u32 *prop;
