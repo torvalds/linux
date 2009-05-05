@@ -447,9 +447,6 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 	if (!wait)
 		return 0;
 
-	if (sb->s_flags & MS_RDONLY)
-		return 0;
-
 	/*
 	 * VFS calls '->sync_fs()' before synchronizing all dirty inodes and
 	 * pages, so synchronize them first, then commit the journal. Strictly

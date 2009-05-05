@@ -51,6 +51,18 @@ int sync_filesystem(struct super_block *sb)
 {
 	int ret;
 
+	/*
+	 * We need to be protected against the filesystem going from
+	 * r/o to r/w or vice versa.
+	 */
+	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+
+	/*
+	 * No point in syncing out anything if the filesystem is read-only.
+	 */
+	if (sb->s_flags & MS_RDONLY)
+		return 0;
+
 	ret = __sync_filesystem(sb, 0);
 	if (ret < 0)
 		return ret;
@@ -79,25 +91,22 @@ static void sync_filesystems(int wait)
 
 	mutex_lock(&mutex);		/* Could be down_interruptible */
 	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (sb->s_flags & MS_RDONLY)
-			continue;
+	list_for_each_entry(sb, &super_blocks, s_list)
 		sb->s_need_sync = 1;
-	}
 
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (!sb->s_need_sync)
 			continue;
 		sb->s_need_sync = 0;
-		if (sb->s_flags & MS_RDONLY)
-			continue;	/* hm.  Was remounted r/o meanwhile */
 		sb->s_count++;
 		spin_unlock(&sb_lock);
+
 		down_read(&sb->s_umount);
-		if (sb->s_root)
+		if (!(sb->s_flags & MS_RDONLY) && sb->s_root)
 			__sync_filesystem(sb, wait);
 		up_read(&sb->s_umount);
+
 		/* restart only when sb is no longer on the list */
 		spin_lock(&sb_lock);
 		if (__put_super_and_need_restart(sb))

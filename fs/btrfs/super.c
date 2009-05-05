@@ -394,9 +394,6 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	struct btrfs_root *root = btrfs_sb(sb);
 	int ret;
 
-	if (sb->s_flags & MS_RDONLY)
-		return 0;
-
 	if (!wait) {
 		filemap_flush(root->fs_info->btree_inode->i_mapping);
 		return 0;

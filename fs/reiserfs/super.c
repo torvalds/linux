@@ -64,18 +64,15 @@ static int reiserfs_statfs(struct dentry *dentry, struct kstatfs *buf);
 
 static int reiserfs_sync_fs(struct super_block *s, int wait)
 {
-	if (!(s->s_flags & MS_RDONLY)) {
-		struct reiserfs_transaction_handle th;
-		reiserfs_write_lock(s);
-		if (!journal_begin(&th, s, 1))
-			if (!journal_end_sync(&th, s, 1))
-				reiserfs_flush_old_commits(s);
-		s->s_dirt = 0;	/* Even if it's not true.
-				 * We'll loop forever in sync_supers otherwise */
-		reiserfs_write_unlock(s);
-	} else {
-		s->s_dirt = 0;
-	}
+	struct reiserfs_transaction_handle th;
+
+	reiserfs_write_lock(s);
+	if (!journal_begin(&th, s, 1))
+		if (!journal_end_sync(&th, s, 1))
+			reiserfs_flush_old_commits(s);
+	s->s_dirt = 0;	/* Even if it's not true.
+			 * We'll loop forever in sync_supers otherwise */
+	reiserfs_write_unlock(s);
 	return 0;
 }
 
