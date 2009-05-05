@@ -2576,6 +2576,7 @@ static void onenand_print_device_info(int device, int version)
 
 static const struct onenand_manufacturers onenand_manuf_ids[] = {
         {ONENAND_MFR_SAMSUNG, "Samsung"},
+	{ONENAND_MFR_NUMONYX, "Numonyx"},
 };
 
 /**
@@ -2621,7 +2622,7 @@ static int onenand_probe(struct mtd_info *mtd)
 	/* Save system configuration 1 */
 	syscfg = this->read_word(this->base + ONENAND_REG_SYS_CFG1);
 	/* Clear Sync. Burst Read mode to read BootRAM */
-	this->write_word((syscfg & ~ONENAND_SYS_CFG1_SYNC_READ), this->base + ONENAND_REG_SYS_CFG1);
+	this->write_word((syscfg & ~ONENAND_SYS_CFG1_SYNC_READ & ~ONENAND_SYS_CFG1_SYNC_WRITE), this->base + ONENAND_REG_SYS_CFG1);
 
 	/* Send the command for reading device ID from BootRAM */
 	this->write_word(ONENAND_CMD_READID, this->base + ONENAND_BOOTRAM);
