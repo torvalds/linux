@@ -402,7 +402,7 @@ struct reiserfs_sb_info {
 	int reserved_blocks;	/* amount of blocks reserved for further allocations */
 	spinlock_t bitmap_lock;	/* this lock on now only used to protect reserved_blocks variable */
 	struct dentry *priv_root;	/* root of /.reiserfs_priv */
-	struct dentry *xattr_root;	/* root of /.reiserfs_priv/.xa */
+	struct dentry *xattr_root;	/* root of /.reiserfs_priv/xattrs */
 	int j_errno;
 #ifdef CONFIG_QUOTA
 	char *s_qf_names[MAXQUOTAS];
