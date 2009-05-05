@@ -396,6 +396,31 @@ static const struct soc_enum twl4030_handsfreer_enum =
 static const struct snd_kcontrol_new twl4030_dapm_handsfreer_control =
 SOC_DAPM_ENUM("Route", twl4030_handsfreer_enum);
 
+/* Vibra */
+/* Vibra audio path selection */
+static const char *twl4030_vibra_texts[] =
+		{"AudioL1", "AudioR1", "AudioL2", "AudioR2"};
+
+static const struct soc_enum twl4030_vibra_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 2,
+			ARRAY_SIZE(twl4030_vibra_texts),
+			twl4030_vibra_texts);
+
+static const struct snd_kcontrol_new twl4030_dapm_vibra_control =
+SOC_DAPM_ENUM("Route", twl4030_vibra_enum);
+
+/* Vibra path selection: local vibrator (PWM) or audio driven */
+static const char *twl4030_vibrapath_texts[] =
+		{"Local vibrator", "Audio"};
+
+static const struct soc_enum twl4030_vibrapath_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 4,
+			ARRAY_SIZE(twl4030_vibrapath_texts),
+			twl4030_vibrapath_texts);
+
+static const struct snd_kcontrol_new twl4030_dapm_vibrapath_control =
+SOC_DAPM_ENUM("Route", twl4030_vibrapath_enum);
+
 /* Left analog microphone selection */
 static const char *twl4030_analoglmic_texts[] =
 		{"Off", "Main mic", "Headset mic", "AUXL", "Carkit mic"};
@@ -867,6 +892,26 @@ static const struct soc_enum twl4030_rampdelay_enum =
 			ARRAY_SIZE(twl4030_rampdelay_texts),
 			twl4030_rampdelay_texts);
 
+/* Vibra H-bridge direction mode */
+static const char *twl4030_vibradirmode_texts[] = {
+	"Vibra H-bridge direction", "Audio data MSB",
+};
+
+static const struct soc_enum twl4030_vibradirmode_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 5,
+			ARRAY_SIZE(twl4030_vibradirmode_texts),
+			twl4030_vibradirmode_texts);
+
+/* Vibra H-bridge direction */
+static const char *twl4030_vibradir_texts[] = {
+	"Positive polarity", "Negative polarity",
+};
+
+static const struct soc_enum twl4030_vibradir_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_VIBRA_CTL, 1,
+			ARRAY_SIZE(twl4030_vibradir_texts),
+			twl4030_vibradir_texts);
+
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	/* Common playback gain controls */
 	SOC_DOUBLE_R_TLV("DAC1 Digital Fine Playback Volume",
@@ -933,6 +978,9 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 		0, 3, 5, 0, input_gain_tlv),
 
 	SOC_ENUM("HS ramp delay", twl4030_rampdelay_enum),
+
+	SOC_ENUM("Vibra H-bridge mode", twl4030_vibradirmode_enum),
+	SOC_ENUM("Vibra H-bridge direction", twl4030_vibradir_enum),
 };
 
 static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
@@ -960,6 +1008,7 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("CARKITR"),
 	SND_SOC_DAPM_OUTPUT("HFL"),
 	SND_SOC_DAPM_OUTPUT("HFR"),
+	SND_SOC_DAPM_OUTPUT("VIBRA"),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("DAC Right1", "Right Front Playback",
@@ -1060,6 +1109,11 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX_E("HandsfreeR Mux", TWL4030_REG_HFR_CTL, 5, 0,
 		&twl4030_dapm_handsfreer_control, handsfree_event,
 		SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
+	/* Vibra */
+	SND_SOC_DAPM_MUX("Vibra Mux", TWL4030_REG_VIBRA_CTL, 0, 0,
+		&twl4030_dapm_vibra_control),
+	SND_SOC_DAPM_MUX("Vibra Route", SND_SOC_NOPM, 0, 0,
+		&twl4030_dapm_vibrapath_control),
 
 	/* Introducing four virtual ADC, since TWL4030 have four channel for
 	   capture */
@@ -1161,6 +1215,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"HandsfreeR Mux", "AudioR1", "ARXR1_APGA"},
 	{"HandsfreeR Mux", "AudioR2", "ARXR2_APGA"},
 	{"HandsfreeR Mux", "AudioL2", "ARXL2_APGA"},
+	/* Vibra */
+	{"Vibra Mux", "AudioL1", "DAC Left1"},
+	{"Vibra Mux", "AudioR1", "DAC Right1"},
+	{"Vibra Mux", "AudioL2", "DAC Left2"},
+	{"Vibra Mux", "AudioR2", "DAC Right2"},
 
 	/* outputs */
 	{"OUTL", NULL, "ARXL2_APGA"},
@@ -1174,6 +1233,8 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"CARKITR", NULL, "CarkitR Mixer"},
 	{"HFL", NULL, "HandsfreeL Mux"},
 	{"HFR", NULL, "HandsfreeR Mux"},
+	{"Vibra Route", "Audio", "Vibra Mux"},
+	{"VIBRA", NULL, "Vibra Route"},
 
 	/* Capture path */
 	{"Analog Left Capture Route", "Main mic", "MAINMIC"},
