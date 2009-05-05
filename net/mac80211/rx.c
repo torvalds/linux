@@ -2551,6 +2551,18 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 	}
 
+	/*
+	 * In theory, the block ack reordering should happen after duplicate
+	 * removal (ieee80211_rx_h_check(), which is an RX handler). As such,
+	 * the call to ieee80211_rx_reorder_ampdu() should really be moved to
+	 * happen as a new RX handler between ieee80211_rx_h_check and
+	 * ieee80211_rx_h_decrypt. This cleanup may eventually happen, but for
+	 * the time being, the call can be here since RX reorder buf processing
+	 * will implicitly skip duplicates. We could, in theory at least,
+	 * process frames that ieee80211_rx_h_passive_scan would drop (e.g.,
+	 * frames from other than operational channel), but that should not
+	 * happen in normal networks.
+	 */
 	if (!ieee80211_rx_reorder_ampdu(local, skb, status))
 		__ieee80211_rx_handle_packet(hw, skb, status, rate);
 
