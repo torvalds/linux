@@ -54,19 +54,10 @@ void integrity_audit_msg(int audit_msgno, struct inode *inode,
 			 audit_get_loginuid(current),
 			 audit_get_sessionid(current));
 	audit_log_task_context(ab);
-	switch (audit_msgno) {
-	case AUDIT_INTEGRITY_DATA:
-	case AUDIT_INTEGRITY_METADATA:
-	case AUDIT_INTEGRITY_PCR:
-	case AUDIT_INTEGRITY_STATUS:
-		audit_log_format(ab, " op=%s cause=%s", op, cause);
-		break;
-	case AUDIT_INTEGRITY_HASH:
-		audit_log_format(ab, " op=%s hash=%s", op, cause);
-		break;
-	default:
-		audit_log_format(ab, " op=%s", op);
-	}
+	audit_log_format(ab, " op=");
+	audit_log_string(ab, op);
+	audit_log_format(ab, " cause=");
+	audit_log_string(ab, cause);
 	audit_log_format(ab, " comm=");
 	audit_log_untrustedstring(ab, current->comm);
 	if (fname) {
