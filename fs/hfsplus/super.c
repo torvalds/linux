@@ -199,6 +199,9 @@ static void hfsplus_put_super(struct super_block *sb)
 	dprint(DBG_SUPER, "hfsplus_put_super\n");
 	if (!sb->s_fs_info)
 		return;
+
+	lock_kernel();
+
 	if (sb->s_dirt)
 		hfsplus_write_super(sb);
 	if (!(sb->s_flags & MS_RDONLY) && HFSPLUS_SB(sb).s_vhdr) {
@@ -220,6 +223,8 @@ static void hfsplus_put_super(struct super_block *sb)
 		unload_nls(HFSPLUS_SB(sb).nls);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 static int hfsplus_statfs(struct dentry *dentry, struct kstatfs *buf)

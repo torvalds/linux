@@ -258,6 +258,8 @@ static void exofs_put_super(struct super_block *sb)
 	int num_pend;
 	struct exofs_sb_info *sbi = sb->s_fs_info;
 
+	lock_kernel();
+
 	if (sb->s_dirt)
 		exofs_write_super(sb);
 
@@ -274,6 +276,8 @@ static void exofs_put_super(struct super_block *sb)
 	osduld_put_device(sbi->s_dev);
 	kfree(sb->s_fs_info);
 	sb->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 /*

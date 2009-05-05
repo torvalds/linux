@@ -1536,8 +1536,12 @@ static void ocfs2_put_super(struct super_block *sb)
 {
 	mlog_entry("(0x%p)\n", sb);
 
+	lock_kernel();
+
 	ocfs2_sync_blockdev(sb);
 	ocfs2_dismount_volume(sb, 0);
+
+	unlock_kernel();
 
 	mlog_exit_void();
 }

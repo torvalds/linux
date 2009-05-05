@@ -309,7 +309,6 @@ void generic_shutdown_super(struct super_block *sb)
 
 		/* bad name - it should be evict_inodes() */
 		invalidate_inodes(sb);
-		lock_kernel();
 
 		if (sop->put_super)
 			sop->put_super(sb);
@@ -320,8 +319,6 @@ void generic_shutdown_super(struct super_block *sb)
 			   "Self-destruct in 5 seconds.  Have a nice day...\n",
 			   sb->s_id);
 		}
-
-		unlock_kernel();
 		put_fs_excl();
 	}
 	spin_lock(&sb_lock);

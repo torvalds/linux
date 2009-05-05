@@ -594,6 +594,9 @@ static void ufs_put_super_internal(struct super_block *sb)
 
 	
 	UFSD("ENTER\n");
+
+	lock_kernel();
+
 	ufs_put_cstotal(sb);
 	size = uspi->s_cssize;
 	blks = (size + uspi->s_fsize - 1) >> uspi->s_fshift;
@@ -621,6 +624,9 @@ static void ufs_put_super_internal(struct super_block *sb)
 		brelse (sbi->s_ucg[i]);
 	kfree (sbi->s_ucg);
 	kfree (base);
+
+	unlock_kernel();
+
 	UFSD("EXIT\n");
 }
 

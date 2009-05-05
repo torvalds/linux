@@ -2246,6 +2246,9 @@ static void ntfs_put_super(struct super_block *sb)
 	ntfs_volume *vol = NTFS_SB(sb);
 
 	ntfs_debug("Entering.");
+
+	lock_kernel();
+
 #ifdef NTFS_RW
 	/*
 	 * Commit all inodes while they are still open in case some of them
@@ -2444,7 +2447,8 @@ static void ntfs_put_super(struct super_block *sb)
 	}
 	sb->s_fs_info = NULL;
 	kfree(vol);
-	return;
+
+	unlock_kernel();
 }
 
 /**

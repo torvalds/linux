@@ -35,6 +35,8 @@ static void minix_put_super(struct super_block *sb)
 	int i;
 	struct minix_sb_info *sbi = minix_sb(sb);
 
+	lock_kernel();
+
 	if (!(sb->s_flags & MS_RDONLY)) {
 		if (sbi->s_version != MINIX_V3)	 /* s_state is now out from V3 sb */
 			sbi->s_ms->s_state = sbi->s_mount_state;
@@ -49,7 +51,7 @@ static void minix_put_super(struct super_block *sb)
 	sb->s_fs_info = NULL;
 	kfree(sbi);
 
-	return;
+	unlock_kernel();
 }
 
 static struct kmem_cache * minix_inode_cachep;

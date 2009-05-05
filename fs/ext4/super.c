@@ -577,6 +577,7 @@ static void ext4_put_super(struct super_block *sb)
 	int i, err;
 
 	lock_super(sb);
+	lock_kernel();
 	if (sb->s_dirt)
 		ext4_write_super(sb);
 
@@ -646,7 +647,6 @@ static void ext4_put_super(struct super_block *sb)
 	unlock_super(sb);
 	kobject_put(&sbi->s_kobj);
 	wait_for_completion(&sbi->s_kobj_unregister);
-	lock_kernel();
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 }

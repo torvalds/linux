@@ -99,11 +99,16 @@ int hpfs_stop_cycles(struct super_block *s, int key, int *c1, int *c2,
 static void hpfs_put_super(struct super_block *s)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
+
+	lock_kernel();
+
 	kfree(sbi->sb_cp_table);
 	kfree(sbi->sb_bmp_dir);
 	unmark_dirty(s);
 	s->s_fs_info = NULL;
 	kfree(sbi);
+
+	unlock_kernel();
 }
 
 unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)

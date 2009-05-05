@@ -217,6 +217,8 @@ static void bfs_put_super(struct super_block *s)
 	if (!info)
 		return;
 
+	lock_kernel();
+
 	if (s->s_dirt)
 		bfs_write_super(s);
 
@@ -225,6 +227,8 @@ static void bfs_put_super(struct super_block *s)
 	kfree(info->si_imap);
 	kfree(info);
 	s->s_fs_info = NULL;
+
+	unlock_kernel();
 }
 
 static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)

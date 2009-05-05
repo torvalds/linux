@@ -183,6 +183,9 @@ static void jfs_put_super(struct super_block *sb)
 	int rc;
 
 	jfs_info("In jfs_put_super");
+
+	lock_kernel();
+
 	rc = jfs_umount(sb);
 	if (rc)
 		jfs_err("jfs_umount failed with return code %d", rc);
@@ -195,6 +198,8 @@ static void jfs_put_super(struct super_block *sb)
 	sbi->direct_inode = NULL;
 
 	kfree(sbi);
+
+	unlock_kernel();
 }
 
 enum {

@@ -72,6 +72,8 @@ static void sysv_put_super(struct super_block *sb)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 
+	lock_kernel();
+
 	if (sb->s_dirt)
 		sysv_write_super(sb);
 
@@ -87,6 +89,8 @@ static void sysv_put_super(struct super_block *sb)
 		brelse(sbi->s_bh2);
 
 	kfree(sbi);
+
+	unlock_kernel();
 }
 
 static int sysv_statfs(struct dentry *dentry, struct kstatfs *buf)

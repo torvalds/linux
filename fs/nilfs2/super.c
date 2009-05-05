@@ -316,6 +316,8 @@ static void nilfs_put_super(struct super_block *sb)
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 
+	lock_kernel();
+
 	if (sb->s_dirt)
 		nilfs_write_super(sb);
 
@@ -333,6 +335,8 @@ static void nilfs_put_super(struct super_block *sb)
 	sbi->s_super = NULL;
 	sb->s_fs_info = NULL;
 	kfree(sbi);
+
+	unlock_kernel();
 }
 
 /**

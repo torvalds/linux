@@ -29,6 +29,8 @@ affs_put_super(struct super_block *sb)
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	pr_debug("AFFS: put_super()\n");
 
+	lock_kernel();
+
 	if (!(sb->s_flags & MS_RDONLY)) {
 		AFFS_ROOT_TAIL(sb, sbi->s_root_bh)->bm_flag = cpu_to_be32(1);
 		secs_to_datestamp(get_seconds(),
@@ -42,7 +44,8 @@ affs_put_super(struct super_block *sb)
 	affs_brelse(sbi->s_root_bh);
 	kfree(sbi);
 	sb->s_fs_info = NULL;
-	return;
+
+	unlock_kernel();
 }
 
 static void
