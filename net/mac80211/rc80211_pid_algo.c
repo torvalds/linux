@@ -378,7 +378,7 @@ static void *rate_control_pid_alloc(struct ieee80211_hw *hw,
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		sband = hw->wiphy->bands[i];
-		if (sband->n_bitrates > max_rates)
+		if (sband && sband->n_bitrates > max_rates)
 			max_rates = sband->n_bitrates;
 	}
 
