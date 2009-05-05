@@ -100,8 +100,8 @@ struct futex_pi_state {
  */
 struct futex_q {
 	struct plist_node list;
-	/* There can only be a single waiter */
-	wait_queue_head_t waiter;
+	/* Waiter reference */
+	struct task_struct *task;
 
 	/* Which hash list lock to use: */
 	spinlock_t *lock_ptr;
@@ -111,7 +111,6 @@ struct futex_q {
 
 	/* Optional priority inheritance state: */
 	struct futex_pi_state *pi_state;
-	struct task_struct *task;
 
 	/* rt_waiter storage for requeue_pi: */
 	struct rt_mutex_waiter *rt_waiter;
@@ -694,22 +693,29 @@ retry:
  */
 static void wake_futex(struct futex_q *q)
 {
+	struct task_struct *p = q->task;
+
+	/*
+	 * We set q->lock_ptr = NULL _before_ we wake up the task. If
+	 * a non futex wake up happens on another CPU then the task
+	 * might exit and p would dereference a non existing task
+	 * struct. Prevent this by holding a reference on p across the
+	 * wake up.
+	 */
+	get_task_struct(p);
+
 	plist_del(&q->list, &q->list.plist);
 	/*
-	 * The lock in wake_up_all() is a crucial memory barrier after the
-	 * plist_del() and also before assigning to q->lock_ptr.
-	 */
-	wake_up(&q->waiter);
-	/*
-	 * The waiting task can free the futex_q as soon as this is written,
-	 * without taking any locks.  This must come last.
-	 *
-	 * A memory barrier is required here to prevent the following store to
-	 * lock_ptr from getting ahead of the wakeup. Clearing the lock at the
-	 * end of wake_up() does not prevent this store from moving.
+	 * The waiting task can free the futex_q as soon as
+	 * q->lock_ptr = NULL is written, without taking any locks. A
+	 * memory barrier is required here to prevent the following
+	 * store to lock_ptr from getting ahead of the plist_del.
 	 */
 	smp_wmb();
 	q->lock_ptr = NULL;
+
+	wake_up_state(p, TASK_NORMAL);
+	put_task_struct(p);
 }
 
 static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
@@ -1003,7 +1009,7 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key)
 	WARN_ON(!q->rt_waiter);
 	q->rt_waiter = NULL;
 
-	wake_up(&q->waiter);
+	wake_up_state(q->task, TASK_NORMAL);
 }
 
 /**
@@ -1279,8 +1285,6 @@ out:
 static inline struct futex_hash_bucket *queue_lock(struct futex_q *q)
 {
 	struct futex_hash_bucket *hb;
-
-	init_waitqueue_head(&q->waiter);
 
 	get_futex_key_refs(&q->key);
 	hb = hash_futex(&q->key);
@@ -1575,11 +1579,9 @@ out:
  * @hb:		the futex hash bucket, must be locked by the caller
  * @q:		the futex_q to queue up on
  * @timeout:	the prepared hrtimer_sleeper, or null for no timeout
- * @wait:	the wait_queue to add to the futex_q after queueing in the hb
  */
 static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
-				struct hrtimer_sleeper *timeout,
-				wait_queue_t *wait)
+				struct hrtimer_sleeper *timeout)
 {
 	queue_me(q, hb);
 
@@ -1587,19 +1589,11 @@ static void futex_wait_queue_me(struct futex_hash_bucket *hb, struct futex_q *q,
 	 * There might have been scheduling since the queue_me(), as we
 	 * cannot hold a spinlock across the get_user() in case it
 	 * faults, and we cannot just set TASK_INTERRUPTIBLE state when
-	 * queueing ourselves into the futex hash.  This code thus has to
+	 * queueing ourselves into the futex hash. This code thus has to
 	 * rely on the futex_wake() code removing us from hash when it
 	 * wakes us up.
 	 */
-
-	/* add_wait_queue is the barrier after __set_current_state. */
-	__set_current_state(TASK_INTERRUPTIBLE);
-
-	/*
-	 * Add current as the futex_q waiter.  We don't remove ourselves from
-	 * the wait_queue because we are the only user of it.
-	 */
-	add_wait_queue(&q->waiter, wait);
+	set_current_state(TASK_INTERRUPTIBLE);
 
 	/* Arm the timer */
 	if (timeout) {
@@ -1704,7 +1698,6 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 		      u32 val, ktime_t *abs_time, u32 bitset, int clockrt)
 {
 	struct hrtimer_sleeper timeout, *to = NULL;
-	DECLARE_WAITQUEUE(wait, current);
 	struct restart_block *restart;
 	struct futex_hash_bucket *hb;
 	struct futex_q q;
@@ -1733,7 +1726,7 @@ static int futex_wait(u32 __user *uaddr, int fshared,
 		goto out;
 
 	/* queue_me and wait for wakeup, timeout, or a signal. */
-	futex_wait_queue_me(hb, &q, to, &wait);
+	futex_wait_queue_me(hb, &q, to);
 
 	/* If we were woken (and unqueued), we succeeded, whatever. */
 	ret = 0;
@@ -2147,7 +2140,6 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 	struct hrtimer_sleeper timeout, *to = NULL;
 	struct rt_mutex_waiter rt_waiter;
 	struct rt_mutex *pi_mutex = NULL;
-	DECLARE_WAITQUEUE(wait, current);
 	struct restart_block *restart;
 	struct futex_hash_bucket *hb;
 	union futex_key key2;
@@ -2191,7 +2183,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 	}
 
 	/* Queue the futex_q, drop the hb lock, wait for wakeup. */
-	futex_wait_queue_me(hb, &q, to, &wait);
+	futex_wait_queue_me(hb, &q, to);
 
 	spin_lock(&hb->lock);
 	ret = handle_early_requeue_pi_wakeup(hb, &q, &key2, to);
