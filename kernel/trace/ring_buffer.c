@@ -2802,6 +2802,7 @@ void *ring_buffer_alloc_read_page(struct ring_buffer *buffer)
 
 	return bpage;
 }
+EXPORT_SYMBOL_GPL(ring_buffer_alloc_read_page);
 
 /**
  * ring_buffer_free_read_page - free an allocated read page
@@ -2814,6 +2815,7 @@ void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data)
 {
 	free_page((unsigned long)data);
 }
+EXPORT_SYMBOL_GPL(ring_buffer_free_read_page);
 
 /**
  * ring_buffer_read_page - extract a page from the ring buffer
@@ -2959,6 +2961,7 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
  out:
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ring_buffer_read_page);
 
 static ssize_t
 rb_simple_read(struct file *filp, char __user *ubuf,
