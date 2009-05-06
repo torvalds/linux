@@ -77,17 +77,8 @@ extern int mp_register_gsi(struct device *dev, u32 gsi, int edge_level,
 				 int active_high_low);
 extern int acpi_probe_gsi(void);
 #ifdef CONFIG_X86_IO_APIC
-extern int mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
-				u32 gsi, int triggering, int polarity);
 extern int mp_find_ioapic(int gsi);
 extern int mp_find_ioapic_pin(int ioapic, int gsi);
-#else
-static inline int
-mp_config_acpi_gsi(unsigned char number, unsigned int devfn, u8 pin,
-		   u32 gsi, int triggering, int polarity)
-{
-	return 0;
-}
 #endif
 #else /* !CONFIG_ACPI: */
 static inline int acpi_probe_gsi(void)
