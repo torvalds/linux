@@ -213,7 +213,7 @@ static void fcoe_ctlr_solicit(struct fcoe_ctlr *fip, struct fcoe_fcf *fcf)
 	sol->desc.size.fd_size = htons(fcoe_size);
 
 	skb_put(skb, sizeof(*sol));
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	fip->send(fip, skb);
@@ -365,7 +365,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip, int ports, u8 *sa)
 	}
 
 	skb_put(skb, len);
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	fip->send(fip, skb);
@@ -424,7 +424,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip,
 	if (dtype != ELS_FLOGI)
 		memcpy(mac->fd_mac, fip->data_src_addr, ETH_ALEN);
 
-	skb->protocol = htons(ETH_P_802_3);
+	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	return 0;
