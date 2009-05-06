@@ -1345,8 +1345,7 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	if (AR_SREV_9280(ah))
 		REG_WRITE_ARRAY(&ah->iniModesRxGain, modesIndex, regWrites);
 
-	if (AR_SREV_9280(ah) || (AR_SREV_9285(ah) &&
-	    AR_SREV_9285_12_OR_LATER(ah)))
+	if (AR_SREV_9280(ah) || AR_SREV_9285_12_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
 	for (i = 0; i < ah->iniCommon.ia_rows; i++) {

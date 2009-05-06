@@ -863,7 +863,7 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	if (longcal) {
-		if (AR_SREV_9285(ah) && AR_SREV_9285_11_OR_LATER(ah))
+		if (AR_SREV_9285_11_OR_LATER(ah))
 			ath9k_hw_9285_pa_cal(ah);
 
 		if (OLC_FOR_AR9280_20_LATER)
@@ -917,7 +917,7 @@ static bool ar9285_clc(struct ath_hw *ah, struct ath9k_channel *chan)
 
 bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 {
-	if (AR_SREV_9285(ah) && AR_SREV_9285_12_OR_LATER(ah)) {
+	if (AR_SREV_9285_12_OR_LATER(ah)) {
 		if (!ar9285_clc(ah, chan))
 			return false;
 	} else {
@@ -947,7 +947,7 @@ bool ath9k_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	}
 
 	/* Do PA Calibration */
-	if (AR_SREV_9285(ah) && AR_SREV_9285_11_OR_LATER(ah))
+	if (AR_SREV_9285_11_OR_LATER(ah))
 		ath9k_hw_9285_pa_cal(ah);
 
 	/* Do NF Calibration after DC offset and other calibrations */
