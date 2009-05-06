@@ -189,7 +189,7 @@ static u8 parse_mpdudensity(u8 mpdudensity)
 
 static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
 {
-	struct ath_rate_table *rate_table = NULL;
+	const struct ath_rate_table *rate_table = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *rate;
 	int i, maxrates;

@@ -168,7 +168,7 @@ bool ath9k_get_channel_edges(struct ath_hw *ah,
 }
 
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
-			   struct ath_rate_table *rates,
+			   const struct ath_rate_table *rates,
 			   u32 frameLen, u16 rateix,
 			   bool shortPreamble)
 {

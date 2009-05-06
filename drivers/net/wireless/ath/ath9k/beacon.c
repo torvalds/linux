@@ -63,7 +63,7 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_desc *ds;
 	struct ath9k_11n_rate_series series[4];
-	struct ath_rate_table *rt;
+	const struct ath_rate_table *rt;
 	int flags, antenna, ctsrate = 0, ctsduration = 0;
 	u8 rate;
 

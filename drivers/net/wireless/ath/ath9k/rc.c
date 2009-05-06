@@ -17,7 +17,7 @@
 
 #include "ath9k.h"
 
-static struct ath_rate_table ar5416_11na_ratetable = {
+static const struct ath_rate_table ar5416_11na_ratetable = {
 	42,
 	{
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
@@ -155,7 +155,7 @@ static struct ath_rate_table ar5416_11na_ratetable = {
 /* 4ms frame limit not used for NG mode.  The values filled
  * for HT are the 64K max aggregate limit */
 
-static struct ath_rate_table ar5416_11ng_ratetable = {
+static const struct ath_rate_table ar5416_11ng_ratetable = {
 	46,
 	{
 		{ VALID_ALL, VALID_ALL, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
@@ -302,7 +302,7 @@ static struct ath_rate_table ar5416_11ng_ratetable = {
 	WLAN_RC_HT_FLAG,  /* Phy rates allowed initially */
 };
 
-static struct ath_rate_table ar5416_11a_ratetable = {
+static const struct ath_rate_table ar5416_11a_ratetable = {
 	8,
 	{
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
@@ -335,7 +335,7 @@ static struct ath_rate_table ar5416_11a_ratetable = {
 	0,   /* Phy rates allowed initially */
 };
 
-static struct ath_rate_table ar5416_11g_ratetable = {
+static const struct ath_rate_table ar5416_11g_ratetable = {
 	12,
 	{
 		{ VALID, VALID, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
@@ -380,7 +380,7 @@ static struct ath_rate_table ar5416_11g_ratetable = {
 	0,   /* Phy rates allowed initially */
 };
 
-static struct ath_rate_table ar5416_11b_ratetable = {
+static const struct ath_rate_table ar5416_11b_ratetable = {
 	4,
 	{
 		{ VALID, VALID, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
@@ -420,7 +420,7 @@ static inline int8_t median(int8_t a, int8_t b, int8_t c)
 	}
 }
 
-static void ath_rc_sort_validrates(struct ath_rate_table *rate_table,
+static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
 				   struct ath_rate_priv *ath_rc_priv)
 {
 	u8 i, j, idx, idx_next;
@@ -461,10 +461,11 @@ static inline int ath_rc_isvalid_txmask(struct ath_rate_priv *ath_rc_priv,
 	return ath_rc_priv->valid_rate_index[index];
 }
 
-static inline int ath_rc_get_nextvalid_txrate(struct ath_rate_table *rate_table,
-					      struct ath_rate_priv *ath_rc_priv,
-					      u8 cur_valid_txrate,
-					      u8 *next_idx)
+static inline
+int ath_rc_get_nextvalid_txrate(const struct ath_rate_table *rate_table,
+				struct ath_rate_priv *ath_rc_priv,
+				u8 cur_valid_txrate,
+				u8 *next_idx)
 {
 	u8 i;
 
@@ -500,7 +501,7 @@ static int ath_rc_valid_phyrate(u32 phy, u32 capflag, int ignore_cw)
 }
 
 static inline int
-ath_rc_get_nextlowervalid_txrate(struct ath_rate_table *rate_table,
+ath_rc_get_nextlowervalid_txrate(const struct ath_rate_table *rate_table,
 				 struct ath_rate_priv *ath_rc_priv,
 				 u8 cur_valid_txrate, u8 *next_idx)
 {
@@ -517,7 +518,7 @@ ath_rc_get_nextlowervalid_txrate(struct ath_rate_table *rate_table,
 }
 
 static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv,
-				 struct ath_rate_table *rate_table,
+				 const struct ath_rate_table *rate_table,
 				 u32 capflag)
 {
 	u8 i, hi = 0;
@@ -547,7 +548,7 @@ static u8 ath_rc_init_validrates(struct ath_rate_priv *ath_rc_priv,
 }
 
 static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
-				struct ath_rate_table *rate_table,
+				const struct ath_rate_table *rate_table,
 				struct ath_rateset *rateset,
 				u32 capflag)
 {
@@ -592,7 +593,7 @@ static u8 ath_rc_setvalid_rates(struct ath_rate_priv *ath_rc_priv,
 }
 
 static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
-				  struct ath_rate_table *rate_table,
+				  const struct ath_rate_table *rate_table,
 				  u8 *mcs_set, u32 capflag)
 {
 	struct ath_rateset *rateset = (struct ath_rateset *)mcs_set;
@@ -630,7 +631,7 @@ static u8 ath_rc_setvalid_htrates(struct ath_rate_priv *ath_rc_priv,
 
 static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
-			     struct ath_rate_table *rate_table,
+			     const struct ath_rate_table *rate_table,
 			     int *is_probing)
 {
 	u32 dt, best_thruput, this_thruput, now_msec;
@@ -748,7 +749,7 @@ static u8 ath_rc_ratefind_ht(struct ath_softc *sc,
 	return rate;
 }
 
-static void ath_rc_rate_set_series(struct ath_rate_table *rate_table,
+static void ath_rc_rate_set_series(const struct ath_rate_table *rate_table,
 				   struct ieee80211_tx_rate *rate,
 				   struct ieee80211_tx_rate_control *txrc,
 				   u8 tries, u8 rix, int rtsctsenable)
@@ -769,7 +770,7 @@ static void ath_rc_rate_set_series(struct ath_rate_table *rate_table,
 }
 
 static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
-				   struct ath_rate_table *rate_table,
+				   const struct ath_rate_table *rate_table,
 				   struct ieee80211_tx_info *tx_info)
 {
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
@@ -807,7 +808,7 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 
 static u8 ath_rc_rate_getidx(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
-			     struct ath_rate_table *rate_table,
+			     const struct ath_rate_table *rate_table,
 			     u8 rix, u16 stepdown,
 			     u16 min_rate)
 {
@@ -838,7 +839,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 			    struct ath_rate_priv *ath_rc_priv,
 			    struct ieee80211_tx_rate_control *txrc)
 {
-	struct ath_rate_table *rate_table;
+	const struct ath_rate_table *rate_table;
 	struct sk_buff *skb = txrc->skb;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *rates = tx_info->control.rates;
@@ -937,7 +938,7 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 }
 
 static bool ath_rc_update_per(struct ath_softc *sc,
-			      struct ath_rate_table *rate_table,
+			      const struct ath_rate_table *rate_table,
 			      struct ath_rate_priv *ath_rc_priv,
 			      struct ath_tx_info_priv *tx_info_priv,
 			      int tx_rate, int xretries, int retries,
@@ -1142,7 +1143,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	int rate;
 	u8 last_per;
 	bool state_change = false;
-	struct ath_rate_table *rate_table = sc->cur_rate_table;
+	const struct ath_rate_table *rate_table = sc->cur_rate_table;
 	int size = ath_rc_priv->rate_table_size;
 
 	if ((tx_rate < 0) || (tx_rate > rate_table->rate_cnt))
@@ -1276,7 +1277,7 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 #undef CHK_RSSI
 }
 
-static int ath_rc_get_rateindex(struct ath_rate_table *rate_table,
+static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
 				struct ieee80211_tx_rate *rate)
 {
 	int rix;
@@ -1300,7 +1301,7 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 			     int final_ts_idx, int xretries, int long_retry)
 {
 	struct ath_tx_info_priv *tx_info_priv = ATH_TX_INFO_PRIV(tx_info);
-	struct ath_rate_table *rate_table;
+	const struct ath_rate_table *rate_table;
 	struct ieee80211_tx_rate *rates = tx_info->status.rates;
 	u8 flags;
 	u32 i = 0, rix;
@@ -1354,9 +1355,11 @@ static void ath_rc_tx_status(struct ath_softc *sc,
 			 xretries, long_retry);
 }
 
-static struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
-						    enum ieee80211_band band,
-						    bool is_ht, bool is_cw_40)
+static const
+struct ath_rate_table *ath_choose_rate_table(struct ath_softc *sc,
+					     enum ieee80211_band band,
+					     bool is_ht,
+					     bool is_cw_40)
 {
 	int mode = 0;
 
@@ -1390,7 +1393,7 @@ static void ath_rc_init(struct ath_softc *sc,
 			struct ath_rate_priv *ath_rc_priv,
 			struct ieee80211_supported_band *sband,
 			struct ieee80211_sta *sta,
-			struct ath_rate_table *rate_table)
+			const struct ath_rate_table *rate_table)
 {
 	struct ath_rateset *rateset = &ath_rc_priv->neg_rates;
 	u8 *ht_mcs = (u8 *)&ath_rc_priv->neg_ht_rates;
@@ -1587,7 +1590,7 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
-	struct ath_rate_table *rate_table = NULL;
+	const struct ath_rate_table *rate_table = NULL;
 	bool is_cw40, is_sgi40;
 	int i, j = 0;
 
@@ -1636,7 +1639,7 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 {
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
-	struct ath_rate_table *rate_table = NULL;
+	const struct ath_rate_table *rate_table = NULL;
 	bool oper_cw40 = false, oper_sgi40;
 	bool local_cw40 = (ath_rc_priv->ht_cap & WLAN_RC_40_FLAG) ?
 		true : false;

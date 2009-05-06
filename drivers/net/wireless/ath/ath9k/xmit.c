@@ -434,7 +434,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 			   struct ath_atx_tid *tid)
 {
-	struct ath_rate_table *rate_table = sc->cur_rate_table;
+	const struct ath_rate_table *rate_table = sc->cur_rate_table;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
@@ -497,7 +497,7 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 static int ath_compute_num_delims(struct ath_softc *sc, struct ath_atx_tid *tid,
 				  struct ath_buf *bf, u16 frmlen)
 {
-	struct ath_rate_table *rt = sc->cur_rate_table;
+	const struct ath_rate_table *rt = sc->cur_rate_table;
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	u32 nsymbits, nsymbols, mpdudensity;
@@ -1407,7 +1407,7 @@ static int setup_tx_flags(struct ath_softc *sc, struct sk_buff *skb,
 static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, struct ath_buf *bf,
 			    int width, int half_gi, bool shortPreamble)
 {
-	struct ath_rate_table *rate_table = sc->cur_rate_table;
+	const struct ath_rate_table *rate_table = sc->cur_rate_table;
 	u32 nbits, nsymbits, duration, nsymbols;
 	u8 rc;
 	int streams, pktlen;
@@ -1439,7 +1439,7 @@ static u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, struct ath_buf *bf,
 
 static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 {
-	struct ath_rate_table *rt = sc->cur_rate_table;
+	const struct ath_rate_table *rt = sc->cur_rate_table;
 	struct ath9k_11n_rate_series series[4];
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
