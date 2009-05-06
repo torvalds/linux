@@ -39,6 +39,7 @@
 
 #include <linux/device.h>
 #include <linux/percpu.h>
+#include <linux/rculist.h>
 #include <linux/dmaengine.h>
 #include <linux/workqueue.h>
 
