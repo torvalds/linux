@@ -65,6 +65,12 @@ static
 			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1717X")
 		}
+	}, {
+		.ident = "Lenovo Y300",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "L3000 Y300"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Y300")
+		}
 	},
 	{ }
 };
