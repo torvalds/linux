@@ -5145,6 +5145,9 @@ static pci_ers_result_t ixgbe_io_error_detected(struct pci_dev *pdev,
 
 	netif_device_detach(netdev);
 
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
 	if (netif_running(netdev))
 		ixgbe_down(adapter);
 	pci_disable_device(pdev);
