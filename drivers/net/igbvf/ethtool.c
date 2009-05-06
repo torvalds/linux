@@ -133,6 +133,24 @@ static int igbvf_set_pauseparam(struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
+static u32 igbvf_get_rx_csum(struct net_device *netdev)
+{
+	struct igbvf_adapter *adapter = netdev_priv(netdev);
+	return !(adapter->flags & IGBVF_FLAG_RX_CSUM_DISABLED);
+}
+
+static int igbvf_set_rx_csum(struct net_device *netdev, u32 data)
+{
+	struct igbvf_adapter *adapter = netdev_priv(netdev);
+
+	if (data)
+		adapter->flags &= ~IGBVF_FLAG_RX_CSUM_DISABLED;
+	else
+		adapter->flags |= IGBVF_FLAG_RX_CSUM_DISABLED;
+
+	return 0;
+}
+
 static u32 igbvf_get_tx_csum(struct net_device *netdev)
 {
 	return ((netdev->features & NETIF_F_IP_CSUM) != 0);
@@ -150,8 +168,6 @@ static int igbvf_set_tx_csum(struct net_device *netdev, u32 data)
 static int igbvf_set_tso(struct net_device *netdev, u32 data)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
-	int i;
-	struct net_device *v_netdev;
 
 	if (data) {
 		netdev->features |= NETIF_F_TSO;
@@ -159,24 +175,10 @@ static int igbvf_set_tso(struct net_device *netdev, u32 data)
 	} else {
 		netdev->features &= ~NETIF_F_TSO;
 		netdev->features &= ~NETIF_F_TSO6;
-		/* disable TSO on all VLANs if they're present */
-		if (!adapter->vlgrp)
-			goto tso_out;
-		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
-			v_netdev = vlan_group_get_device(adapter->vlgrp, i);
-			if (!v_netdev)
-				continue;
-
-			v_netdev->features &= ~NETIF_F_TSO;
-			v_netdev->features &= ~NETIF_F_TSO6;
-			vlan_group_set_device(adapter->vlgrp, i, v_netdev);
-		}
 	}
 
-tso_out:
 	dev_info(&adapter->pdev->dev, "TSO is %s\n",
 	         data ? "Enabled" : "Disabled");
-	adapter->flags |= FLAG_TSO_FORCE;
 	return 0;
 }
 
@@ -517,6 +519,8 @@ static const struct ethtool_ops igbvf_ethtool_ops = {
 	.set_ringparam		= igbvf_set_ringparam,
 	.get_pauseparam		= igbvf_get_pauseparam,
 	.set_pauseparam		= igbvf_set_pauseparam,
+	.get_rx_csum            = igbvf_get_rx_csum,
+	.set_rx_csum            = igbvf_set_rx_csum,
 	.get_tx_csum		= igbvf_get_tx_csum,
 	.set_tx_csum		= igbvf_set_tx_csum,
 	.get_sg			= ethtool_op_get_sg,

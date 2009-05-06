@@ -58,8 +58,7 @@ static void igbvf_reset_interrupt_capability(struct igbvf_adapter *);
 
 static struct igbvf_info igbvf_vf_info = {
 	.mac                    = e1000_vfadapt,
-	.flags                  = FLAG_HAS_JUMBO_FRAMES
-	                          | FLAG_RX_CSUM_ENABLED,
+	.flags                  = 0,
 	.pba                    = 10,
 	.init_ops               = e1000_init_function_pointers_vf,
 };
@@ -107,8 +106,10 @@ static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Ignore Checksum bit is set or checksum is disabled through ethtool */
-	if ((status_err & E1000_RXD_STAT_IXSM))
+	if ((status_err & E1000_RXD_STAT_IXSM) ||
+	    (adapter->flags & IGBVF_FLAG_RX_CSUM_DISABLED))
 		return;
+
 	/* TCP/UDP checksum error bit is set */
 	if (status_err &
 	    (E1000_RXDEXT_STATERR_TCPE | E1000_RXDEXT_STATERR_IPE)) {
@@ -116,6 +117,7 @@ static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
 		adapter->hw_csum_err++;
 		return;
 	}
+
 	/* It must be a TCP or UDP packet with a valid checksum */
 	if (status_err & (E1000_RXD_STAT_TCPCS | E1000_RXD_STAT_UDPCS))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -2349,15 +2351,6 @@ static int igbvf_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((new_mtu < 68) || (max_frame > MAX_JUMBO_FRAME_SIZE)) {
 		dev_err(&adapter->pdev->dev, "Invalid MTU setting\n");
 		return -EINVAL;
-	}
-
-	/* Jumbo frame size limits */
-	if (max_frame > ETH_FRAME_LEN + ETH_FCS_LEN) {
-		if (!(adapter->flags & FLAG_HAS_JUMBO_FRAMES)) {
-			dev_err(&adapter->pdev->dev,
-			        "Jumbo Frames not supported.\n");
-			return -EINVAL;
-		}
 	}
 
 #define MAX_STD_JUMBO_FRAME_SIZE 9234
