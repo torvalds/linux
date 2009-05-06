@@ -471,6 +471,22 @@ config MMIOTRACE_TEST
 
 	  Say N, unless you absolutely know what you are doing.
 
+config RING_BUFFER_BENCHMARK
+	tristate "Ring buffer benchmark stress tester"
+	depends on RING_BUFFER
+	help
+	  This option creates a test to stress the ring buffer and bench mark it.
+	  It creates its own ring buffer such that it will not interfer with
+	  any other users of the ring buffer (such as ftrace). It then creates
+	  a producer and consumer that will run for 10 seconds and sleep for
+	  10 seconds. Each interval it will print out the number of events
+	  it recorded and give a rough estimate of how long each iteration took.
+
+	  It does not disable interrupts or raise its priority, so it may be
+	  affected by processes that are running.
+
+	  If unsure, say N
+
 endif # FTRACE
 
 endif # TRACING_SUPPORT
