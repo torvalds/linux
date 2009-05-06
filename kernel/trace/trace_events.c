@@ -21,7 +21,7 @@
 
 #define TRACE_SYSTEM "TRACE_SYSTEM"
 
-static DEFINE_MUTEX(event_mutex);
+DEFINE_MUTEX(event_mutex);
 
 LIST_HEAD(ftrace_events);
 
@@ -80,6 +80,7 @@ static void ftrace_clear_events(void)
 {
 	struct ftrace_event_call *call;
 
+	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
 
 		if (call->enabled) {
@@ -87,6 +88,7 @@ static void ftrace_clear_events(void)
 			call->unregfunc();
 		}
 	}
+	mutex_unlock(&event_mutex);
 }
 
 static void ftrace_event_enable_disable(struct ftrace_event_call *call,
@@ -274,6 +276,9 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
+	mutex_lock(&event_mutex);
+	if (*pos == 0)
+		m->private = ftrace_events.next;
 	return t_next(m, NULL, pos);
 }
 
@@ -303,6 +308,9 @@ s_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *s_start(struct seq_file *m, loff_t *pos)
 {
+	mutex_lock(&event_mutex);
+	if (*pos == 0)
+		m->private = ftrace_events.next;
 	return s_next(m, NULL, pos);
 }
 
@@ -319,12 +327,12 @@ static int t_show(struct seq_file *m, void *v)
 
 static void t_stop(struct seq_file *m, void *p)
 {
+	mutex_unlock(&event_mutex);
 }
 
 static int
 ftrace_event_seq_open(struct inode *inode, struct file *file)
 {
-	int ret;
 	const struct seq_operations *seq_ops;
 
 	if ((file->f_mode & FMODE_WRITE) &&
@@ -332,13 +340,7 @@ ftrace_event_seq_open(struct inode *inode, struct file *file)
 		ftrace_clear_events();
 
 	seq_ops = inode->i_private;
-	ret = seq_open(file, seq_ops);
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-
-		m->private = ftrace_events.next;
-	}
-	return ret;
+	return seq_open(file, seq_ops);
 }
 
 static ssize_t

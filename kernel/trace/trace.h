@@ -825,6 +825,7 @@ static int filter_pred_##size(struct filter_pred *pred, void *event,	\
 	return match;							\
 }
 
+extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
 
 extern const char *__start___trace_bprintk_fmt[];

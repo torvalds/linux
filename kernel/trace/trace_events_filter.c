@@ -408,6 +408,7 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 		filter->n_preds = 0;
 	}
 
+	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
 		if (!call->define_fields)
 			continue;
@@ -417,6 +418,7 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 			remove_filter_string(call->filter);
 		}
 	}
+	mutex_unlock(&event_mutex);
 }
 
 static int filter_add_pred_fn(struct filter_parse_state *ps,
@@ -567,6 +569,7 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 {
 	struct event_filter *filter = system->filter;
 	struct ftrace_event_call *call;
+	int err = 0;
 
 	if (!filter->preds) {
 		filter->preds = kzalloc(MAX_FILTER_PRED * sizeof(pred),
@@ -584,8 +587,8 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 	filter->preds[filter->n_preds] = pred;
 	filter->n_preds++;
 
+	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
-		int err;
 
 		if (!call->define_fields)
 			continue;
@@ -597,12 +600,13 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 		if (err) {
 			filter_free_subsystem_preds(system);
 			parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-			return err;
+			break;
 		}
 		replace_filter_string(call->filter, filter_string);
 	}
+	mutex_unlock(&event_mutex);
 
-	return 0;
+	return err;
 }
 
 static void parse_init(struct filter_parse_state *ps,
