@@ -541,7 +541,7 @@ int register_ftrace_event(struct trace_event *event)
 	INIT_LIST_HEAD(&event->list);
 
 	if (!event->type) {
-		struct list_head *list;
+		struct list_head *list = NULL;
 
 		if (next_event_type > FTRACE_MAX_EVENT) {
 
