@@ -29,6 +29,7 @@
  * This module provides system/board/application information obtained
  * by the bootloader.
  */
+#include <linux/module.h>
 
 #include <asm/octeon/cvmx.h>
 #include <asm/octeon/cvmx-spinlock.h>
@@ -69,6 +70,7 @@ struct cvmx_sysinfo *cvmx_sysinfo_get(void)
 {
 	return &(state.sysinfo);
 }
+EXPORT_SYMBOL(cvmx_sysinfo_get);
 
 /**
  * This function is used in non-simple executive environments (such as
