@@ -405,8 +405,7 @@ static int afs_get_sb(struct file_system_type *fs_type,
 		sb->s_flags = flags;
 		ret = afs_fill_super(sb, &params);
 		if (ret < 0) {
-			up_write(&sb->s_umount);
-			deactivate_super(sb);
+			deactivate_locked_super(sb);
 			goto error;
 		}
 		sb->s_options = new_opts;

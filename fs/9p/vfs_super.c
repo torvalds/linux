@@ -174,10 +174,7 @@ P9_DPRINTK(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	return 0;
 
 release_sb:
-	if (sb) {
-		up_write(&sb->s_umount);
-		deactivate_super(sb);
-	}
+	deactivate_locked_super(sb);
 
 free_stat:
 	kfree(st);

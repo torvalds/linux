@@ -389,11 +389,10 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 	return 0;
 
 out_dput:
-	dput(s->s_root);
+	dput(s->s_root); /* undo dget() in simple_set_mnt() */
 
 out_undo_sget:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	return error;
 }
 

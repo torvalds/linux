@@ -2111,8 +2111,7 @@ out_err_nosb:
 error_splat_root:
 	dput(mntroot);
 error_splat_super:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	goto out;
 }
 
@@ -2208,8 +2207,7 @@ out_err_noserver:
 	return error;
 
 error_splat_super:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	dprintk("<-- nfs_xdev_get_sb() = %d [splat]\n", error);
 	return error;
 }
@@ -2469,8 +2467,7 @@ out_free:
 error_splat_root:
 	dput(mntroot);
 error_splat_super:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	goto out;
 }
 
@@ -2564,8 +2561,7 @@ out_err_noserver:
 	return error;
 
 error_splat_super:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	dprintk("<-- nfs4_xdev_get_sb() = %d [splat]\n", error);
 	return error;
 }
@@ -2649,8 +2645,7 @@ out_err_noserver:
 	return error;
 
 error_splat_super:
-	up_write(&s->s_umount);
-	deactivate_super(s);
+	deactivate_locked_super(s);
 	dprintk("<-- nfs4_referral_get_sb() = %d [splat]\n", error);
 	return error;
 }
