@@ -88,7 +88,24 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define MAC_ADDR_LOW			0x0014
 #define MAC_ADDR_HIGH			0x0018
 #define SDMA_CONFIG			0x001c
+#define  TX_BURST_SIZE_16_64BIT		0x01000000
+#define  TX_BURST_SIZE_4_64BIT		0x00800000
+#define  BLM_TX_NO_SWAP			0x00000020
+#define  BLM_RX_NO_SWAP			0x00000010
+#define  RX_BURST_SIZE_16_64BIT		0x00000008
+#define  RX_BURST_SIZE_4_64BIT		0x00000004
 #define PORT_SERIAL_CONTROL		0x003c
+#define  SET_MII_SPEED_TO_100		0x01000000
+#define  SET_GMII_SPEED_TO_1000		0x00800000
+#define  SET_FULL_DUPLEX_MODE		0x00200000
+#define  MAX_RX_PACKET_9700BYTE		0x000a0000
+#define  DISABLE_AUTO_NEG_SPEED_GMII	0x00002000
+#define  DO_NOT_FORCE_LINK_FAIL		0x00000400
+#define  SERIAL_PORT_CONTROL_RESERVED	0x00000200
+#define  DISABLE_AUTO_NEG_FOR_FLOW_CTRL	0x00000008
+#define  DISABLE_AUTO_NEG_FOR_DUPLEX	0x00000004
+#define  FORCE_LINK_PASS		0x00000002
+#define  SERIAL_PORT_ENABLE		0x00000001
 #define PORT_STATUS			0x0044
 #define  TX_FIFO_EMPTY			0x00000400
 #define  TX_IN_PROGRESS			0x00000080
@@ -135,15 +152,8 @@ static char mv643xx_eth_driver_version[] = "1.4";
 
 
 /*
- * SDMA configuration register.
+ * SDMA configuration register default value.
  */
-#define RX_BURST_SIZE_4_64BIT		(2 << 1)
-#define RX_BURST_SIZE_16_64BIT		(4 << 1)
-#define BLM_RX_NO_SWAP			(1 << 4)
-#define BLM_TX_NO_SWAP			(1 << 5)
-#define TX_BURST_SIZE_4_64BIT		(2 << 22)
-#define TX_BURST_SIZE_16_64BIT		(4 << 22)
-
 #if defined(__BIG_ENDIAN)
 #define PORT_SDMA_CONFIG_DEFAULT_VALUE		\
 		(RX_BURST_SIZE_4_64BIT	|	\
@@ -160,22 +170,10 @@ static char mv643xx_eth_driver_version[] = "1.4";
 
 
 /*
- * Port serial control register.
+ * Misc definitions.
  */
-#define SET_MII_SPEED_TO_100			(1 << 24)
-#define SET_GMII_SPEED_TO_1000			(1 << 23)
-#define SET_FULL_DUPLEX_MODE			(1 << 21)
-#define MAX_RX_PACKET_9700BYTE			(5 << 17)
-#define DISABLE_AUTO_NEG_SPEED_GMII		(1 << 13)
-#define DO_NOT_FORCE_LINK_FAIL			(1 << 10)
-#define SERIAL_PORT_CONTROL_RESERVED		(1 << 9)
-#define DISABLE_AUTO_NEG_FOR_FLOW_CTRL		(1 << 3)
-#define DISABLE_AUTO_NEG_FOR_DUPLEX		(1 << 2)
-#define FORCE_LINK_PASS				(1 << 1)
-#define SERIAL_PORT_ENABLE			(1 << 0)
-
-#define DEFAULT_RX_QUEUE_SIZE		128
-#define DEFAULT_TX_QUEUE_SIZE		256
+#define DEFAULT_RX_QUEUE_SIZE	128
+#define DEFAULT_TX_QUEUE_SIZE	256
 
 
 /*
