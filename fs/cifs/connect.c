@@ -979,6 +979,13 @@ cifs_parse_mount_options(char *options, const char *devname,
 				return 1;
 			} else if (strnicmp(value, "krb5", 4) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_KRB5;
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+			} else if (strnicmp(value, "ntlmsspi", 8) == 0) {
+				vol->secFlg |= CIFSSEC_MAY_NTLMSSP |
+					CIFSSEC_MUST_SIGN;
+			} else if (strnicmp(value, "ntlmssp", 7) == 0) {
+				vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
+#endif
 			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
 					CIFSSEC_MUST_SIGN;
