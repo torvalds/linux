@@ -1051,12 +1051,16 @@ static void __init pcibios_fixup_irqs(void)
 		 */
 		if (io_apic_assign_pci_irqs) {
 			int irq;
+			int ioapic = -1, ioapic_pin = -1;
+			int triggering, polarity;
 
 			/*
 			 * interrupt pins are numbered starting from 1
 			 */
 			irq = IO_APIC_get_PCI_irq_vector(dev->bus->number,
-				PCI_SLOT(dev->devfn), pin - 1);
+						PCI_SLOT(dev->devfn), pin - 1,
+						&ioapic, &ioapic_pin,
+						&triggering, &polarity);
 			/*
 			 * Busses behind bridges are typically not listed in the
 			 * MP-table.  In this case we have to look up the IRQ
@@ -1072,7 +1076,10 @@ static void __init pcibios_fixup_irqs(void)
 				pin = pci_swizzle_interrupt_pin(dev, pin);
 				bus = bridge->bus->number;
 				irq = IO_APIC_get_PCI_irq_vector(bus,
-						PCI_SLOT(bridge->devfn), pin - 1);
+						PCI_SLOT(bridge->devfn),
+						pin - 1,
+						&ioapic, &ioapic_pin,
+						&triggering, &polarity);
 				if (irq >= 0)
 					dev_warn(&dev->dev,
 						"using bridge %s INT %c to "
@@ -1221,8 +1228,14 @@ static int pirq_enable_irq(struct pci_dev *dev)
 
 		if (io_apic_assign_pci_irqs) {
 			int irq;
+			int ioapic = -1, ioapic_pin = -1;
+			int triggering, polarity;
 
-			irq = IO_APIC_get_PCI_irq_vector(dev->bus->number, PCI_SLOT(dev->devfn), pin - 1);
+			irq = IO_APIC_get_PCI_irq_vector(dev->bus->number,
+						PCI_SLOT(dev->devfn),
+						pin - 1,
+						&ioapic, &ioapic_pin,
+						&triggering, &polarity);
 			/*
 			 * Busses behind bridges are typically not listed in the MP-table.
 			 * In this case we have to look up the IRQ based on the parent bus,
@@ -1235,7 +1248,10 @@ static int pirq_enable_irq(struct pci_dev *dev)
 
 				pin = pci_swizzle_interrupt_pin(dev, pin);
 				irq = IO_APIC_get_PCI_irq_vector(bridge->bus->number,
-						PCI_SLOT(bridge->devfn), pin - 1);
+						PCI_SLOT(bridge->devfn),
+						pin - 1,
+						&ioapic, &ioapic_pin,
+						&triggering, &polarity);
 				if (irq >= 0)
 					dev_warn(&dev->dev, "using bridge %s "
 						 "INT %c to get IRQ %d\n",

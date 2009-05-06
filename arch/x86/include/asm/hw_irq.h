@@ -63,7 +63,9 @@ extern unsigned long io_apic_irqs;
 extern void init_VISWS_APIC_irqs(void);
 extern void setup_IO_APIC(void);
 extern void disable_IO_APIC(void);
-extern int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);
+extern int IO_APIC_get_PCI_irq_vector(int bus, int devfn, int pin,
+					int *ioapic, int *ioapic_pin,
+					int *trigger, int *polarity);
 extern void setup_ioapic_dest(void);
 
 extern void enable_IO_APIC(void);

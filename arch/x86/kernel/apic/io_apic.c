@@ -873,54 +873,6 @@ static int __init find_isa_irq_apic(int irq, int type)
 	return -1;
 }
 
-/*
- * Find a specific PCI IRQ entry.
- * Not an __init, possibly needed by modules
- */
-static int pin_2_irq(int idx, int apic, int pin);
-
-int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
-{
-	int apic, i, best_guess = -1;
-
-	apic_printk(APIC_DEBUG, "querying PCI -> IRQ mapping bus:%d, slot:%d, pin:%d.\n",
-		bus, slot, pin);
-	if (test_bit(bus, mp_bus_not_pci)) {
-		apic_printk(APIC_VERBOSE, "PCI BIOS passed nonexistent PCI bus %d!\n", bus);
-		return -1;
-	}
-	for (i = 0; i < mp_irq_entries; i++) {
-		int lbus = mp_irqs[i].srcbus;
-
-		for (apic = 0; apic < nr_ioapics; apic++)
-			if (mp_ioapics[apic].apicid == mp_irqs[i].dstapic ||
-			    mp_irqs[i].dstapic == MP_APIC_ALL)
-				break;
-
-		if (!test_bit(lbus, mp_bus_not_pci) &&
-		    !mp_irqs[i].irqtype &&
-		    (bus == lbus) &&
-		    (slot == ((mp_irqs[i].srcbusirq >> 2) & 0x1f))) {
-			int irq = pin_2_irq(i, apic, mp_irqs[i].dstirq);
-
-			if (!(apic || IO_APIC_IRQ(irq)))
-				continue;
-
-			if (pin == (mp_irqs[i].srcbusirq & 3))
-				return irq;
-			/*
-			 * Use the first all-but-pin matching entry as a
-			 * best-guess fuzzy result for broken mptables.
-			 */
-			if (best_guess < 0)
-				best_guess = irq;
-		}
-	}
-	return best_guess;
-}
-
-EXPORT_SYMBOL(IO_APIC_get_PCI_irq_vector);
-
 #if defined(CONFIG_EISA) || defined(CONFIG_MCA)
 /*
  * EISA Edge/Level control register, ELCR
@@ -1138,6 +1090,65 @@ static int pin_2_irq(int idx, int apic, int pin)
 
 	return irq;
 }
+
+/*
+ * Find a specific PCI IRQ entry.
+ * Not an __init, possibly needed by modules
+ */
+int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin,
+				int *ioapic, int *ioapic_pin,
+				int *trigger, int *polarity)
+{
+	int apic, i, best_guess = -1;
+
+	apic_printk(APIC_DEBUG,
+		    "querying PCI -> IRQ mapping bus:%d, slot:%d, pin:%d.\n",
+		    bus, slot, pin);
+	if (test_bit(bus, mp_bus_not_pci)) {
+		apic_printk(APIC_VERBOSE,
+			    "PCI BIOS passed nonexistent PCI bus %d!\n", bus);
+		return -1;
+	}
+	for (i = 0; i < mp_irq_entries; i++) {
+		int lbus = mp_irqs[i].srcbus;
+
+		for (apic = 0; apic < nr_ioapics; apic++)
+			if (mp_ioapics[apic].apicid == mp_irqs[i].dstapic ||
+			    mp_irqs[i].dstapic == MP_APIC_ALL)
+				break;
+
+		if (!test_bit(lbus, mp_bus_not_pci) &&
+		    !mp_irqs[i].irqtype &&
+		    (bus == lbus) &&
+		    (slot == ((mp_irqs[i].srcbusirq >> 2) & 0x1f))) {
+			int irq = pin_2_irq(i, apic, mp_irqs[i].dstirq);
+
+			if (!(apic || IO_APIC_IRQ(irq)))
+				continue;
+
+			if (pin == (mp_irqs[i].srcbusirq & 3)) {
+				*ioapic = apic;
+				*ioapic_pin = mp_irqs[i].dstirq;
+				*trigger = irq_trigger(i);
+				*polarity = irq_polarity(i);
+				return irq;
+			}
+			/*
+			 * Use the first all-but-pin matching entry as a
+			 * best-guess fuzzy result for broken mptables.
+			 */
+			if (best_guess < 0) {
+				*ioapic = apic;
+				*ioapic_pin = mp_irqs[i].dstirq;
+				*trigger = irq_trigger(i);
+				*polarity = irq_polarity(i);
+				best_guess = irq;
+			}
+		}
+	}
+	return best_guess;
+}
+EXPORT_SYMBOL(IO_APIC_get_PCI_irq_vector);
 
 void lock_vector_lock(void)
 {
