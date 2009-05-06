@@ -925,6 +925,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			* Onkyo SE-90PCI
 			* Onkyo SE-200PCI
 			* ESI Juli@
+			* ESI Maya44
 			* Hercules Fortissimo IV
 			* EGO-SYS WaveTerminal 192M
 
@@ -933,7 +934,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		  prodigy71xt, prodigy71hifi, prodigyhd2, prodigy192,
 		  juli, aureon51, aureon71, universe, ap192, k8x800,
 		  phase22, phase28, ms300, av710, se200pci, se90pci,
-		  fortissimo4, sn25p, WT192M
+		  fortissimo4, sn25p, WT192M, maya44
 
     This module supports multiple cards and autoprobe.
 

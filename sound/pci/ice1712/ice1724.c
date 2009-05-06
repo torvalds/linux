@@ -49,6 +49,7 @@
 #include "prodigy192.h"
 #include "prodigy_hifi.h"
 #include "juli.h"
+#include "maya44.h"
 #include "phase.h"
 #include "wtm.h"
 #include "se.h"
@@ -65,6 +66,7 @@ MODULE_SUPPORTED_DEVICE("{"
 	       PRODIGY192_DEVICE_DESC
 	       PRODIGY_HIFI_DEVICE_DESC
 	       JULI_DEVICE_DESC
+	       MAYA44_DEVICE_DESC
 	       PHASE_DEVICE_DESC
 	       WTM_DEVICE_DESC
 	       SE_DEVICE_DESC
@@ -2125,6 +2127,7 @@ static struct snd_ice1712_card_info *card_tables[] __devinitdata = {
 	snd_vt1724_prodigy_hifi_cards,
 	snd_vt1724_prodigy192_cards,
 	snd_vt1724_juli_cards,
+	snd_vt1724_maya44_cards,
 	snd_vt1724_phase_cards,
 	snd_vt1724_wtm_cards,
 	snd_vt1724_se_cards,
