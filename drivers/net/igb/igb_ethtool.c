@@ -275,13 +275,17 @@ static int igb_set_pauseparam(struct net_device *netdev,
 static u32 igb_get_rx_csum(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	return adapter->rx_csum;
+	return !(adapter->flags & IGB_FLAG_RX_CSUM_DISABLED);
 }
 
 static int igb_set_rx_csum(struct net_device *netdev, u32 data)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	adapter->rx_csum = data;
+
+	if (data)
+		adapter->flags &= ~IGB_FLAG_RX_CSUM_DISABLED;
+	else
+		adapter->flags |= IGB_FLAG_RX_CSUM_DISABLED;
 
 	return 0;
 }

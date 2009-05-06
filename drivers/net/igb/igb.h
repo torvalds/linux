@@ -238,7 +238,6 @@ struct igb_adapter {
 	u64 hw_csum_err;
 	u64 hw_csum_good;
 	u32 alloc_rx_buff_failed;
-	bool rx_csum;
 	u32 gorc;
 	u64 gorc_old;
 	u16 rx_ps_hdr_size;
@@ -286,6 +285,7 @@ struct igb_adapter {
 #define IGB_FLAG_DCA_ENABLED       (1 << 1)
 #define IGB_FLAG_QUAD_PORT_A       (1 << 2)
 #define IGB_FLAG_NEED_CTX_IDX      (1 << 3)
+#define IGB_FLAG_RX_CSUM_DISABLED  (1 << 4)
 
 enum e1000_state_t {
 	__IGB_TESTING,

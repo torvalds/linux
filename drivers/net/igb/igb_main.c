@@ -1395,8 +1395,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	igb_validate_mdi_setting(hw);
 
-	adapter->rx_csum = 1;
-
 	/* Initial Wake on LAN setting If APM wake is enabled in the EEPROM,
 	 * enable the ACPI Magic Packet filter
 	 */
@@ -2249,13 +2247,12 @@ static void igb_configure_rx(struct igb_adapter *adapter)
 	rxcsum = rd32(E1000_RXCSUM);
 	/* Disable raw packet checksumming */
 	rxcsum |= E1000_RXCSUM_PCSD;
-	/* Don't need to set TUOFL or IPOFL, they default to 1 */
-	if (!adapter->rx_csum)
-		rxcsum &= ~(E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL);
-	else if (adapter->hw.mac.type == e1000_82576)
+
+	if (adapter->hw.mac.type == e1000_82576)
 		/* Enable Receive Checksum Offload for SCTP */
 		rxcsum |= E1000_RXCSUM_CRCOFL;
 
+	/* Don't need to set TUOFL or IPOFL, they default to 1 */
 	wr32(E1000_RXCSUM, rxcsum);
 
 	/* Set the default pool for the PF's first queue */
@@ -4455,7 +4452,8 @@ static inline void igb_rx_checksum_adv(struct igb_adapter *adapter,
 	skb->ip_summed = CHECKSUM_NONE;
 
 	/* Ignore Checksum bit is set or checksum is disabled through ethtool */
-	if ((status_err & E1000_RXD_STAT_IXSM) || !adapter->rx_csum)
+	if ((status_err & E1000_RXD_STAT_IXSM) ||
+	    (adapter->flags & IGB_FLAG_RX_CSUM_DISABLED))
 		return;
 	/* TCP/UDP checksum error bit is set */
 	if (status_err &
