@@ -301,7 +301,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 	case VS_FORMAT_FRAME_BASED:
 		n = buffer[2] == VS_FORMAT_UNCOMPRESSED ? 27 : 28;
 		if (buflen < n) {
-			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
+			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 			       "interface %d FORMAT error\n",
 			       dev->udev->devnum,
 			       alts->desc.bInterfaceNumber);
@@ -336,7 +336,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 	case VS_FORMAT_MJPEG:
 		if (buflen < 11) {
-			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
+			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 			       "interface %d FORMAT error\n",
 			       dev->udev->devnum,
 			       alts->desc.bInterfaceNumber);
@@ -352,7 +352,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 	case VS_FORMAT_DV:
 		if (buflen < 9) {
-			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
+			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 			       "interface %d FORMAT error\n",
 			       dev->udev->devnum,
 			       alts->desc.bInterfaceNumber);
@@ -370,7 +370,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 			strlcpy(format->name, "HD-DV", sizeof format->name);
 			break;
 		default:
-			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
+			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 			       "interface %d: unknown DV format %u\n",
 			       dev->udev->devnum,
 			       alts->desc.bInterfaceNumber, buffer[8]);
@@ -399,7 +399,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 	case VS_FORMAT_STREAM_BASED:
 		/* Not supported yet. */
 	default:
-		uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
+		uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 		       "interface %d unsupported format %u\n",
 		       dev->udev->devnum, alts->desc.bInterfaceNumber,
 		       buffer[2]);
@@ -424,7 +424,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 		n = n ? n : 3;
 
 		if (buflen < 26 + 4*n) {
-			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
+			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 			       "interface %d FRAME error\n", dev->udev->devnum,
 			       alts->desc.bInterfaceNumber);
 			return -EINVAL;
@@ -498,7 +498,7 @@ static int uvc_parse_format(struct uvc_device *dev,
 
 	if (buflen > 2 && buffer[2] == VS_COLORFORMAT) {
 		if (buflen < 6) {
-			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming"
+			uvc_trace(UVC_TRACE_DESCR, "device %d videostreaming "
 			       "interface %d COLORFORMAT error\n",
 			       dev->udev->devnum,
 			       alts->desc.bInterfaceNumber);
@@ -1296,7 +1296,7 @@ static int uvc_scan_chain_forward(struct uvc_video_device *video,
 			continue;
 
 		if (forward->extension.bNrInPins != 1) {
-			uvc_trace(UVC_TRACE_DESCR, "Extension unit %d has"
+			uvc_trace(UVC_TRACE_DESCR, "Extension unit %d has "
 				"more than 1 input pin.\n", entity->id);
 			return -1;
 		}
