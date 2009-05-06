@@ -346,6 +346,20 @@ static void filter_disable_preds(struct ftrace_event_call *call)
 		filter->preds[i]->fn = filter_pred_none;
 }
 
+void destroy_preds(struct ftrace_event_call *call)
+{
+	struct event_filter *filter = call->filter;
+	int i;
+
+	for (i = 0; i < MAX_FILTER_PRED; i++) {
+		if (filter->preds[i])
+			filter_free_pred(filter->preds[i]);
+	}
+	kfree(filter->preds);
+	kfree(filter);
+	call->filter = NULL;
+}
+
 int init_preds(struct ftrace_event_call *call)
 {
 	struct event_filter *filter;
@@ -374,13 +388,7 @@ int init_preds(struct ftrace_event_call *call)
 	return 0;
 
 oom:
-	for (i = 0; i < MAX_FILTER_PRED; i++) {
-		if (filter->preds[i])
-			filter_free_pred(filter->preds[i]);
-	}
-	kfree(filter->preds);
-	kfree(call->filter);
-	call->filter = NULL;
+	destroy_preds(call);
 
 	return -ENOMEM;
 }

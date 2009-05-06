@@ -60,6 +60,22 @@ err:
 }
 EXPORT_SYMBOL_GPL(trace_define_field);
 
+#ifdef CONFIG_MODULES
+
+static void trace_destroy_fields(struct ftrace_event_call *call)
+{
+	struct ftrace_event_field *field, *next;
+
+	list_for_each_entry_safe(field, next, &call->fields, link) {
+		list_del(&field->link);
+		kfree(field->type);
+		kfree(field->name);
+		kfree(field);
+	}
+}
+
+#endif /* CONFIG_MODULES */
+
 static void ftrace_clear_events(void)
 {
 	struct ftrace_event_call *call;
@@ -925,6 +941,8 @@ static void trace_module_remove_events(struct module *mod)
 				unregister_ftrace_event(call->event);
 			debugfs_remove_recursive(call->dir);
 			list_del(&call->list);
+			trace_destroy_fields(call);
+			destroy_preds(call);
 		}
 	}
 
