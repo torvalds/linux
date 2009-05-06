@@ -16,10 +16,6 @@ static void simple_thread_func(int cnt)
 	set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(HZ);
 	trace_foo_bar("hello", cnt);
-
-	if (!(cnt % 10))
-		/* It is really important that I say "hi!" */
-		printk(KERN_EMERG "hi!\n");
 }
 
 static int simple_thread(void *arg)
