@@ -855,19 +855,38 @@ static snd_pcm_uframes_t snd_vt1724_pcm_pointer(struct snd_pcm_substream *substr
 #endif
 }
 
-static const struct vt1724_pcm_reg vt1724_playback_pro_reg = {
+static const struct vt1724_pcm_reg vt1724_pdma0_reg = {
 	.addr = VT1724_MT_PLAYBACK_ADDR,
 	.size = VT1724_MT_PLAYBACK_SIZE,
 	.count = VT1724_MT_PLAYBACK_COUNT,
 	.start = VT1724_PDMA0_START,
 };
 
-static const struct vt1724_pcm_reg vt1724_capture_pro_reg = {
+static const struct vt1724_pcm_reg vt1724_pdma4_reg = {
+	.addr = VT1724_MT_PDMA4_ADDR,
+	.size = VT1724_MT_PDMA4_SIZE,
+	.count = VT1724_MT_PDMA4_COUNT,
+	.start = VT1724_PDMA4_START,
+};
+
+static const struct vt1724_pcm_reg vt1724_rdma0_reg = {
 	.addr = VT1724_MT_CAPTURE_ADDR,
 	.size = VT1724_MT_CAPTURE_SIZE,
 	.count = VT1724_MT_CAPTURE_COUNT,
 	.start = VT1724_RDMA0_START,
 };
+
+static const struct vt1724_pcm_reg vt1724_rdma1_reg = {
+	.addr = VT1724_MT_RDMA1_ADDR,
+	.size = VT1724_MT_RDMA1_SIZE,
+	.count = VT1724_MT_RDMA1_COUNT,
+	.start = VT1724_RDMA1_START,
+};
+
+#define vt1724_playback_pro_reg vt1724_pdma0_reg
+#define vt1724_playback_spdif_reg vt1724_pdma4_reg
+#define vt1724_capture_pro_reg vt1724_rdma0_reg
+#define vt1724_capture_spdif_reg vt1724_rdma1_reg
 
 static const struct snd_pcm_hardware snd_vt1724_playback_pro = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
@@ -1083,20 +1102,6 @@ static int __devinit snd_vt1724_pcm_profi(struct snd_ice1712 *ice, int device)
 /*
  * SPDIF PCM
  */
-
-static const struct vt1724_pcm_reg vt1724_playback_spdif_reg = {
-	.addr = VT1724_MT_PDMA4_ADDR,
-	.size = VT1724_MT_PDMA4_SIZE,
-	.count = VT1724_MT_PDMA4_COUNT,
-	.start = VT1724_PDMA4_START,
-};
-
-static const struct vt1724_pcm_reg vt1724_capture_spdif_reg = {
-	.addr = VT1724_MT_RDMA1_ADDR,
-	.size = VT1724_MT_RDMA1_SIZE,
-	.count = VT1724_MT_RDMA1_COUNT,
-	.start = VT1724_RDMA1_START,
-};
 
 /* update spdif control bits; call with reg_lock */
 static void update_spdif_bits(struct snd_ice1712 *ice, unsigned int val)
