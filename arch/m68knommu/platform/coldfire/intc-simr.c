@@ -62,6 +62,11 @@ void __init init_IRQ(void)
 
 	init_vectors();
 
+	/* Mask all interrupt sources */
+	__raw_writeb(0xff, MCFINTC0_SIMR);
+	if (MCFINTC1_SIMR)
+		__raw_writeb(0xff, MCFINTC1_SIMR);
+
 	for (irq = 0; (irq < NR_IRQS); irq++) {
 		irq_desc[irq].status = IRQ_DISABLED;
 		irq_desc[irq].action = NULL;

@@ -56,8 +56,6 @@
 #define	MCFSIM_DMA3ICR		MCFSIM_ICR9	/* DMA 3 ICR */
 
 
-#define	MCFSIM_IMR_MASKALL	0xFFFFFFFF	/* All SIM intr sources */
-
 #define	MCFINTC0_SIMR		0xFC04801C
 #define	MCFINTC0_CIMR		0xFC04801D
 #define	MCFINTC0_ICR0		0xFC048040
@@ -68,37 +66,6 @@
 #define MCFSIM_ICR_TIMER1	(0xFC048040+32)
 #define MCFSIM_ICR_TIMER2	(0xFC048040+33)
 
-
-/*
- *	Macro to set IMR register. It is 32 bits on the 5307.
- */
-#define	mcf_getimr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR))
-
-#define	mcf_setimr(imr)		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR)) = (imr);
-
-#define	mcf_getipr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IPR))
-
-#define	mcf_getiprl()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IPRL))
-
-#define	mcf_getiprh()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IPRH))
-
-
-#define mcf_enable_irq0(irq)		\
-	*((volatile unsigned char *) (MCFINTC0_CIMR)) = (irq);
-
-#define mcf_enable_irq1(irq)		\
-	*((volatile unsigned char *) (MCFINTC1_CIMR)) = (irq);
-
-#define mcf_disable_irq0(irq)		\
-	*((volatile unsigned char *) (MCFINTC0_SIMR)) = (irq);
-
-#define mcf_disable_irq1(irq)		\
-	*((volatile unsigned char *) (MCFINTC1_SIMR)) = (irq);
 
 /*
  *	Define the Cache register flags.
