@@ -45,6 +45,10 @@
 #include <asm/cpu.h>
 #include <linux/err.h>
 
+/*
+ * Anomaly notes:
+ * 05000120 - we always define corelock as 32-bit integer in L2
+ */
 struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
 
 void __cpuinitdata *init_retx_coreb, *init_saved_retx_coreb,
