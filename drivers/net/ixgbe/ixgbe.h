@@ -370,8 +370,6 @@ extern void ixgbe_free_tx_resources(struct ixgbe_adapter *, struct ixgbe_ring *)
 extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
 extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
 extern void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
-void ixgbe_napi_add_all(struct ixgbe_adapter *adapter);
-void ixgbe_napi_del_all(struct ixgbe_adapter *adapter);
 extern void ixgbe_write_eitr(struct ixgbe_adapter *, int, u32);
 
 #endif /* _IXGBE_H_ */
