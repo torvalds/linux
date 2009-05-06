@@ -107,9 +107,6 @@ struct alg_test_desc {
 
 static unsigned int IDX[8] = { IDX1, IDX2, IDX3, IDX4, IDX5, IDX6, IDX7, IDX8 };
 
-static char *xbuf[XBUFSIZE];
-static char *axbuf[XBUFSIZE];
-
 static void hexdump(unsigned char *buf, unsigned int len)
 {
 	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
@@ -128,6 +125,33 @@ static void tcrypt_complete(struct crypto_async_request *req, int err)
 	complete(&res->completion);
 }
 
+static int testmgr_alloc_buf(char *buf[XBUFSIZE])
+{
+	int i;
+
+	for (i = 0; i < XBUFSIZE; i++) {
+		buf[i] = (void *)__get_free_page(GFP_KERNEL);
+		if (!buf[i])
+			goto err_free_buf;
+	}
+
+	return 0;
+
+err_free_buf:
+	while (i-- > 0)
+		free_page((unsigned long)buf[i]);
+
+	return -ENOMEM;
+}
+
+static void testmgr_free_buf(char *buf[XBUFSIZE])
+{
+	int i;
+
+	for (i = 0; i < XBUFSIZE; i++)
+		free_page((unsigned long)buf[i]);
+}
+
 static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 		     unsigned int tcount)
 {
@@ -137,8 +161,12 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 	char result[64];
 	struct ahash_request *req;
 	struct tcrypt_result tresult;
-	int ret;
 	void *hash_buff;
+	char *xbuf[XBUFSIZE];
+	int ret = -ENOMEM;
+
+	if (testmgr_alloc_buf(xbuf))
+		goto out_nobuf;
 
 	init_completion(&tresult.completion);
 
@@ -146,7 +174,6 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 	if (!req) {
 		printk(KERN_ERR "alg: hash: Failed to allocate request for "
 		       "%s\n", algo);
-		ret = -ENOMEM;
 		goto out_noreq;
 	}
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
@@ -272,6 +299,8 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 out:
 	ahash_request_free(req);
 out_noreq:
+	testmgr_free_buf(xbuf);
+out_nobuf:
 	return ret;
 }
 
@@ -280,7 +309,7 @@ static int test_aead(struct crypto_aead *tfm, int enc,
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
 	unsigned int i, j, k, n, temp;
-	int ret = 0;
+	int ret = -ENOMEM;
 	char *q;
 	char *key;
 	struct aead_request *req;
@@ -292,6 +321,13 @@ static int test_aead(struct crypto_aead *tfm, int enc,
 	void *input;
 	void *assoc;
 	char iv[MAX_IVLEN];
+	char *xbuf[XBUFSIZE];
+	char *axbuf[XBUFSIZE];
+
+	if (testmgr_alloc_buf(xbuf))
+		goto out_noxbuf;
+	if (testmgr_alloc_buf(axbuf))
+		goto out_noaxbuf;
 
 	if (enc == ENCRYPT)
 		e = "encryption";
@@ -304,7 +340,6 @@ static int test_aead(struct crypto_aead *tfm, int enc,
 	if (!req) {
 		printk(KERN_ERR "alg: aead: Failed to allocate request for "
 		       "%s\n", algo);
-		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -581,6 +616,10 @@ static int test_aead(struct crypto_aead *tfm, int enc,
 
 out:
 	aead_request_free(req);
+	testmgr_free_buf(axbuf);
+out_noaxbuf:
+	testmgr_free_buf(xbuf);
+out_noxbuf:
 	return ret;
 }
 
@@ -589,10 +628,14 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 {
 	const char *algo = crypto_tfm_alg_driver_name(crypto_cipher_tfm(tfm));
 	unsigned int i, j, k;
-	int ret;
 	char *q;
 	const char *e;
 	void *data;
+	char *xbuf[XBUFSIZE];
+	int ret = -ENOMEM;
+
+	if (testmgr_alloc_buf(xbuf))
+		goto out_nobuf;
 
 	if (enc == ENCRYPT)
 	        e = "encryption";
@@ -646,6 +689,8 @@ static int test_cipher(struct crypto_cipher *tfm, int enc,
 	ret = 0;
 
 out:
+	testmgr_free_buf(xbuf);
+out_nobuf:
 	return ret;
 }
 
@@ -655,7 +700,6 @@ static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 	const char *algo =
 		crypto_tfm_alg_driver_name(crypto_ablkcipher_tfm(tfm));
 	unsigned int i, j, k, n, temp;
-	int ret;
 	char *q;
 	struct ablkcipher_request *req;
 	struct scatterlist sg[8];
@@ -663,6 +707,11 @@ static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 	struct tcrypt_result result;
 	void *data;
 	char iv[MAX_IVLEN];
+	char *xbuf[XBUFSIZE];
+	int ret = -ENOMEM;
+
+	if (testmgr_alloc_buf(xbuf))
+		goto out_nobuf;
 
 	if (enc == ENCRYPT)
 	        e = "encryption";
@@ -675,7 +724,6 @@ static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 	if (!req) {
 		printk(KERN_ERR "alg: skcipher: Failed to allocate request "
 		       "for %s\n", algo);
-		ret = -ENOMEM;
 		goto out;
 	}
 
@@ -860,6 +908,8 @@ static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
 
 out:
 	ablkcipher_request_free(req);
+	testmgr_free_buf(xbuf);
+out_nobuf:
 	return ret;
 }
 
@@ -2245,41 +2295,3 @@ notest:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(alg_test);
-
-int __init testmgr_init(void)
-{
-	int i;
-
-	for (i = 0; i < XBUFSIZE; i++) {
-		xbuf[i] = (void *)__get_free_page(GFP_KERNEL);
-		if (!xbuf[i])
-			goto err_free_xbuf;
-	}
-
-	for (i = 0; i < XBUFSIZE; i++) {
-		axbuf[i] = (void *)__get_free_page(GFP_KERNEL);
-		if (!axbuf[i])
-			goto err_free_axbuf;
-	}
-
-	return 0;
-
-err_free_axbuf:
-	for (i = 0; i < XBUFSIZE && axbuf[i]; i++)
-		free_page((unsigned long)axbuf[i]);
-err_free_xbuf:
-	for (i = 0; i < XBUFSIZE && xbuf[i]; i++)
-		free_page((unsigned long)xbuf[i]);
-
-	return -ENOMEM;
-}
-
-void testmgr_exit(void)
-{
-	int i;
-
-	for (i = 0; i < XBUFSIZE; i++)
-		free_page((unsigned long)axbuf[i]);
-	for (i = 0; i < XBUFSIZE; i++)
-		free_page((unsigned long)xbuf[i]);
-}
