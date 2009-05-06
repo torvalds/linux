@@ -4544,7 +4544,8 @@ F:	drivers/pcmcia/pxa2xx*
 F:	drivers/spi/pxa2xx*
 F:	drivers/usb/gadget/pxa2*
 F:	include/sound/pxa2xx-lib.h
-F:	sound/soc/pxa/pxa2xx*
+F:	sound/arm/pxa*
+F:	sound/soc/pxa
 
 PXA168 SUPPORT
 P:	Eric Miao
