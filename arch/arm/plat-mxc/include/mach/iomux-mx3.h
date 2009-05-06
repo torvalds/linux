@@ -114,7 +114,7 @@ enum iomux_gp_func {
  * 	- setups the iomux according to the configuration
  * 	- if the pin is configured as a GPIO, we claim it throug kernel gpiolib
  */
-int mxc_iomux_setup_pin(const unsigned int pin, const char *label);
+int mxc_iomux_alloc_pin(const unsigned int pin, const char *label);
 /*
  * setups mutliple pins
  * convenient way to call the above function with tables
