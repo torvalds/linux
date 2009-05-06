@@ -1159,6 +1159,10 @@ static void fc_exch_recv_seq_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		atomic_inc(&mp->stats.xid_not_found);
 		goto out;
 	}
+	if (ep->esb_stat & ESB_ST_COMPLETE) {
+		atomic_inc(&mp->stats.xid_not_found);
+		goto out;
+	}
 	if (ep->rxid == FC_XID_UNKNOWN)
 		ep->rxid = ntohs(fh->fh_rx_id);
 	if (ep->sid != 0 && ep->sid != ntoh24(fh->fh_d_id)) {
