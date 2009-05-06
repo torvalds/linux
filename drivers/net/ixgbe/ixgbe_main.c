@@ -3773,7 +3773,8 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	err = pci_enable_device(pdev);
+
+	err = pci_enable_device_mem(pdev);
 	if (err) {
 		printk(KERN_ERR "ixgbe: Cannot enable PCI device from "
 				"suspend\n");
@@ -4778,7 +4779,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	int i, err, pci_using_dac;
 	u32 part_num, eec;
 
-	err = pci_enable_device(pdev);
+	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
@@ -4798,9 +4799,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		pci_using_dac = 0;
 	}
 
-	err = pci_request_regions(pdev, ixgbe_driver_name);
+	err = pci_request_selected_regions(pdev, pci_select_bars(pdev,
+	                                   IORESOURCE_MEM), ixgbe_driver_name);
 	if (err) {
-		dev_err(&pdev->dev, "pci_request_regions failed 0x%x\n", err);
+		dev_err(&pdev->dev,
+		        "pci_request_selected_regions failed 0x%x\n", err);
 		goto err_pci_reg;
 	}
 
@@ -5063,7 +5066,8 @@ err_eeprom:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, pci_select_bars(pdev,
+	                             IORESOURCE_MEM));
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -5115,7 +5119,8 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	ixgbe_release_hw_control(adapter);
 
 	iounmap(adapter->hw.hw_addr);
-	pci_release_regions(pdev);
+	pci_release_selected_regions(pdev, pci_select_bars(pdev,
+	                             IORESOURCE_MEM));
 
 	DPRINTK(PROBE, INFO, "complete\n");
 
@@ -5169,7 +5174,7 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 	pci_ers_result_t result;
 	int err;
 
-	if (pci_enable_device(pdev)) {
+	if (pci_enable_device_mem(pdev)) {
 		DPRINTK(PROBE, ERR,
 		        "Cannot re-enable PCI device after reset.\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
