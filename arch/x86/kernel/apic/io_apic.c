@@ -3922,7 +3922,7 @@ int __init io_apic_get_version(int ioapic)
 }
 #endif
 
-int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
+static int __io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
 				 int triggering, int polarity)
 {
 	struct irq_desc *desc;
@@ -3959,6 +3959,29 @@ int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
 	return 0;
 }
 
+static struct {
+	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
+} mp_ioapic_routing[MAX_IO_APICS];
+
+int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
+				 int triggering, int polarity)
+{
+
+	/*
+	 * Avoid pin reprogramming.  PRTs typically include entries
+	 * with redundant pin->gsi mappings (but unique PCI devices);
+	 * we only program the IOAPIC on the first.
+	 */
+	if (test_bit(pin, mp_ioapic_routing[ioapic].pin_programmed)) {
+		pr_debug("Pin %d-%d already programmed\n",
+			 mp_ioapics[ioapic].apicid, pin);
+		return 0;
+	}
+	set_bit(pin, mp_ioapic_routing[ioapic].pin_programmed);
+
+	return __io_apic_set_pci_routing(dev, ioapic, pin, irq,
+					 triggering, polarity);
+}
 
 int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
 {
