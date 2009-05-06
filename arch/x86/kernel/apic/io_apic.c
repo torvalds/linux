@@ -3839,6 +3839,67 @@ int __init arch_probe_nr_irqs(void)
 }
 #endif
 
+static int __io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
+				 int triggering, int polarity)
+{
+	struct irq_desc *desc;
+	struct irq_cfg *cfg;
+	int node;
+
+	if (!IO_APIC_IRQ(irq)) {
+		apic_printk(APIC_QUIET,KERN_ERR "IOAPIC[%d]: Invalid reference to IRQ 0\n",
+			ioapic);
+		return -EINVAL;
+	}
+
+	if (dev)
+		node = dev_to_node(dev);
+	else
+		node = cpu_to_node(boot_cpu_id);
+
+	desc = irq_to_desc_alloc_node(irq, node);
+	if (!desc) {
+		printk(KERN_INFO "can not get irq_desc %d\n", irq);
+		return 0;
+	}
+
+	/*
+	 * IRQs < 16 are already in the irq_2_pin[] map
+	 */
+	if (irq >= NR_IRQS_LEGACY) {
+		cfg = desc->chip_data;
+		add_pin_to_irq_node(cfg, node, ioapic, pin);
+	}
+
+	setup_IO_APIC_irq(ioapic, pin, irq, desc, triggering, polarity);
+
+	return 0;
+}
+
+static struct {
+	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
+} mp_ioapic_routing[MAX_IO_APICS];
+
+int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
+				 int triggering, int polarity)
+{
+
+	/*
+	 * Avoid pin reprogramming.  PRTs typically include entries
+	 * with redundant pin->gsi mappings (but unique PCI devices);
+	 * we only program the IOAPIC on the first.
+	 */
+	if (test_bit(pin, mp_ioapic_routing[ioapic].pin_programmed)) {
+		pr_debug("Pin %d-%d already programmed\n",
+			 mp_ioapics[ioapic].apicid, pin);
+		return 0;
+	}
+	set_bit(pin, mp_ioapic_routing[ioapic].pin_programmed);
+
+	return __io_apic_set_pci_routing(dev, ioapic, pin, irq,
+					 triggering, polarity);
+}
+
 /* --------------------------------------------------------------------------
                           ACPI-based IOAPIC Configuration
    -------------------------------------------------------------------------- */
@@ -3932,67 +3993,6 @@ int __init io_apic_get_version(int ioapic)
 	return reg_01.bits.version;
 }
 #endif
-
-static int __io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
-				 int triggering, int polarity)
-{
-	struct irq_desc *desc;
-	struct irq_cfg *cfg;
-	int node;
-
-	if (!IO_APIC_IRQ(irq)) {
-		apic_printk(APIC_QUIET,KERN_ERR "IOAPIC[%d]: Invalid reference to IRQ 0\n",
-			ioapic);
-		return -EINVAL;
-	}
-
-	if (dev)
-		node = dev_to_node(dev);
-	else
-		node = cpu_to_node(boot_cpu_id);
-
-	desc = irq_to_desc_alloc_node(irq, node);
-	if (!desc) {
-		printk(KERN_INFO "can not get irq_desc %d\n", irq);
-		return 0;
-	}
-
-	/*
-	 * IRQs < 16 are already in the irq_2_pin[] map
-	 */
-	if (irq >= NR_IRQS_LEGACY) {
-		cfg = desc->chip_data;
-		add_pin_to_irq_node(cfg, node, ioapic, pin);
-	}
-
-	setup_IO_APIC_irq(ioapic, pin, irq, desc, triggering, polarity);
-
-	return 0;
-}
-
-static struct {
-	DECLARE_BITMAP(pin_programmed, MP_MAX_IOAPIC_PIN + 1);
-} mp_ioapic_routing[MAX_IO_APICS];
-
-int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
-				 int triggering, int polarity)
-{
-
-	/*
-	 * Avoid pin reprogramming.  PRTs typically include entries
-	 * with redundant pin->gsi mappings (but unique PCI devices);
-	 * we only program the IOAPIC on the first.
-	 */
-	if (test_bit(pin, mp_ioapic_routing[ioapic].pin_programmed)) {
-		pr_debug("Pin %d-%d already programmed\n",
-			 mp_ioapics[ioapic].apicid, pin);
-		return 0;
-	}
-	set_bit(pin, mp_ioapic_routing[ioapic].pin_programmed);
-
-	return __io_apic_set_pci_routing(dev, ioapic, pin, irq,
-					 triggering, polarity);
-}
 
 int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
 {
