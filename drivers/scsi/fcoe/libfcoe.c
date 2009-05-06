@@ -447,14 +447,10 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	u16 old_xid;
 	u8 op;
 
-	if (fip->state == FIP_ST_NON_FIP)
-		return 0;
-
 	fh = (struct fc_frame_header *)skb->data;
 	op = *(u8 *)(fh + 1);
 
-	switch (op) {
-	case ELS_FLOGI:
+	if (op == ELS_FLOGI) {
 		old_xid = fip->flogi_oxid;
 		fip->flogi_oxid = ntohs(fh->fh_ox_id);
 		if (fip->state == FIP_ST_AUTO) {
@@ -466,6 +462,15 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			fip->map_dest = 1;
 			return 0;
 		}
+		if (fip->state == FIP_ST_NON_FIP)
+			fip->map_dest = 1;
+	}
+
+	if (fip->state == FIP_ST_NON_FIP)
+		return 0;
+
+	switch (op) {
+	case ELS_FLOGI:
 		op = FIP_DT_FLOGI;
 		break;
 	case ELS_FDISC:
