@@ -83,6 +83,7 @@ struct intel_output {
 	bool load_detect_temp;
 	bool needs_tv_clock;
 	void *dev_priv;
+	void (*hot_plug)(struct intel_output *);
 };
 
 struct intel_crtc {
