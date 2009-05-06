@@ -223,10 +223,8 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	/* ICH8 Mobile PATA Controller */
 	{ 0x8086, 0x2850, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 
-	/* NOTE: The following PCI ids must be kept in sync with the
-	 * list in drivers/pci/quirks.c.
-	 */
-
+	/* SATA ports */
+	
 	/* 82801EB (ICH5) */
 	{ 0x8086, 0x24d1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich5_sata },
 	/* 82801EB (ICH5) */
