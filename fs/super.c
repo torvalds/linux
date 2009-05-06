@@ -556,9 +556,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	remount_rw = !(flags & MS_RDONLY) && (sb->s_flags & MS_RDONLY);
 
 	if (sb->s_op->remount_fs) {
-		lock_super(sb);
 		retval = sb->s_op->remount_fs(sb, &flags, data);
-		unlock_super(sb);
 		if (retval)
 			return retval;
 	}

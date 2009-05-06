@@ -61,10 +61,12 @@ clean:
 static int sysv_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
+	lock_super(sb);
 	if (sbi->s_forced_ro)
 		*flags |= MS_RDONLY;
 	if (!(*flags & MS_RDONLY))
 		sb->s_dirt = 1;
+	unlock_super(sb);
 	return 0;
 }
 

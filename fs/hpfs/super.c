@@ -398,6 +398,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	
 	*flags |= MS_NOATIME;
 	
+	lock_super(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
 	umask = 0777 & ~sbi->sb_mode;
 	lowercase = sbi->sb_lowercase; conv = sbi->sb_conv;
@@ -430,9 +431,11 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 
 	replace_mount_options(s, new_opts);
 
+	unlock_super(s);
 	return 0;
 
 out_err:
+	unlock_super(s);
 	kfree(new_opts);
 	return -EINVAL;
 }
