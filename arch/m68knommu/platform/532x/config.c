@@ -128,20 +128,6 @@ static void __init m532x_fec_init(void)
 
 void mcf_settimericr(unsigned int timer, unsigned int level)
 {
-	volatile unsigned char *icrp;
-	unsigned int icr;
-	unsigned char irq;
-
-	if (timer <= 2) {
-		switch (timer) {
-		case 2:  irq = 33; icr = MCFSIM_ICR_TIMER2; break;
-		default: irq = 32; icr = MCFSIM_ICR_TIMER1; break;
-		}
-		
-		icrp = (volatile unsigned char *) (icr);
-		*icrp = level;
-		mcf_enable_irq0(irq);
-	}
 }
 
 /***************************************************************************/
