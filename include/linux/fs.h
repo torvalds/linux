@@ -1775,6 +1775,7 @@ void kill_block_super(struct super_block *sb);
 void kill_anon_super(struct super_block *sb);
 void kill_litter_super(struct super_block *sb);
 void deactivate_super(struct super_block *sb);
+void deactivate_locked_super(struct super_block *sb);
 int set_anon_super(struct super_block *s, void *data);
 struct super_block *sget(struct file_system_type *type,
 			int (*test)(struct super_block *,void *),
