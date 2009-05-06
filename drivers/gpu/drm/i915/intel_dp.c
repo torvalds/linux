@@ -47,6 +47,7 @@ struct intel_dp_priv {
 	uint32_t save_DP;
 	uint8_t  save_link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
+	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[4];
@@ -527,6 +528,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		if (!(dp_reg & DP_PORT_EN))
 			intel_dp_link_train(intel_output, dp_priv->DP, dp_priv->link_configuration);
 	}
+	dp_priv->dpms_mode = mode;
 }
 
 /*
@@ -902,7 +904,6 @@ intel_dp_restore(struct drm_connector *connector)
 		intel_dp_link_down(intel_output,  dp_priv->save_DP);
 }
 
-#if 0
 /*
  * According to DP spec
  * 5.1.2:
@@ -929,7 +930,6 @@ intel_dp_check_link_status(struct intel_output *intel_output)
 	if (!intel_channel_eq_ok(link_status, dp_priv->lane_count))
 		intel_dp_link_train(intel_output, dp_priv->DP, dp_priv->link_configuration);
 }
-#endif
 
 /**
  * Uses CRT_HOTPLUG_EN and CRT_HOTPLUG_STAT to detect DP connection.
@@ -1044,6 +1044,15 @@ static const struct drm_encoder_funcs intel_dp_enc_funcs = {
 };
 
 void
+intel_dp_hot_plug(struct intel_output *intel_output)
+{
+	struct intel_dp_priv *dp_priv = intel_output->dev_priv;
+
+	if (dp_priv->dpms_mode == DRM_MODE_DPMS_ON)
+		intel_dp_check_link_status(intel_output);
+}
+
+void
 intel_dp_init(struct drm_device *dev, int output_reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1071,6 +1080,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	dp_priv->intel_output = intel_output;
 	dp_priv->output_reg = output_reg;
 	dp_priv->has_audio = false;
+	dp_priv->dpms_mode = DRM_MODE_DPMS_ON;
 	intel_output->dev_priv = dp_priv;
 
 	drm_encoder_init(dev, &intel_output->enc, &intel_dp_enc_funcs,
@@ -1086,6 +1096,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			  (output_reg == DP_B) ? "DPDDC-B" :
 			  (output_reg == DP_C) ? "DPDDC-C" : "DPDDC-D");
 	intel_output->ddc_bus = &dp_priv->adapter;
+	intel_output->hot_plug = intel_dp_hot_plug;
 
 	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
 	 * 0xd.  Failure to do so will result in spurious interrupts being
