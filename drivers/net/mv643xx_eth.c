@@ -1807,7 +1807,6 @@ static void mv643xx_eth_program_multicast_filter(struct net_device *dev)
 	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
 		int port_num;
 		u32 accept;
-		int i;
 
 oom:
 		port_num = mp->port_num;
