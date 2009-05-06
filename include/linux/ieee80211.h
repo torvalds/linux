@@ -543,7 +543,7 @@ struct ieee80211_tim_ie {
 	u8 virtual_map[1];
 } __attribute__ ((packed));
 
-#define WLAN_SA_QUERY_TR_ID_LEN 16
+#define WLAN_SA_QUERY_TR_ID_LEN 2
 
 struct ieee80211_mgmt {
 	__le16 frame_control;
