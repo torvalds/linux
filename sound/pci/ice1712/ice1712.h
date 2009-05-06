@@ -335,6 +335,7 @@ struct snd_ice1712 {
 	unsigned int force_rdma1:1;	/* VT1720/4 - RDMA1 as non-spdif */
 	unsigned int midi_output:1;	/* VT1720/4: MIDI output triggered */
 	unsigned int midi_input:1;	/* VT1720/4: MIDI input triggered */
+	unsigned int own_routing:1;	/* VT1720/4: use own routing ctls */
 	unsigned int num_total_dacs;	/* total DACs */
 	unsigned int num_total_adcs;	/* total ADCs */
 	unsigned int cur_rate;		/* current rate */
@@ -458,10 +459,17 @@ static inline int snd_ice1712_gpio_read_bits(struct snd_ice1712 *ice,
 	return  snd_ice1712_gpio_read(ice) & mask;
 }
 
+/* route access functions */
+int snd_ice1724_get_route_val(struct snd_ice1712 *ice, int shift);
+int snd_ice1724_put_route_val(struct snd_ice1712 *ice, unsigned int val,
+								int shift);
+
 int snd_ice1712_spdif_build_controls(struct snd_ice1712 *ice);
 
-int snd_ice1712_akm4xxx_init(struct snd_akm4xxx *ak, const struct snd_akm4xxx *template,
-			     const struct snd_ak4xxx_private *priv, struct snd_ice1712 *ice);
+int snd_ice1712_akm4xxx_init(struct snd_akm4xxx *ak,
+			     const struct snd_akm4xxx *template,
+			     const struct snd_ak4xxx_private *priv,
+			     struct snd_ice1712 *ice);
 void snd_ice1712_akm4xxx_free(struct snd_ice1712 *ice);
 int snd_ice1712_akm4xxx_build_controls(struct snd_ice1712 *ice);
 
