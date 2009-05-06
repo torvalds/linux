@@ -1896,7 +1896,7 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		sc_cmd->result = (DID_ERROR << 16) | fsp->cdb_status;
 		break;
 	case FC_CMD_ABORTED:
-		sc_cmd->result = (DID_ABORT << 16) | fsp->io_status;
+		sc_cmd->result = (DID_ERROR << 16) | fsp->io_status;
 		break;
 	case FC_CMD_TIME_OUT:
 		sc_cmd->result = (DID_BUS_BUSY << 16) | fsp->io_status;
