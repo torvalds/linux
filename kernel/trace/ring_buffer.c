@@ -1290,9 +1290,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		rb_event_set_padding(event);
 	}
 
-	if (tail <= BUF_PAGE_SIZE)
-		/* Set the write back to the previous setting */
-		local_set(&tail_page->write, tail);
+	/* Set the write back to the previous setting */
+	local_sub(length, &tail_page->write);
 
 	/*
 	 * If this was a commit entry that failed,
@@ -1311,8 +1310,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 
  out_reset:
 	/* reset write */
-	if (tail <= BUF_PAGE_SIZE)
-		local_set(&tail_page->write, tail);
+	local_sub(length, &tail_page->write);
 
 	if (likely(lock_taken))
 		__raw_spin_unlock(&cpu_buffer->lock);
