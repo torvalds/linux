@@ -829,6 +829,9 @@ static int au0828_v4l2_close(struct file *filp)
 
 		au0828_uninit_isoc(dev);
 
+		/* Save some power by putting tuner to sleep */
+		v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_standby);
+
 		/* When close the device, set the usb intf0 into alt0 to free
 		   USB bandwidth */
 		ret = usb_set_interface(dev->usbdev, 0, 0);
