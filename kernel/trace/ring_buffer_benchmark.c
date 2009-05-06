@@ -185,6 +185,35 @@ static void ring_buffer_consumer(void)
 	complete(&read_done);
 }
 
+/*
+ * If we are a non preempt kernel, the 10 second run will
+ * stop everything while it runs. Instead, we will call cond_resched
+ * and also add any time that was lost by a rescedule.
+ */
+#ifdef CONFIG_PREEMPT
+static void sched_if_needed(struct timeval *start_tv, struct timeval *end_tv)
+{
+}
+#else
+static void sched_if_needed(struct timeval *start_tv, struct timeval *end_tv)
+{
+	struct timeval tv;
+
+	cond_resched();
+	do_gettimeofday(&tv);
+	if (tv.tv_usec < end_tv->tv_usec) {
+		tv.tv_usec += 1000000;
+		tv.tv_sec--;
+	}
+	start_tv->tv_sec += tv.tv_sec - end_tv->tv_sec;
+	start_tv->tv_usec += tv.tv_usec - end_tv->tv_usec;
+	if (start_tv->tv_usec > 1000000) {
+		start_tv->tv_usec -= 1000000;
+		start_tv->tv_sec++;
+	}
+}
+#endif
+
 static void ring_buffer_producer(void)
 {
 	struct timeval start_tv;
@@ -220,6 +249,8 @@ static void ring_buffer_producer(void)
 
 		if (consumer && !(++cnt % wakeup_interval))
 			wake_up_process(consumer);
+
+		sched_if_needed(&start_tv, &end_tv);
 
 	} while (end_tv.tv_sec < (start_tv.tv_sec + RUN_TIME) && !kill_test);
 	pr_info("End ring buffer hammer\n");
