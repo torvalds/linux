@@ -304,7 +304,7 @@ void generic_shutdown_super(struct super_block *sb)
 	if (sb->s_root) {
 		shrink_dcache_for_umount(sb);
 		sync_filesystem(sb);
-		lock_super(sb);
+		get_fs_excl();
 		sb->s_flags &= ~MS_ACTIVE;
 
 		/* bad name - it should be evict_inodes() */
@@ -322,7 +322,7 @@ void generic_shutdown_super(struct super_block *sb)
 		}
 
 		unlock_kernel();
-		unlock_super(sb);
+		put_fs_excl();
 	}
 	spin_lock(&sb_lock);
 	/* should be initialized for __put_super_and_need_restart() */
