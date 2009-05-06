@@ -1114,7 +1114,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	}
 
 	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
-		struct ixgbe_q_vector *q_vector = &adapter->q_vector[i];
+		struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
 		if (q_vector->txr_count && !q_vector->rxr_count)
 			/* tx vector gets half the rate */
 			q_vector->eitr = (adapter->eitr_param >> 1);

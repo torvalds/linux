@@ -124,13 +124,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 
 		if (netif_running(netdev))
 			netdev->netdev_ops->ndo_stop(netdev);
-		ixgbe_reset_interrupt_capability(adapter);
-		ixgbe_napi_del_all(adapter);
-		INIT_LIST_HEAD(&netdev->napi_list);
-		kfree(adapter->tx_ring);
-		kfree(adapter->rx_ring);
-		adapter->tx_ring = NULL;
-		adapter->rx_ring = NULL;
+		ixgbe_clear_interrupt_scheme(adapter);
 
 		adapter->hw.fc.requested_mode = ixgbe_fc_pfc;
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
@@ -144,13 +138,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			adapter->hw.fc.requested_mode = ixgbe_fc_default;
 			if (netif_running(netdev))
 				netdev->netdev_ops->ndo_stop(netdev);
-			ixgbe_reset_interrupt_capability(adapter);
-			ixgbe_napi_del_all(adapter);
-			INIT_LIST_HEAD(&netdev->napi_list);
-			kfree(adapter->tx_ring);
-			kfree(adapter->rx_ring);
-			adapter->tx_ring = NULL;
-			adapter->rx_ring = NULL;
+			ixgbe_clear_interrupt_scheme(adapter);
 
 			adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 			adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
