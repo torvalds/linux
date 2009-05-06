@@ -81,14 +81,10 @@ static struct platform_device *m520x_devices[] __initdata = {
 
 /***************************************************************************/
 
-#define	INTC0	(MCF_MBAR + MCFICM_INTC0)
-
 static void __init m520x_uart_init_line(int line, int irq)
 {
 	u16 par;
 	u8 par2;
-
-	writeb(0x03, INTC0 + MCFINTC_ICR0 + MCFINT_UART0 + line);
 
 	switch (line) {
 	case 0:
@@ -127,11 +123,6 @@ static void __init m520x_uarts_init(void)
 static void __init m520x_fec_init(void)
 {
 	u8 v;
-
-	/* Unmask FEC interrupts at ColdFire interrupt controller */
-	writeb(0x4, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 36);
-	writeb(0x4, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 40);
-	writeb(0x4, MCF_IPSBAR + MCFICM_INTC0 + MCFINTC_ICR0 + 42);
 
 	/* Set multi-function pins to ethernet mode */
 	v = readb(MCF_IPSBAR + MCF_GPIO_PAR_FEC);
