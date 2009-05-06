@@ -526,6 +526,7 @@ static void do_test(int m)
 		tcrypt_test("cbc(aes)");
 		tcrypt_test("lrw(aes)");
 		tcrypt_test("xts(aes)");
+		tcrypt_test("ctr(aes)");
 		tcrypt_test("rfc3686(ctr(aes))");
 		break;
 
