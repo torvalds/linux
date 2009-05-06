@@ -55,7 +55,13 @@ static u32 esdhc_readl(struct sdhci_host *host, int reg)
 
 static u16 esdhc_readw(struct sdhci_host *host, int reg)
 {
-	return in_be16(host->ioaddr + (reg ^ 0x2));
+	u16 ret;
+
+	if (unlikely(reg == SDHCI_HOST_VERSION))
+		ret = in_be16(host->ioaddr + reg);
+	else
+		ret = in_be16(host->ioaddr + (reg ^ 0x2));
+	return ret;
 }
 
 static u8 esdhc_readb(struct sdhci_host *host, int reg)
