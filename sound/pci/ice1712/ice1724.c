@@ -2258,8 +2258,10 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 static void __devinit snd_vt1724_chip_reset(struct snd_ice1712 *ice)
 {
 	outb(VT1724_RESET , ICEREG1724(ice, CONTROL));
+	inb(ICEREG1724(ice, CONTROL)); /* pci posting flush */
 	msleep(10);
 	outb(0, ICEREG1724(ice, CONTROL));
+	inb(ICEREG1724(ice, CONTROL)); /* pci posting flush */
 	msleep(10);
 }
 
