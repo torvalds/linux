@@ -2178,6 +2178,7 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 		if (mp->work_link) {
 			mp->work_link = 0;
 			handle_link_event(mp);
+			work_done++;
 			continue;
 		}
 
