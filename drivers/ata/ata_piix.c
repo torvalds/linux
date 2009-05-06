@@ -1509,8 +1509,8 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	/* no hotplugging support (FIXME) */
-	if (!in_module_init)
+	/* no hotplugging support for later devices (FIXME) */
+	if (!in_module_init && ent->driver_data >= ich5_sata)
 		return -ENODEV;
 
 	if (piix_broken_system_poweroff(pdev)) {
