@@ -61,6 +61,7 @@ struct fcoe_softc {
 	struct packet_type  fip_packet_type;
 	struct sk_buff_head fcoe_pending_queue;
 	u8	fcoe_pending_queue_active;
+	struct timer_list timer;		/* queue timer */
 	struct fcoe_ctlr ctlr;
 };
 

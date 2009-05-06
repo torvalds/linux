@@ -54,7 +54,6 @@ MODULE_LICENSE("GPL v2");
 /* fcoe host list */
 LIST_HEAD(fcoe_hostlist);
 DEFINE_RWLOCK(fcoe_hostlist_lock);
-DEFINE_TIMER(fcoe_timer, NULL, 0, 0);
 DEFINE_PER_CPU(struct fcoe_percpu_s, fcoe_percpu);
 
 /* Function Prototypes */
@@ -168,6 +167,18 @@ static int fcoe_lport_config(struct fc_lport *lp)
 }
 
 /**
+ * fcoe_queue_timer() - fcoe queue timer
+ * @lp: the fc_lport pointer
+ *
+ * Calls fcoe_check_wait_queue on timeout
+ *
+ */
+static void fcoe_queue_timer(ulong lp)
+{
+	fcoe_check_wait_queue((struct fc_lport *)lp, NULL);
+}
+
+/**
  * fcoe_netdev_config() - Set up netdev for SW FCoE
  * @lp : ptr to the fc_lport
  * @netdev : ptr to the associated netdevice struct
@@ -237,6 +248,7 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	}
 	skb_queue_head_init(&fc->fcoe_pending_queue);
 	fc->fcoe_pending_queue_active = 0;
+	setup_timer(&fc->timer, fcoe_queue_timer, (unsigned long)lp);
 
 	/* setup Source Mac Address */
 	memcpy(fc->ctlr.ctl_src_addr, fc->real_dev->dev_addr,
@@ -386,6 +398,9 @@ static int fcoe_if_destroy(struct net_device *netdev)
 
 	/* Free existing skbs */
 	fcoe_clean_pending_queue(lp);
+
+	/* Stop the timer */
+	del_timer_sync(&fc->timer);
 
 	/* Free memory used by statistical counters */
 	fc_lport_free_stats(lp);
@@ -1260,32 +1275,6 @@ int fcoe_percpu_receive_thread(void *arg)
 }
 
 /**
- * fcoe_watchdog() - fcoe timer callback
- * @vp:
- *
- * This checks the pending queue length for fcoe and set lport qfull
- * if the FCOE_MAX_QUEUE_DEPTH is reached. This is done for all fc_lport on the
- * fcoe_hostlist.
- *
- * Returns: 0 for success
- */
-void fcoe_watchdog(ulong vp)
-{
-	struct fcoe_softc *fc;
-
-	read_lock(&fcoe_hostlist_lock);
-	list_for_each_entry(fc, &fcoe_hostlist, list) {
-		if (fc->ctlr.lp)
-			fcoe_check_wait_queue(fc->ctlr.lp, NULL);
-	}
-	read_unlock(&fcoe_hostlist_lock);
-
-	fcoe_timer.expires = jiffies + (1 * HZ);
-	add_timer(&fcoe_timer);
-}
-
-
-/**
  * fcoe_check_wait_queue() - attempt to clear the transmit backlog
  * @lp: the fc_lport
  *
@@ -1333,6 +1322,8 @@ static void fcoe_check_wait_queue(struct fc_lport *lp, struct sk_buff *skb)
 
 	if (fc->fcoe_pending_queue.qlen < FCOE_LOW_QUEUE_DEPTH)
 		lp->qfull = 0;
+	if (fc->fcoe_pending_queue.qlen && !timer_pending(&fc->timer))
+		mod_timer(&fc->timer, jiffies + 2);
 	fc->fcoe_pending_queue_active = 0;
 out:
 	if (fc->fcoe_pending_queue.qlen > FCOE_MAX_QUEUE_DEPTH)
@@ -1809,10 +1800,6 @@ static int __init fcoe_init(void)
 	/* Setup link change notification */
 	fcoe_dev_setup();
 
-	setup_timer(&fcoe_timer, fcoe_watchdog, 0);
-
-	mod_timer(&fcoe_timer, jiffies + (10 * HZ));
-
 	fcoe_if_init();
 
 	return 0;
@@ -1837,9 +1824,6 @@ static void __exit fcoe_exit(void)
 	struct fcoe_softc *fc, *tmp;
 
 	fcoe_dev_cleanup();
-
-	/* Stop the timer */
-	del_timer_sync(&fcoe_timer);
 
 	/* releases the associated fcoe hosts */
 	list_for_each_entry_safe(fc, tmp, &fcoe_hostlist, list)
