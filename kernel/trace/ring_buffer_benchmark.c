@@ -84,6 +84,9 @@ static enum event_status read_page(int cpu)
 	int i;
 
 	bpage = ring_buffer_alloc_read_page(buffer);
+	if (!bpage)
+		return EVENT_DROPPED;
+
 	ret = ring_buffer_read_page(buffer, &bpage, PAGE_SIZE, cpu, 1);
 	if (ret >= 0) {
 		rpage = bpage;
