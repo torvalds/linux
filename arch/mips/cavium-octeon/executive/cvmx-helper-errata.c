@@ -33,6 +33,8 @@
  * these functions directly.
  *
  */
+#include <linux/module.h>
+
 #include <asm/octeon/octeon.h>
 
 #include <asm/octeon/cvmx-helper-jtag.h>
@@ -68,3 +70,4 @@ void __cvmx_helper_errata_qlm_disable_2nd_order_cdr(int qlm)
 	}
 	cvmx_helper_qlm_jtag_update(qlm);
 }
+EXPORT_SYMBOL(__cvmx_helper_errata_qlm_disable_2nd_order_cdr);
