@@ -672,6 +672,7 @@ struct cfg80211_auth_request {
  * @ssid_len: Length of ssid in octets
  * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
  * @ie_len: Length of ie buffer in octets
+ * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
  */
 struct cfg80211_assoc_request {
 	struct ieee80211_channel *chan;
@@ -680,6 +681,7 @@ struct cfg80211_assoc_request {
 	size_t ssid_len;
 	const u8 *ie;
 	size_t ie_len;
+	bool use_mfp;
 };
 
 /**

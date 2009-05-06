@@ -122,6 +122,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_REASON_CODE] = { .type = NLA_U16 },
 	[NL80211_ATTR_FREQ_FIXED] = { .type = NLA_FLAG },
 	[NL80211_ATTR_TIMED_OUT] = { .type = NLA_FLAG },
+	[NL80211_ATTR_USE_MFP] = { .type = NLA_U32 },
 };
 
 /* IE validation */
@@ -3010,6 +3011,17 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_IE]) {
 		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
 		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+	}
+
+	if (info->attrs[NL80211_ATTR_USE_MFP]) {
+		enum nl80211_mfp use_mfp =
+			nla_get_u32(info->attrs[NL80211_ATTR_USE_MFP]);
+		if (use_mfp == NL80211_MFP_REQUIRED)
+			req.use_mfp = true;
+		else if (use_mfp != NL80211_MFP_NO) {
+			err = -EINVAL;
+			goto out;
+		}
 	}
 
 	err = drv->ops->assoc(&drv->wiphy, dev, &req);

@@ -1253,6 +1253,14 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 	if (ret)
 		return ret;
 
+	if (req->use_mfp) {
+		sdata->u.mgd.mfp = IEEE80211_MFP_REQUIRED;
+		sdata->u.mgd.flags |= IEEE80211_STA_MFP_ENABLED;
+	} else {
+		sdata->u.mgd.mfp = IEEE80211_MFP_DISABLED;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_MFP_ENABLED;
+	}
+
 	sdata->u.mgd.flags |= IEEE80211_STA_EXT_SME;
 	sdata->u.mgd.state = IEEE80211_STA_MLME_ASSOCIATE;
 	ieee80211_sta_req_auth(sdata);
