@@ -870,24 +870,17 @@ static
 inline void __init check_irq_src(struct mpc_intsrc *m, int *nr_m_spare) {}
 #endif /* CONFIG_X86_IO_APIC */
 
-static int check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length,
-		      int count)
+static int
+check_slot(unsigned long mpc_new_phys, unsigned long mpc_new_length, int count)
 {
-	if (!mpc_new_phys) {
-		pr_info("No spare slots, try to append...take your risk, "
-			"new mpc_length %x\n", count);
-	} else {
-		if (count <= mpc_new_length)
-			pr_info("No spare slots, try to append..., "
-				"new mpc_length %x\n", count);
-		else {
-			pr_err("mpc_new_length %lx is too small\n",
-				mpc_new_length);
-			return -1;
-		}
+	int ret = 0;
+
+	if (!mpc_new_phys || count <= mpc_new_length) {
+		WARN(1, "update_mptable: No spare slots (length: %x)\n", count);
+		return -1;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int  __init replace_intsrc_all(struct mpc_table *mpc,
@@ -946,7 +939,7 @@ static int  __init replace_intsrc_all(struct mpc_table *mpc,
 		} else {
 			struct mpc_intsrc *m = (struct mpc_intsrc *)mpt;
 			count += sizeof(struct mpc_intsrc);
-			if (!check_slot(mpc_new_phys, mpc_new_length, count))
+			if (check_slot(mpc_new_phys, mpc_new_length, count) < 0)
 				goto out;
 			assign_to_mpc_intsrc(&mp_irqs[i], m);
 			mpc->length = count;
