@@ -118,14 +118,21 @@ void __init mx31lite_map_io(void)
  */
 static void __init mxc_board_init(void)
 {
+	int ret;
+
 	mxc_iomux_setup_multiple_pins(mx31lite_pins, ARRAY_SIZE(mx31lite_pins),
 				      "mx31lite");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
 	/* SMSC9117 IRQ pin */
-	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_SFS6));
-	platform_device_register(&smsc911x_device);
+	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");
+	if (ret)
+		pr_warning("could not get LAN irq gpio\n");
+	else {
+		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_SFS6));
+		platform_device_register(&smsc911x_device);
+	}
 }
 
 static void __init mx31lite_timer_init(void)

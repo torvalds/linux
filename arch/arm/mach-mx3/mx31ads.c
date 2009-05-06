@@ -187,7 +187,7 @@ static void __init mx31ads_init_expio(void)
 	/*
 	 * Configure INT line as GPIO input
 	 */
-	mxc_iomux_setup_pin(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO), "expio");
+	mxc_iomux_alloc_pin(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO), "expio");
 
 	/* disable the interrupt and clear the status */
 	__raw_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);

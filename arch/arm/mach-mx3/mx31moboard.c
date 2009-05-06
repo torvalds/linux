@@ -112,14 +112,40 @@ static int moboard_sdhc1_get_ro(struct device *dev)
 static int moboard_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 		void *data)
 {
-	return request_irq(gpio_to_irq(SDHC1_CD), detect_irq,
+	int ret;
+
+	ret = gpio_request(SDHC1_CD, "sdhc-detect");
+	if (ret)
+		return ret;
+
+	gpio_direction_input(SDHC1_CD);
+
+	ret = gpio_request(SDHC1_WP, "sdhc-wp");
+	if (ret)
+		goto err_gpio_free;
+	gpio_direction_input(SDHC1_WP);
+
+	ret = request_irq(gpio_to_irq(SDHC1_CD), detect_irq,
 		IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 		"sdhc1-card-detect", data);
+	if (ret)
+		goto err_gpio_free_2;
+
+	return 0;
+
+err_gpio_free_2:
+	gpio_free(SDHC1_WP);
+err_gpio_free:
+	gpio_free(SDHC1_CD);
+
+	return ret;
 }
 
 static void moboard_sdhc1_exit(struct device *dev, void *data)
 {
 	free_irq(gpio_to_irq(SDHC1_CD), data);
+	gpio_free(SDHC1_WP);
+	gpio_free(SDHC1_CD);
 }
 
 static struct imxmmc_platform_data sdhc1_pdata = {

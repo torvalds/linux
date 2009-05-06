@@ -280,27 +280,50 @@ static int pcm970_sdhc1_get_ro(struct device *dev)
 }
 #endif
 
+#define SDHC1_GPIO_WP	IOMUX_TO_GPIO(MX31_PIN_SFS6)
+#define SDHC1_GPIO_DET	IOMUX_TO_GPIO(MX31_PIN_SCK6)
+
 static int pcm970_sdhc1_init(struct device *dev, irq_handler_t detect_irq,
 		void *data)
 {
 	int ret;
-	int gpio_det, gpio_wp;
 
-	gpio_det = IOMUX_TO_GPIO(MX31_PIN_SCK6);
-	gpio_wp = IOMUX_TO_GPIO(MX31_PIN_SFS6);
+	ret = gpio_request(SDHC1_GPIO_DET, "sdhc-detect");
+	if (ret)
+		return ret;
 
-	gpio_direction_input(gpio_det);
-	gpio_direction_input(gpio_wp);
+	gpio_direction_input(SDHC1_GPIO_DET);
+
+#ifdef PCM970_SDHC_RW_SWITCH
+	ret = gpio_request(SDHC1_GPIO_WP, "sdhc-wp");
+	if (ret)
+		goto err_gpio_free;
+	gpio_direction_input(SDHC1_GPIO_WP);
+#endif
 
 	ret = request_irq(IOMUX_TO_IRQ(MX31_PIN_SCK6), detect_irq,
 			IRQF_DISABLED | IRQF_TRIGGER_FALLING,
 				"sdhc-detect", data);
+	if (ret)
+		goto err_gpio_free_2;
+
+	return 0;
+
+err_gpio_free_2:
+#ifdef PCM970_SDHC_RW_SWITCH
+	gpio_free(SDHC1_GPIO_WP);
+err_gpio_free:
+#endif
+	gpio_free(SDHC1_GPIO_DET);
+
 	return ret;
 }
 
 static void pcm970_sdhc1_exit(struct device *dev, void *data)
 {
 	free_irq(IOMUX_TO_IRQ(MX31_PIN_SCK6), data);
+	gpio_free(SDHC1_GPIO_DET);
+	gpio_free(SDHC1_GPIO_WP);
 }
 
 static struct imxmmc_platform_data sdhc_pdata = {
@@ -313,7 +336,6 @@ static struct imxmmc_platform_data sdhc_pdata = {
 
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
-	&pcm037_eth,
 	&pcm037_sram_device,
 };
 
@@ -370,6 +392,8 @@ static struct mx3fb_platform_data mx3fb_pdata = {
  */
 static void __init mxc_board_init(void)
 {
+	int ret;
+
 	mxc_iomux_setup_multiple_pins(pcm037_pins, ARRAY_SIZE(pcm037_pins),
 			"pcm037");
 
@@ -382,7 +406,14 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_w1_master_device, NULL);
 
 	/* LAN9217 IRQ pin */
-	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
+	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1), "lan9217-irq");
+	if (ret)
+		pr_warning("could not get LAN irq gpio\n");
+	else {
+		gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO3_1));
+		platform_device_register(&pcm037_eth);
+	}
+
 
 #ifdef CONFIG_I2C_IMX
 	i2c_register_board_info(1, pcm037_i2c_devices,
