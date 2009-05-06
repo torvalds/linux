@@ -626,7 +626,7 @@ static unsigned char stdclock_set_mclk(struct snd_ice1712 *ice,
 	return 0;
 }
 
-static void snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
+static int snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 				    int force)
 {
 	unsigned long flags;
@@ -634,17 +634,18 @@ static void snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 	unsigned int i, old_rate;
 
 	if (rate > ice->hw_rates->list[ice->hw_rates->count - 1])
-		return;
+		return -EINVAL;
+
 	spin_lock_irqsave(&ice->reg_lock, flags);
 	if ((inb(ICEMT1724(ice, DMA_CONTROL)) & DMA_STARTS) ||
 	    (inb(ICEMT1724(ice, DMA_PAUSE)) & DMA_PAUSES)) {
 		/* running? we cannot change the rate now... */
 		spin_unlock_irqrestore(&ice->reg_lock, flags);
-		return;
+		return -EBUSY;
 	}
 	if (!force && is_pro_rate_locked(ice)) {
 		spin_unlock_irqrestore(&ice->reg_lock, flags);
-		return;
+		return (rate == ice->cur_rate) ? 0 : -EBUSY;
 	}
 
 	old_rate = ice->get_rate(ice);
@@ -652,7 +653,7 @@ static void snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 		ice->set_rate(ice, rate);
 	else if (rate == ice->cur_rate) {
 		spin_unlock_irqrestore(&ice->reg_lock, flags);
-		return;
+		return 0;
 	}
 
 	ice->cur_rate = rate;
@@ -674,13 +675,15 @@ static void snd_vt1724_set_pro_rate(struct snd_ice1712 *ice, unsigned int rate,
 	}
 	if (ice->spdif.ops.setup_rate)
 		ice->spdif.ops.setup_rate(ice, rate);
+
+	return 0;
 }
 
 static int snd_vt1724_pcm_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
-	int i, chs;
+	int i, chs, err;
 
 	chs = params_channels(hw_params);
 	mutex_lock(&ice->open_mutex);
@@ -715,7 +718,11 @@ static int snd_vt1724_pcm_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 	mutex_unlock(&ice->open_mutex);
-	snd_vt1724_set_pro_rate(ice, params_rate(hw_params), 0);
+
+	err = snd_vt1724_set_pro_rate(ice, params_rate(hw_params), 0);
+	if (err < 0)
+		return err;
+
 	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
 }
 
