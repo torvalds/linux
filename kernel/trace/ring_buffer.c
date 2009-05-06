@@ -1159,6 +1159,7 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		  unsigned type, unsigned long length, u64 *ts)
 {
 	struct buffer_page *tail_page, *head_page, *reader_page, *commit_page;
+	struct buffer_page *next_page;
 	unsigned long tail, write;
 	struct ring_buffer *buffer = cpu_buffer->buffer;
 	struct ring_buffer_event *event;
@@ -1173,116 +1174,8 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 	tail = write - length;
 
 	/* See if we shot pass the end of this buffer page */
-	if (write > BUF_PAGE_SIZE) {
-		struct buffer_page *next_page = tail_page;
-
-		local_irq_save(flags);
-		/*
-		 * Since the write to the buffer is still not
-		 * fully lockless, we must be careful with NMIs.
-		 * The locks in the writers are taken when a write
-		 * crosses to a new page. The locks protect against
-		 * races with the readers (this will soon be fixed
-		 * with a lockless solution).
-		 *
-		 * Because we can not protect against NMIs, and we
-		 * want to keep traces reentrant, we need to manage
-		 * what happens when we are in an NMI.
-		 *
-		 * NMIs can happen after we take the lock.
-		 * If we are in an NMI, only take the lock
-		 * if it is not already taken. Otherwise
-		 * simply fail.
-		 */
-		if (unlikely(in_nmi())) {
-			if (!__raw_spin_trylock(&cpu_buffer->lock)) {
-				cpu_buffer->nmi_dropped++;
-				goto out_reset;
-			}
-		} else
-			__raw_spin_lock(&cpu_buffer->lock);
-
-		lock_taken = true;
-
-		rb_inc_page(cpu_buffer, &next_page);
-
-		head_page = cpu_buffer->head_page;
-		reader_page = cpu_buffer->reader_page;
-
-		/* we grabbed the lock before incrementing */
-		if (RB_WARN_ON(cpu_buffer, next_page == reader_page))
-			goto out_reset;
-
-		/*
-		 * If for some reason, we had an interrupt storm that made
-		 * it all the way around the buffer, bail, and warn
-		 * about it.
-		 */
-		if (unlikely(next_page == commit_page)) {
-			cpu_buffer->commit_overrun++;
-			goto out_reset;
-		}
-
-		if (next_page == head_page) {
-			if (!(buffer->flags & RB_FL_OVERWRITE))
-				goto out_reset;
-
-			/* tail_page has not moved yet? */
-			if (tail_page == cpu_buffer->tail_page) {
-				/* count overflows */
-				cpu_buffer->overrun +=
-					local_read(&head_page->entries);
-
-				rb_inc_page(cpu_buffer, &head_page);
-				cpu_buffer->head_page = head_page;
-				cpu_buffer->head_page->read = 0;
-			}
-		}
-
-		/*
-		 * If the tail page is still the same as what we think
-		 * it is, then it is up to us to update the tail
-		 * pointer.
-		 */
-		if (tail_page == cpu_buffer->tail_page) {
-			local_set(&next_page->write, 0);
-			local_set(&next_page->entries, 0);
-			local_set(&next_page->page->commit, 0);
-			cpu_buffer->tail_page = next_page;
-
-			/* reread the time stamp */
-			*ts = ring_buffer_time_stamp(buffer, cpu_buffer->cpu);
-			cpu_buffer->tail_page->page->time_stamp = *ts;
-		}
-
-		/*
-		 * The actual tail page has moved forward.
-		 */
-		if (tail < BUF_PAGE_SIZE) {
-			/* Mark the rest of the page with padding */
-			event = __rb_page_index(tail_page, tail);
-			rb_event_set_padding(event);
-		}
-
-		if (tail <= BUF_PAGE_SIZE)
-			/* Set the write back to the previous setting */
-			local_set(&tail_page->write, tail);
-
-		/*
-		 * If this was a commit entry that failed,
-		 * increment that too
-		 */
-		if (tail_page == cpu_buffer->commit_page &&
-		    tail == rb_commit_index(cpu_buffer)) {
-			rb_set_commit_to_write(cpu_buffer);
-		}
-
-		__raw_spin_unlock(&cpu_buffer->lock);
-		local_irq_restore(flags);
-
-		/* fail and let the caller try again */
-		return ERR_PTR(-EAGAIN);
-	}
+	if (write > BUF_PAGE_SIZE)
+		goto next_page;
 
 	/* We reserved something on the buffer */
 
@@ -1304,6 +1197,117 @@ __rb_reserve_next(struct ring_buffer_per_cpu *cpu_buffer,
 		cpu_buffer->commit_page->page->time_stamp = *ts;
 
 	return event;
+
+ next_page:
+
+	next_page = tail_page;
+
+	local_irq_save(flags);
+	/*
+	 * Since the write to the buffer is still not
+	 * fully lockless, we must be careful with NMIs.
+	 * The locks in the writers are taken when a write
+	 * crosses to a new page. The locks protect against
+	 * races with the readers (this will soon be fixed
+	 * with a lockless solution).
+	 *
+	 * Because we can not protect against NMIs, and we
+	 * want to keep traces reentrant, we need to manage
+	 * what happens when we are in an NMI.
+	 *
+	 * NMIs can happen after we take the lock.
+	 * If we are in an NMI, only take the lock
+	 * if it is not already taken. Otherwise
+	 * simply fail.
+	 */
+	if (unlikely(in_nmi())) {
+		if (!__raw_spin_trylock(&cpu_buffer->lock)) {
+			cpu_buffer->nmi_dropped++;
+			goto out_reset;
+		}
+	} else
+		__raw_spin_lock(&cpu_buffer->lock);
+
+	lock_taken = true;
+
+	rb_inc_page(cpu_buffer, &next_page);
+
+	head_page = cpu_buffer->head_page;
+	reader_page = cpu_buffer->reader_page;
+
+	/* we grabbed the lock before incrementing */
+	if (RB_WARN_ON(cpu_buffer, next_page == reader_page))
+		goto out_reset;
+
+	/*
+	 * If for some reason, we had an interrupt storm that made
+	 * it all the way around the buffer, bail, and warn
+	 * about it.
+	 */
+	if (unlikely(next_page == commit_page)) {
+		cpu_buffer->commit_overrun++;
+		goto out_reset;
+	}
+
+	if (next_page == head_page) {
+		if (!(buffer->flags & RB_FL_OVERWRITE))
+			goto out_reset;
+
+		/* tail_page has not moved yet? */
+		if (tail_page == cpu_buffer->tail_page) {
+			/* count overflows */
+			cpu_buffer->overrun +=
+				local_read(&head_page->entries);
+
+			rb_inc_page(cpu_buffer, &head_page);
+			cpu_buffer->head_page = head_page;
+			cpu_buffer->head_page->read = 0;
+		}
+	}
+
+	/*
+	 * If the tail page is still the same as what we think
+	 * it is, then it is up to us to update the tail
+	 * pointer.
+	 */
+	if (tail_page == cpu_buffer->tail_page) {
+		local_set(&next_page->write, 0);
+		local_set(&next_page->entries, 0);
+		local_set(&next_page->page->commit, 0);
+		cpu_buffer->tail_page = next_page;
+
+		/* reread the time stamp */
+		*ts = ring_buffer_time_stamp(buffer, cpu_buffer->cpu);
+		cpu_buffer->tail_page->page->time_stamp = *ts;
+	}
+
+	/*
+	 * The actual tail page has moved forward.
+	 */
+	if (tail < BUF_PAGE_SIZE) {
+		/* Mark the rest of the page with padding */
+		event = __rb_page_index(tail_page, tail);
+		rb_event_set_padding(event);
+	}
+
+	if (tail <= BUF_PAGE_SIZE)
+		/* Set the write back to the previous setting */
+		local_set(&tail_page->write, tail);
+
+	/*
+	 * If this was a commit entry that failed,
+	 * increment that too
+	 */
+	if (tail_page == cpu_buffer->commit_page &&
+	    tail == rb_commit_index(cpu_buffer)) {
+		rb_set_commit_to_write(cpu_buffer);
+	}
+
+	__raw_spin_unlock(&cpu_buffer->lock);
+	local_irq_restore(flags);
+
+	/* fail and let the caller try again */
+	return ERR_PTR(-EAGAIN);
 
  out_reset:
 	/* reset write */
