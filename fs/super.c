@@ -579,7 +579,7 @@ static void do_emergency_remount(struct work_struct *work)
 	list_for_each_entry(sb, &super_blocks, s_list) {
 		sb->s_count++;
 		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
+		down_write(&sb->s_umount);
 		if (sb->s_root && sb->s_bdev && !(sb->s_flags & MS_RDONLY)) {
 			/*
 			 * ->remount_fs needs lock_kernel().
@@ -590,7 +590,8 @@ static void do_emergency_remount(struct work_struct *work)
 			do_remount_sb(sb, MS_RDONLY, NULL, 1);
 			unlock_kernel();
 		}
-		drop_super(sb);
+		up_write(&sb->s_umount);
+		put_super(sb);
 		spin_lock(&sb_lock);
 	}
 	spin_unlock(&sb_lock);
