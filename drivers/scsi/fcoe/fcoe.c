@@ -1037,8 +1037,7 @@ int fcoe_xmit(struct fc_lport *lp, struct fc_frame *fp)
 	sof = fr_sof(fp);
 	eof = fr_eof(fp);
 
-	elen = (fc->real_dev->priv_flags & IFF_802_1Q_VLAN) ?
-		sizeof(struct vlan_ethhdr) : sizeof(struct ethhdr);
+	elen = sizeof(struct ethhdr);
 	hlen = sizeof(struct fcoe_hdr);
 	tlen = sizeof(struct fcoe_crc_eof);
 	wlen = (skb->len - tlen + sizeof(crc)) / FCOE_WORD_TO_BYTE;
