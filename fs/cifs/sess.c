@@ -822,6 +822,10 @@ ssetup_ntlmssp_authenticate:
 								  nls_cp,
 								  first_time);
 				iov[1].iov_len = blob_len;
+				/* Make sure that we tell the server that we
+				   are using the uid that it just gave us back
+				   on the response (challenge) */
+				smb_buf->Uid = ses->Suid;
 			} else {
 				cERROR(1, ("invalid phase %d", phase));
 				rc = -ENOSYS;
