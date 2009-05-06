@@ -226,7 +226,7 @@ static int __device_attach(struct device_driver *drv, void *data)
  * pair is found, break out and return.
  *
  * Returns 1 if the device was bound to a driver;
- * 0 if no matching device was found;
+ * 0 if no matching driver was found;
  * -ENODEV if the device is not registered.
  *
  * When called for a USB interface, @dev->parent->sem must be held.
