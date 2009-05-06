@@ -101,20 +101,6 @@
 #endif
 
 
-/*
- *	PIT interrupt settings, if not found in mXXXXsim.h file.
- */
-#ifndef	ICR_INTRCONF
-#define	ICR_INTRCONF		0x2b            /* PIT1 level 5, priority 3 */
-#endif
-#ifndef	MCFPIT_IMR
-#define	MCFPIT_IMR		MCFINTC_IMRH
-#endif
-#ifndef	MCFPIT_IMR_IBIT
-#define	MCFPIT_IMR_IBIT		(1 << (MCFINT_PIT1 - 32))
-#endif
-
-
 #ifndef __ASSEMBLY__
 /*
  *	Definition for the interrupt auto-vectoring support.

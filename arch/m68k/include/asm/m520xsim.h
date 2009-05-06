@@ -124,10 +124,6 @@
 #define MCF_GPIO_PAR_FECI2C_PAR_SDA_URXD2   (0x02)
 #define MCF_GPIO_PAR_FECI2C_PAR_SCL_UTXD2   (0x04)
 
-#define ICR_INTRCONF		0x05
-#define MCFPIT_IMR		MCFINTC_IMRL
-#define MCFPIT_IMR_IBIT		(1 << MCFINT_PIT1)
-
 /*
  *  Reset Controll Unit.
  */
