@@ -913,7 +913,7 @@ config BFIN_ICACHE_LOCK
 	bool "Enable Instruction Cache Locking"
 
 choice
-	prompt "Policy"
+	prompt "External memory cache policy"
 	depends on BFIN_DCACHE
 	default BFIN_WB if !SMP
 	default BFIN_WT if SMP
@@ -954,12 +954,22 @@ config BFIN_WT
 
 endchoice
 
-config BFIN_L2_CACHEABLE
-	bool "Cache L2 SRAM"
-	depends on (BFIN_DCACHE || BFIN_ICACHE) && (BF54x || (BF561 && !SMP))
-	default n
-	help
-	  Select to make L2 SRAM cacheable in L1 data and instruction cache.
+choice
+	prompt "L2 SRAM cache policy"
+	depends on (BF54x || BF561)
+	default BFIN_L2_WT
+config BFIN_L2_WB
+	bool "Write back"
+	depends on !SMP
+
+config BFIN_L2_WT
+	bool "Write through"
+	depends on !SMP
+
+config BFIN_L2_NOT_CACHED
+	bool "Not cached"
+
+endchoice
 
 config MPU
 	bool "Enable the memory protection unit (EXPERIMENTAL)"
