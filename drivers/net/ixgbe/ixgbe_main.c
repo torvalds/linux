@@ -1754,28 +1754,20 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 	srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
 	srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
 
+	srrctl |= (IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT) &
+		  IXGBE_SRRCTL_BSIZEHDR_MASK;
+
 	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
-		u16 bufsz = IXGBE_RXBUFFER_2048;
-		/* grow the amount we can receive on large page machines */
-		if (bufsz < (PAGE_SIZE / 2))
-			bufsz = (PAGE_SIZE / 2);
-		/* cap the bufsz at our largest descriptor size */
-		bufsz = min((u16)IXGBE_MAX_RXBUFFER, bufsz);
-
-		srrctl |= bufsz >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+#if (PAGE_SIZE / 2) > IXGBE_MAX_RXBUFFER
+		srrctl |= IXGBE_MAX_RXBUFFER >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+#else
+		srrctl |= (PAGE_SIZE / 2) >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
+#endif
 		srrctl |= IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-		srrctl |= ((IXGBE_RX_HDR_SIZE <<
-		            IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT) &
-		           IXGBE_SRRCTL_BSIZEHDR_MASK);
 	} else {
+		srrctl |= ALIGN(rx_ring->rx_buf_len, 1024) >>
+			  IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 		srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
-
-		if (rx_ring->rx_buf_len == MAXIMUM_ETHERNET_VLAN_SIZE)
-			srrctl |= IXGBE_RXBUFFER_2048 >>
-			          IXGBE_SRRCTL_BSIZEPKT_SHIFT;
-		else
-			srrctl |= rx_ring->rx_buf_len >>
-			          IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 	}
 
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_SRRCTL(index), srrctl);
