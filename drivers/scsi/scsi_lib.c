@@ -682,14 +682,13 @@ EXPORT_SYMBOL(scsi_release_buffers);
 static void scsi_end_bidi_request(struct scsi_cmnd *cmd)
 {
 	struct request *req = cmd->request;
-	unsigned int dlen = req->data_len;
-	unsigned int next_dlen = req->next_rq->data_len;
 
 	req->resid_len = scsi_out(cmd)->resid;
 	req->next_rq->resid_len = scsi_in(cmd)->resid;
 
 	/* The req and req->next_rq have not been completed */
-	BUG_ON(blk_end_bidi_request(req, 0, dlen, next_dlen));
+	BUG_ON(blk_end_bidi_request(req, 0, blk_rq_bytes(req),
+				    blk_rq_bytes(req->next_rq)));
 
 	scsi_release_buffers(cmd);
 
@@ -966,7 +965,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
 	BUG_ON(count > sdb->table.nents);
 	sdb->table.nents = count;
 	if (blk_pc_request(req))
-		sdb->length = req->data_len;
+		sdb->length = blk_rq_bytes(req);
 	else
 		sdb->length = blk_rq_sectors(req) << 9;
 	return BLKPREP_OK;
@@ -1087,21 +1086,21 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 		if (unlikely(ret))
 			return ret;
 	} else {
-		BUG_ON(req->data_len);
+		BUG_ON(blk_rq_bytes(req));
 
 		memset(&cmd->sdb, 0, sizeof(cmd->sdb));
 		req->buffer = NULL;
 	}
 
 	cmd->cmd_len = req->cmd_len;
-	if (!req->data_len)
+	if (!blk_rq_bytes(req))
 		cmd->sc_data_direction = DMA_NONE;
 	else if (rq_data_dir(req) == WRITE)
 		cmd->sc_data_direction = DMA_TO_DEVICE;
 	else
 		cmd->sc_data_direction = DMA_FROM_DEVICE;
 	
-	cmd->transfersize = req->data_len;
+	cmd->transfersize = blk_rq_bytes(req);
 	cmd->allowed = req->retries;
 	return BLKPREP_OK;
 }

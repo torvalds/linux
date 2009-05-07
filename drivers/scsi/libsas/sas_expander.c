@@ -1927,13 +1927,13 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	/* do we need to support multiple segments? */
 	if (req->bio->bi_vcnt > 1 || rsp->bio->bi_vcnt > 1) {
 		printk("%s: multiple segments req %u %u, rsp %u %u\n",
-		       __func__, req->bio->bi_vcnt, req->data_len,
-		       rsp->bio->bi_vcnt, rsp->data_len);
+		       __func__, req->bio->bi_vcnt, blk_rq_bytes(req),
+		       rsp->bio->bi_vcnt, blk_rq_bytes(rsp));
 		return -EINVAL;
 	}
 
-	ret = smp_execute_task(dev, bio_data(req->bio), req->data_len,
-			       bio_data(rsp->bio), rsp->data_len);
+	ret = smp_execute_task(dev, bio_data(req->bio), blk_rq_bytes(req),
+			       bio_data(rsp->bio), blk_rq_bytes(rsp));
 	if (ret > 0) {
 		/* positive number is the untransferred residual */
 		rsp->resid_len = ret;

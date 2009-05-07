@@ -430,7 +430,7 @@ static void i2o_block_end_request(struct request *req, int error,
 		int leftover = (blk_rq_sectors(req) << KERNEL_SECTOR_SHIFT);
 
 		if (blk_pc_request(req))
-			leftover = req->data_len;
+			leftover = blk_rq_bytes(req);
 
 		if (error)
 			blk_end_request(req, -EIO, leftover);

@@ -1299,7 +1299,7 @@ int osd_finalize_request(struct osd_request *or,
 			return ret;
 		}
 		OSD_DEBUG("out bytes=%llu (bytes_req=%u)\n",
-			_LLU(or->out.total_bytes), or->out.req->data_len);
+			_LLU(or->out.total_bytes), blk_rq_bytes(or->out.req));
 	}
 	if (or->in.bio) {
 		ret = blk_rq_append_bio(or->request->q, or->in.req, or->in.bio);
@@ -1308,7 +1308,7 @@ int osd_finalize_request(struct osd_request *or,
 			return ret;
 		}
 		OSD_DEBUG("in bytes=%llu (bytes_req=%u)\n",
-			_LLU(or->in.total_bytes), or->in.req->data_len);
+			_LLU(or->in.total_bytes), blk_rq_bytes(or->in.req));
 	}
 
 	or->out.pad_buff = sg_out_pad_buffer;

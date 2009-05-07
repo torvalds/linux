@@ -747,7 +747,7 @@ static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
 {
 	struct request *rq = urq->rq;
 
-	if (rq->data_len == 0) {
+	if (blk_rq_bytes(rq) == 0) {
 		cmd->dir = UB_DIR_NONE;
 	} else {
 		if (rq_data_dir(rq) == WRITE)
@@ -762,7 +762,7 @@ static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,
 	memcpy(&cmd->cdb, rq->cmd, rq->cmd_len);
 	cmd->cdb_len = rq->cmd_len;
 
-	cmd->len = rq->data_len;
+	cmd->len = blk_rq_bytes(rq);
 
 	/*
 	 * To reapply this to every URB is not as incorrect as it looks.
@@ -783,8 +783,8 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 	if (cmd->error == 0) {
 		if (blk_pc_request(rq)) {
-			if (cmd->act_len < rq->data_len)
-				rq->resid_len = rq->data_len - cmd->act_len;
+			if (cmd->act_len < blk_rq_bytes(rq))
+				rq->resid_len = blk_rq_bytes(rq) - cmd->act_len;
 			scsi_status = 0;
 		} else {
 			if (cmd->act_len != cmd->len) {
