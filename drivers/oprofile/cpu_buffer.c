@@ -21,7 +21,6 @@
 
 #include <linux/sched.h>
 #include <linux/oprofile.h>
-#include <linux/vmalloc.h>
 #include <linux/errno.h>
 
 #include "event_buffer.h"
