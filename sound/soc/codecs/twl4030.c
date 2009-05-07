@@ -237,7 +237,7 @@ static void twl4030_codec_mute(struct snd_soc_codec *codec, int mute)
 					TWL4030_REG_PRECKL_CTL);
 		reg_val = twl4030_read_reg_cache(codec, TWL4030_REG_PRECKR_CTL);
 		twl4030_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
-					reg_val & (~TWL4030_PRECKL_GAIN),
+					reg_val & (~TWL4030_PRECKR_GAIN),
 					TWL4030_REG_PRECKR_CTL);
 
 		/* Disable PLL */
