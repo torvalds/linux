@@ -91,6 +91,10 @@ ENTRY(startup_32)
 	/* Set up the stack */
 	leal	boot_stack_end(%ebx), %esp
 
+	/* Zero EFLAGS */
+	pushl	$0
+	popfl
+
 /*
  * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
