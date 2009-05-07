@@ -440,6 +440,15 @@ config VIDEO_ADV7175
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7175.
 
+config VIDEO_THS7303
+	tristate "THS7303 Video Amplifier"
+	depends on I2C
+	help
+	  Support for TI THS7303 video amplifier
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ths7303.
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
