@@ -1260,7 +1260,7 @@ static void sg_rq_end_io(struct request *rq, int uptodate)
 
 	sense = rq->sense;
 	result = rq->errors;
-	resid = rq->data_len;
+	resid = rq->resid_len;
 
 	SCSI_LOG_TIMEOUT(4, printk("sg_cmd_done: %s, pack_id=%d, res=0x%x\n",
 		sdp->disk->disk_name, srp->header.pack_id, result));

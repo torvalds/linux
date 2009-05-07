@@ -380,7 +380,7 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
 		}
 
 		tape->first_frame += blocks;
-		rq->data_len -= blocks * tape->blk_size;
+		rq->resid_len = rq->data_len - blocks * tape->blk_size;
 
 		if (pc->error) {
 			uptodate = 0;
@@ -903,7 +903,7 @@ static int idetape_queue_rw_tail(ide_drive_t *drive, int cmd, int size)
 	blk_execute_rq(drive->queue, tape->disk, rq, 0);
 
 	/* calculate the number of transferred bytes and update buffer state */
-	size -= rq->data_len;
+	size -= rq->resid_len;
 	tape->cur = tape->buf;
 	if (cmd == REQ_IDETAPE_READ)
 		tape->valid = size;

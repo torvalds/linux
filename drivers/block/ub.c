@@ -783,10 +783,8 @@ static void ub_rw_cmd_done(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 
 	if (cmd->error == 0) {
 		if (blk_pc_request(rq)) {
-			if (cmd->act_len >= rq->data_len)
-				rq->data_len = 0;
-			else
-				rq->data_len -= cmd->act_len;
+			if (cmd->act_len < rq->data_len)
+				rq->resid_len = rq->data_len - cmd->act_len;
 			scsi_status = 0;
 		} else {
 			if (cmd->act_len != cmd->len) {

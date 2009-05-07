@@ -1299,7 +1299,6 @@ static void cciss_softirq_done(struct request *rq)
 {
 	CommandList_struct *cmd = rq->completion_data;
 	ctlr_info_t *h = hba[cmd->ctlr];
-	unsigned int nr_bytes;
 	unsigned long flags;
 	u64bit temp64;
 	int i, ddir;
@@ -1321,15 +1320,11 @@ static void cciss_softirq_done(struct request *rq)
 	printk("Done with %p\n", rq);
 #endif				/* CCISS_DEBUG */
 
-	/*
-	 * Store the full size and set the residual count for pc requests
-	 */
-	nr_bytes = blk_rq_bytes(rq);
+	/* set the residual count for pc requests */
 	if (blk_pc_request(rq))
-		rq->data_len = cmd->err_info->ResidualCnt;
+		rq->resid_len = cmd->err_info->ResidualCnt;
 
-	if (blk_end_request(rq, (rq->errors == 0) ? 0 : -EIO, nr_bytes))
-		BUG();
+	blk_end_request_all(rq, (rq->errors == 0) ? 0 : -EIO);
 
 	spin_lock_irqsave(&h->lock, flags);
 	cmd_free(h, cmd, 1);
@@ -2691,7 +2686,7 @@ static inline void complete_command(ctlr_info_t *h, CommandList_struct *cmd,
 			printk(KERN_WARNING "cciss: cmd %p has"
 			       " completed with data underrun "
 			       "reported\n", cmd);
-			cmd->rq->data_len = cmd->err_info->ResidualCnt;
+			cmd->rq->resid_len = cmd->err_info->ResidualCnt;
 		}
 		break;
 	case CMD_DATA_OVERRUN:

@@ -367,7 +367,6 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 	/* No more interrupts */
 	if ((stat & ATA_DRQ) == 0) {
 		int uptodate, error;
-		unsigned int done;
 
 		debug_log("Packet command completed, %d bytes transferred\n",
 			  pc->xferred);
@@ -406,12 +405,6 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		if ((pc->flags & PC_FLAG_WAIT_FOR_DSC) && (stat & ATA_DSC) == 0)
 			dsc = 1;
 
-		/*
-		 * ->pc_callback() might change rq->data_len for
-		 * residual count, cache total length.
-		 */
-		done = blk_rq_bytes(rq);
-
 		/* Command finished - Call the callback function */
 		uptodate = drive->pc_callback(drive, dsc);
 
@@ -431,7 +424,7 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 			error = uptodate ? 0 : -EIO;
 		}
 
-		ide_complete_rq(drive, error, done);
+		ide_complete_rq(drive, error, blk_rq_bytes(rq));
 		return ide_stopped;
 	}
 

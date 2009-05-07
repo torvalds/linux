@@ -463,7 +463,7 @@ static void st_scsi_execute_end(struct request *req, int uptodate)
 	struct scsi_tape *STp = SRpnt->stp;
 
 	STp->buffer->cmdstat.midlevel_result = SRpnt->result = req->errors;
-	STp->buffer->cmdstat.residual = req->data_len;
+	STp->buffer->cmdstat.residual = req->resid_len;
 
 	if (SRpnt->waiting)
 		complete(SRpnt->waiting);

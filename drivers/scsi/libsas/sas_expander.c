@@ -1936,12 +1936,8 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 			       bio_data(rsp->bio), rsp->data_len);
 	if (ret > 0) {
 		/* positive number is the untransferred residual */
-		rsp->data_len = ret;
-		req->data_len = 0;
+		rsp->resid_len = ret;
 		ret = 0;
-	} else if (ret == 0) {
-		rsp->data_len = 0;
-		req->data_len = 0;
 	}
 
 	return ret;

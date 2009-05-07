@@ -519,7 +519,7 @@ int ide_cd_queue_pc(ide_drive_t *drive, const unsigned char *cmd,
 		error = blk_execute_rq(drive->queue, info->disk, rq, 0);
 
 		if (buffer)
-			*bufflen = rq->data_len;
+			*bufflen = rq->resid_len;
 
 		flags = rq->cmd_flags;
 		blk_put_request(rq);
@@ -707,11 +707,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 out_end:
 	if (blk_pc_request(rq) && rc == 0) {
-		unsigned int dlen = rq->data_len;
-
-		rq->data_len = 0;
-
-		if (blk_end_request(rq, 0, dlen))
+		if (blk_end_request(rq, 0, rq->data_len))
 			BUG();
 
 		hwif->rq = NULL;
@@ -740,9 +736,10 @@ out_end:
 			nsectors = 1;
 
 		if (blk_fs_request(rq) == 0) {
-			rq->data_len -= (cmd->nbytes - cmd->nleft);
+			rq->resid_len = rq->data_len -
+				(cmd->nbytes - cmd->nleft);
 			if (uptodate == 0 && (cmd->tf_flags & IDE_TFLAG_WRITE))
-				rq->data_len += cmd->last_xfer_len;
+				rq->resid_len += cmd->last_xfer_len;
 		}
 
 		ide_complete_rq(drive, uptodate ? 0 : -EIO, nsectors << 9);

@@ -229,6 +229,7 @@ struct request {
 	unsigned int data_len;
 	unsigned int extra_len;	/* length of alignment and padding */
 	unsigned int sense_len;
+	unsigned int resid_len;	/* residual count */
 	void *sense;
 
 	unsigned long deadline;

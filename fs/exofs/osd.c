@@ -50,10 +50,10 @@ int exofs_check_ok_resid(struct osd_request *or, u64 *in_resid, u64 *out_resid)
 
 	/* FIXME: should be include in osd_sense_info */
 	if (in_resid)
-		*in_resid = or->in.req ? or->in.req->data_len : 0;
+		*in_resid = or->in.req ? or->in.req->resid_len : 0;
 
 	if (out_resid)
-		*out_resid = or->out.req ? or->out.req->data_len : 0;
+		*out_resid = or->out.req ? or->out.req->resid_len : 0;
 
 	return ret;
 }

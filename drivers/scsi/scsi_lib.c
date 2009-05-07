@@ -240,11 +240,11 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	 * is invalid.  Prevent the garbage from being misinterpreted
 	 * and prevent security leaks by zeroing out the excess data.
 	 */
-	if (unlikely(req->data_len > 0 && req->data_len <= bufflen))
-		memset(buffer + (bufflen - req->data_len), 0, req->data_len);
+	if (unlikely(req->resid_len > 0 && req->resid_len <= bufflen))
+		memset(buffer + (bufflen - req->resid_len), 0, req->resid_len);
 
 	if (resid)
-		*resid = req->data_len;
+		*resid = req->resid_len;
 	ret = req->errors;
  out:
 	blk_put_request(req);
@@ -549,7 +549,7 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int error,
 		int leftover = (req->hard_nr_sectors << 9);
 
 		if (blk_pc_request(req))
-			leftover = req->data_len;
+			leftover = req->resid_len;
 
 		/* kill remainder if no retrys */
 		if (error && scsi_noretry_cmd(cmd))
@@ -673,11 +673,11 @@ void scsi_release_buffers(struct scsi_cmnd *cmd)
 EXPORT_SYMBOL(scsi_release_buffers);
 
 /*
- * Bidi commands Must be complete as a whole, both sides at once.
- * If part of the bytes were written and lld returned
- * scsi_in()->resid and/or scsi_out()->resid this information will be left
- * in req->data_len and req->next_rq->data_len. The upper-layer driver can
- * decide what to do with this information.
+ * Bidi commands Must be complete as a whole, both sides at once.  If
+ * part of the bytes were written and lld returned scsi_in()->resid
+ * and/or scsi_out()->resid this information will be left in
+ * req->resid_len and req->next_rq->resid_len. The upper-layer driver
+ * can decide what to do with this information.
  */
 static void scsi_end_bidi_request(struct scsi_cmnd *cmd)
 {
@@ -685,8 +685,8 @@ static void scsi_end_bidi_request(struct scsi_cmnd *cmd)
 	unsigned int dlen = req->data_len;
 	unsigned int next_dlen = req->next_rq->data_len;
 
-	req->data_len = scsi_out(cmd)->resid;
-	req->next_rq->data_len = scsi_in(cmd)->resid;
+	req->resid_len = scsi_out(cmd)->resid;
+	req->next_rq->resid_len = scsi_in(cmd)->resid;
 
 	/* The req and req->next_rq have not been completed */
 	BUG_ON(blk_end_bidi_request(req, 0, dlen, next_dlen));
@@ -778,7 +778,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			scsi_end_bidi_request(cmd);
 			return;
 		}
-		req->data_len = scsi_get_resid(cmd);
+		req->resid_len = scsi_get_resid(cmd);
 	}
 
 	BUG_ON(blk_bidi_rq(req)); /* bidi not support for !blk_pc_request yet */
