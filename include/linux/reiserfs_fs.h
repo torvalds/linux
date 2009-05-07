@@ -1348,9 +1348,7 @@ static inline loff_t max_reiserfs_offset(struct inode *inode)
 #define __fs_changed(gen,s) (gen != get_generation (s))
 #define fs_changed(gen,s)		\
 ({					\
-	reiserfs_write_unlock(s);	\
-	cond_resched();			\
-	reiserfs_write_lock(s);		\
+	reiserfs_cond_resched(s);	\
 	__fs_changed(gen, s);		\
 })
 
