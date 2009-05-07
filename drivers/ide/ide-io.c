@@ -116,7 +116,7 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 unsigned int ide_rq_bytes(struct request *rq)
 {
 	if (blk_pc_request(rq))
-		return rq->data_len;
+		return blk_rq_bytes(rq);
 	else
 		return blk_rq_cur_sectors(rq) << 9;
 }

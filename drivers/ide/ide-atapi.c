@@ -255,7 +255,7 @@ void ide_retry_pc(ide_drive_t *drive)
 	ide_init_pc(pc);
 	memcpy(pc->c, sense_rq->cmd, 12);
 	pc->buf = bio_data(sense_rq->bio);	/* pointer to mapped address */
-	pc->req_xfer = sense_rq->data_len;
+	pc->req_xfer = blk_rq_bytes(sense_rq);
 
 	if (drive->media == ide_tape)
 		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
@@ -303,7 +303,7 @@ int ide_cd_get_xferlen(struct request *rq)
 		return 32768;
 	else if (blk_sense_request(rq) || blk_pc_request(rq) ||
 			 rq->cmd_type == REQ_TYPE_ATA_PC)
-		return rq->data_len;
+		return blk_rq_bytes(rq);
 	else
 		return 0;
 }
