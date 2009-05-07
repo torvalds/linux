@@ -172,6 +172,9 @@ void smp_reschedule_interrupt(struct pt_regs *regs)
 {
 	ack_APIC_irq();
 	inc_irq_stat(irq_resched_count);
+	/*
+	 * KVM uses this interrupt to force a cpu out of guest mode
+	 */
 }
 
 void smp_call_function_interrupt(struct pt_regs *regs)

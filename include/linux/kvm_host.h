@@ -38,6 +38,7 @@
 #define KVM_REQ_UNHALT             6
 #define KVM_REQ_MMU_SYNC           7
 #define KVM_REQ_KVMCLOCK_UPDATE    8
+#define KVM_REQ_KICK               9
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID	0
 
@@ -72,7 +73,6 @@ struct kvm_vcpu {
 	struct mutex mutex;
 	int   cpu;
 	struct kvm_run *run;
-	int guest_mode;
 	unsigned long requests;
 	unsigned long guest_debug;
 	int fpu_active;

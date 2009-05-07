@@ -668,7 +668,7 @@ again:
 	host_ctx = kvm_get_host_context(vcpu);
 	guest_ctx = kvm_get_guest_context(vcpu);
 
-	vcpu->guest_mode = 1;
+	clear_bit(KVM_REQ_KICK, &vcpu->requests);
 
 	r = kvm_vcpu_pre_transition(vcpu);
 	if (r < 0)
@@ -685,7 +685,7 @@ again:
 	kvm_vcpu_post_transition(vcpu);
 
 	vcpu->arch.launched = 1;
-	vcpu->guest_mode = 0;
+	set_bit(KVM_REQ_KICK, &vcpu->requests);
 	local_irq_enable();
 
 	/*
@@ -1879,24 +1879,18 @@ void kvm_arch_hardware_unsetup(void)
 {
 }
 
-static void vcpu_kick_intr(void *info)
-{
-#ifdef DEBUG
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)info;
-	printk(KERN_DEBUG"vcpu_kick_intr %p \n", vcpu);
-#endif
-}
-
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 {
-	int ipi_pcpu = vcpu->cpu;
-	int cpu = get_cpu();
+	int me;
+	int cpu = vcpu->cpu;
 
 	if (waitqueue_active(&vcpu->wq))
 		wake_up_interruptible(&vcpu->wq);
 
-	if (vcpu->guest_mode && cpu != ipi_pcpu)
-		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0);
+	me = get_cpu();
+	if (cpu != me && (unsigned) cpu < nr_cpu_ids && cpu_online(cpu))
+		if (!test_and_set_bit(KVM_REQ_KICK, &vcpu->requests))
+			smp_send_reschedule(cpu);
 	put_cpu();
 }
 

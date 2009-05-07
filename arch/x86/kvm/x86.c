@@ -3230,19 +3230,15 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	local_irq_disable();
 
+	clear_bit(KVM_REQ_KICK, &vcpu->requests);
+	smp_mb__after_clear_bit();
+
 	if (vcpu->requests || need_resched() || signal_pending(current)) {
 		local_irq_enable();
 		preempt_enable();
 		r = 1;
 		goto out;
 	}
-
-	vcpu->guest_mode = 1;
-	/*
-	 * Make sure that guest_mode assignment won't happen after
-	 * testing the pending IRQ vector bitmap.
-	 */
-	smp_wmb();
 
 	if (vcpu->arch.exception.pending)
 		__queue_exception(vcpu);
@@ -3288,7 +3284,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	set_debugreg(vcpu->arch.host_dr6, 6);
 	set_debugreg(vcpu->arch.host_dr7, 7);
 
-	vcpu->guest_mode = 0;
+	set_bit(KVM_REQ_KICK, &vcpu->requests);
 	local_irq_enable();
 
 	++vcpu->stat.exits;
@@ -4571,30 +4567,20 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 	       || vcpu->arch.nmi_pending;
 }
 
-static void vcpu_kick_intr(void *info)
-{
-#ifdef DEBUG
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)info;
-	printk(KERN_DEBUG "vcpu_kick_intr %p \n", vcpu);
-#endif
-}
-
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
 {
-	int ipi_pcpu = vcpu->cpu;
-	int cpu;
+	int me;
+	int cpu = vcpu->cpu;
 
 	if (waitqueue_active(&vcpu->wq)) {
 		wake_up_interruptible(&vcpu->wq);
 		++vcpu->stat.halt_wakeup;
 	}
-	/*
-	 * We may be called synchronously with irqs disabled in guest mode,
-	 * So need not to call smp_call_function_single() in that case.
-	 */
-	cpu = get_cpu();
-	if (vcpu->guest_mode && vcpu->cpu != cpu)
-		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0);
+
+	me = get_cpu();
+	if (cpu != me && (unsigned)cpu < nr_cpu_ids && cpu_online(cpu))
+		if (!test_and_set_bit(KVM_REQ_KICK, &vcpu->requests))
+			smp_send_reschedule(cpu);
 	put_cpu();
 }
 
