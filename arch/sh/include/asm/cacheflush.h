@@ -75,7 +75,5 @@ extern void copy_from_user_page(struct vm_area_struct *vma,
 #define flush_cache_vmap(start, end)		flush_cache_all()
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 
-#define HAVE_ARCH_UNMAPPED_AREA
-
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHEFLUSH_H */
