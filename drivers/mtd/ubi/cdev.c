@@ -810,9 +810,7 @@ static int rename_volumes(struct ubi_device *ubi,
 			re->desc->vol->vol_id, re->desc->vol->name);
 	}
 
-	mutex_lock(&ubi->volumes_mutex);
 	err = ubi_rename_volumes(ubi, &rename_list);
-	mutex_unlock(&ubi->volumes_mutex);
 
 out_free:
 	list_for_each_entry_safe(re, re1, &rename_list, list) {
@@ -952,9 +950,9 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		mutex_lock(&ubi->mult_mutex);
+		mutex_lock(&ubi->volumes_mutex);
 		err = rename_volumes(ubi, req);
-		mutex_unlock(&ubi->mult_mutex);
+		mutex_unlock(&ubi->volumes_mutex);
 		kfree(req);
 		break;
 	}

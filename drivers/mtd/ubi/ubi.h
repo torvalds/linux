@@ -366,7 +366,6 @@ struct ubi_wl_entry;
  * @peb_buf2: another buffer of PEB size used for different purposes
  * @buf_mutex: protects @peb_buf1 and @peb_buf2
  * @ckvol_mutex: serializes static volume checking when opening
- * @mult_mutex: serializes operations on multiple volumes, like re-naming
  * @dbg_peb_buf: buffer of PEB size used for debugging
  * @dbg_buf_mutex: protects @dbg_peb_buf
  */
@@ -444,7 +443,6 @@ struct ubi_device {
 	void *peb_buf2;
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
-	struct mutex mult_mutex;
 #ifdef CONFIG_MTD_UBI_DEBUG
 	void *dbg_peb_buf;
 	struct mutex dbg_buf_mutex;
