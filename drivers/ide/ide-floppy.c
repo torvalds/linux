@@ -194,7 +194,7 @@ static void idefloppy_create_rw_cmd(ide_drive_t *drive,
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
 	int block = sector / floppy->bs_factor;
-	int blocks = rq->nr_sectors / floppy->bs_factor;
+	int blocks = blk_rq_sectors(rq) / floppy->bs_factor;
 	int cmd = rq_data_dir(rq);
 
 	ide_debug_log(IDE_DBG_FUNC, "block: %d, blocks: %d", block, blocks);
@@ -259,8 +259,8 @@ static ide_startstop_t ide_floppy_do_request(ide_drive_t *drive,
 			goto out_end;
 	}
 	if (blk_fs_request(rq)) {
-		if (((long)rq->sector % floppy->bs_factor) ||
-		    (rq->nr_sectors % floppy->bs_factor)) {
+		if (((long)blk_rq_pos(rq) % floppy->bs_factor) ||
+		    (blk_rq_sectors(rq) % floppy->bs_factor)) {
 			printk(KERN_ERR PFX "%s: unsupported r/w rq size\n",
 				drive->name);
 			goto out_end;

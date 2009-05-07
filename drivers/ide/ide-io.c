@@ -279,7 +279,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 
 	if (cmd) {
 		if (cmd->protocol == ATA_PROT_PIO) {
-			ide_init_sg_cmd(cmd, rq->nr_sectors << 9);
+			ide_init_sg_cmd(cmd, blk_rq_sectors(rq) << 9);
 			ide_map_sg(drive, cmd);
 		}
 
@@ -387,7 +387,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 
 		drv = *(struct ide_driver **)rq->rq_disk->private_data;
 
-		return drv->do_request(drive, rq, rq->sector);
+		return drv->do_request(drive, rq, blk_rq_pos(rq));
 	}
 	return do_special(drive);
 kill_rq:

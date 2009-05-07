@@ -775,8 +775,8 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	}
 
 	/* fs requests *must* be hardware frame aligned */
-	if ((rq->nr_sectors & (sectors_per_frame - 1)) ||
-	    (rq->sector & (sectors_per_frame - 1)))
+	if ((blk_rq_sectors(rq) & (sectors_per_frame - 1)) ||
+	    (blk_rq_pos(rq) & (sectors_per_frame - 1)))
 		return ide_stopped;
 
 	/* use DMA, if possible */
@@ -868,8 +868,8 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 	cmd.rq = rq;
 
 	if (blk_fs_request(rq) || rq->data_len) {
-		ide_init_sg_cmd(&cmd, blk_fs_request(rq) ? (rq->nr_sectors << 9)
-							 : rq->data_len);
+		ide_init_sg_cmd(&cmd, blk_fs_request(rq) ?
+				(blk_rq_sectors(rq) << 9) : rq->data_len);
 		ide_map_sg(drive, &cmd);
 	}
 

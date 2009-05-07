@@ -112,7 +112,7 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	ide_hwif_t *hwif	= drive->hwif;
 	unsigned long sc_base	= hwif->config_data;
 	unsigned long twcr_port	= sc_base + (drive->dn ? 0x06 : 0x04);
-	unsigned long nsectors	= hwif->rq->nr_sectors;
+	unsigned long nsectors	= blk_rq_sectors(hwif->rq);
 
 	/*
 	 * We have to manually load the sector count and size into

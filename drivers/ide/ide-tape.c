@@ -586,7 +586,7 @@ static void ide_tape_create_rw_cmd(idetape_tape_t *tape,
 				   struct ide_atapi_pc *pc, struct request *rq,
 				   u8 opcode)
 {
-	unsigned int length = rq->nr_sectors;
+	unsigned int length = blk_rq_sectors(rq);
 
 	ide_init_pc(pc);
 	put_unaligned(cpu_to_be32(length), (unsigned int *) &pc->c[1]);
@@ -617,8 +617,8 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	struct ide_cmd cmd;
 	u8 stat;
 
-	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %lu\n"
-		  (unsigned long long)rq->sector, rq->nr_sectors);
+	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %u\n"
+		  (unsigned long long)blk_rq_pos(rq), blk_rq_sectors(rq));
 
 	if (!(blk_special_request(rq) || blk_sense_request(rq))) {
 		/* We do not support buffer cache originated requests. */

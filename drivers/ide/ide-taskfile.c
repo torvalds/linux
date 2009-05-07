@@ -385,7 +385,7 @@ out_end:
 	if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
 		ide_finish_cmd(drive, cmd, stat);
 	else
-		ide_complete_rq(drive, 0, cmd->rq->nr_sectors << 9);
+		ide_complete_rq(drive, 0, blk_rq_sectors(cmd->rq) << 9);
 	return ide_stopped;
 out_err:
 	ide_error_cmd(drive, cmd);
