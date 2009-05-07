@@ -99,14 +99,17 @@ static int __clk_enable(struct clk *clk)
 	 * changes and the clock needs to hunt for the proper set of
 	 * divisors to use before it can effectively recalc.
 	 */
+
+	if (clk->flags & CLK_ALWAYS_ENABLED) {
+		kref_get(&clk->kref);
+		return 0;
+	}
+
 	if (unlikely(atomic_read(&clk->kref.refcount) == 1))
 		if (clk->ops && clk->ops->init)
 			clk->ops->init(clk);
 
 	kref_get(&clk->kref);
-
-	if (clk->flags & CLK_ALWAYS_ENABLED)
-		return 0;
 
 	if (likely(clk->ops && clk->ops->enable))
 		clk->ops->enable(clk);
