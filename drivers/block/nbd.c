@@ -580,13 +580,6 @@ static int __nbd_ioctl(struct block_device *bdev, struct nbd_device *lo,
 		blk_rq_init(NULL, &sreq);
 		sreq.cmd_type = REQ_TYPE_SPECIAL;
 		nbd_cmd(&sreq) = NBD_CMD_DISC;
-		/*
-		 * Set these to sane values in case server implementation
-		 * fails to check the request type first and also to keep
-		 * debugging output cleaner.
-		 */
-		sreq.sector = 0;
-		sreq.nr_sectors = 0;
 		if (!lo->sock)
 			return -EINVAL;
 		nbd_send_req(lo, &sreq);
