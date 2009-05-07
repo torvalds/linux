@@ -78,3 +78,8 @@ extern void chroot_fs_refs(struct path *, struct path *);
  * file_table.c
  */
 extern void mark_files_ro(struct super_block *);
+
+/*
+ * super.c
+ */
+extern int do_remount_sb(struct super_block *, int, void *, int);
