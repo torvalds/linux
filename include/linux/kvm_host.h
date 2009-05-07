@@ -345,6 +345,7 @@ struct kvm_assigned_dev_kernel {
 	int flags;
 	struct pci_dev *dev;
 	struct kvm *kvm;
+	spinlock_t assigned_dev_lock;
 };
 
 struct kvm_irq_mask_notifier {

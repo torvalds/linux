@@ -42,6 +42,7 @@
 #include <linux/mman.h>
 #include <linux/swap.h>
 #include <linux/bitops.h>
+#include <linux/spinlock.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -130,6 +131,7 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 	 * finer-grained lock, update this
 	 */
 	mutex_lock(&kvm->lock);
+	spin_lock_irq(&assigned_dev->assigned_dev_lock);
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
 		struct kvm_guest_msix_entry *guest_entries =
 			assigned_dev->guest_msix_entries;
@@ -156,18 +158,21 @@ static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 		}
 	}
 
+	spin_unlock_irq(&assigned_dev->assigned_dev_lock);
 	mutex_unlock(&assigned_dev->kvm->lock);
 }
 
 static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 {
+	unsigned long flags;
 	struct kvm_assigned_dev_kernel *assigned_dev =
 		(struct kvm_assigned_dev_kernel *) dev_id;
 
+	spin_lock_irqsave(&assigned_dev->assigned_dev_lock, flags);
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
 		int index = find_index_from_host_irq(assigned_dev, irq);
 		if (index < 0)
-			return IRQ_HANDLED;
+			goto out;
 		assigned_dev->guest_msix_entries[index].flags |=
 			KVM_ASSIGNED_MSIX_PENDING;
 	}
@@ -177,6 +182,8 @@ static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 	disable_irq_nosync(irq);
 	assigned_dev->host_irq_disabled = true;
 
+out:
+	spin_unlock_irqrestore(&assigned_dev->assigned_dev_lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -184,6 +191,7 @@ static irqreturn_t kvm_assigned_dev_intr(int irq, void *dev_id)
 static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 {
 	struct kvm_assigned_dev_kernel *dev;
+	unsigned long flags;
 
 	if (kian->gsi == -1)
 		return;
@@ -196,10 +204,12 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 	/* The guest irq may be shared so this ack may be
 	 * from another device.
 	 */
+	spin_lock_irqsave(&dev->assigned_dev_lock, flags);
 	if (dev->host_irq_disabled) {
 		enable_irq(dev->host_irq);
 		dev->host_irq_disabled = false;
 	}
+	spin_unlock_irqrestore(&dev->assigned_dev_lock, flags);
 }
 
 static void deassign_guest_irq(struct kvm *kvm,
@@ -615,6 +625,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	match->host_devfn = assigned_dev->devfn;
 	match->flags = assigned_dev->flags;
 	match->dev = dev;
+	spin_lock_init(&match->assigned_dev_lock);
 	match->irq_source_id = -1;
 	match->kvm = kvm;
 	match->ack_notifier.irq_acked = kvm_assigned_dev_ack_irq;
