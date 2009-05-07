@@ -149,6 +149,15 @@ config PPPOL2TP
 	  tunnels. L2TP is replacing PPTP for VPN uses.
 if TTY
 
+config PPPOLAC
+	tristate "PPP on L2TP Access Concentrator"
+	depends on PPP && INET
+	help
+	  L2TP (RFC 2661) is a tunneling protocol widely used in virtual private
+	  networks. This driver handles L2TP data packets between a UDP socket
+	  and a PPP channel, but only permits one session per socket. Thus it is
+	  fairly simple and suited for clients.
+
 config PPP_ASYNC
 	tristate "PPP support for async serial ports"
 	depends on PPP
