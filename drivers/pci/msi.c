@@ -691,8 +691,8 @@ int pci_msix_table_size(struct pci_dev *dev)
  * indicates the successful configuration of MSI-X capability structure
  * with new allocated MSI-X irqs. A return of < 0 indicates a failure.
  * Or a return of > 0 indicates that driver request is exceeding the number
- * of irqs available. Driver should use the returned value to re-send
- * its request.
+ * of irqs or MSI-X vectors available. Driver should use the returned value to
+ * re-send its request.
  **/
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 {
@@ -708,7 +708,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 	nr_entries = pci_msix_table_size(dev);
 	if (nvec > nr_entries)
-		return -EINVAL;
+		return nr_entries;
 
 	/* Check for any invalid entries */
 	for (i = 0; i < nvec; i++) {
