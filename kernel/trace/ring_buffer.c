@@ -1688,7 +1688,7 @@ void ring_buffer_discard_commit(struct ring_buffer *buffer,
 	 * committed yet. Thus we can assume that preemption
 	 * is still disabled.
 	 */
-	RB_WARN_ON(buffer, !preempt_count());
+	RB_WARN_ON(buffer, preemptible());
 
 	cpu = smp_processor_id();
 	cpu_buffer = buffer->buffers[cpu];
