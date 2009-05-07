@@ -1140,6 +1140,8 @@ ixgb_watchdog(unsigned long data)
 			 * to get done, so reset controller to flush Tx.
 			 * (Do the reset outside of interrupt context). */
 			schedule_work(&adapter->tx_timeout_task);
+			/* return immediately since reset is imminent */
+			return;
 		}
 	}
 
