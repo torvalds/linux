@@ -1134,7 +1134,7 @@ tape_34xx_bread(struct tape_device *device, struct request *req)
 	/* Setup ccws. */
 	request->op = TO_BLOCK;
 	start_block = (struct tape_34xx_block_id *) request->cpdata;
-	start_block->block = req->sector >> TAPEBLOCK_HSEC_S2B;
+	start_block->block = blk_rq_pos(req) >> TAPEBLOCK_HSEC_S2B;
 	DBF_EVENT(6, "start_block = %i\n", start_block->block);
 
 	ccw = request->cpaddr;

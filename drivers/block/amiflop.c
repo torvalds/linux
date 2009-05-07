@@ -1351,13 +1351,13 @@ static void redo_fd_request(void)
 	drive = floppy - unit;
 
 	/* Here someone could investigate to be more efficient */
-	for (cnt = 0; cnt < CURRENT->current_nr_sectors; cnt++) { 
+	for (cnt = 0; cnt < blk_rq_cur_sectors(CURRENT); cnt++) {
 #ifdef DEBUG
 		printk("fd: sector %ld + %d requested for %s\n",
-		       CURRENT->sector,cnt,
+		       blk_rq_pos(CURRENT), cnt,
 		       (rq_data_dir(CURRENT) == READ) ? "read" : "write");
 #endif
-		block = CURRENT->sector + cnt;
+		block = blk_rq_pos(CURRENT) + cnt;
 		if ((int)block > floppy->blocks) {
 			__blk_end_request_cur(CURRENT, -EIO);
 			goto repeat;

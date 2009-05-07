@@ -761,7 +761,7 @@ static int i2o_block_transfer(struct request *req)
 			break;
 
 		case CACHE_SMARTFETCH:
-			if (req->nr_sectors > 16)
+			if (blk_rq_sectors(req) > 16)
 				ctl_flags = 0x201F0008;
 			else
 				ctl_flags = 0x001F0000;
@@ -781,13 +781,13 @@ static int i2o_block_transfer(struct request *req)
 			ctl_flags = 0x001F0010;
 			break;
 		case CACHE_SMARTBACK:
-			if (req->nr_sectors > 16)
+			if (blk_rq_sectors(req) > 16)
 				ctl_flags = 0x001F0004;
 			else
 				ctl_flags = 0x001F0010;
 			break;
 		case CACHE_SMARTTHROUGH:
-			if (req->nr_sectors > 16)
+			if (blk_rq_sectors(req) > 16)
 				ctl_flags = 0x001F0004;
 			else
 				ctl_flags = 0x001F0010;
@@ -827,22 +827,24 @@ static int i2o_block_transfer(struct request *req)
 
 		*mptr++ = cpu_to_le32(scsi_flags);
 
-		*((u32 *) & cmd[2]) = cpu_to_be32(req->sector * hwsec);
-		*((u16 *) & cmd[7]) = cpu_to_be16(req->nr_sectors * hwsec);
+		*((u32 *) & cmd[2]) = cpu_to_be32(blk_rq_pos(req) * hwsec);
+		*((u16 *) & cmd[7]) = cpu_to_be16(blk_rq_sectors(req) * hwsec);
 
 		memcpy(mptr, cmd, 10);
 		mptr += 4;
-		*mptr++ = cpu_to_le32(req->nr_sectors << KERNEL_SECTOR_SHIFT);
+		*mptr++ =
+		    cpu_to_le32(blk_rq_sectors(req) << KERNEL_SECTOR_SHIFT);
 	} else
 #endif
 	{
 		msg->u.head[1] = cpu_to_le32(cmd | HOST_TID << 12 | tid);
 		*mptr++ = cpu_to_le32(ctl_flags);
-		*mptr++ = cpu_to_le32(req->nr_sectors << KERNEL_SECTOR_SHIFT);
 		*mptr++ =
-		    cpu_to_le32((u32) (req->sector << KERNEL_SECTOR_SHIFT));
+		    cpu_to_le32(blk_rq_sectors(req) << KERNEL_SECTOR_SHIFT);
 		*mptr++ =
-		    cpu_to_le32(req->sector >> (32 - KERNEL_SECTOR_SHIFT));
+		    cpu_to_le32((u32) (blk_rq_pos(req) << KERNEL_SECTOR_SHIFT));
+		*mptr++ =
+		    cpu_to_le32(blk_rq_pos(req) >> (32 - KERNEL_SECTOR_SHIFT));
 	}
 
 	if (!i2o_block_sglist_alloc(c, ireq, &mptr)) {

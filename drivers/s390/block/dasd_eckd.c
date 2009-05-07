@@ -2354,10 +2354,10 @@ static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,
 	blksize = block->bp_block;
 	blk_per_trk = recs_per_track(&private->rdc_data, 0, blksize);
 	/* Calculate record id of first and last block. */
-	first_rec = first_trk = req->sector >> block->s2b_shift;
+	first_rec = first_trk = blk_rq_pos(req) >> block->s2b_shift;
 	first_offs = sector_div(first_trk, blk_per_trk);
 	last_rec = last_trk =
-		(req->sector + req->nr_sectors - 1) >> block->s2b_shift;
+		(blk_rq_pos(req) + blk_rq_sectors(req) - 1) >> block->s2b_shift;
 	last_offs = sector_div(last_trk, blk_per_trk);
 	cdlspecial = (private->uses_cdl && first_rec < 2*blk_per_trk);
 
@@ -2420,7 +2420,7 @@ dasd_eckd_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 	private = (struct dasd_eckd_private *) cqr->block->base->private;
 	blksize = cqr->block->bp_block;
 	blk_per_trk = recs_per_track(&private->rdc_data, 0, blksize);
-	recid = req->sector >> cqr->block->s2b_shift;
+	recid = blk_rq_pos(req) >> cqr->block->s2b_shift;
 	ccw = cqr->cpaddr;
 	/* Skip over define extent & locate record. */
 	ccw++;

@@ -919,10 +919,11 @@ queue_next:
 	c->hdr.size = sizeof(rblk_t) >> 2;
 	c->size += sizeof(rblk_t);
 
-	c->req.hdr.blk = creq->sector;
+	c->req.hdr.blk = blk_rq_pos(creq);
 	c->rq = creq;
 DBGPX(
-	printk("sector=%d, nr_sectors=%d\n", creq->sector, creq->nr_sectors);
+	printk("sector=%d, nr_sectors=%u\n",
+	       blk_rq_pos(creq), blk_rq_sectors(creq));
 );
 	sg_init_table(tmp_sg, SG_MAX);
 	seg = blk_rq_map_sg(q, creq, tmp_sg);
@@ -940,9 +941,9 @@ DBGPX(
 						 tmp_sg[i].offset,
 						 tmp_sg[i].length, dir);
 	}
-DBGPX(	printk("Submitting %d sectors in %d segments\n", creq->nr_sectors, seg); );
+DBGPX(	printk("Submitting %u sectors in %d segments\n", blk_rq_sectors(creq), seg); );
 	c->req.hdr.sg_cnt = seg;
-	c->req.hdr.blk_cnt = creq->nr_sectors;
+	c->req.hdr.blk_cnt = blk_rq_sectors(creq);
 	c->req.hdr.cmd = (rq_data_dir(creq) == READ) ? IDA_READ : IDA_WRITE;
 	c->type = CMD_RWREQ;
 

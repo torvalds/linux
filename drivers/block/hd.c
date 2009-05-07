@@ -228,7 +228,7 @@ static void dump_status(const char *msg, unsigned int stat)
 			printk(", CHS=%d/%d/%d", (inb(HD_HCYL)<<8) + inb(HD_LCYL),
 				inb(HD_CURRENT) & 0xf, inb(HD_SECTOR));
 			if (CURRENT)
-				printk(", sector=%ld", CURRENT->sector);
+				printk(", sector=%ld", blk_rq_pos(CURRENT));
 		}
 		printk("\n");
 	}
@@ -457,9 +457,9 @@ ok_to_read:
 	req = CURRENT;
 	insw(HD_DATA, req->buffer, 256);
 #ifdef DEBUG
-	printk("%s: read: sector %ld, remaining = %ld, buffer=%p\n",
-		req->rq_disk->disk_name, req->sector + 1, req->nr_sectors - 1,
-		req->buffer+512);
+	printk("%s: read: sector %ld, remaining = %u, buffer=%p\n",
+	       req->rq_disk->disk_name, blk_rq_pos(req) + 1,
+	       blk_rq_sectors(req) - 1, req->buffer+512);
 #endif
 	if (__blk_end_request(req, 0, 512)) {
 		SET_HANDLER(&read_intr);
@@ -485,7 +485,7 @@ static void write_intr(void)
 			continue;
 		if (!OK_STATUS(i))
 			break;
-		if ((req->nr_sectors <= 1) || (i & DRQ_STAT))
+		if ((blk_rq_sectors(req) <= 1) || (i & DRQ_STAT))
 			goto ok_to_write;
 	} while (--retries > 0);
 	dump_status("write_intr", i);
@@ -589,8 +589,8 @@ repeat:
 		return;
 	}
 	disk = req->rq_disk->private_data;
-	block = req->sector;
-	nsect = req->nr_sectors;
+	block = blk_rq_pos(req);
+	nsect = blk_rq_sectors(req);
 	if (block >= get_capacity(req->rq_disk) ||
 	    ((block+nsect) > get_capacity(req->rq_disk))) {
 		printk("%s: bad access: block=%d, count=%d\n",

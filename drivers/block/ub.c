@@ -726,8 +726,8 @@ static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 	 * The call to blk_queue_hardsect_size() guarantees that request
 	 * is aligned, but it is given in terms of 512 byte units, always.
 	 */
-	block = rq->sector >> lun->capacity.bshift;
-	nblks = rq->nr_sectors >> lun->capacity.bshift;
+	block = blk_rq_pos(rq) >> lun->capacity.bshift;
+	nblks = blk_rq_sectors(rq) >> lun->capacity.bshift;
 
 	cmd->cdb[0] = (cmd->dir == UB_DIR_READ)? READ_10: WRITE_10;
 	/* 10-byte uses 4 bytes of LBA: 2147483648KB, 2097152MB, 2048GB */
@@ -739,7 +739,7 @@ static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->cdb[8] = nblks;
 	cmd->cdb_len = 10;
 
-	cmd->len = rq->nr_sectors * 512;
+	cmd->len = blk_rq_sectors(rq) * 512;
 }
 
 static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,

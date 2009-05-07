@@ -903,10 +903,10 @@ queue_one_request:
 	msg->sg_count	= n_elem;
 	msg->sg_type	= SGT_32BIT;
 	msg->handle	= cpu_to_le32(TAG_ENCODE(crq->tag));
-	msg->lba	= cpu_to_le32(rq->sector & 0xffffffff);
-	tmp		= (rq->sector >> 16) >> 16;
+	msg->lba	= cpu_to_le32(blk_rq_pos(rq) & 0xffffffff);
+	tmp		= (blk_rq_pos(rq) >> 16) >> 16;
 	msg->lba_high	= cpu_to_le16( (u16) tmp );
-	msg->lba_count	= cpu_to_le16(rq->nr_sectors);
+	msg->lba_count	= cpu_to_le16(blk_rq_sectors(rq));
 
 	msg_size = sizeof(struct carm_msg_rw) - sizeof(msg->sg);
 	for (i = 0; i < n_elem; i++) {

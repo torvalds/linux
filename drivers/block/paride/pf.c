@@ -768,9 +768,9 @@ repeat:
 		return;
 
 	pf_current = pf_req->rq_disk->private_data;
-	pf_block = pf_req->sector;
-	pf_run = pf_req->nr_sectors;
-	pf_count = pf_req->current_nr_sectors;
+	pf_block = blk_rq_pos(pf_req);
+	pf_run = blk_rq_sectors(pf_req);
+	pf_count = blk_rq_cur_sectors(pf_req);
 
 	if (pf_block + pf_count > get_capacity(pf_req->rq_disk)) {
 		pf_end_request(-EIO);
@@ -810,7 +810,7 @@ static int pf_next_buf(void)
 		spin_unlock_irqrestore(&pf_spin_lock, saved_flags);
 		if (!pf_req)
 			return 1;
-		pf_count = pf_req->current_nr_sectors;
+		pf_count = blk_rq_cur_sectors(pf_req);
 		pf_buf = pf_req->buffer;
 	}
 	return 0;

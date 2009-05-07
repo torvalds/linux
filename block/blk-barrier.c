@@ -324,7 +324,7 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	/*
 	 * The driver must store the error location in ->bi_sector, if
 	 * it supports it. For non-stacked drivers, this should be copied
-	 * from rq->sector.
+	 * from blk_rq_pos(rq).
 	 */
 	if (error_sector)
 		*error_sector = bio->bi_sector;

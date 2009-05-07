@@ -444,11 +444,11 @@ static enum action do_pd_io_start(void)
 
 	pd_cmd = rq_data_dir(pd_req);
 	if (pd_cmd == READ || pd_cmd == WRITE) {
-		pd_block = pd_req->sector;
-		pd_count = pd_req->current_nr_sectors;
+		pd_block = blk_rq_pos(pd_req);
+		pd_count = blk_rq_cur_sectors(pd_req);
 		if (pd_block + pd_count > get_capacity(pd_req->rq_disk))
 			return Fail;
-		pd_run = pd_req->nr_sectors;
+		pd_run = blk_rq_sectors(pd_req);
 		pd_buf = pd_req->buffer;
 		pd_retries = 0;
 		if (pd_cmd == READ)
@@ -479,7 +479,7 @@ static int pd_next_buf(void)
 		return 0;
 	spin_lock_irqsave(&pd_lock, saved_flags);
 	__blk_end_request_cur(pd_req, 0);
-	pd_count = pd_req->current_nr_sectors;
+	pd_count = blk_rq_cur_sectors(pd_req);
 	pd_buf = pd_req->buffer;
 	spin_unlock_irqrestore(&pd_lock, saved_flags);
 	return 0;

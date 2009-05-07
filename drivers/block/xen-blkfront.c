@@ -231,7 +231,7 @@ static int blkif_queue_request(struct request *req)
 	info->shadow[id].request = (unsigned long)req;
 
 	ring_req->id = id;
-	ring_req->sector_number = (blkif_sector_t)req->sector;
+	ring_req->sector_number = (blkif_sector_t)blk_rq_pos(req);
 	ring_req->handle = info->handle;
 
 	ring_req->operation = rq_data_dir(req) ?
@@ -310,11 +310,10 @@ static void do_blkif_request(struct request_queue *rq)
 			goto wait;
 
 		pr_debug("do_blk_req %p: cmd %p, sec %lx, "
-			 "(%u/%li) buffer:%p [%s]\n",
-			 req, req->cmd, (unsigned long)req->sector,
-			 req->current_nr_sectors,
-			 req->nr_sectors, req->buffer,
-			 rq_data_dir(req) ? "write" : "read");
+			 "(%u/%u) buffer:%p [%s]\n",
+			 req, req->cmd, (unsigned long)blk_rq_pos(req),
+			 blk_rq_cur_sectors(req), blk_rq_sectors(req),
+			 req->buffer, rq_data_dir(req) ? "write" : "read");
 
 
 		blkdev_dequeue_request(req);

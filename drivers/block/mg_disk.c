@@ -220,7 +220,8 @@ static void mg_dump_status(const char *msg, unsigned int stat,
 			if (host->breq) {
 				req = elv_next_request(host->breq);
 				if (req)
-					printk(", sector=%u", (u32)req->sector);
+					printk(", sector=%u",
+					       (unsigned int)blk_rq_pos(req));
 			}
 
 		}
@@ -493,12 +494,12 @@ static void mg_read(struct request *req)
 	u32 j;
 	struct mg_host *host = req->rq_disk->private_data;
 
-	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_RD, NULL) !=
-			MG_ERR_NONE)
+	if (mg_out(host, blk_rq_pos(req), blk_rq_sectors(req),
+		   MG_CMD_RD, NULL) != MG_ERR_NONE)
 		mg_bad_rw_intr(host);
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-	       req->nr_sectors, req->sector, req->buffer);
+	       blk_rq_sectors(req), blk_rq_pos(req), req->buffer);
 
 	do {
 		u16 *buff = (u16 *)req->buffer;
@@ -522,14 +523,14 @@ static void mg_write(struct request *req)
 	u32 j;
 	struct mg_host *host = req->rq_disk->private_data;
 
-	if (mg_out(host, req->sector, req->nr_sectors, MG_CMD_WR, NULL) !=
-			MG_ERR_NONE) {
+	if (mg_out(host, blk_rq_pos(req), blk_rq_sectors(req),
+		   MG_CMD_WR, NULL) != MG_ERR_NONE) {
 		mg_bad_rw_intr(host);
 		return;
 	}
 
 	MG_DBG("requested %d sects (from %ld), buffer=0x%p\n",
-	       req->nr_sectors, req->sector, req->buffer);
+	       blk_rq_sectors(req), blk_rq_pos(req), req->buffer);
 
 	do {
 		u16 *buff = (u16 *)req->buffer;
@@ -579,7 +580,7 @@ ok_to_read:
 			      (i << 1));
 
 	MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-			req->sector, req->nr_sectors - 1, req->buffer);
+	       blk_rq_pos(req), blk_rq_sectors(req) - 1, req->buffer);
 
 	/* send read confirm */
 	outb(MG_CMD_RD_CONF, (unsigned long)host->dev_base + MG_REG_COMMAND);
@@ -609,7 +610,7 @@ static void mg_write_intr(struct mg_host *host)
 			break;
 		if (!MG_READY_OK(i))
 			break;
-		if ((req->nr_sectors <= 1) || (i & ATA_DRQ))
+		if ((blk_rq_sectors(req) <= 1) || (i & ATA_DRQ))
 			goto ok_to_write;
 	} while (0);
 	mg_dump_status("mg_write_intr", i, host);
@@ -627,7 +628,7 @@ ok_to_write:
 			buff++;
 		}
 		MG_DBG("sector %ld, remaining=%ld, buffer=0x%p\n",
-				req->sector, req->nr_sectors, req->buffer);
+		       blk_rq_pos(req), blk_rq_sectors(req), req->buffer);
 		host->mg_do_intr = mg_write_intr;
 		mod_timer(&host->timer, jiffies + 3 * HZ);
 	}
@@ -749,9 +750,9 @@ static void mg_request(struct request_queue *q)
 
 		del_timer(&host->timer);
 
-		sect_num = req->sector;
+		sect_num = blk_rq_pos(req);
 		/* deal whole segments */
-		sect_cnt = req->nr_sectors;
+		sect_cnt = blk_rq_sectors(req);
 
 		/* sanity check */
 		if (sect_num >= get_capacity(req->rq_disk) ||

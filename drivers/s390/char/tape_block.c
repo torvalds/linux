@@ -87,7 +87,7 @@ __tapeblock_end_request(struct tape_request *ccw_req, void *data)
 	if (ccw_req->rc == 0)
 		/* Update position. */
 		device->blk_data.block_position =
-			(req->sector + req->nr_sectors) >> TAPEBLOCK_HSEC_S2B;
+		  (blk_rq_pos(req) + blk_rq_sectors(req)) >> TAPEBLOCK_HSEC_S2B;
 	else
 		/* We lost the position information due to an error. */
 		device->blk_data.block_position = -1;

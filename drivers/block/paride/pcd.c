@@ -728,8 +728,8 @@ static void do_pcd_request(struct request_queue * q)
 			if (cd != pcd_current)
 				pcd_bufblk = -1;
 			pcd_current = cd;
-			pcd_sector = pcd_req->sector;
-			pcd_count = pcd_req->current_nr_sectors;
+			pcd_sector = blk_rq_pos(pcd_req);
+			pcd_count = blk_rq_cur_sectors(pcd_req);
 			pcd_buf = pcd_req->buffer;
 			pcd_busy = 1;
 			ps_set_intr(do_pcd_read, NULL, 0, nice);

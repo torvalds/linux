@@ -416,7 +416,7 @@ static int __send_request(struct request *req)
 		desc->slice = 0;
 	}
 	desc->status = ~0;
-	desc->offset = (req->sector << 9) / port->vdisk_block_size;
+	desc->offset = (blk_rq_pos(req) << 9) / port->vdisk_block_size;
 	desc->size = len;
 	desc->ncookies = err;
 

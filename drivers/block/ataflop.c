@@ -725,7 +725,7 @@ static void do_fd_action( int drive )
 	    if (IS_BUFFERED( drive, ReqSide, ReqTrack )) {
 		if (ReqCmd == READ) {
 		    copy_buffer( SECTOR_BUFFER(ReqSector), ReqData );
-		    if (++ReqCnt < CURRENT->current_nr_sectors) {
+		    if (++ReqCnt < blk_rq_cur_sectors(CURRENT)) {
 			/* read next sector */
 			setup_req_params( drive );
 			goto repeat;
@@ -1130,7 +1130,7 @@ static void fd_rwsec_done1(int status)
 		}
 	}
   
-	if (++ReqCnt < CURRENT->current_nr_sectors) {
+	if (++ReqCnt < blk_rq_cur_sectors(CURRENT)) {
 		/* read next sector */
 		setup_req_params( SelectedDrive );
 		do_fd_action( SelectedDrive );
@@ -1394,7 +1394,7 @@ static void redo_fd_request(void)
 
 	DPRINT(("redo_fd_request: CURRENT=%p dev=%s CURRENT->sector=%ld\n",
 		CURRENT, CURRENT ? CURRENT->rq_disk->disk_name : "",
-		CURRENT ? CURRENT->sector : 0 ));
+		CURRENT ? blk_rq_pos(CURRENT) : 0 ));
 
 	IsFormatting = 0;
 
@@ -1440,7 +1440,7 @@ repeat:
 		UD.autoprobe = 0;
 	}
 	
-	if (CURRENT->sector + 1 > UDT->blocks) {
+	if (blk_rq_pos(CURRENT) + 1 > UDT->blocks) {
 		__blk_end_request_cur(CURRENT, -EIO);
 		goto repeat;
 	}
@@ -1450,7 +1450,7 @@ repeat:
 		
 	ReqCnt = 0;
 	ReqCmd = rq_data_dir(CURRENT);
-	ReqBlock = CURRENT->sector;
+	ReqBlock = blk_rq_pos(CURRENT);
 	ReqBuffer = CURRENT->buffer;
 	setup_req_params( drive );
 	do_fd_action( drive );

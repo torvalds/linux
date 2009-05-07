@@ -603,7 +603,7 @@ static void dasd_profile_end(struct dasd_block *block,
 	if (dasd_profile_level != DASD_PROFILE_ON)
 		return;
 
-	sectors = req->nr_sectors;
+	sectors = blk_rq_sectors(req);
 	if (!cqr->buildclk || !cqr->startclk ||
 	    !cqr->stopclk || !cqr->endclk ||
 	    !sectors)

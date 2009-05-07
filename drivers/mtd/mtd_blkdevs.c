@@ -47,8 +47,8 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	unsigned long block, nsect;
 	char *buf;
 
-	block = req->sector << 9 >> tr->blkshift;
-	nsect = req->current_nr_sectors << 9 >> tr->blkshift;
+	block = blk_rq_pos(req) << 9 >> tr->blkshift;
+	nsect = blk_rq_cur_sectors(req) << 9 >> tr->blkshift;
 
 	buf = req->buffer;
 
@@ -59,7 +59,8 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	if (!blk_fs_request(req))
 		return -EIO;
 
-	if (req->sector + req->current_nr_sectors > get_capacity(req->rq_disk))
+	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) >
+	    get_capacity(req->rq_disk))
 		return -EIO;
 
 	switch(rq_data_dir(req)) {

@@ -306,8 +306,8 @@ static void do_xd_request (struct request_queue * q)
 		return;
 
 	while ((req = elv_next_request(q)) != NULL) {
-		unsigned block = req->sector;
-		unsigned count = req->nr_sectors;
+		unsigned block = blk_rq_pos(req);
+		unsigned count = blk_rq_sectors(req);
 		XD_INFO *disk = req->rq_disk->private_data;
 		int res = 0;
 		int retry;

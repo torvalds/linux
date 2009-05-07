@@ -787,9 +787,9 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	 * Next deal with any sectors which we were able to correctly
 	 * handle.
 	 */
-	SCSI_LOG_HLCOMPLETE(1, printk("%ld sectors total, "
+	SCSI_LOG_HLCOMPLETE(1, printk("%u sectors total, "
 				      "%d bytes done.\n",
-				      req->nr_sectors, good_bytes));
+				      blk_rq_sectors(req), good_bytes));
 
 	/*
 	 * Recovered errors need reporting, but they're always treated
@@ -968,7 +968,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
 	if (blk_pc_request(req))
 		sdb->length = req->data_len;
 	else
-		sdb->length = req->nr_sectors << 9;
+		sdb->length = blk_rq_sectors(req) << 9;
 	return BLKPREP_OK;
 }
 

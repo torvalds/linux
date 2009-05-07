@@ -584,8 +584,8 @@ static void gdrom_readdisk_dma(struct work_struct *work)
 	list_for_each_safe(elem, next, &gdrom_deferred) {
 		req = list_entry(elem, struct request, queuelist);
 		spin_unlock(&gdrom_lock);
-		block = req->sector/GD_TO_BLK + GD_SESSION_OFFSET;
-		block_cnt = req->nr_sectors/GD_TO_BLK;
+		block = blk_rq_pos(req)/GD_TO_BLK + GD_SESSION_OFFSET;
+		block_cnt = blk_rq_sectors(req)/GD_TO_BLK;
 		ctrl_outl(PHYSADDR(req->buffer), GDROM_DMA_STARTADDR_REG);
 		ctrl_outl(block_cnt * GDROM_HARD_SECTOR, GDROM_DMA_LENGTH_REG);
 		ctrl_outl(1, GDROM_DMA_DIRECTION_REG);
@@ -661,7 +661,7 @@ static void gdrom_request(struct request_queue *rq)
 			printk(" write request ignored\n");
 			__blk_end_request_cur(req, -EIO);
 		}
-		if (req->nr_sectors)
+		if (blk_rq_sectors(req))
 			gdrom_request_handler_dma(req);
 		else
 			__blk_end_request_cur(req, -EIO);

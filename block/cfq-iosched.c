@@ -349,8 +349,8 @@ cfq_choose_req(struct cfq_data *cfqd, struct request *rq1, struct request *rq2)
 	else if (rq_is_meta(rq2) && !rq_is_meta(rq1))
 		return rq2;
 
-	s1 = rq1->sector;
-	s2 = rq2->sector;
+	s1 = blk_rq_pos(rq1);
+	s2 = blk_rq_pos(rq2);
 
 	last = cfqd->last_position;
 
@@ -949,10 +949,10 @@ static struct cfq_queue *cfq_set_active_queue(struct cfq_data *cfqd,
 static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 					  struct request *rq)
 {
-	if (rq->sector >= cfqd->last_position)
-		return rq->sector - cfqd->last_position;
+	if (blk_rq_pos(rq) >= cfqd->last_position)
+		return blk_rq_pos(rq) - cfqd->last_position;
 	else
-		return cfqd->last_position - rq->sector;
+		return cfqd->last_position - blk_rq_pos(rq);
 }
 
 #define CIC_SEEK_THR	8 * 1024
@@ -1918,10 +1918,10 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_io_context *cic,
 
 	if (!cic->last_request_pos)
 		sdist = 0;
-	else if (cic->last_request_pos < rq->sector)
-		sdist = rq->sector - cic->last_request_pos;
+	else if (cic->last_request_pos < blk_rq_pos(rq))
+		sdist = blk_rq_pos(rq) - cic->last_request_pos;
 	else
-		sdist = cic->last_request_pos - rq->sector;
+		sdist = cic->last_request_pos - blk_rq_pos(rq);
 
 	/*
 	 * Don't allow the seek distance to get too large from the
@@ -2071,7 +2071,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfq_update_io_seektime(cfqd, cic, rq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
-	cic->last_request_pos = rq->sector + rq->nr_sectors;
+	cic->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
 	if (cfqq == cfqd->active_queue) {
 		/*

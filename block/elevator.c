@@ -52,7 +52,7 @@ static const int elv_hash_shift = 6;
 #define ELV_HASH_FN(sec)	\
 		(hash_long(ELV_HASH_BLOCK((sec)), elv_hash_shift))
 #define ELV_HASH_ENTRIES	(1 << elv_hash_shift)
-#define rq_hash_key(rq)		((rq)->sector + (rq)->nr_sectors)
+#define rq_hash_key(rq)		(blk_rq_pos(rq) + blk_rq_sectors(rq))
 
 DEFINE_TRACE(block_rq_insert);
 DEFINE_TRACE(block_rq_issue);
@@ -119,9 +119,9 @@ static inline int elv_try_merge(struct request *__rq, struct bio *bio)
 	 * we can merge and sequence is ok, check if it's possible
 	 */
 	if (elv_rq_merge_ok(__rq, bio)) {
-		if (__rq->sector + __rq->nr_sectors == bio->bi_sector)
+		if (blk_rq_pos(__rq) + blk_rq_sectors(__rq) == bio->bi_sector)
 			ret = ELEVATOR_BACK_MERGE;
-		else if (__rq->sector - bio_sectors(bio) == bio->bi_sector)
+		else if (blk_rq_pos(__rq) - bio_sectors(bio) == bio->bi_sector)
 			ret = ELEVATOR_FRONT_MERGE;
 	}
 
@@ -370,9 +370,9 @@ struct request *elv_rb_add(struct rb_root *root, struct request *rq)
 		parent = *p;
 		__rq = rb_entry(parent, struct request, rb_node);
 
-		if (rq->sector < __rq->sector)
+		if (blk_rq_pos(rq) < blk_rq_pos(__rq))
 			p = &(*p)->rb_left;
-		else if (rq->sector > __rq->sector)
+		else if (blk_rq_pos(rq) > blk_rq_pos(__rq))
 			p = &(*p)->rb_right;
 		else
 			return __rq;
@@ -400,9 +400,9 @@ struct request *elv_rb_find(struct rb_root *root, sector_t sector)
 	while (n) {
 		rq = rb_entry(n, struct request, rb_node);
 
-		if (sector < rq->sector)
+		if (sector < blk_rq_pos(rq))
 			n = n->rb_left;
-		else if (sector > rq->sector)
+		else if (sector > blk_rq_pos(rq))
 			n = n->rb_right;
 		else
 			return rq;
@@ -441,14 +441,14 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 			break;
 		if (pos->cmd_flags & stop_flags)
 			break;
-		if (rq->sector >= boundary) {
-			if (pos->sector < boundary)
+		if (blk_rq_pos(rq) >= boundary) {
+			if (blk_rq_pos(pos) < boundary)
 				continue;
 		} else {
-			if (pos->sector >= boundary)
+			if (blk_rq_pos(pos) >= boundary)
 				break;
 		}
-		if (rq->sector >= pos->sector)
+		if (blk_rq_pos(rq) >= blk_rq_pos(pos))
 			break;
 	}
 

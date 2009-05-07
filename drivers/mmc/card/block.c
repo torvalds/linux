@@ -243,7 +243,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		brq.mrq.cmd = &brq.cmd;
 		brq.mrq.data = &brq.data;
 
-		brq.cmd.arg = req->sector;
+		brq.cmd.arg = blk_rq_pos(req);
 		if (!mmc_card_blockaddr(card))
 			brq.cmd.arg <<= 9;
 		brq.cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -251,7 +251,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		brq.stop.opcode = MMC_STOP_TRANSMISSION;
 		brq.stop.arg = 0;
 		brq.stop.flags = MMC_RSP_SPI_R1B | MMC_RSP_R1B | MMC_CMD_AC;
-		brq.data.blocks = req->nr_sectors;
+		brq.data.blocks = blk_rq_sectors(req);
 
 		/*
 		 * After a read error, we redo the request one sector at a time
@@ -293,7 +293,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		 * Adjust the sg list so it is the same size as the
 		 * request.
 		 */
-		if (brq.data.blocks != req->nr_sectors) {
+		if (brq.data.blocks != blk_rq_sectors(req)) {
 			int i, data_size = brq.data.blocks << 9;
 			struct scatterlist *sg;
 
@@ -344,8 +344,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			printk(KERN_ERR "%s: error %d transferring data,"
 			       " sector %u, nr %u, card status %#x\n",
 			       req->rq_disk->disk_name, brq.data.error,
-			       (unsigned)req->sector,
-			       (unsigned)req->nr_sectors, status);
+			       (unsigned)blk_rq_pos(req),
+			       (unsigned)blk_rq_sectors(req), status);
 		}
 
 		if (brq.stop.error) {

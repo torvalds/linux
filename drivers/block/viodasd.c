@@ -252,7 +252,7 @@ static int send_request(struct request *req)
 	struct viodasd_device *d;
 	unsigned long flags;
 
-	start = (u64)req->sector << 9;
+	start = (u64)blk_rq_pos(req) << 9;
 
 	if (rq_data_dir(req) == READ) {
 		direction = DMA_FROM_DEVICE;

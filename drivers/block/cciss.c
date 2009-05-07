@@ -2835,10 +2835,10 @@ static void do_cciss_request(struct request_queue *q)
 	c->Request.Timeout = 0;	// Don't time out
 	c->Request.CDB[0] =
 	    (rq_data_dir(creq) == READ) ? h->cciss_read : h->cciss_write;
-	start_blk = creq->sector;
+	start_blk = blk_rq_pos(creq);
 #ifdef CCISS_DEBUG
-	printk(KERN_DEBUG "ciss: sector =%d nr_sectors=%d\n", (int)creq->sector,
-	       (int)creq->nr_sectors);
+	printk(KERN_DEBUG "ciss: sector =%d nr_sectors=%d\n",
+	       (int)blk_rq_pos(creq), (int)blk_rq_sectors(creq));
 #endif				/* CCISS_DEBUG */
 
 	sg_init_table(tmp_sg, MAXSGENTRIES);
@@ -2864,8 +2864,8 @@ static void do_cciss_request(struct request_queue *q)
 		h->maxSG = seg;
 
 #ifdef CCISS_DEBUG
-	printk(KERN_DEBUG "cciss: Submitting %lu sectors in %d segments\n",
-	       creq->nr_sectors, seg);
+	printk(KERN_DEBUG "cciss: Submitting %u sectors in %d segments\n",
+	       blk_rq_sectors(creq), seg);
 #endif				/* CCISS_DEBUG */
 
 	c->Header.SGList = c->Header.SGTotal = seg;
@@ -2877,8 +2877,8 @@ static void do_cciss_request(struct request_queue *q)
 			c->Request.CDB[4] = (start_blk >> 8) & 0xff;
 			c->Request.CDB[5] = start_blk & 0xff;
 			c->Request.CDB[6] = 0;	// (sect >> 24) & 0xff; MSB
-			c->Request.CDB[7] = (creq->nr_sectors >> 8) & 0xff;
-			c->Request.CDB[8] = creq->nr_sectors & 0xff;
+			c->Request.CDB[7] = (blk_rq_sectors(creq) >> 8) & 0xff;
+			c->Request.CDB[8] = blk_rq_sectors(creq) & 0xff;
 			c->Request.CDB[9] = c->Request.CDB[11] = c->Request.CDB[12] = 0;
 		} else {
 			u32 upper32 = upper_32_bits(start_blk);
@@ -2893,10 +2893,10 @@ static void do_cciss_request(struct request_queue *q)
 			c->Request.CDB[7]= (start_blk >> 16) & 0xff;
 			c->Request.CDB[8]= (start_blk >>  8) & 0xff;
 			c->Request.CDB[9]= start_blk & 0xff;
-			c->Request.CDB[10]= (creq->nr_sectors >>  24) & 0xff;
-			c->Request.CDB[11]= (creq->nr_sectors >>  16) & 0xff;
-			c->Request.CDB[12]= (creq->nr_sectors >>  8) & 0xff;
-			c->Request.CDB[13]= creq->nr_sectors & 0xff;
+			c->Request.CDB[10]= (blk_rq_sectors(creq) >> 24) & 0xff;
+			c->Request.CDB[11]= (blk_rq_sectors(creq) >> 16) & 0xff;
+			c->Request.CDB[12]= (blk_rq_sectors(creq) >>  8) & 0xff;
+			c->Request.CDB[13]= blk_rq_sectors(creq) & 0xff;
 			c->Request.CDB[14] = c->Request.CDB[15] = 0;
 		}
 	} else if (blk_pc_request(creq)) {

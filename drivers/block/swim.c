@@ -531,7 +531,7 @@ static void redo_fd_request(struct request_queue *q)
 	while ((req = elv_next_request(q))) {
 
 		fs = req->rq_disk->private_data;
-		if (req->sector < 0 || req->sector >= fs->total_secs) {
+		if (blk_rq_pos(req) >= fs->total_secs) {
 			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
@@ -551,8 +551,8 @@ static void redo_fd_request(struct request_queue *q)
 			__blk_end_request_cur(req, -EIO);
 			break;
 		case READ:
-			if (floppy_read_sectors(fs, req->sector,
-						req->current_nr_sectors,
+			if (floppy_read_sectors(fs, blk_rq_pos(req),
+						blk_rq_cur_sectors(req),
 						req->buffer)) {
 				__blk_end_request_cur(req, -EIO);
 				continue;

@@ -312,14 +312,14 @@ static void start_request(struct floppy_state *fs)
 	}
 	while (fs->state == idle && (req = elv_next_request(swim3_queue))) {
 #if 0
-		printk("do_fd_req: dev=%s cmd=%d sec=%ld nr_sec=%ld buf=%p\n",
+		printk("do_fd_req: dev=%s cmd=%d sec=%ld nr_sec=%u buf=%p\n",
 		       req->rq_disk->disk_name, req->cmd,
-		       (long)req->sector, req->nr_sectors, req->buffer);
-		printk("           errors=%d current_nr_sectors=%ld\n",
-		       req->errors, req->current_nr_sectors);
+		       (long)blk_rq_pos(req), blk_rq_sectors(req), req->buffer);
+		printk("           errors=%d current_nr_sectors=%u\n",
+		       req->errors, blk_rq_cur_sectors(req));
 #endif
 
-		if (req->sector >= fs->total_secs) {
+		if (blk_rq_pos(req) >= fs->total_secs) {
 			__blk_end_request_cur(req, -EIO);
 			continue;
 		}
@@ -337,13 +337,14 @@ static void start_request(struct floppy_state *fs)
 			}
 		}
 
-		/* Do not remove the cast. req->sector is now a sector_t and
-		 * can be 64 bits, but it will never go past 32 bits for this
-		 * driver anyway, so we can safely cast it down and not have
-		 * to do a 64/32 division
+		/* Do not remove the cast. blk_rq_pos(req) is now a
+		 * sector_t and can be 64 bits, but it will never go
+		 * past 32 bits for this driver anyway, so we can
+		 * safely cast it down and not have to do a 64/32
+		 * division
 		 */
-		fs->req_cyl = ((long)req->sector) / fs->secpercyl;
-		x = ((long)req->sector) % fs->secpercyl;
+		fs->req_cyl = ((long)blk_rq_pos(req)) / fs->secpercyl;
+		x = ((long)blk_rq_pos(req)) % fs->secpercyl;
 		fs->head = x / fs->secpertrack;
 		fs->req_sector = x % fs->secpertrack + 1;
 		fd_req = req;
@@ -420,7 +421,7 @@ static inline void setup_transfer(struct floppy_state *fs)
 	struct dbdma_cmd *cp = fs->dma_cmd;
 	struct dbdma_regs __iomem *dr = fs->dma;
 
-	if (fd_req->current_nr_sectors <= 0) {
+	if (blk_rq_cur_sectors(fd_req) <= 0) {
 		printk(KERN_ERR "swim3: transfer 0 sectors?\n");
 		return;
 	}
@@ -428,8 +429,8 @@ static inline void setup_transfer(struct floppy_state *fs)
 		n = 1;
 	else {
 		n = fs->secpertrack - fs->req_sector + 1;
-		if (n > fd_req->current_nr_sectors)
-			n = fd_req->current_nr_sectors;
+		if (n > blk_rq_cur_sectors(fd_req))
+			n = blk_rq_cur_sectors(fd_req);
 	}
 	fs->scount = n;
 	swim3_select(fs, fs->head? READ_DATA_1: READ_DATA_0);
@@ -600,7 +601,8 @@ static void xfer_timeout(unsigned long data)
 	out_8(&sw->control_bic, WRITE_SECTORS | DO_ACTION);
 	out_8(&sw->select, RELAX);
 	printk(KERN_ERR "swim3: timeout %sing sector %ld\n",
-	       (rq_data_dir(fd_req)==WRITE? "writ": "read"), (long)fd_req->sector);
+	       (rq_data_dir(fd_req)==WRITE? "writ": "read"),
+	       (long)blk_rq_pos(fd_req));
 	__blk_end_request_cur(fd_req, -EIO);
 	fs->state = idle;
 	start_request(fs);
@@ -714,7 +716,7 @@ static irqreturn_t swim3_interrupt(int irq, void *dev_id)
 			} else {
 				printk("swim3: error %sing block %ld (err=%x)\n",
 				       rq_data_dir(fd_req) == WRITE? "writ": "read",
-				       (long)fd_req->sector, err);
+				       (long)blk_rq_pos(fd_req), err);
 				__blk_end_request_cur(fd_req, -EIO);
 				fs->state = idle;
 			}

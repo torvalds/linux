@@ -1239,7 +1239,7 @@ static void do_ubd_request(struct request_queue *q)
 		}
 
 		req = dev->request;
-		sector = req->sector;
+		sector = blk_rq_pos(req);
 		while(dev->start_sg < dev->end_sg){
 			struct scatterlist *sg = &dev->sg[dev->start_sg];
 

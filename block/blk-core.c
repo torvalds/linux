@@ -72,7 +72,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 		return;
 
 	cpu = part_stat_lock();
-	part = disk_map_sector_rcu(rq->rq_disk, rq->sector);
+	part = disk_map_sector_rcu(rq->rq_disk, blk_rq_pos(rq));
 
 	if (!new_io)
 		part_stat_inc(cpu, part, merges[rw]);
@@ -185,10 +185,9 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 		rq->rq_disk ? rq->rq_disk->disk_name : "?", rq->cmd_type,
 		rq->cmd_flags);
 
-	printk(KERN_INFO "  sector %llu, nr/cnr %lu/%u\n",
-						(unsigned long long)rq->sector,
-						rq->nr_sectors,
-						rq->current_nr_sectors);
+	printk(KERN_INFO "  sector %llu, nr/cnr %u/%u\n",
+	       (unsigned long long)blk_rq_pos(rq),
+	       blk_rq_sectors(rq), blk_rq_cur_sectors(rq));
 	printk(KERN_INFO "  bio %p, biotail %p, buffer %p, len %u\n",
 						rq->bio, rq->biotail,
 						rq->buffer, rq->data_len);
@@ -1557,7 +1556,7 @@ EXPORT_SYMBOL(submit_bio);
  */
 int blk_rq_check_limits(struct request_queue *q, struct request *rq)
 {
-	if (rq->nr_sectors > q->max_sectors ||
+	if (blk_rq_sectors(rq) > q->max_sectors ||
 	    rq->data_len > q->max_hw_sectors << 9) {
 		printk(KERN_ERR "%s: over max size limit.\n", __func__);
 		return -EIO;
@@ -1645,7 +1644,7 @@ static void blk_account_io_completion(struct request *req, unsigned int bytes)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, req->sector);
+		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
 		part_stat_add(cpu, part, sectors[rw], bytes >> 9);
 		part_stat_unlock();
 	}
@@ -1665,7 +1664,7 @@ static void blk_account_io_done(struct request *req)
 		int cpu;
 
 		cpu = part_stat_lock();
-		part = disk_map_sector_rcu(req->rq_disk, req->sector);
+		part = disk_map_sector_rcu(req->rq_disk, blk_rq_pos(req));
 
 		part_stat_inc(cpu, part, ios[rw]);
 		part_stat_add(cpu, part, ticks[rw], duration);
@@ -1846,7 +1845,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	if (error && (blk_fs_request(req) && !(req->cmd_flags & REQ_QUIET))) {
 		printk(KERN_ERR "end_request: I/O error, dev %s, sector %llu\n",
 				req->rq_disk ? req->rq_disk->disk_name : "?",
-				(unsigned long long)req->sector);
+				(unsigned long long)blk_rq_pos(req));
 	}
 
 	blk_account_io_completion(req, nr_bytes);

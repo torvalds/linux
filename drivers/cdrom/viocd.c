@@ -282,7 +282,7 @@ static int send_request(struct request *req)
 			viopath_targetinst(viopath_hostLp),
 			(u64)req, VIOVERSION << 16,
 			((u64)DEVICE_NR(diskinfo) << 48) | dmaaddr,
-			(u64)req->sector * 512, len, 0);
+			(u64)blk_rq_pos(req) * 512, len, 0);
 	if (hvrc != HvLpEvent_Rc_Good) {
 		printk(VIOCD_KERN_WARNING "hv error on op %d\n", (int)hvrc);
 		return -1;
