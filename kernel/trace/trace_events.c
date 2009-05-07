@@ -509,9 +509,11 @@ system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		return -EINVAL;
 	}
 
-	command = kstrdup(system, GFP_KERNEL);
+	/* +3 for the ":*\0" */
+	command = kmalloc(strlen(system)+3, GFP_KERNEL);
 	if (!command)
 		return -ENOMEM;
+	sprintf(command, "%s:*", system);
 
 	ret = ftrace_set_clr_event(command, val);
 	if (ret)
@@ -1179,7 +1181,7 @@ static __init int event_trace_init(void)
 			  &ftrace_show_header_fops);
 
 	trace_create_file("enable", 0644, d_events,
-			  "*:*", &ftrace_system_enable_fops);
+			  "*", &ftrace_system_enable_fops);
 
 	for_each_event(call, __start_ftrace_events, __stop_ftrace_events) {
 		/* The linker may leave blanks */
