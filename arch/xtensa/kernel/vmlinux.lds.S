@@ -85,8 +85,8 @@ SECTIONS
 
   .text :
   {
-    /* The .head.text section must be the first section! */
-    *(.head.text)
+    /* The HEAD_TEXT section must be the first section! */
+    HEAD_TEXT
     *(.literal .text)
     VMLINUX_SYMBOL(__sched_text_start) = .;
     *(.sched.literal .sched.text)

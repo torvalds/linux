@@ -344,6 +344,8 @@
 #define __NR_dup3		331
 #define __NR_pipe2		332
 #define __NR_inotify_init1	333
+#define __NR_preadv		334
+#define __NR_pwritev		335
 
 #ifdef __KERNEL__
 

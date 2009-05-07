@@ -58,6 +58,10 @@ static void bss_release(struct kref *ref)
 	bss = container_of(ref, struct cfg80211_internal_bss, ref);
 	if (bss->pub.free_priv)
 		bss->pub.free_priv(&bss->pub);
+
+	if (bss->ies_allocated)
+		kfree(bss->pub.information_elements);
+
 	kfree(bss);
 }
 
@@ -360,19 +364,41 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 
 	found = rb_find_bss(dev, res);
 
-	if (found && overwrite) {
-		list_replace(&found->list, &res->list);
-		rb_replace_node(&found->rbn, &res->rbn,
-				&dev->bss_tree);
-		kref_put(&found->ref, bss_release);
-		found = res;
-	} else if (found) {
+	if (found) {
 		kref_get(&found->ref);
 		found->pub.beacon_interval = res->pub.beacon_interval;
 		found->pub.tsf = res->pub.tsf;
 		found->pub.signal = res->pub.signal;
 		found->pub.capability = res->pub.capability;
 		found->ts = res->ts;
+
+		/* overwrite IEs */
+		if (overwrite) {
+			size_t used = dev->wiphy.bss_priv_size + sizeof(*res);
+			size_t ielen = res->pub.len_information_elements;
+
+			if (ksize(found) >= used + ielen) {
+				memcpy(found->pub.information_elements,
+				       res->pub.information_elements, ielen);
+				found->pub.len_information_elements = ielen;
+			} else {
+				u8 *ies = found->pub.information_elements;
+
+				if (found->ies_allocated) {
+					if (ksize(ies) < ielen)
+						ies = krealloc(ies, ielen,
+							       GFP_ATOMIC);
+				} else
+					ies = kmalloc(ielen, GFP_ATOMIC);
+
+				if (ies) {
+					memcpy(ies, res->pub.information_elements, ielen);
+					found->ies_allocated = true;
+					found->pub.information_elements = ies;
+				}
+			}
+		}
+
 		kref_put(&res->ref, bss_release);
 	} else {
 		/* this "consumes" the reference */

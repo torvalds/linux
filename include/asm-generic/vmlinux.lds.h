@@ -1,3 +1,5 @@
+#include <linux/section-names.h>
+
 #ifndef LOAD_OFFSET
 #define LOAD_OFFSET 0
 #endif
@@ -88,7 +90,6 @@
 /* .data section */
 #define DATA_DATA							\
 	*(.data)							\
-	*(.data.init.refok)						\
 	*(.ref.data)							\
 	DEV_KEEP(init.data)						\
 	DEV_KEEP(exit.data)						\
@@ -287,8 +288,6 @@
 		*(.text.hot)						\
 		*(.text)						\
 		*(.ref.text)						\
-		*(.text.init.refok)					\
-		*(.exit.text.refok)					\
 	DEV_KEEP(init.text)						\
 	DEV_KEEP(exit.text)						\
 	CPU_KEEP(init.text)						\
@@ -331,7 +330,7 @@
 #endif
 
 /* Section used for early init (in .S files) */
-#define HEAD_TEXT  *(.head.text)
+#define HEAD_TEXT  *(HEAD_TEXT_SECTION)
 
 /* init and exit section handling */
 #define INIT_DATA							\

@@ -36,7 +36,6 @@ extern void cia_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 extern struct pci_ops irongate_pci_ops;
 extern int irongate_pci_clr_err(void);
 extern void irongate_init_arch(void);
-extern void irongate_machine_check(u64, u64);
 #define irongate_pci_tbi ((void *)0)
 
 /* core_lca.c */
@@ -49,7 +48,7 @@ extern void lca_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 extern struct pci_ops marvel_pci_ops;
 extern void marvel_init_arch(void);
 extern void marvel_kill_arch(int);
-extern void marvel_machine_check(u64, u64);
+extern void marvel_machine_check(unsigned long, unsigned long);
 extern void marvel_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 extern int marvel_pa_to_nid(unsigned long);
 extern int marvel_cpuid_to_nid(int);
@@ -86,7 +85,7 @@ extern void t2_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 extern struct pci_ops titan_pci_ops;
 extern void titan_init_arch(void);
 extern void titan_kill_arch(int);
-extern void titan_machine_check(u64, u64);
+extern void titan_machine_check(unsigned long, unsigned long);
 extern void titan_pci_tbi(struct pci_controller *, dma_addr_t, dma_addr_t);
 extern struct _alpha_agp_info *titan_agp_info(void);
 

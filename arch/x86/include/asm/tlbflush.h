@@ -152,7 +152,7 @@ struct tlb_state {
 	struct mm_struct *active_mm;
 	int state;
 };
-DECLARE_PER_CPU(struct tlb_state, cpu_tlbstate);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
 
 static inline void reset_lazy_tlbstate(void)
 {

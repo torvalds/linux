@@ -26,6 +26,27 @@ static struct usb_device_id id_table[] = {
 	{USB_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
 	{USB_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */
 	{USB_DEVICE(0x03f0, 0x201d)},	/* HP un2400 Gobi QDL Device */
+	{USB_DEVICE(0x04da, 0x250d)},	/* Panasonic Gobi Modem device */
+	{USB_DEVICE(0x04da, 0x250c)},	/* Panasonic Gobi QDL device */
+	{USB_DEVICE(0x413c, 0x8172)},	/* Dell Gobi Modem device */
+	{USB_DEVICE(0x413c, 0x8171)},	/* Dell Gobi QDL device */
+	{USB_DEVICE(0x1410, 0xa001)},	/* Novatel Gobi Modem device */
+	{USB_DEVICE(0x1410, 0xa008)},	/* Novatel Gobi QDL device */
+	{USB_DEVICE(0x0b05, 0x1776)},	/* Asus Gobi Modem device */
+	{USB_DEVICE(0x0b05, 0x1774)},	/* Asus Gobi QDL device */
+	{USB_DEVICE(0x19d2, 0xfff3)},	/* ONDA Gobi Modem device */
+	{USB_DEVICE(0x19d2, 0xfff2)},	/* ONDA Gobi QDL device */
+	{USB_DEVICE(0x1557, 0x0a80)},	/* OQO Gobi QDL device */
+	{USB_DEVICE(0x05c6, 0x9001)},   /* Generic Gobi Modem device */
+	{USB_DEVICE(0x05c6, 0x9002)},	/* Generic Gobi Modem device */
+	{USB_DEVICE(0x05c6, 0x9202)},	/* Generic Gobi Modem device */
+	{USB_DEVICE(0x05c6, 0x9203)},	/* Generic Gobi Modem device */
+	{USB_DEVICE(0x05c6, 0x9222)},	/* Generic Gobi Modem device */
+	{USB_DEVICE(0x05c6, 0x9008)},	/* Generic Gobi QDL device */
+	{USB_DEVICE(0x05c6, 0x9201)},	/* Generic Gobi QDL device */
+	{USB_DEVICE(0x05c6, 0x9221)},	/* Generic Gobi QDL device */
+	{USB_DEVICE(0x05c6, 0x9231)},	/* Generic Gobi QDL device */
+	{USB_DEVICE(0x1f45, 0x0001)},	/* Unknown Gobi QDL device */
 	{ }				/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, id_table);

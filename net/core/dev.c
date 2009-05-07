@@ -1336,7 +1336,12 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct packet_type *ptype;
 
+#ifdef CONFIG_NET_CLS_ACT
+	if (!(skb->tstamp.tv64 && (G_TC_FROM(skb->tc_verd) & AT_INGRESS)))
+		net_timestamp(skb);
+#else
 	net_timestamp(skb);
+#endif
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
@@ -1430,7 +1435,7 @@ void netif_device_detach(struct net_device *dev)
 {
 	if (test_and_clear_bit(__LINK_STATE_PRESENT, &dev->state) &&
 	    netif_running(dev)) {
-		netif_stop_queue(dev);
+		netif_tx_stop_all_queues(dev);
 	}
 }
 EXPORT_SYMBOL(netif_device_detach);
@@ -1445,7 +1450,7 @@ void netif_device_attach(struct net_device *dev)
 {
 	if (!test_and_set_bit(__LINK_STATE_PRESENT, &dev->state) &&
 	    netif_running(dev)) {
-		netif_wake_queue(dev);
+		netif_tx_wake_all_queues(dev);
 		__netdev_watchdog_up(dev);
 	}
 }
@@ -1730,11 +1735,12 @@ u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
 {
 	u32 hash;
 
-	if (skb_rx_queue_recorded(skb)) {
-		hash = skb_get_rx_queue(skb);
-	} else if (skb->sk && skb->sk->sk_hash) {
+	if (skb_rx_queue_recorded(skb))
+		return skb_get_rx_queue(skb) % dev->real_num_tx_queues;
+
+	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
-	} else
+	else
 		hash = skb->protocol;
 
 	hash = jhash_1word(hash, skb_tx_hashrnd);
@@ -2328,8 +2334,10 @@ static int napi_gro_complete(struct sk_buff *skb)
 	struct list_head *head = &ptype_base[ntohs(type) & PTYPE_HASH_MASK];
 	int err = -ENOENT;
 
-	if (NAPI_GRO_CB(skb)->count == 1)
+	if (NAPI_GRO_CB(skb)->count == 1) {
+		skb_shinfo(skb)->gso_size = 0;
 		goto out;
+	}
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ptype, head, list) {
@@ -2348,7 +2356,6 @@ static int napi_gro_complete(struct sk_buff *skb)
 	}
 
 out:
-	skb_shinfo(skb)->gso_size = 0;
 	return netif_receive_skb(skb);
 }
 
@@ -2539,9 +2546,9 @@ struct sk_buff *napi_fraginfo_skb(struct napi_struct *napi,
 	}
 
 	BUG_ON(info->nr_frags > MAX_SKB_FRAGS);
-	frag = &info->frags[info->nr_frags - 1];
+	frag = info->frags;
 
-	for (i = skb_shinfo(skb)->nr_frags; i < info->nr_frags; i++) {
+	for (i = 0; i < info->nr_frags; i++) {
 		skb_fill_page_desc(skb, i, frag->page, frag->page_offset,
 				   frag->size);
 		frag++;
@@ -4399,7 +4406,7 @@ int register_netdevice(struct net_device *dev)
 	dev->iflink = -1;
 
 #ifdef CONFIG_COMPAT_NET_DEV_OPS
-	/* Netdevice_ops API compatiability support.
+	/* Netdevice_ops API compatibility support.
 	 * This is temporary until all network devices are converted.
 	 */
 	if (dev->netdev_ops) {
@@ -4410,7 +4417,7 @@ int register_netdevice(struct net_device *dev)
 			dev->name, netdev_drivername(dev, drivername, 64));
 
 		/* This works only because net_device_ops and the
-		   compatiablity structure are the same. */
+		   compatibility structure are the same. */
 		dev->netdev_ops = (void *) &(dev->init);
 	}
 #endif

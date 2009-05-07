@@ -158,6 +158,46 @@ void ibm440spe_fixup_memsize(void)
 
 #define DDR_GET_VAL(val, mask, shift)	(((val) >> (shift)) & (mask))
 
+/*
+ * Some U-Boot versions set the number of chipselects to two
+ * for Sequoia/Rainier boards while they only have one chipselect
+ * hardwired. Hardcode the number of chipselects to one
+ * for sequioa/rainer board models or read the actual value
+ * from the memory controller register DDR0_10 otherwise.
+ */
+static inline u32 ibm4xx_denali_get_cs(void)
+{
+	void *devp;
+	char model[64];
+	u32 val, cs;
+
+	devp = finddevice("/");
+	if (!devp)
+		goto read_cs;
+
+	if (getprop(devp, "model", model, sizeof(model)) <= 0)
+		goto read_cs;
+
+	model[sizeof(model)-1] = 0;
+
+	if (!strcmp(model, "amcc,sequoia") ||
+	    !strcmp(model, "amcc,rainier"))
+		return 1;
+
+read_cs:
+	/* get CS value */
+	val = SDRAM0_READ(DDR0_10);
+
+	val = DDR_GET_VAL(val, DDR_CS_MAP, DDR_CS_MAP_SHIFT);
+	cs = 0;
+	while (val) {
+		if (val & 0x1)
+			cs++;
+		val = val >> 1;
+	}
+	return cs;
+}
+
 void ibm4xx_denali_fixup_memsize(void)
 {
 	u32 val, max_cs, max_col, max_row;
@@ -173,17 +213,7 @@ void ibm4xx_denali_fixup_memsize(void)
 	max_col = DDR_GET_VAL(val, DDR_MAX_COL_REG, DDR_MAX_COL_REG_SHIFT);
 	max_row = DDR_GET_VAL(val, DDR_MAX_ROW_REG, DDR_MAX_ROW_REG_SHIFT);
 
-	/* get CS value */
-	val = SDRAM0_READ(DDR0_10);
-
-	val = DDR_GET_VAL(val, DDR_CS_MAP, DDR_CS_MAP_SHIFT);
-	cs = 0;
-	while (val) {
-		if (val & 0x1)
-			cs++;
-		val = val >> 1;
-	}
-
+	cs = ibm4xx_denali_get_cs();
 	if (!cs)
 		fatal("No memory installed\n");
 	if (cs > max_cs)
@@ -193,9 +223,9 @@ void ibm4xx_denali_fixup_memsize(void)
 	val = SDRAM0_READ(DDR0_14);
 
 	if (DDR_GET_VAL(val, DDR_REDUC, DDR_REDUC_SHIFT))
-		dpath = 8; /* 64 bits */
-	else
 		dpath = 4; /* 32 bits */
+	else
+		dpath = 8; /* 64 bits */
 
 	/* get address pins (rows) */
  	val = SDRAM0_READ(DDR0_42);

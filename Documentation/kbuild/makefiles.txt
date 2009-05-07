@@ -316,6 +316,16 @@ more details, with real examples.
 		#arch/m68k/fpsp040/Makefile
 		ldflags-y := -x
 
+    subdir-ccflags-y, subdir-asflags-y
+	The two flags listed above are similar to ccflags-y and as-falgs-y.
+	The difference is that the subdir- variants has effect for the kbuild
+	file where tey are present and all subdirectories.
+	Options specified using subdir-* are added to the commandline before
+	the options specified using the non-subdir variants.
+
+	Example:
+		subdir-ccflags-y := -Werror
+
     CFLAGS_$@, AFLAGS_$@
 
 	CFLAGS_$@ and AFLAGS_$@ only apply to commands in current

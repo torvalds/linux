@@ -67,7 +67,7 @@ static inline void slow_work_init(struct slow_work *work,
 }
 
 /**
- * slow_work_init - Initialise a very slow work item
+ * vslow_work_init - Initialise a very slow work item
  * @work: The work item to initialise
  * @ops: The operations to use to handle the slow work item
  *

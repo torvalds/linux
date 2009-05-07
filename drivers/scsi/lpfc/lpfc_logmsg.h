@@ -27,7 +27,7 @@
 #define LOG_FCP                       0x40	/* FCP traffic history */
 #define LOG_NODE                      0x80	/* Node table events */
 #define LOG_TEMP                      0x100	/* Temperature sensor events */
-#define LOG_BG			      0x200	/* BlockBuard events */
+#define LOG_BG			      0x200	/* BlockGuard events */
 #define LOG_MISC                      0x400	/* Miscellaneous events */
 #define LOG_SLI                       0x800	/* SLI events */
 #define LOG_FCP_ERROR                 0x1000	/* log errors, not underruns */

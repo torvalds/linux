@@ -90,6 +90,7 @@ static const struct acpi_port_info acpi_protected_ports[] = {
 	{"PIT2", 0x0048, 0x004B, ACPI_OSI_WIN_XP},
 	{"RTC", 0x0070, 0x0071, ACPI_OSI_WIN_XP},
 	{"CMOS", 0x0074, 0x0076, ACPI_OSI_WIN_XP},
+	{"DMA1", 0x0081, 0x0083, ACPI_OSI_WIN_XP},
 	{"DMA1L", 0x0087, 0x0087, ACPI_OSI_WIN_XP},
 	{"DMA2", 0x0089, 0x008B, ACPI_OSI_WIN_XP},
 	{"DMA2L", 0x008F, 0x008F, ACPI_OSI_WIN_XP},
@@ -151,7 +152,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 		ACPI_ERROR((AE_INFO,
 			    "Illegal I/O port address/length above 64K: 0x%p/%X",
 			    ACPI_CAST_PTR(void, address), byte_width));
-		return_ACPI_STATUS(AE_AML_ILLEGAL_ADDRESS);
+		return_ACPI_STATUS(AE_LIMIT);
 	}
 
 	/* Exit if requested address is not within the protected port table */
@@ -178,11 +179,12 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 			/* Port illegality may depend on the _OSI calls made by the BIOS */
 
 			if (acpi_gbl_osi_data >= port_info->osi_dependency) {
-				ACPI_ERROR((AE_INFO,
-					    "Denied AML access to port 0x%p/%X (%s 0x%.4X-0x%.4X)",
-					    ACPI_CAST_PTR(void, address),
-					    byte_width, port_info->name,
-					    port_info->start, port_info->end));
+				ACPI_DEBUG_PRINT((ACPI_DB_IO,
+						  "Denied AML access to port 0x%p/%X (%s 0x%.4X-0x%.4X)",
+						  ACPI_CAST_PTR(void, address),
+						  byte_width, port_info->name,
+						  port_info->start,
+						  port_info->end));
 
 				return_ACPI_STATUS(AE_AML_ILLEGAL_ADDRESS);
 			}
@@ -206,7 +208,7 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
  *              Value               Where value is placed
  *              Width               Number of bits
  *
- * RETURN:      Value read from port
+ * RETURN:      Status and value read from port
  *
  * DESCRIPTION: Read data from an I/O port or register. This is a front-end
  *              to acpi_os_read_port that performs validation on both the port
@@ -217,14 +219,43 @@ acpi_hw_validate_io_request(acpi_io_address address, u32 bit_width)
 acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 {
 	acpi_status status;
+	u32 one_byte;
+	u32 i;
+
+	/* Validate the entire request and perform the I/O */
 
 	status = acpi_hw_validate_io_request(address, width);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_SUCCESS(status)) {
+		status = acpi_os_read_port(address, value, width);
 		return status;
 	}
 
-	status = acpi_os_read_port(address, value, width);
-	return status;
+	if (status != AE_AML_ILLEGAL_ADDRESS) {
+		return status;
+	}
+
+	/*
+	 * There has been a protection violation within the request. Fall
+	 * back to byte granularity port I/O and ignore the failing bytes.
+	 * This provides Windows compatibility.
+	 */
+	for (i = 0, *value = 0; i < width; i += 8) {
+
+		/* Validate and read one byte */
+
+		if (acpi_hw_validate_io_request(address, 8) == AE_OK) {
+			status = acpi_os_read_port(address, &one_byte, 8);
+			if (ACPI_FAILURE(status)) {
+				return status;
+			}
+
+			*value |= (one_byte << i);
+		}
+
+		address++;
+	}
+
+	return AE_OK;
 }
 
 /******************************************************************************
@@ -235,7 +266,7 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
  *              Value               Value to write
  *              Width               Number of bits
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Write data to an I/O port or register. This is a front-end
  *              to acpi_os_write_port that performs validation on both the port
@@ -246,12 +277,39 @@ acpi_status acpi_hw_read_port(acpi_io_address address, u32 *value, u32 width)
 acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width)
 {
 	acpi_status status;
+	u32 i;
+
+	/* Validate the entire request and perform the I/O */
 
 	status = acpi_hw_validate_io_request(address, width);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_SUCCESS(status)) {
+		status = acpi_os_write_port(address, value, width);
 		return status;
 	}
 
-	status = acpi_os_write_port(address, value, width);
-	return status;
+	if (status != AE_AML_ILLEGAL_ADDRESS) {
+		return status;
+	}
+
+	/*
+	 * There has been a protection violation within the request. Fall
+	 * back to byte granularity port I/O and ignore the failing bytes.
+	 * This provides Windows compatibility.
+	 */
+	for (i = 0; i < width; i += 8) {
+
+		/* Validate and write one byte */
+
+		if (acpi_hw_validate_io_request(address, 8) == AE_OK) {
+			status =
+			    acpi_os_write_port(address, (value >> i) & 0xFF, 8);
+			if (ACPI_FAILURE(status)) {
+				return status;
+			}
+		}
+
+		address++;
+	}
+
+	return AE_OK;
 }

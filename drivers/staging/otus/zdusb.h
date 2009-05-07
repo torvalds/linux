@@ -40,4 +40,8 @@
 #define VENDOR_DLINK            0x07D1  //Dlink
 #define PRODUCT_DWA160A         0x3C10
 
+#define	VENDOR_NETGEAR		0x0846	/* NetGear */
+#define	PRODUCT_WNDA3100	0x9010
+#define	PRODUCT_WN111v2		0x9001
+
 #endif

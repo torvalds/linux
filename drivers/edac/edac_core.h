@@ -767,11 +767,19 @@ static inline void pci_write_bits16(struct pci_dev *pdev, int offset,
 	pci_write_config_word(pdev, offset, value);
 }
 
-/* write all or some bits in a dword-register*/
+/*
+ * pci_write_bits32
+ *
+ * edac local routine to do pci_write_config_dword, but adds
+ * a mask parameter. If mask is all ones, ignore the mask.
+ * Otherwise utilize the mask to isolate specified bits
+ *
+ * write all or some bits in a dword-register
+ */
 static inline void pci_write_bits32(struct pci_dev *pdev, int offset,
 				    u32 value, u32 mask)
 {
-	if (mask != 0xffff) {
+	if (mask != 0xffffffff) {
 		u32 buf;
 
 		pci_read_config_dword(pdev, offset, &buf);

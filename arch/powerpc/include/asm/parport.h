@@ -29,7 +29,7 @@ static int __devinit parport_pc_find_nonpci_ports (int autoirq, int autodma)
 		prop = of_get_property(np, "interrupts", NULL);
 		if (!prop)
 			continue;
-		if (parport_pc_probe_port(io1, io2, prop[0], autodma, NULL) != NULL)
+		if (parport_pc_probe_port(io1, io2, prop[0], autodma, NULL, 0) != NULL)
 			count++;
 	}
 	return count;

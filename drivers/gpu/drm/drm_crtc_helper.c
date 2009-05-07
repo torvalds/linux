@@ -561,7 +561,6 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	int saved_x, saved_y;
 	struct drm_encoder *encoder;
 	bool ret = true;
-	bool depth_changed, bpp_changed;
 
 	adjusted_mode = drm_mode_duplicate(dev, mode);
 
@@ -569,15 +568,6 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 
 	if (!crtc->enabled)
 		return true;
-
-	if (old_fb && crtc->fb) {
-		depth_changed = (old_fb->depth != crtc->fb->depth);
-		bpp_changed = (old_fb->bits_per_pixel !=
-			       crtc->fb->bits_per_pixel);
-	} else {
-		depth_changed = true;
-		bpp_changed = true;
-	}
 
 	saved_mode = crtc->mode;
 	saved_x = crtc->x;
@@ -589,15 +579,6 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 	crtc->mode = *mode;
 	crtc->x = x;
 	crtc->y = y;
-
-	if (drm_mode_equal(&saved_mode, &crtc->mode)) {
-		if (saved_x != crtc->x || saved_y != crtc->y ||
-		    depth_changed || bpp_changed) {
-			ret = !crtc_funcs->mode_set_base(crtc, crtc->x, crtc->y,
-							 old_fb);
-			goto done;
-		}
-	}
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also

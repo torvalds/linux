@@ -536,11 +536,13 @@ static void pci_bus_dump_res(struct pci_bus *bus)
 
         for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
                 struct resource *res = bus->resource[i];
-                if (!res)
+                if (!res || !res->end)
                         continue;
 
 		dev_printk(KERN_DEBUG, &bus->dev, "resource %d %s %pR\n", i,
-			   (res->flags & IORESOURCE_IO) ? "io: " : "mem:", res);
+			   (res->flags & IORESOURCE_IO) ? "io: " :
+			    ((res->flags & IORESOURCE_PREFETCH)? "pref mem":"mem:"),
+			   res);
         }
 }
 

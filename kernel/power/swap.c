@@ -64,8 +64,6 @@ static int submit(int rw, pgoff_t page_off, struct page *page,
 	struct bio *bio;
 
 	bio = bio_alloc(__GFP_WAIT | __GFP_HIGH, 1);
-	if (!bio)
-		return -ENOMEM;
 	bio->bi_sector = page_off * (PAGE_SIZE >> 9);
 	bio->bi_bdev = resume_bdev;
 	bio->bi_end_io = end_swap_bio_read;

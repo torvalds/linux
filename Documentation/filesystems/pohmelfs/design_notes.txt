@@ -56,9 +56,10 @@ workloads and can fully utilize the bandwidth to the servers when doing bulk
 data transfers.
 
 POHMELFS clients operate with a working set of servers and are capable of balancing read-only
-operations (like lookups or directory listings) between them.
+operations (like lookups or directory listings) between them according to IO priorities.
 Administrators can add or remove servers from the set at run-time via special commands (described
-in Documentation/pohmelfs/info.txt file). Writes are replicated to all servers.
+in Documentation/pohmelfs/info.txt file). Writes are replicated to all servers, which are connected
+with write permission turned on. IO priority and permissions can be changed in run-time.
 
 POHMELFS is capable of full data channel encryption and/or strong crypto hashing.
 One can select any kernel supported cipher, encryption mode, hash type and operation mode

@@ -1065,6 +1065,7 @@ static int acpi_ec_resume(struct acpi_device *device)
 	struct acpi_ec *ec = acpi_driver_data(device);
 	/* Enable use of GPE back */
 	clear_bit(EC_FLAGS_NO_GPE, &ec->flags);
+	set_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 	acpi_enable_gpe(NULL, ec->gpe);
 	return 0;
 }

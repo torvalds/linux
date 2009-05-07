@@ -10,6 +10,7 @@
  *  ARM architecture version 6 TLB handling functions.
  *  These assume a split I/D TLB.
  */
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
@@ -87,7 +88,7 @@ ENTRY(v6wbi_flush_kern_tlb_range)
 	mcr	p15, 0, r2, c7, c5, 4		@ prefetch flush
 	mov	pc, lr
 
-	.section ".text.init", #alloc, #execinstr
+	__INIT
 
 	.type	v6wbi_tlb_fns, #object
 ENTRY(v6wbi_tlb_fns)

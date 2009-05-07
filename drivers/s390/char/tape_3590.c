@@ -1707,19 +1707,13 @@ tape_3590_online(struct ccw_device *cdev)
 				   &tape_discipline_3590);
 }
 
-static int
-tape_3590_offline(struct ccw_device *cdev)
-{
-	return tape_generic_offline(cdev->dev.driver_data);
-}
-
 static struct ccw_driver tape_3590_driver = {
 	.name = "tape_3590",
 	.owner = THIS_MODULE,
 	.ids = tape_3590_ids,
 	.probe = tape_generic_probe,
 	.remove = tape_generic_remove,
-	.set_offline = tape_3590_offline,
+	.set_offline = tape_generic_offline,
 	.set_online = tape_3590_online,
 };
 

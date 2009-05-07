@@ -170,6 +170,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		lbs_deb_rx("rx err: frame received with bad length\n");
 		dev->stats.rx_length_errors++;
 		ret = 0;
+		dev_kfree_skb(skb);
 		goto done;
 	}
 
@@ -181,6 +182,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		lbs_pr_alert("rxpd not ok\n");
 		dev->stats.rx_errors++;
 		ret = 0;
+		dev_kfree_skb(skb);
 		goto done;
 	}
 

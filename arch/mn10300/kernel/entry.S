@@ -723,6 +723,8 @@ ENTRY(sys_call_table)
 	.long sys_dup3
 	.long sys_pipe2
 	.long sys_inotify_init1
+	.long sys_preadv
+	.long sys_pwritev		/* 335 */
 
 
 nr_syscalls=(.-sys_call_table)/4

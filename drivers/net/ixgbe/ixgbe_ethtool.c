@@ -943,6 +943,24 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 }
 
 
+static int ixgbe_wol_exclusion(struct ixgbe_adapter *adapter,
+                               struct ethtool_wolinfo *wol)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	int retval = 1;
+
+	switch(hw->device_id) {
+	case IXGBE_DEV_ID_82599_KX4:
+		retval = 0;
+		break;
+	default:
+		wol->supported = 0;
+		retval = 0;
+	}
+
+	return retval;
+}
+
 static void ixgbe_get_wol(struct net_device *netdev,
                           struct ethtool_wolinfo *wol)
 {
@@ -952,7 +970,8 @@ static void ixgbe_get_wol(struct net_device *netdev,
 	                 WAKE_BCAST | WAKE_MAGIC;
 	wol->wolopts = 0;
 
-	if (!device_can_wakeup(&adapter->pdev->dev))
+	if (ixgbe_wol_exclusion(adapter, wol) ||
+	    !device_can_wakeup(&adapter->pdev->dev))
 		return;
 
 	if (adapter->wol & IXGBE_WUFC_EX)
@@ -973,6 +992,9 @@ static int ixgbe_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 
 	if (wol->wolopts & (WAKE_PHY | WAKE_ARP | WAKE_MAGICSECURE))
 		return -EOPNOTSUPP;
+
+	if (ixgbe_wol_exclusion(adapter, wol))
+		return wol->wolopts ? -EOPNOTSUPP : 0;
 
 	adapter->wol = 0;
 
