@@ -106,7 +106,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 	struct ubi_device *ubi;
 	struct ubi_volume *vol;
 
-	dbg_gen("open device %d volume %d, mode %d", ubi_num, vol_id, mode);
+	dbg_gen("open device %d, volume %d, mode %d", ubi_num, vol_id, mode);
 
 	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
 		return ERR_PTR(-EINVAL);
@@ -196,6 +196,8 @@ out_free:
 	kfree(desc);
 out_put_ubi:
 	ubi_put_device(ubi);
+	dbg_err("cannot open device %d, volume %d, error %d",
+		ubi_num, vol_id, err);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume);
@@ -215,7 +217,7 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	struct ubi_device *ubi;
 	struct ubi_volume_desc *ret;
 
-	dbg_gen("open volume %s, mode %d", name, mode);
+	dbg_gen("open device %d, volume %s, mode %d", ubi_num, name, mode);
 
 	if (!name)
 		return ERR_PTR(-EINVAL);
@@ -266,7 +268,8 @@ void ubi_close_volume(struct ubi_volume_desc *desc)
 	struct ubi_volume *vol = desc->vol;
 	struct ubi_device *ubi = vol->ubi;
 
-	dbg_gen("close volume %d, mode %d", vol->vol_id, desc->mode);
+	dbg_gen("close device %d, volume %d, mode %d",
+		ubi->ubi_num, vol->vol_id, desc->mode);
 
 	spin_lock(&ubi->volumes_lock);
 	switch (desc->mode) {

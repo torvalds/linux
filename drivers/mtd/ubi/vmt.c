@@ -232,8 +232,8 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 		req->vol_id = vol_id;
 	}
 
-	dbg_gen("volume ID %d, %llu bytes, type %d, name %s",
-		vol_id, (unsigned long long)req->bytes,
+	dbg_gen("create device %d, volume %d, %llu bytes, type %d, name %s",
+		ubi->ubi_num, vol_id, (unsigned long long)req->bytes,
 		(int)req->vol_type, req->name);
 
 	/* Ensure that this volume does not exist */
@@ -412,7 +412,7 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 	struct ubi_device *ubi = vol->ubi;
 	int i, err, vol_id = vol->vol_id, reserved_pebs = vol->reserved_pebs;
 
-	dbg_gen("remove UBI volume %d", vol_id);
+	dbg_gen("remove device %d, volume %d", ubi->ubi_num, vol_id);
 	ubi_assert(desc->mode == UBI_EXCLUSIVE);
 	ubi_assert(vol == ubi->volumes[vol_id]);
 
@@ -498,8 +498,8 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	if (ubi->ro_mode)
 		return -EROFS;
 
-	dbg_gen("re-size volume %d to from %d to %d PEBs",
-		vol_id, vol->reserved_pebs, reserved_pebs);
+	dbg_gen("re-size device %d, volume %d to from %d to %d PEBs",
+		ubi->ubi_num, vol_id, vol->reserved_pebs, reserved_pebs);
 
 	if (vol->vol_type == UBI_STATIC_VOLUME &&
 	    reserved_pebs < vol->used_ebs) {
