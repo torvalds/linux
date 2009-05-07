@@ -50,10 +50,9 @@ Protocol 2.08:	(Kernel 2.6.26) Added crc32 checksum and ELF format
 Protocol 2.09:	(Kernel 2.6.26) Added a field of 64-bit physical
 		pointer to single linked list of struct	setup_data.
 
-Protocol 2.10:	(Kernel 2.6.31) A protocol for relaxed alignment
+Protocol 2.10:	(Kernel 2.6.31) Added a protocol for relaxed alignment
 		beyond the kernel_alignment added, new init_size and
-		pref_address fields.
-
+		pref_address fields.  Added extended boot loader IDs.
 
 **** MEMORY LAYOUT
 
@@ -173,7 +172,8 @@ Offset	Proto	Name		Meaning
 021C/4	2.00+	ramdisk_size	initrd size (set by boot loader)
 0220/4	2.00+	bootsect_kludge	DO NOT USE - for bootsect.S use only
 0224/2	2.01+	heap_end_ptr	Free memory after setup end
-0226/2	N/A	pad1		Unused
+0226/1	2.02+(3 ext_loader_ver	Extended boot loader version
+0227/1	2.02+(3	ext_loader_type	Extended boot loader ID
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
 022C/4	2.03+	ramdisk_max	Highest legal initrd address
 0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
@@ -196,6 +196,8 @@ Offset	Proto	Name		Meaning
 (2) For boot protocol prior to 2.04, the upper two bytes of the syssize
     field are unusable, which means the size of a bzImage kernel
     cannot be determined.
+
+(3) Ignored, but safe to set, for boot protocols 2.02-2.09.
 
 If the "HdrS" (0x53726448) magic number is not found at offset 0x202,
 the boot protocol version is "old".  Loading an old kernel, the
@@ -350,18 +352,32 @@ Protocol:	2.00+
   0xTV here, where T is an identifier for the boot loader and V is
   a version number.  Otherwise, enter 0xFF here.
 
+  For boot loader IDs above T = 0xD, write T = 0xE to this field and
+  write the extended ID minus 0x10 to the ext_loader_type field.
+  Similarly, the ext_loader_ver field can be used to provide more than
+  four bits for the bootloader version.
+
+  For example, for T = 0x15, V = 0x234, write:
+
+  type_of_loader  <- 0xE4
+  ext_loader_type <- 0x05
+  ext_loader_ver  <- 0x23
+
   Assigned boot loader ids:
 	0  LILO			(0x00 reserved for pre-2.00 bootloader)
 	1  Loadlin
 	2  bootsect-loader	(0x20, all other values reserved)
-	3  SYSLINUX
-	4  EtherBoot
+	3  Syslinux
+	4  Etherboot/gPXE
 	5  ELILO
 	7  GRUB
-	8  U-BOOT
+	8  U-Boot
 	9  Xen
 	A  Gujin
 	B  Qemu
+	C  Arcturus Networks uCbootloader
+	E  Extended		(see ext_loader_type)
+	F  Special		(0xFF = undefined)
 
   Please contact <hpa@zytor.com> if you need a bootloader ID
   value assigned.
@@ -459,6 +475,35 @@ Protocol:	2.01+
 
   Set this field to the offset (from the beginning of the real-mode
   code) of the end of the setup stack/heap, minus 0x0200.
+
+Field name:	ext_loader_ver
+Type:		write (optional)
+Offset/size:	0x226/1
+Protocol:	2.02+
+
+  This field is used as an extension of the version number in the
+  type_of_loader field.  The total version number is considered to be
+  (type_of_loader & 0x0f) + (ext_loader_ver << 4).
+
+  The use of this field is boot loader specific.  If not written, it
+  is zero.
+
+  Kernels prior to 2.6.31 did not recognize this field, but it is safe
+  to write for protocol version 2.02 or higher.
+
+Field name:	ext_loader_type
+Type:		write (obligatory if (type_of_loader & 0xf0) == 0xe0)
+Offset/size:	0x227/1
+Protocol:	2.02+
+
+  This field is used as an extension of the type number in
+  type_of_loader field.  If the type in type_of_loader is 0xE, then
+  the actual type is (ext_loader_type + 0x10).
+
+  This field is ignored if the type in type_of_loader is not 0xE.
+
+  Kernels prior to 2.6.31 did not recognize this field, but it is safe
+  to write for protocol version 2.02 or higher.
 
 Field name:	cmd_line_ptr
 Type:		write (obligatory)

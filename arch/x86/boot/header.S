@@ -169,7 +169,11 @@ heap_end_ptr:	.word	_end+STACK_SIZE-512
 					# end of setup code can be used by setup
 					# for local heap purposes.
 
-pad1:		.word	0
+ext_loader_ver:
+		.byte	0		# Extended boot loader version
+ext_loader_type:
+		.byte	0		# Extended boot loader type
+
 cmd_line_ptr:	.long	0		# (Header version 0x0202 or later)
 					# If nonzero, a 32-bit pointer
 					# to the kernel command line.

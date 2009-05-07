@@ -50,7 +50,8 @@ struct setup_header {
 	__u32	ramdisk_size;
 	__u32	bootsect_kludge;
 	__u16	heap_end_ptr;
-	__u16	_pad1;
+	__u8	ext_loader_ver;
+	__u8	ext_loader_type;
 	__u32	cmd_line_ptr;
 	__u32	initrd_addr_max;
 	__u32	kernel_alignment;
