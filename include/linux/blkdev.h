@@ -166,8 +166,9 @@ struct request {
 	enum rq_cmd_type_bits cmd_type;
 	unsigned long atomic_flags;
 
-	sector_t sector;	/* sector cursor */
-	unsigned int data_len;	/* total data len, don't access directly */
+	/* the following two fields are internal, NEVER access directly */
+	sector_t __sector;		/* sector cursor */
+	unsigned int __data_len;	/* total data len */
 
 	struct bio *bio;
 	struct bio *biotail;
@@ -828,12 +829,12 @@ extern void blkdev_dequeue_request(struct request *req);
  */
 static inline sector_t blk_rq_pos(const struct request *rq)
 {
-	return rq->sector;
+	return rq->__sector;
 }
 
 static inline unsigned int blk_rq_bytes(const struct request *rq)
 {
-	return rq->data_len;
+	return rq->__data_len;
 }
 
 static inline int blk_rq_cur_bytes(const struct request *rq)

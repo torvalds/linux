@@ -370,7 +370,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	req->biotail->bi_next = next->bio;
 	req->biotail = next->biotail;
 
-	req->data_len += blk_rq_bytes(next);
+	req->__data_len += blk_rq_bytes(next);
 
 	elv_merge_requests(q, req, next);
 

@@ -127,7 +127,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	INIT_LIST_HEAD(&rq->timeout_list);
 	rq->cpu = -1;
 	rq->q = q;
-	rq->sector = (sector_t) -1;
+	rq->__sector = (sector_t) -1;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
 	rq->cmd = rq->__cmd;
@@ -1095,7 +1095,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 		req->cmd_flags |= REQ_NOIDLE;
 
 	req->errors = 0;
-	req->sector = bio->bi_sector;
+	req->__sector = bio->bi_sector;
 	req->ioprio = bio_prio(bio);
 	blk_rq_bio_prep(req->q, req, bio);
 }
@@ -1143,7 +1143,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 		req->biotail->bi_next = bio;
 		req->biotail = bio;
-		req->data_len += bytes;
+		req->__data_len += bytes;
 		req->ioprio = ioprio_best(req->ioprio, prio);
 		if (!blk_rq_cpu_valid(req))
 			req->cpu = bio->bi_comp_cpu;
@@ -1169,8 +1169,8 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 		 * not touch req->buffer either...
 		 */
 		req->buffer = bio_data(bio);
-		req->sector = bio->bi_sector;
-		req->data_len += bytes;
+		req->__sector = bio->bi_sector;
+		req->__data_len += bytes;
 		req->ioprio = ioprio_best(req->ioprio, prio);
 		if (!blk_rq_cpu_valid(req))
 			req->cpu = bio->bi_comp_cpu;
@@ -1878,7 +1878,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		 * can find how many bytes remain in the request
 		 * later.
 		 */
-		req->data_len = 0;
+		req->__data_len = 0;
 		return false;
 	}
 
@@ -1892,12 +1892,12 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		bio_iovec(bio)->bv_len -= nr_bytes;
 	}
 
-	req->data_len -= total_bytes;
+	req->__data_len -= total_bytes;
 	req->buffer = bio_data(req->bio);
 
 	/* update sector only for requests with clear definition of sector */
 	if (blk_fs_request(req) || blk_discard_rq(req))
-		req->sector += total_bytes >> 9;
+		req->__sector += total_bytes >> 9;
 
 	/*
 	 * If total number of sectors is less than the first segment
@@ -1905,7 +1905,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 	 */
 	if (blk_rq_bytes(req) < blk_rq_cur_bytes(req)) {
 		printk(KERN_ERR "blk: request botched\n");
-		req->data_len = blk_rq_cur_bytes(req);
+		req->__data_len = blk_rq_cur_bytes(req);
 	}
 
 	/* recalculate the number of segments */
@@ -2032,7 +2032,7 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		rq->nr_phys_segments = bio_phys_segments(q, bio);
 		rq->buffer = bio_data(bio);
 	}
-	rq->data_len = bio->bi_size;
+	rq->__data_len = bio->bi_size;
 	rq->bio = rq->biotail = bio;
 
 	if (bio->bi_bdev)

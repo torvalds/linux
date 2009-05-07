@@ -20,7 +20,7 @@ int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 		rq->biotail->bi_next = bio;
 		rq->biotail = bio;
 
-		rq->data_len += bio->bi_size;
+		rq->__data_len += bio->bi_size;
 	}
 	return 0;
 }
