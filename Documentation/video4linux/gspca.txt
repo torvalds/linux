@@ -178,6 +178,7 @@ spca506		06e1:a190	ADS Instant VCD
 ov534		06f8:3002	Hercules Blog Webcam
 ov534		06f8:3003	Hercules Dualpix HD Weblog
 sonixj		06f8:3004	Hercules Classic Silver
+sonixj		06f8:3008	Hercules Deluxe Optical Glass
 spca508		0733:0110	ViewQuest VQ110
 spca508		0130:0130	Clone Digital Webcam 11043
 spca501		0733:0401	Intel Create and Share
