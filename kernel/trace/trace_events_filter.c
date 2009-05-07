@@ -636,14 +636,15 @@ static int filter_add_subsystem_pred(struct filter_parse_state *ps,
 
 		err = filter_add_pred(ps, call, pred);
 		if (err) {
+			mutex_unlock(&event_mutex);
 			filter_free_subsystem_preds(system);
 			parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
-			break;
+			goto out;
 		}
 		replace_filter_string(call->filter, filter_string);
 	}
 	mutex_unlock(&event_mutex);
-
+out:
 	return err;
 }
 
