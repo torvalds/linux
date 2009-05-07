@@ -31,21 +31,31 @@ silentoldconfig: $(obj)/conf
 
 localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
 	$(Q)perl $< $(Kconfig) > .tmp.config
-	$(Q)cmp -s .tmp.config .config ||		\
-		(mv -f .config .config.old.1;		\
-		 mv -f .tmp.config .config;		\
-		 $(obj)/conf -s $(Kconfig);		\
-		 mv -f .config.old.1 .config.old)
+	$(Q)if [ -f .config ]; then 				\
+			cmp -s .tmp.config .config ||		\
+			(mv -f .config .config.old.1;		\
+			 mv -f .tmp.config .config;		\
+			 $(obj)/conf -s $(Kconfig);		\
+			 mv -f .config.old.1 .config.old)	\
+	else							\
+			mv -f .tmp.config .config;		\
+			$(obj)/conf -s $(Kconfig);		\
+	fi
 	$(Q)rm -f .tmp.config
 
 localyesconfig: $(obj)/streamline_config.pl
 	$(Q)perl $< $(Kconfig) > .tmp.config
 	$(Q)sed -i s/=m/=y/ .tmp.config
-	$(Q)cmp -s .tmp.config .config ||		\
-		(mv -f .config .config.old.1;		\
-		 mv -f .tmp.config .config;		\
-		 $(obj)/conf -s $(Kconfig);		\
-		 mv -f .config.old.1 .config.old)
+	$(Q)if [ -f .config ]; then 				\
+			cmp -s .tmp.config .config ||		\
+			(mv -f .config .config.old.1;		\
+			 mv -f .tmp.config .config;		\
+			 $(obj)/conf -s $(Kconfig);		\
+			 mv -f .config.old.1 .config.old)	\
+	else							\
+			mv -f .tmp.config .config;		\
+			$(obj)/conf -s $(Kconfig);		\
+	fi
 	$(Q)rm -f .tmp.config
 
 # Create new linux.pot file
