@@ -50,6 +50,10 @@ chomp $uname;
 
 my @searchconfigs = (
 	{
+	    "file" => ".config",
+	    "exec" => "cat",
+	},
+	{
 	    "file" => "/proc/config.gz",
 	    "exec" => "zcat",
 	},
@@ -81,10 +85,6 @@ my @searchconfigs = (
 	    "file" => "kernel/configs.o",
 	    "exec" => "scripts/extract-ikconfig",
 	    "test" => "scripts/extract-ikconfig",
-	},
-	{
-	    "file" => ".config",
-	    "exec" => "cat",
 	},
 );
 
