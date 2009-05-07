@@ -587,6 +587,7 @@ config ARCH_DAVINCI
 	select ZONE_DMA
 	select HAVE_IDE
 	select COMMON_CLKDEV
+	select GENERIC_ALLOCATOR
 	help
 	  Support for TI's DaVinci platform.
 
