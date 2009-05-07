@@ -91,7 +91,7 @@ struct inode_smack *new_inode_smack(char *smack)
  */
 
 /**
- * smack_ptrace_may_access - Smack approval on PTRACE_ATTACH
+ * smack_ptrace_access_check - Smack approval on PTRACE_ATTACH
  * @ctp: child task pointer
  * @mode: ptrace attachment mode
  *
@@ -99,13 +99,13 @@ struct inode_smack *new_inode_smack(char *smack)
  *
  * Do the capability checks, and require read and write.
  */
-static int smack_ptrace_may_access(struct task_struct *ctp, unsigned int mode)
+static int smack_ptrace_access_check(struct task_struct *ctp, unsigned int mode)
 {
 	int rc;
 	struct smk_audit_info ad;
 	char *sp, *tsp;
 
-	rc = cap_ptrace_may_access(ctp, mode);
+	rc = cap_ptrace_access_check(ctp, mode);
 	if (rc != 0)
 		return rc;
 
@@ -3032,7 +3032,7 @@ static void smack_release_secctx(char *secdata, u32 seclen)
 struct security_operations smack_ops = {
 	.name =				"smack",
 
-	.ptrace_may_access =		smack_ptrace_may_access,
+	.ptrace_access_check =		smack_ptrace_access_check,
 	.ptrace_traceme =		smack_ptrace_traceme,
 	.syslog = 			smack_syslog,
 

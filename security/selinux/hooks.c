@@ -1854,12 +1854,12 @@ static inline u32 open_file_to_av(struct file *file)
 
 /* Hook functions begin here. */
 
-static int selinux_ptrace_may_access(struct task_struct *child,
+static int selinux_ptrace_access_check(struct task_struct *child,
 				     unsigned int mode)
 {
 	int rc;
 
-	rc = cap_ptrace_may_access(child, mode);
+	rc = cap_ptrace_access_check(child, mode);
 	if (rc)
 		return rc;
 
@@ -5315,7 +5315,7 @@ static int selinux_key_getsecurity(struct key *key, char **_buffer)
 static struct security_operations selinux_ops = {
 	.name =				"selinux",
 
-	.ptrace_may_access =		selinux_ptrace_may_access,
+	.ptrace_access_check =		selinux_ptrace_access_check,
 	.ptrace_traceme =		selinux_ptrace_traceme,
 	.capget =			selinux_capget,
 	.capset =			selinux_capset,
