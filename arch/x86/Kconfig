@@ -1495,8 +1495,8 @@ config PHYSICAL_START
 	  Don't change this unless you know what you are doing.
 
 config RELOCATABLE
-	bool "Build a relocatable kernel (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Build a relocatable kernel"
+	default y
 	---help---
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
