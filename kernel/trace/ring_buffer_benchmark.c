@@ -218,16 +218,23 @@ static void ring_buffer_producer(void)
 		}
 		do_gettimeofday(&end_tv);
 
-		if (consumer && !(++cnt % wakeup_interval))
+		cnt++;
+		if (consumer && !(cnt % wakeup_interval))
 			wake_up_process(consumer);
 
+#ifndef CONFIG_PREEMPT
 		/*
 		 * If we are a non preempt kernel, the 10 second run will
 		 * stop everything while it runs. Instead, we will call
 		 * cond_resched and also add any time that was lost by a
 		 * rescedule.
+		 *
+		 * Do a cond resched at the same frequency we would wake up
+		 * the reader.
 		 */
-		cond_resched();
+		if (cnt % wakeup_interval)
+			cond_resched();
+#endif
 
 	} while (end_tv.tv_sec < (start_tv.tv_sec + RUN_TIME) && !kill_test);
 	pr_info("End ring buffer hammer\n");
