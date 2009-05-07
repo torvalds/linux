@@ -535,6 +535,21 @@ static ssize_t kernel_readv(struct file *file, const struct iovec *vec,
 	return res;
 }
 
+static ssize_t kernel_writev(struct file *file, const struct iovec *vec,
+			    unsigned long vlen, loff_t *ppos)
+{
+	mm_segment_t old_fs;
+	ssize_t res;
+
+	old_fs = get_fs();
+	set_fs(get_ds());
+	/* The cast to a user pointer is valid due to the set_fs() */
+	res = vfs_writev(file, (const struct iovec __user *)vec, vlen, ppos);
+	set_fs(old_fs);
+
+	return res;
+}
+
 ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 				 struct pipe_inode_info *pipe, size_t len,
 				 unsigned int flags)
@@ -988,6 +1003,122 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 
 EXPORT_SYMBOL(generic_file_splice_write);
 
+static struct pipe_buffer *nth_pipe_buf(struct pipe_inode_info *pipe, int n)
+{
+	return &pipe->bufs[(pipe->curbuf + n) % PIPE_BUFFERS];
+}
+
+static ssize_t default_file_splice_write(struct pipe_inode_info *pipe,
+					 struct file *out, loff_t *ppos,
+					 size_t len, unsigned int flags)
+{
+	ssize_t ret = 0;
+	ssize_t total_len = 0;
+	int do_wakeup = 0;
+
+	pipe_lock(pipe);
+	while (len) {
+		struct pipe_buffer *buf;
+		void *data[PIPE_BUFFERS];
+		struct iovec vec[PIPE_BUFFERS];
+		unsigned int nr_pages = 0;
+		unsigned int write_len = 0;
+		unsigned int now_len = len;
+		unsigned int this_len;
+		int i;
+
+		BUG_ON(pipe->nrbufs > PIPE_BUFFERS);
+		for (i = 0; i < pipe->nrbufs && now_len; i++) {
+			buf = nth_pipe_buf(pipe, i);
+
+			ret = buf->ops->confirm(pipe, buf);
+			if (ret)
+				break;
+
+			data[i] = buf->ops->map(pipe, buf, 0);
+			this_len = min(buf->len, now_len);
+			vec[i].iov_base = (void __user *) data[i] + buf->offset;
+			vec[i].iov_len = this_len;
+			now_len -= this_len;
+			write_len += this_len;
+			nr_pages++;
+		}
+
+		if (nr_pages) {
+			ret = kernel_writev(out, vec, nr_pages, ppos);
+			if (ret == 0)
+				ret = -EIO;
+			if (ret > 0) {
+				len -= ret;
+				total_len += ret;
+			}
+		}
+
+		for (i = 0; i < nr_pages; i++) {
+			buf = nth_pipe_buf(pipe, i);
+			buf->ops->unmap(pipe, buf, data[i]);
+
+			if (ret > 0) {
+				this_len = min_t(unsigned, vec[i].iov_len, ret);
+				buf->offset += this_len;
+				buf->len -= this_len;
+				ret -= this_len;
+			}
+		}
+
+		if (ret < 0)
+			break;
+
+		while (pipe->nrbufs) {
+			const struct pipe_buf_operations *ops;
+
+			buf = nth_pipe_buf(pipe, 0);
+			if (buf->len)
+				break;
+
+			ops = buf->ops;
+			buf->ops = NULL;
+			ops->release(pipe, buf);
+			pipe->curbuf = (pipe->curbuf + 1) % PIPE_BUFFERS;
+			pipe->nrbufs--;
+			if (pipe->inode)
+				do_wakeup = 1;
+		}
+
+		if (pipe->nrbufs)
+			continue;
+		if (!pipe->writers)
+			break;
+		if (!pipe->waiting_writers) {
+			if (total_len)
+				break;
+		}
+
+		if (flags & SPLICE_F_NONBLOCK) {
+			ret = -EAGAIN;
+			break;
+		}
+
+		if (signal_pending(current)) {
+			ret = -ERESTARTSYS;
+			break;
+		}
+
+		if (do_wakeup) {
+			wakeup_pipe_writers(pipe);
+			do_wakeup = 0;
+		}
+
+		pipe_wait(pipe);
+	}
+	pipe_unlock(pipe);
+
+	if (do_wakeup)
+		wakeup_pipe_writers(pipe);
+
+	return total_len ? total_len : ret;
+}
+
 /**
  * generic_splice_sendpage - splice data from a pipe to a socket
  * @pipe:	pipe to splice from
@@ -1015,10 +1146,9 @@ EXPORT_SYMBOL(generic_splice_sendpage);
 static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 			   loff_t *ppos, size_t len, unsigned int flags)
 {
+	ssize_t (*splice_write)(struct pipe_inode_info *, struct file *,
+				loff_t *, size_t, unsigned int);
 	int ret;
-
-	if (unlikely(!out->f_op || !out->f_op->splice_write))
-		return -EINVAL;
 
 	if (unlikely(!(out->f_mode & FMODE_WRITE)))
 		return -EBADF;
@@ -1030,7 +1160,11 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	if (unlikely(ret < 0))
 		return ret;
 
-	return out->f_op->splice_write(pipe, out, ppos, len, flags);
+	splice_write = out->f_op->splice_write;
+	if (!splice_write)
+		splice_write = default_file_splice_write;
+
+	return splice_write(pipe, out, ppos, len, flags);
 }
 
 /*
