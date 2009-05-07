@@ -1976,7 +1976,7 @@ static int __devinit smsc911x_drv_probe(struct platform_device *pdev)
 		retval = -ENODEV;
 		goto out_0;
 	}
-	res_size = res->end - res->start;
+	res_size = res->end - res->start + 1;
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
