@@ -119,12 +119,12 @@ static int __init sh5pci_init(void)
                 return -EINVAL;
         }
 
-	pcicr_virt = onchip_remap(SH5PCI_ICR_BASE, 1024, "PCICR");
+	pcicr_virt = (unsigned long)ioremap_nocache(SH5PCI_ICR_BASE, 1024);
 	if (!pcicr_virt) {
 		panic("Unable to remap PCICR\n");
 	}
 
-	PCI_IO_AREA = onchip_remap(SH5PCI_IO_BASE, 0x10000, "PCIIO");
+	PCI_IO_AREA = (unsigned long)ioremap_nocache(SH5PCI_IO_BASE, 0x10000);
 	if (!PCI_IO_AREA) {
 		panic("Unable to remap PCIIO\n");
 	}

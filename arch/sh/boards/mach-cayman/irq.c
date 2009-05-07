@@ -161,7 +161,7 @@ void init_cayman_irq(void)
 {
 	int i;
 
-	epld_virt = onchip_remap(EPLD_BASE, 1024, "EPLD");
+	epld_virt = (unsigned long)ioremap_nocache(EPLD_BASE, 1024);
 	if (!epld_virt) {
 		printk(KERN_ERR "Cayman IRQ: Unable to remap EPLD\n");
 		return;

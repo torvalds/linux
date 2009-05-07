@@ -985,13 +985,7 @@ static void sci_config_port(struct uart_port *port, int flags)
 	port->type = s->type;
 
 	if (port->flags & UPF_IOREMAP && !port->membase) {
-#if defined(CONFIG_SUPERH64)
-		port->mapbase = onchip_remap(SCIF_ADDR_SH5, 1024, "SCIF");
-		port->membase = (void __iomem *)port->mapbase;
-#else
 		port->membase = ioremap_nocache(port->mapbase, 0x40);
-#endif
-
 		dev_err(port->dev, "can't remap port#%d\n", port->line);
 	}
 }

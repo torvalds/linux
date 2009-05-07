@@ -243,12 +243,12 @@ void __init time_init(void)
 	unsigned long interval;
 	struct clk *clk;
 
-	tmu_base = onchip_remap(TMU_BASE, 1024, "TMU");
+	tmu_base = (unsigned long)ioremap_nocache(TMU_BASE, 1024);
 	if (!tmu_base) {
 		panic("Unable to remap TMU\n");
 	}
 
-	rtc_base = onchip_remap(RTC_BASE, 1024, "RTC");
+	rtc_base = (unsigned long)ioremap_nocache(RTC_BASE, 1024);
 	if (!rtc_base) {
 		panic("Unable to remap RTC\n");
 	}

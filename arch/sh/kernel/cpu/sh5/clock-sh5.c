@@ -71,7 +71,7 @@ static struct clk_ops *sh5_clk_ops[] = {
 
 void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 {
-	cprc_base = onchip_remap(CPRC_BASE, 1024, "CPRC");
+	cprc_base = (unsigned long)ioremap_nocache(CPRC_BASE, 1024);
 	BUG_ON(!cprc_base);
 
 	if (idx < ARRAY_SIZE(sh5_clk_ops))

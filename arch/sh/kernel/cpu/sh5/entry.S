@@ -1410,8 +1410,8 @@ peek_real_address_q:
 	   r2(out) : result quadword
 
 	   This is provided as a cheapskate way of manipulating device
-	   registers for debugging (to avoid the need to onchip_remap the debug
-	   module, and to avoid the need to onchip_remap the watchpoint
+	   registers for debugging (to avoid the need to ioremap the debug
+	   module, and to avoid the need to ioremap the watchpoint
 	   controller in a way that identity maps sufficient bits to avoid the
 	   SH5-101 cut2 silicon defect).
 
@@ -1459,8 +1459,8 @@ poke_real_address_q:
 	   r3 : quadword value to write.
 
 	   This is provided as a cheapskate way of manipulating device
-	   registers for debugging (to avoid the need to onchip_remap the debug
-	   module, and to avoid the need to onchip_remap the watchpoint
+	   registers for debugging (to avoid the need to ioremap the debug
+	   module, and to avoid the need to ioremap the watchpoint
 	   controller in a way that identity maps sufficient bits to avoid the
 	   SH5-101 cut2 silicon defect).
 
