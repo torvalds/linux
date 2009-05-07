@@ -298,6 +298,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	was_hw_scan = local->hw_scanning;
 	local->hw_scanning = false;
 	local->sw_scanning = false;
+	local->scan_channel = NULL;
 
 	/* we only have to protect scan_req and hw/sw scan */
 	mutex_unlock(&local->scan_mtx);
