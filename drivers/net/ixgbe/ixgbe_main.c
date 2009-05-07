@@ -2458,6 +2458,17 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	ixgbe_irq_enable(adapter);
 
 	/*
+	 * If this adapter has a fan, check to see if we had a failure
+	 * before we enabled the interrupt.
+	 */
+	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) {
+		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
+		if (esdp & IXGBE_ESDP_SDP1)
+			DPRINTK(DRV, CRIT,
+				"Fan has stopped, replace the adapter\n");
+	}
+
+	/*
 	 * For hot-pluggable SFP+ devices, a new SFP+ module may have
 	 * arrived before interrupts were enabled.  We need to kick off
 	 * the SFP+ module setup first, then try to bring up link.
@@ -3382,9 +3393,11 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_RSS].indices = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	adapter->ring_feature[RING_F_DCB].indices = IXGBE_MAX_DCB_INDICES;
-	if (hw->mac.type == ixgbe_mac_82598EB)
+	if (hw->mac.type == ixgbe_mac_82598EB) {
+		if (hw->device_id == IXGBE_DEV_ID_82598AT)
+			adapter->flags |= IXGBE_FLAG_FAN_FAIL_CAPABLE;
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
-	else if (hw->mac.type == ixgbe_mac_82599EB) {
+	} else if (hw->mac.type == ixgbe_mac_82599EB) {
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
 		adapter->flags |= IXGBE_FLAG_RSC_CAPABLE;
 		adapter->flags |= IXGBE_FLAG_RSC_ENABLED;
@@ -4914,6 +4927,17 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	err = ixgbe_sw_init(adapter);
 	if (err)
 		goto err_sw_init;
+
+	/*
+	 * If there is a fan on this device and it has failed log the
+	 * failure.
+	 */
+	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) {
+		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
+		if (esdp & IXGBE_ESDP_SDP1)
+			DPRINTK(PROBE, CRIT,
+				"Fan has stopped, replace the adapter\n");
+	}
 
 	/* reset_hw fills in the perm_addr as well */
 	err = hw->mac.ops.reset_hw(hw);
