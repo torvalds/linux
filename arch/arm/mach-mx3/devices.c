@@ -22,10 +22,12 @@
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/gpio.h>
+#include <linux/dma-mapping.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/common.h>
 #include <mach/imx-uart.h>
+#include <mach/mx3_camera.h>
 
 #include "devices.h"
 
@@ -346,8 +348,26 @@ struct platform_device mx3_fb = {
 	.num_resources	= ARRAY_SIZE(fb_resources),
 	.resource	= fb_resources,
 	.dev		= {
-		.coherent_dma_mask = 0xffffffff,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
        },
+};
+
+static struct resource camera_resources[] = {
+	{
+		.start	= IPU_CTRL_BASE_ADDR + 0x60,
+		.end	= IPU_CTRL_BASE_ADDR + 0x87,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mx3_camera = {
+	.name		= "mx3-camera",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(camera_resources),
+	.resource	= camera_resources,
+	.dev		= {
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
 };
 
 static struct resource otg_resources[] = {
