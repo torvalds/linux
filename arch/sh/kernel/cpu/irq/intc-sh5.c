@@ -160,28 +160,6 @@ void make_intc_irq(unsigned int irq)
 	disable_intc_irq(irq);
 }
 
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_SYSCTL)
-static int IRQ_to_vectorN[NR_INTC_IRQS] = {
-	0x12, 0x15, 0x18, 0x1B, 0x40, 0x41, 0x42, 0x43, /*  0- 7 */
-	  -1,   -1,   -1,   -1, 0x50, 0x51, 0x52, 0x53,	/*  8-15 */
-	0x54, 0x55, 0x32, 0x33, 0x34, 0x35, 0x36,   -1, /* 16-23 */
-	  -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1, /* 24-31 */
-	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x38,	/* 32-39 */
-        0x39, 0x3A, 0x3B,   -1,   -1,   -1,   -1,   -1, /* 40-47 */
-	  -1,   -1,   -1,   -1,   -1,   -1,   -1,   -1, /* 48-55 */
-	  -1,   -1,   -1,   -1,   -1,   -1,   -1, 0x2B, /* 56-63 */
-
-};
-
-int intc_irq_describe(char* p, int irq)
-{
-	if (irq < NR_INTC_IRQS)
-		return sprintf(p, "(0x%3x)", IRQ_to_vectorN[irq]*0x20);
-	else
-		return 0;
-}
-#endif
-
 void __init plat_irq_setup(void)
 {
 	unsigned long long __dummy0, __dummy1=~0x00000000100000f0;
