@@ -141,6 +141,10 @@ config ARCH_NO_VIRT_TO_BUS
 config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
+config ARCH_USES_GETTIMEOFFSET
+	def_bool y 
+	depends on SUPERH64
+
 config IO_TRAPPED
 	bool
 
