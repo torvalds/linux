@@ -62,6 +62,19 @@ void reiserfs_write_unlock(struct super_block *s);
 int reiserfs_write_lock_once(struct super_block *s);
 void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
 
+/*
+ * When we schedule, we usually want to also release the write lock,
+ * according to the previous bkl based locking scheme of reiserfs.
+ */
+static inline void reiserfs_cond_resched(struct super_block *s)
+{
+	if (need_resched()) {
+		reiserfs_write_unlock(s);
+		schedule();
+		reiserfs_write_lock(s);
+	}
+}
+
 struct fid;
 
 /* in reading the #defines, it may help to understand that they employ
