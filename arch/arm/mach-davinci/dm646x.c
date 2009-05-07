@@ -279,6 +279,44 @@ struct davinci_clk dm646x_clks[] = {
 	CLK(NULL, NULL, NULL),
 };
 
+#if defined(CONFIG_TI_DAVINCI_EMAC) || defined(CONFIG_TI_DAVINCI_EMAC_MODULE)
+static struct resource dm646x_emac_resources[] = {
+	{
+		.start	= DM646X_EMAC_BASE,
+		.end	= DM646X_EMAC_BASE + 0x47ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_DM646X_EMACRXTHINT,
+		.end	= IRQ_DM646X_EMACRXTHINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DM646X_EMACRXINT,
+		.end	= IRQ_DM646X_EMACRXINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DM646X_EMACTXINT,
+		.end	= IRQ_DM646X_EMACTXINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= IRQ_DM646X_EMACMISCINT,
+		.end	= IRQ_DM646X_EMACMISCINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dm646x_emac_device = {
+	.name		= "davinci_emac",
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(dm646x_emac_resources),
+	.resource	= dm646x_emac_resources,
+};
+
+#endif
+
 /*
  * Device specific mux setup
  *
@@ -384,6 +422,25 @@ static struct platform_device dm646x_edma_device = {
 };
 
 /*----------------------------------------------------------------------*/
+
+#if defined(CONFIG_TI_DAVINCI_EMAC) || defined(CONFIG_TI_DAVINCI_EMAC_MODULE)
+
+void dm646x_init_emac(struct emac_platform_data *pdata)
+{
+	pdata->ctrl_reg_offset		= DM646X_EMAC_CNTRL_OFFSET;
+	pdata->ctrl_mod_reg_offset	= DM646X_EMAC_CNTRL_MOD_OFFSET;
+	pdata->ctrl_ram_offset		= DM646X_EMAC_CNTRL_RAM_OFFSET;
+	pdata->mdio_reg_offset		= DM646X_EMAC_MDIO_OFFSET;
+	pdata->ctrl_ram_size		= DM646X_EMAC_CNTRL_RAM_SIZE;
+	pdata->version			= EMAC_VERSION_2;
+	dm646x_emac_device.dev.platform_data = pdata;
+	platform_device_register(&dm646x_emac_device);
+}
+#else
+
+void dm646x_init_emac(struct emac_platform_data *unused) {}
+
+#endif
 
 void __init dm646x_init(void)
 {

@@ -24,6 +24,7 @@
 
 #include <linux/platform_device.h>
 #include <mach/hardware.h>
+#include <mach/emac.h>
 
 #define DM644X_EMAC_BASE		(0x01C80000)
 #define DM644X_EMAC_CNTRL_OFFSET	(0x0000)
@@ -33,5 +34,6 @@
 #define DM644X_EMAC_CNTRL_RAM_SIZE	(0x2000)
 
 void __init dm644x_init(void);
+void dm644x_init_emac(struct emac_platform_data *pdata);
 
 #endif /* __ASM_ARCH_DM644X_H */

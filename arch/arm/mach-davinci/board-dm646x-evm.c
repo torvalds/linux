@@ -45,6 +45,16 @@
 #include <mach/psc.h>
 #include <mach/serial.h>
 #include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/emac.h>
+
+#define DM646X_EVM_PHY_MASK		(0x2)
+#define DM646X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
+
+static struct emac_platform_data dm646x_evm_emac_pdata = {
+	.phy_mask	= DM646X_EVM_PHY_MASK,
+	.mdio_max_freq	= DM646X_EVM_MDIO_FREQUENCY,
+};
 
 static struct davinci_uart_config uart_config __initdata = {
 	.enabled_uarts = (1 << 0),
@@ -196,14 +206,16 @@ static struct memory_accessor *at24_mem_acc;
 
 static void at24_setup(struct memory_accessor *mem_acc, void *context)
 {
-	char mac_addr[6];
+	char mac_addr[ETH_ALEN];
 
 	at24_mem_acc = mem_acc;
 
 	/* Read MAC addr from EEPROM */
 	if (at24_mem_acc->read(at24_mem_acc, mac_addr, 0x7f00, ETH_ALEN) ==
-	    ETH_ALEN)
+	    ETH_ALEN) {
 		pr_info("Read MAC addr from EEPROM: %pM\n", mac_addr);
+		memcpy(dm646x_evm_emac_pdata.mac_addr, mac_addr, ETH_ALEN);
+	}
 }
 
 static struct at24_platform_data eeprom_info = {
@@ -261,6 +273,7 @@ static __init void evm_init(void)
 {
 	evm_init_i2c();
 	davinci_serial_init(&uart_config);
+	dm646x_init_emac(&dm646x_evm_emac_pdata);
 }
 
 static __init void davinci_dm646x_evm_irq_init(void)

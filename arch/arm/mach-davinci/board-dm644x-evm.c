@@ -16,12 +16,11 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/memory.h>
-#include <linux/etherdevice.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
-
+#include <linux/etherdevice.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -39,6 +38,7 @@
 
 #include <mach/dm644x.h>
 #include <mach/common.h>
+#include <mach/emac.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
@@ -59,6 +59,11 @@
 
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
+
+static struct emac_platform_data dm644x_evm_emac_pdata = {
+	.phy_mask	= DM644X_EVM_PHY_MASK,
+	.mdio_max_freq	= DM644X_EVM_MDIO_FREQUENCY,
+};
 
 static struct mtd_partition davinci_evm_norflash_partitions[] = {
 	/* bootloader (UBL, U-Boot, etc) in first 5 sectors */
@@ -441,15 +446,15 @@ static struct memory_accessor *at24_mem_acc;
 
 static void at24_setup(struct memory_accessor *mem_acc, void *context)
 {
-	DECLARE_MAC_BUF(mac_str);
-	char mac_addr[6];
+	char mac_addr[ETH_ALEN];
 
 	at24_mem_acc = mem_acc;
 
 	/* Read MAC addr from EEPROM */
-	if (at24_mem_acc->read(at24_mem_acc, mac_addr, 0x7f00, 6) == 6) {
-		printk(KERN_INFO "Read MAC addr from EEPROM: %s\n",
-		       print_mac(mac_str, mac_addr));
+	if (at24_mem_acc->read(at24_mem_acc, mac_addr, 0x7f00, ETH_ALEN) ==
+	    ETH_ALEN) {
+		printk(KERN_INFO "Read MAC addr from EEPROM: %pM\n", mac_addr);
+		memcpy(dm644x_evm_emac_pdata.mac_addr, mac_addr, ETH_ALEN);
 	}
 }
 
@@ -459,22 +464,6 @@ static struct at24_platform_data eeprom_info = {
 	.flags		= AT24_FLAG_ADDR16,
 	.setup          = at24_setup,
 };
-
-int dm6446evm_eeprom_read(void *buf, off_t off, size_t count)
-{
-	if (at24_mem_acc)
-		return at24_mem_acc->read(at24_mem_acc, buf, off, count);
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dm6446evm_eeprom_read);
-
-int dm6446evm_eeprom_write(void *buf, off_t off, size_t count)
-{
-	if (at24_mem_acc)
-		return at24_mem_acc->write(at24_mem_acc, buf, off, count);
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dm6446evm_eeprom_write);
 
 /*
  * MSP430 supports RTC, card detection, input from IR remote, and
@@ -696,6 +685,8 @@ static __init void davinci_evm_init(void)
 	davinci_setup_mmc(0, &dm6446evm_mmc_config);
 
 	davinci_serial_init(&uart_config);
+
+	dm644x_init_emac(&dm644x_evm_emac_pdata);
 
 	/* Register the fixup for PHY on DaVinci */
 	phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
