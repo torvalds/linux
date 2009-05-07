@@ -639,6 +639,16 @@ void tracing_reset_online_cpus(struct trace_array *tr)
 		tracing_reset(tr, cpu);
 }
 
+void tracing_reset_current(int cpu)
+{
+	tracing_reset(&global_trace, cpu);
+}
+
+void tracing_reset_current_online_cpus(void)
+{
+	tracing_reset_online_cpus(&global_trace);
+}
+
 #define SAVED_CMDLINES 128
 #define NO_CMDLINE_MAP UINT_MAX
 static unsigned map_pid_to_cmdline[PID_MAX_DEFAULT+1];

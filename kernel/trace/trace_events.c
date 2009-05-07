@@ -932,9 +932,11 @@ static void trace_module_remove_events(struct module *mod)
 {
 	struct ftrace_module_file_ops *file_ops;
 	struct ftrace_event_call *call, *p;
+	bool found = false;
 
 	list_for_each_entry_safe(call, p, &ftrace_events, list) {
 		if (call->mod == mod) {
+			found = true;
 			if (call->enabled) {
 				call->enabled = 0;
 				call->unregfunc();
@@ -957,6 +959,13 @@ static void trace_module_remove_events(struct module *mod)
 		list_del(&file_ops->list);
 		kfree(file_ops);
 	}
+
+	/*
+	 * It is safest to reset the ring buffer if the module being unloaded
+	 * registered any events.
+	 */
+	if (found)
+		tracing_reset_current_online_cpus();
 }
 
 static int trace_module_notify(struct notifier_block *self,
