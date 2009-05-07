@@ -1,7 +1,7 @@
 /******************************************************************************
 *******************************************************************************
 **
-**  Copyright (C) 2005-2008 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2005-2009 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -17,6 +17,7 @@
 #include "recover.h"
 #include "rcom.h"
 #include "config.h"
+#include "lowcomms.h"
 
 static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 {
@@ -45,7 +46,7 @@ static void add_ordered_member(struct dlm_ls *ls, struct dlm_member *new)
 static int dlm_add_member(struct dlm_ls *ls, int nodeid)
 {
 	struct dlm_member *memb;
-	int w;
+	int w, error;
 
 	memb = kzalloc(sizeof(struct dlm_member), GFP_KERNEL);
 	if (!memb)
@@ -55,6 +56,12 @@ static int dlm_add_member(struct dlm_ls *ls, int nodeid)
 	if (w < 0) {
 		kfree(memb);
 		return w;
+	}
+
+	error = dlm_lowcomms_connect_node(nodeid);
+	if (error < 0) {
+		kfree(memb);
+		return error;
 	}
 
 	memb->nodeid = nodeid;

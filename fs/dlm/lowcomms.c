@@ -309,6 +309,20 @@ static void lowcomms_state_change(struct sock *sk)
 		lowcomms_write_space(sk);
 }
 
+int dlm_lowcomms_connect_node(int nodeid)
+{
+	struct connection *con;
+
+	if (nodeid == dlm_our_nodeid())
+		return 0;
+
+	con = nodeid2con(nodeid, GFP_NOFS);
+	if (!con)
+		return -ENOMEM;
+	lowcomms_connect_sock(con);
+	return 0;
+}
+
 /* Make a socket active */
 static int add_sock(struct socket *sock, struct connection *con)
 {
@@ -1421,7 +1435,7 @@ static int work_start(void)
 static void stop_conn(struct connection *con)
 {
 	con->flags |= 0x0F;
-	if (con->sock)
+	if (con->sock && con->sock->sk)
 		con->sock->sk->sk_user_data = NULL;
 }
 
