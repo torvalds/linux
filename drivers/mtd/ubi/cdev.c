@@ -558,7 +558,7 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 
-	/* Set volume property command*/
+	/* Set volume property command */
 	case UBI_IOCSETPROP:
 	{
 		struct ubi_set_prop_req req;
@@ -571,9 +571,9 @@ static long vol_cdev_ioctl(struct file *file, unsigned int cmd,
 		}
 		switch (req.property) {
 		case UBI_PROP_DIRECT_WRITE:
-			mutex_lock(&ubi->volumes_mutex);
+			mutex_lock(&ubi->device_mutex);
 			desc->vol->direct_writes = !!req.value;
-			mutex_unlock(&ubi->volumes_mutex);
+			mutex_unlock(&ubi->device_mutex);
 			break;
 		default:
 			err = -EINVAL;
@@ -810,7 +810,9 @@ static int rename_volumes(struct ubi_device *ubi,
 			re->desc->vol->vol_id, re->desc->vol->name);
 	}
 
+	mutex_lock(&ubi->device_mutex);
 	err = ubi_rename_volumes(ubi, &rename_list);
+	mutex_unlock(&ubi->device_mutex);
 
 out_free:
 	list_for_each_entry_safe(re, re1, &rename_list, list) {
@@ -854,9 +856,9 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 		if (err)
 			break;
 
-		mutex_lock(&ubi->volumes_mutex);
+		mutex_lock(&ubi->device_mutex);
 		err = ubi_create_volume(ubi, &req);
-		mutex_unlock(&ubi->volumes_mutex);
+		mutex_unlock(&ubi->device_mutex);
 		if (err)
 			break;
 
@@ -885,9 +887,9 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		mutex_lock(&ubi->volumes_mutex);
+		mutex_lock(&ubi->device_mutex);
 		err = ubi_remove_volume(desc, 0);
-		mutex_unlock(&ubi->volumes_mutex);
+		mutex_unlock(&ubi->device_mutex);
 
 		/*
 		 * The volume is deleted (unless an error occurred), and the
@@ -924,9 +926,9 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 		pebs = div_u64(req.bytes + desc->vol->usable_leb_size - 1,
 			       desc->vol->usable_leb_size);
 
-		mutex_lock(&ubi->volumes_mutex);
+		mutex_lock(&ubi->device_mutex);
 		err = ubi_resize_volume(desc, pebs);
-		mutex_unlock(&ubi->volumes_mutex);
+		mutex_unlock(&ubi->device_mutex);
 		ubi_close_volume(desc);
 		break;
 	}
@@ -950,9 +952,7 @@ static long ubi_cdev_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-		mutex_lock(&ubi->volumes_mutex);
 		err = rename_volumes(ubi, req);
-		mutex_unlock(&ubi->volumes_mutex);
 		kfree(req);
 		break;
 	}

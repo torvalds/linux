@@ -198,7 +198,7 @@ static void volume_sysfs_close(struct ubi_volume *vol)
  * %UBI_VOL_NUM_AUTO, this function automatically assign ID to the new volume
  * and saves it in @req->vol_id. Returns zero in case of success and a negative
  * error code in case of failure. Note, the caller has to have the
- * @ubi->volumes_mutex locked.
+ * @ubi->device_mutex locked.
  */
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 {
@@ -403,7 +403,7 @@ out_unlock:
  *
  * This function removes volume described by @desc. The volume has to be opened
  * in "exclusive" mode. Returns zero in case of success and a negative error
- * code in case of failure. The caller has to have the @ubi->volumes_mutex
+ * code in case of failure. The caller has to have the @ubi->device_mutex
  * locked.
  */
 int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
@@ -485,7 +485,7 @@ out_unlock:
  *
  * This function re-sizes the volume and returns zero in case of success, and a
  * negative error code in case of failure. The caller has to have the
- * @ubi->volumes_mutex locked.
+ * @ubi->device_mutex locked.
  */
 int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 {
