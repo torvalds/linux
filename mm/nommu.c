@@ -515,8 +515,6 @@ static void add_nommu_region(struct vm_region *region)
 
 	validate_nommu_regions();
 
-	BUG_ON(region->vm_start & ~PAGE_MASK);
-
 	parent = NULL;
 	p = &nommu_region_tree.rb_node;
 	while (*p) {
