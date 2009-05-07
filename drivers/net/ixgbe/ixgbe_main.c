@@ -1307,7 +1307,7 @@ static inline void map_vector_to_rxq(struct ixgbe_adapter *a, int v_idx,
 
 	set_bit(r_idx, q_vector->rxr_idx);
 	q_vector->rxr_count++;
-	a->rx_ring[r_idx].v_idx = 1 << v_idx;
+	a->rx_ring[r_idx].v_idx = (u64)1 << v_idx;
 }
 
 static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
@@ -1317,7 +1317,7 @@ static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
 
 	set_bit(t_idx, q_vector->txr_idx);
 	q_vector->txr_count++;
-	a->tx_ring[t_idx].v_idx = 1 << v_idx;
+	a->tx_ring[t_idx].v_idx = (u64)1 << v_idx;
 }
 
 /**
@@ -4057,7 +4057,7 @@ static void ixgbe_watchdog(unsigned long data)
 		int i;
 
 		for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++)
-			eics |= (1 << i);
+			eics |= ((u64)1 << i);
 
 		/* Cause software interrupt to ensure rx rings are cleaned */
 		switch (hw->mac.type) {
