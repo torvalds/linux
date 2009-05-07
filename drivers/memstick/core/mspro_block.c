@@ -680,7 +680,7 @@ try_again:
 		t_sec = blk_rq_pos(msb->block_req) << 9;
 		sector_div(t_sec, msb->page_size);
 
-		count = blk_rq_sectors(msb->block_req) << 9;
+		count = blk_rq_bytes(msb->block_req);
 		count /= msb->page_size;
 
 		param.system = msb->system;
@@ -745,7 +745,7 @@ static int mspro_block_complete_req(struct memstick_dev *card, int error)
 					t_len *= msb->page_size;
 			}
 		} else
-			t_len = blk_rq_sectors(msb->block_req) << 9;
+			t_len = blk_rq_bytes(msb->block_req);
 
 		dev_dbg(&card->dev, "transferred %x (%d)\n", t_len, error);
 

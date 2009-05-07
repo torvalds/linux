@@ -189,7 +189,7 @@ static void jsfd_do_request(struct request_queue *q)
 	while ((req = elv_next_request(q)) != NULL) {
 		struct jsfd_part *jdp = req->rq_disk->private_data;
 		unsigned long offset = blk_rq_pos(req) << 9;
-		size_t len = blk_rq_cur_sectors(req) << 9;
+		size_t len = blk_rq_cur_bytes(req);
 
 		if ((offset + len) > jdp->dsize) {
 			__blk_end_request_cur(req, -EIO);

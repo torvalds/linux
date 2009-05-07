@@ -426,15 +426,9 @@ static void i2o_block_end_request(struct request *req, int error,
 	struct request_queue *q = req->q;
 	unsigned long flags;
 
-	if (blk_end_request(req, error, nr_bytes)) {
-		int leftover = (blk_rq_sectors(req) << KERNEL_SECTOR_SHIFT);
-
-		if (blk_pc_request(req))
-			leftover = blk_rq_bytes(req);
-
+	if (blk_end_request(req, error, nr_bytes))
 		if (error)
-			blk_end_request(req, -EIO, leftover);
-	}
+			blk_end_request_all(req, -EIO);
 
 	spin_lock_irqsave(q->queue_lock, flags);
 
@@ -832,15 +826,13 @@ static int i2o_block_transfer(struct request *req)
 
 		memcpy(mptr, cmd, 10);
 		mptr += 4;
-		*mptr++ =
-		    cpu_to_le32(blk_rq_sectors(req) << KERNEL_SECTOR_SHIFT);
+		*mptr++ = cpu_to_le32(blk_rq_bytes(req));
 	} else
 #endif
 	{
 		msg->u.head[1] = cpu_to_le32(cmd | HOST_TID << 12 | tid);
 		*mptr++ = cpu_to_le32(ctl_flags);
-		*mptr++ =
-		    cpu_to_le32(blk_rq_sectors(req) << KERNEL_SECTOR_SHIFT);
+		*mptr++ = cpu_to_le32(blk_rq_bytes(req));
 		*mptr++ =
 		    cpu_to_le32((u32) (blk_rq_pos(req) << KERNEL_SECTOR_SHIFT));
 		*mptr++ =

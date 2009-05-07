@@ -546,7 +546,7 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int error,
 	 * to queue the remainder of them.
 	 */
 	if (blk_end_request(req, error, bytes)) {
-		int leftover = blk_rq_sectors(req) << 9;
+		int leftover = blk_rq_bytes(req);
 
 		if (blk_pc_request(req))
 			leftover = req->resid_len;
@@ -964,10 +964,7 @@ static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
 	count = blk_rq_map_sg(req->q, req, sdb->table.sgl);
 	BUG_ON(count > sdb->table.nents);
 	sdb->table.nents = count;
-	if (blk_pc_request(req))
-		sdb->length = blk_rq_bytes(req);
-	else
-		sdb->length = blk_rq_sectors(req) << 9;
+	sdb->length = blk_rq_bytes(req);
 	return BLKPREP_OK;
 }
 

@@ -739,7 +739,7 @@ static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->cdb[8] = nblks;
 	cmd->cdb_len = 10;
 
-	cmd->len = blk_rq_sectors(rq) * 512;
+	cmd->len = blk_rq_bytes(rq);
 }
 
 static void ub_cmd_build_packet(struct ub_dev *sc, struct ub_lun *lun,

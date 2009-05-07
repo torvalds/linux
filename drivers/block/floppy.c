@@ -2512,8 +2512,7 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 
 	remaining = current_count_sectors << 9;
 #ifdef FLOPPY_SANITY_CHECK
-	if ((remaining >> 9) > blk_rq_sectors(current_req) &&
-	    CT(COMMAND) == FD_WRITE) {
+	if (remaining > blk_rq_bytes(current_req) && CT(COMMAND) == FD_WRITE) {
 		DPRINT("in copy buffer\n");
 		printk("current_count_sectors=%ld\n", current_count_sectors);
 		printk("remaining=%d\n", remaining >> 9);
@@ -2530,7 +2529,7 @@ static void copy_buffer(int ssize, int max_sector, int max_sector_2)
 
 	dma_buffer = floppy_track_buffer + ((fsector_t - buffer_min) << 9);
 
-	size = blk_rq_cur_sectors(current_req) << 9;
+	size = blk_rq_cur_bytes(current_req);
 
 	rq_for_each_segment(bv, current_req, iter) {
 		if (!remaining)
@@ -2879,7 +2878,7 @@ static int make_raw_rw_request(void)
 				printk("write\n");
 			return 0;
 		}
-	} else if (raw_cmd->length > blk_rq_sectors(current_req) << 9 ||
+	} else if (raw_cmd->length > blk_rq_bytes(current_req) ||
 		   current_count_sectors > blk_rq_sectors(current_req)) {
 		DPRINT("buffer overrun in direct transfer\n");
 		return 0;

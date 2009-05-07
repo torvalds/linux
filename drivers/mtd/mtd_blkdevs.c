@@ -48,7 +48,7 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	char *buf;
 
 	block = blk_rq_pos(req) << 9 >> tr->blkshift;
-	nsect = blk_rq_cur_sectors(req) << 9 >> tr->blkshift;
+	nsect = blk_rq_cur_bytes(req) >> tr->blkshift;
 
 	buf = req->buffer;
 
