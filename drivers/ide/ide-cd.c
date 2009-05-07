@@ -730,7 +730,7 @@ out_end:
 		if (blk_pc_request(rq))
 			nsectors = (rq->data_len + 511) >> 9;
 		else
-			nsectors = rq->hard_nr_sectors;
+			nsectors = blk_rq_sectors(rq);
 
 		if (nsectors == 0)
 			nsectors = 1;
@@ -875,7 +875,7 @@ static ide_startstop_t ide_cd_do_request(ide_drive_t *drive, struct request *rq,
 
 	return ide_issue_pc(drive, &cmd);
 out_end:
-	nsectors = rq->hard_nr_sectors;
+	nsectors = blk_rq_sectors(rq);
 
 	if (nsectors == 0)
 		nsectors = 1;
@@ -1359,8 +1359,8 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 {
 	int hard_sect = queue_hardsect_size(q);
-	long block = (long)rq->hard_sector / (hard_sect >> 9);
-	unsigned long blocks = rq->hard_nr_sectors / (hard_sect >> 9);
+	long block = (long)blk_rq_pos(rq) / (hard_sect >> 9);
+	unsigned long blocks = blk_rq_sectors(rq) / (hard_sect >> 9);
 
 	memset(rq->cmd, 0, BLK_MAX_CDB);
 

@@ -645,8 +645,8 @@ static void ace_fsm_dostate(struct ace_device *ace)
 
 		/* Okay, it's a data request, set it up for transfer */
 		dev_dbg(ace->dev,
-			"request: sec=%llx hcnt=%lx, ccnt=%x, dir=%i\n",
-			(unsigned long long) req->sector, req->hard_nr_sectors,
+			"request: sec=%llx hcnt=%x, ccnt=%x, dir=%i\n",
+			(unsigned long long) req->sector, blk_rq_sectors(req),
 			req->current_nr_sectors, rq_data_dir(req));
 
 		ace->req = req;
@@ -654,7 +654,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		ace->data_count = req->current_nr_sectors * ACE_BUF_PER_SECTOR;
 		ace_out32(ace, ACE_MPULBA, req->sector & 0x0FFFFFFF);
 
-		count = req->hard_nr_sectors;
+		count = blk_rq_sectors(req);
 		if (rq_data_dir(req)) {
 			/* Kick off write request */
 			dev_dbg(ace->dev, "write data\n");
@@ -719,8 +719,8 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		/* bio finished; is there another one? */
 		if (__blk_end_request(ace->req, 0,
 					blk_rq_cur_bytes(ace->req))) {
-			/* dev_dbg(ace->dev, "next block; h=%li c=%i\n",
-			 *      ace->req->hard_nr_sectors,
+			/* dev_dbg(ace->dev, "next block; h=%u c=%u\n",
+			 *      blk_rq_sectors(ace->req),
 			 *      ace->req->current_nr_sectors);
 			 */
 			ace->data_ptr = ace->req->buffer;

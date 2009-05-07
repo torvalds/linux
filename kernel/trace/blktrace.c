@@ -646,7 +646,7 @@ static void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 				rq->cmd_len, rq->cmd);
 	} else  {
 		what |= BLK_TC_ACT(BLK_TC_FS);
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_sectors(rq) << 9,
 				rw, what, rq->errors, 0, NULL);
 	}
 }
@@ -857,7 +857,7 @@ void blk_add_driver_data(struct request_queue *q,
 		__blk_add_trace(bt, 0, rq->data_len, 0, BLK_TA_DRV_DATA,
 				rq->errors, len, data);
 	else
-		__blk_add_trace(bt, rq->hard_sector, rq->hard_nr_sectors << 9,
+		__blk_add_trace(bt, blk_rq_pos(rq), blk_rq_sectors(rq) << 9,
 				0, BLK_TA_DRV_DATA, rq->errors, len, data);
 }
 EXPORT_SYMBOL_GPL(blk_add_driver_data);

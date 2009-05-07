@@ -368,12 +368,12 @@ static void do_viodasd_request(struct request_queue *q)
 		blkdev_dequeue_request(req);
 		/* check that request contains a valid command */
 		if (!blk_fs_request(req)) {
-			viodasd_end_request(req, -EIO, req->hard_nr_sectors);
+			viodasd_end_request(req, -EIO, blk_rq_sectors(req));
 			continue;
 		}
 		/* Try sending the request */
 		if (send_request(req) != 0)
-			viodasd_end_request(req, -EIO, req->hard_nr_sectors);
+			viodasd_end_request(req, -EIO, blk_rq_sectors(req));
 	}
 }
 
@@ -590,7 +590,7 @@ static int viodasd_handle_read_write(struct vioblocklpevent *bevent)
 		err = vio_lookup_rc(viodasd_err_table, bevent->sub_result);
 		printk(VIOD_KERN_WARNING "read/write error %d:0x%04x (%s)\n",
 				event->xRc, bevent->sub_result, err->msg);
-		num_sect = req->hard_nr_sectors;
+		num_sect = blk_rq_sectors(req);
 	}
 	qlock = req->q->queue_lock;
 	spin_lock_irqsave(qlock, irq_flags);

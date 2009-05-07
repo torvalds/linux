@@ -136,7 +136,7 @@ static int ps3disk_submit_request_sg(struct ps3_storage_device *dev,
 	dev_dbg(&dev->sbd.core,
 		"%s:%u: %s req has %u bvecs for %lu sectors %lu hard sectors\n",
 		__func__, __LINE__, op, n, req->nr_sectors,
-		req->hard_nr_sectors);
+		blk_rq_sectors(req));
 #endif
 
 	start_sector = req->sector * priv->blocking_factor;

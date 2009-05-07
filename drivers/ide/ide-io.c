@@ -118,7 +118,7 @@ unsigned int ide_rq_bytes(struct request *rq)
 	if (blk_pc_request(rq))
 		return rq->data_len;
 	else
-		return rq->hard_cur_sectors << 9;
+		return blk_rq_cur_sectors(rq) << 9;
 }
 EXPORT_SYMBOL_GPL(ide_rq_bytes);
 
@@ -133,7 +133,7 @@ int ide_complete_rq(ide_drive_t *drive, int error, unsigned int nr_bytes)
 	 * and complete the whole request right now
 	 */
 	if (blk_noretry_request(rq) && error <= 0)
-		nr_bytes = rq->hard_nr_sectors << 9;
+		nr_bytes = blk_rq_sectors(rq) << 9;
 
 	rc = ide_end_rq(drive, rq, error, nr_bytes);
 	if (rc == 0)

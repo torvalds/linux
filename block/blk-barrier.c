@@ -163,7 +163,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	 * For an empty barrier, there's no actual BAR request, which
 	 * in turn makes POSTFLUSH unnecessary.  Mask them off.
 	 */
-	if (!rq->hard_nr_sectors) {
+	if (!blk_rq_sectors(rq)) {
 		q->ordered &= ~(QUEUE_ORDERED_DO_BAR |
 				QUEUE_ORDERED_DO_POSTFLUSH);
 		/*

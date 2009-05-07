@@ -427,7 +427,7 @@ static void i2o_block_end_request(struct request *req, int error,
 	unsigned long flags;
 
 	if (blk_end_request(req, error, nr_bytes)) {
-		int leftover = (req->hard_nr_sectors << KERNEL_SECTOR_SHIFT);
+		int leftover = (blk_rq_sectors(req) << KERNEL_SECTOR_SHIFT);
 
 		if (blk_pc_request(req))
 			leftover = req->data_len;
