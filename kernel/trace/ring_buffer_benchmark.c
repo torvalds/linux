@@ -285,6 +285,17 @@ static void ring_buffer_producer(void)
 		avg = 1000000 / hit;
 		pr_info("%ld ns per entry\n", avg);
 	}
+
+
+	if (missed) {
+		if (time)
+			missed /= (long)time;
+
+		pr_info("Total iterations per millisec: %ld\n", hit + missed);
+
+		avg = 1000000 / (hit + missed);
+		pr_info("%ld ns per entry\n", avg);
+	}
 }
 
 static void wait_to_die(void)
