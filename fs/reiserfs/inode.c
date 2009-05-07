@@ -605,6 +605,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	__le32 *item;
 	int done;
 	int fs_gen;
+	int lock_depth;
 	struct reiserfs_transaction_handle *th = NULL;
 	/* space reserved in transaction batch:
 	   . 3 balancings in direct->indirect conversion
@@ -620,11 +621,11 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 	loff_t new_offset =
 	    (((loff_t) block) << inode->i_sb->s_blocksize_bits) + 1;
 
-	reiserfs_write_lock(inode->i_sb);
+	lock_depth = reiserfs_write_lock_once(inode->i_sb);
 	version = get_inode_item_key_version(inode);
 
 	if (!file_capable(inode, block)) {
-		reiserfs_write_unlock(inode->i_sb);
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 		return -EFBIG;
 	}
 
@@ -636,7 +637,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 		/* find number of block-th logical block of the file */
 		ret = _get_block_create_0(inode, block, bh_result,
 					  create | GET_BLOCK_READ_DIRECT);
-		reiserfs_write_unlock(inode->i_sb);
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 		return ret;
 	}
 	/*
@@ -754,7 +755,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 		if (!dangle && th)
 			retval = reiserfs_end_persistent_transaction(th);
 
-		reiserfs_write_unlock(inode->i_sb);
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 
 		/* the item was found, so new blocks were not added to the file
 		 ** there is no need to make sure the inode is updated with this
@@ -1005,9 +1006,11 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 		 * long time.  reschedule if needed and also release the write
 		 * lock for others.
 		 */
-		reiserfs_write_unlock(inode->i_sb);
-		cond_resched();
-		reiserfs_write_lock(inode->i_sb);
+		if (need_resched()) {
+			reiserfs_write_unlock_once(inode->i_sb, lock_depth);
+			schedule();
+			lock_depth = reiserfs_write_lock_once(inode->i_sb);
+		}
 
 		retval = search_for_position_by_key(inode->i_sb, &key, &path);
 		if (retval == IO_ERROR) {
@@ -1042,7 +1045,7 @@ int reiserfs_get_block(struct inode *inode, sector_t block,
 			retval = err;
 	}
 
-	reiserfs_write_unlock(inode->i_sb);
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 	reiserfs_check_path(&path);
 	return retval;
 }
