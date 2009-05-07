@@ -449,6 +449,15 @@ config VIDEO_THS7303
 	  To compile this driver as a module, choose M here: the
 	  module will be called ths7303.
 
+config VIDEO_ADV7343
+	tristate "ADV7343 video encoder"
+	depends on I2C
+	help
+	  Support for Analog Devices I2C bus based ADV7343 encoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7343.
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
