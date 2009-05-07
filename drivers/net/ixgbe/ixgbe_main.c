@@ -1740,7 +1740,18 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 	unsigned long mask;
 
 	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-		queue0 = index;
+		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
+			if (dcb_i == 8)
+				queue0 = index >> 4;
+			else if (dcb_i == 4)
+				queue0 = index >> 5;
+			else
+				dev_err(&adapter->pdev->dev, "Invalid DCB "
+				        "configuration\n");
+		} else {
+			queue0 = index;
+		}
 	} else {
 		mask = (unsigned long) adapter->ring_feature[RING_F_RSS].mask;
 		queue0 = index & mask;
