@@ -31,7 +31,7 @@
  *
  */
 #undef TRACE_SYSTEM
-#define TRACE_SYSTEM trace-events-sample
+#define TRACE_SYSTEM sample
 
 /*
  * The TRACE_EVENT macro is broken up into 5 parts.
@@ -120,5 +120,10 @@ TRACE_EVENT(foo_bar,
  * result.
  */
 #undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH .
+/*
+ * TRACE_INCLUDE_FILE is not needed if the filename and TRACE_SYSTEM are equal
+ */
+#define TRACE_INCLUDE_FILE trace-events-sample
 #include <trace/define_trace.h>
