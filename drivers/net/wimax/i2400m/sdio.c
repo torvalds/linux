@@ -156,19 +156,14 @@ int i2400ms_bus_dev_start(struct i2400m *i2400m)
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	msleep(200);
-	result = i2400ms_rx_setup(i2400ms);
-	if (result < 0)
-		goto error_rx_setup;
 	result = i2400ms_tx_setup(i2400ms);
 	if (result < 0)
 		goto error_tx_setup;
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 
-	i2400ms_tx_release(i2400ms);
 error_tx_setup:
-	i2400ms_rx_release(i2400ms);
-error_rx_setup:
+	i2400ms_tx_release(i2400ms);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 	return result;
 }
@@ -182,7 +177,6 @@ void i2400ms_bus_dev_stop(struct i2400m *i2400m)
 	struct device *dev = &func->dev;
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
-	i2400ms_rx_release(i2400ms);
 	i2400ms_tx_release(i2400ms);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 }
@@ -296,6 +290,7 @@ do_bus_reset:
 		if (i2400m->wimax_dev.net_dev->reg_state == NETREG_REGISTERED)
 			netif_tx_disable(i2400m->wimax_dev.net_dev);
 
+		i2400ms_rx_release(i2400ms);
 		sdio_claim_host(i2400ms->func);
 		sdio_disable_func(i2400ms->func);
 		sdio_release_host(i2400ms->func);
@@ -304,6 +299,8 @@ do_bus_reset:
 		msleep(40);
 
 		result = i2400ms_enable_function(i2400ms->func);
+		if (result >= 0)
+			i2400ms_rx_setup(i2400ms);
 	} else
 		BUG();
 	if (result < 0 && rt != I2400M_RT_BUS) {
@@ -449,6 +446,10 @@ int i2400ms_probe(struct sdio_func *func,
 		goto error_func_enable;
 	}
 
+	result = i2400ms_rx_setup(i2400ms);
+	if (result < 0)
+		goto error_rx_setup;
+
 	result = i2400m_setup(i2400m, I2400M_BRI_NO_REBOOT);
 	if (result < 0) {
 		dev_err(dev, "cannot setup device: %d\n", result);
@@ -466,6 +467,8 @@ int i2400ms_probe(struct sdio_func *func,
 error_debugfs_add:
 	i2400m_release(i2400m);
 error_setup:
+	i2400ms_rx_release(i2400ms);
+error_rx_setup:
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
@@ -488,6 +491,7 @@ void i2400ms_remove(struct sdio_func *func)
 
 	d_fnstart(3, dev, "SDIO func %p\n", func);
 	debugfs_remove_recursive(i2400ms->debugfs_dentry);
+	i2400ms_rx_release(i2400ms);
 	i2400m_release(i2400m);
 	sdio_set_drvdata(func, NULL);
 	sdio_claim_host(func);
