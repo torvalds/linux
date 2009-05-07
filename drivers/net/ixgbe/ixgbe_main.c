@@ -1818,7 +1818,8 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 			u32 psrtype = IXGBE_PSRTYPE_TCPHDR |
 			              IXGBE_PSRTYPE_UDPHDR |
 			              IXGBE_PSRTYPE_IPV4HDR |
-			              IXGBE_PSRTYPE_IPV6HDR;
+			              IXGBE_PSRTYPE_IPV6HDR |
+			              IXGBE_PSRTYPE_L2HDR;
 			IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
 		}
 	} else {
