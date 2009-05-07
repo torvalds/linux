@@ -377,6 +377,9 @@ static int __init pxa2xx_mfp_init(void)
 	if (cpu_is_pxa27x())
 		pxa27x_mfp_init();
 
+	/* clear RDH bit to enable GPIO receivers after reset/sleep exit */
+	PSSR = PSSR_RDH;
+
 	/* initialize gafr_run[], pgsr_lpm[] from existing values */
 	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++)
 		gpdr_lpm[i] = GPDR(i * 32);
