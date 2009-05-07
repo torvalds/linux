@@ -324,6 +324,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 				      struct nameidata *nd)
 {
 	int retval;
+	int lock_depth;
 	struct inode *inode = NULL;
 	struct reiserfs_dir_entry de;
 	INITIALIZE_PATH(path_to_entry);
@@ -331,7 +332,13 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (REISERFS_MAX_NAME(dir->i_sb->s_blocksize) < dentry->d_name.len)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	reiserfs_write_lock(dir->i_sb);
+	/*
+	 * Might be called with or without the write lock, must be careful
+	 * to not recursively hold it in case we want to release the lock
+	 * before rescheduling.
+	 */
+	lock_depth = reiserfs_write_lock_once(dir->i_sb);
+
 	de.de_gen_number_bit_string = NULL;
 	retval =
 	    reiserfs_find_entry(dir, dentry->d_name.name, dentry->d_name.len,
@@ -341,7 +348,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = reiserfs_iget(dir->i_sb,
 				      (struct cpu_key *)&(de.de_dir_id));
 		if (!inode || IS_ERR(inode)) {
-			reiserfs_write_unlock(dir->i_sb);
+			reiserfs_write_unlock_once(dir->i_sb, lock_depth);
 			return ERR_PTR(-EACCES);
 		}
 
@@ -350,7 +357,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 		if (IS_PRIVATE(dir))
 			inode->i_flags |= S_PRIVATE;
 	}
-	reiserfs_write_unlock(dir->i_sb);
+	reiserfs_write_unlock_once(dir->i_sb, lock_depth);
 	if (retval == IO_ERROR) {
 		return ERR_PTR(-EIO);
 	}
