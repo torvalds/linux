@@ -16,6 +16,7 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_BRANCH:
 	case TRACE_GRAPH_ENT:
 	case TRACE_GRAPH_RET:
+	case TRACE_HW_BRANCHES:
 		return 1;
 	}
 	return 0;
@@ -188,6 +189,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 #else
 # define trace_selftest_startup_dynamic_tracing(trace, tr, func) ({ 0; })
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
 /*
  * Simple verification test of ftrace function tracer.
  * Enable ftrace, sleep 1/10 second, and then read the trace
@@ -749,3 +751,59 @@ trace_selftest_startup_branch(struct tracer *trace, struct trace_array *tr)
 	return ret;
 }
 #endif /* CONFIG_BRANCH_TRACER */
+
+#ifdef CONFIG_HW_BRANCH_TRACER
+int
+trace_selftest_startup_hw_branches(struct tracer *trace,
+				   struct trace_array *tr)
+{
+	struct trace_iterator *iter;
+	struct tracer tracer;
+	unsigned long count;
+	int ret;
+
+	if (!trace->open) {
+		printk(KERN_CONT "missing open function...");
+		return -1;
+	}
+
+	ret = tracer_init(trace, tr);
+	if (ret) {
+		warn_failed_init_tracer(trace, ret);
+		return ret;
+	}
+
+	/*
+	 * The hw-branch tracer needs to collect the trace from the various
+	 * cpu trace buffers - before tracing is stopped.
+	 */
+	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	if (!iter)
+		return -ENOMEM;
+
+	memcpy(&tracer, trace, sizeof(tracer));
+
+	iter->trace = &tracer;
+	iter->tr = tr;
+	iter->pos = -1;
+	mutex_init(&iter->mutex);
+
+	trace->open(iter);
+
+	mutex_destroy(&iter->mutex);
+	kfree(iter);
+
+	tracing_stop();
+
+	ret = trace_test_buffer(tr, &count);
+	trace->reset(tr);
+	tracing_start();
+
+	if (!ret && !count) {
+		printk(KERN_CONT "no entries found..");
+		ret = -1;
+	}
+
+	return ret;
+}
+#endif /* CONFIG_HW_BRANCH_TRACER */

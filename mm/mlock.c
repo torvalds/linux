@@ -629,52 +629,43 @@ void user_shm_unlock(size_t size, struct user_struct *user)
 	free_uid(user);
 }
 
-void *alloc_locked_buffer(size_t size)
+int account_locked_memory(struct mm_struct *mm, struct rlimit *rlim,
+			  size_t size)
 {
-	unsigned long rlim, vm, pgsz;
-	void *buffer = NULL;
+	unsigned long lim, vm, pgsz;
+	int error = -ENOMEM;
 
 	pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&mm->mmap_sem);
 
-	rlim = current->signal->rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
-	vm   = current->mm->total_vm + pgsz;
-	if (rlim < vm)
+	lim = rlim[RLIMIT_AS].rlim_cur >> PAGE_SHIFT;
+	vm   = mm->total_vm + pgsz;
+	if (lim < vm)
 		goto out;
 
-	rlim = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
-	vm   = current->mm->locked_vm + pgsz;
-	if (rlim < vm)
+	lim = rlim[RLIMIT_MEMLOCK].rlim_cur >> PAGE_SHIFT;
+	vm   = mm->locked_vm + pgsz;
+	if (lim < vm)
 		goto out;
 
-	buffer = kzalloc(size, GFP_KERNEL);
-	if (!buffer)
-		goto out;
+	mm->total_vm  += pgsz;
+	mm->locked_vm += pgsz;
 
-	current->mm->total_vm  += pgsz;
-	current->mm->locked_vm += pgsz;
-
+	error = 0;
  out:
-	up_write(&current->mm->mmap_sem);
-	return buffer;
+	up_write(&mm->mmap_sem);
+	return error;
 }
 
-void release_locked_buffer(void *buffer, size_t size)
+void refund_locked_memory(struct mm_struct *mm, size_t size)
 {
 	unsigned long pgsz = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
-	down_write(&current->mm->mmap_sem);
+	down_write(&mm->mmap_sem);
 
-	current->mm->total_vm  -= pgsz;
-	current->mm->locked_vm -= pgsz;
+	mm->total_vm  -= pgsz;
+	mm->locked_vm -= pgsz;
 
-	up_write(&current->mm->mmap_sem);
-}
-
-void free_locked_buffer(void *buffer, size_t size)
-{
-	release_locked_buffer(buffer, size);
-
-	kfree(buffer);
+	up_write(&mm->mmap_sem);
 }
