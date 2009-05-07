@@ -505,8 +505,15 @@ void i2400m_report_hook(struct i2400m *i2400m,
 	 * it. */
 	case I2400M_MT_REPORT_POWERSAVE_READY:	/* zzzzz */
 		if (l3l4_hdr->status == cpu_to_le16(I2400M_MS_DONE_OK)) {
-			d_printf(1, dev, "ready for powersave, requesting\n");
-			i2400m_cmd_enter_powersave(i2400m);
+			if (i2400m_power_save_disabled)
+				d_printf(1, dev, "ready for powersave, "
+					 "not requesting (disabled by module "
+					 "parameter)\n");
+			else {
+				d_printf(1, dev, "ready for powersave, "
+					 "requesting\n");
+				i2400m_cmd_enter_powersave(i2400m);
+			}
 		}
 		break;
 	};

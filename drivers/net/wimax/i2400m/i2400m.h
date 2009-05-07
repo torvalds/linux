@@ -709,6 +709,7 @@ static const __le32 i2400m_SBOOT_BARKER[4] = {
 	cpu_to_le32(I2400M_SBOOT_BARKER)
 };
 
+extern int i2400m_power_save_disabled;
 
 /*
  * Utility functions

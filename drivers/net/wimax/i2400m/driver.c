@@ -82,6 +82,14 @@ module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
 MODULE_PARM_DESC(rx_reorder_disabled,
 		 "If true, RX reordering will be disabled.");
 
+int i2400m_power_save_disabled;	/* 0 (power saving enabled) by default */
+module_param_named(power_save_disabled, i2400m_power_save_disabled, int, 0644);
+MODULE_PARM_DESC(power_save_disabled,
+		 "If true, the driver will not tell the device to enter "
+		 "power saving mode when it reports it is ready for it. "
+		 "False by default (so the device is told to do power "
+		 "saving).");
+
 /**
  * i2400m_queue_work - schedule work on a i2400m's queue
  *
