@@ -400,6 +400,133 @@ event_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	return cnt;
 }
 
+static ssize_t
+system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
+		   loff_t *ppos)
+{
+	const char *system = filp->private_data;
+	struct ftrace_event_call *call;
+	char buf[2];
+	int set = -1;
+	int all = 0;
+	int ret;
+
+	if (system[0] == '*')
+		all = 1;
+
+	mutex_lock(&event_mutex);
+	list_for_each_entry(call, &ftrace_events, list) {
+		if (!call->name || !call->regfunc)
+			continue;
+
+		if (!all && strcmp(call->system, system) != 0)
+			continue;
+
+		/*
+		 * We need to find out if all the events are set
+		 * or if all events or cleared, or if we have
+		 * a mixture.
+		 */
+		if (call->enabled) {
+			switch (set) {
+			case -1:
+				set = 1;
+				break;
+			case 0:
+				set = 2;
+				break;
+			}
+		} else {
+			switch (set) {
+			case -1:
+				set = 0;
+				break;
+			case 1:
+				set = 2;
+				break;
+			}
+		}
+		/*
+		 * If we have a mixture, no need to look further.
+		 */
+		if (set == 2)
+			break;
+	}
+	mutex_unlock(&event_mutex);
+
+	buf[1] = '\n';
+	switch (set) {
+	case 0:
+		buf[0] = '0';
+		break;
+	case 1:
+		buf[0] = '1';
+		break;
+	case 2:
+		buf[0] = 'X';
+		break;
+	default:
+		buf[0] = '?';
+	}
+
+	ret = simple_read_from_buffer(ubuf, cnt, ppos, buf, 2);
+
+	return ret;
+}
+
+static ssize_t
+system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
+		    loff_t *ppos)
+{
+	const char *system = filp->private_data;
+	unsigned long val;
+	char *command;
+	char buf[64];
+	ssize_t ret;
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	ret = tracing_update_buffers();
+	if (ret < 0)
+		return ret;
+
+	switch (val) {
+	case 0:
+	case 1:
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	command = kstrdup(system, GFP_KERNEL);
+	if (!command)
+		return -ENOMEM;
+
+	ret = ftrace_set_clr_event(command, val);
+	if (ret)
+		goto out_free;
+
+	ret = cnt;
+
+ out_free:
+	kfree(command);
+
+	*ppos += cnt;
+
+	return ret;
+}
+
 extern char *__bad_type_size(void);
 
 #undef FIELD
@@ -686,6 +813,12 @@ static const struct file_operations ftrace_subsystem_filter_fops = {
 	.write = subsystem_filter_write,
 };
 
+static const struct file_operations ftrace_system_enable_fops = {
+	.open = tracing_open_generic,
+	.read = system_enable_read,
+	.write = system_enable_write,
+};
+
 static const struct file_operations ftrace_show_header_fops = {
 	.open = tracing_open_generic,
 	.read = show_header,
@@ -767,6 +900,10 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 		pr_warning("Could not create debugfs "
 			   "'%s/filter' entry\n", name);
 	}
+
+	entry = trace_create_file("enable", 0644, system->entry,
+				  (void *)system->name,
+				  &ftrace_system_enable_fops);
 
 	return system->entry;
 }
@@ -1040,6 +1177,9 @@ static __init int event_trace_init(void)
 	trace_create_file("header_event", 0444, d_events,
 			  ring_buffer_print_entry_header,
 			  &ftrace_show_header_fops);
+
+	trace_create_file("enable", 0644, d_events,
+			  "*:*", &ftrace_system_enable_fops);
 
 	for_each_event(call, __start_ftrace_events, __stop_ftrace_events) {
 		/* The linker may leave blanks */
