@@ -171,7 +171,6 @@ struct op_sample;
 struct op_entry {
 	struct ring_buffer_event *event;
 	struct op_sample *sample;
-	unsigned long irq_flags;
 	unsigned long size;
 	unsigned long *data;
 };
