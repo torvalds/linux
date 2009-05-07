@@ -4294,6 +4294,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 {
 	int err = 0;
 	struct gendisk *disk = mddev->gendisk;
+	mdk_rdev_t *rdev;
 
 	if (atomic_read(&mddev->openers) > is_open) {
 		printk("md: %s still in use.\n",mdname(mddev));
@@ -4336,6 +4337,13 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			/* tell userspace to handle 'inactive' */
 			sysfs_notify_dirent(mddev->sysfs_state);
 
+			list_for_each_entry(rdev, &mddev->disks, same_set)
+				if (rdev->raid_disk >= 0) {
+					char nm[20];
+					sprintf(nm, "rd%d", rdev->raid_disk);
+					sysfs_remove_link(&mddev->kobj, nm);
+				}
+
 			set_capacity(disk, 0);
 			mddev->changed = 1;
 
@@ -4356,7 +4364,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 	 * Free resources if final stop
 	 */
 	if (mode == 0) {
-		mdk_rdev_t *rdev;
 
 		printk(KERN_INFO "md: %s stopped.\n", mdname(mddev));
 
@@ -4367,13 +4374,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			mddev->bitmap_file = NULL;
 		}
 		mddev->bitmap_offset = 0;
-
-		list_for_each_entry(rdev, &mddev->disks, same_set)
-			if (rdev->raid_disk >= 0) {
-				char nm[20];
-				sprintf(nm, "rd%d", rdev->raid_disk);
-				sysfs_remove_link(&mddev->kobj, nm);
-			}
 
 		/* make sure all md_delayed_delete calls have finished */
 		flush_scheduled_work();
