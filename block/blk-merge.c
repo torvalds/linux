@@ -9,35 +9,6 @@
 
 #include "blk.h"
 
-void blk_recalc_rq_sectors(struct request *rq, int nsect)
-{
-	if (blk_fs_request(rq) || blk_discard_rq(rq)) {
-		rq->hard_sector += nsect;
-		rq->hard_nr_sectors -= nsect;
-
-		/*
-		 * Move the I/O submission pointers ahead if required.
-		 */
-		if ((rq->nr_sectors >= rq->hard_nr_sectors) &&
-		    (rq->sector <= rq->hard_sector)) {
-			rq->sector = rq->hard_sector;
-			rq->nr_sectors = rq->hard_nr_sectors;
-			rq->hard_cur_sectors = bio_cur_sectors(rq->bio);
-			rq->current_nr_sectors = rq->hard_cur_sectors;
-			rq->buffer = bio_data(rq->bio);
-		}
-
-		/*
-		 * if total number of sectors is less than the first segment
-		 * size, something has gone terribly wrong
-		 */
-		if (rq->nr_sectors < rq->current_nr_sectors) {
-			printk(KERN_ERR "blk: request botched\n");
-			rq->nr_sectors = rq->current_nr_sectors;
-		}
-	}
-}
-
 static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 					     struct bio *bio)
 {
@@ -199,8 +170,9 @@ new_segment:
 
 
 	if (unlikely(rq->cmd_flags & REQ_COPY_USER) &&
-	    (rq->data_len & q->dma_pad_mask)) {
-		unsigned int pad_len = (q->dma_pad_mask & ~rq->data_len) + 1;
+	    (blk_rq_bytes(rq) & q->dma_pad_mask)) {
+		unsigned int pad_len =
+			(q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
 
 		sg->length += pad_len;
 		rq->extra_len += pad_len;
@@ -398,7 +370,7 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	req->biotail->bi_next = next->bio;
 	req->biotail = next->biotail;
 
-	req->nr_sectors = req->hard_nr_sectors += next->hard_nr_sectors;
+	req->data_len += blk_rq_bytes(next);
 
 	elv_merge_requests(q, req, next);
 

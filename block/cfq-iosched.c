@@ -579,9 +579,9 @@ cfq_prio_tree_lookup(struct cfq_data *cfqd, struct rb_root *root,
 		 * Sort strictly based on sector.  Smallest to the left,
 		 * largest to the right.
 		 */
-		if (sector > cfqq->next_rq->sector)
+		if (sector > blk_rq_pos(cfqq->next_rq))
 			n = &(*p)->rb_right;
-		else if (sector < cfqq->next_rq->sector)
+		else if (sector < blk_rq_pos(cfqq->next_rq))
 			n = &(*p)->rb_left;
 		else
 			break;
@@ -611,8 +611,8 @@ static void cfq_prio_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		return;
 
 	cfqq->p_root = &cfqd->prio_trees[cfqq->org_ioprio];
-	__cfqq = cfq_prio_tree_lookup(cfqd, cfqq->p_root, cfqq->next_rq->sector,
-					 &parent, &p);
+	__cfqq = cfq_prio_tree_lookup(cfqd, cfqq->p_root,
+				      blk_rq_pos(cfqq->next_rq), &parent, &p);
 	if (!__cfqq) {
 		rb_link_node(&cfqq->p_node, parent, p);
 		rb_insert_color(&cfqq->p_node, cfqq->p_root);
@@ -996,7 +996,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	if (cfq_rq_close(cfqd, __cfqq->next_rq))
 		return __cfqq;
 
-	if (__cfqq->next_rq->sector < sector)
+	if (blk_rq_pos(__cfqq->next_rq) < sector)
 		node = rb_next(&__cfqq->p_node);
 	else
 		node = rb_prev(&__cfqq->p_node);

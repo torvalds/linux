@@ -171,7 +171,7 @@ enum {
 	ELV_MQUEUE_MUST,
 };
 
-#define rq_end_sector(rq)	((rq)->sector + (rq)->nr_sectors)
+#define rq_end_sector(rq)	(blk_rq_pos(rq) + blk_rq_sectors(rq))
 #define rb_entry_rq(node)	rb_entry((node), struct request, rb_node)
 
 /*

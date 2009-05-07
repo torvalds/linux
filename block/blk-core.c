@@ -127,7 +127,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	INIT_LIST_HEAD(&rq->timeout_list);
 	rq->cpu = -1;
 	rq->q = q;
-	rq->sector = rq->hard_sector = (sector_t) -1;
+	rq->sector = (sector_t) -1;
 	INIT_HLIST_NODE(&rq->hash);
 	RB_CLEAR_NODE(&rq->rb_node);
 	rq->cmd = rq->__cmd;
@@ -189,8 +189,7 @@ void blk_dump_rq_flags(struct request *rq, char *msg)
 	       (unsigned long long)blk_rq_pos(rq),
 	       blk_rq_sectors(rq), blk_rq_cur_sectors(rq));
 	printk(KERN_INFO "  bio %p, biotail %p, buffer %p, len %u\n",
-						rq->bio, rq->biotail,
-						rq->buffer, rq->data_len);
+	       rq->bio, rq->biotail, rq->buffer, blk_rq_bytes(rq));
 
 	if (blk_pc_request(rq)) {
 		printk(KERN_INFO "  cdb: ");
@@ -1096,7 +1095,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 		req->cmd_flags |= REQ_NOIDLE;
 
 	req->errors = 0;
-	req->hard_sector = req->sector = bio->bi_sector;
+	req->sector = bio->bi_sector;
 	req->ioprio = bio_prio(bio);
 	blk_rq_bio_prep(req->q, req, bio);
 }
@@ -1113,13 +1112,12 @@ static inline bool queue_should_plug(struct request_queue *q)
 static int __make_request(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
-	int el_ret, nr_sectors;
+	int el_ret;
+	unsigned int bytes = bio->bi_size;
 	const unsigned short prio = bio_prio(bio);
 	const int sync = bio_sync(bio);
 	const int unplug = bio_unplug(bio);
 	int rw_flags;
-
-	nr_sectors = bio_sectors(bio);
 
 	/*
 	 * low level driver can indicate that it wants pages above a
@@ -1145,7 +1143,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 		req->biotail->bi_next = bio;
 		req->biotail = bio;
-		req->nr_sectors = req->hard_nr_sectors += nr_sectors;
+		req->data_len += bytes;
 		req->ioprio = ioprio_best(req->ioprio, prio);
 		if (!blk_rq_cpu_valid(req))
 			req->cpu = bio->bi_comp_cpu;
@@ -1171,10 +1169,8 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 		 * not touch req->buffer either...
 		 */
 		req->buffer = bio_data(bio);
-		req->current_nr_sectors = bio_cur_sectors(bio);
-		req->hard_cur_sectors = req->current_nr_sectors;
-		req->sector = req->hard_sector = bio->bi_sector;
-		req->nr_sectors = req->hard_nr_sectors += nr_sectors;
+		req->sector = bio->bi_sector;
+		req->data_len += bytes;
 		req->ioprio = ioprio_best(req->ioprio, prio);
 		if (!blk_rq_cpu_valid(req))
 			req->cpu = bio->bi_comp_cpu;
@@ -1557,7 +1553,7 @@ EXPORT_SYMBOL(submit_bio);
 int blk_rq_check_limits(struct request_queue *q, struct request *rq)
 {
 	if (blk_rq_sectors(rq) > q->max_sectors ||
-	    rq->data_len > q->max_hw_sectors << 9) {
+	    blk_rq_bytes(rq) > q->max_hw_sectors << 9) {
 		printk(KERN_ERR "%s: over max size limit.\n", __func__);
 		return -EIO;
 	}
@@ -1675,35 +1671,6 @@ static void blk_account_io_done(struct request *req)
 	}
 }
 
-/**
- * blk_rq_bytes - Returns bytes left to complete in the entire request
- * @rq: the request being processed
- **/
-unsigned int blk_rq_bytes(struct request *rq)
-{
-	if (blk_fs_request(rq))
-		return blk_rq_sectors(rq) << 9;
-
-	return rq->data_len;
-}
-EXPORT_SYMBOL_GPL(blk_rq_bytes);
-
-/**
- * blk_rq_cur_bytes - Returns bytes left to complete in the current segment
- * @rq: the request being processed
- **/
-unsigned int blk_rq_cur_bytes(struct request *rq)
-{
-	if (blk_fs_request(rq))
-		return rq->current_nr_sectors << 9;
-
-	if (rq->bio)
-		return rq->bio->bi_size;
-
-	return rq->data_len;
-}
-EXPORT_SYMBOL_GPL(blk_rq_cur_bytes);
-
 struct request *elv_next_request(struct request_queue *q)
 {
 	struct request *rq;
@@ -1736,7 +1703,7 @@ struct request *elv_next_request(struct request_queue *q)
 		if (rq->cmd_flags & REQ_DONTPREP)
 			break;
 
-		if (q->dma_drain_size && rq->data_len) {
+		if (q->dma_drain_size && blk_rq_bytes(rq)) {
 			/*
 			 * make sure space for the drain appears we
 			 * know we can do this because max_hw_segments
@@ -1759,7 +1726,7 @@ struct request *elv_next_request(struct request_queue *q)
 			 * avoid resource deadlock.  REQ_STARTED will
 			 * prevent other fs requests from passing this one.
 			 */
-			if (q->dma_drain_size && rq->data_len &&
+			if (q->dma_drain_size && blk_rq_bytes(rq) &&
 			    !(rq->cmd_flags & REQ_DONTPREP)) {
 				/*
 				 * remove the space for the drain we added
@@ -1911,8 +1878,7 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		 * can find how many bytes remain in the request
 		 * later.
 		 */
-		req->nr_sectors = req->hard_nr_sectors = 0;
-		req->current_nr_sectors = req->hard_cur_sectors = 0;
+		req->data_len = 0;
 		return false;
 	}
 
@@ -1926,8 +1892,25 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		bio_iovec(bio)->bv_len -= nr_bytes;
 	}
 
-	blk_recalc_rq_sectors(req, total_bytes >> 9);
+	req->data_len -= total_bytes;
+	req->buffer = bio_data(req->bio);
+
+	/* update sector only for requests with clear definition of sector */
+	if (blk_fs_request(req) || blk_discard_rq(req))
+		req->sector += total_bytes >> 9;
+
+	/*
+	 * If total number of sectors is less than the first segment
+	 * size, something has gone terribly wrong.
+	 */
+	if (blk_rq_bytes(req) < blk_rq_cur_bytes(req)) {
+		printk(KERN_ERR "blk: request botched\n");
+		req->data_len = blk_rq_cur_bytes(req);
+	}
+
+	/* recalculate the number of segments */
 	blk_recalc_rq_segments(req);
+
 	return true;
 }
 EXPORT_SYMBOL_GPL(blk_update_request);
@@ -2049,11 +2032,7 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		rq->nr_phys_segments = bio_phys_segments(q, bio);
 		rq->buffer = bio_data(bio);
 	}
-	rq->current_nr_sectors = bio_cur_sectors(bio);
-	rq->hard_cur_sectors = rq->current_nr_sectors;
-	rq->hard_nr_sectors = rq->nr_sectors = bio_sectors(bio);
 	rq->data_len = bio->bi_size;
-
 	rq->bio = rq->biotail = bio;
 
 	if (bio->bi_bdev)

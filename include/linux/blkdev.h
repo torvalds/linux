@@ -166,19 +166,8 @@ struct request {
 	enum rq_cmd_type_bits cmd_type;
 	unsigned long atomic_flags;
 
-	/* Maintain bio traversal state for part by part I/O submission.
-	 * hard_* are block layer internals, no driver should touch them!
-	 */
-
-	sector_t sector;		/* next sector to submit */
-	sector_t hard_sector;		/* next sector to complete */
-	unsigned long nr_sectors;	/* no. of sectors left to submit */
-	unsigned long hard_nr_sectors;	/* no. of sectors left to complete */
-	/* no. of sectors left to submit in the current segment */
-	unsigned int current_nr_sectors;
-
-	/* no. of sectors left to complete in the current segment */
-	unsigned int hard_cur_sectors;
+	sector_t sector;	/* sector cursor */
+	unsigned int data_len;	/* total data len, don't access directly */
 
 	struct bio *bio;
 	struct bio *biotail;
@@ -226,7 +215,6 @@ struct request {
 	unsigned char __cmd[BLK_MAX_CDB];
 	unsigned char *cmd;
 
-	unsigned int data_len;
 	unsigned int extra_len;	/* length of alignment and padding */
 	unsigned int sense_len;
 	unsigned int resid_len;	/* residual count */
@@ -840,20 +828,27 @@ extern void blkdev_dequeue_request(struct request *req);
  */
 static inline sector_t blk_rq_pos(const struct request *rq)
 {
-	return rq->hard_sector;
+	return rq->sector;
 }
 
-extern unsigned int blk_rq_bytes(struct request *rq);
-extern unsigned int blk_rq_cur_bytes(struct request *rq);
+static inline unsigned int blk_rq_bytes(const struct request *rq)
+{
+	return rq->data_len;
+}
+
+static inline int blk_rq_cur_bytes(const struct request *rq)
+{
+	return rq->bio ? bio_cur_bytes(rq->bio) : 0;
+}
 
 static inline unsigned int blk_rq_sectors(const struct request *rq)
 {
-	return rq->hard_nr_sectors;
+	return blk_rq_bytes(rq) >> 9;
 }
 
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
-	return rq->hard_cur_sectors;
+	return blk_rq_cur_bytes(rq) >> 9;
 }
 
 /*
@@ -928,7 +923,7 @@ static inline void blk_end_request_all(struct request *rq, int error)
  */
 static inline bool blk_end_request_cur(struct request *rq, int error)
 {
-	return blk_end_request(rq, error, rq->hard_cur_sectors << 9);
+	return blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
 
 /**
@@ -981,7 +976,7 @@ static inline void __blk_end_request_all(struct request *rq, int error)
  */
 static inline bool __blk_end_request_cur(struct request *rq, int error)
 {
-	return __blk_end_request(rq, error, rq->hard_cur_sectors << 9);
+	return __blk_end_request(rq, error, blk_rq_cur_bytes(rq));
 }
 
 extern void blk_complete_request(struct request *);

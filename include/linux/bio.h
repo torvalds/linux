@@ -218,12 +218,12 @@ struct bio {
 #define bio_sectors(bio)	((bio)->bi_size >> 9)
 #define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio) && !bio_discard(bio))
 
-static inline unsigned int bio_cur_sectors(struct bio *bio)
+static inline unsigned int bio_cur_bytes(struct bio *bio)
 {
 	if (bio->bi_vcnt)
-		return bio_iovec(bio)->bv_len >> 9;
+		return bio_iovec(bio)->bv_len;
 	else /* dataless requests such as discard */
-		return bio->bi_size >> 9;
+		return bio->bi_size;
 }
 
 static inline void *bio_data(struct bio *bio)
