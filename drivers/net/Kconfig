@@ -3113,6 +3113,15 @@ config PPPOL2TP
 	  and session setup). One such daemon is OpenL2TP
 	  (http://openl2tp.sourceforge.net/).
 
+config PPPOLAC
+	tristate "PPP on L2TP Access Concentrator"
+	depends on PPP && INET
+	help
+	  L2TP (RFC 2661) is a tunneling protocol widely used in virtual private
+	  networks. This driver handles L2TP data packets between a UDP socket
+	  and a PPP channel, but only permits one session per socket. Thus it is
+	  fairly simple and suited for clients.
+
 config SLIP
 	tristate "SLIP (serial line) support"
 	---help---
