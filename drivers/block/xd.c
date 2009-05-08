@@ -305,26 +305,31 @@ static void do_xd_request (struct request_queue * q)
 	if (xdc_busy)
 		return;
 
-	while ((req = elv_next_request(q)) != NULL) {
+	req = elv_next_request(q);
+	if (req)
+		blkdev_dequeue_request(req);
+
+	while (req) {
 		unsigned block = blk_rq_pos(req);
-		unsigned count = blk_rq_sectors(req);
+		unsigned count = blk_rq_cur_sectors(req);
 		XD_INFO *disk = req->rq_disk->private_data;
-		int res = 0;
+		int res = -EIO;
 		int retry;
 
-		if (!blk_fs_request(req)) {
-			__blk_end_request_cur(req, -EIO);
-			continue;
-		}
-		if (block + count > get_capacity(req->rq_disk)) {
-			__blk_end_request_cur(req, -EIO);
-			continue;
-		}
+		if (!blk_fs_request(req))
+			goto done;
+		if (block + count > get_capacity(req->rq_disk))
+			goto done;
 		for (retry = 0; (retry < XD_RETRIES) && !res; retry++)
 			res = xd_readwrite(rq_data_dir(req), disk, req->buffer,
 					   block, count);
+	done:
 		/* wrap up, 0 = success, -errno = fail */
-		__blk_end_request_cur(req, res);
+		if (!__blk_end_request_cur(req, res)) {
+			req = elv_next_request(q);
+			if (req)
+				blkdev_dequeue_request(req);
+		}
 	}
 }
 
