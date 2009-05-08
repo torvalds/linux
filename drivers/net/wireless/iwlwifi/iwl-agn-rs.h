@@ -275,6 +275,8 @@ enum {
 #define IWL_MIMO3_SWITCH_GI             8
 
 
+#define IWL_MAX_11N_MIMO3_SEARCH IWL_MIMO3_SWITCH_GI
+#define IWL_MAX_SEARCH IWL_MIMO2_SWITCH_MIMO3_ABC
 
 /*FIXME:RS:add possible actions for MIMO3*/
 
