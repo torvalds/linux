@@ -1956,6 +1956,9 @@ static void perf_counter_output(struct perf_counter *counter,
 	struct perf_callchain_entry *callchain = NULL;
 	int callchain_size = 0;
 	u64 time;
+	struct {
+		u32 cpu, reserved;
+	} cpu_entry;
 
 	header.type = 0;
 	header.size = sizeof(header);
@@ -1999,6 +2002,13 @@ static void perf_counter_output(struct perf_counter *counter,
 		header.size += sizeof(u64);
 	}
 
+	if (record_type & PERF_RECORD_CPU) {
+		header.type |= PERF_RECORD_CPU;
+		header.size += sizeof(cpu_entry);
+
+		cpu_entry.cpu = raw_smp_processor_id();
+	}
+
 	if (record_type & PERF_RECORD_GROUP) {
 		header.type |= PERF_RECORD_GROUP;
 		header.size += sizeof(u64) +
@@ -2036,6 +2046,9 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (record_type & PERF_RECORD_CONFIG)
 		perf_output_put(&handle, counter->hw_event.config);
+
+	if (record_type & PERF_RECORD_CPU)
+		perf_output_put(&handle, cpu_entry);
 
 	/*
 	 * XXX PERF_RECORD_GROUP vs inherited counters seems difficult.

@@ -105,6 +105,7 @@ enum perf_counter_record_format {
 	PERF_RECORD_GROUP	= 1U << 4,
 	PERF_RECORD_CALLCHAIN	= 1U << 5,
 	PERF_RECORD_CONFIG	= 1U << 6,
+	PERF_RECORD_CPU		= 1U << 7,
 };
 
 /*
@@ -260,6 +261,7 @@ enum perf_event_type {
 	 * 	{ u64			time;     } && PERF_RECORD_TIME
 	 * 	{ u64			addr;     } && PERF_RECORD_ADDR
 	 * 	{ u64			config;   } && PERF_RECORD_CONFIG
+	 * 	{ u32			cpu, res; } && PERF_RECORD_CPU
 	 *
 	 * 	{ u64			nr;
 	 * 	  { u64 event, val; } 	cnt[nr];  } && PERF_RECORD_GROUP
