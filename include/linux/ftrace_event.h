@@ -127,6 +127,8 @@ extern int trace_define_field(struct ftrace_event_call *call, char *type,
 
 #define is_signed_type(type)	(((type)(-1)) < 0)
 
+int trace_set_clr_event(const char *system, const char *event, int set);
+
 /*
  * The double __builtin_constant_p is because gcc will give us an error
  * if we try to allocate the static variable to fmt if it is not a

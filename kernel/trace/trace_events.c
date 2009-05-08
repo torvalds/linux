@@ -177,6 +177,23 @@ static int ftrace_set_clr_event(char *buf, int set)
 	return __ftrace_set_clr_event(match, sub, event, set);
 }
 
+/**
+ * trace_set_clr_event - enable or disable an event
+ * @system: system name to match (NULL for any system)
+ * @event: event name to match (NULL for all events, within system)
+ * @set: 1 to enable, 0 to disable
+ *
+ * This is a way for other parts of the kernel to enable or disable
+ * event recording.
+ *
+ * Returns 0 on success, -EINVAL if the parameters do not match any
+ * registered events.
+ */
+int trace_set_clr_event(const char *system, const char *event, int set)
+{
+	return __ftrace_set_clr_event(NULL, system, event, set);
+}
+
 /* 128 should be much more than enough */
 #define EVENT_BUF_SIZE		127
 
