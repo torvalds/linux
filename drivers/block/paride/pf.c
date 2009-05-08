@@ -752,10 +752,8 @@ static struct request_queue *pf_queue;
 
 static void pf_end_request(int err)
 {
-	if (pf_req) {
-		__blk_end_request_cur(pf_req, err);
+	if (pf_req && !__blk_end_request_cur(pf_req, err))
 		pf_req = NULL;
-	}
 }
 
 static void do_pf_request(struct request_queue * q)
@@ -763,9 +761,12 @@ static void do_pf_request(struct request_queue * q)
 	if (pf_busy)
 		return;
 repeat:
-	pf_req = elv_next_request(q);
-	if (!pf_req)
-		return;
+	if (!pf_req) {
+		pf_req = elv_next_request(q);
+		if (!pf_req)
+			return;
+		blkdev_dequeue_request(pf_req);
+	}
 
 	pf_current = pf_req->rq_disk->private_data;
 	pf_block = blk_rq_pos(pf_req);
@@ -806,7 +807,6 @@ static int pf_next_buf(void)
 	if (!pf_count) {
 		spin_lock_irqsave(&pf_spin_lock, saved_flags);
 		pf_end_request(0);
-		pf_req = elv_next_request(pf_queue);
 		spin_unlock_irqrestore(&pf_spin_lock, saved_flags);
 		if (!pf_req)
 			return 1;

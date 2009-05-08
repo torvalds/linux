@@ -719,9 +719,12 @@ static void do_pcd_request(struct request_queue * q)
 	if (pcd_busy)
 		return;
 	while (1) {
-		pcd_req = elv_next_request(q);
-		if (!pcd_req)
-			return;
+		if (!pcd_req) {
+			pcd_req = elv_next_request(q);
+			if (!pcd_req)
+				return;
+			blkdev_dequeue_request(pcd_req);
+		}
 
 		if (rq_data_dir(pcd_req) == READ) {
 			struct pcd_unit *cd = pcd_req->rq_disk->private_data;
@@ -734,8 +737,10 @@ static void do_pcd_request(struct request_queue * q)
 			pcd_busy = 1;
 			ps_set_intr(do_pcd_read, NULL, 0, nice);
 			return;
-		} else
-			__blk_end_request_cur(pcd_req, -EIO);
+		} else {
+			__blk_end_request_all(pcd_req, -EIO);
+			pcd_req = NULL;
+		}
 	}
 }
 
@@ -744,7 +749,8 @@ static inline void next_request(int err)
 	unsigned long saved_flags;
 
 	spin_lock_irqsave(&pcd_lock, saved_flags);
-	__blk_end_request_cur(pcd_req, err);
+	if (!__blk_end_request_cur(pcd_req, err))
+		pcd_req = NULL;
 	pcd_busy = 0;
 	do_pcd_request(pcd_queue);
 	spin_unlock_irqrestore(&pcd_lock, saved_flags);
