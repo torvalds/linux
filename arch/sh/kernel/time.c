@@ -1,13 +1,14 @@
 /*
- *  arch/sh/kernel/time_32.c
+ *  arch/sh/kernel/time.c
  *
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *  Copyright (C) 2000  Philipp Rumpf <prumpf@tux.org>
  *  Copyright (C) 2002 - 2009  Paul Mundt
  *  Copyright (C) 2002  M. R. Brown  <mrbrown@linux-sh.org>
  *
- *  Some code taken from i386 version.
- *    Copyright (C) 1991, 1992, 1995  Linus Torvalds
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -23,7 +24,6 @@
 #include <asm/clock.h>
 #include <asm/rtc.h>
 #include <asm/timer.h>
-#include <asm/kgdb.h>
 
 struct sys_timer *sys_timer;
 
@@ -96,50 +96,6 @@ static int __init rtc_generic_init(void)
 	return 0;
 }
 module_init(rtc_generic_init);
-
-/* last time the RTC clock got updated */
-static long last_rtc_update;
-
-/*
- * handle_timer_tick() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
- */
-void handle_timer_tick(void)
-{
-	if (current->pid)
-		profile_tick(CPU_PROFILING);
-
-	/*
-	 * Here we are in the timer irq handler. We just have irqs locally
-	 * disabled but we don't know if the timer_bh is running on the other
-	 * CPU. We need to avoid to SMP race with it. NOTE: we don' t need
-	 * the irq version of write_lock because as just said we have irq
-	 * locally disabled. -arca
-	 */
-	write_seqlock(&xtime_lock);
-	do_timer(1);
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * RTC clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 */
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (rtc_sh_set_time(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else
-			/* do it again in 60s */
-			last_rtc_update = xtime.tv_sec - 600;
-	}
-	write_sequnlock(&xtime_lock);
-
-#ifndef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-}
 
 #ifdef CONFIG_PM
 int timer_suspend(struct sys_device *dev, pm_message_t state)
@@ -242,4 +198,3 @@ void __init time_init(void)
 
 	late_time_init = sh_late_time_init;
 }
-

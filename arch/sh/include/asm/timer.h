@@ -18,16 +18,11 @@ struct sys_timer {
 	struct sys_timer_ops	*ops;
 };
 
-#define TICK_SIZE (tick_nsec / 1000)
-
 extern struct sys_timer tmu_timer;
 extern struct sys_timer *sys_timer;
 
 /* arch/sh/kernel/timers/timer.c */
 struct sys_timer *get_sys_timer(void);
-
-/* arch/sh/kernel/time.c */
-void handle_timer_tick(void);
 
 extern struct clocksource clocksource_sh;
 
