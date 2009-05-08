@@ -487,10 +487,10 @@ void do_ide_request(struct request_queue *q)
 
 	if (!ide_lock_port(hwif)) {
 		ide_hwif_t *prev_port;
+
+		WARN_ON_ONCE(hwif->rq);
 repeat:
 		prev_port = hwif->host->cur_port;
-		hwif->rq = NULL;
-
 		if (drive->dev_flags & IDE_DFLAG_SLEEPING &&
 		    time_after(drive->sleep, jiffies)) {
 			ide_unlock_port(hwif);
@@ -519,7 +519,12 @@ repeat:
 		 * we know that the queue isn't empty, but this can happen
 		 * if the q->prep_rq_fn() decides to kill a request
 		 */
-		rq = elv_next_request(drive->queue);
+		if (!rq) {
+			rq = elv_next_request(drive->queue);
+			if (rq)
+				blkdev_dequeue_request(rq);
+		}
+
 		spin_unlock_irq(q->queue_lock);
 		spin_lock_irq(&hwif->lock);
 
@@ -555,8 +560,11 @@ repeat:
 		startstop = start_request(drive, rq);
 		spin_lock_irq(&hwif->lock);
 
-		if (startstop == ide_stopped)
+		if (startstop == ide_stopped) {
+			rq = hwif->rq;
+			hwif->rq = NULL;
 			goto repeat;
+		}
 	} else
 		goto plug_device;
 out:
@@ -572,18 +580,24 @@ plug_device:
 plug_device_2:
 	spin_lock_irq(q->queue_lock);
 
+	if (rq)
+		blk_requeue_request(q, rq);
 	if (!elv_queue_empty(q))
 		blk_plug_device(q);
 }
 
-static void ide_plug_device(ide_drive_t *drive)
+static void ide_requeue_and_plug(ide_drive_t *drive, struct request *rq)
 {
 	struct request_queue *q = drive->queue;
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
+
+	if (rq)
+		blk_requeue_request(q, rq);
 	if (!elv_queue_empty(q))
 		blk_plug_device(q);
+
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
@@ -632,6 +646,7 @@ void ide_timer_expiry (unsigned long data)
 	unsigned long	flags;
 	int		wait = -1;
 	int		plug_device = 0;
+	struct request	*uninitialized_var(rq_in_flight);
 
 	spin_lock_irqsave(&hwif->lock, flags);
 
@@ -693,6 +708,8 @@ void ide_timer_expiry (unsigned long data)
 		spin_lock_irq(&hwif->lock);
 		enable_irq(hwif->irq);
 		if (startstop == ide_stopped) {
+			rq_in_flight = hwif->rq;
+			hwif->rq = NULL;
 			ide_unlock_port(hwif);
 			plug_device = 1;
 		}
@@ -701,7 +718,7 @@ void ide_timer_expiry (unsigned long data)
 
 	if (plug_device) {
 		ide_unlock_host(hwif->host);
-		ide_plug_device(drive);
+		ide_requeue_and_plug(drive, rq_in_flight);
 	}
 }
 
@@ -787,6 +804,7 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	ide_startstop_t startstop;
 	irqreturn_t irq_ret = IRQ_NONE;
 	int plug_device = 0;
+	struct request *uninitialized_var(rq_in_flight);
 
 	if (host->host_flags & IDE_HFLAG_SERIALIZE) {
 		if (hwif != host->cur_port)
@@ -866,6 +884,8 @@ irqreturn_t ide_intr (int irq, void *dev_id)
 	 */
 	if (startstop == ide_stopped) {
 		BUG_ON(hwif->handler);
+		rq_in_flight = hwif->rq;
+		hwif->rq = NULL;
 		ide_unlock_port(hwif);
 		plug_device = 1;
 	}
@@ -875,7 +895,7 @@ out:
 out_early:
 	if (plug_device) {
 		ide_unlock_host(hwif->host);
-		ide_plug_device(drive);
+		ide_requeue_and_plug(drive, rq_in_flight);
 	}
 
 	return irq_ret;

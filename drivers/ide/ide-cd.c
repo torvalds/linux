@@ -405,15 +405,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 
 end_request:
 	if (stat & ATA_ERR) {
-		struct request_queue *q = drive->queue;
-		unsigned long flags;
-
-		spin_lock_irqsave(q->queue_lock, flags);
-		blkdev_dequeue_request(rq);
-		spin_unlock_irqrestore(q->queue_lock, flags);
-
 		hwif->rq = NULL;
-
 		return ide_queue_sense_rq(drive, rq) ? 2 : 1;
 	} else
 		return 2;

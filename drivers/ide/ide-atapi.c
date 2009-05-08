@@ -246,6 +246,7 @@ EXPORT_SYMBOL_GPL(ide_queue_sense_rq);
  */
 void ide_retry_pc(ide_drive_t *drive)
 {
+	struct request *failed_rq = drive->hwif->rq;
 	struct request *sense_rq = &drive->sense_rq;
 	struct ide_atapi_pc *pc = &drive->request_sense_pc;
 
@@ -260,8 +261,17 @@ void ide_retry_pc(ide_drive_t *drive)
 	if (drive->media == ide_tape)
 		set_bit(IDE_AFLAG_IGNORE_DSC, &drive->atapi_flags);
 
-	if (ide_queue_sense_rq(drive, pc))
-		ide_complete_rq(drive, -EIO, blk_rq_bytes(drive->hwif->rq));
+	/*
+	 * Push back the failed request and put request sense on top
+	 * of it.  The failed command will be retried after sense data
+	 * is acquired.
+	 */
+	blk_requeue_request(failed_rq->q, failed_rq);
+	drive->hwif->rq = NULL;
+	if (ide_queue_sense_rq(drive, pc)) {
+		blkdev_dequeue_request(failed_rq);
+		ide_complete_rq(drive, -EIO, blk_rq_bytes(failed_rq));
+	}
 }
 EXPORT_SYMBOL_GPL(ide_retry_pc);
 
