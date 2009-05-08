@@ -566,11 +566,9 @@ static inline void insert_journal_hash(struct reiserfs_journal_cnode **table,
 static inline void reiserfs_mutex_lock_safe(struct mutex *m,
 			       struct super_block *s)
 {
-	while (!mutex_trylock(m)) {
-		reiserfs_write_unlock(s);
-		schedule();
-		reiserfs_write_lock(s);
-	}
+	reiserfs_write_unlock(s);
+	mutex_lock(m);
+	reiserfs_write_lock(s);
 }
 
 /* lock the current transaction */
