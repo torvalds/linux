@@ -249,6 +249,13 @@ ENTRY(startup_64)
 	addq	$(32768 + 18 + 4095), %rbx
 	andq	$~4095, %rbx
 
+	/* Set up the stack */
+	leaq	boot_stack_end(%rbx), %rsp
+
+	/* Zero EFLAGS */
+	pushq	$0
+	popfq
+
 /*
  * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
@@ -273,7 +280,7 @@ ENTRY(startup_64)
 relocated:
 
 /*
- * Clear BSS
+ * Clear BSS (stack is currently empty)
  */
 	xorq	%rax, %rax
 	leaq    _bss(%rbx), %rdi
@@ -281,13 +288,6 @@ relocated:
 	subq	%rdi, %rcx
 	cld
 	rep	stosb
-
-	/* Setup the stack */
-	leaq	boot_stack_end(%rip), %rsp
-
-	/* zero EFLAGS after setting rsp */
-	pushq	$0
-	popfq
 
 /*
  * Do the decompression, and jump to the new kernel..

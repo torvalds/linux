@@ -88,6 +88,9 @@ ENTRY(startup_32)
 	addl	$4095, %ebx
 	andl	$~4095, %ebx
 
+	/* Set up the stack */
+	leal	boot_stack_end(%ebx), %esp
+
 /*
  * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
@@ -122,7 +125,7 @@ ENDPROC(startup_32)
 relocated:
 
 /*
- * Clear BSS
+ * Clear BSS (stack is currently empty)
  */
 	xorl	%eax, %eax
 	leal	_bss(%ebx), %edi
@@ -130,11 +133,6 @@ relocated:
 	subl	%edi, %ecx
 	cld
 	rep	stosb
-
-/*
- * Setup the stack for the decompressor
- */
-	leal	boot_stack_end(%ebx), %esp
 
 /*
  * Do the decompression, and jump to the new kernel..
