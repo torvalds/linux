@@ -1515,8 +1515,11 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	down_write(&sb->s_umount);
 	if (flags & MS_BIND)
 		err = change_mount_flags(path->mnt, flags);
-	else
+	else {
+		lock_kernel();
 		err = do_remount_sb(sb, flags, data, 0);
+		unlock_kernel();
+	}
 	if (!err)
 		path->mnt->mnt_flags = mnt_flags;
 	up_write(&sb->s_umount);
@@ -1630,7 +1633,9 @@ static int do_new_mount(struct path *path, char *type, int flags,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
+	lock_kernel();
 	mnt = do_kern_mount(type, flags, name, data);
+	unlock_kernel();
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
@@ -1921,7 +1926,6 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (retval)
 		goto dput_out;
 
-	lock_kernel();
 	if (flags & MS_REMOUNT)
 		retval = do_remount(&path, flags & ~MS_REMOUNT, mnt_flags,
 				    data_page);
@@ -1934,7 +1938,6 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	else
 		retval = do_new_mount(&path, type_page, flags, mnt_flags,
 				      dev_name, data_page);
-	unlock_kernel();
 dput_out:
 	path_put(&path);
 	return retval;
