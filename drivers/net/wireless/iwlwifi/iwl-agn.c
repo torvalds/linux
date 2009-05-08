@@ -1838,7 +1838,6 @@ void iwl_post_associate(struct iwl_priv *priv)
 	if (!priv->vif || !priv->is_open)
 		return;
 
-	iwl_power_cancel_timeout(priv);
 	iwl_scan_cancel_timeout(priv, 200);
 
 	conf = ieee80211_get_hw_conf(priv->hw);
@@ -1914,7 +1913,7 @@ void iwl_post_associate(struct iwl_priv *priv)
 	 * If chain noise has already been run, then we need to enable
 	 * power management here */
 	if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
-		iwl_power_enable_management(priv);
+		iwl_power_update_mode(priv, 0);
 
 	/* Enable Rx differential gain and sensitivity calibrations */
 	iwl_chain_noise_reset(priv);
@@ -2465,26 +2464,11 @@ static ssize_t show_power_level(struct device *d,
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	int mode = priv->power_data.user_power_setting;
-	int system = priv->power_data.system_power_setting;
 	int level = priv->power_data.power_mode;
 	char *p = buf;
 
-	switch (system) {
-	case IWL_POWER_SYS_AUTO:
-		p += sprintf(p, "SYSTEM:auto");
-		break;
-	case IWL_POWER_SYS_AC:
-		p += sprintf(p, "SYSTEM:ac");
-		break;
-	case IWL_POWER_SYS_BATTERY:
-		p += sprintf(p, "SYSTEM:battery");
-		break;
-	}
-
-	p += sprintf(p, "\tMODE:%s", (mode < IWL_POWER_AUTO) ?
-			"fixed" : "auto");
-	p += sprintf(p, "\tINDEX:%d", level);
-	p += sprintf(p, "\n");
+	p += sprintf(p, "INDEX:%d\t", level);
+	p += sprintf(p, "USER:%d\n", mode);
 	return p - buf + 1;
 }
 
@@ -2553,7 +2537,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
 	iwl_setup_scan_deferred_work(priv);
-	iwl_setup_power_deferred_work(priv);
 
 	if (priv->cfg->ops->lib->setup_deferred_work)
 		priv->cfg->ops->lib->setup_deferred_work(priv);
@@ -2573,7 +2556,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 
 	cancel_delayed_work_sync(&priv->init_alive_start);
 	cancel_delayed_work(&priv->scan_check);
-	cancel_delayed_work_sync(&priv->set_power_save);
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);

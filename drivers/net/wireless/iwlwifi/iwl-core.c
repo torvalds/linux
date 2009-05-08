@@ -1352,7 +1352,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->ibss_beacon = NULL;
 
 	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->power_data.lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
@@ -2576,14 +2575,13 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		iwl_set_rate(priv);
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_PS) {
-		if (conf->flags & IEEE80211_CONF_PS)
-			ret = iwl_power_set_user_mode(priv, IWL_POWER_INDEX_3);
-		else
-			ret = iwl_power_set_user_mode(priv, IWL_POWER_MODE_CAM);
+	if (changed & IEEE80211_CONF_CHANGE_PS &&
+	    priv->iw_mode == NL80211_IFTYPE_STATION) {
+		priv->power_data.power_disabled =
+			!(conf->flags & IEEE80211_CONF_PS);
+		ret = iwl_power_update_mode(priv, 0);
 		if (ret)
 			IWL_DEBUG_MAC80211(priv, "Error setting power level\n");
-
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -2719,21 +2717,7 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 		iwlcore_commit_rxon(priv);
 	}
 
-	iwl_power_update_mode(priv, 0);
-
-	/* Per mac80211.h: This is only used in IBSS mode... */
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
-
-		/* switch to CAM during association period.
-		 * the ucode will block any association/authentication
-		 * frome during assiciation period if it can not hear
-		 * the AP because of PM. the timer enable PM back is
-		 * association do not complete
-		 */
-		if (priv->hw->conf.channel->flags &
-		    (IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_RADAR))
-				iwl_power_disable_management(priv, 3000);
-
 		IWL_DEBUG_MAC80211(priv, "leave - not in IBSS\n");
 		mutex_unlock(&priv->mutex);
 		return;

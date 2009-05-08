@@ -3845,26 +3845,11 @@ static ssize_t show_power_level(struct device *d,
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	int mode = priv->power_data.user_power_setting;
-	int system = priv->power_data.system_power_setting;
 	int level = priv->power_data.power_mode;
 	char *p = buf;
 
-	switch (system) {
-	case IWL_POWER_SYS_AUTO:
-		p += sprintf(p, "SYSTEM:auto");
-		break;
-	case IWL_POWER_SYS_AC:
-		p += sprintf(p, "SYSTEM:ac");
-		break;
-	case IWL_POWER_SYS_BATTERY:
-		p += sprintf(p, "SYSTEM:battery");
-		break;
-	}
-
-	p += sprintf(p, "\tMODE:%s", (mode < IWL_POWER_AUTO) ?
-			"fixed" : "auto");
-	p += sprintf(p, "\tINDEX:%d", level);
-	p += sprintf(p, "\n");
+	p += sprintf(p, "INDEX:%d\t", level);
+	p += sprintf(p, "USER:%d\n", mode);
 	return p - buf + 1;
 }
 
@@ -4108,7 +4093,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->ibss_beacon = NULL;
 
 	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->power_data.lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 

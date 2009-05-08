@@ -1075,7 +1075,6 @@ struct iwl_priv {
 
 	struct tasklet_struct irq_tasklet;
 
-	struct delayed_work set_power_save;
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
