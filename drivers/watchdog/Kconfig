@@ -240,8 +240,6 @@ config ORION5X_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called orion5x_wdt.
 
-# ARM26 Architecture
-
 # AVR32 Architecture
 
 config AT32AP700X_WDT
@@ -772,7 +770,7 @@ config TXX9_WDT
 
 config GEF_WDT
 	tristate "GE Fanuc Watchdog Timer"
-	depends on GEF_SBC610
+	depends on GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
 	---help---
 	  Watchdog timer found in a number of GE Fanuc single board computers.
 

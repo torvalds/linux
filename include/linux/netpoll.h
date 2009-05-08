@@ -18,7 +18,7 @@ struct netpoll {
 	const char *name;
 	void (*rx_hook)(struct netpoll *, int, char *, int);
 
-	u32 local_ip, remote_ip;
+	__be32 local_ip, remote_ip;
 	u16 local_port, remote_port;
 	u8 remote_mac[ETH_ALEN];
 };

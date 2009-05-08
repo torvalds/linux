@@ -5,13 +5,14 @@
  *
  * Copyright (C) 2005-2009  NTT DATA CORPORATION
  *
- * Version: 2.2.0-pre   2009/02/01
+ * Version: 2.2.0   2009/04/01
  *
  */
 
 #include <linux/types.h>
 #include <linux/mount.h>
 #include <linux/mnt_namespace.h>
+#include <linux/fs_struct.h>
 #include "common.h"
 #include "realpath.h"
 

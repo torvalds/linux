@@ -235,7 +235,7 @@ static irqreturn_t tsc2007_irq(int irq, void *handle)
 	spin_lock_irqsave(&ts->lock, flags);
 
 	if (likely(ts->get_pendown_state())) {
-		disable_irq(ts->irq);
+		disable_irq_nosync(ts->irq);
 		hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_DELAY),
 					HRTIMER_MODE_REL);
 	}

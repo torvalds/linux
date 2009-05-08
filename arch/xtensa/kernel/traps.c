@@ -104,6 +104,7 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 #endif
 { EXCCAUSE_UNALIGNED,		KRNL,	   fast_unaligned },
 #endif
+#ifdef CONFIG_MMU
 { EXCCAUSE_ITLB_MISS,		0,	   do_page_fault },
 { EXCCAUSE_ITLB_MISS,		USER|KRNL, fast_second_level_miss},
 { EXCCAUSE_ITLB_MULTIHIT,		0,	   do_multihit },
@@ -118,6 +119,7 @@ static dispatch_init_table_t __initdata dispatch_init_table[] = {
 { EXCCAUSE_STORE_CACHE_ATTRIBUTE,	USER|KRNL, fast_store_prohibited },
 { EXCCAUSE_STORE_CACHE_ATTRIBUTE,	0,	   do_page_fault },
 { EXCCAUSE_LOAD_CACHE_ATTRIBUTE,	0,	   do_page_fault },
+#endif /* CONFIG_MMU */
 /* XCCHAL_EXCCAUSE_FLOATING_POINT unhandled */
 #if XTENSA_HAVE_COPROCESSOR(0)
 COPROCESSOR(0),
@@ -372,11 +374,10 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 	unsigned long a0, a1, pc;
 	unsigned long sp_start, sp_end;
 
-	a1 = (unsigned long)sp;
-
-	if (a1 == 0)
-		__asm__ __volatile__ ("mov %0, a1\n" : "=a"(a1));
-
+	if (sp)
+		a1 = (unsigned long)sp;
+	else
+		a1 = task->thread.sp;
 
 	sp_start = a1 & ~(THREAD_SIZE-1);
 	sp_end = sp_start + THREAD_SIZE;
@@ -418,9 +419,8 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	int i = 0;
 	unsigned long *stack;
 
-	if (sp == 0)
-		__asm__ __volatile__ ("mov %0, a1\n" : "=a"(sp));
-
+	if (!sp)
+		sp = (unsigned long *)task->thread.sp;
  	stack = sp;
 
 	printk("\nStack: ");

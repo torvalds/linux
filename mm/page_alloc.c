@@ -331,7 +331,7 @@ static int destroy_compound_page(struct page *page, unsigned long order)
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
 
-		if (unlikely(!PageTail(p) | (p->first_page != page))) {
+		if (unlikely(!PageTail(p) || (p->first_page != page))) {
 			bad_page(page);
 			bad++;
 		}
@@ -922,12 +922,9 @@ static void drain_pages(unsigned int cpu)
 	unsigned long flags;
 	struct zone *zone;
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		struct per_cpu_pageset *pset;
 		struct per_cpu_pages *pcp;
-
-		if (!populated_zone(zone))
-			continue;
 
 		pset = zone_pcp(zone, cpu);
 
@@ -1479,6 +1476,8 @@ __alloc_pages_internal(gfp_t gfp_mask, unsigned int order,
 	unsigned long did_some_progress;
 	unsigned long pages_reclaimed = 0;
 
+	lockdep_trace_alloc(gfp_mask);
+
 	might_sleep_if(wait);
 
 	if (should_fail_alloc_page(gfp_mask, order))
@@ -1578,12 +1577,16 @@ nofail_alloc:
 	 */
 	cpuset_update_task_memory_state();
 	p->flags |= PF_MEMALLOC;
+
+	lockdep_set_current_reclaim_state(gfp_mask);
 	reclaim_state.reclaimed_slab = 0;
 	p->reclaim_state = &reclaim_state;
 
-	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask);
+	did_some_progress = try_to_free_pages(zonelist, order,
+						gfp_mask, nodemask);
 
 	p->reclaim_state = NULL;
+	lockdep_clear_current_reclaim_state();
 	p->flags &= ~PF_MEMALLOC;
 
 	cond_resched();
@@ -1874,10 +1877,7 @@ void show_free_areas(void)
 	int cpu;
 	struct zone *zone;
 
-	for_each_zone(zone) {
-		if (!populated_zone(zone))
-			continue;
-
+	for_each_populated_zone(zone) {
 		show_node(zone);
 		printk("%s per-cpu:\n", zone->name);
 
@@ -1917,11 +1917,8 @@ void show_free_areas(void)
 		global_page_state(NR_PAGETABLE),
 		global_page_state(NR_BOUNCE));
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		int i;
-
-		if (!populated_zone(zone))
-			continue;
 
 		show_node(zone);
 		printk("%s"
@@ -1962,11 +1959,8 @@ void show_free_areas(void)
 		printk("\n");
 	}
 
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
  		unsigned long nr[MAX_ORDER], flags, order, total = 0;
-
-		if (!populated_zone(zone))
-			continue;
 
 		show_node(zone);
 		printk("%s: ", zone->name);
@@ -2134,7 +2128,7 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
 	int n, val;
 	int min_val = INT_MAX;
 	int best_node = -1;
-	node_to_cpumask_ptr(tmp, 0);
+	const struct cpumask *tmp = cpumask_of_node(0);
 
 	/* Use the local node if we haven't already */
 	if (!node_isset(node, *used_node_mask)) {
@@ -2155,8 +2149,8 @@ static int find_next_best_node(int node, nodemask_t *used_node_mask)
 		val += (n < node);
 
 		/* Give preference to headless and unused nodes */
-		node_to_cpumask_ptr_next(tmp, n);
-		if (!cpus_empty(*tmp))
+		tmp = cpumask_of_node(n);
+		if (!cpumask_empty(tmp))
 			val += PENALTY_FOR_NODE_WITH_CPUS;
 
 		/* Slight preference for less loaded node */
@@ -2687,6 +2681,7 @@ static void __meminit zone_init_free_lists(struct zone *zone)
 
 static int zone_batchsize(struct zone *zone)
 {
+#ifdef CONFIG_MMU
 	int batch;
 
 	/*
@@ -2712,9 +2707,26 @@ static int zone_batchsize(struct zone *zone)
 	 * of pages of one half of the possible page colors
 	 * and the other with pages of the other colors.
 	 */
-	batch = (1 << (fls(batch + batch/2)-1)) - 1;
+	batch = rounddown_pow_of_two(batch + batch/2) - 1;
 
 	return batch;
+
+#else
+	/* The deferral and batching of frees should be suppressed under NOMMU
+	 * conditions.
+	 *
+	 * The problem is that NOMMU needs to be able to allocate large chunks
+	 * of contiguous memory as there's no hardware page translation to
+	 * assemble apparent contiguous memory from discontiguous pages.
+	 *
+	 * Queueing large contiguous runs of pages for batching, however,
+	 * causes the pages to actually be freed in smaller chunks.  As there
+	 * can be a significant delay between the individual batches being
+	 * recycled, this leads to the once large chunks of space being
+	 * fragmented and becoming unavailable for high-order allocations.
+	 */
+	return 0;
+#endif
 }
 
 static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch)
@@ -2779,11 +2791,7 @@ static int __cpuinit process_zones(int cpu)
 
 	node_set_state(node, N_CPU);	/* this node has a cpu */
 
-	for_each_zone(zone) {
-
-		if (!populated_zone(zone))
-			continue;
-
+	for_each_populated_zone(zone) {
 		zone_pcp(zone, cpu) = kmalloc_node(sizeof(struct per_cpu_pageset),
 					 GFP_KERNEL, node);
 		if (!zone_pcp(zone, cpu))

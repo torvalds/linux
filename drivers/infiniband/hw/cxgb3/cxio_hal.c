@@ -152,7 +152,7 @@ static int cxio_hal_clear_qp_ctx(struct cxio_rdev *rdev_p, u32 qpid)
 	sge_cmd = qpid << 8 | 3;
 	wqe->sge_cmd = cpu_to_be64(sge_cmd);
 	skb->priority = CPL_PRIORITY_CONTROL;
-	return (cxgb3_ofld_send(rdev_p->t3cdev_p, skb));
+	return iwch_cxgb3_ofld_send(rdev_p->t3cdev_p, skb);
 }
 
 int cxio_create_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
@@ -571,7 +571,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 	     (unsigned long long) rdev_p->ctrl_qp.dma_addr,
 	     rdev_p->ctrl_qp.workq, 1 << T3_CTRL_QP_SIZE_LOG2);
 	skb->priority = CPL_PRIORITY_CONTROL;
-	return (cxgb3_ofld_send(rdev_p->t3cdev_p, skb));
+	return iwch_cxgb3_ofld_send(rdev_p->t3cdev_p, skb);
 err:
 	kfree_skb(skb);
 	return err;
@@ -701,7 +701,7 @@ static int __cxio_tpt_op(struct cxio_rdev *rdev_p, u32 reset_tpt_entry,
 	u32 stag_idx;
 	u32 wptr;
 
-	if (rdev_p->flags)
+	if (cxio_fatal_error(rdev_p))
 		return -EIO;
 
 	stag_state = stag_state > 0;
@@ -858,7 +858,7 @@ int cxio_rdma_init(struct cxio_rdev *rdev_p, struct t3_rdma_init_attr *attr)
 	wqe->qp_dma_size = cpu_to_be32(attr->qp_dma_size);
 	wqe->irs = cpu_to_be32(attr->irs);
 	skb->priority = 0;	/* 0=>ToeQ; 1=>CtrlQ */
-	return (cxgb3_ofld_send(rdev_p->t3cdev_p, skb));
+	return iwch_cxgb3_ofld_send(rdev_p->t3cdev_p, skb);
 }
 
 void cxio_register_ev_cb(cxio_hal_ev_callback_func_t ev_cb)
@@ -1041,9 +1041,9 @@ void cxio_rdev_close(struct cxio_rdev *rdev_p)
 		cxio_hal_pblpool_destroy(rdev_p);
 		cxio_hal_rqtpool_destroy(rdev_p);
 		list_del(&rdev_p->entry);
-		rdev_p->t3cdev_p->ulp = NULL;
 		cxio_hal_destroy_ctrl_qp(rdev_p);
 		cxio_hal_destroy_resource(rdev_p->rscp);
+		rdev_p->t3cdev_p->ulp = NULL;
 	}
 }
 

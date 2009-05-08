@@ -29,8 +29,9 @@ void __cpuinit init_scattered_cpuid_features(struct cpuinfo_x86 *c)
 	u32 regs[4];
 	const struct cpuid_bit *cb;
 
-	static const struct cpuid_bit cpuid_bits[] = {
+	static const struct cpuid_bit __cpuinitconst cpuid_bits[] = {
 		{ X86_FEATURE_IDA, CR_EAX, 1, 0x00000006 },
+		{ X86_FEATURE_ARAT, CR_EAX, 2, 0x00000006 },
 		{ 0, 0, 0, 0 }
 	};
 

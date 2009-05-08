@@ -460,9 +460,11 @@ static int tw9910_mask_set(struct i2c_client *client, u8 command,
 			   u8 mask, u8 set)
 {
 	s32 val = i2c_smbus_read_byte_data(client, command);
+	if (val < 0)
+		return val;
 
 	val &= ~mask;
-	val |=  set;
+	val |= set & mask;
 
 	return i2c_smbus_write_byte_data(client, command, val);
 }
@@ -639,8 +641,8 @@ static int tw9910_set_register(struct soc_camera_device *icd,
 }
 #endif
 
-static int tw9910_set_fmt(struct soc_camera_device *icd, __u32 pixfmt,
-			      struct v4l2_rect *rect)
+static int tw9910_set_crop(struct soc_camera_device *icd,
+			   struct v4l2_rect *rect)
 {
 	struct tw9910_priv *priv = container_of(icd, struct tw9910_priv, icd);
 	int                 ret  = -EINVAL;
@@ -731,8 +733,33 @@ tw9910_set_fmt_error:
 	return ret;
 }
 
+static int tw9910_set_fmt(struct soc_camera_device *icd,
+			  struct v4l2_format *f)
+{
+	struct v4l2_pix_format *pix = &f->fmt.pix;
+	struct v4l2_rect rect = {
+		.left	= icd->x_current,
+		.top	= icd->y_current,
+		.width	= pix->width,
+		.height	= pix->height,
+	};
+	int i;
+
+	/*
+	 * check color format
+	 */
+	for (i = 0; i < ARRAY_SIZE(tw9910_color_fmt); i++)
+		if (pix->pixelformat == tw9910_color_fmt[i].fourcc)
+			break;
+
+	if (i == ARRAY_SIZE(tw9910_color_fmt))
+		return -EINVAL;
+
+	return tw9910_set_crop(icd, &rect);
+}
+
 static int tw9910_try_fmt(struct soc_camera_device *icd,
-			      struct v4l2_format *f)
+			  struct v4l2_format *f)
 {
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	const struct tw9910_scale_ctrl *scale;
@@ -820,6 +847,7 @@ static struct soc_camera_ops tw9910_ops = {
 	.release		= tw9910_release,
 	.start_capture		= tw9910_start_capture,
 	.stop_capture		= tw9910_stop_capture,
+	.set_crop		= tw9910_set_crop,
 	.set_fmt		= tw9910_set_fmt,
 	.try_fmt		= tw9910_try_fmt,
 	.set_bus_param		= tw9910_set_bus_param,

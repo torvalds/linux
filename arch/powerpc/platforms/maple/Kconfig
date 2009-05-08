@@ -1,5 +1,5 @@
 config PPC_MAPLE
-	depends on PPC_MULTIPLATFORM && PPC64
+	depends on PPC64 && PPC_BOOK3S
 	bool "Maple 970FX Evaluation Board"
 	select PCI
 	select MPIC

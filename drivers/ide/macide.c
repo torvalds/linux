@@ -80,6 +80,11 @@ static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
 	hw->chipset = ide_generic;
 }
 
+static const struct ide_port_info macide_port_info = {
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
+};
+
 static const char *mac_ide_name[] =
 	{ "Quadra", "Powerbook", "Powerbook Baboon" };
 
@@ -122,7 +127,7 @@ static int __init macide_init(void)
 
 	macide_setup_ports(&hw, base, irq, ack_intr);
 
-	return ide_host_add(NULL, hws, NULL);
+	return ide_host_add(&macide_port_info, hws, NULL);
 }
 
 module_init(macide_init);

@@ -33,6 +33,8 @@ BUILD_INTERRUPT3(invalidate_interrupt7,INVALIDATE_TLB_VECTOR_START+7,
 		 smp_invalidate_interrupt)
 #endif
 
+BUILD_INTERRUPT(generic_interrupt, GENERIC_INTERRUPT_VECTOR)
+
 /*
  * every pentium local APIC has two 'local interrupts', with a
  * soft-definable vector attached to both interrupts, one of

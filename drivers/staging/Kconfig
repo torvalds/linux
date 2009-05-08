@@ -4,7 +4,7 @@ menuconfig STAGING
 	---help---
 	  This option allows you to select a number of drivers that are
 	  not of the "normal" Linux kernel quality level.  These drivers
-	  are placed here in order to get a wider audience for use of
+	  are placed here in order to get a wider audience to make use of
 	  them.  Please note that these drivers are under heavy
 	  development, may or may not work, and may contain userspace
 	  interfaces that most likely will be changed in the near
@@ -12,7 +12,7 @@ menuconfig STAGING
 
 	  Using any of these drivers will taint your kernel which might
 	  affect support options from both the community, and various
-	  commercial support orginizations.
+	  commercial support organizations.
 
 	  If you wish to work on these drivers, to help improve them, or
 	  to report problems you have with them, please see the
@@ -73,6 +73,8 @@ source "drivers/staging/rt2860/Kconfig"
 
 source "drivers/staging/rt2870/Kconfig"
 
+source "drivers/staging/rt3070/Kconfig"
+
 source "drivers/staging/comedi/Kconfig"
 
 source "drivers/staging/asus_oled/Kconfig"
@@ -92,6 +94,26 @@ source "drivers/staging/frontier/Kconfig"
 source "drivers/staging/epl/Kconfig"
 
 source "drivers/staging/android/Kconfig"
+
+source "drivers/staging/dst/Kconfig"
+
+source "drivers/staging/pohmelfs/Kconfig"
+
+source "drivers/staging/stlc45xx/Kconfig"
+
+source "drivers/staging/uc2322/Kconfig"
+
+source "drivers/staging/b3dfg/Kconfig"
+
+source "drivers/staging/phison/Kconfig"
+
+source "drivers/staging/p9auth/Kconfig"
+
+source "drivers/staging/heci/Kconfig"
+
+source "drivers/staging/line6/Kconfig"
+
+source "drivers/staging/serqt_usb/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

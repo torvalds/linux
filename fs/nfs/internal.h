@@ -5,6 +5,8 @@
 #include <linux/mount.h>
 #include <linux/security.h>
 
+#define NFS_MS_MASK (MS_RDONLY|MS_NOSUID|MS_NODEV|MS_NOEXEC|MS_SYNCHRONOUS)
+
 struct nfs_string;
 
 /* Maximum number of readahead requests
@@ -37,10 +39,12 @@ struct nfs_parsed_mount_data {
 	int			acregmin, acregmax,
 				acdirmin, acdirmax;
 	int			namlen;
+	unsigned int		options;
 	unsigned int		bsize;
 	unsigned int		auth_flavor_len;
 	rpc_authflavor_t	auth_flavors[1];
 	char			*client_address;
+	char			*fscache_uniq;
 
 	struct {
 		struct sockaddr_storage	address;
@@ -152,6 +156,9 @@ extern __be32 *nfs4_decode_dirent(__be32 *p, struct nfs_entry *entry, int plus);
 extern struct rpc_procinfo nfs4_procedures[];
 #endif
 
+/* proc.c */
+void nfs_close_context(struct nfs_open_context *ctx, int is_sync);
+
 /* dir.c */
 extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
 
@@ -165,6 +172,7 @@ extern void nfs_clear_inode(struct inode *);
 extern void nfs4_clear_inode(struct inode *);
 #endif
 void nfs_zap_acl_cache(struct inode *inode);
+extern int nfs_wait_bit_killable(void *word);
 
 /* super.c */
 void nfs_parse_ip_address(char *, size_t, struct sockaddr *, size_t *);

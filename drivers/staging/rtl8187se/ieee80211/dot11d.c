@@ -4,7 +4,7 @@
 //		Dot11d.c
 //
 //	Description:
-//		Implement 802.11d. 
+//		Implement 802.11d.
 //
 //-----------------------------------------------------------------------------
 
@@ -19,7 +19,7 @@ Dot11d_Init(struct ieee80211_device *ieee)
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;
 	pDot11dInfo->CountryIeLen = 0;
-	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);  
+	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
 	RESET_CIE_WATCHDOG(ieee);
 
@@ -56,10 +56,10 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 
 //
 //	Description:
-//		Update country IE from Beacon or Probe Resopnse 
+//		Update country IE from Beacon or Probe Resopnse
 //		and configure PHY for operation in the regulatory domain.
 //
-//	TODO: 
+//	TODO:
 //		Configure Tx power.
 //
 //	Assumption:
@@ -71,7 +71,7 @@ Dot11d_UpdateCountryIe(
 	struct ieee80211_device *dev,
 	u8 *		pTaddr,
 	u16	CoutryIeLen,
-	u8 * pCoutryIe	 
+	u8 * pCoutryIe
 	)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
@@ -96,13 +96,13 @@ Dot11d_UpdateCountryIe(
 		{ // It is not in a monotonically increasing order, so stop processing.
 			printk("Dot11d_UpdateCountryIe(): Invalid country IE, skip it........1\n");
 			Dot11d_Reset(dev);
-			return; 
+			return;
 		}
 		if(MAX_CHANNEL_NUMBER < (pTriple->FirstChnl + pTriple->NumChnls))
 		{ // It is not a valid set of channel id, so stop processing.
 			printk("Dot11d_UpdateCountryIe(): Invalid country IE, skip it........2\n");
 			Dot11d_Reset(dev);
-			return; 
+			return;
 		}
 
 		for(j = 0 ; j < pTriple->NumChnls; j++)
@@ -110,7 +110,7 @@ Dot11d_UpdateCountryIe(
 			pDot11dInfo->channel_map[pTriple->FirstChnl + j] = 1;
 			pDot11dInfo->MaxTxPwrDbmList[pTriple->FirstChnl + j] = pTriple->MaxTxPowerInDbm;
 			MaxChnlNum = pTriple->FirstChnl + j;
-		}	
+		}
 
 		pTriple = (PCHNL_TXPOWER_TRIPLE)((u8*)pTriple + 3);
 	}
@@ -150,13 +150,13 @@ DOT11D_GetMaxTxPwrInDbm(
 	u8 MaxTxPwrInDbm = 255;
 
 	if(MAX_CHANNEL_NUMBER < Channel)
-	{ 
+	{
 		printk("DOT11D_GetMaxTxPwrInDbm(): Invalid Channel\n");
-		return MaxTxPwrInDbm; 
+		return MaxTxPwrInDbm;
 	}
 	if(pDot11dInfo->channel_map[Channel])
 	{
-		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];	
+		MaxTxPwrInDbm = pDot11dInfo->MaxTxPwrDbmList[Channel];
 	}
 
 	return MaxTxPwrInDbm;
@@ -178,8 +178,8 @@ DOT11D_ScanComplete(
 
 	case DOT11D_STATE_DONE:
 		if( GET_CIE_WATCHDOG(dev) == 0 )
-		{ // Reset country IE if previous one is gone. 
-			Dot11d_Reset(dev); 
+		{ // Reset country IE if previous one is gone.
+			Dot11d_Reset(dev);
 		}
 		break;
 	case DOT11D_STATE_NONE:
@@ -195,9 +195,9 @@ int IsLegalChannel(
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
 
 	if(MAX_CHANNEL_NUMBER < channel)
-	{ 
+	{
 		printk("IsLegalChannel(): Invalid Channel\n");
-		return 0; 
+		return 0;
 	}
 	if(pDot11dInfo->channel_map[channel] > 0)
 		return 1;
@@ -223,14 +223,14 @@ int ToLegalChannel(
 	}
 
 	if(MAX_CHANNEL_NUMBER < channel)
-	{ 
+	{
 		printk("IsLegalChannel(): Invalid Channel\n");
-		return default_chn; 
+		return default_chn;
 	}
-	
+
 	if(pDot11dInfo->channel_map[channel] > 0)
 		return channel;
-	
+
 	return default_chn;
 }
 

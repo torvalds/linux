@@ -179,7 +179,6 @@ static irqreturn_t mpc85xx_8259_cascade_action(int irq, void *dev_id)
 static struct irqaction mpc85xxcds_8259_irqaction = {
 	.handler = mpc85xx_8259_cascade_action,
 	.flags = IRQF_SHARED,
-	.mask = CPU_MASK_NONE,
 	.name = "8259 cascade",
 };
 #endif /* PPC_I8259 */
@@ -336,6 +335,7 @@ static struct of_device_id __initdata of_bus_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .compatible = "simple-bus", },
+	{ .compatible = "gianfar", },
 	{},
 };
 

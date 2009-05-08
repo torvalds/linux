@@ -51,5 +51,6 @@ struct ads7846_platform_data {
 				 void **filter_data);
 	int	(*filter)	(void *filter_data, int data_idx, int *val);
 	void	(*filter_cleanup)(void *filter_data);
+	void	(*wait_for_sync)(void);
 };
 

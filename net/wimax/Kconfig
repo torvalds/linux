@@ -8,7 +8,7 @@
 #
 # As well, enablement of the RFKILL code means we need the INPUT layer
 # support to inject events coming from hw rfkill switches. That
-# dependency could be killed if input.h provided appropiate means to
+# dependency could be killed if input.h provided appropriate means to
 # work when input is disabled.
 
 comment "WiMAX Wireless Broadband support requires CONFIG_INPUT enabled"

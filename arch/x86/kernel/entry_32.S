@@ -442,8 +442,7 @@ sysenter_past_esp:
 
 	GET_THREAD_INFO(%ebp)
 
-	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
 	jnz sysenter_audit
 sysenter_do_call:
 	cmpl $(nr_syscalls), %eax
@@ -454,7 +453,7 @@ sysenter_do_call:
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
-	testw $_TIF_ALLWORK_MASK, %cx
+	testl $_TIF_ALLWORK_MASK, %ecx
 	jne sysexit_audit
 sysenter_exit:
 /* if something modifies registers it must also disable sysexit */
@@ -468,7 +467,7 @@ sysenter_exit:
 
 #ifdef CONFIG_AUDITSYSCALL
 sysenter_audit:
-	testw $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
+	testl $(_TIF_WORK_SYSCALL_ENTRY & ~_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
 	jnz syscall_trace_entry
 	addl $4,%esp
 	CFI_ADJUST_CFA_OFFSET -4
@@ -485,7 +484,7 @@ sysenter_audit:
 	jmp sysenter_do_call
 
 sysexit_audit:
-	testw $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %cx
+	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
 	jne syscall_exit_work
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_ANY)
@@ -498,7 +497,7 @@ sysexit_audit:
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
-	testw $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %cx
+	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT), %ecx
 	jne syscall_exit_work
 	movl PT_EAX(%esp),%eax	/* reload syscall return value */
 	jmp sysenter_exit
@@ -523,8 +522,7 @@ ENTRY(system_call)
 	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
 					# system call tracing in operation / emulation
-	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
+	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags(%ebp)
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -538,7 +536,7 @@ syscall_exit:
 					# between sampling and the iret
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
-	testw $_TIF_ALLWORK_MASK, %cx	# current->work
+	testl $_TIF_ALLWORK_MASK, %ecx	# current->work
 	jne syscall_exit_work
 
 restore_all:
@@ -673,7 +671,7 @@ END(syscall_trace_entry)
 	# perform syscall exit tracing
 	ALIGN
 syscall_exit_work:
-	testb $_TIF_WORK_SYSCALL_EXIT, %cl
+	testl $_TIF_WORK_SYSCALL_EXIT, %ecx
 	jz work_pending
 	TRACE_IRQS_ON
 	ENABLE_INTERRUPTS(CLBR_ANY)	# could let syscall_trace_leave() call

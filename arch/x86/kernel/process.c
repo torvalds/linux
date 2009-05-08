@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/clockchips.h>
-#include <linux/ftrace.h>
+#include <trace/power.h>
 #include <asm/system.h>
 #include <asm/apic.h>
 #include <asm/idle.h>
@@ -21,6 +21,9 @@ unsigned long idle_nomwait;
 EXPORT_SYMBOL(idle_nomwait);
 
 struct kmem_cache *task_xstate_cachep;
+
+DEFINE_TRACE(power_start);
+DEFINE_TRACE(power_end);
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
@@ -65,11 +68,11 @@ void exit_thread(void)
 {
 	struct task_struct *me = current;
 	struct thread_struct *t = &me->thread;
+	unsigned long *bp = t->io_bitmap_ptr;
 
-	if (me->thread.io_bitmap_ptr) {
+	if (bp) {
 		struct tss_struct *tss = &per_cpu(init_tss, get_cpu());
 
-		kfree(t->io_bitmap_ptr);
 		t->io_bitmap_ptr = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);
 		/*
@@ -78,6 +81,7 @@ void exit_thread(void)
 		memset(tss->io_bitmap, 0xff, t->io_bitmap_max);
 		t->io_bitmap_max = 0;
 		put_cpu();
+		kfree(bp);
 	}
 
 	ds_exit_thread(current);
@@ -324,7 +328,7 @@ void stop_this_cpu(void *dummy)
 	/*
 	 * Remove this CPU:
 	 */
-	cpu_clear(smp_processor_id(), cpu_online_map);
+	set_cpu_online(smp_processor_id(), false);
 	disable_local_APIC();
 
 	for (;;) {
@@ -474,12 +478,13 @@ static int __cpuinit check_c1e_idle(const struct cpuinfo_x86 *c)
 	return 1;
 }
 
-static cpumask_t c1e_mask = CPU_MASK_NONE;
+static cpumask_var_t c1e_mask;
 static int c1e_detected;
 
 void c1e_remove_cpu(int cpu)
 {
-	cpu_clear(cpu, c1e_mask);
+	if (c1e_mask != NULL)
+		cpumask_clear_cpu(cpu, c1e_mask);
 }
 
 /*
@@ -508,8 +513,8 @@ static void c1e_idle(void)
 	if (c1e_detected) {
 		int cpu = smp_processor_id();
 
-		if (!cpu_isset(cpu, c1e_mask)) {
-			cpu_set(cpu, c1e_mask);
+		if (!cpumask_test_cpu(cpu, c1e_mask)) {
+			cpumask_set_cpu(cpu, c1e_mask);
 			/*
 			 * Force broadcast so ACPI can not interfere. Needs
 			 * to run with interrupts enabled as it uses
@@ -559,6 +564,15 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 		pm_idle = c1e_idle;
 	} else
 		pm_idle = default_idle;
+}
+
+void __init init_c1e_mask(void)
+{
+	/* If we're using c1e_idle, we need to allocate c1e_mask. */
+	if (pm_idle == c1e_idle) {
+		alloc_cpumask_var(&c1e_mask, GFP_KERNEL);
+		cpumask_clear(c1e_mask);
+	}
 }
 
 static int __init idle_setup(char *str)

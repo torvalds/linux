@@ -19,8 +19,12 @@
 #include <linux/proc_fs.h>
 
 #include <linux/mtd/mtd.h>
+#include "internal.h"
 
 #include "mtdcore.h"
+
+
+static struct class *mtd_class;
 
 /* These are exported solely for the purpose of mtd_blkdevs.c. You
    should not use them for _anything_ else */
@@ -32,6 +36,160 @@ EXPORT_SYMBOL_GPL(mtd_table);
 
 static LIST_HEAD(mtd_notifiers);
 
+
+#if defined(CONFIG_MTD_CHAR) || defined(CONFIG_MTD_CHAR_MODULE)
+#define MTD_DEVT(index) MKDEV(MTD_CHAR_MAJOR, (index)*2)
+#else
+#define MTD_DEVT(index) 0
+#endif
+
+/* REVISIT once MTD uses the driver model better, whoever allocates
+ * the mtd_info will probably want to use the release() hook...
+ */
+static void mtd_release(struct device *dev)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	/* remove /dev/mtdXro node if needed */
+	if (MTD_DEVT(mtd->index))
+		device_destroy(mtd_class, MTD_DEVT(mtd->index) + 1);
+}
+
+static ssize_t mtd_type_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+	char *type;
+
+	switch (mtd->type) {
+	case MTD_ABSENT:
+		type = "absent";
+		break;
+	case MTD_RAM:
+		type = "ram";
+		break;
+	case MTD_ROM:
+		type = "rom";
+		break;
+	case MTD_NORFLASH:
+		type = "nor";
+		break;
+	case MTD_NANDFLASH:
+		type = "nand";
+		break;
+	case MTD_DATAFLASH:
+		type = "dataflash";
+		break;
+	case MTD_UBIVOLUME:
+		type = "ubi";
+		break;
+	default:
+		type = "unknown";
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", type);
+}
+static DEVICE_ATTR(type, S_IRUGO, mtd_type_show, NULL);
+
+static ssize_t mtd_flags_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "0x%lx\n", (unsigned long)mtd->flags);
+
+}
+static DEVICE_ATTR(flags, S_IRUGO, mtd_flags_show, NULL);
+
+static ssize_t mtd_size_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%llu\n",
+		(unsigned long long)mtd->size);
+
+}
+static DEVICE_ATTR(size, S_IRUGO, mtd_size_show, NULL);
+
+static ssize_t mtd_erasesize_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->erasesize);
+
+}
+static DEVICE_ATTR(erasesize, S_IRUGO, mtd_erasesize_show, NULL);
+
+static ssize_t mtd_writesize_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->writesize);
+
+}
+static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
+
+static ssize_t mtd_oobsize_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->oobsize);
+
+}
+static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
+
+static ssize_t mtd_numeraseregions_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->numeraseregions);
+
+}
+static DEVICE_ATTR(numeraseregions, S_IRUGO, mtd_numeraseregions_show,
+	NULL);
+
+static ssize_t mtd_name_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct mtd_info *mtd = dev_to_mtd(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", mtd->name);
+
+}
+static DEVICE_ATTR(name, S_IRUGO, mtd_name_show, NULL);
+
+static struct attribute *mtd_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_flags.attr,
+	&dev_attr_size.attr,
+	&dev_attr_erasesize.attr,
+	&dev_attr_writesize.attr,
+	&dev_attr_oobsize.attr,
+	&dev_attr_numeraseregions.attr,
+	&dev_attr_name.attr,
+	NULL,
+};
+
+struct attribute_group mtd_group = {
+	.attrs		= mtd_attrs,
+};
+
+struct attribute_group *mtd_groups[] = {
+	&mtd_group,
+	NULL,
+};
+
+static struct device_type mtd_devtype = {
+	.name		= "mtd",
+	.groups		= mtd_groups,
+	.release	= mtd_release,
+};
+
 /**
  *	add_mtd_device - register an MTD device
  *	@mtd: pointer to new MTD device info structure
@@ -40,11 +198,26 @@ static LIST_HEAD(mtd_notifiers);
  *	notify each currently active MTD 'user' of its arrival. Returns
  *	zero on success or 1 on failure, which currently will only happen
  *	if the number of present devices exceeds MAX_MTD_DEVICES (i.e. 16)
+ *	or there's a sysfs error.
  */
 
 int add_mtd_device(struct mtd_info *mtd)
 {
 	int i;
+
+	if (!mtd->backing_dev_info) {
+		switch (mtd->type) {
+		case MTD_RAM:
+			mtd->backing_dev_info = &mtd_bdi_rw_mappable;
+			break;
+		case MTD_ROM:
+			mtd->backing_dev_info = &mtd_bdi_ro_mappable;
+			break;
+		default:
+			mtd->backing_dev_info = &mtd_bdi_unmappable;
+			break;
+		}
+	}
 
 	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
@@ -79,6 +252,23 @@ int add_mtd_device(struct mtd_info *mtd)
 					       "writes may not work\n",
 					       mtd->name);
 			}
+
+			/* Caller should have set dev.parent to match the
+			 * physical device.
+			 */
+			mtd->dev.type = &mtd_devtype;
+			mtd->dev.class = mtd_class;
+			mtd->dev.devt = MTD_DEVT(i);
+			dev_set_name(&mtd->dev, "mtd%d", i);
+			if (device_register(&mtd->dev) != 0) {
+				mtd_table[i] = NULL;
+				break;
+			}
+
+			if (MTD_DEVT(i))
+				device_create(mtd_class, mtd->dev.parent,
+						MTD_DEVT(i) + 1,
+						NULL, "mtd%dro", i);
 
 			DEBUG(0, "mtd: Giving out device %d to %s\n",i, mtd->name);
 			/* No need to get a refcount on the module containing
@@ -123,6 +313,8 @@ int del_mtd_device (struct mtd_info *mtd)
 		ret = -EBUSY;
 	} else {
 		struct mtd_notifier *not;
+
+		device_unregister(&mtd->dev);
 
 		/* No need to get a refcount on the module containing
 		   the notifier, since we hold the mtd_table_mutex */
@@ -393,27 +585,37 @@ done:
         return ((count < begin+len-off) ? count : begin+len-off);
 }
 
+#endif /* CONFIG_PROC_FS */
+
 /*====================================================================*/
 /* Init code */
 
 static int __init init_mtd(void)
 {
+	mtd_class = class_create(THIS_MODULE, "mtd");
+
+	if (IS_ERR(mtd_class)) {
+		pr_err("Error creating mtd class.\n");
+		return PTR_ERR(mtd_class);
+	}
+#ifdef CONFIG_PROC_FS
 	if ((proc_mtd = create_proc_entry( "mtd", 0, NULL )))
 		proc_mtd->read_proc = mtd_read_proc;
+#endif /* CONFIG_PROC_FS */
 	return 0;
 }
 
 static void __exit cleanup_mtd(void)
 {
+#ifdef CONFIG_PROC_FS
         if (proc_mtd)
 		remove_proc_entry( "mtd", NULL);
+#endif /* CONFIG_PROC_FS */
+	class_destroy(mtd_class);
 }
 
 module_init(init_mtd);
 module_exit(cleanup_mtd);
-
-#endif /* CONFIG_PROC_FS */
-
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");

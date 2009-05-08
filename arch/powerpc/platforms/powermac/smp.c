@@ -385,7 +385,6 @@ static void __init psurge_dual_sync_tb(int cpu_nr)
 static struct irqaction psurge_irqaction = {
 	.handler = psurge_primary_intr,
 	.flags = IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
 	.name = "primary IPI",
 };
 

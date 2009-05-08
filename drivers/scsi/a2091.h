@@ -11,9 +11,6 @@
 
 #include <linux/types.h>
 
-int a2091_detect(struct scsi_host_template *);
-int a2091_release(struct Scsi_Host *);
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
 #endif

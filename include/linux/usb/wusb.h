@@ -80,8 +80,7 @@ struct wusb_ckhdid {
 	u8 data[16];
 } __attribute__((packed));
 
-const static
-struct wusb_ckhdid wusb_ckhdid_zero = { .data = { 0 } };
+static const struct wusb_ckhdid wusb_ckhdid_zero = { .data = { 0 } };
 
 #define WUSB_CKHDID_STRSIZE (3 * sizeof(struct wusb_ckhdid) + 1)
 

@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <linux/utsname.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
@@ -119,7 +118,8 @@ static inline int usb_find_address(struct i2c_adapter *i2c_adap,
 		/* try extended address code... */
 		ret = try_write_address(i2c_adap, addr, retries);
 		if (ret != 1) {
-			err("died at extended address code, while writing");
+			dev_err(&i2c_adap->dev,
+				"died at extended address code,	while writing\n");
 			return -EREMOTEIO;
 		}
 		add[0] = addr;
@@ -128,7 +128,8 @@ static inline int usb_find_address(struct i2c_adapter *i2c_adap,
 			addr |= 0x01;
 			ret = try_read_address(i2c_adap, addr, retries);
 			if (ret != 1) {
-				err("died at extended address code, while reading");
+				dev_err(&i2c_adap->dev,
+					"died at extended address code, while reading\n");
 				return -EREMOTEIO;
 			}
 		}
@@ -200,72 +201,81 @@ static struct i2c_algorithm usbvision_algo = {
 };
 
 
-/*
- * registering functions to load algorithms at runtime
- */
-static int usbvision_i2c_usb_add_bus(struct i2c_adapter *adap)
-{
-	PDEBUG(DBG_I2C, "I2C   debugging is enabled [i2c]");
-	PDEBUG(DBG_I2C, "ALGO   debugging is enabled [i2c]");
-
-	/* register new adapter to i2c module... */
-
-	adap->algo = &usbvision_algo;
-
-	adap->timeout = 100;	/* default values, should       */
-	adap->retries = 3;	/* be replaced by defines       */
-
-	i2c_add_adapter(adap);
-
-	PDEBUG(DBG_I2C,"i2c bus for %s registered", adap->name);
-
-	return 0;
-}
-
 /* ----------------------------------------------------------------------- */
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
 static struct i2c_adapter i2c_adap_template;
-static struct i2c_client i2c_client_template;
 
 int usbvision_i2c_register(struct usb_usbvision *usbvision)
 {
+	static unsigned short saa711x_addrs[] = {
+		0x4a >> 1, 0x48 >> 1,	/* SAA7111, SAA7111A and SAA7113 */
+		0x42 >> 1, 0x40 >> 1,	/* SAA7114, SAA7115 and SAA7118 */
+		I2C_CLIENT_END };
+
 	memcpy(&usbvision->i2c_adap, &i2c_adap_template,
 	       sizeof(struct i2c_adapter));
-	memcpy(&usbvision->i2c_client, &i2c_client_template,
-	       sizeof(struct i2c_client));
 
 	sprintf(usbvision->i2c_adap.name + strlen(usbvision->i2c_adap.name),
 		" #%d", usbvision->vdev->num);
 	PDEBUG(DBG_I2C,"Adaptername: %s", usbvision->i2c_adap.name);
 	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
 
-	i2c_set_adapdata(&usbvision->i2c_adap, usbvision);
-	i2c_set_clientdata(&usbvision->i2c_client, usbvision);
-
-	usbvision->i2c_client.adapter = &usbvision->i2c_adap;
+	i2c_set_adapdata(&usbvision->i2c_adap, &usbvision->v4l2_dev);
 
 	if (usbvision_write_reg(usbvision, USBVISION_SER_MODE, USBVISION_IIC_LRNACK) < 0) {
 		printk(KERN_ERR "usbvision_register: can't write reg\n");
 		return -EBUSY;
 	}
 
-#ifdef CONFIG_MODULES
+	PDEBUG(DBG_I2C, "I2C   debugging is enabled [i2c]");
+	PDEBUG(DBG_I2C, "ALGO   debugging is enabled [i2c]");
+
+	/* register new adapter to i2c module... */
+
+	usbvision->i2c_adap.algo = &usbvision_algo;
+
+	usbvision->i2c_adap.timeout = 100;	/* default values, should       */
+	usbvision->i2c_adap.retries = 3;	/* be replaced by defines       */
+
+	i2c_add_adapter(&usbvision->i2c_adap);
+
+	PDEBUG(DBG_I2C, "i2c bus for %s registered", usbvision->i2c_adap.name);
+
 	/* Request the load of the i2c modules we need */
 	switch (usbvision_device_data[usbvision->DevModel].Codec) {
 	case CODEC_SAA7113:
-		request_module("saa7115");
-		break;
 	case CODEC_SAA7111:
-		request_module("saa7115");
+		v4l2_i2c_new_probed_subdev(&usbvision->v4l2_dev,
+				&usbvision->i2c_adap, "saa7115",
+				"saa7115_auto", saa711x_addrs);
 		break;
 	}
 	if (usbvision_device_data[usbvision->DevModel].Tuner == 1) {
-		request_module("tuner");
-	}
-#endif
+		struct v4l2_subdev *sd;
+		enum v4l2_i2c_tuner_type type;
+		struct tuner_setup tun_setup;
 
-	return usbvision_i2c_usb_add_bus(&usbvision->i2c_adap);
+		sd = v4l2_i2c_new_probed_subdev(&usbvision->v4l2_dev,
+				&usbvision->i2c_adap, "tuner",
+				"tuner", v4l2_i2c_tuner_addrs(ADDRS_DEMOD));
+		/* depending on whether we found a demod or not, select
+		   the tuner type. */
+		type = sd ? ADDRS_TV_WITH_DEMOD : ADDRS_TV;
+
+		sd = v4l2_i2c_new_probed_subdev(&usbvision->v4l2_dev,
+				&usbvision->i2c_adap, "tuner",
+				"tuner", v4l2_i2c_tuner_addrs(type));
+
+		if (usbvision->tuner_type != -1) {
+			tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+			tun_setup.type = usbvision->tuner_type;
+			tun_setup.addr = v4l2_i2c_subdev_addr(sd);
+			call_all(usbvision, tuner, s_type_addr, &tun_setup);
+		}
+	}
+
+	return 0;
 }
 
 int usbvision_i2c_unregister(struct usb_usbvision *usbvision)
@@ -275,67 +285,6 @@ int usbvision_i2c_unregister(struct usb_usbvision *usbvision)
 
 	PDEBUG(DBG_I2C,"i2c bus for %s unregistered", usbvision->i2c_adap.name);
 
-	return 0;
-}
-
-void call_i2c_clients(struct usb_usbvision *usbvision, unsigned int cmd,
-		      void *arg)
-{
-	i2c_clients_command(&usbvision->i2c_adap, cmd, arg);
-}
-
-static int attach_inform(struct i2c_client *client)
-{
-	struct usb_usbvision *usbvision;
-
-	usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
-
-	switch (client->addr << 1) {
-		case 0x42 << 1:
-		case 0x43 << 1:
-		case 0x4a << 1:
-		case 0x4b << 1:
-			PDEBUG(DBG_I2C,"attach_inform: tda9887 detected.");
-			break;
-		case 0x42:
-			PDEBUG(DBG_I2C,"attach_inform: saa7114 detected.");
-			break;
-		case 0x4a:
-			PDEBUG(DBG_I2C,"attach_inform: saa7113 detected.");
-			break;
-		case 0x48:
-			PDEBUG(DBG_I2C,"attach_inform: saa7111 detected.");
-			break;
-		case 0xa0:
-			PDEBUG(DBG_I2C,"attach_inform: eeprom detected.");
-			break;
-
-		default:
-			{
-				struct tuner_setup tun_setup;
-
-				PDEBUG(DBG_I2C,"attach inform: detected I2C address %x", client->addr << 1);
-				usbvision->tuner_addr = client->addr;
-
-				if ((usbvision->have_tuner) && (usbvision->tuner_type != -1)) {
-					tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-					tun_setup.type = usbvision->tuner_type;
-					tun_setup.addr = usbvision->tuner_addr;
-					call_i2c_clients(usbvision, TUNER_SET_TYPE_ADDR, &tun_setup);
-				}
-			}
-			break;
-	}
-	return 0;
-}
-
-static int detach_inform(struct i2c_client *client)
-{
-	struct usb_usbvision *usbvision;
-
-	usbvision = (struct usb_usbvision *)i2c_get_adapdata(client->adapter);
-
-	PDEBUG(DBG_I2C,"usbvision[%d] detaches %s", usbvision->nr, client->name);
 	return 0;
 }
 
@@ -511,14 +460,6 @@ static int usbvision_i2c_read(struct usb_usbvision *usbvision, unsigned char add
 static struct i2c_adapter i2c_adap_template = {
 	.owner = THIS_MODULE,
 	.name              = "usbvision",
-	.id                = I2C_HW_B_BT848, /* FIXME */
-	.client_register   = attach_inform,
-	.client_unregister = detach_inform,
-	.class		   = I2C_CLASS_TV_ANALOG,
-};
-
-static struct i2c_client i2c_client_template = {
-	.name		= "usbvision internal",
 };
 
 /*

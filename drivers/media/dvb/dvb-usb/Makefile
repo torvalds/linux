@@ -76,6 +76,8 @@ obj-$(CONFIG_DVB_USB_AF9015) += dvb-usb-af9015.o
 dvb-usb-cinergyT2-objs = cinergyT2-core.o cinergyT2-fe.o
 obj-$(CONFIG_DVB_USB_CINERGY_T2) += dvb-usb-cinergyT2.o
 
+dvb-usb-ce6230-objs = ce6230.o
+obj-$(CONFIG_DVB_USB_CE6230) += dvb-usb-ce6230.o
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 # due to tuner-xc3028

@@ -12,6 +12,7 @@ typedef struct {
 	unsigned int apic_timer_irqs;	/* arch dependent */
 	unsigned int irq_spurious_count;
 #endif
+	unsigned int generic_irqs;	/* arch dependent */
 #ifdef CONFIG_SMP
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;
@@ -25,7 +26,7 @@ typedef struct {
 #endif
 } ____cacheline_aligned irq_cpustat_t;
 
-DECLARE_PER_CPU(irq_cpustat_t, irq_stat);
+DECLARE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 
 /* We can have at most NR_VECTORS irqs routed to a cpu at a time */
 #define MAX_HARDIRQS_PER_CPU NR_VECTORS

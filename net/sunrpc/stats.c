@@ -262,14 +262,8 @@ void
 rpc_proc_init(void)
 {
 	dprintk("RPC:       registering /proc/net/rpc\n");
-	if (!proc_net_rpc) {
-		struct proc_dir_entry *ent;
-		ent = proc_mkdir("rpc", init_net.proc_net);
-		if (ent) {
-			ent->owner = THIS_MODULE;
-			proc_net_rpc = ent;
-		}
-	}
+	if (!proc_net_rpc)
+		proc_net_rpc = proc_mkdir("rpc", init_net.proc_net);
 }
 
 void

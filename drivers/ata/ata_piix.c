@@ -1053,6 +1053,13 @@ static int piix_broken_suspend(void)
 				DMI_MATCH(DMI_PRODUCT_NAME, "PORTEGE M500"),
 			},
 		},
+		{
+			.ident = "VGN-BX297XP",
+			.matches = {
+				DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
+				DMI_MATCH(DMI_PRODUCT_NAME, "VGN-BX297XP"),
+			},
+		},
 
 		{ }	/* terminate list */
 	};

@@ -89,7 +89,7 @@ typedef struct {
 	unsigned int m_uiNodeId;
 	tEplNmtState m_NmtState;
 	tEplNmtNodeEvent m_NodeEvent;
-	WORD m_wErrorCode;	// EPL error code if m_NodeEvent == kEplNmtNodeEventError
+	u16 m_wErrorCode;	// EPL error code if m_NodeEvent == kEplNmtNodeEventError
 	BOOL m_fMandatory;
 
 } tEplApiEventNode;
@@ -97,7 +97,7 @@ typedef struct {
 typedef struct {
 	tEplNmtState m_NmtState;	// local NMT state
 	tEplNmtBootEvent m_BootEvent;
-	WORD m_wErrorCode;	// EPL error code if m_BootEvent == kEplNmtBootEventError
+	u16 m_wErrorCode;	// EPL error code if m_BootEvent == kEplNmtBootEventError
 
 } tEplApiEventBoot;
 
@@ -131,33 +131,33 @@ typedef union {
 
 } tEplApiEventArg;
 
-typedef tEplKernel(PUBLIC ROM * tEplApiCbEvent) (tEplApiEventType EventType_p,	// IN: event type (enum)
-						 tEplApiEventArg * pEventArg_p,	// IN: event argument (union)
-						 void GENERIC * pUserArg_p);
+typedef tEplKernel(*tEplApiCbEvent) (tEplApiEventType EventType_p,	// IN: event type (enum)
+				     tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
+				      void *pUserArg_p);
 
 typedef struct {
 	unsigned int m_uiSizeOfStruct;
 	BOOL m_fAsyncOnly;	// do not need to register PRes
 	unsigned int m_uiNodeId;	// local node ID
-	BYTE m_abMacAddress[6];	// local MAC address
+	u8 m_abMacAddress[6];	// local MAC address
 
 	// 0x1F82: NMT_FeatureFlags_U32
-	DWORD m_dwFeatureFlags;
+	u32 m_dwFeatureFlags;
 	// Cycle Length (0x1006: NMT_CycleLen_U32) in [us]
-	DWORD m_dwCycleLen;	// required for error detection
+	u32 m_dwCycleLen;	// required for error detection
 	// 0x1F98: NMT_CycleTiming_REC
 	// 0x1F98.1: IsochrTxMaxPayload_U16
 	unsigned int m_uiIsochrTxMaxPayload;	// const
 	// 0x1F98.2: IsochrRxMaxPayload_U16
 	unsigned int m_uiIsochrRxMaxPayload;	// const
 	// 0x1F98.3: PResMaxLatency_U32
-	DWORD m_dwPresMaxLatency;	// const in [ns], only required for IdentRes
+	u32 m_dwPresMaxLatency;	// const in [ns], only required for IdentRes
 	// 0x1F98.4: PReqActPayloadLimit_U16
 	unsigned int m_uiPreqActPayloadLimit;	// required for initialisation (+28 bytes)
 	// 0x1F98.5: PResActPayloadLimit_U16
 	unsigned int m_uiPresActPayloadLimit;	// required for initialisation of Pres frame (+28 bytes)
 	// 0x1F98.6: ASndMaxLatency_U32
-	DWORD m_dwAsndMaxLatency;	// const in [ns], only required for IdentRes
+	u32 m_dwAsndMaxLatency;	// const in [ns], only required for IdentRes
 	// 0x1F98.7: MultiplCycleCnt_U8
 	unsigned int m_uiMultiplCycleCnt;	// required for error detection
 	// 0x1F98.8: AsyncMTU_U16
@@ -167,30 +167,30 @@ typedef struct {
 	// $$$ Multiplexed Slot
 
 	// 0x1C14: DLL_LossOfFrameTolerance_U32 in [ns]
-	DWORD m_dwLossOfFrameTolerance;
+	u32 m_dwLossOfFrameTolerance;
 
 	// 0x1F8A: NMT_MNCycleTiming_REC
 	// 0x1F8A.1: WaitSoCPReq_U32 in [ns]
-	DWORD m_dwWaitSocPreq;
+	u32 m_dwWaitSocPreq;
 
 	// 0x1F8A.2: AsyncSlotTimeout_U32 in [ns]
-	DWORD m_dwAsyncSlotTimeout;
+	u32 m_dwAsyncSlotTimeout;
 
-	DWORD m_dwDeviceType;	// NMT_DeviceType_U32
-	DWORD m_dwVendorId;	// NMT_IdentityObject_REC.VendorId_U32
-	DWORD m_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
-	DWORD m_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
-	DWORD m_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
-	QWORD m_qwVendorSpecificExt1;
-	DWORD m_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
-	DWORD m_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
-	DWORD m_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device
-	DWORD m_dwApplicationSwTime;	// PDL_LocVerApplSw_REC.ApplSwTime_U32 on programmable device or time portion of NMT_ManufactSwVers_VS on non-programmable device
-	DWORD m_dwIpAddress;
-	DWORD m_dwSubnetMask;
-	DWORD m_dwDefaultGateway;
-	BYTE m_sHostname[32];
-	BYTE m_abVendorSpecificExt2[48];
+	u32 m_dwDeviceType;	// NMT_DeviceType_U32
+	u32 m_dwVendorId;	// NMT_IdentityObject_REC.VendorId_U32
+	u32 m_dwProductCode;	// NMT_IdentityObject_REC.ProductCode_U32
+	u32 m_dwRevisionNumber;	// NMT_IdentityObject_REC.RevisionNo_U32
+	u32 m_dwSerialNumber;	// NMT_IdentityObject_REC.SerialNo_U32
+	u64 m_qwVendorSpecificExt1;
+	u32 m_dwVerifyConfigurationDate;	// CFM_VerifyConfiguration_REC.ConfDate_U32
+	u32 m_dwVerifyConfigurationTime;	// CFM_VerifyConfiguration_REC.ConfTime_U32
+	u32 m_dwApplicationSwDate;	// PDL_LocVerApplSw_REC.ApplSwDate_U32 on programmable device or date portion of NMT_ManufactSwVers_VS on non-programmable device
+	u32 m_dwApplicationSwTime;	// PDL_LocVerApplSw_REC.ApplSwTime_U32 on programmable device or time portion of NMT_ManufactSwVers_VS on non-programmable device
+	u32 m_dwIpAddress;
+	u32 m_dwSubnetMask;
+	u32 m_dwDefaultGateway;
+	u8 m_sHostname[32];
+	u8 m_abVendorSpecificExt2[48];
 
 	char *m_pszDevName;	// NMT_ManufactDevName_VS (0x1008/0 local OD)
 	char *m_pszHwVersion;	// NMT_ManufactHwVers_VS  (0x1009/0 local OD)
@@ -212,62 +212,61 @@ typedef struct {
 // function prototypes
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplApiInitialize(tEplApiInitParam * pInitParam_p);
+tEplKernel EplApiInitialize(tEplApiInitParam *pInitParam_p);
 
-tEplKernel PUBLIC EplApiShutdown(void);
+tEplKernel EplApiShutdown(void);
 
-tEplKernel PUBLIC EplApiReadObject(tEplSdoComConHdl * pSdoComConHdl_p,
-				   unsigned int uiNodeId_p,
-				   unsigned int uiIndex_p,
-				   unsigned int uiSubindex_p,
-				   void *pDstData_le_p,
-				   unsigned int *puiSize_p,
-				   tEplSdoType SdoType_p, void *pUserArg_p);
+tEplKernel EplApiReadObject(tEplSdoComConHdl *pSdoComConHdl_p,
+			    unsigned int uiNodeId_p,
+			    unsigned int uiIndex_p,
+			    unsigned int uiSubindex_p,
+			    void *pDstData_le_p,
+			    unsigned int *puiSize_p,
+			    tEplSdoType SdoType_p, void *pUserArg_p);
 
-tEplKernel PUBLIC EplApiWriteObject(tEplSdoComConHdl * pSdoComConHdl_p,
-				    unsigned int uiNodeId_p,
-				    unsigned int uiIndex_p,
-				    unsigned int uiSubindex_p,
-				    void *pSrcData_le_p,
-				    unsigned int uiSize_p,
-				    tEplSdoType SdoType_p, void *pUserArg_p);
+tEplKernel EplApiWriteObject(tEplSdoComConHdl *pSdoComConHdl_p,
+			     unsigned int uiNodeId_p,
+			     unsigned int uiIndex_p,
+			     unsigned int uiSubindex_p,
+			     void *pSrcData_le_p,
+			     unsigned int uiSize_p,
+			     tEplSdoType SdoType_p, void *pUserArg_p);
 
-tEplKernel PUBLIC EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p);
+tEplKernel EplApiFreeSdoChannel(tEplSdoComConHdl SdoComConHdl_p);
 
-tEplKernel PUBLIC EplApiReadLocalObject(unsigned int uiIndex_p,
-					unsigned int uiSubindex_p,
-					void *pDstData_p,
-					unsigned int *puiSize_p);
+tEplKernel EplApiReadLocalObject(unsigned int uiIndex_p,
+				 unsigned int uiSubindex_p,
+				 void *pDstData_p,
+				 unsigned int *puiSize_p);
 
-tEplKernel PUBLIC EplApiWriteLocalObject(unsigned int uiIndex_p,
-					 unsigned int uiSubindex_p,
-					 void *pSrcData_p,
-					 unsigned int uiSize_p);
+tEplKernel EplApiWriteLocalObject(unsigned int uiIndex_p,
+				  unsigned int uiSubindex_p,
+				  void *pSrcData_p,
+				  unsigned int uiSize_p);
 
-tEplKernel PUBLIC EplApiCbObdAccess(tEplObdCbParam MEM * pParam_p);
+tEplKernel EplApiCbObdAccess(tEplObdCbParam *pParam_p);
 
-tEplKernel PUBLIC EplApiLinkObject(unsigned int uiObjIndex_p,
-				   void *pVar_p,
-				   unsigned int *puiVarEntries_p,
-				   tEplObdSize * pEntrySize_p,
-				   unsigned int uiFirstSubindex_p);
+tEplKernel EplApiLinkObject(unsigned int uiObjIndex_p,
+			    void *pVar_p,
+			    unsigned int *puiVarEntries_p,
+			    tEplObdSize *pEntrySize_p,
+			    unsigned int uiFirstSubindex_p);
 
-tEplKernel PUBLIC EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p);
+tEplKernel EplApiExecNmtCommand(tEplNmtEvent NmtEvent_p);
 
-tEplKernel PUBLIC EplApiProcess(void);
+tEplKernel EplApiProcess(void);
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMT_MN)) != 0)
-tEplKernel PUBLIC EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
-					     tEplNmtNodeCommand NodeCommand_p);
+tEplKernel EplApiMnTriggerStateChange(unsigned int uiNodeId_p,
+				      tEplNmtNodeCommand NodeCommand_p);
 #endif
 
-tEplKernel PUBLIC EplApiGetIdentResponse(unsigned int uiNodeId_p,
-					 tEplIdentResponse **
-					 ppIdentResponse_p);
+tEplKernel EplApiGetIdentResponse(unsigned int uiNodeId_p,
+				  tEplIdentResponse **ppIdentResponse_p);
 
 // functions for process image will be implemented in separate file
-tEplKernel PUBLIC EplApiProcessImageSetup(void);
-tEplKernel PUBLIC EplApiProcessImageExchangeIn(tEplApiProcessImage * pPI_p);
-tEplKernel PUBLIC EplApiProcessImageExchangeOut(tEplApiProcessImage * pPI_p);
+tEplKernel EplApiProcessImageSetup(void);
+tEplKernel EplApiProcessImageExchangeIn(tEplApiProcessImage *pPI_p);
+tEplKernel EplApiProcessImageExchangeOut(tEplApiProcessImage *pPI_p);
 
 #endif // #ifndef _EPL_API_H_

@@ -291,7 +291,7 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 
 	/* Source Object can be either an op_region or a Buffer/Field */
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_REGION:
 
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -501,7 +501,7 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	 */
 	if ((!ddb_handle) ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(ddb_handle) != ACPI_DESC_TYPE_OPERAND) ||
-	    (ACPI_GET_OBJECT_TYPE(ddb_handle) != ACPI_TYPE_LOCAL_REFERENCE)) {
+	    (ddb_handle->common.type != ACPI_TYPE_LOCAL_REFERENCE)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
@@ -520,13 +520,14 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 		}
 	}
 
-	/*
-	 * Delete the entire namespace under this table Node
-	 * (Offset contains the table_id)
-	 */
-	acpi_tb_delete_namespace_by_owner(table_index);
-	(void)acpi_tb_release_owner_id(table_index);
+	/* Delete the portion of the namespace owned by this table */
 
+	status = acpi_tb_delete_namespace_by_owner(table_index);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	(void)acpi_tb_release_owner_id(table_index);
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
 	/* Table unloaded, remove a reference to the ddb_handle object */

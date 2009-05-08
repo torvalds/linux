@@ -934,6 +934,7 @@ struct ubifs_debug_info;
  *          by @commit_sem
  * @cnt_lock: protects @highest_inum and @max_sqnum counters
  * @fmt_version: UBIFS on-flash format version
+ * @ro_compat_version: R/O compatibility version
  * @uuid: UUID from super block
  *
  * @lhead_lnum: log head logical eraseblock number
@@ -966,6 +967,7 @@ struct ubifs_debug_info;
  *                   recovery)
  * @bulk_read: enable bulk-reads
  * @default_compr: default compression algorithm (%UBIFS_COMPR_LZO, etc)
+ * @rw_incompat: the media is not R/W compatible
  *
  * @tnc_mutex: protects the Tree Node Cache (TNC), @zroot, @cnext, @enext, and
  *             @calc_idx_sz
@@ -1015,6 +1017,8 @@ struct ubifs_debug_info;
  * @min_io_shift: number of bits in @min_io_size minus one
  * @leb_size: logical eraseblock size in bytes
  * @half_leb_size: half LEB size
+ * @idx_leb_size: how many bytes of an LEB are effectively available when it is
+ *                used to store indexing nodes (@leb_size - @max_idx_node_sz)
  * @leb_cnt: count of logical eraseblocks
  * @max_leb_cnt: maximum count of logical eraseblocks
  * @old_leb_cnt: count of logical eraseblocks before re-size
@@ -1132,8 +1136,8 @@ struct ubifs_debug_info;
  *             previous commit start
  * @uncat_list: list of un-categorized LEBs
  * @empty_list: list of empty LEBs
- * @freeable_list: list of freeable non-index LEBs (free + dirty == leb_size)
- * @frdi_idx_list: list of freeable index LEBs (free + dirty == leb_size)
+ * @freeable_list: list of freeable non-index LEBs (free + dirty == @leb_size)
+ * @frdi_idx_list: list of freeable index LEBs (free + dirty == @leb_size)
  * @freeable_cnt: number of freeable LEBs in @freeable_list
  *
  * @ltab_lnum: LEB number of LPT's own lprops table
@@ -1177,6 +1181,7 @@ struct ubifs_info {
 	unsigned long long cmt_no;
 	spinlock_t cnt_lock;
 	int fmt_version;
+	int ro_compat_version;
 	unsigned char uuid[16];
 
 	int lhead_lnum;
@@ -1205,6 +1210,7 @@ struct ubifs_info {
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
 	unsigned int default_compr:2;
+	unsigned int rw_incompat:1;
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;
@@ -1253,6 +1259,7 @@ struct ubifs_info {
 	int min_io_shift;
 	int leb_size;
 	int half_leb_size;
+	int idx_leb_size;
 	int leb_cnt;
 	int max_leb_cnt;
 	int old_leb_cnt;
@@ -1500,7 +1507,7 @@ long long ubifs_reported_space(const struct ubifs_info *c, long long free);
 long long ubifs_calc_available(const struct ubifs_info *c, int min_idx_lebs);
 
 /* find.c */
-int ubifs_find_free_space(struct ubifs_info *c, int min_space, int *free,
+int ubifs_find_free_space(struct ubifs_info *c, int min_space, int *offs,
 			  int squeeze);
 int ubifs_find_free_leb_for_idx(struct ubifs_info *c);
 int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,

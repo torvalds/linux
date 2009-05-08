@@ -104,9 +104,9 @@ u8 acpi_ev_valid_gpe_event(struct acpi_gpe_event_info *gpe_event_info)
 
 		while (gpe_block) {
 			if ((&gpe_block->event_info[0] <= gpe_event_info) &&
-			    (&gpe_block->
-			     event_info[((acpi_size) gpe_block->
-					 register_count) * 8] >
+			    (&gpe_block->event_info[((acpi_size)
+						     gpe_block->
+						     register_count) * 8] >
 			     gpe_event_info)) {
 				return (TRUE);
 			}
@@ -210,10 +210,9 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 		/* Now look at the individual GPEs in this byte register */
 
 		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
-			gpe_event_info =
-			    &gpe_block->
-			    event_info[((acpi_size) i *
-					ACPI_GPE_REGISTER_WIDTH) + j];
+			gpe_event_info = &gpe_block->event_info[((acpi_size) i *
+								 ACPI_GPE_REGISTER_WIDTH)
+								+ j];
 
 			if ((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
 			    ACPI_GPE_DISPATCH_HANDLER) {
@@ -293,8 +292,8 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 		/* Unknown method type, just ignore it! */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-				  "Ignoring unknown GPE method type: %s (name not of form _Lxx or _Exx)",
-				  name));
+				  "Ignoring unknown GPE method type: %s "
+				  "(name not of form _Lxx or _Exx)", name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
@@ -306,17 +305,16 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 		/* Conversion failed; invalid method, just ignore it */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
-				  "Could not extract GPE number from name: %s (name is not of form _Lxx or _Exx)",
-				  name));
+				  "Could not extract GPE number from name: %s "
+				  "(name is not of form _Lxx or _Exx)", name));
 		return_ACPI_STATUS(AE_OK);
 	}
 
 	/* Ensure that we have a valid GPE number for this GPE block */
 
 	if ((gpe_number < gpe_block->block_base_number) ||
-	    (gpe_number >=
-	     (gpe_block->block_base_number +
-	      (gpe_block->register_count * 8)))) {
+	    (gpe_number >= (gpe_block->block_base_number +
+			    (gpe_block->register_count * 8)))) {
 		/*
 		 * Not valid for this GPE block, just ignore it. However, it may be
 		 * valid for a different GPE block, since GPE0 and GPE1 methods both
@@ -408,7 +406,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	 */
 	obj_desc = pkg_desc->package.elements[0];
 
-	if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
+	if (obj_desc->common.type == ACPI_TYPE_INTEGER) {
 
 		/* Use FADT-defined GPE device (from definition of _PRW) */
 
@@ -417,15 +415,15 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 		/* Integer is the GPE number in the FADT described GPE blocks */
 
 		gpe_number = (u32) obj_desc->integer.value;
-	} else if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_PACKAGE) {
+	} else if (obj_desc->common.type == ACPI_TYPE_PACKAGE) {
 
 		/* Package contains a GPE reference and GPE number within a GPE block */
 
 		if ((obj_desc->package.count < 2) ||
-		    (ACPI_GET_OBJECT_TYPE(obj_desc->package.elements[0]) !=
-		     ACPI_TYPE_LOCAL_REFERENCE)
-		    || (ACPI_GET_OBJECT_TYPE(obj_desc->package.elements[1]) !=
-			ACPI_TYPE_INTEGER)) {
+		    ((obj_desc->package.elements[0])->common.type !=
+		     ACPI_TYPE_LOCAL_REFERENCE) ||
+		    ((obj_desc->package.elements[1])->common.type !=
+		     ACPI_TYPE_INTEGER)) {
 			goto cleanup;
 		}
 
@@ -450,11 +448,11 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 	 */
 	if ((gpe_device == target_gpe_device) &&
 	    (gpe_number >= gpe_block->block_base_number) &&
-	    (gpe_number <
-	     gpe_block->block_base_number + (gpe_block->register_count * 8))) {
-		gpe_event_info =
-		    &gpe_block->event_info[gpe_number -
-					   gpe_block->block_base_number];
+	    (gpe_number < gpe_block->block_base_number +
+	     (gpe_block->register_count * 8))) {
+		gpe_event_info = &gpe_block->event_info[gpe_number -
+							gpe_block->
+							block_base_number];
 
 		/* Mark GPE for WAKE-ONLY but WAKE_DISABLED */
 
@@ -1033,8 +1031,8 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 	 * 1) are "runtime" or "run/wake" GPEs, and
 	 * 2) have a corresponding _Lxx or _Exx method
 	 *
-	 * Any other GPEs within this block must be enabled via the acpi_enable_gpe()
-	 * external interface.
+	 * Any other GPEs within this block must be enabled via the
+	 * acpi_enable_gpe() external interface.
 	 */
 	wake_gpe_count = 0;
 	gpe_enabled_count = 0;
@@ -1044,14 +1042,13 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 
 			/* Get the info block for this particular GPE */
 
-			gpe_event_info =
-			    &gpe_block->
-			    event_info[((acpi_size) i *
-					ACPI_GPE_REGISTER_WIDTH) + j];
+			gpe_event_info = &gpe_block->event_info[((acpi_size) i *
+								 ACPI_GPE_REGISTER_WIDTH)
+								+ j];
 
 			if (((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
-			     ACPI_GPE_DISPATCH_METHOD)
-			    && (gpe_event_info->flags & ACPI_GPE_TYPE_RUNTIME)) {
+			     ACPI_GPE_DISPATCH_METHOD) &&
+			    (gpe_event_info->flags & ACPI_GPE_TYPE_RUNTIME)) {
 				gpe_enabled_count++;
 			}
 
@@ -1105,8 +1102,8 @@ acpi_status acpi_ev_gpe_initialize(void)
 	/*
 	 * Initialize the GPE Block(s) defined in the FADT
 	 *
-	 * Why the GPE register block lengths are divided by 2:  From the ACPI Spec,
-	 * section "General-Purpose Event Registers", we have:
+	 * Why the GPE register block lengths are divided by 2:  From the ACPI
+	 * Spec, section "General-Purpose Event Registers", we have:
 	 *
 	 * "Each register block contains two registers of equal length
 	 *  GPEx_STS and GPEx_EN (where x is 0 or 1). The length of the
@@ -1163,7 +1160,8 @@ acpi_status acpi_ev_gpe_initialize(void)
 		if ((register_count0) &&
 		    (gpe_number_max >= acpi_gbl_FADT.gpe1_base)) {
 			ACPI_ERROR((AE_INFO,
-				    "GPE0 block (GPE 0 to %d) overlaps the GPE1 block (GPE %d to %d) - Ignoring GPE1",
+				    "GPE0 block (GPE 0 to %d) overlaps the GPE1 block "
+				    "(GPE %d to %d) - Ignoring GPE1",
 				    gpe_number_max, acpi_gbl_FADT.gpe1_base,
 				    acpi_gbl_FADT.gpe1_base +
 				    ((register_count1 *

@@ -281,7 +281,6 @@ int mpc_proc_init(void)
 		printk(KERN_ERR "Unable to initialize /proc/atm/%s\n", STAT_FILE_NAME);
 		return -ENOMEM;
 	}
-	p->owner = THIS_MODULE;
 	return 0;
 }
 

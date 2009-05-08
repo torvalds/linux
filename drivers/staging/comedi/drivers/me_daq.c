@@ -144,10 +144,10 @@ from http://www.comedi.org
 #define ME_COUNTER_VALUE_B		0x0022	/* R | - */
 
 /* Function prototypes */
-static int me_attach(comedi_device *dev, comedi_devconfig *it);
-static int me_detach(comedi_device *dev);
+static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it);
+static int me_detach(struct comedi_device *dev);
 
-static const comedi_lrange me2000_ai_range = {
+static const struct comedi_lrange me2000_ai_range = {
 	8,
 	{
 		BIP_RANGE(10),
@@ -161,7 +161,7 @@ static const comedi_lrange me2000_ai_range = {
 	}
 };
 
-static const comedi_lrange me2600_ai_range = {
+static const struct comedi_lrange me2600_ai_range = {
 	8,
 	{
 			BIP_RANGE(10),
@@ -175,7 +175,7 @@ static const comedi_lrange me2600_ai_range = {
 		}
 };
 
-static const comedi_lrange me2600_ao_range = {
+static const struct comedi_lrange me2600_ao_range = {
 	3,
 	{
 			BIP_RANGE(10),
@@ -201,11 +201,11 @@ struct me_board {
 	int ao_channel_nbr;	/* DA config */
 	int ao_resolution;
 	int ao_resolution_mask;
-	const comedi_lrange *ao_range_list;
+	const struct comedi_lrange *ao_range_list;
 	int ai_channel_nbr;	/* AD config */
 	int ai_resolution;
 	int ai_resolution_mask;
-	const comedi_lrange *ai_range_list;
+	const struct comedi_lrange *ai_range_list;
 	int dio_channel_nbr;	/* DIO config */
 };
 
@@ -246,7 +246,8 @@ static const struct me_board me_boards[] = {
 
 #define me_board_nbr (sizeof(me_boards)/sizeof(struct me_board))
 
-static comedi_driver me_driver = {
+
+static struct comedi_driver me_driver = {
       .driver_name =	ME_DRIVER_NAME,
       .module =		THIS_MODULE,
       .attach =		me_attach,
@@ -290,8 +291,8 @@ static inline void sleep(unsigned sec)
  *
  * ------------------------------------------------------------------
  */
-static int me_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
-			      comedi_insn *insn, lsampl_t *data)
+static int me_dio_insn_config(struct comedi_device *dev, struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data)
 {
 	int bits;
 	int mask = 1 << CR_CHAN(insn->chanspec);
@@ -326,8 +327,8 @@ static int me_dio_insn_config(comedi_device *dev, comedi_subdevice *s,
 }
 
 /* Digital instant input/outputs */
-static int me_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
-			    comedi_insn *insn, lsampl_t *data)
+static int me_dio_insn_bits(struct comedi_device *dev, struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned int mask = data[0];
 	s->state &= ~mask;
@@ -362,8 +363,8 @@ static int me_dio_insn_bits(comedi_device *dev, comedi_subdevice *s,
  */
 
 /* Analog instant input */
-static int me_ai_insn_read(comedi_device *dev, comedi_subdevice *subdevice,
-			   comedi_insn *insn, lsampl_t *data)
+static int me_ai_insn_read(struct comedi_device *dev, struct comedi_subdevice *subdevice,
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	unsigned short value;
 	int chan = CR_CHAN((&insn->chanspec)[0]);
@@ -436,7 +437,7 @@ static int me_ai_insn_read(comedi_device *dev, comedi_subdevice *subdevice,
  */
 
 /* Cancel analog input autoscan */
-static int me_ai_cancel(comedi_device *dev, comedi_subdevice *s)
+static int me_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	/* disable interrupts */
 
@@ -448,14 +449,14 @@ static int me_ai_cancel(comedi_device *dev, comedi_subdevice *s)
 }
 
 /* Test analog input command */
-static int me_ai_do_cmd_test(comedi_device *dev, comedi_subdevice *s,
-			     comedi_cmd *cmd)
+static int me_ai_do_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
+			     struct comedi_cmd *cmd)
 {
 	return 0;
 }
 
 /* Analog input command */
-static int me_ai_do_cmd(comedi_device *dev, comedi_subdevice *subdevice)
+static int me_ai_do_cmd(struct comedi_device *dev, struct comedi_subdevice *subdevice)
 {
 	return 0;
 }
@@ -469,8 +470,8 @@ static int me_ai_do_cmd(comedi_device *dev, comedi_subdevice *subdevice)
  */
 
 /* Analog instant output */
-static int me_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
-			    comedi_insn *insn, lsampl_t *data)
+static int me_ao_insn_write(struct comedi_device *dev, struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
 	int chan;
 	int rang;
@@ -519,8 +520,8 @@ static int me_ao_insn_write(comedi_device *dev, comedi_subdevice *s,
 }
 
 /* Analog output readback */
-static int me_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
-			   comedi_insn *insn, lsampl_t *data)
+static int me_ao_insn_read(struct comedi_device *dev, struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data)
 {
 	int i;
 
@@ -541,7 +542,7 @@ static int me_ao_insn_read(comedi_device *dev, comedi_subdevice *s,
  */
 
 /* Xilinx firmware download for card: ME-2600i */
-static int me2600_xilinx_download(comedi_device *dev,
+static int me2600_xilinx_download(struct comedi_device *dev,
 				  unsigned char *me2600_firmware,
 				  unsigned int length)
 {
@@ -609,7 +610,7 @@ static int me2600_xilinx_download(comedi_device *dev,
 }
 
 /* Reset device */
-static int me_reset(comedi_device *dev)
+static int me_reset(struct comedi_device *dev)
 {
 	/* Reset board */
 	writew(0x00, dev_private->me_regbase + ME_CONTROL_1);
@@ -631,10 +632,10 @@ static int me_reset(comedi_device *dev)
  * - Register PCI device
  * - Declare device driver capability
  */
-static int me_attach(comedi_device *dev, comedi_devconfig *it)
+static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct pci_dev *pci_device;
-	comedi_subdevice *subdevice;
+	struct comedi_subdevice *subdevice;
 	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
 	unsigned long plx_regbase_size_tmp;
@@ -825,7 +826,7 @@ found:
 }
 
 /* Detach */
-static int me_detach(comedi_device *dev)
+static int me_detach(struct comedi_device *dev)
 {
 	if (dev_private) {
 		if (dev_private->me_regbase) {

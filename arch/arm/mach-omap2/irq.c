@@ -73,9 +73,9 @@ static int omap_check_spurious(unsigned int irq)
 	u32 sir, spurious;
 
 	sir = intc_bank_read_reg(&irq_banks[0], INTC_SIR);
-	spurious = sir >> 6;
+	spurious = sir >> 7;
 
-	if (spurious > 1) {
+	if (spurious) {
 		printk(KERN_WARNING "Spurious irq %i: 0x%08x, please flush "
 					"posted write for irq %i\n",
 					irq, sir, previous_irq);

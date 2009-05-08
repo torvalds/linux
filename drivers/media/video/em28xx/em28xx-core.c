@@ -33,8 +33,8 @@
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
 static unsigned int core_debug;
-module_param(core_debug,int,0644);
-MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
+module_param(core_debug, int, 0644);
+MODULE_PARM_DESC(core_debug, "enable debug messages [core]");
 
 #define em28xx_coredbg(fmt, arg...) do {\
 	if (core_debug) \
@@ -42,8 +42,8 @@ MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 			 dev->name, __func__ , ##arg); } while (0)
 
 static unsigned int reg_debug;
-module_param(reg_debug,int,0644);
-MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
+module_param(reg_debug, int, 0644);
+MODULE_PARM_DESC(reg_debug, "enable debug messages [URB reg]");
 
 #define em28xx_regdbg(fmt, arg...) do {\
 	if (reg_debug) \
@@ -77,7 +77,7 @@ int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 		return -EINVAL;
 
 	if (reg_debug) {
-		printk( KERN_DEBUG "(pipe 0x%08x): "
+		printk(KERN_DEBUG "(pipe 0x%08x): "
 			"IN:  %02x %02x %02x %02x %02x %02x %02x %02x ",
 			pipe,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -154,7 +154,7 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 	if (reg_debug) {
 		int byte;
 
-		printk( KERN_DEBUG "(pipe 0x%08x): "
+		printk(KERN_DEBUG "(pipe 0x%08x): "
 			"OUT: %02x %02x %02x %02x %02x %02x %02x %02x >>>",
 			pipe,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -378,6 +378,11 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 		}
 	}
 
+	if (dev->board.mute_gpio && dev->mute)
+		em28xx_gpio_set(dev, dev->board.mute_gpio);
+	else
+		em28xx_gpio_set(dev, INPUT(dev->ctl_input)->gpio);
+
 	ret = em28xx_write_reg_bits(dev, EM28XX_R0E_AUDIOSRC, input, 0xc0);
 	if (ret < 0)
 		return ret;
@@ -424,7 +429,7 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 
 	xclk = dev->board.xclk & 0x7f;
 	if (!dev->mute)
-		xclk |= 0x80;
+		xclk |= EM28XX_XCLK_AUDIO_UNMUTE;
 
 	ret = em28xx_write_reg(dev, EM28XX_R0F_XCLK, xclk);
 	if (ret < 0)
@@ -462,7 +467,8 @@ int em28xx_audio_analog_set(struct em28xx *dev)
 		if (dev->ctl_aoutput & EM28XX_AOUT_PCM_IN) {
 			int sel = ac97_return_record_select(dev->ctl_aoutput);
 
-			/* Use the same input for both left and right channels */
+			/* Use the same input for both left and right
+			   channels */
 			sel |= (sel << 8);
 
 			em28xx_write_ac97(dev, AC97_RECORD_SELECT, sel);
@@ -698,7 +704,7 @@ static int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 		em28xx_write_regs(dev, EM28XX_R32_VSCALELOW, (char *)buf, 2);
 		/* it seems that both H and V scalers must be active
 		   to work correctly */
-		mode = (h || v)? 0x30: 0x00;
+		mode = (h || v) ? 0x30 : 0x00;
 	}
 	return em28xx_write_reg_bits(dev, EM28XX_R26_COMPR, mode, 0x30);
 }
@@ -827,6 +833,19 @@ static void em28xx_irq_callback(struct urb *urb)
 	struct em28xx *dev = container_of(dma_q, struct em28xx, vidq);
 	int rc, i;
 
+	switch (urb->status) {
+	case 0:             /* success */
+	case -ETIMEDOUT:    /* NAK */
+		break;
+	case -ECONNRESET:   /* kill */
+	case -ENOENT:
+	case -ESHUTDOWN:
+		return;
+	default:            /* error */
+		em28xx_isocdbg("urb completition error %d.\n", urb->status);
+		break;
+	}
+
 	/* Copy data from URB */
 	spin_lock(&dev->slock);
 	rc = dev->isoc_ctl.isoc_copy(dev, urb);
@@ -945,7 +964,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 			em28xx_err("unable to allocate %i bytes for transfer"
 					" buffer %i%s\n",
 					sb_size, i,
-					in_interrupt()?" while in int":"");
+					in_interrupt() ? " while in int" : "");
 			em28xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}
@@ -963,7 +982,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 				 em28xx_irq_callback, dma_q, 1);
 
 		urb->number_of_packets = max_packets;
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 
 		k = 0;
 		for (j = 0; j < max_packets; j++) {
@@ -999,14 +1018,10 @@ EXPORT_SYMBOL_GPL(em28xx_init_isoc);
  */
 void em28xx_wake_i2c(struct em28xx *dev)
 {
-	struct v4l2_routing route;
-	int zero = 0;
-
-	route.input = INPUT(dev->ctl_input)->vmux;
-	route.output = 0;
-	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, &zero);
-	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
-	em28xx_i2c_call_clients(dev, VIDIOC_STREAMON, NULL);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core,  reset, 0);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
+			INPUT(dev->ctl_input)->vmux, 0, 0);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
 }
 
 /*

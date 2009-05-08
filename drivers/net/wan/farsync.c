@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
 #endif
 
 /*
- * Modules parameters and associated varaibles
+ * Modules parameters and associated variables
  */
 static int fst_txq_low = FST_LOW_WATER_MARK;
 static int fst_txq_high = FST_HIGH_WATER_MARK;

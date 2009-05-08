@@ -10,7 +10,7 @@
  */
 
 /****************** INCLUDE FILES SECTION ***********************************/
-#include "os_common.h"
+#include "sysdef.h"
 #include "phy_calibration.h"
 #include "wbhal_f.h"
 
@@ -37,8 +37,8 @@ static const fixed Angles[]=
 };
 
 /****************** LOCAL FUNCTION DECLARATION SECTION **********************/
-//void    _phy_rf_write_delay(hw_data_t *phw_data);
-//void    phy_init_rf(hw_data_t *phw_data);
+//void    _phy_rf_write_delay(struct hw_data *phw_data);
+//void    phy_init_rf(struct hw_data *phw_data);
 
 /****************** FUNCTION DEFINITION SECTION *****************************/
 
@@ -341,7 +341,7 @@ void _sin_cos(s32 angle, s32 *sin, s32 *cos)
 }
 
 
-void _reset_rx_cal(hw_data_t *phw_data)
+void _reset_rx_cal(struct hw_data *phw_data)
 {
 	u32     val;
 
@@ -366,7 +366,7 @@ void _reset_rx_cal(hw_data_t *phw_data)
 //
 //
 // *********************************************
-void _rxadc_dc_offset_cancellation_winbond(hw_data_t *phw_data, u32 frequency)
+void _rxadc_dc_offset_cancellation_winbond(struct hw_data *phw_data, u32 frequency)
 {
     u32     reg_agc_ctrl3;
     u32     reg_a_acq_ctrl;
@@ -465,7 +465,7 @@ void _rxadc_dc_offset_cancellation_winbond(hw_data_t *phw_data, u32 frequency)
 }
 
 ////////////////////////////////////////////////////////
-void _txidac_dc_offset_cancellation_winbond(hw_data_t *phw_data)
+void _txidac_dc_offset_cancellation_winbond(struct hw_data *phw_data)
 {
 	u32     reg_agc_ctrl3;
 	u32     reg_mode_ctrl;
@@ -600,7 +600,7 @@ void _txidac_dc_offset_cancellation_winbond(hw_data_t *phw_data)
 }
 
 ///////////////////////////////////////////////////////
-void _txqdac_dc_offset_cacellation_winbond(hw_data_t *phw_data)
+void _txqdac_dc_offset_cacellation_winbond(struct hw_data *phw_data)
 {
 	u32     reg_agc_ctrl3;
 	u32     reg_mode_ctrl;
@@ -726,7 +726,7 @@ void _txqdac_dc_offset_cacellation_winbond(hw_data_t *phw_data)
 }
 
 //20060612.1.a 20060718.1 Modify
-u8 _tx_iq_calibration_loop_winbond(hw_data_t *phw_data,
+u8 _tx_iq_calibration_loop_winbond(struct hw_data *phw_data,
 						   s32 a_2_threshold,
 						   s32 b_2_threshold)
 {
@@ -1032,7 +1032,7 @@ u8 _tx_iq_calibration_loop_winbond(hw_data_t *phw_data,
 	return 1;
 }
 
-void _tx_iq_calibration_winbond(hw_data_t *phw_data)
+void _tx_iq_calibration_winbond(struct hw_data *phw_data)
 {
 	u32     reg_agc_ctrl3;
 #ifdef _DEBUG
@@ -1195,7 +1195,7 @@ void _tx_iq_calibration_winbond(hw_data_t *phw_data)
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-u8 _rx_iq_calibration_loop_winbond(hw_data_t *phw_data, u16 factor, u32 frequency)
+u8 _rx_iq_calibration_loop_winbond(struct hw_data *phw_data, u16 factor, u32 frequency)
 {
 	u32     reg_mode_ctrl;
 	s32     iqcal_tone_i;
@@ -1501,7 +1501,7 @@ u8 _rx_iq_calibration_loop_winbond(hw_data_t *phw_data, u16 factor, u32 frequenc
 //////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////
-void _rx_iq_calibration_winbond(hw_data_t *phw_data, u32 frequency)
+void _rx_iq_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 {
 // figo 20050523 marked thsi flag for can't compile for relesase
 #ifdef _DEBUG
@@ -1579,7 +1579,7 @@ void _rx_iq_calibration_winbond(hw_data_t *phw_data, u32 frequency)
 }
 
 ////////////////////////////////////////////////////////////////////////
-void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency)
+void phy_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 {
 	u32     reg_mode_ctrl;
 	u32     iq_alpha;
@@ -1618,7 +1618,7 @@ void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency)
 }
 
 //===========================
-void phy_set_rf_data(  phw_data_t pHwData,  u32 index,  u32 value )
+void phy_set_rf_data(  struct hw_data * pHwData,  u32 index,  u32 value )
 {
    u32 ltmp=0;
 
@@ -1660,7 +1660,7 @@ void phy_set_rf_data(  phw_data_t pHwData,  u32 index,  u32 value )
 }
 
 // 20060717 modify as Bruce's mail
-unsigned char adjust_TXVGA_for_iq_mag(hw_data_t *phw_data)
+unsigned char adjust_TXVGA_for_iq_mag(struct hw_data *phw_data)
 {
 	int init_txvga = 0;
 	u32     reg_mode_ctrl;

@@ -68,7 +68,8 @@ static char * __init dmi_string(const struct dmi_header *dm, u8 s)
  *	pointing to completely the wrong place for example
  */
 static void dmi_table(u8 *buf, int len, int num,
-		      void (*decode)(const struct dmi_header *))
+		      void (*decode)(const struct dmi_header *, void *),
+		      void *private_data)
 {
 	u8 *data = buf;
 	int i = 0;
@@ -89,7 +90,7 @@ static void dmi_table(u8 *buf, int len, int num,
 		while ((data - buf < len - 1) && (data[0] || data[1]))
 			data++;
 		if (data - buf < len - 1)
-			decode(dm);
+			decode(dm, private_data);
 		data += 2;
 		i++;
 	}
@@ -99,7 +100,8 @@ static u32 dmi_base;
 static u16 dmi_len;
 static u16 dmi_num;
 
-static int __init dmi_walk_early(void (*decode)(const struct dmi_header *))
+static int __init dmi_walk_early(void (*decode)(const struct dmi_header *,
+		void *))
 {
 	u8 *buf;
 
@@ -107,7 +109,7 @@ static int __init dmi_walk_early(void (*decode)(const struct dmi_header *))
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, dmi_len, dmi_num, decode);
+	dmi_table(buf, dmi_len, dmi_num, decode, NULL);
 
 	dmi_iounmap(buf, dmi_len);
 	return 0;
@@ -295,7 +297,7 @@ static void __init dmi_save_extended_devices(const struct dmi_header *dm)
  *	and machine entries. For 2.5 we should pull the smbus controller info
  *	out of here.
  */
-static void __init dmi_decode(const struct dmi_header *dm)
+static void __init dmi_decode(const struct dmi_header *dm, void *dummy)
 {
 	switch(dm->type) {
 	case 0:		/* BIOS Information */
@@ -598,10 +600,12 @@ int dmi_get_year(int field)
 /**
  *	dmi_walk - Walk the DMI table and get called back for every record
  *	@decode: Callback function
+ *	@private_data: Private data to be passed to the callback function
  *
  *	Returns -1 when the DMI table can't be reached, 0 on success.
  */
-int dmi_walk(void (*decode)(const struct dmi_header *))
+int dmi_walk(void (*decode)(const struct dmi_header *, void *),
+	     void *private_data)
 {
 	u8 *buf;
 
@@ -612,7 +616,7 @@ int dmi_walk(void (*decode)(const struct dmi_header *))
 	if (buf == NULL)
 		return -1;
 
-	dmi_table(buf, dmi_len, dmi_num, decode);
+	dmi_table(buf, dmi_len, dmi_num, decode, private_data);
 
 	iounmap(buf);
 	return 0;

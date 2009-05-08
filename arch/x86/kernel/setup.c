@@ -112,7 +112,12 @@
 #define ARCH_SETUP
 #endif
 
+RESERVE_BRK(dmi_alloc, 65536);
+
 unsigned int boot_cpu_id __read_mostly;
+
+static __initdata unsigned long _brk_start = (unsigned long)__brk_base;
+unsigned long _brk_end = (unsigned long)__brk_base;
 
 #ifdef CONFIG_X86_64
 int default_cpu_present_to_apicid(int mps_cpu)
@@ -158,12 +163,6 @@ static struct resource bss_resource = {
 
 
 #ifdef CONFIG_X86_32
-/* This value is set up by the early boot code to point to the value
-   immediately after the boot time page tables.  It contains a *physical*
-   address, and must not be in the .bss segment! */
-unsigned long init_pg_tables_start __initdata = ~0UL;
-unsigned long init_pg_tables_end __initdata = ~0UL;
-
 static struct resource video_ram_resource = {
 	.name	= "Video RAM area",
 	.start	= 0xa0000,
@@ -202,7 +201,9 @@ struct ist_info ist_info;
 #endif
 
 #else
-struct cpuinfo_x86 boot_cpu_data __read_mostly;
+struct cpuinfo_x86 boot_cpu_data __read_mostly = {
+	.x86_phys_bits = MAX_PHYSMEM_BITS,
+};
 EXPORT_SYMBOL(boot_cpu_data);
 #endif
 
@@ -215,12 +216,6 @@ unsigned long mmu_cr4_features = X86_CR4_PAE;
 
 /* Boot loader ID as an integer, for the benefit of proc_dointvec */
 int bootloader_type;
-
-/*
- * Early DMI memory
- */
-int dmi_alloc_index;
-char dmi_alloc_data[DMI_MAX_DATA];
 
 /*
  * Setup options
@@ -266,6 +261,35 @@ static inline void copy_edd(void)
 {
 }
 #endif
+
+void * __init extend_brk(size_t size, size_t align)
+{
+	size_t mask = align - 1;
+	void *ret;
+
+	BUG_ON(_brk_start == 0);
+	BUG_ON(align & mask);
+
+	_brk_end = (_brk_end + mask) & ~mask;
+	BUG_ON((char *)(_brk_end + size) > __brk_limit);
+
+	ret = (void *)_brk_end;
+	_brk_end += size;
+
+	memset(ret, 0, size);
+
+	return ret;
+}
+
+static void __init reserve_brk(void)
+{
+	if (_brk_end > _brk_start)
+		reserve_early(__pa(_brk_start), __pa(_brk_end), "BRK");
+
+	/* Mark brk area as locked down and no longer taking any
+	   new allocations */
+	_brk_start = 0;
+}
 
 #ifdef CONFIG_BLK_DEV_INITRD
 
@@ -715,11 +739,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
-#ifdef CONFIG_X86_32
-	init_mm.brk = init_pg_tables_end + PAGE_OFFSET;
-#else
-	init_mm.brk = (unsigned long) &_end;
-#endif
+	init_mm.brk = _brk_end;
 
 	code_resource.start = virt_to_phys(_text);
 	code_resource.end = virt_to_phys(_etext)-1;
@@ -839,6 +859,8 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 	setup_bios_corruption_check();
 #endif
+
+	reserve_brk();
 
 	/* max_pfn_mapped is updated here */
 	max_low_pfn_mapped = init_memory_mapping(0, max_low_pfn<<PAGE_SHIFT);
@@ -1027,7 +1049,6 @@ void __init x86_quirk_trap_init(void)
 static struct irqaction irq0  = {
 	.handler = timer_interrupt,
 	.flags = IRQF_DISABLED | IRQF_NOBALANCING | IRQF_IRQPOLL | IRQF_TIMER,
-	.mask = CPU_MASK_NONE,
 	.name = "timer"
 };
 

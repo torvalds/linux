@@ -119,7 +119,7 @@ static ssize_t print_cpus_map(char *buf, const struct cpumask *map)
 #define	print_cpus_func(type) \
 static ssize_t print_cpus_##type(struct sysdev_class *class, char *buf)	\
 {									\
-	return print_cpus_map(buf, &cpu_##type##_map);			\
+	return print_cpus_map(buf, cpu_##type##_mask);			\
 }									\
 static struct sysdev_class_attribute attr_##type##_map = 		\
 	_SYSDEV_CLASS_ATTR(type, 0444, print_cpus_##type, NULL)

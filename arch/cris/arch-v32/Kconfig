@@ -28,7 +28,7 @@ config	ETRAX_NBR_LED_GRP_ONE
 	help
 	  Select this if you want one Ethernet LED group. This LED group
 	  can be used for one or more Ethernet interfaces. However, it is
-	  recomended that each Ethernet interface use a dedicated LED group.
+	  recommended that each Ethernet interface use a dedicated LED group.
 
 config	ETRAX_NBR_LED_GRP_TWO
 	bool "Use two LED groups"

@@ -32,7 +32,7 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 
 	/* common for all inputs and rates */
 	/* SA_MCLK_SEL=1, SA_MCLK_DIV=0x10 */
-	if (!state->is_cx23885)
+	if (!state->is_cx23885 && !state->is_cx231xx)
 		cx25840_write(client, 0x127, 0x50);
 
 	if (state->aud_input != CX25840_AUDIO_SERIAL) {
@@ -43,11 +43,14 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 				 * so avoid destroying registers. */
 				break;
 			}
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x1006040f);
 
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x01bb39ee);
+			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x1006040f);
+
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x01bb39ee);
+			}
 
 			if (state->is_cx25836)
 				break;
@@ -64,11 +67,14 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 				 * so avoid destroying registers. */
 				break;
 			}
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x1009040f);
 
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x00ec6bd6);
+			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x1009040f);
+
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x00ec6bd6);
+			}
 
 			if (state->is_cx25836)
 				break;
@@ -85,11 +91,14 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 				 * so avoid destroying registers. */
 				break;
 			}
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x100a040f);
 
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x0098d6e5);
+			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x100a040f);
+
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x0098d6e5);
+			}
 
 			if (state->is_cx25836)
 				break;
@@ -108,11 +117,14 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 				 * so avoid destroying registers. */
 				break;
 			}
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x1e08040f);
 
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x012a0869);
+			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x1e08040f);
+
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x012a0869);
+			}
 
 			if (state->is_cx25836)
 				break;
@@ -136,11 +148,14 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 				break;
 			}
 
-			/* VID_PLL and AUX_PLL */
-			cx25840_write4(client, 0x108, 0x1809040f);
 
-			/* AUX_PLL_FRAC */
-			cx25840_write4(client, 0x110, 0x00ec6bd6);
+			if (!state->is_cx231xx) {
+				/* VID_PLL and AUX_PLL */
+				cx25840_write4(client, 0x108, 0x1809040f);
+
+				/* AUX_PLL_FRAC */
+				cx25840_write4(client, 0x110, 0x00ec6bd6);
+			}
 
 			if (state->is_cx25836)
 				break;
@@ -155,7 +170,7 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			break;
 
 		case 48000:
-			if (!state->is_cx23885) {
+			if (!state->is_cx23885 && !state->is_cx231xx) {
 				/* VID_PLL and AUX_PLL */
 				cx25840_write4(client, 0x108, 0x180a040f);
 
@@ -166,7 +181,7 @@ static int set_audclk_freq(struct i2c_client *client, u32 freq)
 			if (state->is_cx25836)
 				break;
 
-			if (!state->is_cx23885) {
+			if (!state->is_cx23885 && !state->is_cx231xx) {
 				/* src1_ctl */
 				cx25840_write4(client, 0x8f8, 0x08018000);
 
@@ -227,10 +242,9 @@ void cx25840_audio_set_path(struct i2c_client *client)
 	/* deassert soft reset */
 	cx25840_and_or(client, 0x810, ~0x1, 0x00);
 
-	if (state->is_cx23885) {
-		/* Ensure the controller is running when we exit */
+	/* Ensure the controller is running when we exit */
+	if (state->is_cx23885 || state->is_cx231xx)
 		cx25840_and_or(client, 0x803, ~0x10, 0x10);
-	}
 }
 
 static int get_volume(struct i2c_client *client)
@@ -363,75 +377,74 @@ static void set_mute(struct i2c_client *client, int mute)
 	}
 }
 
-int cx25840_audio(struct i2c_client *client, unsigned int cmd, void *arg)
+int cx25840_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 {
-	struct cx25840_state *state = to_state(i2c_get_clientdata(client));
-	struct v4l2_control *ctrl = arg;
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct cx25840_state *state = to_state(sd);
 	int retval;
 
-	switch (cmd) {
-	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 1);
-		if (state->aud_input != CX25840_AUDIO_SERIAL) {
-			cx25840_and_or(client, 0x803, ~0x10, 0);
-			cx25840_write(client, 0x8d3, 0x1f);
-		}
-		retval = set_audclk_freq(client, *(u32 *)arg);
-		if (state->aud_input != CX25840_AUDIO_SERIAL) {
-			cx25840_and_or(client, 0x803, ~0x10, 0x10);
-		}
-		if (!state->is_cx25836)
-			cx25840_and_or(client, 0x810, ~0x1, 0);
-		return retval;
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 1);
+	if (state->aud_input != CX25840_AUDIO_SERIAL) {
+		cx25840_and_or(client, 0x803, ~0x10, 0);
+		cx25840_write(client, 0x8d3, 0x1f);
+	}
+	retval = set_audclk_freq(client, freq);
+	if (state->aud_input != CX25840_AUDIO_SERIAL)
+		cx25840_and_or(client, 0x803, ~0x10, 0x10);
+	if (!state->is_cx25836)
+		cx25840_and_or(client, 0x810, ~0x1, 0);
+	return retval;
+}
 
-	case VIDIOC_G_CTRL:
-		switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			ctrl->value = get_volume(client);
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			ctrl->value = get_bass(client);
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			ctrl->value = get_treble(client);
-			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			ctrl->value = get_balance(client);
-			break;
-		case V4L2_CID_AUDIO_MUTE:
-			ctrl->value = get_mute(client);
-			break;
-		default:
-			return -EINVAL;
-		}
+int cx25840_audio_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = get_volume(client);
 		break;
-
-	case VIDIOC_S_CTRL:
-		switch (ctrl->id) {
-		case V4L2_CID_AUDIO_VOLUME:
-			set_volume(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			set_bass(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			set_treble(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			set_balance(client, ctrl->value);
-			break;
-		case V4L2_CID_AUDIO_MUTE:
-			set_mute(client, ctrl->value);
-			break;
-		default:
-			return -EINVAL;
-		}
+	case V4L2_CID_AUDIO_BASS:
+		ctrl->value = get_bass(client);
 		break;
-
+	case V4L2_CID_AUDIO_TREBLE:
+		ctrl->value = get_treble(client);
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		ctrl->value = get_balance(client);
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = get_mute(client);
+		break;
 	default:
 		return -EINVAL;
 	}
+	return 0;
+}
 
+int cx25840_audio_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_VOLUME:
+		set_volume(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_BASS:
+		set_bass(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_TREBLE:
+		set_treble(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+		set_balance(client, ctrl->value);
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		set_mute(client, ctrl->value);
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }

@@ -4,19 +4,56 @@ menu "TI DaVinci Implementations"
 
 comment "DaVinci Core Type"
 
-config ARCH_DAVINCI644x
-	default y
+config ARCH_DAVINCI_DM644x
 	bool "DaVinci 644x based system"
 
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
-	bool "TI DaVinci EVM"
+	bool "TI DM644x EVM"
 	default y
-	depends on ARCH_DAVINCI644x
+	depends on ARCH_DAVINCI_DM644x
 	help
 	  Configure this option to specify the whether the board used
-	  for development is a DaVinci EVM
+	  for development is a DM644x EVM
+
+
+config DAVINCI_MUX
+	bool "DAVINCI multiplexing support"
+	depends on ARCH_DAVINCI
+	default y
+	help
+	  Pin multiplexing support for DAVINCI boards. If your bootloader
+	  sets the multiplexing correctly, say N. Otherwise, or if unsure,
+	  say Y.
+
+config DAVINCI_MUX_DEBUG
+        bool "Multiplexing debug output"
+        depends on DAVINCI_MUX
+        help
+          Makes the multiplexing functions print out a lot of debug info.
+          This is useful if you want to find out the correct values of the
+          multiplexing registers.
+
+config DAVINCI_MUX_WARNINGS
+        bool "Warn about pins the bootloader didn't set up"
+        depends on DAVINCI_MUX
+        help
+          Choose Y here to warn whenever driver initialization logic needs
+          to change the pin multiplexing setup.  When there are no warnings
+          printed, it's safe to deselect DAVINCI_MUX for your product.
+
+config DAVINCI_RESET_CLOCKS
+	bool "Reset unused clocks during boot"
+	depends on ARCH_DAVINCI
+	help
+	  Say Y if you want to reset unused clocks during boot.
+	  This option saves power, but assumes all drivers are
+	  using the clock framework. Broken drivers that do not
+	  yet use clock framework may not work with this option.
+	  If you are booting from another operating system, you
+	  probably do not want this option enabled until your
+	  device drivers work properly.
 
 endmenu
 

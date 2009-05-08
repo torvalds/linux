@@ -551,8 +551,6 @@ static void __devinit ps3vram_proc_init(struct ps3_system_bus_device *dev)
 		dev_warn(&dev->core, "failed to create /proc entry\n");
 		return;
 	}
-
-	pde->owner = THIS_MODULE;
 	pde->data = priv;
 }
 

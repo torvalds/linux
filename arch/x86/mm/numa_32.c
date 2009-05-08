@@ -257,7 +257,7 @@ void resume_map_numa_kva(pgd_t *pgd_base)
 }
 #endif
 
-static unsigned long calculate_numa_remap_pages(void)
+static __init unsigned long calculate_numa_remap_pages(void)
 {
 	int nid;
 	unsigned long size, reserve_pages = 0;
@@ -416,10 +416,11 @@ void __init initmem_init(unsigned long start_pfn,
 	for_each_online_node(nid)
 		propagate_e820_map_node(nid);
 
-	for_each_online_node(nid)
+	for_each_online_node(nid) {
 		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+		NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
+	}
 
-	NODE_DATA(0)->bdata = &bootmem_node_data[0];
 	setup_bootmem_allocator();
 }
 

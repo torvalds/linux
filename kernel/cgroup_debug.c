@@ -40,9 +40,7 @@ static u64 taskcount_read(struct cgroup *cont, struct cftype *cft)
 {
 	u64 count;
 
-	cgroup_lock();
 	count = cgroup_task_count(cont);
-	cgroup_unlock();
 	return count;
 }
 

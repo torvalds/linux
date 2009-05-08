@@ -23,16 +23,18 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
+#include <linux/seq_file.h>
+#include <linux/delay.h>
+#include <linux/module.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/system.h>
-#include <linux/delay.h>
 
 #include <arch/svinto.h>
 
@@ -456,7 +458,6 @@ static struct e100_serial rs_table[] = {
 
 #define NR_PORTS (sizeof(rs_table)/sizeof(struct e100_serial))
 
-static struct ktermios *serial_termios[NR_PORTS];
 #ifdef CONFIG_ETRAX_SERIAL_FAST_TIMER
 static struct fast_timer fast_timers[NR_PORTS];
 #endif
@@ -1391,7 +1392,7 @@ static inline void e100_disable_rx_irq(struct e100_serial *info)
 #if defined(CONFIG_ETRAX_RS485)
 /* Enable RS-485 mode on selected port. This is UGLY. */
 static int
-e100_enable_rs485(struct tty_struct *tty,struct rs485_control *r)
+e100_enable_rs485(struct tty_struct *tty, struct serial_rs485 *r)
 {
 	struct e100_serial * info = (struct e100_serial *)tty->driver_data;
 
@@ -1409,13 +1410,11 @@ e100_enable_rs485(struct tty_struct *tty,struct rs485_control *r)
 		       CONFIG_ETRAX_RS485_LTC1387_RXEN_PORT_G_BIT, 1);
 #endif
 
-	info->rs485.rts_on_send = 0x01 & r->rts_on_send;
-	info->rs485.rts_after_sent = 0x01 & r->rts_after_sent;
+	info->rs485.flags = r->flags;
 	if (r->delay_rts_before_send >= 1000)
 		info->rs485.delay_rts_before_send = 1000;
 	else
 		info->rs485.delay_rts_before_send = r->delay_rts_before_send;
-	info->rs485.enabled = r->enabled;
 /*	printk("rts: on send = %i, after = %i, enabled = %i",
 		    info->rs485.rts_on_send,
 		    info->rs485.rts_after_sent,
@@ -1430,17 +1429,18 @@ e100_write_rs485(struct tty_struct *tty,
                  const unsigned char *buf, int count)
 {
 	struct e100_serial * info = (struct e100_serial *)tty->driver_data;
-	int old_enabled = info->rs485.enabled;
+	int old_value = (info->rs485.flags) & SER_RS485_ENABLED;
 
 	/* rs485 is always implicitly enabled if we're using the ioctl()
-	 * but it doesn't have to be set in the rs485_control
+	 * but it doesn't have to be set in the serial_rs485
 	 * (to be backward compatible with old apps)
 	 * So we store, set and restore it.
 	 */
-	info->rs485.enabled = 1;
+	info->rs485.flags |= SER_RS485_ENABLED;
 	/* rs_write now deals with RS485 if enabled */
 	count = rs_write(tty, buf, count);
-	info->rs485.enabled = old_enabled;
+	if (!old_value)
+		info->rs485.flags &= ~(SER_RS485_ENABLED);
 	return count;
 }
 
@@ -1451,7 +1451,7 @@ static void rs485_toggle_rts_timer_function(unsigned long data)
 	struct e100_serial *info = (struct e100_serial *)data;
 
 	fast_timers_rs485[info->line].function = NULL;
-	e100_rts(info, info->rs485.rts_after_sent);
+	e100_rts(info, (info->rs485.flags & SER_RS485_RTS_AFTER_SEND));
 #if defined(CONFIG_ETRAX_RS485_DISABLE_RECEIVER)
 	e100_enable_rx(info);
 	e100_enable_rx_irq(info);
@@ -1647,7 +1647,7 @@ transmit_chars_dma(struct e100_serial *info)
 		info->tr_running = 0;
 
 #if defined(CONFIG_ETRAX_RS485) && defined(CONFIG_ETRAX_FAST_TIMER)
-		if (info->rs485.enabled) {
+		if (info->rs485.flags & SER_RS485_ENABLED) {
 			/* Set a short timer to toggle RTS */
 			start_one_shot_timer(&fast_timers_rs485[info->line],
 			                     rs485_toggle_rts_timer_function,
@@ -2577,7 +2577,7 @@ static void handle_ser_tx_interrupt(struct e100_serial *info)
 	info->icount.tx++;
 	if (info->xmit.head == info->xmit.tail) {
 #if defined(CONFIG_ETRAX_RS485) && defined(CONFIG_ETRAX_FAST_TIMER)
-		if (info->rs485.enabled) {
+		if (info->rs485.flags & SER_RS485_ENABLED) {
 			/* Set a short timer to toggle RTS */
 			start_one_shot_timer(&fast_timers_rs485[info->line],
 			                     rs485_toggle_rts_timer_function,
@@ -3218,7 +3218,7 @@ rs_write(struct tty_struct *tty,
 #if defined(CONFIG_ETRAX_RS485)
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 
-	if (info->rs485.enabled)
+	if (info->rs485.flags & SER_RS485_ENABLED)
 	{
 		/* If we are in RS-485 mode, we need to toggle RTS and disable
 		 * the receiver before initiating a DMA transfer
@@ -3228,7 +3228,7 @@ rs_write(struct tty_struct *tty,
 		fast_timers_rs485[info->line].function = NULL;
 		del_fast_timer(&fast_timers_rs485[info->line]);
 #endif
-		e100_rts(info, info->rs485.rts_on_send);
+		e100_rts(info, (info->rs485.flags & SER_RS485_RTS_ON_SEND));
 #if defined(CONFIG_ETRAX_RS485_DISABLE_RECEIVER)
 		e100_disable_rx(info);
 		e100_enable_rx_irq(info);
@@ -3242,7 +3242,7 @@ rs_write(struct tty_struct *tty,
 	count = rs_raw_write(tty, buf, count);
 
 #if defined(CONFIG_ETRAX_RS485)
-	if (info->rs485.enabled)
+	if (info->rs485.flags & SER_RS485_ENABLED)
 	{
 		unsigned int val;
 		/* If we are in RS-485 mode the following has to be done:
@@ -3263,7 +3263,7 @@ rs_write(struct tty_struct *tty,
 			get_lsr_info(info, &val);
 		}while (!(val & TIOCSER_TEMT));
 
-		e100_rts(info, info->rs485.rts_after_sent);
+		e100_rts(info, (info->rs485.flags & SER_RS485_RTS_AFTER_SEND));
 
 #if defined(CONFIG_ETRAX_RS485_DISABLE_RECEIVER)
 		e100_enable_rx(info);
@@ -3678,13 +3678,51 @@ rs_ioctl(struct tty_struct *tty, struct file * file,
 #if defined(CONFIG_ETRAX_RS485)
 	case TIOCSERSETRS485:
 	{
+		/* In this ioctl we still use the old structure
+		 * rs485_control for backward compatibility
+		 * (if we use serial_rs485, then old user-level code
+		 * wouldn't work anymore...).
+		 * The use of this ioctl is deprecated: use TIOCSRS485
+		 * instead.*/
 		struct rs485_control rs485ctrl;
+		struct serial_rs485 rs485data;
+		printk(KERN_DEBUG "The use of this ioctl is deprecated. Use TIOCSRS485 instead\n");
 		if (copy_from_user(&rs485ctrl, (struct rs485_control *)arg,
 				sizeof(rs485ctrl)))
 			return -EFAULT;
 
-		return e100_enable_rs485(tty, &rs485ctrl);
+		rs485data.delay_rts_before_send = rs485ctrl.delay_rts_before_send;
+		rs485data.flags = 0;
+		if (rs485ctrl.enabled)
+			rs485data.flags |= SER_RS485_ENABLED;
+		else
+			rs485data.flags &= ~(SER_RS485_ENABLED);
+
+		if (rs485ctrl.rts_on_send)
+			rs485data.flags |= SER_RS485_RTS_ON_SEND;
+		else
+			rs485data.flags &= ~(SER_RS485_RTS_ON_SEND);
+
+		if (rs485ctrl.rts_after_sent)
+			rs485data.flags |= SER_RS485_RTS_AFTER_SEND;
+		else
+			rs485data.flags &= ~(SER_RS485_RTS_AFTER_SEND);
+
+		return e100_enable_rs485(tty, &rs485data);
 	}
+
+	case TIOCSRS485:
+	{
+		/* This is the new version of TIOCSRS485, with new
+		 * data structure serial_rs485 */
+		struct serial_rs485 rs485data;
+		if (copy_from_user(&rs485data, (struct rs485_control *)arg,
+				sizeof(rs485data)))
+			return -EFAULT;
+
+		return e100_enable_rs485(tty, &rs485data);
+	}
+
 
 	case TIOCSERWRRS485:
 	{
@@ -3827,8 +3865,8 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	/* port closed */
 
 #if defined(CONFIG_ETRAX_RS485)
-	if (info->rs485.enabled) {
-		info->rs485.enabled = 0;
+	if (info->rs485.flags & SER_RS485_ENABLED) {
+		info->rs485.flags &= ~(SER_RS485_ENABLED);
 #if defined(CONFIG_ETRAX_RS485_ON_PA)
 		*R_PORT_PA_DATA = port_pa_data_shadow &= ~(1 << rs485_pa_bit);
 #endif
@@ -4220,151 +4258,132 @@ rs_open(struct tty_struct *tty, struct file * filp)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 /*
  * /proc fs routines....
  */
 
-static int line_info(char *buf, struct e100_serial *info)
+static void seq_line_info(struct seq_file *m, struct e100_serial *info)
 {
-	char	stat_buf[30];
-	int	ret;
 	unsigned long tmp;
 
-	ret = sprintf(buf, "%d: uart:E100 port:%lX irq:%d",
-		      info->line, (unsigned long)info->ioport, info->irq);
+	seq_printf(m, "%d: uart:E100 port:%lX irq:%d",
+		   info->line, (unsigned long)info->ioport, info->irq);
 
 	if (!info->ioport || (info->type == PORT_UNKNOWN)) {
-		ret += sprintf(buf+ret, "\n");
-		return ret;
+		seq_printf(m, "\n");
+		return;
 	}
 
-	stat_buf[0] = 0;
-	stat_buf[1] = 0;
-	if (!E100_RTS_GET(info))
-		strcat(stat_buf, "|RTS");
-	if (!E100_CTS_GET(info))
-		strcat(stat_buf, "|CTS");
-	if (!E100_DTR_GET(info))
-		strcat(stat_buf, "|DTR");
-	if (!E100_DSR_GET(info))
-		strcat(stat_buf, "|DSR");
-	if (!E100_CD_GET(info))
-		strcat(stat_buf, "|CD");
-	if (!E100_RI_GET(info))
-		strcat(stat_buf, "|RI");
-
-	ret += sprintf(buf+ret, " baud:%d", info->baud);
-
-	ret += sprintf(buf+ret, " tx:%lu rx:%lu",
+	seq_printf(m, " baud:%d", info->baud);
+	seq_printf(m, " tx:%lu rx:%lu",
 		       (unsigned long)info->icount.tx,
 		       (unsigned long)info->icount.rx);
 	tmp = CIRC_CNT(info->xmit.head, info->xmit.tail, SERIAL_XMIT_SIZE);
-	if (tmp) {
-		ret += sprintf(buf+ret, " tx_pend:%lu/%lu",
-			       (unsigned long)tmp,
-			       (unsigned long)SERIAL_XMIT_SIZE);
-	}
+	if (tmp)
+		seq_printf(m, " tx_pend:%lu/%lu",
+			   (unsigned long)tmp,
+			   (unsigned long)SERIAL_XMIT_SIZE);
 
-	ret += sprintf(buf+ret, " rx_pend:%lu/%lu",
-		       (unsigned long)info->recv_cnt,
-		       (unsigned long)info->max_recv_cnt);
+	seq_printf(m, " rx_pend:%lu/%lu",
+		   (unsigned long)info->recv_cnt,
+		   (unsigned long)info->max_recv_cnt);
 
 #if 1
 	if (info->port.tty) {
-
 		if (info->port.tty->stopped)
-			ret += sprintf(buf+ret, " stopped:%i",
-				       (int)info->port.tty->stopped);
+			seq_printf(m, " stopped:%i",
+				   (int)info->port.tty->stopped);
 		if (info->port.tty->hw_stopped)
-			ret += sprintf(buf+ret, " hw_stopped:%i",
-				       (int)info->port.tty->hw_stopped);
+			seq_printf(m, " hw_stopped:%i",
+				   (int)info->port.tty->hw_stopped);
 	}
 
 	{
 		unsigned char rstat = info->ioport[REG_STATUS];
-		if (rstat & IO_MASK(R_SERIAL0_STATUS, xoff_detect) )
-			ret += sprintf(buf+ret, " xoff_detect:1");
+		if (rstat & IO_MASK(R_SERIAL0_STATUS, xoff_detect))
+			seq_printf(m, " xoff_detect:1");
 	}
 
 #endif
 
-
-
-
 	if (info->icount.frame)
-		ret += sprintf(buf+ret, " fe:%lu",
-			       (unsigned long)info->icount.frame);
+		seq_printf(m, " fe:%lu", (unsigned long)info->icount.frame);
 
 	if (info->icount.parity)
-		ret += sprintf(buf+ret, " pe:%lu",
-			       (unsigned long)info->icount.parity);
+		seq_printf(m, " pe:%lu", (unsigned long)info->icount.parity);
 
 	if (info->icount.brk)
-		ret += sprintf(buf+ret, " brk:%lu",
-			       (unsigned long)info->icount.brk);
+		seq_printf(m, " brk:%lu", (unsigned long)info->icount.brk);
 
 	if (info->icount.overrun)
-		ret += sprintf(buf+ret, " oe:%lu",
-			       (unsigned long)info->icount.overrun);
+		seq_printf(m, " oe:%lu", (unsigned long)info->icount.overrun);
 
 	/*
 	 * Last thing is the RS-232 status lines
 	 */
-	ret += sprintf(buf+ret, " %s\n", stat_buf+1);
-	return ret;
+	if (!E100_RTS_GET(info))
+		seq_puts(m, "|RTS");
+	if (!E100_CTS_GET(info))
+		seq_puts(m, "|CTS");
+	if (!E100_DTR_GET(info))
+		seq_puts(m, "|DTR");
+	if (!E100_DSR_GET(info))
+		seq_puts(m, "|DSR");
+	if (!E100_CD_GET(info))
+		seq_puts(m, "|CD");
+	if (!E100_RI_GET(info))
+		seq_puts(m, "|RI");
+	seq_puts(m, "\n");
 }
 
-int rs_read_proc(char *page, char **start, off_t off, int count,
-		 int *eof, void *data)
-{
-	int i, len = 0, l;
-	off_t	begin = 0;
 
-	len += sprintf(page, "serinfo:1.0 driver:%s\n",
-		       serial_version);
-	for (i = 0; i < NR_PORTS && len < 4000; i++) {
+static int crisv10_proc_show(struct seq_file *m, void *v)
+{
+	int i;
+
+	seq_printf(m, "serinfo:1.0 driver:%s\n", serial_version);
+
+	for (i = 0; i < NR_PORTS; i++) {
 		if (!rs_table[i].enabled)
 			continue;
-		l = line_info(page + len, &rs_table[i]);
-		len += l;
-		if (len+begin > off+count)
-			goto done;
-		if (len+begin < off) {
-			begin += len;
-			len = 0;
-		}
+		seq_line_info(m, &rs_table[i]);
 	}
 #ifdef DEBUG_LOG_INCLUDED
 	for (i = 0; i < debug_log_pos; i++) {
-		len += sprintf(page + len, "%-4i %lu.%lu ", i, debug_log[i].time, timer_data_to_ns(debug_log[i].timer_data));
-		len += sprintf(page + len, debug_log[i].string, debug_log[i].value);
-		if (len+begin > off+count)
-			goto done;
-		if (len+begin < off) {
-			begin += len;
-			len = 0;
-		}
+		seq_printf(m, "%-4i %lu.%lu ",
+			 i, debug_log[i].time,
+			 timer_data_to_ns(debug_log[i].timer_data));
+		seq_printf(m, debug_log[i].string, debug_log[i].value);
 	}
-	len += sprintf(page + len, "debug_log %i/%i  %li bytes\n",
-		       i, DEBUG_LOG_SIZE, begin+len);
+	seq_printf(m, "debug_log %i/%i\n", i, DEBUG_LOG_SIZE);
 	debug_log_pos = 0;
 #endif
-
-	*eof = 1;
-done:
-	if (off >= len+begin)
-		return 0;
-	*start = page + (off-begin);
-	return ((count < begin+len-off) ? count : begin+len-off);
+	return 0;
 }
+
+static int crisv10_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, crisv10_proc_show, NULL);
+}
+
+static const struct file_operations crisv10_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= crisv10_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif
+
 
 /* Finally, routines used to initialize the serial driver. */
 
-static void
-show_serial_version(void)
+static void show_serial_version(void)
 {
 	printk(KERN_INFO
-	       "ETRAX 100LX serial-driver %s, (c) 2000-2004 Axis Communications AB\r\n",
+	       "ETRAX 100LX serial-driver %s, "
+	       "(c) 2000-2004 Axis Communications AB\r\n",
 	       &serial_version[11]); /* "$Revision: x.yy" */
 }
 
@@ -4388,13 +4407,14 @@ static const struct tty_operations rs_ops = {
 	.break_ctl = rs_break,
 	.send_xchar = rs_send_xchar,
 	.wait_until_sent = rs_wait_until_sent,
-	.read_proc = rs_read_proc,
 	.tiocmget = rs_tiocmget,
-	.tiocmset = rs_tiocmset
+	.tiocmset = rs_tiocmset,
+#ifdef CONFIG_PROC_FS
+	.proc_fops = &crisv10_proc_fops,
+#endif
 };
 
-static int __init
-rs_init(void)
+static int __init rs_init(void)
 {
 	int i;
 	struct e100_serial *info;
@@ -4493,10 +4513,10 @@ rs_init(void)
 
 #if defined(CONFIG_ETRAX_RS485)
 		/* Set sane defaults */
-		info->rs485.rts_on_send = 0;
-		info->rs485.rts_after_sent = 1;
+		info->rs485.flags &= ~(SER_RS485_RTS_ON_SEND);
+		info->rs485.flags |= SER_RS485_RTS_AFTER_SEND;
 		info->rs485.delay_rts_before_send = 0;
-		info->rs485.enabled = 0;
+		info->rs485.flags &= ~(SER_RS485_ENABLED);
 #endif
 		INIT_WORK(&info->work, do_softint);
 

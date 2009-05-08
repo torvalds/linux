@@ -154,6 +154,10 @@ int sync_start(void)
 {
 	int err;
 
+	if (!alloc_cpumask_var(&marked_cpus, GFP_KERNEL))
+		return -ENOMEM;
+	cpumask_clear(marked_cpus);
+
 	start_cpu_work();
 
 	err = task_handoff_register(&task_free_nb);
@@ -179,6 +183,7 @@ out2:
 	task_handoff_unregister(&task_free_nb);
 out1:
 	end_sync();
+	free_cpumask_var(marked_cpus);
 	goto out;
 }
 
@@ -190,6 +195,7 @@ void sync_stop(void)
 	profile_event_unregister(PROFILE_TASK_EXIT, &task_exit_nb);
 	task_handoff_unregister(&task_free_nb);
 	end_sync();
+	free_cpumask_var(marked_cpus);
 }
 
 
@@ -563,20 +569,6 @@ void sync_buffer(int cpu)
 	mark_done(cpu);
 
 	mutex_unlock(&buffer_mutex);
-}
-
-int __init buffer_sync_init(void)
-{
-	if (!alloc_cpumask_var(&marked_cpus, GFP_KERNEL))
-		return -ENOMEM;
-
-	cpumask_clear(marked_cpus);
-		return 0;
-}
-
-void __exit buffer_sync_cleanup(void)
-{
-	free_cpumask_var(marked_cpus);
 }
 
 /* The function can be used to add a buffer worth of data directly to

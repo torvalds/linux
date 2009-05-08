@@ -397,30 +397,6 @@ acpi_status acpi_ds_get_region_arguments(union acpi_operand_object *obj_desc)
 	status = acpi_ds_execute_arguments(node, acpi_ns_get_parent_node(node),
 					   extra_desc->extra.aml_length,
 					   extra_desc->extra.aml_start);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
-	}
-
-	/* Validate the region address/length via the host OS */
-
-	status = acpi_os_validate_address(obj_desc->region.space_id,
-					  obj_desc->region.address,
-					  (acpi_size) obj_desc->region.length,
-					  acpi_ut_get_node_name(node));
-
-	if (ACPI_FAILURE(status)) {
-		/*
-		 * Invalid address/length. We will emit an error message and mark
-		 * the region as invalid, so that it will cause an additional error if
-		 * it is ever used. Then return AE_OK.
-		 */
-		ACPI_EXCEPTION((AE_INFO, status,
-				"During address validation of OpRegion [%4.4s]",
-				node->name.ascii));
-		obj_desc->common.flags |= AOPOBJ_INVALID;
-		status = AE_OK;
-	}
-
 	return_ACPI_STATUS(status);
 }
 
@@ -484,7 +460,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	/* Host object must be a Buffer */
 
-	if (ACPI_GET_OBJECT_TYPE(buffer_desc) != ACPI_TYPE_BUFFER) {
+	if (buffer_desc->common.type != ACPI_TYPE_BUFFER) {
 		ACPI_ERROR((AE_INFO,
 			    "Target of Create Field is not a Buffer object - %s",
 			    acpi_ut_get_object_type_name(buffer_desc)));
@@ -1365,10 +1341,8 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 			if ((ACPI_GET_DESCRIPTOR_TYPE
 			     (walk_state->results->results.obj_desc[0]) ==
 			     ACPI_DESC_TYPE_OPERAND)
-			    &&
-			    (ACPI_GET_OBJECT_TYPE
-			     (walk_state->results->results.obj_desc[0]) ==
-			     ACPI_TYPE_LOCAL_REFERENCE)
+			    && ((walk_state->results->results.obj_desc[0])->
+				common.type == ACPI_TYPE_LOCAL_REFERENCE)
 			    && ((walk_state->results->results.obj_desc[0])->
 				reference.class != ACPI_REFCLASS_INDEX)) {
 				status =

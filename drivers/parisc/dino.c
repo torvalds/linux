@@ -819,7 +819,9 @@ dino_bridge_init(struct dino_device *dino_dev, const char *name)
 
 		result = ccio_request_resource(dino_dev->hba.dev, &res[i]);
 		if (result < 0) {
-			printk(KERN_ERR "%s: failed to claim PCI Bus address space %d (0x%lx-0x%lx)!\n", name, i, res[i].start, res[i].end);
+			printk(KERN_ERR "%s: failed to claim PCI Bus address "
+			       "space %d (0x%lx-0x%lx)!\n", name, i,
+			       (unsigned long)res[i].start, (unsigned long)res[i].end);
 			return result;
 		}
 	}
@@ -899,7 +901,8 @@ static int __init dino_common_init(struct parisc_device *dev,
 	if (request_resource(&ioport_resource, res) < 0) {
 		printk(KERN_ERR "%s: request I/O Port region failed "
 		       "0x%lx/%lx (hpa 0x%p)\n",
-		       name, res->start, res->end, dino_dev->hba.base_addr);
+		       name, (unsigned long)res->start, (unsigned long)res->end,
+		       dino_dev->hba.base_addr);
 		return 1;
 	}
 

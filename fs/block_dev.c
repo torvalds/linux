@@ -204,6 +204,7 @@ int fsync_bdev(struct block_device *bdev)
 	}
 	return sync_blockdev(bdev);
 }
+EXPORT_SYMBOL(fsync_bdev);
 
 /**
  * freeze_bdev  --  lock a filesystem and force it into a consistent state

@@ -34,12 +34,8 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
-/* includes for structures and defines regarding video
-   #include<linux/videodev.h> */
-
 /* I/O commands, error codes */
 #include <asm/io.h>
-//#include<errno.h>
 
 /* headerfile of this module */
 #include "zr36050.h"

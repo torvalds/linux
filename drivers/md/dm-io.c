@@ -370,15 +370,12 @@ static int sync_io(struct dm_io_client *client, unsigned int num_regions,
 	while (1) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
 
-		if (!atomic_read(&io.count) || signal_pending(current))
+		if (!atomic_read(&io.count))
 			break;
 
 		io_schedule();
 	}
 	set_current_state(TASK_RUNNING);
-
-	if (atomic_read(&io.count))
-		return -EINTR;
 
 	if (error_bits)
 		*error_bits = io.error_bits;

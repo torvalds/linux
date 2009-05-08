@@ -145,6 +145,7 @@ static void stx_gp3_show_cpuinfo(struct seq_file *m)
 
 static struct of_device_id __initdata of_bus_ids[] = {
 	{ .compatible = "simple-bus", },
+	{ .compatible = "gianfar", },
 	{},
 };
 

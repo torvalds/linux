@@ -14,8 +14,7 @@ struct IR_i2c {
 	/* Used to avoid fast repeating */
 	unsigned char          old;
 
-	struct work_struct     work;
-	struct timer_list      timer;
+	struct delayed_work    work;
 	char                   phys[32];
 	int                    (*get_key)(struct IR_i2c*, u32*, u32*);
 };

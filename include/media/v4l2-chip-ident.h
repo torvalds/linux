@@ -37,10 +37,8 @@ enum {
 	/* module saa7110: just ident 100 */
 	V4L2_IDENT_SAA7110 = 100,
 
-	/* module saa7111: just ident 101 */
+	/* module saa7115: reserved range 101-149 */
 	V4L2_IDENT_SAA7111 = 101,
-
-	/* module saa7115: reserved range 102-149 */
 	V4L2_IDENT_SAA7113 = 103,
 	V4L2_IDENT_SAA7114 = 104,
 	V4L2_IDENT_SAA7115 = 105,
@@ -63,23 +61,81 @@ enum {
 	V4L2_IDENT_OV7720 = 251,
 	V4L2_IDENT_OV7725 = 252,
 
-	/* Conexant MPEG encoder/decoders: reserved range 410-420 */
+	/* module saa7146: reserved range 300-309 */
+	V4L2_IDENT_SAA7146 = 300,
+
+	/* Conexant MPEG encoder/decoders: reserved range 400-420 */
+	V4L2_IDENT_CX23418_843 = 403, /* Integrated A/V Decoder on the '418 */
 	V4L2_IDENT_CX23415 = 415,
 	V4L2_IDENT_CX23416 = 416,
 	V4L2_IDENT_CX23418 = 418,
 
+	/* module au0828 */
+	V4L2_IDENT_AU0828 = 828,
+
+	/* module indycam: just ident 2000 */
+	V4L2_IDENT_INDYCAM = 2000,
+
+	/* module bt819: reserved range 810-819 */
+	V4L2_IDENT_BT815A = 815,
+	V4L2_IDENT_BT817A = 817,
+	V4L2_IDENT_BT819A = 819,
+
+	/* module bt856: just ident 856 */
+	V4L2_IDENT_BT856 = 856,
+
+	/* module bt866: just ident 866 */
+	V4L2_IDENT_BT866 = 866,
+
+	/* module ks0127: reserved range 1120-1129 */
+	V4L2_IDENT_KS0122S = 1122,
+	V4L2_IDENT_KS0127  = 1127,
+	V4L2_IDENT_KS0127B = 1128,
+
 	/* module vp27smpx: just ident 2700 */
 	V4L2_IDENT_VP27SMPX = 2700,
+
+	/* module vpx3220: reserved range: 3210-3229 */
+	V4L2_IDENT_VPX3214C = 3214,
+	V4L2_IDENT_VPX3216B = 3216,
+	V4L2_IDENT_VPX3220A = 3220,
 
 	/* module tvp5150 */
 	V4L2_IDENT_TVP5150 = 5150,
 
+	/* module saa5246a: just ident 5246 */
+	V4L2_IDENT_SAA5246A = 5246,
+
+	/* module saa5249: just ident 5249 */
+	V4L2_IDENT_SAA5249 = 5249,
+
 	/* module cs5345: just ident 5345 */
 	V4L2_IDENT_CS5345 = 5345,
+
+	/* module tea6415c: just ident 6415 */
+	V4L2_IDENT_TEA6415C = 6415,
+
+	/* module tea6420: just ident 6420 */
+	V4L2_IDENT_TEA6420 = 6420,
+
+	/* module saa6588: just ident 6588 */
+	V4L2_IDENT_SAA6588 = 6588,
 
 	/* module saa6752hs: reserved range 6750-6759 */
 	V4L2_IDENT_SAA6752HS = 6752,
 	V4L2_IDENT_SAA6752HS_AC3 = 6753,
+
+	/* module adv7170: just ident 7170 */
+	V4L2_IDENT_ADV7170 = 7170,
+
+	/* module adv7175: just ident 7175 */
+	V4L2_IDENT_ADV7175 = 7175,
+
+	/* module saa7185: just ident 7185 */
+	V4L2_IDENT_SAA7185 = 7185,
+
+	/* module saa7191: just ident 7191 */
+	V4L2_IDENT_SAA7191 = 7191,
 
 	/* module wm8739: just ident 8739 */
 	V4L2_IDENT_WM8739 = 8739,
@@ -87,20 +143,14 @@ enum {
 	/* module wm8775: just ident 8775 */
 	V4L2_IDENT_WM8775 = 8775,
 
+	/* module tda9840: just ident 9840 */
+	V4L2_IDENT_TDA9840 = 9840,
+
+	/* module cafe_ccic, just ident 8801 */
+	V4L2_IDENT_CAFE = 8801,
+
 	/* module tw9910: just ident 9910 */
 	V4L2_IDENT_TW9910 = 9910,
-
-	/* module cs53132a: just ident 53132 */
-	V4L2_IDENT_CS53l32A = 53132,
-
-	/* module upd64031a: just ident 64031 */
-	V4L2_IDENT_UPD64031A = 64031,
-
-	/* module upd64083: just ident 64083 */
-	V4L2_IDENT_UPD64083 = 64083,
-
-	/* module m52790: just ident 52790 */
-	V4L2_IDENT_M52790 = 52790,
 
 	/* module msp3400: reserved range 34000-34999 and 44000-44999 */
 	V4L2_IDENT_MSPX4XX  = 34000, /* generic MSPX4XX identifier, only
@@ -178,6 +228,18 @@ enum {
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
 	V4L2_IDENT_MT9T031		= 45020,
+
+	/* module cs53132a: just ident 53132 */
+	V4L2_IDENT_CS53l32A = 53132,
+
+	/* module upd64031a: just ident 64031 */
+	V4L2_IDENT_UPD64031A = 64031,
+
+	/* module upd64083: just ident 64083 */
+	V4L2_IDENT_UPD64083 = 64083,
+
+	/* module m52790: just ident 52790 */
+	V4L2_IDENT_M52790 = 52790,
 };
 
 #endif

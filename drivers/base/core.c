@@ -891,7 +891,8 @@ int device_add(struct device *dev)
 		set_dev_node(dev, dev_to_node(parent));
 
 	/* first, register with generic layer. */
-	error = kobject_add(&dev->kobj, dev->kobj.parent, "%s", dev_name(dev));
+	/* we require the name to be set before, and pass NULL */
+	error = kobject_add(&dev->kobj, dev->kobj.parent, NULL);
 	if (error)
 		goto Error;
 
@@ -1141,6 +1142,9 @@ int device_for_each_child(struct device *parent, void *data,
 	struct klist_iter i;
 	struct device *child;
 	int error = 0;
+
+	if (!parent->p)
+		return 0;
 
 	klist_iter_init(&parent->p->klist_children, &i);
 	while ((child = next_device(&i)) && !error)

@@ -19,50 +19,9 @@
 
 #include "sms-cards.h"
 
-struct usb_device_id smsusb_id_table[] = {
-#ifdef CONFIG_DVB_SIANO_SMS1XXX_SMS_IDS
-	{ USB_DEVICE(0x187f, 0x0010),
-		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
-	{ USB_DEVICE(0x187f, 0x0100),
-		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
-	{ USB_DEVICE(0x187f, 0x0200),
-		.driver_info = SMS1XXX_BOARD_SIANO_NOVA_A },
-	{ USB_DEVICE(0x187f, 0x0201),
-		.driver_info = SMS1XXX_BOARD_SIANO_NOVA_B },
-	{ USB_DEVICE(0x187f, 0x0300),
-		.driver_info = SMS1XXX_BOARD_SIANO_VEGA },
-#endif
-	{ USB_DEVICE(0x2040, 0x1700),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT },
-	{ USB_DEVICE(0x2040, 0x1800),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A },
-	{ USB_DEVICE(0x2040, 0x1801),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B },
-	{ USB_DEVICE(0x2040, 0x2000),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
-	{ USB_DEVICE(0x2040, 0x2009),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2 },
-	{ USB_DEVICE(0x2040, 0x200a),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
-	{ USB_DEVICE(0x2040, 0x2010),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
-	{ USB_DEVICE(0x2040, 0x2019),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD },
-	{ USB_DEVICE(0x2040, 0x5500),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ USB_DEVICE(0x2040, 0x5510),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ USB_DEVICE(0x2040, 0x5520),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ USB_DEVICE(0x2040, 0x5530),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ USB_DEVICE(0x2040, 0x5580),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ USB_DEVICE(0x2040, 0x5590),
-		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_WINDHAM },
-	{ }		/* Terminating entry */
-};
-MODULE_DEVICE_TABLE(usb, smsusb_id_table);
+static int sms_dbg;
+module_param_named(cards_dbg, sms_dbg, int, 0644);
+MODULE_PARM_DESC(cards_dbg, "set debug level (info=1, adv=2 (or-able))");
 
 static struct sms_board sms_boards[] = {
 	[SMS_BOARD_UNKNOWN] = {
@@ -115,6 +74,7 @@ static struct sms_board sms_boards[] = {
 		.type	= SMS_NOVA_B0,
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
 		.lna_ctrl  = 29,
+		.rf_switch = 17,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2] = {
 		.name	= "Hauppauge WinTV MiniCard",
@@ -130,6 +90,7 @@ struct sms_board *sms_get_board(int id)
 
 	return &sms_boards[id];
 }
+EXPORT_SYMBOL_GPL(sms_get_board);
 
 static int sms_set_gpio(struct smscore_device_t *coredev, int pin, int enable)
 {
@@ -182,6 +143,7 @@ int sms_board_setup(struct smscore_device_t *coredev)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sms_board_setup);
 
 int sms_board_power(struct smscore_device_t *coredev, int onoff)
 {
@@ -197,12 +159,13 @@ int sms_board_power(struct smscore_device_t *coredev, int onoff)
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
 	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
 		/* LNA */
-		sms_set_gpio(coredev,
-			     board->lna_ctrl, onoff ? 1 : 0);
+		if (!onoff)
+			sms_set_gpio(coredev, board->lna_ctrl, 0);
 		break;
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sms_board_power);
 
 int sms_board_led_feedback(struct smscore_device_t *coredev, int led)
 {
@@ -225,3 +188,40 @@ int sms_board_led_feedback(struct smscore_device_t *coredev, int led)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sms_board_led_feedback);
+
+int sms_board_lna_control(struct smscore_device_t *coredev, int onoff)
+{
+	int board_id = smscore_get_board_id(coredev);
+	struct sms_board *board = sms_get_board(board_id);
+
+	sms_debug("%s: LNA %s", __func__, onoff ? "enabled" : "disabled");
+
+	switch (board_id) {
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
+	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
+		sms_set_gpio(coredev,
+			     board->rf_switch, onoff ? 1 : 0);
+		return sms_set_gpio(coredev,
+				    board->lna_ctrl, onoff ? 1 : 0);
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(sms_board_lna_control);
+
+int sms_board_load_modules(int id)
+{
+	switch (id) {
+	case SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT:
+	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A:
+	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B:
+	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
+		request_module("smsdvb");
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(sms_board_load_modules);

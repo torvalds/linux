@@ -26,7 +26,6 @@
 #include "cx18-io.h"
 #include "cx18-cards.h"
 #include "cx18-gpio.h"
-#include "cx18-av-core.h"
 #include "cx18-i2c.h"
 #include "cx18-irq.h"
 
@@ -43,31 +42,37 @@
 #define CX18_CS5345_I2C_ADDR		0x4c
 
 /* This array should match the CX18_HW_ defines */
-static const u8 hw_driverids[] = {
-	I2C_DRIVERID_TUNER,
-	I2C_DRIVERID_TVEEPROM,
-	I2C_DRIVERID_CS5345,
-	0, 		/* CX18_HW_GPIO dummy driver ID */
-	0 		/* CX18_HW_CX23418 dummy driver ID */
-};
-
-/* This array should match the CX18_HW_ defines */
 static const u8 hw_addrs[] = {
-	0,
-	0,
-	CX18_CS5345_I2C_ADDR,
-	0, 		/* CX18_HW_GPIO dummy driver ID */
-	0,		/* CX18_HW_CX23418 dummy driver ID */
+	0,			/* CX18_HW_TUNER */
+	0,			/* CX18_HW_TVEEPROM */
+	CX18_CS5345_I2C_ADDR,	/* CX18_HW_CS5345 */
+	0,			/* CX18_HW_DVB */
+	0,			/* CX18_HW_418_AV */
+	0,			/* CX18_HW_GPIO_MUX */
+	0,			/* CX18_HW_GPIO_RESET_CTRL */
 };
 
 /* This array should match the CX18_HW_ defines */
 /* This might well become a card-specific array */
 static const u8 hw_bus[] = {
-	0,
-	0,
-	0,
-	0, 		/* CX18_HW_GPIO dummy driver ID */
-	0,		/* CX18_HW_CX23418 dummy driver ID */
+	1,	/* CX18_HW_TUNER */
+	0,	/* CX18_HW_TVEEPROM */
+	0,	/* CX18_HW_CS5345 */
+	0,	/* CX18_HW_DVB */
+	0,	/* CX18_HW_418_AV */
+	0,	/* CX18_HW_GPIO_MUX */
+	0,	/* CX18_HW_GPIO_RESET_CTRL */
+};
+
+/* This array should match the CX18_HW_ defines */
+static const char * const hw_modules[] = {
+	"tuner",	/* CX18_HW_TUNER */
+	NULL,		/* CX18_HW_TVEEPROM */
+	"cs5345",	/* CX18_HW_CS5345 */
+	NULL,		/* CX18_HW_DVB */
+	NULL,		/* CX18_HW_418_AV */
+	NULL,		/* CX18_HW_GPIO_MUX */
+	NULL,		/* CX18_HW_GPIO_RESET_CTRL */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -75,83 +80,67 @@ static const char * const hw_devicenames[] = {
 	"tuner",
 	"tveeprom",
 	"cs5345",
-	"gpio",
-	"cx23418",
+	"cx23418_DTV",
+	"cx23418_AV",
+	"gpio_mux",
+	"gpio_reset_ctrl",
 };
 
 int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 {
-	struct i2c_board_info info;
-	struct i2c_client *c;
-	u8 id, bus;
-	int i;
+	struct v4l2_subdev *sd;
+	int bus = hw_bus[idx];
+	struct i2c_adapter *adap = &cx->i2c_adap[bus];
+	const char *mod = hw_modules[idx];
+	const char *type = hw_devicenames[idx];
+	u32 hw = 1 << idx;
 
-	CX18_DEBUG_I2C("i2c client register\n");
-	if (idx >= ARRAY_SIZE(hw_driverids) || hw_driverids[idx] == 0)
+	if (idx >= ARRAY_SIZE(hw_addrs))
 		return -1;
-	id = hw_driverids[idx];
-	bus = hw_bus[idx];
-	memset(&info, 0, sizeof(info));
-	strlcpy(info.type, hw_devicenames[idx], sizeof(info.type));
-	info.addr = hw_addrs[idx];
-	for (i = 0; i < I2C_CLIENTS_MAX; i++)
-		if (cx->i2c_clients[i] == NULL)
-			break;
 
-	if (i == I2C_CLIENTS_MAX) {
-		CX18_ERR("insufficient room for new I2C client!\n");
-		return -ENOMEM;
+	if (hw == CX18_HW_TUNER) {
+		/* special tuner group handling */
+		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
+				adap, mod, type, cx->card_i2c->radio);
+		if (sd != NULL)
+			sd->grp_id = hw;
+		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
+				adap, mod, type, cx->card_i2c->demod);
+		if (sd != NULL)
+			sd->grp_id = hw;
+		sd = v4l2_i2c_new_probed_subdev(&cx->v4l2_dev,
+				adap, mod, type, cx->card_i2c->tv);
+		if (sd != NULL)
+			sd->grp_id = hw;
+		return sd != NULL ? 0 : -1;
 	}
 
-	if (id != I2C_DRIVERID_TUNER) {
-		c = i2c_new_device(&cx->i2c_adap[bus], &info);
-		if (c->driver == NULL)
-			i2c_unregister_device(c);
-		else
-			cx->i2c_clients[i] = c;
-		return cx->i2c_clients[i] ? 0 : -ENODEV;
-	}
+	/* Is it not an I2C device or one we do not wish to register? */
+	if (!hw_addrs[idx])
+		return -1;
 
-	/* special tuner handling */
-	c = i2c_new_probed_device(&cx->i2c_adap[1], &info, cx->card_i2c->radio);
-	if (c && c->driver == NULL)
-		i2c_unregister_device(c);
-	else if (c)
-		cx->i2c_clients[i++] = c;
-	c = i2c_new_probed_device(&cx->i2c_adap[1], &info, cx->card_i2c->demod);
-	if (c && c->driver == NULL)
-		i2c_unregister_device(c);
-	else if (c)
-		cx->i2c_clients[i++] = c;
-	c = i2c_new_probed_device(&cx->i2c_adap[1], &info, cx->card_i2c->tv);
-	if (c && c->driver == NULL)
-		i2c_unregister_device(c);
-	else if (c)
-		cx->i2c_clients[i++] = c;
-	return 0;
+	/* It's an I2C device other than an analog tuner */
+	sd = v4l2_i2c_new_subdev(&cx->v4l2_dev, adap, mod, type, hw_addrs[idx]);
+	if (sd != NULL)
+		sd->grp_id = hw;
+	return sd != NULL ? 0 : -1;
 }
 
-static int attach_inform(struct i2c_client *client)
+/* Find the first member of the subdev group id in hw */
+struct v4l2_subdev *cx18_find_hw(struct cx18 *cx, u32 hw)
 {
-	return 0;
-}
+	struct v4l2_subdev *result = NULL;
+	struct v4l2_subdev *sd;
 
-static int detach_inform(struct i2c_client *client)
-{
-	int i;
-	struct cx18 *cx = (struct cx18 *)i2c_get_adapdata(client->adapter);
-
-	CX18_DEBUG_I2C("i2c client detach\n");
-	for (i = 0; i < I2C_CLIENTS_MAX; i++) {
-		if (cx->i2c_clients[i] == client) {
-			cx->i2c_clients[i] = NULL;
+	spin_lock(&cx->v4l2_dev.lock);
+	v4l2_device_for_each_subdev(sd, &cx->v4l2_dev) {
+		if (sd->grp_id == hw) {
+			result = sd;
 			break;
 		}
 	}
-	CX18_DEBUG_I2C("i2c detach [client=%s,%s]\n",
-		   client->name, (i < I2C_CLIENTS_MAX) ? "ok" : "failed");
-
-	return 0;
+	spin_unlock(&cx->v4l2_dev.lock);
+	return result;
 }
 
 static void cx18_setscl(void *data, int state)
@@ -204,8 +193,6 @@ static struct i2c_adapter cx18_i2c_adap_template = {
 	.id = I2C_HW_B_CX2341X,
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
-	.client_register = attach_inform,
-	.client_unregister = detach_inform,
 	.owner = THIS_MODULE,
 };
 
@@ -221,152 +208,28 @@ static struct i2c_algo_bit_data cx18_i2c_algo_template = {
 	.timeout	= CX18_ALGO_BIT_TIMEOUT*HZ /* jiffies */
 };
 
-static struct i2c_client cx18_i2c_client_template = {
-	.name = "cx18 internal",
-};
-
-int cx18_call_i2c_client(struct cx18 *cx, int addr, unsigned cmd, void *arg)
-{
-	struct i2c_client *client;
-	int retval;
-	int i;
-
-	CX18_DEBUG_I2C("call_i2c_client addr=%02x\n", addr);
-	for (i = 0; i < I2C_CLIENTS_MAX; i++) {
-		client = cx->i2c_clients[i];
-		if (client == NULL || client->driver == NULL ||
-				client->driver->command == NULL)
-			continue;
-		if (addr == client->addr) {
-			retval = client->driver->command(client, cmd, arg);
-			return retval;
-		}
-	}
-	if (cmd != VIDIOC_DBG_G_CHIP_IDENT)
-		CX18_ERR("i2c addr 0x%02x not found for cmd 0x%x!\n",
-			       addr, cmd);
-	return -ENODEV;
-}
-
-/* Find the i2c device based on the driver ID and return
-   its i2c address or -ENODEV if no matching device was found. */
-static int cx18_i2c_id_addr(struct cx18 *cx, u32 id)
-{
-	struct i2c_client *client;
-	int retval = -ENODEV;
-	int i;
-
-	for (i = 0; i < I2C_CLIENTS_MAX; i++) {
-		client = cx->i2c_clients[i];
-		if (client == NULL || client->driver == NULL)
-			continue;
-		if (id == client->driver->id) {
-			retval = client->addr;
-			break;
-		}
-	}
-	return retval;
-}
-
-/* Find the i2c device name matching the CX18_HW_ flag */
-static const char *cx18_i2c_hw_name(u32 hw)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
-		if (1 << i == hw)
-			return hw_devicenames[i];
-	return "unknown device";
-}
-
-/* Find the i2c device matching the CX18_HW_ flag and return
-   its i2c address or -ENODEV if no matching device was found. */
-int cx18_i2c_hw_addr(struct cx18 *cx, u32 hw)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hw_driverids); i++)
-		if (1 << i == hw)
-			return cx18_i2c_id_addr(cx, hw_driverids[i]);
-	return -ENODEV;
-}
-
-/* Calls i2c device based on CX18_HW_ flag. If hw == 0, then do nothing.
-   If hw == CX18_HW_GPIO then call the gpio handler. */
-int cx18_i2c_hw(struct cx18 *cx, u32 hw, unsigned int cmd, void *arg)
-{
-	int addr;
-
-	if (hw == 0)
-		return 0;
-
-	if (hw == CX18_HW_GPIO)
-		return cx18_gpio(cx, cmd, arg);
-
-	if (hw == CX18_HW_CX23418)
-		return cx18_av_cmd(cx, cmd, arg);
-
-	addr = cx18_i2c_hw_addr(cx, hw);
-	if (addr < 0) {
-		CX18_ERR("i2c hardware 0x%08x (%s) not found for cmd 0x%x!\n",
-			       hw, cx18_i2c_hw_name(hw), cmd);
-		return addr;
-	}
-	return cx18_call_i2c_client(cx, addr, cmd, arg);
-}
-
-/* broadcast cmd for all I2C clients and for the gpio subsystem */
-void cx18_call_i2c_clients(struct cx18 *cx, unsigned int cmd, void *arg)
-{
-	if (cx->i2c_adap[0].algo == NULL || cx->i2c_adap[1].algo == NULL) {
-		CX18_ERR("adapter is not set\n");
-		return;
-	}
-	cx18_av_cmd(cx, cmd, arg);
-	i2c_clients_command(&cx->i2c_adap[0], cmd, arg);
-	i2c_clients_command(&cx->i2c_adap[1], cmd, arg);
-	if (cx->hw_flags & CX18_HW_GPIO)
-		cx18_gpio(cx, cmd, arg);
-}
-
 /* init + register i2c algo-bit adapter */
 int init_cx18_i2c(struct cx18 *cx)
 {
-	int i;
+	int i, err;
 	CX18_DEBUG_I2C("i2c init\n");
 
-	/* Sanity checks for the I2C hardware arrays. They must be the
-	 * same size and GPIO/CX23418 must be the last entries.
-	 */
-	if (ARRAY_SIZE(hw_driverids) != ARRAY_SIZE(hw_addrs) ||
-	    ARRAY_SIZE(hw_devicenames) != ARRAY_SIZE(hw_addrs) ||
-	    CX18_HW_GPIO != (1 << (ARRAY_SIZE(hw_addrs) - 2)) ||
-	    CX18_HW_CX23418 != (1 << (ARRAY_SIZE(hw_addrs) - 1)) ||
-	    hw_driverids[ARRAY_SIZE(hw_addrs) - 1]) {
-		CX18_ERR("Mismatched I2C hardware arrays\n");
-		return -ENODEV;
-	}
-
 	for (i = 0; i < 2; i++) {
-		memcpy(&cx->i2c_adap[i], &cx18_i2c_adap_template,
-			sizeof(struct i2c_adapter));
+		/* Setup algorithm for adapter */
 		memcpy(&cx->i2c_algo[i], &cx18_i2c_algo_template,
 			sizeof(struct i2c_algo_bit_data));
 		cx->i2c_algo_cb_data[i].cx = cx;
 		cx->i2c_algo_cb_data[i].bus_index = i;
 		cx->i2c_algo[i].data = &cx->i2c_algo_cb_data[i];
+
+		/* Setup adapter */
+		memcpy(&cx->i2c_adap[i], &cx18_i2c_adap_template,
+			sizeof(struct i2c_adapter));
 		cx->i2c_adap[i].algo_data = &cx->i2c_algo[i];
-
 		sprintf(cx->i2c_adap[i].name + strlen(cx->i2c_adap[i].name),
-				" #%d-%d", cx->num, i);
-		i2c_set_adapdata(&cx->i2c_adap[i], cx);
-
-		memcpy(&cx->i2c_client[i], &cx18_i2c_client_template,
-			sizeof(struct i2c_client));
-		sprintf(cx->i2c_client[i].name +
-				strlen(cx->i2c_client[i].name), "%d", i);
-		cx->i2c_client[i].adapter = &cx->i2c_adap[i];
-		cx->i2c_adap[i].dev.parent = &cx->dev->dev;
+				" #%d-%d", cx->instance, i);
+		i2c_set_adapdata(&cx->i2c_adap[i], &cx->v4l2_dev);
+		cx->i2c_adap[i].dev.parent = &cx->pci_dev->dev;
 	}
 
 	if (cx18_read_reg(cx, CX18_REG_I2C_2_WR) != 0x0003c02f) {
@@ -402,10 +265,21 @@ int init_cx18_i2c(struct cx18 *cx)
 	cx18_setscl(&cx->i2c_algo_cb_data[1], 1);
 	cx18_setsda(&cx->i2c_algo_cb_data[1], 1);
 
-	cx18_reset_i2c_slaves_gpio(cx);
+	cx18_call_hw(cx, CX18_HW_GPIO_RESET_CTRL,
+		     core, reset, (u32) CX18_GPIO_RESET_I2C);
 
-	return i2c_bit_add_bus(&cx->i2c_adap[0]) ||
-		i2c_bit_add_bus(&cx->i2c_adap[1]);
+	err = i2c_bit_add_bus(&cx->i2c_adap[0]);
+	if (err)
+		goto err;
+	err = i2c_bit_add_bus(&cx->i2c_adap[1]);
+	if (err)
+		goto err_del_bus_0;
+	return 0;
+
+ err_del_bus_0:
+	i2c_del_adapter(&cx->i2c_adap[0]);
+ err:
+	return err;
 }
 
 void exit_cx18_i2c(struct cx18 *cx)

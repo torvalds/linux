@@ -50,7 +50,6 @@ static irqreturn_t math_error_irq(int cpl, void *dev_id)
  */
 static struct irqaction fpu_irq = {
 	.handler = math_error_irq,
-	.mask = CPU_MASK_NONE,
 	.name = "fpu",
 };
 
@@ -83,7 +82,6 @@ void __init init_ISA_irqs(void)
  */
 static struct irqaction irq2 = {
 	.handler = no_action,
-	.mask = CPU_MASK_NONE,
 	.name = "cascade",
 };
 
@@ -174,6 +172,9 @@ void __init native_init_IRQ(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* self generated IPI for local APIC timer */
 	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
+
+	/* generic IPI for platform specific use */
+	alloc_intr_gate(GENERIC_INTERRUPT_VECTOR, generic_interrupt);
 
 	/* IPI vectors for APIC spurious and error interrupts */
 	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);

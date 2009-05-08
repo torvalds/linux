@@ -345,10 +345,6 @@ static int osd_probe(struct device *dev)
 	}
 
 	dev_set_drvdata(oud->class_member, oud);
-	error = sysfs_create_link(&scsi_device->sdev_gendev.kobj,
-				  &oud->class_member->kobj, osd_symlink);
-	if (error)
-		OSD_ERR("warning: unable to make symlink\n");
 
 	OSD_INFO("osd_probe %s\n", disk->disk_name);
 	return 0;
@@ -376,8 +372,6 @@ static int osd_remove(struct device *dev)
 			dev, oud, oud ? oud->od.scsi_device : NULL,
 			scsi_device);
 	}
-
-	sysfs_remove_link(&oud->od.scsi_device->sdev_gendev.kobj, osd_symlink);
 
 	if (oud->class_member)
 		device_destroy(osd_sysfs_class,

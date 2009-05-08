@@ -29,6 +29,7 @@
 #include <linux/rcupdate.h>
 #include <linux/audit.h>
 #include <linux/falloc.h>
+#include <linux/fs_struct.h>
 
 int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {

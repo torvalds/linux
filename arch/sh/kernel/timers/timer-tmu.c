@@ -81,7 +81,7 @@ static int tmu_timer_stop(void)
  */
 static int tmus_are_scaled;
 
-static cycle_t tmu_timer_read(void)
+static cycle_t tmu_timer_read(struct clocksource *cs)
 {
 	return ((cycle_t)(~_tmu_read(TMU1)))<<tmus_are_scaled;
 }
@@ -162,7 +162,6 @@ static struct irqaction tmu0_irq = {
 	.name		= "periodic/oneshot timer",
 	.handler	= tmu_timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.mask		= CPU_MASK_NONE,
 };
 
 static void __init tmu_clk_init(struct clk *clk)

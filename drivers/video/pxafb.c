@@ -1439,7 +1439,7 @@ static void pxafb_disable_controller(struct pxafb_info *fbi)
 static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 {
 	struct pxafb_info *fbi = dev_id;
-	unsigned int lccr0, lcsr, lcsr1;
+	unsigned int lccr0, lcsr;
 
 	lcsr = lcd_readl(fbi, LCSR);
 	if (lcsr & LCSR_LDD) {
@@ -1455,14 +1455,16 @@ static irqreturn_t pxafb_handle_irq(int irq, void *dev_id)
 	lcd_writel(fbi, LCSR, lcsr);
 
 #ifdef CONFIG_FB_PXA_OVERLAY
-	lcsr1 = lcd_readl(fbi, LCSR1);
-	if (lcsr1 & LCSR1_BS(1))
-		complete(&fbi->overlay[0].branch_done);
+	{
+		unsigned int lcsr1 = lcd_readl(fbi, LCSR1);
+		if (lcsr1 & LCSR1_BS(1))
+			complete(&fbi->overlay[0].branch_done);
 
-	if (lcsr1 & LCSR1_BS(2))
-		complete(&fbi->overlay[1].branch_done);
+		if (lcsr1 & LCSR1_BS(2))
+			complete(&fbi->overlay[1].branch_done);
 
-	lcd_writel(fbi, LCSR1, lcsr1);
+		lcd_writel(fbi, LCSR1, lcsr1);
+	}
 #endif
 	return IRQ_HANDLED;
 }

@@ -29,11 +29,11 @@ config HID
 
 	  For docs and specs, see http://www.usb.org/developers/hidpage/
 
-	  If unsure, say Y
+	  If unsure, say Y.
 
 config HID_DEBUG
 	bool "HID debugging support"
-	default y if !EMBEDDED
+	default y
 	depends on HID
 	---help---
 	This option lets the HID layer output diagnostics about its internal
@@ -44,7 +44,7 @@ config HID_DEBUG
 	This feature is useful for those who are either debugging the HID parser
 	or any HID hardware device.
 
-	If unsure, say N
+	If unsure, say Y.
 
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
@@ -69,18 +69,6 @@ source "drivers/hid/usbhid/Kconfig"
 
 menu "Special HID drivers"
 	depends on HID
-
-config HID_COMPAT
-	bool "Load all HID drivers on hid core load"
-	default y
-	---help---
-	Compatible option for older userspace. If you have system without udev
-	support of module loading through aliases and also old
-	module-init-tools which can't handle hid bus, choose Y here. Otherwise
-	say N. If you say N and your userspace is old enough, the only
-	functionality you lose is modules autoloading.
-
-	If unsure, say Y.
 
 config HID_A4TECH
 	tristate "A4 tech" if EMBEDDED
@@ -128,6 +116,14 @@ config HID_CYPRESS
 	---help---
 	Support for cypress mouse and barcode readers.
 
+config DRAGONRISE_FF
+	tristate "DragonRise Inc. force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you want to enable force feedback support for DragonRise Inc.
+	game controllers.
+
 config HID_EZKEY
 	tristate "Ezkey" if EMBEDDED
 	depends on USB_HID
@@ -135,12 +131,26 @@ config HID_EZKEY
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_KYE
+	tristate "Kye" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Kye/Genius Ergo Mouse.
+
 config HID_GYRATION
 	tristate "Gyration" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Gyration remote control.
+
+config HID_KENSINGTON
+	tristate "Kensington" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Kensington Slimblade Trackball.
 
 config HID_LOGITECH
 	tristate "Logitech" if EMBEDDED
@@ -243,7 +253,7 @@ config GREENASIA_FF
 	select INPUT_FF_MEMLESS
 	---help---
 	Say Y here if you have a GreenAsia (Product ID 0x12) based game controller
-	(like MANTA Warior MM816 and SpeedLink Strike2 SL-6635) or adapter
+	(like MANTA Warrior MM816 and SpeedLink Strike2 SL-6635) or adapter
 	and want to enable force feedback support for it.
 
 config HID_TOPSEED

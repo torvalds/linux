@@ -15,7 +15,7 @@
 extern void do_signal(struct pt_regs *regs, unsigned long thread_info_flags);
 
 extern void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
-				  size_t frame_size);
+				  size_t frame_size, int is_32);
 extern void restore_sigmask(sigset_t *set);
 
 extern int handle_signal32(unsigned long sig, struct k_sigaction *ka,
@@ -39,21 +39,11 @@ extern unsigned long copy_vsx_from_user(struct task_struct *task,
 
 #ifdef CONFIG_PPC64
 
-static inline int is_32bit_task(void)
-{
-	return test_thread_flag(TIF_32BIT);
-}
-
 extern int handle_rt_signal64(int signr, struct k_sigaction *ka,
 			      siginfo_t *info, sigset_t *set,
 			      struct pt_regs *regs);
 
 #else /* CONFIG_PPC64 */
-
-static inline int is_32bit_task(void)
-{
-	return 1;
-}
 
 static inline int handle_rt_signal64(int signr, struct k_sigaction *ka,
 				     siginfo_t *info, sigset_t *set,

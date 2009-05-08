@@ -193,7 +193,7 @@ asmlinkage int bfin_clone(struct pt_regs *regs)
 }
 
 int
-copy_thread(int nr, unsigned long clone_flags,
+copy_thread(unsigned long clone_flags,
 	    unsigned long usp, unsigned long topstk,
 	    struct task_struct *p, struct pt_regs *regs)
 {
@@ -337,7 +337,7 @@ int _access_ok(unsigned long addr, unsigned long size)
 	if (addr >= memory_mtd_end && (addr + size) <= physical_mem_end)
 		return 1;
 
-#ifdef CONFIG_ROMFS_MTD_FS
+#ifdef CONFIG_ROMFS_ON_MTD
 	/* For XIP, allow user space to use pointers within the ROMFS.  */
 	if (addr >= memory_mtd_start && (addr + size) <= memory_mtd_end)
 		return 1;

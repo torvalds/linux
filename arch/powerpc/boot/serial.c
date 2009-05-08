@@ -117,7 +117,8 @@ int serial_console_init(void)
 	if (devp == NULL)
 		goto err_out;
 
-	if (dt_is_compatible(devp, "ns16550"))
+	if (dt_is_compatible(devp, "ns16550") ||
+	    dt_is_compatible(devp, "pnpPNP,501"))
 		rc = ns16550_console_init(devp, &serial_cd);
 	else if (dt_is_compatible(devp, "marvell,mv64360-mpsc"))
 		rc = mpsc_console_init(devp, &serial_cd);

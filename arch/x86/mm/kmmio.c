@@ -87,7 +87,7 @@ static struct kmmio_probe *get_kmmio_probe(unsigned long addr)
 {
 	struct kmmio_probe *p;
 	list_for_each_entry_rcu(p, &kmmio_probes, list) {
-		if (addr >= p->addr && addr <= (p->addr + p->len))
+		if (addr >= p->addr && addr < (p->addr + p->len))
 			return p;
 	}
 	return NULL;
@@ -310,7 +310,7 @@ static int post_kmmio_handler(unsigned long condition, struct pt_regs *regs)
 	struct kmmio_context *ctx = &get_cpu_var(kmmio_ctx);
 
 	if (!ctx->active) {
-		pr_warning("kmmio: spurious debug trap on CPU %d.\n",
+		pr_debug("kmmio: spurious debug trap on CPU %d.\n",
 							smp_processor_id());
 		goto out;
 	}

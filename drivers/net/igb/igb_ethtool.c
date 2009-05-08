@@ -1419,7 +1419,6 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg = 0;
-	u32 stat_reg = 0;
 
 	hw->mac.autoneg = false;
 
@@ -1443,18 +1442,11 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	ctrl_reg |= (E1000_CTRL_FRCSPD | /* Set the Force Speed Bit */
 		     E1000_CTRL_FRCDPX | /* Set the Force Duplex Bit */
 		     E1000_CTRL_SPD_1000 |/* Force Speed to 1000 */
-		     E1000_CTRL_FD);	 /* Force Duplex to FULL */
+		     E1000_CTRL_FD |	 /* Force Duplex to FULL */
+		     E1000_CTRL_SLU);	 /* Set link up enable bit */
 
-	if (hw->phy.media_type == e1000_media_type_copper &&
-	    hw->phy.type == e1000_phy_m88)
+	if (hw->phy.type == e1000_phy_m88)
 		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
-	else {
-		/* Set the ILOS bit on the fiber Nic if half duplex link is
-		 * detected. */
-		stat_reg = rd32(E1000_STATUS);
-		if ((stat_reg & E1000_STATUS_FD) == 0)
-			ctrl_reg |= (E1000_CTRL_ILOS | E1000_CTRL_SLU);
-	}
 
 	wr32(E1000_CTRL, ctrl_reg);
 

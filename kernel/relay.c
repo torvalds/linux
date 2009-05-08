@@ -677,9 +677,7 @@ int relay_late_setup_files(struct rchan *chan,
 	 */
 	for_each_online_cpu(i) {
 		if (unlikely(!chan->buf[i])) {
-			printk(KERN_ERR "relay_late_setup_files: CPU %u "
-					"has no buffer, it must have!\n", i);
-			BUG();
+			WARN_ONCE(1, KERN_ERR "CPU has no buffer!\n");
 			err = -EINVAL;
 			break;
 		}
@@ -797,13 +795,15 @@ void relay_subbufs_consumed(struct rchan *chan,
 	if (!chan)
 		return;
 
-	if (cpu >= NR_CPUS || !chan->buf[cpu])
+	if (cpu >= NR_CPUS || !chan->buf[cpu] ||
+					subbufs_consumed > chan->n_subbufs)
 		return;
 
 	buf = chan->buf[cpu];
-	buf->subbufs_consumed += subbufs_consumed;
-	if (buf->subbufs_consumed > buf->subbufs_produced)
+	if (subbufs_consumed > buf->subbufs_produced - buf->subbufs_consumed)
 		buf->subbufs_consumed = buf->subbufs_produced;
+	else
+		buf->subbufs_consumed += subbufs_consumed;
 }
 EXPORT_SYMBOL_GPL(relay_subbufs_consumed);
 

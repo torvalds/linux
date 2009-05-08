@@ -386,7 +386,7 @@ void set_rse_reg(struct kvm_pt_regs *regs, unsigned long r1,
 		else
 			*rnat_addr = (*rnat_addr) & (~nat_mask);
 
-		ia64_setreg(_IA64_REG_AR_BSPSTORE, bspstore);
+		ia64_setreg(_IA64_REG_AR_BSPSTORE, (unsigned long)bspstore);
 		ia64_setreg(_IA64_REG_AR_RNAT, rnat);
 	}
 	local_irq_restore(psr);

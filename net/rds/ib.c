@@ -51,6 +51,7 @@ MODULE_PARM_DESC(fmr_message_size, " Max size of a RDMA transfer");
 
 struct list_head rds_ib_devices;
 
+/* NOTE: if also grabbing ibdev lock, grab this first */
 DEFINE_SPINLOCK(ib_nodev_conns_lock);
 LIST_HEAD(ib_nodev_conns);
 
@@ -137,7 +138,7 @@ void rds_ib_remove_one(struct ib_device *device)
 		kfree(i_ipaddr);
 	}
 
-	rds_ib_remove_conns(rds_ibdev);
+	rds_ib_destroy_conns(rds_ibdev);
 
 	if (rds_ibdev->mr_pool)
 		rds_ib_destroy_mr_pool(rds_ibdev->mr_pool);
@@ -249,7 +250,7 @@ static int rds_ib_laddr_check(__be32 addr)
 void rds_ib_exit(void)
 {
 	rds_info_deregister_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
-	rds_ib_remove_nodev_conns();
+	rds_ib_destroy_nodev_conns();
 	ib_unregister_client(&rds_ib_client);
 	rds_ib_sysctl_exit();
 	rds_ib_recv_exit();

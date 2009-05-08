@@ -65,6 +65,7 @@
 #include <linux/module.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
+#include <trace/kmemtrace.h>
 #include <asm/atomic.h>
 
 /*
@@ -474,18 +475,25 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 {
 	unsigned int *m;
 	int align = max(ARCH_KMALLOC_MINALIGN, ARCH_SLAB_MINALIGN);
+	void *ret;
+
+	lockdep_trace_alloc(gfp);
 
 	if (size < PAGE_SIZE - align) {
 		if (!size)
 			return ZERO_SIZE_PTR;
 
 		m = slob_alloc(size + align, gfp, align, node);
+
 		if (!m)
 			return NULL;
 		*m = size;
-		return (void *)m + align;
+		ret = (void *)m + align;
+
+		trace_kmalloc_node(_RET_IP_, ret,
+				   size, size + align, gfp, node);
 	} else {
-		void *ret;
+		unsigned int order = get_order(size);
 
 		ret = slob_new_pages(gfp | __GFP_COMP, get_order(size), node);
 		if (ret) {
@@ -493,14 +501,20 @@ void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 			page = virt_to_page(ret);
 			page->private = size;
 		}
-		return ret;
+
+		trace_kmalloc_node(_RET_IP_, ret,
+				   size, PAGE_SIZE << order, gfp, node);
 	}
+
+	return ret;
 }
 EXPORT_SYMBOL(__kmalloc_node);
 
 void kfree(const void *block)
 {
 	struct slob_page *sp;
+
+	trace_kfree(_RET_IP_, block);
 
 	if (unlikely(ZERO_OR_NULL_PTR(block)))
 		return;
@@ -581,10 +595,17 @@ void *kmem_cache_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
 {
 	void *b;
 
-	if (c->size < PAGE_SIZE)
+	if (c->size < PAGE_SIZE) {
 		b = slob_alloc(c->size, flags, c->align, node);
-	else
+		trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
+					    SLOB_UNITS(c->size) * SLOB_UNIT,
+					    flags, node);
+	} else {
 		b = slob_new_pages(flags, get_order(c->size), node);
+		trace_kmem_cache_alloc_node(_RET_IP_, b, c->size,
+					    PAGE_SIZE << get_order(c->size),
+					    flags, node);
+	}
 
 	if (c->ctor)
 		c->ctor(b);
@@ -620,6 +641,8 @@ void kmem_cache_free(struct kmem_cache *c, void *b)
 	} else {
 		__kmem_cache_free(b, c->size);
 	}
+
+	trace_kmem_cache_free(_RET_IP_, b);
 }
 EXPORT_SYMBOL(kmem_cache_free);
 

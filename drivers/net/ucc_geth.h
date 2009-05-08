@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
-#include <linux/fsl_devices.h>
 
 #include <asm/immap_qe.h>
 #include <asm/qe.h>
@@ -1129,7 +1128,8 @@ struct ucc_geth_info {
 struct ucc_geth_private {
 	struct ucc_geth_info *ug_info;
 	struct ucc_fast_private *uccf;
-	struct net_device *dev;
+	struct device *dev;
+	struct net_device *ndev;
 	struct napi_struct napi;
 	struct work_struct timeout_work;
 	struct ucc_geth __iomem *ug_regs;

@@ -502,10 +502,9 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_map *map = NULL;
+	struct drm_local_map *map = NULL;
 	struct drm_gem_object *obj;
 	struct drm_hash_item *hash;
-	unsigned long prot;
 	int ret = 0;
 
 	mutex_lock(&dev->struct_mutex);
@@ -538,11 +537,7 @@ int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_ops = obj->dev->driver->gem_vm_ops;
 	vma->vm_private_data = map->handle;
 	/* FIXME: use pgprot_writecombine when available */
-	prot = pgprot_val(vma->vm_page_prot);
-#ifdef CONFIG_X86
-	prot |= _PAGE_CACHE_WC;
-#endif
-	vma->vm_page_prot = __pgprot(prot);
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	/* Take a ref for this mapping of the object, so that the fault
 	 * handler can dereference the mmap offset's pointer to the object.

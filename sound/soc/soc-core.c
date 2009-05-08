@@ -98,7 +98,7 @@ static int soc_ac97_dev_register(struct snd_soc_codec *codec)
 	int err;
 
 	codec->ac97->dev.bus = &ac97_bus_type;
-	codec->ac97->dev.parent = NULL;
+	codec->ac97->dev.parent = codec->card->dev;
 	codec->ac97->dev.release = soc_ac97_device_release;
 
 	dev_set_name(&codec->ac97->dev, "%d-%d:%s",
@@ -767,11 +767,21 @@ static int soc_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_dai *cpu_dai = card->dai_link[0].cpu_dai;
 
-	dev_dbg(socdev->dev, "scheduling resume work\n");
-
-	if (!schedule_work(&card->deferred_resume_work))
-		dev_err(socdev->dev, "resume work item may be lost\n");
+	/* AC97 devices might have other drivers hanging off them so
+	 * need to resume immediately.  Other drivers don't have that
+	 * problem and may take a substantial amount of time to resume
+	 * due to I/O costs and anti-pop so handle them out of line.
+	 */
+	if (cpu_dai->ac97_control) {
+		dev_dbg(socdev->dev, "Resuming AC97 immediately\n");
+		soc_resume_deferred(&card->deferred_resume_work);
+	} else {
+		dev_dbg(socdev->dev, "Scheduling resume work\n");
+		if (!schedule_work(&card->deferred_resume_work))
+			dev_err(socdev->dev, "resume work item may be lost\n");
+	}
 
 	return 0;
 }

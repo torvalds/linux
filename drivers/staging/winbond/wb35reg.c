@@ -3,7 +3,7 @@
 
 #include <linux/usb.h>
 
-extern void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency);
+extern void phy_calibration_winbond(struct hw_data *phw_data, u32 frequency);
 
 // true  : read command process successfully
 // false : register not support
@@ -13,7 +13,7 @@ extern void phy_calibration_winbond(hw_data_t *phw_data, u32 frequency);
 // Flag : AUTO_INCREMENT - RegisterNo will auto increment 4
 //		  NO_INCREMENT - Function will write data into the same register
 unsigned char
-Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 NumberOfData, u8 Flag)
+Wb35Reg_BurstWrite(struct hw_data * pHwData, u16 RegisterNo, u32 * pRegisterData, u8 NumberOfData, u8 Flag)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	struct urb	*urb = NULL;
@@ -73,7 +73,7 @@ Wb35Reg_BurstWrite(phw_data_t pHwData, u16 RegisterNo, u32 * pRegisterData, u8 N
 }
 
 void
-Wb35Reg_Update(phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue)
+Wb35Reg_Update(struct hw_data * pHwData,  u16 RegisterNo,  u32 RegisterValue)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	switch (RegisterNo) {
@@ -118,7 +118,7 @@ Wb35Reg_Update(phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue)
 // true  : read command process successfully
 // false : register not support
 unsigned char
-Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
+Wb35Reg_WriteSync(  struct hw_data * pHwData,  u16 RegisterNo,  u32 RegisterValue )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	int ret = -1;
@@ -149,7 +149,7 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 
 	if (ret < 0) {
 		#ifdef _PE_REG_DUMP_
-		WBDEBUG(("EP0 Write register usb message sending error\n"));
+		printk("EP0 Write register usb message sending error\n");
 		#endif
 
 		pHwData->SurpriseRemove = 1; // 20060704.2
@@ -162,7 +162,7 @@ Wb35Reg_WriteSync(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 // true  : read command process successfully
 // false : register not support
 unsigned char
-Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
+Wb35Reg_Write(  struct hw_data * pHwData,  u16 RegisterNo,  u32 RegisterValue )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	struct usb_ctrlrequest *dr;
@@ -222,7 +222,7 @@ Wb35Reg_Write(  phw_data_t pHwData,  u16 RegisterNo,  u32 RegisterValue )
 // true  : read command process successfully
 // false : register not support
 unsigned char
-Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 RegisterValue,
+Wb35Reg_WriteWithCallbackValue( struct hw_data * pHwData, u16 RegisterNo, u32 RegisterValue,
 				s8 *pValue, s8 Len)
 {
 	struct wb35_reg *reg = &pHwData->reg;
@@ -281,7 +281,7 @@ Wb35Reg_WriteWithCallbackValue( phw_data_t pHwData, u16 RegisterNo, u32 Register
 // false : register not support
 // pRegisterValue : It must be a resident buffer due to asynchronous read register.
 unsigned char
-Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
+Wb35Reg_ReadSync(  struct hw_data * pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	u32 *	pltmp = pRegisterValue;
@@ -316,7 +316,7 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 
 	if (ret < 0) {
 		#ifdef _PE_REG_DUMP_
-		WBDEBUG(("EP0 Read register usb message sending error\n"));
+		printk("EP0 Read register usb message sending error\n");
 		#endif
 
 		pHwData->SurpriseRemove = 1; // 20060704.2
@@ -330,7 +330,7 @@ Wb35Reg_ReadSync(  phw_data_t pHwData,  u16 RegisterNo,   u32 * pRegisterValue )
 // false : register not support
 // pRegisterValue : It must be a resident buffer due to asynchronous read register.
 unsigned char
-Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
+Wb35Reg_Read(struct hw_data * pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	struct usb_ctrlrequest * dr;
@@ -385,7 +385,7 @@ Wb35Reg_Read(phw_data_t pHwData, u16 RegisterNo,  u32 * pRegisterValue )
 
 
 void
-Wb35Reg_EP0VM_start(  phw_data_t pHwData )
+Wb35Reg_EP0VM_start(  struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -397,7 +397,7 @@ Wb35Reg_EP0VM_start(  phw_data_t pHwData )
 }
 
 void
-Wb35Reg_EP0VM(phw_data_t pHwData )
+Wb35Reg_EP0VM(struct hw_data * pHwData )
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	struct urb	*urb;
@@ -441,7 +441,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 
 	if (ret < 0) {
 #ifdef _PE_REG_DUMP_
-		WBDEBUG(("EP0 Irp sending error\n"));
+		printk("EP0 Irp sending error\n");
 #endif
 		goto cleanup;
 	}
@@ -457,7 +457,7 @@ Wb35Reg_EP0VM(phw_data_t pHwData )
 void
 Wb35Reg_EP0VM_complete(struct urb *urb)
 {
-	phw_data_t  pHwData = (phw_data_t)urb->context;
+	struct hw_data *  pHwData = (struct hw_data *)urb->context;
 	struct wb35_reg *reg = &pHwData->reg;
 	struct wb35_reg_queue *reg_queue;
 
@@ -480,8 +480,7 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 
 		if (reg->EP0VM_status) {
 #ifdef _PE_REG_DUMP_
-			WBDEBUG(("EP0 IoCompleteRoutine return error\n"));
-			DebugUsbdStatusInformation( reg->EP0VM_status );
+			printk("EP0 IoCompleteRoutine return error\n");
 #endif
 			reg->EP0vm_state = VM_STOP;
 			pHwData->SurpriseRemove = 1;
@@ -500,7 +499,7 @@ Wb35Reg_EP0VM_complete(struct urb *urb)
 
 
 void
-Wb35Reg_destroy(phw_data_t pHwData)
+Wb35Reg_destroy(struct hw_data * pHwData)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 	struct urb	*urb;
@@ -530,7 +529,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 			kfree(reg_queue);
 		} else {
 			#ifdef _PE_REG_DUMP_
-			WBDEBUG(("EP0 queue release error\n"));
+			printk("EP0 queue release error\n");
 			#endif
 		}
 		spin_lock_irq( &reg->EP0VM_spin_lock );
@@ -543,7 +542,7 @@ Wb35Reg_destroy(phw_data_t pHwData)
 //====================================================================================
 // The function can be run in passive-level only.
 //====================================================================================
-unsigned char Wb35Reg_initial(phw_data_t pHwData)
+unsigned char Wb35Reg_initial(struct hw_data * pHwData)
 {
 	struct wb35_reg *reg=&pHwData->reg;
 	u32 ltmp;
@@ -599,7 +598,7 @@ unsigned char Wb35Reg_initial(phw_data_t pHwData)
 	Wb35Reg_ReadSync( pHwData, 0x03b4, &Region_ScanInterval );
 
 	// Update Ethernet address
-	memcpy( pHwData->CurrentMacAddress, pHwData->PermanentMacAddress, ETH_LENGTH_OF_ADDRESS );
+	memcpy( pHwData->CurrentMacAddress, pHwData->PermanentMacAddress, ETH_ALEN );
 
 	// Update software variable
 	pHwData->SoftwareSet = (u16)(SoftwareSet & 0xffff);
@@ -723,7 +722,7 @@ u32 BitReverse( u32 dwData, u32 DataLength)
 	return dwData;
 }
 
-void Wb35Reg_phy_calibration(  phw_data_t pHwData )
+void Wb35Reg_phy_calibration(  struct hw_data * pHwData )
 {
 	u32 BB3c, BB54;
 

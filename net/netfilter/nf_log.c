@@ -36,9 +36,13 @@ static struct nf_logger *__find_logger(int pf, const char *str_logger)
 int nf_log_register(u_int8_t pf, struct nf_logger *logger)
 {
 	const struct nf_logger *llog;
+	int i;
 
 	if (pf >= ARRAY_SIZE(nf_loggers))
 		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(logger->list); i++)
+		INIT_LIST_HEAD(&logger->list[i]);
 
 	mutex_lock(&nf_log_mutex);
 

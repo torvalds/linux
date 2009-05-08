@@ -58,6 +58,14 @@ asmlinkage void __init sh_cpu_init(void);
 #define SR_FD		0x00008000
 
 /*
+ * DSP structure and data
+ */
+struct sh_dsp_struct {
+	unsigned long dsp_regs[14];
+	long status;
+};
+
+/*
  * FPU structure and data
  */
 
@@ -96,6 +104,11 @@ struct thread_struct {
 
 	/* floating point info */
 	union sh_fpu_union fpu;
+
+#ifdef CONFIG_SH_DSP
+	/* Dsp status information */
+	struct sh_dsp_struct dsp_status;
+#endif
 };
 
 /* Count of active tasks with UBC settings */

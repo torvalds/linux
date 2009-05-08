@@ -128,8 +128,7 @@ sn_legacy_pci_window_fixup(struct pci_controller *controller,
 {
 		controller->window = kcalloc(2, sizeof(struct pci_window),
 					     GFP_KERNEL);
-		if (controller->window == NULL)
-			BUG();
+		BUG_ON(controller->window == NULL);
 		controller->window[0].offset = legacy_io;
 		controller->window[0].resource.name = "legacy_io";
 		controller->window[0].resource.flags = IORESOURCE_IO;
@@ -168,8 +167,7 @@ sn_pci_window_fixup(struct pci_dev *dev, unsigned int count,
 	idx = controller->windows;
 	new_count = controller->windows + count;
 	new_window = kcalloc(new_count, sizeof(struct pci_window), GFP_KERNEL);
-	if (new_window == NULL)
-		BUG();
+	BUG_ON(new_window == NULL);
 	if (controller->window) {
 		memcpy(new_window, controller->window,
 		       sizeof(struct pci_window) * controller->windows);
@@ -222,8 +220,7 @@ sn_io_slot_fixup(struct pci_dev *dev)
 		(u64) __pa(pcidev_info),
 		(u64) __pa(sn_irq_info));
 
-	if (status)
-		BUG(); /* Cannot get platform pci device information */
+	BUG_ON(status); /* Cannot get platform pci device information */
 
 
 	/* Copy over PIO Mapped Addresses */
@@ -307,8 +304,7 @@ sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	prom_bussoft_ptr = __va(prom_bussoft_ptr);
 
 	controller = kzalloc(sizeof(*controller), GFP_KERNEL);
-	if (!controller)
-		BUG();
+	BUG_ON(!controller);
 	controller->segment = segment;
 
 	/*

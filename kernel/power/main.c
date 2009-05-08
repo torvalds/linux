@@ -287,16 +287,37 @@ void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
  */
 static int suspend_enter(suspend_state_t state)
 {
-	int error = 0;
+	int error;
 
 	device_pm_lock();
+
+	if (suspend_ops->prepare) {
+		error = suspend_ops->prepare();
+		if (error)
+			goto Done;
+	}
+
+	error = device_power_down(PMSG_SUSPEND);
+	if (error) {
+		printk(KERN_ERR "PM: Some devices failed to power down\n");
+		goto Platfrom_finish;
+	}
+
+	if (suspend_ops->prepare_late) {
+		error = suspend_ops->prepare_late();
+		if (error)
+			goto Power_up_devices;
+	}
+
+	if (suspend_test(TEST_PLATFORM))
+		goto Platform_wake;
+
+	error = disable_nonboot_cpus();
+	if (error || suspend_test(TEST_CPUS))
+		goto Enable_cpus;
+
 	arch_suspend_disable_irqs();
 	BUG_ON(!irqs_disabled());
-
-	if ((error = device_power_down(PMSG_SUSPEND))) {
-		printk(KERN_ERR "PM: Some devices failed to power down\n");
-		goto Done;
-	}
 
 	error = sysdev_suspend(PMSG_SUSPEND);
 	if (!error) {
@@ -305,11 +326,26 @@ static int suspend_enter(suspend_state_t state)
 		sysdev_resume();
 	}
 
-	device_power_up(PMSG_RESUME);
- Done:
 	arch_suspend_enable_irqs();
 	BUG_ON(irqs_disabled());
+
+ Enable_cpus:
+	enable_nonboot_cpus();
+
+ Platform_wake:
+	if (suspend_ops->wake)
+		suspend_ops->wake();
+
+ Power_up_devices:
+	device_power_up(PMSG_RESUME);
+
+ Platfrom_finish:
+	if (suspend_ops->finish)
+		suspend_ops->finish();
+
+ Done:
 	device_pm_unlock();
+
 	return error;
 }
 
@@ -341,23 +377,8 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (suspend_test(TEST_DEVICES))
 		goto Recover_platform;
 
-	if (suspend_ops->prepare) {
-		error = suspend_ops->prepare();
-		if (error)
-			goto Resume_devices;
-	}
+	suspend_enter(state);
 
-	if (suspend_test(TEST_PLATFORM))
-		goto Finish;
-
-	error = disable_nonboot_cpus();
-	if (!error && !suspend_test(TEST_CPUS))
-		suspend_enter(state);
-
-	enable_nonboot_cpus();
- Finish:
-	if (suspend_ops->finish)
-		suspend_ops->finish();
  Resume_devices:
 	suspend_test_start();
 	device_resume(PMSG_RESUME);

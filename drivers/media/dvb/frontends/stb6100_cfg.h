@@ -36,7 +36,6 @@ static int stb6100_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 			return err;
 		}
 		*frequency = t_state.frequency;
-		printk("%s: Frequency=%d\n", __func__, t_state.frequency);
 	}
 	return 0;
 }
@@ -59,7 +58,6 @@ static int stb6100_set_frequency(struct dvb_frontend *fe, u32 frequency)
 			return err;
 		}
 	}
-	printk("%s: Frequency=%d\n", __func__, t_state.frequency);
 	return 0;
 }
 
@@ -81,7 +79,6 @@ static int stb6100_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 		}
 		*bandwidth = t_state.bandwidth;
 	}
-	printk("%s: Bandwidth=%d\n", __func__, t_state.bandwidth);
 	return 0;
 }
 
@@ -103,6 +100,5 @@ static int stb6100_set_bandwidth(struct dvb_frontend *fe, u32 bandwidth)
 			return err;
 		}
 	}
-	printk("%s: Bandwidth=%d\n", __func__, t_state.bandwidth);
 	return 0;
 }

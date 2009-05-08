@@ -44,7 +44,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_ninja32"
-#define DRV_VERSION "0.1.3"
+#define DRV_VERSION "0.1.5"
 
 
 /**
@@ -86,6 +86,7 @@ static struct ata_port_operations ninja32_port_ops = {
 	.sff_dev_select = ninja32_dev_select,
 	.cable_detect	= ata_cable_40wire,
 	.set_piomode	= ninja32_set_piomode,
+	.sff_data_xfer	= ata_sff_data_xfer32
 };
 
 static void ninja32_program(void __iomem *base)
@@ -144,6 +145,7 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	ap->ioaddr.altstatus_addr = base + 0x1E;
 	ap->ioaddr.bmdma_addr = base;
 	ata_sff_std_ports(&ap->ioaddr);
+	ap->pflags = ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE;
 
 	ninja32_program(base);
 	/* FIXME: Should we disable them at remove ? */

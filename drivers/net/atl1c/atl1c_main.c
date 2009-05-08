@@ -2532,8 +2532,8 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 	 * various kernel subsystems to support the mechanics required by a
 	 * fixed-high-32-bit system.
 	 */
-	if ((pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0) ||
-	    (pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK) != 0)) {
+	if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) ||
+	    (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)) {
 		dev_err(&pdev->dev, "No usable DMA configuration,aborting\n");
 		goto err_dma;
 	}

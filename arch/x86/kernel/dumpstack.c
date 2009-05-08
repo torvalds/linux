@@ -10,10 +10,12 @@
 #include <linux/kdebug.h>
 #include <linux/module.h>
 #include <linux/ptrace.h>
+#include <linux/ftrace.h>
 #include <linux/kexec.h>
 #include <linux/bug.h>
 #include <linux/nmi.h>
 #include <linux/sysfs.h>
+#include <linux/ftrace.h>
 
 #include <asm/stacktrace.h>
 
@@ -194,6 +196,11 @@ unsigned __kprobes long oops_begin(void)
 {
 	int cpu;
 	unsigned long flags;
+
+	/* notify the hw-branch tracer so it may disable tracing and
+	   add the last trace to the trace buffer -
+	   the earlier this happens, the more useful the trace. */
+	trace_hw_branch_oops();
 
 	oops_enter();
 

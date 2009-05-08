@@ -182,7 +182,7 @@ int jfs_init_acl(tid_t tid, struct inode *inode, struct inode *dir)
 cleanup:
 		posix_acl_release(acl);
 	} else
-		inode->i_mode &= ~current->fs->umask;
+		inode->i_mode &= ~current_umask();
 
 	JFS_IP(inode)->mode2 = (JFS_IP(inode)->mode2 & 0xffff0000) |
 			       inode->i_mode;

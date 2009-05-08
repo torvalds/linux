@@ -159,14 +159,6 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port,
 	priv->port = port;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/*
-	 * Force low_latency on so that our tty_push actually forces the data
-	 * through, otherwise it is scheduled, and with high data rates (like
-	 * with OHCI) data can get lost.
-	 */
-	if (tty)
-		tty->low_latency = 1;
-
 	/* Start reading from the device */
 	usb_fill_bulk_urb(priv->bulk_read_urb, priv->udev,
 			  usb_rcvbulkpipe(priv->udev,

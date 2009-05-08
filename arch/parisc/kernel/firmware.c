@@ -527,7 +527,11 @@ int pdc_model_capabilities(unsigned long *capabilities)
         pdc_result[0] = 0; /* preset zero (call may not be implemented!) */
         retval = mem_pdc_call(PDC_MODEL, PDC_MODEL_CAPABILITIES, __pa(pdc_result), 0);
         convert_to_wide(pdc_result);
-        *capabilities = pdc_result[0];
+        if (retval == PDC_OK) {
+                *capabilities = pdc_result[0];
+        } else {
+                *capabilities = PDC_MODEL_OS32;
+        }
         spin_unlock_irqrestore(&pdc_lock, flags);
 
         return retval;

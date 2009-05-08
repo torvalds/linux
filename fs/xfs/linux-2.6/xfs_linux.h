@@ -38,7 +38,6 @@
 #include <kmem.h>
 #include <mrlock.h>
 #include <sv.h>
-#include <mutex.h>
 #include <time.h>
 
 #include <support/ktrace.h>
@@ -51,6 +50,7 @@
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/file.h>
 #include <linux/swap.h>
 #include <linux/errno.h>
@@ -146,17 +146,6 @@
 
 #define SYNCHRONIZE()	barrier()
 #define __return_address __builtin_return_address(0)
-
-/*
- * IRIX (BSD) quotactl makes use of separate commands for user/group,
- * whereas on Linux the syscall encodes this information into the cmd
- * field (see the QCMD macro in quota.h).  These macros help keep the
- * code portable - they are not visible from the syscall interface.
- */
-#define Q_XSETGQLIM	XQM_CMD(8)	/* set groups disk limits */
-#define Q_XGETGQUOTA	XQM_CMD(9)	/* get groups disk limits */
-#define Q_XSETPQLIM	XQM_CMD(10)	/* set projects disk limits */
-#define Q_XGETPQUOTA	XQM_CMD(11)	/* get projects disk limits */
 
 #define dfltprid	0
 #define MAXPATHLEN	1024

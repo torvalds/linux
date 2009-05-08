@@ -28,7 +28,7 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
-static inline void arch_reset(char mode)
+static inline void arch_reset(char mode, const char *cmd)
 {
 	__raw_writel(RESET_GLOBAL | RESET_CPU1,
 		     IO_ADDRESS(GEMINI_GLOBAL_BASE) + GLOBAL_RESET);

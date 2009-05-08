@@ -69,12 +69,13 @@ static int m52790_write(struct v4l2_subdev *sd)
    part of the audio output routing. The normal case is that another
    chip takes care of the actual muting so making it part of the
    output routing seems to be the right thing to do for now. */
-static int m52790_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int m52790_s_routing(struct v4l2_subdev *sd,
+			    u32 input, u32 output, u32 config)
 {
 	struct m52790_state *state = to_state(sd);
 
-	state->input = route->input;
-	state->output = route->output;
+	state->input = input;
+	state->output = output;
 	m52790_write(sd);
 	return 0;
 }
@@ -130,11 +131,6 @@ static int m52790_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Switch 2: %02x\n",
 			(state->input | state->output) >> 8);
 	return 0;
-}
-
-static int m52790_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -210,8 +206,6 @@ MODULE_DEVICE_TABLE(i2c, m52790_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "m52790",
-	.driverid = I2C_DRIVERID_M52790,
-	.command = m52790_command,
 	.probe = m52790_probe,
 	.remove = m52790_remove,
 	.id_table = m52790_id,

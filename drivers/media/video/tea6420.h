@@ -1,17 +1,24 @@
 #ifndef __INCLUDED_TEA6420__
 #define __INCLUDED_TEA6420__
 
-/* possible addresses */
-#define	I2C_ADDR_TEA6420_1		0x4c
-#define	I2C_ADDR_TEA6420_2		0x4d
+/* input pins */
+#define TEA6420_OUTPUT1 1
+#define TEA6420_OUTPUT2 2
+#define TEA6420_OUTPUT3 3
+#define TEA6420_OUTPUT4 4
 
-struct tea6420_multiplex
-{
-	int	in;	/* input of audio switch */
-	int	out;	/* output of audio switch  */
-	int	gain;	/* gain of connection */
-};
+/* output pins */
+#define TEA6420_INPUT1 1
+#define TEA6420_INPUT2 2
+#define TEA6420_INPUT3 3
+#define TEA6420_INPUT4 4
+#define TEA6420_INPUT5 5
+#define TEA6420_INPUT6 6
 
-#define TEA6420_SWITCH		_IOW('v',1,struct tea6420_multiplex)
+/* gain on the output pins, ORed with the output pin */
+#define TEA6420_GAIN0 0x00
+#define TEA6420_GAIN2 0x20
+#define TEA6420_GAIN4 0x40
+#define TEA6420_GAIN6 0x60
 
 #endif

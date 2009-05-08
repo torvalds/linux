@@ -381,7 +381,7 @@ static void hgpk_disconnect(struct psmouse *psmouse)
 
 static void hgpk_recalib_work(struct work_struct *work)
 {
-	struct delayed_work *w = container_of(work, struct delayed_work, work);
+	struct delayed_work *w = to_delayed_work(work);
 	struct hgpk_data *priv = container_of(w, struct hgpk_data, recalib_wq);
 	struct psmouse *psmouse = priv->psmouse;
 
@@ -472,7 +472,7 @@ static enum hgpk_model_t hgpk_get_model(struct psmouse *psmouse)
 		return -EIO;
 	}
 
-	hgpk_dbg(psmouse, "ID: %02x %02x %02x", param[0], param[1], param[2]);
+	hgpk_dbg(psmouse, "ID: %02x %02x %02x\n", param[0], param[1], param[2]);
 
 	/* HGPK signature: 0x67, 0x00, 0x<model> */
 	if (param[0] != 0x67 || param[1] != 0x00)

@@ -101,11 +101,11 @@ EXPORT_SYMBOL(smp_num_siblings);
 DEFINE_PER_CPU(u16, cpu_llc_id) = BAD_APICID;
 
 /* representing HT siblings of each logical CPU */
-DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 
 /* representing HT and core siblings of each logical CPU */
-DEFINE_PER_CPU(cpumask_t, cpu_core_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
 EXPORT_PER_CPU_SYMBOL(cpu_core_map);
 
 /* Per CPU bogomips and other parameters */
@@ -114,16 +114,7 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 atomic_t init_deasserted;
 
-
-/* Set if we find a B stepping CPU */
-static int __cpuinitdata smp_b_stepping;
-
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
-
-/* which logical CPUs are on which nodes */
-cpumask_t node_to_cpumask_map[MAX_NUMNODES] __read_mostly =
-				{ [0 ... MAX_NUMNODES-1] = CPU_MASK_NONE };
-EXPORT_SYMBOL(node_to_cpumask_map);
 /* which node each logical CPU is on */
 int cpu_to_node_map[NR_CPUS] __read_mostly = { [0 ... NR_CPUS-1] = 0 };
 EXPORT_SYMBOL(cpu_to_node_map);
@@ -132,7 +123,7 @@ EXPORT_SYMBOL(cpu_to_node_map);
 static void map_cpu_to_node(int cpu, int node)
 {
 	printk(KERN_INFO "Mapping cpu %d to node %d\n", cpu, node);
-	cpumask_set_cpu(cpu, &node_to_cpumask_map[node]);
+	cpumask_set_cpu(cpu, node_to_cpumask_map[node]);
 	cpu_to_node_map[cpu] = node;
 }
 
@@ -143,7 +134,7 @@ static void unmap_cpu_to_node(int cpu)
 
 	printk(KERN_INFO "Unmapping cpu %d from all nodes\n", cpu);
 	for (node = 0; node < MAX_NUMNODES; node++)
-		cpumask_clear_cpu(cpu, &node_to_cpumask_map[node]);
+		cpumask_clear_cpu(cpu, node_to_cpumask_map[node]);
 	cpu_to_node_map[cpu] = 0;
 }
 #else /* !(CONFIG_NUMA && CONFIG_X86_32) */
@@ -271,8 +262,6 @@ static void __cpuinit smp_callin(void)
 	cpumask_set_cpu(cpuid, cpu_callin_mask);
 }
 
-static int __cpuinitdata unsafe_smp;
-
 /*
  * Activate a secondary processor.
  */
@@ -307,7 +296,7 @@ notrace static void __cpuinit start_secondary(void *unused)
 	__flush_tlb_all();
 #endif
 
-	/* This must be done before setting cpu_online_map */
+	/* This must be done before setting cpu_online_mask */
 	set_cpu_sibling_map(raw_smp_processor_id());
 	wmb();
 
@@ -340,75 +329,22 @@ notrace static void __cpuinit start_secondary(void *unused)
 	cpu_idle();
 }
 
-static void __cpuinit smp_apply_quirks(struct cpuinfo_x86 *c)
+#ifdef CONFIG_CPUMASK_OFFSTACK
+/* In this case, llc_shared_map is a pointer to a cpumask. */
+static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
+				    const struct cpuinfo_x86 *src)
 {
-	/*
-	 * Mask B, Pentium, but not Pentium MMX
-	 */
-	if (c->x86_vendor == X86_VENDOR_INTEL &&
-	    c->x86 == 5 &&
-	    c->x86_mask >= 1 && c->x86_mask <= 4 &&
-	    c->x86_model <= 3)
-		/*
-		 * Remember we have B step Pentia with bugs
-		 */
-		smp_b_stepping = 1;
-
-	/*
-	 * Certain Athlons might work (for various values of 'work') in SMP
-	 * but they are not certified as MP capable.
-	 */
-	if ((c->x86_vendor == X86_VENDOR_AMD) && (c->x86 == 6)) {
-
-		if (num_possible_cpus() == 1)
-			goto valid_k7;
-
-		/* Athlon 660/661 is valid. */
-		if ((c->x86_model == 6) && ((c->x86_mask == 0) ||
-		    (c->x86_mask == 1)))
-			goto valid_k7;
-
-		/* Duron 670 is valid */
-		if ((c->x86_model == 7) && (c->x86_mask == 0))
-			goto valid_k7;
-
-		/*
-		 * Athlon 662, Duron 671, and Athlon >model 7 have capability
-		 * bit. It's worth noting that the A5 stepping (662) of some
-		 * Athlon XP's have the MP bit set.
-		 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for
-		 * more.
-		 */
-		if (((c->x86_model == 6) && (c->x86_mask >= 2)) ||
-		    ((c->x86_model == 7) && (c->x86_mask >= 1)) ||
-		     (c->x86_model > 7))
-			if (cpu_has_mp)
-				goto valid_k7;
-
-		/* If we get here, not a certified SMP capable AMD system. */
-		unsafe_smp = 1;
-	}
-
-valid_k7:
-	;
+	struct cpumask *llc = dst->llc_shared_map;
+	*dst = *src;
+	dst->llc_shared_map = llc;
 }
-
-static void __cpuinit smp_checks(void)
+#else
+static inline void copy_cpuinfo_x86(struct cpuinfo_x86 *dst,
+				    const struct cpuinfo_x86 *src)
 {
-	if (smp_b_stepping)
-		printk(KERN_WARNING "WARNING: SMP operation may be unreliable"
-				    "with B stepping processors.\n");
-
-	/*
-	 * Don't taint if we are running SMP kernel on a single non-MP
-	 * approved Athlon
-	 */
-	if (unsafe_smp && num_online_cpus() > 1) {
-		printk(KERN_INFO "WARNING: This combination of AMD"
-			"processors is not suitable for SMP.\n");
-		add_taint(TAINT_UNSAFE_SMP);
-	}
+	*dst = *src;
 }
+#endif /* CONFIG_CPUMASK_OFFSTACK */
 
 /*
  * The bootstrap kernel entry code has set these up. Save them for
@@ -419,11 +355,10 @@ void __cpuinit smp_store_cpu_info(int id)
 {
 	struct cpuinfo_x86 *c = &cpu_data(id);
 
-	*c = boot_cpu_data;
+	copy_cpuinfo_x86(c, &boot_cpu_data);
 	c->cpu_index = id;
 	if (id != 0)
 		identify_secondary_cpu(c);
-	smp_apply_quirks(c);
 }
 
 
@@ -444,15 +379,15 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 				cpumask_set_cpu(cpu, cpu_sibling_mask(i));
 				cpumask_set_cpu(i, cpu_core_mask(cpu));
 				cpumask_set_cpu(cpu, cpu_core_mask(i));
-				cpumask_set_cpu(i, &c->llc_shared_map);
-				cpumask_set_cpu(cpu, &o->llc_shared_map);
+				cpumask_set_cpu(i, c->llc_shared_map);
+				cpumask_set_cpu(cpu, o->llc_shared_map);
 			}
 		}
 	} else {
 		cpumask_set_cpu(cpu, cpu_sibling_mask(cpu));
 	}
 
-	cpumask_set_cpu(cpu, &c->llc_shared_map);
+	cpumask_set_cpu(cpu, c->llc_shared_map);
 
 	if (current_cpu_data.x86_max_cores == 1) {
 		cpumask_copy(cpu_core_mask(cpu), cpu_sibling_mask(cpu));
@@ -463,8 +398,8 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 	for_each_cpu(i, cpu_sibling_setup_mask) {
 		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
 		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
-			cpumask_set_cpu(i, &c->llc_shared_map);
-			cpumask_set_cpu(cpu, &cpu_data(i).llc_shared_map);
+			cpumask_set_cpu(i, c->llc_shared_map);
+			cpumask_set_cpu(cpu, cpu_data(i).llc_shared_map);
 		}
 		if (c->phys_proc_id == cpu_data(i).phys_proc_id) {
 			cpumask_set_cpu(i, cpu_core_mask(cpu));
@@ -502,12 +437,7 @@ const struct cpumask *cpu_coregroup_mask(int cpu)
 	if (sched_mc_power_savings || sched_smt_power_savings)
 		return cpu_core_mask(cpu);
 	else
-		return &c->llc_shared_map;
-}
-
-cpumask_t cpu_coregroup_map(int cpu)
-{
-	return *cpu_coregroup_mask(cpu);
+		return c->llc_shared_map;
 }
 
 static void impress_friends(void)
@@ -974,9 +904,8 @@ int __cpuinit native_cpu_up(unsigned int cpu)
  */
 static __init void disable_smp(void)
 {
-	/* use the read/write pointers to the present and possible maps */
-	cpumask_copy(&cpu_present_map, cpumask_of(0));
-	cpumask_copy(&cpu_possible_map, cpumask_of(0));
+	init_cpu_present(cpumask_of(0));
+	init_cpu_possible(cpumask_of(0));
 	smpboot_clear_io_apic_irqs();
 
 	if (smp_found_config)
@@ -1108,6 +1037,8 @@ static void __init smp_cpu_index_default(void)
  */
 void __init native_smp_prepare_cpus(unsigned int max_cpus)
 {
+	unsigned int i;
+
 	preempt_disable();
 	smp_cpu_index_default();
 	current_cpu_data = boot_cpu_data;
@@ -1121,6 +1052,14 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	boot_cpu_logical_apicid = logical_smp_processor_id();
 #endif
 	current_thread_info()->cpu = 0;  /* needed? */
+	for_each_possible_cpu(i) {
+		alloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
+		alloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
+		alloc_cpumask_var(&cpu_data(i).llc_shared_map, GFP_KERNEL);
+		cpumask_clear(per_cpu(cpu_core_map, i));
+		cpumask_clear(per_cpu(cpu_sibling_map, i));
+		cpumask_clear(cpu_data(i).llc_shared_map);
+	}
 	set_cpu_sibling_map(0);
 
 	enable_IR_x2apic();
@@ -1193,7 +1132,6 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	pr_debug("Boot done.\n");
 
 	impress_friends();
-	smp_checks();
 #ifdef CONFIG_X86_IO_APIC
 	setup_ioapic_dest();
 #endif
@@ -1210,11 +1148,11 @@ early_param("possible_cpus", _setup_possible_cpus);
 
 
 /*
- * cpu_possible_map should be static, it cannot change as cpu's
+ * cpu_possible_mask should be static, it cannot change as cpu's
  * are onlined, or offlined. The reason is per-cpu data-structures
  * are allocated by some modules at init time, and dont expect to
  * do this dynamically on cpu arrival/departure.
- * cpu_present_map on the other hand can change dynamically.
+ * cpu_present_mask on the other hand can change dynamically.
  * In case when cpu_hotplug is not compiled, then we resort to current
  * behaviour, which is cpu_possible == cpu_present.
  * - Ashok Raj

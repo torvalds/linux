@@ -86,7 +86,7 @@ config ATA_SFF
 
 	  For users with exclusively modern controllers like AHCI,
 	  Silicon Image 3124, or Marvell 6440, you may choose to
-	  disable this uneeded SFF support.
+	  disable this unneeded SFF support.
 
 	  If unsure, say Y.
 

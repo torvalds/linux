@@ -318,6 +318,7 @@ out:
 static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
+	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
 	buf->f_type = CRAMFS_MAGIC;
 	buf->f_bsize = PAGE_CACHE_SIZE;
@@ -326,6 +327,8 @@ static int cramfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = 0;
 	buf->f_files = CRAMFS_SB(sb)->files;
 	buf->f_ffree = 0;
+	buf->f_fsid.val[0] = (u32)id;
+	buf->f_fsid.val[1] = (u32)(id >> 32);
 	buf->f_namelen = CRAMFS_MAXPATHLEN;
 	return 0;
 }
@@ -459,11 +462,14 @@ static struct dentry * cramfs_lookup(struct inode *dir, struct dentry *dentry, s
 static int cramfs_readpage(struct file *file, struct page * page)
 {
 	struct inode *inode = page->mapping->host;
-	u32 maxblock, bytes_filled;
+	u32 maxblock;
+	int bytes_filled;
 	void *pgdata;
 
 	maxblock = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	bytes_filled = 0;
+	pgdata = kmap(page);
+
 	if (page->index < maxblock) {
 		struct super_block *sb = inode->i_sb;
 		u32 blkptr_offset = OFFSET(inode) + page->index*4;
@@ -472,28 +478,41 @@ static int cramfs_readpage(struct file *file, struct page * page)
 		start_offset = OFFSET(inode) + maxblock*4;
 		mutex_lock(&read_mutex);
 		if (page->index)
-			start_offset = *(u32 *) cramfs_read(sb, blkptr_offset-4, 4);
-		compr_len = (*(u32 *) cramfs_read(sb, blkptr_offset, 4) - start_offset);
+			start_offset = *(u32 *) cramfs_read(sb, blkptr_offset-4,
+				4);
+		compr_len = (*(u32 *) cramfs_read(sb, blkptr_offset, 4) -
+			start_offset);
 		mutex_unlock(&read_mutex);
-		pgdata = kmap(page);
+
 		if (compr_len == 0)
 			; /* hole */
-		else if (compr_len > (PAGE_CACHE_SIZE << 1))
-			printk(KERN_ERR "cramfs: bad compressed blocksize %u\n", compr_len);
-		else {
+		else if (unlikely(compr_len > (PAGE_CACHE_SIZE << 1))) {
+			pr_err("cramfs: bad compressed blocksize %u\n",
+				compr_len);
+			goto err;
+		} else {
 			mutex_lock(&read_mutex);
 			bytes_filled = cramfs_uncompress_block(pgdata,
 				 PAGE_CACHE_SIZE,
 				 cramfs_read(sb, start_offset, compr_len),
 				 compr_len);
 			mutex_unlock(&read_mutex);
+			if (unlikely(bytes_filled < 0))
+				goto err;
 		}
-	} else
-		pgdata = kmap(page);
+	}
+
 	memset(pgdata + bytes_filled, 0, PAGE_CACHE_SIZE - bytes_filled);
-	kunmap(page);
 	flush_dcache_page(page);
+	kunmap(page);
 	SetPageUptodate(page);
+	unlock_page(page);
+	return 0;
+
+err:
+	kunmap(page);
+	ClearPageUptodate(page);
+	SetPageError(page);
 	unlock_page(page);
 	return 0;
 }

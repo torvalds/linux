@@ -122,7 +122,7 @@ typedef struct xfs_ictimestamp {
 
 /*
  * NOTE:  This structure must be kept identical to struct xfs_dinode
- * 	  in xfs_dinode.h except for the endianess annotations.
+ * 	  in xfs_dinode.h except for the endianness annotations.
  */
 typedef struct xfs_icdinode {
 	__uint16_t	di_magic;	/* inode magic # = XFS_DINODE_MAGIC */

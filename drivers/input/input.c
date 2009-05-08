@@ -29,6 +29,23 @@ MODULE_LICENSE("GPL");
 
 #define INPUT_DEVICES	256
 
+/*
+ * EV_ABS events which should not be cached are listed here.
+ */
+static unsigned int input_abs_bypass_init_data[] __initdata = {
+	ABS_MT_TOUCH_MAJOR,
+	ABS_MT_TOUCH_MINOR,
+	ABS_MT_WIDTH_MAJOR,
+	ABS_MT_WIDTH_MINOR,
+	ABS_MT_ORIENTATION,
+	ABS_MT_POSITION_X,
+	ABS_MT_POSITION_Y,
+	ABS_MT_TOOL_TYPE,
+	ABS_MT_BLOB_ID,
+	0
+};
+static unsigned long input_abs_bypass[BITS_TO_LONGS(ABS_CNT)];
+
 static LIST_HEAD(input_dev_list);
 static LIST_HEAD(input_handler_list);
 
@@ -132,6 +149,11 @@ static void input_start_autorepeat(struct input_dev *dev, int code)
 	}
 }
 
+static void input_stop_autorepeat(struct input_dev *dev)
+{
+	del_timer(&dev->timer);
+}
+
 #define INPUT_IGNORE_EVENT	0
 #define INPUT_PASS_TO_HANDLERS	1
 #define INPUT_PASS_TO_DEVICE	2
@@ -156,6 +178,10 @@ static void input_handle_event(struct input_dev *dev,
 				disposition = INPUT_PASS_TO_HANDLERS;
 			}
 			break;
+		case SYN_MT_REPORT:
+			dev->sync = 0;
+			disposition = INPUT_PASS_TO_HANDLERS;
+			break;
 		}
 		break;
 
@@ -167,6 +193,8 @@ static void input_handle_event(struct input_dev *dev,
 				__change_bit(code, dev->key);
 				if (value)
 					input_start_autorepeat(dev, code);
+				else
+					input_stop_autorepeat(dev);
 			}
 
 			disposition = INPUT_PASS_TO_HANDLERS;
@@ -184,6 +212,11 @@ static void input_handle_event(struct input_dev *dev,
 
 	case EV_ABS:
 		if (is_event_supported(code, dev->absbit, ABS_MAX)) {
+
+			if (test_bit(code, input_abs_bypass)) {
+				disposition = INPUT_PASS_TO_HANDLERS;
+				break;
+			}
 
 			value = input_defuzz_abs_event(value,
 					dev->abs[code], dev->absfuzz[code]);
@@ -737,11 +770,11 @@ static inline void input_wakeup_procfs_readers(void)
 
 static unsigned int input_proc_devices_poll(struct file *file, poll_table *wait)
 {
-	int state = input_devices_state;
-
 	poll_wait(file, &input_devices_poll_wait, wait);
-	if (state != input_devices_state)
+	if (file->f_version != input_devices_state) {
+		file->f_version = input_devices_state;
 		return POLLIN | POLLRDNORM;
+	}
 
 	return 0;
 }
@@ -902,8 +935,6 @@ static int __init input_proc_init(void)
 	proc_bus_input_dir = proc_mkdir("bus/input", NULL);
 	if (!proc_bus_input_dir)
 		return -ENOMEM;
-
-	proc_bus_input_dir->owner = THIS_MODULE;
 
 	entry = proc_create("devices", 0, proc_bus_input_dir,
 			    &input_devices_fileops);
@@ -1544,7 +1575,6 @@ int input_register_handle(struct input_handle *handle)
 		return error;
 	list_add_tail_rcu(&handle->d_node, &dev->h_list);
 	mutex_unlock(&dev->mutex);
-	synchronize_rcu();
 
 	/*
 	 * Since we are supposed to be called from ->connect()
@@ -1630,9 +1660,19 @@ static const struct file_operations input_fops = {
 	.open = input_open_file,
 };
 
+static void __init input_init_abs_bypass(void)
+{
+	const unsigned int *p;
+
+	for (p = input_abs_bypass_init_data; *p; p++)
+		input_abs_bypass[BIT_WORD(*p)] |= BIT_MASK(*p);
+}
+
 static int __init input_init(void)
 {
 	int err;
+
+	input_init_abs_bypass();
 
 	err = class_register(&input_class);
 	if (err) {

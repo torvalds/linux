@@ -27,12 +27,8 @@ static inline int nfs_fsid_equal(const struct nfs_fsid *a, const struct nfs_fsid
 }
 
 struct nfs_fattr {
-	unsigned short		valid;		/* which fields are valid */
-	__u64			pre_size;	/* pre_op_attr.size	  */
-	struct timespec		pre_mtime;	/* pre_op_attr.mtime	  */
-	struct timespec		pre_ctime;	/* pre_op_attr.ctime	  */
-	enum nfs_ftype		type;		/* always use NFSv2 types */
-	__u32			mode;
+	unsigned int		valid;		/* which fields are valid */
+	umode_t			mode;
 	__u32			nlink;
 	__u32			uid;
 	__u32			gid;
@@ -52,19 +48,55 @@ struct nfs_fattr {
 	struct timespec		atime;
 	struct timespec		mtime;
 	struct timespec		ctime;
-	__u32			bitmap[2];	/* NFSv4 returned attribute bitmap */
 	__u64			change_attr;	/* NFSv4 change attribute */
 	__u64			pre_change_attr;/* pre-op NFSv4 change attribute */
+	__u64			pre_size;	/* pre_op_attr.size	  */
+	struct timespec		pre_mtime;	/* pre_op_attr.mtime	  */
+	struct timespec		pre_ctime;	/* pre_op_attr.ctime	  */
 	unsigned long		time_start;
 	unsigned long		gencount;
 };
 
-#define NFS_ATTR_WCC		0x0001		/* pre-op WCC data    */
-#define NFS_ATTR_FATTR		0x0002		/* post-op attributes */
-#define NFS_ATTR_FATTR_V3	0x0004		/* NFSv3 attributes */
-#define NFS_ATTR_FATTR_V4	0x0008		/* NFSv4 change attribute */
-#define NFS_ATTR_WCC_V4		0x0010		/* pre-op change attribute */
-#define NFS_ATTR_FATTR_V4_REFERRAL	0x0020		/* NFSv4 referral */
+#define NFS_ATTR_FATTR_TYPE		(1U << 0)
+#define NFS_ATTR_FATTR_MODE		(1U << 1)
+#define NFS_ATTR_FATTR_NLINK		(1U << 2)
+#define NFS_ATTR_FATTR_OWNER		(1U << 3)
+#define NFS_ATTR_FATTR_GROUP		(1U << 4)
+#define NFS_ATTR_FATTR_RDEV		(1U << 5)
+#define NFS_ATTR_FATTR_SIZE		(1U << 6)
+#define NFS_ATTR_FATTR_PRESIZE		(1U << 7)
+#define NFS_ATTR_FATTR_BLOCKS_USED	(1U << 8)
+#define NFS_ATTR_FATTR_SPACE_USED	(1U << 9)
+#define NFS_ATTR_FATTR_FSID		(1U << 10)
+#define NFS_ATTR_FATTR_FILEID		(1U << 11)
+#define NFS_ATTR_FATTR_ATIME		(1U << 12)
+#define NFS_ATTR_FATTR_MTIME		(1U << 13)
+#define NFS_ATTR_FATTR_CTIME		(1U << 14)
+#define NFS_ATTR_FATTR_PREMTIME		(1U << 15)
+#define NFS_ATTR_FATTR_PRECTIME		(1U << 16)
+#define NFS_ATTR_FATTR_CHANGE		(1U << 17)
+#define NFS_ATTR_FATTR_PRECHANGE	(1U << 18)
+#define NFS_ATTR_FATTR_V4_REFERRAL	(1U << 19)	/* NFSv4 referral */
+
+#define NFS_ATTR_FATTR (NFS_ATTR_FATTR_TYPE \
+		| NFS_ATTR_FATTR_MODE \
+		| NFS_ATTR_FATTR_NLINK \
+		| NFS_ATTR_FATTR_OWNER \
+		| NFS_ATTR_FATTR_GROUP \
+		| NFS_ATTR_FATTR_RDEV \
+		| NFS_ATTR_FATTR_SIZE \
+		| NFS_ATTR_FATTR_FSID \
+		| NFS_ATTR_FATTR_FILEID \
+		| NFS_ATTR_FATTR_ATIME \
+		| NFS_ATTR_FATTR_MTIME \
+		| NFS_ATTR_FATTR_CTIME)
+#define NFS_ATTR_FATTR_V2 (NFS_ATTR_FATTR \
+		| NFS_ATTR_FATTR_BLOCKS_USED)
+#define NFS_ATTR_FATTR_V3 (NFS_ATTR_FATTR \
+		| NFS_ATTR_FATTR_SPACE_USED)
+#define NFS_ATTR_FATTR_V4 (NFS_ATTR_FATTR \
+		| NFS_ATTR_FATTR_SPACE_USED \
+		| NFS_ATTR_FATTR_CHANGE)
 
 /*
  * Info on the file system
@@ -836,6 +868,7 @@ struct nfs_rpc_ops {
 	int	(*lock)(struct file *, int, struct file_lock *);
 	int	(*lock_check_bounds)(const struct file_lock *);
 	void	(*clear_acl_cache)(struct inode *);
+	void	(*close_context)(struct nfs_open_context *ctx, int);
 };
 
 /*

@@ -59,7 +59,6 @@ const struct inode_operations ramfs_file_inode_operations = {
  */
 int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 {
-	struct pagevec lru_pvec;
 	unsigned long npages, xpages, loop, limit;
 	struct page *pages;
 	unsigned order;
@@ -102,16 +101,13 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 	memset(data, 0, newsize);
 
 	/* attach all the pages to the inode's address space */
-	pagevec_init(&lru_pvec, 0);
 	for (loop = 0; loop < npages; loop++) {
 		struct page *page = pages + loop;
 
-		ret = add_to_page_cache(page, inode->i_mapping, loop, GFP_KERNEL);
+		ret = add_to_page_cache_lru(page, inode->i_mapping, loop,
+					GFP_KERNEL);
 		if (ret < 0)
 			goto add_error;
-
-		if (!pagevec_add(&lru_pvec, page))
-			__pagevec_lru_add_file(&lru_pvec);
 
 		/* prevent the page from being discarded on memory pressure */
 		SetPageDirty(page);
@@ -119,7 +115,6 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 		unlock_page(page);
 	}
 
-	pagevec_lru_add_file(&lru_pvec);
 	return 0;
 
  fsize_exceeded:
@@ -128,10 +123,8 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 	return -EFBIG;
 
  add_error:
-	pagevec_lru_add_file(&lru_pvec);
-	page_cache_release(pages + loop);
-	for (loop++; loop < npages; loop++)
-		__free_page(pages + loop);
+	while (loop < npages)
+		__free_page(pages + loop++);
 	return ret;
 }
 

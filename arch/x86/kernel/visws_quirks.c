@@ -578,7 +578,7 @@ static struct irq_chip piix4_virtual_irq_type = {
 static irqreturn_t piix4_master_intr(int irq, void *dev_id)
 {
 	int realirq;
-	irq_desc_t *desc;
+	struct irq_desc *desc;
 	unsigned long flags;
 
 	spin_lock_irqsave(&i8259A_lock, flags);

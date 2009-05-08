@@ -1875,7 +1875,7 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
-static struct file_operations dvb_frontend_fops = {
+static const struct file_operations dvb_frontend_fops = {
 	.owner		= THIS_MODULE,
 	.ioctl		= dvb_generic_ioctl,
 	.poll		= dvb_frontend_poll,

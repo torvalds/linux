@@ -101,14 +101,8 @@
 #define _P80211MGMT_H
 
 /*================================================================*/
-/* System Includes */
-
-/*================================================================*/
 /* Project Includes */
 
-#ifndef  _WLAN_COMPAT_H
-#include "wlan_compat.h"
-#endif
 
 #ifndef  _P80211HDR_H
 #include "p80211hdr.h"
@@ -160,8 +154,6 @@
 #define WLAN_MGMT_STATUS_ASSOC_DENIED_NOPBCC	20
 #define WLAN_MGMT_STATUS_ASSOC_DENIED_NOAGILITY	21
 
-
-
 /*-- Auth Algorithm Field ---------------------------*/
 #define WLAN_AUTH_ALG_OPENSYSTEM		0
 #define WLAN_AUTH_ALG_SHAREDKEY			1
@@ -211,20 +203,16 @@
 
 #define WLAN_DEAUTHEN_OFF_REASON		0
 
-
-/*================================================================*/
-/* Macros */
-
 /*-- Capability Field ---------------------------*/
-#define WLAN_GET_MGMT_CAP_INFO_ESS(n)		((n) & BIT0)
-#define WLAN_GET_MGMT_CAP_INFO_IBSS(n)		(((n) & BIT1) >> 1)
-#define WLAN_GET_MGMT_CAP_INFO_CFPOLLABLE(n)	(((n) & BIT2) >> 2)
-#define WLAN_GET_MGMT_CAP_INFO_CFPOLLREQ(n)	(((n) & BIT3) >> 3)
-#define WLAN_GET_MGMT_CAP_INFO_PRIVACY(n)	(((n) & BIT4) >> 4)
+#define WLAN_GET_MGMT_CAP_INFO_ESS(n)		((n) & BIT(0))
+#define WLAN_GET_MGMT_CAP_INFO_IBSS(n)		(((n) & BIT(1)) >> 1)
+#define WLAN_GET_MGMT_CAP_INFO_CFPOLLABLE(n)	(((n) & BIT(2)) >> 2)
+#define WLAN_GET_MGMT_CAP_INFO_CFPOLLREQ(n)	(((n) & BIT(3)) >> 3)
+#define WLAN_GET_MGMT_CAP_INFO_PRIVACY(n)	(((n) & BIT(4)) >> 4)
   /* p80211b additions */
-#define WLAN_GET_MGMT_CAP_INFO_SHORT(n)		(((n) & BIT5) >> 5)
-#define WLAN_GET_MGMT_CAP_INFO_PBCC(n)		(((n) & BIT6) >> 6)
-#define WLAN_GET_MGMT_CAP_INFO_AGILITY(n)	(((n) & BIT7) >> 7)
+#define WLAN_GET_MGMT_CAP_INFO_SHORT(n)		(((n) & BIT(5)) >> 5)
+#define WLAN_GET_MGMT_CAP_INFO_PBCC(n)		(((n) & BIT(6)) >> 6)
+#define WLAN_GET_MGMT_CAP_INFO_AGILITY(n)	(((n) & BIT(7)) >> 7)
 
 #define WLAN_SET_MGMT_CAP_INFO_ESS(n)		(n)
 #define WLAN_SET_MGMT_CAP_INFO_IBSS(n)		((n) << 1)
@@ -236,143 +224,126 @@
 #define WLAN_SET_MGMT_CAP_INFO_PBCC(n)		((n) << 6)
 #define WLAN_SET_MGMT_CAP_INFO_AGILITY(n)	((n) << 7)
 
-
-/*================================================================*/
-/* Types */
-
 /*-- Information Element Types --------------------*/
 /* prototype structure, all IEs start with these members */
 
-typedef struct wlan_ie
-{
-	u8	eid;
-	u8	len;
-} __WLAN_ATTRIB_PACK__ wlan_ie_t;
+typedef struct wlan_ie {
+	u8 eid;
+	u8 len;
+} __attribute__ ((packed)) wlan_ie_t;
 
 /*-- Service Set Identity (SSID)  -----------------*/
-typedef struct wlan_ie_ssid
-{
-	u8	eid;
-	u8	len;
-	u8	ssid[1];  /* may be zero, ptrs may overlap */
-} __WLAN_ATTRIB_PACK__ wlan_ie_ssid_t;
+typedef struct wlan_ie_ssid {
+	u8 eid;
+	u8 len;
+	u8 ssid[1];		/* may be zero, ptrs may overlap */
+} __attribute__ ((packed)) wlan_ie_ssid_t;
 
 /*-- Supported Rates  -----------------------------*/
-typedef struct wlan_ie_supp_rates
-{
-	u8	eid;
-	u8	len;
-	u8	rates[1];  /* had better be at LEAST one! */
-} __WLAN_ATTRIB_PACK__ wlan_ie_supp_rates_t;
+typedef struct wlan_ie_supp_rates {
+	u8 eid;
+	u8 len;
+	u8 rates[1];		/* had better be at LEAST one! */
+} __attribute__ ((packed)) wlan_ie_supp_rates_t;
 
 /*-- FH Parameter Set  ----------------------------*/
-typedef struct wlan_ie_fh_parms
-{
-	u8	eid;
-	u8	len;
-	u16	dwell;
-	u8	hopset;
-	u8	hoppattern;
-	u8	hopindex;
-} __WLAN_ATTRIB_PACK__ wlan_ie_fh_parms_t;
+typedef struct wlan_ie_fh_parms {
+	u8 eid;
+	u8 len;
+	u16 dwell;
+	u8 hopset;
+	u8 hoppattern;
+	u8 hopindex;
+} __attribute__ ((packed)) wlan_ie_fh_parms_t;
 
 /*-- DS Parameter Set  ----------------------------*/
-typedef struct wlan_ie_ds_parms
-{
-	u8	eid;
-	u8	len;
-	u8	curr_ch;
-} __WLAN_ATTRIB_PACK__ wlan_ie_ds_parms_t;
+typedef struct wlan_ie_ds_parms {
+	u8 eid;
+	u8 len;
+	u8 curr_ch;
+} __attribute__ ((packed)) wlan_ie_ds_parms_t;
 
 /*-- CF Parameter Set  ----------------------------*/
 
-typedef struct wlan_ie_cf_parms
-{
-	u8	eid;
-	u8	len;
-	u8	cfp_cnt;
-	u8	cfp_period;
-	u16	cfp_maxdur;
-	u16	cfp_durremaining;
-} __WLAN_ATTRIB_PACK__ wlan_ie_cf_parms_t;
+typedef struct wlan_ie_cf_parms {
+	u8 eid;
+	u8 len;
+	u8 cfp_cnt;
+	u8 cfp_period;
+	u16 cfp_maxdur;
+	u16 cfp_durremaining;
+} __attribute__ ((packed)) wlan_ie_cf_parms_t;
 
 /*-- TIM ------------------------------------------*/
-typedef struct wlan_ie_tim
-{
-	u8	eid;
-	u8	len;
-	u8	dtim_cnt;
-	u8	dtim_period;
-	u8	bitmap_ctl;
-	u8	virt_bm[1];
-} __WLAN_ATTRIB_PACK__ wlan_ie_tim_t;
+typedef struct wlan_ie_tim {
+	u8 eid;
+	u8 len;
+	u8 dtim_cnt;
+	u8 dtim_period;
+	u8 bitmap_ctl;
+	u8 virt_bm[1];
+} __attribute__ ((packed)) wlan_ie_tim_t;
 
 /*-- IBSS Parameter Set ---------------------------*/
-typedef struct wlan_ie_ibss_parms
-{
-	u8	eid;
-	u8	len;
-	u16	atim_win;
-} __WLAN_ATTRIB_PACK__ wlan_ie_ibss_parms_t;
+typedef struct wlan_ie_ibss_parms {
+	u8 eid;
+	u8 len;
+	u16 atim_win;
+} __attribute__ ((packed)) wlan_ie_ibss_parms_t;
 
 /*-- Challenge Text  ------------------------------*/
-typedef struct wlan_ie_challenge
-{
-	u8	eid;
-	u8	len;
-	u8	challenge[1];
-} __WLAN_ATTRIB_PACK__ wlan_ie_challenge_t;
+typedef struct wlan_ie_challenge {
+	u8 eid;
+	u8 len;
+	u8 challenge[1];
+} __attribute__ ((packed)) wlan_ie_challenge_t;
 
 /*-------------------------------------------------*/
 /*  Frame Types  */
 
 /* prototype structure, all mgmt frame types will start with these members */
-typedef struct wlan_fr_mgmt
-{
-	u16			type;
-	u16			len;	/* DOES NOT include CRC !!!!*/
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_mgmt {
+	u16 type;
+	u16 len;		/* DOES NOT include CRC !!!! */
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
 	/*-- info elements ----------*/
 } wlan_fr_mgmt_t;
 
 /*-- Beacon ---------------------------------------*/
-typedef struct wlan_fr_beacon
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_beacon {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u64			*ts;
-	u16			*bcn_int;
-	u16			*cap_info;
+	u64 *ts;
+	u16 *bcn_int;
+	u16 *cap_info;
 	/*-- info elements ----------*/
-	wlan_ie_ssid_t		*ssid;
-	wlan_ie_supp_rates_t	*supp_rates;
-	wlan_ie_fh_parms_t	*fh_parms;
-	wlan_ie_ds_parms_t	*ds_parms;
-	wlan_ie_cf_parms_t	*cf_parms;
-	wlan_ie_ibss_parms_t	*ibss_parms;
-	wlan_ie_tim_t		*tim;
+	wlan_ie_ssid_t *ssid;
+	wlan_ie_supp_rates_t *supp_rates;
+	wlan_ie_fh_parms_t *fh_parms;
+	wlan_ie_ds_parms_t *ds_parms;
+	wlan_ie_cf_parms_t *cf_parms;
+	wlan_ie_ibss_parms_t *ibss_parms;
+	wlan_ie_tim_t *tim;
 
 } wlan_fr_beacon_t;
 
-
 /*-- IBSS ATIM ------------------------------------*/
-typedef struct wlan_fr_ibssatim
-{
-	u16			type;
-	u16			len;
-	u8*			buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_ibssatim {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 
 	/*-- fixed fields -----------*/
 	/*-- info elements ----------*/
@@ -382,194 +353,176 @@ typedef struct wlan_fr_ibssatim
 } wlan_fr_ibssatim_t;
 
 /*-- Disassociation -------------------------------*/
-typedef struct wlan_fr_disassoc
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_disassoc {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u16			*reason;
+	u16 *reason;
 
 	/*-- info elements ----------*/
 
 } wlan_fr_disassoc_t;
 
 /*-- Association Request --------------------------*/
-typedef struct wlan_fr_assocreq
-{
-	u16			type;
-	u16			len;
-	u8*			buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_assocreq {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u16			*cap_info;
-	u16			*listen_int;
+	u16 *cap_info;
+	u16 *listen_int;
 	/*-- info elements ----------*/
-	wlan_ie_ssid_t		*ssid;
-	wlan_ie_supp_rates_t	*supp_rates;
+	wlan_ie_ssid_t *ssid;
+	wlan_ie_supp_rates_t *supp_rates;
 
 } wlan_fr_assocreq_t;
 
 /*-- Association Response -------------------------*/
-typedef struct wlan_fr_assocresp
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_assocresp {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u16			*cap_info;
-	u16			*status;
-	u16			*aid;
+	u16 *cap_info;
+	u16 *status;
+	u16 *aid;
 	/*-- info elements ----------*/
-	wlan_ie_supp_rates_t	*supp_rates;
+	wlan_ie_supp_rates_t *supp_rates;
 
 } wlan_fr_assocresp_t;
 
 /*-- Reassociation Request ------------------------*/
-typedef struct wlan_fr_reassocreq
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_reassocreq {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u16			*cap_info;
-	u16			*listen_int;
-	u8			*curr_ap;
+	u16 *cap_info;
+	u16 *listen_int;
+	u8 *curr_ap;
 	/*-- info elements ----------*/
-	wlan_ie_ssid_t		*ssid;
-	wlan_ie_supp_rates_t	*supp_rates;
+	wlan_ie_ssid_t *ssid;
+	wlan_ie_supp_rates_t *supp_rates;
 
 } wlan_fr_reassocreq_t;
 
 /*-- Reassociation Response -----------------------*/
-typedef struct wlan_fr_reassocresp
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_reassocresp {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u16			*cap_info;
-	u16			*status;
-	u16			*aid;
+	u16 *cap_info;
+	u16 *status;
+	u16 *aid;
 	/*-- info elements ----------*/
-	wlan_ie_supp_rates_t	*supp_rates;
+	wlan_ie_supp_rates_t *supp_rates;
 
 } wlan_fr_reassocresp_t;
 
 /*-- Probe Request --------------------------------*/
-typedef struct wlan_fr_probereq
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_probereq {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
 	/*-- info elements ----------*/
-	wlan_ie_ssid_t		*ssid;
-	wlan_ie_supp_rates_t	*supp_rates;
+	wlan_ie_ssid_t *ssid;
+	wlan_ie_supp_rates_t *supp_rates;
 
 } wlan_fr_probereq_t;
 
 /*-- Probe Response -------------------------------*/
-typedef struct wlan_fr_proberesp
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_proberesp {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u64			*ts;
-	u16			*bcn_int;
-	u16			*cap_info;
+	u64 *ts;
+	u16 *bcn_int;
+	u16 *cap_info;
 	/*-- info elements ----------*/
-	wlan_ie_ssid_t		*ssid;
-	wlan_ie_supp_rates_t	*supp_rates;
-	wlan_ie_fh_parms_t	*fh_parms;
-	wlan_ie_ds_parms_t	*ds_parms;
-	wlan_ie_cf_parms_t	*cf_parms;
-	wlan_ie_ibss_parms_t	*ibss_parms;
+	wlan_ie_ssid_t *ssid;
+	wlan_ie_supp_rates_t *supp_rates;
+	wlan_ie_fh_parms_t *fh_parms;
+	wlan_ie_ds_parms_t *ds_parms;
+	wlan_ie_cf_parms_t *cf_parms;
+	wlan_ie_ibss_parms_t *ibss_parms;
 } wlan_fr_proberesp_t;
 
 /*-- Authentication -------------------------------*/
-typedef struct wlan_fr_authen
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_authen {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u16			*auth_alg;
-	u16			*auth_seq;
-	u16			*status;
+	u16 *auth_alg;
+	u16 *auth_seq;
+	u16 *status;
 	/*-- info elements ----------*/
-	wlan_ie_challenge_t	*challenge;
+	wlan_ie_challenge_t *challenge;
 
 } wlan_fr_authen_t;
 
 /*-- Deauthenication -----------------------------*/
-typedef struct wlan_fr_deauthen
-{
-	u16			type;
-	u16			len;
-	u8			*buf;
-	p80211_hdr_t		*hdr;
+typedef struct wlan_fr_deauthen {
+	u16 type;
+	u16 len;
+	u8 *buf;
+	p80211_hdr_t *hdr;
 	/* used for target specific data, skb in Linux */
-	void			*priv;
+	void *priv;
 	/*-- fixed fields -----------*/
-	u16			*reason;
+	u16 *reason;
 
 	/*-- info elements ----------*/
 
 } wlan_fr_deauthen_t;
 
-
-/*================================================================*/
-/* Extern Declarations */
-
-
-/*================================================================*/
-/* Function Declarations */
-
-void wlan_mgmt_encode_beacon( wlan_fr_beacon_t  *f );
-void wlan_mgmt_decode_beacon( wlan_fr_beacon_t  *f );
-void wlan_mgmt_encode_disassoc( wlan_fr_disassoc_t  *f );
-void wlan_mgmt_decode_disassoc( wlan_fr_disassoc_t  *f );
-void wlan_mgmt_encode_assocreq( wlan_fr_assocreq_t  *f );
-void wlan_mgmt_decode_assocreq( wlan_fr_assocreq_t  *f );
-void wlan_mgmt_encode_assocresp( wlan_fr_assocresp_t  *f );
-void wlan_mgmt_decode_assocresp( wlan_fr_assocresp_t  *f );
-void wlan_mgmt_encode_reassocreq( wlan_fr_reassocreq_t  *f );
-void wlan_mgmt_decode_reassocreq( wlan_fr_reassocreq_t  *f );
-void wlan_mgmt_encode_reassocresp( wlan_fr_reassocresp_t  *f );
-void wlan_mgmt_decode_reassocresp( wlan_fr_reassocresp_t  *f );
-void wlan_mgmt_encode_probereq( wlan_fr_probereq_t  *f );
-void wlan_mgmt_decode_probereq( wlan_fr_probereq_t  *f );
-void wlan_mgmt_encode_proberesp( wlan_fr_proberesp_t  *f );
-void wlan_mgmt_decode_proberesp( wlan_fr_proberesp_t  *f );
-void wlan_mgmt_encode_authen( wlan_fr_authen_t  *f );
-void wlan_mgmt_decode_authen( wlan_fr_authen_t  *f );
-void wlan_mgmt_encode_deauthen( wlan_fr_deauthen_t  *f );
-void wlan_mgmt_decode_deauthen( wlan_fr_deauthen_t  *f );
-
+void wlan_mgmt_encode_beacon(wlan_fr_beacon_t *f);
+void wlan_mgmt_decode_beacon(wlan_fr_beacon_t *f);
+void wlan_mgmt_encode_disassoc(wlan_fr_disassoc_t *f);
+void wlan_mgmt_decode_disassoc(wlan_fr_disassoc_t *f);
+void wlan_mgmt_encode_assocreq(wlan_fr_assocreq_t *f);
+void wlan_mgmt_decode_assocreq(wlan_fr_assocreq_t *f);
+void wlan_mgmt_encode_assocresp(wlan_fr_assocresp_t *f);
+void wlan_mgmt_decode_assocresp(wlan_fr_assocresp_t *f);
+void wlan_mgmt_encode_reassocreq(wlan_fr_reassocreq_t *f);
+void wlan_mgmt_decode_reassocreq(wlan_fr_reassocreq_t *f);
+void wlan_mgmt_encode_reassocresp(wlan_fr_reassocresp_t *f);
+void wlan_mgmt_decode_reassocresp(wlan_fr_reassocresp_t *f);
+void wlan_mgmt_encode_probereq(wlan_fr_probereq_t *f);
+void wlan_mgmt_decode_probereq(wlan_fr_probereq_t *f);
+void wlan_mgmt_encode_proberesp(wlan_fr_proberesp_t *f);
+void wlan_mgmt_decode_proberesp(wlan_fr_proberesp_t *f);
+void wlan_mgmt_encode_authen(wlan_fr_authen_t *f);
+void wlan_mgmt_decode_authen(wlan_fr_authen_t *f);
+void wlan_mgmt_encode_deauthen(wlan_fr_deauthen_t *f);
+void wlan_mgmt_decode_deauthen(wlan_fr_deauthen_t *f);
 
 #endif /* _P80211MGMT_H */

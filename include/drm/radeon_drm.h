@@ -306,6 +306,8 @@ typedef union {
 
 #define RADEON_SCRATCH_REG_OFFSET	32
 
+#define R600_SCRATCH_REG_OFFSET         256
+
 #define RADEON_NR_SAREA_CLIPRECTS	12
 
 /* There are 2 heaps (local/GART).  Each region within a heap is a
@@ -528,7 +530,8 @@ typedef struct drm_radeon_init {
 		RADEON_INIT_CP = 0x01,
 		RADEON_CLEANUP_CP = 0x02,
 		RADEON_INIT_R200_CP = 0x03,
-		RADEON_INIT_R300_CP = 0x04
+		RADEON_INIT_R300_CP = 0x04,
+		RADEON_INIT_R600_CP = 0x05
 	} func;
 	unsigned long sarea_priv_offset;
 	int is_pci;

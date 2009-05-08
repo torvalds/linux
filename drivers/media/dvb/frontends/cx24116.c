@@ -15,6 +15,9 @@
 	September, 9th 2008
 	    Fixed locking on high symbol rates (>30000).
 	    Implement MPEG initialization parameter.
+	January, 17th 2009
+	    Fill set_voltage with actually control voltage code.
+	    Correct set tone to not affect voltage.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -146,7 +149,7 @@ enum cmds {
 	CMD_GETAGC      = 0x19,
 	CMD_LNBCONFIG   = 0x20,
 	CMD_LNBSEND     = 0x21, /* Formerly CMD_SEND_DISEQC */
-	CMD_SET_TONEPRE = 0x22,
+	CMD_LNBDCLEVEL  = 0x22,
 	CMD_SET_TONE    = 0x23,
 	CMD_UPDFWVERS   = 0x35,
 	CMD_TUNERSLEEP  = 0x36,
@@ -667,16 +670,6 @@ static int cx24116_load_firmware(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cx24116_set_voltage(struct dvb_frontend *fe,
-	fe_sec_voltage_t voltage)
-{
-	/* The isl6421 module will override this function in the fops. */
-	dprintk("%s() This should never appear if the isl6421 module "
-		"is loaded correctly\n", __func__);
-
-	return -EOPNOTSUPP;
-}
-
 static int cx24116_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
@@ -837,6 +830,34 @@ static int cx24116_wait_for_lnb(struct dvb_frontend *fe)
 	return -ETIMEDOUT; /* -EBUSY ? */
 }
 
+static int cx24116_set_voltage(struct dvb_frontend *fe,
+	fe_sec_voltage_t voltage)
+{
+	struct cx24116_cmd cmd;
+	int ret;
+
+	dprintk("%s: %s\n", __func__,
+		voltage == SEC_VOLTAGE_13 ? "SEC_VOLTAGE_13" :
+		voltage == SEC_VOLTAGE_18 ? "SEC_VOLTAGE_18" : "??");
+
+	/* Wait for LNB ready */
+	ret = cx24116_wait_for_lnb(fe);
+	if (ret != 0)
+		return ret;
+
+	/* Wait for voltage/min repeat delay */
+	msleep(100);
+
+	cmd.args[0x00] = CMD_LNBDCLEVEL;
+	cmd.args[0x01] = (voltage == SEC_VOLTAGE_18 ? 0x01 : 0x00);
+	cmd.len = 0x02;
+
+	/* Min delay time before DiSEqC send */
+	msleep(15);
+
+	return cx24116_cmd_execute(fe, &cmd);
+}
+
 static int cx24116_set_tone(struct dvb_frontend *fe,
 	fe_sec_tone_mode_t tone)
 {
@@ -856,14 +877,6 @@ static int cx24116_set_tone(struct dvb_frontend *fe,
 
 	/* Min delay time after DiSEqC send */
 	msleep(15); /* XXX determine is FW does this, see send_diseqc/burst */
-
-	/* This is always done before the tone is set */
-	cmd.args[0x00] = CMD_SET_TONEPRE;
-	cmd.args[0x01] = 0x00;
-	cmd.len = 0x02;
-	ret = cx24116_cmd_execute(fe, &cmd);
-	if (ret != 0)
-		return ret;
 
 	/* Now we set the tone */
 	cmd.args[0x00] = CMD_SET_TONE;
@@ -1099,12 +1112,9 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 	dprintk("%s\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct cx24116_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct cx24116_state), GFP_KERNEL);
 	if (state == NULL)
 		goto error1;
-
-	/* setup the state */
-	memset(state, 0, sizeof(struct cx24116_state));
 
 	state->config = config;
 	state->i2c = i2c;
@@ -1154,7 +1164,12 @@ static int cx24116_initfe(struct dvb_frontend *fe)
 	if (ret != 0)
 		return ret;
 
-	return cx24116_diseqc_init(fe);
+	ret = cx24116_diseqc_init(fe);
+	if (ret != 0)
+		return ret;
+
+	/* HVR-4000 needs this */
+	return cx24116_set_voltage(fe, SEC_VOLTAGE_13);
 }
 
 /*

@@ -189,17 +189,20 @@ static void dabusb_iso_complete (struct urb *purb)
 					dst += len;
 				}
 				else
-					err("dabusb_iso_complete: invalid len %d", len);
+					dev_err(&purb->dev->dev,
+						"dabusb_iso_complete: invalid len %d\n", len);
 			}
 			else
 				dev_warn(&purb->dev->dev, "dabusb_iso_complete: corrupted packet status: %d\n", purb->iso_frame_desc[i].status);
 		if (dst != purb->actual_length)
-			err("dst!=purb->actual_length:%d!=%d", dst, purb->actual_length);
+			dev_err(&purb->dev->dev,
+				"dst!=purb->actual_length:%d!=%d\n",
+					dst, purb->actual_length);
 	}
 
 	if (atomic_dec_and_test (&s->pending_io) && !s->remove_pending && s->state != _stopped) {
 		s->overruns++;
-		err("overrun (%d)", s->overruns);
+		dev_err(&purb->dev->dev, "overrun (%d)\n", s->overruns);
 	}
 	wake_up (&s->wait);
 }
@@ -220,13 +223,14 @@ static int dabusb_alloc_buffers (pdabusb_t s)
 	while (transfer_len < (s->total_buffer_size << 10)) {
 		b = kzalloc(sizeof (buff_t), GFP_KERNEL);
 		if (!b) {
-			err("kzalloc(sizeof(buff_t))==NULL");
+			dev_err(&s->usbdev->dev,
+				"kzalloc(sizeof(buff_t))==NULL\n");
 			goto err;
 		}
 		b->s = s;
 		b->purb = usb_alloc_urb(packets, GFP_KERNEL);
 		if (!b->purb) {
-			err("usb_alloc_urb == NULL");
+			dev_err(&s->usbdev->dev, "usb_alloc_urb == NULL\n");
 			kfree (b);
 			goto err;
 		}
@@ -235,7 +239,8 @@ static int dabusb_alloc_buffers (pdabusb_t s)
 		if (!b->purb->transfer_buffer) {
 			kfree (b->purb);
 			kfree (b);
-			err("kmalloc(%d)==NULL", transfer_buffer_length);
+			dev_err(&s->usbdev->dev,
+				"kmalloc(%d)==NULL\n", transfer_buffer_length);
 			goto err;
 		}
 
@@ -279,10 +284,11 @@ static int dabusb_bulk (pdabusb_t s, pbulk_transfer_t pb)
 
 	ret=usb_bulk_msg(s->usbdev, pipe, pb->data, pb->size, &actual_length, 100);
 	if(ret<0) {
-		err("dabusb: usb_bulk_msg failed(%d)",ret);
+		dev_err(&s->usbdev->dev,
+			"usb_bulk_msg failed(%d)\n", ret);
 
 		if (usb_set_interface (s->usbdev, _DABUSB_IF, 1) < 0) {
-			err("set_interface failed");
+			dev_err(&s->usbdev->dev, "set_interface failed\n");
 			return -EINVAL;
 		}
 
@@ -291,7 +297,7 @@ static int dabusb_bulk (pdabusb_t s, pbulk_transfer_t pb)
 	if( ret == -EPIPE ) {
 		dev_warn(&s->usbdev->dev, "CLEAR_FEATURE request to remove STALL condition.\n");
 		if(usb_clear_halt(s->usbdev, usb_pipeendpoint(pipe)))
-			err("request failed");
+			dev_err(&s->usbdev->dev, "request failed\n");
 	}
 
 	pb->size = actual_length;
@@ -305,7 +311,8 @@ static int dabusb_writemem (pdabusb_t s, int pos, const unsigned char *data,
 	unsigned char *transfer_buffer =  kmalloc (len, GFP_KERNEL);
 
 	if (!transfer_buffer) {
-		err("dabusb_writemem: kmalloc(%d) failed.", len);
+		dev_err(&s->usbdev->dev,
+			"dabusb_writemem: kmalloc(%d) failed.\n", len);
 		return -ENOMEM;
 	}
 
@@ -327,13 +334,14 @@ static int dabusb_loadmem (pdabusb_t s, const char *fname)
 {
 	int ret;
 	const struct ihex_binrec *rec;
-	const struct firmware *fw;
+	const struct firmware *uninitialized_var(fw);
 
 	dbg("Enter dabusb_loadmem (internal)");
 
 	ret = request_ihex_firmware(&fw, "dabusb/firmware.fw", &s->usbdev->dev);
 	if (ret) {
-		err("Failed to load \"dabusb/firmware.fw\": %d\n", ret);
+		dev_err(&s->usbdev->dev,
+			"Failed to load \"dabusb/firmware.fw\": %d\n", ret);
 		goto out;
 	}
 	ret = dabusb_8051_reset (s, 1);
@@ -346,9 +354,10 @@ static int dabusb_loadmem (pdabusb_t s, const char *fname)
 		ret = dabusb_writemem(s, be32_to_cpu(rec->addr), rec->data,
 				       be16_to_cpu(rec->len));
 		if (ret < 0) {
-			err("dabusb_writemem failed (%d %04X %p %d)", ret,
-			    be32_to_cpu(rec->addr), rec->data,
-			    be16_to_cpu(rec->len));
+			dev_err(&s->usbdev->dev,
+				"dabusb_writemem failed (%d %04X %p %d)\n",
+				ret, be32_to_cpu(rec->addr),
+				rec->data, be16_to_cpu(rec->len));
 			break;
 		}
 	}
@@ -396,13 +405,15 @@ static int dabusb_fpga_download (pdabusb_t s, const char *fname)
 	dbg("Enter dabusb_fpga_download (internal)");
 
 	if (!b) {
-		err("kmalloc(sizeof(bulk_transfer_t))==NULL");
+		dev_err(&s->usbdev->dev,
+			"kmalloc(sizeof(bulk_transfer_t))==NULL\n");
 		return -ENOMEM;
 	}
 
 	ret = request_firmware(&fw, "dabusb/bitstream.bin", &s->usbdev->dev);
 	if (ret) {
-		err("Failed to load \"dabusb/bitstream.bin\": %d\n", ret);
+		dev_err(&s->usbdev->dev,
+			"Failed to load \"dabusb/bitstream.bin\": %d\n", ret);
 		kfree(b);
 		return ret;
 	}
@@ -425,7 +436,7 @@ static int dabusb_fpga_download (pdabusb_t s, const char *fname)
 		memcpy (b->data + 4, fw->data + 74 + n, 60);
 		ret = dabusb_bulk (s, b);
 		if (ret < 0) {
-			err("dabusb_bulk failed.");
+			dev_err(&s->usbdev->dev, "dabusb_bulk failed.\n");
 			break;
 		}
 		mdelay (1);
@@ -478,9 +489,11 @@ static int dabusb_startrek (pdabusb_t s)
 
 			ret = usb_submit_urb (end->purb, GFP_KERNEL);
 			if (ret) {
-				err("usb_submit_urb returned:%d", ret);
+				dev_err(&s->usbdev->dev,
+					"usb_submit_urb returned:%d\n", ret);
 				if (dabusb_add_buf_tail (s, &s->free_buff_list, &s->rec_buff_list))
-					err("startrek: dabusb_add_buf_tail failed");
+					dev_err(&s->usbdev->dev,
+						"startrek: dabusb_add_buf_tail failed\n");
 				break;
 			}
 			else
@@ -523,7 +536,8 @@ static ssize_t dabusb_read (struct file *file, char __user *buf, size_t count, l
 
 			spin_unlock_irqrestore(&s->lock, flags);
 
-			err("error: rec_buf_list is empty");
+			dev_err(&s->usbdev->dev,
+				"error: rec_buf_list is empty\n");
 			goto err;
 		}
 
@@ -552,7 +566,8 @@ static ssize_t dabusb_read (struct file *file, char __user *buf, size_t count, l
 
 			if (list_empty (&s->rec_buff_list)) {
 				spin_unlock_irqrestore(&s->lock, flags);
-				err("error: still no buffer available.");
+				dev_err(&s->usbdev->dev,
+					"error: still no buffer available.\n");
 				goto err;
 			}
 			spin_unlock_irqrestore(&s->lock, flags);
@@ -573,7 +588,7 @@ static ssize_t dabusb_read (struct file *file, char __user *buf, size_t count, l
 		dbg("copy_to_user:%p %p %d",buf, purb->transfer_buffer + s->readptr, cnt);
 
 		if (copy_to_user (buf, purb->transfer_buffer + s->readptr, cnt)) {
-			err("read: copy_to_user failed");
+			dev_err(&s->usbdev->dev, "read: copy_to_user failed\n");
 			if (!ret)
 				ret = -EFAULT;
 			goto err;
@@ -587,7 +602,8 @@ static ssize_t dabusb_read (struct file *file, char __user *buf, size_t count, l
 		if (s->readptr == purb->actual_length) {
 			// finished, take next buffer
 			if (dabusb_add_buf_tail (s, &s->free_buff_list, &s->rec_buff_list))
-				err("read: dabusb_add_buf_tail failed");
+				dev_err(&s->usbdev->dev,
+					"read: dabusb_add_buf_tail failed\n");
 			s->readptr = 0;
 		}
 	}
@@ -623,7 +639,7 @@ static int dabusb_open (struct inode *inode, struct file *file)
 	}
 	if (usb_set_interface (s->usbdev, _DABUSB_IF, 1) < 0) {
 		mutex_unlock(&s->mutex);
-		err("set_interface failed");
+		dev_err(&s->usbdev->dev, "set_interface failed\n");
 		return -EINVAL;
 	}
 	s->opened = 1;
@@ -648,7 +664,7 @@ static int dabusb_release (struct inode *inode, struct file *file)
 
 	if (!s->remove_pending) {
 		if (usb_set_interface (s->usbdev, _DABUSB_IF, 0) < 0)
-			err("set_interface failed");
+			dev_err(&s->usbdev->dev, "set_interface failed\n");
 	}
 	else
 		wake_up (&s->remove_ok);
@@ -657,7 +673,7 @@ static int dabusb_release (struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long dabusb_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 {
 	pdabusb_t s = (pdabusb_t) file->private_data;
 	pbulk_transfer_t pbulk;
@@ -666,13 +682,17 @@ static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cm
 
 	dbg("dabusb_ioctl");
 
-	if (s->remove_pending)
+	lock_kernel();
+	if (s->remove_pending) {
+		unlock_kernel();
 		return -EIO;
+	}
 
 	mutex_lock(&s->mutex);
 
 	if (!s->usbdev) {
 		mutex_unlock(&s->mutex);
+		unlock_kernel();
 		return -EIO;
 	}
 
@@ -713,6 +733,7 @@ static int dabusb_ioctl (struct inode *inode, struct file *file, unsigned int cm
 		break;
 	}
 	mutex_unlock(&s->mutex);
+	unlock_kernel();
 	return ret;
 }
 
@@ -721,7 +742,7 @@ static const struct file_operations dabusb_fops =
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.read =		dabusb_read,
-	.ioctl =	dabusb_ioctl,
+	.unlocked_ioctl =	dabusb_ioctl,
 	.open =		dabusb_open,
 	.release =	dabusb_release,
 };
@@ -764,7 +785,7 @@ static int dabusb_probe (struct usb_interface *intf,
 	s->devnum = intf->minor;
 
 	if (usb_reset_configuration (usbdev) < 0) {
-		err("reset_configuration failed");
+		dev_err(&intf->dev, "reset_configuration failed\n");
 		goto reject;
 	}
 	if (le16_to_cpu(usbdev->descriptor.idProduct) == 0x2131) {
@@ -775,7 +796,7 @@ static int dabusb_probe (struct usb_interface *intf,
 		dabusb_fpga_download (s, NULL);
 
 		if (usb_set_interface (s->usbdev, _DABUSB_IF, 0) < 0) {
-			err("set_interface failed");
+			dev_err(&intf->dev, "set_interface failed\n");
 			goto reject;
 		}
 	}

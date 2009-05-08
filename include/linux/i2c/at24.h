@@ -2,6 +2,7 @@
 #define _LINUX_AT24_H
 
 #include <linux/types.h>
+#include <linux/memory.h>
 
 /*
  * As seen through Linux I2C, differences between the most common types of I2C
@@ -23,6 +24,9 @@ struct at24_platform_data {
 #define AT24_FLAG_READONLY	0x40	/* sysfs-entry will be read-only */
 #define AT24_FLAG_IRUGO		0x20	/* sysfs-entry will be world-readable */
 #define AT24_FLAG_TAKE8ADDR	0x10	/* take always 8 addresses (24c00) */
+
+	void		(*setup)(struct memory_accessor *, void *context);
+	void		*context;
 };
 
 #endif /* _LINUX_AT24_H */

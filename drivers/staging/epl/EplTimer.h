@@ -107,8 +107,7 @@ typedef struct {
 
 } tEplTimerEventArg;
 
-typedef tEplKernel(PUBLIC * tEplTimerkCallback) (tEplTimerEventArg *
-						 pEventArg_p);
+typedef tEplKernel(* tEplTimerkCallback) (tEplTimerEventArg *pEventArg_p);
 
 //---------------------------------------------------------------------------
 // function prototypes

@@ -113,6 +113,7 @@ struct pkt_ctrl_command {
 #include <linux/cdrom.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/mempool.h>
 
 /* default bio write queue congestion marks */
 #define PKT_WRITE_CONGESTION_ON    10000

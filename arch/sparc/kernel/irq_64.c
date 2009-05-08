@@ -266,12 +266,12 @@ static int irq_choose_cpu(unsigned int virt_irq)
 		spin_lock_irqsave(&irq_rover_lock, flags);
 
 		while (!cpu_online(irq_rover)) {
-			if (++irq_rover >= NR_CPUS)
+			if (++irq_rover >= nr_cpu_ids)
 				irq_rover = 0;
 		}
 		cpuid = irq_rover;
 		do {
-			if (++irq_rover >= NR_CPUS)
+			if (++irq_rover >= nr_cpu_ids)
 				irq_rover = 0;
 		} while (!cpu_online(irq_rover));
 

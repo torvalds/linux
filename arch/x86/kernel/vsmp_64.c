@@ -22,7 +22,7 @@
 #include <asm/paravirt.h>
 #include <asm/setup.h>
 
-#ifdef CONFIG_PARAVIRT
+#if defined CONFIG_PCI && defined CONFIG_PARAVIRT
 /*
  * Interrupt control on vSMPowered systems:
  * ~AC is a shadow of IF.  If IF is 'on' AC should be 'off'
@@ -114,6 +114,7 @@ static void __init set_vsmp_pv_ops(void)
 }
 #endif
 
+#ifdef CONFIG_PCI
 static int is_vsmp = -1;
 
 static void __init detect_vsmp_box(void)
@@ -139,6 +140,15 @@ int is_vsmp_box(void)
 	}
 }
 
+#else
+static void __init detect_vsmp_box(void)
+{
+}
+int is_vsmp_box(void)
+{
+	return 0;
+}
+#endif
 void __init vsmp_init(void)
 {
 	detect_vsmp_box();

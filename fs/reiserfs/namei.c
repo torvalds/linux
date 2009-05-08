@@ -106,7 +106,7 @@ key of the first directory entry in it.
 This function first calls search_by_key, then, if item whose first
 entry matches is not found it looks for the entry inside directory
 item found by search_by_key. Fills the path to the entry, and to the
-entry position in the item 
+entry position in the item
 
 */
 
@@ -120,8 +120,8 @@ int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 	switch (retval) {
 	case ITEM_NOT_FOUND:
 		if (!PATH_LAST_POSITION(path)) {
-			reiserfs_warning(sb,
-					 "vs-7000: search_by_entry_key: search_by_key returned item position == 0");
+			reiserfs_error(sb, "vs-7000", "search_by_key "
+				       "returned item position == 0");
 			pathrelse(path);
 			return IO_ERROR;
 		}
@@ -135,8 +135,7 @@ int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 
 	default:
 		pathrelse(path);
-		reiserfs_warning(sb,
-				 "vs-7002: search_by_entry_key: no path to here");
+		reiserfs_error(sb, "vs-7002", "no path to here");
 		return IO_ERROR;
 	}
 
@@ -146,10 +145,9 @@ int search_by_entry_key(struct super_block *sb, const struct cpu_key *key,
 	if (!is_direntry_le_ih(de->de_ih) ||
 	    COMP_SHORT_KEYS(&(de->de_ih->ih_key), key)) {
 		print_block(de->de_bh, 0, -1, -1);
-		reiserfs_panic(sb,
-			       "vs-7005: search_by_entry_key: found item %h is not directory item or "
-			       "does not belong to the same directory as key %K",
-			       de->de_ih, key);
+		reiserfs_panic(sb, "vs-7005", "found item %h is not directory "
+			       "item or does not belong to the same directory "
+			       "as key %K", de->de_ih, key);
 	}
 #endif				/* CONFIG_REISERFS_CHECK */
 
@@ -300,8 +298,7 @@ static int reiserfs_find_entry(struct inode *dir, const char *name, int namelen,
 		    search_by_entry_key(dir->i_sb, &key_to_search,
 					path_to_entry, de);
 		if (retval == IO_ERROR) {
-			reiserfs_warning(dir->i_sb, "zam-7001: io error in %s",
-					 __func__);
+			reiserfs_error(dir->i_sb, "zam-7001", "io error");
 			return IO_ERROR;
 		}
 
@@ -361,9 +358,10 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 			return ERR_PTR(-EACCES);
 		}
 
-		/* Propogate the priv_object flag so we know we're in the priv tree */
-		if (is_reiserfs_priv_object(dir))
-			reiserfs_mark_inode_private(inode);
+		/* Propagate the private flag so we know we're
+		 * in the priv tree */
+		if (IS_PRIVATE(dir))
+			inode->i_flags |= S_PRIVATE;
 	}
 	reiserfs_write_unlock(dir->i_sb);
 	if (retval == IO_ERROR) {
@@ -373,7 +371,7 @@ static struct dentry *reiserfs_lookup(struct inode *dir, struct dentry *dentry,
 	return d_splice_alias(inode, dentry);
 }
 
-/* 
+/*
 ** looks up the dentry of the parent directory for child.
 ** taken from ext2_get_parent
 */
@@ -403,7 +401,7 @@ struct dentry *reiserfs_get_parent(struct dentry *child)
 	return d_obtain_alias(inode);
 }
 
-/* add entry to the directory (entry can be hidden). 
+/* add entry to the directory (entry can be hidden).
 
 insert definition of when hidden directories are used here -Hans
 
@@ -484,10 +482,9 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 		}
 
 		if (retval != NAME_FOUND) {
-			reiserfs_warning(dir->i_sb,
-					 "zam-7002:%s: \"reiserfs_find_entry\" "
-					 "has returned unexpected value (%d)",
-					 __func__, retval);
+			reiserfs_error(dir->i_sb, "zam-7002",
+				       "reiserfs_find_entry() returned "
+				       "unexpected value (%d)", retval);
 		}
 
 		return -EEXIST;
@@ -498,8 +495,9 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 				MAX_GENERATION_NUMBER + 1);
 	if (gen_number > MAX_GENERATION_NUMBER) {
 		/* there is no free generation number */
-		reiserfs_warning(dir->i_sb,
-				 "reiserfs_add_entry: Congratulations! we have got hash function screwed up");
+		reiserfs_warning(dir->i_sb, "reiserfs-7010",
+				 "Congratulations! we have got hash function "
+				 "screwed up");
 		if (buffer != small_buf)
 			kfree(buffer);
 		pathrelse(&path);
@@ -515,10 +513,9 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 	if (gen_number != 0) {	/* we need to re-search for the insertion point */
 		if (search_by_entry_key(dir->i_sb, &entry_key, &path, &de) !=
 		    NAME_NOT_FOUND) {
-			reiserfs_warning(dir->i_sb,
-					 "vs-7032: reiserfs_add_entry: "
-					 "entry with this key (%K) already exists",
-					 &entry_key);
+			reiserfs_warning(dir->i_sb, "vs-7032",
+					 "entry with this key (%K) already "
+					 "exists", &entry_key);
 
 			if (buffer != small_buf)
 				kfree(buffer);
@@ -562,7 +559,7 @@ static int drop_new_inode(struct inode *inode)
 	return 0;
 }
 
-/* utility function that does setup for reiserfs_new_inode.  
+/* utility function that does setup for reiserfs_new_inode.
 ** vfs_dq_init needs lots of credits so it's better to have it
 ** outside of a transaction, so we had to pull some bits of
 ** reiserfs_new_inode out into this func.
@@ -601,19 +598,21 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
 	struct reiserfs_transaction_handle th;
-	int locked;
+	struct reiserfs_security_handle security;
 
 	if (!(inode = new_inode(dir->i_sb))) {
 		return -ENOMEM;
 	}
 	new_inode_init(inode, dir, mode);
 
-	locked = reiserfs_cache_default_acl(dir);
-
+	jbegin_count += reiserfs_cache_default_acl(dir);
+	retval = reiserfs_security_init(dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 	reiserfs_write_lock(dir->i_sb);
-
-	if (locked)
-		reiserfs_write_lock_xattrs(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
@@ -623,14 +622,9 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	retval =
 	    reiserfs_new_inode(&th, dir, mode, NULL, 0 /*i_size */ , dentry,
-			       inode);
+			       inode, &security);
 	if (retval)
 		goto out_failed;
-
-	if (locked) {
-		reiserfs_write_unlock_xattrs(dir->i_sb);
-		locked = 0;
-	}
 
 	inode->i_op = &reiserfs_file_inode_operations;
 	inode->i_fop = &reiserfs_file_operations;
@@ -658,8 +652,6 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 
       out_failed:
-	if (locked)
-		reiserfs_write_unlock_xattrs(dir->i_sb);
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -670,12 +662,12 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	int retval;
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
+	struct reiserfs_security_handle security;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 +
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
-	int locked;
 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
@@ -685,12 +677,14 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	}
 	new_inode_init(inode, dir, mode);
 
-	locked = reiserfs_cache_default_acl(dir);
-
+	jbegin_count += reiserfs_cache_default_acl(dir);
+	retval = reiserfs_security_init(dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 	reiserfs_write_lock(dir->i_sb);
-
-	if (locked)
-		reiserfs_write_lock_xattrs(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
@@ -700,14 +694,9 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 
 	retval =
 	    reiserfs_new_inode(&th, dir, mode, NULL, 0 /*i_size */ , dentry,
-			       inode);
+			       inode, &security);
 	if (retval) {
 		goto out_failed;
-	}
-
-	if (locked) {
-		reiserfs_write_unlock_xattrs(dir->i_sb);
-		locked = 0;
 	}
 
 	inode->i_op = &reiserfs_special_inode_operations;
@@ -739,8 +728,6 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
 
       out_failed:
-	if (locked)
-		reiserfs_write_unlock_xattrs(dir->i_sb);
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -750,12 +737,12 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	int retval;
 	struct inode *inode;
 	struct reiserfs_transaction_handle th;
+	struct reiserfs_security_handle security;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 +
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
-	int locked;
 
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
 	/* set flag that new packing locality created and new blocks for the content     * of that directory are not displaced yet */
@@ -767,11 +754,14 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	}
 	new_inode_init(inode, dir, mode);
 
-	locked = reiserfs_cache_default_acl(dir);
-
+	jbegin_count += reiserfs_cache_default_acl(dir);
+	retval = reiserfs_security_init(dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 	reiserfs_write_lock(dir->i_sb);
-	if (locked)
-		reiserfs_write_lock_xattrs(dir->i_sb);
 
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval) {
@@ -787,15 +777,10 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	    retval = reiserfs_new_inode(&th, dir, mode, NULL /*symlink */ ,
 					old_format_only(dir->i_sb) ?
 					EMPTY_DIR_SIZE_V1 : EMPTY_DIR_SIZE,
-					dentry, inode);
+					dentry, inode, &security);
 	if (retval) {
 		dir->i_nlink--;
 		goto out_failed;
-	}
-
-	if (locked) {
-		reiserfs_write_unlock_xattrs(dir->i_sb);
-		locked = 0;
 	}
 
 	reiserfs_update_inode_transaction(inode);
@@ -827,8 +812,6 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	unlock_new_inode(inode);
 	retval = journal_end(&th, dir->i_sb, jbegin_count);
       out_failed:
-	if (locked)
-		reiserfs_write_unlock_xattrs(dir->i_sb);
 	reiserfs_write_unlock(dir->i_sb);
 	return retval;
 }
@@ -837,7 +820,7 @@ static inline int reiserfs_empty_dir(struct inode *inode)
 {
 	/* we can cheat because an old format dir cannot have
 	 ** EMPTY_DIR_SIZE, and a new format dir cannot have
-	 ** EMPTY_DIR_SIZE_V1.  So, if the inode is either size, 
+	 ** EMPTY_DIR_SIZE_V1.  So, if the inode is either size,
 	 ** regardless of disk format version, the directory is empty.
 	 */
 	if (inode->i_size != EMPTY_DIR_SIZE &&
@@ -903,8 +886,9 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 		goto end_rmdir;
 
 	if (inode->i_nlink != 2 && inode->i_nlink != 1)
-		reiserfs_warning(inode->i_sb, "%s: empty directory has nlink "
-				 "!= 2 (%d)", __func__, inode->i_nlink);
+		reiserfs_error(inode->i_sb, "reiserfs-7040",
+			       "empty directory has nlink != 2 (%d)",
+			       inode->i_nlink);
 
 	clear_nlink(inode);
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME_SEC;
@@ -980,10 +964,9 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 	if (!inode->i_nlink) {
-		reiserfs_warning(inode->i_sb, "%s: deleting nonexistent file "
-				 "(%s:%lu), %d", __func__,
-				 reiserfs_bdevname(inode->i_sb), inode->i_ino,
-				 inode->i_nlink);
+		reiserfs_warning(inode->i_sb, "reiserfs-7042",
+				 "deleting nonexistent file (%lu), %d",
+				 inode->i_ino, inode->i_nlink);
 		inode->i_nlink = 1;
 	}
 
@@ -1037,6 +1020,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	char *name;
 	int item_len;
 	struct reiserfs_transaction_handle th;
+	struct reiserfs_security_handle security;
 	int mode = S_IFLNK | S_IRWXUGO;
 	/* We need blocks for transaction + (user+group)*(quotas for new inode + update of quota for directory owner) */
 	int jbegin_count =
@@ -1048,6 +1032,13 @@ static int reiserfs_symlink(struct inode *parent_dir,
 		return -ENOMEM;
 	}
 	new_inode_init(inode, parent_dir, mode);
+
+	retval = reiserfs_security_init(parent_dir, inode, &security);
+	if (retval < 0) {
+		drop_new_inode(inode);
+		return retval;
+	}
+	jbegin_count += retval;
 
 	reiserfs_write_lock(parent_dir->i_sb);
 	item_len = ROUND_UP(strlen(symname));
@@ -1066,8 +1057,6 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	memcpy(name, symname, strlen(symname));
 	padd_item(name, item_len, strlen(symname));
 
-	/* We would inherit the default ACL here, but symlinks don't get ACLs */
-
 	retval = journal_begin(&th, parent_dir->i_sb, jbegin_count);
 	if (retval) {
 		drop_new_inode(inode);
@@ -1077,7 +1066,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 
 	retval =
 	    reiserfs_new_inode(&th, parent_dir, mode, name, strlen(symname),
-			       dentry, inode);
+			       dentry, inode, &security);
 	kfree(name);
 	if (retval) {		/* reiserfs_new_inode iputs for us */
 		goto out_failed;
@@ -1173,7 +1162,7 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 	return retval;
 }
 
-// de contains information pointing to an entry which 
+/* de contains information pointing to an entry which */
 static int de_still_valid(const char *name, int len,
 			  struct reiserfs_dir_entry *de)
 {
@@ -1196,15 +1185,14 @@ static int entry_points_to_object(const char *name, int len,
 
 	if (inode) {
 		if (!de_visible(de->de_deh + de->de_entry_num))
-			reiserfs_panic(NULL,
-				       "vs-7042: entry_points_to_object: entry must be visible");
+			reiserfs_panic(inode->i_sb, "vs-7042",
+				       "entry must be visible");
 		return (de->de_objectid == inode->i_ino) ? 1 : 0;
 	}
 
 	/* this must be added hidden entry */
 	if (de_visible(de->de_deh + de->de_entry_num))
-		reiserfs_panic(NULL,
-			       "vs-7043: entry_points_to_object: entry must be visible");
+		reiserfs_panic(NULL, "vs-7043", "entry must be visible");
 
 	return 1;
 }
@@ -1218,10 +1206,10 @@ static void set_ino_in_dir_entry(struct reiserfs_dir_entry *de,
 	de->de_deh[de->de_entry_num].deh_objectid = key->k_objectid;
 }
 
-/* 
+/*
  * process, that is going to call fix_nodes/do_balance must hold only
  * one path. If it holds 2 or more, it can get into endless waiting in
- * get_empty_nodes or its clones 
+ * get_empty_nodes or its clones
  */
 static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			   struct inode *new_dir, struct dentry *new_dentry)
@@ -1275,7 +1263,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	old_inode_mode = old_inode->i_mode;
 	if (S_ISDIR(old_inode_mode)) {
-		// make sure, that directory being renamed has correct ".." 
+		// make sure, that directory being renamed has correct ".."
 		// and that its new parent directory has not too many links
 		// already
 
@@ -1286,8 +1274,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			}
 		}
 
-		/* directory is renamed, its parent directory will be changed, 
-		 ** so find ".." entry 
+		/* directory is renamed, its parent directory will be changed,
+		 ** so find ".." entry
 		 */
 		dot_dot_de.de_gen_number_bit_string = NULL;
 		retval =
@@ -1318,8 +1306,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			       new_dentry->d_name.len, old_inode, 0);
 	if (retval == -EEXIST) {
 		if (!new_dentry_inode) {
-			reiserfs_panic(old_dir->i_sb,
-				       "vs-7050: new entry is found, new inode == 0\n");
+			reiserfs_panic(old_dir->i_sb, "vs-7050",
+				       "new entry is found, new inode == 0");
 		}
 	} else if (retval) {
 		int err = journal_end(&th, old_dir->i_sb, jbegin_count);
@@ -1397,9 +1385,9 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		   this stuff, yes? Then, having
 		   gathered everything into RAM we
 		   should lock the buffers, yes?  -Hans */
-		/* probably.  our rename needs to hold more 
-		 ** than one path at once.  The seals would 
-		 ** have to be written to deal with multi-path 
+		/* probably.  our rename needs to hold more
+		 ** than one path at once.  The seals would
+		 ** have to be written to deal with multi-path
 		 ** issues -chris
 		 */
 		/* sanity checking before doing the rename - avoid races many
@@ -1477,7 +1465,7 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	if (S_ISDIR(old_inode_mode)) {
-		// adjust ".." of renamed directory 
+		/* adjust ".." of renamed directory */
 		set_ino_in_dir_entry(&dot_dot_de, INODE_PKEY(new_dir));
 		journal_mark_dirty(&th, new_dir->i_sb, dot_dot_de.de_bh);
 
@@ -1499,8 +1487,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (reiserfs_cut_from_item
 	    (&th, &old_entry_path, &(old_de.de_entry_key), old_dir, NULL,
 	     0) < 0)
-		reiserfs_warning(old_dir->i_sb,
-				 "vs-7060: reiserfs_rename: couldn't not cut old name. Fsck later?");
+		reiserfs_error(old_dir->i_sb, "vs-7060",
+			       "couldn't not cut old name. Fsck later?");
 
 	old_dir->i_size -= DEH_SIZE + old_de.de_entrylen;
 

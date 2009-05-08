@@ -90,7 +90,7 @@ static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitdata = {
+static const struct dmi_system_id can_skip_pciprobe_dmi_table[] __devinitconst = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
@@ -147,10 +147,13 @@ static void __devinit pcibios_fixup_device_resources(struct pci_dev *dev)
  *  are examined.
  */
 
-void __devinit  pcibios_fixup_bus(struct pci_bus *b)
+void __devinit pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
+	/* root bus? */
+	if (!b->parent)
+		x86_pci_root_bus_res_quirks(b);
 	pci_read_bridge_bases(b);
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
@@ -183,7 +186,7 @@ static int __devinit assign_all_busses(const struct dmi_system_id *d)
 }
 #endif
 
-static struct dmi_system_id __devinitdata pciprobe_dmi_table[] = {
+static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 #ifdef __i386__
 /*
  * Laptops which need pci=assign-busses to see Cardbus cards

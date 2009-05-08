@@ -5,6 +5,7 @@
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_X86_64
 # include <asm/numa_64.h>
@@ -141,6 +142,55 @@ static void __cpuinit init_amd_k6(struct cpuinfo_x86 *c)
 	}
 }
 
+static void __cpuinit amd_k7_smp_check(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_SMP
+	/* calling is from identify_secondary_cpu() ? */
+	if (c->cpu_index == boot_cpu_id)
+		return;
+
+	/*
+	 * Certain Athlons might work (for various values of 'work') in SMP
+	 * but they are not certified as MP capable.
+	 */
+	/* Athlon 660/661 is valid. */
+	if ((c->x86_model == 6) && ((c->x86_mask == 0) ||
+	    (c->x86_mask == 1)))
+		goto valid_k7;
+
+	/* Duron 670 is valid */
+	if ((c->x86_model == 7) && (c->x86_mask == 0))
+		goto valid_k7;
+
+	/*
+	 * Athlon 662, Duron 671, and Athlon >model 7 have capability
+	 * bit. It's worth noting that the A5 stepping (662) of some
+	 * Athlon XP's have the MP bit set.
+	 * See http://www.heise.de/newsticker/data/jow-18.10.01-000 for
+	 * more.
+	 */
+	if (((c->x86_model == 6) && (c->x86_mask >= 2)) ||
+	    ((c->x86_model == 7) && (c->x86_mask >= 1)) ||
+	     (c->x86_model > 7))
+		if (cpu_has_mp)
+			goto valid_k7;
+
+	/* If we get here, not a certified SMP capable AMD system. */
+
+	/*
+	 * Don't taint if we are running SMP kernel on a single non-MP
+	 * approved Athlon
+	 */
+	WARN_ONCE(1, "WARNING: This combination of AMD"
+		"processors is not suitable for SMP.\n");
+	if (!test_taint(TAINT_UNSAFE_SMP))
+		add_taint(TAINT_UNSAFE_SMP);
+
+valid_k7:
+	;
+#endif
+}
+
 static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
@@ -175,6 +225,8 @@ static void __cpuinit init_amd_k7(struct cpuinfo_x86 *c)
 	}
 
 	set_cpu_cap(c, X86_FEATURE_K7);
+
+	amd_k7_smp_check(c);
 }
 #endif
 
@@ -450,7 +502,7 @@ static unsigned int __cpuinit amd_size_cache(struct cpuinfo_x86 *c, unsigned int
 }
 #endif
 
-static struct cpu_dev amd_cpu_dev __cpuinitdata = {
+static const struct cpu_dev __cpuinitconst amd_cpu_dev = {
 	.c_vendor	= "AMD",
 	.c_ident	= { "AuthenticAMD" },
 #ifdef CONFIG_X86_32

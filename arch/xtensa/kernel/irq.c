@@ -132,6 +132,18 @@ static void xtensa_irq_unmask(unsigned int irq)
 	set_sr (cached_irq_mask, INTENABLE);
 }
 
+static void xtensa_irq_enable(unsigned int irq)
+{
+	variant_irq_enable(irq);
+	xtensa_irq_unmask(irq);
+}
+
+static void xtensa_irq_disable(unsigned int irq)
+{
+	xtensa_irq_mask(irq);
+	variant_irq_disable(irq);
+}
+
 static void xtensa_irq_ack(unsigned int irq)
 {
 	set_sr(1 << irq, INTCLEAR);
@@ -146,6 +158,8 @@ static int xtensa_irq_retrigger(unsigned int irq)
 
 static struct irq_chip xtensa_irq_chip = {
 	.name		= "xtensa",
+	.enable		= xtensa_irq_enable,
+	.disable	= xtensa_irq_disable,
 	.mask		= xtensa_irq_mask,
 	.unmask		= xtensa_irq_unmask,
 	.ack		= xtensa_irq_ack,

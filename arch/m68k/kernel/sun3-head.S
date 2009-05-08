@@ -1,4 +1,5 @@
 #include <linux/linkage.h>
+#include <linux/init.h>
 
 #include <asm/entry.h>
 #include <asm/page.h>
@@ -29,7 +30,7 @@ kernel_pmd_table:              .skip 0x2000
 .globl kernel_pg_dir
 .equ    kernel_pg_dir,kernel_pmd_table
 
-	.section .text.head
+	__HEAD
 ENTRY(_stext)
 ENTRY(_start)
 

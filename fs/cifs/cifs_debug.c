@@ -404,7 +404,6 @@ cifs_proc_init(void)
 	if (proc_fs_cifs == NULL)
 		return;
 
-	proc_fs_cifs->owner = THIS_MODULE;
 	proc_create("DebugData", 0, proc_fs_cifs, &cifs_debug_data_proc_fops);
 
 #ifdef CONFIG_CIFS_STATS

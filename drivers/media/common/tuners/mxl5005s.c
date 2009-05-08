@@ -4003,12 +4003,11 @@ static int mxl5005s_set_params(struct dvb_frontend *fe,
 	/* Change tuner for new modulation type if reqd */
 	if (req_mode != state->current_mode) {
 		switch (req_mode) {
-		case VSB_8:
-		case QAM_64:
-		case QAM_256:
-		case QAM_AUTO:
+		case MXL_ATSC:
+		case MXL_QAM:
 			req_bw  = MXL5005S_BANDWIDTH_6MHZ;
 			break;
+		case MXL_DVBT:
 		default:
 			/* Assume DVB-T */
 			switch (params->u.ofdm.bandwidth) {

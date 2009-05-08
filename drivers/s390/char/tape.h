@@ -285,7 +285,7 @@ extern int tape_mtop(struct tape_device *, int, int);
 extern void tape_state_set(struct tape_device *, enum tape_state);
 
 extern int tape_generic_online(struct tape_device *, struct tape_discipline *);
-extern int tape_generic_offline(struct tape_device *device);
+extern int tape_generic_offline(struct ccw_device *);
 
 /* Externals from tape_devmap.c */
 extern int tape_generic_probe(struct ccw_device *);

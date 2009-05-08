@@ -18,6 +18,7 @@
 #include <asm/thread_info.h>
 #include <asm/bootparam.h>
 #include <asm/elf.h>
+#include <asm/suspend.h>
 
 #include <xen/interface/xen.h>
 

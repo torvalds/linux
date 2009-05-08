@@ -196,7 +196,7 @@ int rds_iw_update_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *cm_i
 	return rds_iw_add_cm_id(rds_iwdev, cm_id);
 }
 
-int rds_iw_add_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *conn)
+void rds_iw_add_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *conn)
 {
 	struct rds_iw_connection *ic = conn->c_transport_data;
 
@@ -205,45 +205,45 @@ int rds_iw_add_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *conn
 	BUG_ON(list_empty(&iw_nodev_conns));
 	BUG_ON(list_empty(&ic->iw_node));
 	list_del(&ic->iw_node);
-	spin_unlock_irq(&iw_nodev_conns_lock);
 
 	spin_lock_irq(&rds_iwdev->spinlock);
 	list_add_tail(&ic->iw_node, &rds_iwdev->conn_list);
 	spin_unlock_irq(&rds_iwdev->spinlock);
-
-	ic->rds_iwdev = rds_iwdev;
-
-	return 0;
-}
-
-void rds_iw_remove_nodev_conns(void)
-{
-	struct rds_iw_connection *ic, *_ic;
-	LIST_HEAD(tmp_list);
-
-	/* avoid calling conn_destroy with irqs off */
-	spin_lock_irq(&iw_nodev_conns_lock);
-	list_splice(&iw_nodev_conns, &tmp_list);
-	INIT_LIST_HEAD(&iw_nodev_conns);
 	spin_unlock_irq(&iw_nodev_conns_lock);
 
-	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node) {
-		if (ic->conn->c_passive)
-			rds_conn_destroy(ic->conn->c_passive);
-		rds_conn_destroy(ic->conn);
-	}
+	ic->rds_iwdev = rds_iwdev;
 }
 
-void rds_iw_remove_conns(struct rds_iw_device *rds_iwdev)
+void rds_iw_remove_conn(struct rds_iw_device *rds_iwdev, struct rds_connection *conn)
+{
+	struct rds_iw_connection *ic = conn->c_transport_data;
+
+	/* place conn on nodev_conns_list */
+	spin_lock(&iw_nodev_conns_lock);
+
+	spin_lock_irq(&rds_iwdev->spinlock);
+	BUG_ON(list_empty(&ic->iw_node));
+	list_del(&ic->iw_node);
+	spin_unlock_irq(&rds_iwdev->spinlock);
+
+	list_add_tail(&ic->iw_node, &iw_nodev_conns);
+
+	spin_unlock(&iw_nodev_conns_lock);
+
+	rds_iw_remove_cm_id(ic->rds_iwdev, ic->i_cm_id);
+	ic->rds_iwdev = NULL;
+}
+
+void __rds_iw_destroy_conns(struct list_head *list, spinlock_t *list_lock)
 {
 	struct rds_iw_connection *ic, *_ic;
 	LIST_HEAD(tmp_list);
 
 	/* avoid calling conn_destroy with irqs off */
-	spin_lock_irq(&rds_iwdev->spinlock);
-	list_splice(&rds_iwdev->conn_list, &tmp_list);
-	INIT_LIST_HEAD(&rds_iwdev->conn_list);
-	spin_unlock_irq(&rds_iwdev->spinlock);
+	spin_lock_irq(list_lock);
+	list_splice(list, &tmp_list);
+	INIT_LIST_HEAD(list);
+	spin_unlock_irq(list_lock);
 
 	list_for_each_entry_safe(ic, _ic, &tmp_list, iw_node) {
 		if (ic->conn->c_passive)

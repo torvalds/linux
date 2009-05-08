@@ -13,15 +13,19 @@
 #ifndef _XTENSA_MMU_CONTEXT_H
 #define _XTENSA_MMU_CONTEXT_H
 
+#ifndef CONFIG_MMU
+#include <asm/nommu_context.h>
+#else
+
 #include <linux/stringify.h>
 #include <linux/sched.h>
+
+#include <variant/core.h>
 
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm-generic/mm_hooks.h>
-
-#define XCHAL_MMU_ASID_BITS	8
 
 #if (XCHAL_HAVE_TLBS != 1)
 # error "Linux must have an MMU!"
@@ -133,4 +137,5 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 
 }
 
+#endif /* CONFIG_MMU */
 #endif /* _XTENSA_MMU_CONTEXT_H */

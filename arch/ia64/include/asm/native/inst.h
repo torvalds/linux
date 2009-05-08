@@ -30,6 +30,9 @@
 #define __paravirt_work_processed_syscall_target \
 						ia64_work_processed_syscall
 
+#define paravirt_fsyscall_table			ia64_native_fsyscall_table
+#define paravirt_fsys_bubble_down		ia64_native_fsys_bubble_down
+
 #ifdef CONFIG_PARAVIRT_GUEST_ASM_CLOBBER_CHECK
 # define PARAVIRT_POISON	0xdeadbeefbaadf00d
 # define CLOBBER(clob)				\
@@ -73,6 +76,11 @@
 #define MOV_FROM_PSR(pred, reg, clob)	\
 (pred)	mov reg = psr			\
 	CLOBBER(clob)
+
+#define MOV_FROM_ITC(pred, pred_clob, reg, clob)	\
+(pred)	mov reg = ar.itc				\
+	CLOBBER(clob)					\
+	CLOBBER_PRED(pred_clob)
 
 #define MOV_TO_IFA(reg, clob)	\
 	mov cr.ifa = reg	\
@@ -157,6 +165,11 @@
 
 #define RSM_PSR_DT		\
 	rsm psr.dt
+
+#define RSM_PSR_BE_I(clob0, clob1)	\
+	rsm psr.be | psr.i		\
+	CLOBBER(clob0)			\
+	CLOBBER(clob1)
 
 #define SSM_PSR_DT_AND_SRLZ_I	\
 	ssm psr.dt		\

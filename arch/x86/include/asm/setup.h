@@ -64,7 +64,7 @@ extern void x86_quirk_time_init(void);
 #include <asm/bootparam.h>
 
 /* Interrupt control for vSMPowered x86_64 systems */
-#ifdef CONFIG_X86_VSMP
+#ifdef CONFIG_X86_64
 void vsmp_init(void);
 #else
 static inline void vsmp_init(void) { }
@@ -100,13 +100,37 @@ extern struct boot_params boot_params;
  */
 #define LOWMEMSIZE()	(0x9f000)
 
+/* exceedingly early brk-like allocator */
+extern unsigned long _brk_end;
+void *extend_brk(size_t size, size_t align);
+
+/*
+ * Reserve space in the brk section.  The name must be unique within
+ * the file, and somewhat descriptive.  The size is in bytes.  Must be
+ * used at file scope.
+ *
+ * (This uses a temp function to wrap the asm so we can pass it the
+ * size parameter; otherwise we wouldn't be able to.  We can't use a
+ * "section" attribute on a normal variable because it always ends up
+ * being @progbits, which ends up allocating space in the vmlinux
+ * executable.)
+ */
+#define RESERVE_BRK(name,sz)						\
+	static void __section(.discard) __used				\
+	__brk_reservation_fn_##name##__(void) {				\
+		asm volatile (						\
+			".pushsection .brk_reservation,\"aw\",@nobits;" \
+			".brk." #name ":"				\
+			" 1:.skip %c0;"					\
+			" .size .brk." #name ", . - 1b;"		\
+			" .popsection"					\
+			: : "i" (sz));					\
+	}
+
 #ifdef __i386__
 
 void __init i386_start_kernel(void);
 extern void probe_roms(void);
-
-extern unsigned long init_pg_tables_start;
-extern unsigned long init_pg_tables_end;
 
 #else
 void __init x86_64_start_kernel(char *real_mode);
@@ -114,6 +138,13 @@ void __init x86_64_start_reservations(char *real_mode_data);
 
 #endif /* __i386__ */
 #endif /* _SETUP */
+#else
+#define RESERVE_BRK(name,sz)				\
+	.pushsection .brk_reservation,"aw",@nobits;	\
+.brk.name:						\
+1:	.skip sz;					\
+	.size .brk.name,.-1b;				\
+	.popsection
 #endif /* __ASSEMBLY__ */
 #endif  /*  __KERNEL__  */
 

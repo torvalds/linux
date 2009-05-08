@@ -693,7 +693,6 @@ static struct ioat_desc_sw *ioat_dma_alloc_descriptor(
 		desc_sw->async_tx.tx_submit = ioat2_tx_submit;
 		break;
 	}
-	INIT_LIST_HEAD(&desc_sw->async_tx.tx_list);
 
 	desc_sw->hw = desc;
 	desc_sw->async_tx.phys = phys;

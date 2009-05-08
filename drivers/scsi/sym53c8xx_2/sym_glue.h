@@ -234,7 +234,7 @@ static inline struct sym_hcb * sym_get_hcb(struct Scsi_Host *host)
 /*
  *  Set the status field of a CAM CCB.
  */
-static __inline void 
+static inline void
 sym_set_cam_status(struct scsi_cmnd *cmd, int status)
 {
 	cmd->result &= ~(0xff  << 16);
@@ -244,7 +244,7 @@ sym_set_cam_status(struct scsi_cmnd *cmd, int status)
 /*
  *  Get the status field of a CAM CCB.
  */
-static __inline int 
+static inline int
 sym_get_cam_status(struct scsi_cmnd *cmd)
 {
 	return host_byte(cmd->result);
@@ -253,7 +253,7 @@ sym_get_cam_status(struct scsi_cmnd *cmd)
 /*
  *  Build CAM result for a successful IO and for a failed IO.
  */
-static __inline void sym_set_cam_result_ok(struct sym_ccb *cp, struct scsi_cmnd *cmd, int resid)
+static inline void sym_set_cam_result_ok(struct sym_ccb *cp, struct scsi_cmnd *cmd, int resid)
 {
 	scsi_set_resid(cmd, resid);
 	cmd->result = (((DID_OK) << 16) + ((cp->ssss_status) & 0x7f));

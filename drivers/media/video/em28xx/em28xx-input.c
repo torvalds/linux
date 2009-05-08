@@ -68,8 +68,7 @@ struct em28xx_IR {
 
 	/* poll external decoder */
 	int polling;
-	struct work_struct work;
-	struct timer_list timer;
+	struct delayed_work work;
 	unsigned int last_toggle:1;
 	unsigned int last_readcount;
 	unsigned int repeat_interval;
@@ -292,32 +291,23 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 	return;
 }
 
-static void ir_timer(unsigned long data)
-{
-	struct em28xx_IR *ir = (struct em28xx_IR *)data;
-
-	schedule_work(&ir->work);
-}
-
 static void em28xx_ir_work(struct work_struct *work)
 {
-	struct em28xx_IR *ir = container_of(work, struct em28xx_IR, work);
+	struct em28xx_IR *ir = container_of(work, struct em28xx_IR, work.work);
 
 	em28xx_ir_handle_key(ir);
-	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
+	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling));
 }
 
 static void em28xx_ir_start(struct em28xx_IR *ir)
 {
-	setup_timer(&ir->timer, ir_timer, (unsigned long)ir);
-	INIT_WORK(&ir->work, em28xx_ir_work);
-	schedule_work(&ir->work);
+	INIT_DELAYED_WORK(&ir->work, em28xx_ir_work);
+	schedule_delayed_work(&ir->work, 0);
 }
 
 static void em28xx_ir_stop(struct em28xx_IR *ir)
 {
-	del_timer_sync(&ir->timer);
-	flush_scheduled_work();
+	cancel_delayed_work_sync(&ir->work);
 }
 
 int em28xx_ir_init(struct em28xx *dev)

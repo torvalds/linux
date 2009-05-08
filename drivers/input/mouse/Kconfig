@@ -292,4 +292,15 @@ config MOUSE_PXA930_TRKBALL
 	help
 	  Say Y here to support PXA930 Trackball mouse.
 
+config MOUSE_MAPLE
+	tristate "Maple mouse (for the Dreamcast)"
+	depends on MAPLE
+	help
+	  This driver supports the Maple mouse on the SEGA Dreamcast.
+
+	  Most Dreamcast users, who have a mouse, will say Y here.
+
+	  To compile this driver as a module choose M here: the module will be
+	  called maplemouse.
+
 endif

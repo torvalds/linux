@@ -531,6 +531,12 @@ int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fap
 		if (!new)
 			return -ENOMEM;
 	}
+
+	/*
+	 * We need to take f_lock first since it's not an IRQ-safe
+	 * lock.
+	 */
+	spin_lock(&filp->f_lock);
 	write_lock_irq(&fasync_lock);
 	for (fp = fapp; (fa = *fp) != NULL; fp = &fa->fa_next) {
 		if (fa->fa_file == filp) {
@@ -555,14 +561,12 @@ int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fap
 		result = 1;
 	}
 out:
-	/* Fix up FASYNC bit while still holding fasync_lock */
-	spin_lock(&filp->f_lock);
 	if (on)
 		filp->f_flags |= FASYNC;
 	else
 		filp->f_flags &= ~FASYNC;
-	spin_unlock(&filp->f_lock);
 	write_unlock_irq(&fasync_lock);
+	spin_unlock(&filp->f_lock);
 	return result;
 }
 

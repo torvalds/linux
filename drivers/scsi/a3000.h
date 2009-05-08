@@ -11,9 +11,6 @@
 
 #include <linux/types.h>
 
-int a3000_detect(struct scsi_host_template *);
-int a3000_release(struct Scsi_Host *);
-
 #ifndef CMD_PER_LUN
 #define CMD_PER_LUN 2
 #endif

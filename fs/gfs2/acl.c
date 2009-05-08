@@ -215,7 +215,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct gfs2_inode *ip)
 	if (error)
 		return error;
 	if (!acl) {
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 		if (mode != ip->i_inode.i_mode)
 			error = munge_mode(ip, mode);
 		return error;

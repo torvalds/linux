@@ -108,7 +108,7 @@ static int t7l66xb_mmc_disable(struct platform_device *mmc)
 
 /*--------------------------------------------------------------------------*/
 
-const static struct resource t7l66xb_mmc_resources[] = {
+static const struct resource t7l66xb_mmc_resources[] = {
 	{
 		.start = 0x800,
 		.end	= 0x9ff,
@@ -126,7 +126,7 @@ const static struct resource t7l66xb_mmc_resources[] = {
 	},
 };
 
-const static struct resource t7l66xb_nand_resources[] = {
+static const struct resource t7l66xb_nand_resources[] = {
 	{
 		.start	= 0xc00,
 		.end	= 0xc07,

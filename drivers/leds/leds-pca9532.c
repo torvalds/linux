@@ -1,7 +1,7 @@
 /*
  * pca9532.c - 16-bit Led dimmer
  *
- * Copyright (C) 2008 Riku Voipio <riku.voipio@movial.fi>
+ * Copyright (C) 2008 Riku Voipio
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ static int pca9532_event(struct input_dev *dev, unsigned int type,
 {
 	struct pca9532_data *data = input_get_drvdata(dev);
 
-	if (type != EV_SND && (code != SND_BELL || code != SND_TONE))
+	if (!(type == EV_SND && (code == SND_BELL || code == SND_TONE)))
 		return -1;
 
 	/* XXX: allow different kind of beeps with psc/pwm modifications */
@@ -367,7 +367,7 @@ static void __exit pca9532_exit(void)
 	i2c_del_driver(&pca9532_driver);
 }
 
-MODULE_AUTHOR("Riku Voipio <riku.voipio@movial.fi>");
+MODULE_AUTHOR("Riku Voipio");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PCA 9532 LED dimmer");
 

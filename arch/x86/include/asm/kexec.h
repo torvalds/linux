@@ -9,13 +9,13 @@
 # define PAGES_NR		4
 #else
 # define PA_CONTROL_PAGE	0
-# define PA_TABLE_PAGE		1
-# define PAGES_NR		2
+# define VA_CONTROL_PAGE	1
+# define PA_TABLE_PAGE		2
+# define PA_SWAP_PAGE		3
+# define PAGES_NR		4
 #endif
 
-#ifdef CONFIG_X86_32
 # define KEXEC_CONTROL_CODE_MAX_SIZE	2048
-#endif
 
 #ifndef __ASSEMBLY__
 
@@ -136,10 +136,11 @@ relocate_kernel(unsigned long indirection_page,
 		unsigned int has_pae,
 		unsigned int preserve_context);
 #else
-NORET_TYPE void
+unsigned long
 relocate_kernel(unsigned long indirection_page,
 		unsigned long page_list,
-		unsigned long start_address) ATTRIB_NORET;
+		unsigned long start_address,
+		unsigned int preserve_context);
 #endif
 
 #define ARCH_HAS_KIMAGE_ARCH

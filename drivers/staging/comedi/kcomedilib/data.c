@@ -27,10 +27,10 @@
 
 #include <linux/string.h>
 
-int comedi_data_write(comedi_t * dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t data)
+int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
+	unsigned int range, unsigned int aref, unsigned int data)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_WRITE;
@@ -42,10 +42,10 @@ int comedi_data_write(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	return comedi_do_insn(dev, &insn);
 }
 
-int comedi_data_read(comedi_t * dev, unsigned int subdev, unsigned int chan,
-	unsigned int range, unsigned int aref, lsampl_t * data)
+int comedi_data_read(void *dev, unsigned int subdev, unsigned int chan,
+	unsigned int range, unsigned int aref, unsigned int *data)
 {
-	comedi_insn insn;
+	struct comedi_insn insn;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_READ;
@@ -57,11 +57,11 @@ int comedi_data_read(comedi_t * dev, unsigned int subdev, unsigned int chan,
 	return comedi_do_insn(dev, &insn);
 }
 
-int comedi_data_read_hint(comedi_t * dev, unsigned int subdev,
+int comedi_data_read_hint(void *dev, unsigned int subdev,
 	unsigned int chan, unsigned int range, unsigned int aref)
 {
-	comedi_insn insn;
-	lsampl_t dummy_data;
+	struct comedi_insn insn;
+	unsigned int dummy_data;
 
 	memset(&insn, 0, sizeof(insn));
 	insn.insn = INSN_READ;
@@ -73,9 +73,9 @@ int comedi_data_read_hint(comedi_t * dev, unsigned int subdev,
 	return comedi_do_insn(dev, &insn);
 }
 
-int comedi_data_read_delayed(comedi_t * dev, unsigned int subdev,
+int comedi_data_read_delayed(void *dev, unsigned int subdev,
 	unsigned int chan, unsigned int range, unsigned int aref,
-	lsampl_t * data, unsigned int nano_sec)
+	unsigned int *data, unsigned int nano_sec)
 {
 	int retval;
 

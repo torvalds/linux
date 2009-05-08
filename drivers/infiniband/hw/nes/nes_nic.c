@@ -1426,49 +1426,55 @@ static int nes_netdev_get_settings(struct net_device *netdev, struct ethtool_cmd
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
+	u32 mac_index = nesdev->mac_index;
+	u8 phy_type = nesadapter->phy_type[mac_index];
+	u8 phy_index = nesadapter->phy_index[mac_index];
 	u16 phy_data;
 
 	et_cmd->duplex = DUPLEX_FULL;
 	et_cmd->port   = PORT_MII;
+	et_cmd->maxtxpkt = 511;
+	et_cmd->maxrxpkt = 511;
 
 	if (nesadapter->OneG_Mode) {
 		et_cmd->speed = SPEED_1000;
-		if (nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_PUMA_1G) {
+		if (phy_type == NES_PHY_TYPE_PUMA_1G) {
 			et_cmd->supported   = SUPPORTED_1000baseT_Full;
 			et_cmd->advertising = ADVERTISED_1000baseT_Full;
 			et_cmd->autoneg     = AUTONEG_DISABLE;
 			et_cmd->transceiver = XCVR_INTERNAL;
-			et_cmd->phy_address = nesdev->mac_index;
+			et_cmd->phy_address = mac_index;
 		} else {
-			et_cmd->supported   = SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg;
-			et_cmd->advertising = ADVERTISED_1000baseT_Full | ADVERTISED_Autoneg;
-			nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[nesdev->mac_index], &phy_data);
+			et_cmd->supported   = SUPPORTED_1000baseT_Full
+					    | SUPPORTED_Autoneg;
+			et_cmd->advertising = ADVERTISED_1000baseT_Full
+					    | ADVERTISED_Autoneg;
+			nes_read_1G_phy_reg(nesdev, 0, phy_index, &phy_data);
 			if (phy_data & 0x1000)
 				et_cmd->autoneg = AUTONEG_ENABLE;
 			else
 				et_cmd->autoneg = AUTONEG_DISABLE;
 			et_cmd->transceiver = XCVR_EXTERNAL;
-			et_cmd->phy_address = nesadapter->phy_index[nesdev->mac_index];
+			et_cmd->phy_address = phy_index;
 		}
-	} else {
-		if ((nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_IRIS) ||
-		    (nesadapter->phy_type[nesdev->mac_index] == NES_PHY_TYPE_ARGUS)) {
-			et_cmd->transceiver = XCVR_EXTERNAL;
-			et_cmd->port        = PORT_FIBRE;
-			et_cmd->supported   = SUPPORTED_FIBRE;
-			et_cmd->advertising = ADVERTISED_FIBRE;
-			et_cmd->phy_address = nesadapter->phy_index[nesdev->mac_index];
-		} else {
-			et_cmd->transceiver = XCVR_INTERNAL;
-			et_cmd->supported   = SUPPORTED_10000baseT_Full;
-			et_cmd->advertising = ADVERTISED_10000baseT_Full;
-			et_cmd->phy_address = nesdev->mac_index;
-		}
-		et_cmd->speed = SPEED_10000;
-		et_cmd->autoneg = AUTONEG_DISABLE;
+		return 0;
 	}
-	et_cmd->maxtxpkt = 511;
-	et_cmd->maxrxpkt = 511;
+	if ((phy_type == NES_PHY_TYPE_IRIS) ||
+	    (phy_type == NES_PHY_TYPE_ARGUS) ||
+	    (phy_type == NES_PHY_TYPE_SFP_D)) {
+		et_cmd->transceiver = XCVR_EXTERNAL;
+		et_cmd->port        = PORT_FIBRE;
+		et_cmd->supported   = SUPPORTED_FIBRE;
+		et_cmd->advertising = ADVERTISED_FIBRE;
+		et_cmd->phy_address = phy_index;
+	} else {
+		et_cmd->transceiver = XCVR_INTERNAL;
+		et_cmd->supported   = SUPPORTED_10000baseT_Full;
+		et_cmd->advertising = ADVERTISED_10000baseT_Full;
+		et_cmd->phy_address = mac_index;
+	}
+	et_cmd->speed = SPEED_10000;
+	et_cmd->autoneg = AUTONEG_DISABLE;
 	return 0;
 }
 

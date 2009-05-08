@@ -2005,6 +2005,7 @@ struct ixgbe_fc_info {
 	u16 pause_time; /* Flow Control Pause timer */
 	bool send_xon; /* Flow control send XON */
 	bool strict_ieee; /* Strict IEEE mode */
+	bool disable_fc_autoneg; /* Turn off autoneg FC mode */
 	enum ixgbe_fc_mode current_mode; /* FC mode in effect */
 	enum ixgbe_fc_mode requested_mode; /* FC mode requested by caller */
 };

@@ -54,8 +54,8 @@ extern int jpeg_codec_reset(struct zoran *zr);
 /* zr360x7 access to raw capture */
 extern void zr36057_overlay(struct zoran *zr,
 			    int on);
-extern void write_overlay_mask(struct file *file,
-			       struct video_clip *vp,
+extern void write_overlay_mask(struct zoran_fh *fh,
+			       struct v4l2_clip *vp,
 			       int count);
 extern void zr36057_set_memgrab(struct zoran *zr,
 				int mode);
@@ -87,11 +87,9 @@ extern int jpg_bufsize;
 extern int pass_through;
 
 /* i2c */
-extern int decoder_command(struct zoran *zr,
-			   int cmd,
-			   void *data);
-extern int encoder_command(struct zoran *zr,
-			   int cmd,
-			   void *data);
+#define decoder_call(zr, o, f, args...) \
+	v4l2_subdev_call(zr->decoder, o, f, ##args)
+#define encoder_call(zr, o, f, args...) \
+	v4l2_subdev_call(zr->encoder, o, f, ##args)
 
 #endif				/* __ZORAN_DEVICE_H__ */

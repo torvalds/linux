@@ -34,7 +34,7 @@
 #define S5K83A_DEFAULT_GAIN			0x00
 #define S5K83A_MAXIMUM_GAIN			0x3c
 #define S5K83A_FLIP_MASK			0x10
-
+#define S5K83A_GPIO_LED_MASK		0x10
 
 /*****************************************************************************/
 
@@ -44,7 +44,11 @@ extern int dump_sensor;
 
 int s5k83a_probe(struct sd *sd);
 int s5k83a_init(struct sd *sd);
+int s5k83a_start(struct sd *sd);
+int s5k83a_stop(struct sd *sd);
 int s5k83a_power_down(struct sd *sd);
+
+int s5k83a_set_led_indication(struct sd *sd, u8 val);
 
 int s5k83a_set_brightness(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_brightness(struct gspca_dev *gspca_dev, __s32 *val);
@@ -57,95 +61,15 @@ int s5k83a_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 int s5k83a_get_hflip(struct gspca_dev *gspca_dev, __s32 *val);
 int s5k83a_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor s5k83a = {
+static const struct m5602_sensor s5k83a = {
 	.name = "S5K83A",
 	.probe = s5k83a_probe,
 	.init = s5k83a_init,
+	.start = s5k83a_start,
+	.stop = s5k83a_stop,
 	.power_down = s5k83a_power_down,
 	.i2c_slave_id = 0x5a,
 	.i2c_regW = 2,
-	.nctrls = 5,
-	.ctrls = {
-	{
-		{
-			.id = V4L2_CID_BRIGHTNESS,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "brightness",
-			.minimum = 0x00,
-			.maximum = 0xff,
-			.step = 0x01,
-			.default_value = S5K83A_DEFAULT_BRIGHTNESS,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-			.set = s5k83a_set_brightness,
-			.get = s5k83a_get_brightness
-
-	}, {
-		{
-			.id = V4L2_CID_WHITENESS,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "whiteness",
-			.minimum = 0x00,
-			.maximum = 0xff,
-			.step = 0x01,
-			.default_value = S5K83A_DEFAULT_WHITENESS,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-			.set = s5k83a_set_whiteness,
-			.get = s5k83a_get_whiteness,
-	}, {
-		{
-			.id = V4L2_CID_GAIN,
-			.type = V4L2_CTRL_TYPE_INTEGER,
-			.name = "gain",
-			.minimum = 0x00,
-			.maximum = S5K83A_MAXIMUM_GAIN,
-			.step = 0x01,
-			.default_value = S5K83A_DEFAULT_GAIN,
-			.flags = V4L2_CTRL_FLAG_SLIDER
-		},
-			.set = s5k83a_set_gain,
-			.get = s5k83a_get_gain
-	}, {
-		{
-			.id         = V4L2_CID_HFLIP,
-			.type       = V4L2_CTRL_TYPE_BOOLEAN,
-			.name       = "horizontal flip",
-			.minimum    = 0,
-			.maximum    = 1,
-			.step       = 1,
-			.default_value  = 0
-		},
-			.set = s5k83a_set_hflip,
-			.get = s5k83a_get_hflip
-	}, {
-		{
-		 .id         = V4L2_CID_VFLIP,
-		.type       = V4L2_CTRL_TYPE_BOOLEAN,
-		.name       = "vertical flip",
-		.minimum    = 0,
-		.maximum    = 1,
-		.step       = 1,
-		.default_value  = 0
-		},
-		.set = s5k83a_set_vflip,
-		.get = s5k83a_get_vflip
-		}
-	},
-	.nmodes = 1,
-	.modes = {
-	{
-		M5602_DEFAULT_FRAME_WIDTH,
-		M5602_DEFAULT_FRAME_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			M5602_DEFAULT_FRAME_WIDTH * M5602_DEFAULT_FRAME_HEIGHT,
-		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
 };
 
 static const unsigned char preinit_s5k83a[][4] =
@@ -381,7 +305,7 @@ static const unsigned char init_s5k83a[][4] =
 	{BRIDGE, M5602_XB_SEN_CLK_DIV, 0x00, 0x00},
 	{BRIDGE, M5602_XB_SEN_CLK_CTRL, 0xf0, 0x00},
 	{BRIDGE, M5602_XB_GPIO_DIR, 0x1d, 0x00},
-	{BRIDGE, M5602_XB_GPIO_DAT, 0x1c, 0x00},
+	{BRIDGE, M5602_XB_GPIO_DAT, 0x08, 0x00},
 	{BRIDGE, M5602_XB_GPIO_EN_H, 0x06, 0x00},
 	{BRIDGE, M5602_XB_GPIO_DIR_H, 0x06, 0x00},
 	{BRIDGE, M5602_XB_GPIO_DAT_H, 0x00, 0x00},

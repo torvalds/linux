@@ -81,6 +81,11 @@
 #define MSR_IA32_MC0_ADDR		0x00000402
 #define MSR_IA32_MC0_MISC		0x00000403
 
+/* These are consecutive and not in the normal 4er MCE bank block */
+#define MSR_IA32_MC0_CTL2		0x00000280
+#define CMCI_EN			(1ULL << 30)
+#define CMCI_THRESHOLD_MASK		0xffffULL
+
 #define MSR_P6_PERFCTR0			0x000000c1
 #define MSR_P6_PERFCTR1			0x000000c2
 #define MSR_P6_EVNTSEL0			0x00000186

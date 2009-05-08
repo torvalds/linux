@@ -32,7 +32,7 @@ struct _cache_table
 };
 
 /* all the cache descriptor types we care about (no TLB or trace cache entries) */
-static struct _cache_table cache_table[] __cpuinitdata =
+static const struct _cache_table __cpuinitconst cache_table[] =
 {
 	{ 0x06, LVL_1_INST, 8 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x08, LVL_1_INST, 16 },	/* 4-way set assoc, 32 byte line size */
@@ -159,7 +159,7 @@ struct _cpuid4_info_regs {
 	unsigned long can_disable;
 };
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) && defined(CONFIG_SYSFS)
 static struct pci_device_id k8_nb_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1103) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, 0x1203) },
@@ -206,15 +206,15 @@ union l3_cache {
 	unsigned val;
 };
 
-static unsigned short assocs[] __cpuinitdata = {
+static const unsigned short __cpuinitconst assocs[] = {
 	[1] = 1, [2] = 2, [4] = 4, [6] = 8,
 	[8] = 16, [0xa] = 32, [0xb] = 48,
 	[0xc] = 64,
 	[0xf] = 0xffff // ??
 };
 
-static unsigned char levels[] __cpuinitdata = { 1, 1, 2, 3 };
-static unsigned char types[] __cpuinitdata = { 1, 2, 3, 3 };
+static const unsigned char __cpuinitconst levels[] = { 1, 1, 2, 3 };
+static const unsigned char __cpuinitconst types[] = { 1, 2, 3, 3 };
 
 static void __cpuinit
 amd_cpuid4(int leaf, union _cpuid4_leaf_eax *eax,
@@ -322,15 +322,6 @@ __cpuinit cpuid4_cache_lookup_regs(int index,
 			  (ebx.split.physical_line_partition + 1) *
 			  (ebx.split.ways_of_associativity   + 1);
 	return 0;
-}
-
-static int
-__cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
-{
-	struct _cpuid4_info_regs *leaf_regs =
-		(struct _cpuid4_info_regs *)this_leaf;
-
-	return cpuid4_cache_lookup_regs(index, leaf_regs);
 }
 
 static int __cpuinit find_num_cache_leaves(void)
@@ -508,6 +499,8 @@ unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 	return l2;
 }
 
+#ifdef CONFIG_SYSFS
+
 /* pointer to _cpuid4_info array (for each cache leaf) */
 static DEFINE_PER_CPU(struct _cpuid4_info *, cpuid4_info);
 #define CPUID4_INFO_IDX(x, y)	(&((per_cpu(cpuid4_info, x))[y]))
@@ -571,6 +564,15 @@ static void __cpuinit free_cache_attributes(unsigned int cpu)
 	per_cpu(cpuid4_info, cpu) = NULL;
 }
 
+static int
+__cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
+{
+	struct _cpuid4_info_regs *leaf_regs =
+		(struct _cpuid4_info_regs *)this_leaf;
+
+	return cpuid4_cache_lookup_regs(index, leaf_regs);
+}
+
 static void __cpuinit get_cpu_leaves(void *_retval)
 {
 	int j, *retval = _retval, cpu = smp_processor_id();
@@ -611,8 +613,6 @@ static int __cpuinit detect_cache_attributes(unsigned int cpu)
 
 	return retval;
 }
-
-#ifdef CONFIG_SYSFS
 
 #include <linux/kobject.h>
 #include <linux/sysfs.h>

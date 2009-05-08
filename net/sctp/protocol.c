@@ -106,12 +106,8 @@ static __init int sctp_proc_init(void)
 		goto out_nomem;
 #ifdef CONFIG_PROC_FS
 	if (!proc_net_sctp) {
-		struct proc_dir_entry *ent;
-		ent = proc_mkdir("sctp", init_net.proc_net);
-		if (ent) {
-			ent->owner = THIS_MODULE;
-			proc_net_sctp = ent;
-		} else
+		proc_net_sctp = proc_mkdir("sctp", init_net.proc_net);
+		if (!proc_net_sctp)
 			goto out_free_percpu;
 	}
 

@@ -16,22 +16,10 @@
 
 #include <linux/types.h>
 
-//---------------------------------------------------------------------------
-//  RW_CONTEXT --
-//
-//  Used to track driver-generated io irps
-//---------------------------------------------------------------------------
-typedef struct _RW_CONTEXT
-{
-	void*			pHwData;
-	struct urb		*urb;
-	void*			pCallBackFunctionParameter;
-} RW_CONTEXT, *PRW_CONTEXT;
-
-typedef struct _WBUSB {
+struct wb_usb {
 	u32	IsUsb20;
 	struct usb_device *udev;
 	u32	DetectCount;
-} WBUSB, *PWBUSB;
+};
 
 #endif

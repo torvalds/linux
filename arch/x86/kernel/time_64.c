@@ -116,7 +116,6 @@ unsigned long __init calibrate_cpu(void)
 static struct irqaction irq0 = {
 	.handler	= timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_IRQPOLL | IRQF_NOBALANCING | IRQF_TIMER,
-	.mask		= CPU_MASK_NONE,
 	.name		= "timer"
 };
 
@@ -125,7 +124,6 @@ void __init hpet_time_init(void)
 	if (!hpet_enable())
 		setup_pit_timer();
 
-	irq0.mask = cpumask_of_cpu(0);
 	setup_irq(0, &irq0);
 }
 

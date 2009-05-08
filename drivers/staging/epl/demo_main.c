@@ -74,7 +74,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/major.h>
-#include <linux/version.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -86,16 +85,6 @@
 
 #include "Epl.h"
 #include "proc_fs.h"
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
-    // remove ("make invisible") obsolete symbols for kernel versions 2.6
-    // and higher
-#define MOD_INC_USE_COUNT
-#define MOD_DEC_USE_COUNT
-#define EXPORT_NO_SYMBOLS
-#else
-#error "This driver needs a 2.6.x kernel or higher"
-#endif
 
 /***************************************************************************/
 /*                                                                         */
@@ -118,7 +107,7 @@ MODULE_DESCRIPTION("EPL MN demo");
 
 // TracePoint support for realtime-debugging
 #ifdef _DBG_TRACE_POINTS_
-void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
+void TgtDbgSignalTracePoint(u8 bTracePointNumber_p);
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)   TgtDbgSignalTracePoint(p)
 #else
 #define TGT_DBG_SIGNAL_TRACE_POINT(p)
@@ -148,30 +137,30 @@ void PUBLIC TgtDbgSignalTracePoint(BYTE bTracePointNumber_p);
 // modul globale vars
 //---------------------------------------------------------------------------
 
-CONST BYTE abMacAddr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static const u8 abMacAddr[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-BYTE bVarIn1_l;
-BYTE bVarOut1_l;
-BYTE bVarOut1Old_l;
-BYTE bModeSelect_l;		// state of the pushbuttons to select the mode
-BYTE bSpeedSelect_l;		// state of the pushbuttons to increase/decrease the speed
-BYTE bSpeedSelectOld_l;		// old state of the pushbuttons
-DWORD dwLeds_l;			// current state of all LEDs
-BYTE bLedsRow1_l;		// current state of the LEDs in row 1
-BYTE bLedsRow2_l;		// current state of the LEDs in row 2
-BYTE abSelect_l[3];		// pushbuttons from CNs
+static u8 bVarIn1_l;
+static u8 bVarOut1_l;
+static u8 bVarOut1Old_l;
+static u8 bModeSelect_l;		// state of the pushbuttons to select the mode
+static u8 bSpeedSelect_l;		// state of the pushbuttons to increase/decrease the speed
+static u8 bSpeedSelectOld_l;		// old state of the pushbuttons
+static u32 dwLeds_l;			// current state of all LEDs
+static u8 bLedsRow1_l;		// current state of the LEDs in row 1
+static u8 bLedsRow2_l;		// current state of the LEDs in row 2
+static u8 abSelect_l[3];		// pushbuttons from CNs
 
-DWORD dwMode_l;			// current mode
-int iCurCycleCount_l;		// current cycle count
-int iMaxCycleCount_l;		// maximum cycle count (i.e. number of cycles until next light movement step)
-int iToggle;			// indicates the light movement direction
+static u32 dwMode_l;			// current mode
+static int iCurCycleCount_l;		// current cycle count
+static int iMaxCycleCount_l;		// maximum cycle count (i.e. number of cycles until next light movement step)
+static int iToggle;			// indicates the light movement direction
 
-BYTE abDomain_l[3000];
+//static u8 abDomain_l[3000];
 
 static wait_queue_head_t WaitQueueShutdown_g;	// wait queue for tEplNmtEventSwitchOff
 static atomic_t AtomicShutdown_g = ATOMIC_INIT(FALSE);
 
-static DWORD dw_le_CycleLen_g;
+static u32 dw_le_CycleLen_g;
 
 static uint uiNodeId_g = EPL_C_ADR_INVALID;
 module_param_named(nodeid, uiNodeId_g, uint, 0);
@@ -188,22 +177,18 @@ module_param_named(cyclelen, uiCycleLen_g, uint, 0);
 // this function prototype here. If you want to use more than one Epl
 // instances then the function name of each object dictionary has to differ.
 
-tEplKernel PUBLIC EplObdInitRam(tEplObdInitParam MEM * pInitParam_p);
+tEplKernel EplObdInitRam(tEplObdInitParam *pInitParam_p);
 
-tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
-			     tEplApiEventArg * pEventArg_p,	// IN: event argument (union)
-			     void GENERIC * pUserArg_p);
+tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
+		      tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
+		      void *pUserArg_p);
 
-tEplKernel PUBLIC AppCbSync(void);
+tEplKernel AppCbSync(void);
 
-static int __init EplLinInit(void);
-static void __exit EplLinExit(void);
 
 //---------------------------------------------------------------------------
 //  Kernel Module specific Data Structures
 //---------------------------------------------------------------------------
-
-EXPORT_NO_SYMBOLS;
 
 //module_init(EplLinInit);
 //module_exit(EplLinExit);
@@ -231,6 +216,7 @@ EXPORT_NO_SYMBOLS;
 // State:
 //
 //---------------------------------------------------------------------------
+#if 0
 static int __init EplLinInit(void)
 {
 	tEplKernel EplRet;
@@ -263,7 +249,7 @@ static int __init EplLinInit(void)
 	EplApiInitParam.m_uiSizeOfStruct = sizeof(EplApiInitParam);
 	EPL_MEMCPY(EplApiInitParam.m_abMacAddress, abMacAddr,
 		   sizeof(EplApiInitParam.m_abMacAddress));
-//    EplApiInitParam.m_abMacAddress[5] = (BYTE) EplApiInitParam.m_uiNodeId;
+//	EplApiInitParam.m_abMacAddress[5] = (u8) EplApiInitParam.m_uiNodeId;
 	EplApiInitParam.m_dwFeatureFlags = -1;
 	EplApiInitParam.m_dwCycleLen = uiCycleLen_g;	// required for error detection
 	EplApiInitParam.m_uiIsochrTxMaxPayload = 100;	// const
@@ -401,7 +387,7 @@ static int __init EplLinInit(void)
 
 	// configure IP address of virtual network interface
 	// for TCP/IP communication over the POWERLINK network
-	sprintf(sBuffer, "%lu.%lu.%lu.%lu",
+	sprintf(sBuffer, "%u.%u.%u.%u",
 		(EplApiInitParam.m_dwIpAddress >> 24),
 		((EplApiInitParam.m_dwIpAddress >> 16) & 0xFF),
 		((EplApiInitParam.m_dwIpAddress >> 8) & 0xFF),
@@ -456,7 +442,7 @@ static void __exit EplLinExit(void)
 	printk("EplLinProcFree():        0x%X\n", EplRet);
 
 }
-
+#endif
 //=========================================================================//
 //                                                                         //
 //          P R I V A T E   F U N C T I O N S                              //
@@ -484,9 +470,9 @@ static void __exit EplLinExit(void)
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
-			     tEplApiEventArg * pEventArg_p,	// IN: event argument (union)
-			     void GENERIC * pUserArg_p)
+tEplKernel AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (enum)
+		      tEplApiEventArg *pEventArg_p,	// IN: event argument (union)
+		      void *pUserArg_p)
 {
 	tEplKernel EplRet = kEplSuccessful;
 
@@ -515,7 +501,7 @@ tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (en
 
 			case kEplNmtGsResetCommunication:
 				{
-					DWORD dwBuffer;
+					u32 dwBuffer;
 
 					// configure OD for MN in state ResetComm after reseting the OD
 					// TODO: setup your own network configuration here
@@ -677,8 +663,8 @@ tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (en
 
 			case kEplEventSourceDllk:
 				{	// error occured within the data link layer (e.g. interrupt processing)
-					// the DWORD argument contains the DLL state and the NMT event
-					printk(" val=%lX\n",
+					// the u32 argument contains the DLL state and the NMT event
+					printk(" val=%X\n",
 					       pEventArg_p->m_InternalError.
 					       m_Arg.m_dwArg);
 					break;
@@ -802,7 +788,7 @@ tEplKernel PUBLIC AppCbEvent(tEplApiEventType EventType_p,	// IN: event type (en
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC AppCbSync(void)
+tEplKernel AppCbSync(void)
 {
 	tEplKernel EplRet = kEplSuccessful;
 
@@ -810,7 +796,7 @@ tEplKernel PUBLIC AppCbSync(void)
 		bVarOut1Old_l = bVarOut1_l;
 		// set LEDs
 
-//        printk("bVarIn = 0x%02X bVarOut = 0x%02X\n", (WORD) bVarIn_l, (WORD) bVarOut_l);
+//        printk("bVarIn = 0x%02X bVarOut = 0x%02X\n", (u16) bVarIn_l, (u16) bVarOut_l);
 	}
 	if (uiNodeId_g != EPL_C_ADR_MN_DEF_NODE_ID) {
 		bVarIn1_l++;

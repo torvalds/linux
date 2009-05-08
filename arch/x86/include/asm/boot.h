@@ -1,10 +1,6 @@
 #ifndef _ASM_X86_BOOT_H
 #define _ASM_X86_BOOT_H
 
-/* Don't touch these, unless you really know what you're doing. */
-#define DEF_SYSSEG	0x1000
-#define DEF_SYSSIZE	0x7F00
-
 /* Internal svga startup constants */
 #define NORMAL_VGA	0xffff		/* 80x25 mode */
 #define EXTENDED_VGA	0xfffe		/* 80x50 mode */

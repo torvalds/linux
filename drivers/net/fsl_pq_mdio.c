@@ -204,6 +204,7 @@ void fsl_pq_mdio_bus_name(char *name, struct device_node *np)
 	snprintf(name, MII_BUS_ID_SIZE, "%s@%llx", np->name,
 		(unsigned long long)taddr);
 }
+EXPORT_SYMBOL_GPL(fsl_pq_mdio_bus_name);
 
 /* Scan the bus in reverse, looking for an empty spot */
 static int fsl_pq_mdio_find_free(struct mii_bus *new_bus)
@@ -387,7 +388,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	 * The TBIPHY-only buses will find PHYs at every address,
 	 * so we mask them all but the TBI
 	 */
-	if (!of_device_is_compatible(np, "fsl,gianfar-mdio"))
+	if (of_device_is_compatible(np, "fsl,gianfar-tbi"))
 		new_bus->phy_mask = ~(1 << tbiaddr);
 
 	err = mdiobus_register(new_bus);

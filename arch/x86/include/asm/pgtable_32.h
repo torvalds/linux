@@ -42,9 +42,6 @@ extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
  */
 #undef TEST_ACCESS_OK
 
-/* The boot page tables (all created as a single array) */
-extern unsigned long pg0[];
-
 #ifdef CONFIG_X86_PAE
 # include <asm/pgtable-3level.h>
 #else

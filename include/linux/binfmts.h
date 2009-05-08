@@ -35,8 +35,7 @@ struct linux_binprm{
 #endif
 	struct mm_struct *mm;
 	unsigned long p; /* current top of mem */
-	unsigned int sh_bang:1,
-		misc_bang:1,
+	unsigned int
 		cred_prepared:1,/* true if creds already prepared (multiple
 				 * preps happen for interpreters) */
 		cap_effective:1;/* true if has elevated effective capabilities,
@@ -83,7 +82,19 @@ struct linux_binfmt {
 	int hasvdso;
 };
 
-extern int register_binfmt(struct linux_binfmt *);
+extern int __register_binfmt(struct linux_binfmt *fmt, int insert);
+
+/* Registration of default binfmt handlers */
+static inline int register_binfmt(struct linux_binfmt *fmt)
+{
+	return __register_binfmt(fmt, 0);
+}
+/* Same as above, but adds a new binfmt at the top of the list */
+static inline int insert_binfmt(struct linux_binfmt *fmt)
+{
+	return __register_binfmt(fmt, 1);
+}
+
 extern void unregister_binfmt(struct linux_binfmt *);
 
 extern int prepare_binprm(struct linux_binprm *);

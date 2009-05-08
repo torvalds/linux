@@ -130,4 +130,13 @@
 void rbtx4939_prom_init(void);
 void rbtx4939_irq_setup(void);
 
+struct mtd_partition;
+struct map_info;
+struct rbtx4939_flash_data {
+	unsigned int width;
+	unsigned int nr_parts;
+	struct mtd_partition *parts;
+	void (*map_init)(struct map_info *map);
+};
+
 #endif /* __ASM_TXX9_RBTX4939_H */

@@ -473,8 +473,6 @@ void can_init_proc(void)
 		return;
 	}
 
-	can_dir->owner = THIS_MODULE;
-
 	/* own procfs entries from the AF_CAN core */
 	pde_version     = can_create_proc_readentry(CAN_PROC_VERSION, 0644,
 					can_proc_read_version, NULL);

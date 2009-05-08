@@ -45,6 +45,7 @@
 #include "delegation.h"
 #include "iostat.h"
 #include "internal.h"
+#include "fscache.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 
@@ -154,6 +155,8 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	if (!IS_ERR(cred))
 		clp->cl_machine_cred = cred;
 
+	nfs_fscache_get_client_cookie(clp);
+
 	return clp;
 
 error_3:
@@ -186,6 +189,8 @@ static void nfs_free_client(struct nfs_client *clp)
 	dprintk("--> nfs_free_client(%u)\n", clp->rpc_ops->version);
 
 	nfs4_shutdown_client(clp);
+
+	nfs_fscache_release_client_cookie(clp);
 
 	/* -EIO all pending I/O */
 	if (!IS_ERR(clp->cl_rpcclient))
@@ -224,38 +229,6 @@ void nfs_put_client(struct nfs_client *clp)
 }
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
-static const struct in6_addr *nfs_map_ipv4_addr(const struct sockaddr *sa, struct in6_addr *addr_mapped)
-{
-	switch (sa->sa_family) {
-		default:
-			return NULL;
-		case AF_INET6:
-			return &((const struct sockaddr_in6 *)sa)->sin6_addr;
-			break;
-		case AF_INET:
-			ipv6_addr_set_v4mapped(((const struct sockaddr_in *)sa)->sin_addr.s_addr,
-					addr_mapped);
-			return addr_mapped;
-	}
-}
-
-static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
-		const struct sockaddr *sa2)
-{
-	const struct in6_addr *addr1;
-	const struct in6_addr *addr2;
-	struct in6_addr addr1_mapped;
-	struct in6_addr addr2_mapped;
-
-	addr1 = nfs_map_ipv4_addr(sa1, &addr1_mapped);
-	if (likely(addr1 != NULL)) {
-		addr2 = nfs_map_ipv4_addr(sa2, &addr2_mapped);
-		if (likely(addr2 != NULL))
-			return ipv6_addr_equal(addr1, addr2);
-	}
-	return 0;
-}
-
 /*
  * Test if two ip6 socket addresses refer to the same socket by
  * comparing relevant fields. The padding bytes specifically, are not
@@ -267,38 +240,21 @@ static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
  *
  * The caller should ensure both socket addresses are AF_INET6.
  */
-static int nfs_sockaddr_cmp_ip6(const struct sockaddr *sa1,
-				const struct sockaddr *sa2)
+static int nfs_sockaddr_match_ipaddr6(const struct sockaddr *sa1,
+				      const struct sockaddr *sa2)
 {
-	const struct sockaddr_in6 *saddr1 = (const struct sockaddr_in6 *)sa1;
-	const struct sockaddr_in6 *saddr2 = (const struct sockaddr_in6 *)sa2;
+	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sa1;
+	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sa2;
 
-	if (!ipv6_addr_equal(&saddr1->sin6_addr,
-			     &saddr1->sin6_addr))
+	if (ipv6_addr_scope(&sin1->sin6_addr) == IPV6_ADDR_SCOPE_LINKLOCAL &&
+	    sin1->sin6_scope_id != sin2->sin6_scope_id)
 		return 0;
-	if (ipv6_addr_scope(&saddr1->sin6_addr) == IPV6_ADDR_SCOPE_LINKLOCAL &&
-	    saddr1->sin6_scope_id != saddr2->sin6_scope_id)
-		return 0;
-	return saddr1->sin6_port == saddr2->sin6_port;
-}
-#else
-static int nfs_sockaddr_match_ipaddr4(const struct sockaddr_in *sa1,
-				 const struct sockaddr_in *sa2)
-{
-	return sa1->sin_addr.s_addr == sa2->sin_addr.s_addr;
-}
 
-static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
-				 const struct sockaddr *sa2)
-{
-	if (unlikely(sa1->sa_family != AF_INET || sa2->sa_family != AF_INET))
-		return 0;
-	return nfs_sockaddr_match_ipaddr4((const struct sockaddr_in *)sa1,
-			(const struct sockaddr_in *)sa2);
+	return ipv6_addr_equal(&sin1->sin6_addr, &sin1->sin6_addr);
 }
-
-static int nfs_sockaddr_cmp_ip6(const struct sockaddr * sa1,
-				const struct sockaddr * sa2)
+#else	/* !defined(CONFIG_IPV6) && !defined(CONFIG_IPV6_MODULE) */
+static int nfs_sockaddr_match_ipaddr6(const struct sockaddr *sa1,
+				      const struct sockaddr *sa2)
 {
 	return 0;
 }
@@ -311,20 +267,57 @@ static int nfs_sockaddr_cmp_ip6(const struct sockaddr * sa1,
  *
  * The caller should ensure both socket addresses are AF_INET.
  */
+static int nfs_sockaddr_match_ipaddr4(const struct sockaddr *sa1,
+				      const struct sockaddr *sa2)
+{
+	const struct sockaddr_in *sin1 = (const struct sockaddr_in *)sa1;
+	const struct sockaddr_in *sin2 = (const struct sockaddr_in *)sa2;
+
+	return sin1->sin_addr.s_addr == sin2->sin_addr.s_addr;
+}
+
+static int nfs_sockaddr_cmp_ip6(const struct sockaddr *sa1,
+				const struct sockaddr *sa2)
+{
+	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sa1;
+	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sa2;
+
+	return nfs_sockaddr_match_ipaddr6(sa1, sa2) &&
+		(sin1->sin6_port == sin2->sin6_port);
+}
+
 static int nfs_sockaddr_cmp_ip4(const struct sockaddr *sa1,
 				const struct sockaddr *sa2)
 {
-	const struct sockaddr_in *saddr1 = (const struct sockaddr_in *)sa1;
-	const struct sockaddr_in *saddr2 = (const struct sockaddr_in *)sa2;
+	const struct sockaddr_in *sin1 = (const struct sockaddr_in *)sa1;
+	const struct sockaddr_in *sin2 = (const struct sockaddr_in *)sa2;
 
-	if (saddr1->sin_addr.s_addr != saddr2->sin_addr.s_addr)
-		return 0;
-	return saddr1->sin_port == saddr2->sin_port;
+	return nfs_sockaddr_match_ipaddr4(sa1, sa2) &&
+		(sin1->sin_port == sin2->sin_port);
 }
 
 /*
  * Test if two socket addresses represent the same actual socket,
- * by comparing (only) relevant fields.
+ * by comparing (only) relevant fields, excluding the port number.
+ */
+static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
+				     const struct sockaddr *sa2)
+{
+	if (sa1->sa_family != sa2->sa_family)
+		return 0;
+
+	switch (sa1->sa_family) {
+	case AF_INET:
+		return nfs_sockaddr_match_ipaddr4(sa1, sa2);
+	case AF_INET6:
+		return nfs_sockaddr_match_ipaddr6(sa1, sa2);
+	}
+	return 0;
+}
+
+/*
+ * Test if two socket addresses represent the same actual socket,
+ * by comparing (only) relevant fields, including the port number.
  */
 static int nfs_sockaddr_cmp(const struct sockaddr *sa1,
 			    const struct sockaddr *sa2)
@@ -772,6 +765,7 @@ static int nfs_init_server(struct nfs_server *server,
 
 	/* Initialise the client representation from the mount data */
 	server->flags = data->flags;
+	server->options = data->options;
 
 	if (data->rsize)
 		server->rsize = nfs_block_size(data->rsize, NULL);
@@ -1160,6 +1154,7 @@ static int nfs4_init_server(struct nfs_server *server,
 	/* Initialise the client representation from the mount data */
 	server->flags = data->flags;
 	server->caps |= NFS_CAP_ATOMIC_OPEN;
+	server->options = data->options;
 
 	/* Get a client record */
 	error = nfs4_set_client(server,
@@ -1571,7 +1566,7 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 
 	/* display header on line 1 */
 	if (v == &nfs_volume_list) {
-		seq_puts(m, "NV SERVER   PORT DEV     FSID\n");
+		seq_puts(m, "NV SERVER   PORT DEV     FSID              FSC\n");
 		return 0;
 	}
 	/* display one transport per line on subsequent lines */
@@ -1585,12 +1580,13 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 		 (unsigned long long) server->fsid.major,
 		 (unsigned long long) server->fsid.minor);
 
-	seq_printf(m, "v%u %s %s %-7s %-17s\n",
+	seq_printf(m, "v%u %s %s %-7s %-17s %s\n",
 		   clp->rpc_ops->version,
 		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_ADDR),
 		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_PORT),
 		   dev,
-		   fsid);
+		   fsid,
+		   nfs_server_fscache_state(server));
 
 	return 0;
 }
@@ -1605,8 +1601,6 @@ int __init nfs_fs_proc_init(void)
 	proc_fs_nfs = proc_mkdir("fs/nfsfs", NULL);
 	if (!proc_fs_nfs)
 		goto error_0;
-
-	proc_fs_nfs->owner = THIS_MODULE;
 
 	/* a file of servers with which we're dealing */
 	p = proc_create("servers", S_IFREG|S_IRUGO,

@@ -86,9 +86,7 @@ void rds_iw_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	err = rds_iw_update_cm_id(rds_iwdev, ic->i_cm_id);
 	if (err)
 		printk(KERN_ERR "rds_iw_update_ipaddr failed (%d)\n", err);
-	err = rds_iw_add_conn(rds_iwdev, conn);
-	if (err)
-		printk(KERN_ERR "rds_iw_add_conn failed (%d)\n", err);
+	rds_iw_add_conn(rds_iwdev, conn);
 
 	/* If the peer gave us the last packet it saw, process this as if
 	 * we had received a regular ACK. */
@@ -637,19 +635,8 @@ void rds_iw_conn_shutdown(struct rds_connection *conn)
 		 * 	Move connection back to the nodev list.
 		 * 	Remove cm_id from the device cm_id list.
 		 */
-		if (ic->rds_iwdev) {
-
-			spin_lock_irq(&ic->rds_iwdev->spinlock);
-			BUG_ON(list_empty(&ic->iw_node));
-			list_del(&ic->iw_node);
-			spin_unlock_irq(&ic->rds_iwdev->spinlock);
-
-			spin_lock_irq(&iw_nodev_conns_lock);
-			list_add_tail(&ic->iw_node, &iw_nodev_conns);
-			spin_unlock_irq(&iw_nodev_conns_lock);
-			rds_iw_remove_cm_id(ic->rds_iwdev, ic->i_cm_id);
-			ic->rds_iwdev = NULL;
-		}
+		if (ic->rds_iwdev)
+			rds_iw_remove_conn(ic->rds_iwdev, conn);
 
 		rdma_destroy_id(ic->i_cm_id);
 
@@ -672,7 +659,11 @@ void rds_iw_conn_shutdown(struct rds_connection *conn)
 
 	/* Clear the ACK state */
 	clear_bit(IB_ACK_IN_FLIGHT, &ic->i_ack_flags);
-	rds_iw_set_64bit(&ic->i_ack_next, 0);
+#ifdef KERNEL_HAS_ATOMIC64
+	atomic64_set(&ic->i_ack_next, 0);
+#else
+	ic->i_ack_next = 0;
+#endif
 	ic->i_ack_recv = 0;
 
 	/* Clear flow control state */
@@ -706,6 +697,9 @@ int rds_iw_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 
 	INIT_LIST_HEAD(&ic->iw_node);
 	mutex_init(&ic->i_recv_mutex);
+#ifndef KERNEL_HAS_ATOMIC64
+	spin_lock_init(&ic->i_ack_lock);
+#endif
 
 	/*
 	 * rds_iw_conn_shutdown() waits for these to be emptied so they
@@ -726,11 +720,27 @@ int rds_iw_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	return 0;
 }
 
+/*
+ * Free a connection. Connection must be shut down and not set for reconnect.
+ */
 void rds_iw_conn_free(void *arg)
 {
 	struct rds_iw_connection *ic = arg;
+	spinlock_t	*lock_ptr;
+
 	rdsdebug("ic %p\n", ic);
+
+	/*
+	 * Conn is either on a dev's list or on the nodev list.
+	 * A race with shutdown() or connect() would cause problems
+	 * (since rds_iwdev would change) but that should never happen.
+	 */
+	lock_ptr = ic->rds_iwdev ? &ic->rds_iwdev->spinlock : &iw_nodev_conns_lock;
+
+	spin_lock_irq(lock_ptr);
 	list_del(&ic->iw_node);
+	spin_unlock_irq(lock_ptr);
+
 	kfree(ic);
 }
 

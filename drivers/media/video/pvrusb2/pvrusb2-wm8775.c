@@ -27,7 +27,6 @@
 */
 
 #include "pvrusb2-wm8775.h"
-#include "pvrusb2-i2c-cmd-v4l2.h"
 
 
 #include "pvrusb2-hdw-internal.h"
@@ -37,126 +36,27 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-struct pvr2_v4l_wm8775 {
-	struct pvr2_i2c_handler handler;
-	struct pvr2_i2c_client *client;
-	struct pvr2_hdw *hdw;
-	unsigned long stale_mask;
-};
-
-
-static void set_input(struct pvr2_v4l_wm8775 *ctxt)
+void pvr2_wm8775_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 {
-	struct v4l2_routing route;
-	struct pvr2_hdw *hdw = ctxt->hdw;
+	if (hdw->input_dirty || hdw->force_dirty) {
+		u32 input;
 
-	memset(&route,0,sizeof(route));
-
-	switch(hdw->input_val) {
-	case PVR2_CVAL_INPUT_RADIO:
-		route.input = 1;
-		break;
-	default:
-		/* All other cases just use the second input */
-		route.input = 2;
-		break;
-	}
-	pvr2_trace(PVR2_TRACE_CHIPS,"i2c wm8775 set_input(val=%d route=0x%x)",
-		   hdw->input_val,route.input);
-
-	pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_S_AUDIO_ROUTING,&route);
-}
-
-static int check_input(struct pvr2_v4l_wm8775 *ctxt)
-{
-	struct pvr2_hdw *hdw = ctxt->hdw;
-	return hdw->input_dirty != 0;
-}
-
-
-struct pvr2_v4l_wm8775_ops {
-	void (*update)(struct pvr2_v4l_wm8775 *);
-	int (*check)(struct pvr2_v4l_wm8775 *);
-};
-
-
-static const struct pvr2_v4l_wm8775_ops wm8775_ops[] = {
-	{ .update = set_input, .check = check_input},
-};
-
-
-static unsigned int wm8775_describe(struct pvr2_v4l_wm8775 *ctxt,
-				     char *buf,unsigned int cnt)
-{
-	return scnprintf(buf,cnt,"handler: pvrusb2-wm8775");
-}
-
-
-static void wm8775_detach(struct pvr2_v4l_wm8775 *ctxt)
-{
-	ctxt->client->handler = NULL;
-	kfree(ctxt);
-}
-
-
-static int wm8775_check(struct pvr2_v4l_wm8775 *ctxt)
-{
-	unsigned long msk;
-	unsigned int idx;
-
-	for (idx = 0; idx < ARRAY_SIZE(wm8775_ops); idx++) {
-		msk = 1 << idx;
-		if (ctxt->stale_mask & msk) continue;
-		if (wm8775_ops[idx].check(ctxt)) {
-			ctxt->stale_mask |= msk;
+		switch (hdw->input_val) {
+		case PVR2_CVAL_INPUT_RADIO:
+			input = 1;
+			break;
+		default:
+			/* All other cases just use the second input */
+			input = 2;
+			break;
 		}
-	}
-	return ctxt->stale_mask != 0;
-}
+		pvr2_trace(PVR2_TRACE_CHIPS, "subdev wm8775"
+			   " set_input(val=%d route=0x%x)",
+			   hdw->input_val, input);
 
-
-static void wm8775_update(struct pvr2_v4l_wm8775 *ctxt)
-{
-	unsigned long msk;
-	unsigned int idx;
-
-	for (idx = 0; idx < ARRAY_SIZE(wm8775_ops); idx++) {
-		msk = 1 << idx;
-		if (!(ctxt->stale_mask & msk)) continue;
-		ctxt->stale_mask &= ~msk;
-		wm8775_ops[idx].update(ctxt);
+		sd->ops->audio->s_routing(sd, input, 0, 0);
 	}
 }
-
-
-static const struct pvr2_i2c_handler_functions hfuncs = {
-	.detach = (void (*)(void *))wm8775_detach,
-	.check = (int (*)(void *))wm8775_check,
-	.update = (void (*)(void *))wm8775_update,
-	.describe = (unsigned int (*)(void *,char *,unsigned int))wm8775_describe,
-};
-
-
-int pvr2_i2c_wm8775_setup(struct pvr2_hdw *hdw,struct pvr2_i2c_client *cp)
-{
-	struct pvr2_v4l_wm8775 *ctxt;
-
-	if (cp->handler) return 0;
-
-	ctxt = kzalloc(sizeof(*ctxt),GFP_KERNEL);
-	if (!ctxt) return 0;
-
-	ctxt->handler.func_data = ctxt;
-	ctxt->handler.func_table = &hfuncs;
-	ctxt->client = cp;
-	ctxt->hdw = hdw;
-	ctxt->stale_mask = (1 << ARRAY_SIZE(wm8775_ops)) - 1;
-	cp->handler = &ctxt->handler;
-	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x wm8775 V4L2 handler set up",
-		   cp->client->addr);
-	return !0;
-}
-
 
 
 

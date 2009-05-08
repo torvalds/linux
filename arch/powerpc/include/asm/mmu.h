@@ -36,15 +36,21 @@
  */
 #define MMU_FTR_USE_TLBIVAX_BCAST	ASM_CONST(0x00040000)
 
-/* Enable use of tlbilx invalidate-by-PID variant.
+/* Enable use of tlbilx invalidate instructions.
  */
-#define MMU_FTR_USE_TLBILX_PID		ASM_CONST(0x00080000)
+#define MMU_FTR_USE_TLBILX		ASM_CONST(0x00080000)
 
 /* This indicates that the processor cannot handle multiple outstanding
  * broadcast tlbivax or tlbsync. This makes the code use a spinlock
  * around such invalidate forms.
  */
 #define MMU_FTR_LOCK_BCAST_INVAL	ASM_CONST(0x00100000)
+
+/* This indicates that the processor doesn't handle way selection
+ * properly and needs SW to track and update the LRU state.  This
+ * is specific to an errata on e300c2/c3/c4 class parts
+ */
+#define MMU_FTR_NEED_DTLB_SW_LRU	ASM_CONST(0x00200000)
 
 #ifndef __ASSEMBLY__
 #include <asm/cputable.h>
@@ -55,6 +61,10 @@ static inline int mmu_has_feature(unsigned long feature)
 }
 
 extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
+
+/* MMU initialization (64-bit only fo now) */
+extern void early_init_mmu(void);
+extern void early_init_mmu_secondary(void);
 
 #endif /* !__ASSEMBLY__ */
 
@@ -71,9 +81,9 @@ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
 #elif defined(CONFIG_44x)
 /* 44x-style software loaded TLB */
 #  include <asm/mmu-44x.h>
-#elif defined(CONFIG_FSL_BOOKE)
-/* Freescale Book-E software loaded TLB */
-#  include <asm/mmu-fsl-booke.h>
+#elif defined(CONFIG_PPC_BOOK3E_MMU)
+/* Freescale Book-E software loaded TLB or Book-3e (ISA 2.06+) MMU */
+#  include <asm/mmu-book3e.h>
 #elif defined (CONFIG_PPC_8xx)
 /* Motorola/Freescale 8xx software loaded TLB */
 #  include <asm/mmu-8xx.h>

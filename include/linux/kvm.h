@@ -409,6 +409,8 @@ struct kvm_trace_rec {
 #ifdef __KVM_HAVE_DEVICE_ASSIGNMENT
 #define KVM_CAP_DEVICE_DEASSIGNMENT 27
 #endif
+/* Another bug in KVM_SET_USER_MEMORY_REGION fixed: */
+#define KVM_CAP_JOIN_MEMORY_REGIONS_WORKS 30
 
 #ifdef KVM_CAP_IRQ_ROUTING
 

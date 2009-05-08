@@ -1081,8 +1081,7 @@ out_err:
  *	this, no blocking and very strange errors 8)
  */
 
-static int tcp_recv_urg(struct sock *sk, long timeo,
-			struct msghdr *msg, int len, int flags)
+static int tcp_recv_urg(struct sock *sk, struct msghdr *msg, int len, int flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
@@ -1697,7 +1696,7 @@ out:
 	return err;
 
 recv_urg:
-	err = tcp_recv_urg(sk, timeo, msg, len, flags);
+	err = tcp_recv_urg(sk, msg, len, flags);
 	goto out;
 }
 
@@ -2512,6 +2511,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	struct sk_buff *p;
 	struct tcphdr *th;
 	struct tcphdr *th2;
+	unsigned int len;
 	unsigned int thlen;
 	unsigned int flags;
 	unsigned int mss = 1;
@@ -2532,6 +2532,7 @@ struct sk_buff **tcp_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	skb_gro_pull(skb, thlen);
 
+	len = skb_gro_len(skb);
 	flags = tcp_flag_word(th);
 
 	for (; (p = *head); head = &p->next) {
@@ -2562,7 +2563,7 @@ found:
 
 	mss = skb_shinfo(p)->gso_size;
 
-	flush |= (skb_gro_len(skb) > mss) | !skb_gro_len(skb);
+	flush |= (len > mss) | !len;
 	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
 
 	if (flush || skb_gro_receive(head, skb)) {
@@ -2575,7 +2576,7 @@ found:
 	tcp_flag_word(th2) |= flags & (TCP_FLAG_FIN | TCP_FLAG_PSH);
 
 out_check_final:
-	flush = skb_gro_len(skb) < mss;
+	flush = len < mss;
 	flush |= flags & (TCP_FLAG_URG | TCP_FLAG_PSH | TCP_FLAG_RST |
 			  TCP_FLAG_SYN | TCP_FLAG_FIN);
 

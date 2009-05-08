@@ -58,8 +58,6 @@
 #define reiserfs_write_lock( sb ) lock_kernel()
 #define reiserfs_write_unlock( sb ) unlock_kernel()
 
-/* xattr stuff */
-#define REISERFS_XATTR_DIR_SEM(s) (REISERFS_SB(s)->xattr_dir_sem)
 struct fid;
 
 /* in reading the #defines, it may help to understand that they employ
@@ -104,15 +102,21 @@ struct fid;
 */
 #define REISERFS_DEBUG_CODE 5	/* extra messages to help find/debug errors */
 
-void reiserfs_warning(struct super_block *s, const char *fmt, ...);
+void __reiserfs_warning(struct super_block *s, const char *id,
+			 const char *func, const char *fmt, ...);
+#define reiserfs_warning(s, id, fmt, args...) \
+	 __reiserfs_warning(s, id, __func__, fmt, ##args)
 /* assertions handling */
 
 /** always check a condition and panic if it's false. */
-#define __RASSERT( cond, scond, format, args... )					\
-if( !( cond ) ) 								\
-  reiserfs_panic( NULL, "reiserfs[%i]: assertion " scond " failed at "	\
-		  __FILE__ ":%i:%s: " format "\n",		\
-		  in_interrupt() ? -1 : task_pid_nr(current), __LINE__ , __func__ , ##args )
+#define __RASSERT(cond, scond, format, args...)			\
+do {									\
+	if (!(cond))							\
+		reiserfs_panic(NULL, "assertion failure", "(" #cond ") at " \
+			       __FILE__ ":%i:%s: " format "\n",		\
+			       in_interrupt() ? -1 : task_pid_nr(current), \
+			       __LINE__, __func__ , ##args);		\
+} while (0)
 
 #define RASSERT(cond, format, args...) __RASSERT(cond, #cond, format, ##args)
 
@@ -196,7 +200,11 @@ struct reiserfs_super_block {
 	__le32 s_flags;		/* Right now used only by inode-attributes, if enabled */
 	unsigned char s_uuid[16];	/* filesystem unique identifier */
 	unsigned char s_label[16];	/* filesystem volume label */
-	char s_unused[88];	/* zero filled by mkreiserfs and
+	__le16 s_mnt_count;		/* Count of mounts since last fsck */
+	__le16 s_max_mnt_count;		/* Maximum mounts before check */
+	__le32 s_lastcheck;		/* Timestamp of last fsck */
+	__le32 s_check_interval;	/* Interval between checks */
+	char s_unused[76];	/* zero filled by mkreiserfs and
 				 * reiserfs_convert_objectid_map_v1()
 				 * so any additions must be updated
 				 * there as well. */
@@ -578,10 +586,8 @@ static inline int uniqueness2type(__u32 uniqueness)
 		return TYPE_DIRECT;
 	case V1_DIRENTRY_UNIQUENESS:
 		return TYPE_DIRENTRY;
-	default:
-		reiserfs_warning(NULL, "vs-500: unknown uniqueness %d",
-				 uniqueness);
 	case V1_ANY_UNIQUENESS:
+	default:
 		return TYPE_ANY;
 	}
 }
@@ -598,9 +604,8 @@ static inline __u32 type2uniqueness(int type)
 		return V1_DIRECT_UNIQUENESS;
 	case TYPE_DIRENTRY:
 		return V1_DIRENTRY_UNIQUENESS;
-	default:
-		reiserfs_warning(NULL, "vs-501: unknown type %d", type);
 	case TYPE_ANY:
+	default:
 		return V1_ANY_UNIQUENESS;
 	}
 }
@@ -712,9 +717,9 @@ static inline void cpu_key_k_offset_dec(struct cpu_key *key)
 #define is_indirect_cpu_ih(ih) (is_indirect_cpu_key (&((ih)->ih_key)))
 #define is_statdata_cpu_ih(ih) (is_statdata_cpu_key (&((ih)->ih_key)))
 
-#define I_K_KEY_IN_ITEM(p_s_ih, p_s_key, n_blocksize) \
-    ( ! COMP_SHORT_KEYS(p_s_ih, p_s_key) && \
-          I_OFF_BYTE_IN_ITEM(p_s_ih, k_offset (p_s_key), n_blocksize) )
+#define I_K_KEY_IN_ITEM(ih, key, n_blocksize) \
+    (!COMP_SHORT_KEYS(ih, key) && \
+	  I_OFF_BYTE_IN_ITEM(ih, k_offset(key), n_blocksize))
 
 /* maximal length of item */
 #define MAX_ITEM_LEN(block_size) (block_size - BLKH_SIZE - IH_SIZE)
@@ -770,25 +775,25 @@ struct block_head {
 #define DISK_LEAF_NODE_LEVEL  1	/* Leaf node level. */
 
 /* Given the buffer head of a formatted node, resolve to the block head of that node. */
-#define B_BLK_HEAD(p_s_bh)            ((struct block_head *)((p_s_bh)->b_data))
+#define B_BLK_HEAD(bh)			((struct block_head *)((bh)->b_data))
 /* Number of items that are in buffer. */
-#define B_NR_ITEMS(p_s_bh)            (blkh_nr_item(B_BLK_HEAD(p_s_bh)))
-#define B_LEVEL(p_s_bh)               (blkh_level(B_BLK_HEAD(p_s_bh)))
-#define B_FREE_SPACE(p_s_bh)          (blkh_free_space(B_BLK_HEAD(p_s_bh)))
+#define B_NR_ITEMS(bh)			(blkh_nr_item(B_BLK_HEAD(bh)))
+#define B_LEVEL(bh)			(blkh_level(B_BLK_HEAD(bh)))
+#define B_FREE_SPACE(bh)		(blkh_free_space(B_BLK_HEAD(bh)))
 
-#define PUT_B_NR_ITEMS(p_s_bh,val)    do { set_blkh_nr_item(B_BLK_HEAD(p_s_bh),val); } while (0)
-#define PUT_B_LEVEL(p_s_bh,val)       do { set_blkh_level(B_BLK_HEAD(p_s_bh),val); } while (0)
-#define PUT_B_FREE_SPACE(p_s_bh,val)  do { set_blkh_free_space(B_BLK_HEAD(p_s_bh),val); } while (0)
+#define PUT_B_NR_ITEMS(bh, val)		do { set_blkh_nr_item(B_BLK_HEAD(bh), val); } while (0)
+#define PUT_B_LEVEL(bh, val)		do { set_blkh_level(B_BLK_HEAD(bh), val); } while (0)
+#define PUT_B_FREE_SPACE(bh, val)	do { set_blkh_free_space(B_BLK_HEAD(bh), val); } while (0)
 
 /* Get right delimiting key. -- little endian */
-#define B_PRIGHT_DELIM_KEY(p_s_bh)   (&(blk_right_delim_key(B_BLK_HEAD(p_s_bh))))
+#define B_PRIGHT_DELIM_KEY(bh)		(&(blk_right_delim_key(B_BLK_HEAD(bh))))
 
 /* Does the buffer contain a disk leaf. */
-#define B_IS_ITEMS_LEVEL(p_s_bh)     (B_LEVEL(p_s_bh) == DISK_LEAF_NODE_LEVEL)
+#define B_IS_ITEMS_LEVEL(bh)		(B_LEVEL(bh) == DISK_LEAF_NODE_LEVEL)
 
 /* Does the buffer contain a disk internal node */
-#define B_IS_KEYS_LEVEL(p_s_bh)      (B_LEVEL(p_s_bh) > DISK_LEAF_NODE_LEVEL \
-                                            && B_LEVEL(p_s_bh) <= MAX_HEIGHT)
+#define B_IS_KEYS_LEVEL(bh)      (B_LEVEL(bh) > DISK_LEAF_NODE_LEVEL \
+					    && B_LEVEL(bh) <= MAX_HEIGHT)
 
 /***************************************************************************/
 /*                             STAT DATA                                   */
@@ -1138,12 +1143,13 @@ struct disk_child {
 #define put_dc_size(dc_p, val)   do { (dc_p)->dc_size = cpu_to_le16(val); } while(0)
 
 /* Get disk child by buffer header and position in the tree node. */
-#define B_N_CHILD(p_s_bh,n_pos)  ((struct disk_child *)\
-((p_s_bh)->b_data+BLKH_SIZE+B_NR_ITEMS(p_s_bh)*KEY_SIZE+DC_SIZE*(n_pos)))
+#define B_N_CHILD(bh, n_pos)  ((struct disk_child *)\
+((bh)->b_data + BLKH_SIZE + B_NR_ITEMS(bh) * KEY_SIZE + DC_SIZE * (n_pos)))
 
 /* Get disk child number by buffer header and position in the tree node. */
-#define B_N_CHILD_NUM(p_s_bh,n_pos) (dc_block_number(B_N_CHILD(p_s_bh,n_pos)))
-#define PUT_B_N_CHILD_NUM(p_s_bh,n_pos, val) (put_dc_block_number(B_N_CHILD(p_s_bh,n_pos), val ))
+#define B_N_CHILD_NUM(bh, n_pos) (dc_block_number(B_N_CHILD(bh, n_pos)))
+#define PUT_B_N_CHILD_NUM(bh, n_pos, val) \
+				(put_dc_block_number(B_N_CHILD(bh, n_pos), val))
 
  /* maximal value of field child_size in structure disk_child */
  /* child size is the combined size of all items and their headers */
@@ -1214,33 +1220,33 @@ struct treepath {
 struct treepath var = {.path_length = ILLEGAL_PATH_ELEMENT_OFFSET, .reada = 0,}
 
 /* Get path element by path and path position. */
-#define PATH_OFFSET_PELEMENT(p_s_path,n_offset)  ((p_s_path)->path_elements +(n_offset))
+#define PATH_OFFSET_PELEMENT(path, n_offset)  ((path)->path_elements + (n_offset))
 
 /* Get buffer header at the path by path and path position. */
-#define PATH_OFFSET_PBUFFER(p_s_path,n_offset)   (PATH_OFFSET_PELEMENT(p_s_path,n_offset)->pe_buffer)
+#define PATH_OFFSET_PBUFFER(path, n_offset)   (PATH_OFFSET_PELEMENT(path, n_offset)->pe_buffer)
 
 /* Get position in the element at the path by path and path position. */
-#define PATH_OFFSET_POSITION(p_s_path,n_offset) (PATH_OFFSET_PELEMENT(p_s_path,n_offset)->pe_position)
+#define PATH_OFFSET_POSITION(path, n_offset) (PATH_OFFSET_PELEMENT(path, n_offset)->pe_position)
 
-#define PATH_PLAST_BUFFER(p_s_path) (PATH_OFFSET_PBUFFER((p_s_path), (p_s_path)->path_length))
+#define PATH_PLAST_BUFFER(path) (PATH_OFFSET_PBUFFER((path), (path)->path_length))
 				/* you know, to the person who didn't
 				   write this the macro name does not
 				   at first suggest what it does.
 				   Maybe POSITION_FROM_PATH_END? Or
 				   maybe we should just focus on
 				   dumping paths... -Hans */
-#define PATH_LAST_POSITION(p_s_path) (PATH_OFFSET_POSITION((p_s_path), (p_s_path)->path_length))
+#define PATH_LAST_POSITION(path) (PATH_OFFSET_POSITION((path), (path)->path_length))
 
-#define PATH_PITEM_HEAD(p_s_path)    B_N_PITEM_HEAD(PATH_PLAST_BUFFER(p_s_path),PATH_LAST_POSITION(p_s_path))
+#define PATH_PITEM_HEAD(path)    B_N_PITEM_HEAD(PATH_PLAST_BUFFER(path), PATH_LAST_POSITION(path))
 
 /* in do_balance leaf has h == 0 in contrast with path structure,
    where root has level == 0. That is why we need these defines */
-#define PATH_H_PBUFFER(p_s_path, h) PATH_OFFSET_PBUFFER (p_s_path, p_s_path->path_length - (h))	/* tb->S[h] */
+#define PATH_H_PBUFFER(path, h) PATH_OFFSET_PBUFFER (path, path->path_length - (h))	/* tb->S[h] */
 #define PATH_H_PPARENT(path, h) PATH_H_PBUFFER (path, (h) + 1)	/* tb->F[h] or tb->S[0]->b_parent */
 #define PATH_H_POSITION(path, h) PATH_OFFSET_POSITION (path, path->path_length - (h))
 #define PATH_H_B_ITEM_ORDER(path, h) PATH_H_POSITION(path, h + 1)	/* tb->S[h]->b_item_order */
 
-#define PATH_H_PATH_OFFSET(p_s_path, n_h) ((p_s_path)->path_length - (n_h))
+#define PATH_H_PATH_OFFSET(path, n_h) ((path)->path_length - (n_h))
 
 #define get_last_bh(path) PATH_PLAST_BUFFER(path)
 #define get_ih(path) PATH_PITEM_HEAD(path)
@@ -1470,6 +1476,16 @@ struct buffer_info {
 	int bi_position;
 };
 
+static inline struct super_block *sb_from_tb(struct tree_balance *tb)
+{
+	return tb ? tb->tb_sb : NULL;
+}
+
+static inline struct super_block *sb_from_bi(struct buffer_info *bi)
+{
+	return bi ? sb_from_tb(bi->tb) : NULL;
+}
+
 /* there are 4 types of items: stat data, directory item, indirect, direct.
 +-------------------+------------+--------------+------------+
 |	            |  k_offset  | k_uniqueness | mergeable? |
@@ -1520,7 +1536,7 @@ extern struct item_operations *item_ops[TYPE_ANY + 1];
 #define COMP_SHORT_KEYS comp_short_keys
 
 /* number of blocks pointed to by the indirect item */
-#define I_UNFM_NUM(p_s_ih)	( ih_item_len(p_s_ih) / UNFM_P_SIZE )
+#define I_UNFM_NUM(ih)	(ih_item_len(ih) / UNFM_P_SIZE)
 
 /* the used space within the unformatted node corresponding to pos within the item pointed to by ih */
 #define I_POS_UNFM_SIZE(ih,pos,size) (((pos) == I_UNFM_NUM(ih) - 1 ) ? (size) - ih_free_space(ih) : (size))
@@ -1623,6 +1639,10 @@ struct reiserfs_journal_header {
 #define JOURNAL_MAX_COMMIT_AGE 30
 #define JOURNAL_MAX_TRANS_AGE 30
 #define JOURNAL_PER_BALANCE_CNT (3 * (MAX_HEIGHT-2) + 9)
+#define JOURNAL_BLOCKS_PER_OBJECT(sb)  (JOURNAL_PER_BALANCE_CNT * 3 + \
+					 2 * (REISERFS_QUOTA_INIT_BLOCKS(sb) + \
+					      REISERFS_QUOTA_TRANS_BLOCKS(sb)))
+
 #ifdef CONFIG_QUOTA
 /* We need to update data and inode (atime) */
 #define REISERFS_QUOTA_TRANS_BLOCKS(s) (REISERFS_SB(s)->s_mount_opt & (1<<REISERFS_QUOTA) ? 2 : 0)
@@ -1697,7 +1717,7 @@ struct reiserfs_transaction_handle {
 	int t_refcount;
 	int t_blocks_logged;	/* number of blocks this writer has logged */
 	int t_blocks_allocated;	/* number of blocks this writer allocated */
-	unsigned long t_trans_id;	/* sanity check, equals the current trans id */
+	unsigned int t_trans_id;	/* sanity check, equals the current trans id */
 	void *t_handle_save;	/* save existing current->journal_info */
 	unsigned displace_new_blocks:1;	/* if new block allocation occurres, that block
 					   should be displaced from others */
@@ -1773,13 +1793,13 @@ int journal_end_sync(struct reiserfs_transaction_handle *, struct super_block *,
 int journal_mark_freed(struct reiserfs_transaction_handle *,
 		       struct super_block *, b_blocknr_t blocknr);
 int journal_transaction_should_end(struct reiserfs_transaction_handle *, int);
-int reiserfs_in_journal(struct super_block *p_s_sb, unsigned int bmap_nr,
-			int bit_nr, int searchall, b_blocknr_t *next);
+int reiserfs_in_journal(struct super_block *sb, unsigned int bmap_nr,
+			 int bit_nr, int searchall, b_blocknr_t *next);
 int journal_begin(struct reiserfs_transaction_handle *,
-		  struct super_block *p_s_sb, unsigned long);
+		  struct super_block *sb, unsigned long);
 int journal_join_abort(struct reiserfs_transaction_handle *,
-		       struct super_block *p_s_sb, unsigned long);
-void reiserfs_journal_abort(struct super_block *sb, int errno);
+		       struct super_block *sb, unsigned long);
+void reiserfs_abort_journal(struct super_block *sb, int errno);
 void reiserfs_abort(struct super_block *sb, int errno, const char *fmt, ...);
 int reiserfs_allocate_list_bitmaps(struct super_block *s,
 				   struct reiserfs_list_bitmap *, unsigned int);
@@ -1796,8 +1816,8 @@ int reiserfs_convert_objectid_map_v1(struct super_block *);
 
 /* stree.c */
 int B_IS_IN_TREE(const struct buffer_head *);
-extern void copy_item_head(struct item_head *p_v_to,
-			   const struct item_head *p_v_from);
+extern void copy_item_head(struct item_head *to,
+			   const struct item_head *from);
 
 // first key is in cpu form, second - le
 extern int comp_short_keys(const struct reiserfs_key *le_key,
@@ -1832,20 +1852,20 @@ static inline void copy_key(struct reiserfs_key *to,
 	memcpy(to, from, KEY_SIZE);
 }
 
-int comp_items(const struct item_head *stored_ih, const struct treepath *p_s_path);
-const struct reiserfs_key *get_rkey(const struct treepath *p_s_chk_path,
-				    const struct super_block *p_s_sb);
+int comp_items(const struct item_head *stored_ih, const struct treepath *path);
+const struct reiserfs_key *get_rkey(const struct treepath *chk_path,
+				    const struct super_block *sb);
 int search_by_key(struct super_block *, const struct cpu_key *,
 		  struct treepath *, int);
 #define search_item(s,key,path) search_by_key (s, key, path, DISK_LEAF_NODE_LEVEL)
-int search_for_position_by_key(struct super_block *p_s_sb,
-			       const struct cpu_key *p_s_cpu_key,
-			       struct treepath *p_s_search_path);
-extern void decrement_bcount(struct buffer_head *p_s_bh);
-void decrement_counters_in_path(struct treepath *p_s_search_path);
-void pathrelse(struct treepath *p_s_search_path);
+int search_for_position_by_key(struct super_block *sb,
+			       const struct cpu_key *cpu_key,
+			       struct treepath *search_path);
+extern void decrement_bcount(struct buffer_head *bh);
+void decrement_counters_in_path(struct treepath *search_path);
+void pathrelse(struct treepath *search_path);
 int reiserfs_check_path(struct treepath *p);
-void pathrelse_and_restore(struct super_block *s, struct treepath *p_s_search_path);
+void pathrelse_and_restore(struct super_block *s, struct treepath *search_path);
 
 int reiserfs_insert_item(struct reiserfs_transaction_handle *th,
 			 struct treepath *path,
@@ -1868,14 +1888,14 @@ int reiserfs_cut_from_item(struct reiserfs_transaction_handle *th,
 int reiserfs_delete_item(struct reiserfs_transaction_handle *th,
 			 struct treepath *path,
 			 const struct cpu_key *key,
-			 struct inode *inode, struct buffer_head *p_s_un_bh);
+			 struct inode *inode, struct buffer_head *un_bh);
 
 void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 				struct inode *inode, struct reiserfs_key *key);
 int reiserfs_delete_object(struct reiserfs_transaction_handle *th,
-			   struct inode *p_s_inode);
+			   struct inode *inode);
 int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
-			 struct inode *p_s_inode, struct page *,
+			 struct inode *inode, struct page *,
 			 int update_timestamps);
 
 #define i_block_size(inode) ((inode)->i_sb->s_blocksize)
@@ -1919,10 +1939,12 @@ void make_le_item_head(struct item_head *ih, const struct cpu_key *key,
 		       loff_t offset, int type, int length, int entry_count);
 struct inode *reiserfs_iget(struct super_block *s, const struct cpu_key *key);
 
+struct reiserfs_security_handle;
 int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 		       struct inode *dir, int mode,
 		       const char *symname, loff_t i_size,
-		       struct dentry *dentry, struct inode *inode);
+		       struct dentry *dentry, struct inode *inode,
+		       struct reiserfs_security_handle *security);
 
 void reiserfs_update_sd_size(struct reiserfs_transaction_handle *th,
 			     struct inode *inode, loff_t size);
@@ -1980,7 +2002,7 @@ int reiserfs_global_version_in_proc(char *buffer, char **start, off_t offset,
 #define PROC_INFO_MAX( sb, field, value ) VOID_V
 #define PROC_INFO_INC( sb, field ) VOID_V
 #define PROC_INFO_ADD( sb, field, val ) VOID_V
-#define PROC_INFO_BH_STAT( p_s_sb, p_s_bh, n_node_level ) VOID_V
+#define PROC_INFO_BH_STAT(sb, bh, n_node_level) VOID_V
 #endif
 
 /* dir.c */
@@ -1988,6 +2010,7 @@ extern const struct inode_operations reiserfs_dir_inode_operations;
 extern const struct inode_operations reiserfs_symlink_inode_operations;
 extern const struct inode_operations reiserfs_special_inode_operations;
 extern const struct file_operations reiserfs_dir_operations;
+int reiserfs_readdir_dentry(struct dentry *, void *, filldir_t, loff_t *);
 
 /* tail_conversion.c */
 int direct2indirect(struct reiserfs_transaction_handle *, struct inode *,
@@ -2004,13 +2027,20 @@ extern const struct address_space_operations reiserfs_address_space_operations;
 
 /* fix_nodes.c */
 
-int fix_nodes(int n_op_mode, struct tree_balance *p_s_tb,
-	      struct item_head *p_s_ins_ih, const void *);
+int fix_nodes(int n_op_mode, struct tree_balance *tb,
+	      struct item_head *ins_ih, const void *);
 void unfix_nodes(struct tree_balance *);
 
 /* prints.c */
-void reiserfs_panic(struct super_block *s, const char *fmt, ...)
+void __reiserfs_panic(struct super_block *s, const char *id,
+		      const char *function, const char *fmt, ...)
     __attribute__ ((noreturn));
+#define reiserfs_panic(s, id, fmt, args...) \
+	__reiserfs_panic(s, id, __func__, fmt, ##args)
+void __reiserfs_error(struct super_block *s, const char *id,
+		      const char *function, const char *fmt, ...);
+#define reiserfs_error(s, id, fmt, args...) \
+	 __reiserfs_error(s, id, __func__, fmt, ##args)
 void reiserfs_info(struct super_block *s, const char *fmt, ...);
 void reiserfs_debug(struct super_block *s, int level, const char *fmt, ...);
 void print_indirect_item(struct buffer_head *bh, int item_num);
@@ -2047,7 +2077,7 @@ void leaf_paste_in_buffer(struct buffer_info *bi, int pasted_item_num,
 			  int zeros_number);
 void leaf_cut_from_buffer(struct buffer_info *bi, int cut_item_num,
 			  int pos_in_item, int cut_size);
-void leaf_paste_entries(struct buffer_head *bh, int item_num, int before,
+void leaf_paste_entries(struct buffer_info *bi, int item_num, int before,
 			int new_entry_count, struct reiserfs_de_head *new_dehs,
 			const char *records, int paste_size);
 /* ibalance.c */
@@ -2203,6 +2233,6 @@ long reiserfs_compat_ioctl(struct file *filp,
 		   unsigned int cmd, unsigned long arg);
 int reiserfs_unpack(struct inode *inode, struct file *filp);
 
-
 #endif /* __KERNEL__ */
+
 #endif				/* _LINUX_REISER_FS_H */

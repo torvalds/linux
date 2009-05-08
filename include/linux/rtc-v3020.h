@@ -14,6 +14,12 @@
  * is used depends on the board. */
 struct v3020_platform_data {
 	int leftshift; /* (1<<(leftshift)) & readl() */
+
+	int use_gpio:1;
+	unsigned int gpio_cs;
+	unsigned int gpio_wr;
+	unsigned int gpio_rd;
+	unsigned int gpio_io;
 };
 
 #define V3020_STATUS_0	0x00

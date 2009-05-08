@@ -365,17 +365,51 @@ tracesys_sigexit:
 
 
 	/*********************************************************
-		Light-weight-syscall code
+		32/64-bit Light-Weight-Syscall ABI
 
-		r20 - lws number
-		r26,r25,r24,r23,r22 - Input registers
-		r28 - Function return register
-		r21 - Error code.
+		* - Indicates a hint for userspace inline asm
+		implementations.
 
-		Scracth: Any of the above that aren't being
-		currently used, including r1. 
+		Syscall number (caller-saves)
+	        - %r20
+	        * In asm clobber.
 
-		Return pointer: r31 (Not usable)
+		Argument registers (caller-saves)
+	        - %r26, %r25, %r24, %r23, %r22
+	        * In asm input.
+
+		Return registers (caller-saves)
+	        - %r28 (return), %r21 (errno)
+	        * In asm output.
+
+		Caller-saves registers
+	        - %r1, %r27, %r29
+	        - %r2 (return pointer)
+	        - %r31 (ble link register)
+	        * In asm clobber.
+
+		Callee-saves registers
+	        - %r3-%r18
+	        - %r30 (stack pointer)
+	        * Not in asm clobber.
+
+		If userspace is 32-bit:
+		Callee-saves registers
+	        - %r19 (32-bit PIC register)
+
+		Differences from 32-bit calling convention:
+		- Syscall number in %r20
+		- Additional argument register %r22 (arg4)
+		- Callee-saves %r19.
+
+		If userspace is 64-bit:
+		Callee-saves registers
+		- %r27 (64-bit PIC register)
+
+		Differences from 64-bit calling convention:
+		- Syscall number in %r20
+		- Additional argument register %r22 (arg4)
+		- Callee-saves %r27.
 
 		Error codes returned by entry path:
 
@@ -473,7 +507,8 @@ lws_compare_and_swap64:
 	b,n	lws_compare_and_swap
 #else
 	/* If we are not a 64-bit kernel, then we don't
-	 * implement having 64-bit input registers
+	 * have 64-bit input registers, and calling
+	 * the 64-bit LWS CAS returns ENOSYS.
 	 */
 	b,n	lws_exit_nosys
 #endif
@@ -635,12 +670,15 @@ END(sys_call_table64)
 	/*
 		All light-weight-syscall atomic operations 
 		will use this set of locks 
+
+		NOTE: The lws_lock_start symbol must be
+		at least 16-byte aligned for safe use
+		with ldcw.
 	*/
 	.section .data
 	.align	PAGE_SIZE
 ENTRY(lws_lock_start)
 	/* lws locks */
-	.align 16
 	.rept 16
 	/* Keep locks aligned at 16-bytes */
 	.word 1

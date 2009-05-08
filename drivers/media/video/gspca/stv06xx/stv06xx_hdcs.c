@@ -30,6 +30,66 @@
 
 #include "stv06xx_hdcs.h"
 
+static const struct ctrl hdcs1x00_ctrl[] = {
+	{
+		{
+			.id		= V4L2_CID_EXPOSURE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "exposure",
+			.minimum	= 0x00,
+			.maximum	= 0xffff,
+			.step		= 0x1,
+			.default_value 	= HDCS_DEFAULT_EXPOSURE,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = hdcs_set_exposure,
+		.get = hdcs_get_exposure
+	}, {
+		{
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "gain",
+			.minimum	= 0x00,
+			.maximum	= 0xff,
+			.step		= 0x1,
+			.default_value 	= HDCS_DEFAULT_GAIN,
+			.flags         	= V4L2_CTRL_FLAG_SLIDER
+		},
+		.set = hdcs_set_gain,
+		.get = hdcs_get_gain
+	}
+};
+
+static struct v4l2_pix_format hdcs1x00_mode[] = {
+	{
+		HDCS_1X00_DEF_WIDTH,
+		HDCS_1X00_DEF_HEIGHT,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			HDCS_1X00_DEF_WIDTH * HDCS_1X00_DEF_HEIGHT,
+		.bytesperline = HDCS_1X00_DEF_WIDTH,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1
+	}
+};
+
+static const struct ctrl hdcs1020_ctrl[] = {};
+
+static struct v4l2_pix_format hdcs1020_mode[] = {
+	{
+		HDCS_1020_DEF_WIDTH,
+		HDCS_1020_DEF_HEIGHT,
+		V4L2_PIX_FMT_SBGGR8,
+		V4L2_FIELD_NONE,
+		.sizeimage =
+			HDCS_1020_DEF_WIDTH * HDCS_1020_DEF_HEIGHT,
+		.bytesperline = HDCS_1020_DEF_WIDTH,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1
+	}
+};
+
 enum hdcs_power_state {
 	HDCS_STATE_SLEEP,
 	HDCS_STATE_IDLE,
@@ -353,10 +413,10 @@ static int hdcs_probe_1x00(struct sd *sd)
 
 	info("HDCS-1000/1100 sensor detected");
 
-	sd->gspca_dev.cam.cam_mode = stv06xx_sensor_hdcs1x00.modes;
-	sd->gspca_dev.cam.nmodes = stv06xx_sensor_hdcs1x00.nmodes;
-	sd->desc.ctrls = stv06xx_sensor_hdcs1x00.ctrls;
-	sd->desc.nctrls = stv06xx_sensor_hdcs1x00.nctrls;
+	sd->gspca_dev.cam.cam_mode = hdcs1x00_mode;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(hdcs1x00_mode);
+	sd->desc.ctrls = hdcs1x00_ctrl;
+	sd->desc.nctrls = ARRAY_SIZE(hdcs1x00_ctrl);
 
 	hdcs = kmalloc(sizeof(struct hdcs), GFP_KERNEL);
 	if (!hdcs)
@@ -412,10 +472,10 @@ static int hdcs_probe_1020(struct sd *sd)
 
 	info("HDCS-1020 sensor detected");
 
-	sd->gspca_dev.cam.cam_mode = stv06xx_sensor_hdcs1020.modes;
-	sd->gspca_dev.cam.nmodes = stv06xx_sensor_hdcs1020.nmodes;
-	sd->desc.ctrls = stv06xx_sensor_hdcs1020.ctrls;
-	sd->desc.nctrls = stv06xx_sensor_hdcs1020.nctrls;
+	sd->gspca_dev.cam.cam_mode = hdcs1020_mode;
+	sd->gspca_dev.cam.nmodes = ARRAY_SIZE(hdcs1020_mode);
+	sd->desc.ctrls = hdcs1020_ctrl;
+	sd->desc.nctrls = ARRAY_SIZE(hdcs1020_ctrl);
 
 	hdcs = kmalloc(sizeof(struct hdcs), GFP_KERNEL);
 	if (!hdcs)

@@ -59,7 +59,8 @@ Accepted options:
 ypan    Enable display panning using the VESA protected mode
         interface.  The visible screen is just a window of the
         video memory, console scrolling is done by changing the
-        start of the window.  Available on x86 only.
+        start of the window.  This option is available on x86
+        only and is the default option on that architecture.
 
 ywrap   Same as ypan, but assumes your gfx board can wrap-around
         the video memory (i.e. starts reading from top if it
@@ -67,7 +68,7 @@ ywrap   Same as ypan, but assumes your gfx board can wrap-around
         Available on x86 only.
 
 redraw  Scroll by redrawing the affected part of the screen, this
-        is the safe (and slow) default.
+        is the default on non-x86.
 
 (If you're using uvesafb as a module, the above three options are
  used a parameter of the scroll option, e.g. scroll=ypan.)
@@ -182,7 +183,7 @@ from the Video BIOS if you set pixclock to 0 in fb_var_screeninfo.
 
 --
  Michal Januszewski <spock@gentoo.org>
- Last updated: 2007-06-16
+ Last updated: 2009-03-30
 
  Documentation of the uvesafb options is loosely based on vesafb.txt.
 

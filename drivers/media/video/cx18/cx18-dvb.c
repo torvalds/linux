@@ -167,7 +167,7 @@ int cx18_dvb_register(struct cx18_stream *stream)
 
 	ret = dvb_register_adapter(&dvb->dvb_adapter,
 			CX18_DRIVER_NAME,
-			THIS_MODULE, &cx->dev->dev, adapter_nr);
+			THIS_MODULE, &cx->pci_dev->dev, adapter_nr);
 	if (ret < 0)
 		goto err_out;
 

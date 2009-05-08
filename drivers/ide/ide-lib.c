@@ -34,31 +34,32 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
 static void ide_dump_opcode(ide_drive_t *drive)
 {
 	struct request *rq = drive->hwif->rq;
-	ide_task_t *task = NULL;
+	struct ide_cmd *cmd = NULL;
 
 	if (!rq)
 		return;
 
 	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
-		task = rq->special;
+		cmd = rq->special;
 
 	printk(KERN_ERR "ide: failed opcode was: ");
-	if (task == NULL)
+	if (cmd == NULL)
 		printk(KERN_CONT "unknown\n");
 	else
-		printk(KERN_CONT "0x%02x\n", task->tf.command);
+		printk(KERN_CONT "0x%02x\n", cmd->tf.command);
 }
 
-u64 ide_get_lba_addr(struct ide_taskfile *tf, int lba48)
+u64 ide_get_lba_addr(struct ide_cmd *cmd, int lba48)
 {
+	struct ide_taskfile *tf = &cmd->tf;
 	u32 high, low;
 
-	if (lba48)
-		high = (tf->hob_lbah << 16) | (tf->hob_lbam << 8) |
-			tf->hob_lbal;
-	else
-		high = tf->device & 0xf;
 	low  = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+	if (lba48) {
+		tf = &cmd->hob;
+		high = (tf->lbah << 16) | (tf->lbam << 8) | tf->lbal;
+	} else
+		high = tf->device & 0xf;
 
 	return ((u64)high << 24) | low;
 }
@@ -66,22 +67,23 @@ EXPORT_SYMBOL_GPL(ide_get_lba_addr);
 
 static void ide_dump_sector(ide_drive_t *drive)
 {
-	ide_task_t task;
-	struct ide_taskfile *tf = &task.tf;
+	struct ide_cmd cmd;
+	struct ide_taskfile *tf = &cmd.tf;
 	u8 lba48 = !!(drive->dev_flags & IDE_DFLAG_LBA48);
 
-	memset(&task, 0, sizeof(task));
-	if (lba48)
-		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_HOB_LBA |
-				IDE_TFLAG_LBA48;
-	else
-		task.tf_flags = IDE_TFLAG_IN_LBA | IDE_TFLAG_IN_DEVICE;
+	memset(&cmd, 0, sizeof(cmd));
+	if (lba48) {
+		cmd.valid.in.tf  = IDE_VALID_LBA;
+		cmd.valid.in.hob = IDE_VALID_LBA;
+		cmd.tf_flags = IDE_TFLAG_LBA48;
+	} else
+		cmd.valid.in.tf  = IDE_VALID_LBA | IDE_VALID_DEVICE;
 
-	drive->hwif->tp_ops->tf_read(drive, &task);
+	ide_tf_readback(drive, &cmd);
 
 	if (lba48 || (tf->device & ATA_LBA))
 		printk(KERN_CONT ", LBAsect=%llu",
-			(unsigned long long)ide_get_lba_addr(tf, lba48));
+			(unsigned long long)ide_get_lba_addr(&cmd, lba48));
 	else
 		printk(KERN_CONT ", CHS=%d/%d/%d", (tf->lbah << 8) + tf->lbam,
 			tf->device & 0xf, tf->lbal);

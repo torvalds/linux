@@ -228,7 +228,6 @@ VOID MlmeScanReqAction(
 	// Increase the scan retry counters.
 	pAd->StaCfg.ScanCnt++;
 
-#ifdef RT2860
     if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
@@ -236,7 +235,6 @@ VOID MlmeScanReqAction(
 	{
 		RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
 	}
-#endif // RT2860 //
 
 	// first check the parameter sanity
 	if (MlmeScanReqSanity(pAd,
@@ -349,7 +347,6 @@ VOID MlmeJoinReqAction(
 
 	DBGPRINT(RT_DEBUG_TRACE, ("SYNC - MlmeJoinReqAction(BSS #%ld)\n", pInfo->BssIdx));
 
-#ifdef RT2860
     if ((OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE)) &&
         (IDLE_ON(pAd)) &&
 		(pAd->StaCfg.bRadio == TRUE) &&
@@ -357,7 +354,6 @@ VOID MlmeJoinReqAction(
 	{
 		RT28xxPciAsicRadioOn(pAd, GUI_IDLE_POWER_SAVE);
 	}
-#endif // RT2860 //
 
 	// reset all the timers
 	RTMPCancelTimer(&pAd->MlmeAux.ScanTimer, &TimerCancelled);
@@ -1532,13 +1528,10 @@ VOID PeerBeacon(
 				//  5. otherwise, put PHY back to sleep to save battery.
 				if (MessageToMe)
 				{
-#ifdef RT2860
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
-						// Turn clk to 80Mhz.
 					}
-#endif // RT2860 //
 					if (pAd->CommonCfg.bAPSDCapable && pAd->CommonCfg.APEdcaParm.bAPSDCapable &&
 						pAd->CommonCfg.bAPSDAC_BE && pAd->CommonCfg.bAPSDAC_BK && pAd->CommonCfg.bAPSDAC_VI && pAd->CommonCfg.bAPSDAC_VO)
 					{
@@ -1549,12 +1542,10 @@ VOID PeerBeacon(
 				}
 				else if (BcastFlag && (DtimCount == 0) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_RECEIVE_DTIM))
 				{
-#ifdef RT2860
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
 					}
-#endif // RT2860 //
 				}
 				else if ((pAd->TxSwQueue[QID_AC_BK].Number != 0)													||
 						(pAd->TxSwQueue[QID_AC_BE].Number != 0)														||
@@ -1568,12 +1559,10 @@ VOID PeerBeacon(
 				{
 					// TODO: consider scheduled HCCA. might not be proper to use traditional DTIM-based power-saving scheme
 					// can we cheat here (i.e. just check MGMT & AC_BE) for better performance?
-#ifdef RT2860
 					if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_ADVANCE_POWER_SAVE_PCIE_DEVICE))
 					{
 						RTMP_BBP_IO_WRITE8_BY_REG_ID(pAd, BBP_R3, pAd->StaCfg.BBPR3);
 					}
-#endif // RT2860 //
 				}
 				else
 				{
@@ -1588,7 +1577,10 @@ VOID PeerBeacon(
 
 					if (!OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 					{
-						AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
+						// Set a flag to go to sleep . Then after parse this RxDoneInterrupt, will go to sleep mode.
+						RTMP_SET_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
+						pAd->ThisTbttNumToNextWakeUp = TbttNumToNextWakeUp;
+						//AsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);
 					}
 				}
 			}

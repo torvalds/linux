@@ -98,6 +98,17 @@ config NET_DMA
 	  Say Y here if you enabled INTEL_IOATDMA or FSL_DMA, otherwise
 	  say N.
 
+config ASYNC_TX_DMA
+	bool "Async_tx: Offload support for the async_tx api"
+	depends on DMA_ENGINE
+	help
+	  This allows the async_tx api to take advantage of offload engines for
+	  memcpy, memset, xor, and raid6 p+q operations.  If your platform has
+	  a dma engine that can perform raid operations and you have enabled
+	  MD_RAID456 say Y.
+
+	  If unsure, say N.
+
 config DMATEST
 	tristate "DMA Test client"
 	depends on DMA_ENGINE

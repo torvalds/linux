@@ -46,10 +46,11 @@ pvr2_device_desc structures.
 /*------------------------------------------------------------------------*/
 /* Hauppauge PVR-USB2 Model 29xxx */
 
-static const char *pvr2_client_29xxx[] = {
-	"msp3400",
-	"saa7115",
-	"tuner",
+static const struct pvr2_device_client_desc pvr2_cli_29xxx[] = {
+	{ .module_id = PVR2_CLIENT_ID_SAA7115 },
+	{ .module_id = PVR2_CLIENT_ID_MSP3400 },
+	{ .module_id = PVR2_CLIENT_ID_TUNER },
+	{ .module_id = PVR2_CLIENT_ID_DEMOD },
 };
 
 static const char *pvr2_fw1_names_29xxx[] = {
@@ -59,8 +60,8 @@ static const char *pvr2_fw1_names_29xxx[] = {
 static const struct pvr2_device_desc pvr2_device_29xxx = {
 		.description = "WinTV PVR USB2 Model Category 29xxx",
 		.shortname = "29xxx",
-		.client_modules.lst = pvr2_client_29xxx,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_29xxx),
+		.client_table.lst = pvr2_cli_29xxx,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_29xxx),
 		.fx2_firmware.lst = pvr2_fw1_names_29xxx,
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_29xxx),
 		.flag_has_hauppauge_rom = !0,
@@ -77,10 +78,11 @@ static const struct pvr2_device_desc pvr2_device_29xxx = {
 /*------------------------------------------------------------------------*/
 /* Hauppauge PVR-USB2 Model 24xxx */
 
-static const char *pvr2_client_24xxx[] = {
-	"cx25840",
-	"tuner",
-	"wm8775",
+static const struct pvr2_device_client_desc pvr2_cli_24xxx[] = {
+	{ .module_id = PVR2_CLIENT_ID_CX25840 },
+	{ .module_id = PVR2_CLIENT_ID_TUNER },
+	{ .module_id = PVR2_CLIENT_ID_WM8775 },
+	{ .module_id = PVR2_CLIENT_ID_DEMOD },
 };
 
 static const char *pvr2_fw1_names_24xxx[] = {
@@ -90,8 +92,8 @@ static const char *pvr2_fw1_names_24xxx[] = {
 static const struct pvr2_device_desc pvr2_device_24xxx = {
 		.description = "WinTV PVR USB2 Model Category 24xxx",
 		.shortname = "24xxx",
-		.client_modules.lst = pvr2_client_24xxx,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_24xxx),
+		.client_table.lst = pvr2_cli_24xxx,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_24xxx),
 		.fx2_firmware.lst = pvr2_fw1_names_24xxx,
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_24xxx),
 		.flag_has_cx25840 = !0,
@@ -111,16 +113,16 @@ static const struct pvr2_device_desc pvr2_device_24xxx = {
 /*------------------------------------------------------------------------*/
 /* GOTVIEW USB2.0 DVD2 */
 
-static const char *pvr2_client_gotview_2[] = {
-	"cx25840",
-	"tuner",
+static const struct pvr2_device_client_desc pvr2_cli_gotview_2[] = {
+	{ .module_id = PVR2_CLIENT_ID_CX25840 },
+	{ .module_id = PVR2_CLIENT_ID_TUNER },
 };
 
 static const struct pvr2_device_desc pvr2_device_gotview_2 = {
 		.description = "Gotview USB 2.0 DVD 2",
 		.shortname = "gv2",
-		.client_modules.lst = pvr2_client_gotview_2,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_gotview_2),
+		.client_table.lst = pvr2_cli_gotview_2,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_gotview_2),
 		.flag_has_cx25840 = !0,
 		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
 		.flag_has_analogtuner = !0,
@@ -140,8 +142,8 @@ static const struct pvr2_device_desc pvr2_device_gotview_2 = {
 static const struct pvr2_device_desc pvr2_device_gotview_2d = {
 		.description = "Gotview USB 2.0 DVD Deluxe",
 		.shortname = "gv2d",
-		.client_modules.lst = pvr2_client_gotview_2,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_gotview_2),
+		.client_table.lst = pvr2_cli_gotview_2,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_gotview_2),
 		.flag_has_cx25840 = !0,
 		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
 		.flag_has_analogtuner = !0,
@@ -181,29 +183,29 @@ static int pvr2_lgh06xf_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_onair_creator_fe_props = {
+static const struct pvr2_dvb_props pvr2_onair_creator_fe_props = {
 	.frontend_attach = pvr2_lgdt3303_attach,
 	.tuner_attach    = pvr2_lgh06xf_attach,
 };
 #endif
 
-static const char *pvr2_client_onair_creator[] = {
-	"saa7115",
-	"tuner",
-	"cs53l32a",
+static const struct pvr2_device_client_desc pvr2_cli_onair_creator[] = {
+	{ .module_id = PVR2_CLIENT_ID_SAA7115 },
+	{ .module_id = PVR2_CLIENT_ID_CS53L32A },
+	{ .module_id = PVR2_CLIENT_ID_TUNER },
 };
 
 static const struct pvr2_device_desc pvr2_device_onair_creator = {
 		.description = "OnAir Creator Hybrid USB tuner",
 		.shortname = "oac",
-		.client_modules.lst = pvr2_client_onair_creator,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair_creator),
+		.client_table.lst = pvr2_cli_onair_creator,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_onair_creator),
 		.default_tuner_type = TUNER_LG_TDVS_H06XF,
 		.flag_has_analogtuner = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.flag_digital_requires_cx23416 = !0,
-		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_ONAIR,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 		.default_std_mask = V4L2_STD_NTSC_M,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
@@ -241,29 +243,29 @@ static int pvr2_fcv1236d_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_onair_usb2_fe_props = {
+static const struct pvr2_dvb_props pvr2_onair_usb2_fe_props = {
 	.frontend_attach = pvr2_lgdt3302_attach,
 	.tuner_attach    = pvr2_fcv1236d_attach,
 };
 #endif
 
-static const char *pvr2_client_onair_usb2[] = {
-	"saa7115",
-	"tuner",
-	"cs53l32a",
+static const struct pvr2_device_client_desc pvr2_cli_onair_usb2[] = {
+	{ .module_id = PVR2_CLIENT_ID_SAA7115 },
+	{ .module_id = PVR2_CLIENT_ID_CS53L32A },
+	{ .module_id = PVR2_CLIENT_ID_TUNER },
 };
 
 static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 		.description = "OnAir USB2 Hybrid USB tuner",
 		.shortname = "oa2",
-		.client_modules.lst = pvr2_client_onair_usb2,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair_usb2),
+		.client_table.lst = pvr2_cli_onair_usb2,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_onair_usb2),
 		.default_tuner_type = TUNER_PHILIPS_FCV1236D,
 		.flag_has_analogtuner = !0,
 		.flag_has_composite = !0,
 		.flag_has_svideo = !0,
 		.flag_digital_requires_cx23416 = !0,
-		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_ONAIR,
 		.digital_control_scheme = PVR2_DIGITAL_SCHEME_ONAIR,
 		.default_std_mask = V4L2_STD_NTSC_M,
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
@@ -314,15 +316,16 @@ static int pvr2_73xxx_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_73xxx_dvb_props = {
+static const struct pvr2_dvb_props pvr2_73xxx_dvb_props = {
 	.frontend_attach = pvr2_tda10048_attach,
 	.tuner_attach    = pvr2_73xxx_tda18271_8295_attach,
 };
 #endif
 
-static const char *pvr2_client_73xxx[] = {
-	"cx25840",
-	"tuner",
+static const struct pvr2_device_client_desc pvr2_cli_73xxx[] = {
+	{ .module_id = PVR2_CLIENT_ID_CX25840 },
+	{ .module_id = PVR2_CLIENT_ID_TUNER,
+	  .i2c_address_list = "\x42"},
 };
 
 static const char *pvr2_fw1_names_73xxx[] = {
@@ -332,8 +335,8 @@ static const char *pvr2_fw1_names_73xxx[] = {
 static const struct pvr2_device_desc pvr2_device_73xxx = {
 		.description = "WinTV HVR-1900 Model Category 73xxx",
 		.shortname = "73xxx",
-		.client_modules.lst = pvr2_client_73xxx,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_73xxx),
+		.client_table.lst = pvr2_cli_73xxx,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_73xxx),
 		.fx2_firmware.lst = pvr2_fw1_names_73xxx,
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_73xxx),
 		.flag_has_cx25840 = !0,
@@ -418,21 +421,16 @@ static int pvr2_tda18271_8295_attach(struct pvr2_dvb_adapter *adap)
 	return 0;
 }
 
-static struct pvr2_dvb_props pvr2_750xx_dvb_props = {
+static const struct pvr2_dvb_props pvr2_750xx_dvb_props = {
 	.frontend_attach = pvr2_s5h1409_attach,
 	.tuner_attach    = pvr2_tda18271_8295_attach,
 };
 
-static struct pvr2_dvb_props pvr2_751xx_dvb_props = {
+static const struct pvr2_dvb_props pvr2_751xx_dvb_props = {
 	.frontend_attach = pvr2_s5h1411_attach,
 	.tuner_attach    = pvr2_tda18271_8295_attach,
 };
 #endif
-
-static const char *pvr2_client_75xxx[] = {
-	"cx25840",
-	"tuner",
-};
 
 static const char *pvr2_fw1_names_75xxx[] = {
 		"v4l-pvrusb2-73xxx-01.fw",
@@ -441,8 +439,8 @@ static const char *pvr2_fw1_names_75xxx[] = {
 static const struct pvr2_device_desc pvr2_device_750xx = {
 		.description = "WinTV HVR-1950 Model Category 750xx",
 		.shortname = "750xx",
-		.client_modules.lst = pvr2_client_75xxx,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_75xxx),
+		.client_table.lst = pvr2_cli_73xxx,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_73xxx),
 		.fx2_firmware.lst = pvr2_fw1_names_75xxx,
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_75xxx),
 		.flag_has_cx25840 = !0,
@@ -463,8 +461,8 @@ static const struct pvr2_device_desc pvr2_device_750xx = {
 static const struct pvr2_device_desc pvr2_device_751xx = {
 		.description = "WinTV HVR-1950 Model Category 751xx",
 		.shortname = "751xx",
-		.client_modules.lst = pvr2_client_75xxx,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_75xxx),
+		.client_table.lst = pvr2_cli_73xxx,
+		.client_table.cnt = ARRAY_SIZE(pvr2_cli_73xxx),
 		.fx2_firmware.lst = pvr2_fw1_names_75xxx,
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_75xxx),
 		.flag_has_cx25840 = !0,

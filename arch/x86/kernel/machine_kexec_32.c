@@ -14,12 +14,12 @@
 #include <linux/ftrace.h>
 #include <linux/suspend.h>
 #include <linux/gfp.h>
+#include <linux/io.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
-#include <asm/io.h>
 #include <asm/apic.h>
 #include <asm/cpufeature.h>
 #include <asm/desc.h>
@@ -63,7 +63,7 @@ static void load_segments(void)
 		"\tmovl %%eax,%%fs\n"
 		"\tmovl %%eax,%%gs\n"
 		"\tmovl %%eax,%%ss\n"
-		::: "eax", "memory");
+		: : : "eax", "memory");
 #undef STR
 #undef __STR
 }
@@ -205,7 +205,8 @@ void machine_kexec(struct kimage *image)
 
 	if (image->preserve_context) {
 #ifdef CONFIG_X86_IO_APIC
-		/* We need to put APICs in legacy mode so that we can
+		/*
+		 * We need to put APICs in legacy mode so that we can
 		 * get timer interrupts in second kernel. kexec/kdump
 		 * paths already have calls to disable_IO_APIC() in
 		 * one form or other. kexec jump path also need
@@ -227,7 +228,8 @@ void machine_kexec(struct kimage *image)
 		page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page)
 						<< PAGE_SHIFT);
 
-	/* The segment registers are funny things, they have both a
+	/*
+	 * The segment registers are funny things, they have both a
 	 * visible and an invisible part.  Whenever the visible part is
 	 * set to a specific selector, the invisible part is loaded
 	 * with from a table in memory.  At no other time is the
@@ -237,11 +239,12 @@ void machine_kexec(struct kimage *image)
 	 * segments, before I zap the gdt with an invalid value.
 	 */
 	load_segments();
-	/* The gdt & idt are now invalid.
+	/*
+	 * The gdt & idt are now invalid.
 	 * If you want to load them you must set up your own idt & gdt.
 	 */
-	set_gdt(phys_to_virt(0),0);
-	set_idt(phys_to_virt(0),0);
+	set_gdt(phys_to_virt(0), 0);
+	set_idt(phys_to_virt(0), 0);
 
 	/* now call it */
 	image->start = relocate_kernel_ptr((unsigned long)image->head,

@@ -14,6 +14,7 @@
 #include <asm/uaccess.h>
 #include <asm/ds.h>
 #include <asm/bugs.h>
+#include <asm/cpu.h>
 
 #ifdef CONFIG_X86_64
 #include <asm/topology.h>
@@ -53,6 +54,11 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 == 15 && c->x86_cache_alignment == 64)
 		c->x86_cache_alignment = 128;
 #endif
+
+	/* CPUID workaround for 0F33/0F34 CPU */
+	if (c->x86 == 0xF && c->x86_model == 0x3
+	    && (c->x86_mask == 0x3 || c->x86_mask == 0x4))
+		c->x86_phys_bits = 36;
 
 	/*
 	 * c->x86_power is 8000_0007 edx. Bit 8 is TSC runs at constant rate
@@ -115,6 +121,28 @@ static void __cpuinit trap_init_f00f_bug(void)
 	load_idt(&idt_descr);
 }
 #endif
+
+static void __cpuinit intel_smp_check(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_SMP
+	/* calling is from identify_secondary_cpu() ? */
+	if (c->cpu_index == boot_cpu_id)
+		return;
+
+	/*
+	 * Mask B, Pentium, but not Pentium MMX
+	 */
+	if (c->x86 == 5 &&
+	    c->x86_mask >= 1 && c->x86_mask <= 4 &&
+	    c->x86_model <= 3) {
+		/*
+		 * Remember we have B step Pentia with bugs
+		 */
+		WARN_ONCE(1, "WARNING: SMP operation may be unreliable"
+				    "with B stepping processors.\n");
+	}
+#endif
+}
 
 static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 {
@@ -192,6 +220,8 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_NUMAQ
 	numaq_tsc_disable();
 #endif
+
+	intel_smp_check(c);
 }
 #else
 static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
@@ -391,7 +421,7 @@ static unsigned int __cpuinit intel_size_cache(struct cpuinfo_x86 *c, unsigned i
 }
 #endif
 
-static struct cpu_dev intel_cpu_dev __cpuinitdata = {
+static const struct cpu_dev __cpuinitconst intel_cpu_dev = {
 	.c_vendor	= "Intel",
 	.c_ident	= { "GenuineIntel" },
 #ifdef CONFIG_X86_32

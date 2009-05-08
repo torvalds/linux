@@ -162,9 +162,13 @@ extern int (*ioapic_renumber_irq)(int ioapic, int irq);
 extern void ioapic_init_mappings(void);
 
 #ifdef CONFIG_X86_64
-extern int save_mask_IO_APIC_setup(void);
-extern void restore_IO_APIC_setup(void);
-extern void reinit_intr_remapped_IO_APIC(int);
+extern struct IO_APIC_route_entry **alloc_ioapic_entries(void);
+extern void free_ioapic_entries(struct IO_APIC_route_entry **ioapic_entries);
+extern int save_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
+extern void mask_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
+extern int restore_IO_APIC_setup(struct IO_APIC_route_entry **ioapic_entries);
+extern void reinit_intr_remapped_IO_APIC(int intr_remapping,
+	struct IO_APIC_route_entry **ioapic_entries);
 #endif
 
 extern void probe_nr_irqs_gsi(void);
@@ -172,7 +176,7 @@ extern void probe_nr_irqs_gsi(void);
 extern int setup_ioapic_entry(int apic, int irq,
 			      struct IO_APIC_route_entry *entry,
 			      unsigned int destination, int trigger,
-			      int polarity, int vector);
+			      int polarity, int vector, int pin);
 extern void ioapic_write_entry(int apic, int pin,
 			       struct IO_APIC_route_entry e);
 #else  /* !CONFIG_X86_IO_APIC */

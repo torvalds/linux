@@ -47,6 +47,7 @@ GLOBAL(protected_mode_jump)
 ENDPROC(protected_mode_jump)
 
 	.code32
+	.section ".text32","ax"
 GLOBAL(in_pm32)
 	# Set up data segments for flat 32-bit mode
 	movl	%ecx, %ds

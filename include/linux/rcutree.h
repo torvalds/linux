@@ -33,7 +33,6 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/percpu.h>
 #include <linux/cpumask.h>
 #include <linux/seqlock.h>
 
@@ -162,9 +161,8 @@ struct rcu_data {
 	unsigned long offline_fqs;	/* Kicked due to being offline. */
 	unsigned long resched_ipi;	/* Sent a resched IPI. */
 
-	/* 5) state to allow this CPU to force_quiescent_state on others */
+	/* 5) For future __rcu_pending statistics. */
 	long n_rcu_pending;		/* rcu_pending() calls since boot. */
-	long n_rcu_pending_force_qs;	/* when to force quiescent states. */
 
 	int cpu;
 };
@@ -236,30 +234,8 @@ struct rcu_state {
 #endif /* #ifdef CONFIG_NO_HZ */
 };
 
-extern struct rcu_state rcu_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_data);
-
-extern struct rcu_state rcu_bh_state;
-DECLARE_PER_CPU(struct rcu_data, rcu_bh_data);
-
-/*
- * Increment the quiescent state counter.
- * The counter is a bit degenerated: We do not need to know
- * how many quiescent states passed, just if there was at least
- * one since the start of the grace period. Thus just a flag.
- */
-static inline void rcu_qsctr_inc(int cpu)
-{
-	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
-	rdp->passed_quiesc = 1;
-	rdp->passed_quiesc_completed = rdp->completed;
-}
-static inline void rcu_bh_qsctr_inc(int cpu)
-{
-	struct rcu_data *rdp = &per_cpu(rcu_bh_data, cpu);
-	rdp->passed_quiesc = 1;
-	rdp->passed_quiesc_completed = rdp->completed;
-}
+extern void rcu_qsctr_inc(int cpu);
+extern void rcu_bh_qsctr_inc(int cpu);
 
 extern int rcu_pending(int cpu);
 extern int rcu_needs_cpu(int cpu);

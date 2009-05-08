@@ -987,7 +987,6 @@ asus_proc_add(char *name, proc_writefunc *writefunc,
 	proc->write_proc = writefunc;
 	proc->read_proc = readfunc;
 	proc->data = acpi_driver_data(device);
-	proc->owner = THIS_MODULE;
 	proc->uid = asus_uid;
 	proc->gid = asus_gid;
 	return 0;
@@ -1020,7 +1019,6 @@ static int asus_hotk_add_fs(struct acpi_device *device)
 	if (proc) {
 		proc->read_proc = proc_read_info;
 		proc->data = acpi_driver_data(device);
-		proc->owner = THIS_MODULE;
 		proc->uid = asus_uid;
 		proc->gid = asus_gid;
 	} else {
@@ -1436,7 +1434,6 @@ static int __init asus_acpi_init(void)
 		printk(KERN_ERR "Asus ACPI: Unable to create /proc entry\n");
 		return -ENODEV;
 	}
-	asus_proc_dir->owner = THIS_MODULE;
 
 	result = acpi_bus_register_driver(&asus_hotk_driver);
 	if (result < 0) {

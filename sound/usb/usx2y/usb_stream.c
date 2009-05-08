@@ -33,32 +33,26 @@ static unsigned usb_stream_next_packet_size(struct usb_stream_kernel *sk)
 static void playback_prep_freqn(struct usb_stream_kernel *sk, struct urb *urb)
 {
 	struct usb_stream *s = sk->s;
-	unsigned l = 0;
-	int pack;
+	int pack, lb = 0;
 
-	urb->iso_frame_desc[0].offset = 0;
-	urb->iso_frame_desc[0].length =	usb_stream_next_packet_size(sk);
-	sk->out_phase = sk->out_phase_peeked;
-	urb->transfer_buffer_length = urb->iso_frame_desc[0].length;
-
-	for (pack = 1; pack < sk->n_o_ps; pack++) {
-		l = usb_stream_next_packet_size(sk);
-		if (s->idle_outsize + urb->transfer_buffer_length + l >
-		    s->period_size)
+	for (pack = 0; pack < sk->n_o_ps; pack++) {
+		int l = usb_stream_next_packet_size(sk);
+		if (s->idle_outsize + lb + l > s->period_size)
 			goto check;
 
 		sk->out_phase = sk->out_phase_peeked;
-		urb->iso_frame_desc[pack].offset = urb->transfer_buffer_length;
+		urb->iso_frame_desc[pack].offset = lb;
 		urb->iso_frame_desc[pack].length = l;
-		urb->transfer_buffer_length += l;
+		lb += l;
 	}
-	snd_printdd(KERN_DEBUG "%i\n", urb->transfer_buffer_length);
+	snd_printdd(KERN_DEBUG "%i\n", lb);
 
 check:
 	urb->number_of_packets = pack;
-	s->idle_outsize += urb->transfer_buffer_length - s->period_size;
+	urb->transfer_buffer_length = lb;
+	s->idle_outsize += lb - s->period_size;
 	snd_printdd(KERN_DEBUG "idle=%i ul=%i ps=%i\n", s->idle_outsize,
-		    urb->transfer_buffer_length, s->period_size);
+		    lb, s->period_size);
 }
 
 static void init_pipe_urbs(struct usb_stream_kernel *sk, unsigned use_packsize,
@@ -282,21 +276,20 @@ static int usb_stream_prepare_playback(struct usb_stream_kernel *sk,
 	struct usb_stream *s = sk->s;
 	struct urb *io;
 	struct usb_iso_packet_descriptor *id, *od;
-	int p, l = 0;
+	int p = 0, lb = 0, l = 0;
 
 	io = sk->idle_outurb;
 	od = io->iso_frame_desc;
-	io->transfer_buffer_length = 0;
 
-	for (p = 0; s->sync_packet < 0; ++p, ++s->sync_packet) {
+	for (; s->sync_packet < 0; ++p, ++s->sync_packet) {
 		struct urb *ii = sk->completed_inurb;
 		id = ii->iso_frame_desc +
 			ii->number_of_packets + s->sync_packet;
 		l = id->actual_length;
 
 		od[p].length = l;
-		od[p].offset = io->transfer_buffer_length;
-		io->transfer_buffer_length += l;
+		od[p].offset = lb;
+		lb += l;
 	}
 
 	for (;
@@ -304,38 +297,38 @@ static int usb_stream_prepare_playback(struct usb_stream_kernel *sk,
 	     ++p, ++s->sync_packet) {
 		l = inurb->iso_frame_desc[s->sync_packet].actual_length;
 
-		if (s->idle_outsize + io->transfer_buffer_length + l >
-		    s->period_size)
+		if (s->idle_outsize + lb + l > s->period_size)
 			goto check_ok;
 
 		od[p].length = l;
-		od[p].offset = io->transfer_buffer_length;
-		io->transfer_buffer_length += l;
+		od[p].offset = lb;
+		lb += l;
 	}
 
 check_ok:
 	s->sync_packet -= inurb->number_of_packets;
-	if (s->sync_packet < -2 || s->sync_packet > 0) {
+	if (unlikely(s->sync_packet < -2 || s->sync_packet > 0)) {
 		snd_printk(KERN_WARNING "invalid sync_packet = %i;"
 			   " p=%i nop=%i %i %x %x %x > %x\n",
 			   s->sync_packet, p, inurb->number_of_packets,
-			   s->idle_outsize + io->transfer_buffer_length + l,
-			   s->idle_outsize, io->transfer_buffer_length,  l,
+			   s->idle_outsize + lb + l,
+			   s->idle_outsize, lb,  l,
 			   s->period_size);
 		return -1;
 	}
-	if (io->transfer_buffer_length % s->cfg.frame_size) {
+	if (unlikely(lb % s->cfg.frame_size)) {
 		snd_printk(KERN_WARNING"invalid outsize = %i\n",
-			   io->transfer_buffer_length);
+			   lb);
 		return -1;
 	}
-	s->idle_outsize += io->transfer_buffer_length - s->period_size;
+	s->idle_outsize += lb - s->period_size;
 	io->number_of_packets = p;
-	if (s->idle_outsize > 0) {
-		snd_printk(KERN_WARNING "idle=%i\n", s->idle_outsize);
-		return -1;
-	}
-	return 0;
+	io->transfer_buffer_length = lb;
+	if (s->idle_outsize <= 0)
+		return 0;
+
+	snd_printk(KERN_WARNING "idle=%i\n", s->idle_outsize);
+	return -1;
 }
 
 static void prepare_inurb(int number_of_packets, struct urb *iu)

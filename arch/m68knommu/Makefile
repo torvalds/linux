@@ -88,18 +88,18 @@ export PLATFORM BOARD MODEL CPUCLASS
 #
 # Some CFLAG additions based on specific CPU type.
 #
-cflags-$(CONFIG_M5206)		:= -m5200
-cflags-$(CONFIG_M5206e)		:= -m5200
-cflags-$(CONFIG_M520x)		:= -m5307
+cflags-$(CONFIG_M5206)		:= $(call cc-option,-mcpu=5206,-m5200)
+cflags-$(CONFIG_M5206e)		:= $(call cc-option,-m5206e,-m5200)
+cflags-$(CONFIG_M520x)		:= $(call cc-option,-mcpu=5208,-m5200)
 cflags-$(CONFIG_M523x)		:= $(call cc-option,-mcpu=523x,-m5307)
-cflags-$(CONFIG_M5249)		:= -m5200
+cflags-$(CONFIG_M5249)		:= $(call cc-option,-mcpu=5249,-m5200)
 cflags-$(CONFIG_M5271)		:= $(call cc-option,-mcpu=5271,-m5307)
-cflags-$(CONFIG_M5272)		:= -m5307
+cflags-$(CONFIG_M5272)		:= $(call cc-option,-mcpu=5271,-m5200)
 cflags-$(CONFIG_M5275)		:= $(call cc-option,-mcpu=5275,-m5307)
 cflags-$(CONFIG_M528x)		:= $(call cc-option,-m528x,-m5307)
-cflags-$(CONFIG_M5307)		:= -m5307
+cflags-$(CONFIG_M5307)		:= $(call cc-option,-m5307,-m5200)
 cflags-$(CONFIG_M532x)		:= $(call cc-option,-mcpu=532x,-m5307)
-cflags-$(CONFIG_M5407)		:= -m5200
+cflags-$(CONFIG_M5407)		:= $(call cc-option,-m5407,-m5200)
 cflags-$(CONFIG_M68328)		:= -m68000
 cflags-$(CONFIG_M68EZ328)	:= -m68000
 cflags-$(CONFIG_M68VZ328)	:= -m68000

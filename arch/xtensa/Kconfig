@@ -4,16 +4,13 @@
 mainmenu "Linux/Xtensa Kernel Configuration"
 
 config FRAME_POINTER
-	bool
-	default n
+	def_bool n
 
 config ZONE_DMA
-	bool
-	default y
+	def_bool y
 
 config XTENSA
-	bool
-	default y
+	def_bool y
 	select HAVE_IDE
 	help
 	  Xtensa processors are 32-bit RISC machines designed by Tensilica
@@ -24,28 +21,25 @@ config XTENSA
 	  a home page at <http://xtensa.sourceforge.net/>.
 
 config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default y
+	def_bool y
 
 config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
+
+config GENERIC_GPIO
+	def_bool y
 
 config ARCH_HAS_ILOG2_U32
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAS_ILOG2_U64
-	bool
-	default n
+	def_bool n
 
 config NO_IOPORT
 	def_bool y
@@ -54,8 +48,17 @@ config HZ
 	int
 	default 100
 
+config GENERIC_TIME
+	def_bool y
+
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
+
+config MMU
+	def_bool n
+
+config VARIANT_IRQ_SWITCH
+	def_bool n
 
 menu "Processor type and features"
 
@@ -65,38 +68,41 @@ choice
 
 config XTENSA_VARIANT_FSF
 	bool "fsf - default (not generic) configuration"
+	select MMU
 
 config XTENSA_VARIANT_DC232B
 	bool "dc232b - Diamond 232L Standard Core Rev.B (LE)"
+	select MMU
 	help
-	This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
-endchoice
+	  This variant refers to Tensilica's Diamond 232L Standard core Rev.B (LE).
 
-config MMU
-	bool
-	default y
+config XTENSA_VARIANT_S6000
+	bool "s6000 - Stretch software configurable processor"
+	select VARIANT_IRQ_SWITCH
+	select ARCH_REQUIRE_GPIOLIB
+endchoice
 
 config XTENSA_UNALIGNED_USER
 	bool "Unaligned memory access in use space"
-	---help---
-	   The Xtensa architecture currently does not handle unaligned
-	   memory accesses in hardware but through an exception handler.
-	   Per default, unaligned memory accesses are disabled in user space.
+	help
+	  The Xtensa architecture currently does not handle unaligned
+	  memory accesses in hardware but through an exception handler.
+	  Per default, unaligned memory accesses are disabled in user space.
 
-	   Say Y here to enable unaligned memory access in user space.
+	  Say Y here to enable unaligned memory access in user space.
 
 config PREEMPT
 	bool "Preemptible Kernel"
-	---help---
-           This option reduces the latency of the kernel when reacting to
-           real-time or interactive events by allowing a low priority process to
-           be preempted even if it is in kernel mode executing a system call.
-           Unfortunately the kernel code has some race conditions if both
-           CONFIG_SMP and CONFIG_PREEMPT are enabled, so this option is
-           currently disabled if you are building an SMP kernel.
+	help
+          This option reduces the latency of the kernel when reacting to
+          real-time or interactive events by allowing a low priority process to
+          be preempted even if it is in kernel mode executing a system call.
+          Unfortunately the kernel code has some race conditions if both
+          CONFIG_SMP and CONFIG_PREEMPT are enabled, so this option is
+          currently disabled if you are building an SMP kernel.
 
-           Say Y here if you are building a kernel for a desktop, embedded
-           or real-time system.  Say N if you are unsure.
+          Say Y here if you are building a kernel for a desktop, embedded
+          or real-time system.  Say N if you are unsure.
 
 config MATH_EMULATION
 	bool "Math emulation"
@@ -104,6 +110,32 @@ config MATH_EMULATION
 	Can we use information of configuration file?
 
 endmenu
+
+config XTENSA_CALIBRATE_CCOUNT
+	def_bool n
+	help
+	  On some platforms (XT2000, for example), the CPU clock rate can
+	  vary.  The frequency can be determined, however, by measuring
+	  against a well known, fixed frequency, such as an UART oscillator.
+
+config SERIAL_CONSOLE
+	def_bool n
+
+config XTENSA_ISS_NETWORK
+	def_bool n
+
+menu "Bus options"
+
+config PCI
+	bool "PCI support"
+	default y
+	help
+	  Find out whether you have a PCI motherboard. PCI is the name of a
+	  bus system, i.e. the way the CPU talks to the other stuff inside
+	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
+	  VESA. If you have PCI, say Y, otherwise N.
+
+source "drivers/pci/Kconfig"
 
 menu "Platform options"
 
@@ -113,33 +145,35 @@ choice
 
 config XTENSA_PLATFORM_ISS
 	bool "ISS"
+	select XTENSA_CALIBRATE_CCOUNT
+	select SERIAL_CONSOLE
+	select XTENSA_ISS_NETWORK
 	help
 	  ISS is an acronym for Tensilica's Instruction Set Simulator.
 
 config XTENSA_PLATFORM_XT2000
 	bool "XT2000"
+	select XTENSA_CALIBRATE_CCOUNT
+	select PCI
 	help
 	  XT2000 is the name of Tensilica's feature-rich emulation platform.
 	  This hardware is capable of running a full Linux distribution.
 
+config XTENSA_PLATFORM_S6105
+	bool "S6105"
+	select SERIAL_CONSOLE
+
 endchoice
 
-
-config XTENSA_CALIBRATE_CCOUNT
-	bool "Auto calibration of the CPU clock rate"
-	---help---
-	  On some platforms (XT2000, for example), the CPU clock rate can
-	  vary.  The frequency can be determined, however, by measuring
-	  against a well known, fixed frequency, such as an UART oscillator.
 
 config XTENSA_CPU_CLOCK
 	int "CPU clock rate [MHz]"
 	depends on !XTENSA_CALIBRATE_CCOUNT
-	default "16"
+	default 16
 
 config GENERIC_CALIBRATE_DELAY
 	bool "Auto calibration of the BogoMIPS value"
-	---help---
+	help
 	  The BogoMIPS value can easily be derived from the CPU frequency.
 
 config CMDLINE_BOOL
@@ -156,52 +190,27 @@ config CMDLINE
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
-config SERIAL_CONSOLE
-	bool
-	depends on XTENSA_PLATFORM_ISS
-	default y
-
-config XTENSA_ISS_NETWORK
-	bool
-	depends on XTENSA_PLATFORM_ISS
-	default y
-
 source "mm/Kconfig"
 
 endmenu
 
-menu "Bus options"
-
-config PCI
-	bool "PCI support" if !XTENSA_PLATFORM_ISS
-	depends on !XTENSA_PLATFORM_ISS
-	default y
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-source "drivers/pci/Kconfig"
-
 config HOTPLUG
-
 	bool "Support for hot-pluggable devices"
-	---help---
-	Say Y here if you want to plug devices into your computer while
-	the system is running, and be able to use them quickly.  In many
-	cases, the devices can likewise be unplugged at any time too.
+	help
+	  Say Y here if you want to plug devices into your computer while
+	  the system is running, and be able to use them quickly.  In many
+	  cases, the devices can likewise be unplugged at any time too.
 
-	One well known example of this is PCMCIA- or PC-cards, credit-card
-	size devices such as network cards, modems or hard drives which are
-	plugged into slots found on all modern laptop computers.  Another
-	example, used on modern desktops as well as laptops, is USB.
+	  One well known example of this is PCMCIA- or PC-cards, credit-card
+	  size devices such as network cards, modems or hard drives which are
+	  plugged into slots found on all modern laptop computers.  Another
+	  example, used on modern desktops as well as laptops, is USB.
 
-	Enable HOTPLUG and build a modular kernel.  Get agent software
-	(from <http://linux-hotplug.sourceforge.net/>) and install it.
-	Then your kernel will automatically call out to a user mode "policy
-	agent" (/sbin/hotplug) to load modules and set up software needed
-	to use devices as you hotplug them.
+	  Enable HOTPLUG and build a modular kernel.  Get agent software
+	  (from <http://linux-hotplug.sourceforge.net/>) and install it.
+	  Then your kernel will automatically call out to a user mode "policy
+	  agent" (/sbin/hotplug) to load modules and set up software needed
+	  to use devices as you hotplug them.
 
 source "drivers/pcmcia/Kconfig"
 
@@ -213,9 +222,8 @@ menu "Executable file formats"
 
 # only elf supported
 config KCORE_ELF
-        bool
+	def_bool y
         depends on PROC_FS
-        default y
         help
           If you enabled support for /proc file system then the file
           /proc/kcore will contain the kernel core image in ELF format. This
@@ -240,7 +248,7 @@ source "fs/Kconfig"
 menu "Xtensa initrd options"
 	depends on BLK_DEV_INITRD
 
-	config EMBEDDED_RAMDISK
+config EMBEDDED_RAMDISK
 	bool "Embed root filesystem ramdisk into the kernel"
 
 config EMBEDDED_RAMDISK_IMAGE

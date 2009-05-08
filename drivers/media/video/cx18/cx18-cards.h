@@ -22,12 +22,13 @@
  */
 
 /* hardware flags */
-#define CX18_HW_TUNER     (1 << 0)
-#define CX18_HW_TVEEPROM  (1 << 1)
-#define CX18_HW_CS5345    (1 << 2)
-#define CX18_HW_GPIO      (1 << 3)
-#define CX18_HW_CX23418   (1 << 4)
-#define CX18_HW_DVB   	  (1 << 5)
+#define CX18_HW_TUNER		(1 << 0)
+#define CX18_HW_TVEEPROM	(1 << 1)
+#define CX18_HW_CS5345		(1 << 2)
+#define CX18_HW_DVB		(1 << 3)
+#define CX18_HW_418_AV		(1 << 4)
+#define CX18_HW_GPIO_MUX	(1 << 5)
+#define CX18_HW_GPIO_RESET_CTRL	(1 << 6)
 
 /* video inputs */
 #define	CX18_CARD_INPUT_VID_TUNER	1
@@ -49,8 +50,7 @@
 /* V4L2 capability aliases */
 #define CX18_CAP_ENCODER (V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER | \
 			  V4L2_CAP_AUDIO | V4L2_CAP_READWRITE | \
-			  V4L2_CAP_VBI_CAPTURE)
-/* | V4L2_CAP_SLICED_VBI_CAPTURE) not yet */
+			  V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_CAPTURE)
 
 struct cx18_card_video_input {
 	u8  video_type; 	/* video input type */
@@ -122,7 +122,7 @@ struct cx18_card {
 	char *comment;
 	u32 v4l2_capabilities;
 	u32 hw_audio_ctrl;	/* hardware used for the V4L2 controls (only
-				   1 dev allowed) */
+				   1 dev allowed currently) */
 	u32 hw_muxer;		/* hardware used to multiplex audio input */
 	u32 hw_all;		/* all hardware used by the board */
 	struct cx18_card_video_input video_inputs[CX18_CARD_MAX_VIDEO_INPUTS];

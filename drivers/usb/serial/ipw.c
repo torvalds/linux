@@ -207,9 +207,6 @@ static int ipw_open(struct tty_struct *tty,
 	if (!buf_flow_init)
 		return -ENOMEM;
 
-	if (tty)
-		tty->low_latency = 1;
-
 	/* --1: Tell the modem to initialize (we think) From sniffs this is
 	 *	always the first thing that gets sent to the modem during
 	 *	opening of the device */

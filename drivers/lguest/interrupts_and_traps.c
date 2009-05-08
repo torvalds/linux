@@ -34,7 +34,7 @@ static int idt_type(u32 lo, u32 hi)
 }
 
 /* An IDT entry can't be used unless the "present" bit is set. */
-static int idt_present(u32 lo, u32 hi)
+static bool idt_present(u32 lo, u32 hi)
 {
 	return (hi & 0x8000);
 }
@@ -60,7 +60,8 @@ static void push_guest_stack(struct lg_cpu *cpu, unsigned long *gstack, u32 val)
  * We set up the stack just like the CPU does for a real interrupt, so it's
  * identical for the Guest (and the standard "iret" instruction will undo
  * it). */
-static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi, int has_err)
+static void set_guest_interrupt(struct lg_cpu *cpu, u32 lo, u32 hi,
+				bool has_err)
 {
 	unsigned long gstack, origstack;
 	u32 eflags, ss, irq_enable;
@@ -184,7 +185,7 @@ void maybe_do_interrupt(struct lg_cpu *cpu)
 		/* set_guest_interrupt() takes the interrupt descriptor and a
 		 * flag to say whether this interrupt pushes an error code onto
 		 * the stack as well: virtual interrupts never do. */
-		set_guest_interrupt(cpu, idt->a, idt->b, 0);
+		set_guest_interrupt(cpu, idt->a, idt->b, false);
 	}
 
 	/* Every time we deliver an interrupt, we update the timestamp in the
@@ -244,26 +245,26 @@ void free_interrupts(void)
 /*H:220 Now we've got the routines to deliver interrupts, delivering traps like
  * page fault is easy.  The only trick is that Intel decided that some traps
  * should have error codes: */
-static int has_err(unsigned int trap)
+static bool has_err(unsigned int trap)
 {
 	return (trap == 8 || (trap >= 10 && trap <= 14) || trap == 17);
 }
 
 /* deliver_trap() returns true if it could deliver the trap. */
-int deliver_trap(struct lg_cpu *cpu, unsigned int num)
+bool deliver_trap(struct lg_cpu *cpu, unsigned int num)
 {
 	/* Trap numbers are always 8 bit, but we set an impossible trap number
 	 * for traps inside the Switcher, so check that here. */
 	if (num >= ARRAY_SIZE(cpu->arch.idt))
-		return 0;
+		return false;
 
 	/* Early on the Guest hasn't set the IDT entries (or maybe it put a
 	 * bogus one in): if we fail here, the Guest will be killed. */
 	if (!idt_present(cpu->arch.idt[num].a, cpu->arch.idt[num].b))
-		return 0;
+		return false;
 	set_guest_interrupt(cpu, cpu->arch.idt[num].a,
 			    cpu->arch.idt[num].b, has_err(num));
-	return 1;
+	return true;
 }
 
 /*H:250 Here's the hard part: returning to the Host every time a trap happens
@@ -279,18 +280,19 @@ int deliver_trap(struct lg_cpu *cpu, unsigned int num)
  *
  * This routine indicates if a particular trap number could be delivered
  * directly. */
-static int direct_trap(unsigned int num)
+static bool direct_trap(unsigned int num)
 {
 	/* Hardware interrupts don't go to the Guest at all (except system
 	 * call). */
 	if (num >= FIRST_EXTERNAL_VECTOR && !could_be_syscall(num))
-		return 0;
+		return false;
 
 	/* The Host needs to see page faults (for shadow paging and to save the
 	 * fault address), general protection faults (in/out emulation) and
-	 * device not available (TS handling), and of course, the hypercall
-	 * trap. */
-	return num != 14 && num != 13 && num != 7 && num != LGUEST_TRAP_ENTRY;
+	 * device not available (TS handling), invalid opcode fault (kvm hcall),
+	 * and of course, the hypercall trap. */
+	return num != 14 && num != 13 && num != 7 &&
+			num != 6 && num != LGUEST_TRAP_ENTRY;
 }
 /*:*/
 

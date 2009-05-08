@@ -1,0 +1,6 @@
+config HECI
+	tristate "Intel Management Engine Interface (MEI) Support"
+	---help---
+	  The Intel Management Engine Interface (Intel MEI) driver allows
+	  applications to access the Active Management Technology
+	  firmware and other Management Engine sub-systems.

@@ -533,4 +533,6 @@ sys_call_table:
 	PTR	sys_dup3
 	PTR	sys_pipe2
 	PTR	sys_inotify_init1
+	PTR	compat_sys_preadv		/* 4330 */
+	PTR	compat_sys_pwritev
 	.size	sys_call_table,.-sys_call_table

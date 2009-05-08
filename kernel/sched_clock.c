@@ -25,6 +25,7 @@
  * consistent between cpus (never more than 2 jiffies difference).
  */
 #include <linux/spinlock.h>
+#include <linux/hardirq.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
 #include <linux/ktime.h>
@@ -154,6 +155,17 @@ u64 sched_clock_cpu(int cpu)
 		return sched_clock();
 
 	scd = cpu_sdc(cpu);
+
+	/*
+	 * Normally this is not called in NMI context - but if it is,
+	 * trying to do any locking here is totally lethal.
+	 */
+	if (unlikely(in_nmi()))
+		return scd->clock;
+
+	if (unlikely(!sched_clock_running))
+		return 0ull;
+
 	WARN_ON_ONCE(!irqs_disabled());
 	now = sched_clock();
 

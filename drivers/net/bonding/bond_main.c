@@ -2213,33 +2213,24 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
-	int i, found = 0;
-
-	if (info->slave_id < 0) {
-		return -ENODEV;
-	}
+	int i, res = -ENODEV;
 
 	read_lock(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
 		if (i == (int)info->slave_id) {
-			found = 1;
+			res = 0;
+			strcpy(info->slave_name, slave->dev->name);
+			info->link = slave->link;
+			info->state = slave->state;
+			info->link_failure_count = slave->link_failure_count;
 			break;
 		}
 	}
 
 	read_unlock(&bond->lock);
 
-	if (found) {
-		strcpy(info->slave_name, slave->dev->name);
-		info->link = slave->link;
-		info->state = slave->state;
-		info->link_failure_count = slave->link_failure_count;
-	} else {
-		return -ENODEV;
-	}
-
-	return 0;
+	return res;
 }
 
 /*-------------------------------- Monitoring -------------------------------*/
@@ -2570,7 +2561,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
 		if (!targets[i])
-			continue;
+			break;
 		pr_debug("basa: target %x\n", targets[i]);
 		if (list_empty(&bond->vlan_list)) {
 			pr_debug("basa: empty vlan: arp_send\n");
@@ -2677,7 +2668,6 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	int i;
 	__be32 *targets = bond->params.arp_targets;
 
-	targets = bond->params.arp_targets;
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS) && targets[i]; i++) {
 		pr_debug("bva: sip %pI4 tip %pI4 t[%d] %pI4 bhti(tip) %d\n",
 			&sip, &tip, i, &targets[i], bond_has_this_ip(bond, tip));
@@ -3303,7 +3293,7 @@ static void bond_info_show_master(struct seq_file *seq)
 
 		for(i = 0; (i < BOND_MAX_ARP_TARGETS) ;i++) {
 			if (!bond->params.arp_targets[i])
-				continue;
+				break;
 			if (printed)
 				seq_printf(seq, ",");
 			seq_printf(seq, " %pI4", &bond->params.arp_targets[i]);
@@ -3444,25 +3434,12 @@ static void bond_remove_proc_entry(struct bonding *bond)
  */
 static void bond_create_proc_dir(void)
 {
-	int len = strlen(DRV_NAME);
-
-	for (bond_proc_dir = init_net.proc_net->subdir; bond_proc_dir;
-	     bond_proc_dir = bond_proc_dir->next) {
-		if ((bond_proc_dir->namelen == len) &&
-		    !memcmp(bond_proc_dir->name, DRV_NAME, len)) {
-			break;
-		}
-	}
-
 	if (!bond_proc_dir) {
 		bond_proc_dir = proc_mkdir(DRV_NAME, init_net.proc_net);
-		if (bond_proc_dir) {
-			bond_proc_dir->owner = THIS_MODULE;
-		} else {
+		if (!bond_proc_dir)
 			printk(KERN_WARNING DRV_NAME
 				": Warning: cannot create /proc/net/%s\n",
 				DRV_NAME);
-		}
 	}
 }
 
@@ -3471,25 +3448,7 @@ static void bond_create_proc_dir(void)
  */
 static void bond_destroy_proc_dir(void)
 {
-	struct proc_dir_entry *de;
-
-	if (!bond_proc_dir) {
-		return;
-	}
-
-	/* verify that the /proc dir is empty */
-	for (de = bond_proc_dir->subdir; de; de = de->next) {
-		/* ignore . and .. */
-		if (*(de->name) != '.') {
-			break;
-		}
-	}
-
-	if (de) {
-		if (bond_proc_dir->owner == THIS_MODULE) {
-			bond_proc_dir->owner = NULL;
-		}
-	} else {
+	if (bond_proc_dir) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		bond_proc_dir = NULL;
 	}
@@ -5199,16 +5158,15 @@ int bond_create(char *name, struct bond_params *params)
 	up_write(&bonding_rwsem);
 	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(netdev_priv(bond_dev));
-	if (res < 0) {
-		rtnl_lock();
-		down_write(&bonding_rwsem);
-		bond_deinit(bond_dev);
-		unregister_netdevice(bond_dev);
-		goto out_rtnl;
-	}
+	if (res < 0)
+		goto out_unreg;
 
 	return 0;
 
+out_unreg:
+	rtnl_lock();
+	down_write(&bonding_rwsem);
+	unregister_netdevice(bond_dev);
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:

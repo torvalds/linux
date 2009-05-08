@@ -70,7 +70,7 @@ static void kvm_flush_icache(unsigned long start, unsigned long len)
 	int l;
 
 	for (l = 0; l < (len + 32); l += 32)
-		ia64_fc(start + l);
+		ia64_fc((void *)(start + l));
 
 	ia64_sync_i();
 	ia64_srlz_i();
@@ -610,20 +610,22 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 
 again:
-	preempt_disable();
-	local_irq_disable();
-
 	if (signal_pending(current)) {
-		local_irq_enable();
-		preempt_enable();
 		r = -EINTR;
 		kvm_run->exit_reason = KVM_EXIT_INTR;
 		goto out;
 	}
 
+	/*
+	 * down_read() may sleep and return with interrupts enabled
+	 */
+	down_read(&vcpu->kvm->slots_lock);
+
+	preempt_disable();
+	local_irq_disable();
+
 	vcpu->guest_mode = 1;
 	kvm_guest_enter();
-	down_read(&vcpu->kvm->slots_lock);
 	r = vti_vcpu_run(vcpu, kvm_run);
 	if (r < 0) {
 		local_irq_enable();

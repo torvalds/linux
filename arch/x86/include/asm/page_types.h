@@ -40,14 +40,8 @@
 
 #ifndef __ASSEMBLY__
 
-struct pgprot;
-
 extern int page_is_ram(unsigned long pagenr);
 extern int devmem_is_allowed(unsigned long pagenr);
-extern void map_devmem(unsigned long pfn, unsigned long size,
-		       struct pgprot vma_prot);
-extern void unmap_devmem(unsigned long pfn, unsigned long size,
-			 struct pgprot vma_prot);
 
 extern unsigned long max_low_pfn_mapped;
 extern unsigned long max_pfn_mapped;

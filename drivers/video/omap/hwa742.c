@@ -742,7 +742,7 @@ static int calc_extif_timings(unsigned long sysclk, int *extif_mem_div)
 		if (calc_reg_timing(sysclk, div) == 0)
 			break;
 	}
-	if (div > max_clk_div)
+	if (div >= max_clk_div)
 		goto err;
 
 	*extif_mem_div = div;
@@ -752,7 +752,7 @@ static int calc_extif_timings(unsigned long sysclk, int *extif_mem_div)
 			break;
 	}
 
-	if (div > max_clk_div)
+	if (div >= max_clk_div)
 		goto err;
 
 	return 0;

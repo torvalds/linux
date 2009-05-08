@@ -145,7 +145,7 @@ struct hw_modul {
 	int	leave_isr ;		/* leave fddi_isr immedeately if set */
 	int	isr_flag ;		/* set, when HWM is entered from isr */
 	/*
-	 * varaibles for the current transmit frame
+	 * variables for the current transmit frame
 	 */
 	struct s_smt_tx_queue *tx_p ;	/* pointer to the transmit queue */
 	u_long	tx_descr ;		/* tx descriptor for FORMAC+ */

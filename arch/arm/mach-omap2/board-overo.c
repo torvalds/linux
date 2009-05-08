@@ -57,6 +57,9 @@
 #define GPMC_CS0_BASE  0x60
 #define GPMC_CS_SIZE   0x30
 
+#define OVERO_SMSC911X_CS      5
+#define OVERO_SMSC911X_GPIO    176
+
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
 
@@ -114,6 +117,67 @@ static void __init overo_ads7846_init(void)
 
 #else
 static inline void __init overo_ads7846_init(void) { return; }
+#endif
+
+#if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
+
+#include <linux/smsc911x.h>
+
+static struct resource overo_smsc911x_resources[] = {
+	{
+		.name	= "smsc911x-memory",
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
+	},
+};
+
+static struct smsc911x_platform_config overo_smsc911x_config = {
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags		= SMSC911X_USE_32BIT ,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+};
+
+static struct platform_device overo_smsc911x_device = {
+	.name		= "smsc911x",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(overo_smsc911x_resources),
+	.resource	= &overo_smsc911x_resources,
+	.dev		= {
+		.platform_data = &overo_smsc911x_config,
+	},
+};
+
+static inline void __init overo_init_smsc911x(void)
+{
+	unsigned long cs_mem_base;
+
+	if (gpmc_cs_request(OVERO_SMSC911X_CS, SZ_16M, &cs_mem_base) < 0) {
+		printk(KERN_ERR "Failed request for GPMC mem for smsc911x\n");
+		return;
+	}
+
+	overo_smsc911x_resources[0].start = cs_mem_base + 0x0;
+	overo_smsc911x_resources[0].end   = cs_mem_base + 0xff;
+
+	if ((gpio_request(OVERO_SMSC911X_GPIO, "SMSC911X IRQ") == 0) &&
+	    (gpio_direction_input(OVERO_SMSC911X_GPIO) == 0)) {
+		gpio_export(OVERO_SMSC911X_GPIO, 0);
+	} else {
+		printk(KERN_ERR "could not obtain gpio for SMSC911X IRQ\n");
+		return;
+	}
+
+	overo_smsc911x_resources[1].start = OMAP_GPIO_IRQ(OVERO_SMSC911X_GPIO);
+	overo_smsc911x_resources[1].end	  = 0;
+
+	platform_device_register(&overo_smsc911x_device);
+}
+
+#else
+static inline void __init overo_init_smsc911x(void) { return; }
 #endif
 
 static struct mtd_partition overo_nand_partitions[] = {
@@ -290,6 +354,7 @@ static void __init overo_init(void)
 	overo_flash_init();
 	usb_musb_init();
 	overo_ads7846_init();
+	overo_init_smsc911x();
 
 	if ((gpio_request(OVERO_GPIO_W2W_NRESET,
 			  "OVERO_GPIO_W2W_NRESET") == 0) &&

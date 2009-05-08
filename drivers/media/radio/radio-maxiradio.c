@@ -37,38 +37,32 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
 #include <linux/mutex.h>
-
 #include <linux/pci.h>
 #include <linux/videodev2.h>
-#include <media/v4l2-common.h>
+#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
+#include <linux/io.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
+
+MODULE_AUTHOR("Dimitromanolakis Apostolos, apdim@grecian.net");
+MODULE_DESCRIPTION("Radio driver for the Guillemot Maxi Radio FM2000 radio.");
+MODULE_LICENSE("GPL");
+
+static int radio_nr = -1;
+module_param(radio_nr, int, 0);
+
+static int debug;
+
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "activates debug info");
 
 #define DRIVER_VERSION	"0.77"
 
-#include <linux/version.h>      /* for KERNEL_VERSION MACRO     */
-#define RADIO_VERSION KERNEL_VERSION(0,7,7)
+#define RADIO_VERSION KERNEL_VERSION(0, 7, 7)
 
-static struct video_device maxiradio_radio;
-
-#define dprintk(num, fmt, arg...)                                          \
-	do {                                                               \
-		if (maxiradio_radio.debug >= num)                          \
-			printk(KERN_DEBUG "%s: " fmt,                      \
-				maxiradio_radio.name, ## arg); } while (0)
-
-static struct v4l2_queryctrl radio_qctrl[] = {
-	{
-		.id            = V4L2_CID_AUDIO_MUTE,
-		.name          = "Mute",
-		.minimum       = 0,
-		.maximum       = 1,
-		.default_value = 1,
-		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	}
-};
+#define dprintk(dev, num, fmt, arg...) \
+	v4l2_dbg(num, debug, &dev->v4l2_dev, fmt, ## arg)
 
 #ifndef PCI_VENDOR_ID_GUILLEMOT
 #define PCI_VENDOR_ID_GUILLEMOT 0x5046
@@ -80,90 +74,70 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 
 
 /* TEA5757 pin mappings */
-static const int clk = 1, data = 2, wren = 4, mo_st = 8, power = 16 ;
+static const int clk = 1, data = 2, wren = 4, mo_st = 8, power = 16;
 
-static int radio_nr = -1;
-module_param(radio_nr, int, 0);
-
-static unsigned long in_use;
-
-#define FREQ_LO		 50*16000
-#define FREQ_HI		150*16000
+#define FREQ_LO		(50 * 16000)
+#define FREQ_HI		(150 * 16000)
 
 #define FREQ_IF         171200 /* 10.7*16000   */
 #define FREQ_STEP       200    /* 12.5*16      */
 
 /* (x==fmhz*16*1000) -> bits */
-#define FREQ2BITS(x)	((( (unsigned int)(x)+FREQ_IF+(FREQ_STEP<<1)) \
-			/(FREQ_STEP<<2))<<2)
+#define FREQ2BITS(x) \
+  ((((unsigned int)(x) + FREQ_IF + (FREQ_STEP << 1)) / (FREQ_STEP << 2)) << 2)
 
 #define BITS2FREQ(x)	((x) * FREQ_STEP - FREQ_IF)
 
 
-static int maxiradio_exclusive_open(struct file *file)
+struct maxiradio
 {
-	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
-}
+	struct v4l2_device v4l2_dev;
+	struct video_device vdev;
+	struct pci_dev *pdev;
 
-static int maxiradio_exclusive_release(struct file *file)
-{
-	clear_bit(0, &in_use);
-	return 0;
-}
-
-static const struct v4l2_file_operations maxiradio_fops = {
-	.owner		= THIS_MODULE,
-	.open           = maxiradio_exclusive_open,
-	.release        = maxiradio_exclusive_release,
-	.ioctl          = video_ioctl2,
-};
-
-static struct radio_device
-{
-	__u16	io,	/* base of radio io */
-		muted,	/* VIDEO_AUDIO_MUTE */
-		stereo,	/* VIDEO_TUNER_STEREO_ON */
-		tuned;	/* signal strength (0 or 0xffff) */
+	u16	io;	/* base of radio io */
+	u16	muted;	/* VIDEO_AUDIO_MUTE */
+	u16	stereo;	/* VIDEO_TUNER_STEREO_ON */
+	u16	tuned;	/* signal strength (0 or 0xffff) */
 
 	unsigned long freq;
 
 	struct mutex lock;
-} radio_unit = {
-	.muted =1,
-	.freq = FREQ_LO,
 };
 
-static void outbit(unsigned long bit, __u16 io)
+static inline struct maxiradio *to_maxiradio(struct v4l2_device *v4l2_dev)
 {
-	if (bit != 0)
-		{
-			outb(  power|wren|data     ,io); udelay(4);
-			outb(  power|wren|data|clk ,io); udelay(4);
-			outb(  power|wren|data     ,io); udelay(4);
-		}
-	else
-		{
-			outb(  power|wren          ,io); udelay(4);
-			outb(  power|wren|clk      ,io); udelay(4);
-			outb(  power|wren          ,io); udelay(4);
-		}
+	return container_of(v4l2_dev, struct maxiradio, v4l2_dev);
 }
 
-static void turn_power(__u16 io, int p)
+static void outbit(unsigned long bit, u16 io)
+{
+	int val = power | wren | (bit ? data : 0);
+
+	outb(val, io);
+	udelay(4);
+	outb(val | clk, io);
+	udelay(4);
+	outb(val, io);
+	udelay(4);
+}
+
+static void turn_power(struct maxiradio *dev, int p)
 {
 	if (p != 0) {
-		dprintk(1, "Radio powered on\n");
-		outb(power, io);
+		dprintk(dev, 1, "Radio powered on\n");
+		outb(power, dev->io);
 	} else {
-		dprintk(1, "Radio powered off\n");
-		outb(0,io);
+		dprintk(dev, 1, "Radio powered off\n");
+		outb(0, dev->io);
 	}
 }
 
-static void set_freq(__u16 io, __u32 freq)
+static void set_freq(struct maxiradio *dev, u32 freq)
 {
 	unsigned long int si;
 	int bl;
+	int io = dev->io;
 	int val = FREQ2BITS(freq);
 
 	/* TEA5757 shift register bits (see pdf) */
@@ -188,14 +162,14 @@ static void set_freq(__u16 io, __u32 freq)
 		si >>= 1;
 	}
 
-	dprintk(1, "Radio freq set to %d.%02d MHz\n",
+	dprintk(dev, 1, "Radio freq set to %d.%02d MHz\n",
 				freq / 16000,
 				freq % 16000 * 100 / 16000);
 
-	turn_power(io, 1);
+	turn_power(dev, 1);
 }
 
-static int get_stereo(__u16 io)
+static int get_stereo(u16 io)
 {
 	outb(power,io);
 	udelay(4);
@@ -203,7 +177,7 @@ static int get_stereo(__u16 io)
 	return !(inb(io) & mo_st);
 }
 
-static int get_tune(__u16 io)
+static int get_tune(u16 io)
 {
 	outb(power+clk,io);
 	udelay(4);
@@ -212,95 +186,84 @@ static int get_tune(__u16 io)
 }
 
 
-static int vidioc_querycap (struct file *file, void  *priv,
+static int vidioc_querycap(struct file *file, void  *priv,
 			    struct v4l2_capability *v)
 {
-	strlcpy(v->driver, "radio-maxiradio", sizeof (v->driver));
-	strlcpy(v->card, "Maxi Radio FM2000 radio", sizeof (v->card));
-	sprintf(v->bus_info,"ISA");
-	v->version = RADIO_VERSION;
-	v->capabilities = V4L2_CAP_TUNER;
+	struct maxiradio *dev = video_drvdata(file);
 
+	strlcpy(v->driver, "radio-maxiradio", sizeof(v->driver));
+	strlcpy(v->card, "Maxi Radio FM2000 radio", sizeof(v->card));
+	snprintf(v->bus_info, sizeof(v->bus_info), "PCI:%s", pci_name(dev->pdev));
+	v->version = RADIO_VERSION;
+	v->capabilities = V4L2_CAP_TUNER | V4L2_CAP_RADIO;
 	return 0;
 }
 
-static int vidioc_g_tuner (struct file *file, void *priv,
+static int vidioc_g_tuner(struct file *file, void *priv,
 			   struct v4l2_tuner *v)
 {
-	struct radio_device *card = video_drvdata(file);
+	struct maxiradio *dev = video_drvdata(file);
 
 	if (v->index > 0)
 		return -EINVAL;
 
-	memset(v,0,sizeof(*v));
-	strcpy(v->name, "FM");
+	mutex_lock(&dev->lock);
+	strlcpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
-
-	v->rangelow=FREQ_LO;
-	v->rangehigh=FREQ_HI;
-	v->rxsubchans =V4L2_TUNER_SUB_MONO|V4L2_TUNER_SUB_STEREO;
-	v->capability=V4L2_TUNER_CAP_LOW;
-	if(get_stereo(card->io))
+	v->rangelow = FREQ_LO;
+	v->rangehigh = FREQ_HI;
+	v->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
+	v->capability = V4L2_TUNER_CAP_LOW;
+	if (get_stereo(dev->io))
 		v->audmode = V4L2_TUNER_MODE_STEREO;
 	else
 		v->audmode = V4L2_TUNER_MODE_MONO;
-	v->signal=0xffff*get_tune(card->io);
+	v->signal = 0xffff * get_tune(dev->io);
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }
 
-static int vidioc_s_tuner (struct file *file, void *priv,
+static int vidioc_s_tuner(struct file *file, void *priv,
 			   struct v4l2_tuner *v)
 {
-	if (v->index > 0)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int vidioc_g_audio (struct file *file, void *priv,
-			   struct v4l2_audio *a)
-{
-	if (a->index > 1)
-		return -EINVAL;
-
-	strcpy(a->name, "FM");
-	a->capability = V4L2_AUDCAP_STEREO;
-	return 0;
+	return v->index ? -EINVAL : 0;
 }
 
 static int vidioc_g_input(struct file *filp, void *priv, unsigned int *i)
 {
 	*i = 0;
-
 	return 0;
 }
 
 static int vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 {
-	if (i != 0)
-		return -EINVAL;
-
-	return 0;
+	return i ? -EINVAL : 0;
 }
 
-
-static int vidioc_s_audio (struct file *file, void *priv,
+static int vidioc_g_audio(struct file *file, void *priv,
 			   struct v4l2_audio *a)
 {
-	if (a->index != 0)
-		return -EINVAL;
-
+	a->index = 0;
+	strlcpy(a->name, "Radio", sizeof(a->name));
+	a->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 }
 
-static int vidioc_s_frequency (struct file *file, void *priv,
+
+static int vidioc_s_audio(struct file *file, void *priv,
+			   struct v4l2_audio *a)
+{
+	return a->index ? -EINVAL : 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
 			       struct v4l2_frequency *f)
 {
-	struct radio_device *card = video_drvdata(file);
+	struct maxiradio *dev = video_drvdata(file);
 
 	if (f->frequency < FREQ_LO || f->frequency > FREQ_HI) {
-		dprintk(1, "radio freq (%d.%02d MHz) out of range (%d-%d)\n",
+		dprintk(dev, 1, "radio freq (%d.%02d MHz) out of range (%d-%d)\n",
 					f->frequency / 16000,
 					f->frequency % 16000 * 100 / 16000,
 					FREQ_LO / 16000, FREQ_HI / 16000);
@@ -308,74 +271,78 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	card->freq = f->frequency;
-	set_freq(card->io, card->freq);
+	mutex_lock(&dev->lock);
+	dev->freq = f->frequency;
+	set_freq(dev, dev->freq);
 	msleep(125);
+	mutex_unlock(&dev->lock);
 
 	return 0;
 }
 
-static int vidioc_g_frequency (struct file *file, void *priv,
+static int vidioc_g_frequency(struct file *file, void *priv,
 			       struct v4l2_frequency *f)
 {
-	struct radio_device *card = video_drvdata(file);
+	struct maxiradio *dev = video_drvdata(file);
 
 	f->type = V4L2_TUNER_RADIO;
-	f->frequency = card->freq;
+	f->frequency = dev->freq;
 
-	dprintk(4, "radio freq is %d.%02d MHz",
+	dprintk(dev, 4, "radio freq is %d.%02d MHz",
 				f->frequency / 16000,
 				f->frequency % 16000 * 100 / 16000);
 
 	return 0;
 }
 
-static int vidioc_queryctrl (struct file *file, void *priv,
+static int vidioc_queryctrl(struct file *file, void *priv,
 			     struct v4l2_queryctrl *qc)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(radio_qctrl); i++) {
-		if (qc->id && qc->id == radio_qctrl[i].id) {
-			memcpy(qc, &(radio_qctrl[i]), sizeof(*qc));
-			return (0);
-		}
+	switch (qc->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
 	}
-
 	return -EINVAL;
 }
 
-static int vidioc_g_ctrl (struct file *file, void *priv,
-			    struct v4l2_control *ctrl)
+static int vidioc_g_ctrl(struct file *file, void *priv,
+		struct v4l2_control *ctrl)
 {
-	struct radio_device *card = video_drvdata(file);
+	struct maxiradio *dev = video_drvdata(file);
 
 	switch (ctrl->id) {
-		case V4L2_CID_AUDIO_MUTE:
-			ctrl->value=card->muted;
-			return (0);
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = dev->muted;
+		return 0;
 	}
 
 	return -EINVAL;
 }
 
-static int vidioc_s_ctrl (struct file *file, void *priv,
-			  struct v4l2_control *ctrl)
+static int vidioc_s_ctrl(struct file *file, void *priv,
+		struct v4l2_control *ctrl)
 {
-	struct radio_device *card = video_drvdata(file);
+	struct maxiradio *dev = video_drvdata(file);
 
 	switch (ctrl->id) {
-		case V4L2_CID_AUDIO_MUTE:
-			card->muted = ctrl->value;
-			if(card->muted)
-				turn_power(card->io, 0);
-			else
-				set_freq(card->io, card->freq);
-			return 0;
+	case V4L2_CID_AUDIO_MUTE:
+		mutex_lock(&dev->lock);
+		dev->muted = ctrl->value;
+		if (dev->muted)
+			turn_power(dev, 0);
+		else
+			set_freq(dev, dev->freq);
+		mutex_unlock(&dev->lock);
+		return 0;
 	}
 
 	return -EINVAL;
 }
+
+static const struct v4l2_file_operations maxiradio_fops = {
+	.owner		= THIS_MODULE,
+	.ioctl          = video_ioctl2,
+};
 
 static const struct v4l2_ioctl_ops maxiradio_ioctl_ops = {
 	.vidioc_querycap    = vidioc_querycap,
@@ -392,60 +359,84 @@ static const struct v4l2_ioctl_ops maxiradio_ioctl_ops = {
 	.vidioc_s_ctrl      = vidioc_s_ctrl,
 };
 
-static struct video_device maxiradio_radio = {
-	.name		= "Maxi Radio FM2000 radio",
-	.fops           = &maxiradio_fops,
-	.ioctl_ops 	= &maxiradio_ioctl_ops,
-	.release	= video_device_release_empty,
-};
-
 static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	if(!request_region(pci_resource_start(pdev, 0),
+	struct maxiradio *dev;
+	struct v4l2_device *v4l2_dev;
+	int retval = -ENOMEM;
+
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL) {
+		dev_err(&pdev->dev, "not enough memory\n");
+		return -ENOMEM;
+	}
+
+	v4l2_dev = &dev->v4l2_dev;
+	mutex_init(&dev->lock);
+	dev->pdev = pdev;
+	dev->muted = 1;
+	dev->freq = FREQ_LO;
+
+	strlcpy(v4l2_dev->name, "maxiradio", sizeof(v4l2_dev->name));
+
+	retval = v4l2_device_register(&pdev->dev, v4l2_dev);
+	if (retval < 0) {
+		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		goto errfr;
+	}
+
+	if (!request_region(pci_resource_start(pdev, 0),
 			   pci_resource_len(pdev, 0), "Maxi Radio FM 2000")) {
-		printk(KERN_ERR "radio-maxiradio: can't reserve I/O ports\n");
+		v4l2_err(v4l2_dev, "can't reserve I/O ports\n");
 		goto err_out;
 	}
 
 	if (pci_enable_device(pdev))
 		goto err_out_free_region;
 
-	radio_unit.io = pci_resource_start(pdev, 0);
-	mutex_init(&radio_unit.lock);
-	video_set_drvdata(&maxiradio_radio, &radio_unit);
+	dev->io = pci_resource_start(pdev, 0);
+	strlcpy(dev->vdev.name, v4l2_dev->name, sizeof(dev->vdev.name));
+	dev->vdev.v4l2_dev = v4l2_dev;
+	dev->vdev.fops = &maxiradio_fops;
+	dev->vdev.ioctl_ops = &maxiradio_ioctl_ops;
+	dev->vdev.release = video_device_release_empty;
+	video_set_drvdata(&dev->vdev, dev);
 
-	if (video_register_device(&maxiradio_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
-		printk("radio-maxiradio: can't register device!");
+	if (video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr) < 0) {
+		v4l2_err(v4l2_dev, "can't register device!");
 		goto err_out_free_region;
 	}
 
-	printk(KERN_INFO "radio-maxiradio: version "
-	       DRIVER_VERSION
-	       " time "
-	       __TIME__ "  "
-	       __DATE__
-	       "\n");
+	v4l2_info(v4l2_dev, "version " DRIVER_VERSION
+			" time " __TIME__ "  " __DATE__ "\n");
 
-	printk(KERN_INFO "radio-maxiradio: found Guillemot MAXI Radio device (io = 0x%x)\n",
-	       radio_unit.io);
+	v4l2_info(v4l2_dev, "found Guillemot MAXI Radio device (io = 0x%x)\n",
+	       dev->io);
 	return 0;
 
 err_out_free_region:
 	release_region(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
 err_out:
+	v4l2_device_unregister(v4l2_dev);
+errfr:
+	kfree(dev);
 	return -ENODEV;
 }
 
 static void __devexit maxiradio_remove_one(struct pci_dev *pdev)
 {
-	video_unregister_device(&maxiradio_radio);
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct maxiradio *dev = to_maxiradio(v4l2_dev);
+
+	video_unregister_device(&dev->vdev);
+	v4l2_device_unregister(&dev->v4l2_dev);
 	release_region(pci_resource_start(pdev, 0), pci_resource_len(pdev, 0));
 }
 
 static struct pci_device_id maxiradio_pci_tbl[] = {
 	{ PCI_VENDOR_ID_GUILLEMOT, PCI_DEVICE_ID_GUILLEMOT_MAXIRADIO,
 		PCI_ANY_ID, PCI_ANY_ID, },
-	{ 0,}
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, maxiradio_pci_tbl);
@@ -469,10 +460,3 @@ static void __exit maxiradio_radio_exit(void)
 
 module_init(maxiradio_radio_init);
 module_exit(maxiradio_radio_exit);
-
-MODULE_AUTHOR("Dimitromanolakis Apostolos, apdim@grecian.net");
-MODULE_DESCRIPTION("Radio driver for the Guillemot Maxi Radio FM2000 radio.");
-MODULE_LICENSE("GPL");
-
-module_param_named(debug,maxiradio_radio.debug, int, 0644);
-MODULE_PARM_DESC(debug,"activates debug info");

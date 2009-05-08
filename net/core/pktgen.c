@@ -3806,7 +3806,6 @@ static int __init pg_init(void)
 	pg_proc_dir = proc_mkdir(PG_PROC_DIR, init_net.proc_net);
 	if (!pg_proc_dir)
 		return -ENODEV;
-	pg_proc_dir->owner = THIS_MODULE;
 
 	pe = proc_create(PGCTRL, 0600, pg_proc_dir, &pktgen_fops);
 	if (pe == NULL) {

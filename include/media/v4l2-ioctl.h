@@ -15,6 +15,7 @@
 #include <linux/mutex.h>
 #include <linux/compiler.h> /* need __user */
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
+#define __MIN_V4L1
 #include <linux/videodev.h>
 #else
 #include <linux/videodev2.h>
@@ -267,6 +268,7 @@ struct v4l2_ioctl_ops {
 
 /*  Video standard functions  */
 extern const char *v4l2_norm_to_name(v4l2_std_id id);
+extern void v4l2_video_std_frame_period(int id, struct v4l2_fract *frameperiod);
 extern int v4l2_video_std_construct(struct v4l2_standard *vs,
 				    int id, const char *name);
 /* Prints the ioctl in a human-readable format */

@@ -26,12 +26,12 @@ static int bigsmp_apic_id_registered(void)
 	return 1;
 }
 
-static const cpumask_t *bigsmp_target_cpus(void)
+static const struct cpumask *bigsmp_target_cpus(void)
 {
 #ifdef CONFIG_SMP
-	return &cpu_online_map;
+	return cpu_online_mask;
 #else
-	return &cpumask_of_cpu(0);
+	return cpumask_of(0);
 #endif
 }
 
@@ -118,9 +118,9 @@ static int bigsmp_check_phys_apicid_present(int boot_cpu_physical_apicid)
 }
 
 /* As we are using single CPU as destination, pick only one CPU here */
-static unsigned int bigsmp_cpu_mask_to_apicid(const cpumask_t *cpumask)
+static unsigned int bigsmp_cpu_mask_to_apicid(const struct cpumask *cpumask)
 {
-	return bigsmp_cpu_to_logical_apicid(first_cpu(*cpumask));
+	return bigsmp_cpu_to_logical_apicid(cpumask_first(cpumask));
 }
 
 static unsigned int bigsmp_cpu_mask_to_apicid_and(const struct cpumask *cpumask,
@@ -188,10 +188,10 @@ static const struct dmi_system_id bigsmp_dmi_table[] = {
 	{ } /* NULL entry stops DMI scanning */
 };
 
-static void bigsmp_vector_allocation_domain(int cpu, cpumask_t *retmask)
+static void bigsmp_vector_allocation_domain(int cpu, struct cpumask *retmask)
 {
-	cpus_clear(*retmask);
-	cpu_set(cpu, *retmask);
+	cpumask_clear(retmask);
+	cpumask_set_cpu(cpu, retmask);
 }
 
 static int probe_bigsmp(void)

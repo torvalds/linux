@@ -163,25 +163,6 @@
 #endif
 
 //---------------------------------------------------------------------------
-#if (DEV_SYSTEM == _DEV_WIN32_) && defined (TRACE_MSG)
-
-    // For WIN32 the macro DEBUG_TRACE0 can be defined as function call TraceLvl()
-    // or as macro TRACE().
-    //
-    // Here the parameter 'lvl' can be used with more than one
-    // debug-level (using OR).
-    //
-    // Example: DEBUG_TRACE1(DEBUG_LVL_30 | DEBUG_LVL_02, "Hello %d", bCount);
-
-#define DEBUG_TRACE0(lvl,str)               TraceLvl((lvl),str)
-#define DEBUG_TRACE1(lvl,str,p1)            TraceLvl((lvl),str,p1)
-#define DEBUG_TRACE2(lvl,str,p1,p2)         TraceLvl((lvl),str,p1,p2)
-#define DEBUG_TRACE3(lvl,str,p1,p2,p3)      TraceLvl((lvl),str,p1,p2,p3)
-#define DEBUG_TRACE4(lvl,str,p1,p2,p3,p4)   TraceLvl((lvl),str,p1,p2,p3,p4)
-#define DEBUG_GLB_LVL()                     dwDebugLevel_g
-
-#else
-
     // At microcontrollers we do reduce the memory usage by deleting DEBUG_TRACE-lines
     // (compiler does delete the lines).
     //
@@ -643,25 +624,23 @@
 #define DEBUG_TRACE3(lvl,str,p1,p2,p3)                  lvl##_TRACE3(str,p1,p2,p3)
 #define DEBUG_TRACE4(lvl,str,p1,p2,p3,p4)               lvl##_TRACE4(str,p1,p2,p3,p4)
 
-#endif
-
 //---------------------------------------------------------------------------
 // The macro DEBUG_DUMP_DATA() can be used with the same debug-levels to dump
 // out data bytes. Function DumpData() has to be included.
 // NOTE: DUMP_DATA has to be defined in project settings.
-#if (!defined (NDEBUG) && defined (DUMP_DATA)) || (DEV_SYSTEM == _DEV_WIN32_)
+#if (!defined (NDEBUG) && defined (DUMP_DATA))
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-	void DumpData(char *szStr_p, BYTE MEM * pbData_p, WORD wSize_p);
+	void DumpData(char *szStr_p, u8 *pbData_p, u16 wSize_p);
 
 #ifdef __cplusplus
 }				// von extern "C"
 #endif
 #define DEBUG_DUMP_DATA(lvl,str,ptr,siz)    if ((DEBUG_GLB_LVL() & (lvl))==(lvl)) \
-                                                    DumpData (str, (BYTE MEM*) (ptr), (WORD) (siz));
+                                                    DumpData (str, (u8 *)(ptr), (u16)(siz));
 #else
 
 #define DEBUG_DUMP_DATA(lvl,str,ptr,siz)
@@ -675,24 +654,6 @@ extern "C" {
 //       deleted from compiler (in release version too).
 #if !defined (NDEBUG) || defined (DEBUG_KEEP_ASSERT)
 
-#if (DEV_SYSTEM == _DEV_WIN32_)
-
-	// For WIN32 process will be killed after closing message box.
-
-#define DEBUG_ASSERT0(expr,str)         if (!(expr ) && ((DEBUG_GLB_LVL() & DEBUG_LVL_ASSERT)!=0)) { \
-                                                    MessageBox (NULL, \
-                                                        "Assertion failed: line " __LINE__ " file " __FILE__ \
-                                                        "\n    -> " str "\n"); \
-                                                    ExitProcess (-1); }
-
-#define DEBUG_ASSERT1(expr,str,p1)      if (!(expr ) && ((DEBUG_GLB_LVL() & DEBUG_LVL_ASSERT)!=0)) { \
-                                                    MessageBox (NULL, \
-                                                        "Assertion failed: line " __LINE__ " file " __FILE__ \
-                                                        "\n    -> " str "\n"); \
-                                                    ExitProcess (-1); }
-
-#else
-
 	// For microcontrollers process will be stopped using endless loop.
 
 #define DEBUG_ASSERT0(expr,str)         if (!(expr )) { \
@@ -705,10 +666,9 @@ extern "C" {
                                                     DEBUG_LVL_ASSERT_TRACE4 ( \
                                                         "Assertion failed: line %d file '%s'\n" \
                                                         "    -> '%s'\n" \
-                                                        "    -> 0x%08lX\n", __LINE__, __FILE__, str, (DWORD) p1); \
+                                                        "    -> 0x%08lX\n", __LINE__, __FILE__, str, (u32) p1); \
                                                     while (1); }
 
-#endif
 
 #else
 

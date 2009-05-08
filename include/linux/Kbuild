@@ -67,6 +67,7 @@ header-y += falloc.h
 header-y += fd.h
 header-y += fdreg.h
 header-y += fib_rules.h
+header-y += fiemap.h
 header-y += firewire-cdev.h
 header-y += firewire-constants.h
 header-y += fuse.h
@@ -158,8 +159,6 @@ header-y += ultrasound.h
 header-y += un.h
 header-y += utime.h
 header-y += veth.h
-header-y += video_decoder.h
-header-y += video_encoder.h
 header-y += videotext.h
 header-y += x25.h
 

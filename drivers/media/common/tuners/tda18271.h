@@ -79,6 +79,16 @@ struct tda18271_config {
 
 	/* some i2c providers cant write all 39 registers at once */
 	unsigned int small_i2c:1;
+
+	/* interface to saa713x / tda829x */
+	unsigned int config;
+};
+
+#define TDA18271_CALLBACK_CMD_AGC_ENABLE 0
+
+enum tda18271_mode {
+	TDA18271_ANALOG = 0,
+	TDA18271_DIGITAL,
 };
 
 #if defined(CONFIG_MEDIA_TUNER_TDA18271) || (defined(CONFIG_MEDIA_TUNER_TDA18271_MODULE) && defined(MODULE))

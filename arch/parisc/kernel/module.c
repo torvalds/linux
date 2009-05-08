@@ -61,9 +61,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/bug.h>
-#include <linux/uaccess.h>
 
-#include <asm/sections.h>
 #include <asm/unwind.h>
 
 #if 0
@@ -115,8 +113,6 @@ struct got_entry {
 	Elf32_Addr addr;
 };
 
-#define Elf_Fdesc	Elf32_Fdesc
-
 struct stub_entry {
 	Elf32_Word insns[2]; /* each stub entry has two insns */
 };
@@ -124,8 +120,6 @@ struct stub_entry {
 struct got_entry {
 	Elf64_Addr addr;
 };
-
-#define Elf_Fdesc	Elf64_Fdesc
 
 struct stub_entry {
 	Elf64_Word insns[4]; /* each stub entry has four insns */
@@ -916,15 +910,3 @@ void module_arch_cleanup(struct module *mod)
 	deregister_unwind_table(mod);
 	module_bug_cleanup(mod);
 }
-
-#ifdef CONFIG_64BIT
-void *dereference_function_descriptor(void *ptr)
-{
-	Elf64_Fdesc *desc = ptr;
-	void *p;
-
-	if (!probe_kernel_address(&desc->addr, p))
-		ptr = p;
-	return ptr;
-}
-#endif

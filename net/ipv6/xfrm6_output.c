@@ -72,6 +72,7 @@ int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 #endif
 
 	skb->protocol = htons(ETH_P_IPV6);
+	skb->local_df = 1;
 
 	return x->outer_mode->output2(x, skb);
 }

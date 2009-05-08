@@ -56,7 +56,7 @@ MODULE_PARM_DESC(debug, "activates debug info");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 
-static int em28xx_isoc_audio_deinit(struct em28xx *dev)
+static int em28xx_deinit_isoc_audio(struct em28xx *dev)
 {
 	int i;
 
@@ -66,6 +66,7 @@ static int em28xx_isoc_audio_deinit(struct em28xx *dev)
 			usb_kill_urb(dev->adev.urb[i]);
 		else
 			usb_unlink_urb(dev->adev.urb[i]);
+
 		usb_free_urb(dev->adev.urb[i]);
 		dev->adev.urb[i] = NULL;
 
@@ -87,6 +88,20 @@ static void em28xx_audio_isocirq(struct urb *urb)
 	unsigned int             stride;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime   *runtime;
+
+	switch (urb->status) {
+	case 0:             /* success */
+	case -ETIMEDOUT:    /* NAK */
+		break;
+	case -ECONNRESET:   /* kill */
+	case -ENOENT:
+	case -ESHUTDOWN:
+		return;
+	default:            /* error */
+		dprintk("urb completition error %d.\n", urb->status);
+		break;
+	}
+
 	if (dev->adev.capture_pcm_substream) {
 		substream = dev->adev.capture_pcm_substream;
 		runtime = substream->runtime;
@@ -136,9 +151,6 @@ static void em28xx_audio_isocirq(struct urb *urb)
 			snd_pcm_period_elapsed(substream);
 	}
 	urb->status = 0;
-
-	if (dev->adev.shutdown)
-		return;
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status < 0) {
@@ -197,8 +209,7 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 	for (i = 0; i < EM28XX_AUDIO_BUFS; i++) {
 		errCode = usb_submit_urb(dev->adev.urb[i], GFP_ATOMIC);
 		if (errCode) {
-			em28xx_isoc_audio_deinit(dev);
-
+			em28xx_deinit_isoc_audio(dev);
 			return errCode;
 		}
 	}
@@ -213,14 +224,16 @@ static int em28xx_cmd(struct em28xx *dev, int cmd, int arg)
 
 	switch (cmd) {
 	case EM28XX_CAPTURE_STREAM_EN:
-		if (dev->adev.capture_stream == STREAM_OFF && arg == 1) {
+		if (dev->adev.capture_stream == STREAM_OFF &&
+		    arg == EM28XX_START_AUDIO) {
 			dev->adev.capture_stream = STREAM_ON;
 			em28xx_init_audio_isoc(dev);
-		} else if (dev->adev.capture_stream == STREAM_ON && arg == 0) {
+		} else if (dev->adev.capture_stream == STREAM_ON &&
+			   arg == EM28XX_STOP_AUDIO) {
 			dev->adev.capture_stream = STREAM_OFF;
-			em28xx_isoc_audio_deinit(dev);
+			em28xx_deinit_isoc_audio(dev);
 		} else {
-			printk(KERN_ERR "An underrun very likely occurred. "
+			em28xx_errdev("An underrun very likely occurred. "
 					"Ignoring it.\n");
 		}
 		return 0;
@@ -234,7 +247,7 @@ static int snd_pcm_alloc_vmalloc_buffer(struct snd_pcm_substream *subs,
 {
 	struct snd_pcm_runtime *runtime = subs->runtime;
 
-	dprintk("Alocating vbuffer\n");
+	dprintk("Allocating vbuffer\n");
 	if (runtime->dma_area) {
 		if (runtime->dma_bytes > size)
 			return 0;
@@ -302,7 +315,9 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 		dprintk("changing alternate number to 7\n");
 	}
 
+	mutex_lock(&dev->lock);
 	dev->adev.users++;
+	mutex_unlock(&dev->lock);
 
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	dev->adev.capture_pcm_substream = substream;
@@ -317,22 +332,15 @@ err:
 static int snd_em28xx_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
-	dev->adev.users--;
 
 	dprintk("closing device\n");
 
 	dev->mute = 1;
 	mutex_lock(&dev->lock);
+	dev->adev.users--;
 	em28xx_audio_analog_set(dev);
 	mutex_unlock(&dev->lock);
 
-	if (dev->adev.users == 0 && dev->adev.shutdown == 1) {
-		dprintk("audio users: %d\n", dev->adev.users);
-		dprintk("disabling audio stream!\n");
-		dev->adev.shutdown = 0;
-		dprintk("released lock\n");
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
-	}
 	return 0;
 }
 
@@ -363,7 +371,7 @@ static int snd_em28xx_hw_capture_free(struct snd_pcm_substream *substream)
 	dprintk("Stop capture, if needed\n");
 
 	if (dev->adev.capture_stream == STREAM_ON)
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 0);
+		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_STOP_AUDIO);
 
 	return 0;
 }
@@ -377,33 +385,40 @@ static int snd_em28xx_capture_trigger(struct snd_pcm_substream *substream,
 				      int cmd)
 {
 	struct em28xx *dev = snd_pcm_substream_chip(substream);
+	int retval;
 
-	dprintk("Should %s capture\n", (cmd == SNDRV_PCM_TRIGGER_START)?
-				       "start": "stop");
+	dprintk("Should %s capture\n", (cmd == SNDRV_PCM_TRIGGER_START) ?
+				       "start" : "stop");
+
+	spin_lock(&dev->adev.slock);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, 1);
-		return 0;
+		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_START_AUDIO);
+		retval = 0;
+		break;
 	case SNDRV_PCM_TRIGGER_STOP:
-		dev->adev.shutdown = 1;
-		return 0;
+		em28xx_cmd(dev, EM28XX_CAPTURE_STREAM_EN, EM28XX_STOP_AUDIO);
+		retval = 0;
+		break;
 	default:
-		return -EINVAL;
+		retval = -EINVAL;
 	}
+
+	spin_unlock(&dev->adev.slock);
+	return retval;
 }
 
 static snd_pcm_uframes_t snd_em28xx_capture_pointer(struct snd_pcm_substream
 						    *substream)
 {
-       unsigned long flags;
-
+	unsigned long flags;
 	struct em28xx *dev;
 	snd_pcm_uframes_t hwptr_done;
 
 	dev = snd_pcm_substream_chip(substream);
-       spin_lock_irqsave(&dev->adev.slock, flags);
+	spin_lock_irqsave(&dev->adev.slock, flags);
 	hwptr_done = dev->adev.hwptr_done_capture;
-       spin_unlock_irqrestore(&dev->adev.slock, flags);
+	spin_unlock_irqrestore(&dev->adev.slock, flags);
 
 	return hwptr_done;
 }

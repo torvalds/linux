@@ -210,6 +210,7 @@ void thash_vhpt_insert(struct kvm_vcpu *v, u64 pte, u64 itir, u64 va, int type)
 		phy_pte  &= ~PAGE_FLAGS_RV_MASK;
 		psr = ia64_clear_ic();
 		ia64_itc(type, va, phy_pte, itir_ps(itir));
+		paravirt_dv_serialize_data();
 		ia64_set_psr(psr);
 	}
 
@@ -456,6 +457,7 @@ void  thash_purge_and_insert(struct kvm_vcpu *v, u64 pte, u64 itir,
 		phy_pte  &= ~PAGE_FLAGS_RV_MASK;
 		psr = ia64_clear_ic();
 		ia64_itc(type, ifa, phy_pte, ps);
+		paravirt_dv_serialize_data();
 		ia64_set_psr(psr);
 	}
 	if (!(pte&VTLB_PTE_IO))

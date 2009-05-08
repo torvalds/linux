@@ -472,19 +472,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		reg_w_val(gspca_dev, ET_O_RED + i, brightness);
 }
 
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-	int brightness = 0;
-
-	for (i = 0; i < 4; i++) {
-		reg_r(gspca_dev, ET_O_RED + i, 1);
-		brightness += gspca_dev->usb_buf[0];
-	}
-	sd->brightness = brightness >> 3;
-}
-
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -493,19 +480,6 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 
 	memset(RGBG, contrast, sizeof(RGBG) - 2);
 	reg_w(gspca_dev, ET_G_RED, RGBG, 6);
-}
-
-static void getcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-	int contrast = 0;
-
-	for (i = 0; i < 4; i++) {
-		reg_r(gspca_dev, ET_G_RED + i, 1);
-		contrast += gspca_dev->usb_buf[0];
-	}
-	sd->contrast = contrast >> 2;
 }
 
 static void setcolors(struct gspca_dev *gspca_dev)
@@ -658,7 +632,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 1;
 	sd->sensor = id->driver_info;
 	if (sd->sensor == SENSOR_PAS106) {
 		cam->cam_mode = sif_mode;
@@ -821,7 +794,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -840,7 +812,6 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcontrast(gspca_dev);
 	*val = sd->contrast;
 	return 0;
 }
@@ -859,7 +830,6 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcolors(gspca_dev);
 	*val = sd->colors;
 	return 0;
 }
@@ -928,8 +898,10 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

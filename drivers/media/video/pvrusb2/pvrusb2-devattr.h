@@ -33,6 +33,34 @@
 */
 
 
+#define PVR2_CLIENT_ID_NULL 0
+#define PVR2_CLIENT_ID_MSP3400 1
+#define PVR2_CLIENT_ID_CX25840 2
+#define PVR2_CLIENT_ID_SAA7115 3
+#define PVR2_CLIENT_ID_TUNER 4
+#define PVR2_CLIENT_ID_CS53L32A 5
+#define PVR2_CLIENT_ID_WM8775 6
+#define PVR2_CLIENT_ID_DEMOD 7
+
+struct pvr2_device_client_desc {
+	/* One ovr PVR2_CLIENT_ID_xxxx */
+	unsigned char module_id;
+
+	/* Null-terminated array of I2C addresses to try in order
+	   initialize the module.  It's safe to make this null terminated
+	   since we're never going to encounter an i2c device with an
+	   address of zero.  If this is a null pointer or zero-length,
+	   then no I2C addresses have been specified, in which case we'll
+	   try some compiled in defaults for now. */
+	unsigned char *i2c_address_list;
+};
+
+struct pvr2_device_client_table {
+	const struct pvr2_device_client_desc *lst;
+	unsigned char cnt;
+};
+
+
 struct pvr2_string_table {
 	const char **lst;
 	unsigned int cnt;
@@ -40,6 +68,7 @@ struct pvr2_string_table {
 
 #define PVR2_ROUTING_SCHEME_HAUPPAUGE 0
 #define PVR2_ROUTING_SCHEME_GOTVIEW 1
+#define PVR2_ROUTING_SCHEME_ONAIR 2
 
 #define PVR2_DIGITAL_SCHEME_NONE 0
 #define PVR2_DIGITAL_SCHEME_HAUPPAUGE 1
@@ -66,6 +95,9 @@ struct pvr2_device_desc {
 	/* List of additional client modules we need to load */
 	struct pvr2_string_table client_modules;
 
+	/* List of defined client modules we need to load */
+	struct pvr2_device_client_table client_table;
+
 	/* List of FX2 firmware file names we should search; if empty then
 	   FX2 firmware check / load is skipped and we assume the device
 	   was initialized from internal ROM. */
@@ -73,7 +105,7 @@ struct pvr2_device_desc {
 
 #ifdef CONFIG_VIDEO_PVRUSB2_DVB
 	/* callback functions to handle attachment of digital tuner & demod */
-	struct pvr2_dvb_props *dvb_props;
+	const struct pvr2_dvb_props *dvb_props;
 
 #endif
 	/* Initial standard bits to use for this device, if not zero.

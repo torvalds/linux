@@ -267,7 +267,6 @@ timer_interrupt(int irq, void *dev_id)
 static struct irqaction irq_timer = {
 	.handler = timer_interrupt,
 	.flags = IRQF_SHARED | IRQF_DISABLED,
-	.mask = CPU_MASK_NONE,
 	.name = "timer"
 };
 

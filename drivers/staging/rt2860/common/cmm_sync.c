@@ -470,7 +470,7 @@ VOID ScanNextChannel(
 		{
 		// BBP and RF are not accessible in PS mode, we has to wake them up first
 		if (OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
-			AsicForceWakeup(pAd, TRUE);
+				AsicForceWakeup(pAd, FROM_TX);
 
 			// leave PSM during scanning. otherwise we may lost ProbeRsp & BEACON
 			if (pAd->StaCfg.Psm == PWR_SAVE)

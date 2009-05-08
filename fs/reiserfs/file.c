@@ -20,14 +20,14 @@
 ** insertion/balancing, for files that are written in one write.
 ** It avoids unnecessary tail packings (balances) for files that are written in
 ** multiple writes and are small enough to have tails.
-** 
+**
 ** file_release is called by the VFS layer when the file is closed.  If
 ** this is the last open file descriptor, and the file
 ** small enough to have a tail, and the tail is currently in an
 ** unformatted node, the tail is converted back into a direct item.
-** 
+**
 ** We use reiserfs_truncate_file to pack the tail, since it already has
-** all the conditions coded.  
+** all the conditions coded.
 */
 static int reiserfs_file_release(struct inode *inode, struct file *filp)
 {
@@ -76,7 +76,7 @@ static int reiserfs_file_release(struct inode *inode, struct file *filp)
 			 * and let the admin know what is going on.
 			 */
 			igrab(inode);
-			reiserfs_warning(inode->i_sb,
+			reiserfs_warning(inode->i_sb, "clm-9001",
 					 "pinning inode %lu because the "
 					 "preallocation can't be freed",
 					 inode->i_ino);
@@ -134,23 +134,23 @@ static void reiserfs_vfs_truncate_file(struct inode *inode)
  * be removed...
  */
 
-static int reiserfs_sync_file(struct file *p_s_filp,
-			      struct dentry *p_s_dentry, int datasync)
+static int reiserfs_sync_file(struct file *filp,
+			      struct dentry *dentry, int datasync)
 {
-	struct inode *p_s_inode = p_s_dentry->d_inode;
-	int n_err;
+	struct inode *inode = dentry->d_inode;
+	int err;
 	int barrier_done;
 
-	BUG_ON(!S_ISREG(p_s_inode->i_mode));
-	n_err = sync_mapping_buffers(p_s_inode->i_mapping);
-	reiserfs_write_lock(p_s_inode->i_sb);
-	barrier_done = reiserfs_commit_for_inode(p_s_inode);
-	reiserfs_write_unlock(p_s_inode->i_sb);
-	if (barrier_done != 1 && reiserfs_barrier_flush(p_s_inode->i_sb))
-		blkdev_issue_flush(p_s_inode->i_sb->s_bdev, NULL);
+	BUG_ON(!S_ISREG(inode->i_mode));
+	err = sync_mapping_buffers(inode->i_mapping);
+	reiserfs_write_lock(inode->i_sb);
+	barrier_done = reiserfs_commit_for_inode(inode);
+	reiserfs_write_unlock(inode->i_sb);
+	if (barrier_done != 1 && reiserfs_barrier_flush(inode->i_sb))
+		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 	if (barrier_done < 0)
 		return barrier_done;
-	return (n_err < 0) ? -EIO : 0;
+	return (err < 0) ? -EIO : 0;
 }
 
 /* taken fs/buffer.c:__block_commit_write */
@@ -223,7 +223,7 @@ int reiserfs_commit_page(struct inode *inode, struct page *page,
 }
 
 /* Write @count bytes at position @ppos in a file indicated by @file
-   from the buffer @buf.  
+   from the buffer @buf.
 
    generic_file_write() is only appropriate for filesystems that are not seeking to optimize performance and want
    something simple that works.  It is not for serious use by general purpose filesystems, excepting the one that it was

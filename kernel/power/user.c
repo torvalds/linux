@@ -24,6 +24,7 @@
 #include <linux/cpu.h>
 #include <linux/freezer.h>
 #include <linux/smp_lock.h>
+#include <scsi/scsi_scan.h>
 
 #include <asm/uaccess.h>
 
@@ -92,6 +93,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	filp->private_data = data;
 	memset(&data->handle, 0, sizeof(struct snapshot_handle));
 	if ((filp->f_flags & O_ACCMODE) == O_RDONLY) {
+		/* Hibernating.  The image device should be accessible. */
 		data->swap = swsusp_resume_device ?
 			swap_type_of(swsusp_resume_device, 0, NULL) : -1;
 		data->mode = O_RDONLY;
@@ -99,6 +101,13 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 		if (error)
 			pm_notifier_call_chain(PM_POST_HIBERNATION);
 	} else {
+		/*
+		 * Resuming.  We may need to wait for the image device to
+		 * appear.
+		 */
+		wait_for_device_probe();
+		scsi_complete_async_scans();
+
 		data->swap = -1;
 		data->mode = O_WRONLY;
 		error = pm_notifier_call_chain(PM_RESTORE_PREPARE);

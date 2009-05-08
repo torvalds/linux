@@ -2493,24 +2493,17 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 	case SNDRV_EMU10K1_IOCTL_CODE_POKE:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		icode = kmalloc(sizeof(*icode), GFP_KERNEL);
-		if (icode == NULL)
-			return -ENOMEM;
-		if (copy_from_user(icode, argp, sizeof(*icode))) {
-			kfree(icode);
-			return -EFAULT;
-		}
+
+		icode = memdup_user(argp, sizeof(*icode));
+		if (IS_ERR(icode))
+			return PTR_ERR(icode);
 		res = snd_emu10k1_icode_poke(emu, icode);
 		kfree(icode);
 		return res;
 	case SNDRV_EMU10K1_IOCTL_CODE_PEEK:
-		icode = kmalloc(sizeof(*icode), GFP_KERNEL);
-		if (icode == NULL)
-			return -ENOMEM;
-		if (copy_from_user(icode, argp, sizeof(*icode))) {
-			kfree(icode);
-			return -EFAULT;
-		}
+		icode = memdup_user(argp, sizeof(*icode));
+		if (IS_ERR(icode))
+			return PTR_ERR(icode);
 		res = snd_emu10k1_icode_peek(emu, icode);
 		if (res == 0 && copy_to_user(argp, icode, sizeof(*icode))) {
 			kfree(icode);
@@ -2519,24 +2512,16 @@ static int snd_emu10k1_fx8010_ioctl(struct snd_hwdep * hw, struct file *file, un
 		kfree(icode);
 		return res;
 	case SNDRV_EMU10K1_IOCTL_PCM_POKE:
-		ipcm = kmalloc(sizeof(*ipcm), GFP_KERNEL);
-		if (ipcm == NULL)
-			return -ENOMEM;
-		if (copy_from_user(ipcm, argp, sizeof(*ipcm))) {
-			kfree(ipcm);
-			return -EFAULT;
-		}
+		ipcm = memdup_user(argp, sizeof(*ipcm));
+		if (IS_ERR(ipcm))
+			return PTR_ERR(ipcm);
 		res = snd_emu10k1_ipcm_poke(emu, ipcm);
 		kfree(ipcm);
 		return res;
 	case SNDRV_EMU10K1_IOCTL_PCM_PEEK:
-		ipcm = kzalloc(sizeof(*ipcm), GFP_KERNEL);
-		if (ipcm == NULL)
-			return -ENOMEM;
-		if (copy_from_user(ipcm, argp, sizeof(*ipcm))) {
-			kfree(ipcm);
-			return -EFAULT;
-		}
+		ipcm = memdup_user(argp, sizeof(*ipcm));
+		if (IS_ERR(ipcm))
+			return PTR_ERR(ipcm);
 		res = snd_emu10k1_ipcm_peek(emu, ipcm);
 		if (res == 0 && copy_to_user(argp, ipcm, sizeof(*ipcm))) {
 			kfree(ipcm);

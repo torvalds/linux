@@ -119,7 +119,6 @@ static irqreturn_t cpm_error_interrupt(int irq, void *dev)
 
 static struct irqaction cpm_error_irqaction = {
 	.handler = cpm_error_interrupt,
-	.mask = CPU_MASK_NONE,
 	.name = "error",
 };
 

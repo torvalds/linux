@@ -68,19 +68,12 @@
 
 ****************************************************************************/
 
-#include "../EplNmt.h"
-#include "EplEventu.h"
-
 #ifndef _EPLNMTU_H_
 #define _EPLNMTU_H_
 
-//---------------------------------------------------------------------------
-// const defines
-//---------------------------------------------------------------------------
+#include "../EplNmt.h"
+#include "EplEventu.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
 // nmt commands
 typedef enum {
 	// requestable ASnd ServiceIds    0x01..0x1F
@@ -121,34 +114,25 @@ typedef enum {
 	kEplNmtCmdInvalidService = 0xFF
 } tEplNmtCommand;
 
-typedef tEplKernel(PUBLIC *
-		   tEplNmtuStateChangeCallback) (tEplEventNmtStateChange
-						 NmtStateChange_p);
+typedef tEplKernel(* tEplNmtuStateChangeCallback) (tEplEventNmtStateChange NmtStateChange_p);
 
-typedef tEplKernel(PUBLIC *
-		   tEplNmtuCheckEventCallback) (tEplNmtEvent NmtEvent_p);
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
+typedef tEplKernel(* tEplNmtuCheckEventCallback) (tEplNmtEvent NmtEvent_p);
 
 #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuInit(void);
+tEplKernel EplNmtuInit(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuAddInstance(void);
+tEplKernel EplNmtuAddInstance(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuDelInstance(void);
+tEplKernel EplNmtuDelInstance(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p);
+tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p);
 
-EPLDLLEXPORT tEplNmtState PUBLIC EplNmtuGetNmtState(void);
+tEplNmtState EplNmtuGetNmtState(void);
 
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p);
+tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p);
 
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback
-			     pfnEplNmtStateChangeCb_p);
+tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p);
 
 #endif // #if(((EPL_MODULE_INTEGRATION) & (EPL_MODULE_NMTU)) != 0)
 

@@ -2059,25 +2059,21 @@ static void viafb_init_proc(struct proc_dir_entry **viafb_entry)
 	if (viafb_entry) {
 		entry = create_proc_entry("dvp0", 0, *viafb_entry);
 		if (entry) {
-			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dvp0_proc_read;
 			entry->write_proc = viafb_dvp0_proc_write;
 		}
 		entry = create_proc_entry("dvp1", 0, *viafb_entry);
 		if (entry) {
-			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dvp1_proc_read;
 			entry->write_proc = viafb_dvp1_proc_write;
 		}
 		entry = create_proc_entry("dfph", 0, *viafb_entry);
 		if (entry) {
-			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dfph_proc_read;
 			entry->write_proc = viafb_dfph_proc_write;
 		}
 		entry = create_proc_entry("dfpl", 0, *viafb_entry);
 		if (entry) {
-			entry->owner = THIS_MODULE;
 			entry->read_proc = viafb_dfpl_proc_read;
 			entry->write_proc = viafb_dfpl_proc_write;
 		}
@@ -2086,7 +2082,6 @@ static void viafb_init_proc(struct proc_dir_entry **viafb_entry)
 		    viaparinfo->chip_info->lvds_chip_info2.lvds_chip_name) {
 			entry = create_proc_entry("vt1636", 0, *viafb_entry);
 			if (entry) {
-				entry->owner = THIS_MODULE;
 				entry->read_proc = viafb_vt1636_proc_read;
 				entry->write_proc = viafb_vt1636_proc_write;
 			}

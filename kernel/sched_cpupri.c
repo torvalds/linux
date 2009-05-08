@@ -55,7 +55,7 @@ static int convert_prio(int prio)
  * cpupri_find - find the best (lowest-pri) CPU in the system
  * @cp: The cpupri context
  * @p: The task
- * @lowest_mask: A mask to fill in with selected CPUs
+ * @lowest_mask: A mask to fill in with selected CPUs (or NULL)
  *
  * Note: This function returns the recommended CPUs as calculated during the
  * current invokation.  By the time the call returns, the CPUs may have in
@@ -81,7 +81,8 @@ int cpupri_find(struct cpupri *cp, struct task_struct *p,
 		if (cpumask_any_and(&p->cpus_allowed, vec->mask) >= nr_cpu_ids)
 			continue;
 
-		cpumask_and(lowest_mask, &p->cpus_allowed, vec->mask);
+		if (lowest_mask)
+			cpumask_and(lowest_mask, &p->cpus_allowed, vec->mask);
 		return 1;
 	}
 

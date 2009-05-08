@@ -28,11 +28,6 @@ static inline cpumask_t node_to_cpumask(int node)
 #define node_to_cpumask_ptr_next(v, node)	\
 			   v = &(numa_cpumask_lookup_table[node])
 
-static inline int node_to_first_cpu(int node)
-{
-	return cpumask_first(cpumask_of_node(node));
-}
-
 struct pci_bus;
 #ifdef CONFIG_PCI
 extern int pcibus_to_node(struct pci_bus *pbus);
@@ -43,13 +38,9 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 }
 #endif
 
-#define pcibus_to_cpumask(bus)	\
-	(pcibus_to_node(bus) == -1 ? \
-	 CPU_MASK_ALL : \
-	 node_to_cpumask(pcibus_to_node(bus)))
 #define cpumask_of_pcibus(bus)	\
 	(pcibus_to_node(bus) == -1 ? \
-	 CPU_MASK_ALL_PTR : \
+	 cpu_all_mask : \
 	 cpumask_of_node(pcibus_to_node(bus)))
 
 #define SD_NODE_INIT (struct sched_domain) {		\
@@ -89,7 +80,6 @@ static inline int pcibus_to_node(struct pci_bus *pbus)
 #define smt_capable()				(sparc64_multi_core)
 #endif /* CONFIG_SMP */
 
-#define cpu_coregroup_map(cpu)			(cpu_core_map[cpu])
 #define cpu_coregroup_mask(cpu)			(&cpu_core_map[cpu])
 
 #endif /* _ASM_SPARC64_TOPOLOGY_H */

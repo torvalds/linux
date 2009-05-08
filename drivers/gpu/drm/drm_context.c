@@ -143,7 +143,7 @@ int drm_getsareactx(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	struct drm_ctx_priv_map *request = data;
-	struct drm_map *map;
+	struct drm_local_map *map;
 	struct drm_map_list *_entry;
 
 	mutex_lock(&dev->struct_mutex);
@@ -186,7 +186,7 @@ int drm_setsareactx(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	struct drm_ctx_priv_map *request = data;
-	struct drm_map *map = NULL;
+	struct drm_local_map *map = NULL;
 	struct drm_map_list *r_list = NULL;
 
 	mutex_lock(&dev->struct_mutex);

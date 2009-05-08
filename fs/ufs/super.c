@@ -1268,6 +1268,7 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct ufs_super_block_first *usb1;
 	struct ufs_super_block_second *usb2;
 	struct ufs_super_block_third *usb3;
+	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
 
 	lock_kernel();
 
@@ -1290,6 +1291,8 @@ static int ufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 		? (buf->f_bfree - (((long)buf->f_blocks / 100) * uspi->s_minfree)) : 0;
 	buf->f_files = uspi->s_ncg * uspi->s_ipg;
 	buf->f_namelen = UFS_MAXNAMLEN;
+	buf->f_fsid.val[0] = (u32)id;
+	buf->f_fsid.val[1] = (u32)(id >> 32);
 
 	unlock_kernel();
 

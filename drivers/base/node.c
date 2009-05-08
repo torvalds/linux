@@ -24,7 +24,7 @@ static struct sysdev_class node_class = {
 static ssize_t node_read_cpumap(struct sys_device *dev, int type, char *buf)
 {
 	struct node *node_dev = to_node(dev);
-	node_to_cpumask_ptr(mask, node_dev->sysdev.id);
+	const struct cpumask *mask = cpumask_of_node(node_dev->sysdev.id);
 	int len;
 
 	/* 2008/04/07: buf currently PAGE_SIZE, need 9 chars per 32 bits. */

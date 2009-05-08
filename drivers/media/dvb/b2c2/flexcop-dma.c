@@ -1,13 +1,12 @@
 /*
- * This file is part of linux driver the digital TV devices equipped with B2C2 FlexcopII(b)/III
- *
- * flexcop-dma.c - methods for configuring and controlling the DMA of the FlexCop.
- *
- * see flexcop.c for copyright information.
+ * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
+ * flexcop-dma.c - configuring and controlling the DMA of the FlexCop
+ * see flexcop.c for copyright information
  */
 #include "flexcop.h"
 
-int flexcop_dma_allocate(struct pci_dev *pdev, struct flexcop_dma *dma, u32 size)
+int flexcop_dma_allocate(struct pci_dev *pdev,
+		struct flexcop_dma *dma, u32 size)
 {
 	u8 *tcpu;
 	dma_addr_t tdma = 0;
@@ -32,7 +31,8 @@ EXPORT_SYMBOL(flexcop_dma_allocate);
 
 void flexcop_dma_free(struct flexcop_dma *dma)
 {
-	pci_free_consistent(dma->pdev, dma->size*2,dma->cpu_addr0, dma->dma_addr0);
+	pci_free_consistent(dma->pdev, dma->size*2,
+			dma->cpu_addr0, dma->dma_addr0);
 	memset(dma,0,sizeof(struct flexcop_dma));
 }
 EXPORT_SYMBOL(flexcop_dma_free);
@@ -44,8 +44,8 @@ int flexcop_dma_config(struct flexcop_device *fc,
 	flexcop_ibi_value v0x0,v0x4,v0xc;
 	v0x0.raw = v0x4.raw = v0xc.raw = 0;
 
-	v0x0.dma_0x0.dma_address0        = dma->dma_addr0 >> 2;
-	v0xc.dma_0xc.dma_address1        = dma->dma_addr1 >> 2;
+	v0x0.dma_0x0.dma_address0 = dma->dma_addr0 >> 2;
+	v0xc.dma_0xc.dma_address1 = dma->dma_addr1 >> 2;
 	v0x4.dma_0x4_write.dma_addr_size = dma->size / 4;
 
 	if ((dma_idx & FC_DMA_1) == dma_idx) {
@@ -57,7 +57,8 @@ int flexcop_dma_config(struct flexcop_device *fc,
 		fc->write_ibi_reg(fc,dma2_014,v0x4);
 		fc->write_ibi_reg(fc,dma2_01c,v0xc);
 	} else {
-		err("either DMA1 or DMA2 can be configured at the within one flexcop_dma_config call.");
+		err("either DMA1 or DMA2 can be configured within one "
+			"flexcop_dma_config call.");
 		return -EINVAL;
 	}
 
@@ -81,7 +82,8 @@ int flexcop_dma_xfer_control(struct flexcop_device *fc,
 		r0x0 = dma2_010;
 		r0xc = dma2_01c;
 	} else {
-		err("either transfer DMA1 or DMA2 can be started within one flexcop_dma_xfer_control call.");
+		err("either transfer DMA1 or DMA2 can be started within one "
+			"flexcop_dma_xfer_control call.");
 		return -EINVAL;
 	}
 
@@ -154,8 +156,7 @@ EXPORT_SYMBOL(flexcop_dma_control_timer_irq);
 
 /* 1 cycles = 1.97 msec */
 int flexcop_dma_config_timer(struct flexcop_device *fc,
-		flexcop_dma_index_t dma_idx,
-		u8 cycles)
+		flexcop_dma_index_t dma_idx, u8 cycles)
 {
 	flexcop_ibi_register r = (dma_idx & FC_DMA_1) ? dma1_004 : dma2_014;
 	flexcop_ibi_value v = fc->read_ibi_reg(fc,r);

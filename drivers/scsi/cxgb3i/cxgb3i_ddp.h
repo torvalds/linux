@@ -301,7 +301,9 @@ int cxgb3i_setup_conn_pagesize(struct t3cdev *, unsigned int tid, int reply,
 int cxgb3i_setup_conn_digest(struct t3cdev *, unsigned int tid,
 				int hcrc, int dcrc, int reply);
 int cxgb3i_ddp_find_page_index(unsigned long pgsz);
-int cxgb3i_adapter_ddp_init(struct t3cdev *, struct cxgb3i_tag_format *,
+int cxgb3i_adapter_ddp_info(struct t3cdev *, struct cxgb3i_tag_format *,
 			    unsigned int *txsz, unsigned int *rxsz);
-void cxgb3i_adapter_ddp_cleanup(struct t3cdev *);
+
+void cxgb3i_ddp_init(struct t3cdev *);
+void cxgb3i_ddp_cleanup(struct t3cdev *);
 #endif

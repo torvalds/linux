@@ -155,4 +155,8 @@ int btrfs_wait_on_page_writeback_range(struct address_space *mapping,
 int btrfs_fdatawrite_range(struct address_space *mapping, loff_t start,
 			   loff_t end, int sync_mode);
 int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only);
+int btrfs_run_ordered_operations(struct btrfs_root *root, int wait);
+int btrfs_add_ordered_operation(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				struct inode *inode);
 #endif

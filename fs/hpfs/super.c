@@ -136,6 +136,7 @@ static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *s = dentry->d_sb;
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
+	u64 id = huge_encode_dev(s->s_bdev->bd_dev);
 	lock_kernel();
 
 	/*if (sbi->sb_n_free == -1) {*/
@@ -149,6 +150,8 @@ static int hpfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = sbi->sb_n_free;
 	buf->f_files = sbi->sb_dirband_size / 4;
 	buf->f_ffree = sbi->sb_n_free_dnodes;
+	buf->f_fsid.val[0] = (u32)id;
+	buf->f_fsid.val[1] = (u32)(id >> 32);
 	buf->f_namelen = 254;
 
 	unlock_kernel();
@@ -477,7 +480,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 
 	uid = current_uid();
 	gid = current_gid();
-	umask = current->fs->umask;
+	umask = current_umask();
 	lowercase = 0;
 	conv = CONV_BINARY;
 	eas = 2;

@@ -116,20 +116,18 @@ typedef unsigned int tEplSdoConHdl;
 
 // callback function pointer for Protocol Abstraction Layer to call
 // asynchronuus SDO Sequence Layer
-typedef tEplKernel(PUBLIC * tEplSequLayerReceiveCb) (tEplSdoConHdl ConHdl_p,
-						     tEplAsySdoSeq *
-						     pSdoSeqData_p,
-						     unsigned int uiDataSize_p);
+typedef tEplKernel(*tEplSequLayerReceiveCb) (tEplSdoConHdl ConHdl_p,
+					     tEplAsySdoSeq *pSdoSeqData_p,
+					     unsigned int uiDataSize_p);
 
 // handle between asynchronuus SDO Sequence Layer and SDO Command layer
 typedef unsigned int tEplSdoSeqConHdl;
 
 // callback function pointer for asynchronuus SDO Sequence Layer to call
 // SDO Command layer for received data
-typedef tEplKernel(PUBLIC *
-		   tEplSdoComReceiveCb) (tEplSdoSeqConHdl SdoSeqConHdl_p,
-					 tEplAsySdoCom * pAsySdoCom_p,
-					 unsigned int uiDataSize_p);
+typedef tEplKernel(* tEplSdoComReceiveCb) (tEplSdoSeqConHdl SdoSeqConHdl_p,
+					   tEplAsySdoCom *pAsySdoCom_p,
+					   unsigned int uiDataSize_p);
 
 // status of connection
 typedef enum {
@@ -143,9 +141,8 @@ typedef enum {
 
 // callback function pointer for asynchronuus SDO Sequence Layer to call
 // SDO Command layer for connection status
-typedef tEplKernel(PUBLIC * tEplSdoComConCb) (tEplSdoSeqConHdl SdoSeqConHdl_p,
-					      tEplAsySdoConState
-					      AsySdoConState_p);
+typedef tEplKernel(* tEplSdoComConCb) (tEplSdoSeqConHdl SdoSeqConHdl_p,
+				       tEplAsySdoConState AsySdoConState_p);
 
 // handle between  SDO Command layer and application
 typedef unsigned int tEplSdoComConHdl;
@@ -210,7 +207,7 @@ typedef enum {
 typedef struct {
 	tEplSdoComConHdl m_SdoComConHdl;
 	tEplSdoComConState m_SdoComConState;
-	DWORD m_dwAbortCode;
+	u32 m_dwAbortCode;
 	tEplSdoAccessType m_SdoAccessType;
 	unsigned int m_uiNodeId;	// NodeId of the target
 	unsigned int m_uiTargetIndex;	// index which was accessed
@@ -221,8 +218,7 @@ typedef struct {
 } tEplSdoComFinished;
 
 // callback function pointer to inform application about connection
-typedef tEplKernel(PUBLIC * tEplSdoFinishedCb) (tEplSdoComFinished *
-						pSdoComFinished_p);
+typedef tEplKernel(* tEplSdoFinishedCb) (tEplSdoComFinished *pSdoComFinished_p);
 
 // structure to init SDO transfer to Read or Write by Index
 typedef struct {

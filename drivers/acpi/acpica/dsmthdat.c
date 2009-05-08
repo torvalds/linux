@@ -713,6 +713,6 @@ acpi_ds_method_data_get_type(u16 opcode,
 
 	/* Get the object type */
 
-	return_VALUE(ACPI_GET_OBJECT_TYPE(object));
+	return_VALUE(object->type);
 }
 #endif

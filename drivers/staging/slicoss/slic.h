@@ -46,29 +46,9 @@
 #define OASIS_UCODE_VERS_DATE  	"2006/03/27 15:10:37"
 #define OASIS_UCODE_HOSTIF_ID  	3
 
-static s32 ONumSections = 0x2;
-static u32 OSectionSize[] = {
-	0x00004000, 0x00010000,
-};
-
-static u32 OSectionStart[] = {
-	0x00000000, 0x00008000,
-};
-
 #define MOJAVE_UCODE_VERS_STRING	"1.2"
 #define MOJAVE_UCODE_VERS_DATE  	"2006/03/27 15:12:22"
 #define MOJAVE_UCODE_HOSTIF_ID  	3
-
-static s32 MNumSections = 0x2;
-static u32 MSectionSize[] =
-{
-	0x00008000, 0x00010000,
-};
-
-static u32 MSectionStart[] =
-{
-	0x00000000, 0x00008000,
-};
 
 #define GB_RCVUCODE_VERS_STRING	"1.2"
 #define GB_RCVUCODE_VERS_DATE  	"2006/03/27 15:12:15"
@@ -201,17 +181,6 @@ struct slic_cmdqueue {
 
 #define SLIC_MAX_CARDS              32
 #define SLIC_MAX_PORTS              4        /* Max # of ports per card   */
-#if SLIC_DUMP_ENABLED
-/*
-Dump buffer size
-
-This cannot be bigger than the max DMA size the card supports,
-given the current code structure in the host and ucode.
-Mojave supports 16K, Oasis supports 16K-1, so
-just set this at 15K, shouldnt make that much of a diff.
-*/
-#define DUMP_BUF_SIZE               0x3C00
-#endif
 
 
 struct mcast_address {
@@ -367,30 +336,6 @@ struct sliccard {
     u32             max_isr_xmits;
     u32             rcv_interrupt_yields;
     u32             tx_packets;
-#if SLIC_DUMP_ENABLED
-    u32             dumpstatus;           /* Result of dump UPR */
-    void *cmdbuffer;
-
-    ulong               cmdbuffer_phys;
-    u32             cmdbuffer_physl;
-    u32             cmdbuffer_physh;
-
-    u32             dump_count;
-    struct task_struct *dump_task_id;
-    u32             dump_wait_count;
-    uint                dumpthread_running; /* has a dump thread been init'd  */
-    uint                dump_requested;     /* 0 no, 1 = reqstd 2=curr 3=done */
-    u32             dumptime_start;
-    u32             dumptime_complete;
-    u32             dumptime_delta;
-    void *dumpbuffer;
-    ulong               dumpbuffer_phys;
-    u32             dumpbuffer_physl;
-    u32             dumpbuffer_physh;
-    wait_queue_head_t   dump_wq;
-    struct file        *dumphandle;
-    mm_segment_t        dumpfile_fs;
-#endif
     u32             debug_ix;
     ushort              reg_type[32];
     ushort              reg_offset[32];
@@ -516,8 +461,6 @@ struct adapter {
     uint                upr_busy;
     struct timer_list   pingtimer;
     u32             pingtimerset;
-    struct timer_list   statstimer;
-    u32             statstimerset;
     struct timer_list   loadtimer;
     u32             loadtimerset;
     struct dentry      *debugfs_entry;
@@ -570,25 +513,6 @@ struct adapter {
     struct net_device_stats stats;
 };
 
-#if SLIC_DUMP_ENABLED
-#define SLIC_DUMP_REQUESTED      1
-#define SLIC_DUMP_IN_PROGRESS    2
-#define SLIC_DUMP_DONE           3
-
-/****************************************************************************
- *
- * Microcode crash information structure.  This
- * structure is written out to the card's SRAM when the microcode panic's.
- *
- ****************************************************************************/
-struct slic_crash_info {
-    ushort  cpu_id;
-    ushort  crash_pc;
-};
-
-#define CRASH_INFO_OFFSET   0x155C
-
-#endif
 
 #define UPDATE_STATS(largestat, newstat, oldstat)                        \
 {                                                                        \
@@ -605,11 +529,11 @@ struct slic_crash_info {
 
 #define ETHER_EQ_ADDR(_AddrA, _AddrB, _Result)                           \
 {                                                                        \
-    _Result = TRUE;                                                      \
+    _Result = true;                                                      \
     if (*(u32 *)(_AddrA) != *(u32 *)(_AddrB))                          \
-	_Result = FALSE;                                                 \
+	_Result = false;                                                 \
     if (*(u16 *)(&((_AddrA)[4])) != *(u16 *)(&((_AddrB)[4])))        \
-	_Result = FALSE;                                                 \
+	_Result = false;                                                 \
 }
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
@@ -622,8 +546,8 @@ struct slic_crash_info {
 #define   SLIC_GET_ADDR_HIGH(_addr)  (u32)0
 #endif
 
-#define FLUSH       TRUE
-#define DONT_FLUSH  FALSE
+#define FLUSH		true
+#define DONT_FLUSH	false
 
 #define SIOCSLICDUMPCARD         (SIOCDEVPRIVATE+9)
 #define SIOCSLICSETINTAGG        (SIOCDEVPRIVATE+10)

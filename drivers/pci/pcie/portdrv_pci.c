@@ -32,11 +32,6 @@ MODULE_LICENSE("GPL");
 /* global data */
 static const char device_name[] = "pcieport-driver";
 
-static int pcie_portdrv_save_config(struct pci_dev *dev)
-{
-	return pci_save_state(dev);
-}
-
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
 	int retval;
@@ -49,21 +44,21 @@ static int pcie_portdrv_restore_config(struct pci_dev *dev)
 }
 
 #ifdef CONFIG_PM
-static int pcie_portdrv_suspend(struct pci_dev *dev, pm_message_t state)
-{
-	return pcie_port_device_suspend(dev, state);
+static struct dev_pm_ops pcie_portdrv_pm_ops = {
+	.suspend	= pcie_port_device_suspend,
+	.resume		= pcie_port_device_resume,
+	.freeze		= pcie_port_device_suspend,
+	.thaw		= pcie_port_device_resume,
+	.poweroff	= pcie_port_device_suspend,
+	.restore	= pcie_port_device_resume,
+};
 
-}
+#define PCIE_PORTDRV_PM_OPS	(&pcie_portdrv_pm_ops)
 
-static int pcie_portdrv_resume(struct pci_dev *dev)
-{
-	pci_set_master(dev);
-	return pcie_port_device_resume(dev);
-}
-#else
-#define pcie_portdrv_suspend NULL
-#define pcie_portdrv_resume NULL
-#endif
+#else /* !PM */
+
+#define PCIE_PORTDRV_PM_OPS	NULL
+#endif /* !PM */
 
 /*
  * pcie_portdrv_probe - Probe PCI-Express port devices
@@ -82,20 +77,15 @@ static int __devinit pcie_portdrv_probe (struct pci_dev *dev,
 	if (status)
 		return status;
 
-	if (pci_enable_device(dev) < 0) 
-		return -ENODEV;
-	
-	pci_set_master(dev);
         if (!dev->irq && dev->pin) {
 		dev_warn(&dev->dev, "device [%04x:%04x] has invalid IRQ; "
 			 "check vendor BIOS\n", dev->vendor, dev->device);
 	}
-	if (pcie_port_device_register(dev)) {
-		pci_disable_device(dev);
-		return -ENOMEM;
-	}
+	status = pcie_port_device_register(dev);
+	if (status)
+		return status;
 
-	pcie_portdrv_save_config(dev);
+	pci_save_state(dev);
 
 	return 0;
 }
@@ -104,7 +94,6 @@ static void pcie_portdrv_remove (struct pci_dev *dev)
 {
 	pcie_port_device_remove(dev);
 	pci_disable_device(dev);
-	kfree(pci_get_drvdata(dev));
 }
 
 static int error_detected_iter(struct device *device, void *data)
@@ -278,10 +267,9 @@ static struct pci_driver pcie_portdriver = {
 	.probe		= pcie_portdrv_probe,
 	.remove		= pcie_portdrv_remove,
 
-	.suspend	= pcie_portdrv_suspend,
-	.resume		= pcie_portdrv_resume,
-
 	.err_handler 	= &pcie_portdrv_err_handler,
+
+	.driver.pm 	= PCIE_PORTDRV_PM_OPS,
 };
 
 static int __init pcie_portdrv_init(void)

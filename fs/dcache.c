@@ -17,7 +17,6 @@
 #include <linux/syscalls.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/fdtable.h>
 #include <linux/fs.h>
 #include <linux/fsnotify.h>
 #include <linux/slab.h>
@@ -32,6 +31,7 @@
 #include <linux/seqlock.h>
 #include <linux/swap.h>
 #include <linux/bootmem.h>
+#include <linux/fs_struct.h>
 #include "internal.h"
 
 int sysctl_vfs_cache_pressure __read_mostly = 100;
@@ -2149,7 +2149,6 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 	int result;
 	unsigned long seq;
 
-	/* FIXME: This is old behavior, needed? Please check callers. */
 	if (new_dentry == old_dentry)
 		return 1;
 
