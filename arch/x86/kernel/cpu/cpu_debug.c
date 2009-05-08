@@ -588,8 +588,20 @@ static void print_apic(void *arg)
 	seq_printf(seq, " TMICT\t\t: %08x\n",  apic_read(APIC_TMICT));
 	seq_printf(seq, " TMCCT\t\t: %08x\n",  apic_read(APIC_TMCCT));
 	seq_printf(seq, " TDCR\t\t: %08x\n",  apic_read(APIC_TDCR));
-#endif /* CONFIG_X86_LOCAL_APIC */
+	if (boot_cpu_has(X86_FEATURE_EXTAPIC)) {
+		unsigned int i, v, maxeilvt;
 
+		v = apic_read(APIC_EFEAT);
+		maxeilvt = (v >> 16) & 0xff;
+		seq_printf(seq, " EFEAT\t\t: %08x\n", v);
+		seq_printf(seq, " ECTRL\t\t: %08x\n", apic_read(APIC_ECTRL));
+
+		for (i = 0; i < maxeilvt; i++) {
+			v = apic_read(APIC_EILVTn(i));
+			seq_printf(seq, " EILVT%d\t\t: %08x\n", i, v);
+		}
+	}
+#endif /* CONFIG_X86_LOCAL_APIC */
 	seq_printf(seq, "\n MSR\t:\n");
 }
 

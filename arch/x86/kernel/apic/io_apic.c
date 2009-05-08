@@ -1739,7 +1739,7 @@ __apicdebuginit(void) print_APIC_bitfield(int base)
 
 __apicdebuginit(void) print_local_APIC(void *dummy)
 {
-	unsigned int v, ver, maxlvt;
+	unsigned int i, v, ver, maxlvt;
 	u64 icr;
 
 	if (apic_verbosity == APIC_QUIET)
@@ -1827,6 +1827,18 @@ __apicdebuginit(void) print_local_APIC(void *dummy)
 	printk(KERN_DEBUG "... APIC TMCCT: %08x\n", v);
 	v = apic_read(APIC_TDCR);
 	printk(KERN_DEBUG "... APIC TDCR: %08x\n", v);
+
+	if (boot_cpu_has(X86_FEATURE_EXTAPIC)) {
+		v = apic_read(APIC_EFEAT);
+		maxlvt = (v >> 16) & 0xff;
+		printk(KERN_DEBUG "... APIC EFEAT: %08x\n", v);
+		v = apic_read(APIC_ECTRL);
+		printk(KERN_DEBUG "... APIC ECTRL: %08x\n", v);
+		for (i = 0; i < maxlvt; i++) {
+			v = apic_read(APIC_EILVTn(i));
+			printk(KERN_DEBUG "... APIC EILVT%d: %08x\n", i, v);
+		}
+	}
 	printk("\n");
 }
 
