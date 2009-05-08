@@ -466,7 +466,8 @@ struct request *ace_get_next_request(struct request_queue * q)
 	while ((req = elv_next_request(q)) != NULL) {
 		if (blk_fs_request(req))
 			break;
-		__blk_end_request_cur(req, -EIO);
+		blkdev_dequeue_request(req);
+		__blk_end_request_all(req, -EIO);
 	}
 	return req;
 }
@@ -492,9 +493,15 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		set_capacity(ace->gd, 0);
 		dev_info(ace->dev, "No CF in slot\n");
 
-		/* Drop all pending requests */
-		while ((req = elv_next_request(ace->queue)) != NULL)
-			__blk_end_request_cur(req, -EIO);
+		/* Drop all in-flight and pending requests */
+		if (ace->req) {
+			__blk_end_request_all(ace->req, -EIO);
+			ace->req = NULL;
+		}
+		while ((req = elv_next_request(ace->queue)) != NULL) {
+			blkdev_dequeue_request(req);
+			__blk_end_request_all(req, -EIO);
+		}
 
 		/* Drop back to IDLE state and notify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
@@ -642,6 +649,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			ace->fsm_state = ACE_FSM_STATE_IDLE;
 			break;
 		}
+		blkdev_dequeue_request(req);
 
 		/* Okay, it's a data request, set it up for transfer */
 		dev_dbg(ace->dev,
@@ -718,8 +726,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 		}
 
 		/* bio finished; is there another one? */
-		if (__blk_end_request(ace->req, 0,
-					blk_rq_cur_bytes(ace->req))) {
+		if (__blk_end_request_cur(ace->req, 0)) {
 			/* dev_dbg(ace->dev, "next block; h=%u c=%u\n",
 			 *      blk_rq_sectors(ace->req),
 			 *      blk_rq_cur_sectors(ace->req));
