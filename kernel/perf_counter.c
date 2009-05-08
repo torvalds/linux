@@ -39,6 +39,7 @@ int perf_max_counters __read_mostly = 1;
 static int perf_reserved_percpu __read_mostly;
 static int perf_overcommit __read_mostly = 1;
 
+static atomic_t nr_counters __read_mostly;
 static atomic_t nr_mmap_tracking __read_mostly;
 static atomic_t nr_munmap_tracking __read_mostly;
 static atomic_t nr_comm_tracking __read_mostly;
@@ -1076,8 +1077,14 @@ static void rotate_ctx(struct perf_counter_context *ctx)
 
 void perf_counter_task_tick(struct task_struct *curr, int cpu)
 {
-	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
-	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
+	struct perf_cpu_context *cpuctx;
+	struct perf_counter_context *ctx;
+
+	if (!atomic_read(&nr_counters))
+		return;
+
+	cpuctx = &per_cpu(perf_cpu_context, cpu);
+	ctx = &curr->perf_counter_ctx;
 
 	perf_counter_cpu_sched_out(cpuctx);
 	perf_counter_task_sched_out(curr, cpu);
@@ -1197,6 +1204,7 @@ static void free_counter(struct perf_counter *counter)
 {
 	perf_pending_sync(counter);
 
+	atomic_dec(&nr_counters);
 	if (counter->hw_event.mmap)
 		atomic_dec(&nr_mmap_tracking);
 	if (counter->hw_event.munmap)
@@ -2861,6 +2869,7 @@ done:
 
 	counter->pmu = pmu;
 
+	atomic_inc(&nr_counters);
 	if (counter->hw_event.mmap)
 		atomic_inc(&nr_mmap_tracking);
 	if (counter->hw_event.munmap)
