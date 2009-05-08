@@ -164,6 +164,8 @@ static struct at91_mmc_data __initdata afeb9260_mmc_data = {
 
 static struct i2c_board_info __initdata afeb9260_i2c_devices[] = {
 	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
+	}, {
 		I2C_BOARD_INFO("fm3130", 0x68),
 	}, {
 		I2C_BOARD_INFO("24c64", 0x50),
@@ -196,6 +198,8 @@ static void __init afeb9260_board_init(void)
 	/* I2C */
 	at91_add_device_i2c(afeb9260_i2c_devices,
 			ARRAY_SIZE(afeb9260_i2c_devices));
+	/* Audio */
+	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
 }
 
 MACHINE_START(AFEB9260, "Custom afeb9260 board")
