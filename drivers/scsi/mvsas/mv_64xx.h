@@ -1,11 +1,43 @@
+/*
+ * Marvell 88SE64xx hardware specific head file
+ *
+ * Copyright 2007 Red Hat, Inc.
+ * Copyright 2008 Marvell. <kewei@marvell.com>
+ *
+ * This file is licensed under GPLv2.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; version 2 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
+*/
+
 #ifndef _MVS64XX_REG_H_
 #define _MVS64XX_REG_H_
+
+#include <linux/types.h>
+
+#define MAX_LINK_RATE		SAS_LINK_RATE_3_0_GBPS
 
 /* enhanced mode registers (BAR4) */
 enum hw_registers {
 	MVS_GBL_CTL		= 0x04,  /* global control */
 	MVS_GBL_INT_STAT	= 0x08,  /* global irq status */
 	MVS_GBL_PI		= 0x0C,  /* ports implemented bitmask */
+
+	MVS_PHY_CTL		= 0x40,  /* SOC PHY Control */
+	MVS_PORTS_IMP		= 0x9C,  /* SOC Port Implemented */
+
 	MVS_GBL_PORT_TYPE	= 0xa0,  /* port type */
 
 	MVS_CTL			= 0x100, /* SAS/SATA port configuration */
@@ -30,17 +62,19 @@ enum hw_registers {
 	MVS_INT_COAL_TMOUT	= 0x14C, /* Int coalescing timeout */
 	MVS_INT_STAT		= 0x150, /* Central int status */
 	MVS_INT_MASK		= 0x154, /* Central int enable */
-	MVS_INT_STAT_SRS	= 0x158, /* SATA register set status */
-	MVS_INT_MASK_SRS	= 0x15C,
+	MVS_INT_STAT_SRS_0	= 0x158, /* SATA register set status */
+	MVS_INT_MASK_SRS_0	= 0x15C,
 
 					 /* ports 1-3 follow after this */
 	MVS_P0_INT_STAT		= 0x160, /* port0 interrupt status */
 	MVS_P0_INT_MASK		= 0x164, /* port0 interrupt mask */
-	MVS_P4_INT_STAT		= 0x200, /* Port 4 interrupt status */
-	MVS_P4_INT_MASK		= 0x204, /* Port 4 interrupt enable mask */
+					 /* ports 5-7 follow after this */
+	MVS_P4_INT_STAT		= 0x200, /* Port4 interrupt status */
+	MVS_P4_INT_MASK		= 0x204, /* Port4 interrupt enable mask */
 
 					 /* ports 1-3 follow after this */
 	MVS_P0_SER_CTLSTAT	= 0x180, /* port0 serial control/status */
+					 /* ports 5-7 follow after this */
 	MVS_P4_SER_CTLSTAT	= 0x220, /* port4 serial control/status */
 
 	MVS_CMD_ADDR		= 0x1B8, /* Command register port (addr) */
@@ -49,20 +83,23 @@ enum hw_registers {
 					 /* ports 1-3 follow after this */
 	MVS_P0_CFG_ADDR		= 0x1C0, /* port0 phy register address */
 	MVS_P0_CFG_DATA		= 0x1C4, /* port0 phy register data */
-	MVS_P4_CFG_ADDR		= 0x230, /* Port 4 config address */
-	MVS_P4_CFG_DATA		= 0x234, /* Port 4 config data */
+					 /* ports 5-7 follow after this */
+	MVS_P4_CFG_ADDR		= 0x230, /* Port4 config address */
+	MVS_P4_CFG_DATA		= 0x234, /* Port4 config data */
 
 					 /* ports 1-3 follow after this */
 	MVS_P0_VSR_ADDR		= 0x1E0, /* port0 VSR address */
 	MVS_P0_VSR_DATA		= 0x1E4, /* port0 VSR data */
-	MVS_P4_VSR_ADDR		= 0x250, /* port 4 VSR addr */
-	MVS_P4_VSR_DATA		= 0x254, /* port 4 VSR data */
+					 /* ports 5-7 follow after this */
+	MVS_P4_VSR_ADDR		= 0x250, /* port4 VSR addr */
+	MVS_P4_VSR_DATA		= 0x254, /* port4 VSR data */
 };
 
 enum pci_cfg_registers {
 	PCR_PHY_CTL		= 0x40,
 	PCR_PHY_CTL2		= 0x90,
 	PCR_DEV_CTRL		= 0xE8,
+	PCR_LINK_STAT		= 0xF2,
 };
 
 /*  SAS/SATA Vendor Specific Port Registers */
@@ -83,10 +120,32 @@ enum sas_sata_vsp_regs {
 	VSR_PHY_VS1		= 0x0D, /* Vednor Specific 1 */
 };
 
+enum chip_register_bits {
+	PHY_MIN_SPP_PHYS_LINK_RATE_MASK = (0xF << 8),
+	PHY_MAX_SPP_PHYS_LINK_RATE_MASK = (0xF << 12),
+	PHY_NEG_SPP_PHYS_LINK_RATE_MASK_OFFSET = (16),
+	PHY_NEG_SPP_PHYS_LINK_RATE_MASK =
+			(0xF << PHY_NEG_SPP_PHYS_LINK_RATE_MASK_OFFSET),
+};
+
+#define MAX_SG_ENTRY		64
+
 struct mvs_prd {
 	__le64			addr;		/* 64-bit buffer address */
 	__le32			reserved;
 	__le32			len;		/* 16-bit length */
 };
+
+#define SPI_CTRL_REG				0xc0
+#define SPI_CTRL_VENDOR_ENABLE		(1U<<29)
+#define SPI_CTRL_SPIRDY         		(1U<<22)
+#define SPI_CTRL_SPISTART			(1U<<20)
+
+#define SPI_CMD_REG		0xc4
+#define SPI_DATA_REG		0xc8
+
+#define SPI_CTRL_REG_64XX		0x10
+#define SPI_CMD_REG_64XX		0x14
+#define SPI_DATA_REG_64XX		0x18
 
 #endif

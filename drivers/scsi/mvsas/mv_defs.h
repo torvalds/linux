@@ -1,53 +1,66 @@
 /*
-	mv_defs.h - Marvell 88SE6440 SAS/SATA support
-
-	Copyright 2007 Red Hat, Inc.
-	Copyright 2008 Marvell. <kewei@marvell.com>
-
-	This program is free software; you can redistribute it and/or
-	modify it under the terms of the GNU General Public License as
-	published by the Free Software Foundation; either version 2,
-	or (at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty
-	of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-	See the GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public
-	License along with this program; see the file COPYING.	If not,
-	write to the Free Software Foundation, 675 Mass Ave, Cambridge,
-	MA 02139, USA.
-
- */
+ * Marvell 88SE64xx/88SE94xx const head file
+ *
+ * Copyright 2007 Red Hat, Inc.
+ * Copyright 2008 Marvell. <kewei@marvell.com>
+ *
+ * This file is licensed under GPLv2.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; version 2 of the
+ * License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ * USA
+*/
 
 #ifndef _MV_DEFS_H_
 #define _MV_DEFS_H_
 
+
+enum chip_flavors {
+	chip_6320,
+	chip_6440,
+	chip_6485,
+	chip_9480,
+	chip_9180,
+};
+
 /* driver compile-time configuration */
 enum driver_configuration {
+	MVS_SLOTS		= 512,	/* command slots */
 	MVS_TX_RING_SZ		= 1024,	/* TX ring size (12-bit) */
 	MVS_RX_RING_SZ		= 1024, /* RX ring size (12-bit) */
 					/* software requires power-of-2
 					   ring size */
+	MVS_SOC_SLOTS		= 64,
+	MVS_SOC_TX_RING_SZ	= MVS_SOC_SLOTS * 2,
+	MVS_SOC_RX_RING_SZ	= MVS_SOC_SLOTS * 2,
 
-	MVS_SLOTS		= 512,	/* command slots */
 	MVS_SLOT_BUF_SZ		= 8192, /* cmd tbl + IU + status + PRD */
 	MVS_SSP_CMD_SZ		= 64,	/* SSP command table buffer size */
 	MVS_ATA_CMD_SZ		= 96,	/* SATA command table buffer size */
 	MVS_OAF_SZ		= 64,	/* Open address frame buffer size */
-
-	MVS_RX_FIS_COUNT	= 17,	/* Optional rx'd FISs (max 17) */
-
-	MVS_QUEUE_SIZE		= 30,	/* Support Queue depth */
-	MVS_CAN_QUEUE		= MVS_SLOTS - 1,	/* SCSI Queue depth */
+	MVS_QUEUE_SIZE	= 32,	/* Support Queue depth */
+	MVS_CAN_QUEUE		= MVS_SLOTS - 2,	/* SCSI Queue depth */
+	MVS_SOC_CAN_QUEUE	= MVS_SOC_SLOTS - 2,
 };
 
 /* unchangeable hardware details */
 enum hardware_details {
 	MVS_MAX_PHYS		= 8,	/* max. possible phys */
 	MVS_MAX_PORTS		= 8,	/* max. possible ports */
-	MVS_RX_FISL_SZ		= 0x400 + (MVS_RX_FIS_COUNT * 0x100),
+	MVS_SOC_PHYS		= 4,	/* soc phys */
+	MVS_SOC_PORTS		= 4,	/* soc phys */
+	MVS_MAX_DEVICES	= 1024,	/* max supported device */
 };
 
 /* peripheral registers (BAR2) */
@@ -133,6 +146,8 @@ enum hw_register_bits {
 	CINT_PORT		= (1U << 8),	/* port0 event */
 	CINT_PORT_MASK_OFFSET	= 8,
 	CINT_PORT_MASK		= (0xFF << CINT_PORT_MASK_OFFSET),
+	CINT_PHY_MASK_OFFSET	= 4,
+	CINT_PHY_MASK		= (0x0F << CINT_PHY_MASK_OFFSET),
 
 	/* TX (delivery) ring bits */
 	TXQ_CMD_SHIFT		= 29,
@@ -142,7 +157,11 @@ enum hw_register_bits {
 	TXQ_CMD_SSP_FREE_LIST	= 4,		/* add to SSP targ free list */
 	TXQ_CMD_SLOT_RESET	= 7,		/* reset command slot */
 	TXQ_MODE_I		= (1U << 28),	/* mode: 0=target,1=initiator */
+	TXQ_MODE_TARGET 	= 0,
+	TXQ_MODE_INITIATOR	= 1,
 	TXQ_PRIO_HI		= (1U << 27),	/* priority: 0=normal, 1=high */
+	TXQ_PRI_NORMAL		= 0,
+	TXQ_PRI_HIGH		= 1,
 	TXQ_SRS_SHIFT		= 20,		/* SATA register set */
 	TXQ_SRS_MASK		= 0x7f,
 	TXQ_PHY_SHIFT		= 12,		/* PHY bitmap */
@@ -175,6 +194,8 @@ enum hw_register_bits {
 	MCH_SSP_FR_READ		= 0x6,		/* Read DATA frame(s) */
 	MCH_SSP_FR_READ_RESP	= 0x7,		/* ditto, plus RESPONSE */
 
+	MCH_SSP_MODE_PASSTHRU	= 1,
+	MCH_SSP_MODE_NORMAL	= 0,
 	MCH_PASSTHRU		= (1U << 12),	/* pass-through (SSP) */
 	MCH_FBURST		= (1U << 11),	/* first burst (SSP) */
 	MCH_CHK_LEN		= (1U << 10),	/* chk xfer len (SSP) */
@@ -199,15 +220,12 @@ enum hw_register_bits {
 	PHY_BCAST_CHG		= (1U << 2),	/* broadcast(change) notif */
 	PHY_RST_HARD		= (1U << 1),	/* hard reset + phy reset */
 	PHY_RST			= (1U << 0),	/* phy reset */
-	PHY_MIN_SPP_PHYS_LINK_RATE_MASK = (0xF << 8),
-	PHY_MAX_SPP_PHYS_LINK_RATE_MASK = (0xF << 12),
-	PHY_NEG_SPP_PHYS_LINK_RATE_MASK_OFFSET = (16),
-	PHY_NEG_SPP_PHYS_LINK_RATE_MASK =
-			(0xF << PHY_NEG_SPP_PHYS_LINK_RATE_MASK_OFFSET),
 	PHY_READY_MASK		= (1U << 20),
 
 	/* MVS_Px_INT_STAT, MVS_Px_INT_MASK (per-phy events) */
 	PHYEV_DEC_ERR		= (1U << 24),	/* Phy Decoding Error */
+	PHYEV_DCDR_ERR		= (1U << 23),	/* STP Deocder Error */
+	PHYEV_CRC_ERR		= (1U << 22),	/* STP CRC Error */
 	PHYEV_UNASSOC_FIS	= (1U << 19),	/* unassociated FIS rx'd */
 	PHYEV_AN		= (1U << 18),	/* SATA async notification */
 	PHYEV_BIST_ACT		= (1U << 17),	/* BIST activate FIS */
@@ -229,9 +247,10 @@ enum hw_register_bits {
 	/* MVS_PCS */
 	PCS_EN_SATA_REG_SHIFT	= (16),		/* Enable SATA Register Set */
 	PCS_EN_PORT_XMT_SHIFT	= (12),		/* Enable Port Transmit */
-	PCS_EN_PORT_XMT_SHIFT2	= (8),		/* For 6480 */
+	PCS_EN_PORT_XMT_SHIFT2	= (8),		/* For 6485 */
 	PCS_SATA_RETRY		= (1U << 8),	/* retry ctl FIS on R_ERR */
 	PCS_RSP_RX_EN		= (1U << 7),	/* raw response rx */
+	PCS_SATA_RETRY_2	= (1U << 6),	/* For 9180 */
 	PCS_SELF_CLEAR		= (1U << 5),	/* self-clearing int mode */
 	PCS_FIS_RX_EN		= (1U << 4),	/* FIS rx enable */
 	PCS_CMD_STOP_ERR	= (1U << 3),	/* cmd stop-on-err enable */
@@ -246,6 +265,8 @@ enum hw_register_bits {
 	PORT_DEV_SMP_INIT	= (1U << 10),
 	PORT_DEV_STP_INIT	= (1U << 9),
 	PORT_PHY_ID_MASK	= (0xFFU << 24),
+	PORT_SSP_TRGT_MASK	= (0x1U << 19),
+	PORT_SSP_INIT_MASK	= (0x1U << 11),
 	PORT_DEV_TRGT_MASK	= (0x7U << 17),
 	PORT_DEV_INIT_MASK	= (0x7U << 9),
 	PORT_DEV_TYPE_MASK	= (0x7U << 0),
@@ -283,21 +304,30 @@ enum sas_sata_config_port_regs {
 	PHYR_ATT_ADDR_HI	= 0x14,	/* attached dev SAS addr (high) */
 	PHYR_SATA_CTL		= 0x18,	/* SATA control */
 	PHYR_PHY_STAT		= 0x1C,	/* PHY status */
-	PHYR_SATA_SIG0		= 0x20,	/*port SATA signature FIS(Byte 0-3) */
-	PHYR_SATA_SIG1		= 0x24,	/*port SATA signature FIS(Byte 4-7) */
-	PHYR_SATA_SIG2		= 0x28,	/*port SATA signature FIS(Byte 8-11) */
-	PHYR_SATA_SIG3		= 0x2c,	/*port SATA signature FIS(Byte 12-15) */
+	PHYR_SATA_SIG0	= 0x20,	/*port SATA signature FIS(Byte 0-3) */
+	PHYR_SATA_SIG1	= 0x24,	/*port SATA signature FIS(Byte 4-7) */
+	PHYR_SATA_SIG2	= 0x28,	/*port SATA signature FIS(Byte 8-11) */
+	PHYR_SATA_SIG3	= 0x2c,	/*port SATA signature FIS(Byte 12-15) */
 	PHYR_R_ERR_COUNT	= 0x30, /* port R_ERR count register */
 	PHYR_CRC_ERR_COUNT	= 0x34, /* port CRC error count register */
-	PHYR_WIDE_PORT		= 0x38,	/* wide port participating */
+	PHYR_WIDE_PORT	= 0x38,	/* wide port participating */
 	PHYR_CURRENT0		= 0x80,	/* current connection info 0 */
 	PHYR_CURRENT1		= 0x84,	/* current connection info 1 */
 	PHYR_CURRENT2		= 0x88,	/* current connection info 2 */
-};
-
-enum mvs_info_flags {
-	MVF_MSI			= (1U << 0),	/* MSI is enabled */
-	MVF_PHY_PWR_FIX		= (1U << 1),	/* bug workaround */
+	CONFIG_ID_FRAME0       = 0x100, /* Port device ID frame register 0 */
+	CONFIG_ID_FRAME1       = 0x104, /* Port device ID frame register 1 */
+	CONFIG_ID_FRAME2       = 0x108, /* Port device ID frame register 2 */
+	CONFIG_ID_FRAME3       = 0x10c, /* Port device ID frame register 3 */
+	CONFIG_ID_FRAME4       = 0x110, /* Port device ID frame register 4 */
+	CONFIG_ID_FRAME5       = 0x114, /* Port device ID frame register 5 */
+	CONFIG_ID_FRAME6       = 0x118, /* Port device ID frame register 6 */
+	CONFIG_ATT_ID_FRAME0   = 0x11c, /* attached ID frame register 0 */
+	CONFIG_ATT_ID_FRAME1   = 0x120, /* attached ID frame register 1 */
+	CONFIG_ATT_ID_FRAME2   = 0x124, /* attached ID frame register 2 */
+	CONFIG_ATT_ID_FRAME3   = 0x128, /* attached ID frame register 3 */
+	CONFIG_ATT_ID_FRAME4   = 0x12c, /* attached ID frame register 4 */
+	CONFIG_ATT_ID_FRAME5   = 0x130, /* attached ID frame register 5 */
+	CONFIG_ATT_ID_FRAME6   = 0x134, /* attached ID frame register 6 */
 };
 
 enum sas_cmd_port_registers {
@@ -305,11 +335,11 @@ enum sas_cmd_port_registers {
 	CMD_CMWK_OOB_DET	= 0x104, /* COMWAKE OOB detect register */
 	CMD_CMSAS_OOB_DET	= 0x108, /* COMSAS OOB detect register */
 	CMD_BRST_OOB_DET	= 0x10c, /* burst OOB detect register */
-	CMD_OOB_SPACE		= 0x110, /* OOB space control register */
-	CMD_OOB_BURST		= 0x114, /* OOB burst control register */
+	CMD_OOB_SPACE	= 0x110, /* OOB space control register */
+	CMD_OOB_BURST	= 0x114, /* OOB burst control register */
 	CMD_PHY_TIMER		= 0x118, /* PHY timer control register */
-	CMD_PHY_CONFIG0		= 0x11c, /* PHY config register 0 */
-	CMD_PHY_CONFIG1		= 0x120, /* PHY config register 1 */
+	CMD_PHY_CONFIG0	= 0x11c, /* PHY config register 0 */
+	CMD_PHY_CONFIG1	= 0x120, /* PHY config register 1 */
 	CMD_SAS_CTL0		= 0x124, /* SAS control register 0 */
 	CMD_SAS_CTL1		= 0x128, /* SAS control register 1 */
 	CMD_SAS_CTL2		= 0x12c, /* SAS control register 2 */
@@ -318,9 +348,9 @@ enum sas_cmd_port_registers {
 	CMD_PL_TIMER		= 0x138, /* PL timer register */
 	CMD_WD_TIMER		= 0x13c, /* WD timer register */
 	CMD_PORT_SEL_COUNT	= 0x140, /* port selector count register */
-	CMD_APP_MEM_CTL		= 0x144, /* Application Memory Control */
-	CMD_XOR_MEM_CTL		= 0x148, /* XOR Block Memory Control */
-	CMD_DMA_MEM_CTL		= 0x14c, /* DMA Block Memory Control */
+	CMD_APP_MEM_CTL	= 0x144, /* Application Memory Control */
+	CMD_XOR_MEM_CTL	= 0x148, /* XOR Block Memory Control */
+	CMD_DMA_MEM_CTL	= 0x14c, /* DMA Block Memory Control */
 	CMD_PORT_MEM_CTL0	= 0x150, /* Port Memory Control 0 */
 	CMD_PORT_MEM_CTL1	= 0x154, /* Port Memory Control 1 */
 	CMD_SATA_PORT_MEM_CTL0	= 0x158, /* SATA Port Memory Control 0 */
@@ -353,27 +383,25 @@ enum sas_cmd_port_registers {
 	CMD_PND_FIFO_CTL1	= 0x1C4, /* Pending FIFO Control 1 */
 };
 
-enum pci_cfg_register_bits {
-	PCTL_PWR_ON	= (0xFU << 24),
-	PCTL_OFF	= (0xFU << 12),
-	PRD_REQ_SIZE	= (0x4000),
-	PRD_REQ_MASK	= (0x00007000),
+enum mvs_info_flags {
+	MVF_MSI		= (1U << 0),	/* MSI is enabled */
+	MVF_PHY_PWR_FIX	= (1U << 1),	/* bug workaround */
+	MVF_FLAG_SOC		= (1U << 2),	/* SoC integrated controllers */
 };
 
-enum nvram_layout_offsets {
-	NVR_SIG		= 0x00,		/* 0xAA, 0x55 */
-	NVR_SAS_ADDR	= 0x02,		/* 8-byte SAS address */
+enum mvs_event_flags {
+	PHY_PLUG_EVENT	= (3U),
+	PHY_PLUG_IN		= (1U << 0),	/* phy plug in */
+	PHY_PLUG_OUT		= (1U << 1),	/* phy plug out */
 };
 
-enum chip_flavors {
-	chip_6320,
-	chip_6440,
-	chip_6480,
-};
-
-enum port_type {
-	PORT_TYPE_SAS	=  (1L << 1),
-	PORT_TYPE_SATA	=  (1L << 0),
+enum mvs_port_type {
+	PORT_TGT_MASK	=  (1U << 5),
+	PORT_INIT_PORT	=  (1U << 4),
+	PORT_TGT_PORT	=  (1U << 3),
+	PORT_INIT_TGT_PORT = (PORT_INIT_PORT | PORT_TGT_PORT),
+	PORT_TYPE_SAS	=  (1U << 1),
+	PORT_TYPE_SATA	=  (1U << 0),
 };
 
 /* Command Table Format */
@@ -438,4 +466,37 @@ enum error_info_rec_2 {
 	USR_BLK_NM	= (1U << 0),	/* User Block Number */
 };
 
+enum pci_cfg_register_bits {
+	PCTL_PWR_OFF	= (0xFU << 24),
+	PCTL_COM_ON	= (0xFU << 20),
+	PCTL_LINK_RST	= (0xFU << 16),
+	PCTL_LINK_OFFS	= (16),
+	PCTL_PHY_DSBL	= (0xFU << 12),
+	PCTL_PHY_DSBL_OFFS	= (12),
+	PRD_REQ_SIZE	= (0x4000),
+	PRD_REQ_MASK	= (0x00007000),
+	PLS_NEG_LINK_WD		= (0x3FU << 4),
+	PLS_NEG_LINK_WD_OFFS	= 4,
+	PLS_LINK_SPD		= (0x0FU << 0),
+	PLS_LINK_SPD_OFFS	= 0,
+};
+
+enum open_frame_protocol {
+	PROTOCOL_SMP	= 0x0,
+	PROTOCOL_SSP	= 0x1,
+	PROTOCOL_STP	= 0x2,
+};
+
+/* define for response frame datapres field */
+enum datapres_field {
+	NO_DATA		= 0,
+	RESPONSE_DATA	= 1,
+	SENSE_DATA	= 2,
+};
+
+/* define task management IU */
+struct mvs_tmf_task{
+	u8 tmf;
+	u16 tag_of_task_to_be_managed;
+};
 #endif
