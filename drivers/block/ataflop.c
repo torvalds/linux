@@ -1404,10 +1404,9 @@ static void redo_fd_request(void)
 
 repeat:
 	if (!fd_request) {
-		fd_request = elv_next_request(floppy_queue);
+		fd_request = blk_fetch_request(floppy_queue);
 		if (!fd_request)
 			goto the_end;
-		blkdev_dequeue_request(fd_request);
 	}
 
 	floppy = fd_request->rq_disk->private_data;

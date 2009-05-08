@@ -720,10 +720,9 @@ static void do_pcd_request(struct request_queue * q)
 		return;
 	while (1) {
 		if (!pcd_req) {
-			pcd_req = elv_next_request(q);
+			pcd_req = blk_fetch_request(q);
 			if (!pcd_req)
 				return;
-			blkdev_dequeue_request(pcd_req);
 		}
 
 		if (rq_data_dir(pcd_req) == READ) {

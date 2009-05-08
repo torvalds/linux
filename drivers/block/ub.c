@@ -627,7 +627,7 @@ static void ub_request_fn(struct request_queue *q)
 	struct ub_lun *lun = q->queuedata;
 	struct request *rq;
 
-	while ((rq = elv_next_request(q)) != NULL) {
+	while ((rq = blk_peek_request(q)) != NULL) {
 		if (ub_request_fn_1(lun, rq) != 0) {
 			blk_stop_queue(q);
 			break;
@@ -643,13 +643,13 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 	int n_elem;
 
 	if (atomic_read(&sc->poison)) {
-		blkdev_dequeue_request(rq);
+		blk_start_request(rq);
 		ub_end_rq(rq, DID_NO_CONNECT << 16, blk_rq_bytes(rq));
 		return 0;
 	}
 
 	if (lun->changed && !blk_pc_request(rq)) {
-		blkdev_dequeue_request(rq);
+		blk_start_request(rq);
 		ub_end_rq(rq, SAM_STAT_CHECK_CONDITION, blk_rq_bytes(rq));
 		return 0;
 	}
@@ -660,7 +660,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 		return -1;
 	memset(cmd, 0, sizeof(struct ub_scsi_cmd));
 
-	blkdev_dequeue_request(rq);
+	blk_start_request(rq);
 
 	urq = &lun->urq;
 	memset(urq, 0, sizeof(struct ub_request));

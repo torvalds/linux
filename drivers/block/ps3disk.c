@@ -194,9 +194,7 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 
 	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
 
-	while ((req = elv_next_request(q))) {
-		blkdev_dequeue_request(req);
-
+	while ((req = blk_fetch_request(q))) {
 		if (blk_fs_request(req)) {
 			if (ps3disk_submit_request_sg(dev, req))
 				break;

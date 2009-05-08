@@ -463,10 +463,10 @@ struct request *ace_get_next_request(struct request_queue * q)
 {
 	struct request *req;
 
-	while ((req = elv_next_request(q)) != NULL) {
+	while ((req = blk_peek_request(q)) != NULL) {
 		if (blk_fs_request(req))
 			break;
-		blkdev_dequeue_request(req);
+		blk_start_request(req);
 		__blk_end_request_all(req, -EIO);
 	}
 	return req;
@@ -498,10 +498,8 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			__blk_end_request_all(ace->req, -EIO);
 			ace->req = NULL;
 		}
-		while ((req = elv_next_request(ace->queue)) != NULL) {
-			blkdev_dequeue_request(req);
+		while ((req = blk_fetch_request(ace->queue)) != NULL)
 			__blk_end_request_all(req, -EIO);
-		}
 
 		/* Drop back to IDLE state and notify waiters */
 		ace->fsm_state = ACE_FSM_STATE_IDLE;
@@ -649,7 +647,7 @@ static void ace_fsm_dostate(struct ace_device *ace)
 			ace->fsm_state = ACE_FSM_STATE_IDLE;
 			break;
 		}
-		blkdev_dequeue_request(req);
+		blk_start_request(req);
 
 		/* Okay, it's a data request, set it up for transfer */
 		dev_dbg(ace->dev,

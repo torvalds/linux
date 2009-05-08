@@ -412,11 +412,9 @@ static void run_fsm(void)
 				spin_lock_irqsave(&pd_lock, saved_flags);
 				if (!__blk_end_request_cur(pd_req,
 						res == Ok ? 0 : -EIO)) {
-					pd_req = elv_next_request(pd_queue);
+					pd_req = blk_fetch_request(pd_queue);
 					if (!pd_req)
 						stop = 1;
-					else
-						blkdev_dequeue_request(pd_req);
 				}
 				spin_unlock_irqrestore(&pd_lock, saved_flags);
 				if (stop)
@@ -706,10 +704,9 @@ static void do_pd_request(struct request_queue * q)
 {
 	if (pd_req)
 		return;
-	pd_req = elv_next_request(q);
+	pd_req = blk_fetch_request(q);
 	if (!pd_req)
 		return;
-	blkdev_dequeue_request(pd_req);
 
 	schedule_fsm();
 }

@@ -374,7 +374,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	rq->cmd_flags |= REQ_QUEUED;
 	rq->tag = tag;
 	bqt->tag_index[tag] = rq;
-	blkdev_dequeue_request(rq);
+	blk_start_request(rq);
 	list_add(&rq->queuelist, &q->tag_busy_list);
 	return 0;
 }

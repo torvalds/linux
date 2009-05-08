@@ -361,11 +361,9 @@ static void do_viodasd_request(struct request_queue *q)
 	 * back later.
 	 */
 	while (num_req_outstanding < VIOMAXREQ) {
-		req = elv_next_request(q);
+		req = blk_fetch_request(q);
 		if (req == NULL)
 			return;
-		/* dequeue the current request from the queue */
-		blkdev_dequeue_request(req);
 		/* check that request contains a valid command */
 		if (!blk_fs_request(req)) {
 			viodasd_end_request(req, -EIO, blk_rq_sectors(req));

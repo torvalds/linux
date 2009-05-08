@@ -902,6 +902,8 @@ EXPORT_SYMBOL(blk_get_request);
  */
 void blk_requeue_request(struct request_queue *q, struct request *rq)
 {
+	BUG_ON(blk_queued_rq(rq));
+
 	blk_delete_timer(rq);
 	blk_clear_rq_complete(rq);
 	trace_block_rq_requeue(q, rq);
@@ -1610,28 +1612,6 @@ int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
 }
 EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
 
-/**
- * blkdev_dequeue_request - dequeue request and start timeout timer
- * @req: request to dequeue
- *
- * Dequeue @req and start timeout timer on it.  This hands off the
- * request to the driver.
- *
- * Block internal functions which don't want to start timer should
- * call elv_dequeue_request().
- */
-void blkdev_dequeue_request(struct request *req)
-{
-	elv_dequeue_request(req->q, req);
-
-	/*
-	 * We are now handing the request to the hardware, add the
-	 * timeout handler.
-	 */
-	blk_add_timer(req);
-}
-EXPORT_SYMBOL(blkdev_dequeue_request);
-
 static void blk_account_io_completion(struct request *req, unsigned int bytes)
 {
 	if (blk_do_io_stat(req)) {
@@ -1671,7 +1651,23 @@ static void blk_account_io_done(struct request *req)
 	}
 }
 
-struct request *elv_next_request(struct request_queue *q)
+/**
+ * blk_peek_request - peek at the top of a request queue
+ * @q: request queue to peek at
+ *
+ * Description:
+ *     Return the request at the top of @q.  The returned request
+ *     should be started using blk_start_request() before LLD starts
+ *     processing it.
+ *
+ * Return:
+ *     Pointer to the request at the top of @q if available.  Null
+ *     otherwise.
+ *
+ * Context:
+ *     queue_lock must be held.
+ */
+struct request *blk_peek_request(struct request_queue *q)
 {
 	struct request *rq;
 	int ret;
@@ -1748,10 +1744,12 @@ struct request *elv_next_request(struct request_queue *q)
 
 	return rq;
 }
-EXPORT_SYMBOL(elv_next_request);
+EXPORT_SYMBOL(blk_peek_request);
 
-void elv_dequeue_request(struct request_queue *q, struct request *rq)
+void blk_dequeue_request(struct request *rq)
 {
+	struct request_queue *q = rq->q;
+
 	BUG_ON(list_empty(&rq->queuelist));
 	BUG_ON(ELV_ON_HASH(rq));
 
@@ -1765,6 +1763,58 @@ void elv_dequeue_request(struct request_queue *q, struct request *rq)
 	if (blk_account_rq(rq))
 		q->in_flight++;
 }
+
+/**
+ * blk_start_request - start request processing on the driver
+ * @req: request to dequeue
+ *
+ * Description:
+ *     Dequeue @req and start timeout timer on it.  This hands off the
+ *     request to the driver.
+ *
+ *     Block internal functions which don't want to start timer should
+ *     call blk_dequeue_request().
+ *
+ * Context:
+ *     queue_lock must be held.
+ */
+void blk_start_request(struct request *req)
+{
+	blk_dequeue_request(req);
+
+	/*
+	 * We are now handing the request to the hardware, add the
+	 * timeout handler.
+	 */
+	blk_add_timer(req);
+}
+EXPORT_SYMBOL(blk_start_request);
+
+/**
+ * blk_fetch_request - fetch a request from a request queue
+ * @q: request queue to fetch a request from
+ *
+ * Description:
+ *     Return the request at the top of @q.  The request is started on
+ *     return and LLD can start processing it immediately.
+ *
+ * Return:
+ *     Pointer to the request at the top of @q if available.  Null
+ *     otherwise.
+ *
+ * Context:
+ *     queue_lock must be held.
+ */
+struct request *blk_fetch_request(struct request_queue *q)
+{
+	struct request *rq;
+
+	rq = blk_peek_request(q);
+	if (rq)
+		blk_start_request(rq);
+	return rq;
+}
+EXPORT_SYMBOL(blk_fetch_request);
 
 /**
  * blk_update_request - Special helper function for request stacking drivers
@@ -1937,11 +1987,10 @@ static bool blk_update_bidi_request(struct request *rq, int error,
  */
 static void blk_finish_request(struct request *req, int error)
 {
+	BUG_ON(blk_queued_rq(req));
+
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);
-
-	if (blk_queued_rq(req))
-		elv_dequeue_request(req->q, req);
 
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();

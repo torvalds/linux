@@ -100,12 +100,7 @@ static int mtd_blktrans_thread(void *arg)
 		struct mtd_blktrans_dev *dev;
 		int res;
 
-		if (!req) {
-			req = elv_next_request(rq);
-			if (req)
-				blkdev_dequeue_request(req);
-		}
-		if (!req) {
+		if (!req && !(req = blk_fetch_request(rq))) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(rq->queue_lock);
 			schedule();

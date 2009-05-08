@@ -299,13 +299,13 @@ static void do_blkif_request(struct request_queue *rq)
 
 	queued = 0;
 
-	while ((req = elv_next_request(rq)) != NULL) {
+	while ((req = blk_peek_request(rq)) != NULL) {
 		info = req->rq_disk->private_data;
 
 		if (RING_FULL(&info->ring))
 			goto wait;
 
-		blkdev_dequeue_request(req);
+		blk_start_request(req);
 
 		if (!blk_fs_request(req)) {
 			__blk_end_request_all(req, -EIO);

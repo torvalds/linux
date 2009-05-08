@@ -128,7 +128,7 @@ static void do_virtblk_request(struct request_queue *q)
 	struct request *req;
 	unsigned int issued = 0;
 
-	while ((req = elv_next_request(q)) != NULL) {
+	while ((req = blk_peek_request(q)) != NULL) {
 		vblk = req->rq_disk->private_data;
 		BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
 
@@ -138,7 +138,7 @@ static void do_virtblk_request(struct request_queue *q)
 			blk_stop_queue(q);
 			break;
 		}
-		blkdev_dequeue_request(req);
+		blk_start_request(req);
 		issued++;
 	}
 

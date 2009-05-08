@@ -592,12 +592,11 @@ repeat:
 	del_timer(&device_timer);
 
 	if (!hd_req) {
-		hd_req = elv_next_request(hd_queue);
+		hd_req = blk_fetch_request(hd_queue);
 		if (!hd_req) {
 			do_hd = NULL;
 			return;
 		}
-		blkdev_dequeue_request(hd_req);
 	}
 	req = hd_req;
 

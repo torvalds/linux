@@ -93,7 +93,7 @@ __tapeblock_end_request(struct tape_request *ccw_req, void *data)
 		device->blk_data.block_position = -1;
 	device->discipline->free_bread(ccw_req);
 	if (!list_empty(&device->req_queue) ||
-	    elv_next_request(device->blk_data.request_queue))
+	    blk_peek_request(device->blk_data.request_queue))
 		tapeblock_trigger_requeue(device);
 }
 
@@ -162,19 +162,16 @@ tapeblock_requeue(struct work_struct *work) {
 	spin_lock_irq(&device->blk_data.request_queue_lock);
 	while (
 		!blk_queue_plugged(queue) &&
-		elv_next_request(queue)   &&
+		(req = blk_fetch_request(queue)) &&
 		nr_queued < TAPEBLOCK_MIN_REQUEUE
 	) {
-		req = elv_next_request(queue);
 		if (rq_data_dir(req) == WRITE) {
 			DBF_EVENT(1, "TBLOCK: Rejecting write request\n");
-			blkdev_dequeue_request(req);
 			spin_unlock_irq(&device->blk_data.request_queue_lock);
 			blk_end_request_all(req, -EIO);
 			spin_lock_irq(&device->blk_data.request_queue_lock);
 			continue;
 		}
-		blkdev_dequeue_request(req);
 		nr_queued++;
 		spin_unlock_irq(&device->blk_data.request_queue_lock);
 		rc = tapeblock_start_request(device, req);

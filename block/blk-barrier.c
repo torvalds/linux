@@ -180,7 +180,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	}
 
 	/* stash away the original request */
-	elv_dequeue_request(q, rq);
+	blk_dequeue_request(rq);
 	q->orig_bar_rq = rq;
 	rq = NULL;
 
@@ -248,7 +248,7 @@ bool blk_do_ordered(struct request_queue *q, struct request **rqp)
 			 * Queue ordering not supported.  Terminate
 			 * with prejudice.
 			 */
-			elv_dequeue_request(q, rq);
+			blk_dequeue_request(rq);
 			__blk_end_request_all(rq, -EOPNOTSUPP);
 			*rqp = NULL;
 			return false;

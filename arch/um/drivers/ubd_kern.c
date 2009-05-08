@@ -1228,12 +1228,11 @@ static void do_ubd_request(struct request_queue *q)
 	while(1){
 		struct ubd *dev = q->queuedata;
 		if(dev->end_sg == 0){
-			struct request *req = elv_next_request(q);
+			struct request *req = blk_fetch_request(q);
 			if(req == NULL)
 				return;
 
 			dev->request = req;
-			blkdev_dequeue_request(req);
 			dev->start_sg = 0;
 			dev->end_sg = blk_rq_map_sg(q, req, dev->sg);
 		}

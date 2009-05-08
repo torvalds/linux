@@ -931,7 +931,7 @@ static inline void unlock_fdc(void)
 	del_timer(&fd_timeout);
 	cont = NULL;
 	clear_bit(0, &fdc_busy);
-	if (current_req || elv_next_request(floppy_queue))
+	if (current_req || blk_peek_request(floppy_queue))
 		do_fd_request(floppy_queue);
 	spin_unlock_irqrestore(&floppy_lock, flags);
 	wake_up(&fdc_wait);
@@ -2912,9 +2912,7 @@ static void redo_fd_request(void)
 			struct request *req;
 
 			spin_lock_irq(floppy_queue->queue_lock);
-			req = elv_next_request(floppy_queue);
-			if (req)
-				blkdev_dequeue_request(req);
+			req = blk_fetch_request(floppy_queue);
 			spin_unlock_irq(floppy_queue->queue_lock);
 			if (!req) {
 				do_floppy = NULL;

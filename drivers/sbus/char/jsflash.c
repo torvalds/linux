@@ -186,10 +186,7 @@ static void jsfd_do_request(struct request_queue *q)
 {
 	struct request *req;
 
-	req = elv_next_request(q);
-	if (req)
-		blkdev_dequeue_request(req);
-
+	req = blk_fetch_request(q);
 	while (req) {
 		struct jsfd_part *jdp = req->rq_disk->private_data;
 		unsigned long offset = blk_rq_pos(req) << 9;
@@ -212,11 +209,8 @@ static void jsfd_do_request(struct request_queue *q)
 		jsfd_read(req->buffer, jdp->dbase + offset, len);
 		err = 0;
 	end:
-		if (!__blk_end_request_cur(req, err)) {
-			req = elv_next_request(q);
-			if (req)
-				blkdev_dequeue_request(req);
-		}
+		if (!__blk_end_request_cur(req, err))
+			req = blk_fetch_request(q);
 	}
 }
 

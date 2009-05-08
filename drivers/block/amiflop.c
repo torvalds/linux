@@ -1342,12 +1342,11 @@ static void redo_fd_request(void)
 	int err;
 
 next_req:
-	rq = elv_next_request(floppy_queue);
+	rq = blk_fetch_request(floppy_queue);
 	if (!rq) {
 		/* Nothing left to do */
 		return;
 	}
-	blkdev_dequeue_request(rq);
 
 	floppy = rq->rq_disk->private_data;
 	drive = floppy - unit;

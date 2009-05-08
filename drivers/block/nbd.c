@@ -533,10 +533,8 @@ static void do_nbd_request(struct request_queue *q)
 {
 	struct request *req;
 	
-	while ((req = elv_next_request(q)) != NULL) {
+	while ((req = blk_fetch_request(q)) != NULL) {
 		struct nbd_device *lo;
-
-		blkdev_dequeue_request(req);
 
 		spin_unlock_irq(q->queue_lock);
 

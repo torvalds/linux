@@ -71,10 +71,7 @@ static void do_z2_request(struct request_queue *q)
 {
 	struct request *req;
 
-	req = elv_next_request(q);
-	if (req)
-		blkdev_dequeue_request(req);
-
+	req = blk_fetch_request(q);
 	while (req) {
 		unsigned long start = blk_rq_pos(req) << 9;
 		unsigned long len  = blk_rq_cur_bytes(req);
@@ -100,11 +97,8 @@ static void do_z2_request(struct request_queue *q)
 			len -= size;
 		}
 	done:
-		if (!__blk_end_request_cur(req, err)) {
-			req = elv_next_request(q);
-			if (req)
-				blkdev_dequeue_request(req);
-		}
+		if (!__blk_end_request_cur(req, err))
+			req = blk_fetch_request(q);
 	}
 }
 

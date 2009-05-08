@@ -762,10 +762,9 @@ static void do_pf_request(struct request_queue * q)
 		return;
 repeat:
 	if (!pf_req) {
-		pf_req = elv_next_request(q);
+		pf_req = blk_fetch_request(q);
 		if (!pf_req)
 			return;
-		blkdev_dequeue_request(pf_req);
 	}
 
 	pf_current = pf_req->rq_disk->private_data;

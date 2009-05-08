@@ -2801,7 +2801,7 @@ static void do_cciss_request(struct request_queue *q)
 		goto startio;
 
       queue:
-	creq = elv_next_request(q);
+	creq = blk_peek_request(q);
 	if (!creq)
 		goto startio;
 
@@ -2810,7 +2810,7 @@ static void do_cciss_request(struct request_queue *q)
 	if ((c = cmd_alloc(h, 1)) == NULL)
 		goto full;
 
-	blkdev_dequeue_request(creq);
+	blk_start_request(creq);
 
 	spin_unlock_irq(q->queue_lock);
 

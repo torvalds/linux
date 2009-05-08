@@ -671,10 +671,8 @@ static void mg_request_poll(struct request_queue *q)
 
 	while (1) {
 		if (!host->req) {
-			host->req = elv_next_request(q);
-			if (host->req)
-				blkdev_dequeue_request(host->req);
-			else
+			host->req = blk_fetch_request(q);
+			if (!host->req)
 				break;
 		}
 
@@ -744,10 +742,8 @@ static void mg_request(struct request_queue *q)
 
 	while (1) {
 		if (!host->req) {
-			host->req = elv_next_request(q);
-			if (host->req)
-				blkdev_dequeue_request(host->req);
-			else
+			host->req = blk_fetch_request(q);
+			if (!host->req)
 				break;
 		}
 		req = host->req;

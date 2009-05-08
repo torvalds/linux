@@ -441,12 +441,11 @@ out:
 static void do_vdc_request(struct request_queue *q)
 {
 	while (1) {
-		struct request *req = elv_next_request(q);
+		struct request *req = blk_fetch_request(q);
 
 		if (!req)
 			break;
 
-		blkdev_dequeue_request(req);
 		if (__send_request(req) < 0)
 			__blk_end_request_all(req, -EIO);
 	}

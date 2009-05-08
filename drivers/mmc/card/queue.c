@@ -54,11 +54,8 @@ static int mmc_queue_thread(void *d)
 
 		spin_lock_irq(q->queue_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!blk_queue_plugged(q)) {
-			req = elv_next_request(q);
-			if (req)
-				blkdev_dequeue_request(req);
-		}
+		if (!blk_queue_plugged(q))
+			req = blk_fetch_request(q);
 		mq->req = req;
 		spin_unlock_irq(q->queue_lock);
 
@@ -94,10 +91,8 @@ static void mmc_request(struct request_queue *q)
 
 	if (!mq) {
 		printk(KERN_ERR "MMC: killing requests for dead queue\n");
-		while ((req = elv_next_request(q)) != NULL) {
-			blkdev_dequeue_request(req);
+		while ((req = blk_fetch_request(q)) != NULL)
 			__blk_end_request_all(req, -EIO);
-		}
 		return;
 	}
 

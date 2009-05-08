@@ -326,10 +326,9 @@ static void start_request(struct floppy_state *fs)
 	}
 	while (fs->state == idle) {
 		if (!fd_req) {
-			fd_req = elv_next_request(swim3_queue);
+			fd_req = blk_fetch_request(swim3_queue);
 			if (!fd_req)
 				break;
-			blkdev_dequeue_request(fd_req);
 		}
 		req = fd_req;
 #if 0

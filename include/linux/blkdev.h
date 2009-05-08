@@ -818,8 +818,6 @@ static inline void blk_run_address_space(struct address_space *mapping)
 		blk_run_backing_dev(mapping->backing_dev_info, NULL);
 }
 
-extern void blkdev_dequeue_request(struct request *req);
-
 /*
  * blk_rq_pos()		: the current sector
  * blk_rq_bytes()	: bytes left in the entire request
@@ -851,6 +849,13 @@ static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> 9;
 }
+
+/*
+ * Request issue related functions.
+ */
+extern struct request *blk_peek_request(struct request_queue *q);
+extern void blk_start_request(struct request *rq);
+extern struct request *blk_fetch_request(struct request_queue *q);
 
 /*
  * Request completion related functions.

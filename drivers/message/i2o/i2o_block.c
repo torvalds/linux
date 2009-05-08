@@ -877,7 +877,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 	struct request *req;
 
 	while (!blk_queue_plugged(q)) {
-		req = elv_next_request(q);
+		req = blk_peek_request(q);
 		if (!req)
 			break;
 
@@ -890,7 +890,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 
 			if (queue_depth < I2O_BLOCK_MAX_OPEN_REQUESTS) {
 				if (!i2o_block_transfer(req)) {
-					blkdev_dequeue_request(req);
+					blk_start_request(req);
 					continue;
 				} else
 					osm_info("transfer error\n");
@@ -917,7 +917,7 @@ static void i2o_block_request_fn(struct request_queue *q)
 				break;
 			}
 		} else {
-			blkdev_dequeue_request(req);
+			blk_start_request(req);
 			__blk_end_request_all(req, -EIO);
 		}
 	}

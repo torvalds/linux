@@ -903,7 +903,7 @@ static void do_ida_request(struct request_queue *q)
 		goto startio;
 
 queue_next:
-	creq = elv_next_request(q);
+	creq = blk_peek_request(q);
 	if (!creq)
 		goto startio;
 
@@ -912,7 +912,7 @@ queue_next:
 	if ((c = cmd_alloc(h,1)) == NULL)
 		goto startio;
 
-	blkdev_dequeue_request(creq);
+	blk_start_request(creq);
 
 	c->ctlr = h->ctlr;
 	c->hdr.unit = (drv_info_t *)(creq->rq_disk->private_data) - h->drv;

@@ -305,10 +305,7 @@ static void do_xd_request (struct request_queue * q)
 	if (xdc_busy)
 		return;
 
-	req = elv_next_request(q);
-	if (req)
-		blkdev_dequeue_request(req);
-
+	req = blk_fetch_request(q);
 	while (req) {
 		unsigned block = blk_rq_pos(req);
 		unsigned count = blk_rq_cur_sectors(req);
@@ -325,11 +322,8 @@ static void do_xd_request (struct request_queue * q)
 					   block, count);
 	done:
 		/* wrap up, 0 = success, -errno = fail */
-		if (!__blk_end_request_cur(req, res)) {
-			req = elv_next_request(q);
-			if (req)
-				blkdev_dequeue_request(req);
-		}
+		if (!__blk_end_request_cur(req, res))
+			req = blk_fetch_request(q);
 	}
 }
 

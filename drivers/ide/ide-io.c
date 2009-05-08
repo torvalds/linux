@@ -519,11 +519,8 @@ repeat:
 		 * we know that the queue isn't empty, but this can happen
 		 * if the q->prep_rq_fn() decides to kill a request
 		 */
-		if (!rq) {
-			rq = elv_next_request(drive->queue);
-			if (rq)
-				blkdev_dequeue_request(rq);
-		}
+		if (!rq)
+			rq = blk_fetch_request(drive->queue);
 
 		spin_unlock_irq(q->queue_lock);
 		spin_lock_irq(&hwif->lock);
@@ -536,7 +533,7 @@ repeat:
 		/*
 		 * Sanity: don't accept a request that isn't a PM request
 		 * if we are currently power managed. This is very important as
-		 * blk_stop_queue() doesn't prevent the elv_next_request()
+		 * blk_stop_queue() doesn't prevent the blk_fetch_request()
 		 * above to return us whatever is in the queue. Since we call
 		 * ide_do_request() ourselves, we end up taking requests while
 		 * the queue is blocked...

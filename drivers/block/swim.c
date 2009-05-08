@@ -528,10 +528,7 @@ static void redo_fd_request(struct request_queue *q)
 	struct request *req;
 	struct floppy_state *fs;
 
-	req = elv_next_request(q);
-	if (req)
-		blkdev_dequeue_request(req);
-
+	req = blk_fetch_request(q);
 	while (req) {
 		int err = -EIO;
 
@@ -554,11 +551,8 @@ static void redo_fd_request(struct request_queue *q)
 			break;
 		}
 	done:
-		if (!__blk_end_request_cur(req, err)) {
-			req = elv_next_request(q);
-			if (req)
-				blkdev_dequeue_request(req);
-		}
+		if (!__blk_end_request_cur(req, err))
+			req = blk_fetch_request(q);
 	}
 }
 

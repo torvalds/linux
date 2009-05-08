@@ -642,9 +642,7 @@ static void gdrom_request(struct request_queue *rq)
 {
 	struct request *req;
 
-	while ((req = elv_next_request(rq)) != NULL) {
-		blkdev_dequeue_request(req);
-
+	while ((req = blk_fetch_request(rq)) != NULL) {
 		if (!blk_fs_request(req)) {
 			printk(KERN_DEBUG "GDROM: Non-fs request ignored\n");
 			__blk_end_request_all(req, -EIO);

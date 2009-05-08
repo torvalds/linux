@@ -1207,7 +1207,7 @@ int scsi_prep_return(struct request_queue *q, struct request *req, int ret)
 		break;
 	case BLKPREP_DEFER:
 		/*
-		 * If we defer, the elv_next_request() returns NULL, but the
+		 * If we defer, the blk_peek_request() returns NULL, but the
 		 * queue must be restarted, so we plug here if no returning
 		 * command will automatically do that.
 		 */
@@ -1385,7 +1385,7 @@ static void scsi_kill_request(struct request *req, struct request_queue *q)
 	struct scsi_target *starget = scsi_target(sdev);
 	struct Scsi_Host *shost = sdev->host;
 
-	blkdev_dequeue_request(req);
+	blk_start_request(req);
 
 	if (unlikely(cmd == NULL)) {
 		printk(KERN_CRIT "impossible request in %s.\n",
@@ -1477,7 +1477,7 @@ static void scsi_request_fn(struct request_queue *q)
 
 	if (!sdev) {
 		printk("scsi: killing requests for dead queue\n");
-		while ((req = elv_next_request(q)) != NULL)
+		while ((req = blk_peek_request(q)) != NULL)
 			scsi_kill_request(req, q);
 		return;
 	}
@@ -1498,7 +1498,7 @@ static void scsi_request_fn(struct request_queue *q)
 		 * that the request is fully prepared even if we cannot 
 		 * accept it.
 		 */
-		req = elv_next_request(q);
+		req = blk_peek_request(q);
 		if (!req || !scsi_dev_queue_ready(q, sdev))
 			break;
 
@@ -1514,7 +1514,7 @@ static void scsi_request_fn(struct request_queue *q)
 		 * Remove the request from the request list.
 		 */
 		if (!(blk_queue_tagged(q) && !blk_queue_start_tag(q, req)))
-			blkdev_dequeue_request(req);
+			blk_start_request(req);
 		sdev->device_busy++;
 
 		spin_unlock(q->queue_lock);

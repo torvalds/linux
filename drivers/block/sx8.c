@@ -810,11 +810,9 @@ static void carm_oob_rq_fn(struct request_queue *q)
 
 	while (1) {
 		DPRINTK("get req\n");
-		rq = elv_next_request(q);
+		rq = blk_fetch_request(q);
 		if (!rq)
 			break;
-
-		blkdev_dequeue_request(rq);
 
 		crq = rq->special;
 		assert(crq != NULL);
@@ -846,7 +844,7 @@ static void carm_rq_fn(struct request_queue *q)
 
 queue_one_request:
 	VPRINTK("get req\n");
-	rq = elv_next_request(q);
+	rq = blk_peek_request(q);
 	if (!rq)
 		return;
 
@@ -857,7 +855,7 @@ queue_one_request:
 	}
 	crq->rq = rq;
 
-	blkdev_dequeue_request(rq);
+	blk_start_request(rq);
 
 	if (rq_data_dir(rq) == WRITE) {
 		writing = 1;

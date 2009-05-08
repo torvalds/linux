@@ -269,7 +269,7 @@ void ide_retry_pc(ide_drive_t *drive)
 	blk_requeue_request(failed_rq->q, failed_rq);
 	drive->hwif->rq = NULL;
 	if (ide_queue_sense_rq(drive, pc)) {
-		blkdev_dequeue_request(failed_rq);
+		blk_start_request(failed_rq);
 		ide_complete_rq(drive, -EIO, blk_rq_bytes(failed_rq));
 	}
 }
