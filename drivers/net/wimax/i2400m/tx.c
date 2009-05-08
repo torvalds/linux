@@ -773,7 +773,6 @@ void i2400m_tx_msg_sent(struct i2400m *i2400m)
 	n = i2400m->tx_out / I2400M_TX_BUF_SIZE;
 	i2400m->tx_out %= I2400M_TX_BUF_SIZE;
 	i2400m->tx_in -= n * I2400M_TX_BUF_SIZE;
-	netif_start_queue(i2400m->wimax_dev.net_dev);
 	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 }
