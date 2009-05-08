@@ -129,31 +129,17 @@ static inline int cifs_posix_open_inode_helper(struct inode *inode,
 			struct file *file, struct cifsInodeInfo *pCifsInode,
 			struct cifsFileInfo *pCifsFile, int oplock, u16 netfid)
 {
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-/*	struct timespec temp; */   /* BB REMOVEME BB */
 
 	file->private_data = kmalloc(sizeof(struct cifsFileInfo), GFP_KERNEL);
 	if (file->private_data == NULL)
 		return -ENOMEM;
 	pCifsFile = cifs_init_private(file->private_data, inode, file, netfid);
 	write_lock(&GlobalSMBSeslock);
-	list_add(&pCifsFile->tlist, &cifs_sb->tcon->openFileList);
 
 	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
 	if (pCifsInode == NULL) {
 		write_unlock(&GlobalSMBSeslock);
 		return -EINVAL;
-	}
-
-	/* want handles we can use to read with first
-	   in the list so we do not have to walk the
-	   list to search for one in write_begin */
-	if ((file->f_flags & O_ACCMODE) == O_WRONLY) {
-		list_add_tail(&pCifsFile->flist,
-			      &pCifsInode->openFileList);
-	} else {
-		list_add(&pCifsFile->flist,
-			 &pCifsInode->openFileList);
 	}
 
 	if (pCifsInode->clientCanCacheRead) {
