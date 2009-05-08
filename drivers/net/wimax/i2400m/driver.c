@@ -180,7 +180,6 @@ int i2400m_schedule_work(struct i2400m *i2400m,
 	int result;
 	struct i2400m_work *iw;
 
-	BUG_ON(i2400m->work_queue == NULL);
 	result = -ENOMEM;
 	iw = kzalloc(sizeof(*iw), gfp_flags);
 	if (iw == NULL)
