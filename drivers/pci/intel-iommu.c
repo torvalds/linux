@@ -1429,7 +1429,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 	domain_flush_cache(domain, context, sizeof(*context));
 
 	/* it's a non-present to present mapping */
-	if (iommu->flush.flush_context(iommu, domain->id,
+	if (iommu->flush.flush_context(iommu, id,
 		(((u16)bus) << 8) | devfn, DMA_CCMD_MASK_NOBIT,
 		DMA_CCMD_DEVICE_INVL, 1))
 		iommu_flush_write_buffer(iommu);
