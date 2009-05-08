@@ -277,6 +277,7 @@ static int __devexit sdhci_of_remove(struct of_device *ofdev)
 static const struct of_device_id sdhci_of_match[] = {
 	{ .compatible = "fsl,mpc8379-esdhc", .data = &sdhci_esdhc, },
 	{ .compatible = "fsl,mpc8536-esdhc", .data = &sdhci_esdhc, },
+	{ .compatible = "fsl,esdhc", .data = &sdhci_esdhc, },
 	{ .compatible = "generic-sdhci", },
 	{},
 };
