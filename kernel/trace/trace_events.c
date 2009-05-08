@@ -118,7 +118,7 @@ static int __ftrace_set_clr_event(const char *match, const char *sub,
 				  const char *event, int set)
 {
 	struct ftrace_event_call *call;
-	int ret;
+	int ret = -EINVAL;
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
