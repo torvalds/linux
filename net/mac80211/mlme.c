@@ -155,9 +155,11 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	ht_opmode = le16_to_cpu(hti->operation_mode);
 
 	/* if bss configuration changed store the new one */
-	if (sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
+	if (!sdata->ht_opmode_valid ||
+	    sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
 		changed |= BSS_CHANGED_HT;
 		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
+		sdata->ht_opmode_valid = true;
 	}
 
 	return changed;
@@ -1046,6 +1048,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	/* channel(_type) changes are handled by ieee80211_hw_config */
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
+
+	/* on the next assoc, re-program HT parameters */
+	sdata->ht_opmode_valid = false;
 
 	local->power_constr_level = 0;
 

@@ -427,6 +427,12 @@ struct ieee80211_sub_if_data {
 
 	int drop_unencrypted;
 
+	/*
+	 * keep track of whether the HT opmode (stored in
+	 * vif.bss_info.ht_operation_mode) is valid.
+	 */
+	bool ht_opmode_valid;
+
 	/* Fragment table for host-based reassembly */
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
 	unsigned int fragment_next;
