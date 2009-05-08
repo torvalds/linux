@@ -197,6 +197,16 @@ static struct s5h1411_config dvico_s5h1411_config = {
 	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
 
+static struct s5h1411_config hcw_s5h1411_config = {
+	.output_mode   = S5H1411_SERIAL_OUTPUT,
+	.gpio          = S5H1411_GPIO_OFF,
+	.vsb_if        = S5H1411_IF_44000,
+	.qam_if        = S5H1411_IF_4000,
+	.inversion     = S5H1411_INVERSION_ON,
+	.status_mode   = S5H1411_DEMODLOCKING,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+};
+
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 5380,
@@ -431,6 +441,17 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_bus[1].i2c_adap,
 				   &hcw_lgdt3305_tda18271_config);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1255:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(s5h1411_attach,
+					       &hcw_s5h1411_config,
+					       &i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				   0x60, &dev->i2c_bus[1].i2c_adap,
+				   &hauppauge_tda18271_config);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:

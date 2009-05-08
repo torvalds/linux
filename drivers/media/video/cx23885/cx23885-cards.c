@@ -189,6 +189,10 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "Hauppauge WinTV-HVR1275",
 		.portc		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_HAUPPAUGE_HVR1255] = {
+		.name		= "Hauppauge WinTV-HVR1255",
+		.portc		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -296,6 +300,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x2215,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1275,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x2251,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1255,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -637,6 +645,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
+	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 		/* GPIO-5 RF Control: 0 = RF1 Terrestrial, 1 = RF2 Cable */
 		/* GPIO-6 I2C Gate which can isolate the 3305 from the bus */
 		/* GPIO-9 LG3305 reset */
@@ -662,6 +671,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
+	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 		/* FIXME: Implement me */
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
@@ -699,6 +709,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
+	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 		if (dev->i2c_bus[0].i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
@@ -758,6 +769,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E650F:
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
+	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	default:
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
