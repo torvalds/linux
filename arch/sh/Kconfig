@@ -141,10 +141,6 @@ config ARCH_NO_VIRT_TO_BUS
 config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
-config ARCH_USES_GETTIMEOFFSET
-	def_bool y 
-	depends on SUPERH64
-
 config IO_TRAPPED
 	bool
 
@@ -190,6 +186,7 @@ config CPU_SH4AL_DSP
 config CPU_SH5
 	bool
 	select CPU_HAS_FPU
+	select SYS_SUPPORTS_TMU
 
 config CPU_SHX2
 	bool
