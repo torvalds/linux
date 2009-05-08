@@ -183,7 +183,7 @@ static struct sh_timer_config cmt_platform_data = {
 	.timer_bit = 5,
 	.clk = "cmt0",
 	.clockevent_rating = 125,
-	.clocksource_rating = 200,
+	.clocksource_rating = 125,
 };
 
 static struct resource cmt_resources[] = {
@@ -245,7 +245,7 @@ static struct sh_timer_config tmu1_platform_data = {
 	.channel_offset = 0x10,
 	.timer_bit = 1,
 	.clk = "tmu0",
-	.clocksource_rating = 0, /* disabled for now */
+	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
