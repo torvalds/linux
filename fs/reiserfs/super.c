@@ -1316,8 +1316,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	}
 
 out_ok:
-	kfree(s->s_options);
-	s->s_options = new_opts;
+	replace_mount_options(s, new_opts);
 	return 0;
 
 out_err:

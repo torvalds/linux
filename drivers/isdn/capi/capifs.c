@@ -75,8 +75,7 @@ static int capifs_remount(struct super_block *s, int *flags, char *data)
 		}
 	}
 
-	kfree(s->s_options);
-	s->s_options = new_opt;
+	replace_mount_options(s, new_opt);
 
 	config.setuid  = setuid;
 	config.setgid  = setgid;
