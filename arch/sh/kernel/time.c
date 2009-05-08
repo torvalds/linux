@@ -17,7 +17,6 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/clockchips.h>
-#include <linux/mc146818rtc.h>	/* for rtc_lock */
 #include <linux/platform_device.h>
 #include <linux/smp.h>
 #include <linux/rtc.h>
@@ -26,10 +25,6 @@
 #include <asm/timer.h>
 
 struct sys_timer *sys_timer;
-
-/* Move this somewhere more sensible.. */
-DEFINE_SPINLOCK(rtc_lock);
-EXPORT_SYMBOL(rtc_lock);
 
 /* Dummy RTC ops */
 static void null_rtc_get_time(struct timespec *tv)
