@@ -186,31 +186,37 @@ static void jsfd_do_request(struct request_queue *q)
 {
 	struct request *req;
 
-	while ((req = elv_next_request(q)) != NULL) {
+	req = elv_next_request(q);
+	if (req)
+		blkdev_dequeue_request(req);
+
+	while (req) {
 		struct jsfd_part *jdp = req->rq_disk->private_data;
 		unsigned long offset = blk_rq_pos(req) << 9;
 		size_t len = blk_rq_cur_bytes(req);
+		int err = -EIO;
 
-		if ((offset + len) > jdp->dsize) {
-			__blk_end_request_cur(req, -EIO);
-			continue;
-		}
+		if ((offset + len) > jdp->dsize)
+			goto end;
 
 		if (rq_data_dir(req) != READ) {
 			printk(KERN_ERR "jsfd: write\n");
-			__blk_end_request_cur(req, -EIO);
-			continue;
+			goto end;
 		}
 
 		if ((jdp->dbase & 0xff000000) != 0x20000000) {
 			printk(KERN_ERR "jsfd: bad base %x\n", (int)jdp->dbase);
-			__blk_end_request_cur(req, -EIO);
-			continue;
+			goto end;
 		}
 
 		jsfd_read(req->buffer, jdp->dbase + offset, len);
-
-		__blk_end_request_cur(req, 0);
+		err = 0;
+	end:
+		if (!__blk_end_request_cur(req, err)) {
+			req = elv_next_request(q);
+			if (req)
+				blkdev_dequeue_request(req);
+		}
 	}
 }
 
