@@ -89,18 +89,22 @@ static int mtd_blktrans_thread(void *arg)
 {
 	struct mtd_blktrans_ops *tr = arg;
 	struct request_queue *rq = tr->blkcore_priv->rq;
+	struct request *req = NULL;
 
 	/* we might get involved when memory gets low, so use PF_MEMALLOC */
 	current->flags |= PF_MEMALLOC;
 
 	spin_lock_irq(rq->queue_lock);
+
 	while (!kthread_should_stop()) {
-		struct request *req;
 		struct mtd_blktrans_dev *dev;
 		int res;
 
-		req = elv_next_request(rq);
-
+		if (!req) {
+			req = elv_next_request(rq);
+			if (req)
+				blkdev_dequeue_request(req);
+		}
 		if (!req) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_irq(rq->queue_lock);
@@ -120,8 +124,13 @@ static int mtd_blktrans_thread(void *arg)
 
 		spin_lock_irq(rq->queue_lock);
 
-		__blk_end_request_cur(req, res);
+		if (!__blk_end_request_cur(req, res))
+			req = NULL;
 	}
+
+	if (req)
+		__blk_end_request_all(req, -EIO);
+
 	spin_unlock_irq(rq->queue_lock);
 
 	return 0;
