@@ -292,7 +292,6 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 		switch (adapter->ahw.board_type) {
 		case NETXEN_BRDTYPE_P2_SB31_10G:
 		case NETXEN_BRDTYPE_P2_SB31_10G_CX4:
-		case NETXEN_BRDTYPE_P2_SB31_10G_HMEZ:
 			adapter->msix_supported = !!use_msi_x;
 			adapter->rss_supported = !!use_msi_x;
 			break;
