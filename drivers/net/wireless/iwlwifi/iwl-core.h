@@ -363,8 +363,6 @@ int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv);
 
-void iwl_set_rate(struct iwl_priv *priv);
-
 u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx);
 
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
