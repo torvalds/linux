@@ -111,35 +111,14 @@ static void ftrace_event_enable_disable(struct ftrace_event_call *call,
 	}
 }
 
-static int ftrace_set_clr_event(char *buf, int set)
+/*
+ * __ftrace_set_clr_event(NULL, NULL, NULL, set) will set/unset all events.
+ */
+static int __ftrace_set_clr_event(const char *match, const char *sub,
+				  const char *event, int set)
 {
 	struct ftrace_event_call *call;
-	char *event = NULL, *sub = NULL, *match;
-	int ret = -EINVAL;
-
-	/*
-	 * The buf format can be <subsystem>:<event-name>
-	 *  *:<event-name> means any event by that name.
-	 *  :<event-name> is the same.
-	 *
-	 *  <subsystem>:* means all events in that subsystem
-	 *  <subsystem>: means the same.
-	 *
-	 *  <name> (no ':') means all events in a subsystem with
-	 *  the name <name> or any event that matches <name>
-	 */
-
-	match = strsep(&buf, ":");
-	if (buf) {
-		sub = match;
-		event = buf;
-		match = NULL;
-
-		if (!strlen(sub) || strcmp(sub, "*") == 0)
-			sub = NULL;
-		if (!strlen(event) || strcmp(event, "*") == 0)
-			event = NULL;
-	}
+	int ret;
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
@@ -165,6 +144,37 @@ static int ftrace_set_clr_event(char *buf, int set)
 	mutex_unlock(&event_mutex);
 
 	return ret;
+}
+
+static int ftrace_set_clr_event(char *buf, int set)
+{
+	char *event = NULL, *sub = NULL, *match;
+
+	/*
+	 * The buf format can be <subsystem>:<event-name>
+	 *  *:<event-name> means any event by that name.
+	 *  :<event-name> is the same.
+	 *
+	 *  <subsystem>:* means all events in that subsystem
+	 *  <subsystem>: means the same.
+	 *
+	 *  <name> (no ':') means all events in a subsystem with
+	 *  the name <name> or any event that matches <name>
+	 */
+
+	match = strsep(&buf, ":");
+	if (buf) {
+		sub = match;
+		event = buf;
+		match = NULL;
+
+		if (!strlen(sub) || strcmp(sub, "*") == 0)
+			sub = NULL;
+		if (!strlen(event) || strcmp(event, "*") == 0)
+			event = NULL;
+	}
+
+	return __ftrace_set_clr_event(match, sub, event, set);
 }
 
 /* 128 should be much more than enough */
@@ -408,18 +418,14 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	struct ftrace_event_call *call;
 	char buf[2];
 	int set = -1;
-	int all = 0;
 	int ret;
-
-	if (system[0] == '*')
-		all = 1;
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
 		if (!call->name || !call->regfunc)
 			continue;
 
-		if (!all && strcmp(call->system, system) != 0)
+		if (system && strcmp(call->system, system) != 0)
 			continue;
 
 		/*
@@ -480,7 +486,6 @@ system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 {
 	const char *system = filp->private_data;
 	unsigned long val;
-	char *command;
 	char buf[64];
 	ssize_t ret;
 
@@ -500,30 +505,16 @@ system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (ret < 0)
 		return ret;
 
-	switch (val) {
-	case 0:
-	case 1:
-		break;
-
-	default:
+	if (val != 0 && val != 1)
 		return -EINVAL;
-	}
 
-	/* +3 for the ":*\0" */
-	command = kmalloc(strlen(system)+3, GFP_KERNEL);
-	if (!command)
-		return -ENOMEM;
-	sprintf(command, "%s:*", system);
-
-	ret = ftrace_set_clr_event(command, val);
+	ret = __ftrace_set_clr_event(NULL, system, NULL, val);
 	if (ret)
-		goto out_free;
+		goto out;
 
 	ret = cnt;
 
- out_free:
-	kfree(command);
-
+out:
 	*ppos += cnt;
 
 	return ret;
@@ -1181,7 +1172,7 @@ static __init int event_trace_init(void)
 			  &ftrace_show_header_fops);
 
 	trace_create_file("enable", 0644, d_events,
-			  "*", &ftrace_system_enable_fops);
+			  NULL, &ftrace_system_enable_fops);
 
 	for_each_event(call, __start_ftrace_events, __stop_ftrace_events) {
 		/* The linker may leave blanks */
@@ -1259,7 +1250,6 @@ static __init void event_trace_self_tests(void)
 {
 	struct ftrace_event_call *call;
 	struct event_subsystem *system;
-	char *sysname;
 	int ret;
 
 	pr_info("Running tests on trace events:\n");
@@ -1305,14 +1295,7 @@ static __init void event_trace_self_tests(void)
 
 		pr_info("Testing event system %s: ", system->name);
 
-		/* ftrace_set_clr_event can modify the name passed in. */
-		sysname = kstrdup(system->name, GFP_KERNEL);
-		if (WARN_ON(!sysname)) {
-			pr_warning("Can't allocate memory, giving up!\n");
-			return;
-		}
-		ret = ftrace_set_clr_event(sysname, 1);
-		kfree(sysname);
+		ret = __ftrace_set_clr_event(NULL, system->name, NULL, 1);
 		if (WARN_ON_ONCE(ret)) {
 			pr_warning("error enabling system %s\n",
 				   system->name);
@@ -1321,14 +1304,7 @@ static __init void event_trace_self_tests(void)
 
 		event_test_stuff();
 
-		sysname = kstrdup(system->name, GFP_KERNEL);
-		if (WARN_ON(!sysname)) {
-			pr_warning("Can't allocate memory, giving up!\n");
-			return;
-		}
-		ret = ftrace_set_clr_event(sysname, 0);
-		kfree(sysname);
-
+		ret = __ftrace_set_clr_event(NULL, system->name, NULL, 0);
 		if (WARN_ON_ONCE(ret))
 			pr_warning("error disabling system %s\n",
 				   system->name);
@@ -1341,15 +1317,8 @@ static __init void event_trace_self_tests(void)
 	pr_info("Running tests on all trace events:\n");
 	pr_info("Testing all events: ");
 
-	sysname = kmalloc(4, GFP_KERNEL);
-	if (WARN_ON(!sysname)) {
-		pr_warning("Can't allocate memory, giving up!\n");
-		return;
-	}
-	memcpy(sysname, "*:*", 4);
-	ret = ftrace_set_clr_event(sysname, 1);
+	ret = __ftrace_set_clr_event(NULL, NULL, NULL, 1);
 	if (WARN_ON_ONCE(ret)) {
-		kfree(sysname);
 		pr_warning("error enabling all events\n");
 		return;
 	}
@@ -1357,10 +1326,7 @@ static __init void event_trace_self_tests(void)
 	event_test_stuff();
 
 	/* reset sysname */
-	memcpy(sysname, "*:*", 4);
-	ret = ftrace_set_clr_event(sysname, 0);
-	kfree(sysname);
-
+	ret = __ftrace_set_clr_event(NULL, NULL, NULL, 0);
 	if (WARN_ON_ONCE(ret)) {
 		pr_warning("error disabling all events\n");
 		return;
