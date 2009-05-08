@@ -2369,7 +2369,7 @@ static int mwl8k_cmd_set_aid(struct ieee80211_hw *hw,
 	if (info->use_cts_prot) {
 		prot_mode = MWL8K_FRAME_PROT_11G;
 	} else {
-		switch (info->ht.operation_mode &
+		switch (info->ht_operation_mode &
 			IEEE80211_HT_OP_MODE_PROTECTION) {
 		case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
 			prot_mode = MWL8K_FRAME_PROT_11N_HT_40MHZ_ONLY;

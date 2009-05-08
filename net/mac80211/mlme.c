@@ -95,15 +95,13 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct ieee80211_bss_ht_conf ht;
 	struct sta_info *sta;
 	u32 changed = 0;
+	u16 ht_opmode;
 	bool enable_ht = true, ht_changed;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
-	memset(&ht, 0, sizeof(ht));
 
 	/* HT is not supported */
 	if (!sband->ht_cap.ht_supported)
@@ -148,19 +146,18 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 						 IEEE80211_RC_HT_CHANGED);
 
 		rcu_read_unlock();
-
         }
 
 	/* disable HT */
 	if (!enable_ht)
 		return 0;
 
-	ht.operation_mode = le16_to_cpu(hti->operation_mode);
+	ht_opmode = le16_to_cpu(hti->operation_mode);
 
 	/* if bss configuration changed store the new one */
-	if (memcmp(&sdata->vif.bss_conf.ht, &ht, sizeof(ht))) {
+	if (sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
 		changed |= BSS_CHANGED_HT;
-		sdata->vif.bss_conf.ht = ht;
+		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
 	}
 
 	return changed;
