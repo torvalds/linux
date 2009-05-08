@@ -960,10 +960,10 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 	if (iwl_is_monitor_mode(priv) &&
 	    !(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) &&
 	    ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)) {
-		rx_chain = 0x07 << RXON_RX_CHAIN_VALID_POS;
-		rx_chain |= 0x06 << RXON_RX_CHAIN_FORCE_SEL_POS;
-		rx_chain |= 0x07 << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
-		rx_chain |= 0x01 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
+		rx_chain = ANT_ABC << RXON_RX_CHAIN_VALID_POS;
+		rx_chain |= ANT_BC << RXON_RX_CHAIN_FORCE_SEL_POS;
+		rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
+		rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
 	}
 
 	priv->staging_rxon.rx_chain = cpu_to_le16(rx_chain);
