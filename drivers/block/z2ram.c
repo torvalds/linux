@@ -70,15 +70,21 @@ static struct gendisk *z2ram_gendisk;
 static void do_z2_request(struct request_queue *q)
 {
 	struct request *req;
-	while ((req = elv_next_request(q)) != NULL) {
+
+	req = elv_next_request(q);
+	if (req)
+		blkdev_dequeue_request(req);
+
+	while (req) {
 		unsigned long start = blk_rq_pos(req) << 9;
 		unsigned long len  = blk_rq_cur_bytes(req);
+		int err = 0;
 
 		if (start + len > z2ram_size) {
 			printk( KERN_ERR DEVICE_NAME ": bad access: block=%lu, count=%u\n",
 				blk_rq_pos(req), blk_rq_cur_sectors(req));
-			__blk_end_request_cur(req, -EIO);
-			continue;
+			err = -EIO;
+			goto done;
 		}
 		while (len) {
 			unsigned long addr = start & Z2RAM_CHUNKMASK;
@@ -93,7 +99,12 @@ static void do_z2_request(struct request_queue *q)
 			start += size;
 			len -= size;
 		}
-		__blk_end_request_cur(req, 0);
+	done:
+		if (!__blk_end_request_cur(req, err)) {
+			req = elv_next_request(q);
+			if (req)
+				blkdev_dequeue_request(req);
+		}
 	}
 }
 
