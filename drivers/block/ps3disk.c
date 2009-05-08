@@ -157,7 +157,7 @@ static int ps3disk_submit_request_sg(struct ps3_storage_device *dev,
 	if (res) {
 		dev_err(&dev->sbd.core, "%s:%u: %s failed %d\n", __func__,
 			__LINE__, op, res);
-		__blk_end_request_cur(req, -EIO);
+		__blk_end_request_all(req, -EIO);
 		return 0;
 	}
 
@@ -179,7 +179,7 @@ static int ps3disk_submit_flush_request(struct ps3_storage_device *dev,
 	if (res) {
 		dev_err(&dev->sbd.core, "%s:%u: sync cache failed 0x%llx\n",
 			__func__, __LINE__, res);
-		__blk_end_request_cur(req, -EIO);
+		__blk_end_request_all(req, -EIO);
 		return 0;
 	}
 
@@ -195,6 +195,8 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 	dev_dbg(&dev->sbd.core, "%s:%u\n", __func__, __LINE__);
 
 	while ((req = elv_next_request(q))) {
+		blkdev_dequeue_request(req);
+
 		if (blk_fs_request(req)) {
 			if (ps3disk_submit_request_sg(dev, req))
 				break;
@@ -204,7 +206,7 @@ static void ps3disk_do_request(struct ps3_storage_device *dev,
 				break;
 		} else {
 			blk_dump_rq_flags(req, DEVICE_NAME " bad request");
-			__blk_end_request_cur(req, -EIO);
+			__blk_end_request_all(req, -EIO);
 			continue;
 		}
 	}
