@@ -34,6 +34,7 @@
 # define TRAP_ILLEGAL_SLOT_INST	6
 # define TRAP_ADDRESS_ERROR	9
 # ifdef CONFIG_CPU_SH2A
+#  define TRAP_UBC		12
 #  define TRAP_FPU_ERROR	13
 #  define TRAP_DIVZERO_ERROR	17
 #  define TRAP_DIVOVF_ERROR	18
@@ -847,6 +848,10 @@ void __init trap_init(void)
 #ifdef CONFIG_SH_FPU
 	set_exception_table_vec(TRAP_FPU_ERROR, fpu_error_trap_handler);
 #endif
+#endif
+
+#ifdef TRAP_UBC
+	set_exception_table_vec(TRAP_UBC, break_point_trap);
 #endif
 
 	/* Setup VBR for boot cpu */
