@@ -46,10 +46,10 @@ $(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
 $(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,lzma)
 
-suffix_$(CONFIG_KERNEL_GZIP)  = gz
-suffix_$(CONFIG_KERNEL_BZIP2) = bz2
-suffix_$(CONFIG_KERNEL_LZMA)  = lzma
+suffix-$(CONFIG_KERNEL_GZIP)	:= gz
+suffix-$(CONFIG_KERNEL_BZIP2)	:= bz2
+suffix-$(CONFIG_KERNEL_LZMA)	:= lzma
 
 LDFLAGS_piggy.o := -r --format binary --oformat $(CONFIG_OUTPUT_FORMAT) -T
-$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix_y) FORCE
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y) FORCE
 	$(call if_changed,ld)
