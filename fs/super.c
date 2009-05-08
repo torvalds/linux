@@ -542,25 +542,33 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	shrink_dcache_sb(sb);
 	sync_filesystem(sb);
 
+	lock_kernel();
 	/* If we are remounting RDONLY and current sb is read/write,
 	   make sure there are no rw files opened */
 	if ((flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY)) {
 		if (force)
 			mark_files_ro(sb);
-		else if (!fs_may_remount_ro(sb))
+		else if (!fs_may_remount_ro(sb)) {
+			unlock_kernel();
 			return -EBUSY;
+		}
 		retval = vfs_dq_off(sb, 1);
-		if (retval < 0 && retval != -ENOSYS)
+		if (retval < 0 && retval != -ENOSYS) {
+			unlock_kernel();
 			return -EBUSY;
+		}
 	}
 	remount_rw = !(flags & MS_RDONLY) && (sb->s_flags & MS_RDONLY);
 
 	if (sb->s_op->remount_fs) {
 		retval = sb->s_op->remount_fs(sb, &flags, data);
-		if (retval)
+		if (retval) {
+			unlock_kernel();
 			return retval;
+		}
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
+	unlock_kernel();
 	if (remount_rw)
 		vfs_dq_quota_on_remount(sb);
 	return 0;
@@ -581,9 +589,7 @@ static void do_emergency_remount(struct work_struct *work)
 			 *
 			 * What lock protects sb->s_flags??
 			 */
-			lock_kernel();
 			do_remount_sb(sb, MS_RDONLY, NULL, 1);
-			unlock_kernel();
 		}
 		up_write(&sb->s_umount);
 		put_super(sb);
