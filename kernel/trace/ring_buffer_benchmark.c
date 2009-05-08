@@ -253,7 +253,7 @@ static void ring_buffer_producer(void)
 	}
 
 	time = end_tv.tv_sec - start_tv.tv_sec;
-	time *= 1000000;
+	time *= USEC_PER_SEC;
 	time += (long long)((long)end_tv.tv_usec - (long)start_tv.tv_usec);
 
 	entries = ring_buffer_entries(buffer);
@@ -273,7 +273,8 @@ static void ring_buffer_producer(void)
 	pr_info("Missed:   %ld\n", missed);
 	pr_info("Hit:      %ld\n", hit);
 
-	do_div(time, 1000);
+	/* Convert time from usecs to millisecs */
+	do_div(time, USEC_PER_MSEC);
 	if (time)
 		hit /= (long)time;
 	else
@@ -282,10 +283,10 @@ static void ring_buffer_producer(void)
 	pr_info("Entries per millisec: %ld\n", hit);
 
 	if (hit) {
-		avg = 1000000 / hit;
+		/* Calculate the average time in nanosecs */
+		avg = NSEC_PER_MSEC / hit;
 		pr_info("%ld ns per entry\n", avg);
 	}
-
 
 	if (missed) {
 		if (time)
@@ -293,7 +294,8 @@ static void ring_buffer_producer(void)
 
 		pr_info("Total iterations per millisec: %ld\n", hit + missed);
 
-		avg = 1000000 / (hit + missed);
+		/* Caculate the average time in nanosecs */
+		avg = NSEC_PER_MSEC / (hit + missed);
 		pr_info("%ld ns per entry\n", avg);
 	}
 }
