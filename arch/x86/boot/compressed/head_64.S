@@ -21,8 +21,8 @@
 /*
  * High loaded stuff by Hans Lermen & Werner Almesberger, Feb. 1996
  */
-.code32
-.text
+	.code32
+	.text
 
 #include <linux/linkage.h>
 #include <asm/segment.h>
@@ -33,12 +33,14 @@
 #include <asm/processor-flags.h>
 #include <asm/asm-offsets.h>
 
-.section ".text.head"
+	.section ".text.head"
 	.code32
 ENTRY(startup_32)
 	cld
-	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
-	 * us to not reload segments */
+	/*
+	 * Test KEEP_SEGMENTS flag to see if the bootloader is asking
+	 * us to not reload segments
+	 */
 	testb $(1<<6), BP_loadflags(%esi)
 	jnz 1f
 
@@ -49,7 +51,8 @@ ENTRY(startup_32)
 	movl	%eax, %ss
 1:
 
-/* Calculate the delta between where we were compiled to run
+/*
+ * Calculate the delta between where we were compiled to run
  * at and where we were actually loaded at.  This can only be done
  * with a short local call on x86.  Nothing  else will tell us what
  * address we are running at.  The reserved chunk of the real-mode
@@ -70,10 +73,11 @@ ENTRY(startup_32)
 	testl	%eax, %eax
 	jnz	no_longmode
 
-/* Compute the delta between where we were compiled to run at
+/*
+ * Compute the delta between where we were compiled to run at
  * and where the code will actually run at.
- */
-/* %ebp contains the address we are loaded at by the boot loader and %ebx
+ *
+ * %ebp contains the address we are loaded at by the boot loader and %ebx
  * contains the address where we should move the kernel image temporarily
  * for safe in-place decompression.
  */
@@ -114,7 +118,7 @@ ENTRY(startup_32)
  /*
   * Build early 4G boot pagetable
   */
-	/* Initialize Page tables to 0*/
+	/* Initialize Page tables to 0 */
 	leal	pgtable(%ebx), %edi
 	xorl	%eax, %eax
 	movl	$((4096*6)/4), %ecx
@@ -155,7 +159,8 @@ ENTRY(startup_32)
 	btsl	$_EFER_LME, %eax
 	wrmsr
 
-	/* Setup for the jump to 64bit mode
+	/*
+	 * Setup for the jump to 64bit mode
 	 *
 	 * When the jump is performend we will be in long mode but
 	 * in 32bit compatibility mode with EFER.LME = 1, CS.L = 0, CS.D = 1
@@ -184,7 +189,8 @@ no_longmode:
 
 #include "../../kernel/verify_cpu_64.S"
 
-	/* Be careful here startup_64 needs to be at a predictable
+	/*
+	 * Be careful here startup_64 needs to be at a predictable
 	 * address so I can export it in an ELF header.  Bootloaders
 	 * should look at the ELF header to find this address, as
 	 * it may change in the future.
@@ -192,7 +198,8 @@ no_longmode:
 	.code64
 	.org 0x200
 ENTRY(startup_64)
-	/* We come here either from startup_32 or directly from a
+	/*
+	 * We come here either from startup_32 or directly from a
 	 * 64bit bootloader.  If we come here from a bootloader we depend on
 	 * an identity mapped page table being provied that maps our
 	 * entire text+data+bss and hopefully all of memory.
@@ -209,7 +216,8 @@ ENTRY(startup_64)
 	movl    $0x20, %eax
 	ltr	%ax
 
-	/* Compute the decompressed kernel start address.  It is where
+	/*
+	 * Compute the decompressed kernel start address.  It is where
 	 * we were loaded at aligned to a 2M boundary. %rbp contains the
 	 * decompressed kernel start address.
 	 *
@@ -241,7 +249,8 @@ ENTRY(startup_64)
 	addq	$(32768 + 18 + 4095), %rbx
 	andq	$~4095, %rbx
 
-/* Copy the compressed kernel to the end of our buffer
+/*
+ * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
  */
 	leaq	_end_before_pgt(%rip), %r8
@@ -260,7 +269,7 @@ ENTRY(startup_64)
 	leaq	relocated(%rbx), %rax
 	jmp	*%rax
 
-.section ".text"
+	.text
 relocated:
 
 /*
@@ -271,8 +280,7 @@ relocated:
 	leaq    _end_before_pgt(%rbx), %rcx
 	subq	%rdi, %rcx
 	cld
-	rep
-	stosb
+	rep	stosb
 
 	/* Setup the stack */
 	leaq	boot_stack_end(%rip), %rsp
@@ -311,9 +319,11 @@ gdt:
 	.quad   0x0000000000000000	/* TS continued */
 gdt_end:
 
-.bss
-/* Stack and heap for uncompression */
-.balign 4
+/*
+ * Stack and heap for uncompression
+ */
+	.bss
+	.balign 4
 boot_heap:
 	.fill BOOT_HEAP_SIZE, 1, 0
 boot_stack:
