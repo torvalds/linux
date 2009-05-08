@@ -100,11 +100,12 @@ ENTRY(startup_32)
  * where decompression in place becomes safe.
  */
 	pushl	%esi
-	leal	_bss(%ebp), %esi
-	leal	_bss(%ebx), %edi
+	leal	(_bss-4)(%ebp), %esi
+	leal	(_bss-4)(%ebx), %edi
 	movl	$(_bss - startup_32), %ecx
+	shrl	$2, %ecx
 	std
-	rep	movsb
+	rep	movsl
 	cld
 	popl	%esi
 
@@ -135,8 +136,8 @@ relocated:
 	leal	_bss(%ebx), %edi
 	leal	_ebss(%ebx), %ecx
 	subl	%edi, %ecx
-	cld
-	rep	stosb
+	shrl	$2, %ecx
+	rep	stosl
 
 /*
  * Do the decompression, and jump to the new kernel..

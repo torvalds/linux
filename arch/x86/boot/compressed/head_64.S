@@ -260,15 +260,15 @@ ENTRY(startup_64)
  * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
  */
-	leaq	_bss(%rip), %r8
-	leaq	_bss(%rbx), %r9
+	pushq	%rsi
+	leaq	(_bss-8)(%rip), %rsi
+	leaq	(_bss-8)(%rbx), %rdi
 	movq	$_bss /* - $startup_32 */, %rcx
-1:	subq	$8, %r8
-	subq	$8, %r9
-	movq	0(%r8), %rax
-	movq	%rax, 0(%r9)
-	subq	$8, %rcx
-	jnz	1b
+	shrq	$3, %rcx
+	std
+	rep	movsq
+	cld
+	popq	%rsi
 
 /*
  * Jump to the relocated address.
@@ -282,12 +282,12 @@ relocated:
 /*
  * Clear BSS (stack is currently empty)
  */
-	xorq	%rax, %rax
-	leaq    _bss(%rbx), %rdi
-	leaq    _ebss(%rbx), %rcx
+	xorl	%eax, %eax
+	leaq    _bss(%rip), %rdi
+	leaq    _ebss(%rip), %rcx
 	subq	%rdi, %rcx
-	cld
-	rep	stosb
+	shrq	$3, %rcx
+	rep	stosq
 
 /*
  * Do the decompression, and jump to the new kernel..
