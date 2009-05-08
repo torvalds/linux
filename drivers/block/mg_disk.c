@@ -672,16 +672,16 @@ static void mg_request_poll(struct request_queue *q)
 
 	while ((req = elv_next_request(q)) != NULL) {
 		host = req->rq_disk->private_data;
-		if (blk_fs_request(req)) {
-			switch (rq_data_dir(req)) {
-			case READ:
-				mg_read(req);
-				break;
-			case WRITE:
-				mg_write(req);
-				break;
-			}
+
+		if (unlikely(!blk_fs_request(req))) {
+			__blk_end_request_cur(req, -EIO);
+			continue;
 		}
+
+		if (rq_data_dir(req) == READ)
+			mg_read(req);
+		else
+			mg_write(req);
 	}
 }
 
@@ -766,8 +766,10 @@ static void mg_request(struct request_queue *q)
 			continue;
 		}
 
-		if (!blk_fs_request(req))
-			return;
+		if (unlikely(!blk_fs_request(req))) {
+			__blk_end_request_cur(req, -EIO);
+			continue;
+		}
 
 		if (!mg_issue_req(req, host, sect_num, sect_cnt))
 			return;
