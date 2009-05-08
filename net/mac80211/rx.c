@@ -630,15 +630,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	 * possible.
 	 */
 
-	if (!ieee80211_has_protected(hdr->frame_control)) {
-		if (!ieee80211_is_mgmt(hdr->frame_control) ||
-		    rx->sta == NULL || !test_sta_flags(rx->sta, WLAN_STA_MFP))
-			return RX_CONTINUE;
-		mmie_keyidx = ieee80211_get_mmie_keyidx(rx->skb);
-		if (mmie_keyidx < 0)
-			return RX_CONTINUE;
-	}
-
 	/*
 	 * No point in finding a key and decrypting if the frame is neither
 	 * addressed to us nor a multicast frame.
@@ -649,8 +640,14 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	if (rx->sta)
 		stakey = rcu_dereference(rx->sta->key);
 
+	if (!ieee80211_has_protected(hdr->frame_control))
+		mmie_keyidx = ieee80211_get_mmie_keyidx(rx->skb);
+
 	if (!is_multicast_ether_addr(hdr->addr1) && stakey) {
 		rx->key = stakey;
+		/* Skip decryption if the frame is not protected. */
+		if (!ieee80211_has_protected(hdr->frame_control))
+			return RX_CONTINUE;
 	} else if (mmie_keyidx >= 0) {
 		/* Broadcast/multicast robust management frame / BIP */
 		if ((rx->status->flag & RX_FLAG_DECRYPTED) &&
@@ -661,6 +658,21 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		    mmie_keyidx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS)
 			return RX_DROP_MONITOR; /* unexpected BIP keyidx */
 		rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
+	} else if (!ieee80211_has_protected(hdr->frame_control)) {
+		/*
+		 * The frame was not protected, so skip decryption. However, we
+		 * need to set rx->key if there is a key that could have been
+		 * used so that the frame may be dropped if encryption would
+		 * have been expected.
+		 */
+		struct ieee80211_key *key = NULL;
+		if (ieee80211_is_mgmt(hdr->frame_control) &&
+		    is_multicast_ether_addr(hdr->addr1) &&
+		    (key = rcu_dereference(rx->sdata->default_mgmt_key)))
+			rx->key = key;
+		else if ((key = rcu_dereference(rx->sdata->default_key)))
+			rx->key = key;
+		return RX_CONTINUE;
 	} else {
 		/*
 		 * The device doesn't give us the IV so we won't be
