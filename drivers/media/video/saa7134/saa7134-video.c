@@ -1057,6 +1057,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		buf->vb.field  = field;
 		buf->fmt       = fh->fmt;
 		buf->pt        = &fh->pt_cap;
+		dev->video_q.curr = NULL;
 
 		err = videobuf_iolock(q,&buf->vb,&dev->ovbuf);
 		if (err)
