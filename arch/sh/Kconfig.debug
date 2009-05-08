@@ -137,12 +137,4 @@ config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
 	depends on SUPERH64
 
-config POOR_MANS_STRACE
-	bool "Debug: enable rudimentary strace facility"
-	depends on SUPERH64
-	help
-	  This option allows system calls to be traced to the console.  It also
-	  aids in detecting kernel stack underflow.  It is useful for debugging
-	  early-userland problems (e.g. init incurring fatal exceptions.)
-
 endmenu
