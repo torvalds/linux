@@ -559,24 +559,39 @@ void ieee80211_scan_work(struct work_struct *work)
 		if (skip)
 			break;
 
-		next_delay = IEEE80211_PROBE_DELAY +
-			     usecs_to_jiffies(local->hw.channel_change_time);
+		/*
+		 * Probe delay is used to update the NAV, cf. 11.1.3.2.2
+		 * (which unfortunately doesn't say _why_ step a) is done,
+		 * but it waits for the probe delay or until a frame is
+		 * received - and the received frame would update the NAV).
+		 * For now, we do not support waiting until a frame is
+		 * received.
+		 *
+		 * In any case, it is not necessary for a passive scan.
+		 */
+		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN ||
+		    !local->scan_req->n_ssids) {
+			next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
+			break;
+		}
+
+		next_delay = IEEE80211_PROBE_DELAY;
 		local->scan_state = SCAN_SEND_PROBE;
 		break;
 	case SCAN_SEND_PROBE:
-		next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
-		local->scan_state = SCAN_SET_CHANNEL;
-
-		if (local->scan_channel->flags & IEEE80211_CHAN_PASSIVE_SCAN ||
-		    !local->scan_req->n_ssids)
-			break;
 		for (i = 0; i < local->scan_req->n_ssids; i++)
 			ieee80211_send_probe_req(
 				sdata, NULL,
 				local->scan_req->ssids[i].ssid,
 				local->scan_req->ssids[i].ssid_len,
 				local->scan_req->ie, local->scan_req->ie_len);
+
+		/*
+		 * After sending probe requests, wait for probe responses
+		 * on the channel.
+		 */
 		next_delay = IEEE80211_CHANNEL_TIME;
+		local->scan_state = SCAN_SET_CHANNEL;
 		break;
 	}
 
