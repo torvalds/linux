@@ -156,7 +156,7 @@ static void __init reserve_crashkernel(void)
 			&crash_size, &crash_base);
 	if (ret == 0 && crash_size) {
 		if (crash_base <= 0) {
-			vp = alloc_bootmem_nopanic(crash_size); 
+			vp = alloc_bootmem_nopanic(crash_size);
 			if (!vp) {
 				printk(KERN_INFO "crashkernel allocation "
 				       "failed\n");
@@ -185,7 +185,6 @@ static inline void __init reserve_crashkernel(void)
 {}
 #endif
 
-#ifndef CONFIG_GENERIC_CALIBRATE_DELAY
 void __cpuinit calibrate_delay(void)
 {
 	struct clk *clk = clk_get(NULL, "cpu_clk");
@@ -201,7 +200,6 @@ void __cpuinit calibrate_delay(void)
 			 (loops_per_jiffy/(5000/HZ)) % 100,
 			 loops_per_jiffy);
 }
-#endif
 
 void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 						unsigned long end_pfn)
