@@ -301,13 +301,16 @@ static void do_blkif_request(struct request_queue *rq)
 
 	while ((req = elv_next_request(rq)) != NULL) {
 		info = req->rq_disk->private_data;
-		if (!blk_fs_request(req)) {
-			__blk_end_request_cur(req, -EIO);
-			continue;
-		}
 
 		if (RING_FULL(&info->ring))
 			goto wait;
+
+		blkdev_dequeue_request(req);
+
+		if (!blk_fs_request(req)) {
+			__blk_end_request_all(req, -EIO);
+			continue;
+		}
 
 		pr_debug("do_blk_req %p: cmd %p, sec %lx, "
 			 "(%u/%u) buffer:%p [%s]\n",
@@ -315,8 +318,6 @@ static void do_blkif_request(struct request_queue *rq)
 			 blk_rq_cur_sectors(req), blk_rq_sectors(req),
 			 req->buffer, rq_data_dir(req) ? "write" : "read");
 
-
-		blkdev_dequeue_request(req);
 		if (blkif_queue_request(req)) {
 			blk_requeue_request(rq, req);
 wait:

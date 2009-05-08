@@ -298,6 +298,8 @@ static void do_viocd_request(struct request_queue *q)
 	struct request *req;
 
 	while ((rwreq == 0) && ((req = elv_next_request(q)) != NULL)) {
+		blkdev_dequeue_request(req);
+
 		if (!blk_fs_request(req))
 			__blk_end_request_all(req, -EIO);
 		else if (send_request(req) < 0) {

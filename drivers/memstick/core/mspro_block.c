@@ -672,8 +672,7 @@ try_again:
 					       msb->req_sg);
 
 		if (!msb->seg_count) {
-			chunk = __blk_end_request(msb->block_req, -ENOMEM,
-					blk_rq_cur_bytes(msb->block_req));
+			chunk = __blk_end_request_cur(msb->block_req, -ENOMEM);
 			continue;
 		}
 
@@ -711,6 +710,7 @@ try_again:
 		dev_dbg(&card->dev, "issue end\n");
 		return -EAGAIN;
 	}
+	blkdev_dequeue_request(msb->block_req);
 
 	dev_dbg(&card->dev, "trying again\n");
 	chunk = 1;
@@ -825,8 +825,10 @@ static void mspro_block_submit_req(struct request_queue *q)
 		return;
 
 	if (msb->eject) {
-		while ((req = elv_next_request(q)) != NULL)
+		while ((req = elv_next_request(q)) != NULL) {
+			blkdev_dequeue_request(req);
 			__blk_end_request_all(req, -ENODEV);
+		}
 
 		return;
 	}

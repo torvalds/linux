@@ -198,6 +198,8 @@ static void mbox_tx_work(struct work_struct *work)
 
 		spin_lock(q->queue_lock);
 		rq = elv_next_request(q);
+		if (rq)
+			blkdev_dequeue_request(rq);
 		spin_unlock(q->queue_lock);
 
 		if (!rq)
@@ -208,6 +210,9 @@ static void mbox_tx_work(struct work_struct *work)
 		ret = __mbox_msg_send(mbox, tx_data->msg, tx_data->arg);
 		if (ret) {
 			enable_mbox_irq(mbox, IRQ_TX);
+			spin_lock(q->queue_lock);
+			blk_requeue_request(q, rq);
+			spin_unlock(q->queue_lock);
 			return;
 		}
 
@@ -238,6 +243,8 @@ static void mbox_rx_work(struct work_struct *work)
 	while (1) {
 		spin_lock_irqsave(q->queue_lock, flags);
 		rq = elv_next_request(q);
+		if (rq)
+			blkdev_dequeue_request(rq);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 		if (!rq)
 			break;
@@ -345,6 +352,8 @@ omap_mbox_read(struct device *dev, struct device_attribute *attr, char *buf)
 	while (1) {
 		spin_lock_irqsave(q->queue_lock, flags);
 		rq = elv_next_request(q);
+		if (rq)
+			blkdev_dequeue_request(rq);
 		spin_unlock_irqrestore(q->queue_lock, flags);
 
 		if (!rq)
