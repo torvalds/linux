@@ -2475,6 +2475,26 @@ static ssize_t show_power_level(struct device *d,
 static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
 		   store_power_level);
 
+static ssize_t show_qos(struct device *d,
+				struct device_attribute *attr, char *buf)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	char *p = buf;
+	int   q;
+
+	for (q = 0; q < AC_NUM; q++) {
+		p += sprintf(p, "\tcw_min\tcw_max\taifsn\ttxop\n");
+		p += sprintf(p, "AC[%d]\t%u\t%u\t%u\t%u\n", q,
+			     priv->qos_data.def_qos_parm.ac[q].cw_min,
+			     priv->qos_data.def_qos_parm.ac[q].cw_max,
+			     priv->qos_data.def_qos_parm.ac[q].aifsn,
+			     priv->qos_data.def_qos_parm.ac[q].edca_txop);
+	}
+
+	return p - buf + 1;
+}
+
+static DEVICE_ATTR(qos, S_IRUGO, show_qos, NULL);
 
 static ssize_t show_statistics(struct device *d,
 			       struct device_attribute *attr, char *buf)
@@ -2572,7 +2592,7 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_debug_level.attr,
 #endif
 	&dev_attr_version.attr,
-
+	&dev_attr_qos.attr,
 	NULL
 };
 
