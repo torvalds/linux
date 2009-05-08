@@ -36,6 +36,7 @@ static struct clk *clk;
 /* Memory resource */
 static struct resource *memres;
 static void __iomem *virtbase;
+static struct device *gpiodev;
 
 struct u300_gpio_port {
 	const char *name;
@@ -264,8 +265,8 @@ static struct gpio_struct gpio_pin[U300_GPIO_MAX];
 int gpio_register_callback(unsigned gpio, int (*func)(void *arg), void *data)
 {
 	if (gpio_pin[gpio].callback)
-		printk(KERN_WARNING "GPIO: %s: WARNING: callback already " \
-		       "registered for gpio pin#%d\n", __func__, gpio);
+		dev_warn(gpiodev, "%s: WARNING: callback already "
+			 "registered for gpio pin#%d\n", __func__, gpio);
 	gpio_pin[gpio].callback = func;
 	gpio_pin[gpio].data = data;
 
@@ -276,8 +277,8 @@ EXPORT_SYMBOL(gpio_register_callback);
 int gpio_unregister_callback(unsigned gpio)
 {
 	if (!gpio_pin[gpio].callback)
-		printk(KERN_WARNING "GPIO: %s: WARNING: callback already " \
-		       "unregistered for gpio pin#%d\n", __func__, gpio);
+		dev_warn(gpiodev, "%s: WARNING: callback already "
+			 "unregistered for gpio pin#%d\n", __func__, gpio);
 	gpio_pin[gpio].callback = NULL;
 	gpio_pin[gpio].data = NULL;
 
@@ -303,8 +304,8 @@ void gpio_free(unsigned gpio)
 	gpio_users--;
 	gpio_pin[gpio].users--;
 	if (unlikely(gpio_pin[gpio].users < 0)) {
-		printk(KERN_WARNING "GPIO: Warning: gpio#%d release mismatch\n",
-				gpio);
+		dev_warn(gpiodev, "warning: gpio#%d release mismatch\n",
+			 gpio);
 		gpio_pin[gpio].users = 0;
 	}
 
@@ -492,7 +493,7 @@ static irqreturn_t gpio_irq_handler(int irq, void *dev_id)
 		if (gpio_pin[gpio].callback)
 			(void)gpio_pin[gpio].callback(gpio_pin[gpio].data);
 		else
-			printk(KERN_DEBUG "GPIO: Stray GPIO IRQ on line %d\n",
+			dev_dbg(gpiodev, "stray GPIO IRQ on line %d\n",
 			       gpio);
 	}
 	return IRQ_HANDLED;
@@ -548,25 +549,26 @@ static void gpio_set_initial_values(void)
 #endif
 }
 
-static int __devinit gpio_probe(struct platform_device *pdev)
+static int __init gpio_probe(struct platform_device *pdev)
 {
 	u32 val;
 	int err = 0;
 	int i;
 	int num_irqs;
 
+	gpiodev = &pdev->dev;
 	memset(gpio_pin, 0, sizeof(gpio_pin));
 
 	/* Get GPIO clock */
 	clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		err = PTR_ERR(clk);
-		printk(KERN_ERR "GPIO: could not get GPIO clock\n");
+		dev_err(gpiodev, "could not get GPIO clock\n");
 		goto err_no_clk;
 	}
 	err = clk_enable(clk);
 	if (err) {
-		printk(KERN_ERR "GPIO: could not enable GPIO clock\n");
+		dev_err(gpiodev, "could not enable GPIO clock\n");
 		goto err_no_clk_enable;
 	}
 
@@ -580,22 +582,24 @@ static int __devinit gpio_probe(struct platform_device *pdev)
 		goto err_no_ioregion;
 	}
 
-	virtbase = ioremap(memres->start, memres->end - memres->start + 1);
+	virtbase = ioremap(memres->start, resource_size(memres));
 	if (!virtbase) {
 		err = -ENOMEM;
 		goto err_no_ioremap;
 	}
+	dev_info(gpiodev, "remapped 0x%08x to %p\n",
+		 memres->start, virtbase);
 
 #ifdef U300_COH901335
-	printk(KERN_INFO "GPIO: Initializing GPIO Controller COH 901 335\n");
+	dev_info(gpiodev, "initializing GPIO Controller COH 901 335\n");
 	/* Turn on the GPIO block */
 	writel(U300_GPIO_CR_BLOCK_CLOCK_ENABLE, virtbase + U300_GPIO_CR);
 #endif
 
 #ifdef U300_COH901571_3
-	printk(KERN_INFO "GPIO: Initializing GPIO Controller COH 901 571/3\n");
+	dev_info(gpiodev, "initializing GPIO Controller COH 901 571/3\n");
 	val = readl(virtbase + U300_GPIO_CR);
-	printk(KERN_INFO "GPIO: COH901571/3 block version: %d, " \
+	dev_info(gpiodev, "COH901571/3 block version: %d, " \
 	       "number of cores: %d\n",
 	       ((val & 0x0000FE00) >> 9),
 	       ((val & 0x000001FC) >> 2));
@@ -623,15 +627,14 @@ static int __devinit gpio_probe(struct platform_device *pdev)
 				  gpio_ports[num_irqs].name,
 				  &gpio_ports[num_irqs]);
 		if (err) {
-			printk(KERN_CRIT "GPIO: Cannot allocate IRQ for %s!\n",
-			       gpio_ports[num_irqs].name);
+			dev_err(gpiodev, "cannot allocate IRQ for %s!\n",
+				gpio_ports[num_irqs].name);
 			goto err_no_irq;
 		}
 		/* Turns off PortX_irq_force */
 		writel(0x0, virtbase + U300_GPIO_PXIFR +
 				 num_irqs * U300_GPIO_PORTX_SPACING);
 	}
-	printk(KERN_INFO "GPIO: U300 gpio module loaded\n");
 
 	return 0;
 
@@ -647,11 +650,11 @@ static int __devinit gpio_probe(struct platform_device *pdev)
  err_no_clk_enable:
 	clk_put(clk);
  err_no_clk:
-	printk(KERN_INFO "GPIO: module ERROR:%d\n", err);
+	dev_info(gpiodev, "module ERROR:%d\n", err);
 	return err;
 }
 
-static int __devexit gpio_remove(struct platform_device *pdev)
+static int __exit gpio_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -670,14 +673,13 @@ static struct platform_driver gpio_driver = {
 	.driver		= {
 		.name	= "u300-gpio",
 	},
-	.probe		= gpio_probe,
-	.remove		= __devexit_p(gpio_remove),
+	.remove		= __exit_p(gpio_remove),
 };
 
 
 static int __init u300_gpio_init(void)
 {
-	return platform_driver_register(&gpio_driver);
+	return platform_driver_probe(&gpio_driver, gpio_probe);
 }
 
 static void __exit u300_gpio_exit(void)
