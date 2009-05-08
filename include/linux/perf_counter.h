@@ -157,10 +157,14 @@ struct perf_counter_hw_event {
 /*
  * Ioctls that can be done on a perf counter fd:
  */
-#define PERF_COUNTER_IOC_ENABLE		_IO ('$', 0)
-#define PERF_COUNTER_IOC_DISABLE	_IO ('$', 1)
+#define PERF_COUNTER_IOC_ENABLE		_IOW('$', 0, u32)
+#define PERF_COUNTER_IOC_DISABLE	_IOW('$', 1, u32)
 #define PERF_COUNTER_IOC_REFRESH	_IOW('$', 2, u32)
-#define PERF_COUNTER_IOC_RESET		_IO ('$', 3)
+#define PERF_COUNTER_IOC_RESET		_IOW('$', 3, u32)
+
+enum perf_counter_ioc_flags {
+	PERF_IOC_FLAG_GROUP		= 1U << 0,
+};
 
 /*
  * Structure of the page that can be mapped via mmap

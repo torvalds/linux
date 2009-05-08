@@ -82,7 +82,7 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	 * add it straight to the context's counter list, or to the group
 	 * leader's sibling list:
 	 */
-	if (counter->group_leader == counter)
+	if (group_leader == counter)
 		list_add_tail(&counter->list_entry, &ctx->counter_list);
 	else {
 		list_add_tail(&counter->list_entry, &group_leader->sibling_list);
@@ -383,24 +383,6 @@ static void perf_counter_disable(struct perf_counter *counter)
 	}
 
 	spin_unlock_irq(&ctx->lock);
-}
-
-/*
- * Disable a counter and all its children.
- */
-static void perf_counter_disable_family(struct perf_counter *counter)
-{
-	struct perf_counter *child;
-
-	perf_counter_disable(counter);
-
-	/*
-	 * Lock the mutex to protect the list of children
-	 */
-	mutex_lock(&counter->mutex);
-	list_for_each_entry(child, &counter->child_list, child_list)
-		perf_counter_disable(child);
-	mutex_unlock(&counter->mutex);
 }
 
 static int
@@ -751,24 +733,6 @@ static int perf_counter_refresh(struct perf_counter *counter, int refresh)
 	perf_counter_enable(counter);
 
 	return 0;
-}
-
-/*
- * Enable a counter and all its children.
- */
-static void perf_counter_enable_family(struct perf_counter *counter)
-{
-	struct perf_counter *child;
-
-	perf_counter_enable(counter);
-
-	/*
-	 * Lock the mutex to protect the list of children
-	 */
-	mutex_lock(&counter->mutex);
-	list_for_each_entry(child, &counter->child_list, child_list)
-		perf_counter_enable(child);
-	mutex_unlock(&counter->mutex);
 }
 
 void __perf_counter_sched_out(struct perf_counter_context *ctx,
@@ -1307,31 +1271,79 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 
 static void perf_counter_reset(struct perf_counter *counter)
 {
+	(void)perf_counter_read(counter);
 	atomic_set(&counter->count, 0);
+	perf_counter_update_userpage(counter);
+}
+
+static void perf_counter_for_each_sibling(struct perf_counter *counter,
+					  void (*func)(struct perf_counter *))
+{
+	struct perf_counter_context *ctx = counter->ctx;
+	struct perf_counter *sibling;
+
+	spin_lock_irq(&ctx->lock);
+	counter = counter->group_leader;
+
+	func(counter);
+	list_for_each_entry(sibling, &counter->sibling_list, list_entry)
+		func(sibling);
+	spin_unlock_irq(&ctx->lock);
+}
+
+static void perf_counter_for_each_child(struct perf_counter *counter,
+					void (*func)(struct perf_counter *))
+{
+	struct perf_counter *child;
+
+	mutex_lock(&counter->mutex);
+	func(counter);
+	list_for_each_entry(child, &counter->child_list, child_list)
+		func(child);
+	mutex_unlock(&counter->mutex);
+}
+
+static void perf_counter_for_each(struct perf_counter *counter,
+				  void (*func)(struct perf_counter *))
+{
+	struct perf_counter *child;
+
+	mutex_lock(&counter->mutex);
+	perf_counter_for_each_sibling(counter, func);
+	list_for_each_entry(child, &counter->child_list, child_list)
+		perf_counter_for_each_sibling(child, func);
+	mutex_unlock(&counter->mutex);
 }
 
 static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct perf_counter *counter = file->private_data;
-	int err = 0;
+	void (*func)(struct perf_counter *);
+	u32 flags = arg;
 
 	switch (cmd) {
 	case PERF_COUNTER_IOC_ENABLE:
-		perf_counter_enable_family(counter);
+		func = perf_counter_enable;
 		break;
 	case PERF_COUNTER_IOC_DISABLE:
-		perf_counter_disable_family(counter);
-		break;
-	case PERF_COUNTER_IOC_REFRESH:
-		err = perf_counter_refresh(counter, arg);
+		func = perf_counter_disable;
 		break;
 	case PERF_COUNTER_IOC_RESET:
-		perf_counter_reset(counter);
+		func = perf_counter_reset;
 		break;
+
+	case PERF_COUNTER_IOC_REFRESH:
+		return perf_counter_refresh(counter, arg);
 	default:
-		err = -ENOTTY;
+		return -ENOTTY;
 	}
-	return err;
+
+	if (flags & PERF_IOC_FLAG_GROUP)
+		perf_counter_for_each(counter, func);
+	else
+		perf_counter_for_each_child(counter, func);
+
+	return 0;
 }
 
 /*
