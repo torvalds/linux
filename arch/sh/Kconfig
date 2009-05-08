@@ -83,6 +83,10 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 
+config GENERIC_CMOS_UPDATE
+	def_bool y
+	depends on SH_SH03 || SH_DREAMCAST
+
 config GENERIC_LOCKBREAK
 	def_bool y
 	depends on SMP && PREEMPT

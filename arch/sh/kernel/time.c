@@ -46,6 +46,20 @@ static int null_rtc_set_time(const time_t secs)
 void (*rtc_sh_get_time)(struct timespec *) = null_rtc_get_time;
 int (*rtc_sh_set_time)(const time_t) = null_rtc_set_time;
 
+#ifdef CONFIG_GENERIC_CMOS_UPDATE
+unsigned long read_persistent_clock(void)
+{
+	struct timespec tv;
+	rtc_sh_get_time(&tv);
+	return tv.tv_sec;
+}
+
+int update_persistent_clock(struct timespec now)
+{
+	return rtc_sh_set_time(now.tv_sec);
+}
+#endif
+
 unsigned int get_rtc_time(struct rtc_time *tm)
 {
 	if (rtc_sh_get_time != null_rtc_get_time) {
