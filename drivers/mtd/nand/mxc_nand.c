@@ -981,7 +981,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	return 0;
 
 escan:
-	free_irq(host->irq, NULL);
+	free_irq(host->irq, host);
 eirq:
 	iounmap(host->regs);
 eres:
@@ -1001,7 +1001,7 @@ static int __devexit mxcnd_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	nand_release(&host->mtd);
-	free_irq(host->irq, NULL);
+	free_irq(host->irq, host);
 	iounmap(host->regs);
 	kfree(host);
 
