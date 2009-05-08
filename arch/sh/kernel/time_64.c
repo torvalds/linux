@@ -46,12 +46,6 @@
 #define TMU_TSTR_INIT	1
 #define TMU_TSTR_OFF	0
 
-/* Real Time Clock */
-#define	RTC_BLOCK_OFF	0x01040000
-#define RTC_BASE	PHYS_PERIPHERAL_BLOCK + RTC_BLOCK_OFF
-#define RTC_RCR1_CIE	0x10	/* Carry Interrupt Enable */
-#define RTC_RCR1	(rtc_base + 0x38)
-
 /* Time Management Unit */
 #define	TMU_BLOCK_OFF	0x01020000
 #define TMU_BASE	PHYS_PERIPHERAL_BLOCK + TMU_BLOCK_OFF
@@ -68,8 +62,7 @@
 
 #define TICK_SIZE (tick_nsec / 1000)
 
-static unsigned long tmu_base, rtc_base;
-unsigned long cprc_base;
+static unsigned long tmu_base;
 
 /* Variables to allow interpolation of time of day to resolution better than a
  * jiffy. */
@@ -248,11 +241,6 @@ void __init time_init(void)
 		panic("Unable to remap TMU\n");
 	}
 
-	rtc_base = (unsigned long)ioremap_nocache(RTC_BASE, 1024);
-	if (!rtc_base) {
-		panic("Unable to remap RTC\n");
-	}
-
 	clk = clk_get(NULL, "cpu_clk");
 	scaled_recip_ctc_ticks_per_jiffy = ((1ULL << CTC_JIFFY_SCALE_SHIFT) /
 			(unsigned long long)(clk_get_rate(clk) / HZ));
@@ -274,41 +262,3 @@ void __init time_init(void)
 	ctrl_outl(interval, TMU0_TCNT);
 	ctrl_outb(TMU_TSTR_INIT, TMU_TSTR);
 }
-
-static struct resource rtc_resources[] = {
-	[0] = {
-		/* RTC base, filled in by rtc_init */
-		.flags	= IORESOURCE_IO,
-	},
-	[1] = {
-		/* Period IRQ */
-		.start	= IRQ_PRI,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[2] = {
-		/* Carry IRQ */
-		.start	= IRQ_CUI,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] = {
-		/* Alarm IRQ */
-		.start	= IRQ_ATI,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device rtc_device = {
-	.name		= "sh-rtc",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(rtc_resources),
-	.resource	= rtc_resources,
-};
-
-static int __init rtc_init(void)
-{
-	rtc_resources[0].start	= rtc_base;
-	rtc_resources[0].end	= rtc_resources[0].start + 0x58 - 1;
-
-	return platform_device_register(&rtc_device);
-}
-device_initcall(rtc_init);

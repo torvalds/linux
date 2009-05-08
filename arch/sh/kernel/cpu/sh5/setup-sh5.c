@@ -34,8 +34,39 @@ static struct platform_device sci_device = {
 	},
 };
 
+static struct resource rtc_resources[] = {
+	[0] = {
+		.start	= PHYS_PERIPHERAL_BLOCK + 0x01040000,
+		.end	= PHYS_PERIPHERAL_BLOCK + 0x01040000 + 0x58 - 1,
+		.flags	= IORESOURCE_IO,
+	},
+	[1] = {
+		/* Period IRQ */
+		.start	= IRQ_PRI,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* Carry IRQ */
+		.start	= IRQ_CUI,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		/* Alarm IRQ */
+		.start	= IRQ_ATI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device rtc_device = {
+	.name		= "sh-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rtc_resources),
+	.resource	= rtc_resources,
+};
+
 static struct platform_device *sh5_devices[] __initdata = {
 	&sci_device,
+	&rtc_device,
 };
 
 static int __init sh5_devices_setup(void)
