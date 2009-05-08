@@ -248,6 +248,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
 
+	hci_conn_init_sysfs(conn);
+
 	tasklet_enable(&hdev->tx_task);
 
 	return conn;

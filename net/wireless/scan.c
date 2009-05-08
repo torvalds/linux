@@ -395,6 +395,7 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 					memcpy(ies, res->pub.information_elements, ielen);
 					found->ies_allocated = true;
 					found->pub.information_elements = ies;
+					found->pub.len_information_elements = ielen;
 				}
 			}
 		}
