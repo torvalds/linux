@@ -186,6 +186,7 @@ static struct plat_sci_port sci_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 80, 80, 80, 80 },
+		.clk		= "scif0",
 	}, {
 		.flags = 0,
 	}
