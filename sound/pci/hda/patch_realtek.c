@@ -9589,14 +9589,7 @@ static void alc262_hp_wildwest_unsol_event(struct hda_codec *codec,
 	alc262_hp_wildwest_automute(codec);
 }
 
-static int alc262_hp_master_sw_get(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct alc_spec *spec = codec->spec;
-	*ucontrol->value.integer.value = spec->master_sw;
-	return 0;
-}
+#define alc262_hp_master_sw_get		alc260_hp_master_sw_get
 
 static int alc262_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
@@ -9612,14 +9605,17 @@ static int alc262_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+#define ALC262_HP_MASTER_SWITCH					\
+	{							\
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,		\
+		.name = "Master Playback Switch",		\
+		.info = snd_ctl_boolean_mono_info,		\
+		.get = alc262_hp_master_sw_get,			\
+		.put = alc262_hp_master_sw_put,			\
+	}
+
 static struct snd_kcontrol_new alc262_HP_BPC_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc262_hp_master_sw_get,
-		.put = alc262_hp_master_sw_put,
-	},
+	ALC262_HP_MASTER_SWITCH,
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x15, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
@@ -9643,13 +9639,7 @@ static struct snd_kcontrol_new alc262_HP_BPC_mixer[] = {
 };
 
 static struct snd_kcontrol_new alc262_HP_BPC_WildWest_mixer[] = {
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Master Playback Switch",
-		.info = snd_ctl_boolean_mono_info,
-		.get = alc262_hp_master_sw_get,
-		.put = alc262_hp_master_sw_put,
-	},
+	ALC262_HP_MASTER_SWITCH,
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
@@ -9676,17 +9666,14 @@ static struct snd_kcontrol_new alc262_HP_BPC_WildWest_option_mixer[] = {
 };
 
 /* mute/unmute internal speaker according to the hp jack and mute state */
-static void alc262_hp_t5735_automute(struct hda_codec *codec, int force)
+static void alc262_hp_t5735_automute(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	unsigned int present;
 
-	if (force || !spec->sense_updated) {
-		unsigned int present;
-		present = snd_hda_codec_read(codec, 0x15, 0,
-					     AC_VERB_GET_PIN_SENSE, 0);
-		spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
-		spec->sense_updated = 1;
-	}
+	present = snd_hda_codec_read(codec, 0x15, 0,
+				     AC_VERB_GET_PIN_SENSE, 0);
+	spec->jack_present = (present & AC_PINSENSE_PRESENCE) != 0;
 	snd_hda_codec_amp_stereo(codec, 0x0c, HDA_OUTPUT, 0, HDA_AMP_MUTE,
 				 spec->jack_present ? HDA_AMP_MUTE : 0);
 }
@@ -9696,13 +9683,10 @@ static void alc262_hp_t5735_unsol_event(struct hda_codec *codec,
 {
 	if ((res >> 26) != ALC880_HP_EVENT)
 		return;
-	alc262_hp_t5735_automute(codec, 1);
+	alc262_hp_t5735_automute(codec);
 }
 
-static void alc262_hp_t5735_init_hook(struct hda_codec *codec)
-{
-	alc262_hp_t5735_automute(codec, 1);
-}
+#define alc262_hp_t5735_init_hook	alc262_hp_t5735_automute
 
 static struct snd_kcontrol_new alc262_hp_t5735_mixer[] = {
 	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
