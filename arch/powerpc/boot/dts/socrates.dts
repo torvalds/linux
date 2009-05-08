@@ -55,7 +55,6 @@
 		device_type = "soc";
 
 		ranges = <0x00000000 0xe0000000 0x00100000>;
-		reg = <0xe0000000 0x00001000>;	// CCSRBAR 1M
 		bus-frequency = <0>;		// Filled in by U-Boot
 		compatible = "fsl,mpc8544-immr", "simple-bus";
 

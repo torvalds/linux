@@ -112,7 +112,6 @@
 		device_type = "soc";
 		compatible = "fsl,mpc8610-immr", "simple-bus";
 		ranges = <0x0 0xe0000000 0x00100000>;
-		reg = <0xe0000000 0x1000>;
 		bus-frequency = <0>;
 
 		mcm-law@0 {

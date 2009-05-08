@@ -114,7 +114,6 @@
 		device_type = "soc";
 		compatible = "simple-bus";
 		ranges = <0x00000000 0xffe00000 0x00100000>;
-		reg = <0xffe00000 0x00001000>;	// CCSRBAR
 		bus-frequency = <0>;
 
 		mcm-law@0 {

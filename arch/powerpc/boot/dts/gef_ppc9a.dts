@@ -164,7 +164,6 @@
 		device_type = "soc";
 		compatible = "fsl,mpc8641-soc", "simple-bus";
 		ranges = <0x0 0xfef00000 0x00100000>;
-		reg = <0xfef00000 0x100000>;	// CCSRBAR 1M
 		bus-frequency = <33333333>;
 
 		mcm-law@0 {

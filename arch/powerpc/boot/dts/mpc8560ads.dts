@@ -55,7 +55,6 @@
 		device_type = "soc";
 		compatible = "simple-bus";
 		ranges = <0x0 0xe0000000 0x100000>;
-		reg = <0xe0000000 0x200>;
 		bus-frequency = <330000000>;
 
 		ecm-law@0 {

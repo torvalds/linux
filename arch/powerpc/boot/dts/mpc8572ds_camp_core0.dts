@@ -59,7 +59,6 @@
 		device_type = "soc";
 		compatible = "simple-bus";
 		ranges = <0x0 0xffe00000 0x100000>;
-		reg = <0xffe00000 0x1000>;	// CCSRBAR & soc regs, remove once parse code for immrbase fixed
 		bus-frequency = <0>;		// Filled out by uboot.
 
 		ecm-law@0 {

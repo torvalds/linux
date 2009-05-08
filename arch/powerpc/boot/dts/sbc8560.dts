@@ -57,7 +57,6 @@
 		#size-cells = <1>;
 		device_type = "soc";
 		ranges = <0x0 0xff700000 0x00100000>;
-		reg = <0xff700000 0x00100000>;
 		clock-frequency = <0>;
 
 		ecm-law@0 {
