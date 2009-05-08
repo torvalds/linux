@@ -825,7 +825,7 @@ u32 handle_tlbs[FASTPATH_SIZE] __cacheline_aligned;
 u32 handle_tlbm[FASTPATH_SIZE] __cacheline_aligned;
 
 static void __cpuinit
-iPTE_LW(u32 **p, struct uasm_label **l, unsigned int pte, unsigned int ptr)
+iPTE_LW(u32 **p, unsigned int pte, unsigned int ptr)
 {
 #ifdef CONFIG_SMP
 # ifdef CONFIG_64BIT_PHYS_ADDR
@@ -905,13 +905,13 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
  * with it's original value.
  */
 static void __cpuinit
-build_pte_present(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
+build_pte_present(u32 **p, struct uasm_reloc **r,
 		  unsigned int pte, unsigned int ptr, enum label_id lid)
 {
 	uasm_i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 	uasm_i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_READ);
 	uasm_il_bnez(p, r, pte, lid);
-	iPTE_LW(p, l, pte, ptr);
+	iPTE_LW(p, pte, ptr);
 }
 
 /* Make PTE valid, store result in PTR. */
@@ -929,13 +929,13 @@ build_make_valid(u32 **p, struct uasm_reloc **r, unsigned int pte,
  * restore PTE with value from PTR when done.
  */
 static void __cpuinit
-build_pte_writable(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
+build_pte_writable(u32 **p, struct uasm_reloc **r,
 		   unsigned int pte, unsigned int ptr, enum label_id lid)
 {
 	uasm_i_andi(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
 	uasm_i_xori(p, pte, pte, _PAGE_PRESENT | _PAGE_WRITE);
 	uasm_il_bnez(p, r, pte, lid);
-	iPTE_LW(p, l, pte, ptr);
+	iPTE_LW(p, pte, ptr);
 }
 
 /* Make PTE writable, update software status bits as well, then store
@@ -956,12 +956,12 @@ build_make_write(u32 **p, struct uasm_reloc **r, unsigned int pte,
  * restore PTE with value from PTR when done.
  */
 static void __cpuinit
-build_pte_modifiable(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
+build_pte_modifiable(u32 **p, struct uasm_reloc **r,
 		     unsigned int pte, unsigned int ptr, enum label_id lid)
 {
 	uasm_i_andi(p, pte, pte, _PAGE_WRITE);
 	uasm_il_beqz(p, r, pte, lid);
-	iPTE_LW(p, l, pte, ptr);
+	iPTE_LW(p, pte, ptr);
 }
 
 /*
@@ -1037,7 +1037,7 @@ static void __cpuinit build_r3000_tlb_load_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_present(&p, &l, &r, K0, K1, label_nopage_tlbl);
+	build_pte_present(&p, &r, K0, K1, label_nopage_tlbl);
 	uasm_i_nop(&p); /* load delay */
 	build_make_valid(&p, &r, K0, K1);
 	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
@@ -1067,7 +1067,7 @@ static void __cpuinit build_r3000_tlb_store_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_writable(&p, &l, &r, K0, K1, label_nopage_tlbs);
+	build_pte_writable(&p, &r, K0, K1, label_nopage_tlbs);
 	uasm_i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
 	build_r3000_tlb_reload_write(&p, &l, &r, K0, K1);
@@ -1097,7 +1097,7 @@ static void __cpuinit build_r3000_tlb_modify_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r3000_tlbchange_handler_head(&p, K0, K1);
-	build_pte_modifiable(&p, &l, &r, K0, K1, label_nopage_tlbm);
+	build_pte_modifiable(&p, &r, K0, K1, label_nopage_tlbm);
 	uasm_i_nop(&p); /* load delay */
 	build_make_write(&p, &r, K0, K1);
 	build_r3000_pte_reload_tlbwi(&p, K0, K1);
@@ -1139,7 +1139,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct uasm_label **l,
 #ifdef CONFIG_SMP
 	uasm_l_smp_pgtable_change(l, *p);
 #endif
-	iPTE_LW(p, l, pte, ptr); /* get even pte */
+	iPTE_LW(p, pte, ptr); /* get even pte */
 	if (!m4kc_tlbp_war())
 		build_tlb_probe_entry(p);
 }
@@ -1181,7 +1181,7 @@ static void __cpuinit build_r4000_tlb_load_handler(void)
 	}
 
 	build_r4000_tlbchange_handler_head(&p, &l, &r, K0, K1);
-	build_pte_present(&p, &l, &r, K0, K1, label_nopage_tlbl);
+	build_pte_present(&p, &r, K0, K1, label_nopage_tlbl);
 	if (m4kc_tlbp_war())
 		build_tlb_probe_entry(&p);
 	build_make_valid(&p, &r, K0, K1);
@@ -1212,7 +1212,7 @@ static void __cpuinit build_r4000_tlb_store_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r4000_tlbchange_handler_head(&p, &l, &r, K0, K1);
-	build_pte_writable(&p, &l, &r, K0, K1, label_nopage_tlbs);
+	build_pte_writable(&p, &r, K0, K1, label_nopage_tlbs);
 	if (m4kc_tlbp_war())
 		build_tlb_probe_entry(&p);
 	build_make_write(&p, &r, K0, K1);
@@ -1243,7 +1243,7 @@ static void __cpuinit build_r4000_tlb_modify_handler(void)
 	memset(relocs, 0, sizeof(relocs));
 
 	build_r4000_tlbchange_handler_head(&p, &l, &r, K0, K1);
-	build_pte_modifiable(&p, &l, &r, K0, K1, label_nopage_tlbm);
+	build_pte_modifiable(&p, &r, K0, K1, label_nopage_tlbm);
 	if (m4kc_tlbp_war())
 		build_tlb_probe_entry(&p);
 	/* Present and writable bits set, set accessed and dirty bits. */
