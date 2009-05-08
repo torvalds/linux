@@ -5,8 +5,7 @@ for MMC, SD, and SDIO types of memory cards.
 
 Required properties:
   - compatible : should be
-    "fsl,<chip>-esdhc", "fsl,mpc8379-esdhc" for MPC83xx processors.
-    "fsl,<chip>-esdhc", "fsl,mpc8536-esdhc" for MPC85xx processors.
+    "fsl,<chip>-esdhc", "fsl,esdhc"
   - reg : should contain eSDHC registers location and length.
   - interrupts : should contain eSDHC interrupt.
   - interrupt-parent : interrupt source phandle.
@@ -15,7 +14,7 @@ Required properties:
 Example:
 
 sdhci@2e000 {
-	compatible = "fsl,mpc8378-esdhc", "fsl,mpc8379-esdhc";
+	compatible = "fsl,mpc8378-esdhc", "fsl,esdhc";
 	reg = <0x2e000 0x1000>;
 	interrupts = <42 0x8>;
 	interrupt-parent = <&ipic>;
