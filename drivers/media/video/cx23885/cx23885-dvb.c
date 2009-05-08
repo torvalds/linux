@@ -314,6 +314,7 @@ static struct zl10353_config dvico_fusionhdtv_xc3028 = {
 	.demod_address = 0x0f,
 	.if2           = 45600,
 	.no_tuner      = 1,
+	.disable_i2c_gate_ctrl = 1,
 };
 
 static struct stv0900_config netup_stv0900_config = {

@@ -46,8 +46,7 @@ struct uv_IO_APIC_route_entry {
 };
 #endif
 
-static atomic64_t xpc_heartbeat_uv;
-static DECLARE_BITMAP(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);
+static struct xpc_heartbeat_uv *xpc_heartbeat_uv;
 
 #define XPC_ACTIVATE_MSG_SIZE_UV	(1 * GRU_CACHE_LINE_BYTES)
 #define XPC_ACTIVATE_MQ_SIZE_UV		(4 * XP_MAX_NPARTITIONS_UV * \
@@ -63,7 +62,7 @@ static struct xpc_gru_mq_uv *xpc_activate_mq_uv;
 static struct xpc_gru_mq_uv *xpc_notify_mq_uv;
 
 static int
-xpc_setup_partitions_sn_uv(void)
+xpc_setup_partitions_uv(void)
 {
 	short partid;
 	struct xpc_partition_uv *part_uv;
@@ -79,7 +78,7 @@ xpc_setup_partitions_sn_uv(void)
 }
 
 static void
-xpc_teardown_partitions_sn_uv(void)
+xpc_teardown_partitions_uv(void)
 {
 	short partid;
 	struct xpc_partition_uv *part_uv;
@@ -423,41 +422,6 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 		/* syncing of remote_act_state was just done above */
 		break;
 
-	case XPC_ACTIVATE_MQ_MSG_INC_HEARTBEAT_UV: {
-		struct xpc_activate_mq_msg_heartbeat_req_uv *msg;
-
-		msg = container_of(msg_hdr,
-				   struct xpc_activate_mq_msg_heartbeat_req_uv,
-				   hdr);
-		part_uv->heartbeat = msg->heartbeat;
-		break;
-	}
-	case XPC_ACTIVATE_MQ_MSG_OFFLINE_HEARTBEAT_UV: {
-		struct xpc_activate_mq_msg_heartbeat_req_uv *msg;
-
-		msg = container_of(msg_hdr,
-				   struct xpc_activate_mq_msg_heartbeat_req_uv,
-				   hdr);
-		part_uv->heartbeat = msg->heartbeat;
-
-		spin_lock_irqsave(&part_uv->flags_lock, irq_flags);
-		part_uv->flags |= XPC_P_HEARTBEAT_OFFLINE_UV;
-		spin_unlock_irqrestore(&part_uv->flags_lock, irq_flags);
-		break;
-	}
-	case XPC_ACTIVATE_MQ_MSG_ONLINE_HEARTBEAT_UV: {
-		struct xpc_activate_mq_msg_heartbeat_req_uv *msg;
-
-		msg = container_of(msg_hdr,
-				   struct xpc_activate_mq_msg_heartbeat_req_uv,
-				   hdr);
-		part_uv->heartbeat = msg->heartbeat;
-
-		spin_lock_irqsave(&part_uv->flags_lock, irq_flags);
-		part_uv->flags &= ~XPC_P_HEARTBEAT_OFFLINE_UV;
-		spin_unlock_irqrestore(&part_uv->flags_lock, irq_flags);
-		break;
-	}
 	case XPC_ACTIVATE_MQ_MSG_ACTIVATE_REQ_UV: {
 		struct xpc_activate_mq_msg_activate_req_uv *msg;
 
@@ -475,6 +439,7 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 		part_uv->act_state_req = XPC_P_ASR_ACTIVATE_UV;
 		part->remote_rp_pa = msg->rp_gpa; /* !!! _pa is _gpa */
 		part->remote_rp_ts_jiffies = msg_hdr->rp_ts_jiffies;
+		part_uv->heartbeat_gpa = msg->heartbeat_gpa;
 
 		if (msg->activate_gru_mq_desc_gpa !=
 		    part_uv->activate_gru_mq_desc_gpa) {
@@ -568,6 +533,17 @@ xpc_handle_activate_mq_msg_uv(struct xpc_partition *part,
 
 		xpc_wakeup_channel_mgr(part);
 		break;
+	}
+	case XPC_ACTIVATE_MQ_MSG_CHCTL_OPENCOMPLETE_UV: {
+		struct xpc_activate_mq_msg_chctl_opencomplete_uv *msg;
+
+		msg = container_of(msg_hdr, struct
+				xpc_activate_mq_msg_chctl_opencomplete_uv, hdr);
+		spin_lock_irqsave(&part->chctl_lock, irq_flags);
+		part->chctl.flags[msg->ch_number] |= XPC_CHCTL_OPENCOMPLETE;
+		spin_unlock_irqrestore(&part->chctl_lock, irq_flags);
+
+		xpc_wakeup_channel_mgr(part);
 	}
 	case XPC_ACTIVATE_MQ_MSG_MARK_ENGAGED_UV:
 		spin_lock_irqsave(&part_uv->flags_lock, irq_flags);
@@ -759,7 +735,7 @@ xpc_send_local_activate_IRQ_uv(struct xpc_partition *part, int act_state_req)
 
 	/*
 	 * !!! Make our side think that the remote partition sent an activate
-	 * !!! message our way by doing what the activate IRQ handler would
+	 * !!! mq message our way by doing what the activate IRQ handler would
 	 * !!! do had one really been sent.
 	 */
 
@@ -806,90 +782,82 @@ xpc_get_partition_rsvd_page_pa_uv(void *buf, u64 *cookie, unsigned long *rp_pa,
 }
 
 static int
-xpc_setup_rsvd_page_sn_uv(struct xpc_rsvd_page *rp)
+xpc_setup_rsvd_page_uv(struct xpc_rsvd_page *rp)
 {
-	rp->sn.activate_gru_mq_desc_gpa =
+	xpc_heartbeat_uv =
+	    &xpc_partitions[sn_partition_id].sn.uv.cached_heartbeat;
+	rp->sn.uv.heartbeat_gpa = uv_gpa(xpc_heartbeat_uv);
+	rp->sn.uv.activate_gru_mq_desc_gpa =
 	    uv_gpa(xpc_activate_mq_uv->gru_mq_desc);
 	return 0;
 }
 
 static void
-xpc_send_heartbeat_uv(int msg_type)
+xpc_allow_hb_uv(short partid)
 {
-	short partid;
-	struct xpc_partition *part;
-	struct xpc_activate_mq_msg_heartbeat_req_uv msg;
+}
 
-	/*
-	 * !!! On uv we're broadcasting a heartbeat message every 5 seconds.
-	 * !!! Whereas on sn2 we're bte_copy'ng the heartbeat info every 20
-	 * !!! seconds. This is an increase in numalink traffic.
-	 * ??? Is this good?
-	 */
+static void
+xpc_disallow_hb_uv(short partid)
+{
+}
 
-	msg.heartbeat = atomic64_inc_return(&xpc_heartbeat_uv);
-
-	partid = find_first_bit(xpc_heartbeating_to_mask_uv,
-				XP_MAX_NPARTITIONS_UV);
-
-	while (partid < XP_MAX_NPARTITIONS_UV) {
-		part = &xpc_partitions[partid];
-
-		xpc_send_activate_IRQ_part_uv(part, &msg, sizeof(msg),
-					      msg_type);
-
-		partid = find_next_bit(xpc_heartbeating_to_mask_uv,
-				       XP_MAX_NPARTITIONS_UV, partid + 1);
-	}
+static void
+xpc_disallow_all_hbs_uv(void)
+{
 }
 
 static void
 xpc_increment_heartbeat_uv(void)
 {
-	xpc_send_heartbeat_uv(XPC_ACTIVATE_MQ_MSG_INC_HEARTBEAT_UV);
+	xpc_heartbeat_uv->value++;
 }
 
 static void
 xpc_offline_heartbeat_uv(void)
 {
-	xpc_send_heartbeat_uv(XPC_ACTIVATE_MQ_MSG_OFFLINE_HEARTBEAT_UV);
+	xpc_increment_heartbeat_uv();
+	xpc_heartbeat_uv->offline = 1;
 }
 
 static void
 xpc_online_heartbeat_uv(void)
 {
-	xpc_send_heartbeat_uv(XPC_ACTIVATE_MQ_MSG_ONLINE_HEARTBEAT_UV);
+	xpc_increment_heartbeat_uv();
+	xpc_heartbeat_uv->offline = 0;
 }
 
 static void
 xpc_heartbeat_init_uv(void)
 {
-	atomic64_set(&xpc_heartbeat_uv, 0);
-	bitmap_zero(xpc_heartbeating_to_mask_uv, XP_MAX_NPARTITIONS_UV);
-	xpc_heartbeating_to_mask = &xpc_heartbeating_to_mask_uv[0];
+	xpc_heartbeat_uv->value = 1;
+	xpc_heartbeat_uv->offline = 0;
 }
 
 static void
 xpc_heartbeat_exit_uv(void)
 {
-	xpc_send_heartbeat_uv(XPC_ACTIVATE_MQ_MSG_OFFLINE_HEARTBEAT_UV);
+	xpc_offline_heartbeat_uv();
 }
 
 static enum xp_retval
 xpc_get_remote_heartbeat_uv(struct xpc_partition *part)
 {
 	struct xpc_partition_uv *part_uv = &part->sn.uv;
-	enum xp_retval ret = xpNoHeartbeat;
+	enum xp_retval ret;
 
-	if (part_uv->remote_act_state != XPC_P_AS_INACTIVE &&
-	    part_uv->remote_act_state != XPC_P_AS_DEACTIVATING) {
+	ret = xp_remote_memcpy(uv_gpa(&part_uv->cached_heartbeat),
+			       part_uv->heartbeat_gpa,
+			       sizeof(struct xpc_heartbeat_uv));
+	if (ret != xpSuccess)
+		return ret;
 
-		if (part_uv->heartbeat != part->last_heartbeat ||
-		    (part_uv->flags & XPC_P_HEARTBEAT_OFFLINE_UV)) {
+	if (part_uv->cached_heartbeat.value == part->last_heartbeat &&
+	    !part_uv->cached_heartbeat.offline) {
 
-			part->last_heartbeat = part_uv->heartbeat;
-			ret = xpSuccess;
-		}
+		ret = xpNoHeartbeat;
+	} else {
+		part->last_heartbeat = part_uv->cached_heartbeat.value;
 	}
 	return ret;
 }
@@ -904,8 +872,9 @@ xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
 
 	part->remote_rp_pa = remote_rp_gpa; /* !!! _pa here is really _gpa */
 	part->remote_rp_ts_jiffies = remote_rp->ts_jiffies;
+	part->sn.uv.heartbeat_gpa = remote_rp->sn.uv.heartbeat_gpa;
 	part->sn.uv.activate_gru_mq_desc_gpa =
-	    remote_rp->sn.activate_gru_mq_desc_gpa;
+	    remote_rp->sn.uv.activate_gru_mq_desc_gpa;
 
 	/*
 	 * ??? Is it a good idea to make this conditional on what is
@@ -913,8 +882,9 @@ xpc_request_partition_activation_uv(struct xpc_rsvd_page *remote_rp,
 	 */
 	if (part->sn.uv.remote_act_state == XPC_P_AS_INACTIVE) {
 		msg.rp_gpa = uv_gpa(xpc_rsvd_page);
+		msg.heartbeat_gpa = xpc_rsvd_page->sn.uv.heartbeat_gpa;
 		msg.activate_gru_mq_desc_gpa =
-		    xpc_rsvd_page->sn.activate_gru_mq_desc_gpa;
+		    xpc_rsvd_page->sn.uv.activate_gru_mq_desc_gpa;
 		xpc_send_activate_IRQ_part_uv(part, &msg, sizeof(msg),
 					   XPC_ACTIVATE_MQ_MSG_ACTIVATE_REQ_UV);
 	}
@@ -1010,7 +980,7 @@ xpc_n_of_fifo_entries_uv(struct xpc_fifo_head_uv *head)
  * Setup the channel structures that are uv specific.
  */
 static enum xp_retval
-xpc_setup_ch_structures_sn_uv(struct xpc_partition *part)
+xpc_setup_ch_structures_uv(struct xpc_partition *part)
 {
 	struct xpc_channel_uv *ch_uv;
 	int ch_number;
@@ -1029,7 +999,7 @@ xpc_setup_ch_structures_sn_uv(struct xpc_partition *part)
  * Teardown the channel structures that are uv specific.
  */
 static void
-xpc_teardown_ch_structures_sn_uv(struct xpc_partition *part)
+xpc_teardown_ch_structures_uv(struct xpc_partition *part)
 {
 	/* nothing needs to be done */
 	return;
@@ -1240,6 +1210,16 @@ xpc_send_chctl_openreply_uv(struct xpc_channel *ch, unsigned long *irq_flags)
 	msg.notify_gru_mq_desc_gpa = uv_gpa(xpc_notify_mq_uv->gru_mq_desc);
 	xpc_send_activate_IRQ_ch_uv(ch, irq_flags, &msg, sizeof(msg),
 				    XPC_ACTIVATE_MQ_MSG_CHCTL_OPENREPLY_UV);
+}
+
+static void
+xpc_send_chctl_opencomplete_uv(struct xpc_channel *ch, unsigned long *irq_flags)
+{
+	struct xpc_activate_mq_msg_chctl_opencomplete_uv msg;
+
+	msg.ch_number = ch->number;
+	xpc_send_activate_IRQ_ch_uv(ch, irq_flags, &msg, sizeof(msg),
+				    XPC_ACTIVATE_MQ_MSG_CHCTL_OPENCOMPLETE_UV);
 }
 
 static void
@@ -1669,58 +1649,67 @@ xpc_received_payload_uv(struct xpc_channel *ch, void *payload)
 	msg->hdr.msg_slot_number += ch->remote_nentries;
 }
 
+static struct xpc_arch_operations xpc_arch_ops_uv = {
+	.setup_partitions = xpc_setup_partitions_uv,
+	.teardown_partitions = xpc_teardown_partitions_uv,
+	.process_activate_IRQ_rcvd = xpc_process_activate_IRQ_rcvd_uv,
+	.get_partition_rsvd_page_pa = xpc_get_partition_rsvd_page_pa_uv,
+	.setup_rsvd_page = xpc_setup_rsvd_page_uv,
+
+	.allow_hb = xpc_allow_hb_uv,
+	.disallow_hb = xpc_disallow_hb_uv,
+	.disallow_all_hbs = xpc_disallow_all_hbs_uv,
+	.increment_heartbeat = xpc_increment_heartbeat_uv,
+	.offline_heartbeat = xpc_offline_heartbeat_uv,
+	.online_heartbeat = xpc_online_heartbeat_uv,
+	.heartbeat_init = xpc_heartbeat_init_uv,
+	.heartbeat_exit = xpc_heartbeat_exit_uv,
+	.get_remote_heartbeat = xpc_get_remote_heartbeat_uv,
+
+	.request_partition_activation =
+		xpc_request_partition_activation_uv,
+	.request_partition_reactivation =
+		xpc_request_partition_reactivation_uv,
+	.request_partition_deactivation =
+		xpc_request_partition_deactivation_uv,
+	.cancel_partition_deactivation_request =
+		xpc_cancel_partition_deactivation_request_uv,
+
+	.setup_ch_structures = xpc_setup_ch_structures_uv,
+	.teardown_ch_structures = xpc_teardown_ch_structures_uv,
+
+	.make_first_contact = xpc_make_first_contact_uv,
+
+	.get_chctl_all_flags = xpc_get_chctl_all_flags_uv,
+	.send_chctl_closerequest = xpc_send_chctl_closerequest_uv,
+	.send_chctl_closereply = xpc_send_chctl_closereply_uv,
+	.send_chctl_openrequest = xpc_send_chctl_openrequest_uv,
+	.send_chctl_openreply = xpc_send_chctl_openreply_uv,
+	.send_chctl_opencomplete = xpc_send_chctl_opencomplete_uv,
+	.process_msg_chctl_flags = xpc_process_msg_chctl_flags_uv,
+
+	.save_remote_msgqueue_pa = xpc_save_remote_msgqueue_pa_uv,
+
+	.setup_msg_structures = xpc_setup_msg_structures_uv,
+	.teardown_msg_structures = xpc_teardown_msg_structures_uv,
+
+	.indicate_partition_engaged = xpc_indicate_partition_engaged_uv,
+	.indicate_partition_disengaged = xpc_indicate_partition_disengaged_uv,
+	.assume_partition_disengaged = xpc_assume_partition_disengaged_uv,
+	.partition_engaged = xpc_partition_engaged_uv,
+	.any_partition_engaged = xpc_any_partition_engaged_uv,
+
+	.n_of_deliverable_payloads = xpc_n_of_deliverable_payloads_uv,
+	.send_payload = xpc_send_payload_uv,
+	.get_deliverable_payload = xpc_get_deliverable_payload_uv,
+	.received_payload = xpc_received_payload_uv,
+	.notify_senders_of_disconnect = xpc_notify_senders_of_disconnect_uv,
+};
+
 int
 xpc_init_uv(void)
 {
-	xpc_setup_partitions_sn = xpc_setup_partitions_sn_uv;
-	xpc_teardown_partitions_sn = xpc_teardown_partitions_sn_uv;
-	xpc_process_activate_IRQ_rcvd = xpc_process_activate_IRQ_rcvd_uv;
-	xpc_get_partition_rsvd_page_pa = xpc_get_partition_rsvd_page_pa_uv;
-	xpc_setup_rsvd_page_sn = xpc_setup_rsvd_page_sn_uv;
-	xpc_increment_heartbeat = xpc_increment_heartbeat_uv;
-	xpc_offline_heartbeat = xpc_offline_heartbeat_uv;
-	xpc_online_heartbeat = xpc_online_heartbeat_uv;
-	xpc_heartbeat_init = xpc_heartbeat_init_uv;
-	xpc_heartbeat_exit = xpc_heartbeat_exit_uv;
-	xpc_get_remote_heartbeat = xpc_get_remote_heartbeat_uv;
-
-	xpc_request_partition_activation = xpc_request_partition_activation_uv;
-	xpc_request_partition_reactivation =
-	    xpc_request_partition_reactivation_uv;
-	xpc_request_partition_deactivation =
-	    xpc_request_partition_deactivation_uv;
-	xpc_cancel_partition_deactivation_request =
-	    xpc_cancel_partition_deactivation_request_uv;
-
-	xpc_setup_ch_structures_sn = xpc_setup_ch_structures_sn_uv;
-	xpc_teardown_ch_structures_sn = xpc_teardown_ch_structures_sn_uv;
-
-	xpc_make_first_contact = xpc_make_first_contact_uv;
-
-	xpc_get_chctl_all_flags = xpc_get_chctl_all_flags_uv;
-	xpc_send_chctl_closerequest = xpc_send_chctl_closerequest_uv;
-	xpc_send_chctl_closereply = xpc_send_chctl_closereply_uv;
-	xpc_send_chctl_openrequest = xpc_send_chctl_openrequest_uv;
-	xpc_send_chctl_openreply = xpc_send_chctl_openreply_uv;
-
-	xpc_save_remote_msgqueue_pa = xpc_save_remote_msgqueue_pa_uv;
-
-	xpc_setup_msg_structures = xpc_setup_msg_structures_uv;
-	xpc_teardown_msg_structures = xpc_teardown_msg_structures_uv;
-
-	xpc_indicate_partition_engaged = xpc_indicate_partition_engaged_uv;
-	xpc_indicate_partition_disengaged =
-	    xpc_indicate_partition_disengaged_uv;
-	xpc_assume_partition_disengaged = xpc_assume_partition_disengaged_uv;
-	xpc_partition_engaged = xpc_partition_engaged_uv;
-	xpc_any_partition_engaged = xpc_any_partition_engaged_uv;
-
-	xpc_n_of_deliverable_payloads = xpc_n_of_deliverable_payloads_uv;
-	xpc_process_msg_chctl_flags = xpc_process_msg_chctl_flags_uv;
-	xpc_send_payload = xpc_send_payload_uv;
-	xpc_notify_senders_of_disconnect = xpc_notify_senders_of_disconnect_uv;
-	xpc_get_deliverable_payload = xpc_get_deliverable_payload_uv;
-	xpc_received_payload = xpc_received_payload_uv;
+	xpc_arch_ops = xpc_arch_ops_uv;
 
 	if (sizeof(struct xpc_notify_mq_msghdr_uv) > XPC_MSG_HDR_MAX_SIZE) {
 		dev_err(xpc_part, "xpc_notify_mq_msghdr_uv is larger than %d\n",

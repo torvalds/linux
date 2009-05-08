@@ -76,6 +76,9 @@ s32 ixgbe_disable_pcie_master(struct ixgbe_hw *hw);
 s32 ixgbe_read_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 *val);
 s32 ixgbe_write_analog_reg8_generic(struct ixgbe_hw *hw, u32 reg, u8 val);
 
+s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index);
+s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
+
 #define IXGBE_WRITE_REG(a, reg, value) writel((value), ((a)->hw_addr + (reg)))
 
 #ifndef writeq

@@ -434,7 +434,7 @@ void phy_start_machine(struct phy_device *phydev,
 	phydev->adjust_state = handler;
 
 	INIT_DELAYED_WORK(&phydev->state_queue, phy_state_machine);
-	schedule_delayed_work(&phydev->state_queue, jiffies + HZ);
+	schedule_delayed_work(&phydev->state_queue, HZ);
 }
 
 /**
@@ -655,6 +655,10 @@ static void phy_change(struct work_struct *work)
 	struct phy_device *phydev =
 		container_of(work, struct phy_device, phy_queue);
 
+	if (phydev->drv->did_interrupt &&
+	    !phydev->drv->did_interrupt(phydev))
+		goto ignore;
+
 	err = phy_disable_interrupts(phydev);
 
 	if (err)
@@ -679,6 +683,11 @@ static void phy_change(struct work_struct *work)
 	cancel_delayed_work_sync(&phydev->state_queue);
 	schedule_delayed_work(&phydev->state_queue, 0);
 
+	return;
+
+ignore:
+	atomic_dec(&phydev->irq_disable);
+	enable_irq(phydev->irq);
 	return;
 
 irq_enable_err:
@@ -937,6 +946,5 @@ static void phy_state_machine(struct work_struct *work)
 	if (err < 0)
 		phy_error(phydev);
 
-	schedule_delayed_work(&phydev->state_queue,
-				jiffies + PHY_STATE_TIME * HZ);
+	schedule_delayed_work(&phydev->state_queue, PHY_STATE_TIME * HZ);
 }

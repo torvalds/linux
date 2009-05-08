@@ -169,7 +169,7 @@ PCI SSID look-up.
 What `model` option values are available depends on the codec chip.
 Check your codec chip from the codec proc file (see "Codec Proc-File"
 section below).  It will show the vendor/product name of your codec
-chip.  Then, see Documentation/sound/alsa/HD-Audio-Modelstxt file,
+chip.  Then, see Documentation/sound/alsa/HD-Audio-Models.txt file,
 the section of HD-audio driver.  You can find a list of codecs
 and `model` options belonging to each codec.  For example, for Realtek
 ALC262 codec chip, pass `model=ultra` for devices that are compatible
@@ -177,7 +177,7 @@ with Samsung Q1 Ultra.
 
 Thus, the first thing you can do for any brand-new, unsupported and
 non-working HD-audio hardware is to check HD-audio codec and several
-different `model` option values.  If you have a luck, some of them
+different `model` option values.  If you have any luck, some of them
 might suit with your device well.
 
 Some codecs such as ALC880 have a special model option `model=test`.

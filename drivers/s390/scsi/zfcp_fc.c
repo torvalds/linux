@@ -98,13 +98,6 @@ static void zfcp_wka_port_offline(struct work_struct *work)
 	struct zfcp_wka_port *wka_port =
 			container_of(dw, struct zfcp_wka_port, work);
 
-	/* Don't wait forvever. If the wka_port is too busy take it offline
-	   through a new call later */
-	if (!wait_event_timeout(wka_port->completion_wq,
-				atomic_read(&wka_port->refcount) == 0,
-				HZ >> 1))
-		return;
-
 	mutex_lock(&wka_port->mutex);
 	if ((atomic_read(&wka_port->refcount) != 0) ||
 	    (wka_port->status != ZFCP_WKA_PORT_ONLINE))
@@ -140,6 +133,14 @@ void zfcp_fc_nameserver_init(struct zfcp_adapter *adapter)
 	atomic_set(&wka_port->refcount, 0);
 	mutex_init(&wka_port->mutex);
 	INIT_DELAYED_WORK(&wka_port->work, zfcp_wka_port_offline);
+}
+
+void zfcp_fc_wka_port_force_offline(struct zfcp_wka_port *wka)
+{
+	cancel_delayed_work_sync(&wka->work);
+	mutex_lock(&wka->mutex);
+	wka->status = ZFCP_WKA_PORT_OFFLINE;
+	mutex_unlock(&wka->mutex);
 }
 
 static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
@@ -372,7 +373,8 @@ static void zfcp_fc_adisc_handler(unsigned long data)
 
 	if (adisc->els.status) {
 		/* request rejected or timed out */
-		zfcp_erp_port_forced_reopen(port, 0, "fcadh_1", NULL);
+		zfcp_erp_port_forced_reopen(port, ZFCP_STATUS_COMMON_ERP_FAILED,
+					    "fcadh_1", NULL);
 		goto out;
 	}
 
@@ -430,11 +432,6 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	struct zfcp_port *port =
 		container_of(work, struct zfcp_port, test_link_work);
 	int retval;
-
-	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_UNBLOCKED)) {
-		zfcp_port_put(port);
-		return; /* port erp is running and will update rport status */
-	}
 
 	zfcp_port_get(port);
 	port->rport_task = RPORT_DEL;
@@ -542,6 +539,9 @@ static void zfcp_validate_port(struct zfcp_port *port)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 
+	if (!(atomic_read(&port->status) & ZFCP_STATUS_COMMON_NOESC))
+		return;
+
 	atomic_clear_mask(ZFCP_STATUS_COMMON_NOESC, &port->status);
 
 	if ((port->supported_classes != 0) ||
@@ -602,10 +602,8 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft, int max_entries)
 		if (acc->wwpn == fc_host_port_name(adapter->scsi_host))
 			continue;
 		port = zfcp_get_port_by_wwpn(adapter, acc->wwpn);
-		if (port) {
-			zfcp_port_get(port);
+		if (port)
 			continue;
-		}
 
 		port = zfcp_port_enqueue(adapter, acc->wwpn,
 					 ZFCP_STATUS_COMMON_NOESC, d_id);
@@ -637,7 +635,8 @@ int zfcp_scan_ports(struct zfcp_adapter *adapter)
 	max_entries = chain ? ZFCP_GPN_FT_MAX_ENTRIES : ZFCP_GPN_FT_ENTRIES;
 	max_bytes = chain ? ZFCP_GPN_FT_MAX_SIZE : ZFCP_CT_SIZE_ONE_PAGE;
 
-	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT)
+	if (fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPORT &&
+	    fc_host_port_type(adapter->scsi_host) != FC_PORTTYPE_NPIV)
 		return 0;
 
 	ret = zfcp_wka_port_get(&adapter->nsp);

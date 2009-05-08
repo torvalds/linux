@@ -18,8 +18,8 @@
 #include <asm/cpu-regs.h>
 #include <asm/frame.inc>
 #include <asm/timer-regs.h>
-#include <asm/proc/cache.h>
-#include <asm/unit/timex.h>
+#include <proc/cache.h>
+#include <unit/timex.h>
 #include "mn10300-serial.h"
 
 #define	SCxCTR	0x00

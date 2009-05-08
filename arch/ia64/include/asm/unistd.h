@@ -308,11 +308,13 @@
 #define __NR_dup3			1316
 #define __NR_pipe2			1317
 #define __NR_inotify_init1		1318
+#define __NR_preadv			1319
+#define __NR_pwritev			1320
 
 #ifdef __KERNEL__
 
 
-#define NR_syscalls			295 /* length of syscall table */
+#define NR_syscalls			297 /* length of syscall table */
 
 /*
  * The following defines stop scripts/checksyscalls.sh from complaining about

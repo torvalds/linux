@@ -132,6 +132,7 @@ void drm_sysfs_destroy(void)
  */
 static void drm_sysfs_device_release(struct device *dev)
 {
+	memset(dev, 0, sizeof(struct device));
 	return;
 }
 
@@ -488,9 +489,7 @@ int drm_sysfs_device_add(struct drm_minor *minor)
 
 	return 0;
 
-	device_unregister(&minor->kdev);
 err_out:
-
 	return err;
 }
 

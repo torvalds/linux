@@ -87,6 +87,7 @@ const struct ata_port_operations ata_bmdma32_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
 
 	.sff_data_xfer		= ata_sff_data_xfer32,
+	.port_start		= ata_sff_port_start32,
 };
 EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
 
@@ -769,6 +770,9 @@ unsigned int ata_sff_data_xfer32(struct ata_device *dev, unsigned char *buf,
 	void __iomem *data_addr = ap->ioaddr.data_addr;
 	unsigned int words = buflen >> 2;
 	int slop = buflen & 3;
+	
+	if (!(ap->pflags & ATA_PFLAG_PIO32))
+		return ata_sff_data_xfer(dev, buf, buflen, rw);
 
 	/* Transfer multiple of 4 bytes */
 	if (rw == READ)
@@ -2400,6 +2404,29 @@ int ata_sff_port_start(struct ata_port *ap)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_sff_port_start);
+
+/**
+ *	ata_sff_port_start32 - Set port up for dma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Allocates space for PRD table if the device
+ *	is DMA capable SFF.
+ *
+ *	May be used as the port_start() entry in ata_port_operations for
+ *	devices that are capable of 32bit PIO.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+int ata_sff_port_start32(struct ata_port *ap)
+{
+	ap->pflags |= ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE;
+	if (ap->ioaddr.bmdma_addr)
+		return ata_port_start(ap);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_sff_port_start32);
 
 /**
  *	ata_sff_std_ports - initialize ioaddr with standard port offsets.

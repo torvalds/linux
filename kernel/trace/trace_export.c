@@ -40,7 +40,7 @@
 
 #undef TRACE_FIELD_ZERO_CHAR
 #define TRACE_FIELD_ZERO_CHAR(item)					\
-	ret = trace_seq_printf(s, "\tfield: char " #item ";\t"		\
+	ret = trace_seq_printf(s, "\tfield:char " #item ";\t"		\
 			       "offset:%u;\tsize:0;\n",			\
 			       (unsigned int)offsetof(typeof(field), item)); \
 	if (!ret)							\

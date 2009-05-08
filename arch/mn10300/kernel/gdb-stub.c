@@ -136,8 +136,8 @@
 #include <asm/cacheflush.h>
 #include <asm/serial-regs.h>
 #include <asm/busctl-regs.h>
-#include <asm/unit/leds.h>
-#include <asm/unit/serial.h>
+#include <unit/leds.h>
+#include <unit/serial.h>
 
 /* define to use F7F7 rather than FF which is subverted by JTAG debugger */
 #undef GDBSTUB_USE_F7F7_AS_BREAKPOINT

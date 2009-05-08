@@ -116,10 +116,15 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 	}
 	if ((exp->ex_flags & NFSEXP_CROSSMOUNT) || EX_NOHIDE(exp2)) {
 		/* successfully crossed mount point */
-		exp_put(exp);
-		*expp = exp2;
+		/*
+		 * This is subtle: dentry is *not* under mnt at this point.
+		 * The only reason we are safe is that original mnt is pinned
+		 * down by exp, so we should dput before putting exp.
+		 */
 		dput(dentry);
 		*dpp = mounts;
+		exp_put(exp);
+		*expp = exp2;
 	} else {
 		exp_put(exp2);
 		dput(mounts);
@@ -1885,8 +1890,8 @@ static int nfsd_buffered_filldir(void *__buf, const char *name, int namlen,
 	return 0;
 }
 
-static int nfsd_buffered_readdir(struct file *file, filldir_t func,
-				 struct readdir_cd *cdp, loff_t *offsetp)
+static __be32 nfsd_buffered_readdir(struct file *file, filldir_t func,
+				    struct readdir_cd *cdp, loff_t *offsetp)
 {
 	struct readdir_data buf;
 	struct buffered_dirent *de;
@@ -1896,11 +1901,12 @@ static int nfsd_buffered_readdir(struct file *file, filldir_t func,
 
 	buf.dirent = (void *)__get_free_page(GFP_KERNEL);
 	if (!buf.dirent)
-		return -ENOMEM;
+		return nfserrno(-ENOMEM);
 
 	offset = *offsetp;
 
 	while (1) {
+		struct inode *dir_inode = file->f_path.dentry->d_inode;
 		unsigned int reclen;
 
 		cdp->err = nfserr_eof; /* will be cleared on successful read */
@@ -1919,26 +1925,38 @@ static int nfsd_buffered_readdir(struct file *file, filldir_t func,
 		if (!size)
 			break;
 
+		/*
+		 * Various filldir functions may end up calling back into
+		 * lookup_one_len() and the file system's ->lookup() method.
+		 * These expect i_mutex to be held, as it would within readdir.
+		 */
+		host_err = mutex_lock_killable(&dir_inode->i_mutex);
+		if (host_err)
+			break;
+
 		de = (struct buffered_dirent *)buf.dirent;
 		while (size > 0) {
 			offset = de->offset;
 
 			if (func(cdp, de->name, de->namlen, de->offset,
 				 de->ino, de->d_type))
-				goto done;
+				break;
 
 			if (cdp->err != nfs_ok)
-				goto done;
+				break;
 
 			reclen = ALIGN(sizeof(*de) + de->namlen,
 				       sizeof(u64));
 			size -= reclen;
 			de = (struct buffered_dirent *)((char *)de + reclen);
 		}
+		mutex_unlock(&dir_inode->i_mutex);
+		if (size > 0) /* We bailed out early */
+			break;
+
 		offset = vfs_llseek(file, 0, SEEK_CUR);
 	}
 
- done:
 	free_page((unsigned long)(buf.dirent));
 
 	if (host_err)

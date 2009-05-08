@@ -82,12 +82,6 @@
 #define SI_SHORT_TIMEOUT_USEC  250 /* .25ms when the SM request a
 				      short timeout */
 
-/* Bit for BMC global enables. */
-#define IPMI_BMC_RCV_MSG_INTR     0x01
-#define IPMI_BMC_EVT_MSG_INTR     0x02
-#define IPMI_BMC_EVT_MSG_BUFF     0x04
-#define IPMI_BMC_SYS_LOG          0x08
-
 enum si_intf_state {
 	SI_NORMAL,
 	SI_GETTING_FLAGS,
@@ -219,6 +213,9 @@ struct smi_info {
 			     OEM1_DATA_AVAIL | \
 			     OEM2_DATA_AVAIL)
 	unsigned char       msg_flags;
+
+	/* Does the BMC have an event buffer? */
+	char		    has_event_buffer;
 
 	/*
 	 * If set to true, this will request events the next time the
@@ -968,7 +965,8 @@ static void request_events(void *send_info)
 {
 	struct smi_info *smi_info = send_info;
 
-	if (atomic_read(&smi_info->stop_operation))
+	if (atomic_read(&smi_info->stop_operation) ||
+				!smi_info->has_event_buffer)
 		return;
 
 	atomic_set(&smi_info->req_events, 1);
@@ -2407,26 +2405,9 @@ static struct of_platform_driver ipmi_of_platform_driver = {
 };
 #endif /* CONFIG_PPC_OF */
 
-
-static int try_get_dev_id(struct smi_info *smi_info)
+static int wait_for_msg_done(struct smi_info *smi_info)
 {
-	unsigned char         msg[2];
-	unsigned char         *resp;
-	unsigned long         resp_len;
 	enum si_sm_result     smi_result;
-	int                   rv = 0;
-
-	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
-	if (!resp)
-		return -ENOMEM;
-
-	/*
-	 * Do a Get Device ID command, since it comes back with some
-	 * useful info.
-	 */
-	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
-	msg[1] = IPMI_GET_DEVICE_ID_CMD;
-	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 2);
 
 	smi_result = smi_info->handlers->event(smi_info->si_sm, 0);
 	for (;;) {
@@ -2441,22 +2422,127 @@ static int try_get_dev_id(struct smi_info *smi_info)
 		} else
 			break;
 	}
-	if (smi_result == SI_SM_HOSED) {
+	if (smi_result == SI_SM_HOSED)
 		/*
 		 * We couldn't get the state machine to run, so whatever's at
 		 * the port is probably not an IPMI SMI interface.
 		 */
-		rv = -ENODEV;
-		goto out;
-	}
+		return -ENODEV;
 
-	/* Otherwise, we got some data. */
+	return 0;
+}
+
+static int try_get_dev_id(struct smi_info *smi_info)
+{
+	unsigned char         msg[2];
+	unsigned char         *resp;
+	unsigned long         resp_len;
+	int                   rv = 0;
+
+	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
+
+	/*
+	 * Do a Get Device ID command, since it comes back with some
+	 * useful info.
+	 */
+	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+	msg[1] = IPMI_GET_DEVICE_ID_CMD;
+	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 2);
+
+	rv = wait_for_msg_done(smi_info);
+	if (rv)
+		goto out;
+
 	resp_len = smi_info->handlers->get_result(smi_info->si_sm,
 						  resp, IPMI_MAX_MSG_LENGTH);
 
 	/* Check and record info from the get device id, in case we need it. */
 	rv = ipmi_demangle_device_id(resp, resp_len, &smi_info->device_id);
 
+ out:
+	kfree(resp);
+	return rv;
+}
+
+static int try_enable_event_buffer(struct smi_info *smi_info)
+{
+	unsigned char         msg[3];
+	unsigned char         *resp;
+	unsigned long         resp_len;
+	int                   rv = 0;
+
+	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
+
+	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+	msg[1] = IPMI_GET_BMC_GLOBAL_ENABLES_CMD;
+	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 2);
+
+	rv = wait_for_msg_done(smi_info);
+	if (rv) {
+		printk(KERN_WARNING
+		       "ipmi_si: Error getting response from get global,"
+		       " enables command, the event buffer is not"
+		       " enabled.\n");
+		goto out;
+	}
+
+	resp_len = smi_info->handlers->get_result(smi_info->si_sm,
+						  resp, IPMI_MAX_MSG_LENGTH);
+
+	if (resp_len < 4 ||
+			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
+			resp[1] != IPMI_GET_BMC_GLOBAL_ENABLES_CMD   ||
+			resp[2] != 0) {
+		printk(KERN_WARNING
+		       "ipmi_si: Invalid return from get global"
+		       " enables command, cannot enable the event"
+		       " buffer.\n");
+		rv = -EINVAL;
+		goto out;
+	}
+
+	if (resp[3] & IPMI_BMC_EVT_MSG_BUFF)
+		/* buffer is already enabled, nothing to do. */
+		goto out;
+
+	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+	msg[1] = IPMI_SET_BMC_GLOBAL_ENABLES_CMD;
+	msg[2] = resp[3] | IPMI_BMC_EVT_MSG_BUFF;
+	smi_info->handlers->start_transaction(smi_info->si_sm, msg, 3);
+
+	rv = wait_for_msg_done(smi_info);
+	if (rv) {
+		printk(KERN_WARNING
+		       "ipmi_si: Error getting response from set global,"
+		       " enables command, the event buffer is not"
+		       " enabled.\n");
+		goto out;
+	}
+
+	resp_len = smi_info->handlers->get_result(smi_info->si_sm,
+						  resp, IPMI_MAX_MSG_LENGTH);
+
+	if (resp_len < 3 ||
+			resp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2 ||
+			resp[1] != IPMI_SET_BMC_GLOBAL_ENABLES_CMD) {
+		printk(KERN_WARNING
+		       "ipmi_si: Invalid return from get global,"
+		       "enables command, not enable the event"
+		       " buffer.\n");
+		rv = -EINVAL;
+		goto out;
+	}
+
+	if (resp[2] != 0)
+		/*
+		 * An error when setting the event buffer bit means
+		 * that the event buffer is not supported.
+		 */
+		rv = -ENOENT;
  out:
 	kfree(resp);
 	return rv;
@@ -2847,6 +2933,10 @@ static int try_smi_init(struct smi_info *new_smi)
 	new_smi->intf_num = smi_num;
 	smi_num++;
 
+	rv = try_enable_event_buffer(new_smi);
+	if (rv == 0)
+		new_smi->has_event_buffer = 1;
+
 	/*
 	 * Start clearing the flags before we enable interrupts or the
 	 * timer to avoid racing with the timer.
@@ -2863,7 +2953,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		 */
 		new_smi->pdev = platform_device_alloc("ipmi_si",
 						      new_smi->intf_num);
-		if (rv) {
+		if (!new_smi->pdev) {
 			printk(KERN_ERR
 			       "ipmi_si_intf:"
 			       " Unable to allocate platform device\n");

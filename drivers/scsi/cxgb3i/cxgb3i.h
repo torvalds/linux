@@ -34,7 +34,7 @@
 #include "cxgb3i_offload.h"
 #include "cxgb3i_ddp.h"
 
-#define CXGB3I_SCSI_QDEPTH_DFLT	128
+#define CXGB3I_SCSI_HOST_QDEPTH 1024
 #define CXGB3I_MAX_TARGET	CXGB3I_MAX_CONN
 #define CXGB3I_MAX_LUN		512
 #define ISCSI_PDU_NONPAYLOAD_MAX \

@@ -370,5 +370,3 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-source "arch/mn10300/oprofile/Kconfig"

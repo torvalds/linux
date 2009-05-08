@@ -275,6 +275,8 @@ config NF_CT_NETLINK
 	help
 	  This option enables support for a netlink-based userspace interface
 
+endif # NF_CONNTRACK
+
 # transparent proxy support
 config NETFILTER_TPROXY
 	tristate "Transparent proxying support (EXPERIMENTAL)"
@@ -289,8 +291,6 @@ config NETFILTER_TPROXY
 	  see Documentation/networking/tproxy.txt.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
-
-endif # NF_CONNTRACK
 
 config NETFILTER_XTABLES
 	tristate "Netfilter Xtables support (required for ip_tables)"
@@ -374,7 +374,7 @@ config NETFILTER_XT_TARGET_HL
 
 config NETFILTER_XT_TARGET_LED
 	tristate '"LED" target support'
-	depends on LEDS_CLASS && LED_TRIGGERS
+	depends on LEDS_CLASS && LEDS_TRIGGERS
 	depends on NETFILTER_ADVANCED
 	help
 	  This option adds a `LED' target, which allows you to blink LEDs in
@@ -837,6 +837,7 @@ config NETFILTER_XT_MATCH_SOCKET
 	depends on NETFILTER_TPROXY
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
+	depends on !NF_CONNTRACK || NF_CONNTRACK
 	select NF_DEFRAG_IPV4
 	help
 	  This option adds a `socket' match, which can be used to match

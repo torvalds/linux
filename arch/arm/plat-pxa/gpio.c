@@ -121,6 +121,8 @@ static int __init pxa_init_gpio_chip(int gpio_end)
 		return -ENOMEM;
 	}
 
+	memset(chips, 0, nbanks * sizeof(struct pxa_gpio_chip));
+
 	for (i = 0, gpio = 0; i < nbanks; i++, gpio += 32) {
 		struct gpio_chip *c = &chips[i].chip;
 
@@ -141,6 +143,21 @@ static int __init pxa_init_gpio_chip(int gpio_end)
 	}
 	pxa_gpio_chips = chips;
 	return 0;
+}
+
+/* Update only those GRERx and GFERx edge detection register bits if those
+ * bits are set in c->irq_mask
+ */
+static inline void update_edge_detect(struct pxa_gpio_chip *c)
+{
+	uint32_t grer, gfer;
+
+	grer = __raw_readl(c->regbase + GRER_OFFSET) & ~c->irq_mask;
+	gfer = __raw_readl(c->regbase + GFER_OFFSET) & ~c->irq_mask;
+	grer |= c->irq_edge_rise & c->irq_mask;
+	gfer |= c->irq_edge_fall & c->irq_mask;
+	__raw_writel(grer, c->regbase + GRER_OFFSET);
+	__raw_writel(gfer, c->regbase + GFER_OFFSET);
 }
 
 static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
@@ -181,8 +198,7 @@ static int pxa_gpio_irq_type(unsigned int irq, unsigned int type)
 	else
 		c->irq_edge_fall &= ~mask;
 
-	__raw_writel(c->irq_edge_rise & c->irq_mask, c->regbase + GRER_OFFSET);
-	__raw_writel(c->irq_edge_fall & c->irq_mask, c->regbase + GFER_OFFSET);
+	update_edge_detect(c);
 
 	pr_debug("%s: IRQ%d (GPIO%d) - edge%s%s\n", __func__, irq, gpio,
 		((type & IRQ_TYPE_EDGE_RISING)  ? " rising"  : ""),
@@ -244,8 +260,7 @@ static void pxa_unmask_muxed_gpio(unsigned int irq)
 	struct pxa_gpio_chip *c = gpio_to_chip(gpio);
 
 	c->irq_mask |= GPIO_bit(gpio);
-	__raw_writel(c->irq_edge_rise & c->irq_mask, c->regbase + GRER_OFFSET);
-	__raw_writel(c->irq_edge_fall & c->irq_mask, c->regbase + GFER_OFFSET);
+	update_edge_detect(c);
 }
 
 static struct irq_chip pxa_muxed_gpio_chip = {

@@ -402,8 +402,8 @@ static void apb_init(struct pci_bus *sabre_bus)
 	}
 }
 
-static void __init sabre_scan_bus(struct pci_pbm_info *pbm,
-				  struct device *parent)
+static void __devinit sabre_scan_bus(struct pci_pbm_info *pbm,
+				     struct device *parent)
 {
 	static int once;
 
@@ -442,8 +442,8 @@ static void __init sabre_scan_bus(struct pci_pbm_info *pbm,
 	sabre_register_error_handlers(pbm);
 }
 
-static void __init sabre_pbm_init(struct pci_pbm_info *pbm,
-				  struct of_device *op)
+static void __devinit sabre_pbm_init(struct pci_pbm_info *pbm,
+				     struct of_device *op)
 {
 	psycho_pbm_init_common(pbm, op, "SABRE", PBM_CHIP_TYPE_SABRE);
 	pbm->pci_afsr = pbm->controller_regs + SABRE_PIOAFSR;

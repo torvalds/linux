@@ -1,0 +1,62 @@
+#
+# (C) Copyright 2007 Michal Simek
+#
+# Michal SIMEK <monstr@monstr.eu>
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation; either version 2 of
+# the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+# MA 02111-1307 USA
+#
+
+# Definitions for MICROBLAZE0
+comment "Definitions for MICROBLAZE0"
+	depends on ALLOW_EDIT_AUTO
+
+config KERNEL_BASE_ADDR
+	hex "Physical address where Linux Kernel is"
+	default "0x90000000"
+	help
+	  BASE Address for kernel
+
+config XILINX_MICROBLAZE0_FAMILY
+	string "Targetted FPGA family" if ALLOW_EDIT_AUTO
+	default "virtex5"
+
+config XILINX_MICROBLAZE0_USE_MSR_INSTR
+	int "USE_MSR_INSTR range (0:1)" if ALLOW_EDIT_AUTO
+	default 1
+
+config XILINX_MICROBLAZE0_USE_PCMP_INSTR
+	int "USE_PCMP_INSTR range (0:1)" if ALLOW_EDIT_AUTO
+	default 1
+
+config XILINX_MICROBLAZE0_USE_BARREL
+	int "USE_BARREL range (0:1)" if ALLOW_EDIT_AUTO
+	default 1
+
+config XILINX_MICROBLAZE0_USE_DIV
+	int "USE_DIV range (0:1)" if ALLOW_EDIT_AUTO
+	default 1
+
+config XILINX_MICROBLAZE0_USE_HW_MUL
+	int "USE_HW_MUL values (0=NONE, 1=MUL32, 2=MUL64)" if ALLOW_EDIT_AUTO
+	default 2
+
+config XILINX_MICROBLAZE0_USE_FPU
+	int "USE_FPU values (0=NONE, 1=BASIC, 2=EXTENDED)" if ALLOW_EDIT_AUTO
+	default 2
+
+config XILINX_MICROBLAZE0_HW_VER
+	string "Core version number" if ALLOW_EDIT_AUTO
+	default 7.10.d
