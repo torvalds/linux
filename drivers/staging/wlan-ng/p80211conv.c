@@ -329,7 +329,7 @@ int skb_p80211_to_ether(wlandevice_t *wlandev, u32 ethconv,
 				       skb->data + payload_offset +
 				       payload_length - 4))) {
 			/* de-wep failed, drop skb. */
-			printk(KERN_DEBUG
+			pr_debug(
 			       "Host de-WEP failed, dropping frame (%d).\n",
 			       foo);
 			wlandev->rx.decrypt_err++;

@@ -1561,7 +1561,7 @@ static int p80211wext_get_encodeext(struct net_device *dev,
 
 	if (idx) {
 		if (idx < 1 || idx > NUM_WEPKEYS) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "get_encode_ext invalid key index [%d]\n", idx);
 			result = -EINVAL;
 			goto exit;

@@ -1174,7 +1174,7 @@ int hfa384x_cmd_download(hfa384x_t *hw, u16 mode, u16 lowaddr,
 	int result = 0;
 	hfa384x_metacmd_t cmd;
 
-	printk(KERN_DEBUG
+	pr_debug(
 	       "mode=%d, lowaddr=0x%04x, highaddr=0x%04x, codelen=%d\n",
 	       mode, lowaddr, highaddr, codelen);
 
@@ -1651,7 +1651,7 @@ hfa384x_dormem(hfa384x_t *hw,
 
 	ctlx->outbufsize = sizeof(ctlx->outbuf.rmemreq);
 
-	printk(KERN_DEBUG
+	pr_debug(
 	       "type=0x%04x frmlen=%d offset=0x%04x page=0x%04x\n",
 	       ctlx->outbuf.rmemreq.type,
 	       ctlx->outbuf.rmemreq.frmlen,
@@ -2035,7 +2035,7 @@ int hfa384x_drvr_flashdl_write(hfa384x_t *hw, u32 daddr, void *buf, u32 len)
 	/* NOTE: dlbuffer RID stores the address in AUX format */
 	dlbufaddr =
 	    HFA384x_ADDR_AUX_MKFLAT(hw->bufinfo.page, hw->bufinfo.offset);
-	printk(KERN_DEBUG
+	pr_debug(
 	       "dlbuf.page=0x%04x dlbuf.offset=0x%04x dlbufaddr=0x%08x\n",
 	       hw->bufinfo.page, hw->bufinfo.offset, dlbufaddr);
 
@@ -2323,7 +2323,7 @@ int hfa384x_drvr_ramdl_enable(hfa384x_t *hw, u32 exeaddr)
 		/* Set the download state */
 		hw->dlstate = HFA384x_DLSTATE_RAMENABLED;
 	} else {
-		printk(KERN_DEBUG
+		pr_debug(
 		       "cmd_download(0x%04x, 0x%04x) failed, result=%d.\n",
 		       lowaddr, hiaddr, result);
 	}
@@ -2629,10 +2629,10 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 			usb_kill_urb(&hw->rx_urb);
 			goto done;
 		} else {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "First cmd_initialize() failed (result %d),\n",
 			       result1);
-			printk(KERN_DEBUG
+			pr_debug(
 			       "but second attempt succeeded. All should be ok\n");
 		}
 	} else if (result2 != 0) {
@@ -3301,7 +3301,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		break;
 
 	default:
-		printk(KERN_DEBUG
+		pr_debug(
 		       "Unrecognized USBIN packet, type=%x, status=%d\n",
 		       usbin->type, urb_status);
 		break;
@@ -3399,7 +3399,7 @@ retry:
 			 * our request has been acknowledged. Odd,
 			 * but our OUT URB is still alive...
 			 */
-			printk(KERN_DEBUG
+			pr_debug(
 			       "Causality violation: please reboot Universe, or email linux-wlan-devel@lists.linux-wlan.com\n");
 			ctlx->state = CTLX_RESP_COMPLETE;
 			break;
@@ -3552,7 +3552,7 @@ static void hfa384x_usbin_rx(wlandevice_t *wlandev, struct sk_buff *skb)
 			hfa384x_int_rxmonitor(wlandev, &usbin->rxfrm);
 			dev_kfree_skb(skb);
 		} else {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "Received monitor frame: FCSerr set\n");
 		}
 		break;
@@ -4171,13 +4171,13 @@ static int hfa384x_isgood_pdrcode(u16 pdrcode)
 	default:
 		if (pdrcode < 0x1000) {
 			/* code is OK, but we don't know exactly what it is */
-			printk(KERN_DEBUG
+			pr_debug(
 			       "Encountered unknown PDR#=0x%04x, "
 			       "assuming it's ok.\n", pdrcode);
 			return 1;
 		} else {
 			/* bad code */
-			printk(KERN_DEBUG
+			pr_debug(
 			       "Encountered unknown PDR#=0x%04x, "
 			       "(>=0x1000), assuming it's bad.\n", pdrcode);
 			return 0;

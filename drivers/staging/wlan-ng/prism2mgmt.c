@@ -1096,7 +1096,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Disable monitor mode */
 		result = hfa384x_cmd_monitor(hw, HFA384x_MONITOR_DISABLE);
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "failed to disable monitor mode, result=%d\n",
 			       result);
 			goto failed;
@@ -1104,7 +1104,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Disable port 0 */
 		result = hfa384x_drvr_disable(hw, 0);
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "failed to disable port 0 after sniffing, result=%d\n",
 			       result);
 			goto failed;
@@ -1117,7 +1117,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 						  HFA384x_RID_CNFWEPFLAGS,
 						  hw->presniff_wepflags);
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "failed to restore wepflags=0x%04x, result=%d\n",
 			       hw->presniff_wepflags, result);
 			goto failed;
@@ -1130,7 +1130,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 							  HFA384x_RID_CNFPORTTYPE,
 							  word);
 			if (result) {
-				printk(KERN_DEBUG
+				pr_debug(
 				       "failed to restore porttype, result=%d\n",
 				       result);
 				goto failed;
@@ -1139,7 +1139,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			/* Enable the port */
 			result = hfa384x_drvr_enable(hw, 0);
 			if (result) {
-				printk(KERN_DEBUG
+				pr_debug(
 				       "failed to enable port to presniff setting, result=%d\n",
 				       result);
 				goto failed;
@@ -1164,7 +1164,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 								  &(hw->
 								    presniff_port_type));
 				if (result) {
-					printk(KERN_DEBUG
+					pr_debug(
 					       "failed to read porttype, result=%d\n",
 					       result);
 					goto failed;
@@ -1175,7 +1175,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 								  &(hw->
 								    presniff_wepflags));
 				if (result) {
-					printk(KERN_DEBUG
+					pr_debug(
 					       "failed to read wepflags, result=%d\n",
 					       result);
 					goto failed;
@@ -1183,7 +1183,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				hfa384x_drvr_stop(hw);
 				result = hfa384x_drvr_start(hw);
 				if (result) {
-					printk(KERN_DEBUG
+					pr_debug(
 					       "failed to restart the card for sniffing, result=%d\n",
 					       result);
 					goto failed;
@@ -1192,7 +1192,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				/* Disable the port */
 				result = hfa384x_drvr_disable(hw, 0);
 				if (result) {
-					printk(KERN_DEBUG
+					pr_debug(
 					       "failed to enable port for sniffing, result=%d\n",
 					       result);
 					goto failed;
@@ -1210,7 +1210,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		hw->sniff_channel = word;
 
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "failed to set channel %d, result=%d\n",
 			       word, result);
 			goto failed;
@@ -1224,7 +1224,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 							  HFA384x_RID_CNFPORTTYPE,
 							  word);
 			if (result) {
-				printk(KERN_DEBUG
+				pr_debug(
 				       "failed to set porttype %d, result=%d\n",
 				       word, result);
 				goto failed;
@@ -1243,7 +1243,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			}
 
 			if (result) {
-				printk(KERN_DEBUG
+				pr_debug(
 				       "failed to set wepflags=0x%04x, result=%d\n",
 				       word, result);
 				goto failed;
@@ -1269,7 +1269,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Enable the port */
 		result = hfa384x_drvr_enable(hw, 0);
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "failed to enable port for sniffing, result=%d\n",
 			       result);
 			goto failed;
@@ -1277,7 +1277,7 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		/* Enable monitor mode */
 		result = hfa384x_cmd_monitor(hw, HFA384x_MONITOR_ENABLE);
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "failed to enable monitor mode, result=%d\n",
 			       result);
 			goto failed;

@@ -1188,7 +1188,7 @@ static void prism2sta_inf_chinforesults(wlandevice_t *wlandev,
 			chinforesult->active =
 			    le16_to_cpu(inf->info.chinforesult.result[n].
 					    active);
-			printk(KERN_DEBUG
+			pr_debug(
 			       "chinfo: channel %d, %s level (avg/peak)=%d/%d dB, pcf %d\n",
 			       channel + 1,
 			       chinforesult->
@@ -1276,7 +1276,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 							wlandev->bssid,
 							WLAN_BSSID_LEN);
 			if (result) {
-				printk(KERN_DEBUG
+				pr_debug(
 				       "getconfig(0x%02x) failed, result = %d\n",
 				       HFA384x_RID_CURRENTBSSID, result);
 				goto failed;
@@ -1286,7 +1286,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 							HFA384x_RID_CURRENTSSID,
 							&ssid, sizeof(ssid));
 			if (result) {
-				printk(KERN_DEBUG
+				pr_debug(
 				       "getconfig(0x%02x) failed, result = %d\n",
 				       HFA384x_RID_CURRENTSSID, result);
 				goto failed;
@@ -1300,7 +1300,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 							  HFA384x_RID_PORTSTATUS,
 							  &portstatus);
 			if (result) {
-				printk(KERN_DEBUG
+				pr_debug(
 				       "getconfig(0x%02x) failed, result = %d\n",
 				       HFA384x_RID_PORTSTATUS, result);
 				goto failed;
@@ -1366,7 +1366,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 						HFA384x_RID_CURRENTBSSID,
 						wlandev->bssid, WLAN_BSSID_LEN);
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "getconfig(0x%02x) failed, result = %d\n",
 			       HFA384x_RID_CURRENTBSSID, result);
 			goto failed;
@@ -1376,7 +1376,7 @@ void prism2sta_processing_defer(struct work_struct *data)
 						HFA384x_RID_CURRENTSSID,
 						&ssid, sizeof(ssid));
 		if (result) {
-			printk(KERN_DEBUG
+			pr_debug(
 			       "getconfig(0x%02x) failed, result = %d\n",
 			       HFA384x_RID_CURRENTSSID, result);
 			goto failed;
@@ -2030,7 +2030,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 					HFA384x_RID_CURRENTBSSID,
 					wlandev->bssid, WLAN_BSSID_LEN);
 	if (result) {
-		printk(KERN_DEBUG
+		pr_debug(
 		       "getconfig(0x%02x) failed, result = %d\n",
 		       HFA384x_RID_CURRENTBSSID, result);
 		goto done;
@@ -2040,7 +2040,7 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 					HFA384x_RID_CURRENTSSID,
 					&ssid, sizeof(ssid));
 	if (result) {
-		printk(KERN_DEBUG
+		pr_debug(
 		       "getconfig(0x%02x) failed, result = %d\n",
 		       HFA384x_RID_CURRENTSSID, result);
 		goto done;
