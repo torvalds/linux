@@ -22,5 +22,6 @@
 # USA
 
 obj-$(CONFIG_SCSI_MVSAS) += mvsas.o
-mvsas-y +=  mv_sas.o
-
+mvsas-y +=  mv_init.o  \
+           mv_sas.o   \
+           mv_64xx.o
