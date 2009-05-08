@@ -296,22 +296,34 @@ EXPORT_SYMBOL_GPL(cfg80211_wext_siwmlme);
 struct ieee80211_channel *cfg80211_wext_freq(struct wiphy *wiphy,
 					     struct iw_freq *freq)
 {
+	struct ieee80211_channel *chan;
+	int f;
+
+	/*
+	 * Parse frequency - return NULL for auto and
+	 * -EINVAL for impossible things.
+	 */
 	if (freq->e == 0) {
 		if (freq->m < 0)
 			return NULL;
-		else
-			return ieee80211_get_channel(wiphy,
-				ieee80211_channel_to_frequency(freq->m));
+		f = ieee80211_channel_to_frequency(freq->m);
 	} else {
 		int i, div = 1000000;
 		for (i = 0; i < freq->e; i++)
 			div /= 10;
-		if (div > 0)
-			return ieee80211_get_channel(wiphy, freq->m / div);
-		else
+		if (div <= 0)
 			return ERR_PTR(-EINVAL);
+		f = freq->m / div;
 	}
 
+	/*
+	 * Look up channel struct and return -EINVAL when
+	 * it cannot be found.
+	 */
+	chan = ieee80211_get_channel(wiphy, f);
+	if (!chan)
+		return ERR_PTR(-EINVAL);
+	return chan;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_freq);
 
