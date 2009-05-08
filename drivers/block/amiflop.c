@@ -112,8 +112,6 @@ module_param(fd_def_df0, ulong, 0);
 MODULE_LICENSE("GPL");
 
 static struct request_queue *floppy_queue;
-#define QUEUE (floppy_queue)
-#define CURRENT elv_next_request(floppy_queue)
 
 /*
  *  Macros
@@ -1335,59 +1333,61 @@ static int get_track(int drive, int track)
 
 static void redo_fd_request(void)
 {
+	struct request *rq;
 	unsigned int cnt, block, track, sector;
 	int drive;
 	struct amiga_floppy_struct *floppy;
 	char *data;
 	unsigned long flags;
+	int err;
 
- repeat:
-	if (!CURRENT) {
+next_req:
+	rq = elv_next_request(floppy_queue);
+	if (!rq) {
 		/* Nothing left to do */
 		return;
 	}
+	blkdev_dequeue_request(rq);
 
-	floppy = CURRENT->rq_disk->private_data;
+	floppy = rq->rq_disk->private_data;
 	drive = floppy - unit;
 
+next_segment:
 	/* Here someone could investigate to be more efficient */
-	for (cnt = 0; cnt < blk_rq_cur_sectors(CURRENT); cnt++) {
+	for (cnt = 0, err = 0; cnt < blk_rq_cur_sectors(rq); cnt++) {
 #ifdef DEBUG
 		printk("fd: sector %ld + %d requested for %s\n",
-		       blk_rq_pos(CURRENT), cnt,
-		       (rq_data_dir(CURRENT) == READ) ? "read" : "write");
+		       blk_rq_pos(rq), cnt,
+		       (rq_data_dir(rq) == READ) ? "read" : "write");
 #endif
-		block = blk_rq_pos(CURRENT) + cnt;
+		block = blk_rq_pos(rq) + cnt;
 		if ((int)block > floppy->blocks) {
-			__blk_end_request_cur(CURRENT, -EIO);
-			goto repeat;
+			err = -EIO;
+			break;
 		}
 
 		track = block / (floppy->dtype->sects * floppy->type->sect_mult);
 		sector = block % (floppy->dtype->sects * floppy->type->sect_mult);
-		data = CURRENT->buffer + 512 * cnt;
+		data = rq->buffer + 512 * cnt;
 #ifdef DEBUG
 		printk("access to track %d, sector %d, with buffer at "
 		       "0x%08lx\n", track, sector, data);
 #endif
 
 		if (get_track(drive, track) == -1) {
-			__blk_end_request_cur(CURRENT, -EIO);
-			goto repeat;
+			err = -EIO;
+			break;
 		}
 
-		switch (rq_data_dir(CURRENT)) {
-		case READ:
+		if (rq_data_dir(rq) == READ) {
 			memcpy(data, floppy->trackbuf + sector * 512, 512);
-			break;
-
-		case WRITE:
+		} else {
 			memcpy(floppy->trackbuf + sector * 512, data, 512);
 
 			/* keep the drive spinning while writes are scheduled */
 			if (!fd_motor_on(drive)) {
-				__blk_end_request_cur(CURRENT, -EIO);
-				goto repeat;
+				err = -EIO;
+				break;
 			}
 			/*
 			 * setup a callback to write the track buffer
@@ -1399,12 +1399,12 @@ static void redo_fd_request(void)
 		        /* reset the timer */
 			mod_timer (flush_track_timer + drive, jiffies + 1);
 			local_irq_restore(flags);
-			break;
 		}
 	}
 
-	__blk_end_request_cur(CURRENT, 0);
-	goto repeat;
+	if (__blk_end_request_cur(rq, err))
+		goto next_segment;
+	goto next_req;
 }
 
 static void do_fd_request(struct request_queue * q)
