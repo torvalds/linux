@@ -110,11 +110,9 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 
 	/* acpi_unregister_gsi(pnp_irq(dev, 0)); */
 	ret = 0;
-	if (acpi_bus_power_manageable(handle)) {
-		ret = acpi_bus_set_power(handle, ACPI_STATE_D3);
-		if (ret)
-			return ret;
-	}
+	if (acpi_bus_power_manageable(handle))
+		acpi_bus_set_power(handle, ACPI_STATE_D3);
+		/* continue even if acpi_bus_set_power() fails */
 	if (ACPI_FAILURE(acpi_evaluate_object(handle, "_DIS", NULL, NULL)))
 		ret = -ENODEV;
 	return ret;
