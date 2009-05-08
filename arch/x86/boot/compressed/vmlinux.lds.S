@@ -2,6 +2,8 @@ OUTPUT_FORMAT(CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT, CONFIG_OUTPUT_FORMAT)
 
 #undef i386
 
+#include <asm/page_types.h>
+
 #ifdef CONFIG_X86_64
 OUTPUT_ARCH(i386:x86-64)
 ENTRY(startup_64)
@@ -48,13 +50,16 @@ SECTIONS
 		*(.bss)
 		*(.bss.*)
 		*(COMMON)
-#ifdef CONFIG_X86_64
-		. = ALIGN(8);
-		_end_before_pgt = . ;
-		. = ALIGN(4096);
-		pgtable = . ;
-		. = . + 4096 * 6;
-#endif
+		. = ALIGN(8);	/* For convenience during zeroing */
 		_ebss = .;
 	}
+#ifdef CONFIG_X86_64
+       . = ALIGN(PAGE_SIZE);
+       .pgtable : {
+		_pgtable = . ;
+		*(.pgtable)
+		_epgtable = . ;
+	}
+#endif
+	_end = .;
 }

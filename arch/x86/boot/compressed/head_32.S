@@ -93,9 +93,9 @@ ENTRY(startup_32)
  * where decompression in place becomes safe.
  */
 	pushl	%esi
-	leal	_ebss(%ebp), %esi
-	leal	_ebss(%ebx), %edi
-	movl	$(_ebss - startup_32), %ecx
+	leal	_bss(%ebp), %esi
+	leal	_bss(%ebx), %edi
+	movl	$(_bss - startup_32), %ecx
 	std
 	rep	movsb
 	cld
@@ -125,7 +125,7 @@ relocated:
  * Clear BSS
  */
 	xorl	%eax, %eax
-	leal	_edata(%ebx), %edi
+	leal	_bss(%ebx), %edi
 	leal	_ebss(%ebx), %ecx
 	subl	%edi, %ecx
 	cld

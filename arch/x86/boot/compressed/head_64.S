@@ -253,9 +253,9 @@ ENTRY(startup_64)
  * Copy the compressed kernel to the end of our buffer
  * where decompression in place becomes safe.
  */
-	leaq	_end_before_pgt(%rip), %r8
-	leaq	_end_before_pgt(%rbx), %r9
-	movq	$_end_before_pgt /* - $startup_32 */, %rcx
+	leaq	_bss(%rip), %r8
+	leaq	_bss(%rbx), %r9
+	movq	$_bss /* - $startup_32 */, %rcx
 1:	subq	$8, %r8
 	subq	$8, %r9
 	movq	0(%r8), %rax
@@ -276,8 +276,8 @@ relocated:
  * Clear BSS
  */
 	xorq	%rax, %rax
-	leaq    _edata(%rbx), %rdi
-	leaq    _end_before_pgt(%rbx), %rcx
+	leaq    _bss(%rbx), %rdi
+	leaq    _ebss(%rbx), %rcx
 	subq	%rdi, %rcx
 	cld
 	rep	stosb
@@ -329,3 +329,11 @@ boot_heap:
 boot_stack:
 	.fill BOOT_STACK_SIZE, 1, 0
 boot_stack_end:
+
+/*
+ * Space for page tables (not in .bss so not zeroed)
+ */
+	.section ".pgtable","a",@nobits
+	.balign 4096
+pgtable:
+	.fill 6*4096, 1, 0
