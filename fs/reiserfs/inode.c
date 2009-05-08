@@ -2681,6 +2681,8 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	int update_sd = 0;
 	struct reiserfs_transaction_handle *th;
 	unsigned start;
+	int lock_depth = 0;
+	bool locked = false;
 
 	if ((unsigned long)fsdata & AOP_FLAG_CONT_EXPAND)
 		pos ++;
@@ -2707,9 +2709,11 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 	 ** to do the i_size updates here.
 	 */
 	pos += copied;
+
 	if (pos > inode->i_size) {
 		struct reiserfs_transaction_handle myth;
-		reiserfs_write_lock(inode->i_sb);
+		lock_depth = reiserfs_write_lock_once(inode->i_sb);
+		locked = true;
 		/* If the file have grown beyond the border where it
 		   can have a tail, unmark it as needing a tail
 		   packing */
@@ -2720,10 +2724,9 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 			REISERFS_I(inode)->i_flags &= ~i_pack_on_close_mask;
 
 		ret = journal_begin(&myth, inode->i_sb, 1);
-		if (ret) {
-			reiserfs_write_unlock(inode->i_sb);
+		if (ret)
 			goto journal_error;
-		}
+
 		reiserfs_update_inode_transaction(inode);
 		inode->i_size = pos;
 		/*
@@ -2735,34 +2738,36 @@ static int reiserfs_write_end(struct file *file, struct address_space *mapping,
 		reiserfs_update_sd(&myth, inode);
 		update_sd = 1;
 		ret = journal_end(&myth, inode->i_sb, 1);
-		reiserfs_write_unlock(inode->i_sb);
 		if (ret)
 			goto journal_error;
 	}
 	if (th) {
-		reiserfs_write_lock(inode->i_sb);
+		if (!locked) {
+			lock_depth = reiserfs_write_lock_once(inode->i_sb);
+			locked = true;
+		}
 		if (!update_sd)
 			mark_inode_dirty(inode);
 		ret = reiserfs_end_persistent_transaction(th);
-		reiserfs_write_unlock(inode->i_sb);
 		if (ret)
 			goto out;
 	}
 
       out:
+	if (locked)
+		reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 	unlock_page(page);
 	page_cache_release(page);
 	return ret == 0 ? copied : ret;
 
       journal_error:
+	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
+	locked = false;
 	if (th) {
-		reiserfs_write_lock(inode->i_sb);
 		if (!update_sd)
 			reiserfs_update_sd(th, inode);
 		ret = reiserfs_end_persistent_transaction(th);
-		reiserfs_write_unlock(inode->i_sb);
 	}
-
 	goto out;
 }
 
