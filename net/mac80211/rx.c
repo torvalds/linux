@@ -1221,17 +1221,27 @@ ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 	/* Drop unencrypted frames if key is set. */
 	if (unlikely(!ieee80211_has_protected(fc) &&
 		     !ieee80211_is_nullfunc(fc) &&
-		     (!ieee80211_is_mgmt(fc) ||
-		      (ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
-		       rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP))) &&
+		     ieee80211_is_data(fc) &&
 		     (rx->key || rx->sdata->drop_unencrypted)))
 		return -EACCES;
-	/* BIP does not use Protected field, so need to check MMIE */
-	if (unlikely(rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP) &&
-		     ieee80211_is_multicast_robust_mgmt_frame(rx->skb) &&
-		     ieee80211_get_mmie_keyidx(rx->skb) < 0 &&
-		     (rx->key || rx->sdata->drop_unencrypted)))
-		return -EACCES;
+	if (rx->sta && test_sta_flags(rx->sta, WLAN_STA_MFP)) {
+		if (unlikely(ieee80211_is_unicast_robust_mgmt_frame(rx->skb) &&
+			     rx->key))
+			return -EACCES;
+		/* BIP does not use Protected field, so need to check MMIE */
+		if (unlikely(ieee80211_is_multicast_robust_mgmt_frame(rx->skb)
+			     && ieee80211_get_mmie_keyidx(rx->skb) < 0 &&
+			     rx->key))
+			return -EACCES;
+		/*
+		 * When using MFP, Action frames are not allowed prior to
+		 * having configured keys.
+		 */
+		if (unlikely(ieee80211_is_action(fc) && !rx->key &&
+			     ieee80211_is_robust_mgmt_frame(
+				     (struct ieee80211_hdr *) rx->skb->data)))
+			return -EACCES;
+	}
 
 	return 0;
 }
