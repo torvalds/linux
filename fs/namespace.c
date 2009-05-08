@@ -1921,6 +1921,7 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	if (retval)
 		goto dput_out;
 
+	lock_kernel();
 	if (flags & MS_REMOUNT)
 		retval = do_remount(&path, flags & ~MS_REMOUNT, mnt_flags,
 				    data_page);
@@ -1933,6 +1934,7 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 	else
 		retval = do_new_mount(&path, type_page, flags, mnt_flags,
 				      dev_name, data_page);
+	unlock_kernel();
 dput_out:
 	path_put(&path);
 	return retval;
@@ -2046,10 +2048,8 @@ SYSCALL_DEFINE5(mount, char __user *, dev_name, char __user *, dir_name,
 	if (retval < 0)
 		goto out3;
 
-	lock_kernel();
 	retval = do_mount((char *)dev_page, dir_page, (char *)type_page,
 			  flags, (void *)data_page);
-	unlock_kernel();
 	free_page(data_page);
 
 out3:
