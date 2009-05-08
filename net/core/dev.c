@@ -5007,13 +5007,16 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	if (!tx) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
 		       "tx qdiscs.\n");
-		kfree(p);
-		return NULL;
+		goto free_p;
 	}
 
 	dev = (struct net_device *)
 		(((long)p + NETDEV_ALIGN_CONST) & ~NETDEV_ALIGN_CONST);
 	dev->padded = (char *)dev - (char *)p;
+
+	if (dev_addr_init(dev))
+		goto free_tx;
+
 	dev_net_set(dev, &init_net);
 
 	dev->_tx = tx;
@@ -5022,13 +5025,19 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 
-	dev_addr_init(dev);
 	netdev_init_queues(dev);
 
 	INIT_LIST_HEAD(&dev->napi_list);
 	setup(dev);
 	strcpy(dev->name, name);
 	return dev;
+
+free_tx:
+	kfree(tx);
+
+free_p:
+	kfree(p);
+	return NULL;
 }
 EXPORT_SYMBOL(alloc_netdev_mq);
 
