@@ -26,6 +26,7 @@
 #include <net/cfg80211.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "rate.h"
 #include "mesh.h"
 #include "wep.h"
@@ -81,10 +82,9 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	/* be a bit nasty */
 	new_flags |= (1<<31);
 
-	local->ops->configure_filter(local_to_hw(local),
-				     changed_flags, &new_flags,
-				     local->mdev->mc_count,
-				     local->mdev->mc_list);
+	drv_configure_filter(local, changed_flags, &new_flags,
+			     local->mdev->mc_count,
+			     local->mdev->mc_list);
 
 	WARN_ON(new_flags & (1<<31));
 
@@ -152,82 +152,6 @@ static void ieee80211_master_set_multicast_list(struct net_device *dev)
 	ieee80211_configure_filter(local);
 }
 
-/* everything else */
-
-int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_conf conf;
-
-	if (WARN_ON(!netif_running(sdata->dev)))
-		return 0;
-
-	memset(&conf, 0, sizeof(conf));
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		conf.bssid = sdata->u.mgd.bssid;
-	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		conf.bssid = sdata->u.ibss.bssid;
-	else if (sdata->vif.type == NL80211_IFTYPE_AP)
-		conf.bssid = sdata->dev->dev_addr;
-	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
-		static const u8 zero[ETH_ALEN] = { 0 };
-		conf.bssid = zero;
-	} else {
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	if (!local->ops->config_interface)
-		return 0;
-
-	switch (sdata->vif.type) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_ADHOC:
-	case NL80211_IFTYPE_MESH_POINT:
-		break;
-	default:
-		/* do not warn to simplify caller in scan.c */
-		changed &= ~IEEE80211_IFCC_BEACON_ENABLED;
-		if (WARN_ON(changed & IEEE80211_IFCC_BEACON))
-			return -EINVAL;
-		changed &= ~IEEE80211_IFCC_BEACON;
-		break;
-	}
-
-	if (changed & IEEE80211_IFCC_BEACON_ENABLED) {
-		if (local->sw_scanning) {
-			conf.enable_beacon = false;
-		} else {
-			/*
-			 * Beacon should be enabled, but AP mode must
-			 * check whether there is a beacon configured.
-			 */
-			switch (sdata->vif.type) {
-			case NL80211_IFTYPE_AP:
-				conf.enable_beacon =
-					!!rcu_dereference(sdata->u.ap.beacon);
-				break;
-			case NL80211_IFTYPE_ADHOC:
-				conf.enable_beacon = !!sdata->u.ibss.presp;
-				break;
-			case NL80211_IFTYPE_MESH_POINT:
-				conf.enable_beacon = true;
-				break;
-			default:
-				/* not reached */
-				WARN_ON(1);
-				break;
-			}
-		}
-	}
-
-	conf.changed = changed;
-
-	return local->ops->config_interface(local_to_hw(local),
-					    &sdata->vif, &conf);
-}
-
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 {
 	struct ieee80211_channel *chan;
@@ -268,7 +192,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 	}
 
 	if (changed && local->open_count) {
-		ret = local->ops->config(local_to_hw(local), changed);
+		ret = drv_config(local, changed);
 		/*
 		 * Goal:
 		 * HW reconfiguration should never fail, the driver has told
@@ -294,17 +218,77 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 
-	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
-		return;
-
 	if (!changed)
 		return;
 
-	if (local->ops->bss_info_changed)
-		local->ops->bss_info_changed(local_to_hw(local),
-					     &sdata->vif,
-					     &sdata->vif.bss_conf,
-					     changed);
+	if (sdata->vif.type == NL80211_IFTYPE_STATION)
+		sdata->vif.bss_conf.bssid = sdata->u.mgd.bssid;
+	else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
+		sdata->vif.bss_conf.bssid = sdata->u.ibss.bssid;
+	else if (sdata->vif.type == NL80211_IFTYPE_AP)
+		sdata->vif.bss_conf.bssid = sdata->dev->dev_addr;
+	else if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		static const u8 zero[ETH_ALEN] = { 0 };
+		sdata->vif.bss_conf.bssid = zero;
+	} else {
+		WARN_ON(1);
+		return;
+	}
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MESH_POINT:
+		break;
+	default:
+		/* do not warn to simplify caller in scan.c */
+		changed &= ~BSS_CHANGED_BEACON_ENABLED;
+		if (WARN_ON(changed & BSS_CHANGED_BEACON))
+			return;
+		break;
+	}
+
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
+		if (local->sw_scanning) {
+			sdata->vif.bss_conf.enable_beacon = false;
+		} else {
+			/*
+			 * Beacon should be enabled, but AP mode must
+			 * check whether there is a beacon configured.
+			 */
+			switch (sdata->vif.type) {
+			case NL80211_IFTYPE_AP:
+				sdata->vif.bss_conf.enable_beacon =
+					!!rcu_dereference(sdata->u.ap.beacon);
+				break;
+			case NL80211_IFTYPE_ADHOC:
+				sdata->vif.bss_conf.enable_beacon =
+					!!rcu_dereference(sdata->u.ibss.presp);
+				break;
+			case NL80211_IFTYPE_MESH_POINT:
+				sdata->vif.bss_conf.enable_beacon = true;
+				break;
+			default:
+				/* not reached */
+				WARN_ON(1);
+				break;
+			}
+		}
+	}
+
+	drv_bss_info_changed(local, &sdata->vif,
+			     &sdata->vif.bss_conf, changed);
+
+	/*
+	 * DEPRECATED
+	 *
+	 * ~changed is just there to not do this at resume time
+	 */
+	if (changed & BSS_CHANGED_BEACON_INT && ~changed) {
+		local->hw.conf.beacon_int = sdata->vif.bss_conf.beacon_int;
+		ieee80211_hw_config(local,
+				    _IEEE80211_CONF_CHANGE_BEACON_INTERVAL);
+	}
 }
 
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
@@ -783,6 +767,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	INIT_LIST_HEAD(&local->interfaces);
 	mutex_init(&local->iflist_mtx);
+	mutex_init(&local->scan_mtx);
 
 	spin_lock_init(&local->key_lock);
 
@@ -970,9 +955,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	debugfs_hw_add(local);
 
-	if (local->hw.conf.beacon_int < 10)
-		local->hw.conf.beacon_int = 100;
-
 	if (local->hw.max_listen_interval == 0)
 		local->hw.max_listen_interval = 1;
 
@@ -1126,6 +1108,7 @@ void ieee80211_free_hw(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	mutex_destroy(&local->iflist_mtx);
+	mutex_destroy(&local->scan_mtx);
 
 	wiphy_free(local->hw.wiphy);
 }

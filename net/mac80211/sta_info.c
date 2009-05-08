@@ -19,6 +19,7 @@
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "rate.h"
 #include "sta_info.h"
 #include "debugfs_sta.h"
@@ -346,8 +347,7 @@ int sta_info_insert(struct sta_info *sta)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_ADD, &sta->sta);
+		drv_sta_notify(local, &sdata->vif, STA_NOTIFY_ADD, &sta->sta);
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -405,8 +405,7 @@ static void __sta_info_set_tim_bit(struct ieee80211_if_ap *bss,
 
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
-		sta->local->ops->set_tim(local_to_hw(sta->local),
-					 &sta->sta, true);
+		drv_set_tim(sta->local, &sta->sta, true);
 		sta->local->tim_in_locked_section = false;
 	}
 }
@@ -431,8 +430,7 @@ static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
-		sta->local->ops->set_tim(local_to_hw(sta->local),
-					 &sta->sta, false);
+		drv_set_tim(sta->local, &sta->sta, false);
 		sta->local->tim_in_locked_section = false;
 	}
 }
@@ -482,8 +480,8 @@ static void __sta_info_unlink(struct sta_info **sta)
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_REMOVE, &(*sta)->sta);
+		drv_sta_notify(local, &sdata->vif, STA_NOTIFY_REMOVE,
+			       &(*sta)->sta);
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
@@ -543,9 +541,8 @@ void sta_info_unlink(struct sta_info **sta)
 	spin_unlock_irqrestore(&local->sta_lock, flags);
 }
 
-static inline int sta_info_buffer_expired(struct ieee80211_local *local,
-					  struct sta_info *sta,
-					  struct sk_buff *skb)
+static int sta_info_buffer_expired(struct sta_info *sta,
+				   struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info;
 	int timeout;
@@ -556,8 +553,9 @@ static inline int sta_info_buffer_expired(struct ieee80211_local *local,
 	info = IEEE80211_SKB_CB(skb);
 
 	/* Timeout: (2 * listen_interval * beacon_int * 1024 / 1000000) sec */
-	timeout = (sta->listen_interval * local->hw.conf.beacon_int * 32 /
-		   15625) * HZ;
+	timeout = (sta->listen_interval *
+		   sta->sdata->vif.bss_conf.beacon_int *
+		   32 / 15625) * HZ;
 	if (timeout < STA_TX_BUFFER_EXPIRE)
 		timeout = STA_TX_BUFFER_EXPIRE;
 	return time_after(jiffies, info->control.jiffies + timeout);
@@ -577,7 +575,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 	for (;;) {
 		spin_lock_irqsave(&sta->ps_tx_buf.lock, flags);
 		skb = skb_peek(&sta->ps_tx_buf);
-		if (sta_info_buffer_expired(local, sta, skb))
+		if (sta_info_buffer_expired(sta, skb))
 			skb = __skb_dequeue(&sta->ps_tx_buf);
 		else
 			skb = NULL;

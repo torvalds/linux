@@ -1148,6 +1148,11 @@
 #define AR5K_STA_ID1_CBCIV_ENDIAN	0x40000000	/* ??? */
 #define AR5K_STA_ID1_KEYSRCH_MCAST	0x80000000	/* Do key cache search for mcast frames */
 
+#define	AR5K_STA_ID1_ANTENNA_SETTINGS	(AR5K_STA_ID1_DEFAULT_ANTENNA | \
+					AR5K_STA_ID1_DESC_ANTENNA | \
+					AR5K_STA_ID1_RTS_DEF_ANTENNA | \
+					AR5K_STA_ID1_SELFGEN_DEF_ANT)
+
 /*
  * First BSSID register (MAC address, lower 32bits)
  */
@@ -2028,7 +2033,9 @@
 #define	AR5K_PHY_AGCCTL			0x9860			/* Register address */
 #define	AR5K_PHY_AGCCTL_CAL		0x00000001	/* Enable PHY calibration */
 #define	AR5K_PHY_AGCCTL_NF		0x00000002	/* Enable Noise Floor calibration */
+#define	AR5K_PHY_AGCCTL_OFDM_DIV_DIS	0x00000008	/* Disable antenna diversity on OFDM modes */
 #define	AR5K_PHY_AGCCTL_NF_EN		0x00008000	/* Enable nf calibration to happen (?) */
+#define	AR5K_PHY_AGCTL_FLTR_CAL		0x00010000	/* Allow filter calibration (?) */
 #define	AR5K_PHY_AGCCTL_NF_NOUPDATE	0x00020000	/* Don't update nf automaticaly */
 
 /*
@@ -2528,7 +2535,7 @@
  * PHY CCK Cross-correlator Barker RSSI threshold register [5212+]
  */
 #define AR5K_PHY_CCK_CROSSCORR			0xa208
-#define AR5K_PHY_CCK_CROSSCORR_WEAK_SIG_THR	0x0000000f
+#define AR5K_PHY_CCK_CROSSCORR_WEAK_SIG_THR	0x0000003f
 #define AR5K_PHY_CCK_CROSSCORR_WEAK_SIG_THR_S	0
 
 /* Same address is used for antenna diversity activation */

@@ -576,8 +576,8 @@ struct ath_softc {
 	struct ath_tx tx;
 	struct ath_beacon beacon;
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
-	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
-	struct ath_rate_table *cur_rate_table;
+	const struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
+	const struct ath_rate_table *cur_rate_table;
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 	struct ath_led radio_led;
@@ -589,6 +589,8 @@ struct ath_softc {
 	int led_off_duration;
 	int led_on_cnt;
 	int led_off_cnt;
+
+	int beacon_interval;
 
 	struct ath_rfkill rf_kill;
 	struct ath_ani ani;
@@ -695,36 +697,7 @@ void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
 bool ath9k_wiphy_scanning(struct ath_softc *sc);
 void ath9k_wiphy_work(struct work_struct *work);
 
-/*
- * Read and write, they both share the same lock. We do this to serialize
- * reads and writes on Atheros 802.11n PCI devices only. This is required
- * as the FIFO on these devices can only accept sanely 2 requests. After
- * that the device goes bananas. Serializing the reads/writes prevents this
- * from happening.
- */
-
-static inline void ath9k_iowrite32(struct ath_hw *ah, u32 reg_offset, u32 val)
-{
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
-		unsigned long flags;
-		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
-		iowrite32(val, ah->ah_sc->mem + reg_offset);
-		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
-	} else
-		iowrite32(val, ah->ah_sc->mem + reg_offset);
-}
-
-static inline unsigned int ath9k_ioread32(struct ath_hw *ah, u32 reg_offset)
-{
-	u32 val;
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
-		unsigned long flags;
-		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
-		val = ioread32(ah->ah_sc->mem + reg_offset);
-		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
-	} else
-		val = ioread32(ah->ah_sc->mem + reg_offset);
-	return val;
-}
+void ath9k_iowrite32(struct ath_hw *ah, u32 reg_offset, u32 val);
+unsigned int ath9k_ioread32(struct ath_hw *ah, u32 reg_offset);
 
 #endif /* ATH9K_H */

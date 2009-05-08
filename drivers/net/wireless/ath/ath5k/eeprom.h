@@ -26,6 +26,13 @@
 #define AR5K_EEPROM_MAGIC_5210		0x0000145a /* 5210 */
 
 #define	AR5K_EEPROM_IS_HB63		0x000b	/* Talon detect */
+
+#define AR5K_EEPROM_RFKILL		0x0f
+#define AR5K_EEPROM_RFKILL_GPIO_SEL	0x0000001c
+#define AR5K_EEPROM_RFKILL_GPIO_SEL_S	2
+#define AR5K_EEPROM_RFKILL_POLARITY	0x00000002
+#define AR5K_EEPROM_RFKILL_POLARITY_S	1
+
 #define AR5K_EEPROM_REG_DOMAIN		0x00bf	/* EEPROM regdom */
 #define AR5K_EEPROM_CHECKSUM		0x00c0	/* EEPROM checksum */
 #define AR5K_EEPROM_INFO_BASE		0x00c0	/* EEPROM header */
@@ -65,11 +72,6 @@
 #define AR5K_EEPROM_HDR_DEVICE(_v)	(((_v) >> 11) & 0x7)
 #define AR5K_EEPROM_HDR_RFKILL(_v)	(((_v) >> 14) & 0x1)	/* Device has RFKill support */
 #define AR5K_EEPROM_HDR_T_5GHZ_DIS(_v)	(((_v) >> 15) & 0x1)	/* Disable turbo for 5Ghz */
-
-#define AR5K_EEPROM_RFKILL_GPIO_SEL	0x0000001c
-#define AR5K_EEPROM_RFKILL_GPIO_SEL_S	2
-#define AR5K_EEPROM_RFKILL_POLARITY	0x00000002
-#define AR5K_EEPROM_RFKILL_POLARITY_S	1
 
 /* Newer EEPROMs are using a different offset */
 #define AR5K_EEPROM_OFF(_v, _v3_0, _v3_3) \
@@ -211,6 +213,23 @@
 #define AR5K_EEPROM_I_GAIN		10
 #define AR5K_EEPROM_CCK_OFDM_DELTA	15
 #define AR5K_EEPROM_N_IQ_CAL		2
+/* 5GHz/2GHz */
+enum ath5k_eeprom_freq_bands{
+	AR5K_EEPROM_BAND_5GHZ = 0,
+	AR5K_EEPROM_BAND_2GHZ = 1,
+	AR5K_EEPROM_N_FREQ_BANDS,
+};
+/* Spur chans per freq band */
+#define	AR5K_EEPROM_N_SPUR_CHANS	5
+/* fbin value for chan 2464 x2 */
+#define	AR5K_EEPROM_5413_SPUR_CHAN_1	1640
+/* fbin value for chan 2420 x2 */
+#define	AR5K_EEPROM_5413_SPUR_CHAN_2	1200
+#define	AR5K_EEPROM_SPUR_CHAN_MASK	0x3FFF
+#define	AR5K_EEPROM_NO_SPUR		0x8000
+#define	AR5K_SPUR_CHAN_WIDTH			87
+#define	AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz	3125
+#define	AR5K_SPUR_SYMBOL_WIDTH_TURBO_100Hz	6250
 
 #define AR5K_EEPROM_READ(_o, _v) do {			\
 	ret = ath5k_hw_eeprom_read(ah, (_o), &(_v));	\
@@ -221,11 +240,11 @@
 #define AR5K_EEPROM_READ_HDR(_o, _v)					\
 	AR5K_EEPROM_READ(_o, ah->ah_capabilities.cap_eeprom._v);	\
 
-enum ath5k_ant_setting {
-	AR5K_ANT_VARIABLE	= 0,	/* variable by programming */
-	AR5K_ANT_FIXED_A	= 1,	/* fixed to 11a frequencies */
-	AR5K_ANT_FIXED_B	= 2,	/* fixed to 11b frequencies */
-	AR5K_ANT_MAX		= 3,
+enum ath5k_ant_table {
+	AR5K_ANT_CTL		= 0,	/* Idle switch table settings */
+	AR5K_ANT_SWTABLE_A	= 1,	/* Switch table for antenna A */
+	AR5K_ANT_SWTABLE_B	= 2,	/* Switch table for antenna B */
+	AR5K_ANT_MAX,
 };
 
 enum ath5k_ctl_mode {
@@ -369,6 +388,9 @@ struct ath5k_eeprom_info {
 	u16	ee_version;
 	u16	ee_header;
 	u16	ee_ant_gain;
+	u8	ee_rfkill_pin;
+	bool	ee_rfkill_pol;
+	bool	ee_is_hb63;
 	u16	ee_misc0;
 	u16	ee_misc1;
 	u16	ee_misc2;
@@ -436,6 +458,10 @@ struct ath5k_eeprom_info {
 	s8	ee_pga_desired_size_turbo[AR5K_EEPROM_N_MODES];
 	s8	ee_pd_gain_overlap;
 
+	/* Spur mitigation data (fbin values for spur channels) */
+	u16	ee_spur_chans[AR5K_EEPROM_N_SPUR_CHANS][AR5K_EEPROM_N_FREQ_BANDS];
+
+	/* Antenna raw switch tables */
 	u32	ee_antenna[AR5K_EEPROM_N_MODES][AR5K_ANT_MAX];
 };
 

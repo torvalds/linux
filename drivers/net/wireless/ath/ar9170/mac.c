@@ -72,6 +72,24 @@ int ar9170_set_qos(struct ar9170 *ar)
 	return ar9170_regwrite_result();
 }
 
+static int ar9170_set_ampdu_density(struct ar9170 *ar, u8 mpdudensity)
+{
+	u32 val;
+
+	/* don't allow AMPDU density > 8us */
+	if (mpdudensity > 6)
+		return -EINVAL;
+
+	/* Watch out! Otus uses slightly different density values. */
+	val = 0x140a00 | (mpdudensity ? (mpdudensity + 1) : 0);
+
+	ar9170_regwrite_begin(ar);
+	ar9170_regwrite(AR9170_MAC_REG_AMPDU_SET, val);
+	ar9170_regwrite_finish();
+
+	return ar9170_regwrite_result();
+}
+
 int ar9170_init_mac(struct ar9170 *ar)
 {
 	ar9170_regwrite_begin(ar);
@@ -265,9 +283,9 @@ int ar9170_set_operating_mode(struct ar9170 *ar)
 		case NL80211_IFTYPE_ADHOC:
 			pm_mode |= AR9170_MAC_REG_POWERMGT_IBSS;
 			break;
-/*		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_AP:
 			pm_mode |= AR9170_MAC_REG_POWERMGT_AP;
-			break;*/
+			break;
 		case NL80211_IFTYPE_WDS:
 			pm_mode |= AR9170_MAC_REG_POWERMGT_AP_WDS;
 			break;
@@ -296,6 +314,11 @@ int ar9170_set_operating_mode(struct ar9170 *ar)
 	if (err)
 		return err;
 
+	/* set AMPDU density to 8us. */
+	err = ar9170_set_ampdu_density(ar, 6);
+	if (err)
+		return err;
+
 	ar9170_regwrite_begin(ar);
 
 	ar9170_regwrite(AR9170_MAC_REG_POWERMANAGEMENT, pm_mode);
@@ -316,9 +339,9 @@ int ar9170_set_beacon_timers(struct ar9170 *ar)
 	u32 v = 0;
 	u32 pretbtt = 0;
 
-	v |= ar->hw->conf.beacon_int;
-
 	if (ar->vif) {
+		v |= ar->vif->bss_conf.beacon_int;
+
 		switch (ar->vif->type) {
 		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_ADHOC:
@@ -326,7 +349,7 @@ int ar9170_set_beacon_timers(struct ar9170 *ar)
 			break;
 		case NL80211_IFTYPE_AP:
 			v |= BIT(24);
-			pretbtt = (ar->hw->conf.beacon_int - 6) << 16;
+			pretbtt = (ar->vif->bss_conf.beacon_int - 6) << 16;
 			break;
 		default:
 			break;

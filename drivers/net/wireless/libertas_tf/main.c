@@ -366,36 +366,6 @@ static int lbtf_op_config(struct ieee80211_hw *hw, u32 changed)
 	return 0;
 }
 
-static int lbtf_op_config_interface(struct ieee80211_hw *hw,
-			struct ieee80211_vif *vif,
-			struct ieee80211_if_conf *conf)
-{
-	struct lbtf_private *priv = hw->priv;
-	struct sk_buff *beacon;
-
-	switch (priv->vif->type) {
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_MESH_POINT:
-		beacon = ieee80211_beacon_get(hw, vif);
-		if (beacon) {
-			lbtf_beacon_set(priv, beacon);
-			kfree_skb(beacon);
-			lbtf_beacon_ctrl(priv, 1, hw->conf.beacon_int);
-		}
-		break;
-	default:
-		break;
-	}
-
-	if (conf->bssid) {
-		u8 null_bssid[ETH_ALEN] = {0};
-		bool activate = compare_ether_addr(conf->bssid, null_bssid);
-		lbtf_set_bssid(priv, activate, conf->bssid);
-	}
-
-	return 0;
-}
-
 #define SUPPORTED_FIF_FLAGS  (FIF_PROMISC_IN_BSS | FIF_ALLMULTI)
 static void lbtf_op_configure_filter(struct ieee80211_hw *hw,
 			unsigned int changed_flags,
@@ -451,6 +421,29 @@ static void lbtf_op_bss_info_changed(struct ieee80211_hw *hw,
 			u32 changes)
 {
 	struct lbtf_private *priv = hw->priv;
+	struct sk_buff *beacon;
+
+	if (changes & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_INT)) {
+		switch (priv->vif->type) {
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_MESH_POINT:
+			beacon = ieee80211_beacon_get(hw, vif);
+			if (beacon) {
+				lbtf_beacon_set(priv, beacon);
+				kfree_skb(beacon);
+				lbtf_beacon_ctrl(priv, 1,
+						 bss_conf->beacon_int);
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (changes & BSS_CHANGED_BSSID) {
+		bool activate = !is_zero_ether_addr(bss_conf->bssid);
+		lbtf_set_bssid(priv, activate, bss_conf->bssid);
+	}
 
 	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
 		if (bss_conf->use_short_preamble)
@@ -459,8 +452,6 @@ static void lbtf_op_bss_info_changed(struct ieee80211_hw *hw,
 			priv->preamble = CMD_TYPE_LONG_PREAMBLE;
 		lbtf_set_radio_control(priv);
 	}
-
-	return;
 }
 
 static const struct ieee80211_ops lbtf_ops = {
@@ -470,7 +461,6 @@ static const struct ieee80211_ops lbtf_ops = {
 	.add_interface		= lbtf_op_add_interface,
 	.remove_interface	= lbtf_op_remove_interface,
 	.config			= lbtf_op_config,
-	.config_interface	= lbtf_op_config_interface,
 	.configure_filter	= lbtf_op_configure_filter,
 	.bss_info_changed	= lbtf_op_bss_info_changed,
 };

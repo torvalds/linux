@@ -75,6 +75,11 @@ static void rfkill_led_trigger_activate(struct led_classdev *led)
 
 	rfkill_led_trigger(rfkill, rfkill->state);
 }
+#else
+static inline void rfkill_led_trigger(struct rfkill *rfkill,
+					enum rfkill_state state)
+{
+}
 #endif /* CONFIG_RFKILL_LEDS */
 
 static void rfkill_uevent(struct rfkill *rfkill)

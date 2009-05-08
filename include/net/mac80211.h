@@ -149,6 +149,13 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_ERP_SLOT: slot timing changed
  * @BSS_CHANGED_HT: 802.11n parameters changed
  * @BSS_CHANGED_BASIC_RATES: Basic rateset changed
+ * @BSS_CHANGED_BEACON_INT: Beacon interval changed
+ * @BSS_CHANGED_BSSID: BSSID changed, for whatever
+ *	reason (IBSS and managed mode)
+ * @BSS_CHANGED_BEACON: Beacon data changed, retrieve
+ *	new beacon (beaconing modes)
+ * @BSS_CHANGED_BEACON_ENABLED: Beaconing should be
+ *	enabled/disabled (beaconing modes)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -157,6 +164,10 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_ERP_SLOT		= 1<<3,
 	BSS_CHANGED_HT                  = 1<<4,
 	BSS_CHANGED_BASIC_RATES		= 1<<5,
+	BSS_CHANGED_BEACON_INT		= 1<<6,
+	BSS_CHANGED_BSSID		= 1<<7,
+	BSS_CHANGED_BEACON		= 1<<8,
+	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
 };
 
 /**
@@ -190,8 +201,11 @@ struct ieee80211_bss_ht_conf {
  * @basic_rates: bitmap of basic rates, each bit stands for an
  *	index into the rate table configured by the driver in
  *	the current band.
+ * @bssid: The BSSID for this BSS
+ * @enable_beacon: whether beaconing should be enabled or not
  */
 struct ieee80211_bss_conf {
+	const u8 *bssid;
 	/* association related data */
 	bool assoc;
 	u16 aid;
@@ -199,6 +213,7 @@ struct ieee80211_bss_conf {
 	bool use_cts_prot;
 	bool use_short_preamble;
 	bool use_short_slot;
+	bool enable_beacon;
 	u8 dtim_period;
 	u16 beacon_int;
 	u16 assoc_capability;
@@ -518,10 +533,16 @@ struct ieee80211_rx_status {
  *
  * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
  * @IEEE80211_CONF_PS: Enable 802.11 power save mode (managed mode only)
+ * @IEEE80211_CONF_IDLE: The device is running, but idle; if the flag is set
+ *	the driver should be prepared to handle configuration requests but
+ *	may turn the device off as much as possible. Typically, this flag will
+ *	be set when an interface is set UP but not associated or scanning, but
+ *	it can also be unset in that case when monitor interfaces are active.
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_RADIOTAP		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
+	IEEE80211_CONF_IDLE		= (1<<2),
 };
 
 
@@ -529,24 +550,34 @@ enum ieee80211_conf_flags {
  * enum ieee80211_conf_changed - denotes which configuration changed
  *
  * @IEEE80211_CONF_CHANGE_RADIO_ENABLED: the value of radio_enabled changed
- * @IEEE80211_CONF_CHANGE_BEACON_INTERVAL: the beacon interval changed
+ * @_IEEE80211_CONF_CHANGE_BEACON_INTERVAL: DEPRECATED
  * @IEEE80211_CONF_CHANGE_LISTEN_INTERVAL: the listen interval changed
  * @IEEE80211_CONF_CHANGE_RADIOTAP: the radiotap flag changed
  * @IEEE80211_CONF_CHANGE_PS: the PS flag or dynamic PS timeout changed
  * @IEEE80211_CONF_CHANGE_POWER: the TX power changed
  * @IEEE80211_CONF_CHANGE_CHANNEL: the channel/channel_type changed
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
+ * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_RADIO_ENABLED	= BIT(0),
-	IEEE80211_CONF_CHANGE_BEACON_INTERVAL	= BIT(1),
+	_IEEE80211_CONF_CHANGE_BEACON_INTERVAL	= BIT(1),
 	IEEE80211_CONF_CHANGE_LISTEN_INTERVAL	= BIT(2),
 	IEEE80211_CONF_CHANGE_RADIOTAP		= BIT(3),
 	IEEE80211_CONF_CHANGE_PS		= BIT(4),
 	IEEE80211_CONF_CHANGE_POWER		= BIT(5),
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
+	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
 };
+
+static inline __deprecated enum ieee80211_conf_changed
+__IEEE80211_CONF_CHANGE_BEACON_INTERVAL(void)
+{
+	return _IEEE80211_CONF_CHANGE_BEACON_INTERVAL;
+}
+#define IEEE80211_CONF_CHANGE_BEACON_INTERVAL \
+	__IEEE80211_CONF_CHANGE_BEACON_INTERVAL()
 
 /**
  * struct ieee80211_conf - configuration of the device
@@ -559,7 +590,7 @@ enum ieee80211_conf_changed {
  * @beacon_int: beacon interval (TODO make interface config)
  *
  * @listen_interval: listen interval in units of beacon interval
- * @max_sleep_interval: the maximum number of beacon intervals to sleep for
+ * @max_sleep_period: the maximum number of beacon intervals to sleep for
  *	before checking the beacon for a TIM bit (managed mode only); this
  *	value will be only achievable between DTIM frames, the hardware
  *	needs to check for the multicast traffic bit in DTIM beacons.
@@ -584,7 +615,7 @@ struct ieee80211_conf {
 	int beacon_int;
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
-	int max_sleep_interval;
+	int max_sleep_period;
 
 	u16 listen_interval;
 	bool radio_enabled;
@@ -647,37 +678,6 @@ struct ieee80211_if_init_conf {
 	enum nl80211_iftype type;
 	struct ieee80211_vif *vif;
 	void *mac_addr;
-};
-
-/**
- * enum ieee80211_if_conf_change - interface config change flags
- *
- * @IEEE80211_IFCC_BSSID: The BSSID changed.
- * @IEEE80211_IFCC_BEACON: The beacon for this interface changed
- *	(currently AP and MESH only), use ieee80211_beacon_get().
- * @IEEE80211_IFCC_BEACON_ENABLED: The enable_beacon value changed.
- */
-enum ieee80211_if_conf_change {
-	IEEE80211_IFCC_BSSID		= BIT(0),
-	IEEE80211_IFCC_BEACON		= BIT(1),
-	IEEE80211_IFCC_BEACON_ENABLED	= BIT(2),
-};
-
-/**
- * struct ieee80211_if_conf - configuration of an interface
- *
- * @changed: parameters that have changed, see &enum ieee80211_if_conf_change.
- * @bssid: BSSID of the network we are associated to/creating.
- * @enable_beacon: Indicates whether beacons can be sent.
- *	This is valid only for AP/IBSS/MESH modes.
- *
- * This structure is passed to the config_interface() callback of
- * &struct ieee80211_hw.
- */
-struct ieee80211_if_conf {
-	u32 changed;
-	const u8 *bssid;
-	bool enable_beacon;
 };
 
 /**
@@ -1348,10 +1348,6 @@ enum ieee80211_ampdu_mlme_action {
  *	This function should never fail but returns a negative error code
  *	if it does.
  *
- * @config_interface: Handler for configuration requests related to interfaces
- *	(e.g. BSSID changes.)
- *	Returns a negative error code which will be seen in userspace.
- *
  * @bss_info_changed: Handler for configuration requests related to BSS
  *	parameters that may vary during BSS's lifespan, and may affect low
  *	level driver (e.g. assoc/disassoc status, erp parameters).
@@ -1453,9 +1449,6 @@ struct ieee80211_ops {
 	void (*remove_interface)(struct ieee80211_hw *hw,
 				 struct ieee80211_if_init_conf *conf);
 	int (*config)(struct ieee80211_hw *hw, u32 changed);
-	int (*config_interface)(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_if_conf *conf);
 	void (*bss_info_changed)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,

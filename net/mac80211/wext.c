@@ -185,7 +185,7 @@ static int ieee80211_ioctl_giwfreq(struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
 
-	freq->m = local->hw.conf.channel->center_freq;
+	freq->m = local->oper_channel->center_freq;
 	freq->e = 6;
 
 	return 0;

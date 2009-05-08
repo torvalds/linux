@@ -2113,14 +2113,14 @@ void reg_device_remove(struct wiphy *wiphy)
 
 	assert_cfg80211_lock();
 
+	kfree(wiphy->regd);
+
 	if (last_request)
 		request_wiphy = wiphy_idx_to_wiphy(last_request->wiphy_idx);
 
-	kfree(wiphy->regd);
-	if (!last_request || !request_wiphy)
+	if (!request_wiphy || request_wiphy != wiphy)
 		return;
-	if (request_wiphy != wiphy)
-		return;
+
 	last_request->wiphy_idx = WIPHY_IDX_STALE;
 	last_request->country_ie_env = ENVIRON_ANY;
 }

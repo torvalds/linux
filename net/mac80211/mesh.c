@@ -417,7 +417,7 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
 
 	free_plinks = mesh_plink_availables(sdata);
 	if (free_plinks != sdata->u.mesh.accepting_plinks)
-		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON);
 
 	ifmsh->housekeeping = false;
 	mod_timer(&ifmsh->housekeeping_timer,
@@ -432,8 +432,8 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 
 	ifmsh->housekeeping = true;
 	queue_work(local->hw.workqueue, &ifmsh->work);
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON |
-				   IEEE80211_IFCC_BEACON_ENABLED);
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
+						BSS_CHANGED_BEACON_ENABLED);
 }
 
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)

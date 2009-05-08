@@ -77,6 +77,20 @@ config RT73USB
 
 	  When compiled as a module, this driver will be called "rt73usb.ko".
 
+config RT2800USB
+	tristate "Ralink rt2800 (USB) support"
+	depends on USB
+	select RT2X00_LIB_USB
+	select RT2X00_LIB_HT
+	select RT2X00_LIB_FIRMWARE
+	select RT2X00_LIB_CRYPTO
+	select CRC_CCITT
+	---help---
+	  This adds support for rt2800 wireless chipset family.
+	  Supported chips: RT2770, RT2870 & RT3070.
+
+	  When compiled as a module, this driver will be called "rt2800usb.ko".
+
 config RT2X00_LIB_PCI
 	tristate
 	select RT2X00_LIB
@@ -87,6 +101,9 @@ config RT2X00_LIB_USB
 
 config RT2X00_LIB
 	tristate
+
+config RT2X00_LIB_HT
+	boolean
 
 config RT2X00_LIB_FIRMWARE
 	boolean

@@ -189,10 +189,10 @@ struct p54_common {
 	unsigned long *used_rxkeys;
 
 	/* LED management */
-#ifdef CONFIG_MAC80211_LEDS
+#ifdef CONFIG_P54_LEDS
 	struct p54_led_dev leds[4];
 	struct delayed_work led_work;
-#endif /* CONFIG_MAC80211_LEDS */
+#endif /* CONFIG_P54_LEDS */
 	u16 softled_state;		/* bit field of glowing LEDs */
 
 	/* statistics */

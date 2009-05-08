@@ -377,18 +377,16 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 			size_t used = dev->wiphy.bss_priv_size + sizeof(*res);
 			size_t ielen = res->pub.len_information_elements;
 
-			if (ksize(found) >= used + ielen) {
+			if (!found->ies_allocated && ksize(found) >= used + ielen) {
 				memcpy(found->pub.information_elements,
 				       res->pub.information_elements, ielen);
 				found->pub.len_information_elements = ielen;
 			} else {
 				u8 *ies = found->pub.information_elements;
 
-				if (found->ies_allocated) {
-					if (ksize(ies) < ielen)
-						ies = krealloc(ies, ielen,
-							       GFP_ATOMIC);
-				} else
+				if (found->ies_allocated)
+					ies = krealloc(ies, ielen, GFP_ATOMIC);
+				else
 					ies = kmalloc(ielen, GFP_ATOMIC);
 
 				if (ies) {

@@ -551,7 +551,8 @@ static void iwl3945_setup_rxon_timing(struct iwl_priv *priv)
 		priv->rxon_timing.atim_window = 0;
 	} else {
 		priv->rxon_timing.beacon_interval =
-			iwl3945_adjust_beacon_interval(conf->beacon_int);
+			iwl3945_adjust_beacon_interval(
+				priv->vif->bss_conf.beacon_int);
 		/* TODO: we need to get atim_window from upper stack
 		 * for now we set to 0 */
 		priv->rxon_timing.atim_window = 0;
@@ -1343,15 +1344,24 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv)
 	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
-	spin_lock_irqsave(&rxq->lock, flags);
-	while (!list_empty(&rxq->rx_used)) {
+
+	while (1) {
+		spin_lock_irqsave(&rxq->lock, flags);
+
+		if (list_empty(&rxq->rx_used)) {
+			spin_unlock_irqrestore(&rxq->lock, flags);
+			return;
+		}
+
 		element = rxq->rx_used.next;
 		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
+		list_del(element);
+		spin_unlock_irqrestore(&rxq->lock, flags);
 
 		/* Alloc a new receive buffer */
 		rxb->skb =
 		    alloc_skb(priv->hw_params.rx_buf_size,
-				__GFP_NOWARN | GFP_ATOMIC);
+				GFP_KERNEL);
 		if (!rxb->skb) {
 			if (net_ratelimit())
 				IWL_CRIT(priv, ": Can not allocate SKB buffers\n");
@@ -1369,18 +1379,18 @@ static void iwl3945_rx_allocate(struct iwl_priv *priv)
 		 */
 		skb_reserve(rxb->skb, 4);
 
-		priv->alloc_rxb_skb++;
-		list_del(element);
-
 		/* Get physical address of RB/SKB */
 		rxb->real_dma_addr = pci_map_single(priv->pci_dev,
 						rxb->skb->data,
 						priv->hw_params.rx_buf_size,
 						PCI_DMA_FROMDEVICE);
+
+		spin_lock_irqsave(&rxq->lock, flags);
 		list_add_tail(&rxb->list, &rxq->rx_free);
+		priv->alloc_rxb_skb++;
 		rxq->free_count++;
+		spin_unlock_irqrestore(&rxq->lock, flags);
 	}
-	spin_unlock_irqrestore(&rxq->lock, flags);
 }
 
 void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
@@ -1412,18 +1422,6 @@ void iwl3945_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 }
-
-/*
- * this should be called while priv->lock is locked
- */
-static void __iwl3945_rx_replenish(void *data)
-{
-	struct iwl_priv *priv = data;
-
-	iwl3945_rx_allocate(priv);
-	iwl3945_rx_queue_restock(priv);
-}
-
 
 void iwl3945_rx_replenish(void *data)
 {
@@ -1642,7 +1640,7 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 			count++;
 			if (count >= 8) {
 				priv->rxq.read = i;
-				__iwl3945_rx_replenish(priv);
+				iwl3945_rx_queue_restock(priv);
 				count = 0;
 			}
 		}
@@ -3596,7 +3594,7 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 static ssize_t show_debug_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 
 	return sprintf(buf, "0x%08X\n", priv->debug_level);
 }
@@ -3604,7 +3602,7 @@ static ssize_t store_debug_level(struct device *d,
 				struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
-	struct iwl_priv *priv = d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	unsigned long val;
 	int ret;
 
@@ -3625,7 +3623,7 @@ static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO,
 static ssize_t show_temperature(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
@@ -3638,7 +3636,7 @@ static DEVICE_ATTR(temperature, S_IRUGO, show_temperature, NULL);
 static ssize_t show_tx_power(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	return sprintf(buf, "%d\n", priv->tx_power_user_lmt);
 }
 
@@ -3646,7 +3644,7 @@ static ssize_t store_tx_power(struct device *d,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	char *p = (char *)buf;
 	u32 val;
 
@@ -3664,7 +3662,7 @@ static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, show_tx_power, store_tx_power);
 static ssize_t show_flags(struct device *d,
 			  struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 
 	return sprintf(buf, "0x%04X\n", priv->active_rxon.flags);
 }
@@ -3673,7 +3671,7 @@ static ssize_t store_flags(struct device *d,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	u32 flags = simple_strtoul(buf, NULL, 0);
 
 	mutex_lock(&priv->mutex);
@@ -3698,7 +3696,7 @@ static DEVICE_ATTR(flags, S_IWUSR | S_IRUGO, show_flags, store_flags);
 static ssize_t show_filter_flags(struct device *d,
 				 struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 
 	return sprintf(buf, "0x%04X\n",
 		le32_to_cpu(priv->active_rxon.filter_flags));
@@ -3708,7 +3706,7 @@ static ssize_t store_filter_flags(struct device *d,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	u32 filter_flags = simple_strtoul(buf, NULL, 0);
 
 	mutex_lock(&priv->mutex);
@@ -3993,7 +3991,7 @@ static DEVICE_ATTR(antenna, S_IWUSR | S_IRUGO, show_antenna, store_antenna);
 static ssize_t show_status(struct device *d,
 			   struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	if (!iwl_is_alive(priv))
 		return -EAGAIN;
 	return sprintf(buf, "0x%08x\n", (int)priv->status);
@@ -4005,10 +4003,11 @@ static ssize_t dump_error_log(struct device *d,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	char *p = (char *)buf;
 
 	if (p[0] == '1')
-		iwl3945_dump_nic_error_log((struct iwl_priv *)d->driver_data);
+		iwl3945_dump_nic_error_log(priv);
 
 	return strnlen(buf, count);
 }
@@ -4019,10 +4018,11 @@ static ssize_t dump_event_log(struct device *d,
 			      struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	char *p = (char *)buf;
 
 	if (p[0] == '1')
-		iwl3945_dump_nic_event_log((struct iwl_priv *)d->driver_data);
+		iwl3945_dump_nic_event_log(priv);
 
 	return strnlen(buf, count);
 }
@@ -4104,7 +4104,6 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
 	.config = iwl_mac_config,
-	.config_interface = iwl_mac_config_interface,
 	.configure_filter = iwl_configure_filter,
 	.set_key = iwl3945_mac_set_key,
 	.get_tx_stats = iwl_mac_get_tx_stats,
@@ -4209,8 +4208,6 @@ static int iwl3945_setup_mac(struct iwl_priv *priv)
 
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
-
-	hw->conf.beacon_int = 100;
 
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
 		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =

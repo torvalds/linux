@@ -736,8 +736,8 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	/* When in AP mode zero timer0 to start TSF */
 	if (ah->ah_op_mode == NL80211_IFTYPE_AP)
 		ath5k_hw_reg_write(ah, 0, AR5K_TIMER0);
-	else
-		ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);
+
+	ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);
 	ath5k_hw_reg_write(ah, timer1, AR5K_TIMER1);
 	ath5k_hw_reg_write(ah, timer2, AR5K_TIMER2);
 	ath5k_hw_reg_write(ah, timer3, AR5K_TIMER3);
@@ -1003,7 +1003,7 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 	 * Note2: Windows driver (ndiswrapper) sets this to
 	 *        0x00000714 instead of 0x00000007
 	 */
-	if (ah->ah_version > AR5K_AR5211) {
+	if (ah->ah_version >= AR5K_AR5211) {
 		ath5k_hw_reg_write(ah, AR5K_KEYTABLE_TYPE_NULL,
 				AR5K_KEYTABLE_TYPE(entry));
 

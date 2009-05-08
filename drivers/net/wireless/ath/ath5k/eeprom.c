@@ -156,6 +156,17 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		ee->ee_db[AR5K_EEPROM_MODE_11G][0] = (val >> 3) & 0x7;
 	}
 
+	AR5K_EEPROM_READ(AR5K_EEPROM_IS_HB63, val);
+
+	if ((ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4)) && val)
+		ee->ee_is_hb63 = true;
+	else
+		ee->ee_is_hb63 = false;
+
+	AR5K_EEPROM_READ(AR5K_EEPROM_RFKILL, val);
+	ee->ee_rfkill_pin = (u8) AR5K_REG_MS(val, AR5K_EEPROM_RFKILL_GPIO_SEL);
+	ee->ee_rfkill_pol = val & AR5K_EEPROM_RFKILL_POLARITY ? true : false;
+
 	return 0;
 }
 
@@ -197,16 +208,16 @@ static int ath5k_eeprom_read_ants(struct ath5k_hw *ah, u32 *offset,
 	ee->ee_ant_control[mode][i++]	= (val >> 6) & 0x3f;
 	ee->ee_ant_control[mode][i++]	= val & 0x3f;
 
-	/* Get antenna modes */
-	ah->ah_antenna[mode][0] =
+	/* Get antenna switch tables */
+	ah->ah_ant_ctl[mode][AR5K_ANT_CTL] =
 	    (ee->ee_ant_control[mode][0] << 4);
-	ah->ah_antenna[mode][AR5K_ANT_FIXED_A] =
+	ah->ah_ant_ctl[mode][AR5K_ANT_SWTABLE_A] =
 	     ee->ee_ant_control[mode][1] 	|
 	    (ee->ee_ant_control[mode][2] << 6) 	|
 	    (ee->ee_ant_control[mode][3] << 12) |
 	    (ee->ee_ant_control[mode][4] << 18) |
 	    (ee->ee_ant_control[mode][5] << 24);
-	ah->ah_antenna[mode][AR5K_ANT_FIXED_B] =
+	ah->ah_ant_ctl[mode][AR5K_ANT_SWTABLE_B] =
 	     ee->ee_ant_control[mode][6] 	|
 	    (ee->ee_ant_control[mode][7] << 6) 	|
 	    (ee->ee_ant_control[mode][8] << 12) |
@@ -640,9 +651,9 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 static inline void
 ath5k_get_pcdac_intercepts(struct ath5k_hw *ah, u8 min, u8 max, u8 *vp)
 {
-	const static u16 intercepts3[] =
+	static const u16 intercepts3[] =
 		{ 0, 5, 10, 20, 30, 50, 70, 85, 90, 95, 100 };
-	const static u16 intercepts3_2[] =
+	static const u16 intercepts3_2[] =
 		{ 0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100 };
 	const u16 *ip;
 	int i;
@@ -1694,9 +1705,40 @@ ath5k_eeprom_read_ctl_info(struct ath5k_hw *ah)
 	return 0;
 }
 
+static int
+ath5k_eeprom_read_spur_chans(struct ath5k_hw *ah)
+{
+	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
+	u32 offset;
+	u16 val;
+	int ret = 0, i;
+
+	offset = AR5K_EEPROM_CTL(ee->ee_version) +
+				AR5K_EEPROM_N_CTLS(ee->ee_version);
+
+	if (ee->ee_version < AR5K_EEPROM_VERSION_5_3) {
+		/* No spur info for 5GHz */
+		ee->ee_spur_chans[0][0] = AR5K_EEPROM_NO_SPUR;
+		/* 2 channels for 2GHz (2464/2420) */
+		ee->ee_spur_chans[0][1] = AR5K_EEPROM_5413_SPUR_CHAN_1;
+		ee->ee_spur_chans[1][1] = AR5K_EEPROM_5413_SPUR_CHAN_2;
+		ee->ee_spur_chans[2][1] = AR5K_EEPROM_NO_SPUR;
+	} else if (ee->ee_version >= AR5K_EEPROM_VERSION_5_3) {
+		for (i = 0; i < AR5K_EEPROM_N_SPUR_CHANS; i++) {
+			AR5K_EEPROM_READ(offset, val);
+			ee->ee_spur_chans[i][0] = val;
+			AR5K_EEPROM_READ(offset + AR5K_EEPROM_N_SPUR_CHANS,
+									val);
+			ee->ee_spur_chans[i][1] = val;
+			offset++;
+		}
+	}
+
+	return ret;
+}
 
 /*
- * Initialize eeprom power tables
+ * Initialize eeprom data structure
  */
 int
 ath5k_eeprom_init(struct ath5k_hw *ah)
@@ -1716,6 +1758,10 @@ ath5k_eeprom_init(struct ath5k_hw *ah)
 		return err;
 
 	err = ath5k_eeprom_read_ctl_info(ah);
+	if (err < 0)
+		return err;
+
+	err = ath5k_eeprom_read_spur_chans(ah);
 	if (err < 0)
 		return err;
 
@@ -1754,16 +1800,3 @@ int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac)
 
 	return 0;
 }
-
-bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah)
-{
-	u16 data;
-
-	ath5k_hw_eeprom_read(ah, AR5K_EEPROM_IS_HB63, &data);
-
-	if ((ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4)) && data)
-		return true;
-	else
-		return false;
-}
-

@@ -3696,9 +3696,9 @@ void nl80211_send_disassoc(struct cfg80211_registered_device *rdev,
 				NL80211_CMD_DISASSOCIATE);
 }
 
-void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
-			       struct net_device *netdev, int cmd,
-			       const u8 *addr)
+static void nl80211_send_mlme_timeout(struct cfg80211_registered_device *rdev,
+				      struct net_device *netdev, int cmd,
+				      const u8 *addr)
 {
 	struct sk_buff *msg;
 	void *hdr;

@@ -22,6 +22,7 @@
 #include <asm/unaligned.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "rate.h"
 
 #define IEEE80211_SCAN_INTERVAL (2 * HZ)
@@ -73,11 +74,11 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos;
 	struct ieee80211_supported_band *sband;
+	u32 bss_change;
 
-	if (local->ops->reset_tsf) {
-		/* Reset own TSF to allow time synchronization work. */
-		local->ops->reset_tsf(local_to_hw(local));
-	}
+
+	/* Reset own TSF to allow time synchronization work. */
+	drv_reset_tsf(local);
 
 	skb = ifibss->skb;
 	rcu_assign_pointer(ifibss->presp, NULL);
@@ -92,15 +93,12 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
-	local->hw.conf.beacon_int = beacon_int >= 10 ? beacon_int : 10;
-
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
-
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BSSID);
 
 	local->oper_channel = chan;
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
 	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+
 	sband = local->hw.wiphy->bands[chan->band];
 
 	/* Build IBSS probe response */
@@ -111,7 +109,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memset(mgmt->da, 0xff, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifibss->bssid, ETH_ALEN);
-	mgmt->u.beacon.beacon_int = cpu_to_le16(local->hw.conf.beacon_int);
+	mgmt->u.beacon.beacon_int = cpu_to_le16(beacon_int);
 	mgmt->u.beacon.timestamp = cpu_to_le64(tsf);
 	mgmt->u.beacon.capab_info = cpu_to_le16(capability);
 
@@ -156,8 +154,13 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	rcu_assign_pointer(ifibss->presp, skb);
 
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON |
-				   IEEE80211_IFCC_BEACON_ENABLED);
+	sdata->vif.bss_conf.beacon_int = beacon_int;
+	bss_change = BSS_CHANGED_BEACON_INT;
+	bss_change |= ieee80211_reset_erp_info(sdata);
+	bss_change |= BSS_CHANGED_BSSID;
+	bss_change |= BSS_CHANGED_BEACON;
+	bss_change |= BSS_CHANGED_BEACON_ENABLED;
+	ieee80211_bss_info_change_notify(sdata, bss_change);
 
 	rates = 0;
 	for (i = 0; i < supp_rates_len; i++) {
@@ -181,8 +184,13 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_bss *bss)
 {
+	u16 beacon_int = bss->cbss.beacon_interval;
+
+	if (beacon_int < 10)
+		beacon_int = 10;
+
 	__ieee80211_sta_join_ibss(sdata, bss->cbss.bssid,
-				  bss->cbss.beacon_interval,
+				  beacon_int,
 				  bss->cbss.channel,
 				  bss->supp_rates_len, bss->supp_rates,
 				  bss->cbss.capability,
@@ -307,12 +315,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				bitrates[rx_status->rate_idx].bitrate;
 
 		rx_timestamp = rx_status->mactime + (24 * 8 * 10 / rate);
-	} else if (local && local->ops && local->ops->get_tsf)
-		/* second best option: get current TSF */
-		rx_timestamp = local->ops->get_tsf(local_to_hw(local));
-	else
-		/* can't merge without knowing the TSF */
-		rx_timestamp = -1LLU;
+	} else {
+		/*
+		 * second best option: get current TSF
+		 * (will return -1 if not supported)
+		 */
+		rx_timestamp = drv_get_tsf(local);
+	}
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "RX beacon SA=%pM BSSID="
@@ -432,14 +441,7 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata)
 	printk(KERN_DEBUG "%s: No active IBSS STAs - trying to scan for other "
 	       "IBSS networks with same SSID (merge)\n", sdata->dev->name);
 
-	/* XXX maybe racy? */
-	if (sdata->local->scan_req)
-		return;
-
-	memcpy(sdata->local->int_scan_req.ssids[0].ssid,
-	       ifibss->ssid, IEEE80211_MAX_SSID_LEN);
-	sdata->local->int_scan_req.ssids[0].ssid_len = ifibss->ssid_len;
-	ieee80211_request_scan(sdata, &sdata->local->int_scan_req);
+	ieee80211_request_internal_scan(sdata, ifibss->ssid, ifibss->ssid_len);
 }
 
 static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
@@ -471,9 +473,6 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 
 	sband = local->hw.wiphy->bands[ifibss->channel->band];
 
-	if (local->hw.conf.beacon_int == 0)
-		local->hw.conf.beacon_int = 100;
-
 	capability = WLAN_CAPABILITY_IBSS;
 
 	if (sdata->default_key)
@@ -487,7 +486,7 @@ static void ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata)
 		*pos++ = (u8) (rate / 5);
 	}
 
-	__ieee80211_sta_join_ibss(sdata, bssid, local->hw.conf.beacon_int,
+	__ieee80211_sta_join_ibss(sdata, bssid, sdata->vif.bss_conf.beacon_int,
 				  ifibss->channel, sband->n_bitrates,
 				  supp_rates, capability, 0);
 }
@@ -552,15 +551,8 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		printk(KERN_DEBUG "%s: Trigger new scan to find an IBSS to "
 		       "join\n", sdata->dev->name);
 
-		/* XXX maybe racy? */
-		if (local->scan_req)
-			return;
-
-		memcpy(local->int_scan_req.ssids[0].ssid,
-		       ifibss->ssid, IEEE80211_MAX_SSID_LEN);
-		local->int_scan_req.ssids[0].ssid_len =
-			ifibss->ssid_len;
-		ieee80211_request_scan(sdata, &local->int_scan_req);
+		ieee80211_request_internal_scan(sdata, ifibss->ssid,
+						ifibss->ssid_len);
 	} else if (ifibss->state != IEEE80211_IBSS_MLME_JOINED) {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
@@ -600,10 +592,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	    len < 24 + 2 || !ifibss->presp)
 		return;
 
-	if (local->ops->tx_last_beacon)
-		tx_last_beacon = local->ops->tx_last_beacon(local_to_hw(local));
-	else
-		tx_last_beacon = 1;
+	tx_last_beacon = drv_tx_last_beacon(local);
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	printk(KERN_DEBUG "%s: RX ProbeReq SA=%pM DA=%pM BSSID=%pM"
@@ -786,7 +775,11 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!netif_running(sdata->dev))
+			continue;
 		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+			continue;
+		if (!sdata->u.ibss.ssid_len)
 			continue;
 		sdata->u.ibss.last_scan_completed = jiffies;
 		ieee80211_sta_find_ibss(sdata);
@@ -827,14 +820,13 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 {
 	struct sk_buff *skb;
 
-	memcpy(sdata->u.ibss.ssid, params->ssid, IEEE80211_MAX_SSID_LEN);
-	sdata->u.ibss.ssid_len = params->ssid_len;
-
 	if (params->bssid) {
 		memcpy(sdata->u.ibss.bssid, params->bssid, ETH_ALEN);
 		sdata->u.ibss.fixed_bssid = true;
 	} else
 		sdata->u.ibss.fixed_bssid = false;
+
+	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 
 	sdata->u.ibss.channel = params->channel;
 	sdata->u.ibss.fixed_channel = params->channel_fixed;
@@ -859,6 +851,19 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 	sdata->u.ibss.state = IEEE80211_IBSS_MLME_SEARCH;
 	sdata->u.ibss.ibss_join_req = jiffies;
 
+	memcpy(sdata->u.ibss.ssid, params->ssid, IEEE80211_MAX_SSID_LEN);
+
+	/*
+	 * The ssid_len setting below is used to see whether
+	 * we are active, and we need all other settings
+	 * before that may get visible.
+	 */
+	mb();
+
+	sdata->u.ibss.ssid_len = params->ssid_len;
+
+	ieee80211_recalc_idle(sdata->local);
+
 	set_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
 	queue_work(sdata->local->hw.workqueue, &sdata->u.ibss.work);
 
@@ -880,12 +885,15 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	kfree(sdata->u.ibss.ie);
 	skb = sdata->u.ibss.presp;
 	rcu_assign_pointer(sdata->u.ibss.presp, NULL);
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON_ENABLED);
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
 	synchronize_rcu();
 	kfree_skb(skb);
 
 	skb_queue_purge(&sdata->u.ibss.skb_queue);
 	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
+	sdata->u.ibss.ssid_len = 0;
+
+	ieee80211_recalc_idle(sdata->local);
 
 	return 0;
 }

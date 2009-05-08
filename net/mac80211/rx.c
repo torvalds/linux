@@ -19,6 +19,7 @@
 #include <net/ieee80211_radiotap.h>
 
 #include "ieee80211_i.h"
+#include "driver-ops.h"
 #include "led.h"
 #include "mesh.h"
 #include "wep.h"
@@ -773,9 +774,7 @@ static void ap_sta_ps_start(struct sta_info *sta)
 
 	atomic_inc(&sdata->bss->num_sta_ps);
 	set_and_clear_sta_flags(sta, WLAN_STA_PS, WLAN_STA_PSPOLL);
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-					STA_NOTIFY_SLEEP, &sta->sta);
+	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_SLEEP, &sta->sta);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %pM aid %d enters power save mode\n",
 	       sdata->dev->name, sta->sta.addr, sta->sta.aid);
@@ -792,9 +791,7 @@ static int ap_sta_ps_end(struct sta_info *sta)
 	atomic_dec(&sdata->bss->num_sta_ps);
 
 	clear_sta_flags(sta, WLAN_STA_PS | WLAN_STA_PSPOLL);
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-					STA_NOTIFY_AWAKE, &sta->sta);
+	drv_sta_notify(local, &sdata->vif, STA_NOTIFY_AWAKE, &sta->sta);
 
 	if (!skb_queue_empty(&sta->ps_tx_buf))
 		sta_info_clear_tim_bit(sta);
@@ -2287,6 +2284,43 @@ static inline u16 seq_sub(u16 sq1, u16 sq2)
 }
 
 
+static void ieee80211_release_reorder_frame(struct ieee80211_hw *hw,
+					    struct tid_ampdu_rx *tid_agg_rx,
+					    int index)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *rate;
+	struct ieee80211_rx_status status;
+
+	if (!tid_agg_rx->reorder_buf[index])
+		goto no_frame;
+
+	/* release the reordered frames to stack */
+	memcpy(&status, tid_agg_rx->reorder_buf[index]->cb, sizeof(status));
+	sband = hw->wiphy->bands[status.band];
+	if (status.flag & RX_FLAG_HT)
+		rate = sband->bitrates; /* TODO: HT rates */
+	else
+		rate = &sband->bitrates[status.rate_idx];
+	__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
+				     &status, rate);
+	tid_agg_rx->stored_mpdu_num--;
+	tid_agg_rx->reorder_buf[index] = NULL;
+
+no_frame:
+	tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
+}
+
+
+/*
+ * Timeout (in jiffies) for skb's that are waiting in the RX reorder buffer. If
+ * the skb was added to the buffer longer than this time ago, the earlier
+ * frames that have not yet been received are assumed to be lost and the skb
+ * can be released for processing. This may also release other skb's from the
+ * reorder buffer if there are no additional gaps between the frames.
+ */
+#define HT_RX_REORDER_BUF_TIMEOUT (HZ / 10)
+
 /*
  * As it function blongs to Rx path it must be called with
  * the proper rcu_read_lock protection for its flow.
@@ -2298,12 +2332,8 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 					   u16 mpdu_seq_num,
 					   int bar_req)
 {
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_rx_status status;
 	u16 head_seq_num, buf_size;
 	int index;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *rate;
 
 	buf_size = tid_agg_rx->buf_size;
 	head_seq_num = tid_agg_rx->head_seq_num;
@@ -2328,28 +2358,8 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 			index = seq_sub(tid_agg_rx->head_seq_num,
 				tid_agg_rx->ssn)
 				% tid_agg_rx->buf_size;
-
-			if (tid_agg_rx->reorder_buf[index]) {
-				/* release the reordered frames to stack */
-				memcpy(&status,
-					tid_agg_rx->reorder_buf[index]->cb,
-					sizeof(status));
-				sband = local->hw.wiphy->bands[status.band];
-				if (status.flag & RX_FLAG_HT) {
-					/* TODO: HT rates */
-					rate = sband->bitrates;
-				} else {
-					rate = &sband->bitrates
-						[status.rate_idx];
-				}
-				__ieee80211_rx_handle_packet(hw,
-					tid_agg_rx->reorder_buf[index],
-					&status, rate);
-				tid_agg_rx->stored_mpdu_num--;
-				tid_agg_rx->reorder_buf[index] = NULL;
-			}
-			tid_agg_rx->head_seq_num =
-				seq_inc(tid_agg_rx->head_seq_num);
+			ieee80211_release_reorder_frame(hw, tid_agg_rx,
+							index);
 		}
 		if (bar_req)
 			return 1;
@@ -2376,26 +2386,50 @@ static u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
 
 	/* put the frame in the reordering buffer */
 	tid_agg_rx->reorder_buf[index] = skb;
+	tid_agg_rx->reorder_time[index] = jiffies;
 	memcpy(tid_agg_rx->reorder_buf[index]->cb, rxstatus,
 	       sizeof(*rxstatus));
 	tid_agg_rx->stored_mpdu_num++;
 	/* release the buffer until next missing frame */
 	index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn)
 						% tid_agg_rx->buf_size;
-	while (tid_agg_rx->reorder_buf[index]) {
-		/* release the reordered frame back to stack */
-		memcpy(&status, tid_agg_rx->reorder_buf[index]->cb,
-			sizeof(status));
-		sband = local->hw.wiphy->bands[status.band];
-		if (status.flag & RX_FLAG_HT)
-			rate = sband->bitrates; /* TODO: HT rates */
-		else
-			rate = &sband->bitrates[status.rate_idx];
-		__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
-					     &status, rate);
-		tid_agg_rx->stored_mpdu_num--;
-		tid_agg_rx->reorder_buf[index] = NULL;
-		tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
+	if (!tid_agg_rx->reorder_buf[index] &&
+	    tid_agg_rx->stored_mpdu_num > 1) {
+		/*
+		 * No buffers ready to be released, but check whether any
+		 * frames in the reorder buffer have timed out.
+		 */
+		int j;
+		int skipped = 1;
+		for (j = (index + 1) % tid_agg_rx->buf_size; j != index;
+		     j = (j + 1) % tid_agg_rx->buf_size) {
+			if (tid_agg_rx->reorder_buf[j] == NULL) {
+				skipped++;
+				continue;
+			}
+			if (!time_after(jiffies, tid_agg_rx->reorder_time[j] +
+					HZ / 10))
+				break;
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: release an RX reorder "
+				       "frame due to timeout on earlier "
+				       "frames\n",
+				       wiphy_name(hw->wiphy));
+#endif
+			ieee80211_release_reorder_frame(hw, tid_agg_rx, j);
+
+			/*
+			 * Increment the head seq# also for the skipped slots.
+			 */
+			tid_agg_rx->head_seq_num =
+				(tid_agg_rx->head_seq_num + skipped) &
+				SEQ_MASK;
+			skipped = 0;
+		}
+	} else while (tid_agg_rx->reorder_buf[index]) {
+		ieee80211_release_reorder_frame(hw, tid_agg_rx, index);
 		index =	seq_sub(tid_agg_rx->head_seq_num,
 			tid_agg_rx->ssn) % tid_agg_rx->buf_size;
 	}
@@ -2517,6 +2551,18 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return;
 	}
 
+	/*
+	 * In theory, the block ack reordering should happen after duplicate
+	 * removal (ieee80211_rx_h_check(), which is an RX handler). As such,
+	 * the call to ieee80211_rx_reorder_ampdu() should really be moved to
+	 * happen as a new RX handler between ieee80211_rx_h_check and
+	 * ieee80211_rx_h_decrypt. This cleanup may eventually happen, but for
+	 * the time being, the call can be here since RX reorder buf processing
+	 * will implicitly skip duplicates. We could, in theory at least,
+	 * process frames that ieee80211_rx_h_passive_scan would drop (e.g.,
+	 * frames from other than operational channel), but that should not
+	 * happen in normal networks.
+	 */
 	if (!ieee80211_rx_reorder_ampdu(local, skb, status))
 		__ieee80211_rx_handle_packet(hw, skb, status, rate);
 

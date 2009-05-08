@@ -151,8 +151,8 @@ static struct ieee80211_channel ar9170_5ghz_chantable[] = {
 			  IEEE80211_HT_CAP_SGI_40 |			\
 			  IEEE80211_HT_CAP_DSSSCCK40 |			\
 			  IEEE80211_HT_CAP_SM_PS,			\
-	.ampdu_factor	= 3, /* ?? */					\
-	.ampdu_density	= 7, /* ?? */					\
+	.ampdu_factor	= 3,						\
+	.ampdu_density	= 6,						\
 	.mcs		= {						\
 		.rx_mask = { 0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0, },	\
 	},								\
@@ -1337,7 +1337,7 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_BEACON_INTERVAL) {
+	if (changed & BSS_CHANGED_BEACON_INT) {
 		err = ar9170_set_beacon_timers(ar);
 		if (err)
 			goto out;
@@ -1353,33 +1353,6 @@ static int ar9170_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (hw->conf.channel->band == IEEE80211_BAND_5GHZ)
 			err = ar9170_write_reg(ar, AR9170_MAC_REG_SLOT_TIME,
 					       9 << 10);
-	}
-
-out:
-	mutex_unlock(&ar->mutex);
-	return err;
-}
-
-static int ar9170_op_config_interface(struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif,
-				      struct ieee80211_if_conf *conf)
-{
-	struct ar9170 *ar = hw->priv;
-	int err = 0;
-
-	mutex_lock(&ar->mutex);
-
-	if (conf->changed & IEEE80211_IFCC_BSSID) {
-		memcpy(ar->bssid, conf->bssid, ETH_ALEN);
-		err = ar9170_set_operating_mode(ar);
-	}
-
-	if (conf->changed & IEEE80211_IFCC_BEACON) {
-		err = ar9170_update_beacon(ar);
-
-		if (err)
-			goto out;
-		err = ar9170_set_beacon_timers(ar);
 	}
 
 out:
@@ -1488,6 +1461,17 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&ar->mutex);
 
+	if (changed & BSS_CHANGED_BSSID) {
+		memcpy(ar->bssid, bss_conf->bssid, ETH_ALEN);
+		err = ar9170_set_operating_mode(ar);
+	}
+
+	if (changed & (BSS_CHANGED_BEACON | BSS_CHANGED_BEACON_ENABLED)) {
+		err = ar9170_update_beacon(ar);
+		if (!err)
+			ar9170_set_beacon_timers(ar);
+	}
+
 	ar9170_regwrite_begin(ar);
 
 	if (changed & BSS_CHANGED_ASSOC) {
@@ -1498,6 +1482,9 @@ static void ar9170_op_bss_info_changed(struct ieee80211_hw *hw,
 		err = ar9170_set_leds_state(ar, bss_conf->assoc ? 2 : 0);
 #endif /* CONFIG_AR9170_LEDS */
 	}
+
+	if (changed & BSS_CHANGED_BEACON_INT)
+		err = ar9170_set_beacon_timers(ar);
 
 	if (changed & BSS_CHANGED_HT) {
 		/* TODO */
@@ -1793,7 +1780,6 @@ static const struct ieee80211_ops ar9170_ops = {
 	.add_interface		= ar9170_op_add_interface,
 	.remove_interface	= ar9170_op_remove_interface,
 	.config			= ar9170_op_config,
-	.config_interface	= ar9170_op_config_interface,
 	.configure_filter	= ar9170_op_configure_filter,
 	.conf_tx		= ar9170_conf_tx,
 	.bss_info_changed	= ar9170_op_bss_info_changed,

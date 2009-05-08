@@ -133,7 +133,6 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	ah->ah_cw_min = AR5K_TUNE_CWMIN;
 	ah->ah_limit_tx_retries = AR5K_INIT_TX_RETRY;
 	ah->ah_software_retry = false;
-	ah->ah_ant_diversity = AR5K_TUNE_ANT_DIVERSITY;
 
 	/*
 	 * Set the mac version based on the pci id

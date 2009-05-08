@@ -58,3 +58,5 @@ obj-$(CONFIG_P54_COMMON)	+= p54/
 obj-$(CONFIG_ATH_COMMON)	+= ath/
 
 obj-$(CONFIG_MAC80211_HWSIM)	+= mac80211_hwsim.o
+
+obj-$(CONFIG_WL12XX)	+= wl12xx/

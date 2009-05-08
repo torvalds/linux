@@ -507,7 +507,7 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 
 		if (ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4))
 			scal = AR5K_PHY_SCAL_32MHZ_2417;
-		else if (ath5k_eeprom_is_hb63(ah))
+		else if (ee->ee_is_hb63)
 			scal = AR5K_PHY_SCAL_32MHZ_HB63;
 		else
 			scal = AR5K_PHY_SCAL_32MHZ;
@@ -534,26 +534,6 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 		AR5K_REG_WRITE_BITS(ah, AR5K_TSF_PARM, AR5K_TSF_PARM_INC, 1);
 	}
 	return;
-}
-
-static bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
-				struct ieee80211_channel *channel)
-{
-	u8 refclk_freq;
-
-	if ((ah->ah_radio == AR5K_RF5112) ||
-	(ah->ah_radio == AR5K_RF5413) ||
-	(ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4)))
-		refclk_freq = 40;
-	else
-		refclk_freq = 32;
-
-	if ((channel->center_freq % refclk_freq != 0) &&
-	((channel->center_freq % refclk_freq < 10) ||
-	(channel->center_freq % refclk_freq > 22)))
-		return true;
-	else
-		return false;
 }
 
 /* TODO: Half/Quarter rate */
@@ -598,9 +578,10 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 	/* Set DAC/ADC delays */
 	if (ah->ah_version == AR5K_AR5212) {
 		u32 scal;
+		struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 		if (ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4))
 			scal = AR5K_PHY_SCAL_32MHZ_2417;
-		else if (ath5k_eeprom_is_hb63(ah))
+		else if (ee->ee_is_hb63)
 			scal = AR5K_PHY_SCAL_32MHZ_HB63;
 		else
 			scal = AR5K_PHY_SCAL_32MHZ;
@@ -697,13 +678,13 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 	/* Set antenna idle switch table */
 	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_ANT_CTL,
 			AR5K_PHY_ANT_CTL_SWTABLE_IDLE,
-			(ah->ah_antenna[ee_mode][0] |
+			(ah->ah_ant_ctl[ee_mode][0] |
 			AR5K_PHY_ANT_CTL_TXRX_EN));
 
-	/* Set antenna switch table */
-	ath5k_hw_reg_write(ah, ah->ah_antenna[ee_mode][ant[0]],
+	/* Set antenna switch tables */
+	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[0]],
 		AR5K_PHY_ANT_SWITCH_TABLE_0);
-	ath5k_hw_reg_write(ah, ah->ah_antenna[ee_mode][ant[1]],
+	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[1]],
 		AR5K_PHY_ANT_SWITCH_TABLE_1);
 
 	/* Noise floor threshold */
@@ -997,10 +978,10 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		ath5k_hw_tweak_initval_settings(ah, channel);
 
 		/*
-		 * Set TX power (FIXME)
+		 * Set TX power
 		 */
 		ret = ath5k_hw_txpower(ah, channel, ee_mode,
-					AR5K_TUNE_DEFAULT_TXPOWER);
+					ah->ah_txpower.txp_max_pwr / 2);
 		if (ret)
 			return ret;
 
@@ -1023,9 +1004,22 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		/* Write OFDM timings on 5212*/
 		if (ah->ah_version == AR5K_AR5212 &&
 			channel->hw_value & CHANNEL_OFDM) {
+			struct ath5k_eeprom_info *ee =
+					&ah->ah_capabilities.cap_eeprom;
+
 			ret = ath5k_hw_write_ofdm_timings(ah, channel);
 			if (ret)
 				return ret;
+
+			/* Note: According to docs we can have a newer
+			 * EEPROM on old hardware, so we need to verify
+			 * that our hardware is new enough to have spur
+			 * mitigation registers (delta phase etc) */
+			if (ah->ah_mac_srev >= AR5K_SREV_AR5424 ||
+			(ah->ah_mac_srev >= AR5K_SREV_AR5424 &&
+			ee->ee_version >= AR5K_EEPROM_VERSION_5_3))
+				ath5k_hw_set_spur_mitigation_filter(ah,
+								channel);
 		}
 
 		/*Enable/disable 802.11b mode on 5111
@@ -1041,17 +1035,15 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 		/*
 		 * In case a fixed antenna was set as default
-		 * write the same settings on both AR5K_PHY_ANT_SWITCH_TABLE
-		 * registers.
+		 * use the same switch table twice.
 		 */
-		if (s_ant != 0) {
-			if (s_ant == AR5K_ANT_FIXED_A) /* 1 - Main */
-				ant[0] = ant[1] = AR5K_ANT_FIXED_A;
-			else	/* 2 - Aux */
-				ant[0] = ant[1] = AR5K_ANT_FIXED_B;
-		} else {
-			ant[0] = AR5K_ANT_FIXED_A;
-			ant[1] = AR5K_ANT_FIXED_B;
+		if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_A)
+				ant[0] = ant[1] = AR5K_ANT_SWTABLE_A;
+		else if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_B)
+				ant[0] = ant[1] = AR5K_ANT_SWTABLE_B;
+		else {
+			ant[0] = AR5K_ANT_SWTABLE_A;
+			ant[1] = AR5K_ANT_SWTABLE_B;
 		}
 
 		/* Commit values from EEPROM */
@@ -1259,6 +1251,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 	ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
 
+	/* Restore antenna mode */
+	ath5k_hw_set_antenna_mode(ah, ah->ah_ant_mode);
 
 	/*
 	 * Configure QCUs/DCUs

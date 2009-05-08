@@ -248,9 +248,8 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_EXT_SME		BIT(17)
 /* flags for MLME request */
 #define IEEE80211_STA_REQ_SCAN 0
-#define IEEE80211_STA_REQ_DIRECT_PROBE 1
-#define IEEE80211_STA_REQ_AUTH 2
-#define IEEE80211_STA_REQ_RUN  3
+#define IEEE80211_STA_REQ_AUTH 1
+#define IEEE80211_STA_REQ_RUN  2
 
 /* bitfield of allowed auth algs */
 #define IEEE80211_AUTH_ALG_OPEN BIT(0)
@@ -659,6 +658,7 @@ struct ieee80211_local {
 
 
 	/* Scanning and BSS list */
+	struct mutex scan_mtx;
 	bool sw_scanning, hw_scanning;
 	struct cfg80211_ssid scan_ssid;
 	struct cfg80211_scan_request int_scan_req;
@@ -905,7 +905,6 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 
 
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed);
-int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed);
@@ -947,6 +946,8 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata);
 
 /* scan/BSS handling */
 void ieee80211_scan_work(struct work_struct *work);
+int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
+				    const u8 *ssid, u8 ssid_len);
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_scan_request *req);
 int ieee80211_scan_results(struct ieee80211_local *local,
@@ -960,9 +961,6 @@ int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
 			       const char *ie, size_t len);
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
-void ieee80211_scan_failed(struct ieee80211_local *local);
-int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
-			 struct cfg80211_scan_request *req);
 struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
@@ -987,6 +985,8 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 			     enum nl80211_iftype type);
 void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata);
 void ieee80211_remove_interfaces(struct ieee80211_local *local);
+u32 __ieee80211_recalc_idle(struct ieee80211_local *local);
+void ieee80211_recalc_idle(struct ieee80211_local *local);
 
 /* tx handling */
 void ieee80211_clear_tx_pending(struct ieee80211_local *local);
