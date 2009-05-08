@@ -122,17 +122,6 @@ config SH_NO_BSS_INIT
 	  For all other cases, say N. If this option seems perplexing, or
 	  you aren't sure, say N.
 
-config MORE_COMPILE_OPTIONS
-	bool "Add any additional compile options"
-	help
-	  If you want to add additional CFLAGS to the kernel build, enable this
-	  option and then enter what you would like to add in the next question.
-	  Note however that -g is already appended with the selection of KGDB.
-
-config COMPILE_OPTIONS
-	string "Additional compile arguments"
-	depends on MORE_COMPILE_OPTIONS
-
 config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
 	depends on SUPERH64

@@ -70,9 +70,6 @@ cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= -ml
 cflags-y	+= $(call cc-option,-mno-fdpic)
 cflags-y	+= $(isaflags-y) -ffreestanding
 
-cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
-	$(shell echo $(CONFIG_COMPILE_OPTIONS) | sed -e 's/"//g')
-
 OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
 		   -R .stab -R .stabstr -S
 
