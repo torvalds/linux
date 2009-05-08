@@ -525,6 +525,8 @@ netxen_setup_intr(struct netxen_adapter *adapter)
 request_msi:
 		if (use_msi && !pci_enable_msi(pdev)) {
 			adapter->flags |= NETXEN_NIC_MSI_ENABLED;
+			adapter->msi_tgt_status =
+				msi_tgt_status[adapter->ahw.pci_func];
 			dev_info(&pdev->dev, "using msi interrupts\n");
 		} else
 			dev_info(&pdev->dev, "using legacy interrupts\n");
@@ -1701,7 +1703,7 @@ static irqreturn_t netxen_msi_intr(int irq, void *data)
 
 	/* clear interrupt */
 	adapter->pci_write_immediate(adapter,
-			msi_tgt_status[adapter->ahw.pci_func], 0xffffffff);
+			adapter->msi_tgt_status, 0xffffffff);
 
 	napi_schedule(&sds_ring->napi);
 	return IRQ_HANDLED;

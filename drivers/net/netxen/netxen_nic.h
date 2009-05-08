@@ -1257,6 +1257,9 @@ struct netxen_adapter {
 	u32 irq;
 	u32 temp;
 
+	u32 msi_tgt_status;
+	u32 resv4;
+
 	struct netxen_adapter_stats stats;
 
 	struct netxen_recv_context recv_ctx;
