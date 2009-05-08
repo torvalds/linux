@@ -1227,7 +1227,7 @@ static struct uart_driver sci_uart_driver = {
 };
 
 
-static int __devexit sci_remove(struct platform_device *dev)
+static int sci_remove(struct platform_device *dev)
 {
 	struct sh_sci_priv *priv = platform_get_drvdata(dev);
 	struct sci_port *p;
