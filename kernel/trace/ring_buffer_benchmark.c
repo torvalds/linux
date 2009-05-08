@@ -294,6 +294,12 @@ static void ring_buffer_producer(void)
 
 		pr_info("Total iterations per millisec: %ld\n", hit + missed);
 
+		/* it is possible that hit + missed will overflow and be zero */
+		if (!(hit + missed)) {
+			pr_info("hit + missed overflowed and totalled zero!\n");
+			hit--; /* make it non zero */
+		}
+
 		/* Caculate the average time in nanosecs */
 		avg = NSEC_PER_MSEC / (hit + missed);
 		pr_info("%ld ns per entry\n", avg);
