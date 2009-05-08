@@ -1837,23 +1837,6 @@ static void iwl3945_dump_nic_event_log(struct iwl_priv *priv)
 	iwl_release_nic_access(priv);
 }
 
-static void iwl3945_error_recovery(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	memcpy(&priv->staging_rxon, &priv->recovery_rxon,
-	       sizeof(priv->staging_rxon));
-	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwlcore_commit_rxon(priv);
-
-	priv->cfg->ops->smgmt->add_station(priv, priv->bssid, 1, 0, NULL);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->assoc_id = le16_to_cpu(priv->staging_rxon.assoc_id);
-	priv->error_recovering = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 {
 	u32 inta, handled = 0;
@@ -2683,9 +2666,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	/* After the ALIVE response, we can send commands to 3945 uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
 
-	/* Clear out the uCode error bit if it is set */
-	clear_bit(STATUS_FW_ERROR, &priv->status);
-
 	if (iwl_is_rfkill(priv))
 		return;
 
@@ -2721,9 +2701,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
-
-	if (priv->error_recovering)
-		iwl3945_error_recovery(priv);
 
 	/* reassociate for ADHOC mode */
 	if (priv->vif && (priv->iw_mode == NL80211_IFTYPE_ADHOC)) {
@@ -3231,8 +3208,17 @@ static void iwl3945_bg_restart(struct work_struct *data)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	iwl3945_down(priv);
-	queue_work(priv->workqueue, &priv->up);
+	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
+		mutex_lock(&priv->mutex);
+		priv->vif = NULL;
+		priv->is_open = 0;
+		mutex_unlock(&priv->mutex);
+		iwl3945_down(priv);
+		ieee80211_restart_hw(priv->hw);
+	} else {
+		iwl3945_down(priv);
+		queue_work(priv->workqueue, &priv->up);
+	}
 }
 
 static void iwl3945_bg_rx_replenish(struct work_struct *data)

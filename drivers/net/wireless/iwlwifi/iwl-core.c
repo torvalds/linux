@@ -1229,11 +1229,6 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 		IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
 			  "Restarting adapter due to uCode error.\n");
 
-		if (iwl_is_associated(priv)) {
-			memcpy(&priv->recovery_rxon, &priv->active_rxon,
-			       sizeof(priv->recovery_rxon));
-			priv->error_recovering = 1;
-		}
 		if (priv->cfg->mod_params->restart_fw)
 			queue_work(priv->workqueue, &priv->restart);
 	}
