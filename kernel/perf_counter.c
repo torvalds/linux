@@ -1994,6 +1994,11 @@ static void perf_counter_output(struct perf_counter *counter,
 		header.size += sizeof(u64);
 	}
 
+	if (record_type & PERF_RECORD_CONFIG) {
+		header.type |= PERF_RECORD_CONFIG;
+		header.size += sizeof(u64);
+	}
+
 	if (record_type & PERF_RECORD_GROUP) {
 		header.type |= PERF_RECORD_GROUP;
 		header.size += sizeof(u64) +
@@ -2028,6 +2033,9 @@ static void perf_counter_output(struct perf_counter *counter,
 
 	if (record_type & PERF_RECORD_ADDR)
 		perf_output_put(&handle, addr);
+
+	if (record_type & PERF_RECORD_CONFIG)
+		perf_output_put(&handle, counter->hw_event.config);
 
 	/*
 	 * XXX PERF_RECORD_GROUP vs inherited counters seems difficult.
