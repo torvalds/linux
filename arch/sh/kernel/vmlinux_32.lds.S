@@ -1,17 +1,23 @@
 /*
  * ld script to make SuperH Linux kernel
- * Written by Niibe Yutaka
+ * Written by Niibe Yutaka and Paul Mundt
  */
-#include <asm/thread_info.h>
-#include <asm/cache.h>
-#include <asm-generic/vmlinux.lds.h>
-
+#ifdef CONFIG_SUPERH64
+#define LOAD_OFFSET	CONFIG_PAGE_OFFSET
+OUTPUT_ARCH(sh:sh5)
+#else
+OUTPUT_ARCH(sh)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
 OUTPUT_FORMAT("elf32-sh-linux", "elf32-sh-linux", "elf32-sh-linux")
 #else
 OUTPUT_FORMAT("elf32-shbig-linux", "elf32-shbig-linux", "elf32-shbig-linux")
 #endif
-OUTPUT_ARCH(sh)
+#endif
+
+#include <asm/thread_info.h>
+#include <asm/cache.h>
+#include <asm-generic/vmlinux.lds.h>
+
 ENTRY(_start)
 SECTIONS
 {
@@ -24,28 +30,35 @@ SECTIONS
 	. = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
 #endif
 
-	_text = .;			/* Text and read-only data */
-
-	.empty_zero_page : {
+	.empty_zero_page : AT(ADDR(.empty_zero_page) - LOAD_OFFSET) {
 		*(.empty_zero_page)
 	} = 0
 
-	.text : {
+	.text : AT(ADDR(.text) - LOAD_OFFSET) {
+		_text = .;		/* Text and read-only data */
 		HEAD_TEXT
 		TEXT_TEXT
+
+#ifdef CONFIG_SUPERH64
+		*(.text64)
+		*(.text..SHmedia32)
+#endif
+
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
+		IRQENTRY_TEXT
 		*(.fixup)
 		*(.gnu.warning)
+		_etext = .;		/* End of text section */
 	} = 0x0009
 
 	. = ALIGN(16);		/* Exception table */
-	__start___ex_table = .;
-	__ex_table : { *(__ex_table) }
-	__stop___ex_table = .;
-
-	_etext = .;			/* End of text section */
+	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
+		__start___ex_table = .;
+		*(__ex_table)
+		__stop___ex_table = .;
+	}
 
 	NOTES
 	RO_DATA(PAGE_SIZE)
@@ -54,13 +67,15 @@ SECTIONS
 	 * Code which must be executed uncached and the associated data
 	 */
 	. = ALIGN(PAGE_SIZE);
-	__uncached_start = .;
-	.uncached.text : { *(.uncached.text) }
-	.uncached.data : { *(.uncached.data) }
-	__uncached_end = .;
+	.uncached : AT(ADDR(.uncached) - LOAD_OFFSET) {
+		__uncached_start = .;
+		*(.uncached.text)
+		*(.uncached.data)
+		__uncached_end = .;
+	}
 
 	. = ALIGN(THREAD_SIZE);
-	.data : {			/* Data */
+	.data : AT(ADDR(.data) - LOAD_OFFSET) {		/* Data */
 		*(.data.init_task)
 
 		. = ALIGN(L1_CACHE_BYTES);
@@ -84,39 +99,51 @@ SECTIONS
 	_edata = .;			/* End of data section */
 
 	. = ALIGN(PAGE_SIZE);		/* Init code and data */
-	__init_begin = .;
-	_sinittext = .;
-	.init.text : { INIT_TEXT }
-	_einittext = .;
-	.init.data : { INIT_DATA }
+	.init.text : AT(ADDR(.init.text) - LOAD_OFFSET) {
+		__init_begin = .;
+		_sinittext = .;
+		INIT_TEXT
+		_einittext = .;
+	}
+
+	.init.data : AT(ADDR(.init.data) - LOAD_OFFSET) { INIT_DATA }
 
 	. = ALIGN(16);
-	__setup_start = .;
-	.init.setup : { *(.init.setup) }
-	__setup_end = .;
-
-	__initcall_start = .;
-	.initcall.init : {
-		INITCALLS
+	.init.setup : AT(ADDR(.init.setup) - LOAD_OFFSET) {
+		__setup_start = .;
+		*(.init.setup)
+		__setup_end = .;
 	}
-	__initcall_end = .;
-	__con_initcall_start = .;
-	.con_initcall.init : { *(.con_initcall.init) }
-	__con_initcall_end = .;
+
+	.initcall.init : AT(ADDR(.initcall.init) - LOAD_OFFSET) {
+		__initcall_start = .;
+		INITCALLS
+		__initcall_end = .;
+	}
+
+	.con_initcall.init : AT(ADDR(.con_initcall.init) - LOAD_OFFSET) {
+		__con_initcall_start = .;
+		*(.con_initcall.init)
+		__con_initcall_end = .;
+	}
 
 	SECURITY_INIT
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	. = ALIGN(PAGE_SIZE);
-	__initramfs_start = .;
-	.init.ramfs : { *(.init.ramfs) }
-	__initramfs_end = .;
+	.init.ramfs : AT(ADDR(.init_ramfs) - LOAD_OFFSET) {
+		__initramfs_start = .;
+		*(.init.ramfs)
+		__initramfs_end = .;
+	}
 #endif
 
 	. = ALIGN(4);
-	__machvec_start = .;
-	.machvec.init : { *(.machvec.init) }
-	__machvec_end = .;
+	.machvec.init : AT(ADDR(.machvec.init) - LOAD_OFFSET) {
+		__machvec_start = .;
+		*(.machvec.init)
+		__machvec_end = .;
+	}
 
 	PERCPU(PAGE_SIZE)
 
@@ -124,11 +151,11 @@ SECTIONS
 	 * .exit.text is discarded at runtime, not link time, to deal with
 	 * references from __bug_table
 	 */
-	.exit.text : { EXIT_TEXT }
-	.exit.data : { EXIT_DATA }
+	.exit.text : AT(ADDR(.exit.text) - LOAD_OFFSET) { EXIT_TEXT }
+	.exit.data : AT(ADDR(.exit.data) - LOAD_OFFSET) { EXIT_DATA }
 
 	. = ALIGN(PAGE_SIZE);
-	.bss : {
+	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
 		__init_end = .;
 		__bss_start = .;		/* BSS */
 		*(.bss.page_aligned)
