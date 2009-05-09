@@ -210,7 +210,7 @@ hauppauge_tuner[] =
 	{ TUNER_TEA5767,       		"Philips TEA5768HL FM Radio"},
 	{ TUNER_ABSENT,        		"Panasonic ENV57H12D5"},
 	{ TUNER_PHILIPS_FM1236_MK3, 	"TCL MFNM05-4"},
-	{ TUNER_ABSENT,        		"TCL MNM05-4"},
+	{ TUNER_PHILIPS_FM1236_MK3,	"TCL MNM05-4"},
 	{ TUNER_PHILIPS_FM1216ME_MK3, 	"TCL MPE05-2"},
 	{ TUNER_ABSENT,        		"TCL MQNM05-4"},
 	{ TUNER_ABSENT,        		"LG TAPC-W701D"},
