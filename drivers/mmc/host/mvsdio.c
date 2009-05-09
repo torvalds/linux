@@ -882,3 +882,4 @@ module_param(nodma, int, 0);
 MODULE_AUTHOR("Maen Suleiman, Nicolas Pitre");
 MODULE_DESCRIPTION("Marvell MMC,SD,SDIO Host Controller driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mvsdio");
