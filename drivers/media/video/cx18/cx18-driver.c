@@ -313,7 +313,7 @@ static void cx18_process_eeprom(struct cx18 *cx)
 	CX18_INFO("Autodetected %s\n", cx->card_name);
 
 	if (tv.tuner_type == TUNER_ABSENT)
-		CX18_ERR("tveeprom cannot autodetect tuner!");
+		CX18_ERR("tveeprom cannot autodetect tuner!\n");
 
 	if (cx->options.tuner == -1)
 		cx->options.tuner = tv.tuner_type;
