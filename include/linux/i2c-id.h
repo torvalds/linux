@@ -53,6 +53,7 @@
 #define I2C_HW_B_AU0828		0x010023 /* auvitek au0828 usb bridge */
 #define I2C_HW_B_CX231XX	0x010024 /* Conexant CX231XX USB based cards */
 #define I2C_HW_B_HDPVR		0x010025 /* Hauppauge HD PVR */
+#define I2C_HW_B_SAA7164        0x010024 /* NXP 7164 based tv cards */
 
 /* --- SGI adapters							*/
 #define I2C_HW_SGI_VINO		0x160000
