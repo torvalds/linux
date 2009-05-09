@@ -101,6 +101,12 @@ LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
 		   -e phys_stext_shmedia
 endif
 
+ifneq ($(SUBARCH),$(ARCH))
+  ifeq ($(CROSS_COMPILE),)
+    CROSS_COMPILE := $(call cc-cross-prefix, $(UTS_MACHINE)-linux-  $(UTS_MACHINE)-linux-gnu-  $(UTS_MACHINE)-unknown-linux-gnu-)
+  endif
+endif
+
 ifdef CONFIG_CPU_LITTLE_ENDIAN
 ld-bfd			:= elf32-$(UTS_MACHINE)-linux
 LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64' --oformat $(ld-bfd)
