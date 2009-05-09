@@ -1617,11 +1617,9 @@ static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 	switch (type) {
 	case ATH9K_RESET_POWER_ON:
 		return ath9k_hw_set_reset_power_on(ah);
-		break;
 	case ATH9K_RESET_WARM:
 	case ATH9K_RESET_COLD:
 		return ath9k_hw_set_reset(ah, type);
-		break;
 	default:
 		return false;
 	}
