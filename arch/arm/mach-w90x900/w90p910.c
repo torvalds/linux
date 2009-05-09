@@ -46,6 +46,9 @@ static struct map_desc w90p910_iodesc[] __initdata = {
 	IODESC_ENT(USBEHCIHOST),
 	IODESC_ENT(USBOHCIHOST),
 	IODESC_ENT(ADC),
+	IODESC_ENT(RTC),
+	IODESC_ENT(KPI),
+	IODESC_ENT(USBDEV),
 	/*IODESC_ENT(LCD),*/
 };
 
