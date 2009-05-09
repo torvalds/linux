@@ -91,9 +91,11 @@ KBUILD_IMAGE		:= $(defaultimage-y)
 #
 ifdef CONFIG_SUPERH32
 UTS_MACHINE	:= sh
+BITS		:= 32
 LDFLAGS_vmlinux	+= -e _stext
 else
 UTS_MACHINE	:= sh64
+BITS		:= 64
 LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
 		   --defsym phys_stext_shmedia=phys_stext+1 \
 		   -e phys_stext_shmedia
@@ -109,11 +111,9 @@ LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64+4' --oformat $(ld-bfd)
 LDFLAGS			+= -EB
 endif
 
-export ld-bfd
+export ld-bfd BITS
 
-head-y			:= arch/sh/kernel/init_task.o
-head-$(CONFIG_SUPERH32)	+= arch/sh/kernel/head_32.o
-head-$(CONFIG_SUPERH64)	+= arch/sh/kernel/head_64.o
+head-y	:= arch/sh/kernel/init_task.o arch/sh/kernel/head_$(BITS).o
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
