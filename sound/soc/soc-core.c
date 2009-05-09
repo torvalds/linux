@@ -2387,6 +2387,39 @@ void snd_soc_unregister_platform(struct snd_soc_platform *platform)
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
 
+static u64 codec_format_map[] = {
+	SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE,
+	SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE,
+	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE,
+	SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_U24_BE,
+	SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE,
+	SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_U32_BE,
+	SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_U24_3BE,
+	SNDRV_PCM_FMTBIT_U24_3LE | SNDRV_PCM_FMTBIT_U24_3BE,
+	SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S20_3BE,
+	SNDRV_PCM_FMTBIT_U20_3LE | SNDRV_PCM_FMTBIT_U20_3BE,
+	SNDRV_PCM_FMTBIT_S18_3LE | SNDRV_PCM_FMTBIT_S18_3BE,
+	SNDRV_PCM_FMTBIT_U18_3LE | SNDRV_PCM_FMTBIT_U18_3BE,
+	SNDRV_PCM_FMTBIT_FLOAT_LE | SNDRV_PCM_FMTBIT_FLOAT_BE,
+	SNDRV_PCM_FMTBIT_FLOAT64_LE | SNDRV_PCM_FMTBIT_FLOAT64_BE,
+	SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE
+	| SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_BE,
+};
+
+/* Fix up the DAI formats for endianness: codecs don't actually see
+ * the endianness of the data but we're using the CPU format
+ * definitions which do need to include endianness so we ensure that
+ * codec DAIs always have both big and little endian variants set.
+ */
+static void fixup_codec_formats(struct snd_soc_pcm_stream *stream)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(codec_format_map); i++)
+		if (stream->formats & codec_format_map[i])
+			stream->formats |= codec_format_map[i];
+}
+
 /**
  * snd_soc_register_codec - Register a codec with the ASoC core
  *
@@ -2394,6 +2427,8 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_platform);
  */
 int snd_soc_register_codec(struct snd_soc_codec *codec)
 {
+	int i;
+
 	if (!codec->name)
 		return -EINVAL;
 
@@ -2402,6 +2437,11 @@ int snd_soc_register_codec(struct snd_soc_codec *codec)
 		printk(KERN_WARNING "No device for codec %s\n", codec->name);
 
 	INIT_LIST_HEAD(&codec->list);
+
+	for (i = 0; i < codec->num_dai; i++) {
+		fixup_codec_formats(&codec->dai[i].playback);
+		fixup_codec_formats(&codec->dai[i].capture);
+	}
 
 	mutex_lock(&client_mutex);
 	list_add(&codec->list, &codec_list);
