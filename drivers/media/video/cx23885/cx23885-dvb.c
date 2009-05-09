@@ -487,9 +487,33 @@ static int cx23885_dvb_set_frontend(struct dvb_frontend *fe,
 		}
 		break;
 	}
-	return (port->set_frontend_save) ?
-		port->set_frontend_save(fe, param) : -ENODEV;
+	return 0;
 }
+
+static int cx23885_dvb_fe_ioctl_override(struct dvb_frontend *fe,
+					 unsigned int cmd, void *parg,
+					 unsigned int stage)
+{
+	int err = 0;
+
+	switch (stage) {
+	case DVB_FE_IOCTL_PRE:
+
+		switch (cmd) {
+		case FE_SET_FRONTEND:
+			err = cx23885_dvb_set_frontend(fe,
+				(struct dvb_frontend_parameters *) parg);
+			break;
+		}
+		break;
+
+	case DVB_FE_IOCTL_POST:
+		/* no post-ioctl handling required */
+		break;
+	}
+	return err;
+};
+
 
 static struct lgs8gxx_config magicpro_prohdtve2_lgs8g75_config = {
 	.prod = LGS8GXX_PROD_LGS8G75,
@@ -550,12 +574,6 @@ static int dvb_register(struct cx23885_tsport *port)
 				   0x60, &dev->i2c_bus[1].i2c_adap,
 				   &hauppauge_hvr127x_config);
 		}
-
-		/* FIXME: temporary hack */
-		/* define bridge override to set_frontend */
-		port->set_frontend_save = fe0->dvb.frontend->ops.set_frontend;
-		fe0->dvb.frontend->ops.set_frontend = cx23885_dvb_set_frontend;
-
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 		i2c_bus = &dev->i2c_bus[0];
@@ -904,7 +922,8 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* register everything */
 	ret = videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
-					&dev->pci->dev, adapter_nr, 0, NULL);
+					&dev->pci->dev, adapter_nr, 0,
+					cx23885_dvb_fe_ioctl_override);
 
 	/* init CI & MAC */
 	switch (dev->board) {
