@@ -90,7 +90,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		 * SHmedia, the LSB of the symbol needs to be asserted
 		 * for the CPU to be in SHmedia mode when it starts executing
 		 * the branch target. */
-		relocation |= (sym->st_other & 4);
+		relocation |= !!(sym->st_other & 4);
 #endif
 
 		switch (ELF32_R_TYPE(rel[i].r_info)) {
