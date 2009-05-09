@@ -694,22 +694,36 @@ endmenu
 menu "Boot options"
 
 config ZERO_PAGE_OFFSET
-	hex "Zero page offset"
-	default "0x00004000" if SH_SH03
-	default "0x00010000" if PAGE_SIZE_64KB
+	hex
+	default "0x00010000" if PAGE_SIZE_64KB || SH_RTS7751R2D || \
+				SH_7751_SOLUTION_ENGINE
+	default "0x00004000" if PAGE_SIZE_16KB || SH_SH03
 	default "0x00002000" if PAGE_SIZE_8KB
 	default "0x00001000"
 	help
 	  This sets the default offset of zero page.
 
 config BOOT_LINK_OFFSET
-	hex "Link address offset for booting"
+	hex
+	default "0x00210000" if SH_SHMIN
 	default "0x00400000" if SH_CAYMAN
+	default "0x00810000" if SH_7780_SOLUTION_ENGINE
+	default "0x009e0000" if SH_TITAN
+	default "0x01800000" if SH_SDK7780
+	default "0x02000000" if SH_EDOSK7760
 	default "0x00800000"
 	help
 	  This option allows you to set the link address offset of the zImage.
 	  This can be useful if you are on a board which has a small amount of
 	  memory.
+
+config ENTRY_OFFSET
+	hex
+	default "0x00001000" if PAGE_SIZE_4KB
+	default "0x00002000" if PAGE_SIZE_8KB
+	default "0x00004000" if PAGE_SIZE_16KB
+	default "0x00010000" if PAGE_SIZE_64KB
+	default "0x00000000"
 
 config UBC_WAKEUP
 	bool "Wakeup UBC on startup"
