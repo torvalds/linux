@@ -75,18 +75,8 @@ ENTRY(startup_32)
 	movl	$LOAD_PHYSICAL_ADDR, %ebx
 #endif
 
-	/* Replace the compressed data size with the uncompressed size */
-	subl	input_len(%ebp), %ebx
-	movl	output_len(%ebp), %eax
-	addl	%eax, %ebx
-	/* Add 8 bytes for every 32K input block */
-	shrl	$12, %eax
-	addl	%eax, %ebx
-	/* Add 32K + 18 bytes of extra slack */
-	addl	$(32768 + 18), %ebx
-	/* Align on a 4K boundary */
-	addl	$4095, %ebx
-	andl	$~4095, %ebx
+	/* Target address to relocate to for decompression */
+	addl	$z_extract_offset, %ebx
 
 	/* Set up the stack */
 	leal	boot_stack_end(%ebx), %esp
@@ -142,12 +132,10 @@ relocated:
 /*
  * Do the decompression, and jump to the new kernel..
  */
-	movl	output_len(%ebx), %eax
-	pushl	%eax
+	leal	z_extract_offset_negative(%ebx), %ebp
 				/* push arguments for decompress_kernel: */
 	pushl	%ebp		/* output address */
-	movl	input_len(%ebx), %eax
-	pushl	%eax		/* input_len */
+	pushl	$z_input_len	/* input_len */
 	leal	input_data(%ebx), %eax
 	pushl	%eax		/* input_data */
 	leal	boot_heap(%ebx), %eax
@@ -155,14 +143,12 @@ relocated:
 	pushl	%esi		/* real mode pointer */
 	call	decompress_kernel
 	addl	$20, %esp
-	popl	%ecx
 
 #if CONFIG_RELOCATABLE
 /*
  * Find the address of the relocations.
  */
-	movl	%ebp, %edi
-	addl	%ecx, %edi
+	leal	z_output_len(%ebp), %edi
 
 /*
  * Calculate the delta between where vmlinux was compiled to run

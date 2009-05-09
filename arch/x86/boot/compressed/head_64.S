@@ -90,16 +90,8 @@ ENTRY(startup_32)
 	movl	$CONFIG_PHYSICAL_START, %ebx
 #endif
 
-	/* Replace the compressed data size with the uncompressed size */
-	subl	input_len(%ebp), %ebx
-	movl	output_len(%ebp), %eax
-	addl	%eax, %ebx
-	/* Add 8 bytes for every 32K input block */
-	shrl	$12, %eax
-	addl	%eax, %ebx
-	/* Add 32K + 18 bytes of extra slack and align on a 4K boundary */
-	addl	$(32768 + 18 + 4095), %ebx
-	andl	$~4095, %ebx
+	/* Target address to relocate to for decompression */
+	addl	$z_extract_offset, %ebx
 
 /*
  * Prepare for entering 64 bit mode
@@ -224,6 +216,9 @@ ENTRY(startup_64)
 	 * If it is a relocatable kernel then decompress and run the kernel
 	 * from load address aligned to 2MB addr, otherwise decompress and
 	 * run the kernel from CONFIG_PHYSICAL_START
+	 *
+	 * We cannot rely on the calculation done in 32-bit mode, since we
+	 * may have been invoked via the 64-bit entry point.
 	 */
 
 	/* Start with the delta to where the kernel will run at. */
@@ -237,17 +232,8 @@ ENTRY(startup_64)
 	movq	%rbp, %rbx
 #endif
 
-	/* Replace the compressed data size with the uncompressed size */
-	movl	input_len(%rip), %eax
-	subq	%rax, %rbx
-	movl	output_len(%rip), %eax
-	addq	%rax, %rbx
-	/* Add 8 bytes for every 32K input block */
-	shrq	$12, %rax
-	addq	%rax, %rbx
-	/* Add 32K + 18 bytes of extra slack and align on a 4K boundary */
-	addq	$(32768 + 18 + 4095), %rbx
-	andq	$~4095, %rbx
+	/* Target address to relocate to for decompression */
+	leaq	z_extract_offset(%rbp), %rbx
 
 	/* Set up the stack */
 	leaq	boot_stack_end(%rbx), %rsp
@@ -292,13 +278,12 @@ relocated:
 /*
  * Do the decompression, and jump to the new kernel..
  */
-	pushq	%rsi			# Save the real mode argument
-	movq	%rsi, %rdi		# real mode address
-	leaq	boot_heap(%rip), %rsi	# malloc area for uncompression
-	leaq	input_data(%rip), %rdx  # input_data
-	movl	input_len(%rip), %eax
-	movq	%rax, %rcx		# input_len
-	movq	%rbp, %r8		# output
+	pushq	%rsi			/* Save the real mode argument */
+	movq	%rsi, %rdi		/* real mode address */
+	leaq	boot_heap(%rip), %rsi	/* malloc area for uncompression */
+	leaq	input_data(%rip), %rdx  /* input_data */
+	movl	$z_input_len, %ecx	/* input_len */
+	movq	%rbp, %r8		/* output target address */
 	call	decompress_kernel
 	popq	%rsi
 
