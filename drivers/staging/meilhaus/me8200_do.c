@@ -556,11 +556,7 @@ me8200_do_subdevice_t *me8200_do_constructor(uint32_t reg_base,
 
 	/* Request the interrupt line */
 	err = request_irq(irq, me8200_do_isr,
-#ifdef IRQF_DISABLED
 			  IRQF_DISABLED | IRQF_SHARED,
-#else
-			  SA_INTERRUPT | SA_SHIRQ,
-#endif
 			  ME8200_NAME, (void *)subdevice);
 
 	if (err) {

@@ -420,11 +420,7 @@ me4600_ext_irq_subdevice_t *me4600_ext_irq_constructor(uint32_t reg_base,
 	subdevice->irq = irq;
 
 	if (request_irq(subdevice->irq, me4600_ext_irq_isr,
-#ifdef IRQF_DISABLED
 			IRQF_DISABLED | IRQF_SHARED,
-#else
-			SA_INTERRUPT | SA_SHIRQ,
-#endif
 			ME4600_NAME, subdevice)) {
 		PERROR("Cannot register interrupt.\n");
 		kfree(subdevice);
