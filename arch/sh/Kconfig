@@ -704,6 +704,7 @@ config ZERO_PAGE_OFFSET
 
 config BOOT_LINK_OFFSET
 	hex "Link address offset for booting"
+	default "0x00400000" if SH_CAYMAN
 	default "0x00800000"
 	help
 	  This option allows you to set the link address offset of the zImage.
