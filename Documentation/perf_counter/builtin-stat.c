@@ -331,8 +331,6 @@ static void create_perfstat_counter(int counter)
 	hw_event.exclude_kernel = event_mask[counter] & EVENT_MASK_KERNEL;
 	hw_event.exclude_user   = event_mask[counter] & EVENT_MASK_USER;
 
-printf("exclude: %d\n", event_mask[counter]);
-
 	if (scale)
 		hw_event.read_format	= PERF_FORMAT_TOTAL_TIME_ENABLED |
 					  PERF_FORMAT_TOTAL_TIME_RUNNING;
