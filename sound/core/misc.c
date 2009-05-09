@@ -95,12 +95,14 @@ snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list)
 {
 	const struct snd_pci_quirk *q;
 
-	for (q = list; q->subvendor; q++)
-		if (q->subvendor == pci->subsystem_vendor &&
-		    (!q->subdevice || q->subdevice == pci->subsystem_device))
+	for (q = list; q->subvendor; q++) {
+		if (q->subvendor != pci->subsystem_vendor)
+			continue;
+		if (!q->subdevice ||
+		    (pci->subsystem_device & q->subdevice_mask) == q->subdevice)
 			return q;
+	}
 	return NULL;
 }
-
 EXPORT_SYMBOL(snd_pci_quirk_lookup);
 #endif

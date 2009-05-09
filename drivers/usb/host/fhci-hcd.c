@@ -583,7 +583,7 @@ static int __devinit of_fhci_probe(struct of_device *ofdev,
 	if (sprop && strcmp(sprop, "host"))
 		return -ENODEV;
 
-	hcd = usb_create_hcd(&fhci_driver, dev, dev->bus_id);
+	hcd = usb_create_hcd(&fhci_driver, dev, dev_name(dev));
 	if (!hcd) {
 		dev_err(dev, "could not create hcd\n");
 		return -ENOMEM;
@@ -650,7 +650,7 @@ static int __devinit of_fhci_probe(struct of_device *ofdev,
 			}
 		}
 
-		ret = gpio_request(gpio, dev->bus_id);
+		ret = gpio_request(gpio, dev_name(dev));
 		if (ret) {
 			dev_err(dev, "failed to request gpio %d", i);
 			goto err_gpios;

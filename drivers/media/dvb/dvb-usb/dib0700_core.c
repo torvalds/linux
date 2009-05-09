@@ -158,6 +158,10 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 				err("i2c read error (status = %d)\n", result);
 				break;
 			}
+
+			deb_data("<<< ");
+			debug_dump(msg[i].buf, msg[i].len, deb_data);
+
 		} else {
 			/* Write request */
 			buf[0] = REQUEST_NEW_I2C_WRITE;
@@ -168,6 +172,9 @@ static int dib0700_i2c_xfer_new(struct i2c_adapter *adap, struct i2c_msg *msg,
 			buf[3] = ((gen_mode<<6)&0xC0) | ((bus_mode<<4)&0x30);
 			/* The Actual i2c payload */
 			memcpy(&buf[4], msg[i].buf, msg[i].len);
+
+			deb_data(">>> ");
+			debug_dump(buf, msg[i].len + 4, deb_data);
 
 			result = usb_control_msg(d->udev,
 						 usb_sndctrlpipe(d->udev, 0),
@@ -211,7 +218,8 @@ static int dib0700_i2c_xfer_legacy(struct i2c_adapter *adap,
 
 			/* special thing in the current firmware: when length is zero the read-failed */
 			if ((len = dib0700_ctrl_rd(d, buf, msg[i].len + 2, msg[i+1].buf, msg[i+1].len)) <= 0) {
-				deb_info("I2C read failed on address %x\n", msg[i].addr);
+				deb_info("I2C read failed on address 0x%02x\n",
+					 msg[i].addr);
 				break;
 			}
 

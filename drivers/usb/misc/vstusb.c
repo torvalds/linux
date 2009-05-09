@@ -401,6 +401,7 @@ static ssize_t vstusb_write(struct file *file, const char __user *buffer,
 	}
 
 	if (copy_from_user(buf, buffer, count)) {
+		mutex_unlock(&vstdev->lock);
 		dev_err(&dev->dev, "%s: can't copy_from_user\n", __func__);
 		retval = -EFAULT;
 		goto exit;

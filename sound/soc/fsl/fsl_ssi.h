@@ -208,6 +208,7 @@ struct ccsr_ssi {
  * ssi_phys: physical address of the SSI registers
  * irq: IRQ of this SSI
  * dev: struct device, used to create the sysfs statistics file
+ * asynchronous: 0=synchronous mode, 1=asynchronous mode
 */
 struct fsl_ssi_info {
 	unsigned int id;
@@ -215,6 +216,7 @@ struct fsl_ssi_info {
 	dma_addr_t ssi_phys;
 	unsigned int irq;
 	struct device *dev;
+	int asynchronous;
 };
 
 struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info);

@@ -57,7 +57,7 @@ static int rose_rebuild_header(struct sk_buff *skb)
 {
 #ifdef CONFIG_INET
 	struct net_device *dev = skb->dev;
-	struct net_device_stats *stats = netdev_priv(dev);
+	struct net_device_stats *stats = &dev->stats;
 	unsigned char *bp = (unsigned char *)skb->data;
 	struct sk_buff *skbn;
 	unsigned int len;
@@ -133,7 +133,7 @@ static int rose_close(struct net_device *dev)
 
 static int rose_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct net_device_stats *stats = netdev_priv(dev);
+	struct net_device_stats *stats = &dev->stats;
 
 	if (!netif_running(dev)) {
 		printk(KERN_ERR "ROSE: rose_xmit - called when iface is down\n");
@@ -144,30 +144,28 @@ static int rose_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static struct net_device_stats *rose_get_stats(struct net_device *dev)
-{
-	return netdev_priv(dev);
-}
-
 static const struct header_ops rose_header_ops = {
 	.create	= rose_header,
 	.rebuild= rose_rebuild_header,
 };
 
+static const struct net_device_ops rose_netdev_ops = {
+	.ndo_open		= rose_open,
+	.ndo_stop		= rose_close,
+	.ndo_start_xmit		= rose_xmit,
+	.ndo_set_mac_address    = rose_set_mac_address,
+};
+
 void rose_setup(struct net_device *dev)
 {
 	dev->mtu		= ROSE_MAX_PACKET_SIZE - 2;
-	dev->hard_start_xmit	= rose_xmit;
-	dev->open		= rose_open;
-	dev->stop		= rose_close;
+	dev->netdev_ops		= &rose_netdev_ops;
 
 	dev->header_ops		= &rose_header_ops;
 	dev->hard_header_len	= AX25_BPQ_HEADER_LEN + AX25_MAX_HEADER_LEN + ROSE_MIN_LEN;
 	dev->addr_len		= ROSE_ADDR_LEN;
 	dev->type		= ARPHRD_ROSE;
-	dev->set_mac_address    = rose_set_mac_address;
 
 	/* New-style flags. */
 	dev->flags		= IFF_NOARP;
-	dev->get_stats = rose_get_stats;
 }

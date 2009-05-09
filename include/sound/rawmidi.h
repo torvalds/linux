@@ -42,7 +42,6 @@
 #define SNDRV_RAWMIDI_LFLG_INPUT	(1<<1)
 #define SNDRV_RAWMIDI_LFLG_OPEN		(3<<0)
 #define SNDRV_RAWMIDI_LFLG_APPEND	(1<<2)
-#define	SNDRV_RAWMIDI_LFLG_NOOPENLOCK	(1<<3)
 
 struct snd_rawmidi;
 struct snd_rawmidi_substream;

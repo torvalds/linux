@@ -570,7 +570,7 @@ do_more:
 error_return:
 	brelse(bitmap_bh);
 	release_blocks(sb, freed);
-	DQUOT_FREE_BLOCK(inode, freed);
+	vfs_dq_free_block(inode, freed);
 }
 
 /**
@@ -1247,7 +1247,7 @@ ext2_fsblk_t ext2_new_blocks(struct inode *inode, ext2_fsblk_t goal,
 	/*
 	 * Check quota for allocation of this block.
 	 */
-	if (DQUOT_ALLOC_BLOCK(inode, num)) {
+	if (vfs_dq_alloc_block(inode, num)) {
 		*errp = -EDQUOT;
 		return 0;
 	}
@@ -1409,7 +1409,7 @@ allocated:
 
 	*errp = 0;
 	brelse(bitmap_bh);
-	DQUOT_FREE_BLOCK(inode, *count-num);
+	vfs_dq_free_block(inode, *count-num);
 	*count = num;
 	return ret_block;
 
@@ -1420,7 +1420,7 @@ out:
 	 * Undo the block allocation
 	 */
 	if (!performed_allocation)
-		DQUOT_FREE_BLOCK(inode, *count);
+		vfs_dq_free_block(inode, *count);
 	brelse(bitmap_bh);
 	return 0;
 }

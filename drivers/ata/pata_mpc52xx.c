@@ -737,10 +737,10 @@ mpc52xx_ata_probe(struct of_device *op, const struct of_device_id *match)
 	 */
 	prop = of_get_property(op->node, "mwdma-mode", &proplen);
 	if ((prop) && (proplen >= 4))
-		mwdma_mask = 0x7 & ((1 << (*prop + 1)) - 1);
+		mwdma_mask = ATA_MWDMA2 & ((1 << (*prop + 1)) - 1);
 	prop = of_get_property(op->node, "udma-mode", &proplen);
 	if ((prop) && (proplen >= 4))
-		udma_mask = 0x7 & ((1 << (*prop + 1)) - 1);
+		udma_mask = ATA_UDMA2 & ((1 << (*prop + 1)) - 1);
 
 	ata_irq = irq_of_parse_and_map(op->node, 0);
 	if (ata_irq == NO_IRQ) {

@@ -577,18 +577,22 @@
 #define IW_AUTH_RX_UNENCRYPTED_EAPOL	8
 #define IW_AUTH_ROAMING_CONTROL		9
 #define IW_AUTH_PRIVACY_INVOKED		10
+#define IW_AUTH_CIPHER_GROUP_MGMT	11
+#define IW_AUTH_MFP			12
 
 /* IW_AUTH_WPA_VERSION values (bit field) */
 #define IW_AUTH_WPA_VERSION_DISABLED	0x00000001
 #define IW_AUTH_WPA_VERSION_WPA		0x00000002
 #define IW_AUTH_WPA_VERSION_WPA2	0x00000004
 
-/* IW_AUTH_PAIRWISE_CIPHER and IW_AUTH_GROUP_CIPHER values (bit field) */
+/* IW_AUTH_PAIRWISE_CIPHER, IW_AUTH_GROUP_CIPHER, and IW_AUTH_CIPHER_GROUP_MGMT
+ * values (bit field) */
 #define IW_AUTH_CIPHER_NONE	0x00000001
 #define IW_AUTH_CIPHER_WEP40	0x00000002
 #define IW_AUTH_CIPHER_TKIP	0x00000004
 #define IW_AUTH_CIPHER_CCMP	0x00000008
 #define IW_AUTH_CIPHER_WEP104	0x00000010
+#define IW_AUTH_CIPHER_AES_CMAC	0x00000020
 
 /* IW_AUTH_KEY_MGMT values (bit field) */
 #define IW_AUTH_KEY_MGMT_802_1X	1
@@ -604,6 +608,11 @@
 #define IW_AUTH_ROAMING_DISABLE	1	/* user space program used for roaming
 					 * control */
 
+/* IW_AUTH_MFP (management frame protection) values */
+#define IW_AUTH_MFP_DISABLED	0	/* MFP disabled */
+#define IW_AUTH_MFP_OPTIONAL	1	/* MFP optional */
+#define IW_AUTH_MFP_REQUIRED	2	/* MFP required */
+
 /* SIOCSIWENCODEEXT definitions */
 #define IW_ENCODE_SEQ_MAX_SIZE	8
 /* struct iw_encode_ext ->alg */
@@ -612,6 +621,7 @@
 #define IW_ENCODE_ALG_TKIP	2
 #define IW_ENCODE_ALG_CCMP	3
 #define IW_ENCODE_ALG_PMK	4
+#define IW_ENCODE_ALG_AES_CMAC	5
 /* struct iw_encode_ext ->ext_flags */
 #define IW_ENCODE_EXT_TX_SEQ_VALID	0x00000001
 #define IW_ENCODE_EXT_RX_SEQ_VALID	0x00000002

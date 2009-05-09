@@ -1,8 +1,8 @@
-/* 
+/*
  * Copyright 2000 by Hans Reiser, licensing governed by reiserfs/README
  */
 
-/* 
+/*
  * Written by Alexander Zarochentcev.
  *
  * The kernel part of the (on-line) reiserfs resizer.
@@ -101,7 +101,7 @@ int reiserfs_resize(struct super_block *s, unsigned long block_count_new)
 			memcpy(jbitmap[i].bitmaps, jb->bitmaps, copy_size);
 
 			/* just in case vfree schedules on us, copy the new
-			 ** pointer into the journal struct before freeing the 
+			 ** pointer into the journal struct before freeing the
 			 ** old one
 			 */
 			node_tmp = jb->bitmaps;

@@ -129,7 +129,7 @@ static inline int irqs_disabled_flags(unsigned long flags)
  * interrupt-retrigger: should we handle this via lost interrupts and IPIs
  * or should we not care like we do now ? --BenH.
  */
-struct hw_interrupt_type;
+struct irq_chip;
 
 #endif	/* __KERNEL__ */
 #endif	/* _ASM_POWERPC_HW_IRQ_H */

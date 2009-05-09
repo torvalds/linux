@@ -599,8 +599,8 @@ int savage_driver_firstopen(struct drm_device *dev)
 			    drm_mtrr_add(dev_priv->mtrr[2].base,
 					 dev_priv->mtrr[2].size, DRM_MTRR_WC);
 		} else {
-			DRM_ERROR("strange pci_resource_len %08lx\n",
-				  drm_get_resource_len(dev, 0));
+			DRM_ERROR("strange pci_resource_len %08llx\n",
+				  (unsigned long long)drm_get_resource_len(dev, 0));
 		}
 	} else if (dev_priv->chipset != S3_SUPERSAVAGE &&
 		   dev_priv->chipset != S3_SAVAGE2000) {
@@ -620,8 +620,8 @@ int savage_driver_firstopen(struct drm_device *dev)
 			    drm_mtrr_add(dev_priv->mtrr[0].base,
 					 dev_priv->mtrr[0].size, DRM_MTRR_WC);
 		} else {
-			DRM_ERROR("strange pci_resource_len %08lx\n",
-				  drm_get_resource_len(dev, 1));
+			DRM_ERROR("strange pci_resource_len %08llx\n",
+				  (unsigned long long)drm_get_resource_len(dev, 1));
 		}
 	} else {
 		mmio_base = drm_get_resource_start(dev, 0);

@@ -163,16 +163,12 @@ int wimax_gnl_re_state_change_send(
 	struct device *dev = wimax_dev_to_dev(wimax_dev);
 	d_fnstart(3, dev, "(wimax_dev %p report_skb %p)\n",
 		  wimax_dev, report_skb);
-	if (report_skb == NULL)
+	if (report_skb == NULL) {
+		result = -ENOMEM;
 		goto out;
-	genlmsg_end(report_skb, header);
-	result = genlmsg_multicast(report_skb, 0, wimax_gnl_mcg.id, GFP_KERNEL);
-	if (result == -ESRCH)	/* Nobody connected, ignore it */
-		result = 0;	/* btw, the skb is freed already */
-	if (result < 0) {
-		dev_err(dev, "RE_STCH: Error sending: %d\n", result);
-		nlmsg_free(report_skb);
 	}
+	genlmsg_end(report_skb, header);
+	genlmsg_multicast(report_skb, 0, wimax_gnl_mcg.id, GFP_KERNEL);
 out:
 	d_fnend(3, dev, "(wimax_dev %p report_skb %p) = %d\n",
 		wimax_dev, report_skb, result);

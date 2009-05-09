@@ -94,7 +94,7 @@ int mt9m111_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 int mt9m111_get_gain(struct gspca_dev *gspca_dev, __s32 *val);
 int mt9m111_set_gain(struct gspca_dev *gspca_dev, __s32 val);
 
-static struct m5602_sensor mt9m111 = {
+const static struct m5602_sensor mt9m111 = {
 	.name = "MT9M111",
 
 	.i2c_slave_id = 0xba,
@@ -102,64 +102,7 @@ static struct m5602_sensor mt9m111 = {
 
 	.probe = mt9m111_probe,
 	.init = mt9m111_init,
-	.power_down = mt9m111_power_down,
-
-	.nctrls = 3,
-	.ctrls = {
-	{
-		{
-			.id		= V4L2_CID_VFLIP,
-			.type           = V4L2_CTRL_TYPE_BOOLEAN,
-			.name           = "vertical flip",
-			.minimum        = 0,
-			.maximum        = 1,
-			.step           = 1,
-			.default_value  = 0
-		},
-		.set = mt9m111_set_vflip,
-		.get = mt9m111_get_vflip
-	}, {
-		{
-			.id             = V4L2_CID_HFLIP,
-			.type           = V4L2_CTRL_TYPE_BOOLEAN,
-			.name           = "horizontal flip",
-			.minimum        = 0,
-			.maximum        = 1,
-			.step           = 1,
-			.default_value  = 0
-		},
-		.set = mt9m111_set_hflip,
-		.get = mt9m111_get_hflip
-	}, {
-		{
-			.id             = V4L2_CID_GAIN,
-			.type           = V4L2_CTRL_TYPE_INTEGER,
-			.name           = "gain",
-			.minimum        = 0,
-			.maximum        = (INITIAL_MAX_GAIN - 1) * 2 * 2 * 2,
-			.step           = 1,
-			.default_value  = DEFAULT_GAIN,
-			.flags          = V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = mt9m111_set_gain,
-		.get = mt9m111_get_gain
-	}
-	},
-
-	.nmodes = 1,
-	.modes = {
-	{
-		M5602_DEFAULT_FRAME_WIDTH,
-		M5602_DEFAULT_FRAME_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			M5602_DEFAULT_FRAME_WIDTH * M5602_DEFAULT_FRAME_HEIGHT,
-		.bytesperline = M5602_DEFAULT_FRAME_WIDTH,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
+	.power_down = mt9m111_power_down
 };
 
 static const unsigned char preinit_mt9m111[][4] =

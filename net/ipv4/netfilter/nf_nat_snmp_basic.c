@@ -1292,7 +1292,7 @@ static struct nf_conntrack_helper snmp_helper __read_mostly = {
 	.expect_policy		= &snmp_exp_policy,
 	.name			= "snmp",
 	.tuple.src.l3num	= AF_INET,
-	.tuple.src.u.udp.port	= __constant_htons(SNMP_PORT),
+	.tuple.src.u.udp.port	= cpu_to_be16(SNMP_PORT),
 	.tuple.dst.protonum	= IPPROTO_UDP,
 };
 
@@ -1302,7 +1302,7 @@ static struct nf_conntrack_helper snmp_trap_helper __read_mostly = {
 	.expect_policy		= &snmp_exp_policy,
 	.name			= "snmp_trap",
 	.tuple.src.l3num	= AF_INET,
-	.tuple.src.u.udp.port	= __constant_htons(SNMP_TRAP_PORT),
+	.tuple.src.u.udp.port	= cpu_to_be16(SNMP_TRAP_PORT),
 	.tuple.dst.protonum	= IPPROTO_UDP,
 };
 

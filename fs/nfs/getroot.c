@@ -156,7 +156,7 @@ int nfs4_path_walk(struct nfs_server *server,
 		return ret;
 	}
 
-	if (fattr.type != NFDIR) {
+	if (!S_ISDIR(fattr.mode)) {
 		printk(KERN_ERR "nfs4_get_root:"
 		       " getroot encountered non-directory\n");
 		return -ENOTDIR;
@@ -213,7 +213,7 @@ eat_dot_dir:
 		return ret;
 	}
 
-	if (fattr.type != NFDIR) {
+	if (!S_ISDIR(fattr.mode)) {
 		printk(KERN_ERR "nfs4_get_root:"
 		       " lookupfh encountered non-directory\n");
 		return -ENOTDIR;

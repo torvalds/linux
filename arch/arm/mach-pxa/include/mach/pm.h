@@ -27,3 +27,13 @@ extern void pxa27x_cpu_suspend(unsigned int);
 extern void pxa_cpu_resume(void);
 
 extern int pxa_pm_enter(suspend_state_t state);
+
+/* NOTE: this is for PM debugging on Lubbock,  it's really a big
+ * ugly, but let's keep the crap minimum here, instead of direct
+ * accessing the LUBBOCK CPLD registers in arch/arm/mach-pxa/pm.c
+ */
+#ifdef CONFIG_ARCH_LUBBOCK
+extern void lubbock_set_hexled(uint32_t value);
+#else
+#define lubbock_set_hexled(x)
+#endif

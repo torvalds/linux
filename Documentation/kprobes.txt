@@ -212,7 +212,9 @@ hit, Kprobes calls kp->pre_handler.  After the probed instruction
 is single-stepped, Kprobe calls kp->post_handler.  If a fault
 occurs during execution of kp->pre_handler or kp->post_handler,
 or during single-stepping of the probed instruction, Kprobes calls
-kp->fault_handler.  Any or all handlers can be NULL.
+kp->fault_handler.  Any or all handlers can be NULL. If kp->flags
+is set KPROBE_FLAG_DISABLED, that kp will be registered but disabled,
+so, it's handlers aren't hit until calling enable_kprobe(kp).
 
 NOTE:
 1. With the introduction of the "symbol_name" field to struct kprobe,
@@ -363,6 +365,26 @@ probes) in the specified array, they clear the addr field of those
 incorrect probes. However, other probes in the array are
 unregistered correctly.
 
+4.7 disable_*probe
+
+#include <linux/kprobes.h>
+int disable_kprobe(struct kprobe *kp);
+int disable_kretprobe(struct kretprobe *rp);
+int disable_jprobe(struct jprobe *jp);
+
+Temporarily disables the specified *probe. You can enable it again by using
+enable_*probe(). You must specify the probe which has been registered.
+
+4.8 enable_*probe
+
+#include <linux/kprobes.h>
+int enable_kprobe(struct kprobe *kp);
+int enable_kretprobe(struct kretprobe *rp);
+int enable_jprobe(struct jprobe *jp);
+
+Enables *probe which has been disabled by disable_*probe(). You must specify
+the probe which has been registered.
+
 5. Kprobes Features and Limitations
 
 Kprobes allows multiple probes at the same address.  Currently,
@@ -500,10 +522,14 @@ the probe. If the probed function belongs to a module, the module name
 is also specified. Following columns show probe status. If the probe is on
 a virtual address that is no longer valid (module init sections, module
 virtual addresses that correspond to modules that've been unloaded),
-such probes are marked with [GONE].
+such probes are marked with [GONE]. If the probe is temporarily disabled,
+such probes are marked with [DISABLED].
 
-/debug/kprobes/enabled: Turn kprobes ON/OFF
+/debug/kprobes/enabled: Turn kprobes ON/OFF forcibly.
 
-Provides a knob to globally turn registered kprobes ON or OFF. By default,
-all kprobes are enabled. By echoing "0" to this file, all registered probes
-will be disarmed, till such time a "1" is echoed to this file.
+Provides a knob to globally and forcibly turn registered kprobes ON or OFF.
+By default, all kprobes are enabled. By echoing "0" to this file, all
+registered probes will be disarmed, till such time a "1" is echoed to this
+file. Note that this knob just disarms and arms all kprobes and doesn't
+change each probe's disabling state. This means that disabled kprobes (marked
+[DISABLED]) will be not enabled if you turn ON all kprobes by this knob.

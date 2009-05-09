@@ -117,7 +117,7 @@ static void cisco_keepalive_send(struct net_device *dev, u32 type,
 	data->type = htonl(type);
 	data->par1 = par1;
 	data->par2 = par2;
-	data->rel = __constant_htons(0xFFFF);
+	data->rel = cpu_to_be16(0xFFFF);
 	/* we will need do_div here if 1000 % HZ != 0 */
 	data->time = htonl((jiffies - INITIAL_JIFFIES) * (1000 / HZ));
 
@@ -136,20 +136,20 @@ static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct hdlc_header *data = (struct hdlc_header*)skb->data;
 
 	if (skb->len < sizeof(struct hdlc_header))
-		return __constant_htons(ETH_P_HDLC);
+		return cpu_to_be16(ETH_P_HDLC);
 
 	if (data->address != CISCO_MULTICAST &&
 	    data->address != CISCO_UNICAST)
-		return __constant_htons(ETH_P_HDLC);
+		return cpu_to_be16(ETH_P_HDLC);
 
 	switch(data->protocol) {
-	case __constant_htons(ETH_P_IP):
-	case __constant_htons(ETH_P_IPX):
-	case __constant_htons(ETH_P_IPV6):
+	case cpu_to_be16(ETH_P_IP):
+	case cpu_to_be16(ETH_P_IPX):
+	case cpu_to_be16(ETH_P_IPV6):
 		skb_pull(skb, sizeof(struct hdlc_header));
 		return data->protocol;
 	default:
-		return __constant_htons(ETH_P_HDLC);
+		return cpu_to_be16(ETH_P_HDLC);
 	}
 }
 
@@ -194,7 +194,7 @@ static int cisco_rx(struct sk_buff *skb)
 		case CISCO_ADDR_REQ: /* Stolen from syncppp.c :-) */
 			in_dev = dev->ip_ptr;
 			addr = 0;
-			mask = __constant_htonl(~0); /* is the mask correct? */
+			mask = ~cpu_to_be32(0); /* is the mask correct? */
 
 			if (in_dev != NULL) {
 				struct in_ifaddr **ifap = &in_dev->ifa_list;
@@ -382,7 +382,6 @@ static int cisco_ioctl(struct net_device *dev, struct ifreq *ifr)
 
 		memcpy(&state(hdlc)->settings, &new_settings, size);
 		spin_lock_init(&state(hdlc)->lock);
-		dev->hard_start_xmit = hdlc->xmit;
 		dev->header_ops = &cisco_header_ops;
 		dev->type = ARPHRD_CISCO;
 		netif_dormant_on(dev);

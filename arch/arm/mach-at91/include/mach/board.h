@@ -56,6 +56,9 @@ struct at91_cf_data {
 	u8	vcc_pin;		/* power switching */
 	u8	rst_pin;		/* card reset */
 	u8	chipselect;		/* EBI Chip Select number */
+	u8	flags;
+#define AT91_CF_TRUE_IDE	0x01
+#define AT91_IDE_SWAP_A0_A2	0x02
 };
 extern void __init at91_add_device_cf(struct at91_cf_data *data);
 
@@ -84,7 +87,7 @@ extern void __init at91_add_device_eth(struct at91_eth_data *data);
  /* USB Host */
 struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
-	u8		vbus_pin[];	/* port power-control pin */
+	u8		vbus_pin[2];	/* port power-control pin */
 };
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 

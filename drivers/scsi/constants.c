@@ -1373,21 +1373,14 @@ static const char * const driverbyte_table[]={
 "DRIVER_INVALID", "DRIVER_TIMEOUT", "DRIVER_HARD", "DRIVER_SENSE"};
 #define NUM_DRIVERBYTE_STRS ARRAY_SIZE(driverbyte_table)
 
-static const char * const driversuggest_table[]={"SUGGEST_OK",
-"SUGGEST_RETRY", "SUGGEST_ABORT", "SUGGEST_REMAP", "SUGGEST_DIE",
-"SUGGEST_5", "SUGGEST_6", "SUGGEST_7", "SUGGEST_SENSE"};
-#define NUM_SUGGEST_STRS ARRAY_SIZE(driversuggest_table)
-
 void scsi_show_result(int result)
 {
 	int hb = host_byte(result);
-	int db = (driver_byte(result) & DRIVER_MASK);
-	int su = ((driver_byte(result) & SUGGEST_MASK) >> 4);
+	int db = driver_byte(result);
 
-	printk("Result: hostbyte=%s driverbyte=%s,%s\n",
+	printk("Result: hostbyte=%s driverbyte=%s\n",
 	       (hb < NUM_HOSTBYTE_STRS ? hostbyte_table[hb]     : "invalid"),
-	       (db < NUM_DRIVERBYTE_STRS ? driverbyte_table[db] : "invalid"),
-	       (su < NUM_SUGGEST_STRS ? driversuggest_table[su] : "invalid"));
+	       (db < NUM_DRIVERBYTE_STRS ? driverbyte_table[db] : "invalid"));
 }
 
 #else

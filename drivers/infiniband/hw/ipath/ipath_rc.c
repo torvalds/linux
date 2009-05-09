@@ -1744,7 +1744,7 @@ void ipath_rc_rcv(struct ipath_ibdev *dev, struct ipath_ib_header *hdr,
 		/* Signal completion event if the solicited bit is set. */
 		ipath_cq_enter(to_icq(qp->ibqp.recv_cq), &wc,
 			       (ohdr->bth[0] &
-				__constant_cpu_to_be32(1 << 23)) != 0);
+				cpu_to_be32(1 << 23)) != 0);
 		break;
 
 	case OP(RDMA_WRITE_FIRST):

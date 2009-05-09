@@ -182,7 +182,7 @@ int jfs_init_acl(tid_t tid, struct inode *inode, struct inode *dir)
 cleanup:
 		posix_acl_release(acl);
 	} else
-		inode->i_mode &= ~current->fs->umask;
+		inode->i_mode &= ~current_umask();
 
 	JFS_IP(inode)->mode2 = (JFS_IP(inode)->mode2 & 0xffff0000) |
 			       inode->i_mode;
@@ -233,7 +233,7 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
 	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
-		if (DQUOT_TRANSFER(inode, iattr))
+		if (vfs_dq_transfer(inode, iattr))
 			return -EDQUOT;
 	}
 

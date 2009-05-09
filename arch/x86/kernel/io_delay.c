@@ -7,10 +7,10 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 #include <linux/dmi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 int io_delay_type __read_mostly = CONFIG_DEFAULT_IO_DELAY_TYPE;
 
@@ -47,8 +47,7 @@ EXPORT_SYMBOL(native_io_delay);
 static int __init dmi_io_delay_0xed_port(const struct dmi_system_id *id)
 {
 	if (io_delay_type == CONFIG_IO_DELAY_TYPE_0X80) {
-		printk(KERN_NOTICE "%s: using 0xed I/O delay port\n",
-			id->ident);
+		pr_notice("%s: using 0xed I/O delay port\n", id->ident);
 		io_delay_type = CONFIG_IO_DELAY_TYPE_0XED;
 	}
 
@@ -64,40 +63,40 @@ static struct dmi_system_id __initdata io_delay_0xed_port_dmi_table[] = {
 		.callback	= dmi_io_delay_0xed_port,
 		.ident		= "Compaq Presario V6000",
 		.matches	= {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
-			DMI_MATCH(DMI_BOARD_NAME, "30B7")
+			DMI_MATCH(DMI_BOARD_VENDOR,	"Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME,	"30B7")
 		}
 	},
 	{
 		.callback	= dmi_io_delay_0xed_port,
 		.ident		= "HP Pavilion dv9000z",
 		.matches	= {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
-			DMI_MATCH(DMI_BOARD_NAME, "30B9")
+			DMI_MATCH(DMI_BOARD_VENDOR,	"Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME,	"30B9")
 		}
 	},
 	{
 		.callback	= dmi_io_delay_0xed_port,
 		.ident		= "HP Pavilion dv6000",
 		.matches	= {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
-			DMI_MATCH(DMI_BOARD_NAME, "30B8")
+			DMI_MATCH(DMI_BOARD_VENDOR,	"Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME,	"30B8")
 		}
 	},
 	{
 		.callback	= dmi_io_delay_0xed_port,
 		.ident		= "HP Pavilion tx1000",
 		.matches	= {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
-			DMI_MATCH(DMI_BOARD_NAME, "30BF")
+			DMI_MATCH(DMI_BOARD_VENDOR,	"Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME,	"30BF")
 		}
 	},
 	{
 		.callback	= dmi_io_delay_0xed_port,
 		.ident		= "Presario F700",
 		.matches	= {
-			DMI_MATCH(DMI_BOARD_VENDOR, "Quanta"),
-			DMI_MATCH(DMI_BOARD_NAME, "30D3")
+			DMI_MATCH(DMI_BOARD_VENDOR,	"Quanta"),
+			DMI_MATCH(DMI_BOARD_NAME,	"30D3")
 		}
 	},
 	{ }

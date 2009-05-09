@@ -208,18 +208,36 @@ int kvmppc_44x_tlb_index(struct kvm_vcpu *vcpu, gva_t eaddr, unsigned int pid,
 	return -1;
 }
 
-int kvmppc_44x_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
+gpa_t kvmppc_mmu_xlate(struct kvm_vcpu *vcpu, unsigned int gtlb_index,
+                       gva_t eaddr)
+{
+	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+	struct kvmppc_44x_tlbe *gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
+	unsigned int pgmask = get_tlb_bytes(gtlbe) - 1;
+
+	return get_tlb_raddr(gtlbe) | (eaddr & pgmask);
+}
+
+int kvmppc_mmu_itlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
 	unsigned int as = !!(vcpu->arch.msr & MSR_IS);
 
 	return kvmppc_44x_tlb_index(vcpu, eaddr, vcpu->arch.pid, as);
 }
 
-int kvmppc_44x_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
+int kvmppc_mmu_dtlb_index(struct kvm_vcpu *vcpu, gva_t eaddr)
 {
 	unsigned int as = !!(vcpu->arch.msr & MSR_DS);
 
 	return kvmppc_44x_tlb_index(vcpu, eaddr, vcpu->arch.pid, as);
+}
+
+void kvmppc_mmu_itlb_miss(struct kvm_vcpu *vcpu)
+{
+}
+
+void kvmppc_mmu_dtlb_miss(struct kvm_vcpu *vcpu)
+{
 }
 
 static void kvmppc_44x_shadow_release(struct kvmppc_vcpu_44x *vcpu_44x,
@@ -248,7 +266,7 @@ static void kvmppc_44x_shadow_release(struct kvmppc_vcpu_44x *vcpu_44x,
 	KVMTRACE_1D(STLB_INVAL, &vcpu_44x->vcpu, stlb_index, handler);
 }
 
-void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu)
+void kvmppc_mmu_destroy(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
 	int i;
@@ -269,15 +287,19 @@ void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu)
  * Caller must ensure that the specified guest TLB entry is safe to insert into
  * the shadow TLB.
  */
-void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr, u64 asid,
-                    u32 flags, u32 max_bytes, unsigned int gtlb_index)
+void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr,
+                    unsigned int gtlb_index)
 {
 	struct kvmppc_44x_tlbe stlbe;
 	struct kvmppc_vcpu_44x *vcpu_44x = to_44x(vcpu);
+	struct kvmppc_44x_tlbe *gtlbe = &vcpu_44x->guest_tlb[gtlb_index];
 	struct kvmppc_44x_shadow_ref *ref;
 	struct page *new_page;
 	hpa_t hpaddr;
 	gfn_t gfn;
+	u32 asid = gtlbe->tid;
+	u32 flags = gtlbe->word2;
+	u32 max_bytes = get_tlb_bytes(gtlbe);
 	unsigned int victim;
 
 	/* Select TLB entry to clobber. Indirectly guard against races with the TLB
@@ -448,10 +470,8 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	}
 
 	if (tlbe_is_host_safe(vcpu, tlbe)) {
-		u64 asid;
 		gva_t eaddr;
 		gpa_t gpaddr;
-		u32 flags;
 		u32 bytes;
 
 		eaddr = get_tlb_eaddr(tlbe);
@@ -462,10 +482,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 		eaddr &= ~(bytes - 1);
 		gpaddr &= ~(bytes - 1);
 
-		asid = (tlbe->word0 & PPC44x_TLB_TS) | tlbe->tid;
-		flags = tlbe->word2 & 0xffff;
-
-		kvmppc_mmu_map(vcpu, eaddr, gpaddr, asid, flags, bytes, gtlb_index);
+		kvmppc_mmu_map(vcpu, eaddr, gpaddr, gtlb_index);
 	}
 
 	KVMTRACE_5D(GTLB_WRITE, vcpu, gtlb_index, tlbe->tid, tlbe->word0,

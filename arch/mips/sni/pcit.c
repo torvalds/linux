@@ -246,7 +246,7 @@ void __init sni_pcit_irq_init(void)
 
 	mips_cpu_irq_init();
 	for (i = SNI_PCIT_INT_START; i <= SNI_PCIT_INT_END; i++)
-		set_irq_chip(i, &pcit_irq_type);
+		set_irq_chip_and_handler(i, &pcit_irq_type, handle_level_irq);
 	*(volatile u32 *)SNI_PCIT_INT_REG = 0;
 	sni_hwint = sni_pcit_hwint;
 	change_c0_status(ST0_IM, IE_IRQ1);
@@ -259,7 +259,7 @@ void __init sni_pcit_cplus_irq_init(void)
 
 	mips_cpu_irq_init();
 	for (i = SNI_PCIT_INT_START; i <= SNI_PCIT_INT_END; i++)
-		set_irq_chip(i, &pcit_irq_type);
+		set_irq_chip_and_handler(i, &pcit_irq_type, handle_level_irq);
 	*(volatile u32 *)SNI_PCIT_INT_REG = 0x40000000;
 	sni_hwint = sni_pcit_hwint_cplus;
 	change_c0_status(ST0_IM, IE_IRQ0);

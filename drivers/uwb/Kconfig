@@ -48,10 +48,10 @@ config UWB_WHCI
         help
           This driver enables the radio controller for WHCI cards.
 
-          WHCI is an specification developed by Intel
+          WHCI is a specification developed by Intel
           (http://www.intel.com/technology/comms/wusb/whci.htm) much
           in the spirit of USB's EHCI, but for UWB and Wireless USB
-          radio/host controllers connected via memmory mapping (eg:
+          radio/host controllers connected via memory mapping (eg:
           PCI). Most of these cards come also with a Wireless USB host
           controller.
 

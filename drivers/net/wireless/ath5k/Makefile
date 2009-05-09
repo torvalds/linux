@@ -10,5 +10,6 @@ ath5k-y				+= phy.o
 ath5k-y				+= reset.o
 ath5k-y				+= attach.o
 ath5k-y				+= base.o
+ath5k-y				+= led.o
 ath5k-$(CONFIG_ATH5K_DEBUG)	+= debug.o
 obj-$(CONFIG_ATH5K)		+= ath5k.o

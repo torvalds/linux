@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,1041 +17,741 @@
 #ifndef ATH9K_H
 #define ATH9K_H
 
-#include <linux/io.h>
+#include <linux/etherdevice.h>
+#include <linux/device.h>
+#include <net/mac80211.h>
+#include <linux/leds.h>
+#include <linux/rfkill.h>
 
-#define ATHEROS_VENDOR_ID	0x168c
+#include "hw.h"
+#include "rc.h"
+#include "debug.h"
 
-#define AR5416_DEVID_PCI	0x0023
-#define AR5416_DEVID_PCIE	0x0024
-#define AR9160_DEVID_PCI	0x0027
-#define AR9280_DEVID_PCI	0x0029
-#define AR9280_DEVID_PCIE	0x002a
-#define AR9285_DEVID_PCIE	0x002b
+struct ath_node;
 
-#define AR5416_AR9100_DEVID	0x000b
+/* Macro to expand scalars to 64-bit objects */
 
-#define	AR_SUBVENDOR_ID_NOG	0x0e11
-#define AR_SUBVENDOR_ID_NEW_A	0x7065
+#define	ito64(x) (sizeof(x) == 8) ?			\
+	(((unsigned long long int)(x)) & (0xff)) :	\
+	(sizeof(x) == 16) ?				\
+	(((unsigned long long int)(x)) & 0xffff) :	\
+	((sizeof(x) == 32) ?				\
+	 (((unsigned long long int)(x)) & 0xffffffff) : \
+	 (unsigned long long int)(x))
 
-#define ATH9K_TXERR_XRETRY         0x01
-#define ATH9K_TXERR_FILT           0x02
-#define ATH9K_TXERR_FIFO           0x04
-#define ATH9K_TXERR_XTXOP          0x08
-#define ATH9K_TXERR_TIMER_EXPIRED  0x10
+/* increment with wrap-around */
+#define INCR(_l, _sz)   do {			\
+		(_l)++;				\
+		(_l) &= ((_sz) - 1);		\
+	} while (0)
 
-#define ATH9K_TX_BA                0x01
-#define ATH9K_TX_PWRMGMT           0x02
-#define ATH9K_TX_DESC_CFG_ERR      0x04
-#define ATH9K_TX_DATA_UNDERRUN     0x08
-#define ATH9K_TX_DELIM_UNDERRUN    0x10
-#define ATH9K_TX_SW_ABORTED        0x40
-#define ATH9K_TX_SW_FILTERED       0x80
+/* decrement with wrap-around */
+#define DECR(_l,  _sz)  do {			\
+		(_l)--;				\
+		(_l) &= ((_sz) - 1);		\
+	} while (0)
 
-#define NBBY    8
+#define A_MAX(a, b) ((a) > (b) ? (a) : (b))
 
-struct ath_tx_status {
-	u32 ts_tstamp;
-	u16 ts_seqnum;
-	u8 ts_status;
-	u8 ts_ratecode;
-	u8 ts_rateindex;
-	int8_t ts_rssi;
-	u8 ts_shortretry;
-	u8 ts_longretry;
-	u8 ts_virtcol;
-	u8 ts_antenna;
-	u8 ts_flags;
-	int8_t ts_rssi_ctl0;
-	int8_t ts_rssi_ctl1;
-	int8_t ts_rssi_ctl2;
-	int8_t ts_rssi_ext0;
-	int8_t ts_rssi_ext1;
-	int8_t ts_rssi_ext2;
-	u8 pad[3];
-	u32 ba_low;
-	u32 ba_high;
-	u32 evm0;
-	u32 evm1;
-	u32 evm2;
+#define ASSERT(exp) do {			\
+		if (unlikely(!(exp))) {		\
+			BUG();			\
+		}				\
+	} while (0)
+
+#define TSF_TO_TU(_h,_l) \
+	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
+
+#define	ATH_TXQ_SETUP(sc, i)        ((sc)->tx.txqsetup & (1<<i))
+
+static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+struct ath_config {
+	u32 ath_aggr_prot;
+	u16 txpowlimit;
+	u8 cabqReadytime;
+	u8 swBeaconProcess;
 };
 
-struct ath_rx_status {
-	u32 rs_tstamp;
-	u16 rs_datalen;
-	u8 rs_status;
-	u8 rs_phyerr;
-	int8_t rs_rssi;
-	u8 rs_keyix;
-	u8 rs_rate;
-	u8 rs_antenna;
-	u8 rs_more;
-	int8_t rs_rssi_ctl0;
-	int8_t rs_rssi_ctl1;
-	int8_t rs_rssi_ctl2;
-	int8_t rs_rssi_ext0;
-	int8_t rs_rssi_ext1;
-	int8_t rs_rssi_ext2;
-	u8 rs_isaggr;
-	u8 rs_moreaggr;
-	u8 rs_num_delims;
-	u8 rs_flags;
-	u32 evm0;
-	u32 evm1;
-	u32 evm2;
+/*************************/
+/* Descriptor Management */
+/*************************/
+
+#define ATH_TXBUF_RESET(_bf) do {				\
+		(_bf)->bf_status = 0;				\
+		(_bf)->bf_lastbf = NULL;			\
+		(_bf)->bf_next = NULL;				\
+		memset(&((_bf)->bf_state), 0,			\
+		       sizeof(struct ath_buf_state));		\
+	} while (0)
+
+/**
+ * enum buffer_type - Buffer type flags
+ *
+ * @BUF_HT: Send this buffer using HT capabilities
+ * @BUF_AMPDU: This buffer is an ampdu, as part of an aggregate (during TX)
+ * @BUF_AGGR: Indicates whether the buffer can be aggregated
+ *	(used in aggregation scheduling)
+ * @BUF_RETRY: Indicates whether the buffer is retried
+ * @BUF_XRETRY: To denote excessive retries of the buffer
+ */
+enum buffer_type {
+	BUF_HT			= BIT(1),
+	BUF_AMPDU		= BIT(2),
+	BUF_AGGR		= BIT(3),
+	BUF_RETRY		= BIT(4),
+	BUF_XRETRY		= BIT(5),
 };
 
-#define ATH9K_RXERR_CRC           0x01
-#define ATH9K_RXERR_PHY           0x02
-#define ATH9K_RXERR_FIFO          0x04
-#define ATH9K_RXERR_DECRYPT       0x08
-#define ATH9K_RXERR_MIC           0x10
-
-#define ATH9K_RX_MORE             0x01
-#define ATH9K_RX_MORE_AGGR        0x02
-#define ATH9K_RX_GI               0x04
-#define ATH9K_RX_2040             0x08
-#define ATH9K_RX_DELIM_CRC_PRE    0x10
-#define ATH9K_RX_DELIM_CRC_POST   0x20
-#define ATH9K_RX_DECRYPT_BUSY     0x40
-
-#define ATH9K_RXKEYIX_INVALID	((u8)-1)
-#define ATH9K_TXKEYIX_INVALID	((u32)-1)
-
-struct ath_desc {
-	u32 ds_link;
-	u32 ds_data;
-	u32 ds_ctl0;
-	u32 ds_ctl1;
-	u32 ds_hw[20];
-	union {
-		struct ath_tx_status tx;
-		struct ath_rx_status rx;
-		void *stats;
-	} ds_us;
-	void *ds_vdata;
-} __packed;
-
-#define	ds_txstat	ds_us.tx
-#define	ds_rxstat	ds_us.rx
-#define ds_stat		ds_us.stats
-
-#define ATH9K_TXDESC_CLRDMASK		0x0001
-#define ATH9K_TXDESC_NOACK		0x0002
-#define ATH9K_TXDESC_RTSENA		0x0004
-#define ATH9K_TXDESC_CTSENA		0x0008
-/* ATH9K_TXDESC_INTREQ forces a tx interrupt to be generated for
- * the descriptor its marked on.  We take a tx interrupt to reap
- * descriptors when the h/w hits an EOL condition or
- * when the descriptor is specifically marked to generate
- * an interrupt with this flag. Descriptors should be
- * marked periodically to insure timely replenishing of the
- * supply needed for sending frames. Defering interrupts
- * reduces system load and potentially allows more concurrent
- * work to be done but if done to aggressively can cause
- * senders to backup. When the hardware queue is left too
- * large rate control information may also be too out of
- * date. An Alternative for this is TX interrupt mitigation
- * but this needs more testing. */
-#define ATH9K_TXDESC_INTREQ		0x0010
-#define ATH9K_TXDESC_VEOL		0x0020
-#define ATH9K_TXDESC_EXT_ONLY		0x0040
-#define ATH9K_TXDESC_EXT_AND_CTL	0x0080
-#define ATH9K_TXDESC_VMF		0x0100
-#define ATH9K_TXDESC_FRAG_IS_ON 	0x0200
-#define ATH9K_TXDESC_CAB		0x0400
-
-#define ATH9K_RXDESC_INTREQ		0x0020
-
-enum wireless_mode {
-	ATH9K_MODE_11A = 0,
-	ATH9K_MODE_11B = 2,
-	ATH9K_MODE_11G = 3,
-	ATH9K_MODE_11NA_HT20 = 6,
-	ATH9K_MODE_11NG_HT20 = 7,
-	ATH9K_MODE_11NA_HT40PLUS = 8,
-	ATH9K_MODE_11NA_HT40MINUS = 9,
-	ATH9K_MODE_11NG_HT40PLUS = 10,
-	ATH9K_MODE_11NG_HT40MINUS = 11,
-	ATH9K_MODE_MAX
+struct ath_buf_state {
+	int bfs_nframes;
+	u16 bfs_al;
+	u16 bfs_frmlen;
+	int bfs_seqno;
+	int bfs_tidno;
+	int bfs_retries;
+	u32 bf_type;
+	u32 bfs_keyix;
+	enum ath9k_key_type bfs_keytype;
 };
 
-enum ath9k_hw_caps {
-	ATH9K_HW_CAP_CHAN_SPREAD		= BIT(0),
-	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(1),
-	ATH9K_HW_CAP_MIC_CKIP                   = BIT(2),
-	ATH9K_HW_CAP_MIC_TKIP                   = BIT(3),
-	ATH9K_HW_CAP_CIPHER_AESCCM              = BIT(4),
-	ATH9K_HW_CAP_CIPHER_CKIP                = BIT(5),
-	ATH9K_HW_CAP_CIPHER_TKIP                = BIT(6),
-	ATH9K_HW_CAP_VEOL                       = BIT(7),
-	ATH9K_HW_CAP_BSSIDMASK                  = BIT(8),
-	ATH9K_HW_CAP_MCAST_KEYSEARCH            = BIT(9),
-	ATH9K_HW_CAP_CHAN_HALFRATE              = BIT(10),
-	ATH9K_HW_CAP_CHAN_QUARTERRATE           = BIT(11),
-	ATH9K_HW_CAP_HT                         = BIT(12),
-	ATH9K_HW_CAP_GTT                        = BIT(13),
-	ATH9K_HW_CAP_FASTCC                     = BIT(14),
-	ATH9K_HW_CAP_RFSILENT                   = BIT(15),
-	ATH9K_HW_CAP_WOW                        = BIT(16),
-	ATH9K_HW_CAP_CST                        = BIT(17),
-	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(18),
-	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(19),
-	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(20),
-	ATH9K_HW_CAP_WOW_MATCHPATTERN_EXACT     = BIT(21),
+#define bf_nframes      	bf_state.bfs_nframes
+#define bf_al           	bf_state.bfs_al
+#define bf_frmlen       	bf_state.bfs_frmlen
+#define bf_retries      	bf_state.bfs_retries
+#define bf_seqno        	bf_state.bfs_seqno
+#define bf_tidno        	bf_state.bfs_tidno
+#define bf_keyix                bf_state.bfs_keyix
+#define bf_keytype      	bf_state.bfs_keytype
+#define bf_isht(bf)		(bf->bf_state.bf_type & BUF_HT)
+#define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
+#define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
+#define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
+#define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
+
+struct ath_buf {
+	struct list_head list;
+	struct ath_buf *bf_lastbf;	/* last buf of this unit (a frame or
+					   an aggregate) */
+	struct ath_buf *bf_next;	/* next subframe in the aggregate */
+	void *bf_mpdu;			/* enclosing frame structure */
+	struct ath_desc *bf_desc;	/* virtual addr of desc */
+	dma_addr_t bf_daddr;		/* physical addr of desc */
+	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
+	u32 bf_status;
+	u16 bf_flags;
+	struct ath_buf_state bf_state;
+	dma_addr_t bf_dmacontext;
 };
 
-enum ath9k_capability_type {
-	ATH9K_CAP_CIPHER = 0,
-	ATH9K_CAP_TKIP_MIC,
-	ATH9K_CAP_TKIP_SPLIT,
-	ATH9K_CAP_PHYCOUNTERS,
-	ATH9K_CAP_DIVERSITY,
-	ATH9K_CAP_TXPOW,
-	ATH9K_CAP_PHYDIAG,
-	ATH9K_CAP_MCAST_KEYSRCH,
-	ATH9K_CAP_TSF_ADJUST,
-	ATH9K_CAP_WME_TKIPMIC,
-	ATH9K_CAP_RFSILENT,
-	ATH9K_CAP_ANT_CFG_2GHZ,
-	ATH9K_CAP_ANT_CFG_5GHZ
+#define ATH_RXBUF_RESET(_bf)    ((_bf)->bf_status = 0)
+#define ATH_BUFSTATUS_STALE     0x00000002
+
+struct ath_descdma {
+	const char *dd_name;
+	struct ath_desc *dd_desc;
+	dma_addr_t dd_desc_paddr;
+	u32 dd_desc_len;
+	struct ath_buf *dd_bufptr;
+	dma_addr_t dd_dmacontext;
 };
 
-struct ath9k_hw_capabilities {
-	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
-	DECLARE_BITMAP(wireless_modes, ATH9K_MODE_MAX); /* ATH9K_MODE_* */
-	u16 total_queues;
-	u16 keycache_size;
-	u16 low_5ghz_chan, high_5ghz_chan;
-	u16 low_2ghz_chan, high_2ghz_chan;
-	u16 num_mr_retries;
-	u16 rts_aggr_limit;
+int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
+		      struct list_head *head, const char *name,
+		      int nbuf, int ndesc);
+void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
+			 struct list_head *head);
+
+/***********/
+/* RX / TX */
+/***********/
+
+#define ATH_MAX_ANTENNA         3
+#define ATH_RXBUF               512
+#define WME_NUM_TID             16
+#define ATH_TXBUF               512
+#define ATH_TXMAXTRY            13
+#define ATH_11N_TXMAXTRY        10
+#define ATH_MGT_TXMAXTRY        4
+#define WME_BA_BMP_SIZE         64
+#define WME_MAX_BA              WME_BA_BMP_SIZE
+#define ATH_TID_MAX_BUFS        (2 * WME_MAX_BA)
+
+#define TID_TO_WME_AC(_tid)				\
+	((((_tid) == 0) || ((_tid) == 3)) ? WME_AC_BE :	\
+	 (((_tid) == 1) || ((_tid) == 2)) ? WME_AC_BK :	\
+	 (((_tid) == 4) || ((_tid) == 5)) ? WME_AC_VI :	\
+	 WME_AC_VO)
+
+#define WME_AC_BE   0
+#define WME_AC_BK   1
+#define WME_AC_VI   2
+#define WME_AC_VO   3
+#define WME_NUM_AC  4
+
+#define ADDBA_EXCHANGE_ATTEMPTS    10
+#define ATH_AGGR_DELIM_SZ          4
+#define ATH_AGGR_MINPLEN           256 /* in bytes, minimum packet length */
+/* number of delimiters for encryption padding */
+#define ATH_AGGR_ENCRYPTDELIM      10
+/* minimum h/w qdepth to be sustained to maximize aggregation */
+#define ATH_AGGR_MIN_QDEPTH        2
+#define ATH_AMPDU_SUBFRAME_DEFAULT 32
+#define ATH_AMPDU_LIMIT_MAX        (64 * 1024 - 1)
+#define ATH_AMPDU_LIMIT_DEFAULT    ATH_AMPDU_LIMIT_MAX
+
+#define IEEE80211_SEQ_SEQ_SHIFT    4
+#define IEEE80211_SEQ_MAX          4096
+#define IEEE80211_MIN_AMPDU_BUF    0x8
+#define IEEE80211_HTCAP_MAXRXAMPDU_FACTOR 13
+#define IEEE80211_WEP_IVLEN        3
+#define IEEE80211_WEP_KIDLEN       1
+#define IEEE80211_WEP_CRCLEN       4
+#define IEEE80211_MAX_MPDU_LEN     (3840 + FCS_LEN +		\
+				    (IEEE80211_WEP_IVLEN +	\
+				     IEEE80211_WEP_KIDLEN +	\
+				     IEEE80211_WEP_CRCLEN))
+
+/* return whether a bit at index _n in bitmap _bm is set
+ * _sz is the size of the bitmap  */
+#define ATH_BA_ISSET(_bm, _n)  (((_n) < (WME_BA_BMP_SIZE)) &&		\
+				((_bm)[(_n) >> 5] & (1 << ((_n) & 31))))
+
+/* return block-ack bitmap index given sequence and starting sequence */
+#define ATH_BA_INDEX(_st, _seq) (((_seq) - (_st)) & (IEEE80211_SEQ_MAX - 1))
+
+/* returns delimiter padding required given the packet length */
+#define ATH_AGGR_GET_NDELIM(_len)					\
+	(((((_len) + ATH_AGGR_DELIM_SZ) < ATH_AGGR_MINPLEN) ?           \
+	  (ATH_AGGR_MINPLEN - (_len) - ATH_AGGR_DELIM_SZ) : 0) >> 2)
+
+#define BAW_WITHIN(_start, _bawsz, _seqno) \
+	((((_seqno) - (_start)) & 4095) < (_bawsz))
+
+#define ATH_DS_BA_SEQ(_ds)         ((_ds)->ds_us.tx.ts_seqnum)
+#define ATH_DS_BA_BITMAP(_ds)      (&(_ds)->ds_us.tx.ba_low)
+#define ATH_DS_TX_BA(_ds)          ((_ds)->ds_us.tx.ts_flags & ATH9K_TX_BA)
+#define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
+
+enum ATH_AGGR_STATUS {
+	ATH_AGGR_DONE,
+	ATH_AGGR_BAW_CLOSED,
+	ATH_AGGR_LIMITED,
+};
+
+struct ath_txq {
+	u32 axq_qnum;
+	u32 *axq_link;
+	struct list_head axq_q;
+	spinlock_t axq_lock;
+	u32 axq_depth;
+	u8 axq_aggr_depth;
+	u32 axq_totalqueued;
+	bool stopped;
+	struct ath_buf *axq_linkbuf;
+
+	/* first desc of the last descriptor that contains CTS */
+	struct ath_desc *axq_lastdsWithCTS;
+
+	/* final desc of the gating desc that determines whether
+	   lastdsWithCTS has been DMA'ed or not */
+	struct ath_desc *axq_gatingds;
+
+	struct list_head axq_acq;
+};
+
+#define AGGR_CLEANUP         BIT(1)
+#define AGGR_ADDBA_COMPLETE  BIT(2)
+#define AGGR_ADDBA_PROGRESS  BIT(3)
+
+struct ath_atx_tid {
+	struct list_head list;
+	struct list_head buf_q;
+	struct ath_node *an;
+	struct ath_atx_ac *ac;
+	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];
+	u16 seq_start;
+	u16 seq_next;
+	u16 baw_size;
+	int tidno;
+	int baw_head;	/* first un-acked tx buffer */
+	int baw_tail;	/* next unused tx buffer slot */
+	int sched;
+	int paused;
+	u8 state;
+	int addba_exchangeattempts;
+};
+
+struct ath_atx_ac {
+	int sched;
+	int qnum;
+	struct list_head list;
+	struct list_head tid_q;
+};
+
+struct ath_tx_control {
+	struct ath_txq *txq;
+	int if_id;
+	enum ath9k_internal_frame_type frame_type;
+};
+
+#define ATH_TX_ERROR        0x01
+#define ATH_TX_XRETRY       0x02
+#define ATH_TX_BAR          0x04
+
+/* All RSSI values are noise floor adjusted */
+struct ath_tx_stat {
+	int rssi;
+	int rssictl[ATH_MAX_ANTENNA];
+	int rssiextn[ATH_MAX_ANTENNA];
+	int rateieee;
+	int rateKbps;
+	int ratecode;
+	int flags;
+	u32 airtime;	/* time on air per final tx rate */
+};
+
+struct aggr_rifs_param {
+	int param_max_frames;
+	int param_max_len;
+	int param_rl;
+	int param_al;
+	struct ath_rc_series *param_rcs;
+};
+
+struct ath_node {
+	struct ath_softc *an_sc;
+	struct ath_atx_tid tid[WME_NUM_TID];
+	struct ath_atx_ac ac[WME_NUM_AC];
+	u16 maxampdu;
+	u8 mpdudensity;
+};
+
+struct ath_tx {
+	u16 seq_no;
+	u32 txqsetup;
+	int hwq_map[ATH9K_WME_AC_VO+1];
+	spinlock_t txbuflock;
+	struct list_head txbuf;
+	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
+	struct ath_descdma txdma;
+};
+
+struct ath_rx {
+	u8 defant;
+	u8 rxotherant;
+	u32 *rxlink;
+	int bufsize;
+	unsigned int rxfilter;
+	spinlock_t rxflushlock;
+	spinlock_t rxbuflock;
+	struct list_head rxbuf;
+	struct ath_descdma rxdma;
+};
+
+int ath_startrecv(struct ath_softc *sc);
+bool ath_stoprecv(struct ath_softc *sc);
+void ath_flushrecv(struct ath_softc *sc);
+u32 ath_calcrxfilter(struct ath_softc *sc);
+int ath_rx_init(struct ath_softc *sc, int nbufs);
+void ath_rx_cleanup(struct ath_softc *sc);
+int ath_rx_tasklet(struct ath_softc *sc, int flush);
+struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
+void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
+int ath_tx_setup(struct ath_softc *sc, int haltype);
+void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx);
+void ath_draintxq(struct ath_softc *sc,
+		     struct ath_txq *txq, bool retry_tx);
+void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an);
+void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
+void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
+int ath_tx_init(struct ath_softc *sc, int nbufs);
+int ath_tx_cleanup(struct ath_softc *sc);
+struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb);
+int ath_txq_update(struct ath_softc *sc, int qnum,
+		   struct ath9k_tx_queue_info *q);
+int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
+		 struct ath_tx_control *txctl);
+void ath_tx_tasklet(struct ath_softc *sc);
+void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb);
+bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
+int ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
+		      u16 tid, u16 *ssn);
+int ath_tx_aggr_stop(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
+void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid);
+
+/********/
+/* VIFs */
+/********/
+
+struct ath_vif {
+	int av_bslot;
+	__le64 tsf_adjust; /* TSF adjustment for staggered beacons */
+	enum nl80211_iftype av_opmode;
+	struct ath_buf *av_bcbuf;
+	struct ath_tx_control av_btxctl;
+	u8 bssid[ETH_ALEN]; /* current BSSID from config_interface */
+};
+
+/*******************/
+/* Beacon Handling */
+/*******************/
+
+/*
+ * Regardless of the number of beacons we stagger, (i.e. regardless of the
+ * number of BSSIDs) if a given beacon does not go out even after waiting this
+ * number of beacon intervals, the game's up.
+ */
+#define BSTUCK_THRESH           	(9 * ATH_BCBUF)
+#define	ATH_BCBUF               	4
+#define ATH_DEFAULT_BINTVAL     	100 /* TU */
+#define ATH_DEFAULT_BMISS_LIMIT 	10
+#define IEEE80211_MS_TO_TU(x)           (((x) * 1000) / 1024)
+
+struct ath_beacon_config {
+	u16 beacon_interval;
+	u16 listen_interval;
+	u16 dtim_period;
+	u16 bmiss_timeout;
+	u8 dtim_count;
+};
+
+struct ath_beacon {
+	enum {
+		OK,		/* no change needed */
+		UPDATE,		/* update pending */
+		COMMIT		/* beacon sent, commit change */
+	} updateslot;		/* slot time update fsm */
+
+	u32 beaconq;
+	u32 bmisscnt;
+	u32 ast_be_xmit;
+	u64 bc_tstamp;
+	struct ieee80211_vif *bslot[ATH_BCBUF];
+	struct ath_wiphy *bslot_aphy[ATH_BCBUF];
+	int slottime;
+	int slotupdate;
+	struct ath9k_tx_queue_info beacon_qi;
+	struct ath_descdma bdma;
+	struct ath_txq *cabq;
+	struct list_head bbuf;
+};
+
+void ath_beacon_tasklet(unsigned long data);
+void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif);
+int ath_beaconq_setup(struct ath_hw *ah);
+int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif);
+void ath_beacon_return(struct ath_softc *sc, struct ath_vif *avp);
+
+/*******/
+/* ANI */
+/*******/
+
+#define ATH_STA_SHORT_CALINTERVAL 1000    /* 1 second */
+#define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
+#define ATH_ANI_POLLINTERVAL      100     /* 100 ms */
+#define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
+#define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
+
+struct ath_ani {
+	bool caldone;
+	int16_t noise_floor;
+	unsigned int longcal_timer;
+	unsigned int shortcal_timer;
+	unsigned int resetcal_timer;
+	unsigned int checkani_timer;
+	struct timer_list timer;
+};
+
+/********************/
+/*   LED Control    */
+/********************/
+
+#define ATH_LED_PIN	1
+#define ATH_LED_ON_DURATION_IDLE	350	/* in msecs */
+#define ATH_LED_OFF_DURATION_IDLE	250	/* in msecs */
+
+enum ath_led_type {
+	ATH_LED_RADIO,
+	ATH_LED_ASSOC,
+	ATH_LED_TX,
+	ATH_LED_RX
+};
+
+struct ath_led {
+	struct ath_softc *sc;
+	struct led_classdev led_cdev;
+	enum ath_led_type led_type;
+	char name[32];
+	bool registered;
+};
+
+/* Rfkill */
+#define ATH_RFKILL_POLL_INTERVAL	2000 /* msecs */
+
+struct ath_rfkill {
+	struct rfkill *rfkill;
+	struct delayed_work rfkill_poll;
+	char rfkill_name[32];
+};
+
+/********************/
+/* Main driver core */
+/********************/
+
+/*
+ * Default cache line size, in bytes.
+ * Used when PCI device not fully initialized by bootrom/BIOS
+*/
+#define DEFAULT_CACHELINE       32
+#define	ATH_DEFAULT_NOISE_FLOOR -95
+#define ATH_REGCLASSIDS_MAX     10
+#define ATH_CABQ_READY_TIME     80      /* % of beacon interval */
+#define ATH_MAX_SW_RETRIES      10
+#define ATH_CHAN_MAX            255
+#define IEEE80211_WEP_NKID      4       /* number of key ids */
+
+/*
+ * The key cache is used for h/w cipher state and also for
+ * tracking station state such as the current tx antenna.
+ * We also setup a mapping table between key cache slot indices
+ * and station state to short-circuit node lookups on rx.
+ * Different parts have different size key caches.  We handle
+ * up to ATH_KEYMAX entries (could dynamically allocate state).
+ */
+#define	ATH_KEYMAX	        128     /* max key cache size we handle */
+
+#define ATH_TXPOWER_MAX         100     /* .5 dBm units */
+#define ATH_RSSI_DUMMY_MARKER   0x127
+#define ATH_RATE_DUMMY_MARKER   0
+
+#define SC_OP_INVALID           BIT(0)
+#define SC_OP_BEACONS           BIT(1)
+#define SC_OP_RXAGGR            BIT(2)
+#define SC_OP_TXAGGR            BIT(3)
+#define SC_OP_CHAINMASK_UPDATE  BIT(4)
+#define SC_OP_FULL_RESET        BIT(5)
+#define SC_OP_PREAMBLE_SHORT    BIT(6)
+#define SC_OP_PROTECT_ENABLE    BIT(7)
+#define SC_OP_RXFLUSH           BIT(8)
+#define SC_OP_LED_ASSOCIATED    BIT(9)
+#define SC_OP_RFKILL_REGISTERED BIT(10)
+#define SC_OP_RFKILL_SW_BLOCKED BIT(11)
+#define SC_OP_RFKILL_HW_BLOCKED BIT(12)
+#define SC_OP_WAIT_FOR_BEACON   BIT(13)
+#define SC_OP_LED_ON            BIT(14)
+#define SC_OP_SCANNING          BIT(15)
+#define SC_OP_TSF_RESET         BIT(16)
+
+struct ath_bus_ops {
+	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
+	void		(*cleanup)(struct ath_softc *sc);
+	bool		(*eeprom_read)(struct ath_hw *ah, u32 off, u16 *data);
+};
+
+struct ath_wiphy;
+
+struct ath_softc {
+	struct ieee80211_hw *hw;
+	struct device *dev;
+
+	spinlock_t wiphy_lock; /* spinlock to protect ath_wiphy data */
+	struct ath_wiphy *pri_wiphy;
+	struct ath_wiphy **sec_wiphy; /* secondary wiphys (virtual radios); may
+				       * have NULL entries */
+	int num_sec_wiphy; /* number of sec_wiphy pointers in the array */
+	int chan_idx;
+	int chan_is_ht;
+	struct ath_wiphy *next_wiphy;
+	struct work_struct chan_work;
+	int wiphy_select_failures;
+	unsigned long wiphy_select_first_fail;
+	struct delayed_work wiphy_work;
+	unsigned long wiphy_scheduler_int;
+	int wiphy_scheduler_index;
+
+	struct tasklet_struct intr_tq;
+	struct tasklet_struct bcon_tasklet;
+	struct ath_hw *sc_ah;
+	void __iomem *mem;
+	int irq;
+	spinlock_t sc_resetlock;
+	spinlock_t sc_serial_rw;
+	struct mutex mutex;
+
+	u8 curbssid[ETH_ALEN];
+	u8 bssidmask[ETH_ALEN];
+	u32 intrstatus;
+	u32 sc_flags; /* SC_OP_* */
+	u16 curtxpow;
+	u16 curaid;
+	u16 cachelsz;
+	u8 nbcnvifs;
+	u16 nvifs;
 	u8 tx_chainmask;
 	u8 rx_chainmask;
-	u16 tx_triglevel_max;
-	u16 reg_cap;
-	u8 num_gpio_pins;
-	u8 num_antcfg_2ghz;
-	u8 num_antcfg_5ghz;
-};
-
-struct ath9k_ops_config {
-	int dma_beacon_response_time;
-	int sw_beacon_response_time;
-	int additional_swba_backoff;
-	int ack_6mb;
-	int cwm_ignore_extcca;
-	u8 pcie_powersave_enable;
-	u8 pcie_l1skp_enable;
-	u8 pcie_clock_req;
-	u32 pcie_waen;
-	int pcie_power_reset;
-	u8 pcie_restore;
-	u8 analog_shiftreg;
-	u8 ht_enable;
-	u32 ofdm_trig_low;
-	u32 ofdm_trig_high;
-	u32 cck_trig_high;
-	u32 cck_trig_low;
-	u32 enable_ani;
-	u8 noise_immunity_level;
-	u32 ofdm_weaksignal_det;
-	u32 cck_weaksignal_thr;
-	u8 spur_immunity_level;
-	u8 firstep_level;
-	int8_t rssi_thr_high;
-	int8_t rssi_thr_low;
-	u16 diversity_control;
-	u16 antenna_switch_swap;
-	int serialize_regmode;
-	int intr_mitigation;
-#define SPUR_DISABLE        	0
-#define SPUR_ENABLE_IOCTL   	1
-#define SPUR_ENABLE_EEPROM  	2
-#define AR_EEPROM_MODAL_SPURS   5
-#define AR_SPUR_5413_1      	1640
-#define AR_SPUR_5413_2      	1200
-#define AR_NO_SPUR      	0x8000
-#define AR_BASE_FREQ_2GHZ   	2300
-#define AR_BASE_FREQ_5GHZ   	4900
-#define AR_SPUR_FEEQ_BOUND_HT40 19
-#define AR_SPUR_FEEQ_BOUND_HT20 10
-	int spurmode;
-	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
-};
-
-enum ath9k_tx_queue {
-	ATH9K_TX_QUEUE_INACTIVE = 0,
-	ATH9K_TX_QUEUE_DATA,
-	ATH9K_TX_QUEUE_BEACON,
-	ATH9K_TX_QUEUE_CAB,
-	ATH9K_TX_QUEUE_UAPSD,
-	ATH9K_TX_QUEUE_PSPOLL
-};
-
-#define	ATH9K_NUM_TX_QUEUES 10
-
-enum ath9k_tx_queue_subtype {
-	ATH9K_WME_AC_BK = 0,
-	ATH9K_WME_AC_BE,
-	ATH9K_WME_AC_VI,
-	ATH9K_WME_AC_VO,
-	ATH9K_WME_UPSD
-};
-
-enum ath9k_tx_queue_flags {
-	TXQ_FLAG_TXOKINT_ENABLE = 0x0001,
-	TXQ_FLAG_TXERRINT_ENABLE = 0x0001,
-	TXQ_FLAG_TXDESCINT_ENABLE = 0x0002,
-	TXQ_FLAG_TXEOLINT_ENABLE = 0x0004,
-	TXQ_FLAG_TXURNINT_ENABLE = 0x0008,
-	TXQ_FLAG_BACKOFF_DISABLE = 0x0010,
-	TXQ_FLAG_COMPRESSION_ENABLE = 0x0020,
-	TXQ_FLAG_RDYTIME_EXP_POLICY_ENABLE = 0x0040,
-	TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE = 0x0080,
-};
-
-#define ATH9K_TXQ_USEDEFAULT ((u32) -1)
-
-#define ATH9K_DECOMP_MASK_SIZE     128
-#define ATH9K_READY_TIME_LO_BOUND  50
-#define ATH9K_READY_TIME_HI_BOUND  96
-
-enum ath9k_pkt_type {
-	ATH9K_PKT_TYPE_NORMAL = 0,
-	ATH9K_PKT_TYPE_ATIM,
-	ATH9K_PKT_TYPE_PSPOLL,
-	ATH9K_PKT_TYPE_BEACON,
-	ATH9K_PKT_TYPE_PROBE_RESP,
-	ATH9K_PKT_TYPE_CHIRP,
-	ATH9K_PKT_TYPE_GRP_POLL,
-};
-
-struct ath9k_tx_queue_info {
-	u32 tqi_ver;
-	enum ath9k_tx_queue tqi_type;
-	enum ath9k_tx_queue_subtype tqi_subtype;
-	enum ath9k_tx_queue_flags tqi_qflags;
-	u32 tqi_priority;
-	u32 tqi_aifs;
-	u32 tqi_cwmin;
-	u32 tqi_cwmax;
-	u16 tqi_shretry;
-	u16 tqi_lgretry;
-	u32 tqi_cbrPeriod;
-	u32 tqi_cbrOverflowLimit;
-	u32 tqi_burstTime;
-	u32 tqi_readyTime;
-	u32 tqi_physCompBuf;
-	u32 tqi_intFlags;
-};
-
-enum ath9k_rx_filter {
-	ATH9K_RX_FILTER_UCAST = 0x00000001,
-	ATH9K_RX_FILTER_MCAST = 0x00000002,
-	ATH9K_RX_FILTER_BCAST = 0x00000004,
-	ATH9K_RX_FILTER_CONTROL = 0x00000008,
-	ATH9K_RX_FILTER_BEACON = 0x00000010,
-	ATH9K_RX_FILTER_PROM = 0x00000020,
-	ATH9K_RX_FILTER_PROBEREQ = 0x00000080,
-	ATH9K_RX_FILTER_PSPOLL = 0x00004000,
-	ATH9K_RX_FILTER_PHYERR = 0x00000100,
-	ATH9K_RX_FILTER_PHYRADAR = 0x00002000,
-};
-
-enum ath9k_int {
-	ATH9K_INT_RX = 0x00000001,
-	ATH9K_INT_RXDESC = 0x00000002,
-	ATH9K_INT_RXNOFRM = 0x00000008,
-	ATH9K_INT_RXEOL = 0x00000010,
-	ATH9K_INT_RXORN = 0x00000020,
-	ATH9K_INT_TX = 0x00000040,
-	ATH9K_INT_TXDESC = 0x00000080,
-	ATH9K_INT_TIM_TIMER = 0x00000100,
-	ATH9K_INT_TXURN = 0x00000800,
-	ATH9K_INT_MIB = 0x00001000,
-	ATH9K_INT_RXPHY = 0x00004000,
-	ATH9K_INT_RXKCM = 0x00008000,
-	ATH9K_INT_SWBA = 0x00010000,
-	ATH9K_INT_BMISS = 0x00040000,
-	ATH9K_INT_BNR = 0x00100000,
-	ATH9K_INT_TIM = 0x00200000,
-	ATH9K_INT_DTIM = 0x00400000,
-	ATH9K_INT_DTIMSYNC = 0x00800000,
-	ATH9K_INT_GPIO = 0x01000000,
-	ATH9K_INT_CABEND = 0x02000000,
-	ATH9K_INT_CST = 0x10000000,
-	ATH9K_INT_GTT = 0x20000000,
-	ATH9K_INT_FATAL = 0x40000000,
-	ATH9K_INT_GLOBAL = 0x80000000,
-	ATH9K_INT_BMISC = ATH9K_INT_TIM |
-		ATH9K_INT_DTIM |
-		ATH9K_INT_DTIMSYNC |
-		ATH9K_INT_CABEND,
-	ATH9K_INT_COMMON = ATH9K_INT_RXNOFRM |
-		ATH9K_INT_RXDESC |
-		ATH9K_INT_RXEOL |
-		ATH9K_INT_RXORN |
-		ATH9K_INT_TXURN |
-		ATH9K_INT_TXDESC |
-		ATH9K_INT_MIB |
-		ATH9K_INT_RXPHY |
-		ATH9K_INT_RXKCM |
-		ATH9K_INT_SWBA |
-		ATH9K_INT_BMISS |
-		ATH9K_INT_GPIO,
-	ATH9K_INT_NOCARD = 0xffffffff
-};
-
-#define ATH9K_RATESERIES_RTS_CTS  0x0001
-#define ATH9K_RATESERIES_2040     0x0002
-#define ATH9K_RATESERIES_HALFGI   0x0004
-
-struct ath9k_11n_rate_series {
-	u32 Tries;
-	u32 Rate;
-	u32 PktDuration;
-	u32 ChSel;
-	u32 RateFlags;
-};
-
-#define CHANNEL_CW_INT    0x00002
-#define CHANNEL_CCK       0x00020
-#define CHANNEL_OFDM      0x00040
-#define CHANNEL_2GHZ      0x00080
-#define CHANNEL_5GHZ      0x00100
-#define CHANNEL_PASSIVE   0x00200
-#define CHANNEL_DYN       0x00400
-#define CHANNEL_HALF      0x04000
-#define CHANNEL_QUARTER   0x08000
-#define CHANNEL_HT20      0x10000
-#define CHANNEL_HT40PLUS  0x20000
-#define CHANNEL_HT40MINUS 0x40000
-
-#define CHANNEL_INTERFERENCE    0x01
-#define CHANNEL_DFS             0x02
-#define CHANNEL_4MS_LIMIT       0x04
-#define CHANNEL_DFS_CLEAR       0x08
-#define CHANNEL_DISALLOW_ADHOC  0x10
-#define CHANNEL_PER_11D_ADHOC   0x20
-
-#define CHANNEL_A           (CHANNEL_5GHZ|CHANNEL_OFDM)
-#define CHANNEL_B           (CHANNEL_2GHZ|CHANNEL_CCK)
-#define CHANNEL_G           (CHANNEL_2GHZ|CHANNEL_OFDM)
-#define CHANNEL_G_HT20      (CHANNEL_2GHZ|CHANNEL_HT20)
-#define CHANNEL_A_HT20      (CHANNEL_5GHZ|CHANNEL_HT20)
-#define CHANNEL_G_HT40PLUS  (CHANNEL_2GHZ|CHANNEL_HT40PLUS)
-#define CHANNEL_G_HT40MINUS (CHANNEL_2GHZ|CHANNEL_HT40MINUS)
-#define CHANNEL_A_HT40PLUS  (CHANNEL_5GHZ|CHANNEL_HT40PLUS)
-#define CHANNEL_A_HT40MINUS (CHANNEL_5GHZ|CHANNEL_HT40MINUS)
-#define CHANNEL_ALL				\
-	(CHANNEL_OFDM|				\
-	 CHANNEL_CCK|				\
-	 CHANNEL_2GHZ |				\
-	 CHANNEL_5GHZ |				\
-	 CHANNEL_HT20 |				\
-	 CHANNEL_HT40PLUS |			\
-	 CHANNEL_HT40MINUS)
-
-struct ath9k_channel {
-	u16 channel;
-	u32 channelFlags;
-	u8 privFlags;
-	int8_t maxRegTxPower;
-	int8_t maxTxPower;
-	int8_t minTxPower;
-	u32 chanmode;
-	int32_t CalValid;
-	bool oneTimeCalsDone;
-	int8_t iCoff;
-	int8_t qCoff;
-	int16_t rawNoiseFloor;
-	int8_t antennaMax;
-	u32 regDmnFlags;
-	u32 conformanceTestLimit[3]; /* 0:11a, 1: 11b, 2:11g */
-#ifdef ATH_NF_PER_CHAN
-	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
-#endif
-};
-
-#define IS_CHAN_A(_c) ((((_c)->channelFlags & CHANNEL_A) == CHANNEL_A) || \
-       (((_c)->channelFlags & CHANNEL_A_HT20) == CHANNEL_A_HT20) || \
-       (((_c)->channelFlags & CHANNEL_A_HT40PLUS) == CHANNEL_A_HT40PLUS) || \
-       (((_c)->channelFlags & CHANNEL_A_HT40MINUS) == CHANNEL_A_HT40MINUS))
-#define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
-       (((_c)->channelFlags & CHANNEL_G_HT20) == CHANNEL_G_HT20) || \
-       (((_c)->channelFlags & CHANNEL_G_HT40PLUS) == CHANNEL_G_HT40PLUS) || \
-       (((_c)->channelFlags & CHANNEL_G_HT40MINUS) == CHANNEL_G_HT40MINUS))
-#define IS_CHAN_OFDM(_c) (((_c)->channelFlags & CHANNEL_OFDM) != 0)
-#define IS_CHAN_5GHZ(_c) (((_c)->channelFlags & CHANNEL_5GHZ) != 0)
-#define IS_CHAN_2GHZ(_c) (((_c)->channelFlags & CHANNEL_2GHZ) != 0)
-#define IS_CHAN_PASSIVE(_c) (((_c)->channelFlags & CHANNEL_PASSIVE) != 0)
-#define IS_CHAN_HALF_RATE(_c) (((_c)->channelFlags & CHANNEL_HALF) != 0)
-#define IS_CHAN_QUARTER_RATE(_c) (((_c)->channelFlags & CHANNEL_QUARTER) != 0)
-
-/* These macros check chanmode and not channelFlags */
-#define IS_CHAN_B(_c) ((_c)->chanmode == CHANNEL_B)
-#define IS_CHAN_HT20(_c) (((_c)->chanmode == CHANNEL_A_HT20) ||	\
-			  ((_c)->chanmode == CHANNEL_G_HT20))
-#define IS_CHAN_HT40(_c) (((_c)->chanmode == CHANNEL_A_HT40PLUS) ||	\
-			  ((_c)->chanmode == CHANNEL_A_HT40MINUS) ||	\
-			  ((_c)->chanmode == CHANNEL_G_HT40PLUS) ||	\
-			  ((_c)->chanmode == CHANNEL_G_HT40MINUS))
-#define IS_CHAN_HT(_c) (IS_CHAN_HT20((_c)) || IS_CHAN_HT40((_c)))
-
-#define IS_CHAN_IN_PUBLIC_SAFETY_BAND(_c) ((_c) > 4940 && (_c) < 4990)
-#define IS_CHAN_A_5MHZ_SPACED(_c)			\
-	((((_c)->channelFlags & CHANNEL_5GHZ) != 0) &&	\
-	 (((_c)->channel % 20) != 0) &&			\
-	 (((_c)->channel % 10) != 0))
-
-struct ath9k_keyval {
-	u8 kv_type;
-	u8 kv_pad;
-	u16 kv_len;
-	u8 kv_val[16];
-	u8 kv_mic[8];
-	u8 kv_txmic[8];
-};
-
-enum ath9k_key_type {
-	ATH9K_KEY_TYPE_CLEAR,
-	ATH9K_KEY_TYPE_WEP,
-	ATH9K_KEY_TYPE_AES,
-	ATH9K_KEY_TYPE_TKIP,
-};
-
-enum ath9k_cipher {
-	ATH9K_CIPHER_WEP = 0,
-	ATH9K_CIPHER_AES_OCB = 1,
-	ATH9K_CIPHER_AES_CCM = 2,
-	ATH9K_CIPHER_CKIP = 3,
-	ATH9K_CIPHER_TKIP = 4,
-	ATH9K_CIPHER_CLR = 5,
-	ATH9K_CIPHER_MIC = 127
-};
-
-#define AR_EEPROM_EEPCAP_COMPRESS_DIS   0x0001
-#define AR_EEPROM_EEPCAP_AES_DIS        0x0002
-#define AR_EEPROM_EEPCAP_FASTFRAME_DIS  0x0004
-#define AR_EEPROM_EEPCAP_BURST_DIS      0x0008
-#define AR_EEPROM_EEPCAP_MAXQCU         0x01F0
-#define AR_EEPROM_EEPCAP_MAXQCU_S       4
-#define AR_EEPROM_EEPCAP_HEAVY_CLIP_EN  0x0200
-#define AR_EEPROM_EEPCAP_KC_ENTRIES     0xF000
-#define AR_EEPROM_EEPCAP_KC_ENTRIES_S   12
-
-#define AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND   0x0040
-#define AR_EEPROM_EEREGCAP_EN_KK_U1_EVEN    0x0080
-#define AR_EEPROM_EEREGCAP_EN_KK_U2         0x0100
-#define AR_EEPROM_EEREGCAP_EN_KK_MIDBAND    0x0200
-#define AR_EEPROM_EEREGCAP_EN_KK_U1_ODD     0x0400
-#define AR_EEPROM_EEREGCAP_EN_KK_NEW_11A    0x0800
-
-#define AR_EEPROM_EEREGCAP_EN_KK_U1_ODD_PRE4_0  0x4000
-#define AR_EEPROM_EEREGCAP_EN_KK_NEW_11A_PRE4_0 0x8000
-
-#define SD_NO_CTL               0xE0
-#define NO_CTL                  0xff
-#define CTL_MODE_M              7
-#define CTL_11A                 0
-#define CTL_11B                 1
-#define CTL_11G                 2
-#define CTL_2GHT20              5
-#define CTL_5GHT20              6
-#define CTL_2GHT40              7
-#define CTL_5GHT40              8
-
-#define AR_EEPROM_MAC(i)        (0x1d+(i))
-
-#define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
-#define AR_EEPROM_RFSILENT_GPIO_SEL_S   2
-#define AR_EEPROM_RFSILENT_POLARITY     0x0002
-#define AR_EEPROM_RFSILENT_POLARITY_S   1
-
-#define CTRY_DEBUG 0x1ff
-#define	CTRY_DEFAULT 0
-
-enum reg_ext_bitmap {
-	REG_EXT_JAPAN_MIDBAND = 1,
-	REG_EXT_FCC_DFS_HT40 = 2,
-	REG_EXT_JAPAN_NONDFS_HT40 = 3,
-	REG_EXT_JAPAN_DFS_HT40 = 4
-};
-
-struct ath9k_country_entry {
-	u16 countryCode;
-	u16 regDmnEnum;
-	u16 regDmn5G;
-	u16 regDmn2G;
-	u8 isMultidomain;
-	u8 iso[3];
-};
-
-#define REG_WRITE(_ah, _reg, _val) iowrite32(_val, _ah->ah_sh + _reg)
-#define REG_READ(_ah, _reg) ioread32(_ah->ah_sh + _reg)
-
-#define SM(_v, _f)  (((_v) << _f##_S) & _f)
-#define MS(_v, _f)  (((_v) & _f) >> _f##_S)
-#define REG_RMW(_a, _r, _set, _clr)    \
-	REG_WRITE(_a, _r, (REG_READ(_a, _r) & ~(_clr)) | (_set))
-#define REG_RMW_FIELD(_a, _r, _f, _v) \
-	REG_WRITE(_a, _r, \
-	(REG_READ(_a, _r) & ~_f) | (((_v) << _f##_S) & _f))
-#define REG_SET_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) | _f)
-#define REG_CLR_BIT(_a, _r, _f) \
-	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~_f)
-
-#define ATH9K_TXQ_USE_LOCKOUT_BKOFF_DIS   0x00000001
-
-#define INIT_AIFS       2
-#define INIT_CWMIN      15
-#define INIT_CWMIN_11B  31
-#define INIT_CWMAX      1023
-#define INIT_SH_RETRY   10
-#define INIT_LG_RETRY   10
-#define INIT_SSH_RETRY  32
-#define INIT_SLG_RETRY  32
-
-#define WLAN_CTRL_FRAME_SIZE (2+2+6+4)
-
-#define ATH_AMPDU_LIMIT_MAX      (64 * 1024 - 1)
-#define ATH_AMPDU_LIMIT_DEFAULT  ATH_AMPDU_LIMIT_MAX
-
-#define IEEE80211_WEP_IVLEN      3
-#define IEEE80211_WEP_KIDLEN     1
-#define IEEE80211_WEP_CRCLEN     4
-#define IEEE80211_MAX_MPDU_LEN  (3840 + FCS_LEN +		\
-				 (IEEE80211_WEP_IVLEN +		\
-				  IEEE80211_WEP_KIDLEN +	\
-				  IEEE80211_WEP_CRCLEN))
-#define MAX_RATE_POWER 63
-
-enum ath9k_power_mode {
-	ATH9K_PM_AWAKE = 0,
-	ATH9K_PM_FULL_SLEEP,
-	ATH9K_PM_NETWORK_SLEEP,
-	ATH9K_PM_UNDEFINED
-};
-
-struct ath9k_mib_stats {
-	u32 ackrcv_bad;
-	u32 rts_bad;
-	u32 rts_good;
-	u32 fcs_bad;
-	u32 beacons;
-};
-
-enum ath9k_ant_setting {
-	ATH9K_ANT_VARIABLE = 0,
-	ATH9K_ANT_FIXED_A,
-	ATH9K_ANT_FIXED_B
-};
-
-#define ATH9K_SLOT_TIME_6 6
-#define ATH9K_SLOT_TIME_9 9
-#define ATH9K_SLOT_TIME_20 20
-
-enum ath9k_ht_macmode {
-	ATH9K_HT_MACMODE_20 = 0,
-	ATH9K_HT_MACMODE_2040 = 1,
-};
-
-enum ath9k_ht_extprotspacing {
-	ATH9K_HT_EXTPROTSPACING_20 = 0,
-	ATH9K_HT_EXTPROTSPACING_25 = 1,
-};
-
-struct ath9k_ht_cwm {
-	enum ath9k_ht_macmode ht_macmode;
+	u32 keymax;
+	DECLARE_BITMAP(keymap, ATH_KEYMAX);
+	u8 splitmic;
+	atomic_t ps_usecount;
+	enum ath9k_int imask;
 	enum ath9k_ht_extprotspacing ht_extprotspacing;
-};
+	enum ath9k_ht_macmode tx_chan_width;
 
-enum ath9k_ani_cmd {
-	ATH9K_ANI_PRESENT = 0x1,
-	ATH9K_ANI_NOISE_IMMUNITY_LEVEL = 0x2,
-	ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION = 0x4,
-	ATH9K_ANI_CCK_WEAK_SIGNAL_THR = 0x8,
-	ATH9K_ANI_FIRSTEP_LEVEL = 0x10,
-	ATH9K_ANI_SPUR_IMMUNITY_LEVEL = 0x20,
-	ATH9K_ANI_MODE = 0x40,
-	ATH9K_ANI_PHYERR_RESET = 0x80,
-	ATH9K_ANI_ALL = 0xff
-};
+	struct ath_config config;
+	struct ath_rx rx;
+	struct ath_tx tx;
+	struct ath_beacon beacon;
+	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
+	struct ath_rate_table *hw_rate_table[ATH9K_MODE_MAX];
+	struct ath_rate_table *cur_rate_table;
+	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
-enum {
-	WLAN_RC_PHY_OFDM,
-	WLAN_RC_PHY_CCK,
-	WLAN_RC_PHY_HT_20_SS,
-	WLAN_RC_PHY_HT_20_DS,
-	WLAN_RC_PHY_HT_40_SS,
-	WLAN_RC_PHY_HT_40_DS,
-	WLAN_RC_PHY_HT_20_SS_HGI,
-	WLAN_RC_PHY_HT_20_DS_HGI,
-	WLAN_RC_PHY_HT_40_SS_HGI,
-	WLAN_RC_PHY_HT_40_DS_HGI,
-	WLAN_RC_PHY_MAX
-};
+	struct ath_led radio_led;
+	struct ath_led assoc_led;
+	struct ath_led tx_led;
+	struct ath_led rx_led;
+	struct delayed_work ath_led_blink_work;
+	int led_on_duration;
+	int led_off_duration;
+	int led_on_cnt;
+	int led_off_cnt;
 
-enum ath9k_tp_scale {
-	ATH9K_TP_SCALE_MAX = 0,
-	ATH9K_TP_SCALE_50,
-	ATH9K_TP_SCALE_25,
-	ATH9K_TP_SCALE_12,
-	ATH9K_TP_SCALE_MIN
-};
-
-enum ser_reg_mode {
-	SER_REG_MODE_OFF = 0,
-	SER_REG_MODE_ON = 1,
-	SER_REG_MODE_AUTO = 2,
-};
-
-#define AR_PHY_CCA_MAX_GOOD_VALUE      		-85
-#define AR_PHY_CCA_MAX_HIGH_VALUE      		-62
-#define AR_PHY_CCA_MIN_BAD_VALUE       		-121
-#define AR_PHY_CCA_FILTERWINDOW_LENGTH_INIT     3
-#define AR_PHY_CCA_FILTERWINDOW_LENGTH          5
-
-#define ATH9K_NF_CAL_HIST_MAX           5
-#define NUM_NF_READINGS                 6
-
-struct ath9k_nfcal_hist {
-	int16_t nfCalBuffer[ATH9K_NF_CAL_HIST_MAX];
-	u8 currIndex;
-	int16_t privNF;
-	u8 invalidNFcount;
-};
-
-struct ath9k_beacon_state {
-	u32 bs_nexttbtt;
-	u32 bs_nextdtim;
-	u32 bs_intval;
-#define ATH9K_BEACON_PERIOD       0x0000ffff
-#define ATH9K_BEACON_ENA          0x00800000
-#define ATH9K_BEACON_RESET_TSF    0x01000000
-	u32 bs_dtimperiod;
-	u16 bs_cfpperiod;
-	u16 bs_cfpmaxduration;
-	u32 bs_cfpnext;
-	u16 bs_timoffset;
-	u16 bs_bmissthreshold;
-	u32 bs_sleepduration;
-};
-
-struct ath9k_node_stats {
-	u32 ns_avgbrssi;
-	u32 ns_avgrssi;
-	u32 ns_avgtxrssi;
-	u32 ns_avgtxrate;
-};
-
-#define ATH9K_RSSI_EP_MULTIPLIER  (1<<7)
-
-#define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
-#define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
-#define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
-#define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
-#define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
-
-enum {
-	ATH9K_RESET_POWER_ON,
-	ATH9K_RESET_WARM,
-	ATH9K_RESET_COLD,
-};
-
-#define AH_USE_EEPROM   0x1
-
-struct ath_hal {
-	u32 ah_magic;
-	u16 ah_devid;
-	u16 ah_subvendorid;
-	u32 ah_macVersion;
-	u16 ah_macRev;
-	u16 ah_phyRev;
-	u16 ah_analog5GhzRev;
-	u16 ah_analog2GhzRev;
-
-	void __iomem *ah_sh;
-	struct ath_softc *ah_sc;
-
-	enum nl80211_iftype ah_opmode;
-	struct ath9k_ops_config ah_config;
-	struct ath9k_hw_capabilities ah_caps;
-
-	u16 ah_countryCode;
-	u32 ah_flags;
-	int16_t ah_powerLimit;
-	u16 ah_maxPowerLevel;
-	u32 ah_tpScale;
-	u16 ah_currentRD;
-	u16 ah_currentRDExt;
-	u16 ah_currentRDInUse;
-	u16 ah_currentRD5G;
-	u16 ah_currentRD2G;
-	char ah_iso[4];
-
-	struct ath9k_channel ah_channels[150];
-	struct ath9k_channel *ah_curchan;
-	u32 ah_nchan;
-
-	bool ah_isPciExpress;
-	u16 ah_txTrigLevel;
-	u16 ah_rfsilent;
-	u32 ah_rfkill_gpio;
-	u32 ah_rfkill_polarity;
-
-#ifndef ATH_NF_PER_CHAN
-	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
+	struct ath_rfkill rf_kill;
+	struct ath_ani ani;
+	struct ath9k_node_stats nodestats;
+#ifdef CONFIG_ATH9K_DEBUG
+	struct ath9k_debug debug;
 #endif
+	struct ath_bus_ops *bus_ops;
 };
 
-struct chan_centers {
-	u16 synth_center;
-	u16 ctl_center;
-	u16 ext_center;
+struct ath_wiphy {
+	struct ath_softc *sc; /* shared for all virtual wiphys */
+	struct ieee80211_hw *hw;
+	enum ath_wiphy_state {
+		ATH_WIPHY_INACTIVE,
+		ATH_WIPHY_ACTIVE,
+		ATH_WIPHY_PAUSING,
+		ATH_WIPHY_PAUSED,
+		ATH_WIPHY_SCAN,
+	} state;
+	int chan_idx;
+	int chan_is_ht;
 };
 
-struct ath_rate_table;
+int ath_reset(struct ath_softc *sc, bool retry_tx);
+int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
+int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
+int ath_cabq_update(struct ath_softc *);
 
-/* Helpers */
+static inline void ath_read_cachesize(struct ath_softc *sc, int *csz)
+{
+	sc->bus_ops->read_cachesize(sc, csz);
+}
 
-enum wireless_mode ath9k_hw_chan2wmode(struct ath_hal *ah,
-			       const struct ath9k_channel *chan);
-bool ath9k_hw_wait(struct ath_hal *ah, u32 reg, u32 mask, u32 val);
-u32 ath9k_hw_reverse_bits(u32 val, u32 n);
-bool ath9k_get_channel_edges(struct ath_hal *ah,
-			     u16 flags, u16 *low,
-			     u16 *high);
-u16 ath9k_hw_computetxtime(struct ath_hal *ah,
-			   struct ath_rate_table *rates,
-			   u32 frameLen, u16 rateix,
-			   bool shortPreamble);
-u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags);
-void ath9k_hw_get_channel_centers(struct ath_hal *ah,
-				  struct ath9k_channel *chan,
-				  struct chan_centers *centers);
+static inline void ath_bus_cleanup(struct ath_softc *sc)
+{
+	sc->bus_ops->cleanup(sc);
+}
 
-/* Attach, Detach */
+extern struct ieee80211_ops ath9k_ops;
 
-const char *ath9k_hw_probe(u16 vendorid, u16 devid);
-void ath9k_hw_detach(struct ath_hal *ah);
-struct ath_hal *ath9k_hw_attach(u16 devid, struct ath_softc *sc,
-				void __iomem *mem, int *error);
-void ath9k_hw_rfdetach(struct ath_hal *ah);
+irqreturn_t ath_isr(int irq, void *dev);
+void ath_cleanup(struct ath_softc *sc);
+int ath_attach(u16 devid, struct ath_softc *sc);
+void ath_detach(struct ath_softc *sc);
+const char *ath_mac_bb_name(u32 mac_bb_version);
+const char *ath_rf_name(u16 rf_version);
+void ath_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
+void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
+			   struct ath9k_channel *ichan);
+void ath_update_chainmask(struct ath_softc *sc, int is_ht);
+int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
+		    struct ath9k_channel *hchan);
+void ath_radio_enable(struct ath_softc *sc);
+void ath_radio_disable(struct ath_softc *sc);
 
-
-/* HW Reset */
-
-bool ath9k_hw_reset(struct ath_hal *ah, struct ath9k_channel *chan,
-		    enum ath9k_ht_macmode macmode,
-		    u8 txchainmask, u8 rxchainmask,
-		    enum ath9k_ht_extprotspacing extprotspacing,
-		    bool bChannelChange, int *status);
-
-/* Key Cache Management */
-
-bool ath9k_hw_keyreset(struct ath_hal *ah, u16 entry);
-bool ath9k_hw_keysetmac(struct ath_hal *ah, u16 entry, const u8 *mac);
-bool ath9k_hw_set_keycache_entry(struct ath_hal *ah, u16 entry,
-				 const struct ath9k_keyval *k,
-				 const u8 *mac, int xorKey);
-bool ath9k_hw_keyisvalid(struct ath_hal *ah, u16 entry);
-
-/* Power Management */
-
-bool ath9k_hw_setpower(struct ath_hal *ah,
-		       enum ath9k_power_mode mode);
-void ath9k_hw_configpcipowersave(struct ath_hal *ah, int restore);
-
-/* Beacon timers */
-
-void ath9k_hw_beaconinit(struct ath_hal *ah, u32 next_beacon, u32 beacon_period);
-void ath9k_hw_set_sta_beacon_timers(struct ath_hal *ah,
-				    const struct ath9k_beacon_state *bs);
-/* HW Capabilities */
-
-bool ath9k_hw_fill_cap_info(struct ath_hal *ah);
-bool ath9k_hw_getcapability(struct ath_hal *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 *result);
-bool ath9k_hw_setcapability(struct ath_hal *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 setting, int *status);
-
-/* GPIO / RFKILL / Antennae */
-
-void ath9k_hw_cfg_gpio_input(struct ath_hal *ah, u32 gpio);
-u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio);
-void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
-			 u32 ah_signal_type);
-void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 val);
-#if defined(CONFIG_RFKILL) || defined(CONFIG_RFKILL_MODULE)
-void ath9k_enable_rfkill(struct ath_hal *ah);
+#ifdef CONFIG_PCI
+int ath_pci_init(void);
+void ath_pci_exit(void);
+#else
+static inline int ath_pci_init(void) { return 0; };
+static inline void ath_pci_exit(void) {};
 #endif
-int ath9k_hw_select_antconfig(struct ath_hal *ah, u32 cfg);
-u32 ath9k_hw_getdefantenna(struct ath_hal *ah);
-void ath9k_hw_setantenna(struct ath_hal *ah, u32 antenna);
-bool ath9k_hw_setantennaswitch(struct ath_hal *ah,
-			       enum ath9k_ant_setting settings,
-			       struct ath9k_channel *chan,
-			       u8 *tx_chainmask,
-			       u8 *rx_chainmask,
-			       u8 *antenna_cfgd);
 
-/* General Operation */
-
-u32 ath9k_hw_getrxfilter(struct ath_hal *ah);
-void ath9k_hw_setrxfilter(struct ath_hal *ah, u32 bits);
-bool ath9k_hw_phy_disable(struct ath_hal *ah);
-bool ath9k_hw_disable(struct ath_hal *ah);
-bool ath9k_hw_set_txpowerlimit(struct ath_hal *ah, u32 limit);
-void ath9k_hw_getmac(struct ath_hal *ah, u8 *mac);
-bool ath9k_hw_setmac(struct ath_hal *ah, const u8 *mac);
-void ath9k_hw_setopmode(struct ath_hal *ah);
-void ath9k_hw_setmcastfilter(struct ath_hal *ah, u32 filter0, u32 filter1);
-void ath9k_hw_getbssidmask(struct ath_hal *ah, u8 *mask);
-bool ath9k_hw_setbssidmask(struct ath_hal *ah, const u8 *mask);
-void ath9k_hw_write_associd(struct ath_hal *ah, const u8 *bssid, u16 assocId);
-u64 ath9k_hw_gettsf64(struct ath_hal *ah);
-void ath9k_hw_reset_tsf(struct ath_hal *ah);
-bool ath9k_hw_set_tsfadjust(struct ath_hal *ah, u32 setting);
-bool ath9k_hw_setslottime(struct ath_hal *ah, u32 us);
-void ath9k_hw_set11nmac2040(struct ath_hal *ah, enum ath9k_ht_macmode mode);
-
-/* Regulatory */
-
-bool ath9k_regd_is_public_safety_sku(struct ath_hal *ah);
-struct ath9k_channel* ath9k_regd_check_channel(struct ath_hal *ah,
-			 const struct ath9k_channel *c);
-u32 ath9k_regd_get_ctl(struct ath_hal *ah, struct ath9k_channel *chan);
-u32 ath9k_regd_get_antenna_allowed(struct ath_hal *ah,
-				   struct ath9k_channel *chan);
-bool ath9k_regd_init_channels(struct ath_hal *ah,
-			      u32 maxchans, u32 *nchans, u8 *regclassids,
-			      u32 maxregids, u32 *nregids, u16 cc,
-			      bool enableOutdoor, bool enableExtendedChannels);
-
-/* ANI */
-
-void ath9k_ani_reset(struct ath_hal *ah);
-void ath9k_hw_ani_monitor(struct ath_hal *ah,
-			  const struct ath9k_node_stats *stats,
-			  struct ath9k_channel *chan);
-bool ath9k_hw_phycounters(struct ath_hal *ah);
-void ath9k_enable_mib_counters(struct ath_hal *ah);
-void ath9k_hw_disable_mib_counters(struct ath_hal *ah);
-u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hal *ah,
-				  u32 *rxc_pcnt,
-				  u32 *rxf_pcnt,
-				  u32 *txf_pcnt);
-void ath9k_hw_procmibevent(struct ath_hal *ah,
-			   const struct ath9k_node_stats *stats);
-void ath9k_hw_ani_setup(struct ath_hal *ah);
-void ath9k_hw_ani_attach(struct ath_hal *ah);
-void ath9k_hw_ani_detach(struct ath_hal *ah);
-
-/* Calibration */
-
-void ath9k_hw_reset_calvalid(struct ath_hal *ah, struct ath9k_channel *chan,
-			     bool *isCalDone);
-void ath9k_hw_start_nfcal(struct ath_hal *ah);
-void ath9k_hw_loadnf(struct ath_hal *ah, struct ath9k_channel *chan);
-int16_t ath9k_hw_getnf(struct ath_hal *ah,
-		       struct ath9k_channel *chan);
-void ath9k_init_nfcal_hist_buffer(struct ath_hal *ah);
-s16 ath9k_hw_getchan_noise(struct ath_hal *ah, struct ath9k_channel *chan);
-bool ath9k_hw_calibrate(struct ath_hal *ah, struct ath9k_channel *chan,
-			u8 rxchainmask, bool longcal,
-			bool *isCalDone);
-bool ath9k_hw_init_cal(struct ath_hal *ah,
-		       struct ath9k_channel *chan);
-
-
-/* EEPROM */
-
-int ath9k_hw_set_txpower(struct ath_hal *ah,
-			 struct ath9k_channel *chan,
-			 u16 cfgCtl,
-			 u8 twiceAntennaReduction,
-			 u8 twiceMaxRegulatoryPower,
-			 u8 powerLimit);
-void ath9k_hw_set_addac(struct ath_hal *ah, struct ath9k_channel *chan);
-bool ath9k_hw_set_power_per_rate_table(struct ath_hal *ah,
-				       struct ath9k_channel *chan,
-				       int16_t *ratesArray,
-				       u16 cfgCtl,
-				       u8 AntennaReduction,
-				       u8 twiceMaxRegulatoryPower,
-				       u8 powerLimit);
-bool ath9k_hw_set_power_cal_table(struct ath_hal *ah,
-				  struct ath9k_channel *chan,
-				  int16_t *pTxPowerIndexOffset);
-bool ath9k_hw_eeprom_set_board_values(struct ath_hal *ah,
-				      struct ath9k_channel *chan);
-int ath9k_hw_get_eeprom_antenna_cfg(struct ath_hal *ah,
-				    struct ath9k_channel *chan,
-				    u8 index, u16 *config);
-u8 ath9k_hw_get_num_ant_config(struct ath_hal *ah,
-			       enum ieee80211_band freq_band);
-u16 ath9k_hw_eeprom_get_spur_chan(struct ath_hal *ah, u16 i, bool is2GHz);
-int ath9k_hw_eeprom_attach(struct ath_hal *ah);
-
-/* Interrupt Handling */
-
-bool ath9k_hw_intrpend(struct ath_hal *ah);
-bool ath9k_hw_getisr(struct ath_hal *ah, enum ath9k_int *masked);
-enum ath9k_int ath9k_hw_intrget(struct ath_hal *ah);
-enum ath9k_int ath9k_hw_set_interrupts(struct ath_hal *ah, enum ath9k_int ints);
-
-/* MAC (PCU/QCU) */
-
-u32 ath9k_hw_gettxbuf(struct ath_hal *ah, u32 q);
-bool ath9k_hw_puttxbuf(struct ath_hal *ah, u32 q, u32 txdp);
-bool ath9k_hw_txstart(struct ath_hal *ah, u32 q);
-u32 ath9k_hw_numtxpending(struct ath_hal *ah, u32 q);
-bool ath9k_hw_updatetxtriglevel(struct ath_hal *ah, bool bIncTrigLevel);
-bool ath9k_hw_stoptxdma(struct ath_hal *ah, u32 q);
-bool ath9k_hw_filltxdesc(struct ath_hal *ah, struct ath_desc *ds,
-			 u32 segLen, bool firstSeg,
-			 bool lastSeg, const struct ath_desc *ds0);
-void ath9k_hw_cleartxdesc(struct ath_hal *ah, struct ath_desc *ds);
-int ath9k_hw_txprocdesc(struct ath_hal *ah, struct ath_desc *ds);
-void ath9k_hw_set11n_txdesc(struct ath_hal *ah, struct ath_desc *ds,
-			    u32 pktLen, enum ath9k_pkt_type type, u32 txPower,
-			    u32 keyIx, enum ath9k_key_type keyType, u32 flags);
-void ath9k_hw_set11n_ratescenario(struct ath_hal *ah, struct ath_desc *ds,
-				  struct ath_desc *lastds,
-				  u32 durUpdateEn, u32 rtsctsRate,
-				  u32 rtsctsDuration,
-				  struct ath9k_11n_rate_series series[],
-				  u32 nseries, u32 flags);
-void ath9k_hw_set11n_aggr_first(struct ath_hal *ah, struct ath_desc *ds,
-				u32 aggrLen);
-void ath9k_hw_set11n_aggr_middle(struct ath_hal *ah, struct ath_desc *ds,
-				 u32 numDelims);
-void ath9k_hw_set11n_aggr_last(struct ath_hal *ah, struct ath_desc *ds);
-void ath9k_hw_clr11n_aggr(struct ath_hal *ah, struct ath_desc *ds);
-void ath9k_hw_set11n_burstduration(struct ath_hal *ah, struct ath_desc *ds,
-				   u32 burstDuration);
-void ath9k_hw_set11n_virtualmorefrag(struct ath_hal *ah, struct ath_desc *ds,
-				     u32 vmf);
-void ath9k_hw_gettxintrtxqs(struct ath_hal *ah, u32 *txqs);
-bool ath9k_hw_set_txq_props(struct ath_hal *ah, int q,
-			    const struct ath9k_tx_queue_info *qinfo);
-bool ath9k_hw_get_txq_props(struct ath_hal *ah, int q,
-			    struct ath9k_tx_queue_info *qinfo);
-int ath9k_hw_setuptxqueue(struct ath_hal *ah, enum ath9k_tx_queue type,
-			  const struct ath9k_tx_queue_info *qinfo);
-bool ath9k_hw_releasetxqueue(struct ath_hal *ah, u32 q);
-bool ath9k_hw_resettxqueue(struct ath_hal *ah, u32 q);
-int ath9k_hw_rxprocdesc(struct ath_hal *ah, struct ath_desc *ds,
-			u32 pa, struct ath_desc *nds, u64 tsf);
-bool ath9k_hw_setuprxdesc(struct ath_hal *ah, struct ath_desc *ds,
-			  u32 size, u32 flags);
-bool ath9k_hw_setrxabort(struct ath_hal *ah, bool set);
-void ath9k_hw_putrxbuf(struct ath_hal *ah, u32 rxdp);
-void ath9k_hw_rxena(struct ath_hal *ah);
-void ath9k_hw_startpcureceive(struct ath_hal *ah);
-void ath9k_hw_stoppcurecv(struct ath_hal *ah);
-bool ath9k_hw_stopdmarecv(struct ath_hal *ah);
-
+#ifdef CONFIG_ATHEROS_AR71XX
+int ath_ahb_init(void);
+void ath_ahb_exit(void);
+#else
+static inline int ath_ahb_init(void) { return 0; };
+static inline void ath_ahb_exit(void) {};
 #endif
+
+static inline void ath9k_ps_wakeup(struct ath_softc *sc)
+{
+	if (atomic_inc_return(&sc->ps_usecount) == 1)
+		if (sc->sc_ah->power_mode !=  ATH9K_PM_AWAKE) {
+			sc->sc_ah->restore_mode = sc->sc_ah->power_mode;
+			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
+		}
+}
+
+static inline void ath9k_ps_restore(struct ath_softc *sc)
+{
+	if (atomic_dec_and_test(&sc->ps_usecount))
+		if ((sc->hw->conf.flags & IEEE80211_CONF_PS) &&
+		    !(sc->sc_flags & SC_OP_WAIT_FOR_BEACON))
+			ath9k_hw_setpower(sc->sc_ah,
+					  sc->sc_ah->restore_mode);
+}
+
+
+void ath9k_set_bssid_mask(struct ieee80211_hw *hw);
+int ath9k_wiphy_add(struct ath_softc *sc);
+int ath9k_wiphy_del(struct ath_wiphy *aphy);
+void ath9k_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb);
+int ath9k_wiphy_pause(struct ath_wiphy *aphy);
+int ath9k_wiphy_unpause(struct ath_wiphy *aphy);
+int ath9k_wiphy_select(struct ath_wiphy *aphy);
+void ath9k_wiphy_set_scheduler(struct ath_softc *sc, unsigned int msec_int);
+void ath9k_wiphy_chan_work(struct work_struct *work);
+bool ath9k_wiphy_started(struct ath_softc *sc);
+void ath9k_wiphy_pause_all_forced(struct ath_softc *sc,
+				  struct ath_wiphy *selected);
+bool ath9k_wiphy_scanning(struct ath_softc *sc);
+void ath9k_wiphy_work(struct work_struct *work);
+
+/*
+ * Read and write, they both share the same lock. We do this to serialize
+ * reads and writes on Atheros 802.11n PCI devices only. This is required
+ * as the FIFO on these devices can only accept sanely 2 requests. After
+ * that the device goes bananas. Serializing the reads/writes prevents this
+ * from happening.
+ */
+
+static inline void ath9k_iowrite32(struct ath_hw *ah, u32 reg_offset, u32 val)
+{
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+		unsigned long flags;
+		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
+		iowrite32(val, ah->ah_sc->mem + reg_offset);
+		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
+	} else
+		iowrite32(val, ah->ah_sc->mem + reg_offset);
+}
+
+static inline unsigned int ath9k_ioread32(struct ath_hw *ah, u32 reg_offset)
+{
+	u32 val;
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+		unsigned long flags;
+		spin_lock_irqsave(&ah->ah_sc->sc_serial_rw, flags);
+		val = ioread32(ah->ah_sc->mem + reg_offset);
+		spin_unlock_irqrestore(&ah->ah_sc->sc_serial_rw, flags);
+	} else
+		val = ioread32(ah->ah_sc->mem + reg_offset);
+	return val;
+}
+
+#endif /* ATH9K_H */

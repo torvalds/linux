@@ -14,7 +14,6 @@
 #include <linux/capability.h>
 #include <linux/xattr.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/lm_interface.h>
 #include <asm/uaccess.h>
 
 #include "gfs2.h"

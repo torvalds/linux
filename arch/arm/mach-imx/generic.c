@@ -29,7 +29,6 @@
 #include <linux/string.h>
 
 #include <asm/errno.h>
-#include <mach/imxfb.h>
 #include <mach/hardware.h>
 #include <mach/imx-regs.h>
 
@@ -245,43 +244,8 @@ void __init imx_set_mmc_info(struct imxmmc_platform_data *info)
 	imx_mmc_device.dev.platform_data = info;
 }
 
-static struct imx_fb_platform_data imx_fb_info;
-
-void __init set_imx_fb_info(struct imx_fb_platform_data *hard_imx_fb_info)
-{
-	memcpy(&imx_fb_info,hard_imx_fb_info,sizeof(struct imx_fb_platform_data));
-}
-
-static struct resource imxfb_resources[] = {
-	[0] = {
-		.start	= 0x00205000,
-		.end	= 0x002050FF,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= LCDC_INT,
-		.end	= LCDC_INT,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static u64 fb_dma_mask = ~(u64)0;
-
-static struct platform_device imxfb_device = {
-	.name		= "imx-fb",
-	.id		= 0,
-	.dev		= {
- 		.platform_data	= &imx_fb_info,
-		.dma_mask	= &fb_dma_mask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.num_resources	= ARRAY_SIZE(imxfb_resources),
-	.resource	= imxfb_resources,
-};
-
 static struct platform_device *devices[] __initdata = {
 	&imx_mmc_device,
-	&imxfb_device,
 };
 
 static struct map_desc imx_io_desc[] __initdata = {

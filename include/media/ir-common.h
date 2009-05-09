@@ -111,6 +111,7 @@ extern IR_KEYTAB_TYPE ir_codes_empty[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avermedia[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avermedia_dvbt[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_avermedia_m135a[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_avermedia_cardbus[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pixelview[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_pixelview_new[IR_KEYTAB_SIZE];
@@ -159,6 +160,8 @@ extern IR_KEYTAB_TYPE ir_codes_real_audio_220_32_keys[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_msi_tvanywhere_plus[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_ati_tv_wonder_hd_600[IR_KEYTAB_SIZE];
 extern IR_KEYTAB_TYPE ir_codes_kworld_plus_tv_analog[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_kaiomy[IR_KEYTAB_SIZE];
+extern IR_KEYTAB_TYPE ir_codes_dm1105_nec[IR_KEYTAB_SIZE];
 #endif
 
 /*

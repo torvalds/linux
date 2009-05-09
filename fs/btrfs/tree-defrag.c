@@ -124,8 +124,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_release_path(root, path);
-	if (is_extent)
-		btrfs_extent_post_op(trans, root);
 out:
 	if (path)
 		btrfs_free_path(path);

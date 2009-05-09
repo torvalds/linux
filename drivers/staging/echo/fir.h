@@ -21,8 +21,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * $Id: fir.h,v 1.8 2006/10/24 13:45:28 steveu Exp $
  */
 
 /*! \page fir_page FIR filtering
@@ -102,8 +100,8 @@ struct fir_float_state_t {
 	float *history;
 };
 
-static __inline__ const int16_t *fir16_create(struct fir16_state_t *fir,
-					      const int16_t * coeffs, int taps)
+static inline const int16_t *fir16_create(struct fir16_state_t *fir,
+					      const int16_t *coeffs, int taps)
 {
 	fir->taps = taps;
 	fir->curr_pos = taps - 1;
@@ -116,7 +114,7 @@ static __inline__ const int16_t *fir16_create(struct fir16_state_t *fir,
 	return fir->history;
 }
 
-static __inline__ void fir16_flush(struct fir16_state_t *fir)
+static inline void fir16_flush(struct fir16_state_t *fir)
 {
 #if defined(USE_MMX)  ||  defined(USE_SSE2) || defined(__bfin__)
 	memset(fir->history, 0, 2 * fir->taps * sizeof(int16_t));
@@ -125,7 +123,7 @@ static __inline__ void fir16_flush(struct fir16_state_t *fir)
 #endif
 }
 
-static __inline__ void fir16_free(struct fir16_state_t *fir)
+static inline void fir16_free(struct fir16_state_t *fir)
 {
 	kfree(fir->history);
 }
@@ -148,16 +146,16 @@ static inline int32_t dot_asm(short *x, short *y, int len)
 		"A0 += R0.L*R1.L (IS);\n\t"
 		"R0 = A0;\n\t"
 		"%0 = R0;\n\t"
-		:"=&d"(dot)
-		:"a"(x), "a"(y), "a"(len)
-		:"I0", "I1", "A1", "A0", "R0", "R1"
+		: "=&d"(dot)
+		: "a"(x), "a"(y), "a"(len)
+		: "I0", "I1", "A1", "A0", "R0", "R1"
 	);
 
 	return dot;
 }
 #endif
 
-static __inline__ int16_t fir16(struct fir16_state_t *fir, int16_t sample)
+static inline int16_t fir16(struct fir16_state_t *fir, int16_t sample)
 {
 	int32_t y;
 #if defined(USE_MMX)
@@ -250,8 +248,8 @@ static __inline__ int16_t fir16(struct fir16_state_t *fir, int16_t sample)
 	return (int16_t) (y >> 15);
 }
 
-static __inline__ const int16_t *fir32_create(struct fir32_state_t *fir,
-					      const int32_t * coeffs, int taps)
+static inline const int16_t *fir32_create(struct fir32_state_t *fir,
+					      const int32_t *coeffs, int taps)
 {
 	fir->taps = taps;
 	fir->curr_pos = taps - 1;
@@ -260,17 +258,17 @@ static __inline__ const int16_t *fir32_create(struct fir32_state_t *fir,
 	return fir->history;
 }
 
-static __inline__ void fir32_flush(struct fir32_state_t *fir)
+static inline void fir32_flush(struct fir32_state_t *fir)
 {
 	memset(fir->history, 0, fir->taps * sizeof(int16_t));
 }
 
-static __inline__ void fir32_free(struct fir32_state_t *fir)
+static inline void fir32_free(struct fir32_state_t *fir)
 {
 	kfree(fir->history);
 }
 
-static __inline__ int16_t fir32(struct fir32_state_t *fir, int16_t sample)
+static inline int16_t fir32(struct fir32_state_t *fir, int16_t sample)
 {
 	int i;
 	int32_t y;

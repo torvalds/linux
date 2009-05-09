@@ -23,13 +23,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <mach/mfp-pxa25x.h>
-#include <mach/pxa-regs.h>
-#include <mach/hardware.h>
+#include <mach/pxa25x.h>
 #include <mach/eseries-gpio.h>
 #include <mach/udc.h>
 #include <mach/irda.h>
 #include <mach/irqs.h>
+#include <mach/audio.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -133,6 +132,11 @@ static unsigned long e750_pin_config[] __initdata = {
 	/* IrDA */
 	GPIO38_GPIO | MFP_LPM_DRIVE_HIGH,
 
+	/* Audio power control */
+	GPIO4_GPIO,  /* Headphone amp power */
+	GPIO7_GPIO,  /* Speaker amp power */
+	GPIO37_GPIO, /* Headphone detect */
+
 	/* PC Card */
 	GPIO8_GPIO,   /* CD0 */
 	GPIO44_GPIO,  /* CD1 */
@@ -190,11 +194,12 @@ static struct platform_device *devices[] __initdata = {
 static void __init e750_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(e750_pin_config));
-	clk_add_alias("CLK_CK3P6MI", &e750_tc6393xb_device.dev,
+	clk_add_alias("CLK_CK3P6MI", e750_tc6393xb_device.name,
 			"GPIO11_CLK", NULL),
 	eseries_get_tmio_gpios();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_udc_info(&e7xx_udc_mach_info);
+	pxa_set_ac97_info(NULL);
 	e7xx_irda_init();
 	pxa_set_ficp_info(&e7xx_ficp_platform_data);
 }

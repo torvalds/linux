@@ -49,6 +49,7 @@ static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE;	/* Enable this card */
 static long port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;	/* 0x220,0x240,0x260 */
+static long fm_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;	/* Usually 0x388 */
 static long mpu_port[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -1};
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* 5,7,9,10 */
 static int mpu_irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;	/* 5,7,9,10 */
@@ -65,6 +66,8 @@ MODULE_PARM_DESC(port, "Port # for " CRD_NAME " driver.");
 module_param_array(mpu_port, long, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for " CRD_NAME " driver.");
 module_param_array(irq, int, NULL, 0444);
+module_param_array(fm_port, long, NULL, 0444);
+MODULE_PARM_DESC(fm_port, "FM port # for ES1688 driver.");
 MODULE_PARM_DESC(irq, "IRQ # for " CRD_NAME " driver.");
 module_param_array(mpu_irq, int, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for " CRD_NAME " driver.");
@@ -122,9 +125,9 @@ static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
 	struct snd_pcm *pcm;
 	int error;
 
-	card = snd_card_new(index[n], id[n], THIS_MODULE, 0);
-	if (!card)
-		return -EINVAL;
+	error = snd_card_create(index[n], id[n], THIS_MODULE, 0, &card);
+	if (error < 0)
+		return error;
 
 	error = snd_es1688_legacy_create(card, dev, n, &chip);
 	if (error < 0)
@@ -143,13 +146,19 @@ static int __devinit snd_es1688_probe(struct device *dev, unsigned int n)
 	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i", pcm->name,
 		chip->port, chip->irq, chip->dma8);
 
-	if (snd_opl3_create(card, chip->port, chip->port + 2,
-			OPL3_HW_OPL3, 0, &opl3) < 0)
-		dev_warn(dev, "opl3 not detected at 0x%lx\n", chip->port);
-	else {
-		error =	snd_opl3_hwdep_new(opl3, 0, 1, NULL);
-		if (error < 0)
-			goto out;
+	if (fm_port[n] == SNDRV_AUTO_PORT)
+		fm_port[n] = port[n];	/* share the same port */
+
+	if (fm_port[n] > 0) {
+		if (snd_opl3_create(card, fm_port[n], fm_port[n] + 2,
+				OPL3_HW_OPL3, 0, &opl3) < 0)
+			dev_warn(dev,
+				 "opl3 not detected at 0x%lx\n", fm_port[n]);
+		else {
+			error =	snd_opl3_hwdep_new(opl3, 0, 1, NULL);
+			if (error < 0)
+				goto out;
+		}
 	}
 
 	if (mpu_irq[n] >= 0 && mpu_irq[n] != SNDRV_AUTO_IRQ &&

@@ -214,6 +214,7 @@ static inline void disk_put_part(struct hd_struct *part)
 #define DISK_PITER_REVERSE	(1 << 0) /* iterate in the reverse direction */
 #define DISK_PITER_INCL_EMPTY	(1 << 1) /* include 0-sized parts */
 #define DISK_PITER_INCL_PART0	(1 << 2) /* include partition 0 */
+#define DISK_PITER_INCL_EMPTY_PART0 (1 << 3) /* include empty partition 0 */
 
 struct disk_part_iter {
 	struct gendisk		*disk;
@@ -333,11 +334,10 @@ static inline void part_dec_in_flight(struct hd_struct *part)
 		part_to_disk(part)->part0.in_flight--;
 }
 
-/* drivers/block/ll_rw_blk.c */
+/* block/blk-core.c */
 extern void part_round_stats(int cpu, struct hd_struct *part);
 
-/* drivers/block/genhd.c */
-extern int get_blkdev_list(char *, int);
+/* block/genhd.c */
 extern void add_disk(struct gendisk *disk);
 extern void del_gendisk(struct gendisk *gp);
 extern void unlink_gendisk(struct gendisk *gp);

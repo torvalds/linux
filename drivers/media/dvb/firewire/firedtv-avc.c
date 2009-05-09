@@ -115,7 +115,7 @@ static const char *debug_fcp_ctype(unsigned int ctype)
 }
 
 static const char *debug_fcp_opcode(unsigned int opcode,
-				    const u8 *data, size_t length)
+				    const u8 *data, int length)
 {
 	switch (opcode) {
 	case AVC_OPCODE_VENDOR:			break;
@@ -135,13 +135,14 @@ static const char *debug_fcp_opcode(unsigned int opcode,
 	case SFE_VENDOR_OPCODE_REGISTER_REMOTE_CONTROL:	return "RegisterRC";
 	case SFE_VENDOR_OPCODE_LNB_CONTROL:		return "LNBControl";
 	case SFE_VENDOR_OPCODE_TUNE_QPSK:		return "TuneQPSK";
+	case SFE_VENDOR_OPCODE_TUNE_QPSK2:		return "TuneQPSK2";
 	case SFE_VENDOR_OPCODE_HOST2CA:			return "Host2CA";
 	case SFE_VENDOR_OPCODE_CA2HOST:			return "CA2Host";
 	}
 	return "Vendor";
 }
 
-static void debug_fcp(const u8 *data, size_t length)
+static void debug_fcp(const u8 *data, int length)
 {
 	unsigned int subunit_type, subunit_id, op;
 	const char *prefix = data[0] > 7 ? "FCP <- " : "FCP -> ";
@@ -266,7 +267,10 @@ static void avc_tuner_tuneqpsk(struct firedtv *fdtv,
 	c->operand[0] = SFE_VENDOR_DE_COMPANYID_0;
 	c->operand[1] = SFE_VENDOR_DE_COMPANYID_1;
 	c->operand[2] = SFE_VENDOR_DE_COMPANYID_2;
-	c->operand[3] = SFE_VENDOR_OPCODE_TUNE_QPSK;
+	if (fdtv->type == FIREDTV_DVB_S2)
+		c->operand[3] = SFE_VENDOR_OPCODE_TUNE_QPSK2;
+	else
+		c->operand[3] = SFE_VENDOR_OPCODE_TUNE_QPSK;
 
 	c->operand[4] = (params->frequency >> 24) & 0xff;
 	c->operand[5] = (params->frequency >> 16) & 0xff;

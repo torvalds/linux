@@ -462,6 +462,7 @@ static int vlan_dev_open(struct net_device *dev)
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_join(dev);
 
+	netif_carrier_on(dev);
 	return 0;
 
 clear_allmulti:
@@ -471,6 +472,7 @@ del_unicast:
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
 		dev_unicast_delete(real_dev, dev->dev_addr, ETH_ALEN);
 out:
+	netif_carrier_off(dev);
 	return err;
 }
 
@@ -492,6 +494,7 @@ static int vlan_dev_stop(struct net_device *dev)
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
 		dev_unicast_delete(real_dev, dev->dev_addr, dev->addr_len);
 
+	netif_carrier_off(dev);
 	return 0;
 }
 
@@ -553,7 +556,7 @@ static int vlan_dev_neigh_setup(struct net_device *dev, struct neigh_parms *pa)
 	int err = 0;
 
 	if (netif_device_present(real_dev) && ops->ndo_neigh_setup)
-		err = ops->ndo_neigh_setup(dev, pa);
+		err = ops->ndo_neigh_setup(real_dev, pa);
 
 	return err;
 }
@@ -612,6 +615,8 @@ static int vlan_dev_init(struct net_device *dev)
 	struct net_device *real_dev = vlan_dev_info(dev)->real_dev;
 	int subclass = 0;
 
+	netif_carrier_off(dev);
+
 	/* IFF_BROADCAST|IFF_MULTICAST; ??? */
 	dev->flags  = real_dev->flags & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI);
 	dev->iflink = real_dev->ifindex;
@@ -639,6 +644,7 @@ static int vlan_dev_init(struct net_device *dev)
 		dev->hard_header_len = real_dev->hard_header_len + VLAN_HLEN;
 		dev->netdev_ops         = &vlan_netdev_ops;
 	}
+	netdev_resync_ops(dev);
 
 	if (is_vlan_dev(real_dev))
 		subclass = 1;
@@ -667,7 +673,8 @@ static int vlan_ethtool_get_settings(struct net_device *dev,
 	const struct vlan_dev_info *vlan = vlan_dev_info(dev);
 	struct net_device *real_dev = vlan->real_dev;
 
-	if (!real_dev->ethtool_ops->get_settings)
+	if (!real_dev->ethtool_ops ||
+	    !real_dev->ethtool_ops->get_settings)
 		return -EOPNOTSUPP;
 
 	return real_dev->ethtool_ops->get_settings(real_dev, cmd);

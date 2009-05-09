@@ -215,3 +215,5 @@ struct net_device *alloc_fddidev(int sizeof_priv)
 	return alloc_netdev(sizeof_priv, "fddi%d", fddi_setup);
 }
 EXPORT_SYMBOL(alloc_fddidev);
+
+MODULE_LICENSE("GPL");

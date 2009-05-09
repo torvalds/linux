@@ -28,32 +28,41 @@
 #include <linux/netdevice.h>
 #include <linux/phonet.h>
 #include <net/sock.h>
+#include <net/netns/generic.h>
 #include <net/phonet/pn_dev.h>
 
-/* when accessing, remember to lock with spin_lock(&pndevs.lock); */
-struct phonet_device_list pndevs = {
-	.list = LIST_HEAD_INIT(pndevs.list),
-	.lock = __SPIN_LOCK_UNLOCKED(pndevs.lock),
+struct phonet_net {
+	struct phonet_device_list pndevs;
 };
+
+int phonet_net_id;
+
+struct phonet_device_list *phonet_device_list(struct net *net)
+{
+	struct phonet_net *pnn = net_generic(net, phonet_net_id);
+	return &pnn->pndevs;
+}
 
 /* Allocate new Phonet device. */
 static struct phonet_device *__phonet_device_alloc(struct net_device *dev)
 {
+	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
 	struct phonet_device *pnd = kmalloc(sizeof(*pnd), GFP_ATOMIC);
 	if (pnd == NULL)
 		return NULL;
 	pnd->netdev = dev;
 	bitmap_zero(pnd->addrs, 64);
 
-	list_add(&pnd->list, &pndevs.list);
+	list_add(&pnd->list, &pndevs->list);
 	return pnd;
 }
 
 static struct phonet_device *__phonet_get(struct net_device *dev)
 {
+	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
 	struct phonet_device *pnd;
 
-	list_for_each_entry(pnd, &pndevs.list, list) {
+	list_for_each_entry(pnd, &pndevs->list, list) {
 		if (pnd->netdev == dev)
 			return pnd;
 	}
@@ -68,32 +77,33 @@ static void __phonet_device_free(struct phonet_device *pnd)
 
 struct net_device *phonet_device_get(struct net *net)
 {
+	struct phonet_device_list *pndevs = phonet_device_list(net);
 	struct phonet_device *pnd;
 	struct net_device *dev;
 
-	spin_lock_bh(&pndevs.lock);
-	list_for_each_entry(pnd, &pndevs.list, list) {
+	spin_lock_bh(&pndevs->lock);
+	list_for_each_entry(pnd, &pndevs->list, list) {
 		dev = pnd->netdev;
 		BUG_ON(!dev);
 
-		if (net_eq(dev_net(dev), net) &&
-			(dev->reg_state == NETREG_REGISTERED) &&
+		if ((dev->reg_state == NETREG_REGISTERED) &&
 			((pnd->netdev->flags & IFF_UP)) == IFF_UP)
 			break;
 		dev = NULL;
 	}
 	if (dev)
 		dev_hold(dev);
-	spin_unlock_bh(&pndevs.lock);
+	spin_unlock_bh(&pndevs->lock);
 	return dev;
 }
 
 int phonet_address_add(struct net_device *dev, u8 addr)
 {
+	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
 	struct phonet_device *pnd;
 	int err = 0;
 
-	spin_lock_bh(&pndevs.lock);
+	spin_lock_bh(&pndevs->lock);
 	/* Find or create Phonet-specific device data */
 	pnd = __phonet_get(dev);
 	if (pnd == NULL)
@@ -102,31 +112,33 @@ int phonet_address_add(struct net_device *dev, u8 addr)
 		err = -ENOMEM;
 	else if (test_and_set_bit(addr >> 2, pnd->addrs))
 		err = -EEXIST;
-	spin_unlock_bh(&pndevs.lock);
+	spin_unlock_bh(&pndevs->lock);
 	return err;
 }
 
 int phonet_address_del(struct net_device *dev, u8 addr)
 {
+	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
 	struct phonet_device *pnd;
 	int err = 0;
 
-	spin_lock_bh(&pndevs.lock);
+	spin_lock_bh(&pndevs->lock);
 	pnd = __phonet_get(dev);
 	if (!pnd || !test_and_clear_bit(addr >> 2, pnd->addrs))
 		err = -EADDRNOTAVAIL;
 	else if (bitmap_empty(pnd->addrs, 64))
 		__phonet_device_free(pnd);
-	spin_unlock_bh(&pndevs.lock);
+	spin_unlock_bh(&pndevs->lock);
 	return err;
 }
 
 /* Gets a source address toward a destination, through a interface. */
 u8 phonet_address_get(struct net_device *dev, u8 addr)
 {
+	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
 	struct phonet_device *pnd;
 
-	spin_lock_bh(&pndevs.lock);
+	spin_lock_bh(&pndevs->lock);
 	pnd = __phonet_get(dev);
 	if (pnd) {
 		BUG_ON(bitmap_empty(pnd->addrs, 64));
@@ -136,30 +148,31 @@ u8 phonet_address_get(struct net_device *dev, u8 addr)
 			addr = find_first_bit(pnd->addrs, 64) << 2;
 	} else
 		addr = PN_NO_ADDR;
-	spin_unlock_bh(&pndevs.lock);
+	spin_unlock_bh(&pndevs->lock);
 	return addr;
 }
 
 int phonet_address_lookup(struct net *net, u8 addr)
 {
+	struct phonet_device_list *pndevs = phonet_device_list(net);
 	struct phonet_device *pnd;
+	int err = -EADDRNOTAVAIL;
 
-	spin_lock_bh(&pndevs.lock);
-	list_for_each_entry(pnd, &pndevs.list, list) {
-		if (!net_eq(dev_net(pnd->netdev), net))
-			continue;
+	spin_lock_bh(&pndevs->lock);
+	list_for_each_entry(pnd, &pndevs->list, list) {
 		/* Don't allow unregistering devices! */
 		if ((pnd->netdev->reg_state != NETREG_REGISTERED) ||
 				((pnd->netdev->flags & IFF_UP)) != IFF_UP)
 			continue;
 
 		if (test_bit(addr >> 2, pnd->addrs)) {
-			spin_unlock_bh(&pndevs.lock);
-			return 0;
+			err = 0;
+			goto found;
 		}
 	}
-	spin_unlock_bh(&pndevs.lock);
-	return -EADDRNOTAVAIL;
+found:
+	spin_unlock_bh(&pndevs->lock);
+	return err;
 }
 
 /* notify Phonet of device events */
@@ -169,14 +182,16 @@ static int phonet_device_notify(struct notifier_block *me, unsigned long what,
 	struct net_device *dev = arg;
 
 	if (what == NETDEV_UNREGISTER) {
+		struct phonet_device_list *pndevs;
 		struct phonet_device *pnd;
 
 		/* Destroy phonet-specific device data */
-		spin_lock_bh(&pndevs.lock);
+		pndevs = phonet_device_list(dev_net(dev));
+		spin_lock_bh(&pndevs->lock);
 		pnd = __phonet_get(dev);
 		if (pnd)
 			__phonet_device_free(pnd);
-		spin_unlock_bh(&pndevs.lock);
+		spin_unlock_bh(&pndevs->lock);
 	}
 	return 0;
 
@@ -187,24 +202,52 @@ static struct notifier_block phonet_device_notifier = {
 	.priority = 0,
 };
 
-/* Initialize Phonet devices list */
-void phonet_device_init(void)
+/* Per-namespace Phonet devices handling */
+static int phonet_init_net(struct net *net)
 {
+	struct phonet_net *pnn = kmalloc(sizeof(*pnn), GFP_KERNEL);
+	if (!pnn)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&pnn->pndevs.list);
+	spin_lock_init(&pnn->pndevs.lock);
+	net_assign_generic(net, phonet_net_id, pnn);
+	return 0;
+}
+
+static void phonet_exit_net(struct net *net)
+{
+	struct phonet_net *pnn = net_generic(net, phonet_net_id);
+	struct phonet_device *pnd, *n;
+
+	list_for_each_entry_safe(pnd, n, &pnn->pndevs.list, list)
+		__phonet_device_free(pnd);
+
+	kfree(pnn);
+}
+
+static struct pernet_operations phonet_net_ops = {
+	.init = phonet_init_net,
+	.exit = phonet_exit_net,
+};
+
+/* Initialize Phonet devices list */
+int __init phonet_device_init(void)
+{
+	int err = register_pernet_gen_device(&phonet_net_id, &phonet_net_ops);
+	if (err)
+		return err;
+
 	register_netdevice_notifier(&phonet_device_notifier);
+	err = phonet_netlink_register();
+	if (err)
+		phonet_device_exit();
+	return err;
 }
 
 void phonet_device_exit(void)
 {
-	struct phonet_device *pnd, *n;
-
 	rtnl_unregister_all(PF_PHONET);
-	rtnl_lock();
-	spin_lock_bh(&pndevs.lock);
-
-	list_for_each_entry_safe(pnd, n, &pndevs.list, list)
-		__phonet_device_free(pnd);
-
-	spin_unlock_bh(&pndevs.lock);
-	rtnl_unlock();
 	unregister_netdevice_notifier(&phonet_device_notifier);
+	unregister_pernet_gen_device(phonet_net_id, &phonet_net_ops);
 }

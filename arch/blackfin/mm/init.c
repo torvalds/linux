@@ -104,7 +104,7 @@ void __init paging_init(void)
 	}
 }
 
-asmlinkage void init_pda(void)
+asmlinkage void __init init_pda(void)
 {
 	unsigned int cpu = raw_smp_processor_id();
 

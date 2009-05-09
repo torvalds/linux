@@ -29,9 +29,6 @@
 #include "lgdt330x.h"
 #include "zl10353.h"
 #include "s5h1409.h"
-#ifdef EM28XX_DRX397XD_SUPPORT
-#include "drx397xD.h"
-#endif
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");

@@ -220,7 +220,7 @@ void __init init_sb1250_irqs(void)
 	int i;
 
 	for (i = 0; i < SB1250_NR_IRQS; i++) {
-		set_irq_chip(i, &sb1250_irq_type);
+		set_irq_chip_and_handler(i, &sb1250_irq_type, handle_level_irq);
 		sb1250_irq_owner[i] = 0;
 	}
 }

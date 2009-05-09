@@ -6,6 +6,8 @@
  *
  */
 
+#define KMSG_COMPONENT "dasd"
+
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <asm/debug.h>
@@ -128,17 +130,18 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 		private = kzalloc(sizeof(struct dasd_fba_private),
 				  GFP_KERNEL | GFP_DMA);
 		if (private == NULL) {
-			DEV_MESSAGE(KERN_WARNING, device, "%s",
-				    "memory allocation failed for private "
-				    "data");
+			dev_warn(&device->cdev->dev,
+				 "Allocating memory for private DASD "
+				 "data failed\n");
 			return -ENOMEM;
 		}
 		device->private = (void *) private;
 	}
 	block = dasd_alloc_block();
 	if (IS_ERR(block)) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s",
-			    "could not allocate dasd block structure");
+		DBF_EVENT(DBF_WARNING, "could not allocate dasd block "
+			  "structure for device: %s",
+			  dev_name(&device->cdev->dev));
 		device->private = NULL;
 		kfree(private);
 		return PTR_ERR(block);
@@ -150,9 +153,9 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	rdc_data = (void *) &(private->rdc_data);
 	rc = dasd_generic_read_dev_chars(device, "FBA ", &rdc_data, 32);
 	if (rc) {
-		DEV_MESSAGE(KERN_WARNING, device,
-			    "Read device characteristics returned error %d",
-			    rc);
+		DBF_EVENT(DBF_WARNING, "Read device characteristics returned "
+			  "error %d for device: %s",
+			  rc, dev_name(&device->cdev->dev));
 		device->block = NULL;
 		dasd_free_block(block);
 		device->private = NULL;
@@ -160,15 +163,16 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 		return rc;
 	}
 
-	DEV_MESSAGE(KERN_INFO, device,
-		    "%04X/%02X(CU:%04X/%02X) %dMB at(%d B/blk)",
-		    cdev->id.dev_type,
-		    cdev->id.dev_model,
-		    cdev->id.cu_type,
-		    cdev->id.cu_model,
-		    ((private->rdc_data.blk_bdsa *
-		      (private->rdc_data.blk_size >> 9)) >> 11),
-		    private->rdc_data.blk_size);
+	dev_info(&device->cdev->dev,
+		 "New FBA DASD %04X/%02X (CU %04X/%02X) with %d MB "
+		 "and %d B/blk\n",
+		 cdev->id.dev_type,
+		 cdev->id.dev_model,
+		 cdev->id.cu_type,
+		 cdev->id.cu_model,
+		 ((private->rdc_data.blk_bdsa *
+		   (private->rdc_data.blk_size >> 9)) >> 11),
+		 private->rdc_data.blk_size);
 	return 0;
 }
 
@@ -180,7 +184,7 @@ static int dasd_fba_do_analysis(struct dasd_block *block)
 	private = (struct dasd_fba_private *) block->base->private;
 	rc = dasd_check_blocksize(private->rdc_data.blk_size);
 	if (rc) {
-		DEV_MESSAGE(KERN_INFO, block->base, "unknown blocksize %d",
+		DBF_DEV_EVENT(DBF_WARNING, block->base, "unknown blocksize %d",
 			    private->rdc_data.blk_size);
 		return rc;
 	}
@@ -215,7 +219,7 @@ dasd_fba_erp_postaction(struct dasd_ccw_req * cqr)
 	if (cqr->function == dasd_default_erp_action)
 		return dasd_default_erp_postaction;
 
-	DEV_MESSAGE(KERN_WARNING, cqr->startdev, "unknown ERP action %p",
+	DBF_DEV_EVENT(DBF_WARNING, cqr->startdev, "unknown ERP action %p",
 		    cqr->function);
 	return NULL;
 }
@@ -233,9 +237,9 @@ static void dasd_fba_handle_unsolicited_interrupt(struct dasd_device *device,
 	}
 
 	/* check for unsolicited interrupts */
-	DEV_MESSAGE(KERN_DEBUG, device, "%s",
+	DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 		    "unsolicited interrupt received");
-	device->discipline->dump_sense(device, NULL, irb);
+	device->discipline->dump_sense_dbf(device, NULL, irb, "unsolicited");
 	dasd_schedule_device_bh(device);
 	return;
 };
@@ -437,6 +441,25 @@ dasd_fba_fill_info(struct dasd_device * device,
 }
 
 static void
+dasd_fba_dump_sense_dbf(struct dasd_device *device, struct dasd_ccw_req *req,
+			 struct irb *irb, char *reason)
+{
+	int sl;
+	if (irb->esw.esw0.erw.cons) {
+		for (sl = 0; sl < 4; sl++) {
+			DBF_DEV_EVENT(DBF_EMERG, device,
+				      "%s: %08x %08x %08x %08x",
+				      reason, irb->ecw[8 * 0], irb->ecw[8 * 1],
+				      irb->ecw[8 * 2], irb->ecw[8 * 3]);
+		}
+	} else {
+		DBF_DEV_EVENT(DBF_EMERG, device, "%s",
+			      "SORRY - NO VALID SENSE AVAILABLE\n");
+	}
+}
+
+
+static void
 dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		    struct irb *irb)
 {
@@ -446,7 +469,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 
 	page = (char *) get_zeroed_page(GFP_ATOMIC);
 	if (page == NULL) {
-		DEV_MESSAGE(KERN_ERR, device, " %s",
+		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "No memory to dump sense data");
 		return;
 	}
@@ -476,8 +499,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 	        len += sprintf(page + len, KERN_ERR PRINTK_HEADER
 			       " SORRY - NO VALID SENSE AVAILABLE\n");
 	}
-	MESSAGE_LOG(KERN_ERR, "%s",
-		    page + sizeof(KERN_ERR PRINTK_HEADER));
+	printk(KERN_ERR "%s", page);
 
 	/* dump the Channel Program */
 	/* print first CCWs (maximum 8) */
@@ -498,8 +520,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		len += sprintf(page + len, "\n");
 		act++;
 	}
-	MESSAGE_LOG(KERN_ERR, "%s",
-		    page + sizeof(KERN_ERR PRINTK_HEADER));
+	printk(KERN_ERR "%s", page);
 
 
 	/* print failing CCW area */
@@ -540,8 +561,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		act++;
 	}
 	if (len > 0)
-		MESSAGE_LOG(KERN_ERR, "%s",
-			    page + sizeof(KERN_ERR PRINTK_HEADER));
+		printk(KERN_ERR "%s", page);
 	free_page((unsigned long) page);
 }
 
@@ -576,6 +596,7 @@ static struct dasd_discipline dasd_fba_discipline = {
 	.build_cp = dasd_fba_build_cp,
 	.free_cp = dasd_fba_free_cp,
 	.dump_sense = dasd_fba_dump_sense,
+	.dump_sense_dbf = dasd_fba_dump_sense_dbf,
 	.fill_info = dasd_fba_fill_info,
 };
 

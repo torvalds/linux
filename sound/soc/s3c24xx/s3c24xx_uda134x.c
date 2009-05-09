@@ -22,7 +22,7 @@
 #include <sound/s3c24xx_uda134x.h>
 #include <sound/uda134x.h>
 
-#include <asm/plat-s3c24xx/regs-iis.h>
+#include <plat/regs-iis.h>
 
 #include "s3c24xx-pcm.h"
 #include "s3c24xx-i2s.h"

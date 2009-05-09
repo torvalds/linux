@@ -738,7 +738,6 @@ static struct fsg_dev			*the_fsg;
 static struct usb_gadget_driver		fsg_driver;
 
 static void	close_backing_file(struct lun *curlun);
-static void	close_all_backing_files(struct fsg_dev *fsg);
 
 
 /*-------------------------------------------------------------------------*/
@@ -847,13 +846,13 @@ device_desc = {
 	.bLength =		sizeof device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 
 	/* The next three values can be overridden by module parameters */
-	.idVendor =		__constant_cpu_to_le16(DRIVER_VENDOR_ID),
-	.idProduct =		__constant_cpu_to_le16(DRIVER_PRODUCT_ID),
-	.bcdDevice =		__constant_cpu_to_le16(0xffff),
+	.idVendor =		cpu_to_le16(DRIVER_VENDOR_ID),
+	.idProduct =		cpu_to_le16(DRIVER_PRODUCT_ID),
+	.bcdDevice =		cpu_to_le16(0xffff),
 
 	.iManufacturer =	STRING_MANUFACTURER,
 	.iProduct =		STRING_PRODUCT,
@@ -926,7 +925,7 @@ fs_intr_in_desc = {
 
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize =	__constant_cpu_to_le16(2),
+	.wMaxPacketSize =	cpu_to_le16(2),
 	.bInterval =		32,	// frames -> 32 ms
 };
 
@@ -954,7 +953,7 @@ dev_qualifier = {
 	.bLength =		sizeof dev_qualifier,
 	.bDescriptorType =	USB_DT_DEVICE_QUALIFIER,
 
-	.bcdUSB =		__constant_cpu_to_le16(0x0200),
+	.bcdUSB =		cpu_to_le16(0x0200),
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 
 	.bNumConfigurations =	1,
@@ -967,7 +966,7 @@ hs_bulk_in_desc = {
 
 	/* bEndpointAddress copied from fs_bulk_in_desc during fsg_bind() */
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_endpoint_descriptor
@@ -977,7 +976,7 @@ hs_bulk_out_desc = {
 
 	/* bEndpointAddress copied from fs_bulk_out_desc during fsg_bind() */
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 	.bInterval =		1,	// NAK every 1 uframe
 };
 
@@ -988,7 +987,7 @@ hs_intr_in_desc = {
 
 	/* bEndpointAddress copied from fs_intr_in_desc during fsg_bind() */
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize =	__constant_cpu_to_le16(2),
+	.wMaxPacketSize =	cpu_to_le16(2),
 	.bInterval =		9,	// 2**(9-1) = 256 uframes -> 32 ms
 };
 
@@ -1711,7 +1710,9 @@ static int do_write(struct fsg_dev *fsg)
 		curlun->sense_data = SS_WRITE_PROTECTED;
 		return -EINVAL;
 	}
+	spin_lock(&curlun->filp->f_lock);
 	curlun->filp->f_flags &= ~O_SYNC;	// Default is not to wait
+	spin_unlock(&curlun->filp->f_lock);
 
 	/* Get the starting Logical Block Address and check that it's
 	 * not too big */
@@ -1728,8 +1729,11 @@ static int do_write(struct fsg_dev *fsg)
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
 		}
-		if (fsg->cmnd[1] & 0x08)	// FUA
+		if (fsg->cmnd[1] & 0x08) {	// FUA
+			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_SYNC;
+			spin_unlock(&curlun->filp->f_lock);
+		}
 	}
 	if (lba >= curlun->num_sectors) {
 		curlun->sense_data = SS_LOGICAL_BLOCK_ADDRESS_OUT_OF_RANGE;
@@ -2646,7 +2650,7 @@ static int send_status(struct fsg_dev *fsg)
 		struct bulk_cs_wrap	*csw = bh->buf;
 
 		/* Store and send the Bulk-only CSW */
-		csw->Signature = __constant_cpu_to_le32(USB_BULK_CS_SIG);
+		csw->Signature = cpu_to_le32(USB_BULK_CS_SIG);
 		csw->Tag = fsg->tag;
 		csw->Residue = cpu_to_le32(fsg->residue);
 		csw->Status = status;
@@ -3089,7 +3093,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 
 	/* Is the CBW valid? */
 	if (req->actual != USB_BULK_CB_WRAP_LEN ||
-			cbw->Signature != __constant_cpu_to_le32(
+			cbw->Signature != cpu_to_le32(
 				USB_BULK_CB_SIG)) {
 		DBG(fsg, "invalid CBW: len %u sig 0x%x\n",
 				req->actual,
@@ -3588,12 +3592,10 @@ static int fsg_main_thread(void *fsg_)
 	fsg->thread_task = NULL;
 	spin_unlock_irq(&fsg->lock);
 
-	/* In case we are exiting because of a signal, unregister the
-	 * gadget driver and close the backing file. */
-	if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags)) {
+	/* If we are exiting because of a signal, unregister the
+	 * gadget driver. */
+	if (test_and_clear_bit(REGISTERED, &fsg->atomic_bitflags))
 		usb_gadget_unregister_driver(&fsg_driver);
-		close_all_backing_files(fsg);
-	}
 
 	/* Let the unbind and cleanup routines know the thread has exited */
 	complete_and_exit(&fsg->thread_notifier, 0);
@@ -3696,14 +3698,6 @@ static void close_backing_file(struct lun *curlun)
 		fput(curlun->filp);
 		curlun->filp = NULL;
 	}
-}
-
-static void close_all_backing_files(struct fsg_dev *fsg)
-{
-	int	i;
-
-	for (i = 0; i < fsg->nluns; ++i)
-		close_backing_file(&fsg->luns[i]);
 }
 
 
@@ -3840,6 +3834,7 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 		if (curlun->registered) {
 			device_remove_file(&curlun->dev, &dev_attr_ro);
 			device_remove_file(&curlun->dev, &dev_attr_file);
+			close_backing_file(curlun);
 			device_unregister(&curlun->dev);
 			curlun->registered = 0;
 		}
@@ -4185,7 +4180,6 @@ autoconf_fail:
 out:
 	fsg->state = FSG_STATE_TERMINATED;	// The thread is dead
 	fsg_unbind(gadget);
-	close_all_backing_files(fsg);
 	complete(&fsg->thread_notifier);
 	return rc;
 }
@@ -4279,7 +4273,6 @@ static void __exit fsg_cleanup(void)
 	/* Wait for the thread to finish up */
 	wait_for_completion(&fsg->thread_notifier);
 
-	close_all_backing_files(fsg);
 	kref_put(&fsg->ref, fsg_release);
 }
 module_exit(fsg_cleanup);

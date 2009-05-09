@@ -351,7 +351,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	/* register irq handler after we know what name we'll use */
 	ret = request_irq(AT91_ID_SYS, at91_rtc_interrupt,
 				IRQF_DISABLED | IRQF_SHARED,
-				rtc->rtcdev->dev.bus_id, rtc);
+				dev_name(&rtc->rtcdev->dev), rtc);
 	if (ret) {
 		dev_dbg(&pdev->dev, "can't share IRQ %d?\n", AT91_ID_SYS);
 		rtc_device_unregister(rtc->rtcdev);
@@ -366,7 +366,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 
 	if (gpbr_readl(rtc) == 0)
 		dev_warn(&pdev->dev, "%s: SET TIME!\n",
-				rtc->rtcdev->dev.bus_id);
+				dev_name(&rtc->rtcdev->dev));
 
 	return 0;
 

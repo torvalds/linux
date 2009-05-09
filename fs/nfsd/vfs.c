@@ -116,10 +116,15 @@ nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 	}
 	if ((exp->ex_flags & NFSEXP_CROSSMOUNT) || EX_NOHIDE(exp2)) {
 		/* successfully crossed mount point */
-		exp_put(exp);
-		*expp = exp2;
+		/*
+		 * This is subtle: dentry is *not* under mnt at this point.
+		 * The only reason we are safe is that original mnt is pinned
+		 * down by exp, so we should dput before putting exp.
+		 */
 		dput(dentry);
 		*dpp = mounts;
+		exp_put(exp);
+		*expp = exp2;
 	} else {
 		exp_put(exp2);
 		dput(mounts);
@@ -356,7 +361,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 			put_write_access(inode);
 			goto out_nfserr;
 		}
-		DQUOT_INIT(inode);
+		vfs_dq_init(inode);
 	}
 
 	/* sanitize the mode change */
@@ -366,8 +371,9 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	}
 
 	/* Revoke setuid/setgid on chown */
-	if (((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) ||
-	    ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid)) {
+	if (!S_ISDIR(inode->i_mode) &&
+	    (((iap->ia_valid & ATTR_UID) && iap->ia_uid != inode->i_uid) ||
+	     ((iap->ia_valid & ATTR_GID) && iap->ia_gid != inode->i_gid))) {
 		iap->ia_valid |= ATTR_KILL_PRIV;
 		if (iap->ia_valid & ATTR_MODE) {
 			/* we're setting mode too, just clear the s*id bits */
@@ -723,7 +729,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 		else
 			flags = O_WRONLY|O_LARGEFILE;
 
-		DQUOT_INIT(inode);
+		vfs_dq_init(inode);
 	}
 	*filp = dentry_open(dget(dentry), mntget(fhp->fh_export->ex_path.mnt),
 			    flags, cred);
@@ -960,7 +966,7 @@ static void kill_suid(struct dentry *dentry)
 static __be32
 nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 				loff_t offset, struct kvec *vec, int vlen,
-	   			unsigned long cnt, int *stablep)
+				unsigned long *cnt, int *stablep)
 {
 	struct svc_export	*exp;
 	struct dentry		*dentry;
@@ -974,7 +980,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	err = nfserr_perm;
 
 	if ((fhp->fh_export->ex_flags & NFSEXP_MSNFS) &&
-		(!lock_may_write(file->f_path.dentry->d_inode, offset, cnt)))
+		(!lock_may_write(file->f_path.dentry->d_inode, offset, *cnt)))
 		goto out;
 #endif
 
@@ -998,15 +1004,18 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 	if (!EX_ISSYNC(exp))
 		stable = 0;
-	if (stable && !EX_WGATHER(exp))
+	if (stable && !EX_WGATHER(exp)) {
+		spin_lock(&file->f_lock);
 		file->f_flags |= O_SYNC;
+		spin_unlock(&file->f_lock);
+	}
 
 	/* Write the data. */
 	oldfs = get_fs(); set_fs(KERNEL_DS);
 	host_err = vfs_writev(file, (struct iovec __user *)vec, vlen, &offset);
 	set_fs(oldfs);
 	if (host_err >= 0) {
-		nfsdstats.io_write += cnt;
+		nfsdstats.io_write += host_err;
 		fsnotify_modify(file->f_path.dentry);
 	}
 
@@ -1051,9 +1060,10 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	}
 
 	dprintk("nfsd: write complete host_err=%d\n", host_err);
-	if (host_err >= 0)
+	if (host_err >= 0) {
 		err = 0;
-	else 
+		*cnt = host_err;
+	} else
 		err = nfserrno(host_err);
 out:
 	return err;
@@ -1095,7 +1105,7 @@ out:
  */
 __be32
 nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
-		loff_t offset, struct kvec *vec, int vlen, unsigned long cnt,
+		loff_t offset, struct kvec *vec, int vlen, unsigned long *cnt,
 		int *stablep)
 {
 	__be32			err = 0;
@@ -1174,6 +1184,21 @@ nfsd_create_setattr(struct svc_rqst *rqstp, struct svc_fh *resfhp,
 	if (iap->ia_valid)
 		return nfsd_setattr(rqstp, resfhp, iap, 0, (time_t)0);
 	return 0;
+}
+
+/* HPUX client sometimes creates a file in mode 000, and sets size to 0.
+ * setting size to 0 may fail for some specific file systems by the permission
+ * checking which requires WRITE permission but the mode is 000.
+ * we ignore the resizing(to 0) on the just new created file, since the size is
+ * 0 after file created.
+ *
+ * call this only after vfs_create() is called.
+ * */
+static void
+nfsd_check_ignore_resizing(struct iattr *iap)
+{
+	if ((iap->ia_valid & ATTR_SIZE) && (iap->ia_size == 0))
+		iap->ia_valid &= ~ATTR_SIZE;
 }
 
 /*
@@ -1271,6 +1296,8 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	switch (type) {
 	case S_IFREG:
 		host_err = vfs_create(dirp, dchild, iap->ia_mode, NULL);
+		if (!host_err)
+			nfsd_check_ignore_resizing(iap);
 		break;
 	case S_IFDIR:
 		host_err = vfs_mkdir(dirp, dchild, iap->ia_mode);
@@ -1423,6 +1450,8 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		err = nfserrno(nfsd_sync_dir(dentry));
 		/* setattr will sync the child (or not) */
 	}
+
+	nfsd_check_ignore_resizing(iap);
 
 	if (createmode == NFS3_CREATE_EXCLUSIVE) {
 		/* Cram the verifier into atime/mtime */
@@ -1861,8 +1890,8 @@ static int nfsd_buffered_filldir(void *__buf, const char *name, int namlen,
 	return 0;
 }
 
-static int nfsd_buffered_readdir(struct file *file, filldir_t func,
-				 struct readdir_cd *cdp, loff_t *offsetp)
+static __be32 nfsd_buffered_readdir(struct file *file, filldir_t func,
+				    struct readdir_cd *cdp, loff_t *offsetp)
 {
 	struct readdir_data buf;
 	struct buffered_dirent *de;
@@ -1872,11 +1901,12 @@ static int nfsd_buffered_readdir(struct file *file, filldir_t func,
 
 	buf.dirent = (void *)__get_free_page(GFP_KERNEL);
 	if (!buf.dirent)
-		return -ENOMEM;
+		return nfserrno(-ENOMEM);
 
 	offset = *offsetp;
 
 	while (1) {
+		struct inode *dir_inode = file->f_path.dentry->d_inode;
 		unsigned int reclen;
 
 		cdp->err = nfserr_eof; /* will be cleared on successful read */
@@ -1895,26 +1925,38 @@ static int nfsd_buffered_readdir(struct file *file, filldir_t func,
 		if (!size)
 			break;
 
+		/*
+		 * Various filldir functions may end up calling back into
+		 * lookup_one_len() and the file system's ->lookup() method.
+		 * These expect i_mutex to be held, as it would within readdir.
+		 */
+		host_err = mutex_lock_killable(&dir_inode->i_mutex);
+		if (host_err)
+			break;
+
 		de = (struct buffered_dirent *)buf.dirent;
 		while (size > 0) {
 			offset = de->offset;
 
 			if (func(cdp, de->name, de->namlen, de->offset,
 				 de->ino, de->d_type))
-				goto done;
+				break;
 
 			if (cdp->err != nfs_ok)
-				goto done;
+				break;
 
 			reclen = ALIGN(sizeof(*de) + de->namlen,
 				       sizeof(u64));
 			size -= reclen;
 			de = (struct buffered_dirent *)((char *)de + reclen);
 		}
+		mutex_unlock(&dir_inode->i_mutex);
+		if (size > 0) /* We bailed out early */
+			break;
+
 		offset = vfs_llseek(file, 0, SEEK_CUR);
 	}
 
- done:
 	free_page((unsigned long)(buf.dirent));
 
 	if (host_err)

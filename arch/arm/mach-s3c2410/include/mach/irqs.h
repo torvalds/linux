@@ -80,7 +80,7 @@
 #define IRQ_EINT22     S3C2410_IRQ(50)
 #define IRQ_EINT23     S3C2410_IRQ(51)
 
-
+#define IRQ_EINT_BIT(x)	((x) - IRQ_EINT4 + 4)
 #define IRQ_EINT(x)    (((x) >= 4) ? (IRQ_EINT4 + (x) - 4) : (IRQ_EINT0 + (x)))
 
 #define IRQ_LCD_FIFO   S3C2410_IRQ(52)

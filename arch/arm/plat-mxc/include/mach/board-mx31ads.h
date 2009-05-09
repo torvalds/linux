@@ -11,6 +11,8 @@
 #ifndef __ASM_ARCH_MXC_BOARD_MX31ADS_H__
 #define __ASM_ARCH_MXC_BOARD_MX31ADS_H__
 
+#include <mach/hardware.h>
+
 /* Base address of PBC controller */
 #define PBC_BASE_ADDRESS        IO_ADDRESS(CS4_BASE_ADDR)
 /* Offsets for the PBC Controller register */

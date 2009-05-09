@@ -181,7 +181,7 @@ static void ether1394_remove_host(struct hpsb_host *host);
 static void ether1394_host_reset(struct hpsb_host *host);
 
 /* Function for incoming 1394 packets */
-const static struct hpsb_address_ops addr_ops = {
+static const struct hpsb_address_ops addr_ops = {
 	.write =	ether1394_write,
 };
 
@@ -438,7 +438,7 @@ static int eth1394_update(struct unit_directory *ud)
 	return eth1394_new_node(hi, ud);
 }
 
-static struct ieee1394_device_id eth1394_id_table[] = {
+static const struct ieee1394_device_id eth1394_id_table[] = {
 	{
 		.match_flags = (IEEE1394_MATCH_SPECIFIER_ID |
 				IEEE1394_MATCH_VERSION),

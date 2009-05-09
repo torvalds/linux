@@ -79,7 +79,7 @@ xfs_trans_ail_tail(
  * the push is run asynchronously in a separate thread, so we return the tail
  * of the log right now instead of the tail after the push. This means we will
  * either continue right away, or we will sleep waiting on the async thread to
- * do it's work.
+ * do its work.
  *
  * We do this unlocked - we only need to know whether there is anything in the
  * AIL at the time we are called. We don't need to access the contents of
@@ -160,7 +160,7 @@ xfs_trans_ail_cursor_next(
 /*
  * Now that the traversal is complete, we need to remove the cursor
  * from the list of traversing cursors. Avoid removing the embedded
- * push cursor, but use the fact it is alway present to make the
+ * push cursor, but use the fact it is always present to make the
  * list deletion simple.
  */
 void

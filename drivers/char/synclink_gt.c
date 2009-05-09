@@ -60,6 +60,7 @@
 #include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/mm.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
@@ -154,7 +155,6 @@ static void tx_hold(struct tty_struct *tty);
 static void tx_release(struct tty_struct *tty);
 
 static int  ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd, unsigned long arg);
-static int  read_proc(char *page, char **start, off_t off, int count,int *eof, void *data);
 static int  chars_in_buffer(struct tty_struct *tty);
 static void throttle(struct tty_struct * tty);
 static void unthrottle(struct tty_struct * tty);
@@ -298,6 +298,7 @@ struct slgt_info {
 
 	unsigned int rbuf_fill_level;
 	unsigned int if_mode;
+	unsigned int base_clock;
 
 	/* device status */
 
@@ -1156,22 +1157,26 @@ static long set_params32(struct slgt_info *info, struct MGSL_PARAMS32 __user *ne
 		return -EFAULT;
 
 	spin_lock(&info->lock);
-	info->params.mode            = tmp_params.mode;
-	info->params.loopback        = tmp_params.loopback;
-	info->params.flags           = tmp_params.flags;
-	info->params.encoding        = tmp_params.encoding;
-	info->params.clock_speed     = tmp_params.clock_speed;
-	info->params.addr_filter     = tmp_params.addr_filter;
-	info->params.crc_type        = tmp_params.crc_type;
-	info->params.preamble_length = tmp_params.preamble_length;
-	info->params.preamble        = tmp_params.preamble;
-	info->params.data_rate       = tmp_params.data_rate;
-	info->params.data_bits       = tmp_params.data_bits;
-	info->params.stop_bits       = tmp_params.stop_bits;
-	info->params.parity          = tmp_params.parity;
+	if (tmp_params.mode == MGSL_MODE_BASE_CLOCK) {
+		info->base_clock = tmp_params.clock_speed;
+	} else {
+		info->params.mode            = tmp_params.mode;
+		info->params.loopback        = tmp_params.loopback;
+		info->params.flags           = tmp_params.flags;
+		info->params.encoding        = tmp_params.encoding;
+		info->params.clock_speed     = tmp_params.clock_speed;
+		info->params.addr_filter     = tmp_params.addr_filter;
+		info->params.crc_type        = tmp_params.crc_type;
+		info->params.preamble_length = tmp_params.preamble_length;
+		info->params.preamble        = tmp_params.preamble;
+		info->params.data_rate       = tmp_params.data_rate;
+		info->params.data_bits       = tmp_params.data_bits;
+		info->params.stop_bits       = tmp_params.stop_bits;
+		info->params.parity          = tmp_params.parity;
+	}
 	spin_unlock(&info->lock);
 
- 	change_params(info);
+	program_hw(info);
 
 	return 0;
 }
@@ -1229,13 +1234,12 @@ static long slgt_compat_ioctl(struct tty_struct *tty, struct file *file,
 /*
  * proc fs support
  */
-static inline int line_info(char *buf, struct slgt_info *info)
+static inline void line_info(struct seq_file *m, struct slgt_info *info)
 {
 	char stat_buf[30];
-	int ret;
 	unsigned long flags;
 
-	ret = sprintf(buf, "%s: IO=%08X IRQ=%d MaxFrameSize=%u\n",
+	seq_printf(m, "%s: IO=%08X IRQ=%d MaxFrameSize=%u\n",
 		      info->device_name, info->phys_reg_addr,
 		      info->irq_level, info->max_frame_size);
 
@@ -1260,74 +1264,69 @@ static inline int line_info(char *buf, struct slgt_info *info)
 		strcat(stat_buf, "|RI");
 
 	if (info->params.mode != MGSL_MODE_ASYNC) {
-		ret += sprintf(buf+ret, "\tHDLC txok:%d rxok:%d",
+		seq_printf(m, "\tHDLC txok:%d rxok:%d",
 			       info->icount.txok, info->icount.rxok);
 		if (info->icount.txunder)
-			ret += sprintf(buf+ret, " txunder:%d", info->icount.txunder);
+			seq_printf(m, " txunder:%d", info->icount.txunder);
 		if (info->icount.txabort)
-			ret += sprintf(buf+ret, " txabort:%d", info->icount.txabort);
+			seq_printf(m, " txabort:%d", info->icount.txabort);
 		if (info->icount.rxshort)
-			ret += sprintf(buf+ret, " rxshort:%d", info->icount.rxshort);
+			seq_printf(m, " rxshort:%d", info->icount.rxshort);
 		if (info->icount.rxlong)
-			ret += sprintf(buf+ret, " rxlong:%d", info->icount.rxlong);
+			seq_printf(m, " rxlong:%d", info->icount.rxlong);
 		if (info->icount.rxover)
-			ret += sprintf(buf+ret, " rxover:%d", info->icount.rxover);
+			seq_printf(m, " rxover:%d", info->icount.rxover);
 		if (info->icount.rxcrc)
-			ret += sprintf(buf+ret, " rxcrc:%d", info->icount.rxcrc);
+			seq_printf(m, " rxcrc:%d", info->icount.rxcrc);
 	} else {
-		ret += sprintf(buf+ret, "\tASYNC tx:%d rx:%d",
+		seq_printf(m, "\tASYNC tx:%d rx:%d",
 			       info->icount.tx, info->icount.rx);
 		if (info->icount.frame)
-			ret += sprintf(buf+ret, " fe:%d", info->icount.frame);
+			seq_printf(m, " fe:%d", info->icount.frame);
 		if (info->icount.parity)
-			ret += sprintf(buf+ret, " pe:%d", info->icount.parity);
+			seq_printf(m, " pe:%d", info->icount.parity);
 		if (info->icount.brk)
-			ret += sprintf(buf+ret, " brk:%d", info->icount.brk);
+			seq_printf(m, " brk:%d", info->icount.brk);
 		if (info->icount.overrun)
-			ret += sprintf(buf+ret, " oe:%d", info->icount.overrun);
+			seq_printf(m, " oe:%d", info->icount.overrun);
 	}
 
 	/* Append serial signal status to end */
-	ret += sprintf(buf+ret, " %s\n", stat_buf+1);
+	seq_printf(m, " %s\n", stat_buf+1);
 
-	ret += sprintf(buf+ret, "\ttxactive=%d bh_req=%d bh_run=%d pending_bh=%x\n",
+	seq_printf(m, "\ttxactive=%d bh_req=%d bh_run=%d pending_bh=%x\n",
 		       info->tx_active,info->bh_requested,info->bh_running,
 		       info->pending_bh);
-
-	return ret;
 }
 
 /* Called to print information about devices
  */
-static int read_proc(char *page, char **start, off_t off, int count,
-		     int *eof, void *data)
+static int synclink_gt_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0, l;
-	off_t	begin = 0;
 	struct slgt_info *info;
 
-	len += sprintf(page, "synclink_gt driver\n");
+	seq_puts(m, "synclink_gt driver\n");
 
 	info = slgt_device_list;
 	while( info ) {
-		l = line_info(page + len, info);
-		len += l;
-		if (len+begin > off+count)
-			goto done;
-		if (len+begin < off) {
-			begin += len;
-			len = 0;
-		}
+		line_info(m, info);
 		info = info->next_device;
 	}
-
-	*eof = 1;
-done:
-	if (off >= len+begin)
-		return 0;
-	*start = page + (off-begin);
-	return ((count < begin+len-off) ? count : begin+len-off);
+	return 0;
 }
+
+static int synclink_gt_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, synclink_gt_proc_show, NULL);
+}
+
+static const struct file_operations synclink_gt_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= synclink_gt_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*
  * return count of bytes in transmit buffer
@@ -1763,9 +1762,16 @@ static void hdlcdev_rx(struct slgt_info *info, char *buf, int size)
 	dev->stats.rx_bytes += size;
 
 	netif_rx(skb);
-
-	dev->last_rx = jiffies;
 }
+
+static const struct net_device_ops hdlcdev_ops = {
+	.ndo_open       = hdlcdev_open,
+	.ndo_stop       = hdlcdev_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = hdlcdev_ioctl,
+	.ndo_tx_timeout = hdlcdev_tx_timeout,
+};
 
 /**
  * called by device driver when adding device instance
@@ -1794,11 +1800,8 @@ static int hdlcdev_init(struct slgt_info *info)
 	dev->irq       = info->irq_level;
 
 	/* network layer callbacks and settings */
-	dev->do_ioctl       = hdlcdev_ioctl;
-	dev->open           = hdlcdev_open;
-	dev->stop           = hdlcdev_close;
-	dev->tx_timeout     = hdlcdev_tx_timeout;
-	dev->watchdog_timeo = 10*HZ;
+	dev->netdev_ops	    = &hdlcdev_ops;
+	dev->watchdog_timeo = 10 * HZ;
 	dev->tx_queue_len   = 50;
 
 	/* generic HDLC layer callbacks and settings */
@@ -2561,10 +2564,13 @@ static int set_params(struct slgt_info *info, MGSL_PARAMS __user *new_params)
 		return -EFAULT;
 
 	spin_lock_irqsave(&info->lock, flags);
-	memcpy(&info->params, &tmp_params, sizeof(MGSL_PARAMS));
+	if (tmp_params.mode == MGSL_MODE_BASE_CLOCK)
+		info->base_clock = tmp_params.clock_speed;
+	else
+		memcpy(&info->params, &tmp_params, sizeof(MGSL_PARAMS));
 	spin_unlock_irqrestore(&info->lock, flags);
 
- 	change_params(info);
+	program_hw(info);
 
 	return 0;
 }
@@ -3434,6 +3440,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
+		info->base_clock = 14745600;
 		info->rbuf_fill_level = DMABUFSIZE;
 		info->port.close_delay = 5*HZ/10;
 		info->port.closing_wait = 30*HZ;
@@ -3558,13 +3565,13 @@ static const struct tty_operations ops = {
 	.send_xchar = send_xchar,
 	.break_ctl = set_break,
 	.wait_until_sent = wait_until_sent,
- 	.read_proc = read_proc,
 	.set_termios = set_termios,
 	.stop = tx_hold,
 	.start = tx_release,
 	.hangup = hangup,
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
+	.proc_fops = &synclink_gt_proc_fops,
 };
 
 static void slgt_cleanup(void)
@@ -3781,7 +3788,7 @@ static void enable_loopback(struct slgt_info *info)
 static void set_rate(struct slgt_info *info, u32 rate)
 {
 	unsigned int div;
-	static unsigned int osc = 14745600;
+	unsigned int osc = info->base_clock;
 
 	/* div = osc/rate - 1
 	 *
@@ -4085,17 +4092,26 @@ static void async_mode(struct slgt_info *info)
 	 * 06  CTS      IRQ enable
 	 * 05  DCD      IRQ enable
 	 * 04  RI       IRQ enable
-	 * 03  reserved, must be zero
+	 * 03  0=16x sampling, 1=8x sampling
 	 * 02  1=txd->rxd internal loopback enable
 	 * 01  reserved, must be zero
 	 * 00  1=master IRQ enable
 	 */
 	val = BIT15 + BIT14 + BIT0;
+	/* JCR[8] : 1 = x8 async mode feature available */
+	if ((rd_reg32(info, JCR) & BIT8) && info->params.data_rate &&
+	    ((info->base_clock < (info->params.data_rate * 16)) ||
+	     (info->base_clock % (info->params.data_rate * 16)))) {
+		/* use 8x sampling */
+		val |= BIT3;
+		set_rate(info, info->params.data_rate * 8);
+	} else {
+		/* use 16x sampling */
+		set_rate(info, info->params.data_rate * 16);
+	}
 	wr_reg16(info, SCR, val);
 
 	slgt_irq_on(info, IRQ_RXBREAK | IRQ_RXOVER);
-
-	set_rate(info, info->params.data_rate * 16);
 
 	if (info->params.loopback)
 		enable_loopback(info);

@@ -86,7 +86,7 @@ void __adfs_error(struct super_block *sb, const char *function,
 /* dir_*.c */
 extern const struct inode_operations adfs_dir_inode_operations;
 extern const struct file_operations adfs_dir_operations;
-extern struct dentry_operations adfs_dentry_operations;
+extern const struct dentry_operations adfs_dentry_operations;
 extern struct adfs_dir_ops adfs_f_dir_ops;
 extern struct adfs_dir_ops adfs_fplus_dir_ops;
 

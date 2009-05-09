@@ -134,7 +134,10 @@ irqreturn_t timer_interrupt(int irq, void *dummy)
 
 	write_seqlock(&xtime_lock);
 #if defined(CONFIG_TICK_SOURCE_SYSTMR0) && !defined(CONFIG_IPIPE)
-/* FIXME: Here TIMIL0 is not set when IPIPE enabled, why? */
+	/*
+	 * TIMIL0 is latched in __ipipe_grab_irq() when the I-Pipe is
+	 * enabled.
+	 */
 	if (get_gptimer_status(0) & TIMER_STATUS_TIMIL0) {
 #endif
 		do_timer(1);

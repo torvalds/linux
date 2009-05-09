@@ -198,9 +198,6 @@ static int mknod_ptmx(struct super_block *sb)
 
 	fsi->ptmx_dentry = dentry;
 	rc = 0;
-
-	printk(KERN_DEBUG "Created ptmx node in devpts ino %lu\n",
-			inode->i_ino);
 out:
 	mutex_unlock(&root->d_inode->i_mutex);
 	return rc;
@@ -325,179 +322,81 @@ static int compare_init_pts_sb(struct super_block *s, void *p)
 }
 
 /*
- * Safely parse the mount options in @data and update @opts.
+ * devpts_get_sb()
  *
- * devpts ends up parsing options two times during mount, due to the
- * two modes of operation it supports. The first parse occurs in
- * devpts_get_sb() when determining the mode (single-instance or
- * multi-instance mode). The second parse happens in devpts_remount()
- * or new_pts_mount() depending on the mode.
+ *     If the '-o newinstance' mount option was specified, mount a new
+ *     (private) instance of devpts.  PTYs created in this instance are
+ *     independent of the PTYs in other devpts instances.
  *
- * Parsing of options modifies the @data making subsequent parsing
- * incorrect. So make a local copy of @data and parse it.
+ *     If the '-o newinstance' option was not specified, mount/remount the
+ *     initial kernel mount of devpts.  This type of mount gives the
+ *     legacy, single-instance semantics.
  *
- * Return: 0 On success, -errno on error
- */
-static int safe_parse_mount_options(void *data, struct pts_mount_opts *opts)
-{
-	int rc;
-	void *datacp;
-
-	if (!data)
-		return 0;
-
-	/* Use kstrdup() ?  */
-	datacp = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!datacp)
-		return -ENOMEM;
-
-	memcpy(datacp, data, PAGE_SIZE);
-	rc = parse_mount_options((char *)datacp, PARSE_MOUNT, opts);
-	kfree(datacp);
-
-	return rc;
-}
-
-/*
- * Mount a new (private) instance of devpts.  PTYs created in this
- * instance are independent of the PTYs in other devpts instances.
- */
-static int new_pts_mount(struct file_system_type *fs_type, int flags,
-		void *data, struct vfsmount *mnt)
-{
-	int err;
-	struct pts_fs_info *fsi;
-	struct pts_mount_opts *opts;
-
-	printk(KERN_NOTICE "devpts: newinstance mount\n");
-
-	err = get_sb_nodev(fs_type, flags, data, devpts_fill_super, mnt);
-	if (err)
-		return err;
-
-	fsi = DEVPTS_SB(mnt->mnt_sb);
-	opts = &fsi->mount_opts;
-
-	err = parse_mount_options(data, PARSE_MOUNT, opts);
-	if (err)
-		goto fail;
-
-	err = mknod_ptmx(mnt->mnt_sb);
-	if (err)
-		goto fail;
-
-	return 0;
-
-fail:
-	dput(mnt->mnt_sb->s_root);
-	deactivate_super(mnt->mnt_sb);
-	return err;
-}
-
-/*
- * Check if 'newinstance' mount option was specified in @data.
+ *     The 'newinstance' option is needed to support multiple namespace
+ *     semantics in devpts while preserving backward compatibility of the
+ *     current 'single-namespace' semantics. i.e all mounts of devpts
+ *     without the 'newinstance' mount option should bind to the initial
+ *     kernel mount, like get_sb_single().
  *
- * Return: -errno  	on error (eg: invalid mount options specified)
- * 	 : 1 		if 'newinstance' mount option was specified
- * 	 : 0 		if 'newinstance' mount option was NOT specified
- */
-static int is_new_instance_mount(void *data)
-{
-	int rc;
-	struct pts_mount_opts opts;
-
-	if (!data)
-		return 0;
-
-	rc = safe_parse_mount_options(data, &opts);
-	if (!rc)
-		rc = opts.newinstance;
-
-	return rc;
-}
-
-/*
- * get_init_pts_sb()
+ *     Mounts with 'newinstance' option create a new, private namespace.
  *
- *     This interface is needed to support multiple namespace semantics in
- *     devpts while preserving backward compatibility of the current 'single-
- *     namespace' semantics. i.e all mounts of devpts without the 'newinstance'
- *     mount option should bind to the initial kernel mount, like
- *     get_sb_single().
+ *     NOTE:
  *
- *     Mounts with 'newinstance' option create a new private namespace.
- *
- *     But for single-mount semantics, devpts cannot use get_sb_single(),
+ *     For single-mount semantics, devpts cannot use get_sb_single(),
  *     because get_sb_single()/sget() find and use the super-block from
  *     the most recent mount of devpts. But that recent mount may be a
  *     'newinstance' mount and get_sb_single() would pick the newinstance
  *     super-block instead of the initial super-block.
- *
- *     This interface is identical to get_sb_single() except that it
- *     consistently selects the 'single-namespace' superblock even in the
- *     presence of the private namespace (i.e 'newinstance') super-blocks.
  */
-static int get_init_pts_sb(struct file_system_type *fs_type, int flags,
-		void *data, struct vfsmount *mnt)
+static int devpts_get_sb(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	struct super_block *s;
 	int error;
+	struct pts_mount_opts opts;
+	struct super_block *s;
 
-	s = sget(fs_type, compare_init_pts_sb, set_anon_super, NULL);
+	memset(&opts, 0, sizeof(opts));
+	if (data) {
+		error = parse_mount_options(data, PARSE_MOUNT, &opts);
+		if (error)
+			return error;
+	}
+
+	if (opts.newinstance)
+		s = sget(fs_type, NULL, set_anon_super, NULL);
+	else
+		s = sget(fs_type, compare_init_pts_sb, set_anon_super, NULL);
+
 	if (IS_ERR(s))
 		return PTR_ERR(s);
 
 	if (!s->s_root) {
 		s->s_flags = flags;
 		error = devpts_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
-		if (error) {
-			up_write(&s->s_umount);
-			deactivate_super(s);
-			return error;
-		}
+		if (error)
+			goto out_undo_sget;
 		s->s_flags |= MS_ACTIVE;
 	}
-	do_remount_sb(s, flags, data, 0);
-	return simple_set_mnt(mnt, s);
+
+	simple_set_mnt(mnt, s);
+
+	memcpy(&(DEVPTS_SB(s))->mount_opts, &opts, sizeof(opts));
+
+	error = mknod_ptmx(s);
+	if (error)
+		goto out_dput;
+
+	return 0;
+
+out_dput:
+	dput(s->s_root);
+
+out_undo_sget:
+	up_write(&s->s_umount);
+	deactivate_super(s);
+	return error;
 }
 
-/*
- * Mount or remount the initial kernel mount of devpts. This type of
- * mount maintains the legacy, single-instance semantics, while the
- * kernel still allows multiple-instances.
- */
-static int init_pts_mount(struct file_system_type *fs_type, int flags,
-		void *data, struct vfsmount *mnt)
-{
-	int err;
-
-	err = get_init_pts_sb(fs_type, flags, data, mnt);
-	if (err)
-		return err;
-
-	err = mknod_ptmx(mnt->mnt_sb);
-	if (err) {
-		dput(mnt->mnt_sb->s_root);
-		deactivate_super(mnt->mnt_sb);
-	}
-
-	return err;
-}
-
-static int devpts_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
-{
-	int new;
-
-	new = is_new_instance_mount(data);
-	if (new < 0)
-		return new;
-
-	if (new)
-		return new_pts_mount(fs_type, flags, data, mnt);
-
-	return init_pts_mount(fs_type, flags, data, mnt);
-}
 #else
 /*
  * This supports only the legacy single-instance semantics (no

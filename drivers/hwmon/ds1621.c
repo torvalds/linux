@@ -81,69 +81,82 @@ struct ds1621_data {
 	u8 conf;			/* Register encoding, combined */
 };
 
-static int ds1621_probe(struct i2c_client *client,
-			const struct i2c_device_id *id);
-static int ds1621_detect(struct i2c_client *client, int kind,
-			 struct i2c_board_info *info);
-static void ds1621_init_client(struct i2c_client *client);
-static int ds1621_remove(struct i2c_client *client);
-static struct ds1621_data *ds1621_update_client(struct device *dev);
-
-static const struct i2c_device_id ds1621_id[] = {
-	{ "ds1621", ds1621 },
-	{ "ds1625", ds1621 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, ds1621_id);
-
-/* This is the driver that will be inserted */
-static struct i2c_driver ds1621_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "ds1621",
-	},
-	.probe		= ds1621_probe,
-	.remove		= ds1621_remove,
-	.id_table	= ds1621_id,
-	.detect		= ds1621_detect,
-	.address_data	= &addr_data,
-};
-
-/* All registers are word-sized, except for the configuration register.
+/* Temperature registers are word-sized.
    DS1621 uses a high-byte first convention, which is exactly opposite to
    the SMBus standard. */
-static int ds1621_read_value(struct i2c_client *client, u8 reg)
+static int ds1621_read_temp(struct i2c_client *client, u8 reg)
 {
-	if (reg == DS1621_REG_CONF)
-		return i2c_smbus_read_byte_data(client, reg);
-	else
-		return swab16(i2c_smbus_read_word_data(client, reg));
+	int ret;
+
+	ret = i2c_smbus_read_word_data(client, reg);
+	if (ret < 0)
+		return ret;
+	return swab16(ret);
 }
 
-static int ds1621_write_value(struct i2c_client *client, u8 reg, u16 value)
+static int ds1621_write_temp(struct i2c_client *client, u8 reg, u16 value)
 {
-	if (reg == DS1621_REG_CONF)
-		return i2c_smbus_write_byte_data(client, reg, value);
-	else
-		return i2c_smbus_write_word_data(client, reg, swab16(value));
+	return i2c_smbus_write_word_data(client, reg, swab16(value));
 }
 
 static void ds1621_init_client(struct i2c_client *client)
 {
-	int reg = ds1621_read_value(client, DS1621_REG_CONF);
+	u8 conf, new_conf;
+
+	new_conf = conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
 	/* switch to continuous conversion mode */
-	reg &= ~ DS1621_REG_CONFIG_1SHOT;
+	new_conf &= ~DS1621_REG_CONFIG_1SHOT;
 
 	/* setup output polarity */
 	if (polarity == 0)
-		reg &= ~DS1621_REG_CONFIG_POLARITY;
+		new_conf &= ~DS1621_REG_CONFIG_POLARITY;
 	else if (polarity == 1)
-		reg |= DS1621_REG_CONFIG_POLARITY;
+		new_conf |= DS1621_REG_CONFIG_POLARITY;
 	
-	ds1621_write_value(client, DS1621_REG_CONF, reg);
+	if (conf != new_conf)
+		i2c_smbus_write_byte_data(client, DS1621_REG_CONF, new_conf);
 	
 	/* start conversion */
 	i2c_smbus_write_byte(client, DS1621_COM_START);
+}
+
+static struct ds1621_data *ds1621_update_client(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1621_data *data = i2c_get_clientdata(client);
+	u8 new_conf;
+
+	mutex_lock(&data->update_lock);
+
+	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
+	    || !data->valid) {
+		int i;
+
+		dev_dbg(&client->dev, "Starting ds1621 update\n");
+
+		data->conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
+
+		for (i = 0; i < ARRAY_SIZE(data->temp); i++)
+			data->temp[i] = ds1621_read_temp(client,
+							 DS1621_REG_TEMP[i]);
+
+		/* reset alarms if necessary */
+		new_conf = data->conf;
+		if (data->temp[0] > data->temp[1])	/* input > min */
+			new_conf &= ~DS1621_ALARM_TEMP_LOW;
+		if (data->temp[0] < data->temp[2])	/* input < max */
+			new_conf &= ~DS1621_ALARM_TEMP_HIGH;
+		if (data->conf != new_conf)
+			i2c_smbus_write_byte_data(client, DS1621_REG_CONF,
+						  new_conf);
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
 }
 
 static ssize_t show_temp(struct device *dev, struct device_attribute *da,
@@ -160,13 +173,13 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct i2c_client *client = to_i2c_client(dev);
-	struct ds1621_data *data = ds1621_update_client(dev);
+	struct ds1621_data *data = i2c_get_clientdata(client);
 	u16 val = LM75_TEMP_TO_REG(simple_strtol(buf, NULL, 10));
 
 	mutex_lock(&data->update_lock);
 	data->temp[attr->index] = val;
-	ds1621_write_value(client, DS1621_REG_TEMP[attr->index],
-			   data->temp[attr->index]);
+	ds1621_write_temp(client, DS1621_REG_TEMP[attr->index],
+			  data->temp[attr->index]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -228,13 +241,14 @@ static int ds1621_detect(struct i2c_client *client, int kind,
 		/* The NVB bit should be low if no EEPROM write has been 
 		   requested during the latest 10ms, which is highly 
 		   improbable in our case. */
-		conf = ds1621_read_value(client, DS1621_REG_CONF);
-		if (conf & DS1621_REG_CONFIG_NVB)
+		conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
+		if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
 			return -ENODEV;
 		/* The 7 lowest bits of a temperature should always be 0. */
 		for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
-			temp = ds1621_read_value(client, DS1621_REG_TEMP[i]);
-			if (temp & 0x007f)
+			temp = i2c_smbus_read_word_data(client,
+							DS1621_REG_TEMP[i]);
+			if (temp < 0 || (temp & 0x7f00))
 				return -ENODEV;
 		}
 	}
@@ -294,45 +308,25 @@ static int ds1621_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id ds1621_id[] = {
+	{ "ds1621", ds1621 },
+	{ "ds1625", ds1621 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, ds1621_id);
 
-static struct ds1621_data *ds1621_update_client(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct ds1621_data *data = i2c_get_clientdata(client);
-	u8 new_conf;
-
-	mutex_lock(&data->update_lock);
-
-	if (time_after(jiffies, data->last_updated + HZ + HZ / 2)
-	    || !data->valid) {
-		int i;
-
-		dev_dbg(&client->dev, "Starting ds1621 update\n");
-
-		data->conf = ds1621_read_value(client, DS1621_REG_CONF);
-
-		for (i = 0; i < ARRAY_SIZE(data->temp); i++)
-			data->temp[i] = ds1621_read_value(client,
-							  DS1621_REG_TEMP[i]);
-
-		/* reset alarms if necessary */
-		new_conf = data->conf;
-		if (data->temp[0] > data->temp[1])	/* input > min */
-			new_conf &= ~DS1621_ALARM_TEMP_LOW;
-		if (data->temp[0] < data->temp[2])	/* input < max */
-			new_conf &= ~DS1621_ALARM_TEMP_HIGH;
-		if (data->conf != new_conf)
-			ds1621_write_value(client, DS1621_REG_CONF,
-					   new_conf);
-
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+/* This is the driver that will be inserted */
+static struct i2c_driver ds1621_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "ds1621",
+	},
+	.probe		= ds1621_probe,
+	.remove		= ds1621_remove,
+	.id_table	= ds1621_id,
+	.detect		= ds1621_detect,
+	.address_data	= &addr_data,
+};
 
 static int __init ds1621_init(void)
 {

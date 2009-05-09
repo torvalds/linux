@@ -321,7 +321,8 @@ void snd_seq_prioq_leave(struct snd_seq_prioq * f, int client, int timestamp)
 			freeprev = cell;
 		} else {
 #if 0
-			printk("type = %i, source = %i, dest = %i, client = %i\n",
+			printk(KERN_DEBUG "type = %i, source = %i, dest = %i, "
+			       "client = %i\n",
 				cell->event.type,
 				cell->event.source.client,
 				cell->event.dest.client,

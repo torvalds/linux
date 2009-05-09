@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -418,6 +418,17 @@ struct queue_entry_priv_usb_bcn {
  */
 void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 			     const enum data_queue_qid qid);
+
+/**
+ * rt2x00usb_kill_tx_queue - Kill data queue
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ * @qid: Data queue to kill
+ *
+ * This will walk through all entries of the queue and kill all
+ * previously kicked frames before they can be send.
+ */
+void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
+			      const enum data_queue_qid qid);
 
 /*
  * Device initialization handlers.

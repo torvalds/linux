@@ -28,7 +28,7 @@ struct pt_regs {
 	int  xds;
 	int  xes;
 	int  xfs;
-	/* int  gs; */
+	int  xgs;
 	long orig_eax;
 	long eip;
 	int  xcs;
@@ -50,7 +50,7 @@ struct pt_regs {
 	unsigned long ds;
 	unsigned long es;
 	unsigned long fs;
-	/* int  gs; */
+	unsigned long gs;
 	unsigned long orig_ax;
 	unsigned long ip;
 	unsigned long cs;

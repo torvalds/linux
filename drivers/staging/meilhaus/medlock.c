@@ -65,7 +65,7 @@ int me_dlock_exit(struct me_dlock *dlock, struct file *filep)
 }
 
 int me_dlock_lock(struct me_dlock *dlock,
-		  struct file *filep, int lock, int flags, me_slist_t * slist)
+		  struct file *filep, int lock, int flags, me_slist_t *slist)
 {
 	int err = ME_ERRNO_SUCCESS;
 	int i;
@@ -183,7 +183,7 @@ void me_dlock_deinit(struct me_dlock *dlock)
 	PDEBUG_LOCKS("executed.\n");
 }
 
-int me_dlock_init(me_dlock_t * dlock)
+int me_dlock_init(me_dlock_t *dlock)
 {
 	PDEBUG_LOCKS("executed.\n");
 

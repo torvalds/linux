@@ -27,8 +27,8 @@ ENTRY(lguest_entry)
 	/* We make the "initialization" hypercall now to tell the Host about
 	 * us, and also find out where it put our page tables. */
 	movl $LHCALL_LGUEST_INIT, %eax
-	movl $lguest_data - __PAGE_OFFSET, %edx
-	int $LGUEST_TRAP_ENTRY
+	movl $lguest_data - __PAGE_OFFSET, %ebx
+	.byte 0x0f,0x01,0xc1 /* KVM_HYPERCALL */
 
 	/* Set up the initial stack so we can run C code. */
 	movl $(init_thread_union+THREAD_SIZE),%esp

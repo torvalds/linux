@@ -41,6 +41,8 @@
 #include <mach/gpmc.h>
 #include <mach/nand.h>
 #include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/timer-gp.h>
 
 #include "mmc-twl4030.h"
 
@@ -175,17 +177,19 @@ static int __init omap3_beagle_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 2600, beagle_i2c_boardinfo,
 			ARRAY_SIZE(beagle_i2c_boardinfo));
-#ifdef CONFIG_I2C2_OMAP_BEAGLE
-	omap_register_i2c_bus(2, 400, NULL, 0);
-#endif
-	omap_register_i2c_bus(3, 400, NULL, 0);
+	/* Bus 3 is attached to the DVI port where devices like the pico DLP
+	 * projector don't work reliably with 400kHz */
+	omap_register_i2c_bus(3, 100, NULL, 0);
 	return 0;
 }
 
 static void __init omap3_beagle_init_irq(void)
 {
-	omap2_init_common_hw();
+	omap2_init_common_hw(NULL);
 	omap_init_irq();
+#ifdef CONFIG_OMAP_32K_TIMER
+	omap2_gp_clockevent_set_gptimer(12);
+#endif
 	omap_gpio_init();
 }
 
@@ -314,6 +318,7 @@ static void __init omap3_beagle_init(void)
 	/* REVISIT leave DVI powered down until it's needed ... */
 	gpio_direction_output(170, true);
 
+	usb_musb_init();
 	omap3beagle_flash_init();
 }
 

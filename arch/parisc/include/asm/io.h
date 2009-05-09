@@ -174,15 +174,48 @@ static inline void __raw_writeq(unsigned long long b, volatile void __iomem *add
 	*(volatile unsigned long long __force *) addr = b;
 }
 
-/* readb can never be const, so use __fswab instead of le*_to_cpu */
-#define readb(addr) __raw_readb(addr)
-#define readw(addr) le16_to_cpu(__raw_readw(addr))
-#define readl(addr) le32_to_cpu(__raw_readl(addr))
-#define readq(addr) le64_to_cpu(__raw_readq(addr))
-#define writeb(b, addr) __raw_writeb(b, addr)
-#define writew(b, addr) __raw_writew(cpu_to_le16(b), addr)
-#define writel(b, addr) __raw_writel(cpu_to_le32(b), addr)
-#define writeq(b, addr) __raw_writeq(cpu_to_le64(b), addr)
+static inline unsigned char readb(const volatile void __iomem *addr)
+{
+	return __raw_readb(addr);
+}
+static inline unsigned short readw(const volatile void __iomem *addr)
+{
+	return le16_to_cpu(__raw_readw(addr));
+}
+static inline unsigned int readl(const volatile void __iomem *addr)
+{
+	return le32_to_cpu(__raw_readl(addr));
+}
+static inline unsigned long long readq(const volatile void __iomem *addr)
+{
+	return le64_to_cpu(__raw_readq(addr));
+}
+
+static inline void writeb(unsigned char b, volatile void __iomem *addr)
+{
+	__raw_writeb(b, addr);
+}
+static inline void writew(unsigned short w, volatile void __iomem *addr)
+{
+	__raw_writew(cpu_to_le16(w), addr);
+}
+static inline void writel(unsigned int l, volatile void __iomem *addr)
+{
+	__raw_writel(cpu_to_le32(l), addr);
+}
+static inline void writeq(unsigned long long q, volatile void __iomem *addr)
+{
+	__raw_writeq(cpu_to_le64(q), addr);
+}
+
+#define	readb	readb
+#define	readw	readw
+#define	readl	readl
+#define readq	readq
+#define writeb	writeb
+#define writew	writew
+#define writel	writel
+#define writeq	writeq
 
 #define readb_relaxed(addr) readb(addr)
 #define readw_relaxed(addr) readw(addr)

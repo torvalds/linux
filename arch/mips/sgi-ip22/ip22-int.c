@@ -155,7 +155,7 @@ static void indy_buserror_irq(void)
 	int irq = SGI_BUSERR_IRQ;
 
 	irq_enter();
-	kstat_this_cpu.irqs[irq]++;
+	kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 	ip22_be_interrupt(irq);
 	irq_exit();
 }

@@ -369,8 +369,6 @@ struct c2_port {
 	unsigned long mem_size;
 
 	u32 rx_buf_size;
-
-	struct net_device_stats netstats;
 };
 
 /*

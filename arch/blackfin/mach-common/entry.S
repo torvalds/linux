@@ -600,6 +600,19 @@ ENTRY(_system_call)
 	p2 = [p2];
 
 	[p2+(TASK_THREAD+THREAD_KSP)] = sp;
+#ifdef CONFIG_IPIPE
+	r0 = sp;
+	SP += -12;
+	call ___ipipe_syscall_root;
+	SP += 12;
+	cc = r0 == 1;
+	if cc jump .Lsyscall_really_exit;
+	cc = r0 == -1;
+	if cc jump .Lresume_userspace;
+	r3 = [sp + PT_R3];
+	r4 = [sp + PT_R4];
+	p0 = [sp + PT_ORIG_P0];
+#endif /* CONFIG_IPIPE */
 
 	/* Check the System Call */
 	r7 = __NR_syscall;
@@ -654,6 +667,17 @@ ENTRY(_system_call)
 	r7 =  r7 & r4;
 
 .Lsyscall_resched:
+#ifdef CONFIG_IPIPE
+	cc = BITTST(r7, TIF_IRQ_SYNC);
+	if !cc jump .Lsyscall_no_irqsync;
+	[--sp] = reti;
+	r0 = [sp++];
+	SP += -12;
+	call ___ipipe_sync_root;
+	SP += 12;
+	jump .Lresume_userspace_1;
+.Lsyscall_no_irqsync:
+#endif
 	cc = BITTST(r7, TIF_NEED_RESCHED);
 	if !cc jump .Lsyscall_sigpending;
 
@@ -685,6 +709,10 @@ ENTRY(_system_call)
 .Lsyscall_really_exit:
 	r5 = [sp + PT_RESERVED];
 	rets = r5;
+#ifdef CONFIG_IPIPE
+	[--sp] = reti;
+	r5 = [sp++];
+#endif /* CONFIG_IPIPE */
 	rts;
 ENDPROC(_system_call)
 
@@ -771,6 +799,15 @@ _new_old_task:
 ENDPROC(_resume)
 
 ENTRY(_ret_from_exception)
+#ifdef CONFIG_IPIPE
+	[--sp] = rets;
+	SP += -12;
+	call ___ipipe_check_root
+	SP += 12
+	rets = [sp++];
+	cc = r0 == 0;
+	if cc jump 4f;                /* not on behalf of Linux, get out */
+#endif /* CONFIG_IPIPE */
 	p2.l = lo(IPEND);
 	p2.h = hi(IPEND);
 
@@ -827,6 +864,28 @@ ENTRY(_ret_from_exception)
 	rts;
 ENDPROC(_ret_from_exception)
 
+#ifdef CONFIG_IPIPE
+
+_sync_root_irqs:
+	[--sp] = reti;		/* Reenable interrupts */
+	r0 = [sp++];
+	jump.l ___ipipe_sync_root
+
+_resume_kernel_from_int:
+	r0.l = _sync_root_irqs
+	r0.h = _sync_root_irqs
+	[--sp] = rets;
+	[--sp] = ( r7:4, p5:3 );
+	SP += -12;
+	call ___ipipe_call_irqtail
+	SP += 12;
+	( r7:4, p5:3 ) = [sp++];
+	rets = [sp++];
+	rts
+#else
+#define _resume_kernel_from_int	 2f
+#endif
+
 ENTRY(_return_from_int)
 	/* If someone else already raised IRQ 15, do nothing.  */
 	csync;
@@ -848,7 +907,7 @@ ENTRY(_return_from_int)
 	r1 = r0 - r1;
 	r2 = r0 & r1;
 	cc = r2 == 0;
-	if !cc jump 2f;
+	if !cc jump _resume_kernel_from_int;
 
 	/* Lower the interrupt level to 15.  */
 	p0.l = lo(EVT15);

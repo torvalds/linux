@@ -1,6 +1,6 @@
 /* AFS client file system
  *
- * Copyright (C) 2002 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2002,5 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -28,18 +28,6 @@ static char *rootcell;
 
 module_param(rootcell, charp, 0);
 MODULE_PARM_DESC(rootcell, "root AFS cell name and VL server IP addr list");
-
-#ifdef AFS_CACHING_SUPPORT
-static struct cachefs_netfs_operations afs_cache_ops = {
-	.get_page_cookie	= afs_cache_get_page_cookie,
-};
-
-struct cachefs_netfs afs_cache_netfs = {
-	.name			= "afs",
-	.version		= 0,
-	.ops			= &afs_cache_ops,
-};
-#endif
 
 struct afs_uuid afs_uuid;
 
@@ -104,10 +92,9 @@ static int __init afs_init(void)
 	if (ret < 0)
 		return ret;
 
-#ifdef AFS_CACHING_SUPPORT
+#ifdef CONFIG_AFS_FSCACHE
 	/* we want to be able to cache */
-	ret = cachefs_register_netfs(&afs_cache_netfs,
-				     &afs_cache_cell_index_def);
+	ret = fscache_register_netfs(&afs_cache_netfs);
 	if (ret < 0)
 		goto error_cache;
 #endif
@@ -142,8 +129,8 @@ error_fs:
 error_open_socket:
 error_vl_update_init:
 error_cell_init:
-#ifdef AFS_CACHING_SUPPORT
-	cachefs_unregister_netfs(&afs_cache_netfs);
+#ifdef CONFIG_AFS_FSCACHE
+	fscache_unregister_netfs(&afs_cache_netfs);
 error_cache:
 #endif
 	afs_callback_update_kill();
@@ -175,8 +162,8 @@ static void __exit afs_exit(void)
 	afs_vlocation_purge();
 	flush_scheduled_work();
 	afs_cell_purge();
-#ifdef AFS_CACHING_SUPPORT
-	cachefs_unregister_netfs(&afs_cache_netfs);
+#ifdef CONFIG_AFS_FSCACHE
+	fscache_unregister_netfs(&afs_cache_netfs);
 #endif
 	afs_proc_cleanup();
 	rcu_barrier();

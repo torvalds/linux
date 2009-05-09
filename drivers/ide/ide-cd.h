@@ -11,7 +11,7 @@
 #define IDECD_DEBUG_LOG		0
 
 #if IDECD_DEBUG_LOG
-#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, args)
+#define ide_debug_log(lvl, fmt, args...) __ide_debug_log(lvl, fmt, ## args)
 #else
 #define ide_debug_log(lvl, fmt, args...) do {} while (0)
 #endif
@@ -90,8 +90,6 @@ struct cdrom_info {
 	/* The result of the last successful request sense command
 	   on this device. */
 	struct request_sense sense_data;
-
-	struct request request_sense_request;
 
 	u8 max_speed;		/* Max speed of the drive. */
 	u8 current_speed;	/* Current speed of the drive. */

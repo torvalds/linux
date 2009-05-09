@@ -113,7 +113,7 @@ struct imx_dma_channel {
 	void (*err_handler) (int, void *, int errcode);
 	void (*prog_handler) (int, void *, struct scatterlist *);
 	void *data;
-	unsigned int  dma_mode;
+	unsigned int dma_mode;
 	struct scatterlist *sg;
 	unsigned int resbytes;
 	int dma_num;
@@ -693,12 +693,15 @@ int imx_dma_request(int channel, const char *name)
 		local_irq_restore(flags);
 		return -EBUSY;
 	}
+	memset(imxdma, 0, sizeof(imxdma));
+	imxdma->name = name;
+	local_irq_restore(flags); /* request_irq() can block */
 
 #ifdef CONFIG_ARCH_MX2
 	ret = request_irq(MXC_INT_DMACH0 + channel, dma_irq_handler, 0, "DMA",
 			NULL);
 	if (ret) {
-		local_irq_restore(flags);
+		imxdma->name = NULL;
 		printk(KERN_CRIT "Can't register IRQ %d for DMA channel %d\n",
 				MXC_INT_DMACH0 + channel, channel);
 		return ret;
@@ -708,13 +711,6 @@ int imx_dma_request(int channel, const char *name)
 	imxdma->watchdog.data = channel;
 #endif
 
-	imxdma->name = name;
-	imxdma->irq_handler = NULL;
-	imxdma->err_handler = NULL;
-	imxdma->data = NULL;
-	imxdma->sg = NULL;
-
-	local_irq_restore(flags);
 	return ret;
 }
 EXPORT_SYMBOL(imx_dma_request);
@@ -737,10 +733,7 @@ void imx_dma_free(int channel)
 
 	local_irq_save(flags);
 	/* Disable interrupts */
-	__raw_writel(__raw_readl(DMA_BASE + DMA_DIMR) | (1 << channel),
-		DMA_BASE + DMA_DIMR);
-	__raw_writel(__raw_readl(DMA_BASE + DMA_CCR(channel)) & ~CCR_CEN,
-		DMA_BASE + DMA_CCR(channel));
+	imx_dma_disable(channel);
 	imxdma->name = NULL;
 
 #ifdef CONFIG_ARCH_MX2
@@ -802,7 +795,7 @@ static int __init imx_dma_init(void)
 	int ret = 0;
 	int i;
 
-	dma_clk = clk_get(NULL, "dma_clk");
+	dma_clk = clk_get(NULL, "dma");
 	clk_enable(dma_clk);
 
 	/* reset DMA module */

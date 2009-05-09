@@ -143,7 +143,7 @@ static int set_bud_lprops(struct ubifs_info *c, struct replay_entry *r)
 		dirty -= c->leb_size - lp->free;
 		/*
 		 * If the replay order was perfect the dirty space would now be
-		 * zero. The order is not perfect because the the journal heads
+		 * zero. The order is not perfect because the journal heads
 		 * race with each other. This is not a problem but is does mean
 		 * that the dirty space may temporarily exceed c->leb_size
 		 * during the replay.

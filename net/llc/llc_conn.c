@@ -332,8 +332,7 @@ int llc_conn_remove_acked_pdus(struct sock *sk, u8 nr, u16 *how_many_unacked)
 
 	for (i = 0; i < pdu_pos && i < q_len; i++) {
 		skb = skb_dequeue(&llc->pdu_unack_q);
-		if (skb)
-			kfree_skb(skb);
+		kfree_skb(skb);
 		nbr_acked++;
 	}
 out:

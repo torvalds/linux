@@ -46,14 +46,14 @@
 #include <net/sctp/sctp.h>
 #include <linux/crc32c.h>
 
-static inline __be32 sctp_crc32c(__be32 crc, u8 *buffer, u16 length)
+static inline __u32 sctp_crc32c(__u32 crc, u8 *buffer, u16 length)
 {
-	return (__force __be32)crc32c((__force u32)crc, buffer, length);
+	return crc32c(crc, buffer, length);
 }
 
-static inline __be32 sctp_start_cksum(__u8 *buffer, __u16 length)
+static inline __u32 sctp_start_cksum(__u8 *buffer, __u16 length)
 {
-	__be32 crc = ~cpu_to_be32(0);
+	__u32 crc = ~(__u32)0;
 	__u8  zero[sizeof(__u32)] = {0};
 
 	/* Optimize this routine to be SCTP specific, knowing how
@@ -72,12 +72,12 @@ static inline __be32 sctp_start_cksum(__u8 *buffer, __u16 length)
 	return crc;
 }
 
-static inline __be32 sctp_update_cksum(__u8 *buffer, __u16 length, __be32 crc32)
+static inline __u32 sctp_update_cksum(__u8 *buffer, __u16 length, __u32 crc32)
 {
 	return sctp_crc32c(crc32, buffer, length);
 }
 
-static inline __be32 sctp_end_cksum(__be32 crc32)
+static inline __le32 sctp_end_cksum(__be32 crc32)
 {
-	return (__force __be32)~cpu_to_le32((__force u32)crc32);
+	return cpu_to_le32(~crc32);
 }

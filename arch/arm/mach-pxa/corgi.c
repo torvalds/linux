@@ -41,9 +41,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include <mach/pxa25x.h>
 #include <mach/i2c.h>
 #include <mach/irda.h>
 #include <mach/mmc.h>
@@ -429,12 +427,22 @@ static struct pxa2xx_spi_master corgi_spi_info = {
 	.num_chipselect	= 3,
 };
 
+static void corgi_wait_for_hsync(void)
+{
+	while (gpio_get_value(CORGI_GPIO_HSYNC))
+		cpu_relax();
+
+	while (!gpio_get_value(CORGI_GPIO_HSYNC))
+		cpu_relax();
+}
+
 static struct ads7846_platform_data corgi_ads7846_info = {
 	.model			= 7846,
 	.vref_delay_usecs	= 100,
 	.x_plate_ohms		= 419,
 	.y_plate_ohms		= 486,
 	.gpio_pendown		= CORGI_GPIO_TP_INT,
+	.wait_for_sync		= corgi_wait_for_hsync,
 };
 
 static void corgi_ads7846_cs(u32 command)
@@ -637,16 +645,16 @@ static void corgi_poweroff(void)
 		/* Green LED off tells the bootloader to halt */
 		gpio_set_value(CORGI_GPIO_LED_GREEN, 0);
 
-	arm_machine_restart('h');
+	arm_machine_restart('h', NULL);
 }
 
-static void corgi_restart(char mode)
+static void corgi_restart(char mode, const char *cmd)
 {
 	if (!machine_is_corgi())
 		/* Green LED on tells the bootloader to reboot */
 		gpio_set_value(CORGI_GPIO_LED_GREEN, 1);
 
-	arm_machine_restart('h');
+	arm_machine_restart('h', cmd);
 }
 
 static void __init corgi_init(void)

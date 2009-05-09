@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/io.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -19,7 +20,6 @@
 #include <linux/mtd/concat.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/sizes.h>
 #include <asm/mach/flash.h>
 
@@ -351,7 +351,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 
 static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
-static int __init sa1100_mtd_probe(struct platform_device *pdev)
+static int __devinit sa1100_mtd_probe(struct platform_device *pdev)
 {
 	struct flash_platform_data *plat = pdev->dev.platform_data;
 	struct mtd_partition *parts;

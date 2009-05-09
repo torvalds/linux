@@ -22,6 +22,7 @@ struct uio_map;
 
 /**
  * struct uio_mem - description of a UIO memory region
+ * @name:		name of the memory region for identification
  * @addr:		address of the device's memory
  * @size:		size of IO
  * @memtype:		type of memory addr points to
@@ -29,6 +30,7 @@ struct uio_map;
  * @map:		for use by the UIO core only.
  */
 struct uio_mem {
+	const char		*name;
 	unsigned long		addr;
 	unsigned long		size;
 	int			memtype;
@@ -42,12 +44,14 @@ struct uio_portio;
 
 /**
  * struct uio_port - description of a UIO port region
+ * @name:		name of the port region for identification
  * @start:		start of port region
  * @size:		size of port region
  * @porttype:		type of port (see UIO_PORT_* below)
  * @portio:		for use by the UIO core only.
  */
 struct uio_port {
+	const char		*name;
 	unsigned long		start;
 	unsigned long		size;
 	int			porttype;

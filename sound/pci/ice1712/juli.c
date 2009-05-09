@@ -345,8 +345,9 @@ static int juli_mute_put(struct snd_kcontrol *kcontrol,
 			new_gpio =  old_gpio &
 				~((unsigned int) kcontrol->private_value);
 	}
-	/* printk("JULI - mute/unmute: control_value: 0x%x, old_gpio: 0x%x, \
-		new_gpio 0x%x\n",
+	/* printk(KERN_DEBUG
+		"JULI - mute/unmute: control_value: 0x%x, old_gpio: 0x%x, "
+		"new_gpio 0x%x\n",
 		(unsigned int)ucontrol->value.integer.value[0], old_gpio,
 		new_gpio); */
 	if (old_gpio != new_gpio) {

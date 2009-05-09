@@ -18,6 +18,7 @@
 
 #include <linux/poll.h>
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
+#define __MIN_V4L1
 #include <linux/videodev.h>
 #endif
 #include <linux/videodev2.h>

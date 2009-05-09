@@ -106,8 +106,7 @@ int ipoib_open(struct net_device *dev)
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
-	if (!test_and_set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
-		napi_enable(&priv->napi);
+	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	if (ipoib_pkey_dev_delay_open(dev))
 		return 0;
@@ -143,7 +142,6 @@ err_stop:
 	ipoib_ib_dev_stop(dev, 1);
 
 err_disable:
-	napi_disable(&priv->napi);
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	return -EINVAL;
@@ -156,7 +154,6 @@ static int ipoib_stop(struct net_device *dev)
 	ipoib_dbg(priv, "stopping interface\n");
 
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
-	napi_disable(&priv->napi);
 
 	netif_stop_queue(dev);
 
@@ -660,8 +657,12 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 
 	path = __path_find(dev, phdr->hwaddr + 4);
 	if (!path || !path->valid) {
-		if (!path)
+		int new_path = 0;
+
+		if (!path) {
 			path = path_rec_create(dev, phdr->hwaddr + 4);
+			new_path = 1;
+		}
 		if (path) {
 			/* put pseudoheader back on for next time */
 			skb_push(skb, sizeof *phdr);
@@ -669,7 +670,8 @@ static void unicast_arp_send(struct sk_buff *skb, struct net_device *dev,
 
 			if (!path->query && path_rec_start(dev, path)) {
 				spin_unlock_irqrestore(&priv->lock, flags);
-				path_free(dev, path);
+				if (new_path)
+					path_free(dev, path);
 				return;
 			} else
 				__path_add(dev, path);
@@ -1016,18 +1018,22 @@ static void ipoib_lro_setup(struct ipoib_dev_priv *priv)
 	priv->lro.lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 }
 
+static const struct net_device_ops ipoib_netdev_ops = {
+	.ndo_open		 = ipoib_open,
+	.ndo_stop		 = ipoib_stop,
+	.ndo_change_mtu		 = ipoib_change_mtu,
+	.ndo_start_xmit	 	 = ipoib_start_xmit,
+	.ndo_tx_timeout		 = ipoib_timeout,
+	.ndo_set_multicast_list	 = ipoib_set_mcast_list,
+	.ndo_neigh_setup	 = ipoib_neigh_setup_dev,
+};
+
 static void ipoib_setup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	dev->open		 = ipoib_open;
-	dev->stop		 = ipoib_stop;
-	dev->change_mtu		 = ipoib_change_mtu;
-	dev->hard_start_xmit	 = ipoib_start_xmit;
-	dev->tx_timeout		 = ipoib_timeout;
+	dev->netdev_ops		 = &ipoib_netdev_ops;
 	dev->header_ops		 = &ipoib_header_ops;
-	dev->set_multicast_list	 = ipoib_set_mcast_list;
-	dev->neigh_setup	 = ipoib_neigh_setup_dev;
 
 	ipoib_set_ethtool_ops(dev);
 

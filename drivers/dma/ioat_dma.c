@@ -1,6 +1,6 @@
 /*
  * Intel I/OAT DMA Linux driver
- * Copyright(c) 2004 - 2007 Intel Corporation.
+ * Copyright(c) 2004 - 2009 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -189,11 +189,13 @@ static int ioat_dma_enumerate_channels(struct ioatdma_device *device)
 		ioat_chan->xfercap = xfercap;
 		ioat_chan->desccount = 0;
 		INIT_DELAYED_WORK(&ioat_chan->work, ioat_dma_chan_reset_part2);
-		if (ioat_chan->device->version != IOAT_VER_1_2) {
-			writel(IOAT_DCACTRL_CMPL_WRITE_ENABLE
-					| IOAT_DMA_DCA_ANY_CPU,
-				ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
-		}
+		if (ioat_chan->device->version == IOAT_VER_2_0)
+			writel(IOAT_DCACTRL_CMPL_WRITE_ENABLE |
+			       IOAT_DMA_DCA_ANY_CPU,
+			       ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
+		else if (ioat_chan->device->version == IOAT_VER_3_0)
+			writel(IOAT_DMA_DCA_ANY_CPU,
+			       ioat_chan->reg_base + IOAT_DCACTRL_OFFSET);
 		spin_lock_init(&ioat_chan->cleanup_lock);
 		spin_lock_init(&ioat_chan->desc_lock);
 		INIT_LIST_HEAD(&ioat_chan->free_desc);
@@ -691,7 +693,6 @@ static struct ioat_desc_sw *ioat_dma_alloc_descriptor(
 		desc_sw->async_tx.tx_submit = ioat2_tx_submit;
 		break;
 	}
-	INIT_LIST_HEAD(&desc_sw->async_tx.tx_list);
 
 	desc_sw->hw = desc;
 	desc_sw->async_tx.phys = phys;
@@ -1169,9 +1170,8 @@ static void ioat_dma_memcpy_cleanup(struct ioat_dma_chan *ioat_chan)
 				 * up if the client is done with the descriptor
 				 */
 				if (async_tx_test_ack(&desc->async_tx)) {
-					list_del(&desc->node);
-					list_add_tail(&desc->node,
-						      &ioat_chan->free_desc);
+					list_move_tail(&desc->node,
+						       &ioat_chan->free_desc);
 				} else
 					desc->async_tx.cookie = 0;
 			} else {
@@ -1362,6 +1362,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	dma_cookie_t cookie;
 	int err = 0;
 	struct completion cmp;
+	unsigned long tmo;
 
 	src = kzalloc(sizeof(u8) * IOAT_TEST_SIZE, GFP_KERNEL);
 	if (!src)
@@ -1413,9 +1414,10 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	}
 	device->common.device_issue_pending(dma_chan);
 
-	wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
+	tmo = wait_for_completion_timeout(&cmp, msecs_to_jiffies(3000));
 
-	if (device->common.device_is_tx_complete(dma_chan, cookie, NULL, NULL)
+	if (tmo == 0 ||
+	    device->common.device_is_tx_complete(dma_chan, cookie, NULL, NULL)
 					!= DMA_SUCCESS) {
 		dev_err(&device->pdev->dev,
 			"Self-test copy timed out, disabling\n");
@@ -1657,6 +1659,13 @@ struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 		" %d channels, device version 0x%02x, driver version %s\n",
 		device->common.chancnt, device->version, IOAT_DMA_VERSION);
 
+	if (!device->common.chancnt) {
+		dev_err(&device->pdev->dev,
+			"Intel(R) I/OAT DMA Engine problem found: "
+			"zero channels detected\n");
+		goto err_setup_interrupts;
+	}
+
 	err = ioat_dma_setup_interrupts(device);
 	if (err)
 		goto err_setup_interrupts;
@@ -1696,6 +1705,9 @@ void ioat_dma_remove(struct ioatdma_device *device)
 	struct dma_chan *chan, *_chan;
 	struct ioat_dma_chan *ioat_chan;
 
+	if (device->version != IOAT_VER_3_0)
+		cancel_delayed_work(&device->work);
+
 	ioat_dma_remove_interrupts(device);
 
 	dma_async_device_unregister(&device->common);
@@ -1706,10 +1718,6 @@ void ioat_dma_remove(struct ioatdma_device *device)
 	iounmap(device->reg_base);
 	pci_release_regions(device->pdev);
 	pci_disable_device(device->pdev);
-
-	if (device->version != IOAT_VER_3_0) {
-		cancel_delayed_work(&device->work);
-	}
 
 	list_for_each_entry_safe(chan, _chan,
 				 &device->common.channels, device_node) {

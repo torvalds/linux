@@ -46,6 +46,132 @@
 
 #include "stv06xx_pb0100.h"
 
+static const struct ctrl pb0100_ctrl[] = {
+#define GAIN_IDX 0
+	{
+		{
+			.id		= V4L2_CID_GAIN,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "Gain",
+			.minimum	= 0,
+			.maximum	= 255,
+			.step		= 1,
+			.default_value  = 128
+		},
+		.set = pb0100_set_gain,
+		.get = pb0100_get_gain
+	},
+#define RED_BALANCE_IDX 1
+	{
+		{
+			.id		= V4L2_CID_RED_BALANCE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "Red Balance",
+			.minimum	= -255,
+			.maximum	= 255,
+			.step		= 1,
+			.default_value  = 0
+		},
+		.set = pb0100_set_red_balance,
+		.get = pb0100_get_red_balance
+	},
+#define BLUE_BALANCE_IDX 2
+	{
+		{
+			.id		= V4L2_CID_BLUE_BALANCE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "Blue Balance",
+			.minimum	= -255,
+			.maximum	= 255,
+			.step		= 1,
+			.default_value  = 0
+		},
+		.set = pb0100_set_blue_balance,
+		.get = pb0100_get_blue_balance
+	},
+#define EXPOSURE_IDX 3
+	{
+		{
+			.id		= V4L2_CID_EXPOSURE,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "Exposure",
+			.minimum	= 0,
+			.maximum	= 511,
+			.step		= 1,
+			.default_value  = 12
+		},
+		.set = pb0100_set_exposure,
+		.get = pb0100_get_exposure
+	},
+#define AUTOGAIN_IDX 4
+	{
+		{
+			.id		= V4L2_CID_AUTOGAIN,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "Automatic Gain and Exposure",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value  = 1
+		},
+		.set = pb0100_set_autogain,
+		.get = pb0100_get_autogain
+	},
+#define AUTOGAIN_TARGET_IDX 5
+	{
+		{
+			.id		= V4L2_CTRL_CLASS_USER + 0x1000,
+			.type		= V4L2_CTRL_TYPE_INTEGER,
+			.name		= "Automatic Gain Target",
+			.minimum	= 0,
+			.maximum	= 255,
+			.step		= 1,
+			.default_value  = 128
+		},
+		.set = pb0100_set_autogain_target,
+		.get = pb0100_get_autogain_target
+	},
+#define NATURAL_IDX 6
+	{
+		{
+			.id		= V4L2_CTRL_CLASS_USER + 0x1001,
+			.type		= V4L2_CTRL_TYPE_BOOLEAN,
+			.name		= "Natural Light Source",
+			.minimum	= 0,
+			.maximum	= 1,
+			.step		= 1,
+			.default_value  = 1
+		},
+		.set = pb0100_set_natural,
+		.get = pb0100_get_natural
+	}
+};
+
+static struct v4l2_pix_format pb0100_mode[] = {
+/* low res / subsample modes disabled as they are only half res horizontal,
+   halving the vertical resolution does not seem to work */
+	{
+		320,
+		240,
+		V4L2_PIX_FMT_SGRBG8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 320 * 240,
+		.bytesperline = 320,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = PB0100_CROP_TO_VGA
+	},
+	{
+		352,
+		288,
+		V4L2_PIX_FMT_SGRBG8,
+		V4L2_FIELD_NONE,
+		.sizeimage = 352 * 288,
+		.bytesperline = 352,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0
+	}
+};
+
 static int pb0100_probe(struct sd *sd)
 {
 	u16 sensor;
@@ -59,20 +185,19 @@ static int pb0100_probe(struct sd *sd)
 
 	if ((sensor >> 8) == 0x64) {
 		sensor_settings = kmalloc(
-				stv06xx_sensor_pb0100.nctrls * sizeof(s32),
+				ARRAY_SIZE(pb0100_ctrl) * sizeof(s32),
 				GFP_KERNEL);
 		if (!sensor_settings)
 			return -ENOMEM;
 
 		info("Photobit pb0100 sensor detected");
 
-		sd->gspca_dev.cam.cam_mode = stv06xx_sensor_pb0100.modes;
-		sd->gspca_dev.cam.nmodes = stv06xx_sensor_pb0100.nmodes;
-		sd->desc.ctrls = stv06xx_sensor_pb0100.ctrls;
-		sd->desc.nctrls = stv06xx_sensor_pb0100.nctrls;
-		for (i = 0; i < stv06xx_sensor_pb0100.nctrls; i++)
-			sensor_settings[i] = stv06xx_sensor_pb0100.
-					     ctrls[i].qctrl.default_value;
+		sd->gspca_dev.cam.cam_mode = pb0100_mode;
+		sd->gspca_dev.cam.nmodes = ARRAY_SIZE(pb0100_mode);
+		sd->desc.ctrls = pb0100_ctrl;
+		sd->desc.nctrls = ARRAY_SIZE(pb0100_ctrl);
+		for (i = 0; i < sd->desc.nctrls; i++)
+			sensor_settings[i] = pb0100_ctrl[i].qctrl.default_value;
 		sd->sensor_priv = sensor_settings;
 
 		return 0;
@@ -141,6 +266,12 @@ static int pb0100_stop(struct sd *sd)
 	PDEBUG(D_STREAM, "Halting stream");
 out:
 	return (err < 0) ? err : 0;
+}
+
+static void pb0100_disconnect(struct sd *sd)
+{
+	sd->sensor = NULL;
+	kfree(sd->sensor_priv);
 }
 
 /* FIXME: Sort the init commands out and put them into tables,

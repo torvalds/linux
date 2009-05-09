@@ -44,10 +44,6 @@
 
 #include "pasemi.h"
 
-#if !defined(CONFIG_SMP)
-static void smp_send_stop(void) {}
-#endif
-
 /* SDC reset register, must be pre-mapped at reset time */
 static void __iomem *reset_reg;
 

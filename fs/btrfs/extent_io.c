@@ -17,12 +17,6 @@
 #include "ctree.h"
 #include "btrfs_inode.h"
 
-/* temporary define until extent_map moves out of btrfs */
-struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
-				       unsigned long extra_flags,
-				       void (*ctor)(void *, struct kmem_cache *,
-						    unsigned long));
-
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
 
@@ -50,20 +44,23 @@ struct extent_page_data {
 	/* tells writepage not to lock the state bits for this range
 	 * it still does the unlocking
 	 */
-	int extent_locked;
+	unsigned int extent_locked:1;
+
+	/* tells the submit_bio code to use a WRITE_SYNC */
+	unsigned int sync_io:1;
 };
 
 int __init extent_io_init(void)
 {
-	extent_state_cache = btrfs_cache_create("extent_state",
-					    sizeof(struct extent_state), 0,
-					    NULL);
+	extent_state_cache = kmem_cache_create("extent_state",
+			sizeof(struct extent_state), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_state_cache)
 		return -ENOMEM;
 
-	extent_buffer_cache = btrfs_cache_create("extent_buffers",
-					    sizeof(struct extent_buffer), 0,
-					    NULL);
+	extent_buffer_cache = kmem_cache_create("extent_buffers",
+			sizeof(struct extent_buffer), 0,
+			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_buffer_cache)
 		goto free_state_cache;
 	return 0;
@@ -1404,69 +1401,6 @@ out:
 	return total_bytes;
 }
 
-#if 0
-/*
- * helper function to lock both pages and extents in the tree.
- * pages must be locked first.
- */
-static int lock_range(struct extent_io_tree *tree, u64 start, u64 end)
-{
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
-	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
-	struct page *page;
-	int err;
-
-	while (index <= end_index) {
-		page = grab_cache_page(tree->mapping, index);
-		if (!page) {
-			err = -ENOMEM;
-			goto failed;
-		}
-		if (IS_ERR(page)) {
-			err = PTR_ERR(page);
-			goto failed;
-		}
-		index++;
-	}
-	lock_extent(tree, start, end, GFP_NOFS);
-	return 0;
-
-failed:
-	/*
-	 * we failed above in getting the page at 'index', so we undo here
-	 * up to but not including the page at 'index'
-	 */
-	end_index = index;
-	index = start >> PAGE_CACHE_SHIFT;
-	while (index < end_index) {
-		page = find_get_page(tree->mapping, index);
-		unlock_page(page);
-		page_cache_release(page);
-		index++;
-	}
-	return err;
-}
-
-/*
- * helper function to unlock both pages and extents in the tree.
- */
-static int unlock_range(struct extent_io_tree *tree, u64 start, u64 end)
-{
-	unsigned long index = start >> PAGE_CACHE_SHIFT;
-	unsigned long end_index = end >> PAGE_CACHE_SHIFT;
-	struct page *page;
-
-	while (index <= end_index) {
-		page = find_get_page(tree->mapping, index);
-		unlock_page(page);
-		page_cache_release(page);
-		index++;
-	}
-	unlock_extent(tree, start, end, GFP_NOFS);
-	return 0;
-}
-#endif
-
 /*
  * set the private field for a given byte offset in the tree.  If there isn't
  * an extent_state there already, this does nothing.
@@ -2101,6 +2035,16 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 	return ret;
 }
 
+static noinline void update_nr_written(struct page *page,
+				      struct writeback_control *wbc,
+				      unsigned long nr_written)
+{
+	wbc->nr_to_write -= nr_written;
+	if (wbc->range_cyclic || (wbc->nr_to_write > 0 &&
+	    wbc->range_start == 0 && wbc->range_end == LLONG_MAX))
+		page->mapping->writeback_index = page->index + nr_written;
+}
+
 /*
  * the writepage semantics are similar to regular writepage.  extent
  * records are inserted to lock ranges in the tree, and as dirty areas
@@ -2136,7 +2080,13 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	u64 delalloc_end;
 	int page_started;
 	int compressed;
+	int write_flags;
 	unsigned long nr_written = 0;
+
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		write_flags = WRITE_SYNC_PLUG;
+	else
+		write_flags = WRITE;
 
 	WARN_ON(!PageLocked(page));
 	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
@@ -2164,6 +2114,12 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	delalloc_end = 0;
 	page_started = 0;
 	if (!epd->extent_locked) {
+		/*
+		 * make sure the wbc mapping index is at least updated
+		 * to this page.
+		 */
+		update_nr_written(page, wbc, 0);
+
 		while (delalloc_end < page_end) {
 			nr_delalloc = find_lock_delalloc_range(inode, tree,
 						       page,
@@ -2185,7 +2141,13 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		 */
 		if (page_started) {
 			ret = 0;
-			goto update_nr_written;
+			/*
+			 * we've unlocked the page, so we can't update
+			 * the mapping's writeback index, just update
+			 * nr_to_write.
+			 */
+			wbc->nr_to_write -= nr_written;
+			goto done_unlocked;
 		}
 	}
 	lock_extent(tree, start, page_end, GFP_NOFS);
@@ -2198,13 +2160,18 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		if (ret == -EAGAIN) {
 			unlock_extent(tree, start, page_end, GFP_NOFS);
 			redirty_page_for_writepage(wbc, page);
+			update_nr_written(page, wbc, nr_written);
 			unlock_page(page);
 			ret = 0;
-			goto update_nr_written;
+			goto done_unlocked;
 		}
 	}
 
-	nr_written++;
+	/*
+	 * we don't want to touch the inode after unlocking the page,
+	 * so we update the mapping writeback index now
+	 */
+	update_nr_written(page, wbc, nr_written + 1);
 
 	end = page_end;
 	if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0))
@@ -2314,9 +2281,9 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 				       (unsigned long long)end);
 			}
 
-			ret = submit_extent_page(WRITE, tree, page, sector,
-						 iosize, pg_offset, bdev,
-						 &epd->bio, max_nr,
+			ret = submit_extent_page(write_flags, tree, page,
+						 sector, iosize, pg_offset,
+						 bdev, &epd->bio, max_nr,
 						 end_bio_extent_writepage,
 						 0, 0, 0);
 			if (ret)
@@ -2336,11 +2303,8 @@ done:
 		unlock_extent(tree, unlock_start, page_end, GFP_NOFS);
 	unlock_page(page);
 
-update_nr_written:
-	wbc->nr_to_write -= nr_written;
-	if (wbc->range_cyclic || (wbc->nr_to_write > 0 &&
-	    wbc->range_start == 0 && wbc->range_end == LLONG_MAX))
-		page->mapping->writeback_index = page->index + nr_written;
+done_unlocked:
+
 	return 0;
 }
 
@@ -2460,13 +2424,21 @@ retry:
 	return ret;
 }
 
+static void flush_epd_write_bio(struct extent_page_data *epd)
+{
+	if (epd->bio) {
+		if (epd->sync_io)
+			submit_one_bio(WRITE_SYNC, epd->bio, 0, 0);
+		else
+			submit_one_bio(WRITE, epd->bio, 0, 0);
+		epd->bio = NULL;
+	}
+}
+
 static noinline void flush_write_bio(void *data)
 {
 	struct extent_page_data *epd = data;
-	if (epd->bio) {
-		submit_one_bio(WRITE, epd->bio, 0, 0);
-		epd->bio = NULL;
-	}
+	flush_epd_write_bio(epd);
 }
 
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
@@ -2480,23 +2452,22 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 		.tree = tree,
 		.get_extent = get_extent,
 		.extent_locked = 0,
+		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
 	struct writeback_control wbc_writepages = {
 		.bdi		= wbc->bdi,
-		.sync_mode	= WB_SYNC_NONE,
+		.sync_mode	= wbc->sync_mode,
 		.older_than_this = NULL,
 		.nr_to_write	= 64,
 		.range_start	= page_offset(page) + PAGE_CACHE_SIZE,
 		.range_end	= (loff_t)-1,
 	};
 
-
 	ret = __extent_writepage(page, wbc, &epd);
 
 	extent_write_cache_pages(tree, mapping, &wbc_writepages,
 				 __extent_writepage, &epd, flush_write_bio);
-	if (epd.bio)
-		submit_one_bio(WRITE, epd.bio, 0, 0);
+	flush_epd_write_bio(&epd);
 	return ret;
 }
 
@@ -2515,6 +2486,7 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 		.tree = tree,
 		.get_extent = get_extent,
 		.extent_locked = 1,
+		.sync_io = mode == WB_SYNC_ALL,
 	};
 	struct writeback_control wbc_writepages = {
 		.bdi		= inode->i_mapping->backing_dev_info,
@@ -2540,8 +2512,7 @@ int extent_write_locked_range(struct extent_io_tree *tree, struct inode *inode,
 		start += PAGE_CACHE_SIZE;
 	}
 
-	if (epd.bio)
-		submit_one_bio(WRITE, epd.bio, 0, 0);
+	flush_epd_write_bio(&epd);
 	return ret;
 }
 
@@ -2556,13 +2527,13 @@ int extent_writepages(struct extent_io_tree *tree,
 		.tree = tree,
 		.get_extent = get_extent,
 		.extent_locked = 0,
+		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
 	};
 
 	ret = extent_write_cache_pages(tree, mapping, wbc,
 				       __extent_writepage, &epd,
 				       flush_write_bio);
-	if (epd.bio)
-		submit_one_bio(WRITE, epd.bio, 0, 0);
+	flush_epd_write_bio(&epd);
 	return ret;
 }
 
@@ -2884,25 +2855,19 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		disko = 0;
 		flags = 0;
 
-		switch (em->block_start) {
-		case EXTENT_MAP_LAST_BYTE:
+		if (em->block_start == EXTENT_MAP_LAST_BYTE) {
 			end = 1;
 			flags |= FIEMAP_EXTENT_LAST;
-			break;
-		case EXTENT_MAP_HOLE:
+		} else if (em->block_start == EXTENT_MAP_HOLE) {
 			flags |= FIEMAP_EXTENT_UNWRITTEN;
-			break;
-		case EXTENT_MAP_INLINE:
+		} else if (em->block_start == EXTENT_MAP_INLINE) {
 			flags |= (FIEMAP_EXTENT_DATA_INLINE |
 				  FIEMAP_EXTENT_NOT_ALIGNED);
-			break;
-		case EXTENT_MAP_DELALLOC:
+		} else if (em->block_start == EXTENT_MAP_DELALLOC) {
 			flags |= (FIEMAP_EXTENT_DELALLOC |
 				  FIEMAP_EXTENT_UNKNOWN);
-			break;
-		default:
+		} else {
 			disko = em->block_start;
-			break;
 		}
 		if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags))
 			flags |= FIEMAP_EXTENT_ENCODED;
@@ -3124,20 +3089,15 @@ void free_extent_buffer(struct extent_buffer *eb)
 int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 			      struct extent_buffer *eb)
 {
-	int set;
 	unsigned long i;
 	unsigned long num_pages;
 	struct page *page;
 
-	u64 start = eb->start;
-	u64 end = start + eb->len - 1;
-
-	set = clear_extent_dirty(tree, start, end, GFP_NOFS);
 	num_pages = num_extent_pages(eb->start, eb->len);
 
 	for (i = 0; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
-		if (!set && !PageDirty(page))
+		if (!PageDirty(page))
 			continue;
 
 		lock_page(page);
@@ -3146,22 +3106,6 @@ int clear_extent_buffer_dirty(struct extent_io_tree *tree,
 		else
 			set_page_private(page, EXTENT_PAGE_PRIVATE);
 
-		/*
-		 * if we're on the last page or the first page and the
-		 * block isn't aligned on a page boundary, do extra checks
-		 * to make sure we don't clean page that is partially dirty
-		 */
-		if ((i == 0 && (eb->start & (PAGE_CACHE_SIZE - 1))) ||
-		    ((i == num_pages - 1) &&
-		     ((eb->start + eb->len) & (PAGE_CACHE_SIZE - 1)))) {
-			start = (u64)page->index << PAGE_CACHE_SHIFT;
-			end  = start + PAGE_CACHE_SIZE - 1;
-			if (test_range_bit(tree, start, end,
-					   EXTENT_DIRTY, 0)) {
-				unlock_page(page);
-				continue;
-			}
-		}
 		clear_page_dirty_for_io(page);
 		spin_lock_irq(&page->mapping->tree_lock);
 		if (!PageDirty(page)) {
@@ -3187,29 +3131,13 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 {
 	unsigned long i;
 	unsigned long num_pages;
+	int was_dirty = 0;
 
+	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
 	num_pages = num_extent_pages(eb->start, eb->len);
-	for (i = 0; i < num_pages; i++) {
-		struct page *page = extent_buffer_page(eb, i);
-		/* writepage may need to do something special for the
-		 * first page, we have to make sure page->private is
-		 * properly set.  releasepage may drop page->private
-		 * on us if the page isn't already dirty.
-		 */
-		lock_page(page);
-		if (i == 0) {
-			set_page_extent_head(page, eb->len);
-		} else if (PagePrivate(page) &&
-			   page->private != EXTENT_PAGE_PRIVATE) {
-			set_page_extent_mapped(page);
-		}
+	for (i = 0; i < num_pages; i++)
 		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
-		set_extent_dirty(tree, page_offset(page),
-				 page_offset(page) + PAGE_CACHE_SIZE - 1,
-				 GFP_NOFS);
-		unlock_page(page);
-	}
-	return 0;
+	return was_dirty;
 }
 
 int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
@@ -3786,6 +3714,10 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 		goto out;
 
 	if (atomic_read(&eb->refs) > 1) {
+		ret = 0;
+		goto out;
+	}
+	if (test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
 		ret = 0;
 		goto out;
 	}

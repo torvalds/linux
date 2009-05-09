@@ -667,13 +667,13 @@ static inline __le64 ipath_sdma_make_desc0(struct ipath_devdata *dd,
 
 static inline __le64 ipath_sdma_make_first_desc0(__le64 descq)
 {
-	return descq | __constant_cpu_to_le64(1ULL << 12);
+	return descq | cpu_to_le64(1ULL << 12);
 }
 
 static inline __le64 ipath_sdma_make_last_desc0(__le64 descq)
 {
 					      /* last */  /* dma head */
-	return descq | __constant_cpu_to_le64(1ULL << 11 | 1ULL << 13);
+	return descq | cpu_to_le64(1ULL << 11 | 1ULL << 13);
 }
 
 static inline __le64 ipath_sdma_make_desc1(u64 addr)
@@ -763,7 +763,7 @@ static int ipath_user_sdma_push_pkts(struct ipath_devdata *dd,
 		if (ofs >= IPATH_SMALLBUF_DWORDS) {
 			for (i = 0; i < pkt->naddr; i++) {
 				dd->ipath_sdma_descq[dtail].qw[0] |=
-					__constant_cpu_to_le64(1ULL << 14);
+					cpu_to_le64(1ULL << 14);
 				if (++dtail == dd->ipath_sdma_descq_cnt)
 					dtail = 0;
 			}

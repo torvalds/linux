@@ -17,7 +17,7 @@
 #define SDGCTL_WIDTH (1 << 31)	/* SDRAM external data path width */
 #define PLL_CTL_VAL \
 	(((CONFIG_VCO_MULT & 63) << 9) | CLKIN_HALF | \
-	 (PLL_BYPASS << 8) | (ANOMALY_05000265 ? 0x8000 : 0))
+	 (PLL_BYPASS << 8) | (ANOMALY_05000305 ? 0 : 0x8000))
 
 __attribute__((l1_text))
 static void do_sync(void)

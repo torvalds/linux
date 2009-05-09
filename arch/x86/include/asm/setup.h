@@ -1,33 +1,19 @@
 #ifndef _ASM_X86_SETUP_H
 #define _ASM_X86_SETUP_H
 
+#ifdef __KERNEL__
+
 #define COMMAND_LINE_SIZE 2048
 
 #ifndef __ASSEMBLY__
 
-/* Interrupt control for vSMPowered x86_64 systems */
-void vsmp_init(void);
-
-
-void setup_bios_corruption_check(void);
-
-
-#ifdef CONFIG_X86_VISWS
-extern void visws_early_detect(void);
-extern int is_visws_box(void);
-#else
-static inline void visws_early_detect(void) { }
-static inline int is_visws_box(void) { return 0; }
-#endif
-
-extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
-extern int wakeup_secondary_cpu_via_init(int apicid, unsigned long start_eip);
 /*
  * Any setup quirks to be performed?
  */
 struct mpc_cpu;
 struct mpc_bus;
 struct mpc_oemtable;
+
 struct x86_quirks {
 	int (*arch_pre_time_init)(void);
 	int (*arch_time_init)(void);
@@ -43,20 +29,19 @@ struct x86_quirks {
 	void (*mpc_oem_bus_info)(struct mpc_bus *m, char *name);
 	void (*mpc_oem_pci_bus)(struct mpc_bus *m);
 	void (*smp_read_mpc_oem)(struct mpc_oemtable *oemtable,
-                                    unsigned short oemsize);
+				unsigned short oemsize);
 	int (*setup_ioapic_ids)(void);
-	int (*update_genapic)(void);
 };
 
-extern struct x86_quirks *x86_quirks;
-extern unsigned long saved_video_mode;
+extern void x86_quirk_pre_intr_init(void);
+extern void x86_quirk_intr_init(void);
 
-#ifndef CONFIG_PARAVIRT
-#define paravirt_post_allocator_init()	do {} while (0)
-#endif
+extern void x86_quirk_trap_init(void);
+
+extern void x86_quirk_pre_time_init(void);
+extern void x86_quirk_time_init(void);
+
 #endif /* __ASSEMBLY__ */
-
-#ifdef __KERNEL__
 
 #ifdef __i386__
 
@@ -78,6 +63,30 @@ extern unsigned long saved_video_mode;
 #ifndef __ASSEMBLY__
 #include <asm/bootparam.h>
 
+/* Interrupt control for vSMPowered x86_64 systems */
+#ifdef CONFIG_X86_64
+void vsmp_init(void);
+#else
+static inline void vsmp_init(void) { }
+#endif
+
+void setup_bios_corruption_check(void);
+
+#ifdef CONFIG_X86_VISWS
+extern void visws_early_detect(void);
+extern int is_visws_box(void);
+#else
+static inline void visws_early_detect(void) { }
+static inline int is_visws_box(void) { return 0; }
+#endif
+
+extern struct x86_quirks *x86_quirks;
+extern unsigned long saved_video_mode;
+
+#ifndef CONFIG_PARAVIRT
+#define paravirt_post_allocator_init()	do {} while (0)
+#endif
+
 #ifndef _SETUP
 
 /*
@@ -91,21 +100,51 @@ extern struct boot_params boot_params;
  */
 #define LOWMEMSIZE()	(0x9f000)
 
+/* exceedingly early brk-like allocator */
+extern unsigned long _brk_end;
+void *extend_brk(size_t size, size_t align);
+
+/*
+ * Reserve space in the brk section.  The name must be unique within
+ * the file, and somewhat descriptive.  The size is in bytes.  Must be
+ * used at file scope.
+ *
+ * (This uses a temp function to wrap the asm so we can pass it the
+ * size parameter; otherwise we wouldn't be able to.  We can't use a
+ * "section" attribute on a normal variable because it always ends up
+ * being @progbits, which ends up allocating space in the vmlinux
+ * executable.)
+ */
+#define RESERVE_BRK(name,sz)						\
+	static void __section(.discard) __used				\
+	__brk_reservation_fn_##name##__(void) {				\
+		asm volatile (						\
+			".pushsection .brk_reservation,\"aw\",@nobits;" \
+			".brk." #name ":"				\
+			" 1:.skip %c0;"					\
+			" .size .brk." #name ", . - 1b;"		\
+			" .popsection"					\
+			: : "i" (sz));					\
+	}
+
 #ifdef __i386__
 
 void __init i386_start_kernel(void);
 extern void probe_roms(void);
 
-extern unsigned long init_pg_tables_start;
-extern unsigned long init_pg_tables_end;
-
 #else
-void __init x86_64_init_pda(void);
 void __init x86_64_start_kernel(char *real_mode);
 void __init x86_64_start_reservations(char *real_mode_data);
 
 #endif /* __i386__ */
 #endif /* _SETUP */
+#else
+#define RESERVE_BRK(name,sz)				\
+	.pushsection .brk_reservation,"aw",@nobits;	\
+.brk.name:						\
+1:	.skip sz;					\
+	.size .brk.name,.-1b;				\
+	.popsection
 #endif /* __ASSEMBLY__ */
 #endif  /*  __KERNEL__  */
 

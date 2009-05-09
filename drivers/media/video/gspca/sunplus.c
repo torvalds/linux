@@ -39,8 +39,11 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
+	u8 quality;
+#define QUALITY_MIN 70
+#define QUALITY_MAX 95
+#define QUALITY_DEF 85
 
-	char qindex;
 	char bridge;
 #define BRIDGE_SPCA504 0
 #define BRIDGE_SPCA504B 1
@@ -52,6 +55,8 @@ struct sd {
 #define LogitechClickSmart420 2
 #define LogitechClickSmart820 3
 #define MegapixV4 4
+
+	u8 *jpeg_hdr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -812,7 +817,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->epaddr = 0x01;
 
 	sd->bridge = id->driver_info >> 8;
 	sd->subtype = id->driver_info;
@@ -850,10 +854,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = sizeof vga_mode2 / sizeof vga_mode2[0];
 		break;
 	}
-	sd->qindex = 5;			/* set the quantization table */
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
+	sd->quality = QUALITY_DEF;
 	return 0;
 }
 
@@ -970,6 +974,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	__u8 i;
 	__u8 info[6];
 
+	/* create the JPEG header */
+	sd->jpeg_hdr = kmalloc(JPEG_HDR_SZ, GFP_KERNEL);
+	jpeg_define(sd->jpeg_hdr, gspca_dev->height, gspca_dev->width,
+			0x22);		/* JPEG 411 */
+	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+
 	if (sd->bridge == BRIDGE_SPCA504B)
 		spca504B_setQtable(gspca_dev);
 	spca504B_SetSizeType(gspca_dev);
@@ -1079,6 +1089,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	}
 }
 
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	kfree(sd->jpeg_hdr);
+}
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1155,9 +1172,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					ffd9, 2);
 
 		/* put the JPEG header in the new frame */
-		jpeg_put_header(gspca_dev, frame,
-				((struct sd *) gspca_dev)->qindex,
-				0x22);
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			sd->jpeg_hdr, JPEG_HDR_SZ);
 	}
 
 	/* add 0x00 after 0xff */
@@ -1198,26 +1214,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u16 brightness = 0;
-
-	switch (sd->bridge) {
-	default:
-/*	case BRIDGE_SPCA533: */
-/*	case BRIDGE_SPCA504B: */
-/*	case BRIDGE_SPCA504: */
-/*	case BRIDGE_SPCA504C: */
-		brightness = reg_r_12(gspca_dev, 0x00, 0x21a7, 2);
-		break;
-	case BRIDGE_SPCA536:
-		brightness = reg_r_12(gspca_dev, 0x00, 0x20f0, 2);
-		break;
-	}
-	sd->brightness = ((brightness & 0xff) - 128) % 255;
-}
-
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1233,24 +1229,6 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		break;
 	case BRIDGE_SPCA536:
 		reg_w_riv(dev, 0x0, 0x20f1, sd->contrast);
-		break;
-	}
-}
-
-static void getcontrast(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (sd->bridge) {
-	default:
-/*	case BRIDGE_SPCA533: */
-/*	case BRIDGE_SPCA504B: */
-/*	case BRIDGE_SPCA504: */
-/*	case BRIDGE_SPCA504C: */
-		sd->contrast = reg_r_12(gspca_dev, 0x00, 0x21a8, 2);
-		break;
-	case BRIDGE_SPCA536:
-		sd->contrast = reg_r_12(gspca_dev, 0x00, 0x20f1, 2);
 		break;
 	}
 }
@@ -1274,24 +1252,6 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	}
 }
 
-static void getcolors(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (sd->bridge) {
-	default:
-/*	case BRIDGE_SPCA533: */
-/*	case BRIDGE_SPCA504B: */
-/*	case BRIDGE_SPCA504: */
-/*	case BRIDGE_SPCA504C: */
-		sd->colors = reg_r_12(gspca_dev, 0x00, 0x21ae, 2) >> 1;
-		break;
-	case BRIDGE_SPCA536:
-		sd->colors = reg_r_12(gspca_dev, 0x00, 0x20f6, 2) >> 1;
-		break;
-	}
-}
-
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1306,7 +1266,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -1325,7 +1284,6 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcontrast(gspca_dev);
 	*val = sd->contrast;
 	return 0;
 }
@@ -1344,7 +1302,6 @@ static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getcolors(gspca_dev);
 	*val = sd->colors;
 	return 0;
 }
@@ -1365,6 +1322,34 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_set_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (jcomp->quality < QUALITY_MIN)
+		sd->quality = QUALITY_MIN;
+	else if (jcomp->quality > QUALITY_MAX)
+		sd->quality = QUALITY_MAX;
+	else
+		sd->quality = jcomp->quality;
+	if (gspca_dev->streaming)
+		jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+	return 0;
+}
+
+static int sd_get_jcomp(struct gspca_dev *gspca_dev,
+			struct v4l2_jpegcompression *jcomp)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	memset(jcomp, 0, sizeof *jcomp);
+	jcomp->quality = sd->quality;
+	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
+			| V4L2_JPEG_MARKER_DQT;
+	return 0;
+}
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -1374,7 +1359,10 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+	.get_jcomp = sd_get_jcomp,
+	.set_jcomp = sd_set_jcomp,
 };
 
 /* -- module initialisation -- */
@@ -1465,8 +1453,10 @@ static struct usb_driver sd_driver = {
 /* -- module insert / remove -- */
 static int __init sd_mod_init(void)
 {
-	if (usb_register(&sd_driver) < 0)
-		return -1;
+	int ret;
+	ret = usb_register(&sd_driver);
+	if (ret < 0)
+		return ret;
 	PDEBUG(D_PROBE, "registered");
 	return 0;
 }

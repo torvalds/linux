@@ -114,7 +114,7 @@ static int snd_ad73311_configure(void)
 	SSYNC();
 
 	/* When TUVF is set, the data is already send out */
-	while (!(status & TUVF) && count++ < 10000) {
+	while (!(status & TUVF) && ++count < 10000) {
 		udelay(1);
 		status = bfin_read_SPORT_STAT();
 		SSYNC();
@@ -123,7 +123,7 @@ static int snd_ad73311_configure(void)
 	SSYNC();
 	local_irq_enable();
 
-	if (count == 10000) {
+	if (count >= 10000) {
 		printk(KERN_ERR "ad73311: failed to configure codec\n");
 		return -1;
 	}

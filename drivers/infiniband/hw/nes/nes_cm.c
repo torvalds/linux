@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2008 NetEffect, Inc. All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -56,6 +56,7 @@
 #include <net/neighbour.h>
 #include <net/route.h>
 #include <net/ip_fib.h>
+#include <net/tcp.h>
 
 #include "nes.h"
 
@@ -103,6 +104,7 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt);
 static void nes_disconnect_worker(struct work_struct *work);
 
 static int send_mpa_request(struct nes_cm_node *, struct sk_buff *);
+static int send_mpa_reject(struct nes_cm_node *);
 static int send_syn(struct nes_cm_node *, u32, struct sk_buff *);
 static int send_reset(struct nes_cm_node *, struct sk_buff *);
 static int send_ack(struct nes_cm_node *cm_node, struct sk_buff *skb);
@@ -113,8 +115,7 @@ static void process_packet(struct nes_cm_node *, struct sk_buff *,
 static void active_open_err(struct nes_cm_node *, struct sk_buff *, int);
 static void passive_open_err(struct nes_cm_node *, struct sk_buff *, int);
 static void cleanup_retrans_entry(struct nes_cm_node *);
-static void handle_rcv_mpa(struct nes_cm_node *, struct sk_buff *,
-	enum nes_cm_event_type);
+static void handle_rcv_mpa(struct nes_cm_node *, struct sk_buff *);
 static void free_retrans_entry(struct nes_cm_node *cm_node);
 static int handle_tcp_options(struct nes_cm_node *cm_node, struct tcphdr *tcph,
 	struct sk_buff *skb, int optionsize, int passive);
@@ -124,6 +125,8 @@ static void cm_event_connected(struct nes_cm_event *);
 static void cm_event_connect_error(struct nes_cm_event *);
 static void cm_event_reset(struct nes_cm_event *);
 static void cm_event_mpa_req(struct nes_cm_event *);
+static void cm_event_mpa_reject(struct nes_cm_event *);
+static void handle_recv_entry(struct nes_cm_node *cm_node, u32 rem_node);
 
 static void print_core(struct nes_cm_core *core);
 
@@ -196,7 +199,6 @@ static struct nes_cm_event *create_event(struct nes_cm_node *cm_node,
  */
 static int send_mpa_request(struct nes_cm_node *cm_node, struct sk_buff *skb)
 {
-	int ret;
 	if (!skb) {
 		nes_debug(NES_DBG_CM, "skb set to NULL\n");
 		return -1;
@@ -206,11 +208,27 @@ static int send_mpa_request(struct nes_cm_node *cm_node, struct sk_buff *skb)
 	form_cm_frame(skb, cm_node, NULL, 0, &cm_node->mpa_frame,
 			cm_node->mpa_frame_size, SET_ACK);
 
-	ret = schedule_nes_timer(cm_node, skb, NES_TIMER_TYPE_SEND, 1, 0);
-	if (ret < 0)
-		return ret;
+	return schedule_nes_timer(cm_node, skb, NES_TIMER_TYPE_SEND, 1, 0);
+}
 
-	return 0;
+
+
+static int send_mpa_reject(struct nes_cm_node *cm_node)
+{
+	struct sk_buff  *skb = NULL;
+
+	skb = dev_alloc_skb(MAX_CM_BUFFER);
+	if (!skb) {
+		nes_debug(NES_DBG_CM, "Failed to get a Free pkt\n");
+		return -ENOMEM;
+	}
+
+	/* send an MPA reject frame */
+	form_cm_frame(skb, cm_node, NULL, 0, &cm_node->mpa_frame,
+			cm_node->mpa_frame_size, SET_ACK | SET_FIN);
+
+	cm_node->state = NES_CM_STATE_FIN_WAIT1;
+	return schedule_nes_timer(cm_node, skb, NES_TIMER_TYPE_SEND, 1, 0);
 }
 
 
@@ -218,14 +236,17 @@ static int send_mpa_request(struct nes_cm_node *cm_node, struct sk_buff *skb)
  * recv_mpa - process a received TCP pkt, we are expecting an
  * IETF MPA frame
  */
-static int parse_mpa(struct nes_cm_node *cm_node, u8 *buffer, u32 len)
+static int parse_mpa(struct nes_cm_node *cm_node, u8 *buffer, u32 *type,
+		u32 len)
 {
 	struct ietf_mpa_frame *mpa_frame;
+
+	*type = NES_MPA_REQUEST_ACCEPT;
 
 	/* assume req frame is in tcp data payload */
 	if (len < sizeof(struct ietf_mpa_frame)) {
 		nes_debug(NES_DBG_CM, "The received ietf buffer was too small (%x)\n", len);
-		return -1;
+		return -EINVAL;
 	}
 
 	mpa_frame = (struct ietf_mpa_frame *)buffer;
@@ -234,14 +255,25 @@ static int parse_mpa(struct nes_cm_node *cm_node, u8 *buffer, u32 len)
 	if (cm_node->mpa_frame_size + sizeof(struct ietf_mpa_frame) != len) {
 		nes_debug(NES_DBG_CM, "The received ietf buffer was not right"
 				" complete (%x + %x != %x)\n",
-				cm_node->mpa_frame_size, (u32)sizeof(struct ietf_mpa_frame), len);
-		return -1;
+				cm_node->mpa_frame_size,
+				(u32)sizeof(struct ietf_mpa_frame), len);
+		return -EINVAL;
+	}
+	/* make sure it does not exceed the max size */
+	if (len > MAX_CM_BUFFER) {
+		nes_debug(NES_DBG_CM, "The received ietf buffer was too large"
+				" (%x + %x != %x)\n",
+				cm_node->mpa_frame_size,
+				(u32)sizeof(struct ietf_mpa_frame), len);
+		return -EINVAL;
 	}
 
 	/* copy entire MPA frame to our cm_node's frame */
 	memcpy(cm_node->mpa_frame_buf, buffer + sizeof(struct ietf_mpa_frame),
 			cm_node->mpa_frame_size);
 
+	if (mpa_frame->flags & IETF_MPA_FLAGS_REJECT)
+		*type = NES_MPA_REQUEST_REJECT;
 	return 0;
 }
 
@@ -380,7 +412,7 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 
 	new_send = kzalloc(sizeof(*new_send), GFP_ATOMIC);
 	if (!new_send)
-		return -1;
+		return -ENOMEM;
 
 	/* new_send->timetosend = currenttime */
 	new_send->retrycount = NES_DEFAULT_RETRYS;
@@ -394,9 +426,12 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 
 	if (type == NES_TIMER_TYPE_CLOSE) {
 		new_send->timetosend += (HZ/10);
-		spin_lock_irqsave(&cm_node->recv_list_lock, flags);
-		list_add_tail(&new_send->list, &cm_node->recv_list);
-		spin_unlock_irqrestore(&cm_node->recv_list_lock, flags);
+		if (cm_node->recv_entry) {
+			kfree(new_send);
+			WARN_ON(1);
+			return -EINVAL;
+		}
+		cm_node->recv_entry = new_send;
 	}
 
 	if (type == NES_TIMER_TYPE_SEND) {
@@ -412,8 +447,8 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		if (ret != NETDEV_TX_OK) {
 			nes_debug(NES_DBG_CM, "Error sending packet %p "
 				"(jiffies = %lu)\n", new_send, jiffies);
-			atomic_dec(&new_send->skb->users);
 			new_send->timetosend = jiffies;
+			ret = NETDEV_TX_OK;
 		} else {
 			cm_packets_sent++;
 			if (!send_retrans) {
@@ -435,24 +470,79 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	return ret;
 }
 
+static void nes_retrans_expired(struct nes_cm_node *cm_node)
+{
+	switch (cm_node->state) {
+	case NES_CM_STATE_SYN_RCVD:
+	case NES_CM_STATE_CLOSING:
+		rem_ref_cm_node(cm_node->cm_core, cm_node);
+		break;
+	case NES_CM_STATE_LAST_ACK:
+	case NES_CM_STATE_FIN_WAIT1:
+	case NES_CM_STATE_MPAREJ_RCVD:
+		send_reset(cm_node, NULL);
+		break;
+	default:
+		create_event(cm_node, NES_CM_EVENT_ABORTED);
+	}
+}
+
+static void handle_recv_entry(struct nes_cm_node *cm_node, u32 rem_node)
+{
+	struct nes_timer_entry *recv_entry = cm_node->recv_entry;
+	struct iw_cm_id *cm_id = cm_node->cm_id;
+	struct nes_qp *nesqp;
+	unsigned long qplockflags;
+
+	if (!recv_entry)
+		return;
+	nesqp = (struct nes_qp *)recv_entry->skb;
+	if (nesqp) {
+		spin_lock_irqsave(&nesqp->lock, qplockflags);
+		if (nesqp->cm_id) {
+			nes_debug(NES_DBG_CM, "QP%u: cm_id = %p, "
+				"refcount = %d: HIT A "
+				"NES_TIMER_TYPE_CLOSE with something "
+				"to do!!!\n", nesqp->hwqp.qp_id, cm_id,
+				atomic_read(&nesqp->refcount));
+			nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
+			nesqp->last_aeq = NES_AEQE_AEID_RESET_SENT;
+			nesqp->ibqp_state = IB_QPS_ERR;
+			spin_unlock_irqrestore(&nesqp->lock, qplockflags);
+			nes_cm_disconn(nesqp);
+		} else {
+			spin_unlock_irqrestore(&nesqp->lock, qplockflags);
+			nes_debug(NES_DBG_CM, "QP%u: cm_id = %p, "
+				"refcount = %d: HIT A "
+				"NES_TIMER_TYPE_CLOSE with nothing "
+				"to do!!!\n", nesqp->hwqp.qp_id, cm_id,
+				atomic_read(&nesqp->refcount));
+		}
+	} else if (rem_node) {
+		/* TIME_WAIT state */
+		rem_ref_cm_node(cm_node->cm_core, cm_node);
+	}
+	if (cm_node->cm_id)
+		cm_id->rem_ref(cm_id);
+	kfree(recv_entry);
+	cm_node->recv_entry = NULL;
+}
 
 /**
  * nes_cm_timer_tick
  */
 static void nes_cm_timer_tick(unsigned long pass)
 {
-	unsigned long flags, qplockflags;
+	unsigned long flags;
 	unsigned long nexttimeout = jiffies + NES_LONG_TIME;
-	struct iw_cm_id *cm_id;
 	struct nes_cm_node *cm_node;
 	struct nes_timer_entry *send_entry, *recv_entry;
-	struct list_head *list_core, *list_core_temp;
-	struct list_head *list_node, *list_node_temp;
+	struct list_head *list_core_temp;
+	struct list_head *list_node;
 	struct nes_cm_core *cm_core = g_cm_core;
-	struct nes_qp *nesqp;
 	u32 settimer = 0;
+	unsigned long timetosend;
 	int ret = NETDEV_TX_OK;
-	enum nes_cm_node_state last_state;
 
 	struct list_head timer_list;
 	INIT_LIST_HEAD(&timer_list);
@@ -461,7 +551,7 @@ static void nes_cm_timer_tick(unsigned long pass)
 	list_for_each_safe(list_node, list_core_temp,
 				&cm_core->connected_nodes) {
 		cm_node = container_of(list_node, struct nes_cm_node, list);
-		if (!list_empty(&cm_node->recv_list) || (cm_node->send_entry)) {
+		if ((cm_node->recv_entry) || (cm_node->send_entry)) {
 			add_ref_cm_node(cm_node);
 			list_add(&cm_node->timer_entry, &timer_list);
 		}
@@ -471,54 +561,18 @@ static void nes_cm_timer_tick(unsigned long pass)
 	list_for_each_safe(list_node, list_core_temp, &timer_list) {
 		cm_node = container_of(list_node, struct nes_cm_node,
 					timer_entry);
-		spin_lock_irqsave(&cm_node->recv_list_lock, flags);
-		list_for_each_safe(list_core, list_node_temp,
-			&cm_node->recv_list) {
-			recv_entry = container_of(list_core,
-				struct nes_timer_entry, list);
-			if (!recv_entry)
-				break;
+		recv_entry = cm_node->recv_entry;
+
+		if (recv_entry) {
 			if (time_after(recv_entry->timetosend, jiffies)) {
 				if (nexttimeout > recv_entry->timetosend ||
-					!settimer) {
+						!settimer) {
 					nexttimeout = recv_entry->timetosend;
 					settimer = 1;
 				}
-				continue;
-			}
-			list_del(&recv_entry->list);
-			cm_id = cm_node->cm_id;
-			spin_unlock_irqrestore(&cm_node->recv_list_lock, flags);
-			nesqp = (struct nes_qp *)recv_entry->skb;
-			spin_lock_irqsave(&nesqp->lock, qplockflags);
-			if (nesqp->cm_id) {
-				nes_debug(NES_DBG_CM, "QP%u: cm_id = %p, "
-					"refcount = %d: HIT A "
-					"NES_TIMER_TYPE_CLOSE with something "
-					"to do!!!\n", nesqp->hwqp.qp_id, cm_id,
-					atomic_read(&nesqp->refcount));
-				nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
-				nesqp->last_aeq = NES_AEQE_AEID_RESET_SENT;
-				nesqp->ibqp_state = IB_QPS_ERR;
-				spin_unlock_irqrestore(&nesqp->lock,
-					qplockflags);
-				nes_cm_disconn(nesqp);
-			} else {
-				spin_unlock_irqrestore(&nesqp->lock,
-					qplockflags);
-				nes_debug(NES_DBG_CM, "QP%u: cm_id = %p, "
-					"refcount = %d: HIT A "
-					"NES_TIMER_TYPE_CLOSE with nothing "
-					"to do!!!\n", nesqp->hwqp.qp_id, cm_id,
-					atomic_read(&nesqp->refcount));
-			}
-			if (cm_id)
-				cm_id->rem_ref(cm_id);
-
-			kfree(recv_entry);
-			spin_lock_irqsave(&cm_node->recv_list_lock, flags);
+			} else
+				handle_recv_entry(cm_node, 1);
 		}
-		spin_unlock_irqrestore(&cm_node->recv_list_lock, flags);
 
 		spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
 		do {
@@ -533,12 +587,11 @@ static void nes_cm_timer_tick(unsigned long pass)
 						nexttimeout =
 							send_entry->timetosend;
 						settimer = 1;
-						break;
 					}
 				} else {
 					free_retrans_entry(cm_node);
-					break;
 				}
+				break;
 			}
 
 			if ((cm_node->state == NES_CM_STATE_TSA) ||
@@ -550,16 +603,12 @@ static void nes_cm_timer_tick(unsigned long pass)
 			if (!send_entry->retranscount ||
 				!send_entry->retrycount) {
 				cm_packets_dropped++;
-				last_state = cm_node->state;
-				cm_node->state = NES_CM_STATE_CLOSED;
 				free_retrans_entry(cm_node);
+
 				spin_unlock_irqrestore(
 					&cm_node->retrans_list_lock, flags);
-				if (last_state == NES_CM_STATE_SYN_RCVD)
-					rem_ref_cm_node(cm_core, cm_node);
-				else
-					create_event(cm_node,
-						NES_CM_EVENT_ABORTED);
+				nes_retrans_expired(cm_node);
+				cm_node->state = NES_CM_STATE_CLOSED;
 				spin_lock_irqsave(&cm_node->retrans_list_lock,
 					flags);
 				break;
@@ -584,7 +633,6 @@ static void nes_cm_timer_tick(unsigned long pass)
 				nes_debug(NES_DBG_CM, "rexmit failed for "
 					"node=%p\n", cm_node);
 				cm_packets_bounced++;
-				atomic_dec(&send_entry->skb->users);
 				send_entry->retrycount--;
 				nexttimeout = jiffies + NES_SHORT_TIME;
 				settimer = 1;
@@ -598,8 +646,11 @@ static void nes_cm_timer_tick(unsigned long pass)
 				send_entry->retrycount);
 			if (send_entry->send_retrans) {
 				send_entry->retranscount--;
+				timetosend = (NES_RETRY_TIMEOUT <<
+					(NES_DEFAULT_RETRANS - send_entry->retranscount));
+
 				send_entry->timetosend = jiffies +
-					NES_RETRY_TIMEOUT;
+					min(timetosend, NES_MAX_TIMEOUT);
 				if (nexttimeout > send_entry->timetosend ||
 					!settimer) {
 					nexttimeout = send_entry->timetosend;
@@ -620,11 +671,6 @@ static void nes_cm_timer_tick(unsigned long pass)
 
 		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 		rem_ref_cm_node(cm_node->cm_core, cm_node);
-		if (ret != NETDEV_TX_OK) {
-			nes_debug(NES_DBG_CM, "rexmit failed for cm_node=%p\n",
-				cm_node);
-			break;
-		}
 	}
 
 	if (settimer) {
@@ -714,7 +760,7 @@ static int send_reset(struct nes_cm_node *cm_node, struct sk_buff *skb)
 		skb = dev_alloc_skb(MAX_CM_BUFFER);
 	if (!skb) {
 		nes_debug(NES_DBG_CM, "Failed to get a Free pkt\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	form_cm_frame(skb, cm_node, NULL, 0, NULL, 0, flags);
@@ -778,13 +824,9 @@ static struct nes_cm_node *find_node(struct nes_cm_core *cm_core,
 	unsigned long flags;
 	struct list_head *hte;
 	struct nes_cm_node *cm_node;
-	__be32 tmp_addr = cpu_to_be32(loc_addr);
 
 	/* get a handle on the hte */
 	hte = &cm_core->connected_nodes;
-
-	nes_debug(NES_DBG_CM, "Searching for an owner node: %pI4:%x from core %p->%p\n",
-		  &tmp_addr, loc_port, cm_core, hte);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->ht_lock, flags);
@@ -817,7 +859,6 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 {
 	unsigned long flags;
 	struct nes_cm_listener *listen_node;
-	__be32 tmp_addr = cpu_to_be32(dst_addr);
 
 	/* walk list and find cm_node associated with this session ID */
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
@@ -833,9 +874,6 @@ static struct nes_cm_listener *find_listener(struct nes_cm_core *cm_core,
 		}
 	}
 	spin_unlock_irqrestore(&cm_core->listen_list_lock, flags);
-
-	nes_debug(NES_DBG_CM, "Unable to find listener for %pI4:%x\n",
-		  &tmp_addr, dst_port);
 
 	/* no listener */
 	return NULL;
@@ -875,7 +913,8 @@ static int add_hte_node(struct nes_cm_core *cm_core, struct nes_cm_node *cm_node
 static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 	struct nes_cm_listener *listener, int free_hanging_nodes)
 {
-	int ret = 1;
+	int ret = -EINVAL;
+	int err = 0;
 	unsigned long flags;
 	struct list_head *list_pos = NULL;
 	struct list_head *list_temp = NULL;
@@ -904,10 +943,60 @@ static int mini_cm_dec_refcnt_listen(struct nes_cm_core *cm_core,
 
 	list_for_each_safe(list_pos, list_temp, &reset_list) {
 		cm_node = container_of(list_pos, struct nes_cm_node,
-					reset_entry);
-		cleanup_retrans_entry(cm_node);
-		send_reset(cm_node, NULL);
-		rem_ref_cm_node(cm_node->cm_core, cm_node);
+				reset_entry);
+		{
+			struct nes_cm_node *loopback = cm_node->loopbackpartner;
+			if (NES_CM_STATE_FIN_WAIT1 <= cm_node->state) {
+				rem_ref_cm_node(cm_node->cm_core, cm_node);
+			} else {
+				if (!loopback) {
+					cleanup_retrans_entry(cm_node);
+					err = send_reset(cm_node, NULL);
+					if (err) {
+						cm_node->state =
+							 NES_CM_STATE_CLOSED;
+						WARN_ON(1);
+					} else {
+						cm_node->state =
+							NES_CM_STATE_CLOSED;
+						rem_ref_cm_node(
+							cm_node->cm_core,
+							cm_node);
+					}
+				} else {
+					struct nes_cm_event event;
+
+					event.cm_node = loopback;
+					event.cm_info.rem_addr =
+							loopback->rem_addr;
+					event.cm_info.loc_addr =
+							loopback->loc_addr;
+					event.cm_info.rem_port =
+							loopback->rem_port;
+					event.cm_info.loc_port =
+							 loopback->loc_port;
+					event.cm_info.cm_id = loopback->cm_id;
+					cm_event_connect_error(&event);
+					loopback->state = NES_CM_STATE_CLOSED;
+
+					event.cm_node = cm_node;
+					event.cm_info.rem_addr =
+							 cm_node->rem_addr;
+					event.cm_info.loc_addr =
+							 cm_node->loc_addr;
+					event.cm_info.rem_port =
+							 cm_node->rem_port;
+					event.cm_info.loc_port =
+							 cm_node->loc_port;
+					event.cm_info.cm_id = cm_node->cm_id;
+					cm_event_reset(&event);
+
+					rem_ref_cm_node(cm_node->cm_core,
+							 cm_node);
+
+				}
+			}
+		}
 	}
 
 	spin_lock_irqsave(&cm_core->listen_list_lock, flags);
@@ -968,6 +1057,7 @@ static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 	if (cm_node->accept_pend) {
 		BUG_ON(!cm_node->listener);
 		atomic_dec(&cm_node->listener->pend_accepts_cnt);
+		cm_node->accept_pend = 0;
 		BUG_ON(atomic_read(&cm_node->listener->pend_accepts_cnt) < 0);
 	}
 
@@ -994,7 +1084,7 @@ static int nes_addr_resolve_neigh(struct nes_vnic *nesvnic, u32 dst_ip)
 	memset(&fl, 0, sizeof fl);
 	fl.nl_u.ip4_u.daddr = htonl(dst_ip);
 	if (ip_route_output_key(&init_net, &rt, &fl)) {
-		printk("%s: ip_route_output_key failed for 0x%08X\n",
+		printk(KERN_ERR "%s: ip_route_output_key failed for 0x%08X\n",
 				__func__, dst_ip);
 		return rc;
 	}
@@ -1057,8 +1147,6 @@ static struct nes_cm_node *make_cm_node(struct nes_cm_core *cm_core,
 			cm_node->cm_id);
 
 	spin_lock_init(&cm_node->retrans_list_lock);
-	INIT_LIST_HEAD(&cm_node->recv_list);
-	spin_lock_init(&cm_node->recv_list_lock);
 
 	cm_node->loopbackpartner = NULL;
 	atomic_set(&cm_node->ref_count, 1);
@@ -1126,10 +1214,7 @@ static int add_ref_cm_node(struct nes_cm_node *cm_node)
 static int rem_ref_cm_node(struct nes_cm_core *cm_core,
 	struct nes_cm_node *cm_node)
 {
-	unsigned long flags, qplockflags;
-	struct nes_timer_entry *recv_entry;
-	struct iw_cm_id *cm_id;
-	struct list_head *list_core, *list_node_temp;
+	unsigned long flags;
 	struct nes_qp *nesqp;
 
 	if (!cm_node)
@@ -1150,38 +1235,9 @@ static int rem_ref_cm_node(struct nes_cm_core *cm_core,
 		atomic_dec(&cm_node->listener->pend_accepts_cnt);
 		BUG_ON(atomic_read(&cm_node->listener->pend_accepts_cnt) < 0);
 	}
-	BUG_ON(cm_node->send_entry);
-	spin_lock_irqsave(&cm_node->recv_list_lock, flags);
-	list_for_each_safe(list_core, list_node_temp, &cm_node->recv_list) {
-		recv_entry = container_of(list_core, struct nes_timer_entry,
-				list);
-		list_del(&recv_entry->list);
-		cm_id = cm_node->cm_id;
-		spin_unlock_irqrestore(&cm_node->recv_list_lock, flags);
-		nesqp = (struct nes_qp *)recv_entry->skb;
-		spin_lock_irqsave(&nesqp->lock, qplockflags);
-		if (nesqp->cm_id) {
-			nes_debug(NES_DBG_CM, "QP%u: cm_id = %p: HIT A "
-				"NES_TIMER_TYPE_CLOSE with something to do!\n",
-				nesqp->hwqp.qp_id, cm_id);
-			nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
-			nesqp->last_aeq = NES_AEQE_AEID_RESET_SENT;
-			nesqp->ibqp_state = IB_QPS_ERR;
-			spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-			nes_cm_disconn(nesqp);
-		} else {
-			spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-			nes_debug(NES_DBG_CM, "QP%u: cm_id = %p: HIT A "
-				"NES_TIMER_TYPE_CLOSE with nothing to do!\n",
-				nesqp->hwqp.qp_id, cm_id);
-		}
-		cm_id->rem_ref(cm_id);
-
-		kfree(recv_entry);
-		spin_lock_irqsave(&cm_node->recv_list_lock, flags);
-	}
-	spin_unlock_irqrestore(&cm_node->recv_list_lock, flags);
-
+	WARN_ON(cm_node->send_entry);
+	if (cm_node->recv_entry)
+		handle_recv_entry(cm_node, 0);
 	if (cm_node->listener) {
 		mini_cm_dec_refcnt_listen(cm_core, cm_node->listener, 0);
 	} else {
@@ -1202,7 +1258,6 @@ static int rem_ref_cm_node(struct nes_cm_core *cm_core,
 		cm_node->nesqp = NULL;
 	}
 
-	cm_node->freed = 1;
 	kfree(cm_node);
 	return 0;
 }
@@ -1266,36 +1321,48 @@ static void drop_packet(struct sk_buff *skb)
 	dev_kfree_skb_any(skb);
 }
 
-static void handle_fin_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
-	struct tcphdr *tcph)
+static void handle_fin_pkt(struct nes_cm_node *cm_node)
 {
 	nes_debug(NES_DBG_CM, "Received FIN, cm_node = %p, state = %u. "
 		"refcnt=%d\n", cm_node, cm_node->state,
 		atomic_read(&cm_node->ref_count));
-	cm_node->tcp_cntxt.rcv_nxt++;
-	cleanup_retrans_entry(cm_node);
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_RCVD:
 	case NES_CM_STATE_SYN_SENT:
 	case NES_CM_STATE_ESTABLISHED:
 	case NES_CM_STATE_MPAREQ_SENT:
+	case NES_CM_STATE_MPAREJ_RCVD:
+		cm_node->tcp_cntxt.rcv_nxt++;
+		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_LAST_ACK;
-		send_fin(cm_node, skb);
+		send_fin(cm_node, NULL);
 		break;
 	case NES_CM_STATE_FIN_WAIT1:
+		cm_node->tcp_cntxt.rcv_nxt++;
+		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_CLOSING;
-		send_ack(cm_node, skb);
+		send_ack(cm_node, NULL);
+		/* Wait for ACK as this is simultanous close..
+		* After we receive ACK, do not send anything..
+		* Just rm the node.. Done.. */
 		break;
 	case NES_CM_STATE_FIN_WAIT2:
+		cm_node->tcp_cntxt.rcv_nxt++;
+		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_TIME_WAIT;
-		send_ack(cm_node, skb);
+		send_ack(cm_node, NULL);
+		schedule_nes_timer(cm_node, NULL,  NES_TIMER_TYPE_CLOSE, 1, 0);
+		break;
+	case NES_CM_STATE_TIME_WAIT:
+		cm_node->tcp_cntxt.rcv_nxt++;
+		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_CLOSED;
+		rem_ref_cm_node(cm_node->cm_core, cm_node);
 		break;
 	case NES_CM_STATE_TSA:
 	default:
 		nes_debug(NES_DBG_CM, "Error Rcvd FIN for node-%p state = %d\n",
 			cm_node, cm_node->state);
-		drop_packet(skb);
 		break;
 	}
 }
@@ -1324,7 +1391,6 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		passive_state = atomic_add_return(1, &cm_node->passive_state);
 		if (passive_state ==  NES_SEND_RESET_EVENT)
 			create_event(cm_node, NES_CM_EVENT_RESET);
-		cleanup_retrans_entry(cm_node);
 		cm_node->state = NES_CM_STATE_CLOSED;
 		dev_kfree_skb_any(skb);
 		break;
@@ -1338,26 +1404,37 @@ static void handle_rst_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		active_open_err(cm_node, skb, reset);
 		break;
 	case NES_CM_STATE_CLOSED:
-		cleanup_retrans_entry(cm_node);
 		drop_packet(skb);
 		break;
+	case NES_CM_STATE_LAST_ACK:
+		cm_node->cm_id->rem_ref(cm_node->cm_id);
+	case NES_CM_STATE_TIME_WAIT:
+		cm_node->state = NES_CM_STATE_CLOSED;
+		rem_ref_cm_node(cm_node->cm_core, cm_node);
+		drop_packet(skb);
+		break;
+	case NES_CM_STATE_FIN_WAIT1:
+		nes_debug(NES_DBG_CM, "Bad state %s[%u]\n", __func__, __LINE__);
 	default:
 		drop_packet(skb);
 		break;
 	}
 }
 
-static void handle_rcv_mpa(struct nes_cm_node *cm_node, struct sk_buff *skb,
-	enum nes_cm_event_type type)
+
+static void handle_rcv_mpa(struct nes_cm_node *cm_node, struct sk_buff *skb)
 {
 
-	int	ret;
+	int	ret = 0;
 	int datasize = skb->len;
 	u8 *dataloc = skb->data;
-	ret = parse_mpa(cm_node, dataloc, datasize);
-	if (ret < 0) {
+
+	enum nes_cm_event_type type = NES_CM_EVENT_UNKNOWN;
+	u32     res_type;
+	ret = parse_mpa(cm_node, dataloc, &res_type, datasize);
+	if (ret) {
 		nes_debug(NES_DBG_CM, "didn't like MPA Request\n");
-		if (type == NES_CM_EVENT_CONNECTED) {
+		if (cm_node->state == NES_CM_STATE_MPAREQ_SENT) {
 			nes_debug(NES_DBG_CM, "%s[%u] create abort for "
 				"cm_node=%p listener=%p state=%d\n", __func__,
 				__LINE__, cm_node, cm_node->listener,
@@ -1366,18 +1443,39 @@ static void handle_rcv_mpa(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		} else {
 			passive_open_err(cm_node, skb, 1);
 		}
-	} else {
-		cleanup_retrans_entry(cm_node);
-		dev_kfree_skb_any(skb);
-		if (type == NES_CM_EVENT_CONNECTED)
-			cm_node->state = NES_CM_STATE_TSA;
-		else
-			atomic_set(&cm_node->passive_state,
-					NES_PASSIVE_STATE_INDICATED);
-		create_event(cm_node, type);
-
+		return;
 	}
-	return ;
+
+	switch (cm_node->state) {
+	case NES_CM_STATE_ESTABLISHED:
+		if (res_type == NES_MPA_REQUEST_REJECT) {
+			/*BIG problem as we are receiving the MPA.. So should
+			* not be REJECT.. This is Passive Open.. We can
+			* only receive it Reject for Active Open...*/
+			WARN_ON(1);
+		}
+		cm_node->state = NES_CM_STATE_MPAREQ_RCVD;
+		type = NES_CM_EVENT_MPA_REQ;
+		atomic_set(&cm_node->passive_state,
+				NES_PASSIVE_STATE_INDICATED);
+		break;
+	case NES_CM_STATE_MPAREQ_SENT:
+		cleanup_retrans_entry(cm_node);
+		if (res_type == NES_MPA_REQUEST_REJECT) {
+			type = NES_CM_EVENT_MPA_REJECT;
+			cm_node->state = NES_CM_STATE_MPAREJ_RCVD;
+		} else {
+			type = NES_CM_EVENT_CONNECTED;
+			cm_node->state = NES_CM_STATE_TSA;
+		}
+
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+	dev_kfree_skb_any(skb);
+	create_event(cm_node, type);
 }
 
 static void indicate_pkt_err(struct nes_cm_node *cm_node, struct sk_buff *skb)
@@ -1426,7 +1524,7 @@ static int check_seq(struct nes_cm_node *cm_node, struct tcphdr *tcph,
 	rcv_wnd = cm_node->tcp_cntxt.rcv_wnd;
 	if (ack_seq != loc_seq_num)
 		err = 1;
-	else if ((seq + rcv_wnd) < rcv_nxt)
+	else if (!between(seq, rcv_nxt, (rcv_nxt+rcv_wnd)))
 		err = 1;
 	if (err) {
 		nes_debug(NES_DBG_CM, "%s[%u] create abort for cm_node=%p "
@@ -1465,8 +1563,6 @@ static void handle_syn_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		break;
 	case NES_CM_STATE_LISTENING:
 		/* Passive OPEN */
-		cm_node->accept_pend = 1;
-		atomic_inc(&cm_node->listener->pend_accepts_cnt);
 		if (atomic_read(&cm_node->listener->pend_accepts_cnt) >
 				cm_node->listener->backlog) {
 			nes_debug(NES_DBG_CM, "drop syn due to backlog "
@@ -1484,6 +1580,9 @@ static void handle_syn_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		}
 		cm_node->tcp_cntxt.rcv_nxt = inc_sequence + 1;
 		BUG_ON(cm_node->send_entry);
+		cm_node->accept_pend = 1;
+		atomic_inc(&cm_node->listener->pend_accepts_cnt);
+
 		cm_node->state = NES_CM_STATE_SYN_RCVD;
 		send_syn(cm_node, 1, skb);
 		break;
@@ -1518,6 +1617,7 @@ static void handle_synack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	inc_sequence = ntohl(tcph->seq);
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_SENT:
+		cleanup_retrans_entry(cm_node);
 		/* active open */
 		if (check_syn(cm_node, tcph, skb))
 			return;
@@ -1558,62 +1658,46 @@ static void handle_synack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	}
 }
 
-static void handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
+static int handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 	struct tcphdr *tcph)
 {
 	int datasize = 0;
 	u32 inc_sequence;
 	u32 rem_seq_ack;
 	u32 rem_seq;
-	int ret;
+	int ret = 0;
 	int optionsize;
-	u32 temp_seq = cm_node->tcp_cntxt.loc_seq_num;
-
 	optionsize = (tcph->doff << 2) - sizeof(struct tcphdr);
-	cm_node->tcp_cntxt.loc_seq_num = ntohl(tcph->ack_seq);
 
 	if (check_seq(cm_node, tcph, skb))
-		return;
+		return -EINVAL;
 
 	skb_pull(skb, tcph->doff << 2);
 	inc_sequence = ntohl(tcph->seq);
 	rem_seq = ntohl(tcph->seq);
 	rem_seq_ack =  ntohl(tcph->ack_seq);
 	datasize = skb->len;
-
 	switch (cm_node->state) {
 	case NES_CM_STATE_SYN_RCVD:
 		/* Passive OPEN */
+		cleanup_retrans_entry(cm_node);
 		ret = handle_tcp_options(cm_node, tcph, skb, optionsize, 1);
 		if (ret)
 			break;
 		cm_node->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
-		cm_node->tcp_cntxt.loc_seq_num = temp_seq;
-		if (cm_node->tcp_cntxt.rem_ack_num !=
-		    cm_node->tcp_cntxt.loc_seq_num) {
-			nes_debug(NES_DBG_CM, "rem_ack_num != loc_seq_num\n");
-			cleanup_retrans_entry(cm_node);
-			send_reset(cm_node, skb);
-			return;
-		}
 		cm_node->state = NES_CM_STATE_ESTABLISHED;
 		if (datasize) {
 			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
-			cm_node->state = NES_CM_STATE_MPAREQ_RCVD;
-			handle_rcv_mpa(cm_node, skb, NES_CM_EVENT_MPA_REQ);
-		 } else { /* rcvd ACK only */
+			handle_rcv_mpa(cm_node, skb);
+		} else  /* rcvd ACK only */
 			dev_kfree_skb_any(skb);
-			cleanup_retrans_entry(cm_node);
-		 }
 		break;
 	case NES_CM_STATE_ESTABLISHED:
 		/* Passive OPEN */
-		/* We expect mpa frame to be received only */
+		cleanup_retrans_entry(cm_node);
 		if (datasize) {
 			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
-			cm_node->state = NES_CM_STATE_MPAREQ_RCVD;
-			handle_rcv_mpa(cm_node, skb,
-				NES_CM_EVENT_MPA_REQ);
+			handle_rcv_mpa(cm_node, skb);
 		} else
 			drop_packet(skb);
 		break;
@@ -1621,29 +1705,39 @@ static void handle_ack_pkt(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		cm_node->tcp_cntxt.rem_ack_num = ntohl(tcph->ack_seq);
 		if (datasize) {
 			cm_node->tcp_cntxt.rcv_nxt = inc_sequence + datasize;
-			handle_rcv_mpa(cm_node, skb, NES_CM_EVENT_CONNECTED);
-		} else { /* Could be just an ack pkt.. */
-			cleanup_retrans_entry(cm_node);
+			handle_rcv_mpa(cm_node, skb);
+		} else  /* Could be just an ack pkt.. */
 			dev_kfree_skb_any(skb);
-		}
 		break;
 	case NES_CM_STATE_LISTENING:
 	case NES_CM_STATE_CLOSED:
 		cleanup_retrans_entry(cm_node);
 		send_reset(cm_node, skb);
 		break;
+	case NES_CM_STATE_LAST_ACK:
+	case NES_CM_STATE_CLOSING:
+		cleanup_retrans_entry(cm_node);
+		cm_node->state = NES_CM_STATE_CLOSED;
+		cm_node->cm_id->rem_ref(cm_node->cm_id);
+		rem_ref_cm_node(cm_node->cm_core, cm_node);
+		drop_packet(skb);
+		break;
 	case NES_CM_STATE_FIN_WAIT1:
+		cleanup_retrans_entry(cm_node);
+		drop_packet(skb);
+		cm_node->state = NES_CM_STATE_FIN_WAIT2;
+		break;
 	case NES_CM_STATE_SYN_SENT:
 	case NES_CM_STATE_FIN_WAIT2:
 	case NES_CM_STATE_TSA:
 	case NES_CM_STATE_MPAREQ_RCVD:
-	case NES_CM_STATE_LAST_ACK:
-	case NES_CM_STATE_CLOSING:
 	case NES_CM_STATE_UNKNOWN:
 	default:
+		cleanup_retrans_entry(cm_node);
 		drop_packet(skb);
 		break;
 	}
+	return ret;
 }
 
 
@@ -1748,6 +1842,8 @@ static void process_packet(struct nes_cm_node *cm_node, struct sk_buff *skb,
 {
 	enum nes_tcpip_pkt_type	pkt_type = NES_PKT_TYPE_UNKNOWN;
 	struct tcphdr *tcph = tcp_hdr(skb);
+	u32     fin_set = 0;
+	int ret = 0;
 	skb_pull(skb, ip_hdr(skb)->ihl << 2);
 
 	nes_debug(NES_DBG_CM, "process_packet: cm_node=%p state =%d syn=%d "
@@ -1760,10 +1856,10 @@ static void process_packet(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		pkt_type = NES_PKT_TYPE_SYN;
 		if (tcph->ack)
 			pkt_type = NES_PKT_TYPE_SYNACK;
-	} else if (tcph->fin)
-		pkt_type = NES_PKT_TYPE_FIN;
-	else if (tcph->ack)
+	} else if (tcph->ack)
 		pkt_type = NES_PKT_TYPE_ACK;
+	if (tcph->fin)
+		fin_set = 1;
 
 	switch (pkt_type) {
 	case NES_PKT_TYPE_SYN:
@@ -1773,15 +1869,16 @@ static void process_packet(struct nes_cm_node *cm_node, struct sk_buff *skb,
 		handle_synack_pkt(cm_node, skb, tcph);
 		break;
 	case NES_PKT_TYPE_ACK:
-		handle_ack_pkt(cm_node, skb, tcph);
+		ret = handle_ack_pkt(cm_node, skb, tcph);
+		if (fin_set && !ret)
+			handle_fin_pkt(cm_node);
 		break;
 	case NES_PKT_TYPE_RST:
 		handle_rst_pkt(cm_node, skb, tcph);
 		break;
-	case NES_PKT_TYPE_FIN:
-		handle_fin_pkt(cm_node, skb, tcph);
-		break;
 	default:
+		if ((fin_set) && (!check_seq(cm_node, tcph, skb)))
+			handle_fin_pkt(cm_node);
 		drop_packet(skb);
 		break;
 	}
@@ -1891,13 +1988,17 @@ static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 		if (loopbackremotelistener == NULL) {
 			create_event(cm_node, NES_CM_EVENT_ABORTED);
 		} else {
-			atomic_inc(&cm_loopbacks);
 			loopback_cm_info = *cm_info;
 			loopback_cm_info.loc_port = cm_info->rem_port;
 			loopback_cm_info.rem_port = cm_info->loc_port;
 			loopback_cm_info.cm_id = loopbackremotelistener->cm_id;
 			loopbackremotenode = make_cm_node(cm_core, nesvnic,
 				&loopback_cm_info, loopbackremotelistener);
+			if (!loopbackremotenode) {
+				rem_ref_cm_node(cm_node->cm_core, cm_node);
+				return NULL;
+			}
+			atomic_inc(&cm_loopbacks);
 			loopbackremotenode->loopbackpartner = cm_node;
 			loopbackremotenode->tcp_cntxt.rcv_wscale =
 				NES_CM_DEFAULT_RCV_WND_SCALE;
@@ -1925,7 +2026,7 @@ static struct nes_cm_node *mini_cm_connect(struct nes_cm_core *cm_core,
 				loopbackremotenode->tcp_cntxt.rcv_wscale;
 			loopbackremotenode->tcp_cntxt.snd_wscale =
 				cm_node->tcp_cntxt.rcv_wscale;
-
+			loopbackremotenode->state = NES_CM_STATE_MPAREQ_RCVD;
 			create_event(loopbackremotenode, NES_CM_EVENT_MPA_REQ);
 		}
 		return cm_node;
@@ -1980,7 +2081,11 @@ static int mini_cm_reject(struct nes_cm_core *cm_core,
 	struct ietf_mpa_frame *mpa_frame, struct nes_cm_node *cm_node)
 {
 	int ret = 0;
+	int err = 0;
 	int passive_state;
+	struct nes_cm_event event;
+	struct iw_cm_id *cm_id = cm_node->cm_id;
+	struct nes_cm_node *loopback = cm_node->loopbackpartner;
 
 	nes_debug(NES_DBG_CM, "%s cm_node=%p type=%d state=%d\n",
 		__func__, cm_node, cm_node->tcp_cntxt.client, cm_node->state);
@@ -1989,12 +2094,38 @@ static int mini_cm_reject(struct nes_cm_core *cm_core,
 		return ret;
 	cleanup_retrans_entry(cm_node);
 
-	passive_state = atomic_add_return(1, &cm_node->passive_state);
-	cm_node->state = NES_CM_STATE_CLOSED;
-	if (passive_state == NES_SEND_RESET_EVENT)
+	if (!loopback) {
+		passive_state = atomic_add_return(1, &cm_node->passive_state);
+		if (passive_state == NES_SEND_RESET_EVENT) {
+			cm_node->state = NES_CM_STATE_CLOSED;
+			rem_ref_cm_node(cm_core, cm_node);
+		} else {
+			ret = send_mpa_reject(cm_node);
+			if (ret) {
+				cm_node->state = NES_CM_STATE_CLOSED;
+				err = send_reset(cm_node, NULL);
+				if (err)
+					WARN_ON(1);
+			} else
+				cm_id->add_ref(cm_id);
+		}
+	} else {
+		cm_node->cm_id = NULL;
+		event.cm_node = loopback;
+		event.cm_info.rem_addr = loopback->rem_addr;
+		event.cm_info.loc_addr = loopback->loc_addr;
+		event.cm_info.rem_port = loopback->rem_port;
+		event.cm_info.loc_port = loopback->loc_port;
+		event.cm_info.cm_id = loopback->cm_id;
+		cm_event_mpa_reject(&event);
 		rem_ref_cm_node(cm_core, cm_node);
-	else
-		ret = send_reset(cm_node, NULL);
+		loopback->state = NES_CM_STATE_CLOSING;
+
+		cm_id = loopback->cm_id;
+		rem_ref_cm_node(cm_core, loopback);
+		cm_id->rem_ref(cm_id);
+	}
+
 	return ret;
 }
 
@@ -2031,6 +2162,7 @@ static int mini_cm_close(struct nes_cm_core *cm_core, struct nes_cm_node *cm_nod
 	case NES_CM_STATE_CLOSING:
 		ret = -1;
 		break;
+	case NES_CM_STATE_MPAREJ_RCVD:
 	case NES_CM_STATE_LISTENING:
 	case NES_CM_STATE_UNKNOWN:
 	case NES_CM_STATE_INITED:
@@ -2227,15 +2359,15 @@ static int mini_cm_set(struct nes_cm_core *cm_core, u32 type, u32 value)
 	int ret = 0;
 
 	switch (type) {
-		case NES_CM_SET_PKT_SIZE:
-			cm_core->mtu = value;
-			break;
-		case NES_CM_SET_FREE_PKT_Q_SIZE:
-			cm_core->free_tx_pkt_max = value;
-			break;
-		default:
-			/* unknown set option */
-			ret = -EINVAL;
+	case NES_CM_SET_PKT_SIZE:
+		cm_core->mtu = value;
+		break;
+	case NES_CM_SET_FREE_PKT_Q_SIZE:
+		cm_core->free_tx_pkt_max = value;
+		break;
+	default:
+		/* unknown set option */
+		ret = -EINVAL;
 	}
 
 	return ret;
@@ -2490,12 +2622,14 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 	int ret = 0;
 	struct nes_vnic *nesvnic;
 	struct nes_device *nesdev;
+	struct nes_ib_device *nesibdev;
 
 	nesvnic = to_nesvnic(nesqp->ibqp.device);
 	if (!nesvnic)
 		return -EINVAL;
 
 	nesdev = nesvnic->nesdev;
+	nesibdev = nesvnic->nesibdev;
 
 	nes_debug(NES_DBG_CM, "netdev refcnt = %u.\n",
 			atomic_read(&nesvnic->netdev->refcnt));
@@ -2507,6 +2641,8 @@ static int nes_disconnect(struct nes_qp *nesqp, int abrupt)
 	} else {
 		/* Need to free the Last Streaming Mode Message */
 		if (nesqp->ietf_frame) {
+			if (nesqp->lsmm_mr)
+				nesibdev->ibdev.dereg_mr(nesqp->lsmm_mr);
 			pci_free_consistent(nesdev->pcidev,
 					nesqp->private_data_len+sizeof(struct ietf_mpa_frame),
 					nesqp->ietf_frame, nesqp->ietf_frame_pbase);
@@ -2543,6 +2679,13 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	u32 crc_value;
 	int ret;
 	int passive_state;
+	struct nes_ib_device *nesibdev;
+	struct ib_mr *ibmr = NULL;
+	struct ib_phys_buf ibphysbuf;
+	struct nes_pd *nespd;
+	u64 tagged_offset;
+
+
 
 	ibqp = nes_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -2562,7 +2705,6 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	/* associate the node with the QP */
 	nesqp->cm_node = (void *)cm_node;
 	cm_node->nesqp = nesqp;
-	nes_add_ref(&nesqp->ibqp);
 
 	nes_debug(NES_DBG_CM, "QP%u, cm_node=%p, jiffies = %lu listener = %p\n",
 		nesqp->hwqp.qp_id, cm_node, jiffies, cm_node->listener);
@@ -2601,6 +2743,30 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	if (cm_id->remote_addr.sin_addr.s_addr !=
 			cm_id->local_addr.sin_addr.s_addr) {
 		u64temp = (unsigned long)nesqp;
+		nesibdev = nesvnic->nesibdev;
+		nespd = nesqp->nespd;
+		ibphysbuf.addr = nesqp->ietf_frame_pbase;
+		ibphysbuf.size = conn_param->private_data_len +
+					sizeof(struct ietf_mpa_frame);
+		tagged_offset = (u64)(unsigned long)nesqp->ietf_frame;
+		ibmr = nesibdev->ibdev.reg_phys_mr((struct ib_pd *)nespd,
+						&ibphysbuf, 1,
+						IB_ACCESS_LOCAL_WRITE,
+						&tagged_offset);
+		if (!ibmr) {
+			nes_debug(NES_DBG_CM, "Unable to register memory region"
+					"for lSMM for cm_node = %p \n",
+					cm_node);
+			pci_free_consistent(nesdev->pcidev,
+				nesqp->private_data_len+sizeof(struct ietf_mpa_frame),
+				nesqp->ietf_frame, nesqp->ietf_frame_pbase);
+			return -ENOMEM;
+		}
+
+		ibmr->pd = &nespd->ibpd;
+		ibmr->device = nespd->ibpd.device;
+		nesqp->lsmm_mr = ibmr;
+
 		u64temp |= NES_SW_CONTEXT_ALIGN>>1;
 		set_wqe_64bit_value(wqe->wqe_words,
 			NES_IWARP_SQ_WQE_COMP_CTX_LOW_IDX,
@@ -2611,23 +2777,20 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		wqe->wqe_words[NES_IWARP_SQ_WQE_TOTAL_PAYLOAD_IDX] =
 			cpu_to_le32(conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));
-		wqe->wqe_words[NES_IWARP_SQ_WQE_FRAG0_LOW_IDX] =
-			cpu_to_le32((u32)nesqp->ietf_frame_pbase);
-		wqe->wqe_words[NES_IWARP_SQ_WQE_FRAG0_HIGH_IDX] =
-			cpu_to_le32((u32)((u64)nesqp->ietf_frame_pbase >> 32));
+		set_wqe_64bit_value(wqe->wqe_words,
+					NES_IWARP_SQ_WQE_FRAG0_LOW_IDX,
+					(u64)(unsigned long)nesqp->ietf_frame);
 		wqe->wqe_words[NES_IWARP_SQ_WQE_LENGTH0_IDX] =
 			cpu_to_le32(conn_param->private_data_len +
 			sizeof(struct ietf_mpa_frame));
-		wqe->wqe_words[NES_IWARP_SQ_WQE_STAG0_IDX] = 0;
+		wqe->wqe_words[NES_IWARP_SQ_WQE_STAG0_IDX] = ibmr->lkey;
 
 		nesqp->nesqp_context->ird_ord_sizes |=
 			cpu_to_le32(NES_QPCONTEXT_ORDIRD_LSMM_PRESENT |
 			NES_QPCONTEXT_ORDIRD_WRPDU);
 	} else {
 		nesqp->nesqp_context->ird_ord_sizes |=
-			cpu_to_le32((NES_QPCONTEXT_ORDIRD_LSMM_PRESENT |
-			NES_QPCONTEXT_ORDIRD_WRPDU |
-			NES_QPCONTEXT_ORDIRD_ALSMM));
+			cpu_to_le32(NES_QPCONTEXT_ORDIRD_WRPDU);
 	}
 	nesqp->skip_lsmm = 1;
 
@@ -2713,6 +2876,7 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	/* notify OF layer that accept event was successful */
 	cm_id->add_ref(cm_id);
+	nes_add_ref(&nesqp->ibqp);
 
 	cm_event.event = IW_CM_EVENT_ESTABLISHED;
 	cm_event.status = IW_CM_EVENT_STATUS_ACCEPTED;
@@ -2749,23 +2913,35 @@ int nes_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 int nes_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len)
 {
 	struct nes_cm_node *cm_node;
+	struct nes_cm_node *loopback;
+
 	struct nes_cm_core *cm_core;
 
 	atomic_inc(&cm_rejects);
 	cm_node = (struct nes_cm_node *) cm_id->provider_data;
+	loopback = cm_node->loopbackpartner;
 	cm_core = cm_node->cm_core;
+	cm_node->cm_id = cm_id;
 	cm_node->mpa_frame_size = sizeof(struct ietf_mpa_frame) + pdata_len;
 
-	strcpy(&cm_node->mpa_frame.key[0], IEFT_MPA_KEY_REP);
-	memcpy(&cm_node->mpa_frame.priv_data, pdata, pdata_len);
+	if (cm_node->mpa_frame_size > MAX_CM_BUFFER)
+		return -EINVAL;
 
-	cm_node->mpa_frame.priv_data_len = cpu_to_be16(pdata_len);
+	strcpy(&cm_node->mpa_frame.key[0], IEFT_MPA_KEY_REP);
+	if (loopback) {
+		memcpy(&loopback->mpa_frame.priv_data, pdata, pdata_len);
+		loopback->mpa_frame.priv_data_len = pdata_len;
+		loopback->mpa_frame_size = sizeof(struct ietf_mpa_frame) +
+				pdata_len;
+	} else {
+		memcpy(&cm_node->mpa_frame.priv_data, pdata, pdata_len);
+		cm_node->mpa_frame.priv_data_len = cpu_to_be16(pdata_len);
+	}
+
 	cm_node->mpa_frame.rev = mpa_version;
 	cm_node->mpa_frame.flags = IETF_MPA_FLAGS_CRC | IETF_MPA_FLAGS_REJECT;
 
-	cm_core->api->reject(cm_core, &cm_node->mpa_frame, cm_node);
-
-	return 0;
+	return cm_core->api->reject(cm_core, &cm_node->mpa_frame, cm_node);
 }
 
 
@@ -2781,6 +2957,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	struct nes_device *nesdev;
 	struct nes_cm_node *cm_node;
 	struct nes_cm_info cm_info;
+	int apbvt_set = 0;
 
 	ibqp = nes_get_qp(cm_id->device, conn_param->qpn);
 	if (!ibqp)
@@ -2818,9 +2995,11 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		conn_param->private_data_len);
 
 	if (cm_id->local_addr.sin_addr.s_addr !=
-		cm_id->remote_addr.sin_addr.s_addr)
+		cm_id->remote_addr.sin_addr.s_addr) {
 		nes_manage_apbvt(nesvnic, ntohs(cm_id->local_addr.sin_port),
 			PCI_FUNC(nesdev->pcidev->devfn), NES_MANAGE_APBVT_ADD);
+		apbvt_set = 1;
+	}
 
 	/* set up the connection params for the node */
 	cm_info.loc_addr = htonl(cm_id->local_addr.sin_addr.s_addr);
@@ -2837,8 +3016,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		conn_param->private_data_len, (void *)conn_param->private_data,
 		&cm_info);
 	if (!cm_node) {
-		if (cm_id->local_addr.sin_addr.s_addr !=
-				cm_id->remote_addr.sin_addr.s_addr)
+		if (apbvt_set)
 			nes_manage_apbvt(nesvnic, ntohs(cm_id->local_addr.sin_port),
 				PCI_FUNC(nesdev->pcidev->devfn),
 				NES_MANAGE_APBVT_DEL);
@@ -2847,7 +3025,7 @@ int nes_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		return -ENOMEM;
 	}
 
-	cm_node->apbvt_set = 1;
+	cm_node->apbvt_set = apbvt_set;
 	nesqp->cm_node = cm_node;
 	cm_node->nesqp = nesqp;
 	nes_add_ref(&nesqp->ibqp);
@@ -3274,13 +3452,56 @@ static void cm_event_mpa_req(struct nes_cm_event *event)
 	cm_event.remote_addr.sin_family = AF_INET;
 	cm_event.remote_addr.sin_port = htons(event->cm_info.rem_port);
 	cm_event.remote_addr.sin_addr.s_addr = htonl(event->cm_info.rem_addr);
-
-		cm_event.private_data                = cm_node->mpa_frame_buf;
-		cm_event.private_data_len            = (u8) cm_node->mpa_frame_size;
+	cm_event.private_data = cm_node->mpa_frame_buf;
+	cm_event.private_data_len  = (u8) cm_node->mpa_frame_size;
 
 	ret = cm_id->event_handler(cm_id, &cm_event);
 	if (ret)
-		printk("%s[%u] OFA CM event_handler returned, ret=%d\n",
+		printk(KERN_ERR "%s[%u] OFA CM event_handler returned, ret=%d\n",
+				__func__, __LINE__, ret);
+	return;
+}
+
+
+static void cm_event_mpa_reject(struct nes_cm_event *event)
+{
+	struct iw_cm_id   *cm_id;
+	struct iw_cm_event cm_event;
+	struct nes_cm_node *cm_node;
+	int ret;
+
+	cm_node = event->cm_node;
+	if (!cm_node)
+		return;
+	cm_id = cm_node->cm_id;
+
+	atomic_inc(&cm_connect_reqs);
+	nes_debug(NES_DBG_CM, "cm_node = %p - cm_id = %p, jiffies = %lu\n",
+			cm_node, cm_id, jiffies);
+
+	cm_event.event = IW_CM_EVENT_CONNECT_REPLY;
+	cm_event.status = -ECONNREFUSED;
+	cm_event.provider_data = cm_id->provider_data;
+
+	cm_event.local_addr.sin_family = AF_INET;
+	cm_event.local_addr.sin_port = htons(event->cm_info.loc_port);
+	cm_event.local_addr.sin_addr.s_addr = htonl(event->cm_info.loc_addr);
+
+	cm_event.remote_addr.sin_family = AF_INET;
+	cm_event.remote_addr.sin_port = htons(event->cm_info.rem_port);
+	cm_event.remote_addr.sin_addr.s_addr = htonl(event->cm_info.rem_addr);
+
+	cm_event.private_data = cm_node->mpa_frame_buf;
+	cm_event.private_data_len = (u8) cm_node->mpa_frame_size;
+
+	nes_debug(NES_DBG_CM, "call CM_EVENT_MPA_REJECTED, local_addr=%08x, "
+			"remove_addr=%08x\n",
+			cm_event.local_addr.sin_addr.s_addr,
+			cm_event.remote_addr.sin_addr.s_addr);
+
+	ret = cm_id->event_handler(cm_id, &cm_event);
+	if (ret)
+		printk(KERN_ERR "%s[%u] OFA CM event_handler returned, ret=%d\n",
 				__func__, __LINE__, ret);
 
 	return;
@@ -3345,6 +3566,14 @@ static void nes_cm_event_handler(struct work_struct *work)
 		cm_event_connected(event);
 		nes_debug(NES_DBG_CM, "CM Event: CONNECTED\n");
 		break;
+	case NES_CM_EVENT_MPA_REJECT:
+		if ((!event->cm_node->cm_id) ||
+				(event->cm_node->state == NES_CM_STATE_TSA))
+			break;
+		cm_event_mpa_reject(event);
+		nes_debug(NES_DBG_CM, "CM Event: REJECT\n");
+		break;
+
 	case NES_CM_EVENT_ABORTED:
 		if ((!event->cm_node->cm_id) ||
 			(event->cm_node->state == NES_CM_STATE_TSA))

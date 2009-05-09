@@ -21,6 +21,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <asm/cacheflush.h>
 #include <asm/irq.h>
 
 #include <mach/regs-power.h>
@@ -38,6 +39,8 @@ extern void s3c2412_sleep_enter(void);
 static void s3c2412_cpu_suspend(void)
 {
 	unsigned long tmp;
+
+	flush_cache_all();
 
 	/* set our standby method to sleep */
 
@@ -85,7 +88,7 @@ static struct sleep_save s3c2412_sleep[] = {
 
 static int s3c2412_pm_suspend(struct sys_device *dev, pm_message_t state)
 {
-	s3c2410_pm_do_save(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
+	s3c_pm_do_save(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
 	return 0;
 }
 
@@ -98,7 +101,7 @@ static int s3c2412_pm_resume(struct sys_device *dev)
 	tmp |=  S3C2412_PWRCFG_STANDBYWFI_IDLE;
 	__raw_writel(tmp, S3C2412_PWRCFG);
 
-	s3c2410_pm_do_restore(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
+	s3c_pm_do_restore(s3c2412_sleep, ARRAY_SIZE(s3c2412_sleep));
 	return 0;
 }
 

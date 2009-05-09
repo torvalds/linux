@@ -183,7 +183,15 @@ extern unsigned long empty_zero_page[1024];
 
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 
+#ifdef CONFIG_MMU
 extern pgd_t swapper_pg_dir[PAGE_SIZE/sizeof(pgd_t)];
+extern void paging_init(void);
+extern void pgtable_cache_init(void);
+#else
+# define swapper_pg_dir NULL
+static inline void paging_init(void) { }
+static inline void pgtable_cache_init(void) { }
+#endif
 
 /*
  * The pmd contains the kernel virtual address of the pte page.
@@ -383,8 +391,6 @@ ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 
 #else
 
-extern void paging_init(void);
-
 #define kern_addr_valid(addr)	(1)
 
 extern  void update_mmu_cache(struct vm_area_struct * vma,
@@ -397,9 +403,6 @@ extern  void update_mmu_cache(struct vm_area_struct * vma,
 
 #define io_remap_pfn_range(vma,from,pfn,size,prot) \
                 remap_pfn_range(vma, from, pfn, size, prot)
-
-
-extern void pgtable_cache_init(void);
 
 typedef pte_t *pte_addr_t;
 

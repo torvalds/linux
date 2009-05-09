@@ -55,11 +55,10 @@ struct smsc95xx_priv {
 
 struct usb_context {
 	struct usb_ctrlrequest req;
-	struct completion notify;
 	struct usbnet *dev;
 };
 
-int turbo_mode = true;
+static int turbo_mode = true;
 module_param(turbo_mode, bool, 0644);
 MODULE_PARM_DESC(turbo_mode, "Enable multiple frames per Rx transaction");
 
@@ -307,7 +306,7 @@ static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	return 0;
 }
 
-static void smsc95xx_async_cmd_callback(struct urb *urb, struct pt_regs *regs)
+static void smsc95xx_async_cmd_callback(struct urb *urb)
 {
 	struct usb_context *usb_context = urb->context;
 	struct usbnet *dev = usb_context->dev;
@@ -315,8 +314,6 @@ static void smsc95xx_async_cmd_callback(struct urb *urb, struct pt_regs *regs)
 
 	if (status < 0)
 		devwarn(dev, "async callback failed with %d", status);
-
-	complete(&usb_context->notify);
 
 	kfree(usb_context);
 	usb_free_urb(urb);
@@ -348,11 +345,10 @@ static int smsc95xx_write_reg_async(struct usbnet *dev, u16 index, u32 *data)
 	usb_context->req.wValue = 00;
 	usb_context->req.wIndex = cpu_to_le16(index);
 	usb_context->req.wLength = cpu_to_le16(size);
-	init_completion(&usb_context->notify);
 
 	usb_fill_control_urb(urb, dev->udev, usb_sndctrlpipe(dev->udev, 0),
 		(void *)&usb_context->req, data, size,
-		(usb_complete_t)smsc95xx_async_cmd_callback,
+		smsc95xx_async_cmd_callback,
 		(void *)usb_context);
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -945,6 +941,16 @@ static int smsc95xx_reset(struct usbnet *dev)
 	if (netif_msg_ifup(dev))
 		devdbg(dev, "ID_REV = 0x%08x", read_buf);
 
+	/* Configure GPIO pins as LED outputs */
+	write_buf = LED_GPIO_CFG_SPD_LED | LED_GPIO_CFG_LNK_LED |
+		LED_GPIO_CFG_FDX_LED;
+	ret = smsc95xx_write_reg(dev, LED_GPIO_CFG, write_buf);
+	if (ret < 0) {
+		devwarn(dev, "Failed to write LED_GPIO_CFG register, ret=%d",
+			ret);
+		return ret;
+	}
+
 	/* Init Tx */
 	write_buf = 0;
 	ret = smsc95xx_write_reg(dev, FLOW, write_buf);
@@ -1012,6 +1018,18 @@ static int smsc95xx_reset(struct usbnet *dev)
 	return 0;
 }
 
+static const struct net_device_ops smsc95xx_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl 		= smsc95xx_ioctl,
+	.ndo_set_multicast_list = smsc95xx_set_multicast,
+};
+
 static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct smsc95xx_priv *pdata = NULL;
@@ -1042,9 +1060,8 @@ static int smsc95xx_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Init all registers */
 	ret = smsc95xx_reset(dev);
 
-	dev->net->do_ioctl = smsc95xx_ioctl;
+	dev->net->netdev_ops = &smsc95xx_netdev_ops;
 	dev->net->ethtool_ops = &smsc95xx_ethtool_ops;
-	dev->net->set_multicast_list = smsc95xx_set_multicast;
 	dev->net->flags |= IFF_MULTICAST;
 	dev->net->hard_header_len += SMSC95XX_TX_OVERHEAD;
 	return 0;
@@ -1222,6 +1239,11 @@ static const struct usb_device_id products[] = {
 	{
 		/* SMSC9500 USB Ethernet Device */
 		USB_DEVICE(0x0424, 0x9500),
+		.driver_info = (unsigned long) &smsc95xx_info,
+	},
+	{
+		/* SMSC9512/9514 USB Hub & Ethernet Device */
+		USB_DEVICE(0x0424, 0xec00),
 		.driver_info = (unsigned long) &smsc95xx_info,
 	},
 	{ },		/* END */

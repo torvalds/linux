@@ -79,6 +79,7 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
+#include <asm/types.h>
 
 #include <asm/asmregs.h>
 
@@ -129,27 +130,27 @@
 
 	/* Shift Left - note the r and t can NOT be the same! */
 	.macro shl r, sa, t
-	dep,z	\r, 31-\sa, 32-\sa, \t
+	dep,z	\r, 31-(\sa), 32-(\sa), \t
 	.endm
 
 	/* The PA 2.0 shift left */
 	.macro shlw r, sa, t
-	depw,z	\r, 31-\sa, 32-\sa, \t
+	depw,z	\r, 31-(\sa), 32-(\sa), \t
 	.endm
 
 	/* And the PA 2.0W shift left */
 	.macro shld r, sa, t
-	depd,z	\r, 63-\sa, 64-\sa, \t
+	depd,z	\r, 63-(\sa), 64-(\sa), \t
 	.endm
 
 	/* Shift Right - note the r and t can NOT be the same! */
 	.macro shr r, sa, t
-	extru \r, 31-\sa, 32-\sa, \t
+	extru \r, 31-(\sa), 32-(\sa), \t
 	.endm
 
 	/* pa20w version of shift right */
 	.macro shrd r, sa, t
-	extrd,u \r, 63-\sa, 64-\sa, \t
+	extrd,u \r, 63-(\sa), 64-(\sa), \t
 	.endm
 
 	/* load 32-bit 'value' into 'reg' compensating for the ldil

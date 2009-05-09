@@ -116,7 +116,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	/*
 	 * Allocate inode to quota.
 	 */
-	if (DQUOT_ALLOC_INODE(inode)) {
+	if (vfs_dq_alloc_inode(inode)) {
 		rc = -EDQUOT;
 		goto fail_drop;
 	}
@@ -162,7 +162,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	return inode;
 
 fail_drop:
-	DQUOT_DROP(inode);
+	vfs_dq_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 fail_unlock:
 	inode->i_nlink = 0;

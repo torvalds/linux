@@ -23,7 +23,7 @@ asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 	struct pt_regs *oldregs = set_irq_regs(regs);
 
 	irq_enter();
-	__do_IRQ(irq);
+	generic_handle_irq(irq);
 	irq_exit();
 
 	set_irq_regs(oldregs);

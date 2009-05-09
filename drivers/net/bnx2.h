@@ -6885,6 +6885,8 @@ struct bnx2 {
 
 	u32			idle_chk_status_idx;
 
+	const struct firmware	*mips_firmware;
+	const struct firmware	*rv2p_firmware;
 };
 
 #define REG_RD(bp, offset)					\
@@ -6915,43 +6917,40 @@ struct cpu_reg {
 	u32 mips_view_base;
 };
 
-struct fw_info {
-	const u32 ver_major;
-	const u32 ver_minor;
-	const u32 ver_fix;
-
-	const u32 start_addr;
-
-	/* Text section. */
-	const u32 text_addr;
-	const u32 text_len;
-	const u32 text_index;
-	__le32 *text;
-	u8 *gz_text;
-	const u32 gz_text_len;
-
-	/* Data section. */
-	const u32 data_addr;
-	const u32 data_len;
-	const u32 data_index;
-	const u32 *data;
-
-	/* SBSS section. */
-	const u32 sbss_addr;
-	const u32 sbss_len;
-	const u32 sbss_index;
-
-	/* BSS section. */
-	const u32 bss_addr;
-	const u32 bss_len;
-	const u32 bss_index;
-
-	/* Read-only section. */
-	const u32 rodata_addr;
-	const u32 rodata_len;
-	const u32 rodata_index;
-	const u32 *rodata;
+struct bnx2_fw_file_section {
+	__be32 addr;
+	__be32 len;
+	__be32 offset;
 };
+
+struct bnx2_mips_fw_file_entry {
+	__be32 start_addr;
+	struct bnx2_fw_file_section text;
+	struct bnx2_fw_file_section data;
+	struct bnx2_fw_file_section rodata;
+};
+
+struct bnx2_rv2p_fw_file_entry {
+	struct bnx2_fw_file_section rv2p;
+	__be32 fixup[8];
+};
+
+struct bnx2_mips_fw_file {
+	struct bnx2_mips_fw_file_entry com;
+	struct bnx2_mips_fw_file_entry cp;
+	struct bnx2_mips_fw_file_entry rxp;
+	struct bnx2_mips_fw_file_entry tpat;
+	struct bnx2_mips_fw_file_entry txp;
+};
+
+struct bnx2_rv2p_fw_file {
+	struct bnx2_rv2p_fw_file_entry proc1;
+	struct bnx2_rv2p_fw_file_entry proc2;
+};
+
+#define RV2P_P1_FIXUP_PAGE_SIZE_IDX		0
+#define RV2P_BD_PAGE_SIZE_MSK			0xffff
+#define RV2P_BD_PAGE_SIZE			((BCM_PAGE_SIZE / 16) - 1)
 
 #define RV2P_PROC1                              0
 #define RV2P_PROC2                              1

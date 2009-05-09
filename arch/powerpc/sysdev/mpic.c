@@ -566,9 +566,10 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 #ifdef CONFIG_SMP
 static int irq_choose_cpu(unsigned int virt_irq)
 {
-	cpumask_t mask = irq_desc[virt_irq].affinity;
+	cpumask_t mask;
 	int cpuid;
 
+	cpumask_copy(&mask, irq_desc[virt_irq].affinity);
 	if (cpus_equal(mask, CPU_MASK_ALL)) {
 		static int irq_rover;
 		static DEFINE_SPINLOCK(irq_rover_lock);
@@ -1169,6 +1170,12 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 			mb();
 	}
 
+	/* CoreInt */
+	if (flags & MPIC_ENABLE_COREINT)
+		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
+			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
+			   | MPIC_GREG_GCONF_COREINT);
+
 	if (flags & MPIC_ENABLE_MCK)
 		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
@@ -1522,6 +1529,34 @@ unsigned int mpic_get_irq(void)
 	BUG_ON(mpic == NULL);
 
 	return mpic_get_one_irq(mpic);
+}
+
+unsigned int mpic_get_coreint_irq(void)
+{
+#ifdef CONFIG_BOOKE
+	struct mpic *mpic = mpic_primary;
+	u32 src;
+
+	BUG_ON(mpic == NULL);
+
+	src = mfspr(SPRN_EPR);
+
+	if (unlikely(src == mpic->spurious_vec)) {
+		if (mpic->flags & MPIC_SPV_EOI)
+			mpic_eoi(mpic);
+		return NO_IRQ;
+	}
+	if (unlikely(mpic->protected && test_bit(src, mpic->protected))) {
+		if (printk_ratelimit())
+			printk(KERN_WARNING "%s: Got protected source %d !\n",
+			       mpic->name, (int)src);
+		return NO_IRQ;
+	}
+
+	return irq_linear_revmap(mpic->irqhost, src);
+#else
+	return NO_IRQ;
+#endif
 }
 
 unsigned int mpic_get_mcirq(void)

@@ -14,8 +14,12 @@
 
 #include <linux/init.h>
 #include <asm/cacheflush.h>
+#include <asm/kmap_types.h>
+#include <asm/fixmap.h>
+#include <asm/pgtable.h>
+#include <asm/tlbflush.h>
 #include <plat/cache-feroceon-l2.h>
-
+#include "mm.h"
 
 /*
  * Low-level cache maintenance operations.
@@ -34,14 +38,36 @@
  * The range operations require two successive cp15 writes, in
  * between which we don't want to be preempted.
  */
+
+static inline unsigned long l2_start_va(unsigned long paddr)
+{
+#ifdef CONFIG_HIGHMEM
+	/*
+	 * Let's do our own fixmap stuff in a minimal way here.
+	 * Because range ops can't be done on physical addresses,
+	 * we simply install a virtual mapping for it only for the
+	 * TLB lookup to occur, hence no need to flush the untouched
+	 * memory mapping.  This is protected with the disabling of
+	 * interrupts by the caller.
+	 */
+	unsigned long idx = KM_L2_CACHE + KM_TYPE_NR * smp_processor_id();
+	unsigned long vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
+	set_pte_ext(TOP_PTE(vaddr), pfn_pte(paddr >> PAGE_SHIFT, PAGE_KERNEL), 0);
+	local_flush_tlb_kernel_page(vaddr);
+	return vaddr + (paddr & ~PAGE_MASK);
+#else
+	return __phys_to_virt(paddr);
+#endif
+}
+
 static inline void l2_clean_pa(unsigned long addr)
 {
 	__asm__("mcr p15, 1, %0, c15, c9, 3" : : "r" (addr));
 }
 
-static inline void l2_clean_mva_range(unsigned long start, unsigned long end)
+static inline void l2_clean_pa_range(unsigned long start, unsigned long end)
 {
-	unsigned long flags;
+	unsigned long va_start, va_end, flags;
 
 	/*
 	 * Make sure 'start' and 'end' reference the same page, as
@@ -51,15 +77,12 @@ static inline void l2_clean_mva_range(unsigned long start, unsigned long end)
 	BUG_ON((start ^ end) >> PAGE_SHIFT);
 
 	raw_local_irq_save(flags);
+	va_start = l2_start_va(start);
+	va_end = va_start + (end - start);
 	__asm__("mcr p15, 1, %0, c15, c9, 4\n\t"
 		"mcr p15, 1, %1, c15, c9, 5"
-		: : "r" (start), "r" (end));
+		: : "r" (va_start), "r" (va_end));
 	raw_local_irq_restore(flags);
-}
-
-static inline void l2_clean_pa_range(unsigned long start, unsigned long end)
-{
-	l2_clean_mva_range(__phys_to_virt(start), __phys_to_virt(end));
 }
 
 static inline void l2_clean_inv_pa(unsigned long addr)
@@ -72,9 +95,9 @@ static inline void l2_inv_pa(unsigned long addr)
 	__asm__("mcr p15, 1, %0, c15, c11, 3" : : "r" (addr));
 }
 
-static inline void l2_inv_mva_range(unsigned long start, unsigned long end)
+static inline void l2_inv_pa_range(unsigned long start, unsigned long end)
 {
-	unsigned long flags;
+	unsigned long va_start, va_end, flags;
 
 	/*
 	 * Make sure 'start' and 'end' reference the same page, as
@@ -84,17 +107,18 @@ static inline void l2_inv_mva_range(unsigned long start, unsigned long end)
 	BUG_ON((start ^ end) >> PAGE_SHIFT);
 
 	raw_local_irq_save(flags);
+	va_start = l2_start_va(start);
+	va_end = va_start + (end - start);
 	__asm__("mcr p15, 1, %0, c15, c11, 4\n\t"
 		"mcr p15, 1, %1, c15, c11, 5"
-		: : "r" (start), "r" (end));
+		: : "r" (va_start), "r" (va_end));
 	raw_local_irq_restore(flags);
 }
 
-static inline void l2_inv_pa_range(unsigned long start, unsigned long end)
+static inline void l2_inv_all(void)
 {
-	l2_inv_mva_range(__phys_to_virt(start), __phys_to_virt(end));
+	__asm__("mcr p15, 1, %0, c15, c11, 0" : : "r" (0));
 }
-
 
 /*
  * Linux primitives.
@@ -234,9 +258,7 @@ static void __init enable_dcache(void)
 
 static void __init __invalidate_icache(void)
 {
-	int dummy;
-
-	__asm__ __volatile__("mcr p15, 0, %0, c7, c5, 0" : "=r" (dummy));
+	__asm__("mcr p15, 0, %0, c7, c5, 0" : : "r" (0));
 }
 
 static int __init invalidate_and_disable_icache(void)
@@ -301,6 +323,7 @@ static void __init enable_l2(void)
 
 		d = flush_and_disable_dcache();
 		i = invalidate_and_disable_icache();
+		l2_inv_all();
 		write_extra_features(u | 0x00400000);
 		if (i)
 			enable_icache();

@@ -9,16 +9,28 @@ config SH_DMA
 	select SH_DMA_API
 	default n
 
+config SH_DMA_IRQ_MULTI
+	bool
+	depends on SH_DMA
+	default y if CPU_SUBTYPE_SH7750  || CPU_SUBTYPE_SH7751  || \
+		     CPU_SUBTYPE_SH7750S || CPU_SUBTYPE_SH7750R || \
+		     CPU_SUBTYPE_SH7751R || CPU_SUBTYPE_SH7091  || \
+		     CPU_SUBTYPE_SH7763  || CPU_SUBTYPE_SH7764  || \
+		     CPU_SUBTYPE_SH7780  || CPU_SUBTYPE_SH7785
+
 config NR_ONCHIP_DMA_CHANNELS
 	int
 	depends on SH_DMA
-	default "6" if CPU_SUBTYPE_SH7720 || CPU_SUBTYPE_SH7721
-	default "8" if CPU_SUBTYPE_SH7750R || CPU_SUBTYPE_SH7751R
-	default "12" if CPU_SUBTYPE_SH7780
-	default "4"
+	default "4" if CPU_SUBTYPE_SH7750  || CPU_SUBTYPE_SH7751  || \
+		       CPU_SUBTYPE_SH7750S || CPU_SUBTYPE_SH7091
+	default "8" if CPU_SUBTYPE_SH7750R || CPU_SUBTYPE_SH7751R || \
+		       CPU_SUBTYPE_SH7760
+	default "12" if CPU_SUBTYPE_SH7723 || CPU_SUBTYPE_SH7780  || \
+			CPU_SUBTYPE_SH7785
+	default "6"
 	help
 	  This allows you to specify the number of channels that the on-chip
-	  DMAC supports. This will be 4 for SH7750/SH7751 and 8 for the
+	  DMAC supports. This will be 4 for SH7091/SH7750/SH7751 and 8 for the
 	  SH7750R/SH7751R.
 
 config NR_DMA_CHANNELS_BOOL
@@ -45,5 +57,29 @@ config SH_DMABRG
 	  The DMABRG does data transfers from main memory to Audio/USB units
 	  of the SH7760.
 	  Say Y if you want to use Audio/USB DMA on your SH7760 board.
+
+config PVR2_DMA
+	tristate "PowerVR 2 DMAC support"
+	depends on SH_DREAMCAST && SH_DMA
+	help
+	  Selecting this will enable support for the PVR2 DMA controller.
+	  As this chains off of the on-chip DMAC, that must also be
+	  enabled by default.
+
+	  This is primarily used by the pvr2fb framebuffer driver for
+	  certain optimizations, but is not necessary for functionality.
+
+	  If in doubt, say N.
+
+config G2_DMA
+	tristate "G2 Bus DMA support"
+	depends on SH_DREAMCAST
+	select SH_DMA_API
+	help
+	  This enables support for the DMA controller for the Dreamcast's
+	  G2 bus. Drivers that want this will generally enable this on
+	  their own.
+
+	  If in doubt, say N.
 
 endmenu

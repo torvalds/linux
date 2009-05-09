@@ -47,7 +47,9 @@ All drivers have the following structure:
 3) Creating V4L2 device nodes (/dev/videoX, /dev/vbiX, /dev/radioX and
    /dev/vtxX) and keeping track of device-node specific data.
 
-4) Filehandle-specific structs containing per-filehandle data.
+4) Filehandle-specific structs containing per-filehandle data;
+
+5) video buffer handling.
 
 This is a rough schematic of how it all relates:
 
@@ -82,18 +84,37 @@ You must register the device instance:
 	v4l2_device_register(struct device *dev, struct v4l2_device *v4l2_dev);
 
 Registration will initialize the v4l2_device struct and link dev->driver_data
-to v4l2_dev. Registration will also set v4l2_dev->name to a value derived from
-dev (driver name followed by the bus_id, to be precise). You may change the
-name after registration if you want.
+to v4l2_dev. If v4l2_dev->name is empty then it will be set to a value derived
+from dev (driver name followed by the bus_id, to be precise). If you set it
+up before calling v4l2_device_register then it will be untouched. If dev is
+NULL, then you *must* setup v4l2_dev->name before calling v4l2_device_register.
 
 The first 'dev' argument is normally the struct device pointer of a pci_dev,
-usb_device or platform_device.
+usb_interface or platform_device. It is rare for dev to be NULL, but it happens
+with ISA devices or when one device creates multiple PCI devices, thus making
+it impossible to associate v4l2_dev with a particular parent.
+
+You can also supply a notify() callback that can be called by sub-devices to
+notify you of events. Whether you need to set this depends on the sub-device.
+Any notifications a sub-device supports must be defined in a header in
+include/media/<subdevice>.h.
 
 You unregister with:
 
 	v4l2_device_unregister(struct v4l2_device *v4l2_dev);
 
 Unregistering will also automatically unregister all subdevs from the device.
+
+If you have a hotpluggable device (e.g. a USB device), then when a disconnect
+happens the parent device becomes invalid. Since v4l2_device has a pointer to
+that parent device it has to be cleared as well to mark that the parent is
+gone. To do this call:
+
+	v4l2_device_disconnect(struct v4l2_device *v4l2_dev);
+
+This does *not* unregister the subdevs, so you still need to call the
+v4l2_device_unregister() function for that. If your driver is not hotpluggable,
+then there is no need to call v4l2_device_disconnect().
 
 Sometimes you need to iterate over all devices registered by a specific
 driver. This is usually the case if multiple device drivers use the same
@@ -134,7 +155,7 @@ The recommended approach is as follows:
 
 static atomic_t drv_instance = ATOMIC_INIT(0);
 
-static int __devinit drv_probe(struct pci_dev *dev,
+static int __devinit drv_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_id)
 {
 	...
@@ -218,7 +239,7 @@ to add new ops and categories.
 
 A sub-device driver initializes the v4l2_subdev struct using:
 
-	v4l2_subdev_init(subdev, &ops);
+	v4l2_subdev_init(sd, &ops);
 
 Afterwards you need to initialize subdev->name with a unique name and set the
 module owner. This is done for you if you use the i2c helper functions.
@@ -226,7 +247,7 @@ module owner. This is done for you if you use the i2c helper functions.
 A device (bridge) driver needs to register the v4l2_subdev with the
 v4l2_device:
 
-	int err = v4l2_device_register_subdev(device, subdev);
+	int err = v4l2_device_register_subdev(v4l2_dev, sd);
 
 This can fail if the subdev module disappeared before it could be registered.
 After this function was called successfully the subdev->dev field points to
@@ -234,17 +255,17 @@ the v4l2_device.
 
 You can unregister a sub-device using:
 
-	v4l2_device_unregister_subdev(subdev);
+	v4l2_device_unregister_subdev(sd);
 
-Afterwards the subdev module can be unloaded and subdev->dev == NULL.
+Afterwards the subdev module can be unloaded and sd->dev == NULL.
 
 You can call an ops function either directly:
 
-	err = subdev->ops->core->g_chip_ident(subdev, &chip);
+	err = sd->ops->core->g_chip_ident(sd, &chip);
 
 but it is better and easier to use this macro:
 
-	err = v4l2_subdev_call(subdev, core, g_chip_ident, &chip);
+	err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
 
 The macro will to the right NULL pointer checks and returns -ENODEV if subdev
 is NULL, -ENOIOCTLCMD if either subdev->core or subdev->core->g_chip_ident is
@@ -252,19 +273,19 @@ NULL, or the actual result of the subdev->ops->core->g_chip_ident ops.
 
 It is also possible to call all or a subset of the sub-devices:
 
-	v4l2_device_call_all(dev, 0, core, g_chip_ident, &chip);
+	v4l2_device_call_all(v4l2_dev, 0, core, g_chip_ident, &chip);
 
 Any subdev that does not support this ops is skipped and error results are
 ignored. If you want to check for errors use this:
 
-	err = v4l2_device_call_until_err(dev, 0, core, g_chip_ident, &chip);
+	err = v4l2_device_call_until_err(v4l2_dev, 0, core, g_chip_ident, &chip);
 
 Any error except -ENOIOCTLCMD will exit the loop with that error. If no
 errors (except -ENOIOCTLCMD) occured, then 0 is returned.
 
 The second argument to both calls is a group ID. If 0, then all subdevs are
 called. If non-zero, then only those whose group ID match that value will
-be called. Before a bridge driver registers a subdev it can set subdev->grp_id
+be called. Before a bridge driver registers a subdev it can set sd->grp_id
 to whatever value it wants (it's 0 by default). This value is owned by the
 bridge driver and the sub-device driver will never modify or use it.
 
@@ -275,6 +296,11 @@ user want to change the volume. You can set the group ID for that subdev to
 e.g. AUDIO_CONTROLLER and specify that as the group ID value when calling
 v4l2_device_call_all(). That ensures that it will only go to the subdev
 that needs it.
+
+If the sub-device needs to notify its v4l2_device parent of an event, then
+it can call v4l2_subdev_notify(sd, notification, arg). This macro checks
+whether there is a notify() callback defined and returns -ENODEV if not.
+Otherwise the result of the notify() call is returned.
 
 The advantage of using v4l2_subdev is that it is a generic struct and does
 not contain any knowledge about the underlying hardware. So a driver might
@@ -325,38 +351,39 @@ And this to go from an i2c_client to a v4l2_subdev struct:
 
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
-Finally you need to make a command function to make driver->command()
-call the right subdev_ops functions:
-
-static int subdev_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
-If driver->command is never used then you can leave this out. Eventually the
-driver->command usage should be removed from v4l.
-
 Make sure to call v4l2_device_unregister_subdev(sd) when the remove() callback
 is called. This will unregister the sub-device from the bridge driver. It is
 safe to call this even if the sub-device was never registered.
 
+You need to do this because when the bridge driver destroys the i2c adapter
+the remove() callbacks are called of the i2c devices on that adapter.
+After that the corresponding v4l2_subdev structures are invalid, so they
+have to be unregistered first. Calling v4l2_device_unregister_subdev(sd)
+from the remove() callback ensures that this is always done correctly.
+
 
 The bridge driver also has some helper functions it can use:
 
-struct v4l2_subdev *sd = v4l2_i2c_new_subdev(adapter, "module_foo", "chipid", 0x36);
+struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
+	       "module_foo", "chipid", 0x36);
 
 This loads the given module (can be NULL if no module needs to be loaded) and
 calls i2c_new_device() with the given i2c_adapter and chip/address arguments.
-If all goes well, then it registers the subdev with the v4l2_device. It gets
-the v4l2_device by calling i2c_get_adapdata(adapter), so you should make sure
-that adapdata is set to v4l2_device when you setup the i2c_adapter in your
-driver.
+If all goes well, then it registers the subdev with the v4l2_device.
 
 You can also use v4l2_i2c_new_probed_subdev() which is very similar to
 v4l2_i2c_new_subdev(), except that it has an array of possible I2C addresses
 that it should probe. Internally it calls i2c_new_probed_device().
 
 Both functions return NULL if something went wrong.
+
+Note that the chipid you pass to v4l2_i2c_new_(probed_)subdev() is usually
+the same as the module name. It allows you to specify a chip variant, e.g.
+"saa7114" or "saa7115". In general though the i2c driver autodetects this.
+The use of chipid is something that needs to be looked at more closely at a
+later date. It differs between i2c drivers and as such can be confusing.
+To see which chip variants are supported you can look in the i2c driver code
+for the i2c_device_id table. This lists all the possibilities.
 
 
 struct video_device
@@ -396,6 +423,15 @@ You should also set these fields:
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
+- parent: you only set this if v4l2_device was registered with NULL as
+  the parent device struct. This only happens in cases where one hardware
+  device has multiple PCI devices that all share the same v4l2_device core.
+
+  The cx88 driver is an example of this: one core v4l2_device struct, but
+  it is used by both an raw video PCI device (cx8800) and a MPEG PCI device
+  (cx8802). Since the v4l2_device cannot be associated with a particular
+  PCI device it is setup without a parent device. But when the struct
+  video_device is setup you do know which parent PCI device to use.
 
 If you use v4l2_ioctl_ops, then you should set either .unlocked_ioctl or
 .ioctl to video_ioctl2 in your v4l2_file_operations struct.
@@ -499,8 +535,8 @@ There are a few useful helper functions:
 
 You can set/get driver private data in the video_device struct using:
 
-void *video_get_drvdata(struct video_device *dev);
-void video_set_drvdata(struct video_device *dev, void *data);
+void *video_get_drvdata(struct video_device *vdev);
+void video_set_drvdata(struct video_device *vdev, void *data);
 
 Note that you can safely call video_set_drvdata() before calling
 video_register_device().
@@ -519,3 +555,103 @@ void *video_drvdata(struct file *file);
 You can go from a video_device struct to the v4l2_device struct using:
 
 struct v4l2_device *v4l2_dev = vdev->v4l2_dev;
+
+video buffer helper functions
+-----------------------------
+
+The v4l2 core API provides a standard method for dealing with video
+buffers. Those methods allow a driver to implement read(), mmap() and
+overlay() on a consistent way.
+
+There are currently methods for using video buffers on devices that
+supports DMA with scatter/gather method (videobuf-dma-sg), DMA with
+linear access (videobuf-dma-contig), and vmalloced buffers, mostly
+used on USB drivers (videobuf-vmalloc).
+
+Any driver using videobuf should provide operations (callbacks) for
+four handlers:
+
+ops->buf_setup   - calculates the size of the video buffers and avoid they
+		   to waste more than some maximum limit of RAM;
+ops->buf_prepare - fills the video buffer structs and calls
+		   videobuf_iolock() to alloc and prepare mmaped memory;
+ops->buf_queue   - advices the driver that another buffer were
+		   requested (by read() or by QBUF);
+ops->buf_release - frees any buffer that were allocated.
+
+In order to use it, the driver need to have a code (generally called at
+interrupt context) that will properly handle the buffer request lists,
+announcing that a new buffer were filled.
+
+The irq handling code should handle the videobuf task lists, in order
+to advice videobuf that a new frame were filled, in order to honor to a
+request. The code is generally like this one:
+	if (list_empty(&dma_q->active))
+		return;
+
+	buf = list_entry(dma_q->active.next, struct vbuffer, vb.queue);
+
+	if (!waitqueue_active(&buf->vb.done))
+		return;
+
+	/* Some logic to handle the buf may be needed here */
+
+	list_del(&buf->vb.queue);
+	do_gettimeofday(&buf->vb.ts);
+	wake_up(&buf->vb.done);
+
+Those are the videobuffer functions used on drivers, implemented on
+videobuf-core:
+
+- Videobuf init functions
+  videobuf_queue_sg_init()
+      Initializes the videobuf infrastructure. This function should be
+      called before any other videobuf function on drivers that uses DMA
+      Scatter/Gather buffers.
+
+  videobuf_queue_dma_contig_init
+      Initializes the videobuf infrastructure. This function should be
+      called before any other videobuf function on drivers that need DMA
+      contiguous buffers.
+
+  videobuf_queue_vmalloc_init()
+      Initializes the videobuf infrastructure. This function should be
+      called before any other videobuf function on USB (and other drivers)
+      that need a vmalloced type of videobuf.
+
+- videobuf_iolock()
+  Prepares the videobuf memory for the proper method (read, mmap, overlay).
+
+- videobuf_queue_is_busy()
+  Checks if a videobuf is streaming.
+
+- videobuf_queue_cancel()
+  Stops video handling.
+
+- videobuf_mmap_free()
+  frees mmap buffers.
+
+- videobuf_stop()
+  Stops video handling, ends mmap and frees mmap and other buffers.
+
+- V4L2 api functions. Those functions correspond to VIDIOC_foo ioctls:
+   videobuf_reqbufs(), videobuf_querybuf(), videobuf_qbuf(),
+   videobuf_dqbuf(), videobuf_streamon(), videobuf_streamoff().
+
+- V4L1 api function (corresponds to VIDIOCMBUF ioctl):
+   videobuf_cgmbuf()
+      This function is used to provide backward compatibility with V4L1
+      API.
+
+- Some help functions for read()/poll() operations:
+   videobuf_read_stream()
+      For continuous stream read()
+   videobuf_read_one()
+      For snapshot read()
+   videobuf_poll_stream()
+      polling help function
+
+The better way to understand it is to take a look at vivi driver. One
+of the main reasons for vivi is to be a videobuf usage example. the
+vivi_thread_tick() does the task that the IRQ callback would do on PCI
+drivers (or the irq callback on USB).

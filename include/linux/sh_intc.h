@@ -85,6 +85,7 @@ struct intc_desc symbol __initdata = {					\
 }
 #endif
 
+unsigned int intc_evt2irq(unsigned int vector);
 void __init register_intc_controller(struct intc_desc *desc);
 int intc_set_priority(unsigned int irq, unsigned int prio);
 

@@ -3,7 +3,7 @@
 
 #include <linux/irq.h>
 
-extern struct hw_interrupt_type pmac_pic;
+extern struct irq_chip pmac_pic;
 
 extern void pmac_pic_init(void);
 extern int pmac_get_irq(void);

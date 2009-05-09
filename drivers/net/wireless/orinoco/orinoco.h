@@ -1,5 +1,5 @@
 /* orinoco.h
- * 
+ *
  * Common definitions to all pieces of the various orinoco
  * drivers
  */
@@ -18,9 +18,9 @@
 #include "hermes.h"
 
 /* To enable debug messages */
-//#define ORINOCO_DEBUG		3
+/*#define ORINOCO_DEBUG		3*/
 
-#define WIRELESS_SPY		// enable iwspy support
+#define WIRELESS_SPY		/* enable iwspy support */
 
 #define MAX_SCAN_LEN		4096
 
@@ -59,14 +59,6 @@ struct xbss_element {
 	struct list_head list;
 };
 
-struct hermes_rx_descriptor;
-
-struct orinoco_rx_data {
-	struct hermes_rx_descriptor *desc;
-	struct sk_buff *skb;
-	struct list_head list;
-};
-
 struct firmware;
 
 struct orinoco_private {
@@ -83,7 +75,6 @@ struct orinoco_private {
 	/* Interrupt tasklets */
 	struct tasklet_struct rx_tasklet;
 	struct list_head rx_list;
-	struct orinoco_rx_data *rx_data;
 
 	/* driver state */
 	int open;
@@ -130,7 +121,7 @@ struct orinoco_private {
 	u16 encode_alg, wep_restrict, tx_key;
 	struct orinoco_key keys[ORINOCO_MAX_KEYS];
 	int bitratemode;
- 	char nick[IW_ESSID_MAX_SIZE+1];
+	char nick[IW_ESSID_MAX_SIZE+1];
 	char desired_essid[IW_ESSID_MAX_SIZE+1];
 	char desired_bssid[ETH_ALEN];
 	int bssid_fixed;
@@ -140,7 +131,7 @@ struct orinoco_private {
 	u16 pm_on, pm_mcast, pm_period, pm_timeout;
 	u16 preamble;
 #ifdef WIRELESS_SPY
- 	struct iw_spy_data spy_data; /* iwspy support */
+	struct iw_spy_data spy_data; /* iwspy support */
 	struct iw_public_data	wireless_data;
 #endif
 
@@ -168,16 +159,21 @@ struct orinoco_private {
 	unsigned int tkip_cm_active:1;
 	unsigned int key_mgmt:3;
 
+#if defined(CONFIG_HERMES_CACHE_FW_ON_INIT) || defined(CONFIG_PM_SLEEP)
 	/* Cached in memory firmware to use during ->resume. */
 	const struct firmware *cached_pri_fw;
 	const struct firmware *cached_fw;
+#endif
 
 	struct notifier_block pm_notifier;
 };
 
 #ifdef ORINOCO_DEBUG
 extern int orinoco_debug;
-#define DEBUG(n, args...) do { if (orinoco_debug>(n)) printk(KERN_DEBUG args); } while(0)
+#define DEBUG(n, args...) do { \
+	if (orinoco_debug > (n)) \
+		printk(KERN_DEBUG args); \
+} while (0)
 #else
 #define DEBUG(n, args...) do { } while (0)
 #endif	/* ORINOCO_DEBUG */
@@ -194,7 +190,7 @@ extern void free_orinocodev(struct net_device *dev);
 extern int __orinoco_up(struct net_device *dev);
 extern int __orinoco_down(struct net_device *dev);
 extern int orinoco_reinit_firmware(struct net_device *dev);
-extern irqreturn_t orinoco_interrupt(int irq, void * dev_id);
+extern irqreturn_t orinoco_interrupt(int irq, void *dev_id);
 
 /********************************************************************/
 /* Locking and synchronization functions                            */

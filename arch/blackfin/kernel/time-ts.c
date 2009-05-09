@@ -58,14 +58,9 @@ static inline unsigned long long cycles_2_ns(cycle_t cyc)
 	return (cyc * cyc2ns_scale) >> CYC2NS_SCALE_FACTOR;
 }
 
-static cycle_t read_cycles(void)
+static cycle_t read_cycles(struct clocksource *cs)
 {
 	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
-}
-
-unsigned long long sched_clock(void)
-{
-	return cycles_2_ns(read_cycles());
 }
 
 static struct clocksource clocksource_bfin = {
@@ -76,6 +71,11 @@ static struct clocksource clocksource_bfin = {
 	.shift		= 22,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
+
+unsigned long long sched_clock(void)
+{
+	return cycles_2_ns(read_cycles(&clocksource_bfin));
+}
 
 static int __init bfin_clocksource_init(void)
 {

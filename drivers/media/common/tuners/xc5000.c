@@ -739,7 +739,10 @@ static int xc5000_set_analog_params(struct dvb_frontend *fe,
 	dprintk(1, "%s() frequency=%d (in units of 62.5khz)\n",
 		__func__, params->frequency);
 
-	priv->rf_mode = XC_RF_MODE_CABLE; /* Fix me: it could be air. */
+	/* Fix me: it could be air. */
+	priv->rf_mode = params->mode;
+	if (params->mode > XC_RF_MODE_CABLE)
+		priv->rf_mode = XC_RF_MODE_CABLE;
 
 	/* params->frequency is in units of 62.5khz */
 	priv->freq_hz = params->frequency * 62500;
@@ -970,14 +973,19 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	case 1:
 		/* new tuner instance */
 		priv->bandwidth = BANDWIDTH_6_MHZ;
-		priv->if_khz = cfg->if_khz;
-
 		fe->tuner_priv = priv;
 		break;
 	default:
 		/* existing tuner instance */
 		fe->tuner_priv = priv;
 		break;
+	}
+
+	if (priv->if_khz == 0) {
+		/* If the IF hasn't been set yet, use the value provided by
+		   the caller (occurs in hybrid devices where the analog
+		   call to xc5000_attach occurs before the digital side) */
+		priv->if_khz = cfg->if_khz;
 	}
 
 	/* Check if firmware has been loaded. It is possible that another

@@ -40,8 +40,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 
-#if LINUX_VERSION_CODE >= 0x020200
-
 /* functions specific to kcomedilib */
 
 EXPORT_SYMBOL(comedi_register_callback);
@@ -140,5 +138,3 @@ EXPORT_SYMBOL(comedi_get_len_chanlist);
 
 /* alpha */
 //EXPORT_SYMBOL(comedi_set_global_oor_behavior);
-
-#endif

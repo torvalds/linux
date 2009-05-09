@@ -1,6 +1,10 @@
 config GFS2_FS
 	tristate "GFS2 file system support"
 	depends on EXPERIMENTAL && (64BIT || LBD)
+	select DLM if GFS2_FS_LOCKING_DLM
+	select CONFIGFS_FS if GFS2_FS_LOCKING_DLM
+	select SYSFS if GFS2_FS_LOCKING_DLM
+	select IP_SCTP if DLM_SCTP
 	select FS_POSIX_ACL
 	select CRC32
 	help
@@ -18,17 +22,16 @@ config GFS2_FS
 	  the locking module below. Documentation and utilities for GFS2 can
 	  be found here: http://sources.redhat.com/cluster
 
-	  The "nolock" lock module is now built in to GFS2 by default.
+	  The "nolock" lock module is now built in to GFS2 by default. If
+	  you want to use the DLM, be sure to enable HOTPLUG and IPv4/6
+	  networking.
 
 config GFS2_FS_LOCKING_DLM
-	tristate "GFS2 DLM locking module"
-	depends on GFS2_FS && SYSFS && NET && INET && (IPV6 || IPV6=n)
-	select IP_SCTP if DLM_SCTP
-	select CONFIGFS_FS
-	select DLM
+	bool "GFS2 DLM locking"
+	depends on (GFS2_FS!=n) && NET && INET && (IPV6 || IPV6=n) && HOTPLUG
 	help
 	  Multiple node locking module for GFS2
 
-	  Most users of GFS2 will require this module. It provides the locking
+	  Most users of GFS2 will require this. It provides the locking
 	  interface between GFS2 and the DLM, which is required to use GFS2
 	  in a cluster environment.

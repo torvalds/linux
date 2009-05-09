@@ -17,6 +17,7 @@
 #include <asm-generic/vmlinux.lds.h>
 
 #include <variant/core.h>
+#include <platform/hardware.h>
 OUTPUT_ARCH(xtensa)
 ENTRY(_start)
 
@@ -26,7 +27,9 @@ jiffies = jiffies_64 + 4;
 jiffies = jiffies_64;
 #endif
 
+#ifndef KERNELOFFSET
 #define KERNELOFFSET 0xd0001000
+#endif
 
 /* Note: In the following macros, it would be nice to specify only the
    vector name and section kind and construct "sym" and "section" using
@@ -82,8 +85,8 @@ SECTIONS
 
   .text :
   {
-    /* The .head.text section must be the first section! */
-    *(.head.text)
+    /* The HEAD_TEXT section must be the first section! */
+    HEAD_TEXT
     *(.literal .text)
     VMLINUX_SYMBOL(__sched_text_start) = .;
     *(.sched.literal .sched.text)

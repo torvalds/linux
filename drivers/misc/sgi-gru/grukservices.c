@@ -52,8 +52,10 @@
  */
 
 /* Blade percpu resources PERMANENTLY reserved for kernel use */
-#define GRU_NUM_KERNEL_CBR      1
+#define GRU_NUM_KERNEL_CBR	1
 #define GRU_NUM_KERNEL_DSR_BYTES 256
+#define GRU_NUM_KERNEL_DSR_CL	(GRU_NUM_KERNEL_DSR_BYTES /		\
+					GRU_CACHE_LINE_BYTES)
 #define KERNEL_CTXNUM           15
 
 /* GRU instruction attributes for all instructions */
@@ -94,7 +96,6 @@ struct message_header {
 	char	fill;
 };
 
-#define QLINES(mq)	((mq) + offsetof(struct message_queue, qlines))
 #define HSTATUS(mq, h)	((mq) + offsetof(struct message_queue, hstatus[h]))
 
 static int gru_get_cpu_resources(int dsr_bytes, void **cb, void **dsr)
@@ -122,7 +123,7 @@ int gru_get_cb_exception_detail(void *cb,
 	struct gru_control_block_extended *cbe;
 
 	cbe = get_cbe(GRUBASE(cb), get_cb_number(cb));
-	prefetchw(cbe);         /* Harmless on hardware, required for emulator */
+	prefetchw(cbe);	/* Harmless on hardware, required for emulator */
 	excdet->opc = cbe->opccpy;
 	excdet->exopc = cbe->exopccpy;
 	excdet->ecause = cbe->ecause;
@@ -250,7 +251,8 @@ static inline void restore_present2(void *p, int val)
  * Create a message queue.
  * 	qlines - message queue size in cache lines. Includes 2-line header.
  */
-int gru_create_message_queue(void *p, unsigned int bytes)
+int gru_create_message_queue(struct gru_message_queue_desc *mqd,
+		void *p, unsigned int bytes, int nasid, int vector, int apicid)
 {
 	struct message_queue *mq = p;
 	unsigned int qlines;
@@ -265,6 +267,12 @@ int gru_create_message_queue(void *p, unsigned int bytes)
 	mq->hstatus[0] = 0;
 	mq->hstatus[1] = 1;
 	mq->head = gru_mesq_head(2, qlines / 2 + 1);
+	mqd->mq = mq;
+	mqd->mq_gpa = uv_gpa(mq);
+	mqd->qlines = qlines;
+	mqd->interrupt_pnode = UV_NASID_TO_PNODE(nasid);
+	mqd->interrupt_vector = vector;
+	mqd->interrupt_apicid = apicid;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gru_create_message_queue);
@@ -277,8 +285,8 @@ EXPORT_SYMBOL_GPL(gru_create_message_queue);
  *		-1 - if mesq sent successfully but queue not full
  *		>0 - unexpected error. MQE_xxx returned
  */
-static int send_noop_message(void *cb,
-				unsigned long mq, void *mesg)
+static int send_noop_message(void *cb, struct gru_message_queue_desc *mqd,
+				void *mesg)
 {
 	const struct message_header noop_header = {
 					.present = MQS_NOOP, .lines = 1};
@@ -289,7 +297,7 @@ static int send_noop_message(void *cb,
 	STAT(mesq_noop);
 	save_mhdr = *mhdr;
 	*mhdr = noop_header;
-	gru_mesq(cb, mq, gru_get_tri(mhdr), 1, IMA);
+	gru_mesq(cb, mqd->mq_gpa, gru_get_tri(mhdr), 1, IMA);
 	ret = gru_wait(cb);
 
 	if (ret) {
@@ -313,7 +321,7 @@ static int send_noop_message(void *cb,
 			break;
 		case CBSS_PUT_NACKED:
 			STAT(mesq_noop_put_nacked);
-			m = mq + (gru_get_amo_value_head(cb) << 6);
+			m = mqd->mq_gpa + (gru_get_amo_value_head(cb) << 6);
 			gru_vstore(cb, m, gru_get_tri(mesg), XTYPE_CL, 1, 1,
 						IMA);
 			if (gru_wait(cb) == CBS_IDLE)
@@ -333,30 +341,20 @@ static int send_noop_message(void *cb,
 /*
  * Handle a gru_mesq full.
  */
-static int send_message_queue_full(void *cb,
-			   unsigned long mq, void *mesg, int lines)
+static int send_message_queue_full(void *cb, struct gru_message_queue_desc *mqd,
+				void *mesg, int lines)
 {
 	union gru_mesqhead mqh;
 	unsigned int limit, head;
 	unsigned long avalue;
-	int half, qlines, save;
+	int half, qlines;
 
 	/* Determine if switching to first/second half of q */
 	avalue = gru_get_amo_value(cb);
 	head = gru_get_amo_value_head(cb);
 	limit = gru_get_amo_value_limit(cb);
 
-	/*
-	 * Fetch "qlines" from the queue header. Since the queue may be
-	 * in memory that can't be accessed using socket addresses, use
-	 * the GRU to access the data. Use DSR space from the message.
-	 */
-	save = *(int *)mesg;
-	gru_vload(cb, QLINES(mq), gru_get_tri(mesg), XTYPE_W, 1, 1, IMA);
-	if (gru_wait(cb) != CBS_IDLE)
-		goto cberr;
-	qlines = *(int *)mesg;
-	*(int *)mesg = save;
+	qlines = mqd->qlines;
 	half = (limit != qlines);
 
 	if (half)
@@ -365,7 +363,7 @@ static int send_message_queue_full(void *cb,
 		mqh = gru_mesq_head(2, qlines / 2 + 1);
 
 	/* Try to get lock for switching head pointer */
-	gru_gamir(cb, EOP_IR_CLR, HSTATUS(mq, half), XTYPE_DW, IMA);
+	gru_gamir(cb, EOP_IR_CLR, HSTATUS(mqd->mq_gpa, half), XTYPE_DW, IMA);
 	if (gru_wait(cb) != CBS_IDLE)
 		goto cberr;
 	if (!gru_get_amo_value(cb)) {
@@ -375,8 +373,8 @@ static int send_message_queue_full(void *cb,
 
 	/* Got the lock. Send optional NOP if queue not full, */
 	if (head != limit) {
-		if (send_noop_message(cb, mq, mesg)) {
-			gru_gamir(cb, EOP_IR_INC, HSTATUS(mq, half),
+		if (send_noop_message(cb, mqd, mesg)) {
+			gru_gamir(cb, EOP_IR_INC, HSTATUS(mqd->mq_gpa, half),
 					XTYPE_DW, IMA);
 			if (gru_wait(cb) != CBS_IDLE)
 				goto cberr;
@@ -387,14 +385,16 @@ static int send_message_queue_full(void *cb,
 	}
 
 	/* Then flip queuehead to other half of queue. */
-	gru_gamer(cb, EOP_ERR_CSWAP, mq, XTYPE_DW, mqh.val, avalue, IMA);
+	gru_gamer(cb, EOP_ERR_CSWAP, mqd->mq_gpa, XTYPE_DW, mqh.val, avalue,
+							IMA);
 	if (gru_wait(cb) != CBS_IDLE)
 		goto cberr;
 
 	/* If not successfully in swapping queue head, clear the hstatus lock */
 	if (gru_get_amo_value(cb) != avalue) {
 		STAT(mesq_qf_switch_head_failed);
-		gru_gamir(cb, EOP_IR_INC, HSTATUS(mq, half), XTYPE_DW, IMA);
+		gru_gamir(cb, EOP_IR_INC, HSTATUS(mqd->mq_gpa, half), XTYPE_DW,
+							IMA);
 		if (gru_wait(cb) != CBS_IDLE)
 			goto cberr;
 	}
@@ -404,15 +404,25 @@ cberr:
 	return MQE_UNEXPECTED_CB_ERR;
 }
 
+/*
+ * Send a cross-partition interrupt to the SSI that contains the target
+ * message queue. Normally, the interrupt is automatically delivered by hardware
+ * but some error conditions require explicit delivery.
+ */
+static void send_message_queue_interrupt(struct gru_message_queue_desc *mqd)
+{
+	if (mqd->interrupt_vector)
+		uv_hub_send_ipi(mqd->interrupt_pnode, mqd->interrupt_apicid,
+				mqd->interrupt_vector);
+}
+
 
 /*
  * Handle a gru_mesq failure. Some of these failures are software recoverable
  * or retryable.
  */
-static int send_message_failure(void *cb,
-				unsigned long mq,
-				void *mesg,
-				int lines)
+static int send_message_failure(void *cb, struct gru_message_queue_desc *mqd,
+				void *mesg, int lines)
 {
 	int substatus, ret = 0;
 	unsigned long m;
@@ -429,7 +439,7 @@ static int send_message_failure(void *cb,
 		break;
 	case CBSS_QLIMIT_REACHED:
 		STAT(mesq_send_qlimit_reached);
-		ret = send_message_queue_full(cb, mq, mesg, lines);
+		ret = send_message_queue_full(cb, mqd, mesg, lines);
 		break;
 	case CBSS_AMO_NACKED:
 		STAT(mesq_send_amo_nacked);
@@ -437,12 +447,14 @@ static int send_message_failure(void *cb,
 		break;
 	case CBSS_PUT_NACKED:
 		STAT(mesq_send_put_nacked);
-		m =mq + (gru_get_amo_value_head(cb) << 6);
+		m = mqd->mq_gpa + (gru_get_amo_value_head(cb) << 6);
 		gru_vstore(cb, m, gru_get_tri(mesg), XTYPE_CL, lines, 1, IMA);
-		if (gru_wait(cb) == CBS_IDLE)
+		if (gru_wait(cb) == CBS_IDLE) {
 			ret = MQE_OK;
-		else
+			send_message_queue_interrupt(mqd);
+		} else {
 			ret = MQE_UNEXPECTED_CB_ERR;
+		}
 		break;
 	default:
 		BUG();
@@ -452,12 +464,12 @@ static int send_message_failure(void *cb,
 
 /*
  * Send a message to a message queue
- * 	cb	GRU control block to use to send message
- * 	mq	message queue
+ * 	mqd	message queue descriptor
  * 	mesg	message. ust be vaddr within a GSEG
  * 	bytes	message size (<= 2 CL)
  */
-int gru_send_message_gpa(unsigned long mq, void *mesg, unsigned int bytes)
+int gru_send_message_gpa(struct gru_message_queue_desc *mqd, void *mesg,
+				unsigned int bytes)
 {
 	struct message_header *mhdr;
 	void *cb;
@@ -481,10 +493,10 @@ int gru_send_message_gpa(unsigned long mq, void *mesg, unsigned int bytes)
 
 	do {
 		ret = MQE_OK;
-		gru_mesq(cb, mq, gru_get_tri(mhdr), clines, IMA);
+		gru_mesq(cb, mqd->mq_gpa, gru_get_tri(mhdr), clines, IMA);
 		istatus = gru_wait(cb);
 		if (istatus != CBS_IDLE)
-			ret = send_message_failure(cb, mq, dsr, clines);
+			ret = send_message_failure(cb, mqd, dsr, clines);
 	} while (ret == MQIE_AGAIN);
 	gru_free_cpu_resources(cb, dsr);
 
@@ -497,9 +509,9 @@ EXPORT_SYMBOL_GPL(gru_send_message_gpa);
 /*
  * Advance the receive pointer for the queue to the next message.
  */
-void gru_free_message(void *rmq, void *mesg)
+void gru_free_message(struct gru_message_queue_desc *mqd, void *mesg)
 {
-	struct message_queue *mq = rmq;
+	struct message_queue *mq = mqd->mq;
 	struct message_header *mhdr = mq->next;
 	void *next, *pnext;
 	int half = -1;
@@ -529,16 +541,16 @@ EXPORT_SYMBOL_GPL(gru_free_message);
  * present. User must call next_message() to move to next message.
  * 	rmq	message queue
  */
-void *gru_get_next_message(void *rmq)
+void *gru_get_next_message(struct gru_message_queue_desc *mqd)
 {
-	struct message_queue *mq = rmq;
+	struct message_queue *mq = mqd->mq;
 	struct message_header *mhdr = mq->next;
 	int present = mhdr->present;
 
 	/* skip NOOP messages */
 	STAT(mesq_receive);
 	while (present == MQS_NOOP) {
-		gru_free_message(rmq, mhdr);
+		gru_free_message(mqd, mhdr);
 		mhdr = mq->next;
 		present = mhdr->present;
 	}
@@ -576,7 +588,7 @@ int gru_copy_gpa(unsigned long dest_gpa, unsigned long src_gpa,
 	if (gru_get_cpu_resources(GRU_NUM_KERNEL_DSR_BYTES, &cb, &dsr))
 		return MQE_BUG_NO_RESOURCES;
 	gru_bcopy(cb, src_gpa, dest_gpa, gru_get_tri(dsr),
-		  XTYPE_B, bytes, GRU_NUM_KERNEL_DSR_BYTES, IMA);
+		  XTYPE_B, bytes, GRU_NUM_KERNEL_DSR_CL, IMA);
 	ret = gru_wait(cb);
 	gru_free_cpu_resources(cb, dsr);
 	return ret;
@@ -611,7 +623,7 @@ static int quicktest(struct gru_state *gru)
 
 	if (word0 != word1 || word0 != MAGIC) {
 		printk
-		    ("GRU quicktest err: gru %d, found 0x%lx, expected 0x%lx\n",
+		    ("GRU quicktest err: gid %d, found 0x%lx, expected 0x%lx\n",
 		     gru->gs_gid, word1, MAGIC);
 		BUG();		/* ZZZ should not be fatal */
 	}
@@ -660,15 +672,15 @@ int gru_kservices_init(struct gru_state *gru)
 	cch->tlb_int_enable = 0;
 	cch->tfm_done_bit_enable = 0;
 	cch->unmap_enable = 1;
-	err = cch_allocate(cch, 0, cbr_map, dsr_map);
+	err = cch_allocate(cch, 0, 0, cbr_map, dsr_map);
 	if (err) {
 		gru_dbg(grudev,
-			"Unable to allocate kernel CCH: gru %d, err %d\n",
+			"Unable to allocate kernel CCH: gid %d, err %d\n",
 			gru->gs_gid, err);
 		BUG();
 	}
 	if (cch_start(cch)) {
-		gru_dbg(grudev, "Unable to start kernel CCH: gru %d, err %d\n",
+		gru_dbg(grudev, "Unable to start kernel CCH: gid %d, err %d\n",
 			gru->gs_gid, err);
 		BUG();
 	}
@@ -678,3 +690,22 @@ int gru_kservices_init(struct gru_state *gru)
 		quicktest(gru);
 	return 0;
 }
+
+void gru_kservices_exit(struct gru_state *gru)
+{
+	struct gru_context_configuration_handle *cch;
+	struct gru_blade_state *bs;
+
+	bs = gru->gs_blade;
+	if (gru != &bs->bs_grus[1])
+		return;
+
+	cch = get_cch(gru->gs_gru_base_vaddr, KERNEL_CTXNUM);
+	lock_cch_handle(cch);
+	if (cch_interrupt_sync(cch))
+		BUG();
+	if (cch_deallocate(cch))
+		BUG();
+	unlock_cch_handle(cch);
+}
+

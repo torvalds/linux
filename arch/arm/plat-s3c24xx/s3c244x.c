@@ -145,13 +145,13 @@ static struct sleep_save s3c244x_sleep[] = {
 
 static int s3c244x_suspend(struct sys_device *dev, pm_message_t state)
 {
-	s3c2410_pm_do_save(s3c244x_sleep, ARRAY_SIZE(s3c244x_sleep));
+	s3c_pm_do_save(s3c244x_sleep, ARRAY_SIZE(s3c244x_sleep));
 	return 0;
 }
 
 static int s3c244x_resume(struct sys_device *dev)
 {
-	s3c2410_pm_do_restore(s3c244x_sleep, ARRAY_SIZE(s3c244x_sleep));
+	s3c_pm_do_restore(s3c244x_sleep, ARRAY_SIZE(s3c244x_sleep));
 	return 0;
 }
 

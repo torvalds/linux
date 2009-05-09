@@ -25,7 +25,7 @@ static void do_sync(unsigned long wait)
 {
 	wakeup_pdflush(0);
 	sync_inodes(0);		/* All mappings, inodes and their blockdevs */
-	DQUOT_SYNC(NULL);
+	vfs_dq_sync(NULL);
 	sync_supers();		/* Write the superblocks */
 	sync_filesystems(0);	/* Start syncing the filesystems */
 	sync_filesystems(wait);	/* Waitingly sync the filesystems */
@@ -42,9 +42,21 @@ SYSCALL_DEFINE0(sync)
 	return 0;
 }
 
+static void do_sync_work(struct work_struct *work)
+{
+	do_sync(0);
+	kfree(work);
+}
+
 void emergency_sync(void)
 {
-	pdflush_operation(do_sync, 0);
+	struct work_struct *work;
+
+	work = kmalloc(sizeof(*work), GFP_ATOMIC);
+	if (work) {
+		INIT_WORK(work, do_sync_work);
+		schedule_work(work);
+	}
 }
 
 /*

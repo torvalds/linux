@@ -61,14 +61,14 @@
 		clock-frequency = <0>;
 
 		memory-controller@2000 {
-			compatible = "fsl,8560-memory-controller";
+			compatible = "fsl,mpc8560-memory-controller";
 			reg = <0x2000 0x1000>;
 			interrupt-parent = <&mpic>;
 			interrupts = <0x12 0x2>;
 		};
 
 		L2: l2-cache-controller@20000 {
-			compatible = "fsl,8560-l2-cache-controller";
+			compatible = "fsl,mpc8560-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <0x20>;	// 32 bytes
 			cache-size = <0x40000>;		// L2, 256K
@@ -139,77 +139,83 @@
 			};
 		};
 
-		mdio@24520 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,gianfar-mdio";
-			reg = <0x24520 0x20>;
-			phy0: ethernet-phy@19 {
-				interrupt-parent = <&mpic>;
-				interrupts = <0x6 0x1>;
-				reg = <0x19>;
-				device_type = "ethernet-phy";
-			};
-			phy1: ethernet-phy@1a {
-				interrupt-parent = <&mpic>;
-				interrupts = <0x7 0x1>;
-				reg = <0x1a>;
-				device_type = "ethernet-phy";
-			};
-			phy2: ethernet-phy@1b {
-				interrupt-parent = <&mpic>;
-				interrupts = <0x8 0x1>;
-				reg = <0x1b>;
-				device_type = "ethernet-phy";
-			};
-			phy3: ethernet-phy@1c {
-				interrupt-parent = <&mpic>;
-				interrupts = <0x8 0x1>;
-				reg = <0x1c>;
-				device_type = "ethernet-phy";
-			};
-			tbi0: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-		};
-
-		mdio@25520 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "fsl,gianfar-tbi";
-			reg = <0x25520 0x20>;
-
-			tbi1: tbi-phy@11 {
-				reg = <0x11>;
-				device_type = "tbi-phy";
-			};
-		};
-
 		enet0: ethernet@24000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			cell-index = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <0x24000 0x1000>;
+			ranges = <0x0 0x24000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <0x1d 0x2 0x1e 0x2 0x22 0x2>;
 			interrupt-parent = <&mpic>;
 			tbi-handle = <&tbi0>;
 			phy-handle = <&phy0>;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-mdio";
+				reg = <0x520 0x20>;
+				phy0: ethernet-phy@19 {
+					interrupt-parent = <&mpic>;
+					interrupts = <0x6 0x1>;
+					reg = <0x19>;
+					device_type = "ethernet-phy";
+				};
+				phy1: ethernet-phy@1a {
+					interrupt-parent = <&mpic>;
+					interrupts = <0x7 0x1>;
+					reg = <0x1a>;
+					device_type = "ethernet-phy";
+				};
+				phy2: ethernet-phy@1b {
+					interrupt-parent = <&mpic>;
+					interrupts = <0x8 0x1>;
+					reg = <0x1b>;
+					device_type = "ethernet-phy";
+				};
+				phy3: ethernet-phy@1c {
+					interrupt-parent = <&mpic>;
+					interrupts = <0x8 0x1>;
+					reg = <0x1c>;
+					device_type = "ethernet-phy";
+				};
+				tbi0: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
 		};
 
 		enet1: ethernet@25000 {
+			#address-cells = <1>;
+			#size-cells = <1>;
 			cell-index = <1>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <0x25000 0x1000>;
+			ranges = <0x0 0x25000 0x1000>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <0x23 0x2 0x24 0x2 0x28 0x2>;
 			interrupt-parent = <&mpic>;
 			tbi-handle = <&tbi1>;
 			phy-handle = <&phy1>;
+
+			mdio@520 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,gianfar-tbi";
+				reg = <0x520 0x20>;
+
+				tbi1: tbi-phy@11 {
+					reg = <0x11>;
+					device_type = "tbi-phy";
+				};
+			};
 		};
 
 		mpic: pic@40000 {

@@ -1,5 +1,6 @@
 #include <linux/delay.h>
-#include <linux/raid/md.h>
+#include <linux/raid/md_u.h>
+#include <linux/raid/md_p.h>
 
 #include "do_mounts.h"
 
@@ -111,8 +112,6 @@ static int __init md_setup(char *str)
 
 	return 1;
 }
-
-#define MdpMinorShift 6
 
 static void __init md_setup_drive(void)
 {

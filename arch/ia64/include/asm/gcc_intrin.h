@@ -6,6 +6,7 @@
  * Copyright (C) 2002,2003 Suresh Siddha <suresh.b.siddha@intel.com>
  */
 
+#include <linux/types.h>
 #include <linux/compiler.h>
 
 /* define this macro to get some asm stmts included in 'c' files */

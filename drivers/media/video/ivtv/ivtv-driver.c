@@ -357,7 +357,7 @@ void ivtv_read_eeprom(struct ivtv *itv, struct tveeprom *tv)
 static void ivtv_process_eeprom(struct ivtv *itv)
 {
 	struct tveeprom tv;
-	int pci_slot = PCI_SLOT(itv->dev->devfn);
+	int pci_slot = PCI_SLOT(itv->pdev->devfn);
 
 	ivtv_read_eeprom(itv, &tv);
 
@@ -604,7 +604,7 @@ static void ivtv_process_options(struct ivtv *itv)
 	itv->std = ivtv_parse_std(itv);
 	if (itv->std == 0 && tunertype >= 0)
 		itv->std = tunertype ? V4L2_STD_MN : (V4L2_STD_ALL & ~V4L2_STD_MN);
-	itv->has_cx23415 = (itv->dev->device == PCI_DEVICE_ID_IVTV15);
+	itv->has_cx23415 = (itv->pdev->device == PCI_DEVICE_ID_IVTV15);
 	chipname = itv->has_cx23415 ? "cx23415" : "cx23416";
 	if (itv->options.cardtype == -1) {
 		IVTV_INFO("Ignore card (detected %s based chip)\n", chipname);
@@ -617,9 +617,9 @@ static void ivtv_process_options(struct ivtv *itv)
 		IVTV_ERR("Unknown user specified type, trying to autodetect card\n");
 	}
 	if (itv->card == NULL) {
-		if (itv->dev->subsystem_vendor == IVTV_PCI_ID_HAUPPAUGE ||
-		    itv->dev->subsystem_vendor == IVTV_PCI_ID_HAUPPAUGE_ALT1 ||
-		    itv->dev->subsystem_vendor == IVTV_PCI_ID_HAUPPAUGE_ALT2) {
+		if (itv->pdev->subsystem_vendor == IVTV_PCI_ID_HAUPPAUGE ||
+		    itv->pdev->subsystem_vendor == IVTV_PCI_ID_HAUPPAUGE_ALT1 ||
+		    itv->pdev->subsystem_vendor == IVTV_PCI_ID_HAUPPAUGE_ALT2) {
 			itv->card = ivtv_get_card(itv->has_cx23415 ? IVTV_CARD_PVR_350 : IVTV_CARD_PVR_150);
 			IVTV_INFO("Autodetected Hauppauge card (%s based)\n",
 					chipname);
@@ -630,13 +630,13 @@ static void ivtv_process_options(struct ivtv *itv)
 			if (itv->card->pci_list == NULL)
 				continue;
 			for (j = 0; itv->card->pci_list[j].device; j++) {
-				if (itv->dev->device !=
+				if (itv->pdev->device !=
 				    itv->card->pci_list[j].device)
 					continue;
-				if (itv->dev->subsystem_vendor !=
+				if (itv->pdev->subsystem_vendor !=
 				    itv->card->pci_list[j].subsystem_vendor)
 					continue;
-				if (itv->dev->subsystem_device !=
+				if (itv->pdev->subsystem_device !=
 				    itv->card->pci_list[j].subsystem_device)
 					continue;
 				IVTV_INFO("Autodetected %s card (%s based)\n",
@@ -650,9 +650,9 @@ done:
 	if (itv->card == NULL) {
 		itv->card = ivtv_get_card(IVTV_CARD_PVR_150);
 		IVTV_ERR("Unknown card: vendor/device: [%04x:%04x]\n",
-		     itv->dev->vendor, itv->dev->device);
+		     itv->pdev->vendor, itv->pdev->device);
 		IVTV_ERR("              subsystem vendor/device: [%04x:%04x]\n",
-		     itv->dev->subsystem_vendor, itv->dev->subsystem_device);
+		     itv->pdev->subsystem_vendor, itv->pdev->subsystem_device);
 		IVTV_ERR("              %s based\n", chipname);
 		IVTV_ERR("Defaulting to %s card\n", itv->card->name);
 		IVTV_ERR("Please mail the vendor/device and subsystem vendor/device IDs and what kind of\n");
@@ -671,7 +671,7 @@ done:
  */
 static int __devinit ivtv_init_struct1(struct ivtv *itv)
 {
-	itv->base_addr = pci_resource_start(itv->dev, 0);
+	itv->base_addr = pci_resource_start(itv->pdev, 0);
 	itv->enc_mbox.max_mbox = 2; /* the encoder has 3 mailboxes (0-2) */
 	itv->dec_mbox.max_mbox = 1; /* the decoder has 2 mailboxes (0-1) */
 
@@ -682,7 +682,7 @@ static int __devinit ivtv_init_struct1(struct ivtv *itv)
 	spin_lock_init(&itv->lock);
 	spin_lock_init(&itv->dma_reg_lock);
 
-	itv->irq_work_queues = create_singlethread_workqueue(itv->device.name);
+	itv->irq_work_queues = create_singlethread_workqueue(itv->v4l2_dev.name);
 	if (itv->irq_work_queues == NULL) {
 		IVTV_ERR("Could not create ivtv workqueue\n");
 		return -1;
@@ -766,7 +766,7 @@ static void __devinit ivtv_init_struct2(struct ivtv *itv)
 	itv->audio_input = itv->card->video_inputs[i].audio_index;
 }
 
-static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
+static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *pdev,
 			  const struct pci_device_id *pci_id)
 {
 	u16 cmd;
@@ -775,11 +775,11 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 
 	IVTV_DEBUG_INFO("Enabling pci device\n");
 
-	if (pci_enable_device(dev)) {
+	if (pci_enable_device(pdev)) {
 		IVTV_ERR("Can't enable device!\n");
 		return -EIO;
 	}
-	if (pci_set_dma_mask(dev, 0xffffffff)) {
+	if (pci_set_dma_mask(pdev, 0xffffffff)) {
 		IVTV_ERR("No suitable DMA available.\n");
 		return -EIO;
 	}
@@ -805,11 +805,11 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 	}
 
 	/* Check for bus mastering */
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
+	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 	if (!(cmd & PCI_COMMAND_MASTER)) {
 		IVTV_DEBUG_INFO("Attempting to enable Bus Mastering\n");
-		pci_set_master(dev);
-		pci_read_config_word(dev, PCI_COMMAND, &cmd);
+		pci_set_master(pdev);
+		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
 		if (!(cmd & PCI_COMMAND_MASTER)) {
 			IVTV_ERR("Bus Mastering is not enabled\n");
 			return -ENXIO;
@@ -817,26 +817,26 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 	}
 	IVTV_DEBUG_INFO("Bus Mastering Enabled.\n");
 
-	pci_read_config_byte(dev, PCI_CLASS_REVISION, &card_rev);
-	pci_read_config_byte(dev, PCI_LATENCY_TIMER, &pci_latency);
+	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &card_rev);
+	pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &pci_latency);
 
 	if (pci_latency < 64 && ivtv_pci_latency) {
 		IVTV_INFO("Unreasonably low latency timer, "
 			       "setting to 64 (was %d)\n", pci_latency);
-		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 64);
-		pci_read_config_byte(dev, PCI_LATENCY_TIMER, &pci_latency);
+		pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 64);
+		pci_read_config_byte(pdev, PCI_LATENCY_TIMER, &pci_latency);
 	}
 	/* This config space value relates to DMA latencies. The
 	   default value 0x8080 is too low however and will lead
 	   to DMA errors. 0xffff is the max value which solves
 	   these problems. */
-	pci_write_config_dword(dev, 0x40, 0xffff);
+	pci_write_config_dword(pdev, 0x40, 0xffff);
 
 	IVTV_DEBUG_INFO("%d (rev %d) at %02x:%02x.%x, "
 		   "irq: %d, latency: %d, memory: 0x%lx\n",
-		   itv->dev->device, card_rev, dev->bus->number,
-		   PCI_SLOT(dev->devfn), PCI_FUNC(dev->devfn),
-		   itv->dev->irq, pci_latency, (unsigned long)itv->base_addr);
+		   pdev->device, card_rev, pdev->bus->number,
+		   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn),
+		   pdev->irq, pci_latency, (unsigned long)itv->base_addr);
 
 	return 0;
 }
@@ -884,12 +884,9 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	}
 	else if (itv->card->type == IVTV_CARD_GV_MVPRX ||
 		 itv->card->type == IVTV_CARD_GV_MVPRX2E) {
-		struct v4l2_crystal_freq crystal_freq;
-
 		/* The crystal frequency of GVMVPRX is 24.576MHz */
-		crystal_freq.freq = SAA7115_FREQ_24_576_MHZ;
-		crystal_freq.flags = SAA7115_FREQ_FL_UCGC;
-		v4l2_subdev_call(itv->sd_video, video, s_crystal_freq, &crystal_freq);
+		v4l2_subdev_call(itv->sd_video, video, s_crystal_freq,
+			SAA7115_FREQ_24_576_MHZ, SAA7115_FREQ_FL_UCGC);
 	}
 
 	if (hw & IVTV_HW_CX25840) {
@@ -935,7 +932,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	}
 }
 
-static int __devinit ivtv_probe(struct pci_dev *dev,
+static int __devinit ivtv_probe(struct pci_dev *pdev,
 				const struct pci_device_id *pci_id)
 {
 	int retval = 0;
@@ -945,17 +942,17 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	itv = kzalloc(sizeof(struct ivtv), GFP_ATOMIC);
 	if (itv == NULL)
 		return -ENOMEM;
-	itv->dev = dev;
+	itv->pdev = pdev;
 	itv->instance = atomic_inc_return(&ivtv_instance) - 1;
 
-	retval = v4l2_device_register(&dev->dev, &itv->device);
+	retval = v4l2_device_register(&pdev->dev, &itv->v4l2_dev);
 	if (retval) {
 		kfree(itv);
 		return retval;
 	}
 	/* "ivtv + PCI ID" is a bit of a mouthful, so use
 	   "ivtv + instance" instead. */
-	snprintf(itv->device.name, sizeof(itv->device.name),
+	snprintf(itv->v4l2_dev.name, sizeof(itv->v4l2_dev.name),
 			"ivtv%d", itv->instance);
 	IVTV_INFO("Initializing card %d\n", itv->instance);
 
@@ -972,12 +969,11 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	IVTV_DEBUG_INFO("base addr: 0x%08x\n", itv->base_addr);
 
 	/* PCI Device Setup */
-	if ((retval = ivtv_setup_pci(itv, dev, pci_id)) != 0) {
-		if (retval == -EIO)
-			goto free_workqueue;
-		else if (retval == -ENXIO)
-			goto free_mem;
-	}
+	retval = ivtv_setup_pci(itv, pdev, pci_id);
+	if (retval == -EIO)
+		goto free_workqueue;
+	if (retval == -ENXIO)
+		goto free_mem;
 
 	/* map io memory */
 	IVTV_DEBUG_INFO("attempting ioremap at 0x%08x len 0x%08x\n",
@@ -1154,8 +1150,8 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	ivtv_set_irq_mask(itv, 0xffffffff);
 
 	/* Register IRQ */
-	retval = request_irq(itv->dev->irq, ivtv_irq_handler,
-	     IRQF_SHARED | IRQF_DISABLED, itv->device.name, (void *)itv);
+	retval = request_irq(itv->pdev->irq, ivtv_irq_handler,
+	     IRQF_SHARED | IRQF_DISABLED, itv->v4l2_dev.name, (void *)itv);
 	if (retval) {
 		IVTV_ERR("Failed to register irq %d\n", retval);
 		goto free_i2c;
@@ -1177,7 +1173,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 free_streams:
 	ivtv_streams_cleanup(itv, 1);
 free_irq:
-	free_irq(itv->dev->irq, (void *)itv);
+	free_irq(itv->pdev->irq, (void *)itv);
 free_i2c:
 	exit_ivtv_i2c(itv);
 free_io:
@@ -1194,7 +1190,7 @@ err:
 		retval = -ENODEV;
 	IVTV_ERR("Error %d on initialization\n", retval);
 
-	v4l2_device_unregister(&itv->device);
+	v4l2_device_unregister(&itv->v4l2_dev);
 	kfree(itv);
 	return retval;
 }
@@ -1235,7 +1231,7 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	if (itv->card->hw_all & IVTV_HW_CX25840) {
 		struct v4l2_control ctrl;
 
-		v4l2_subdev_call(itv->sd_video, core, init, 0);
+		v4l2_subdev_call(itv->sd_video, core, load_fw);
 		/* CX25840_CID_ENABLE_PVR150_WORKAROUND */
 		ctrl.id = V4L2_CID_PRIVATE_BASE;
 		ctrl.value = itv->pvr150_workaround;
@@ -1292,10 +1288,10 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	return 0;
 }
 
-static void ivtv_remove(struct pci_dev *pci_dev)
+static void ivtv_remove(struct pci_dev *pdev)
 {
-	struct v4l2_device *dev = dev_get_drvdata(&pci_dev->dev);
-	struct ivtv *itv = to_ivtv(dev);
+	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
+	struct ivtv *itv = to_ivtv(v4l2_dev);
 	int i;
 
 	IVTV_DEBUG_INFO("Removing card\n");
@@ -1336,11 +1332,9 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 	ivtv_streams_cleanup(itv, 1);
 	ivtv_udma_free(itv);
 
-	v4l2_device_unregister(&itv->device);
-
 	exit_ivtv_i2c(itv);
 
-	free_irq(itv->dev->irq, (void *)itv);
+	free_irq(itv->pdev->irq, (void *)itv);
 	ivtv_iounmap(itv);
 
 	release_mem_region(itv->base_addr, IVTV_ENCODER_SIZE);
@@ -1348,11 +1342,13 @@ static void ivtv_remove(struct pci_dev *pci_dev)
 	if (itv->has_cx23415)
 		release_mem_region(itv->base_addr + IVTV_DECODER_OFFSET, IVTV_DECODER_SIZE);
 
-	pci_disable_device(itv->dev);
+	pci_disable_device(itv->pdev);
 	for (i = 0; i < IVTV_VBI_FRAMES; i++)
 		kfree(itv->vbi.sliced_mpeg_data[i]);
 
 	printk(KERN_INFO "ivtv: Removed %s\n", itv->card_name);
+
+	v4l2_device_unregister(&itv->v4l2_dev);
 	kfree(itv);
 }
 

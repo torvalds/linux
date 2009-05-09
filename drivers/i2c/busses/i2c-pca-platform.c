@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
@@ -81,24 +82,23 @@ static void i2c_pca_pf_writebyte32(void *pd, int reg, int val)
 static int i2c_pca_pf_waitforcompletion(void *pd)
 {
 	struct i2c_pca_pf_data *i2c = pd;
-	int ret = 0;
+	long ret = ~0;
+	unsigned long timeout;
 
 	if (i2c->irq) {
-		ret = wait_event_interruptible(i2c->wait,
+		ret = wait_event_interruptible_timeout(i2c->wait,
 			i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
-			& I2C_PCA_CON_SI);
+			& I2C_PCA_CON_SI, i2c->adap.timeout);
 	} else {
-		/*
-		 * Do polling...
-		 * XXX: Could get stuck in extreme cases!
-		 *      Maybe add timeout, but using irqs is preferred anyhow.
-		 */
-		while ((i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
+		/* Do polling */
+		timeout = jiffies + i2c->adap.timeout;
+		while (((i2c->algo_data.read_byte(i2c, I2C_PCA_CON)
 				& I2C_PCA_CON_SI) == 0)
+				&& (ret = time_before(jiffies, timeout)))
 			udelay(100);
 	}
 
-	return ret;
+	return ret > 0;
 }
 
 static void i2c_pca_pf_dummyreset(void *pd)
@@ -172,14 +172,25 @@ static int __devinit i2c_pca_pf_probe(struct platform_device *pdev)
 
 	i2c->adap.nr = pdev->id >= 0 ? pdev->id : 0;
 	i2c->adap.owner = THIS_MODULE;
-	snprintf(i2c->adap.name, sizeof(i2c->adap.name), "PCA9564 at 0x%08lx",
-		(unsigned long) res->start);
+	snprintf(i2c->adap.name, sizeof(i2c->adap.name),
+		 "PCA9564/PCA9665 at 0x%08lx",
+		 (unsigned long) res->start);
 	i2c->adap.algo_data = &i2c->algo_data;
 	i2c->adap.dev.parent = &pdev->dev;
-	i2c->adap.timeout = platform_data->timeout;
 
-	i2c->algo_data.i2c_clock = platform_data->i2c_clock_speed;
+	if (platform_data) {
+		i2c->adap.timeout = platform_data->timeout;
+		i2c->algo_data.i2c_clock = platform_data->i2c_clock_speed;
+		i2c->gpio = platform_data->gpio;
+	} else {
+		i2c->adap.timeout = HZ;
+		i2c->algo_data.i2c_clock = 59000;
+		i2c->gpio = -1;
+	}
+
 	i2c->algo_data.data = i2c;
+	i2c->algo_data.wait_for_completion = i2c_pca_pf_waitforcompletion;
+	i2c->algo_data.reset_chip = i2c_pca_pf_dummyreset;
 
 	switch (res->flags & IORESOURCE_MEM_TYPE_MASK) {
 	case IORESOURCE_MEM_32BIT:
@@ -196,11 +207,6 @@ static int __devinit i2c_pca_pf_probe(struct platform_device *pdev)
 		i2c->algo_data.read_byte = i2c_pca_pf_readbyte8;
 		break;
 	}
-
-	i2c->algo_data.wait_for_completion = i2c_pca_pf_waitforcompletion;
-
-	i2c->gpio = platform_data->gpio;
-	i2c->algo_data.reset_chip = i2c_pca_pf_dummyreset;
 
 	/* Use gpio_is_valid() when in mainline */
 	if (i2c->gpio > -1) {
@@ -246,7 +252,7 @@ e_remap:
 e_alloc:
 	release_mem_region(res->start, res_len(res));
 e_print:
-	printk(KERN_ERR "Registering PCA9564 FAILED! (%d)\n", ret);
+	printk(KERN_ERR "Registering PCA9564/PCA9665 FAILED! (%d)\n", ret);
 	return ret;
 }
 
@@ -290,7 +296,7 @@ static void __exit i2c_pca_pf_exit(void)
 }
 
 MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");
-MODULE_DESCRIPTION("I2C-PCA9564 platform driver");
+MODULE_DESCRIPTION("I2C-PCA9564/PCA9665 platform driver");
 MODULE_LICENSE("GPL");
 
 module_init(i2c_pca_pf_init);

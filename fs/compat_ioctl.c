@@ -23,7 +23,7 @@
 #include <linux/if.h>
 #include <linux/if_bridge.h>
 #include <linux/slab.h>
-#include <linux/raid/md.h>
+#include <linux/raid/md_u.h>
 #include <linux/kd.h>
 #include <linux/route.h>
 #include <linux/in6.h>
@@ -58,7 +58,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/atalk.h>
-#include <linux/loop.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci.h>
@@ -68,6 +67,7 @@
 #include <linux/gigaset_dev.h>
 
 #ifdef CONFIG_BLOCK
+#include <linux/loop.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
 #include <scsi/sg.h>
@@ -521,6 +521,11 @@ static int dev_ifsioc(unsigned int fd, unsigned int cmd, unsigned long arg)
 		err |= __get_user(ifr.ifr_map.port, &uifmap32->port);
 		if (err)
 			return -EFAULT;
+		break;
+	case SIOCSHWTSTAMP:
+		if (copy_from_user(&ifr, uifr32, sizeof(*uifr32)))
+			return -EFAULT;
+		ifr.ifr_data = compat_ptr(uifr32->ifr_ifru.ifru_data);
 		break;
 	default:
 		if (copy_from_user(&ifr, uifr32, sizeof(*uifr32)))
@@ -1993,6 +1998,8 @@ COMPATIBLE_IOCTL(TUNSETGROUP)
 COMPATIBLE_IOCTL(TUNGETFEATURES)
 COMPATIBLE_IOCTL(TUNSETOFFLOAD)
 COMPATIBLE_IOCTL(TUNSETTXFILTER)
+COMPATIBLE_IOCTL(TUNGETSNDBUF)
+COMPATIBLE_IOCTL(TUNSETSNDBUF)
 /* Big V */
 COMPATIBLE_IOCTL(VT_SETMODE)
 COMPATIBLE_IOCTL(VT_GETMODE)
@@ -2566,6 +2573,7 @@ HANDLE_IOCTL(SIOCSIFMAP, dev_ifsioc)
 HANDLE_IOCTL(SIOCGIFADDR, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFADDR, dev_ifsioc)
 HANDLE_IOCTL(SIOCSIFHWBROADCAST, dev_ifsioc)
+HANDLE_IOCTL(SIOCSHWTSTAMP, dev_ifsioc)
 
 /* ioctls used by appletalk ddp.c */
 HANDLE_IOCTL(SIOCATALKDIFADDR, dev_ifsioc)
@@ -2652,6 +2660,8 @@ HANDLE_IOCTL(SONET_GETFRAMING, do_atm_ioctl)
 HANDLE_IOCTL(SONET_GETFRSENSE, do_atm_ioctl)
 /* block stuff */
 #ifdef CONFIG_BLOCK
+/* loop */
+IGNORE_IOCTL(LOOP_CLR_FD)
 /* Raw devices */
 HANDLE_IOCTL(RAW_SETBIND, raw_ioctl)
 HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
@@ -2719,9 +2729,6 @@ HANDLE_IOCTL(LPSETTIMEOUT, lp_timeout_trans)
 
 IGNORE_IOCTL(VFAT_IOCTL_READDIR_BOTH32)
 IGNORE_IOCTL(VFAT_IOCTL_READDIR_SHORT32)
-
-/* loop */
-IGNORE_IOCTL(LOOP_CLR_FD)
 
 #ifdef CONFIG_SPARC
 /* Sparc framebuffers, handled in sbusfb_compat_ioctl() */

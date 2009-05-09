@@ -513,7 +513,7 @@ static int __init mcf_console_setup(struct console *co, char *options)
 	int parity = 'n';
 	int flow = 'n';
 
-	if ((co->index >= 0) && (co->index <= MCF_MAXPORTS))
+	if ((co->index < 0) || (co->index >= MCF_MAXPORTS))
 		co->index = 0;
 	port = &mcf_ports[co->index].port;
 	if (port->membase == 0)

@@ -1213,7 +1213,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 	dev->core.driver_data = info;
 
 	dev_info(info->device, "%s %s, using %u KiB of video memory\n",
-		 dev_driver_string(info->dev), info->dev->bus_id,
+		 dev_driver_string(info->dev), dev_name(info->dev),
 		 info->fix.smem_len >> 10);
 
 	task = kthread_run(ps3fbd, info, DEVICE_NAME);

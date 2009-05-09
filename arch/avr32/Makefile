@@ -35,14 +35,13 @@ core-$(CONFIG_BOARD_ATSTK1000)		+= arch/avr32/boards/atstk1000/
 core-$(CONFIG_BOARD_ATNGW100)		+= arch/avr32/boards/atngw100/
 core-$(CONFIG_BOARD_HAMMERHEAD)		+= arch/avr32/boards/hammerhead/
 core-$(CONFIG_BOARD_FAVR_32)		+= arch/avr32/boards/favr-32/
+core-$(CONFIG_BOARD_MERISC)		+= arch/avr32/boards/merisc/
 core-$(CONFIG_BOARD_MIMC200)		+= arch/avr32/boards/mimc200/
 core-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/
 core-y					+= arch/avr32/kernel/
 core-y					+= arch/avr32/mm/
 drivers-$(CONFIG_OPROFILE)		+= arch/avr32/oprofile/
 libs-y					+= arch/avr32/lib/
-
-CLEAN_FILES += include/asm-avr32/.arch include/asm-avr32/arch
 
 BOOT_TARGETS := vmlinux.elf vmlinux.bin uImage uImage.srec
 

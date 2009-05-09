@@ -200,7 +200,7 @@ static int mpiix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	   the MPIIX your box goes castors up */
 
 	ap->ops = &mpiix_port_ops;
-	ap->pio_mask = 0x1F;
+	ap->pio_mask = ATA_PIO4;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
 
 	ap->ioaddr.cmd_addr = cmd_addr;

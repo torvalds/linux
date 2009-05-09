@@ -20,7 +20,6 @@ startup_continue:
 	lctl	%c0,%c15,.Lctl-.LPG1(%r13) # load control registers
 	l	%r12,.Lparmaddr-.LPG1(%r13) # pointer to parameter area
 					# move IPL device to lowcore
-	mvc	__LC_IPLDEV(4),IPL_DEVICE-PARMAREA(%r12)
 #
 # Setup stack
 #

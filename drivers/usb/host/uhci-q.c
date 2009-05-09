@@ -402,7 +402,7 @@ static void uhci_fixup_toggles(struct uhci_qh *qh, int skip_first)
 		/* Otherwise all the toggles in the URB have to be switched */
 		} else {
 			list_for_each_entry(td, &urbp->td_list, list) {
-				td->token ^= __constant_cpu_to_le32(
+				td->token ^= cpu_to_le32(
 							TD_TOKEN_TOGGLE);
 				toggle ^= 1;
 			}
@@ -883,7 +883,7 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 
 	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
-	qh->dummy_td->status |= __constant_cpu_to_le32(TD_CTRL_ACTIVE);
+	qh->dummy_td->status |= cpu_to_le32(TD_CTRL_ACTIVE);
 	qh->dummy_td = td;
 
 	/* Low-speed transfers get a different queue, and won't hog the bus.
@@ -899,8 +899,6 @@ static int uhci_submit_control(struct uhci_hcd *uhci, struct urb *urb,
 	}
 	if (qh->state != QH_STATE_ACTIVE)
 		qh->skel = skel;
-
-	urb->actual_length = -8;	/* Account for the SETUP packet */
 	return 0;
 
 nomem:
@@ -1003,7 +1001,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 	 * fast side but not enough to justify delaying an interrupt
 	 * more than 2 or 3 URBs, so we will ignore the URB_NO_INTERRUPT
 	 * flag setting. */
-	td->status |= __constant_cpu_to_le32(TD_CTRL_IOC);
+	td->status |= cpu_to_le32(TD_CTRL_IOC);
 
 	/*
 	 * Build the new dummy TD and activate the old one
@@ -1015,7 +1013,7 @@ static int uhci_submit_common(struct uhci_hcd *uhci, struct urb *urb,
 
 	uhci_fill_td(td, 0, USB_PID_OUT | uhci_explen(0), 0);
 	wmb();
-	qh->dummy_td->status |= __constant_cpu_to_le32(TD_CTRL_ACTIVE);
+	qh->dummy_td->status |= cpu_to_le32(TD_CTRL_ACTIVE);
 	qh->dummy_td = td;
 
 	usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe),
@@ -1317,7 +1315,7 @@ static int uhci_submit_isochronous(struct uhci_hcd *uhci, struct urb *urb,
 	}
 
 	/* Set the interrupt-on-completion flag on the last packet. */
-	td->status |= __constant_cpu_to_le32(TD_CTRL_IOC);
+	td->status |= cpu_to_le32(TD_CTRL_IOC);
 
 	/* Add the TDs to the frame list */
 	frame = urb->start_frame;
@@ -1494,11 +1492,10 @@ __acquires(uhci->lock)
 
 	if (qh->type == USB_ENDPOINT_XFER_CONTROL) {
 
-		/* urb->actual_length < 0 means the setup transaction didn't
-		 * complete successfully.  Either it failed or the URB was
-		 * unlinked first.  Regardless, don't confuse people with a
-		 * negative length. */
-		urb->actual_length = max(urb->actual_length, 0);
+		/* Subtract off the length of the SETUP packet from
+		 * urb->actual_length.
+		 */
+		urb->actual_length -= min_t(u32, 8, urb->actual_length);
 	}
 
 	/* When giving back the first URB in an Isochronous queue,

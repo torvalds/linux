@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2008 NetEffect, Inc. All rights reserved.
+ * Copyright (c) 2006 - 2009 Intel-NE, Inc.  All rights reserved.
  * Copyright (c) 2005 Open Grid Computing, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -56,10 +56,8 @@
 
 #define QUEUE_DISCONNECTS
 
-#define DRV_BUILD   "1"
-
 #define DRV_NAME    "iw_nes"
-#define DRV_VERSION "1.0 KO Build " DRV_BUILD
+#define DRV_VERSION "1.5.0.0"
 #define PFX         DRV_NAME ": "
 
 /*
@@ -289,8 +287,8 @@ static inline __le32 get_crc_value(struct nes_v4_quad *nes_quad)
 static inline void
 set_wqe_64bit_value(__le32 *wqe_words, u32 index, u64 value)
 {
-	wqe_words[index]     = cpu_to_le32((u32) ((unsigned long)value));
-	wqe_words[index + 1] = cpu_to_le32((u32)(upper_32_bits((unsigned long)value)));
+	wqe_words[index]     = cpu_to_le32((u32) value);
+	wqe_words[index + 1] = cpu_to_le32(upper_32_bits(value));
 }
 
 static inline void

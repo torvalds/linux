@@ -109,7 +109,6 @@ struct lbs_private {
 	void *card;
 	struct net_device *dev;
 
-	struct net_device_stats stats;
 	struct net_device *mesh_dev; /* Virtual device */
 	struct net_device *rtap_net_dev;
 

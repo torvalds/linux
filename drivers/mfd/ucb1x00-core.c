@@ -492,7 +492,7 @@ static int ucb1x00_probe(struct mcp *mcp)
 
 	ucb->dev.class = &ucb1x00_class;
 	ucb->dev.parent = &mcp->attached_device;
-	strlcpy(ucb->dev.bus_id, "ucb1x00", sizeof(ucb->dev.bus_id));
+	dev_set_name(&ucb->dev, "ucb1x00");
 
 	spin_lock_init(&ucb->lock);
 	spin_lock_init(&ucb->io_lock);

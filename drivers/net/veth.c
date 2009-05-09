@@ -19,12 +19,17 @@
 #define DRV_NAME	"veth"
 #define DRV_VERSION	"1.0"
 
+#define MIN_MTU 68		/* Min L3 MTU */
+#define MAX_MTU 65535		/* Max L3 MTU (arbitrary) */
+#define MTU_PAD (ETH_HLEN + 4)  /* Max difference between L2 and L3 size MTU */
+
 struct veth_net_stats {
 	unsigned long	rx_packets;
 	unsigned long	tx_packets;
 	unsigned long	rx_bytes;
 	unsigned long	tx_bytes;
 	unsigned long	tx_dropped;
+	unsigned long	rx_dropped;
 };
 
 struct veth_priv {
@@ -147,7 +152,7 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct net_device *rcv = NULL;
 	struct veth_priv *priv, *rcv_priv;
-	struct veth_net_stats *stats;
+	struct veth_net_stats *stats, *rcv_stats;
 	int length, cpu;
 
 	skb_orphan(skb);
@@ -158,9 +163,13 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	cpu = smp_processor_id();
 	stats = per_cpu_ptr(priv->stats, cpu);
+	rcv_stats = per_cpu_ptr(rcv_priv->stats, cpu);
 
 	if (!(rcv->flags & IFF_UP))
-		goto outf;
+		goto tx_drop;
+
+	if (skb->len > (rcv->mtu + MTU_PAD))
+		goto rx_drop;
 
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, rcv);
@@ -178,16 +187,20 @@ static int veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	stats->tx_bytes += length;
 	stats->tx_packets++;
 
-	stats = per_cpu_ptr(rcv_priv->stats, cpu);
-	stats->rx_bytes += length;
-	stats->rx_packets++;
+	rcv_stats->rx_bytes += length;
+	rcv_stats->rx_packets++;
 
 	netif_rx(skb);
 	return 0;
 
-outf:
+tx_drop:
 	kfree_skb(skb);
 	stats->tx_dropped++;
+	return 0;
+
+rx_drop:
+	kfree_skb(skb);
+	rcv_stats->rx_dropped++;
 	return 0;
 }
 
@@ -197,29 +210,29 @@ outf:
 
 static struct net_device_stats *veth_get_stats(struct net_device *dev)
 {
-	struct veth_priv *priv;
-	struct net_device_stats *dev_stats;
-	int cpu;
+	struct veth_priv *priv = netdev_priv(dev);
+	struct net_device_stats *dev_stats = &dev->stats;
+	unsigned int cpu;
 	struct veth_net_stats *stats;
-
-	priv = netdev_priv(dev);
-	dev_stats = &dev->stats;
 
 	dev_stats->rx_packets = 0;
 	dev_stats->tx_packets = 0;
 	dev_stats->rx_bytes = 0;
 	dev_stats->tx_bytes = 0;
 	dev_stats->tx_dropped = 0;
+	dev_stats->rx_dropped = 0;
 
-	for_each_online_cpu(cpu) {
-		stats = per_cpu_ptr(priv->stats, cpu);
+	if (priv->stats)
+		for_each_online_cpu(cpu) {
+			stats = per_cpu_ptr(priv->stats, cpu);
 
-		dev_stats->rx_packets += stats->rx_packets;
-		dev_stats->tx_packets += stats->tx_packets;
-		dev_stats->rx_bytes += stats->rx_bytes;
-		dev_stats->tx_bytes += stats->tx_bytes;
-		dev_stats->tx_dropped += stats->tx_dropped;
-	}
+			dev_stats->rx_packets += stats->rx_packets;
+			dev_stats->tx_packets += stats->tx_packets;
+			dev_stats->rx_bytes += stats->rx_bytes;
+			dev_stats->tx_bytes += stats->tx_bytes;
+			dev_stats->tx_dropped += stats->tx_dropped;
+			dev_stats->rx_dropped += stats->rx_dropped;
+		}
 
 	return dev_stats;
 }
@@ -246,6 +259,21 @@ static int veth_close(struct net_device *dev)
 	netif_carrier_off(dev);
 	netif_carrier_off(priv->peer);
 
+	free_percpu(priv->stats);
+	priv->stats = NULL;
+	return 0;
+}
+
+static int is_valid_veth_mtu(int new_mtu)
+{
+	return (new_mtu >= MIN_MTU && new_mtu <= MAX_MTU);
+}
+
+static int veth_change_mtu(struct net_device *dev, int new_mtu)
+{
+	if (!is_valid_veth_mtu(new_mtu))
+		return -EINVAL;
+	dev->mtu = new_mtu;
 	return 0;
 }
 
@@ -263,20 +291,12 @@ static int veth_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static void veth_dev_free(struct net_device *dev)
-{
-	struct veth_priv *priv;
-
-	priv = netdev_priv(dev);
-	free_percpu(priv->stats);
-	free_netdev(dev);
-}
-
 static const struct net_device_ops veth_netdev_ops = {
 	.ndo_init            = veth_dev_init,
 	.ndo_open            = veth_open,
 	.ndo_stop            = veth_close,
 	.ndo_start_xmit      = veth_xmit,
+	.ndo_change_mtu      = veth_change_mtu,
 	.ndo_get_stats       = veth_get_stats,
 	.ndo_set_mac_address = eth_mac_addr,
 };
@@ -288,7 +308,7 @@ static void veth_setup(struct net_device *dev)
 	dev->netdev_ops = &veth_netdev_ops;
 	dev->ethtool_ops = &veth_ethtool_ops;
 	dev->features |= NETIF_F_LLTX;
-	dev->destructor = veth_dev_free;
+	dev->destructor = free_netdev;
 }
 
 /*
@@ -302,6 +322,10 @@ static int veth_validate(struct nlattr *tb[], struct nlattr *data[])
 			return -EINVAL;
 		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
 			return -EADDRNOTAVAIL;
+	}
+	if (tb[IFLA_MTU]) {
+		if (!is_valid_veth_mtu(nla_get_u32(tb[IFLA_MTU])))
+			return -EINVAL;
 	}
 	return 0;
 }

@@ -159,12 +159,9 @@ static void joydev_event(struct input_handle *handle,
 
 static int joydev_fasync(int fd, struct file *file, int on)
 {
-	int retval;
 	struct joydev_client *client = file->private_data;
 
-	retval = fasync_helper(fd, file, on, &client->fasync);
-
-	return retval < 0 ? retval : 0;
+	return fasync_helper(fd, file, on, &client->fasync);
 }
 
 static void joydev_free(struct device *dev)

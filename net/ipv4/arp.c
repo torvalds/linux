@@ -801,8 +801,11 @@ static int arp_process(struct sk_buff *skb)
  *  cache.
  */
 
-	/* Special case: IPv4 duplicate address detection packet (RFC2131) */
-	if (sip == 0) {
+	/*
+	 *  Special case: IPv4 duplicate address detection packet (RFC2131)
+	 *  and Gratuitous ARP/ARP Announce. (RFC3927, Section 2.4)
+	 */
+	if (sip == 0 || tip == sip) {
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
 		    inet_addr_type(net, tip) == RTN_LOCAL &&
 		    !arp_ignore(in_dev, sip, tip))
@@ -892,7 +895,7 @@ static int arp_process(struct sk_buff *skb)
 out:
 	if (in_dev)
 		in_dev_put(in_dev);
-	kfree_skb(skb);
+	consume_skb(skb);
 	return 0;
 }
 
@@ -1225,8 +1228,8 @@ void arp_ifdown(struct net_device *dev)
  *	Called once on startup.
  */
 
-static struct packet_type arp_packet_type = {
-	.type =	__constant_htons(ETH_P_ARP),
+static struct packet_type arp_packet_type __read_mostly = {
+	.type =	cpu_to_be16(ETH_P_ARP),
 	.func =	arp_rcv,
 };
 

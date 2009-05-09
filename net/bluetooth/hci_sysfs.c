@@ -9,8 +9,7 @@
 struct class *bt_class = NULL;
 EXPORT_SYMBOL_GPL(bt_class);
 
-static struct workqueue_struct *btaddconn;
-static struct workqueue_struct *btdelconn;
+static struct workqueue_struct *bt_workq;
 
 static inline char *link_typetostr(int type)
 {
@@ -88,35 +87,15 @@ static struct device_type bt_link = {
 
 static void add_conn(struct work_struct *work)
 {
-	struct hci_conn *conn = container_of(work, struct hci_conn, work);
+	struct hci_conn *conn = container_of(work, struct hci_conn, work_add);
 
-	flush_workqueue(btdelconn);
+	/* ensure previous del is complete */
+	flush_work(&conn->work_del);
 
 	if (device_add(&conn->dev) < 0) {
 		BT_ERR("Failed to register connection device");
 		return;
 	}
-}
-
-void hci_conn_add_sysfs(struct hci_conn *conn)
-{
-	struct hci_dev *hdev = conn->hdev;
-
-	BT_DBG("conn %p", conn);
-
-	conn->dev.type = &bt_link;
-	conn->dev.class = bt_class;
-	conn->dev.parent = &hdev->dev;
-
-	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
-
-	dev_set_drvdata(&conn->dev, conn);
-
-	device_initialize(&conn->dev);
-
-	INIT_WORK(&conn->work, add_conn);
-
-	queue_work(btaddconn, &conn->work);
 }
 
 /*
@@ -131,8 +110,14 @@ static int __match_tty(struct device *dev, void *data)
 
 static void del_conn(struct work_struct *work)
 {
-	struct hci_conn *conn = container_of(work, struct hci_conn, work);
+	struct hci_conn *conn = container_of(work, struct hci_conn, work_del);
 	struct hci_dev *hdev = conn->hdev;
+
+	/* ensure previous add is complete */
+	flush_work(&conn->work_add);
+
+	if (!device_is_registered(&conn->dev))
+		return;
 
 	while (1) {
 		struct device *dev;
@@ -140,7 +125,7 @@ static void del_conn(struct work_struct *work)
 		dev = device_find_child(&conn->dev, NULL, __match_tty);
 		if (!dev)
 			break;
-		device_move(dev, NULL);
+		device_move(dev, NULL, DPM_ORDER_DEV_LAST);
 		put_device(dev);
 	}
 
@@ -149,16 +134,40 @@ static void del_conn(struct work_struct *work)
 	hci_dev_put(hdev);
 }
 
+void hci_conn_init_sysfs(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
+
+	conn->dev.type = &bt_link;
+	conn->dev.class = bt_class;
+	conn->dev.parent = &hdev->dev;
+
+	dev_set_drvdata(&conn->dev, conn);
+
+	device_initialize(&conn->dev);
+
+	INIT_WORK(&conn->work_add, add_conn);
+	INIT_WORK(&conn->work_del, del_conn);
+}
+
+void hci_conn_add_sysfs(struct hci_conn *conn)
+{
+	struct hci_dev *hdev = conn->hdev;
+
+	BT_DBG("conn %p", conn);
+
+	dev_set_name(&conn->dev, "%s:%d", hdev->name, conn->handle);
+
+	queue_work(bt_workq, &conn->work_add);
+}
+
 void hci_conn_del_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	if (!device_is_registered(&conn->dev))
-		return;
-
-	INIT_WORK(&conn->work, del_conn);
-
-	queue_work(btdelconn, &conn->work);
+	queue_work(bt_workq, &conn->work_del);
 }
 
 static inline char *host_typetostr(int type)
@@ -435,20 +444,13 @@ void hci_unregister_sysfs(struct hci_dev *hdev)
 
 int __init bt_sysfs_init(void)
 {
-	btaddconn = create_singlethread_workqueue("btaddconn");
-	if (!btaddconn)
+	bt_workq = create_singlethread_workqueue("bluetooth");
+	if (!bt_workq)
 		return -ENOMEM;
-
-	btdelconn = create_singlethread_workqueue("btdelconn");
-	if (!btdelconn) {
-		destroy_workqueue(btaddconn);
-		return -ENOMEM;
-	}
 
 	bt_class = class_create(THIS_MODULE, "bluetooth");
 	if (IS_ERR(bt_class)) {
-		destroy_workqueue(btdelconn);
-		destroy_workqueue(btaddconn);
+		destroy_workqueue(bt_workq);
 		return PTR_ERR(bt_class);
 	}
 
@@ -457,8 +459,7 @@ int __init bt_sysfs_init(void)
 
 void bt_sysfs_cleanup(void)
 {
-	destroy_workqueue(btaddconn);
-	destroy_workqueue(btdelconn);
+	destroy_workqueue(bt_workq);
 
 	class_destroy(bt_class);
 }

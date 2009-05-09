@@ -298,7 +298,7 @@ static void mlx4_en_free_rx_buf(struct mlx4_en_priv *priv,
 
 void mlx4_en_rx_refill(struct work_struct *work)
 {
-	struct delayed_work *delay = container_of(work, struct delayed_work, work);
+	struct delayed_work *delay = to_delayed_work(work);
 	struct mlx4_en_priv *priv = container_of(delay, struct mlx4_en_priv,
 						 refill_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -436,8 +436,9 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 		/* Initialize page allocators */
 		err = mlx4_en_init_allocator(priv, ring);
 		if (err) {
-			 mlx4_err(mdev, "Failed initializing ring allocator\n");
-			 goto err_allocator;
+			mlx4_err(mdev, "Failed initializing ring allocator\n");
+			ring_ind--;
+			goto err_allocator;
 		}
 
 		/* Fill Rx buffers */
@@ -467,6 +468,7 @@ int mlx4_en_activate_rx_rings(struct mlx4_en_priv *priv)
 				     ring->wqres.db.dma, &ring->srq);
 		if (err){
 			mlx4_err(mdev, "Failed to allocate srq\n");
+			ring_ind--;
 			goto err_srq;
 		}
 		ring->srq.event = mlx4_en_srq_event;
@@ -608,6 +610,10 @@ static struct sk_buff *mlx4_en_rx_skb(struct mlx4_en_priv *priv,
 		used_frags = mlx4_en_complete_rx_desc(priv, rx_desc, skb_frags,
 						      skb_shinfo(skb)->frags,
 						      page_alloc, length);
+		if (unlikely(!used_frags)) {
+			kfree_skb(skb);
+			return NULL;
+		}
 		skb_shinfo(skb)->nr_frags = used_frags;
 
 		/* Copy headers into the skb linear buffer */
@@ -768,6 +774,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 
 		skb->ip_summed = ip_summed;
 		skb->protocol = eth_type_trans(skb, dev);
+		skb_record_rx_queue(skb, cq->ring);
 
 		/* Push it up the stack */
 		if (priv->vlgrp && (be32_to_cpu(cqe->vlan_my_qpn) &
@@ -814,7 +821,7 @@ void mlx4_en_rx_irq(struct mlx4_cq *mcq)
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
 
 	if (priv->port_up)
-		netif_rx_schedule(&cq->napi);
+		napi_schedule(&cq->napi);
 	else
 		mlx4_en_arm_cq(priv, cq);
 }
@@ -834,7 +841,7 @@ int mlx4_en_poll_rx_cq(struct napi_struct *napi, int budget)
 		INC_PERF_COUNTER(priv->pstats.napi_quota);
 	else {
 		/* Done for now */
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		mlx4_en_arm_cq(priv, cq);
 	}
 	return done;
@@ -924,12 +931,6 @@ void mlx4_en_set_default_rss_map(struct mlx4_en_priv *priv,
 		mlx4_dbg(DRV, priv, "Entry %d ---> ring %d\n", i, rss_map->map[i]);
 	}
 }
-
-static void mlx4_en_sqp_event(struct mlx4_qp *qp, enum mlx4_event event)
-{
-    return;
-}
-
 
 static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv,
 				 int qpn, int srqn, int cqn,

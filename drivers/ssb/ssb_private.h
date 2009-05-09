@@ -131,6 +131,7 @@ ssize_t ssb_attr_sprom_store(struct ssb_bus *bus,
 			     const char *buf, size_t count,
 			     int (*sprom_check_crc)(const u16 *sprom, size_t size),
 			     int (*sprom_write)(struct ssb_bus *bus, const u16 *sprom));
+extern const struct ssb_sprom *ssb_get_fallback_sprom(void);
 
 
 /* core.c */

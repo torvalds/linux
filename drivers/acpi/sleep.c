@@ -21,6 +21,8 @@
 
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
+
+#include "internal.h"
 #include "sleep.h"
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
@@ -248,7 +250,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 
 	/* If ACPI is not enabled by the BIOS, we need to enable it here. */
 	if (set_sci_en_on_resume)
-		acpi_set_register(ACPI_BITREG_SCI_ENABLE, 1);
+		acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 	else
 		acpi_enable();
 
@@ -298,9 +300,9 @@ static int acpi_suspend_state_valid(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin,
-	.prepare = acpi_pm_prepare,
+	.prepare_late = acpi_pm_prepare,
 	.enter = acpi_suspend_enter,
-	.finish = acpi_pm_finish,
+	.wake = acpi_pm_finish,
 	.end = acpi_pm_end,
 };
 
@@ -326,9 +328,9 @@ static int acpi_suspend_begin_old(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops_old = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin_old,
-	.prepare = acpi_pm_disable_gpes,
+	.prepare_late = acpi_pm_disable_gpes,
 	.enter = acpi_suspend_enter,
-	.finish = acpi_pm_finish,
+	.wake = acpi_pm_finish,
 	.end = acpi_pm_end,
 	.recover = acpi_pm_finish,
 };
@@ -376,6 +378,31 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 	.matches = {
 		DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
 		DMI_MATCH(DMI_PRODUCT_NAME, "Macmini1,1"),
+		},
+	},
+	{
+	.callback = init_old_suspend_ordering,
+	.ident = "Asus Pundit P1-AH2 (M2N8L motherboard)",
+	.matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek Computer INC."),
+		DMI_MATCH(DMI_BOARD_NAME, "M2N8L"),
+		},
+	},
+	{
+	.callback = init_set_sci_en_on_resume,
+	.ident = "Toshiba Satellite L300",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
+		},
+	},
+	{
+	.callback = init_old_suspend_ordering,
+	.ident = "Panasonic CF51-2L",
+	.matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR,
+				"Matsushita Electric Industrial Co.,Ltd."),
+		DMI_MATCH(DMI_BOARD_NAME, "CF51-2L"),
 		},
 	},
 	{},
@@ -686,6 +713,32 @@ static void acpi_power_off(void)
 	acpi_enter_sleep_state(ACPI_STATE_S5);
 }
 
+/*
+ * ACPI 2.0 created the optional _GTS and _BFS,
+ * but industry adoption has been neither rapid nor broad.
+ *
+ * Linux gets into trouble when it executes poorly validated
+ * paths through the BIOS, so disable _GTS and _BFS by default,
+ * but do speak up and offer the option to enable them.
+ */
+void __init acpi_gts_bfs_check(void)
+{
+	acpi_handle dummy;
+
+	if (ACPI_SUCCESS(acpi_get_handle(ACPI_ROOT_OBJECT, METHOD_NAME__GTS, &dummy)))
+	{
+		printk(KERN_NOTICE PREFIX "BIOS offers _GTS\n");
+		printk(KERN_NOTICE PREFIX "If \"acpi.gts=1\" improves suspend, "
+			"please notify linux-acpi@vger.kernel.org\n");
+	}
+	if (ACPI_SUCCESS(acpi_get_handle(ACPI_ROOT_OBJECT, METHOD_NAME__BFS, &dummy)))
+	{
+		printk(KERN_NOTICE PREFIX "BIOS offers _BFS\n");
+		printk(KERN_NOTICE PREFIX "If \"acpi.bfs=1\" improves resume, "
+			"please notify linux-acpi@vger.kernel.org\n");
+	}
+}
+
 int __init acpi_sleep_init(void)
 {
 	acpi_status status;
@@ -744,5 +797,6 @@ int __init acpi_sleep_init(void)
 	 * object can also be evaluated when the system enters S5.
 	 */
 	register_reboot_notifier(&tts_notifier);
+	acpi_gts_bfs_check();
 	return 0;
 }

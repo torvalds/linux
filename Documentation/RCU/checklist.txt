@@ -298,3 +298,15 @@ over a rather long period of time, but improvements are always welcome!
 
 	Note that, rcu_assign_pointer() and rcu_dereference() relate to
 	SRCU just as they do to other forms of RCU.
+
+15.	The whole point of call_rcu(), synchronize_rcu(), and friends
+	is to wait until all pre-existing readers have finished before
+	carrying out some otherwise-destructive operation.  It is
+	therefore critically important to -first- remove any path
+	that readers can follow that could be affected by the
+	destructive operation, and -only- -then- invoke call_rcu(),
+	synchronize_rcu(), or friends.
+
+	Because these primitives only wait for pre-existing readers,
+	it is the caller's responsibility to guarantee safety to
+	any subsequent readers.

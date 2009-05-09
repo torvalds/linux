@@ -36,7 +36,6 @@
 #include <linux/spinlock.h>
 #include <asm/io.h>
 #include <linux/videodev2.h>
-#include <linux/video_decoder.h>
 #include <linux/i2c.h>
 
 #include <media/saa7115.h>
@@ -381,8 +380,9 @@ int usbvision_scratch_alloc(struct usb_usbvision *usbvision)
 	usbvision->scratch = vmalloc_32(scratch_buf_size);
 	scratch_reset(usbvision);
 	if(usbvision->scratch == NULL) {
-		err("%s: unable to allocate %d bytes for scratch",
-		    __func__, scratch_buf_size);
+		dev_err(&usbvision->dev->dev,
+			"%s: unable to allocate %d bytes for scratch\n",
+				__func__, scratch_buf_size);
 		return -ENOMEM;
 	}
 	return 0;
@@ -491,8 +491,9 @@ int usbvision_decompress_alloc(struct usb_usbvision *usbvision)
 	int IFB_size = MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * 3 / 2;
 	usbvision->IntraFrameBuffer = vmalloc_32(IFB_size);
 	if (usbvision->IntraFrameBuffer == NULL) {
-		err("%s: unable to allocate %d for compr. frame buffer",
-		    __func__, IFB_size);
+		dev_err(&usbvision->dev->dev,
+			"%s: unable to allocate %d for compr. frame buffer\n",
+				__func__, IFB_size);
 		return -ENOMEM;
 	}
 	return 0;
@@ -1514,8 +1515,9 @@ static void usbvision_isocIrq(struct urb *urb)
 	errCode = usb_submit_urb (urb, GFP_ATOMIC);
 
 	if(errCode) {
-		err("%s: usb_submit_urb failed: error %d",
-		    __func__, errCode);
+		dev_err(&usbvision->dev->dev,
+			"%s: usb_submit_urb failed: error %d\n",
+				__func__, errCode);
 	}
 
 	return;
@@ -1546,7 +1548,8 @@ int usbvision_read_reg(struct usb_usbvision *usbvision, unsigned char reg)
 				0, (__u16) reg, buffer, 1, HZ);
 
 	if (errCode < 0) {
-		err("%s: failed: error %d", __func__, errCode);
+		dev_err(&usbvision->dev->dev,
+			"%s: failed: error %d\n", __func__, errCode);
 		return errCode;
 	}
 	return buffer[0];
@@ -1574,7 +1577,8 @@ int usbvision_write_reg(struct usb_usbvision *usbvision, unsigned char reg,
 				USB_RECIP_ENDPOINT, 0, (__u16) reg, &value, 1, HZ);
 
 	if (errCode < 0) {
-		err("%s: failed: error %d", __func__, errCode);
+		dev_err(&usbvision->dev->dev,
+			"%s: failed: error %d\n", __func__, errCode);
 	}
 	return errCode;
 }
@@ -1850,7 +1854,8 @@ int usbvision_set_output(struct usb_usbvision *usbvision, int width,
 				 0, (__u16) USBVISION_LXSIZE_O, value, 4, HZ);
 
 		if (errCode < 0) {
-			err("%s failed: error %d", __func__, errCode);
+			dev_err(&usbvision->dev->dev,
+				"%s failed: error %d\n", __func__, errCode);
 			return errCode;
 		}
 		usbvision->curwidth = usbvision->stretch_width * UsbWidth;
@@ -2236,7 +2241,7 @@ static int usbvision_set_dram_settings(struct usb_usbvision *usbvision)
 			     (__u16) USBVISION_DRM_PRM1, value, 8, HZ);
 
 	if (rc < 0) {
-		err("%sERROR=%d", __func__, rc);
+		dev_err(&usbvision->dev->dev, "%sERROR=%d\n", __func__, rc);
 		return rc;
 	}
 
@@ -2432,8 +2437,9 @@ int usbvision_set_alternate(struct usb_usbvision *dev)
 		PDEBUG(DBG_FUNC,"setting alternate %d with wMaxPacketSize=%u", dev->ifaceAlt,dev->isocPacketSize);
 		errCode = usb_set_interface(dev->dev, dev->iface, dev->ifaceAlt);
 		if (errCode < 0) {
-			err ("cannot change alternate number to %d (error=%i)",
-							dev->ifaceAlt, errCode);
+			dev_err(&dev->dev->dev,
+				"cannot change alternate number to %d (error=%i)\n",
+					dev->ifaceAlt, errCode);
 			return errCode;
 		}
 	}
@@ -2484,7 +2490,8 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 
 		urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
 		if (urb == NULL) {
-			err("%s: usb_alloc_urb() failed", __func__);
+			dev_err(&usbvision->dev->dev,
+				"%s: usb_alloc_urb() failed\n", __func__);
 			return -ENOMEM;
 		}
 		usbvision->sbuf[bufIdx].urb = urb;
@@ -2496,7 +2503,7 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 		urb->dev = dev;
 		urb->context = usbvision;
 		urb->pipe = usb_rcvisocpipe(dev, usbvision->video_endp);
-		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->interval = 1;
 		urb->transfer_buffer = usbvision->sbuf[bufIdx].data;
 		urb->complete = usbvision_isocIrq;
@@ -2516,8 +2523,9 @@ int usbvision_init_isoc(struct usb_usbvision *usbvision)
 			errCode = usb_submit_urb(usbvision->sbuf[bufIdx].urb,
 						 GFP_KERNEL);
 		if (errCode) {
-			err("%s: usb_submit_urb(%d) failed: error %d",
-			    __func__, bufIdx, errCode);
+			dev_err(&usbvision->dev->dev,
+				"%s: usb_submit_urb(%d) failed: error %d\n",
+					__func__, bufIdx, errCode);
 		}
 	}
 
@@ -2566,8 +2574,9 @@ void usbvision_stop_isoc(struct usb_usbvision *usbvision)
 		errCode = usb_set_interface(usbvision->dev, usbvision->iface,
 					    usbvision->ifaceAlt);
 		if (errCode < 0) {
-			err("%s: usb_set_interface() failed: error %d",
-			    __func__, errCode);
+			dev_err(&usbvision->dev->dev,
+				"%s: usb_set_interface() failed: error %d\n",
+					__func__, errCode);
 			usbvision->last_error = errCode;
 		}
 		regValue = (16-usbvision_read_reg(usbvision, USBVISION_ALTER_REG)) & 0x0F;
@@ -2588,7 +2597,6 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 	/* inputs #1 and #2 are variable for SAA7111 and SAA7113 */
 	int mode[4]= {SAA7115_COMPOSITE0, 0, 0, SAA7115_COMPOSITE3};
 	int audio[]= {1, 0, 0, 0};
-	struct v4l2_routing route;
 	//channel 0 is TV with audiochannel 1 (tuner mono)
 	//channel 1 is Composite with audio channel 0 (line in)
 	//channel 2 is S-Video with audio channel 0 (line in)
@@ -2621,9 +2629,7 @@ int usbvision_muxsel(struct usb_usbvision *usbvision, int channel)
 			mode[2] = SAA7115_SVIDEO1;
 			break;
 	}
-	route.input = mode[channel];
-	route.output = 0;
-	call_i2c_clients(usbvision, VIDIOC_INT_S_VIDEO_ROUTING,&route);
+	call_all(usbvision, video, s_routing, mode[channel], 0, 0);
 	usbvision_set_audio(usbvision, audio[channel]);
 	return 0;
 }

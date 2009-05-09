@@ -182,7 +182,7 @@ static int twl4030_irq_thread(void *data)
 	long irq = (long)data;
 	struct irq_desc *desc = irq_to_desc(irq);
 	static unsigned i2c_errors;
-	const static unsigned max_i2c_errors = 100;
+	static const unsigned max_i2c_errors = 100;
 
 	if (!desc) {
 		pr_err("twl4030: Invalid IRQ: %ld\n", irq);

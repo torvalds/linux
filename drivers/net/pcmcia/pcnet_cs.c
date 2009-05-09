@@ -39,6 +39,7 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/log2.h>
+#include <linux/etherdevice.h>
 #include "../8390.h"
 
 #include <pcmcia/cs_types.h>
@@ -233,6 +234,23 @@ static inline pcnet_dev_t *PRIV(struct net_device *dev)
 	return (pcnet_dev_t *)(p + sizeof(struct ei_device));
 }
 
+static const struct net_device_ops pcnet_netdev_ops = {
+	.ndo_open		= pcnet_open,
+	.ndo_stop		= pcnet_close,
+	.ndo_set_config		= set_config,
+	.ndo_start_xmit 	= ei_start_xmit,
+	.ndo_get_stats		= ei_get_stats,
+	.ndo_do_ioctl 		= ei_ioctl,
+	.ndo_set_multicast_list = ei_set_multicast_list,
+	.ndo_tx_timeout 	= ei_tx_timeout,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller 	= ei_poll,
+#endif
+};
+
 /*======================================================================
 
     pcnet_attach() creates an "instance" of the driver, allocating
@@ -260,9 +278,7 @@ static int pcnet_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    dev->open = &pcnet_open;
-    dev->stop = &pcnet_close;
-    dev->set_config = &set_config;
+    dev->netdev_ops = &pcnet_netdev_ops;
 
     return pcnet_config(link);
 } /* pcnet_attach */
@@ -640,17 +656,11 @@ static int pcnet_config(struct pcmcia_device *link)
 
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    if (info->flags & (IS_DL10019|IS_DL10022)) {
-	dev->do_ioctl = &ei_ioctl;
+    if (info->flags & (IS_DL10019|IS_DL10022))
 	mii_phy_probe(dev);
-    }
 
     link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &handle_to_dev(link));
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = ei_poll;
-#endif
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");
@@ -1183,6 +1193,10 @@ static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     pcnet_dev_t *info = PRIV(dev);
     u16 *data = (u16 *)&rq->ifr_ifru;
     unsigned int mii_addr = dev->base_addr + DLINK_GPIO;
+
+    if (!(info->flags & (IS_DL10019|IS_DL10022)))
+	return -EINVAL;
+
     switch (cmd) {
     case SIOCGMIIPHY:
 	data[0] = info->phy_id;
@@ -1744,7 +1758,7 @@ static struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_MFC_DEVICE_CIS_PROD_ID12(0, "DAYNA COMMUNICATIONS", "LAN AND MODEM MULTIFUNCTION", 0x8fdf8f89, 0xdd5ed9e8, "DP83903.cis"),
 	PCMCIA_MFC_DEVICE_CIS_PROD_ID4(0, "NSC MF LAN/Modem", 0x58fc6056, "DP83903.cis"),
 	PCMCIA_MFC_DEVICE_CIS_MANF_CARD(0, 0x0175, 0x0000, "DP83903.cis"),
-	PCMCIA_DEVICE_CIS_MANF_CARD(0xc00f, 0x0002, "LA-PCM.cis"),
+	PCMCIA_DEVICE_CIS_MANF_CARD(0xc00f, 0x0002, "cis/LA-PCM.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID12("KTI", "PE520 PLUS", 0xad180345, 0x9d58d392, "PE520.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID12("NDC", "Ethernet", 0x01c43ae1, 0x00b2e941, "NE2K.cis"),
 	PCMCIA_DEVICE_CIS_PROD_ID12("PMX   ", "PE-200", 0x34f3f1c8, 0x10b59f8c, "PE-200.cis"),

@@ -225,7 +225,6 @@ static struct proc_dir_entry *sgi_prominfo_entry;
 int __init prominfo_init(void)
 {
 	struct proc_dir_entry **entp;
-	struct proc_dir_entry *p;
 	cnodeid_t cnodeid;
 	unsigned long nasid;
 	int size;
@@ -246,14 +245,10 @@ int __init prominfo_init(void)
 		sprintf(name, "node%d", cnodeid);
 		*entp = proc_mkdir(name, sgi_prominfo_entry);
 		nasid = cnodeid_to_nasid(cnodeid);
-		p = create_proc_read_entry("fit", 0, *entp, read_fit_entry,
+		create_proc_read_entry("fit", 0, *entp, read_fit_entry,
 					   (void *)nasid);
-		if (p)
-			p->owner = THIS_MODULE;
-		p = create_proc_read_entry("version", 0, *entp,
+		create_proc_read_entry("version", 0, *entp,
 					   read_version_entry, (void *)nasid);
-		if (p)
-			p->owner = THIS_MODULE;
 		entp++;
 	}
 

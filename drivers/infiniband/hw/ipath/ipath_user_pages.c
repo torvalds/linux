@@ -209,20 +209,20 @@ void ipath_release_user_pages_on_close(struct page **p, size_t num_pages)
 
 	mm = get_task_mm(current);
 	if (!mm)
-		goto bail;
+		return;
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
 	if (!work)
 		goto bail_mm;
 
-	goto bail;
-
 	INIT_WORK(&work->work, user_pages_account);
 	work->mm = mm;
 	work->num_pages = num_pages;
 
+	schedule_work(&work->work);
+	return;
+
 bail_mm:
 	mmput(mm);
-bail:
 	return;
 }

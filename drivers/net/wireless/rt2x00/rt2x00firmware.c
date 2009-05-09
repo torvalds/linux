@@ -1,5 +1,5 @@
 /*
-	Copyright (C) 2004 - 2008 rt2x00 SourceForge Project
+	Copyright (C) 2004 - 2009 rt2x00 SourceForge Project
 	<http://rt2x00.serialmonkey.com>
 
 	This program is free software; you can redistribute it and/or modify
@@ -35,7 +35,6 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 	const struct firmware *fw;
 	char *fw_name;
 	int retval;
-	u16 crc;
 
 	/*
 	 * Read correct firmware from harddisk.
@@ -61,15 +60,25 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 		return -ENOENT;
 	}
 
-	crc = rt2x00dev->ops->lib->get_firmware_crc(fw->data, fw->size);
-	if (crc != (fw->data[fw->size - 2] << 8 | fw->data[fw->size - 1])) {
-		ERROR(rt2x00dev, "Firmware checksum error.\n");
-		retval = -ENOENT;
-		goto exit;
-	}
-
 	INFO(rt2x00dev, "Firmware detected - version: %d.%d.\n",
 	     fw->data[fw->size - 4], fw->data[fw->size - 3]);
+
+	retval = rt2x00dev->ops->lib->check_firmware(rt2x00dev, fw->data, fw->size);
+	switch (retval) {
+	case FW_OK:
+		break;
+	case FW_BAD_CRC:
+		ERROR(rt2x00dev, "Firmware checksum error.\n");
+		goto exit;
+	case FW_BAD_LENGTH:
+		ERROR(rt2x00dev,
+		      "Invalid firmware file length (len=%zu)\n", fw->size);
+		goto exit;
+	case FW_BAD_VERSION:
+		ERROR(rt2x00dev,
+		      "Current firmware does not support detected chipset.\n");
+		goto exit;
+	};
 
 	rt2x00dev->fw = fw;
 
@@ -78,7 +87,7 @@ static int rt2x00lib_request_firmware(struct rt2x00_dev *rt2x00dev)
 exit:
 	release_firmware(fw);
 
-	return retval;
+	return -ENOENT;
 }
 
 int rt2x00lib_load_firmware(struct rt2x00_dev *rt2x00dev)

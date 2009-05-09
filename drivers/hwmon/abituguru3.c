@@ -760,8 +760,11 @@ static int abituguru3_read_increment_offset(struct abituguru3_data *data,
 
 	for (i = 0; i < offset_count; i++)
 		if ((x = abituguru3_read(data, bank, offset + i, count,
-				buf + i * count)) != count)
-			return i * count + (i && (x < 0)) ? 0 : x;
+				buf + i * count)) != count) {
+			if (x < 0)
+				return x;
+			return i * count + x;
+		}
 
 	return i * count;
 }

@@ -27,15 +27,6 @@ config DEBUG_STACK_USAGE
 
 	  This option will slow down process creation somewhat.
 
-config DEBUG_PAGEALLOC
-        bool "Debug page memory allocations"
-        depends on DEBUG_KERNEL && !HIBERNATION
-        help
-          Unmap pages from the kernel linear mapping after free_pages().
-          This results in a large slowdown, but helps to find certain types
-          of memory corruptions.
-
-
 config HCALL_STATS
 	bool "Hypervisor call instrumentation"
 	depends on PPC_PSERIES && DEBUG_FS
@@ -129,7 +120,7 @@ config BDI_SWITCH
 
 config BOOTX_TEXT
 	bool "Support for early boot text console (BootX or OpenFirmware only)"
-	depends on PPC_OF && PPC_MULTIPLATFORM
+	depends on PPC_OF && PPC_BOOK3S
 	help
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires either BootX or Open Firmware.

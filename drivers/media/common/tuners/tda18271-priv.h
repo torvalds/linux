@@ -91,11 +91,6 @@ enum tda18271_pll {
 	TDA18271_CAL_PLL,
 };
 
-enum tda18271_mode {
-	TDA18271_ANALOG,
-	TDA18271_DIGITAL,
-};
-
 struct tda18271_map_layout;
 
 enum tda18271_ver {
@@ -114,6 +109,7 @@ struct tda18271_priv {
 	enum tda18271_i2c_gate gate;
 	enum tda18271_ver id;
 
+	unsigned int config; /* interface to saa713x / tda829x */
 	unsigned int tm_rfcal;
 	unsigned int cal_initialized:1;
 	unsigned int small_i2c:1;

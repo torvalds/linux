@@ -899,6 +899,7 @@ static int pegasus_start_xmit(struct sk_buff *skb, struct net_device *net)
 			/* cleanup should already have been scheduled */
 			break;
 		case -ENODEV:		/* disconnect() upcoming */
+		case -EPERM:
 			netif_device_detach(pegasus->net);
 			break;
 		default:

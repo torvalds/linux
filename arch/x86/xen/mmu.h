@@ -11,6 +11,9 @@ enum pt_level {
 };
 
 
+bool __set_phys_to_machine(unsigned long pfn, unsigned long mfn);
+bool install_p2mtop_page(unsigned long pfn, unsigned long *p);
+
 void set_pte_mfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
 
 
@@ -54,4 +57,7 @@ pte_t xen_ptep_modify_prot_start(struct mm_struct *mm, unsigned long addr, pte_t
 void  xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 				  pte_t *ptep, pte_t pte);
 
+unsigned long xen_read_cr2_direct(void);
+
+extern const struct pv_mmu_ops xen_mmu_ops;
 #endif	/* _XEN_MMU_H */

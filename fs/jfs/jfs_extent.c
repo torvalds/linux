@@ -141,7 +141,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	}
 
 	/* Allocate blocks to quota. */
-	if (DQUOT_ALLOC_BLOCK(ip, nxlen)) {
+	if (vfs_dq_alloc_block(ip, nxlen)) {
 		dbFree(ip, nxaddr, (s64) nxlen);
 		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return -EDQUOT;
@@ -164,7 +164,7 @@ extAlloc(struct inode *ip, s64 xlen, s64 pno, xad_t * xp, bool abnr)
 	 */
 	if (rc) {
 		dbFree(ip, nxaddr, nxlen);
-		DQUOT_FREE_BLOCK(ip, nxlen);
+		vfs_dq_free_block(ip, nxlen);
 		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return (rc);
 	}
@@ -256,7 +256,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, bool abnr)
 		goto exit;
 
 	/* Allocat blocks to quota. */
-	if (DQUOT_ALLOC_BLOCK(ip, nxlen)) {
+	if (vfs_dq_alloc_block(ip, nxlen)) {
 		dbFree(ip, nxaddr, (s64) nxlen);
 		mutex_unlock(&JFS_IP(ip)->commit_mutex);
 		return -EDQUOT;
@@ -297,7 +297,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, bool abnr)
 		/* extend the extent */
 		if ((rc = xtExtend(0, ip, xoff + xlen, (int) nextend, 0))) {
 			dbFree(ip, xaddr + xlen, delta);
-			DQUOT_FREE_BLOCK(ip, nxlen);
+			vfs_dq_free_block(ip, nxlen);
 			goto exit;
 		}
 	} else {
@@ -308,7 +308,7 @@ int extRealloc(struct inode *ip, s64 nxlen, xad_t * xp, bool abnr)
 		 */
 		if ((rc = xtTailgate(0, ip, xoff, (int) ntail, nxaddr, 0))) {
 			dbFree(ip, nxaddr, nxlen);
-			DQUOT_FREE_BLOCK(ip, nxlen);
+			vfs_dq_free_block(ip, nxlen);
 			goto exit;
 		}
 	}
@@ -362,11 +362,12 @@ exit:
 int extHint(struct inode *ip, s64 offset, xad_t * xp)
 {
 	struct super_block *sb = ip->i_sb;
-	struct xadlist xadl;
-	struct lxdlist lxdl;
-	lxd_t lxd;
+	int nbperpage = JFS_SBI(sb)->nbperpage;
 	s64 prev;
-	int rc, nbperpage = JFS_SBI(sb)->nbperpage;
+	int rc = 0;
+	s64 xaddr;
+	int xlen;
+	int xflag;
 
 	/* init the hint as "no hint provided" */
 	XADaddress(xp, 0);
@@ -376,46 +377,30 @@ int extHint(struct inode *ip, s64 offset, xad_t * xp)
 	 */
 	prev = ((offset & ~POFFSET) >> JFS_SBI(sb)->l2bsize) - nbperpage;
 
-	/* if the offsets in the first page of the file,
-	 * no hint provided.
+	/* if the offset is in the first page of the file, no hint provided.
 	 */
 	if (prev < 0)
-		return (0);
+		goto out;
 
-	/* prepare to lookup the previous page's extent info */
-	lxdl.maxnlxd = 1;
-	lxdl.nlxd = 1;
-	lxdl.lxd = &lxd;
-	LXDoffset(&lxd, prev)
-	LXDlength(&lxd, nbperpage);
+	rc = xtLookup(ip, prev, nbperpage, &xflag, &xaddr, &xlen, 0);
 
-	xadl.maxnxad = 1;
-	xadl.nxad = 0;
-	xadl.xad = xp;
+	if ((rc == 0) && xlen) {
+		if (xlen != nbperpage) {
+			jfs_error(ip->i_sb, "extHint: corrupt xtree");
+			rc = -EIO;
+		}
+		XADaddress(xp, xaddr);
+		XADlength(xp, xlen);
+		/*
+		 * only preserve the abnr flag within the xad flags
+		 * of the returned hint.
+		 */
+		xp->flag  = xflag & XAD_NOTRECORDED;
+	} else
+		rc = 0;
 
-	/* perform the lookup */
-	if ((rc = xtLookupList(ip, &lxdl, &xadl, 0)))
-		return (rc);
-
-	/* check if no extent exists for the previous page.
-	 * this is possible for sparse files.
-	 */
-	if (xadl.nxad == 0) {
-//		assert(ISSPARSE(ip));
-		return (0);
-	}
-
-	/* only preserve the abnr flag within the xad flags
-	 * of the returned hint.
-	 */
-	xp->flag &= XAD_NOTRECORDED;
-
-	if(xadl.nxad != 1 || lengthXAD(xp) != nbperpage) {
-		jfs_error(ip->i_sb, "extHint: corrupt xtree");
-		return -EIO;
-	}
-
-	return (0);
+out:
+	return (rc);
 }
 
 

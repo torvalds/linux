@@ -8,6 +8,9 @@
  * published by the Free Software Foundation.
  *
  */
+
+#include <linux/highmem.h>
+
 #define CNF_CMD     0x04
 #define CNF_CTL_BASE   0x10
 #define CNF_INT_PIN  0x3d

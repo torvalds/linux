@@ -9,8 +9,8 @@
 #include <asm/mpc52xx.h>
 
 
-#define GPT_MODE_WDT		(1<<15)
-#define GPT_MODE_CE		(1<<12)
+#define GPT_MODE_WDT		(1 << 15)
+#define GPT_MODE_CE		(1 << 12)
 #define GPT_MODE_MS_TIMER	(0x4)
 
 

@@ -46,7 +46,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
-#include <net/ieee80211.h>
 #include <net/lib80211.h>
 #include <asm/irq.h>
 
@@ -1683,7 +1682,7 @@ static int prism2_get_txfid_idx(local_info_t *local)
 
 	PDEBUG(DEBUG_EXTRA2, "prism2_get_txfid_idx: no room in txfid buf: "
 	       "packet dropped\n");
-	local->stats.tx_dropped++;
+	local->dev->stats.tx_dropped++;
 
 	return -1;
 }
@@ -1788,11 +1787,9 @@ static int prism2_transmit(struct net_device *dev, int idx)
 		prism2_transmit_cb, (long) idx);
 
 	if (res) {
-		struct net_device_stats *stats;
 		printk(KERN_DEBUG "%s: prism2_transmit: CMDCODE_TRANSMIT "
 		       "failed (res=%d)\n", dev->name, res);
-		stats = hostap_get_stats(dev);
-		stats->tx_dropped++;
+		dev->stats.tx_dropped++;
 		netif_wake_queue(dev);
 		return -1;
 	}
@@ -1840,8 +1837,8 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	hdr_len = 24;
 	skb_copy_from_linear_data(skb, &txdesc.frame_control, hdr_len);
  	fc = le16_to_cpu(txdesc.frame_control);
-	if (WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA &&
-	    (fc & IEEE80211_FCTL_FROMDS) && (fc & IEEE80211_FCTL_TODS) &&
+	if (ieee80211_is_data(txdesc.frame_control) &&
+	    ieee80211_has_a4(txdesc.frame_control) &&
 	    skb->len >= 30) {
 		/* Addr4 */
 		skb_copy_from_linear_data_offset(skb, hdr_len, txdesc.addr4,
@@ -1940,12 +1937,10 @@ static void prism2_rx(local_info_t *local)
 	struct net_device *dev = local->dev;
 	int res, rx_pending = 0;
 	u16 len, hdr_len, rxfid, status, macport;
-	struct net_device_stats *stats;
 	struct hfa384x_rx_frame rxdesc;
 	struct sk_buff *skb = NULL;
 
 	prism2_callback(local, PRISM2_CALLBACK_RX_START);
-	stats = hostap_get_stats(dev);
 
 	rxfid = prism2_read_fid_reg(dev, HFA384X_RXFID_OFF);
 #ifndef final_version
@@ -2032,7 +2027,7 @@ static void prism2_rx(local_info_t *local)
 	return;
 
  rx_dropped:
-	stats->rx_dropped++;
+	dev->stats.rx_dropped++;
 	if (skb)
 		dev_kfree_skb(skb);
 	goto rx_exit;
@@ -2082,7 +2077,7 @@ static void hostap_rx_skb(local_info_t *local, struct sk_buff *skb)
 	stats.rate = rxdesc->rate;
 
 	/* Convert Prism2 RX structure into IEEE 802.11 header */
-	hdrlen = hostap_80211_get_hdrlen(le16_to_cpu(rxdesc->frame_control));
+	hdrlen = hostap_80211_get_hdrlen(rxdesc->frame_control);
 	if (hdrlen > rx_hdrlen)
 		hdrlen = rx_hdrlen;
 
@@ -2204,7 +2199,7 @@ static void hostap_tx_callback(local_info_t *local,
 		return;
 	}
 
-	hdrlen = hostap_80211_get_hdrlen(le16_to_cpu(txdesc->frame_control));
+	hdrlen = hostap_80211_get_hdrlen(txdesc->frame_control);
 	len = le16_to_cpu(txdesc->data_len);
 	skb = dev_alloc_skb(hdrlen + len);
 	if (skb == NULL) {
@@ -2315,8 +2310,7 @@ static void hostap_sta_tx_exc_tasklet(unsigned long data)
 		if (skb->len >= sizeof(*txdesc)) {
 			/* Convert Prism2 RX structure into IEEE 802.11 header
 			 */
-			u16 fc = le16_to_cpu(txdesc->frame_control);
-			int hdrlen = hostap_80211_get_hdrlen(fc);
+			int hdrlen = hostap_80211_get_hdrlen(txdesc->frame_control);
 			memmove(skb_pull(skb, sizeof(*txdesc) - hdrlen),
 				&txdesc->frame_control, hdrlen);
 
@@ -2337,7 +2331,7 @@ static void prism2_txexc(local_info_t *local)
 	struct hfa384x_tx_frame txdesc;
 
 	show_dump = local->frame_dump & PRISM2_DUMP_TXEXC_HDR;
-	local->stats.tx_errors++;
+	dev->stats.tx_errors++;
 
 	res = hostap_tx_compl_read(local, 1, &txdesc, &payload);
 	HFA384X_OUTW(HFA384X_EV_TXEXC, HFA384X_EVACK_OFF);
@@ -2394,12 +2388,12 @@ static void prism2_txexc(local_info_t *local)
 	PDEBUG(DEBUG_EXTRA, "   retry_count=%d tx_rate=%d fc=0x%04x "
 	       "(%s%s%s::%d%s%s)\n",
 	       txdesc.retry_count, txdesc.tx_rate, fc,
-	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_MGMT ? "Mgmt" : "",
-	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_CTL ? "Ctrl" : "",
-	       WLAN_FC_GET_TYPE(fc) == IEEE80211_FTYPE_DATA ? "Data" : "",
-	       WLAN_FC_GET_STYPE(fc) >> 4,
-	       fc & IEEE80211_FCTL_TODS ? " ToDS" : "",
-	       fc & IEEE80211_FCTL_FROMDS ? " FromDS" : "");
+	       ieee80211_is_mgmt(txdesc.frame_control) ? "Mgmt" : "",
+	       ieee80211_is_ctl(txdesc.frame_control) ? "Ctrl" : "",
+	       ieee80211_is_data(txdesc.frame_control) ? "Data" : "",
+	       (fc & IEEE80211_FCTL_STYPE) >> 4,
+	       ieee80211_has_tods(txdesc.frame_control) ? " ToDS" : "",
+	       ieee80211_has_fromds(txdesc.frame_control) ? " FromDS" : "");
 	PDEBUG(DEBUG_EXTRA, "   A1=%pM A2=%pM A3=%pM A4=%pM\n",
 	       txdesc.addr1, txdesc.addr2,
 	       txdesc.addr3, txdesc.addr4);
@@ -3228,7 +3222,6 @@ while (0)
 
 	hostap_setup_dev(dev, local, HOSTAP_INTERFACE_MASTER);
 
-	dev->hard_start_xmit = hostap_master_start_xmit;
 	dev->type = ARPHRD_IEEE80211;
 	dev->header_ops = &hostap_80211_ops;
 

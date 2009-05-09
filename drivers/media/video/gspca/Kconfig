@@ -56,6 +56,15 @@ config USB_GSPCA_MARS
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_mars.
 
+config USB_GSPCA_MR97310A
+	tristate "Mars-Semi MR97310A USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the MR97310A chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_mr97310a.
+
 config USB_GSPCA_OV519
 	tristate "OV519 USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
@@ -166,6 +175,24 @@ config USB_GSPCA_SPCA561
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_spca561.
+
+config USB_GSPCA_SQ905
+	tristate "SQ Technologies SQ905 based USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the SQ905 chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_sq905.
+
+config USB_GSPCA_SQ905C
+	tristate "SQ Technologies SQ905C based USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the SQ905C chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_sq905c.
 
 config USB_GSPCA_STK014
 	tristate "Syntek DV4000 (STK014) USB Camera Driver"

@@ -94,12 +94,36 @@ struct sh_mobile_ceu_dev {
 	spinlock_t lock;
 	struct list_head capture;
 	struct videobuf_buffer *active;
-	int is_interlace;
+	int is_interlaced;
 
 	struct sh_mobile_ceu_info *pdata;
 
 	const struct soc_camera_data_format *camera_fmt;
 };
+
+static unsigned long make_bus_param(struct sh_mobile_ceu_dev *pcdev)
+{
+	unsigned long flags;
+
+	flags = SOCAM_MASTER |
+		SOCAM_PCLK_SAMPLE_RISING |
+		SOCAM_HSYNC_ACTIVE_HIGH |
+		SOCAM_HSYNC_ACTIVE_LOW |
+		SOCAM_VSYNC_ACTIVE_HIGH |
+		SOCAM_VSYNC_ACTIVE_LOW |
+		SOCAM_DATA_ACTIVE_HIGH;
+
+	if (pcdev->pdata->flags & SH_CEU_FLAG_USE_8BIT_BUS)
+		flags |= SOCAM_DATAWIDTH_8;
+
+	if (pcdev->pdata->flags & SH_CEU_FLAG_USE_16BIT_BUS)
+		flags |= SOCAM_DATAWIDTH_16;
+
+	if (flags & SOCAM_DATAWIDTH_MASK)
+		return flags;
+
+	return 0;
+}
 
 static void ceu_write(struct sh_mobile_ceu_dev *priv,
 		      unsigned long reg_offs, u32 data)
@@ -150,6 +174,7 @@ static void free_buffer(struct videobuf_queue *vq,
 	if (in_interrupt())
 		BUG();
 
+	videobuf_waiton(&buf->vb, 0, 0);
 	videobuf_dma_contig_free(vq, &buf->vb);
 	dev_dbg(&icd->dev, "%s freed\n", __func__);
 	buf->vb.state = VIDEOBUF_NEEDS_INIT;
@@ -181,7 +206,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 
 	phys_addr_top = videobuf_to_dma_contig(pcdev->active);
 	ceu_write(pcdev, CDAYR, phys_addr_top);
-	if (pcdev->is_interlace) {
+	if (pcdev->is_interlaced) {
 		phys_addr_bottom = phys_addr_top + icd->width;
 		ceu_write(pcdev, CDBYR, phys_addr_bottom);
 	}
@@ -193,7 +218,7 @@ static void sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 	case V4L2_PIX_FMT_NV61:
 		phys_addr_top += icd->width * icd->height;
 		ceu_write(pcdev, CDACR, phys_addr_top);
-		if (pcdev->is_interlace) {
+		if (pcdev->is_interlaced) {
 			phys_addr_bottom = phys_addr_top + icd->width;
 			ceu_write(pcdev, CDBCR, phys_addr_bottom);
 		}
@@ -396,7 +421,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 
 	camera_flags = icd->ops->query_bus_param(icd);
 	common_flags = soc_camera_bus_param_compatible(camera_flags,
-						       pcdev->pdata->flags);
+						       make_bus_param(pcdev));
 	if (!common_flags)
 		return -EINVAL;
 
@@ -457,7 +482,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	ceu_write(pcdev, CAMCR, value);
 
 	ceu_write(pcdev, CAPCR, 0x00300000);
-	ceu_write(pcdev, CAIFR, (pcdev->is_interlace) ? 0x101 : 0);
+	ceu_write(pcdev, CAIFR, pcdev->is_interlaced ? 0x101 : 0);
 
 	mdelay(1);
 
@@ -473,7 +498,7 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd,
 	}
 
 	height = icd->height;
-	if (pcdev->is_interlace) {
+	if (pcdev->is_interlaced) {
 		height /= 2;
 		cdwdr_width *= 2;
 	}
@@ -517,7 +542,7 @@ static int sh_mobile_ceu_try_bus_param(struct soc_camera_device *icd)
 
 	camera_flags = icd->ops->query_bus_param(icd);
 	common_flags = soc_camera_bus_param_compatible(camera_flags,
-						       pcdev->pdata->flags);
+						       make_bus_param(pcdev));
 	if (!common_flags)
 		return -EINVAL;
 
@@ -562,11 +587,29 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 	if (ret < 0)
 		return 0;
 
+	/* Beginning of a pass */
+	if (!idx)
+		icd->host_priv = NULL;
+
 	switch (icd->formats[idx].fourcc) {
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_VYUY:
 	case V4L2_PIX_FMT_YUYV:
 	case V4L2_PIX_FMT_YVYU:
+		if (icd->host_priv)
+			goto add_single_format;
+
+		/*
+		 * Our case is simple so far: for any of the above four camera
+		 * formats we add all our four synthesized NV* formats, so,
+		 * just marking the device with a single flag suffices. If
+		 * the format generation rules are more complex, you would have
+		 * to actually hang your already added / counted formats onto
+		 * the host_priv pointer and check whether the format you're
+		 * going to add now is already there.
+		 */
+		icd->host_priv = (void *)sh_mobile_ceu_formats;
+
 		n = ARRAY_SIZE(sh_mobile_ceu_formats);
 		formats += n;
 		for (k = 0; xlate && k < n; k++) {
@@ -579,6 +622,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 				icd->formats[idx].name);
 		}
 	default:
+add_single_format:
 		/* Generic pass-through */
 		formats++;
 		if (xlate) {
@@ -595,16 +639,21 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, int idx,
 	return formats;
 }
 
+static int sh_mobile_ceu_set_crop(struct soc_camera_device *icd,
+				  struct v4l2_rect *rect)
+{
+	return icd->ops->set_crop(icd, rect);
+}
+
 static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
-				 __u32 pixfmt, struct v4l2_rect *rect)
+				 struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
+	__u32 pixfmt = f->fmt.pix.pixelformat;
 	const struct soc_camera_format_xlate *xlate;
+	struct v4l2_format cam_f = *f;
 	int ret;
-
-	if (!pixfmt)
-		return icd->ops->set_fmt(icd, pixfmt, rect);
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
@@ -612,7 +661,8 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	ret = icd->ops->set_fmt(icd, xlate->cam_fmt->fourcc, rect);
+	cam_f.fmt.pix.pixelformat = xlate->cam_fmt->fourcc;
+	ret = icd->ops->set_fmt(icd, &cam_f);
 
 	if (!ret) {
 		icd->buswidth = xlate->buswidth;
@@ -662,13 +712,13 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 
 	switch (f->fmt.pix.field) {
 	case V4L2_FIELD_INTERLACED:
-		pcdev->is_interlace = 1;
+		pcdev->is_interlaced = 1;
 		break;
 	case V4L2_FIELD_ANY:
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 		/* fall-through */
 	case V4L2_FIELD_NONE:
-		pcdev->is_interlace = 0;
+		pcdev->is_interlaced = 0;
 		break;
 	default:
 		ret = -EINVAL;
@@ -734,7 +784,8 @@ static void sh_mobile_ceu_init_videobuf(struct videobuf_queue *q,
 				       &sh_mobile_ceu_videobuf_ops,
 				       &ici->dev, &pcdev->lock,
 				       V4L2_BUF_TYPE_VIDEO_CAPTURE,
-				       V4L2_FIELD_ANY,
+				       pcdev->is_interlaced ?
+				       V4L2_FIELD_INTERLACED : V4L2_FIELD_NONE,
 				       sizeof(struct sh_mobile_ceu_buffer),
 				       icd);
 }
@@ -744,6 +795,7 @@ static struct soc_camera_host_ops sh_mobile_ceu_host_ops = {
 	.add		= sh_mobile_ceu_add_device,
 	.remove		= sh_mobile_ceu_remove_device,
 	.get_formats	= sh_mobile_ceu_get_formats,
+	.set_crop	= sh_mobile_ceu_set_crop,
 	.set_fmt	= sh_mobile_ceu_set_fmt,
 	.try_fmt	= sh_mobile_ceu_try_fmt,
 	.reqbufs	= sh_mobile_ceu_reqbufs,

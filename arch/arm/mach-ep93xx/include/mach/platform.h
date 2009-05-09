@@ -4,6 +4,8 @@
 
 #ifndef __ASSEMBLY__
 
+struct i2c_board_info;
+
 struct ep93xx_eth_data
 {
 	unsigned char	dev_addr[6];

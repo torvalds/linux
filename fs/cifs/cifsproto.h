@@ -44,6 +44,9 @@ extern void _FreeXid(unsigned int);
 extern char *build_path_from_dentry(struct dentry *);
 extern char *cifs_build_path_to_root(struct cifs_sb_info *cifs_sb);
 extern char *build_wildcard_path_from_dentry(struct dentry *direntry);
+extern char *cifs_compose_mount_options(const char *sb_mountdata,
+		const char *fullpath, const struct dfs_info3_param *ref,
+		char **devname);
 /* extern void renew_parental_timestamps(struct dentry *direntry);*/
 extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct smb_hdr * /* input */ ,
@@ -92,6 +95,9 @@ extern u64 cifs_UnixTimeToNT(struct timespec);
 extern __le64 cnvrtDosCifsTm(__u16 date, __u16 time);
 extern struct timespec cnvrtDosUnixTm(__u16 date, __u16 time);
 
+extern int cifs_posix_open(char *full_path, struct inode **pinode,
+			   struct super_block *sb, int mode, int oflags,
+			   int *poplock, __u16 *pnetfid, int xid);
 extern void posix_fill_in_inode(struct inode *tmp_inode,
 				FILE_UNIX_BASIC_INFO *pData, int isNewInode);
 extern struct inode *cifs_new_inode(struct super_block *sb, __u64 *inum);
@@ -254,8 +260,7 @@ extern int CIFSUnixCreateSymLink(const int xid,
 			const struct nls_table *nls_codepage);
 extern int CIFSSMBUnixQuerySymLink(const int xid,
 			struct cifsTconInfo *tcon,
-			const unsigned char *searchName,
-			char *syminfo, const int buflen,
+			const unsigned char *searchName, char **syminfo,
 			const struct nls_table *nls_codepage);
 extern int CIFSSMBQueryReparseLinkInfo(const int xid,
 			struct cifsTconInfo *tcon,
@@ -281,6 +286,9 @@ extern int CIFSPOSIXCreate(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBClose(const int xid, struct cifsTconInfo *tcon,
 			const int smb_file_id);
 
+extern int CIFSSMBFlush(const int xid, struct cifsTconInfo *tcon,
+			const int smb_file_id);
+
 extern int CIFSSMBRead(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, unsigned int count,
 			const __u64 lseek, unsigned int *nbytes, char **buf,
@@ -298,8 +306,6 @@ extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 *inode_number,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern int cifs_convertUCSpath(char *target, const __le16 *source, int maxlen,
-			const struct nls_table *codepage);
 extern int cifsConvertToUCS(__le16 *target, const char *source, int maxlen,
 			const struct nls_table *cp, int mapChars);
 

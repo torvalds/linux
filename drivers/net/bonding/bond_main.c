@@ -1002,6 +1002,10 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active, struct 
 static void bond_do_fail_over_mac(struct bonding *bond,
 				  struct slave *new_active,
 				  struct slave *old_active)
+	__releases(&bond->curr_slave_lock)
+	__releases(&bond->lock)
+	__acquires(&bond->lock)
+	__acquires(&bond->curr_slave_lock)
 {
 	u8 tmp_mac[ETH_ALEN];
 	struct sockaddr saddr;
@@ -1710,6 +1714,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	case BOND_MODE_ALB:
 		new_slave->state = BOND_STATE_ACTIVE;
 		bond_set_slave_inactive_flags(new_slave);
+		bond_select_active_slave(bond);
 		break;
 	default:
 		pr_debug("This slave is always active in trunk mode\n");
@@ -2208,33 +2213,24 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
-	int i, found = 0;
-
-	if (info->slave_id < 0) {
-		return -ENODEV;
-	}
+	int i, res = -ENODEV;
 
 	read_lock(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
 		if (i == (int)info->slave_id) {
-			found = 1;
+			res = 0;
+			strcpy(info->slave_name, slave->dev->name);
+			info->link = slave->link;
+			info->state = slave->state;
+			info->link_failure_count = slave->link_failure_count;
 			break;
 		}
 	}
 
 	read_unlock(&bond->lock);
 
-	if (found) {
-		strcpy(info->slave_name, slave->dev->name);
-		info->link = slave->link;
-		info->state = slave->state;
-		info->link_failure_count = slave->link_failure_count;
-	} else {
-		return -ENODEV;
-	}
-
-	return 0;
+	return res;
 }
 
 /*-------------------------------- Monitoring -------------------------------*/
@@ -2565,7 +2561,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
 		if (!targets[i])
-			continue;
+			break;
 		pr_debug("basa: target %x\n", targets[i]);
 		if (list_empty(&bond->vlan_list)) {
 			pr_debug("basa: empty vlan: arp_send\n");
@@ -2672,7 +2668,6 @@ static void bond_validate_arp(struct bonding *bond, struct slave *slave, __be32 
 	int i;
 	__be32 *targets = bond->params.arp_targets;
 
-	targets = bond->params.arp_targets;
 	for (i = 0; (i < BOND_MAX_ARP_TARGETS) && targets[i]; i++) {
 		pr_debug("bva: sip %pI4 tip %pI4 t[%d] %pI4 bhti(tip) %d\n",
 			&sip, &tip, i, &targets[i], bond_has_this_ip(bond, tip));
@@ -3193,6 +3188,8 @@ out:
 #ifdef CONFIG_PROC_FS
 
 static void *bond_info_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(&dev_base_lock)
+	__acquires(&bond->lock)
 {
 	struct bonding *bond = seq->private;
 	loff_t off = 0;
@@ -3232,6 +3229,8 @@ static void *bond_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void bond_info_seq_stop(struct seq_file *seq, void *v)
+	__releases(&bond->lock)
+	__releases(&dev_base_lock)
 {
 	struct bonding *bond = seq->private;
 
@@ -3294,7 +3293,7 @@ static void bond_info_show_master(struct seq_file *seq)
 
 		for(i = 0; (i < BOND_MAX_ARP_TARGETS) ;i++) {
 			if (!bond->params.arp_targets[i])
-				continue;
+				break;
 			if (printed)
 				seq_printf(seq, ",");
 			seq_printf(seq, " %pI4", &bond->params.arp_targets[i]);
@@ -3369,7 +3368,7 @@ static int bond_info_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations bond_info_seq_ops = {
+static const struct seq_operations bond_info_seq_ops = {
 	.start = bond_info_seq_start,
 	.next  = bond_info_seq_next,
 	.stop  = bond_info_seq_stop,
@@ -3435,25 +3434,12 @@ static void bond_remove_proc_entry(struct bonding *bond)
  */
 static void bond_create_proc_dir(void)
 {
-	int len = strlen(DRV_NAME);
-
-	for (bond_proc_dir = init_net.proc_net->subdir; bond_proc_dir;
-	     bond_proc_dir = bond_proc_dir->next) {
-		if ((bond_proc_dir->namelen == len) &&
-		    !memcmp(bond_proc_dir->name, DRV_NAME, len)) {
-			break;
-		}
-	}
-
 	if (!bond_proc_dir) {
 		bond_proc_dir = proc_mkdir(DRV_NAME, init_net.proc_net);
-		if (bond_proc_dir) {
-			bond_proc_dir->owner = THIS_MODULE;
-		} else {
+		if (!bond_proc_dir)
 			printk(KERN_WARNING DRV_NAME
 				": Warning: cannot create /proc/net/%s\n",
 				DRV_NAME);
-		}
 	}
 }
 
@@ -3462,25 +3448,7 @@ static void bond_create_proc_dir(void)
  */
 static void bond_destroy_proc_dir(void)
 {
-	struct proc_dir_entry *de;
-
-	if (!bond_proc_dir) {
-		return;
-	}
-
-	/* verify that the /proc dir is empty */
-	for (de = bond_proc_dir->subdir; de; de = de->next) {
-		/* ignore . and .. */
-		if (*(de->name) != '.') {
-			break;
-		}
-	}
-
-	if (de) {
-		if (bond_proc_dir->owner == THIS_MODULE) {
-			bond_proc_dir->owner = NULL;
-		}
-	} else {
+	if (bond_proc_dir) {
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		bond_proc_dir = NULL;
 	}
@@ -3537,11 +3505,26 @@ static int bond_slave_netdev_event(unsigned long event, struct net_device *slave
 		}
 		break;
 	case NETDEV_CHANGE:
-		/*
-		 * TODO: is this what we get if somebody
-		 * sets up a hierarchical bond, then rmmod's
-		 * one of the slave bonding devices?
-		 */
+		if (bond->params.mode == BOND_MODE_8023AD || bond_is_lb(bond)) {
+			struct slave *slave;
+
+			slave = bond_get_slave_by_dev(bond, slave_dev);
+			if (slave) {
+				u16 old_speed = slave->speed;
+				u16 old_duplex = slave->duplex;
+
+				bond_update_speed_duplex(slave);
+
+				if (bond_is_lb(bond))
+					break;
+
+				if (old_speed != slave->speed)
+					bond_3ad_adapter_speed_changed(slave);
+				if (old_duplex != slave->duplex)
+					bond_3ad_adapter_duplex_changed(slave);
+			}
+		}
+
 		break;
 	case NETDEV_DOWN:
 		/*
@@ -4113,7 +4096,7 @@ static int bond_neigh_setup(struct net_device *dev, struct neigh_parms *parms)
 		const struct net_device_ops *slave_ops
 			= slave->dev->netdev_ops;
 		if (slave_ops->ndo_neigh_setup)
-			return slave_ops->ndo_neigh_setup(dev, parms);
+			return slave_ops->ndo_neigh_setup(slave->dev, parms);
 	}
 	return 0;
 }
@@ -4724,7 +4707,7 @@ static void bond_free_all(void)
  */
 int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 {
-	int mode = -1, i, rv;
+	int modeint = -1, i, rv;
 	char *p, modestr[BOND_MAX_MODENAME_LEN + 1] = { 0, };
 
 	for (p = (char *)buf; *p; p++)
@@ -4734,13 +4717,13 @@ int bond_parse_parm(const char *buf, const struct bond_parm_tbl *tbl)
 	if (*p)
 		rv = sscanf(buf, "%20s", modestr);
 	else
-		rv = sscanf(buf, "%d", &mode);
+		rv = sscanf(buf, "%d", &modeint);
 
 	if (!rv)
 		return -1;
 
 	for (i = 0; tbl[i].modename; i++) {
-		if (mode == tbl[i].mode)
+		if (modeint == tbl[i].mode)
 			return tbl[i].mode;
 		if (strcmp(modestr, tbl[i].modename) == 0)
 			return tbl[i].mode;
@@ -5175,16 +5158,15 @@ int bond_create(char *name, struct bond_params *params)
 	up_write(&bonding_rwsem);
 	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(netdev_priv(bond_dev));
-	if (res < 0) {
-		rtnl_lock();
-		down_write(&bonding_rwsem);
-		bond_deinit(bond_dev);
-		unregister_netdevice(bond_dev);
-		goto out_rtnl;
-	}
+	if (res < 0)
+		goto out_unreg;
 
 	return 0;
 
+out_unreg:
+	rtnl_lock();
+	down_write(&bonding_rwsem);
+	unregister_netdevice(bond_dev);
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:

@@ -172,8 +172,9 @@ static void __cpuinit set_prefetch_parameters(void)
 		 */
 		cache_line_size = cpu_dcache_line_size();
 		switch (current_cpu_type()) {
+		case CPU_R5500:
 		case CPU_TX49XX:
-			/* TX49 supports only Pref_Load */
+			/* These processors only support the Pref_Load. */
 			pref_bias_copy_load = 256;
 			break;
 

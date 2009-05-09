@@ -552,51 +552,57 @@ static struct ata_port_operations sis_old_ops = {
 
 static const struct ata_port_info sis_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
-	.pio_mask	= 0x1f,	/* pio0-4 */
-	.mwdma_mask	= 0x07,
-	.udma_mask	= 0,
+	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	/* No UDMA */
 	.port_ops	= &sis_old_ops,
 };
 static const struct ata_port_info sis_info33 = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
-	.pio_mask	= 0x1f,	/* pio0-4 */
-	.mwdma_mask	= 0x07,
-	.udma_mask	= ATA_UDMA2,	/* UDMA 33 */
+	.pio_mask	= ATA_PIO4,
+	.mwdma_mask	= ATA_MWDMA2,
+	.udma_mask	= ATA_UDMA2,
 	.port_ops	= &sis_old_ops,
 };
 static const struct ata_port_info sis_info66 = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
-	.pio_mask	= 0x1f,	/* pio0-4 */
-	.udma_mask	= ATA_UDMA4,	/* UDMA 66 */
+	.pio_mask	= ATA_PIO4,
+	/* No MWDMA */
+	.udma_mask	= ATA_UDMA4,
 	.port_ops	= &sis_66_ops,
 };
 static const struct ata_port_info sis_info100 = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
-	.pio_mask	= 0x1f,	/* pio0-4 */
+	.pio_mask	= ATA_PIO4,
+	/* No MWDMA */
 	.udma_mask	= ATA_UDMA5,
 	.port_ops	= &sis_100_ops,
 };
 static const struct ata_port_info sis_info100_early = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
+	.pio_mask	= ATA_PIO4,
+	/* No MWDMA */
 	.udma_mask	= ATA_UDMA5,
-	.pio_mask	= 0x1f,	/* pio0-4 */
 	.port_ops	= &sis_66_ops,
 };
 static const struct ata_port_info sis_info133 = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
-	.pio_mask	= 0x1f,	/* pio0-4 */
+	.pio_mask	= ATA_PIO4,
+	/* No MWDMA */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_ops,
 };
 const struct ata_port_info sis_info133_for_sata = {
 	.flags		= ATA_FLAG_SLAVE_POSS | ATA_FLAG_SRST,
-	.pio_mask	= 0x1f,	/* pio0-4 */
+	.pio_mask	= ATA_PIO4,
+	/* No MWDMA */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_for_sata_ops,
 };
 static const struct ata_port_info sis_info133_early = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
-	.pio_mask	= 0x1f,	/* pio0-4 */
+	.pio_mask	= ATA_PIO4,
+	/* No MWDMA */
 	.udma_mask	= ATA_UDMA6,
 	.port_ops	= &sis_133_early_ops,
 };

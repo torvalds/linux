@@ -353,6 +353,11 @@ static int mpc8610_hpcd_probe(struct of_device *ofdev,
 	}
 	ssi_info.irq = machine_data->ssi_irq;
 
+	/* Do we want to use asynchronous mode? */
+	ssi_info.asynchronous =
+		of_find_property(np, "fsl,ssi-asynchronous", NULL) ? 1 : 0;
+	if (ssi_info.asynchronous)
+		dev_info(&ofdev->dev, "using asynchronous mode\n");
 
 	/* Map the global utilities registers. */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,mpc8610-guts");

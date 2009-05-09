@@ -269,7 +269,7 @@ static int __devinit gef_wdt_probe(struct of_device *dev,
 	bus_clk = 133; /* in MHz */
 
 	freq = fsl_get_sys_freq();
-	if (freq > 0)
+	if (freq != -1)
 		bus_clk = freq;
 
 	/* Map devices registers into memory */

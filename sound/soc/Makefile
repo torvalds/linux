@@ -1,4 +1,4 @@
-snd-soc-core-objs := soc-core.o soc-dapm.o
+snd-soc-core-objs := soc-core.o soc-dapm.o soc-jack.o
 
 obj-$(CONFIG_SND_SOC)	+= snd-soc-core.o
 obj-$(CONFIG_SND_SOC)	+= codecs/

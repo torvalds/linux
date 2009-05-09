@@ -490,172 +490,17 @@ static const char *zfcp_rec_dbf_tags[] = {
 	[ZFCP_REC_DBF_ID_ACTION] = "action",
 };
 
-static const char *zfcp_rec_dbf_ids[] = {
-	[1]	= "new",
-	[2]	= "ready",
-	[3]	= "kill",
-	[4]	= "down sleep",
-	[5]	= "down wakeup",
-	[6]	= "down sleep ecd",
-	[7]	= "down wakeup ecd",
-	[8]	= "down sleep epd",
-	[9]	= "down wakeup epd",
-	[10]	= "online",
-	[11]	= "operational",
-	[12]	= "scsi slave destroy",
-	[13]	= "propagate failed adapter",
-	[14]	= "propagate failed port",
-	[15]	= "block adapter",
-	[16]	= "unblock adapter",
-	[17]	= "block port",
-	[18]	= "unblock port",
-	[19]	= "block unit",
-	[20]	= "unblock unit",
-	[21]	= "unit recovery failed",
-	[22]	= "port recovery failed",
-	[23]	= "adapter recovery failed",
-	[24]	= "qdio queues down",
-	[25]	= "p2p failed",
-	[26]	= "nameserver lookup failed",
-	[27]	= "nameserver port failed",
-	[28]	= "link up",
-	[29]	= "link down",
-	[30]	= "link up status read",
-	[31]	= "open port failed",
-	[32]	= "",
-	[33]	= "close port",
-	[34]	= "open unit failed",
-	[35]	= "exclusive open unit failed",
-	[36]	= "shared open unit failed",
-	[37]	= "link down",
-	[38]	= "link down status read no link",
-	[39]	= "link down status read fdisc login",
-	[40]	= "link down status read firmware update",
-	[41]	= "link down status read unknown reason",
-	[42]	= "link down ecd incomplete",
-	[43]	= "link down epd incomplete",
-	[44]	= "sysfs adapter recovery",
-	[45]	= "sysfs port recovery",
-	[46]	= "sysfs unit recovery",
-	[47]	= "port boxed abort",
-	[48]	= "unit boxed abort",
-	[49]	= "port boxed ct",
-	[50]	= "port boxed close physical",
-	[51]	= "port boxed open unit",
-	[52]	= "port boxed close unit",
-	[53]	= "port boxed fcp",
-	[54]	= "unit boxed fcp",
-	[55]	= "port access denied",
-	[56]	= "",
-	[57]	= "",
-	[58]	= "",
-	[59]	= "unit access denied",
-	[60]	= "shared unit access denied open unit",
-	[61]	= "",
-	[62]	= "request timeout",
-	[63]	= "adisc link test reject or timeout",
-	[64]	= "adisc link test d_id changed",
-	[65]	= "adisc link test failed",
-	[66]	= "recovery out of memory",
-	[67]	= "adapter recovery repeated after state change",
-	[68]	= "port recovery repeated after state change",
-	[69]	= "unit recovery repeated after state change",
-	[70]	= "port recovery follow-up after successful adapter recovery",
-	[71]	= "adapter recovery escalation after failed adapter recovery",
-	[72]	= "port recovery follow-up after successful physical port "
-		  "recovery",
-	[73]	= "adapter recovery escalation after failed physical port "
-		  "recovery",
-	[74]	= "unit recovery follow-up after successful port recovery",
-	[75]	= "physical port recovery escalation after failed port "
-		  "recovery",
-	[76]	= "port recovery escalation after failed unit recovery",
-	[77]	= "",
-	[78]	= "duplicate request id",
-	[79]	= "link down",
-	[80]	= "exclusive read-only unit access unsupported",
-	[81]	= "shared read-write unit access unsupported",
-	[82]	= "incoming rscn",
-	[83]	= "incoming wwpn",
-	[84]	= "wka port handle not valid close port",
-	[85]	= "online",
-	[86]	= "offline",
-	[87]	= "ccw device gone",
-	[88]	= "ccw device no path",
-	[89]	= "ccw device operational",
-	[90]	= "ccw device shutdown",
-	[91]	= "sysfs port addition",
-	[92]	= "sysfs port removal",
-	[93]	= "sysfs adapter recovery",
-	[94]	= "sysfs unit addition",
-	[95]	= "sysfs unit removal",
-	[96]	= "sysfs port recovery",
-	[97]	= "sysfs unit recovery",
-	[98]	= "sequence number mismatch",
-	[99]	= "link up",
-	[100]	= "error state",
-	[101]	= "status read physical port closed",
-	[102]	= "link up status read",
-	[103]	= "too many failed status read buffers",
-	[104]	= "port handle not valid abort",
-	[105]	= "lun handle not valid abort",
-	[106]	= "port handle not valid ct",
-	[107]	= "port handle not valid close port",
-	[108]	= "port handle not valid close physical port",
-	[109]	= "port handle not valid open unit",
-	[110]	= "port handle not valid close unit",
-	[111]	= "lun handle not valid close unit",
-	[112]	= "port handle not valid fcp",
-	[113]	= "lun handle not valid fcp",
-	[114]	= "handle mismatch fcp",
-	[115]	= "lun not valid fcp",
-	[116]	= "qdio send failed",
-	[117]	= "version mismatch",
-	[118]	= "incompatible qtcb type",
-	[119]	= "unknown protocol status",
-	[120]	= "unknown fsf command",
-	[121]	= "no recommendation for status qualifier",
-	[122]	= "status read physical port closed in error",
-	[123]	= "fc service class not supported",
-	[124]	= "",
-	[125]	= "need newer zfcp",
-	[126]	= "need newer microcode",
-	[127]	= "arbitrated loop not supported",
-	[128]	= "",
-	[129]	= "qtcb size mismatch",
-	[130]	= "unknown fsf status ecd",
-	[131]	= "fcp request too big",
-	[132]	= "",
-	[133]	= "data direction not valid fcp",
-	[134]	= "command length not valid fcp",
-	[135]	= "status read act update",
-	[136]	= "status read cfdc update",
-	[137]	= "hbaapi port open",
-	[138]	= "hbaapi unit open",
-	[139]	= "hbaapi unit shutdown",
-	[140]	= "qdio error outbound",
-	[141]	= "scsi host reset",
-	[142]	= "dismissing fsf request for recovery action",
-	[143]	= "recovery action timed out",
-	[144]	= "recovery action gone",
-	[145]	= "recovery action being processed",
-	[146]	= "recovery action ready for next step",
-	[147]	= "qdio error inbound",
-	[148]   = "nameserver needed for port scan",
-	[149]   = "port scan",
-	[150]	= "ptp attach",
-	[151]   = "port validation failed",
-};
-
 static int zfcp_rec_dbf_view_format(debug_info_t *id, struct debug_view *view,
 				    char *buf, const char *_rec)
 {
 	struct zfcp_rec_dbf_record *r = (struct zfcp_rec_dbf_record *)_rec;
 	char *p = buf;
+	char hint[ZFCP_DBF_ID_SIZE + 1];
 
+	memcpy(hint, r->id2, ZFCP_DBF_ID_SIZE);
+	hint[ZFCP_DBF_ID_SIZE] = 0;
 	zfcp_dbf_outs(&p, "tag", zfcp_rec_dbf_tags[r->id]);
-	zfcp_dbf_outs(&p, "hint", zfcp_rec_dbf_ids[r->id2]);
-	zfcp_dbf_out(&p, "id", "%d", r->id2);
+	zfcp_dbf_outs(&p, "hint", hint);
 	switch (r->id) {
 	case ZFCP_REC_DBF_ID_THREAD:
 		zfcp_dbf_out(&p, "total", "%d", r->u.thread.total);
@@ -707,7 +552,7 @@ static struct debug_view zfcp_rec_dbf_view = {
  * @adapter: adapter
  * This function assumes that the caller is holding erp_lock.
  */
-void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter)
+void zfcp_rec_dbf_event_thread(char *id2, struct zfcp_adapter *adapter)
 {
 	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
 	unsigned long flags = 0;
@@ -723,7 +568,7 @@ void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter)
 	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_THREAD;
-	r->id2 = id2;
+	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
 	r->u.thread.total = total;
 	r->u.thread.ready = ready;
 	r->u.thread.running = running;
@@ -737,7 +582,7 @@ void zfcp_rec_dbf_event_thread(u8 id2, struct zfcp_adapter *adapter)
  * @adapter: adapter
  * This function assumes that the caller does not hold erp_lock.
  */
-void zfcp_rec_dbf_event_thread_lock(u8 id2, struct zfcp_adapter *adapter)
+void zfcp_rec_dbf_event_thread_lock(char *id2, struct zfcp_adapter *adapter)
 {
 	unsigned long flags;
 
@@ -746,7 +591,7 @@ void zfcp_rec_dbf_event_thread_lock(u8 id2, struct zfcp_adapter *adapter)
 	read_unlock_irqrestore(&adapter->erp_lock, flags);
 }
 
-static void zfcp_rec_dbf_event_target(u8 id2, void *ref,
+static void zfcp_rec_dbf_event_target(char *id2, void *ref,
 				      struct zfcp_adapter *adapter,
 				      atomic_t *status, atomic_t *erp_count,
 				      u64 wwpn, u32 d_id, u64 fcp_lun)
@@ -757,7 +602,7 @@ static void zfcp_rec_dbf_event_target(u8 id2, void *ref,
 	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_TARGET;
-	r->id2 = id2;
+	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
 	r->u.target.ref = (unsigned long)ref;
 	r->u.target.status = atomic_read(status);
 	r->u.target.wwpn = wwpn;
@@ -774,7 +619,8 @@ static void zfcp_rec_dbf_event_target(u8 id2, void *ref,
  * @ref: additional reference (e.g. request)
  * @adapter: adapter
  */
-void zfcp_rec_dbf_event_adapter(u8 id, void *ref, struct zfcp_adapter *adapter)
+void zfcp_rec_dbf_event_adapter(char *id, void *ref,
+				struct zfcp_adapter *adapter)
 {
 	zfcp_rec_dbf_event_target(id, ref, adapter, &adapter->status,
 				  &adapter->erp_counter, 0, 0, 0);
@@ -786,7 +632,7 @@ void zfcp_rec_dbf_event_adapter(u8 id, void *ref, struct zfcp_adapter *adapter)
  * @ref: additional reference (e.g. request)
  * @port: port
  */
-void zfcp_rec_dbf_event_port(u8 id, void *ref, struct zfcp_port *port)
+void zfcp_rec_dbf_event_port(char *id, void *ref, struct zfcp_port *port)
 {
 	struct zfcp_adapter *adapter = port->adapter;
 
@@ -801,7 +647,7 @@ void zfcp_rec_dbf_event_port(u8 id, void *ref, struct zfcp_port *port)
  * @ref: additional reference (e.g. request)
  * @unit: unit
  */
-void zfcp_rec_dbf_event_unit(u8 id, void *ref, struct zfcp_unit *unit)
+void zfcp_rec_dbf_event_unit(char *id, void *ref, struct zfcp_unit *unit)
 {
 	struct zfcp_port *port = unit->port;
 	struct zfcp_adapter *adapter = port->adapter;
@@ -822,7 +668,7 @@ void zfcp_rec_dbf_event_unit(u8 id, void *ref, struct zfcp_unit *unit)
  * @port: port
  * @unit: unit
  */
-void zfcp_rec_dbf_event_trigger(u8 id2, void *ref, u8 want, u8 need,
+void zfcp_rec_dbf_event_trigger(char *id2, void *ref, u8 want, u8 need,
 				void *action, struct zfcp_adapter *adapter,
 				struct zfcp_port *port, struct zfcp_unit *unit)
 {
@@ -832,7 +678,7 @@ void zfcp_rec_dbf_event_trigger(u8 id2, void *ref, u8 want, u8 need,
 	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_TRIGGER;
-	r->id2 = id2;
+	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
 	r->u.trigger.ref = (unsigned long)ref;
 	r->u.trigger.want = want;
 	r->u.trigger.need = need;
@@ -855,7 +701,7 @@ void zfcp_rec_dbf_event_trigger(u8 id2, void *ref, u8 want, u8 need,
  * @id2: identifier
  * @erp_action: error recovery action struct pointer
  */
-void zfcp_rec_dbf_event_action(u8 id2, struct zfcp_erp_action *erp_action)
+void zfcp_rec_dbf_event_action(char *id2, struct zfcp_erp_action *erp_action)
 {
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_rec_dbf_record *r = &adapter->rec_dbf_buf;
@@ -864,7 +710,7 @@ void zfcp_rec_dbf_event_action(u8 id2, struct zfcp_erp_action *erp_action)
 	spin_lock_irqsave(&adapter->rec_dbf_lock, flags);
 	memset(r, 0, sizeof(*r));
 	r->id = ZFCP_REC_DBF_ID_ACTION;
-	r->id2 = id2;
+	memcpy(r->id2, id2, ZFCP_DBF_ID_SIZE);
 	r->u.action.action = (unsigned long)erp_action;
 	r->u.action.status = erp_action->status;
 	r->u.action.step = erp_action->step;

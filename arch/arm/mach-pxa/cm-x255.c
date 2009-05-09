@@ -22,10 +22,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <mach/pxa2xx-regs.h>
-#include <mach/mfp-pxa25x.h>
+#include <mach/pxa25x.h>
 #include <mach/pxa2xx_spi.h>
-#include <mach/bitfield.h>
 
 #include "generic.h"
 

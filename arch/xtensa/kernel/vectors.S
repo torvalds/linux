@@ -309,6 +309,7 @@ ENTRY(_DoubleExceptionVector)
 	 * All other exceptions are unexpected and thus unrecoverable!
 	 */
 
+#ifdef CONFIG_MMU
 	.extern fast_second_level_miss_double_kernel
 
 .Lksp:	/* a0: a0, a1: a1, a2: a2, a3: trashed, depc: depc, excsave: a3 */
@@ -319,6 +320,9 @@ ENTRY(_DoubleExceptionVector)
 	bnez	a3, .Lunrecoverable
 1:	movi	a3, fast_second_level_miss_double_kernel
 	jx	a3
+#else
+.equ	.Lksp,	.Lunrecoverable
+#endif
 
 	/* Critical! We can't handle this situation. PANIC! */
 

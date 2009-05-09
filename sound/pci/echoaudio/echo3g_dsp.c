@@ -56,7 +56,7 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	}
 
 	chip->comm_page->e3g_frq_register =
-		__constant_cpu_to_le32((E3G_MAGIC_NUMBER / 48000) - 2);
+		cpu_to_le32((E3G_MAGIC_NUMBER / 48000) - 2);
 	chip->device_id = device_id;
 	chip->subdevice_id = subdevice_id;
 	chip->bad_board = TRUE;

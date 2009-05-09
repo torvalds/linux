@@ -1026,8 +1026,10 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 		which_atu = 0;
 	}
 
-	if (!which_atu)
+	if (!which_atu) {
+		kfree(res);
 		return 0;
+	}
 
 	switch(which_atu) {
 	case IOP13XX_INIT_ATU_ATUX:
@@ -1074,6 +1076,7 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 		sys->map_irq = iop13xx_pcie_map_irq;
 		break;
 	default:
+		kfree(res);
 		return 0;
 	}
 

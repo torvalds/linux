@@ -156,7 +156,7 @@ static void stb0899_first_subrange(struct stb0899_state *state)
 	}
 
 	if (range > 0)
-		internal->sub_range = MIN(internal->srch_range, range);
+		internal->sub_range = min(internal->srch_range, range);
 	else
 		internal->sub_range = 0;
 
@@ -185,7 +185,7 @@ static enum stb0899_status stb0899_check_tmg(struct stb0899_state *state)
 	timing = stb0899_read_reg(state, STB0899_RTF);
 
 	if (lock >= 42) {
-		if ((lock > 48) && (ABS(timing) >= 110)) {
+		if ((lock > 48) && (abs(timing) >= 110)) {
 			internal->status = ANALOGCARRIER;
 			dprintk(state->verbose, FE_DEBUG, 1, "-->ANALOG Carrier !");
 		} else {
@@ -222,7 +222,7 @@ static enum stb0899_status stb0899_search_tmg(struct stb0899_state *state)
 		index++;
 		derot_freq += index * internal->direction * derot_step;	/* next derot zig zag position	*/
 
-		if (ABS(derot_freq) > derot_limit)
+		if (abs(derot_freq) > derot_limit)
 			next_loop--;
 
 		if (next_loop) {
@@ -298,7 +298,7 @@ static enum stb0899_status stb0899_search_carrier(struct stb0899_state *state)
 			last_derot_freq = derot_freq;
 			derot_freq += index * internal->direction * internal->derot_step; /* next zig zag derotator position */
 
-			if(ABS(derot_freq) > derot_limit)
+			if(abs(derot_freq) > derot_limit)
 				next_loop--;
 
 			if (next_loop) {
@@ -400,7 +400,7 @@ static enum stb0899_status stb0899_search_data(struct stb0899_state *state)
 		if ((internal->status != CARRIEROK) || (stb0899_check_data(state) != DATAOK)) {
 
 			derot_freq += index * internal->direction * derot_step;	/* next zig zag derotator position */
-			if (ABS(derot_freq) > derot_limit)
+			if (abs(derot_freq) > derot_limit)
 				next_loop--;
 
 			if (next_loop) {
@@ -467,7 +467,7 @@ static void next_sub_range(struct stb0899_state *state)
 
 	if (internal->sub_dir > 0) {
 		old_sub_range = internal->sub_range;
-		internal->sub_range = MIN((internal->srch_range / 2) -
+		internal->sub_range = min((internal->srch_range / 2) -
 					  (internal->tuner_offst + internal->sub_range / 2),
 					   internal->sub_range);
 
@@ -771,7 +771,7 @@ static long Log2Int(int number)
 	int i;
 
 	i = 0;
-	while ((1 << i) <= ABS(number))
+	while ((1 << i) <= abs(number))
 		i++;
 
 	if (number == 0)

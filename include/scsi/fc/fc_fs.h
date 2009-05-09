@@ -149,6 +149,7 @@ enum fc_rctl {
  * Well-known fabric addresses.
  */
 enum fc_well_known_fid {
+	FC_FID_NONE =           0x000000,       /* No destination */
 	FC_FID_BCAST =		0xffffff,	/* broadcast */
 	FC_FID_FLOGI =		0xfffffe,	/* fabric login */
 	FC_FID_FCTRL =		0xfffffd,	/* fabric controller */
@@ -336,5 +337,10 @@ enum fc_pf_rjt_reason {
 	FC_RJT_INVL_ATT =	0x25,	/* invalid attachment */
 	FC_RJT_VENDOR =		0xff,	/* vendor specific reject */
 };
+
+/* default timeout values */
+
+#define FC_DEF_E_D_TOV	2000UL
+#define FC_DEF_R_A_TOV	10000UL
 
 #endif /* _FC_FS_H_ */

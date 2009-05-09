@@ -521,7 +521,7 @@ static int crypto_grab_nivcipher(struct crypto_skcipher_spawn *spawn,
 	int err;
 
 	type = crypto_skcipher_type(type);
-	mask = crypto_skcipher_mask(mask) | CRYPTO_ALG_GENIV;
+	mask = crypto_skcipher_mask(mask)| CRYPTO_ALG_GENIV;
 
 	alg = crypto_alg_mod_lookup(name, type, mask);
 	if (IS_ERR(alg))

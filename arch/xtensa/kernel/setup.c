@@ -44,6 +44,8 @@
 #include <asm/setup.h>
 #include <asm/param.h>
 
+#include <platform/hardware.h>
+
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 struct screen_info screen_info = { 0, 24, 0, 0, 0, 80, 0, 0, 0, 24, 1, 16};
 #endif
@@ -82,7 +84,13 @@ sysmem_info_t __initdata sysmem;
 int initrd_is_mapped;
 #endif
 
+#ifdef CONFIG_MMU
 extern void init_mmu(void);
+#else
+static inline void init_mmu(void) { }
+#endif
+
+extern void zones_init(void);
 
 /*
  * Boot parameter parsing.
@@ -284,6 +292,7 @@ void __init setup_arch(char **cmdline_p)
 
 
 	paging_init();
+	zones_init();
 
 #ifdef CONFIG_VT
 # if defined(CONFIG_VGA_CONSOLE)

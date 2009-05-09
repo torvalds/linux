@@ -498,14 +498,16 @@ struct exception_table_entry
 };
 
 /* Returns the new pc */
-#define fixup_exception(map_reg, fixup, pc)			\
+#define fixup_exception(map_reg, _fixup, pc)			\
 ({								\
-	if ((fixup)->fixup.bits.valreg != 31)			\
-		map_reg((fixup)->fixup.bits.valreg) = 0;	\
-	if ((fixup)->fixup.bits.errreg != 31)			\
-		map_reg((fixup)->fixup.bits.errreg) = -EFAULT;	\
-	(pc) + (fixup)->fixup.bits.nextinsn;			\
+	if ((_fixup)->fixup.bits.valreg != 31)			\
+		map_reg((_fixup)->fixup.bits.valreg) = 0;	\
+	if ((_fixup)->fixup.bits.errreg != 31)			\
+		map_reg((_fixup)->fixup.bits.errreg) = -EFAULT;	\
+	(pc) + (_fixup)->fixup.bits.nextinsn;			\
 })
 
+#define ARCH_HAS_SORT_EXTABLE
+#define ARCH_HAS_SEARCH_EXTABLE
 
 #endif /* __ALPHA_UACCESS_H */

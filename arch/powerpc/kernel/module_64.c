@@ -329,7 +329,7 @@ static unsigned long stub_for_addr(Elf64_Shdr *sechdrs,
    restore r2. */
 static int restore_r2(u32 *instruction, struct module *me)
 {
-	if (*instruction != PPC_NOP_INSTR) {
+	if (*instruction != PPC_INST_NOP) {
 		printk("%s: Expect noop after relocate, got %08x\n",
 		       me->name, *instruction);
 		return 0;

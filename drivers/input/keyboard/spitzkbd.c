@@ -21,8 +21,6 @@
 #include <linux/slab.h>
 
 #include <mach/spitz.h>
-#include <mach/hardware.h>
-#include <mach/pxa-regs.h>
 #include <mach/pxa2xx-gpio.h>
 
 #define KB_ROWS			7

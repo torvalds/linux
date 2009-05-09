@@ -110,7 +110,7 @@ int __init mca_register_device(int bus, struct mca_device *mca_dev)
 
 	mca_dev->dev.parent = &mca_bus->dev;
 	mca_dev->dev.bus = &mca_bus_type;
-	sprintf (mca_dev->dev.bus_id, "%02d:%02X", bus, mca_dev->slot);
+	dev_set_name(&mca_dev->dev, "%02d:%02X", bus, mca_dev->slot);
 	mca_dev->dma_mask = mca_bus->default_dma_mask;
 	mca_dev->dev.dma_mask = &mca_dev->dma_mask;
 	mca_dev->dev.coherent_dma_mask = mca_dev->dma_mask;
@@ -151,7 +151,7 @@ struct mca_bus * __devinit mca_attach_bus(int bus)
 	if (!mca_bus)
 		return NULL;
 
-	sprintf(mca_bus->dev.bus_id,"mca%d",bus);
+	dev_set_name(&mca_bus->dev, "mca%d", bus);
 	sprintf(mca_bus->name,"Host %s MCA Bridge", bus ? "Secondary" : "Primary");
 	if (device_register(&mca_bus->dev)) {
 		kfree(mca_bus);

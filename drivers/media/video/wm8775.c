@@ -34,15 +34,12 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0x36 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 
 /* ----------------------------------------------------------------------- */
@@ -82,7 +79,8 @@ static int wm8775_write(struct v4l2_subdev *sd, int reg, u16 val)
 	return -1;
 }
 
-static int wm8775_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int wm8775_s_routing(struct v4l2_subdev *sd,
+			    u32 input, u32 output, u32 config)
 {
 	struct wm8775_state *state = to_state(sd);
 
@@ -91,11 +89,11 @@ static int wm8775_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *r
 	   16 combinations.
 	   If only one input is active (the normal case) then the
 	   input values 1, 2, 4 or 8 should be used. */
-	if (route->input > 15) {
-		v4l2_err(sd, "Invalid input %d.\n", route->input);
+	if (input > 15) {
+		v4l2_err(sd, "Invalid input %d.\n", input);
 		return -EINVAL;
 	}
-	state->input = route->input;
+	state->input = input;
 	if (state->muted)
 		return 0;
 	wm8775_write(sd, R21, 0x0c0);
@@ -159,11 +157,6 @@ static int wm8775_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *fre
 	wm8775_write(sd, R15, 0x1d4);
 	wm8775_write(sd, R21, 0x100 + state->input);
 	return 0;
-}
-
-static int wm8775_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -268,8 +261,6 @@ MODULE_DEVICE_TABLE(i2c, wm8775_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "wm8775",
-	.driverid = I2C_DRIVERID_WM8775,
-	.command = wm8775_command,
 	.probe = wm8775_probe,
 	.remove = wm8775_remove,
 	.id_table = wm8775_id,

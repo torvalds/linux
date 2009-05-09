@@ -58,6 +58,14 @@ asmlinkage void __init sh_cpu_init(void);
 #define SR_FD		0x00008000
 
 /*
+ * DSP structure and data
+ */
+struct sh_dsp_struct {
+	unsigned long dsp_regs[14];
+	long status;
+};
+
+/*
  * FPU structure and data
  */
 
@@ -96,6 +104,11 @@ struct thread_struct {
 
 	/* floating point info */
 	union sh_fpu_union fpu;
+
+#ifdef CONFIG_SH_DSP
+	/* Dsp status information */
+	struct sh_dsp_struct dsp_status;
+#endif
 };
 
 /* Count of active tasks with UBC settings */
@@ -108,12 +121,12 @@ extern int ubc_usercnt;
 /*
  * Do necessary setup to start up a newly executed thread.
  */
-#define start_thread(regs, new_pc, new_sp)	 \
+#define start_thread(_regs, new_pc, new_sp)	 \
 	set_fs(USER_DS);			 \
-	regs->pr = 0;				 \
-	regs->sr = SR_FD;	/* User mode. */ \
-	regs->pc = new_pc;			 \
-	regs->regs[15] = new_sp
+	_regs->pr = 0;				 \
+	_regs->sr = SR_FD;	/* User mode. */ \
+	_regs->pc = new_pc;			 \
+	_regs->regs[15] = new_sp
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
@@ -189,10 +202,9 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)  (task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->regs[15])
 
-#define user_stack_pointer(regs)	((regs)->regs[15])
+#define user_stack_pointer(_regs)	((_regs)->regs[15])
 
-#if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH3) || \
-    defined(CONFIG_CPU_SH4)
+#if defined(CONFIG_CPU_SH2A) || defined(CONFIG_CPU_SH4)
 #define PREFETCH_STRIDE		L1_CACHE_BYTES
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW

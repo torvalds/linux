@@ -25,6 +25,11 @@
 #include "ccid.h"
 #include "feat.h"
 
+/* feature-specific sysctls - initialised to the defaults from RFC 4340, 6.4 */
+unsigned long	sysctl_dccp_sequence_window __read_mostly = 100;
+int		sysctl_dccp_rx_ccid	    __read_mostly = 2,
+		sysctl_dccp_tx_ccid	    __read_mostly = 2;
+
 /*
  * Feature activation handlers.
  *
@@ -51,8 +56,17 @@ static int dccp_hdlr_ccid(struct sock *sk, u64 ccid, bool rx)
 
 static int dccp_hdlr_seq_win(struct sock *sk, u64 seq_win, bool rx)
 {
-	if (!rx)
-		dccp_msk(sk)->dccpms_sequence_window = seq_win;
+	struct dccp_sock *dp = dccp_sk(sk);
+
+	if (rx) {
+		dp->dccps_r_seq_win = seq_win;
+		/* propagate changes to update SWL/SWH */
+		dccp_update_gsr(sk, dp->dccps_gsr);
+	} else {
+		dp->dccps_l_seq_win = seq_win;
+		/* propagate changes to update AWL */
+		dccp_update_gss(sk, dp->dccps_gss);
+	}
 	return 0;
 }
 
@@ -194,6 +208,100 @@ static int dccp_feat_default_value(u8 feat_num)
 	return idx < 0 ? 0 : dccp_feat_table[idx].default_value;
 }
 
+/*
+ *	Debugging and verbose-printing section
+ */
+static const char *dccp_feat_fname(const u8 feat)
+{
+	static const char *feature_names[] = {
+		[DCCPF_RESERVED]	= "Reserved",
+		[DCCPF_CCID]		= "CCID",
+		[DCCPF_SHORT_SEQNOS]	= "Allow Short Seqnos",
+		[DCCPF_SEQUENCE_WINDOW]	= "Sequence Window",
+		[DCCPF_ECN_INCAPABLE]	= "ECN Incapable",
+		[DCCPF_ACK_RATIO]	= "Ack Ratio",
+		[DCCPF_SEND_ACK_VECTOR]	= "Send ACK Vector",
+		[DCCPF_SEND_NDP_COUNT]	= "Send NDP Count",
+		[DCCPF_MIN_CSUM_COVER]	= "Min. Csum Coverage",
+		[DCCPF_DATA_CHECKSUM]	= "Send Data Checksum",
+	};
+	if (feat > DCCPF_DATA_CHECKSUM && feat < DCCPF_MIN_CCID_SPECIFIC)
+		return feature_names[DCCPF_RESERVED];
+
+	if (feat ==  DCCPF_SEND_LEV_RATE)
+		return "Send Loss Event Rate";
+	if (feat >= DCCPF_MIN_CCID_SPECIFIC)
+		return "CCID-specific";
+
+	return feature_names[feat];
+}
+
+static const char *dccp_feat_sname[] = { "DEFAULT", "INITIALISING", "CHANGING",
+					 "UNSTABLE", "STABLE" };
+
+#ifdef CONFIG_IP_DCCP_DEBUG
+static const char *dccp_feat_oname(const u8 opt)
+{
+	switch (opt) {
+	case DCCPO_CHANGE_L:  return "Change_L";
+	case DCCPO_CONFIRM_L: return "Confirm_L";
+	case DCCPO_CHANGE_R:  return "Change_R";
+	case DCCPO_CONFIRM_R: return "Confirm_R";
+	}
+	return NULL;
+}
+
+static void dccp_feat_printval(u8 feat_num, dccp_feat_val const *val)
+{
+	u8 i, type = dccp_feat_type(feat_num);
+
+	if (val == NULL || (type == FEAT_SP && val->sp.vec == NULL))
+		dccp_pr_debug_cat("(NULL)");
+	else if (type == FEAT_SP)
+		for (i = 0; i < val->sp.len; i++)
+			dccp_pr_debug_cat("%s%u", i ? " " : "", val->sp.vec[i]);
+	else if (type == FEAT_NN)
+		dccp_pr_debug_cat("%llu", (unsigned long long)val->nn);
+	else
+		dccp_pr_debug_cat("unknown type %u", type);
+}
+
+static void dccp_feat_printvals(u8 feat_num, u8 *list, u8 len)
+{
+	u8 type = dccp_feat_type(feat_num);
+	dccp_feat_val fval = { .sp.vec = list, .sp.len = len };
+
+	if (type == FEAT_NN)
+		fval.nn = dccp_decode_value_var(list, len);
+	dccp_feat_printval(feat_num, &fval);
+}
+
+static void dccp_feat_print_entry(struct dccp_feat_entry const *entry)
+{
+	dccp_debug("   * %s %s = ", entry->is_local ? "local" : "remote",
+				    dccp_feat_fname(entry->feat_num));
+	dccp_feat_printval(entry->feat_num, &entry->val);
+	dccp_pr_debug_cat(", state=%s %s\n", dccp_feat_sname[entry->state],
+			  entry->needs_confirm ? "(Confirm pending)" : "");
+}
+
+#define dccp_feat_print_opt(opt, feat, val, len, mandatory)	do {	      \
+	dccp_pr_debug("%s(%s, ", dccp_feat_oname(opt), dccp_feat_fname(feat));\
+	dccp_feat_printvals(feat, val, len);				      \
+	dccp_pr_debug_cat(") %s\n", mandatory ? "!" : "");	} while (0)
+
+#define dccp_feat_print_fnlist(fn_list)  {		\
+	const struct dccp_feat_entry *___entry;		\
+							\
+	dccp_pr_debug("List Dump:\n");			\
+	list_for_each_entry(___entry, fn_list, node)	\
+		dccp_feat_print_entry(___entry);	\
+}
+#else	/* ! CONFIG_IP_DCCP_DEBUG */
+#define dccp_feat_print_opt(opt, feat, val, len, mandatory)
+#define dccp_feat_print_fnlist(fn_list)
+#endif
+
 static int __dccp_feat_activate(struct sock *sk, const int idx,
 				const bool is_local, dccp_feat_val const *fval)
 {
@@ -225,6 +333,10 @@ static int __dccp_feat_activate(struct sock *sk, const int idx,
 
 	/* Location is RX if this is a local-RX or remote-TX feature */
 	rx = (is_local == (dccp_feat_table[idx].rxtx == FEAT_AT_RX));
+
+	dccp_debug("   -> activating %s %s, %sval=%llu\n", rx ? "RX" : "TX",
+		   dccp_feat_fname(dccp_feat_table[idx].feat_num),
+		   fval ? "" : "default ",  (unsigned long long)val);
 
 	return dccp_feat_table[idx].activation_hdlr(sk, val, rx);
 }
@@ -530,6 +642,7 @@ int dccp_feat_insert_opts(struct dccp_sock *dp, struct dccp_request_sock *dreq,
 				return -1;
 			}
 		}
+		dccp_feat_print_opt(opt, pos->feat_num, ptr, len, 0);
 
 		if (dccp_insert_fn_opt(skb, opt, pos->feat_num, ptr, len, rpt))
 			return -1;
@@ -783,6 +896,7 @@ int dccp_feat_finalise_settings(struct dccp_sock *dp)
 	while (i--)
 		if (ccids[i] > 0 && dccp_feat_propagate_ccid(fn, ccids[i], i))
 			return -1;
+	dccp_feat_print_fnlist(fn);
 	return 0;
 }
 
@@ -901,6 +1015,8 @@ static u8 dccp_feat_change_recv(struct list_head *fn, u8 is_mandatory, u8 opt,
 	if (len == 0 || type == FEAT_UNKNOWN)		/* 6.1 and 6.6.8 */
 		goto unknown_feature_or_value;
 
+	dccp_feat_print_opt(opt, feat, val, len, is_mandatory);
+
 	/*
 	 *	Negotiation of NN features: Change R is invalid, so there is no
 	 *	simultaneous negotiation; hence we do not look up in the list.
@@ -1005,6 +1121,8 @@ static u8 dccp_feat_confirm_recv(struct list_head *fn, u8 is_mandatory, u8 opt,
 	u8 *plist, plen, type = dccp_feat_type(feat);
 	const bool local = (opt == DCCPO_CONFIRM_R);
 	struct dccp_feat_entry *entry = dccp_feat_list_lookup(fn, feat, local);
+
+	dccp_feat_print_opt(opt, feat, val, len, is_mandatory);
 
 	if (entry == NULL) {	/* nothing queued: ignore or handle error */
 		if (is_mandatory && type == FEAT_UNKNOWN)
@@ -1115,22 +1233,69 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 	return 0;	/* ignore FN options in all other states */
 }
 
+/**
+ * dccp_feat_init  -  Seed feature negotiation with host-specific defaults
+ * This initialises global defaults, depending on the value of the sysctls.
+ * These can later be overridden by registering changes via setsockopt calls.
+ * The last link in the chain is finalise_settings, to make sure that between
+ * here and the start of actual feature negotiation no inconsistencies enter.
+ *
+ * All features not appearing below use either defaults or are otherwise
+ * later adjusted through dccp_feat_finalise_settings().
+ */
 int dccp_feat_init(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct dccp_minisock *dmsk = dccp_msk(sk);
+	struct list_head *fn = &dccp_sk(sk)->dccps_featneg;
+	u8 on = 1, off = 0;
 	int rc;
+	struct {
+		u8 *val;
+		u8 len;
+	} tx, rx;
 
-	INIT_LIST_HEAD(&dmsk->dccpms_pending);	/* XXX no longer used */
-	INIT_LIST_HEAD(&dmsk->dccpms_conf);	/* XXX no longer used */
+	/* Non-negotiable (NN) features */
+	rc = __feat_register_nn(fn, DCCPF_SEQUENCE_WINDOW, 0,
+				    sysctl_dccp_sequence_window);
+	if (rc)
+		return rc;
 
-	/* Ack ratio */
-	rc = __feat_register_nn(&dp->dccps_featneg, DCCPF_ACK_RATIO, 0,
-				dp->dccps_l_ack_ratio);
+	/* Server-priority (SP) features */
+
+	/* Advertise that short seqnos are not supported (7.6.1) */
+	rc = __feat_register_sp(fn, DCCPF_SHORT_SEQNOS, true, true, &off, 1);
+	if (rc)
+		return rc;
+
+	/* RFC 4340 12.1: "If a DCCP is not ECN capable, ..." */
+	rc = __feat_register_sp(fn, DCCPF_ECN_INCAPABLE, true, true, &on, 1);
+	if (rc)
+		return rc;
+
+	/*
+	 * We advertise the available list of CCIDs and reorder according to
+	 * preferences, to avoid failure resulting from negotiating different
+	 * singleton values (which always leads to failure).
+	 * These settings can still (later) be overridden via sockopts.
+	 */
+	if (ccid_get_builtin_ccids(&tx.val, &tx.len) ||
+	    ccid_get_builtin_ccids(&rx.val, &rx.len))
+		return -ENOBUFS;
+
+	if (!dccp_feat_prefer(sysctl_dccp_tx_ccid, tx.val, tx.len) ||
+	    !dccp_feat_prefer(sysctl_dccp_rx_ccid, rx.val, rx.len))
+		goto free_ccid_lists;
+
+	rc = __feat_register_sp(fn, DCCPF_CCID, true, false, tx.val, tx.len);
+	if (rc)
+		goto free_ccid_lists;
+
+	rc = __feat_register_sp(fn, DCCPF_CCID, false, false, rx.val, rx.len);
+
+free_ccid_lists:
+	kfree(tx.val);
+	kfree(rx.val);
 	return rc;
 }
-
-EXPORT_SYMBOL_GPL(dccp_feat_init);
 
 int dccp_feat_activate_values(struct sock *sk, struct list_head *fn_list)
 {
@@ -1156,9 +1321,10 @@ int dccp_feat_activate_values(struct sock *sk, struct list_head *fn_list)
 			goto activation_failed;
 		}
 		if (cur->state != FEAT_STABLE) {
-			DCCP_CRIT("Negotiation of %s %u failed in state %u",
+			DCCP_CRIT("Negotiation of %s %s failed in state %s",
 				  cur->is_local ? "local" : "remote",
-				  cur->feat_num, cur->state);
+				  dccp_feat_fname(cur->feat_num),
+				  dccp_feat_sname[cur->state]);
 			goto activation_failed;
 		}
 		fvals[idx][cur->is_local] = &cur->val;
@@ -1199,43 +1365,3 @@ activation_failed:
 	dp->dccps_hc_rx_ackvec = NULL;
 	return -1;
 }
-
-#ifdef CONFIG_IP_DCCP_DEBUG
-const char *dccp_feat_typename(const u8 type)
-{
-	switch(type) {
-	case DCCPO_CHANGE_L:  return("ChangeL");
-	case DCCPO_CONFIRM_L: return("ConfirmL");
-	case DCCPO_CHANGE_R:  return("ChangeR");
-	case DCCPO_CONFIRM_R: return("ConfirmR");
-	/* the following case must not appear in feature negotation  */
-	default:	      dccp_pr_debug("unknown type %d [BUG!]\n", type);
-	}
-	return NULL;
-}
-
-const char *dccp_feat_name(const u8 feat)
-{
-	static const char *feature_names[] = {
-		[DCCPF_RESERVED]	= "Reserved",
-		[DCCPF_CCID]		= "CCID",
-		[DCCPF_SHORT_SEQNOS]	= "Allow Short Seqnos",
-		[DCCPF_SEQUENCE_WINDOW]	= "Sequence Window",
-		[DCCPF_ECN_INCAPABLE]	= "ECN Incapable",
-		[DCCPF_ACK_RATIO]	= "Ack Ratio",
-		[DCCPF_SEND_ACK_VECTOR]	= "Send ACK Vector",
-		[DCCPF_SEND_NDP_COUNT]	= "Send NDP Count",
-		[DCCPF_MIN_CSUM_COVER]	= "Min. Csum Coverage",
-		[DCCPF_DATA_CHECKSUM]	= "Send Data Checksum",
-	};
-	if (feat > DCCPF_DATA_CHECKSUM && feat < DCCPF_MIN_CCID_SPECIFIC)
-		return feature_names[DCCPF_RESERVED];
-
-	if (feat ==  DCCPF_SEND_LEV_RATE)
-		return "Send Loss Event Rate";
-	if (feat >= DCCPF_MIN_CCID_SPECIFIC)
-		return "CCID-specific";
-
-	return feature_names[feat];
-}
-#endif /* CONFIG_IP_DCCP_DEBUG */

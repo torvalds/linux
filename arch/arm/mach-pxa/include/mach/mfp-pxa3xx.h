@@ -1,68 +1,9 @@
 #ifndef __ASM_ARCH_MFP_PXA3XX_H
 #define __ASM_ARCH_MFP_PXA3XX_H
 
+#include <plat/mfp.h>
+
 #define MFPR_BASE	(0x40e10000)
-#define MFPR_SIZE	(PAGE_SIZE)
-
-/* MFPR register bit definitions */
-#define MFPR_PULL_SEL		(0x1 << 15)
-#define MFPR_PULLUP_EN		(0x1 << 14)
-#define MFPR_PULLDOWN_EN	(0x1 << 13)
-#define MFPR_SLEEP_SEL		(0x1 << 9)
-#define MFPR_SLEEP_OE_N		(0x1 << 7)
-#define MFPR_EDGE_CLEAR		(0x1 << 6)
-#define MFPR_EDGE_FALL_EN	(0x1 << 5)
-#define MFPR_EDGE_RISE_EN	(0x1 << 4)
-
-#define MFPR_SLEEP_DATA(x)	((x) << 8)
-#define MFPR_DRIVE(x)		(((x) & 0x7) << 10)
-#define MFPR_AF_SEL(x)		(((x) & 0x7) << 0)
-
-#define MFPR_EDGE_NONE		(0)
-#define MFPR_EDGE_RISE		(MFPR_EDGE_RISE_EN)
-#define MFPR_EDGE_FALL		(MFPR_EDGE_FALL_EN)
-#define MFPR_EDGE_BOTH		(MFPR_EDGE_RISE | MFPR_EDGE_FALL)
-
-/*
- * Table that determines the low power modes outputs, with actual settings
- * used in parentheses for don't-care values. Except for the float output,
- * the configured driven and pulled levels match, so if there is a need for
- * non-LPM pulled output, the same configuration could probably be used.
- *
- * Output value  sleep_oe_n  sleep_data  pullup_en  pulldown_en  pull_sel
- *                 (bit 7)    (bit 8)    (bit 14)     (bit 13)   (bit 15)
- *
- * Input            0          X(0)        X(0)        X(0)       0
- * Drive 0          0          0           0           X(1)       0
- * Drive 1          0          1           X(1)        0	  0
- * Pull hi (1)      1          X(1)        1           0	  0
- * Pull lo (0)      1          X(0)        0           1	  0
- * Z (float)        1          X(0)        0           0	  0
- */
-#define MFPR_LPM_INPUT		(0)
-#define MFPR_LPM_DRIVE_LOW	(MFPR_SLEEP_DATA(0) | MFPR_PULLDOWN_EN)
-#define MFPR_LPM_DRIVE_HIGH    	(MFPR_SLEEP_DATA(1) | MFPR_PULLUP_EN)
-#define MFPR_LPM_PULL_LOW      	(MFPR_LPM_DRIVE_LOW  | MFPR_SLEEP_OE_N)
-#define MFPR_LPM_PULL_HIGH     	(MFPR_LPM_DRIVE_HIGH | MFPR_SLEEP_OE_N)
-#define MFPR_LPM_FLOAT         	(MFPR_SLEEP_OE_N)
-#define MFPR_LPM_MASK		(0xe080)
-
-/*
- * The pullup and pulldown state of the MFP pin at run mode is by default
- * determined by the selected alternate function. In case that some buggy
- * devices need to override this default behavior,  the definitions below
- * indicates the setting of corresponding MFPR bits
- *
- * Definition       pull_sel  pullup_en  pulldown_en
- * MFPR_PULL_NONE       0         0        0
- * MFPR_PULL_LOW        1         0        1
- * MFPR_PULL_HIGH       1         1        0
- * MFPR_PULL_BOTH       1         1        1
- */
-#define MFPR_PULL_NONE		(0)
-#define MFPR_PULL_LOW		(MFPR_PULL_SEL | MFPR_PULLDOWN_EN)
-#define MFPR_PULL_BOTH		(MFPR_PULL_LOW | MFPR_PULLUP_EN)
-#define MFPR_PULL_HIGH		(MFPR_PULL_SEL | MFPR_PULLUP_EN)
 
 /* PXA3xx common MFP configurations - processor specific ones defined
  * in mfp-pxa300.h and mfp-pxa320.h
@@ -197,56 +138,21 @@
 #define GPIO5_2_GPIO		MFP_CFG(GPIO5_2, AF0)
 #define GPIO6_2_GPIO		MFP_CFG(GPIO6_2, AF0)
 
-/*
- * each MFP pin will have a MFPR register, since the offset of the
- * register varies between processors, the processor specific code
- * should initialize the pin offsets by pxa3xx_mfp_init_addr()
- *
- * pxa3xx_mfp_init_addr - accepts a table of "pxa3xx_mfp_addr_map"
- * structure, which represents a range of MFP pins from "start" to
- * "end", with the offset begining at "offset", to define a single
- * pin, let "end" = -1
- *
- * use
- *
- * MFP_ADDR_X() to define a range of pins
- * MFP_ADDR()   to define a single pin
- * MFP_ADDR_END to signal the end of pin offset definitions
+/* NOTE: usage of these two functions is not recommended,
+ * use pxa3xx_mfp_config() instead.
  */
-struct pxa3xx_mfp_addr_map {
-	unsigned int	start;
-	unsigned int	end;
-	unsigned long	offset;
-};
+static inline unsigned long pxa3xx_mfp_read(int mfp)
+{
+	return mfp_read(mfp);
+}
 
-#define MFP_ADDR_X(start, end, offset) \
-	{ MFP_PIN_##start, MFP_PIN_##end, offset }
+static inline void pxa3xx_mfp_write(int mfp, unsigned long val)
+{
+	mfp_write(mfp, val);
+}
 
-#define MFP_ADDR(pin, offset) \
-	{ MFP_PIN_##pin, -1, offset }
-
-#define MFP_ADDR_END	{ MFP_PIN_INVALID, 0 }
-
-/*
- * pxa3xx_mfp_read()/pxa3xx_mfp_write() - for direct read/write access
- * to the MFPR register
- */
-unsigned long pxa3xx_mfp_read(int mfp);
-void pxa3xx_mfp_write(int mfp, unsigned long mfpr_val);
-
-/*
- * pxa3xx_mfp_config - configure the MFPR registers
- *
- * used by board specific initialization code
- */
-void pxa3xx_mfp_config(unsigned long *mfp_cfgs, int num);
-
-/*
- * pxa3xx_mfp_init_addr() - initialize the mapping between mfp pin
- * index and MFPR register offset
- *
- * used by processor specific code
- */
-void __init pxa3xx_mfp_init_addr(struct pxa3xx_mfp_addr_map *);
-void __init pxa3xx_init_mfp(void);
+static inline void pxa3xx_mfp_config(unsigned long *mfp_cfg, int num)
+{
+	mfp_config(mfp_cfg, num);
+}
 #endif /* __ASM_ARCH_MFP_PXA3XX_H */

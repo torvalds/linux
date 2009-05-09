@@ -186,29 +186,34 @@ void gsc_asic_assign_irq(struct gsc_asic *asic, int local_irq, int *irqp)
 	*irqp = irq;
 }
 
-static struct device *next_device(struct klist_iter *i)
+struct gsc_fixup_struct {
+	void (*choose_irq)(struct parisc_device *, void *);
+	void *ctrl;
+};
+
+static int gsc_fixup_irqs_callback(struct device *dev, void *data)
 {
-	struct klist_node * n = klist_next(i);
-	return n ? container_of(n, struct device, knode_parent) : NULL;
+	struct parisc_device *padev = to_parisc_device(dev);
+	struct gsc_fixup_struct *gf = data;
+
+	/* work-around for 715/64 and others which have parent
+	   at path [5] and children at path [5/0/x] */
+	if (padev->id.hw_type == HPHW_FAULTY)
+		gsc_fixup_irqs(padev, gf->ctrl, gf->choose_irq);
+	gf->choose_irq(padev, gf->ctrl);
+
+	return 0;
 }
 
 void gsc_fixup_irqs(struct parisc_device *parent, void *ctrl,
 			void (*choose_irq)(struct parisc_device *, void *))
 {
-	struct device *dev;
-	struct klist_iter i;
+	struct gsc_fixup_struct data = {
+		.choose_irq	= choose_irq,
+		.ctrl		= ctrl,
+	};
 
-	klist_iter_init(&parent->dev.klist_children, &i);
-	while ((dev = next_device(&i))) {
-		struct parisc_device *padev = to_parisc_device(dev);
-
-		/* work-around for 715/64 and others which have parent 
-		   at path [5] and children at path [5/0/x] */
-		if (padev->id.hw_type == HPHW_FAULTY)
-			return gsc_fixup_irqs(padev, ctrl, choose_irq);
-		choose_irq(padev, ctrl);
-	}
-	klist_iter_exit(&i);
+	device_for_each_child(&parent->dev, &data, gsc_fixup_irqs_callback);
 }
 
 int gsc_common_setup(struct parisc_device *parent, struct gsc_asic *gsc_asic)

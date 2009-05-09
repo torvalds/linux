@@ -234,7 +234,7 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	 */
 	hcc_params = readl(base + EHCI_HCC_PARAMS);
 	offset = (hcc_params >> 8) & 0xff;
-	while (offset && count--) {
+	while (offset && --count) {
 		u32		cap;
 		int		msec;
 

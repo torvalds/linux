@@ -42,7 +42,7 @@
 #define HAS_DMA
 #endif
 
-#define DRIVER_NAME "imx-mmc"
+#define DRIVER_NAME "mxc-mmc"
 
 #define MMC_REG_STR_STP_CLK		0x00
 #define MMC_REG_STATUS			0x04
@@ -707,7 +707,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	host->res = r;
 	host->irq = irq;
 
-	host->clk = clk_get(&pdev->dev, "sdhc_clk");
+	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
 		goto out_iounmap;

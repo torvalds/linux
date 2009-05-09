@@ -241,7 +241,8 @@ static void snd_uart16550_io_loop(struct snd_uart16550 * uart)
 			snd_rawmidi_receive(uart->midi_input[substream], &c, 1);
 
 		if (status & UART_LSR_OE)
-			snd_printk("%s: Overrun on device at 0x%lx\n",
+			snd_printk(KERN_WARNING
+				   "%s: Overrun on device at 0x%lx\n",
 			       uart->rmidi->name, uart->base);
 	}
 
@@ -636,7 +637,8 @@ static int snd_uart16550_output_byte(struct snd_uart16550 *uart,
 		}
 	} else {
 		if (!snd_uart16550_write_buffer(uart, midi_byte)) {
-			snd_printk("%s: Buffer overrun on device at 0x%lx\n",
+			snd_printk(KERN_WARNING
+				   "%s: Buffer overrun on device at 0x%lx\n",
 				   uart->rmidi->name, uart->base);
 			return 0;
 		}
@@ -815,7 +817,8 @@ static int __devinit snd_uart16550_create(struct snd_card *card,
 	if (irq >= 0 && irq != SNDRV_AUTO_IRQ) {
 		if (request_irq(irq, snd_uart16550_interrupt,
 				IRQF_DISABLED, "Serial MIDI", uart)) {
-			snd_printk("irq %d busy. Using Polling.\n", irq);
+			snd_printk(KERN_WARNING
+				   "irq %d busy. Using Polling.\n", irq);
 		} else {
 			uart->irq = irq;
 		}
@@ -919,26 +922,29 @@ static int __devinit snd_serial_probe(struct platform_device *devptr)
 	case SNDRV_SERIAL_GENERIC:
 		break;
 	default:
-		snd_printk("Adaptor type is out of range 0-%d (%d)\n",
+		snd_printk(KERN_ERR
+			   "Adaptor type is out of range 0-%d (%d)\n",
 			   SNDRV_SERIAL_MAX_ADAPTOR, adaptor[dev]);
 		return -ENODEV;
 	}
 
 	if (outs[dev] < 1 || outs[dev] > SNDRV_SERIAL_MAX_OUTS) {
-		snd_printk("Count of outputs is out of range 1-%d (%d)\n",
+		snd_printk(KERN_ERR
+			   "Count of outputs is out of range 1-%d (%d)\n",
 			   SNDRV_SERIAL_MAX_OUTS, outs[dev]);
 		return -ENODEV;
 	}
 
 	if (ins[dev] < 1 || ins[dev] > SNDRV_SERIAL_MAX_INS) {
-		snd_printk("Count of inputs is out of range 1-%d (%d)\n",
+		snd_printk(KERN_ERR
+			   "Count of inputs is out of range 1-%d (%d)\n",
 			   SNDRV_SERIAL_MAX_INS, ins[dev]);
 		return -ENODEV;
 	}
 
-	card  = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err  = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	strcpy(card->driver, "Serial");
 	strcpy(card->shortname, "Serial MIDI (UART16550A)");

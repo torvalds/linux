@@ -43,6 +43,16 @@ static inline long register_slb_shadow(unsigned long cpu, unsigned long vpa)
 	return vpa_call(0x3, cpu, vpa);
 }
 
+static inline long unregister_dtl(unsigned long cpu, unsigned long vpa)
+{
+	return vpa_call(0x6, cpu, vpa);
+}
+
+static inline long register_dtl(unsigned long cpu, unsigned long vpa)
+{
+	return vpa_call(0x2, cpu, vpa);
+}
+
 static inline long plpar_page_set_loaned(unsigned long vpa)
 {
 	unsigned long cmo_page_sz = cmo_get_page_size();

@@ -15,13 +15,13 @@ enum nfqnl_msg_types {
 struct nfqnl_msg_packet_hdr {
 	__be32		packet_id;	/* unique ID of packet in queue */
 	__be16		hw_protocol;	/* hw protocol (network order) */
-	u_int8_t	hook;		/* netfilter hook */
+	__u8	hook;		/* netfilter hook */
 } __attribute__ ((packed));
 
 struct nfqnl_msg_packet_hw {
 	__be16		hw_addrlen;
-	u_int16_t	_pad;
-	u_int8_t	hw_addr[8];
+	__u16	_pad;
+	__u8	hw_addr[8];
 };
 
 struct nfqnl_msg_packet_timestamp {
@@ -33,12 +33,12 @@ enum nfqnl_attr_type {
 	NFQA_UNSPEC,
 	NFQA_PACKET_HDR,
 	NFQA_VERDICT_HDR,		/* nfqnl_msg_verdict_hrd */
-	NFQA_MARK,			/* u_int32_t nfmark */
+	NFQA_MARK,			/* __u32 nfmark */
 	NFQA_TIMESTAMP,			/* nfqnl_msg_packet_timestamp */
-	NFQA_IFINDEX_INDEV,		/* u_int32_t ifindex */
-	NFQA_IFINDEX_OUTDEV,		/* u_int32_t ifindex */
-	NFQA_IFINDEX_PHYSINDEV,		/* u_int32_t ifindex */
-	NFQA_IFINDEX_PHYSOUTDEV,	/* u_int32_t ifindex */
+	NFQA_IFINDEX_INDEV,		/* __u32 ifindex */
+	NFQA_IFINDEX_OUTDEV,		/* __u32 ifindex */
+	NFQA_IFINDEX_PHYSINDEV,		/* __u32 ifindex */
+	NFQA_IFINDEX_PHYSOUTDEV,	/* __u32 ifindex */
 	NFQA_HWADDR,			/* nfqnl_msg_packet_hw */
 	NFQA_PAYLOAD,			/* opaque data payload */
 
@@ -61,8 +61,8 @@ enum nfqnl_msg_config_cmds {
 };
 
 struct nfqnl_msg_config_cmd {
-	u_int8_t	command;	/* nfqnl_msg_config_cmds */
-	u_int8_t	_pad;
+	__u8	command;	/* nfqnl_msg_config_cmds */
+	__u8	_pad;
 	__be16		pf;		/* AF_xxx for PF_[UN]BIND */
 };
 
@@ -74,7 +74,7 @@ enum nfqnl_config_mode {
 
 struct nfqnl_msg_config_params {
 	__be32		copy_range;
-	u_int8_t	copy_mode;	/* enum nfqnl_config_mode */
+	__u8	copy_mode;	/* enum nfqnl_config_mode */
 } __attribute__ ((packed));
 
 
@@ -82,7 +82,7 @@ enum nfqnl_attr_config {
 	NFQA_CFG_UNSPEC,
 	NFQA_CFG_CMD,			/* nfqnl_msg_config_cmd */
 	NFQA_CFG_PARAMS,		/* nfqnl_msg_config_params */
-	NFQA_CFG_QUEUE_MAXLEN,		/* u_int32_t */
+	NFQA_CFG_QUEUE_MAXLEN,		/* __u32 */
 	__NFQA_CFG_MAX
 };
 #define NFQA_CFG_MAX (__NFQA_CFG_MAX-1)

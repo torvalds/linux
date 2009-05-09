@@ -152,53 +152,6 @@ const struct stv06xx_sensor stv06xx_sensor_hdcs1x00 = {
 	.stop = hdcs_stop,
 	.disconnect = hdcs_disconnect,
 	.dump = hdcs_dump,
-
-	.nctrls = 2,
-	.ctrls = {
-	{
-		{
-			.id		= V4L2_CID_EXPOSURE,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "exposure",
-			.minimum	= 0x00,
-			.maximum	= 0xffff,
-			.step		= 0x1,
-			.default_value 	= HDCS_DEFAULT_EXPOSURE,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = hdcs_set_exposure,
-		.get = hdcs_get_exposure
-	},
-	{
-		{
-			.id		= V4L2_CID_GAIN,
-			.type		= V4L2_CTRL_TYPE_INTEGER,
-			.name		= "gain",
-			.minimum	= 0x00,
-			.maximum	= 0xff,
-			.step		= 0x1,
-			.default_value 	= HDCS_DEFAULT_GAIN,
-			.flags         	= V4L2_CTRL_FLAG_SLIDER
-		},
-		.set = hdcs_set_gain,
-		.get = hdcs_get_gain
-	}
-	},
-
-	.nmodes = 1,
-	.modes = {
-	{
-		HDCS_1X00_DEF_WIDTH,
-		HDCS_1X00_DEF_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			HDCS_1X00_DEF_WIDTH * HDCS_1X00_DEF_HEIGHT,
-		.bytesperline = HDCS_1X00_DEF_WIDTH,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
 };
 
 const struct stv06xx_sensor stv06xx_sensor_hdcs1020 = {
@@ -207,29 +160,11 @@ const struct stv06xx_sensor stv06xx_sensor_hdcs1020 = {
 	.i2c_addr = (0x55 << 1),
 	.i2c_len = 1,
 
-	.nctrls = 0,
-	.ctrls = {},
-
 	.init = hdcs_init,
 	.probe = hdcs_probe_1020,
 	.start = hdcs_start,
 	.stop = hdcs_stop,
 	.dump = hdcs_dump,
-
-	.nmodes = 1,
-	.modes = {
-	{
-		HDCS_1020_DEF_WIDTH,
-		HDCS_1020_DEF_HEIGHT,
-		V4L2_PIX_FMT_SBGGR8,
-		V4L2_FIELD_NONE,
-		.sizeimage =
-			HDCS_1020_DEF_WIDTH * HDCS_1020_DEF_HEIGHT,
-		.bytesperline = HDCS_1020_DEF_WIDTH,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1
-	}
-	}
 };
 
 static const u16 stv_bridge_init[][2] = {

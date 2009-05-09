@@ -472,40 +472,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 {
 #ifdef CONFIG_PPC_STD_MMU
 	unsigned long access = 0, trap;
-#endif
-	unsigned long pfn = pte_pfn(pte);
 
-	/* handle i-cache coherency */
-	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE) &&
-	    !cpu_has_feature(CPU_FTR_NOEXECUTE) &&
-	    pfn_valid(pfn)) {
-		struct page *page = pfn_to_page(pfn);
-#ifdef CONFIG_8xx
-		/* On 8xx, cache control instructions (particularly
-		 * "dcbst" from flush_dcache_icache) fault as write
-		 * operation if there is an unpopulated TLB entry
-		 * for the address in question. To workaround that,
-		 * we invalidate the TLB here, thus avoiding dcbst
-		 * misbehaviour.
-		 */
-		_tlbil_va(address, 0 /* 8xx doesn't care about PID */);
-#endif
-		/* The _PAGE_USER test should really be _PAGE_EXEC, but
-		 * older glibc versions execute some code from no-exec
-		 * pages, which for now we are supporting.  If exec-only
-		 * pages are ever implemented, this will have to change.
-		 */
-		if (!PageReserved(page) && (pte_val(pte) & _PAGE_USER)
-		    && !test_bit(PG_arch_1, &page->flags)) {
-			if (vma->vm_mm == current->active_mm) {
-				__flush_dcache_icache((void *) address);
-			} else
-				flush_dcache_icache_page(page);
-			set_bit(PG_arch_1, &page->flags);
-		}
-	}
-
-#ifdef CONFIG_PPC_STD_MMU
 	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
 	if (!pte_young(pte) || address >= TASK_SIZE)
 		return;

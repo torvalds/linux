@@ -94,31 +94,31 @@ IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
 IEEE80211_IF_FILE(force_unicast_rateidx, force_unicast_rateidx, DEC);
 IEEE80211_IF_FILE(max_ratectrl_rateidx, max_ratectrl_rateidx, DEC);
 
-/* STA/IBSS attributes */
-IEEE80211_IF_FILE(state, u.sta.state, DEC);
-IEEE80211_IF_FILE(bssid, u.sta.bssid, MAC);
-IEEE80211_IF_FILE(prev_bssid, u.sta.prev_bssid, MAC);
-IEEE80211_IF_FILE(ssid_len, u.sta.ssid_len, SIZE);
-IEEE80211_IF_FILE(aid, u.sta.aid, DEC);
-IEEE80211_IF_FILE(ap_capab, u.sta.ap_capab, HEX);
-IEEE80211_IF_FILE(capab, u.sta.capab, HEX);
-IEEE80211_IF_FILE(extra_ie_len, u.sta.extra_ie_len, SIZE);
-IEEE80211_IF_FILE(auth_tries, u.sta.auth_tries, DEC);
-IEEE80211_IF_FILE(assoc_tries, u.sta.assoc_tries, DEC);
-IEEE80211_IF_FILE(auth_algs, u.sta.auth_algs, HEX);
-IEEE80211_IF_FILE(auth_alg, u.sta.auth_alg, DEC);
-IEEE80211_IF_FILE(auth_transaction, u.sta.auth_transaction, DEC);
+/* STA attributes */
+IEEE80211_IF_FILE(state, u.mgd.state, DEC);
+IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
+IEEE80211_IF_FILE(prev_bssid, u.mgd.prev_bssid, MAC);
+IEEE80211_IF_FILE(ssid_len, u.mgd.ssid_len, SIZE);
+IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
+IEEE80211_IF_FILE(ap_capab, u.mgd.ap_capab, HEX);
+IEEE80211_IF_FILE(capab, u.mgd.capab, HEX);
+IEEE80211_IF_FILE(extra_ie_len, u.mgd.extra_ie_len, SIZE);
+IEEE80211_IF_FILE(auth_tries, u.mgd.auth_tries, DEC);
+IEEE80211_IF_FILE(assoc_tries, u.mgd.assoc_tries, DEC);
+IEEE80211_IF_FILE(auth_algs, u.mgd.auth_algs, HEX);
+IEEE80211_IF_FILE(auth_alg, u.mgd.auth_alg, DEC);
+IEEE80211_IF_FILE(auth_transaction, u.mgd.auth_transaction, DEC);
 
 static ssize_t ieee80211_if_fmt_flags(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
 {
 	return scnprintf(buf, buflen, "%s%s%s%s%s%s%s\n",
-		 sdata->u.sta.flags & IEEE80211_STA_SSID_SET ? "SSID\n" : "",
-		 sdata->u.sta.flags & IEEE80211_STA_BSSID_SET ? "BSSID\n" : "",
-		 sdata->u.sta.flags & IEEE80211_STA_PREV_BSSID_SET ? "prev BSSID\n" : "",
-		 sdata->u.sta.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
-		 sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",
-		 sdata->u.sta.flags & IEEE80211_STA_PROBEREQ_POLL ? "PROBEREQ POLL\n" : "",
+		 sdata->u.mgd.flags & IEEE80211_STA_SSID_SET ? "SSID\n" : "",
+		 sdata->u.mgd.flags & IEEE80211_STA_BSSID_SET ? "BSSID\n" : "",
+		 sdata->u.mgd.flags & IEEE80211_STA_PREV_BSSID_SET ? "prev BSSID\n" : "",
+		 sdata->u.mgd.flags & IEEE80211_STA_AUTHENTICATED ? "AUTH\n" : "",
+		 sdata->u.mgd.flags & IEEE80211_STA_ASSOCIATED ? "ASSOC\n" : "",
+		 sdata->u.mgd.flags & IEEE80211_STA_PROBEREQ_POLL ? "PROBEREQ POLL\n" : "",
 		 sdata->vif.bss_conf.use_cts_prot ? "CTS prot\n" : "");
 }
 __IEEE80211_IF_FILE(flags);
@@ -283,8 +283,10 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 #endif
 		break;
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
 		add_sta_files(sdata);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		/* XXX */
 		break;
 	case NL80211_IFTYPE_AP:
 		add_ap_files(sdata);
@@ -418,8 +420,10 @@ static void del_files(struct ieee80211_sub_if_data *sdata)
 #endif
 		break;
 	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_ADHOC:
 		del_sta_files(sdata);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		/* XXX */
 		break;
 	case NL80211_IFTYPE_AP:
 		del_ap_files(sdata);

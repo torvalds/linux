@@ -267,7 +267,7 @@ static noinline int btrfs_mksubvol(struct path *parent, char *name,
 		goto out_dput;
 
 	if (!IS_POSIXACL(parent->dentry->d_inode))
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 
 	error = mnt_want_write(parent->mnt);
 	if (error)
@@ -461,15 +461,9 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
-
-	if (!vol_args)
-		return -ENOMEM;
-
-	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	vol_args = memdup_user(arg, sizeof(*vol_args));
+	if (IS_ERR(vol_args))
+		return PTR_ERR(vol_args);
 
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	namelen = strlen(vol_args->name);
@@ -483,11 +477,13 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 		*devstr = '\0';
 		devstr = vol_args->name;
 		devid = simple_strtoull(devstr, &end, 10);
-		printk(KERN_INFO "resizing devid %llu\n", devid);
+		printk(KERN_INFO "resizing devid %llu\n",
+		       (unsigned long long)devid);
 	}
 	device = btrfs_find_device(root, devid, NULL, NULL);
 	if (!device) {
-		printk(KERN_INFO "resizer unable to find device %llu\n", devid);
+		printk(KERN_INFO "resizer unable to find device %llu\n",
+		       (unsigned long long)devid);
 		ret = -EINVAL;
 		goto out_unlock;
 	}
@@ -545,7 +541,6 @@ static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
 
 out_unlock:
 	mutex_unlock(&root->fs_info->volume_mutex);
-out:
 	kfree(vol_args);
 	return ret;
 }
@@ -565,15 +560,9 @@ static noinline int btrfs_ioctl_snap_create(struct file *file,
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
-	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
-
-	if (!vol_args)
-		return -ENOMEM;
-
-	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
-		ret = -EFAULT;
-		goto out;
-	}
+	vol_args = memdup_user(arg, sizeof(*vol_args));
+	if (IS_ERR(vol_args))
+		return PTR_ERR(vol_args);
 
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	namelen = strlen(vol_args->name);
@@ -675,19 +664,13 @@ static long btrfs_ioctl_add_dev(struct btrfs_root *root, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
+	vol_args = memdup_user(arg, sizeof(*vol_args));
+	if (IS_ERR(vol_args))
+		return PTR_ERR(vol_args);
 
-	if (!vol_args)
-		return -ENOMEM;
-
-	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
-		ret = -EFAULT;
-		goto out;
-	}
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	ret = btrfs_init_new_device(root, vol_args->name);
 
-out:
 	kfree(vol_args);
 	return ret;
 }
@@ -703,19 +686,13 @@ static long btrfs_ioctl_rm_dev(struct btrfs_root *root, void __user *arg)
 	if (root->fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;
 
-	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
+	vol_args = memdup_user(arg, sizeof(*vol_args));
+	if (IS_ERR(vol_args))
+		return PTR_ERR(vol_args);
 
-	if (!vol_args)
-		return -ENOMEM;
-
-	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
-		ret = -EFAULT;
-		goto out;
-	}
 	vol_args->name[BTRFS_PATH_NAME_MAX] = '\0';
 	ret = btrfs_rm_device(root, vol_args->name);
 
-out:
 	kfree(vol_args);
 	return ret;
 }
@@ -830,7 +807,8 @@ static long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 	BUG_ON(!trans);
 
 	/* punch hole in destination first */
-	btrfs_drop_extents(trans, root, inode, off, off+len, 0, &hint_byte);
+	btrfs_drop_extents(trans, root, inode, off, off + len,
+			   off + len, 0, &hint_byte);
 
 	/* clone data */
 	key.objectid = src->i_ino;

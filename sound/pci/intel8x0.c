@@ -355,6 +355,9 @@ struct ichdev {
         unsigned int fragsize1;
         unsigned int position;
 	unsigned int pos_shift;
+	unsigned int last_pos;
+	unsigned long last_pos_jiffies;
+	unsigned int jiffy_to_bytes;
         int frags;
         int lvi;
         int lvi_frag;
@@ -689,7 +692,7 @@ static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ich
 			bdbar[idx + 1] = cpu_to_le32(0x80000000 | /* interrupt on completion */
 						     ichdev->fragsize >> ichdev->pos_shift);
 #if 0
-			printk("bdbar[%i] = 0x%x [0x%x]\n",
+			printk(KERN_DEBUG "bdbar[%i] = 0x%x [0x%x]\n",
 			       idx + 0, bdbar[idx + 0], bdbar[idx + 1]);
 #endif
 		}
@@ -701,8 +704,10 @@ static void snd_intel8x0_setup_periods(struct intel8x0 *chip, struct ichdev *ich
 	ichdev->lvi_frag = ICH_REG_LVI_MASK % ichdev->frags;
 	ichdev->position = 0;
 #if 0
-	printk("lvi_frag = %i, frags = %i, period_size = 0x%x, period_size1 = 0x%x\n",
-			ichdev->lvi_frag, ichdev->frags, ichdev->fragsize, ichdev->fragsize1);
+	printk(KERN_DEBUG "lvi_frag = %i, frags = %i, period_size = 0x%x, "
+	       "period_size1 = 0x%x\n",
+	       ichdev->lvi_frag, ichdev->frags, ichdev->fragsize,
+	       ichdev->fragsize1);
 #endif
 	/* clear interrupts */
 	iputbyte(chip, port + ichdev->roff_sr, ICH_FIFOE | ICH_BCIS | ICH_LVBCI);
@@ -768,7 +773,8 @@ static inline void snd_intel8x0_update(struct intel8x0 *chip, struct ichdev *ich
 		ichdev->lvi_frag %= ichdev->frags;
 		ichdev->bdbar[ichdev->lvi * 2] = cpu_to_le32(ichdev->physbuf + ichdev->lvi_frag * ichdev->fragsize1);
 #if 0
-	printk("new: bdbar[%i] = 0x%x [0x%x], prefetch = %i, all = 0x%x, 0x%x\n",
+	printk(KERN_DEBUG "new: bdbar[%i] = 0x%x [0x%x], prefetch = %i, "
+	       "all = 0x%x, 0x%x\n",
 	       ichdev->lvi * 2, ichdev->bdbar[ichdev->lvi * 2],
 	       ichdev->bdbar[ichdev->lvi * 2 + 1], inb(ICH_REG_OFF_PIV + port),
 	       inl(port + 4), inb(port + ICH_REG_OFF_CR));
@@ -835,7 +841,10 @@ static int snd_intel8x0_pcm_trigger(struct snd_pcm_substream *substream, int cmd
 		ichdev->suspended = 0;
 		/* fallthru */
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		val = ICH_IOCE | ICH_STARTBM;
+		ichdev->last_pos = ichdev->position;
+		ichdev->last_pos_jiffies = jiffies;
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		ichdev->suspended = 1;
@@ -845,9 +854,6 @@ static int snd_intel8x0_pcm_trigger(struct snd_pcm_substream *substream, int cmd
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		val = ICH_IOCE;
-		break;
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		val = ICH_IOCE | ICH_STARTBM;
 		break;
 	default:
 		return -EINVAL;
@@ -1042,6 +1048,7 @@ static int snd_intel8x0_pcm_prepare(struct snd_pcm_substream *substream)
 			ichdev->pos_shift = (runtime->sample_bits > 16) ? 2 : 1;
 	}
 	snd_intel8x0_setup_periods(chip, ichdev);
+	ichdev->jiffy_to_bytes = (runtime->rate * 4 * ichdev->pos_shift) / HZ;
 	return 0;
 }
 
@@ -1050,7 +1057,7 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 	struct intel8x0 *chip = snd_pcm_substream_chip(substream);
 	struct ichdev *ichdev = get_ichdev(substream);
 	size_t ptr1, ptr;
-	int civ, timeout = 100;
+	int civ, timeout = 10;
 	unsigned int position;
 
 	spin_lock(&chip->reg_lock);
@@ -1066,9 +1073,19 @@ static snd_pcm_uframes_t snd_intel8x0_pcm_pointer(struct snd_pcm_substream *subs
 		    ptr1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
 			break;
 	} while (timeout--);
-	ptr1 <<= ichdev->pos_shift;
-	ptr = ichdev->fragsize1 - ptr1;
-	ptr += position;
+	if (ptr1 != 0) {
+		ptr1 <<= ichdev->pos_shift;
+		ptr = ichdev->fragsize1 - ptr1;
+		ptr += position;
+		ichdev->last_pos = ptr;
+		ichdev->last_pos_jiffies = jiffies;
+	} else {
+		ptr1 = jiffies - ichdev->last_pos_jiffies;
+		if (ptr1)
+			ptr1 -= 1;
+		ptr = ichdev->last_pos + ptr1 * ichdev->jiffy_to_bytes;
+		ptr %= ichdev->size;
+	}
 	spin_unlock(&chip->reg_lock);
 	if (ptr >= ichdev->size)
 		return 0;
@@ -1837,6 +1854,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x1028,
+		.subdevice = 0x016a,
+		.name = "Dell Inspiron 8600",	/* STAC9750/51 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1028,
 		.subdevice = 0x0186,
 		.name = "Dell Latitude D810", /* cf. Malone #41015 */
 		.type = AC97_TUNE_HP_MUTE_LED
@@ -1875,12 +1898,6 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x103c,
 		.subdevice = 0x0890,
 		.name = "HP nc6000",
-		.type = AC97_TUNE_MUTE_LED
-	},
-	{
-		.subvendor = 0x103c,
-		.subdevice = 0x0934,
-		.name = "HP nx8220",
 		.type = AC97_TUNE_MUTE_LED
 	},
 	{
@@ -2287,23 +2304,23 @@ static void do_ali_reset(struct intel8x0 *chip)
 	iputdword(chip, ICHREG(ALI_INTERRUPTSR), 0x00000000);
 }
 
-static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
-{
-	unsigned long end_time;
-	unsigned int cnt, status, nstatus;
-	
-	/* put logic to right state */
-	/* first clear status bits */
-	status = ICH_RCS | ICH_MCINT | ICH_POINT | ICH_PIINT;
-	if (chip->device_type == DEVICE_NFORCE)
-		status |= ICH_NVSPINT;
-	cnt = igetdword(chip, ICHREG(GLOB_STA));
-	iputdword(chip, ICHREG(GLOB_STA), cnt & status);
+#ifdef CONFIG_SND_AC97_POWER_SAVE
+static struct snd_pci_quirk ich_chip_reset_mode[] = {
+	SND_PCI_QUIRK(0x1014, 0x051f, "Thinkpad R32", 1),
+	{ } /* end */
+};
 
+static int snd_intel8x0_ich_chip_cold_reset(struct intel8x0 *chip)
+{
+	unsigned int cnt;
 	/* ACLink on, 2 channels */
+
+	if (snd_pci_quirk_lookup(chip->pci, ich_chip_reset_mode))
+		return -EIO;
+
 	cnt = igetdword(chip, ICHREG(GLOB_CNT));
 	cnt &= ~(ICH_ACLINK | ICH_PCM_246_MASK);
-#ifdef CONFIG_SND_AC97_POWER_SAVE
+
 	/* do cold reset - the full ac97 powerdown may leave the controller
 	 * in a warm state but actually it cannot communicate with the codec.
 	 */
@@ -2312,22 +2329,58 @@ static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
 	udelay(10);
 	iputdword(chip, ICHREG(GLOB_CNT), cnt | ICH_AC97COLD);
 	msleep(1);
+	return 0;
+}
+#define snd_intel8x0_ich_chip_can_cold_reset(chip) \
+	(!snd_pci_quirk_lookup(chip->pci, ich_chip_reset_mode))
 #else
+#define snd_intel8x0_ich_chip_cold_reset(chip)	0
+#define snd_intel8x0_ich_chip_can_cold_reset(chip) (0)
+#endif
+
+static int snd_intel8x0_ich_chip_reset(struct intel8x0 *chip)
+{
+	unsigned long end_time;
+	unsigned int cnt;
+	/* ACLink on, 2 channels */
+	cnt = igetdword(chip, ICHREG(GLOB_CNT));
+	cnt &= ~(ICH_ACLINK | ICH_PCM_246_MASK);
 	/* finish cold or do warm reset */
 	cnt |= (cnt & ICH_AC97COLD) == 0 ? ICH_AC97COLD : ICH_AC97WARM;
 	iputdword(chip, ICHREG(GLOB_CNT), cnt);
 	end_time = (jiffies + (HZ / 4)) + 1;
 	do {
 		if ((igetdword(chip, ICHREG(GLOB_CNT)) & ICH_AC97WARM) == 0)
-			goto __ok;
+			return 0;
 		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	snd_printk(KERN_ERR "AC'97 warm reset still in progress? [0x%x]\n",
 		   igetdword(chip, ICHREG(GLOB_CNT)));
 	return -EIO;
+}
 
-      __ok:
-#endif
+static int snd_intel8x0_ich_chip_init(struct intel8x0 *chip, int probing)
+{
+	unsigned long end_time;
+	unsigned int status, nstatus;
+	unsigned int cnt;
+	int err;
+
+	/* put logic to right state */
+	/* first clear status bits */
+	status = ICH_RCS | ICH_MCINT | ICH_POINT | ICH_PIINT;
+	if (chip->device_type == DEVICE_NFORCE)
+		status |= ICH_NVSPINT;
+	cnt = igetdword(chip, ICHREG(GLOB_STA));
+	iputdword(chip, ICHREG(GLOB_STA), cnt & status);
+
+	if (snd_intel8x0_ich_chip_can_cold_reset(chip))
+		err = snd_intel8x0_ich_chip_cold_reset(chip);
+	else
+		err = snd_intel8x0_ich_chip_reset(chip);
+	if (err < 0)
+		return err;
+
 	if (probing) {
 		/* wait for any codec ready status.
 		 * Once it becomes ready it should remain ready
@@ -2622,12 +2675,14 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	struct snd_pcm_substream *subs;
 	struct ichdev *ichdev;
 	unsigned long port;
-	unsigned long pos, t;
-	struct timeval start_time, stop_time;
+	unsigned long pos, pos1, t;
+	int civ, timeout = 1000, attempt = 1;
+	struct timespec start_time, stop_time;
 
 	if (chip->ac97_bus->clock != 48000)
 		return; /* specified in module option */
 
+      __again:
 	subs = chip->pcm[0]->streams[0].substream;
 	if (! subs || subs->dma_buffer.bytes < INTEL8X0_TESTBUF_SIZE) {
 		snd_printk(KERN_WARNING "no playback buffer allocated - aborting measure ac97 clock\n");
@@ -2635,7 +2690,7 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	}
 	ichdev = &chip->ichd[ICHD_PCMOUT];
 	ichdev->physbuf = subs->dma_buffer.addr;
-	ichdev->size = chip->ichd[ICHD_PCMOUT].fragsize = INTEL8X0_TESTBUF_SIZE;
+	ichdev->size = ichdev->fragsize = INTEL8X0_TESTBUF_SIZE;
 	ichdev->substream = NULL; /* don't process interrupts */
 
 	/* set rate */
@@ -2654,16 +2709,31 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 		iputbyte(chip, port + ICH_REG_OFF_CR, ICH_IOCE);
 		iputdword(chip, ICHREG(ALI_DMACR), 1 << ichdev->ali_slot);
 	}
-	do_gettimeofday(&start_time);
+	do_posix_clock_monotonic_gettime(&start_time);
 	spin_unlock_irq(&chip->reg_lock);
 	msleep(50);
 	spin_lock_irq(&chip->reg_lock);
 	/* check the position */
-	pos = ichdev->fragsize1;
-	pos -= igetword(chip, ichdev->reg_offset + ichdev->roff_picb) << ichdev->pos_shift;
-	pos += ichdev->position;
+	do {
+		civ = igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV);
+		pos1 = igetword(chip, ichdev->reg_offset + ichdev->roff_picb);
+		if (pos1 == 0) {
+			udelay(10);
+			continue;
+		}
+		if (civ == igetbyte(chip, ichdev->reg_offset + ICH_REG_OFF_CIV) &&
+		    pos1 == igetword(chip, ichdev->reg_offset + ichdev->roff_picb))
+			break;
+	} while (timeout--);
+	if (pos1 == 0) {	/* oops, this value is not reliable */
+		pos = 0;
+	} else {
+		pos = ichdev->fragsize1;
+		pos -= pos1 << ichdev->pos_shift;
+		pos += ichdev->position;
+	}
 	chip->in_measurement = 0;
-	do_gettimeofday(&stop_time);
+	do_posix_clock_monotonic_gettime(&stop_time);
 	/* stop */
 	if (chip->device_type == DEVICE_ALI) {
 		iputdword(chip, ICHREG(ALI_DMACR), 1 << (ichdev->ali_slot + 16));
@@ -2678,22 +2748,42 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	iputbyte(chip, port + ICH_REG_OFF_CR, ICH_RESETREGS);
 	spin_unlock_irq(&chip->reg_lock);
 
+	if (pos == 0) {
+		snd_printk(KERN_ERR "intel8x0: measure - unreliable DMA position..\n");
+	      __retry:
+		if (attempt < 3) {
+			msleep(300);
+			attempt++;
+			goto __again;
+		}
+		goto __end;
+	}
+
+	pos /= 4;
 	t = stop_time.tv_sec - start_time.tv_sec;
 	t *= 1000000;
-	t += stop_time.tv_usec - start_time.tv_usec;
-	printk(KERN_INFO "%s: measured %lu usecs\n", __func__, t);
+	t += (stop_time.tv_nsec - start_time.tv_nsec) / 1000;
+	printk(KERN_INFO "%s: measured %lu usecs (%lu samples)\n", __func__, t, pos);
 	if (t == 0) {
-		snd_printk(KERN_ERR "?? calculation error..\n");
-		return;
+		snd_printk(KERN_ERR "intel8x0: ?? calculation error..\n");
+		goto __retry;
 	}
-	pos = (pos / 4) * 1000;
+	pos *= 1000;
 	pos = (pos / t) * 1000 + ((pos % t) * 1000) / t;
-	if (pos < 40000 || pos >= 60000) 
+	if (pos < 40000 || pos >= 60000) {
 		/* abnormal value. hw problem? */
 		printk(KERN_INFO "intel8x0: measured clock %ld rejected\n", pos);
+		goto __retry;
+	} else if (pos > 40500 && pos < 41500)
+		/* first exception - 41000Hz reference clock */
+		chip->ac97_bus->clock = 41000;
+	else if (pos > 43600 && pos < 44600)
+		/* second exception - 44100HZ reference clock */
+		chip->ac97_bus->clock = 44100;
 	else if (pos < 47500 || pos > 48500)
 		/* not 48000Hz, tuning the clock.. */
 		chip->ac97_bus->clock = (chip->ac97_bus->clock * 48000) / pos;
+      __end:
 	printk(KERN_INFO "intel8x0: clocking to %d\n", chip->ac97_bus->clock);
 	snd_ac97_update_power(chip->ac97[0], AC97_PCM_FRONT_DAC_RATE, 0);
 }
@@ -3058,9 +3148,9 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 	int err;
 	struct shortname_table *name;
 
-	card = snd_card_new(index, id, THIS_MODULE, 0);
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index, id, THIS_MODULE, 0, &card);
+	if (err < 0)
+		return err;
 
 	if (spdif_aclink < 0)
 		spdif_aclink = check_default_spdif_aclink(pci);

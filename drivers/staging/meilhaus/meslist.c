@@ -115,7 +115,7 @@ int me_slist_get_subdevice_by_type(struct me_slist *slist,
 }
 
 void me_slist_add_subdevice_tail(struct me_slist *slist,
-				 me_subdevice_t * subdevice)
+				 me_subdevice_t *subdevice)
 {
 	PDEBUG_LOCKS("called.\n");
 
@@ -145,7 +145,7 @@ me_subdevice_t *me_slist_del_subdevice_tail(struct me_slist *slist)
 	return subdevice;
 }
 
-int me_slist_init(me_slist_t * slist)
+int me_slist_init(me_slist_t *slist)
 {
 	PDEBUG_LOCKS("called.\n");
 
@@ -154,7 +154,7 @@ int me_slist_init(me_slist_t * slist)
 	return 0;
 }
 
-void me_slist_deinit(me_slist_t * slist)
+void me_slist_deinit(me_slist_t *slist)
 {
 
 	struct list_head *s;

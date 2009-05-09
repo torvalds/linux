@@ -104,7 +104,7 @@ static int sclhi(struct i2c_algo_bit_data *adap)
 		 * chips may hold it low ("clock stretching") while they
 		 * are processing data internally.
 		 */
-		if (time_after_eq(jiffies, start + adap->timeout))
+		if (time_after(jiffies, start + adap->timeout))
 			return -ETIMEDOUT;
 		cond_resched();
 	}
@@ -604,9 +604,7 @@ static int i2c_bit_prepare_bus(struct i2c_adapter *adap)
 
 	/* register new adapter to i2c module... */
 	adap->algo = &i2c_bit_algo;
-
-	adap->timeout = 100;	/* default values, should	*/
-	adap->retries = 3;	/* be replaced by defines	*/
+	adap->retries = 3;
 
 	return 0;
 }

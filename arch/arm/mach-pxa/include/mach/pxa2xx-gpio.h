@@ -3,6 +3,8 @@
 
 #warning Please use mfp-pxa2[57]x.h instead of pxa2xx-gpio.h
 
+#include <mach/gpio.h>
+
 /* GPIO alternate function assignments */
 
 #define GPIO1_RST		1	/* reset */

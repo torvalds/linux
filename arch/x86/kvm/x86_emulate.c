@@ -178,7 +178,7 @@ static u32 opcode_table[256] = {
 	0, ImplicitOps | Stack, 0, 0,
 	ByteOp | DstMem | SrcImm | ModRM | Mov, DstMem | SrcImm | ModRM | Mov,
 	/* 0xC8 - 0xCF */
-	0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, ImplicitOps | Stack, 0, 0, 0, 0,
 	/* 0xD0 - 0xD7 */
 	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
 	ByteOp | DstMem | SrcImplicit | ModRM, DstMem | SrcImplicit | ModRM,
@@ -1136,18 +1136,19 @@ static inline void emulate_push(struct x86_emulate_ctxt *ctxt)
 }
 
 static int emulate_pop(struct x86_emulate_ctxt *ctxt,
-		       struct x86_emulate_ops *ops)
+		       struct x86_emulate_ops *ops,
+		       void *dest, int len)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
 	rc = ops->read_emulated(register_address(c, ss_base(ctxt),
 						 c->regs[VCPU_REGS_RSP]),
-				&c->src.val, c->src.bytes, ctxt->vcpu);
+				dest, len, ctxt->vcpu);
 	if (rc != 0)
 		return rc;
 
-	register_address_increment(c, &c->regs[VCPU_REGS_RSP], c->src.bytes);
+	register_address_increment(c, &c->regs[VCPU_REGS_RSP], len);
 	return rc;
 }
 
@@ -1157,11 +1158,9 @@ static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
 
-	c->src.bytes = c->dst.bytes;
-	rc = emulate_pop(ctxt, ops);
+	rc = emulate_pop(ctxt, ops, &c->dst.val, c->dst.bytes);
 	if (rc != 0)
 		return rc;
-	c->dst.val = c->src.val;
 	return 0;
 }
 
@@ -1277,6 +1276,25 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 		ctxt->eflags |= EFLG_ZF;
 	}
 	return 0;
+}
+
+static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
+			   struct x86_emulate_ops *ops)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+	unsigned long cs;
+
+	rc = emulate_pop(ctxt, ops, &c->eip, c->op_bytes);
+	if (rc)
+		return rc;
+	if (c->op_bytes == 4)
+		c->eip = (u32)c->eip;
+	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
+	if (rc)
+		return rc;
+	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)cs, 1, VCPU_SREG_CS);
+	return rc;
 }
 
 static inline int writeback(struct x86_emulate_ctxt *ctxt,
@@ -1467,11 +1485,9 @@ special_insn:
 		break;
 	case 0x58 ... 0x5f: /* pop reg */
 	pop_instruction:
-		c->src.bytes = c->op_bytes;
-		rc = emulate_pop(ctxt, ops);
+		rc = emulate_pop(ctxt, ops, &c->dst.val, c->op_bytes);
 		if (rc != 0)
 			goto done;
-		c->dst.val = c->src.val;
 		break;
 	case 0x63:		/* movsxd */
 		if (ctxt->mode != X86EMUL_MODE_PROT64)
@@ -1738,6 +1754,11 @@ special_insn:
 	mov:
 		c->dst.val = c->src.val;
 		break;
+	case 0xcb:		/* ret far */
+		rc = emulate_ret_far(ctxt, ops);
+		if (rc)
+			goto done;
+		break;
 	case 0xd0 ... 0xd1:	/* Grp2 */
 		c->src.val = 1;
 		emulate_grp2(ctxt);
@@ -1908,11 +1929,16 @@ twobyte_insn:
 			c->dst.type = OP_NONE;
 			break;
 		case 3: /* lidt/vmmcall */
-			if (c->modrm_mod == 3 && c->modrm_rm == 1) {
-				rc = kvm_fix_hypercall(ctxt->vcpu);
-				if (rc)
-					goto done;
-				kvm_emulate_hypercall(ctxt->vcpu);
+			if (c->modrm_mod == 3) {
+				switch (c->modrm_rm) {
+				case 1:
+					rc = kvm_fix_hypercall(ctxt->vcpu);
+					if (rc)
+						goto done;
+					break;
+				default:
+					goto cannot_emulate;
+				}
 			} else {
 				rc = read_descriptor(ctxt, ops, c->src.ptr,
 						     &size, &address,

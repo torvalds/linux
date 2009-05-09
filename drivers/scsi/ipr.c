@@ -152,13 +152,13 @@ module_param_named(log_level, ipr_log_level, uint, 0);
 MODULE_PARM_DESC(log_level, "Set to 0 - 4 for increasing verbosity of device driver");
 module_param_named(testmode, ipr_testmode, int, 0);
 MODULE_PARM_DESC(testmode, "DANGEROUS!!! Allows unsupported configurations");
-module_param_named(fastfail, ipr_fastfail, int, 0);
+module_param_named(fastfail, ipr_fastfail, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fastfail, "Reduce timeouts and retries");
 module_param_named(transop_timeout, ipr_transop_timeout, int, 0);
 MODULE_PARM_DESC(transop_timeout, "Time in seconds to wait for adapter to come operational (default: 300)");
 module_param_named(enable_cache, ipr_enable_cache, int, 0);
 MODULE_PARM_DESC(enable_cache, "Enable adapter's non-volatile write cache (default: 1)");
-module_param_named(debug, ipr_debug, int, 0);
+module_param_named(debug, ipr_debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable device driver debugging logging. Set to 1 to enable. (default: 0)");
 module_param_named(dual_ioa_raid, ipr_dual_ioa_raid, int, 0);
 MODULE_PARM_DESC(dual_ioa_raid, "Enable dual adapter RAID support. Set to 1 to enable. (default: 1)");
@@ -354,6 +354,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"9076: Configuration error, missing remote IOA"},
 	{0x06679100, 0, IPR_DEFAULT_LOG_LEVEL,
 	"4050: Enclosure does not support a required multipath function"},
+	{0x06690000, 0, IPR_DEFAULT_LOG_LEVEL,
+	"4070: Logically bad block written on device"},
 	{0x06690200, 0, IPR_DEFAULT_LOG_LEVEL,
 	"9041: Array protection temporarily suspended"},
 	{0x06698200, 0, IPR_DEFAULT_LOG_LEVEL,
@@ -3652,6 +3654,7 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) sdev->host->hostdata;
 	struct ipr_resource_entry *res;
+	struct ata_port *ap = NULL;
 	unsigned long lock_flags = 0;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
@@ -3670,12 +3673,16 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		}
 		if (ipr_is_vset_device(res) || ipr_is_scsi_disk(res))
 			sdev->allow_restart = 1;
-		if (ipr_is_gata(res) && res->sata_port) {
+		if (ipr_is_gata(res) && res->sata_port)
+			ap = res->sata_port->ap;
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+
+		if (ap) {
 			scsi_adjust_queue_depth(sdev, 0, IPR_MAX_CMD_PER_ATA_LUN);
-			ata_sas_slave_configure(sdev, res->sata_port->ap);
-		} else {
+			ata_sas_slave_configure(sdev, ap);
+		} else
 			scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
-		}
+		return 0;
 	}
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	return 0;
@@ -7147,6 +7154,7 @@ static void ipr_free_all_resources(struct ipr_ioa_cfg *ioa_cfg)
 
 	ENTER;
 	free_irq(pdev->irq, ioa_cfg);
+	pci_disable_msi(pdev);
 	iounmap(ioa_cfg->hdw_dma_regs);
 	pci_release_regions(pdev);
 	ipr_free_mem(ioa_cfg);
@@ -7432,6 +7440,11 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		goto out;
 	}
 
+	if (!(rc = pci_enable_msi(pdev)))
+		dev_info(&pdev->dev, "MSI enabled\n");
+	else if (ipr_debug)
+		dev_info(&pdev->dev, "Cannot enable MSI\n");
+
 	dev_info(&pdev->dev, "Found IOA with IRQ: %d\n", pdev->irq);
 
 	host = scsi_host_alloc(&driver_template, sizeof(*ioa_cfg));
@@ -7490,7 +7503,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc < 0) {
 		dev_err(&pdev->dev, "Failed to set PCI DMA mask\n");
 		goto cleanup_nomem;
@@ -7574,6 +7587,7 @@ out_release_regions:
 out_scsi_host_put:
 	scsi_host_put(host);
 out_disable:
+	pci_disable_msi(pdev);
 	pci_disable_device(pdev);
 	goto out;
 }

@@ -203,7 +203,7 @@ static void __init rx3715_init_machine(void)
 #ifdef CONFIG_PM_H1940
 	memcpy(phys_to_virt(H1940_SUSPEND_RESUMEAT), h1940_pm_return, 1024);
 #endif
-	s3c2410_pm_init();
+	s3c_pm_init();
 
 	s3c24xx_fb_set_platdata(&rx3715_fb_info);
 	platform_add_devices(rx3715_devices, ARRAY_SIZE(rx3715_devices));

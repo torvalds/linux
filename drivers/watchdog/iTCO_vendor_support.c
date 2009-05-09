@@ -47,7 +47,8 @@
 
 static int vendorsupport;
 module_param(vendorsupport, int, 0);
-MODULE_PARM_DESC(vendorsupport, "iTCO vendor specific support mode, default=0 (none), 1=SuperMicro Pent3, 2=SuperMicro Pent4+");
+MODULE_PARM_DESC(vendorsupport, "iTCO vendor specific support mode, default="
+			"0 (none), 1=SuperMicro Pent3, 2=SuperMicro Pent4+");
 
 /*
  *	Vendor Specific Support
@@ -305,7 +306,8 @@ static void __exit iTCO_vendor_exit_module(void)
 module_init(iTCO_vendor_init_module);
 module_exit(iTCO_vendor_exit_module);
 
-MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>, R. Seretny <lkpatches@paypc.com>");
+MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>, "
+		"R. Seretny <lkpatches@paypc.com>");
 MODULE_DESCRIPTION("Intel TCO Vendor Specific WatchDog Timer Driver Support");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");

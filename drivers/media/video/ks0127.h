@@ -24,8 +24,6 @@
 #ifndef KS0127_H
 #define KS0127_H
 
-#include <linux/videodev.h>
-
 /* input channels */
 #define KS_INPUT_COMPOSITE_1    0
 #define KS_INPUT_COMPOSITE_2    1

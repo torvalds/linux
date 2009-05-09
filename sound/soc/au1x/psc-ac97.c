@@ -342,6 +342,11 @@ static int au1xpsc_ac97_resume(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
+	.trigger	= au1xpsc_ac97_trigger,
+	.hw_params	= au1xpsc_ac97_hw_params,
+};
+
 struct snd_soc_dai au1xpsc_ac97_dai = {
 	.name			= "au1xpsc_ac97",
 	.ac97_control		= 1,
@@ -361,10 +366,7 @@ struct snd_soc_dai au1xpsc_ac97_dai = {
 		.channels_min	= 2,
 		.channels_max	= 2,
 	},
-	.ops = {
-		.trigger	= au1xpsc_ac97_trigger,
-		.hw_params	= au1xpsc_ac97_hw_params,
-	},
+	.ops = &au1xpsc_ac97_dai_ops,
 };
 EXPORT_SYMBOL_GPL(au1xpsc_ac97_dai);
 

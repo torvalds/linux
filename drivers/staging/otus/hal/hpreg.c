@@ -1770,8 +1770,10 @@ void zfHpGetRegulationTable(zdev_t* dev, u16_t regionCode, u16_t c_lo, u16_t c_h
 	REG_DOMAIN rd5GHz, rd2GHz;
 	const struct cmode *cm;
 	s16_t next=0,b;
+	struct zsHpPriv* hpPriv;
+
     zmw_get_wlan_dev(dev);
-    struct zsHpPriv* hpPriv=wd->hpPrivate;
+    hpPriv=wd->hpPrivate;
 
     zmw_declare_for_critical_section();
 
@@ -2473,9 +2475,10 @@ u8_t zfHpGetRegulatoryDomain(zdev_t* dev)
 
 void zfHpDisableDfsChannel(zdev_t* dev, u8_t disableFlag)
 {
-    zmw_get_wlan_dev(dev);
+    struct zsHpPriv* hpPriv;
 
-    struct zsHpPriv* hpPriv=wd->hpPrivate;
+    zmw_get_wlan_dev(dev);
+    hpPriv=wd->hpPrivate;
     hpPriv->disableDfsCh = disableFlag;
     return;
 }

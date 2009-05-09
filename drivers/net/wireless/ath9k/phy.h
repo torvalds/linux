@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 Atheros Communications Inc.
+ * Copyright (c) 2008-2009 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,19 +17,19 @@
 #ifndef PHY_H
 #define PHY_H
 
-bool ath9k_hw_ar9280_set_channel(struct ath_hal *ah,
+bool ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
 				 struct ath9k_channel
 				 *chan);
-bool ath9k_hw_set_channel(struct ath_hal *ah,
+bool ath9k_hw_set_channel(struct ath_hw *ah,
 			  struct ath9k_channel *chan);
-void ath9k_hw_write_regs(struct ath_hal *ah, u32 modesIndex,
+void ath9k_hw_write_regs(struct ath_hw *ah, u32 modesIndex,
 			 u32 freqIndex, int regWrites);
-bool ath9k_hw_set_rf_regs(struct ath_hal *ah,
+bool ath9k_hw_set_rf_regs(struct ath_hw *ah,
 			  struct ath9k_channel *chan,
 			  u16 modesIndex);
-void ath9k_hw_decrease_chain_power(struct ath_hal *ah,
+void ath9k_hw_decrease_chain_power(struct ath_hw *ah,
 				   struct ath9k_channel *chan);
-bool ath9k_hw_init_rf(struct ath_hal *ah,
+bool ath9k_hw_init_rf(struct ath_hw *ah,
 		      int *status);
 
 #define AR_PHY_BASE     0x9800
@@ -387,6 +387,8 @@ bool ath9k_hw_init_rf(struct ath_hal *ah,
 
 #define AR_PHY_CCK_TX_CTRL       0xA204
 #define AR_PHY_CCK_TX_CTRL_JAPAN 0x00000010
+#define AR_PHY_CCK_TX_CTRL_TX_DAC_SCALE_CCK         0x0000000C
+#define AR_PHY_CCK_TX_CTRL_TX_DAC_SCALE_CCK_S       2
 
 #define AR_PHY_CCK_DETECT                           0xA208
 #define AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK          0x0000003F
@@ -444,6 +446,32 @@ bool ath9k_hw_init_rf(struct ath_hal *ah,
 #define AR_PHY_TPCRG1_PD_GAIN_3    0x00300000
 #define AR_PHY_TPCRG1_PD_GAIN_3_S  20
 
+#define AR_PHY_TPCRG1_PD_CAL_ENABLE   0x00400000
+#define AR_PHY_TPCRG1_PD_CAL_ENABLE_S 22
+
+#define AR_PHY_TX_PWRCTRL4       0xa264
+#define AR_PHY_TX_PWRCTRL_PD_AVG_VALID     0x00000001
+#define AR_PHY_TX_PWRCTRL_PD_AVG_VALID_S   0
+#define AR_PHY_TX_PWRCTRL_PD_AVG_OUT       0x000001FE
+#define AR_PHY_TX_PWRCTRL_PD_AVG_OUT_S     1
+
+#define AR_PHY_TX_PWRCTRL6_0     0xa270
+#define AR_PHY_TX_PWRCTRL6_1     0xb270
+#define AR_PHY_TX_PWRCTRL_ERR_EST_MODE     0x03000000
+#define AR_PHY_TX_PWRCTRL_ERR_EST_MODE_S   24
+
+#define AR_PHY_TX_PWRCTRL7       0xa274
+#define AR_PHY_TX_PWRCTRL_INIT_TX_GAIN     0x01F80000
+#define AR_PHY_TX_PWRCTRL_INIT_TX_GAIN_S   19
+
+#define AR_PHY_TX_PWRCTRL9       0xa27C
+#define AR_PHY_TX_DESIRED_SCALE_CCK        0x00007C00
+#define AR_PHY_TX_DESIRED_SCALE_CCK_S      10
+
+#define AR_PHY_TX_GAIN_TBL1      0xa300
+#define AR_PHY_TX_GAIN                     0x0007F000
+#define AR_PHY_TX_GAIN_S                   12
+
 #define AR_PHY_VIT_MASK2_M_46_61 0xa3a0
 #define AR_PHY_MASK2_M_31_45     0xa3a4
 #define AR_PHY_MASK2_M_16_30     0xa3a8
@@ -484,6 +512,11 @@ bool ath9k_hw_init_rf(struct ath_hal *ah,
 #define AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_3_S  16
 #define AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4    0x0FC00000
 #define AR_PHY_TPCRG5_PD_GAIN_BOUNDARY_4_S  22
+
+/* Carrier leak calibration control, do it after AGC calibration */
+#define AR_PHY_CL_CAL_CTL       0xA358
+#define AR_PHY_CL_CAL_ENABLE    0x00000002
+#define AR_PHY_PARALLEL_CAL_ENABLE    0x00000001
 
 #define AR_PHY_POWER_TX_RATE5   0xA38C
 #define AR_PHY_POWER_TX_RATE6   0xA390
@@ -530,10 +563,8 @@ bool ath9k_hw_init_rf(struct ath_hal *ah,
 		}							\
 	} while (0)
 
-#define ATH9K_KEY_XOR                 0xaa
-
 #define ATH9K_IS_MIC_ENABLED(ah)					\
-	(AH5416(ah)->ah_staId1Defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
+	((ah)->sta_id1_defaults & AR_STA_ID1_CRPT_MIC_ENABLE)
 
 #define ANTSWAP_AB 0x0001
 #define REDUCE_CHAIN_0 0x00000050

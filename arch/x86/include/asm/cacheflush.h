@@ -5,24 +5,43 @@
 #include <linux/mm.h>
 
 /* Caches aren't brain-dead on the intel. */
-#define flush_cache_all()			do { } while (0)
-#define flush_cache_mm(mm)			do { } while (0)
-#define flush_cache_dup_mm(mm)			do { } while (0)
-#define flush_cache_range(vma, start, end)	do { } while (0)
-#define flush_cache_page(vma, vmaddr, pfn)	do { } while (0)
-#define flush_dcache_page(page)			do { } while (0)
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
-#define flush_icache_range(start, end)		do { } while (0)
-#define flush_icache_page(vma, pg)		do { } while (0)
-#define flush_icache_user_range(vma, pg, adr, len)	do { } while (0)
-#define flush_cache_vmap(start, end)		do { } while (0)
-#define flush_cache_vunmap(start, end)		do { } while (0)
+static inline void flush_cache_all(void) { }
+static inline void flush_cache_mm(struct mm_struct *mm) { }
+static inline void flush_cache_dup_mm(struct mm_struct *mm) { }
+static inline void flush_cache_range(struct vm_area_struct *vma,
+				     unsigned long start, unsigned long end) { }
+static inline void flush_cache_page(struct vm_area_struct *vma,
+				    unsigned long vmaddr, unsigned long pfn) { }
+static inline void flush_dcache_page(struct page *page) { }
+static inline void flush_dcache_mmap_lock(struct address_space *mapping) { }
+static inline void flush_dcache_mmap_unlock(struct address_space *mapping) { }
+static inline void flush_icache_range(unsigned long start,
+				      unsigned long end) { }
+static inline void flush_icache_page(struct vm_area_struct *vma,
+				     struct page *page) { }
+static inline void flush_icache_user_range(struct vm_area_struct *vma,
+					   struct page *page,
+					   unsigned long addr,
+					   unsigned long len) { }
+static inline void flush_cache_vmap(unsigned long start, unsigned long end) { }
+static inline void flush_cache_vunmap(unsigned long start,
+				      unsigned long end) { }
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len)	\
-	memcpy((dst), (src), (len))
-#define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
-	memcpy((dst), (src), (len))
+static inline void copy_to_user_page(struct vm_area_struct *vma,
+				     struct page *page, unsigned long vaddr,
+				     void *dst, const void *src,
+				     unsigned long len)
+{
+	memcpy(dst, src, len);
+}
+
+static inline void copy_from_user_page(struct vm_area_struct *vma,
+				       struct page *page, unsigned long vaddr,
+				       void *dst, const void *src,
+				       unsigned long len)
+{
+	memcpy(dst, src, len);
+}
 
 #define PG_non_WB				PG_arch_1
 PAGEFLAG(NonWB, non_WB)
@@ -71,6 +90,9 @@ int set_memory_4k(unsigned long addr, int numpages);
 int set_memory_array_uc(unsigned long *addr, int addrinarray);
 int set_memory_array_wb(unsigned long *addr, int addrinarray);
 
+int set_pages_array_uc(struct page **pages, int addrinarray);
+int set_pages_array_wb(struct page **pages, int addrinarray);
+
 /*
  * For legacy compatibility with the old APIs, a few functions
  * are provided that work on a "struct page".
@@ -104,6 +126,11 @@ void clflush_cache_range(void *addr, unsigned int size);
 #ifdef CONFIG_DEBUG_RODATA
 void mark_rodata_ro(void);
 extern const int rodata_test_data;
+void set_kernel_text_rw(void);
+void set_kernel_text_ro(void);
+#else
+static inline void set_kernel_text_rw(void) { }
+static inline void set_kernel_text_ro(void) { }
 #endif
 
 #ifdef CONFIG_DEBUG_RODATA_TEST

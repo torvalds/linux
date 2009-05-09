@@ -118,7 +118,7 @@ static inline void cpu_svm_disable(void)
 
 	wrmsrl(MSR_VM_HSAVE_PA, 0);
 	rdmsrl(MSR_EFER, efer);
-	wrmsrl(MSR_EFER, efer & ~MSR_EFER_SVME_MASK);
+	wrmsrl(MSR_EFER, efer & ~EFER_SVME);
 }
 
 /** Makes sure SVM is disabled, if it is supported on the CPU

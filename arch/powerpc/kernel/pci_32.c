@@ -20,6 +20,7 @@
 #include <asm/prom.h>
 #include <asm/sections.h>
 #include <asm/pci-bridge.h>
+#include <asm/ppc-pci.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 #include <asm/machdep.h>
@@ -42,8 +43,6 @@ static u8* pci_to_OF_bus_map;
  * some pmacs
  */
 static int pci_assign_all_buses;
-
-LIST_HEAD(hose_list);
 
 static int pci_bus_count;
 
@@ -219,16 +218,23 @@ scan_OF_pci_childs(struct device_node *parent, pci_OF_scan_iterator filter, void
 static struct device_node *scan_OF_for_pci_dev(struct device_node *parent,
 					       unsigned int devfn)
 {
-	struct device_node *np;
+	struct device_node *np, *cnp;
 	const u32 *reg;
 	unsigned int psize;
 
 	for_each_child_of_node(parent, np) {
 		reg = of_get_property(np, "reg", &psize);
-		if (reg == NULL || psize < 4)
-			continue;
-		if (((reg[0] >> 8) & 0xff) == devfn)
+                if (reg && psize >= 4 && ((reg[0] >> 8) & 0xff) == devfn)
 			return np;
+
+		/* Note: some OFs create a parent node "multifunc-device" as
+		 * a fake root for all functions of a multi-function device,
+		 * we go down them as well. */
+                if (!strcmp(np->name, "multifunc-device")) {
+                        cnp = scan_OF_for_pci_dev(np, devfn);
+                        if (cnp)
+                                return cnp;
+                }
 	}
 	return NULL;
 }
@@ -490,24 +496,6 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 
 	return result;
 }
-
-unsigned long pci_address_to_pio(phys_addr_t address)
-{
-	struct pci_controller *hose, *tmp;
-
-	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		unsigned int size = hose->io_resource.end -
-			hose->io_resource.start + 1;
-		if (address >= hose->io_base_phys &&
-		    address < (hose->io_base_phys + size)) {
-			unsigned long base =
-				(unsigned long)hose->io_base_virt - _IO_BASE;
-			return base + (address - hose->io_base_phys);
-		}
-	}
-	return (unsigned int)-1;
-}
-EXPORT_SYMBOL(pci_address_to_pio);
 
 /*
  * Null PCI config access functions, for the case when we can't

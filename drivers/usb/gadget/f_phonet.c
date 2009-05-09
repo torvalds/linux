@@ -79,7 +79,7 @@ pn_header_desc = {
 	.bLength =		sizeof pn_header_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_HEADER_TYPE,
-	.bcdCDC =		__constant_cpu_to_le16(0x0110),
+	.bcdCDC =		cpu_to_le16(0x0110),
 };
 
 static const struct usb_cdc_header_desc
@@ -87,7 +87,7 @@ pn_phonet_desc = {
 	.bLength =		sizeof pn_phonet_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_PHONET_TYPE,
-	.bcdCDC =		__constant_cpu_to_le16(0x1505), /* ??? */
+	.bcdCDC =		cpu_to_le16(0x1505), /* ??? */
 };
 
 static struct usb_cdc_union_desc
@@ -138,7 +138,7 @@ pn_hs_sink_desc = {
 
 	.bEndpointAddress =	USB_DIR_OUT,
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_endpoint_descriptor
@@ -157,7 +157,7 @@ pn_hs_source_desc = {
 
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
-	.wMaxPacketSize =	__constant_cpu_to_le16(512),
+	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
 static struct usb_descriptor_header *fs_pn_function[] = {

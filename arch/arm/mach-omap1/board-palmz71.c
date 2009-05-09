@@ -46,6 +46,16 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
+#define PALMZ71_USBDETECT_GPIO	0
+#define PALMZ71_PENIRQ_GPIO	6
+#define PALMZ71_MMC_WP_GPIO	8
+#define PALMZ71_HDQ_GPIO 	11
+
+#define PALMZ71_HOTSYNC_GPIO	OMAP_MPUIO(1)
+#define PALMZ71_CABLE_GPIO	OMAP_MPUIO(2)
+#define PALMZ71_SLIDER_GPIO	OMAP_MPUIO(3)
+#define PALMZ71_MMC_IN_GPIO	OMAP_MPUIO(4)
+
 static void __init
 omap_palmz71_init_irq(void)
 {
@@ -239,7 +249,6 @@ static struct omap_uart_config palmz71_uart_config __initdata = {
 };
 
 static struct omap_board_config_kernel palmz71_config[] __initdata = {
-	{OMAP_TAG_USB,	&palmz71_usb_config},
 	{OMAP_TAG_LCD,	&palmz71_lcd_config},
 	{OMAP_TAG_UART,	&palmz71_uart_config},
 };
@@ -313,6 +322,7 @@ omap_palmz71_init(void)
 
 	spi_register_board_info(palmz71_boardinfo,
 				ARRAY_SIZE(palmz71_boardinfo));
+	omap_usb_init(&palmz71_usb_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	palmz71_gpio_setup(0);

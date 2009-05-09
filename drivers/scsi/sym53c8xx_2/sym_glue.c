@@ -792,9 +792,9 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 
 	/*
 	 *  Select queue depth from driver setup.
-	 *  Donnot use more than configured by user.
-	 *  Use at least 2.
-	 *  Donnot use more than our maximum.
+	 *  Do not use more than configured by user.
+	 *  Use at least 1.
+	 *  Do not use more than our maximum.
 	 */
 	reqtags = sym_driver_setup.max_tag;
 	if (reqtags > tp->usrtags)
@@ -803,7 +803,7 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 		reqtags = 0;
 	if (reqtags > SYM_CONF_MAX_TAG)
 		reqtags = SYM_CONF_MAX_TAG;
-	depth_to_use = reqtags ? reqtags : 2;
+	depth_to_use = reqtags ? reqtags : 1;
 	scsi_adjust_queue_depth(sdev,
 				sdev->tagged_supported ? MSG_SIMPLE_TAG : 0,
 				depth_to_use);
@@ -1236,14 +1236,29 @@ static int sym53c8xx_proc_info(struct Scsi_Host *shost, char *buffer,
 #endif /* SYM_LINUX_PROC_INFO_SUPPORT */
 
 /*
+ * Free resources claimed by sym_iomap_device().  Note that
+ * sym_free_resources() should be used instead of this function after calling
+ * sym_attach().
+ */
+static void __devinit
+sym_iounmap_device(struct sym_device *device)
+{
+	if (device->s.ioaddr)
+		pci_iounmap(device->pdev, device->s.ioaddr);
+	if (device->s.ramaddr)
+		pci_iounmap(device->pdev, device->s.ramaddr);
+}
+
+/*
  *	Free controller resources.
  */
-static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
+static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev,
+		int do_free_irq)
 {
 	/*
 	 *  Free O/S specific resources.
 	 */
-	if (pdev->irq)
+	if (do_free_irq)
 		free_irq(pdev->irq, np->s.host);
 	if (np->s.ioaddr)
 		pci_iounmap(pdev, np->s.ioaddr);
@@ -1271,10 +1286,11 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 {
 	struct sym_data *sym_data;
 	struct sym_hcb *np = NULL;
-	struct Scsi_Host *shost;
+	struct Scsi_Host *shost = NULL;
 	struct pci_dev *pdev = dev->pdev;
 	unsigned long flags;
 	struct sym_fw *fw;
+	int do_free_irq = 0;
 
 	printk(KERN_INFO "sym%d: <%s> rev 0x%x at pci %s irq %u\n",
 		unit, dev->chip.name, pdev->revision, pci_name(pdev),
@@ -1285,11 +1301,11 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 */
 	fw = sym_find_firmware(&dev->chip);
 	if (!fw)
-		return NULL;
+		goto attach_failed;
 
 	shost = scsi_host_alloc(tpnt, sizeof(*sym_data));
 	if (!shost)
-		return NULL;
+		goto attach_failed;
 	sym_data = shost_priv(shost);
 
 	/*
@@ -1319,6 +1335,10 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	np->maxoffs	= dev->chip.offset_max;
 	np->maxburst	= dev->chip.burst_max;
 	np->myaddr	= dev->host_id;
+	np->mmio_ba	= (u32)dev->mmio_base;
+	np->ram_ba	= (u32)dev->ram_base;
+	np->s.ioaddr	= dev->s.ioaddr;
+	np->s.ramaddr	= dev->s.ramaddr;
 
 	/*
 	 *  Edit its name.
@@ -1329,26 +1349,10 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	if ((SYM_CONF_DMA_ADDRESSING_MODE > 0) && (np->features & FE_DAC) &&
 			!pci_set_dma_mask(pdev, DMA_DAC_MASK)) {
 		set_dac(np);
-	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printf_warning("%s: No suitable DMA available\n", sym_name(np));
 		goto attach_failed;
 	}
-
-	/*
-	 *  Try to map the controller chip to
-	 *  virtual and physical memory.
-	 */
-	np->mmio_ba = (u32)dev->mmio_base;
-	np->s.ioaddr	= dev->s.ioaddr;
-	np->s.ramaddr	= dev->s.ramaddr;
-
-	/*
-	 *  Map on-chip RAM if present and supported.
-	 */
-	if (!(np->features & FE_RAM))
-		dev->ram_base = 0;
-	if (dev->ram_base)
-		np->ram_ba = (u32)dev->ram_base;
 
 	if (sym_hcb_attach(shost, fw, dev->nvram))
 		goto attach_failed;
@@ -1364,6 +1368,7 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 			sym_name(np), pdev->irq);
 		goto attach_failed;
 	}
+	do_free_irq = 1;
 
 	/*
 	 *  After SCSI devices have been opened, we cannot
@@ -1416,12 +1421,13 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 		   "TERMINATION, DEVICE POWER etc.!\n", sym_name(np));
 	spin_unlock_irqrestore(shost->host_lock, flags);
  attach_failed:
-	if (!shost)
-		return NULL;
-	printf_info("%s: giving up ...\n", sym_name(np));
+	printf_info("sym%d: giving up ...\n", unit);
 	if (np)
-		sym_free_resources(np, pdev);
-	scsi_host_put(shost);
+		sym_free_resources(np, pdev, do_free_irq);
+	else
+		sym_iounmap_device(dev);
+	if (shost)
+		scsi_host_put(shost);
 
 	return NULL;
  }
@@ -1550,30 +1556,28 @@ static int __devinit sym_set_workarounds(struct sym_device *device)
 }
 
 /*
- *  Read and check the PCI configuration for any detected NCR 
- *  boards and save data for attaching after all boards have 
- *  been detected.
+ * Map HBA registers and on-chip SRAM (if present).
  */
-static void __devinit
-sym_init_device(struct pci_dev *pdev, struct sym_device *device)
+static int __devinit
+sym_iomap_device(struct sym_device *device)
 {
-	int i = 2;
+	struct pci_dev *pdev = device->pdev;
 	struct pci_bus_region bus_addr;
-
-	device->host_id = SYM_SETUP_HOST_ID;
-	device->pdev = pdev;
+	int i = 2;
 
 	pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[1]);
 	device->mmio_base = bus_addr.start;
 
-	/*
-	 * If the BAR is 64-bit, resource 2 will be occupied by the
-	 * upper 32 bits
-	 */
-	if (!pdev->resource[i].flags)
-		i++;
-	pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[i]);
-	device->ram_base = bus_addr.start;
+	if (device->chip.features & FE_RAM) {
+		/*
+		 * If the BAR is 64-bit, resource 2 will be occupied by the
+		 * upper 32 bits
+		 */
+		if (!pdev->resource[i].flags)
+			i++;
+		pcibios_resource_to_bus(pdev, &bus_addr, &pdev->resource[i]);
+		device->ram_base = bus_addr.start;
+	}
 
 #ifdef CONFIG_SCSI_SYM53C8XX_MMIO
 	if (device->mmio_base)
@@ -1583,9 +1587,21 @@ sym_init_device(struct pci_dev *pdev, struct sym_device *device)
 	if (!device->s.ioaddr)
 		device->s.ioaddr = pci_iomap(pdev, 0,
 						pci_resource_len(pdev, 0));
-	if (device->ram_base)
+	if (!device->s.ioaddr) {
+		dev_err(&pdev->dev, "could not map registers; giving up.\n");
+		return -EIO;
+	}
+	if (device->ram_base) {
 		device->s.ramaddr = pci_iomap(pdev, i,
 						pci_resource_len(pdev, i));
+		if (!device->s.ramaddr) {
+			dev_warn(&pdev->dev,
+				"could not map SRAM; continuing anyway.\n");
+			device->ram_base = 0;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -1659,7 +1675,8 @@ static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 	udelay(10);
 	OUTB(np, nc_istat, 0);
 
-	sym_free_resources(np, pdev);
+	sym_free_resources(np, pdev, 1);
+	scsi_host_put(shost);
 
 	return 1;
 }
@@ -1696,9 +1713,13 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 	struct sym_device sym_dev;
 	struct sym_nvram nvram;
 	struct Scsi_Host *shost;
+	int do_iounmap = 0;
+	int do_disable_device = 1;
 
 	memset(&sym_dev, 0, sizeof(sym_dev));
 	memset(&nvram, 0, sizeof(nvram));
+	sym_dev.pdev = pdev;
+	sym_dev.host_id = SYM_SETUP_HOST_ID;
 
 	if (pci_enable_device(pdev))
 		goto leave;
@@ -1708,12 +1729,17 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 	if (pci_request_regions(pdev, NAME53C8XX))
 		goto disable;
 
-	sym_init_device(pdev, &sym_dev);
 	if (sym_check_supported(&sym_dev))
 		goto free;
 
-	if (sym_check_raid(&sym_dev))
-		goto leave;	/* Don't disable the device */
+	if (sym_iomap_device(&sym_dev))
+		goto free;
+	do_iounmap = 1;
+
+	if (sym_check_raid(&sym_dev)) {
+		do_disable_device = 0;	/* Don't disable the device */
+		goto free;
+	}
 
 	if (sym_set_workarounds(&sym_dev))
 		goto free;
@@ -1722,6 +1748,7 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 
 	sym_get_nvram(&sym_dev, &nvram);
 
+	do_iounmap = 0; /* Don't sym_iounmap_device() after sym_attach(). */
 	shost = sym_attach(&sym2_template, attach_count, &sym_dev);
 	if (!shost)
 		goto free;
@@ -1737,9 +1764,12 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
  detach:
 	sym_detach(pci_get_drvdata(pdev), pdev);
  free:
+	if (do_iounmap)
+		sym_iounmap_device(&sym_dev);
 	pci_release_regions(pdev);
  disable:
-	pci_disable_device(pdev);
+	if (do_disable_device)
+		pci_disable_device(pdev);
  leave:
 	return -ENODEV;
 }
@@ -1749,7 +1779,6 @@ static void sym2_remove(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 
 	scsi_remove_host(shost);
-	scsi_host_put(shost);
 	sym_detach(shost, pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

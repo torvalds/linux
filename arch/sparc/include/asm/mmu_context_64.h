@@ -121,8 +121,8 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	 * local TLB.
 	 */
 	cpu = smp_processor_id();
-	if (!ctx_valid || !cpu_isset(cpu, mm->cpu_vm_mask)) {
-		cpu_set(cpu, mm->cpu_vm_mask);
+	if (!ctx_valid || !cpumask_test_cpu(cpu, mm_cpumask(mm))) {
+		cpumask_set_cpu(cpu, mm_cpumask(mm));
 		__flush_tlb_mm(CTX_HWBITS(mm->context),
 			       SECONDARY_CONTEXT);
 	}
@@ -141,8 +141,8 @@ static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm
 	if (!CTX_VALID(mm->context))
 		get_new_mmu_context(mm);
 	cpu = smp_processor_id();
-	if (!cpu_isset(cpu, mm->cpu_vm_mask))
-		cpu_set(cpu, mm->cpu_vm_mask);
+	if (!cpumask_test_cpu(cpu, mm_cpumask(mm)))
+		cpumask_set_cpu(cpu, mm_cpumask(mm));
 
 	load_secondary_context(mm);
 	__flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT);

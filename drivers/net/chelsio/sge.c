@@ -1612,7 +1612,7 @@ int t1_poll(struct napi_struct *napi, int budget)
 	int work_done = process_responses(adapter, budget);
 
 	if (likely(work_done < budget)) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		writel(adapter->sge->respQ.cidx,
 		       adapter->regs + A_SG_SLEEPING);
 	}
@@ -1630,7 +1630,7 @@ irqreturn_t t1_interrupt(int irq, void *data)
 
 		if (napi_schedule_prep(&adapter->napi)) {
 			if (process_pure_responses(adapter))
-				__netif_rx_schedule(&adapter->napi);
+				__napi_schedule(&adapter->napi);
 			else {
 				/* no data, no NAPI needed */
 				writel(sge->respQ.cidx, adapter->regs + A_SG_SLEEPING);
@@ -1967,8 +1967,7 @@ void t1_sge_stop(struct sge *sge)
 		tx_sched_stop(sge);
 
 	for (i = 0; i < MAX_NPORTS; i++)
-		if (sge->espibug_skb[i])
-			kfree_skb(sge->espibug_skb[i]);
+		kfree_skb(sge->espibug_skb[i]);
 }
 
 /*

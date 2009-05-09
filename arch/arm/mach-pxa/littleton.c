@@ -39,8 +39,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/pxa-regs.h>
-#include <mach/mfp-pxa300.h>
+#include <mach/pxa300.h>
 #include <mach/pxafb.h>
 #include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>
@@ -335,6 +334,11 @@ static struct led_info littleton_da9034_leds[] = {
 	},
 };
 
+static struct da9034_touch_pdata littleton_da9034_touch = {
+	.x_inverted     = 1,
+	.interval_ms    = 20,
+};
+
 static struct da903x_subdev_info littleton_da9034_subdevs[] = {
 	{
 		.name		= "da903x-led",
@@ -351,6 +355,10 @@ static struct da903x_subdev_info littleton_da9034_subdevs[] = {
 	}, {
 		.name		= "da903x-backlight",
 		.id		= DA9034_ID_WLED,
+	}, {
+		.name		= "da9034-touch",
+		.id		= DA9034_ID_TOUCH,
+		.platform_data	= &littleton_da9034_touch,
 	},
 };
 

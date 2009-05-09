@@ -33,47 +33,6 @@ static void realmode_switch_hook(void)
 }
 
 /*
- * A zImage kernel is loaded at 0x10000 but wants to run at 0x1000.
- * A bzImage kernel is loaded and runs at 0x100000.
- */
-static void move_kernel_around(void)
-{
-	/* Note: rely on the compile-time option here rather than
-	   the LOADED_HIGH flag.  The Qemu kernel loader unconditionally
-	   sets the loadflags to zero. */
-#ifndef __BIG_KERNEL__
-	u16 dst_seg, src_seg;
-	u32 syssize;
-
-	dst_seg =  0x1000 >> 4;
-	src_seg = 0x10000 >> 4;
-	syssize = boot_params.hdr.syssize; /* Size in 16-byte paragraphs */
-
-	while (syssize) {
-		int paras  = (syssize >= 0x1000) ? 0x1000 : syssize;
-		int dwords = paras << 2;
-
-		asm volatile("pushw %%es ; "
-			     "pushw %%ds ; "
-			     "movw %1,%%es ; "
-			     "movw %2,%%ds ; "
-			     "xorw %%di,%%di ; "
-			     "xorw %%si,%%si ; "
-			     "rep;movsl ; "
-			     "popw %%ds ; "
-			     "popw %%es"
-			     : "+c" (dwords)
-			     : "r" (dst_seg), "r" (src_seg)
-			     : "esi", "edi");
-
-		syssize -= paras;
-		dst_seg += paras;
-		src_seg += paras;
-	}
-#endif
-}
-
-/*
  * Disable all interrupts at the legacy PIC.
  */
 static void mask_all_interrupts(void)
@@ -146,9 +105,6 @@ void go_to_protected_mode(void)
 {
 	/* Hook before leaving real mode, also disables interrupts */
 	realmode_switch_hook();
-
-	/* Move the kernel/setup to their final resting places */
-	move_kernel_around();
 
 	/* Enable the A20 gate */
 	if (enable_a20()) {

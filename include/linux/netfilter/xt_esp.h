@@ -1,10 +1,12 @@
 #ifndef _XT_ESP_H
 #define _XT_ESP_H
 
+#include <linux/types.h>
+
 struct xt_esp
 {
-	u_int32_t spis[2];	/* Security Parameter Index */
-	u_int8_t  invflags;	/* Inverse flags */
+	__u32 spis[2];	/* Security Parameter Index */
+	__u8  invflags;	/* Inverse flags */
 };
 
 /* Values for "invflags" field in struct xt_esp. */

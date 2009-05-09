@@ -143,6 +143,11 @@ static void __init buddha_setup_ports(hw_regs_t *hw, unsigned long base,
 	hw->chipset = ide_generic;
 }
 
+static const struct ide_port_info buddha_port_info = {
+	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
+};
+
     /*
      *  Probe for a Buddha or Catweasel IDE interface
      */
@@ -171,10 +176,6 @@ static int __init buddha_init(void)
 			continue;
 		
 		board = z->resource.start;
-
-/*
- * FIXME: we now have selectable mmio v/s iomio transports.
- */
 
 		if(type != BOARD_XSURF) {
 			if (!request_mem_region(board+BUDDHA_BASE1, 0x800, "IDE"))
@@ -224,7 +225,7 @@ fail_base2:
 			hws[i] = &hw[i];
 		}
 
-		ide_host_add(NULL, hws, NULL);
+		ide_host_add(&buddha_port_info, hws, NULL);
 	}
 
 	return 0;

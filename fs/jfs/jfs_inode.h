@@ -47,5 +47,5 @@ extern const struct file_operations jfs_dir_operations;
 extern const struct inode_operations jfs_file_inode_operations;
 extern const struct file_operations jfs_file_operations;
 extern const struct inode_operations jfs_symlink_inode_operations;
-extern struct dentry_operations jfs_ci_dentry_operations;
+extern const struct dentry_operations jfs_ci_dentry_operations;
 #endif				/* _H_JFS_INODE */

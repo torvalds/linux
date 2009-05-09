@@ -263,7 +263,7 @@ adfs_compare(struct dentry *parent, struct qstr *entry, struct qstr *name)
 	return 0;
 }
 
-struct dentry_operations adfs_dentry_operations = {
+const struct dentry_operations adfs_dentry_operations = {
 	.d_hash		= adfs_hash,
 	.d_compare	= adfs_compare,
 };

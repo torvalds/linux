@@ -745,7 +745,7 @@ static inline struct sk_buff *gelic_put_vlan_tag(struct sk_buff *skb,
 	/* Move the mac addresses to the top of buffer */
 	memmove(skb->data, skb->data + VLAN_HLEN, 2 * ETH_ALEN);
 
-	veth->h_vlan_proto = __constant_htons(ETH_P_8021Q);
+	veth->h_vlan_proto = cpu_to_be16(ETH_P_8021Q);
 	veth->h_vlan_TCI = htons(tag);
 
 	return skb;
@@ -1403,6 +1403,19 @@ void gelic_net_tx_timeout(struct net_device *netdev)
 		atomic_dec(&card->tx_timeout_task_counter);
 }
 
+static const struct net_device_ops gelic_netdevice_ops = {
+	.ndo_open = gelic_net_open,
+	.ndo_stop = gelic_net_stop,
+	.ndo_start_xmit = gelic_net_xmit,
+	.ndo_set_multicast_list = gelic_net_set_multi,
+	.ndo_change_mtu = gelic_net_change_mtu,
+	.ndo_tx_timeout = gelic_net_tx_timeout,
+	.ndo_validate_addr = eth_validate_addr,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = gelic_net_poll_controller,
+#endif
+};
+
 /**
  * gelic_ether_setup_netdev_ops - initialization of net_device operations
  * @netdev: net_device structure
@@ -1412,21 +1425,12 @@ void gelic_net_tx_timeout(struct net_device *netdev)
 static void gelic_ether_setup_netdev_ops(struct net_device *netdev,
 					 struct napi_struct *napi)
 {
-	netdev->open = &gelic_net_open;
-	netdev->stop = &gelic_net_stop;
-	netdev->hard_start_xmit = &gelic_net_xmit;
-	netdev->set_multicast_list = &gelic_net_set_multi;
-	netdev->change_mtu = &gelic_net_change_mtu;
-	/* tx watchdog */
-	netdev->tx_timeout = &gelic_net_tx_timeout;
 	netdev->watchdog_timeo = GELIC_NET_WATCHDOG_TIMEOUT;
 	/* NAPI */
 	netif_napi_add(netdev, napi,
 		       gelic_net_poll, GELIC_NET_NAPI_WEIGHT);
 	netdev->ethtool_ops = &gelic_ether_ethtool_ops;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	netdev->poll_controller = gelic_net_poll_controller;
-#endif
+	netdev->netdev_ops = &gelic_netdevice_ops;
 }
 
 /**

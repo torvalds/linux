@@ -1228,9 +1228,10 @@ static int __devinit snd_miro_probe(struct device *devptr, unsigned int n)
 	struct snd_pcm *pcm;
 	struct snd_rawmidi *rmidi;
 
-	if (!(card = snd_card_new(index, id, THIS_MODULE,
-				  sizeof(struct snd_miro))))
-		return -ENOMEM;
+	error = snd_card_create(index, id, THIS_MODULE,
+				sizeof(struct snd_miro), &card);
+	if (error < 0)
+		return error;
 
 	card->private_free = snd_card_miro_free;
 	miro = card->private_data;

@@ -63,7 +63,5 @@ struct scoop_pcmcia_config {
 extern struct scoop_pcmcia_config *platform_scoop_config;
 
 void reset_scoop(struct device *dev);
-unsigned short __deprecated set_scoop_gpio(struct device *dev, unsigned short bit);
-unsigned short __deprecated reset_scoop_gpio(struct device *dev, unsigned short bit);
 unsigned short read_scoop_reg(struct device *dev, unsigned short reg);
 void write_scoop_reg(struct device *dev, unsigned short reg, unsigned short data);

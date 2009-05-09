@@ -36,8 +36,8 @@ void udf_free_inode(struct inode *inode)
 	 * Note: we must free any quota before locking the superblock,
 	 * as writing the quota to disk may need the lock as well.
 	 */
-	DQUOT_FREE_INODE(inode);
-	DQUOT_DROP(inode);
+	vfs_dq_free_inode(inode);
+	vfs_dq_drop(inode);
 
 	clear_inode(inode);
 
@@ -49,12 +49,11 @@ void udf_free_inode(struct inode *inode)
 			le32_add_cpu(&lvidiu->numDirs, -1);
 		else
 			le32_add_cpu(&lvidiu->numFiles, -1);
-
-		mark_buffer_dirty(sbi->s_lvid_bh);
+		udf_updated_lvid(sb);
 	}
 	mutex_unlock(&sbi->s_alloc_mutex);
 
-	udf_free_blocks(sb, NULL, UDF_I(inode)->i_location, 0, 1);
+	udf_free_blocks(sb, NULL, &UDF_I(inode)->i_location, 0, 1);
 }
 
 struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
@@ -122,7 +121,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		if (!(++uniqueID & 0x00000000FFFFFFFFUL))
 			uniqueID += 16;
 		lvhd->uniqueID = cpu_to_le64(uniqueID);
-		mark_buffer_dirty(sbi->s_lvid_bh);
+		udf_updated_lvid(sb);
 	}
 	mutex_unlock(&sbi->s_alloc_mutex);
 	inode->i_mode = mode;
@@ -138,7 +137,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	iinfo->i_location.logicalBlockNum = block;
 	iinfo->i_location.partitionReferenceNum =
 				dinfo->i_location.partitionReferenceNum;
-	inode->i_ino = udf_get_lb_pblock(sb, iinfo->i_location, 0);
+	inode->i_ino = udf_get_lb_pblock(sb, &iinfo->i_location, 0);
 	inode->i_blocks = 0;
 	iinfo->i_lenEAttr = 0;
 	iinfo->i_lenAlloc = 0;
@@ -154,8 +153,8 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 
-	if (DQUOT_ALLOC_INODE(inode)) {
-		DQUOT_DROP(inode);
+	if (vfs_dq_alloc_inode(inode)) {
+		vfs_dq_drop(inode);
 		inode->i_flags |= S_NOQUOTA;
 		inode->i_nlink = 0;
 		iput(inode);

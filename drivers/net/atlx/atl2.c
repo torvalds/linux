@@ -1358,8 +1358,8 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 	 * until the kernel has the proper infrastructure to support 64-bit DMA
 	 * on these devices.
 	 */
-	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) &&
-		pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) &&
+		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		printk(KERN_ERR "atl2: No usable DMA configuration, aborting\n");
 		goto err_dma;
 	}
@@ -2854,7 +2854,7 @@ static void atl2_force_ps(struct atl2_hw *hw)
 #else
 #define ATL2_PARAM(X, desc) \
     static int __devinitdata X[ATL2_MAX_NIC+1] = ATL2_PARAM_INIT; \
-    static int num_##X = 0; \
+    static unsigned int num_##X; \
     module_param_array_named(X, X, int, &num_##X, 0); \
     MODULE_PARM_DESC(X, desc);
 #endif

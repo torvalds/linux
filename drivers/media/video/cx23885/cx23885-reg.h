@@ -212,6 +212,8 @@ Channel manager Data Structure entry = 20 DWORD
 
 #define DEV_CNTRL2	0x00040000
 
+#define PCI_MSK_GPIO1   (1 << 24)
+#define PCI_MSK_GPIO0   (1 << 23)
 #define PCI_MSK_APB_DMA   (1 << 12)
 #define PCI_MSK_AL_WR     (1 << 11)
 #define PCI_MSK_AL_RD     (1 << 10)

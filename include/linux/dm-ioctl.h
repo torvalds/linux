@@ -113,20 +113,20 @@ struct dm_ioctl {
 	 * return -ENOTTY) fill out this field, even if the
 	 * command failed.
 	 */
-	uint32_t version[3];	/* in/out */
-	uint32_t data_size;	/* total size of data passed in
+	__u32 version[3];	/* in/out */
+	__u32 data_size;	/* total size of data passed in
 				 * including this struct */
 
-	uint32_t data_start;	/* offset to start of data
+	__u32 data_start;	/* offset to start of data
 				 * relative to start of this struct */
 
-	uint32_t target_count;	/* in/out */
-	int32_t open_count;	/* out */
-	uint32_t flags;		/* in/out */
-	uint32_t event_nr;      	/* in/out */
-	uint32_t padding;
+	__u32 target_count;	/* in/out */
+	__s32 open_count;	/* out */
+	__u32 flags;		/* in/out */
+	__u32 event_nr;      	/* in/out */
+	__u32 padding;
 
-	uint64_t dev;		/* in/out */
+	__u64 dev;		/* in/out */
 
 	char name[DM_NAME_LEN];	/* device name */
 	char uuid[DM_UUID_LEN];	/* unique identifier for
@@ -139,9 +139,9 @@ struct dm_ioctl {
  * dm_ioctl.
  */
 struct dm_target_spec {
-	uint64_t sector_start;
-	uint64_t length;
-	int32_t status;		/* used when reading from kernel only */
+	__u64 sector_start;
+	__u64 length;
+	__s32 status;		/* used when reading from kernel only */
 
 	/*
 	 * Location of the next dm_target_spec.
@@ -153,7 +153,7 @@ struct dm_target_spec {
 	 *   (that follows the dm_ioctl struct) to the start of the "next"
 	 *   dm_target_spec.
 	 */
-	uint32_t next;
+	__u32 next;
 
 	char target_type[DM_MAX_TYPE_NAME];
 
@@ -168,17 +168,17 @@ struct dm_target_spec {
  * Used to retrieve the target dependencies.
  */
 struct dm_target_deps {
-	uint32_t count;	/* Array size */
-	uint32_t padding;	/* unused */
-	uint64_t dev[0];	/* out */
+	__u32 count;	/* Array size */
+	__u32 padding;	/* unused */
+	__u64 dev[0];	/* out */
 };
 
 /*
  * Used to get a list of all dm devices.
  */
 struct dm_name_list {
-	uint64_t dev;
-	uint32_t next;		/* offset to the next record from
+	__u64 dev;
+	__u32 next;		/* offset to the next record from
 				   the _start_ of this */
 	char name[0];
 };
@@ -187,8 +187,8 @@ struct dm_name_list {
  * Used to retrieve the target versions
  */
 struct dm_target_versions {
-        uint32_t next;
-        uint32_t version[3];
+        __u32 next;
+        __u32 version[3];
 
         char name[0];
 };
@@ -197,7 +197,7 @@ struct dm_target_versions {
  * Used to pass message to a target
  */
 struct dm_target_msg {
-	uint64_t sector;	/* Device sector */
+	__u64 sector;	/* Device sector */
 
 	char message[0];
 };

@@ -43,6 +43,21 @@
 #include <mach/keypad.h>
 #include <mach/common.h>
 
+#define PALMTE_USBDETECT_GPIO	0
+#define PALMTE_USB_OR_DC_GPIO	1
+#define PALMTE_TSC_GPIO		4
+#define PALMTE_PINTDAV_GPIO	6
+#define PALMTE_MMC_WP_GPIO	8
+#define PALMTE_MMC_POWER_GPIO	9
+#define PALMTE_HDQ_GPIO		11
+#define PALMTE_HEADPHONES_GPIO	14
+#define PALMTE_SPEAKER_GPIO	15
+#define PALMTE_DC_GPIO		OMAP_MPUIO(2)
+#define PALMTE_MMC_SWITCH_GPIO	OMAP_MPUIO(4)
+#define PALMTE_MMC1_GPIO	OMAP_MPUIO(6)
+#define PALMTE_MMC2_GPIO	OMAP_MPUIO(7)
+#define PALMTE_MMC3_GPIO	OMAP_MPUIO(11)
+
 static void __init omap_palmte_init_irq(void)
 {
 	omap1_init_common_hw();
@@ -286,7 +301,6 @@ static void palmte_get_power_status(struct apm_power_info *info, int *battery)
 #endif
 
 static struct omap_board_config_kernel palmte_config[] __initdata = {
-	{ OMAP_TAG_USB,		&palmte_usb_config },
 	{ OMAP_TAG_LCD,		&palmte_lcd_config },
 	{ OMAP_TAG_UART,	&palmte_uart_config },
 };
@@ -341,6 +355,7 @@ static void __init omap_palmte_init(void)
 	spi_register_board_info(palmte_spi_info, ARRAY_SIZE(palmte_spi_info));
 	palmte_misc_gpio_setup();
 	omap_serial_init();
+	omap_usb_init(&palmte_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 

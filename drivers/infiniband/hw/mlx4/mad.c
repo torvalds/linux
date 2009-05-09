@@ -147,7 +147,8 @@ static void update_sm_ah(struct mlx4_ib_dev *dev, u8 port_num, u16 lid, u8 sl)
  * Snoop SM MADs for port info and P_Key table sets, so we can
  * synthesize LID change and P_Key change events.
  */
-static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad)
+static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad,
+				u16 prev_lid)
 {
 	struct ib_event event;
 
@@ -157,6 +158,7 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad)
 		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PORT_INFO) {
 			struct ib_port_info *pinfo =
 				(struct ib_port_info *) ((struct ib_smp *) mad)->data;
+			u16 lid = be16_to_cpu(pinfo->lid);
 
 			update_sm_ah(to_mdev(ibdev), port_num,
 				     be16_to_cpu(pinfo->sm_lid),
@@ -165,12 +167,15 @@ static void smp_snoop(struct ib_device *ibdev, u8 port_num, struct ib_mad *mad)
 			event.device	       = ibdev;
 			event.element.port_num = port_num;
 
-			if (pinfo->clientrereg_resv_subnetto & 0x80)
+			if (pinfo->clientrereg_resv_subnetto & 0x80) {
 				event.event    = IB_EVENT_CLIENT_REREGISTER;
-			else
-				event.event    = IB_EVENT_LID_CHANGE;
+				ib_dispatch_event(&event);
+			}
 
-			ib_dispatch_event(&event);
+			if (prev_lid != lid) {
+				event.event    = IB_EVENT_LID_CHANGE;
+				ib_dispatch_event(&event);
+			}
 		}
 
 		if (mad->mad_hdr.attr_id == IB_SMP_ATTR_PKEY_TABLE) {
@@ -228,8 +233,9 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags,	u8 port_num,
 			struct ib_wc *in_wc, struct ib_grh *in_grh,
 			struct ib_mad *in_mad, struct ib_mad *out_mad)
 {
-	u16 slid;
+	u16 slid, prev_lid = 0;
 	int err;
+	struct ib_port_attr pattr;
 
 	slid = in_wc ? in_wc->slid : be16_to_cpu(IB_LID_PERMISSIVE);
 
@@ -263,6 +269,13 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags,	u8 port_num,
 	} else
 		return IB_MAD_RESULT_SUCCESS;
 
+	if ((in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_LID_ROUTED ||
+	     in_mad->mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE) &&
+	    in_mad->mad_hdr.method == IB_MGMT_METHOD_SET &&
+	    in_mad->mad_hdr.attr_id == IB_SMP_ATTR_PORT_INFO &&
+	    !ib_query_port(ibdev, port_num, &pattr))
+		prev_lid = pattr.lid;
+
 	err = mlx4_MAD_IFC(to_mdev(ibdev),
 			   mad_flags & IB_MAD_IGNORE_MKEY,
 			   mad_flags & IB_MAD_IGNORE_BKEY,
@@ -271,7 +284,7 @@ int mlx4_ib_process_mad(struct ib_device *ibdev, int mad_flags,	u8 port_num,
 		return IB_MAD_RESULT_FAILURE;
 
 	if (!out_mad->mad_hdr.status) {
-		smp_snoop(ibdev, port_num, in_mad);
+		smp_snoop(ibdev, port_num, in_mad, prev_lid);
 		node_desc_override(ibdev, out_mad);
 	}
 

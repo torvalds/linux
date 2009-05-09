@@ -120,8 +120,8 @@ xdr_decode_time(__be32 *p, struct timespec *timep)
 static __be32 *
 xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 {
-	u32 rdev;
-	fattr->type = (enum nfs_ftype) ntohl(*p++);
+	u32 rdev, type;
+	type = ntohl(*p++);
 	fattr->mode = ntohl(*p++);
 	fattr->nlink = ntohl(*p++);
 	fattr->uid = ntohl(*p++);
@@ -136,10 +136,9 @@ xdr_decode_fattr(__be32 *p, struct nfs_fattr *fattr)
 	p = xdr_decode_time(p, &fattr->atime);
 	p = xdr_decode_time(p, &fattr->mtime);
 	p = xdr_decode_time(p, &fattr->ctime);
-	fattr->valid |= NFS_ATTR_FATTR;
+	fattr->valid |= NFS_ATTR_FATTR_V2;
 	fattr->rdev = new_decode_dev(rdev);
-	if (fattr->type == NFCHR && rdev == NFS2_FIFO_DEV) {
-		fattr->type = NFFIFO;
+	if (type == NFCHR && rdev == NFS2_FIFO_DEV) {
 		fattr->mode = (fattr->mode & ~S_IFMT) | S_IFIFO;
 		fattr->rdev = 0;
 	}

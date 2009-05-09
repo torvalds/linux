@@ -340,8 +340,7 @@ static struct platform_device *n35_devices[] __initdata = {
 static struct s3c2410_platform_i2c n30_i2ccfg = {
 	.flags		= 0,
 	.slave_addr	= 0x10,
-	.bus_freq	= 10*1000,
-	.max_freq	= 10*1000,
+	.frequency	= 10*1000,
 };
 
 /* Lots of hardcoded stuff, but it sets up the hardware in a useful

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007 - 2008 Intel Corporation.
+  Copyright(c) 2007-2009 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -62,17 +62,12 @@ static bool igb_sgmii_active_82575(struct e1000_hw *);
 static s32  igb_reset_init_script_82575(struct e1000_hw *);
 static s32  igb_read_mac_addr_82575(struct e1000_hw *);
 
-
-struct e1000_dev_spec_82575 {
-	bool sgmii_active;
-};
-
 static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	struct e1000_mac_info *mac = &hw->mac;
-	struct e1000_dev_spec_82575 *dev_spec;
+	struct e1000_dev_spec_82575 * dev_spec = &hw->dev_spec._82575;
 	u32 eecd;
 	s32 ret_val;
 	u16 size;
@@ -85,25 +80,16 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		mac->type = e1000_82575;
 		break;
 	case E1000_DEV_ID_82576:
+	case E1000_DEV_ID_82576_NS:
 	case E1000_DEV_ID_82576_FIBER:
 	case E1000_DEV_ID_82576_SERDES:
+	case E1000_DEV_ID_82576_QUAD_COPPER:
 		mac->type = e1000_82576;
 		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
 		break;
 	}
-
-	/* MAC initialization */
-	hw->dev_spec_size = sizeof(struct e1000_dev_spec_82575);
-
-	/* Device-specific structure allocation */
-	hw->dev_spec = kzalloc(hw->dev_spec_size, GFP_KERNEL);
-
-	if (!hw->dev_spec)
-		return -ENOMEM;
-
-	dev_spec = (struct e1000_dev_spec_82575 *)hw->dev_spec;
 
 	/* Set media type */
 	/*
@@ -195,13 +181,13 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 
 	/* PHY function pointers */
 	if (igb_sgmii_active_82575(hw)) {
-		phy->ops.reset_phy          = igb_phy_hw_reset_sgmii_82575;
-		phy->ops.read_phy_reg       = igb_read_phy_reg_sgmii_82575;
-		phy->ops.write_phy_reg      = igb_write_phy_reg_sgmii_82575;
+		phy->ops.reset              = igb_phy_hw_reset_sgmii_82575;
+		phy->ops.read_reg           = igb_read_phy_reg_sgmii_82575;
+		phy->ops.write_reg          = igb_write_phy_reg_sgmii_82575;
 	} else {
-		phy->ops.reset_phy          = igb_phy_hw_reset;
-		phy->ops.read_phy_reg       = igb_read_phy_reg_igp;
-		phy->ops.write_phy_reg      = igb_write_phy_reg_igp;
+		phy->ops.reset              = igb_phy_hw_reset;
+		phy->ops.read_reg           = igb_read_phy_reg_igp;
+		phy->ops.write_reg          = igb_write_phy_reg_igp;
 	}
 
 	/* Set phy->phy_addr and phy->id. */
@@ -228,6 +214,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	default:
 		return -E1000_ERR_PHY;
 	}
+
+	/* if 82576 then initialize mailbox parameters */
+	if (mac->type == e1000_82576)
+		igb_init_mbx_params_pf(hw);
 
 	return 0;
 }
@@ -451,7 +441,7 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 	 * SFP documentation requires the following to configure the SPF module
 	 * to work on SGMII.  No further documentation is given.
 	 */
-	ret_val = hw->phy.ops.write_phy_reg(hw, 0x1B, 0x8084);
+	ret_val = hw->phy.ops.write_reg(hw, 0x1B, 0x8084);
 	if (ret_val)
 		goto out;
 
@@ -480,28 +470,28 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 	s32 ret_val;
 	u16 data;
 
-	ret_val = phy->ops.read_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT, &data);
+	ret_val = phy->ops.read_reg(hw, IGP02E1000_PHY_POWER_MGMT, &data);
 	if (ret_val)
 		goto out;
 
 	if (active) {
 		data |= IGP02E1000_PM_D0_LPLU;
-		ret_val = phy->ops.write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
 						 data);
 		if (ret_val)
 			goto out;
 
 		/* When LPLU is enabled, we should disable SmartSpeed */
-		ret_val = phy->ops.read_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+		ret_val = phy->ops.read_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
 						&data);
 		data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-		ret_val = phy->ops.write_phy_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
+		ret_val = phy->ops.write_reg(hw, IGP01E1000_PHY_PORT_CONFIG,
 						 data);
 		if (ret_val)
 			goto out;
 	} else {
 		data &= ~IGP02E1000_PM_D0_LPLU;
-		ret_val = phy->ops.write_phy_reg(hw, IGP02E1000_PHY_POWER_MGMT,
+		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
 						 data);
 		/*
 		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
@@ -510,24 +500,24 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 		 * SmartSpeed, so performance is maintained.
 		 */
 		if (phy->smart_speed == e1000_smart_speed_on) {
-			ret_val = phy->ops.read_phy_reg(hw,
+			ret_val = phy->ops.read_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, &data);
 			if (ret_val)
 				goto out;
 
 			data |= IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = phy->ops.write_phy_reg(hw,
+			ret_val = phy->ops.write_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, data);
 			if (ret_val)
 				goto out;
 		} else if (phy->smart_speed == e1000_smart_speed_off) {
-			ret_val = phy->ops.read_phy_reg(hw,
+			ret_val = phy->ops.read_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, &data);
 			if (ret_val)
 				goto out;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = phy->ops.write_phy_reg(hw,
+			ret_val = phy->ops.write_reg(hw,
 					IGP01E1000_PHY_PORT_CONFIG, data);
 			if (ret_val)
 				goto out;
@@ -803,7 +793,7 @@ static void igb_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
 }
 
 /**
- *  igb_update_mc_addr_list_82575 - Update Multicast addresses
+ *  igb_update_mc_addr_list - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
@@ -815,9 +805,9 @@ static void igb_init_rx_addrs_82575(struct e1000_hw *hw, u16 rar_count)
  *  The parameter rar_count will usually be hw->mac.rar_entry_count
  *  unless there are workarounds that change this.
  **/
-void igb_update_mc_addr_list_82575(struct e1000_hw *hw,
-                                   u8 *mc_addr_list, u32 mc_addr_count,
-                                   u32 rar_used_count, u32 rar_count)
+void igb_update_mc_addr_list(struct e1000_hw *hw,
+                             u8 *mc_addr_list, u32 mc_addr_count,
+                             u32 rar_used_count, u32 rar_count)
 {
 	u32 hash_value;
 	u32 i;
@@ -1051,7 +1041,7 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 		 * depending on user settings.
 		 */
 		hw_dbg("Forcing Speed and Duplex\n");
-		ret_val = igb_phy_force_speed_duplex(hw);
+		ret_val = hw->phy.ops.force_speed_duplex(hw);
 		if (ret_val) {
 			hw_dbg("Error Forcing Speed and Duplex\n");
 			goto out;
@@ -1109,6 +1099,13 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 	       E1000_CTRL_SWDPIN0 |
 	       E1000_CTRL_SWDPIN1;
 	wr32(E1000_CTRL, reg);
+
+	/* Power on phy for 82576 fiber adapters */
+	if (hw->mac.type == e1000_82576) {
+		reg = rd32(E1000_CTRL_EXT);
+		reg &= ~E1000_CTRL_EXT_SDP7_DATA;
+		wr32(E1000_CTRL_EXT, reg);
+	}
 
 	/* Set switch control to serdes energy detect */
 	reg = rd32(E1000_CONNSW);
@@ -1227,20 +1224,12 @@ out:
  **/
 static bool igb_sgmii_active_82575(struct e1000_hw *hw)
 {
-	struct e1000_dev_spec_82575 *dev_spec;
-	bool ret_val;
+	struct e1000_dev_spec_82575 *dev_spec = &hw->dev_spec._82575;
 
-	if (hw->mac.type != e1000_82575) {
-		ret_val = false;
-		goto out;
-	}
+	if (hw->mac.type != e1000_82575 && hw->mac.type != e1000_82576)
+		return false;
 
-	dev_spec = (struct e1000_dev_spec_82575 *)hw->dev_spec;
-
-	ret_val = dev_spec->sgmii_active;
-
-out:
-	return ret_val;
+	return dev_spec->sgmii_active;
 }
 
 /**
@@ -1430,6 +1419,44 @@ void igb_rx_fifo_flush_82575(struct e1000_hw *hw)
 	rd32(E1000_MPC);
 }
 
+/**
+ *  igb_vmdq_set_loopback_pf - enable or disable vmdq loopback
+ *  @hw: pointer to the hardware struct
+ *  @enable: state to enter, either enabled or disabled
+ *
+ *  enables/disables L2 switch loopback functionality.
+ **/
+void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
+{
+	u32 dtxswc = rd32(E1000_DTXSWC);
+
+	if (enable)
+		dtxswc |= E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+	else
+		dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
+
+	wr32(E1000_DTXSWC, dtxswc);
+}
+
+/**
+ *  igb_vmdq_set_replication_pf - enable or disable vmdq replication
+ *  @hw: pointer to the hardware struct
+ *  @enable: state to enter, either enabled or disabled
+ *
+ *  enables/disables replication of packets across multiple pools.
+ **/
+void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
+{
+	u32 vt_ctl = rd32(E1000_VT_CTL);
+
+	if (enable)
+		vt_ctl |= E1000_VT_CTL_VM_REPL_EN;
+	else
+		vt_ctl &= ~E1000_VT_CTL_VM_REPL_EN;
+
+	wr32(E1000_VT_CTL, vt_ctl);
+}
+
 static struct e1000_mac_operations e1000_mac_ops_82575 = {
 	.reset_hw             = igb_reset_hw_82575,
 	.init_hw              = igb_init_hw_82575,
@@ -1440,16 +1467,16 @@ static struct e1000_mac_operations e1000_mac_ops_82575 = {
 };
 
 static struct e1000_phy_operations e1000_phy_ops_82575 = {
-	.acquire_phy          = igb_acquire_phy_82575,
+	.acquire              = igb_acquire_phy_82575,
 	.get_cfg_done         = igb_get_cfg_done_82575,
-	.release_phy          = igb_release_phy_82575,
+	.release              = igb_release_phy_82575,
 };
 
 static struct e1000_nvm_operations e1000_nvm_ops_82575 = {
-	.acquire_nvm          = igb_acquire_nvm_82575,
-	.read_nvm             = igb_read_nvm_eerd,
-	.release_nvm          = igb_release_nvm_82575,
-	.write_nvm            = igb_write_nvm_spi,
+	.acquire              = igb_acquire_nvm_82575,
+	.read                 = igb_read_nvm_eerd,
+	.release              = igb_release_nvm_82575,
+	.write                = igb_write_nvm_spi,
 };
 
 const struct e1000_info e1000_82575_info = {

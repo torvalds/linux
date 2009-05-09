@@ -67,11 +67,11 @@ static int pcm3008_soc_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "PCM3008 SoC Audio Codec %s\n", PCM3008_VERSION);
 
-	socdev->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (!socdev->codec)
+	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
+	if (!socdev->card->codec)
 		return -ENOMEM;
 
-	codec = socdev->codec;
+	codec = socdev->card->codec;
 	mutex_init(&codec->mutex);
 
 	codec->name = "PCM3008";
@@ -139,7 +139,7 @@ gpio_err:
 card_err:
 	snd_soc_free_pcms(socdev);
 pcm_err:
-	kfree(socdev->codec);
+	kfree(socdev->card->codec);
 
 	return ret;
 }
@@ -147,7 +147,7 @@ pcm_err:
 static int pcm3008_soc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct pcm3008_setup_data *setup = socdev->codec_data;
 
 	if (!codec)
@@ -155,7 +155,7 @@ static int pcm3008_soc_remove(struct platform_device *pdev)
 
 	pcm3008_gpio_free(setup);
 	snd_soc_free_pcms(socdev);
-	kfree(socdev->codec);
+	kfree(socdev->card->codec);
 
 	return 0;
 }

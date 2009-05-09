@@ -124,7 +124,7 @@ static void mx3_gpio_irq_handler(u32 irq, struct irq_desc *desc)
 
 	irq_stat = __raw_readl(port->base + GPIO_ISR) &
 			__raw_readl(port->base + GPIO_IMR);
-	BUG_ON(!irq_stat);
+
 	mxc_gpio_irq_handler(port, irq_stat);
 }
 #endif
@@ -200,8 +200,8 @@ static int mxc_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 static int mxc_gpio_direction_output(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	_set_gpio_direction(chip, offset, 1);
 	mxc_gpio_set(chip, offset, value);
+	_set_gpio_direction(chip, offset, 1);
 	return 0;
 }
 

@@ -46,18 +46,10 @@
 	Status = NDIS_STATUS_SUCCESS;
 
 /* function declarations */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define IRQ_HANDLE_TYPE  irqreturn_t
-#else
-#define IRQ_HANDLE_TYPE  void
-#endif
 
 IRQ_HANDLE_TYPE
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19))
 rt2860_interrupt(int irq, void *dev_instance);
-#else
-rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
-#endif
 
 /* ----------------- Frimware Related MACRO ----------------- */
 #define RT28XX_WRITE_FIRMWARE(_pAd, _pFwImage, _FwLen)				\
@@ -237,9 +229,7 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 #define RTMP_MSI_DISABLE(_pAd)
 #endif // PCI_MSI_SUPPORT //
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
 #define SA_SHIRQ IRQF_SHARED
-#endif
 
 #define RT28XX_IRQ_REQUEST(net_dev)							\
 {	PRTMP_ADAPTER _pAd = (PRTMP_ADAPTER)((net_dev)->ml_priv);	\
@@ -251,20 +241,12 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
 		printk("RT2860: request_irq  ERROR(%d)\n", retval);	\
 	return retval; } }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
 #define RT28XX_IRQ_RELEASE(net_dev)								\
 {	PRTMP_ADAPTER _pAd = (PRTMP_ADAPTER)((net_dev)->ml_priv);		\
 	POS_COOKIE _pObj = (POS_COOKIE)(_pAd->OS_Cookie);			\
 	synchronize_irq(_pObj->pci_dev->irq);						\
 	free_irq(_pObj->pci_dev->irq, (net_dev));					\
 	RTMP_MSI_DISABLE(_pAd); }
-#else
-#define RT28XX_IRQ_RELEASE(net_dev)								\
-{	PRTMP_ADAPTER _pAd = (PRTMP_ADAPTER)((net_dev)->priv);		\
-	POS_COOKIE _pObj = (POS_COOKIE)(_pAd->OS_Cookie);			\
-	free_irq(_pObj->pci_dev->irq, (net_dev));					\
-	RTMP_MSI_DISABLE(_pAd); }
-#endif
 
 #define RT28XX_IRQ_INIT(pAd)										\
 	{	pAd->int_enable_reg = ((DELAYINTMASK) |						\
@@ -333,8 +315,8 @@ rt2860_interrupt(int irq, void *dev_instance, struct pt_regs *regs);
     reg16 = cpu2le16(Configuration);                        \
     pci_write_config_word(pci_dev, offset, reg16);          \
 
-#define RT28XX_STA_FORCE_WAKEUP(pAd, bFromTx) \
-    RT28xxPciStaAsicForceWakeup(pAd, bFromTx);
+#define RT28XX_STA_FORCE_WAKEUP(pAd, Level) \
+    RT28xxPciStaAsicForceWakeup(pAd, Level);
 
 #define RT28XX_STA_SLEEP_THEN_AUTO_WAKEUP(pAd, TbttNumToNextWakeUp) \
     RT28xxPciStaAsicSleepThenAutoWakeup(pAd, TbttNumToNextWakeUp);

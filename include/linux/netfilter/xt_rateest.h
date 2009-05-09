@@ -1,6 +1,8 @@
 #ifndef _XT_RATEEST_MATCH_H
 #define _XT_RATEEST_MATCH_H
 
+#include <linux/types.h>
+
 enum xt_rateest_match_flags {
 	XT_RATEEST_MATCH_INVERT	= 1<<0,
 	XT_RATEEST_MATCH_ABS	= 1<<1,
@@ -20,12 +22,12 @@ enum xt_rateest_match_mode {
 struct xt_rateest_match_info {
 	char			name1[IFNAMSIZ];
 	char			name2[IFNAMSIZ];
-	u_int16_t		flags;
-	u_int16_t		mode;
-	u_int32_t		bps1;
-	u_int32_t		pps1;
-	u_int32_t		bps2;
-	u_int32_t		pps2;
+	__u16		flags;
+	__u16		mode;
+	__u32		bps1;
+	__u32		pps1;
+	__u32		bps2;
+	__u32		pps2;
 
 	/* Used internally by the kernel */
 	struct xt_rateest	*est1 __attribute__((aligned(8)));

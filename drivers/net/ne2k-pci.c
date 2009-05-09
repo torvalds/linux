@@ -62,8 +62,9 @@ static int options[MAX_UNITS];
 #include "8390.h"
 
 /* These identify the driver base version and may not be removed. */
-static char version[] __devinitdata =
-KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE " D. Becker/P. Gortmaker\n";
+static const char version[] __devinitconst =
+	KERN_INFO DRV_NAME ".c:v" DRV_VERSION " " DRV_RELDATE
+	" D. Becker/P. Gortmaker\n";
 
 #if defined(__powerpc__)
 #define inl_le(addr)  le32_to_cpu(inl(addr))
@@ -373,17 +374,16 @@ static int __devinit ne2k_pci_init_one (struct pci_dev *pdev,
 	dev->ethtool_ops = &ne2k_pci_ethtool_ops;
 	NS8390_init(dev, 0);
 
+	memcpy(dev->dev_addr, SA_prom, 6);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
+
 	i = register_netdev(dev);
 	if (i)
 		goto err_out_free_netdev;
 
-	for(i = 0; i < 6; i++)
-		dev->dev_addr[i] = SA_prom[i];
 	printk("%s: %s found at %#lx, IRQ %d, %pM.\n",
 	       dev->name, pci_clone_list[chip_idx].name, ioaddr, dev->irq,
 	       dev->dev_addr);
-
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	return 0;
 

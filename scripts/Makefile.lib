@@ -4,6 +4,11 @@ ccflags-y  += $(EXTRA_CFLAGS)
 cppflags-y += $(EXTRA_CPPFLAGS)
 ldflags-y  += $(EXTRA_LDFLAGS)
 
+#
+# flags that take effect in sub directories
+export KBUILD_SUBDIR_ASFLAGS := $(KBUILD_SUBDIR_ASFLAGS) $(subdir-asflags-y)
+export KBUILD_SUBDIR_CCFLAGS := $(KBUILD_SUBDIR_CCFLAGS) $(subdir-ccflags-y)
+
 # Figure out what we need to build from the various variables
 # ===========================================================================
 
@@ -97,17 +102,17 @@ modname_flags  = $(if $(filter 1,$(words $(modname))),\
                  -D"KBUILD_MODNAME=KBUILD_STR($(call name-fix,$(modname)))")
 
 #hash values
-ifdef CONFIG_DYNAMIC_PRINTK_DEBUG
+ifdef CONFIG_DYNAMIC_DEBUG
 debug_flags = -D"DEBUG_HASH=$(shell ./scripts/basic/hash djb2 $(@D)$(modname))"\
               -D"DEBUG_HASH2=$(shell ./scripts/basic/hash r5 $(@D)$(modname))"
 else
 debug_flags =
 endif
 
-orig_c_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS)                     \
+orig_c_flags   = $(KBUILD_CPPFLAGS) $(KBUILD_CFLAGS) $(KBUILD_SUBDIR_CCFLAGS) \
                  $(ccflags-y) $(CFLAGS_$(basetarget).o)
 _c_flags       = $(filter-out $(CFLAGS_REMOVE_$(basetarget).o), $(orig_c_flags))
-_a_flags       = $(KBUILD_CPPFLAGS) $(KBUILD_AFLAGS)                     \
+_a_flags       = $(KBUILD_CPPFLAGS) $(KBUILD_AFLAGS) $(KBUILD_SUBDIR_ASFLAGS) \
                  $(asflags-y) $(AFLAGS_$(basetarget).o)
 _cpp_flags     = $(KBUILD_CPPFLAGS) $(cppflags-y) $(CPPFLAGS_$(@F))
 
@@ -186,3 +191,17 @@ quiet_cmd_gzip = GZIP    $@
 cmd_gzip = gzip -f -9 < $< > $@
 
 
+# Bzip2
+# ---------------------------------------------------------------------------
+
+# Bzip2 does not include size in file... so we have to fake that
+size_append=$(CONFIG_SHELL) $(srctree)/scripts/bin_size
+
+quiet_cmd_bzip2 = BZIP2    $@
+cmd_bzip2 = (bzip2 -9 < $< && $(size_append) $<) > $@ || (rm -f $@ ; false)
+
+# Lzma
+# ---------------------------------------------------------------------------
+
+quiet_cmd_lzma = LZMA    $@
+cmd_lzma = (lzma -9 -c $< && $(size_append) $<) >$@ || (rm -f $@ ; false)

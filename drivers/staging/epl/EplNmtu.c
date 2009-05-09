@@ -132,7 +132,7 @@ static tEplNmtuInstance EplNmtuInstance_g;
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuInit()
+tEplKernel EplNmtuInit(void)
 {
 	tEplKernel Ret;
 
@@ -158,7 +158,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuInit()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuAddInstance()
+tEplKernel EplNmtuAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -187,7 +187,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuAddInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuDelInstance()
+tEplKernel EplNmtuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -219,7 +219,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuDelInstance()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
+tEplKernel EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
 {
 	tEplKernel Ret;
 	tEplEvent Event;
@@ -253,7 +253,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuNmtEvent(tEplNmtEvent NmtEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplNmtState PUBLIC EplNmtuGetNmtState()
+tEplNmtState EplNmtuGetNmtState(void)
 {
 	tEplNmtState NmtState;
 
@@ -284,7 +284,7 @@ EPLDLLEXPORT tEplNmtState PUBLIC EplNmtuGetNmtState()
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p)
+tEplKernel EplNmtuProcessEvent(tEplEvent *pEplEvent_p)
 {
 	tEplKernel Ret;
 
@@ -382,7 +382,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p)
 					// node listens for EPL-Frames and check timeout
 				case kEplNmtCsNotActive:
 					{
-						DWORD dwBuffer;
+						u32 dwBuffer;
 						tEplObdSize ObdSize;
 						tEplTimerArg TimerArg;
 
@@ -475,7 +475,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p)
 					// node listens for EPL-Frames and check timeout
 				case kEplNmtMsNotActive:
 					{
-						DWORD dwBuffer;
+						u32 dwBuffer;
 						tEplObdSize ObdSize;
 						tEplTimerArg TimerArg;
 
@@ -544,7 +544,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p)
 					// node processes only async frames
 				case kEplNmtMsPreOperational1:
 					{
-						DWORD dwBuffer = 0;
+						u32 dwBuffer = 0;
 						tEplObdSize ObdSize;
 						tEplTimerArg TimerArg;
 
@@ -664,9 +664,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplNmtuProcessEvent(tEplEvent * pEplEvent_p)
 // State:
 //
 //---------------------------------------------------------------------------
-EPLDLLEXPORT tEplKernel PUBLIC
-EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback
-			     pfnEplNmtStateChangeCb_p)
+tEplKernel EplNmtuRegisterStateChangeCb(tEplNmtuStateChangeCallback pfnEplNmtStateChangeCb_p)
 {
 	tEplKernel Ret;
 

@@ -165,9 +165,6 @@
 #define AR5K_INI_VAL_XR			0
 #define AR5K_INI_VAL_MAX		5
 
-#define AR5K_RF5111_INI_RF_MAX_BANKS	AR5K_MAX_RF_BANKS
-#define AR5K_RF5112_INI_RF_MAX_BANKS	AR5K_MAX_RF_BANKS
-
 /* Used for BSSID etc manipulation */
 #define AR5K_LOW_ID(_a)(				\
 (_a)[0] | (_a)[1] << 8 | (_a)[2] << 16 | (_a)[3] << 24	\
@@ -207,9 +204,9 @@
 #define AR5K_TUNE_CWMAX_11B			1023
 #define AR5K_TUNE_CWMAX_XR			7
 #define AR5K_TUNE_NOISE_FLOOR			-72
-#define AR5K_TUNE_MAX_TXPOWER			60
-#define AR5K_TUNE_DEFAULT_TXPOWER		30
-#define AR5K_TUNE_TPC_TXPOWER			true
+#define AR5K_TUNE_MAX_TXPOWER			63
+#define AR5K_TUNE_DEFAULT_TXPOWER		25
+#define AR5K_TUNE_TPC_TXPOWER			false
 #define AR5K_TUNE_ANT_DIVERSITY			true
 #define AR5K_TUNE_HWTXTRIES			4
 
@@ -225,6 +222,7 @@
 #endif
 
 /* Initial values */
+#define	AR5K_INIT_CYCRSSI_THR1			2
 #define AR5K_INIT_TX_LATENCY			502
 #define AR5K_INIT_USEC				39
 #define AR5K_INIT_USEC_TURBO			79
@@ -316,7 +314,7 @@ struct ath5k_srev_name {
 #define AR5K_SREV_AR5424	0x90 /* Condor */
 #define AR5K_SREV_AR5413	0xa4 /* Eagle lite */
 #define AR5K_SREV_AR5414	0xa0 /* Eagle */
-#define AR5K_SREV_AR2415	0xb0 /* Cobra */
+#define AR5K_SREV_AR2415	0xb0 /* Talon */
 #define AR5K_SREV_AR5416	0xc0 /* PCI-E */
 #define AR5K_SREV_AR5418	0xca /* PCI-E */
 #define AR5K_SREV_AR2425	0xe0 /* Swan */
@@ -334,7 +332,7 @@ struct ath5k_srev_name {
 #define	AR5K_SREV_RAD_2112B	0x46
 #define AR5K_SREV_RAD_2413	0x50
 #define AR5K_SREV_RAD_5413	0x60
-#define AR5K_SREV_RAD_2316	0x70
+#define AR5K_SREV_RAD_2316	0x70 /* Cobra SoC */
 #define AR5K_SREV_RAD_2317	0x80
 #define AR5K_SREV_RAD_5424	0xa0 /* Mostly same as 5413 */
 #define AR5K_SREV_RAD_2425	0xa2
@@ -342,7 +340,8 @@ struct ath5k_srev_name {
 
 #define AR5K_SREV_PHY_5211	0x30
 #define AR5K_SREV_PHY_5212	0x41
-#define AR5K_SREV_PHY_2112B	0x43
+#define	AR5K_SREV_PHY_5212A	0x42
+#define AR5K_SREV_PHY_5212B	0x43
 #define AR5K_SREV_PHY_2413	0x45
 #define AR5K_SREV_PHY_5413	0x61
 #define AR5K_SREV_PHY_2425	0x70
@@ -552,11 +551,11 @@ enum ath5k_pkt_type {
  */
 #define AR5K_TXPOWER_OFDM(_r, _v)	(			\
 	((0 & 1) << ((_v) + 6)) |				\
-	(((ah->ah_txpower.txp_rates[(_r)]) & 0x3f) << (_v))	\
+	(((ah->ah_txpower.txp_rates_power_table[(_r)]) & 0x3f) << (_v))	\
 )
 
 #define AR5K_TXPOWER_CCK(_r, _v)	(			\
-	(ah->ah_txpower.txp_rates[(_r)] & 0x3f) << (_v)	\
+	(ah->ah_txpower.txp_rates_power_table[(_r)] & 0x3f) << (_v)	\
 )
 
 /*
@@ -649,48 +648,20 @@ struct ath5k_beacon_state {
 
 enum ath5k_rfgain {
 	AR5K_RFGAIN_INACTIVE = 0,
+	AR5K_RFGAIN_ACTIVE,
 	AR5K_RFGAIN_READ_REQUESTED,
 	AR5K_RFGAIN_NEED_CHANGE,
 };
 
-#define AR5K_GAIN_CRN_FIX_BITS_5111		4
-#define AR5K_GAIN_CRN_FIX_BITS_5112		7
-#define AR5K_GAIN_CRN_MAX_FIX_BITS		AR5K_GAIN_CRN_FIX_BITS_5112
-#define AR5K_GAIN_DYN_ADJUST_HI_MARGIN		15
-#define AR5K_GAIN_DYN_ADJUST_LO_MARGIN		20
-#define AR5K_GAIN_CCK_PROBE_CORR		5
-#define AR5K_GAIN_CCK_OFDM_GAIN_DELTA		15
-#define AR5K_GAIN_STEP_COUNT			10
-#define AR5K_GAIN_PARAM_TX_CLIP			0
-#define AR5K_GAIN_PARAM_PD_90			1
-#define AR5K_GAIN_PARAM_PD_84			2
-#define AR5K_GAIN_PARAM_GAIN_SEL		3
-#define AR5K_GAIN_PARAM_MIX_ORN			0
-#define AR5K_GAIN_PARAM_PD_138			1
-#define AR5K_GAIN_PARAM_PD_137			2
-#define AR5K_GAIN_PARAM_PD_136			3
-#define AR5K_GAIN_PARAM_PD_132			4
-#define AR5K_GAIN_PARAM_PD_131			5
-#define AR5K_GAIN_PARAM_PD_130			6
-#define AR5K_GAIN_CHECK_ADJUST(_g) 		\
-	((_g)->g_current <= (_g)->g_low || (_g)->g_current >= (_g)->g_high)
-
-struct ath5k_gain_opt_step {
-	s16				gos_param[AR5K_GAIN_CRN_MAX_FIX_BITS];
-	s32				gos_gain;
-};
-
 struct ath5k_gain {
-	u32			g_step_idx;
-	u32			g_current;
-	u32			g_target;
-	u32			g_low;
-	u32			g_high;
-	u32			g_f_corr;
-	u32			g_active;
-	const struct ath5k_gain_opt_step	*g_step;
+	u8			g_step_idx;
+	u8			g_current;
+	u8			g_target;
+	u8			g_low;
+	u8			g_high;
+	u8			g_f_corr;
+	u8			g_state;
 };
-
 
 /********************\
   COMMON DEFINITIONS
@@ -1053,7 +1024,6 @@ struct ath5k_hw {
 	bool			ah_running;
 	bool			ah_single_chip;
 	bool			ah_combined_mic;
-	enum ath5k_rfgain	ah_rf_gain;
 
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
@@ -1061,7 +1031,6 @@ struct ath5k_hw {
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
-	u32			ah_phy_spending;
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
@@ -1112,16 +1081,29 @@ struct ath5k_hw {
 	u32			ah_txq_isr;
 	u32			*ah_rf_banks;
 	size_t			ah_rf_banks_size;
+	size_t			ah_rf_regs_count;
 	struct ath5k_gain	ah_gain;
-	u32			ah_offset[AR5K_MAX_RF_BANKS];
+	u8			ah_offset[AR5K_MAX_RF_BANKS];
+
 
 	struct {
-		u16		txp_pcdac[AR5K_EEPROM_POWER_TABLE_SIZE];
-		u16		txp_rates[AR5K_MAX_RATES];
-		s16		txp_min;
-		s16		txp_max;
+		/* Temporary tables used for interpolation */
+		u8		tmpL[AR5K_EEPROM_N_PD_GAINS]
+					[AR5K_EEPROM_POWER_TABLE_SIZE];
+		u8		tmpR[AR5K_EEPROM_N_PD_GAINS]
+					[AR5K_EEPROM_POWER_TABLE_SIZE];
+		u8		txp_pd_table[AR5K_EEPROM_POWER_TABLE_SIZE * 2];
+		u16		txp_rates_power_table[AR5K_MAX_RATES];
+		u8		txp_min_idx;
 		bool		txp_tpc;
+		/* Values in 0.25dB units */
+		s16		txp_min_pwr;
+		s16		txp_max_pwr;
+		s16		txp_offset;
 		s16		txp_ofdm;
+		/* Values in dB units */
+		s16		txp_cck_ofdm_pwr_delta;
+		s16		txp_cck_ofdm_gainf_delta;
 	} ah_txpower;
 
 	struct {
@@ -1159,6 +1141,12 @@ struct ath5k_hw {
 extern struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version);
 extern void ath5k_hw_detach(struct ath5k_hw *ah);
 
+/* LED functions */
+extern int ath5k_init_leds(struct ath5k_softc *sc);
+extern void ath5k_led_enable(struct ath5k_softc *sc);
+extern void ath5k_led_off(struct ath5k_softc *sc);
+extern void ath5k_unregister_leds(struct ath5k_softc *sc);
+
 /* Reset Functions */
 extern int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
 extern int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode, struct ieee80211_channel *channel, bool change_channel);
@@ -1185,7 +1173,9 @@ extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ieee80211_l
 
 /* EEPROM access functions */
 extern int ath5k_eeprom_init(struct ath5k_hw *ah);
+extern void ath5k_eeprom_detach(struct ath5k_hw *ah);
 extern int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
+extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
 
 /* Protocol Control Unit Functions */
 extern int ath5k_hw_set_opmode(struct ath5k_hw *ah);
@@ -1206,6 +1196,7 @@ extern void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter);
 /* Beacon control functions */
 extern u32 ath5k_hw_get_tsf32(struct ath5k_hw *ah);
 extern u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah);
+extern void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64);
 extern void ath5k_hw_reset_tsf(struct ath5k_hw *ah);
 extern void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval);
 #if 0
@@ -1260,10 +1251,12 @@ extern int ath5k_hw_disable_pspoll(struct ath5k_hw *ah);
 extern int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel);
 
 /* Initialize RF */
-extern int ath5k_hw_rfregs(struct ath5k_hw *ah, struct ieee80211_channel *channel, unsigned int mode);
-extern int ath5k_hw_rfgain(struct ath5k_hw *ah, unsigned int freq);
-extern enum ath5k_rfgain ath5k_hw_get_rf_gain(struct ath5k_hw *ah);
-extern int ath5k_hw_set_rfgain_opt(struct ath5k_hw *ah);
+extern int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
+				struct ieee80211_channel *channel,
+				unsigned int mode);
+extern int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq);
+extern enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);
+extern int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);
 /* PHY/RF channel functions */
 extern bool ath5k_channel_ok(struct ath5k_hw *ah, u16 freq, unsigned int flags);
 extern int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
@@ -1276,8 +1269,8 @@ extern void ath5k_hw_set_def_antenna(struct ath5k_hw *ah, unsigned int ant);
 extern unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah);
 extern int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* TX power setup */
-extern int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel, unsigned int txpower);
-extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, unsigned int power);
+extern int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel, u8 ee_mode, u8 txpower);
+extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 ee_mode, u8 txpower);
 
 /*
  * Functions used internaly
@@ -1285,6 +1278,7 @@ extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, unsigned int power);
 
 /*
  * Translate usec to hw clock units
+ * TODO: Half/quarter rate
  */
 static inline unsigned int ath5k_hw_htoclock(unsigned int usec, bool turbo)
 {
@@ -1293,6 +1287,7 @@ static inline unsigned int ath5k_hw_htoclock(unsigned int usec, bool turbo)
 
 /*
  * Translate hw clock units to usec
+ * TODO: Half/quarter rate
  */
 static inline unsigned int ath5k_hw_clocktoh(unsigned int clock, bool turbo)
 {

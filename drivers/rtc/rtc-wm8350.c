@@ -122,7 +122,7 @@ static int wm8350_rtc_settime(struct device *dev, struct rtc_time *tm)
 	do {
 		rtc_ctrl = wm8350_reg_read(wm8350, WM8350_RTC_TIME_CONTROL);
 		schedule_timeout_uninterruptible(msecs_to_jiffies(1));
-	} while (retries-- && !(rtc_ctrl & WM8350_RTC_STS));
+	} while (--retries && !(rtc_ctrl & WM8350_RTC_STS));
 
 	if (!retries) {
 		dev_err(dev, "timed out on set confirmation\n");
@@ -236,6 +236,17 @@ static int wm8350_rtc_start_alarm(struct wm8350 *wm8350)
 	return 0;
 }
 
+static int wm8350_rtc_alarm_irq_enable(struct device *dev,
+				       unsigned int enabled)
+{
+	struct wm8350 *wm8350 = dev_get_drvdata(dev);
+
+	if (enabled)
+		return wm8350_rtc_start_alarm(wm8350);
+	else
+		return wm8350_rtc_stop_alarm(wm8350);
+}
+
 static int wm8350_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct wm8350 *wm8350 = dev_get_drvdata(dev);
@@ -291,30 +302,15 @@ static int wm8350_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return ret;
 }
 
-/*
- * Handle commands from user-space
- */
-static int wm8350_rtc_ioctl(struct device *dev, unsigned int cmd,
-			    unsigned long arg)
+static int wm8350_rtc_update_irq_enable(struct device *dev,
+					unsigned int enabled)
 {
 	struct wm8350 *wm8350 = dev_get_drvdata(dev);
 
-	switch (cmd) {
-	case RTC_AIE_OFF:
-		return wm8350_rtc_stop_alarm(wm8350);
-	case RTC_AIE_ON:
-		return wm8350_rtc_start_alarm(wm8350);
-
-	case RTC_UIE_OFF:
-		wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
-		break;
-	case RTC_UIE_ON:
+	if (enabled)
 		wm8350_unmask_irq(wm8350, WM8350_IRQ_RTC_SEC);
-		break;
-
-	default:
-		return -ENOIOCTLCMD;
-	}
+	else
+		wm8350_mask_irq(wm8350, WM8350_IRQ_RTC_SEC);
 
 	return 0;
 }
@@ -345,11 +341,12 @@ static void wm8350_rtc_update_handler(struct wm8350 *wm8350, int irq,
 }
 
 static const struct rtc_class_ops wm8350_rtc_ops = {
-	.ioctl = wm8350_rtc_ioctl,
 	.read_time = wm8350_rtc_readtime,
 	.set_time = wm8350_rtc_settime,
 	.read_alarm = wm8350_rtc_readalarm,
 	.set_alarm = wm8350_rtc_setalarm,
+	.alarm_irq_enable = wm8350_rtc_alarm_irq_enable,
+	.update_irq_enable = wm8350_rtc_update_irq_enable,
 };
 
 #ifdef CONFIG_PM
@@ -440,7 +437,7 @@ static int wm8350_rtc_probe(struct platform_device *pdev)
 		do {
 			timectl = wm8350_reg_read(wm8350,
 						  WM8350_RTC_TIME_CONTROL);
-		} while (timectl & WM8350_RTC_STS && retries--);
+		} while (timectl & WM8350_RTC_STS && --retries);
 
 		if (retries == 0) {
 			dev_err(&pdev->dev, "failed to start: timeout\n");

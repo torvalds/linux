@@ -622,7 +622,7 @@ static void hss_hdlc_rx_irq(void *pdev)
 	printk(KERN_DEBUG "%s: hss_hdlc_rx_irq\n", dev->name);
 #endif
 	qmgr_disable_irq(queue_ids[port->id].rx);
-	netif_rx_schedule(&port->napi);
+	napi_schedule(&port->napi);
 }
 
 static int hss_hdlc_poll(struct napi_struct *napi, int budget)
@@ -649,15 +649,15 @@ static int hss_hdlc_poll(struct napi_struct *napi, int budget)
 		if ((n = queue_get_desc(rxq, port, 0)) < 0) {
 #if DEBUG_RX
 			printk(KERN_DEBUG "%s: hss_hdlc_poll"
-			       " netif_rx_complete\n", dev->name);
+			       " napi_complete\n", dev->name);
 #endif
-			netif_rx_complete(napi);
+			napi_complete(napi);
 			qmgr_enable_irq(rxq);
 			if (!qmgr_stat_empty(rxq) &&
-			    netif_rx_reschedule(napi)) {
+			    napi_reschedule(napi)) {
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: hss_hdlc_poll"
-				       " netif_rx_reschedule succeeded\n",
+				       " napi_reschedule succeeded\n",
 				       dev->name);
 #endif
 				qmgr_disable_irq(rxq);
@@ -1069,7 +1069,7 @@ static int hss_hdlc_open(struct net_device *dev)
 	hss_start_hdlc(port);
 
 	/* we may already have RX data, enables IRQ */
-	netif_rx_schedule(&port->napi);
+	napi_schedule(&port->napi);
 	return 0;
 
 err_unlock:
@@ -1230,6 +1230,14 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
  * initialization
  ****************************************************************************/
 
+static const struct net_device_ops hss_hdlc_ops = {
+	.ndo_open       = hss_hdlc_open,
+	.ndo_stop       = hss_hdlc_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = hss_hdlc_ioctl,
+};
+
 static int __devinit hss_init_one(struct platform_device *pdev)
 {
 	struct port *port;
@@ -1254,9 +1262,7 @@ static int __devinit hss_init_one(struct platform_device *pdev)
 	hdlc = dev_to_hdlc(dev);
 	hdlc->attach = hss_hdlc_attach;
 	hdlc->xmit = hss_hdlc_xmit;
-	dev->open = hss_hdlc_open;
-	dev->stop = hss_hdlc_close;
-	dev->do_ioctl = hss_hdlc_ioctl;
+	dev->netdev_ops = &hss_hdlc_ops;
 	dev->tx_queue_len = 100;
 	port->clock_type = CLOCK_EXT;
 	port->clock_rate = 2048000;

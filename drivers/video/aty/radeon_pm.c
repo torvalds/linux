@@ -89,6 +89,9 @@ static struct radeon_device_id radeon_workaround_list[] = {
 	BUGFIX("Acer Aspire 2010",
 	       PCI_VENDOR_ID_AI, 0x0061,
 	       radeon_pm_off, radeon_reinitialize_M10),
+	BUGFIX("Acer Travelmate 290D/292LMi",
+	       PCI_VENDOR_ID_AI, 0x005a,
+	       radeon_pm_off, radeon_reinitialize_M10),
 	{ .ident = NULL }
 };
 
@@ -2507,6 +2510,25 @@ static void radeon_reinitialize_QW(struct radeonfb_info *rinfo)
 
 #endif /* CONFIG_PPC_OF */
 
+static void radeonfb_whack_power_state(struct radeonfb_info *rinfo, pci_power_t state)
+{
+	u16 pwr_cmd;
+
+	for (;;) {
+		pci_read_config_word(rinfo->pdev,
+				     rinfo->pm_reg+PCI_PM_CTRL,
+				     &pwr_cmd);
+		if (pwr_cmd & 2)
+			break;
+		pwr_cmd = (pwr_cmd & ~PCI_PM_CTRL_STATE_MASK) | 2;
+		pci_write_config_word(rinfo->pdev,
+				      rinfo->pm_reg+PCI_PM_CTRL,
+				      pwr_cmd);
+		msleep(500);
+	}
+	rinfo->pdev->current_state = state;
+}
+
 static void radeon_set_suspend(struct radeonfb_info *rinfo, int suspend)
 {
 	u32 tmp;
@@ -2558,7 +2580,12 @@ static void radeon_set_suspend(struct radeonfb_info *rinfo, int suspend)
 		/* Switch PCI power management to D2. */
 		pci_disable_device(rinfo->pdev);
 		pci_save_state(rinfo->pdev);
-		pci_set_power_state(rinfo->pdev, PCI_D2);
+		/* The chip seems to need us to whack the PM register
+		 * repeatedly until it sticks. We do that -prior- to
+		 * calling pci_set_power_state()
+		 */
+		radeonfb_whack_power_state(rinfo, PCI_D2);
+		__pci_complete_power_transition(rinfo->pdev, PCI_D2);
 	} else {
 		printk(KERN_DEBUG "radeonfb (%s): switching to D0 state...\n",
 		       pci_name(rinfo->pdev));
@@ -2762,12 +2789,13 @@ int radeonfb_pci_resume(struct pci_dev *pdev)
 	return rc;
 }
 
-#ifdef CONFIG_PPC_OF
+#ifdef CONFIG_PPC_OF__disabled
 static void radeonfb_early_resume(void *data)
 {
         struct radeonfb_info *rinfo = data;
 
 	rinfo->no_schedule = 1;
+	pci_restore_state(rinfo->pdev);
 	radeonfb_pci_resume(rinfo->pdev);
 	rinfo->no_schedule = 0;
 }
@@ -2834,7 +2862,14 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 		 */
 		if (rinfo->pm_mode != radeon_pm_none) {
 			pmac_call_feature(PMAC_FTR_DEVICE_CAN_WAKE, rinfo->of_node, 0, 1);
+#if 0 /* Disable the early video resume hack for now as it's causing problems, among
+       * others we now rely on the PCI core restoring the config space for us, which
+       * isn't the case with that hack, and that code path causes various things to
+       * be called with interrupts off while they shouldn't. I'm leaving the code in
+       * as it can be useful for debugging purposes
+       */
 			pmac_set_early_video_resume(radeonfb_early_resume, rinfo);
+#endif
 		}
 
 #if 0

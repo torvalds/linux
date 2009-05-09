@@ -838,9 +838,8 @@ wv_82593_cmd(struct net_device *	dev,
     }
   while(((status & SR3_EXEC_STATE_MASK) != SR3_EXEC_IDLE) && (spin-- > 0));
 
-  /* If the interrupt hasn't be posted */
-  if(spin <= 0)
-    {
+  /* If the interrupt hasn't been posted */
+  if (spin < 0) {
 #ifdef DEBUG_INTERRUPT_ERROR
       printk(KERN_INFO "wv_82593_cmd: %s timeout (previous command), status 0x%02x\n",
 	     str, status);
@@ -1353,21 +1352,6 @@ wv_init_info(struct net_device *	dev)
  * or wireless extensions
  */
 
-/*------------------------------------------------------------------*/
-/*
- * Get the current ethernet statistics. This may be called with the
- * card open or closed.
- * Used when the user read /proc/net/dev
- */
-static en_stats	*
-wavelan_get_stats(struct net_device *	dev)
-{
-#ifdef DEBUG_IOCTL_TRACE
-  printk(KERN_DEBUG "%s: <>wavelan_get_stats()\n", dev->name);
-#endif
-
-  return(&((net_local *)netdev_priv(dev))->stats);
-}
 
 /*------------------------------------------------------------------*/
 /*
@@ -2818,7 +2802,7 @@ wv_packet_read(struct net_device *		dev,
       printk(KERN_INFO "%s: wv_packet_read(): could not alloc_skb(%d, GFP_ATOMIC)\n",
 	     dev->name, sksize);
 #endif
-      lp->stats.rx_dropped++;
+      dev->stats.rx_dropped++;
       /*
        * Not only do we want to return here, but we also need to drop the
        * packet on the floor to clear the interrupt.
@@ -2878,8 +2862,8 @@ wv_packet_read(struct net_device *		dev,
   netif_rx(skb);
 
   /* Keep stats up to date */
-  lp->stats.rx_packets++;
-  lp->stats.rx_bytes += sksize;
+  dev->stats.rx_packets++;
+  dev->stats.rx_bytes += sksize;
 
 #ifdef DEBUG_RX_TRACE
   printk(KERN_DEBUG "%s: <-wv_packet_read()\n", dev->name);
@@ -2981,13 +2965,13 @@ wv_packet_rcv(struct net_device *	dev)
       /* Check status */
       if((status & RX_RCV_OK) != RX_RCV_OK)
 	{
-	  lp->stats.rx_errors++;
+	  dev->stats.rx_errors++;
 	  if(status & RX_NO_SFD)
-	    lp->stats.rx_frame_errors++;
+	    dev->stats.rx_frame_errors++;
 	  if(status & RX_CRC_ERR)
-	    lp->stats.rx_crc_errors++;
+	    dev->stats.rx_crc_errors++;
 	  if(status & RX_OVRRUN)
-	    lp->stats.rx_over_errors++;
+	    dev->stats.rx_over_errors++;
 
 #ifdef DEBUG_RX_FAIL
 	  printk(KERN_DEBUG "%s: wv_packet_rcv(): packet not received ok, status = 0x%x\n",
@@ -3074,7 +3058,7 @@ wv_packet_write(struct net_device *	dev,
   dev->trans_start = jiffies;
 
   /* Keep stats up to date */
-  lp->stats.tx_bytes += length;
+  dev->stats.tx_bytes += length;
 
   spin_unlock_irqrestore(&lp->spinlock, flags);
 
@@ -4107,7 +4091,7 @@ wavelan_interrupt(int		irq,
 	      printk(KERN_INFO "%s: wv_interrupt(): receive buffer overflow\n",
 		     dev->name);
 #endif
-	      lp->stats.rx_over_errors++;
+	      dev->stats.rx_over_errors++;
 	      lp->overrunning = 1;
       	    }
 
@@ -4156,7 +4140,7 @@ wavelan_interrupt(int		irq,
 	  /* Check for possible errors */
 	  if((tx_status & TX_OK) != TX_OK)
 	    {
-	      lp->stats.tx_errors++;
+	      dev->stats.tx_errors++;
 
 	      if(tx_status & TX_FRTL)
 		{
@@ -4171,14 +4155,14 @@ wavelan_interrupt(int		irq,
 		  printk(KERN_DEBUG "%s: wv_interrupt(): DMA underrun\n",
 			 dev->name);
 #endif
-		  lp->stats.tx_aborted_errors++;
+		  dev->stats.tx_aborted_errors++;
 		}
 	      if(tx_status & TX_LOST_CTS)
 		{
 #ifdef DEBUG_TX_FAIL
 		  printk(KERN_DEBUG "%s: wv_interrupt(): no CTS\n", dev->name);
 #endif
-		  lp->stats.tx_carrier_errors++;
+		  dev->stats.tx_carrier_errors++;
 		}
 	      if(tx_status & TX_LOST_CRS)
 		{
@@ -4186,14 +4170,14 @@ wavelan_interrupt(int		irq,
 		  printk(KERN_DEBUG "%s: wv_interrupt(): no carrier\n",
 			 dev->name);
 #endif
-		  lp->stats.tx_carrier_errors++;
+		  dev->stats.tx_carrier_errors++;
 		}
 	      if(tx_status & TX_HRT_BEAT)
 		{
 #ifdef DEBUG_TX_FAIL
 		  printk(KERN_DEBUG "%s: wv_interrupt(): heart beat\n", dev->name);
 #endif
-		  lp->stats.tx_heartbeat_errors++;
+		  dev->stats.tx_heartbeat_errors++;
 		}
 	      if(tx_status & TX_DEFER)
 		{
@@ -4217,14 +4201,14 @@ wavelan_interrupt(int		irq,
 #endif
 		      if(!(tx_status & TX_NCOL_MASK))
 			{
-			  lp->stats.collisions += 0x10;
+			  dev->stats.collisions += 0x10;
 			}
 		    }
 		}
 	    }	/* if(!(tx_status & TX_OK)) */
 
-	  lp->stats.collisions += (tx_status & TX_NCOL_MASK);
-	  lp->stats.tx_packets++;
+	  dev->stats.collisions += (tx_status & TX_NCOL_MASK);
+	  dev->stats.tx_packets++;
 
 	  netif_wake_queue(dev);
 	  outb(CR0_INT_ACK | OP0_NOP, LCCR(base));	/* Acknowledge the interrupt */
@@ -4452,6 +4436,19 @@ wavelan_close(struct net_device *	dev)
   return 0;
 }
 
+static const struct net_device_ops wavelan_netdev_ops = {
+	.ndo_open 		= wavelan_open,
+	.ndo_stop		= wavelan_close,
+	.ndo_start_xmit		= wavelan_packet_xmit,
+	.ndo_set_multicast_list = wavelan_set_multicast_list,
+#ifdef SET_MAC_ADDRESS
+	.ndo_set_mac_address	= wavelan_set_mac_address,
+#endif
+	.ndo_tx_timeout		= wavelan_watchdog,
+	.ndo_change_mtu		= eth_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+};
+
 /*------------------------------------------------------------------*/
 /*
  * wavelan_attach() creates an "instance" of the driver, allocating
@@ -4512,17 +4509,7 @@ wavelan_probe(struct pcmcia_device *p_dev)
   lp->dev = dev;
 
   /* wavelan NET3 callbacks */
-  dev->open = &wavelan_open;
-  dev->stop = &wavelan_close;
-  dev->hard_start_xmit = &wavelan_packet_xmit;
-  dev->get_stats = &wavelan_get_stats;
-  dev->set_multicast_list = &wavelan_set_multicast_list;
-#ifdef SET_MAC_ADDRESS
-  dev->set_mac_address = &wavelan_set_mac_address;
-#endif	/* SET_MAC_ADDRESS */
-
-  /* Set the watchdog timer */
-  dev->tx_timeout	= &wavelan_watchdog;
+  dev->netdev_ops = &wavelan_netdev_ops;
   dev->watchdog_timeo	= WATCHDOG_JIFFIES;
   SET_ETHTOOL_OPS(dev, &ops);
 

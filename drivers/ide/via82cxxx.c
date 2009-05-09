@@ -267,7 +267,7 @@ static void via_cable_detect(struct via82cxxx_dev *vdev, u32 u)
  *	and initialize its drive independent registers.
  */
 
-static unsigned int init_chipset_via82cxxx(struct pci_dev *dev)
+static int init_chipset_via82cxxx(struct pci_dev *dev)
 {
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
@@ -442,16 +442,6 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 
 	if ((via_config->flags & VIA_NO_UNMASK) == 0)
 		d.host_flags |= IDE_HFLAG_UNMASK_IRQS;
-
-#ifdef CONFIG_PPC_CHRP
-	if (machine_is(chrp) && _chrp_type == _CHRP_Pegasos)
-		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
-#endif
-
-#ifdef CONFIG_AMIGAONE
-	if (machine_is(amigaone))
-		d.host_flags |= IDE_HFLAG_FORCE_LEGACY_IRQS;
-#endif
 
 	d.udma_mask = via_config->udma_mask;
 

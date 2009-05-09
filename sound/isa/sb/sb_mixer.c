@@ -182,7 +182,7 @@ static int snd_sbmixer_put_double(struct snd_kcontrol *kcontrol, struct snd_ctl_
 
 static int snd_dt019x_input_sw_info(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[5] = {
+	static const char *texts[5] = {
 		"CD", "Mic", "Line", "Synth", "Master"
 	};
 
@@ -269,12 +269,73 @@ static int snd_dt019x_input_sw_put(struct snd_kcontrol *kcontrol, struct snd_ctl
 }
 
 /*
+ * ALS4000 mono recording control switch
+ */
+
+static int snd_als4k_mono_capture_route_info(struct snd_kcontrol *kcontrol,
+					     struct snd_ctl_elem_info *uinfo)
+{
+	static const char *texts[3] = {
+		"L chan only", "R chan only", "L ch/2 + R ch/2"
+	};
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = 3;
+	if (uinfo->value.enumerated.item > 2)
+		uinfo->value.enumerated.item = 2;
+	strcpy(uinfo->value.enumerated.name,
+	       texts[uinfo->value.enumerated.item]);
+	return 0;
+}
+
+static int snd_als4k_mono_capture_route_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
+	unsigned long flags;
+	unsigned char oval;
+
+	spin_lock_irqsave(&sb->mixer_lock, flags);
+	oval = snd_sbmixer_read(sb, SB_ALS4000_MONO_IO_CTRL);
+	spin_unlock_irqrestore(&sb->mixer_lock, flags);
+	oval >>= 6;
+	if (oval > 2)
+		oval = 2;
+
+	ucontrol->value.enumerated.item[0] = oval;
+	return 0;
+}
+
+static int snd_als4k_mono_capture_route_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_sb *sb = snd_kcontrol_chip(kcontrol);
+	unsigned long flags;
+	int change;
+	unsigned char nval, oval;
+
+	if (ucontrol->value.enumerated.item[0] > 2)
+		return -EINVAL;
+	spin_lock_irqsave(&sb->mixer_lock, flags);
+	oval = snd_sbmixer_read(sb, SB_ALS4000_MONO_IO_CTRL);
+
+	nval = (oval & ~(3 << 6))
+	     | (ucontrol->value.enumerated.item[0] << 6);
+	change = nval != oval;
+	if (change)
+		snd_sbmixer_write(sb, SB_ALS4000_MONO_IO_CTRL, nval);
+	spin_unlock_irqrestore(&sb->mixer_lock, flags);
+	return change;
+}
+
+/*
  * SBPRO input multiplexer
  */
 
 static int snd_sb8mixer_info_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_info *uinfo)
 {
-	static char *texts[3] = {
+	static const char *texts[3] = {
 		"Mic", "CD", "Line"
 	};
 
@@ -441,6 +502,12 @@ int snd_sbmixer_add_ctl(struct snd_sb *chip, const char *name, int index, int ty
 			.info = snd_dt019x_input_sw_info,
 			.get = snd_dt019x_input_sw_get,
 			.put = snd_dt019x_input_sw_put,
+		},
+		[SB_MIX_MONO_CAPTURE_ALS4K] = {
+			.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+			.info = snd_als4k_mono_capture_route_info,
+			.get = snd_als4k_mono_capture_route_get,
+			.put = snd_als4k_mono_capture_route_put,
 		},
 	};
 	struct snd_kcontrol *ctl;
@@ -636,6 +703,8 @@ static struct sbmix_elem snd_dt019x_ctl_capture_source =
 	};
 
 static struct sbmix_elem *snd_dt019x_controls[] = {
+	/* ALS4000 below has some parts which we might be lacking,
+	 * e.g. snd_als4000_ctl_mono_playback_switch - check it! */
 	&snd_dt019x_ctl_master_play_vol,
 	&snd_dt019x_ctl_pcm_play_vol,
 	&snd_dt019x_ctl_synth_play_vol,
@@ -666,18 +735,21 @@ static unsigned char snd_dt019x_init_values[][2] = {
 /*
  * ALS4000 specific mixer elements
  */
-/* FIXME: SB_ALS4000_MONO_IO_CTRL needs output select ctrl! */
 static struct sbmix_elem snd_als4000_ctl_master_mono_playback_switch =
 	SB_SINGLE("Master Mono Playback Switch", SB_ALS4000_MONO_IO_CTRL, 5, 1);
-static struct sbmix_elem snd_als4000_ctl_master_mono_capture_route =
-	SB_SINGLE("Master Mono Capture Route", SB_ALS4000_MONO_IO_CTRL, 6, 0x03);
-/* FIXME: mono playback switch also available on DT019X? */
+static struct sbmix_elem snd_als4k_ctl_master_mono_capture_route = {
+		.name = "Master Mono Capture Route",
+		.type = SB_MIX_MONO_CAPTURE_ALS4K
+	};
 static struct sbmix_elem snd_als4000_ctl_mono_playback_switch =
 	SB_SINGLE("Mono Playback Switch", SB_DT019X_OUTPUT_SW2, 0, 1);
 static struct sbmix_elem snd_als4000_ctl_mic_20db_boost =
 	SB_SINGLE("Mic Boost (+20dB)", SB_ALS4000_MIC_IN_GAIN, 0, 0x03);
-static struct sbmix_elem snd_als4000_ctl_mixer_loopback =
-	SB_SINGLE("Analog Loopback", SB_ALS4000_MIC_IN_GAIN, 7, 0x01);
+static struct sbmix_elem snd_als4000_ctl_mixer_analog_loopback =
+	SB_SINGLE("Analog Loopback Switch", SB_ALS4000_MIC_IN_GAIN, 7, 0x01);
+static struct sbmix_elem snd_als4000_ctl_mixer_digital_loopback =
+	SB_SINGLE("Digital Loopback Switch",
+		  SB_ALS4000_CR3_CONFIGURATION, 7, 0x01);
 /* FIXME: functionality of 3D controls might be swapped, I didn't find
  * a description of how to identify what is supposed to be what */
 static struct sbmix_elem snd_als4000_3d_control_switch =
@@ -694,6 +766,9 @@ static struct sbmix_elem snd_als4000_3d_control_delay =
 	SB_SINGLE("3D Control - Wide", SB_ALS4000_3D_TIME_DELAY, 0, 0x0f);
 static struct sbmix_elem snd_als4000_3d_control_poweroff_switch =
 	SB_SINGLE("3D PowerOff Switch", SB_ALS4000_3D_TIME_DELAY, 4, 0x01);
+static struct sbmix_elem snd_als4000_ctl_3db_freq_control_switch =
+	SB_SINGLE("Master Playback 8kHz / 20kHz LPF Switch",
+		  SB_ALS4000_FMDAC, 5, 0x01);
 #ifdef NOT_AVAILABLE
 static struct sbmix_elem snd_als4000_ctl_fmdac =
 	SB_SINGLE("FMDAC Switch (Option ?)", SB_ALS4000_FMDAC, 0, 0x01);
@@ -702,35 +777,37 @@ static struct sbmix_elem snd_als4000_ctl_qsound =
 #endif
 
 static struct sbmix_elem *snd_als4000_controls[] = {
-	&snd_sb16_ctl_master_play_vol,
-	&snd_dt019x_ctl_pcm_play_switch,
-	&snd_sb16_ctl_pcm_play_vol,
-	&snd_sb16_ctl_synth_capture_route,
-	&snd_dt019x_ctl_synth_play_switch,
-	&snd_sb16_ctl_synth_play_vol,
-	&snd_sb16_ctl_cd_capture_route,
-	&snd_sb16_ctl_cd_play_switch,
-	&snd_sb16_ctl_cd_play_vol,
-	&snd_sb16_ctl_line_capture_route,
-	&snd_sb16_ctl_line_play_switch,
-	&snd_sb16_ctl_line_play_vol,
-	&snd_sb16_ctl_mic_capture_route,
-	&snd_als4000_ctl_mic_20db_boost,
-	&snd_sb16_ctl_auto_mic_gain,
-	&snd_sb16_ctl_mic_play_switch,
-	&snd_sb16_ctl_mic_play_vol,
-	&snd_sb16_ctl_pc_speaker_vol,
-	&snd_sb16_ctl_capture_vol,
-	&snd_sb16_ctl_play_vol,
-	&snd_als4000_ctl_master_mono_playback_switch,
-	&snd_als4000_ctl_master_mono_capture_route,
-	&snd_als4000_ctl_mono_playback_switch,
-	&snd_als4000_ctl_mixer_loopback,
-	&snd_als4000_3d_control_switch,
-	&snd_als4000_3d_control_ratio,
-	&snd_als4000_3d_control_freq,
-	&snd_als4000_3d_control_delay,
-	&snd_als4000_3d_control_poweroff_switch,
+						/* ALS4000a.PDF regs page */
+	&snd_sb16_ctl_master_play_vol,		/* MX30/31 12 */
+	&snd_dt019x_ctl_pcm_play_switch,	/* MX4C    16 */
+	&snd_sb16_ctl_pcm_play_vol,		/* MX32/33 12 */
+	&snd_sb16_ctl_synth_capture_route,	/* MX3D/3E 14 */
+	&snd_dt019x_ctl_synth_play_switch,	/* MX4C    16 */
+	&snd_sb16_ctl_synth_play_vol,		/* MX34/35 12/13 */
+	&snd_sb16_ctl_cd_capture_route,		/* MX3D/3E 14 */
+	&snd_sb16_ctl_cd_play_switch,		/* MX3C    14 */
+	&snd_sb16_ctl_cd_play_vol,		/* MX36/37 13 */
+	&snd_sb16_ctl_line_capture_route,	/* MX3D/3E 14 */
+	&snd_sb16_ctl_line_play_switch,		/* MX3C    14 */
+	&snd_sb16_ctl_line_play_vol,		/* MX38/39 13 */
+	&snd_sb16_ctl_mic_capture_route,	/* MX3D/3E 14 */
+	&snd_als4000_ctl_mic_20db_boost,	/* MX4D    16 */
+	&snd_sb16_ctl_mic_play_switch,		/* MX3C    14 */
+	&snd_sb16_ctl_mic_play_vol,		/* MX3A    13 */
+	&snd_sb16_ctl_pc_speaker_vol,		/* MX3B    14 */
+	&snd_sb16_ctl_capture_vol,		/* MX3F/40 15 */
+	&snd_sb16_ctl_play_vol,			/* MX41/42 15 */
+	&snd_als4000_ctl_master_mono_playback_switch, /* MX4C 16 */
+	&snd_als4k_ctl_master_mono_capture_route, /* MX4B  16 */
+	&snd_als4000_ctl_mono_playback_switch,	/* MX4C    16 */
+	&snd_als4000_ctl_mixer_analog_loopback, /* MX4D    16 */
+	&snd_als4000_ctl_mixer_digital_loopback, /* CR3    21 */
+	&snd_als4000_3d_control_switch,		 /* MX50   17 */
+	&snd_als4000_3d_control_ratio,		 /* MX50   17 */
+	&snd_als4000_3d_control_freq,		 /* MX50   17 */
+	&snd_als4000_3d_control_delay,		 /* MX51   18 */
+	&snd_als4000_3d_control_poweroff_switch,	/* MX51    18 */
+	&snd_als4000_ctl_3db_freq_control_switch,	/* MX4F    17 */
 #ifdef NOT_AVAILABLE
 	&snd_als4000_ctl_fmdac,
 	&snd_als4000_ctl_qsound,
@@ -905,13 +982,14 @@ static unsigned char dt019x_saved_regs[] = {
 };
 
 static unsigned char als4000_saved_regs[] = {
+	/* please verify in dsheet whether regs to be added
+	   are actually real H/W or just dummy */
 	SB_DSP4_MASTER_DEV, SB_DSP4_MASTER_DEV + 1,
 	SB_DSP4_OUTPUT_SW,
 	SB_DSP4_PCM_DEV, SB_DSP4_PCM_DEV + 1,
 	SB_DSP4_INPUT_LEFT, SB_DSP4_INPUT_RIGHT,
 	SB_DSP4_SYNTH_DEV, SB_DSP4_SYNTH_DEV + 1,
 	SB_DSP4_CD_DEV, SB_DSP4_CD_DEV + 1,
-	SB_DSP4_MIC_AGC,
 	SB_DSP4_MIC_DEV,
 	SB_DSP4_SPEAKER_DEV,
 	SB_DSP4_IGAIN_DEV, SB_DSP4_IGAIN_DEV + 1,
@@ -919,8 +997,10 @@ static unsigned char als4000_saved_regs[] = {
 	SB_DT019X_OUTPUT_SW2,
 	SB_ALS4000_MONO_IO_CTRL,
 	SB_ALS4000_MIC_IN_GAIN,
+	SB_ALS4000_FMDAC,
 	SB_ALS4000_3D_SND_FX,
 	SB_ALS4000_3D_TIME_DELAY,
+	SB_ALS4000_CR3_CONFIGURATION,
 };
 
 static void save_mixer(struct snd_sb *chip, unsigned char *regs, int num_regs)

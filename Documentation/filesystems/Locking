@@ -437,8 +437,11 @@ grab BKL for cases when we close a file that had been opened r/w, but that
 can and should be done using the internal locking with smaller critical areas).
 Current worst offender is ext2_get_block()...
 
-->fasync() is a mess. This area needs a big cleanup and that will probably
-affect locking.
+->fasync() is called without BKL protection, and is responsible for
+maintaining the FASYNC bit in filp->f_flags.  Most instances call
+fasync_helper(), which does that maintenance, so it's not normally
+something one needs to worry about.  Return values > 0 will be mapped to
+zero in the VFS layer.
 
 ->readdir() and ->ioctl() on directories must be changed. Ideally we would
 move ->readdir() to inode_operations and use a separate method for directory
@@ -502,23 +505,31 @@ prototypes:
 	void (*open)(struct vm_area_struct*);
 	void (*close)(struct vm_area_struct*);
 	int (*fault)(struct vm_area_struct*, struct vm_fault *);
-	int (*page_mkwrite)(struct vm_area_struct *, struct page *);
+	int (*page_mkwrite)(struct vm_area_struct *, struct vm_fault *);
 	int (*access)(struct vm_area_struct *, unsigned long, void*, int, int);
 
 locking rules:
 		BKL	mmap_sem	PageLocked(page)
 open:		no	yes
 close:		no	yes
-fault:		no	yes
-page_mkwrite:	no	yes		no
+fault:		no	yes		can return with page locked
+page_mkwrite:	no	yes		can return with page locked
 access:		no	yes
 
-	->page_mkwrite() is called when a previously read-only page is
-about to become writeable. The file system is responsible for
-protecting against truncate races. Once appropriate action has been
-taking to lock out truncate, the page range should be verified to be
-within i_size. The page mapping should also be checked that it is not
-NULL.
+	->fault() is called when a previously not present pte is about
+to be faulted in. The filesystem must find and return the page associated
+with the passed in "pgoff" in the vm_fault structure. If it is possible that
+the page may be truncated and/or invalidated, then the filesystem must lock
+the page, then ensure it is not already truncated (the page lock will block
+subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
+locked. The VM will unlock the page.
+
+	->page_mkwrite() is called when a previously read-only pte is
+about to become writeable. The filesystem again must ensure that there are
+no truncate/invalidate races, and then return with the page locked. If
+the page has been truncated, the filesystem should not look up a new page
+like the ->fault() handler, but simply return with VM_FAULT_NOPAGE, which
+will cause the VM to retry the fault.
 
 	->access() is called when get_user_pages() fails in
 acces_process_vm(), typically used to debug a process through

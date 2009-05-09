@@ -517,22 +517,6 @@ SOC_SINGLE("LINEOUT2 LP -12dB", WM8900_REG_LOUTMIXCTL1,
 
 };
 
-/* add non dapm controls */
-static int wm8900_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(wm8900_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&wm8900_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static const struct snd_kcontrol_new wm8900_dapm_loutput2_control =
 SOC_DAPM_SINGLE("LINEOUT2L Switch", WM8900_REG_POWER3, 6, 1, 0);
 
@@ -736,7 +720,7 @@ static int wm8900_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u16 reg;
 
 	reg = wm8900_read(codec, WM8900_REG_AUDIO1) & ~0x60;
@@ -1104,6 +1088,14 @@ static int wm8900_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	(SNDRV_PCM_FORMAT_S16_LE | SNDRV_PCM_FORMAT_S20_3LE | \
 	 SNDRV_PCM_FORMAT_S24_LE)
 
+static struct snd_soc_dai_ops wm8900_dai_ops = {
+	.hw_params	= wm8900_hw_params,
+	.set_clkdiv	= wm8900_set_dai_clkdiv,
+	.set_pll	= wm8900_set_dai_pll,
+	.set_fmt	= wm8900_set_dai_fmt,
+	.digital_mute	= wm8900_digital_mute,
+};
+
 struct snd_soc_dai wm8900_dai = {
 	.name = "WM8900 HiFi",
 	.playback = {
@@ -1120,13 +1112,7 @@ struct snd_soc_dai wm8900_dai = {
 		.rates = WM8900_RATES,
 		.formats = WM8900_PCM_FORMATS,
 	 },
-	.ops = {
-		.hw_params = wm8900_hw_params,
-		 .set_clkdiv = wm8900_set_dai_clkdiv,
-		 .set_pll = wm8900_set_dai_pll,
-		 .set_fmt = wm8900_set_dai_fmt,
-		 .digital_mute = wm8900_digital_mute,
-	 },
+	.ops = &wm8900_dai_ops,
 };
 EXPORT_SYMBOL_GPL(wm8900_dai);
 
@@ -1226,7 +1212,7 @@ static int wm8900_set_bias_level(struct snd_soc_codec *codec,
 static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
@@ -1250,7 +1236,7 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 static int wm8900_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8900_priv *wm8900 = codec->private_data;
 	u16 *cache;
 	int i, ret;
@@ -1288,8 +1274,8 @@ static int wm8900_resume(struct platform_device *pdev)
 
 static struct snd_soc_codec *wm8900_codec;
 
-static int wm8900_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
 {
 	struct wm8900_priv *wm8900;
 	struct snd_soc_codec *codec;
@@ -1388,7 +1374,7 @@ err:
 	return ret;
 }
 
-static int wm8900_i2c_remove(struct i2c_client *client)
+static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_dai(&wm8900_dai);
 	snd_soc_unregister_codec(wm8900_codec);
@@ -1414,7 +1400,7 @@ static struct i2c_driver wm8900_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm8900_i2c_probe,
-	.remove = wm8900_i2c_remove,
+	.remove = __devexit_p(wm8900_i2c_remove),
 	.id_table = wm8900_i2c_id,
 };
 
@@ -1430,7 +1416,7 @@ static int wm8900_probe(struct platform_device *pdev)
 	}
 
 	codec = wm8900_codec;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 
 	/* Register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -1439,7 +1425,8 @@ static int wm8900_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	wm8900_add_controls(codec);
+	snd_soc_add_controls(codec, wm8900_snd_controls,
+				ARRAY_SIZE(wm8900_snd_controls));
 	wm8900_add_widgets(codec);
 
 	ret = snd_soc_init_card(socdev);

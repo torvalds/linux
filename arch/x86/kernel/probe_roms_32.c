@@ -18,7 +18,7 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/io.h>
-#include <setup_arch.h>
+#include <asm/setup_arch.h>
 
 static struct resource system_rom_resource = {
 	.name	= "System ROM",

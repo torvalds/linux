@@ -175,14 +175,6 @@ struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx,
 	struct bio_vec *bvl;
 
 	/*
-	 * If 'bs' is given, lookup the pool and do the mempool alloc.
-	 * If not, this is a bio_kmalloc() allocation and just do a
-	 * kzalloc() for the exact number of vecs right away.
-	 */
-	if (!bs)
-		bvl = kmalloc(nr * sizeof(struct bio_vec), gfp_mask);
-
-	/*
 	 * see comment near bvec_array define!
 	 */
 	switch (nr) {
@@ -248,7 +240,7 @@ void bio_free(struct bio *bio, struct bio_set *bs)
 		bvec_free_bs(bs, bio->bi_io_vec, BIO_POOL_IDX(bio));
 
 	if (bio_integrity(bio))
-		bio_integrity_free(bio, bs);
+		bio_integrity_free(bio);
 
 	/*
 	 * If we have front padding, adjust the bio pointer before freeing
@@ -258,21 +250,6 @@ void bio_free(struct bio *bio, struct bio_set *bs)
 		p -= bs->front_pad;
 
 	mempool_free(p, bs->bio_pool);
-}
-
-/*
- * default destructor for a bio allocated with bio_alloc_bioset()
- */
-static void bio_fs_destructor(struct bio *bio)
-{
-	bio_free(bio, fs_bio_set);
-}
-
-static void bio_kmalloc_destructor(struct bio *bio)
-{
-	if (bio_has_allocated_vec(bio))
-		kfree(bio->bi_io_vec);
-	kfree(bio);
 }
 
 void bio_init(struct bio *bio)
@@ -301,50 +278,58 @@ void bio_init(struct bio *bio)
  **/
 struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
-	struct bio *bio = NULL;
-	void *uninitialized_var(p);
+	unsigned long idx = BIO_POOL_NONE;
+	struct bio_vec *bvl = NULL;
+	struct bio *bio;
+	void *p;
 
-	if (bs) {
-		p = mempool_alloc(bs->bio_pool, gfp_mask);
+	p = mempool_alloc(bs->bio_pool, gfp_mask);
+	if (unlikely(!p))
+		return NULL;
+	bio = p + bs->front_pad;
 
-		if (p)
-			bio = p + bs->front_pad;
-	} else
-		bio = kmalloc(sizeof(*bio), gfp_mask);
+	bio_init(bio);
 
-	if (likely(bio)) {
-		struct bio_vec *bvl = NULL;
+	if (unlikely(!nr_iovecs))
+		goto out_set;
 
-		bio_init(bio);
-		if (likely(nr_iovecs)) {
-			unsigned long uninitialized_var(idx);
+	if (nr_iovecs <= BIO_INLINE_VECS) {
+		bvl = bio->bi_inline_vecs;
+		nr_iovecs = BIO_INLINE_VECS;
+	} else {
+		bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
+		if (unlikely(!bvl))
+			goto err_free;
 
-			if (nr_iovecs <= BIO_INLINE_VECS) {
-				idx = 0;
-				bvl = bio->bi_inline_vecs;
-				nr_iovecs = BIO_INLINE_VECS;
-			} else {
-				bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx,
-							bs);
-				nr_iovecs = bvec_nr_vecs(idx);
-			}
-			if (unlikely(!bvl)) {
-				if (bs)
-					mempool_free(p, bs->bio_pool);
-				else
-					kfree(bio);
-				bio = NULL;
-				goto out;
-			}
-			bio->bi_flags |= idx << BIO_POOL_OFFSET;
-			bio->bi_max_vecs = nr_iovecs;
-		}
-		bio->bi_io_vec = bvl;
+		nr_iovecs = bvec_nr_vecs(idx);
 	}
-out:
+out_set:
+	bio->bi_flags |= idx << BIO_POOL_OFFSET;
+	bio->bi_max_vecs = nr_iovecs;
+	bio->bi_io_vec = bvl;
 	return bio;
+
+err_free:
+	mempool_free(p, bs->bio_pool);
+	return NULL;
 }
 
+static void bio_fs_destructor(struct bio *bio)
+{
+	bio_free(bio, fs_bio_set);
+}
+
+/**
+ *	bio_alloc - allocate a new bio, memory pool backed
+ *	@gfp_mask: allocation mask to use
+ *	@nr_iovecs: number of iovecs
+ *
+ *	Allocate a new bio with @nr_iovecs bvecs.  If @gfp_mask
+ *	contains __GFP_WAIT, the allocation is guaranteed to succeed.
+ *
+ *	RETURNS:
+ *	Pointer to new bio on success, NULL on failure.
+ */
 struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
 {
 	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, fs_bio_set);
@@ -355,19 +340,45 @@ struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
 	return bio;
 }
 
-/*
- * Like bio_alloc(), but doesn't use a mempool backing. This means that
- * it CAN fail, but while bio_alloc() can only be used for allocations
- * that have a short (finite) life span, bio_kmalloc() should be used
- * for more permanent bio allocations (like allocating some bio's for
- * initalization or setup purposes).
- */
+static void bio_kmalloc_destructor(struct bio *bio)
+{
+	if (bio_integrity(bio))
+		bio_integrity_free(bio);
+	kfree(bio);
+}
+
+/**
+ * bio_alloc - allocate a bio for I/O
+ * @gfp_mask:   the GFP_ mask given to the slab allocator
+ * @nr_iovecs:	number of iovecs to pre-allocate
+ *
+ * Description:
+ *   bio_alloc will allocate a bio and associated bio_vec array that can hold
+ *   at least @nr_iovecs entries. Allocations will be done from the
+ *   fs_bio_set. Also see @bio_alloc_bioset.
+ *
+ *   If %__GFP_WAIT is set, then bio_alloc will always be able to allocate
+ *   a bio. This is due to the mempool guarantees. To make this work, callers
+ *   must never allocate more than 1 bio at the time from this pool. Callers
+ *   that need to allocate more than 1 bio must always submit the previously
+ *   allocate bio for IO before attempting to allocate a new one. Failure to
+ *   do so can cause livelocks under memory pressure.
+ *
+ **/
 struct bio *bio_kmalloc(gfp_t gfp_mask, int nr_iovecs)
 {
-	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, NULL);
+	struct bio *bio;
 
-	if (bio)
-		bio->bi_destructor = bio_kmalloc_destructor;
+	bio = kmalloc(sizeof(struct bio) + nr_iovecs * sizeof(struct bio_vec),
+		      gfp_mask);
+	if (unlikely(!bio))
+		return NULL;
+
+	bio_init(bio);
+	bio->bi_flags |= BIO_POOL_NONE << BIO_POOL_OFFSET;
+	bio->bi_max_vecs = nr_iovecs;
+	bio->bi_io_vec = bio->bi_inline_vecs;
+	bio->bi_destructor = bio_kmalloc_destructor;
 
 	return bio;
 }
@@ -463,10 +474,12 @@ struct bio *bio_clone(struct bio *bio, gfp_t gfp_mask)
 	if (bio_integrity(bio)) {
 		int ret;
 
-		ret = bio_integrity_clone(b, bio, fs_bio_set);
+		ret = bio_integrity_clone(b, bio, gfp_mask);
 
-		if (ret < 0)
+		if (ret < 0) {
+			bio_put(b);
 			return NULL;
+		}
 	}
 
 	return b;
@@ -804,12 +817,15 @@ struct bio *bio_copy_user_iov(struct request_queue *q,
 		len += iov[i].iov_len;
 	}
 
+	if (offset)
+		nr_pages++;
+
 	bmd = bio_alloc_map_data(nr_pages, iov_count, gfp_mask);
 	if (!bmd)
 		return ERR_PTR(-ENOMEM);
 
 	ret = -ENOMEM;
-	bio = bio_alloc(gfp_mask, nr_pages);
+	bio = bio_kmalloc(gfp_mask, nr_pages);
 	if (!bio)
 		goto out_bmd;
 
@@ -933,7 +949,7 @@ static struct bio *__bio_map_user_iov(struct request_queue *q,
 	if (!nr_pages)
 		return ERR_PTR(-EINVAL);
 
-	bio = bio_alloc(gfp_mask, nr_pages);
+	bio = bio_kmalloc(gfp_mask, nr_pages);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
 
@@ -1117,7 +1133,7 @@ static struct bio *__bio_map_kern(struct request_queue *q, void *data,
 	int offset, i;
 	struct bio *bio;
 
-	bio = bio_alloc(gfp_mask, nr_pages);
+	bio = bio_kmalloc(gfp_mask, nr_pages);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
 
@@ -1415,8 +1431,7 @@ static void bio_pair_end_2(struct bio *bi, int err)
 }
 
 /*
- * split a bio - only worry about a bio with a single page
- * in it's iovec
+ * split a bio - only worry about a bio with a single page in its iovec
  */
 struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 {
@@ -1524,7 +1539,6 @@ void bioset_free(struct bio_set *bs)
 	if (bs->bio_pool)
 		mempool_destroy(bs->bio_pool);
 
-	bioset_integrity_free(bs);
 	biovec_free_pools(bs);
 	bio_put_slab(bs);
 
@@ -1565,9 +1579,6 @@ struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
 	if (!bs->bio_pool)
 		goto bad;
 
-	if (bioset_integrity_create(bs, pool_size))
-		goto bad;
-
 	if (!biovec_create_pools(bs, pool_size))
 		return bs;
 
@@ -1584,6 +1595,13 @@ static void __init biovec_init_slabs(void)
 		int size;
 		struct biovec_slab *bvs = bvec_slabs + i;
 
+#ifndef CONFIG_BLK_DEV_INTEGRITY
+		if (bvs->nr_vecs <= BIO_INLINE_VECS) {
+			bvs->slab = NULL;
+			continue;
+		}
+#endif
+
 		size = bvs->nr_vecs * sizeof(struct bio_vec);
 		bvs->slab = kmem_cache_create(bvs->name, size, 0,
                                 SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
@@ -1598,7 +1616,6 @@ static int __init init_bio(void)
 	if (!bio_slabs)
 		panic("bio: can't allocate bios\n");
 
-	bio_integrity_init_slab();
 	biovec_init_slabs();
 
 	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0);

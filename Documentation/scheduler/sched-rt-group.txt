@@ -126,7 +126,7 @@ This uses the /cgroup virtual file system and "/cgroup/<cgroup>/cpu.rt_runtime_u
 to control the CPU time reserved for each control group instead.
 
 For more information on working with control groups, you should read
-Documentation/cgroups.txt as well.
+Documentation/cgroups/cgroups.txt as well.
 
 Group settings are checked against the following limits in order to keep the configuration
 schedulable:

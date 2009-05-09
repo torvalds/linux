@@ -46,6 +46,11 @@
 #include <mach/keypad.h>
 #include <mach/common.h>
 
+#include "board-h2.h"
+
+/* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
+#define OMAP1610_ETHR_START		0x04000300
+
 static int h2_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
@@ -364,7 +369,6 @@ static struct omap_lcd_config h2_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel h2_config[] __initdata = {
-	{ OMAP_TAG_USB,		&h2_usb_config },
 	{ OMAP_TAG_UART,	&h2_uart_config },
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
@@ -413,6 +417,7 @@ static void __init h2_init(void)
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
+	omap_usb_init(&h2_usb_config);
 	h2_mmc_init();
 }
 

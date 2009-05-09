@@ -139,12 +139,12 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
  */
 void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 {
-	cpumask_t tmp;
+	const struct cpumask *tmp;
 	int i, local = 0;
 
 	i = batch->index;
-	tmp = cpumask_of_cpu(smp_processor_id());
-	if (cpus_equal(batch->mm->cpu_vm_mask, tmp))
+	tmp = cpumask_of(smp_processor_id());
+	if (cpumask_equal(mm_cpumask(batch->mm), tmp))
 		local = 1;
 	if (i == 1)
 		flush_hash_page(batch->vaddr[0], batch->pte[0],

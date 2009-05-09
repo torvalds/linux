@@ -191,6 +191,7 @@ void __cpuinit local_timer_setup(void)
 	clk->name		= "dummy_timer";
 	clk->features		= CLOCK_EVT_FEAT_DUMMY;
 	clk->rating		= 200;
+	clk->mult               = 1;
 	clk->set_mode		= dummy_timer_set_mode;
 	clk->broadcast		= smp_timer_broadcast;
 	clk->cpumask		= cpumask_of(cpu);

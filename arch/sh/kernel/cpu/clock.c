@@ -20,6 +20,8 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/kobject.h>
+#include <linux/sysdev.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -239,6 +241,35 @@ void clk_recalc_rate(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_recalc_rate);
 
+int clk_set_parent(struct clk *clk, struct clk *parent)
+{
+	int ret = -EINVAL;
+	struct clk *old;
+
+	if (!parent || !clk)
+		return ret;
+
+	old = clk->parent;
+	if (likely(clk->ops && clk->ops->set_parent)) {
+		unsigned long flags;
+		spin_lock_irqsave(&clock_lock, flags);
+		ret = clk->ops->set_parent(clk, parent);
+		spin_unlock_irqrestore(&clock_lock, flags);
+		clk->parent = (ret ? old : parent);
+	}
+
+	if (unlikely(clk->flags & CLK_RATE_PROPAGATES))
+		propagate_rate(clk);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(clk_set_parent);
+
+struct clk *clk_get_parent(struct clk *clk)
+{
+	return clk->parent;
+}
+EXPORT_SYMBOL_GPL(clk_get_parent);
+
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	if (likely(clk->ops && clk->ops->round_rate)) {
@@ -328,6 +359,70 @@ static int show_clocks(char *buf, char **start, off_t off,
 
 	return p - buf;
 }
+
+#ifdef CONFIG_PM
+static int clks_sysdev_suspend(struct sys_device *dev, pm_message_t state)
+{
+	static pm_message_t prev_state;
+	struct clk *clkp;
+
+	switch (state.event) {
+	case PM_EVENT_ON:
+		/* Resumeing from hibernation */
+		if (prev_state.event == PM_EVENT_FREEZE) {
+			list_for_each_entry(clkp, &clock_list, node)
+				if (likely(clkp->ops)) {
+					unsigned long rate = clkp->rate;
+
+					if (likely(clkp->ops->set_parent))
+						clkp->ops->set_parent(clkp,
+							clkp->parent);
+					if (likely(clkp->ops->set_rate))
+						clkp->ops->set_rate(clkp,
+							rate, NO_CHANGE);
+					else if (likely(clkp->ops->recalc))
+						clkp->ops->recalc(clkp);
+					}
+		}
+		break;
+	case PM_EVENT_FREEZE:
+		break;
+	case PM_EVENT_SUSPEND:
+		break;
+	}
+
+	prev_state = state;
+	return 0;
+}
+
+static int clks_sysdev_resume(struct sys_device *dev)
+{
+	return clks_sysdev_suspend(dev, PMSG_ON);
+}
+
+static struct sysdev_class clks_sysdev_class = {
+	.name = "clks",
+};
+
+static struct sysdev_driver clks_sysdev_driver = {
+	.suspend = clks_sysdev_suspend,
+	.resume = clks_sysdev_resume,
+};
+
+static struct sys_device clks_sysdev_dev = {
+	.cls = &clks_sysdev_class,
+};
+
+static int __init clk_sysdev_init(void)
+{
+	sysdev_class_register(&clks_sysdev_class);
+	sysdev_driver_register(&clks_sysdev_class, &clks_sysdev_driver);
+	sysdev_register(&clks_sysdev_dev);
+
+	return 0;
+}
+subsys_initcall(clk_sysdev_init);
+#endif
 
 int __init clk_init(void)
 {

@@ -11,12 +11,12 @@
 #include <linux/hardirq.h>
 #include <linux/suspend.h>
 #include <linux/kbuild.h>
-#include <asm/pda.h>
 #include <asm/processor.h>
 #include <asm/segment.h>
 #include <asm/thread_info.h>
 #include <asm/ia32.h>
 #include <asm/bootparam.h>
+#include <asm/suspend.h>
 
 #include <xen/interface/xen.h>
 
@@ -46,16 +46,6 @@ int main(void)
 #ifdef CONFIG_IA32_EMULATION
 	ENTRY(sysenter_return);
 #endif
-	BLANK();
-#undef ENTRY
-#define ENTRY(entry) DEFINE(pda_ ## entry, offsetof(struct x8664_pda, entry))
-	ENTRY(kernelstack); 
-	ENTRY(oldrsp); 
-	ENTRY(pcurrent); 
-	ENTRY(irqcount);
-	ENTRY(cpunumber);
-	ENTRY(irqstackptr);
-	ENTRY(data_offset);
 	BLANK();
 #undef ENTRY
 #ifdef CONFIG_PARAVIRT

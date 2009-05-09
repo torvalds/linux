@@ -69,15 +69,6 @@ xfs_inode_alloc(
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
 	ASSERT(completion_done(&ip->i_flush));
 
-	/*
-	 * initialise the VFS inode here to get failures
-	 * out of the way early.
-	 */
-	if (!inode_init_always(mp->m_super, VFS_I(ip))) {
-		kmem_zone_free(xfs_inode_zone, ip);
-		return NULL;
-	}
-
 	/* initialise the xfs inode */
 	ip->i_ino = ino;
 	ip->i_mount = mp;
@@ -113,6 +104,20 @@ xfs_inode_alloc(
 #ifdef XFS_DIR2_TRACE
 	ip->i_dir_trace = ktrace_alloc(XFS_DIR2_KTRACE_SIZE, KM_NOFS);
 #endif
+	/*
+	* Now initialise the VFS inode. We do this after the xfs_inode
+	* initialisation as internal failures will result in ->destroy_inode
+	* being called and that will pass down through the reclaim path and
+	* free the XFS inode. This path requires the XFS inode to already be
+	* initialised. Hence if this call fails, the xfs_inode has already
+	* been freed and we should not reference it at all in the error
+	* handling.
+	*/
+	if (!inode_init_always(mp->m_super, VFS_I(ip)))
+		return NULL;
+
+	/* prevent anyone from using this yet */
+	VFS_I(ip)->i_state = I_NEW|I_LOCK;
 
 	return ip;
 }
@@ -246,9 +251,6 @@ xfs_iget_cache_miss(
 		goto out_destroy;
 	}
 
-	if (lock_flags)
-		xfs_ilock(ip, lock_flags);
-
 	/*
 	 * Preload the radix tree so we can insert safely under the
 	 * write spinlock. Note that we cannot sleep inside the preload
@@ -256,7 +258,16 @@ xfs_iget_cache_miss(
 	 */
 	if (radix_tree_preload(GFP_KERNEL)) {
 		error = EAGAIN;
-		goto out_unlock;
+		goto out_destroy;
+	}
+
+	/*
+	 * Because the inode hasn't been added to the radix-tree yet it can't
+	 * be found by another thread, so we can do the non-sleeping lock here.
+	 */
+	if (lock_flags) {
+		if (!xfs_ilock_nowait(ip, lock_flags))
+			BUG();
 	}
 
 	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
@@ -284,7 +295,6 @@ xfs_iget_cache_miss(
 out_preload_end:
 	write_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
-out_unlock:
 	if (lock_flags)
 		xfs_iunlock(ip, lock_flags);
 out_destroy:

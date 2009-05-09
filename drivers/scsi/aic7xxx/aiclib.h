@@ -133,7 +133,7 @@ struct scsi_sense_data
 #define SCSI_STATUS_TASK_ABORTED	0x40
 
 /************************* Large Disk Handling ********************************/
-static __inline int
+static inline int
 aic_sector_div(sector_t capacity, int heads, int sectors)
 {
 	/* ugly, ugly sector_div calling convention.. */
@@ -141,7 +141,7 @@ aic_sector_div(sector_t capacity, int heads, int sectors)
 	return (int)capacity;
 }
 
-static __inline uint32_t
+static inline uint32_t
 scsi_4btoul(uint8_t *bytes)
 {
 	uint32_t rv;

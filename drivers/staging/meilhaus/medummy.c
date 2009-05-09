@@ -47,7 +47,7 @@
 
 #include "medummy.h"
 
-static int medummy_io_irq_start(me_device_t * device,
+static int medummy_io_irq_start(me_device_t *device,
 				struct file *filep,
 				int subdevice,
 				int channel,
@@ -58,7 +58,7 @@ static int medummy_io_irq_start(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_irq_wait(me_device_t * device,
+static int medummy_io_irq_wait(me_device_t *device,
 			       struct file *filep,
 			       int subdevice,
 			       int channel,
@@ -69,7 +69,7 @@ static int medummy_io_irq_wait(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_irq_stop(me_device_t * device,
+static int medummy_io_irq_stop(me_device_t *device,
 			       struct file *filep,
 			       int subdevice, int channel, int flags)
 {
@@ -77,14 +77,14 @@ static int medummy_io_irq_stop(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_reset_device(me_device_t * device,
+static int medummy_io_reset_device(me_device_t *device,
 				   struct file *filep, int flags)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_reset_subdevice(me_device_t * device,
+static int medummy_io_reset_subdevice(me_device_t *device,
 				      struct file *filep,
 				      int subdevice, int flags)
 {
@@ -92,7 +92,7 @@ static int medummy_io_reset_subdevice(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_single_config(me_device_t * device,
+static int medummy_io_single_config(me_device_t *device,
 				    struct file *filep,
 				    int subdevice,
 				    int channel,
@@ -105,7 +105,7 @@ static int medummy_io_single_config(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_single_read(me_device_t * device,
+static int medummy_io_single_read(me_device_t *device,
 				  struct file *filep,
 				  int subdevice,
 				  int channel,
@@ -115,7 +115,7 @@ static int medummy_io_single_read(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_single_write(me_device_t * device,
+static int medummy_io_single_write(me_device_t *device,
 				   struct file *filep,
 				   int subdevice,
 				   int channel,
@@ -125,19 +125,19 @@ static int medummy_io_single_write(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_stream_config(me_device_t * device,
+static int medummy_io_stream_config(me_device_t *device,
 				    struct file *filep,
 				    int subdevice,
-				    meIOStreamConfig_t * config_list,
+				    meIOStreamConfig_t *config_list,
 				    int count,
-				    meIOStreamTrigger_t * trigger,
+				    meIOStreamTrigger_t *trigger,
 				    int fifo_irq_threshold, int flags)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_stream_new_values(me_device_t * device,
+static int medummy_io_stream_new_values(me_device_t *device,
 					struct file *filep,
 					int subdevice,
 					int timeout, int *count, int flags)
@@ -146,7 +146,7 @@ static int medummy_io_stream_new_values(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_stream_read(me_device_t * device,
+static int medummy_io_stream_read(me_device_t *device,
 				  struct file *filep,
 				  int subdevice,
 				  int read_mode,
@@ -156,7 +156,7 @@ static int medummy_io_stream_read(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_stream_start(me_device_t * device,
+static int medummy_io_stream_start(me_device_t *device,
 				   struct file *filep,
 				   int subdevice,
 				   int start_mode, int time_out, int flags)
@@ -165,7 +165,7 @@ static int medummy_io_stream_start(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_stream_status(me_device_t * device,
+static int medummy_io_stream_status(me_device_t *device,
 				    struct file *filep,
 				    int subdevice,
 				    int wait,
@@ -175,7 +175,7 @@ static int medummy_io_stream_status(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_stream_stop(me_device_t * device,
+static int medummy_io_stream_stop(me_device_t *device,
 				  struct file *filep,
 				  int subdevice, int stop_mode, int flags)
 {
@@ -183,7 +183,7 @@ static int medummy_io_stream_stop(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_io_stream_write(me_device_t * device,
+static int medummy_io_stream_write(me_device_t *device,
 				   struct file *filep,
 				   int subdevice,
 				   int write_mode,
@@ -193,14 +193,14 @@ static int medummy_io_stream_write(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_lock_device(me_device_t * device,
+static int medummy_lock_device(me_device_t *device,
 			       struct file *filep, int lock, int flags)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_lock_subdevice(me_device_t * device,
+static int medummy_lock_subdevice(me_device_t *device,
 				  struct file *filep,
 				  int subdevice, int lock, int flags)
 {
@@ -208,7 +208,7 @@ static int medummy_lock_subdevice(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_description_device(me_device_t * device,
+static int medummy_query_description_device(me_device_t *device,
 					    char **description)
 {
 	medummy_device_t *instance = (medummy_device_t *) device;
@@ -602,7 +602,7 @@ static int medummy_query_description_device(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_info_device(me_device_t * device,
+static int medummy_query_info_device(me_device_t *device,
 				     int *vendor_id,
 				     int *device_id,
 				     int *serial_no,
@@ -632,14 +632,14 @@ static int medummy_query_info_device(me_device_t * device,
 	return ME_ERRNO_SUCCESS;
 }
 
-static int medummy_query_name_device_driver(me_device_t * device, char **name)
+static int medummy_query_name_device_driver(me_device_t *device, char **name)
 {
 	PDEBUG("executed.\n");
 	*name = MEDUMMY_NAME_DRIVER;
 	return ME_ERRNO_SUCCESS;
 }
 
-static int medummy_query_name_device(me_device_t * device, char **name)
+static int medummy_query_name_device(me_device_t *device, char **name)
 {
 	medummy_device_t *instance = (medummy_device_t *) device;
 
@@ -1012,41 +1012,41 @@ static int medummy_query_name_device(me_device_t * device, char **name)
 	return ME_ERRNO_SUCCESS;
 }
 
-static int medummy_query_number_subdevices(me_device_t * device, int *number)
+static int medummy_query_number_subdevices(me_device_t *device, int *number)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_number_channels(me_device_t * device,
+static int medummy_query_number_channels(me_device_t *device,
 					 int subdevice, int *number)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_number_ranges(me_device_t * device,
+static int medummy_query_number_ranges(me_device_t *device,
 				       int subdevice, int unit, int *count)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_subdevice_type(me_device_t * device,
+static int medummy_query_subdevice_type(me_device_t *device,
 					int subdevice, int *type, int *subtype)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_subdevice_caps(me_device_t * device,
+static int medummy_query_subdevice_caps(me_device_t *device,
 					int subdevice, int *caps)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_subdevice_caps_args(me_device_t * device,
+static int medummy_query_subdevice_caps_args(me_device_t *device,
 					     int subdevice,
 					     int cap, int *args, int count)
 {
@@ -1054,7 +1054,7 @@ static int medummy_query_subdevice_caps_args(me_device_t * device,
 	return ME_ERRNO_NOT_SUPPORTED;
 }
 
-static int medummy_query_subdevice_by_type(me_device_t * device,
+static int medummy_query_subdevice_by_type(me_device_t *device,
 					   int start_subdevice,
 					   int type,
 					   int subtype, int *subdevice)
@@ -1063,7 +1063,7 @@ static int medummy_query_subdevice_by_type(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_range_by_min_max(me_device_t * device,
+static int medummy_query_range_by_min_max(me_device_t *device,
 					  int subdevice,
 					  int unit,
 					  int *min,
@@ -1073,7 +1073,7 @@ static int medummy_query_range_by_min_max(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_range_info(me_device_t * device,
+static int medummy_query_range_info(me_device_t *device,
 				    int subdevice,
 				    int range,
 				    int *unit, int *min, int *max, int *maxdata)
@@ -1082,17 +1082,17 @@ static int medummy_query_range_info(me_device_t * device,
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-int medummy_query_timer(me_device_t * device,
+int medummy_query_timer(me_device_t *device,
 			int subdevice,
 			int timer,
 			int *base_frequency,
-			uint64_t * min_ticks, uint64_t * max_ticks)
+			uint64_t *min_ticks, uint64_t *max_ticks)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_DEVICE_UNPLUGGED;
 }
 
-static int medummy_query_version_device_driver(me_device_t * device,
+static int medummy_query_version_device_driver(me_device_t *device,
 					       int *version)
 {
 	PDEBUG("executed.\n");
@@ -1101,7 +1101,7 @@ static int medummy_query_version_device_driver(me_device_t * device,
 	return ME_ERRNO_SUCCESS;
 }
 
-static void medummy_destructor(me_device_t * device)
+static void medummy_destructor(me_device_t *device)
 {
 	PDEBUG("executed.\n");
 	kfree(device);
@@ -1113,7 +1113,7 @@ static int init_device_info(unsigned short vendor_id,
 			    int bus_type,
 			    int bus_no,
 			    int dev_no,
-			    int func_no, medummy_device_t * instance)
+			    int func_no, medummy_device_t *instance)
 {
 	PDEBUG("executed.\n");
 
@@ -1129,14 +1129,14 @@ static int init_device_info(unsigned short vendor_id,
 	return 0;
 }
 
-static int medummy_config_load(me_device_t * device, struct file *filep,
-			       me_cfg_device_entry_t * config)
+static int medummy_config_load(me_device_t *device, struct file *filep,
+			       me_cfg_device_entry_t *config)
 {
 	PDEBUG("executed.\n");
 	return ME_ERRNO_SUCCESS;
 }
 
-static int init_device_instance(me_device_t * device)
+static int init_device_instance(me_device_t *device)
 {
 	PDEBUG("executed.\n");
 
@@ -1238,6 +1238,7 @@ me_device_t *medummy_constructor(unsigned short vendor_id,
 
 	return (me_device_t *) instance;
 }
+EXPORT_SYMBOL(medummy_constructor);
 
 // Init and exit of module.
 
@@ -1261,6 +1262,3 @@ MODULE_AUTHOR("Guenter Gebhardt <g.gebhardt@meilhaus.de>");
 MODULE_DESCRIPTION("Device Driver Module for Meilhaus ME-DUMMY Devices");
 MODULE_SUPPORTED_DEVICE("Meilhaus ME-DUMMY Devices");
 MODULE_LICENSE("GPL");
-
-// Export the constructor.
-EXPORT_SYMBOL(medummy_constructor);

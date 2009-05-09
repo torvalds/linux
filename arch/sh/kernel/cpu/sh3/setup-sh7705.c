@@ -1,7 +1,7 @@
 /*
  * SH7705 Setup
  *
- *  Copyright (C) 2006, 2007  Paul Mundt
+ *  Copyright (C) 2006 - 2009  Paul Mundt
  *  Copyright (C) 2007  Nobuhiro Iwamatsu
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -21,49 +21,34 @@ enum {
 	/* interrupt sources */
 	IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5,
 	PINT07, PINT815,
-	DMAC_DEI0, DMAC_DEI1, DMAC_DEI2, DMAC_DEI3,
-	SCIF0_ERI, SCIF0_RXI, SCIF0_TXI,
-	SCIF2_ERI, SCIF2_RXI, SCIF2_TXI,
-	ADC_ADI,
-	USB_USI0, USB_USI1,
-	TPU0, TPU1, TPU2, TPU3,
-	TMU0, TMU1, TMU2_TUNI, TMU2_TICPI,
-	RTC_ATI, RTC_PRI, RTC_CUI,
-	WDT,
-	REF_RCMI,
 
-	/* interrupt groups */
-	RTC, TMU2, DMAC, USB, SCIF2, SCIF0,
+	DMAC, SCIF0, SCIF2, ADC_ADI, USB,
+
+	TPU0, TPU1, TPU2, TPU3,
+	TMU0, TMU1, TMU2,
+
+	RTC, WDT, REF_RCMI,
 };
 
 static struct intc_vect vectors[] __initdata = {
 	/* IRQ0->5 are handled in setup-sh3.c */
 	INTC_VECT(PINT07, 0x700), INTC_VECT(PINT815, 0x720),
-	INTC_VECT(DMAC_DEI0, 0x800), INTC_VECT(DMAC_DEI1, 0x820),
-	INTC_VECT(DMAC_DEI2, 0x840), INTC_VECT(DMAC_DEI3, 0x860),
-	INTC_VECT(SCIF0_ERI, 0x880), INTC_VECT(SCIF0_RXI, 0x8a0),
-	INTC_VECT(SCIF0_TXI, 0x8e0),
-	INTC_VECT(SCIF2_ERI, 0x900), INTC_VECT(SCIF2_RXI, 0x920),
-	INTC_VECT(SCIF2_TXI, 0x960),
+	INTC_VECT(DMAC, 0x800), INTC_VECT(DMAC, 0x820),
+	INTC_VECT(DMAC, 0x840), INTC_VECT(DMAC, 0x860),
+	INTC_VECT(SCIF0, 0x880), INTC_VECT(SCIF0, 0x8a0),
+	INTC_VECT(SCIF0, 0x8e0),
+	INTC_VECT(SCIF2, 0x900), INTC_VECT(SCIF2, 0x920),
+	INTC_VECT(SCIF2, 0x960),
 	INTC_VECT(ADC_ADI, 0x980),
-	INTC_VECT(USB_USI0, 0xa20), INTC_VECT(USB_USI1, 0xa40),
+	INTC_VECT(USB, 0xa20), INTC_VECT(USB, 0xa40),
 	INTC_VECT(TPU0, 0xc00), INTC_VECT(TPU1, 0xc20),
 	INTC_VECT(TPU2, 0xc80), INTC_VECT(TPU3, 0xca0),
 	INTC_VECT(TMU0, 0x400), INTC_VECT(TMU1, 0x420),
-	INTC_VECT(TMU2_TUNI, 0x440), INTC_VECT(TMU2_TICPI, 0x460),
-	INTC_VECT(RTC_ATI, 0x480), INTC_VECT(RTC_PRI, 0x4a0),
-	INTC_VECT(RTC_CUI, 0x4c0),
+	INTC_VECT(TMU2, 0x440), INTC_VECT(TMU2, 0x460),
+	INTC_VECT(RTC, 0x480), INTC_VECT(RTC, 0x4a0),
+	INTC_VECT(RTC, 0x4c0),
 	INTC_VECT(WDT, 0x560),
 	INTC_VECT(REF_RCMI, 0x580),
-};
-
-static struct intc_group groups[] __initdata = {
-	INTC_GROUP(RTC, RTC_ATI, RTC_PRI, RTC_CUI),
-	INTC_GROUP(TMU2, TMU2_TUNI, TMU2_TICPI),
-	INTC_GROUP(DMAC, DMAC_DEI0, DMAC_DEI1, DMAC_DEI2, DMAC_DEI3),
-	INTC_GROUP(USB, USB_USI0, USB_USI1),
-	INTC_GROUP(SCIF0, SCIF0_ERI, SCIF0_RXI, SCIF0_TXI),
-	INTC_GROUP(SCIF2, SCIF2_ERI, SCIF2_RXI, SCIF2_TXI),
 };
 
 static struct intc_prio_reg prio_registers[] __initdata = {
@@ -78,7 +63,7 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 
 };
 
-static DECLARE_INTC_DESC(intc_desc, "sh7705", vectors, groups,
+static DECLARE_INTC_DESC(intc_desc, "sh7705", vectors, NULL,
 			 NULL, prio_registers, NULL);
 
 static struct plat_sci_port sci_platform_data[] = {
@@ -86,12 +71,12 @@ static struct plat_sci_port sci_platform_data[] = {
 		.mapbase	= 0xa4410000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		= { 56, 57, 59 },
+		.irqs		= { 56, 56, 56 },
 	}, {
 		.mapbase	= 0xa4400000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
-		.irqs		= { 52, 53, 55 },
+		.irqs		= { 52, 52, 52 },
 	}, {
 		.flags = 0,
 	}
@@ -114,14 +99,6 @@ static struct resource rtc_resources[] = {
 	[1] =	{
 		.start  = 20,
 		.flags	= IORESOURCE_IRQ,
-	},
-	[2] =	{
-		.start	= 21,
-		.flags	= IORESOURCE_IRQ,
-	},
-	[3] =	{
-		.start	= 22,
-		.flags  = IORESOURCE_IRQ,
 	},
 };
 

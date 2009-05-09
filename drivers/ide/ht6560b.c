@@ -103,7 +103,7 @@
 /*
  * This routine is invoked from ide.c to prepare for access to a given drive.
  */
-static void ht6560b_selectproc (ide_drive_t *drive)
+static void ht6560b_dev_select(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	unsigned long flags;
@@ -143,6 +143,8 @@ static void ht6560b_selectproc (ide_drive_t *drive)
 #endif
 	}
 	local_irq_restore(flags);
+
+	outb(drive->select | ATA_DEVICE_OBS, hwif->io_ports.device_addr);
 }
 
 /*
@@ -305,15 +307,29 @@ static int probe_ht6560b;
 module_param_named(probe, probe_ht6560b, bool, 0);
 MODULE_PARM_DESC(probe, "probe for HT6560B chipset");
 
+static const struct ide_tp_ops ht6560b_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= ide_write_devctl,
+
+	.dev_select		= ht6560b_dev_select,
+	.tf_load		= ide_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
 static const struct ide_port_ops ht6560b_port_ops = {
 	.init_dev		= ht6560b_init_dev,
 	.set_pio_mode		= ht6560b_set_pio_mode,
-	.selectproc		= ht6560b_selectproc,
 };
 
 static const struct ide_port_info ht6560b_port_info __initdata = {
 	.name			= DRV_NAME,
 	.chipset		= ide_ht6560b,
+	.tp_ops 		= &ht6560b_tp_ops,
 	.port_ops		= &ht6560b_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | /* is this needed? */
 				  IDE_HFLAG_NO_DMA |

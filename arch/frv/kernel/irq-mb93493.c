@@ -120,14 +120,12 @@ static struct irqaction mb93493_irq[2]  = {
 	[0] = {
 		.handler	= mb93493_interrupt,
 		.flags		= IRQF_DISABLED | IRQF_SHARED,
-		.mask		= CPU_MASK_NONE,
 		.name		= "mb93493.0",
 		.dev_id		= (void *) __addr_MB93493_IQSR(0),
 	},
 	[1] = {
 		.handler	= mb93493_interrupt,
 		.flags		= IRQF_DISABLED | IRQF_SHARED,
-		.mask		= CPU_MASK_NONE,
 		.name		= "mb93493.1",
 		.dev_id		= (void *) __addr_MB93493_IQSR(1),
 	}

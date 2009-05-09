@@ -191,7 +191,8 @@ struct mdio_ops {
 };
 
 struct adapter_info {
-	unsigned char nports;	/* # of ports */
+	unsigned char nports0;        /* # of ports on channel 0 */
+	unsigned char nports1;        /* # of ports on channel 1 */
 	unsigned char phy_base_addr;	/* MDIO PHY base address */
 	unsigned int gpio_out;	/* GPIO output settings */
 	unsigned char gpio_intr[MAX_NPORTS]; /* GPIO PHY IRQ pins */
@@ -280,6 +281,7 @@ struct mac_stats {
 	unsigned long num_toggled; /* # times toggled TxEn due to stuck TX */
 	unsigned long num_resets;  /* # times reset due to stuck TX */
 
+	unsigned long link_faults;  /* # detected link faults */
 };
 
 struct tp_mib_stats {
@@ -421,6 +423,7 @@ struct adapter_params {
 	unsigned short b_wnd[NCCTRL_WIN];
 
 	unsigned int nports;	/* # of ethernet ports */
+	unsigned int chan_map;  /* bitmap of in-use Tx channels */
 	unsigned int stats_update_period;	/* MAC stats accumulation period */
 	unsigned int linkpoll_period;	/* link poll period in 0.1s */
 	unsigned int rev;	/* chip revision */
@@ -701,6 +704,8 @@ int t3_phy_lasi_intr_handler(struct cphy *phy);
 void t3_intr_enable(struct adapter *adapter);
 void t3_intr_disable(struct adapter *adapter);
 void t3_intr_clear(struct adapter *adapter);
+void t3_xgm_intr_enable(struct adapter *adapter, int idx);
+void t3_xgm_intr_disable(struct adapter *adapter, int idx);
 void t3_port_intr_enable(struct adapter *adapter, int idx);
 void t3_port_intr_disable(struct adapter *adapter, int idx);
 void t3_port_intr_clear(struct adapter *adapter, int idx);
@@ -708,6 +713,7 @@ int t3_slow_intr_handler(struct adapter *adapter);
 int t3_phy_intr_handler(struct adapter *adapter);
 
 void t3_link_changed(struct adapter *adapter, int port_id);
+void t3_link_fault(struct adapter *adapter, int port_id);
 int t3_link_start(struct cphy *phy, struct cmac *mac, struct link_config *lc);
 const struct adapter_info *t3_get_adapter_info(unsigned int board_id);
 int t3_seeprom_read(struct adapter *adapter, u32 addr, __le32 *data);
@@ -744,6 +750,8 @@ int t3_mc7_bd_read(struct mc7 *mc7, unsigned int start, unsigned int n,
 
 int t3_mac_reset(struct cmac *mac);
 void t3b_pcs_reset(struct cmac *mac);
+void t3_mac_disable_exact_filters(struct cmac *mac);
+void t3_mac_enable_exact_filters(struct cmac *mac);
 int t3_mac_enable(struct cmac *mac, int which);
 int t3_mac_disable(struct cmac *mac, int which);
 int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu);

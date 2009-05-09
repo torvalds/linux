@@ -22,7 +22,7 @@
 #include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-/* XXX: from here down needed until struct xfs_trans has it's own ailp */
+/* XXX: from here down needed until struct xfs_trans has its own ailp */
 #include "xfs_bit.h"
 #include "xfs_buf_item.h"
 #include "xfs_sb.h"

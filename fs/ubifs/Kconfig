@@ -22,7 +22,7 @@ config UBIFS_FS_ADVANCED_COMPR
 	depends on UBIFS_FS
 	help
 	  This option allows to explicitly choose which compressions, if any,
-	  are enabled in UBIFS. Removing compressors means inbility to read
+	  are enabled in UBIFS. Removing compressors means inability to read
 	  existing file systems.
 
 	  If unsure, say 'N'.
@@ -32,7 +32,7 @@ config UBIFS_FS_LZO
 	depends on UBIFS_FS
 	default y
 	help
-	   LZO compressor is generally faster then zlib but compresses worse.
+	   LZO compressor is generally faster than zlib but compresses worse.
 	   Say 'Y' if unsure.
 
 config UBIFS_FS_ZLIB

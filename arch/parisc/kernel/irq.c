@@ -112,7 +112,7 @@ void cpu_end_irq(unsigned int irq)
 }
 
 #ifdef CONFIG_SMP
-int cpu_check_affinity(unsigned int irq, cpumask_t *dest)
+int cpu_check_affinity(unsigned int irq, const struct cpumask *dest)
 {
 	int cpu_dest;
 
@@ -120,23 +120,25 @@ int cpu_check_affinity(unsigned int irq, cpumask_t *dest)
 	if (CHECK_IRQ_PER_CPU(irq)) {
 		/* Bad linux design decision.  The mask has already
 		 * been set; we must reset it */
-		irq_desc[irq].affinity = CPU_MASK_ALL;
+		cpumask_setall(&irq_desc[irq].affinity);
 		return -EINVAL;
 	}
 
 	/* whatever mask they set, we just allow one CPU */
 	cpu_dest = first_cpu(*dest);
-	*dest = cpumask_of_cpu(cpu_dest);
 
-	return 0;
+	return cpu_dest;
 }
 
 static void cpu_set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 {
-	if (cpu_check_affinity(irq, dest))
+	int cpu_dest;
+
+	cpu_dest = cpu_check_affinity(irq, dest);
+	if (cpu_dest < 0)
 		return;
 
-	irq_desc[irq].affinity = *dest;
+	cpumask_copy(&irq_desc[irq].affinity, dest);
 }
 #endif
 
@@ -183,7 +185,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_printf(p, "%3d: ", i);
 #ifdef CONFIG_SMP
 		for_each_online_cpu(j)
-			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
+			seq_printf(p, "%10u ", kstat_irqs_cpu(i, j));
 #else
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif
@@ -295,7 +297,7 @@ int txn_alloc_irq(unsigned int bits_wide)
 unsigned long txn_affinity_addr(unsigned int irq, int cpu)
 {
 #ifdef CONFIG_SMP
-	irq_desc[irq].affinity = cpumask_of_cpu(cpu);
+	cpumask_copy(&irq_desc[irq].affinity, cpumask_of(cpu));
 #endif
 
 	return per_cpu(cpu_data, cpu).txn_addr;
@@ -309,12 +311,12 @@ unsigned long txn_alloc_addr(unsigned int virt_irq)
 	next_cpu++; /* assign to "next" CPU we want this bugger on */
 
 	/* validate entry */
-	while ((next_cpu < NR_CPUS) &&
+	while ((next_cpu < nr_cpu_ids) &&
 		(!per_cpu(cpu_data, next_cpu).txn_addr ||
 		 !cpu_online(next_cpu)))
 		next_cpu++;
 
-	if (next_cpu >= NR_CPUS) 
+	if (next_cpu >= nr_cpu_ids) 
 		next_cpu = 0;	/* nothing else, assign monarch */
 
 	return txn_affinity_addr(virt_irq, next_cpu);
@@ -352,7 +354,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	irq = eirr_to_irq(eirr_val);
 
 #ifdef CONFIG_SMP
-	dest = irq_desc[irq].affinity;
+	cpumask_copy(&dest, &irq_desc[irq].affinity);
 	if (CHECK_IRQ_PER_CPU(irq_desc[irq].status) &&
 	    !cpu_isset(smp_processor_id(), dest)) {
 		int cpu = first_cpu(dest);

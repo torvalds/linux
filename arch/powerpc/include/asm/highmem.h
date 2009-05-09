@@ -24,6 +24,7 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/highmem.h>
 #include <asm/kmap_types.h>
 #include <asm/tlbflush.h>
 #include <asm/page.h>
@@ -39,15 +40,15 @@ extern pte_t *pkmap_page_table;
  * chunk of RAM.
  */
 /*
- * We use one full pte table with 4K pages. And with 16K/64K pages pte
- * table covers enough memory (32MB and 512MB resp.) that both FIXMAP
- * and PKMAP can be placed in single pte table. We use 1024 pages for
- * PKMAP in case of 16K/64K pages.
+ * We use one full pte table with 4K pages. And with 16K/64K/256K pages pte
+ * table covers enough memory (32MB/512MB/2GB resp.), so that both FIXMAP
+ * and PKMAP can be placed in a single pte table. We use 512 pages for PKMAP
+ * in case of 16K/64K/256K page sizes.
  */
 #ifdef CONFIG_PPC_4K_PAGES
 #define PKMAP_ORDER	PTE_SHIFT
 #else
-#define PKMAP_ORDER	10
+#define PKMAP_ORDER	9
 #endif
 #define LAST_PKMAP	(1 << PKMAP_ORDER)
 #ifndef CONFIG_PPC_4K_PAGES
@@ -94,12 +95,13 @@ static inline void *kmap_atomic_prot(struct page *page, enum km_type type, pgpro
 	if (!PageHighMem(page))
 		return page_address(page);
 
+	debug_kmap_atomic(type);
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 #ifdef CONFIG_DEBUG_HIGHMEM
 	BUG_ON(!pte_none(*(kmap_pte-idx)));
 #endif
-	__set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot));
+	__set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot), 1);
 	local_flush_tlb_page(NULL, vaddr);
 
 	return (void*) vaddr;

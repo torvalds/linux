@@ -165,9 +165,10 @@ static int tcpprobe_sprint(char *tbuf, int n)
 static ssize_t tcpprobe_read(struct file *file, char __user *buf,
 			     size_t len, loff_t *ppos)
 {
-	int error = 0, cnt = 0;
+	int error = 0;
+	size_t cnt = 0;
 
-	if (!buf || len < 0)
+	if (!buf)
 		return -EINVAL;
 
 	while (cnt < len) {

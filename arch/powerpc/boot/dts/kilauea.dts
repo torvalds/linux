@@ -97,6 +97,13 @@
 				      0x6 0x4>;	/* ECC SEC Error */ 
 		};
 
+		CRYPTO: crypto@ef700000 {
+			compatible = "amcc,ppc405ex-crypto", "amcc,ppc4xx-crypto";
+			reg = <0xef700000 0x80400>;
+			interrupt-parent = <&UIC0>;
+			interrupts = <0x17 0x2>;
+		};
+
 		MAL0: mcmal {
 			compatible = "ibm,mcmal-405ex", "ibm,mcmal2";
 			dcr-reg = <0x180 0x062>;

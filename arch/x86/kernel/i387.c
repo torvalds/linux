@@ -136,7 +136,7 @@ int init_fpu(struct task_struct *tsk)
 #ifdef CONFIG_X86_32
 	if (!HAVE_HWFP) {
 		memset(tsk->thread.xstate, 0, xstate_size);
-		finit();
+		finit_task(tsk);
 		set_stopped_child_used_math(tsk);
 		return 0;
 	}

@@ -137,8 +137,7 @@ static tEplStatusuInstance EplStatusuInstance_g;
 // local function prototypes
 //---------------------------------------------------------------------------
 
-static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo *
-						    pFrameInfo_p);
+static tEplKernel EplStatusuCbStatusResponse(tEplFrameInfo *pFrameInfo_p);
 
 //=========================================================================//
 //                                                                         //
@@ -164,7 +163,7 @@ static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo *
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplStatusuInit()
+tEplKernel EplStatusuInit(void)
 {
 	tEplKernel Ret;
 
@@ -191,7 +190,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplStatusuInit()
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplStatusuAddInstance()
+tEplKernel EplStatusuAddInstance(void)
 {
 	tEplKernel Ret;
 
@@ -228,7 +227,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplStatusuAddInstance()
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplStatusuDelInstance()
+tEplKernel EplStatusuDelInstance(void)
 {
 	tEplKernel Ret;
 
@@ -258,7 +257,7 @@ EPLDLLEXPORT tEplKernel PUBLIC EplStatusuDelInstance()
 //
 //---------------------------------------------------------------------------
 
-EPLDLLEXPORT tEplKernel PUBLIC EplStatusuReset()
+tEplKernel EplStatusuReset(void)
 {
 	tEplKernel Ret;
 
@@ -287,9 +286,8 @@ EPLDLLEXPORT tEplKernel PUBLIC EplStatusuReset()
 //
 //---------------------------------------------------------------------------
 
-tEplKernel PUBLIC EplStatusuRequestStatusResponse(unsigned int uiNodeId_p,
-						  tEplStatusuCbResponse
-						  pfnCbResponse_p)
+tEplKernel EplStatusuRequestStatusResponse(unsigned int uiNodeId_p,
+					   tEplStatusuCbResponse pfnCbResponse_p)
 {
 	tEplKernel Ret;
 
@@ -342,8 +340,7 @@ tEplKernel PUBLIC EplStatusuRequestStatusResponse(unsigned int uiNodeId_p,
 // State:
 //
 //---------------------------------------------------------------------------
-static tEplKernel PUBLIC EplStatusuCbStatusResponse(tEplFrameInfo *
-						    pFrameInfo_p)
+static tEplKernel EplStatusuCbStatusResponse(tEplFrameInfo *pFrameInfo_p)
 {
 	tEplKernel Ret = kEplSuccessful;
 	unsigned int uiNodeId;

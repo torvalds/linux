@@ -1,8 +1,15 @@
+I'm hesitant to add a TODO file here, as the wireless developers would
+really have people help them out on the "clean" ar9170 driver that can
+be found at the linux-wireless developer site.
+
+But, if you wish to clean up this driver instead, here's a short list of
+things that need to be done to get it into a more mergable shape:
+
 TODO:
 	- checkpatch.pl cleanups
 	- sparse cleanups
 	- port to in-kernel 80211 stack
-	- proper network developer maintainer
+	- review by the wireless developer community
 
 Please send any patches to Greg Kroah-Hartman <greg@kroah.com> and
 Luis Rodriguez <Luis.Rodriguez@Atheros.com> and the

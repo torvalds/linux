@@ -23,9 +23,10 @@ int aoa_alsa_init(char *name, struct module *mod, struct device *dev)
 		/* cannot be EEXIST due to usage in aoa_fabric_register */
 		return -EBUSY;
 
-	alsa_card = snd_card_new(index, name, mod, sizeof(struct aoa_card));
-	if (!alsa_card)
-		return -ENOMEM;
+	err = snd_card_create(index, name, mod, sizeof(struct aoa_card),
+			      &alsa_card);
+	if (err < 0)
+		return err;
 	aoa_card = alsa_card->private_data;
 	aoa_card->alsa_card = alsa_card;
 	alsa_card->dev = dev;

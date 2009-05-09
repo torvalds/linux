@@ -15,7 +15,7 @@
  *
  * FIXME: do we need to handle cache stuff...
  */
-static void __attribute__((naked))
+static void __naked
 v3_copy_user_page(void *kto, const void *kfrom)
 {
 	asm("\n\

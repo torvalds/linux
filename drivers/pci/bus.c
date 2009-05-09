@@ -133,7 +133,7 @@ int pci_bus_add_child(struct pci_bus *bus)
  *
  * Call hotplug for each new devices.
  */
-void pci_bus_add_devices(struct pci_bus *bus)
+void pci_bus_add_devices(const struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	struct pci_bus *child;
@@ -184,8 +184,10 @@ void pci_enable_bridges(struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->subordinate) {
-			retval = pci_enable_device(dev);
-			pci_set_master(dev);
+			if (!pci_is_enabled(dev)) {
+				retval = pci_enable_device(dev);
+				pci_set_master(dev);
+			}
 			pci_enable_bridges(dev->subordinate);
 		}
 	}

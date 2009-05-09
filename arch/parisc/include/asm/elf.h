@@ -168,6 +168,16 @@ typedef struct elf64_fdesc {
 	__u64	gp;
 } Elf64_Fdesc;
 
+#ifdef __KERNEL__
+
+#ifdef CONFIG_64BIT
+#define Elf_Fdesc	Elf64_Fdesc
+#else
+#define Elf_Fdesc	Elf32_Fdesc
+#endif /*CONFIG_64BIT*/
+
+#endif /*__KERNEL__*/
+
 /* Legal values for p_type field of Elf32_Phdr/Elf64_Phdr.  */
 
 #define PT_HP_TLS		(PT_LOOS + 0x0)

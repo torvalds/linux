@@ -230,10 +230,10 @@ extern int __put_user_bad(void);
 	asm volatile(							\
 		"1:	ld." suffix "	%1, %3			\n"	\
 		"2:						\n"	\
-		"	.section .fixup, \"ax\"			\n"	\
+		"	.subsection 1				\n"	\
 		"3:	mov	%0, %4				\n"	\
 		"	rjmp	2b				\n"	\
-		"	.previous				\n"	\
+		"	.subsection 0				\n"	\
 		"	.section __ex_table, \"a\"		\n"	\
 		"	.long	1b, 3b				\n"	\
 		"	.previous				\n"	\
@@ -295,10 +295,10 @@ extern int __put_user_bad(void);
 	asm volatile(							\
 		"1:	st." suffix "	%1, %3			\n"	\
 		"2:						\n"	\
-		"	.section .fixup, \"ax\"			\n"	\
+		"	.subsection 1				\n"	\
 		"3:	mov	%0, %4				\n"	\
 		"	rjmp	2b				\n"	\
-		"	.previous				\n"	\
+		"	.subsection 0				\n"	\
 		"	.section __ex_table, \"a\"		\n"	\
 		"	.long	1b, 3b				\n"	\
 		"	.previous				\n"	\

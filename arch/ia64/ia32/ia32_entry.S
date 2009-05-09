@@ -240,7 +240,7 @@ ia32_syscall_table:
 	data8 sys_ni_syscall
 	data8 sys_umask		  /* 60 */
 	data8 sys_chroot
-	data8 sys_ustat
+	data8 compat_sys_ustat
 	data8 sys_dup2
 	data8 sys_getppid
 	data8 sys_getpgrp	  /* 65 */

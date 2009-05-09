@@ -1456,7 +1456,7 @@ static int dvb_audio_release(struct inode *inode, struct file *file)
  * driver registration
  ******************************************************************************/
 
-static struct file_operations dvb_video_fops = {
+static const struct file_operations dvb_video_fops = {
 	.owner		= THIS_MODULE,
 	.write		= dvb_video_write,
 	.ioctl		= dvb_generic_ioctl,
@@ -1474,7 +1474,7 @@ static struct dvb_device dvbdev_video = {
 	.kernel_ioctl	= dvb_video_ioctl,
 };
 
-static struct file_operations dvb_audio_fops = {
+static const struct file_operations dvb_audio_fops = {
 	.owner		= THIS_MODULE,
 	.write		= dvb_audio_write,
 	.ioctl		= dvb_generic_ioctl,

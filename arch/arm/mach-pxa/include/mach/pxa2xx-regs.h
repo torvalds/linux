@@ -14,6 +14,19 @@
 #ifndef __PXA2XX_REGS_H
 #define __PXA2XX_REGS_H
 
+#include <mach/hardware.h>
+
+/*
+ * PXA Chip selects
+ */
+
+#define PXA_CS0_PHYS	0x00000000
+#define PXA_CS1_PHYS	0x04000000
+#define PXA_CS2_PHYS	0x08000000
+#define PXA_CS3_PHYS	0x0C000000
+#define PXA_CS4_PHYS	0x10000000
+#define PXA_CS5_PHYS	0x14000000
+
 /*
  * Memory controller
  */
@@ -68,24 +81,6 @@
 #define MDREFR_K0DB2	(1 << 14)	/* SDCLK0 Divide by 2 Control/Status */
 #define MDREFR_K0RUN	(1 << 13)	/* SDCLK0 Run Control/Status */
 #define MDREFR_E0PIN	(1 << 12)	/* SDCKE0 Level Control/Status */
-
-
-#ifdef CONFIG_PXA27x
-
-#define ARB_CNTRL	__REG(0x48000048)  /* Arbiter Control Register */
-
-#define ARB_DMA_SLV_PARK	(1<<31)	   /* Be parked with DMA slave when idle */
-#define ARB_CI_PARK		(1<<30)	   /* Be parked with Camera Interface when idle */
-#define ARB_EX_MEM_PARK 	(1<<29)	   /* Be parked with external MEMC when idle */
-#define ARB_INT_MEM_PARK	(1<<28)	   /* Be parked with internal MEMC when idle */
-#define ARB_USB_PARK		(1<<27)	   /* Be parked with USB when idle */
-#define ARB_LCD_PARK		(1<<26)	   /* Be parked with LCD when idle */
-#define ARB_DMA_PARK		(1<<25)	   /* Be parked with DMA when idle */
-#define ARB_CORE_PARK		(1<<24)	   /* Be parked with core when idle */
-#define ARB_LOCK_FLAG		(1<<23)	   /* Only Locking masters gain access to the bus */
-
-#endif
-
 
 /*
  * Power Manager

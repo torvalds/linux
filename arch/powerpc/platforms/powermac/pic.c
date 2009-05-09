@@ -266,7 +266,6 @@ static unsigned int pmac_pic_get_irq(void)
 static struct irqaction xmon_action = {
 	.handler	= xmon_irq,
 	.flags		= 0,
-	.mask		= CPU_MASK_NONE,
 	.name		= "NMI - XMON"
 };
 #endif
@@ -274,7 +273,6 @@ static struct irqaction xmon_action = {
 static struct irqaction gatwick_cascade_action = {
 	.handler	= gatwick_action,
 	.flags		= IRQF_DISABLED,
-	.mask		= CPU_MASK_NONE,
 	.name		= "cascade",
 };
 

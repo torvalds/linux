@@ -6,8 +6,8 @@
  * It should also be usable on various Prism II based cards such as the
  * Linksys, D-Link and Farallon Skyline. It should also work on Symbol
  * cards such as the 3Com AirConnect and Ericsson WLAN.
- * 
- * Copyright notice & release notes in file orinoco.c
+ *
+ * Copyright notice & release notes in file main.c
  */
 
 #define DRIVER_NAME "orinoco_cs"
@@ -30,7 +30,8 @@
 /********************************************************************/
 
 MODULE_AUTHOR("David Gibson <hermes@gibson.dropbear.id.au>");
-MODULE_DESCRIPTION("Driver for PCMCIA Lucent Orinoco, Prism II based and similar wireless cards");
+MODULE_DESCRIPTION("Driver for PCMCIA Lucent Orinoco,"
+		   " Prism II based and similar wireless cards");
 MODULE_LICENSE("Dual MPL/GPL");
 
 /* Module parameters */
@@ -53,8 +54,8 @@ struct orinoco_pccard {
 
 	/* Used to handle hard reset */
 	/* yuck, we need this hack to work around the insanity of the
-         * PCMCIA layer */
-	unsigned long hard_reset_in_progress; 
+	 * PCMCIA layer */
+	unsigned long hard_reset_in_progress;
 };
 
 
@@ -98,7 +99,7 @@ orinoco_cs_hard_reset(struct orinoco_private *priv)
  * This creates an "instance" of the driver, allocating local data
  * structures for one device.  The device is registered with Card
  * Services.
- * 
+ *
  * The dev_link structure is initialized, but we don't actually
  * configure the card at this point -- we wait until we receive a card
  * insertion event.  */
@@ -111,7 +112,7 @@ orinoco_cs_probe(struct pcmcia_device *link)
 
 	dev = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
 			       orinoco_cs_hard_reset, NULL);
-	if (! dev)
+	if (!dev)
 		return -ENOMEM;
 	priv = netdev_priv(dev);
 	card = priv->card;
@@ -124,7 +125,7 @@ orinoco_cs_probe(struct pcmcia_device *link)
 	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = orinoco_interrupt;
-	link->irq.Instance = dev; 
+	link->irq.Instance = dev;
 
 	/* General socket configuration defaults can go here.  In this
 	 * client, we assume very little, and rely on the CIS for
@@ -162,8 +163,10 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
  */
 
 #define CS_CHECK(fn, ret) do { \
-		last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; \
-	} while (0)
+	last_fn = (fn); \
+	if ((last_ret = (ret)) != 0) \
+		goto cs_failed; \
+} while (0)
 
 static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
 				   cistpl_cftable_entry_t *cfg,
@@ -307,8 +310,8 @@ orinoco_cs_config(struct pcmcia_device *link)
 	 * initialized and arranged in a linked list at link->dev_node. */
 	strcpy(card->node.dev_name, dev->name);
 	link->dev_node = &card->node; /* link->dev_node being non-NULL is also
-                                    used to indicate that the
-                                    net_device has been registered */
+				       * used to indicate that the
+				       * net_device has been registered */
 
 	/* Finally, report what we've done */
 	printk(KERN_DEBUG "%s: " DRIVER_NAME " at %s, irq %d, io "
@@ -359,7 +362,7 @@ static int orinoco_cs_suspend(struct pcmcia_device *link)
 	/* This is probably racy, but I can't think of
 	   a better way, short of rewriting the PCMCIA
 	   layer to not suck :-( */
-	if (! test_bit(0, &card->hard_reset_in_progress)) {
+	if (!test_bit(0, &card->hard_reset_in_progress)) {
 		spin_lock_irqsave(&priv->lock, flags);
 
 		err = __orinoco_down(dev);
@@ -384,7 +387,7 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 	int err = 0;
 	unsigned long flags;
 
-	if (! test_bit(0, &card->hard_reset_in_progress)) {
+	if (!test_bit(0, &card->hard_reset_in_progress)) {
 		err = orinoco_reinit_firmware(dev);
 		if (err) {
 			printk(KERN_ERR "%s: Error %d re-initializing firmware\n",
@@ -397,7 +400,7 @@ static int orinoco_cs_resume(struct pcmcia_device *link)
 		netif_device_attach(dev);
 		priv->hw_unavailable--;
 
-		if (priv->open && ! priv->hw_unavailable) {
+		if (priv->open && !priv->hw_unavailable) {
 			err = __orinoco_up(dev);
 			if (err)
 				printk(KERN_ERR "%s: Error %d restarting card\n",

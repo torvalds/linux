@@ -69,7 +69,7 @@ MODULE_LICENSE("GPL");
 #endif
 
 /*
- * Modules parameters and associated varaibles
+ * Modules parameters and associated variables
  */
 static int fst_txq_low = FST_LOW_WATER_MARK;
 static int fst_txq_high = FST_HIGH_WATER_MARK;
@@ -2424,6 +2424,15 @@ fst_init_card(struct fst_card_info *card)
 	       type_strings[card->type], card->irq, card->nports);
 }
 
+static const struct net_device_ops fst_ops = {
+	.ndo_open       = fst_open,
+	.ndo_stop       = fst_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = fst_ioctl,
+	.ndo_tx_timeout = fst_tx_timeout,
+};
+
 /*
  *      Initialise card when detected.
  *      Returns 0 to indicate success, or errno otherwise.
@@ -2565,12 +2574,9 @@ fst_add_one(struct pci_dev *pdev, const struct pci_device_id *ent)
                 dev->base_addr   = card->pci_conf;
                 dev->irq         = card->irq;
 
-                dev->tx_queue_len          = FST_TX_QUEUE_LEN;
-                dev->open                  = fst_open;
-                dev->stop                  = fst_close;
-                dev->do_ioctl              = fst_ioctl;
-                dev->watchdog_timeo        = FST_TX_TIMEOUT;
-                dev->tx_timeout            = fst_tx_timeout;
+		dev->netdev_ops = &fst_ops;
+		dev->tx_queue_len = FST_TX_QUEUE_LEN;
+		dev->watchdog_timeo = FST_TX_TIMEOUT;
                 hdlc->attach = fst_attach;
                 hdlc->xmit   = fst_start_xmit;
 	}

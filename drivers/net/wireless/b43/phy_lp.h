@@ -4,8 +4,285 @@
 /* Definitions for the LP-PHY */
 
 
+/* The CCK PHY register range. */
+#define B43_LPPHY_B_VERSION			B43_PHY_CCK(0x00) /* B PHY version */
+#define B43_LPPHY_B_BBCONFIG			B43_PHY_CCK(0x01) /* B PHY BBConfig */
+#define B43_LPPHY_B_RX_STAT0			B43_PHY_CCK(0x04) /* B PHY RX Status0 */
+#define B43_LPPHY_B_RX_STAT1			B43_PHY_CCK(0x05) /* B PHY RX Status1 */
+#define B43_LPPHY_B_CRS_THRESH			B43_PHY_CCK(0x06) /* B PHY CRS Thresh */
+#define B43_LPPHY_B_TXERROR			B43_PHY_CCK(0x07) /* B PHY TxError */
+#define B43_LPPHY_B_CHANNEL			B43_PHY_CCK(0x08) /* B PHY Channel */
+#define B43_LPPHY_B_WORKAROUND			B43_PHY_CCK(0x09) /* B PHY workaround */
+#define B43_LPPHY_B_TEST			B43_PHY_CCK(0x0A) /* B PHY Test */
+#define B43_LPPHY_B_FOURWIRE_ADDR		B43_PHY_CCK(0x0B) /* B PHY Fourwire Address */
+#define B43_LPPHY_B_FOURWIRE_DATA_HI		B43_PHY_CCK(0x0C) /* B PHY Fourwire Data Hi */
+#define B43_LPPHY_B_FOURWIRE_DATA_LO		B43_PHY_CCK(0x0D) /* B PHY Fourwire Data Lo */
+#define B43_LPPHY_B_BIST_STAT			B43_PHY_CCK(0x0E) /* B PHY Bist Status */
+#define B43_LPPHY_PA_RAMP_TX_TO			B43_PHY_CCK(0x10) /* PA Ramp TX Timeout */
+#define B43_LPPHY_RF_SYNTH_DC_TIMER		B43_PHY_CCK(0x11) /* RF Synth DC Timer */
+#define B43_LPPHY_PA_RAMP_TX_TIME_IN		B43_PHY_CCK(0x12) /* PA ramp TX Time in */
+#define B43_LPPHY_RX_FILTER_TIME_IN		B43_PHY_CCK(0x13) /* RX Filter Time in */
+#define B43_LPPHY_PLL_COEFF_S			B43_PHY_CCK(0x18) /* PLL Coefficient(s) */
+#define B43_LPPHY_PLL_OUT			B43_PHY_CCK(0x19) /* PLL Out */
+#define B43_LPPHY_RSSI_THRES			B43_PHY_CCK(0x20) /* RSSI Threshold */
+#define B43_LPPHY_IQ_THRES_HH			B43_PHY_CCK(0x21) /* IQ Threshold HH */
+#define B43_LPPHY_IQ_THRES_H			B43_PHY_CCK(0x22) /* IQ Threshold H */
+#define B43_LPPHY_IQ_THRES_L			B43_PHY_CCK(0x23) /* IQ Threshold L */
+#define B43_LPPHY_IQ_THRES_LL			B43_PHY_CCK(0x24) /* IQ Threshold LL */
+#define B43_LPPHY_AGC_GAIN			B43_PHY_CCK(0x25) /* AGC Gain */
+#define B43_LPPHY_LNA_GAIN_RANGE		B43_PHY_CCK(0x26) /* LNA Gain Range */
+#define B43_LPPHY_JSSI				B43_PHY_CCK(0x27) /* JSSI */
+#define B43_LPPHY_TSSI_CTL			B43_PHY_CCK(0x28) /* TSSI Control */
+#define B43_LPPHY_TSSI				B43_PHY_CCK(0x29) /* TSSI */
+#define B43_LPPHY_TR_LOSS			B43_PHY_CCK(0x2A) /* TR Loss */
+#define B43_LPPHY_LO_LEAKAGE			B43_PHY_CCK(0x2B) /* LO Leakage */
+#define B43_LPPHY_LO_RSSIACC			B43_PHY_CCK(0x2C) /* LO RSSIAcc */
+#define B43_LPPHY_LO_IQ_MAG_ACC			B43_PHY_CCK(0x2D) /* LO IQ Mag Acc */
+#define B43_LPPHY_TX_DCOFFSET1			B43_PHY_CCK(0x2E) /* TX DCOffset1 */
+#define B43_LPPHY_TX_DCOFFSET2			B43_PHY_CCK(0x2F) /* TX DCOffset2 */
+#define B43_LPPHY_SYNCPEAKCNT			B43_PHY_CCK(0x30) /* SyncPeakCnt */
+#define B43_LPPHY_SYNCFREQ			B43_PHY_CCK(0x31) /* SyncFreq */
+#define B43_LPPHY_SYNCDIVERSITYCTL		B43_PHY_CCK(0x32) /* SyncDiversityControl */
+#define B43_LPPHY_PEAKENERGYL			B43_PHY_CCK(0x33) /* PeakEnergyL */
+#define B43_LPPHY_PEAKENERGYH			B43_PHY_CCK(0x34) /* PeakEnergyH */
+#define B43_LPPHY_SYNCCTL			B43_PHY_CCK(0x35) /* SyncControl */
+#define B43_LPPHY_DSSSSTEP			B43_PHY_CCK(0x38) /* DsssStep */
+#define B43_LPPHY_DSSSWARMUP			B43_PHY_CCK(0x39) /* DsssWarmup */
+#define B43_LPPHY_DSSSSIGPOW			B43_PHY_CCK(0x3D) /* DsssSigPow */
+#define B43_LPPHY_SFDDETECTBLOCKTIME		B43_PHY_CCK(0x40) /* SfdDetectBlockTIme */
+#define B43_LPPHY_SFDTO				B43_PHY_CCK(0x41) /* SFDTimeOut */
+#define B43_LPPHY_SFDCTL			B43_PHY_CCK(0x42) /* SFDControl */
+#define B43_LPPHY_RXDBG				B43_PHY_CCK(0x43) /* rxDebug */
+#define B43_LPPHY_RX_DELAYCOMP			B43_PHY_CCK(0x44) /* RX DelayComp */
+#define B43_LPPHY_CRSDROPOUTTO			B43_PHY_CCK(0x45) /* CRSDropoutTimeout */
+#define B43_LPPHY_PSEUDOSHORTTO			B43_PHY_CCK(0x46) /* PseudoShortTimeout */
+#define B43_LPPHY_PR3931			B43_PHY_CCK(0x47) /* PR3931 */
+#define B43_LPPHY_DSSSCOEFF1			B43_PHY_CCK(0x48) /* DSSSCoeff1 */
+#define B43_LPPHY_DSSSCOEFF2			B43_PHY_CCK(0x49) /* DSSSCoeff2 */
+#define B43_LPPHY_CCKCOEFF1			B43_PHY_CCK(0x4A) /* CCKCoeff1 */
+#define B43_LPPHY_CCKCOEFF2			B43_PHY_CCK(0x4B) /* CCKCoeff2 */
+#define B43_LPPHY_TRCORR			B43_PHY_CCK(0x4C) /* TRCorr */
+#define B43_LPPHY_ANGLESCALE			B43_PHY_CCK(0x4D) /* AngleScale */
+#define B43_LPPHY_OPTIONALMODES2		B43_PHY_CCK(0x4F) /* OptionalModes2 */
+#define B43_LPPHY_CCKLMSSTEPSIZE		B43_PHY_CCK(0x50) /* CCKLMSStepSize */
+#define B43_LPPHY_DFEBYPASS			B43_PHY_CCK(0x51) /* DFEBypass */
+#define B43_LPPHY_CCKSTARTDELAYLONG		B43_PHY_CCK(0x52) /* CCKStartDelayLong */
+#define B43_LPPHY_CCKSTARTDELAYSHORT		B43_PHY_CCK(0x53) /* CCKStartDelayShort */
+#define B43_LPPHY_PPROCCHDELAY			B43_PHY_CCK(0x54) /* PprocChDelay */
+#define B43_LPPHY_PPROCONOFF			B43_PHY_CCK(0x55) /* PProcOnOff */
+#define B43_LPPHY_LNAGAINTWOBIT10		B43_PHY_CCK(0x5B) /* LNAGainTwoBit10 */
+#define B43_LPPHY_LNAGAINTWOBIT32		B43_PHY_CCK(0x5C) /* LNAGainTwoBit32 */
+#define B43_LPPHY_OPTIONALMODES			B43_PHY_CCK(0x5D) /* OptionalModes */
+#define B43_LPPHY_B_RX_STAT2			B43_PHY_CCK(0x5E) /* B PHY RX Status2 */
+#define B43_LPPHY_B_RX_STAT3			B43_PHY_CCK(0x5F) /* B PHY RX Status3 */
+#define B43_LPPHY_PWDNDACDELAY			B43_PHY_CCK(0x63) /* pwdnDacDelay */
+#define B43_LPPHY_FINEDIGIGAIN_CTL		B43_PHY_CCK(0x67) /* FineDigiGain Control */
+#define B43_LPPHY_LG2GAINTBLLNA8		B43_PHY_CCK(0x68) /* Lg2GainTblLNA8 */
+#define B43_LPPHY_LG2GAINTBLLNA28		B43_PHY_CCK(0x69) /* Lg2GainTblLNA28 */
+#define B43_LPPHY_GAINTBLLNATRSW		B43_PHY_CCK(0x6A) /* GainTblLNATrSw */
+#define B43_LPPHY_PEAKENERGY			B43_PHY_CCK(0x6B) /* PeakEnergy */
+#define B43_LPPHY_LG2INITGAIN			B43_PHY_CCK(0x6C) /* lg2InitGain */
+#define B43_LPPHY_BLANKCOUNTLNAPGA		B43_PHY_CCK(0x6D) /* BlankCountLnaPga */
+#define B43_LPPHY_LNAGAINTWOBIT54		B43_PHY_CCK(0x6E) /* LNAGainTwoBit54 */
+#define B43_LPPHY_LNAGAINTWOBIT76		B43_PHY_CCK(0x6F) /* LNAGainTwoBit76 */
+#define B43_LPPHY_JSSICTL			B43_PHY_CCK(0x70) /* JSSIControl */
+#define B43_LPPHY_LG2GAINTBLLNA44		B43_PHY_CCK(0x71) /* Lg2GainTblLNA44 */
+#define B43_LPPHY_LG2GAINTBLLNA62		B43_PHY_CCK(0x72) /* Lg2GainTblLNA62 */
+
+/* The OFDM PHY register range. */
+#define B43_LPPHY_VERSION			B43_PHY_OFDM(0x00) /* Version */
+#define B43_LPPHY_BBCONFIG			B43_PHY_OFDM(0x01) /* BBConfig */
+#define B43_LPPHY_RX_STAT0			B43_PHY_OFDM(0x04) /* RX Status0 */
+#define B43_LPPHY_RX_STAT1			B43_PHY_OFDM(0x05) /* RX Status1 */
+#define B43_LPPHY_TX_ERROR			B43_PHY_OFDM(0x07) /* TX Error */
+#define B43_LPPHY_CHANNEL			B43_PHY_OFDM(0x08) /* Channel */
+#define B43_LPPHY_WORKAROUND			B43_PHY_OFDM(0x09) /* workaround */
+#define B43_LPPHY_FOURWIRE_ADDR			B43_PHY_OFDM(0x0B) /* Fourwire Address */
+#define B43_LPPHY_FOURWIREDATAHI		B43_PHY_OFDM(0x0C) /* FourwireDataHi */
+#define B43_LPPHY_FOURWIREDATALO		B43_PHY_OFDM(0x0D) /* FourwireDataLo */
+#define B43_LPPHY_BISTSTAT0			B43_PHY_OFDM(0x0E) /* BistStatus0 */
+#define B43_LPPHY_BISTSTAT1			B43_PHY_OFDM(0x0F) /* BistStatus1 */
+#define B43_LPPHY_CRSGAIN_CTL			B43_PHY_OFDM(0x10) /* crsgain Control */
+#define B43_LPPHY_OFDMPWR_THRESH0		B43_PHY_OFDM(0x11) /* ofdmPower Thresh0 */
+#define B43_LPPHY_OFDMPWR_THRESH1		B43_PHY_OFDM(0x12) /* ofdmPower Thresh1 */
+#define B43_LPPHY_OFDMPWR_THRESH2		B43_PHY_OFDM(0x13) /* ofdmPower Thresh2 */
+#define B43_LPPHY_DSSSPWR_THRESH0		B43_PHY_OFDM(0x14) /* dsssPower Thresh0 */
+#define B43_LPPHY_DSSSPWR_THRESH1		B43_PHY_OFDM(0x15) /* dsssPower Thresh1 */
+#define B43_LPPHY_MINPWR_LEVEL			B43_PHY_OFDM(0x16) /* MinPower Level */
+#define B43_LPPHY_OFDMSYNCTHRESH0		B43_PHY_OFDM(0x17) /* ofdmSyncThresh0 */
+#define B43_LPPHY_OFDMSYNCTHRESH1		B43_PHY_OFDM(0x18) /* ofdmSyncThresh1 */
+#define B43_LPPHY_FINEFREQEST			B43_PHY_OFDM(0x19) /* FineFreqEst */
+#define B43_LPPHY_IDLEAFTERPKTRXTO		B43_PHY_OFDM(0x1A) /* IDLEafterPktRXTimeout */
+#define B43_LPPHY_LTRN_CTL			B43_PHY_OFDM(0x1B) /* LTRN Control */
+#define B43_LPPHY_DCOFFSETTRANSIENT		B43_PHY_OFDM(0x1C) /* DCOffsetTransient */
+#define B43_LPPHY_PREAMBLEINTO			B43_PHY_OFDM(0x1D) /* PreambleInTimeout */
+#define B43_LPPHY_PREAMBLECONFIRMTO		B43_PHY_OFDM(0x1E) /* PreambleConfirmTimeout */
+#define B43_LPPHY_CLIPTHRESH			B43_PHY_OFDM(0x1F) /* ClipThresh */
+#define B43_LPPHY_CLIPCTRTHRESH			B43_PHY_OFDM(0x20) /* ClipCtrThresh */
+#define B43_LPPHY_OFDMSYNCTIMER_CTL		B43_PHY_OFDM(0x21) /* ofdmSyncTimer Control */
+#define B43_LPPHY_WAITFORPHYSELTO		B43_PHY_OFDM(0x22) /* WaitforPHYSelTimeout */
+#define B43_LPPHY_HIGAINDB			B43_PHY_OFDM(0x23) /* HiGainDB */
+#define B43_LPPHY_LOWGAINDB			B43_PHY_OFDM(0x24) /* LowGainDB */
+#define B43_LPPHY_VERYLOWGAINDB			B43_PHY_OFDM(0x25) /* VeryLowGainDB */
+#define B43_LPPHY_GAINMISMATCH			B43_PHY_OFDM(0x26) /* gainMismatch */
+#define B43_LPPHY_GAINDIRECTMISMATCH		B43_PHY_OFDM(0x27) /* gaindirectMismatch */
+#define B43_LPPHY_PWR_THRESH0			B43_PHY_OFDM(0x28) /* Power Thresh0 */
+#define B43_LPPHY_PWR_THRESH1			B43_PHY_OFDM(0x29) /* Power Thresh1 */
+#define B43_LPPHY_DETECTOR_DELAY_ADJUST		B43_PHY_OFDM(0x2A) /* Detector Delay Adjust */
+#define B43_LPPHY_REDUCED_DETECTOR_DELAY	B43_PHY_OFDM(0x2B) /* Reduced Detector Delay */
+#define B43_LPPHY_DATA_TO			B43_PHY_OFDM(0x2C) /* data Timeout */
+#define B43_LPPHY_CORRELATOR_DIS_DELAY		B43_PHY_OFDM(0x2D) /* correlator Dis Delay */
+#define B43_LPPHY_DIVERSITY_GAINBACK		B43_PHY_OFDM(0x2E) /* Diversity GainBack */
+#define B43_LPPHY_DSSS_CONFIRM_CNT		B43_PHY_OFDM(0x2F) /* DSSS Confirm Cnt */
+#define B43_LPPHY_DC_BLANK_INT			B43_PHY_OFDM(0x30) /* DC Blank Interval */
+#define B43_LPPHY_GAIN_MISMATCH_LIMIT		B43_PHY_OFDM(0x31) /* gain Mismatch Limit */
+#define B43_LPPHY_CRS_ED_THRESH			B43_PHY_OFDM(0x32) /* crs ed thresh */
+#define B43_LPPHY_PHASE_SHIFT_CTL		B43_PHY_OFDM(0x33) /* phase shift Control */
+#define B43_LPPHY_INPUT_PWRDB			B43_PHY_OFDM(0x34) /* Input PowerDB */
+#define B43_LPPHY_OFDM_SYNC_CTL			B43_PHY_OFDM(0x35) /* ofdm sync Control */
+#define B43_LPPHY_AFE_ADC_CTL_0			B43_PHY_OFDM(0x36) /* Afe ADC Control 0 */
+#define B43_LPPHY_AFE_ADC_CTL_1			B43_PHY_OFDM(0x37) /* Afe ADC Control 1 */
+#define B43_LPPHY_AFE_ADC_CTL_2			B43_PHY_OFDM(0x38) /* Afe ADC Control 2 */
+#define B43_LPPHY_AFE_DAC_CTL			B43_PHY_OFDM(0x39) /* Afe DAC Control */
+#define B43_LPPHY_AFE_CTL			B43_PHY_OFDM(0x3A) /* Afe Control */
+#define B43_LPPHY_AFE_CTL_OVR			B43_PHY_OFDM(0x3B) /* Afe Control Ovr */
+#define B43_LPPHY_AFE_CTL_OVRVAL		B43_PHY_OFDM(0x3C) /* Afe Control OvrVal */
+#define B43_LPPHY_AFE_RSSI_CTL_0		B43_PHY_OFDM(0x3D) /* Afe RSSI Control 0 */
+#define B43_LPPHY_AFE_RSSI_CTL_1		B43_PHY_OFDM(0x3E) /* Afe RSSI Control 1 */
+#define B43_LPPHY_AFE_RSSI_SEL			B43_PHY_OFDM(0x3F) /* Afe RSSI Sel */
+#define B43_LPPHY_RADAR_THRESH			B43_PHY_OFDM(0x40) /* Radar Thresh */
+#define B43_LPPHY_RADAR_BLANK_INT		B43_PHY_OFDM(0x41) /* Radar blank Interval */
+#define B43_LPPHY_RADAR_MIN_FM_INT		B43_PHY_OFDM(0x42) /* Radar min fm Interval */
+#define B43_LPPHY_RADAR_GAIN_TO			B43_PHY_OFDM(0x43) /* Radar gain timeout */
+#define B43_LPPHY_RADAR_PULSE_TO		B43_PHY_OFDM(0x44) /* Radar pulse timeout */
+#define B43_LPPHY_RADAR_DETECT_FM_CTL		B43_PHY_OFDM(0x45) /* Radar detect FM Control */
+#define B43_LPPHY_RADAR_DETECT_EN		B43_PHY_OFDM(0x46) /* Radar detect En */
+#define B43_LPPHY_RADAR_RD_DATA_REG		B43_PHY_OFDM(0x47) /* Radar Rd Data Reg */
+#define B43_LPPHY_LP_PHY_CTL			B43_PHY_OFDM(0x48) /* LP PHY Control */
+#define B43_LPPHY_CLASSIFIER_CTL		B43_PHY_OFDM(0x49) /* classifier Control */
+#define B43_LPPHY_RESET_CTL			B43_PHY_OFDM(0x4A) /* reset Control */
+#define B43_LPPHY_CLKEN_CTL			B43_PHY_OFDM(0x4B) /* ClkEn Control */
+#define B43_LPPHY_RF_OVERRIDE_0			B43_PHY_OFDM(0x4C) /* RF Override 0 */
+#define B43_LPPHY_RF_OVERRIDE_VAL_0		B43_PHY_OFDM(0x4D) /* RF Override Val 0 */
+#define B43_LPPHY_TR_LOOKUP_1			B43_PHY_OFDM(0x4E) /* TR Lookup 1 */
+#define B43_LPPHY_TR_LOOKUP_2			B43_PHY_OFDM(0x4F) /* TR Lookup 2 */
+#define B43_LPPHY_RSSISELLOOKUP1		B43_PHY_OFDM(0x50) /* RssiSelLookup1 */
+#define B43_LPPHY_IQLO_CAL_CMD			B43_PHY_OFDM(0x51) /* iqlo Cal Cmd */
+#define B43_LPPHY_IQLO_CAL_CMD_N_NUM		B43_PHY_OFDM(0x52) /* iqlo Cal Cmd N num */
+#define B43_LPPHY_IQLO_CAL_CMD_G_CTL		B43_PHY_OFDM(0x53) /* iqlo Cal Cmd G control */
+#define B43_LPPHY_MACINT_DBG_REGISTER		B43_PHY_OFDM(0x54) /* macint Debug Register */
+#define B43_LPPHY_TABLE_ADDR			B43_PHY_OFDM(0x55) /* Table Address */
+#define B43_LPPHY_TABLEDATALO			B43_PHY_OFDM(0x56) /* TabledataLo */
+#define B43_LPPHY_TABLEDATAHI			B43_PHY_OFDM(0x57) /* TabledataHi */
+#define B43_LPPHY_PHY_CRS_ENABLE_ADDR		B43_PHY_OFDM(0x58) /* phy CRS Enable Address */
+#define B43_LPPHY_IDLETIME_CTL			B43_PHY_OFDM(0x59) /* Idletime Control */
+#define B43_LPPHY_IDLETIME_CRS_ON_LO		B43_PHY_OFDM(0x5A) /* Idletime CRS On Lo */
+#define B43_LPPHY_IDLETIME_CRS_ON_HI		B43_PHY_OFDM(0x5B) /* Idletime CRS On Hi */
+#define B43_LPPHY_IDLETIME_MEAS_TIME_LO		B43_PHY_OFDM(0x5C) /* Idletime Meas Time Lo */
+#define B43_LPPHY_IDLETIME_MEAS_TIME_HI		B43_PHY_OFDM(0x5D) /* Idletime Meas Time Hi */
+#define B43_LPPHY_RESET_LEN_OFDM_TX_ADDR	B43_PHY_OFDM(0x5E) /* Reset len Ofdm TX Address */
+#define B43_LPPHY_RESET_LEN_OFDM_RX_ADDR	B43_PHY_OFDM(0x5F) /* Reset len Ofdm RX Address */
+#define B43_LPPHY_REG_CRS_ENABLE		B43_PHY_OFDM(0x60) /* reg crs enable */
+#define B43_LPPHY_PLCP_TMT_STR0_CTR_MIN		B43_PHY_OFDM(0x61) /* PLCP Tmt Str0 Ctr Min */
+#define B43_LPPHY_PKT_FSM_RESET_LEN_VAL		B43_PHY_OFDM(0x62) /* Pkt fsm Reset Len Value */
+#define B43_LPPHY_READSYM2RESET_CTL		B43_PHY_OFDM(0x63) /* readsym2reset Control */
+#define B43_LPPHY_DC_FILTER_DELAY1		B43_PHY_OFDM(0x64) /* Dc filter delay1 */
+#define B43_LPPHY_PACKET_RX_ACTIVE_TO		B43_PHY_OFDM(0x65) /* packet rx Active timeout */
+#define B43_LPPHY_ED_TOVAL			B43_PHY_OFDM(0x66) /* ed timeoutValue */
+#define B43_LPPHY_HOLD_CRS_ON_VAL		B43_PHY_OFDM(0x67) /* hold CRS On Value */
+#define B43_LPPHY_OFDM_TX_PHY_CRS_DELAY_VAL	B43_PHY_OFDM(0x69) /* ofdm tx phy CRS Delay Value */
+#define B43_LPPHY_CCK_TX_PHY_CRS_DELAY_VAL	B43_PHY_OFDM(0x6A) /* cck tx phy CRS Delay Value */
+#define B43_LPPHY_ED_ON_CONFIRM_TIMER_VAL	B43_PHY_OFDM(0x6B) /* Ed on confirm Timer Value */
+#define B43_LPPHY_ED_OFFSET_CONFIRM_TIMER_VAL	B43_PHY_OFDM(0x6C) /* Ed offset confirm Timer Value */
+#define B43_LPPHY_PHY_CRS_OFFSET_TIMER_VAL	B43_PHY_OFDM(0x6D) /* phy CRS offset Timer Value */
+#define B43_LPPHY_ADC_COMPENSATION_CTL		B43_PHY_OFDM(0x70) /* ADC Compensation Control */
+#define B43_LPPHY_LOG2_RBPSK_ADDR		B43_PHY_OFDM(0x71) /* log2 RBPSK Address */
+#define B43_LPPHY_LOG2_RQPSK_ADDR		B43_PHY_OFDM(0x72) /* log2 RQPSK Address */
+#define B43_LPPHY_LOG2_R16QAM_ADDR		B43_PHY_OFDM(0x73) /* log2 R16QAM Address */
+#define B43_LPPHY_LOG2_R64QAM_ADDR		B43_PHY_OFDM(0x74) /* log2 R64QAM Address */
+#define B43_LPPHY_OFFSET_BPSK_ADDR		B43_PHY_OFDM(0x75) /* offset BPSK Address */
+#define B43_LPPHY_OFFSET_QPSK_ADDR		B43_PHY_OFDM(0x76) /* offset QPSK Address */
+#define B43_LPPHY_OFFSET_16QAM_ADDR		B43_PHY_OFDM(0x77) /* offset 16QAM Address */
+#define B43_LPPHY_OFFSET_64QAM_ADDR		B43_PHY_OFDM(0x78) /* offset 64QAM Address */
+#define B43_LPPHY_ALPHA1			B43_PHY_OFDM(0x79) /* Alpha1 */
+#define B43_LPPHY_ALPHA2			B43_PHY_OFDM(0x7A) /* Alpha2 */
+#define B43_LPPHY_BETA1				B43_PHY_OFDM(0x7B) /* Beta1 */
+#define B43_LPPHY_BETA2				B43_PHY_OFDM(0x7C) /* Beta2 */
+#define B43_LPPHY_LOOP_NUM_ADDR			B43_PHY_OFDM(0x7D) /* Loop Num Address */
+#define B43_LPPHY_STR_COLLMAX_SMPL_ADDR		B43_PHY_OFDM(0x7E) /* Str Collmax Sample Address */
+#define B43_LPPHY_MAX_SMPL_COARSE_FINE_ADDR	B43_PHY_OFDM(0x7F) /* Max Sample Coarse/Fine Address */
+#define B43_LPPHY_MAX_SMPL_COARSE_STR0CTR_ADDR	B43_PHY_OFDM(0x80) /* Max Sample Coarse/Str0Ctr Address */
+#define B43_LPPHY_IQ_ENABLE_WAIT_TIME_ADDR	B43_PHY_OFDM(0x81) /* IQ Enable Wait Time Address */
+#define B43_LPPHY_IQ_NUM_SMPLS_ADDR		B43_PHY_OFDM(0x82) /* IQ Num Samples Address */
+#define B43_LPPHY_IQ_ACC_HI_ADDR		B43_PHY_OFDM(0x83) /* IQ Acc Hi Address */
+#define B43_LPPHY_IQ_ACC_LO_ADDR		B43_PHY_OFDM(0x84) /* IQ Acc Lo Address */
+#define B43_LPPHY_IQ_I_PWR_ACC_HI_ADDR		B43_PHY_OFDM(0x85) /* IQ I PWR Acc Hi Address */
+#define B43_LPPHY_IQ_I_PWR_ACC_LO_ADDR		B43_PHY_OFDM(0x86) /* IQ I PWR Acc Lo Address */
+#define B43_LPPHY_IQ_Q_PWR_ACC_HI_ADDR		B43_PHY_OFDM(0x87) /* IQ Q PWR Acc Hi Address */
+#define B43_LPPHY_IQ_Q_PWR_ACC_LO_ADDR		B43_PHY_OFDM(0x88) /* IQ Q PWR Acc Lo Address */
+#define B43_LPPHY_MAXNUMSTEPS			B43_PHY_OFDM(0x89) /* MaxNumsteps */
+#define B43_LPPHY_ROTORPHASE_ADDR		B43_PHY_OFDM(0x8A) /* RotorPhase Address */
+#define B43_LPPHY_ADVANCEDRETARDROTOR_ADDR	B43_PHY_OFDM(0x8B) /* AdvancedRetardRotor Address */
+#define B43_LPPHY_RSSIADCDELAY_CTL_ADDR		B43_PHY_OFDM(0x8D) /* rssiAdcdelay Control Address */
+#define B43_LPPHY_TSSISTAT_ADDR			B43_PHY_OFDM(0x8E) /* tssiStatus Address */
+#define B43_LPPHY_TEMPSENSESTAT_ADDR		B43_PHY_OFDM(0x8F) /* tempsenseStatus Address */
+#define B43_LPPHY_TEMPSENSE_CTL_ADDR		B43_PHY_OFDM(0x90) /* tempsense Control Address */
+#define B43_LPPHY_WRSSISTAT_ADDR		B43_PHY_OFDM(0x91) /* wrssistatus Address */
+#define B43_LPPHY_MUFACTORADDR			B43_PHY_OFDM(0x92) /* mufactoraddr */
+#define B43_LPPHY_SCRAMSTATE_ADDR		B43_PHY_OFDM(0x93) /* scramstate Address */
+#define B43_LPPHY_TXHOLDOFFADDR			B43_PHY_OFDM(0x94) /* txholdoffaddr */
+#define B43_LPPHY_PKTGAINVAL_ADDR		B43_PHY_OFDM(0x95) /* pktgainval Address */
+#define B43_LPPHY_COARSEESTIM_ADDR		B43_PHY_OFDM(0x96) /* Coarseestim Address */
+#define B43_LPPHY_STATE_TRANSITION_ADDR		B43_PHY_OFDM(0x97) /* state Transition Address */
+#define B43_LPPHY_TRN_OFFSET_ADDR		B43_PHY_OFDM(0x98) /* TRN offset Address */
+#define B43_LPPHY_NUM_ROTOR_ADDR		B43_PHY_OFDM(0x99) /* Num Rotor Address */
+#define B43_LPPHY_VITERBI_OFFSET_ADDR		B43_PHY_OFDM(0x9A) /* Viterbi Offset Address */
+#define B43_LPPHY_SMPL_COLLECT_WAIT_ADDR	B43_PHY_OFDM(0x9B) /* Sample collect wait Address */
+#define B43_LPPHY_A_PHY_CTL_ADDR		B43_PHY_OFDM(0x9C) /* A PHY Control Address */
+#define B43_LPPHY_NUM_PASS_THROUGH_ADDR		B43_PHY_OFDM(0x9D) /* Num Pass Through Address */
+#define B43_LPPHY_RX_COMP_COEFF_S		B43_PHY_OFDM(0x9E) /* RX Comp coefficient(s) */
+#define B43_LPPHY_CPAROTATEVAL			B43_PHY_OFDM(0x9F) /* cpaRotateValue */
+#define B43_LPPHY_SMPL_PLAY_COUNT		B43_PHY_OFDM(0xA0) /* Sample play count */
+#define B43_LPPHY_SMPL_PLAY_BUFFER_CTL		B43_PHY_OFDM(0xA1) /* Sample play Buffer Control */
+#define B43_LPPHY_FOURWIRE_CTL			B43_PHY_OFDM(0xA2) /* fourwire Control */
+#define B43_LPPHY_CPA_TAILCOUNT_VAL		B43_PHY_OFDM(0xA3) /* CPA TailCount Value */
+#define B43_LPPHY_TX_PWR_CTL_CMD		B43_PHY_OFDM(0xA4) /* TX Power Control Cmd */
+#define  B43_LPPHY_TX_PWR_CTL_CMD_MODE		0xE000 /* TX power control mode mask */
+#define   B43_LPPHY_TX_PWR_CTL_CMD_MODE_OFF	0x0000 /* TX power control is OFF */
+#define   B43_LPPHY_TX_PWR_CTL_CMD_MODE_SW	0x8000 /* TX power control is SOFTWARE */
+#define   B43_LPPHY_TX_PWR_CTL_CMD_MODE_HW	0xE000 /* TX power control is HARDWARE */
+#define B43_LPPHY_TX_PWR_CTL_NNUM		B43_PHY_OFDM(0xA5) /* TX Power Control Nnum */
+#define B43_LPPHY_TX_PWR_CTL_IDLETSSI		B43_PHY_OFDM(0xA6) /* TX Power Control IdleTssi */
+#define B43_LPPHY_TX_PWR_CTL_TARGETPWR		B43_PHY_OFDM(0xA7) /* TX Power Control TargetPower */
+#define B43_LPPHY_TX_PWR_CTL_DELTAPWR_LIMIT	B43_PHY_OFDM(0xA8) /* TX Power Control DeltaPower Limit */
+#define B43_LPPHY_TX_PWR_CTL_BASEINDEX		B43_PHY_OFDM(0xA9) /* TX Power Control BaseIndex */
+#define B43_LPPHY_TX_PWR_CTL_PWR_INDEX		B43_PHY_OFDM(0xAA) /* TX Power Control Power Index */
+#define B43_LPPHY_TX_PWR_CTL_STAT		B43_PHY_OFDM(0xAB) /* TX Power Control Status */
+#define B43_LPPHY_LP_RF_SIGNAL_LUT		B43_PHY_OFDM(0xAC) /* LP RF signal LUT */
+#define B43_LPPHY_RX_RADIO_CTL_FILTER_STATE	B43_PHY_OFDM(0xAD) /* RX Radio Control Filter State */
+#define B43_LPPHY_RX_RADIO_CTL			B43_PHY_OFDM(0xAE) /* RX Radio Control */
+#define B43_LPPHY_NRSSI_STAT_ADDR		B43_PHY_OFDM(0xAF) /* NRSSI status Address */
+#define B43_LPPHY_RF_OVERRIDE_2			B43_PHY_OFDM(0xB0) /* RF override 2 */
+#define B43_LPPHY_RF_OVERRIDE_2_VAL		B43_PHY_OFDM(0xB1) /* RF override 2 val */
+#define B43_LPPHY_PS_CTL_OVERRIDE_VAL0		B43_PHY_OFDM(0xB2) /* PS Control override val0 */
+#define B43_LPPHY_PS_CTL_OVERRIDE_VAL1		B43_PHY_OFDM(0xB3) /* PS Control override val1 */
+#define B43_LPPHY_PS_CTL_OVERRIDE_VAL2		B43_PHY_OFDM(0xB4) /* PS Control override val2 */
+#define B43_LPPHY_TX_GAIN_CTL_OVERRIDE_VAL	B43_PHY_OFDM(0xB5) /* TX gain Control override val */
+#define B43_LPPHY_RX_GAIN_CTL_OVERRIDE_VAL	B43_PHY_OFDM(0xB6) /* RX gain Control override val */
+#define B43_LPPHY_AFE_DDFS			B43_PHY_OFDM(0xB7) /* AFE DDFS */
+#define B43_LPPHY_AFE_DDFS_POINTER_INIT		B43_PHY_OFDM(0xB8) /* AFE DDFS pointer init */
+#define B43_LPPHY_AFE_DDFS_INCR_INIT		B43_PHY_OFDM(0xB9) /* AFE DDFS incr init */
+#define B43_LPPHY_MRCNOISEREDUCTION		B43_PHY_OFDM(0xBA) /* mrcNoiseReduction */
+#define B43_LPPHY_TRLOOKUP3			B43_PHY_OFDM(0xBB) /* TRLookup3 */
+#define B43_LPPHY_TRLOOKUP4			B43_PHY_OFDM(0xBC) /* TRLookup4 */
+#define B43_LPPHY_RADAR_FIFO_STAT		B43_PHY_OFDM(0xBD) /* Radar FIFO Status */
+#define B43_LPPHY_GPIO_OUTEN			B43_PHY_OFDM(0xBE) /* GPIO Out enable */
+#define B43_LPPHY_GPIO_SELECT			B43_PHY_OFDM(0xBF) /* GPIO Select */
+#define B43_LPPHY_GPIO_OUT			B43_PHY_OFDM(0xC0) /* GPIO Out */
 
 
+
+/* Radio register access decorators. */
 #define B43_LP_RADIO(radio_reg)			(radio_reg)
 #define B43_LP_NORTH(radio_reg)			B43_LP_RADIO(radio_reg)
 #define B43_LP_SOUTH(radio_reg)			B43_LP_RADIO((radio_reg) | 0x4000)
@@ -529,8 +806,58 @@
 
 
 
+enum b43_lpphy_txpctl_mode {
+	B43_LPPHY_TXPCTL_UNKNOWN = 0,
+	B43_LPPHY_TXPCTL_OFF,	/* TX power control is OFF */
+	B43_LPPHY_TXPCTL_SW,	/* TX power control is set to Software */
+	B43_LPPHY_TXPCTL_HW,	/* TX power control is set to Hardware */
+};
+
 struct b43_phy_lp {
-	//TODO
+	/* Current TX power control mode. */
+	enum b43_lpphy_txpctl_mode txpctl_mode;
+
+	/* Transmit isolation medium band */
+	u8 tx_isolation_med_band; /* FIXME initial value? */
+	/* Transmit isolation low band */
+	u8 tx_isolation_low_band; /* FIXME initial value? */
+	/* Transmit isolation high band */
+	u8 tx_isolation_hi_band; /* FIXME initial value? */
+
+	/* Receive power offset */
+	u8 rx_pwr_offset; /* FIXME initial value? */
+
+	/* TSSI transmit count */
+	u16 tssi_tx_count;
+	/* TSSI index */
+	u16 tssi_idx; /* FIXME initial value? */
+	/* TSSI npt */
+	u16 tssi_npt; /* FIXME initial value? */
+
+	/* Target TX frequency */
+	u16 tgt_tx_freq; /* FIXME initial value? */
+
+	/* Transmit power index override */
+	s8 tx_pwr_idx_over; /* FIXME initial value? */
+
+	/* RSSI vf */
+	u8 rssi_vf; /* FIXME initial value? */
+	/* RSSI vc */
+	u8 rssi_vc; /* FIXME initial value? */
+	/* RSSI gs */
+	u8 rssi_gs; /* FIXME initial value? */
+
+	/* RC cap */
+	u8 rc_cap; /* FIXME initial value? */
+	/* BX arch */
+	u8 bx_arch; /* FIXME initial value? */
+
+	/* Full calibration channel */
+	u8 full_calib_chan; /* FIXME initial value? */
+
+	/* Transmit iqlocal best coeffs */
+	bool tx_iqloc_best_coeffs_valid;
+	u8 tx_iqloc_best_coeffs[11];
 };
 
 

@@ -471,16 +471,6 @@ static int pcxhr_hwdep_dsp_load(struct snd_hwdep *hw,
 	return 0;
 }
 
-static int pcxhr_hwdep_open(struct snd_hwdep *hw, struct file *file)
-{
-	return 0;
-}
-
-static int pcxhr_hwdep_release(struct snd_hwdep *hw, struct file *file)
-{
-	return 0;
-}
-
 int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 {
 	int err;
@@ -495,8 +485,6 @@ int pcxhr_setup_firmware(struct pcxhr_mgr *mgr)
 
 	hw->iface = SNDRV_HWDEP_IFACE_PCXHR;
 	hw->private_data = mgr;
-	hw->ops.open = pcxhr_hwdep_open;
-	hw->ops.release = pcxhr_hwdep_release;
 	hw->ops.dsp_status = pcxhr_hwdep_dsp_status;
 	hw->ops.dsp_load = pcxhr_hwdep_dsp_load;
 	hw->exclusive = 1;

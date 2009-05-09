@@ -51,8 +51,8 @@ const char vlan_version[] = DRV_VERSION;
 static const char vlan_copyright[] = "Ben Greear <greearb@candelatech.com>";
 static const char vlan_buggyright[] = "David S. Miller <davem@redhat.com>";
 
-static struct packet_type vlan_packet_type = {
-	.type = __constant_htons(ETH_P_8021Q),
+static struct packet_type vlan_packet_type __read_mostly = {
+	.type = cpu_to_be16(ETH_P_8021Q),
 	.func = vlan_skb_recv, /* VLAN receive method */
 };
 
@@ -492,6 +492,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 				continue;
 
 			dev_change_flags(vlandev, flgs & ~IFF_UP);
+			vlan_transfer_operstate(dev, vlandev);
 		}
 		break;
 
@@ -507,6 +508,7 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 				continue;
 
 			dev_change_flags(vlandev, flgs | IFF_UP);
+			vlan_transfer_operstate(dev, vlandev);
 		}
 		break;
 

@@ -183,13 +183,6 @@ override:
 		if (R_tab == NULL)
 			goto failure;
 
-		if (!est && (ret == ACT_P_CREATED ||
-			     !gen_estimator_active(&police->tcf_bstats,
-						   &police->tcf_rate_est))) {
-			err = -EINVAL;
-			goto failure;
-		}
-
 		if (parm->peakrate.rate) {
 			P_tab = qdisc_get_rtab(&parm->peakrate,
 					       tb[TCA_POLICE_PEAKRATE]);
@@ -205,6 +198,12 @@ override:
 					    &police->tcf_lock, est);
 		if (err)
 			goto failure_unlock;
+	} else if (tb[TCA_POLICE_AVRATE] &&
+		   (ret == ACT_P_CREATED ||
+		    !gen_estimator_active(&police->tcf_bstats,
+					  &police->tcf_rate_est))) {
+		err = -EINVAL;
+		goto failure_unlock;
 	}
 
 	/* No failure allowed after this point */

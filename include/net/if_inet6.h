@@ -39,8 +39,6 @@ struct inet6_ifaddr
 	
 	__u32			valid_lft;
 	__u32			prefered_lft;
-	unsigned long		cstamp;	/* created timestamp */
-	unsigned long		tstamp; /* updated timestamp */
 	atomic_t		refcnt;
 	spinlock_t		lock;
 
@@ -48,6 +46,9 @@ struct inet6_ifaddr
 	__u8			flags;
 
 	__u16			scope;
+
+	unsigned long		cstamp;	/* created timestamp */
+	unsigned long		tstamp; /* updated timestamp */
 
 	struct timer_list	timer;
 

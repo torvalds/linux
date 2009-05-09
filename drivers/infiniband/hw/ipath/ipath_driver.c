@@ -470,14 +470,14 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		goto bail_disable;
 	}
 
-	ret = pci_set_dma_mask(pdev, DMA_64BIT_MASK);
+	ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
 	if (ret) {
 		/*
 		 * if the 64 bit setup fails, try 32 bit.  Some systems
 		 * do not setup 64 bit maps on systems with 2GB or less
 		 * memory installed.
 		 */
-		ret = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+		ret = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (ret) {
 			dev_info(&pdev->dev,
 				"Unable to set DMA mask for unit %u: %d\n",
@@ -486,7 +486,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		}
 		else {
 			ipath_dbg("No 64bit DMA mask, used 32 bit mask\n");
-			ret = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
+			ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 			if (ret)
 				dev_info(&pdev->dev,
 					"Unable to set DMA consistent mask "
@@ -496,7 +496,7 @@ static int __devinit ipath_init_one(struct pci_dev *pdev,
 		}
 	}
 	else {
-		ret = pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
+		ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (ret)
 			dev_info(&pdev->dev,
 				"Unable to set DMA consistent mask "
@@ -2715,7 +2715,7 @@ static void ipath_hol_signal_up(struct ipath_devdata *dd)
  * to prevent HoL blocking, then start the HoL timer that
  * periodically continues, then stop procs, so they can detect
  * link down if they want, and do something about it.
- * Timer may already be running, so use __mod_timer, not add_timer.
+ * Timer may already be running, so use mod_timer, not add_timer.
  */
 void ipath_hol_down(struct ipath_devdata *dd)
 {
@@ -2724,7 +2724,7 @@ void ipath_hol_down(struct ipath_devdata *dd)
 	dd->ipath_hol_next = IPATH_HOL_DOWNCONT;
 	dd->ipath_hol_timer.expires = jiffies +
 		msecs_to_jiffies(ipath_hol_timeout_ms);
-	__mod_timer(&dd->ipath_hol_timer, dd->ipath_hol_timer.expires);
+	mod_timer(&dd->ipath_hol_timer, dd->ipath_hol_timer.expires);
 }
 
 /*
@@ -2763,7 +2763,7 @@ void ipath_hol_event(unsigned long opaque)
 	else {
 		dd->ipath_hol_timer.expires = jiffies +
 			msecs_to_jiffies(ipath_hol_timeout_ms);
-		__mod_timer(&dd->ipath_hol_timer,
+		mod_timer(&dd->ipath_hol_timer,
 			dd->ipath_hol_timer.expires);
 	}
 }

@@ -161,15 +161,18 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 		return -1;
 	if (hw == IVTV_HW_TUNER) {
 		/* special tuner handling */
-		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
+		sd = v4l2_i2c_new_probed_subdev(&itv->v4l2_dev,
+				adap, mod, type,
 				itv->card_i2c->radio);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
+		sd = v4l2_i2c_new_probed_subdev(&itv->v4l2_dev,
+				adap, mod, type,
 				itv->card_i2c->demod);
 		if (sd)
 			sd->grp_id = 1 << idx;
-		sd = v4l2_i2c_new_probed_subdev(adap, mod, type,
+		sd = v4l2_i2c_new_probed_subdev(&itv->v4l2_dev,
+				adap, mod, type,
 				itv->card_i2c->tv);
 		if (sd)
 			sd->grp_id = 1 << idx;
@@ -178,11 +181,11 @@ int ivtv_i2c_register(struct ivtv *itv, unsigned idx)
 	if (!hw_addrs[idx])
 		return -1;
 	if (hw == IVTV_HW_UPD64031A || hw == IVTV_HW_UPD6408X) {
-		unsigned short addrs[2] = { hw_addrs[idx], I2C_CLIENT_END };
-
-		sd = v4l2_i2c_new_probed_subdev(adap, mod, type, addrs);
+		sd = v4l2_i2c_new_probed_subdev_addr(&itv->v4l2_dev,
+				adap, mod, type, hw_addrs[idx]);
 	} else {
-		sd = v4l2_i2c_new_subdev(adap, mod, type, hw_addrs[idx]);
+		sd = v4l2_i2c_new_subdev(&itv->v4l2_dev,
+				adap, mod, type, hw_addrs[idx]);
 	}
 	if (sd)
 		sd->grp_id = 1 << idx;
@@ -194,14 +197,14 @@ struct v4l2_subdev *ivtv_find_hw(struct ivtv *itv, u32 hw)
 	struct v4l2_subdev *result = NULL;
 	struct v4l2_subdev *sd;
 
-	spin_lock(&itv->device.lock);
-	v4l2_device_for_each_subdev(sd, &itv->device) {
+	spin_lock(&itv->v4l2_dev.lock);
+	v4l2_device_for_each_subdev(sd, &itv->v4l2_dev) {
 		if (sd->grp_id == hw) {
 			result = sd;
 			break;
 		}
 	}
-	spin_unlock(&itv->device.lock);
+	spin_unlock(&itv->v4l2_dev.lock);
 	return result;
 }
 
@@ -472,8 +475,8 @@ static int ivtv_read(struct ivtv *itv, unsigned char addr, unsigned char *data, 
    intervening stop condition */
 static int ivtv_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs, int num)
 {
-	struct v4l2_device *drv = i2c_get_adapdata(i2c_adap);
-	struct ivtv *itv = to_ivtv(drv);
+	struct v4l2_device *v4l2_dev = i2c_get_adapdata(i2c_adap);
+	struct ivtv *itv = to_ivtv(v4l2_dev);
 	int retval;
 	int i;
 
@@ -604,12 +607,12 @@ int init_ivtv_i2c(struct ivtv *itv)
 
 	sprintf(itv->i2c_adap.name + strlen(itv->i2c_adap.name), " #%d",
 		itv->instance);
-	i2c_set_adapdata(&itv->i2c_adap, &itv->device);
+	i2c_set_adapdata(&itv->i2c_adap, &itv->v4l2_dev);
 
 	memcpy(&itv->i2c_client, &ivtv_i2c_client_template,
 	       sizeof(struct i2c_client));
 	itv->i2c_client.adapter = &itv->i2c_adap;
-	itv->i2c_adap.dev.parent = &itv->dev->dev;
+	itv->i2c_adap.dev.parent = &itv->pdev->dev;
 
 	IVTV_DEBUG_I2C("setting scl and sda to 1\n");
 	ivtv_setscl(itv, 1);

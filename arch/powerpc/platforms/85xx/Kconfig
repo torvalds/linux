@@ -51,6 +51,12 @@ config MPC85xx_DS
 	help
 	  This option enables support for the MPC85xx DS (MPC8544 DS) board
 
+config SOCRATES
+	bool "Socrates"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Socrates board.
+
 config KSI8560
         bool "Emerson KSI8560"
         select DEFAULT_UIMAGE

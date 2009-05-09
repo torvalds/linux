@@ -1556,9 +1556,15 @@ static void radeon_cp_discard_buffer(struct drm_device *dev, struct drm_master *
 	buf_priv->age = ++master_priv->sarea_priv->last_dispatch;
 
 	/* Emit the vertex buffer age */
-	BEGIN_RING(2);
-	RADEON_DISPATCH_AGE(buf_priv->age);
-	ADVANCE_RING();
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600) {
+		BEGIN_RING(3);
+		R600_DISPATCH_AGE(buf_priv->age);
+		ADVANCE_RING();
+	} else {
+		BEGIN_RING(2);
+		RADEON_DISPATCH_AGE(buf_priv->age);
+		ADVANCE_RING();
+	}
 
 	buf->pending = 1;
 	buf->used = 0;
@@ -1980,7 +1986,7 @@ static int alloc_surface(drm_radeon_surface_alloc_t *new,
 
 	/* find a virtual surface */
 	for (i = 0; i < 2 * RADEON_MAX_SURFACES; i++)
-		if (dev_priv->virt_surfaces[i].file_priv == 0)
+		if (dev_priv->virt_surfaces[i].file_priv == NULL)
 			break;
 	if (i == 2 * RADEON_MAX_SURFACES) {
 		return -1;
@@ -2473,23 +2479,24 @@ static int radeon_cp_indirect(struct drm_device *dev, void *data, struct drm_fil
 
 	buf->used = indirect->end;
 
-	/* Wait for the 3D stream to idle before the indirect buffer
-	 * containing 2D acceleration commands is processed.
-	 */
-	BEGIN_RING(2);
-
-	RADEON_WAIT_UNTIL_3D_IDLE();
-
-	ADVANCE_RING();
-
 	/* Dispatch the indirect buffer full of commands from the
 	 * X server.  This is insecure and is thus only available to
 	 * privileged clients.
 	 */
-	radeon_cp_dispatch_indirect(dev, buf, indirect->start, indirect->end);
-	if (indirect->discard) {
-		radeon_cp_discard_buffer(dev, file_priv->master, buf);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		r600_cp_dispatch_indirect(dev, buf, indirect->start, indirect->end);
+	else {
+		/* Wait for the 3D stream to idle before the indirect buffer
+		 * containing 2D acceleration commands is processed.
+		 */
+		BEGIN_RING(2);
+		RADEON_WAIT_UNTIL_3D_IDLE();
+		ADVANCE_RING();
+		radeon_cp_dispatch_indirect(dev, buf, indirect->start, indirect->end);
 	}
+
+	if (indirect->discard)
+		radeon_cp_discard_buffer(dev, file_priv->master, buf);
 
 	COMMIT_RING();
 	return 0;
@@ -3010,14 +3017,14 @@ static int radeon_cp_getparam(struct drm_device *dev, void *data, struct drm_fil
 		break;
 	case RADEON_PARAM_LAST_FRAME:
 		dev_priv->stats.last_frame_reads++;
-		value = GET_SCRATCH(0);
+		value = GET_SCRATCH(dev_priv, 0);
 		break;
 	case RADEON_PARAM_LAST_DISPATCH:
-		value = GET_SCRATCH(1);
+		value = GET_SCRATCH(dev_priv, 1);
 		break;
 	case RADEON_PARAM_LAST_CLEAR:
 		dev_priv->stats.last_clear_reads++;
-		value = GET_SCRATCH(2);
+		value = GET_SCRATCH(dev_priv, 2);
 		break;
 	case RADEON_PARAM_IRQ_NR:
 		value = drm_dev_to_irq(dev);
@@ -3052,7 +3059,10 @@ static int radeon_cp_getparam(struct drm_device *dev, void *data, struct drm_fil
 	case RADEON_PARAM_SCRATCH_OFFSET:
 		if (!dev_priv->writeback_works)
 			return -EINVAL;
-		value = RADEON_SCRATCH_REG_OFFSET;
+		if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+			value = R600_SCRATCH_REG_OFFSET;
+		else
+			value = RADEON_SCRATCH_REG_OFFSET;
 		break;
 	case RADEON_PARAM_CARD_TYPE:
 		if (dev_priv->flags & RADEON_IS_PCIE)
@@ -3155,6 +3165,7 @@ void radeon_driver_preclose(struct drm_device *dev, struct drm_file *file_priv)
 
 void radeon_driver_lastclose(struct drm_device *dev)
 {
+	radeon_surfaces_release(PCIGART_FILE_PRIV, dev->dev_private);
 	radeon_do_release(dev);
 }
 

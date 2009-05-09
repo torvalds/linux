@@ -2852,7 +2852,7 @@ static int s2io_poll_msix(struct napi_struct *napi, int budget)
 	s2io_chk_rx_buffers(nic, ring);
 
 	if (pkts_processed < budget_org) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		/*Re Enable MSI-Rx Vector*/
 		addr = (u8 __iomem *)&bar0->xmsi_mask_reg;
 		addr += 7 - ring->ring_no;
@@ -2889,7 +2889,7 @@ static int s2io_poll_inta(struct napi_struct *napi, int budget)
 			break;
 	}
 	if (pkts_processed < budget_org) {
-		netif_rx_complete(napi);
+		napi_complete(napi);
 		/* Re enable the Rx interrupts for the ring */
 		writeq(0, &bar0->rx_traffic_mask);
 		readl(&bar0->rx_traffic_mask);
@@ -3862,7 +3862,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 	ret = pci_enable_msix(nic->pdev, nic->entries, nic->num_entries);
 	/* We fail init if error or we get less vectors than min required */
 	if (ret) {
-		DBG_PRINT(ERR_DBG, "%s: Enabling MSIX failed\n", nic->dev->name);
+		DBG_PRINT(ERR_DBG, "s2io: Enabling MSI-X failed\n");
 		kfree(nic->entries);
 		nic->mac_control.stats_info->sw_stat.mem_freed
 			+= (nic->num_entries * sizeof(struct msix_entry));
@@ -4342,7 +4342,7 @@ static irqreturn_t s2io_msix_ring_handle(int irq, void *dev_id)
 		val8 = (ring->ring_no == 0) ? 0x7f : 0xff;
 		writeb(val8, addr);
 		val8 = readb(addr);
-		netif_rx_schedule(&ring->napi);
+		napi_schedule(&ring->napi);
 	} else {
 		rx_intr_handler(ring, 0);
 		s2io_chk_rx_buffers(sp, ring);
@@ -4789,7 +4789,7 @@ static irqreturn_t s2io_isr(int irq, void *dev_id)
 
 		if (config->napi) {
 			if (reason & GEN_INTR_RXTRAFFIC) {
-				netif_rx_schedule(&sp->napi);
+				napi_schedule(&sp->napi);
 				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_mask);
 				writeq(S2IO_MINUS_ONE, &bar0->rx_traffic_int);
 				readl(&bar0->rx_traffic_int);
@@ -7220,7 +7220,6 @@ static int s2io_card_up(struct s2io_nic * sp)
 
 	/* Initialise napi */
 	if (config->napi) {
-		int i;
 		if (config->intr_type ==  MSI_X) {
 			for (i = 0; i < sp->config.rx_ring_num; i++)
 				napi_enable(&sp->mac_control.rings[i].napi);
@@ -7542,6 +7541,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 
 	sp->mac_control.stats_info->sw_stat.mem_freed += skb->truesize;
 send_up:
+	skb_record_rx_queue(skb, ring_no);
 	queue_rx_frame(skb, RXD_GET_VLAN_TAG(rxdp->Control_2));
 aggregate:
 	sp->mac_control.rings[ring_no].rx_bufs_left -= 1;
@@ -7775,18 +7775,18 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		return ret;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 		DBG_PRINT(INIT_DBG, "s2io_init_nic: Using 64bit DMA\n");
 		dma_flag = TRUE;
 		if (pci_set_consistent_dma_mask
-		    (pdev, DMA_64BIT_MASK)) {
+		    (pdev, DMA_BIT_MASK(64))) {
 			DBG_PRINT(ERR_DBG,
 				  "Unable to obtain 64bit DMA for \
 					consistent allocations\n");
 			pci_disable_device(pdev);
 			return -ENOMEM;
 		}
-	} else if (!pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 		DBG_PRINT(INIT_DBG, "s2io_init_nic: Using 32bit DMA\n");
 	} else {
 		pci_disable_device(pdev);
@@ -8009,8 +8009,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		if (ret) {
 
 			DBG_PRINT(ERR_DBG,
-			  "%s: MSI-X requested but failed to enable\n",
-			  dev->name);
+			  "s2io: MSI-X requested but failed to enable\n");
 			sp->config.intr_type = INTA;
 		}
 	}

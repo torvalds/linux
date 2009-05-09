@@ -129,7 +129,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 	/* source_desc is of type ACPI_DESC_TYPE_OPERAND */
 
-	switch (ACPI_GET_OBJECT_TYPE(source_desc)) {
+	switch (source_desc->common.type) {
 	case ACPI_TYPE_INTEGER:
 
 		/* Output correct integer width */
@@ -324,7 +324,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 	/* Destination object must be a Reference or a Constant object */
 
-	switch (ACPI_GET_OBJECT_TYPE(dest_desc)) {
+	switch (dest_desc->common.type) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
 		break;
 
@@ -460,9 +460,8 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		 */
 		obj_desc = *(index_desc->reference.where);
 
-		if (ACPI_GET_OBJECT_TYPE(source_desc) ==
-		    ACPI_TYPE_LOCAL_REFERENCE
-		    && source_desc->reference.class == ACPI_REFCLASS_TABLE) {
+		if (source_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE &&
+		    source_desc->reference.class == ACPI_REFCLASS_TABLE) {
 
 			/* This is a DDBHandle, just add a reference to it */
 
@@ -520,8 +519,8 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		 * by the INDEX_OP code.
 		 */
 		obj_desc = index_desc->reference.object;
-		if ((ACPI_GET_OBJECT_TYPE(obj_desc) != ACPI_TYPE_BUFFER) &&
-		    (ACPI_GET_OBJECT_TYPE(obj_desc) != ACPI_TYPE_STRING)) {
+		if ((obj_desc->common.type != ACPI_TYPE_BUFFER) &&
+		    (obj_desc->common.type != ACPI_TYPE_STRING)) {
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
@@ -529,7 +528,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
 		 * The assignment of the individual elements will be slightly
 		 * different for each source type.
 		 */
-		switch (ACPI_GET_OBJECT_TYPE(source_desc)) {
+		switch (source_desc->common.type) {
 		case ACPI_TYPE_INTEGER:
 
 			/* Use the least-significant byte of the integer */
@@ -707,8 +706,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 		/* No conversions for all other types.  Just attach the source object */
 
 		status = acpi_ns_attach_object(node, source_desc,
-					       ACPI_GET_OBJECT_TYPE
-					       (source_desc));
+					       source_desc->common.type);
 		break;
 	}
 

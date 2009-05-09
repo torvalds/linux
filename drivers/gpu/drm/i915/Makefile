@@ -7,7 +7,7 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o i915_mem.o \
           i915_suspend.o \
 	  i915_gem.o \
 	  i915_gem_debug.o \
-	  i915_gem_proc.o \
+	  i915_gem_debugfs.o \
 	  i915_gem_tiling.o \
 	  intel_display.o \
 	  intel_crt.o \

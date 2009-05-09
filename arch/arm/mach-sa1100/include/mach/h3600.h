@@ -29,7 +29,7 @@ typedef int __bitwise pm_request_t;
 #define PM_RESUME	((__force pm_request_t) 2)	/* enter D0 */
 
 /* generalized support for H3xxx series Compaq Pocket PC's */
-#define machine_is_h3xxx() (machine_is_h3100() || machine_is_h3600() || machine_is_h3800())
+#define machine_is_h3xxx() (machine_is_h3100() || machine_is_h3600())
 
 /* Physical memory regions corresponding to chip selects */
 #define H3600_EGPIO_PHYS	(SA1100_CS5_PHYS + 0x01000000)
@@ -93,76 +93,7 @@ enum ipaq_egpio_type {
 	IPAQ_EGPIO_LCD_ENABLE,	  /* Enable/disable LCD controller */
 };
 
-struct ipaq_model_ops {
-	const char     *generic_name;
-	void	      (*control)(enum ipaq_egpio_type, int);
-	unsigned long (*read)(void);
-	void	      (*blank_callback)(int blank);
-	int	      (*pm_callback)(int req);	    /* Primary model callback */
-	int	      (*pm_callback_aux)(int req);  /* Secondary callback (used by HAL modules) */
-};
-
-extern struct ipaq_model_ops ipaq_model_ops;
-
-static __inline__ const char * h3600_generic_name(void)
-{
-	return ipaq_model_ops.generic_name;
-}
-
-static __inline__ void assign_h3600_egpio(enum ipaq_egpio_type x, int level)
-{
-	if (ipaq_model_ops.control)
-		ipaq_model_ops.control(x,level);
-}
-
-static __inline__ void clr_h3600_egpio(enum ipaq_egpio_type x)
-{
-	if (ipaq_model_ops.control)
-		ipaq_model_ops.control(x,0);
-}
-
-static __inline__ void set_h3600_egpio(enum ipaq_egpio_type x)
-{
-	if (ipaq_model_ops.control)
-		ipaq_model_ops.control(x,1);
-}
-
-static __inline__ unsigned long read_h3600_egpio(void)
-{
-	if (ipaq_model_ops.read)
-		return ipaq_model_ops.read();
-	return 0;
-}
-
-static __inline__ int  h3600_register_blank_callback(void (*f)(int))
-{
-	ipaq_model_ops.blank_callback = f;
-	return 0;
-}
-
-static __inline__ void h3600_unregister_blank_callback(void (*f)(int))
-{
-	ipaq_model_ops.blank_callback = NULL;
-}
-
-
-static __inline__ int  h3600_register_pm_callback(int (*f)(int))
-{
-	ipaq_model_ops.pm_callback_aux = f;
-	return 0;
-}
-
-static __inline__ void h3600_unregister_pm_callback(int (*f)(int))
-{
-	ipaq_model_ops.pm_callback_aux = NULL;
-}
-
-static __inline__ int h3600_power_management(int req)
-{
-	if (ipaq_model_ops.pm_callback)
-		return ipaq_model_ops.pm_callback(req);
-	return 0;
-}
+extern void (*assign_h3600_egpio)(enum ipaq_egpio_type x, int level);
 
 #endif /* ASSEMBLY */
 

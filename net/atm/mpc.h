@@ -15,7 +15,7 @@ struct mpoa_client {
 	struct mpoa_client *next;
 	struct net_device *dev;      /* lec in question                     */
 	int dev_num;                 /* e.g. 2 for lec2                     */
-	int (*old_hard_start_xmit)(struct sk_buff *skb, struct net_device *dev);
+
 	struct atm_vcc *mpoad_vcc;   /* control channel to mpoad            */
 	uint8_t mps_ctrl_addr[ATM_ESA_LEN];  /* MPS control ATM address     */
 	uint8_t our_ctrl_addr[ATM_ESA_LEN];  /* MPC's control ATM address   */
@@ -31,6 +31,9 @@ struct mpoa_client {
 	uint8_t *mps_macs;           /* array of MPS MAC addresses, >=1     */
 	int number_of_mps_macs;      /* number of the above MAC addresses   */
 	struct mpc_parameters parameters;  /* parameters for this client    */
+
+	const struct net_device_ops *old_ops;
+	struct net_device_ops new_ops;
 };
 
 

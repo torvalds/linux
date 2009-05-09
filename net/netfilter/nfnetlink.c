@@ -113,6 +113,12 @@ int nfnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 }
 EXPORT_SYMBOL_GPL(nfnetlink_send);
 
+void nfnetlink_set_err(u32 pid, u32 group, int error)
+{
+	netlink_set_err(nfnl, pid, group, error);
+}
+EXPORT_SYMBOL_GPL(nfnetlink_set_err);
+
 int nfnetlink_unicast(struct sk_buff *skb, u_int32_t pid, int flags)
 {
 	return netlink_unicast(nfnl, skb, pid, flags);
@@ -197,7 +203,7 @@ static int __init nfnetlink_init(void)
 				     nfnetlink_rcv, NULL, THIS_MODULE);
 	if (!nfnl) {
 		printk(KERN_ERR "cannot initialize nfnetlink!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	return 0;

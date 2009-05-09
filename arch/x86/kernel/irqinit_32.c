@@ -18,7 +18,7 @@
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/apic.h>
-#include <asm/arch_hooks.h>
+#include <asm/setup.h>
 #include <asm/i8259.h>
 #include <asm/traps.h>
 
@@ -50,7 +50,6 @@ static irqreturn_t math_error_irq(int cpl, void *dev_id)
  */
 static struct irqaction fpu_irq = {
 	.handler = math_error_irq,
-	.mask = CPU_MASK_NONE,
 	.name = "fpu",
 };
 
@@ -77,6 +76,14 @@ void __init init_ISA_irqs(void)
 					      handle_level_irq, "XT");
 	}
 }
+
+/*
+ * IRQ2 is cascade interrupt to second interrupt controller
+ */
+static struct irqaction irq2 = {
+	.handler = no_action,
+	.name = "cascade",
+};
 
 DEFINE_PER_CPU(vector_irq_t, vector_irq) = {
 	[0 ... IRQ0_VECTOR - 1] = -1,
@@ -118,8 +125,8 @@ void __init native_init_IRQ(void)
 {
 	int i;
 
-	/* all the set up before the call gates are initialised */
-	pre_intr_init_hook();
+	/* Execute any quirks before the call gates are initialised: */
+	x86_quirk_pre_intr_init();
 
 	/*
 	 * Cover the whole vector space, no vector can escape
@@ -140,8 +147,15 @@ void __init native_init_IRQ(void)
 	 */
 	alloc_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
 
-	/* IPI for invalidation */
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR, invalidate_interrupt);
+	/* IPIs for invalidation */
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+0, invalidate_interrupt0);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+1, invalidate_interrupt1);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+2, invalidate_interrupt2);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+3, invalidate_interrupt3);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+4, invalidate_interrupt4);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+5, invalidate_interrupt5);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+6, invalidate_interrupt6);
+	alloc_intr_gate(INVALIDATE_TLB_VECTOR_START+7, invalidate_interrupt7);
 
 	/* IPI for generic function call */
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
@@ -159,6 +173,9 @@ void __init native_init_IRQ(void)
 	/* self generated IPI for local APIC timer */
 	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
 
+	/* generic IPI for platform specific use */
+	alloc_intr_gate(GENERIC_INTERRUPT_VECTOR, generic_interrupt);
+
 	/* IPI vectors for APIC spurious and error interrupts */
 	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
 	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
@@ -169,10 +186,14 @@ void __init native_init_IRQ(void)
 	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
 #endif
 
-	/* setup after call gates are initialised (usually add in
-	 * the architecture specific gates)
+	if (!acpi_ioapic)
+		setup_irq(2, &irq2);
+
+	/*
+	 * Call quirks after call gates are initialised (usually add in
+	 * the architecture specific gates):
 	 */
-	intr_init_hook();
+	x86_quirk_intr_init();
 
 	/*
 	 * External FPU? Set up irq13 if so, for

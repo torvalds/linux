@@ -26,7 +26,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
@@ -35,7 +35,7 @@
 #include <media/tvaudio.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-chip-ident.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 
 #include <media/i2c-addr.h>
 
@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 /* ---------------------------------------------------------------------- */
 /* our structs                                                            */
 
-#define MAXREGS 64
+#define MAXREGS 256
 
 struct CHIPSTATE;
 typedef int  (*getvalue)(int);
@@ -136,20 +136,6 @@ static inline struct CHIPSTATE *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct CHIPSTATE, sd);
 }
 
-/* ---------------------------------------------------------------------- */
-/* i2c addresses                                                          */
-
-static unsigned short normal_i2c[] = {
-	I2C_ADDR_TDA8425   >> 1,
-	I2C_ADDR_TEA6300   >> 1,
-	I2C_ADDR_TEA6420   >> 1,
-	I2C_ADDR_TDA9840   >> 1,
-	I2C_ADDR_TDA985x_L >> 1,
-	I2C_ADDR_TDA985x_H >> 1,
-	I2C_ADDR_TDA9874   >> 1,
-	I2C_ADDR_PIC16C54  >> 1,
-	I2C_CLIENT_END };
-I2C_CLIENT_INSMOD;
 
 /* ---------------------------------------------------------------------- */
 /* i2c I/O functions                                                      */
@@ -1047,6 +1033,116 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 	return 0;
 }
 
+/* ---------------------------------------------------------------------- */
+/* audio chip description - defines+functions for tda9875                 */
+/* The TDA9875 is made by Philips Semiconductor
+ * http://www.semiconductors.philips.com
+ * TDA9875: I2C-bus controlled DSP audio processor, FM demodulator
+ *
+ */
+
+/* subaddresses for TDA9875 */
+#define TDA9875_MUT         0x12  /*General mute  (value --> 0b11001100*/
+#define TDA9875_CFG         0x01  /* Config register (value --> 0b00000000 */
+#define TDA9875_DACOS       0x13  /*DAC i/o select (ADC) 0b0000100*/
+#define TDA9875_LOSR        0x16  /*Line output select regirter 0b0100 0001*/
+
+#define TDA9875_CH1V        0x0c  /*Channel 1 volume (mute)*/
+#define TDA9875_CH2V        0x0d  /*Channel 2 volume (mute)*/
+#define TDA9875_SC1         0x14  /*SCART 1 in (mono)*/
+#define TDA9875_SC2         0x15  /*SCART 2 in (mono)*/
+
+#define TDA9875_ADCIS       0x17  /*ADC input select (mono) 0b0110 000*/
+#define TDA9875_AER         0x19  /*Audio effect (AVL+Pseudo) 0b0000 0110*/
+#define TDA9875_MCS         0x18  /*Main channel select (DAC) 0b0000100*/
+#define TDA9875_MVL         0x1a  /* Main volume gauche */
+#define TDA9875_MVR         0x1b  /* Main volume droite */
+#define TDA9875_MBA         0x1d  /* Main Basse */
+#define TDA9875_MTR         0x1e  /* Main treble */
+#define TDA9875_ACS         0x1f  /* Auxilary channel select (FM) 0b0000000*/
+#define TDA9875_AVL         0x20  /* Auxilary volume gauche */
+#define TDA9875_AVR         0x21  /* Auxilary volume droite */
+#define TDA9875_ABA         0x22  /* Auxilary Basse */
+#define TDA9875_ATR         0x23  /* Auxilary treble */
+
+#define TDA9875_MSR         0x02  /* Monitor select register */
+#define TDA9875_C1MSB       0x03  /* Carrier 1 (FM) frequency register MSB */
+#define TDA9875_C1MIB       0x04  /* Carrier 1 (FM) frequency register (16-8]b */
+#define TDA9875_C1LSB       0x05  /* Carrier 1 (FM) frequency register LSB */
+#define TDA9875_C2MSB       0x06  /* Carrier 2 (nicam) frequency register MSB */
+#define TDA9875_C2MIB       0x07  /* Carrier 2 (nicam) frequency register (16-8]b */
+#define TDA9875_C2LSB       0x08  /* Carrier 2 (nicam) frequency register LSB */
+#define TDA9875_DCR         0x09  /* Demodulateur configuration regirter*/
+#define TDA9875_DEEM        0x0a  /* FM de-emphasis regirter*/
+#define TDA9875_FMAT        0x0b  /* FM Matrix regirter*/
+
+/* values */
+#define TDA9875_MUTE_ON	    0xff /* general mute */
+#define TDA9875_MUTE_OFF    0xcc /* general no mute */
+
+static int tda9875_initialize(struct CHIPSTATE *chip)
+{
+	chip_write(chip, TDA9875_CFG, 0xd0); /*reg de config 0 (reset)*/
+	chip_write(chip, TDA9875_MSR, 0x03);    /* Monitor 0b00000XXX*/
+	chip_write(chip, TDA9875_C1MSB, 0x00);  /*Car1(FM) MSB XMHz*/
+	chip_write(chip, TDA9875_C1MIB, 0x00);  /*Car1(FM) MIB XMHz*/
+	chip_write(chip, TDA9875_C1LSB, 0x00);  /*Car1(FM) LSB XMHz*/
+	chip_write(chip, TDA9875_C2MSB, 0x00);  /*Car2(NICAM) MSB XMHz*/
+	chip_write(chip, TDA9875_C2MIB, 0x00);  /*Car2(NICAM) MIB XMHz*/
+	chip_write(chip, TDA9875_C2LSB, 0x00);  /*Car2(NICAM) LSB XMHz*/
+	chip_write(chip, TDA9875_DCR, 0x00);    /*Demod config 0x00*/
+	chip_write(chip, TDA9875_DEEM, 0x44);   /*DE-Emph 0b0100 0100*/
+	chip_write(chip, TDA9875_FMAT, 0x00);   /*FM Matrix reg 0x00*/
+	chip_write(chip, TDA9875_SC1, 0x00);    /* SCART 1 (SC1)*/
+	chip_write(chip, TDA9875_SC2, 0x01);    /* SCART 2 (sc2)*/
+
+	chip_write(chip, TDA9875_CH1V, 0x10);  /* Channel volume 1 mute*/
+	chip_write(chip, TDA9875_CH2V, 0x10);  /* Channel volume 2 mute */
+	chip_write(chip, TDA9875_DACOS, 0x02); /* sig DAC i/o(in:nicam)*/
+	chip_write(chip, TDA9875_ADCIS, 0x6f); /* sig ADC input(in:mono)*/
+	chip_write(chip, TDA9875_LOSR, 0x00);  /* line out (in:mono)*/
+	chip_write(chip, TDA9875_AER, 0x00);   /*06 Effect (AVL+PSEUDO) */
+	chip_write(chip, TDA9875_MCS, 0x44);   /* Main ch select (DAC) */
+	chip_write(chip, TDA9875_MVL, 0x03);   /* Vol Main left 10dB */
+	chip_write(chip, TDA9875_MVR, 0x03);   /* Vol Main right 10dB*/
+	chip_write(chip, TDA9875_MBA, 0x00);   /* Main Bass Main 0dB*/
+	chip_write(chip, TDA9875_MTR, 0x00);   /* Main Treble Main 0dB*/
+	chip_write(chip, TDA9875_ACS, 0x44);   /* Aux chan select (dac)*/
+	chip_write(chip, TDA9875_AVL, 0x00);   /* Vol Aux left 0dB*/
+	chip_write(chip, TDA9875_AVR, 0x00);   /* Vol Aux right 0dB*/
+	chip_write(chip, TDA9875_ABA, 0x00);   /* Aux Bass Main 0dB*/
+	chip_write(chip, TDA9875_ATR, 0x00);   /* Aux Aigus Main 0dB*/
+
+	chip_write(chip, TDA9875_MUT, 0xcc);   /* General mute  */
+	return 0;
+}
+
+static int tda9875_volume(int val) { return (unsigned char)(val / 602 - 84); }
+static int tda9875_bass(int val) { return (unsigned char)(max(-12, val / 2115 - 15)); }
+static int tda9875_treble(int val) { return (unsigned char)(val / 2622 - 12); }
+
+/* ----------------------------------------------------------------------- */
+
+
+/* *********************** *
+ * i2c interface functions *
+ * *********************** */
+
+static int tda9875_checkit(struct CHIPSTATE *chip)
+{
+	struct v4l2_subdev *sd = &chip->sd;
+	int dic, rev;
+
+	dic = chip_read2(chip, 254);
+	rev = chip_read2(chip, 255);
+
+	if (dic == 0 || dic == 2) { /* tda9875 and tda9875A */
+		v4l2_info(sd, "found tda9875%s rev. %d.\n",
+			dic == 0 ? "" : "A", rev);
+		return 1;
+	}
+	return 0;
+}
 
 /* ---------------------------------------------------------------------- */
 /* audio chip descriptions - defines+functions for tea6420                */
@@ -1280,6 +1376,7 @@ static int tda9850  = 1;
 static int tda9855  = 1;
 static int tda9873  = 1;
 static int tda9874a = 1;
+static int tda9875  = 1;
 static int tea6300;	/* default 0 - address clash with msp34xx */
 static int tea6320;	/* default 0 - address clash with msp34xx */
 static int tea6420  = 1;
@@ -1292,6 +1389,7 @@ module_param(tda9850, int, 0444);
 module_param(tda9855, int, 0444);
 module_param(tda9873, int, 0444);
 module_param(tda9874a, int, 0444);
+module_param(tda9875, int, 0444);
 module_param(tea6300, int, 0444);
 module_param(tea6320, int, 0444);
 module_param(tea6420, int, 0444);
@@ -1347,6 +1445,26 @@ static struct CHIPDESC chiplist[] = {
 		.checkit    = tda9874a_checkit,
 		.getmode    = tda9874a_getmode,
 		.setmode    = tda9874a_setmode,
+	},
+	{
+		.name       = "tda9875",
+		.insmodopt  = &tda9875,
+		.addr_lo    = I2C_ADDR_TDA9875 >> 1,
+		.addr_hi    = I2C_ADDR_TDA9875 >> 1,
+		.flags      = CHIP_HAS_VOLUME | CHIP_HAS_BASSTREBLE,
+
+		/* callbacks */
+		.initialize = tda9875_initialize,
+		.checkit    = tda9875_checkit,
+		.volfunc    = tda9875_volume,
+		.bassfunc   = tda9875_bass,
+		.treblefunc = tda9875_treble,
+		.leftreg    = TDA9875_MVL,
+		.rightreg   = TDA9875_MVR,
+		.bassreg    = TDA9875_MBA,
+		.treblereg  = TDA9875_MTR,
+		.leftinit   = 58880,
+		.rightinit  = 58880,
 	},
 	{
 		.name       = "tda9850",
@@ -1511,6 +1629,8 @@ static int tvaudio_g_ctrl(struct v4l2_subdev *sd,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
+		if (!(desc->flags & CHIP_HAS_INPUTSEL))
+			break;
 		ctrl->value=chip->muted;
 		return 0;
 	case V4L2_CID_AUDIO_VOLUME:
@@ -1552,6 +1672,9 @@ static int tvaudio_s_ctrl(struct v4l2_subdev *sd,
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
+		if (!(desc->flags & CHIP_HAS_INPUTSEL))
+			break;
+
 		if (ctrl->value < 0 || ctrl->value >= 2)
 			return -ERANGE;
 		chip->muted = ctrl->value;
@@ -1636,32 +1759,40 @@ static int tvaudio_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 
 	switch (qc->id) {
 	case V4L2_CID_AUDIO_MUTE:
+		if (desc->flags & CHIP_HAS_INPUTSEL)
+			return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
+		if (desc->flags & CHIP_HAS_VOLUME)
+			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 58880);
+		break;
 	case V4L2_CID_AUDIO_BALANCE:
-		if (!(desc->flags & CHIP_HAS_VOLUME))
-			return -EINVAL;
+		if (desc->flags & CHIP_HAS_VOLUME)
+			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 		break;
 	case V4L2_CID_AUDIO_BASS:
 	case V4L2_CID_AUDIO_TREBLE:
-		if (!(desc->flags & CHIP_HAS_BASSTREBLE))
-			return -EINVAL;
+		if (desc->flags & CHIP_HAS_BASSTREBLE)
+			return v4l2_ctrl_query_fill(qc, 0, 65535, 65535 / 100, 32768);
 		break;
 	default:
-		return -EINVAL;
+		break;
 	}
-	return v4l2_ctrl_query_fill_std(qc);
+	return -EINVAL;
 }
 
-static int tvaudio_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *rt)
+static int tvaudio_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	struct CHIPSTATE *chip = to_state(sd);
 	struct CHIPDESC *desc = chip->desc;
 
-	if (!(desc->flags & CHIP_HAS_INPUTSEL) || rt->input >= 4)
+	if (!(desc->flags & CHIP_HAS_INPUTSEL))
+		return 0;
+	if (input >= 4)
 		return -EINVAL;
 	/* There are four inputs: tuner, radio, extern and intern. */
-	chip->input = rt->input;
+	chip->input = input;
 	if (chip->muted)
 		return 0;
 	chip_write_masked(chip, desc->inputreg,
@@ -1675,8 +1806,11 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct CHIPDESC *desc = chip->desc;
 	int mode = 0;
 
+	if (!desc->setmode)
+		return 0;
 	if (chip->radio)
 		return 0;
+
 	switch (vt->audmode) {
 	case V4L2_TUNER_MODE_MONO:
 	case V4L2_TUNER_MODE_STEREO:
@@ -1692,7 +1826,7 @@ static int tvaudio_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	}
 	chip->audmode = vt->audmode;
 
-	if (desc->setmode && mode) {
+	if (mode) {
 		chip->watch_stereo = 0;
 		/* del_timer(&chip->wt); */
 		chip->mode = mode;
@@ -1707,15 +1841,17 @@ static int tvaudio_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	struct CHIPDESC *desc = chip->desc;
 	int mode = V4L2_TUNER_MODE_MONO;
 
+	if (!desc->getmode)
+		return 0;
 	if (chip->radio)
 		return 0;
+
 	vt->audmode = chip->audmode;
 	vt->rxsubchans = 0;
 	vt->capability = V4L2_TUNER_CAP_STEREO |
 		V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2;
 
-	if (desc->getmode)
-		mode = desc->getmode(chip);
+	mode = desc->getmode(chip);
 
 	if (mode & V4L2_TUNER_MODE_MONO)
 		vt->rxsubchans |= V4L2_TUNER_SUB_MONO;
@@ -1769,11 +1905,6 @@ static int tvaudio_g_chip_ident(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ide
 	return v4l2_chip_ident_i2c_client(client, chip, V4L2_IDENT_TVAUDIO, 0);
 }
 
-static int tvaudio_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops tvaudio_core_ops = {
@@ -1781,12 +1912,12 @@ static const struct v4l2_subdev_core_ops tvaudio_core_ops = {
 	.queryctrl = tvaudio_queryctrl,
 	.g_ctrl = tvaudio_g_ctrl,
 	.s_ctrl = tvaudio_s_ctrl,
+	.s_std = tvaudio_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops tvaudio_tuner_ops = {
 	.s_radio = tvaudio_s_radio,
 	.s_frequency = tvaudio_s_frequency,
-	.s_std = tvaudio_s_std,
 	.s_tuner = tvaudio_s_tuner,
 	.s_tuner = tvaudio_g_tuner,
 };
@@ -1901,6 +2032,7 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 	}
 
 	chip->thread = NULL;
+	init_timer(&chip->wt);
 	if (desc->flags & CHIP_NEED_CHECKMODE) {
 		if (!desc->getmode || !desc->setmode) {
 			/* This shouldn't be happen. Warn user, but keep working
@@ -1910,7 +2042,6 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 			return 0;
 		}
 		/* start async thread */
-		init_timer(&chip->wt);
 		chip->wt.function = chip_thread_wake;
 		chip->wt.data     = (unsigned long)chip;
 		chip->thread = kthread_run(chip_thread, chip, client->name);
@@ -1939,17 +2070,6 @@ static int tvaudio_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int tvaudio_legacy_probe(struct i2c_adapter *adap)
-{
-	/* don't attach on saa7146 based cards,
-	   because dedicated drivers are used */
-	if ((adap->id == I2C_HW_SAA7146))
-		return 0;
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return 1;
-	return 0;
-}
-
 /* This driver supports many devices and the idea is to let the driver
    detect which device is present. So rather than listing all supported
    devices here, we pretend to support a single, fake device type. */
@@ -1961,10 +2081,7 @@ MODULE_DEVICE_TABLE(i2c, tvaudio_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "tvaudio",
-	.driverid = I2C_DRIVERID_TVAUDIO,
-	.command = tvaudio_command,
 	.probe = tvaudio_probe,
 	.remove = tvaudio_remove,
-	.legacy_probe = tvaudio_legacy_probe,
 	.id_table = tvaudio_id,
 };

@@ -25,6 +25,8 @@
  *
  */
 
+#include "linux/string.h"
+#include "linux/bitops.h"
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
@@ -96,16 +98,16 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if ((!IS_I965G(dev) && !IS_G33(dev)) || IS_I965GM(dev) ||
-		   IS_GM45(dev)) {
+	} else if (IS_MOBILE(dev)) {
 		uint32_t dcc;
 
-		/* On 915-945 and GM965, channel interleave by the CPU is
-		 * determined by DCC.  The CPU will alternate based on bit 6
-		 * in interleaved mode, and the GPU will then also alternate
-		 * on bit 6, 9, and 10 for X, but the CPU may also optionally
-		 * alternate based on bit 17 (XOR not disabled and XOR
-		 * bit == 17).
+		/* On mobile 9xx chipsets, channel interleave by the CPU is
+		 * determined by DCC.  For single-channel, neither the CPU
+		 * nor the GPU do swizzling.  For dual channel interleaved,
+		 * the GPU's interleave is bit 9 and 10 for X tiled, and bit
+		 * 9 for Y tiled.  The CPU's interleave is independent, and
+		 * can be based on either bit 11 (haven't seen this yet) or
+		 * bit 17 (common).
 		 */
 		dcc = I915_READ(DCC);
 		switch (dcc & DCC_ADDRESSING_MODE_MASK) {
@@ -115,21 +117,20 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 			swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 			break;
 		case DCC_ADDRESSING_MODE_DUAL_CHANNEL_INTERLEAVED:
-			if (IS_I915G(dev) || IS_I915GM(dev) ||
-			    dcc & DCC_CHANNEL_XOR_DISABLE) {
+			if (dcc & DCC_CHANNEL_XOR_DISABLE) {
+				/* This is the base swizzling by the GPU for
+				 * tiled buffers.
+				 */
 				swizzle_x = I915_BIT_6_SWIZZLE_9_10;
 				swizzle_y = I915_BIT_6_SWIZZLE_9;
-			} else if ((IS_I965GM(dev) || IS_GM45(dev)) &&
-				   (dcc & DCC_CHANNEL_XOR_BIT_17) == 0) {
-				/* GM965/GM45 does either bit 11 or bit 17
-				 * swizzling.
-				 */
+			} else if ((dcc & DCC_CHANNEL_XOR_BIT_17) == 0) {
+				/* Bit 11 swizzling by the CPU in addition. */
 				swizzle_x = I915_BIT_6_SWIZZLE_9_10_11;
 				swizzle_y = I915_BIT_6_SWIZZLE_9_11;
 			} else {
-				/* Bit 17 or perhaps other swizzling */
-				swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
-				swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
+				/* Bit 17 swizzling by the CPU in addition. */
+				swizzle_x = I915_BIT_6_SWIZZLE_9_10_17;
+				swizzle_y = I915_BIT_6_SWIZZLE_9_17;
 			}
 			break;
 		}
@@ -217,6 +218,22 @@ i915_tiling_ok(struct drm_device *dev, int stride, int size, int tiling_mode)
 	else
 		tile_width = 512;
 
+	/* check maximum stride & object size */
+	if (IS_I965G(dev)) {
+		/* i965 stores the end address of the gtt mapping in the fence
+		 * reg, so dont bother to check the size */
+		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
+			return false;
+	} else if (IS_I9XX(dev)) {
+		if (stride / tile_width > I830_FENCE_MAX_PITCH_VAL ||
+		    size > (I830_FENCE_MAX_SIZE_VAL << 20))
+			return false;
+	} else {
+		if (stride / 128 > I830_FENCE_MAX_PITCH_VAL ||
+		    size > (I830_FENCE_MAX_SIZE_VAL << 19))
+			return false;
+	}
+
 	/* 965+ just needs multiples of tile width */
 	if (IS_I965G(dev)) {
 		if (stride & (tile_width - 1))
@@ -266,13 +283,25 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	mutex_lock(&dev->struct_mutex);
 
 	if (args->tiling_mode == I915_TILING_NONE) {
-		obj_priv->tiling_mode = I915_TILING_NONE;
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
 			args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;
 		else
 			args->swizzle_mode = dev_priv->mm.bit_6_swizzle_y;
+
+		/* Hide bit 17 swizzling from the user.  This prevents old Mesa
+		 * from aborting the application on sw fallbacks to bit 17,
+		 * and we use the pread/pwrite bit17 paths to swizzle for it.
+		 * If there was a user that was relying on the swizzle
+		 * information for drm_intel_bo_map()ed reads/writes this would
+		 * break it, but we don't have any of those.
+		 */
+		if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_17)
+			args->swizzle_mode = I915_BIT_6_SWIZZLE_9;
+		if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)
+			args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
+
 		/* If we can't handle the swizzling, make it untiled. */
 		if (args->swizzle_mode == I915_BIT_6_SWIZZLE_UNKNOWN) {
 			args->tiling_mode = I915_TILING_NONE;
@@ -339,8 +368,100 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 		DRM_ERROR("unknown tiling mode\n");
 	}
 
+	/* Hide bit 17 from the user -- see comment in i915_gem_set_tiling */
+	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_17)
+		args->swizzle_mode = I915_BIT_6_SWIZZLE_9;
+	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)
+		args->swizzle_mode = I915_BIT_6_SWIZZLE_9_10;
+
 	drm_gem_object_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
+}
+
+/**
+ * Swap every 64 bytes of this page around, to account for it having a new
+ * bit 17 of its physical address and therefore being interpreted differently
+ * by the GPU.
+ */
+static int
+i915_gem_swizzle_page(struct page *page)
+{
+	char *vaddr;
+	int i;
+	char temp[64];
+
+	vaddr = kmap(page);
+	if (vaddr == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < PAGE_SIZE; i += 128) {
+		memcpy(temp, &vaddr[i], 64);
+		memcpy(&vaddr[i], &vaddr[i + 64], 64);
+		memcpy(&vaddr[i + 64], temp, 64);
+	}
+
+	kunmap(page);
+
+	return 0;
+}
+
+void
+i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	int page_count = obj->size >> PAGE_SHIFT;
+	int i;
+
+	if (dev_priv->mm.bit_6_swizzle_x != I915_BIT_6_SWIZZLE_9_10_17)
+		return;
+
+	if (obj_priv->bit_17 == NULL)
+		return;
+
+	for (i = 0; i < page_count; i++) {
+		char new_bit_17 = page_to_phys(obj_priv->pages[i]) >> 17;
+		if ((new_bit_17 & 0x1) !=
+		    (test_bit(i, obj_priv->bit_17) != 0)) {
+			int ret = i915_gem_swizzle_page(obj_priv->pages[i]);
+			if (ret != 0) {
+				DRM_ERROR("Failed to swizzle page\n");
+				return;
+			}
+			set_page_dirty(obj_priv->pages[i]);
+		}
+	}
+}
+
+void
+i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	int page_count = obj->size >> PAGE_SHIFT;
+	int i;
+
+	if (dev_priv->mm.bit_6_swizzle_x != I915_BIT_6_SWIZZLE_9_10_17)
+		return;
+
+	if (obj_priv->bit_17 == NULL) {
+		obj_priv->bit_17 = kmalloc(BITS_TO_LONGS(page_count) *
+					   sizeof(long), GFP_KERNEL);
+		if (obj_priv->bit_17 == NULL) {
+			DRM_ERROR("Failed to allocate memory for bit 17 "
+				  "record\n");
+			return;
+		}
+	}
+
+	for (i = 0; i < page_count; i++) {
+		if (page_to_phys(obj_priv->pages[i]) & (1 << 17))
+			__set_bit(i, obj_priv->bit_17);
+		else
+			__clear_bit(i, obj_priv->bit_17);
+	}
 }

@@ -1451,7 +1451,7 @@ NDIS_STATUS	RTMPReadParametersHook(
 					IF_DEV_CONFIG_OPMODE_ON_STA(pAd)
 					{
 						//PSMode
-						if (RTMPGetKeyParameter("PSMode", tmpbuf, 10, buffer))
+						if (RTMPGetKeyParameter("PSMode", tmpbuf, 32, buffer))
 						{
 							if (pAd->StaCfg.BssType == BSS_INFRA)
 							{

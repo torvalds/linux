@@ -261,7 +261,12 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        		"MaxLinear MXL5005_v2"},
 	{ TUNER_PHILIPS_TDA8290, 	"Philips 18271_8295"},
 	/* 150-159 */
-	{ TUNER_ABSENT,                 "Xceive XC5000"},
+	{ TUNER_XC5000,                 "Xceive XC5000"},
+	{ TUNER_ABSENT,                 "Xceive XC3028L"},
+	{ TUNER_ABSENT,                 "NXP 18271C2_716x"},
+	{ TUNER_ABSENT,                 "Xceive XC4000"},
+	{ TUNER_ABSENT,                 "Dibcom 7070"},
+	{ TUNER_PHILIPS_TDA8290,        "NXP 18271C2"},
 };
 
 /* Use V4L2_IDENT_AMBIGUOUS for those audio 'chips' that are

@@ -463,7 +463,7 @@ int lbtf_set_radio_control(struct lbtf_private *priv);
 int lbtf_update_hw_spec(struct lbtf_private *priv);
 int lbtf_cmd_set_mac_multicast_addr(struct lbtf_private *priv);
 void lbtf_set_mode(struct lbtf_private *priv, enum lbtf_mode mode);
-void lbtf_set_bssid(struct lbtf_private *priv, bool activate, u8 *bssid);
+void lbtf_set_bssid(struct lbtf_private *priv, bool activate, const u8 *bssid);
 int lbtf_set_mac_address(struct lbtf_private *priv, uint8_t *mac_addr);
 
 int lbtf_set_channel(struct lbtf_private *priv, u8 channel);

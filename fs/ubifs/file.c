@@ -430,6 +430,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	int uninitialized_var(err), appending = !!(pos + len > inode->i_size);
+	int skipped_read = 0;
 	struct page *page;
 
 	ubifs_assert(ubifs_inode(inode)->ui_size == inode->i_size);
@@ -444,7 +445,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 
 	if (!PageUptodate(page)) {
 		/* The page is not loaded from the flash */
-		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE)
+		if (!(pos & ~PAGE_CACHE_MASK) && len == PAGE_CACHE_SIZE) {
 			/*
 			 * We change whole page so no need to load it. But we
 			 * have to set the @PG_checked flag to make the further
@@ -453,7 +454,8 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 			 * the media.
 			 */
 			SetPageChecked(page);
-		else {
+			skipped_read = 1;
+		} else {
 			err = do_readpage(page);
 			if (err) {
 				unlock_page(page);
@@ -469,6 +471,14 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	err = allocate_budget(c, page, ui, appending);
 	if (unlikely(err)) {
 		ubifs_assert(err == -ENOSPC);
+		/*
+		 * If we skipped reading the page because we were going to
+		 * write all of it, then it is not up to date.
+		 */
+		if (skipped_read) {
+			ClearPageChecked(page);
+			ClearPageUptodate(page);
+		}
 		/*
 		 * Budgeting failed which means it would have to force
 		 * write-back but didn't, because we set the @fast flag in the
@@ -949,7 +959,7 @@ static int do_writepage(struct page *page, int len)
  * whole index and correct all inode sizes, which is long an unacceptable.
  *
  * To prevent situations like this, UBIFS writes pages back only if they are
- * within last synchronized inode size, i.e. the the size which has been
+ * within the last synchronized inode size, i.e. the size which has been
  * written to the flash media last time. Otherwise, UBIFS forces inode
  * write-back, thus making sure the on-flash inode contains current inode size,
  * and then keeps writing pages back.
@@ -1434,8 +1444,9 @@ static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
  * mmap()d file has taken write protection fault and is being made
  * writable. UBIFS must ensure page is budgeted for.
  */
-static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
+static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct timespec now = ubifs_current_time(inode);
@@ -1447,7 +1458,7 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	ubifs_assert(!(inode->i_sb->s_flags & MS_RDONLY));
 
 	if (unlikely(c->ro_media))
-		return -EROFS;
+		return VM_FAULT_SIGBUS; /* -EROFS */
 
 	/*
 	 * We have not locked @page so far so we may budget for changing the
@@ -1480,7 +1491,7 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 		if (err == -ENOSPC)
 			ubifs_warn("out of space for mmapped file "
 				   "(inode number %lu)", inode->i_ino);
-		return err;
+		return VM_FAULT_SIGBUS;
 	}
 
 	lock_page(page);
@@ -1520,6 +1531,8 @@ static int ubifs_vm_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 out_unlock:
 	unlock_page(page);
 	ubifs_release_budget(c, &req);
+	if (err)
+		err = VM_FAULT_SIGBUS;
 	return err;
 }
 

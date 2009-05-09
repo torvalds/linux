@@ -85,7 +85,7 @@ void ufs_free_fragments(struct inode *inode, u64 fragment, unsigned count)
 				   "bit already cleared for fragment %u", i);
 	}
 	
-	DQUOT_FREE_BLOCK (inode, count);
+	vfs_dq_free_block(inode, count);
 
 	
 	fs32_add(sb, &ucg->cg_cs.cs_nffree, count);
@@ -195,7 +195,7 @@ do_more:
 		ubh_setblock(UCPI_UBH(ucpi), ucpi->c_freeoff, blkno);
 		if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 			ufs_clusteracct (sb, ucpi, blkno, 1);
-		DQUOT_FREE_BLOCK(inode, uspi->s_fpb);
+		vfs_dq_free_block(inode, uspi->s_fpb);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nbfree, 1);
 		uspi->cs_total.cs_nbfree++;
@@ -556,7 +556,7 @@ static u64 ufs_add_fragments(struct inode *inode, u64 fragment,
 		fs32_add(sb, &ucg->cg_frsum[fragsize - count], 1);
 	for (i = oldcount; i < newcount; i++)
 		ubh_clrbit (UCPI_UBH(ucpi), ucpi->c_freeoff, fragno + i);
-	if(DQUOT_ALLOC_BLOCK(inode, count)) {
+	if (vfs_dq_alloc_block(inode, count)) {
 		*err = -EDQUOT;
 		return 0;
 	}
@@ -664,7 +664,7 @@ cg_found:
 		for (i = count; i < uspi->s_fpb; i++)
 			ubh_setbit (UCPI_UBH(ucpi), ucpi->c_freeoff, goal + i);
 		i = uspi->s_fpb - count;
-		DQUOT_FREE_BLOCK(inode, i);
+		vfs_dq_free_block(inode, i);
 
 		fs32_add(sb, &ucg->cg_cs.cs_nffree, i);
 		uspi->cs_total.cs_nffree += i;
@@ -676,7 +676,7 @@ cg_found:
 	result = ufs_bitmap_search (sb, ucpi, goal, allocsize);
 	if (result == INVBLOCK)
 		return 0;
-	if(DQUOT_ALLOC_BLOCK(inode, count)) {
+	if (vfs_dq_alloc_block(inode, count)) {
 		*err = -EDQUOT;
 		return 0;
 	}
@@ -747,7 +747,7 @@ gotit:
 	ubh_clrblock (UCPI_UBH(ucpi), ucpi->c_freeoff, blkno);
 	if ((UFS_SB(sb)->s_flags & UFS_CG_MASK) == UFS_CG_44BSD)
 		ufs_clusteracct (sb, ucpi, blkno, -1);
-	if(DQUOT_ALLOC_BLOCK(inode, uspi->s_fpb)) {
+	if (vfs_dq_alloc_block(inode, uspi->s_fpb)) {
 		*err = -EDQUOT;
 		return INVBLOCK;
 	}

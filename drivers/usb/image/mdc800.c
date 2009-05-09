@@ -188,7 +188,7 @@ static struct usb_endpoint_descriptor mdc800_ed [4] =
 		.bDescriptorType =	0,
 		.bEndpointAddress =	0x01,
 		.bmAttributes = 	0x02,
-		.wMaxPacketSize =	__constant_cpu_to_le16(8),
+		.wMaxPacketSize =	cpu_to_le16(8),
 		.bInterval = 		0,
 		.bRefresh = 		0,
 		.bSynchAddress = 	0,
@@ -198,7 +198,7 @@ static struct usb_endpoint_descriptor mdc800_ed [4] =
 		.bDescriptorType = 	0,
 		.bEndpointAddress = 	0x82,
 		.bmAttributes = 	0x03,
-		.wMaxPacketSize = 	__constant_cpu_to_le16(8),
+		.wMaxPacketSize = 	cpu_to_le16(8),
 		.bInterval = 		0,
 		.bRefresh = 		0,
 		.bSynchAddress = 	0,
@@ -208,7 +208,7 @@ static struct usb_endpoint_descriptor mdc800_ed [4] =
 		.bDescriptorType = 	0,
 		.bEndpointAddress = 	0x03,
 		.bmAttributes = 	0x02,
-		.wMaxPacketSize = 	__constant_cpu_to_le16(64),
+		.wMaxPacketSize = 	cpu_to_le16(64),
 		.bInterval = 		0,
 		.bRefresh = 		0,
 		.bSynchAddress = 	0,
@@ -218,7 +218,7 @@ static struct usb_endpoint_descriptor mdc800_ed [4] =
 		.bDescriptorType = 	0,
 		.bEndpointAddress = 	0x84,
 		.bmAttributes = 	0x02,
-		.wMaxPacketSize = 	__constant_cpu_to_le16(64),
+		.wMaxPacketSize = 	cpu_to_le16(64),
 		.bInterval = 		0,
 		.bRefresh = 		0,
 		.bSynchAddress = 	0,
@@ -499,6 +499,7 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 	retval = usb_register_dev(intf, &mdc800_class);
 	if (retval) {
 		dev_err(&intf->dev, "Not able to get a minor for this device.\n");
+		mutex_unlock(&mdc800->io_lock);
 		return -ENODEV;
 	}
 

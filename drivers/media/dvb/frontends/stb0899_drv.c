@@ -794,7 +794,7 @@ static int stb0899_send_diseqc_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t 
 	reg = stb0899_read_reg(state, STB0899_DISCNTRL1);
 	old_state = reg;
 	/* set to burst mode	*/
-	STB0899_SETFIELD_VAL(DISEQCMODE, reg, 0x02);
+	STB0899_SETFIELD_VAL(DISEQCMODE, reg, 0x03);
 	STB0899_SETFIELD_VAL(DISPRECHARGE, reg, 0x01);
 	stb0899_write_reg(state, STB0899_DISCNTRL1, reg);
 	switch (burst) {

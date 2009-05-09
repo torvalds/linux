@@ -1573,6 +1573,14 @@ static int vlsi_close(struct net_device *ndev)
 	return 0;
 }
 
+static const struct net_device_ops vlsi_netdev_ops = {
+	.ndo_open       = vlsi_open,
+	.ndo_stop       = vlsi_close,
+	.ndo_start_xmit = vlsi_hard_start_xmit,
+	.ndo_do_ioctl   = vlsi_ioctl,
+	.ndo_tx_timeout = vlsi_tx_timeout,
+};
+
 static int vlsi_irda_init(struct net_device *ndev)
 {
 	vlsi_irda_dev_t *idev = netdev_priv(ndev);
@@ -1608,11 +1616,7 @@ static int vlsi_irda_init(struct net_device *ndev)
 	ndev->flags |= IFF_PORTSEL | IFF_AUTOMEDIA;
 	ndev->if_port = IF_PORT_UNKNOWN;
  
-	ndev->open	      = vlsi_open;
-	ndev->stop	      = vlsi_close;
-	ndev->hard_start_xmit = vlsi_hard_start_xmit;
-	ndev->do_ioctl	      = vlsi_ioctl;
-	ndev->tx_timeout      = vlsi_tx_timeout;
+	ndev->netdev_ops = &vlsi_netdev_ops;
 	ndev->watchdog_timeo  = 500*HZ/1000;	/* max. allowed turn time for IrLAP */
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
@@ -1867,13 +1871,6 @@ static int __init vlsi_mod_init(void)
 	 * without procfs - it's not required for the driver to work.
 	 */
 	vlsi_proc_root = proc_mkdir(PROC_DIR, NULL);
-	if (vlsi_proc_root) {
-		/* protect registered procdir against module removal.
-		 * Because we are in the module init path there's no race
-		 * window after create_proc_entry (and no barrier needed).
-		 */
-		vlsi_proc_root->owner = THIS_MODULE;
-	}
 
 	ret = pci_register_driver(&vlsi_irda_driver);
 

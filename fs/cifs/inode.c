@@ -143,6 +143,7 @@ static void cifs_unix_info_to_inode(struct inode *inode,
 
 	inode->i_nlink = le64_to_cpu(info->Nlinks);
 
+	cifsInfo->server_eof = end_of_file;
 	spin_lock(&inode->i_lock);
 	if (is_size_safe_to_change(cifsInfo, end_of_file)) {
 		/*
@@ -276,7 +277,8 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	/* get new inode */
 	if (*pinode == NULL) {
-		*pinode = cifs_new_inode(sb, &find_data.UniqueId);
+		__u64 unique_id = le64_to_cpu(find_data.UniqueId);
+		*pinode = cifs_new_inode(sb, &unique_id);
 		if (*pinode == NULL) {
 			rc = -ENOMEM;
 			goto cgiiu_exit;
@@ -605,12 +607,12 @@ int cifs_get_inode_info(struct inode **pinode,
 			inode->i_mode |= S_IFREG;
 	}
 
+	cifsInfo->server_eof = le64_to_cpu(pfindData->EndOfFile);
 	spin_lock(&inode->i_lock);
-	if (is_size_safe_to_change(cifsInfo,
-				   le64_to_cpu(pfindData->EndOfFile))) {
+	if (is_size_safe_to_change(cifsInfo, cifsInfo->server_eof)) {
 		/* can not safely shrink the file size here if the
 		   client is writing to it due to potential races */
-		i_size_write(inode, le64_to_cpu(pfindData->EndOfFile));
+		i_size_write(inode, cifsInfo->server_eof);
 
 		/* 512 bytes (2**9) is the fake blocksize that must be
 		   used for this calculation */
@@ -762,6 +764,9 @@ cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsTconInfo *pTcon = cifs_sb->tcon;
 	FILE_BASIC_INFO	info_buf;
+
+	if (attrs == NULL)
+		return -EINVAL;
 
 	if (attrs->ia_valid & ATTR_ATIME) {
 		set_time = true;
@@ -957,13 +962,21 @@ undo_setattr:
 	goto out_close;
 }
 
+
+/*
+ * If dentry->d_inode is null (usually meaning the cached dentry
+ * is a negative dentry) then we would attempt a standard SMB delete, but
+ * if that fails we can not attempt the fall back mechanisms on EACESS
+ * but will return the EACESS to the caller.  Note that the VFS does not call
+ * unlink on negative dentries currently.
+ */
 int cifs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc = 0;
 	int xid;
 	char *full_path = NULL;
 	struct inode *inode = dentry->d_inode;
-	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifsInodeInfo *cifs_inode;
 	struct super_block *sb = dir->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
@@ -1007,7 +1020,7 @@ psx_del_no_retry:
 		rc = cifs_rename_pending_delete(full_path, dentry, xid);
 		if (rc == 0)
 			drop_nlink(inode);
-	} else if (rc == -EACCES && dosattr == 0) {
+	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 		if (attrs == NULL) {
 			rc = -ENOMEM;
@@ -1015,7 +1028,8 @@ psx_del_no_retry:
 		}
 
 		/* try to reset dos attributes */
-		origattr = cifsInode->cifsAttrs;
+		cifs_inode = CIFS_I(inode);
+		origattr = cifs_inode->cifsAttrs;
 		if (origattr == 0)
 			origattr |= ATTR_NORMAL;
 		dosattr = origattr & ~ATTR_READONLY;
@@ -1036,13 +1050,13 @@ psx_del_no_retry:
 
 out_reval:
 	if (inode) {
-		cifsInode = CIFS_I(inode);
-		cifsInode->time = 0;	/* will force revalidate to get info
+		cifs_inode = CIFS_I(inode);
+		cifs_inode->time = 0;	/* will force revalidate to get info
 					   when needed */
 		inode->i_ctime = current_fs_time(sb);
 	}
 	dir->i_ctime = dir->i_mtime = current_fs_time(sb);
-	cifsInode = CIFS_I(dir);
+	cifs_inode = CIFS_I(dir);
 	CIFS_I(dir)->time = 0;	/* force revalidate of dir as well */
 
 	kfree(full_path);
@@ -1122,7 +1136,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			goto mkdir_out;
 		}
 
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 		rc = CIFSPOSIXCreate(xid, pTcon, SMB_O_DIRECTORY | SMB_O_CREAT,
 				mode, NULL /* netfid */, pInfo, &oplock,
 				full_path, cifs_sb->local_nls,
@@ -1135,6 +1149,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			cFYI(1, ("posix mkdir returned 0x%x", rc));
 			d_drop(direntry);
 		} else {
+			__u64 unique_id;
 			if (pInfo->Type == cpu_to_le32(-1)) {
 				/* no return info, go query for it */
 				kfree(pInfo);
@@ -1148,8 +1163,8 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 			else
 				direntry->d_op = &cifs_dentry_ops;
 
-			newinode = cifs_new_inode(inode->i_sb,
-						  &pInfo->UniqueId);
+			unique_id = le64_to_cpu(pInfo->UniqueId);
+			newinode = cifs_new_inode(inode->i_sb, &unique_id);
 			if (newinode == NULL) {
 				kfree(pInfo);
 				goto mkdir_get_info;
@@ -1201,7 +1216,7 @@ mkdir_get_info:
 		if ((direntry->d_inode) && (direntry->d_inode->i_nlink < 2))
 				direntry->d_inode->i_nlink = 2;
 
-		mode &= ~current->fs->umask;
+		mode &= ~current_umask();
 		/* must turn on setgid bit if parent dir has it */
 		if (inode->i_mode & S_ISGID)
 			mode |= S_ISGID;
@@ -1447,7 +1462,8 @@ int cifs_rename(struct inode *source_dir, struct dentry *source_dentry,
 		     checking the UniqueId via FILE_INTERNAL_INFO */
 
 unlink_target:
-	if ((rc == -EACCES) || (rc == -EEXIST)) {
+	/* Try unlinking the target dentry if it's not negative */
+	if (target_dentry->d_inode && (rc == -EACCES || rc == -EEXIST)) {
 		tmprc = cifs_unlink(target_dir, target_dentry);
 		if (tmprc)
 			goto cifs_rename_exit;
@@ -1750,6 +1766,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 	}
 
 	if (rc == 0) {
+		cifsInode->server_eof = attrs->ia_size;
 		rc = cifs_vmtruncate(inode, attrs->ia_size);
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
@@ -1789,20 +1806,21 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		goto out;
 	}
 
-	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
-		/*
-		   Flush data before changing file size or changing the last
-		   write time of the file on the server. If the
-		   flush returns error, store it to report later and continue.
-		   BB: This should be smarter. Why bother flushing pages that
-		   will be truncated anyway? Also, should we error out here if
-		   the flush returns error?
-		 */
-		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc != 0) {
-			cifsInode->write_behind_rc = rc;
-			rc = 0;
-		}
+	/*
+	 * Attempt to flush data before changing attributes. We need to do
+	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+	 * ownership or mode then we may also need to do this. Here, we take
+	 * the safe way out and just do the flush on all setattr requests. If
+	 * the flush returns error, store it to report later and continue.
+	 *
+	 * BB: This should be smarter. Why bother flushing pages that
+	 * will be truncated anyway? Also, should we error out here if
+	 * the flush returns error?
+	 */
+	rc = filemap_write_and_wait(inode->i_mapping);
+	if (rc != 0) {
+		cifsInode->write_behind_rc = rc;
+		rc = 0;
 	}
 
 	if (attrs->ia_valid & ATTR_SIZE) {
@@ -1900,20 +1918,21 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		return -ENOMEM;
 	}
 
-	if ((attrs->ia_valid & ATTR_MTIME) || (attrs->ia_valid & ATTR_SIZE)) {
-		/*
-		   Flush data before changing file size or changing the last
-		   write time of the file on the server. If the
-		   flush returns error, store it to report later and continue.
-		   BB: This should be smarter. Why bother flushing pages that
-		   will be truncated anyway? Also, should we error out here if
-		   the flush returns error?
-		 */
-		rc = filemap_write_and_wait(inode->i_mapping);
-		if (rc != 0) {
-			cifsInode->write_behind_rc = rc;
-			rc = 0;
-		}
+	/*
+	 * Attempt to flush data before changing attributes. We need to do
+	 * this for ATTR_SIZE and ATTR_MTIME for sure, and if we change the
+	 * ownership or mode then we may also need to do this. Here, we take
+	 * the safe way out and just do the flush on all setattr requests. If
+	 * the flush returns error, store it to report later and continue.
+	 *
+	 * BB: This should be smarter. Why bother flushing pages that
+	 * will be truncated anyway? Also, should we error out here if
+	 * the flush returns error?
+	 */
+	rc = filemap_write_and_wait(inode->i_mapping);
+	if (rc != 0) {
+		cifsInode->write_behind_rc = rc;
+		rc = 0;
 	}
 
 	if (attrs->ia_valid & ATTR_SIZE) {

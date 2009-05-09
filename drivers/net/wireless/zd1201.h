@@ -26,7 +26,6 @@ struct zd1201 {
 	struct usb_device	*usb;
 	int			removed;
 	struct net_device	*dev;
-	struct net_device_stats stats;
 	struct iw_statistics	iwstats;
 
 	int			endp_in;

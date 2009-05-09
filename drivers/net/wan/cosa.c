@@ -427,6 +427,15 @@ static void __exit cosa_exit(void)
 }
 module_exit(cosa_exit);
 
+static const struct net_device_ops cosa_ops = {
+	.ndo_open       = cosa_net_open,
+	.ndo_stop       = cosa_net_close,
+	.ndo_change_mtu = hdlc_change_mtu,
+	.ndo_start_xmit = hdlc_start_xmit,
+	.ndo_do_ioctl   = cosa_net_ioctl,
+	.ndo_tx_timeout = cosa_net_timeout,
+};
+
 static int cosa_probe(int base, int irq, int dma)
 {
 	struct cosa_data *cosa = cosa_cards+nr_cards;
@@ -575,10 +584,7 @@ static int cosa_probe(int base, int irq, int dma)
 		}
 		dev_to_hdlc(chan->netdev)->attach = cosa_net_attach;
 		dev_to_hdlc(chan->netdev)->xmit = cosa_net_tx;
-		chan->netdev->open = cosa_net_open;
-		chan->netdev->stop = cosa_net_close;
-		chan->netdev->do_ioctl = cosa_net_ioctl;
-		chan->netdev->tx_timeout = cosa_net_timeout;
+		chan->netdev->netdev_ops = &cosa_ops;
 		chan->netdev->watchdog_timeo = TX_TIMEOUT;
 		chan->netdev->base_addr = chan->cosa->datareg;
 		chan->netdev->irq = chan->cosa->irq;
@@ -725,8 +731,7 @@ static char *cosa_net_setup_rx(struct channel_data *chan, int size)
 	 * We can safely fall back to non-dma-able memory, because we have
 	 * the cosa->bouncebuf pre-allocated.
 	 */
-	if (chan->rx_skb)
-		kfree_skb(chan->rx_skb);
+	kfree_skb(chan->rx_skb);
 	chan->rx_skb = dev_alloc_skb(size);
 	if (chan->rx_skb == NULL) {
 		printk(KERN_NOTICE "%s: Memory squeeze, dropping packet\n",
@@ -993,8 +998,8 @@ static struct fasync_struct *fasync[256] = { NULL, };
 static int cosa_fasync(struct inode *inode, struct file *file, int on)
 {
         int port = iminor(inode);
-        int rv = fasync_helper(inode, file, on, &fasync[port]);
-        return rv < 0 ? rv : 0;
+
+	return fasync_helper(inode, file, on, &fasync[port]);
 }
 #endif
 

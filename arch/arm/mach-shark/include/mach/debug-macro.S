@@ -27,5 +27,3 @@
 		bne	1001b
 		.endm
 
-		.macro	waituart,rd,rx
-		.endm

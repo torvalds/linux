@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include <linux/kernel_stat.h>
+#include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/kdebug.h>
 #include <linux/delay.h>
@@ -206,13 +207,33 @@ void nmi_adjust_hz(unsigned int new_hz)
 }
 EXPORT_SYMBOL_GPL(nmi_adjust_hz);
 
+static int nmi_shutdown(struct notifier_block *nb, unsigned long cmd, void *p)
+{
+	on_each_cpu(stop_watchdog, NULL, 1);
+	return 0;
+}
+
+static struct notifier_block nmi_reboot_notifier = {
+	.notifier_call = nmi_shutdown,
+};
+
 int __init nmi_init(void)
 {
+	int err;
+
 	nmi_usable = 1;
 
 	on_each_cpu(start_watchdog, NULL, 1);
 
-	return check_nmi_watchdog();
+	err = check_nmi_watchdog();
+	if (!err) {
+		err = register_reboot_notifier(&nmi_reboot_notifier);
+		if (err) {
+			nmi_usable = 0;
+			on_each_cpu(stop_watchdog, NULL, 1);
+		}
+	}
+	return err;
 }
 
 static int __init setup_nmi_watchdog(char *str)

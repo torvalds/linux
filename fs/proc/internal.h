@@ -91,3 +91,4 @@ struct pde_opener {
 	int (*release)(struct inode *, struct file *);
 	struct list_head lh;
 };
+void pde_users_dec(struct proc_dir_entry *pde);

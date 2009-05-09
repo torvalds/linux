@@ -1,6 +1,6 @@
 /*
  * net/dsa/tag_dsa.c - (Non-ethertype) DSA tagging
- * Copyright (c) 2008 Marvell Semiconductor
+ * Copyright (c) 2008-2009 Marvell Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ int dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Construct tagged FROM_CPU DSA tag from 802.1q tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x60;
+		dsa_header[0] = 0x60 | p->parent->index;
 		dsa_header[1] = p->port << 3;
 
 		/*
@@ -57,7 +57,7 @@ int dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Construct untagged FROM_CPU DSA tag.
 		 */
 		dsa_header = skb->data + 2 * ETH_ALEN;
-		dsa_header[0] = 0x40;
+		dsa_header[0] = 0x40 | p->parent->index;
 		dsa_header[1] = p->port << 3;
 		dsa_header[2] = 0x00;
 		dsa_header[3] = 0x00;
@@ -65,7 +65,7 @@ int dsa_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	skb->protocol = htons(ETH_P_DSA);
 
-	skb->dev = p->parent->master_netdev;
+	skb->dev = p->parent->dst->master_netdev;
 	dev_queue_xmit(skb);
 
 	return NETDEV_TX_OK;
@@ -78,11 +78,13 @@ out_free:
 static int dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 		   struct packet_type *pt, struct net_device *orig_dev)
 {
-	struct dsa_switch *ds = dev->dsa_ptr;
+	struct dsa_switch_tree *dst = dev->dsa_ptr;
+	struct dsa_switch *ds;
 	u8 *dsa_header;
+	int source_device;
 	int source_port;
 
-	if (unlikely(ds == NULL))
+	if (unlikely(dst == NULL))
 		goto out_drop;
 
 	skb = skb_unshare(skb, GFP_ATOMIC);
@@ -98,16 +100,24 @@ static int dsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	dsa_header = skb->data - 2;
 
 	/*
-	 * Check that frame type is either TO_CPU or FORWARD, and
-	 * that the source device is zero.
+	 * Check that frame type is either TO_CPU or FORWARD.
 	 */
-	if ((dsa_header[0] & 0xdf) != 0x00 && (dsa_header[0] & 0xdf) != 0xc0)
+	if ((dsa_header[0] & 0xc0) != 0x00 && (dsa_header[0] & 0xc0) != 0xc0)
 		goto out_drop;
 
 	/*
-	 * Check that the source port is a registered DSA port.
+	 * Determine source device and port.
 	 */
+	source_device = dsa_header[0] & 0x1f;
 	source_port = (dsa_header[1] >> 3) & 0x1f;
+
+	/*
+	 * Check that the source device exists and that the source
+	 * port is a registered DSA port.
+	 */
+	if (source_device >= dst->pd->nr_chips)
+		goto out_drop;
+	ds = dst->ds[source_device];
 	if (source_port >= DSA_MAX_PORTS || ds->ports[source_port] == NULL)
 		goto out_drop;
 
@@ -175,8 +185,8 @@ out:
 	return 0;
 }
 
-static struct packet_type dsa_packet_type = {
-	.type	= __constant_htons(ETH_P_DSA),
+static struct packet_type dsa_packet_type __read_mostly = {
+	.type	= cpu_to_be16(ETH_P_DSA),
 	.func	= dsa_rcv,
 };
 

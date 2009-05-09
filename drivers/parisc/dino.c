@@ -479,7 +479,7 @@ dino_card_setup(struct pci_bus *bus, void __iomem *base_addr)
 	res = &dino_dev->hba.lmmio_space;
 	res->flags = IORESOURCE_MEM;
 	size = scnprintf(name, sizeof(name), "Dino LMMIO (%s)", 
-			 bus->bridge->bus_id);
+			 dev_name(bus->bridge));
 	res->name = kmalloc(size+1, GFP_KERNEL);
 	if(res->name)
 		strcpy((char *)res->name, name);
@@ -493,7 +493,7 @@ dino_card_setup(struct pci_bus *bus, void __iomem *base_addr)
 		struct list_head *ln, *tmp_ln;
 
 		printk(KERN_ERR "Dino: cannot attach bus %s\n",
-		       bus->bridge->bus_id);
+		       dev_name(bus->bridge));
 		/* kill the bus, we can't do anything with it */
 		list_for_each_safe(ln, tmp_ln, &bus->devices) {
 			struct pci_dev *dev = pci_dev_b(ln);
@@ -587,7 +587,7 @@ dino_fixup_bus(struct pci_bus *bus)
 			bus->resource[i+1] = &res[i];
 		}
 
-	} else if(bus->self) {
+	} else if (bus->parent) {
 		int i;
 
 		pci_read_bridge_bases(bus);
@@ -611,12 +611,12 @@ dino_fixup_bus(struct pci_bus *bus)
 			}
 					
 			DBG("DEBUG %s assigning %d [0x%lx,0x%lx]\n",
-			    bus->self->dev.bus_id, i,
+			    dev_name(&bus->self->dev), i,
 			    bus->self->resource[i].start,
 			    bus->self->resource[i].end);
 			pci_assign_resource(bus->self, i);
 			DBG("DEBUG %s after assign %d [0x%lx,0x%lx]\n",
-			    bus->self->dev.bus_id, i,
+			    dev_name(&bus->self->dev), i,
 			    bus->self->resource[i].start,
 			    bus->self->resource[i].end);
 		}
@@ -819,7 +819,9 @@ dino_bridge_init(struct dino_device *dino_dev, const char *name)
 
 		result = ccio_request_resource(dino_dev->hba.dev, &res[i]);
 		if (result < 0) {
-			printk(KERN_ERR "%s: failed to claim PCI Bus address space %d (0x%lx-0x%lx)!\n", name, i, res[i].start, res[i].end);
+			printk(KERN_ERR "%s: failed to claim PCI Bus address "
+			       "space %d (0x%lx-0x%lx)!\n", name, i,
+			       (unsigned long)res[i].start, (unsigned long)res[i].end);
 			return result;
 		}
 	}
@@ -899,7 +901,8 @@ static int __init dino_common_init(struct parisc_device *dev,
 	if (request_resource(&ioport_resource, res) < 0) {
 		printk(KERN_ERR "%s: request I/O Port region failed "
 		       "0x%lx/%lx (hpa 0x%p)\n",
-		       name, res->start, res->end, dino_dev->hba.base_addr);
+		       name, (unsigned long)res->start, (unsigned long)res->end,
+		       dino_dev->hba.base_addr);
 		return 1;
 	}
 
@@ -1026,7 +1029,8 @@ static int __init dino_probe(struct parisc_device *dev)
 		dino_current_bus = bus->subordinate + 1;
 		pci_bus_assign_resources(bus);
 	} else {
-		printk(KERN_ERR "ERROR: failed to scan PCI bus on %s (probably duplicate bus number %d)\n", dev->dev.bus_id, dino_current_bus);
+		printk(KERN_ERR "ERROR: failed to scan PCI bus on %s (probably duplicate bus number %d)\n",
+		       dev_name(&dev->dev), dino_current_bus);
 		/* increment the bus number in case of duplicates */
 		dino_current_bus++;
 	}

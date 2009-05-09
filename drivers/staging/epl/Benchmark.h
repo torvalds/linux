@@ -73,12 +73,6 @@
 
 #include "global.h"
 
-#if (TARGET_SYSTEM == _NO_OS_) && (DEV_SYSTEM == _DEV_GNU_CF548X_)
-#include "common.h"
-
-#elif (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
-
-//    #include <linux/config.h>
 #include <linux/kernel.h>
 
 #ifdef CONFIG_COLDFIRE
@@ -91,12 +85,6 @@
 #else
 #undef BENCHMARK_MODULES
 #define BENCHMARK_MODULES           0x00000000
-#endif
-
-#else
-    // disable Benchmarking
-#undef BENCHMARK_MODULES
-#define BENCHMARK_MODULES               0x00000000
 #endif
 
 /***************************************************************************/

@@ -7,7 +7,8 @@
 #include <asm/string.h>
 #endif
 
-#include <asm/types.h>
+#include <linux/types.h>
+
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
 #include <asm/auxvec.h>
@@ -178,7 +179,8 @@ typedef elf_fpreg_t elf_vsrreghalf_t32[ELF_NVSRHALFREG];
    the loader.  We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.  */
 
-#define ELF_ET_DYN_BASE         (0x20000000)
+extern unsigned long randomize_et_dyn(unsigned long base);
+#define ELF_ET_DYN_BASE		(randomize_et_dyn(0x20000000))
 
 /*
  * Our registers are always unsigned longs, whether we're a 32 bit
@@ -256,7 +258,9 @@ do {								\
 # define elf_read_implies_exec(ex, exec_stk) (test_thread_flag(TIF_32BIT) ? \
 		(exec_stk != EXSTACK_DISABLE_X) : 0)
 #else 
-# define SET_PERSONALITY(ex) set_personality(PER_LINUX)
+# define SET_PERSONALITY(ex) \
+  set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
+# define elf_read_implies_exec(ex, exec_stk) (exec_stk != EXSTACK_DISABLE_X)
 #endif /* __powerpc64__ */
 
 extern int dcache_bsize;
@@ -269,6 +273,14 @@ struct linux_binprm;
 extern int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       int uses_interp);
 #define VDSO_AUX_ENT(a,b) NEW_AUX_ENT(a,b);
+
+/* 1GB for 64bit, 8MB for 32bit */
+#define STACK_RND_MASK (is_32bit_task() ? \
+	(0x7ff >> (PAGE_SHIFT - 12)) : \
+	(0x3ffff >> (PAGE_SHIFT - 12)))
+
+extern unsigned long arch_randomize_brk(struct mm_struct *mm);
+#define arch_randomize_brk arch_randomize_brk
 
 #endif /* __KERNEL__ */
 

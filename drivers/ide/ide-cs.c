@@ -154,6 +154,7 @@ static const struct ide_port_ops idecs_port_ops = {
 static const struct ide_port_info idecs_port_info = {
 	.port_ops		= &idecs_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA,
+	.irq_flags		= IRQF_SHARED,
 };
 
 static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,

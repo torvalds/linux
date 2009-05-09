@@ -664,6 +664,8 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	if (is_dsp_inst(regs)) {
 		/* Enable DSP mode, and restart instruction. */
 		regs->sr |= SR_DSP;
+		/* Save DSP mode */
+		tsk->thread.dsp_status.status |= SR_DSP;
 		return;
 	}
 #endif

@@ -12,6 +12,7 @@
 #include <linux/bcd.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 
 
 #define RTC_TIME_REG_OFFS	0
@@ -117,6 +118,16 @@ static int __init mv_rtc_probe(struct platform_device *pdev)
 	if (rtc_time & RTC_HOURS_12H_MODE) {
 		dev_err(&pdev->dev, "24 Hours mode not supported.\n");
 		return -EINVAL;
+	}
+
+	/* make sure it is actually functional */
+	if (rtc_time == 0x01000000) {
+		ssleep(1);
+		rtc_time = readl(pdata->ioaddr + RTC_TIME_REG_OFFS);
+		if (rtc_time == 0x01000000) {
+			dev_err(&pdev->dev, "internal RTC not ticking\n");
+			return -ENODEV;
+		}
 	}
 
 	platform_set_drvdata(pdev, pdata);

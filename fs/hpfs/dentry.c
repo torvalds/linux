@@ -49,7 +49,7 @@ static int hpfs_compare_dentry(struct dentry *dentry, struct qstr *a, struct qst
 	return 0;
 }
 
-static struct dentry_operations hpfs_dentry_operations = {
+static const struct dentry_operations hpfs_dentry_operations = {
 	.d_hash		= hpfs_hash_dentry,
 	.d_compare	= hpfs_compare_dentry,
 };

@@ -61,6 +61,24 @@ config SND_PXA2XX_SOC_TOSA
 	  Say Y if you want to add support for SoC audio on Sharp
 	  Zaurus SL-C6000x models (Tosa).
 
+config SND_PXA2XX_SOC_E740
+	tristate "SoC AC97 Audio support for e740"
+	depends on SND_PXA2XX_SOC && MACH_E740
+	select SND_SOC_WM9705
+	select SND_PXA2XX_SOC_AC97
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  toshiba e740 PDA
+
+config SND_PXA2XX_SOC_E750
+	tristate "SoC AC97 Audio support for e750"
+	depends on SND_PXA2XX_SOC && MACH_E750
+	select SND_SOC_WM9705
+	select SND_PXA2XX_SOC_AC97
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  toshiba e750 PDA
+
 config SND_PXA2XX_SOC_E800
 	tristate "SoC AC97 Audio support for e800"
 	depends on SND_PXA2XX_SOC && MACH_E800
@@ -97,3 +115,22 @@ config SND_SOC_ZYLONITE
 	help
 	  Say Y if you want to add support for SoC audio on the
 	  Marvell Zylonite reference platform.
+
+config SND_PXA2XX_SOC_MAGICIAN
+	tristate "SoC Audio support for HTC Magician"
+	depends on SND_PXA2XX_SOC && MACH_MAGICIAN
+	select SND_PXA2XX_SOC_I2S
+	select SND_PXA_SOC_SSP
+	select SND_SOC_UDA1380
+	help
+	  Say Y if you want to add support for SoC audio on the
+	  HTC Magician.
+
+config SND_PXA2XX_SOC_MIOA701
+        tristate "SoC Audio support for MIO A701"
+        depends on SND_PXA2XX_SOC && MACH_MIOA701
+        select SND_PXA2XX_SOC_AC97
+        select SND_SOC_WM9713
+        help
+          Say Y if you want to add support for SoC audio on the
+          MIO A701.

@@ -486,6 +486,18 @@ static int mcs7830_set_mac_address(struct net_device *netdev, void *p)
 	return 0;
 }
 
+static const struct net_device_ops mcs7830_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_do_ioctl 		= mcs7830_ioctl,
+	.ndo_set_multicast_list = mcs7830_set_multicast,
+	.ndo_set_mac_address	 = mcs7830_set_mac_address,
+};
+
 static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 {
 	struct net_device *net = dev->net;
@@ -495,11 +507,9 @@ static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 	if (ret)
 		goto out;
 
-	net->do_ioctl = mcs7830_ioctl;
 	net->ethtool_ops = &mcs7830_ethtool_ops;
-	net->set_multicast_list = mcs7830_set_multicast;
+	net->netdev_ops = &mcs7830_netdev_ops;
 	mcs7830_set_multicast(net);
-	net->set_mac_address = mcs7830_set_mac_address;
 
 	/* reserve space for the status byte on rx */
 	dev->rx_urb_size = ETH_FRAME_LEN + 1;

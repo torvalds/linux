@@ -1,13 +1,12 @@
 #
 #	EDAC Kconfig
-#	Copyright (c) 2003 Linux Networx
+#	Copyright (c) 2008 Doug Thompson www.softwarebitmaker.com
 #	Licensed and distributed under the GPL
 #
 
 menuconfig EDAC
-	bool "EDAC - error detection and reporting (EXPERIMENTAL)"
+	bool "EDAC - error detection and reporting"
 	depends on HAS_IOMEM
-	depends on EXPERIMENTAL
 	depends on X86 || PPC
 	help
 	  EDAC is designed to report errors in the core system.
@@ -39,6 +38,14 @@ config EDAC_DEBUG
 	  sub-system. You can insert module with "debug_level=x", current
 	  there're four debug levels (x=0,1,2,3 from low to high).
 	  Usually you should select 'N'.
+
+config EDAC_DEBUG_VERBOSE
+	bool "More verbose debugging"
+	depends on EDAC_DEBUG
+	help
+	  This option makes debugging information more verbose.
+	  Source file name and line number where debugging message
+	  printed will be added to debugging message.
 
 config EDAC_MM_EDAC
 	tristate "Main Memory EDAC (Error Detection And Correction) reporting"
@@ -173,5 +180,28 @@ config EDAC_CELL
 	  Support for error detection and correction on the
 	  Cell Broadband Engine internal memory controller
 	  on platform without a hypervisor
+
+config EDAC_PPC4XX
+	tristate "PPC4xx IBM DDR2 Memory Controller"
+	depends on EDAC_MM_EDAC && 4xx
+	help
+	  This enables support for EDAC on the ECC memory used
+	  with the IBM DDR2 memory controller found in various
+	  PowerPC 4xx embedded processors such as the 405EX[r],
+	  440SP, 440SPe, 460EX, 460GT and 460SX.
+
+config EDAC_AMD8131
+	tristate "AMD8131 HyperTransport PCI-X Tunnel"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the
+	  AMD8131 HyperTransport PCI-X Tunnel chip.
+
+config EDAC_AMD8111
+	tristate "AMD8111 HyperTransport I/O Hub"
+	depends on EDAC_MM_EDAC && PCI
+	help
+	  Support for error detection and correction on the
+	  AMD8111 HyperTransport I/O Hub chip.
 
 endif # EDAC

@@ -377,10 +377,6 @@ static const struct file_operations mtrr_fops = {
 	.release = mtrr_close,
 };
 
-
-static struct proc_dir_entry *proc_root_mtrr;
-
-
 static int mtrr_seq_show(struct seq_file *seq, void *offset)
 {
 	char factor;
@@ -423,11 +419,7 @@ static int __init mtrr_if_init(void)
 	    (!cpu_has(c, X86_FEATURE_CENTAUR_MCR)))
 		return -ENODEV;
 
-	proc_root_mtrr =
-		proc_create("mtrr", S_IWUSR | S_IRUGO, NULL, &mtrr_fops);
-
-	if (proc_root_mtrr)
-		proc_root_mtrr->owner = THIS_MODULE;
+	proc_create("mtrr", S_IWUSR | S_IRUGO, NULL, &mtrr_fops);
 	return 0;
 }
 

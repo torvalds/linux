@@ -96,7 +96,7 @@ echo "%endif"
 
 echo ""
 echo "%clean"
-echo '#echo -rf $RPM_BUILD_ROOT'
+echo 'rm -rf $RPM_BUILD_ROOT'
 echo ""
 echo "%files"
 echo '%defattr (-, root, root)'

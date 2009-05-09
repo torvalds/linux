@@ -1312,7 +1312,7 @@ static int netiucv_tx(struct sk_buff *skb, struct net_device *dev)
 
 	if (netiucv_test_and_set_busy(dev)) {
 		IUCV_DBF_TEXT(data, 2, "EBUSY from netiucv_tx\n");
-		return -EBUSY;
+		return NETDEV_TX_BUSY;
 	}
 	dev->trans_start = jiffies;
 	rc = netiucv_transmit_skb(privptr->conn, skb) != 0;
@@ -1876,20 +1876,24 @@ static void netiucv_free_netdevice(struct net_device *dev)
 /**
  * Initialize a net device. (Called from kernel in alloc_netdev())
  */
+static const struct net_device_ops netiucv_netdev_ops = {
+	.ndo_open		= netiucv_open,
+	.ndo_stop		= netiucv_close,
+	.ndo_get_stats		= netiucv_stats,
+	.ndo_start_xmit		= netiucv_tx,
+	.ndo_change_mtu	   	= netiucv_change_mtu,
+};
+
 static void netiucv_setup_netdevice(struct net_device *dev)
 {
 	dev->mtu	         = NETIUCV_MTU_DEFAULT;
-	dev->hard_start_xmit     = netiucv_tx;
-	dev->open	         = netiucv_open;
-	dev->stop	         = netiucv_close;
-	dev->get_stats	         = netiucv_stats;
-	dev->change_mtu          = netiucv_change_mtu;
 	dev->destructor          = netiucv_free_netdevice;
 	dev->hard_header_len     = NETIUCV_HDRLEN;
 	dev->addr_len            = 0;
 	dev->type                = ARPHRD_SLIP;
 	dev->tx_queue_len        = NETIUCV_QUEUELEN_DEFAULT;
 	dev->flags	         = IFF_POINTOPOINT | IFF_NOARP;
+	dev->netdev_ops		 = &netiucv_netdev_ops;
 }
 
 /**

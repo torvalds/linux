@@ -261,7 +261,6 @@ static unsigned char *ltdmacbuf;
 
 struct ltpc_private
 {
-	struct net_device_stats stats;
 	struct atalk_addr my_addr;
 };
 
@@ -699,7 +698,6 @@ static int do_read(struct net_device *dev, void *cbuf, int cbuflen,
 static struct timer_list ltpc_timer;
 
 static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev);
-static struct net_device_stats *ltpc_get_stats(struct net_device *dev);
 
 static int read_30 ( struct net_device *dev)
 {
@@ -726,8 +724,6 @@ static int sendup_buffer (struct net_device *dev)
 	int dnode, snode, llaptype, len; 
 	int sklen;
 	struct sk_buff *skb;
-	struct ltpc_private *ltpc_priv = netdev_priv(dev);
-	struct net_device_stats *stats = &ltpc_priv->stats;
 	struct lt_rcvlap *ltc = (struct lt_rcvlap *) ltdmacbuf;
 
 	if (ltc->command != LT_RCVLAP) {
@@ -779,8 +775,8 @@ static int sendup_buffer (struct net_device *dev)
 
 	skb_reset_transport_header(skb);
 
-	stats->rx_packets++;
-	stats->rx_bytes+=skb->len;
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
 
 	/* toss it onwards */
 	netif_rx(skb);
@@ -904,10 +900,6 @@ static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* in kernel 1.3.xx, on entry skb->data points to ddp header,
 	 * and skb->len is the length of the ddp data + ddp header
 	 */
-
-	struct ltpc_private *ltpc_priv = netdev_priv(dev);
-	struct net_device_stats *stats = &ltpc_priv->stats;
-
 	int i;
 	struct lt_sendlap cbuf;
 	unsigned char *hdr;
@@ -936,18 +928,11 @@ static int ltpc_xmit(struct sk_buff *skb, struct net_device *dev)
 		printk("\n");
 	}
 
-	stats->tx_packets++;
-	stats->tx_bytes+=skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 
 	dev_kfree_skb(skb);
 	return 0;
-}
-
-static struct net_device_stats *ltpc_get_stats(struct net_device *dev)
-{
-	struct ltpc_private *ltpc_priv = netdev_priv(dev);
-	struct net_device_stats *stats = &ltpc_priv->stats;
-	return stats;
 }
 
 /* initialization stuff */
@@ -1026,6 +1011,12 @@ static int __init ltpc_probe_dma(int base, int dma)
 
 	return (want & 2) ? 3 : 1;
 }
+
+static const struct net_device_ops ltpc_netdev = {
+	.ndo_start_xmit		= ltpc_xmit,
+	.ndo_do_ioctl		= ltpc_ioctl,
+	.ndo_set_multicast_list = set_multicast_list,
+};
 
 struct net_device * __init ltpc_probe(void)
 {
@@ -1133,14 +1124,7 @@ struct net_device * __init ltpc_probe(void)
 	else
 		printk(KERN_INFO "Apple/Farallon LocalTalk-PC card at %03x, DMA%d.  Using polled mode.\n",io,dma);
 
-	/* Fill in the fields of the device structure with ethernet-generic values. */
-	dev->hard_start_xmit = ltpc_xmit;
-	dev->get_stats = ltpc_get_stats;
-
-	/* add the ltpc-specific things */
-	dev->do_ioctl = &ltpc_ioctl;
-
-	dev->set_multicast_list = &set_multicast_list;
+	dev->netdev_ops = &ltpc_netdev;
 	dev->mc_list = NULL;
 	dev->base_addr = io;
 	dev->irq = irq;

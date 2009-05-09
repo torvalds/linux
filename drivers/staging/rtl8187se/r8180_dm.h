@@ -1,4 +1,4 @@
-#ifndef R8180_DM_H 
+#ifndef R8180_DM_H
 #define R8180_DM_H
 
 #include "r8180.h"

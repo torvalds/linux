@@ -189,6 +189,17 @@ static void __init trigger_irq(int ioaddr)
 		outb(MM_EN_XMT|MM_MUX, IE_MMODE); /* Start transmission */
 }
 
+static const struct net_device_ops ni5010_netdev_ops = {
+	.ndo_open		= ni5010_open,
+	.ndo_stop		= ni5010_close,
+	.ndo_start_xmit		= ni5010_send_packet,
+	.ndo_set_multicast_list	= ni5010_set_multicast_list,
+	.ndo_tx_timeout		= ni5010_timeout,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
 /*
  *      This is the real probe routine.  Linux has a history of friendly device
  *      probes on the ISA bus.  A good device probes avoids doing writes, and
@@ -328,13 +339,8 @@ static int __init ni5010_probe1(struct net_device *dev, int ioaddr)
         	outb(0, IE_RBUF);	/* set buffer byte 0 to 0 again */
 	}
         printk("-> bufsize rcv/xmt=%d/%d\n", bufsize_rcv, NI5010_BUFSIZE);
-	memset(netdev_priv(dev), 0, sizeof(struct ni5010_local));
 
-	dev->open		= ni5010_open;
-	dev->stop		= ni5010_close;
-	dev->hard_start_xmit	= ni5010_send_packet;
-	dev->set_multicast_list = ni5010_set_multicast_list;
-	dev->tx_timeout		= ni5010_timeout;
+	dev->netdev_ops		= &ni5010_netdev_ops;
 	dev->watchdog_timeo	= HZ/20;
 
 	dev->flags &= ~IFF_MULTICAST;	/* Multicast doesn't work */

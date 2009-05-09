@@ -20,11 +20,18 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/plat-ram.h>
+#include <linux/io.h>
+#include <linux/i2c.h>
+#include <linux/i2c/at24.h>
+
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/iomux-mx1-mx2.h>
+#include <mach/iomux.h>
+#ifdef CONFIG_I2C_IMX
+#include <mach/i2c.h>
+#endif
 #include <asm/mach/time.h>
 #include <mach/imx-uart.h>
 #include <mach/board-pcm038.h>
@@ -121,10 +128,10 @@ static int uart_mxc_port1_exit(struct platform_device *pdev)
 	return 0;
 }
 
-static int mxc_uart2_pins[] = { PE10_PF_UART3_CTS,
+static int mxc_uart2_pins[] = { PE8_PF_UART3_TXD,
 				PE9_PF_UART3_RXD,
 				PE10_PF_UART3_CTS,
-				PE9_PF_UART3_RXD };
+				PE11_PF_UART3_RTS };
 
 static int uart_mxc_port2_init(struct platform_device *pdev)
 {
@@ -170,7 +177,7 @@ static int mxc_fec_pins[] = {
 	PD11_AOUT_FEC_TX_CLK,
 	PD12_AOUT_FEC_RXD0,
 	PD13_AOUT_FEC_RX_DV,
-	PD14_AOUT_FEC_CLR,
+	PD14_AOUT_FEC_RX_CLK,
 	PD15_AOUT_FEC_COL,
 	PD16_AIN_FEC_TX_ER,
 	PF23_AIN_FEC_TX_EN
@@ -182,12 +189,6 @@ static void gpio_fec_active(void)
 			ARRAY_SIZE(mxc_fec_pins), "FEC");
 }
 
-static void gpio_fec_inactive(void)
-{
-	mxc_gpio_release_multiple_pins(mxc_fec_pins,
-			ARRAY_SIZE(mxc_fec_pins));
-}
-
 static struct mxc_nand_platform_data pcm038_nand_board_info = {
 	.width = 1,
 	.hw_ecc = 1,
@@ -196,6 +197,7 @@ static struct mxc_nand_platform_data pcm038_nand_board_info = {
 static struct platform_device *platform_devices[] __initdata = {
 	&pcm038_nor_mtd_device,
 	&mxc_w1_master_device,
+	&mxc_fec_device,
 	&pcm038_sram_mtd_device,
 };
 
@@ -208,6 +210,51 @@ static void __init pcm038_init_sram(void)
 	__raw_writel(0x22220a00, CSCR_A(1));
 }
 
+#ifdef CONFIG_I2C_IMX
+static int mxc_i2c1_pins[] = {
+	PC5_PF_I2C2_SDA,
+	PC6_PF_I2C2_SCL
+};
+
+static int pcm038_i2c_1_init(struct device *dev)
+{
+	return mxc_gpio_setup_multiple_pins(mxc_i2c1_pins, ARRAY_SIZE(mxc_i2c1_pins),
+			"I2C1");
+}
+
+static void pcm038_i2c_1_exit(struct device *dev)
+{
+	mxc_gpio_release_multiple_pins(mxc_i2c1_pins, ARRAY_SIZE(mxc_i2c1_pins));
+}
+
+static struct imxi2c_platform_data pcm038_i2c_1_data = {
+	.bitrate = 100000,
+	.init = pcm038_i2c_1_init,
+	.exit = pcm038_i2c_1_exit,
+};
+
+static struct at24_platform_data board_eeprom = {
+	.byte_len = 4096,
+	.page_size = 32,
+	.flags = AT24_FLAG_ADDR16,
+};
+
+static struct i2c_board_info pcm038_i2c_devices[] = {
+	[0] = {
+		I2C_BOARD_INFO("at24", 0x52), /* E0=0, E1=1, E2=0 */
+		.platform_data = &board_eeprom,
+	},
+	[1] = {
+		I2C_BOARD_INFO("rtc-pcf8563", 0x51),
+		.type = "pcf8563"
+	},
+	[2] = {
+		I2C_BOARD_INFO("lm75", 0x4a),
+		.type = "lm75"
+	}
+};
+#endif
+
 static void __init pcm038_init(void)
 {
 	gpio_fec_active();
@@ -217,8 +264,16 @@ static void __init pcm038_init(void)
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
 	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
 
-	mxc_gpio_mode(PE16_AF_RTCK); /* OWIRE */
+	mxc_gpio_mode(PE16_AF_OWIRE);
 	mxc_register_device(&mxc_nand_device, &pcm038_nand_board_info);
+
+#ifdef CONFIG_I2C_IMX
+	/* only the i2c master 1 is used on this CPU card */
+	i2c_register_board_info(1, pcm038_i2c_devices,
+				ARRAY_SIZE(pcm038_i2c_devices));
+
+	mxc_register_device(&mxc_i2c_device1, &pcm038_i2c_1_data);
+#endif
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
@@ -229,11 +284,10 @@ static void __init pcm038_init(void)
 
 static void __init pcm038_timer_init(void)
 {
-	mxc_clocks_init(26000000);
-	mxc_timer_init("gpt_clk.0");
+	mx27_clocks_init(26000000);
 }
 
-struct sys_timer pcm038_timer = {
+static struct sys_timer pcm038_timer = {
 	.init = pcm038_timer_init,
 };
 

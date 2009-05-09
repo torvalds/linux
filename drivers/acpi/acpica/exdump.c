@@ -350,6 +350,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 			break;
 
 		case ACPI_EXD_TYPE:
+
 			acpi_ex_out_string("Type",
 					   acpi_ut_get_object_type_name
 					   (obj_desc));
@@ -422,6 +423,7 @@ acpi_ex_dump_object(union acpi_operand_object *obj_desc,
 			break;
 
 		default:
+
 			acpi_os_printf("**** Invalid table opcode [%X] ****\n",
 				       info->opcode);
 			return;
@@ -492,7 +494,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 	/* Decode object type */
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_LOCAL_REFERENCE:
 
 		acpi_os_printf("Reference: [%s] ",
@@ -527,44 +529,16 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 							     type));
 			break;
 
-		case ACPI_REFCLASS_ARG:
-
-			acpi_os_printf("%X", obj_desc->reference.value);
-
-			if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
-
-				/* Value is an Integer */
-
-				acpi_os_printf(" value is [%8.8X%8.8x]",
-					       ACPI_FORMAT_UINT64(obj_desc->
-								  integer.
-								  value));
-			}
-
-			acpi_os_printf("\n");
-			break;
-
-		case ACPI_REFCLASS_LOCAL:
-
-			acpi_os_printf("%X", obj_desc->reference.value);
-
-			if (ACPI_GET_OBJECT_TYPE(obj_desc) == ACPI_TYPE_INTEGER) {
-
-				/* Value is an Integer */
-
-				acpi_os_printf(" value is [%8.8X%8.8x]",
-					       ACPI_FORMAT_UINT64(obj_desc->
-								  integer.
-								  value));
-			}
-
-			acpi_os_printf("\n");
-			break;
-
 		case ACPI_REFCLASS_NAME:
 
 			acpi_os_printf("- [%4.4s]\n",
 				       obj_desc->reference.node->name.ascii);
+			break;
+
+		case ACPI_REFCLASS_ARG:
+		case ACPI_REFCLASS_LOCAL:
+
+			acpi_os_printf("%X\n", obj_desc->reference.value);
 			break;
 
 		default:	/* Unknown reference class */
@@ -661,8 +635,8 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	case ACPI_TYPE_LOCAL_REGION_FIELD:
 
 		acpi_os_printf
-		    ("RegionField: Bits=%X AccWidth=%X Lock=%X Update=%X at byte=%X bit=%X of below:\n",
-		     obj_desc->field.bit_length,
+		    ("RegionField: Bits=%X AccWidth=%X Lock=%X Update=%X at "
+		     "byte=%X bit=%X of below:\n", obj_desc->field.bit_length,
 		     obj_desc->field.access_byte_width,
 		     obj_desc->field.field_flags & AML_FIELD_LOCK_RULE_MASK,
 		     obj_desc->field.field_flags & AML_FIELD_UPDATE_RULE_MASK,
@@ -686,9 +660,8 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 
 		if (!obj_desc->buffer_field.buffer_obj) {
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "*NULL*\n"));
-		} else
-		    if (ACPI_GET_OBJECT_TYPE(obj_desc->buffer_field.buffer_obj)
-			!= ACPI_TYPE_BUFFER) {
+		} else if ((obj_desc->buffer_field.buffer_obj)->common.type !=
+			   ACPI_TYPE_BUFFER) {
 			acpi_os_printf("*not a Buffer*\n");
 		} else {
 			acpi_ex_dump_operand(obj_desc->buffer_field.buffer_obj,
@@ -737,8 +710,7 @@ void acpi_ex_dump_operand(union acpi_operand_object *obj_desc, u32 depth)
 	default:
 		/* Unknown Type */
 
-		acpi_os_printf("Unknown Type %X\n",
-			       ACPI_GET_OBJECT_TYPE(obj_desc));
+		acpi_os_printf("Unknown Type %X\n", obj_desc->common.type);
 		break;
 	}
 
@@ -939,7 +911,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	/* Packages may only contain a few object types */
 
-	switch (ACPI_GET_OBJECT_TYPE(obj_desc)) {
+	switch (obj_desc->common.type) {
 	case ACPI_TYPE_INTEGER:
 
 		acpi_os_printf("[Integer] = %8.8X%8.8X\n",
@@ -990,8 +962,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	default:
 
-		acpi_os_printf("[Unknown Type] %X\n",
-			       ACPI_GET_OBJECT_TYPE(obj_desc));
+		acpi_os_printf("[Unknown Type] %X\n", obj_desc->common.type);
 		break;
 	}
 }

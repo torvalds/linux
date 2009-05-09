@@ -202,13 +202,11 @@ struct snd_emux_misc_mode {
 	int value2;	/* reserved */
 };
 
-enum {
-	SNDRV_EMUX_IOCTL_VERSION = _IOR('H', 0x80, unsigned int),
-	SNDRV_EMUX_IOCTL_LOAD_PATCH = _IOWR('H', 0x81, struct soundfont_patch_info),
-	SNDRV_EMUX_IOCTL_RESET_SAMPLES = _IO('H', 0x82),
-	SNDRV_EMUX_IOCTL_REMOVE_LAST_SAMPLES = _IO('H', 0x83),
-	SNDRV_EMUX_IOCTL_MEM_AVAIL = _IOW('H', 0x84, int),
-	SNDRV_EMUX_IOCTL_MISC_MODE = _IOWR('H', 0x84, struct snd_emux_misc_mode),
-};
+#define SNDRV_EMUX_IOCTL_VERSION	_IOR('H', 0x80, unsigned int)
+#define SNDRV_EMUX_IOCTL_LOAD_PATCH	_IOWR('H', 0x81, struct soundfont_patch_info)
+#define SNDRV_EMUX_IOCTL_RESET_SAMPLES	_IO('H', 0x82)
+#define SNDRV_EMUX_IOCTL_REMOVE_LAST_SAMPLES _IO('H', 0x83)
+#define SNDRV_EMUX_IOCTL_MEM_AVAIL	_IOW('H', 0x84, int)
+#define SNDRV_EMUX_IOCTL_MISC_MODE	_IOWR('H', 0x84, struct snd_emux_misc_mode)
 
 #endif /* __SOUND_SFNT_INFO_H */

@@ -41,25 +41,13 @@
 
 	.text
 
-	/* s3c2410_cpu_save
-	 *
-	 * save enough of the CPU state to allow us to re-start
-	 * pm.c code. as we store items like the sp/lr, we will
-	 * end up returning from this function when the cpu resumes
-	 * so the return value is set to mark this.
-	 *
-	 * This arangement means we avoid having to flush the cache
-	 * from this code.
+	/* s3c_cpu_save
 	 *
 	 * entry:
-	 *	r0 = pointer to save block
-	 *
-	 * exit:
-	 *	r0 = 0 => we stored everything
-	 *	     1 => resumed from sleep
+	 *	r0 = save address (virtual addr of s3c_sleep_save_phys)
 	*/
 
-ENTRY(s3c2410_cpu_save)
+ENTRY(s3c_cpu_save)
 	stmfd	sp!, { r4 - r12, lr }
 
 	@@ store co-processor registers
@@ -71,20 +59,25 @@ ENTRY(s3c2410_cpu_save)
 
 	stmia	r0, { r4 - r13 }
 
-	mov	r0, #0
-	ldmfd	sp, { r4 - r12, pc }
+	@@ write our state back to RAM
+	bl	s3c_pm_cb_flushcache
 
+	@@ jump to final code to send system to sleep
+	ldr	r0, =pm_cpu_sleep
+	@@ldr	pc, [ r0 ]
+	ldr	r0, [ r0 ]
+	mov	pc, r0
+	
 	@@ return to the caller, after having the MMU
 	@@ turned on, this restores the last bits from the
 	@@ stack
 resume_with_mmu:
-	mov	r0, #1
 	ldmfd	sp!, { r4 - r12, pc }
 
 	.ltorg
 
 	@@ the next bits sit in the .data segment, even though they
-	@@ happen to be code... the s3c2410_sleep_save_phys needs to be
+	@@ happen to be code... the s3c_sleep_save_phys needs to be
 	@@ accessed by the resume code before it can restore the MMU.
 	@@ This means that the variable has to be close enough for the
 	@@ code to read it... since the .text segment needs to be RO,
@@ -92,19 +85,19 @@ resume_with_mmu:
 
 	.data
 
-	.global	s3c2410_sleep_save_phys
-s3c2410_sleep_save_phys:
+	.global	s3c_sleep_save_phys
+s3c_sleep_save_phys:
 	.word	0
 
 
 	/* sleep magic, to allow the bootloader to check for an valid
 	 * image to resume to. Must be the first word before the
-	 * s3c2410_cpu_resume entry.
+	 * s3c_cpu_resume entry.
 	*/
 
 	.word	0x2bedf00d
 
-	/* s3c2410_cpu_resume
+	/* s3c_cpu_resume
 	 *
 	 * resume code entry for bootloader to call
 	 *
@@ -113,7 +106,7 @@ s3c2410_sleep_save_phys:
 	 * must not write to the code segment (code is read-only)
 	*/
 
-ENTRY(s3c2410_cpu_resume)
+ENTRY(s3c_cpu_resume)
 	mov	r0, #PSR_I_BIT | PSR_F_BIT | SVC_MODE
 	msr	cpsr_c, r0
 
@@ -145,7 +138,7 @@ ENTRY(s3c2410_cpu_resume)
 	mcr	p15, 0, r1, c8, c7, 0		@@ invalidate I & D TLBs
 	mcr	p15, 0, r1, c7, c7, 0		@@ invalidate I & D caches
 
-	ldr	r0, s3c2410_sleep_save_phys	@ address of restore block
+	ldr	r0, s3c_sleep_save_phys		@ address of restore block
 	ldmia	r0, { r4 - r13 }
 
 	mcr	p15, 0, r4, c13, c0, 0		@ PID

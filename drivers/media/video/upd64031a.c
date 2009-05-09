@@ -124,17 +124,18 @@ static int upd64031a_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *
 
 /* ------------------------------------------------------------------------ */
 
-static int upd64031a_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int upd64031a_s_routing(struct v4l2_subdev *sd,
+			       u32 input, u32 output, u32 config)
 {
 	struct upd64031a_state *state = to_state(sd);
 	u8 r00, r05, r08;
 
-	state->gr_mode = (route->input & 3) << 6;
-	state->direct_3dycs_connect = (route->input & 0xc) << 4;
+	state->gr_mode = (input & 3) << 6;
+	state->direct_3dycs_connect = (input & 0xc) << 4;
 	state->ext_comp_sync =
-		(route->input & UPD64031A_COMPOSITE_EXTERNAL) << 1;
+		(input & UPD64031A_COMPOSITE_EXTERNAL) << 1;
 	state->ext_vert_sync =
-		(route->input & UPD64031A_VERTICAL_EXTERNAL) << 2;
+		(input & UPD64031A_VERTICAL_EXTERNAL) << 2;
 	r00 = (state->regs[R00] & ~GR_MODE_MASK) | state->gr_mode;
 	r05 = (state->regs[R00] & ~SYNC_CIRCUIT_MASK) |
 		state->ext_comp_sync | state->ext_vert_sync;
@@ -186,11 +187,6 @@ static int upd64031a_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register
 	return 0;
 }
 #endif
-
-static int upd64031a_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
 
 /* ----------------------------------------------------------------------- */
 
@@ -267,8 +263,6 @@ MODULE_DEVICE_TABLE(i2c, upd64031a_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "upd64031a",
-	.driverid = I2C_DRIVERID_UPD64031A,
-	.command = upd64031a_command,
 	.probe = upd64031a_probe,
 	.remove = upd64031a_remove,
 	.id_table = upd64031a_id,

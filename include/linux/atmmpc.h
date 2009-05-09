@@ -4,6 +4,7 @@
 #include <linux/atmapi.h>
 #include <linux/atmioc.h>
 #include <linux/atm.h>
+#include <linux/types.h>
 
 #define ATMMPC_CTRL _IO('a', ATMIOC_MPOA)
 #define ATMMPC_DATA _IO('a', ATMIOC_MPOA+1)
@@ -18,39 +19,39 @@ struct atmmpc_ioc {
 };
 
 typedef struct in_ctrl_info {
-        uint8_t   Last_NHRP_CIE_code;
-        uint8_t   Last_Q2931_cause_value;     
-        uint8_t   eg_MPC_ATM_addr[ATM_ESA_LEN];
+        __u8   Last_NHRP_CIE_code;
+        __u8   Last_Q2931_cause_value;
+        __u8   eg_MPC_ATM_addr[ATM_ESA_LEN];
         __be32  tag;
         __be32  in_dst_ip;      /* IP address this ingress MPC sends packets to */
-        uint16_t  holding_time;
-        uint32_t  request_id;
+        __u16  holding_time;
+        __u32  request_id;
 } in_ctrl_info;
 
 typedef struct eg_ctrl_info {
-        uint8_t   DLL_header[256];
-        uint8_t   DH_length;
+        __u8   DLL_header[256];
+        __u8   DH_length;
         __be32  cache_id;
         __be32  tag;
         __be32  mps_ip;
         __be32  eg_dst_ip;      /* IP address to which ingress MPC sends packets */
-        uint8_t   in_MPC_data_ATM_addr[ATM_ESA_LEN];
-        uint16_t  holding_time;
+        __u8   in_MPC_data_ATM_addr[ATM_ESA_LEN];
+        __u16  holding_time;
 } eg_ctrl_info;
 
 struct mpc_parameters {
-        uint16_t mpc_p1;   /* Shortcut-Setup Frame Count    */
-        uint16_t mpc_p2;   /* Shortcut-Setup Frame Time     */
-        uint8_t mpc_p3[8]; /* Flow-detection Protocols      */
-        uint16_t mpc_p4;   /* MPC Initial Retry Time        */
-        uint16_t mpc_p5;   /* MPC Retry Time Maximum        */
-        uint16_t mpc_p6;   /* Hold Down Time                */      
+        __u16 mpc_p1;   /* Shortcut-Setup Frame Count    */
+        __u16 mpc_p2;   /* Shortcut-Setup Frame Time     */
+        __u8 mpc_p3[8]; /* Flow-detection Protocols      */
+        __u16 mpc_p4;   /* MPC Initial Retry Time        */
+        __u16 mpc_p5;   /* MPC Retry Time Maximum        */
+        __u16 mpc_p6;   /* Hold Down Time                */
 } ;
 
 struct k_message {
-        uint16_t type;
+        __u16 type;
         __be32 ip_mask;
-        uint8_t  MPS_ctrl[ATM_ESA_LEN];
+        __u8  MPS_ctrl[ATM_ESA_LEN];
         union {
                 in_ctrl_info in_info;
                 eg_ctrl_info eg_info;
@@ -61,11 +62,11 @@ struct k_message {
 
 struct llc_snap_hdr {
 	/* RFC 1483 LLC/SNAP encapsulation for routed IP PDUs */
-        uint8_t  dsap;    /* Destination Service Access Point (0xAA)     */
-        uint8_t  ssap;    /* Source Service Access Point      (0xAA)     */
-        uint8_t  ui;      /* Unnumbered Information           (0x03)     */
-        uint8_t  org[3];  /* Organizational identification    (0x000000) */
-        uint8_t  type[2]; /* Ether type (for IP)              (0x0800)   */
+        __u8  dsap;    /* Destination Service Access Point (0xAA)     */
+        __u8  ssap;    /* Source Service Access Point      (0xAA)     */
+        __u8  ui;      /* Unnumbered Information           (0x03)     */
+        __u8  org[3];  /* Organizational identification    (0x000000) */
+        __u8  type[2]; /* Ether type (for IP)              (0x0800)   */
 };
 
 /* TLVs this MPC recognizes */

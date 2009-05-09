@@ -818,6 +818,38 @@ fail:
 	return ret;
 }
 
+/* ------------------------------------------------------------------ */
+
+static int tda18271_agc(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	int ret = 0;
+
+	switch (priv->config) {
+	case 0:
+		/* no LNA */
+		tda_dbg("no agc configuration provided\n");
+		break;
+	case 3:
+		/* switch with GPIO of saa713x */
+		tda_dbg("invoking callback\n");
+		if (fe->callback)
+			ret = fe->callback(priv->i2c_props.adap->algo_data,
+					   DVB_FRONTEND_COMPONENT_TUNER,
+					   TDA18271_CALLBACK_CMD_AGC_ENABLE,
+					   priv->mode);
+		break;
+	case 1:
+	case 2:
+	default:
+		/* n/a - currently not supported */
+		tda_err("unsupported configuration: %d\n", priv->config);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
 static int tda18271_tune(struct dvb_frontend *fe,
 			 struct tda18271_std_map_item *map, u32 freq, u32 bw)
 {
@@ -826,6 +858,10 @@ static int tda18271_tune(struct dvb_frontend *fe,
 
 	tda_dbg("freq = %d, ifc = %d, bw = %d, agc_mode = %d, std = %d\n",
 		freq, map->if_freq, bw, map->agc_mode, map->std);
+
+	ret = tda18271_agc(fe);
+	if (tda_fail(ret))
+		tda_warn("failed to configure agc\n");
 
 	ret = tda18271_init(fe);
 	if (tda_fail(ret))
@@ -1159,6 +1195,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 		/* new tuner instance */
 		priv->gate = (cfg) ? cfg->gate : TDA18271_GATE_AUTO;
 		priv->role = (cfg) ? cfg->role : TDA18271_MASTER;
+		priv->config = (cfg) ? cfg->config : 0;
 		priv->cal_initialized = false;
 		mutex_init(&priv->lock);
 

@@ -10,6 +10,7 @@
 
 #include <linux/usb.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 
 #include "../core/hcd.h"
 #include "isp1760-hcd.h"
@@ -300,39 +301,101 @@ static struct pci_driver isp1761_pci_driver = {
 };
 #endif
 
+static int __devinit isp1760_plat_probe(struct platform_device *pdev)
+{
+	int ret = 0;
+	struct usb_hcd *hcd;
+	struct resource *mem_res;
+	struct resource *irq_res;
+	resource_size_t mem_size;
+	unsigned long irqflags = IRQF_SHARED | IRQF_DISABLED;
+
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!mem_res) {
+		pr_warning("isp1760: Memory resource not available\n");
+		ret = -ENODEV;
+		goto out;
+	}
+	mem_size = resource_size(mem_res);
+	if (!request_mem_region(mem_res->start, mem_size, "isp1760")) {
+		pr_warning("isp1760: Cannot reserve the memory resource\n");
+		ret = -EBUSY;
+		goto out;
+	}
+
+	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!irq_res) {
+		pr_warning("isp1760: IRQ resource not available\n");
+		return -ENODEV;
+	}
+	irqflags |= irq_res->flags & IRQF_TRIGGER_MASK;
+
+	hcd = isp1760_register(mem_res->start, mem_size, irq_res->start,
+			       irqflags, &pdev->dev, dev_name(&pdev->dev), 0);
+	if (IS_ERR(hcd)) {
+		pr_warning("isp1760: Failed to register the HCD device\n");
+		ret = -ENODEV;
+		goto cleanup;
+	}
+
+	pr_info("ISP1760 USB device initialised\n");
+	return ret;
+
+cleanup:
+	release_mem_region(mem_res->start, mem_size);
+out:
+	return ret;
+}
+
+static int __devexit isp1760_plat_remove(struct platform_device *pdev)
+{
+	struct resource *mem_res;
+	resource_size_t mem_size;
+
+	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mem_size = resource_size(mem_res);
+	release_mem_region(mem_res->start, mem_size);
+
+	return 0;
+}
+
+static struct platform_driver isp1760_plat_driver = {
+	.probe	= isp1760_plat_probe,
+	.remove	= isp1760_plat_remove,
+	.driver	= {
+		.name	= "isp1760",
+	},
+};
+
 static int __init isp1760_init(void)
 {
-	int ret;
+	int ret, any_ret = -ENODEV;
 
 	init_kmem_once();
 
+	ret = platform_driver_register(&isp1760_plat_driver);
+	if (!ret)
+		any_ret = 0;
 #ifdef CONFIG_PPC_OF
 	ret = of_register_platform_driver(&isp1760_of_driver);
-	if (ret) {
-		deinit_kmem_cache();
-		return ret;
-	}
+	if (!ret)
+		any_ret = 0;
 #endif
 #ifdef CONFIG_PCI
 	ret = pci_register_driver(&isp1761_pci_driver);
-	if (ret)
-		goto unreg_of;
+	if (!ret)
+		any_ret = 0;
 #endif
-	return ret;
 
-#ifdef CONFIG_PCI
-unreg_of:
-#endif
-#ifdef CONFIG_PPC_OF
-	of_unregister_platform_driver(&isp1760_of_driver);
-#endif
-	deinit_kmem_cache();
-	return ret;
+	if (any_ret)
+		deinit_kmem_cache();
+	return any_ret;
 }
 module_init(isp1760_init);
 
 static void __exit isp1760_exit(void)
 {
+	platform_driver_unregister(&isp1760_plat_driver);
 #ifdef CONFIG_PPC_OF
 	of_unregister_platform_driver(&isp1760_of_driver);
 #endif

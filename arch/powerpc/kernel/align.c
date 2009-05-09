@@ -187,7 +187,7 @@ static struct aligninfo aligninfo[128] = {
 	{ 4, ST+F+S+U },	/* 11 1 1010: stfsux */
 	{ 8, ST+F+U },		/* 11 1 1011: stfdux */
 	INVALID,		/* 11 1 1100 */
-	INVALID,		/* 11 1 1101 */
+	{ 4, LD+F },		/* 11 1 1101: lfiwzx */
 	INVALID,		/* 11 1 1110 */
 	INVALID,		/* 11 1 1111 */
 };

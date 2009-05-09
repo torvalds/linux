@@ -3,7 +3,7 @@
 #
 config EISA_VLB_PRIMING
 	bool "Vesa Local Bus priming"
-	depends on X86_PC && EISA
+	depends on X86 && EISA
 	default n
 	---help---
 	  Activate this option if your system contains a Vesa Local
@@ -24,11 +24,11 @@ config EISA_PCI_EISA
 	  When in doubt, say Y.
 
 # Using EISA_VIRTUAL_ROOT on something other than an Alpha or
-# an X86_PC may lead to crashes...
+# an X86 may lead to crashes...
 
 config EISA_VIRTUAL_ROOT
 	bool "EISA virtual root device"
-	depends on EISA && (ALPHA || X86_PC)
+	depends on EISA && (ALPHA || X86)
 	default y
 	---help---
 	  Activate this option if your system only have EISA bus

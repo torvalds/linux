@@ -158,7 +158,7 @@ Offset	Proto	Name		Meaning
 0202/4	2.00+	header		Magic signature "HdrS"
 0206/2	2.00+	version		Boot protocol version supported
 0208/4	2.00+	realmode_swtch	Boot loader hook (see below)
-020C/2	2.00+	start_sys	The load-low segment (0x1000) (obsolete)
+020C/2	2.00+	start_sys_seg	The load-low segment (0x1000) (obsolete)
 020E/2	2.00+	kernel_version	Pointer to kernel version string
 0210/1	2.00+	type_of_loader	Boot loader identifier
 0211/1	2.00+	loadflags	Boot protocol option flags
@@ -170,10 +170,11 @@ Offset	Proto	Name		Meaning
 0224/2	2.01+	heap_end_ptr	Free memory after setup end
 0226/2	N/A	pad1		Unused
 0228/4	2.02+	cmd_line_ptr	32-bit pointer to the kernel command line
-022C/4	2.03+	initrd_addr_max	Highest legal initrd address
+022C/4	2.03+	ramdisk_max	Highest legal initrd address
 0230/4	2.05+	kernel_alignment Physical addr alignment required for kernel
 0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
-0235/3	N/A	pad2		Unused
+0235/1	N/A	pad2		Unused
+0236/2	N/A	pad3		Unused
 0238/4	2.06+	cmdline_size	Maximum size of the kernel command line
 023C/4	2.07+	hardware_subarch Hardware subarchitecture
 0240/8	2.07+	hardware_subarch_data Subarchitecture-specific data
@@ -299,14 +300,14 @@ Protocol:	2.00+
   e.g. 0x0204 for version 2.04, and 0x0a11 for a hypothetical version
   10.17.
 
-Field name:	readmode_swtch
+Field name:	realmode_swtch
 Type:		modify (optional)
 Offset/size:	0x208/4
 Protocol:	2.00+
 
   Boot loader hook (see ADVANCED BOOT LOADER HOOKS below.)
 
-Field name:	start_sys
+Field name:	start_sys_seg
 Type:		read
 Offset/size:	0x20c/2
 Protocol:	2.00+
@@ -468,7 +469,7 @@ Protocol:	2.02+
   zero, the kernel will assume that your boot loader does not support
   the 2.02+ protocol.
 
-Field name:	initrd_addr_max
+Field name:	ramdisk_max
 Type:		read
 Offset/size:	0x22c/4
 Protocol:	2.03+
@@ -542,7 +543,10 @@ Protocol:	2.08+
 
   The payload may be compressed. The format of both the compressed and
   uncompressed data should be determined using the standard magic
-  numbers. Currently only gzip compressed ELF is used.
+  numbers.  The currently supported compression formats are gzip
+  (magic numbers 1F 8B or 1F 9E), bzip2 (magic number 42 5A) and LZMA
+  (magic number 5D 00).  The uncompressed payload is currently always ELF
+  (magic number 7F 45 4C 46).
   
 Field name:	payload_length
 Type:		read

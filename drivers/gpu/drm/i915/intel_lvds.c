@@ -265,7 +265,7 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 		pfit_control = 0;
 
 	if (!IS_I965G(dev)) {
-		if (dev_priv->panel_wants_dither)
+		if (dev_priv->panel_wants_dither || dev_priv->lvds_dither)
 			pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 	}
 	else

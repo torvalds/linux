@@ -164,38 +164,38 @@ static int playpaq_wm8510_hw_params(struct snd_pcm_substream *substream,
 	 */
 	switch (params_rate(params)) {
 	case 48000:
-		pll_out = 12288000;
-		mclk_div = WM8510_MCLKDIV_1;
-		bclk = WM8510_BCLKDIV_8;
-		break;
-
-	case 44100:
-		pll_out = 11289600;
-		mclk_div = WM8510_MCLKDIV_1;
-		bclk = WM8510_BCLKDIV_8;
-		break;
-
-	case 22050:
-		pll_out = 11289600;
+		pll_out = 24576000;
 		mclk_div = WM8510_MCLKDIV_2;
 		bclk = WM8510_BCLKDIV_8;
 		break;
 
-	case 16000:
-		pll_out = 12288000;
-		mclk_div = WM8510_MCLKDIV_3;
+	case 44100:
+		pll_out = 22579200;
+		mclk_div = WM8510_MCLKDIV_2;
 		bclk = WM8510_BCLKDIV_8;
 		break;
 
-	case 11025:
-		pll_out = 11289600;
+	case 22050:
+		pll_out = 22579200;
 		mclk_div = WM8510_MCLKDIV_4;
 		bclk = WM8510_BCLKDIV_8;
 		break;
 
-	case 8000:
-		pll_out = 12288000;
+	case 16000:
+		pll_out = 24576000;
 		mclk_div = WM8510_MCLKDIV_6;
+		bclk = WM8510_BCLKDIV_8;
+		break;
+
+	case 11025:
+		pll_out = 22579200;
+		mclk_div = WM8510_MCLKDIV_8;
+		bclk = WM8510_BCLKDIV_8;
+		break;
+
+	case 8000:
+		pll_out = 24576000;
+		mclk_div = WM8510_MCLKDIV_12;
 		bclk = WM8510_BCLKDIV_8;
 		break;
 

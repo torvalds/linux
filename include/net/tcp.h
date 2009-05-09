@@ -41,6 +41,7 @@
 #include <net/ip.h>
 #include <net/tcp_states.h>
 #include <net/inet_ecn.h>
+#include <net/dst.h>
 
 #include <linux/seq_file.h>
 
@@ -481,7 +482,16 @@ static inline void tcp_clear_xmit_timers(struct sock *sk)
 }
 
 extern unsigned int tcp_sync_mss(struct sock *sk, u32 pmtu);
-extern unsigned int tcp_current_mss(struct sock *sk, int large);
+extern unsigned int tcp_current_mss(struct sock *sk);
+
+/* Bound MSS / TSO packet size with the half of the window */
+static inline int tcp_bound_to_half_wnd(struct tcp_sock *tp, int pktsize)
+{
+	if (tp->max_window && pktsize > (tp->max_window >> 1))
+		return max(tp->max_window >> 1, 68U - tp->tcp_header_len);
+	else
+		return pktsize;
+}
 
 /* tcp.c */
 extern void tcp_get_info(struct sock *, struct tcp_info *);
@@ -519,6 +529,17 @@ static inline void tcp_fast_path_check(struct sock *sk)
 	    atomic_read(&sk->sk_rmem_alloc) < sk->sk_rcvbuf &&
 	    !tp->urg_data)
 		tcp_fast_path_on(tp);
+}
+
+/* Compute the actual rto_min value */
+static inline u32 tcp_rto_min(struct sock *sk)
+{
+	struct dst_entry *dst = __sk_dst_get(sk);
+	u32 rto_min = TCP_RTO_MIN;
+
+	if (dst && dst_metric_locked(dst, RTAX_RTO_MIN))
+		rto_min = dst_metric_rtt(dst, RTAX_RTO_MIN);
+	return rto_min;
 }
 
 /* Compute the actual receive window we are currently advertising.
@@ -607,21 +628,6 @@ static inline int tcp_skb_mss(const struct sk_buff *skb)
 	return skb_shinfo(skb)->gso_size;
 }
 
-static inline void tcp_dec_pcount_approx_int(__u32 *count, const int decr)
-{
-	if (*count) {
-		*count -= decr;
-		if ((int)*count < 0)
-			*count = 0;
-	}
-}
-
-static inline void tcp_dec_pcount_approx(__u32 *count,
-					 const struct sk_buff *skb)
-{
-	tcp_dec_pcount_approx_int(count, tcp_skb_pcount(skb));
-}
-
 /* Events passed to congestion control interface */
 enum tcp_ca_event {
 	CA_EVENT_TX_START,	/* first transmit when no packets in flight */
@@ -685,6 +691,7 @@ extern void tcp_get_allowed_congestion_control(char *buf, size_t len);
 extern int tcp_set_allowed_congestion_control(char *allowed);
 extern int tcp_set_congestion_control(struct sock *sk, const char *name);
 extern void tcp_slow_start(struct tcp_sock *tp);
+extern void tcp_cong_avoid_ai(struct tcp_sock *tp, u32 w);
 
 extern struct tcp_congestion_ops tcp_init_congestion_ops;
 extern u32 tcp_reno_ssthresh(struct sock *sk);
@@ -821,15 +828,15 @@ static inline void tcp_push_pending_frames(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	__tcp_push_pending_frames(sk, tcp_current_mss(sk, 1), tp->nonagle);
+	__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
 }
 
-static inline void tcp_init_wl(struct tcp_sock *tp, u32 ack, u32 seq)
+static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)
 {
 	tp->snd_wl1 = seq;
 }
 
-static inline void tcp_update_wl(struct tcp_sock *tp, u32 ack, u32 seq)
+static inline void tcp_update_wl(struct tcp_sock *tp, u32 seq)
 {
 	tp->snd_wl1 = seq;
 }
@@ -900,7 +907,7 @@ static inline int tcp_prequeue(struct sock *sk, struct sk_buff *skb)
 			wake_up_interruptible(sk->sk_sleep);
 			if (!inet_csk_ack_scheduled(sk))
 				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-						          (3 * TCP_RTO_MIN) / 4,
+						          (3 * tcp_rto_min(sk)) / 4,
 							  TCP_RTO_MAX);
 		}
 		return 1;
@@ -925,7 +932,6 @@ extern void tcp_done(struct sock *sk);
 static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 {
 	rx_opt->dsack = 0;
-	rx_opt->eff_sacks = 0;
 	rx_opt->num_sacks = 0;
 }
 
@@ -997,11 +1003,21 @@ static inline int tcp_fin_time(const struct sock *sk)
 	return fin_timeout;
 }
 
-static inline int tcp_paws_check(const struct tcp_options_received *rx_opt, int rst)
+static inline int tcp_paws_check(const struct tcp_options_received *rx_opt,
+				 int paws_win)
 {
-	if ((s32)(rx_opt->rcv_tsval - rx_opt->ts_recent) >= 0)
-		return 0;
-	if (get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS)
+	if ((s32)(rx_opt->ts_recent - rx_opt->rcv_tsval) <= paws_win)
+		return 1;
+	if (unlikely(get_seconds() >= rx_opt->ts_recent_stamp + TCP_PAWS_24DAYS))
+		return 1;
+
+	return 0;
+}
+
+static inline int tcp_paws_reject(const struct tcp_options_received *rx_opt,
+				  int rst)
+{
+	if (tcp_paws_check(rx_opt, 0))
 		return 0;
 
 	/* RST segments are not recommended to carry timestamp,

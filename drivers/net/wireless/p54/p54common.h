@@ -26,12 +26,17 @@ struct bootrec {
 } __attribute__((packed));
 
 #define PDR_SYNTH_FRONTEND_MASK		0x0007
+#define PDR_SYNTH_FRONTEND_DUETTE3	0x0001
+#define PDR_SYNTH_FRONTEND_DUETTE2	0x0002
+#define PDR_SYNTH_FRONTEND_FRISBEE	0x0003
+#define PDR_SYNTH_FRONTEND_XBOW		0x0004
+#define PDR_SYNTH_FRONTEND_LONGBOW	0x0005
 #define PDR_SYNTH_IQ_CAL_MASK		0x0018
 #define PDR_SYNTH_IQ_CAL_PA_DETECTOR	0x0000
 #define PDR_SYNTH_IQ_CAL_DISABLED	0x0008
 #define PDR_SYNTH_IQ_CAL_ZIF		0x0010
 #define PDR_SYNTH_FAA_SWITCH_MASK	0x0020
-#define PDR_SYNTH_FAA_SWITCH_ENABLED	0x0001
+#define PDR_SYNTH_FAA_SWITCH_ENABLED	0x0020
 #define PDR_SYNTH_24_GHZ_MASK		0x0040
 #define PDR_SYNTH_24_GHZ_DISABLED	0x0040
 #define PDR_SYNTH_5_GHZ_MASK		0x0080
@@ -125,9 +130,13 @@ struct eeprom_pda_wrap {
 	u8 data[0];
 } __attribute__ ((packed));
 
+struct p54_iq_autocal_entry {
+	__le16 iq_param[4];
+} __attribute__ ((packed));
+
 struct pda_iq_autocal_entry {
         __le16 freq;
-        __le16 iq_param[4];
+	struct p54_iq_autocal_entry params;
 } __attribute__ ((packed));
 
 struct pda_channel_output_limit {
@@ -180,6 +189,35 @@ struct pda_rssi_cal_entry {
 	__le16 add;
 } __attribute__ ((packed));
 
+struct pda_country {
+	u8 regdomain;
+	u8 alpha2[2];
+	u8 flags;
+} __attribute__ ((packed));
+
+/*
+ * Warning: Longbow's structures are bogus.
+ */
+struct p54_channel_output_limit_longbow {
+	__le16 rf_power_points[12];
+} __attribute__ ((packed));
+
+struct p54_pa_curve_data_sample_longbow {
+	__le16 rf_power;
+	__le16 pa_detector;
+	struct {
+		__le16 data[4];
+	} points[3] __attribute__ ((packed));
+} __attribute__ ((packed));
+
+struct pda_custom_wrapper {
+	__le16 entries;
+	__le16 entry_size;
+	__le16 offset;
+	__le16 len;
+	u8 data[0];
+} __attribute__ ((packed));
+
 /*
  * this defines the PDR codes used to build PDAs as defined in document
  * number 553155. The current implementation mirrors version 1.1 of the
@@ -225,8 +263,13 @@ struct pda_rssi_cal_entry {
 /* reserved range (0x2000 - 0x7fff) */
 
 /* customer range (0x8000 - 0xffff) */
-#define PDR_BASEBAND_REGISTERS			0x8000
-#define PDR_PER_CHANNEL_BASEBAND_REGISTERS	0x8001
+#define PDR_BASEBAND_REGISTERS				0x8000
+#define PDR_PER_CHANNEL_BASEBAND_REGISTERS		0x8001
+
+/* used by our modificated eeprom image */
+#define PDR_RSSI_LINEAR_APPROXIMATION_CUSTOM		0xDEAD
+#define PDR_PRISM_PA_CAL_OUTPUT_POWER_LIMITS_CUSTOM	0xBEEF
+#define PDR_PRISM_PA_CAL_CURVE_DATA_CUSTOM		0xB05D
 
 /* PDR definitions for default country & country list */
 #define PDR_COUNTRY_CERT_CODE		0x80
@@ -240,12 +283,6 @@ struct pda_rssi_cal_entry {
 #define PDR_COUNTRY_CERT_IODOOR_INDOOR	0x20
 #define PDR_COUNTRY_CERT_IODOOR_OUTDOOR	0x30
 #define PDR_COUNTRY_CERT_INDEX		0x0F
-
-/* stored in skb->cb */
-struct memrecord {
-	u32 start_addr;
-	u32 end_addr;
-};
 
 struct p54_eeprom_lm86 {
 	union {
@@ -329,7 +366,7 @@ struct p54_frame_sent {
 	u8 padding;
 } __attribute__ ((packed));
 
-enum  p54_tx_data_crypt {
+enum p54_tx_data_crypt {
 	P54_CRYPTO_NONE = 0,
 	P54_CRYPTO_WEP,
 	P54_CRYPTO_TKIP,
@@ -338,6 +375,23 @@ enum  p54_tx_data_crypt {
 	P54_CRYPTO_CCX_KPMIC,
 	P54_CRYPTO_CCX_KP,
 	P54_CRYPTO_AESCCMP
+};
+
+enum p54_tx_data_queue {
+	P54_QUEUE_BEACON	= 0,
+	P54_QUEUE_FWSCAN	= 1,
+	P54_QUEUE_MGMT		= 2,
+	P54_QUEUE_CAB		= 3,
+	P54_QUEUE_DATA		= 4,
+
+	P54_QUEUE_AC_NUM	= 4,
+	P54_QUEUE_AC_VO		= 4,
+	P54_QUEUE_AC_VI		= 5,
+	P54_QUEUE_AC_BE		= 6,
+	P54_QUEUE_AC_BK		= 7,
+
+	/* keep last */
+	P54_QUEUE_NUM		= 8,
 };
 
 struct p54_tx_data {
@@ -351,9 +405,18 @@ struct p54_tx_data {
 	u8 backlog;
 	__le16 durations[4];
 	u8 tx_antenna;
-	u8 output_power;
-	u8 cts_rate;
-	u8 unalloc2[3];
+	union {
+		struct {
+			u8 cts_rate;
+			__le16 output_power;
+		} __attribute__((packed)) longbow;
+		struct {
+			u8 output_power;
+			u8 cts_rate;
+			u8 unalloc;
+		} __attribute__ ((packed)) normal;
+	} __attribute__ ((packed));
+	u8 unalloc2[2];
 	u8 align[0];
 } __attribute__ ((packed));
 
@@ -414,11 +477,14 @@ struct p54_setup_mac {
 #define P54_SCAN_ACTIVE BIT(2)
 #define P54_SCAN_FILTER BIT(3)
 
-struct p54_scan {
+struct p54_scan_head {
 	__le16 mode;
 	__le16 dwell;
-	u8 padding1[20];
-	struct pda_iq_autocal_entry iq_autocal;
+	u8 scan_params[20];
+	__le16 freq;
+} __attribute__ ((packed));
+
+struct p54_scan_body {
 	u8 pa_points_per_curve;
 	u8 val_barker;
 	u8 val_bpsk;
@@ -430,25 +496,28 @@ struct p54_scan {
 	u8 dup_qpsk;
 	u8 dup_16qam;
 	u8 dup_64qam;
-	union {
-		struct pda_rssi_cal_entry v1_rssi;
-
-		struct {
-			__le32 basic_rate_mask;
-			u8 rts_rates[8];
-			struct pda_rssi_cal_entry rssi;
-		} v2 __attribute__ ((packed));
-	} __attribute__ ((packed));
 } __attribute__ ((packed));
 
-#define P54_SCAN_V1_LEN 0x70
-#define P54_SCAN_V2_LEN 0x7c
+struct p54_scan_body_longbow {
+	struct p54_channel_output_limit_longbow power_limits;
+	struct p54_pa_curve_data_sample_longbow curve_data[8];
+	__le16 unkn[6];		/* maybe more power_limits or rate_mask */
+} __attribute__ ((packed));
+
+union p54_scan_body_union {
+	struct p54_scan_body normal;
+	struct p54_scan_body_longbow longbow;
+} __attribute__ ((packed));
+
+struct p54_scan_tail_rate {
+	__le32 basic_rate_mask;
+	u8 rts_rates[8];
+} __attribute__ ((packed));
 
 struct p54_led {
-	__le16 mode;
-	__le16 led_temporary;
-	__le16 led_permanent;
-	__le16 duration;
+	__le16 flags;
+	__le16 mask[2];
+	__le16 delay[2];
 } __attribute__ ((packed));
 
 struct p54_edcf {
@@ -511,6 +580,7 @@ struct p54_psm_interval {
 	__le16 periods;
 } __attribute__ ((packed));
 
+#define P54_PSM_CAM			0
 #define P54_PSM				BIT(0)
 #define P54_PSM_DTIM			BIT(1)
 #define P54_PSM_MCBC			BIT(2)

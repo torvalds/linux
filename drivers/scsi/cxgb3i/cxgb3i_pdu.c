@@ -400,17 +400,18 @@ int cxgb3i_conn_xmit_pdu(struct iscsi_task *task)
 		return 0;
 	}
 
-	if (err < 0 && err != -EAGAIN) {
-		kfree_skb(skb);
-		cxgb3i_tx_debug("itt 0x%x, skb 0x%p, len %u/%u, xmit err %d.\n",
-				task->itt, skb, skb->len, skb->data_len, err);
-		iscsi_conn_printk(KERN_ERR, task->conn, "xmit err %d.\n", err);
-		iscsi_conn_failure(task->conn, ISCSI_ERR_XMIT_FAILED);
+	if (err == -EAGAIN || err == -ENOBUFS) {
+		/* reset skb to send when we are called again */
+		tdata->skb = skb;
 		return err;
 	}
-	/* reset skb to send when we are called again */
-	tdata->skb = skb;
-	return -EAGAIN;
+
+	kfree_skb(skb);
+	cxgb3i_tx_debug("itt 0x%x, skb 0x%p, len %u/%u, xmit err %d.\n",
+			task->itt, skb, skb->len, skb->data_len, err);
+	iscsi_conn_printk(KERN_ERR, task->conn, "xmit err %d.\n", err);
+	iscsi_conn_failure(task->conn, ISCSI_ERR_XMIT_FAILED);
+	return err;
 }
 
 int cxgb3i_pdu_init(void)
@@ -479,7 +480,7 @@ void cxgb3i_conn_tx_open(struct s3_conn *c3cn)
 	cxgb3i_tx_debug("cn 0x%p.\n", c3cn);
 	if (conn) {
 		cxgb3i_tx_debug("cn 0x%p, cid %d.\n", c3cn, conn->id);
-		scsi_queue_work(conn->session->host, &conn->xmitwork);
+		iscsi_conn_queue_work(conn);
 	}
 }
 

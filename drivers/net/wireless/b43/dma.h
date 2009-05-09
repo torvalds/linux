@@ -1,13 +1,11 @@
 #ifndef B43_DMA_H_
 #define B43_DMA_H_
 
-#include <linux/list.h>
+#include <linux/ieee80211.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
-#include <linux/linkage.h>
-#include <asm/atomic.h>
 
 #include "b43.h"
+
 
 /* DMA-Interrupt reasons. */
 #define B43_DMAIRQ_FATALMASK	((1 << 10) | (1 << 11) | (1 << 12) \
@@ -161,14 +159,13 @@ struct b43_dmadesc_generic {
 
 /* Misc DMA constants */
 #define B43_DMA_RINGMEMSIZE		PAGE_SIZE
-#define B43_DMA0_RX_FRAMEOFFSET	30
-#define B43_DMA3_RX_FRAMEOFFSET	0
+#define B43_DMA0_RX_FRAMEOFFSET		30
 
 /* DMA engine tuning knobs */
-#define B43_TXRING_SLOTS		128
+#define B43_TXRING_SLOTS		256
 #define B43_RXRING_SLOTS		64
-#define B43_DMA0_RX_BUFFERSIZE	(2304 + 100)
-#define B43_DMA3_RX_BUFFERSIZE	16
+#define B43_DMA0_RX_BUFFERSIZE		IEEE80211_MAX_FRAME_LEN
+
 
 struct sk_buff;
 struct b43_private;
@@ -215,7 +212,7 @@ struct b43_dmaring {
 	void *descbase;
 	/* Meta data about all descriptors. */
 	struct b43_dmadesc_meta *meta;
-	/* Cache of TX headers for each slot.
+	/* Cache of TX headers for each TX frame.
 	 * This is to avoid an allocation on each TX.
 	 * This is NULL for an RX ring.
 	 */

@@ -64,13 +64,25 @@ static inline int connection_based(struct sock *sk)
 	return sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM;
 }
 
+static int receiver_wake_function(wait_queue_t *wait, unsigned mode, int sync,
+				  void *key)
+{
+	unsigned long bits = (unsigned long)key;
+
+	/*
+	 * Avoid a wakeup if event not interesting for us
+	 */
+	if (bits && !(bits & (POLLIN | POLLERR)))
+		return 0;
+	return autoremove_wake_function(wait, mode, sync, key);
+}
 /*
  * Wait for a packet..
  */
 static int wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 {
 	int error;
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT_FUNC(wait, receiver_wake_function);
 
 	prepare_to_wait_exclusive(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
 
@@ -208,7 +220,7 @@ struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 
 void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
 {
-	kfree_skb(skb);
+	consume_skb(skb);
 	sk_mem_reclaim_partial(sk);
 }
 

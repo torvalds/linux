@@ -164,6 +164,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	list_add(&slot->list, &slot_list);
 	mutex_unlock(&slot_list_lock);
 
+	get_device(&pci_bus->dev);
+
 	dbg("pci_slot: %p, pci_bus: %x, device: %d, name: %s\n",
 		pci_slot, pci_bus->number, device, name);
 
@@ -310,12 +312,15 @@ static void
 acpi_pci_slot_remove(acpi_handle handle)
 {
 	struct acpi_pci_slot *slot, *tmp;
+	struct pci_bus *pbus;
 
 	mutex_lock(&slot_list_lock);
 	list_for_each_entry_safe(slot, tmp, &slot_list, list) {
 		if (slot->root_handle == handle) {
 			list_del(&slot->list);
+			pbus = slot->pci_slot->bus;
 			pci_destroy_slot(slot->pci_slot);
+			put_device(&pbus->dev);
 			kfree(slot);
 		}
 	}
