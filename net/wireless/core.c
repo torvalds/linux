@@ -470,9 +470,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #ifdef CONFIG_WIRELESS_EXT
 		if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC)
 			break;
-		if (!dev->ieee80211_ptr->wext.ssid_len)
+		if (!dev->ieee80211_ptr->wext.ibss.ssid_len)
 			break;
-		cfg80211_join_ibss(rdev, dev, &dev->ieee80211_ptr->wext);
+		cfg80211_join_ibss(rdev, dev, &dev->ieee80211_ptr->wext.ibss);
 		break;
 #endif
 	case NETDEV_UNREGISTER:
