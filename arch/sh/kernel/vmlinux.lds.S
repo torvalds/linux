@@ -6,12 +6,8 @@
 #define LOAD_OFFSET	CONFIG_PAGE_OFFSET
 OUTPUT_ARCH(sh:sh5)
 #else
+#define LOAD_OFFSET	0
 OUTPUT_ARCH(sh)
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
-OUTPUT_FORMAT("elf32-sh-linux", "elf32-sh-linux", "elf32-sh-linux")
-#else
-OUTPUT_FORMAT("elf32-shbig-linux", "elf32-shbig-linux", "elf32-shbig-linux")
-#endif
 #endif
 
 #include <asm/thread_info.h>

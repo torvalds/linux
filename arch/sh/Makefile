@@ -100,12 +100,16 @@ LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
 endif
 
 ifdef CONFIG_CPU_LITTLE_ENDIAN
-LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64'
+ld-bfd			:= elf32-$(UTS_MACHINE)-linux
+LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64' --oformat $(ld-bfd)
 LDFLAGS			+= -EL
 else
-LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64+4'
+ld-bfd			:= elf32-$(UTS_MACHINE)big-linux
+LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64+4' --oformat $(ld-bfd)
 LDFLAGS			+= -EB
 endif
+
+export ld-bfd
 
 head-y			:= arch/sh/kernel/init_task.o
 head-$(CONFIG_SUPERH32)	+= arch/sh/kernel/head_32.o

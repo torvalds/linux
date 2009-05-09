@@ -24,8 +24,8 @@ OBJECTS		:= $(obj)/vmlinux_64.lds $(obj)/head_64.o $(obj)/misc_64.o \
 ZIMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)+0x400000+0x10000]')
 
-LDFLAGS_vmlinux := -Ttext $(ZIMAGE_OFFSET) -e startup \
-		    -T $(obj)/../../kernel/vmlinux.lds
+LDFLAGS_vmlinux := --oformat $(ld-bfd) -Ttext $(ZIMAGE_OFFSET) -e startup \
+		   -T $(obj)/../../kernel/vmlinux.lds
 
 $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
