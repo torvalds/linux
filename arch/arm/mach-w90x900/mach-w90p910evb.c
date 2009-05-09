@@ -158,6 +158,76 @@ struct platform_device w90x900_device_ts = {
 };
 EXPORT_SYMBOL(w90x900_device_ts);
 
+/* RTC controller*/
+
+static struct resource w90x900_rtc_resource[] = {
+	[0] = {
+		.start = W90X900_PA_RTC,
+		.end   = W90X900_PA_RTC + 0xff,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_RTC,
+		.end   = IRQ_RTC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device w90x900_device_rtc = {
+	.name		= "w90x900-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(w90x900_rtc_resource),
+	.resource	= w90x900_rtc_resource,
+};
+EXPORT_SYMBOL(w90x900_device_rtc);
+
+/* KPI controller*/
+
+static struct resource w90x900_kpi_resource[] = {
+	[0] = {
+		.start = W90X900_PA_KPI,
+		.end   = W90X900_PA_KPI + W90X900_SZ_KPI - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_KPI,
+		.end   = IRQ_KPI,
+		.flags = IORESOURCE_IRQ,
+	}
+
+};
+
+struct platform_device w90x900_device_kpi = {
+	.name		= "w90x900-kpi",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(w90x900_kpi_resource),
+	.resource	= w90x900_kpi_resource,
+};
+EXPORT_SYMBOL(w90x900_device_kpi);
+
+/* USB Device (Gadget)*/
+
+static struct resource w90x900_usbgadget_resource[] = {
+	[0] = {
+		.start = W90X900_PA_USBDEV,
+		.end   = W90X900_PA_USBDEV + W90X900_SZ_USBDEV - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_USBD,
+		.end   = IRQ_USBD,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+struct platform_device w90x900_device_usbgadget = {
+	.name		= "w90x900-usbgadget",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(w90x900_usbgadget_resource),
+	.resource	= w90x900_usbgadget_resource,
+};
+EXPORT_SYMBOL(w90x900_device_usbgadget);
+
 static struct map_desc w90p910_iodesc[] __initdata = {
 };
 
@@ -169,6 +239,9 @@ static struct platform_device *w90p910evb_dev[] __initdata = {
 	&w90x900_device_usb_ehci,
 	&w90x900_device_usb_ohci,
 	&w90x900_device_ts,
+	&w90x900_device_rtc,
+	&w90x900_device_kpi,
+	&w90x900_device_usbgadget,
 };
 
 static void __init w90p910evb_map_io(void)
