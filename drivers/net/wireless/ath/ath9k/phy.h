@@ -17,7 +17,7 @@
 #ifndef PHY_H
 #define PHY_H
 
-bool ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
+void ath9k_hw_ar9280_set_channel(struct ath_hw *ah,
 				 struct ath9k_channel
 				 *chan);
 bool ath9k_hw_set_channel(struct ath_hw *ah,

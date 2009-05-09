@@ -1274,7 +1274,6 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	int i, regWrites = 0;
 	struct ieee80211_channel *channel = chan->chan;
 	u32 modesIndex, freqIndex;
-	int status;
 
 	switch (chan->chanmode) {
 	case CHANNEL_A:
@@ -1376,17 +1375,12 @@ static int ath9k_hw_process_ini(struct ath_hw *ah,
 	if (OLC_FOR_AR9280_20_LATER)
 		ath9k_olc_init(ah);
 
-	status = ah->eep_ops->set_txpower(ah, chan,
-				  ath9k_regd_get_ctl(&ah->regulatory, chan),
-				  channel->max_antenna_gain * 2,
-				  channel->max_power * 2,
-				  min((u32) MAX_RATE_POWER,
-				      (u32) ah->regulatory.power_limit));
-	if (status != 0) {
-		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-			"Error initializing transmit power\n");
-		return -EIO;
-	}
+	ah->eep_ops->set_txpower(ah, chan,
+				 ath9k_regd_get_ctl(&ah->regulatory, chan),
+				 channel->max_antenna_gain * 2,
+				 channel->max_power * 2,
+				 min((u32) MAX_RATE_POWER,
+				 (u32) ah->regulatory.power_limit));
 
 	if (!ath9k_hw_set_rf_regs(ah, chan, freqIndex)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
@@ -1701,11 +1695,7 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 	ath9k_hw_set_regs(ah, chan, macmode);
 
 	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		if (!(ath9k_hw_ar9280_set_channel(ah, chan))) {
-			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
-				"Failed to set channel\n");
-			return false;
-		}
+		ath9k_hw_ar9280_set_channel(ah, chan);
 	} else {
 		if (!(ath9k_hw_set_channel(ah, chan))) {
 			DPRINTF(ah->ah_sc, ATH_DBG_FATAL,
@@ -1714,16 +1704,12 @@ static bool ath9k_hw_channel_change(struct ath_hw *ah,
 		}
 	}
 
-	if (ah->eep_ops->set_txpower(ah, chan,
+	ah->eep_ops->set_txpower(ah, chan,
 			     ath9k_regd_get_ctl(&ah->regulatory, chan),
 			     channel->max_antenna_gain * 2,
 			     channel->max_power * 2,
 			     min((u32) MAX_RATE_POWER,
-				 (u32) ah->regulatory.power_limit)) != 0) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"Error initializing transmit power\n");
-		return false;
-	}
+			     (u32) ah->regulatory.power_limit));
 
 	synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
 	if (IS_CHAN_B(chan))
@@ -2311,13 +2297,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_RSSI_THR, INIT_RSSI_THR);
 
-	if (AR_SREV_9280_10_OR_LATER(ah)) {
-		if (!(ath9k_hw_ar9280_set_channel(ah, chan)))
-			return -EIO;
-	} else {
+	if (AR_SREV_9280_10_OR_LATER(ah))
+		ath9k_hw_ar9280_set_channel(ah, chan);
+	else
 		if (!(ath9k_hw_set_channel(ah, chan)))
 			return -EIO;
-	}
 
 	for (i = 0; i < AR_NUM_DCU; i++)
 		REG_WRITE(ah, AR_DQCUMASK(i), 1 << i);
@@ -3748,22 +3732,19 @@ bool ath9k_hw_disable(struct ath_hw *ah)
 	return ath9k_hw_set_reset_reg(ah, ATH9K_RESET_COLD);
 }
 
-bool ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
+void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
 {
 	struct ath9k_channel *chan = ah->curchan;
 	struct ieee80211_channel *channel = chan->chan;
 
 	ah->regulatory.power_limit = min(limit, (u32) MAX_RATE_POWER);
 
-	if (ah->eep_ops->set_txpower(ah, chan,
-			     ath9k_regd_get_ctl(&ah->regulatory, chan),
-			     channel->max_antenna_gain * 2,
-			     channel->max_power * 2,
-			     min((u32) MAX_RATE_POWER,
-				 (u32) ah->regulatory.power_limit)) != 0)
-		return false;
-
-	return true;
+	ah->eep_ops->set_txpower(ah, chan,
+				 ath9k_regd_get_ctl(&ah->regulatory, chan),
+				 channel->max_antenna_gain * 2,
+				 channel->max_power * 2,
+				 min((u32) MAX_RATE_POWER,
+				 (u32) ah->regulatory.power_limit));
 }
 
 void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac)
