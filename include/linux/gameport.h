@@ -11,6 +11,7 @@
 
 #ifdef __KERNEL__
 #include <asm/io.h>
+#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -62,7 +63,7 @@ struct gameport_driver {
 
 	struct device_driver driver;
 
-	unsigned int ignore;
+	bool ignore;
 };
 #define to_gameport_driver(d)	container_of(d, struct gameport_driver, driver)
 

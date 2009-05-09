@@ -10,6 +10,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -921,6 +922,9 @@ static void i8042_dritek_enable(void)
 #endif
 
 #ifdef CONFIG_PM
+
+static bool i8042_suspended;
+
 /*
  * Here we try to restore the original BIOS settings. We only want to
  * do that once, when we really suspend, not when we taking memory
@@ -930,11 +934,9 @@ static void i8042_dritek_enable(void)
 
 static int i8042_suspend(struct platform_device *dev, pm_message_t state)
 {
-	if (dev->dev.power.power_state.event != state.event) {
-		if (state.event == PM_EVENT_SUSPEND)
-			i8042_controller_reset();
-
-		dev->dev.power.power_state = state;
+	if (!i8042_suspended && state.event == PM_EVENT_SUSPEND) {
+		i8042_controller_reset();
+		i8042_suspended = true;
 	}
 
 	return 0;
@@ -952,7 +954,7 @@ static int i8042_resume(struct platform_device *dev)
 /*
  * Do not bother with restoring state if we haven't suspened yet
  */
-	if (dev->dev.power.power_state.event == PM_EVENT_ON)
+	if (!i8042_suspended)
 		return 0;
 
 	error = i8042_controller_check();
@@ -998,9 +1000,8 @@ static int i8042_resume(struct platform_device *dev)
 	if (i8042_ports[I8042_KBD_PORT_NO].serio)
 		i8042_enable_kbd_port();
 
+	i8042_suspended = false;
 	i8042_interrupt(0, NULL);
-
-	dev->dev.power.power_state = PMSG_ON;
 
 	return 0;
 }

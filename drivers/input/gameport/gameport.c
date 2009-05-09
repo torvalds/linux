@@ -723,7 +723,7 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 	 * Temporarily disable automatic binding because probing
 	 * takes long time and we are better off doing it in kgameportd
 	 */
-	drv->ignore = 1;
+	drv->ignore = true;
 
 	error = driver_register(&drv->driver);
 	if (error) {
@@ -736,7 +736,7 @@ int __gameport_register_driver(struct gameport_driver *drv, struct module *owner
 	/*
 	 * Reset ignore flag and let kgameportd bind the driver to free ports
 	 */
-	drv->ignore = 0;
+	drv->ignore = false;
 	error = gameport_queue_event(drv, NULL, GAMEPORT_ATTACH_DRIVER);
 	if (error) {
 		driver_unregister(&drv->driver);
@@ -753,7 +753,7 @@ void gameport_unregister_driver(struct gameport_driver *drv)
 
 	mutex_lock(&gameport_mutex);
 
-	drv->ignore = 1;	/* so gameport_find_driver ignores it */
+	drv->ignore = true;	/* so gameport_find_driver ignores it */
 	gameport_remove_pending_events(drv);
 
 start_over:
