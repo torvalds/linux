@@ -44,13 +44,11 @@ static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
 static inline bool is_privroot_deh(struct dentry *dir,
 				   struct reiserfs_de_head *deh)
 {
-	int ret = 0;
-#ifdef CONFIG_REISERFS_FS_XATTR
 	struct dentry *privroot = REISERFS_SB(dir->d_sb)->priv_root;
-	ret = (dir == dir->d_parent && privroot->d_inode &&
-	       deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
-#endif
-	return ret;
+	if (reiserfs_expose_privroot(dir->d_sb))
+		return 0;
+	return (dir == dir->d_parent && privroot->d_inode &&
+	        deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
 }
 
 int reiserfs_readdir_dentry(struct dentry *dentry, void *dirent,
