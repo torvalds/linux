@@ -22,14 +22,6 @@ void trap_init(void)
 	__enable_hw_exceptions();
 }
 
-void __bad_xchg(volatile void *ptr, int size)
-{
-	printk(KERN_INFO "xchg: bad data size: pc 0x%p, ptr 0x%p, size %d\n",
-		__builtin_return_address(0), ptr, size);
-	BUG();
-}
-EXPORT_SYMBOL(__bad_xchg);
-
 static int kstack_depth_to_print = 24;
 
 static int __init kstack_setup(char *s)
