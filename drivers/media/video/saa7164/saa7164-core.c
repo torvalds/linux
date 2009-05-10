@@ -33,7 +33,7 @@
 #include "saa7164.h"
 
 MODULE_DESCRIPTION("Driver for NXP SAA7164 based TV cards");
-MODULE_AUTHOR("Steven Toth <stoth@hauppauge.com>");
+MODULE_AUTHOR("Steven Toth <stoth@kernellabs.com>");
 MODULE_LICENSE("GPL");
 
 /*
