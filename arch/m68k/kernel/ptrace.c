@@ -35,7 +35,9 @@
 #define SR_MASK 0x001f
 
 /* sets the trace bits. */
-#define TRACE_BITS 0x8000
+#define TRACE_BITS 0xC000
+#define T1_BIT 0x8000
+#define T0_BIT 0x4000
 
 /* Find the stack offset for a register, relative to thread.esp0. */
 #define PT_REG(reg)	((long)&((struct pt_regs *)0)->reg)
@@ -118,18 +120,30 @@ void ptrace_disable(struct task_struct *child)
 	singlestep_disable(child);
 }
 
+void user_enable_single_step(struct task_struct *child)
+{
+	unsigned long tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
+	put_reg(child, PT_SR, tmp | (T1_BIT << 16));
+	set_tsk_thread_flag(child, TIF_DELAYED_TRACE);
+}
+
+void user_enable_block_step(struct task_struct *child)
+{
+	unsigned long tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
+	put_reg(child, PT_SR, tmp | (T0_BIT << 16));
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	singlestep_disable(child);
+}
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	unsigned long tmp;
 	int i, ret = 0;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT:	/* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR:
 		if (addr & 3)
@@ -151,12 +165,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		} else
 			break;
 		ret = put_user(tmp, (unsigned long *)data);
-		break;
-
-	/* when I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT:	/* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
 		break;
 
 	case PTRACE_POKEUSR:	/* write the word at location addr in the USER area */
@@ -183,47 +191,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			child->thread.fp[addr - 21] = data;
 		} else
 			goto out_eio;
-		break;
-
-	case PTRACE_SYSCALL:	/* continue and stop at next (return from) syscall */
-	case PTRACE_CONT:	/* restart after signal. */
-		if (!valid_signal(data))
-			goto out_eio;
-
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		singlestep_disable(child);
-		wake_up_process(child);
-		break;
-
-	/*
-	 * make the child exit.  Best I can do is send it a sigkill.
-	 * perhaps it should be put in the status that it wants to
-	 * exit.
-	 */
-	case PTRACE_KILL:
-		if (child->exit_state == EXIT_ZOMBIE) /* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		singlestep_disable(child);
-		wake_up_process(child);
-		break;
-
-	case PTRACE_SINGLESTEP:	/* set the trap flag. */
-		if (!valid_signal(data))
-			goto out_eio;
-
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		tmp = get_reg(child, PT_SR) | (TRACE_BITS << 16);
-		put_reg(child, PT_SR, tmp);
-		set_tsk_thread_flag(child, TIF_DELAYED_TRACE);
-
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
 		break;
 
 	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
