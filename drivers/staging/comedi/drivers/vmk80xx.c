@@ -1,6 +1,6 @@
 /*
     comedi/drivers/vmk80xx.c
-    Velleman USB Interface Board Kernel-Space Driver
+    Velleman USB Board Low-Level Driver
 
     Copyright (C) 2009 Manuel Gebele <forensixs@gmx.de>, Germany
 
@@ -24,11 +24,32 @@
 */
 /*
 Driver: vmk80xx
-Description: Velleman USB Interface Board Kernel-Space Driver
-Devices: K8055, K8061 (in development)
+Description: Velleman USB Board Low-Level Driver
+Devices: K8055/K8061 aka VM110/VM140
 Author: Manuel Gebele <forensixs@gmx.de>
-Updated: Tue, 21 Apr 2009 19:40:55 +0200
+Updated: Sun, 10 May 2009 11:14:59 +0200
 Status: works
+
+Supports:
+ - analog input
+ - analog output
+ - digital input
+ - digital output
+ - counter
+ - pwm
+*/
+/*
+Changelog:
+
+0.8.81	-3-  code completely rewritten (adjust driver logic)
+0.8.81  -2-  full support for K8061
+0.8.81  -1-  fix some mistaken among others the number of
+	     supported boards and I/O handling
+
+0.7.76  -4-  renamed to vmk80xx
+0.7.76  -3-  detect K8061 (only theoretically supported)
+0.7.76  -2-  code completely rewritten (adjust driver logic)
+0.7.76  -1-  support for digital and counter subdevice
 */
 
 #include <linux/kernel.h>
@@ -39,1078 +60,1340 @@ Status: works
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/usb.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
-#include "../comedidev.h"	/* comedi definitions */
+#include "../comedidev.h"
 
-/* ------------------------------------------------------------------------ */
-#define VMK80XX_MODULE_DESC "Velleman USB Interface Board Kernel-Space Driver"
-#define VMK80XX_MODULE_DEVICE "Velleman K8055/K8061 USB Interface Board"
-#define VMK80XX_MODULE_AUTHOR "Copyright (C) 2009 Manuel Gebele, Germany"
-#define VMK80XX_MODULE_LICENSE "GPL"
-#define VMK80XX_MODULE_VERSION "0.7.76"
+MODULE_AUTHOR("Manuel Gebele <forensixs@gmx.de>");
+MODULE_DESCRIPTION("Velleman USB Board Low-Level Driver");
+MODULE_SUPPORTED_DEVICE("K8055/K8061 aka VM110/VM140");
+MODULE_VERSION("0.8.01");
+MODULE_LICENSE("GPL");
 
-/* Module device ID's */
-static struct usb_device_id vm_id_table[] = {
-	/* k8055 */
-	{ USB_DEVICE(0x10cf, 0x5500 + 0x00) }, /* @ddr. 0 */
-	{ USB_DEVICE(0x10cf, 0x5500 + 0x01) }, /* @ddr. 1 */
-	{ USB_DEVICE(0x10cf, 0x5500 + 0x02) }, /* @ddr. 2 */
-	{ USB_DEVICE(0x10cf, 0x5500 + 0x03) }, /* @ddr. 3 */
-	/* k8061 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x00) }, /* @ddr. 0 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x01) }, /* @ddr. 1 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x02) }, /* @ddr. 2 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x03) }, /* @ddr. 3 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x04) }, /* @ddr. 4 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x05) }, /* @ddr. 5 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x06) }, /* @ddr. 6 */
-	{ USB_DEVICE(0x10cf, 0x8061 + 0x07) }, /* @ddr. 7 */
+enum {
+	DEVICE_VMK8055,
+	DEVICE_VMK8061
+};
+
+static struct usb_device_id vmk80xx_id_table[] = {
+	{ USB_DEVICE(0x10cf, 0x5500), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x5501), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x5502), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x5503), .driver_info = DEVICE_VMK8055 },
+	{ USB_DEVICE(0x10cf, 0x8061), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8062), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8063), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8064), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8065), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8066), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8067), .driver_info = DEVICE_VMK8061 },
+	{ USB_DEVICE(0x10cf, 0x8068), .driver_info = DEVICE_VMK8061 },
 	{ } /* terminating entry */
 };
-MODULE_DEVICE_TABLE(usb, vm_id_table);
 
-MODULE_AUTHOR(VMK80XX_MODULE_AUTHOR);
-MODULE_DESCRIPTION(VMK80XX_MODULE_DESC);
-MODULE_SUPPORTED_DEVICE(VMK80XX_MODULE_DEVICE);
-MODULE_VERSION(VMK80XX_MODULE_VERSION);
-MODULE_LICENSE(VMK80XX_MODULE_LICENSE);
-/* ------------------------------------------------------------------------ */
+MODULE_DEVICE_TABLE(usb, vmk80xx_id_table);
+
+#define VMK8055_DI_REG          0x00
+#define VMK8055_DO_REG          0x01
+#define VMK8055_AO1_REG         0x02
+#define VMK8055_AO2_REG         0x03
+#define VMK8055_AI1_REG         0x02
+#define VMK8055_AI2_REG         0x03
+#define VMK8055_CNT1_REG        0x04
+#define VMK8055_CNT2_REG        0x06
+
+#define VMK8061_CH_REG          0x01
+#define VMK8061_DI_REG          0x01
+#define VMK8061_DO_REG          0x01
+#define VMK8061_PWM_REG1        0x01
+#define VMK8061_PWM_REG2        0x02
+#define VMK8061_CNT_REG         0x02
+#define VMK8061_AO_REG          0x02
+#define VMK8061_AI_REG1         0x02
+#define VMK8061_AI_REG2         0x03
+
+#define VMK8055_CMD_RST         0x00
+#define VMK8055_CMD_DEB1_TIME   0x01
+#define VMK8055_CMD_DEB2_TIME   0x02
+#define VMK8055_CMD_RST_CNT1    0x03
+#define VMK8055_CMD_RST_CNT2    0x04
+#define VMK8055_CMD_WRT_AD      0x05
+
+#define VMK8061_CMD_RD_AI       0x00
+#define VMK8061_CMR_RD_ALL_AI   0x01    /* !non-active! */
+#define VMK8061_CMD_SET_AO      0x02
+#define VMK8061_CMD_SET_ALL_AO  0x03    /* !non-active! */
+#define VMK8061_CMD_OUT_PWM     0x04
+#define VMK8061_CMD_RD_DI       0x05
+#define VMK8061_CMD_DO          0x06    /* !non-active! */
+#define VMK8061_CMD_CLR_DO      0x07
+#define VMK8061_CMD_SET_DO      0x08
+#define VMK8061_CMD_RD_CNT      0x09    /* TODO: completely pointless? */
+#define VMK8061_CMD_RST_CNT     0x0a    /* TODO: completely pointless? */
+#define VMK8061_CMD_RD_VERSION  0x0b    /* internal usage */
+#define VMK8061_CMD_RD_JMP_STAT 0x0c    /* TODO: not implemented yet */
+#define VMK8061_CMD_RD_PWR_STAT 0x0d    /* internal usage */
+#define VMK8061_CMD_RD_DO       0x0e
+#define VMK8061_CMD_RD_AO       0x0f
+#define VMK8061_CMD_RD_PWM      0x10
+
+#define VMK80XX_MAX_BOARDS      COMEDI_NUM_BOARD_MINORS
+
+#define TRANS_OUT_BUSY          1
+#define TRANS_IN_BUSY           2
+#define TRANS_IN_RUNNING        3
+
+#define IC3_VERSION             (1 << 0)
+#define IC6_VERSION             (1 << 1)
+
+#define URB_RCV_FLAG            (1 << 0)
+#define URB_SND_FLAG            (1 << 1)
 
 #define CONFIG_VMK80XX_DEBUG
-
-//#undef CONFIG_COMEDI_DEBUG /* Uncommend this line to disable comedi debug */
-#undef CONFIG_VMK80XX_DEBUG  /* Commend this line to enable vmk80xx debug */
-
-#ifdef CONFIG_COMEDI_DEBUG
- static int cm_dbg = 1;
-#else   /* !CONFIG_COMEDI_DEBUG */
- static int cm_dbg = 0;
-#endif  /* !CONFIG_COMEDI_DEBUG */
+#undef CONFIG_VMK80XX_DEBUG
 
 #ifdef CONFIG_VMK80XX_DEBUG
- static int vm_dbg = 1;
-#else   /* !CONFIG_VMK80XX_DEBUG */
- static int vm_dbg = 0;
-#endif  /* !CONFIG_VMK80XX_DEBUG */
+ static int dbgvm = 1;
+#else
+ static int dbgvm;
+#endif
 
-/* Define our own debug macros */
-#define DBGCM(fmt, arg...) do { if (cm_dbg) printk(fmt, ##arg); } while (0)
-#define DBGVM(fmt, arg...) do { if (vm_dbg) printk(fmt, ##arg); } while (0)
+#ifdef CONFIG_COMEDI_DEBUG
+ static int dbgcm = 1;
+#else
+ static int dbgcm;
+#endif
 
-/* Velleman K8055 specific stuff */
-#define VMK8055_DI              0 /* digital input offset */
-#define VMK8055_DO              1 /* digital output offset */
-#define VMK8055_AO1             2 /* analog output channel 1 offset */
-#define VMK8055_AO2             3 /* analog output channel 2 offset */
-#define VMK8055_CNT1            4 /* counter 1 offset */
-#define VMK8055_CNT2            6 /* counter 2 offset */
-#define VMK8055_CMD_RST      0x00 /* reset device registers */
-#define VMK8055_CMD_DEB1     0x01 /* debounce time for pulse counter 1 */
-#define VMK8055_CMD_DEB2     0x02 /* debounce time for pulse counter 2 */
-#define VMK8055_CMD_RST_CNT1 0x03 /* reset pulse counter 1 */
-#define VMK8055_CMD_RST_CNT2 0x04 /* reset pulse counter 2 */
-#define VMK8055_CMD_AD       0x05 /* write to analog or digital channel */
-#define VMK8055_EP_OUT       0x01 /* out endpoint address */
-#define VMK8055_EP_IN        0x81 /* in endpoint address */
-#define VMK8055_EP_SIZE         8 /* endpoint max packet size */
-#define VMK8055_EP_INTERVAL    20 /* general conversion time per command */
-#define VMK8055_MAX_BOARDS     16
+#define dbgvm(fmt, arg...)                     \
+do {                                           \
+	if (dbgvm)                             \
+		printk(KERN_DEBUG fmt, ##arg); \
+} while (0)
 
-/* Structure to hold all of our device specific stuff */
-struct vmk80xx_usb {
-	struct usb_interface	*intf;
-	struct semaphore	limit_sem;
-	wait_queue_head_t	read_wait;
-	wait_queue_head_t	write_wait;
-	size_t			irq_out_endpoint_size;
-	__u8			irq_out_endpoint;
-	int			irq_out_interval;
-	unsigned char		*irq_out_buf;
-	struct urb		*irq_out_urb;
-	int			irq_out_busy;
-	size_t			irq_in_endpoint_size;
-	__u8			irq_in_endpoint;
-	int			irq_in_interval;
-	unsigned char		*irq_in_buf;
-	struct urb		*irq_in_urb;
-	int			irq_in_busy;
-	int			irq_in_running;
-	int			probed;
-	int			attached;
-	int			id;
+#define dbgcm(fmt, arg...)                     \
+do {                                           \
+	if (dbgcm)                             \
+		printk(KERN_DEBUG fmt, ##arg); \
+} while (0)
+
+enum vmk80xx_model {
+	VMK8055_MODEL,
+	VMK8061_MODEL
 };
 
-static struct vmk80xx_usb vm_boards[VMK8055_MAX_BOARDS];
+struct firmware_version {
+	unsigned char ic3_vers[32]; /* USB-Controller */
+	unsigned char ic6_vers[32]; /* CPU */
+};
 
-/* ---------------------------------------------------------------------------
- * Abort active transfers and tidy up allocated resources.
---------------------------------------------------------------------------- */
-static void vm_abort_transfers(struct vmk80xx_usb *vm)
+static const struct comedi_lrange vmk8055_range = {
+	1, { UNI_RANGE(5) }
+};
+
+static const struct comedi_lrange vmk8061_range = {
+	2, { UNI_RANGE(5), UNI_RANGE(10) }
+};
+
+struct vmk80xx_board {
+	const char *name;
+	enum vmk80xx_model model;
+	const struct comedi_lrange *range;
+	__u8   ai_chans;
+	__le16 ai_bits;
+	__u8   ao_chans;
+	__le16 ao_bits;
+	__u8   di_chans;
+	__le16 di_bits;
+	__u8   do_chans;
+	__le16 do_bits;
+	__u8   cnt_chans;
+	__le16 cnt_bits;
+	__u8   pwm_chans;
+	__le16 pwm_bits;
+};
+
+enum {
+	VMK80XX_SUBD_AI,
+	VMK80XX_SUBD_AO,
+	VMK80XX_SUBD_DI,
+	VMK80XX_SUBD_DO,
+	VMK80XX_SUBD_CNT,
+	VMK80XX_SUBD_PWM,
+};
+
+struct vmk80xx_usb {
+	struct usb_device *udev;
+	struct usb_interface *intf;
+	struct usb_endpoint_descriptor *ep_rx;
+	struct usb_endpoint_descriptor *ep_tx;
+	struct usb_anchor rx_anchor;
+	struct usb_anchor tx_anchor;
+	struct vmk80xx_board board;
+	struct firmware_version fw;
+	struct semaphore limit_sem;
+	wait_queue_head_t read_wait;
+	wait_queue_head_t write_wait;
+	unsigned char *usb_rx_buf;
+	unsigned char *usb_tx_buf;
+	unsigned long flags;
+	int probed;
+	int attached;
+	int count;
+};
+
+static struct vmk80xx_usb vmb[VMK80XX_MAX_BOARDS];
+
+static DEFINE_MUTEX(glb_mutex);
+
+static void vmk80xx_tx_callback(struct urb *urb)
 {
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
+	struct vmk80xx_usb *dev = urb->context;
+	int stat = urb->status;
 
-	if (vm->irq_in_running) {
-		vm->irq_in_running = 0;
-		if (vm->intf)
-			usb_kill_urb(vm->irq_in_urb);
-	}
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	if (vm->irq_out_busy && vm->intf)
-		usb_kill_urb(vm->irq_out_urb);
+	if (stat && !(stat == -ENOENT
+		 ||   stat == -ECONNRESET
+		 ||   stat == -ESHUTDOWN))
+		dbgcm("comedi#: vmk80xx: %s - nonzero urb status (%d)\n",
+		      __func__, stat);
+
+	if (!test_bit(TRANS_OUT_BUSY, &dev->flags))
+		return;
+
+	clear_bit(TRANS_OUT_BUSY, &dev->flags);
+
+	wake_up_interruptible(&dev->write_wait);
 }
 
-static void vm_delete(struct vmk80xx_usb *vm)
+static void vmk80xx_rx_callback(struct urb *urb)
 {
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
+	struct vmk80xx_usb *dev = urb->context;
+	int stat = urb->status;
 
-	vm_abort_transfers(vm);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	/* Deallocate usb urbs and kernel buffers */
-	if (vm->irq_in_urb)
-		usb_free_urb(vm->irq_in_urb);
-
-	if (vm->irq_out_urb);
-		usb_free_urb(vm->irq_out_urb);
-
-	if (vm->irq_in_buf)
-		kfree(vm->irq_in_buf);
-
-	if (vm->irq_out_buf)
-		kfree(vm->irq_out_buf);
-}
-
-/* ---------------------------------------------------------------------------
- * Interrupt in and interrupt out callback for usb data transfer.
---------------------------------------------------------------------------- */
-static void vm_irq_in_callback(struct urb *urb)
-{
-	struct vmk80xx_usb *vm = (struct vmk80xx_usb *)urb->context;
-	int err;
-
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
-
-	switch (urb->status) {
-	case 0: /* success */
+	switch (stat) {
+	case 0:
 		break;
 	case -ENOENT:
 	case -ECONNRESET:
 	case -ESHUTDOWN:
 		break;
 	default:
-		DBGCM("comedi#: vmk80xx: %s - nonzero urb status (%d)\n",
-		      __func__, urb->status);
-		goto resubmit; /* maybe we can recover */
+		dbgcm("comedi#: vmk80xx: %s - nonzero urb status (%d)\n",
+		      __func__, stat);
+		goto resubmit;
 	}
 
 	goto exit;
 resubmit:
-	if (vm->irq_in_running && vm->intf) {
-		err = usb_submit_urb(vm->irq_in_urb, GFP_ATOMIC);
-		if (!err) goto exit;
-		/* FALL THROUGH */
-		DBGCM("comedi#: vmk80xx: %s - submit urb failed (err# %d)\n",
-		      __func__, err);
-	}
-exit:
-	vm->irq_in_busy = 0;
+	if (test_bit(TRANS_IN_RUNNING, &dev->flags) && dev->intf) {
+		usb_anchor_urb(urb, &dev->rx_anchor);
 
-	/* interrupt-in pipe is available again */
-	wake_up_interruptible(&vm->read_wait);
-}
-
-static void vm_irq_out_callback(struct urb *urb)
-{
-	struct vmk80xx_usb *vm;
-
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
-
-	/* sync/async unlink (hardware going away) faults  aren't errors */
-	if (urb->status && !(urb->status == -ENOENT
-			||   urb->status == -ECONNRESET
-			||   urb->status == -ESHUTDOWN))
-		DBGCM("comedi#: vmk80xx: %s - nonzero urb status (%d)\n",
-		      __func__, urb->status);
-
-	vm = (struct vmk80xx_usb *)urb->context;
-	vm->irq_out_busy = 0;
-
-	/* interrupt-out pipe is available again */
-	wake_up_interruptible(&vm->write_wait);
-}
-
-/* ---------------------------------------------------------------------------
- * Interface for digital/analog input/output and counter funcs (see below).
---------------------------------------------------------------------------- */
-static int vm_read(struct vmk80xx_usb *vm)
-{
-	struct usb_device *udev;
-	int retval = -ENODEV;
-
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
-
-	/* Verify that the device wasn't un-plugged */
-	if (!vm->intf) {
-		DBGCM("comedi#: vmk80xx: %s - No dev or dev un-plugged\n",
-		      __func__);
-		goto exit;
-	}
-
-	if (vm->irq_in_busy) {
-		retval = wait_event_interruptible(vm->read_wait,
-						 !vm->irq_in_busy);
-		if (retval < 0) { /* we were interrupted by a signal */
-			retval = -ERESTART;
+		if (!usb_submit_urb(urb, GFP_KERNEL))
 			goto exit;
-		}
+
+		err("comedi#: vmk80xx: %s - submit urb failed\n", __func__);
+
+		usb_unanchor_urb(urb);
 	}
-
-	udev = interface_to_usbdev(vm->intf);
-
-	/* Fill the urb and send off */
-	usb_fill_int_urb(vm->irq_in_urb,
-			 udev,
-			 usb_rcvintpipe(udev, vm->irq_in_endpoint),
-			 vm->irq_in_buf,
-			 vm->irq_in_endpoint_size,
-			 vm_irq_in_callback,
-			 vm,
-			 vm->irq_in_interval);
-
-	vm->irq_in_running = 1;
-	vm->irq_in_busy = 1; /* disallow following read request's */
-
-	retval = usb_submit_urb(vm->irq_in_urb, GFP_KERNEL);
-	if (!retval) goto exit; /* success */
-	/* FALL TROUGH */
-	vm->irq_in_running = 0;
-	DBGCM("comedi#: vmk80xx: %s - submit urb failed (err# %d)\n",
-	      __func__, retval);
-
 exit:
-	return retval;
+	clear_bit(TRANS_IN_BUSY, &dev->flags);
+
+	wake_up_interruptible(&dev->read_wait);
 }
 
-static int vm_write(struct vmk80xx_usb *vm, unsigned char cmd)
+static int vmk80xx_check_data_link(struct vmk80xx_usb *dev)
 {
-	struct usb_device *udev;
-	int retval = -ENODEV;
+	unsigned int tx_pipe, rx_pipe;
+	unsigned char tx[1], rx[2];
 
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	/* Verify that the device wasn't un-plugged */
-	if (!vm->intf) {
-		DBGCM("comedi#: vmk80xx: %s - No dev or dev un-plugged\n",
-		      __func__);
+	tx_pipe = usb_sndbulkpipe(dev->udev, 0x01);
+	rx_pipe = usb_rcvbulkpipe(dev->udev, 0x81);
+
+	tx[0] = VMK8061_CMD_RD_PWR_STAT;
+
+	/* Check that IC6 (PIC16F871) is powered and
+	 * running and the data link between IC3 and
+	 * IC6 is working properly */
+	usb_bulk_msg(dev->udev, tx_pipe, tx, 1, NULL,
+		     dev->ep_tx->bInterval);
+	usb_bulk_msg(dev->udev, rx_pipe, rx, 2, NULL,
+		     HZ * 10);
+
+	return (int)rx[1];
+}
+
+static void vmk80xx_read_eeprom(struct vmk80xx_usb *dev, int flag)
+{
+	unsigned int tx_pipe, rx_pipe;
+	unsigned char tx[1], rx[64];
+	int cnt;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	tx_pipe = usb_sndbulkpipe(dev->udev, 0x01);
+	rx_pipe = usb_rcvbulkpipe(dev->udev, 0x81);
+
+	tx[0] = VMK8061_CMD_RD_VERSION;
+
+	/* Read the firmware version info of IC3 and
+	 * IC6 from the internal EEPROM of the IC */
+	usb_bulk_msg(dev->udev, tx_pipe, tx,  1, NULL,
+		     dev->ep_tx->bInterval);
+	usb_bulk_msg(dev->udev, rx_pipe, rx, 64, &cnt,
+		     HZ * 10);
+
+	rx[cnt] = '\0';
+
+	if (flag & IC3_VERSION)
+		strncpy(dev->fw.ic3_vers, rx +  1, 24);
+	else /* IC6_VERSION */
+		strncpy(dev->fw.ic6_vers, rx + 25, 24);
+}
+
+static int vmk80xx_reset_device(struct vmk80xx_usb *dev)
+{
+	struct urb *urb;
+	unsigned int tx_pipe;
+	int ival;
+	size_t size;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
+	tx_pipe = usb_sndintpipe(dev->udev, 0x01);
+
+	ival = dev->ep_tx->bInterval;
+	size = le16_to_cpu(dev->ep_tx->wMaxPacketSize);
+
+	dev->usb_tx_buf[0] = VMK8055_CMD_RST;
+	dev->usb_tx_buf[1] = 0x00;
+	dev->usb_tx_buf[2] = 0x00;
+	dev->usb_tx_buf[3] = 0x00;
+	dev->usb_tx_buf[4] = 0x00;
+	dev->usb_tx_buf[5] = 0x00;
+	dev->usb_tx_buf[6] = 0x00;
+	dev->usb_tx_buf[7] = 0x00;
+
+	usb_fill_int_urb(urb, dev->udev, tx_pipe, dev->usb_tx_buf,
+			 size, vmk80xx_tx_callback, dev, ival);
+
+	usb_anchor_urb(urb, &dev->tx_anchor);
+
+	return usb_submit_urb(urb, GFP_KERNEL);
+}
+
+static void vmk80xx_build_int_urb(struct urb *urb, int flag)
+{
+	struct vmk80xx_usb *dev = urb->context;
+	__u8 rx_addr, tx_addr;
+	unsigned int pipe;
+	unsigned char *buf;
+	size_t size;
+	void (*callback)(struct urb *);
+	int ival;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	if (flag & URB_RCV_FLAG) {
+		rx_addr = dev->ep_rx->bEndpointAddress;
+		pipe = usb_rcvintpipe(dev->udev, rx_addr);
+		buf = dev->usb_rx_buf;
+		size = le16_to_cpu(dev->ep_rx->wMaxPacketSize);
+		callback = vmk80xx_rx_callback;
+		ival = dev->ep_rx->bInterval;
+	} else { /* URB_SND_FLAG */
+		tx_addr = dev->ep_tx->bEndpointAddress;
+		pipe = usb_sndintpipe(dev->udev, tx_addr);
+		buf = dev->usb_tx_buf;
+		size = le16_to_cpu(dev->ep_tx->wMaxPacketSize);
+		callback = vmk80xx_tx_callback;
+		ival = dev->ep_tx->bInterval;
+	}
+
+	usb_fill_int_urb(urb, dev->udev, pipe, buf,
+			 size, callback, dev, ival);
+}
+
+static void vmk80xx_do_bulk_msg(struct vmk80xx_usb *dev)
+{
+	__u8 tx_addr, rx_addr;
+	unsigned int tx_pipe, rx_pipe;
+	size_t size;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	set_bit(TRANS_IN_BUSY, &dev->flags);
+	set_bit(TRANS_OUT_BUSY, &dev->flags);
+
+	tx_addr = dev->ep_tx->bEndpointAddress;
+	rx_addr = dev->ep_rx->bEndpointAddress;
+	tx_pipe = usb_sndbulkpipe(dev->udev, tx_addr);
+	rx_pipe = usb_rcvbulkpipe(dev->udev, rx_addr);
+
+	/* The max packet size attributes of the K8061
+	 * input/output endpoints are identical */
+	size = le16_to_cpu(dev->ep_tx->wMaxPacketSize);
+
+	usb_bulk_msg(dev->udev, tx_pipe, dev->usb_tx_buf,
+		     size, NULL, dev->ep_tx->bInterval);
+	usb_bulk_msg(dev->udev, rx_pipe, dev->usb_rx_buf,
+		     size, NULL, HZ * 10);
+
+	clear_bit(TRANS_OUT_BUSY, &dev->flags);
+	clear_bit(TRANS_IN_BUSY, &dev->flags);
+}
+
+static int vmk80xx_read_packet(struct vmk80xx_usb *dev)
+{
+	struct urb *urb;
+	int retval;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	if (!dev->intf)
+		return -ENODEV;
+
+	/* Only useful for interrupt transfers */
+	if (test_bit(TRANS_IN_BUSY, &dev->flags))
+		if (wait_event_interruptible(dev->read_wait,
+			!test_bit(TRANS_IN_BUSY, &dev->flags)))
+			return -ERESTART;
+
+	if (dev->board.model == VMK8061_MODEL) {
+		vmk80xx_do_bulk_msg(dev);
+
+		return 0;
+	}
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
+	urb->context = dev;
+	vmk80xx_build_int_urb(urb, URB_RCV_FLAG);
+
+	set_bit(TRANS_IN_RUNNING, &dev->flags);
+	set_bit(TRANS_IN_BUSY, &dev->flags);
+
+	usb_anchor_urb(urb, &dev->rx_anchor);
+
+	retval = usb_submit_urb(urb, GFP_KERNEL);
+	if (!retval)
 		goto exit;
-	}
 
-	if (vm->irq_out_busy) {
-		retval = wait_event_interruptible(vm->write_wait,
-						 !vm->irq_out_busy);
-		if (retval < 0) { /* we were interrupted by a signal */
-			retval = -ERESTART;
-			goto exit;
-		}
-	}
-
-	udev = interface_to_usbdev(vm->intf);
-
-	/* Set the command which should send to the device */
-	vm->irq_out_buf[0] = cmd;
-
-	/* Fill the urb and send off */
-	usb_fill_int_urb(vm->irq_out_urb,
-			 udev,
-			 usb_sndintpipe(udev, vm->irq_out_endpoint),
-			 vm->irq_out_buf,
-			 vm->irq_out_endpoint_size,
-			 vm_irq_out_callback,
-			 vm,
-			 vm->irq_out_interval);
-
-	vm->irq_out_busy = 1; /* disallow following write request's */
-
-	wmb();
-
-	retval = usb_submit_urb(vm->irq_out_urb, GFP_KERNEL);
-	if (!retval) goto exit; /* success */
-	/* FALL THROUGH */
-	vm->irq_out_busy = 0;
-	DBGCM("comedi#: vmk80xx: %s - submit urb failed (err# %d)\n",
-	      __func__, retval);
+	clear_bit(TRANS_IN_RUNNING, &dev->flags);
+	usb_unanchor_urb(urb);
 
 exit:
-	return retval;
-}
-
-/* ---------------------------------------------------------------------------
- * COMEDI-Interface (callback functions for the userspacs apps).
---------------------------------------------------------------------------- */
-static int vm_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		       struct comedi_insn *insn, unsigned int *data)
-{
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
-	int ch, ch_offs, i;
-	int retval = -EFAULT;
-
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
-
-	if (!(vm = (struct vmk80xx_usb *)dev->private))
-		return retval;
-
-	down(&vm->limit_sem);
-
-	/* We have an attached board ? */
-	if (!vm->probed) {
-		retval = -ENODEV;
-		goto error;
-	}
-
-	/* interrupt-in pipe busy ? */
-	if (vm->irq_in_busy) {
-		retval = -EBUSY;
-		goto error;
-	}
-
-	ch = CR_CHAN(insn->chanspec);
-	ch_offs = (!ch) ? VMK8055_AO1 : VMK8055_AO2;
-
-	for (i = 0; i < insn->n; i++) {
-		retval = vm_read(vm);
-		if (retval)
-			goto error;
-
-		/* NOTE:
-		 * The input voltage of the selected 8-bit AD channel
-		 * is converted to a value which lies between
-		 * 0 and 255.
-		 */
-		data[i] = vm->irq_in_buf[ch_offs];
-	}
-
-	up(&vm->limit_sem);
-
-	/* Return the number of samples read */
-	return i;
-error:
-	up(&vm->limit_sem);
+	usb_free_urb(urb);
 
 	return retval;
 }
 
-static int vm_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		       struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_write_packet(struct vmk80xx_usb *dev, int cmd)
 {
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
-	int ch, ch_offs, i;
-	int retval = -EFAULT;
+	struct urb *urb;
+	int retval;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	if (!(vm = (struct vmk80xx_usb *)dev->private))
-		return retval;
+	if (!dev->intf)
+		return -ENODEV;
 
-	down(&vm->limit_sem);
+	if (test_bit(TRANS_OUT_BUSY, &dev->flags))
+		if (wait_event_interruptible(dev->write_wait,
+			!test_bit(TRANS_OUT_BUSY, &dev->flags)))
+			return -ERESTART;
 
-	/* We have an attached board ? */
-	if (!vm->probed) {
-		retval = -ENODEV;
-		goto error;
+	if (dev->board.model == VMK8061_MODEL) {
+		dev->usb_tx_buf[0] = cmd;
+		vmk80xx_do_bulk_msg(dev);
+
+		return 0;
 	}
 
-	/* interrupt-out pipe busy ? */
-	if (vm->irq_out_busy) {
-		retval = -EBUSY;
-		goto error;
-	}
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
 
-	ch = CR_CHAN(insn->chanspec);
-	ch_offs = (!ch) ? VMK8055_AO1 : VMK8055_AO2;
+	urb->context = dev;
+	vmk80xx_build_int_urb(urb, URB_SND_FLAG);
 
-	for (i = 0; i < insn->n; i++) {
-		/* NOTE:
-		 * The indicated 8-bit DA channel is altered according
-		 * to the new data. This means that the data corresponds
-		 * to a specific voltage. The value 0 corresponds to a
-		 * minimum output voltage (+-0 Volt) and the value 255
-		 * corresponds to a maximum output voltage (+5 Volt).
-		 */
-		vm->irq_out_buf[ch_offs] = data[i];
+	set_bit(TRANS_OUT_BUSY, &dev->flags);
 
-		retval = vm_write(vm, VMK8055_CMD_AD);
-		if (retval)
-			goto error;
-	}
+	usb_anchor_urb(urb, &dev->tx_anchor);
 
-	up(&vm->limit_sem);
+	dev->usb_tx_buf[0] = cmd;
 
-	/* Return the number of samples write */
-	return i;
-error:
-	up(&vm->limit_sem);
+	retval = usb_submit_urb(urb, GFP_KERNEL);
+	if (!retval)
+		goto exit;
+
+	clear_bit(TRANS_OUT_BUSY, &dev->flags);
+	usb_unanchor_urb(urb);
+
+exit:
+	usb_free_urb(urb);
 
 	return retval;
 }
 
-static int vm_di_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		       struct comedi_insn *insn, unsigned int *data)
+#define DIR_IN  1
+#define DIR_OUT 2
+
+#define rudimentary_check(dir)                             \
+do {                                                       \
+	if (!dev)                                          \
+		return -EFAULT;                            \
+	if (!dev->probed)                                  \
+		return -ENODEV;                            \
+	if (!dev->attached)                                \
+		return -ENODEV;                            \
+	if ((dir) & DIR_IN) {                              \
+		if (test_bit(TRANS_IN_BUSY, &dev->flags))  \
+			return -EBUSY;                     \
+	} else {  /* DIR_OUT */                            \
+		if (test_bit(TRANS_OUT_BUSY, &dev->flags)) \
+			return -EBUSY;                     \
+	}                                                  \
+} while (0)
+
+static int vmk80xx_ai_rinsn(struct comedi_device *cdev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
-	int ch, i, inp;
-	int retval = -EFAULT;
+	struct vmk80xx_usb *dev = cdev->private;
+	int chan, reg[2];
+	int n;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	if (!(vm = (struct vmk80xx_usb *)dev->private))
-		return retval;
+	rudimentary_check(DIR_IN);
 
-	down(&vm->limit_sem);
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
 
-	/* We have an attached board ? */
-	if (!vm->probed) {
-		retval = -ENODEV;
-		goto error;
+	switch (dev->board.model) {
+	case VMK8055_MODEL:
+		if (!chan)
+			reg[0] = VMK8055_AI1_REG;
+		else
+			reg[0] = VMK8055_AI2_REG;
+		break;
+	case VMK8061_MODEL:
+		reg[0] = VMK8061_AI_REG1;
+		reg[1] = VMK8061_AI_REG2;
+		dev->usb_tx_buf[0] = VMK8061_CMD_RD_AI;
+		dev->usb_tx_buf[VMK8061_CH_REG] = chan;
+		break;
 	}
 
-	/* interrupt-in pipe busy ? */
-	if (vm->irq_in_busy) {
-		retval = -EBUSY;
-		goto error;
+	for (n = 0; n < insn->n; n++) {
+		if (vmk80xx_read_packet(dev))
+			break;
+
+		if (dev->board.model == VMK8055_MODEL) {
+			data[n] = dev->usb_rx_buf[reg[0]];
+			continue;
+		}
+
+		/* VMK8061_MODEL */
+		data[n] = dev->usb_rx_buf[reg[0]] + 256 *
+			  dev->usb_rx_buf[reg[1]];
 	}
 
-	for (i = 0, ch = CR_CHAN(insn->chanspec); i < insn->n; i++) {
-		retval = vm_read(vm);
-		if (retval)
-			goto error;
+	up(&dev->limit_sem);
 
-		/* NOTE:
-		 * The status of the selected digital input channel is read.
-		 */
-		inp = (((vm->irq_in_buf[VMK8055_DI] >> 4) & 0x03) |
-		       ((vm->irq_in_buf[VMK8055_DI] << 2) & 0x04) |
-		       ((vm->irq_in_buf[VMK8055_DI] >> 3) & 0x18));
-		data[i] = ((inp & (1 << ch)) > 0);
-	}
-
-	up(&vm->limit_sem);
-
-	return i;
-error:
-	up(&vm->limit_sem);
-
-	return retval;
+	return n;
 }
 
-static int vm_do_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		       struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_ao_winsn(struct comedi_device *cdev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
-	int ch, i, mask;
-	int retval = -EFAULT;
+	struct vmk80xx_usb *dev = cdev->private;
+	int chan, cmd, reg;
+	int n;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	if (!(vm = (struct vmk80xx_usb *)dev->private))
-		return retval;
+	rudimentary_check(DIR_OUT);
 
-	down(&vm->limit_sem);
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
 
-	/* We have an attached board ? */
-	if (!vm->probed) {
-		retval = -ENODEV;
-		goto error;
+	switch (dev->board.model) {
+	case VMK8055_MODEL:
+		cmd = VMK8055_CMD_WRT_AD;
+		if (!chan)
+			reg = VMK8055_AO1_REG;
+		else
+			reg = VMK8055_AO2_REG;
+		break;
+	default: /* NOTE: avoid compiler warnings */
+		cmd = VMK8061_CMD_SET_AO;
+		reg = VMK8061_AO_REG;
+		dev->usb_tx_buf[VMK8061_CH_REG] = chan;
+		break;
 	}
 
-	/* interrupt-out pipe busy ? */
-	if (vm->irq_out_busy) {
-		retval = -EBUSY;
-		goto error;
+	for (n = 0; n < insn->n; n++) {
+		dev->usb_tx_buf[reg] = data[n];
+
+		if (vmk80xx_write_packet(dev, cmd))
+			break;
 	}
 
-	for (i = 0, ch = CR_CHAN(insn->chanspec); i < insn->n; i++) {
-		/* NOTE:
-		 * The selected digital output channel is set or cleared.
-		 */
-		mask = (data[i] == 1)
-		     ? vm->irq_out_buf[VMK8055_DO] | (1 << ch)
-		     : vm->irq_out_buf[VMK8055_DO] ^ (1 << ch);
+	up(&dev->limit_sem);
 
-		vm->irq_out_buf[VMK8055_DO] = mask;
-
-		retval = vm_write(vm, VMK8055_CMD_AD);
-		if (retval)
-			goto error;
-	}
-
-	up(&vm->limit_sem);
-
-	return i;
-error:
-	up(&vm->limit_sem);
-
-	return retval;
+	return n;
 }
 
-static int vm_cnt_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_ao_rinsn(struct comedi_device *cdev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
-	int cnt, cnt_offs, i;
-	int retval = -EFAULT;
+	struct vmk80xx_usb *dev = cdev->private;
+	int chan, reg;
+	int n;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	if (!(vm = (struct vmk80xx_usb *)dev->private))
-		return retval;
+	rudimentary_check(DIR_IN);
 
-	down(&vm->limit_sem);
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
 
-	/* We have an attached board ? */
-	if (!vm->probed) {
-		retval = -ENODEV;
-		goto error;
+	reg = VMK8061_AO_REG - 1;
+
+	dev->usb_tx_buf[0] = VMK8061_CMD_RD_AO;
+
+	for (n = 0; n < insn->n; n++) {
+		if (vmk80xx_read_packet(dev))
+			break;
+
+		data[n] = dev->usb_rx_buf[reg+chan];
 	}
 
-	/* interrupt-in pipe busy ? */
-	if (vm->irq_in_busy) {
-		retval = -EBUSY;
-		goto error;
-	}
+	up(&dev->limit_sem);
 
-	cnt = CR_CHAN(insn->chanspec);
-	cnt_offs = (!cnt) ? VMK8055_CNT1 : VMK8055_CNT2;
-
-	for (i = 0; i < insn->n; i++) {
-		retval = vm_read(vm);
-		if (retval)
-			goto error;
-
-		/* NOTE:
-		 * The status of the selected 16-bit pulse counter is
-		 * read. The counter # 1 counts the pulses fed to the
-		 * input Inp1 and the counter # 2 counts the pulses fed
-		 * to the input Inp2.
-		 */
-		data[i] = vm->irq_in_buf[cnt_offs];
-	}
-
-	up(&vm->limit_sem);
-
-	return i;
-error:
-	up(&vm->limit_sem);
-
-	return retval;
+	return n;
 }
 
-static int vm_cnt_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_di_rinsn(struct comedi_device *cdev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
-	int cnt, cnt_offs, cmd, i;
-	int retval = -EFAULT;
+	struct vmk80xx_usb *dev = cdev->private;
+	int chan;
+	unsigned char *rx_buf;
+	int reg, inp;
+	int n;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	if (!(vm = (struct vmk80xx_usb *)dev->private))
-		return retval;
+	rudimentary_check(DIR_IN);
 
-	down(&vm->limit_sem);
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
 
-	/* We have an attached board ? */
-	if (!vm->probed) {
-		retval = -ENODEV;
-		goto error;
+	rx_buf = dev->usb_rx_buf;
+
+	if (dev->board.model == VMK8061_MODEL) {
+		reg = VMK8061_DI_REG;
+		dev->usb_tx_buf[0] = VMK8061_CMD_RD_DI;
+	} else
+		reg = VMK8055_DI_REG;
+
+	for (n = 0; n < insn->n; n++) {
+		if (vmk80xx_read_packet(dev))
+			break;
+
+		if (dev->board.model == VMK8055_MODEL)
+			inp = (((rx_buf[reg] >> 4) & 0x03) |
+			       ((rx_buf[reg] << 2) & 0x04) |
+			       ((rx_buf[reg] >> 3) & 0x18));
+		else
+			inp = rx_buf[reg];
+
+		data[n] = ((inp & (1 << chan)) > 0);
 	}
 
-	/* interrupt-out pipe busy ? */
-	if (vm->irq_out_busy) {
-		retval = -EBUSY;
-		goto error;
-	}
+	up(&dev->limit_sem);
 
-	cnt = CR_CHAN(insn->chanspec);
-	cnt_offs = (!cnt) ? VMK8055_CNT1 : VMK8055_CNT2;
-	cmd = (!cnt) ? VMK8055_CMD_RST_CNT1 : VMK8055_CMD_RST_CNT2;
-
-	for (i = 0; i < insn->n; i++) {
-		/* NOTE:
-		 * The selected 16-bit pulse counter is reset.
-		 */
-		vm->irq_out_buf[cnt_offs] = 0x00;
-
-		retval = vm_write(vm, cmd);
-		if (retval)
-			goto error;
-	}
-
-	up(&vm->limit_sem);
-
-	return i;
-error:
-	up(&vm->limit_sem);
-
-	return retval;
+	return n;
 }
 
-static int vm_cnt_cinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			struct comedi_insn *insn, unsigned int *data)
+static int vmk80xx_do_winsn(struct comedi_device *cdev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
-	int cnt, cmd, i;
-	unsigned int debtime, val;
-	int retval = -EFAULT;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	struct vmk80xx_usb *dev = cdev->private;
+	int chan;
+	unsigned char *tx_buf;
+	int reg, cmd;
+	int n;
 
-	if (!(vm = (struct vmk80xx_usb *)dev->private))
-		return retval;
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	down(&vm->limit_sem);
+	rudimentary_check(DIR_OUT);
 
-	/* We have an attached board ? */
-	if (!vm->probed) {
-		retval = -ENODEV;
-		goto error;
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
+
+	tx_buf = dev->usb_tx_buf;
+
+	for (n = 0; n < insn->n; n++) {
+		if (dev->board.model == VMK8055_MODEL) {
+			reg = VMK8055_DO_REG;
+			cmd = VMK8055_CMD_WRT_AD;
+			if (data[n] == 1)
+				tx_buf[reg] |= (1 << chan);
+			else
+				tx_buf[reg] ^= (1 << chan);
+
+			goto write_packet;
+		}
+
+		/* VMK8061_MODEL */
+		reg = VMK8061_DO_REG;
+		if (data[n] == 1) {
+			cmd = VMK8061_CMD_SET_DO;
+			tx_buf[reg] = 1 << chan;
+		} else {
+			cmd = VMK8061_CMD_CLR_DO;
+			tx_buf[reg] = 0xff - (1 << chan);
+		}
+
+write_packet:
+		if (vmk80xx_write_packet(dev, cmd))
+			break;
 	}
 
-	/* interrupt-out pipe busy ? */
-	if (vm->irq_out_busy) {
-		retval = -EBUSY;
-		goto error;
+	up(&dev->limit_sem);
+
+	return n;
+}
+
+static int vmk80xx_do_rinsn(struct comedi_device *cdev,
+			    struct comedi_subdevice *s,
+			    struct comedi_insn *insn, unsigned int *data)
+{
+	struct vmk80xx_usb *dev = cdev->private;
+	int chan, reg, mask;
+	int n;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	rudimentary_check(DIR_IN);
+
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
+
+	reg = VMK8061_DO_REG;
+	mask = 1 << chan;
+
+	dev->usb_tx_buf[0] = VMK8061_CMD_RD_DO;
+
+	for (n = 0; n < insn->n; n++) {
+		if (vmk80xx_read_packet(dev))
+			break;
+
+		data[n] = (dev->usb_rx_buf[reg] & mask) >> chan;
 	}
 
-	cnt = CR_CHAN(insn->chanspec);
-	cmd = (!cnt) ? VMK8055_CMD_DEB1 : VMK8055_CMD_DEB2;
+	up(&dev->limit_sem);
 
-	/* NOTE:
-	 * The counter inputs are debounced in the software to prevent
-	 * false triggering when mechanical switches or relay inputs
-	 * are used. The debounce time is equal for both falling and
-	 * rising edges. The default debounce time is 2ms. This means
-	 * the counter input must be stable for at least 2ms before it
-	 * is recognised , giving the maximum count rate of about 200
-	 * counts per second. If the debounce time is set to 0, then
-	 * the maximum counting rate is about 2000 counts per second.
-	 */
-	for (i = 0; i < insn->n; i++) {
-		debtime = data[i];
+	return n;
+}
+
+static int vmk80xx_cnt_rinsn(struct comedi_device *cdev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
+{
+	struct vmk80xx_usb *dev = cdev->private;
+	int chan, reg[2];
+	int n;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	rudimentary_check(DIR_IN);
+
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
+
+	switch (dev->board.model) {
+	case VMK8055_MODEL:
+		if (!chan)
+			reg[0] = VMK8055_CNT1_REG;
+		else
+			reg[0] = VMK8055_CNT2_REG;
+		break;
+	case VMK8061_MODEL:
+		reg[0] = VMK8061_CNT_REG;
+		reg[1] = VMK8061_CNT_REG;
+		dev->usb_tx_buf[0] = VMK8061_CMD_RD_CNT;
+		break;
+	}
+
+	for (n = 0; n < insn->n; n++) {
+		if (vmk80xx_read_packet(dev))
+			break;
+
+		if (dev->board.model == VMK8055_MODEL) {
+			data[n] = dev->usb_rx_buf[reg[0]];
+			continue;
+		}
+
+		/* VMK8061_MODEL */
+		data[n] = dev->usb_rx_buf[reg[0]*(chan+1)+1]
+		  + 256 * dev->usb_rx_buf[reg[1]*2+2];
+	}
+
+	up(&dev->limit_sem);
+
+	return n;
+}
+
+static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
+{
+	struct vmk80xx_usb *dev = cdev->private;
+	unsigned int insn_cmd;
+	int chan, cmd, reg;
+	int n;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	rudimentary_check(DIR_OUT);
+
+	down(&dev->limit_sem);
+
+	insn_cmd = data[0];
+	if (insn_cmd != INSN_CONFIG_RESET && insn_cmd != GPCT_RESET)
+		return -EINVAL;
+
+	chan = CR_CHAN(insn->chanspec);
+
+	if (dev->board.model == VMK8055_MODEL) {
+		if (!chan) {
+			cmd = VMK8055_CMD_RST_CNT1;
+			reg = VMK8055_CNT1_REG;
+		} else {
+			cmd = VMK8055_CMD_RST_CNT2;
+			reg = VMK8055_CNT2_REG;
+		}
+
+		dev->usb_tx_buf[reg] = 0x00;
+	} else
+		cmd = VMK8061_CMD_RST_CNT;
+
+	for (n = 0; n < insn->n; n++)
+		if (vmk80xx_write_packet(dev, cmd))
+			break;
+
+	up(&dev->limit_sem);
+
+	return n;
+}
+
+static int vmk80xx_cnt_winsn(struct comedi_device *cdev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
+{
+	struct vmk80xx_usb *dev = cdev->private;
+	unsigned long debtime, val;
+	int chan, cmd;
+	int n;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	rudimentary_check(DIR_OUT);
+
+	down(&dev->limit_sem);
+	chan = CR_CHAN(insn->chanspec);
+
+	if (!chan)
+		cmd = VMK8055_CMD_DEB1_TIME;
+	else
+		cmd = VMK8055_CMD_DEB2_TIME;
+
+	for (n = 0; n < insn->n; n++) {
+		debtime = data[n];
 		if (debtime == 0)
 			debtime = 1;
-		/* --------------------------------------------------
-		 * From libk8055.c
-		 * ---------------
-		 * Copyleft (C) 2005 by Sven Lindberg;
-		 * Copyright (C) 2007 by Pjetur G. Hjaltason:
-		 * By testing and measuring on the other hand I found
-		 * the formula dbt=0.115*x^2.........
-		 *
-		 * I'm using here an adapted formula to avoid floating
-		 * point operations inside the kernel. The time set
-		 * with this formula is within +-4% +- 1.
-		 * ------------------------------------------------ */
+
+		/* TODO: Prevent overflows */
+		if (debtime > 7450)
+			debtime = 7450;
+
 		val = int_sqrt(debtime * 1000 / 115);
 		if (((val + 1) * val) < debtime * 1000 / 115)
 			val += 1;
 
-		vm->irq_out_buf[cnt+6] = val;
+		dev->usb_tx_buf[6+chan] = val;
 
-		retval = vm_write(vm, cmd);
-		if (retval)
-			goto error;
+		if (vmk80xx_write_packet(dev, cmd))
+			break;
 	}
 
-	up(&vm->limit_sem);
+	up(&dev->limit_sem);
 
-	return i;
-error:
-	up(&vm->limit_sem);
-
-	return retval;
+	return n;
 }
 
-/* Comedi subdevice offsets */
-#define VMK8055_SUBD_AI_OFFSET	0
-#define VMK8055_SUBD_AO_OFFSET	1
-#define VMK8055_SUBD_DI_OFFSET	2
-#define VMK8055_SUBD_DO_OFFSET	3
-#define VMK8055_SUBD_CT_OFFSET	4
-
-static DEFINE_MUTEX(glb_mutex);
-
-/* ---------------------------------------------------------------------------
- * Hook-up (or deallocate) the virtual device file '/dev/comedi[minor]' with
- * the vmk80xx driver (comedi_config/rmmod).
---------------------------------------------------------------------------- */
-static int vm_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int vmk80xx_pwm_rinsn(struct comedi_device *cdev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
 {
-	struct comedi_subdevice *s;
-	int minor = dev->minor;
-	int idx, i;
+	struct vmk80xx_usb *dev = cdev->private;
+	int reg[2];
+	int n;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	rudimentary_check(DIR_IN);
+
+	down(&dev->limit_sem);
+
+	reg[0] = VMK8061_PWM_REG1;
+	reg[1] = VMK8061_PWM_REG2;
+
+	dev->usb_tx_buf[0] = VMK8061_CMD_RD_PWM;
+
+	for (n = 0; n < insn->n; n++) {
+		if (vmk80xx_read_packet(dev))
+			break;
+
+		data[n] = dev->usb_rx_buf[reg[0]] + 4 *
+			  dev->usb_rx_buf[reg[1]];
+	}
+
+	up(&dev->limit_sem);
+
+	return n;
+}
+
+static int vmk80xx_pwm_winsn(struct comedi_device *cdev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned int *data)
+{
+	struct vmk80xx_usb *dev = cdev->private;
+	unsigned char *tx_buf;
+	int reg[2], cmd;
+	int n;
+
+	dbgvm("vmk80xx: %s\n", __func__);
+
+	rudimentary_check(DIR_OUT);
+
+	down(&dev->limit_sem);
+
+	tx_buf = dev->usb_tx_buf;
+
+	reg[0] = VMK8061_PWM_REG1;
+	reg[1] = VMK8061_PWM_REG2;
+
+	cmd = VMK8061_CMD_OUT_PWM;
+
+	/*
+	 * The followin piece of code was translated from the inline
+	 * assembler code in the DLL source code.
+	 *
+	 * asm
+	 *   mov eax, k  ; k is the value (data[n])
+	 *   and al, 03h ; al are the lower 8 bits of eax
+	 *   mov lo, al  ; lo is the low part (tx_buf[reg[0]])
+	 *   mov eax, k
+	 *   shr eax, 2  ; right shift eax register by 2
+	 *   mov hi, al  ; hi is the high part (tx_buf[reg[1]])
+	 * end;
+	 */
+	for (n = 0; n < insn->n; n++) {
+		tx_buf[reg[0]] = (unsigned char)(data[n] & 0x03);
+		tx_buf[reg[1]] = (unsigned char)(data[n] >> 2) & 0xff;
+
+		if (vmk80xx_write_packet(dev, cmd))
+			break;
+	}
+
+	up(&dev->limit_sem);
+
+	return n;
+}
+
+static int
+vmk80xx_attach(struct comedi_device *cdev, struct comedi_devconfig *it)
+{
+	int i;
+	struct vmk80xx_usb *dev;
+	int n_subd;
+	struct comedi_subdevice *s;
+	int minor;
+
+	dbgvm("vmk80xx: %s\n", __func__);
 
 	mutex_lock(&glb_mutex);
 
-	/* Prepare user info... */
-	printk("comedi%d: vmk80xx: ", minor);
-
-	idx = -1;
-
-	/* Find the last valid device which has been detected
-	 * by the probe function */;
-	for (i = 0; i < VMK8055_MAX_BOARDS; i++)
-		if (vm_boards[i].probed && !vm_boards[i].attached) {
-			idx = i;
+	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
+		if (vmb[i].probed && !vmb[i].attached)
 			break;
-		}
 
-	if (idx == -1) {
-		printk("no boards attached\n");
+	if (i == VMK80XX_MAX_BOARDS) {
 		mutex_unlock(&glb_mutex);
 		return -ENODEV;
 	}
 
-	down(&vm_boards[idx].limit_sem);
+	dev = &vmb[i];
 
-	/* OK, at that time we've an attached board and this is
-	 * the first execution of the comedi_config command for
-	 * this board */
-	printk("board #%d is attached to comedi\n", vm_boards[idx].id);
+	down(&dev->limit_sem);
 
-	dev->board_name = "vmk80xx";
-	dev->private = vm_boards + idx; /* will be allocated in vm_probe */
+	cdev->board_name = dev->board.name;
+	cdev->private = dev;
 
-	/* Subdevices section -> set properties */
-	if (alloc_subdevices(dev, 5) < 0) {
-		printk("comedi%d: vmk80xx: couldn't allocate subdevs\n",
-		       minor);
-		up(&vm_boards[idx].limit_sem);
+	if (dev->board.model == VMK8055_MODEL)
+		n_subd = 5;
+	else
+		n_subd = 6;
+
+	if (alloc_subdevices(cdev, n_subd) < 0) {
+		up(&dev->limit_sem);
 		mutex_unlock(&glb_mutex);
 		return -ENOMEM;
 	}
 
-	s = dev->subdevices + VMK8055_SUBD_AI_OFFSET;
+	/* Analog input subdevice */
+	s = cdev->subdevices + VMK80XX_SUBD_AI;
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 2;
-	s->maxdata = 0xff; /* +5 Volt */
-	s->range_table = &range_unipolar5; /* +-0 Volt - +5 Volt */
-	s->insn_read = vm_ai_rinsn;
+	s->n_chan = dev->board.ai_chans;
+	s->maxdata = (1 << dev->board.ai_bits) - 1;
+	s->range_table = dev->board.range;
+	s->insn_read = vmk80xx_ai_rinsn;
 
-	s = dev->subdevices + VMK8055_SUBD_AO_OFFSET;
+	/* Analog output subdevice */
+	s = cdev->subdevices + VMK80XX_SUBD_AO;
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = 2;
-	s->maxdata = 0xff;
-	s->range_table = &range_unipolar5;
-	s->insn_write = vm_ao_winsn;
+	s->n_chan = dev->board.ao_chans;
+	s->maxdata = (1 << dev->board.ao_bits) - 1;
+	s->range_table = dev->board.range;
+	s->insn_write = vmk80xx_ao_winsn;
 
-	s = dev->subdevices + VMK8055_SUBD_DI_OFFSET;
+	if (dev->board.model == VMK8061_MODEL) {
+		s->subdev_flags |= SDF_READABLE;
+		s->insn_read = vmk80xx_ao_rinsn;
+	}
+
+	/* Digital input subdevice */
+	s = cdev->subdevices + VMK80XX_SUBD_DI;
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 5;
-	s->insn_read = vm_di_rinsn;
+	s->n_chan = dev->board.di_chans;
+	s->maxdata = (1 << dev->board.di_bits) - 1;
+	s->insn_read = vmk80xx_di_rinsn;
 
-	s = dev->subdevices + VMK8055_SUBD_DO_OFFSET;
+	/* Digital output subdevice */
+	s = cdev->subdevices + VMK80XX_SUBD_DO;
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE | SDF_GROUND;
-	s->n_chan = 8;
-	s->maxdata = 1;
-	s->insn_write = vm_do_winsn;
+	s->n_chan = dev->board.do_chans;
+	s->maxdata = (1 << dev->board.do_bits) - 1;
+	s->insn_write = vmk80xx_do_winsn;
 
-	s = dev->subdevices + VMK8055_SUBD_CT_OFFSET;
+	if (dev->board.model == VMK8061_MODEL) {
+		s->subdev_flags |= SDF_READABLE;
+		s->insn_read = vmk80xx_do_rinsn;
+	}
+
+	/* Counter subdevice */
+	s = cdev->subdevices + VMK80XX_SUBD_CNT;
 	s->type = COMEDI_SUBD_COUNTER;
-	s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
-	s->n_chan = 2;
-	s->insn_read = vm_cnt_rinsn;
-	s->insn_write = vm_cnt_winsn; /* accept only a channel # as arg */
-	s->insn_config = vm_cnt_cinsn;
+	s->subdev_flags = SDF_READABLE;
+	s->n_chan = dev->board.cnt_chans;
+	s->insn_read = vmk80xx_cnt_rinsn;
+	s->insn_config = vmk80xx_cnt_cinsn;
 
-	/* Register the comedi board connection */
-	vm_boards[idx].attached = 1;
+	if (dev->board.model == VMK8055_MODEL) {
+		s->subdev_flags |= SDF_WRITEABLE;
+		s->maxdata = (1 << dev->board.cnt_bits) - 1;
+		s->insn_write = vmk80xx_cnt_winsn;
+	}
 
-	up(&vm_boards[idx].limit_sem);
+	/* PWM subdevice */
+	if (dev->board.model == VMK8061_MODEL) {
+		s = cdev->subdevices + VMK80XX_SUBD_PWM;
+		s->type = COMEDI_SUBD_PWM;
+		s->subdev_flags = SDF_READABLE | SDF_WRITEABLE;
+		s->n_chan = dev->board.pwm_chans;
+		s->maxdata = (1 << dev->board.pwm_bits) - 1;
+		s->insn_read = vmk80xx_pwm_rinsn;
+		s->insn_write = vmk80xx_pwm_winsn;
+	}
 
+	dev->attached = 1;
+
+	minor = cdev->minor;
+
+	printk(KERN_INFO
+	       "comedi%d: vmk80xx: board #%d [%s] attached to comedi\n",
+	       minor, dev->count, dev->board.name);
+
+	up(&dev->limit_sem);
 	mutex_unlock(&glb_mutex);
 
 	return 0;
 }
 
-static int vm_detach(struct comedi_device *dev)
+static int vmk80xx_detach(struct comedi_device *cdev)
 {
-	struct vmk80xx_usb *vm;
-	int minor = dev->minor;
+	struct vmk80xx_usb *dev;
+	int minor;
 
-	DBGVM("comedi%d: vmk80xx: %s\n", minor,  __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	if (!dev) { /* FIXME: I don't know if i need that here */
-		printk("comedi%d: vmk80xx: %s - dev is NULL\n",
-		       minor, __func__);
+	if (!cdev)
 		return -EFAULT;
-	}
 
-	if (!(vm = (struct vmk80xx_usb *)dev->private)) {
-		printk("comedi%d: vmk80xx: %s - dev->private is NULL\n",
-		       minor, __func__);
+	dev = cdev->private;
+	if (!dev)
 		return -EFAULT;
-	}
 
-	/* NOTE: dev->private and dev->subdevices are deallocated
-	 * automatically by the comedi core */
+	down(&dev->limit_sem);
 
-	down(&vm->limit_sem);
+	cdev->private = NULL;
+	dev->attached = 0;
 
-	dev->private = NULL;
-	vm->attached = 0;
+	minor = cdev->minor;
 
-	printk("comedi%d: vmk80xx: board #%d removed from comedi core\n",
-	       minor, vm->id);
+	printk(KERN_INFO
+	       "comedi%d: vmk80xx: board #%d [%s] detached from comedi\n",
+	       minor, dev->count, dev->board.name);
 
-	up(&vm->limit_sem);
+	up(&dev->limit_sem);
 
 	return 0;
 }
 
-/* ---------------------------------------------------------------------------
- * Hook-up or remove the Velleman board from the usb.
---------------------------------------------------------------------------- */
-static int vm_probe(struct usb_interface *itf, const struct usb_device_id *id)
+static int
+vmk80xx_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
-	struct usb_device *udev;
-	int idx, i;
-	u16 product_id;
-	int retval = -ENOMEM;
+	int i;
+	struct vmk80xx_usb *dev;
+	struct usb_host_interface *iface_desc;
+	struct usb_endpoint_descriptor *ep_desc;
+	size_t size;
 
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
 	mutex_lock(&glb_mutex);
 
-	udev = interface_to_usbdev(itf);
+	for (i = 0; i < VMK80XX_MAX_BOARDS; i++)
+		if (!vmb[i].probed)
+			break;
 
-	idx = -1;
-
-	/* TODO: k8061 only theoretically supported yet */
-	product_id = le16_to_cpu(udev->descriptor.idProduct);
-	if (product_id == 0x8061) {
-		printk("comedi#: vmk80xx: Velleman K8061 detected "
-		       "(no COMEDI support available yet)\n");
-		mutex_unlock(&glb_mutex);
-		return -ENODEV;
-	}
-
-	/* Look for a free place to put the board into the array */
-	for (i = 0; i < VMK8055_MAX_BOARDS; i++) {
-		if (!vm_boards[i].probed) {
-			idx = i;
-			i = VMK8055_MAX_BOARDS;
-		}
-	}
-
-	if (idx == -1) {
-		printk("comedi#: vmk80xx: only FOUR boards supported\n");
+	if (i == VMK80XX_MAX_BOARDS) {
 		mutex_unlock(&glb_mutex);
 		return -EMFILE;
 	}
 
-	/* Initialize device states (hard coded) */
-	vm_boards[idx].intf = itf;
+	dev = &vmb[i];
 
-	/* interrupt-in context */
-	vm_boards[idx].irq_in_endpoint = VMK8055_EP_IN;
-	vm_boards[idx].irq_in_interval = VMK8055_EP_INTERVAL;
-	vm_boards[idx].irq_in_endpoint_size = VMK8055_EP_SIZE;
-	vm_boards[idx].irq_in_buf = kmalloc(VMK8055_EP_SIZE, GFP_KERNEL);
-	if (!vm_boards[idx].irq_in_buf) {
-		err("comedi#: vmk80xx: couldn't alloc irq_in_buf\n");
+	memset(dev, 0x00, sizeof(struct vmk80xx_usb));
+	dev->count = i;
+
+	iface_desc = intf->cur_altsetting;
+	if (iface_desc->desc.bNumEndpoints != 2)
 		goto error;
+
+	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
+		ep_desc = &iface_desc->endpoint[i].desc;
+
+		if (usb_endpoint_is_int_in(ep_desc)) {
+			dev->ep_rx = ep_desc;
+			continue;
+		}
+
+		if (usb_endpoint_is_int_out(ep_desc)) {
+			dev->ep_tx = ep_desc;
+			continue;
+		}
+
+		if (usb_endpoint_is_bulk_in(ep_desc)) {
+			dev->ep_rx = ep_desc;
+			continue;
+		}
+
+		if (usb_endpoint_is_bulk_out(ep_desc)) {
+			dev->ep_tx = ep_desc;
+			continue;
+		}
 	}
 
-	/* interrupt-out context */
-	vm_boards[idx].irq_out_endpoint = VMK8055_EP_OUT;
-	vm_boards[idx].irq_out_interval = VMK8055_EP_INTERVAL;
-	vm_boards[idx].irq_out_endpoint_size = VMK8055_EP_SIZE;
-	vm_boards[idx].irq_out_buf = kmalloc(VMK8055_EP_SIZE, GFP_KERNEL);
-	if (!vm_boards[idx].irq_out_buf) {
-		err("comedi#: vmk80xx: couldn't alloc irq_out_buf\n");
+	if (!dev->ep_rx || !dev->ep_tx)
 		goto error;
+
+	size = le16_to_cpu(dev->ep_rx->wMaxPacketSize);
+	dev->usb_rx_buf = kmalloc(size, GFP_KERNEL);
+	if (!dev->usb_rx_buf) {
+		mutex_unlock(&glb_mutex);
+		return -ENOMEM;
 	}
 
-	/* Endpoints located ? */
-	if (!vm_boards[idx].irq_in_endpoint) {
-		err("comedi#: vmk80xx: int-in endpoint not found\n");
-		goto error;
+	size = le16_to_cpu(dev->ep_tx->wMaxPacketSize);
+	dev->usb_tx_buf = kmalloc(size, GFP_KERNEL);
+	if (!dev->usb_tx_buf) {
+		kfree(dev->usb_rx_buf);
+		mutex_unlock(&glb_mutex);
+		return -ENOMEM;
 	}
 
-	if (!vm_boards[idx].irq_out_endpoint) {
-		err("comedi#: vmk80xx: int-out endpoint not found\n");
-		goto error;
+	dev->udev = interface_to_usbdev(intf);
+	dev->intf = intf;
+
+	sema_init(&dev->limit_sem, 8);
+	init_waitqueue_head(&dev->read_wait);
+	init_waitqueue_head(&dev->write_wait);
+
+	init_usb_anchor(&dev->rx_anchor);
+	init_usb_anchor(&dev->tx_anchor);
+
+	usb_set_intfdata(intf, dev);
+
+	switch (id->driver_info) {
+	case DEVICE_VMK8055:
+		dev->board.name = "K8055 (VM110)";
+		dev->board.model = VMK8055_MODEL;
+		dev->board.range = &vmk8055_range;
+		dev->board.ai_chans = 2;
+		dev->board.ai_bits = 8;
+		dev->board.ao_chans = 2;
+		dev->board.ao_bits = 8;
+		dev->board.di_chans = 5;
+		dev->board.di_bits = 1;
+		dev->board.do_chans = 8;
+		dev->board.do_bits = 1;
+		dev->board.cnt_chans = 2;
+		dev->board.cnt_bits = 16;
+		dev->board.pwm_chans = 0;
+		dev->board.pwm_bits = 0;
+		break;
+	case DEVICE_VMK8061:
+		dev->board.name = "K8061 (VM140)";
+		dev->board.model = VMK8061_MODEL;
+		dev->board.range = &vmk8061_range;
+		dev->board.ai_chans = 8;
+		dev->board.ai_bits = 10;
+		dev->board.ao_chans = 8;
+		dev->board.ao_bits = 8;
+		dev->board.di_chans = 8;
+		dev->board.di_bits = 1;
+		dev->board.do_chans = 8;
+		dev->board.do_bits = 1;
+		dev->board.cnt_chans = 2;
+		dev->board.cnt_bits = 0;
+		dev->board.pwm_chans = 1;
+		dev->board.pwm_bits = 10;
+		break;
 	}
 
-	/* Try to allocate in/out urbs */
-	vm_boards[idx].irq_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!vm_boards[idx].irq_in_urb) {
-		err("comedi#: vmk80xx: couldn't alloc irq_in_urb\n");
-		goto error;
+	if (dev->board.model == VMK8061_MODEL) {
+		vmk80xx_read_eeprom(dev, IC3_VERSION);
+		printk(KERN_INFO "comedi#: vmk80xx: %s\n",
+		       dev->fw.ic3_vers);
+
+		if (vmk80xx_check_data_link(dev)) {
+			vmk80xx_read_eeprom(dev, IC6_VERSION);
+			printk(KERN_INFO "comedi#: vmk80xx: %s\n",
+			       dev->fw.ic6_vers);
+		} else
+			dbgcm("comedi#: vmk80xx: no conn. to CPU\n");
 	}
 
-	vm_boards[idx].irq_out_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!vm_boards[idx].irq_out_urb) {
-		err("comedi#: vmk80xx: couldn't alloc irq_out_urb\n");
-		goto error;
-	}
+	if (dev->board.model == VMK8055_MODEL)
+		vmk80xx_reset_device(dev);
 
-	/* Reset the device */
-	vm_boards[idx].irq_out_buf[0] = VMK8055_CMD_RST;
-	vm_boards[idx].irq_out_buf[1] = 0x00;
-	vm_boards[idx].irq_out_buf[2] = 0x00;
-	vm_boards[idx].irq_out_buf[3] = 0x00;
-	vm_boards[idx].irq_out_buf[4] = 0x00;
-	vm_boards[idx].irq_out_buf[5] = 0x00;
-	vm_boards[idx].irq_out_buf[6] = 0x00;
-	vm_boards[idx].irq_out_buf[7] = 0x00;
+	dev->probed = 1;
 
-	usb_fill_int_urb(vm_boards[idx].irq_out_urb,
-			 udev,
-			 usb_sndintpipe(udev,
-					vm_boards[idx].irq_out_endpoint),
-			 vm_boards[idx].irq_out_buf,
-			 vm_boards[idx].irq_out_endpoint_size,
-			 vm_irq_out_callback,
-			 &vm_boards[idx],
-			 vm_boards[idx].irq_out_interval);
-
-	retval = usb_submit_urb(vm_boards[idx].irq_out_urb, GFP_KERNEL);
-	if (retval)
-		DBGCM("comedi#: vmk80xx: device reset failed (err #%d)\n",
-		      retval);
-	else
-		DBGCM("comedi#: vmk80xx: device reset success\n");
-
-
-	usb_set_intfdata(itf, &vm_boards[idx]);
-
-	/* Show some debugging messages if required */
-	DBGCM("comedi#: vmk80xx: [<-] ep addr 0x%02x size %d interval %d\n",
-	      vm_boards[idx].irq_in_endpoint,
-	      vm_boards[idx].irq_in_endpoint_size,
-	      vm_boards[idx].irq_in_interval);
-	DBGCM("comedi#: vmk80xx: [->] ep addr 0x%02x size %d interval %d\n",
-	      vm_boards[idx].irq_out_endpoint,
-	      vm_boards[idx].irq_out_endpoint_size,
-	      vm_boards[idx].irq_out_interval);
-
-	vm_boards[idx].id = idx;
-
-	/* Let the user know that the device is now attached */
-	printk("comedi#: vmk80xx: K8055 board #%d now attached\n",
-	       vm_boards[idx].id);
-
-	/* We have an attached velleman board */
-	vm_boards[idx].probed = 1;
+	printk(KERN_INFO "comedi#: vmk80xx: board #%d [%s] now attached\n",
+	       dev->count, dev->board.name);
 
 	mutex_unlock(&glb_mutex);
 
-	return retval;
+	return 0;
 error:
-	vm_delete(&vm_boards[idx]);
-
 	mutex_unlock(&glb_mutex);
 
-	return retval;
+	return -ENODEV;
 }
 
-static void vm_disconnect(struct usb_interface *intf)
+static void vmk80xx_disconnect(struct usb_interface *intf)
 {
-	struct vmk80xx_usb *vm;
+	struct vmk80xx_usb *dev = usb_get_intfdata(intf);
 
-	DBGVM("comedi#: vmk80xx: %s\n", __func__);
+	dbgvm("vmk80xx: %s\n", __func__);
 
-	vm = (struct vmk80xx_usb *)usb_get_intfdata(intf);
-	if (!vm) {
-		printk("comedi#: vmk80xx: %s - vm is NULL\n", __func__);
-		return; /* -EFAULT */
-	}
+	if (!dev)
+		return;
 
 	mutex_lock(&glb_mutex);
-	/* Twill be needed if the driver supports more than one board */
-	down(&vm->limit_sem);
+	down(&dev->limit_sem);
 
-	vm->probed = 0; /* we have -1 attached boards */
-	usb_set_intfdata(vm->intf, NULL);
+	dev->probed = 0;
+	usb_set_intfdata(dev->intf, NULL);
 
-	vm_delete(vm); /* tidy up */
+	usb_kill_anchored_urbs(&dev->rx_anchor);
+	usb_kill_anchored_urbs(&dev->tx_anchor);
 
-	/* Twill be needed if the driver supports more than one board */
-	up(&vm->limit_sem);
+	kfree(dev->usb_rx_buf);
+	kfree(dev->usb_tx_buf);
+
+	printk(KERN_INFO "comedi#: vmk80xx: board #%d [%s] now detached\n",
+	       dev->count, dev->board.name);
+
+	up(&dev->limit_sem);
 	mutex_unlock(&glb_mutex);
-
-	printk("comedi#: vmk80xx: Velleman board #%d now detached\n",
-	       vm->id);
 }
 
-/* ---------------------------------------------------------------------------
- * Register/Deregister this driver with/from the usb subsystem and the comedi.
---------------------------------------------------------------------------- */
-static struct usb_driver vm_driver = {
-	.name =		"vmk80xx",
-	.probe =	vm_probe,
-	.disconnect =	vm_disconnect,
-	.id_table =	vm_id_table,
+/* TODO: Add support for suspend, resume, pre_reset,
+ * post_reset and flush */
+static struct usb_driver vmk80xx_driver = {
+	.name       = "vmk80xx",
+	.probe      = vmk80xx_probe,
+	.disconnect = vmk80xx_disconnect,
+	.id_table   = vmk80xx_id_table
 };
 
-static struct comedi_driver driver_vm = {
-	.module =	THIS_MODULE,
-	.driver_name =	"vmk80xx",
-	.attach =	vm_attach,
-	.detach =	vm_detach,
+static struct comedi_driver driver_vmk80xx = {
+	.module      = THIS_MODULE,
+	.driver_name = "vmk80xx",
+	.attach      = vmk80xx_attach,
+	.detach      = vmk80xx_detach
 };
 
-static int __init vm_init(void)
+static int __init vmk80xx_init(void)
 {
-	int retval, idx;
-
-	printk("vmk80xx: version " VMK80XX_MODULE_VERSION " -"
-				 " Manuel Gebele <forensixs@gmx.de>\n");
-
-	for (idx = 0; idx < VMK8055_MAX_BOARDS; idx++) {
-		memset(&vm_boards[idx], 0x00, sizeof(vm_boards[idx]));
-		init_MUTEX(&vm_boards[idx].limit_sem);
-		init_waitqueue_head(&vm_boards[idx].read_wait);
-		init_waitqueue_head(&vm_boards[idx].write_wait);
-	}
-
-	/* Register with the usb subsystem */
-	retval = usb_register(&vm_driver);
-	if (retval) {
-		err("vmk80xx: usb subsystem registration failed (err #%d)\n",
-		    retval);
-		return retval;
-	}
-
-	/* Register with the comedi core */
-	retval = comedi_driver_register(&driver_vm);
-	if (retval) {
-		err("vmk80xx: comedi core registration failed (err #%d)\n",
-		    retval);
-		usb_deregister(&vm_driver);
-	}
-
-	return retval;
+	printk(KERN_INFO "vmk80xx: version 0.8.01 "
+	       "Manuel Gebele <forensixs@gmx.de>\n");
+	usb_register(&vmk80xx_driver);
+	return comedi_driver_register(&driver_vmk80xx);
 }
 
-static void __exit vm_exit(void)
+static void __exit vmk80xx_exit(void)
 {
-	comedi_driver_unregister(&driver_vm);
-	usb_deregister(&vm_driver);
+	comedi_driver_unregister(&driver_vmk80xx);
+	usb_deregister(&vmk80xx_driver);
 }
-module_init(vm_init);
-module_exit(vm_exit);
+
+module_init(vmk80xx_init);
+module_exit(vmk80xx_exit);
