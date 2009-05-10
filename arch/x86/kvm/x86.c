@@ -1254,9 +1254,12 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		bit(X86_FEATURE_VME) | bit(X86_FEATURE_DE) |
 		bit(X86_FEATURE_PSE) | bit(X86_FEATURE_TSC) |
 		bit(X86_FEATURE_MSR) | bit(X86_FEATURE_PAE) |
+		bit(X86_FEATURE_MCE) |
 		bit(X86_FEATURE_CX8) | bit(X86_FEATURE_APIC) |
-		bit(X86_FEATURE_SEP) | bit(X86_FEATURE_PGE) |
-		bit(X86_FEATURE_CMOV) | bit(X86_FEATURE_PSE36) |
+		bit(X86_FEATURE_SEP) | bit(X86_FEATURE_MTRR) |
+		bit(X86_FEATURE_PGE) | bit(X86_FEATURE_MCA) |
+		bit(X86_FEATURE_CMOV) | bit(X86_FEATURE_PAT) |
+		bit(X86_FEATURE_PSE36) |
 		bit(X86_FEATURE_CLFLSH) | bit(X86_FEATURE_MMX) |
 		bit(X86_FEATURE_FXSR) | bit(X86_FEATURE_XMM) |
 		bit(X86_FEATURE_XMM2) | bit(X86_FEATURE_SELFSNOOP);
