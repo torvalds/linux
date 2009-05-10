@@ -907,6 +907,7 @@ EXPORT_SYMBOL(freq_reg_info);
 int freq_reg_info(struct wiphy *wiphy, u32 center_freq, u32 *bandwidth,
 			 const struct ieee80211_reg_rule **reg_rule)
 {
+	assert_cfg80211_lock();
 	return freq_reg_info_regd(wiphy, center_freq,
 		bandwidth, reg_rule, NULL);
 }
@@ -1133,7 +1134,8 @@ static bool reg_is_world_roaming(struct wiphy *wiphy)
 	if (is_world_regdom(cfg80211_regdomain->alpha2) ||
 	    (wiphy->regd && is_world_regdom(wiphy->regd->alpha2)))
 		return true;
-	if (last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
+	if (last_request &&
+	    last_request->initiator != NL80211_REGDOM_SET_BY_COUNTRY_IE &&
 	    wiphy->custom_regulatory)
 		return true;
 	return false;
@@ -1142,6 +1144,12 @@ static bool reg_is_world_roaming(struct wiphy *wiphy)
 /* Reap the advantages of previously found beacons */
 static void reg_process_beacons(struct wiphy *wiphy)
 {
+	/*
+	 * Means we are just firing up cfg80211, so no beacons would
+	 * have been processed yet.
+	 */
+	if (!last_request)
+		return;
 	if (!reg_is_world_roaming(wiphy))
 		return;
 	wiphy_update_beacon_reg(wiphy);
@@ -1175,6 +1183,8 @@ static void handle_channel_custom(struct wiphy *wiphy,
 	const struct ieee80211_power_rule *power_rule = NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
+
+	assert_cfg80211_lock();
 
 	sband = wiphy->bands[band];
 	BUG_ON(chan_idx >= sband->n_channels);
@@ -1214,10 +1224,13 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 				   const struct ieee80211_regdomain *regd)
 {
 	enum ieee80211_band band;
+
+	mutex_lock(&cfg80211_mutex);
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		if (wiphy->bands[band])
 			handle_band_custom(wiphy, band, regd);
 	}
+	mutex_unlock(&cfg80211_mutex);
 }
 EXPORT_SYMBOL(wiphy_apply_custom_regulatory);
 
@@ -1423,7 +1436,7 @@ new_request:
 	return call_crda(last_request->alpha2);
 }
 
-/* This currently only processes user and driver regulatory hints */
+/* This processes *all* regulatory hints */
 static void reg_process_hint(struct regulatory_request *reg_request)
 {
 	int r = 0;
