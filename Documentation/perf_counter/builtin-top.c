@@ -523,7 +523,7 @@ static int read_symbol(FILE *in, struct sym_entry *s)
 	if (strstr(sym, "_text_start") || strstr(sym, "_text_end"))
 		return 1;
 
-	s->sym = malloc(strlen(str));
+	s->sym = malloc(strlen(str)+1);
 	assert(s->sym);
 
 	strcpy((char *)s->sym, str);
