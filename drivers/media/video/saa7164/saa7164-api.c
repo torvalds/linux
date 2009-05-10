@@ -129,8 +129,8 @@ int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 	u32 currpath = 0;
 
 	dprintk(DBGLVL_API,
-		"%s(?,?,%d) sizeof(tmComResDescrHeader_t) = %lu bytes\n",
-		__func__, len, sizeof(tmComResDescrHeader_t));
+		"%s(?,?,%d) sizeof(tmComResDescrHeader_t) = %d bytes\n",
+		__func__, len, (u32)sizeof(tmComResDescrHeader_t));
 
 	for (idx = 0; idx < (len - sizeof(tmComResDescrHeader_t)); ) {
 

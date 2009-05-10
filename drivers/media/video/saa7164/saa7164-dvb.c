@@ -151,7 +151,7 @@ static int saa7164_dvb_cfg_tsport(struct saa7164_tsport *port)
 	saa7164_writel(port->bufsize, params->pitch * params->numberoflines);
 
 	dprintk(DBGLVL_DVB, " configured:\n");
-	dprintk(DBGLVL_DVB, "   lmmio       0x%llx\n", (u64)dev->lmmio);
+	dprintk(DBGLVL_DVB, "   lmmio       0x%p\n", dev->lmmio);
 	dprintk(DBGLVL_DVB, "   bufcounter  0x%x = 0x%x\n", port->bufcounter,
 		saa7164_readl(port->bufcounter));
 
@@ -178,13 +178,13 @@ static int saa7164_dvb_cfg_tsport(struct saa7164_tsport *port)
 		saa7164_writel(port->bufptr32l + ((sizeof(u32) * 2) * i), 0);
 
 		dprintk(DBGLVL_DVB,
-			"   buf[%d] offset 0x%lx (0x%x) "
-			"buf 0x%lx/%lx (0x%x/%x)\n",
+			"   buf[%d] offset 0x%llx (0x%x) "
+			"buf 0x%llx/%llx (0x%x/%x)\n",
 			i,
-			port->bufoffset + (i * sizeof(u32)),
+			(u64)port->bufoffset + (i * sizeof(u32)),
 			saa7164_readl(port->bufoffset + (sizeof(u32) * i)),
-			port->bufptr32h + ((sizeof(u32) * 2) * i),
-			port->bufptr32l + ((sizeof(u32) * 2) * i),
+			(u64)port->bufptr32h + ((sizeof(u32) * 2) * i),
+			(u64)port->bufptr32l + ((sizeof(u32) * 2) * i),
 			saa7164_readl(port->bufptr32h + ((sizeof(u32) * i)
 				* 2)),
 			saa7164_readl(port->bufptr32l + ((sizeof(u32) * i)

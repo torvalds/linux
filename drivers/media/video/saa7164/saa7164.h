@@ -390,11 +390,8 @@ extern unsigned int debug;
 	} while (0)
 
 #define saa7164_readl(reg) readl(dev->lmmio + ((reg) >> 2))
-#define saa7164_writel(reg, value) \
-do { \
-	printk(KERN_ERR "writel(%x, %llx)\n", value, (u64)(dev->lmmio + ((reg) >> 2))); \
-	writel((value), dev->lmmio + ((reg) >> 2)); \
-} while (0)
+#define saa7164_writel(reg, value) writel((value), dev->lmmio + ((reg) >> 2))
+
 
 #define saa7164_readb(reg)             readl(dev->bmmio + (reg))
 #define saa7164_writeb(reg, value)     writel((value), dev->bmmio + (reg))

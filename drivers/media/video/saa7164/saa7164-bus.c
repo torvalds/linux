@@ -210,8 +210,8 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 		dprintk(DBGLVL_BUS, "%s() space_rem = %x\n", __func__,
 			space_rem);
 
-		dprintk(DBGLVL_BUS, "%s() sizeof(*msg) = %lu\n", __func__,
-			sizeof(*msg));
+		dprintk(DBGLVL_BUS, "%s() sizeof(*msg) = %d\n", __func__,
+			(u32)sizeof(*msg));
 
 		if (space_rem < sizeof(*msg)) {
 			dprintk(DBGLVL_BUS, "%s() tr4\n", __func__);

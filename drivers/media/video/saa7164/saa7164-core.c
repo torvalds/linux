@@ -281,8 +281,8 @@ void saa7164_dumpregs(struct saa7164_dev *dev, u32 addr)
 
 static void saa7164_dump_hwdesc(struct saa7164_dev *dev)
 {
-	dprintk(1, "@0x%p hwdesc sizeof(tmComResHWDescr_t) = %lu bytes\n",
-		&dev->hwdesc, sizeof(tmComResHWDescr_t));
+	dprintk(1, "@0x%p hwdesc sizeof(tmComResHWDescr_t) = %d bytes\n",
+		&dev->hwdesc, (u32)sizeof(tmComResHWDescr_t));
 
 	dprintk(1, " .bLength = 0x%x\n", dev->hwdesc.bLength);
 	dprintk(1, " .bDescriptorType = 0x%x\n", dev->hwdesc.bDescriptorType);
@@ -312,8 +312,8 @@ static void saa7164_dump_hwdesc(struct saa7164_dev *dev)
 static void saa7164_dump_intfdesc(struct saa7164_dev *dev)
 {
 	dprintk(1, "@0x%p intfdesc "
-		"sizeof(tmComResInterfaceDescr_t) = %lu bytes\n",
-		&dev->intfdesc, sizeof(tmComResInterfaceDescr_t));
+		"sizeof(tmComResInterfaceDescr_t) = %d bytes\n",
+		&dev->intfdesc, (u32)sizeof(tmComResInterfaceDescr_t));
 
 	dprintk(1, " .bLength = 0x%x\n", dev->intfdesc.bLength);
 	dprintk(1, " .bDescriptorType = 0x%x\n", dev->intfdesc.bDescriptorType);
@@ -333,8 +333,8 @@ static void saa7164_dump_intfdesc(struct saa7164_dev *dev)
 
 static void saa7164_dump_busdesc(struct saa7164_dev *dev)
 {
-	dprintk(1, "@0x%p busdesc sizeof(tmComResBusDescr_t) = %lu bytes\n",
-		&dev->busdesc, sizeof(tmComResBusDescr_t));
+	dprintk(1, "@0x%p busdesc sizeof(tmComResBusDescr_t) = %d bytes\n",
+		&dev->busdesc, (u32)sizeof(tmComResBusDescr_t));
 
 	dprintk(1, " .CommandRing   = 0x%016Lx\n", dev->busdesc.CommandRing);
 	dprintk(1, " .ResponseRing  = 0x%016Lx\n", dev->busdesc.ResponseRing);
@@ -359,15 +359,15 @@ static void saa7164_get_descriptors(struct saa7164_dev *dev)
 
 	if (dev->hwdesc.bLength != sizeof(tmComResHWDescr_t)) {
 		printk(KERN_ERR "Structure tmComResHWDescr_t is mangled\n");
-		printk(KERN_ERR "Need %x got %lu\n", dev->hwdesc.bLength,
-			sizeof(tmComResHWDescr_t));
+		printk(KERN_ERR "Need %x got %d\n", dev->hwdesc.bLength,
+			(u32)sizeof(tmComResHWDescr_t));
 	} else
 		saa7164_dump_hwdesc(dev);
 
 	if (dev->intfdesc.bLength != sizeof(tmComResInterfaceDescr_t)) {
 		printk(KERN_ERR "struct tmComResInterfaceDescr_t is mangled\n");
-		printk(KERN_ERR "Need %x got %lu\n", dev->intfdesc.bLength,
-			sizeof(tmComResInterfaceDescr_t));
+		printk(KERN_ERR "Need %x got %d\n", dev->intfdesc.bLength,
+			(u32)sizeof(tmComResInterfaceDescr_t));
 	} else
 		saa7164_dump_intfdesc(dev);
 
