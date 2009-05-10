@@ -690,6 +690,8 @@ source "drivers/media/video/ivtv/Kconfig"
 
 source "drivers/media/video/cx18/Kconfig"
 
+source "drivers/media/video/saa7164/Kconfig"
+
 config VIDEO_M32R_AR
 	tristate "AR devices"
 	depends on M32R && VIDEO_V4L1
