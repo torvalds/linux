@@ -25,6 +25,7 @@
 #include <linux/smp_lock.h>	/* lock_kernel(), unlock_kernel() */
 #include <linux/capability.h>	/* capable() */
 #include <linux/uaccess.h>	/* copy_from_user(), copy_to_user() */
+#include <linux/vmalloc.h>
 #include <linux/nilfs2_fs.h>
 #include "nilfs.h"
 #include "segment.h"
@@ -297,10 +298,10 @@ static int nilfs_ioctl_move_inode_block(struct inode *inode,
 	return 0;
 }
 
-static ssize_t
-nilfs_ioctl_do_move_blocks(struct the_nilfs *nilfs, __u64 *posp, int flags,
-			   void *buf, size_t size, size_t nmembs)
+static int nilfs_ioctl_move_blocks(struct the_nilfs *nilfs,
+				   struct nilfs_argv *argv, void *buf)
 {
+	size_t nmembs = argv->v_nmembs;
 	struct inode *inode;
 	struct nilfs_vdesc *vdesc;
 	struct buffer_head *bh, *n;
@@ -361,19 +362,10 @@ nilfs_ioctl_do_move_blocks(struct the_nilfs *nilfs, __u64 *posp, int flags,
 	return ret;
 }
 
-static inline int nilfs_ioctl_move_blocks(struct the_nilfs *nilfs,
-					  struct nilfs_argv *argv,
-					  int dir)
+static int nilfs_ioctl_delete_checkpoints(struct the_nilfs *nilfs,
+					  struct nilfs_argv *argv, void *buf)
 {
-	return nilfs_ioctl_wrap_copy(nilfs, argv, dir,
-				     nilfs_ioctl_do_move_blocks);
-}
-
-static ssize_t
-nilfs_ioctl_do_delete_checkpoints(struct the_nilfs *nilfs, __u64 *posp,
-				  int flags, void *buf, size_t size,
-				  size_t nmembs)
-{
+	size_t nmembs = argv->v_nmembs;
 	struct inode *cpfile = nilfs->ns_cpfile;
 	struct nilfs_period *periods = buf;
 	int ret, i;
@@ -387,36 +379,21 @@ nilfs_ioctl_do_delete_checkpoints(struct the_nilfs *nilfs, __u64 *posp,
 	return nmembs;
 }
 
-static inline int nilfs_ioctl_delete_checkpoints(struct the_nilfs *nilfs,
-						 struct nilfs_argv *argv,
-						 int dir)
+static int nilfs_ioctl_free_vblocknrs(struct the_nilfs *nilfs,
+				      struct nilfs_argv *argv, void *buf)
 {
-	return nilfs_ioctl_wrap_copy(nilfs, argv, dir,
-				     nilfs_ioctl_do_delete_checkpoints);
-}
+	size_t nmembs = argv->v_nmembs;
+	int ret;
 
-static ssize_t
-nilfs_ioctl_do_free_vblocknrs(struct the_nilfs *nilfs, __u64 *posp, int flags,
-			      void *buf, size_t size, size_t nmembs)
-{
-	int ret = nilfs_dat_freev(nilfs_dat_inode(nilfs), buf, nmembs);
+	ret = nilfs_dat_freev(nilfs_dat_inode(nilfs), buf, nmembs);
 
 	return (ret < 0) ? ret : nmembs;
 }
 
-static inline int nilfs_ioctl_free_vblocknrs(struct the_nilfs *nilfs,
-					     struct nilfs_argv *argv,
-					     int dir)
+static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
+					 struct nilfs_argv *argv, void *buf)
 {
-	return nilfs_ioctl_wrap_copy(nilfs, argv, dir,
-				     nilfs_ioctl_do_free_vblocknrs);
-}
-
-static ssize_t
-nilfs_ioctl_do_mark_blocks_dirty(struct the_nilfs *nilfs, __u64 *posp,
-				 int flags, void *buf, size_t size,
-				 size_t nmembs)
-{
+	size_t nmembs = argv->v_nmembs;
 	struct inode *dat = nilfs_dat_inode(nilfs);
 	struct nilfs_bmap *bmap = NILFS_I(dat)->i_bmap;
 	struct nilfs_bdesc *bdescs = buf;
@@ -455,18 +432,10 @@ nilfs_ioctl_do_mark_blocks_dirty(struct the_nilfs *nilfs, __u64 *posp,
 	return nmembs;
 }
 
-static inline int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
-						struct nilfs_argv *argv,
-						int dir)
+static int nilfs_ioctl_free_segments(struct the_nilfs *nilfs,
+				     struct nilfs_argv *argv, void *buf)
 {
-	return nilfs_ioctl_wrap_copy(nilfs, argv, dir,
-				     nilfs_ioctl_do_mark_blocks_dirty);
-}
-
-static ssize_t
-nilfs_ioctl_do_free_segments(struct the_nilfs *nilfs, __u64 *posp, int flags,
-			     void *buf, size_t size, size_t nmembs)
-{
+	size_t nmembs = argv->v_nmembs;
 	struct nilfs_sb_info *sbi = nilfs->ns_writer;
 	int ret;
 
@@ -481,31 +450,19 @@ nilfs_ioctl_do_free_segments(struct the_nilfs *nilfs, __u64 *posp, int flags,
 	return (ret < 0) ? ret : nmembs;
 }
 
-static inline int nilfs_ioctl_free_segments(struct the_nilfs *nilfs,
-					     struct nilfs_argv *argv,
-					     int dir)
-{
-	return nilfs_ioctl_wrap_copy(nilfs, argv, dir,
-				     nilfs_ioctl_do_free_segments);
-}
-
 int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
-				       void __user *argp)
+				       struct nilfs_argv *argv, void **kbufs)
 {
-	struct nilfs_argv argv[5];
 	const char *msg;
-	int dir, ret;
+	int ret;
 
-	if (copy_from_user(argv, argp, sizeof(argv)))
-		return -EFAULT;
-
-	dir = _IOC_WRITE;
-	ret = nilfs_ioctl_move_blocks(nilfs, &argv[0], dir);
+	ret = nilfs_ioctl_move_blocks(nilfs, &argv[0], kbufs[0]);
 	if (ret < 0) {
 		msg = "cannot read source blocks";
 		goto failed;
 	}
-	ret = nilfs_ioctl_delete_checkpoints(nilfs, &argv[1], dir);
+
+	ret = nilfs_ioctl_delete_checkpoints(nilfs, &argv[1], kbufs[1]);
 	if (ret < 0) {
 		/*
 		 * can safely abort because checkpoints can be removed
@@ -514,7 +471,7 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 		msg = "cannot delete checkpoints";
 		goto failed;
 	}
-	ret = nilfs_ioctl_free_vblocknrs(nilfs, &argv[2], dir);
+	ret = nilfs_ioctl_free_vblocknrs(nilfs, &argv[2], kbufs[2]);
 	if (ret < 0) {
 		/*
 		 * can safely abort because DAT file is updated atomically
@@ -523,7 +480,7 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 		msg = "cannot delete virtual blocks from DAT file";
 		goto failed;
 	}
-	ret = nilfs_ioctl_mark_blocks_dirty(nilfs, &argv[3], dir);
+	ret = nilfs_ioctl_mark_blocks_dirty(nilfs, &argv[3], kbufs[3]);
 	if (ret < 0) {
 		/*
 		 * can safely abort because the operation is nondestructive.
@@ -531,7 +488,7 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 		msg = "cannot mark copying blocks dirty";
 		goto failed;
 	}
-	ret = nilfs_ioctl_free_segments(nilfs, &argv[4], dir);
+	ret = nilfs_ioctl_free_segments(nilfs, &argv[4], kbufs[4]);
 	if (ret < 0) {
 		/*
 		 * can safely abort because this operation is atomic.
@@ -551,9 +508,75 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 				      unsigned int cmd, void __user *argp)
 {
+	struct nilfs_argv argv[5];
+	const static size_t argsz[5] = {
+		sizeof(struct nilfs_vdesc),
+		sizeof(struct nilfs_period),
+		sizeof(__u64),
+		sizeof(struct nilfs_bdesc),
+		sizeof(__u64),
+	};
+	void __user *base;
+	void *kbufs[5];
+	struct the_nilfs *nilfs;
+	size_t len, nsegs;
+	int n, ret;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	return nilfs_clean_segments(inode->i_sb, argp);
+
+	if (copy_from_user(argv, argp, sizeof(argv)))
+		return -EFAULT;
+
+	nsegs = argv[4].v_nmembs;
+	if (argv[4].v_size != argsz[4])
+		return -EINVAL;
+	/*
+	 * argv[4] points to segment numbers this ioctl cleans.  We
+	 * use kmalloc() for its buffer because memory used for the
+	 * segment numbers is enough small.
+	 */
+	kbufs[4] = memdup_user((void __user *)(unsigned long)argv[4].v_base,
+			       nsegs * sizeof(__u64));
+	if (IS_ERR(kbufs[4]))
+		return PTR_ERR(kbufs[4]);
+
+	nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+
+	for (n = 0; n < 4; n++) {
+		ret = -EINVAL;
+		if (argv[n].v_size != argsz[n])
+			goto out_free;
+
+		if (argv[n].v_nmembs > nsegs * nilfs->ns_blocks_per_segment)
+			goto out_free;
+
+		len = argv[n].v_size * argv[n].v_nmembs;
+		base = (void __user *)(unsigned long)argv[n].v_base;
+		if (len == 0) {
+			kbufs[n] = NULL;
+			continue;
+		}
+
+		kbufs[n] = vmalloc(len);
+		if (!kbufs[n]) {
+			ret = -ENOMEM;
+			goto out_free;
+		}
+		if (copy_from_user(kbufs[n], base, len)) {
+			ret = -EFAULT;
+			vfree(kbufs[n]);
+			goto out_free;
+		}
+	}
+
+	ret = nilfs_clean_segments(inode->i_sb, argv, kbufs);
+
+ out_free:
+	while (--n > 0)
+		vfree(kbufs[n]);
+	kfree(kbufs[4]);
+	return ret;
 }
 
 static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
