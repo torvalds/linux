@@ -132,12 +132,11 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 	 */
 #ifdef CONFIG_X86_32
 	start = 0x7000;
+#else
+	start = 0x8000;
+#endif
 	e820_table_start = find_e820_area(start, max_pfn_mapped<<PAGE_SHIFT,
 					tables, PAGE_SIZE);
-#else /* CONFIG_X86_64 */
-	start = 0x8000;
-	e820_table_start = find_e820_area(start, end, tables, PAGE_SIZE);
-#endif
 	if (e820_table_start == -1UL)
 		panic("Cannot find space for the kernel page tables");
 
