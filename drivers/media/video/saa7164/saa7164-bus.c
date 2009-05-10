@@ -257,7 +257,7 @@ int saa7164_bus_set(struct saa7164_dev *dev, tmComResInfo_t* msg, void *buf)
 
 	dprintk(DBGLVL_BUS, "%s() new_swp = %x\n", __func__, new_swp);
 
-	/* TODO: Convert all of the volatiles and direct PCI writes into
+	/* TODO: Convert all of the direct PCI writes into
 	 * saa7164_writel/b calls for consistency.
 	 */
 

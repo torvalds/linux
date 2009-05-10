@@ -274,9 +274,9 @@ struct saa7164_dev {
 
 	tmComResBusInfo_t		bus;
 
-	/* TODO: Urgh, remove volatiles */
-	volatile u32			*InterruptStatus;
-	volatile u32			*InterruptAck;
+	/* Interrupt status and ack registers */
+	u32 int_status;
+	u32 int_ack;
 
 	struct cmd			cmds[SAA_CMD_MAX_MSG_UNITS];
 	struct mutex			lock;

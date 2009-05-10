@@ -126,12 +126,13 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 	/* Check that the hardware is accessable. If the status bytes are
 	 * 0xFF then the device is not accessable, the the IRQ belongs
 	 * to another driver.
+	 * 4 x u32 interrupt registers.
 	 */
 	for (i = 0; i < INT_SIZE/4; i++) {
 
 		/* TODO: Convert into saa7164_readl() */
 		/* Read the 4 hardware interrupt registers */
-		intstat[i] = *(dev->InterruptStatus + i);
+		intstat[i] = saa7164_readl(dev->int_status + (i * 4));
 
 		if (intstat[i] != 0xffffffff)
 			hwacc = 1;
@@ -184,9 +185,8 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 				}
 			}
 
-			/* TODO: Convert into saa7164_writel() */
 			/* Ack it */
-			*(dev->InterruptAck + i) = intstat[i];
+			saa7164_writel(dev->int_ack + (i * 4), intstat[i]);
 
 		}
 	}
@@ -487,9 +487,9 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	printk(KERN_INFO "CORE %s: dev->bmmio2 = 0x%p\n", dev->name,
 		dev->bmmio2);
 
-	/* TODO: Magic defines used in the windows driver, define these */
-	dev->InterruptStatus = (u32 *)(dev->bmmio + 0x183000 + 0xf80);
-	dev->InterruptAck = (u32 *)(dev->bmmio + 0x183000 + 0xf90);
+	/* Inerrupt and ack register locations offset of bmmio */
+	dev->int_status = 0x183000 + 0xf80;
+	dev->int_ack = 0x183000 + 0xf90;
 
 	printk(KERN_INFO
 		"CORE %s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
