@@ -723,23 +723,16 @@ void qi_global_iec(struct intel_iommu *iommu)
 	qi_submit_sync(&desc, iommu);
 }
 
-int qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid, u8 fm,
-		     u64 type, int non_present_entry_flush)
+void qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid, u8 fm,
+		      u64 type)
 {
 	struct qi_desc desc;
-
-	if (non_present_entry_flush) {
-		if (!cap_caching_mode(iommu->cap))
-			return 1;
-		else
-			did = 0;
-	}
 
 	desc.low = QI_CC_FM(fm) | QI_CC_SID(sid) | QI_CC_DID(did)
 			| QI_CC_GRAN(type) | QI_CC_TYPE;
 	desc.high = 0;
 
-	return qi_submit_sync(&desc, iommu);
+	qi_submit_sync(&desc, iommu);
 }
 
 int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,

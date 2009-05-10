@@ -857,25 +857,12 @@ static void iommu_flush_write_buffer(struct intel_iommu *iommu)
 }
 
 /* return value determine if we need a write buffer flush */
-static int __iommu_flush_context(struct intel_iommu *iommu,
-	u16 did, u16 source_id, u8 function_mask, u64 type,
-	int non_present_entry_flush)
+static void __iommu_flush_context(struct intel_iommu *iommu,
+				  u16 did, u16 source_id, u8 function_mask,
+				  u64 type)
 {
 	u64 val = 0;
 	unsigned long flag;
-
-	/*
-	 * In the non-present entry flush case, if hardware doesn't cache
-	 * non-present entry we do nothing and if hardware cache non-present
-	 * entry, we flush entries of domain 0 (the domain id is used to cache
-	 * any non-present entries)
-	 */
-	if (non_present_entry_flush) {
-		if (!cap_caching_mode(iommu->cap))
-			return 1;
-		else
-			did = 0;
-	}
 
 	switch (type) {
 	case DMA_CCMD_GLOBAL_INVL:
@@ -901,9 +888,6 @@ static int __iommu_flush_context(struct intel_iommu *iommu,
 		dmar_readq, (!(val & DMA_CCMD_ICC)), val);
 
 	spin_unlock_irqrestore(&iommu->register_lock, flag);
-
-	/* flush context entry will implicitly flush write buffer */
-	return 0;
 }
 
 /* return value determine if we need a write buffer flush */
@@ -1428,14 +1412,21 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 	context_set_present(context);
 	domain_flush_cache(domain, context, sizeof(*context));
 
-	/* it's a non-present to present mapping */
-	if (iommu->flush.flush_context(iommu, id,
-		(((u16)bus) << 8) | devfn, DMA_CCMD_MASK_NOBIT,
-		DMA_CCMD_DEVICE_INVL, 1))
-		iommu_flush_write_buffer(iommu);
-	else
+	/*
+	 * It's a non-present to present mapping. If hardware doesn't cache
+	 * non-present entry we only need to flush the write-buffer. If the
+	 * _does_ cache non-present entries, then it does so in the special
+	 * domain #0, which we have to flush:
+	 */
+	if (cap_caching_mode(iommu->cap)) {
+		iommu->flush.flush_context(iommu, 0,
+					   (((u16)bus) << 8) | devfn,
+					   DMA_CCMD_MASK_NOBIT,
+					   DMA_CCMD_DEVICE_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_DSI_FLUSH, 0);
-
+	} else {
+		iommu_flush_write_buffer(iommu);
+	}
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	spin_lock_irqsave(&domain->iommu_lock, flags);
@@ -1566,7 +1557,7 @@ static void iommu_detach_dev(struct intel_iommu *iommu, u8 bus, u8 devfn)
 
 	clear_context_table(iommu, bus, devfn);
 	iommu->flush.flush_context(iommu, 0, 0, 0,
-					   DMA_CCMD_GLOBAL_INVL, 0);
+					   DMA_CCMD_GLOBAL_INVL);
 	iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 					 DMA_TLB_GLOBAL_FLUSH, 0);
 }
@@ -2104,8 +2095,7 @@ static int __init init_dmars(void)
 
 		iommu_set_root_entry(iommu);
 
-		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL,
-					   0);
+		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH,
 					 0);
 		iommu_disable_protect_mem_regions(iommu);
@@ -2721,7 +2711,7 @@ static int init_iommu_hw(void)
 		iommu_set_root_entry(iommu);
 
 		iommu->flush.flush_context(iommu, 0, 0, 0,
-						DMA_CCMD_GLOBAL_INVL, 0);
+						DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 						DMA_TLB_GLOBAL_FLUSH, 0);
 		iommu_disable_protect_mem_regions(iommu);
@@ -2738,7 +2728,7 @@ static void iommu_flush_all(void)
 
 	for_each_active_iommu(iommu, drhd) {
 		iommu->flush.flush_context(iommu, 0, 0, 0,
-						DMA_CCMD_GLOBAL_INVL, 0);
+						DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
 						DMA_TLB_GLOBAL_FLUSH, 0);
 	}
