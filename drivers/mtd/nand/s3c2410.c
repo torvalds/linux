@@ -819,6 +819,21 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 
 	if (set->disable_ecc)
 		chip->ecc.mode	= NAND_ECC_NONE;
+
+	switch (chip->ecc.mode) {
+	case NAND_ECC_NONE:
+		dev_info(info->device, "NAND ECC disabled\n");
+		break;
+	case NAND_ECC_SOFT:
+		dev_info(info->device, "NAND soft ECC\n");
+		break;
+	case NAND_ECC_HW:
+		dev_info(info->device, "NAND hardware ECC\n");
+		break;
+	default:
+		dev_info(info->device, "NAND ECC UNKNOWN\n");
+		break;
+	}
 }
 
 /**
@@ -840,18 +855,19 @@ static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 	dev_dbg(info->device, "chip %p => page shift %d\n",
 		chip, chip->page_shift);
 
-	if (hardware_ecc) {
+	if (chip->ecc.mode != NAND_ECC_HW)
+		return;
+
 		/* change the behaviour depending on wether we are using
 		 * the large or small page nand device */
 
-		if (chip->page_shift > 10) {
-			chip->ecc.size	    = 256;
-			chip->ecc.bytes	    = 3;
-		} else {
-			chip->ecc.size	    = 512;
-			chip->ecc.bytes	    = 3;
-			chip->ecc.layout    = &nand_hw_eccoob;
-		}
+	if (chip->page_shift > 10) {
+		chip->ecc.size	    = 256;
+		chip->ecc.bytes	    = 3;
+	} else {
+		chip->ecc.size	    = 512;
+		chip->ecc.bytes	    = 3;
+		chip->ecc.layout    = &nand_hw_eccoob;
 	}
 }
 
