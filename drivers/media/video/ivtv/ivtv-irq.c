@@ -196,7 +196,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 				bytes_needed, s->name);
 		return -1;
 	}
-	if (rc && !s->buffers_stolen && (s->s_flags & IVTV_F_S_APPL_IO)) {
+	if (rc && !s->buffers_stolen && test_bit(IVTV_F_S_APPL_IO, &s->s_flags)) {
 		IVTV_WARN("All %s stream buffers are full. Dropping data.\n", s->name);
 		IVTV_WARN("Cause: the application is not reading fast enough.\n");
 	}

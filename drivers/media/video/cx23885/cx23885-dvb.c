@@ -472,7 +472,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			static struct xc2028_ctrl ctl = {
 				.fname       = XC2028_DEFAULT_FIRMWARE,
 				.max_len     = 64,
-				.scode_table = XC3028_FE_OREN538,
+				.demod       = XC3028_FE_OREN538,
 			};
 
 			fe = dvb_attach(xc2028_attach,
