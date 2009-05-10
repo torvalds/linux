@@ -814,7 +814,7 @@ void perf_counter_unthrottle(void)
 	cpuc = &__get_cpu_var(cpu_hw_counters);
 	if (cpuc->interrupts >= PERFMON_MAX_INTERRUPTS) {
 		if (printk_ratelimit())
-			printk(KERN_WARNING "PERFMON: max interrupts exceeded!\n");
+			printk(KERN_WARNING "perfcounters: max interrupts exceeded!\n");
 		hw_perf_restore(cpuc->throttle_ctrl);
 	}
 	cpuc->interrupts = 0;
