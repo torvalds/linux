@@ -865,6 +865,52 @@ static struct proto tun_proto = {
 	.obj_size	= sizeof(struct tun_sock),
 };
 
+static int tun_flags(struct tun_struct *tun)
+{
+	int flags = 0;
+
+	if (tun->flags & TUN_TUN_DEV)
+		flags |= IFF_TUN;
+	else
+		flags |= IFF_TAP;
+
+	if (tun->flags & TUN_NO_PI)
+		flags |= IFF_NO_PI;
+
+	if (tun->flags & TUN_ONE_QUEUE)
+		flags |= IFF_ONE_QUEUE;
+
+	if (tun->flags & TUN_VNET_HDR)
+		flags |= IFF_VNET_HDR;
+
+	return flags;
+}
+
+static ssize_t tun_show_flags(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
+	return sprintf(buf, "0x%x\n", tun_flags(tun));
+}
+
+static ssize_t tun_show_owner(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
+	return sprintf(buf, "%d\n", tun->owner);
+}
+
+static ssize_t tun_show_group(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct tun_struct *tun = netdev_priv(to_net_dev(dev));
+	return sprintf(buf, "%d\n", tun->group);
+}
+
+static DEVICE_ATTR(tun_flags, 0444, tun_show_flags, NULL);
+static DEVICE_ATTR(owner, 0444, tun_show_owner, NULL);
+static DEVICE_ATTR(group, 0444, tun_show_group, NULL);
+
 static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 {
 	struct sock *sk;
@@ -950,6 +996,11 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		if (err < 0)
 			goto err_free_sk;
 
+		if (device_create_file(&tun->dev->dev, &dev_attr_tun_flags) ||
+		    device_create_file(&tun->dev->dev, &dev_attr_owner) ||
+		    device_create_file(&tun->dev->dev, &dev_attr_group))
+			printk(KERN_ERR "Failed to create tun sysfs files\n");
+
 		sk->sk_destruct = tun_sock_destruct;
 
 		err = tun_attach(tun, file);
@@ -1002,21 +1053,7 @@ static int tun_get_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	strcpy(ifr->ifr_name, tun->dev->name);
 
-	ifr->ifr_flags = 0;
-
-	if (ifr->ifr_flags & TUN_TUN_DEV)
-		ifr->ifr_flags |= IFF_TUN;
-	else
-		ifr->ifr_flags |= IFF_TAP;
-
-	if (tun->flags & TUN_NO_PI)
-		ifr->ifr_flags |= IFF_NO_PI;
-
-	if (tun->flags & TUN_ONE_QUEUE)
-		ifr->ifr_flags |= IFF_ONE_QUEUE;
-
-	if (tun->flags & TUN_VNET_HDR)
-		ifr->ifr_flags |= IFF_VNET_HDR;
+	ifr->ifr_flags = tun_flags(tun);
 
 	tun_put(tun);
 	return 0;
