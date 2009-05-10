@@ -735,21 +735,13 @@ void qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid, u8 fm,
 	qi_submit_sync(&desc, iommu);
 }
 
-int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
-		   unsigned int size_order, u64 type,
-		   int non_present_entry_flush)
+void qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
+		    unsigned int size_order, u64 type)
 {
 	u8 dw = 0, dr = 0;
 
 	struct qi_desc desc;
 	int ih = 0;
-
-	if (non_present_entry_flush) {
-		if (!cap_caching_mode(iommu->cap))
-			return 1;
-		else
-			did = 0;
-	}
 
 	if (cap_write_drain(iommu->cap))
 		dw = 1;
@@ -762,7 +754,7 @@ int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 	desc.high = QI_IOTLB_ADDR(addr) | QI_IOTLB_IH(ih)
 		| QI_IOTLB_AM(size_order);
 
-	return qi_submit_sync(&desc, iommu);
+	qi_submit_sync(&desc, iommu);
 }
 
 /*

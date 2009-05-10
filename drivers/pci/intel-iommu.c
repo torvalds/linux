@@ -891,26 +891,12 @@ static void __iommu_flush_context(struct intel_iommu *iommu,
 }
 
 /* return value determine if we need a write buffer flush */
-static int __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
-	u64 addr, unsigned int size_order, u64 type,
-	int non_present_entry_flush)
+static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
+				u64 addr, unsigned int size_order, u64 type)
 {
 	int tlb_offset = ecap_iotlb_offset(iommu->ecap);
 	u64 val = 0, val_iva = 0;
 	unsigned long flag;
-
-	/*
-	 * In the non-present entry flush case, if hardware doesn't cache
-	 * non-present entry we do nothing and if hardware cache non-present
-	 * entry, we flush entries of domain 0 (the domain id is used to cache
-	 * any non-present entries)
-	 */
-	if (non_present_entry_flush) {
-		if (!cap_caching_mode(iommu->cap))
-			return 1;
-		else
-			did = 0;
-	}
 
 	switch (type) {
 	case DMA_TLB_GLOBAL_FLUSH:
@@ -959,12 +945,10 @@ static int __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 		pr_debug("IOMMU: tlb flush request %Lx, actual %Lx\n",
 			(unsigned long long)DMA_TLB_IIRG(type),
 			(unsigned long long)DMA_TLB_IAIG(val));
-	/* flush iotlb entry will implicitly flush write buffer */
-	return 0;
 }
 
-static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
-	u64 addr, unsigned int pages, int non_present_entry_flush)
+static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
+				  u64 addr, unsigned int pages)
 {
 	unsigned int mask;
 
@@ -974,8 +958,7 @@ static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	/* Fallback to domain selective flush if no PSI support */
 	if (!cap_pgsel_inv(iommu->cap))
 		return iommu->flush.flush_iotlb(iommu, did, 0, 0,
-						DMA_TLB_DSI_FLUSH,
-						non_present_entry_flush);
+						DMA_TLB_DSI_FLUSH);
 
 	/*
 	 * PSI requires page size to be 2 ^ x, and the base address is naturally
@@ -985,11 +968,10 @@ static int iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	/* Fallback to domain selective flush if size is too big */
 	if (mask > cap_max_amask_val(iommu->cap))
 		return iommu->flush.flush_iotlb(iommu, did, 0, 0,
-			DMA_TLB_DSI_FLUSH, non_present_entry_flush);
+						DMA_TLB_DSI_FLUSH);
 
 	return iommu->flush.flush_iotlb(iommu, did, addr, mask,
-					DMA_TLB_PSI_FLUSH,
-					non_present_entry_flush);
+					DMA_TLB_PSI_FLUSH);
 }
 
 static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
@@ -1423,7 +1405,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 					   (((u16)bus) << 8) | devfn,
 					   DMA_CCMD_MASK_NOBIT,
 					   DMA_CCMD_DEVICE_INVL);
-		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_DSI_FLUSH, 0);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_DSI_FLUSH);
 	} else {
 		iommu_flush_write_buffer(iommu);
 	}
@@ -1558,8 +1540,7 @@ static void iommu_detach_dev(struct intel_iommu *iommu, u8 bus, u8 devfn)
 	clear_context_table(iommu, bus, devfn);
 	iommu->flush.flush_context(iommu, 0, 0, 0,
 					   DMA_CCMD_GLOBAL_INVL);
-	iommu->flush.flush_iotlb(iommu, 0, 0, 0,
-					 DMA_TLB_GLOBAL_FLUSH, 0);
+	iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
 }
 
 static void domain_remove_dev_info(struct dmar_domain *domain)
@@ -2096,8 +2077,7 @@ static int __init init_dmars(void)
 		iommu_set_root_entry(iommu);
 
 		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
-		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH,
-					 0);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
 		iommu_disable_protect_mem_regions(iommu);
 
 		ret = iommu_enable_translation(iommu);
@@ -2244,10 +2224,11 @@ static dma_addr_t __intel_map_single(struct device *hwdev, phys_addr_t paddr,
 	if (ret)
 		goto error;
 
-	/* it's a non-present to present mapping */
-	ret = iommu_flush_iotlb_psi(iommu, domain->id,
-			start_paddr, size >> VTD_PAGE_SHIFT, 1);
-	if (ret)
+	/* it's a non-present to present mapping. Only flush if caching mode */
+	if (cap_caching_mode(iommu->cap))
+		iommu_flush_iotlb_psi(iommu, 0, start_paddr,
+				      size >> VTD_PAGE_SHIFT);
+	else
 		iommu_flush_write_buffer(iommu);
 
 	return start_paddr + ((u64)paddr & (~PAGE_MASK));
@@ -2283,7 +2264,7 @@ static void flush_unmaps(void)
 
 		if (deferred_flush[i].next) {
 			iommu->flush.flush_iotlb(iommu, 0, 0, 0,
-						 DMA_TLB_GLOBAL_FLUSH, 0);
+						 DMA_TLB_GLOBAL_FLUSH);
 			for (j = 0; j < deferred_flush[i].next; j++) {
 				__free_iova(&deferred_flush[i].domain[j]->iovad,
 						deferred_flush[i].iova[j]);
@@ -2362,9 +2343,8 @@ static void intel_unmap_page(struct device *dev, dma_addr_t dev_addr,
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
 	if (intel_iommu_strict) {
-		if (iommu_flush_iotlb_psi(iommu,
-			domain->id, start_addr, size >> VTD_PAGE_SHIFT, 0))
-			iommu_flush_write_buffer(iommu);
+		iommu_flush_iotlb_psi(iommu, domain->id, start_addr,
+				      size >> VTD_PAGE_SHIFT);
 		/* free iova */
 		__free_iova(&domain->iovad, iova);
 	} else {
@@ -2455,9 +2435,8 @@ static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	/* free page tables */
 	dma_pte_free_pagetable(domain, start_addr, start_addr + size);
 
-	if (iommu_flush_iotlb_psi(iommu, domain->id, start_addr,
-			size >> VTD_PAGE_SHIFT, 0))
-		iommu_flush_write_buffer(iommu);
+	iommu_flush_iotlb_psi(iommu, domain->id, start_addr,
+			      size >> VTD_PAGE_SHIFT);
 
 	/* free iova */
 	__free_iova(&domain->iovad, iova);
@@ -2549,10 +2528,13 @@ static int intel_map_sg(struct device *hwdev, struct scatterlist *sglist, int ne
 		offset += size;
 	}
 
-	/* it's a non-present to present mapping */
-	if (iommu_flush_iotlb_psi(iommu, domain->id,
-			start_addr, offset >> VTD_PAGE_SHIFT, 1))
+	/* it's a non-present to present mapping. Only flush if caching mode */
+	if (cap_caching_mode(iommu->cap))
+		iommu_flush_iotlb_psi(iommu, 0, start_addr,
+				      offset >> VTD_PAGE_SHIFT);
+	else
 		iommu_flush_write_buffer(iommu);
+
 	return nelems;
 }
 
@@ -2711,9 +2693,9 @@ static int init_iommu_hw(void)
 		iommu_set_root_entry(iommu);
 
 		iommu->flush.flush_context(iommu, 0, 0, 0,
-						DMA_CCMD_GLOBAL_INVL);
+					   DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
-						DMA_TLB_GLOBAL_FLUSH, 0);
+					 DMA_TLB_GLOBAL_FLUSH);
 		iommu_disable_protect_mem_regions(iommu);
 		iommu_enable_translation(iommu);
 	}
@@ -2728,9 +2710,9 @@ static void iommu_flush_all(void)
 
 	for_each_active_iommu(iommu, drhd) {
 		iommu->flush.flush_context(iommu, 0, 0, 0,
-						DMA_CCMD_GLOBAL_INVL);
+					   DMA_CCMD_GLOBAL_INVL);
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
-						DMA_TLB_GLOBAL_FLUSH, 0);
+					 DMA_TLB_GLOBAL_FLUSH);
 	}
 }
 

@@ -283,8 +283,8 @@ struct ir_table {
 struct iommu_flush {
 	void (*flush_context)(struct intel_iommu *iommu, u16 did, u16 sid,
 			      u8 fm, u64 type);
-	int (*flush_iotlb)(struct intel_iommu *iommu, u16 did, u64 addr,
-		unsigned int size_order, u64 type, int non_present_entry_flush);
+	void (*flush_iotlb)(struct intel_iommu *iommu, u16 did, u64 addr,
+			    unsigned int size_order, u64 type);
 };
 
 enum {
@@ -341,9 +341,8 @@ extern void qi_global_iec(struct intel_iommu *iommu);
 
 extern void qi_flush_context(struct intel_iommu *iommu, u16 did, u16 sid,
 			     u8 fm, u64 type);
-extern int qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
-			  unsigned int size_order, u64 type,
-			  int non_present_entry_flush);
+extern void qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
+			  unsigned int size_order, u64 type);
 
 extern int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
 
