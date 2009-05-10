@@ -784,7 +784,6 @@ void dmar_disable_qi(struct intel_iommu *iommu)
 		cpu_relax();
 
 	iommu->gcmd &= ~DMA_GCMD_QIE;
-
 	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
 
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl,
@@ -798,7 +797,7 @@ end:
  */
 static void __dmar_enable_qi(struct intel_iommu *iommu)
 {
-	u32 cmd, sts;
+	u32 sts;
 	unsigned long flags;
 	struct q_inval *qi = iommu->qi;
 
@@ -812,9 +811,8 @@ static void __dmar_enable_qi(struct intel_iommu *iommu)
 
 	dmar_writeq(iommu->reg + DMAR_IQA_REG, virt_to_phys(qi->desc));
 
-	cmd = iommu->gcmd | DMA_GCMD_QIE;
 	iommu->gcmd |= DMA_GCMD_QIE;
-	writel(cmd, iommu->reg + DMAR_GCMD_REG);
+	writel(iommu->gcmd, iommu->reg + DMAR_GCMD_REG);
 
 	/* Make sure hardware complete it */
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG, readl, (sts & DMA_GSTS_QIES), sts);
