@@ -235,7 +235,7 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	 * regardless of how many processors are present (x86_64 ES7000
 	 * is an example).
 	 */
-	if (acpi_gbl_FADT.header.revision > FADT2_REVISION_ID &&
+	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
 		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL)) {
 		printk(KERN_DEBUG "system APIC only can use physical flat");
 		return 1;
