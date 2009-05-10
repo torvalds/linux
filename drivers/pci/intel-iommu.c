@@ -844,10 +844,8 @@ static void iommu_flush_write_buffer(struct intel_iommu *iommu)
 
 	if (!rwbf_quirk && !cap_rwbf(iommu->cap))
 		return;
-	val = iommu->gcmd | DMA_GCMD_WBF;
-
 	spin_lock_irqsave(&iommu->register_lock, flag);
-	writel(val, iommu->reg + DMAR_GCMD_REG);
+	writel(iommu->gcmd | DMA_GCMD_WBF, iommu->reg + DMAR_GCMD_REG);
 
 	/* Make sure hardware complete it */
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
