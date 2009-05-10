@@ -34,13 +34,17 @@ static struct tda10048_config hauppauge_hvr2200_1_config = {
 	.demod_address    = 0x10 >> 1,
 	.output_mode      = TDA10048_SERIAL_OUTPUT,
 	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
-	.inversion        = TDA10048_INVERSION_ON
+	.inversion        = TDA10048_INVERSION_ON,
+	.if_freq_khz      = TDA10048_IF_4000,
+	.clk_freq_khz     = TDA10048_CLK_16000,
 };
 static struct tda10048_config hauppauge_hvr2200_2_config = {
 	.demod_address    = 0x12 >> 1,
 	.output_mode      = TDA10048_SERIAL_OUTPUT,
 	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
-	.inversion        = TDA10048_INVERSION_ON
+	.inversion        = TDA10048_INVERSION_ON,
+	.if_freq_khz      = TDA10048_IF_4000,
+	.clk_freq_khz     = TDA10048_CLK_16000,
 };
 
 static struct tda18271_std_map hauppauge_tda18271_std_map = {
