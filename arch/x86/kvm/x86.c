@@ -3142,7 +3142,10 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 	if (!kvm_x86_ops->update_cr8_intercept)
 		return;
 
-	max_irr = kvm_lapic_find_highest_irr(vcpu);
+	if (!vcpu->arch.apic->vapic_addr)
+		max_irr = kvm_lapic_find_highest_irr(vcpu);
+	else
+		max_irr = -1;
 
 	if (max_irr != -1)
 		max_irr >>= 4;
@@ -3249,10 +3252,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		kvm_x86_ops->enable_irq_window(vcpu);
 
 	if (kvm_lapic_enabled(vcpu)) {
-		if (!vcpu->arch.apic->vapic_addr)
-			update_cr8_intercept(vcpu);
-		else
-			kvm_lapic_sync_to_vapic(vcpu);
+		update_cr8_intercept(vcpu);
+		kvm_lapic_sync_to_vapic(vcpu);
 	}
 
 	up_read(&vcpu->kvm->slots_lock);
