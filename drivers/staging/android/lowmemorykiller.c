@@ -92,12 +92,18 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	for_each_process(p) {
 		int oom_adj;
 
-		if (!p->mm)
+		task_lock(p);
+		if (!p->mm) {
+			task_unlock(p);
 			continue;
+		}
 		oom_adj = p->oomkilladj;
-		if (oom_adj < min_adj)
+		if (oom_adj < min_adj) {
+			task_unlock(p);
 			continue;
+		}
 		tasksize = get_mm_rss(p->mm);
+		task_unlock(p);
 		if (tasksize <= 0)
 			continue;
 		if (selected) {
