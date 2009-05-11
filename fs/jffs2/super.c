@@ -53,6 +53,20 @@ static void jffs2_i_init_once(void *foo)
 	inode_init_once(&f->vfs_inode);
 }
 
+static void jffs2_write_super(struct super_block *sb)
+{
+	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
+	sb->s_dirt = 0;
+
+	if (sb->s_flags & MS_RDONLY)
+		return;
+
+	D1(printk(KERN_DEBUG "jffs2_write_super()\n"));
+	jffs2_garbage_collect_trigger(c);
+	jffs2_erase_pending_blocks(c, 0);
+	jffs2_flush_wbuf_gc(c, 0);
+}
+
 static int jffs2_sync_fs(struct super_block *sb, int wait)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);

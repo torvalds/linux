@@ -402,21 +402,6 @@ int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-void jffs2_write_super (struct super_block *sb)
-{
-	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
-	sb->s_dirt = 0;
-
-	if (sb->s_flags & MS_RDONLY)
-		return;
-
-	D1(printk(KERN_DEBUG "jffs2_write_super()\n"));
-	jffs2_garbage_collect_trigger(c);
-	jffs2_erase_pending_blocks(c, 0);
-	jffs2_flush_wbuf_gc(c, 0);
-}
-
-
 /* jffs2_new_inode: allocate a new inode and inocache, add it to the hash,
    fill in the raw_inode while you're at it. */
 struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_inode *ri)
