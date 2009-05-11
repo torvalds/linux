@@ -214,6 +214,7 @@ static void exofs_write_super(struct super_block *sb)
 		return;
 	}
 
+	lock_super(sb);
 	lock_kernel();
 	sbi = sb->s_fs_info;
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
@@ -246,6 +247,7 @@ out:
 	if (or)
 		osd_end_request(or);
 	unlock_kernel();
+	unlock_super(sb);
 	kfree(fscb);
 }
 

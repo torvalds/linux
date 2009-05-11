@@ -420,10 +420,8 @@ restart:
 			spin_unlock(&sb_lock);
 
 			down_read(&sb->s_umount);
-			lock_super(sb);
 			if (sb->s_root && sb->s_dirt)
 				sb->s_op->write_super(sb);
-			unlock_super(sb);
 			up_read(&sb->s_umount);
 
 			spin_lock(&sb_lock);

@@ -441,10 +441,12 @@ static void fat_clear_inode(struct inode *inode)
 
 static void fat_write_super(struct super_block *sb)
 {
+	lock_super(sb);
 	sb->s_dirt = 0;
 
 	if (!(sb->s_flags & MS_RDONLY))
 		fat_clusters_flush(sb);
+	unlock_super(sb);
 }
 
 static void fat_put_super(struct super_block *sb)

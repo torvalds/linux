@@ -579,7 +579,7 @@ static void ext4_put_super(struct super_block *sb)
 	lock_super(sb);
 	lock_kernel();
 	if (sb->s_dirt)
-		ext4_write_super(sb);
+		ext4_commit_super(sb, 1);
 
 	ext4_release_system_zone(sb);
 	ext4_mb_release(sb);
@@ -3336,7 +3336,9 @@ int ext4_force_commit(struct super_block *sb)
 
 static void ext4_write_super(struct super_block *sb)
 {
+	lock_super(sb);
 	ext4_commit_super(sb, 1);
+	unlock_super(sb);
 }
 
 static int ext4_sync_fs(struct super_block *sb, int wait)

@@ -157,10 +157,12 @@ static void hfsplus_write_super(struct super_block *sb)
 	struct hfsplus_vh *vhdr = HFSPLUS_SB(sb).s_vhdr;
 
 	dprint(DBG_SUPER, "hfsplus_write_super\n");
+
+	lock_super(sb);
 	sb->s_dirt = 0;
 	if (sb->s_flags & MS_RDONLY)
 		/* warn? */
-		return;
+		goto out;
 
 	vhdr->free_blocks = cpu_to_be32(HFSPLUS_SB(sb).free_blocks);
 	vhdr->next_alloc = cpu_to_be32(HFSPLUS_SB(sb).next_alloc);
@@ -192,6 +194,8 @@ static void hfsplus_write_super(struct super_block *sb)
 		}
 		HFSPLUS_SB(sb).flags &= ~HFSPLUS_SB_WRITEBACKUP;
 	}
+ out:
+	unlock_super(sb);
 }
 
 static void hfsplus_put_super(struct super_block *sb)

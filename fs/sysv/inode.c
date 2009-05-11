@@ -37,6 +37,7 @@ static void sysv_write_super(struct super_block *sb)
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 	unsigned long time = get_seconds(), old_time;
 
+	lock_super(sb);
 	lock_kernel();
 	if (sb->s_flags & MS_RDONLY)
 		goto clean;
@@ -56,6 +57,7 @@ static void sysv_write_super(struct super_block *sb)
 clean:
 	sb->s_dirt = 0;
 	unlock_kernel();
+	unlock_super(sb);
 }
 
 static int sysv_remount(struct super_block *sb, int *flags, char *data)

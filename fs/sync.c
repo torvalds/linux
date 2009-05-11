@@ -33,10 +33,8 @@ static int __sync_filesystem(struct super_block *sb, int wait)
 	else
 		sync_quota_sb(sb, -1);
 	sync_inodes_sb(sb, wait);
-	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
 		sb->s_op->write_super(sb);
-	unlock_super(sb);
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, wait);
 	return __sync_blockdev(sb->s_bdev, wait);
@@ -164,10 +162,8 @@ int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
 
 	/* sync the superblock to buffers */
 	sb = inode->i_sb;
-	lock_super(sb);
 	if (sb->s_dirt && sb->s_op->write_super)
 		sb->s_op->write_super(sb);
-	unlock_super(sb);
 
 	/* .. finally sync the buffers to disk */
 	err = sync_blockdev(sb->s_bdev);

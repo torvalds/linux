@@ -1131,6 +1131,7 @@ static void ufs_write_super(struct super_block *sb)
 	struct ufs_super_block_third * usb3;
 	unsigned flags;
 
+	lock_super(sb);
 	lock_kernel();
 	UFSD("ENTER\n");
 	flags = UFS_SB(sb)->s_flags;
@@ -1150,6 +1151,7 @@ static void ufs_write_super(struct super_block *sb)
 	sb->s_dirt = 0;
 	UFSD("EXIT\n");
 	unlock_kernel();
+	unlock_super(sb);
 }
 
 static void ufs_put_super(struct super_block *sb)
