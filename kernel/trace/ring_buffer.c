@@ -1389,7 +1389,7 @@ rb_add_time_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 
 static struct ring_buffer_event *
 rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
-		      unsigned type, unsigned long length)
+		      unsigned long length)
 {
 	struct ring_buffer_event *event;
 	u64 ts, delta;
@@ -1448,7 +1448,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 		/* Non commits have zero deltas */
 		delta = 0;
 
-	event = __rb_reserve_next(cpu_buffer, type, length, &ts);
+	event = __rb_reserve_next(cpu_buffer, 0, length, &ts);
 	if (PTR_ERR(event) == -EAGAIN)
 		goto again;
 
@@ -1556,7 +1556,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	if (length > BUF_PAGE_SIZE)
 		goto out;
 
-	event = rb_reserve_next_event(cpu_buffer, 0, length);
+	event = rb_reserve_next_event(cpu_buffer, length);
 	if (!event)
 		goto out;
 
@@ -1782,7 +1782,7 @@ int ring_buffer_write(struct ring_buffer *buffer,
 		goto out;
 
 	event_length = rb_calculate_event_length(length);
-	event = rb_reserve_next_event(cpu_buffer, 0, event_length);
+	event = rb_reserve_next_event(cpu_buffer, event_length);
 	if (!event)
 		goto out;
 
