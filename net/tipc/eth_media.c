@@ -167,7 +167,7 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	tb_ptr->mtu = dev->mtu;
 	tb_ptr->blocked = 0;
 	tb_ptr->addr.type = htonl(TIPC_MEDIA_TYPE_ETH);
-	memcpy(&tb_ptr->addr.dev_addr, &dev->dev_addr, ETH_ALEN);
+	memcpy(&tb_ptr->addr.dev_addr, dev->dev_addr, ETH_ALEN);
 	return 0;
 }
 

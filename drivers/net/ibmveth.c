@@ -1374,8 +1374,8 @@ static void ibmveth_proc_unregister_driver(void)
 static int ibmveth_show(struct seq_file *seq, void *v)
 {
 	struct ibmveth_adapter *adapter = seq->private;
-	char *current_mac = ((char*) &adapter->netdev->dev_addr);
-	char *firmware_mac = ((char*) &adapter->mac_addr) ;
+	char *current_mac = (char *) adapter->netdev->dev_addr;
+	char *firmware_mac = (char *) &adapter->mac_addr;
 
 	seq_printf(seq, "%s %s\n\n", ibmveth_driver_string, ibmveth_driver_version);
 

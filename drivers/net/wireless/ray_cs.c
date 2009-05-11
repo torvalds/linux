@@ -892,7 +892,7 @@ static int ray_dev_init(struct net_device *dev)
 #endif /* RAY_IMMEDIATE_INIT */
 
 	/* copy mac and broadcast addresses to linux device */
-	memcpy(&dev->dev_addr, &local->sparm.b4.a_mac_addr, ADDRLEN);
+	memcpy(dev->dev_addr, &local->sparm.b4.a_mac_addr, ADDRLEN);
 	memset(dev->broadcast, 0xff, ETH_ALEN);
 
 	DEBUG(2, "ray_dev_init ending\n");

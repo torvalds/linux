@@ -1100,8 +1100,8 @@ static void ip6_tnl_link_config(struct ip6_tnl *t)
 	struct ip6_tnl_parm *p = &t->parms;
 	struct flowi *fl = &t->fl;
 
-	memcpy(&dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
-	memcpy(&dev->broadcast, &p->raddr, sizeof(struct in6_addr));
+	memcpy(dev->dev_addr, &p->laddr, sizeof(struct in6_addr));
+	memcpy(dev->broadcast, &p->raddr, sizeof(struct in6_addr));
 
 	/* Set up flowi template */
 	ipv6_addr_copy(&fl->fl6_src, &p->laddr);
