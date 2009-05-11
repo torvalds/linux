@@ -313,8 +313,7 @@ struct mvs_info {
 	const struct mvs_chip_info *chip;
 
 	int tags_num;
-	u8 tags[MVS_SLOTS >> 3];
-
+	DECLARE_BITMAP(tags, MVS_SLOTS);
 	/* further per-slot information */
 	struct mvs_phy phy[MVS_MAX_PHYS];
 	struct mvs_port port[MVS_MAX_PHYS];
