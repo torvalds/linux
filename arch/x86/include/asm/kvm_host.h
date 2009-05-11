@@ -266,8 +266,6 @@ struct kvm_mmu {
 
 struct kvm_vcpu_arch {
 	u64 host_tsc;
-	unsigned long irq_summary; /* bit vector: 1 per word in irq_pending */
-	DECLARE_BITMAP(irq_pending, KVM_NR_INTERRUPTS);
 	/*
 	 * rip and regs accesses must go through
 	 * kvm_{register,rip}_{read,write} functions.

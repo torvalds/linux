@@ -1441,8 +1441,7 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 		return -ENXIO;
 	vcpu_load(vcpu);
 
-	set_bit(irq->irq, vcpu->arch.irq_pending);
-	set_bit(irq->irq / BITS_PER_LONG, &vcpu->arch.irq_summary);
+	kvm_queue_interrupt(vcpu, irq->irq);
 
 	vcpu_put(vcpu);
 
@@ -3583,12 +3582,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->efer = vcpu->arch.shadow_efer;
 	sregs->apic_base = kvm_get_apic_base(vcpu);
 
-	if (irqchip_in_kernel(vcpu->kvm))
-		memset(sregs->interrupt_bitmap, 0,
-		       sizeof sregs->interrupt_bitmap);
-	else
-		memcpy(sregs->interrupt_bitmap, vcpu->arch.irq_pending,
-		       sizeof sregs->interrupt_bitmap);
+	memset(sregs->interrupt_bitmap, 0, sizeof sregs->interrupt_bitmap);
 
 	if (vcpu->arch.interrupt.pending)
 		set_bit(vcpu->arch.interrupt.nr,
@@ -4058,7 +4052,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
 	int mmu_reset_needed = 0;
-	int i, pending_vec, max_bits;
+	int pending_vec, max_bits;
 	struct descriptor_table dt;
 
 	vcpu_load(vcpu);
@@ -4100,24 +4094,14 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	if (mmu_reset_needed)
 		kvm_mmu_reset_context(vcpu);
 
-	if (!irqchip_in_kernel(vcpu->kvm)) {
-		memcpy(vcpu->arch.irq_pending, sregs->interrupt_bitmap,
-		       sizeof vcpu->arch.irq_pending);
-		vcpu->arch.irq_summary = 0;
-		for (i = 0; i < ARRAY_SIZE(vcpu->arch.irq_pending); ++i)
-			if (vcpu->arch.irq_pending[i])
-				__set_bit(i, &vcpu->arch.irq_summary);
-	} else {
-		max_bits = (sizeof sregs->interrupt_bitmap) << 3;
-		pending_vec = find_first_bit(
-			(const unsigned long *)sregs->interrupt_bitmap,
-			max_bits);
-		/* Only pending external irq is handled here */
-		if (pending_vec < max_bits) {
-			kvm_queue_interrupt(vcpu, pending_vec);
-			pr_debug("Set back pending irq %d\n", pending_vec);
-		}
-		kvm_pic_clear_isr_ack(vcpu->kvm);
+	max_bits = (sizeof sregs->interrupt_bitmap) << 3;
+	pending_vec = find_first_bit(
+		(const unsigned long *)sregs->interrupt_bitmap, max_bits);
+	if (pending_vec < max_bits) {
+		kvm_queue_interrupt(vcpu, pending_vec);
+		pr_debug("Set back pending irq %d\n", pending_vec);
+		if (irqchip_in_kernel(vcpu->kvm))
+			kvm_pic_clear_isr_ack(vcpu->kvm);
 	}
 
 	kvm_set_segment(vcpu, &sregs->cs, VCPU_SREG_CS);

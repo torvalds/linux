@@ -50,7 +50,7 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 	struct kvm_pic *s;
 
 	if (!irqchip_in_kernel(v->kvm))
-		return v->arch.irq_summary;
+		return v->arch.interrupt.pending;
 
 	if (kvm_apic_has_interrupt(v) == -1) {	/* LAPIC */
 		if (kvm_apic_accept_pic_intr(v)) {
@@ -72,7 +72,7 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 	int vector;
 
 	if (!irqchip_in_kernel(v->kvm))
-		return kvm_pop_irq(v);
+		return v->arch.interrupt.nr;
 
 	vector = kvm_get_apic_interrupt(v);	/* APIC */
 	if (vector == -1) {
