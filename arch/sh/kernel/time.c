@@ -104,7 +104,7 @@ unsigned long long sched_clock(void)
 
 	/* jiffies based sched_clock if no clocksource is installed */
 	if (!clocksource_sh.rating)
-		return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ);
+		return (jiffies_64 - INITIAL_JIFFIES) * (NSEC_PER_SEC / HZ);
 
 	cycles = clocksource_sh.read(&clocksource_sh);
 	return cyc2ns(&clocksource_sh, cycles);
