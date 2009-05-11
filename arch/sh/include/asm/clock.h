@@ -44,7 +44,7 @@ int __init arch_clk_init(void);
 
 /* arch/sh/kernel/cpu/clock.c */
 int clk_init(void);
-
+unsigned long followparent_recalc(struct clk *clk);
 void clk_recalc_rate(struct clk *);
 
 int clk_register(struct clk *);

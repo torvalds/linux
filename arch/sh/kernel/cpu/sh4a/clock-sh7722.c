@@ -646,15 +646,10 @@ static void sh7722_mstpcr_disable(struct clk *clk)
 	sh7722_mstpcr_start_stop(clk, 0);
 }
 
-static unsigned long sh7722_mstpcr_recalc(struct clk *clk)
-{
-	return clk->parent->rate;
-}
-
 static struct clk_ops sh7722_mstpcr_clk_ops = {
 	.enable = sh7722_mstpcr_enable,
 	.disable = sh7722_mstpcr_disable,
-	.recalc = sh7722_mstpcr_recalc,
+	.recalc = followparent_recalc,
 };
 
 #define MSTPCR(_name, _parent, regnr, bitnr) \

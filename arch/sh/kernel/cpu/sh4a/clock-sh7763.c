@@ -49,13 +49,8 @@ static struct clk_ops sh7763_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
-static unsigned long cpu_clk_recalc(struct clk *clk)
-{
-	return clk->parent->rate;
-}
-
 static struct clk_ops sh7763_cpu_clk_ops = {
-	.recalc		= cpu_clk_recalc,
+	.recalc		= followparent_recalc,
 };
 
 static struct clk_ops *sh7763_clk_ops[] = {

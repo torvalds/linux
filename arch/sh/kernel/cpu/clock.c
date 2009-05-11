@@ -90,6 +90,12 @@ static void propagate_rate(struct clk *clk)
 	}
 }
 
+/* Used for clocks that always have same value as the parent clock */
+unsigned long followparent_recalc(struct clk *clk)
+{
+	return clk->parent->rate;
+}
+
 static void __clk_init(struct clk *clk)
 {
 	/*
