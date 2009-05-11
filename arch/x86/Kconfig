@@ -1455,9 +1455,7 @@ config KEXEC_JUMP
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
-	default "0x1000000" if X86_NUMAQ
-	default "0x200000" if X86_64
-	default "0x100000"
+	default "0x1000000"
 	---help---
 	  This gives the physical address where the kernel is loaded.
 
@@ -1476,15 +1474,15 @@ config PHYSICAL_START
 	  to be specifically compiled to run from a specific memory area
 	  (normally a reserved region) and this option comes handy.
 
-	  So if you are using bzImage for capturing the crash dump, leave
-	  the value here unchanged to 0x100000 and set CONFIG_RELOCATABLE=y.
-	  Otherwise if you plan to use vmlinux for capturing the crash dump
-	  change this value to start of the reserved region (Typically 16MB
-	  0x1000000). In other words, it can be set based on the "X" value as
-	  specified in the "crashkernel=YM@XM" command line boot parameter
-	  passed to the panic-ed kernel. Typically this parameter is set as
-	  crashkernel=64M@16M. Please take a look at
-	  Documentation/kdump/kdump.txt for more details about crash dumps.
+	  So if you are using bzImage for capturing the crash dump,
+	  leave the value here unchanged to 0x1000000 and set
+	  CONFIG_RELOCATABLE=y.  Otherwise if you plan to use vmlinux
+	  for capturing the crash dump change this value to start of
+	  the reserved region.  In other words, it can be set based on
+	  the "X" value as specified in the "crashkernel=YM@XM"
+	  command line boot parameter passed to the panic-ed
+	  kernel. Please take a look at Documentation/kdump/kdump.txt
+	  for more details about crash dumps.
 
 	  Usage of bzImage for capturing the crash dump is recommended as
 	  one does not have to build two kernels. Same kernel can be used
@@ -1521,9 +1519,8 @@ config X86_NEED_RELOCS
 config PHYSICAL_ALIGN
 	hex
 	prompt "Alignment value to which kernel should be aligned" if X86_32
-	default "0x100000" if X86_32
-	default "0x200000" if X86_64
-	range 0x2000 0x400000
+	default "0x1000000"
+	range 0x2000 0x1000000
 	---help---
 	  This value puts the alignment restrictions on physical address
 	  where kernel is loaded and run from. Kernel is compiled for an
