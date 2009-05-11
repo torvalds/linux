@@ -91,6 +91,9 @@ struct usb_serial_port {
 	int			write_urb_busy;
 	__u8			bulk_out_endpointAddress;
 
+	int			tx_bytes_flight;
+	int			urbs_in_flight;
+
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
 	char			throttled;
@@ -207,6 +210,7 @@ struct usb_serial_driver {
 	struct device_driver	driver;
 	struct usb_driver	*usb_driver;
 	struct usb_dynids	dynids;
+	int			max_in_flight_urbs;
 
 	int (*probe)(struct usb_serial *serial, const struct usb_device_id *id);
 	int (*attach)(struct usb_serial *serial);
