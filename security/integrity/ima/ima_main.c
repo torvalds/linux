@@ -180,7 +180,8 @@ int ima_path_check(struct path *path, int mask)
 		struct dentry *dentry = dget(path->dentry);
 		struct vfsmount *mnt = mntget(path->mnt);
 
-		file = dentry_open(dentry, mnt, O_RDONLY, current_cred());
+		file = dentry_open(dentry, mnt, O_RDONLY | O_LARGEFILE,
+				   current_cred());
 		if (IS_ERR(file)) {
 			pr_info("%s dentry_open failed\n", dentry->d_name.name);
 			rc = PTR_ERR(file);
