@@ -26,12 +26,13 @@ SECTIONS
 	. = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
 #endif
 
+	_text = .;		/* Text and read-only data */
+
 	.empty_zero_page : AT(ADDR(.empty_zero_page) - LOAD_OFFSET) {
 		*(.empty_zero_page)
 	} = 0
 
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
-		_text = .;		/* Text and read-only data */
 		HEAD_TEXT
 		TEXT_TEXT
 
