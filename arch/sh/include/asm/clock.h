@@ -48,6 +48,7 @@ int clk_init(void);
 unsigned long followparent_recalc(struct clk *);
 void recalculate_root_clocks(void);
 void propagate_rate(struct clk *);
+int clk_reparent(struct clk *child, struct clk *parent);
 void clk_recalc_rate(struct clk *);
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);

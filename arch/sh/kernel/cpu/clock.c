@@ -81,6 +81,19 @@ unsigned long followparent_recalc(struct clk *clk)
 	return clk->parent->rate;
 }
 
+int clk_reparent(struct clk *child, struct clk *parent)
+{
+	list_del_init(&child->sibling);
+	if (parent)
+		list_add(&child->sibling, &parent->children);
+	child->parent = parent;
+
+	/* now do the debugfs renaming to reattach the child
+	   to the proper parent */
+
+	return 0;
+}
+
 /* Propagate rate to children */
 void propagate_rate(struct clk *tclk)
 {
@@ -288,12 +301,19 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 
 	if (!parent || !clk)
 		return ret;
+	if (clk->parent == parent)
+		return 0;
 
 	spin_lock_irqsave(&clock_lock, flags);
 	if (clk->usecount == 0) {
 		if (clk->ops->set_parent)
 			ret = clk->ops->set_parent(clk, parent);
+		else
+			ret = clk_reparent(clk, parent);
+
 		if (ret == 0) {
+			pr_debug("clock: set parent of %s to %s (new rate %ld)\n",
+				 clk->name, clk->parent->name, clk->rate);
 			if (clk->ops->recalc)
 				clk->rate = clk->ops->recalc(clk);
 			propagate_rate(clk);
