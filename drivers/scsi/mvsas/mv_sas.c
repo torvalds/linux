@@ -1873,11 +1873,11 @@ int mvs_slot_complete(struct mvs_info *mvi, u32 rx_desc, u32 flags)
 	}
 
 out:
-	if (mvi_dev)
+	if (mvi_dev) {
 		mvi_dev->runing_req--;
-	if (sas_protocol_ata(task->task_proto))
-		mvs_free_reg_set(mvi, mvi_dev);
-
+		if (sas_protocol_ata(task->task_proto))
+			mvs_free_reg_set(mvi, mvi_dev);
+	}
 	mvs_slot_task_free(mvi, task, slot, slot_idx);
 	sts = tstat->stat;
 
