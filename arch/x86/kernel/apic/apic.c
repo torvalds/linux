@@ -1587,13 +1587,6 @@ void __init init_apic_mappings(void)
 	} else
 		apic_phys = mp_lapic_addr;
 
-	/* lets check if we may NOP'ify apic operations */
-	if (!cpu_has_apic) {
-		pr_info("APIC: disable apic facility\n");
-		apic_disable();
-		return;
-	}
-
 	/*
 	 * acpi lapic path already maps that address in
 	 * acpi_register_lapic_address()
@@ -1602,7 +1595,15 @@ void __init init_apic_mappings(void)
 		set_fixmap_nocache(FIX_APIC_BASE, apic_phys);
 
 	apic_printk(APIC_VERBOSE, "mapped APIC to %08lx (%08lx)\n",
-				APIC_BASE, apic_phys);
+			APIC_BASE, apic_phys);
+
+	/* lets check if we may NOP'ify apic operations */
+	if (!cpu_has_apic) {
+		pr_info("APIC: disable apic facility\n");
+		apic_disable();
+		return;
+	}
+
 	/*
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
