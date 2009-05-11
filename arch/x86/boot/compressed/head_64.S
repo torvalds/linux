@@ -226,10 +226,8 @@ ENTRY(startup_64)
 	leaq	startup_32(%rip) /* - $startup_32 */, %rbp
 	addq	$(PMD_PAGE_SIZE - 1), %rbp
 	andq	$PMD_PAGE_MASK, %rbp
-	movq	%rbp, %rbx
 #else
 	movq	$LOAD_PHYSICAL_ADDR, %rbp
-	movq	%rbp, %rbx
 #endif
 
 	/* Target address to relocate to for decompression */

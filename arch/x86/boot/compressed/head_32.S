@@ -100,16 +100,6 @@ ENTRY(startup_32)
 	popl	%esi
 
 /*
- * Compute the kernel start address.
- */
-#ifdef CONFIG_RELOCATABLE
-	addl    $(CONFIG_PHYSICAL_ALIGN - 1), %ebp
-	andl    $(~(CONFIG_PHYSICAL_ALIGN - 1)), %ebp
-#else
-	movl	$LOAD_PHYSICAL_ADDR, %ebp
-#endif
-
-/*
  * Jump to the relocated address.
  */
 	leal	relocated(%ebx), %eax
