@@ -107,6 +107,14 @@ config MOUSE_PS2_ELANTECH
 	  entries. For further information,
 	  see <file:Documentation/input/elantech.txt>.
 
+config MOUSE_PS2_SENTELIC
+	bool "Sentelic Finger Sensing Pad PS/2 protocol extension"
+	depends on MOUSE_PS2
+	help
+	  Say Y here if you have a laptop (such as MSI WIND Netbook)
+	  with Sentelic Finger Sensing Pad touchpad.
+
+	  If unsure, say N.
 
 config MOUSE_PS2_TOUCHKIT
 	bool "eGalax TouchKit PS/2 protocol extension"

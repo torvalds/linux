@@ -161,7 +161,7 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev, int command, int timeout)
  * ps2_command() can only be called from a process context
  */
 
-int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
+int __ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 {
 	int timeout;
 	int send = (command >> 12) & 0xf;
@@ -178,8 +178,6 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 		WARN_ON(1);
 		return -1;
 	}
-
-	mutex_lock(&ps2dev->cmd_mutex);
 
 	serio_pause_rx(ps2dev->serio);
 	ps2dev->flags = command == PS2_CMD_GETID ? PS2_FLAG_WAITID : 0;
@@ -231,7 +229,18 @@ int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
 	ps2dev->flags = 0;
 	serio_continue_rx(ps2dev->serio);
 
+	return rc;
+}
+EXPORT_SYMBOL(__ps2_command);
+
+int ps2_command(struct ps2dev *ps2dev, unsigned char *param, int command)
+{
+	int rc;
+
+	mutex_lock(&ps2dev->cmd_mutex);
+	rc = __ps2_command(ps2dev, param, command);
 	mutex_unlock(&ps2dev->cmd_mutex);
+
 	return rc;
 }
 EXPORT_SYMBOL(ps2_command);

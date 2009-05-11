@@ -30,6 +30,7 @@
 #include "trackpoint.h"
 #include "touchkit_ps2.h"
 #include "elantech.h"
+#include "sentelic.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -666,6 +667,20 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		max_proto = PSMOUSE_IMEX;
 	}
 
+/*
+ * Try Finger Sensing Pad
+ */
+	if (max_proto > PSMOUSE_IMEX) {
+		if (fsp_detect(psmouse, set_properties) == 0) {
+			if (!set_properties || fsp_init(psmouse) == 0)
+				return PSMOUSE_FSP;
+/*
+ * Init failed, try basic relative protocols
+ */
+			max_proto = PSMOUSE_IMEX;
+		}
+	}
+
 	if (max_proto > PSMOUSE_IMEX) {
 		if (genius_detect(psmouse, set_properties) == 0)
 			return PSMOUSE_GENPS;
@@ -813,7 +828,16 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.detect		= elantech_detect,
 		.init		= elantech_init,
 	},
- #endif
+#endif
+#ifdef CONFIG_MOUSE_PS2_SENTELIC
+	{
+		.type		= PSMOUSE_FSP,
+		.name		= "FSPPS/2",
+		.alias		= "fsp",
+		.detect		= fsp_detect,
+		.init		= fsp_init,
+	},
+#endif
 	{
 		.type		= PSMOUSE_CORTRON,
 		.name		= "CortronPS/2",
