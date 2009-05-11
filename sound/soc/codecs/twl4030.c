@@ -422,36 +422,18 @@ static const struct snd_kcontrol_new twl4030_dapm_vibrapath_control =
 SOC_DAPM_ENUM("Route", twl4030_vibrapath_enum);
 
 /* Left analog microphone selection */
-static const char *twl4030_analoglmic_texts[] =
-		{"Off", "Main mic", "Headset mic", "AUXL", "Carkit mic"};
-
-static const unsigned int twl4030_analoglmic_values[] =
-		{0x0, 0x1, 0x2, 0x4, 0x8};
-
-static const struct soc_enum twl4030_analoglmic_enum =
-	SOC_VALUE_ENUM_SINGLE(TWL4030_REG_ANAMICL, 0, 0xf,
-			ARRAY_SIZE(twl4030_analoglmic_texts),
-			twl4030_analoglmic_texts,
-			twl4030_analoglmic_values);
-
-static const struct snd_kcontrol_new twl4030_dapm_analoglmic_control =
-SOC_DAPM_VALUE_ENUM("Route", twl4030_analoglmic_enum);
+static const struct snd_kcontrol_new twl4030_dapm_analoglmic_controls[] = {
+	SOC_DAPM_SINGLE("Main mic", TWL4030_REG_ANAMICL, 0, 1, 0),
+	SOC_DAPM_SINGLE("Headset mic", TWL4030_REG_ANAMICL, 1, 1, 0),
+	SOC_DAPM_SINGLE("AUXL", TWL4030_REG_ANAMICL, 2, 1, 0),
+	SOC_DAPM_SINGLE("Carkit mic", TWL4030_REG_ANAMICL, 3, 1, 0),
+};
 
 /* Right analog microphone selection */
-static const char *twl4030_analogrmic_texts[] =
-		{"Off", "Sub mic", "AUXR"};
-
-static const unsigned int twl4030_analogrmic_values[] =
-		{0x0, 0x1, 0x4};
-
-static const struct soc_enum twl4030_analogrmic_enum =
-	SOC_VALUE_ENUM_SINGLE(TWL4030_REG_ANAMICR, 0, 0x5,
-			ARRAY_SIZE(twl4030_analogrmic_texts),
-			twl4030_analogrmic_texts,
-			twl4030_analogrmic_values);
-
-static const struct snd_kcontrol_new twl4030_dapm_analogrmic_control =
-SOC_DAPM_VALUE_ENUM("Route", twl4030_analogrmic_enum);
+static const struct snd_kcontrol_new twl4030_dapm_analogrmic_controls[] = {
+	SOC_DAPM_SINGLE("Sub mic", TWL4030_REG_ANAMICR, 0, 1, 0),
+	SOC_DAPM_SINGLE("AUXR", TWL4030_REG_ANAMICR, 1, 1, 0),
+};
 
 /* TX1 L/R Analog/Digital microphone selection */
 static const char *twl4030_micpathtx1_texts[] =
@@ -1138,11 +1120,15 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD|
 		SND_SOC_DAPM_POST_REG),
 
-	/* Analog input muxes with switch for the capture amplifiers */
-	SND_SOC_DAPM_VALUE_MUX("Analog Left Capture Route",
-		TWL4030_REG_ANAMICL, 4, 0, &twl4030_dapm_analoglmic_control),
-	SND_SOC_DAPM_VALUE_MUX("Analog Right Capture Route",
-		TWL4030_REG_ANAMICR, 4, 0, &twl4030_dapm_analogrmic_control),
+	/* Analog input mixers for the capture amplifiers */
+	SND_SOC_DAPM_MIXER("Analog Left Capture Route",
+		TWL4030_REG_ANAMICL, 4, 0,
+		&twl4030_dapm_analoglmic_controls[0],
+		ARRAY_SIZE(twl4030_dapm_analoglmic_controls)),
+	SND_SOC_DAPM_MIXER("Analog Right Capture Route",
+		TWL4030_REG_ANAMICR, 4, 0,
+		&twl4030_dapm_analogrmic_controls[0],
+		ARRAY_SIZE(twl4030_dapm_analogrmic_controls)),
 
 	SND_SOC_DAPM_PGA("ADC Physical Left",
 		TWL4030_REG_AVADC_CTL, 3, 0, NULL, 0),
