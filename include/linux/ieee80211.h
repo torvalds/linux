@@ -1068,8 +1068,12 @@ enum ieee80211_category {
 	WLAN_CATEGORY_DLS = 2,
 	WLAN_CATEGORY_BACK = 3,
 	WLAN_CATEGORY_PUBLIC = 4,
+	WLAN_CATEGORY_HT = 7,
 	WLAN_CATEGORY_SA_QUERY = 8,
+	WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION = 9,
 	WLAN_CATEGORY_WMM = 17,
+	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
+	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
 
 /* SPECTRUM_MGMT action code */
@@ -1261,7 +1265,9 @@ static inline bool ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
 		if (ieee80211_has_protected(hdr->frame_control))
 			return true;
 		category = ((u8 *) hdr) + 24;
-		return *category != WLAN_CATEGORY_PUBLIC;
+		return *category != WLAN_CATEGORY_PUBLIC &&
+			*category != WLAN_CATEGORY_HT &&
+			*category != WLAN_CATEGORY_VENDOR_SPECIFIC;
 	}
 
 	return false;
