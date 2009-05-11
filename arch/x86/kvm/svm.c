@@ -228,7 +228,9 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	if (!svm->next_rip) {
-		printk(KERN_DEBUG "%s: NOP\n", __func__);
+		if (emulate_instruction(vcpu, vcpu->run, 0, 0, EMULTYPE_SKIP) !=
+				EMULATE_DONE)
+			printk(KERN_DEBUG "%s: NOP\n", __func__);
 		return;
 	}
 	if (svm->next_rip - kvm_rip_read(vcpu) > MAX_INST_SIZE)
@@ -1868,11 +1870,8 @@ static int task_switch_interception(struct vcpu_svm *svm,
 	if (reason != TASK_SWITCH_GATE ||
 	    int_type == SVM_EXITINTINFO_TYPE_SOFT ||
 	    (int_type == SVM_EXITINTINFO_TYPE_EXEPT &&
-	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR))) {
-		if (emulate_instruction(&svm->vcpu, kvm_run, 0, 0,
-					EMULTYPE_SKIP) != EMULATE_DONE)
-			return 0;
-	}
+	     (int_vec == OF_VECTOR || int_vec == BP_VECTOR)))
+		skip_emulated_instruction(&svm->vcpu);
 
 	return kvm_task_switch(&svm->vcpu, tss_selector, reason);
 }
