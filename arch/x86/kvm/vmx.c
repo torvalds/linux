@@ -3261,8 +3261,17 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	int type;
 	bool idtv_info_valid;
 
-	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+
+	/* We need to handle NMIs before interrupts are enabled */
+	if ((exit_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
+	    (exit_intr_info & INTR_INFO_VALID_MASK)) {
+		KVMTRACE_0D(NMI, &vmx->vcpu, handler);
+		asm("int $2");
+	}
+
+	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
+
 	if (cpu_has_virtual_nmis()) {
 		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
 		vector = exit_intr_info & INTR_INFO_VECTOR_MASK;
@@ -3363,7 +3372,6 @@ static void fixup_rmode_irq(struct vcpu_vmx *vmx)
 static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 intr_info;
 
 	/* Record the guest's net vcpu time for enforced NMI injections. */
 	if (unlikely(!cpu_has_virtual_nmis() && vmx->soft_vnmi_blocked))
@@ -3489,15 +3497,6 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->launched = 1;
-
-	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
-
-	/* We need to handle NMIs before interrupts are enabled */
-	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
-	    (intr_info & INTR_INFO_VALID_MASK)) {
-		KVMTRACE_0D(NMI, vcpu, handler);
-		asm("int $2");
-	}
 
 	vmx_complete_interrupts(vmx);
 }
