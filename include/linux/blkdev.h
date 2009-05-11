@@ -910,8 +910,12 @@ static inline bool blk_end_request(struct request *rq, int error,
 static inline void blk_end_request_all(struct request *rq, int error)
 {
 	bool pending;
+	unsigned int bidi_bytes = 0;
 
-	pending = blk_end_request(rq, error, blk_rq_bytes(rq));
+	if (unlikely(blk_bidi_rq(rq)))
+		bidi_bytes = blk_rq_bytes(rq->next_rq);
+
+	pending = blk_end_bidi_request(rq, error, blk_rq_bytes(rq), bidi_bytes);
 	BUG_ON(pending);
 }
 
@@ -962,8 +966,12 @@ static inline bool __blk_end_request(struct request *rq, int error,
 static inline void __blk_end_request_all(struct request *rq, int error)
 {
 	bool pending;
+	unsigned int bidi_bytes = 0;
 
-	pending = __blk_end_request(rq, error, blk_rq_bytes(rq));
+	if (unlikely(blk_bidi_rq(rq)))
+		bidi_bytes = blk_rq_bytes(rq->next_rq);
+
+	pending = __blk_end_bidi_request(rq, error, blk_rq_bytes(rq), bidi_bytes);
 	BUG_ON(pending);
 }
 
