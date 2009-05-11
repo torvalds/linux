@@ -44,6 +44,7 @@
 #include <mach/mux.h>
 #include <mach/psc.h>
 #include <mach/nand.h>
+#include <mach/mmc.h>
 
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
@@ -545,6 +546,27 @@ static int dm6444evm_msp430_get_pins(void)
 	return (buf[3] << 8) | buf[2];
 }
 
+static int dm6444evm_mmc_get_cd(int module)
+{
+	int status = dm6444evm_msp430_get_pins();
+
+	return (status < 0) ? status : !(status & BIT(1));
+}
+
+static int dm6444evm_mmc_get_ro(int module)
+{
+	int status = dm6444evm_msp430_get_pins();
+
+	return (status < 0) ? status : status & BIT(6 + 8);
+}
+
+static struct davinci_mmc_config dm6446evm_mmc_config = {
+	.get_cd		= dm6444evm_mmc_get_cd,
+	.get_ro		= dm6444evm_mmc_get_ro,
+	.wires		= 4,
+	.version	= MMC_CTLR_VERSION_1
+};
+
 static struct i2c_board_info __initdata i2c_info[] =  {
 	{
 		I2C_BOARD_INFO("dm6446evm_msp", 0x23),
@@ -670,6 +692,8 @@ static __init void davinci_evm_init(void)
 	platform_add_devices(davinci_evm_devices,
 			     ARRAY_SIZE(davinci_evm_devices));
 	evm_init_i2c();
+
+	davinci_setup_mmc(0, &dm6446evm_mmc_config);
 
 	davinci_serial_init(&uart_config);
 

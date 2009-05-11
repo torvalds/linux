@@ -36,6 +36,7 @@
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/nand.h>
+#include <mach/mmc.h>
 
 #define DAVINCI_ASYNC_EMIF_CONTROL_BASE		0x01e10000
 #define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
@@ -191,6 +192,31 @@ static void __init dm355_evm_map_io(void)
 	dm355_init();
 }
 
+static int dm355evm_mmc_get_cd(int module)
+{
+	if (!gpio_is_valid(dm355evm_mmc_gpios))
+		return -ENXIO;
+	/* low == card present */
+	return !gpio_get_value_cansleep(dm355evm_mmc_gpios + 2 * module + 1);
+}
+
+static int dm355evm_mmc_get_ro(int module)
+{
+	if (!gpio_is_valid(dm355evm_mmc_gpios))
+		return -ENXIO;
+	/* high == card's write protect switch active */
+	return gpio_get_value_cansleep(dm355evm_mmc_gpios + 2 * module + 0);
+}
+
+static struct davinci_mmc_config dm355evm_mmc_config = {
+	.get_cd		= dm355evm_mmc_get_cd,
+	.get_ro		= dm355evm_mmc_get_ro,
+	.wires		= 4,
+	.max_freq       = 50000000,
+	.caps           = MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
+	.version	= MMC_CTLR_VERSION_1,
+};
+
 /* Don't connect anything to J10 unless you're only using USB host
  * mode *and* have to do so with some kind of gender-bender.  If
  * you have proper Mini-B or Mini-A cables (or Mini-A adapters)
@@ -248,6 +274,9 @@ static __init void dm355_evm_init(void)
 	gpio_direction_output(2, USB_ID_VALUE);
 	/* irlml6401 switches over 1A in under 8 msec */
 	setup_usb(500, 8);
+
+	davinci_setup_mmc(0, &dm355evm_mmc_config);
+	davinci_setup_mmc(1, &dm355evm_mmc_config);
 
 	dm355_init_spi0(BIT(0), dm355_evm_spi_info,
 			ARRAY_SIZE(dm355_evm_spi_info));

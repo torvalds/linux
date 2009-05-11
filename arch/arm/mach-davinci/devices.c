@@ -23,8 +23,13 @@
 #include <mach/irqs.h>
 #include <mach/cputype.h>
 #include <mach/mux.h>
+#include <mach/edma.h>
+#include <mach/mmc.h>
 
 #define DAVINCI_I2C_BASE	     0x01C21000
+#define DAVINCI_MMCSD0_BASE	     0x01E10000
+#define DM355_MMCSD0_BASE	     0x01E11000
+#define DM355_MMCSD1_BASE	     0x01E00000
 
 static struct resource i2c_resources[] = {
 	{
@@ -53,6 +58,158 @@ void __init davinci_init_i2c(struct davinci_i2c_platform_data *pdata)
 	davinci_i2c_device.dev.platform_data = pdata;
 	(void) platform_device_register(&davinci_i2c_device);
 }
+
+#if	defined(CONFIG_MMC_DAVINCI) || defined(CONFIG_MMC_DAVINCI_MODULE)
+
+static u64 mmcsd0_dma_mask = DMA_32BIT_MASK;
+
+static struct resource mmcsd0_resources[] = {
+	{
+		/* different on dm355 */
+		.start = DAVINCI_MMCSD0_BASE,
+		.end   = DAVINCI_MMCSD0_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	/* IRQs:  MMC/SD, then SDIO */
+	{
+		.start = IRQ_MMCINT,
+		.flags = IORESOURCE_IRQ,
+	}, {
+		/* different on dm355 */
+		.start = IRQ_SDIOINT,
+		.flags = IORESOURCE_IRQ,
+	},
+	/* DMA channels: RX, then TX */
+	{
+		.start = DAVINCI_DMA_MMCRXEVT,
+		.flags = IORESOURCE_DMA,
+	}, {
+		.start = DAVINCI_DMA_MMCTXEVT,
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device davinci_mmcsd0_device = {
+	.name = "davinci_mmc",
+	.id = 0,
+	.dev = {
+		.dma_mask = &mmcsd0_dma_mask,
+		.coherent_dma_mask = DMA_32BIT_MASK,
+	},
+	.num_resources = ARRAY_SIZE(mmcsd0_resources),
+	.resource = mmcsd0_resources,
+};
+
+static u64 mmcsd1_dma_mask = DMA_32BIT_MASK;
+
+static struct resource mmcsd1_resources[] = {
+	{
+		.start = DM355_MMCSD1_BASE,
+		.end   = DM355_MMCSD1_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	/* IRQs:  MMC/SD, then SDIO */
+	{
+		.start = IRQ_DM355_MMCINT1,
+		.flags = IORESOURCE_IRQ,
+	}, {
+		.start = IRQ_DM355_SDIOINT1,
+		.flags = IORESOURCE_IRQ,
+	},
+	/* DMA channels: RX, then TX */
+	{
+		.start = 30,	/* rx */
+		.flags = IORESOURCE_DMA,
+	}, {
+		.start = 31,	/* tx */
+		.flags = IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device davinci_mmcsd1_device = {
+	.name = "davinci_mmc",
+	.id = 1,
+	.dev = {
+		.dma_mask = &mmcsd1_dma_mask,
+		.coherent_dma_mask = DMA_32BIT_MASK,
+	},
+	.num_resources = ARRAY_SIZE(mmcsd1_resources),
+	.resource = mmcsd1_resources,
+};
+
+
+void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
+{
+	struct platform_device	*pdev = NULL;
+
+	if (WARN_ON(cpu_is_davinci_dm646x()))
+		return;
+
+	/* REVISIT: update PINMUX, ARM_IRQMUX, and EDMA_EVTMUX here too;
+	 * for example if MMCSD1 is used for SDIO, maybe DAT2 is unused.
+	 *
+	 * FIXME dm6441 (no MMC/SD), dm357 (one), and dm335 (two) are
+	 * not handled right here ...
+	 */
+	switch (module) {
+	case 1:
+		if (!cpu_is_davinci_dm355())
+			break;
+
+		/* REVISIT we may not need all these pins if e.g. this
+		 * is a hard-wired SDIO device...
+		 */
+		davinci_cfg_reg(DM355_SD1_CMD);
+		davinci_cfg_reg(DM355_SD1_CLK);
+		davinci_cfg_reg(DM355_SD1_DATA0);
+		davinci_cfg_reg(DM355_SD1_DATA1);
+		davinci_cfg_reg(DM355_SD1_DATA2);
+		davinci_cfg_reg(DM355_SD1_DATA3);
+
+		pdev = &davinci_mmcsd1_device;
+		break;
+	case 0:
+		if (cpu_is_davinci_dm355()) {
+			mmcsd0_resources[0].start = DM355_MMCSD0_BASE;
+			mmcsd0_resources[0].end = DM355_MMCSD0_BASE + SZ_4K - 1;
+			mmcsd0_resources[2].start = IRQ_DM355_SDIOINT0;
+
+			/* expose all 6 MMC0 signals:  CLK, CMD, DATA[0..3] */
+			davinci_cfg_reg(DM355_MMCSD0);
+
+			/* enable RX EDMA */
+			davinci_cfg_reg(DM355_EVT26_MMC0_RX);
+		}
+
+		else if (cpu_is_davinci_dm644x()) {
+			/* REVISIT: should this be in board-init code? */
+			void __iomem *base =
+				IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE);
+
+			/* Power-on 3.3V IO cells */
+			__raw_writel(0, base + DM64XX_VDD3P3V_PWDN);
+			/*Set up the pull regiter for MMC */
+			davinci_cfg_reg(DM644X_MSTK);
+		}
+
+		pdev = &davinci_mmcsd0_device;
+		break;
+	}
+
+	if (WARN_ON(!pdev))
+		return;
+
+	pdev->dev.platform_data = config;
+	platform_device_register(pdev);
+}
+
+#else
+
+void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
+{
+}
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 
