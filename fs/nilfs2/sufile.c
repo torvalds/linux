@@ -587,7 +587,8 @@ void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
  * nilfs_sufile_get_suinfo -
  * @sufile: inode of segment usage file
  * @segnum: segment number to start looking
- * @si: array of suinfo
+ * @buf: array of suinfo
+ * @sisz: byte size of suinfo
  * @nsi: size of suinfo array
  *
  * Description:
@@ -599,11 +600,12 @@ void nilfs_sufile_do_set_error(struct inode *sufile, __u64 segnum,
  *
  * %-ENOMEM - Insufficient amount of memory available.
  */
-ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum,
-				struct nilfs_suinfo *si, size_t nsi)
+ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum, void *buf,
+				unsigned sisz, size_t nsi)
 {
 	struct buffer_head *su_bh;
 	struct nilfs_segment_usage *su;
+	struct nilfs_suinfo *si = buf;
 	size_t susz = NILFS_MDT(sufile)->mi_entry_size;
 	struct the_nilfs *nilfs = NILFS_MDT(sufile)->mi_nilfs;
 	void *kaddr;
@@ -628,20 +630,22 @@ ssize_t nilfs_sufile_get_suinfo(struct inode *sufile, __u64 segnum,
 			if (ret != -ENOENT)
 				goto out;
 			/* hole */
-			memset(&si[i], 0, sizeof(struct nilfs_suinfo) * n);
+			memset(si, 0, sisz * n);
+			si = (void *)si + sisz * n;
 			continue;
 		}
 
 		kaddr = kmap_atomic(su_bh->b_page, KM_USER0);
 		su = nilfs_sufile_block_get_segment_usage(
 			sufile, segnum, su_bh, kaddr);
-		for (j = 0; j < n; j++, su = (void *)su + susz) {
-			si[i + j].sui_lastmod = le64_to_cpu(su->su_lastmod);
-			si[i + j].sui_nblocks = le32_to_cpu(su->su_nblocks);
-			si[i + j].sui_flags = le32_to_cpu(su->su_flags) &
+		for (j = 0; j < n;
+		     j++, su = (void *)su + susz, si = (void *)si + sisz) {
+			si->sui_lastmod = le64_to_cpu(su->su_lastmod);
+			si->sui_nblocks = le32_to_cpu(su->su_nblocks);
+			si->sui_flags = le32_to_cpu(su->su_flags) &
 				~(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
 			if (nilfs_segment_is_active(nilfs, segnum + j))
-				si[i + j].sui_flags |=
+				si->sui_flags |=
 					(1UL << NILFS_SEGMENT_USAGE_ACTIVE);
 		}
 		kunmap_atomic(kaddr, KM_USER0);

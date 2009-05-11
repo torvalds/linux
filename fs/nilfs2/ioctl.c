@@ -152,7 +152,7 @@ nilfs_ioctl_do_get_cpinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 
 	down_read(&nilfs->ns_segctor_sem);
 	ret = nilfs_cpfile_get_cpinfo(nilfs->ns_cpfile, posp, flags, buf,
-				      nmembs);
+				      size, nmembs);
 	up_read(&nilfs->ns_segctor_sem);
 	return ret;
 }
@@ -182,7 +182,8 @@ nilfs_ioctl_do_get_suinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 	int ret;
 
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_sufile_get_suinfo(nilfs->ns_sufile, *posp, buf, nmembs);
+	ret = nilfs_sufile_get_suinfo(nilfs->ns_sufile, *posp, buf, size,
+				      nmembs);
 	up_read(&nilfs->ns_segctor_sem);
 	return ret;
 }
@@ -212,7 +213,7 @@ nilfs_ioctl_do_get_vinfo(struct the_nilfs *nilfs, __u64 *posp, int flags,
 	int ret;
 
 	down_read(&nilfs->ns_segctor_sem);
-	ret = nilfs_dat_get_vinfo(nilfs_dat_inode(nilfs), buf, nmembs);
+	ret = nilfs_dat_get_vinfo(nilfs_dat_inode(nilfs), buf, size, nmembs);
 	up_read(&nilfs->ns_segctor_sem);
 	return ret;
 }
@@ -589,7 +590,7 @@ static int nilfs_ioctl_get_info(struct inode *inode, struct file *filp,
 	if (copy_from_user(&argv, argp, sizeof(argv)))
 		return -EFAULT;
 
-	if (argv.v_size != membsz)
+	if (argv.v_size < membsz)
 		return -EINVAL;
 
 	ret = nilfs_ioctl_wrap_copy(nilfs, &argv, _IOC_DIR(cmd), dofunc);

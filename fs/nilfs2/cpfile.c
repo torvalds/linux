@@ -384,9 +384,10 @@ static void nilfs_cpfile_checkpoint_to_cpinfo(struct inode *cpfile,
 }
 
 static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
-					  struct nilfs_cpinfo *ci, size_t nci)
+					  void *buf, unsigned cisz, size_t nci)
 {
 	struct nilfs_checkpoint *cp;
+	struct nilfs_cpinfo *ci = buf;
 	struct buffer_head *bh;
 	size_t cpsz = NILFS_MDT(cpfile)->mi_entry_size;
 	__u64 cur_cno = nilfs_mdt_cno(cpfile), cno = *cnop;
@@ -410,17 +411,22 @@ static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
 		kaddr = kmap_atomic(bh->b_page, KM_USER0);
 		cp = nilfs_cpfile_block_get_checkpoint(cpfile, cno, bh, kaddr);
 		for (i = 0; i < ncps && n < nci; i++, cp = (void *)cp + cpsz) {
-			if (!nilfs_checkpoint_invalid(cp))
-				nilfs_cpfile_checkpoint_to_cpinfo(
-					cpfile, cp, &ci[n++]);
+			if (!nilfs_checkpoint_invalid(cp)) {
+				nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp,
+								  ci);
+				ci = (void *)ci + cisz;
+				n++;
+			}
 		}
 		kunmap_atomic(kaddr, KM_USER0);
 		brelse(bh);
 	}
 
 	ret = n;
-	if (n > 0)
-		*cnop = ci[n - 1].ci_cno + 1;
+	if (n > 0) {
+		ci = (void *)ci - cisz;
+		*cnop = ci->ci_cno + 1;
+	}
 
  out:
 	up_read(&NILFS_MDT(cpfile)->mi_sem);
@@ -428,11 +434,12 @@ static ssize_t nilfs_cpfile_do_get_cpinfo(struct inode *cpfile, __u64 *cnop,
 }
 
 static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
-					  struct nilfs_cpinfo *ci, size_t nci)
+					  void *buf, unsigned cisz, size_t nci)
 {
 	struct buffer_head *bh;
 	struct nilfs_cpfile_header *header;
 	struct nilfs_checkpoint *cp;
+	struct nilfs_cpinfo *ci = buf;
 	__u64 curr = *cnop, next;
 	unsigned long curr_blkoff, next_blkoff;
 	void *kaddr;
@@ -472,7 +479,9 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
 		if (unlikely(nilfs_checkpoint_invalid(cp) ||
 			     !nilfs_checkpoint_snapshot(cp)))
 			break;
-		nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp, &ci[n++]);
+		nilfs_cpfile_checkpoint_to_cpinfo(cpfile, cp, ci);
+		ci = (void *)ci + cisz;
+		n++;
 		next = le64_to_cpu(cp->cp_snapshot_list.ssl_next);
 		if (next == 0)
 			break; /* reach end of the snapshot list */
@@ -511,13 +520,13 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
  */
 
 ssize_t nilfs_cpfile_get_cpinfo(struct inode *cpfile, __u64 *cnop, int mode,
-				struct nilfs_cpinfo *ci, size_t nci)
+				void *buf, unsigned cisz, size_t nci)
 {
 	switch (mode) {
 	case NILFS_CHECKPOINT:
-		return nilfs_cpfile_do_get_cpinfo(cpfile, cnop, ci, nci);
+		return nilfs_cpfile_do_get_cpinfo(cpfile, cnop, buf, cisz, nci);
 	case NILFS_SNAPSHOT:
-		return nilfs_cpfile_do_get_ssinfo(cpfile, cnop, ci, nci);
+		return nilfs_cpfile_do_get_ssinfo(cpfile, cnop, buf, cisz, nci);
 	default:
 		return -EINVAL;
 	}
@@ -535,7 +544,7 @@ int nilfs_cpfile_delete_checkpoint(struct inode *cpfile, __u64 cno)
 	ssize_t nci;
 	int ret;
 
-	nci = nilfs_cpfile_do_get_cpinfo(cpfile, &tcno, &ci, 1);
+	nci = nilfs_cpfile_do_get_cpinfo(cpfile, &tcno, &ci, sizeof(ci), 1);
 	if (nci < 0)
 		return nci;
 	else if (nci == 0 || ci.ci_cno != cno)
