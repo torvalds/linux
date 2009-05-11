@@ -329,6 +329,7 @@ struct snd_soc_dai pxa_i2s_dai = {
 		.rates = PXA2XX_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.ops = &pxa_i2s_dai_ops,
+	.symmetric_rates = 1,
 };
 
 EXPORT_SYMBOL_GPL(pxa_i2s_dai);
