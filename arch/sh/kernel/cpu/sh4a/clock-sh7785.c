@@ -88,7 +88,7 @@ static struct clk_ops sh7785_shyway_clk_ops = {
 
 static struct clk sh7785_shyway_clk = {
 	.name		= "shyway_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh7785_shyway_clk_ops,
 };
 
@@ -104,7 +104,7 @@ static struct clk_ops sh7785_ddr_clk_ops = {
 
 static struct clk sh7785_ddr_clk = {
 	.name		= "ddr_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh7785_ddr_clk_ops,
 };
 
@@ -120,7 +120,7 @@ static struct clk_ops sh7785_ram_clk_ops = {
 
 static struct clk sh7785_ram_clk = {
 	.name		= "ram_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh7785_ram_clk_ops,
 };
 

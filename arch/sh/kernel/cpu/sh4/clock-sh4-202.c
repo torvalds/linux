@@ -46,7 +46,7 @@ static struct clk_ops sh4202_emi_clk_ops = {
 
 static struct clk sh4202_emi_clk = {
 	.name		= "emi_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh4202_emi_clk_ops,
 };
 
@@ -62,7 +62,7 @@ static struct clk_ops sh4202_femi_clk_ops = {
 
 static struct clk sh4202_femi_clk = {
 	.name		= "femi_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh4202_femi_clk_ops,
 };
 
@@ -140,7 +140,7 @@ static struct clk_ops sh4202_shoc_clk_ops = {
 
 static struct clk sh4202_shoc_clk = {
 	.name		= "shoc_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh4202_shoc_clk_ops,
 };
 

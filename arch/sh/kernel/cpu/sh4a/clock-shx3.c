@@ -95,7 +95,7 @@ static struct clk_ops shx3_shyway_clk_ops = {
 
 static struct clk shx3_shyway_clk = {
 	.name		= "shyway_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &shx3_shyway_clk_ops,
 };
 

@@ -43,26 +43,26 @@ static DEFINE_MUTEX(clock_list_sem);
  */
 static struct clk master_clk = {
 	.name		= "master_clk",
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 	.rate		= CONFIG_SH_PCLK_FREQ,
 };
 
 static struct clk module_clk = {
 	.name		= "module_clk",
 	.parent		= &master_clk,
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 };
 
 static struct clk bus_clk = {
 	.name		= "bus_clk",
 	.parent		= &master_clk,
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 };
 
 static struct clk cpu_clk = {
 	.name		= "cpu_clk",
 	.parent		= &master_clk,
-	.flags		= CLK_ALWAYS_ENABLED,
+	.flags		= CLK_ENABLE_ON_INIT,
 };
 
 /*
@@ -93,39 +93,11 @@ void propagate_rate(struct clk *tclk)
 	}
 }
 
-static void __clk_init(struct clk *clk)
-{
-	/*
-	 * See if this is the first time we're enabling the clock, some
-	 * clocks that are always enabled still require "special"
-	 * initialization. This is especially true if the clock mode
-	 * changes and the clock needs to hunt for the proper set of
-	 * divisors to use before it can effectively recalc.
-	 */
-
-	if (clk->flags & CLK_NEEDS_INIT) {
-		if (clk->ops && clk->ops->init)
-			clk->ops->init(clk);
-
-		clk->flags &= ~CLK_NEEDS_INIT;
-	}
-}
-
 static int __clk_enable(struct clk *clk)
 {
-	if (!clk)
-		return -EINVAL;
-
-	clk->usecount++;
-
-	/* nothing to do if always enabled */
-	if (clk->flags & CLK_ALWAYS_ENABLED)
-		return 0;
-
-	if (clk->usecount == 1) {
-		__clk_init(clk);
-
-		__clk_enable(clk->parent);
+	if (clk->usecount++ == 0) {
+		if (clk->parent)
+			__clk_enable(clk->parent);
 
 		if (clk->ops && clk->ops->enable)
 			clk->ops->enable(clk);
@@ -139,6 +111,9 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 	int ret;
 
+	if (!clk)
+		return -EINVAL;
+
 	spin_lock_irqsave(&clock_lock, flags);
 	ret = __clk_enable(clk);
 	spin_unlock_irqrestore(&clock_lock, flags);
@@ -149,27 +124,20 @@ EXPORT_SYMBOL_GPL(clk_enable);
 
 static void __clk_disable(struct clk *clk)
 {
-	if (!clk)
-		return;
-
-	clk->usecount--;
-
-	WARN_ON(clk->usecount < 0);
-
-	if (clk->flags & CLK_ALWAYS_ENABLED)
-		return;
-
-	if (clk->usecount == 0) {
+	if (clk->usecount > 0 && !(--clk->usecount)) {
 		if (likely(clk->ops && clk->ops->disable))
 			clk->ops->disable(clk);
-
-		__clk_disable(clk->parent);
+		if (likely(clk->parent))
+			__clk_disable(clk->parent);
 	}
 }
 
 void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
+
+	if (!clk)
+		return;
 
 	spin_lock_irqsave(&clock_lock, flags);
 	__clk_disable(clk);
@@ -211,6 +179,7 @@ int clk_register(struct clk *clk)
 	mutex_lock(&clock_list_sem);
 
 	INIT_LIST_HEAD(&clk->children);
+	clk->usecount = 0;
 
 	if (clk->parent)
 		list_add(&clk->sibling, &clk->parent->children);
@@ -218,18 +187,9 @@ int clk_register(struct clk *clk)
 		list_add(&clk->sibling, &root_clks);
 
 	list_add(&clk->node, &clock_list);
-	clk->usecount = 0;
-	clk->flags |= CLK_NEEDS_INIT;
-
+	if (clk->ops->init)
+		clk->ops->init(clk);
 	mutex_unlock(&clock_list_sem);
-
-	if (clk->flags & CLK_ALWAYS_ENABLED) {
-		__clk_init(clk);
-		pr_debug( "Clock '%s' is ALWAYS_ENABLED\n", clk->name);
-		if (clk->ops && clk->ops->enable)
-			clk->ops->enable(clk);
-		pr_debug( "Enabled.");
-	}
 
 	return 0;
 }
@@ -243,6 +203,15 @@ void clk_unregister(struct clk *clk)
 	mutex_unlock(&clock_list_sem);
 }
 EXPORT_SYMBOL_GPL(clk_unregister);
+
+static void clk_enable_init_clocks(void)
+{
+	struct clk *clkp;
+
+	list_for_each_entry(clkp, &clock_list, node)
+		if (clkp->flags & CLK_ENABLE_ON_INIT)
+			clk_enable(clkp);
+}
 
 unsigned long clk_get_rate(struct clk *clk)
 {
@@ -404,9 +373,7 @@ static int show_clocks(char *buf, char **start, off_t off,
 
 		p += sprintf(p, "%-12s\t: %ld.%02ldMHz\t%s\n", clk->name,
 			     rate / 1000000, (rate % 1000000) / 10000,
-			     ((clk->flags & CLK_ALWAYS_ENABLED) ||
-			      clk->usecount > 0) ?
-			     "enabled" : "disabled");
+			      (clk->usecount > 0) ?  "enabled" : "disabled");
 	}
 
 	return p - buf;
@@ -495,6 +462,9 @@ int __init clk_init(void)
 
 	/* Kick the child clocks.. */
 	recalculate_root_clocks();
+
+	/* Enable the necessary init clocks */
+	clk_enable_init_clocks();
 
 	return ret;
 }

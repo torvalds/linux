@@ -37,8 +37,7 @@ struct clk {
 	unsigned long		arch_flags;
 };
 
-#define CLK_ALWAYS_ENABLED	(1 << 0)
-#define CLK_NEEDS_INIT		(1 << 2)
+#define CLK_ENABLE_ON_INIT	(1 << 0)
 
 /* Should be defined by processor-specific code */
 void arch_init_clk_ops(struct clk_ops **, int type);
