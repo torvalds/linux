@@ -1122,8 +1122,7 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	if (npt_enabled)
 		svm_flush_tlb(&svm->vcpu);
 	else {
-		if (svm->vcpu.arch.interrupt.pending ||
-				svm->vcpu.arch.exception.pending)
+		if (kvm_event_needs_reinjection(&svm->vcpu))
 			kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
 	}
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);

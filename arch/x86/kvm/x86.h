@@ -30,4 +30,10 @@ static inline u8 kvm_pop_irq(struct kvm_vcpu *vcpu)
 		clear_bit(word_index, &vcpu->arch.irq_summary);
 	return irq;
 }
+
+static inline bool kvm_event_needs_reinjection(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.exception.pending || vcpu->arch.interrupt.pending ||
+		vcpu->arch.nmi_injected;
+}
 #endif
