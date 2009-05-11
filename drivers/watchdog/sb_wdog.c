@@ -93,7 +93,7 @@ static int expect_close;
 
 static const struct watchdog_info ident = {
 	.options	= WDIOF_CARDRESET | WDIOF_SETTIMEOUT |
-						WDIOF_KEEPALIVEPING,
+					WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity	= "SiByte Watchdog",
 };
 

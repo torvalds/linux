@@ -107,8 +107,7 @@ static long epx_c3_ioctl(struct file *file, unsigned int cmd,
 	int options, retval = -EINVAL;
 	int __user *argp = (void __user *)arg;
 	static const struct watchdog_info ident = {
-		.options		= WDIOF_KEEPALIVEPING |
-					  WDIOF_MAGICCLOSE,
+		.options		= WDIOF_KEEPALIVEPING,
 		.firmware_version	= 0,
 		.identity		= "Winsystems EPX-C3 H/W Watchdog",
 	};
