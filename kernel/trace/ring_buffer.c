@@ -367,6 +367,9 @@ static inline int test_time_stamp(u64 delta)
 
 #define BUF_PAGE_SIZE (PAGE_SIZE - BUF_PAGE_HDR_SIZE)
 
+/* Max payload is BUF_PAGE_SIZE - header (8bytes) */
+#define BUF_MAX_DATA_SIZE (BUF_PAGE_SIZE - (sizeof(u32) * 2))
+
 int ring_buffer_print_page_header(struct trace_seq *s)
 {
 	struct buffer_data_page field;
@@ -1396,6 +1399,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	int commit = 0;
 	int nr_loops = 0;
 
+	length = rb_calculate_event_length(length);
  again:
 	/*
 	 * We allow for interrupts to reenter here and do a trace.
@@ -1552,8 +1556,7 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	if (atomic_read(&cpu_buffer->record_disabled))
 		goto out;
 
-	length = rb_calculate_event_length(length);
-	if (length > BUF_PAGE_SIZE)
+	if (length > BUF_MAX_DATA_SIZE)
 		goto out;
 
 	event = rb_reserve_next_event(cpu_buffer, length);
@@ -1758,7 +1761,6 @@ int ring_buffer_write(struct ring_buffer *buffer,
 {
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct ring_buffer_event *event;
-	unsigned long event_length;
 	void *body;
 	int ret = -EBUSY;
 	int cpu, resched;
@@ -1781,8 +1783,10 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (atomic_read(&cpu_buffer->record_disabled))
 		goto out;
 
-	event_length = rb_calculate_event_length(length);
-	event = rb_reserve_next_event(cpu_buffer, event_length);
+	if (length > BUF_MAX_DATA_SIZE)
+		goto out;
+
+	event = rb_reserve_next_event(cpu_buffer, length);
 	if (!event)
 		goto out;
 
