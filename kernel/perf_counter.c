@@ -419,6 +419,54 @@ counter_sched_in(struct perf_counter *counter,
 	return 0;
 }
 
+static int
+group_sched_in(struct perf_counter *group_counter,
+	       struct perf_cpu_context *cpuctx,
+	       struct perf_counter_context *ctx,
+	       int cpu)
+{
+	struct perf_counter *counter, *partial_group;
+	int ret;
+
+	if (group_counter->state == PERF_COUNTER_STATE_OFF)
+		return 0;
+
+	ret = hw_perf_group_sched_in(group_counter, cpuctx, ctx, cpu);
+	if (ret)
+		return ret < 0 ? ret : 0;
+
+	group_counter->prev_state = group_counter->state;
+	if (counter_sched_in(group_counter, cpuctx, ctx, cpu))
+		return -EAGAIN;
+
+	/*
+	 * Schedule in siblings as one group (if any):
+	 */
+	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
+		counter->prev_state = counter->state;
+		if (counter_sched_in(counter, cpuctx, ctx, cpu)) {
+			partial_group = counter;
+			goto group_error;
+		}
+	}
+
+	return 0;
+
+group_error:
+	/*
+	 * Groups can be scheduled in as one unit only, so undo any
+	 * partial group before returning:
+	 */
+	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
+		if (counter == partial_group)
+			break;
+		counter_sched_out(counter, cpuctx, ctx);
+	}
+	counter_sched_out(group_counter, cpuctx, ctx);
+
+	return -EAGAIN;
+}
+
 /*
  * Return 1 for a group consisting entirely of software counters,
  * 0 if the group contains any hardware counters.
@@ -643,6 +691,9 @@ static void __perf_counter_enable(void *info)
 
 	if (!group_can_go_on(counter, cpuctx, 1))
 		err = -EEXIST;
+	else if (counter == leader)
+		err = group_sched_in(counter, cpuctx, ctx,
+				     smp_processor_id());
 	else
 		err = counter_sched_in(counter, cpuctx, ctx,
 				       smp_processor_id());
@@ -789,54 +840,6 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 static void perf_counter_cpu_sched_out(struct perf_cpu_context *cpuctx)
 {
 	__perf_counter_sched_out(&cpuctx->ctx, cpuctx);
-}
-
-static int
-group_sched_in(struct perf_counter *group_counter,
-	       struct perf_cpu_context *cpuctx,
-	       struct perf_counter_context *ctx,
-	       int cpu)
-{
-	struct perf_counter *counter, *partial_group;
-	int ret;
-
-	if (group_counter->state == PERF_COUNTER_STATE_OFF)
-		return 0;
-
-	ret = hw_perf_group_sched_in(group_counter, cpuctx, ctx, cpu);
-	if (ret)
-		return ret < 0 ? ret : 0;
-
-	group_counter->prev_state = group_counter->state;
-	if (counter_sched_in(group_counter, cpuctx, ctx, cpu))
-		return -EAGAIN;
-
-	/*
-	 * Schedule in siblings as one group (if any):
-	 */
-	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
-		counter->prev_state = counter->state;
-		if (counter_sched_in(counter, cpuctx, ctx, cpu)) {
-			partial_group = counter;
-			goto group_error;
-		}
-	}
-
-	return 0;
-
-group_error:
-	/*
-	 * Groups can be scheduled in as one unit only, so undo any
-	 * partial group before returning:
-	 */
-	list_for_each_entry(counter, &group_counter->sibling_list, list_entry) {
-		if (counter == partial_group)
-			break;
-		counter_sched_out(counter, cpuctx, ctx);
-	}
-	counter_sched_out(group_counter, cpuctx, ctx);
-
-	return -EAGAIN;
 }
 
 static void
