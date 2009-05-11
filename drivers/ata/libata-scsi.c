@@ -313,7 +313,7 @@ ata_scsi_em_message_show(struct device *dev, struct device_attribute *attr,
 		return ap->ops->em_show(ap, buf);
 	return -EINVAL;
 }
-DEVICE_ATTR(em_message, S_IRUGO | S_IWUGO,
+DEVICE_ATTR(em_message, S_IRUGO | S_IWUSR,
 		ata_scsi_em_message_show, ata_scsi_em_message_store);
 EXPORT_SYMBOL_GPL(dev_attr_em_message);
 
@@ -366,7 +366,7 @@ ata_scsi_activity_store(struct device *dev, struct device_attribute *attr,
 	}
 	return -EINVAL;
 }
-DEVICE_ATTR(sw_activity, S_IWUGO | S_IRUGO, ata_scsi_activity_show,
+DEVICE_ATTR(sw_activity, S_IWUSR | S_IRUGO, ata_scsi_activity_show,
 			ata_scsi_activity_store);
 EXPORT_SYMBOL_GPL(dev_attr_sw_activity);
 
