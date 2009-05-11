@@ -319,6 +319,8 @@ struct kvm_vcpu_arch {
 	struct kvm_pio_request pio;
 	void *pio_data;
 
+	u8 event_exit_inst_len;
+
 	struct kvm_queued_exception {
 		bool pending;
 		bool has_error_code;
@@ -328,6 +330,7 @@ struct kvm_vcpu_arch {
 
 	struct kvm_queued_interrupt {
 		bool pending;
+		bool soft;
 		u8 nr;
 	} interrupt;
 
@@ -510,7 +513,7 @@ struct kvm_x86_ops {
 	u32 (*get_interrupt_shadow)(struct kvm_vcpu *vcpu, int mask);
 	void (*patch_hypercall)(struct kvm_vcpu *vcpu,
 				unsigned char *hypercall_addr);
-	void (*set_irq)(struct kvm_vcpu *vcpu, int vec);
+	void (*set_irq)(struct kvm_vcpu *vcpu);
 	void (*set_nmi)(struct kvm_vcpu *vcpu);
 	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,
 				bool has_error_code, u32 error_code);

@@ -801,8 +801,9 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 		return;
 	}
 
-	if (nr == BP_VECTOR || nr == OF_VECTOR) {
-		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
+	if (kvm_exception_is_soft(nr)) {
+		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
+			     vmx->vcpu.arch.event_exit_inst_len);
 		intr_info |= INTR_TYPE_SOFT_EXCEPTION;
 	} else
 		intr_info |= INTR_TYPE_HARD_EXCEPTION;
@@ -2445,9 +2446,11 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
 }
 
-static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
+static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	uint32_t intr;
+	int irq = vcpu->arch.interrupt.nr;
 
 	KVMTRACE_1D(INJ_VIRQ, vcpu, (u32)irq, handler);
 
@@ -2462,8 +2465,14 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 		kvm_rip_write(vcpu, vmx->rmode.irq.rip - 1);
 		return;
 	}
-	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			irq | INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
+	intr = irq | INTR_INFO_VALID_MASK;
+	if (vcpu->arch.interrupt.soft) {
+		intr |= INTR_TYPE_SOFT_INTR;
+		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
+			     vmx->vcpu.arch.event_exit_inst_len);
+	} else
+		intr |= INTR_TYPE_EXT_INTR;
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr);
 }
 
 static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
@@ -3024,6 +3033,7 @@ static int handle_task_switch(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 					      GUEST_INTR_STATE_NMI);
 			break;
 		case INTR_TYPE_EXT_INTR:
+		case INTR_TYPE_SOFT_INTR:
 			kvm_clear_interrupt_queue(vcpu);
 			break;
 		case INTR_TYPE_HARD_EXCEPTION:
@@ -3295,16 +3305,24 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 		vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
 				GUEST_INTR_STATE_NMI);
 		break;
-	case INTR_TYPE_HARD_EXCEPTION:
 	case INTR_TYPE_SOFT_EXCEPTION:
+		vmx->vcpu.arch.event_exit_inst_len =
+			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
+		/* fall through */
+	case INTR_TYPE_HARD_EXCEPTION:
 		if (idt_vectoring_info & VECTORING_INFO_DELIVER_CODE_MASK) {
 			u32 err = vmcs_read32(IDT_VECTORING_ERROR_CODE);
 			kvm_queue_exception_e(&vmx->vcpu, vector, err);
 		} else
 			kvm_queue_exception(&vmx->vcpu, vector);
 		break;
+	case INTR_TYPE_SOFT_INTR:
+		vmx->vcpu.arch.event_exit_inst_len =
+			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
+		/* fall through */
 	case INTR_TYPE_EXT_INTR:
-		kvm_queue_interrupt(&vmx->vcpu, vector);
+		kvm_queue_interrupt(&vmx->vcpu, vector,
+			type == INTR_TYPE_SOFT_INTR);
 		break;
 	default:
 		break;

@@ -1441,7 +1441,7 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 		return -ENXIO;
 	vcpu_load(vcpu);
 
-	kvm_queue_interrupt(vcpu, irq->irq);
+	kvm_queue_interrupt(vcpu, irq->irq, false);
 
 	vcpu_put(vcpu);
 
@@ -3161,7 +3161,7 @@ static void inject_irq(struct kvm_vcpu *vcpu)
 	}
 
 	if (vcpu->arch.interrupt.pending) {
-		kvm_x86_ops->set_irq(vcpu, vcpu->arch.interrupt.nr);
+		kvm_x86_ops->set_irq(vcpu);
 		return;
 	}
 
@@ -3174,8 +3174,9 @@ static void inject_irq(struct kvm_vcpu *vcpu)
 		}
 	} else if (kvm_cpu_has_interrupt(vcpu)) {
 		if (kvm_x86_ops->interrupt_allowed(vcpu)) {
-			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu));
-			kvm_x86_ops->set_irq(vcpu, vcpu->arch.interrupt.nr);
+			kvm_queue_interrupt(vcpu, kvm_cpu_get_interrupt(vcpu),
+					    false);
+			kvm_x86_ops->set_irq(vcpu);
 		}
 	}
 }
@@ -4098,7 +4099,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	pending_vec = find_first_bit(
 		(const unsigned long *)sregs->interrupt_bitmap, max_bits);
 	if (pending_vec < max_bits) {
-		kvm_queue_interrupt(vcpu, pending_vec);
+		kvm_queue_interrupt(vcpu, pending_vec, false);
 		pr_debug("Set back pending irq %d\n", pending_vec);
 		if (irqchip_in_kernel(vcpu->kvm))
 			kvm_pic_clear_isr_ack(vcpu->kvm);

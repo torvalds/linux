@@ -2310,13 +2310,13 @@ static void svm_queue_irq(struct kvm_vcpu *vcpu, unsigned nr)
 		SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR;
 }
 
-static void svm_set_irq(struct kvm_vcpu *vcpu, int irq)
+static void svm_set_irq(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	nested_svm_intr(svm);
 
-	svm_queue_irq(vcpu, irq);
+	svm_queue_irq(vcpu, vcpu->arch.interrupt.nr);
 }
 
 static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
@@ -2418,7 +2418,7 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 	case SVM_EXITINTINFO_TYPE_EXEPT:
 		/* In case of software exception do not reinject an exception
 		   vector, but re-execute and instruction instead */
-		if (vector == BP_VECTOR || vector == OF_VECTOR)
+		if (kvm_exception_is_soft(vector))
 			break;
 		if (exitintinfo & SVM_EXITINTINFO_VALID_ERR) {
 			u32 err = svm->vmcb->control.exit_int_info_err;
@@ -2428,7 +2428,7 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 			kvm_queue_exception(&svm->vcpu, vector);
 		break;
 	case SVM_EXITINTINFO_TYPE_INTR:
-		kvm_queue_interrupt(&svm->vcpu, vector);
+		kvm_queue_interrupt(&svm->vcpu, vector, false);
 		break;
 	default:
 		break;
