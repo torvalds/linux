@@ -1281,7 +1281,7 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 static void perf_counter_reset(struct perf_counter *counter)
 {
 	(void)perf_counter_read(counter);
-	atomic_set(&counter->count, 0);
+	atomic64_set(&counter->count, 0);
 	perf_counter_update_userpage(counter);
 }
 
