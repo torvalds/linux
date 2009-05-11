@@ -3152,8 +3152,11 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->update_cr8_intercept(vcpu, tpr, max_irr);
 }
 
-static void inject_irq(struct kvm_vcpu *vcpu)
+static void inject_pending_irq(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		kvm_x86_ops->set_interrupt_shadow(vcpu, 0);
+
 	/* try to reinject previous events if any */
 	if (vcpu->arch.nmi_injected) {
 		kvm_x86_ops->set_nmi(vcpu);
@@ -3181,26 +3184,11 @@ static void inject_irq(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void inject_pending_irq(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
-{
-	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
-		kvm_run->request_interrupt_window;
-
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		kvm_x86_ops->set_interrupt_shadow(vcpu, 0);
-
-	inject_irq(vcpu);
-
-	/* enable NMI/IRQ window open exits if needed */
-	if (vcpu->arch.nmi_pending)
-		kvm_x86_ops->enable_nmi_window(vcpu);
-	else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
-		kvm_x86_ops->enable_irq_window(vcpu);
-}
-
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
+	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
+		kvm_run->request_interrupt_window;
 
 	if (vcpu->requests)
 		if (test_and_clear_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
@@ -3253,6 +3241,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		__queue_exception(vcpu);
 	else
 		inject_pending_irq(vcpu, kvm_run);
+
+	/* enable NMI/IRQ window open exits if needed */
+	if (vcpu->arch.nmi_pending)
+		kvm_x86_ops->enable_nmi_window(vcpu);
+	else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
+		kvm_x86_ops->enable_irq_window(vcpu);
 
 	if (kvm_lapic_enabled(vcpu)) {
 		if (!vcpu->arch.apic->vapic_addr)
