@@ -71,23 +71,30 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 	}
 	if(nr_to_scan > 0)
 		lowmem_print(3, "lowmem_shrink %d, %x, ofree %d, ma %d\n", nr_to_scan, gfp_mask, other_free, min_adj);
+	rem = global_page_state(NR_ACTIVE) + global_page_state(NR_INACTIVE);
+	if (nr_to_scan <= 0 || min_adj == OOM_ADJUST_MAX + 1) {
+		lowmem_print(5, "lowmem_shrink %d, %x, return %d\n", nr_to_scan, gfp_mask, rem);
+		return rem;
+	}
+
 	read_lock(&tasklist_lock);
 	for_each_process(p) {
-		if(p->oomkilladj >= 0 && p->mm) {
-			tasksize = get_mm_rss(p->mm);
-			if(nr_to_scan > 0 && tasksize > 0 && p->oomkilladj >= min_adj) {
-				if(selected == NULL ||
-				   p->oomkilladj > selected->oomkilladj ||
-				   (p->oomkilladj == selected->oomkilladj &&
-				    tasksize > selected_tasksize)) {
-					selected = p;
-					selected_tasksize = tasksize;
-					lowmem_print(2, "select %d (%s), adj %d, size %d, to kill\n",
-					             p->pid, p->comm, p->oomkilladj, tasksize);
-				}
-			}
-			rem += tasksize;
+		if (p->oomkilladj < min_adj || !p->mm)
+			continue;
+		tasksize = get_mm_rss(p->mm);
+		if (tasksize <= 0)
+			continue;
+		if (selected) {
+			if (p->oomkilladj < selected->oomkilladj)
+				continue;
+			if (p->oomkilladj == selected->oomkilladj &&
+			    tasksize <= selected_tasksize)
+				continue;
 		}
+		selected = p;
+		selected_tasksize = tasksize;
+		lowmem_print(2, "select %d (%s), adj %d, size %d, to kill\n",
+		             p->pid, p->comm, p->oomkilladj, tasksize);
 	}
 	if(selected != NULL) {
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
