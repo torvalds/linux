@@ -339,6 +339,7 @@ int usb_serial_generic_write(struct tty_struct *tty,
 	/* no bulk out, so return 0 bytes written */
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_write);
 
 int usb_serial_generic_write_room(struct tty_struct *tty)
 {
@@ -351,7 +352,9 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 	spin_lock_irqsave(&port->lock, flags);
 	if (serial->type->max_in_flight_urbs) {
 		if (port->urbs_in_flight < serial->type->max_in_flight_urbs)
-			room = port->bulk_out_size;
+			room = port->bulk_out_size *
+				(serial->type->max_in_flight_urbs -
+				 port->urbs_in_flight);
 	} else if (serial->num_bulk_out && !(port->write_urb_busy)) {
 		room = port->bulk_out_size;
 	}
@@ -385,7 +388,8 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 }
 
 
-static void resubmit_read_urb(struct usb_serial_port *port, gfp_t mem_flags)
+void usb_serial_generic_resubmit_read_urb(struct usb_serial_port *port,
+			gfp_t mem_flags)
 {
 	struct urb *urb = port->read_urb;
 	struct usb_serial *serial = port->serial;
@@ -406,25 +410,28 @@ static void resubmit_read_urb(struct usb_serial_port *port, gfp_t mem_flags)
 			"%s - failed resubmitting read urb, error %d\n",
 							__func__, result);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_resubmit_read_urb);
 
 /* Push data to tty layer and resubmit the bulk read URB */
 static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 {
 	struct urb *urb = port->read_urb;
 	struct tty_struct *tty = tty_port_tty_get(&port->port);
-	int room;
+	char *ch = (char *)urb->transfer_buffer;
+	int i;
+
+	if (!tty)
+		goto done;
 
 	/* Push data to tty */
-	if (tty && urb->actual_length) {
-		room = tty_buffer_request_room(tty, urb->actual_length);
-		if (room) {
-			tty_insert_flip_string(tty, urb->transfer_buffer, room);
-			tty_flip_buffer_push(tty);
-		}
+	for (i = 0; i < urb->actual_length; i++, ch++) {
+		if (!usb_serial_handle_sysrq_char(port, *ch))
+			tty_insert_flip_char(tty, *ch, TTY_NORMAL);
 	}
+	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
-
-	resubmit_read_urb(port, GFP_ATOMIC);
+done:
+	usb_serial_generic_resubmit_read_urb(port, GFP_ATOMIC);
 }
 
 void usb_serial_generic_read_bulk_callback(struct urb *urb)
@@ -515,9 +522,34 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 
 	if (was_throttled) {
 		/* Resume reading from device */
-		resubmit_read_urb(port, GFP_KERNEL);
+		usb_serial_generic_resubmit_read_urb(port, GFP_KERNEL);
 	}
 }
+
+int usb_serial_handle_sysrq_char(struct usb_serial_port *port, unsigned int ch)
+{
+	if (port->sysrq) {
+		if (ch && time_before(jiffies, port->sysrq)) {
+			handle_sysrq(ch, tty_port_tty_get(&port->port));
+			port->sysrq = 0;
+			return 1;
+		}
+		port->sysrq = 0;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_serial_handle_sysrq_char);
+
+int usb_serial_handle_break(struct usb_serial_port *port)
+{
+	if (!port->sysrq) {
+		port->sysrq = jiffies + HZ*5;
+		return 1;
+	}
+	port->sysrq = 0;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_serial_handle_break);
 
 void usb_serial_generic_shutdown(struct usb_serial *serial)
 {
