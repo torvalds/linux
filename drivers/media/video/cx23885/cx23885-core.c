@@ -1733,12 +1733,12 @@ out:
 	return IRQ_RETVAL(handled);
 }
 
-int encoder_on_portb(struct cx23885_dev *dev)
+static inline int encoder_on_portb(struct cx23885_dev *dev)
 {
 	return cx23885_boards[dev->board].portb == CX23885_MPEG_ENCODER;
 }
 
-int encoder_on_portc(struct cx23885_dev *dev)
+static inline int encoder_on_portc(struct cx23885_dev *dev)
 {
 	return cx23885_boards[dev->board].portc == CX23885_MPEG_ENCODER;
 }
