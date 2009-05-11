@@ -415,6 +415,9 @@ struct kvm_trace_rec {
 #define KVM_CAP_ASSIGN_DEV_IRQ 29
 /* Another bug in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_JOIN_MEMORY_REGIONS_WORKS 30
+#ifdef __KVM_HAVE_MCE
+#define KVM_CAP_MCE 31
+#endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -452,6 +455,19 @@ struct kvm_irq_routing {
 	struct kvm_irq_routing_entry entries[0];
 };
 
+#endif
+
+#ifdef KVM_CAP_MCE
+/* x86 MCE */
+struct kvm_x86_mce {
+	__u64 status;
+	__u64 addr;
+	__u64 misc;
+	__u64 mcg_status;
+	__u8 bank;
+	__u8 pad1[7];
+	__u64 pad2[3];
+};
 #endif
 
 /*
@@ -541,6 +557,10 @@ struct kvm_irq_routing {
 #define KVM_NMI                   _IO(KVMIO,  0x9a)
 /* Available with KVM_CAP_SET_GUEST_DEBUG */
 #define KVM_SET_GUEST_DEBUG       _IOW(KVMIO,  0x9b, struct kvm_guest_debug)
+/* MCE for x86 */
+#define KVM_X86_SETUP_MCE         _IOW(KVMIO,  0x9c, __u64)
+#define KVM_X86_GET_MCE_CAP_SUPPORTED _IOR(KVMIO,  0x9d, __u64)
+#define KVM_X86_SET_MCE           _IOW(KVMIO,  0x9e, struct kvm_x86_mce)
 
 /*
  * Deprecated interfaces

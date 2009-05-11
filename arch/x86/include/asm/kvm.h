@@ -17,6 +17,7 @@
 #define __KVM_HAVE_USER_NMI
 #define __KVM_HAVE_GUEST_DEBUG
 #define __KVM_HAVE_MSIX
+#define __KVM_HAVE_MCE
 
 /* Architectural interrupt line count. */
 #define KVM_NR_INTERRUPTS 256
