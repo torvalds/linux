@@ -1285,7 +1285,7 @@ static int __devinit ibmveth_probe(struct vio_dev *dev, const struct vio_device_
  	netdev->features |= NETIF_F_LLTX;
 	spin_lock_init(&adapter->stats_lock);
 
-	memcpy(&netdev->dev_addr, &adapter->mac_addr, netdev->addr_len);
+	memcpy(netdev->dev_addr, &adapter->mac_addr, netdev->addr_len);
 
 	for(i = 0; i<IbmVethNumBufferPools; i++) {
 		struct kobject *kobj = &adapter->rx_buff_pool[i].kobj;
