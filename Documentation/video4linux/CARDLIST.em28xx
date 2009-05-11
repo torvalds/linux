@@ -62,3 +62,5 @@
  64 -> Easy Cap Capture DC-60                   (em2860)
  65 -> IO-DATA GV-MVP/SZ                        (em2820/em2840) [04bb:0515]
  66 -> Empire dual TV                           (em2880)
+ 67 -> Terratec Grabby                          (em2860)        [0ccd:0096]
+ 68 -> Terratec AV350                           (em2860)        [0ccd:0084]
