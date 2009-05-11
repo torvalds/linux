@@ -22,7 +22,8 @@
 #include <asm/page_types.h>
 #include <asm/setup.h>
 #include "boot.h"
-#include "offsets.h"
+#include "voffset.h"
+#include "zoffset.h"
 
 BOOTSEG		= 0x07C0		/* original address of boot-sector */
 SYSSEG		= 0x1000		/* historical load address >> 4 */
@@ -212,8 +213,8 @@ hardware_subarch:	.long 0			# subarchitecture, added with 2.07
 
 hardware_subarch_data:	.quad 0
 
-payload_offset:		.long input_data
-payload_length:		.long input_data_end-input_data
+payload_offset:		.long ZO_input_data
+payload_length:		.long ZO_z_input_len
 
 setup_data:		.quad 0			# 64-bit physical pointer to
 						# single linked list of
