@@ -271,6 +271,13 @@ config THRUSTMASTER_FF
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
 	  a THRUSTMASTER Ferrari GT Rumble Force or Force Feedback Wheel.
 
+config HID_WACOM
+	tristate "Wacom Bluetooth devices support" if EMBEDDED
+	depends on BT_HIDP
+	default !EMBEDDED
+	---help---
+	Support for Wacom Graphire Bluetooth tablet.
+
 config ZEROPLUS_FF
 	tristate "Zeroplus based game controller support"
 	depends on USB_HID
