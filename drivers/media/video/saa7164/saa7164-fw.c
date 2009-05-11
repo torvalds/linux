@@ -40,14 +40,13 @@ int saa7164_dl_wait_ack(struct saa7164_dev *dev, u32 reg)
 {
 	u32 timeout = SAA_DEVICE_TIMEOUT;
 	while ((saa7164_readl(reg) & 0x01) == 0) {
-		timeout -= 5;
+		timeout -= 10;
 		if (timeout == 0) {
 			printk(KERN_ERR "%s() timeout (no d/l ack)\n",
 				__func__);
 			return -EBUSY;
 		}
-		/* TODO: Review this for efficiency, f/w load is slow */
-		msleep(1);
+		msleep(100);
 	}
 
 	return 0;
@@ -57,14 +56,13 @@ int saa7164_dl_wait_clr(struct saa7164_dev *dev, u32 reg)
 {
 	u32 timeout = SAA_DEVICE_TIMEOUT;
 	while (saa7164_readl(reg) & 0x01) {
-		timeout -= 5;
+		timeout -= 10;
 		if (timeout == 0) {
 			printk(KERN_ERR "%s() timeout (no d/l clr)\n",
 				__func__);
 			return -EBUSY;
 		}
-		/* TODO: Review this for efficiency, f/w load is slow */
-		msleep(1);
+		msleep(100);
 	}
 
 	return 0;
