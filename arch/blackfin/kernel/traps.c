@@ -594,6 +594,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		force_sig_info(sig, &info, current);
 	}
 
+	if (ANOMALY_05000461 && trapnr == VEC_HWERR && !access_ok(VERIFY_READ, fp->pc, 8))
+		fp->pc = SAFE_USER_INSTRUCTION;
+
 	trace_buffer_restore(j);
 	return;
 }
