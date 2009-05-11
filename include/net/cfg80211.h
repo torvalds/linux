@@ -252,27 +252,6 @@ struct beacon_parameters {
 };
 
 /**
- * enum station_flags - station flags
- *
- * Station capability flags. Note that these must be the bits
- * according to the nl80211 flags.
- *
- * @STATION_FLAG_CHANGED: station flags were changed
- * @STATION_FLAG_AUTHORIZED: station is authorized to send frames (802.1X)
- * @STATION_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
- *	with short preambles
- * @STATION_FLAG_WME: station is WME/QoS capable
- * @STATION_FLAG_MFP: station uses management frame protection
- */
-enum station_flags {
-	STATION_FLAG_CHANGED		= 1<<0,
-	STATION_FLAG_AUTHORIZED		= 1<<NL80211_STA_FLAG_AUTHORIZED,
-	STATION_FLAG_SHORT_PREAMBLE	= 1<<NL80211_STA_FLAG_SHORT_PREAMBLE,
-	STATION_FLAG_WME		= 1<<NL80211_STA_FLAG_WME,
-	STATION_FLAG_MFP		= 1<<NL80211_STA_FLAG_MFP,
-};
-
-/**
  * enum plink_action - actions to perform in mesh peers
  *
  * @PLINK_ACTION_INVALID: action 0 is reserved
@@ -294,14 +273,17 @@ enum plink_actions {
  * @supported_rates: supported rates in IEEE 802.11 format
  *	(or NULL for no change)
  * @supported_rates_len: number of supported rates
- * @station_flags: station flags (see &enum station_flags)
+ * @sta_flags_mask: station flags that changed
+ *	(bitmask of BIT(NL80211_STA_FLAG_...))
+ * @sta_flags_set: station flags values
+ *	(bitmask of BIT(NL80211_STA_FLAG_...))
  * @listen_interval: listen interval or -1 for no change
  * @aid: AID or zero for no change
  */
 struct station_parameters {
 	u8 *supported_rates;
 	struct net_device *vlan;
-	u32 station_flags;
+	u32 sta_flags_mask, sta_flags_set;
 	int listen_interval;
 	u16 aid;
 	u8 supported_rates_len;
