@@ -27,100 +27,6 @@
 #include "aes_ccm.h"
 
 
-static int ieee80211_set_encryption(struct ieee80211_sub_if_data *sdata, u8 *sta_addr,
-				    int idx, int alg, int remove,
-				    int set_tx_key, const u8 *_key,
-				    size_t key_len)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
-	struct ieee80211_key *key;
-	int err;
-
-	if (alg == ALG_AES_CMAC) {
-		if (idx < NUM_DEFAULT_KEYS ||
-		    idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS) {
-			printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d "
-			       "(BIP)\n", sdata->dev->name, idx);
-			return -EINVAL;
-		}
-	} else if (idx < 0 || idx >= NUM_DEFAULT_KEYS) {
-		printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d\n",
-		       sdata->dev->name, idx);
-		return -EINVAL;
-	}
-
-	if (remove) {
-		rcu_read_lock();
-
-		err = 0;
-
-		if (is_broadcast_ether_addr(sta_addr)) {
-			key = sdata->keys[idx];
-		} else {
-			sta = sta_info_get(local, sta_addr);
-			if (!sta) {
-				err = -ENOENT;
-				goto out_unlock;
-			}
-			key = sta->key;
-		}
-
-		ieee80211_key_free(key);
-	} else {
-		key = ieee80211_key_alloc(alg, idx, key_len, _key);
-		if (!key)
-			return -ENOMEM;
-
-		sta = NULL;
-		err = 0;
-
-		rcu_read_lock();
-
-		if (!is_broadcast_ether_addr(sta_addr)) {
-			set_tx_key = 0;
-			/*
-			 * According to the standard, the key index of a
-			 * pairwise key must be zero. However, some AP are
-			 * broken when it comes to WEP key indices, so we
-			 * work around this.
-			 */
-			if (idx != 0 && alg != ALG_WEP) {
-				ieee80211_key_free(key);
-				err = -EINVAL;
-				goto out_unlock;
-			}
-
-			sta = sta_info_get(local, sta_addr);
-			if (!sta) {
-				ieee80211_key_free(key);
-				err = -ENOENT;
-				goto out_unlock;
-			}
-		}
-
-		if (alg == ALG_WEP &&
-			key_len != LEN_WEP40 && key_len != LEN_WEP104) {
-			ieee80211_key_free(key);
-			err = -EINVAL;
-			goto out_unlock;
-		}
-
-		ieee80211_key_link(key, sdata, sta);
-
-		if (set_tx_key || (!sta && !sdata->default_key && key))
-			ieee80211_set_default_key(sdata, idx);
-		if (alg == ALG_AES_CMAC &&
-		    (set_tx_key || (!sta && !sdata->default_mgmt_key && key)))
-			ieee80211_set_default_mgmt_key(sdata, idx);
-	}
-
- out_unlock:
-	rcu_read_unlock();
-
-	return err;
-}
-
 static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_point *data, char *extra)
@@ -472,109 +378,6 @@ static int ieee80211_ioctl_giwtxpower(struct net_device *dev,
 	return 0;
 }
 
-static int ieee80211_ioctl_siwencode(struct net_device *dev,
-				     struct iw_request_info *info,
-				     struct iw_point *erq, char *keybuf)
-{
-	struct ieee80211_sub_if_data *sdata;
-	int idx, i, alg = ALG_WEP;
-	u8 bcaddr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-	int remove = 0, ret;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	idx = erq->flags & IW_ENCODE_INDEX;
-	if (idx == 0) {
-		if (sdata->default_key)
-			for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-				if (sdata->default_key == sdata->keys[i]) {
-					idx = i;
-					break;
-				}
-			}
-	} else if (idx < 1 || idx > 4)
-		return -EINVAL;
-	else
-		idx--;
-
-	if (erq->flags & IW_ENCODE_DISABLED)
-		remove = 1;
-	else if (erq->length == 0) {
-		/* No key data - just set the default TX key index */
-		ieee80211_set_default_key(sdata, idx);
-		return 0;
-	}
-
-	ret = ieee80211_set_encryption(
-		sdata, bcaddr,
-		idx, alg, remove,
-		!sdata->default_key,
-		keybuf, erq->length);
-
-	if (!ret && sdata->vif.type == NL80211_IFTYPE_STATION) {
-		if (remove)
-			sdata->u.mgd.flags &= ~IEEE80211_STA_TKIP_WEP_USED;
-		else
-			sdata->u.mgd.flags |= IEEE80211_STA_TKIP_WEP_USED;
-	}
-
-	return ret;
-}
-
-
-static int ieee80211_ioctl_giwencode(struct net_device *dev,
-				     struct iw_request_info *info,
-				     struct iw_point *erq, char *key)
-{
-	struct ieee80211_sub_if_data *sdata;
-	int idx, i;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	idx = erq->flags & IW_ENCODE_INDEX;
-	if (idx < 1 || idx > 4) {
-		idx = -1;
-		if (!sdata->default_key)
-			idx = 0;
-		else for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-			if (sdata->default_key == sdata->keys[i]) {
-				idx = i;
-				break;
-			}
-		}
-		if (idx < 0)
-			return -EINVAL;
-	} else
-		idx--;
-
-	erq->flags = idx + 1;
-
-	if (!sdata->keys[idx]) {
-		erq->length = 0;
-		erq->flags |= IW_ENCODE_DISABLED;
-		return 0;
-	}
-
-	memcpy(key, sdata->keys[idx]->conf.key,
-	       min_t(int, erq->length, sdata->keys[idx]->conf.keylen));
-	erq->length = sdata->keys[idx]->conf.keylen;
-	erq->flags |= IW_ENCODE_ENABLED;
-
-	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-		switch (sdata->u.mgd.auth_alg) {
-		case WLAN_AUTH_OPEN:
-		case WLAN_AUTH_LEAP:
-			erq->flags |= IW_ENCODE_OPEN;
-			break;
-		case WLAN_AUTH_SHARED_KEY:
-			erq->flags |= IW_ENCODE_RESTRICTED;
-			break;
-		}
-	}
-
-	return 0;
-}
-
 static int ieee80211_ioctl_siwpower(struct net_device *dev,
 				    struct iw_request_info *info,
 				    struct iw_param *wrq,
@@ -809,82 +612,6 @@ static int ieee80211_ioctl_giwauth(struct net_device *dev,
 }
 
 
-static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
-					struct iw_request_info *info,
-					struct iw_point *erq, char *extra)
-{
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct iw_encode_ext *ext = (struct iw_encode_ext *) extra;
-	int uninitialized_var(alg), idx, i, remove = 0;
-
-	switch (ext->alg) {
-	case IW_ENCODE_ALG_NONE:
-		remove = 1;
-		break;
-	case IW_ENCODE_ALG_WEP:
-		alg = ALG_WEP;
-		break;
-	case IW_ENCODE_ALG_TKIP:
-		alg = ALG_TKIP;
-		break;
-	case IW_ENCODE_ALG_CCMP:
-		alg = ALG_CCMP;
-		break;
-	case IW_ENCODE_ALG_AES_CMAC:
-		alg = ALG_AES_CMAC;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	if (erq->flags & IW_ENCODE_DISABLED)
-		remove = 1;
-
-	idx = erq->flags & IW_ENCODE_INDEX;
-	if (alg == ALG_AES_CMAC) {
-		if (idx < NUM_DEFAULT_KEYS + 1 ||
-		    idx > NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS) {
-			idx = -1;
-			if (!sdata->default_mgmt_key)
-				idx = 0;
-			else for (i = NUM_DEFAULT_KEYS;
-				  i < NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS;
-				  i++) {
-				if (sdata->default_mgmt_key == sdata->keys[i])
-				{
-					idx = i;
-					break;
-				}
-			}
-			if (idx < 0)
-				return -EINVAL;
-		} else
-			idx--;
-	} else {
-		if (idx < 1 || idx > 4) {
-			idx = -1;
-			if (!sdata->default_key)
-				idx = 0;
-			else for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-				if (sdata->default_key == sdata->keys[i]) {
-					idx = i;
-					break;
-				}
-			}
-			if (idx < 0)
-				return -EINVAL;
-		} else
-			idx--;
-	}
-
-	return ieee80211_set_encryption(sdata, ext->addr.sa_data, idx, alg,
-					remove,
-					ext->ext_flags &
-					IW_ENCODE_EXT_SET_TX_KEY,
-					ext->key, ext->key_len);
-}
-
-
 /* Structures to export the Wireless Handlers */
 
 static const iw_handler ieee80211_handler[] =
@@ -931,8 +658,8 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) ieee80211_ioctl_giwtxpower,	/* SIOCGIWTXPOW */
 	(iw_handler) cfg80211_wext_siwretry,		/* SIOCSIWRETRY */
 	(iw_handler) cfg80211_wext_giwretry,		/* SIOCGIWRETRY */
-	(iw_handler) ieee80211_ioctl_siwencode,		/* SIOCSIWENCODE */
-	(iw_handler) ieee80211_ioctl_giwencode,		/* SIOCGIWENCODE */
+	(iw_handler) cfg80211_wext_siwencode,		/* SIOCSIWENCODE */
+	(iw_handler) cfg80211_wext_giwencode,		/* SIOCGIWENCODE */
 	(iw_handler) ieee80211_ioctl_siwpower,		/* SIOCSIWPOWER */
 	(iw_handler) ieee80211_ioctl_giwpower,		/* SIOCGIWPOWER */
 	(iw_handler) NULL,				/* -- hole -- */
@@ -941,7 +668,7 @@ static const iw_handler ieee80211_handler[] =
 	(iw_handler) NULL,				/* SIOCGIWGENIE */
 	(iw_handler) ieee80211_ioctl_siwauth,		/* SIOCSIWAUTH */
 	(iw_handler) ieee80211_ioctl_giwauth,		/* SIOCGIWAUTH */
-	(iw_handler) ieee80211_ioctl_siwencodeext,	/* SIOCSIWENCODEEXT */
+	(iw_handler) cfg80211_wext_siwencodeext,	/* SIOCSIWENCODEEXT */
 	(iw_handler) NULL,				/* SIOCGIWENCODEEXT */
 	(iw_handler) NULL,				/* SIOCSIWPMKSA */
 	(iw_handler) NULL,				/* -- hole -- */

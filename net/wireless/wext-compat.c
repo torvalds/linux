@@ -5,12 +5,13 @@
  * into cfg80211, when that happens all the exports here go away and
  * we directly assign the wireless handlers of wireless interfaces.
  *
- * Copyright 2008	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2008-2009	Johannes Berg <johannes@sipsolutions.net>
  */
 
 #include <linux/wireless.h>
 #include <linux/nl80211.h>
 #include <linux/if_arp.h>
+#include <linux/etherdevice.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
 #include "core.h"
@@ -477,3 +478,257 @@ int cfg80211_wext_giwretry(struct net_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwretry);
+
+static int cfg80211_set_encryption(struct cfg80211_registered_device *rdev,
+				   struct net_device *dev, const u8 *addr,
+				   bool remove, bool tx_key, int idx,
+				   struct key_params *params)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	int err;
+
+	if (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+		if (!rdev->ops->set_default_mgmt_key)
+			return -EOPNOTSUPP;
+
+		if (idx < 4 || idx > 5)
+			return -EINVAL;
+	} else if (idx < 0 || idx > 3)
+		return -EINVAL;
+
+	if (remove) {
+		err = rdev->ops->del_key(&rdev->wiphy, dev, idx, addr);
+		if (!err) {
+			if (idx == wdev->wext.default_key)
+				wdev->wext.default_key = -1;
+			else if (idx == wdev->wext.default_mgmt_key)
+				wdev->wext.default_mgmt_key = -1;
+		}
+		return err;
+	} else {
+		if (addr)
+			tx_key = false;
+
+		if (cfg80211_validate_key_settings(params, idx, addr))
+			return -EINVAL;
+
+		err = rdev->ops->add_key(&rdev->wiphy, dev, idx, addr, params);
+		if (err)
+			return err;
+
+		if (tx_key || (!addr && wdev->wext.default_key == -1)) {
+			err = rdev->ops->set_default_key(&rdev->wiphy,
+							 dev, idx);
+			if (!err)
+				wdev->wext.default_key = idx;
+			return err;
+		}
+
+		if (params->cipher == WLAN_CIPHER_SUITE_AES_CMAC &&
+		    (tx_key || (!addr && wdev->wext.default_mgmt_key == -1))) {
+			err = rdev->ops->set_default_mgmt_key(&rdev->wiphy,
+							      dev, idx);
+			if (!err)
+				wdev->wext.default_mgmt_key = idx;
+			return err;
+		}
+
+		return 0;
+	}
+}
+
+int cfg80211_wext_siwencode(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct iw_point *erq, char *keybuf)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	int idx, err;
+	bool remove = false;
+	struct key_params params;
+
+	/* no use -- only MFP (set_default_mgmt_key) is optional */
+	if (!rdev->ops->del_key ||
+	    !rdev->ops->add_key ||
+	    !rdev->ops->set_default_key)
+		return -EOPNOTSUPP;
+
+	idx = erq->flags & IW_ENCODE_INDEX;
+	if (idx == 0) {
+		idx = wdev->wext.default_key;
+		if (idx < 0)
+			idx = 0;
+	} else if (idx < 1 || idx > 4)
+		return -EINVAL;
+	else
+		idx--;
+
+	if (erq->flags & IW_ENCODE_DISABLED)
+		remove = true;
+	else if (erq->length == 0) {
+		/* No key data - just set the default TX key index */
+		err = rdev->ops->set_default_key(&rdev->wiphy, dev, idx);
+		if (!err)
+			wdev->wext.default_key = idx;
+		return err;
+	}
+
+	memset(&params, 0, sizeof(params));
+	params.key = keybuf;
+	params.key_len = erq->length;
+	if (erq->length == 5)
+		params.cipher = WLAN_CIPHER_SUITE_WEP40;
+	else if (erq->length == 13)
+		params.cipher = WLAN_CIPHER_SUITE_WEP104;
+	else if (!remove)
+		return -EINVAL;
+
+	return cfg80211_set_encryption(rdev, dev, NULL, remove,
+				       wdev->wext.default_key == -1,
+				       idx, &params);
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwencode);
+
+int cfg80211_wext_siwencodeext(struct net_device *dev,
+			       struct iw_request_info *info,
+			       struct iw_point *erq, char *extra)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct iw_encode_ext *ext = (struct iw_encode_ext *) extra;
+	const u8 *addr;
+	int idx;
+	bool remove = false;
+	struct key_params params;
+	u32 cipher;
+
+	/* no use -- only MFP (set_default_mgmt_key) is optional */
+	if (!rdev->ops->del_key ||
+	    !rdev->ops->add_key ||
+	    !rdev->ops->set_default_key)
+		return -EOPNOTSUPP;
+
+	switch (ext->alg) {
+	case IW_ENCODE_ALG_NONE:
+		remove = true;
+		cipher = 0;
+		break;
+	case IW_ENCODE_ALG_WEP:
+		if (ext->key_len == 5)
+			cipher = WLAN_CIPHER_SUITE_WEP40;
+		else if (ext->key_len == 13)
+			cipher = WLAN_CIPHER_SUITE_WEP104;
+		else
+			return -EINVAL;
+		break;
+	case IW_ENCODE_ALG_TKIP:
+		cipher = WLAN_CIPHER_SUITE_TKIP;
+		break;
+	case IW_ENCODE_ALG_CCMP:
+		cipher = WLAN_CIPHER_SUITE_CCMP;
+		break;
+	case IW_ENCODE_ALG_AES_CMAC:
+		cipher = WLAN_CIPHER_SUITE_AES_CMAC;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (erq->flags & IW_ENCODE_DISABLED)
+		remove = true;
+
+	idx = erq->flags & IW_ENCODE_INDEX;
+	if (cipher == WLAN_CIPHER_SUITE_AES_CMAC) {
+		if (idx < 4 || idx > 5) {
+			idx = wdev->wext.default_mgmt_key;
+			if (idx < 0)
+				return -EINVAL;
+		} else
+			idx--;
+	} else {
+		if (idx < 1 || idx > 4) {
+			idx = wdev->wext.default_key;
+			if (idx < 0)
+				return -EINVAL;
+		} else
+			idx--;
+	}
+
+	addr = ext->addr.sa_data;
+	if (is_broadcast_ether_addr(addr))
+		addr = NULL;
+
+	memset(&params, 0, sizeof(params));
+	params.key = ext->key;
+	params.key_len = ext->key_len;
+	params.cipher = cipher;
+
+	return cfg80211_set_encryption(
+			rdev, dev, addr, remove,
+			ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY,
+			idx, &params);
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwencodeext);
+
+struct giwencode_cookie {
+	size_t buflen;
+	char *keybuf;
+};
+
+static void giwencode_get_key_cb(void *cookie, struct key_params *params)
+{
+	struct giwencode_cookie *data = cookie;
+
+	if (!params->key) {
+		data->buflen = 0;
+		return;
+	}
+
+	data->buflen = min_t(size_t, data->buflen, params->key_len);
+	memcpy(data->keybuf, params->key, data->buflen);
+}
+
+int cfg80211_wext_giwencode(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct iw_point *erq, char *keybuf)
+{
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	int idx, err;
+	struct giwencode_cookie data = {
+		.keybuf = keybuf,
+		.buflen = erq->length,
+	};
+
+	if (!rdev->ops->get_key)
+		return -EOPNOTSUPP;
+
+	idx = erq->flags & IW_ENCODE_INDEX;
+	if (idx == 0) {
+		idx = wdev->wext.default_key;
+		if (idx < 0)
+			idx = 0;
+	} else if (idx < 1 || idx > 4)
+		return -EINVAL;
+	else
+		idx--;
+
+	erq->flags = idx + 1;
+
+	err = rdev->ops->get_key(&rdev->wiphy, dev, idx, NULL, &data,
+				 giwencode_get_key_cb);
+	if (!err) {
+		erq->length = data.buflen;
+		erq->flags |= IW_ENCODE_ENABLED;
+		return 0;
+	}
+
+	if (err == -ENOENT) {
+		erq->flags |= IW_ENCODE_DISABLED;
+		erq->length = 0;
+		return 0;
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(cfg80211_wext_giwencode);

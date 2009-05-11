@@ -1,7 +1,7 @@
 /*
  * Wireless configuration interface internals.
  *
- * Copyright 2006, 2007 Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2009	Johannes Berg <johannes@sipsolutions.net>
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -150,5 +150,9 @@ int cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 void cfg80211_clear_ibss(struct net_device *dev, bool nowext);
 int cfg80211_leave_ibss(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, bool nowext);
+
+/* internal helpers */
+int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
+				   const u8 *mac_addr);
 
 #endif /* __NET_WIRELESS_CORE_H */

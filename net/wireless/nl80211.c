@@ -1,7 +1,7 @@
 /*
  * This is the new netlink-based wireless configuration interface.
  *
- * Copyright 2006, 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2009	Johannes Berg <johannes@sipsolutions.net>
  */
 
 #include <linux/if.h>
@@ -1073,6 +1073,14 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	err = func(&drv->wiphy, dev, key_idx);
+#ifdef CONFIG_WIRELESS_EXT
+	if (!err) {
+		if (func == drv->ops->set_default_key)
+			dev->ieee80211_ptr->wext.default_key = key_idx;
+		else
+			dev->ieee80211_ptr->wext.default_mgmt_key = key_idx;
+	}
+#endif
 
  out:
 	cfg80211_put_dev(drv);
@@ -1111,44 +1119,8 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (key_idx > 5)
+	if (cfg80211_validate_key_settings(&params, key_idx, mac_addr))
 		return -EINVAL;
-
-	/*
-	 * Disallow pairwise keys with non-zero index unless it's WEP
-	 * (because current deployments use pairwise WEP keys with
-	 * non-zero indizes but 802.11i clearly specifies to use zero)
-	 */
-	if (mac_addr && key_idx &&
-	    params.cipher != WLAN_CIPHER_SUITE_WEP40 &&
-	    params.cipher != WLAN_CIPHER_SUITE_WEP104)
-		return -EINVAL;
-
-	/* TODO: add definitions for the lengths to linux/ieee80211.h */
-	switch (params.cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		if (params.key_len != 5)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		if (params.key_len != 32)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-		if (params.key_len != 16)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_WEP104:
-		if (params.key_len != 13)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		if (params.key_len != 16)
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	rtnl_lock();
 
@@ -1209,6 +1181,15 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	err = drv->ops->del_key(&drv->wiphy, dev, key_idx, mac_addr);
+
+#ifdef CONFIG_WIRELESS_EXT
+	if (!err) {
+		if (key_idx == dev->ieee80211_ptr->wext.default_key)
+			dev->ieee80211_ptr->wext.default_key = -1;
+		else if (key_idx == dev->ieee80211_ptr->wext.default_mgmt_key)
+			dev->ieee80211_ptr->wext.default_mgmt_key = -1;
+	}
+#endif
 
  out:
 	cfg80211_put_dev(drv);
