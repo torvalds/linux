@@ -1000,7 +1000,7 @@ rb_event_index(struct ring_buffer_event *event)
 	return (addr & ~PAGE_MASK) - (PAGE_SIZE - BUF_PAGE_SIZE);
 }
 
-static int
+static inline int
 rb_is_commit(struct ring_buffer_per_cpu *cpu_buffer,
 	     struct ring_buffer_event *event)
 {
@@ -1423,9 +1423,9 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	 * also be made. But only the entry that did the actual
 	 * commit will be something other than zero.
 	 */
-	if (cpu_buffer->tail_page == cpu_buffer->commit_page &&
-	    rb_page_write(cpu_buffer->tail_page) ==
-	    rb_commit_index(cpu_buffer)) {
+	if (likely(cpu_buffer->tail_page == cpu_buffer->commit_page &&
+		   rb_page_write(cpu_buffer->tail_page) ==
+		   rb_commit_index(cpu_buffer))) {
 
 		delta = ts - cpu_buffer->write_stamp;
 
@@ -1436,7 +1436,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 		if (unlikely(ts < cpu_buffer->write_stamp))
 			delta = 0;
 
-		if (test_time_stamp(delta)) {
+		else if (unlikely(test_time_stamp(delta))) {
 
 			commit = rb_add_time_stamp(cpu_buffer, &ts, &delta);
 
@@ -1470,7 +1470,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	 * If the timestamp was commited, make the commit our entry
 	 * now so that we will update it when needed.
 	 */
-	if (commit)
+	if (unlikely(commit))
 		rb_set_commit_event(cpu_buffer, event);
 	else if (!rb_is_commit(cpu_buffer, event))
 		delta = 0;
