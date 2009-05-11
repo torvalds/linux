@@ -127,7 +127,7 @@ SECTIONS
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	. = ALIGN(PAGE_SIZE);
-	.init.ramfs : AT(ADDR(.init_ramfs) - LOAD_OFFSET) {
+	.init.ramfs : AT(ADDR(.init.ramfs) - LOAD_OFFSET) {
 		__initramfs_start = .;
 		*(.init.ramfs)
 		__initramfs_end = .;
