@@ -761,9 +761,11 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 		flags |= MCH_FBURST;
 		fburst = (1 << 7);
 	}
-	hdr->flags = cpu_to_le32(flags |
-				 (tei->n_elem << MCH_PRD_LEN_SHIFT) |
-				 (MCH_SSP_FR_CMD << MCH_SSP_FR_TYPE_SHIFT));
+	if (is_tmf)
+		flags |= (MCH_SSP_FR_TASK << MCH_SSP_FR_TYPE_SHIFT);
+	else
+		flags |= (MCH_SSP_FR_CMD << MCH_SSP_FR_TYPE_SHIFT);
+	hdr->flags = cpu_to_le32(flags | (tei->n_elem << MCH_PRD_LEN_SHIFT));
 	hdr->tags = cpu_to_le32(tag);
 	hdr->data_len = cpu_to_le32(task->total_xfer_len);
 
