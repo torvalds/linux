@@ -454,13 +454,18 @@ struct ring_buffer_iter {
 /* Up this if you want to test the TIME_EXTENTS and normalization */
 #define DEBUG_SHIFT 0
 
+static inline u64 rb_time_stamp(struct ring_buffer *buffer, int cpu)
+{
+	/* shift to debug/test normalization and TIME_EXTENTS */
+	return buffer->clock() << DEBUG_SHIFT;
+}
+
 u64 ring_buffer_time_stamp(struct ring_buffer *buffer, int cpu)
 {
 	u64 time;
 
 	preempt_disable_notrace();
-	/* shift to debug/test normalization and TIME_EXTENTS */
-	time = buffer->clock() << DEBUG_SHIFT;
+	time = rb_time_stamp(buffer, cpu);
 	preempt_enable_no_resched_notrace();
 
 	return time;
@@ -1247,7 +1252,7 @@ rb_move_tail(struct ring_buffer_per_cpu *cpu_buffer,
 		cpu_buffer->tail_page = next_page;
 
 		/* reread the time stamp */
-		*ts = ring_buffer_time_stamp(buffer, cpu_buffer->cpu);
+		*ts = rb_time_stamp(buffer, cpu_buffer->cpu);
 		cpu_buffer->tail_page->page->time_stamp = *ts;
 	}
 
@@ -1413,7 +1418,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	if (RB_WARN_ON(cpu_buffer, ++nr_loops > 1000))
 		return NULL;
 
-	ts = ring_buffer_time_stamp(cpu_buffer->buffer, cpu_buffer->cpu);
+	ts = rb_time_stamp(cpu_buffer->buffer, cpu_buffer->cpu);
 
 	/*
 	 * Only the first commit can update the timestamp.
