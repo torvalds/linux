@@ -1065,7 +1065,7 @@ static int blk_log_action(struct trace_iterator *iter, const char *act)
 
 static int blk_log_dump_pdu(struct trace_seq *s, const struct trace_entry *ent)
 {
-	const char *pdu_buf;
+	const unsigned char *pdu_buf;
 	int pdu_len;
 	int i, end, ret;
 
