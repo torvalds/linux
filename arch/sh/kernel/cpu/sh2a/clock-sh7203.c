@@ -46,29 +46,29 @@ static struct clk_ops sh7203_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(FREQCR) & 0x0007);
-	clk->rate = clk->parent->rate / pfc_divisors[idx];
+	return clk->parent->rate / pfc_divisors[idx];
 }
 
 static struct clk_ops sh7203_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
-static void bus_clk_recalc(struct clk *clk)
+static unsigned long bus_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inw(FREQCR) & 0x0007);
-	clk->rate = clk->parent->rate / pfc_divisors[idx-2];
+	return clk->parent->rate / pfc_divisors[idx-2];
 }
 
 static struct clk_ops sh7203_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
-static void cpu_clk_recalc(struct clk *clk)
+static unsigned long cpu_clk_recalc(struct clk *clk)
 {
-	clk->rate = clk->parent->rate;
+	return clk->parent->rate;
 }
 
 static struct clk_ops sh7203_cpu_clk_ops = {

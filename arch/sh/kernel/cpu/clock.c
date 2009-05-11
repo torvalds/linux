@@ -75,6 +75,7 @@ static struct clk *onchip_clocks[] = {
 	&cpu_clk,
 };
 
+/* Propagate rate to children */
 static void propagate_rate(struct clk *clk)
 {
 	struct clk *clkp;
@@ -83,7 +84,7 @@ static void propagate_rate(struct clk *clk)
 		if (likely(clkp->parent != clk))
 			continue;
 		if (likely(clkp->ops && clkp->ops->recalc))
-			clkp->ops->recalc(clkp);
+			clkp->rate = clkp->ops->recalc(clkp);
 		if (unlikely(clkp->flags & CLK_RATE_PROPAGATES))
 			propagate_rate(clkp);
 	}
@@ -240,7 +241,7 @@ void clk_recalc_rate(struct clk *clk)
 		unsigned long flags;
 
 		spin_lock_irqsave(&clock_lock, flags);
-		clk->ops->recalc(clk);
+		clk->rate = clk->ops->recalc(clk);
 		spin_unlock_irqrestore(&clock_lock, flags);
 	}
 
@@ -377,20 +378,22 @@ static int clks_sysdev_suspend(struct sys_device *dev, pm_message_t state)
 	switch (state.event) {
 	case PM_EVENT_ON:
 		/* Resumeing from hibernation */
-		if (prev_state.event == PM_EVENT_FREEZE) {
-			list_for_each_entry(clkp, &clock_list, node)
-				if (likely(clkp->ops)) {
-					unsigned long rate = clkp->rate;
+		if (prev_state.event != PM_EVENT_FREEZE)
+			break;
 
-					if (likely(clkp->ops->set_parent))
-						clkp->ops->set_parent(clkp,
-							clkp->parent);
-					if (likely(clkp->ops->set_rate))
-						clkp->ops->set_rate(clkp,
-							rate, NO_CHANGE);
-					else if (likely(clkp->ops->recalc))
-						clkp->ops->recalc(clkp);
-					}
+		list_for_each_entry(clkp, &clock_list, node) {
+			if (likely(clkp->ops)) {
+				unsigned long rate = clkp->rate;
+
+				if (likely(clkp->ops->set_parent))
+					clkp->ops->set_parent(clkp,
+						clkp->parent);
+				if (likely(clkp->ops->set_rate))
+					clkp->ops->set_rate(clkp,
+						rate, NO_CHANGE);
+				else if (likely(clkp->ops->recalc))
+					clkp->rate = clkp->ops->recalc(clkp);
+			}
 		}
 		break;
 	case PM_EVENT_FREEZE:

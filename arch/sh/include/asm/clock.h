@@ -12,7 +12,7 @@ struct clk_ops {
 	void (*init)(struct clk *clk);
 	void (*enable)(struct clk *clk);
 	void (*disable)(struct clk *clk);
-	void (*recalc)(struct clk *clk);
+	unsigned long (*recalc)(struct clk *clk);
 	int (*set_rate)(struct clk *clk, unsigned long rate, int algo_id);
 	int (*set_parent)(struct clk *clk, struct clk *parent);
 	long (*round_rate)(struct clk *clk, unsigned long rate);
@@ -96,4 +96,5 @@ enum clk_sh_algo_id {
 
 	IP_N1,
 };
+
 #endif /* __ASM_SH_CLOCK_H */

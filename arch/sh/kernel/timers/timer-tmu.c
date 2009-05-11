@@ -172,22 +172,19 @@ static void __init tmu_clk_init(struct clk *clk)
 	clk->rate = clk_get_rate(clk->parent) / (4 << (divisor << 1));
 }
 
-static void tmu_clk_recalc(struct clk *clk)
+static unsigned long tmu_clk_recalc(struct clk *clk)
 {
 	int tmu_num = clk->name[3]-'0';
-	unsigned long prev_rate = clk_get_rate(clk);
+	unsigned long new_rate;
 	unsigned long flags;
 	u8 divisor = ctrl_inw(TMU0_TCR+tmu_num*0xC) & 0x7;
-	clk->rate  = clk_get_rate(clk->parent) / (4 << (divisor << 1));
 
-	if(prev_rate==clk_get_rate(clk))
-		return;
-
-	if(tmu_num)
-		return; /* No more work on TMU1 */
+	new_rate = clk_get_rate(clk->parent) / (4 << (divisor << 1));
+	if (clk->rate == new_rate || tmu_num)
+		return clk->rate; /* No more work on TMU1 */
 
 	local_irq_save(flags);
-	tmus_are_scaled = (prev_rate > clk->rate);
+	tmus_are_scaled = (clk->rate > new_rate);
 
 	_tmu_stop(TMU0);
 
@@ -210,6 +207,7 @@ static void tmu_clk_recalc(struct clk *clk)
 	_tmu_start(TMU0);
 
 	local_irq_restore(flags);
+	return new_rate;
 }
 
 static struct clk_ops tmu_clk_ops = {

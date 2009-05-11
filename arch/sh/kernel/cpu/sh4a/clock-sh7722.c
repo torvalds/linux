@@ -151,11 +151,11 @@ static int divisors2[] = { 4, 1, 8, 12, 16, 24, 32, 1, 48, 64, 72, 96, 1, 144 };
 static int divisors2[] = { 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40 };
 #endif
 
-static void master_clk_recalc(struct clk *clk)
+static unsigned long master_clk_recalc(struct clk *clk)
 {
 	unsigned frqcr = ctrl_inl(FRQCR);
 
-	clk->rate = CONFIG_SH_PCLK_FREQ * STCPLL(frqcr);
+	return CONFIG_SH_PCLK_FREQ * STCPLL(frqcr);
 }
 
 static void master_clk_init(struct clk *clk)
@@ -166,12 +166,11 @@ static void master_clk_init(struct clk *clk)
 	master_clk_recalc(clk);
 }
 
-
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	unsigned long frqcr = ctrl_inl(FRQCR);
 
-	clk->rate = clk->parent->rate / STCPLL(frqcr);
+	return clk->parent->rate / STCPLL(frqcr);
 }
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7724)
@@ -283,14 +282,14 @@ static int sh7722_find_div_index(unsigned long parent_rate, unsigned rate)
 	return index;
 }
 
-static void sh7722_frqcr_recalc(struct clk *clk)
+static unsigned long sh7722_frqcr_recalc(struct clk *clk)
 {
 	struct frqcr_context ctx = sh7722_get_clk_context(clk->name);
 	unsigned long frqcr = ctrl_inl(FRQCR);
 	int index;
 
 	index = (frqcr >> ctx.shift) & ctx.mask;
-	clk->rate = clk->parent->rate * 2 / divisors2[index];
+	return clk->parent->rate * 2 / divisors2[index];
 }
 
 static int sh7722_frqcr_set_rate(struct clk *clk, unsigned long rate,
@@ -439,11 +438,8 @@ static struct clk_ops sh7722_frqcr_clk_ops = {
 
 /*
  * clock ops methods for SIU A/B and IrDA clock
- *
  */
-
 #ifndef CONFIG_CPU_SUBTYPE_SH7343
-
 static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 {
 	unsigned long r;
@@ -458,12 +454,12 @@ static int sh7722_siu_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 	return 0;
 }
 
-static void sh7722_siu_recalc(struct clk *clk)
+static unsigned long sh7722_siu_recalc(struct clk *clk)
 {
 	unsigned long r;
 
 	r = ctrl_inl(clk->arch_flags);
-	clk->rate = clk->parent->rate * 2 / divisors2[r & 0xF];
+	return clk->parent->rate * 2 / divisors2[r & 0xF];
 }
 
 static int sh7722_siu_start_stop(struct clk *clk, int enable)
@@ -525,12 +521,12 @@ static int sh7722_video_set_rate(struct clk *clk, unsigned long rate,
 	return 0;
 }
 
-static void sh7722_video_recalc(struct clk *clk)
+static unsigned long sh7722_video_recalc(struct clk *clk)
 {
 	unsigned long r;
 
 	r = ctrl_inl(VCLKCR);
-	clk->rate = clk->parent->rate / ((r & 0x3F) + 1);
+	return clk->parent->rate / ((r & 0x3F) + 1);
 }
 
 static struct clk_ops sh7722_video_clk_ops = {
@@ -627,7 +623,7 @@ static int sh7722_mstpcr_start_stop(struct clk *clk, int enable)
 		break;
 	default:
 		return -EINVAL;
-	}  
+	}
 
 	r = ctrl_inl(reg);
 
@@ -650,10 +646,9 @@ static void sh7722_mstpcr_disable(struct clk *clk)
 	sh7722_mstpcr_start_stop(clk, 0);
 }
 
-static void sh7722_mstpcr_recalc(struct clk *clk)
+static unsigned long sh7722_mstpcr_recalc(struct clk *clk)
 {
-	if (clk->parent)
-		clk->rate = clk->parent->rate;
+	return clk->parent->rate;
 }
 
 static struct clk_ops sh7722_mstpcr_clk_ops = {

@@ -29,30 +29,30 @@ static struct clk_ops sh7780_master_clk_ops = {
 	.init		= master_clk_init,
 };
 
-static void module_clk_recalc(struct clk *clk)
+static unsigned long module_clk_recalc(struct clk *clk)
 {
 	int idx = (ctrl_inl(FRQCR) & 0x0003);
-	clk->rate = clk->parent->rate / pfc_divisors[idx];
+	return clk->parent->rate / pfc_divisors[idx];
 }
 
 static struct clk_ops sh7780_module_clk_ops = {
 	.recalc		= module_clk_recalc,
 };
 
-static void bus_clk_recalc(struct clk *clk)
+static unsigned long bus_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inl(FRQCR) >> 16) & 0x0007);
-	clk->rate = clk->parent->rate / bfc_divisors[idx];
+	return clk->parent->rate / bfc_divisors[idx];
 }
 
 static struct clk_ops sh7780_bus_clk_ops = {
 	.recalc		= bus_clk_recalc,
 };
 
-static void cpu_clk_recalc(struct clk *clk)
+static unsigned long cpu_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inl(FRQCR) >> 24) & 0x0001);
-	clk->rate = clk->parent->rate / ifc_divisors[idx];
+	return clk->parent->rate / ifc_divisors[idx];
 }
 
 static struct clk_ops sh7780_cpu_clk_ops = {
@@ -72,10 +72,10 @@ void __init arch_init_clk_ops(struct clk_ops **ops, int idx)
 		*ops = sh7780_clk_ops[idx];
 }
 
-static void shyway_clk_recalc(struct clk *clk)
+static unsigned long shyway_clk_recalc(struct clk *clk)
 {
 	int idx = ((ctrl_inl(FRQCR) >> 20) & 0x0007);
-	clk->rate = clk->parent->rate / cfc_divisors[idx];
+	return clk->parent->rate / cfc_divisors[idx];
 }
 
 static struct clk_ops sh7780_shyway_clk_ops = {
