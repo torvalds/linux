@@ -868,8 +868,8 @@ static int mvs_task_prep_ssp(struct mvs_info *mvi,
 
 #define	DEV_IS_GONE(mvi_dev)	((!mvi_dev || (mvi_dev->dev_type == NO_DEVICE)))
 static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
-				struct completion *completion, int lock,
-				int is_tmf, struct mvs_tmf_task *tmf)
+				struct completion *completion,int is_tmf,
+				struct mvs_tmf_task *tmf)
 {
 	struct domain_device *dev = task->dev;
 	struct mvs_info *mvi;
@@ -892,8 +892,7 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 
 	mvi = mvs_find_dev_mvi(task->dev);
 
-	if (lock)
-		spin_lock_irqsave(&mvi->lock, flags);
+	spin_lock_irqsave(&mvi->lock, flags);
 	do {
 		dev = t->dev;
 		mvi_dev = (struct mvs_device *)dev->lldd_dev;
@@ -1020,15 +1019,14 @@ out_done:
 		MVS_CHIP_DISP->start_delivery(mvi,
 			(mvi->tx_prod - 1) & (MVS_CHIP_SLOT_SZ - 1));
 	}
-	if (lock)
-		spin_unlock_irqrestore(&mvi->lock, flags);
+	spin_unlock_irqrestore(&mvi->lock, flags);
 	return rc;
 }
 
 int mvs_queue_command(struct sas_task *task, const int num,
 			gfp_t gfp_flags)
 {
-	return mvs_task_exec(task, num, gfp_flags, NULL, 1, 0, NULL);
+	return mvs_task_exec(task, num, gfp_flags, NULL, 0, NULL);
 }
 
 static void mvs_slot_free(struct mvs_info *mvi, u32 rx_desc)
@@ -1448,7 +1446,7 @@ static int mvs_exec_internal_tmf_task(struct domain_device *dev,
 		task->timer.expires = jiffies + MVS_TASK_TIMEOUT*HZ;
 		add_timer(&task->timer);
 
-		res = mvs_task_exec(task, 1, GFP_KERNEL, NULL, 0, 1, tmf);
+		res = mvs_task_exec(task, 1, GFP_KERNEL, NULL, 1, tmf);
 
 		if (res) {
 			del_timer(&task->timer);
