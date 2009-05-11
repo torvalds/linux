@@ -6,6 +6,7 @@ mainmenu "Linux/Microblaze Kernel Configuration"
 config MICROBLAZE
 	def_bool y
 	select HAVE_LMB
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config SWAP
 	def_bool n
@@ -47,6 +48,9 @@ config GENERIC_CLOCKEVENTS
 	def_bool y
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
+
+config GENERIC_GPIO
 	def_bool y
 
 config PCI
@@ -103,9 +107,6 @@ config CMDLINE_FORCE
 	  override those passed by the boot loader.
 
 config OF
-	def_bool y
-
-config OF_DEVICE
 	def_bool y
 
 config PROC_DEVICETREE

@@ -192,7 +192,7 @@ config SERIO_RAW
 
 config SERIO_XILINX_XPS_PS2
 	tristate "Xilinx XPS PS/2 Controller Support"
-	depends on PPC
+	depends on PPC || MICROBLAZE
 	help
 	  This driver supports XPS PS/2 IP from the Xilinx EDK on
 	  PowerPC platform.
