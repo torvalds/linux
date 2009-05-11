@@ -201,7 +201,7 @@ unsigned long read_persistent_clock(void)
 	return ts.tv_sec;
 }
 
-static cycle_t read_tod_clock(void)
+static cycle_t read_tod_clock(struct clocksource *cs)
 {
 	return get_clock();
 }

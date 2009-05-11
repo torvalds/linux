@@ -18,7 +18,6 @@
 #include <linux/timer.h>
 #include <linux/stddef.h>
 #include <linux/init.h>
-#include <linux/ide.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <asm/prom.h>
@@ -447,6 +446,7 @@ int check_media_bay_by_base(unsigned long base, int what)
 
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(check_media_bay_by_base);
 
 int media_bay_set_ide_infos(struct device_node* which_bay, unsigned long base,
 			    int irq, ide_hwif_t *hwif)
@@ -486,6 +486,7 @@ int media_bay_set_ide_infos(struct device_node* which_bay, unsigned long base,
 
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(media_bay_set_ide_infos);
 #endif /* CONFIG_BLK_DEV_IDE_PMAC */
 
 static void media_bay_step(int i)

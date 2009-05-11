@@ -89,7 +89,7 @@ int save_i387_xstate(void __user *buf)
 
 	if (!used_math())
 		return 0;
-	clear_used_math(); /* trigger finit */
+
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {
 		/*
 	 	 * Start with clearing the user buffer. This will present a
@@ -113,6 +113,8 @@ int save_i387_xstate(void __user *buf)
 				   xstate_size))
 			return -1;
 	}
+
+	clear_used_math(); /* trigger finit */
 
 	if (task_thread_info(tsk)->status & TS_XSAVE) {
 		struct _fpstate __user *fx = buf;

@@ -15,6 +15,9 @@ extern struct sys_timer pxa_timer;
 extern void __init pxa_init_irq(int irq_nr,
 				int (*set_wake)(unsigned int, unsigned int));
 extern void __init pxa25x_init_irq(void);
+#ifdef CONFIG_CPU_PXA26x
+extern void __init pxa26x_init_irq(void);
+#endif
 extern void __init pxa27x_init_irq(void);
 extern void __init pxa3xx_init_irq(void);
 extern void __init pxa_map_io(void);

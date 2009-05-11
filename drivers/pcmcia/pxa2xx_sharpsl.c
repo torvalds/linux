@@ -255,6 +255,9 @@ static int __init sharpsl_pcmcia_init(void)
 {
 	int ret;
 
+	if (!platform_scoop_config)
+		return -ENODEV;
+
 	sharpsl_pcmcia_ops.nr = platform_scoop_config->num_devs;
 	sharpsl_pcmcia_device = platform_device_alloc("pxa2xx-pcmcia", -1);
 

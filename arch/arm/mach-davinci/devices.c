@@ -21,6 +21,10 @@
 #include <mach/hardware.h>
 #include <mach/i2c.h>
 #include <mach/irqs.h>
+#include <mach/cputype.h>
+#include <mach/mux.h>
+
+#define DAVINCI_I2C_BASE	     0x01C21000
 
 static struct resource i2c_resources[] = {
 	{
@@ -43,6 +47,9 @@ static struct platform_device davinci_i2c_device = {
 
 void __init davinci_init_i2c(struct davinci_i2c_platform_data *pdata)
 {
+	if (cpu_is_davinci_dm644x())
+		davinci_cfg_reg(DM644X_I2C);
+
 	davinci_i2c_device.dev.platform_data = pdata;
 	(void) platform_device_register(&davinci_i2c_device);
 }

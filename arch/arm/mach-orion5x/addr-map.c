@@ -57,12 +57,14 @@
 /*
  * Helpers to get DDR bank info
  */
+#define ORION5X_DDR_REG(x)	(ORION5X_DDR_VIRT_BASE | (x))
 #define DDR_BASE_CS(n)		ORION5X_DDR_REG(0x1500 + ((n) << 3))
 #define DDR_SIZE_CS(n)		ORION5X_DDR_REG(0x1504 + ((n) << 3))
 
 /*
  * CPU Address Decode Windows registers
  */
+#define ORION5X_BRIDGE_REG(x)	(ORION5X_BRIDGE_VIRT_BASE | (x))
 #define CPU_WIN_CTRL(n)		ORION5X_BRIDGE_REG(0x000 | ((n) << 4))
 #define CPU_WIN_BASE(n)		ORION5X_BRIDGE_REG(0x004 | ((n) << 4))
 #define CPU_WIN_REMAP_LO(n)	ORION5X_BRIDGE_REG(0x008 | ((n) << 4))

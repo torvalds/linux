@@ -56,10 +56,8 @@
 
 #define QUEUE_DISCONNECTS
 
-#define DRV_BUILD   "1"
-
 #define DRV_NAME    "iw_nes"
-#define DRV_VERSION "1.0 KO Build " DRV_BUILD
+#define DRV_VERSION "1.5.0.0"
 #define PFX         DRV_NAME ": "
 
 /*

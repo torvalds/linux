@@ -46,7 +46,6 @@
 #include <asm/io.h>
 
 #ifdef CONFIG_BLK_DEV_INITRD
-#include <linux/blk.h>
 #include <asm/pgtable.h>
 #endif
 

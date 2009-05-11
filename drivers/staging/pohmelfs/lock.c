@@ -41,7 +41,8 @@ static int pohmelfs_send_lock_trans(struct pohmelfs_inode *pi,
 	path_len = err;
 
 	err = -ENOMEM;
-	t = netfs_trans_alloc(psb, path_len + sizeof(struct netfs_lock) + isize, 0, 0);
+	t = netfs_trans_alloc(psb, path_len + sizeof(struct netfs_lock) + isize,
+			NETFS_TRANS_SINGLE_DST, 0);
 	if (!t)
 		goto err_out_exit;
 

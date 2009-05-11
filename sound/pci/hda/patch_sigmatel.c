@@ -3076,6 +3076,11 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 	unsigned int wid_caps;
 
 	for (i = 0; i < num_outs && i < ARRAY_SIZE(chname); i++) {
+		if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
+			wid_caps = get_wcaps(codec, pins[i]);
+			if (wid_caps & AC_WCAP_UNSOL_CAP)
+				spec->hp_detect = 1;
+		}
 		nid = dac_nids[i];
 		if (!nid)
 			continue;
@@ -3119,11 +3124,6 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 			err = create_controls_idx(codec, name, idx, nid, 3);
 			if (err < 0)
 				return err;
-			if (type == AUTO_PIN_HP_OUT && !spec->hp_detect) {
-				wid_caps = get_wcaps(codec, pins[i]);
-				if (wid_caps & AC_WCAP_UNSOL_CAP)
-					spec->hp_detect = 1;
-			}
 		}
 	}
 	return 0;

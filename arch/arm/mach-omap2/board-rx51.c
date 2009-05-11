@@ -15,7 +15,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/delay.h>
 #include <linux/gpio.h>
 
 #include <mach/hardware.h>

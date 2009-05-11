@@ -5259,6 +5259,18 @@ static int at76_alloc_urbs(struct at76_priv *priv,
 	return 0;
 }
 
+static const struct net_device_ops at76_netdev_ops = {
+	.ndo_open		= at76_open,
+	.ndo_stop		= at76_stop,
+	.ndo_get_stats		= at76_get_stats,
+	.ndo_start_xmit		= at76_tx,
+	.ndo_tx_timeout		= at76_tx_timeout,
+	.ndo_set_multicast_list	= at76_set_multicast,
+	.ndo_set_mac_address	= at76_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_change_mtu		= eth_change_mtu,
+};
+
 /* Register network device and initialize the hardware */
 static int at76_init_new_device(struct at76_priv *priv,
 				struct usb_interface *interface)
@@ -5303,21 +5315,15 @@ static int at76_init_new_device(struct at76_priv *priv,
 	priv->scan_mode = SCAN_TYPE_ACTIVE;
 
 	netdev->flags &= ~IFF_MULTICAST;	/* not yet or never */
-	netdev->open = at76_open;
-	netdev->stop = at76_stop;
-	netdev->get_stats = at76_get_stats;
+	netdev->netdev_ops = &at76_netdev_ops;
 	netdev->ethtool_ops = &at76_ethtool_ops;
 
 	/* Add pointers to enable iwspy support. */
 	priv->wireless_data.spy_data = &priv->spy_data;
 	netdev->wireless_data = &priv->wireless_data;
 
-	netdev->hard_start_xmit = at76_tx;
-	netdev->tx_timeout = at76_tx_timeout;
 	netdev->watchdog_timeo = 2 * HZ;
 	netdev->wireless_handlers = &at76_handler_def;
-	netdev->set_multicast_list = at76_set_multicast;
-	netdev->set_mac_address = at76_set_mac_address;
 	dev_alloc_name(netdev, "wlan%d");
 
 	ret = register_netdev(priv->netdev);

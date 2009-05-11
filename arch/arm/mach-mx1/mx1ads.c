@@ -28,9 +28,7 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/irqs.h>
-#ifdef CONFIG_I2C_IMX
 #include <mach/i2c.h>
-#endif
 #include <mach/iomux.h>
 #include "devices.h"
 
@@ -114,7 +112,6 @@ static struct platform_device flash_device = {
  * I2C
  */
 
-#ifdef CONFIG_I2C_IMX
 static int i2c_pins[] = {
 	PA15_PF_I2C_SDA,
 	PA16_PF_I2C_SCL,
@@ -157,7 +154,6 @@ static struct i2c_board_info mx1ads_i2c_devices[] = {
 		.platform_data = &pcf857x_data[1],
 	},
 };
-#endif
 
 /*
  * Board init
@@ -172,12 +168,10 @@ static void __init mx1ads_init(void)
 	mxc_register_device(&flash_device, &mx1ads_flash_data);
 
 	/* I2C */
-#ifdef CONFIG_I2C_IMX
 	i2c_register_board_info(0, mx1ads_i2c_devices,
 				ARRAY_SIZE(mx1ads_i2c_devices));
 
 	mxc_register_device(&imx_i2c_device, &mx1ads_i2c_data);
-#endif
 }
 
 static void __init mx1ads_timer_init(void)

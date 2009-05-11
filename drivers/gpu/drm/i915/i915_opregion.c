@@ -370,11 +370,8 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 	if (mboxes & MBOX_ACPI) {
 		DRM_DEBUG("Public ACPI methods supported\n");
 		opregion->acpi = base + OPREGION_ACPI_OFFSET;
-		if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		if (drm_core_check_feature(dev, DRIVER_MODESET))
 			intel_didl_outputs(dev);
-			if (!resume)
-				acpi_video_register();
-		}
 	} else {
 		DRM_DEBUG("Public ACPI methods not supported\n");
 		err = -ENOTSUPP;
@@ -389,7 +386,12 @@ int intel_opregion_init(struct drm_device *dev, int resume)
 	if (mboxes & MBOX_ASLE) {
 		DRM_DEBUG("ASLE supported\n");
 		opregion->asle = base + OPREGION_ASLE_OFFSET;
+		opregion_enable_asle(dev);
 	}
+
+	if (!resume)
+		acpi_video_register();
+
 
 	/* Notify BIOS we are ready to handle ACPI video ext notifs.
 	 * Right now, all the events are handled by the ACPI video module.
@@ -408,13 +410,16 @@ err_out:
 	return err;
 }
 
-void intel_opregion_free(struct drm_device *dev)
+void intel_opregion_free(struct drm_device *dev, int suspend)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
 
 	if (!opregion->enabled)
 		return;
+
+	if (!suspend)
+		acpi_video_exit();
 
 	opregion->acpi->drdy = 0;
 

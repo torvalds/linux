@@ -23,6 +23,7 @@
  *
  */
 
+#include <linux/init.h>
 #include <asm/setup.h>
 #include <asm/lowcore.h>
 #include <asm/asm-offsets.h>
@@ -35,7 +36,7 @@
 #define ARCH_OFFSET	0
 #endif
 
-.section ".text.head","ax"
+__HEAD
 #ifndef CONFIG_IPL
 	.org   0
 	.long  0x00080000,0x80000000+startup	# Just a restart PSW

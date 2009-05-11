@@ -45,10 +45,6 @@
 DEFINE_MUTEX(ps3_gpu_mutex);
 EXPORT_SYMBOL_GPL(ps3_gpu_mutex);
 
-#if !defined(CONFIG_SMP)
-static void smp_send_stop(void) {}
-#endif
-
 static union ps3_firmware_version ps3_firmware_version;
 
 void ps3_get_firmware_version(union ps3_firmware_version *v)

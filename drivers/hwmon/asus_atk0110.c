@@ -348,6 +348,7 @@ static int validate_hwmon_pack(struct atk_data *data, union acpi_object *obj)
 	return 0;
 }
 
+#ifdef DEBUG
 static char const *atk_sensor_type(union acpi_object *flags)
 {
 	u64 type = flags->integer.value & ATK_TYPE_MASK;
@@ -370,6 +371,7 @@ static char const *atk_sensor_type(union acpi_object *flags)
 
 	return what;
 }
+#endif
 
 static void atk_print_sensor(struct atk_data *data, union acpi_object *obj)
 {

@@ -1539,6 +1539,32 @@ void usb_hcd_disable_endpoint(struct usb_device *udev,
 		hcd->driver->endpoint_disable(hcd, ep);
 }
 
+/**
+ * usb_hcd_reset_endpoint - reset host endpoint state
+ * @udev: USB device.
+ * @ep:   the endpoint to reset.
+ *
+ * Resets any host endpoint state such as the toggle bit, sequence
+ * number and current window.
+ */
+void usb_hcd_reset_endpoint(struct usb_device *udev,
+			    struct usb_host_endpoint *ep)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+
+	if (hcd->driver->endpoint_reset)
+		hcd->driver->endpoint_reset(hcd, ep);
+	else {
+		int epnum = usb_endpoint_num(&ep->desc);
+		int is_out = usb_endpoint_dir_out(&ep->desc);
+		int is_control = usb_endpoint_xfer_control(&ep->desc);
+
+		usb_settoggle(udev, epnum, is_out, 0);
+		if (is_control)
+			usb_settoggle(udev, epnum, !is_out, 0);
+	}
+}
+
 /* Protect against drivers that try to unlink URBs after the device
  * is gone, by waiting until all unlinks for @udev are finished.
  * Since we don't currently track URBs by device, simply wait until

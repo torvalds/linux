@@ -19,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <plat/gpio-core.h>
+#include <mach/gpio-core.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 

@@ -3153,7 +3153,7 @@ static int selinux_file_send_sigiotask(struct task_struct *tsk,
 				       struct fown_struct *fown, int signum)
 {
 	struct file *file;
-	u32 sid = current_sid();
+	u32 sid = task_sid(tsk);
 	u32 perm;
 	struct file_security_struct *fsec;
 

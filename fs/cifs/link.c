@@ -119,16 +119,11 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	full_path = build_path_from_dentry(direntry);
 
 	if (!full_path)
-		goto out_no_free;
+		goto out;
 
 	cFYI(1, ("Full path: %s inode = 0x%p", full_path, inode));
 	cifs_sb = CIFS_SB(inode->i_sb);
 	pTcon = cifs_sb->tcon;
-	target_path = kmalloc(PATH_MAX, GFP_KERNEL);
-	if (!target_path) {
-		target_path = ERR_PTR(-ENOMEM);
-		goto out;
-	}
 
 	/* We could change this to:
 		if (pTcon->unix_ext)
@@ -138,8 +133,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 
 	if (pTcon->ses->capabilities & CAP_UNIX)
 		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
-					     target_path,
-					     PATH_MAX-1,
+					     &target_path,
 					     cifs_sb->local_nls);
 	else {
 		/* BB add read reparse point symlink code here */
@@ -148,22 +142,16 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 		/* BB Add MAC style xsymlink check here if enabled */
 	}
 
-	if (rc == 0) {
-
-/* BB Add special case check for Samba DFS symlinks */
-
-		target_path[PATH_MAX-1] = 0;
-	} else {
+	if (rc != 0) {
 		kfree(target_path);
 		target_path = ERR_PTR(rc);
 	}
 
-out:
 	kfree(full_path);
-out_no_free:
+out:
 	FreeXid(xid);
 	nd_set_link(nd, target_path);
-	return NULL;	/* No cookie */
+	return NULL;
 }
 
 int
@@ -219,98 +207,6 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 		}
 	}
 
-	kfree(full_path);
-	FreeXid(xid);
-	return rc;
-}
-
-int
-cifs_readlink(struct dentry *direntry, char __user *pBuffer, int buflen)
-{
-	struct inode *inode = direntry->d_inode;
-	int rc = -EACCES;
-	int xid;
-	int oplock = 0;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
-	char *full_path = NULL;
-	char *tmpbuffer;
-	int len;
-	__u16 fid;
-
-	xid = GetXid();
-	cifs_sb = CIFS_SB(inode->i_sb);
-	pTcon = cifs_sb->tcon;
-
-/* BB would it be safe against deadlock to grab this sem
-      even though rename itself grabs the sem and calls lookup? */
-/*       mutex_lock(&inode->i_sb->s_vfs_rename_mutex);*/
-	full_path = build_path_from_dentry(direntry);
-/*       mutex_unlock(&inode->i_sb->s_vfs_rename_mutex);*/
-
-	if (full_path == NULL) {
-		FreeXid(xid);
-		return -ENOMEM;
-	}
-
-	cFYI(1,
-	     ("Full path: %s inode = 0x%p pBuffer = 0x%p buflen = %d",
-	      full_path, inode, pBuffer, buflen));
-	if (buflen > PATH_MAX)
-		len = PATH_MAX;
-	else
-		len = buflen;
-	tmpbuffer = kmalloc(len, GFP_KERNEL);
-	if (tmpbuffer == NULL) {
-		kfree(full_path);
-		FreeXid(xid);
-		return -ENOMEM;
-	}
-
-/* BB add read reparse point symlink code and
-	Unix extensions symlink code here BB */
-/* We could disable this based on pTcon->unix_ext flag instead ... but why? */
-	if (cifs_sb->tcon->ses->capabilities & CAP_UNIX)
-		rc = CIFSSMBUnixQuerySymLink(xid, pTcon, full_path,
-				tmpbuffer,
-				len - 1,
-				cifs_sb->local_nls);
-	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
-		cERROR(1, ("SFU style symlinks not implemented yet"));
-		/* add open and read as in fs/cifs/inode.c */
-	} else {
-		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, GENERIC_READ,
-				OPEN_REPARSE_POINT, &fid, &oplock, NULL,
-				cifs_sb->local_nls,
-				cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (!rc) {
-			rc = CIFSSMBQueryReparseLinkInfo(xid, pTcon, full_path,
-				tmpbuffer,
-				len - 1,
-				fid,
-				cifs_sb->local_nls);
-			if (CIFSSMBClose(xid, pTcon, fid)) {
-				cFYI(1, ("Error closing junction point "
-					 "(open for ioctl)"));
-			}
-			/* If it is a DFS junction earlier we would have gotten
-			   PATH_NOT_COVERED returned from server so we do
-			   not need to request the DFS info here */
-		}
-	}
-	/* BB Anything else to do to handle recursive links? */
-	/* BB Should we be using page ops here? */
-
-	/* BB null terminate returned string in pBuffer? BB */
-	if (rc == 0) {
-		rc = vfs_readlink(direntry, pBuffer, len, tmpbuffer);
-		cFYI(1,
-		     ("vfs_readlink called from cifs_readlink returned %d",
-		      rc));
-	}
-
-	kfree(tmpbuffer);
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;

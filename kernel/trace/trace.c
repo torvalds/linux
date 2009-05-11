@@ -3448,6 +3448,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		if (!ref)
 			break;
 
+		ref->ref = 1;
 		ref->buffer = info->tr->buffer;
 		ref->page = ring_buffer_alloc_read_page(ref->buffer);
 		if (!ref->page) {

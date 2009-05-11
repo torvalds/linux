@@ -1854,6 +1854,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 	},
 	{
 		.subvendor = 0x1028,
+		.subdevice = 0x016a,
+		.name = "Dell Inspiron 8600",	/* STAC9750/51 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1028,
 		.subdevice = 0x0186,
 		.name = "Dell Latitude D810", /* cf. Malone #41015 */
 		.type = AC97_TUNE_HP_MUTE_LED
@@ -1892,12 +1898,6 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x103c,
 		.subdevice = 0x0890,
 		.name = "HP nc6000",
-		.type = AC97_TUNE_MUTE_LED
-	},
-	{
-		.subvendor = 0x103c,
-		.subdevice = 0x0934,
-		.name = "HP nx8220",
 		.type = AC97_TUNE_MUTE_LED
 	},
 	{
@@ -2751,11 +2751,12 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	if (pos == 0) {
 		snd_printk(KERN_ERR "intel8x0: measure - unreliable DMA position..\n");
 	      __retry:
-		if (attempt < 2) {
+		if (attempt < 3) {
+			msleep(300);
 			attempt++;
 			goto __again;
 		}
-		return;
+		goto __end;
 	}
 
 	pos /= 4;
@@ -2782,6 +2783,7 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	else if (pos < 47500 || pos > 48500)
 		/* not 48000Hz, tuning the clock.. */
 		chip->ac97_bus->clock = (chip->ac97_bus->clock * 48000) / pos;
+      __end:
 	printk(KERN_INFO "intel8x0: clocking to %d\n", chip->ac97_bus->clock);
 	snd_ac97_update_power(chip->ac97[0], AC97_PCM_FRONT_DAC_RATE, 0);
 }

@@ -273,15 +273,15 @@ static void lguest_load_idt(const struct desc_ptr *desc)
  * controls the entire thing and the Guest asks it to make changes using the
  * LOAD_GDT hypercall.
  *
- * This is the opposite of the IDT code where we have a LOAD_IDT_ENTRY
- * hypercall and use that repeatedly to load a new IDT.  I don't think it
- * really matters, but wouldn't it be nice if they were the same?  Wouldn't
- * it be even better if you were the one to send the patch to fix it?
+ * This is the exactly like the IDT code.
  */
 static void lguest_load_gdt(const struct desc_ptr *desc)
 {
-	BUG_ON((desc->size + 1) / 8 != GDT_ENTRIES);
-	kvm_hypercall2(LHCALL_LOAD_GDT, __pa(desc->address), GDT_ENTRIES);
+	unsigned int i;
+	struct desc_struct *gdt = (void *)desc->address;
+
+	for (i = 0; i < (desc->size+1)/8; i++)
+		kvm_hypercall3(LHCALL_LOAD_GDT_ENTRY, i, gdt[i].a, gdt[i].b);
 }
 
 /* For a single GDT entry which changes, we do the lazy thing: alter our GDT,
@@ -291,7 +291,9 @@ static void lguest_write_gdt_entry(struct desc_struct *dt, int entrynum,
 				   const void *desc, int type)
 {
 	native_write_gdt_entry(dt, entrynum, desc, type);
-	kvm_hypercall2(LHCALL_LOAD_GDT, __pa(dt), GDT_ENTRIES);
+	/* Tell Host about this new entry. */
+	kvm_hypercall3(LHCALL_LOAD_GDT_ENTRY, entrynum,
+		       dt[entrynum].a, dt[entrynum].b);
 }
 
 /* OK, I lied.  There are three "thread local storage" GDT entries which change
@@ -661,7 +663,7 @@ static unsigned long lguest_tsc_khz(void)
 
 /* If we can't use the TSC, the kernel falls back to our lower-priority
  * "lguest_clock", where we read the time value given to us by the Host. */
-static cycle_t lguest_clock_read(void)
+static cycle_t lguest_clock_read(struct clocksource *cs)
 {
 	unsigned long sec, nsec;
 

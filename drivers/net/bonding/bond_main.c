@@ -2213,33 +2213,24 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
-	int i, found = 0;
-
-	if (info->slave_id < 0) {
-		return -ENODEV;
-	}
+	int i, res = -ENODEV;
 
 	read_lock(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
 		if (i == (int)info->slave_id) {
-			found = 1;
+			res = 0;
+			strcpy(info->slave_name, slave->dev->name);
+			info->link = slave->link;
+			info->state = slave->state;
+			info->link_failure_count = slave->link_failure_count;
 			break;
 		}
 	}
 
 	read_unlock(&bond->lock);
 
-	if (found) {
-		strcpy(info->slave_name, slave->dev->name);
-		info->link = slave->link;
-		info->state = slave->state;
-		info->link_failure_count = slave->link_failure_count;
-	} else {
-		return -ENODEV;
-	}
-
-	return 0;
+	return res;
 }
 
 /*-------------------------------- Monitoring -------------------------------*/
@@ -5167,16 +5158,15 @@ int bond_create(char *name, struct bond_params *params)
 	up_write(&bonding_rwsem);
 	rtnl_unlock(); /* allows sysfs registration of net device */
 	res = bond_create_sysfs_entry(netdev_priv(bond_dev));
-	if (res < 0) {
-		rtnl_lock();
-		down_write(&bonding_rwsem);
-		bond_deinit(bond_dev);
-		unregister_netdevice(bond_dev);
-		goto out_rtnl;
-	}
+	if (res < 0)
+		goto out_unreg;
 
 	return 0;
 
+out_unreg:
+	rtnl_lock();
+	down_write(&bonding_rwsem);
+	unregister_netdevice(bond_dev);
 out_bond:
 	bond_deinit(bond_dev);
 out_netdev:

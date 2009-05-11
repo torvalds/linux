@@ -249,6 +249,12 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 			new_hw_ptr = hw_base + pos;
 		}
 	}
+	/* Skip the jiffies check for hardwares with BATCH flag.
+	 * Such hardware usually just increases the position at each IRQ,
+	 * thus it can't give any strange position.
+	 */
+	if (runtime->hw.info & SNDRV_PCM_INFO_BATCH)
+		goto no_jiffies_check;
 	hdelta = new_hw_ptr - old_hw_ptr;
 	jdelta = jiffies - runtime->hw_ptr_jiffies;
 	if (((hdelta * HZ) / runtime->rate) > jdelta + HZ/100) {
@@ -272,6 +278,7 @@ static int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *substream)
 		hw_base -= hw_base % runtime->buffer_size;
 		delta = 0;
 	}
+ no_jiffies_check:
 	if (delta > runtime->period_size + runtime->period_size / 2) {
 		hw_ptr_error(substream,
 			     "Lost interrupts? "

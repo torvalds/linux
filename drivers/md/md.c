@@ -2017,6 +2017,8 @@ repeat:
 	clear_bit(MD_CHANGE_PENDING, &mddev->flags);
 	spin_unlock_irq(&mddev->write_lock);
 	wake_up(&mddev->sb_wait);
+	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 
 }
 
@@ -2086,6 +2088,7 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	 *  -writemostly - clears write_mostly
 	 *  blocked - sets the Blocked flag
 	 *  -blocked - clears the Blocked flag
+	 *  insync - sets Insync providing device isn't active
 	 */
 	int err = -EINVAL;
 	if (cmd_match(buf, "faulty") && rdev->mddev->pers) {
@@ -2117,6 +2120,9 @@ state_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 		set_bit(MD_RECOVERY_NEEDED, &rdev->mddev->recovery);
 		md_wakeup_thread(rdev->mddev->thread);
 
+		err = 0;
+	} else if (cmd_match(buf, "insync") && rdev->raid_disk == -1) {
+		set_bit(In_sync, &rdev->flags);
 		err = 0;
 	}
 	if (!err && rdev->sysfs_state)
@@ -2190,7 +2196,7 @@ slot_store(mdk_rdev_t *rdev, const char *buf, size_t len)
 	} else if (rdev->mddev->pers) {
 		mdk_rdev_t *rdev2;
 		/* Activating a spare .. or possibly reactivating
-		 * if we every get bitmaps working here.
+		 * if we ever get bitmaps working here.
 		 */
 
 		if (rdev->raid_disk != -1)
@@ -3060,11 +3066,8 @@ array_state_store(mddev_t *mddev, const char *buf, size_t len)
 			} else
 				err = -EBUSY;
 			spin_unlock_irq(&mddev->write_lock);
-		} else {
-			mddev->ro = 0;
-			mddev->recovery_cp = MaxSector;
-			err = do_md_run(mddev);
-		}
+		} else
+			err = -EINVAL;
 		break;
 	case active:
 		if (mddev->pers) {
@@ -3482,12 +3485,15 @@ sync_completed_show(mddev_t *mddev, char *page)
 {
 	unsigned long max_sectors, resync;
 
+	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
+		return sprintf(page, "none\n");
+
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
 		max_sectors = mddev->resync_max_sectors;
 	else
 		max_sectors = mddev->dev_sectors;
 
-	resync = (mddev->curr_resync - atomic_read(&mddev->recovery_active));
+	resync = mddev->curr_resync_completed;
 	return sprintf(page, "%lu / %lu\n", resync, max_sectors);
 }
 
@@ -4288,6 +4294,7 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 {
 	int err = 0;
 	struct gendisk *disk = mddev->gendisk;
+	mdk_rdev_t *rdev;
 
 	if (atomic_read(&mddev->openers) > is_open) {
 		printk("md: %s still in use.\n",mdname(mddev));
@@ -4330,6 +4337,13 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			/* tell userspace to handle 'inactive' */
 			sysfs_notify_dirent(mddev->sysfs_state);
 
+			list_for_each_entry(rdev, &mddev->disks, same_set)
+				if (rdev->raid_disk >= 0) {
+					char nm[20];
+					sprintf(nm, "rd%d", rdev->raid_disk);
+					sysfs_remove_link(&mddev->kobj, nm);
+				}
+
 			set_capacity(disk, 0);
 			mddev->changed = 1;
 
@@ -4350,7 +4364,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 	 * Free resources if final stop
 	 */
 	if (mode == 0) {
-		mdk_rdev_t *rdev;
 
 		printk(KERN_INFO "md: %s stopped.\n", mdname(mddev));
 
@@ -4361,13 +4374,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 			mddev->bitmap_file = NULL;
 		}
 		mddev->bitmap_offset = 0;
-
-		list_for_each_entry(rdev, &mddev->disks, same_set)
-			if (rdev->raid_disk >= 0) {
-				char nm[20];
-				sprintf(nm, "rd%d", rdev->raid_disk);
-				sysfs_remove_link(&mddev->kobj, nm);
-			}
 
 		/* make sure all md_delayed_delete calls have finished */
 		flush_scheduled_work();
@@ -5696,37 +5702,38 @@ static void status_unused(struct seq_file *seq)
 
 static void status_resync(struct seq_file *seq, mddev_t * mddev)
 {
-	sector_t max_blocks, resync, res;
-	unsigned long dt, db, rt;
+	sector_t max_sectors, resync, res;
+	unsigned long dt, db;
+	sector_t rt;
 	int scale;
 	unsigned int per_milli;
 
-	resync = (mddev->curr_resync - atomic_read(&mddev->recovery_active))/2;
+	resync = mddev->curr_resync - atomic_read(&mddev->recovery_active);
 
 	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
-		max_blocks = mddev->resync_max_sectors >> 1;
+		max_sectors = mddev->resync_max_sectors;
 	else
-		max_blocks = mddev->dev_sectors / 2;
+		max_sectors = mddev->dev_sectors;
 
 	/*
 	 * Should not happen.
 	 */
-	if (!max_blocks) {
+	if (!max_sectors) {
 		MD_BUG();
 		return;
 	}
 	/* Pick 'scale' such that (resync>>scale)*1000 will fit
-	 * in a sector_t, and (max_blocks>>scale) will fit in a
+	 * in a sector_t, and (max_sectors>>scale) will fit in a
 	 * u32, as those are the requirements for sector_div.
 	 * Thus 'scale' must be at least 10
 	 */
 	scale = 10;
 	if (sizeof(sector_t) > sizeof(unsigned long)) {
-		while ( max_blocks/2 > (1ULL<<(scale+32)))
+		while ( max_sectors/2 > (1ULL<<(scale+32)))
 			scale++;
 	}
 	res = (resync>>scale)*1000;
-	sector_div(res, (u32)((max_blocks>>scale)+1));
+	sector_div(res, (u32)((max_sectors>>scale)+1));
 
 	per_milli = res;
 	{
@@ -5747,25 +5754,35 @@ static void status_resync(struct seq_file *seq, mddev_t * mddev)
 		     (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) ?
 		      "resync" : "recovery"))),
 		   per_milli/10, per_milli % 10,
-		   (unsigned long long) resync,
-		   (unsigned long long) max_blocks);
+		   (unsigned long long) resync/2,
+		   (unsigned long long) max_sectors/2);
 
 	/*
-	 * We do not want to overflow, so the order of operands and
-	 * the * 100 / 100 trick are important. We do a +1 to be
-	 * safe against division by zero. We only estimate anyway.
-	 *
 	 * dt: time from mark until now
 	 * db: blocks written from mark until now
 	 * rt: remaining time
+	 *
+	 * rt is a sector_t, so could be 32bit or 64bit.
+	 * So we divide before multiply in case it is 32bit and close
+	 * to the limit.
+	 * We scale the divisor (db) by 32 to avoid loosing precision
+	 * near the end of resync when the number of remaining sectors
+	 * is close to 'db'.
+	 * We then divide rt by 32 after multiplying by db to compensate.
+	 * The '+1' avoids division by zero if db is very small.
 	 */
 	dt = ((jiffies - mddev->resync_mark) / HZ);
 	if (!dt) dt++;
 	db = (mddev->curr_mark_cnt - atomic_read(&mddev->recovery_active))
 		- mddev->resync_mark_cnt;
-	rt = (dt * ((unsigned long)(max_blocks-resync) / (db/2/100+1)))/100;
 
-	seq_printf(seq, " finish=%lu.%lumin", rt / 60, (rt % 60)/6);
+	rt = max_sectors - resync;    /* number of remaining sectors */
+	sector_div(rt, db/32+1);
+	rt *= dt;
+	rt >>= 5;
+
+	seq_printf(seq, " finish=%lu.%lumin", (unsigned long)rt / 60,
+		   ((unsigned long)rt % 60)/6);
 
 	seq_printf(seq, " speed=%ldK/sec", db/2/dt);
 }
@@ -5956,7 +5973,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static struct seq_operations md_seq_ops = {
+static const struct seq_operations md_seq_ops = {
 	.start  = md_seq_start,
 	.next   = md_seq_next,
 	.stop   = md_seq_stop,
@@ -6334,18 +6351,13 @@ void md_do_sync(mddev_t *mddev)
 		sector_t sectors;
 
 		skipped = 0;
-		if (j >= mddev->resync_max) {
-			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
-			wait_event(mddev->recovery_wait,
-				   mddev->resync_max > j
-				   || kthread_should_stop());
-		}
-		if (kthread_should_stop())
-			goto interrupted;
 
-		if (mddev->curr_resync > mddev->curr_resync_completed &&
-		    (mddev->curr_resync - mddev->curr_resync_completed)
-		    > (max_sectors >> 4)) {
+		if ((mddev->curr_resync > mddev->curr_resync_completed &&
+		     (mddev->curr_resync - mddev->curr_resync_completed)
+		    > (max_sectors >> 4)) ||
+		    (j - mddev->curr_resync_completed)*2
+		    >= mddev->resync_max - mddev->curr_resync_completed
+			) {
 			/* time to update curr_resync_completed */
 			blk_unplug(mddev->queue);
 			wait_event(mddev->recovery_wait,
@@ -6353,7 +6365,17 @@ void md_do_sync(mddev_t *mddev)
 			mddev->curr_resync_completed =
 				mddev->curr_resync;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
+
+		if (j >= mddev->resync_max)
+			wait_event(mddev->recovery_wait,
+				   mddev->resync_max > j
+				   || kthread_should_stop());
+
+		if (kthread_should_stop())
+			goto interrupted;
+
 		sectors = mddev->pers->sync_request(mddev, j, &skipped,
 						  currspeed < speed_min(mddev));
 		if (sectors == 0) {
@@ -6461,6 +6483,7 @@ void md_do_sync(mddev_t *mddev)
 
  skip:
 	mddev->curr_resync = 0;
+	mddev->curr_resync_completed = 0;
 	mddev->resync_min = 0;
 	mddev->resync_max = MaxSector;
 	sysfs_notify(&mddev->kobj, NULL, "sync_completed");

@@ -550,11 +550,8 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 			msleep(1);
 		}
 		if (int_cnt > 1) {
-			u32 sds;
 			spin_lock_irqsave(&nesadapter->phy_lock, flags);
-			sds = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1);
-			sds |= 0x00000040;
-			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1, sds);
+			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1, 0x0000F0C8);
 			mh_detected++;
 			reset_value = nes_read32(nesdev->regs+NES_SOFTWARE_RESET);
 			reset_value |= 0x0000003d;
@@ -579,7 +576,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 					if (++ext_cnt > int_cnt) {
 						spin_lock_irqsave(&nesadapter->phy_lock, flags);
 						nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1,
-								0x0000F0C8);
+								0x0000F088);
 						mh_detected++;
 						reset_value = nes_read32(nesdev->regs+NES_SOFTWARE_RESET);
 						reset_value |= 0x0000003d;
@@ -764,6 +761,9 @@ static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
 			return 0;
 
 		/* init serdes 1 */
+		if (!(OneG_Mode && (nesadapter->phy_type[1] != NES_PHY_TYPE_PUMA_1G)))
+			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL1, 0x000000FF);
+
 		switch (nesadapter->phy_type[1]) {
 		case NES_PHY_TYPE_ARGUS:
 		case NES_PHY_TYPE_SFP_D:
@@ -771,21 +771,20 @@ static int nes_init_serdes(struct nes_device *nesdev, u8 hw_rev, u8 port_count,
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_EMP1, 0x00000000);
 			break;
 		case NES_PHY_TYPE_CX4:
-			sds = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1);
-			sds &= 0xFFFFFFBF;
-			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1, sds);
 			if (wide_ppm_offset)
 				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL1, 0x000FFFAA);
-			else
-				nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_CDR_CONTROL1, 0x000000FF);
 			break;
 		case NES_PHY_TYPE_PUMA_1G:
 			sds = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1);
 			sds |= 0x000000100;
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1, sds);
 		}
-		if (!OneG_Mode)
+		if (!OneG_Mode) {
 			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_TX_HIGHZ_LANE_MODE1, 0x11110000);
+			sds = nes_read_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1);
+			sds &= 0xFFFFFFBF;
+			nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL1, sds);
+		}
 	} else {
 		/* init serdes 0 */
 		nes_write_indexed(nesdev, NES_IDX_ETH_SERDES_COMMON_CONTROL0, 0x00000008);
@@ -913,6 +912,12 @@ static void nes_init_csr_ne020(struct nes_device *nesdev, u8 hw_rev, u8 port_cou
 		u32temp &= 0x7fffffff;
 		u32temp |= 0x7fff0010;
 		nes_write_indexed(nesdev, 0x000021f8, u32temp);
+		if (port_count > 1) {
+			u32temp = nes_read_indexed(nesdev, 0x000023f8);
+			u32temp &= 0x7fffffff;
+			u32temp |= 0x7fff0010;
+			nes_write_indexed(nesdev, 0x000023f8, u32temp);
+		}
 	}
 }
 
@@ -1366,13 +1371,14 @@ int nes_init_phy(struct nes_device *nesdev)
 		if (phy_type == NES_PHY_TYPE_ARGUS) {
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x000C);
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0008);
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0001);
 		} else {
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc302, 0x0004);
 			nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc319, 0x0038);
+			nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0013);
 		}
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xc31a, 0x0098);
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0026, 0x0E00);
-		nes_write_10G_phy_reg(nesdev, phy_index, 0x3, 0x0027, 0x0001);
 
 		/* setup LEDs */
 		nes_write_10G_phy_reg(nesdev, phy_index, 0x1, 0xd006, 0x0007);

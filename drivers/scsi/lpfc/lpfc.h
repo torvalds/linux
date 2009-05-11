@@ -443,6 +443,7 @@ struct lpfc_hba {
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
 
+#define DEFER_ERATT		0x4 /* Deferred error attention in progress */
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
@@ -723,4 +724,3 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 
 	return;
 }
-

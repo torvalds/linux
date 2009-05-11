@@ -614,7 +614,6 @@ static void wakeup_pipe_writers(struct pipe_inode_info *pipe)
  * @actor:	handler that splices the data
  *
  * Description:
-
  *    This function loops over the pipe and calls @actor to do the
  *    actual moving of a single struct pipe_buffer to the desired
  *    destination.  It returns when there's no more buffers left in
@@ -711,7 +710,7 @@ EXPORT_SYMBOL(splice_from_pipe_next);
 
 /**
  * splice_from_pipe_begin - start splicing from pipe
- * @pipe:	pipe to splice from
+ * @sd:		information about the splice operation
  *
  * Description:
  *    This function should be called before a loop containing

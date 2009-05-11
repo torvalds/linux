@@ -166,7 +166,7 @@ static void bfin_serial_start_tx(struct uart_port *port)
 	struct tty_struct *tty = uart->port.info->port.tty;
 
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	if (uart->scts && (!bfin_serial_get_mctrl(&uart->port)&TIOCM_CTS)) {
+	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port) & TIOCM_CTS)) {
 		uart->scts = 0;
 		uart_handle_cts_change(&uart->port, uart->scts);
 	}
@@ -368,7 +368,7 @@ static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 	struct bfin_serial_port *uart = dev_id;
 
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	if (uart->scts && (!bfin_serial_get_mctrl(&uart->port)&TIOCM_CTS)) {
+	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port) & TIOCM_CTS)) {
 		uart->scts = 0;
 		uart_handle_cts_change(&uart->port, uart->scts);
 	}
@@ -504,7 +504,7 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 	struct circ_buf *xmit = &uart->port.info->xmit;
 
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	if (uart->scts && (!bfin_serial_get_mctrl(&uart->port)&TIOCM_CTS)) {
+	if (uart->scts && !(bfin_serial_get_mctrl(&uart->port)&TIOCM_CTS)) {
 		uart->scts = 0;
 		uart_handle_cts_change(&uart->port, uart->scts);
 	}
