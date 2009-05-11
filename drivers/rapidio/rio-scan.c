@@ -263,15 +263,21 @@ static void rio_route_set_ops(struct rio_dev *rdev)
  * device to the RIO device list.  Creates the generic sysfs nodes
  * for an RIO device.
  */
-static void __devinit rio_add_device(struct rio_dev *rdev)
+static int __devinit rio_add_device(struct rio_dev *rdev)
 {
-	device_add(&rdev->dev);
+	int err;
+
+	err = device_add(&rdev->dev);
+	if (err)
+		return err;
 
 	spin_lock(&rio_global_list_lock);
 	list_add_tail(&rdev->global_list, &rio_devices);
 	spin_unlock(&rio_global_list_lock);
 
 	rio_create_sysfs_dev_files(rdev);
+
+	return 0;
 }
 
 /**
@@ -294,13 +300,14 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 					struct rio_mport *port, u16 destid,
 					u8 hopcount, int do_enum)
 {
+	int ret = 0;
 	struct rio_dev *rdev;
-	struct rio_switch *rswitch;
+	struct rio_switch *rswitch = NULL;
 	int result, rdid;
 
 	rdev = kzalloc(sizeof(struct rio_dev), GFP_KERNEL);
 	if (!rdev)
-		goto out;
+		return NULL;
 
 	rdev->net = net;
 	rio_mport_read_config_32(port, destid, hopcount, RIO_DEV_ID_CAR,
@@ -343,23 +350,16 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 		rio_mport_read_config_32(port, destid, hopcount,
 					 RIO_SWP_INFO_CAR, &rdev->swpinfo);
 		rswitch = kmalloc(sizeof(struct rio_switch), GFP_KERNEL);
-		if (!rswitch) {
-			kfree(rdev);
-			rdev = NULL;
-			goto out;
-		}
+		if (!rswitch)
+			goto cleanup;
 		rswitch->switchid = next_switchid;
 		rswitch->hopcount = hopcount;
 		rswitch->destid = destid;
 		rswitch->route_table = kzalloc(sizeof(u8)*
 					RIO_MAX_ROUTE_ENTRIES(port->sys_size),
 					GFP_KERNEL);
-		if (!rswitch->route_table) {
-			kfree(rdev);
-			rdev = NULL;
-			kfree(rswitch);
-			goto out;
-		}
+		if (!rswitch->route_table)
+			goto cleanup;
 		/* Initialize switch route table */
 		for (rdid = 0; rdid < RIO_MAX_ROUTE_ENTRIES(port->sys_size);
 				rdid++)
@@ -390,10 +390,19 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 		rio_init_dbell_res(&rdev->riores[RIO_DOORBELL_RESOURCE],
 				   0, 0xffff);
 
-	rio_add_device(rdev);
+	ret = rio_add_device(rdev);
+	if (ret)
+		goto cleanup;
 
-      out:
 	return rdev;
+
+cleanup:
+	if (rswitch) {
+		kfree(rswitch->route_table);
+		kfree(rswitch);
+	}
+	kfree(rdev);
+	return NULL;
 }
 
 /**
