@@ -36,6 +36,7 @@ ALC260
   acer		Acer TravelMate
   will		Will laptops (PB V7900)
   replacer	Replacer 672V
+  favorit100	Maxdata Favorit 100XS
   basic		fixed pin assignment (old default model)
   test		for testing/debugging purpose, almost all controls can
 		adjusted.  Appearing only when compiled with
@@ -85,10 +86,11 @@ ALC269
   eeepc-p703	ASUS Eeepc P703 P900A
   eeepc-p901	ASUS Eeepc P901 S101
   fujitsu	FSC Amilo
+  lifebook	Fujitsu Lifebook S6420
   auto		auto-config reading BIOS (default)
 
-ALC662/663
-==========
+ALC662/663/272
+==============
   3stack-dig	3-stack (2-channel) with SPDIF
   3stack-6ch	 3-stack (6-channel)
   3stack-6ch-dig 3-stack (6-channel) with SPDIF
@@ -107,6 +109,8 @@ ALC662/663
   asus-mode4	ASUS
   asus-mode5	ASUS
   asus-mode6	ASUS
+  dell		Dell with ALC272
+  dell-zm1	Dell ZM1 with ALC272
   auto		auto-config reading BIOS (default)
 
 ALC882/885
@@ -118,6 +122,7 @@ ALC882/885
   asus-a7j	ASUS A7J
   asus-a7m	ASUS A7M
   macpro	MacPro support
+  mb5		Macbook 5,1
   mbp3		Macbook Pro rev3
   imac24	iMac 24'' with jack detection
   w2jc		ASUS W2JC
@@ -150,6 +155,7 @@ ALC883/888
   fujitsu-pi2515 Fujitsu AMILO Pi2515
   fujitsu-xa3530 Fujitsu AMILO XA3530
   3stack-6ch-intel Intel DG33* boards
+  asus-p5q	ASUS P5Q-EM boards
   auto		auto-config reading BIOS (default)
 
 ALC861/660

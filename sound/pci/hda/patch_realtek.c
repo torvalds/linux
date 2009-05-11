@@ -16184,6 +16184,8 @@ static const char *alc662_models[ALC662_MODEL_LAST] = {
 	[ALC663_ASUS_MODE4] = "asus-mode4",
 	[ALC663_ASUS_MODE5] = "asus-mode5",
 	[ALC663_ASUS_MODE6] = "asus-mode6",
+	[ALC272_DELL]		= "dell",
+	[ALC272_DELL_ZM1]	= "dell-zm1",
 	[ALC662_AUTO]		= "auto",
 };
 
