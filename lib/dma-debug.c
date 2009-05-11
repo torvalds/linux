@@ -400,60 +400,9 @@ out_err:
 	return -ENOMEM;
 }
 
-static int device_dma_allocations(struct device *dev)
-{
-	struct dma_debug_entry *entry;
-	unsigned long flags;
-	int count = 0, i;
-
-	for (i = 0; i < HASH_SIZE; ++i) {
-		spin_lock_irqsave(&dma_entry_hash[i].lock, flags);
-		list_for_each_entry(entry, &dma_entry_hash[i].list, list) {
-			if (entry->dev == dev)
-				count += 1;
-		}
-		spin_unlock_irqrestore(&dma_entry_hash[i].lock, flags);
-	}
-
-	return count;
-}
-
-static int dma_debug_device_change(struct notifier_block *nb,
-				    unsigned long action, void *data)
-{
-	struct device *dev = data;
-	int count;
-
-
-	switch (action) {
-	case BUS_NOTIFY_UNBIND_DRIVER:
-		count = device_dma_allocations(dev);
-		if (count == 0)
-			break;
-		err_printk(dev, NULL, "DMA-API: device driver has pending "
-				"DMA allocations while released from device "
-				"[count=%d]\n", count);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 void dma_debug_add_bus(struct bus_type *bus)
 {
-	struct notifier_block *nb;
-
-	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
-	if (nb == NULL) {
-		printk(KERN_ERR "dma_debug_add_bus: out of memory\n");
-		return;
-	}
-
-	nb->notifier_call = dma_debug_device_change;
-
-	bus_register_notifier(bus, nb);
+	/* FIXME: register notifier */
 }
 
 /*

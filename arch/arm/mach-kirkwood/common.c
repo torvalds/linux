@@ -23,6 +23,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
+#include <mach/bridge-regs.h>
 #include <plat/cache-feroceon-l2.h>
 #include <plat/ehci-orion.h>
 #include <plat/mvsdio.h>

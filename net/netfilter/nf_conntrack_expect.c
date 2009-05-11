@@ -372,7 +372,7 @@ static inline int __nf_ct_expect_check(struct nf_conntrack_expect *expect)
 	struct net *net = nf_ct_exp_net(expect);
 	struct hlist_node *n;
 	unsigned int h;
-	int ret = 0;
+	int ret = 1;
 
 	if (!master_help->helper) {
 		ret = -ESHUTDOWN;
@@ -412,27 +412,6 @@ out:
 	return ret;
 }
 
-int nf_ct_expect_related(struct nf_conntrack_expect *expect)
-{
-	int ret;
-
-	spin_lock_bh(&nf_conntrack_lock);
-	ret = __nf_ct_expect_check(expect);
-	if (ret < 0)
-		goto out;
-
-	nf_ct_expect_insert(expect);
-	atomic_inc(&expect->use);
-	spin_unlock_bh(&nf_conntrack_lock);
-	nf_ct_expect_event(IPEXP_NEW, expect);
-	nf_ct_expect_put(expect);
-	return ret;
-out:
-	spin_unlock_bh(&nf_conntrack_lock);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_ct_expect_related);
-
 int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
 				u32 pid, int report)
 {
@@ -440,13 +419,16 @@ int nf_ct_expect_related_report(struct nf_conntrack_expect *expect,
 
 	spin_lock_bh(&nf_conntrack_lock);
 	ret = __nf_ct_expect_check(expect);
-	if (ret < 0)
+	if (ret <= 0)
 		goto out;
+
+	ret = 0;
 	nf_ct_expect_insert(expect);
+	spin_unlock_bh(&nf_conntrack_lock);
+	nf_ct_expect_event_report(IPEXP_NEW, expect, pid, report);
+	return ret;
 out:
 	spin_unlock_bh(&nf_conntrack_lock);
-	if (ret == 0)
-		nf_ct_expect_event_report(IPEXP_NEW, expect, pid, report);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_related_report);

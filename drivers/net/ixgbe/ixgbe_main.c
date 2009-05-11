@@ -2723,17 +2723,21 @@ static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
  **/
 static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 {
-	/* Start with base case */
-	adapter->num_rx_queues = 1;
-	adapter->num_tx_queues = 1;
-
 #ifdef CONFIG_IXGBE_DCB
 	if (ixgbe_set_dcb_queues(adapter))
-		return;
+		goto done;
 
 #endif
 	if (ixgbe_set_rss_queues(adapter))
-		return;
+		goto done;
+
+	/* fallback to base case */
+	adapter->num_rx_queues = 1;
+	adapter->num_tx_queues = 1;
+
+done:
+	/* Notify the stack of the (possibly) reduced Tx Queue count. */
+	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
 }
 
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
@@ -2837,11 +2841,55 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 			}
 			ret = true;
 		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
-			for (i = 0; i < dcb_i; i++) {
-				adapter->rx_ring[i].reg_idx = i << 4;
-				adapter->tx_ring[i].reg_idx = i << 4;
+			if (dcb_i == 8) {
+				/*
+				 * Tx TC0 starts at: descriptor queue 0
+				 * Tx TC1 starts at: descriptor queue 32
+				 * Tx TC2 starts at: descriptor queue 64
+				 * Tx TC3 starts at: descriptor queue 80
+				 * Tx TC4 starts at: descriptor queue 96
+				 * Tx TC5 starts at: descriptor queue 104
+				 * Tx TC6 starts at: descriptor queue 112
+				 * Tx TC7 starts at: descriptor queue 120
+				 *
+				 * Rx TC0-TC7 are offset by 16 queues each
+				 */
+				for (i = 0; i < 3; i++) {
+					adapter->tx_ring[i].reg_idx = i << 5;
+					adapter->rx_ring[i].reg_idx = i << 4;
+				}
+				for ( ; i < 5; i++) {
+					adapter->tx_ring[i].reg_idx =
+					                         ((i + 2) << 4);
+					adapter->rx_ring[i].reg_idx = i << 4;
+				}
+				for ( ; i < dcb_i; i++) {
+					adapter->tx_ring[i].reg_idx =
+					                         ((i + 8) << 3);
+					adapter->rx_ring[i].reg_idx = i << 4;
+				}
+
+				ret = true;
+			} else if (dcb_i == 4) {
+				/*
+				 * Tx TC0 starts at: descriptor queue 0
+				 * Tx TC1 starts at: descriptor queue 64
+				 * Tx TC2 starts at: descriptor queue 96
+				 * Tx TC3 starts at: descriptor queue 112
+				 *
+				 * Rx TC0-TC3 are offset by 32 queues each
+				 */
+				adapter->tx_ring[0].reg_idx = 0;
+				adapter->tx_ring[1].reg_idx = 64;
+				adapter->tx_ring[2].reg_idx = 96;
+				adapter->tx_ring[3].reg_idx = 112;
+				for (i = 0 ; i < dcb_i; i++)
+					adapter->rx_ring[i].reg_idx = i << 5;
+
+				ret = true;
+			} else {
+				ret = false;
 			}
-			ret = true;
 		} else {
 			ret = false;
 		}
@@ -2992,9 +3040,6 @@ try_msi:
 	}
 
 out:
-	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
-
 	return err;
 }
 
@@ -3601,6 +3646,8 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	ixgbe_reset(adapter);
 
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
+
 	if (netif_running(netdev)) {
 		err = ixgbe_open(adapter->netdev);
 		if (err)
@@ -3611,9 +3658,9 @@ static int ixgbe_resume(struct pci_dev *pdev)
 
 	return 0;
 }
-
 #endif /* CONFIG_PM */
-static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
+
+static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
@@ -3672,18 +3719,46 @@ static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
+	*enable_wake = !!wufc;
+
 	ixgbe_release_hw_control(adapter);
 
 	pci_disable_device(pdev);
 
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
-
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	int retval;
+	bool wake;
+
+	retval = __ixgbe_shutdown(pdev, &wake);
+	if (retval)
+		return retval;
+
+	if (wake) {
+		pci_prepare_to_sleep(pdev);
+	} else {
+		pci_wake_from_d3(pdev, false);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 static void ixgbe_shutdown(struct pci_dev *pdev)
 {
-	ixgbe_suspend(pdev, PMSG_SUSPEND);
+	bool wake;
+
+	__ixgbe_shutdown(pdev, &wake);
+
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, wake);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
 }
 
 /**
@@ -3917,7 +3992,7 @@ static void ixgbe_sfp_config_module_task(struct work_struct *work)
 	}
 	hw->mac.ops.setup_sfp(hw);
 
-	if (!adapter->flags & IXGBE_FLAG_IN_SFP_LINK_TASK)
+	if (!(adapter->flags & IXGBE_FLAG_IN_SFP_LINK_TASK))
 		/* This will also work for DA Twinax connections */
 		schedule_work(&adapter->multispeed_fiber_task);
 	adapter->flags &= ~IXGBE_FLAG_IN_SFP_MOD_TASK;
@@ -4342,7 +4417,7 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	int count = 0;
 	unsigned int f;
 
-	r_idx = (adapter->num_tx_queues - 1) & skb->queue_mapping;
+	r_idx = skb->queue_mapping;
 	tx_ring = &adapter->tx_ring[r_idx];
 
 	if (adapter->vlgrp && vlan_tx_tag_present(skb)) {
@@ -4502,7 +4577,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	const struct ixgbe_info *ii = ixgbe_info_tbl[ent->driver_data];
 	static int cards_found;
 	int i, err, pci_using_dac;
-	u16 pm_value = 0;
 	u32 part_num, eec;
 
 	err = pci_enable_device(pdev);
@@ -4690,11 +4764,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	switch (pdev->device) {
 	case IXGBE_DEV_ID_82599_KX4:
-#define IXGBE_PCIE_PMCSR 0x44
-		adapter->wol = IXGBE_WUFC_MAG;
-		pci_read_config_word(pdev, IXGBE_PCIE_PMCSR, &pm_value);
-		pci_write_config_word(pdev, IXGBE_PCIE_PMCSR,
-		                      (pm_value | (1 << 8)));
+		adapter->wol = (IXGBE_WUFC_MAG | IXGBE_WUFC_EX |
+		                IXGBE_WUFC_MC | IXGBE_WUFC_BC);
 		break;
 	default:
 		adapter->wol = 0;

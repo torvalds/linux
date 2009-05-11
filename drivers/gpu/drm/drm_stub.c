@@ -159,6 +159,9 @@ void drm_master_put(struct drm_master **master)
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
+	if (file_priv->is_master)
+		return 0;
+
 	if (file_priv->minor->master && file_priv->minor->master != file_priv->master)
 		return -EINVAL;
 
@@ -169,6 +172,7 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 	    file_priv->minor->master != file_priv->master) {
 		mutex_lock(&dev->struct_mutex);
 		file_priv->minor->master = drm_master_get(file_priv->master);
+		file_priv->is_master = 1;
 		mutex_unlock(&dev->struct_mutex);
 	}
 
@@ -178,10 +182,15 @@ int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	if (!file_priv->master)
+	if (!file_priv->is_master)
 		return -EINVAL;
+
+	if (!file_priv->minor->master)
+		return -EINVAL;
+
 	mutex_lock(&dev->struct_mutex);
 	drm_master_put(&file_priv->minor->master);
+	file_priv->is_master = 0;
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 }
@@ -393,14 +402,14 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	if (dev->driver->load) {
 		ret = dev->driver->load(dev, ent->driver_data);
 		if (ret)
-			goto err_g3;
+			goto err_g4;
 	}
 
         /* setup the grouping for the legacy output */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = drm_mode_group_init_legacy_group(dev, &dev->primary->mode_group);
 		if (ret)
-			goto err_g3;
+			goto err_g4;
 	}
 
 	list_add_tail(&dev->driver_item, &driver->device_list);
@@ -411,8 +420,11 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 
 	return 0;
 
-err_g3:
+err_g4:
 	drm_put_minor(&dev->primary);
+err_g3:
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		drm_put_minor(&dev->control);
 err_g2:
 	pci_disable_device(pdev);
 err_g1:
@@ -493,11 +505,11 @@ void drm_put_dev(struct drm_device *dev)
 		dev->agp = NULL;
 	}
 
-	drm_ht_remove(&dev->map_hash);
-	drm_ctxbitmap_cleanup(dev);
-
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_rmmap(dev, r_list->map);
+	drm_ht_remove(&dev->map_hash);
+
+	drm_ctxbitmap_cleanup(dev);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);

@@ -33,10 +33,8 @@
 
 #include <mach/control.h>
 #include <mach/gpio.h>
-#include <mach/gpioexpander.h>
 #include <mach/mux.h>
 #include <mach/usb.h>
-#include <mach/irda.h>
 #include <mach/board.h>
 #include <mach/common.h>
 #include <mach/keypad.h>
@@ -138,98 +136,6 @@ static struct platform_device h4_flash_device = {
 	.resource	= &h4_flash_resource,
 };
 
-/* Select between the IrDA and aGPS module
- */
-static int h4_select_irda(struct device *dev, int state)
-{
-	unsigned char expa;
-	int err = 0;
-
-	if ((err = read_gpio_expa(&expa, 0x21))) {
-		printk(KERN_ERR "Error reading from I/O expander\n");
-		return err;
-	}
-
-	/* 'P6' enable/disable IRDA_TX and IRDA_RX */
-	if (state & IR_SEL) {	/* IrDa */
-		if ((err = write_gpio_expa(expa | 0x01, 0x21))) {
-			printk(KERN_ERR "Error writing to I/O expander\n");
-			return err;
-		}
-	} else {
-		if ((err = write_gpio_expa(expa & ~0x01, 0x21))) {
-			printk(KERN_ERR "Error writing to I/O expander\n");
-			return err;
-		}
-	}
-	return err;
-}
-
-static void set_trans_mode(struct work_struct *work)
-{
-	struct omap_irda_config *irda_config =
-		container_of(work, struct omap_irda_config, gpio_expa.work);
-	int mode = irda_config->mode;
-	unsigned char expa;
-	int err = 0;
-
-	if ((err = read_gpio_expa(&expa, 0x20)) != 0) {
-		printk(KERN_ERR "Error reading from I/O expander\n");
-	}
-
-	expa &= ~0x01;
-
-	if (!(mode & IR_SIRMODE)) { /* MIR/FIR */
-		expa |= 0x01;
-	}
-
-	if ((err = write_gpio_expa(expa, 0x20)) != 0) {
-		printk(KERN_ERR "Error writing to I/O expander\n");
-	}
-}
-
-static int h4_transceiver_mode(struct device *dev, int mode)
-{
-	struct omap_irda_config *irda_config = dev->platform_data;
-
-	irda_config->mode = mode;
-	cancel_delayed_work(&irda_config->gpio_expa);
-	PREPARE_DELAYED_WORK(&irda_config->gpio_expa, set_trans_mode);
-	schedule_delayed_work(&irda_config->gpio_expa, 0);
-
-	return 0;
-}
-
-static struct omap_irda_config h4_irda_data = {
-	.transceiver_cap	= IR_SIRMODE | IR_MIRMODE | IR_FIRMODE,
-	.transceiver_mode	= h4_transceiver_mode,
-	.select_irda	 	= h4_select_irda,
-	.rx_channel		= OMAP24XX_DMA_UART3_RX,
-	.tx_channel		= OMAP24XX_DMA_UART3_TX,
-	.dest_start		= OMAP_UART3_BASE,
-	.src_start		= OMAP_UART3_BASE,
-	.tx_trigger		= OMAP24XX_DMA_UART3_TX,
-	.rx_trigger		= OMAP24XX_DMA_UART3_RX,
-};
-
-static struct resource h4_irda_resources[] = {
-	[0] = {
-		.start	= INT_24XX_UART3_IRQ,
-		.end	= INT_24XX_UART3_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device h4_irda_device = {
-	.name		= "omapirda",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= &h4_irda_data,
-	},
-	.num_resources	= 1,
-	.resource	= h4_irda_resources,
-};
-
 static struct omap_kp_platform_data h4_kp_data = {
 	.rows		= 6,
 	.cols		= 7,
@@ -255,7 +161,6 @@ static struct platform_device h4_lcd_device = {
 
 static struct platform_device *h4_devices[] __initdata = {
 	&h4_flash_device,
-	&h4_irda_device,
 	&h4_kp_device,
 	&h4_lcd_device,
 };

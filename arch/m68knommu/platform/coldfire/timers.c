@@ -78,7 +78,7 @@ static struct irqaction mcftmr_timer_irq = {
 
 /***************************************************************************/
 
-static cycle_t mcftmr_read_clk(void)
+static cycle_t mcftmr_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
 	u32 cycles;

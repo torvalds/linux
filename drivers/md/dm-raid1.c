@@ -5,7 +5,6 @@
  * This file is released under the GPL.
  */
 
-#include "dm-bio-list.h"
 #include "dm-bio-record.h"
 
 #include <linux/init.h>

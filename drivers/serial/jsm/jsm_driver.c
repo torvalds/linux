@@ -88,7 +88,6 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 	else
 		brd->maxports = 2;
 
-	spin_lock_init(&brd->bd_lock);
 	spin_lock_init(&brd->bd_intr_lock);
 
 	/* store which revision we have */

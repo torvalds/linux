@@ -216,7 +216,7 @@ int __init get_memcfg_from_srat(void)
 
 	if (num_memory_chunks == 0) {
 		printk(KERN_WARNING
-			 "could not finy any ACPI SRAT memory areas.\n");
+			 "could not find any ACPI SRAT memory areas.\n");
 		goto out_fail;
 	}
 

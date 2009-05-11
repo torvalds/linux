@@ -64,6 +64,7 @@ struct isl29003_data {
 	struct i2c_client *client;
 	struct mutex lock;
 	u8 reg_cache[ISL29003_NUM_CACHABLE_REGS];
+	u8 power_state_before_suspend;
 };
 
 static int gain_range[] = {
@@ -411,6 +412,9 @@ static int __devexit isl29003_remove(struct i2c_client *client)
 #ifdef CONFIG_PM
 static int isl29003_suspend(struct i2c_client *client, pm_message_t mesg)
 {
+	struct isl29003_data *data = i2c_get_clientdata(client);
+
+	data->power_state_before_suspend = isl29003_get_power_state(client);
 	return isl29003_set_power_state(client, 0);
 }
 
@@ -421,10 +425,11 @@ static int isl29003_resume(struct i2c_client *client)
 
 	/* restore registers from cache */
 	for (i = 0; i < ARRAY_SIZE(data->reg_cache); i++)
-		if (!i2c_smbus_write_byte_data(client, i, data->reg_cache[i]))
+		if (i2c_smbus_write_byte_data(client, i, data->reg_cache[i]))
 			return -EIO;
 
-	return 0;
+	return isl29003_set_power_state(client,
+		data->power_state_before_suspend);
 }
 
 #else

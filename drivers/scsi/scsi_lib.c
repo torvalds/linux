@@ -1291,10 +1291,8 @@ static inline int scsi_target_queue_ready(struct Scsi_Host *shost,
 		if (--starget->target_blocked == 0) {
 			SCSI_LOG_MLQUEUE(3, starget_printk(KERN_INFO, starget,
 					 "unblocking target at zero depth\n"));
-		} else {
-			blk_plug_device(sdev->request_queue);
+		} else
 			return 0;
-		}
 	}
 
 	if (scsi_target_is_busy(starget)) {

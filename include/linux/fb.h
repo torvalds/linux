@@ -173,8 +173,12 @@ struct fb_fix_screeninfo {
 /* Interpretation of offset for color fields: All offsets are from the right,
  * inside a "pixel" value, which is exactly 'bits_per_pixel' wide (means: you
  * can use the offset as right argument to <<). A pixel afterwards is a bit
- * stream and is written to video memory as that unmodified. This implies
- * big-endian byte order if bits_per_pixel is greater than 8.
+ * stream and is written to video memory as that unmodified.
+ *
+ * For pseudocolor: offset and length should be the same for all color
+ * components. Offset specifies the position of the least significant bit
+ * of the pallette index in a pixel value. Length indicates the number
+ * of available palette entries (i.e. # of entries = 1 << length).
  */
 struct fb_bitfield {
 	__u32 offset;			/* beginning of bitfield	*/

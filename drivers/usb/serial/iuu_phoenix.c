@@ -1051,7 +1051,6 @@ static int iuu_open(struct tty_struct *tty,
 		tty->termios->c_oflag = 0;
 		tty->termios->c_iflag = 0;
 		priv->termios_initialized = 1;
-		tty->low_latency = 1;
 		priv->poll = 0;
 	 }
 	spin_unlock_irqrestore(&priv->lock, flags);

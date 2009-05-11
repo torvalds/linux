@@ -319,7 +319,7 @@ be_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 
 	be_cmd_get_flow_control(&adapter->ctrl, &ecmd->tx_pause,
 		&ecmd->rx_pause);
-	ecmd->autoneg = AUTONEG_ENABLE;
+	ecmd->autoneg = 0;
 }
 
 static int
@@ -328,7 +328,7 @@ be_set_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	struct be_adapter *adapter = netdev_priv(netdev);
 	int status;
 
-	if (ecmd->autoneg != AUTONEG_ENABLE)
+	if (ecmd->autoneg != 0)
 		return -EINVAL;
 
 	status = be_cmd_set_flow_control(&adapter->ctrl, ecmd->tx_pause,

@@ -976,7 +976,7 @@ static void mlx4_enable_msi_x(struct mlx4_dev *dev)
 				nreq = err;
 				goto retry;
 			}
-
+			kfree(entries);
 			goto no_msi;
 		}
 

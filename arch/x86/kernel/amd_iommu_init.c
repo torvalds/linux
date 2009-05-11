@@ -49,10 +49,10 @@
 #define IVHD_DEV_EXT_SELECT             0x46
 #define IVHD_DEV_EXT_SELECT_RANGE       0x47
 
-#define IVHD_FLAG_HT_TUN_EN             0x00
-#define IVHD_FLAG_PASSPW_EN             0x01
-#define IVHD_FLAG_RESPASSPW_EN          0x02
-#define IVHD_FLAG_ISOC_EN               0x03
+#define IVHD_FLAG_HT_TUN_EN_MASK        0x01
+#define IVHD_FLAG_PASSPW_EN_MASK        0x02
+#define IVHD_FLAG_RESPASSPW_EN_MASK     0x04
+#define IVHD_FLAG_ISOC_EN_MASK          0x08
 
 #define IVMD_FLAG_EXCL_RANGE            0x08
 #define IVMD_FLAG_UNITY_MAP             0x01
@@ -569,19 +569,19 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	 * First set the recommended feature enable bits from ACPI
 	 * into the IOMMU control registers
 	 */
-	h->flags & IVHD_FLAG_HT_TUN_EN ?
+	h->flags & IVHD_FLAG_HT_TUN_EN_MASK ?
 		iommu_feature_enable(iommu, CONTROL_HT_TUN_EN) :
 		iommu_feature_disable(iommu, CONTROL_HT_TUN_EN);
 
-	h->flags & IVHD_FLAG_PASSPW_EN ?
+	h->flags & IVHD_FLAG_PASSPW_EN_MASK ?
 		iommu_feature_enable(iommu, CONTROL_PASSPW_EN) :
 		iommu_feature_disable(iommu, CONTROL_PASSPW_EN);
 
-	h->flags & IVHD_FLAG_RESPASSPW_EN ?
+	h->flags & IVHD_FLAG_RESPASSPW_EN_MASK ?
 		iommu_feature_enable(iommu, CONTROL_RESPASSPW_EN) :
 		iommu_feature_disable(iommu, CONTROL_RESPASSPW_EN);
 
-	h->flags & IVHD_FLAG_ISOC_EN ?
+	h->flags & IVHD_FLAG_ISOC_EN_MASK ?
 		iommu_feature_enable(iommu, CONTROL_ISOC_EN) :
 		iommu_feature_disable(iommu, CONTROL_ISOC_EN);
 

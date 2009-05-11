@@ -54,9 +54,9 @@ locking error messages, inside curlies. A contrived example:
 The bit position indicates STATE, STATE-read, for each of the states listed
 above, and the character displayed in each indicates:
 
-   '.'  acquired while irqs disabled
-   '+'  acquired in irq context
-   '-'  acquired with irqs enabled
+   '.'  acquired while irqs disabled and not in irq context
+   '-'  acquired in irq context
+   '+'  acquired with irqs enabled
    '?'  acquired in irq context with irqs enabled.
 
 Unused mutexes cannot be part of the cause of an error.

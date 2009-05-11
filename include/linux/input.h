@@ -106,6 +106,7 @@ struct input_absinfo {
 
 #define SYN_REPORT		0
 #define SYN_CONFIG		1
+#define SYN_MT_REPORT		2
 
 /*
  * Keys and buttons
@@ -445,6 +446,7 @@ struct input_absinfo {
 #define BTN_STYLUS2		0x14c
 #define BTN_TOOL_DOUBLETAP	0x14d
 #define BTN_TOOL_TRIPLETAP	0x14e
+#define BTN_TOOL_QUADTAP	0x14f	/* Four fingers on trackpad */
 
 #define BTN_WHEEL		0x150
 #define BTN_GEAR_DOWN		0x150
@@ -644,6 +646,17 @@ struct input_absinfo {
 #define ABS_TOOL_WIDTH		0x1c
 #define ABS_VOLUME		0x20
 #define ABS_MISC		0x28
+
+#define ABS_MT_TOUCH_MAJOR	0x30	/* Major axis of touching ellipse */
+#define ABS_MT_TOUCH_MINOR	0x31	/* Minor axis (omit if circular) */
+#define ABS_MT_WIDTH_MAJOR	0x32	/* Major axis of approaching ellipse */
+#define ABS_MT_WIDTH_MINOR	0x33	/* Minor axis (omit if circular) */
+#define ABS_MT_ORIENTATION	0x34	/* Ellipse orientation */
+#define ABS_MT_POSITION_X	0x35	/* Center X ellipse position */
+#define ABS_MT_POSITION_Y	0x36	/* Center Y ellipse position */
+#define ABS_MT_TOOL_TYPE	0x37	/* Type of touching device */
+#define ABS_MT_BLOB_ID		0x38	/* Group a set of packets as a blob */
+
 #define ABS_MAX			0x3f
 #define ABS_CNT			(ABS_MAX+1)
 
@@ -741,6 +754,12 @@ struct input_absinfo {
 #define BUS_HOST		0x19
 #define BUS_GSC			0x1A
 #define BUS_ATARI		0x1B
+
+/*
+ * MT_TOOL types
+ */
+#define MT_TOOL_FINGER		0
+#define MT_TOOL_PEN		1
 
 /*
  * Values describing the status of a force-feedback effect
@@ -1309,6 +1328,11 @@ static inline void input_report_switch(struct input_dev *dev, unsigned int code,
 static inline void input_sync(struct input_dev *dev)
 {
 	input_event(dev, EV_SYN, SYN_REPORT, 0);
+}
+
+static inline void input_mt_sync(struct input_dev *dev)
+{
+	input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
 }
 
 void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);

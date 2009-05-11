@@ -1844,10 +1844,14 @@ again:
 		printk(KERN_ERR "no space left, need %llu, %llu delalloc bytes"
 		       ", %llu bytes_used, %llu bytes_reserved, "
 		       "%llu bytes_pinned, %llu bytes_readonly, %llu may use"
-		       "%llu total\n", bytes, data_sinfo->bytes_delalloc,
-		       data_sinfo->bytes_used, data_sinfo->bytes_reserved,
-		       data_sinfo->bytes_pinned, data_sinfo->bytes_readonly,
-		       data_sinfo->bytes_may_use, data_sinfo->total_bytes);
+		       "%llu total\n", (unsigned long long)bytes,
+		       (unsigned long long)data_sinfo->bytes_delalloc,
+		       (unsigned long long)data_sinfo->bytes_used,
+		       (unsigned long long)data_sinfo->bytes_reserved,
+		       (unsigned long long)data_sinfo->bytes_pinned,
+		       (unsigned long long)data_sinfo->bytes_readonly,
+		       (unsigned long long)data_sinfo->bytes_may_use,
+		       (unsigned long long)data_sinfo->total_bytes);
 		return -ENOSPC;
 	}
 	data_sinfo->bytes_may_use += bytes;
@@ -1918,15 +1922,29 @@ void btrfs_delalloc_free_space(struct btrfs_root *root, struct inode *inode,
 	spin_unlock(&info->lock);
 }
 
+static void force_metadata_allocation(struct btrfs_fs_info *info)
+{
+	struct list_head *head = &info->space_info;
+	struct btrfs_space_info *found;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(found, head, list) {
+		if (found->flags & BTRFS_BLOCK_GROUP_METADATA)
+			found->force_alloc = 1;
+	}
+	rcu_read_unlock();
+}
+
 static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *extent_root, u64 alloc_bytes,
 			  u64 flags, int force)
 {
 	struct btrfs_space_info *space_info;
+	struct btrfs_fs_info *fs_info = extent_root->fs_info;
 	u64 thresh;
 	int ret = 0;
 
-	mutex_lock(&extent_root->fs_info->chunk_mutex);
+	mutex_lock(&fs_info->chunk_mutex);
 
 	flags = btrfs_reduce_alloc_profile(extent_root, flags);
 
@@ -1957,6 +1975,18 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 	spin_unlock(&space_info->lock);
+
+	/*
+	 * if we're doing a data chunk, go ahead and make sure that
+	 * we keep a reasonable number of metadata chunks allocated in the
+	 * FS as well.
+	 */
+	if (flags & BTRFS_BLOCK_GROUP_DATA) {
+		fs_info->data_chunk_allocations++;
+		if (!(fs_info->data_chunk_allocations %
+		      fs_info->metadata_ratio))
+			force_metadata_allocation(fs_info);
+	}
 
 	ret = btrfs_alloc_chunk(trans, extent_root, flags);
 	if (ret)
@@ -2798,9 +2828,12 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes)
 				    info->bytes_pinned - info->bytes_reserved),
 	       (info->full) ? "" : "not ");
 	printk(KERN_INFO "space_info total=%llu, pinned=%llu, delalloc=%llu,"
-	       " may_use=%llu, used=%llu\n", info->total_bytes,
-	       info->bytes_pinned, info->bytes_delalloc, info->bytes_may_use,
-	       info->bytes_used);
+	       " may_use=%llu, used=%llu\n",
+	       (unsigned long long)info->total_bytes,
+	       (unsigned long long)info->bytes_pinned,
+	       (unsigned long long)info->bytes_delalloc,
+	       (unsigned long long)info->bytes_may_use,
+	       (unsigned long long)info->bytes_used);
 
 	down_read(&info->groups_sem);
 	list_for_each_entry(cache, &info->block_groups, list) {

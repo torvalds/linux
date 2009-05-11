@@ -255,15 +255,22 @@ MODULE_PARM_DESC(debug, "Activate debugging output");
  */
 static int atp_geyser_init(struct usb_device *udev)
 {
-	char data[8];
+	char *data;
 	int size;
 	int i;
+	int ret;
+
+	data = kmalloc(8, GFP_KERNEL);
+	if (!data) {
+		err("Out of memory");
+		return -ENOMEM;
+	}
 
 	size = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 			ATP_GEYSER_MODE_READ_REQUEST_ID,
 			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			ATP_GEYSER_MODE_REQUEST_VALUE,
-			ATP_GEYSER_MODE_REQUEST_INDEX, &data, 8, 5000);
+			ATP_GEYSER_MODE_REQUEST_INDEX, data, 8, 5000);
 
 	if (size != 8) {
 		dprintk("atp_geyser_init: read error\n");
@@ -271,7 +278,8 @@ static int atp_geyser_init(struct usb_device *udev)
 			dprintk("appletouch[%d]: %d\n", i, data[i]);
 
 		err("Failed to read mode from device.");
-		return -EIO;
+		ret = -EIO;
+		goto out_free;
 	}
 
 	/* Apply the mode switch */
@@ -281,7 +289,7 @@ static int atp_geyser_init(struct usb_device *udev)
 			ATP_GEYSER_MODE_WRITE_REQUEST_ID,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 			ATP_GEYSER_MODE_REQUEST_VALUE,
-			ATP_GEYSER_MODE_REQUEST_INDEX, &data, 8, 5000);
+			ATP_GEYSER_MODE_REQUEST_INDEX, data, 8, 5000);
 
 	if (size != 8) {
 		dprintk("atp_geyser_init: write error\n");
@@ -289,9 +297,13 @@ static int atp_geyser_init(struct usb_device *udev)
 			dprintk("appletouch[%d]: %d\n", i, data[i]);
 
 		err("Failed to request geyser raw mode");
-		return -EIO;
+		ret = -EIO;
+		goto out_free;
 	}
-	return 0;
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
 }
 
 /*
