@@ -3105,8 +3105,9 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 		kvm_run->ready_for_interrupt_injection = 1;
 	else
 		kvm_run->ready_for_interrupt_injection =
-					(kvm_arch_interrupt_allowed(vcpu) &&
-					 !kvm_cpu_has_interrupt(vcpu));
+			kvm_arch_interrupt_allowed(vcpu) &&
+			!kvm_cpu_has_interrupt(vcpu) &&
+			!kvm_event_needs_reinjection(vcpu);
 }
 
 static void vapic_enter(struct kvm_vcpu *vcpu)
