@@ -71,27 +71,18 @@
  *		Thanks to Stuart Swales for pointing out this bug.
  */
 #include <linux/platform_device.h>
-#include <linux/capability.h>
 #include <linux/miscdevice.h>
-#include <linux/firmware.h>
+#include <linux/capability.h>
 #include <linux/smp_lock.h>
-#include <linux/spinlock.h>
-#include <linux/cpumask.h>
-#include <linux/uaccess.h>
-#include <linux/vmalloc.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/sched.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 
 #include <asm/microcode.h>
 #include <asm/processor.h>
-#include <asm/msr.h>
 
 MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
@@ -101,36 +92,110 @@ MODULE_LICENSE("GPL");
 
 static struct microcode_ops	*microcode_ops;
 
-/* no concurrent ->write()s are allowed on /dev/cpu/microcode */
+/*
+ * Synchronization.
+ *
+ * All non cpu-hotplug-callback call sites use:
+ *
+ * - microcode_mutex to synchronize with each other;
+ * - get/put_online_cpus() to synchronize with
+ *   the cpu-hotplug-callback call sites.
+ *
+ * We guarantee that only a single cpu is being
+ * updated at any particular moment of time.
+ */
 static DEFINE_MUTEX(microcode_mutex);
 
 struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 EXPORT_SYMBOL_GPL(ucode_cpu_info);
 
+/*
+ * Operations that are run on a target cpu:
+ */
+
+struct cpu_info_ctx {
+	struct cpu_signature	*cpu_sig;
+	int			err;
+};
+
+static void collect_cpu_info_local(void *arg)
+{
+	struct cpu_info_ctx *ctx = arg;
+
+	ctx->err = microcode_ops->collect_cpu_info(smp_processor_id(),
+						   ctx->cpu_sig);
+}
+
+static int collect_cpu_info_on_target(int cpu, struct cpu_signature *cpu_sig)
+{
+	struct cpu_info_ctx ctx = { .cpu_sig = cpu_sig, .err = 0 };
+	int ret;
+
+	ret = smp_call_function_single(cpu, collect_cpu_info_local, &ctx, 1);
+	if (!ret)
+		ret = ctx.err;
+
+	return ret;
+}
+
+static int collect_cpu_info(int cpu)
+{
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	int ret;
+
+	memset(uci, 0, sizeof(*uci));
+
+	ret = collect_cpu_info_on_target(cpu, &uci->cpu_sig);
+	if (!ret)
+		uci->valid = 1;
+
+	return ret;
+}
+
+struct apply_microcode_ctx {
+	int err;
+};
+
+static void apply_microcode_local(void *arg)
+{
+	struct apply_microcode_ctx *ctx = arg;
+
+	ctx->err = microcode_ops->apply_microcode(smp_processor_id());
+}
+
+static int apply_microcode_on_target(int cpu)
+{
+	struct apply_microcode_ctx ctx = { .err = 0 };
+	int ret;
+
+	ret = smp_call_function_single(cpu, apply_microcode_local, &ctx, 1);
+	if (!ret)
+		ret = ctx.err;
+
+	return ret;
+}
+
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
 static int do_microcode_update(const void __user *buf, size_t size)
 {
-	cpumask_t old;
 	int error = 0;
 	int cpu;
 
-	old = current->cpus_allowed;
-
 	for_each_online_cpu(cpu) {
 		struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+		enum ucode_state ustate;
 
 		if (!uci->valid)
 			continue;
 
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-		error = microcode_ops->request_microcode_user(cpu, buf, size);
-		if (error < 0)
-			goto out;
-		if (!error)
-			microcode_ops->apply_microcode(cpu);
+		ustate = microcode_ops->request_microcode_user(cpu, buf, size);
+		if (ustate == UCODE_ERROR) {
+			error = -1;
+			break;
+		} else if (ustate == UCODE_OK)
+			apply_microcode_on_target(cpu);
 	}
-out:
-	set_cpus_allowed_ptr(current, &old);
+
 	return error;
 }
 
@@ -143,19 +208,17 @@ static int microcode_open(struct inode *unused1, struct file *unused2)
 static ssize_t microcode_write(struct file *file, const char __user *buf,
 			       size_t len, loff_t *ppos)
 {
-	ssize_t ret;
+	ssize_t ret = -EINVAL;
 
 	if ((len >> PAGE_SHIFT) > num_physpages) {
-		printk(KERN_ERR "microcode: too much data (max %ld pages)\n",
-		       num_physpages);
-		return -EINVAL;
+		pr_err("microcode: too much data (max %ld pages)\n", num_physpages);
+		return ret;
 	}
 
 	get_online_cpus();
 	mutex_lock(&microcode_mutex);
 
-	ret = do_microcode_update(buf, len);
-	if (!ret)
+	if (do_microcode_update(buf, len) == 0)
 		ret = (ssize_t)len;
 
 	mutex_unlock(&microcode_mutex);
@@ -165,15 +228,15 @@ static ssize_t microcode_write(struct file *file, const char __user *buf,
 }
 
 static const struct file_operations microcode_fops = {
-	.owner		= THIS_MODULE,
-	.write		= microcode_write,
-	.open		= microcode_open,
+	.owner			= THIS_MODULE,
+	.write			= microcode_write,
+	.open			= microcode_open,
 };
 
 static struct miscdevice microcode_dev = {
-	.minor		= MICROCODE_MINOR,
-	.name		= "microcode",
-	.fops		= &microcode_fops,
+	.minor			= MICROCODE_MINOR,
+	.name			= "microcode",
+	.fops			= &microcode_fops,
 };
 
 static int __init microcode_dev_init(void)
@@ -182,9 +245,7 @@ static int __init microcode_dev_init(void)
 
 	error = misc_register(&microcode_dev);
 	if (error) {
-		printk(KERN_ERR
-			"microcode: can't misc_register on minor=%d\n",
-			MICROCODE_MINOR);
+		pr_err("microcode: can't misc_register on minor=%d\n", MICROCODE_MINOR);
 		return error;
 	}
 
@@ -205,42 +266,51 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 /* fake device for request_firmware */
 static struct platform_device	*microcode_pdev;
 
-static long reload_for_cpu(void *unused)
+static int reload_for_cpu(int cpu)
 {
-	struct ucode_cpu_info *uci = ucode_cpu_info + smp_processor_id();
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	int err = 0;
 
 	mutex_lock(&microcode_mutex);
 	if (uci->valid) {
-		err = microcode_ops->request_microcode_fw(smp_processor_id(),
-							  &microcode_pdev->dev);
-		if (!err)
-			microcode_ops->apply_microcode(smp_processor_id());
+		enum ucode_state ustate;
+
+		ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev);
+		if (ustate == UCODE_OK)
+			apply_microcode_on_target(cpu);
+		else
+			if (ustate == UCODE_ERROR)
+				err = -EINVAL;
 	}
 	mutex_unlock(&microcode_mutex);
+
 	return err;
 }
 
 static ssize_t reload_store(struct sys_device *dev,
 			    struct sysdev_attribute *attr,
-			    const char *buf, size_t sz)
+			    const char *buf, size_t size)
 {
-	char *end;
-	unsigned long val = simple_strtoul(buf, &end, 0);
-	int err = 0;
+	unsigned long val;
 	int cpu = dev->id;
+	int ret = 0;
+	char *end;
 
+	val = simple_strtoul(buf, &end, 0);
 	if (end == buf)
 		return -EINVAL;
+
 	if (val == 1) {
 		get_online_cpus();
 		if (cpu_online(cpu))
-			err = work_on_cpu(cpu, reload_for_cpu, NULL);
+			ret = reload_for_cpu(cpu);
 		put_online_cpus();
 	}
-	if (err)
-		return err;
-	return sz;
+
+	if (!ret)
+		ret = size;
+
+	return ret;
 }
 
 static ssize_t version_show(struct sys_device *dev,
@@ -271,11 +341,11 @@ static struct attribute *mc_default_attrs[] = {
 };
 
 static struct attribute_group mc_attr_group = {
-	.attrs		= mc_default_attrs,
-	.name		= "microcode",
+	.attrs			= mc_default_attrs,
+	.name			= "microcode",
 };
 
-static void __microcode_fini_cpu(int cpu)
+static void microcode_fini_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
@@ -283,103 +353,68 @@ static void __microcode_fini_cpu(int cpu)
 	uci->valid = 0;
 }
 
-static void microcode_fini_cpu(int cpu)
-{
-	mutex_lock(&microcode_mutex);
-	__microcode_fini_cpu(cpu);
-	mutex_unlock(&microcode_mutex);
-}
-
-static void collect_cpu_info(int cpu)
+static enum ucode_state microcode_resume_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-
-	memset(uci, 0, sizeof(*uci));
-	if (!microcode_ops->collect_cpu_info(cpu, &uci->cpu_sig))
-		uci->valid = 1;
-}
-
-static int microcode_resume_cpu(int cpu)
-{
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	struct cpu_signature nsig;
-
-	pr_debug("microcode: CPU%d resumed\n", cpu);
 
 	if (!uci->mc)
-		return 1;
+		return UCODE_NFOUND;
 
-	/*
-	 * Let's verify that the 'cached' ucode does belong
-	 * to this cpu (a bit of paranoia):
-	 */
-	if (microcode_ops->collect_cpu_info(cpu, &nsig)) {
-		__microcode_fini_cpu(cpu);
-		printk(KERN_ERR "failed to collect_cpu_info for resuming cpu #%d\n",
-				cpu);
-		return -1;
-	}
+	pr_debug("microcode: CPU%d updated upon resume\n", cpu);
+	apply_microcode_on_target(cpu);
 
-	if ((nsig.sig != uci->cpu_sig.sig) || (nsig.pf != uci->cpu_sig.pf)) {
-		__microcode_fini_cpu(cpu);
-		printk(KERN_ERR "cached ucode doesn't match the resuming cpu #%d\n",
-				cpu);
-		/* Should we look for a new ucode here? */
-		return 1;
-	}
-
-	return 0;
+	return UCODE_OK;
 }
 
-static long microcode_update_cpu(void *unused)
+static enum ucode_state microcode_init_cpu(int cpu)
 {
-	struct ucode_cpu_info *uci = ucode_cpu_info + smp_processor_id();
-	int err = 0;
+	enum ucode_state ustate;
 
-	/*
-	 * Check if the system resume is in progress (uci->valid != NULL),
-	 * otherwise just request a firmware:
-	 */
-	if (uci->valid) {
-		err = microcode_resume_cpu(smp_processor_id());
-	} else {
-		collect_cpu_info(smp_processor_id());
-		if (uci->valid && system_state == SYSTEM_RUNNING)
-			err = microcode_ops->request_microcode_fw(
-					smp_processor_id(),
-					&microcode_pdev->dev);
+	if (collect_cpu_info(cpu))
+		return UCODE_ERROR;
+
+	/* --dimm. Trigger a delayed update? */
+	if (system_state != SYSTEM_RUNNING)
+		return UCODE_NFOUND;
+
+	ustate = microcode_ops->request_microcode_fw(cpu, &microcode_pdev->dev);
+
+	if (ustate == UCODE_OK) {
+		pr_debug("microcode: CPU%d updated upon init\n", cpu);
+		apply_microcode_on_target(cpu);
 	}
-	if (!err)
-		microcode_ops->apply_microcode(smp_processor_id());
-	return err;
+
+	return ustate;
 }
 
-static int microcode_init_cpu(int cpu)
+static enum ucode_state microcode_update_cpu(int cpu)
 {
-	int err;
-	mutex_lock(&microcode_mutex);
-	err = work_on_cpu(cpu, microcode_update_cpu, NULL);
-	mutex_unlock(&microcode_mutex);
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	enum ucode_state ustate;
 
-	return err;
+	if (uci->valid)
+		ustate = microcode_resume_cpu(cpu);
+	else
+		ustate = microcode_init_cpu(cpu);
+
+	return ustate;
 }
 
 static int mc_sysdev_add(struct sys_device *sys_dev)
 {
 	int err, cpu = sys_dev->id;
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	if (!cpu_online(cpu))
 		return 0;
 
 	pr_debug("microcode: CPU%d added\n", cpu);
-	memset(uci, 0, sizeof(*uci));
 
 	err = sysfs_create_group(&sys_dev->kobj, &mc_attr_group);
 	if (err)
 		return err;
 
-	err = microcode_init_cpu(cpu);
+	if (microcode_init_cpu(cpu) == UCODE_ERROR)
+		err = -EINVAL;
 
 	return err;
 }
@@ -400,19 +435,30 @@ static int mc_sysdev_remove(struct sys_device *sys_dev)
 static int mc_sysdev_resume(struct sys_device *dev)
 {
 	int cpu = dev->id;
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	if (!cpu_online(cpu))
 		return 0;
 
-	/* only CPU 0 will apply ucode here */
-	microcode_update_cpu(NULL);
+	/*
+	 * All non-bootup cpus are still disabled,
+	 * so only CPU 0 will apply ucode here.
+	 *
+	 * Moreover, there can be no concurrent
+	 * updates from any other places at this point.
+	 */
+	WARN_ON(cpu != 0);
+
+	if (uci->valid && uci->mc)
+		microcode_ops->apply_microcode(cpu);
+
 	return 0;
 }
 
 static struct sysdev_driver mc_sysdev_driver = {
-	.add		= mc_sysdev_add,
-	.remove		= mc_sysdev_remove,
-	.resume		= mc_sysdev_resume,
+	.add			= mc_sysdev_add,
+	.remove			= mc_sysdev_remove,
+	.resume			= mc_sysdev_resume,
 };
 
 static __cpuinit int
@@ -425,15 +471,12 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		if (microcode_init_cpu(cpu))
-			printk(KERN_ERR "microcode: failed to init CPU%d\n",
-			       cpu);
+		microcode_update_cpu(cpu);
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
 		pr_debug("microcode: CPU%d added\n", cpu);
 		if (sysfs_create_group(&sys_dev->kobj, &mc_attr_group))
-			printk(KERN_ERR "microcode: Failed to create the sysfs "
-				"group for CPU%d\n", cpu);
+			pr_err("microcode: Failed to create group for CPU%d\n", cpu);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
@@ -465,13 +508,10 @@ static int __init microcode_init(void)
 		microcode_ops = init_amd_microcode();
 
 	if (!microcode_ops) {
-		printk(KERN_ERR "microcode: no support for this CPU vendor\n");
+		pr_err("microcode: no support for this CPU vendor\n");
 		return -ENODEV;
 	}
 
-	error = microcode_dev_init();
-	if (error)
-		return error;
 	microcode_pdev = platform_device_register_simple("microcode", -1,
 							 NULL, 0);
 	if (IS_ERR(microcode_pdev)) {
@@ -480,23 +520,31 @@ static int __init microcode_init(void)
 	}
 
 	get_online_cpus();
+	mutex_lock(&microcode_mutex);
+
 	error = sysdev_driver_register(&cpu_sysdev_class, &mc_sysdev_driver);
+
+	mutex_unlock(&microcode_mutex);
 	put_online_cpus();
+
 	if (error) {
-		microcode_dev_exit();
 		platform_device_unregister(microcode_pdev);
 		return error;
 	}
 
+	error = microcode_dev_init();
+	if (error)
+		return error;
+
 	register_hotcpu_notifier(&mc_cpu_notifier);
 
-	printk(KERN_INFO
-	       "Microcode Update Driver: v" MICROCODE_VERSION
+	pr_info("Microcode Update Driver: v" MICROCODE_VERSION
 	       " <tigran@aivazian.fsnet.co.uk>,"
 	       " Peter Oruba\n");
 
 	return 0;
 }
+module_init(microcode_init);
 
 static void __exit microcode_exit(void)
 {
@@ -505,16 +553,17 @@ static void __exit microcode_exit(void)
 	unregister_hotcpu_notifier(&mc_cpu_notifier);
 
 	get_online_cpus();
+	mutex_lock(&microcode_mutex);
+
 	sysdev_driver_unregister(&cpu_sysdev_class, &mc_sysdev_driver);
+
+	mutex_unlock(&microcode_mutex);
 	put_online_cpus();
 
 	platform_device_unregister(microcode_pdev);
 
 	microcode_ops = NULL;
 
-	printk(KERN_INFO
-	       "Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
+	pr_info("Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
 }
-
-module_init(microcode_init);
 module_exit(microcode_exit);
