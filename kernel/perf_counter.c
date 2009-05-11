@@ -837,6 +837,14 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 	cpuctx->task_ctx = NULL;
 }
 
+static void __perf_counter_task_sched_out(struct perf_counter_context *ctx)
+{
+	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
+
+	__perf_counter_sched_out(ctx, cpuctx);
+	cpuctx->task_ctx = NULL;
+}
+
 static void perf_counter_cpu_sched_out(struct perf_cpu_context *cpuctx)
 {
 	__perf_counter_sched_out(&cpuctx->ctx, cpuctx);
@@ -943,15 +951,13 @@ int perf_counter_task_disable(void)
 	struct perf_counter *counter;
 	unsigned long flags;
 	u64 perf_flags;
-	int cpu;
 
 	if (likely(!ctx->nr_counters))
 		return 0;
 
 	local_irq_save(flags);
-	cpu = smp_processor_id();
 
-	perf_counter_task_sched_out(curr, cpu);
+	__perf_counter_task_sched_out(ctx);
 
 	spin_lock(&ctx->lock);
 
@@ -989,7 +995,7 @@ int perf_counter_task_enable(void)
 	local_irq_save(flags);
 	cpu = smp_processor_id();
 
-	perf_counter_task_sched_out(curr, cpu);
+	__perf_counter_task_sched_out(ctx);
 
 	spin_lock(&ctx->lock);
 
@@ -1054,7 +1060,7 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 	ctx = &curr->perf_counter_ctx;
 
 	perf_counter_cpu_sched_out(cpuctx);
-	perf_counter_task_sched_out(curr, cpu);
+	__perf_counter_task_sched_out(ctx);
 
 	rotate_ctx(&cpuctx->ctx);
 	rotate_ctx(ctx);
