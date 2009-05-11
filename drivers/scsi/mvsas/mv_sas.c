@@ -225,7 +225,8 @@ struct mvs_info *mvs_find_dev_mvi(struct domain_device *dev)
 int mvs_find_dev_phyno(struct domain_device *dev, int *phyno)
 {
 	unsigned long i = 0, j = 0, n = 0, num = 0;
-	struct mvs_info *mvi = mvs_find_dev_mvi(dev);
+	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
+	struct mvs_info *mvi = mvi_dev->mvi_info;
 	struct sas_ha_struct *sha = dev->port->ha;
 
 	while (sha->sas_port[i]) {
@@ -872,8 +873,8 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 				struct mvs_tmf_task *tmf)
 {
 	struct domain_device *dev = task->dev;
-	struct mvs_info *mvi;
-	struct mvs_device *mvi_dev;
+	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
+	struct mvs_info *mvi = mvi_dev->mvi_info;
 	struct mvs_task_exec_info tei;
 	struct sas_task *t = task;
 	struct mvs_slot_info *slot;
@@ -889,8 +890,6 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 		t->task_done(t);
 		return 0;
 	}
-
-	mvi = mvs_find_dev_mvi(task->dev);
 
 	spin_lock_irqsave(&mvi->lock, flags);
 	do {
@@ -1320,7 +1319,7 @@ int mvs_dev_found_notify(struct domain_device *dev, int lock)
 	}
 	dev->lldd_dev = (void *)mvi_device;
 	mvi_device->dev_type = dev->dev_type;
-
+	mvi_device->mvi_info = mvi;
 	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type)) {
 		int phy_id;
 		u8 phy_num = parent_dev->ex_dev.num_phys;
@@ -1357,10 +1356,8 @@ int mvs_dev_found(struct domain_device *dev)
 void mvs_dev_gone_notify(struct domain_device *dev, int lock)
 {
 	unsigned long flags = 0;
-	struct mvs_info *mvi;
 	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
-
-	mvi = mvs_find_dev_mvi(dev);
+	struct mvs_info *mvi = mvi_dev->mvi_info;
 
 	if (lock)
 		spin_lock_irqsave(&mvi->lock, flags);
@@ -1535,8 +1532,8 @@ int mvs_lu_reset(struct domain_device *dev, u8 *lun)
 	unsigned long flags;
 	int i, phyno[WIDE_PORT_MAX_PHY], num , rc = TMF_RESP_FUNC_FAILED;
 	struct mvs_tmf_task tmf_task;
-	struct mvs_info *mvi = mvs_find_dev_mvi(dev);
 	struct mvs_device * mvi_dev = (struct mvs_device *)dev->lldd_dev;
+	struct mvs_info *mvi = mvi_dev->mvi_info;
 
 	tmf_task.tmf = TMF_LU_RESET;
 	mvi_dev->dev_status = MVS_DEV_EH;
@@ -1558,8 +1555,8 @@ int mvs_I_T_nexus_reset(struct domain_device *dev)
 {
 	unsigned long flags;
 	int i, phyno[WIDE_PORT_MAX_PHY], num , rc = TMF_RESP_FUNC_FAILED;
-	struct mvs_info *mvi = mvs_find_dev_mvi(dev);
-	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
+	struct mvs_device * mvi_dev = (struct mvs_device *)dev->lldd_dev;
+	struct mvs_info *mvi = mvi_dev->mvi_info;
 
 	if (mvi_dev->dev_status != MVS_DEV_EH)
 		return TMF_RESP_FUNC_COMPLETE;
@@ -1587,7 +1584,8 @@ int mvs_query_task(struct sas_task *task)
 	if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SSP) {
 		struct scsi_cmnd * cmnd = (struct scsi_cmnd *)task->uldd_task;
 		struct domain_device *dev = task->dev;
-		struct mvs_info *mvi = mvs_find_dev_mvi(dev);
+		struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
+		struct mvs_info *mvi = mvi_dev->mvi_info;
 
 		int_to_scsilun(cmnd->device->lun, &lun);
 		rc = mvs_find_tag(mvi, task, &tag);
@@ -1619,10 +1617,12 @@ int mvs_abort_task(struct sas_task *task)
 	struct scsi_lun lun;
 	struct mvs_tmf_task tmf_task;
 	struct domain_device *dev = task->dev;
-	struct mvs_info *mvi = mvs_find_dev_mvi(dev);
+	struct mvs_device *mvi_dev = (struct mvs_device *)dev->lldd_dev;
+	struct mvs_info *mvi = mvi_dev->mvi_info;
 	int rc = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 	u32 tag;
+
 	if (mvi->exp_req)
 		mvi->exp_req--;
 	spin_lock_irqsave(&task->task_state_lock, flags);
@@ -1652,7 +1652,6 @@ int mvs_abort_task(struct sas_task *task)
 		if (rc == TMF_RESP_FUNC_COMPLETE) {
 			u32 slot_no;
 			struct mvs_slot_info *slot;
-			struct mvs_info *mvi = mvs_find_dev_mvi(dev);
 
 			if (task->lldd_task) {
 				slot = (struct mvs_slot_info *)task->lldd_task;

@@ -231,7 +231,9 @@ struct mvs_phy {
 };
 
 struct mvs_device {
+	struct list_head		dev_entry;
 	enum sas_dev_type dev_type;
+	struct mvs_info *mvi_info;
 	struct domain_device *sas_device;
 	u32 attached_phy;
 	u32 device_id;
@@ -239,7 +241,6 @@ struct mvs_device {
 	u8 taskfileset;
 	u8 dev_status;
 	u16 reserved;
-	struct list_head		dev_entry;
 };
 
 struct mvs_slot_info {
