@@ -3579,7 +3579,7 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 
 	memset(sregs->interrupt_bitmap, 0, sizeof sregs->interrupt_bitmap);
 
-	if (vcpu->arch.interrupt.pending)
+	if (vcpu->arch.interrupt.pending && !vcpu->arch.interrupt.soft)
 		set_bit(vcpu->arch.interrupt.nr,
 			(unsigned long *)sregs->interrupt_bitmap);
 
