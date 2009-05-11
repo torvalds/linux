@@ -912,7 +912,7 @@ int __init arch_clk_init(void)
 		clk_put(clk);
 	}
 
-	clk_recalc_rate(&sh7722_r_clock); /* make sure rate gets propagated */
+	propagate_rate(&sh7722_r_clock); /* make sure rate gets propagated */
 
 	return 0;
 }
