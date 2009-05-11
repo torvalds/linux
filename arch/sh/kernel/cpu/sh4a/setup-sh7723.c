@@ -460,11 +460,6 @@ static struct platform_device *sh7723_devices[] __initdata = {
 
 static int __init sh7723_devices_setup(void)
 {
-	clk_always_enable("meram0"); /* MERAM */
-	clk_always_enable("veu1"); /* VEU2H1 */
-	clk_always_enable("veu0"); /* VEU2H0 */
-	clk_always_enable("vpu0"); /* VPU */
-
 	platform_resource_setup_memory(&vpu_device, "vpu", 2 << 20);
 	platform_resource_setup_memory(&veu0_device, "veu0", 2 << 20);
 	platform_resource_setup_memory(&veu1_device, "veu1", 2 << 20);

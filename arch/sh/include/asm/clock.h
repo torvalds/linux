@@ -52,22 +52,6 @@ void clk_recalc_rate(struct clk *);
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 
-static inline int clk_always_enable(const char *id)
-{
-	struct clk *clk;
-	int ret;
-
-	clk = clk_get(NULL, id);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	ret = clk_enable(clk);
-	if (ret)
-		clk_put(clk);
-
-	return ret;
-}
-
 /* the exported API, in addition to clk_set_rate */
 /**
  * clk_set_rate_ex - set the clock rate for a clock source, with additional parameter
