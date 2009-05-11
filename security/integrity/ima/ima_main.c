@@ -184,7 +184,7 @@ int ima_path_check(struct path *path, int mask)
 		struct dentry *dentry = dget(path->dentry);
 		struct vfsmount *mnt = mntget(path->mnt);
 
-		file = dentry_open(dentry, mnt, O_RDONLY, current->cred);
+		file = dentry_open(dentry, mnt, O_RDONLY, current_cred());
 		rc = get_path_measurement(iint, file, dentry->d_name.name);
 	}
 out:
