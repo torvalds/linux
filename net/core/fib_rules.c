@@ -299,7 +299,7 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	} else if (rule->action == FR_ACT_GOTO)
 		goto errout_free;
 
-	err = ops->configure(rule, skb, nlh, frh, tb);
+	err = ops->configure(rule, skb, frh, tb);
 	if (err < 0)
 		goto errout_free;
 

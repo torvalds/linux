@@ -115,7 +115,7 @@ static int dn_fib_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 }
 
 static int dn_fib_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
-				 struct nlmsghdr *nlh, struct fib_rule_hdr *frh,
+				 struct fib_rule_hdr *frh,
 				 struct nlattr **tb)
 {
 	int err = -EINVAL;

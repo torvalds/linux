@@ -134,7 +134,7 @@ static const struct nla_policy fib4_rule_policy[FRA_MAX+1] = {
 };
 
 static int fib4_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
-			       struct nlmsghdr *nlh, struct fib_rule_hdr *frh,
+			       struct fib_rule_hdr *frh,
 			       struct nlattr **tb)
 {
 	struct net *net = sock_net(skb->sk);
