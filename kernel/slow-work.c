@@ -609,13 +609,13 @@ void slow_work_unregister_user(void)
 	if (slow_work_user_count == 0) {
 		printk(KERN_NOTICE "Slow work thread pool: Shutting down\n");
 		slow_work_threads_should_exit = true;
+		del_timer_sync(&slow_work_cull_timer);
+		del_timer_sync(&slow_work_oom_timer);
 		wake_up_all(&slow_work_thread_wq);
 		wait_for_completion(&slow_work_last_thread_exited);
 		printk(KERN_NOTICE "Slow work thread pool:"
 		       " Shut down complete\n");
 	}
-
-	del_timer_sync(&slow_work_cull_timer);
 
 	mutex_unlock(&slow_work_user_lock);
 }

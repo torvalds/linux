@@ -413,7 +413,9 @@ out_unlock:
 	gfs2_glock_dq(&gh);
 out:
 	gfs2_holder_uninit(&gh);
-	if (ret)
+	if (ret == -ENOMEM)
+		ret = VM_FAULT_OOM;
+	else if (ret)
 		ret = VM_FAULT_SIGBUS;
 	return ret;
 }

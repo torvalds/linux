@@ -88,6 +88,7 @@ static struct snd_pcm_hardware pcm_hardware_skel = {
 	.rates = 	SNDRV_PCM_RATE_32000 |
 			SNDRV_PCM_RATE_44100 |
 			SNDRV_PCM_RATE_48000 |
+			SNDRV_PCM_RATE_64000 |
 			SNDRV_PCM_RATE_88200 |
 			SNDRV_PCM_RATE_96000,
 	.rate_min = 32000,

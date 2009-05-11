@@ -734,9 +734,6 @@ int audit_tag_tree(char *old, char *new)
 	dentry = dget(path.dentry);
 	path_put(&path);
 
-	if (dentry == tagged->mnt_root && dentry == mnt->mnt_root)
-		follow_up(&mnt, &dentry);
-
 	list_add_tail(&list, &tagged->mnt_list);
 
 	mutex_lock(&audit_filter_mutex);

@@ -948,7 +948,7 @@ static struct irqaction versatile_timer_irq = {
 	.handler	= versatile_timer_interrupt,
 };
 
-static cycle_t versatile_get_cycles(void)
+static cycle_t versatile_get_cycles(struct clocksource *cs)
 {
 	return ~readl(TIMER3_VA_BASE + TIMER_VALUE);
 }

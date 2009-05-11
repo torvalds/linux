@@ -920,6 +920,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	int r;
 	gfn_t base_gfn;
 	unsigned long npages;
+	int largepages;
 	unsigned long i;
 	struct kvm_memory_slot *memslot;
 	struct kvm_memory_slot old, new;
@@ -960,7 +961,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
 		struct kvm_memory_slot *s = &kvm->memslots[i];
 
-		if (s == memslot)
+		if (s == memslot || !s->npages)
 			continue;
 		if (!((base_gfn + npages <= s->base_gfn) ||
 		      (base_gfn >= s->base_gfn + s->npages)))
@@ -995,11 +996,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			new.userspace_addr = 0;
 	}
 	if (npages && !new.lpage_info) {
-		int largepages = npages / KVM_PAGES_PER_HPAGE;
-		if (npages % KVM_PAGES_PER_HPAGE)
-			largepages++;
-		if (base_gfn % KVM_PAGES_PER_HPAGE)
-			largepages++;
+		largepages = 1 + (base_gfn + npages - 1) / KVM_PAGES_PER_HPAGE;
+		largepages -= base_gfn / KVM_PAGES_PER_HPAGE;
 
 		new.lpage_info = vmalloc(largepages * sizeof(*new.lpage_info));
 
@@ -1985,6 +1983,7 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 	switch (arg) {
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_DESTROY_MEMORY_REGION_WORKS:
+	case KVM_CAP_JOIN_MEMORY_REGIONS_WORKS:
 		return 1;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	case KVM_CAP_IRQ_ROUTING:

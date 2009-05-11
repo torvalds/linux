@@ -1365,9 +1365,8 @@ static void sock_spd_release(struct splice_pipe_desc *spd, unsigned int i)
 
 static inline struct page *linear_to_page(struct page *page, unsigned int *len,
 					  unsigned int *offset,
-					  struct sk_buff *skb)
+					  struct sk_buff *skb, struct sock *sk)
 {
-	struct sock *sk = skb->sk;
 	struct page *p = sk->sk_sndmsg_page;
 	unsigned int off;
 
@@ -1405,13 +1404,14 @@ new_page:
  */
 static inline int spd_fill_page(struct splice_pipe_desc *spd, struct page *page,
 				unsigned int *len, unsigned int offset,
-				struct sk_buff *skb, int linear)
+				struct sk_buff *skb, int linear,
+				struct sock *sk)
 {
 	if (unlikely(spd->nr_pages == PIPE_BUFFERS))
 		return 1;
 
 	if (linear) {
-		page = linear_to_page(page, len, &offset, skb);
+		page = linear_to_page(page, len, &offset, skb, sk);
 		if (!page)
 			return 1;
 	} else
@@ -1442,7 +1442,8 @@ static inline void __segment_seek(struct page **page, unsigned int *poff,
 static inline int __splice_segment(struct page *page, unsigned int poff,
 				   unsigned int plen, unsigned int *off,
 				   unsigned int *len, struct sk_buff *skb,
-				   struct splice_pipe_desc *spd, int linear)
+				   struct splice_pipe_desc *spd, int linear,
+				   struct sock *sk)
 {
 	if (!*len)
 		return 1;
@@ -1465,7 +1466,7 @@ static inline int __splice_segment(struct page *page, unsigned int poff,
 		/* the linear region may spread across several pages  */
 		flen = min_t(unsigned int, flen, PAGE_SIZE - poff);
 
-		if (spd_fill_page(spd, page, &flen, poff, skb, linear))
+		if (spd_fill_page(spd, page, &flen, poff, skb, linear, sk))
 			return 1;
 
 		__segment_seek(&page, &poff, &plen, flen);
@@ -1481,8 +1482,8 @@ static inline int __splice_segment(struct page *page, unsigned int poff,
  * pipe is full or if we already spliced the requested length.
  */
 static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
-		      unsigned int *len,
-		      struct splice_pipe_desc *spd)
+			     unsigned int *len, struct splice_pipe_desc *spd,
+			     struct sock *sk)
 {
 	int seg;
 
@@ -1492,7 +1493,7 @@ static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
 	if (__splice_segment(virt_to_page(skb->data),
 			     (unsigned long) skb->data & (PAGE_SIZE - 1),
 			     skb_headlen(skb),
-			     offset, len, skb, spd, 1))
+			     offset, len, skb, spd, 1, sk))
 		return 1;
 
 	/*
@@ -1502,7 +1503,7 @@ static int __skb_splice_bits(struct sk_buff *skb, unsigned int *offset,
 		const skb_frag_t *f = &skb_shinfo(skb)->frags[seg];
 
 		if (__splice_segment(f->page, f->page_offset, f->size,
-				     offset, len, skb, spd, 0))
+				     offset, len, skb, spd, 0, sk))
 			return 1;
 	}
 
@@ -1528,12 +1529,13 @@ int skb_splice_bits(struct sk_buff *skb, unsigned int offset,
 		.ops = &sock_pipe_buf_ops,
 		.spd_release = sock_spd_release,
 	};
+	struct sock *sk = skb->sk;
 
 	/*
 	 * __skb_splice_bits() only fails if the output has no room left,
 	 * so no point in going over the frag_list for the error case.
 	 */
-	if (__skb_splice_bits(skb, &offset, &tlen, &spd))
+	if (__skb_splice_bits(skb, &offset, &tlen, &spd, sk))
 		goto done;
 	else if (!tlen)
 		goto done;
@@ -1545,14 +1547,13 @@ int skb_splice_bits(struct sk_buff *skb, unsigned int offset,
 		struct sk_buff *list = skb_shinfo(skb)->frag_list;
 
 		for (; list && tlen; list = list->next) {
-			if (__skb_splice_bits(list, &offset, &tlen, &spd))
+			if (__skb_splice_bits(list, &offset, &tlen, &spd, sk))
 				break;
 		}
 	}
 
 done:
 	if (spd.nr_pages) {
-		struct sock *sk = skb->sk;
 		int ret;
 
 		/*

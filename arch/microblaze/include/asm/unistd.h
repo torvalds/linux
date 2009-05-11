@@ -378,8 +378,10 @@
 #define __NR_sendmsg		360 /* new */
 #define __NR_recvmsg		361 /* new */
 #define __NR_accept04		362 /* new */
+#define __NR_preadv		363 /* new */
+#define __NR_pwritev		364 /* new */
 
-#define __NR_syscalls		363
+#define __NR_syscalls		365
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

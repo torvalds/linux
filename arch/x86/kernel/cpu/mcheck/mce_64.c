@@ -239,9 +239,10 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
 		 */
-
-		mce_log(&m);
-		add_taint(TAINT_MACHINE_CHECK);
+		if (!(flags & MCP_DONTLOG)) {
+			mce_log(&m);
+			add_taint(TAINT_MACHINE_CHECK);
+		}
 
 		/*
 		 * Clear state for this bank.
@@ -452,13 +453,14 @@ void mce_log_therm_throt_event(__u64 status)
  */
 
 static int check_interval = 5 * 60; /* 5 minutes */
-static int next_interval; /* in jiffies */
+static DEFINE_PER_CPU(int, next_interval); /* in jiffies */
 static void mcheck_timer(unsigned long);
 static DEFINE_PER_CPU(struct timer_list, mce_timer);
 
 static void mcheck_timer(unsigned long data)
 {
 	struct timer_list *t = &per_cpu(mce_timer, data);
+	int *n;
 
 	WARN_ON(smp_processor_id() != data);
 
@@ -470,14 +472,14 @@ static void mcheck_timer(unsigned long data)
 	 * Alert userspace if needed.  If we logged an MCE, reduce the
 	 * polling interval, otherwise increase the polling interval.
 	 */
+	n = &__get_cpu_var(next_interval);
 	if (mce_notify_user()) {
-		next_interval = max(next_interval/2, HZ/100);
+		*n = max(*n/2, HZ/100);
 	} else {
-		next_interval = min(next_interval * 2,
-				(int)round_jiffies_relative(check_interval*HZ));
+		*n = min(*n*2, (int)round_jiffies_relative(check_interval*HZ));
 	}
 
-	t->expires = jiffies + next_interval;
+	t->expires = jiffies + *n;
 	add_timer(t);
 }
 
@@ -584,7 +586,7 @@ static void mce_init(void *dummy)
 	 * Log the machine checks left over from the previous reset.
 	 */
 	bitmap_fill(all_banks, MAX_NR_BANKS);
-	machine_check_poll(MCP_UC, &all_banks);
+	machine_check_poll(MCP_UC|(!mce_bootlog ? MCP_DONTLOG : 0), &all_banks);
 
 	set_in_cr4(X86_CR4_MCE);
 
@@ -632,14 +634,13 @@ static void mce_cpu_features(struct cpuinfo_x86 *c)
 static void mce_init_timer(void)
 {
 	struct timer_list *t = &__get_cpu_var(mce_timer);
+	int *n = &__get_cpu_var(next_interval);
 
-	/* data race harmless because everyone sets to the same value */
-	if (!next_interval)
-		next_interval = check_interval * HZ;
-	if (!next_interval)
+	*n = check_interval * HZ;
+	if (!*n)
 		return;
 	setup_timer(t, mcheck_timer, smp_processor_id());
-	t->expires = round_jiffies(jiffies + next_interval);
+	t->expires = round_jiffies(jiffies + *n);
 	add_timer(t);
 }
 
@@ -907,7 +908,6 @@ static void mce_cpu_restart(void *data)
 /* Reinit MCEs after user configuration changes */
 static void mce_restart(void)
 {
-	next_interval = check_interval * HZ;
 	on_each_cpu(mce_cpu_restart, NULL, 1);
 }
 
@@ -1110,7 +1110,8 @@ static int __cpuinit mce_cpu_callback(struct notifier_block *nfb,
 		break;
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		t->expires = round_jiffies(jiffies + next_interval);
+		t->expires = round_jiffies(jiffies +
+						__get_cpu_var(next_interval));
 		add_timer_on(t, cpu);
 		smp_call_function_single(cpu, mce_reenable_cpu, &action, 1);
 		break;

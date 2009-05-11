@@ -296,14 +296,6 @@ static int visor_open(struct tty_struct *tty, struct usb_serial_port *port,
 	priv->throttled = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/*
-	 * Force low_latency on so that our tty_push actually forces the data
-	 * through, otherwise it is scheduled, and with high data rates (like
-	 * with OHCI) data can get lost.
-	 */
-	if (tty)
-		tty->low_latency = 1;
-
 	/* Start reading from the device */
 	usb_fill_bulk_urb(port->read_urb, serial->dev,
 			   usb_rcvbulkpipe(serial->dev,

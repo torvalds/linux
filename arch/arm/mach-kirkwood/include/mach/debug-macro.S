@@ -6,7 +6,7 @@
  * published by the Free Software Foundation.
 */
 
-#include <mach/kirkwood.h>
+#include <mach/bridge-regs.h>
 
 	.macro	addruart,rx
 	mrc	p15, 0, \rx, c1, c0

@@ -9,6 +9,7 @@
  * 2 of the Licence, or (at your option) any later version.
  */
 
+#include <linux/init.h>
 #include <linux/threads.h>
 #include <linux/linkage.h>
 #include <linux/serial_reg.h>
@@ -19,7 +20,7 @@
 #include <asm/param.h>
 #include <unit/serial.h>
 
-	.section .text.head,"ax"
+	__HEAD
 
 ###############################################################################
 #

@@ -40,8 +40,8 @@ static void omap1_mcbsp_request(unsigned int id)
 	 */
 	if (id == OMAP_MCBSP1 || id == OMAP_MCBSP3) {
 		if (dsp_use++ == 0) {
-			api_clk = clk_get(NULL, "api_clk");
-			dsp_clk = clk_get(NULL, "dsp_clk");
+			api_clk = clk_get(NULL, "api_ck");
+			dsp_clk = clk_get(NULL, "dsp_ck");
 			if (!IS_ERR(api_clk) && !IS_ERR(dsp_clk)) {
 				clk_enable(api_clk);
 				clk_enable(dsp_clk);

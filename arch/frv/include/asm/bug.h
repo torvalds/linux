@@ -30,7 +30,7 @@ extern void __debug_bug_printk(const char *file, unsigned line);
 do {						\
 	__debug_bug_trap(signr);		\
 	asm volatile("nop");			\
-} while(0)
+} while(1)
 
 #define HAVE_ARCH_BUG
 #define BUG()					\
@@ -46,7 +46,8 @@ do {						\
 #define HAVE_ARCH_KGDB_BAD_PAGE
 #define kgdb_bad_page(page) do { kgdb_raise(SIGABRT); } while(0)
 #endif
-#endif
+
+#endif /* CONFIG_BUG */
 
 #include <asm-generic/bug.h>
 

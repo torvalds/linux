@@ -506,7 +506,8 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	if (err)
 		jbd2_journal_abort(journal, err);
 
-	jbd2_journal_write_revoke_records(journal, commit_transaction);
+	jbd2_journal_write_revoke_records(journal, commit_transaction,
+					  write_op);
 
 	jbd_debug(3, "JBD: commit phase 2\n");
 

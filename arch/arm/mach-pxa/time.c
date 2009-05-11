@@ -125,7 +125,7 @@ static struct clock_event_device ckevt_pxa_osmr0 = {
 	.set_mode	= pxa_osmr0_set_mode,
 };
 
-static cycle_t pxa_read_oscr(void)
+static cycle_t pxa_read_oscr(struct clocksource *cs)
 {
 	return OSCR;
 }

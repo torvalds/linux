@@ -180,6 +180,20 @@ config USB_NET_CDCETHER
 	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
 	  name is used instead.
 
+config USB_NET_CDC_EEM
+	tristate "CDC EEM support"
+	depends on USB_USBNET && EXPERIMENTAL
+	help
+	  This option supports devices conforming to the Communication Device
+	  Class (CDC) Ethernet Emulation Model, a specification that's easy to
+	  implement in device firmware.  The CDC EEM specifications are available
+	  from <http://www.usb.org/>.
+
+	  This driver creates an interface named "ethX", where X depends on
+	  what other networking devices you have in use.  However, if the
+	  IEEE 802 "local assignment" bit is set in the address, a "usbX"
+	  name is used instead.
+
 config USB_NET_DM9601
 	tristate "Davicom DM9601 based USB 1.1 10/100 ethernet devices"
 	depends on USB_USBNET

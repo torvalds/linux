@@ -502,7 +502,7 @@ void journal_commit_transaction(journal_t *journal)
 		err = 0;
 	}
 
-	journal_write_revoke_records(journal, commit_transaction);
+	journal_write_revoke_records(journal, commit_transaction, write_op);
 
 	/*
 	 * If we found any dirty or locked buffers, then we should have
