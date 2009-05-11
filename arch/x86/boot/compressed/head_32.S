@@ -69,8 +69,11 @@ ENTRY(startup_32)
 
 #ifdef CONFIG_RELOCATABLE
 	movl	%ebp, %ebx
-	addl    $(CONFIG_PHYSICAL_ALIGN - 1), %ebx
-	andl    $(~(CONFIG_PHYSICAL_ALIGN - 1)), %ebx
+	movl	BP_kernel_alignment(%esi), %eax
+	decl	%eax
+	addl    %eax, %ebx
+	notl	%eax
+	andl    %eax, %ebx
 #else
 	movl	$LOAD_PHYSICAL_ADDR, %ebx
 #endif

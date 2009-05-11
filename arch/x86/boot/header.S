@@ -116,7 +116,7 @@ _start:
 	# Part 2 of the header, from the old setup.S
 
 		.ascii	"HdrS"		# header signature
-		.word	0x0209		# header version number (>= 0x0105)
+		.word	0x020a		# header version number (>= 0x0105)
 					# or else old loadlin-1.5 will fail)
 		.globl realmode_swtch
 realmode_swtch:	.word	0, 0		# default_switch, SETUPSEG
@@ -201,7 +201,7 @@ relocatable_kernel:    .byte 1
 #else
 relocatable_kernel:    .byte 0
 #endif
-pad2:			.byte 0
+min_alignment:		.byte MIN_KERNEL_ALIGN_LG2	# minimum alignment
 pad3:			.word 0
 
 cmdline_size:   .long   COMMAND_LINE_SIZE-1     #length of the command line,
@@ -219,6 +219,17 @@ payload_length:		.long ZO_z_input_len
 setup_data:		.quad 0			# 64-bit physical pointer to
 						# single linked list of
 						# struct setup_data
+
+pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
+
+#define ZO_INIT_SIZE	(ZO__end - ZO_startup_32 + ZO_extract_offset)
+#define VO_INIT_SIZE	(VO__end - VO__text)
+#if ZO_INIT_SIZE > VO_INIT_SIZE
+#define INIT_SIZE ZO_INIT_SIZE
+#else
+#define INIT_SIZE VO_INIT_SIZE
+#endif
+init_size:		.long INIT_SIZE		# kernel initialization size
 
 # End of setup header #####################################################
 

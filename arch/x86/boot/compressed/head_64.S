@@ -84,8 +84,11 @@ ENTRY(startup_32)
 
 #ifdef CONFIG_RELOCATABLE
 	movl	%ebp, %ebx
-	addl	$(PMD_PAGE_SIZE -1), %ebx
-	andl	$PMD_PAGE_MASK, %ebx
+	movl	BP_kernel_alignment(%esi), %eax
+	decl	%eax
+	addl	%eax, %ebx
+	notl	%eax
+	andl	%eax, %ebx
 #else
 	movl	$LOAD_PHYSICAL_ADDR, %ebx
 #endif
@@ -224,8 +227,11 @@ ENTRY(startup_64)
 	/* Start with the delta to where the kernel will run at. */
 #ifdef CONFIG_RELOCATABLE
 	leaq	startup_32(%rip) /* - $startup_32 */, %rbp
-	addq	$(PMD_PAGE_SIZE - 1), %rbp
-	andq	$PMD_PAGE_MASK, %rbp
+	movl	BP_kernel_alignment(%rsi), %eax
+	decl	%eax
+	addq	%rax, %rbp
+	notq	%rax
+	andq	%rax, %rbp
 #else
 	movq	$LOAD_PHYSICAL_ADDR, %rbp
 #endif
