@@ -80,6 +80,7 @@ config XTENSA_VARIANT_S6000
 	bool "s6000 - Stretch software configurable processor"
 	select VARIANT_IRQ_SWITCH
 	select ARCH_REQUIRE_GPIOLIB
+	select XTENSA_CALIBRATE_CCOUNT
 endchoice
 
 config XTENSA_UNALIGNED_USER
