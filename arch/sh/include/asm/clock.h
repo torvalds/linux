@@ -10,7 +10,7 @@ struct clk;
 
 struct clk_ops {
 	void (*init)(struct clk *clk);
-	void (*enable)(struct clk *clk);
+	int (*enable)(struct clk *clk);
 	void (*disable)(struct clk *clk);
 	unsigned long (*recalc)(struct clk *clk);
 	int (*set_rate)(struct clk *clk, unsigned long rate, int algo_id);

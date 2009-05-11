@@ -472,9 +472,9 @@ static int sh7722_siu_start_stop(struct clk *clk, int enable)
 	return 0;
 }
 
-static void sh7722_siu_enable(struct clk *clk)
+static int sh7722_siu_enable(struct clk *clk)
 {
-	sh7722_siu_start_stop(clk, 1);
+	return sh7722_siu_start_stop(clk, 1);
 }
 
 static void sh7722_siu_disable(struct clk *clk)
@@ -491,12 +491,13 @@ static struct clk_ops sh7722_siu_clk_ops = {
 
 #endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
-static void sh7722_video_enable(struct clk *clk)
+static int sh7722_video_enable(struct clk *clk)
 {
 	unsigned long r;
 
 	r = ctrl_inl(VCLKCR);
 	ctrl_outl( r & ~(1<<8), VCLKCR);
+	return 0;
 }
 
 static void sh7722_video_disable(struct clk *clk)
@@ -630,9 +631,9 @@ static int sh7722_mstpcr_start_stop(struct clk *clk, int enable)
 	return 0;
 }
 
-static void sh7722_mstpcr_enable(struct clk *clk)
+static int sh7722_mstpcr_enable(struct clk *clk)
 {
-	sh7722_mstpcr_start_stop(clk, 1);
+	return sh7722_mstpcr_start_stop(clk, 1);
 }
 
 static void sh7722_mstpcr_disable(struct clk *clk)

@@ -93,38 +93,16 @@ void propagate_rate(struct clk *tclk)
 	}
 }
 
-static int __clk_enable(struct clk *clk)
-{
-	if (clk->usecount++ == 0) {
-		if (clk->parent)
-			__clk_enable(clk->parent);
-
-		if (clk->ops && clk->ops->enable)
-			clk->ops->enable(clk);
-	}
-
-	return 0;
-}
-
-int clk_enable(struct clk *clk)
-{
-	unsigned long flags;
-	int ret;
-
-	if (!clk)
-		return -EINVAL;
-
-	spin_lock_irqsave(&clock_lock, flags);
-	ret = __clk_enable(clk);
-	spin_unlock_irqrestore(&clock_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(clk_enable);
-
 static void __clk_disable(struct clk *clk)
 {
-	if (clk->usecount > 0 && !(--clk->usecount)) {
+	if (clk->usecount == 0) {
+		printk(KERN_ERR "Trying disable clock %s with 0 usecount\n",
+		       clk->name);
+		WARN_ON(1);
+		return;
+	}
+
+	if (!(--clk->usecount)) {
 		if (likely(clk->ops && clk->ops->disable))
 			clk->ops->disable(clk);
 		if (likely(clk->parent))
@@ -144,6 +122,49 @@ void clk_disable(struct clk *clk)
 	spin_unlock_irqrestore(&clock_lock, flags);
 }
 EXPORT_SYMBOL_GPL(clk_disable);
+
+static int __clk_enable(struct clk *clk)
+{
+	int ret = 0;
+
+	if (clk->usecount++ == 0) {
+		if (clk->parent) {
+			ret = __clk_enable(clk->parent);
+			if (unlikely(ret))
+				goto err;
+		}
+
+		if (clk->ops && clk->ops->enable) {
+			ret = clk->ops->enable(clk);
+			if (ret) {
+				if (clk->parent)
+					__clk_disable(clk->parent);
+				goto err;
+			}
+		}
+	}
+
+	return ret;
+err:
+	clk->usecount--;
+	return ret;
+}
+
+int clk_enable(struct clk *clk)
+{
+	unsigned long flags;
+	int ret;
+
+	if (!clk)
+		return -EINVAL;
+
+	spin_lock_irqsave(&clock_lock, flags);
+	ret = __clk_enable(clk);
+	spin_unlock_irqrestore(&clock_lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(clk_enable);
 
 static LIST_HEAD(root_clks);
 
