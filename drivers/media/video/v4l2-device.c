@@ -85,6 +85,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 	/* Unregister subdevs */
 	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list) {
 		v4l2_device_unregister_subdev(sd);
+#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C) {
 			struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -95,6 +96,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 			if (client)
 				i2c_unregister_device(client);
 		}
+#endif
 	}
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister);
