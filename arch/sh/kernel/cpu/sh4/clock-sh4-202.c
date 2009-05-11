@@ -127,7 +127,7 @@ static int shoc_clk_set_rate(struct clk *clk, unsigned long rate, int algo_id)
 	frqcr3 |= tmp << 6;
 	ctrl_outl(frqcr3, CPG2_FRQCR3);
 
-	return clk->parent->rate / frqcr3_divisors[tmp];
+	clk->rate = clk->parent->rate / frqcr3_divisors[tmp];
 
 	return 0;
 }
@@ -153,28 +153,17 @@ static struct clk *sh4202_onchip_clocks[] = {
 static int __init sh4202_clk_init(void)
 {
 	struct clk *clk = clk_get(NULL, "master_clk");
-	int i;
+	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(sh4202_onchip_clocks); i++) {
 		struct clk *clkp = sh4202_onchip_clocks[i];
 
 		clkp->parent = clk;
-		clk_register(clkp);
-		clk_enable(clkp);
+		ret |= clk_register(clkp);
 	}
-
-	/*
-	 * Now that we have the rest of the clocks registered, we need to
-	 * force the parent clock to propagate so that these clocks will
-	 * automatically figure out their rate. We cheat by handing the
-	 * parent clock its current rate and forcing child propagation.
-	 */
-	clk_set_rate(clk, clk_get_rate(clk));
 
 	clk_put(clk);
 
-	return 0;
+	return ret;
 }
-
 arch_initcall(sh4202_clk_init);
-
