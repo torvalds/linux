@@ -288,17 +288,52 @@ void cx18_av_std_setup(struct cx18 *cx)
 	else
 		cx18_av_write(cx, 0x49f, 0x14);
 
+	/*
+	 * Note: At the end of a field, there are 3 sets of half line duration
+	 * (double horizontal rate) pulses:
+	 *
+	 * 5 (625) or 6 (525) half-lines to blank for the vertical retrace
+	 * 5 (625) or 6 (525) vertical sync pulses of half line duration
+	 * 5 (625) or 6 (525) half-lines of equalization pulses
+	 */
 	if (std & V4L2_STD_625_50) {
-		/* FIXME - revisit these for Sliced VBI */
+		/*
+		 * The following relationships of half line counts should hold:
+		 * 625 = vblank656 + vactive + postvactive
+		 * 10 = vblank656 - vblank = vsync pulses + equalization pulses
+		 *
+		 * vblank656: half lines after line 625/mid-313 of blanked video
+		 * vblank:    half lines, after line 5/317, of blanked video
+		 * vactive:   half lines of active video
+		 * postvactive: 5 half lines after the end of active video
+		 *
+		 * As far as I can tell:
+		 * vblank656 starts counting from the falling edge of the first
+		 * 	vsync pulse (start of line 1 or mid-313)
+		 * vblank starts counting from the after the 5 vsync pulses and
+		 * 	5 or 4 equalization pulses (start of line 6 or 318)
+		 *
+		 * For 625 line systems the driver will extract VBI information
+		 * from lines 6-23 and lines 318-335 (but the slicer can only
+		 * handle 17 lines, not the 18 in the vblank region).
+		 */
+		vblank656 = 46; /* lines  1 -  23  &  313 - 335 */
+		vblank = 36;    /* lines  6 -  23  &  318 - 335 */
+		vactive = 574;  /* lines 24 - 310  &  336 - 622 */
+
+		/*
+		 * For a 13.5 Mpps clock and 15,625 Hz line rate, a line is
+		 * is 864 pixels = 720 active + 144 blanking.  ITU-R BT.601
+		 * specifies 12 luma clock periods or ~ 0.9 * 13.5 Mpps after
+		 * the end of active video to start a horizontal line, so that
+		 * leaves 132 pixels of hblank to ignore.
+		 */
 		hblank = 132;
 		hactive = 720;
-		burst = 93;
-		vblank = 36;
-		vactive = 580;
-		vblank656 = 40;
-		src_decimation = 0x21f;
 
+		burst = 93;
 		luma_lpf = 2;
+		src_decimation = 0x21f;
 		if (std & V4L2_STD_PAL) {
 			uv_lpf = 1;
 			comb = 0x20;
@@ -315,13 +350,13 @@ void cx18_av_std_setup(struct cx18 *cx)
 	} else {
 		/*
 		 * The following relationships of half line counts should hold:
-		 * 525 = vsync + vactive + vblank656
-		 * 12 = vblank656 - vblank
+		 * 525 = prevsync + vblank656 + vactive
+		 * 12 = vblank656 - vblank = vsync pulses + equalization pulses
 		 *
-		 * vsync:     always 6 half-lines of vsync pulses
-		 * vactive:   half lines of active video
+		 * prevsync:  6 half-lines before the vsync pulses
 		 * vblank656: half lines, after line 3/mid-266, of blanked video
 		 * vblank:    half lines, after line 9/272, of blanked video
+		 * vactive:   half lines of active video
 		 *
 		 * As far as I can tell:
 		 * vblank656 starts counting from the falling edge of the first
@@ -954,9 +989,9 @@ static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		 * cx18_av_std_setup(), above standard values:
 		 *
 		 * 480 + 1 for 60 Hz systems
-		 * 576 + 4 for 50 Hz systems
+		 * 576 - 2 for 50 Hz systems
 		 */
-		Vlines = pix->height + (is_50Hz ? 4 : 1);
+		Vlines = pix->height + (is_50Hz ? -2 : 1);
 
 		/*
 		 * Invalid height and width scaling requests are:
