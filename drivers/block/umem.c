@@ -906,6 +906,7 @@ static int __devinit mm_pci_probe(struct pci_dev *dev,
 		goto failed_alloc;
 
 	blk_queue_make_request(card->queue, mm_make_request);
+	card->queue->queue_lock = &card->lock;
 	card->queue->queuedata = card;
 	card->queue->unplug_fn = mm_unplug_device;
 

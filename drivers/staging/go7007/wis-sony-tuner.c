@@ -386,6 +386,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct wis_sony_tuner *t = i2c_get_clientdata(client);
 
 	switch (cmd) {
+#if 0
 #ifdef TUNER_SET_TYPE_ADDR
 	case TUNER_SET_TYPE_ADDR:
 	{
@@ -463,6 +464,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				t->type, sony_tuners[t->type - 200].name);
 		break;
 	}
+#endif
 	case VIDIOC_G_FREQUENCY:
 	{
 		struct v4l2_frequency *f = arg;
@@ -651,35 +653,19 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static struct i2c_driver wis_sony_tuner_driver;
-
-static struct i2c_client wis_sony_tuner_client_templ = {
-	.name		= "Sony TV Tuner (WIS)",
-	.driver		= &wis_sony_tuner_driver,
-};
-
-static int wis_sony_tuner_detect(struct i2c_adapter *adapter,
-					int addr, int kind)
+static int wis_sony_tuner_probe(struct i2c_client *client,
+				const struct i2c_device_id *id)
 {
-	struct i2c_client *client;
+	struct i2c_adapter *adapter = client->adapter;
 	struct wis_sony_tuner *t;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_I2C_BLOCK))
-		return 0;
-
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (client == NULL)
-		return -ENOMEM;
-	memcpy(client, &wis_sony_tuner_client_templ,
-			sizeof(wis_sony_tuner_client_templ));
-	client->adapter = adapter;
-	client->addr = addr;
+		return -ENODEV;
 
 	t = kmalloc(sizeof(struct wis_sony_tuner), GFP_KERNEL);
-	if (t == NULL) {
-		kfree(client);
+	if (t == NULL)
 		return -ENOMEM;
-	}
+
 	t->type = -1;
 	t->freq = 0;
 	t->mpxmode = 0;
@@ -688,50 +674,42 @@ static int wis_sony_tuner_detect(struct i2c_adapter *adapter,
 
 	printk(KERN_DEBUG
 		"wis-sony-tuner: initializing tuner at address %d on %s\n",
-		addr, adapter->name);
-
-	i2c_attach_client(client);
+		client->addr, adapter->name);
 
 	return 0;
 }
 
-static int wis_sony_tuner_detach(struct i2c_client *client)
+static int wis_sony_tuner_remove(struct i2c_client *client)
 {
 	struct wis_sony_tuner *t = i2c_get_clientdata(client);
-	int r;
 
-	r = i2c_detach_client(client);
-	if (r < 0)
-		return r;
-
+	i2c_set_clientdata(client, NULL);
 	kfree(t);
-	kfree(client);
 	return 0;
 }
+
+static struct i2c_device_id wis_sony_tuner_id[] = {
+	{ "wis_sony_tuner", 0 },
+	{ }
+};
 
 static struct i2c_driver wis_sony_tuner_driver = {
 	.driver = {
 		.name	= "WIS Sony TV Tuner I2C driver",
 	},
-	.id		= I2C_DRIVERID_WIS_SONY_TUNER,
-	.detach_client	= wis_sony_tuner_detach,
+	.probe		= wis_sony_tuner_probe,
+	.remove		= wis_sony_tuner_remove,
 	.command	= tuner_command,
+	.id_table	= wis_sony_tuner_id,
 };
 
 static int __init wis_sony_tuner_init(void)
 {
-	int r;
-
-	r = i2c_add_driver(&wis_sony_tuner_driver);
-	if (r < 0)
-		return r;
-	return wis_i2c_add_driver(wis_sony_tuner_driver.id,
-					wis_sony_tuner_detect);
+	return i2c_add_driver(&wis_sony_tuner_driver);
 }
 
 static void __exit wis_sony_tuner_cleanup(void)
 {
-	wis_i2c_del_driver(wis_sony_tuner_detect);
 	i2c_del_driver(&wis_sony_tuner_driver);
 }
 

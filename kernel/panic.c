@@ -213,8 +213,16 @@ unsigned long get_taint(void)
 
 void add_taint(unsigned flag)
 {
-	/* can't trust the integrity of the kernel anymore: */
-	debug_locks = 0;
+	/*
+	 * Can't trust the integrity of the kernel anymore.
+	 * We don't call directly debug_locks_off() because the issue
+	 * is not necessarily serious enough to set oops_in_progress to 1
+	 * Also we want to keep up lockdep for staging development and
+	 * post-warning case.
+	 */
+	if (flag != TAINT_CRAP && flag != TAINT_WARN && __debug_locks_off())
+		printk(KERN_WARNING "Disabling lock debugging due to kernel taint\n");
+
 	set_bit(flag, &tainted_mask);
 }
 EXPORT_SYMBOL(add_taint);
@@ -332,7 +340,7 @@ void oops_exit(void)
 }
 
 #ifdef WANT_WARN_ON_SLOWPATH
-void warn_slowpath(const char *file, int line, const char *fmt, ...)
+void warn_slowpath_fmt(const char *file, int line, const char *fmt, ...)
 {
 	va_list args;
 	char function[KSYM_SYMBOL_LEN];
@@ -348,7 +356,7 @@ void warn_slowpath(const char *file, int line, const char *fmt, ...)
 	if (board)
 		printk(KERN_WARNING "Hardware name: %s\n", board);
 
-	if (fmt) {
+	if (*fmt) {
 		va_start(args, fmt);
 		vprintk(fmt, args);
 		va_end(args);
@@ -359,7 +367,14 @@ void warn_slowpath(const char *file, int line, const char *fmt, ...)
 	print_oops_end_marker();
 	add_taint(TAINT_WARN);
 }
-EXPORT_SYMBOL(warn_slowpath);
+EXPORT_SYMBOL(warn_slowpath_fmt);
+
+void warn_slowpath_null(const char *file, int line)
+{
+	static const char *empty = "";
+	warn_slowpath_fmt(file, line, empty);
+}
+EXPORT_SYMBOL(warn_slowpath_null);
 #endif
 
 #ifdef CONFIG_CC_STACKPROTECTOR

@@ -248,19 +248,19 @@ xp_init(void)
 	enum xp_retval ret;
 	int ch_number;
 
+	/* initialize the connection registration mutex */
+	for (ch_number = 0; ch_number < XPC_MAX_NCHANNELS; ch_number++)
+		mutex_init(&xpc_registrations[ch_number].mutex);
+
 	if (is_shub())
 		ret = xp_init_sn2();
 	else if (is_uv())
 		ret = xp_init_uv();
 	else
-		ret = xpUnsupported;
+		ret = 0;
 
 	if (ret != xpSuccess)
-		return -ENODEV;
-
-	/* initialize the connection registration mutex */
-	for (ch_number = 0; ch_number < XPC_MAX_NCHANNELS; ch_number++)
-		mutex_init(&xpc_registrations[ch_number].mutex);
+		return ret;
 
 	return 0;
 }

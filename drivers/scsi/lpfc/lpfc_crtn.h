@@ -184,6 +184,8 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *);
 struct lpfc_iocbq * lpfc_sli_get_iocbq(struct lpfc_hba *);
 void lpfc_sli_release_iocbq(struct lpfc_hba *, struct lpfc_iocbq *);
 uint16_t lpfc_sli_next_iotag(struct lpfc_hba *, struct lpfc_iocbq *);
+void lpfc_sli_cancel_iocbs(struct lpfc_hba *, struct list_head *, uint32_t,
+			   uint32_t);
 
 void lpfc_reset_barrier(struct lpfc_hba * phba);
 int lpfc_sli_brdready(struct lpfc_hba *, uint32_t);

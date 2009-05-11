@@ -19,6 +19,7 @@
 #include <linux/timer.h>
 #include <linux/cpu.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
@@ -34,6 +35,17 @@ DEFINE_PER_CPU(int, x2apic_extra_bits);
 
 static enum uv_system_type uv_system_type;
 
+static int early_get_nodeid(void)
+{
+	union uvh_node_id_u node_id;
+	unsigned long *mmr;
+
+	mmr = early_ioremap(UV_LOCAL_MMR_BASE | UVH_NODE_ID, sizeof(*mmr));
+	node_id.v = *mmr;
+	early_iounmap(mmr, sizeof(*mmr));
+	return node_id.s.node_id;
+}
+
 static int uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	if (!strcmp(oem_id, "SGI")) {
@@ -42,6 +54,8 @@ static int uv_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 		else if (!strcmp(oem_table_id, "UVX"))
 			uv_system_type = UV_X2APIC;
 		else if (!strcmp(oem_table_id, "UVH")) {
+			__get_cpu_var(x2apic_extra_bits) =
+				early_get_nodeid() << (UV_APIC_PNODE_SHIFT - 1);
 			uv_system_type = UV_NON_UNIQUE_APIC;
 			return 1;
 		}
@@ -549,7 +563,8 @@ void __init uv_system_init(void)
 	unsigned long gnode_upper, lowmem_redir_base, lowmem_redir_size;
 	int bytes, nid, cpu, lcpu, pnode, blade, i, j, m_val, n_val;
 	int max_pnode = 0;
-	unsigned long mmr_base, present;
+	unsigned long mmr_base, present, paddr;
+	unsigned short pnode_mask;
 
 	map_low_mmrs();
 
@@ -592,6 +607,7 @@ void __init uv_system_init(void)
 		}
 	}
 
+	pnode_mask = (1 << n_val) - 1;
 	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
 	gnode_upper = (((unsigned long)node_id.s.node_id) &
 		       ~((1 << n_val) - 1)) << m_val;
@@ -615,7 +631,7 @@ void __init uv_system_init(void)
 		uv_cpu_hub_info(cpu)->numa_blade_id = blade;
 		uv_cpu_hub_info(cpu)->blade_processor_id = lcpu;
 		uv_cpu_hub_info(cpu)->pnode = pnode;
-		uv_cpu_hub_info(cpu)->pnode_mask = (1 << n_val) - 1;
+		uv_cpu_hub_info(cpu)->pnode_mask = pnode_mask;
 		uv_cpu_hub_info(cpu)->gpa_mask = (1 << (m_val + n_val)) - 1;
 		uv_cpu_hub_info(cpu)->gnode_upper = gnode_upper;
 		uv_cpu_hub_info(cpu)->global_mmr_base = mmr_base;
@@ -629,6 +645,17 @@ void __init uv_system_init(void)
 			"lcpu %d, blade %d\n",
 			cpu, per_cpu(x86_cpu_to_apicid, cpu), pnode, nid,
 			lcpu, blade);
+	}
+
+	/* Add blade/pnode info for nodes without cpus */
+	for_each_online_node(nid) {
+		if (uv_node_to_blade[nid] >= 0)
+			continue;
+		paddr = node_start_pfn(nid) << PAGE_SHIFT;
+		paddr = uv_soc_phys_ram_to_gpa(paddr);
+		pnode = (paddr >> m_val) & pnode_mask;
+		blade = boot_pnode_to_blade(pnode);
+		uv_node_to_blade[nid] = blade;
 	}
 
 	map_gru_high(max_pnode);

@@ -540,8 +540,8 @@ static void drms_uA_update(struct regulator_dev *rdev)
 
 	err = regulator_check_drms(rdev);
 	if (err < 0 || !rdev->desc->ops->get_optimum_mode ||
-	    !rdev->desc->ops->get_voltage || !rdev->desc->ops->set_mode);
-	return;
+	    !rdev->desc->ops->get_voltage || !rdev->desc->ops->set_mode)
+		return;
 
 	/* get output voltage */
 	output_uV = rdev->desc->ops->get_voltage(rdev);
@@ -703,10 +703,13 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		int	cmin = constraints->min_uV;
 		int	cmax = constraints->max_uV;
 
-		/* it's safe to autoconfigure fixed-voltage supplies */
+		/* it's safe to autoconfigure fixed-voltage supplies
+		   and the constraints are used by list_voltage. */
 		if (count == 1 && !cmin) {
-			cmin = INT_MIN;
+			cmin = 1;
 			cmax = INT_MAX;
+			constraints->min_uV = cmin;
+			constraints->max_uV = cmax;
 		}
 
 		/* voltage constraints are optional */
@@ -2001,8 +2004,8 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (regulator_desc->name == NULL || regulator_desc->ops == NULL)
 		return ERR_PTR(-EINVAL);
 
-	if (!regulator_desc->type == REGULATOR_VOLTAGE &&
-	    !regulator_desc->type == REGULATOR_CURRENT)
+	if (regulator_desc->type != REGULATOR_VOLTAGE &&
+	    regulator_desc->type != REGULATOR_CURRENT)
 		return ERR_PTR(-EINVAL);
 
 	if (!init_data)
@@ -2080,6 +2083,10 @@ out:
 
 scrub:
 	device_unregister(&rdev->dev);
+	/* device core frees rdev */
+	rdev = ERR_PTR(ret);
+	goto out;
+
 clean:
 	kfree(rdev);
 	rdev = ERR_PTR(ret);

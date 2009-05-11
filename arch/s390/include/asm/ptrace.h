@@ -313,8 +313,6 @@ typedef struct
 
 
 #ifdef __KERNEL__
-#include <asm/setup.h>
-#include <asm/page.h>
 
 /*
  * The pt_regs struct defines the way the registers are stored on

@@ -268,9 +268,11 @@ static const DECLARE_TLV_DB_SCALE(dac_tlv, -12750, 50, 1);
 static int wm8580_out_vu(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value & 0xff;
-	int reg2 = (kcontrol->private_value >> 24) & 0xff;
+	unsigned int reg = mc->reg;
+	unsigned int reg2 = mc->rreg;
 	int ret;
 	u16 val;
 
@@ -292,15 +294,17 @@ static int wm8580_out_vu(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define SOC_WM8580_OUT_DOUBLE_R_TLV(xname, reg_left, reg_right, shift, max, invert, tlv_array) \
+#define SOC_WM8580_OUT_DOUBLE_R_TLV(xname, reg_left, reg_right, xshift, xmax, \
+				    xinvert, tlv_array)			\
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
 		SNDRV_CTL_ELEM_ACCESS_READWRITE,  \
 	.tlv.p = (tlv_array), \
 	.info = snd_soc_info_volsw_2r, \
 	.get = snd_soc_get_volsw_2r, .put = wm8580_out_vu, \
-	.private_value = (reg_left) | ((shift) << 8)  |		\
-		((max) << 12) | ((invert) << 20) | ((reg_right) << 24) }
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
+		.max = xmax, .invert = xinvert} }
 
 static const struct snd_kcontrol_new wm8580_snd_controls[] = {
 SOC_WM8580_OUT_DOUBLE_R_TLV("DAC1 Playback Volume",
@@ -522,7 +526,7 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai,
 	reg = wm8580_read(codec, WM8580_PLLA4 + offset);
 	reg &= ~0x3f;
 	reg |= pll_div.prescale | pll_div.postscale << 1 |
-		pll_div.freqmode << 4;
+		pll_div.freqmode << 3;
 
 	wm8580_write(codec, WM8580_PLLA4 + offset, reg);
 

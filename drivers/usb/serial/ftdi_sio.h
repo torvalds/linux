@@ -913,6 +913,13 @@
 #define ADI_GNICE_PID 		0xF000
 
 /*
+ * JETI SPECTROMETER SPECBOS 1201
+ * http://www.jeti.com/products/sys/scb/scb1201.php
+ */
+#define JETI_VID		0x0c6c
+#define JETI_SPC1201_PID	0x04b2
+
+/*
  *   BmRequestType:  1100 0000b
  *   bRequest:       FTDI_E2_READ
  *   wValue:         0

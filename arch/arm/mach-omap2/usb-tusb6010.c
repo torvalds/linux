@@ -187,7 +187,7 @@ int tusb6010_platform_retime(unsigned is_refclk)
 	unsigned	sysclk_ps;
 	int		status;
 
-	if (!refclk_psec)
+	if (!refclk_psec || sysclk_ps == 0)
 		return -ENODEV;
 
 	sysclk_ps = is_refclk ? refclk_psec : TUSB6010_OSCCLK_60;

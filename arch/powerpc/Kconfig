@@ -181,6 +181,10 @@ config SYS_SUPPORTS_APM_EMULATION
 	default y if PMAC_APM_EMU
 	bool
 
+config DTC
+       bool
+       default y
+
 config DEFAULT_UIMAGE
 	bool
 	help
@@ -462,7 +466,7 @@ config PPC_64K_PAGES
 
 config PPC_256K_PAGES
 	bool "256k page size" if 44x
-	depends on !STDBINUTILS && (!SHMEM || BROKEN)
+	depends on !STDBINUTILS
 	help
 	  Make the page size 256k.
 

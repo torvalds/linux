@@ -428,3 +428,12 @@ Why:	In 2.6.27, the semantics of /sys/bus/pci/slots was redefined to
 	After a reasonable transition period, we will remove the legacy
 	fakephp interface.
 Who:	Alex Chiang <achiang@hp.com>
+
+---------------------------
+
+What:	i2c-voodoo3 driver
+When:	October 2009
+Why:	Superseded by tdfxfb. I2C/DDC support used to live in a separate
+	driver but this caused driver conflicts.
+Who:	Jean Delvare <khali@linux-fr.org>
+	Krzysztof Helt <krzysztof.h1@wp.pl>

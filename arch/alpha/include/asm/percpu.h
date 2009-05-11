@@ -73,6 +73,6 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 
 #endif /* SMP */
 
-#define DECLARE_PER_CPU(type, name) extern __typeof__(type) per_cpu_var(name)
+#include <asm-generic/percpu.h>
 
 #endif /* __ALPHA_PERCPU_H */

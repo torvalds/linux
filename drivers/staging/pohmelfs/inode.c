@@ -1169,16 +1169,17 @@ err_out_put:
 static int pohmelfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 {
 	struct inode *inode = dentry->d_inode;
+#if 0
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
 	int err;
 
 	err = pohmelfs_data_lock(pi, 0, ~0, POHMELFS_READ_LOCK);
 	if (err)
 		return err;
-
 	dprintk("%s: ino: %llu, mode: %o, uid: %u, gid: %u, size: %llu.\n",
 			__func__, pi->ino, inode->i_mode, inode->i_uid,
 			inode->i_gid, inode->i_size);
+#endif
 
 	generic_fillattr(inode, stat);
 	return 0;
@@ -1342,14 +1343,6 @@ static void pohmelfs_put_super(struct super_block *sb)
 
 	kfree(psb);
 	sb->s_fs_info = NULL;
-
-	pohmelfs_ftrans_exit();
-}
-
-static int pohmelfs_remount(struct super_block *sb, int *flags, char *data)
-{
-	*flags |= MS_RDONLY;
-	return 0;
 }
 
 static int pohmelfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -1394,42 +1387,33 @@ static int pohmelfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	return 0;
 }
 
-static const struct super_operations pohmelfs_sb_ops = {
-	.alloc_inode	= pohmelfs_alloc_inode,
-	.destroy_inode	= pohmelfs_destroy_inode,
-	.drop_inode	= pohmelfs_drop_inode,
-	.write_inode	= pohmelfs_write_inode,
-	.put_super	= pohmelfs_put_super,
-	.remount_fs	= pohmelfs_remount,
-	.statfs		= pohmelfs_statfs,
-	.show_options	= pohmelfs_show_options,
-};
-
 enum {
 	pohmelfs_opt_idx,
+	pohmelfs_opt_crypto_thread_num,
+	pohmelfs_opt_trans_max_pages,
+	pohmelfs_opt_crypto_fail_unsupported,
+
+	/* Remountable options */
 	pohmelfs_opt_trans_scan_timeout,
 	pohmelfs_opt_drop_scan_timeout,
 	pohmelfs_opt_wait_on_page_timeout,
 	pohmelfs_opt_trans_retries,
-	pohmelfs_opt_crypto_thread_num,
-	pohmelfs_opt_trans_max_pages,
-	pohmelfs_opt_crypto_fail_unsupported,
 	pohmelfs_opt_mcache_timeout,
 };
 
 static struct match_token pohmelfs_tokens[] = {
 	{pohmelfs_opt_idx, "idx=%u"},
+	{pohmelfs_opt_crypto_thread_num, "crypto_thread_num=%u"},
+	{pohmelfs_opt_trans_max_pages, "trans_max_pages=%u"},
+	{pohmelfs_opt_crypto_fail_unsupported, "crypto_fail_unsupported"},
 	{pohmelfs_opt_trans_scan_timeout, "trans_scan_timeout=%u"},
 	{pohmelfs_opt_drop_scan_timeout, "drop_scan_timeout=%u"},
 	{pohmelfs_opt_wait_on_page_timeout, "wait_on_page_timeout=%u"},
 	{pohmelfs_opt_trans_retries, "trans_retries=%u"},
-	{pohmelfs_opt_crypto_thread_num, "crypto_thread_num=%u"},
-	{pohmelfs_opt_trans_max_pages, "trans_max_pages=%u"},
-	{pohmelfs_opt_crypto_fail_unsupported, "crypto_fail_unsupported"},
 	{pohmelfs_opt_mcache_timeout, "mcache_timeout=%u"},
 };
 
-static int pohmelfs_parse_options(char *options, struct pohmelfs_sb *psb)
+static int pohmelfs_parse_options(char *options, struct pohmelfs_sb *psb, int remount)
 {
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
@@ -1448,6 +1432,9 @@ static int pohmelfs_parse_options(char *options, struct pohmelfs_sb *psb)
 		err = match_int(&args[0], &option);
 		if (err)
 			return err;
+
+		if (remount && token <= pohmelfs_opt_crypto_fail_unsupported)
+			continue;
 
 		switch (token) {
 			case pohmelfs_opt_idx:
@@ -1483,6 +1470,25 @@ static int pohmelfs_parse_options(char *options, struct pohmelfs_sb *psb)
 	}
 
 	return 0;
+}
+
+static int pohmelfs_remount(struct super_block *sb, int *flags, char *data)
+{
+	int err;
+	struct pohmelfs_sb *psb = POHMELFS_SB(sb);
+	unsigned long old_sb_flags = sb->s_flags;
+
+	err = pohmelfs_parse_options(data, psb, 1);
+	if (err)
+		goto err_out_restore;
+
+	if (!(*flags & MS_RDONLY))
+		sb->s_flags &= ~MS_RDONLY;
+	return 0;
+
+err_out_restore:
+	sb->s_flags = old_sb_flags;
+	return err;
 }
 
 static void pohmelfs_flush_inode(struct pohmelfs_inode *pi, unsigned int count)
@@ -1753,6 +1759,57 @@ err_out_exit:
 	return err;
 }
 
+static int pohmelfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct netfs_state *st;
+	struct pohmelfs_ctl *ctl;
+	struct pohmelfs_sb *psb = POHMELFS_SB(mnt->mnt_sb);
+	struct pohmelfs_config *c;
+
+	mutex_lock(&psb->state_lock);
+
+	seq_printf(m, "\nidx addr(:port) socket_type protocol active priority permissions\n");
+
+	list_for_each_entry(c, &psb->state_list, config_entry) {
+		st = &c->state;
+		ctl = &st->ctl;
+
+		seq_printf(m, "%u ", ctl->idx);
+		if (ctl->addr.sa_family == AF_INET) {
+			struct sockaddr_in *sin = (struct sockaddr_in *)&st->ctl.addr;
+			//seq_printf(m, "%pi4:%u", &sin->sin_addr.s_addr, ntohs(sin->sin_port));
+			seq_printf(m, "%u.%u.%u.%u:%u", NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
+		} else if (ctl->addr.sa_family == AF_INET6) {
+			struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&st->ctl.addr;
+			seq_printf(m, "%pi6:%u", &sin->sin6_addr, ntohs(sin->sin6_port));
+		} else {
+			unsigned int i;
+			for (i=0; i<ctl->addrlen; ++i)
+				seq_printf(m, "%02x.", ctl->addr.addr[i]);
+		}
+
+		seq_printf(m, " %u %u %d %u %x\n",
+				ctl->type, ctl->proto,
+				st->socket != NULL,
+				ctl->prio, ctl->perm);
+	}
+	mutex_unlock(&psb->state_lock);
+
+	return 0;
+}
+
+static const struct super_operations pohmelfs_sb_ops = {
+	.alloc_inode	= pohmelfs_alloc_inode,
+	.destroy_inode	= pohmelfs_destroy_inode,
+	.drop_inode	= pohmelfs_drop_inode,
+	.write_inode	= pohmelfs_write_inode,
+	.put_super	= pohmelfs_put_super,
+	.remount_fs	= pohmelfs_remount,
+	.statfs		= pohmelfs_statfs,
+	.show_options	= pohmelfs_show_options,
+	.show_stats	= pohmelfs_show_stats,
+};
+
 /*
  * Allocate private superblock and create root dir.
  */
@@ -1763,8 +1820,6 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct inode *root;
 	struct pohmelfs_inode *npi;
 	struct qstr str;
-
-	pohmelfs_ftrans_init();
 
 	psb = kzalloc(sizeof(struct pohmelfs_sb), GFP_KERNEL);
 	if (!psb)
@@ -1816,7 +1871,7 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 	mutex_init(&psb->state_lock);
 	INIT_LIST_HEAD(&psb->state_list);
 
-	err = pohmelfs_parse_options((char *) data, psb);
+	err = pohmelfs_parse_options((char *) data, psb, 0);
 	if (err)
 		goto err_out_free_sb;
 
@@ -1845,6 +1900,8 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 		err = PTR_ERR(npi);
 		goto err_out_crypto_exit;
 	}
+	set_bit(NETFS_INODE_REMOTE_SYNCED, &npi->state);
+	clear_bit(NETFS_INODE_OWNED, &npi->state);
 
 	root = &npi->vfs_inode;
 
@@ -1887,11 +1944,29 @@ static int pohmelfs_get_sb(struct file_system_type *fs_type,
 				mnt);
 }
 
+/*
+ * We need this to sync all inodes earlier, since when writeback
+ * is invoked from the umount/mntput path dcache is already shrunk,
+ * see generic_shutdown_super(), and no inodes can access the path.
+ */
+static void pohmelfs_kill_super(struct super_block *sb)
+{
+	struct writeback_control wbc = {
+		.sync_mode	= WB_SYNC_ALL,
+		.range_start	= 0,
+		.range_end	= LLONG_MAX,
+		.nr_to_write	= LONG_MAX,
+	};
+	generic_sync_sb_inodes(sb, &wbc);
+
+	kill_anon_super(sb);
+}
+
 static struct file_system_type pohmel_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "pohmel",
 	.get_sb		= pohmelfs_get_sb,
-	.kill_sb 	= kill_anon_super,
+	.kill_sb 	= pohmelfs_kill_super,
 };
 
 /*

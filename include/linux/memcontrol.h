@@ -56,7 +56,7 @@ extern void mem_cgroup_move_lists(struct page *page,
 				  enum lru_list from, enum lru_list to);
 extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_uncharge_cache_page(struct page *page);
-extern int mem_cgroup_shrink_usage(struct page *page,
+extern int mem_cgroup_shmem_charge_fallback(struct page *page,
 			struct mm_struct *mm, gfp_t gfp_mask);
 
 extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
@@ -75,7 +75,7 @@ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
 {
 	struct mem_cgroup *mem;
 	rcu_read_lock();
-	mem = mem_cgroup_from_task((mm)->owner);
+	mem = mem_cgroup_from_task(rcu_dereference((mm)->owner));
 	rcu_read_unlock();
 	return cgroup == mem;
 }
@@ -155,7 +155,7 @@ static inline void mem_cgroup_uncharge_cache_page(struct page *page)
 {
 }
 
-static inline int mem_cgroup_shrink_usage(struct page *page,
+static inline int mem_cgroup_shmem_charge_fallback(struct page *page,
 			struct mm_struct *mm, gfp_t gfp_mask)
 {
 	return 0;

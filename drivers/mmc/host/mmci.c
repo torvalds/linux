@@ -514,6 +514,7 @@ static int __devinit mmci_probe(struct amba_device *dev, void *id)
 	}
 
 	host = mmc_priv(mmc);
+	host->mmc = mmc;
 	/* Bits 12 thru 19 is the designer */
 	host->hw_designer = (dev->periphid >> 12) & 0xff;
 	/* Bits 20 thru 23 is the revison */
@@ -545,7 +546,6 @@ static int __devinit mmci_probe(struct amba_device *dev, void *id)
 		host->mclk = clk_get_rate(host->clk);
 		DBG(host, "eventual mclk rate: %u Hz\n", host->mclk);
 	}
-	host->mmc = mmc;
 	host->base = ioremap(dev->res.start, SZ_4K);
 	if (!host->base) {
 		ret = -ENOMEM;

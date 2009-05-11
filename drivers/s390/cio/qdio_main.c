@@ -881,42 +881,6 @@ no_handler:
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
 }
 
-static void qdio_call_shutdown(struct work_struct *work)
-{
-	struct ccw_device_private *priv;
-	struct ccw_device *cdev;
-
-	priv = container_of(work, struct ccw_device_private, kick_work);
-	cdev = priv->cdev;
-	qdio_shutdown(cdev, QDIO_FLAG_CLEANUP_USING_CLEAR);
-	put_device(&cdev->dev);
-}
-
-static void qdio_int_error(struct ccw_device *cdev)
-{
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-
-	switch (irq_ptr->state) {
-	case QDIO_IRQ_STATE_INACTIVE:
-	case QDIO_IRQ_STATE_CLEANUP:
-		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
-		break;
-	case QDIO_IRQ_STATE_ESTABLISHED:
-	case QDIO_IRQ_STATE_ACTIVE:
-		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
-		if (get_device(&cdev->dev)) {
-			/* Can't call shutdown from interrupt context. */
-			PREPARE_WORK(&cdev->private->kick_work,
-				     qdio_call_shutdown);
-			queue_work(ccw_device_work, &cdev->private->kick_work);
-		}
-		break;
-	default:
-		WARN_ON(1);
-	}
-	wake_up(&cdev->private->wait_q);
-}
-
 static int qdio_establish_check_errors(struct ccw_device *cdev, int cstat,
 				       int dstat)
 {
@@ -973,10 +937,8 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		switch (PTR_ERR(irb)) {
 		case -EIO:
 			DBF_ERROR("%4x IO error", irq_ptr->schid.sch_no);
-			return;
-		case -ETIMEDOUT:
-			DBF_ERROR("%4x IO timeout", irq_ptr->schid.sch_no);
-			qdio_int_error(cdev);
+			qdio_set_state(irq_ptr, QDIO_IRQ_STATE_ERR);
+			wake_up(&cdev->private->wait_q);
 			return;
 		default:
 			WARN_ON(1);
@@ -1001,7 +963,6 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	case QDIO_IRQ_STATE_ACTIVE:
 		if (cstat & SCHN_STAT_PCI) {
 			qdio_int_handler_pci(irq_ptr);
-			/* no state change so no need to wake up wait_q */
 			return;
 		}
 		if ((cstat & ~SCHN_STAT_PCI) || dstat) {

@@ -394,8 +394,7 @@ static int mlx4_ib_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 				       PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
 	} else if (vma->vm_pgoff == 1 && dev->dev->caps.bf_reg_size != 0) {
-		/* FIXME want pgprot_writecombine() for BlueFlame pages */
-		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 		if (io_remap_pfn_range(vma, vma->vm_start,
 				       to_mucontext(context)->uar.pfn +

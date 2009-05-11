@@ -254,7 +254,7 @@ replay:
 		}
 		tp->ops = tp_ops;
 		tp->protocol = protocol;
-		tp->prio = nprio ? : tcf_auto_prio(*back);
+		tp->prio = nprio ? : TC_H_MAJ(tcf_auto_prio(*back));
 		tp->q = q;
 		tp->classify = tp_ops->classify;
 		tp->classid = parent;

@@ -308,9 +308,11 @@ static int xxxfb_setcolreg(unsigned regno, unsigned red, unsigned green,
      *   color depth = SUM(var->{color}.length)
      *
      * Pseudocolor:
-     *    var->{color}.offset is 0
-     *    var->{color}.length contains width of DAC or the number of unique
-     *                        colors available (color depth)
+     *    var->{color}.offset is 0 unless the palette index takes less than
+     *                        bits_per_pixel bits and is stored in the upper
+     *                        bits of the pixel value
+     *    var->{color}.length is set so that 1 << length is the number of
+     *                        available palette entries
      *    pseudo_palette is not used
      *    RAMDAC[X] is programmed to (red, green, blue)
      *    color depth = var->{color}.length
