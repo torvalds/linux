@@ -1115,6 +1115,11 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 		params.key_len = nla_len(info->attrs[NL80211_ATTR_KEY_DATA]);
 	}
 
+	if (info->attrs[NL80211_ATTR_KEY_SEQ]) {
+		params.seq = nla_data(info->attrs[NL80211_ATTR_KEY_SEQ]);
+		params.seq_len = nla_len(info->attrs[NL80211_ATTR_KEY_SEQ]);
+	}
+
 	if (info->attrs[NL80211_ATTR_KEY_IDX])
 		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
 

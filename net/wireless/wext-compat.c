@@ -663,6 +663,11 @@ int cfg80211_wext_siwencodeext(struct net_device *dev,
 	params.key_len = ext->key_len;
 	params.cipher = cipher;
 
+	if (ext->ext_flags & IW_ENCODE_EXT_RX_SEQ_VALID) {
+		params.seq = ext->rx_seq;
+		params.seq_len = 6;
+	}
+
 	return cfg80211_set_encryption(
 			rdev, dev, addr, remove,
 			ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY,
