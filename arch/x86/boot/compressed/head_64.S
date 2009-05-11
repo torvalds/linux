@@ -87,7 +87,7 @@ ENTRY(startup_32)
 	addl	$(PMD_PAGE_SIZE -1), %ebx
 	andl	$PMD_PAGE_MASK, %ebx
 #else
-	movl	$CONFIG_PHYSICAL_START, %ebx
+	movl	$LOAD_PHYSICAL_ADDR, %ebx
 #endif
 
 	/* Target address to relocate to for decompression */
@@ -215,7 +215,7 @@ ENTRY(startup_64)
 	 *
 	 * If it is a relocatable kernel then decompress and run the kernel
 	 * from load address aligned to 2MB addr, otherwise decompress and
-	 * run the kernel from CONFIG_PHYSICAL_START
+	 * run the kernel from LOAD_PHYSICAL_ADDR
 	 *
 	 * We cannot rely on the calculation done in 32-bit mode, since we
 	 * may have been invoked via the 64-bit entry point.
@@ -228,7 +228,7 @@ ENTRY(startup_64)
 	andq	$PMD_PAGE_MASK, %rbp
 	movq	%rbp, %rbx
 #else
-	movq	$CONFIG_PHYSICAL_START, %rbp
+	movq	$LOAD_PHYSICAL_ADDR, %rbp
 	movq	%rbp, %rbx
 #endif
 
