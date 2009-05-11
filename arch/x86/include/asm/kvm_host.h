@@ -358,6 +358,7 @@ struct kvm_vcpu_arch {
 	unsigned int time_offset;
 	struct page *time_page;
 
+	bool singlestep; /* guest is single stepped by KVM */
 	bool nmi_pending;
 	bool nmi_injected;
 
@@ -771,6 +772,7 @@ enum {
 #define HF_HIF_MASK		(1 << 1)
 #define HF_VINTR_MASK		(1 << 2)
 #define HF_NMI_MASK		(1 << 3)
+#define HF_IRET_MASK		(1 << 4)
 
 /*
  * Hardware virtualization extension instructions may fault if a

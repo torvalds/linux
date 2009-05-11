@@ -965,15 +965,16 @@ static void svm_set_segment(struct kvm_vcpu *vcpu,
 
 }
 
-static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
+static void update_db_intercept(struct kvm_vcpu *vcpu)
 {
-	int old_debug = vcpu->guest_debug;
 	struct vcpu_svm *svm = to_svm(vcpu);
-
-	vcpu->guest_debug = dbg->control;
 
 	svm->vmcb->control.intercept_exceptions &=
 		~((1 << DB_VECTOR) | (1 << BP_VECTOR));
+
+	if (vcpu->arch.singlestep)
+		svm->vmcb->control.intercept_exceptions |= (1 << DB_VECTOR);
+
 	if (vcpu->guest_debug & KVM_GUESTDBG_ENABLE) {
 		if (vcpu->guest_debug &
 		    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
@@ -984,6 +985,16 @@ static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
 				1 << BP_VECTOR;
 	} else
 		vcpu->guest_debug = 0;
+}
+
+static int svm_guest_debug(struct kvm_vcpu *vcpu, struct kvm_guest_debug *dbg)
+{
+	int old_debug = vcpu->guest_debug;
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	vcpu->guest_debug = dbg->control;
+
+	update_db_intercept(vcpu);
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
 		svm->vmcb->save.dr7 = dbg->arch.debugreg[7];
@@ -1133,14 +1144,30 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int db_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	if (!(svm->vcpu.guest_debug &
-	      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))) {
+	      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) &&
+		!svm->vcpu.arch.singlestep) {
 		kvm_queue_exception(&svm->vcpu, DB_VECTOR);
 		return 1;
 	}
-	kvm_run->exit_reason = KVM_EXIT_DEBUG;
-	kvm_run->debug.arch.pc = svm->vmcb->save.cs.base + svm->vmcb->save.rip;
-	kvm_run->debug.arch.exception = DB_VECTOR;
-	return 0;
+
+	if (svm->vcpu.arch.singlestep) {
+		svm->vcpu.arch.singlestep = false;
+		if (!(svm->vcpu.guest_debug & KVM_GUESTDBG_SINGLESTEP))
+			svm->vmcb->save.rflags &=
+				~(X86_EFLAGS_TF | X86_EFLAGS_RF);
+		update_db_intercept(&svm->vcpu);
+	}
+
+	if (svm->vcpu.guest_debug &
+	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)){
+		kvm_run->exit_reason = KVM_EXIT_DEBUG;
+		kvm_run->debug.arch.pc =
+			svm->vmcb->save.cs.base + svm->vmcb->save.rip;
+		kvm_run->debug.arch.exception = DB_VECTOR;
+		return 0;
+	}
+
+	return 1;
 }
 
 static int bp_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
@@ -1887,7 +1914,7 @@ static int iret_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 {
 	++svm->vcpu.stat.nmi_window_exits;
 	svm->vmcb->control.intercept &= ~(1UL << INTERCEPT_IRET);
-	svm->vcpu.arch.hflags &= ~HF_NMI_MASK;
+	svm->vcpu.arch.hflags |= HF_IRET_MASK;
 	return 1;
 }
 
@@ -2357,8 +2384,16 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
-	if (svm->vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK)
-		enable_irq_window(vcpu);
+	if ((svm->vcpu.arch.hflags & (HF_NMI_MASK | HF_IRET_MASK))
+	    == HF_NMI_MASK)
+		return; /* IRET will cause a vm exit */
+
+	/* Something prevents NMI from been injected. Single step over
+	   possible problem (IRET or exception injection or interrupt
+	   shadow) */
+	vcpu->arch.singlestep = true;
+	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
+	update_db_intercept(vcpu);
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
@@ -2400,6 +2435,9 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 	u8 vector;
 	int type;
 	u32 exitintinfo = svm->vmcb->control.exit_int_info;
+
+	if (svm->vcpu.arch.hflags & HF_IRET_MASK)
+		svm->vcpu.arch.hflags &= ~(HF_NMI_MASK | HF_IRET_MASK);
 
 	svm->vcpu.arch.nmi_injected = false;
 	kvm_clear_exception_queue(&svm->vcpu);
