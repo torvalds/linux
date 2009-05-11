@@ -41,6 +41,7 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 			return ret;
 		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
 		ieee80211_sta_req_auth(sdata);
 		return 0;
 	}
@@ -124,6 +125,7 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 			return ret;
 
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
 		ieee80211_sta_req_auth(sdata);
 		return 0;
 	}
@@ -181,6 +183,7 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 		if (ret)
 			return ret;
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
 		ieee80211_sta_req_auth(sdata);
 		return 0;
 	} else if (sdata->vif.type == NL80211_IFTYPE_WDS) {

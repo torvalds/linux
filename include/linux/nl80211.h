@@ -504,6 +504,13 @@ enum nl80211_commands {
  * @NL80211_ATTR_STA_FLAGS2: Attribute containing a
  *	&struct nl80211_sta_flag_update.
  *
+ * @NL80211_ATTR_CONTROL_PORT: A flag indicating whether user space controls
+ *	IEEE 802.1X port, i.e., sets/clears %NL80211_STA_FLAG_AUTHORIZED, in
+ *	station mode. If the flag is included in %NL80211_CMD_ASSOCIATE
+ *	request, the driver will assume that the port is unauthorized until
+ *	authorized by user space. Otherwise, port is marked authorized by
+ *	default in station mode.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -609,6 +616,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_USE_MFP,
 
 	NL80211_ATTR_STA_FLAGS2,
+
+	NL80211_ATTR_CONTROL_PORT,
 
 	/* add attributes here, update the policy in nl80211.c */
 

@@ -126,6 +126,7 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_STA_FLAGS2] = {
 		.len = sizeof(struct nl80211_sta_flag_update),
 	},
+	[NL80211_ATTR_CONTROL_PORT] = { .type = NLA_FLAG },
 };
 
 /* IE validation */
@@ -3039,6 +3040,8 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 			goto out;
 		}
 	}
+
+	req.control_port = info->attrs[NL80211_ATTR_CONTROL_PORT];
 
 	err = drv->ops->assoc(&drv->wiphy, dev, &req);
 

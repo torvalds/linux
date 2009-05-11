@@ -1265,6 +1265,11 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 		sdata->u.mgd.flags &= ~IEEE80211_STA_MFP_ENABLED;
 	}
 
+	if (req->control_port)
+		sdata->u.mgd.flags |= IEEE80211_STA_CONTROL_PORT;
+	else
+		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
+
 	sdata->u.mgd.flags |= IEEE80211_STA_EXT_SME;
 	sdata->u.mgd.state = IEEE80211_STA_MLME_ASSOCIATE;
 	ieee80211_sta_req_auth(sdata);
