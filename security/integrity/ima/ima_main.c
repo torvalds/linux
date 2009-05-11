@@ -116,10 +116,6 @@ static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
 {
 	int rc = 0;
 
-	if (IS_ERR(file)) {
-		pr_info("%s dentry_open failed\n", filename);
-		return rc;
-	}
 	iint->opencount++;
 	iint->readcount++;
 
@@ -185,6 +181,12 @@ int ima_path_check(struct path *path, int mask)
 		struct vfsmount *mnt = mntget(path->mnt);
 
 		file = dentry_open(dentry, mnt, O_RDONLY, current_cred());
+		if (IS_ERR(file)) {
+			pr_info("%s dentry_open failed\n", dentry->d_name.name);
+			rc = PTR_ERR(file);
+			file = NULL;
+			goto out;
+		}
 		rc = get_path_measurement(iint, file, dentry->d_name.name);
 	}
 out:
