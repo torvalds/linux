@@ -37,6 +37,13 @@ struct clk {
 	unsigned long		arch_flags;
 };
 
+struct clk_lookup {
+	struct list_head	node;
+	const char		*dev_id;
+	const char		*con_id;
+	struct clk		*clk;
+};
+
 #define CLK_ENABLE_ON_INIT	(1 << 0)
 
 /* Should be defined by processor-specific code */
