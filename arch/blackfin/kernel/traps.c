@@ -196,6 +196,11 @@ done:
 
 asmlinkage void double_fault_c(struct pt_regs *fp)
 {
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
+	int j;
+	trace_buffer_save(j);
+#endif
+
 	console_verbose();
 	oops_in_progress = 1;
 #ifdef CONFIG_DEBUG_VERBOSE
@@ -220,6 +225,7 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
+		dump_bfin_trace_buffer();
 	}
 #endif
 	panic("Double Fault - unrecoverable event");
@@ -831,6 +837,11 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 	printk(KERN_NOTICE "Stack info:\n");
 	decode_address(buf, (unsigned int)stack);
 	printk(KERN_NOTICE " SP: [0x%p] %s\n", stack, buf);
+
+	if (!access_ok(VERIFY_READ, stack, (unsigned int)endstack - (unsigned int)stack)) {
+		printk(KERN_NOTICE "Invalid stack pointer\n");
+		return;
+	}
 
 	/* First thing is to look for a frame pointer */
 	for (addr = (unsigned int *)((unsigned int)stack & ~0xF); addr < endstack; addr++) {
