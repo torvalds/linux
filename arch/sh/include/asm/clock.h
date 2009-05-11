@@ -27,6 +27,9 @@ struct clk {
 	struct clk		*parent;
 	struct clk_ops		*ops;
 
+	struct list_head	children;
+	struct list_head	sibling;	/* node for children */
+
 	int			usecount;
 
 	unsigned long		rate;
@@ -35,7 +38,6 @@ struct clk {
 };
 
 #define CLK_ALWAYS_ENABLED	(1 << 0)
-#define CLK_RATE_PROPAGATES	(1 << 1)
 #define CLK_NEEDS_INIT		(1 << 2)
 
 /* Should be defined by processor-specific code */
@@ -44,9 +46,10 @@ int __init arch_clk_init(void);
 
 /* arch/sh/kernel/cpu/clock.c */
 int clk_init(void);
-unsigned long followparent_recalc(struct clk *clk);
+unsigned long followparent_recalc(struct clk *);
+void recalculate_root_clocks(void);
+void propagate_rate(struct clk *);
 void clk_recalc_rate(struct clk *);
-
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 

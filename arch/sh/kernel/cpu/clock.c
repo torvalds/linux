@@ -1,11 +1,11 @@
 /*
  * arch/sh/kernel/cpu/clock.c - SuperH clock framework
  *
- *  Copyright (C) 2005, 2006, 2007  Paul Mundt
+ *  Copyright (C) 2005 - 2009  Paul Mundt
  *
  * This clock framework is derived from the OMAP version by:
  *
- *	Copyright (C) 2004 - 2005 Nokia Corporation
+ *	Copyright (C) 2004 - 2008 Nokia Corporation
  *	Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *
  *  Modified for omap shared clock framework by Tony Lindgren <tony@atomide.com>
@@ -43,20 +43,20 @@ static DEFINE_MUTEX(clock_list_sem);
  */
 static struct clk master_clk = {
 	.name		= "master_clk",
-	.flags		= CLK_ALWAYS_ENABLED | CLK_RATE_PROPAGATES,
+	.flags		= CLK_ALWAYS_ENABLED,
 	.rate		= CONFIG_SH_PCLK_FREQ,
 };
 
 static struct clk module_clk = {
 	.name		= "module_clk",
 	.parent		= &master_clk,
-	.flags		= CLK_ALWAYS_ENABLED | CLK_RATE_PROPAGATES,
+	.flags		= CLK_ALWAYS_ENABLED,
 };
 
 static struct clk bus_clk = {
 	.name		= "bus_clk",
 	.parent		= &master_clk,
-	.flags		= CLK_ALWAYS_ENABLED | CLK_RATE_PROPAGATES,
+	.flags		= CLK_ALWAYS_ENABLED,
 };
 
 static struct clk cpu_clk = {
@@ -75,25 +75,22 @@ static struct clk *onchip_clocks[] = {
 	&cpu_clk,
 };
 
-/* Propagate rate to children */
-static void propagate_rate(struct clk *clk)
-{
-	struct clk *clkp;
-
-	list_for_each_entry(clkp, &clock_list, node) {
-		if (likely(clkp->parent != clk))
-			continue;
-		if (likely(clkp->ops && clkp->ops->recalc))
-			clkp->rate = clkp->ops->recalc(clkp);
-		if (unlikely(clkp->flags & CLK_RATE_PROPAGATES))
-			propagate_rate(clkp);
-	}
-}
-
 /* Used for clocks that always have same value as the parent clock */
 unsigned long followparent_recalc(struct clk *clk)
 {
 	return clk->parent->rate;
+}
+
+/* Propagate rate to children */
+void propagate_rate(struct clk *tclk)
+{
+	struct clk *clkp;
+
+	list_for_each_entry(clkp, &tclk->children, sibling) {
+		if (clkp->ops->recalc)
+			clkp->rate = clkp->ops->recalc(clkp);
+		propagate_rate(clkp);
+	}
 }
 
 static void __clk_init(struct clk *clk)
@@ -180,9 +177,45 @@ void clk_disable(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_disable);
 
+static LIST_HEAD(root_clks);
+
+/**
+ * recalculate_root_clocks - recalculate and propagate all root clocks
+ *
+ * Recalculates all root clocks (clocks with no parent), which if the
+ * clock's .recalc is set correctly, should also propagate their rates.
+ * Called at init.
+ */
+void recalculate_root_clocks(void)
+{
+	struct clk *clkp;
+
+	list_for_each_entry(clkp, &root_clks, sibling) {
+		if (clkp->ops->recalc)
+			clkp->rate = clkp->ops->recalc(clkp);
+		propagate_rate(clkp);
+	}
+}
+
 int clk_register(struct clk *clk)
 {
+	if (clk == NULL || IS_ERR(clk))
+		return -EINVAL;
+
+	/*
+	 * trap out already registered clocks
+	 */
+	if (clk->node.next || clk->node.prev)
+		return 0;
+
 	mutex_lock(&clock_list_sem);
+
+	INIT_LIST_HEAD(&clk->children);
+
+	if (clk->parent)
+		list_add(&clk->sibling, &clk->parent->children);
+	else
+		list_add(&clk->sibling, &root_clks);
 
 	list_add(&clk->node, &clock_list);
 	clk->usecount = 0;
@@ -205,6 +238,7 @@ EXPORT_SYMBOL_GPL(clk_register);
 void clk_unregister(struct clk *clk)
 {
 	mutex_lock(&clock_list_sem);
+	list_del(&clk->sibling);
 	list_del(&clk->node);
 	mutex_unlock(&clock_list_sem);
 }
@@ -231,11 +265,13 @@ int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
 
 		spin_lock_irqsave(&clock_lock, flags);
 		ret = clk->ops->set_rate(clk, rate, algo_id);
+		if (ret == 0) {
+			if (clk->ops->recalc)
+				clk->rate = clk->ops->recalc(clk);
+			propagate_rate(clk);
+		}
 		spin_unlock_irqrestore(&clock_lock, flags);
 	}
-
-	if (unlikely(clk->flags & CLK_RATE_PROPAGATES))
-		propagate_rate(clk);
 
 	return ret;
 }
@@ -243,38 +279,39 @@ EXPORT_SYMBOL_GPL(clk_set_rate_ex);
 
 void clk_recalc_rate(struct clk *clk)
 {
-	if (likely(clk->ops && clk->ops->recalc)) {
-		unsigned long flags;
+	unsigned long flags;
 
-		spin_lock_irqsave(&clock_lock, flags);
-		clk->rate = clk->ops->recalc(clk);
-		spin_unlock_irqrestore(&clock_lock, flags);
-	}
+	if (!clk->ops->recalc)
+		return;
 
-	if (unlikely(clk->flags & CLK_RATE_PROPAGATES))
-		propagate_rate(clk);
+	spin_lock_irqsave(&clock_lock, flags);
+	clk->rate = clk->ops->recalc(clk);
+	propagate_rate(clk);
+	spin_unlock_irqrestore(&clock_lock, flags);
 }
 EXPORT_SYMBOL_GPL(clk_recalc_rate);
 
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
+	unsigned long flags;
 	int ret = -EINVAL;
-	struct clk *old;
 
 	if (!parent || !clk)
 		return ret;
 
-	old = clk->parent;
-	if (likely(clk->ops && clk->ops->set_parent)) {
-		unsigned long flags;
-		spin_lock_irqsave(&clock_lock, flags);
-		ret = clk->ops->set_parent(clk, parent);
-		spin_unlock_irqrestore(&clock_lock, flags);
-		clk->parent = (ret ? old : parent);
-	}
+	spin_lock_irqsave(&clock_lock, flags);
+	if (clk->usecount == 0) {
+		if (clk->ops->set_parent)
+			ret = clk->ops->set_parent(clk, parent);
+		if (ret == 0) {
+			if (clk->ops->recalc)
+				clk->rate = clk->ops->recalc(clk);
+			propagate_rate(clk);
+		}
+	} else
+		ret = -EBUSY;
+	spin_unlock_irqrestore(&clock_lock, flags);
 
-	if (unlikely(clk->flags & CLK_RATE_PROPAGATES))
-		propagate_rate(clk);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(clk_set_parent);
@@ -457,8 +494,7 @@ int __init clk_init(void)
 	ret |= arch_clk_init();
 
 	/* Kick the child clocks.. */
-	propagate_rate(&master_clk);
-	propagate_rate(&bus_clk);
+	recalculate_root_clocks();
 
 	return ret;
 }

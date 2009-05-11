@@ -161,9 +161,7 @@ static unsigned long master_clk_recalc(struct clk *clk)
 static void master_clk_init(struct clk *clk)
 {
 	clk->parent = NULL;
-	clk->flags |= CLK_RATE_PROPAGATES;
-	clk->rate = CONFIG_SH_PCLK_FREQ;
-	master_clk_recalc(clk);
+	clk->rate = master_clk_recalc(clk);
 }
 
 static unsigned long module_clk_recalc(struct clk *clk)
@@ -541,19 +539,16 @@ static struct clk_ops sh7722_video_clk_ops = {
 static struct clk sh7722_umem_clock = {
 	.name = "umem_clk",
 	.ops = &sh7722_frqcr_clk_ops,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_sh_clock = {
 	.name = "sh_clk",
 	.ops = &sh7722_frqcr_clk_ops,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_peripheral_clock = {
 	.name = "peripheral_clk",
 	.ops = &sh7722_frqcr_clk_ops,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 static struct clk sh7722_sdram_clock = {
@@ -564,7 +559,6 @@ static struct clk sh7722_sdram_clock = {
 static struct clk sh7722_r_clock = {
 	.name = "r_clk",
 	.rate = 32768,
-	.flags = CLK_RATE_PROPAGATES,
 };
 
 #if !defined(CONFIG_CPU_SUBTYPE_SH7343) &&\
