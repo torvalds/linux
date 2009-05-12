@@ -1400,7 +1400,7 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 		      unsigned long length)
 {
 	struct ring_buffer_event *event;
-	u64 ts, delta;
+	u64 ts, delta = 0;
 	int commit = 0;
 	int nr_loops = 0;
 
@@ -1431,20 +1431,21 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 	if (likely(cpu_buffer->tail_page == cpu_buffer->commit_page &&
 		   rb_page_write(cpu_buffer->tail_page) ==
 		   rb_commit_index(cpu_buffer))) {
+		u64 diff;
 
-		delta = ts - cpu_buffer->write_stamp;
+		diff = ts - cpu_buffer->write_stamp;
 
-		/* make sure this delta is calculated here */
+		/* make sure this diff is calculated here */
 		barrier();
 
 		/* Did the write stamp get updated already? */
 		if (unlikely(ts < cpu_buffer->write_stamp))
-			delta = 0;
+			goto get_event;
 
-		else if (unlikely(test_time_stamp(delta))) {
+		delta = diff;
+		if (unlikely(test_time_stamp(delta))) {
 
 			commit = rb_add_time_stamp(cpu_buffer, &ts, &delta);
-
 			if (commit == -EBUSY)
 				return NULL;
 
@@ -1453,12 +1454,11 @@ rb_reserve_next_event(struct ring_buffer_per_cpu *cpu_buffer,
 
 			RB_WARN_ON(cpu_buffer, commit < 0);
 		}
-	} else
-		/* Non commits have zero deltas */
-		delta = 0;
+	}
 
+ get_event:
 	event = __rb_reserve_next(cpu_buffer, 0, length, &ts);
-	if (PTR_ERR(event) == -EAGAIN)
+	if (unlikely(PTR_ERR(event) == -EAGAIN))
 		goto again;
 
 	if (!event) {
