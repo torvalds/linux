@@ -1193,6 +1193,8 @@ static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
 	paddr &= PAGE_MASK;
 
 	pte  = dma_ops_get_pte(dom, address);
+	if (!pte)
+		return bad_dma_address;
 
 	__pte = paddr | IOMMU_PTE_P | IOMMU_PTE_FC;
 
@@ -1248,7 +1250,7 @@ static dma_addr_t __map_single(struct device *dev,
 			       u64 dma_mask)
 {
 	dma_addr_t offset = paddr & ~PAGE_MASK;
-	dma_addr_t address, start;
+	dma_addr_t address, start, ret;
 	unsigned int pages;
 	unsigned long align_mask = 0;
 	int i;
@@ -1271,7 +1273,10 @@ static dma_addr_t __map_single(struct device *dev,
 
 	start = address;
 	for (i = 0; i < pages; ++i) {
-		dma_ops_domain_map(iommu, dma_dom, start, paddr, dir);
+		ret = dma_ops_domain_map(iommu, dma_dom, start, paddr, dir);
+		if (ret == bad_dma_address)
+			goto out_unmap;
+
 		paddr += PAGE_SIZE;
 		start += PAGE_SIZE;
 	}
@@ -1287,6 +1292,17 @@ static dma_addr_t __map_single(struct device *dev,
 
 out:
 	return address;
+
+out_unmap:
+
+	for (--i; i >= 0; --i) {
+		start -= PAGE_SIZE;
+		dma_ops_domain_unmap(iommu, dma_dom, start);
+	}
+
+	dma_ops_free_addresses(dma_dom, address, pages);
+
+	return bad_dma_address;
 }
 
 /*
