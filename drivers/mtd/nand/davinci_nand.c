@@ -717,19 +717,8 @@ syndrome_done:
 			static const char *probes[] __initconst =
 				{ "cmdlinepart", NULL };
 
-			const char		*master_name;
-
-			/* Set info->mtd.name = 0 temporarily */
-			master_name		= info->mtd.name;
-			info->mtd.name		= (char *)0;
-
-			/* info->mtd.name == 0, means: don't bother checking
-			   <mtd-id> */
 			mtd_parts_nb = parse_mtd_partitions(&info->mtd, probes,
 							    &mtd_parts, 0);
-
-			/* Restore info->mtd.name */
-			info->mtd.name = master_name;
 		}
 
 		if (mtd_parts_nb <= 0) {
