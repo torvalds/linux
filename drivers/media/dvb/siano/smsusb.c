@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "smscoreapi.h"
 #include "sms-cards.h"
+#include "smsendian.h"
 
 static int sms_dbg;
 module_param_named(debug, sms_dbg, int, 0644);
@@ -177,6 +178,7 @@ static int smsusb_sendrequest(void *context, void *buffer, size_t size)
 	struct smsusb_device_t *dev = (struct smsusb_device_t *) context;
 	int dummy;
 
+	smsendian_handle_message_header((struct SmsMsgHdr_ST *)buffer);
 	return usb_bulk_msg(dev->udev, usb_sndbulkpipe(dev->udev, 2),
 			    buffer, size, &dummy, 1000);
 }
@@ -334,8 +336,8 @@ static int smsusb_init_device(struct usb_interface *intf, int board_id)
 	case SMS_VEGA:
 		dev->buffer_size = USB2_BUFFER_SIZE;
 		dev->response_alignment =
-			dev->udev->ep_in[1]->desc.wMaxPacketSize -
-			sizeof(struct SmsMsgHdr_ST);
+		    le16_to_cpu(dev->udev->ep_in[1]->desc.wMaxPacketSize) -
+		    sizeof(struct SmsMsgHdr_ST);
 
 		params.flags |= SMS_DEVICE_FAMILY2;
 		break;
