@@ -55,7 +55,9 @@ struct iommu_cmd {
 static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 			     struct unity_map_entry *e);
 static struct dma_ops_domain *find_protection_domain(u16 devid);
-
+static u64* alloc_pte(struct protection_domain *dom,
+		      unsigned long address, u64
+		      **pte_page, gfp_t gfp);
 
 #ifdef CONFIG_AMD_IOMMU_STATS
 
@@ -468,7 +470,7 @@ static int iommu_map_page(struct protection_domain *dom,
 			  unsigned long phys_addr,
 			  int prot)
 {
-	u64 __pte, *pte, *page;
+	u64 __pte, *pte;
 
 	bus_addr  = PAGE_ALIGN(bus_addr);
 	phys_addr = PAGE_ALIGN(phys_addr);
@@ -477,27 +479,7 @@ static int iommu_map_page(struct protection_domain *dom,
 	if (bus_addr > IOMMU_MAP_SIZE_L3 || !(prot & IOMMU_PROT_MASK))
 		return -EINVAL;
 
-	pte = &dom->pt_root[IOMMU_PTE_L2_INDEX(bus_addr)];
-
-	if (!IOMMU_PTE_PRESENT(*pte)) {
-		page = (u64 *)get_zeroed_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-		*pte = IOMMU_L2_PDE(virt_to_phys(page));
-	}
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L1_INDEX(bus_addr)];
-
-	if (!IOMMU_PTE_PRESENT(*pte)) {
-		page = (u64 *)get_zeroed_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
-		*pte = IOMMU_L1_PDE(virt_to_phys(page));
-	}
-
-	pte = IOMMU_PTE_PAGE(*pte);
-	pte = &pte[IOMMU_PTE_L0_INDEX(bus_addr)];
+	pte = alloc_pte(dom, bus_addr, NULL, GFP_KERNEL);
 
 	if (IOMMU_PTE_PRESENT(*pte))
 		return -EBUSY;
@@ -1140,6 +1122,61 @@ static int get_device_resources(struct device *dev,
 }
 
 /*
+ * If the pte_page is not yet allocated this function is called
+ */
+static u64* alloc_pte(struct protection_domain *dom,
+		      unsigned long address, u64 **pte_page, gfp_t gfp)
+{
+	u64 *pte, *page;
+
+	pte = &dom->pt_root[IOMMU_PTE_L2_INDEX(address)];
+
+	if (!IOMMU_PTE_PRESENT(*pte)) {
+		page = (u64 *)get_zeroed_page(gfp);
+		if (!page)
+			return NULL;
+		*pte = IOMMU_L2_PDE(virt_to_phys(page));
+	}
+
+	pte = IOMMU_PTE_PAGE(*pte);
+	pte = &pte[IOMMU_PTE_L1_INDEX(address)];
+
+	if (!IOMMU_PTE_PRESENT(*pte)) {
+		page = (u64 *)get_zeroed_page(gfp);
+		if (!page)
+			return NULL;
+		*pte = IOMMU_L1_PDE(virt_to_phys(page));
+	}
+
+	pte = IOMMU_PTE_PAGE(*pte);
+
+	if (pte_page)
+		*pte_page = pte;
+
+	pte = &pte[IOMMU_PTE_L0_INDEX(address)];
+
+	return pte;
+}
+
+/*
+ * This function fetches the PTE for a given address in the aperture
+ */
+static u64* dma_ops_get_pte(struct dma_ops_domain *dom,
+			    unsigned long address)
+{
+	struct aperture_range *aperture = &dom->aperture;
+	u64 *pte, *pte_page;
+
+	pte = aperture->pte_pages[IOMMU_PTE_L1_INDEX(address)];
+	if (!pte) {
+		pte = alloc_pte(&dom->domain, address, &pte_page, GFP_ATOMIC);
+		aperture->pte_pages[IOMMU_PTE_L1_INDEX(address)] = pte_page;
+	}
+
+	return pte;
+}
+
+/*
  * This is the generic map function. It maps one 4kb page at paddr to
  * the given address in the DMA address space for the domain.
  */
@@ -1155,8 +1192,7 @@ static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
 
 	paddr &= PAGE_MASK;
 
-	pte  = dom->aperture.pte_pages[IOMMU_PTE_L1_INDEX(address)];
-	pte += IOMMU_PTE_L0_INDEX(address);
+	pte  = dma_ops_get_pte(dom, address);
 
 	__pte = paddr | IOMMU_PTE_P | IOMMU_PTE_FC;
 
