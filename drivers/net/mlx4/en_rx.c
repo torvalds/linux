@@ -951,7 +951,6 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv,
 	if (err) {
 		mlx4_err(mdev, "Failed to allocate qp #%d\n", qpn);
 		goto out;
-		return err;
 	}
 	qp->event = mlx4_en_sqp_event;
 
