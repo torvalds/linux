@@ -143,9 +143,14 @@ struct gpio_led {
 	const char *name;
 	const char *default_trigger;
 	unsigned 	gpio;
-	u8 		active_low : 1;
-	u8		retain_state_suspended : 1;
+	unsigned	active_low : 1;
+	unsigned	retain_state_suspended : 1;
+	unsigned	default_state : 2;
+	/* default_state should be one of LEDS_GPIO_DEFSTATE_(ON|OFF|KEEP) */
 };
+#define LEDS_GPIO_DEFSTATE_OFF	0
+#define LEDS_GPIO_DEFSTATE_ON	1
+#define LEDS_GPIO_DEFSTATE_KEEP	2
 
 struct gpio_led_platform_data {
 	int 		num_leds;
