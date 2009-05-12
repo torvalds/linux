@@ -736,23 +736,45 @@ static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	vmcs_writel(GUEST_RFLAGS, rflags);
 }
 
+static u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
+{
+	u32 interruptibility = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
+	int ret = 0;
+
+	if (interruptibility & GUEST_INTR_STATE_STI)
+		ret |= X86_SHADOW_INT_STI;
+	if (interruptibility & GUEST_INTR_STATE_MOV_SS)
+		ret |= X86_SHADOW_INT_MOV_SS;
+
+	return ret & mask;
+}
+
+static void vmx_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
+{
+	u32 interruptibility_old = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
+	u32 interruptibility = interruptibility_old;
+
+	interruptibility &= ~(GUEST_INTR_STATE_STI | GUEST_INTR_STATE_MOV_SS);
+
+	if (mask & X86_SHADOW_INT_MOV_SS)
+		interruptibility |= GUEST_INTR_STATE_MOV_SS;
+	if (mask & X86_SHADOW_INT_STI)
+		interruptibility |= GUEST_INTR_STATE_STI;
+
+	if ((interruptibility != interruptibility_old))
+		vmcs_write32(GUEST_INTERRUPTIBILITY_INFO, interruptibility);
+}
+
 static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 {
 	unsigned long rip;
-	u32 interruptibility;
 
 	rip = kvm_rip_read(vcpu);
 	rip += vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 	kvm_rip_write(vcpu, rip);
 
-	/*
-	 * We emulated an instruction, so temporary interrupt blocking
-	 * should be removed, if set.
-	 */
-	interruptibility = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
-	if (interruptibility & 3)
-		vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
-			     interruptibility & ~3);
+	/* skipping an emulated instruction also counts */
+	vmx_set_interrupt_shadow(vcpu, 0);
 }
 
 static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
@@ -2400,12 +2422,6 @@ out:
 	return ret;
 }
 
-void vmx_drop_interrupt_shadow(struct kvm_vcpu *vcpu)
-{
-	vmcs_clear_bits(GUEST_INTERRUPTIBILITY_INFO,
-			GUEST_INTR_STATE_STI | GUEST_INTR_STATE_MOV_SS);
-}
-
 static void enable_irq_window(struct kvm_vcpu *vcpu)
 {
 	u32 cpu_based_vm_exec_control;
@@ -3649,6 +3665,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.run = vmx_vcpu_run,
 	.handle_exit = vmx_handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
+	.set_interrupt_shadow = vmx_set_interrupt_shadow,
+	.get_interrupt_shadow = vmx_get_interrupt_shadow,
 	.patch_hypercall = vmx_patch_hypercall,
 	.set_irq = vmx_inject_irq,
 	.set_nmi = vmx_inject_nmi,
@@ -3658,7 +3676,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.enable_nmi_window = enable_nmi_window,
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
-	.drop_interrupt_shadow = vmx_drop_interrupt_shadow,
 
 	.set_tss_addr = vmx_set_tss_addr,
 	.get_tdp_level = get_ept_level,

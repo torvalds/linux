@@ -3178,7 +3178,7 @@ static void inject_pending_irq(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		kvm_run->request_interrupt_window;
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		kvm_x86_ops->drop_interrupt_shadow(vcpu);
+		kvm_x86_ops->set_interrupt_shadow(vcpu, 0);
 
 	inject_irq(vcpu);
 

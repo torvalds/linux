@@ -202,6 +202,27 @@ static int is_external_interrupt(u32 info)
 	return info == (SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_INTR);
 }
 
+static u32 svm_get_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	u32 ret = 0;
+
+	if (svm->vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK)
+		ret |= X86_SHADOW_INT_STI | X86_SHADOW_INT_MOV_SS;
+	return ret & mask;
+}
+
+static void svm_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	if (mask == 0)
+		svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
+	else
+		svm->vmcb->control.int_state |= SVM_INTERRUPT_SHADOW_MASK;
+
+}
+
 static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -215,7 +236,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 		       __func__, kvm_rip_read(vcpu), svm->next_rip);
 
 	kvm_rip_write(vcpu, svm->next_rip);
-	svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
+	svm_set_interrupt_shadow(vcpu, 0);
 }
 
 static int has_svm(void)
@@ -2259,12 +2280,6 @@ static void pre_svm_run(struct vcpu_svm *svm)
 		new_asid(svm, svm_data);
 }
 
-static void svm_drop_interrupt_shadow(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-	svm->vmcb->control.int_state &= ~SVM_INTERRUPT_SHADOW_MASK;
-}
-
 static void svm_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -2667,6 +2682,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.run = svm_vcpu_run,
 	.handle_exit = handle_exit,
 	.skip_emulated_instruction = skip_emulated_instruction,
+	.set_interrupt_shadow = svm_set_interrupt_shadow,
+	.get_interrupt_shadow = svm_get_interrupt_shadow,
 	.patch_hypercall = svm_patch_hypercall,
 	.set_irq = svm_set_irq,
 	.set_nmi = svm_inject_nmi,
@@ -2676,7 +2693,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.enable_nmi_window = enable_nmi_window,
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
-	.drop_interrupt_shadow = svm_drop_interrupt_shadow,
 
 	.set_tss_addr = svm_set_tss_addr,
 	.get_tdp_level = get_npt_level,
