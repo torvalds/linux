@@ -22,9 +22,6 @@
 #include <linux/rtc.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
-#include <asm/timer.h>
-
-struct sys_timer *sys_timer;
 
 /* Dummy RTC ops */
 static void null_rtc_get_time(struct timespec *tv)
@@ -94,20 +91,9 @@ module_init(rtc_generic_init);
 
 void (*board_time_init)(void);
 
-struct clocksource clocksource_sh = {
-	.name		= "SuperH",
-};
-
 unsigned long long sched_clock(void)
 {
-	unsigned long long cycles;
-
-	/* jiffies based sched_clock if no clocksource is installed */
-	if (!clocksource_sh.rating)
-		return (jiffies_64 - INITIAL_JIFFIES) * (NSEC_PER_SEC / HZ);
-
-	cycles = clocksource_sh.read(&clocksource_sh);
-	return cyc2ns(&clocksource_sh, cycles);
+	return (jiffies_64 - INITIAL_JIFFIES) * (NSEC_PER_SEC / HZ);
 }
 
 static void __init sh_late_time_init(void)
@@ -117,18 +103,7 @@ static void __init sh_late_time_init(void)
 	 * Run probe() for one "earlytimer" device.
 	 */
 	early_platform_driver_register_all("earlytimer");
-	if (early_platform_driver_probe("earlytimer", 1, 0))
-		return;
-
-	/*
-	 * Find the timer to use as the system timer, it will be
-	 * initialized for us.
-	 */
-	sys_timer = get_sys_timer();
-	if (unlikely(!sys_timer))
-		panic("System timer missing.\n");
-
-	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
+	early_platform_driver_probe("earlytimer", 1, 0);
 }
 
 void __init time_init(void)
