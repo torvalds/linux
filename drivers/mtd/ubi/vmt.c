@@ -868,6 +868,7 @@ fail:
 	if (vol)
 		ubi_dbg_dump_vol_info(vol);
 	ubi_dbg_dump_vtbl_record(&ubi->vtbl[vol_id], vol_id);
+	dump_stack();
 	spin_unlock(&ubi->volumes_lock);
 	return -EINVAL;
 }
