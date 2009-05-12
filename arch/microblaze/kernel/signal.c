@@ -288,80 +288,6 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	return (void __user *)((sp - frame_size) & -8UL);
 }
 
-static void setup_frame(int sig, struct k_sigaction *ka,
-			sigset_t *set, struct pt_regs *regs)
-{
-	struct sigframe *frame;
-	int err = 0;
-	int signal;
-
-	frame = get_sigframe(ka, regs, sizeof(*frame));
-
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
-
-	signal = current_thread_info()->exec_domain
-		&& current_thread_info()->exec_domain->signal_invmap
-		&& sig < 32
-		? current_thread_info()->exec_domain->signal_invmap[sig]
-		: sig;
-
-	err |= setup_sigcontext(&frame->sc, regs, set->sig[0]);
-
-	if (_NSIG_WORDS > 1) {
-		err |= __copy_to_user(frame->extramask, &set->sig[1],
-					sizeof(frame->extramask));
-	}
-
-	/* Set up to return from userspace. If provided, use a stub
-	 already in userspace. */
-	/* minus 8 is offset to cater for "rtsd r15,8" offset */
-	if (ka->sa.sa_flags & SA_RESTORER) {
-		regs->r15 = ((unsigned long)ka->sa.sa_restorer)-8;
-	} else {
-		/* Note, these encodings are _big endian_! */
-
-		/* addi r12, r0, __NR_sigreturn */
-		err |= __put_user(0x31800000 | __NR_sigreturn ,
-				frame->tramp + 0);
-		/* brki r14, 0x8 */
-		err |= __put_user(0xb9cc0008, frame->tramp + 1);
-
-		/* Return from sighandler will jump to the tramp.
-		 Negative 8 offset because return is rtsd r15, 8 */
-		regs->r15 = ((unsigned long)frame->tramp)-8;
-
-		__invalidate_cache_sigtramp((unsigned long)frame->tramp);
-	}
-
-	if (err)
-		goto give_sigsegv;
-
-	/* Set up registers for signal handler */
-	regs->r1 = (unsigned long) frame - STATE_SAVE_ARG_SPACE;
-
-	/* Signal handler args: */
-	regs->r5 = signal; /* Arg 0: signum */
-	regs->r6 = (unsigned long) &frame->sc; /* arg 1: sigcontext */
-
-	/* Offset of 4 to handle microblaze rtid r14, 0 */
-	regs->pc = (unsigned long)ka->sa.sa_handler;
-
-	set_fs(USER_DS);
-
-#ifdef DEBUG_SIG
-	printk(KERN_INFO "SIG deliver (%s:%d): sp=%p pc=%08lx\n",
-		current->comm, current->pid, frame, regs->pc);
-#endif
-
-	return;
-
-give_sigsegv:
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	force_sig(SIGSEGV, current);
-}
-
 static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			sigset_t *set, struct pt_regs *regs)
 {
@@ -380,7 +306,8 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		? current_thread_info()->exec_domain->signal_invmap[sig]
 		: sig;
 
-	err |= copy_siginfo_to_user(&frame->info, info);
+	if (info)
+		err |= copy_siginfo_to_user(&frame->info, info);
 
 	/* Create the ucontext. */
 	err |= __put_user(0, &frame->uc.uc_flags);
@@ -478,7 +405,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	if (ka->sa.sa_flags & SA_SIGINFO)
 		setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		setup_rt_frame(sig, ka, NULL, oldset, regs);
 
 	if (ka->sa.sa_flags & SA_ONESHOT)
 		ka->sa.sa_handler = SIG_DFL;
