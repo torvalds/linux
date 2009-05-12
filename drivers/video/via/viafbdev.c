@@ -2103,7 +2103,7 @@ static void viafb_remove_proc(struct proc_dir_entry *viafb_entry)
 
 static int __devinit via_pci_probe(void)
 {
-	unsigned int default_xres, default_yres;
+	unsigned long default_xres, default_yres;
 	char *tmpc, *tmpm;
 	char *tmpc_sec, *tmpm_sec;
 	int vmode_index;
@@ -2196,8 +2196,8 @@ static int __devinit via_pci_probe(void)
 	viafb_FB_MM = viaparinfo->fbmem_virt;
 	tmpm = viafb_mode;
 	tmpc = strsep(&tmpm, "x");
-	strict_strtoul(tmpc, 0, (unsigned long *)&default_xres);
-	strict_strtoul(tmpm, 0, (unsigned long *)&default_yres);
+	strict_strtoul(tmpc, 0, &default_xres);
+	strict_strtoul(tmpm, 0, &default_yres);
 
 	vmode_index = viafb_get_mode_index(default_xres, default_yres, 0);
 	DEBUG_MSG(KERN_INFO "0->index=%d\n", vmode_index);
