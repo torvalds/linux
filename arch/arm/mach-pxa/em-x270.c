@@ -1013,7 +1013,7 @@ struct led_info em_x270_led_info = {
 };
 
 struct power_supply_info em_x270_psy_info = {
-	.name = "LP555597P6H-FPS",
+	.name = "battery",
 	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
 	.voltage_max_design = 4200000,
 	.voltage_min_design = 3000000,
