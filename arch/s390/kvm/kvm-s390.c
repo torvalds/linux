@@ -487,6 +487,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu_load(vcpu);
 
+	/* verify, that memory has been registered */
+	if (!vcpu->kvm->arch.guest_memsize) {
+		vcpu_put(vcpu);
+		return -EINVAL;
+	}
+
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
