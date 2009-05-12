@@ -706,7 +706,7 @@ static void mx3fb_dma_done(void *arg)
 	dev_dbg(mx3fb->dev, "irq %d callback\n", ichannel->eof_irq);
 
 	/* We only need one interrupt, it will be re-enabled as needed */
-	disable_irq(ichannel->eof_irq);
+	disable_irq_nosync(ichannel->eof_irq);
 
 	complete(&mx3_fbi->flip_cmpl);
 }
