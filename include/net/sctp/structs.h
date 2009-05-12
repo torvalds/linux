@@ -1939,10 +1939,8 @@ void sctp_association_free(struct sctp_association *);
 void sctp_association_put(struct sctp_association *);
 void sctp_association_hold(struct sctp_association *);
 
-struct sctp_transport *sctp_assoc_choose_init_transport(
-	struct sctp_association *);
-struct sctp_transport *sctp_assoc_choose_shutdown_transport(
-	struct sctp_association *);
+struct sctp_transport *sctp_assoc_choose_alter_transport(
+	struct sctp_association *, struct sctp_transport *);
 void sctp_assoc_update_retran_path(struct sctp_association *);
 struct sctp_transport *sctp_assoc_lookup_paddr(const struct sctp_association *,
 					  const union sctp_addr *);
