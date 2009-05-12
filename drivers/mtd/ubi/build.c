@@ -824,7 +824,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 	if (!ubi->peb_buf2)
 		goto out_free;
 
-#ifdef CONFIG_MTD_UBI_DEBUG
+#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 	mutex_init(&ubi->dbg_buf_mutex);
 	ubi->dbg_peb_buf = vmalloc(ubi->peb_size);
 	if (!ubi->dbg_peb_buf)
@@ -891,7 +891,7 @@ out_detach:
 out_free:
 	vfree(ubi->peb_buf1);
 	vfree(ubi->peb_buf2);
-#ifdef CONFIG_MTD_UBI_DEBUG
+#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 	vfree(ubi->dbg_peb_buf);
 #endif
 	kfree(ubi);
@@ -960,7 +960,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	put_mtd_device(ubi->mtd);
 	vfree(ubi->peb_buf1);
 	vfree(ubi->peb_buf2);
-#ifdef CONFIG_MTD_UBI_DEBUG
+#ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 	vfree(ubi->dbg_peb_buf);
 #endif
 	ubi_msg("mtd%d is detached from ubi%d", ubi->mtd->index, ubi->ubi_num);
