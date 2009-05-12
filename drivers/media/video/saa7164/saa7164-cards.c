@@ -521,6 +521,7 @@ void saa7164_card_setup(struct saa7164_dev *dev)
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2200_3:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2250_2:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_3:
 		hauppauge_eeprom(dev, &eeprom[0]);
 		break;
