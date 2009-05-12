@@ -663,6 +663,7 @@ static void __perf_counter_enable(void *info)
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_counter_context *ctx = counter->ctx;
 	struct perf_counter *leader = counter->group_leader;
+	unsigned long pmuflags;
 	unsigned long flags;
 	int err;
 
@@ -689,14 +690,18 @@ static void __perf_counter_enable(void *info)
 	if (leader != counter && leader->state != PERF_COUNTER_STATE_ACTIVE)
 		goto unlock;
 
-	if (!group_can_go_on(counter, cpuctx, 1))
+	if (!group_can_go_on(counter, cpuctx, 1)) {
 		err = -EEXIST;
-	else if (counter == leader)
-		err = group_sched_in(counter, cpuctx, ctx,
-				     smp_processor_id());
-	else
-		err = counter_sched_in(counter, cpuctx, ctx,
-				       smp_processor_id());
+	} else {
+		pmuflags = hw_perf_save_disable();
+		if (counter == leader)
+			err = group_sched_in(counter, cpuctx, ctx,
+					     smp_processor_id());
+		else
+			err = counter_sched_in(counter, cpuctx, ctx,
+					       smp_processor_id());
+		hw_perf_restore(pmuflags);
+	}
 
 	if (err) {
 		/*
