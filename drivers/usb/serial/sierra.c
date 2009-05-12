@@ -556,7 +556,6 @@ static void sierra_instat_callback(struct urb *urb)
 	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 
-	dev_dbg(&port->dev, "%s\n", __func__);
 	dev_dbg(&port->dev, "%s: urb %p port %p has data %p\n", __func__,
 		urb, port, portdata);
 
@@ -600,12 +599,12 @@ static void sierra_instat_callback(struct urb *urb)
 		dev_dbg(&port->dev, "%s: error %d\n", __func__, status);
 
 	/* Resubmit urb so we continue receiving IRQ data */
-	if (status != -ESHUTDOWN) {
+	if (port->port.count && status != -ESHUTDOWN && status != -ENOENT) {
 		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err)
-			dev_dbg(&port->dev, "%s: resubmit intr urb "
-				"failed. (%d)\n",	__func__, err);
+			dev_err(&port->dev, "%s: resubmit intr urb "
+				"failed. (%d)\n", __func__, err);
 	}
 }
 
