@@ -128,6 +128,15 @@ static struct tda10048_config hauppauge_hvr1200_config = {
 	.clk_freq_khz     = TDA10048_CLK_16000,
 };
 
+static struct tda10048_config hauppauge_hvr1210_config = {
+	.demod_address    = 0x10 >> 1,
+	.output_mode      = TDA10048_SERIAL_OUTPUT,
+	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
+	.inversion        = TDA10048_INVERSION_ON,
+	.if_freq_khz      = TDA10048_IF_4000,
+	.clk_freq_khz     = TDA10048_CLK_16000,
+};
+
 static struct s5h1409_config hauppauge_ezqam_config = {
 	.demod_address = 0x32 >> 1,
 	.output_mode   = S5H1409_SERIAL_OUTPUT,
@@ -235,6 +244,10 @@ static struct tda18271_config hauppauge_tda18271_config = {
 
 static struct tda18271_config hauppauge_hvr1200_tuner_config = {
 	.gate    = TDA18271_GATE_ANALOG,
+};
+
+static struct tda18271_config hauppauge_hvr1210_tuner_config = {
+	.gate    = TDA18271_GATE_DIGITAL,
 };
 
 static struct tda18271_std_map hcw_lgdt3305_tda18271_std_map = {
@@ -552,6 +565,17 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				0x60, &dev->i2c_bus[1].i2c_adap,
 				&hauppauge_hvr1200_tuner_config);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1210:
+		i2c_bus = &dev->i2c_bus[0];
+		fe0->dvb.frontend = dvb_attach(tda10048_attach,
+			&hauppauge_hvr1210_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(tda18271_attach, fe0->dvb.frontend,
+				0x60, &dev->i2c_bus[1].i2c_adap,
+				&hauppauge_hvr1210_tuner_config);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
