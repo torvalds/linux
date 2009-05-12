@@ -904,14 +904,11 @@ smscore_client_t *smscore_find_client(struct smscore_device_t *coredev,
  *
  */
 void smscore_onresponse(struct smscore_device_t *coredev,
-			struct smscore_buffer_t *cb)
-{
-	struct SmsMsgHdr_ST *phdr =
-		(struct SmsMsgHdr_ST *)((u8 *) cb->p + cb->offset);
-	struct smscore_client_t *client =
-		smscore_find_client(coredev, phdr->msgType, phdr->msgDstId);
+		struct smscore_buffer_t *cb) {
+	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) ((u8 *) cb->p
+			+ cb->offset);
+	struct smscore_client_t *client;
 	int rc = -EBUSY;
-
 	static unsigned long last_sample_time; /* = 0; */
 	static int data_total; /* = 0; */
 	unsigned long time_now = jiffies_to_msecs(jiffies);
@@ -929,6 +926,16 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 	}
 
 	data_total += cb->size;
+	/* Do we need to re-route? */
+	if ((phdr->msgType == MSG_SMS_HO_PER_SLICES_IND) ||
+			(phdr->msgType == MSG_SMS_TRANSMISSION_IND)) {
+		if (coredev->mode == DEVICE_MODE_DVBT_BDA)
+			phdr->msgDstId = DVBT_BDA_CONTROL_MSG_ID;
+	}
+
+
+	client = smscore_find_client(coredev, phdr->msgType, phdr->msgDstId);
+
 	/* If no client registered for type & id,
 	 * check for control client where type is not registered */
 	if (client)
