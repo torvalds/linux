@@ -719,6 +719,7 @@ static void zfcp_erp_adapter_strategy_close(struct zfcp_erp_action *act)
 	zfcp_qdio_close(adapter);
 	zfcp_fsf_req_dismiss_all(adapter);
 	adapter->fsf_req_seq_no = 0;
+	zfcp_fc_wka_port_force_offline(&adapter->nsp);
 	/* all ports and units are closed */
 	zfcp_erp_modify_adapter_status(adapter, "erascl1", NULL,
 				       ZFCP_STATUS_COMMON_OPEN, ZFCP_CLEAR);
@@ -1176,48 +1177,6 @@ static void zfcp_erp_action_dequeue(struct zfcp_erp_action *erp_action)
 	}
 }
 
-struct zfcp_erp_add_work {
-	struct zfcp_unit  *unit;
-	struct work_struct work;
-};
-
-static void zfcp_erp_scsi_scan(struct work_struct *work)
-{
-	struct zfcp_erp_add_work *p =
-		container_of(work, struct zfcp_erp_add_work, work);
-	struct zfcp_unit *unit = p->unit;
-	struct fc_rport *rport = unit->port->rport;
-
-	if (rport && rport->port_state == FC_PORTSTATE_ONLINE)
-		scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
-			 scsilun_to_int((struct scsi_lun *)&unit->fcp_lun), 0);
-	atomic_clear_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
-	zfcp_unit_put(unit);
-	wake_up(&unit->port->adapter->erp_done_wqh);
-	kfree(p);
-}
-
-static void zfcp_erp_schedule_work(struct zfcp_unit *unit)
-{
-	struct zfcp_erp_add_work *p;
-
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (!p) {
-		dev_err(&unit->port->adapter->ccw_device->dev,
-			"Registering unit 0x%016Lx on port 0x%016Lx failed\n",
-			(unsigned long long)unit->fcp_lun,
-			(unsigned long long)unit->port->wwpn);
-		return;
-	}
-
-	zfcp_unit_get(unit);
-	atomic_set_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
-	INIT_WORK(&p->work, zfcp_erp_scsi_scan);
-	p->unit = unit;
-	if (!queue_work(zfcp_data.work_queue, &p->work))
-		zfcp_unit_put(unit);
-}
-
 static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 {
 	struct zfcp_adapter *adapter = act->adapter;
@@ -1226,11 +1185,11 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 
 	switch (act->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		flush_work(&port->rport_work);
 		if ((result == ZFCP_ERP_SUCCEEDED) && !unit->device) {
-			if (!(atomic_read(&unit->status) &
-			      ZFCP_STATUS_UNIT_SCSI_WORK_PENDING))
-				zfcp_erp_schedule_work(unit);
+			zfcp_unit_get(unit);
+			if (scsi_queue_work(unit->port->adapter->scsi_host,
+					    &unit->scsi_work) <= 0)
+				zfcp_unit_put(unit);
 		}
 		zfcp_unit_put(unit);
 		break;
@@ -1352,6 +1311,11 @@ static int zfcp_erp_thread(void *data)
 
 	while (!(atomic_read(&adapter->status) &
 		 ZFCP_STATUS_ADAPTER_ERP_THREAD_KILL)) {
+
+		zfcp_rec_dbf_event_thread_lock("erthrd1", adapter);
+		ignore = down_interruptible(&adapter->erp_ready_sem);
+		zfcp_rec_dbf_event_thread_lock("erthrd2", adapter);
+
 		write_lock_irqsave(&adapter->erp_lock, flags);
 		next = adapter->erp_ready_head.next;
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
@@ -1363,10 +1327,6 @@ static int zfcp_erp_thread(void *data)
 			if (zfcp_erp_strategy(act) != ZFCP_ERP_DISMISSED)
 				zfcp_erp_wakeup(adapter);
 		}
-
-		zfcp_rec_dbf_event_thread_lock("erthrd1", adapter);
-		ignore = down_interruptible(&adapter->erp_ready_sem);
-		zfcp_rec_dbf_event_thread_lock("erthrd2", adapter);
 	}
 
 	atomic_clear_mask(ZFCP_STATUS_ADAPTER_ERP_THREAD_UP, &adapter->status);

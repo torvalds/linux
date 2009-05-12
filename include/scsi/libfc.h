@@ -637,6 +637,7 @@ struct fc_disc {
 			      enum fc_disc_event);
 
 	struct list_head	 rports;
+	struct list_head	 rogue_rports;
 	struct fc_lport		*lport;
 	struct mutex		disc_mutex;
 	struct fc_gpn_ft_resp	partial_buf;	/* partial name buffer */

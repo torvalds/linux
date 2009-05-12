@@ -90,6 +90,10 @@ will itself start writeback.
 If dirty_bytes is written, dirty_ratio becomes a function of its value
 (dirty_bytes / the amount of dirtyable system memory).
 
+Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
+value lower than this limit will be ignored and the old configuration will be
+retained.
+
 ==============================================================
 
 dirty_expire_centisecs

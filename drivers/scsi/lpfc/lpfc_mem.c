@@ -41,7 +41,7 @@
 
 
 /**
- * lpfc_mem_alloc: create and allocate all PCI and memory pools
+ * lpfc_mem_alloc - create and allocate all PCI and memory pools
  * @phba: HBA to allocate pools for
  *
  * Description: Creates and allocates PCI pools lpfc_scsi_dma_buf_pool,
@@ -136,12 +136,12 @@ lpfc_mem_alloc(struct lpfc_hba * phba)
 }
 
 /**
- * lpfc_mem_free: Frees all PCI and memory allocated by lpfc_mem_alloc
+ * lpfc_mem_free - Frees all PCI and memory allocated by lpfc_mem_alloc
  * @phba: HBA to free memory for
  *
  * Description: Frees PCI pools lpfc_scsi_dma_buf_pool, lpfc_mbuf_pool,
  * lpfc_hbq_pool.  Frees kmalloc-backed mempools for LPFC_MBOXQ_t and
- * lpfc_nodelist.  Also frees the VPI bitmask.
+ * lpfc_nodelist.  Also frees the VPI bitmask
  *
  * Returns: None
  **/
@@ -212,7 +212,7 @@ lpfc_mem_free(struct lpfc_hba * phba)
 }
 
 /**
- * lpfc_mbuf_alloc: Allocate an mbuf from the lpfc_mbuf_pool PCI pool
+ * lpfc_mbuf_alloc - Allocate an mbuf from the lpfc_mbuf_pool PCI pool
  * @phba: HBA which owns the pool to allocate from
  * @mem_flags: indicates if this is a priority (MEM_PRI) allocation
  * @handle: used to return the DMA-mapped address of the mbuf
@@ -249,7 +249,7 @@ lpfc_mbuf_alloc(struct lpfc_hba *phba, int mem_flags, dma_addr_t *handle)
 }
 
 /**
- * __lpfc_mem_free: Free an mbuf from the lpfc_mbuf_pool PCI pool (locked)
+ * __lpfc_mbuf_free - Free an mbuf from the lpfc_mbuf_pool PCI pool (locked)
  * @phba: HBA which owns the pool to return to
  * @virt: mbuf to free
  * @dma: the DMA-mapped address of the lpfc_mbuf_pool to be freed
@@ -278,7 +278,7 @@ __lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 }
 
 /**
- * lpfc_mem_free: Free an mbuf from the lpfc_mbuf_pool PCI pool (unlocked)
+ * lpfc_mbuf_free - Free an mbuf from the lpfc_mbuf_pool PCI pool (unlocked)
  * @phba: HBA which owns the pool to return to
  * @virt: mbuf to free
  * @dma: the DMA-mapped address of the lpfc_mbuf_pool to be freed
@@ -291,7 +291,6 @@ __lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
  * Returns: None
  **/
 void
-
 lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 {
 	unsigned long iflags;
@@ -303,7 +302,7 @@ lpfc_mbuf_free(struct lpfc_hba * phba, void *virt, dma_addr_t dma)
 }
 
 /**
- * lpfc_els_hbq_alloc: Allocate an HBQ buffer
+ * lpfc_els_hbq_alloc - Allocate an HBQ buffer
  * @phba: HBA to allocate HBQ buffer for
  *
  * Description: Allocates a DMA-mapped HBQ buffer from the lpfc_hbq_pool PCI
@@ -335,7 +334,7 @@ lpfc_els_hbq_alloc(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_mem_hbq_free: Frees an HBQ buffer allocated with lpfc_els_hbq_alloc
+ * lpfc_mem_hbq_free - Frees an HBQ buffer allocated with lpfc_els_hbq_alloc
  * @phba: HBA buffer was allocated for
  * @hbqbp: HBQ container returned by lpfc_els_hbq_alloc
  *
@@ -355,7 +354,7 @@ lpfc_els_hbq_free(struct lpfc_hba *phba, struct hbq_dmabuf *hbqbp)
 }
 
 /**
- * lpfc_in_buf_free: Free a DMA buffer
+ * lpfc_in_buf_free - Free a DMA buffer
  * @phba: HBA buffer is associated with
  * @mp: Buffer to free
  *

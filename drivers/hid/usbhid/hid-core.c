@@ -662,8 +662,8 @@ void usbhid_close(struct hid_device *hid)
 	spin_lock_irq(&usbhid->lock);
 	if (!--hid->open) {
 		spin_unlock_irq(&usbhid->lock);
+		hid_cancel_delayed_stuff(usbhid);
 		usb_kill_urb(usbhid->urbin);
-		flush_scheduled_work();
 		usbhid->intf->needs_remote_wakeup = 0;
 	} else {
 		spin_unlock_irq(&usbhid->lock);

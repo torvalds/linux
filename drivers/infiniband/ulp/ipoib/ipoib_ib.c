@@ -685,7 +685,8 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
 			   round_jiffies_relative(HZ));
 
-	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
+	if (!test_and_set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
+		napi_enable(&priv->napi);
 
 	return 0;
 }
@@ -804,7 +805,8 @@ int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 	struct ipoib_tx_buf *tx_req;
 	int i;
 
-	clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
+	if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &priv->flags))
+		napi_disable(&priv->napi);
 
 	ipoib_cm_dev_stop(dev);
 

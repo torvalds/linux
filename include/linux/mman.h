@@ -12,21 +12,18 @@
 
 #ifdef __KERNEL__
 #include <linux/mm.h>
+#include <linux/percpu_counter.h>
 
 #include <asm/atomic.h>
 
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
-extern atomic_long_t vm_committed_space;
+extern struct percpu_counter vm_committed_as;
 
-#ifdef CONFIG_SMP
-extern void vm_acct_memory(long pages);
-#else
 static inline void vm_acct_memory(long pages)
 {
-	atomic_long_add(pages, &vm_committed_space);
+	percpu_counter_add(&vm_committed_as, pages);
 }
-#endif
 
 static inline void vm_unacct_memory(long pages)
 {

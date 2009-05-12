@@ -15,15 +15,20 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/memory.h>
+#include <linux/etherdevice.h>
 
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
 #include <linux/i2c/at24.h>
 
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/io.h>
+#include <linux/phy.h>
+#include <linux/clk.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -32,25 +37,34 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <mach/hardware.h>
+#include <mach/dm644x.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
+#include <mach/serial.h>
+#include <mach/mux.h>
+#include <mach/psc.h>
+#include <mach/nand.h>
 
-/* other misc. init functions */
-void __init davinci_psc_init(void);
-void __init davinci_irq_init(void);
-void __init davinci_map_common_io(void);
-void __init davinci_init_common_hw(void);
+#define DM644X_EVM_PHY_MASK		(0x2)
+#define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
 
-#if defined(CONFIG_MTD_PHYSMAP) || \
-    defined(CONFIG_MTD_PHYSMAP_MODULE)
+#define DAVINCI_CFC_ATA_BASE		  0x01C66000
+
+#define DAVINCI_ASYNC_EMIF_CONTROL_BASE   0x01e00000
+#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE  0x02000000
+#define DAVINCI_ASYNC_EMIF_DATA_CE1_BASE  0x04000000
+#define DAVINCI_ASYNC_EMIF_DATA_CE2_BASE  0x06000000
+#define DAVINCI_ASYNC_EMIF_DATA_CE3_BASE  0x08000000
+
+#define LXT971_PHY_ID	(0x001378e2)
+#define LXT971_PHY_MASK	(0xfffffff0)
 
 static struct mtd_partition davinci_evm_norflash_partitions[] = {
-	/* bootloader (U-Boot, etc) in first 4 sectors */
+	/* bootloader (UBL, U-Boot, etc) in first 5 sectors */
 	{
 		.name		= "bootloader",
 		.offset		= 0,
-		.size		= 4 * SZ_64K,
+		.size		= 5 * SZ_64K,
 		.mask_flags	= MTD_WRITEABLE, /* force read-only */
 	},
 	/* bootloader params in the next 1 sectors */
@@ -100,10 +114,89 @@ static struct platform_device davinci_evm_norflash_device = {
 	.resource	= &davinci_evm_norflash_resource,
 };
 
-#endif
+/* DM644x EVM includes a 64 MByte small-page NAND flash (16K blocks).
+ * It may used instead of the (default) NOR chip to boot, using TI's
+ * tools to install the secondary boot loader (UBL) and U-Boot.
+ */
+struct mtd_partition davinci_evm_nandflash_partition[] = {
+	/* Bootloader layout depends on whose u-boot is installed, but we
+	 * can hide all the details.
+	 *  - block 0 for u-boot environment ... in mainline u-boot
+	 *  - block 1 for UBL (plus up to four backup copies in blocks 2..5)
+	 *  - blocks 6...? for u-boot
+	 *  - blocks 16..23 for u-boot environment ... in TI's u-boot
+	 */
+	{
+		.name		= "bootloader",
+		.offset		= 0,
+		.size		= SZ_256K + SZ_128K,
+		.mask_flags	= MTD_WRITEABLE,	/* force read-only */
+	},
+	/* Kernel */
+	{
+		.name		= "kernel",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= SZ_4M,
+		.mask_flags	= 0,
+	},
+	/* File system (older GIT kernels started this on the 5MB mark) */
+	{
+		.name		= "filesystem",
+		.offset		= MTDPART_OFS_APPEND,
+		.size		= MTDPART_SIZ_FULL,
+		.mask_flags	= 0,
+	}
+	/* A few blocks at end hold a flash BBT ... created by TI's CCS
+	 * using flashwriter_nand.out, but ignored by TI's versions of
+	 * Linux and u-boot.  We boot faster by using them.
+	 */
+};
 
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-    defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
+static struct davinci_nand_pdata davinci_evm_nandflash_data = {
+	.parts		= davinci_evm_nandflash_partition,
+	.nr_parts	= ARRAY_SIZE(davinci_evm_nandflash_partition),
+	.ecc_mode	= NAND_ECC_HW,
+	.options	= NAND_USE_FLASH_BBT,
+};
+
+static struct resource davinci_evm_nandflash_resource[] = {
+	{
+		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+		.flags		= IORESOURCE_MEM,
+	}, {
+		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device davinci_evm_nandflash_device = {
+	.name		= "davinci_nand",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &davinci_evm_nandflash_data,
+	},
+	.num_resources	= ARRAY_SIZE(davinci_evm_nandflash_resource),
+	.resource	= davinci_evm_nandflash_resource,
+};
+
+static u64 davinci_fb_dma_mask = DMA_BIT_MASK(32);
+
+static struct platform_device davinci_fb_device = {
+	.name		= "davincifb",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= &davinci_fb_dma_mask,
+		.coherent_dma_mask      = DMA_BIT_MASK(32),
+	},
+	.num_resources = 0,
+};
+
+static struct platform_device rtc_dev = {
+	.name           = "rtc_davinci_evm",
+	.id             = -1,
+};
 
 static struct resource ide_resources[] = {
 	{
@@ -130,8 +223,6 @@ static struct platform_device ide_dev = {
 		.coherent_dma_mask      = DMA_BIT_MASK(32),
 	},
 };
-
-#endif
 
 /*----------------------------------------------------------------------*/
 
@@ -311,7 +402,9 @@ evm_u35_setup(struct i2c_client *client, int gpio, unsigned ngpio, void *c)
 	gpio_request(gpio + 7, "nCF_SEL");
 	gpio_direction_output(gpio + 7, 1);
 
-	/* irlml6401 sustains over 3A, switches 5V in under 8 msec */
+	/* irlml6401 switches over 1A, in under 8 msec;
+	 * now it can be managed by nDRV_VBUS ...
+	 */
 	setup_usb(500, 8);
 
 	return 0;
@@ -343,13 +436,119 @@ static struct pcf857x_platform_data pcf_data_u35 = {
  *  - 0x0039, 1 byte NTSC vs PAL (bit 0x80 == PAL)
  *  - ... newer boards may have more
  */
+static struct memory_accessor *at24_mem_acc;
+
+static void at24_setup(struct memory_accessor *mem_acc, void *context)
+{
+	DECLARE_MAC_BUF(mac_str);
+	char mac_addr[6];
+
+	at24_mem_acc = mem_acc;
+
+	/* Read MAC addr from EEPROM */
+	if (at24_mem_acc->read(at24_mem_acc, mac_addr, 0x7f00, 6) == 6) {
+		printk(KERN_INFO "Read MAC addr from EEPROM: %s\n",
+		       print_mac(mac_str, mac_addr));
+	}
+}
+
 static struct at24_platform_data eeprom_info = {
 	.byte_len	= (256*1024) / 8,
 	.page_size	= 64,
 	.flags		= AT24_FLAG_ADDR16,
+	.setup          = at24_setup,
 };
 
+int dm6446evm_eeprom_read(void *buf, off_t off, size_t count)
+{
+	if (at24_mem_acc)
+		return at24_mem_acc->read(at24_mem_acc, buf, off, count);
+	return -ENODEV;
+}
+EXPORT_SYMBOL(dm6446evm_eeprom_read);
+
+int dm6446evm_eeprom_write(void *buf, off_t off, size_t count)
+{
+	if (at24_mem_acc)
+		return at24_mem_acc->write(at24_mem_acc, buf, off, count);
+	return -ENODEV;
+}
+EXPORT_SYMBOL(dm6446evm_eeprom_write);
+
+/*
+ * MSP430 supports RTC, card detection, input from IR remote, and
+ * a bit more.  It triggers interrupts on GPIO(7) from pressing
+ * buttons on the IR remote, and for card detect switches.
+ */
+static struct i2c_client *dm6446evm_msp;
+
+static int dm6446evm_msp_probe(struct i2c_client *client,
+		const struct i2c_device_id *id)
+{
+	dm6446evm_msp = client;
+	return 0;
+}
+
+static int dm6446evm_msp_remove(struct i2c_client *client)
+{
+	dm6446evm_msp = NULL;
+	return 0;
+}
+
+static const struct i2c_device_id dm6446evm_msp_ids[] = {
+	{ "dm6446evm_msp", 0, },
+	{ /* end of list */ },
+};
+
+static struct i2c_driver dm6446evm_msp_driver = {
+	.driver.name	= "dm6446evm_msp",
+	.id_table	= dm6446evm_msp_ids,
+	.probe		= dm6446evm_msp_probe,
+	.remove		= dm6446evm_msp_remove,
+};
+
+static int dm6444evm_msp430_get_pins(void)
+{
+	static const char txbuf[2] = { 2, 4, };
+	char buf[4];
+	struct i2c_msg msg[2] = {
+		{
+			.addr = dm6446evm_msp->addr,
+			.flags = 0,
+			.len = 2,
+			.buf = (void __force *)txbuf,
+		},
+		{
+			.addr = dm6446evm_msp->addr,
+			.flags = I2C_M_RD,
+			.len = 4,
+			.buf = buf,
+		},
+	};
+	int status;
+
+	if (!dm6446evm_msp)
+		return -ENXIO;
+
+	/* Command 4 == get input state, returns port 2 and port3 data
+	 *   S Addr W [A] len=2 [A] cmd=4 [A]
+	 *   RS Addr R [A] [len=4] A [cmd=4] A [port2] A [port3] N P
+	 */
+	status = i2c_transfer(dm6446evm_msp->adapter, msg, 2);
+	if (status < 0)
+		return status;
+
+	dev_dbg(&dm6446evm_msp->dev,
+		"PINS: %02x %02x %02x %02x\n",
+		buf[0], buf[1], buf[2], buf[3]);
+
+	return (buf[3] << 8) | buf[2];
+}
+
 static struct i2c_board_info __initdata i2c_info[] =  {
+	{
+		I2C_BOARD_INFO("dm6446evm_msp", 0x23),
+	},
 	{
 		I2C_BOARD_INFO("pcf8574", 0x38),
 		.platform_data	= &pcf_data_u2,
@@ -368,7 +567,6 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 	},
 	/* ALSO:
 	 * - tvl320aic33 audio codec (0x1b)
-	 * - msp430 microcontroller (0x23)
 	 * - tvp5146 video decoder (0x5d)
 	 */
 };
@@ -384,51 +582,109 @@ static struct davinci_i2c_platform_data i2c_pdata = {
 static void __init evm_init_i2c(void)
 {
 	davinci_init_i2c(&i2c_pdata);
+	i2c_add_driver(&dm6446evm_msp_driver);
 	i2c_register_board_info(1, i2c_info, ARRAY_SIZE(i2c_info));
 }
 
 static struct platform_device *davinci_evm_devices[] __initdata = {
-#if defined(CONFIG_MTD_PHYSMAP) || \
-    defined(CONFIG_MTD_PHYSMAP_MODULE)
-	&davinci_evm_norflash_device,
-#endif
-#if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
-    defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
-	&ide_dev,
-#endif
+	&davinci_fb_device,
+	&rtc_dev,
+};
+
+static struct davinci_uart_config uart_config __initdata = {
+	.enabled_uarts = (1 << 0),
 };
 
 static void __init
 davinci_evm_map_io(void)
 {
 	davinci_map_common_io();
+	dm644x_init();
 }
 
-static __init void davinci_evm_init(void)
+static int davinci_phy_fixup(struct phy_device *phydev)
 {
-	davinci_psc_init();
+	unsigned int control;
+	/* CRITICAL: Fix for increasing PHY signal drive strength for
+	 * TX lockup issue. On DaVinci EVM, the Intel LXT971 PHY
+	 * signal strength was low causing  TX to fail randomly. The
+	 * fix is to Set bit 11 (Increased MII drive strength) of PHY
+	 * register 26 (Digital Config register) on this phy. */
+	control = phy_read(phydev, 26);
+	phy_write(phydev, 26, (control | 0x800));
+	return 0;
+}
 
 #if defined(CONFIG_BLK_DEV_PALMCHIP_BK3710) || \
     defined(CONFIG_BLK_DEV_PALMCHIP_BK3710_MODULE)
+#define HAS_ATA 1
+#else
+#define HAS_ATA 0
+#endif
+
 #if defined(CONFIG_MTD_PHYSMAP) || \
     defined(CONFIG_MTD_PHYSMAP_MODULE)
-	printk(KERN_WARNING "WARNING: both IDE and NOR flash are enabled, "
-	       "but share pins.\n\t Disable IDE for NOR support.\n");
+#define HAS_NOR 1
+#else
+#define HAS_NOR 0
 #endif
+
+#if defined(CONFIG_MTD_NAND_DAVINCI) || \
+    defined(CONFIG_MTD_NAND_DAVINCI_MODULE)
+#define HAS_NAND 1
+#else
+#define HAS_NAND 0
 #endif
+
+static __init void davinci_evm_init(void)
+{
+	struct clk *aemif_clk;
+
+	aemif_clk = clk_get(NULL, "aemif");
+	clk_enable(aemif_clk);
+
+	if (HAS_ATA) {
+		if (HAS_NAND || HAS_NOR)
+			pr_warning("WARNING: both IDE and Flash are "
+				"enabled, but they share AEMIF pins.\n"
+				"\tDisable IDE for NAND/NOR support.\n");
+		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
+		davinci_cfg_reg(DM644X_ATAEN);
+		davinci_cfg_reg(DM644X_HDIREN);
+		platform_device_register(&ide_dev);
+	} else if (HAS_NAND || HAS_NOR) {
+		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
+		davinci_cfg_reg(DM644X_ATAEN_DISABLE);
+
+		/* only one device will be jumpered and detected */
+		if (HAS_NAND) {
+			platform_device_register(&davinci_evm_nandflash_device);
+			evm_leds[7].default_trigger = "nand-disk";
+			if (HAS_NOR)
+				pr_warning("WARNING: both NAND and NOR flash "
+					"are enabled; disable one of them.\n");
+		} else if (HAS_NOR)
+			platform_device_register(&davinci_evm_norflash_device);
+	}
 
 	platform_add_devices(davinci_evm_devices,
 			     ARRAY_SIZE(davinci_evm_devices));
 	evm_init_i2c();
+
+	davinci_serial_init(&uart_config);
+
+	/* Register the fixup for PHY on DaVinci */
+	phy_register_fixup_for_uid(LXT971_PHY_ID, LXT971_PHY_MASK,
+					davinci_phy_fixup);
+
 }
 
 static __init void davinci_evm_irq_init(void)
 {
-	davinci_init_common_hw();
 	davinci_irq_init();
 }
 
-MACHINE_START(DAVINCI_EVM, "DaVinci EVM")
+MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
 	/* Maintainer: MontaVista Software <source@mvista.com> */
 	.phys_io      = IO_PHYS,
 	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,

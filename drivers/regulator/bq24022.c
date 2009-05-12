@@ -61,8 +61,7 @@ static int bq24022_disable(struct regulator_dev *rdev)
 
 static int bq24022_is_enabled(struct regulator_dev *rdev)
 {
-	struct platform_device *pdev = rdev_get_drvdata(rdev);
-	struct bq24022_mach_info *pdata = pdev->dev.platform_data;
+	struct bq24022_mach_info *pdata = rdev_get_drvdata(rdev);
 
 	return !gpio_get_value(pdata->gpio_nce);
 }
