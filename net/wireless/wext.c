@@ -650,14 +650,12 @@ static int wireless_seq_show(struct seq_file *seq, void *v)
 }
 
 static void *wireless_dev_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(dev_base_lock)
 {
 	rtnl_lock();
 	return dev_seq_start(seq, pos);
 }
 
 static void wireless_dev_seq_stop(struct seq_file *seq, void *v)
-	__releases(dev_base_lock)
 {
 	dev_seq_stop(seq, v);
 	rtnl_unlock();
