@@ -684,26 +684,52 @@ static int em_x270_libertas_setup(struct spi_device *spi)
 	if (err)
 		return err;
 
+	err = gpio_request(GPIO19_WLAN_STRAP, "WLAN STRAP");
+	if (err)
+		goto err_free_pwen;
+
+	if (machine_is_exeda()) {
+		err = gpio_request(GPIO37_WLAN_RST, "WLAN RST");
+		if (err)
+			goto err_free_strap;
+
+		gpio_direction_output(GPIO37_WLAN_RST, 1);
+		msleep(100);
+	}
+
 	gpio_direction_output(GPIO19_WLAN_STRAP, 1);
-	mdelay(100);
+	msleep(100);
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(em_x270_libertas_pin_config));
 
 	gpio_direction_output(GPIO115_WLAN_PWEN, 0);
-	mdelay(100);
+	msleep(100);
 	gpio_set_value(GPIO115_WLAN_PWEN, 1);
-	mdelay(100);
+	msleep(100);
 
 	spi->bits_per_word = 16;
 	spi_setup(spi);
 
 	return 0;
+
+err_free_strap:
+	gpio_free(GPIO19_WLAN_STRAP);
+err_free_pwen:
+	gpio_free(GPIO115_WLAN_PWEN);
+
+	return err;
 }
 
 static int em_x270_libertas_teardown(struct spi_device *spi)
 {
 	gpio_set_value(GPIO115_WLAN_PWEN, 0);
 	gpio_free(GPIO115_WLAN_PWEN);
+	gpio_free(GPIO19_WLAN_STRAP);
+
+	if (machine_is_exeda()) {
+		gpio_set_value(GPIO37_WLAN_RST, 0);
+		gpio_free(GPIO37_WLAN_RST);
+	}
 
 	return 0;
 }
