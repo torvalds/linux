@@ -40,22 +40,23 @@
 /*
  * Change frequency of core dpll
  * r0 = sdrc_rfr_ctrl r1 = sdrc_actim_ctrla r2 = sdrc_actim_ctrlb r3 = M2
+ * r4 = Unlock SDRC DLL? (1 = yes, 0 = no) -- only unlock DLL for
+ *      SDRC rates < 83MHz
  */
 ENTRY(omap3_sram_configure_core_dpll)
 	stmfd	sp!, {r1-r12, lr}	@ store regs to stack
+	ldr	r4, [sp, #52]		@ pull extra args off the stack
 	dsb				@ flush buffered writes to interconnect
 	cmp	r3, #0x2
 	blne	configure_sdrc
-	cmp	r3, #0x2
+	cmp	r4, #0x1
+	bleq	unlock_dll
 	blne	lock_dll
-	cmp	r3, #0x1
-	blne	unlock_dll
 	bl	sdram_in_selfrefresh	@ put the SDRAM in self refresh
 	bl 	configure_core_dpll
 	bl	enable_sdrc
-	cmp	r3, #0x1
-	blne	wait_dll_unlock
-	cmp	r3, #0x2
+	cmp	r4, #0x1
+	bleq	wait_dll_unlock
 	blne	wait_dll_lock
 	cmp	r3, #0x1
 	blne	configure_sdrc

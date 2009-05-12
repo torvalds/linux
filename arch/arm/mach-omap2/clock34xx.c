@@ -281,6 +281,8 @@ static struct omap_clk omap34xx_clks[] = {
 
 #define MAX_DPLL_WAIT_TRIES		1000000
 
+#define MIN_SDRC_DLL_LOCK_FREQ		83000000
+
 /**
  * omap3_dpll_recalc - recalculate DPLL rate
  * @clk: DPLL struct clk
@@ -703,6 +705,7 @@ static int omap3_dpll4_set_rate(struct clk *clk, unsigned long rate)
 static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 {
 	u32 new_div = 0;
+	u32 unlock_dll = 0;
 	unsigned long validrate, sdrcrate;
 	struct omap_sdrc_params *sp;
 
@@ -729,6 +732,11 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 	if (!sp)
 		return -EINVAL;
 
+	if (sdrcrate < MIN_SDRC_DLL_LOCK_FREQ) {
+		pr_debug("clock: will unlock SDRC DLL\n");
+		unlock_dll = 1;
+	}
+
 	pr_info("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
 		validrate);
 	pr_info("clock: SDRC timing params used: %08x %08x %08x\n",
@@ -739,7 +747,7 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 
 	/* REVISIT: Add SDRC_MR changing to this code also */
 	omap3_configure_core_dpll(sp->rfr_ctrl, sp->actim_ctrla,
-				  sp->actim_ctrlb, new_div);
+				  sp->actim_ctrlb, new_div, unlock_dll);
 
 	return 0;
 }
