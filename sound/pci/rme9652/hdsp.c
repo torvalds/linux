@@ -402,9 +402,9 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_DMA_AREA_BYTES ((HDSP_MAX_CHANNELS+1) * HDSP_CHANNEL_BUFFER_BYTES)
 #define HDSP_DMA_AREA_KILOBYTES (HDSP_DMA_AREA_BYTES/1024)
 
-/* use hotplug firmeare loader? */
+/* use hotplug firmware loader? */
 #if defined(CONFIG_FW_LOADER) || defined(CONFIG_FW_LOADER_MODULE)
-#if !defined(HDSP_USE_HWDEP_LOADER) && !defined(CONFIG_SND_HDSP)
+#if !defined(HDSP_USE_HWDEP_LOADER)
 #define HDSP_FW_LOADER
 #endif
 #endif
