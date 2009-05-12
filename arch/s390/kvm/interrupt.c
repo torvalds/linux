@@ -12,6 +12,8 @@
 
 #include <asm/lowcore.h>
 #include <asm/uaccess.h>
+#include <linux/hrtimer.h>
+#include <linux/interrupt.h>
 #include <linux/kvm_host.h>
 #include <linux/signal.h>
 #include "kvm-s390.h"
@@ -361,12 +363,10 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		return 0;
 	}
 
-	sltime = (vcpu->arch.sie_block->ckc - now) / (0xf4240000ul / HZ) + 1;
+	sltime = ((vcpu->arch.sie_block->ckc - now)*125)>>9;
 
-	vcpu->arch.ckc_timer.expires = jiffies + sltime;
-
-	add_timer(&vcpu->arch.ckc_timer);
-	VCPU_EVENT(vcpu, 5, "enabled wait timer:%llx jiffies", sltime);
+	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
+	VCPU_EVENT(vcpu, 5, "enabled wait via clock comparator: %llx ns", sltime);
 no_timer:
 	spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
@@ -389,21 +389,34 @@ no_timer:
 	remove_wait_queue(&vcpu->wq, &wait);
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
 	spin_unlock_bh(&vcpu->arch.local_int.float_int->lock);
-	del_timer(&vcpu->arch.ckc_timer);
+	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
 	return 0;
 }
 
-void kvm_s390_idle_wakeup(unsigned long data)
+void kvm_s390_tasklet(unsigned long parm)
 {
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)data;
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *) parm;
 
-	spin_lock_bh(&vcpu->arch.local_int.lock);
+	spin_lock(&vcpu->arch.local_int.lock);
 	vcpu->arch.local_int.timer_due = 1;
 	if (waitqueue_active(&vcpu->arch.local_int.wq))
 		wake_up_interruptible(&vcpu->arch.local_int.wq);
-	spin_unlock_bh(&vcpu->arch.local_int.lock);
+	spin_unlock(&vcpu->arch.local_int.lock);
 }
 
+/*
+ * low level hrtimer wake routine. Because this runs in hardirq context
+ * we schedule a tasklet to do the real work.
+ */
+enum hrtimer_restart kvm_s390_idle_wakeup(struct hrtimer *timer)
+{
+	struct kvm_vcpu *vcpu;
+
+	vcpu = container_of(timer, struct kvm_vcpu, arch.ckc_timer);
+	tasklet_schedule(&vcpu->arch.tasklet);
+
+	return HRTIMER_NORESTART;
+}
 
 void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 {
