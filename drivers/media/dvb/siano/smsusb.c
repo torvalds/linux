@@ -65,14 +65,14 @@ static void smsusb_onresponse(struct urb *urb)
 	struct smsusb_urb_t *surb = (struct smsusb_urb_t *) urb->context;
 	struct smsusb_device_t *dev = surb->dev;
 
-	if (urb->status < 0) {
-		sms_err("error, urb status %d, %d bytes",
+	if (urb->status == -ESHUTDOWN) {
+		sms_err("error, urb status %d (-ESHUTDOWN), %d bytes",
 			urb->status, urb->actual_length);
 		return;
 	}
 
-	if (urb->actual_length > 0) {
-		struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) surb->cb->p;
+	if ((urb->actual_length > 0) && (urb->status == 0)) {
+		struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *)surb->cb->p;
 
 		smsendian_handle_message_header(phdr);
 		if (urb->actual_length >= phdr->msgLength) {
@@ -111,7 +111,10 @@ static void smsusb_onresponse(struct urb *urb)
 				"msglen %d actual %d",
 				phdr->msgLength, urb->actual_length);
 		}
-	}
+	} else
+		sms_err("error, urb status %d, %d bytes",
+			urb->status, urb->actual_length);
+
 
 exit_and_resubmit:
 	smsusb_submit_urb(dev, surb);
