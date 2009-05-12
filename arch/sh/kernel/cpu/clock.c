@@ -399,7 +399,7 @@ struct clk *clk_get(struct device *dev, const char *id)
 	int idno;
 
 	clk = clk_get_sys(dev_id, id);
-	if (clk)
+	if (clk && !IS_ERR(clk))
 		return clk;
 
 	if (dev == NULL || dev->bus != &platform_bus_type)
