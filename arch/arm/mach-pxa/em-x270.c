@@ -1025,22 +1025,32 @@ static int em_x270_sensor_power(struct device *dev, int on)
 	return 0;
 }
 
-static struct soc_camera_link iclink = {
-	.bus_id	= 0,
-	.power = em_x270_sensor_power,
-};
-
 static struct i2c_board_info em_x270_i2c_cam_info[] = {
 	{
 		I2C_BOARD_INFO("mt9m111", 0x48),
+	},
+};
+
+static struct soc_camera_link iclink = {
+	.bus_id		= 0,
+	.power		= em_x270_sensor_power,
+	.board_info	= &em_x270_i2c_cam_info[0],
+	.i2c_adapter_id	= 0,
+	.module_name	= "mt9m111",
+};
+
+static struct platform_device em_x270_camera = {
+	.name	= "soc-camera-pdrv",
+	.id	= -1,
+	.dev	= {
 		.platform_data = &iclink,
 	},
 };
 
 static void  __init em_x270_init_camera(void)
 {
-	i2c_register_board_info(0, ARRAY_AND_SIZE(em_x270_i2c_cam_info));
 	pxa_set_camera_info(&em_x270_camera_platform_data);
+	platform_device_register(&em_x270_camera);
 }
 #else
 static inline void em_x270_init_camera(void) {}
