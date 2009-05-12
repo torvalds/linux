@@ -179,7 +179,7 @@ struct timex {
  * NTP convergence time. A higher value makes it stiffer, increasing
  * convergence time, but making the clock more stable.
  *
- * In David Mills' nanokenrel reference implmentation SHIFT_PLL is 4.
+ * In David Mills' nanokernel reference implementation SHIFT_PLL is 4.
  * However this seems to increase convergence time much too long.
  *
  * https://lists.ntp.org/pipermail/hackers/2008-January/003487.html
@@ -196,7 +196,7 @@ struct timex {
  *
  * SHIFT_FLL is used as a dampening factor to define how much we
  * adjust the frequency correction for a given offset in FLL mode.
- * In David Mills' nanokenrel reference implmentation SHIFT_PLL is 2.
+ * In David Mills' nanokernel reference implementation SHIFT_FLL is 2.
  *
  * MAXTC establishes the maximum time constant of the PLL.
  */
