@@ -1087,7 +1087,10 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 		info->flags |= IEEE80211_TX_CTL_NO_ACK;
 	} else {
 		tx->flags |= IEEE80211_TX_UNICAST;
-		info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
+		if (unlikely(local->wifi_wme_noack_test))
+			info->flags |= IEEE80211_TX_CTL_NO_ACK;
+		else
+			info->flags &= ~IEEE80211_TX_CTL_NO_ACK;
 	}
 
 	if (tx->flags & IEEE80211_TX_FRAGMENTED) {

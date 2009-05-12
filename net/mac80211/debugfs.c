@@ -135,6 +135,42 @@ static const struct file_operations reset_ops = {
 	.open = mac80211_open_file_generic,
 };
 
+static ssize_t noack_read(struct file *file, char __user *user_buf,
+			  size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	int res;
+	char buf[10];
+
+	res = scnprintf(buf, sizeof(buf), "%d\n", local->wifi_wme_noack_test);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, res);
+}
+
+static ssize_t noack_write(struct file *file,
+			   const char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	char buf[10];
+	size_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	local->wifi_wme_noack_test = !!simple_strtoul(buf, NULL, 0);
+
+	return count;
+}
+
+static const struct file_operations noack_ops = {
+	.read = noack_read,
+	.write = noack_write,
+	.open = mac80211_open_file_generic
+};
+
 /* statistics stuff */
 
 #define DEBUGFS_STATS_FILE(name, buflen, fmt, value...)			\
@@ -275,6 +311,7 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(tsf);
 	DEBUGFS_ADD_MODE(reset, 0200);
+	DEBUGFS_ADD(noack);
 
 	statsd = debugfs_create_dir("statistics", phyd);
 	local->debugfs.statistics = statsd;
@@ -330,6 +367,7 @@ void debugfs_hw_del(struct ieee80211_local *local)
 	DEBUGFS_DEL(wep_iv);
 	DEBUGFS_DEL(tsf);
 	DEBUGFS_DEL(reset);
+	DEBUGFS_DEL(noack);
 
 	DEBUGFS_STATS_DEL(transmitted_fragment_count);
 	DEBUGFS_STATS_DEL(multicast_transmitted_frame_count);

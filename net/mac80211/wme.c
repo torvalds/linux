@@ -133,7 +133,7 @@ u16 ieee80211_select_queue(struct net_device *dev, struct sk_buff *skb)
 		u8 *p = ieee80211_get_qos_ctl(hdr);
 		u8 ack_policy = 0;
 		tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
-		if (local->wifi_wme_noack_test)
+		if (unlikely(local->wifi_wme_noack_test))
 			ack_policy |= QOS_CONTROL_ACK_POLICY_NOACK <<
 					QOS_CONTROL_ACK_POLICY_SHIFT;
 		/* qos header is 2 bytes, second reserved */
