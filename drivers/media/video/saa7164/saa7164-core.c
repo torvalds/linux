@@ -123,6 +123,12 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 	u32 intstat[INT_SIZE/4];
 	int i, handled = 0, bit;
 
+	if (dev == 0) {
+		printk(KERN_ERR "%s() No device specified\n", __func__);
+		handled = 0;
+		goto out;
+	}
+
 	/* Check that the hardware is accessable. If the status bytes are
 	 * 0xFF then the device is not accessable, the the IRQ belongs
 	 * to another driver.
