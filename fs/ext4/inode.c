@@ -2000,7 +2000,7 @@ static void ext4_print_free_blocks(struct inode *inode)
 
 #define		EXT4_DELALLOC_RSVED	1
 static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
-				   struct buffer_head *bh_result, int create)
+				   struct buffer_head *bh_result)
 {
 	int ret;
 	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
@@ -2010,7 +2010,7 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 	handle = ext4_journal_current_handle();
 	BUG_ON(!handle);
 	ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
-				   bh_result, create, 0, EXT4_DELALLOC_RSVED);
+				   bh_result, 1, 0, EXT4_DELALLOC_RSVED);
 	if (ret <= 0)
 		return ret;
 
@@ -2088,7 +2088,7 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 	if (!new.b_size)
 		return 0;
 
-	err = ext4_da_get_block_write(mpd->inode, next, &new, 1);
+	err = ext4_da_get_block_write(mpd->inode, next, &new);
 	if (err) {
 		/*
 		 * If get block returns with error we simply
