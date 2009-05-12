@@ -74,6 +74,12 @@ config MTD_NAND_AMS_DELTA
 	help
 	  Support for NAND flash on Amstrad E3 (Delta).
 
+config MTD_NAND_OMAP2
+	tristate "NAND Flash device on OMAP2 and OMAP3"
+	depends on ARM && MTD_NAND && (ARCH_OMAP2 || ARCH_OMAP3)
+	help
+          Support for NAND flash on Texas Instruments OMAP2 and OMAP3 platforms.
+
 config MTD_NAND_TS7250
 	tristate "NAND Flash device on TS-7250 board"
 	depends on MACH_TS72XX
