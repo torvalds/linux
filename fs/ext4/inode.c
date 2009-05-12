@@ -914,7 +914,7 @@ err_out:
  * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system block
  * (ie, create is zero). Otherwise down_write(&EXT4_I(inode)->i_data_sem)
  */
-static int ext4_get_blocks_handle(handle_t *handle, struct inode *inode,
+static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 				  ext4_lblk_t iblock, unsigned int maxblocks,
 				  struct buffer_head *bh_result,
 				  int create, int extend_disksize)
@@ -1129,7 +1129,7 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
  * mapped.
  *
  * If file type is extents based, it will call ext4_ext_get_blocks(),
- * Otherwise, call with ext4_get_blocks_handle() to handle indirect mapping
+ * Otherwise, call with ext4_ind_get_blocks() to handle indirect mapping
  * based files
  *
  * On success, it returns the number of blocks being mapped or allocate.
@@ -1160,8 +1160,8 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
 				bh, 0, 0);
 	} else {
-		retval = ext4_get_blocks_handle(handle,
-				inode, block, max_blocks, bh, 0, 0);
+		retval = ext4_ind_get_blocks(handle, inode, block, max_blocks,
+					     bh, 0, 0);
 	}
 	up_read((&EXT4_I(inode)->i_data_sem));
 
@@ -1215,7 +1215,7 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
 				bh, create, extend_disksize);
 	} else {
-		retval = ext4_get_blocks_handle(handle, inode, block,
+		retval = ext4_ind_get_blocks(handle, inode, block,
 				max_blocks, bh, create, extend_disksize);
 
 		if (retval > 0 && buffer_new(bh)) {
@@ -1297,7 +1297,7 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	err = ext4_get_blocks_wrap(handle, inode, block, 1,
 					&dummy, create, 1, 0);
 	/*
-	 * ext4_get_blocks_handle() returns number of blocks
+	 * ext4_get_blocks_wrap() returns number of blocks
 	 * mapped. 0 in case of a HOLE.
 	 */
 	if (err > 0) {
