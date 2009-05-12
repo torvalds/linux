@@ -657,6 +657,8 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot old,
 				int user_alloc)
 {
+	int i;
+
 	/* A few sanity checks. We can have exactly one memory slot which has
 	   to start at guest virtual zero and which has to be located at a
 	   page boundary in userland and which has to end at a page boundary.
@@ -664,7 +666,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	   vmas. It is okay to mmap() and munmap() stuff in this slot after
 	   doing this call at any time */
 
-	if (mem->slot)
+	if (mem->slot || kvm->arch.guest_memsize)
 		return -EINVAL;
 
 	if (mem->guest_phys_addr)
@@ -676,15 +678,39 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	if (mem->memory_size & (PAGE_SIZE - 1))
 		return -EINVAL;
 
+	if (!user_alloc)
+		return -EINVAL;
+
+	/* lock all vcpus */
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		if (!kvm->vcpus[i])
+			continue;
+		if (!mutex_trylock(&kvm->vcpus[i]->mutex))
+			goto fail_out;
+	}
+
 	kvm->arch.guest_origin = mem->userspace_addr;
 	kvm->arch.guest_memsize = mem->memory_size;
 
-	/* FIXME: we do want to interrupt running CPUs and update their memory
-	   configuration now to avoid race conditions. But hey, changing the
-	   memory layout while virtual CPUs are running is usually bad
-	   programming practice. */
+	/* update sie control blocks, and unlock all vcpus */
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		if (kvm->vcpus[i]) {
+			kvm->vcpus[i]->arch.sie_block->gmsor =
+				kvm->arch.guest_origin;
+			kvm->vcpus[i]->arch.sie_block->gmslm =
+				kvm->arch.guest_memsize +
+				kvm->arch.guest_origin +
+				VIRTIODESCSPACE - 1ul;
+			mutex_unlock(&kvm->vcpus[i]->mutex);
+		}
+	}
 
 	return 0;
+
+fail_out:
+	for (; i >= 0; i--)
+		mutex_unlock(&kvm->vcpus[i]->mutex);
+	return -EINVAL;
 }
 
 void kvm_arch_flush_shadow(struct kvm *kvm)
