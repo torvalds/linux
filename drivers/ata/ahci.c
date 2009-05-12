@@ -77,8 +77,6 @@ static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
 			      size_t size);
 static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 					ssize_t size);
-#define MAX_SLOTS 8
-#define MAX_RETRY 15
 
 enum {
 	AHCI_PCI_BAR		= 5,
@@ -231,6 +229,10 @@ enum {
 
 	ICH_MAP				= 0x90, /* ICH MAP register */
 
+	/* em constants */
+	EM_MAX_SLOTS			= 8,
+	EM_MAX_RETRY			= 5,
+
 	/* em_ctl bits */
 	EM_CTL_RST			= (1 << 9), /* Reset */
 	EM_CTL_TM			= (1 << 8), /* Transmit Message */
@@ -282,8 +284,8 @@ struct ahci_port_priv {
 	unsigned int		ncq_saw_dmas:1;
 	unsigned int		ncq_saw_sdb:1;
 	u32 			intr_mask;	/* interrupts to enable */
-	struct ahci_em_priv	em_priv[MAX_SLOTS];/* enclosure management info
-					 	 * per PM slot */
+	/* enclosure management info per PM slot */
+	struct ahci_em_priv	em_priv[EM_MAX_SLOTS];
 };
 
 static int ahci_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
@@ -1140,12 +1142,12 @@ static void ahci_start_port(struct ata_port *ap)
 			emp = &pp->em_priv[link->pmp];
 
 			/* EM Transmit bit maybe busy during init */
-			for (i = 0; i < MAX_RETRY; i++) {
+			for (i = 0; i < EM_MAX_RETRY; i++) {
 				rc = ahci_transmit_led_message(ap,
 							       emp->led_state,
 							       4);
 				if (rc == -EBUSY)
-					udelay(100);
+					msleep(1);
 				else
 					break;
 			}
@@ -1339,7 +1341,7 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 
 	/* get the slot number from the message */
 	pmp = (state & EM_MSG_LED_PMP_SLOT) >> 8;
-	if (pmp < MAX_SLOTS)
+	if (pmp < EM_MAX_SLOTS)
 		emp = &pp->em_priv[pmp];
 	else
 		return -EINVAL;
@@ -1407,7 +1409,7 @@ static ssize_t ahci_led_store(struct ata_port *ap, const char *buf,
 
 	/* get the slot number from the message */
 	pmp = (state & EM_MSG_LED_PMP_SLOT) >> 8;
-	if (pmp < MAX_SLOTS)
+	if (pmp < EM_MAX_SLOTS)
 		emp = &pp->em_priv[pmp];
 	else
 		return -EINVAL;
