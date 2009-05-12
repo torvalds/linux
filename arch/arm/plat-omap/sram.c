@@ -201,6 +201,15 @@ void __init omap_map_sram(void)
 		base = OMAP3_SRAM_PA;
 		base = ROUND_DOWN(base, PAGE_SIZE);
 		omap_sram_io_desc[0].pfn = __phys_to_pfn(base);
+
+		/*
+		 * SRAM must be marked as non-cached on OMAP3 since the
+		 * CORE DPLL M2 divider change code (in SRAM) runs with the
+		 * SDRAM controller disabled, and if it is marked cached,
+		 * the ARM may attempt to write cache lines back to SDRAM
+		 * which will cause the system to hang.
+		 */
+		omap_sram_io_desc[0].type = MT_MEMORY_NONCACHED;
 	}
 
 	omap_sram_io_desc[0].length = 1024 * 1024;	/* Use section desc */
