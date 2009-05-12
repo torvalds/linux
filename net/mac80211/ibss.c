@@ -499,6 +499,7 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_channel *chan = NULL;
 	const u8 *bssid = NULL;
 	int active_ibss;
+	u16 capability;
 
 	active_ibss = ieee80211_sta_active_ibss(sdata);
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
@@ -509,6 +510,10 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 	if (active_ibss)
 		return;
 
+	capability = WLAN_CAPABILITY_IBSS;
+	if (sdata->default_key)
+		capability |= WLAN_CAPABILITY_PRIVACY;
+
 	if (ifibss->fixed_bssid)
 		bssid = ifibss->bssid;
 	if (ifibss->fixed_channel)
@@ -517,8 +522,9 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		bssid = ifibss->bssid;
 	bss = (void *)cfg80211_get_bss(local->hw.wiphy, chan, bssid,
 				       ifibss->ssid, ifibss->ssid_len,
-				       WLAN_CAPABILITY_IBSS,
-				       WLAN_CAPABILITY_IBSS);
+				       capability,
+				       WLAN_CAPABILITY_IBSS |
+				       WLAN_CAPABILITY_PRIVACY);
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	if (bss)
