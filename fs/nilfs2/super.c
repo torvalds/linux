@@ -906,6 +906,8 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	struct nilfs_mount_options old_opts;
 	int err;
 
+	lock_kernel();
+
 	old_sb_flags = sb->s_flags;
 	old_opts.mount_opt = sbi->s_mount_opt;
 	old_opts.snapshot_cno = sbi->s_snapshot_cno;
@@ -985,6 +987,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		up(&sb->s_bdev->bd_mount_sem);
 	}
  out:
+	unlock_kernel();
 	return 0;
 
  rw_remount_failed:
@@ -993,6 +996,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	sb->s_flags = old_sb_flags;
 	sbi->s_mount_opt = old_opts.mount_opt;
 	sbi->s_snapshot_cno = old_opts.snapshot_cno;
+	unlock_kernel();
 	return err;
 }
 

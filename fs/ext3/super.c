@@ -2490,6 +2490,8 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	int i;
 #endif
 
+	lock_kernel();
+
 	/* Store the original options */
 	lock_super(sb);
 	old_sb_flags = sb->s_flags;
@@ -2600,6 +2602,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 			kfree(old_opts.s_qf_names[i]);
 #endif
 	unlock_super(sb);
+	unlock_kernel();
 	return 0;
 restore_opts:
 	sb->s_flags = old_sb_flags;
@@ -2617,6 +2620,7 @@ restore_opts:
 	}
 #endif
 	unlock_super(sb);
+	unlock_kernel();
 	return err;
 }
 

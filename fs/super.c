@@ -540,7 +540,6 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	shrink_dcache_sb(sb);
 	sync_filesystem(sb);
 
-	lock_kernel();
 	/* If we are remounting RDONLY and current sb is read/write,
 	   make sure there are no rw files opened */
 	if ((flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY)) {
@@ -566,7 +565,6 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		}
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
-	unlock_kernel();
 	if (remount_rw)
 		vfs_dq_quota_on_remount(sb);
 	return 0;

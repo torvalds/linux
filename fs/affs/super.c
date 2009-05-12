@@ -16,6 +16,7 @@
 #include <linux/parser.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include "affs.h"
 
 extern struct timezone sys_tz;
@@ -512,6 +513,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 		kfree(new_opts);
 		return -EINVAL;
 	}
+	lock_kernel();
 	replace_mount_options(sb, new_opts);
 
 	sbi->s_flags = mount_flags;
@@ -519,8 +521,10 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	sbi->s_uid   = uid;
 	sbi->s_gid   = gid;
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+		unlock_kernel();
 		return 0;
+	}
 	if (*flags & MS_RDONLY) {
 		sb->s_dirt = 1;
 		while (sb->s_dirt)
@@ -529,6 +533,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	} else
 		res = affs_init_bitmap(sb, flags);
 
+	unlock_kernel();
 	return res;
 }
 

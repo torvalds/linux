@@ -13,6 +13,7 @@
 #include <linux/statfs.h>
 #include <linux/magic.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
@@ -398,6 +399,7 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	
 	*flags |= MS_NOATIME;
 	
+	lock_kernel();
 	lock_super(s);
 	uid = sbi->sb_uid; gid = sbi->sb_gid;
 	umask = 0777 & ~sbi->sb_mode;
@@ -432,10 +434,12 @@ static int hpfs_remount_fs(struct super_block *s, int *flags, char *data)
 	replace_mount_options(s, new_opts);
 
 	unlock_super(s);
+	unlock_kernel();
 	return 0;
 
 out_err:
 	unlock_super(s);
+	unlock_kernel();
 	kfree(new_opts);
 	return -EINVAL;
 }

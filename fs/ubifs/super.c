@@ -36,6 +36,7 @@
 #include <linux/mount.h>
 #include <linux/math64.h>
 #include <linux/writeback.h>
+#include <linux/smp_lock.h>
 #include "ubifs.h"
 
 /*
@@ -1770,17 +1771,22 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		return err;
 	}
 
+	lock_kernel();
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
 		if (c->ro_media) {
 			ubifs_msg("cannot re-mount due to prior errors");
+			unlock_kernel();
 			return -EROFS;
 		}
 		err = ubifs_remount_rw(c);
-		if (err)
+		if (err) {
+			unlock_kernel();
 			return err;
+		}
 	} else if (!(sb->s_flags & MS_RDONLY) && (*flags & MS_RDONLY)) {
 		if (c->ro_media) {
 			ubifs_msg("cannot re-mount due to prior errors");
+			unlock_kernel();
 			return -EROFS;
 		}
 		ubifs_remount_ro(c);
@@ -1795,6 +1801,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 	}
 
 	ubifs_assert(c->lst.taken_empty_lebs > 0);
+	unlock_kernel();
 	return 0;
 }
 

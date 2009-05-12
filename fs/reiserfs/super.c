@@ -28,6 +28,7 @@
 #include <linux/mount.h>
 #include <linux/namei.h>
 #include <linux/crc32.h>
+#include <linux/smp_lock.h>
 
 struct file_system_type reiserfs_fs_type;
 
@@ -1196,6 +1197,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	memcpy(qf_names, REISERFS_SB(s)->s_qf_names, sizeof(qf_names));
 #endif
 
+	lock_kernel();
 	rs = SB_DISK_SUPER_BLOCK(s);
 
 	if (!reiserfs_parse_options
@@ -1318,10 +1320,12 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 
 out_ok:
 	replace_mount_options(s, new_opts);
+	unlock_kernel();
 	return 0;
 
 out_err:
 	kfree(new_opts);
+	unlock_kernel();
 	return err;
 }
 

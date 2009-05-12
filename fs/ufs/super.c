@@ -263,6 +263,7 @@ void ufs_panic (struct super_block * sb, const char * function,
 	struct ufs_super_block_first * usb1;
 	va_list args;
 	
+	lock_kernel();
 	uspi = UFS_SB(sb)->s_uspi;
 	usb1 = ubh_get_usb_first(uspi);
 	
@@ -1182,7 +1183,8 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	struct ufs_super_block_third * usb3;
 	unsigned new_mount_opt, ufstype;
 	unsigned flags;
-	
+
+	lock_kernel();
 	lock_super(sb);
 	uspi = UFS_SB(sb)->s_uspi;
 	flags = UFS_SB(sb)->s_flags;
@@ -1198,6 +1200,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	ufs_set_opt (new_mount_opt, ONERROR_LOCK);
 	if (!ufs_parse_options (data, &new_mount_opt)) {
 		unlock_super(sb);
+		unlock_kernel();
 		return -EINVAL;
 	}
 	if (!(new_mount_opt & UFS_MOUNT_UFSTYPE)) {
@@ -1205,12 +1208,14 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	} else if ((new_mount_opt & UFS_MOUNT_UFSTYPE) != ufstype) {
 		printk("ufstype can't be changed during remount\n");
 		unlock_super(sb);
+		unlock_kernel();
 		return -EINVAL;
 	}
 
 	if ((*mount_flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
 		UFS_SB(sb)->s_mount_opt = new_mount_opt;
 		unlock_super(sb);
+		unlock_kernel();
 		return 0;
 	}
 	
@@ -1236,6 +1241,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		printk("ufs was compiled with read-only support, "
 		"can't be mounted as read-write\n");
 		unlock_super(sb);
+		unlock_kernel();
 		return -EINVAL;
 #else
 		if (ufstype != UFS_MOUNT_UFSTYPE_SUN && 
@@ -1245,11 +1251,13 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 		    ufstype != UFS_MOUNT_UFSTYPE_UFS2) {
 			printk("this ufstype is read-only supported\n");
 			unlock_super(sb);
+			unlock_kernel();
 			return -EINVAL;
 		}
 		if (!ufs_read_cylinder_structures(sb)) {
 			printk("failed during remounting\n");
 			unlock_super(sb);
+			unlock_kernel();
 			return -EPERM;
 		}
 		sb->s_flags &= ~MS_RDONLY;
@@ -1257,6 +1265,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	}
 	UFS_SB(sb)->s_mount_opt = new_mount_opt;
 	unlock_super(sb);
+	unlock_kernel();
 	return 0;
 }
 

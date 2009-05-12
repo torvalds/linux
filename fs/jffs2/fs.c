@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/vfs.h>
 #include <linux/crc32.h>
+#include <linux/smp_lock.h>
 #include "nodelist.h"
 
 static int jffs2_flash_setup(struct jffs2_sb_info *c);
@@ -387,6 +388,7 @@ int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
 	   This also catches the case where it was stopped and this
 	   is just a remount to restart it.
 	   Flush the writebuffer, if neccecary, else we loose it */
+	lock_kernel();
 	if (!(sb->s_flags & MS_RDONLY)) {
 		jffs2_stop_garbage_collect_thread(c);
 		mutex_lock(&c->alloc_sem);
@@ -399,6 +401,7 @@ int jffs2_remount_fs (struct super_block *sb, int *flags, char *data)
 
 	*flags |= MS_NOATIME;
 
+	unlock_kernel();
 	return 0;
 }
 
