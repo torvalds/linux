@@ -17,7 +17,7 @@
   Whom based his on the Keyspan driver by Hugh Blemings <hugh@blemings.org>
 */
 
-#define DRIVER_VERSION "v.1.3.6"
+#define DRIVER_VERSION "v.1.3.7"
 #define DRIVER_AUTHOR "Kevin Lloyd, Elina Pasheva, Matthew Safar, Rory Filer"
 #define DRIVER_DESC "USB Driver for Sierra Wireless USB modems"
 
@@ -473,6 +473,9 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 			  usb_sndbulkpipe(serial->dev,
 					  port->bulk_out_endpointAddress),
 			  buffer, writesize, sierra_outdat_callback, port);
+
+	/* Handle the need to send a zero length packet */
+	urb->transfer_flags |= URB_ZERO_PACKET;
 
 	/* send it down the pipe */
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
