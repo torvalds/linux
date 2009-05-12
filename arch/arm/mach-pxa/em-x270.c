@@ -55,6 +55,7 @@
 #define GPIO95_MMC_WP		(95)
 #define GPIO56_NAND_RB		(56)
 #define GPIO93_CAM_RESET	(93)
+#define GPIO16_USB_HUB_RESET	(16)
 
 /* eXeda specific GPIOs */
 #define GPIO114_MMC_CD		(114)
@@ -63,6 +64,7 @@
 #define GPIO37_WLAN_RST		(37)
 #define GPIO95_TOUCHPAD_INT	(95)
 #define GPIO130_CAM_RESET	(130)
+#define GPIO10_USB_HUB_RESET	(10)
 
 /* common  GPIOs */
 #define GPIO11_NAND_CS		(11)
@@ -70,11 +72,13 @@
 #define EM_X270_ETHIRQ		IRQ_GPIO(GPIO41_ETHIRQ)
 #define GPIO115_WLAN_PWEN	(115)
 #define GPIO19_WLAN_STRAP	(19)
+#define GPIO9_USB_VBUS_EN	(9)
 
 static int mmc_cd;
 static int nand_rb;
 static int dm9000_flags;
 static int cam_reset;
+static int usb_hub_reset;
 
 static unsigned long common_pin_config[] = {
 	/* AC'97 */
@@ -197,12 +201,14 @@ static unsigned long common_pin_config[] = {
 
 static unsigned long em_x270_pin_config[] = {
 	GPIO13_GPIO,				/* MMC card detect */
+	GPIO16_GPIO,				/* USB hub reset */
 	GPIO56_GPIO,				/* NAND Ready/Busy */
 	GPIO93_GPIO	| MFP_LPM_DRIVE_LOW,	/* Camera reset */
 	GPIO95_GPIO,				/* MMC Write protect */
 };
 
 static unsigned long exeda_pin_config[] = {
+	GPIO10_GPIO,				/* USB hub reset */
 	GPIO20_GPIO,				/* NAND Ready/Busy */
 	GPIO38_GPIO	| MFP_LPM_DRIVE_LOW,	/* SD slot power */
 	GPIO95_GPIO,				/* touchpad IRQ */
@@ -471,18 +477,79 @@ static inline void em_x270_init_nor(void) {}
 
 /* PXA27x OHCI controller setup */
 #if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static struct regulator *em_x270_usb_ldo;
+
+static int em_x270_usb_hub_init(void)
+{
+	int err;
+
+	em_x270_usb_ldo = regulator_get(NULL, "vcc usb");
+	if (IS_ERR(em_x270_usb_ldo))
+		return PTR_ERR(em_x270_usb_ldo);
+
+	err = gpio_request(GPIO9_USB_VBUS_EN, "vbus en");
+	if (err)
+		goto err_free_usb_ldo;
+
+	err = gpio_request(usb_hub_reset, "hub rst");
+	if (err)
+		goto err_free_vbus_gpio;
+
+	/* USB Hub power-on and reset */
+	gpio_direction_output(usb_hub_reset, 0);
+	regulator_enable(em_x270_usb_ldo);
+	gpio_set_value(usb_hub_reset, 1);
+	gpio_set_value(usb_hub_reset, 0);
+	regulator_disable(em_x270_usb_ldo);
+	regulator_enable(em_x270_usb_ldo);
+	gpio_set_value(usb_hub_reset, 1);
+
+	/* enable VBUS */
+	gpio_direction_output(GPIO9_USB_VBUS_EN, 1);
+
+	return 0;
+
+err_free_vbus_gpio:
+	gpio_free(GPIO9_USB_VBUS_EN);
+err_free_usb_ldo:
+	regulator_put(em_x270_usb_ldo);
+
+	return err;
+}
+
 static int em_x270_ohci_init(struct device *dev)
 {
+	int err;
+
+	/* we don't want to entirely disable USB if the HUB init failed */
+	err = em_x270_usb_hub_init();
+	if (err)
+		pr_err("USB Hub initialization failed: %d\n", err);
+
 	/* enable port 2 transiever */
 	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE;
 
 	return 0;
 }
 
+static void em_x270_ohci_exit(struct device *dev)
+{
+	gpio_free(usb_hub_reset);
+	gpio_free(GPIO9_USB_VBUS_EN);
+
+	if (!IS_ERR(em_x270_usb_ldo)) {
+		if (regulator_is_enabled(em_x270_usb_ldo))
+			regulator_disable(em_x270_usb_ldo);
+
+		regulator_put(em_x270_usb_ldo);
+	}
+}
+
 static struct pxaohci_platform_data em_x270_ohci_platform_data = {
 	.port_mode	= PMM_PERPORT_MODE,
 	.flags		= ENABLE_PORT1 | ENABLE_PORT2 | POWER_CONTROL_LOW,
 	.init		= em_x270_ohci_init,
+	.exit		= em_x270_ohci_exit,
 };
 
 static void __init em_x270_init_ohci(void)
@@ -1129,6 +1196,7 @@ static void __init em_x270_module_init(void)
 	nand_rb = GPIO56_NAND_RB;
 	dm9000_flags = DM9000_PLATF_32BITONLY;
 	cam_reset = GPIO93_CAM_RESET;
+	usb_hub_reset = GPIO16_USB_HUB_RESET;
 }
 
 static void __init em_x270_exeda_init(void)
@@ -1140,6 +1208,7 @@ static void __init em_x270_exeda_init(void)
 	nand_rb = GPIO20_NAND_RB;
 	dm9000_flags = DM9000_PLATF_16BITONLY;
 	cam_reset = GPIO130_CAM_RESET;
+	usb_hub_reset = GPIO10_USB_HUB_RESET;
 }
 
 static void __init em_x270_init(void)
