@@ -1380,6 +1380,16 @@ and is between 256 and 4096 characters. It is defined in the file
 	mtdparts=	[MTD]
 			See drivers/mtd/cmdlinepart.c.
 
+	onenand.bdry=	[HW,MTD] Flex-OneNAND Boundary Configuration
+
+			Format: [die0_boundary][,die0_lock][,die1_boundary][,die1_lock]
+
+			boundary - index of last SLC block on Flex-OneNAND.
+				   The remaining blocks are configured as MLC blocks.
+			lock	 - Configure if Flex-OneNAND boundary should be locked.
+				   Once locked, the boundary cannot be changed.
+				   1 indicates lock status, 0 indicates unlock status.
+
 	mtdset=		[ARM]
 			ARM/S3C2412 JIVE boot control
 
