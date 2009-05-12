@@ -190,6 +190,7 @@ enum {
 	ALC663_ASUS_MODE6,
 	ALC272_DELL,
 	ALC272_DELL_ZM1,
+	ALC272_SAMSUNG_NC10,
 	ALC662_AUTO,
 	ALC662_MODEL_LAST,
 };
@@ -15120,6 +15121,38 @@ static struct hda_input_mux alc663_m51va_capture_source = {
 	},
 };
 
+#if 1 /* set to 0 for testing other input sources below */
+static struct hda_input_mux alc272_nc10_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Autoselect Mic", 0x0 },
+		{ "Internal Mic", 0x1 },
+	},
+};
+#else
+static struct hda_input_mux alc272_nc10_capture_source = {
+	.num_items = 16,
+	.items = {
+		{ "Autoselect Mic", 0x0 },
+		{ "Internal Mic", 0x1 },
+		{ "In-0x02", 0x2 },
+		{ "In-0x03", 0x3 },
+		{ "In-0x04", 0x4 },
+		{ "In-0x05", 0x5 },
+		{ "In-0x06", 0x6 },
+		{ "In-0x07", 0x7 },
+		{ "In-0x08", 0x8 },
+		{ "In-0x09", 0x9 },
+		{ "In-0x0a", 0x0a },
+		{ "In-0x0b", 0x0b },
+		{ "In-0x0c", 0x0c },
+		{ "In-0x0d", 0x0d },
+		{ "In-0x0e", 0x0e },
+		{ "In-0x0f", 0x0f },
+	},
+};
+#endif
+
 /*
  * 2ch mode
  */
@@ -16151,6 +16184,23 @@ static struct snd_kcontrol_new alc662_ecs_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc272_nc10_mixer[] = {
+	/* Master Playback automatically created from Speaker and Headphone */
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x02, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x03, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x21, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_VOLUME("Ext Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Ext Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Ext Mic Boost", 0x18, 0, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("Int Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Int Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Int Mic Boost", 0x19, 0, HDA_INPUT),
+	{ } /* end */
+};
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc662_loopbacks	alc880_loopbacks
 #endif
@@ -16186,6 +16236,7 @@ static const char *alc662_models[ALC662_MODEL_LAST] = {
 	[ALC663_ASUS_MODE6] = "asus-mode6",
 	[ALC272_DELL]		= "dell",
 	[ALC272_DELL_ZM1]	= "dell-zm1",
+	[ALC272_SAMSUNG_NC10]	= "samsung-nc10",
 	[ALC662_AUTO]		= "auto",
 };
 
@@ -16243,6 +16294,7 @@ static struct snd_pci_quirk alc662_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x105b, 0x0cd6, "Foxconn", ALC662_ECS),
 	SND_PCI_QUIRK(0x105b, 0x0d47, "Foxconn 45CMX/45GMX/45CMX-K",
 		      ALC662_3ST_6ch_DIG),
+	SND_PCI_QUIRK(0x144d, 0xca00, "Samsung NC10", ALC272_SAMSUNG_NC10),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte 945GCM-S2L",
 		      ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1565, 0x820f, "Biostar TA780G M2+", ALC662_3ST_6ch_DIG),
@@ -16513,6 +16565,18 @@ static struct alc_config_preset alc662_presets[] = {
 		.input_mux = &alc663_m51va_capture_source,
 		.unsol_event = alc663_m51va_unsol_event,
 		.init_hook = alc663_m51va_inithook,
+	},
+	[ALC272_SAMSUNG_NC10] = {
+		.mixers = { alc272_nc10_mixer },
+		.init_verbs = { alc662_init_verbs,
+				alc663_21jd_amic_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc272_dac_nids),
+		.dac_nids = alc272_dac_nids,
+		.num_channel_mode = ARRAY_SIZE(alc662_3ST_2ch_modes),
+		.channel_mode = alc662_3ST_2ch_modes,
+		.input_mux = &alc272_nc10_capture_source,
+		.unsol_event = alc663_mode4_unsol_event,
+		.init_hook = alc663_mode4_inithook,
 	},
 };
 

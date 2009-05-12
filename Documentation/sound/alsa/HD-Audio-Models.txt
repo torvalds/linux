@@ -111,6 +111,7 @@ ALC662/663/272
   asus-mode6	ASUS
   dell		Dell with ALC272
   dell-zm1	Dell ZM1 with ALC272
+  samsung-nc10	Samsung NC10 mini notebook
   auto		auto-config reading BIOS (default)
 
 ALC882/885
