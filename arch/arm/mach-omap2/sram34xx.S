@@ -43,6 +43,7 @@
  */
 ENTRY(omap3_sram_configure_core_dpll)
 	stmfd	sp!, {r1-r12, lr}	@ store regs to stack
+	dsb				@ flush buffered writes to interconnect
 	cmp	r3, #0x2
 	blne	configure_sdrc
 	cmp	r3, #0x2
@@ -58,6 +59,7 @@ ENTRY(omap3_sram_configure_core_dpll)
 	blne	wait_dll_lock
 	cmp	r3, #0x1
 	blne	configure_sdrc
+	isb				@ prevent speculative exec past here
 	mov 	r0, #0 			@ return value
 	ldmfd	sp!, {r1-r12, pc}	@ restore regs and return
 unlock_dll:
@@ -73,8 +75,6 @@ lock_dll:
 	str	r5, [r4]
 	bx	lr
 sdram_in_selfrefresh:
-	mov	r5, #0x0		@ Move 0 to R5
-	mcr	p15, 0, r5, c7, c10, 5	@ memory barrier
 	ldr	r4, omap3_sdrc_power	@ read the SDRC_POWER register
 	ldr	r5, [r4]		@ read the contents of SDRC_POWER
 	orr 	r5, r5, #0x40		@ enable self refresh on idle req
