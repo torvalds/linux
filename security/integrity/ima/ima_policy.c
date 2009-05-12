@@ -61,8 +61,6 @@ static struct ima_measure_rule_entry default_rules[] = {
 	 .flags = IMA_FUNC | IMA_MASK},
 	{.action = MEASURE,.func = BPRM_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
-	{.action = MEASURE,.func = PATH_CHECK,.mask = MAY_READ,.uid = 0,
-	 .flags = IMA_FUNC | IMA_MASK | IMA_UID}
 };
 
 static LIST_HEAD(measure_default_rules);
