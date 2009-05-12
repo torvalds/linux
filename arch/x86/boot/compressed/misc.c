@@ -325,20 +325,18 @@ asmlinkage void decompress_kernel(void *rmode, memptr heap,
 	free_mem_ptr     = heap;	/* Heap */
 	free_mem_end_ptr = heap + BOOT_HEAP_SIZE;
 
+	if ((unsigned long)output & (MIN_KERNEL_ALIGN - 1))
+		error("Destination address inappropriately aligned");
 #ifdef CONFIG_X86_64
-	if ((unsigned long)output & (__KERNEL_ALIGN - 1))
-		error("Destination address not 2M aligned");
-	if ((unsigned long)output >= 0xffffffffffUL)
+	if (heap > 0x3fffffffffffUL)
 		error("Destination address too large");
 #else
-	if ((u32)output & (CONFIG_PHYSICAL_ALIGN - 1))
-		error("Destination address not CONFIG_PHYSICAL_ALIGN aligned");
 	if (heap > ((-__PAGE_OFFSET-(512<<20)-1) & 0x7fffffff))
 		error("Destination address too large");
-#ifndef CONFIG_RELOCATABLE
-	if ((u32)output != LOAD_PHYSICAL_ADDR)
-		error("Wrong destination address");
 #endif
+#ifndef CONFIG_RELOCATABLE
+	if ((unsigned long)output != LOAD_PHYSICAL_ADDR)
+		error("Wrong destination address");
 #endif
 
 	if (!quiet)
