@@ -107,7 +107,7 @@ static struct clk *shx3_onchip_clocks[] = {
 	&shx3_shyway_clk,
 };
 
-static int __init shx3_clk_init(void)
+int __init arch_clk_init(void)
 {
 	struct clk *clk = clk_get(NULL, "master_clk");
 	int i, ret = 0;
@@ -123,4 +123,3 @@ static int __init shx3_clk_init(void)
 
 	return ret;
 }
-arch_initcall(shx3_clk_init);

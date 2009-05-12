@@ -437,13 +437,7 @@ void clk_put(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_put);
 
-void __init __attribute__ ((weak))
-arch_init_clk_ops(struct clk_ops **ops, int type)
-{
-}
-
-int __init __attribute__ ((weak))
-arch_clk_init(void)
+int __init __weak arch_clk_init(void)
 {
 	return 0;
 }
