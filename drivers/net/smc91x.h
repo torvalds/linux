@@ -45,7 +45,8 @@
     defined(CONFIG_MACH_ZYLONITE) ||\
     defined(CONFIG_MACH_LITTLETON) ||\
     defined(CONFIG_MACH_ZYLONITE2) ||\
-    defined(CONFIG_ARCH_VIPER)
+    defined(CONFIG_ARCH_VIPER) ||\
+    defined(CONFIG_MACH_STARGATE2)
 
 #include <asm/mach-types.h>
 
@@ -73,7 +74,7 @@
 /* We actually can't write halfwords properly if not word aligned */
 static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 {
-	if (machine_is_mainstone() && reg & 2) {
+	if ((machine_is_mainstone() || machine_is_stargate2()) && reg & 2) {
 		unsigned int v = val << 16;
 		v |= readl(ioaddr + (reg & ~2)) & 0xffff;
 		writel(v, ioaddr + (reg & ~2));
