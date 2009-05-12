@@ -83,18 +83,22 @@ static int sierra_vsc_set_nmea(struct usb_device *udev, __u16 enable)
 
 static int sierra_calc_num_ports(struct usb_serial *serial)
 {
-	int result;
-	int *num_ports = usb_get_serial_data(serial);
+	int num_ports = 0;
+	u8 ifnum, numendpoints;
+
 	dev_dbg(&serial->dev->dev, "%s\n", __func__);
 
-	result = *num_ports;
+	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
+	numendpoints = serial->interface->cur_altsetting->desc.bNumEndpoints;
 
-	if (result) {
-		kfree(num_ports);
-		usb_set_serial_data(serial, NULL);
-	}
-
-	return result;
+	/* Dummy interface present on some SKUs should be ignored */
+	if (ifnum == 0x99)
+		num_ports = 0;
+	else if (numendpoints <= 3)
+		num_ports = 1;
+	else
+		num_ports = (numendpoints-1)/2;
+	return num_ports;
 }
 
 static int is_blacklisted(const u8 ifnum,
@@ -140,23 +144,12 @@ static int sierra_probe(struct usb_serial *serial,
 {
 	int result = 0;
 	struct usb_device *udev;
-	int *num_ports;
 	u8 ifnum;
-	u8 numendpoints;
 
-	dev_dbg(&serial->dev->dev, "%s\n", __func__);
-
-	num_ports = kmalloc(sizeof(*num_ports), GFP_KERNEL);
-	if (!num_ports)
-		return -ENOMEM;
-
-	ifnum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
-	numendpoints = serial->interface->cur_altsetting->desc.bNumEndpoints;
 	udev = serial->dev;
+	dev_dbg(&udev->dev, "%s\n", __func__);
 
-	/* Figure out the interface number from the serial structure */
 	ifnum = sierra_calc_interface(serial);
-
 	/*
 	 * If this interface supports more than 1 alternate
 	 * select the 2nd one
@@ -167,20 +160,6 @@ static int sierra_probe(struct usb_serial *serial,
 		/* We know the alternate setting is 1 for the MC8785 */
 		usb_set_interface(udev, ifnum, 1);
 	}
-
-	/* Dummy interface present on some SKUs should be ignored */
-	if (ifnum == 0x99)
-		*num_ports = 0;
-	else if (numendpoints <= 3)
-		*num_ports = 1;
-	else
-		*num_ports = (numendpoints-1)/2;
-
-	/*
-	 * save off our num_ports info so that we can use it in the
-	 * calc_num_ports callback
-	 */
-	usb_set_serial_data(serial, (void *)num_ports);
 
 	/* ifnum could have changed - by calling usb_set_interface */
 	ifnum = sierra_calc_interface(serial);
