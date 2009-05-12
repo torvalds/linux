@@ -17,6 +17,12 @@ are specified on the kernel command line with the module name plus
 
 	usbcore.blinkenlights=1
 
+Hyphens (dashes) and underscores are equivalent in parameter names, so
+	log_buf_len=1M print-fatal-signals=1
+can also be entered as
+	log-buf-len=1M print_fatal_signals=1
+
+
 This document may not be entirely up to date and comprehensive. The command
 "modinfo -p ${modulename}" shows a current list of all parameters of a loadable
 module. Loadable modules, after being loaded into the running kernel, also
@@ -345,7 +351,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			not play well with APC CPU idle - disable it if you have
 			APC and your system crashes randomly.
 
-	apic=		[APIC,i386] Advanced Programmable Interrupt Controller
+	apic=		[APIC,X86-32] Advanced Programmable Interrupt Controller
 			Change the output verbosity whilst booting
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
@@ -702,7 +708,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			to discrete, to make X server driver able to add WB
 			entry later. This parameter enables that.
 
-	enable_timer_pin_1 [i386,x86-64]
+	enable_timer_pin_1 [X86]
 			Enable PIN 1 of APIC timer
 			Can be useful to work around chipset bugs
 			(in particular on some ATI chipsets).
@@ -775,7 +781,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hashdist=	[KNL,NUMA] Large hashes allocated during boot
 			are distributed across NUMA nodes.  Defaults on
-			for IA-64, off otherwise.
+			for 64bit NUMA, off otherwise.
 			Format: 0 | 1 (for off | on)
 
 	hcl=		[IA-64] SGI's Hardware Graph compatibility layer

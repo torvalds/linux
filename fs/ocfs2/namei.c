@@ -1025,10 +1025,8 @@ static int ocfs2_rename(struct inode *old_dir,
 	struct inode *orphan_dir = NULL;
 	struct ocfs2_dinode *newfe = NULL;
 	char orphan_name[OCFS2_ORPHAN_NAMELEN + 1];
-	struct buffer_head *orphan_entry_bh = NULL;
 	struct buffer_head *newfe_bh = NULL;
 	struct buffer_head *old_inode_bh = NULL;
-	struct buffer_head *insert_entry_bh = NULL;
 	struct ocfs2_super *osb = NULL;
 	u64 newfe_blkno, old_de_ino;
 	handle_t *handle = NULL;
@@ -1455,8 +1453,6 @@ bail:
 	brelse(old_inode_bh);
 	brelse(old_dir_bh);
 	brelse(new_dir_bh);
-	brelse(orphan_entry_bh);
-	brelse(insert_entry_bh);
 
 	mlog_exit(status);
 

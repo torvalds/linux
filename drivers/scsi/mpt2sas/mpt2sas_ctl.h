@@ -50,7 +50,7 @@
 #endif
 
 #define MPT2SAS_DEV_NAME	"mpt2ctl"
-#define MPT2_MAGIC_NUMBER	'm'
+#define MPT2_MAGIC_NUMBER	'L'
 #define MPT2_IOCTL_DEFAULT_TIMEOUT (10) /* in seconds */
 
 /**
@@ -295,8 +295,9 @@ struct mpt2_ioctl_btdh_mapping {
 
 
 /* status bits for ioc->diag_buffer_status */
-#define MPT2_DIAG_BUFFER_IS_REGISTERED 	(0x01)
-#define MPT2_DIAG_BUFFER_IS_RELEASED 	(0x02)
+#define MPT2_DIAG_BUFFER_IS_REGISTERED	(0x01)
+#define MPT2_DIAG_BUFFER_IS_RELEASED	(0x02)
+#define MPT2_DIAG_BUFFER_IS_DIAG_RESET	(0x04)
 
 /* application flags for mpt2_diag_register, mpt2_diag_query */
 #define MPT2_APP_FLAGS_APP_OWNED	(0x0001)

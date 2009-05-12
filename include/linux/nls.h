@@ -58,6 +58,25 @@ static inline int nls_strnicmp(struct nls_table *t, const unsigned char *s1,
 	return 0;
 }
 
+/*
+ * nls_nullsize - return length of null character for codepage
+ * @codepage - codepage for which to return length of NULL terminator
+ *
+ * Since we can't guarantee that the null terminator will be a particular
+ * length, we have to check against the codepage. If there's a problem
+ * determining it, assume a single-byte NULL terminator.
+ */
+static inline int
+nls_nullsize(const struct nls_table *codepage)
+{
+	int charlen;
+	char tmp[NLS_MAX_CHARSET_SIZE];
+
+	charlen = codepage->uni2char(0, tmp, NLS_MAX_CHARSET_SIZE);
+
+	return charlen > 0 ? charlen : 1;
+}
+
 #define MODULE_ALIAS_NLS(name)	MODULE_ALIAS("nls_" __stringify(name))
 
 #endif /* _LINUX_NLS_H */

@@ -157,8 +157,6 @@ struct mmc_omap_host {
 	struct timer_list	dma_timer;
 	unsigned		dma_len;
 
-	short			power_pin;
-
 	struct mmc_omap_slot    *slots[OMAP_MMC_MAX_SLOTS];
 	struct mmc_omap_slot    *current_slot;
 	spinlock_t              slot_lock;

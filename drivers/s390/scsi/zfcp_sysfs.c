@@ -254,12 +254,21 @@ static ssize_t zfcp_sysfs_unit_remove_store(struct device *dev,
 
 	write_lock_irq(&zfcp_data.config_lock);
 	unit = zfcp_get_unit_by_lun(port, fcp_lun);
-	if (unit && (atomic_read(&unit->refcount) == 0)) {
-		zfcp_unit_get(unit);
-		atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE, &unit->status);
-		list_move(&unit->list, &unit_remove_lh);
-	} else
-		unit = NULL;
+	if (unit) {
+		write_unlock_irq(&zfcp_data.config_lock);
+		/* wait for possible timeout during SCSI probe */
+		flush_work(&unit->scsi_work);
+		write_lock_irq(&zfcp_data.config_lock);
+
+		if (atomic_read(&unit->refcount) == 0) {
+			zfcp_unit_get(unit);
+			atomic_set_mask(ZFCP_STATUS_COMMON_REMOVE,
+					&unit->status);
+			list_move(&unit->list, &unit_remove_lh);
+		} else {
+			unit = NULL;
+		}
+	}
 
 	write_unlock_irq(&zfcp_data.config_lock);
 

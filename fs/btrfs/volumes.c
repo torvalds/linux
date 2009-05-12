@@ -1543,7 +1543,7 @@ static noinline int btrfs_update_device(struct btrfs_trans_handle *trans,
 	btrfs_set_device_io_align(leaf, dev_item, device->io_align);
 	btrfs_set_device_io_width(leaf, dev_item, device->io_width);
 	btrfs_set_device_sector_size(leaf, dev_item, device->sector_size);
-	btrfs_set_device_total_bytes(leaf, dev_item, device->total_bytes);
+	btrfs_set_device_total_bytes(leaf, dev_item, device->disk_total_bytes);
 	btrfs_set_device_bytes_used(leaf, dev_item, device->bytes_used);
 	btrfs_mark_buffer_dirty(leaf);
 
@@ -1940,14 +1940,6 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	device->total_bytes = new_size;
 	if (device->writeable)
 		device->fs_devices->total_rw_bytes -= diff;
-	ret = btrfs_update_device(trans, device);
-	if (ret) {
-		unlock_chunks(root);
-		btrfs_end_transaction(trans, root);
-		goto done;
-	}
-	WARN_ON(diff > old_total);
-	btrfs_set_super_total_bytes(super_copy, old_total - diff);
 	unlock_chunks(root);
 	btrfs_end_transaction(trans, root);
 
@@ -1979,7 +1971,7 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 		length = btrfs_dev_extent_length(l, dev_extent);
 
 		if (key.offset + length <= new_size)
-			goto done;
+			break;
 
 		chunk_tree = btrfs_dev_extent_chunk_tree(l, dev_extent);
 		chunk_objectid = btrfs_dev_extent_chunk_objectid(l, dev_extent);
@@ -1992,6 +1984,26 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 			goto done;
 	}
 
+	/* Shrinking succeeded, else we would be at "done". */
+	trans = btrfs_start_transaction(root, 1);
+	if (!trans) {
+		ret = -ENOMEM;
+		goto done;
+	}
+	lock_chunks(root);
+
+	device->disk_total_bytes = new_size;
+	/* Now btrfs_update_device() will change the on-disk size. */
+	ret = btrfs_update_device(trans, device);
+	if (ret) {
+		unlock_chunks(root);
+		btrfs_end_transaction(trans, root);
+		goto done;
+	}
+	WARN_ON(diff > old_total);
+	btrfs_set_super_total_bytes(super_copy, old_total - diff);
+	unlock_chunks(root);
+	btrfs_end_transaction(trans, root);
 done:
 	btrfs_free_path(path);
 	return ret;
@@ -3076,7 +3088,8 @@ static int fill_device_from_item(struct extent_buffer *leaf,
 	unsigned long ptr;
 
 	device->devid = btrfs_device_id(leaf, dev_item);
-	device->total_bytes = btrfs_device_total_bytes(leaf, dev_item);
+	device->disk_total_bytes = btrfs_device_total_bytes(leaf, dev_item);
+	device->total_bytes = device->disk_total_bytes;
 	device->bytes_used = btrfs_device_bytes_used(leaf, dev_item);
 	device->type = btrfs_device_type(leaf, dev_item);
 	device->io_align = btrfs_device_io_align(leaf, dev_item);

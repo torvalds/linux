@@ -33,7 +33,7 @@ ifeq ($(call cc-option-yn, -fstack-protector),y)
 BOOTCFLAGS	+= -fno-stack-protector
 endif
 
-BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj) -I$(srctree)/$(src)/libfdt
+BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj)
 
 DTS_FLAGS	?= -p 1024
 
@@ -53,9 +53,14 @@ zliblinuxheader := zlib.h zconf.h zutil.h
 $(addprefix $(obj)/,$(zlib) cuboot-c2k.o gunzip_util.o main.o prpmc2800.o): \
 	$(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
 
-src-libfdt := fdt.c fdt_ro.c fdt_wip.c fdt_sw.c fdt_rw.c fdt_strerror.c
+libfdt       := fdt.c fdt_ro.c fdt_wip.c fdt_sw.c fdt_rw.c fdt_strerror.c
+libfdtheader := fdt.h libfdt.h libfdt_internal.h
+
+$(addprefix $(obj)/,$(libfdt) libfdt-wrapper.o simpleboot.o): \
+	$(addprefix $(obj)/,$(libfdtheader))
+
 src-wlib := string.S crt0.S crtsavres.S stdio.c main.c \
-		$(addprefix libfdt/,$(src-libfdt)) libfdt-wrapper.c \
+		$(libfdt) libfdt-wrapper.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
 		gunzip_util.c elf_util.c $(zlib) devtree.c oflib.c ofconsole.c \
 		4xx.c ebony.c mv64x60.c mpsc.c mv64x60_i2c.c cuboot.c bamboo.c \
@@ -96,6 +101,12 @@ $(addprefix $(obj)/,$(zlibheader)): $(obj)/%: $(srctree)/lib/zlib_inflate/%
 $(addprefix $(obj)/,$(zliblinuxheader)): $(obj)/%: $(srctree)/include/linux/%
 	$(call cmd,copy_zliblinuxheader)
 
+quiet_cmd_copy_libfdt = COPY    $@
+      cmd_copy_libfdt = cp $< $@
+
+$(addprefix $(obj)/,$(libfdt) $(libfdtheader)): $(obj)/%: $(srctree)/scripts/dtc/libfdt/%
+	$(call cmd,copy_libfdt)
+
 $(obj)/empty.c:
 	@touch $@
 
@@ -103,6 +114,7 @@ $(obj)/zImage.lds $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds: $(obj)/%: $(srct
 	@cp $< $@
 
 clean-files := $(zlib) $(zlibheader) $(zliblinuxheader) \
+		$(libfdt) $(libfdtheader) \
 		empty.c zImage.coff.lds zImage.ps3.lds zImage.lds
 
 quiet_cmd_bootcc = BOOTCC  $@
@@ -114,6 +126,8 @@ quiet_cmd_bootas = BOOTAS  $@
 quiet_cmd_bootar = BOOTAR  $@
       cmd_bootar = $(CROSS32AR) -cr $@.$$$$ $(filter-out FORCE,$^); mv $@.$$$$ $@
 
+$(obj-libfdt): $(obj)/%.o: $(srctree)/scripts/dtc/libfdt/%.c FORCE
+	$(call if_changed_dep,bootcc)
 $(patsubst %.c,%.o, $(filter %.c, $(src-boot))): %.o: %.c FORCE
 	$(Q)mkdir -p $(dir $@)
 	$(call if_changed_dep,bootcc)
@@ -124,7 +138,7 @@ $(patsubst %.S,%.o, $(filter %.S, $(src-boot))): %.o: %.S FORCE
 $(obj)/wrapper.a: $(obj-wlib) FORCE
 	$(call if_changed,bootar)
 
-hostprogs-y	:= addnote addRamDisk hack-coff mktree dtc
+hostprogs-y	:= addnote addRamDisk hack-coff mktree
 
 targets		+= $(patsubst $(obj)/%,%,$(obj-boot) wrapper.a)
 extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
@@ -133,45 +147,8 @@ extra-y		:= $(obj)/wrapper.a $(obj-plat) $(obj)/empty.o \
 dtstree		:= $(srctree)/$(src)/dts
 
 wrapper		:=$(srctree)/$(src)/wrapper
-wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree dtc) \
+wrapperbits	:= $(extra-y) $(addprefix $(obj)/,addnote hack-coff mktree) \
 			$(wrapper) FORCE
-
-#############
-# Bits for building dtc
-# DTC_GENPARSER      := 1    # Uncomment to rebuild flex/bison output
-
-dtc-objs := dtc.o flattree.o fstree.o data.o livetree.o treesource.o srcpos.o checks.o
-dtc-objs += dtc-lexer.lex.o dtc-parser.tab.o
-dtc-objs := $(addprefix dtc-src/, $(dtc-objs))
-
-# prerequisites on generated files needs to be explicit
-$(obj)/dtc-src/dtc-parser.tab.o: $(obj)/dtc-src/dtc-parser.tab.c $(obj)/dtc-src/dtc-parser.tab.h
-$(obj)/dtc-src/dtc-lexer.lex.o:  $(obj)/dtc-src/dtc-lexer.lex.c $(obj)/dtc-src/dtc-parser.tab.h
-
-HOSTCFLAGS += -I$(src)/dtc-src/ -I$(src)/libfdt/
-
-targets += dtc-src/dtc-parser.tab.c
-targets += dtc-src/dtc-lexer.lex.c
-
-clean-files += dtc-src/dtc-parser.tab.h
-
-ifdef DTC_GENPARSER
-BISON = bison
-FLEX = flex
-
-quiet_cmd_bison = BISON   $@
-      cmd_bison = $(BISON) -o$@ -d $<; cp $@ $@_shipped
-quiet_cmd_flex = FLEX    $@
-      cmd_flex = $(FLEX) -o$@ $<; cp $@ $@_shipped
-
-$(obj)/dtc-src/dtc-parser.tab.c: $(src)/dtc-src/dtc-parser.y FORCE
-	$(call if_changed,bison)
-
-$(obj)/dtc-src/dtc-parser.tab.h: $(obj)/dtc-src/dtc-parser.tab.c
-
-$(obj)/dtc-src/dtc-lexer.lex.c: $(src)/dtc-src/dtc-lexer.l FORCE
-	$(call if_changed,flex)
-endif
 
 #############
 # Bits for building various flavours of zImage
@@ -347,8 +324,10 @@ $(obj)/treeImage.%: vmlinux $(obj)/%.dtb $(wrapperbits)
 	$(call if_changed,wrap,treeboot-$*,,$(obj)/$*.dtb)
 
 # Rule to build device tree blobs
-$(obj)/%.dtb: $(dtstree)/%.dts $(obj)/dtc
-	$(obj)/dtc -O dtb -o $(obj)/$*.dtb -b 0 $(DTS_FLAGS) $(dtstree)/$*.dts
+DTC = $(objtree)/scripts/dtc/dtc
+
+$(obj)/%.dtb: $(dtstree)/%.dts
+	$(DTC) -O dtb -o $(obj)/$*.dtb -b 0 $(DTS_FLAGS) $(dtstree)/$*.dts
 
 # If there isn't a platform selected then just strip the vmlinux.
 ifeq (,$(image-y))

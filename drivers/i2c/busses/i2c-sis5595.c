@@ -256,7 +256,7 @@ static int sis5595_transaction(struct i2c_adapter *adap)
 	} while (!(temp & 0x40) && (timeout++ < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout >= MAX_TIMEOUT) {
+	if (timeout > MAX_TIMEOUT) {
 		dev_dbg(&adap->dev, "SMBus Timeout!\n");
 		result = -ETIMEDOUT;
 	}

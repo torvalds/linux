@@ -69,17 +69,18 @@ int suid_dumpable = 0;
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
-int register_binfmt(struct linux_binfmt * fmt)
+int __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
 	if (!fmt)
 		return -EINVAL;
 	write_lock(&binfmt_lock);
-	list_add(&fmt->lh, &formats);
+	insert ? list_add(&fmt->lh, &formats) :
+		 list_add_tail(&fmt->lh, &formats);
 	write_unlock(&binfmt_lock);
 	return 0;	
 }
 
-EXPORT_SYMBOL(register_binfmt);
+EXPORT_SYMBOL(__register_binfmt);
 
 void unregister_binfmt(struct linux_binfmt * fmt)
 {

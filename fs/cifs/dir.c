@@ -281,6 +281,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	int create_options = CREATE_NOT_DIR;
 	int oplock = 0;
 	int oflags;
+	bool posix_create = false;
 	/*
 	 * BB below access is probably too much for mknod to request
 	 *    but we have to do query and setpathinfo so requesting
@@ -328,11 +329,13 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		   negotation.  EREMOTE indicates DFS junction, which is not
 		   handled in posix open */
 
-		if ((rc == 0) && (newinode == NULL))
-			goto cifs_create_get_file_info; /* query inode info */
-		else if (rc == 0) /* success, no need to query */
-			goto cifs_create_set_dentry;
-		else if ((rc != -EIO) && (rc != -EREMOTE) &&
+		if (rc == 0) {
+			posix_create = true;
+			if (newinode == NULL) /* query inode info */
+				goto cifs_create_get_file_info;
+			else /* success, no need to query */
+				goto cifs_create_set_dentry;
+		} else if ((rc != -EIO) && (rc != -EREMOTE) &&
 			 (rc != -EOPNOTSUPP)) /* path not found or net err */
 			goto cifs_create_out;
 		/* else fallthrough to retry, using older open call, this is
@@ -464,7 +467,7 @@ cifs_create_set_dentry:
 	if ((nd == NULL) || (!(nd->flags & LOOKUP_OPEN))) {
 		/* mknod case - do not leave file open */
 		CIFSSMBClose(xid, tcon, fileHandle);
-	} else if (newinode) {
+	} else if (!(posix_create) && (newinode)) {
 			cifs_fill_fileinfo(newinode, fileHandle,
 					cifs_sb->tcon, write_only);
 	}
