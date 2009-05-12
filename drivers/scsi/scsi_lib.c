@@ -546,14 +546,9 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int error,
 	 * to queue the remainder of them.
 	 */
 	if (blk_end_request(req, error, bytes)) {
-		int leftover = blk_rq_bytes(req);
-
-		if (blk_pc_request(req))
-			leftover = req->resid_len;
-
 		/* kill remainder if no retrys */
 		if (error && scsi_noretry_cmd(cmd))
-			blk_end_request(req, error, leftover);
+			blk_end_request_all(req, error);
 		else {
 			if (requeue) {
 				/*
