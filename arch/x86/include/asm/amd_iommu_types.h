@@ -195,6 +195,8 @@
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
 					      domain for an IOMMU */
 
+#define APERTURE_RANGE_SIZE	(128 * 1024 * 1024)
+
 /*
  * This structure contains generic data for  IOMMU protection domains
  * independent of their use.
@@ -207,6 +209,24 @@ struct protection_domain {
 	unsigned long flags;	/* flags to find out type of domain */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	void *priv;		/* private data */
+};
+
+/*
+ * For dynamic growth the aperture size is split into ranges of 128MB of
+ * DMA address space each. This struct represents one such range.
+ */
+struct aperture_range {
+
+	/* address allocation bitmap */
+	unsigned long *bitmap;
+
+	/*
+	 * Array of PTE pages for the aperture. In this array we save all the
+	 * leaf pages of the domain page table used for the aperture. This way
+	 * we don't need to walk the page table to find a specific PTE. We can
+	 * just calculate its address in constant time.
+	 */
+	u64 *pte_pages[64];
 };
 
 /*
@@ -224,16 +244,8 @@ struct dma_ops_domain {
 	/* address we start to search for free addresses */
 	unsigned long next_bit;
 
-	/* address allocation bitmap */
-	unsigned long *bitmap;
-
-	/*
-	 * Array of PTE pages for the aperture. In this array we save all the
-	 * leaf pages of the domain page table used for the aperture. This way
-	 * we don't need to walk the page table to find a specific PTE. We can
-	 * just calculate its address in constant time.
-	 */
-	u64 **pte_pages;
+	/* address space relevant data */
+	struct aperture_range aperture;
 
 	/* This will be set to true when TLB needs to be flushed */
 	bool need_flush;

@@ -595,7 +595,8 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 		 * as allocated in the aperture
 		 */
 		if (addr < dma_dom->aperture_size)
-			__set_bit(addr >> PAGE_SHIFT, dma_dom->bitmap);
+			__set_bit(addr >> PAGE_SHIFT,
+				  dma_dom->aperture.bitmap);
 	}
 
 	return 0;
@@ -656,11 +657,12 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 		dom->need_flush = true;
 	}
 
-	address = iommu_area_alloc(dom->bitmap, limit, dom->next_bit, pages,
-				   0 , boundary_size, align_mask);
+	address = iommu_area_alloc(dom->aperture.bitmap, limit, dom->next_bit,
+				   pages, 0 , boundary_size, align_mask);
 	if (address == -1) {
-		address = iommu_area_alloc(dom->bitmap, limit, 0, pages,
-				0, boundary_size, align_mask);
+		address = iommu_area_alloc(dom->aperture.bitmap, limit, 0,
+					   pages, 0, boundary_size,
+					   align_mask);
 		dom->need_flush = true;
 	}
 
@@ -685,7 +687,7 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 				   unsigned int pages)
 {
 	address >>= PAGE_SHIFT;
-	iommu_area_free(dom->bitmap, address, pages);
+	iommu_area_free(dom->aperture.bitmap, address, pages);
 
 	if (address >= dom->next_bit)
 		dom->need_flush = true;
@@ -741,7 +743,7 @@ static void dma_ops_reserve_addresses(struct dma_ops_domain *dom,
 	if (start_page + pages > last_page)
 		pages = last_page - start_page;
 
-	iommu_area_reserve(dom->bitmap, start_page, pages);
+	iommu_area_reserve(dom->aperture.bitmap, start_page, pages);
 }
 
 static void free_pagetable(struct protection_domain *domain)
@@ -785,9 +787,7 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
 
 	free_pagetable(&dom->domain);
 
-	kfree(dom->pte_pages);
-
-	kfree(dom->bitmap);
+	free_page((unsigned long)dom->aperture.bitmap);
 
 	kfree(dom);
 }
@@ -826,16 +826,15 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	dma_dom->domain.priv = dma_dom;
 	if (!dma_dom->domain.pt_root)
 		goto free_dma_dom;
-	dma_dom->aperture_size = (1ULL << order);
-	dma_dom->bitmap = kzalloc(dma_dom->aperture_size / (PAGE_SIZE * 8),
-				  GFP_KERNEL);
-	if (!dma_dom->bitmap)
+	dma_dom->aperture_size = APERTURE_RANGE_SIZE;
+	dma_dom->aperture.bitmap = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!dma_dom->aperture.bitmap)
 		goto free_dma_dom;
 	/*
 	 * mark the first page as allocated so we never return 0 as
 	 * a valid dma-address. So we can use 0 as error value
 	 */
-	dma_dom->bitmap[0] = 1;
+	dma_dom->aperture.bitmap[0] = 1;
 	dma_dom->next_bit = 0;
 
 	dma_dom->need_flush = false;
@@ -854,13 +853,9 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	/*
 	 * At the last step, build the page tables so we don't need to
 	 * allocate page table pages in the dma_ops mapping/unmapping
-	 * path.
+	 * path for the first 128MB of dma address space.
 	 */
 	num_pte_pages = dma_dom->aperture_size / (PAGE_SIZE * 512);
-	dma_dom->pte_pages = kzalloc(num_pte_pages * sizeof(void *),
-			GFP_KERNEL);
-	if (!dma_dom->pte_pages)
-		goto free_dma_dom;
 
 	l2_pde = (u64 *)get_zeroed_page(GFP_KERNEL);
 	if (l2_pde == NULL)
@@ -869,10 +864,11 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	dma_dom->domain.pt_root[0] = IOMMU_L2_PDE(virt_to_phys(l2_pde));
 
 	for (i = 0; i < num_pte_pages; ++i) {
-		dma_dom->pte_pages[i] = (u64 *)get_zeroed_page(GFP_KERNEL);
-		if (!dma_dom->pte_pages[i])
+		u64 **pte_page = &dma_dom->aperture.pte_pages[i];
+		*pte_page = (u64 *)get_zeroed_page(GFP_KERNEL);
+		if (!*pte_page)
 			goto free_dma_dom;
-		address = virt_to_phys(dma_dom->pte_pages[i]);
+		address = virt_to_phys(*pte_page);
 		l2_pde[i] = IOMMU_L1_PDE(address);
 	}
 
@@ -1159,7 +1155,7 @@ static dma_addr_t dma_ops_domain_map(struct amd_iommu *iommu,
 
 	paddr &= PAGE_MASK;
 
-	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
+	pte  = dom->aperture.pte_pages[IOMMU_PTE_L1_INDEX(address)];
 	pte += IOMMU_PTE_L0_INDEX(address);
 
 	__pte = paddr | IOMMU_PTE_P | IOMMU_PTE_FC;
@@ -1192,7 +1188,7 @@ static void dma_ops_domain_unmap(struct amd_iommu *iommu,
 
 	WARN_ON(address & ~PAGE_MASK || address >= dom->aperture_size);
 
-	pte  = dom->pte_pages[IOMMU_PTE_L1_INDEX(address)];
+	pte  = dom->aperture.pte_pages[IOMMU_PTE_L1_INDEX(address)];
 	pte += IOMMU_PTE_L0_INDEX(address);
 
 	WARN_ON(!*pte);
