@@ -9,8 +9,6 @@
  * This file handles the architecture-dependent parts of process handling..
  */
 
-#include <stdarg.h>
-
 #include <linux/stackprotector.h>
 #include <linux/cpu.h>
 #include <linux/errno.h>
