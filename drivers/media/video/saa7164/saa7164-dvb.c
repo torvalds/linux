@@ -542,6 +542,7 @@ int saa7164_dvb_register(struct saa7164_tsport *port)
 		break;
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250:
 	case SAA7164_BOARD_HAUPPAUGE_HVR2250_2:
+	case SAA7164_BOARD_HAUPPAUGE_HVR2250_3:
 		i2c_bus = &dev->i2c_bus[port->nr + 1];
 
 		port->dvb.frontend = dvb_attach(s5h1411_attach,
