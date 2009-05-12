@@ -417,7 +417,7 @@ static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
 	},
 	{
 		I2C_BOARD_INFO("ov772x", 0x21),
-		.platform_data = &ov7725_info,
+		.platform_data = &ov7725_info.link,
 	},
 };
 
