@@ -415,7 +415,7 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	portdata = usb_get_serial_port_data(port);
 
-	dev_dbg(&port->dev, "%s: write (%d bytes)\n", __func__, writesize);
+	dev_dbg(&port->dev, "%s: write (%zd bytes)\n", __func__, writesize);
 
 	spin_lock_irqsave(&portdata->lock, flags);
 	dev_dbg(&port->dev, "%s - outstanding_urbs: %d\n", __func__,
