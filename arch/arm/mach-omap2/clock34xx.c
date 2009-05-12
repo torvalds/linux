@@ -737,10 +737,10 @@ static int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 		unlock_dll = 1;
 	}
 
-	pr_info("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
-		validrate);
-	pr_info("clock: SDRC timing params used: %08x %08x %08x\n",
-		sp->rfr_ctrl, sp->actim_ctrla, sp->actim_ctrlb);
+	pr_debug("clock: changing CORE DPLL rate from %lu to %lu\n", clk->rate,
+		 validrate);
+	pr_debug("clock: SDRC timing params used: %08x %08x %08x\n",
+		 sp->rfr_ctrl, sp->actim_ctrla, sp->actim_ctrlb);
 
 	/* REVISIT: SRAM code doesn't support other M2 divisors yet */
 	WARN_ON(new_div != 1 && new_div != 2);
