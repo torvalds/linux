@@ -1182,6 +1182,17 @@ void ieee80211_beacon_loss_work(struct work_struct *work)
 			     u.mgd.beacon_loss_work);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	/*
+	 * The driver has already reported this event and we have
+	 * already sent a probe request. Maybe the AP died and the
+	 * driver keeps reporting until we disassociate... We have
+	 * to ignore that because otherwise we would continually
+	 * reset the timer and never check whether we received a
+	 * probe response!
+	 */
+	if (ifmgd->flags & IEEE80211_STA_PROBEREQ_POLL)
+		return;
+
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (net_ratelimit()) {
 		printk(KERN_DEBUG "%s: driver reports beacon loss from AP %pM "
