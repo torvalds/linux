@@ -33,7 +33,8 @@ void sk_stream_write_space(struct sock *sk)
 		clear_bit(SOCK_NOSPACE, &sock->flags);
 
 		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-			wake_up_interruptible(sk->sk_sleep);
+			wake_up_interruptible_poll(sk->sk_sleep, POLLOUT |
+						POLLWRNORM | POLLWRBAND);
 		if (sock->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
 			sock_wake_async(sock, SOCK_WAKE_SPACE, POLL_OUT);
 	}
