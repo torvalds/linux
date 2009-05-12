@@ -77,7 +77,9 @@ lock_dll:
 sdram_in_selfrefresh:
 	ldr	r4, omap3_sdrc_power	@ read the SDRC_POWER register
 	ldr	r5, [r4]		@ read the contents of SDRC_POWER
+	mov	r9, r5			@ keep a copy of SDRC_POWER bits
 	orr 	r5, r5, #0x40		@ enable self refresh on idle req
+	bic 	r5, r5, #0x4		@ clear PWDENA
 	str 	r5, [r4]		@ write back to SDRC_POWER register
 	ldr	r5, [r4]		@ posted-write barrier for SDRC
 	ldr	r4, omap3_cm_iclken1_core	@ read the CM_ICLKEN1_CORE reg
@@ -128,10 +130,9 @@ wait_sdrc_idle1:
 	and 	r5, r5, #0x2
 	cmp	r5, #0
 	bne	wait_sdrc_idle1
+restore_sdrc_power_val:
 	ldr	r4, omap3_sdrc_power
-	ldr	r5, [r4]
-	bic 	r5, r5, #0x40
-	str 	r5, [r4]
+	str	r9, [r4]		@ restore SDRC_POWER, no barrier needed
 	bx	lr
 wait_dll_lock:
 	ldr	r4, omap3_sdrc_dlla_status
