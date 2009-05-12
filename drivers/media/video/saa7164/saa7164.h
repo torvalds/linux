@@ -329,7 +329,6 @@ void saa7164_cmd_signal(struct saa7164_dev *dev, u8 seqno);
 
 /* ----------------------------------------------------------- */
 /* saa7164-api.c                                               */
-int saa7164_api_test(struct saa7164_dev *dev);
 int saa7164_api_get_fw_version(struct saa7164_dev *dev, u32 *version);
 int saa7164_api_enum_subdevs(struct saa7164_dev *dev);
 int saa7164_api_i2c_read(struct saa7164_i2c *bus, u8 addr, u32 reglen, u8 *reg,

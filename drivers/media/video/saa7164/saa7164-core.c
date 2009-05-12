@@ -644,9 +644,6 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		 */
 		saa7164_api_enum_subdevs(dev);
 
-		/* Try a few API commands - just for exercise purposes */
-		saa7164_api_test(dev);
-
 		/* Begin to create the video sub-systems and register funcs */
 		if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB) {
 			if (saa7164_dvb_register(&dev->ts1) < 0) {

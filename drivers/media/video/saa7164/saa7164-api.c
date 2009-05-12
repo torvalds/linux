@@ -60,25 +60,6 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 		&reg[0], 128, buf);
 }
 
-/*  Exercise the i2c interface, saa7164_cmd()/bus() layers:
- *  1. Read the identity byte from each of the demodulators.
- *  2. Read the entire register set from the TDA18271.
- *  TODO: This function has no purpose other than to exercise i2c.
- */
-int saa7164_api_test(struct saa7164_dev *dev)
-{
-	/* TDA10048 identities */
-	u8 reg[] = { 0x00 };
-	u8 data[256];
-	dprintk(DBGLVL_API, "%s()\n", __func__);
-	/* Read all 39 bytes from the TDA18271 tuners */
-	saa7164_api_i2c_read(&dev->i2c_bus[1], 0xc0 >> 1, 0,
-		&reg[0], 39, &data[0]);
-	saa7164_api_i2c_read(&dev->i2c_bus[2], 0xc0 >> 1, 0,
-		&reg[0], 39, &data[0]);
-
-	return 0;
-}
 
 int saa7164_api_configure_port_mpeg2ts(struct saa7164_dev *dev,
 	struct saa7164_tsport *port,
