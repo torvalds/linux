@@ -157,7 +157,7 @@ static struct omap_clk omap34xx_clks[] = {
 	CLK(NULL,	"ssi_ssr_fck",	&ssi_ssr_fck,	CK_343X),
 	CLK(NULL,	"ssi_sst_fck",	&ssi_sst_fck,	CK_343X),
 	CLK(NULL,	"core_l3_ick",	&core_l3_ick,	CK_343X),
-	CLK(NULL,	"hsotgusb_ick",	&hsotgusb_ick,	CK_343X),
+	CLK("musb_hdrc",	"ick",	&hsotgusb_ick,	CK_343X),
 	CLK(NULL,	"sdrc_ick",	&sdrc_ick,	CK_343X),
 	CLK(NULL,	"gpmc_fck",	&gpmc_fck,	CK_343X),
 	CLK(NULL,	"security_l3_ick", &security_l3_ick, CK_343X),
