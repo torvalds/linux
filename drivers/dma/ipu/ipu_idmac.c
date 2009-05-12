@@ -1272,7 +1272,8 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	/* Other interrupts do not interfere with this channel */
 	spin_lock(&ichan->lock);
 	if (unlikely(chan_id != IDMAC_SDC_0 && chan_id != IDMAC_SDC_1 &&
-		     ((curbuf >> chan_id) & 1) == ichan->active_buffer)) {
+		     ((curbuf >> chan_id) & 1) == ichan->active_buffer &&
+		     !list_is_last(ichan->queue.next, &ichan->queue))) {
 		int i = 100;
 
 		/* This doesn't help. See comment in ipu_disable_channel() */
