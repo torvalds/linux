@@ -66,22 +66,23 @@ unlock_dll:
 	ldr	r4, omap3_sdrc_dlla_ctrl
 	ldr	r5, [r4]
 	orr	r5, r5, #0x4
-	str	r5, [r4]
+	str	r5, [r4]		@ (no OCP barrier needed)
 	bx	lr
 lock_dll:
 	ldr	r4, omap3_sdrc_dlla_ctrl
 	ldr	r5, [r4]
 	bic	r5, r5, #0x4
-	str	r5, [r4]
+	str	r5, [r4]		@ (no OCP barrier needed)
 	bx	lr
 sdram_in_selfrefresh:
 	ldr	r4, omap3_sdrc_power	@ read the SDRC_POWER register
 	ldr	r5, [r4]		@ read the contents of SDRC_POWER
 	orr 	r5, r5, #0x40		@ enable self refresh on idle req
 	str 	r5, [r4]		@ write back to SDRC_POWER register
+	ldr	r5, [r4]		@ posted-write barrier for SDRC
 	ldr	r4, omap3_cm_iclken1_core	@ read the CM_ICLKEN1_CORE reg
 	ldr	r5, [r4]
-	bic	r5, r5, #0x2		@ disable iclk bit for SRDC
+	bic	r5, r5, #0x2		@ disable iclk bit for SDRC
 	str 	r5, [r4]
 wait_sdrc_idle:
 	ldr 	r4, omap3_cm_idlest1_core
@@ -97,6 +98,7 @@ configure_core_dpll:
 	and	r5, r5, r6
 	orr	r5, r5, r3, lsl #0x1B	@ r3 contains the M2 val
 	str	r5, [r4]
+	ldr	r5, [r4]		@ posted-write barrier for CM
 	mov 	r5, #0x800		@ wait for the clock to stabilise
 	cmp	r3, #2
 	bne	wait_clk_stable
@@ -152,6 +154,7 @@ configure_sdrc:
 	str	r1, [r4]
 	ldr	r4, omap3_sdrc_actim_ctrlb
 	str	r2, [r4]
+	ldr	r2, [r4]		@ posted-write barrier for SDRC
 	bx	lr
 
 omap3_sdrc_power:
