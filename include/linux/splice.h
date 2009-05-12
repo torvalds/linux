@@ -11,8 +11,7 @@
 #include <linux/pipe_fs_i.h>
 
 /*
- * splice is tied to pipes as a transport (at least for now), so we'll just
- * add the splice flags here.
+ * Flags passed in from splice/tee/vmsplice
  */
 #define SPLICE_F_MOVE	(0x01)	/* move pages instead of copying */
 #define SPLICE_F_NONBLOCK (0x02) /* don't block on the pipe splicing (but */
