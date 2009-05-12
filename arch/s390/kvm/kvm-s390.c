@@ -318,11 +318,11 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	INIT_LIST_HEAD(&vcpu->arch.local_int.list);
 	vcpu->arch.local_int.float_int = &kvm->arch.float_int;
-	spin_lock_bh(&kvm->arch.float_int.lock);
+	spin_lock(&kvm->arch.float_int.lock);
 	kvm->arch.float_int.local_int[id] = &vcpu->arch.local_int;
 	init_waitqueue_head(&vcpu->arch.local_int.wq);
 	vcpu->arch.local_int.cpuflags = &vcpu->arch.sie_block->cpuflags;
-	spin_unlock_bh(&kvm->arch.float_int.lock);
+	spin_unlock(&kvm->arch.float_int.lock);
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)

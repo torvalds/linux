@@ -52,7 +52,7 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 	if (cpu_addr >= KVM_MAX_VCPUS)
 		return 3; /* not operational */
 
-	spin_lock_bh(&fi->lock);
+	spin_lock(&fi->lock);
 	if (fi->local_int[cpu_addr] == NULL)
 		rc = 3; /* not operational */
 	else if (atomic_read(fi->local_int[cpu_addr]->cpuflags)
@@ -64,7 +64,7 @@ static int __sigp_sense(struct kvm_vcpu *vcpu, u16 cpu_addr,
 		*reg |= SIGP_STAT_STOPPED;
 		rc = 1; /* status stored */
 	}
-	spin_unlock_bh(&fi->lock);
+	spin_unlock(&fi->lock);
 
 	VCPU_EVENT(vcpu, 4, "sensed status of cpu %x rc %x", cpu_addr, rc);
 	return rc;
@@ -86,7 +86,7 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 
 	inti->type = KVM_S390_INT_EMERGENCY;
 
-	spin_lock_bh(&fi->lock);
+	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 	if (li == NULL) {
 		rc = 3; /* not operational */
@@ -102,7 +102,7 @@ static int __sigp_emergency(struct kvm_vcpu *vcpu, u16 cpu_addr)
 	spin_unlock_bh(&li->lock);
 	rc = 0; /* order accepted */
 unlock:
-	spin_unlock_bh(&fi->lock);
+	spin_unlock(&fi->lock);
 	VCPU_EVENT(vcpu, 4, "sent sigp emerg to cpu %x", cpu_addr);
 	return rc;
 }
@@ -123,7 +123,7 @@ static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int store)
 
 	inti->type = KVM_S390_SIGP_STOP;
 
-	spin_lock_bh(&fi->lock);
+	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 	if (li == NULL) {
 		rc = 3; /* not operational */
@@ -142,7 +142,7 @@ static int __sigp_stop(struct kvm_vcpu *vcpu, u16 cpu_addr, int store)
 	spin_unlock_bh(&li->lock);
 	rc = 0; /* order accepted */
 unlock:
-	spin_unlock_bh(&fi->lock);
+	spin_unlock(&fi->lock);
 	VCPU_EVENT(vcpu, 4, "sent sigp stop to cpu %x", cpu_addr);
 	return rc;
 }
@@ -188,7 +188,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 	if (!inti)
 		return 2; /* busy */
 
-	spin_lock_bh(&fi->lock);
+	spin_lock(&fi->lock);
 	li = fi->local_int[cpu_addr];
 
 	if ((cpu_addr >= KVM_MAX_VCPUS) || (li == NULL)) {
@@ -220,7 +220,7 @@ static int __sigp_set_prefix(struct kvm_vcpu *vcpu, u16 cpu_addr, u32 address,
 out_li:
 	spin_unlock_bh(&li->lock);
 out_fi:
-	spin_unlock_bh(&fi->lock);
+	spin_unlock(&fi->lock);
 	return rc;
 }
 

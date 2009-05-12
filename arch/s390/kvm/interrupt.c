@@ -301,13 +301,13 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *vcpu)
 	}
 
 	if ((!rc) && atomic_read(&fi->active)) {
-		spin_lock_bh(&fi->lock);
+		spin_lock(&fi->lock);
 		list_for_each_entry(inti, &fi->list, list)
 			if (__interrupt_is_deliverable(vcpu, inti)) {
 				rc = 1;
 				break;
 			}
-		spin_unlock_bh(&fi->lock);
+		spin_unlock(&fi->lock);
 	}
 
 	if ((!rc) && (vcpu->arch.sie_block->ckc <
@@ -368,7 +368,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
 	VCPU_EVENT(vcpu, 5, "enabled wait via clock comparator: %llx ns", sltime);
 no_timer:
-	spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
+	spin_lock(&vcpu->arch.local_int.float_int->lock);
 	spin_lock_bh(&vcpu->arch.local_int.lock);
 	add_wait_queue(&vcpu->arch.local_int.wq, &wait);
 	while (list_empty(&vcpu->arch.local_int.list) &&
@@ -377,18 +377,18 @@ no_timer:
 		!signal_pending(current)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_bh(&vcpu->arch.local_int.lock);
-		spin_unlock_bh(&vcpu->arch.local_int.float_int->lock);
+		spin_unlock(&vcpu->arch.local_int.float_int->lock);
 		vcpu_put(vcpu);
 		schedule();
 		vcpu_load(vcpu);
-		spin_lock_bh(&vcpu->arch.local_int.float_int->lock);
+		spin_lock(&vcpu->arch.local_int.float_int->lock);
 		spin_lock_bh(&vcpu->arch.local_int.lock);
 	}
 	__unset_cpu_idle(vcpu);
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&vcpu->wq, &wait);
 	spin_unlock_bh(&vcpu->arch.local_int.lock);
-	spin_unlock_bh(&vcpu->arch.local_int.float_int->lock);
+	spin_unlock(&vcpu->arch.local_int.float_int->lock);
 	hrtimer_try_to_cancel(&vcpu->arch.ckc_timer);
 	return 0;
 }
@@ -455,7 +455,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 	if (atomic_read(&fi->active)) {
 		do {
 			deliver = 0;
-			spin_lock_bh(&fi->lock);
+			spin_lock(&fi->lock);
 			list_for_each_entry_safe(inti, n, &fi->list, list) {
 				if (__interrupt_is_deliverable(vcpu, inti)) {
 					list_del(&inti->list);
@@ -466,7 +466,7 @@ void kvm_s390_deliver_pending_interrupts(struct kvm_vcpu *vcpu)
 			}
 			if (list_empty(&fi->list))
 				atomic_set(&fi->active, 0);
-			spin_unlock_bh(&fi->lock);
+			spin_unlock(&fi->lock);
 			if (deliver) {
 				__do_deliver_interrupt(vcpu, inti);
 				kfree(inti);
@@ -531,7 +531,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 
 	mutex_lock(&kvm->lock);
 	fi = &kvm->arch.float_int;
-	spin_lock_bh(&fi->lock);
+	spin_lock(&fi->lock);
 	list_add_tail(&inti->list, &fi->list);
 	atomic_set(&fi->active, 1);
 	sigcpu = find_first_bit(fi->idle_mask, KVM_MAX_VCPUS);
@@ -548,7 +548,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 	if (waitqueue_active(&li->wq))
 		wake_up_interruptible(&li->wq);
 	spin_unlock_bh(&li->lock);
-	spin_unlock_bh(&fi->lock);
+	spin_unlock(&fi->lock);
 	mutex_unlock(&kvm->lock);
 	return 0;
 }
