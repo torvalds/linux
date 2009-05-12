@@ -34,18 +34,24 @@ static int lowmem_adj[6] = {
 };
 static int lowmem_adj_size = 4;
 static size_t lowmem_minfree[6] = {
-	3*512, // 6MB
-	2*1024, // 8MB
-	4*1024, // 16MB
-	16*1024, // 64MB
+	3 * 512,	/* 6MB */
+	2 * 1024,	/* 8MB */
+	4 * 1024,	/* 16MB */
+	16 * 1024,	/* 64MB */
 };
 static int lowmem_minfree_size = 4;
 
-#define lowmem_print(level, x...) do { if(lowmem_debug_level >= (level)) printk(x); } while(0)
+#define lowmem_print(level, x...)			\
+	do {						\
+		if (lowmem_debug_level >= (level))	\
+			printk(x);			\
+	} while (0)
 
 module_param_named(cost, lowmem_shrinker.seeks, int, S_IRUGO | S_IWUSR);
-module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size, S_IRUGO | S_IWUSR);
-module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size, S_IRUGO | S_IWUSR);
+module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
+			 S_IRUGO | S_IWUSR);
+module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
+			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
 
 static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
@@ -117,12 +123,12 @@ static int lowmem_shrink(int nr_to_scan, gfp_t gfp_mask)
 		selected_tasksize = tasksize;
 		selected_oom_adj = oom_adj;
 		lowmem_print(2, "select %d (%s), adj %d, size %d, to kill\n",
-		             p->pid, p->comm, oom_adj, tasksize);
+			     p->pid, p->comm, oom_adj, tasksize);
 	}
 	if (selected) {
 		lowmem_print(1, "send sigkill to %d (%s), adj %d, size %d\n",
-		             selected->pid, selected->comm,
-		             selected_oom_adj, selected_tasksize);
+			     selected->pid, selected->comm,
+			     selected_oom_adj, selected_tasksize);
 		force_sig(SIGKILL, selected);
 		rem -= selected_tasksize;
 	}
