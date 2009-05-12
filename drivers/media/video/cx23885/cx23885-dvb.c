@@ -250,18 +250,18 @@ static struct tda18271_config hauppauge_hvr1210_tuner_config = {
 	.gate    = TDA18271_GATE_DIGITAL,
 };
 
-static struct tda18271_std_map hcw_lgdt3305_tda18271_std_map = {
+static struct tda18271_std_map hauppauge_hvr127x_std_map = {
 	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 4,
 		      .if_lvl = 1, .rfagc_top = 0x58 },
 	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 5,
 		      .if_lvl = 1, .rfagc_top = 0x58 },
 };
 
-static struct tda18271_config hcw_lgdt3305_tda18271_config = {
-	.std_map = &hcw_lgdt3305_tda18271_std_map,
+static struct tda18271_config hauppauge_hvr127x_config = {
+	.std_map = &hauppauge_hvr127x_std_map,
 };
 
-static struct lgdt3305_config hcw_lgdt3305_config = {
+static struct lgdt3305_config hauppauge_lgdt3305_config = {
 	.i2c_addr           = 0x0e,
 	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
 	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
@@ -448,12 +448,12 @@ static int dvb_register(struct cx23885_tsport *port)
 	case CX23885_BOARD_HAUPPAUGE_HVR1275:
 		i2c_bus = &dev->i2c_bus[0];
 		fe0->dvb.frontend = dvb_attach(lgdt3305_attach,
-					       &hcw_lgdt3305_config,
+					       &hauppauge_lgdt3305_config,
 					       &i2c_bus->i2c_adap);
 		if (fe0->dvb.frontend != NULL) {
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_bus[1].i2c_adap,
-				   &hcw_lgdt3305_tda18271_config);
+				   &hauppauge_hvr127x_config);
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
