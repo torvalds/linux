@@ -964,7 +964,7 @@ int __init omap2_clk_init(void)
 	clk_init(&omap2_clk_functions);
 
 	for (c = omap34xx_clks; c < omap34xx_clks + ARRAY_SIZE(omap34xx_clks); c++)
-		clk_init_one(c->lk.clk);
+		clk_preinit(c->lk.clk);
 
 	for (c = omap34xx_clks; c < omap34xx_clks + ARRAY_SIZE(omap34xx_clks); c++)
 		if (c->cpu & cpu_clkflg) {
