@@ -196,6 +196,10 @@ out_nokvm:
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
+	if (vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda ==
+		(__u64) vcpu->arch.sie_block)
+		vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda = 0;
+	smp_mb();
 	free_page((unsigned long)(vcpu->arch.sie_block));
 	kvm_vcpu_uninit(vcpu);
 	kfree(vcpu);
@@ -310,8 +314,10 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	vcpu->arch.sie_block->icpua = id;
 	BUG_ON(!kvm->arch.sca);
-	BUG_ON(kvm->arch.sca->cpu[id].sda);
-	kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+	if (!kvm->arch.sca->cpu[id].sda)
+		kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
+	else
+		BUG_ON(!kvm->vcpus[id]); /* vcpu does already exist */
 	vcpu->arch.sie_block->scaoh = (__u32)(((__u64)kvm->arch.sca) >> 32);
 	vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
 
