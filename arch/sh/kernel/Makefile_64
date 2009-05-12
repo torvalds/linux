@@ -4,7 +4,7 @@ obj-y	:= debugtraps.o idle.o io.o io_generic.o irq.o machvec.o process_64.o \
 	   ptrace_64.o setup.o signal_64.o sys_sh.o sys_sh64.o \
 	   syscalls_64.o time.o topology.o traps.o traps_64.o
 
-obj-y				+= cpu/ timers/
+obj-y				+= cpu/
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SH_CPU_FREQ)	+= cpufreq.o
 obj-$(CONFIG_MODULES)		+= sh_ksyms_64.o module.o

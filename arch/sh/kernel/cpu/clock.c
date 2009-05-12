@@ -26,7 +26,6 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <asm/clock.h>
-#include <asm/timer.h>
 
 static LIST_HEAD(clock_list);
 static DEFINE_SPINLOCK(clock_lock);
