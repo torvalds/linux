@@ -78,6 +78,8 @@ enum {
 	/* The number of ticks to wait for the device to signal that
 	 * it is ready */
 	I2400MS_INIT_SLEEP_INTERVAL = 10,
+	/* How long to wait for the device to settle after reset */
+	I2400MS_SETTLE_TIME = 40,
 };
 
 

@@ -255,7 +255,7 @@ error_kzalloc:
 static
 int i2400ms_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 {
-	int result;
+	int result = 0;
 	struct i2400ms *i2400ms =
 		container_of(i2400m, struct i2400ms, i2400m);
 	struct device *dev = i2400m_dev(i2400m);
@@ -280,8 +280,22 @@ int i2400ms_bus_reset(struct i2400m *i2400m, enum i2400m_reset_type rt)
 					       sizeof(i2400m_COLD_BOOT_BARKER));
 	else if (rt == I2400M_RT_BUS) {
 do_bus_reset:
-		dev_err(dev, "FIXME: SDIO bus reset not implemented\n");
-		result = rt == I2400M_RT_WARM ? -ENODEV : -ENOSYS;
+		/* call netif_tx_disable() before sending IOE disable,
+		 * so that all the tx from network layer are stopped
+		 * while IOE is being reset. Make sure it is called
+		 * only after register_netdev() was issued.
+		 */
+		if (i2400m->wimax_dev.net_dev->reg_state == NETREG_REGISTERED)
+			netif_tx_disable(i2400m->wimax_dev.net_dev);
+
+		sdio_claim_host(i2400ms->func);
+		sdio_disable_func(i2400ms->func);
+		sdio_release_host(i2400ms->func);
+
+		/* Wait for the device to settle */
+		msleep(40);
+
+		result = i2400ms_enable_function(i2400ms->func);
 	} else
 		BUG();
 	if (result < 0 && rt != I2400M_RT_BUS) {
