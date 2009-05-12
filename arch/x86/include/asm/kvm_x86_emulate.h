@@ -155,6 +155,9 @@ struct x86_emulate_ctxt {
 	int mode;
 	u32 cs_base;
 
+	/* interruptibility state, as a result of execution of STI or MOV SS */
+	int interruptibility;
+
 	/* decode cache */
 	struct decode_cache decode;
 };

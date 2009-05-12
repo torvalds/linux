@@ -2379,7 +2379,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 			u16 error_code,
 			int emulation_type)
 {
-	int r;
+	int r, shadow_mask;
 	struct decode_cache *c;
 
 	kvm_clear_exception_queue(vcpu);
@@ -2433,6 +2433,10 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	}
 
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
+	shadow_mask = vcpu->arch.emulate_ctxt.interruptibility;
+
+	if (r == 0)
+		kvm_x86_ops->set_interrupt_shadow(vcpu, shadow_mask);
 
 	if (vcpu->arch.pio.string)
 		return EMULATE_DO_MMIO;

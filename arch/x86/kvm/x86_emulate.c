@@ -1361,6 +1361,20 @@ static inline int writeback(struct x86_emulate_ctxt *ctxt,
 	return 0;
 }
 
+void toggle_interruptibility(struct x86_emulate_ctxt *ctxt, u32 mask)
+{
+	u32 int_shadow = kvm_x86_ops->get_interrupt_shadow(ctxt->vcpu, mask);
+	/*
+	 * an sti; sti; sequence only disable interrupts for the first
+	 * instruction. So, if the last instruction, be it emulated or
+	 * not, left the system with the INT_STI flag enabled, it
+	 * means that the last instruction is an sti. We should not
+	 * leave the flag on in this case. The same goes for mov ss
+	 */
+	if (!(int_shadow & mask))
+		ctxt->interruptibility = mask;
+}
+
 int
 x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
@@ -1371,6 +1385,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	unsigned int port;
 	int io_dir_in;
 	int rc = 0;
+
+	ctxt->interruptibility = 0;
 
 	/* Shadow copy of register state. Committed on successful emulation.
 	 * NOTE: we can copy them from vcpu as x86_decode_insn() doesn't
@@ -1618,6 +1634,9 @@ special_insn:
 		int err;
 
 		sel = c->src.val;
+		if (c->modrm_reg == VCPU_SREG_SS)
+			toggle_interruptibility(ctxt, X86_SHADOW_INT_MOV_SS);
+
 		if (c->modrm_reg <= 5) {
 			type_bits = (c->modrm_reg == 1) ? 9 : 1;
 			err = kvm_load_segment_descriptor(ctxt->vcpu, sel,
@@ -1847,6 +1866,7 @@ special_insn:
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfb: /* sti */
+		toggle_interruptibility(ctxt, X86_SHADOW_INT_STI);
 		ctxt->eflags |= X86_EFLAGS_IF;
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
