@@ -1912,7 +1912,19 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
 }
 
-static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
+static int mmu_check_root(struct kvm_vcpu *vcpu, gfn_t root_gfn)
+{
+	int ret = 0;
+
+	if (!kvm_is_visible_gfn(vcpu->kvm, root_gfn)) {
+		set_bit(KVM_REQ_TRIPLE_FAULT, &vcpu->requests);
+		ret = 1;
+	}
+
+	return ret;
+}
+
+static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 {
 	int i;
 	gfn_t root_gfn;
@@ -1927,13 +1939,15 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		ASSERT(!VALID_PAGE(root));
 		if (tdp_enabled)
 			direct = 1;
+		if (mmu_check_root(vcpu, root_gfn))
+			return 1;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
 				      PT64_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->arch.mmu.root_hpa = root;
-		return;
+		return 0;
 	}
 	direct = !is_paging(vcpu);
 	if (tdp_enabled)
@@ -1950,6 +1964,8 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 			root_gfn = vcpu->arch.pdptrs[i] >> PAGE_SHIFT;
 		} else if (vcpu->arch.mmu.root_level == 0)
 			root_gfn = 0;
+		if (mmu_check_root(vcpu, root_gfn))
+			return 1;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 				      PT32_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
@@ -1958,6 +1974,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 		vcpu->arch.mmu.pae_root[i] = root | PT_PRESENT_MASK;
 	}
 	vcpu->arch.mmu.root_hpa = __pa(vcpu->arch.mmu.pae_root);
+	return 0;
 }
 
 static void mmu_sync_roots(struct kvm_vcpu *vcpu)
@@ -1976,7 +1993,7 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 	for (i = 0; i < 4; ++i) {
 		hpa_t root = vcpu->arch.mmu.pae_root[i];
 
-		if (root) {
+		if (root && VALID_PAGE(root)) {
 			root &= PT64_BASE_ADDR_MASK;
 			sp = page_header(root);
 			mmu_sync_children(vcpu, sp);
@@ -2311,9 +2328,11 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 		goto out;
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_free_some_pages(vcpu);
-	mmu_alloc_roots(vcpu);
+	r = mmu_alloc_roots(vcpu);
 	mmu_sync_roots(vcpu);
 	spin_unlock(&vcpu->kvm->mmu_lock);
+	if (r)
+		goto out;
 	kvm_x86_ops->set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
 	kvm_mmu_flush_tlb(vcpu);
 out:
