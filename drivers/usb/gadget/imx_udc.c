@@ -734,9 +734,12 @@ static struct usb_request *imx_ep_alloc_request
 {
 	struct imx_request *req;
 
+	if (!usb_ep)
+		return NULL;
+
 	req = kzalloc(sizeof *req, gfp_flags);
-	if (!req || !usb_ep)
-		return 0;
+	if (!req)
+		return NULL;
 
 	INIT_LIST_HEAD(&req->queue);
 	req->in_use = 0;
