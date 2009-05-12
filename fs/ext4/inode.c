@@ -1852,7 +1852,7 @@ static int mpage_da_submit_io(struct mpage_da_data *mpd)
  * @logical - first logical block to start assignment with
  *
  * the function goes through all passed space and put actual disk
- * block numbers into buffer heads, dropping BH_Delay
+ * block numbers into buffer heads, dropping BH_Delay and BH_Unwritten
  */
 static void mpage_put_bnr_to_bhs(struct mpage_da_data *mpd, sector_t logical,
 				 struct buffer_head *exbh)
@@ -1902,16 +1902,24 @@ static void mpage_put_bnr_to_bhs(struct mpage_da_data *mpd, sector_t logical,
 			do {
 				if (cur_logical >= logical + blocks)
 					break;
-				if (buffer_delay(bh)) {
-					bh->b_blocknr = pblock;
-					clear_buffer_delay(bh);
-					bh->b_bdev = inode->i_sb->s_bdev;
-				} else if (buffer_unwritten(bh)) {
-					bh->b_blocknr = pblock;
-					clear_buffer_unwritten(bh);
-					set_buffer_mapped(bh);
-					set_buffer_new(bh);
-					bh->b_bdev = inode->i_sb->s_bdev;
+
+				if (buffer_delay(bh) ||
+						buffer_unwritten(bh)) {
+
+					BUG_ON(bh->b_bdev != inode->i_sb->s_bdev);
+
+					if (buffer_delay(bh)) {
+						clear_buffer_delay(bh);
+						bh->b_blocknr = pblock;
+					} else {
+						/*
+						 * unwritten already should have
+						 * blocknr assigned. Verify that
+						 */
+						clear_buffer_unwritten(bh);
+						BUG_ON(bh->b_blocknr != pblock);
+					}
+
 				} else if (buffer_mapped(bh))
 					BUG_ON(bh->b_blocknr != pblock);
 
@@ -2053,7 +2061,8 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 	 * We consider only non-mapped and non-allocated blocks
 	 */
 	if ((mpd->b_state  & (1 << BH_Mapped)) &&
-	    !(mpd->b_state & (1 << BH_Delay)))
+		!(mpd->b_state & (1 << BH_Delay)) &&
+		!(mpd->b_state & (1 << BH_Unwritten)))
 		return 0;
 	/*
 	 * We need to make sure the BH_Delay flag is passed down to
@@ -2205,6 +2214,17 @@ flush_it:
 	return;
 }
 
+static int ext4_bh_unmapped_or_delay(handle_t *handle, struct buffer_head *bh)
+{
+	/*
+	 * unmapped buffer is possible for holes.
+	 * delay buffer is possible with delayed allocation.
+	 * We also need to consider unwritten buffer as unmapped.
+	 */
+	return (!buffer_mapped(bh) || buffer_delay(bh) ||
+				buffer_unwritten(bh)) && buffer_dirty(bh);
+}
+
 /*
  * __mpage_da_writepage - finds extent of pages and blocks
  *
@@ -2289,8 +2309,7 @@ static int __mpage_da_writepage(struct page *page,
 			 * Otherwise we won't make progress
 			 * with the page in ext4_da_writepage
 			 */
-			if (buffer_dirty(bh) &&
-			    (!buffer_mapped(bh) || buffer_delay(bh))) {
+			if (ext4_bh_unmapped_or_delay(NULL, bh)) {
 				mpage_add_bh_to_extent(mpd, logical,
 						       bh->b_size,
 						       bh->b_state);
@@ -2318,6 +2337,14 @@ static int __mpage_da_writepage(struct page *page,
 /*
  * this is a special callback for ->write_begin() only
  * it's intention is to return mapped block or reserve space
+ *
+ * For delayed buffer_head we have BH_Mapped, BH_New, BH_Delay set.
+ * We also have b_blocknr = -1 and b_bdev initialized properly
+ *
+ * For unwritten buffer_head we have BH_Mapped, BH_New, BH_Unwritten set.
+ * We also have b_blocknr = physicalblock mapping unwritten extent and b_bdev
+ * initialized properly.
+ *
  */
 static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 				  struct buffer_head *bh_result, int create)
@@ -2353,26 +2380,21 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 		set_buffer_delay(bh_result);
 	} else if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
-		/*
-		 * With sub-block writes into unwritten extents
-		 * we also need to mark the buffer as new so that
-		 * the unwritten parts of the buffer gets correctly zeroed.
-		 */
-		if (buffer_unwritten(bh_result))
+		if (buffer_unwritten(bh_result)) {
+			/* A delayed write to unwritten bh should
+			 * be marked new and mapped.  Mapped ensures
+			 * that we don't do get_block multiple times
+			 * when we write to the same offset and new
+			 * ensures that we do proper zero out for
+			 * partial write.
+			 */
 			set_buffer_new(bh_result);
+			set_buffer_mapped(bh_result);
+		}
 		ret = 0;
 	}
 
 	return ret;
-}
-
-static int ext4_bh_unmapped_or_delay(handle_t *handle, struct buffer_head *bh)
-{
-	/*
-	 * unmapped buffer is possible for holes.
-	 * delay buffer is possible with delayed allocation
-	 */
-	return ((!buffer_mapped(bh) || buffer_delay(bh)) && buffer_dirty(bh));
 }
 
 static int ext4_normal_get_block_write(struct inode *inode, sector_t iblock,
@@ -2828,7 +2850,7 @@ static int ext4_da_should_update_i_disksize(struct page *page,
 	for (i = 0; i < idx; i++)
 		bh = bh->b_this_page;
 
-	if (!buffer_mapped(bh) || (buffer_delay(bh)))
+	if (!buffer_mapped(bh) || (buffer_delay(bh)) || buffer_unwritten(bh))
 		return 0;
 	return 1;
 }

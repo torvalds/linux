@@ -2872,6 +2872,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			if (create == EXT4_CREATE_UNINITIALIZED_EXT)
 				goto out;
 			if (!create) {
+				if (allocated > max_blocks)
+					allocated = max_blocks;
 				/*
 				 * We have blocks reserved already.  We
 				 * return allocated blocks so that delalloc
@@ -2879,8 +2881,6 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 				 * the buffer head will be unmapped so that
 				 * a read from the block returns 0s.
 				 */
-				if (allocated > max_blocks)
-					allocated = max_blocks;
 				set_buffer_unwritten(bh_result);
 				bh_result->b_bdev = inode->i_sb->s_bdev;
 				bh_result->b_blocknr = newblock;
