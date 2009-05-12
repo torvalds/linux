@@ -473,16 +473,9 @@ source "arch/sh/boards/Kconfig"
 
 menu "Timer and clock configuration"
 
-config SH_TMU
-	bool "TMU timer support"
-	depends on CPU_SH3 || CPU_SH4
-	default y
-	help
-	  This enables the use of the TMU as the system timer.
-
 config SH_TIMER_TMU
 	bool "TMU timer driver"
-	depends on !SH_TMU && SYS_SUPPORTS_TMU
+	depends on SYS_SUPPORTS_TMU
 	default y
 	help
 	  This enables the build of the TMU timer driver.

@@ -18,7 +18,6 @@ struct sys_timer {
 	struct sys_timer_ops	*ops;
 };
 
-extern struct sys_timer tmu_timer;
 extern struct sys_timer *sys_timer;
 
 /* arch/sh/kernel/timers/timer.c */

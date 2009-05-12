@@ -14,9 +14,6 @@
 #include <asm/timer.h>
 
 static struct sys_timer *sys_timers[] = {
-#ifdef CONFIG_SH_TMU
-	&tmu_timer,
-#endif
 	NULL,
 };
 
