@@ -198,11 +198,12 @@ static int ide_floppy_get_format_progress(ide_drive_t *drive,
 					  int __user *arg)
 {
 	struct ide_disk_obj *floppy = drive->driver_data;
+	u8 sense_buf[18];
 	int progress_indication = 0x10000;
 
 	if (drive->atapi_flags & IDE_AFLAG_SRFP) {
 		ide_create_request_sense_cmd(drive, pc);
-		if (ide_queue_pc_tail(drive, floppy->disk, pc, pc->buf,
+		if (ide_queue_pc_tail(drive, floppy->disk, pc, sense_buf,
 				      pc->req_xfer))
 			return -EIO;
 
