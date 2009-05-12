@@ -17,6 +17,9 @@
 #include <linux/irq.h>
 #include <asm/mach/time.h>
 #include <mach/bridge-regs.h>
+#include <mach/hardware.h>
+#include <linux/sched.h>
+#include <linux/cnt32_to_63.h>
 
 /*
  * Number of timer ticks per jiffy.
@@ -37,6 +40,36 @@ static u32 ticks_per_jiffy;
 #define TIMER1_RELOAD		(TIMER_VIRT_BASE + 0x0018)
 #define TIMER1_VAL		(TIMER_VIRT_BASE + 0x001c)
 
+
+/*
+ * Orion's sched_clock implementation. It has a resolution of
+ * at least 7.5ns (133MHz TCLK) and a maximum value of 834 days.
+ */
+#define TCLK2NS_SCALE_FACTOR 8
+
+static unsigned long tclk2ns_scale;
+
+static void __init set_tclk2ns_scale(unsigned long tclk)
+{
+	unsigned long long v = NSEC_PER_SEC;
+	v <<= TCLK2NS_SCALE_FACTOR;
+	v += tclk/2;
+	do_div(v, tclk);
+	/*
+	 * We want an even value to automatically clear the top bit
+	 * returned by cnt32_to_63() without an additional run time
+	 * instruction. So if the LSB is 1 then round it up.
+	 */
+	if (v & 1)
+		v++;
+	tclk2ns_scale = v;
+}
+
+unsigned long long sched_clock(void)
+{
+	unsigned long long v = cnt32_to_63(0xffffffff - readl(TIMER0_VAL));
+	return (v * tclk2ns_scale) >> TCLK2NS_SCALE_FACTOR;
+}
 
 /*
  * Clocksource handling.
@@ -176,6 +209,10 @@ void __init orion_time_init(unsigned int irq, unsigned int tclk)
 
 	ticks_per_jiffy = (tclk + HZ/2) / HZ;
 
+	/*
+	 * Set scale for sched_clock
+	 */
+	set_tclk2ns_scale(tclk);
 
 	/*
 	 * Setup free-running clocksource timer (interrupts
