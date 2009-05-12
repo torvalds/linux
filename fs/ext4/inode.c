@@ -2433,11 +2433,14 @@ static int noalloc_get_block_write(struct inode *inode, sector_t iblock,
 	int ret = 0;
 	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
 
+	BUG_ON(bh_result->b_size != inode->i_sb->s_blocksize);
+
 	/*
 	 * we don't want to do block allocation in writepage
 	 * so call get_block_wrap with create = 0
 	 */
 	ret = ext4_get_blocks(NULL, inode, iblock, max_blocks, bh_result, 0);
+	BUG_ON(create && ret == 0);
 	if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
 		ret = 0;
