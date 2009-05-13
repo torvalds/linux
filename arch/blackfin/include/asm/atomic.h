@@ -208,6 +208,6 @@ static inline void atomic_set_mask(unsigned int mask, atomic_t *v)
 #define atomic_sub_and_test(i,v) (atomic_sub_return((i), (v)) == 0)
 #define atomic_dec_and_test(v) (atomic_sub_return(1, (v)) == 0)
 
-#include <asm-generic/atomic.h>
+#include <asm-generic/atomic-long.h>
 
 #endif				/* __ARCH_BLACKFIN_ATOMIC __ */

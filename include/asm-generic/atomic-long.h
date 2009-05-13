@@ -1,5 +1,5 @@
-#ifndef _ASM_GENERIC_ATOMIC_H
-#define _ASM_GENERIC_ATOMIC_H
+#ifndef _ASM_GENERIC_ATOMIC_LONG_H
+#define _ASM_GENERIC_ATOMIC_LONG_H
 /*
  * Copyright (C) 2005 Silicon Graphics, Inc.
  *	Christoph Lameter
@@ -255,4 +255,4 @@ static inline long atomic_long_add_unless(atomic_long_t *l, long a, long u)
 
 #endif  /*  BITS_PER_LONG == 64  */
 
-#endif  /*  _ASM_GENERIC_ATOMIC_H  */
+#endif  /*  _ASM_GENERIC_ATOMIC_LONG_H  */
