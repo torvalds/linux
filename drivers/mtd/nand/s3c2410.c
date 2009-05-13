@@ -845,6 +845,12 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		dev_info(info->device, "NAND ECC UNKNOWN\n");
 		break;
 	}
+
+	/* If you use u-boot BBT creation code, specifying this flag will
+	 * let the kernel fish out the BBT from the NAND, and also skip the
+	 * full NAND scan that can take 1/2s or so. Little things... */
+	if (set->flash_bbt)
+		chip->options |= NAND_USE_FLASH_BBT | NAND_SKIP_BBTSCAN;
 }
 
 /**

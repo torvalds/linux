@@ -13,6 +13,10 @@
 /**
  * struct s3c2410_nand_set - define a set of one or more nand chips
  * @disable_ecc:	Entirely disable ECC - Dangerous
+ * @flash_bbt: 		Openmoko u-boot can create a Bad Block Table
+ *			Setting this flag will allow the kernel to
+ *			look for it at boot time and also skip the NAND
+ *			scan.
  * @nr_chips:		Number of chips in this set
  * @nr_partitions:	Number of partitions pointed to by @partitions
  * @name:		Name of set (optional)
@@ -25,6 +29,7 @@
  */
 struct s3c2410_nand_set {
 	unsigned int		disable_ecc:1;
+	unsigned int		flash_bbt:1;
 
 	int			nr_chips;
 	int			nr_partitions;
