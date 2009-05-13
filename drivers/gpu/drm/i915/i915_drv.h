@@ -786,7 +786,8 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2E22 || \
 		       (dev)->pci_device == 0x2E32)
 
-#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
+#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02 || \
+			(dev)->pci_device == 0x2A12)
 
 #define IS_GM45(dev) ((dev)->pci_device == 0x2A42)
 
