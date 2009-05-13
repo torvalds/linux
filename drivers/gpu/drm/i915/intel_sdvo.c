@@ -69,6 +69,10 @@ struct intel_sdvo_priv {
 	 * This is set if we treat the device as HDMI, instead of DVI.
 	 */
 	bool is_hdmi;
+	/**
+	 * This is set if we detect output of sdvo device as LVDS.
+	 */
+	bool is_lvds;
 
 	/**
 	 * Returned SDTV resolutions allowed for the current format, if the
@@ -1543,6 +1547,37 @@ static void intel_sdvo_get_tv_modes(struct drm_connector *connector)
 		}
 }
 
+static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
+{
+	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
+
+	/*
+	 * Attempt to get the mode list from DDC.
+	 * Assume that the preferred modes are
+	 * arranged in priority order.
+	 */
+	/* set the bus switch and get the modes */
+	intel_sdvo_set_control_bus_switch(intel_output, sdvo_priv->ddc_bus);
+	intel_ddc_get_modes(intel_output);
+	if (list_empty(&connector->probed_modes) == false)
+		return;
+
+	/* Fetch modes from VBT */
+	if (dev_priv->sdvo_lvds_vbt_mode != NULL) {
+		struct drm_display_mode *newmode;
+		newmode = drm_mode_duplicate(connector->dev,
+					     dev_priv->sdvo_lvds_vbt_mode);
+		if (newmode != NULL) {
+			/* Guarantee the mode is preferred */
+			newmode->type = (DRM_MODE_TYPE_PREFERRED |
+					 DRM_MODE_TYPE_DRIVER);
+			drm_mode_probed_add(connector, newmode);
+		}
+	}
+}
+
 static int intel_sdvo_get_modes(struct drm_connector *connector)
 {
 	struct intel_output *output = to_intel_output(connector);
@@ -1550,6 +1585,8 @@ static int intel_sdvo_get_modes(struct drm_connector *connector)
 
 	if (sdvo_priv->is_tv)
 		intel_sdvo_get_tv_modes(connector);
+	else if (sdvo_priv->is_lvds == true)
+		intel_sdvo_get_lvds_modes(connector);
 	else
 		intel_sdvo_get_ddc_modes(connector);
 
@@ -1720,6 +1757,8 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		}
 	}
 
+	/* In defaut case sdvo lvds is false */
+	sdvo_priv->is_lvds = false;
 	intel_sdvo_get_capabilities(intel_output, &sdvo_priv->caps);
 
 	if (sdvo_priv->caps.output_flags &
@@ -1773,6 +1812,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_LVDS;
 		connector_type = DRM_MODE_CONNECTOR_LVDS;
+		sdvo_priv->is_lvds = true;
 	}
 	else if (sdvo_priv->caps.output_flags & SDVO_OUTPUT_LVDS1)
 	{
@@ -1780,6 +1820,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_LVDS;
 		connector_type = DRM_MODE_CONNECTOR_LVDS;
+		sdvo_priv->is_lvds = true;
 	}
 	else
 	{
