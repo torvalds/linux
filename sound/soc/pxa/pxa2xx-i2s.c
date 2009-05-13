@@ -257,8 +257,6 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 		pxa_i2s_wait();
 		clk_disable(clk_i2s);
 	}
-
-	clk_put(clk_i2s);
 }
 
 #ifdef CONFIG_PM
