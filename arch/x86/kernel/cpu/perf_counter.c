@@ -280,8 +280,11 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	 * If privileged enough, allow NMI events:
 	 */
 	hwc->nmi = 0;
-	if (capable(CAP_SYS_ADMIN) && hw_event->nmi)
+	if (hw_event->nmi) {
+		if (sysctl_perf_counter_priv && !capable(CAP_SYS_ADMIN))
+			return -EACCES;
 		hwc->nmi = 1;
+	}
 
 	hwc->irq_period	= hw_event->irq_period;
 	if ((s64)hwc->irq_period <= 0 || hwc->irq_period > x86_pmu.max_period)
