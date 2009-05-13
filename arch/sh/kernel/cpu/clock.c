@@ -265,19 +265,26 @@ EXPORT_SYMBOL_GPL(clk_set_rate);
 int clk_set_rate_ex(struct clk *clk, unsigned long rate, int algo_id)
 {
 	int ret = -EOPNOTSUPP;
+	unsigned long flags;
+
+	spin_lock_irqsave(&clock_lock, flags);
 
 	if (likely(clk->ops && clk->ops->set_rate)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&clock_lock, flags);
 		ret = clk->ops->set_rate(clk, rate, algo_id);
-		if (ret == 0) {
-			if (clk->ops->recalc)
-				clk->rate = clk->ops->recalc(clk);
-			propagate_rate(clk);
-		}
-		spin_unlock_irqrestore(&clock_lock, flags);
+		if (ret != 0)
+			goto out_unlock;
+	} else {
+		clk->rate = rate;
+		ret = 0;
 	}
+
+	if (clk->ops && clk->ops->recalc)
+		clk->rate = clk->ops->recalc(clk);
+
+	propagate_rate(clk);
+
+out_unlock:
+	spin_unlock_irqrestore(&clock_lock, flags);
 
 	return ret;
 }
