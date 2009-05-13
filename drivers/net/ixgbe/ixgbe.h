@@ -386,6 +386,13 @@ extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_adapter *adapter,
                      struct ixgbe_ring *tx_ring, struct sk_buff *skb,
                      u32 tx_flags, u8 *hdr_len);
+extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
+extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
+                          union ixgbe_adv_rx_desc *rx_desc,
+                          struct sk_buff *skb);
+extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
+                              struct scatterlist *sgl, unsigned int sgc);
+extern int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid);
 #endif /* IXGBE_FCOE */
 
 #endif /* _IXGBE_H_ */

@@ -784,6 +784,12 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		total_rx_packets++;
 
 		skb->protocol = eth_type_trans(skb, adapter->netdev);
+#ifdef IXGBE_FCOE
+		/* if ddp, not passing to ULD unless for FCP_RSP or error */
+		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+			if (!ixgbe_fcoe_ddp(adapter, rx_desc, skb))
+				goto next_desc;
+#endif /* IXGBE_FCOE */
 		ixgbe_receive_skb(q_vector, skb, staterr, rx_ring, rx_desc);
 
 next_desc:
@@ -4822,6 +4828,10 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ixgbe_netpoll,
 #endif
+#ifdef IXGBE_FCOE
+	.ndo_fcoe_ddp_setup = ixgbe_fcoe_ddp_get,
+	.ndo_fcoe_ddp_done = ixgbe_fcoe_ddp_put,
+#endif /* IXGBE_FCOE */
 };
 
 /**
@@ -5036,6 +5046,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			if (!(device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)) {
 				netdev->features |= NETIF_F_FCOE_CRC;
 				netdev->features |= NETIF_F_FSO;
+				netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
 			} else {
 				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 			}
@@ -5205,6 +5216,11 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	}
 
 #endif
+#ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+		ixgbe_cleanup_fcoe(adapter);
+
+#endif /* IXGBE_FCOE */
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
