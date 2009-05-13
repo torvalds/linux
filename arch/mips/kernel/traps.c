@@ -1510,10 +1510,6 @@ void __cpuinit per_cpu_trap_init(void)
 		write_c0_hwrena(enable);
 	}
 
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-	write_c0_hwrena(0xc000000f); /* Octeon has register 30 and 31 */
-#endif
-
 #ifdef CONFIG_MIPS_MT_SMTC
 	if (!secondaryTC) {
 #endif /* CONFIG_MIPS_MT_SMTC */
