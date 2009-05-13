@@ -1677,6 +1677,22 @@ static void iscsi_start_tx(struct iscsi_conn *conn)
 		iscsi_conn_queue_work(conn);
 }
 
+/*
+ * We want to make sure a ping is in flight. It has timed out.
+ * And we are not busy processing a pdu that is making
+ * progress but got started before the ping and is taking a while
+ * to complete so the ping is just stuck behind it in a queue.
+ */
+static int iscsi_has_ping_timed_out(struct iscsi_conn *conn)
+{
+	if (conn->ping_task &&
+	    time_before_eq(conn->last_recv + (conn->recv_timeout * HZ) +
+			   (conn->ping_timeout * HZ), jiffies))
+		return 1;
+	else
+		return 0;
+}
+
 static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
 {
 	struct iscsi_cls_session *cls_session;
@@ -1712,16 +1728,20 @@ static enum blk_eh_timer_return iscsi_eh_cmd_timed_out(struct scsi_cmnd *scmd)
 	 * if the ping timedout then we are in the middle of cleaning up
 	 * and can let the iscsi eh handle it
 	 */
-	if (time_before_eq(conn->last_recv + (conn->recv_timeout * HZ) +
-			    (conn->ping_timeout * HZ), jiffies))
+	if (iscsi_has_ping_timed_out(conn)) {
 		rc = BLK_EH_RESET_TIMER;
+		goto done;
+	}
 	/*
 	 * if we are about to check the transport then give the command
 	 * more time
 	 */
 	if (time_before_eq(conn->last_recv + (conn->recv_timeout * HZ),
-			   jiffies))
+			   jiffies)) {
 		rc = BLK_EH_RESET_TIMER;
+		goto done;
+	}
+
 	/* if in the middle of checking the transport then give us more time */
 	if (conn->ping_task)
 		rc = BLK_EH_RESET_TIMER;
@@ -1748,13 +1768,13 @@ static void iscsi_check_transport_timeouts(unsigned long data)
 
 	recv_timeout *= HZ;
 	last_recv = conn->last_recv;
-	if (conn->ping_task &&
-	    time_before_eq(conn->last_ping + (conn->ping_timeout * HZ),
-			   jiffies)) {
+
+	if (iscsi_has_ping_timed_out(conn)) {
 		iscsi_conn_printk(KERN_ERR, conn, "ping timeout of %d secs "
-				  "expired, last rx %lu, last ping %lu, "
-				  "now %lu\n", conn->ping_timeout, last_recv,
-				  conn->last_ping, jiffies);
+				  "expired, recv timeout %d, last rx %lu, "
+				  "last ping %lu, now %lu\n",
+				  conn->ping_timeout, conn->recv_timeout,
+				  last_recv, conn->last_ping, jiffies);
 		spin_unlock(&session->lock);
 		iscsi_conn_failure(conn, ISCSI_ERR_CONN_FAILED);
 		return;
