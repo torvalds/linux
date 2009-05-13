@@ -1088,7 +1088,7 @@ int dmar_set_interrupt(struct intel_iommu *iommu)
 		set_irq_data(irq, NULL);
 		iommu->irq = 0;
 		destroy_irq(irq);
-		return 0;
+		return ret;
 	}
 
 	ret = request_irq(irq, dmar_fault, 0, iommu->name, iommu);
