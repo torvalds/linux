@@ -393,10 +393,12 @@ static void iscsi_free_task(struct iscsi_task *task)
 	struct iscsi_session *session = conn->session;
 	struct scsi_cmnd *sc = task->sc;
 
+	ISCSI_DBG_SESSION(session, "freeing task itt 0x%x state %d sc %p\n",
+			  task->itt, task->state, task->sc);
+
 	session->tt->cleanup_task(task);
 	task->state = ISCSI_TASK_FREE;
 	task->sc = NULL;
-
 	/*
 	 * login task is preallocated so do not free
 	 */
@@ -451,6 +453,9 @@ static void iscsi_complete_task(struct iscsi_task *task, int state)
 {
 	struct iscsi_conn *conn = task->conn;
 
+	ISCSI_DBG_SESSION(conn->session,
+			  "complete task itt 0x%x state %d sc %p\n",
+			  task->itt, task->state, task->sc);
 	if (task->state == ISCSI_TASK_COMPLETED ||
 	    task->state == ISCSI_TASK_ABRT_TMF ||
 	    task->state == ISCSI_TASK_ABRT_SESS_RECOV)
@@ -1836,6 +1841,8 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
 
+	ISCSI_DBG_SESSION(session, "aborting sc %p\n", sc);
+
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
 	/*
@@ -1858,6 +1865,8 @@ int iscsi_eh_abort(struct scsi_cmnd *sc)
 	    sc->SCp.phase != session->age) {
 		spin_unlock_bh(&session->lock);
 		mutex_unlock(&session->eh_mutex);
+		ISCSI_DBG_SESSION(session, "failing abort due to dropped "
+				  "session.\n");
 		return FAILED;
 	}
 
