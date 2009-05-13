@@ -172,7 +172,8 @@ static ssize_t store_stp_state(struct device *d,
 	if (endp == buf)
 		return -EINVAL;
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	br_stp_set_enabled(br, val);
 	rtnl_unlock();
 
