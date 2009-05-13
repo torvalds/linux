@@ -249,6 +249,7 @@ struct address_space_operations nilfs_aops = {
 	/* .releasepage		= nilfs_releasepage, */
 	.invalidatepage		= block_invalidatepage,
 	.direct_IO		= nilfs_direct_IO,
+	.is_partially_uptodate  = block_is_partially_uptodate,
 };
 
 struct inode *nilfs_new_inode(struct inode *dir, int mode)
