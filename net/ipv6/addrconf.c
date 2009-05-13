@@ -503,7 +503,7 @@ static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 		return 0;
 
 	if (!rtnl_trylock())
-		return -ERESTARTSYS;
+		return restart_syscall();
 
 	if (p == &net->ipv6.devconf_all->forwarding) {
 		__s32 newf = net->ipv6.devconf_all->forwarding;
