@@ -621,12 +621,13 @@ void perf_counter_print_debug(void)
 {
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left, fixed;
 	struct cpu_hw_counters *cpuc;
+	unsigned long flags;
 	int cpu, idx;
 
 	if (!x86_pmu.num_counters)
 		return;
 
-	local_irq_disable();
+	local_irq_save(flags);
 
 	cpu = smp_processor_id();
 	cpuc = &per_cpu(cpu_hw_counters, cpu);
@@ -664,7 +665,7 @@ void perf_counter_print_debug(void)
 		pr_info("CPU#%d: fixed-PMC%d count: %016llx\n",
 			cpu, idx, pmc_count);
 	}
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 static void x86_pmu_disable(struct perf_counter *counter)
