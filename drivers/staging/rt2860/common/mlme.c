@@ -7866,7 +7866,7 @@ BOOLEAN AsicSendCommandToMcu(
 		RTMPusecDelay(2);
 	} while(i++ < 100);
 
-	if (i >= 100)
+	if (i > 100)
 	{
 		{
 #ifdef RT2860

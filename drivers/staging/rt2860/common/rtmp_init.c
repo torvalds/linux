@@ -3366,7 +3366,7 @@ NDIS_STATUS NICLoadFirmware(
 		RTMPusecDelay(1000);
 	} while (Index++ < 1000);
 
-    if (Index >= 1000)
+    if (Index > 1000)
 	{
 		Status = NDIS_STATUS_FAILURE;
 		DBGPRINT(RT_DEBUG_ERROR, ("NICLoadFirmware: MCU is not ready\n\n\n"));
