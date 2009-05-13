@@ -10,17 +10,19 @@
  * published by the Free Software Foundation.
 */
 
-/* struct s3c2410_nand_set
+/**
+ * struct s3c2410_nand_set - define a set of one or more nand chips
+ * @disable_ecc:	Entirely disable ECC - Dangerous
+ * @nr_chips:		Number of chips in this set
+ * @nr_partitions:	Number of partitions pointed to by @partitions
+ * @name:		Name of set (optional)
+ * @nr_map:		Map for low-layer logical to physical chip numbers (option)
+ * @partitions:		The mtd partition list
  *
- * define an set of one or more nand chips registered with an unique mtd
- *
- * nr_chips	 = number of chips in this set
- * nr_partitions = number of partitions pointed to be partitoons (or zero)
- * name		 = name of set (optional)
- * nr_map	 = map for low-layer logical to physical chip numbers (option)
- * partitions	 = mtd partition list
-*/
-
+ * define a set of one or more nand chips registered with an unique mtd. Also
+ * allows to pass flag to the underlying NAND layer. 'disable_ecc' will trigger
+ * a warning at boot time.
+ */
 struct s3c2410_nand_set {
 	unsigned int		disable_ecc:1;
 
