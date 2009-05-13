@@ -672,14 +672,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	cs->tty = NULL;
 	cs->tty_dev = NULL;
 	cs->cidmode = cidmode != 0;
-
-	//if(onechannel) { //FIXME
-		cs->tabnocid = gigaset_tab_nocid_m10x;
-		cs->tabcid = gigaset_tab_cid_m10x;
-	//} else {
-	//	cs->tabnocid = gigaset_tab_nocid;
-	//	cs->tabcid = gigaset_tab_cid;
-	//}
+	cs->tabnocid = gigaset_tab_nocid;
+	cs->tabcid = gigaset_tab_cid;
 
 	init_waitqueue_head(&cs->waitqueue);
 	cs->waiting = 0;

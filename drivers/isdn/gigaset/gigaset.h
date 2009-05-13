@@ -282,8 +282,8 @@ struct reply_t {
 	char	*command;	/* NULL==none */
 };
 
-extern struct reply_t gigaset_tab_cid_m10x[];
-extern struct reply_t gigaset_tab_nocid_m10x[];
+extern struct reply_t gigaset_tab_cid[];
+extern struct reply_t gigaset_tab_nocid[];
 
 struct inbuf_t {
 	unsigned char		*rcvbuf;	/* usb-gigaset receive buffer */
