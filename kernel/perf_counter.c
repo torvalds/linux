@@ -1927,7 +1927,11 @@ static void perf_output_copy(struct perf_output_handle *handle,
 
 	handle->offset = offset;
 
-	WARN_ON_ONCE(handle->offset > handle->head);
+	/*
+	 * Check we didn't copy past our reservation window, taking the
+	 * possible unsigned int wrap into account.
+	 */
+	WARN_ON_ONCE(((int)(handle->head - handle->offset)) < 0);
 }
 
 #define perf_output_put(handle, x) \
