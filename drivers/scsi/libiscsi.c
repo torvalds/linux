@@ -828,7 +828,7 @@ static int iscsi_handle_reject(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
  *
  * The session lock must be held.
  */
-static struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *conn, itt_t itt)
+struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *conn, itt_t itt)
 {
 	struct iscsi_session *session = conn->session;
 	int i;
@@ -845,6 +845,7 @@ static struct iscsi_task *iscsi_itt_to_task(struct iscsi_conn *conn, itt_t itt)
 
 	return session->cmds[i];
 }
+EXPORT_SYMBOL_GPL(iscsi_itt_to_task);
 
 /**
  * __iscsi_complete_pdu - complete pdu
