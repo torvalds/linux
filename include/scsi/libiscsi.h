@@ -82,6 +82,7 @@ enum {
 
 
 enum {
+	ISCSI_TASK_FREE,
 	ISCSI_TASK_COMPLETED,
 	ISCSI_TASK_PENDING,
 	ISCSI_TASK_RUNNING,
@@ -181,9 +182,7 @@ struct iscsi_conn {
 
 	/* xmit */
 	struct list_head	mgmtqueue;	/* mgmt (control) xmit queue */
-	struct list_head	mgmt_run_list;	/* list of control tasks */
-	struct list_head	xmitqueue;	/* data-path cmd queue */
-	struct list_head	run_list;	/* list of cmds in progress */
+	struct list_head	cmdqueue;	/* data-path cmd queue */
 	struct list_head	requeue;	/* tasks needing another run */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
 	unsigned long		suspend_tx;	/* suspend Tx */
