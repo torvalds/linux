@@ -257,38 +257,36 @@ static void pcie_aspm_configure_common_clock(struct pcie_link_state *link)
 	pci_write_config_word(parent, ppos + PCI_EXP_LNKCTL, parent_reg);
 }
 
-/*
- * calc_L0S_latency: Convert L0s latency encoding to ns
- */
-static unsigned int calc_L0S_latency(unsigned int latency_encoding, int ac)
+/* Convert L0s latency encoding to ns */
+static u32 calc_l0s_latency(u32 encoding)
 {
-	unsigned int ns = 64;
-
-	if (latency_encoding == 0x7) {
-		if (ac)
-			ns = -1U;
-		else
-			ns = 5*1000; /* > 4us */
-	} else
-		ns *= (1 << latency_encoding);
-	return ns;
+	if (encoding == 0x7)
+		return (5 * 1000);	/* > 4us */
+	return (64 << encoding);
 }
 
-/*
- * calc_L1_latency: Convert L1 latency encoding to ns
- */
-static unsigned int calc_L1_latency(unsigned int latency_encoding, int ac)
+/* Convert L0s acceptable latency encoding to ns */
+static u32 calc_l0s_acceptable(u32 encoding)
 {
-	unsigned int ns = 1000;
+	if (encoding == 0x7)
+		return -1U;
+	return (64 << encoding);
+}
 
-	if (latency_encoding == 0x7) {
-		if (ac)
-			ns = -1U;
-		else
-			ns = 65*1000; /* > 64us */
-	} else
-		ns *= (1 << latency_encoding);
-	return ns;
+/* Convert L1 latency encoding to ns */
+static u32 calc_l1_latency(u32 encoding)
+{
+	if (encoding == 0x7)
+		return (65 * 1000);	/* > 64us */
+	return (1000 << encoding);
+}
+
+/* Convert L1 acceptable latency encoding to ns */
+static u32 calc_l1_acceptable(u32 encoding)
+{
+	if (encoding == 0x7)
+		return -1U;
+	return (1000 << encoding);
 }
 
 static void pcie_aspm_get_cap_device(struct pci_dev *pdev, u32 *state,
@@ -296,7 +294,7 @@ static void pcie_aspm_get_cap_device(struct pci_dev *pdev, u32 *state,
 {
 	int pos;
 	u16 reg16;
-	u32 reg32, latency;
+	u32 reg32, encoding;
 
 	*l0s = *l1 = *enabled = 0;
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
@@ -308,11 +306,11 @@ static void pcie_aspm_get_cap_device(struct pci_dev *pdev, u32 *state,
 	if (*state == 0)
 		return;
 
-	latency = (reg32 & PCI_EXP_LNKCAP_L0SEL) >> 12;
-	*l0s = calc_L0S_latency(latency, 0);
+	encoding = (reg32 & PCI_EXP_LNKCAP_L0SEL) >> 12;
+	*l0s = calc_l0s_latency(encoding);
 	if (*state & PCIE_LINK_STATE_L1) {
-		latency = (reg32 & PCI_EXP_LNKCAP_L1EL) >> 15;
-		*l1 = calc_L1_latency(latency, 0);
+		encoding = (reg32 & PCI_EXP_LNKCAP_L1EL) >> 15;
+		*l1 = calc_l1_latency(encoding);
 	}
 	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);
 	*enabled = reg16 & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
@@ -358,8 +356,7 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 	/* ENDPOINT states*/
 	list_for_each_entry(child, &linkbus->devices, bus_list) {
 		int pos;
-		u32 reg32;
-		unsigned int latency;
+		u32 reg32, encoding;
 		struct aspm_latency *acceptable =
 			&link->acceptable[PCI_FUNC(child->devfn)];
 
@@ -369,13 +366,11 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 
 		pos = pci_find_capability(child, PCI_CAP_ID_EXP);
 		pci_read_config_dword(child, pos + PCI_EXP_DEVCAP, &reg32);
-		latency = (reg32 & PCI_EXP_DEVCAP_L0S) >> 6;
-		latency = calc_L0S_latency(latency, 1);
-		acceptable->l0s = latency;
+		encoding = (reg32 & PCI_EXP_DEVCAP_L0S) >> 6;
+		acceptable->l0s = calc_l0s_acceptable(encoding);
 		if (link->aspm_support & PCIE_LINK_STATE_L1) {
-			latency = (reg32 & PCI_EXP_DEVCAP_L1) >> 9;
-			latency = calc_L1_latency(latency, 1);
-			acceptable->l1 = latency;
+			encoding = (reg32 & PCI_EXP_DEVCAP_L1) >> 9;
+			acceptable->l1 = calc_l1_acceptable(encoding);
 		}
 	}
 }
