@@ -26,9 +26,9 @@
 #endif
 #define MODULE_PARAM_PREFIX "pcie_aspm."
 
-struct endpoint_state {
-	unsigned int l0s_acceptable_latency;
-	unsigned int l1_acceptable_latency;
+struct aspm_latency {
+	u32 l0s;			/* L0s latency (nsec) */
+	u32 l1;				/* L1 latency (nsec) */
 };
 
 struct pcie_link_state {
@@ -45,22 +45,19 @@ struct pcie_link_state {
 	u32 aspm_enabled:2;		/* Enabled ASPM state */
 	u32 aspm_default:2;		/* Default ASPM state by BIOS */
 
-	/* upstream component */
-	unsigned int l0s_upper_latency;
-	unsigned int l1_upper_latency;
-	/* downstream component */
-	unsigned int l0s_down_latency;
-	unsigned int l1_down_latency;
+	/* Latencies */
+	struct aspm_latency latency;	/* Exit latency */
+
 	/* Clock PM state*/
 	unsigned int clk_pm_capable;
 	unsigned int clk_pm_enabled;
 	unsigned int bios_clk_state;
 
 	/*
-	 * A pcie downstream port only has one slot under it, so at most there
-	 * are 8 functions
+	 * Endpoint acceptable latencies. A pcie downstream port only
+	 * has one slot under it, so at most there are 8 functions.
 	 */
-	struct endpoint_state endpoints[8];
+	struct aspm_latency acceptable[8];
 };
 
 static int aspm_disabled, aspm_force;
@@ -341,8 +338,8 @@ static void pcie_aspm_cap_init(struct pci_dev *pdev)
 	/* upstream component states */
 	pcie_aspm_get_cap_device(pdev, &support, &l0s, &l1, &enabled);
 	link_state->aspm_support = support;
-	link_state->l0s_upper_latency = l0s;
-	link_state->l1_upper_latency = l1;
+	link_state->latency.l0s = l0s;
+	link_state->latency.l1 = l1;
 	link_state->aspm_enabled = enabled;
 
 	/* downstream component states, all functions have the same setting */
@@ -350,8 +347,8 @@ static void pcie_aspm_cap_init(struct pci_dev *pdev)
 		bus_list);
 	pcie_aspm_get_cap_device(child_dev, &support, &l0s, &l1, &enabled);
 	link_state->aspm_support &= support;
-	link_state->l0s_down_latency = l0s;
-	link_state->l1_down_latency = l1;
+	link_state->latency.l0s = max_t(u32, link_state->latency.l0s, l0s);
+	link_state->latency.l1 = max_t(u32, link_state->latency.l1, l1);
 
 	if (!link_state->aspm_support)
 		return;
@@ -364,8 +361,8 @@ static void pcie_aspm_cap_init(struct pci_dev *pdev)
 		int pos;
 		u32 reg32;
 		unsigned int latency;
-		struct endpoint_state *ep_state =
-			&link_state->endpoints[PCI_FUNC(child_dev->devfn)];
+		struct aspm_latency *acceptable =
+			&link_state->acceptable[PCI_FUNC(child_dev->devfn)];
 
 		if (child_dev->pcie_type != PCI_EXP_TYPE_ENDPOINT &&
 			child_dev->pcie_type != PCI_EXP_TYPE_LEG_END)
@@ -375,11 +372,11 @@ static void pcie_aspm_cap_init(struct pci_dev *pdev)
 		pci_read_config_dword(child_dev, pos + PCI_EXP_DEVCAP, &reg32);
 		latency = (reg32 & PCI_EXP_DEVCAP_L0S) >> 6;
 		latency = calc_L0S_latency(latency, 1);
-		ep_state->l0s_acceptable_latency = latency;
+		acceptable->l0s = latency;
 		if (link_state->aspm_support & PCIE_LINK_STATE_L1) {
 			latency = (reg32 & PCI_EXP_DEVCAP_L1) >> 9;
 			latency = calc_L1_latency(latency, 1);
-			ep_state->l1_acceptable_latency = latency;
+			acceptable->l1 = latency;
 		}
 	}
 }
@@ -388,16 +385,16 @@ static unsigned int __pcie_aspm_check_state_one(struct pci_dev *pdev,
 	unsigned int state)
 {
 	struct pci_dev *parent_dev, *tmp_dev;
-	unsigned int latency, l1_latency = 0;
+	unsigned int l1_latency = 0;
 	struct pcie_link_state *link_state;
-	struct endpoint_state *ep_state;
+	struct aspm_latency *acceptable;
 
 	parent_dev = pdev->bus->self;
 	link_state = parent_dev->link_state;
 	state &= link_state->aspm_support;
 	if (state == 0)
 		return 0;
-	ep_state = &link_state->endpoints[PCI_FUNC(pdev->devfn)];
+	acceptable = &link_state->acceptable[PCI_FUNC(pdev->devfn)];
 
 	/*
 	 * Check latency for endpoint device.
@@ -411,21 +408,14 @@ static unsigned int __pcie_aspm_check_state_one(struct pci_dev *pdev,
 	while (state & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
 		parent_dev = tmp_dev->bus->self;
 		link_state = parent_dev->link_state;
-		if (state & PCIE_LINK_STATE_L0S) {
-			latency = max_t(unsigned int,
-					link_state->l0s_upper_latency,
-					link_state->l0s_down_latency);
-			if (latency > ep_state->l0s_acceptable_latency)
-				state &= ~PCIE_LINK_STATE_L0S;
-		}
-		if (state & PCIE_LINK_STATE_L1) {
-			latency = max_t(unsigned int,
-					link_state->l1_upper_latency,
-					link_state->l1_down_latency);
-			if (latency + l1_latency >
-					ep_state->l1_acceptable_latency)
-				state &= ~PCIE_LINK_STATE_L1;
-		}
+		if ((state & PCIE_LINK_STATE_L0S) &&
+		    (link_state->latency.l0s > acceptable->l0s))
+			state &= ~PCIE_LINK_STATE_L0S;
+
+		if ((state & PCIE_LINK_STATE_L1) &&
+		    (link_state->latency.l1 + l1_latency > acceptable->l1))
+			state &= ~PCIE_LINK_STATE_L1;
+
 		if (!parent_dev->bus->self) /* parent_dev is a root port */
 			break;
 		else {
