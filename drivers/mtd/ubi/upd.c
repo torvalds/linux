@@ -70,8 +70,8 @@ static int set_update_marker(struct ubi_device *ubi, struct ubi_volume *vol)
 
 	mutex_lock(&ubi->device_mutex);
 	err = ubi_change_vtbl_record(ubi, vol->vol_id, &vtbl_rec);
-	mutex_unlock(&ubi->device_mutex);
 	vol->upd_marker = 1;
+	mutex_unlock(&ubi->device_mutex);
 	return err;
 }
 
@@ -111,8 +111,8 @@ static int clear_update_marker(struct ubi_device *ubi, struct ubi_volume *vol,
 
 	mutex_lock(&ubi->device_mutex);
 	err = ubi_change_vtbl_record(ubi, vol->vol_id, &vtbl_rec);
-	mutex_unlock(&ubi->device_mutex);
 	vol->upd_marker = 0;
+	mutex_unlock(&ubi->device_mutex);
 	return err;
 }
 
