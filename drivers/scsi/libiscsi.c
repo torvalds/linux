@@ -81,7 +81,8 @@ inline void iscsi_conn_queue_work(struct iscsi_conn *conn)
 	struct Scsi_Host *shost = conn->session->host;
 	struct iscsi_host *ihost = shost_priv(shost);
 
-	queue_work(ihost->workq, &conn->xmitwork);
+	if (ihost->workq)
+		queue_work(ihost->workq, &conn->xmitwork);
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_queue_work);
 
@@ -110,10 +111,8 @@ iscsi_update_cmdsn(struct iscsi_session *session, struct iscsi_nopin *hdr)
 		 * xmit thread
 		 */
 		if (!list_empty(&session->leadconn->cmdqueue) ||
-		    !list_empty(&session->leadconn->mgmtqueue)) {
-			if (!(session->tt->caps & CAP_DATA_PATH_OFFLOAD))
-				iscsi_conn_queue_work(session->leadconn);
-		}
+		    !list_empty(&session->leadconn->mgmtqueue))
+			iscsi_conn_queue_work(session->leadconn);
 	}
 }
 EXPORT_SYMBOL_GPL(iscsi_update_cmdsn);
@@ -555,6 +554,7 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		      char *data, uint32_t data_size)
 {
 	struct iscsi_session *session = conn->session;
+	struct iscsi_host *ihost = shost_priv(session->host);
 	struct iscsi_task *task;
 	itt_t itt;
 
@@ -618,7 +618,7 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 						   task->conn->session->age);
 	}
 
-	if (session->tt->caps & CAP_DATA_PATH_OFFLOAD) {
+	if (!ihost->workq) {
 		if (iscsi_prep_mgmt_task(conn, task))
 			goto free_task;
 
@@ -1368,6 +1368,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 {
 	struct iscsi_cls_session *cls_session;
 	struct Scsi_Host *host;
+	struct iscsi_host *ihost;
 	int reason = 0;
 	struct iscsi_session *session;
 	struct iscsi_conn *conn;
@@ -1378,6 +1379,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	sc->SCp.ptr = NULL;
 
 	host = sc->device->host;
+	ihost = shost_priv(host);
 	spin_unlock(host->host_lock);
 
 	cls_session = starget_to_session(scsi_target(sc->device));
@@ -1440,7 +1442,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		goto reject;
 	}
 
-	if (session->tt->caps & CAP_DATA_PATH_OFFLOAD) {
+	if (!ihost->workq) {
 		reason = iscsi_prep_scsi_cmd_pdu(task);
 		if (reason) {
 			if (reason == -ENOMEM) {
@@ -1673,7 +1675,7 @@ void iscsi_suspend_tx(struct iscsi_conn *conn)
 	struct iscsi_host *ihost = shost_priv(shost);
 
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
-	if (!(conn->session->tt->caps & CAP_DATA_PATH_OFFLOAD))
+	if (ihost->workq)
 		flush_workqueue(ihost->workq);
 }
 EXPORT_SYMBOL_GPL(iscsi_suspend_tx);
@@ -1681,8 +1683,7 @@ EXPORT_SYMBOL_GPL(iscsi_suspend_tx);
 static void iscsi_start_tx(struct iscsi_conn *conn)
 {
 	clear_bit(ISCSI_SUSPEND_BIT, &conn->suspend_tx);
-	if (!(conn->session->tt->caps & CAP_DATA_PATH_OFFLOAD))
-		iscsi_conn_queue_work(conn);
+	iscsi_conn_queue_work(conn);
 }
 
 /*
