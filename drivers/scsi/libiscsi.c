@@ -1390,13 +1390,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		goto fault;
 	}
 
-	/*
-	 * ISCSI_STATE_FAILED is a temp. state. The recovery
-	 * code will decide what is best to do with command queued
-	 * during this time
-	 */
-	if (session->state != ISCSI_STATE_LOGGED_IN &&
-	    session->state != ISCSI_STATE_FAILED) {
+	if (session->state != ISCSI_STATE_LOGGED_IN) {
 		/*
 		 * to handle the race between when we set the recovery state
 		 * and block the session we requeue here (commands could
@@ -1404,12 +1398,15 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 		 * up because the block code is not locked)
 		 */
 		switch (session->state) {
+		case ISCSI_STATE_FAILED:
 		case ISCSI_STATE_IN_RECOVERY:
 			reason = FAILURE_SESSION_IN_RECOVERY;
-			goto reject;
+			sc->result = DID_IMM_RETRY << 16;
+			break;
 		case ISCSI_STATE_LOGGING_OUT:
 			reason = FAILURE_SESSION_LOGGING_OUT;
-			goto reject;
+			sc->result = DID_IMM_RETRY << 16;
+			break;
 		case ISCSI_STATE_RECOVERY_FAILED:
 			reason = FAILURE_SESSION_RECOVERY_TIMEOUT;
 			sc->result = DID_TRANSPORT_FAILFAST << 16;
