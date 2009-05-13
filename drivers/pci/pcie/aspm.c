@@ -552,27 +552,24 @@ static void free_link_state(struct pcie_link_state *link)
 
 static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 {
-	struct pci_dev *child_dev;
-	int child_pos;
+	struct pci_dev *child;
+	int pos;
 	u32 reg32;
-
 	/*
-	 * Some functions in a slot might not all be PCIE functions, very
-	 * strange. Disable ASPM for the whole slot
+	 * Some functions in a slot might not all be PCIE functions,
+	 * very strange. Disable ASPM for the whole slot
 	 */
-	list_for_each_entry(child_dev, &pdev->subordinate->devices, bus_list) {
-		child_pos = pci_find_capability(child_dev, PCI_CAP_ID_EXP);
-		if (!child_pos)
+	list_for_each_entry(child, &pdev->subordinate->devices, bus_list) {
+		pos = pci_find_capability(child, PCI_CAP_ID_EXP);
+		if (!pos)
 			return -EINVAL;
-
 		/*
 		 * Disable ASPM for pre-1.1 PCIe device, we follow MS to use
 		 * RBER bit to determine if a function is 1.1 version device
 		 */
-		pci_read_config_dword(child_dev, child_pos + PCI_EXP_DEVCAP,
-			&reg32);
+		pci_read_config_dword(child, pos + PCI_EXP_DEVCAP, &reg32);
 		if (!(reg32 & PCI_EXP_DEVCAP_RBER) && !aspm_force) {
-			dev_printk(KERN_INFO, &child_dev->dev, "disabling ASPM"
+			dev_printk(KERN_INFO, &child->dev, "disabling ASPM"
 				" on pre-1.1 PCIe device.  You can enable it"
 				" with 'pcie_aspm=force'\n");
 			return -EINVAL;
