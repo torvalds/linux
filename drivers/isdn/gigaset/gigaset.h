@@ -384,7 +384,6 @@ struct bc_state {
 	int trans_up;			/* Counter of packages (upstream) */
 
 	struct at_state_t at_state;
-	unsigned long rcvbytes;
 
 	__u16 fcs;
 	struct sk_buff *skb;

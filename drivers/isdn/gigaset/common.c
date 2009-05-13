@@ -565,8 +565,6 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	gig_dbg(DEBUG_INIT, "setting up bcs[%d]->at_state", channel);
 	gigaset_at_init(&bcs->at_state, bcs, cs, -1);
 
-	bcs->rcvbytes = 0;
-
 #ifdef CONFIG_GIGASET_DEBUG
 	bcs->emptycount = 0;
 #endif
