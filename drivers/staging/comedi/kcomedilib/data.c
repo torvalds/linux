@@ -26,6 +26,7 @@
 #include "../comedidev.h"
 
 #include <linux/string.h>
+#include <linux/delay.h>
 
 int comedi_data_write(void *dev, unsigned int subdev, unsigned int chan,
 	unsigned int range, unsigned int aref, unsigned int data)
