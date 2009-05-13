@@ -580,13 +580,13 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	for (i = 0; i < nr_pages && i < PIPE_BUFFERS && len; i++) {
 		struct page *page;
 
-		page = alloc_page(GFP_HIGHUSER);
+		page = alloc_page(GFP_USER);
 		error = -ENOMEM;
 		if (!page)
 			goto err;
 
 		this_len = min_t(size_t, len, PAGE_CACHE_SIZE - offset);
-		vec[i].iov_base = (void __user *) kmap(page);
+		vec[i].iov_base = (void __user *) page_address(page);
 		vec[i].iov_len = this_len;
 		pages[i] = page;
 		spd.nr_pages++;
@@ -604,7 +604,6 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 
 	nr_freed = 0;
 	for (i = 0; i < spd.nr_pages; i++) {
-		kunmap(pages[i]);
 		this_len = min_t(size_t, vec[i].iov_len, res);
 		partial[i].offset = 0;
 		partial[i].len = this_len;
@@ -624,10 +623,9 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	return res;
 
 err:
-	for (i = 0; i < spd.nr_pages; i++) {
-		kunmap(pages[i]);
+	for (i = 0; i < spd.nr_pages; i++)
 		__free_page(pages[i]);
-	}
+
 	return error;
 }
 EXPORT_SYMBOL(default_file_splice_read);
