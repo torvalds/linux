@@ -473,7 +473,13 @@ static int iscsi_tcp_data_in(struct iscsi_conn *conn, struct iscsi_task *task)
 	int datasn = be32_to_cpu(rhdr->datasn);
 	unsigned total_in_length = scsi_in(task->sc)->length;
 
-	iscsi_update_cmdsn(conn->session, (struct iscsi_nopin*)rhdr);
+	/*
+	 * lib iscsi will update this in the completion handling if there
+	 * is status.
+	 */
+	if (!(rhdr->flags & ISCSI_FLAG_DATA_STATUS))
+		iscsi_update_cmdsn(conn->session, (struct iscsi_nopin*)rhdr);
+
 	if (tcp_conn->in.datalen == 0)
 		return 0;
 
