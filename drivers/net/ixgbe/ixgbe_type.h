@@ -1483,6 +1483,7 @@
 #endif
 
 #define IXGBE_DEVICE_CAPS_ALLOW_ANY_SFP  0x1
+#define IXGBE_DEVICE_CAPS_FCOE_OFFLOADS  0x2
 
 /* PCI Bus Info */
 #define IXGBE_PCI_LINK_STATUS     0xB2

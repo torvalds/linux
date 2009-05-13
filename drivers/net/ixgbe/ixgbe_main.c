@@ -39,6 +39,7 @@
 #include <net/ip6_checksum.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <scsi/fc/fc_fcoe.h>
 
 #include "ixgbe.h"
 #include "ixgbe_common.h"
@@ -1810,6 +1811,11 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 	/* Decide whether to use packet split mode or not */
 	adapter->flags |= IXGBE_FLAG_RX_PS_ENABLED;
 
+#ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+		adapter->flags &= ~IXGBE_FLAG_RX_PS_ENABLED;
+#endif /* IXGBE_FCOE */
+
 	/* Set the RX buffer length according to the mode */
 	if (adapter->flags & IXGBE_FLAG_RX_PS_ENABLED) {
 		rx_buf_len = IXGBE_RX_HDR_SIZE;
@@ -2241,6 +2247,11 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 	netif_set_gso_max_size(netdev, 65536);
 #endif
 
+#ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+		ixgbe_configure_fcoe(adapter);
+
+#endif /* IXGBE_FCOE */
 	ixgbe_configure_tx(adapter);
 	ixgbe_configure_rx(adapter);
 	for (i = 0; i < adapter->num_rx_queues; i++)
@@ -3401,6 +3412,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
 		adapter->flags |= IXGBE_FLAG_RSC_CAPABLE;
 		adapter->flags |= IXGBE_FLAG_RSC_ENABLED;
+#ifdef IXGBE_FCOE
+		adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
+#endif /* IXGBE_FCOE */
 	}
 
 #ifdef CONFIG_IXGBE_DCB
@@ -4416,10 +4430,12 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 
 static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
                         struct ixgbe_ring *tx_ring,
-                        struct sk_buff *skb, unsigned int first)
+                        struct sk_buff *skb, u32 tx_flags,
+                        unsigned int first)
 {
 	struct ixgbe_tx_buffer *tx_buffer_info;
-	unsigned int len = skb_headlen(skb);
+	unsigned int len;
+	unsigned int total = skb->len;
 	unsigned int offset = 0, size, count = 0, i;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
@@ -4434,6 +4450,11 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 
 	map = skb_shinfo(skb)->dma_maps;
 
+	if (tx_flags & IXGBE_TX_FLAGS_FCOE)
+		/* excluding fcoe_crc_eof for FCoE */
+		total -= sizeof(struct fcoe_crc_eof);
+
+	len = min(skb_headlen(skb), total);
 	while (len) {
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
 		size = min(len, (uint)IXGBE_MAX_DATA_PER_TXD);
@@ -4444,6 +4465,7 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 		tx_buffer_info->next_to_watch = i;
 
 		len -= size;
+		total -= size;
 		offset += size;
 		count++;
 
@@ -4458,7 +4480,7 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 		struct skb_frag_struct *frag;
 
 		frag = &skb_shinfo(skb)->frags[f];
-		len = frag->size;
+		len = min((unsigned int)frag->size, total);
 		offset = 0;
 
 		while (len) {
@@ -4475,9 +4497,12 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 			tx_buffer_info->next_to_watch = i;
 
 			len -= size;
+			total -= size;
 			offset += size;
 			count++;
 		}
+		if (total == 0)
+			break;
 	}
 
 	tx_ring->tx_buffer_info[i].skb = skb;
@@ -4518,6 +4543,13 @@ static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
 	} else if (tx_flags & IXGBE_TX_FLAGS_CSUM)
 		olinfo_status |= IXGBE_TXD_POPTS_TXSM <<
 		                 IXGBE_ADVTXD_POPTS_SHIFT;
+
+	if (tx_flags & IXGBE_TX_FLAGS_FCOE) {
+		olinfo_status |= IXGBE_ADVTXD_CC;
+		olinfo_status |= (1 << IXGBE_ADVTXD_IDX_SHIFT);
+		if (tx_flags & IXGBE_TX_FLAGS_FSO)
+			cmd_type_len |= IXGBE_ADVTXD_DCMD_TSE;
+	}
 
 	olinfo_status |= ((paylen - hdr_len) << IXGBE_ADVTXD_PAYLEN_SHIFT);
 
@@ -4615,10 +4647,16 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	}
-	/* three things can cause us to need a context descriptor */
+
+	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
+	    (skb->protocol == htons(ETH_P_FCOE)))
+		tx_flags |= IXGBE_TX_FLAGS_FCOE;
+
+	/* four things can cause us to need a context descriptor */
 	if (skb_is_gso(skb) ||
 	    (skb->ip_summed == CHECKSUM_PARTIAL) ||
-	    (tx_flags & IXGBE_TX_FLAGS_VLAN))
+	    (tx_flags & IXGBE_TX_FLAGS_VLAN) ||
+	    (tx_flags & IXGBE_TX_FLAGS_FCOE))
 		count++;
 
 	count += TXD_USE_COUNT(skb_headlen(skb));
@@ -4630,23 +4668,35 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	if (skb->protocol == htons(ETH_P_IP))
-		tx_flags |= IXGBE_TX_FLAGS_IPV4;
 	first = tx_ring->next_to_use;
-	tso = ixgbe_tso(adapter, tx_ring, skb, tx_flags, &hdr_len);
-	if (tso < 0) {
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
+	if (tx_flags & IXGBE_TX_FLAGS_FCOE) {
+#ifdef IXGBE_FCOE
+		/* setup tx offload for FCoE */
+		tso = ixgbe_fso(adapter, tx_ring, skb, tx_flags, &hdr_len);
+		if (tso < 0) {
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
+		if (tso)
+			tx_flags |= IXGBE_TX_FLAGS_FSO;
+#endif /* IXGBE_FCOE */
+	} else {
+		if (skb->protocol == htons(ETH_P_IP))
+			tx_flags |= IXGBE_TX_FLAGS_IPV4;
+		tso = ixgbe_tso(adapter, tx_ring, skb, tx_flags, &hdr_len);
+		if (tso < 0) {
+			dev_kfree_skb_any(skb);
+			return NETDEV_TX_OK;
+		}
+
+		if (tso)
+			tx_flags |= IXGBE_TX_FLAGS_TSO;
+		else if (ixgbe_tx_csum(adapter, tx_ring, skb, tx_flags) &&
+			 (skb->ip_summed == CHECKSUM_PARTIAL))
+			tx_flags |= IXGBE_TX_FLAGS_CSUM;
 	}
 
-	if (tso)
-		tx_flags |= IXGBE_TX_FLAGS_TSO;
-	else if (ixgbe_tx_csum(adapter, tx_ring, skb, tx_flags) &&
-	         (skb->ip_summed == CHECKSUM_PARTIAL))
-		tx_flags |= IXGBE_TX_FLAGS_CSUM;
-
-	count = ixgbe_tx_map(adapter, tx_ring, skb, first);
-
+	count = ixgbe_tx_map(adapter, tx_ring, skb, tx_flags, first);
 	if (count) {
 		ixgbe_tx_queue(adapter, tx_ring, tx_flags, count, skb->len,
 		               hdr_len);
@@ -4794,6 +4844,9 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	const struct ixgbe_info *ii = ixgbe_info_tbl[ent->driver_data];
 	static int cards_found;
 	int i, err, pci_using_dac;
+#ifdef IXGBE_FCOE
+	u16 device_caps;
+#endif
 	u32 part_num, eec;
 
 	err = pci_enable_device_mem(pdev);
@@ -4976,6 +5029,19 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	netdev->dcbnl_ops = &dcbnl_ops;
 #endif
 
+#ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+		if (hw->mac.ops.get_device_caps) {
+			hw->mac.ops.get_device_caps(hw, &device_caps);
+			if (!(device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)) {
+				netdev->features |= NETIF_F_FCOE_CRC;
+				netdev->features |= NETIF_F_FSO;
+			} else {
+				adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
+			}
+		}
+	}
+#endif /* IXGBE_FCOE */
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
