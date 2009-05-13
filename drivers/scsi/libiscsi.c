@@ -257,9 +257,11 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_task *task)
 	itt_t itt;
 	int rc;
 
-	rc = conn->session->tt->alloc_pdu(task, ISCSI_OP_SCSI_CMD);
-	if (rc)
-		return rc;
+	if (conn->session->tt->alloc_pdu) {
+		rc = conn->session->tt->alloc_pdu(task, ISCSI_OP_SCSI_CMD);
+		if (rc)
+			return rc;
+	}
 	hdr = (struct iscsi_cmd *) task->hdr;
 	itt = hdr->itt;
 	memset(hdr, 0, sizeof(*hdr));
@@ -566,11 +568,14 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 	} else
 		task->data_count = 0;
 
-	if (conn->session->tt->alloc_pdu(task, hdr->opcode)) {
-		iscsi_conn_printk(KERN_ERR, conn, "Could not allocate "
-				 "pdu for mgmt task.\n");
-		goto requeue_task;
+	if (conn->session->tt->alloc_pdu) {
+		if (conn->session->tt->alloc_pdu(task, hdr->opcode)) {
+			iscsi_conn_printk(KERN_ERR, conn, "Could not allocate "
+					 "pdu for mgmt task.\n");
+			goto requeue_task;
+		}
 	}
+
 	itt = task->hdr->itt;
 	task->hdr_len = sizeof(struct iscsi_hdr);
 	memcpy(task->hdr, hdr, sizeof(struct iscsi_hdr));
