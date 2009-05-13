@@ -61,7 +61,8 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = netdev_priv(pdev);
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	mutex_lock(&ppriv->vlan_mutex);
 
 	/*
@@ -167,7 +168,8 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = netdev_priv(pdev);
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	mutex_lock(&ppriv->vlan_mutex);
 	list_for_each_entry_safe(priv, tpriv, &ppriv->child_intfs, list) {
 		if (priv->pkey == pkey) {
