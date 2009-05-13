@@ -637,7 +637,12 @@ int init_ivtv_i2c(struct ivtv *itv)
 		   That's why we probe 0x1a (~0x34) first. CB
 		*/
 		const unsigned short addr_list[] = {
-			0x1a, 0x18, 0x64, 0x30,
+			0x1a,	/* Hauppauge IR external */
+			0x18,	/* Hauppauge IR internal */
+			0x71,	/* Hauppauge IR (PVR150) */
+			0x64,	/* Pixelview IR */
+			0x30,	/* KNC ONE IR */
+			0x6b,	/* Adaptec IR */
 			I2C_CLIENT_END
 		};
 
