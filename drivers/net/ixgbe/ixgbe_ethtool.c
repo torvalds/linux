@@ -91,6 +91,14 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"alloc_rx_page_failed", IXGBE_STAT(alloc_rx_page_failed)},
 	{"alloc_rx_buff_failed", IXGBE_STAT(alloc_rx_buff_failed)},
 	{"rx_no_dma_resources", IXGBE_STAT(hw_rx_no_dma_resources)},
+#ifdef IXGBE_FCOE
+	{"fcoe_bad_fccrc", IXGBE_STAT(stats.fccrc)},
+	{"rx_fcoe_dropped", IXGBE_STAT(stats.fcoerpdc)},
+	{"rx_fcoe_packets", IXGBE_STAT(stats.fcoeprc)},
+	{"rx_fcoe_dwords", IXGBE_STAT(stats.fcoedwrc)},
+	{"tx_fcoe_packets", IXGBE_STAT(stats.fcoeptc)},
+	{"tx_fcoe_dwords", IXGBE_STAT(stats.fcoedwtc)},
+#endif /* IXGBE_FCOE */
 };
 
 #define IXGBE_QUEUE_STATS_LEN \

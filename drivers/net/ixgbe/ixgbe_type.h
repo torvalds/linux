@@ -2157,6 +2157,12 @@ struct ixgbe_hw_stats {
 	u64 fdirfstat_fremove;
 	u64 fdirmatch;
 	u64 fdirmiss;
+	u64 fccrc;
+	u64 fcoerpdc;
+	u64 fcoeprc;
+	u64 fcoeptc;
+	u64 fcoedwrc;
+	u64 fcoedwtc;
 };
 
 /* forward declaration */
