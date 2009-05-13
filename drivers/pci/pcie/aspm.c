@@ -105,7 +105,7 @@ static int policy_to_clkpm_state(struct pcie_link_state *link)
 	return 0;
 }
 
-static void pcie_set_clock_pm(struct pcie_link_state *link, int enable)
+static void pcie_set_clkpm_nocheck(struct pcie_link_state *link, int enable)
 {
 	int pos;
 	u16 reg16;
@@ -124,6 +124,17 @@ static void pcie_set_clock_pm(struct pcie_link_state *link, int enable)
 		pci_write_config_word(child, pos + PCI_EXP_LNKCTL, reg16);
 	}
 	link->clkpm_enabled = !!enable;
+}
+
+static void pcie_set_clkpm(struct pcie_link_state *link, int enable)
+{
+	/* Don't enable Clock PM if the link is not Clock PM capable */
+	if (!link->clkpm_capable && enable)
+		return;
+	/* Need nothing if the specified equals to current state */
+	if (link->clkpm_enabled == enable)
+		return;
+	pcie_set_clkpm_nocheck(link, enable);
 }
 
 static void pcie_clkpm_cap_init(struct pcie_link_state *link, int blacklist)
@@ -660,7 +671,7 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 
 	/* Setup initial Clock PM state */
 	state = (link->clkpm_capable) ? policy_to_clkpm_state(link) : 0;
-	pcie_set_clock_pm(link, state);
+	pcie_set_clkpm(link, state);
 unlock:
 	mutex_unlock(&aspm_lock);
 out:
@@ -738,12 +749,11 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 	mutex_lock(&aspm_lock);
 	link_state = parent->link_state;
 	link_state->aspm_support &= ~state;
-	if (state & PCIE_LINK_STATE_CLKPM)
-		link_state->clkpm_capable = 0;
-
 	__pcie_aspm_configure_link_state(link_state, link_state->aspm_enabled);
-	if (!link_state->clkpm_capable && link_state->clkpm_enabled)
-		pcie_set_clock_pm(link_state, 0);
+	if (state & PCIE_LINK_STATE_CLKPM) {
+		link_state->clkpm_capable = 0;
+		pcie_set_clkpm(link_state, 0);
+	}
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
 }
@@ -768,11 +778,7 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 	list_for_each_entry(link_state, &link_list, sibling) {
 		__pcie_aspm_configure_link_state(link_state,
 			policy_to_aspm_state(link_state));
-		if (link_state->clkpm_capable &&
-		    link_state->clkpm_enabled != policy_to_clkpm_state(link_state))
-			pcie_set_clock_pm(link_state,
-					  policy_to_clkpm_state(link_state));
-
+		pcie_set_clkpm(link_state, policy_to_clkpm_state(link_state));
 	}
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
@@ -839,7 +845,7 @@ static ssize_t clk_ctl_store(struct device *dev,
 		const char *buf,
 		size_t n)
 {
-	struct pci_dev *pci_device = to_pci_dev(dev);
+	struct pci_dev *pdev = to_pci_dev(dev);
 	int state;
 
 	if (n < 1)
@@ -848,7 +854,7 @@ static ssize_t clk_ctl_store(struct device *dev,
 
 	down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-	pcie_set_clock_pm(pci_device->link_state, !!state);
+	pcie_set_clkpm_nocheck(pdev->link_state, !!state);
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
 
