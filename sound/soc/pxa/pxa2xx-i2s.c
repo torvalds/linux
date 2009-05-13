@@ -176,9 +176,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	/* is port used by another stream */
 	if (!(SACR0 & SACR0_ENB)) {
-
 		SACR0 = 0;
-		SACR1 = 0;
 		if (pxa_i2s.master)
 			SACR0 |= SACR0_BCKD;
 
@@ -224,6 +222,10 @@ static int pxa2xx_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			SACR1 &= ~SACR1_DRPL;
+		else
+			SACR1 &= ~SACR1_DREC;
 		SACR0 |= SACR0_ENB;
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
@@ -250,7 +252,7 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 		SAIMR &= ~SAIMR_RFS;
 	}
 
-	if (SACR1 & (SACR1_DREC | SACR1_DRPL)) {
+	if ((SACR1 & (SACR1_DREC | SACR1_DRPL)) == (SACR1_DREC | SACR1_DRPL)) {
 		SACR0 &= ~SACR0_ENB;
 		pxa_i2s_wait();
 		clk_disable(clk_i2s);
