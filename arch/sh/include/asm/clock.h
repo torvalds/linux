@@ -34,7 +34,9 @@ struct clk {
 
 	unsigned long		rate;
 	unsigned long		flags;
+
 	unsigned long		arch_flags;
+	void			*priv;
 };
 
 struct clk_lookup {

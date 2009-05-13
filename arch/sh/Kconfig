@@ -514,7 +514,7 @@ config SH_PCLK_FREQ
 	  platforms lacking an RTC.
 
 config SH_CLK_CPG_LEGACY
-	def_bool y
+	def_bool y if !CPU_SUBTYPE_SH7785
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"

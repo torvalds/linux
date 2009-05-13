@@ -2,12 +2,12 @@
  * Renesas Technology Corp. R0P7785LC0011RL Support.
  *
  * Copyright (C) 2008  Yoshihiro Shimoda
+ * Copyright (C) 2009  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/sm501.h>
@@ -19,8 +19,11 @@
 #include <linux/i2c-pca-platform.h>
 #include <linux/i2c-algo-pca.h>
 #include <linux/irq.h>
-#include <asm/heartbeat.h>
+#include <linux/clk.h>
+#include <linux/errno.h>
 #include <mach/sh7785lcr.h>
+#include <asm/heartbeat.h>
+#include <asm/clock.h>
 
 /*
  * NOTE: This board has 2 physical memory maps.
@@ -273,6 +276,20 @@ void __init init_sh7785lcr_IRQ(void)
 	plat_irq_setup_pins(IRQ_MODE_IRQ3210);
 }
 
+static int sh7785lcr_clk_init(void)
+{
+	struct clk *clk;
+	int ret;
+
+	clk = clk_get(NULL, "extal");
+	if (!clk || IS_ERR(clk))
+		return PTR_ERR(clk);
+	ret = clk_set_rate(clk, 33333333);
+	clk_put(clk);
+
+	return ret;
+}
+
 static void sh7785lcr_power_off(void)
 {
 	unsigned char *p;
@@ -309,6 +326,7 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 static struct sh_machine_vector mv_sh7785lcr __initmv = {
 	.mv_name		= "SH7785LCR",
 	.mv_setup		= sh7785lcr_setup,
+	.mv_clk_init		= sh7785lcr_clk_init,
 	.mv_init_irq		= init_sh7785lcr_IRQ,
 };
 
