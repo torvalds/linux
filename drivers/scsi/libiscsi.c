@@ -546,6 +546,9 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 		 */
 		task = conn->login_task;
 	else {
+		if (session->state != ISCSI_STATE_LOGGED_IN)
+			return NULL;
+
 		BUG_ON(conn->c_stage == ISCSI_CONN_INITIAL_STAGE);
 		BUG_ON(conn->c_stage == ISCSI_CONN_STOPPED);
 
@@ -2566,8 +2569,6 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 {
 	int old_stop_stage;
 
-	del_timer_sync(&conn->transport_timer);
-
 	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
 	if (conn->stop_stage == STOP_CONN_TERM) {
@@ -2585,13 +2586,17 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 		session->state = ISCSI_STATE_TERMINATE;
 	else if (conn->stop_stage != STOP_CONN_RECOVER)
 		session->state = ISCSI_STATE_IN_RECOVERY;
+	spin_unlock_bh(&session->lock);
 
+	del_timer_sync(&conn->transport_timer);
+	iscsi_suspend_tx(conn);
+
+	spin_lock_bh(&session->lock);
 	old_stop_stage = conn->stop_stage;
 	conn->stop_stage = flag;
 	conn->c_stage = ISCSI_CONN_STOPPED;
 	spin_unlock_bh(&session->lock);
 
-	iscsi_suspend_tx(conn);
 	/*
 	 * for connection level recovery we should not calculate
 	 * header digest. conn->hdr_size used for optimization
