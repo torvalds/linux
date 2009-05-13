@@ -765,8 +765,13 @@ out:
 	/*
 	 * Restore - do not reenable when global enable is off or throttled:
 	 */
-	if (++cpuc->interrupts < PERFMON_MAX_INTERRUPTS)
-		intel_pmu_restore_all(cpuc->throttle_ctrl);
+	if (cpuc->throttle_ctrl) {
+		if (++cpuc->interrupts < PERFMON_MAX_INTERRUPTS) {
+			intel_pmu_restore_all(cpuc->throttle_ctrl);
+		} else {
+			pr_info("CPU#%d: perfcounters: max interrupt rate exceeded! Throttle on.\n", smp_processor_id());
+		}
+	}
 
 	return ret;
 }
@@ -817,11 +822,16 @@ void perf_counter_unthrottle(void)
 
 	cpuc = &__get_cpu_var(cpu_hw_counters);
 	if (cpuc->interrupts >= PERFMON_MAX_INTERRUPTS) {
-		if (printk_ratelimit())
-			printk(KERN_WARNING "perfcounters: max interrupts exceeded!\n");
+		pr_info("CPU#%d: perfcounters: throttle off.\n", smp_processor_id());
+
+		/*
+		 * Clear them before re-enabling irqs/NMIs again:
+		 */
+		cpuc->interrupts = 0;
 		hw_perf_restore(cpuc->throttle_ctrl);
+	} else {
+		cpuc->interrupts = 0;
 	}
-	cpuc->interrupts = 0;
 }
 
 void smp_perf_counter_interrupt(struct pt_regs *regs)
