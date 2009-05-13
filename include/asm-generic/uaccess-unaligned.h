@@ -1,5 +1,5 @@
-#ifndef _ASM_GENERIC_UACCESS_H_
-#define _ASM_GENERIC_UACCESS_H_
+#ifndef __ASM_GENERIC_UACCESS_UNALIGNED_H
+#define __ASM_GENERIC_UACCESS_UNALIGNED_H
 
 /*
  * This macro should be used instead of __get_user() when accessing
@@ -23,4 +23,4 @@
 	__copy_to_user((ptr), &__x, sizeof(*(ptr))) ? -EFAULT : 0;	\
 })
 
-#endif /* _ASM_GENERIC_UACCESS_H */
+#endif /* __ASM_GENERIC_UACCESS_UNALIGNED_H */

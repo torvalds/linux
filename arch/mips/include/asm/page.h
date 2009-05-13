@@ -189,6 +189,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define CAC_ADDR(addr)		((addr) - UNCAC_BASE + PAGE_OFFSET)
 
 #include <asm-generic/memory_model.h>
-#include <asm-generic/page.h>
+#include <asm-generic/getorder.h>
 
 #endif /* _ASM_PAGE_H */

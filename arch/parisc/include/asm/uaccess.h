@@ -7,7 +7,7 @@
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/cache.h>
-#include <asm-generic/uaccess.h>
+#include <asm-generic/uaccess-unaligned.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1

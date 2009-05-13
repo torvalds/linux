@@ -1,12 +1,12 @@
-#ifndef _ASM_GENERIC_PAGE_H
-#define _ASM_GENERIC_PAGE_H
+#ifndef __ASM_GENERIC_GETORDER_H
+#define __ASM_GENERIC_GETORDER_H
 
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
 
 /* Pure 2^n version of get_order */
-static __inline__ __attribute_const__ int get_order(unsigned long size)
+static inline __attribute_const__ int get_order(unsigned long size)
 {
 	int order;
 
@@ -21,4 +21,4 @@ static __inline__ __attribute_const__ int get_order(unsigned long size)
 
 #endif	/* __ASSEMBLY__ */
 
-#endif	/* _ASM_GENERIC_PAGE_H */
+#endif	/* __ASM_GENERIC_GETORDER_H */
