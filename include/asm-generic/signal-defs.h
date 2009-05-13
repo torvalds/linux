@@ -1,5 +1,5 @@
-#ifndef __ASM_GENERIC_SIGNAL_H
-#define __ASM_GENERIC_SIGNAL_H
+#ifndef __ASM_GENERIC_SIGNAL_DEFS_H
+#define __ASM_GENERIC_SIGNAL_DEFS_H
 
 #include <linux/compiler.h>
 
@@ -25,4 +25,4 @@ typedef __restorefn_t __user *__sigrestore_t;
 #define SIG_ERR	((__force __sighandler_t)-1)	/* error return from signal */
 #endif
 
-#endif /* __ASM_GENERIC_SIGNAL_H */
+#endif /* __ASM_GENERIC_SIGNAL_DEFS_H */

@@ -1,8 +1,8 @@
 /* termios.h: generic termios/termio user copying/translation
  */
 
-#ifndef _ASM_GENERIC_TERMIOS_H
-#define _ASM_GENERIC_TERMIOS_H
+#ifndef _ASM_GENERIC_TERMIOS_BASE_H
+#define _ASM_GENERIC_TERMIOS_BASE_H
 
 #include <asm/uaccess.h>
 
@@ -74,4 +74,4 @@ static inline int kernel_termios_to_user_termio(struct termio __user *termio,
 
 #endif	/* __ARCH_TERMIO_GETPUT */
 
-#endif /* _ASM_GENERIC_TERMIOS_H */
+#endif /* _ASM_GENERIC_TERMIOS_BASE_H */

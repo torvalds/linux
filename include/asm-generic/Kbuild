@@ -2,9 +2,9 @@ header-y += errno-base.h
 header-y += errno.h
 header-y += fcntl.h
 header-y += ioctl.h
-header-y += mman.h
+header-y += mman-common.h
 header-y += poll.h
-header-y += signal.h
+header-y += signal-defs.h
 header-y += statfs.h
 
 unifdef-y += int-l64.h

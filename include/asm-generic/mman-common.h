@@ -1,5 +1,5 @@
-#ifndef _ASM_GENERIC_MMAN_H
-#define _ASM_GENERIC_MMAN_H
+#ifndef __ASM_GENERIC_MMAN_COMMON_H
+#define __ASM_GENERIC_MMAN_COMMON_H
 
 /*
  Author: Michael S. Tsirkin <mst@mellanox.co.il>, Mellanox Technologies Ltd.
@@ -38,4 +38,4 @@
 /* compatibility flags */
 #define MAP_FILE	0
 
-#endif
+#endif /* __ASM_GENERIC_MMAN_COMMON_H */
