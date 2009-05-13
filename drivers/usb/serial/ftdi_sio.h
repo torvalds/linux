@@ -33,6 +33,9 @@
 #define FTDI_NF_RIC_PID	0x0001	/* Product Id */
 #define FTDI_USBX_707_PID 0xF857	/* ADSTech IR Blaster USBX-707 */
 
+/* Larsen and Brusgaard AltiTrack/USBtrack  */
+#define LARSENBRUSGAARD_VID		0x0FD8
+#define LB_ALTITRACK_PID		0x0001
 
 /* www.canusb.com Lawicel CANUSB device */
 #define FTDI_CANUSB_PID 0xFFA8 /* Product Id */
