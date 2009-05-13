@@ -38,6 +38,7 @@ struct clk {
 
 	unsigned long		arch_flags;
 	void			*priv;
+	struct dentry		*dentry;
 };
 
 struct clk_lookup {
