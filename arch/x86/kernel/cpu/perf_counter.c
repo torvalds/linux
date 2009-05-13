@@ -138,7 +138,9 @@ static u64
 x86_perf_counter_update(struct perf_counter *counter,
 			struct hw_perf_counter *hwc, int idx)
 {
-	u64 prev_raw_count, new_raw_count, delta;
+	int shift = 64 - x86_pmu.counter_bits;
+	u64 prev_raw_count, new_raw_count;
+	s64 delta;
 
 	/*
 	 * Careful: an NMI might modify the previous counter value.
@@ -161,9 +163,10 @@ again:
 	 * (counter-)time and add that to the generic counter.
 	 *
 	 * Careful, not all hw sign-extends above the physical width
-	 * of the count, so we do that by clipping the delta to 32 bits:
+	 * of the count.
 	 */
-	delta = (u64)(u32)((s32)new_raw_count - (s32)prev_raw_count);
+	delta = (new_raw_count << shift) - (prev_raw_count << shift);
+	delta >>= shift;
 
 	atomic64_add(delta, &counter->count);
 	atomic64_sub(delta, &hwc->period_left);
