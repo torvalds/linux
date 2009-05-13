@@ -336,6 +336,9 @@ struct ixgbe_adapter {
 	struct timer_list sfp_timer;
 	struct work_struct multispeed_fiber_task;
 	struct work_struct sfp_config_module_task;
+#ifdef IXGBE_FCOE
+	struct ixgbe_fcoe fcoe;
+#endif /* IXGBE_FCOE */
 	u64 rsc_count;
 	u32 wol;
 	u16 eeprom_version;

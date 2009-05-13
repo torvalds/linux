@@ -54,7 +54,7 @@ struct ixgbe_fcoe_ddp {
 	unsigned int sgc;
 	struct scatterlist *sgl;
 	dma_addr_t udp;
-	unsigned long *udl;
+	u64 *udl;
 };
 
 struct ixgbe_fcoe {
