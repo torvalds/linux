@@ -2509,7 +2509,7 @@ static void strip_dev_setup(struct net_device *dev)
 	 *  netdev_priv(dev) Already holds a pointer to our struct strip
 	 */
 
-	*(MetricomAddress *) & dev->broadcast = broadcast_address;
+	*(MetricomAddress *)dev->broadcast = broadcast_address;
 	dev->dev_addr[0] = 0;
 	dev->addr_len = sizeof(MetricomAddress);
 
