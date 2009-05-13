@@ -370,56 +370,39 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 	}
 }
 
-static unsigned int __pcie_aspm_check_state_one(struct pci_dev *pdev,
-	unsigned int state)
+/**
+ * __pcie_aspm_check_state_one - check latency for endpoint device.
+ * @endpoint: pointer to the struct pci_dev of endpoint device
+ *
+ * TBD: The latency from the endpoint to root complex vary per switch's
+ * upstream link state above the device. Here we just do a simple check
+ * which assumes all links above the device can be in L1 state, that
+ * is we just consider the worst case. If switch's upstream link can't
+ * be put into L0S/L1, then our check is too strictly.
+ */
+static u32 __pcie_aspm_check_state_one(struct pci_dev *endpoint, u32 state)
 {
-	struct pci_dev *parent_dev, *tmp_dev;
-	unsigned int l1_latency = 0;
-	struct pcie_link_state *link_state;
+	u32 l1_switch_latency = 0;
 	struct aspm_latency *acceptable;
+	struct pcie_link_state *link;
 
-	parent_dev = pdev->bus->self;
-	link_state = parent_dev->link_state;
-	state &= link_state->aspm_support;
-	if (state == 0)
-		return 0;
-	acceptable = &link_state->acceptable[PCI_FUNC(pdev->devfn)];
+	link = endpoint->bus->self->link_state;
+	state &= link->aspm_support;
+	acceptable = &link->acceptable[PCI_FUNC(endpoint->devfn)];
 
-	/*
-	 * Check latency for endpoint device.
-	 * TBD: The latency from the endpoint to root complex vary per
-	 * switch's upstream link state above the device. Here we just do a
-	 * simple check which assumes all links above the device can be in L1
-	 * state, that is we just consider the worst case. If switch's upstream
-	 * link can't be put into L0S/L1, then our check is too strictly.
-	 */
-	tmp_dev = pdev;
-	while (state & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1)) {
-		parent_dev = tmp_dev->bus->self;
-		link_state = parent_dev->link_state;
+	while (link && state) {
 		if ((state & PCIE_LINK_STATE_L0S) &&
-		    (link_state->latency.l0s > acceptable->l0s))
+		    (link->latency.l0s > acceptable->l0s))
 			state &= ~PCIE_LINK_STATE_L0S;
-
 		if ((state & PCIE_LINK_STATE_L1) &&
-		    (link_state->latency.l1 + l1_latency > acceptable->l1))
+		    (link->latency.l1 + l1_switch_latency > acceptable->l1))
 			state &= ~PCIE_LINK_STATE_L1;
-
-		if (!parent_dev->bus->self) /* parent_dev is a root port */
-			break;
-		else {
-			/*
-			 * parent_dev is the downstream port of a switch, make
-			 * tmp_dev the upstream port of the switch
-			 */
-			tmp_dev = parent_dev->bus->self;
-			/*
-			 * every switch on the path to root complex need 1 more
-			 * microsecond for L1. Spec doesn't mention L0S.
-			 */
-			if (state & PCIE_LINK_STATE_L1)
-				l1_latency += 1000;
-		}
+		link = link->parent;
+		/*
+		 * Every switch on the path to root complex need 1
+		 * more microsecond for L1. Spec doesn't mention L0s.
+		 */
+		l1_switch_latency += 1000;
 	}
 	return state;
 }
