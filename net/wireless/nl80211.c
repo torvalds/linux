@@ -2570,15 +2570,19 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
-	if (!reg_is_valid_request(alpha2))
-		return -EINVAL;
+	if (!reg_is_valid_request(alpha2)) {
+		r = -EINVAL;
+		goto bad_reg;
+	}
 
 	size_of_regd = sizeof(struct ieee80211_regdomain) +
 		(num_rules * sizeof(struct ieee80211_reg_rule));
 
 	rd = kzalloc(size_of_regd, GFP_KERNEL);
-	if (!rd)
-		return -ENOMEM;
+	if (!rd) {
+		r = -ENOMEM;
+		goto bad_reg;
+	}
 
 	rd->n_reg_rules = num_rules;
 	rd->alpha2[0] = alpha2[0];
@@ -2595,8 +2599,10 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 
 		rule_idx++;
 
-		if (rule_idx > NL80211_MAX_SUPP_REG_RULES)
+		if (rule_idx > NL80211_MAX_SUPP_REG_RULES) {
+			r = -EINVAL;
 			goto bad_reg;
+		}
 	}
 
 	BUG_ON(rule_idx != num_rules);
@@ -2604,11 +2610,12 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 	mutex_lock(&cfg80211_mutex);
 	r = set_regdom(rd);
 	mutex_unlock(&cfg80211_mutex);
+
 	return r;
 
  bad_reg:
 	kfree(rd);
-	return -EINVAL;
+	return r;
 }
 
 static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
