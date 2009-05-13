@@ -89,7 +89,7 @@ static int __init h1940bt_probe(struct platform_device *pdev)
 	/* Configures BT serial port GPIOs */
 	s3c2410_gpio_cfgpin(S3C2410_GPH0, S3C2410_GPH0_nCTS0);
 	s3c2410_gpio_pullup(S3C2410_GPH0, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPH1, S3C2410_GPH1_OUTP);
+	s3c2410_gpio_cfgpin(S3C2410_GPH1, S3C2410_GPIO_OUTPUT);
 	s3c2410_gpio_pullup(S3C2410_GPH1, 1);
 	s3c2410_gpio_cfgpin(S3C2410_GPH2, S3C2410_GPH2_TXD0);
 	s3c2410_gpio_pullup(S3C2410_GPH2, 1);

@@ -355,7 +355,7 @@ static struct clk *vr1000_clocks[] __initdata = {
 
 static void vr1000_power_off(void)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPB9, S3C2410_GPB9_OUTP);
+	s3c2410_gpio_cfgpin(S3C2410_GPB9, S3C2410_GPIO_OUTPUT);
 	s3c2410_gpio_setpin(S3C2410_GPB9, 1);
 }
 

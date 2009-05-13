@@ -292,7 +292,7 @@ static int osiris_pm_suspend(struct sys_device *sd, pm_message_t state)
 
 	/* ensure that an nRESET is not generated on resume. */
 	s3c2410_gpio_setpin(S3C2410_GPA21, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_OUT);
+	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPIO_OUTPUT);
 
 	return 0;
 }

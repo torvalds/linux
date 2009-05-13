@@ -109,7 +109,7 @@ int usb_simtec_init(void)
 	printk("USB Power Control, (c) 2004 Simtec Electronics\n");
 	s3c_device_usb.dev.platform_data = &usb_simtec_info;
 
-	s3c2410_gpio_cfgpin(S3C2410_GPB4, S3C2410_GPB4_OUTP);
+	s3c2410_gpio_cfgpin(S3C2410_GPB4, S3C2410_GPIO_OUTPUT);
 	s3c2410_gpio_setpin(S3C2410_GPB4, 1);
 	return 0;
 }
