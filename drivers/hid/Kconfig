@@ -256,6 +256,21 @@ config GREENASIA_FF
 	(like MANTA Warrior MM816 and SpeedLink Strike2 SL-6635) or adapter
 	and want to enable force feedback support for it.
 
+config HID_SMARTJOYPLUS
+	tristate "SmartJoy PLUS PS2/USB adapter support" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for SmartJoy PLUS PS2/USB adapter.
+
+config SMARTJOYPLUS_FF
+	bool "SmartJoy PLUS PS2/USB adapter force feedback support"
+	depends on HID_SMARTJOYPLUS
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have a SmartJoy PLUS PS2/USB adapter and want to
+	enable force feedback support for it.
+
 config HID_TOPSEED
 	tristate "TopSeed Cyberlink remote control support" if EMBEDDED
 	depends on USB_HID
