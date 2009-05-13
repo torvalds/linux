@@ -257,11 +257,8 @@ static void iscsi_iser_cleanup_task(struct iscsi_task *task)
 {
 	struct iscsi_iser_task *iser_task = task->dd_data;
 
-	/*
-	 * mgmt tasks do not need special cleanup and we do not
-	 * allocate anything in the init task callout
-	 */
-	if (!task->sc || task->state == ISCSI_TASK_PENDING)
+	/* mgmt tasks do not need special cleanup */
+	if (!task->sc)
 		return;
 
 	if (iser_task->status == ISER_TASK_STATUS_STARTED) {

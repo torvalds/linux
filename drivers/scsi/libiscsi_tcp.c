@@ -440,8 +440,8 @@ void iscsi_tcp_cleanup_task(struct iscsi_task *task)
 	struct iscsi_tcp_task *tcp_task = task->dd_data;
 	struct iscsi_r2t_info *r2t;
 
-	/* nothing to do for mgmt or pending tasks */
-	if (!task->sc || task->state == ISCSI_TASK_PENDING)
+	/* nothing to do for mgmt */
+	if (!task->sc)
 		return;
 
 	/* flush task's r2t queues */

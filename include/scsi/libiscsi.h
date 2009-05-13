@@ -86,6 +86,8 @@ enum {
 	ISCSI_TASK_COMPLETED,
 	ISCSI_TASK_PENDING,
 	ISCSI_TASK_RUNNING,
+	ISCSI_TASK_ABRT_TMF,		/* aborted due to TMF */
+	ISCSI_TASK_ABRT_SESS_RECOV,	/* aborted due to session recovery */
 };
 
 struct iscsi_r2t_info {
