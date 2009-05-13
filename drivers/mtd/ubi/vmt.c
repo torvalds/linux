@@ -358,7 +358,8 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	ubi->vol_count += 1;
 	spin_unlock(&ubi->volumes_lock);
 
-	err = paranoid_check_volumes(ubi);
+	if (paranoid_check_volumes(ubi))
+		dbg_err("check failed while creating volume %d", vol_id);
 	return err;
 
 out_sysfs:
@@ -465,8 +466,9 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 	ubi->vol_count -= 1;
 	spin_unlock(&ubi->volumes_lock);
 
-	if (!no_vtbl)
-		err = paranoid_check_volumes(ubi);
+	if (!no_vtbl && paranoid_check_volumes(ubi))
+		dbg_err("check failed while removing volume %d", vol_id);
+
 	return err;
 
 out_err:
@@ -587,7 +589,8 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 			(long long)vol->used_ebs * vol->usable_leb_size;
 	}
 
-	err = paranoid_check_volumes(ubi);
+	if (paranoid_check_volumes(ubi))
+		dbg_err("check failed while re-sizing volume %d", vol_id);
 	return err;
 
 out_acc:
@@ -635,8 +638,8 @@ int ubi_rename_volumes(struct ubi_device *ubi, struct list_head *rename_list)
 		}
 	}
 
-	if (!err)
-		err = paranoid_check_volumes(ubi);
+	if (!err && paranoid_check_volumes(ubi))
+		;
 	return err;
 }
 
@@ -688,7 +691,8 @@ int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 		return err;
 	}
 
-	err = paranoid_check_volumes(ubi);
+	if (paranoid_check_volumes(ubi))
+		dbg_err("check failed while adding volume %d", vol_id);
 	return err;
 
 out_gluebi:
