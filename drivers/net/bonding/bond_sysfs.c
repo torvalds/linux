@@ -251,7 +251,8 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 	/* Note:  We can't hold bond->lock here, as bond_create grabs it. */
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	down_write(&(bonding_rwsem));
 
 	sscanf(buffer, "%16s", command); /* IFNAMSIZ*/
@@ -1171,7 +1172,8 @@ static ssize_t bonding_store_primary(struct device *d,
 	struct slave *slave;
 	struct bonding *bond = to_bond(d);
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
@@ -1288,7 +1290,8 @@ static ssize_t bonding_store_active_slave(struct device *d,
         struct slave *new_active = NULL;
 	struct bonding *bond = to_bond(d);
 
-	rtnl_lock();
+	if (!rtnl_trylock())
+		return restart_syscall();
 	read_lock(&bond->lock);
 	write_lock_bh(&bond->curr_slave_lock);
 
