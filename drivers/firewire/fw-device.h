@@ -80,6 +80,7 @@ struct fw_device {
 	u32 *config_rom;
 	size_t config_rom_length;
 	int config_rom_retries;
+	unsigned is_local:1;
 	unsigned cmc:1;
 	unsigned bc_implemented:2;
 

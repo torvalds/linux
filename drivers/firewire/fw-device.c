@@ -1042,6 +1042,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		device->node = fw_node_get(node);
 		device->node_id = node->node_id;
 		device->generation = card->generation;
+		device->is_local = node == card->local_node;
 		mutex_init(&device->client_list_mutex);
 		INIT_LIST_HEAD(&device->client_list);
 
@@ -1075,7 +1076,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 			    FW_DEVICE_INITIALIZING) == FW_DEVICE_RUNNING) {
 			PREPARE_DELAYED_WORK(&device->work, fw_device_refresh);
 			schedule_delayed_work(&device->work,
-				node == card->local_node ? 0 : INITIAL_DELAY);
+				device->is_local ? 0 : INITIAL_DELAY);
 		}
 		break;
 

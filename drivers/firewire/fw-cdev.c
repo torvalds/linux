@@ -739,15 +739,11 @@ static void release_descriptor(struct client *client,
 static int ioctl_add_descriptor(struct client *client, void *buffer)
 {
 	struct fw_cdev_add_descriptor *request = buffer;
-	struct fw_card *card = client->device->card;
 	struct descriptor_resource *r;
 	int ret;
 
 	/* Access policy: Allow this ioctl only on local nodes' device files. */
-	spin_lock_irq(&card->lock);
-	ret = client->device->node_id != card->local_node->node_id;
-	spin_unlock_irq(&card->lock);
-	if (ret)
+	if (!client->device->is_local)
 		return -ENOSYS;
 
 	if (request->length > 256)
