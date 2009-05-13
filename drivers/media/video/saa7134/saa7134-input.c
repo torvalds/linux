@@ -691,9 +691,6 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		I2C_CLIENT_END
 	};
 
-	const unsigned short addr_list_msi[] = {
-		0x30, I2C_CLIENT_END
-	};
 	struct i2c_msg msg_msi = {
 		.addr = 0x50,
 		.flags = I2C_M_RD,
@@ -747,6 +744,15 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		init_data.name = "MSI TV@nywhere Plus";
 		init_data.get_key = get_key_msi_tvanywhere_plus;
 		init_data.ir_codes = ir_codes_msi_tvanywhere_plus;
+		info.addr = 0x30;
+		/* MSI TV@nywhere Plus controller doesn't seem to
+		   respond to probes unless we read something from
+		   an existing device. Weird...
+		   REVISIT: might no longer be needed */
+		rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
+		dprintk(KERN_DEBUG "probe 0x%02x @ %s: %s\n",
+			msg_msi.addr, dev->i2c_adap.name,
+			(1 == rc) ? "yes" : "no");
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		init_data.name = "HVR 1110";
@@ -773,18 +779,14 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 
 	if (init_data.name)
 		info.platform_data = &init_data;
-	client = i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
-	if (client)
+	/* No need to probe if address is known */
+	if (info.addr) {
+		i2c_new_device(&dev->i2c_adap, &info);
 		return;
+	}
 
-	/* MSI TV@nywhere Plus controller doesn't seem to
-	   respond to probes unless we read something from
-	   an existing device. Weird... */
-	rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
-	dprintk(KERN_DEBUG "probe 0x%02x @ %s: %s\n",
-		msg_msi.addr, dev->i2c_adap.name,
-		(1 == rc) ? "yes" : "no");
-	client = i2c_new_probed_device(&dev->i2c_adap, &info, addr_list_msi);
+	/* Address not known, fallback to probing */
+	client = i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
 	if (client)
 		return;
 
