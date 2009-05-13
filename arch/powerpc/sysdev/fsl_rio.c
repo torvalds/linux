@@ -1026,8 +1026,7 @@ int fsl_rio_setup(struct of_device *dev)
 		return -EFAULT;
 	}
 	dev_info(&dev->dev, "Of-device full name %s\n", dev->node->full_name);
-	dev_info(&dev->dev, "Regs start 0x%08x size 0x%08x\n",	regs.start,
-						regs.end - regs.start + 1);
+	dev_info(&dev->dev, "Regs: %pR\n", &regs);
 
 	dt_range = of_get_property(dev->node, "ranges", &rlen);
 	if (!dt_range) {
