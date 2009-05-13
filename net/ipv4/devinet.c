@@ -1347,7 +1347,8 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 		struct net *net = ctl->extra2;
 
 		if (valp != &IPV4_DEVCONF_DFLT(net, FORWARDING)) {
-			rtnl_lock();
+			if (!rtnl_trylock())
+				return restart_syscall();
 			if (valp == &IPV4_DEVCONF_ALL(net, FORWARDING)) {
 				inet_forward_change(net);
 			} else if (*valp) {
