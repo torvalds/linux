@@ -334,6 +334,8 @@ static u64 amd_pmu_save_disable_all(void)
 	 * right thing.
 	 */
 	barrier();
+	if (!enabled)
+		goto out;
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		u64 val;
@@ -347,6 +349,7 @@ static u64 amd_pmu_save_disable_all(void)
 		wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
 	}
 
+out:
 	return enabled;
 }
 
@@ -787,32 +790,43 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 	int handled = 0;
 	struct perf_counter *counter;
 	struct hw_perf_counter *hwc;
-	int idx;
+	int idx, throttle = 0;
 
-	++cpuc->interrupts;
+	cpuc->throttle_ctrl = cpuc->enabled;
+	cpuc->enabled = 0;
+	barrier();
+
+	if (cpuc->throttle_ctrl) {
+		if (++cpuc->interrupts >= PERFMON_MAX_INTERRUPTS)
+			throttle = 1;
+	}
+
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
+		int disable = 0;
+
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
+
 		counter = cpuc->counters[idx];
 		hwc = &counter->hw;
 		val = x86_perf_counter_update(counter, hwc, idx);
 		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
-			continue;
+			goto next;
+
 		/* counter overflow */
 		x86_perf_counter_set_period(counter, hwc, idx);
 		handled = 1;
 		inc_irq_stat(apic_perf_irqs);
-		if (perf_counter_overflow(counter, nmi, regs, 0))
+		disable = perf_counter_overflow(counter, nmi, regs, 0);
+
+next:
+		if (disable || throttle)
 			amd_pmu_disable_counter(hwc, idx);
-		else if (cpuc->interrupts >= PERFMON_MAX_INTERRUPTS)
-			/*
-			 * do not reenable when throttled, but reload
-			 * the register
-			 */
-			amd_pmu_disable_counter(hwc, idx);
-		else if (counter->state == PERF_COUNTER_STATE_ACTIVE)
-			amd_pmu_enable_counter(hwc, idx);
 	}
+
+	if (cpuc->throttle_ctrl && !throttle)
+		cpuc->enabled = 1;
+
 	return handled;
 }
 
