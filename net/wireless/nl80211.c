@@ -2567,7 +2567,7 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 			rem_reg_rules) {
 		num_rules++;
 		if (num_rules > NL80211_MAX_SUPP_REG_RULES)
-			goto bad_reg;
+			return -EINVAL;
 	}
 
 	if (!reg_is_valid_request(alpha2))
