@@ -698,20 +698,6 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		.buf = NULL,
 	};
 
-	unsigned char subaddr, data;
-	struct i2c_msg msg_avermedia[] = { {
-		.addr = 0x40,
-		.flags = 0,
-		.len = 1,
-		.buf = &subaddr,
-	}, {
-		.addr = 0x40,
-		.flags = I2C_M_RD,
-		.len = 1,
-		.buf = &data,
-	} };
-
-	struct i2c_client *client;
 	int rc;
 
 	if (disable_ir) {
@@ -775,6 +761,10 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		init_data.get_key = get_key_beholdm6xx;
 		init_data.ir_codes = ir_codes_behold;
 		break;
+	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
+	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
+		info.addr = 0x40;
+		break;
 	}
 
 	if (init_data.name)
@@ -786,20 +776,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	}
 
 	/* Address not known, fallback to probing */
-	client = i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
-	if (client)
-		return;
-
-	/* Special case for AVerMedia Cardbus remote */
-	subaddr = 0x0d;
-	rc = i2c_transfer(&dev->i2c_adap, msg_avermedia, 2);
-	dprintk(KERN_DEBUG "probe 0x%02x/0x%02x @ %s: %s\n",
-		msg_avermedia[0].addr, subaddr, dev->i2c_adap.name,
-		(2 == rc) ? "yes" : "no");
-	if (2 == rc) {
-		info.addr = msg_avermedia[0].addr;
-		i2c_new_device(&dev->i2c_adap, &info);
-	}
+	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
 }
 
 static int saa7134_rc5_irq(struct saa7134_dev *dev)
