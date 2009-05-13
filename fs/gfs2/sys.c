@@ -530,15 +530,6 @@ static ssize_t name##_store(struct gfs2_sbd *sdp, const char *buf, size_t len)\
 }                                                                             \
 TUNE_ATTR_2(name, name##_store)
 
-#define TUNE_ATTR_DAEMON(name, process)                                       \
-static ssize_t name##_store(struct gfs2_sbd *sdp, const char *buf, size_t len)\
-{                                                                             \
-	ssize_t r = tune_set(sdp, &sdp->sd_tune.gt_##name, 1, buf, len);      \
-	wake_up_process(sdp->sd_##process);                                   \
-	return r;                                                             \
-}                                                                             \
-TUNE_ATTR_2(name, name##_store)
-
 TUNE_ATTR(incore_log_blocks, 0);
 TUNE_ATTR(log_flush_secs, 0);
 TUNE_ATTR(quota_warn_period, 0);
@@ -550,8 +541,6 @@ TUNE_ATTR(new_files_jdata, 0);
 TUNE_ATTR(quota_simul_sync, 1);
 TUNE_ATTR(stall_secs, 1);
 TUNE_ATTR(statfs_quantum, 1);
-TUNE_ATTR_DAEMON(recoverd_secs, recoverd_process);
-TUNE_ATTR_DAEMON(logd_secs, logd_process);
 TUNE_ATTR_3(quota_scale, quota_scale_show, quota_scale_store);
 
 static struct attribute *tune_attrs[] = {
@@ -565,8 +554,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_quota_simul_sync.attr,
 	&tune_attr_stall_secs.attr,
 	&tune_attr_statfs_quantum.attr,
-	&tune_attr_recoverd_secs.attr,
-	&tune_attr_logd_secs.attr,
 	&tune_attr_quota_scale.attr,
 	&tune_attr_new_files_jdata.attr,
 	NULL,
