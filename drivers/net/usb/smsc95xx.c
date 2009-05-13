@@ -1134,7 +1134,7 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			if (skb->len == size) {
 				if (pdata->use_rx_csum)
 					smsc95xx_rx_csum_offload(skb);
-
+				skb_trim(skb, skb->len - 4); /* remove fcs */
 				skb->truesize = size + sizeof(struct sk_buff);
 
 				return 1;
@@ -1152,7 +1152,7 @@ static int smsc95xx_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 			if (pdata->use_rx_csum)
 				smsc95xx_rx_csum_offload(ax_skb);
-
+			skb_trim(ax_skb, ax_skb->len - 4); /* remove fcs */
 			ax_skb->truesize = size + sizeof(struct sk_buff);
 
 			usbnet_skb_return(dev, ax_skb);
