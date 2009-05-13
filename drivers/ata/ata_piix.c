@@ -1589,6 +1589,7 @@ static int __devinit piix_init_one(struct pci_dev *pdev,
 		host->ports[1]->mwdma_mask = 0;
 		host->ports[1]->udma_mask = 0;
 	}
+	host->flags |= ATA_HOST_PARALLEL_SCAN;
 
 	pci_set_master(pdev);
 	return ata_pci_sff_activate_host(host, ata_sff_interrupt, &piix_sht);
