@@ -1305,16 +1305,16 @@ static int reg_read(struct gspca_dev *gspca_dev,
 }
 
 static int write_vector(struct gspca_dev *gspca_dev,
-			const u16 data[][2])
+			const u16 (*data)[2])
 {
 	struct usb_device *dev = gspca_dev->dev;
-	int ret, i = 0;
+	int ret;
 
-	while (data[i][1] != 0) {
-		ret = reg_write(dev, data[i][1], data[i][0]);
+	while ((*data)[1] != 0) {
+		ret = reg_write(dev, (*data)[1], (*data)[0]);
 		if (ret < 0)
 			return ret;
-		i++;
+		data++;
 	}
 	return 0;
 }
@@ -1326,6 +1326,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	int data1, data2;
+	const u16 (*init_data)[2];
+	static const u16 (*(init_data_tb[]))[2] = {
+		spca508_vista_init_data,	/* CreativeVista 0 */
+		spca508_sightcam_init_data,	/* HamaUSBSightcam 1 */
+		spca508_sightcam2_init_data,	/* HamaUSBSightcam2 2 */
+		spca508cs110_init_data,		/* IntelEasyPCCamera 3 */
+		spca508cs110_init_data,		/* MicroInnovationIC200 4 */
+		spca508_init_data,		/* ViewQuestVQ110 5 */
+	};
 
 	/* Read from global register the USB product and vendor IDs, just to
 	 * prove that we can communicate with the device.  This works, which
@@ -1349,31 +1358,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->subtype = id->driver_info;
 	sd->brightness = BRIGHTNESS_DEF;
 
-	switch (sd->subtype) {
-	case ViewQuestVQ110:
-		if (write_vector(gspca_dev, spca508_init_data))
-			return -1;
-		break;
-	default:
-/*	case MicroInnovationIC200: */
-/*	case IntelEasyPCCamera: */
-		if (write_vector(gspca_dev, spca508cs110_init_data))
-			return -1;
-		break;
-	case HamaUSBSightcam:
-		if (write_vector(gspca_dev, spca508_sightcam_init_data))
-			return -1;
-		break;
-	case HamaUSBSightcam2:
-		if (write_vector(gspca_dev, spca508_sightcam2_init_data))
-			return -1;
-		break;
-	case CreativeVista:
-		if (write_vector(gspca_dev, spca508_vista_init_data))
-			return -1;
-		break;
-	}
-	return 0;			/* success */
+	init_data = init_data_tb[sd->subtype];
+	return write_vector(gspca_dev, init_data);
 }
 
 /* this function is called at probe and resume time */
