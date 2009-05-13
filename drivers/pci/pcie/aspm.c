@@ -32,13 +32,11 @@ struct aspm_latency {
 };
 
 struct pcie_link_state {
-	struct list_head sibling;
-	struct pci_dev *pdev;
-	bool downstream_has_switch;
-
-	struct pcie_link_state *parent;
-	struct list_head children;
-	struct list_head link;
+	struct pci_dev *pdev;		/* Upstream component of the Link */
+	struct pcie_link_state *parent;	/* pointer to the parent Link state */
+	struct list_head sibling;	/* node in link_list */
+	struct list_head children;	/* list of child link states */
+	struct list_head link;		/* node in parent's children list */
 
 	/* ASPM state */
 	u32 aspm_support:2;		/* Supported ASPM state */
@@ -49,6 +47,8 @@ struct pcie_link_state {
 	u32 clkpm_capable:1;		/* Clock PM capable? */
 	u32 clkpm_enabled:1;		/* Current Clock PM state */
 	u32 clkpm_default:1;		/* Default Clock PM state by BIOS */
+
+	u32 has_switch:1;		/* Downstream has switches? */
 
 	/* Latencies */
 	struct aspm_latency latency;	/* Exit latency */
@@ -648,7 +648,7 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 	if (!link_state)
 		goto unlock_out;
 
-	link_state->downstream_has_switch = pcie_aspm_downstream_has_switch(pdev);
+	link_state->has_switch = pcie_aspm_downstream_has_switch(pdev);
 	INIT_LIST_HEAD(&link_state->children);
 	INIT_LIST_HEAD(&link_state->link);
 	if (pdev->bus->self) {/* this is a switch */
@@ -679,7 +679,7 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 	link_state->pdev = pdev;
 	list_add(&link_state->sibling, &link_list);
 
-	if (link_state->downstream_has_switch) {
+	if (link_state->has_switch) {
 		/*
 		 * If link has switch, delay the link config. The leaf link
 		 * initialization will config the whole hierarchy. but we must
