@@ -47,7 +47,7 @@ struct clk_lookup {
 #define CLK_ENABLE_ON_INIT	(1 << 0)
 
 /* Should be defined by processor-specific code */
-void arch_init_clk_ops(struct clk_ops **, int type);
+void __deprecated arch_init_clk_ops(struct clk_ops **, int type);
 int __init arch_clk_init(void);
 
 /* arch/sh/kernel/cpu/clock.c */
@@ -58,6 +58,9 @@ void propagate_rate(struct clk *);
 int clk_reparent(struct clk *child, struct clk *parent);
 int clk_register(struct clk *);
 void clk_unregister(struct clk *);
+
+/* arch/sh/kernel/cpu/clock-cpg.c */
+int __init __deprecated cpg_clk_init(void);
 
 /* the exported API, in addition to clk_set_rate */
 /**

@@ -98,9 +98,12 @@ static struct clk *sh7780_onchip_clocks[] = {
 
 int __init arch_clk_init(void)
 {
-	struct clk *clk = clk_get(NULL, "master_clk");
+	struct clk *clk;
 	int i, ret = 0;
 
+	cpg_clk_init();
+
+	clk = clk_get(NULL, "master_clk");
 	for (i = 0; i < ARRAY_SIZE(sh7780_onchip_clocks); i++) {
 		struct clk *clkp = sh7780_onchip_clocks[i];
 

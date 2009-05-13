@@ -513,6 +513,9 @@ config SH_PCLK_FREQ
 	  This is necessary for determining the reference clock value on
 	  platforms lacking an RTC.
 
+config SH_CLK_CPG_LEGACY
+	def_bool y
+
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
 	depends on CPU_SH2
