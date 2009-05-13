@@ -1479,12 +1479,13 @@ static struct net_device *cxgb3_egress_dev(struct net_device *root_dev,
 	return NULL;
 }
 
-static struct rtable *find_route(__be32 saddr, __be32 daddr,
+static struct rtable *find_route(struct net_device *dev,
+				 __be32 saddr, __be32 daddr,
 				 __be16 sport, __be16 dport)
 {
 	struct rtable *rt;
 	struct flowi fl = {
-		.oif = 0,
+		.oif = dev ? dev->ifindex : 0,
 		.nl_u = {
 			 .ip4_u = {
 				   .daddr = daddr,
@@ -1573,14 +1574,16 @@ out_err:
  *
  * return 0 if active open request is sent, < 0 otherwise.
  */
-int cxgb3i_c3cn_connect(struct s3_conn *c3cn, struct sockaddr_in *usin)
+int cxgb3i_c3cn_connect(struct net_device *dev, struct s3_conn *c3cn,
+			struct sockaddr_in *usin)
 {
 	struct rtable *rt;
-	struct net_device *dev;
 	struct cxgb3i_sdev_data *cdata;
 	struct t3cdev *cdev;
 	__be32 sipv4;
 	int err;
+
+	c3cn_conn_debug("c3cn 0x%p, dev 0x%p.\n", c3cn, dev);
 
 	if (usin->sin_family != AF_INET)
 		return -EAFNOSUPPORT;
@@ -1588,21 +1591,23 @@ int cxgb3i_c3cn_connect(struct s3_conn *c3cn, struct sockaddr_in *usin)
 	c3cn->daddr.sin_port = usin->sin_port;
 	c3cn->daddr.sin_addr.s_addr = usin->sin_addr.s_addr;
 
-	rt = find_route(c3cn->saddr.sin_addr.s_addr,
+	rt = find_route(dev, c3cn->saddr.sin_addr.s_addr,
 			c3cn->daddr.sin_addr.s_addr,
 			c3cn->saddr.sin_port,
 			c3cn->daddr.sin_port);
 	if (rt == NULL) {
-		c3cn_conn_debug("NO route to 0x%x, port %u.\n",
+		c3cn_conn_debug("NO route to 0x%x, port %u, dev %s.\n",
 				c3cn->daddr.sin_addr.s_addr,
-				ntohs(c3cn->daddr.sin_port));
+				ntohs(c3cn->daddr.sin_port),
+				dev ? dev->name : "any");
 		return -ENETUNREACH;
 	}
 
 	if (rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST)) {
-		c3cn_conn_debug("multi-cast route to 0x%x, port %u.\n",
+		c3cn_conn_debug("multi-cast route to 0x%x, port %u, dev %s.\n",
 				c3cn->daddr.sin_addr.s_addr,
-				ntohs(c3cn->daddr.sin_port));
+				ntohs(c3cn->daddr.sin_port),
+				dev ? dev->name : "any");
 		ip_rt_put(rt);
 		return -ENETUNREACH;
 	}

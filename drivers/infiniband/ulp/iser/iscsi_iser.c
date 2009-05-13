@@ -517,7 +517,8 @@ iscsi_iser_conn_get_stats(struct iscsi_cls_conn *cls_conn, struct iscsi_stats *s
 }
 
 static struct iscsi_endpoint *
-iscsi_iser_ep_connect(struct sockaddr *dst_addr, int non_blocking)
+iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
+		      int non_blocking)
 {
 	int err;
 	struct iser_conn *ib_conn;

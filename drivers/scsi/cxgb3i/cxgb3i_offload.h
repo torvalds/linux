@@ -169,7 +169,8 @@ void cxgb3i_sdev_add(struct t3cdev *, struct cxgb3_client *);
 void cxgb3i_sdev_remove(struct t3cdev *);
 
 struct s3_conn *cxgb3i_c3cn_create(void);
-int cxgb3i_c3cn_connect(struct s3_conn *, struct sockaddr_in *);
+int cxgb3i_c3cn_connect(struct net_device *, struct s3_conn *,
+			struct sockaddr_in *);
 void cxgb3i_c3cn_rx_credits(struct s3_conn *, int);
 int cxgb3i_c3cn_send_pdus(struct s3_conn *, struct sk_buff *);
 void cxgb3i_c3cn_release(struct s3_conn *);

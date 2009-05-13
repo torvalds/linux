@@ -50,7 +50,8 @@ enum iscsi_uevent_e {
 	ISCSI_UEVENT_TGT_DSCVR		= UEVENT_BASE + 15,
 	ISCSI_UEVENT_SET_HOST_PARAM	= UEVENT_BASE + 16,
 	ISCSI_UEVENT_UNBIND_SESSION	= UEVENT_BASE + 17,
-	ISCSI_UEVENT_CREATE_BOUND_SESSION	= UEVENT_BASE + 18,
+	ISCSI_UEVENT_CREATE_BOUND_SESSION		= UEVENT_BASE + 18,
+	ISCSI_UEVENT_TRANSPORT_EP_CONNECT_THROUGH_HOST	= UEVENT_BASE + 19,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
@@ -131,6 +132,10 @@ struct iscsi_uevent {
 		struct msg_transport_connect {
 			uint32_t	non_blocking;
 		} ep_connect;
+		struct msg_transport_connect_through_host {
+			uint32_t	host_no;
+			uint32_t	non_blocking;
+		} ep_connect_through_host;
 		struct msg_transport_poll {
 			uint64_t	ep_handle;
 			uint32_t	timeout_ms;

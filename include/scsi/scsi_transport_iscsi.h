@@ -126,7 +126,8 @@ struct iscsi_transport {
 			       int *index, int *age);
 
 	void (*session_recovery_timedout) (struct iscsi_cls_session *session);
-	struct iscsi_endpoint *(*ep_connect) (struct sockaddr *dst_addr,
+	struct iscsi_endpoint *(*ep_connect) (struct Scsi_Host *shost,
+					      struct sockaddr *dst_addr,
 					      int non_blocking);
 	int (*ep_poll) (struct iscsi_endpoint *ep, int timeout_ms);
 	void (*ep_disconnect) (struct iscsi_endpoint *ep);
