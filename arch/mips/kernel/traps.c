@@ -1502,7 +1502,7 @@ void __cpuinit per_cpu_trap_init(void)
 			 status_set);
 
 	if (cpu_has_mips_r2) {
-		unsigned int enable = 0x0000000f;
+		unsigned int enable = 0x0000000f | cpu_hwrena_impl_bits;
 
 		if (!noulri && cpu_has_userlocal)
 			enable |= (1 << 29);

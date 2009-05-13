@@ -234,4 +234,8 @@
 #define cpu_scache_line_size()	cpu_data[0].scache.linesz
 #endif
 
+#ifndef cpu_hwrena_impl_bits
+#define cpu_hwrena_impl_bits		0
+#endif
+
 #endif /* __ASM_CPU_FEATURES_H */
