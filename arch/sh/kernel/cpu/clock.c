@@ -103,7 +103,7 @@ void propagate_rate(struct clk *tclk)
 	struct clk *clkp;
 
 	list_for_each_entry(clkp, &tclk->children, sibling) {
-		if (clkp->ops->recalc)
+		if (clkp->ops && clkp->ops->recalc)
 			clkp->rate = clkp->ops->recalc(clkp);
 		propagate_rate(clkp);
 	}
@@ -196,7 +196,7 @@ void recalculate_root_clocks(void)
 	struct clk *clkp;
 
 	list_for_each_entry(clkp, &root_clks, sibling) {
-		if (clkp->ops->recalc)
+		if (clkp->ops && clkp->ops->recalc)
 			clkp->rate = clkp->ops->recalc(clkp);
 		propagate_rate(clkp);
 	}
@@ -224,7 +224,7 @@ int clk_register(struct clk *clk)
 		list_add(&clk->sibling, &root_clks);
 
 	list_add(&clk->node, &clock_list);
-	if (clk->ops->init)
+	if (clk->ops && clk->ops->init)
 		clk->ops->init(clk);
 	mutex_unlock(&clock_list_sem);
 
