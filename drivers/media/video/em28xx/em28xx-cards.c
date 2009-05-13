@@ -1912,13 +1912,23 @@ static int em28xx_hint_board(struct em28xx *dev)
 }
 
 /* ----------------------------------------------------------------------- */
+void em28xx_register_i2c_ir(struct em28xx *dev)
+{
+	struct i2c_board_info info;
+	const unsigned short addr_list[] = {
+		 0x30, 0x47, I2C_CLIENT_END
+	};
+
+	if (disable_ir)
+		return;
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
+}
+
 void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir)
 {
-	if (disable_ir) {
-		ir->get_key = NULL;
-		return ;
-	}
-
 	/* detect & configure */
 	switch (dev->model) {
 	case (EM2800_BOARD_UNKNOWN):

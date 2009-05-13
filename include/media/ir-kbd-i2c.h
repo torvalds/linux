@@ -7,7 +7,7 @@ struct IR_i2c;
 
 struct IR_i2c {
 	IR_KEYTAB_TYPE         *ir_codes;
-	struct i2c_client      c;
+	struct i2c_client      *c;
 	struct input_dev       *input;
 	struct ir_input_state  ir;
 

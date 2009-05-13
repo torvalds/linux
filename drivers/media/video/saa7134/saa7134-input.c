@@ -134,10 +134,10 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 	int gpio;
 
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
-	struct saa7134_dev *dev = ir->c.adapter->algo_data;
+	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 	if (dev == NULL) {
 		dprintk("get_key_msi_tvanywhere_plus: "
-			"gir->c.adapter->algo_data is NULL!\n");
+			"gir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -156,7 +156,7 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 
 	/* GPIO says there is a button press. Get it. */
 
-	if (1 != i2c_master_recv(&ir->c, &b, 1)) {
+	if (1 != i2c_master_recv(ir->c, &b, 1)) {
 		i2cdprintk("read error\n");
 		return -EIO;
 	}
@@ -179,7 +179,7 @@ static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char b;
 
 	/* poll IR chip */
-	if (1 != i2c_master_recv(&ir->c,&b,1)) {
+	if (1 != i2c_master_recv(ir->c, &b, 1)) {
 		i2cdprintk("read error\n");
 		return -EIO;
 	}
@@ -202,7 +202,7 @@ static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char buf[5], cod4, code3, code4;
 
 	/* poll IR chip */
-	if (5 != i2c_master_recv(&ir->c,buf,5))
+	if (5 != i2c_master_recv(ir->c, buf, 5))
 		return -EIO;
 
 	cod4	= buf[4];
@@ -224,7 +224,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	unsigned char data[12];
 	u32 gpio;
 
-	struct saa7134_dev *dev = ir->c.adapter->algo_data;
+	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 
 	/* rising SAA7134_GPIO_GPRESCAN reads the status */
 	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
@@ -235,9 +235,9 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	if (0x400000 & ~gpio)
 		return 0; /* No button press */
 
-	ir->c.addr = 0x5a >> 1;
+	ir->c->addr = 0x5a >> 1;
 
-	if (12 != i2c_master_recv(&ir->c, data, 12)) {
+	if (12 != i2c_master_recv(ir->c, data, 12)) {
 		i2cdprintk("read error\n");
 		return -EIO;
 	}
@@ -267,7 +267,7 @@ static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 	unsigned int start = 0,parity = 0,code = 0;
 
 	/* poll IR chip */
-	if (4 != i2c_master_recv(&ir->c, b, 4)) {
+	if (4 != i2c_master_recv(ir->c, b, 4)) {
 		i2cdprintk("read error\n");
 		return -EIO;
 	}
@@ -682,14 +682,76 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 	dev->remote = NULL;
 }
 
-void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
+void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 {
+	struct i2c_board_info info;
+	const unsigned short addr_list[] = {
+		0x7a, 0x47, 0x71, 0x2d,
+		I2C_CLIENT_END
+	};
+
+	const unsigned short addr_list_msi[] = {
+		0x30, I2C_CLIENT_END
+	};
+	struct i2c_msg msg_msi = {
+		.addr = 0x50,
+		.flags = I2C_M_RD,
+		.len = 0,
+		.buf = NULL,
+	};
+
+	unsigned char subaddr, data;
+	struct i2c_msg msg_avermedia[] = { {
+		.addr = 0x40,
+		.flags = 0,
+		.len = 1,
+		.buf = &subaddr,
+	}, {
+		.addr = 0x40,
+		.flags = I2C_M_RD,
+		.len = 1,
+		.buf = &data,
+	} };
+
+	struct i2c_client *client;
+	int rc;
+
 	if (disable_ir) {
-		dprintk("Found supported i2c remote, but IR has been disabled\n");
-		ir->get_key=NULL;
+		dprintk("IR has been disabled, not probing for i2c remote\n");
 		return;
 	}
 
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+	client = i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
+	if (client)
+		return;
+
+	/* MSI TV@nywhere Plus controller doesn't seem to
+	   respond to probes unless we read something from
+	   an existing device. Weird... */
+	rc = i2c_transfer(&dev->i2c_adap, &msg_msi, 1);
+	dprintk(KERN_DEBUG "probe 0x%02x @ %s: %s\n",
+		msg_msi.addr, dev->i2c_adap.name,
+		(1 == rc) ? "yes" : "no");
+	client = i2c_new_probed_device(&dev->i2c_adap, &info, addr_list_msi);
+	if (client)
+		return;
+
+	/* Special case for AVerMedia Cardbus remote */
+	subaddr = 0x0d;
+	rc = i2c_transfer(&dev->i2c_adap, msg_avermedia, 2);
+	dprintk(KERN_DEBUG "probe 0x%02x/0x%02x @ %s: %s\n",
+		msg_avermedia[0].addr, subaddr, dev->i2c_adap.name,
+		(2 == rc) ? "yes" : "no");
+	if (2 == rc) {
+		info.addr = msg_avermedia[0].addr;
+		i2c_new_device(&dev->i2c_adap, &info);
+	}
+}
+
+void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
+{
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:

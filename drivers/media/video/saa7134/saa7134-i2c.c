@@ -433,6 +433,9 @@ int saa7134_i2c_register(struct saa7134_dev *dev)
 	saa7134_i2c_eeprom(dev,dev->eedata,sizeof(dev->eedata));
 	if (i2c_scan)
 		do_i2c_scan(dev->name,&dev->i2c_client);
+
+	/* Instantiate the IR receiver device, if present */
+	saa7134_probe_i2c_ir(dev);
 	return 0;
 }
 
