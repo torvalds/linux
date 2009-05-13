@@ -337,6 +337,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 
 	ir->c.adapter = adap;
 	ir->c.addr    = addr;
+	snprintf(ir->c.name, sizeof(ir->c.name), "ir-kbd");
 
 	i2c_set_clientdata(&ir->c, ir);
 
@@ -410,7 +411,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	}
 
 	/* Sets name */
-	snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (%s)", name);
+	snprintf(ir->name, sizeof(ir->name), "i2c IR (%s)", name);
 	ir->ir_codes = ir_codes;
 
 	/* register i2c device
@@ -435,7 +436,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	/* init + register input device */
 	ir_input_init(input_dev, &ir->ir, ir_type, ir->ir_codes);
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->name       = ir->c.name;
+	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
 
 	err = input_register_device(ir->input);

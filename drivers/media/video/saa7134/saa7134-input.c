@@ -60,7 +60,7 @@ MODULE_PARM_DESC(disable_other_ir, "disable full codes of "
 #define dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s/ir: " fmt, dev->name , ## arg)
 #define i2cdprintk(fmt, arg...)    if (ir_debug) \
-	printk(KERN_DEBUG "%s/ir: " fmt, ir->c.name , ## arg)
+	printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg)
 
 /* Helper functions for RC5 and NEC decoding at GPIO16 or GPIO18 */
 static int saa7134_rc5_irq(struct saa7134_dev *dev);
@@ -693,7 +693,7 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 	switch (dev->board) {
 	case SAA7134_BOARD_PINNACLE_PCTV_110i:
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
-		snprintf(ir->c.name, sizeof(ir->c.name), "Pinnacle PCTV");
+		snprintf(ir->name, sizeof(ir->name), "Pinnacle PCTV");
 		if (pinnacle_remote == 0) {
 			ir->get_key   = get_key_pinnacle_color;
 			ir->ir_codes = ir_codes_pinnacle_color;
@@ -703,17 +703,17 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 		}
 		break;
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
-		snprintf(ir->c.name, sizeof(ir->c.name), "Purple TV");
+		snprintf(ir->name, sizeof(ir->name), "Purple TV");
 		ir->get_key   = get_key_purpletv;
 		ir->ir_codes  = ir_codes_purpletv;
 		break;
 	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
-		snprintf(ir->c.name, sizeof(ir->c.name), "MSI TV@nywhere Plus");
+		snprintf(ir->name, sizeof(ir->name), "MSI TV@nywhere Plus");
 		ir->get_key  = get_key_msi_tvanywhere_plus;
 		ir->ir_codes = ir_codes_msi_tvanywhere_plus;
 		break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
-		snprintf(ir->c.name, sizeof(ir->c.name), "HVR 1110");
+		snprintf(ir->name, sizeof(ir->name), "HVR 1110");
 		ir->get_key   = get_key_hvr1110;
 		ir->ir_codes  = ir_codes_hauppauge_new;
 		break;
@@ -729,7 +729,7 @@ void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 	case SAA7134_BOARD_BEHOLD_M63:
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
 	case SAA7134_BOARD_BEHOLD_H6:
-		snprintf(ir->c.name, sizeof(ir->c.name), "BeholdTV");
+		snprintf(ir->name, sizeof(ir->name), "BeholdTV");
 		ir->get_key   = get_key_beholdm6xx;
 		ir->ir_codes  = ir_codes_behold;
 		break;

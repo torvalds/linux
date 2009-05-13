@@ -1384,13 +1384,13 @@ struct em28xx_board em28xx_boards[] = {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = EM28XX_AUDIO_SRC_LINE,
-                        .gpio     = terratec_av350_unmute_gpio,
+			.gpio     = terratec_av350_unmute_gpio,
 
 		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = EM28XX_AUDIO_SRC_LINE,
-                        .gpio     = terratec_av350_unmute_gpio,
+			.gpio     = terratec_av350_unmute_gpio,
 		} },
 	},
 };
@@ -1929,19 +1929,19 @@ void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir)
 	case (EM2820_BOARD_TERRATEC_CINERGY_250):
 		ir->ir_codes = ir_codes_em_terratec;
 		ir->get_key = em28xx_get_key_terratec;
-		snprintf(ir->c.name, sizeof(ir->c.name),
+		snprintf(ir->name, sizeof(ir->name),
 			 "i2c IR (EM28XX Terratec)");
 		break;
 	case (EM2820_BOARD_PINNACLE_USB_2):
 		ir->ir_codes = ir_codes_pinnacle_grey;
 		ir->get_key = em28xx_get_key_pinnacle_usb_grey;
-		snprintf(ir->c.name, sizeof(ir->c.name),
+		snprintf(ir->name, sizeof(ir->name),
 			 "i2c IR (EM28XX Pinnacle PCTV)");
 		break;
 	case (EM2820_BOARD_HAUPPAUGE_WINTV_USB_2):
 		ir->ir_codes = ir_codes_hauppauge_new;
 		ir->get_key = em28xx_get_key_em_haup;
-		snprintf(ir->c.name, sizeof(ir->c.name),
+		snprintf(ir->name, sizeof(ir->name),
 			 "i2c IR (EM2840 Hauppauge)");
 		break;
 	case (EM2820_BOARD_MSI_VOX_USB_2):

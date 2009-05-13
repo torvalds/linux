@@ -15,6 +15,7 @@ struct IR_i2c {
 	unsigned char          old;
 
 	struct delayed_work    work;
+	char                   name[32];
 	char                   phys[32];
 	int                    (*get_key)(struct IR_i2c*, u32*, u32*);
 };
