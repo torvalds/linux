@@ -2055,7 +2055,20 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 	if ((mpd->b_state  & (1 << BH_Mapped)) &&
 	    !(mpd->b_state & (1 << BH_Delay)))
 		return 0;
-	new.b_state = mpd->b_state;
+	/*
+	 * We need to make sure the BH_Delay flag is passed down to
+	 * ext4_da_get_block_write(), since it calls
+	 * ext4_get_blocks_wrap() with the EXT4_DELALLOC_RSVED flag.
+	 * This flag causes ext4_get_blocks_wrap() to call
+	 * ext4_da_update_reserve_space() if the passed buffer head
+	 * has the BH_Delay flag set.  In the future, once we clean up
+	 * the interfaces to ext4_get_blocks_wrap(), we should pass in
+	 * a separate flag which requests that the delayed allocation
+	 * statistics should be updated, instead of depending on the
+	 * state information getting passed down via the map_bh's
+	 * state bitmasks plus the magic EXT4_DELALLOC_RSVED flag.
+	 */
+	new.b_state = mpd->b_state & (1 << BH_Delay);
 	new.b_blocknr = 0;
 	new.b_size = mpd->b_size;
 	next = mpd->b_blocknr;

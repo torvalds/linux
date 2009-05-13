@@ -3150,6 +3150,7 @@ retry:
 			ret = PTR_ERR(handle);
 			break;
 		}
+		map_bh.b_state = 0;
 		ret = ext4_get_blocks_wrap(handle, inode, block,
 					  max_blocks, &map_bh,
 					  EXT4_CREATE_UNINITIALIZED_EXT, 0, 0);
