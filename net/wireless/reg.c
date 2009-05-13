@@ -382,6 +382,8 @@ static int call_crda(const char *alpha2)
 /* Used by nl80211 before kmalloc'ing our regulatory domain */
 bool reg_is_valid_request(const char *alpha2)
 {
+	assert_cfg80211_lock();
+
 	if (!last_request)
 		return false;
 

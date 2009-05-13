@@ -2570,6 +2570,8 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 			return -EINVAL;
 	}
 
+	mutex_lock(&cfg80211_mutex);
+
 	if (!reg_is_valid_request(alpha2)) {
 		r = -EINVAL;
 		goto bad_reg;
@@ -2607,13 +2609,14 @@ static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
 
 	BUG_ON(rule_idx != num_rules);
 
-	mutex_lock(&cfg80211_mutex);
 	r = set_regdom(rd);
+
 	mutex_unlock(&cfg80211_mutex);
 
 	return r;
 
  bad_reg:
+	mutex_unlock(&cfg80211_mutex);
 	kfree(rd);
 	return r;
 }
