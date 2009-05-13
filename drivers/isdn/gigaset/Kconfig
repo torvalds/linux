@@ -43,11 +43,4 @@ config GIGASET_DEBUG
 	  This enables debugging code in the Gigaset drivers.
 	  If in doubt, say yes.
 
-config GIGASET_UNDOCREQ
-	bool "Support for undocumented USB requests"
-	help
-	  This enables support for USB requests we only know from
-	  reverse engineering (currently M105 only). If you need
-	  features like configuration mode of M105, say yes.
-
 endif # ISDN_DRV_GIGASET
