@@ -45,6 +45,7 @@ enum {
 	Opt_meta,
 	Opt_discard,
 	Opt_nodiscard,
+	Opt_commit,
 	Opt_err,
 };
 
@@ -73,6 +74,7 @@ static const match_table_t tokens = {
 	{Opt_meta, "meta"},
 	{Opt_discard, "discard"},
 	{Opt_nodiscard, "nodiscard"},
+	{Opt_commit, "commit=%d"},
 	{Opt_err, NULL}
 };
 
@@ -89,6 +91,7 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 	char *o;
 	int token;
 	substring_t tmp[MAX_OPT_ARGS];
+	int rv;
 
 	/* Split the options into tokens with the "," character and
 	   process them */
@@ -172,6 +175,13 @@ int gfs2_mount_args(struct gfs2_sbd *sdp, struct gfs2_args *args, char *options)
 			break;
 		case Opt_nodiscard:
 			args->ar_discard = 0;
+			break;
+		case Opt_commit:
+			rv = match_int(&tmp[0], &args->ar_commit);
+			if (rv || args->ar_commit <= 0) {
+				fs_info(sdp, "commit mount option requires a positive numeric argument\n");
+				return rv ? rv : -EINVAL;
+			}
 			break;
 		case Opt_err:
 		default:

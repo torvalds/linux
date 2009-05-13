@@ -418,6 +418,7 @@ struct gfs2_args {
 	unsigned int ar_data:2;			/* ordered/writeback */
 	unsigned int ar_meta:1;			/* mount metafs */
 	unsigned int ar_discard:1;		/* discard requests */
+	int ar_commit;				/* Commit interval */
 };
 
 struct gfs2_tune {

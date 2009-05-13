@@ -55,7 +55,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	spin_lock_init(&gt->gt_spin);
 
 	gt->gt_incore_log_blocks = 1024;
-	gt->gt_log_flush_secs = 60;
 	gt->gt_recoverd_secs = 60;
 	gt->gt_logd_secs = 1;
 	gt->gt_quota_simul_sync = 64;
@@ -1165,6 +1164,7 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 
 	sdp->sd_args.ar_quota = GFS2_QUOTA_DEFAULT;
 	sdp->sd_args.ar_data = GFS2_DATA_DEFAULT;
+	sdp->sd_args.ar_commit = 60;
 
 	error = gfs2_mount_args(sdp, &sdp->sd_args, data);
 	if (error) {
@@ -1190,6 +1190,8 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
                                GFS2_BASIC_BLOCK_SHIFT;
 	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
+
+	sdp->sd_tune.gt_log_flush_secs = sdp->sd_args.ar_commit;
 
 	error = init_names(sdp, silent);
 	if (error)

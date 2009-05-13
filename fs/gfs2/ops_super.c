@@ -436,8 +436,12 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_args args = sdp->sd_args; /* Default to current settings */
+	struct gfs2_tune *gt = &sdp->sd_tune;
 	int error;
 
+	spin_lock(&gt->gt_spin);
+	args.ar_commit = gt->gt_log_flush_secs;
+	spin_unlock(&gt->gt_spin);
 	error = gfs2_mount_args(sdp, &args, data);
 	if (error)
 		return error;
@@ -473,6 +477,10 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 		sb->s_flags |= MS_POSIXACL;
 	else
 		sb->s_flags &= ~MS_POSIXACL;
+	spin_lock(&gt->gt_spin);
+	gt->gt_log_flush_secs = args.ar_commit;
+	spin_unlock(&gt->gt_spin);
+
 	return 0;
 }
 
@@ -550,6 +558,7 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 {
 	struct gfs2_sbd *sdp = mnt->mnt_sb->s_fs_info;
 	struct gfs2_args *args = &sdp->sd_args;
+	int lfsecs;
 
 	if (is_ancestor(mnt->mnt_root, sdp->sd_master_dir))
 		seq_printf(s, ",meta");
@@ -610,7 +619,9 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	}
 	if (args->ar_discard)
 		seq_printf(s, ",discard");
-
+	lfsecs = sdp->sd_tune.gt_log_flush_secs;
+	if (lfsecs != 60)
+		seq_printf(s, ",commit=%d", lfsecs);
 	return 0;
 }
 
