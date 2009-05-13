@@ -863,6 +863,12 @@ int iscsi_tcp_recv_skb(struct iscsi_conn *conn, struct sk_buff *skb,
 	int rc = 0;
 
 	ISCSI_DBG_TCP(conn, "in %d bytes\n", skb->len - offset);
+	/*
+	 * Update for each skb instead of pdu, because over slow networks a
+	 * data_in's data could take a while to read in. We also want to
+	 * account for r2ts.
+	 */
+	conn->last_recv = jiffies;
 
 	if (unlikely(conn->suspend_rx)) {
 		ISCSI_DBG_TCP(conn, "Rx suspended!\n");
