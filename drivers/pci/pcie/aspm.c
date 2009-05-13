@@ -292,19 +292,18 @@ static unsigned int calc_L1_latency(unsigned int latency_encoding, int ac)
 }
 
 static void pcie_aspm_get_cap_device(struct pci_dev *pdev, u32 *state,
-	unsigned int *l0s, unsigned int *l1, unsigned int *enabled)
+				     u32 *l0s, u32 *l1, u32 *enabled)
 {
 	int pos;
 	u16 reg16;
-	u32 reg32;
-	unsigned int latency;
+	u32 reg32, latency;
 
 	*l0s = *l1 = *enabled = 0;
 	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	pci_read_config_dword(pdev, pos + PCI_EXP_LNKCAP, &reg32);
 	*state = (reg32 & PCI_EXP_LNKCAP_ASPMS) >> 10;
 	if (*state != PCIE_LINK_STATE_L0S &&
-		*state != (PCIE_LINK_STATE_L1|PCIE_LINK_STATE_L0S))
+	    *state != (PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_L0S))
 		*state = 0;
 	if (*state == 0)
 		return;
@@ -316,7 +315,7 @@ static void pcie_aspm_get_cap_device(struct pci_dev *pdev, u32 *state,
 		*l1 = calc_L1_latency(latency, 0);
 	}
 	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &reg16);
-	*enabled = reg16 & (PCIE_LINK_STATE_L0S|PCIE_LINK_STATE_L1);
+	*enabled = reg16 & (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 }
 
 static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
