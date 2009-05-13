@@ -631,10 +631,6 @@ long spufs_create(struct nameidata *nd, unsigned int flags, mode_t mode,
 	if (IS_ERR(dentry))
 		goto out_dir;
 
-	ret = -EEXIST;
-	if (dentry->d_inode)
-		goto out_dput;
-
 	mode &= ~current_umask();
 
 	if (flags & SPU_CREATE_GANG)
