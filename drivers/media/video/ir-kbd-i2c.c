@@ -298,7 +298,7 @@ static void ir_work(struct work_struct *work)
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	IR_KEYTAB_TYPE *ir_codes = NULL;
-	const char *name;
+	const char *name = NULL;
 	int ir_type;
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
@@ -380,8 +380,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_codes    = ir_codes_avermedia_cardbus;
 		break;
 	default:
-		/* shouldn't happen */
-		printk(DEVNAME ": Huh? unknown i2c address (0x%02x)?\n", addr);
+		dprintk(1, DEVNAME ": Unsupported i2c address 0x%02x\n", addr);
 		err = -ENODEV;
 		goto err_out_free;
 	}
@@ -394,6 +393,14 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ir_codes = init_data->ir_codes;
 		name = init_data->name;
 		ir->get_key = init_data->get_key;
+	}
+
+	/* Make sure we are all setup before going on */
+	if (!name || !ir->get_key || !ir_codes) {
+		dprintk(1, DEVNAME ": Unsupported device at address 0x%02x\n",
+			addr);
+		err = -ENODEV;
+		goto err_out_free;
 	}
 
 	/* Sets name */
