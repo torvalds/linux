@@ -48,8 +48,6 @@ struct pcie_link_state {
 	u32 clkpm_enabled:1;		/* Current Clock PM state */
 	u32 clkpm_default:1;		/* Default Clock PM state by BIOS */
 
-	u32 has_switch:1;		/* Downstream has switches? */
-
 	/* Latencies */
 	struct aspm_latency latency;	/* Exit latency */
 	/*
@@ -595,7 +593,6 @@ static struct pcie_link_state *pcie_aspm_setup_link_state(struct pci_dev *pdev)
 	INIT_LIST_HEAD(&link->children);
 	INIT_LIST_HEAD(&link->link);
 	link->pdev = pdev;
-	link->has_switch = pcie_aspm_downstream_has_switch(link);
 	if (pdev->pcie_type == PCI_EXP_TYPE_DOWNSTREAM) {
 		struct pcie_link_state *parent;
 		parent = pdev->bus->parent->self->link_state;
@@ -655,7 +652,7 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 	 * initialization will config the whole hierarchy. But we must
 	 * make sure BIOS doesn't set unsupported link state.
 	 */
-	if (link->has_switch) {
+	if (pcie_aspm_downstream_has_switch(link)) {
 		state = pcie_aspm_check_state(link, link->aspm_default);
 		__pcie_aspm_config_link(link, state);
 	} else {
