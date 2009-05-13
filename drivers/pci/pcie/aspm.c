@@ -45,14 +45,13 @@ struct pcie_link_state {
 	u32 aspm_enabled:2;		/* Enabled ASPM state */
 	u32 aspm_default:2;		/* Default ASPM state by BIOS */
 
+	/* Clock PM state */
+	u32 clkpm_capable:1;		/* Clock PM capable? */
+	u32 clkpm_enabled:1;		/* Current Clock PM state */
+	u32 clkpm_default:1;		/* Default Clock PM state by BIOS */
+
 	/* Latencies */
 	struct aspm_latency latency;	/* Exit latency */
-
-	/* Clock PM state*/
-	unsigned int clk_pm_capable;
-	unsigned int clk_pm_enabled;
-	unsigned int bios_clk_state;
-
 	/*
 	 * Endpoint acceptable latencies. A pcie downstream port only
 	 * has one slot under it, so at most there are 8 functions.
@@ -105,7 +104,7 @@ static int policy_to_clkpm_state(struct pci_dev *pdev)
 		/* Disable Clock PM */
 		return 1;
 	case POLICY_DEFAULT:
-		return link_state->bios_clk_state;
+		return link_state->clkpm_default;
 	}
 	return 0;
 }
@@ -128,7 +127,7 @@ static void pcie_set_clock_pm(struct pci_dev *pdev, int enable)
 			reg16 &= ~PCI_EXP_LNKCTL_CLKREQ_EN;
 		pci_write_config_word(child_dev, pos + PCI_EXP_LNKCTL, reg16);
 	}
-	link_state->clk_pm_enabled = !!enable;
+	link_state->clkpm_enabled = !!enable;
 }
 
 static void pcie_check_clock_pm(struct pci_dev *pdev, int blacklist)
@@ -155,13 +154,13 @@ static void pcie_check_clock_pm(struct pci_dev *pdev, int blacklist)
 		if (!(reg16 & PCI_EXP_LNKCTL_CLKREQ_EN))
 			enabled = 0;
 	}
-	link_state->clk_pm_enabled = enabled;
-	link_state->bios_clk_state = enabled;
+	link_state->clkpm_enabled = enabled;
+	link_state->clkpm_default = enabled;
 	if (!blacklist) {
-		link_state->clk_pm_capable = capable;
+		link_state->clkpm_capable = capable;
 		pcie_set_clock_pm(pdev, policy_to_clkpm_state(pdev));
 	} else {
-		link_state->clk_pm_capable = 0;
+		link_state->clkpm_capable = 0;
 		pcie_set_clock_pm(pdev, 0);
 	}
 }
@@ -774,10 +773,10 @@ void pci_disable_link_state(struct pci_dev *pdev, int state)
 	link_state = parent->link_state;
 	link_state->aspm_support &= ~state;
 	if (state & PCIE_LINK_STATE_CLKPM)
-		link_state->clk_pm_capable = 0;
+		link_state->clkpm_capable = 0;
 
 	__pcie_aspm_configure_link_state(parent, link_state->aspm_enabled);
-	if (!link_state->clk_pm_capable && link_state->clk_pm_enabled)
+	if (!link_state->clkpm_capable && link_state->clkpm_enabled)
 		pcie_set_clock_pm(parent, 0);
 	mutex_unlock(&aspm_lock);
 	up_read(&pci_bus_sem);
@@ -805,8 +804,8 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 		pdev = link_state->pdev;
 		__pcie_aspm_configure_link_state(pdev,
 			policy_to_aspm_state(pdev));
-		if (link_state->clk_pm_capable &&
-		    link_state->clk_pm_enabled != policy_to_clkpm_state(pdev))
+		if (link_state->clkpm_capable &&
+		    link_state->clkpm_enabled != policy_to_clkpm_state(pdev))
 			pcie_set_clock_pm(pdev, policy_to_clkpm_state(pdev));
 
 	}
@@ -867,7 +866,7 @@ static ssize_t clk_ctl_show(struct device *dev,
 	struct pci_dev *pci_device = to_pci_dev(dev);
 	struct pcie_link_state *link_state = pci_device->link_state;
 
-	return sprintf(buf, "%d\n", link_state->clk_pm_enabled);
+	return sprintf(buf, "%d\n", link_state->clkpm_enabled);
 }
 
 static ssize_t clk_ctl_store(struct device *dev,
@@ -906,7 +905,7 @@ void pcie_aspm_create_sysfs_dev_files(struct pci_dev *pdev)
 	if (link_state->aspm_support)
 		sysfs_add_file_to_group(&pdev->dev.kobj,
 			&dev_attr_link_state.attr, power_group);
-	if (link_state->clk_pm_capable)
+	if (link_state->clkpm_capable)
 		sysfs_add_file_to_group(&pdev->dev.kobj,
 			&dev_attr_clk_ctl.attr, power_group);
 }
@@ -922,7 +921,7 @@ void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev)
 	if (link_state->aspm_support)
 		sysfs_remove_file_from_group(&pdev->dev.kobj,
 			&dev_attr_link_state.attr, power_group);
-	if (link_state->clk_pm_capable)
+	if (link_state->clkpm_capable)
 		sysfs_remove_file_from_group(&pdev->dev.kobj,
 			&dev_attr_clk_ctl.attr, power_group);
 }
