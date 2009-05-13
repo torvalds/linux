@@ -889,7 +889,7 @@ static int sendcmd(struct cmdif *cif, u32 flags, u32 cmd, u32 parm,
 	spin_lock_irqsave(&cif->lock, irqflags);
 	while (i++ < CMDIF_TIMEOUT && !IS_READY(cif->hwport))
 		udelay(10);
-	if (i >= CMDIF_TIMEOUT) {
+	if (i > CMDIF_TIMEOUT) {
 		err = -EBUSY;
 		goto errout;
 	}
@@ -907,8 +907,10 @@ static int sendcmd(struct cmdif *cif, u32 flags, u32 cmd, u32 parm,
 			WRITE_PORT_ULONG(cmdport->data1, cmd);	/* write cmd */
 			if ((flags & RESP) && ret) {
 				while (!IS_DATF(cmdport) &&
-				       time++ < CMDIF_TIMEOUT)
+				       time < CMDIF_TIMEOUT) {
 					udelay(10);
+					time++;
+				}
 				if (time < CMDIF_TIMEOUT) {	/* read response */
 					ret->retlongs[0] =
 					    READ_PORT_ULONG(cmdport->data1);
@@ -1454,7 +1456,7 @@ static int snd_riptide_trigger(struct snd_pcm_substream *substream, int cmd)
 			SEND_GPOS(cif, 0, data->id, &rptr);
 			udelay(1);
 		} while (i != rptr.retlongs[1] && j++ < MAX_WRITE_RETRY);
-		if (j >= MAX_WRITE_RETRY)
+		if (j > MAX_WRITE_RETRY)
 			snd_printk(KERN_ERR "Riptide: Could not stop stream!");
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -1783,7 +1785,7 @@ snd_riptide_codec_write(struct snd_ac97 *ac97, unsigned short reg,
 		SEND_SACR(cif, val, reg);
 		SEND_RACR(cif, reg, &rptr);
 	} while (rptr.retwords[1] != val && i++ < MAX_WRITE_RETRY);
-	if (i == MAX_WRITE_RETRY)
+	if (i > MAX_WRITE_RETRY)
 		snd_printdd("Write AC97 reg failed\n");
 }
 
