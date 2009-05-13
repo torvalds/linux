@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/string.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>

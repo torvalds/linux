@@ -11,6 +11,7 @@
 */
 
 #include <linux/kernel.h>
+#include <linux/gpio.h>
 
 struct platform_device;
 

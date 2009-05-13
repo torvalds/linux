@@ -19,6 +19,7 @@
 
 #include <linux/gpio_keys.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>

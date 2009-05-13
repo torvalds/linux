@@ -32,6 +32,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
