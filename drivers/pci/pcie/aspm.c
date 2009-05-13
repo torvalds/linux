@@ -33,6 +33,7 @@ struct aspm_latency {
 
 struct pcie_link_state {
 	struct pci_dev *pdev;		/* Upstream component of the Link */
+	struct pcie_link_state *root;	/* pointer to the root port link */
 	struct pcie_link_state *parent;	/* pointer to the parent Link state */
 	struct list_head sibling;	/* node in link_list */
 	struct list_head children;	/* list of child link states */
@@ -486,26 +487,17 @@ static void __pcie_aspm_config_link(struct pcie_link_state *link, u32 state)
 	link->aspm_enabled = state;
 }
 
-static struct pcie_link_state *get_root_port_link(struct pcie_link_state *link)
-{
-	struct pcie_link_state *root_port_link = link;
-	while (root_port_link->parent)
-		root_port_link = root_port_link->parent;
-	return root_port_link;
-}
-
 /* Check the whole hierarchy, and configure each link in the hierarchy */
 static void __pcie_aspm_configure_link_state(struct pcie_link_state *link,
 					     u32 state)
 {
-	struct pcie_link_state *leaf, *root = get_root_port_link(link);
+	struct pcie_link_state *leaf, *root = link->root;
 
 	state &= (PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 
 	/* Check all links who have specific root port link */
 	list_for_each_entry(leaf, &link_list, sibling) {
-		if (!list_empty(&leaf->children) ||
-		    get_root_port_link(leaf) != root)
+		if (!list_empty(&leaf->children) || (leaf->root != root))
 			continue;
 		state = pcie_aspm_check_state(leaf, state);
 	}
@@ -519,12 +511,12 @@ static void __pcie_aspm_configure_link_state(struct pcie_link_state *link,
 	 **/
 	if (state & PCIE_LINK_STATE_L1) {
 		list_for_each_entry(leaf, &link_list, sibling) {
-			if (get_root_port_link(leaf) == root)
+			if (leaf->root == root)
 				__pcie_aspm_config_link(leaf, state);
 		}
 	} else {
 		list_for_each_entry_reverse(leaf, &link_list, sibling) {
-			if (get_root_port_link(leaf) == root)
+			if (leaf->root == root)
 				__pcie_aspm_config_link(leaf, state);
 		}
 	}
@@ -600,6 +592,12 @@ static struct pcie_link_state *pcie_aspm_setup_link_state(struct pci_dev *pdev)
 		link->parent = parent;
 		list_add(&link->link, &parent->children);
 	}
+	/* Setup a pointer to the root port link */
+	if (!link->parent)
+		link->root = link;
+	else
+		link->root = link->parent->root;
+
 	list_add(&link->sibling, &link_list);
 
 	pdev->link_state = link;
