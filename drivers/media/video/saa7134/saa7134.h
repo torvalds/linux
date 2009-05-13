@@ -800,7 +800,6 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
-void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
 void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir);
 void saa7134_ir_stop(struct saa7134_dev *dev);
 

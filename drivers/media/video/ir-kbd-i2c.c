@@ -298,7 +298,7 @@ static void ir_work(struct work_struct *work)
 static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	IR_KEYTAB_TYPE *ir_codes = NULL;
-	char *name;
+	const char *name;
 	int ir_type;
 	struct IR_i2c *ir;
 	struct input_dev *input_dev;
@@ -384,6 +384,16 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		printk(DEVNAME ": Huh? unknown i2c address (0x%02x)?\n", addr);
 		err = -ENODEV;
 		goto err_out_free;
+	}
+
+	/* Let the caller override settings */
+	if (client->dev.platform_data) {
+		const struct IR_i2c_init_data *init_data =
+						client->dev.platform_data;
+
+		ir_codes = init_data->ir_codes;
+		name = init_data->name;
+		ir->get_key = init_data->get_key;
 	}
 
 	/* Sets name */

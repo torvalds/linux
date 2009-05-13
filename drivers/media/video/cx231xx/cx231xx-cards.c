@@ -287,10 +287,7 @@ void cx231xx_register_i2c_ir(struct cx231xx *dev)
 		return;
 
 	/* REVISIT: instantiate IR device */
-}
 
-void cx231xx_set_ir(struct cx231xx *dev, struct IR_i2c *ir)
-{
 	/* detect & configure */
 	switch (dev->model) {
 

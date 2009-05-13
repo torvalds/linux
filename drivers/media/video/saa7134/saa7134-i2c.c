@@ -321,33 +321,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-static int attach_inform(struct i2c_client *client)
-{
-	struct saa7134_dev *dev = client->adapter->algo_data;
-
-	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
-		client->driver->driver.name, client->addr, client->name);
-
-	/* Am I an i2c remote control? */
-
-	switch (client->addr) {
-		case 0x7a:
-		case 0x47:
-		case 0x71:
-		case 0x2d:
-		case 0x30:
-		{
-			struct IR_i2c *ir = i2c_get_clientdata(client);
-			d1printk("%s i2c IR detected (%s).\n",
-				 client->driver->driver.name, ir->phys);
-			saa7134_set_i2c_ir(dev,ir);
-			break;
-		}
-	}
-
-	return 0;
-}
-
 static struct i2c_algorithm saa7134_algo = {
 	.master_xfer   = saa7134_i2c_xfer,
 	.functionality = functionality,
@@ -358,7 +331,6 @@ static struct i2c_adapter saa7134_adap_template = {
 	.name          = "saa7134",
 	.id            = I2C_HW_SAA7134,
 	.algo          = &saa7134_algo,
-	.client_register = attach_inform,
 };
 
 static struct i2c_client saa7134_client_template = {

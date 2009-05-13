@@ -644,7 +644,6 @@ extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
 void em28xx_register_i2c_ir(struct em28xx *dev);
-void em28xx_set_ir(struct em28xx *dev, struct IR_i2c *ir);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
 

@@ -685,6 +685,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 {
 	struct i2c_board_info info;
+	struct IR_i2c_init_data init_data;
 	const unsigned short addr_list[] = {
 		0x7a, 0x47, 0x71, 0x2d,
 		I2C_CLIENT_END
@@ -722,7 +723,56 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	}
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
+	memset(&init_data, 0, sizeof(struct IR_i2c_init_data));
 	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+
+	switch (dev->board) {
+	case SAA7134_BOARD_PINNACLE_PCTV_110i:
+	case SAA7134_BOARD_PINNACLE_PCTV_310i:
+		init_data.name = "Pinnacle PCTV";
+		if (pinnacle_remote == 0) {
+			init_data.get_key = get_key_pinnacle_color;
+			init_data.ir_codes = ir_codes_pinnacle_color;
+		} else {
+			init_data.get_key = get_key_pinnacle_grey;
+			init_data.ir_codes = ir_codes_pinnacle_grey;
+		}
+		break;
+	case SAA7134_BOARD_UPMOST_PURPLE_TV:
+		init_data.name = "Purple TV";
+		init_data.get_key = get_key_purpletv;
+		init_data.ir_codes = ir_codes_purpletv;
+		break;
+	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
+		init_data.name = "MSI TV@nywhere Plus";
+		init_data.get_key = get_key_msi_tvanywhere_plus;
+		init_data.ir_codes = ir_codes_msi_tvanywhere_plus;
+		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
+		init_data.name = "HVR 1110";
+		init_data.get_key = get_key_hvr1110;
+		init_data.ir_codes = ir_codes_hauppauge_new;
+		break;
+	case SAA7134_BOARD_BEHOLD_607FM_MK3:
+	case SAA7134_BOARD_BEHOLD_607FM_MK5:
+	case SAA7134_BOARD_BEHOLD_609FM_MK3:
+	case SAA7134_BOARD_BEHOLD_609FM_MK5:
+	case SAA7134_BOARD_BEHOLD_607RDS_MK3:
+	case SAA7134_BOARD_BEHOLD_607RDS_MK5:
+	case SAA7134_BOARD_BEHOLD_609RDS_MK3:
+	case SAA7134_BOARD_BEHOLD_609RDS_MK5:
+	case SAA7134_BOARD_BEHOLD_M6:
+	case SAA7134_BOARD_BEHOLD_M63:
+	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
+	case SAA7134_BOARD_BEHOLD_H6:
+		init_data.name = "BeholdTV";
+		init_data.get_key = get_key_beholdm6xx;
+		init_data.ir_codes = ir_codes_behold;
+		break;
+	}
+
+	if (init_data.name)
+		info.platform_data = &init_data;
 	client = i2c_new_probed_device(&dev->i2c_adap, &info, addr_list);
 	if (client)
 		return;
@@ -748,58 +798,6 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		info.addr = msg_avermedia[0].addr;
 		i2c_new_device(&dev->i2c_adap, &info);
 	}
-}
-
-void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
-{
-	switch (dev->board) {
-	case SAA7134_BOARD_PINNACLE_PCTV_110i:
-	case SAA7134_BOARD_PINNACLE_PCTV_310i:
-		snprintf(ir->name, sizeof(ir->name), "Pinnacle PCTV");
-		if (pinnacle_remote == 0) {
-			ir->get_key   = get_key_pinnacle_color;
-			ir->ir_codes = ir_codes_pinnacle_color;
-		} else {
-			ir->get_key   = get_key_pinnacle_grey;
-			ir->ir_codes = ir_codes_pinnacle_grey;
-		}
-		break;
-	case SAA7134_BOARD_UPMOST_PURPLE_TV:
-		snprintf(ir->name, sizeof(ir->name), "Purple TV");
-		ir->get_key   = get_key_purpletv;
-		ir->ir_codes  = ir_codes_purpletv;
-		break;
-	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
-		snprintf(ir->name, sizeof(ir->name), "MSI TV@nywhere Plus");
-		ir->get_key  = get_key_msi_tvanywhere_plus;
-		ir->ir_codes = ir_codes_msi_tvanywhere_plus;
-		break;
-	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
-		snprintf(ir->name, sizeof(ir->name), "HVR 1110");
-		ir->get_key   = get_key_hvr1110;
-		ir->ir_codes  = ir_codes_hauppauge_new;
-		break;
-	case SAA7134_BOARD_BEHOLD_607FM_MK3:
-	case SAA7134_BOARD_BEHOLD_607FM_MK5:
-	case SAA7134_BOARD_BEHOLD_609FM_MK3:
-	case SAA7134_BOARD_BEHOLD_609FM_MK5:
-	case SAA7134_BOARD_BEHOLD_607RDS_MK3:
-	case SAA7134_BOARD_BEHOLD_607RDS_MK5:
-	case SAA7134_BOARD_BEHOLD_609RDS_MK3:
-	case SAA7134_BOARD_BEHOLD_609RDS_MK5:
-	case SAA7134_BOARD_BEHOLD_M6:
-	case SAA7134_BOARD_BEHOLD_M63:
-	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
-	case SAA7134_BOARD_BEHOLD_H6:
-		snprintf(ir->name, sizeof(ir->name), "BeholdTV");
-		ir->get_key   = get_key_beholdm6xx;
-		ir->ir_codes  = ir_codes_behold;
-		break;
-	default:
-		dprintk("Shouldn't get here: Unknown board %x for I2C IR?\n",dev->board);
-		break;
-	}
-
 }
 
 static int saa7134_rc5_irq(struct saa7134_dev *dev)
