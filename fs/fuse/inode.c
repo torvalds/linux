@@ -911,6 +911,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
  err_put_root:
 	dput(root_dentry);
  err_put_conn:
+	bdi_destroy(&fc->bdi);
 	fuse_conn_put(fc);
  err_fput:
 	fput(file);
