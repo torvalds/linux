@@ -399,6 +399,7 @@ static void omap_sram_idle(void)
 			omap3_core_restore_context();
 			omap3_prcm_restore_context();
 			omap3_sram_restore_context();
+			omap2_sms_restore_context();
 		}
 		if (per_next_state < PWRDM_POWER_ON) {
 			per_prev_state =

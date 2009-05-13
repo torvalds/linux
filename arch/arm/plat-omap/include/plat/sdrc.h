@@ -120,6 +120,8 @@ void __init omap2_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 int omap2_sdrc_get_params(unsigned long r,
 			  struct omap_sdrc_params **sdrc_cs0,
 			  struct omap_sdrc_params **sdrc_cs1);
+void omap2_sms_save_context(void);
+void omap2_sms_restore_context(void);
 
 #ifdef CONFIG_ARCH_OMAP2
 
