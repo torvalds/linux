@@ -32,7 +32,7 @@ struct endpoint_state {
 };
 
 struct pcie_link_state {
-	struct list_head sibiling;
+	struct list_head sibling;
 	struct pci_dev *pdev;
 	bool downstream_has_switch;
 
@@ -541,7 +541,7 @@ static void __pcie_aspm_configure_link_state(struct pci_dev *pdev,
 	state &= PCIE_LINK_STATE_L0S|PCIE_LINK_STATE_L1;
 
 	/* check all links who have specific root port link */
-	list_for_each_entry(leaf, &link_list, sibiling) {
+	list_for_each_entry(leaf, &link_list, sibling) {
 		if (!list_empty(&leaf->children) ||
 			get_root_port_link(leaf) != root_port_link)
 			continue;
@@ -558,12 +558,12 @@ static void __pcie_aspm_configure_link_state(struct pci_dev *pdev,
 	 * __pcie_aspm_config_link for the order
 	 **/
 	if (state & PCIE_LINK_STATE_L1) {
-		list_for_each_entry(leaf, &link_list, sibiling) {
+		list_for_each_entry(leaf, &link_list, sibling) {
 			if (get_root_port_link(leaf) == root_port_link)
 				__pcie_aspm_config_link(leaf->pdev, state);
 		}
 	} else {
-		list_for_each_entry_reverse(leaf, &link_list, sibiling) {
+		list_for_each_entry_reverse(leaf, &link_list, sibling) {
 			if (get_root_port_link(leaf) == root_port_link)
 				__pcie_aspm_config_link(leaf->pdev, state);
 		}
@@ -682,7 +682,7 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 	}
 
 	link_state->pdev = pdev;
-	list_add(&link_state->sibiling, &link_list);
+	list_add(&link_state->sibling, &link_list);
 
 	if (link_state->downstream_has_switch) {
 		/*
@@ -729,7 +729,7 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 
 	/* All functions are removed, so just disable ASPM for the link */
 	__pcie_aspm_config_one_dev(parent, 0);
-	list_del(&link_state->sibiling);
+	list_del(&link_state->sibling);
 	list_del(&link_state->link);
 	/* Clock PM is for endpoint device */
 
@@ -806,7 +806,7 @@ static int pcie_aspm_set_policy(const char *val, struct kernel_param *kp)
 	down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
 	aspm_policy = i;
-	list_for_each_entry(link_state, &link_list, sibiling) {
+	list_for_each_entry(link_state, &link_list, sibling) {
 		pdev = link_state->pdev;
 		__pcie_aspm_configure_link_state(pdev,
 			policy_to_aspm_state(pdev));
