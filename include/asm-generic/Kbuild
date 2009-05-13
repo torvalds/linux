@@ -1,3 +1,4 @@
+header-y += bitsperlong.h
 header-y += errno-base.h
 header-y += errno.h
 header-y += fcntl.h

@@ -25,9 +25,6 @@ typedef unsigned int umode_t;
  * These aren't exported outside the kernel to avoid name space clashes
  */
 #ifdef __KERNEL__
-
-#define BITS_PER_LONG 64
-
 #ifndef __ASSEMBLY__
 
 typedef u64 dma_addr_t;
