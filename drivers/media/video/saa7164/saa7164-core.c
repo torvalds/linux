@@ -119,8 +119,7 @@ static irqreturn_t saa7164_irq_ts(struct saa7164_tsport *port)
 static irqreturn_t saa7164_irq(int irq, void *dev_id)
 {
 	struct saa7164_dev *dev = dev_id;
-	u32 hwacc = 0, interruptid;
-	u32 intstat[INT_SIZE/4];
+	u32 intid, intstat[INT_SIZE/4];
 	int i, handled = 0, bit;
 
 	if (dev == 0) {
@@ -140,15 +139,11 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 		/* Read the 4 hardware interrupt registers */
 		intstat[i] = saa7164_readl(dev->int_status + (i * 4));
 
-		if (intstat[i] != 0xffffffff)
-			hwacc = 1;
+		if (intstat[i])
+			handled = 1;
 	}
-	if (hwacc == 0) {
-		handled = 0;
+	if (handled == 0)
 		goto out;
-	}
-
-	handled = 1;
 
 	/* For each of the HW interrupt registers */
 	for (i = 0; i < INT_SIZE/4; i++) {
@@ -165,17 +160,17 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 
 				/* Calculate the interrupt id (0x00 to 0x7f) */
 
-				interruptid = (i * 32) + bit;
-				if (interruptid == dev->intfdesc.bInterruptId) {
+				intid = (i * 32) + bit;
+				if (intid == dev->intfdesc.bInterruptId) {
 					/* A response to an cmd/api call */
 					schedule_work(&dev->workcmd);
-				} else if (interruptid ==
+				} else if (intid ==
 					dev->ts1.hwcfg.interruptid) {
 
 					/* Transport path 1 */
 					saa7164_irq_ts(&dev->ts1);
 
-				} else if (interruptid ==
+				} else if (intid ==
 					dev->ts2.hwcfg.interruptid) {
 
 					/* Transport path 2 */
@@ -187,7 +182,7 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 						"%s() unhandled interrupt "
 						"reg 0x%x bit 0x%x "
 						"intid = 0x%x\n",
-						__func__, i, bit, interruptid);
+						__func__, i, bit, intid);
 				}
 			}
 
@@ -598,8 +593,9 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		err = saa7164_downloadfirmware(dev);
 		if (err < 0) {
 			printk(KERN_ERR
-				"Failed to boot firmware, cannot continue\n");
-			goto fail_irq;
+				"Failed to boot firmware, no features "
+				"registered\n");
+			goto fail_fw;
 		}
 
 		saa7164_get_descriptors(dev);
@@ -666,6 +662,7 @@ static int __devinit saa7164_initdev(struct pci_dev *pci_dev,
 		printk(KERN_ERR "%s() Unsupported board detected, "
 			"registering without firmware\n", __func__);
 
+fail_fw:
 	return 0;
 
 fail_irq:
