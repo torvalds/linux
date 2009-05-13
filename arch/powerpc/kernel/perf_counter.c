@@ -386,7 +386,7 @@ static void write_mmcr0(struct cpu_hw_counters *cpuhw, unsigned long mmcr0)
  * Disable all counters to prevent PMU interrupts and to allow
  * counters to be added or removed.
  */
-u64 hw_perf_save_disable(void)
+void hw_perf_disable(void)
 {
 	struct cpu_hw_counters *cpuhw;
 	unsigned long ret;
@@ -428,7 +428,6 @@ u64 hw_perf_save_disable(void)
 		mb();
 	}
 	local_irq_restore(flags);
-	return ret;
 }
 
 /*
@@ -436,7 +435,7 @@ u64 hw_perf_save_disable(void)
  * If we were previously disabled and counters were added, then
  * put the new config on the PMU.
  */
-void hw_perf_restore(u64 disable)
+void hw_perf_enable(void)
 {
 	struct perf_counter *counter;
 	struct cpu_hw_counters *cpuhw;
@@ -448,9 +447,12 @@ void hw_perf_restore(u64 disable)
 	int n_lim;
 	int idx;
 
-	if (disable)
-		return;
 	local_irq_save(flags);
+	if (!cpuhw->disabled) {
+		local_irq_restore(flags);
+		return;
+	}
+
 	cpuhw = &__get_cpu_var(cpu_hw_counters);
 	cpuhw->disabled = 0;
 
@@ -649,19 +651,18 @@ int hw_perf_group_sched_in(struct perf_counter *group_leader,
 /*
  * Add a counter to the PMU.
  * If all counters are not already frozen, then we disable and
- * re-enable the PMU in order to get hw_perf_restore to do the
+ * re-enable the PMU in order to get hw_perf_enable to do the
  * actual work of reconfiguring the PMU.
  */
 static int power_pmu_enable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuhw;
 	unsigned long flags;
-	u64 pmudis;
 	int n0;
 	int ret = -EAGAIN;
 
 	local_irq_save(flags);
-	pmudis = hw_perf_save_disable();
+	perf_disable();
 
 	/*
 	 * Add the counter to the list (if there is room)
@@ -685,7 +686,7 @@ static int power_pmu_enable(struct perf_counter *counter)
 
 	ret = 0;
  out:
-	hw_perf_restore(pmudis);
+	perf_enable();
 	local_irq_restore(flags);
 	return ret;
 }
@@ -697,11 +698,10 @@ static void power_pmu_disable(struct perf_counter *counter)
 {
 	struct cpu_hw_counters *cpuhw;
 	long i;
-	u64 pmudis;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	pmudis = hw_perf_save_disable();
+	perf_disable();
 
 	power_pmu_read(counter);
 
@@ -735,7 +735,7 @@ static void power_pmu_disable(struct perf_counter *counter)
 		cpuhw->mmcr[0] &= ~(MMCR0_PMXE | MMCR0_FCECE);
 	}
 
-	hw_perf_restore(pmudis);
+	perf_enable();
 	local_irq_restore(flags);
 }
 

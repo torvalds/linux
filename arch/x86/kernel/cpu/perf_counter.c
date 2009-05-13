@@ -31,7 +31,6 @@ struct cpu_hw_counters {
 	unsigned long		used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		active_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		interrupts;
-	u64			throttle_ctrl;
 	int			enabled;
 };
 
@@ -42,8 +41,8 @@ struct x86_pmu {
 	const char	*name;
 	int		version;
 	int		(*handle_irq)(struct pt_regs *, int);
-	u64		(*save_disable_all)(void);
-	void		(*restore_all)(u64);
+	void		(*disable_all)(void);
+	void		(*enable_all)(void);
 	void		(*enable)(struct hw_perf_counter *, int);
 	void		(*disable)(struct hw_perf_counter *, int);
 	unsigned	eventsel;
@@ -56,6 +55,7 @@ struct x86_pmu {
 	int		counter_bits;
 	u64		counter_mask;
 	u64		max_period;
+	u64		intel_ctrl;
 };
 
 static struct x86_pmu x86_pmu __read_mostly;
@@ -311,22 +311,19 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 	return 0;
 }
 
-static u64 intel_pmu_save_disable_all(void)
+static void intel_pmu_disable_all(void)
 {
-	u64 ctrl;
-
-	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, 0);
-
-	return ctrl;
 }
 
-static u64 amd_pmu_save_disable_all(void)
+static void amd_pmu_disable_all(void)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
-	int enabled, idx;
+	int idx;
 
-	enabled = cpuc->enabled;
+	if (!cpuc->enabled)
+		return;
+
 	cpuc->enabled = 0;
 	/*
 	 * ensure we write the disable before we start disabling the
@@ -334,8 +331,6 @@ static u64 amd_pmu_save_disable_all(void)
 	 * right thing.
 	 */
 	barrier();
-	if (!enabled)
-		goto out;
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		u64 val;
@@ -348,36 +343,30 @@ static u64 amd_pmu_save_disable_all(void)
 		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
 		wrmsrl(MSR_K7_EVNTSEL0 + idx, val);
 	}
-
-out:
-	return enabled;
 }
 
-u64 hw_perf_save_disable(void)
+void hw_perf_disable(void)
 {
 	if (!x86_pmu_initialized())
-		return 0;
-	return x86_pmu.save_disable_all();
+		return;
+	return x86_pmu.disable_all();
 }
-/*
- * Exported because of ACPI idle
- */
-EXPORT_SYMBOL_GPL(hw_perf_save_disable);
 
-static void intel_pmu_restore_all(u64 ctrl)
+static void intel_pmu_enable_all(void)
 {
-	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, ctrl);
+	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
 }
 
-static void amd_pmu_restore_all(u64 ctrl)
+static void amd_pmu_enable_all(void)
 {
 	struct cpu_hw_counters *cpuc = &__get_cpu_var(cpu_hw_counters);
 	int idx;
 
-	cpuc->enabled = ctrl;
-	barrier();
-	if (!ctrl)
+	if (cpuc->enabled)
 		return;
+
+	cpuc->enabled = 1;
+	barrier();
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
 		u64 val;
@@ -392,16 +381,12 @@ static void amd_pmu_restore_all(u64 ctrl)
 	}
 }
 
-void hw_perf_restore(u64 ctrl)
+void hw_perf_enable(void)
 {
 	if (!x86_pmu_initialized())
 		return;
-	x86_pmu.restore_all(ctrl);
+	x86_pmu.enable_all();
 }
-/*
- * Exported because of ACPI idle
- */
-EXPORT_SYMBOL_GPL(hw_perf_restore);
 
 static inline u64 intel_pmu_get_status(void)
 {
@@ -735,15 +720,14 @@ static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 	int bit, cpu = smp_processor_id();
 	u64 ack, status;
 	struct cpu_hw_counters *cpuc = &per_cpu(cpu_hw_counters, cpu);
-	int ret = 0;
 
-	cpuc->throttle_ctrl = intel_pmu_save_disable_all();
-
+	perf_disable();
 	status = intel_pmu_get_status();
-	if (!status)
-		goto out;
+	if (!status) {
+		perf_enable();
+		return 0;
+	}
 
-	ret = 1;
 again:
 	inc_irq_stat(apic_perf_irqs);
 	ack = status;
@@ -767,19 +751,11 @@ again:
 	status = intel_pmu_get_status();
 	if (status)
 		goto again;
-out:
-	/*
-	 * Restore - do not reenable when global enable is off or throttled:
-	 */
-	if (cpuc->throttle_ctrl) {
-		if (++cpuc->interrupts < PERFMON_MAX_INTERRUPTS) {
-			intel_pmu_restore_all(cpuc->throttle_ctrl);
-		} else {
-			pr_info("CPU#%d: perfcounters: max interrupt rate exceeded! Throttle on.\n", smp_processor_id());
-		}
-	}
 
-	return ret;
+	if (++cpuc->interrupts != PERFMON_MAX_INTERRUPTS)
+		perf_enable();
+
+	return 1;
 }
 
 static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
@@ -792,13 +768,11 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 	struct hw_perf_counter *hwc;
 	int idx, throttle = 0;
 
-	cpuc->throttle_ctrl = cpuc->enabled;
-	cpuc->enabled = 0;
-	barrier();
-
-	if (cpuc->throttle_ctrl) {
-		if (++cpuc->interrupts >= PERFMON_MAX_INTERRUPTS)
-			throttle = 1;
+	if (++cpuc->interrupts == PERFMON_MAX_INTERRUPTS) {
+		throttle = 1;
+		__perf_disable();
+		cpuc->enabled = 0;
+		barrier();
 	}
 
 	for (idx = 0; idx < x86_pmu.num_counters; idx++) {
@@ -824,9 +798,6 @@ next:
 			amd_pmu_disable_counter(hwc, idx);
 	}
 
-	if (cpuc->throttle_ctrl && !throttle)
-		cpuc->enabled = 1;
-
 	return handled;
 }
 
@@ -839,13 +810,11 @@ void perf_counter_unthrottle(void)
 
 	cpuc = &__get_cpu_var(cpu_hw_counters);
 	if (cpuc->interrupts >= PERFMON_MAX_INTERRUPTS) {
-		pr_info("CPU#%d: perfcounters: throttle off.\n", smp_processor_id());
-
 		/*
 		 * Clear them before re-enabling irqs/NMIs again:
 		 */
 		cpuc->interrupts = 0;
-		hw_perf_restore(cpuc->throttle_ctrl);
+		perf_enable();
 	} else {
 		cpuc->interrupts = 0;
 	}
@@ -931,8 +900,8 @@ static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
 static struct x86_pmu intel_pmu = {
 	.name			= "Intel",
 	.handle_irq		= intel_pmu_handle_irq,
-	.save_disable_all	= intel_pmu_save_disable_all,
-	.restore_all		= intel_pmu_restore_all,
+	.disable_all		= intel_pmu_disable_all,
+	.enable_all		= intel_pmu_enable_all,
 	.enable			= intel_pmu_enable_counter,
 	.disable		= intel_pmu_disable_counter,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
@@ -951,8 +920,8 @@ static struct x86_pmu intel_pmu = {
 static struct x86_pmu amd_pmu = {
 	.name			= "AMD",
 	.handle_irq		= amd_pmu_handle_irq,
-	.save_disable_all	= amd_pmu_save_disable_all,
-	.restore_all		= amd_pmu_restore_all,
+	.disable_all		= amd_pmu_disable_all,
+	.enable_all		= amd_pmu_enable_all,
 	.enable			= amd_pmu_enable_counter,
 	.disable		= amd_pmu_disable_counter,
 	.eventsel		= MSR_K7_EVNTSEL0,
@@ -1002,6 +971,8 @@ static int intel_pmu_init(void)
 
 	x86_pmu.counter_bits = eax.split.bit_width;
 	x86_pmu.counter_mask = (1ULL << eax.split.bit_width) - 1;
+
+	rdmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
 
 	return 0;
 }

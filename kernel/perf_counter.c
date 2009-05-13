@@ -60,8 +60,9 @@ extern __weak const struct pmu *hw_perf_counter_init(struct perf_counter *counte
 	return NULL;
 }
 
-u64 __weak hw_perf_save_disable(void)		{ return 0; }
-void __weak hw_perf_restore(u64 ctrl)		{ barrier(); }
+void __weak hw_perf_disable(void)		{ barrier(); }
+void __weak hw_perf_enable(void)		{ barrier(); }
+
 void __weak hw_perf_counter_setup(int cpu)	{ barrier(); }
 int __weak hw_perf_group_sched_in(struct perf_counter *group_leader,
 	       struct perf_cpu_context *cpuctx,
@@ -71,6 +72,32 @@ int __weak hw_perf_group_sched_in(struct perf_counter *group_leader,
 }
 
 void __weak perf_counter_print_debug(void)	{ }
+
+static DEFINE_PER_CPU(int, disable_count);
+
+void __perf_disable(void)
+{
+	__get_cpu_var(disable_count)++;
+}
+
+bool __perf_enable(void)
+{
+	return !--__get_cpu_var(disable_count);
+}
+
+void perf_disable(void)
+{
+	__perf_disable();
+	hw_perf_disable();
+}
+EXPORT_SYMBOL_GPL(perf_disable); /* ACPI idle */
+
+void perf_enable(void)
+{
+	if (__perf_enable())
+		hw_perf_enable();
+}
+EXPORT_SYMBOL_GPL(perf_enable); /* ACPI idle */
 
 static void
 list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
@@ -170,7 +197,6 @@ static void __perf_counter_remove_from_context(void *info)
 	struct perf_counter *counter = info;
 	struct perf_counter_context *ctx = counter->ctx;
 	unsigned long flags;
-	u64 perf_flags;
 
 	/*
 	 * If this is a task context, we need to check whether it is
@@ -191,9 +217,9 @@ static void __perf_counter_remove_from_context(void *info)
 	 * Protect the list operation against NMI by disabling the
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
-	perf_flags = hw_perf_save_disable();
+	perf_disable();
 	list_del_counter(counter, ctx);
-	hw_perf_restore(perf_flags);
+	perf_enable();
 
 	if (!ctx->task) {
 		/*
@@ -538,7 +564,6 @@ static void __perf_install_in_context(void *info)
 	struct perf_counter *leader = counter->group_leader;
 	int cpu = smp_processor_id();
 	unsigned long flags;
-	u64 perf_flags;
 	int err;
 
 	/*
@@ -556,7 +581,7 @@ static void __perf_install_in_context(void *info)
 	 * Protect the list operation against NMI by disabling the
 	 * counters on a global level. NOP for non NMI based counters.
 	 */
-	perf_flags = hw_perf_save_disable();
+	perf_disable();
 
 	add_counter_to_ctx(counter, ctx);
 
@@ -596,7 +621,7 @@ static void __perf_install_in_context(void *info)
 		cpuctx->max_pertask--;
 
  unlock:
-	hw_perf_restore(perf_flags);
+	perf_enable();
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
 }
@@ -663,7 +688,6 @@ static void __perf_counter_enable(void *info)
 	struct perf_cpu_context *cpuctx = &__get_cpu_var(perf_cpu_context);
 	struct perf_counter_context *ctx = counter->ctx;
 	struct perf_counter *leader = counter->group_leader;
-	unsigned long pmuflags;
 	unsigned long flags;
 	int err;
 
@@ -693,14 +717,14 @@ static void __perf_counter_enable(void *info)
 	if (!group_can_go_on(counter, cpuctx, 1)) {
 		err = -EEXIST;
 	} else {
-		pmuflags = hw_perf_save_disable();
+		perf_disable();
 		if (counter == leader)
 			err = group_sched_in(counter, cpuctx, ctx,
 					     smp_processor_id());
 		else
 			err = counter_sched_in(counter, cpuctx, ctx,
 					       smp_processor_id());
-		hw_perf_restore(pmuflags);
+		perf_enable();
 	}
 
 	if (err) {
@@ -795,7 +819,6 @@ void __perf_counter_sched_out(struct perf_counter_context *ctx,
 			      struct perf_cpu_context *cpuctx)
 {
 	struct perf_counter *counter;
-	u64 flags;
 
 	spin_lock(&ctx->lock);
 	ctx->is_active = 0;
@@ -803,12 +826,12 @@ void __perf_counter_sched_out(struct perf_counter_context *ctx,
 		goto out;
 	update_context_time(ctx);
 
-	flags = hw_perf_save_disable();
+	perf_disable();
 	if (ctx->nr_active) {
 		list_for_each_entry(counter, &ctx->counter_list, list_entry)
 			group_sched_out(counter, cpuctx, ctx);
 	}
-	hw_perf_restore(flags);
+	perf_enable();
  out:
 	spin_unlock(&ctx->lock);
 }
@@ -860,7 +883,6 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 			struct perf_cpu_context *cpuctx, int cpu)
 {
 	struct perf_counter *counter;
-	u64 flags;
 	int can_add_hw = 1;
 
 	spin_lock(&ctx->lock);
@@ -870,7 +892,7 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 
 	ctx->timestamp = perf_clock();
 
-	flags = hw_perf_save_disable();
+	perf_disable();
 
 	/*
 	 * First go through the list and put on any pinned groups
@@ -917,7 +939,7 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 				can_add_hw = 0;
 		}
 	}
-	hw_perf_restore(flags);
+	perf_enable();
  out:
 	spin_unlock(&ctx->lock);
 }
@@ -955,7 +977,6 @@ int perf_counter_task_disable(void)
 	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
 	struct perf_counter *counter;
 	unsigned long flags;
-	u64 perf_flags;
 
 	if (likely(!ctx->nr_counters))
 		return 0;
@@ -969,7 +990,7 @@ int perf_counter_task_disable(void)
 	/*
 	 * Disable all the counters:
 	 */
-	perf_flags = hw_perf_save_disable();
+	perf_disable();
 
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		if (counter->state != PERF_COUNTER_STATE_ERROR) {
@@ -978,7 +999,7 @@ int perf_counter_task_disable(void)
 		}
 	}
 
-	hw_perf_restore(perf_flags);
+	perf_enable();
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
@@ -991,7 +1012,6 @@ int perf_counter_task_enable(void)
 	struct perf_counter_context *ctx = &curr->perf_counter_ctx;
 	struct perf_counter *counter;
 	unsigned long flags;
-	u64 perf_flags;
 	int cpu;
 
 	if (likely(!ctx->nr_counters))
@@ -1007,7 +1027,7 @@ int perf_counter_task_enable(void)
 	/*
 	 * Disable all the counters:
 	 */
-	perf_flags = hw_perf_save_disable();
+	perf_disable();
 
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		if (counter->state > PERF_COUNTER_STATE_OFF)
@@ -1017,7 +1037,7 @@ int perf_counter_task_enable(void)
 			ctx->time - counter->total_time_enabled;
 		counter->hw_event.disabled = 0;
 	}
-	hw_perf_restore(perf_flags);
+	perf_enable();
 
 	spin_unlock(&ctx->lock);
 
@@ -1034,7 +1054,6 @@ int perf_counter_task_enable(void)
 static void rotate_ctx(struct perf_counter_context *ctx)
 {
 	struct perf_counter *counter;
-	u64 perf_flags;
 
 	if (!ctx->nr_counters)
 		return;
@@ -1043,12 +1062,12 @@ static void rotate_ctx(struct perf_counter_context *ctx)
 	/*
 	 * Rotate the first entry last (works just fine for group counters too):
 	 */
-	perf_flags = hw_perf_save_disable();
+	perf_disable();
 	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
 		list_move_tail(&counter->list_entry, &ctx->counter_list);
 		break;
 	}
-	hw_perf_restore(perf_flags);
+	perf_enable();
 
 	spin_unlock(&ctx->lock);
 }
@@ -3194,7 +3213,6 @@ __perf_counter_exit_task(struct task_struct *child,
 	} else {
 		struct perf_cpu_context *cpuctx;
 		unsigned long flags;
-		u64 perf_flags;
 
 		/*
 		 * Disable and unlink this counter.
@@ -3203,7 +3221,7 @@ __perf_counter_exit_task(struct task_struct *child,
 		 * could still be processing it:
 		 */
 		local_irq_save(flags);
-		perf_flags = hw_perf_save_disable();
+		perf_disable();
 
 		cpuctx = &__get_cpu_var(perf_cpu_context);
 
@@ -3214,7 +3232,7 @@ __perf_counter_exit_task(struct task_struct *child,
 
 		child_ctx->nr_counters--;
 
-		hw_perf_restore(perf_flags);
+		perf_enable();
 		local_irq_restore(flags);
 	}
 
