@@ -95,18 +95,18 @@ static void dac_audio_stop(void)
 		outw(v, HD64461_GPADR);
 	}
 
- 	sh_dac_output(0, CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
+	sh_dac_output(0, CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 	sh_dac_disable(CONFIG_SOUND_SH_DAC_AUDIO_CHANNEL);
 }
 
 static void dac_audio_set_rate(void)
 {
 	unsigned long interval;
- 	struct clk *clk;
+	struct clk *clk;
 
- 	clk = clk_get(NULL, "module_clk");
- 	interval = (clk_get_rate(clk) / 4) / rate;
- 	clk_put(clk);
+	clk = clk_get(NULL, "peripheral_clk");
+	interval = (clk_get_rate(clk) / 4) / rate;
+	clk_put(clk);
 	ctrl_outl(interval, TMU1_TCOR);
 	ctrl_outl(interval, TMU1_TCNT);
 }

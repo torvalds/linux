@@ -128,7 +128,7 @@ static struct sh_timer_config cmt0_platform_data = {
 	.name = "CMT0",
 	.channel_offset = 0x10,
 	.timer_bit = 0,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 	.clockevent_rating = 125,
 	.clocksource_rating = 125,
 };
@@ -160,7 +160,7 @@ static struct sh_timer_config cmt1_platform_data = {
 	.name = "CMT1",
 	.channel_offset = 0x20,
 	.timer_bit = 1,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 };
 
 static struct resource cmt1_resources[] = {
@@ -190,7 +190,7 @@ static struct sh_timer_config cmt2_platform_data = {
 	.name = "CMT2",
 	.channel_offset = 0x30,
 	.timer_bit = 2,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 };
 
 static struct resource cmt2_resources[] = {
@@ -220,7 +220,7 @@ static struct sh_timer_config cmt3_platform_data = {
 	.name = "CMT3",
 	.channel_offset = 0x40,
 	.timer_bit = 3,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 };
 
 static struct resource cmt3_resources[] = {
@@ -250,7 +250,7 @@ static struct sh_timer_config cmt4_platform_data = {
 	.name = "CMT4",
 	.channel_offset = 0x50,
 	.timer_bit = 4,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 };
 
 static struct resource cmt4_resources[] = {
@@ -280,7 +280,7 @@ static struct sh_timer_config tmu0_platform_data = {
 	.name = "TMU0",
 	.channel_offset = 0x02,
 	.timer_bit = 0,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
@@ -311,7 +311,7 @@ static struct sh_timer_config tmu1_platform_data = {
 	.name = "TMU1",
 	.channel_offset = 0xe,
 	.timer_bit = 1,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
@@ -342,7 +342,7 @@ static struct sh_timer_config tmu2_platform_data = {
 	.name = "TMU2",
 	.channel_offset = 0x1a,
 	.timer_bit = 2,
-	.clk = "module_clk",
+	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {

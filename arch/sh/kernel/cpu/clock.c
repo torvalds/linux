@@ -50,8 +50,8 @@ static struct clk master_clk = {
 	.rate		= CONFIG_SH_PCLK_FREQ,
 };
 
-static struct clk module_clk = {
-	.name		= "module_clk",
+static struct clk peripheral_clk = {
+	.name		= "peripheral_clk",
 	.parent		= &master_clk,
 	.flags		= CLK_ENABLE_ON_INIT,
 };
@@ -73,7 +73,7 @@ static struct clk cpu_clk = {
  */
 static struct clk *onchip_clocks[] = {
 	&master_clk,
-	&module_clk,
+	&peripheral_clk,
 	&bus_clk,
 	&cpu_clk,
 };

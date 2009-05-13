@@ -1084,7 +1084,7 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	sci_port->port.uartclk	= CONFIG_CPU_CLOCK;
 #elif defined(CONFIG_HAVE_CLK)
 	sci_port->iclk		= p->clk ? clk_get(&dev->dev, p->clk) : NULL;
-	sci_port->dclk		= clk_get(&dev->dev, "module_clk");
+	sci_port->dclk		= clk_get(&dev->dev, "peripheral_clk");
 	sci_port->enable	= sci_clk_enable;
 	sci_port->disable	= sci_clk_disable;
 #else
