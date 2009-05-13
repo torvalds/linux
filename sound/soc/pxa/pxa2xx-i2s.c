@@ -262,9 +262,6 @@ static void pxa2xx_i2s_shutdown(struct snd_pcm_substream *substream,
 #ifdef CONFIG_PM
 static int pxa2xx_i2s_suspend(struct snd_soc_dai *dai)
 {
-	if (!dai->active)
-		return 0;
-
 	/* store registers */
 	pxa_i2s.sacr0 = SACR0;
 	pxa_i2s.sacr1 = SACR1;
@@ -279,16 +276,14 @@ static int pxa2xx_i2s_suspend(struct snd_soc_dai *dai)
 
 static int pxa2xx_i2s_resume(struct snd_soc_dai *dai)
 {
-	if (!dai->active)
-		return 0;
-
 	pxa_i2s_wait();
 
-	SACR0 = pxa_i2s.sacr0 &= ~SACR0_ENB;
+	SACR0 = pxa_i2s.sacr0 & ~SACR0_ENB;
 	SACR1 = pxa_i2s.sacr1;
 	SAIMR = pxa_i2s.saimr;
 	SADIV = pxa_i2s.sadiv;
-	SACR0 |= SACR0_ENB;
+
+	SACR0 = pxa_i2s.sacr0;
 
 	return 0;
 }
