@@ -3,8 +3,13 @@ header-y += errno-base.h
 header-y += errno.h
 header-y += fcntl.h
 header-y += ioctl.h
+header-y += ipcbuf.h
 header-y += mman-common.h
+header-y += msgbuf.h
 header-y += poll.h
+header-y += sembuf.h
+header-y += shmbuf.h
+header-y += shmparam.h
 header-y += signal-defs.h
 header-y += statfs.h
 
