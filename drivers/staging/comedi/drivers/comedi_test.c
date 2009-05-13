@@ -55,6 +55,7 @@ zero volts).
 #include <asm/div64.h>
 
 #include "comedi_fc.h"
+#include <linux/timer.h>
 
 /* Board descriptions */
 struct waveform_board {
