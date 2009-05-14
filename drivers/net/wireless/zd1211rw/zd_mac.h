@@ -87,7 +87,7 @@ struct zd_ctrlset {
 
 /* zd_ctrlset control field */
 #define ZD_CS_NEED_RANDOM_BACKOFF	0x01
-#define ZD_CS_MULTICAST			0x02
+#define ZD_CS_NO_ACK			0x02
 
 #define ZD_CS_FRAME_TYPE_MASK		0x0c
 #define ZD_CS_DATA_FRAME		0x00
