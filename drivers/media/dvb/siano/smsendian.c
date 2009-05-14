@@ -49,6 +49,7 @@ void smsendian_handle_tx_message(void *buffer)
 	}
 #endif /* __BIG_ENDIAN */
 }
+EXPORT_SYMBOL_GPL(smsendian_handle_tx_message);
 
 void smsendian_handle_rx_message(void *buffer)
 {
@@ -86,6 +87,7 @@ void smsendian_handle_rx_message(void *buffer)
 	}
 #endif /* __BIG_ENDIAN */
 }
+EXPORT_SYMBOL_GPL(smsendian_handle_rx_message);
 
 void smsendian_handle_message_header(void *msg)
 {
@@ -97,4 +99,4 @@ void smsendian_handle_message_header(void *msg)
 	phdr->msgFlags = le16_to_cpu(phdr->msgFlags);
 #endif /* __BIG_ENDIAN */
 }
-
+EXPORT_SYMBOL_GPL(smsendian_handle_message_header);
