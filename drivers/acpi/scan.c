@@ -530,11 +530,10 @@ static int acpi_device_register(struct acpi_device *device,
 	if (device->parent)
 		device->dev.parent = &parent->dev;
 	device->dev.bus = &acpi_bus_type;
-	device_initialize(&device->dev);
 	device->dev.release = &acpi_device_release;
-	result = device_add(&device->dev);
+	result = device_register(&device->dev);
 	if(result) {
-		dev_err(&device->dev, "Error adding device\n");
+		dev_err(&device->dev, "Error registering device\n");
 		goto end;
 	}
 
