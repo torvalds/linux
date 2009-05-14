@@ -167,24 +167,6 @@ void dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle,
 }
 EXPORT_SYMBOL(dma_sync_single_for_device);
 
-void dma_sync_single_range_for_cpu(struct device *dev,
-				   dma_addr_t dma_handle,
-				   unsigned long offset,
-				   size_t size,
-				   enum dma_data_direction direction)
-{
-	dma_sync_single_for_cpu(dev, dma_handle+offset, size, direction);
-}
-EXPORT_SYMBOL(dma_sync_single_range_for_cpu);
-
-void dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_handle,
-				      unsigned long offset, size_t size,
-				      enum dma_data_direction direction)
-{
-	dma_sync_single_for_device(dev, dma_handle+offset, size, direction);
-}
-EXPORT_SYMBOL(dma_sync_single_range_for_device);
-
 void dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 			 int nelems, enum dma_data_direction direction)
 {
@@ -213,15 +195,3 @@ void dma_sync_sg_for_device(struct device *dev,
 	BUG();
 }
 EXPORT_SYMBOL(dma_sync_sg_for_device);
-
-int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return (dma_addr == DMA_ERROR_CODE);
-}
-EXPORT_SYMBOL(dma_mapping_error);
-
-int dma_get_cache_alignment(void)
-{
-	return 32;
-}
-EXPORT_SYMBOL(dma_get_cache_alignment);
