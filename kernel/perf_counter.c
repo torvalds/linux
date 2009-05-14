@@ -2042,11 +2042,10 @@ static void perf_counter_output(struct perf_counter *counter,
 	header.size = sizeof(header);
 
 	header.misc = PERF_EVENT_MISC_OVERFLOW;
-	header.misc |= user_mode(regs) ?
-		PERF_EVENT_MISC_USER : PERF_EVENT_MISC_KERNEL;
+	header.misc |= perf_misc_flags(regs);
 
 	if (record_type & PERF_RECORD_IP) {
-		ip = instruction_pointer(regs);
+		ip = perf_instruction_pointer(regs);
 		header.type |= PERF_RECORD_IP;
 		header.size += sizeof(ip);
 	}

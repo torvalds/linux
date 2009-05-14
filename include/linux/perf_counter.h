@@ -215,8 +215,11 @@ struct perf_counter_mmap_page {
 	__u32   data_head;		/* head in the data section */
 };
 
+#define PERF_EVENT_MISC_CPUMODE_MASK	(3 << 0)
+#define PERF_EVENT_MISC_CPUMODE_UNKNOWN	(0 << 0)
 #define PERF_EVENT_MISC_KERNEL		(1 << 0)
-#define PERF_EVENT_MISC_USER		(1 << 1)
+#define PERF_EVENT_MISC_USER		(2 << 0)
+#define PERF_EVENT_MISC_HYPERVISOR	(3 << 0)
 #define PERF_EVENT_MISC_OVERFLOW	(1 << 2)
 
 struct perf_event_header {
@@ -595,6 +598,12 @@ extern int sysctl_perf_counter_priv;
 extern int sysctl_perf_counter_mlock;
 
 extern void perf_counter_init(void);
+
+#ifndef perf_misc_flags
+#define perf_misc_flags(regs)	(user_mode(regs) ? PERF_EVENT_MISC_USER : \
+				 PERF_EVENT_MISC_KERNEL)
+#define perf_instruction_pointer(regs)	instruction_pointer(regs)
+#endif
 
 #else
 static inline void
