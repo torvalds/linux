@@ -228,12 +228,75 @@ static struct clk *clks[] = {
 	&umem_clk,
 };
 
+static int mstpcr_clk_enable(struct clk *clk)
+{
+	__raw_writel(__raw_readl(clk->enable_reg) & ~(1 << clk->enable_bit),
+		     clk->enable_reg);
+	return 0;
+}
+
+static void mstpcr_clk_disable(struct clk *clk)
+{
+	__raw_writel(__raw_readl(clk->enable_reg) | (1 << clk->enable_bit),
+		     clk->enable_reg);
+}
+
+static struct clk_ops mstpcr_clk_ops = {
+	.enable		= mstpcr_clk_enable,
+	.disable	= mstpcr_clk_disable,
+	.recalc		= followparent_recalc,
+};
+
+#define MSTPCR0		0xffc80030
+#define MSTPCR1		0xffc80034
+
+#define CLK(_name, _id, _parent, _enable_reg,		\
+	    _enable_bit, _flags)			\
+{							\
+	.name		= _name,			\
+	.id		= _id,				\
+	.parent		= _parent,			\
+	.enable_reg	= (void __iomem *)_enable_reg,	\
+	.enable_bit	= _enable_bit,			\
+	.flags		= _flags,			\
+	.ops		= &mstpcr_clk_ops,		\
+}
+
+static struct clk mstpcr_clks[] = {
+	/* MSTPCR0 */
+	CLK("scif_fck", 5, &peripheral_clk, MSTPCR0, 29, 0),
+	CLK("scif_fck", 4, &peripheral_clk, MSTPCR0, 28, 0),
+	CLK("scif_fck", 3, &peripheral_clk, MSTPCR0, 27, 0),
+	CLK("scif_fck", 2, &peripheral_clk, MSTPCR0, 26, 0),
+	CLK("scif_fck", 1, &peripheral_clk, MSTPCR0, 25, 0),
+	CLK("scif_fck", 0, &peripheral_clk, MSTPCR0, 24, 0),
+	CLK("ssi_fck", 1, &peripheral_clk, MSTPCR0, 21, 0),
+	CLK("ssi_fck", 0, &peripheral_clk, MSTPCR0, 20, 0),
+	CLK("hac_fck", 1, &peripheral_clk, MSTPCR0, 17, 0),
+	CLK("hac_fck", 0, &peripheral_clk, MSTPCR0, 16, 0),
+	CLK("mmcif_fck", -1, &peripheral_clk, MSTPCR0, 13, 0),
+	CLK("flctl_fck", -1, &peripheral_clk, MSTPCR0, 12, 0),
+	CLK("tmu345_fck", -1, &peripheral_clk, MSTPCR0, 9, 0),
+	CLK("tmu012_fck", -1, &peripheral_clk, MSTPCR0, 8, 0),
+	CLK("siof_fck", -1, &peripheral_clk, MSTPCR0, 3, 0),
+	CLK("hspi_fck", -1, &peripheral_clk, MSTPCR0, 2, 0),
+
+	/* MSTPCR1 */
+	CLK("hudi_fck", -1, NULL, MSTPCR1, 19, 0),
+	CLK("ubc_fck", -1, NULL, MSTPCR1, 17, 0),
+	CLK("dmac_11_6_fck", -1, NULL, MSTPCR1, 5, 0),
+	CLK("dmac_5_0_fck", -1, NULL, MSTPCR1, 4, 0),
+	CLK("gdta_fck", -1, NULL, MSTPCR1, 0, 0),
+};
+
 int __init arch_clk_init(void)
 {
 	int i, ret = 0;
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++)
 		ret |= clk_register(clks[i]);
+	for (i = 0; i < ARRAY_SIZE(mstpcr_clks); i++)
+		ret |= clk_register(&mstpcr_clks[i]);
 
 	return ret;
 }

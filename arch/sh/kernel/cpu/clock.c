@@ -39,7 +39,7 @@ static DEFINE_MUTEX(clock_list_sem);
 /* Used for clocks that always have same value as the parent clock */
 unsigned long followparent_recalc(struct clk *clk)
 {
-	return clk->parent->rate;
+	return clk->parent ? clk->parent->rate : 0;
 }
 
 int clk_reparent(struct clk *child, struct clk *parent)
@@ -512,7 +512,7 @@ static int clk_debugfs_register_one(struct clk *c)
 	char *p = s;
 
 	p += sprintf(p, "%s", c->name);
-	if (c->id > 0)
+	if (c->id >= 0)
 		sprintf(p, ":%d", c->id);
 	d = debugfs_create_dir(s, pa ? pa->dentry : clk_debugfs_root);
 	if (!d)

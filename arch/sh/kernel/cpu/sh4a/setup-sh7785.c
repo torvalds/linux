@@ -20,7 +20,7 @@ static struct sh_timer_config tmu0_platform_data = {
 	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
+	.clk = "tmu012_fck",
 	.clockevent_rating = 200,
 };
 
@@ -51,7 +51,7 @@ static struct sh_timer_config tmu1_platform_data = {
 	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
+	.clk = "tmu012_fck",
 	.clocksource_rating = 200,
 };
 
@@ -82,7 +82,7 @@ static struct sh_timer_config tmu2_platform_data = {
 	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
+	.clk = "tmu012_fck",
 };
 
 static struct resource tmu2_resources[] = {
@@ -112,7 +112,7 @@ static struct sh_timer_config tmu3_platform_data = {
 	.name = "TMU3",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
+	.clk = "tmu345_fck",
 };
 
 static struct resource tmu3_resources[] = {
@@ -142,7 +142,7 @@ static struct sh_timer_config tmu4_platform_data = {
 	.name = "TMU4",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
+	.clk = "tmu345_fck",
 };
 
 static struct resource tmu4_resources[] = {
@@ -172,7 +172,7 @@ static struct sh_timer_config tmu5_platform_data = {
 	.name = "TMU5",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
+	.clk = "tmu345_fck",
 };
 
 static struct resource tmu5_resources[] = {
@@ -204,31 +204,37 @@ static struct plat_sci_port sci_platform_data[] = {
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 40, 40, 40, 40 },
+		.clk		= "scif_fck",
 	}, {
 		.mapbase	= 0xffeb0000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 44, 44, 44, 44 },
+		.clk		= "scif_fck",
 	}, {
 		.mapbase	= 0xffec0000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 60, 60, 60, 60 },
+		.clk		= "scif_fck",
 	}, {
 		.mapbase	= 0xffed0000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 61, 61, 61, 61 },
+		.clk		= "scif_fck",
 	}, {
 		.mapbase	= 0xffee0000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 62, 62, 62, 62 },
+		.clk		= "scif_fck",
 	}, {
 		.mapbase	= 0xffef0000,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.type		= PORT_SCIF,
 		.irqs		= { 63, 63, 63, 63 },
+		.clk		= "scif_fck",
 	}, {
 		.flags = 0,
 	}

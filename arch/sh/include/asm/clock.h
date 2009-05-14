@@ -36,6 +36,9 @@ struct clk {
 	unsigned long		rate;
 	unsigned long		flags;
 
+	void __iomem		*enable_reg;
+	unsigned int		enable_bit;
+
 	unsigned long		arch_flags;
 	void			*priv;
 	struct dentry		*dentry;
