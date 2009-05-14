@@ -306,7 +306,7 @@ void __init get_mtrr_state(void)
 
 	vrs = mtrr_state.var_ranges;
 
-	rdmsr(MTRRcap_MSR, lo, dummy);
+	rdmsr(MSR_MTRRcap, lo, dummy);
 	mtrr_state.have_fixed = (lo >> 8) & 1;
 
 	for (i = 0; i < num_var_ranges; i++)
@@ -703,7 +703,7 @@ int generic_validate_add_page(unsigned long base, unsigned long size, unsigned i
 static int generic_have_wrcomb(void)
 {
 	unsigned long config, dummy;
-	rdmsr(MTRRcap_MSR, config, dummy);
+	rdmsr(MSR_MTRRcap, config, dummy);
 	return (config & (1 << 10));
 }
 

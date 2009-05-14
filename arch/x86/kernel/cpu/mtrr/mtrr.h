@@ -5,7 +5,6 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 
-#define MTRRcap_MSR     0x0fe
 #define MTRRdefType_MSR 0x2ff
 
 #define MTRRfix64K_00000_MSR 0x250
