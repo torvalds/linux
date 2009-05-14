@@ -384,7 +384,7 @@ int xhci_run(struct usb_hcd *hcd)
 
 	xhci_dbg(xhci, "// Set the interrupt modulation register\n");
 	temp = xhci_readl(xhci, &xhci->ir_set->irq_control);
-	temp &= 0xffff;
+	temp &= ~ER_IRQ_INTERVAL_MASK;
 	temp |= (u32) 160;
 	xhci_writel(xhci, temp, &xhci->ir_set->irq_control);
 
