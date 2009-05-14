@@ -783,6 +783,10 @@ static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 
 		counter = cpuc->counters[idx];
 		hwc = &counter->hw;
+
+		if (counter->hw_event.nmi != nmi)
+			goto next;
+
 		val = x86_perf_counter_update(counter, hwc, idx);
 		if (val & (1ULL << (x86_pmu.counter_bits - 1)))
 			goto next;
@@ -869,7 +873,6 @@ perf_counter_nmi_handler(struct notifier_block *self,
 {
 	struct die_args *args = __args;
 	struct pt_regs *regs;
-	int ret;
 
 	if (!atomic_read(&active_counters))
 		return NOTIFY_DONE;
@@ -886,9 +889,16 @@ perf_counter_nmi_handler(struct notifier_block *self,
 	regs = args->regs;
 
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	ret = x86_pmu.handle_irq(regs, 1);
+	/*
+	 * Can't rely on the handled return value to say it was our NMI, two
+	 * counters could trigger 'simultaneously' raising two back-to-back NMIs.
+	 *
+	 * If the first NMI handles both, the latter will be empty and daze
+	 * the CPU.
+	 */
+	x86_pmu.handle_irq(regs, 1);
 
-	return ret ? NOTIFY_STOP : NOTIFY_OK;
+	return NOTIFY_STOP;
 }
 
 static __read_mostly struct notifier_block perf_counter_nmi_notifier = {
