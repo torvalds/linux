@@ -977,6 +977,10 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	 * changed or not.
 	 */
 	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
+
+	/* And the BSSID changed - we're associated now */
+	bss_info_changed |= BSS_CHANGED_BSSID;
+
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
 	/* will be same as sdata */
@@ -1176,6 +1180,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_hw_config(local, config_changed);
+
+	/* And the BSSID changed -- not very interesting here */
+	changed |= BSS_CHANGED_BSSID;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	rcu_read_lock();
@@ -2480,9 +2487,6 @@ int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid)
 		memset(ifmgd->bssid, 0, ETH_ALEN);
 		ifmgd->flags &= ~IEEE80211_STA_BSSID_SET;
 	}
-
-	if (netif_running(sdata->dev))
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
 
 	return ieee80211_sta_commit(sdata);
 }
