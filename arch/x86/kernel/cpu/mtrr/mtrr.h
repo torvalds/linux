@@ -5,8 +5,6 @@
 #include <linux/types.h>
 #include <linux/stddef.h>
 
-#define MTRRdefType_MSR 0x2ff
-
 #define MTRR_CHANGE_MASK_FIXED     0x01
 #define MTRR_CHANGE_MASK_VARIABLE  0x02
 #define MTRR_CHANGE_MASK_DEFTYPE   0x04

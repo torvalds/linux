@@ -314,7 +314,7 @@ void __init get_mtrr_state(void)
 	if (mtrr_state.have_fixed)
 		get_fixed_ranges(mtrr_state.fixed_ranges);
 
-	rdmsr(MTRRdefType_MSR, lo, dummy);
+	rdmsr(MSR_MTRRdefType, lo, dummy);
 	mtrr_state.def_type = (lo & 0xff);
 	mtrr_state.enabled = (lo & 0xc00) >> 10;
 
@@ -579,10 +579,10 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 	__flush_tlb();
 
 	/*  Save MTRR state */
-	rdmsr(MTRRdefType_MSR, deftype_lo, deftype_hi);
+	rdmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
 
 	/*  Disable MTRRs, and set the default type to uncached  */
-	mtrr_wrmsr(MTRRdefType_MSR, deftype_lo & ~0xcff, deftype_hi);
+	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo & ~0xcff, deftype_hi);
 }
 
 static void post_set(void) __releases(set_atomicity_lock)
@@ -591,7 +591,7 @@ static void post_set(void) __releases(set_atomicity_lock)
 	__flush_tlb();
 
 	/* Intel (P6) standard MTRRs */
-	mtrr_wrmsr(MTRRdefType_MSR, deftype_lo, deftype_hi);
+	mtrr_wrmsr(MSR_MTRRdefType, deftype_lo, deftype_hi);
 		
 	/*  Enable caches  */
 	write_cr0(read_cr0() & 0xbfffffff);
