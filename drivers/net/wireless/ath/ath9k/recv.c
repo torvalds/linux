@@ -637,7 +637,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		}
 
 		/* Send the frame to mac80211 */
-		if (hdr->addr1[5] & 0x01) {
+		if (is_multicast_ether_addr(hdr->addr1)) {
 			int i;
 			/*
 			 * Deliver broadcast/multicast frames to all suitable
