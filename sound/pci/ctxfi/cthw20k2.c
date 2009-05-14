@@ -24,6 +24,7 @@
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 
 #define CT_XFI_DMA_MASK		DMA_BIT_MASK(32) /* 32 bits */
 
