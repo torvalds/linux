@@ -4296,7 +4296,6 @@ out:
 	}
 	if (err) {
 		free_extent_map(em);
-		WARN_ON(1);
 		return ERR_PTR(err);
 	}
 	return em;
