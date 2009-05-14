@@ -1234,16 +1234,15 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 		}
 	}
 
-	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) {
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
 		EXT4_I(inode)->i_delalloc_reserved_flag = 0;
-		/*
-		 * Update reserved blocks/metadata blocks
-		 * after successful block allocation
-		 * which were deferred till now
-		 */
-		if ((retval > 0) && buffer_delay(bh))
-			ext4_da_update_reserve_space(inode, retval);
-	}
+
+	/*
+	 * Update reserved blocks/metadata blocks after successful
+	 * block allocation which had been deferred till now.
+	 */
+	if ((retval > 0) && (flags & EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE))
+		ext4_da_update_reserve_space(inode, retval);
 
 	up_write((&EXT4_I(inode)->i_data_sem));
 	return retval;
@@ -2015,7 +2014,7 @@ static void ext4_print_free_blocks(struct inode *inode)
  */
 static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 {
-	int err, blks;
+	int err, blks, get_blocks_flags;
 	struct buffer_head new;
 	sector_t next = mpd->b_blocknr;
 	unsigned max_blocks = mpd->b_size >> mpd->inode->i_blkbits;
@@ -2040,23 +2039,30 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 	BUG_ON(!handle);
 
 	/*
-	 * We need to make sure the BH_Delay flag is passed down to
-	 * ext4_da_get_block_write(), since it calls ext4_get_blocks()
-	 * with the EXT4_GET_BLOCKS_DELALLOC_RESERVE flag.  This flag
-	 * causes ext4_get_blocks() to call
-	 * ext4_da_update_reserve_space() if the passed buffer head
-	 * has the BH_Delay flag set.  In the future, once we clean up
-	 * the interfaces to ext4_get_blocks(), we should pass in a
-	 * separate flag which requests that the delayed allocation
-	 * statistics should be updated, instead of depending on the
-	 * state information getting passed down via the map_bh's
-	 * state bitmasks plus the magic
-	 * EXT4_GET_BLOCKS_DELALLOC_RESERVE flag.
+	 * Call ext4_get_blocks() to allocate any delayed allocation
+	 * blocks, or to convert an uninitialized extent to be
+	 * initialized (in the case where we have written into
+	 * one or more preallocated blocks).
+	 *
+	 * We pass in the magic EXT4_GET_BLOCKS_DELALLOC_RESERVE to
+	 * indicate that we are on the delayed allocation path.  This
+	 * affects functions in many different parts of the allocation
+	 * call path.  This flag exists primarily because we don't
+	 * want to change *many* call functions, so ext4_get_blocks()
+	 * will set the magic i_delalloc_reserved_flag once the
+	 * inode's allocation semaphore is taken.
+	 *
+	 * If the blocks in questions were delalloc blocks, set
+	 * EXT4_GET_BLOCKS_DELALLOC_RESERVE so the delalloc accounting
+	 * variables are updated after the blocks have been allocated.
 	 */
-	new.b_state = mpd->b_state & (1 << BH_Delay);
+	new.b_state = 0;
+	get_blocks_flags = (EXT4_GET_BLOCKS_CREATE |
+			    EXT4_GET_BLOCKS_DELALLOC_RESERVE);
+	if (mpd->b_state & (1 << BH_Delay))
+		get_blocks_flags |= EXT4_GET_BLOCKS_UPDATE_RESERVE_SPACE;
 	blks = ext4_get_blocks(handle, mpd->inode, next, max_blocks,
-			       &new, EXT4_GET_BLOCKS_CREATE|
-			       EXT4_GET_BLOCKS_DELALLOC_RESERVE);
+			       &new, get_blocks_flags);
 	if (blks < 0) {
 		err = blks;
 		/*
