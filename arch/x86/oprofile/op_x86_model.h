@@ -45,7 +45,7 @@ struct op_x86_model_spec {
 	void (*shutdown)(struct op_msrs const * const msrs);
 };
 
-extern struct op_x86_model_spec op_ppro_spec;
+extern struct op_x86_model_spec const op_ppro_spec;
 extern struct op_x86_model_spec const op_p4_spec;
 extern struct op_x86_model_spec const op_p4_ht2_spec;
 extern struct op_x86_model_spec const op_amd_spec;
