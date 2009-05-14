@@ -7293,6 +7293,10 @@ static int patch_alc882(struct hda_codec *codec)
 			board_config = ALC885_MBP3;
 			break;
 		case 0x106b3f00: /* Macbook 5,1 */
+		case 0x106b4000: /* Macbook Pro 5,1 - FIXME: HP jack sense
+				  *   seems not working, so apparently
+				  *   no perfect solution yet
+				  */
 			board_config = ALC885_MB5;
 			break;
 		default:
