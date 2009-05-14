@@ -191,7 +191,7 @@ static unsigned int convert_format(snd_pcm_format_t snd_format)
 	case SNDRV_PCM_FORMAT_S32_LE:
 		return SRC_SF_S32;
 	default:
-		printk(KERN_ERR "not recognized snd format is %d \n",
+		printk(KERN_ERR "ctxfi: not recognized snd format is %d \n",
 			snd_format);
 		return SRC_SF_S16;
 	}
@@ -1254,7 +1254,8 @@ static int ct_create_alsa_devs(struct ct_atc *atc)
 		err = alsa_dev_funcs[i].create(atc, i,
 				alsa_dev_funcs[i].public_name);
 		if (err) {
-			printk(KERN_ERR "Creating alsa device %d failed!\n", i);
+			printk(KERN_ERR "ctxfi: "
+			       "Creating alsa device %d failed!\n", i);
 			return err;
 		}
 	}
@@ -1289,7 +1290,8 @@ static int atc_create_hw_devs(struct ct_atc *atc)
 
 		err = rsc_mgr_funcs[i].create(atc->hw, &atc->rsc_mgrs[i]);
 		if (err) {
-			printk(KERN_ERR "Failed to create rsc_mgr %d!!!\n", i);
+			printk(KERN_ERR "ctxfi: "
+			       "Failed to create rsc_mgr %d!!!\n", i);
 			return err;
 		}
 	}
@@ -1333,7 +1335,7 @@ static int atc_get_resources(struct ct_atc *atc)
 		err = daio_mgr->get_daio(daio_mgr, &da_desc,
 					(struct daio **)&atc->daios[i]);
 		if (err) {
-			printk(KERN_ERR "Failed to get DAIO "
+			printk(KERN_ERR "ctxfi: Failed to get DAIO "
 					"resource %d!!!\n", i);
 			return err;
 		}
@@ -1349,7 +1351,7 @@ static int atc_get_resources(struct ct_atc *atc)
 	err = daio_mgr->get_daio(daio_mgr, &da_desc,
 				(struct daio **)&atc->daios[i]);
 	if (err) {
-		printk(KERN_ERR "Failed to get S/PDIF-in resource!!!\n");
+		printk(KERN_ERR "ctxfi: Failed to get S/PDIF-in resource!!!\n");
 		return err;
 	}
 	atc->n_daio++;
@@ -1400,7 +1402,7 @@ static int atc_get_resources(struct ct_atc *atc)
 
 	err = ct_mixer_create(atc, (struct ct_mixer **)&atc->mixer);
 	if (err) {
-		printk(KERN_ERR "Failed to create mixer obj!!!\n");
+		printk(KERN_ERR "ctxfi: Failed to create mixer obj!!!\n");
 		return err;
 	}
 
@@ -1600,7 +1602,7 @@ int ct_atc_create(struct snd_card *card, struct pci_dev *pci,
 
 error1:
 	ct_atc_destroy(atc);
-	printk(KERN_ERR "Something wrong!!!\n");
+	printk(KERN_ERR "ctxfi: Something wrong!!!\n");
 	return err;
 }
 

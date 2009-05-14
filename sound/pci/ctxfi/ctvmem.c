@@ -121,12 +121,13 @@ ct_vm_map(struct ct_vm *vm, void *host_addr, int size)
 
 	/* do mapping */
 	if ((unsigned long)host_addr >= VMALLOC_START) {
-		printk(KERN_ERR "Fail! Not support vmalloced addr now!\n");
+		printk(KERN_ERR "ctxfi: "
+		       "Fail! Not support vmalloced addr now!\n");
 		return NULL;
 	}
 
 	if (size > vm->size) {
-		printk(KERN_ERR "Fail! No sufficient device virtural "
+		printk(KERN_ERR "ctxfi: Fail! No sufficient device virtural "
 				  "memory space available!\n");
 		return NULL;
 	}
@@ -139,7 +140,7 @@ ct_vm_map(struct ct_vm *vm, void *host_addr, int size)
 
 	block = get_vm_block(vm, (pages << PAGE_SHIFT));
 	if (block == NULL) {
-		printk(KERN_ERR "No virtual memory block that is big "
+		printk(KERN_ERR "ctxfi: No virtual memory block that is big "
 				  "enough to allocate!\n");
 		return NULL;
 	}

@@ -1144,7 +1144,7 @@ static int hw_daio_init(struct hw *hw, const struct daio_conf *info)
 		hw_write_20kx(hw, AUDIO_IO_TX_BLRCLK, 0x11111111);
 		hw_write_20kx(hw, AUDIO_IO_RX_BLRCLK, 0);
 	} else {
-		printk(KERN_ALERT "ERROR!!! Invalid sampling rate!!!\n");
+		printk(KERN_ALERT "ctxfi: ERROR!!! Invalid sampling rate!!!\n");
 		return -EINVAL;
 	}
 
@@ -1197,7 +1197,8 @@ static int hw_trn_init(struct hw *hw, const struct trn_conf *info)
 
 	/* Set up device page table */
 	if ((~0UL) == info->vm_pgt_phys) {
-		printk(KERN_ALERT "Wrong device page table page address!!!\n");
+		printk(KERN_ALERT "ctxfi: "
+		       "Wrong device page table page address!!!\n");
 		return -1;
 	}
 
@@ -1314,7 +1315,7 @@ static int hw_pll_init(struct hw *hw, unsigned int rsr)
 		break;
 	}
 	if (i >= 1000) {
-		printk(KERN_ALERT "PLL initialization failed!!!\n");
+		printk(KERN_ALERT "ctxfi: PLL initialization failed!!!\n");
 		return -EBUSY;
 	}
 
@@ -1338,7 +1339,7 @@ static int hw_auto_init(struct hw *hw)
 			break;
 	}
 	if (!get_field(gctl, GCTL_AID)) {
-		printk(KERN_ALERT "Card Auto-init failed!!!\n");
+		printk(KERN_ALERT "ctxfi: Card Auto-init failed!!!\n");
 		return -EBUSY;
 	}
 
@@ -1762,7 +1763,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 	/* Initialize I2C */
 	err = I2CInit(hw, 0x1A, 1, 1);
 	if (err < 0) {
-		printk(KERN_ALERT "Failure to acquire I2C!!!\n");
+		printk(KERN_ALERT "ctxfi: Failure to acquire I2C!!!\n");
 		goto error;
 	}
 
@@ -1782,7 +1783,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_MMC, 0x0A),
 						MAKE_WM8775_DATA(0x0A));
 	} else {
-		printk(KERN_ALERT "Invalid master sampling "
+		printk(KERN_ALERT "ctxfi: Invalid master sampling "
 				  "rate (msr %d)!!!\n", info->msr);
 		err = -EINVAL;
 		goto error;
@@ -1820,7 +1821,7 @@ static int hw_adc_init(struct hw *hw, const struct adc_conf *info)
 		I2CWrite(hw, MAKE_WM8775_ADDR(WM8775_AADCR, 0xCF),
 				MAKE_WM8775_DATA(0xCF)); /* No boost */
 	} else {
-		printk(KERN_ALERT "ERROR!!! Invalid input mux!!!\n");
+		printk(KERN_ALERT "ctxfi: ERROR!!! Invalid input mux!!!\n");
 		err = -EINVAL;
 		goto error;
 	}
@@ -1852,7 +1853,7 @@ static int hw_card_start(struct hw *hw)
 	dma_mask = CT_XFI_DMA_MASK;
 	if (pci_set_dma_mask(pci, dma_mask) < 0 ||
 	    pci_set_consistent_dma_mask(pci, dma_mask) < 0) {
-		printk(KERN_ERR "architecture does not support PCI "
+		printk(KERN_ERR "ctxfi: architecture does not support PCI "
 		"busmaster DMA with mask 0x%x\n", dma_mask);
 		err = -ENXIO;
 		goto error1;

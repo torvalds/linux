@@ -259,7 +259,7 @@ static int get_amixer_rsc(struct amixer_mgr *mgr,
 	}
 	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
-		printk(KERN_ERR "Can't meet AMIXER resource request!\n");
+		printk(KERN_ERR "ctxfi: Can't meet AMIXER resource request!\n");
 		goto error;
 	}
 
@@ -413,7 +413,7 @@ static int get_sum_rsc(struct sum_mgr *mgr,
 	}
 	spin_unlock_irqrestore(&mgr->mgr_lock, flags);
 	if (err) {
-		printk(KERN_ERR "Can't meet SUM resource request!\n");
+		printk(KERN_ERR "ctxfi: Can't meet SUM resource request!\n");
 		goto error;
 	}
 
