@@ -293,6 +293,9 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
 
+	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+		sta->last_seq_ctrl[i] = cpu_to_le16(USHORT_MAX);
+
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Allocated STA %pM\n",
 	       wiphy_name(local->hw.wiphy), sta->sta.addr);
