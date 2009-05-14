@@ -216,7 +216,7 @@ int acpi_processor_resume(struct acpi_device * device)
 }
 
 #if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
-static int tsc_halts_in_c(int state)
+static void tsc_check_state(int state)
 {
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
@@ -226,13 +226,17 @@ static int tsc_halts_in_c(int state)
 		 * C/P/S0/S1 states when this bit is set.
 		 */
 		if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
-			return 0;
+			return;
 
 		/*FALL THROUGH*/
 	default:
-		return state > ACPI_STATE_C1;
+		/* TSC could halt in idle, so notify users */
+		if (state > ACPI_STATE_C1)
+			mark_tsc_unstable("TSC halts in idle");
 	}
 }
+#else
+static void tsc_check_state(int state) { return; }
 #endif
 
 static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
@@ -581,11 +585,6 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
 		struct acpi_processor_cx *cx = &pr->power.states[i];
 
-#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
-		/* TSC could halt in idle, so notify users */
-		if (tsc_halts_in_c(cx->type))
-			mark_tsc_unstable("TSC halts in idle");;
-#endif
 		switch (cx->type) {
 		case ACPI_STATE_C1:
 			cx->valid = 1;
@@ -603,6 +602,8 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 				acpi_timer_check_state(i, pr, cx);
 			break;
 		}
+		if (cx->valid)
+			tsc_check_state(cx->type);
 
 		if (cx->valid)
 			working++;
