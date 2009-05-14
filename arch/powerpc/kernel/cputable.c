@@ -1836,7 +1836,7 @@ static void __init setup_cpu_spec(unsigned long offset, struct cpu_spec *s)
 		 * and, in that case, keep the current value for
 		 * oprofile_cpu_type.
 		 */
-		if (old.oprofile_cpu_type == NULL) {
+		if (old.oprofile_cpu_type != NULL) {
 			t->oprofile_cpu_type = old.oprofile_cpu_type;
 			t->oprofile_type = old.oprofile_type;
 		}
