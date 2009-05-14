@@ -1190,14 +1190,14 @@ static int atc_dev_free(struct snd_device *dev)
 
 static int atc_identify_card(struct ct_atc *atc)
 {
-	u16 subsys = 0;
-	u8 revision = 0;
+	u16 subsys;
+	u8 revision;
 	struct pci_dev *pci = atc->pci;
 	const struct ct_atc_chip_details *d;
 	enum CTCARDS i;
 
-	pci_read_config_word(pci, PCI_SUBSYSTEM_ID, &subsys);
-	pci_read_config_byte(pci, PCI_REVISION_ID, &revision);
+	subsys = pci->subsystem_device;
+	revision = pci->revision;
 	atc->chip_details = NULL;
 	atc->model = NUM_CTCARDS;
 	for (d = atc_chip_details; d->vendor; d++) {
@@ -1308,7 +1308,7 @@ static int atc_get_resources(struct ct_atc *atc)
 	struct sum_desc sum_dsc = {0};
 	struct sum_mgr *sum_mgr = NULL;
 	int err = 0, i = 0;
-	unsigned short subsys_id = 0;
+	unsigned short subsys_id;
 
 	atc->daios = kzalloc(sizeof(void *)*(DAIONUM), GFP_KERNEL);
 	if (NULL == atc->daios)
@@ -1339,7 +1339,7 @@ static int atc_get_resources(struct ct_atc *atc)
 		}
 		atc->n_daio++;
 	}
-	pci_read_config_word(atc->pci, PCI_SUBSYSTEM_ID, &subsys_id);
+	subsys_id = atc->pci->subsystem_device;
 	if ((subsys_id == 0x0029) || (subsys_id == 0x0031)) {
 		/* SB073x cards */
 		da_desc.type = SPDIFI1;
