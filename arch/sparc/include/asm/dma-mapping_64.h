@@ -9,12 +9,12 @@ struct dma_ops {
 				dma_addr_t *dma_handle, gfp_t flag);
 	void (*free_coherent)(struct device *dev, size_t size,
 			      void *cpu_addr, dma_addr_t dma_handle);
-	dma_addr_t (*map_single)(struct device *dev, void *cpu_addr,
-				 size_t size,
-				 enum dma_data_direction direction);
-	void (*unmap_single)(struct device *dev, dma_addr_t dma_addr,
-			     size_t size,
-			     enum dma_data_direction direction);
+	dma_addr_t (*map_page)(struct device *dev, struct page *page,
+			       unsigned long offset, size_t size,
+			       enum dma_data_direction direction);
+	void (*unmap_page)(struct device *dev, dma_addr_t dma_addr,
+			   size_t size,
+			   enum dma_data_direction direction);
 	int (*map_sg)(struct device *dev, struct scatterlist *sg, int nents,
 		      enum dma_data_direction direction);
 	void (*unmap_sg)(struct device *dev, struct scatterlist *sg,
@@ -51,29 +51,30 @@ static inline dma_addr_t dma_map_single(struct device *dev, void *cpu_addr,
 					size_t size,
 					enum dma_data_direction direction)
 {
-	return dma_ops->map_single(dev, cpu_addr, size, direction);
+	return dma_ops->map_page(dev, virt_to_page(cpu_addr),
+				 (unsigned long)cpu_addr & ~PAGE_MASK, size,
+				 direction);
 }
 
 static inline void dma_unmap_single(struct device *dev, dma_addr_t dma_addr,
 				    size_t size,
 				    enum dma_data_direction direction)
 {
-	dma_ops->unmap_single(dev, dma_addr, size, direction);
+	dma_ops->unmap_page(dev, dma_addr, size, direction);
 }
 
 static inline dma_addr_t dma_map_page(struct device *dev, struct page *page,
 				      unsigned long offset, size_t size,
 				      enum dma_data_direction direction)
 {
-	return dma_ops->map_single(dev, page_address(page) + offset,
-				   size, direction);
+	return dma_ops->map_page(dev, page, offset, size, direction);
 }
 
 static inline void dma_unmap_page(struct device *dev, dma_addr_t dma_address,
 				  size_t size,
 				  enum dma_data_direction direction)
 {
-	dma_ops->unmap_single(dev, dma_address, size, direction);
+	dma_ops->unmap_page(dev, dma_address, size, direction);
 }
 
 static inline int dma_map_sg(struct device *dev, struct scatterlist *sg,
