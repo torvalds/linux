@@ -188,5 +188,5 @@ Example:
 
   struct rb_node *node;
   for (node = rb_first(&mytree); node; node = rb_next(node))
-  	printk("key=%s\n", rb_entry(node, int, keystring));
+	printk("key=%s\n", rb_entry(node, struct mytype, node)->keystring);
 
