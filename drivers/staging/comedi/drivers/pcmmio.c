@@ -77,8 +77,6 @@ Configuration Options:
 #include "../comedidev.h"
 #include <linux/pci.h>		/* for PCI devices */
 
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
-
 /* This stuff is all from pcmuio.c -- it refers to the DIO subdevices only */
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
@@ -436,7 +434,7 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_DIO;
 		s->insn_bits = pcmmio_dio_insn_bits;
 		s->insn_config = pcmmio_dio_insn_config;
-		s->n_chan = MIN(chans_left, MAX_CHANS_PER_SUBDEV);
+		s->n_chan = min(chans_left, MAX_CHANS_PER_SUBDEV);
 		subpriv->dio.intr.asic = -1;
 		subpriv->dio.intr.first_chan = -1;
 		subpriv->dio.intr.asic_chan = -1;
