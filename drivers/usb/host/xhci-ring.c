@@ -74,16 +74,15 @@
 dma_addr_t xhci_trb_virt_to_dma(struct xhci_segment *seg,
 		union xhci_trb *trb)
 {
-	dma_addr_t offset;
+	unsigned long segment_offset;
 
-	if (!seg || !trb || (void *) trb < (void *) seg->trbs)
+	if (!seg || !trb || trb < seg->trbs)
 		return 0;
-	/* offset in bytes, since these are byte-addressable */
-	offset = trb - seg->trbs;
-	/* SEGMENT_SIZE in bytes, trbs are 16-byte aligned */
-	if (offset > SEGMENT_SIZE || (offset % sizeof(*trb)) != 0)
+	/* offset in TRBs */
+	segment_offset = trb - seg->trbs;
+	if (segment_offset > TRBS_PER_SEGMENT)
 		return 0;
-	return seg->dma + offset;
+	return seg->dma + (segment_offset * sizeof(*trb));
 }
 
 /* Does this link TRB point to the first segment in a ring,
