@@ -917,7 +917,7 @@ err_out:
 static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 				  ext4_lblk_t iblock, unsigned int maxblocks,
 				  struct buffer_head *bh_result,
-				  int create, int extend_disksize)
+				  int flags)
 {
 	int err = -EIO;
 	ext4_lblk_t offsets[4];
@@ -934,7 +934,7 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 
 
 	J_ASSERT(!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL));
-	J_ASSERT(handle != NULL || create == 0);
+	J_ASSERT(handle != NULL || (flags & EXT4_GET_BLOCKS_CREATE) == 0);
 	depth = ext4_block_to_path(inode, iblock, offsets,
 					&blocks_to_boundary);
 
@@ -963,7 +963,7 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 	}
 
 	/* Next simple case - plain lookup or failed read of indirect block */
-	if (!create || err == -EIO)
+	if ((flags & EXT4_GET_BLOCKS_CREATE) == 0 || err == -EIO)
 		goto cleanup;
 
 	/*
@@ -1002,7 +1002,7 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 	 * protect it if you're about to implement concurrent
 	 * ext4_get_block() -bzzz
 	*/
-	if (!err && extend_disksize) {
+	if (!err && (flags & EXT4_GET_BLOCKS_EXTEND_DISKSIZE)) {
 		disksize = ((loff_t) iblock + count) << inode->i_blkbits;
 		if (disksize > i_size_read(inode))
 			disksize = i_size_read(inode);
@@ -1144,7 +1144,7 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
  */
 int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 		    unsigned int max_blocks, struct buffer_head *bh,
-		    int create, int extend_disksize, int flag)
+		    int flags)
 {
 	int retval;
 
@@ -1158,15 +1158,15 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	down_read((&EXT4_I(inode)->i_data_sem));
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
 		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
-				bh, 0, 0);
+				bh, 0);
 	} else {
 		retval = ext4_ind_get_blocks(handle, inode, block, max_blocks,
-					     bh, 0, 0);
+					     bh, 0);
 	}
 	up_read((&EXT4_I(inode)->i_data_sem));
 
 	/* If it is only a block(s) look up */
-	if (!create)
+	if ((flags & EXT4_GET_BLOCKS_CREATE) == 0)
 		return retval;
 
 	/*
@@ -1205,7 +1205,7 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	 * let the underlying get_block() function know to
 	 * avoid double accounting
 	 */
-	if (flag)
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
 		EXT4_I(inode)->i_delalloc_reserved_flag = 1;
 	/*
 	 * We need to check for EXT4 here because migrate
@@ -1213,10 +1213,10 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	 */
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
 		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
-				bh, create, extend_disksize);
+					      bh, flags);
 	} else {
 		retval = ext4_ind_get_blocks(handle, inode, block,
-				max_blocks, bh, create, extend_disksize);
+					     max_blocks, bh, flags);
 
 		if (retval > 0 && buffer_new(bh)) {
 			/*
@@ -1229,7 +1229,7 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 		}
 	}
 
-	if (flag) {
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE) {
 		EXT4_I(inode)->i_delalloc_reserved_flag = 0;
 		/*
 		 * Update reserved blocks/metadata blocks
@@ -1269,7 +1269,7 @@ int ext4_get_block(struct inode *inode, sector_t iblock,
 	}
 
 	ret = ext4_get_blocks(handle, inode, iblock, max_blocks, bh_result,
-			      create, 0, 0);
+			      create ? EXT4_GET_BLOCKS_CREATE : 0);
 	if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
 		ret = 0;
@@ -1288,16 +1288,19 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 {
 	struct buffer_head dummy;
 	int fatal = 0, err;
+	int flags = EXT4_GET_BLOCKS_EXTEND_DISKSIZE;
 
 	J_ASSERT(handle != NULL || create == 0);
 
 	dummy.b_state = 0;
 	dummy.b_blocknr = -1000;
 	buffer_trace_init(&dummy.b_history);
-	err = ext4_get_blocks(handle, inode, block, 1, &dummy, create, 1, 0);
+	if (create)
+		flags |= EXT4_GET_BLOCKS_CREATE;
+	err = ext4_get_blocks(handle, inode, block, 1, &dummy, flags);
 	/*
-	 * ext4_get_blocks() returns number of blocks
-	 * mapped. 0 in case of a HOLE.
+	 * ext4_get_blocks() returns number of blocks mapped. 0 in
+	 * case of a HOLE.
 	 */
 	if (err > 0) {
 		if (err > 1)
@@ -1997,7 +2000,6 @@ static void ext4_print_free_blocks(struct inode *inode)
 	return;
 }
 
-#define		EXT4_DELALLOC_RSVED	1
 static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result)
 {
@@ -2009,7 +2011,8 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 	handle = ext4_journal_current_handle();
 	BUG_ON(!handle);
 	ret = ext4_get_blocks(handle, inode, iblock, max_blocks,
-			      bh_result, 1, 0, EXT4_DELALLOC_RSVED);
+			      bh_result, EXT4_GET_BLOCKS_CREATE|
+			      EXT4_GET_BLOCKS_DELALLOC_RESERVE);
 	if (ret <= 0)
 		return ret;
 
@@ -2065,16 +2068,17 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 		return 0;
 	/*
 	 * We need to make sure the BH_Delay flag is passed down to
-	 * ext4_da_get_block_write(), since it calls
-	 * ext4_get_blocks() with the EXT4_DELALLOC_RSVED flag.
-	 * This flag causes ext4_get_blocks() to call
+	 * ext4_da_get_block_write(), since it calls ext4_get_blocks()
+	 * with the EXT4_GET_BLOCKS_DELALLOC_RESERVE flag.  This flag
+	 * causes ext4_get_blocks() to call
 	 * ext4_da_update_reserve_space() if the passed buffer head
 	 * has the BH_Delay flag set.  In the future, once we clean up
-	 * the interfaces to ext4_get_blocks(), we should pass in
-	 * a separate flag which requests that the delayed allocation
+	 * the interfaces to ext4_get_blocks(), we should pass in a
+	 * separate flag which requests that the delayed allocation
 	 * statistics should be updated, instead of depending on the
 	 * state information getting passed down via the map_bh's
-	 * state bitmasks plus the magic EXT4_DELALLOC_RSVED flag.
+	 * state bitmasks plus the magic
+	 * EXT4_GET_BLOCKS_DELALLOC_RESERVE flag.
 	 */
 	new.b_state = mpd->b_state & (1 << BH_Delay);
 	new.b_blocknr = 0;
@@ -2362,7 +2366,7 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 	 * preallocated blocks are unmapped but should treated
 	 * the same as allocated blocks.
 	 */
-	ret = ext4_get_blocks(NULL, inode, iblock, 1,  bh_result, 0, 0, 0);
+	ret = ext4_get_blocks(NULL, inode, iblock, 1,  bh_result, 0);
 	if ((ret == 0) && !buffer_delay(bh_result)) {
 		/* the block isn't (pre)allocated yet, let's reserve space */
 		/*
@@ -2406,8 +2410,7 @@ static int ext4_normal_get_block_write(struct inode *inode, sector_t iblock,
 	 * we don't want to do block allocation in writepage
 	 * so call get_block_wrap with create = 0
 	 */
-	ret = ext4_get_blocks(NULL, inode, iblock, max_blocks,
-			      bh_result, 0, 0, 0);
+	ret = ext4_get_blocks(NULL, inode, iblock, max_blocks, bh_result, 0);
 	if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
 		ret = 0;

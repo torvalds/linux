@@ -314,10 +314,20 @@ struct ext4_new_group_data {
 };
 
 /*
- * Following is used by preallocation code to tell get_blocks() that we
- * want uninitialzed extents.
+ * Flags used by ext4_get_blocks()
  */
-#define EXT4_CREATE_UNINITIALIZED_EXT		2
+	/* Allocate any needed blocks and/or convert an unitialized
+	   extent to be an initialized ext4 */
+#define EXT4_GET_BLOCKS_CREATE			1
+	/* Request the creation of an unitialized extent */
+#define EXT4_GET_BLOCKS_UNINIT_EXT		2
+#define EXT4_GET_BLOCKS_CREATE_UNINIT_EXT	(EXT4_GET_BLOCKS_UNINIT_EXT|\
+						 EXT4_GET_BLOCKS_CREATE)
+	/* Update the ext4_inode_info i_disksize field */
+#define EXT4_GET_BLOCKS_EXTEND_DISKSIZE		4
+	/* Caller is from the delayed allocation writeout path,
+	   so the filesystem blocks have already been accounted for */
+#define EXT4_GET_BLOCKS_DELALLOC_RESERVE	8
 
 /*
  * ioctl commands
@@ -1610,8 +1620,7 @@ extern int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks,
 				       int chunk);
 extern int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			       ext4_lblk_t iblock, unsigned int max_blocks,
-			       struct buffer_head *bh_result,
-			       int create, int extend_disksize);
+			       struct buffer_head *bh_result, int flags);
 extern void ext4_ext_truncate(struct inode *);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
@@ -1619,8 +1628,7 @@ extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
 extern int ext4_get_blocks(handle_t *handle, struct inode *inode,
 			   sector_t block, unsigned int max_blocks,
-			   struct buffer_head *bh, int create,
-			   int extend_disksize, int flag);
+			   struct buffer_head *bh, int flags);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
 

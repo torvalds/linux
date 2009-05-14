@@ -2784,7 +2784,7 @@ fix_extent_len:
 int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 			ext4_lblk_t iblock,
 			unsigned int max_blocks, struct buffer_head *bh_result,
-			int create, int extend_disksize)
+			int flags)
 {
 	struct ext4_ext_path *path = NULL;
 	struct ext4_extent_header *eh;
@@ -2803,7 +2803,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	cache_type = ext4_ext_in_cache(inode, iblock, &newex);
 	if (cache_type) {
 		if (cache_type == EXT4_EXT_CACHE_GAP) {
-			if (!create) {
+			if ((flags & EXT4_GET_BLOCKS_CREATE) == 0) {
 				/*
 				 * block isn't allocated yet and
 				 * user doesn't want to allocate it
@@ -2869,9 +2869,9 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 							EXT4_EXT_CACHE_EXTENT);
 				goto out;
 			}
-			if (create == EXT4_CREATE_UNINITIALIZED_EXT)
+			if (flags & EXT4_GET_BLOCKS_UNINIT_EXT)
 				goto out;
-			if (!create) {
+			if ((flags & EXT4_GET_BLOCKS_CREATE) == 0) {
 				if (allocated > max_blocks)
 					allocated = max_blocks;
 				/*
@@ -2903,7 +2903,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	 * requested block isn't allocated yet;
 	 * we couldn't try to create block if create flag is zero
 	 */
-	if (!create) {
+	if ((flags & EXT4_GET_BLOCKS_CREATE) == 0) {
 		/*
 		 * put just found gap into cache to speed up
 		 * subsequent requests
@@ -2932,10 +2932,10 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	 * EXT_UNINIT_MAX_LEN.
 	 */
 	if (max_blocks > EXT_INIT_MAX_LEN &&
-	    create != EXT4_CREATE_UNINITIALIZED_EXT)
+	    !(flags & EXT4_GET_BLOCKS_UNINIT_EXT))
 		max_blocks = EXT_INIT_MAX_LEN;
 	else if (max_blocks > EXT_UNINIT_MAX_LEN &&
-		 create == EXT4_CREATE_UNINITIALIZED_EXT)
+		 (flags & EXT4_GET_BLOCKS_UNINIT_EXT))
 		max_blocks = EXT_UNINIT_MAX_LEN;
 
 	/* Check if we can really insert (iblock)::(iblock+max_blocks) extent */
@@ -2966,7 +2966,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	/* try to insert new extent into found leaf and return */
 	ext4_ext_store_pblock(&newex, newblock);
 	newex.ee_len = cpu_to_le16(ar.len);
-	if (create == EXT4_CREATE_UNINITIALIZED_EXT)  /* Mark uninitialized */
+	if (flags & EXT4_GET_BLOCKS_UNINIT_EXT)  /* Mark uninitialized */
 		ext4_ext_mark_uninitialized(&newex);
 	err = ext4_ext_insert_extent(handle, inode, path, &newex);
 	if (err) {
@@ -2983,7 +2983,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	newblock = ext_pblock(&newex);
 	allocated = ext4_ext_get_actual_len(&newex);
 outnew:
-	if (extend_disksize) {
+	if (flags & EXT4_GET_BLOCKS_EXTEND_DISKSIZE) {
 		disksize = ((loff_t) iblock + ar.len) << inode->i_blkbits;
 		if (disksize > i_size_read(inode))
 			disksize = i_size_read(inode);
@@ -2994,7 +2994,7 @@ outnew:
 	set_buffer_new(bh_result);
 
 	/* Cache only when it is _not_ an uninitialized extent */
-	if (create != EXT4_CREATE_UNINITIALIZED_EXT)
+	if ((flags & EXT4_GET_BLOCKS_UNINIT_EXT) == 0)
 		ext4_ext_put_in_cache(inode, iblock, allocated, newblock,
 						EXT4_EXT_CACHE_EXTENT);
 out:
@@ -3153,7 +3153,7 @@ retry:
 		map_bh.b_state = 0;
 		ret = ext4_get_blocks(handle, inode, block,
 				      max_blocks, &map_bh,
-				      EXT4_CREATE_UNINITIALIZED_EXT, 0, 0);
+				      EXT4_GET_BLOCKS_CREATE_UNINIT_EXT);
 		if (ret <= 0) {
 #ifdef EXT4FS_DEBUG
 			WARN_ON(ret <= 0);
