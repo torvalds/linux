@@ -22,7 +22,7 @@ struct fixed_range_block {
 static struct fixed_range_block fixed_range_blocks[] = {
 	{ MSR_MTRRfix64K_00000, 1 }, /* one  64k MTRR  */
 	{ MSR_MTRRfix16K_80000, 2 }, /* two  16k MTRRs */
-	{ MTRRfix4K_C0000_MSR,  8 }, /* eight 4k MTRRs */
+	{ MSR_MTRRfix4K_C0000,  8 }, /* eight 4k MTRRs */
 	{}
 };
 
@@ -199,7 +199,7 @@ get_fixed_ranges(mtrr_type * frs)
 	for (i = 0; i < 2; i++)
 		rdmsr(MSR_MTRRfix16K_80000 + i, p[2 + i * 2], p[3 + i * 2]);
 	for (i = 0; i < 8; i++)
-		rdmsr(MTRRfix4K_C0000_MSR + i, p[6 + i * 2], p[7 + i * 2]);
+		rdmsr(MSR_MTRRfix4K_C0000 + i, p[6 + i * 2], p[7 + i * 2]);
 }
 
 void mtrr_save_fixed_ranges(void *info)
