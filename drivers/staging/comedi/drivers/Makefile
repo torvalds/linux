@@ -6,6 +6,7 @@ obj-$(CONFIG_COMEDI)			+= comedi_fc.o
 obj-$(CONFIG_COMEDI)			+= comedi_bond.o
 obj-$(CONFIG_COMEDI)			+= comedi_test.o
 obj-$(CONFIG_COMEDI)			+= comedi_parport.o
+obj-$(CONFIG_COMEDI)			+= pcm_common.o
 
 # Comedi PCI drivers
 obj-$(CONFIG_COMEDI_PCI_DRIVERS)	+= 8255.o
