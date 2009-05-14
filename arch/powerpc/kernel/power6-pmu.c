@@ -485,6 +485,6 @@ struct power_pmu power6_pmu = {
 	.disable_pmc = p6_disable_pmc,
 	.n_generic = ARRAY_SIZE(power6_generic_events),
 	.generic_events = power6_generic_events,
-	.limited_pmc5_6 = 1,
+	.flags = PPMU_LIMITED_PMC5_6 | PPMU_ALT_SIPR,
 	.limited_pmc_event = p6_limited_pmc_event,
 };

@@ -30,7 +30,7 @@ struct power_pmu {
 				    u64 alt[]);
 	void	(*disable_pmc)(unsigned int pmc, u64 mmcr[]);
 	int	(*limited_pmc_event)(u64 event);
-	int	limited_pmc5_6;	/* PMC5 and PMC6 have limited function */
+	u32	flags;
 	int	n_generic;
 	int	*generic_events;
 };
@@ -38,11 +38,23 @@ struct power_pmu {
 extern struct power_pmu *ppmu;
 
 /*
+ * Values for power_pmu.flags
+ */
+#define PPMU_LIMITED_PMC5_6	1	/* PMC5/6 have limited function */
+#define PPMU_ALT_SIPR		2	/* uses alternate posn for SIPR/HV */
+
+/*
  * Values for flags to get_alternatives()
  */
 #define PPMU_LIMITED_PMC_OK	1	/* can put this on a limited PMC */
 #define PPMU_LIMITED_PMC_REQD	2	/* have to put this on a limited PMC */
 #define PPMU_ONLY_COUNT_RUN	4	/* only counting in run state */
+
+struct pt_regs;
+extern unsigned long perf_misc_flags(struct pt_regs *regs);
+#define perf_misc_flags(regs)	perf_misc_flags(regs)
+
+extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 
 /*
  * The power_pmu.get_constraint function returns a 64-bit value and

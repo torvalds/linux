@@ -625,6 +625,6 @@ struct power_pmu power5p_pmu = {
 	.disable_pmc = power5p_disable_pmc,
 	.n_generic = ARRAY_SIZE(power5p_generic_events),
 	.generic_events = power5p_generic_events,
-	.limited_pmc5_6 = 1,
+	.flags = PPMU_LIMITED_PMC5_6,
 	.limited_pmc_event = power5p_limited_pmc_event,
 };

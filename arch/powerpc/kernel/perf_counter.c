@@ -17,6 +17,7 @@
 #include <asm/pmc.h>
 #include <asm/machdep.h>
 #include <asm/firmware.h>
+#include <asm/ptrace.h>
 
 struct cpu_hw_counters {
 	int n_counters;
@@ -310,7 +311,8 @@ static void power_pmu_read(struct perf_counter *counter)
  */
 static int is_limited_pmc(int pmcnum)
 {
-	return ppmu->limited_pmc5_6 && (pmcnum == 5 || pmcnum == 6);
+	return (ppmu->flags & PPMU_LIMITED_PMC5_6)
+		&& (pmcnum == 5 || pmcnum == 6);
 }
 
 static void freeze_limited_counters(struct cpu_hw_counters *cpuhw,
@@ -860,7 +862,7 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 	 * If this machine has limited counters, check whether this
 	 * event could go on a limited counter.
 	 */
-	if (ppmu->limited_pmc5_6) {
+	if (ppmu->flags & PPMU_LIMITED_PMC5_6) {
 		if (can_go_on_limited_pmc(counter, ev, flags)) {
 			flags |= PPMU_LIMITED_PMC_OK;
 		} else if (ppmu->limited_pmc_event(ev)) {
@@ -933,6 +935,7 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	u64 period = counter->hw.irq_period;
 	s64 prev, delta, left;
 	int record = 0;
+	u64 addr, mmcra, sdsync;
 
 	/* we don't have to worry about interrupts here */
 	prev = atomic64_read(&counter->hw.prev_count);
@@ -963,8 +966,76 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	/*
 	 * Finally record data if requested.
 	 */
-	if (record)
-		perf_counter_overflow(counter, nmi, regs, 0);
+	if (record) {
+		addr = 0;
+		if (counter->hw_event.record_type & PERF_RECORD_ADDR) {
+			/*
+			 * The user wants a data address recorded.
+			 * If we're not doing instruction sampling,
+			 * give them the SDAR (sampled data address).
+			 * If we are doing instruction sampling, then only
+			 * give them the SDAR if it corresponds to the
+			 * instruction pointed to by SIAR; this is indicated
+			 * by the [POWER6_]MMCRA_SDSYNC bit in MMCRA.
+			 */
+			mmcra = regs->dsisr;
+			sdsync = (ppmu->flags & PPMU_ALT_SIPR) ?
+				POWER6_MMCRA_SDSYNC : MMCRA_SDSYNC;
+			if (!(mmcra & MMCRA_SAMPLE_ENABLE) || (mmcra & sdsync))
+				addr = mfspr(SPRN_SDAR);
+		}
+		perf_counter_overflow(counter, nmi, regs, addr);
+	}
+}
+
+/*
+ * Called from generic code to get the misc flags (i.e. processor mode)
+ * for an event.
+ */
+unsigned long perf_misc_flags(struct pt_regs *regs)
+{
+	unsigned long mmcra;
+
+	if (TRAP(regs) != 0xf00) {
+		/* not a PMU interrupt */
+		return user_mode(regs) ? PERF_EVENT_MISC_USER :
+			PERF_EVENT_MISC_KERNEL;
+	}
+
+	mmcra = regs->dsisr;
+	if (ppmu->flags & PPMU_ALT_SIPR) {
+		if (mmcra & POWER6_MMCRA_SIHV)
+			return PERF_EVENT_MISC_HYPERVISOR;
+		return (mmcra & POWER6_MMCRA_SIPR) ? PERF_EVENT_MISC_USER :
+			PERF_EVENT_MISC_KERNEL;
+	}
+	if (mmcra & MMCRA_SIHV)
+		return PERF_EVENT_MISC_HYPERVISOR;
+	return (mmcra & MMCRA_SIPR) ? PERF_EVENT_MISC_USER :
+			PERF_EVENT_MISC_KERNEL;
+}
+
+/*
+ * Called from generic code to get the instruction pointer
+ * for an event.
+ */
+unsigned long perf_instruction_pointer(struct pt_regs *regs)
+{
+	unsigned long mmcra;
+	unsigned long ip;
+	unsigned long slot;
+
+	if (TRAP(regs) != 0xf00)
+		return regs->nip;	/* not a PMU interrupt */
+
+	ip = mfspr(SPRN_SIAR);
+	mmcra = regs->dsisr;
+	if ((mmcra & MMCRA_SAMPLE_ENABLE) && !(ppmu->flags & PPMU_ALT_SIPR)) {
+		slot = (mmcra & MMCRA_SLOT) >> MMCRA_SLOT_SHIFT;
+		if (slot > 1)
+			ip += 4 * (slot - 1);
+	}
+	return ip;
 }
 
 /*
@@ -982,6 +1053,11 @@ static void perf_counter_interrupt(struct pt_regs *regs)
 	if (cpuhw->n_limited)
 		freeze_limited_counters(cpuhw, mfspr(SPRN_PMC5),
 					mfspr(SPRN_PMC6));
+
+	/*
+	 * Overload regs->dsisr to store MMCRA so we only need to read it once.
+	 */
+	regs->dsisr = mfspr(SPRN_MMCRA);
 
 	/*
 	 * If interrupts were soft-disabled when this PMU interrupt
