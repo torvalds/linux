@@ -1149,6 +1149,7 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 	int retval;
 
 	clear_buffer_mapped(bh);
+	clear_buffer_unwritten(bh);
 
 	/*
 	 * Try to see if we can get  the block without requesting
@@ -1177,6 +1178,18 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 	 */
 	if (retval > 0 && buffer_mapped(bh))
 		return retval;
+
+	/*
+	 * When we call get_blocks without the create flag, the
+	 * BH_Unwritten flag could have gotten set if the blocks
+	 * requested were part of a uninitialized extent.  We need to
+	 * clear this flag now that we are committed to convert all or
+	 * part of the uninitialized extent to be an initialized
+	 * extent.  This is because we need to avoid the combination
+	 * of BH_Unwritten and BH_Mapped flags being simultaneously
+	 * set on the buffer_head.
+	 */
+	clear_buffer_unwritten(bh);
 
 	/*
 	 * New blocks allocate and/or writing to uninitialized extent
