@@ -22,6 +22,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <linux/module.h>
 #include <linux/init.h>
 
+#include "dmxdev.h"
+#include "dvbdev.h"
+#include "dvb_demux.h"
+#include "dvb_frontend.h"
+
 #include "smscoreapi.h"
 #include "smsendian.h"
 #include "sms-cards.h"

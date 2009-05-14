@@ -34,13 +34,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <asm/page.h>
 
-#define SMS_DVB3_SUBSYS
-#ifdef SMS_DVB3_SUBSYS
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#endif
 
 #define kmutex_init(_p_) mutex_init(_p_)
 #define kmutex_lock(_p_) mutex_lock(_p_)
