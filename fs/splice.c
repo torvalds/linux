@@ -595,8 +595,10 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	}
 
 	res = kernel_readv(in, vec, spd.nr_pages, *ppos);
-	if (res < 0)
+	if (res < 0) {
+		error = res;
 		goto err;
+	}
 
 	error = 0;
 	if (!res)
