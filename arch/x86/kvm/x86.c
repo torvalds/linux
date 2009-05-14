@@ -1127,6 +1127,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_IRQ_INJECT_STATUS:
 	case KVM_CAP_ASSIGN_DEV_IRQ:
 	case KVM_CAP_IRQFD:
+	case KVM_CAP_PIT2:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -2038,6 +2039,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	union {
 		struct kvm_pit_state ps;
 		struct kvm_memory_alias alias;
+		struct kvm_pit_config pit_config;
 	} u;
 
 	switch (ioctl) {
@@ -2098,12 +2100,20 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		}
 		break;
 	case KVM_CREATE_PIT:
+		u.pit_config.flags = KVM_PIT_SPEAKER_DUMMY;
+		goto create_pit;
+	case KVM_CREATE_PIT2:
+		r = -EFAULT;
+		if (copy_from_user(&u.pit_config, argp,
+				   sizeof(struct kvm_pit_config)))
+			goto out;
+	create_pit:
 		mutex_lock(&kvm->lock);
 		r = -EEXIST;
 		if (kvm->arch.vpit)
 			goto create_pit_unlock;
 		r = -ENOMEM;
-		kvm->arch.vpit = kvm_create_pit(kvm);
+		kvm->arch.vpit = kvm_create_pit(kvm, u.pit_config.flags);
 		if (kvm->arch.vpit)
 			r = 0;
 	create_pit_unlock:

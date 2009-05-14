@@ -70,6 +70,14 @@ struct kvm_irqchip {
 	} chip;
 };
 
+/* for KVM_CREATE_PIT2 */
+struct kvm_pit_config {
+	__u32 flags;
+	__u32 pad[15];
+};
+
+#define KVM_PIT_SPEAKER_DUMMY     1
+
 #define KVM_EXIT_UNKNOWN          0
 #define KVM_EXIT_EXCEPTION        1
 #define KVM_EXIT_IO               2
@@ -419,6 +427,9 @@ struct kvm_trace_rec {
 #define KVM_CAP_MCE 31
 #endif
 #define KVM_CAP_IRQFD 32
+#ifdef __KVM_HAVE_PIT
+#define KVM_CAP_PIT2 33
+#endif
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -525,6 +536,7 @@ struct kvm_irqfd {
 			_IOW(KVMIO, 0x74, struct kvm_assigned_msix_entry)
 #define KVM_DEASSIGN_DEV_IRQ       _IOW(KVMIO, 0x75, struct kvm_assigned_irq)
 #define KVM_IRQFD                  _IOW(KVMIO, 0x76, struct kvm_irqfd)
+#define KVM_CREATE_PIT2		   _IOW(KVMIO, 0x77, struct kvm_pit_config)
 
 /*
  * ioctls for vcpu fds

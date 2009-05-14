@@ -563,7 +563,7 @@ static void pit_mask_notifer(struct kvm_irq_mask_notifier *kimn, bool mask)
 	}
 }
 
-struct kvm_pit *kvm_create_pit(struct kvm *kvm)
+struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 {
 	struct kvm_pit *pit;
 	struct kvm_kpit_state *pit_state;
@@ -589,11 +589,13 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm)
 	pit->dev.private = pit;
 	kvm_io_bus_register_dev(&kvm->pio_bus, &pit->dev);
 
-	pit->speaker_dev.read = speaker_ioport_read;
-	pit->speaker_dev.write = speaker_ioport_write;
-	pit->speaker_dev.in_range = speaker_in_range;
-	pit->speaker_dev.private = pit;
-	kvm_io_bus_register_dev(&kvm->pio_bus, &pit->speaker_dev);
+	if (flags & KVM_PIT_SPEAKER_DUMMY) {
+		pit->speaker_dev.read = speaker_ioport_read;
+		pit->speaker_dev.write = speaker_ioport_write;
+		pit->speaker_dev.in_range = speaker_in_range;
+		pit->speaker_dev.private = pit;
+		kvm_io_bus_register_dev(&kvm->pio_bus, &pit->speaker_dev);
+	}
 
 	kvm->arch.vpit = pit;
 	pit->kvm = kvm;
