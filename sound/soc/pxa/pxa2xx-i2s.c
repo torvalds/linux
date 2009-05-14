@@ -106,10 +106,8 @@ static int pxa2xx_i2s_startup(struct snd_pcm_substream *substream,
 	if (IS_ERR(clk_i2s))
 		return PTR_ERR(clk_i2s);
 
-	if (!cpu_dai->active) {
-		SACR0 |= SACR0_RST;
+	if (!cpu_dai->active)
 		SACR0 = 0;
-	}
 
 	return 0;
 }
@@ -346,6 +344,19 @@ static int pxa2xx_i2s_probe(struct platform_device *dev)
 	ret = snd_soc_register_dai(&pxa_i2s_dai);
 	if (ret != 0)
 		clk_put(clk_i2s);
+
+	/*
+	 * PXA Developer's Manual:
+	 * If SACR0[ENB] is toggled in the middle of a normal operation,
+	 * the SACR0[RST] bit must also be set and cleared to reset all
+	 * I2S controller registers.
+	 */
+	SACR0 = SACR0_RST;
+	SACR0 = 0;
+	/* Make sure RPL and REC are disabled */
+	SACR1 = SACR1_DRPL | SACR1_DREC;
+	/* Along with FIFO servicing */
+	SAIMR &= ~(SAIMR_RFS | SAIMR_TFS);
 
 	return ret;
 }
