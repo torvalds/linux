@@ -43,7 +43,7 @@ static int xen_suspend(void *data)
 	if (err) {
 		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
 			err);
-		device_power_up(PMSG_RESUME);
+		device_resume_noirq(PMSG_RESUME);
 		return err;
 	}
 
@@ -69,7 +69,7 @@ static int xen_suspend(void *data)
 	}
 
 	sysdev_resume();
-	device_power_up(PMSG_RESUME);
+	device_resume_noirq(PMSG_RESUME);
 
 	return 0;
 }
@@ -101,9 +101,9 @@ static void do_suspend(void)
 	printk(KERN_DEBUG "suspending xenstore...\n");
 	xs_suspend();
 
-	err = device_power_down(PMSG_SUSPEND);
+	err = device_suspend_noirq(PMSG_SUSPEND);
 	if (err) {
-		printk(KERN_ERR "device_power_down failed: %d\n", err);
+		printk(KERN_ERR "device_suspend_noirq failed: %d\n", err);
 		goto resume_devices;
 	}
 
@@ -119,7 +119,7 @@ static void do_suspend(void)
 	} else
 		xs_suspend_cancel();
 
-	device_power_up(PMSG_RESUME);
+	device_resume_noirq(PMSG_RESUME);
 
 resume_devices:
 	device_resume(PMSG_RESUME);

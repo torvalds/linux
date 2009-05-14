@@ -295,7 +295,7 @@ static int suspend_enter(suspend_state_t state)
 			return error;
 	}
 
-	error = device_power_down(PMSG_SUSPEND);
+	error = device_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
 		goto Platfrom_finish;
@@ -335,7 +335,7 @@ static int suspend_enter(suspend_state_t state)
 		suspend_ops->wake();
 
  Power_up_devices:
-	device_power_up(PMSG_RESUME);
+	device_resume_noirq(PMSG_RESUME);
 
  Platfrom_finish:
 	if (suspend_ops->finish)

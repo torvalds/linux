@@ -1452,13 +1452,13 @@ int kernel_kexec(void)
 		if (error)
 			goto Resume_console;
 		/* At this point, device_suspend() has been called,
-		 * but *not* device_power_down(). We *must*
-		 * device_power_down() now.  Otherwise, drivers for
+		 * but *not* device_suspend_noirq(). We *must* call
+		 * device_suspend_noirq() now.  Otherwise, drivers for
 		 * some devices (e.g. interrupt controllers) become
 		 * desynchronized with the actual state of the
 		 * hardware at resume time, and evil weirdness ensues.
 		 */
-		error = device_power_down(PMSG_FREEZE);
+		error = device_suspend_noirq(PMSG_FREEZE);
 		if (error)
 			goto Resume_devices;
 		error = disable_nonboot_cpus();
@@ -1486,7 +1486,7 @@ int kernel_kexec(void)
 		local_irq_enable();
  Enable_cpus:
 		enable_nonboot_cpus();
-		device_power_up(PMSG_RESTORE);
+		device_resume_noirq(PMSG_RESTORE);
  Resume_devices:
 		device_resume(PMSG_RESTORE);
  Resume_console:
