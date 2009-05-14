@@ -35,9 +35,43 @@
 #define SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD 9
 #define SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2 10
 
+struct sms_board_gpio_cfg {
+	int lna_vhf_exist;
+	int lna_vhf_ctrl;
+	int lna_uhf_exist;
+	int lna_uhf_ctrl;
+	int lna_uhf_d_ctrl;
+	int lna_sband_exist;
+	int lna_sband_ctrl;
+	int lna_sband_d_ctrl;
+	int foreign_lna0_ctrl;
+	int foreign_lna1_ctrl;
+	int foreign_lna2_ctrl;
+	int rf_switch_vhf;
+	int rf_switch_uhf;
+	int rf_switch_sband;
+	int leds_power;
+	int led0;
+	int led1;
+	int led2;
+	int led3;
+	int led4;
+	int ir;
+	int eeprom_wp;
+	int mrc_sense;
+	int mrc_pdn_resetn;
+	int mrc_gp0; /* mrcs spi int */
+	int mrc_gp1;
+	int mrc_gp2;
+	int mrc_gp3;
+	int mrc_gp4;
+	int host_spi_gsp_ts_int;
+};
+
 struct sms_board {
 	enum sms_device_type_st type;
 	char *name, *fw[DEVICE_MODE_MAX];
+	struct sms_board_gpio_cfg board_cfg;
 
 	/* gpios */
 	int led_power, led_hi, led_lo, lna_ctrl, rf_switch;
