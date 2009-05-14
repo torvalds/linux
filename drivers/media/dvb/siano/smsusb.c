@@ -73,6 +73,7 @@ static void smsusb_onresponse(struct urb *urb)
 	if (urb->actual_length > 0) {
 		struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) surb->cb->p;
 
+		smsendian_handle_message_header(phdr);
 		if (urb->actual_length >= phdr->msgLength) {
 			surb->cb->size = phdr->msgLength;
 
