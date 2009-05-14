@@ -2006,57 +2006,6 @@ static void ext4_print_free_blocks(struct inode *inode)
 }
 
 /*
- * This function is used by mpage_da_map_blocks().  We separate it out
- * as a separate function just to make life easier, and because
- * mpage_da_map_blocks() used to be a generic function that took a
- * get_block_t.
- */
-static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
-				   struct buffer_head *bh_result)
-{
-	int ret;
-	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
-	loff_t disksize = EXT4_I(inode)->i_disksize;
-	handle_t *handle = NULL;
-
-	handle = ext4_journal_current_handle();
-	BUG_ON(!handle);
-	ret = ext4_get_blocks(handle, inode, iblock, max_blocks,
-			      bh_result, EXT4_GET_BLOCKS_CREATE|
-			      EXT4_GET_BLOCKS_DELALLOC_RESERVE);
-	if (ret <= 0)
-		return ret;
-
-	bh_result->b_size = (ret << inode->i_blkbits);
-
-	if (ext4_should_order_data(inode)) {
-		int retval;
-		retval = ext4_jbd2_file_inode(handle, inode);
-		if (retval)
-			/*
-			 * Failed to add inode for ordered mode. Don't
-			 * update file size
-			 */
-			return retval;
-	}
-
-	/*
-	 * Update on-disk size along with block allocation we don't
-	 * use EXT4_GET_BLOCKS_EXTEND_DISKSIZE as size may change
-	 * within already allocated block -bzzz
-	 */
-	disksize = ((loff_t) iblock + ret) << inode->i_blkbits;
-	if (disksize > i_size_read(inode))
-		disksize = i_size_read(inode);
-	if (disksize > EXT4_I(inode)->i_disksize) {
-		ext4_update_i_disksize(inode, disksize);
-		ret = ext4_mark_inode_dirty(handle, inode);
-		return ret;
-	}
-	return 0;
-}
-
-/*
  * mpage_da_map_blocks - go through given space
  *
  * @mpd - bh describing space
@@ -2066,9 +2015,12 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
  */
 static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 {
-	int err = 0;
+	int err, blks;
 	struct buffer_head new;
-	sector_t next;
+	sector_t next = mpd->b_blocknr;
+	unsigned max_blocks = mpd->b_size >> mpd->inode->i_blkbits;
+	loff_t disksize = EXT4_I(mpd->inode)->i_disksize;
+	handle_t *handle = NULL;
 
 	/*
 	 * We consider only non-mapped and non-allocated blocks
@@ -2077,6 +2029,16 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 		!(mpd->b_state & (1 << BH_Delay)) &&
 		!(mpd->b_state & (1 << BH_Unwritten)))
 		return 0;
+
+	/*
+	 * If we didn't accumulate anything to write simply return
+	 */
+	if (!mpd->b_size)
+		return 0;
+
+	handle = ext4_journal_current_handle();
+	BUG_ON(!handle);
+
 	/*
 	 * We need to make sure the BH_Delay flag is passed down to
 	 * ext4_da_get_block_write(), since it calls ext4_get_blocks()
@@ -2092,18 +2054,11 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 	 * EXT4_GET_BLOCKS_DELALLOC_RESERVE flag.
 	 */
 	new.b_state = mpd->b_state & (1 << BH_Delay);
-	new.b_blocknr = 0;
-	new.b_size = mpd->b_size;
-	next = mpd->b_blocknr;
-	/*
-	 * If we didn't accumulate anything
-	 * to write simply return
-	 */
-	if (!new.b_size)
-		return 0;
-
-	err = ext4_da_get_block_write(mpd->inode, next, &new);
-	if (err) {
+	blks = ext4_get_blocks(handle, mpd->inode, next, max_blocks,
+			       &new, EXT4_GET_BLOCKS_CREATE|
+			       EXT4_GET_BLOCKS_DELALLOC_RESERVE);
+	if (blks < 0) {
+		err = blks;
 		/*
 		 * If get block returns with error we simply
 		 * return. Later writepage will redirty the page and
@@ -2136,12 +2091,14 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 		if (err == -ENOSPC) {
 			ext4_print_free_blocks(mpd->inode);
 		}
-		/* invlaidate all the pages */
+		/* invalidate all the pages */
 		ext4_da_block_invalidatepages(mpd, next,
 				mpd->b_size >> mpd->inode->i_blkbits);
 		return err;
 	}
-	BUG_ON(new.b_size == 0);
+	BUG_ON(blks == 0);
+
+	new.b_size = (blks << mpd->inode->i_blkbits);
 
 	if (buffer_new(&new))
 		__unmap_underlying_blocks(mpd->inode, &new);
@@ -2153,6 +2110,25 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 	if ((mpd->b_state & (1 << BH_Delay)) ||
 	    (mpd->b_state & (1 << BH_Unwritten)))
 		mpage_put_bnr_to_bhs(mpd, next, &new);
+
+	if (ext4_should_order_data(mpd->inode)) {
+		err = ext4_jbd2_file_inode(handle, mpd->inode);
+		if (err)
+			return err;
+	}
+
+	/*
+	 * Update on-disk size along with block allocation we don't
+	 * use EXT4_GET_BLOCKS_EXTEND_DISKSIZE as size may change
+	 * within already allocated block -bzzz
+	 */
+	disksize = ((loff_t) next + blks) << mpd->inode->i_blkbits;
+	if (disksize > i_size_read(mpd->inode))
+		disksize = i_size_read(mpd->inode);
+	if (disksize > EXT4_I(mpd->inode)->i_disksize) {
+		ext4_update_i_disksize(mpd->inode, disksize);
+		return ext4_mark_inode_dirty(handle, mpd->inode);
+	}
 
 	return 0;
 }
