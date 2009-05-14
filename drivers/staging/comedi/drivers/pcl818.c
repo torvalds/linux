@@ -460,9 +460,9 @@ static int pcl818_ao_insn_write(struct comedi_device *dev, struct comedi_subdevi
 	for (n = 0; n < insn->n; n++) {
 		devpriv->ao_readback[chan] = data[n];
 		outb((data[n] & 0x000f) << 4, dev->iobase +
-			(chan) ? PCL718_DA2_LO : PCL818_DA_LO);
+			(chan ? PCL718_DA2_LO : PCL818_DA_LO));
 		outb((data[n] & 0x0ff0) >> 4, dev->iobase +
-			(chan) ? PCL718_DA2_HI : PCL818_DA_HI);
+			(chan ? PCL718_DA2_HI : PCL818_DA_HI));
 	}
 
 	return n;
