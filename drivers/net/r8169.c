@@ -479,7 +479,6 @@ struct rtl8169_private {
 	u16 intr_event;
 	u16 napi_event;
 	u16 intr_mask;
-	int phy_auto_nego_reg;
 	int phy_1000_ctrl_reg;
 #ifdef CONFIG_R8169_VLAN
 	struct vlan_group *vlgrp;
@@ -908,7 +907,6 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 		mdio_write(ioaddr, 0x0e, 0x0000);
 	}
 
-	tp->phy_auto_nego_reg = auto_nego;
 	tp->phy_1000_ctrl_reg = giga_ctrl;
 
 	mdio_write(ioaddr, MII_ADVERTISE, auto_nego);
