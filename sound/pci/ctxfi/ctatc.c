@@ -18,7 +18,6 @@
 #include "ctatc.h"
 #include "ctpcm.h"
 #include "ctmixer.h"
-#include "ctdrv.h"
 #include "cthardware.h"
 #include "ctsrc.h"
 #include "ctamixer.h"
@@ -40,23 +39,25 @@
 			    | ((IEC958_AES3_CON_FS_48000) << 24))
 
 static const struct ct_atc_chip_sub_details atc_sub_details[NUM_CTCARDS] = {
-	[CTSB0760] = {.subsys = PCI_SUBSYS_CREATIVE_SB0760,
+	[CTSB0760] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB0760,
 		      .nm_model = "SB076x"},
-	[CTHENDRIX] = {.subsys = PCI_SUBSYS_CREATIVE_HENDRIX,
+	[CTHENDRIX] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_HENDRIX,
 		      .nm_model = "Hendrix"},
-	[CTSB08801] = {.subsys = PCI_SUBSYS_CREATIVE_SB08801,
+	[CTSB08801] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB08801,
 		      .nm_model = "SB0880"},
-	[CTSB08802] = {.subsys = PCI_SUBSYS_CREATIVE_SB08802,
+	[CTSB08802] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB08802,
 		      .nm_model = "SB0880"},
-	[CTSB08803] = {.subsys = PCI_SUBSYS_CREATIVE_SB08803,
+	[CTSB08803] = {.subsys = PCI_SUBDEVICE_ID_CREATIVE_SB08803,
 		      .nm_model = "SB0880"}
 };
 
 static struct ct_atc_chip_details atc_chip_details[] = {
-	{.vendor = PCI_VENDOR_CREATIVE, .device = PCI_DEVICE_CREATIVE_20K1,
+	{.vendor = PCI_VENDOR_ID_CREATIVE,
+	 .device = PCI_DEVICE_ID_CREATIVE_20K1,
 	 .sub_details = NULL,
 	 .nm_card = "X-Fi 20k1"},
-	{.vendor = PCI_VENDOR_CREATIVE, .device = PCI_DEVICE_CREATIVE_20K2,
+	{.vendor = PCI_VENDOR_ID_CREATIVE,
+	 .device = PCI_DEVICE_ID_CREATIVE_20K2,
 	 .sub_details = atc_sub_details,
 	 .nm_card = "X-Fi 20k2"},
 	{} /* terminator */

@@ -11,10 +11,10 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/moduleparam.h>
+#include <linux/pci_ids.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include "ctatc.h"
-#include "ctdrv.h"
 
 MODULE_AUTHOR("Creative Technology Ltd");
 MODULE_DESCRIPTION("X-Fi driver version 1.03");
@@ -32,8 +32,8 @@ static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 
 static struct pci_device_id ct_pci_dev_ids[] = {
 	/* only X-Fi is supported, so... */
-	{ PCI_DEVICE(PCI_VENDOR_CREATIVE, PCI_DEVICE_CREATIVE_20K1) },
-	{ PCI_DEVICE(PCI_VENDOR_CREATIVE, PCI_DEVICE_CREATIVE_20K2) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_20K1) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_DEVICE_ID_CREATIVE_20K2) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ct_pci_dev_ids);
