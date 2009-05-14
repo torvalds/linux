@@ -473,6 +473,112 @@ void ath_flushrecv(struct ath_softc *sc)
 	spin_unlock_bh(&sc->rx.rxflushlock);
 }
 
+static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
+{
+	/* Check whether the Beacon frame has DTIM indicating buffered bc/mc */
+	struct ieee80211_mgmt *mgmt;
+	u8 *pos, *end, id, elen;
+	struct ieee80211_tim_ie *tim;
+
+	mgmt = (struct ieee80211_mgmt *)skb->data;
+	pos = mgmt->u.beacon.variable;
+	end = skb->data + skb->len;
+
+	while (pos + 2 < end) {
+		id = *pos++;
+		elen = *pos++;
+		if (pos + elen > end)
+			break;
+
+		if (id == WLAN_EID_TIM) {
+			if (elen < sizeof(*tim))
+				break;
+			tim = (struct ieee80211_tim_ie *) pos;
+			if (tim->dtim_count != 0)
+				break;
+			return tim->bitmap_ctrl & 0x01;
+		}
+
+		pos += elen;
+	}
+
+	return false;
+}
+
+static void ath_rx_ps_back_to_sleep(struct ath_softc *sc)
+{
+	sc->sc_flags &= ~(SC_OP_WAIT_FOR_BEACON | SC_OP_WAIT_FOR_CAB);
+	if (sc->hw->conf.flags & IEEE80211_CONF_PS)
+		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
+}
+
+static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt;
+
+	if (skb->len < 24 + 8 + 2 + 2)
+		return;
+
+	mgmt = (struct ieee80211_mgmt *)skb->data;
+	if (memcmp(sc->curbssid, mgmt->bssid, ETH_ALEN) != 0)
+		return; /* not from our current AP */
+
+	if (!(sc->hw->conf.flags & IEEE80211_CONF_PS)) {
+		/* We are not in PS mode anymore; remain awake */
+		DPRINTF(sc, ATH_DBG_PS, "Not in PS mode anymore, remain "
+			"awake\n");
+		sc->sc_flags &= ~(SC_OP_WAIT_FOR_BEACON | SC_OP_WAIT_FOR_CAB);
+		return;
+	}
+
+	if (ath_beacon_dtim_pending_cab(skb)) {
+		/*
+		 * Remain awake waiting for buffered broadcast/multicast
+		 * frames.
+		 */
+		DPRINTF(sc, ATH_DBG_PS, "Received DTIM beacon indicating "
+			"buffered broadcast/multicast frame(s)\n");
+		sc->sc_flags |= SC_OP_WAIT_FOR_CAB;
+		return;
+	}
+
+	if (sc->sc_flags & SC_OP_WAIT_FOR_CAB) {
+		/*
+		 * This can happen if a broadcast frame is dropped or the AP
+		 * fails to send a frame indicating that all CAB frames have
+		 * been delivered.
+		 */
+		DPRINTF(sc, ATH_DBG_PS, "PS wait for CAB frames timed out\n");
+	}
+
+	/* No more broadcast/multicast frames to be received at this point. */
+	ath_rx_ps_back_to_sleep(sc);
+}
+
+static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+
+	/* Process Beacon and CAB receive in PS state */
+	if (ieee80211_is_beacon(hdr->frame_control))
+		ath_rx_ps_beacon(sc, skb);
+	else if ((sc->sc_flags & SC_OP_WAIT_FOR_CAB) &&
+		 (ieee80211_is_data(hdr->frame_control) ||
+		  ieee80211_is_action(hdr->frame_control)) &&
+		 is_multicast_ether_addr(hdr->addr1) &&
+		 !ieee80211_has_moredata(hdr->frame_control)) {
+		DPRINTF(sc, ATH_DBG_PS, "All PS CAB frames received, back to "
+			"sleep\n");
+		/*
+		 * No more broadcast/multicast frames to be received at this
+		 * point.
+		 */
+		ath_rx_ps_back_to_sleep(sc);
+	}
+}
+
 static void ath_rx_send_to_mac80211(struct ath_softc *sc, struct sk_buff *skb,
 				    struct ieee80211_rx_status *rx_status)
 {
@@ -667,8 +773,6 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			rx_status.flag &= ~RX_FLAG_DECRYPTED;
 		}
 
-		ath_rx_send_to_mac80211(sc, skb, &rx_status);
-
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;
 		bf->bf_buf_addr = dma_map_single(sc->dev, requeue_skb->data,
@@ -680,6 +784,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			bf->bf_mpdu = NULL;
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"dma_mapping_error() on RX\n");
+			ath_rx_send_to_mac80211(sc, skb, &rx_status);
 			break;
 		}
 		bf->bf_dmacontext = bf->bf_buf_addr;
@@ -695,11 +800,11 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			sc->rx.rxotherant = 0;
 		}
 
-		if (ieee80211_is_beacon(fc) &&
-				(sc->sc_flags & SC_OP_WAIT_FOR_BEACON)) {
-			sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
-			ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
-		}
+		if (unlikely(sc->sc_flags & SC_OP_WAIT_FOR_BEACON))
+			ath_rx_ps(sc, skb);
+
+		ath_rx_send_to_mac80211(sc, skb, &rx_status);
+
 requeue:
 		list_move_tail(&bf->list, &sc->rx.rxbuf);
 		ath_rx_buf_link(sc, bf);

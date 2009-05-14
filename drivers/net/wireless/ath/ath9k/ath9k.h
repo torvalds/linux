@@ -515,6 +515,7 @@ struct ath_rfkill {
 #define SC_OP_LED_ON            BIT(13)
 #define SC_OP_SCANNING          BIT(14)
 #define SC_OP_TSF_RESET         BIT(15)
+#define SC_OP_WAIT_FOR_CAB      BIT(16)
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_softc *sc, int *csz);
