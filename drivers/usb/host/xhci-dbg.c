@@ -169,7 +169,7 @@ static void xhci_print_ports(struct xhci_hcd *xhci)
 	}
 }
 
-void xhci_print_ir_set(struct xhci_hcd *xhci, struct intr_reg *ir_set, int set_num)
+void xhci_print_ir_set(struct xhci_hcd *xhci, struct xhci_intr_reg *ir_set, int set_num)
 {
 	void *addr;
 	u32 temp;

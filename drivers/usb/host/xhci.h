@@ -71,7 +71,7 @@ struct xhci_cap_regs {
 	u32	db_off;
 	u32	run_regs_off;
 	/* Reserved up to (CAPLENGTH - 0x1C) */
-} __attribute__ ((packed));
+};
 
 /* hc_capbase bitmasks */
 /* bits 7:0 - how long is the Capabilities register */
@@ -180,7 +180,7 @@ struct xhci_op_regs {
 	u32	reserved5;
 	/* registers for ports 2-255 */
 	u32	reserved6[NUM_PORT_REGS*254];
-} __attribute__ ((packed));
+};
 
 /* USBCMD - USB command - command bitmasks */
 /* start/stop HC execution - do not write unless HC is halted*/
@@ -361,7 +361,7 @@ struct xhci_op_regs {
 
 
 /**
- * struct intr_reg - Interrupt Register Set
+ * struct xhci_intr_reg - Interrupt Register Set
  * @irq_pending:	IMAN - Interrupt Management Register.  Used to enable
  *			interrupts and check for pending interrupts.
  * @irq_control:	IMOD - Interrupt Moderation Register.
@@ -377,14 +377,14 @@ struct xhci_op_regs {
  * position of the Enqueue Pointer." The HCD (Linux) processes those events and
  * updates the dequeue pointer.
  */
-struct intr_reg {
+struct xhci_intr_reg {
 	u32	irq_pending;
 	u32	irq_control;
 	u32	erst_size;
 	u32	rsvd;
 	u32	erst_base[2];
 	u32	erst_dequeue[2];
-} __attribute__ ((packed));
+};
 
 /* irq_pending bitmasks */
 #define	ER_IRQ_PENDING(p)	((p) & 0x1)
@@ -428,10 +428,10 @@ struct intr_reg {
  * or larger accesses"
  */
 struct xhci_run_regs {
-	u32	microframe_index;
-	u32	rsvd[7];
-	struct intr_reg	ir_set[128];
-} __attribute__ ((packed));
+	u32			microframe_index;
+	u32			rsvd[7];
+	struct xhci_intr_reg	ir_set[128];
+};
 
 /**
  * struct doorbell_array
@@ -440,7 +440,7 @@ struct xhci_run_regs {
  */
 struct xhci_doorbell_array {
 	u32	doorbell[256];
-} __attribute__ ((packed));
+};
 
 #define	DB_TARGET_MASK		0xFFFFFF00
 #define	DB_STREAM_ID_MASK	0x0000FFFF
@@ -470,7 +470,7 @@ struct xhci_slot_ctx {
 	u32	dev_state;
 	/* offset 0x10 to 0x1f reserved for HC internal use */
 	u32	reserved[4];
-} __attribute__ ((packed));
+};
 
 /* dev_info bitmasks */
 /* Route String - 0:19 */
@@ -542,7 +542,7 @@ struct xhci_ep_ctx {
 	u32	tx_info;
 	/* offset 0x14 - 0x1f reserved for HC internal use */
 	u32	reserved[3];
-} __attribute__ ((packed));
+};
 
 /* ep_info bitmasks */
 /*
@@ -601,7 +601,7 @@ struct xhci_device_control {
 	u32	rsvd[6];
 	struct xhci_slot_ctx	slot;
 	struct xhci_ep_ctx	ep[31];
-} __attribute__ ((packed));
+};
 
 /* drop context bitmasks */
 #define	DROP_EP(x)	(0x1 << x)
@@ -644,7 +644,7 @@ struct xhci_device_context_array {
 	u32			dev_context_ptrs[2*MAX_HC_SLOTS];
 	/* private xHCD pointers */
 	dma_addr_t	dma;
-} __attribute__ ((packed));
+};
 /* TODO: write function to set the 64-bit device DMA address */
 /*
  * TODO: change this to be dynamically sized at HC mem init time since the HC
@@ -657,7 +657,7 @@ struct xhci_stream_ctx {
 	u32	stream_ring[2];
 	/* offset 0x14 - 0x1f reserved for HC internal use */
 	u32	reserved[2];
-} __attribute__ ((packed));
+};
 
 
 struct xhci_transfer_event {
@@ -666,7 +666,7 @@ struct xhci_transfer_event {
 	u32	transfer_len;
 	/* This field is interpreted differently based on the type of TRB */
 	u32	flags;
-} __attribute__ ((packed));
+};
 
 /** Transfer Event bit fields **/
 #define	TRB_TO_EP_ID(p)	(((p) >> 16) & 0x1f)
@@ -747,7 +747,7 @@ struct xhci_link_trb {
 	u32 segment_ptr[2];
 	u32 intr_target;
 	u32 control;
-} __attribute__ ((packed));
+};
 
 /* control bitfields */
 #define LINK_TOGGLE	(0x1<<1)
@@ -758,7 +758,7 @@ struct xhci_event_cmd {
 	u32 cmd_trb[2];
 	u32 status;
 	u32 flags;
-} __attribute__ ((packed));
+};
 
 /* flags bitmasks */
 /* bits 16:23 are the virtual function ID */
@@ -809,7 +809,7 @@ struct xhci_event_cmd {
 
 struct xhci_generic_trb {
 	u32 field[4];
-} __attribute__ ((packed));
+};
 
 union xhci_trb {
 	struct xhci_link_trb		link;
@@ -904,7 +904,7 @@ struct xhci_segment {
 	/* private to HCD */
 	struct xhci_segment	*next;
 	dma_addr_t		dma;
-} __attribute__ ((packed));
+};
 
 struct xhci_td {
 	struct list_head	td_list;
@@ -946,7 +946,7 @@ struct xhci_erst_entry {
 	u32	seg_size;
 	/* Set to zero */
 	u32	rsvd;
-} __attribute__ ((packed));
+};
 
 struct xhci_erst {
 	struct xhci_erst_entry	*entries;
@@ -980,7 +980,7 @@ struct xhci_hcd {
 	struct xhci_run_regs __iomem *run_regs;
 	struct xhci_doorbell_array __iomem *dba;
 	/* Our HCD's current interrupter register set */
-	struct	intr_reg __iomem *ir_set;
+	struct	xhci_intr_reg __iomem *ir_set;
 
 	/* Cached register copies of read-only HC data */
 	__u32		hcs_params1;
@@ -1079,7 +1079,7 @@ static inline void xhci_writel(struct xhci_hcd *xhci,
 }
 
 /* xHCI debugging */
-void xhci_print_ir_set(struct xhci_hcd *xhci, struct intr_reg *ir_set, int set_num);
+void xhci_print_ir_set(struct xhci_hcd *xhci, struct xhci_intr_reg *ir_set, int set_num);
 void xhci_print_registers(struct xhci_hcd *xhci);
 void xhci_dbg_regs(struct xhci_hcd *xhci);
 void xhci_print_run_regs(struct xhci_hcd *xhci);
