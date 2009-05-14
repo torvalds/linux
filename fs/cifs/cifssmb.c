@@ -3976,9 +3976,8 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		max_len = data_end - temp;
 		node->path_name = cifs_strndup_from_ucs(temp, max_len,
 						      is_unicode, nls_codepage);
-		if (IS_ERR(node->path_name)) {
-			rc = PTR_ERR(node->path_name);
-			node->path_name = NULL;
+		if (!node->path_name) {
+			rc = -ENOMEM;
 			goto parse_DFS_referrals_exit;
 		}
 
@@ -3987,11 +3986,8 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		max_len = data_end - temp;
 		node->node_name = cifs_strndup_from_ucs(temp, max_len,
 						      is_unicode, nls_codepage);
-		if (IS_ERR(node->node_name)) {
-			rc = PTR_ERR(node->node_name);
-			node->node_name = NULL;
-			goto parse_DFS_referrals_exit;
-		}
+		if (!node->node_name)
+			rc = -ENOMEM;
 	}
 
 parse_DFS_referrals_exit:
