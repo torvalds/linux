@@ -20,7 +20,7 @@ struct fixed_range_block {
 };
 
 static struct fixed_range_block fixed_range_blocks[] = {
-	{ MTRRfix64K_00000_MSR, 1 }, /* one  64k MTRR  */
+	{ MSR_MTRRfix64K_00000, 1 }, /* one  64k MTRR  */
 	{ MTRRfix16K_80000_MSR, 2 }, /* two  16k MTRRs */
 	{ MTRRfix4K_C0000_MSR,  8 }, /* eight 4k MTRRs */
 	{}
@@ -194,7 +194,7 @@ get_fixed_ranges(mtrr_type * frs)
 
 	k8_check_syscfg_dram_mod_en();
 
-	rdmsr(MTRRfix64K_00000_MSR, p[0], p[1]);
+	rdmsr(MSR_MTRRfix64K_00000, p[0], p[1]);
 
 	for (i = 0; i < 2; i++)
 		rdmsr(MTRRfix16K_80000_MSR + i, p[2 + i * 2], p[3 + i * 2]);

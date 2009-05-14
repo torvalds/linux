@@ -7,7 +7,6 @@
 
 #define MTRRdefType_MSR 0x2ff
 
-#define MTRRfix64K_00000_MSR 0x250
 #define MTRRfix16K_80000_MSR 0x258
 #define MTRRfix16K_A0000_MSR 0x259
 #define MTRRfix4K_C0000_MSR 0x268
