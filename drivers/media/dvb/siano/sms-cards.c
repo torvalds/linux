@@ -18,6 +18,7 @@
  */
 
 #include "sms-cards.h"
+#include "smsir.h"
 
 static int sms_dbg;
 module_param_named(cards_dbg, sms_dbg, int, 0644);

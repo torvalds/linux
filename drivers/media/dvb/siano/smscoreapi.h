@@ -34,6 +34,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <asm/page.h>
 
+#include "smsir.h"
 
 #define kmutex_init(_p_) mutex_init(_p_)
 #define kmutex_lock(_p_) mutex_lock(_p_)
@@ -167,7 +168,7 @@ struct smscore_device_t {
 	u32 fw_buf_size;
 
 	/* Infrared (IR) */
-	/* struct ir_t ir; */
+	struct ir_t ir;
 
 	int led_state;
 };

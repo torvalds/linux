@@ -22,6 +22,7 @@
 
 #include <linux/usb.h>
 #include "smscoreapi.h"
+#include "smsir.h"
 
 #define SMS_BOARD_UNKNOWN 0
 #define SMS1XXX_BOARD_SIANO_STELLAR 1
@@ -72,12 +73,15 @@ struct sms_board {
 	enum sms_device_type_st type;
 	char *name, *fw[DEVICE_MODE_MAX];
 	struct sms_board_gpio_cfg board_cfg;
+	enum ir_kb_type ir_kb_type;
 
 	/* gpios */
 	int led_power, led_hi, led_lo, lna_ctrl, rf_switch;
 };
 
 struct sms_board *sms_get_board(int id);
+
+extern struct smscore_device_t *coredev;
 
 int sms_board_setup(struct smscore_device_t *coredev);
 

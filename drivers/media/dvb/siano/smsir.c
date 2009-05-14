@@ -99,7 +99,7 @@ static void sms_ir_rc5_event(struct smscore_device_t *coredev,
 	bool toggle_changed;
 	u16 keycode;
 
-	sms_info("IR RC5 word: address %d, command %d, toggle %d",
+	sms_log("IR RC5 word: address %d, command %d, toggle %d",
 				addr, cmd, toggle);
 
 	toggle_changed = ir_toggle != toggle;
@@ -118,7 +118,7 @@ static void sms_ir_rc5_event(struct smscore_device_t *coredev,
 			(keycode != KEY_VOLUMEUP && keycode != KEY_VOLUMEDOWN))
 		return; /* accept only repeated volume, reject other keys */
 
-	sms_info("kernel input keycode (from ir) %d", keycode);
+	sms_log("kernel input keycode (from ir) %d", keycode);
 	input_report_key(coredev->ir.input_dev, keycode, 1);
 	input_sync(coredev->ir.input_dev);
 
@@ -147,7 +147,7 @@ static u32 ir_rc5_decode(unsigned int code)
 			break;
 		case 3:
 /*	dprintk(1, "ir-common: ir_rc5_decode(%x) bad code\n", org_code);*/
-			sms_info("bad code");
+			sms_log("bad code");
 			return 0;
 		}
 	}
@@ -175,7 +175,7 @@ static void sms_rc5_parse_word(struct smscore_device_t *coredev)
 		RC5_PUSH_BIT(rc5_word, (ir_word>>i)&1, j)
 
 	rc5_word = ir_rc5_decode(rc5_word);
-	/* sms_info("temp = 0x%x, rc5_code = 0x%x", ir_word, rc5_word); */
+	/* sms_log("temp = 0x%x, rc5_code = 0x%x", ir_word, rc5_word); */
 
 	sms_ir_rc5_event(coredev,
 				RC5_TOGGLE(rc5_word),
@@ -210,11 +210,11 @@ static void sms_rc5_accumulate_bits(struct smscore_device_t *coredev,
 			if (ir_pos == RC5_WORD_LEN)
 				sms_rc5_parse_word(coredev);
 			else if (ir_pos) /* timeout within a word */
-				sms_info("IR error parsing a word");
+				sms_log("IR error parsing a word");
 
 			ir_pos = 0;
 			ir_word = 0;
-			/* sms_info("timeout %d", time); */
+			/* sms_log("timeout %d", time); */
 			break;
 		}
 		/* The time is within the range of this number of bits */
@@ -236,7 +236,7 @@ void sms_ir_event(struct smscore_device_t *coredev, const char *buf, int len)
 	int count = len>>2;
 
 	samples = (s32 *)buf;
-/*	sms_info("IR buffer received, length = %d", count);*/
+/*	sms_log("IR buffer received, length = %d", count);*/
 
 	for (i = 0; i < count; i++)
 		if (ir_protocol == IR_RC5)
@@ -248,7 +248,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 {
 	struct input_dev *input_dev;
 
-	sms_info("Allocating input device");
+	sms_log("Allocating input device");
 	input_dev = input_allocate_device();
 	if (!input_dev)	{
 		sms_err("Not enough memory");
@@ -261,11 +261,11 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	coredev->ir.keyboard_layout_map =
 		keyboard_layout_maps[coredev->ir.ir_kb_type].
 				keyboard_layout_map;
-	sms_info("IR remote keyboard type is %d", coredev->ir.ir_kb_type);
+	sms_log("IR remote keyboard type is %d", coredev->ir.ir_kb_type);
 
 	coredev->ir.controller = 0;	/* Todo: vega/nova SPI number */
 	coredev->ir.timeout = IR_DEFAULT_TIMEOUT;
-	sms_info("IR port %d, timeout %d ms",
+	sms_log("IR port %d, timeout %d ms",
 			coredev->ir.controller, coredev->ir.timeout);
 
 	snprintf(coredev->ir.name,
@@ -280,7 +280,7 @@ int sms_ir_init(struct smscore_device_t *coredev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	input_dev->keybit[BIT_WORD(BTN_0)] = BIT_MASK(BTN_0);
 
-	sms_info("Input device (IR) %s is set for key events", input_dev->name);
+	sms_log("Input device (IR) %s is set for key events", input_dev->name);
 
 	if (input_register_device(input_dev)) {
 		sms_err("Failed to register device");
@@ -296,6 +296,6 @@ void sms_ir_exit(struct smscore_device_t *coredev)
 	if (coredev->ir.input_dev)
 		input_unregister_device(coredev->ir.input_dev);
 
-	sms_info("");
+	sms_log("");
 }
 
