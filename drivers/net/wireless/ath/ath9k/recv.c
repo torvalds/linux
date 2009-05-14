@@ -473,6 +473,37 @@ void ath_flushrecv(struct ath_softc *sc)
 	spin_unlock_bh(&sc->rx.rxflushlock);
 }
 
+static void ath_rx_send_to_mac80211(struct ath_softc *sc, struct sk_buff *skb,
+				    struct ieee80211_rx_status *rx_status)
+{
+	struct ieee80211_hdr *hdr;
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+
+	/* Send the frame to mac80211 */
+	if (is_multicast_ether_addr(hdr->addr1)) {
+		int i;
+		/*
+		 * Deliver broadcast/multicast frames to all suitable
+		 * virtual wiphys.
+		 */
+		/* TODO: filter based on channel configuration */
+		for (i = 0; i < sc->num_sec_wiphy; i++) {
+			struct ath_wiphy *aphy = sc->sec_wiphy[i];
+			struct sk_buff *nskb;
+			if (aphy == NULL)
+				continue;
+			nskb = skb_copy(skb, GFP_ATOMIC);
+			if (nskb)
+				__ieee80211_rx(aphy->hw, nskb, rx_status);
+		}
+		__ieee80211_rx(sc->hw, skb, rx_status);
+	} else {
+		/* Deliver unicast frames based on receiver address */
+		__ieee80211_rx(ath_get_virt_hw(sc, hdr), skb, rx_status);
+	}
+}
+
 int ath_rx_tasklet(struct ath_softc *sc, int flush)
 {
 #define PA2DESC(_sc, _pa)                                               \
@@ -622,7 +653,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 		if (!(keyix == ATH9K_RXKEYIX_INVALID) && !decrypt_error) {
 			rx_status.flag |= RX_FLAG_DECRYPTED;
-		} else if ((le16_to_cpu(hdr->frame_control) & IEEE80211_FCTL_PROTECTED)
+		} else if (ieee80211_has_protected(fc)
 			   && !decrypt_error && skb->len >= hdrlen + 4) {
 			keyix = skb->data[hdrlen + 3] >> 6;
 
@@ -631,35 +662,12 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 		}
 		if (ah->sw_mgmt_crypto &&
 		    (rx_status.flag & RX_FLAG_DECRYPTED) &&
-		    ieee80211_is_mgmt(hdr->frame_control)) {
+		    ieee80211_is_mgmt(fc)) {
 			/* Use software decrypt for management frames. */
 			rx_status.flag &= ~RX_FLAG_DECRYPTED;
 		}
 
-		/* Send the frame to mac80211 */
-		if (is_multicast_ether_addr(hdr->addr1)) {
-			int i;
-			/*
-			 * Deliver broadcast/multicast frames to all suitable
-			 * virtual wiphys.
-			 */
-			/* TODO: filter based on channel configuration */
-			for (i = 0; i < sc->num_sec_wiphy; i++) {
-				struct ath_wiphy *aphy = sc->sec_wiphy[i];
-				struct sk_buff *nskb;
-				if (aphy == NULL)
-					continue;
-				nskb = skb_copy(skb, GFP_ATOMIC);
-				if (nskb)
-					__ieee80211_rx(aphy->hw, nskb,
-						       &rx_status);
-			}
-			__ieee80211_rx(sc->hw, skb, &rx_status);
-		} else {
-			/* Deliver unicast frames based on receiver address */
-			__ieee80211_rx(ath_get_virt_hw(sc, hdr), skb,
-				       &rx_status);
-		}
+		ath_rx_send_to_mac80211(sc, skb, &rx_status);
 
 		/* We will now give hardware our shiny new allocated skb */
 		bf->bf_mpdu = requeue_skb;
