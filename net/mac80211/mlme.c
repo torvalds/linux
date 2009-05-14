@@ -1824,6 +1824,16 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	    memcmp(ifmgd->bssid, mgmt->bssid, ETH_ALEN) != 0)
 		return;
 
+	if (ifmgd->flags & IEEE80211_STA_PROBEREQ_POLL) {
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: cancelling probereq poll due "
+			       "to a received beacon\n", sdata->dev->name);
+		}
+#endif
+		ifmgd->flags &= ~IEEE80211_STA_PROBEREQ_POLL;
+	}
+
 	ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
 	ncrc = ieee802_11_parse_elems_crc(mgmt->u.beacon.variable,
 					  len - baselen, &elems,
