@@ -147,7 +147,7 @@ static unsigned char direct_marked_event[8] = {
  * Returns 1 if event counts things relating to marked instructions
  * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
  */
-static int p970_marked_instr_event(unsigned int event)
+static int p970_marked_instr_event(u64 event)
 {
 	int pmc, psel, unit, byte, bit;
 	unsigned int mask;
@@ -192,7 +192,7 @@ static u64 unit_cons[PM_LASTUNIT+1][2] = {
 	[PM_STS] =   { 0x380000000000ull, 0x310000000000ull },
 };
 
-static int p970_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
+static int p970_get_constraint(u64 event, u64 *maskp, u64 *valp)
 {
 	int pmc, byte, unit, sh, spcsel;
 	u64 mask = 0, value = 0;
@@ -243,8 +243,7 @@ static int p970_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
 	return 0;
 }
 
-static int p970_get_alternatives(unsigned int event, unsigned int flags,
-				 unsigned int alt[])
+static int p970_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
 	alt[0] = event;
 
@@ -257,7 +256,7 @@ static int p970_get_alternatives(unsigned int event, unsigned int flags,
 	return 1;
 }
 
-static int p970_compute_mmcr(unsigned int event[], int n_ev,
+static int p970_compute_mmcr(u64 event[], int n_ev,
 			     unsigned int hwc[], u64 mmcr[])
 {
 	u64 mmcr0 = 0, mmcr1 = 0, mmcra = 0;

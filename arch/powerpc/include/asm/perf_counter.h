@@ -23,13 +23,13 @@ struct power_pmu {
 	int	max_alternatives;
 	u64	add_fields;
 	u64	test_adder;
-	int	(*compute_mmcr)(unsigned int events[], int n_ev,
+	int	(*compute_mmcr)(u64 events[], int n_ev,
 				unsigned int hwc[], u64 mmcr[]);
-	int	(*get_constraint)(unsigned int event, u64 *mskp, u64 *valp);
-	int	(*get_alternatives)(unsigned int event, unsigned int flags,
-				    unsigned int alt[]);
+	int	(*get_constraint)(u64 event, u64 *mskp, u64 *valp);
+	int	(*get_alternatives)(u64 event, unsigned int flags,
+				    u64 alt[]);
 	void	(*disable_pmc)(unsigned int pmc, u64 mmcr[]);
-	int	(*limited_pmc_event)(unsigned int event);
+	int	(*limited_pmc_event)(u64 event);
 	int	limited_pmc5_6;	/* PMC5 and PMC6 have limited function */
 	int	n_generic;
 	int	*generic_events;

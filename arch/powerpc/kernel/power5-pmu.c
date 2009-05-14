@@ -139,7 +139,7 @@ static u64 unit_cons[PM_LASTUNIT+1][2] = {
 	[PM_GRS] =   { 0x30002000000000ull, 0x30000400000000ull },
 };
 
-static int power5_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
+static int power5_get_constraint(u64 event, u64 *maskp, u64 *valp)
 {
 	int pmc, byte, unit, sh;
 	int bit, fmask;
@@ -224,7 +224,7 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
  * Scan the alternatives table for a match and return the
  * index into the alternatives table if found, else -1.
  */
-static int find_alternative(unsigned int event)
+static int find_alternative(u64 event)
 {
 	int i, j;
 
@@ -250,7 +250,7 @@ static const unsigned char bytedecode_alternatives[4][4] = {
  * PMCSEL values on other counters.  This returns the alternative
  * event code for those that do, or -1 otherwise.
  */
-static int find_alternative_bdecode(unsigned int event)
+static u64 find_alternative_bdecode(u64 event)
 {
 	int pmc, altpmc, pp, j;
 
@@ -269,10 +269,10 @@ static int find_alternative_bdecode(unsigned int event)
 	return -1;
 }
 
-static int power5_get_alternatives(unsigned int event, unsigned int flags,
-				   unsigned int alt[])
+static int power5_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
-	int i, j, ae, nalt = 1;
+	int i, j, nalt = 1;
+	u64 ae;
 
 	alt[0] = event;
 	nalt = 1;
@@ -338,7 +338,7 @@ static unsigned char direct_event_is_marked[0x28] = {
  * Returns 1 if event counts things relating to marked instructions
  * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
  */
-static int power5_marked_instr_event(unsigned int event)
+static int power5_marked_instr_event(u64 event)
 {
 	int pmc, psel;
 	int bit, byte, unit;
@@ -382,7 +382,7 @@ static int power5_marked_instr_event(unsigned int event)
 	return (mask >> (byte * 8 + bit)) & 1;
 }
 
-static int power5_compute_mmcr(unsigned int event[], int n_ev,
+static int power5_compute_mmcr(u64 event[], int n_ev,
 			       unsigned int hwc[], u64 mmcr[])
 {
 	u64 mmcr1 = 0;

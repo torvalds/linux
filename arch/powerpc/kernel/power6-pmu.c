@@ -134,7 +134,7 @@ static u32 marked_bus_events[16] = {
  * Returns 1 if event counts things relating to marked instructions
  * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
  */
-static int power6_marked_instr_event(unsigned int event)
+static int power6_marked_instr_event(u64 event)
 {
 	int pmc, psel, ptype;
 	int bit, byte, unit;
@@ -172,7 +172,7 @@ static int power6_marked_instr_event(unsigned int event)
 /*
  * Assign PMC numbers and compute MMCR1 value for a set of events
  */
-static int p6_compute_mmcr(unsigned int event[], int n_ev,
+static int p6_compute_mmcr(u64 event[], int n_ev,
 			   unsigned int hwc[], u64 mmcr[])
 {
 	u64 mmcr1 = 0;
@@ -265,7 +265,7 @@ static int p6_compute_mmcr(unsigned int event[], int n_ev,
  *	20-23, 24-27, 28-31 ditto for bytes 1, 2, 3
  *	32-34	select field: nest (subunit) event selector
  */
-static int p6_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
+static int p6_get_constraint(u64 event, u64 *maskp, u64 *valp)
 {
 	int pmc, byte, sh, subunit;
 	u64 mask = 0, value = 0;
@@ -298,7 +298,7 @@ static int p6_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
 	return 0;
 }
 
-static int p6_limited_pmc_event(unsigned int event)
+static int p6_limited_pmc_event(u64 event)
 {
 	int pmc = (event >> PM_PMC_SH) & PM_PMC_MSK;
 
@@ -337,7 +337,7 @@ static const unsigned int event_alternatives[][MAX_ALT] = {
  * This could be made more efficient with a binary search on
  * a presorted list, if necessary
  */
-static int find_alternatives_list(unsigned int event)
+static int find_alternatives_list(u64 event)
 {
 	int i, j;
 	unsigned int alt;
@@ -356,12 +356,12 @@ static int find_alternatives_list(unsigned int event)
 	return -1;
 }
 
-static int p6_get_alternatives(unsigned int event, unsigned int flags,
-			       unsigned int alt[])
+static int p6_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
 	int i, j, nlim;
-	unsigned int aevent, psel, pmc;
+	unsigned int psel, pmc;
 	unsigned int nalt = 1;
+	u64 aevent;
 
 	alt[0] = event;
 	nlim = p6_limited_pmc_event(event);

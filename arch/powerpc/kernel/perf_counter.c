@@ -26,7 +26,7 @@ struct cpu_hw_counters {
 	int n_limited;
 	u8  pmcs_enabled;
 	struct perf_counter *counter[MAX_HWCOUNTERS];
-	unsigned int events[MAX_HWCOUNTERS];
+	u64 events[MAX_HWCOUNTERS];
 	unsigned int flags[MAX_HWCOUNTERS];
 	u64 mmcr[3];
 	struct perf_counter *limited_counter[MAX_LIMITED_HWCOUNTERS];
@@ -131,11 +131,11 @@ static void write_pmc(int idx, unsigned long val)
  * and see if any combination of alternative codes is feasible.
  * The feasible set is returned in event[].
  */
-static int power_check_constraints(unsigned int event[], unsigned int cflags[],
+static int power_check_constraints(u64 event[], unsigned int cflags[],
 				   int n_ev)
 {
 	u64 mask, value, nv;
-	unsigned int alternatives[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
+	u64 alternatives[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
 	u64 amasks[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
 	u64 avalues[MAX_HWCOUNTERS][MAX_EVENT_ALTERNATIVES];
 	u64 smasks[MAX_HWCOUNTERS], svalues[MAX_HWCOUNTERS];
@@ -564,7 +564,7 @@ void hw_perf_enable(void)
 }
 
 static int collect_events(struct perf_counter *group, int max_count,
-			  struct perf_counter *ctrs[], unsigned int *events,
+			  struct perf_counter *ctrs[], u64 *events,
 			  unsigned int *flags)
 {
 	int n = 0;
@@ -752,11 +752,11 @@ struct pmu power_pmu = {
  * that a limited PMC can count, doesn't require interrupts, and
  * doesn't exclude any processor mode.
  */
-static int can_go_on_limited_pmc(struct perf_counter *counter, unsigned int ev,
+static int can_go_on_limited_pmc(struct perf_counter *counter, u64 ev,
 				 unsigned int flags)
 {
 	int n;
-	unsigned int alt[MAX_EVENT_ALTERNATIVES];
+	u64 alt[MAX_EVENT_ALTERNATIVES];
 
 	if (counter->hw_event.exclude_user
 	    || counter->hw_event.exclude_kernel
@@ -776,10 +776,8 @@ static int can_go_on_limited_pmc(struct perf_counter *counter, unsigned int ev,
 
 	flags |= PPMU_LIMITED_PMC_OK | PPMU_LIMITED_PMC_REQD;
 	n = ppmu->get_alternatives(ev, flags, alt);
-	if (n)
-		return alt[0];
 
-	return 0;
+	return n > 0;
 }
 
 /*
@@ -787,10 +785,9 @@ static int can_go_on_limited_pmc(struct perf_counter *counter, unsigned int ev,
  * and return the event code, or 0 if there is no such alternative.
  * (Note: event code 0 is "don't count" on all machines.)
  */
-static unsigned long normal_pmc_alternative(unsigned long ev,
-					    unsigned long flags)
+static u64 normal_pmc_alternative(u64 ev, unsigned long flags)
 {
-	unsigned int alt[MAX_EVENT_ALTERNATIVES];
+	u64 alt[MAX_EVENT_ALTERNATIVES];
 	int n;
 
 	flags &= ~(PPMU_LIMITED_PMC_OK | PPMU_LIMITED_PMC_REQD);
@@ -820,9 +817,10 @@ static void hw_perf_counter_destroy(struct perf_counter *counter)
 
 const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 {
-	unsigned long ev, flags;
+	u64 ev;
+	unsigned long flags;
 	struct perf_counter *ctrs[MAX_HWCOUNTERS];
-	unsigned int events[MAX_HWCOUNTERS];
+	u64 events[MAX_HWCOUNTERS];
 	unsigned int cflags[MAX_HWCOUNTERS];
 	int n;
 	int err;

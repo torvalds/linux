@@ -213,7 +213,7 @@ static unsigned char direct_marked_event[8] = {
  * Returns 1 if event counts things relating to marked instructions
  * and thus needs the MMCRA_SAMPLE_ENABLE bit set, or 0 if not.
  */
-static int p4_marked_instr_event(unsigned int event)
+static int p4_marked_instr_event(u64 event)
 {
 	int pmc, psel, unit, byte, bit;
 	unsigned int mask;
@@ -249,7 +249,7 @@ static int p4_marked_instr_event(unsigned int event)
 	return (mask >> (byte * 8 + bit)) & 1;
 }
 
-static int p4_get_constraint(unsigned int event, u64 *maskp, u64 *valp)
+static int p4_get_constraint(u64 event, u64 *maskp, u64 *valp)
 {
 	int pmc, byte, unit, lower, sh;
 	u64 mask = 0, value = 0;
@@ -320,8 +320,7 @@ static unsigned int ppc_inst_cmpl[] = {
 	0x1001, 0x4001, 0x6001, 0x7001, 0x8001
 };
 
-static int p4_get_alternatives(unsigned int event, unsigned int flags,
-			       unsigned int alt[])
+static int p4_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
 	int i, j, na;
 
@@ -353,7 +352,7 @@ static int p4_get_alternatives(unsigned int event, unsigned int flags,
 	return na;
 }
 
-static int p4_compute_mmcr(unsigned int event[], int n_ev,
+static int p4_compute_mmcr(u64 event[], int n_ev,
 			   unsigned int hwc[], u64 mmcr[])
 {
 	u64 mmcr0 = 0, mmcr1 = 0, mmcra = 0;
