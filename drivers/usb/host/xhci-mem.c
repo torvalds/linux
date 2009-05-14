@@ -460,7 +460,8 @@ static inline u32 xhci_get_endpoint_type(struct usb_device *udev,
 int xhci_endpoint_init(struct xhci_hcd *xhci,
 		struct xhci_virt_device *virt_dev,
 		struct usb_device *udev,
-		struct usb_host_endpoint *ep)
+		struct usb_host_endpoint *ep,
+		gfp_t mem_flags)
 {
 	unsigned int ep_index;
 	struct xhci_ep_ctx *ep_ctx;
@@ -472,7 +473,7 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	ep_ctx = &virt_dev->in_ctx->ep[ep_index];
 
 	/* Set up the endpoint ring */
-	virt_dev->new_ep_rings[ep_index] = xhci_ring_alloc(xhci, 1, true, GFP_KERNEL);
+	virt_dev->new_ep_rings[ep_index] = xhci_ring_alloc(xhci, 1, true, mem_flags);
 	if (!virt_dev->new_ep_rings[ep_index])
 		return -ENOMEM;
 	ep_ring = virt_dev->new_ep_rings[ep_index];

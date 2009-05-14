@@ -687,11 +687,14 @@ done:
  * different endpoint descriptor in usb_host_endpoint.
  * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
  * not allowed.
+ *
+ * The USB core will not allow URBs to be queued to an endpoint that is being
+ * disabled, so there's no need for mutual exclusion to protect
+ * the xhci->devs[slot_id] structure.
  */
 int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
-	unsigned long flags;
 	struct xhci_hcd *xhci;
 	struct xhci_device_control *in_ctx;
 	unsigned int last_ctx;
@@ -714,11 +717,9 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return 0;
 	}
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	if (!xhci->devs || !xhci->devs[udev->slot_id]) {
 		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
 				__func__);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return -EINVAL;
 	}
 
@@ -732,7 +733,6 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 			in_ctx->drop_flags & xhci_get_endpoint_flag(&ep->desc)) {
 		xhci_warn(xhci, "xHCI %s called with disabled ep %p\n",
 				__func__, ep);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return 0;
 	}
 
@@ -752,8 +752,6 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 
 	xhci_endpoint_zero(xhci, xhci->devs[udev->slot_id], ep);
 
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
 	xhci_dbg(xhci, "drop ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x, new slot info = %#x\n",
 			(unsigned int) ep->desc.bEndpointAddress,
 			udev->slot_id,
@@ -771,11 +769,14 @@ int xhci_drop_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
  * different endpoint descriptor in usb_host_endpoint.
  * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
  * not allowed.
+ *
+ * The USB core will not allow URBs to be queued to an endpoint until the
+ * configuration or alt setting is installed in the device, so there's no need
+ * for mutual exclusion to protect the xhci->devs[slot_id] structure.
  */
 int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		struct usb_host_endpoint *ep)
 {
-	unsigned long flags;
 	struct xhci_hcd *xhci;
 	struct xhci_device_control *in_ctx;
 	unsigned int ep_index;
@@ -802,11 +803,9 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return 0;
 	}
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	if (!xhci->devs || !xhci->devs[udev->slot_id]) {
 		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
 				__func__);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return -EINVAL;
 	}
 
@@ -819,14 +818,18 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	if (in_ctx->add_flags & xhci_get_endpoint_flag(&ep->desc)) {
 		xhci_warn(xhci, "xHCI %s called with enabled ep %p\n",
 				__func__, ep);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return 0;
 	}
 
-	if (xhci_endpoint_init(xhci, xhci->devs[udev->slot_id], udev, ep) < 0) {
+	/*
+	 * Configuration and alternate setting changes must be done in
+	 * process context, not interrupt context (or so documenation
+	 * for usb_set_interface() and usb_set_configuration() claim).
+	 */
+	if (xhci_endpoint_init(xhci, xhci->devs[udev->slot_id],
+				udev, ep, GFP_KERNEL) < 0) {
 		dev_dbg(&udev->dev, "%s - could not initialize ep %#x\n",
 				__func__, ep->desc.bEndpointAddress);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return -ENOMEM;
 	}
 
@@ -847,7 +850,6 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		in_ctx->slot.dev_info |= LAST_CTX(last_ctx);
 	}
 	new_slot_info = in_ctx->slot.dev_info;
-	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	xhci_dbg(xhci, "add ep 0x%x, slot id %d, new drop flags = %#x, new add flags = %#x, new slot info = %#x\n",
 			(unsigned int) ep->desc.bEndpointAddress,
@@ -883,6 +885,16 @@ static void xhci_zero_in_ctx(struct xhci_virt_device *virt_dev)
 	}
 }
 
+/* Called after one or more calls to xhci_add_endpoint() or
+ * xhci_drop_endpoint().  If this call fails, the USB core is expected
+ * to call xhci_reset_bandwidth().
+ *
+ * Since we are in the middle of changing either configuration or
+ * installing a new alt setting, the USB core won't allow URBs to be
+ * enqueued for any endpoint on the old config or interface.  Nothing
+ * else should be touching the xhci->devs[slot_id] structure, so we
+ * don't need to take the xhci->lock for manipulating that.
+ */
 int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	int i;
@@ -897,11 +909,9 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		return ret;
 	xhci = hcd_to_xhci(hcd);
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	if (!udev->slot_id || !xhci->devs || !xhci->devs[udev->slot_id]) {
 		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
 				__func__);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return -EINVAL;
 	}
 	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
@@ -916,11 +926,12 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	xhci_dbg_ctx(xhci, virt_dev->in_ctx, virt_dev->in_ctx_dma,
 			LAST_CTX_TO_EP_NUM(virt_dev->in_ctx->slot.dev_info));
 
+	spin_lock_irqsave(&xhci->lock, flags);
 	ret = xhci_queue_configure_endpoint(xhci, virt_dev->in_ctx_dma,
 			udev->slot_id);
 	if (ret < 0) {
-		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
 		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_dbg(xhci, "FIXME allocate a new ring segment\n");
 		return -ENOMEM;
 	}
 	xhci_ring_cmd_db(xhci);
@@ -937,7 +948,6 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		return -ETIME;
 	}
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	switch (virt_dev->cmd_status) {
 	case COMP_ENOMEM:
 		dev_warn(&udev->dev, "Not enough host controller resources "
@@ -968,7 +978,6 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 	}
 	if (ret) {
 		/* Callee should call reset_bandwidth() */
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return ret;
 	}
 
@@ -986,14 +995,11 @@ int xhci_check_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		}
 	}
 
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
 	return ret;
 }
 
 void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 {
-	unsigned long flags;
 	struct xhci_hcd *xhci;
 	struct xhci_virt_device	*virt_dev;
 	int i, ret;
@@ -1003,11 +1009,9 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		return;
 	xhci = hcd_to_xhci(hcd);
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	if (!xhci->devs || !xhci->devs[udev->slot_id]) {
 		xhci_warn(xhci, "xHCI %s called with unaddressed device\n",
 				__func__);
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
 	xhci_dbg(xhci, "%s called for udev %p\n", __func__, udev);
@@ -1020,7 +1024,6 @@ void xhci_reset_bandwidth(struct usb_hcd *hcd, struct usb_device *udev)
 		}
 	}
 	xhci_zero_in_ctx(virt_dev);
-	spin_unlock_irqrestore(&xhci->lock, flags);
 }
 
 /*
@@ -1046,7 +1049,7 @@ void xhci_free_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	/*
 	 * Event command completion handler will free any data structures
-	 * associated with the slot
+	 * associated with the slot.  XXX Can free sleep?
 	 */
 }
 
@@ -1081,15 +1084,15 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 		return 0;
 	}
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	if (!xhci->slot_id) {
 		xhci_err(xhci, "Error while assigning device slot ID\n");
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return 0;
 	}
+	/* xhci_alloc_virt_device() does not touch rings; no need to lock */
 	if (!xhci_alloc_virt_device(xhci, xhci->slot_id, udev, GFP_KERNEL)) {
 		/* Disable slot, if we can do it without mem alloc */
 		xhci_warn(xhci, "Could not allocate xHCI USB device data structures\n");
+		spin_lock_irqsave(&xhci->lock, flags);
 		if (!xhci_queue_slot_control(xhci, TRB_DISABLE_SLOT, udev->slot_id))
 			xhci_ring_cmd_db(xhci);
 		spin_unlock_irqrestore(&xhci->lock, flags);
@@ -1098,7 +1101,6 @@ int xhci_alloc_dev(struct usb_hcd *hcd, struct usb_device *udev)
 	udev->slot_id = xhci->slot_id;
 	/* Is this a LS or FS device under a HS hub? */
 	/* Hub or peripherial? */
-	spin_unlock_irqrestore(&xhci->lock, flags);
 	return 1;
 }
 
@@ -1125,7 +1127,6 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	virt_dev = xhci->devs[udev->slot_id];
 
 	/* If this is a Set Address to an unconfigured device, setup ep 0 */
@@ -1133,6 +1134,7 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		xhci_setup_addressable_virt_dev(xhci, udev);
 	/* Otherwise, assume the core has the device configured how it wants */
 
+	spin_lock_irqsave(&xhci->lock, flags);
 	ret = xhci_queue_address_device(xhci, virt_dev->in_ctx_dma,
 			udev->slot_id);
 	if (ret) {
@@ -1157,7 +1159,6 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		return -ETIME;
 	}
 
-	spin_lock_irqsave(&xhci->lock, flags);
 	switch (virt_dev->cmd_status) {
 	case COMP_CTX_STATE:
 	case COMP_EBADSLT:
@@ -1179,7 +1180,6 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 		break;
 	}
 	if (ret) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
 		return ret;
 	}
 	temp = xhci_readl(xhci, &xhci->op_regs->dcbaa_ptr[0]);
@@ -1211,7 +1211,6 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	/* Mirror flags in the output context for future ep enable/disable */
 	virt_dev->out_ctx->add_flags = SLOT_FLAG | EP0_FLAG;
 	virt_dev->out_ctx->drop_flags = 0;
-	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	xhci_dbg(xhci, "Device address = %d\n", udev->devnum);
 	/* XXX Meh, not sure if anyone else but choose_address uses this. */

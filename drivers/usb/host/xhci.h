@@ -1101,7 +1101,9 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 unsigned int xhci_get_endpoint_index(struct usb_endpoint_descriptor *desc);
 unsigned int xhci_get_endpoint_flag(struct usb_endpoint_descriptor *desc);
 void xhci_endpoint_zero(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev, struct usb_host_endpoint *ep);
-int xhci_endpoint_init(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev, struct usb_device *udev, struct usb_host_endpoint *ep);
+int xhci_endpoint_init(struct xhci_hcd *xhci, struct xhci_virt_device *virt_dev,
+		struct usb_device *udev, struct usb_host_endpoint *ep,
+		gfp_t mem_flags);
 void xhci_ring_free(struct xhci_hcd *xhci, struct xhci_ring *ring);
 
 #ifdef CONFIG_PCI
