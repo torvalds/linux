@@ -64,7 +64,7 @@ static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
 	return def;
 }
 
-static unsigned int pci_parse_of_flags(u32 addr0)
+static unsigned int pci_parse_of_flags(u32 addr0, int bridge)
 {
 	unsigned int flags = 0;
 
@@ -75,8 +75,17 @@ static unsigned int pci_parse_of_flags(u32 addr0)
 		if (addr0 & 0x40000000)
 			flags |= IORESOURCE_PREFETCH
 				 | PCI_BASE_ADDRESS_MEM_PREFETCH;
+		/* Note: We don't know whether the ROM has been left enabled
+		 * by the firmware or not. We mark it as disabled (ie, we do
+		 * not set the IORESOURCE_ROM_ENABLE flag) for now rather than
+		 * do a config space read, it will be force-enabled if needed
+		 */
+		if (!bridge && (addr0 & 0xff) == 0x30)
+			flags |= IORESOURCE_READONLY;
 	} else if (addr0 & 0x01000000)
 		flags = IORESOURCE_IO | PCI_BASE_ADDRESS_SPACE_IO;
+	if (flags)
+		flags |= IORESOURCE_SIZEALIGN;
 	return flags;
 }
 
@@ -95,7 +104,7 @@ static void pci_parse_of_addrs(struct device_node *node, struct pci_dev *dev)
 		return;
 	pr_debug("    parse addresses (%d bytes) @ %p\n", proplen, addrs);
 	for (; proplen >= 20; proplen -= 20, addrs += 5) {
-		flags = pci_parse_of_flags(addrs[0]);
+		flags = pci_parse_of_flags(addrs[0], 0);
 		if (!flags)
 			continue;
 		base = of_read_number(&addrs[1], 2);
@@ -293,7 +302,7 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 	}
 	i = 1;
 	for (; len >= 32; len -= 32, ranges += 8) {
-		flags = pci_parse_of_flags(ranges[0]);
+		flags = pci_parse_of_flags(ranges[0], 1);
 		size = of_read_number(&ranges[6], 2);
 		if (flags == 0 || size == 0)
 			continue;
