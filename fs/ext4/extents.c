@@ -3151,9 +3151,9 @@ retry:
 			break;
 		}
 		map_bh.b_state = 0;
-		ret = ext4_get_blocks_wrap(handle, inode, block,
-					  max_blocks, &map_bh,
-					  EXT4_CREATE_UNINITIALIZED_EXT, 0, 0);
+		ret = ext4_get_blocks(handle, inode, block,
+				      max_blocks, &map_bh,
+				      EXT4_CREATE_UNINITIALIZED_EXT, 0, 0);
 		if (ret <= 0) {
 #ifdef EXT4FS_DEBUG
 			WARN_ON(ret <= 0);

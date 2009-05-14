@@ -1617,10 +1617,10 @@ extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
 extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
-extern int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode,
-			sector_t block, unsigned int max_blocks,
-			struct buffer_head *bh, int create,
-			int extend_disksize, int flag);
+extern int ext4_get_blocks(handle_t *handle, struct inode *inode,
+			   sector_t block, unsigned int max_blocks,
+			   struct buffer_head *bh, int create,
+			   int extend_disksize, int flag);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
 
