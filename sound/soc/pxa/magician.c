@@ -106,7 +106,7 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 			/* 513156 Hz ~= _2_ * 8000 Hz * 32 (+0.23%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_16;
 			break;
-		case 32:
+		default: /* 32 */
 			/* 1026312 Hz ~= _2_ * 8000 Hz * 64 (+0.23%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_8;
 		}
@@ -118,7 +118,7 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 			/* 351375 Hz ~= 11025 Hz * 32 (-0.41%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_4;
 			break;
-		case 32:
+		default: /* 32 */
 			/* 702750 Hz ~= 11025 Hz * 64 (-0.41%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_2;
 		}
@@ -130,7 +130,7 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 			/* 702750 Hz ~= 22050 Hz * 32 (-0.41%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_2;
 			break;
-		case 32:
+		default: /* 32 */
 			/* 1405500 Hz ~= 22050 Hz * 64 (-0.41%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_1;
 		}
@@ -142,7 +142,7 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 			/* 1405500 Hz ~= 44100 Hz * 32 (-0.41%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_2;
 			break;
-		case 32:
+		default: /* 32 */
 			/* 2811000 Hz ~= 44100 Hz * 64 (-0.41%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_1;
 		}
@@ -154,19 +154,20 @@ static int magician_playback_hw_params(struct snd_pcm_substream *substream,
 			/* 1529375 Hz ~= 48000 Hz * 32 (-0.44%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_2;
 			break;
-		case 32:
+		default: /* 32 */
 			/* 3058750 Hz ~= 48000 Hz * 64 (-0.44%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_1;
 		}
 		break;
 	case 96000:
+	default:
 		acps = 12235000;
 		switch (width) {
 		case 16:
 			/* 3058750 Hz ~= 96000 Hz * 32 (-0.44%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_1;
 			break;
-		case 32:
+		default: /* 32 */
 			/* 6117500 Hz ~= 96000 Hz * 64 (-0.44%) */
 			acds = PXA_SSP_CLK_AUDIO_DIV_2;
 			div4 = PXA_SSP_CLK_SCDB_1;
