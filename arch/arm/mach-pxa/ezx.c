@@ -111,9 +111,9 @@ static unsigned long ezx_pin_config[] __initdata = {
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
 	GPIO24_GPIO,				/* pcap chip select */
-	GPIO1_GPIO,				/* pcap interrupt */
-	GPIO4_GPIO,				/* WDI_AP */
-	GPIO55_GPIO,				/* SYS_RESTART */
+	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,	/* pcap interrupt */
+	GPIO4_GPIO | MFP_LPM_DRIVE_HIGH,	/* WDI_AP */
+	GPIO55_GPIO | MFP_LPM_DRIVE_HIGH,	/* SYS_RESTART */
 
 	/* MMC */
 	GPIO32_MMC_CLK,
@@ -144,20 +144,20 @@ static unsigned long ezx_pin_config[] __initdata = {
 #if defined(CONFIG_MACH_EZX_A780) || defined(CONFIG_MACH_EZX_E680)
 static unsigned long gen1_pin_config[] __initdata = {
 	/* flip / lockswitch */
-	GPIO12_GPIO,
+	GPIO12_GPIO | WAKEUP_ON_EDGE_BOTH,
 
 	/* bluetooth (bcm2035) */
-	GPIO14_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* HOSTWAKE */
+	GPIO14_GPIO | WAKEUP_ON_EDGE_RISE,	/* HOSTWAKE */
 	GPIO48_GPIO,				/* RESET */
 	GPIO28_GPIO,				/* WAKEUP */
 
 	/* Neptune handshake */
-	GPIO0_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* BP_RDY */
-	GPIO57_GPIO,				/* AP_RDY */
-	GPIO13_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* WDI */
-	GPIO3_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* WDI2 */
-	GPIO82_GPIO,				/* RESET */
-	GPIO99_GPIO,				/* TC_MM_EN */
+	GPIO0_GPIO | WAKEUP_ON_EDGE_FALL,	/* BP_RDY */
+	GPIO57_GPIO | MFP_LPM_DRIVE_HIGH,	/* AP_RDY */
+	GPIO13_GPIO | WAKEUP_ON_EDGE_BOTH,	/* WDI */
+	GPIO3_GPIO | WAKEUP_ON_EDGE_BOTH,	/* WDI2 */
+	GPIO82_GPIO | MFP_LPM_DRIVE_HIGH,	/* RESET */
+	GPIO99_GPIO | MFP_LPM_DRIVE_HIGH,	/* TC_MM_EN */
 
 	/* sound */
 	GPIO52_SSP3_SCLK,
@@ -199,21 +199,21 @@ static unsigned long gen1_pin_config[] __initdata = {
 	defined(CONFIG_MACH_EZX_E2) || defined(CONFIG_MACH_EZX_E6)
 static unsigned long gen2_pin_config[] __initdata = {
 	/* flip / lockswitch */
-	GPIO15_GPIO,
+	GPIO15_GPIO | WAKEUP_ON_EDGE_BOTH,
 
 	/* EOC */
-	GPIO10_GPIO,
+	GPIO10_GPIO | WAKEUP_ON_EDGE_RISE,
 
 	/* bluetooth (bcm2045) */
-	GPIO13_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* HOSTWAKE */
+	GPIO13_GPIO | WAKEUP_ON_EDGE_RISE,	/* HOSTWAKE */
 	GPIO37_GPIO,				/* RESET */
 	GPIO57_GPIO,				/* WAKEUP */
 
 	/* Neptune handshake */
-	GPIO0_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* BP_RDY */
-	GPIO96_GPIO,				/* AP_RDY */
-	GPIO3_GPIO | WAKEUP_ON_LEVEL_HIGH,	/* WDI */
-	GPIO116_GPIO,				/* RESET */
+	GPIO0_GPIO | WAKEUP_ON_EDGE_FALL,	/* BP_RDY */
+	GPIO96_GPIO | MFP_LPM_DRIVE_HIGH,	/* AP_RDY */
+	GPIO3_GPIO | WAKEUP_ON_EDGE_FALL,	/* WDI */
+	GPIO116_GPIO | MFP_LPM_DRIVE_HIGH,	/* RESET */
 	GPIO41_GPIO,				/* BP_FLASH */
 
 	/* sound */
