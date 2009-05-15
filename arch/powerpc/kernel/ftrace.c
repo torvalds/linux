@@ -594,7 +594,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 			PPC_LONG "2b,4b\n"
 		".previous"
 
-		: [old] "=r" (old), [faulted] "=r" (faulted)
+		: [old] "=&r" (old), [faulted] "=r" (faulted)
 		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
 		: "memory"
 	);
