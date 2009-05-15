@@ -722,9 +722,13 @@ static void intel_pmu_save_and_restart(struct perf_counter *counter)
  */
 static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 {
-	int bit, cpu = smp_processor_id();
+	struct cpu_hw_counters *cpuc;
+	struct cpu_hw_counters;
+	int bit, cpu, loops;
 	u64 ack, status;
-	struct cpu_hw_counters *cpuc = &per_cpu(cpu_hw_counters, cpu);
+
+	cpu = smp_processor_id();
+	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
 	perf_disable();
 	status = intel_pmu_get_status();
@@ -733,7 +737,13 @@ static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 		return 0;
 	}
 
+	loops = 0;
 again:
+	if (++loops > 100) {
+		WARN_ONCE(1, "perfcounters: irq loop stuck!\n");
+		return 1;
+	}
+
 	inc_irq_stat(apic_perf_irqs);
 	ack = status;
 	for_each_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
@@ -765,13 +775,14 @@ again:
 
 static int amd_pmu_handle_irq(struct pt_regs *regs, int nmi)
 {
-	int cpu = smp_processor_id();
-	struct cpu_hw_counters *cpuc = &per_cpu(cpu_hw_counters, cpu);
-	u64 val;
-	int handled = 0;
+	int cpu, idx, throttle = 0, handled = 0;
+	struct cpu_hw_counters *cpuc;
 	struct perf_counter *counter;
 	struct hw_perf_counter *hwc;
-	int idx, throttle = 0;
+	u64 val;
+
+	cpu = smp_processor_id();
+	cpuc = &per_cpu(cpu_hw_counters, cpu);
 
 	if (++cpuc->interrupts == PERFMON_MAX_INTERRUPTS) {
 		throttle = 1;
