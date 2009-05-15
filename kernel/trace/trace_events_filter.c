@@ -736,7 +736,7 @@ static inline void clear_operand_string(struct filter_parse_state *ps)
 
 static inline int append_operand_char(struct filter_parse_state *ps, char c)
 {
-	if (ps->operand.tail == MAX_FILTER_STR_VAL)
+	if (ps->operand.tail == MAX_FILTER_STR_VAL - 1)
 		return -EINVAL;
 
 	ps->operand.string[ps->operand.tail++] = c;
