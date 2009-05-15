@@ -45,7 +45,7 @@ static atomic_t nr_munmap_tracking __read_mostly;
 static atomic_t nr_comm_tracking __read_mostly;
 
 int sysctl_perf_counter_priv __read_mostly; /* do we need to be privileged */
-int sysctl_perf_counter_mlock __read_mostly = 128; /* 'free' kb per counter */
+int sysctl_perf_counter_mlock __read_mostly = 512; /* 'free' kb per user */
 
 /*
  * Lock for (sysadmin-configurable) counter reservations:
@@ -1522,6 +1522,9 @@ static void perf_mmap_close(struct vm_area_struct *vma)
 
 	if (atomic_dec_and_mutex_lock(&counter->mmap_count,
 				      &counter->mmap_mutex)) {
+		struct user_struct *user = current_user();
+
+		atomic_long_sub(counter->data->nr_pages + 1, &user->locked_vm);
 		vma->vm_mm->locked_vm -= counter->data->nr_locked;
 		perf_mmap_data_free(counter);
 		mutex_unlock(&counter->mmap_mutex);
@@ -1537,11 +1540,13 @@ static struct vm_operations_struct perf_mmap_vmops = {
 static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct perf_counter *counter = file->private_data;
+	struct user_struct *user = current_user();
 	unsigned long vma_size;
 	unsigned long nr_pages;
+	unsigned long user_locked, user_lock_limit;
 	unsigned long locked, lock_limit;
+	long user_extra, extra;
 	int ret = 0;
-	long extra;
 
 	if (!(vma->vm_flags & VM_SHARED) || (vma->vm_flags & VM_WRITE))
 		return -EINVAL;
@@ -1569,15 +1574,17 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		goto unlock;
 	}
 
-	extra = nr_pages /* + 1 only account the data pages */;
-	extra -= sysctl_perf_counter_mlock >> (PAGE_SHIFT - 10);
-	if (extra < 0)
-		extra = 0;
+	user_extra = nr_pages + 1;
+	user_lock_limit = sysctl_perf_counter_mlock >> (PAGE_SHIFT - 10);
+	user_locked = atomic_long_read(&user->locked_vm) + user_extra;
 
-	locked = vma->vm_mm->locked_vm + extra;
+	extra = 0;
+	if (user_locked > user_lock_limit)
+		extra = user_locked - user_lock_limit;
 
 	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
 	lock_limit >>= PAGE_SHIFT;
+	locked = vma->vm_mm->locked_vm + extra;
 
 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
 		ret = -EPERM;
@@ -1590,6 +1597,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 		goto unlock;
 
 	atomic_set(&counter->mmap_count, 1);
+	atomic_long_add(user_extra, &user->locked_vm);
 	vma->vm_mm->locked_vm += extra;
 	counter->data->nr_locked = extra;
 unlock:

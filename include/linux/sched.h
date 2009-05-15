@@ -674,6 +674,10 @@ struct user_struct {
 	struct work_struct work;
 #endif
 #endif
+
+#ifdef CONFIG_PERF_COUNTERS
+	atomic_long_t locked_vm;
+#endif
 };
 
 extern int uids_sysfs_init(void);
