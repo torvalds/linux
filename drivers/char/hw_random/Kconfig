@@ -88,7 +88,7 @@ config HW_RANDOM_N2RNG
 
 config HW_RANDOM_VIA
 	tristate "VIA HW Random Number Generator support"
-	depends on HW_RANDOM && X86_32
+	depends on HW_RANDOM && X86
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
