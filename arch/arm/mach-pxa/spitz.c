@@ -531,9 +531,15 @@ static int spitz_ohci_init(struct device *dev)
 	return gpio_direction_output(SPITZ_GPIO_USB_HOST, 1);
 }
 
+static void spitz_ohci_exit(struct device *dev)
+{
+	gpio_free(SPITZ_GPIO_USB_HOST);
+}
+
 static struct pxaohci_platform_data spitz_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
 	.init		= spitz_ohci_init,
+	.exit		= spitz_ohci_exit,
 	.flags		= ENABLE_PORT_ALL | NO_OC_PROTECTION,
 	.power_budget	= 150,
 };
