@@ -857,9 +857,15 @@ void intelfb_restore(void)
 	drm_crtc_helper_set_config(&kernelfb_mode);
 }
 
+static void intelfb_restore_work_fn(struct work_struct *ignored)
+{
+	intelfb_restore();
+}
+static DECLARE_WORK(intelfb_restore_work, intelfb_restore_work_fn);
+
 static void intelfb_sysrq(int dummy1, struct tty_struct *dummy3)
 {
-        intelfb_restore();
+        schedule_work(&intelfb_restore_work);
 }
 
 static struct sysrq_key_op sysrq_intelfb_restore_op = {
