@@ -17,6 +17,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/smp.h>
+#include <linux/pci.h>
 
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
@@ -961,6 +962,9 @@ static int __initdata enable_update_mptable;
 static int __init update_mptable_setup(char *str)
 {
 	enable_update_mptable = 1;
+#ifdef CONFIG_PCI
+	pci_routeirq = 1;
+#endif
 	return 0;
 }
 early_param("update_mptable", update_mptable_setup);
@@ -973,6 +977,9 @@ static int __initdata alloc_mptable;
 static int __init parse_alloc_mptable_opt(char *p)
 {
 	enable_update_mptable = 1;
+#ifdef CONFIG_PCI
+	pci_routeirq = 1;
+#endif
 	alloc_mptable = 1;
 	if (!p)
 		return 0;
