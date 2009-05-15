@@ -20,7 +20,7 @@ save_stack_warning_symbol(void *data, char *msg, unsigned long symbol)
 
 static int save_stack_stack(void *data, char *name)
 {
-	return -1;
+	return 0;
 }
 
 static void save_stack_address(void *data, unsigned long addr, int reliable)
