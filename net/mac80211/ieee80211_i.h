@@ -934,6 +934,9 @@ void ieee80211_send_pspoll(struct ieee80211_local *local,
 void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency);
 int ieee80211_max_network_latency(struct notifier_block *nb,
 				  unsigned long data, void *dummy);
+void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_channel_sw_ie *sw_elem,
+				      struct ieee80211_bss *bss);
 
 /* IBSS code */
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
@@ -1031,14 +1034,6 @@ int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_mgmt *mgmt,
 				       size_t len);
-void ieee80211_chswitch_timer(unsigned long data);
-void ieee80211_chswitch_work(struct work_struct *work);
-void ieee80211_process_chanswitch(struct ieee80211_sub_if_data *sdata,
-				  struct ieee80211_channel_sw_ie *sw_elem,
-				  struct ieee80211_bss *bss);
-void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
-				 u16 capab_info, u8 *pwr_constr_elem,
-				 u8 pwr_constr_elem_len);
 
 /* Suspend/resume and hw reconfiguration */
 int ieee80211_reconfig(struct ieee80211_local *local);

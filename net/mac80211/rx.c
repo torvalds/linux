@@ -1846,6 +1846,9 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				   sizeof(mgmt->u.action.u.chan_switch)))
 				return RX_DROP_MONITOR;
 
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				return RX_DROP_MONITOR;
+
 			if (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN))
 				return RX_DROP_MONITOR;
 
@@ -1856,7 +1859,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (!bss)
 				return RX_DROP_MONITOR;
 
-			ieee80211_process_chanswitch(sdata,
+			ieee80211_sta_process_chanswitch(sdata,
 				     &mgmt->u.action.u.chan_switch.sw_elem, bss);
 			ieee80211_rx_bss_put(local, bss);
 			break;
