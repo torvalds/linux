@@ -1079,9 +1079,10 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 		return 0;
 	}
 
+	err = -ENOMEM;
 	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
 	if (!ps)
-		return -ENOMEM;
+		goto out_unlock;
 
 	filter_disable_preds(call);
 	replace_filter_string(call->filter, filter_string);
@@ -1101,7 +1102,7 @@ out:
 	filter_opstack_clear(ps);
 	postfix_clear(ps);
 	kfree(ps);
-
+out_unlock:
 	mutex_unlock(&filter_mutex);
 
 	return err;
@@ -1123,9 +1124,10 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 		return 0;
 	}
 
+	err = -ENOMEM;
 	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
 	if (!ps)
-		return -ENOMEM;
+		goto out_unlock;
 
 	filter_free_subsystem_preds(system);
 	replace_filter_string(system->filter, filter_string);
@@ -1145,7 +1147,7 @@ out:
 	filter_opstack_clear(ps);
 	postfix_clear(ps);
 	kfree(ps);
-
+out_unlock:
 	mutex_unlock(&filter_mutex);
 
 	return err;
