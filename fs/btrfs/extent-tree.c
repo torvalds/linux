@@ -312,7 +312,7 @@ btrfs_lookup_first_block_group(struct btrfs_fs_info *info, u64 bytenr)
 }
 
 /*
- * return the block group that contains teh given bytenr
+ * return the block group that contains the given bytenr
  */
 struct btrfs_block_group_cache *btrfs_lookup_block_group(
 						 struct btrfs_fs_info *info,
