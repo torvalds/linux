@@ -161,7 +161,7 @@ static int flat_apic_id_registered(void)
 
 static int flat_phys_pkg_id(int initial_apic_id, int index_msb)
 {
-	return hard_smp_processor_id() >> index_msb;
+	return initial_apic_id >> index_msb;
 }
 
 struct apic apic_flat =  {
