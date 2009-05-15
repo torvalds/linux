@@ -1713,16 +1713,8 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		return false;
 	}
 
-	connector = &intel_output->base;
-
-	drm_connector_init(dev, connector, &intel_sdvo_connector_funcs,
-			   DRM_MODE_CONNECTOR_Unknown);
-	drm_connector_helper_add(connector, &intel_sdvo_connector_helper_funcs);
 	sdvo_priv = (struct intel_sdvo_priv *)(intel_output + 1);
 	intel_output->type = INTEL_OUTPUT_SDVO;
-
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
 
 	/* setup the DDC bus. */
 	if (output_device == SDVOB)
@@ -1731,7 +1723,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		i2cbus = intel_i2c_create(dev, GPIOE, "SDVOCTRL_E for SDVOC");
 
 	if (!i2cbus)
-		goto err_connector;
+		goto err_inteloutput;
 
 	sdvo_priv->i2c_bus = i2cbus;
 
@@ -1746,7 +1738,6 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	sdvo_priv->output_device = output_device;
 	intel_output->i2c_bus = i2cbus;
 	intel_output->dev_priv = sdvo_priv;
-
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {
@@ -1768,7 +1759,6 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		else
 			sdvo_priv->controlled_output = SDVO_OUTPUT_TMDS1;
 
-		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_TMDS;
 		connector_type = DRM_MODE_CONNECTOR_DVID;
 
@@ -1786,7 +1776,6 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	else if (sdvo_priv->caps.output_flags & SDVO_OUTPUT_SVID0)
 	{
 		sdvo_priv->controlled_output = SDVO_OUTPUT_SVID0;
-		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_TVDAC;
 		connector_type = DRM_MODE_CONNECTOR_SVIDEO;
 		sdvo_priv->is_tv = true;
@@ -1795,21 +1784,18 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	else if (sdvo_priv->caps.output_flags & SDVO_OUTPUT_RGB0)
 	{
 		sdvo_priv->controlled_output = SDVO_OUTPUT_RGB0;
-		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_DAC;
 		connector_type = DRM_MODE_CONNECTOR_VGA;
 	}
 	else if (sdvo_priv->caps.output_flags & SDVO_OUTPUT_RGB1)
 	{
 		sdvo_priv->controlled_output = SDVO_OUTPUT_RGB1;
-		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_DAC;
 		connector_type = DRM_MODE_CONNECTOR_VGA;
 	}
 	else if (sdvo_priv->caps.output_flags & SDVO_OUTPUT_LVDS0)
 	{
 		sdvo_priv->controlled_output = SDVO_OUTPUT_LVDS0;
-		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_LVDS;
 		connector_type = DRM_MODE_CONNECTOR_LVDS;
 		sdvo_priv->is_lvds = true;
@@ -1817,7 +1803,6 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 	else if (sdvo_priv->caps.output_flags & SDVO_OUTPUT_LVDS1)
 	{
 		sdvo_priv->controlled_output = SDVO_OUTPUT_LVDS1;
-		connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 		encoder_type = DRM_MODE_ENCODER_LVDS;
 		connector_type = DRM_MODE_CONNECTOR_LVDS;
 		sdvo_priv->is_lvds = true;
@@ -1836,9 +1821,16 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		goto err_i2c;
 	}
 
+	connector = &intel_output->base;
+	drm_connector_init(dev, connector, &intel_sdvo_connector_funcs,
+			   connector_type);
+	drm_connector_helper_add(connector, &intel_sdvo_connector_helper_funcs);
+	connector->interlace_allowed = 0;
+	connector->doublescan_allowed = 0;
+	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
+
 	drm_encoder_init(dev, &intel_output->enc, &intel_sdvo_enc_funcs, encoder_type);
 	drm_encoder_helper_add(&intel_output->enc, &intel_sdvo_helper_funcs);
-	connector->connector_type = connector_type;
 
 	drm_mode_connector_attach_encoder(&intel_output->base, &intel_output->enc);
 	drm_sysfs_connector_add(connector);
@@ -1876,8 +1868,7 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 
 err_i2c:
 	intel_i2c_destroy(intel_output->i2c_bus);
-err_connector:
-	drm_connector_cleanup(connector);
+err_inteloutput:
 	kfree(intel_output);
 
 	return false;
