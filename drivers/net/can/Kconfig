@@ -41,6 +41,16 @@ config CAN_SJA1000
 	---help---
 	  Driver for the SJA1000 CAN controllers from Philips or NXP
 
+config CAN_SJA1000_PLATFORM
+	depends on CAN_SJA1000
+	tristate "Generic Platform Bus based SJA1000 driver"
+	---help---
+	  This driver adds support for the SJA1000 chips connected to
+	  the "platform bus" (Linux abstraction for directly to the
+	  processor attached devices).  Which can be found on various
+	  boards from Phytec (http://www.phytec.de) like the PCM027,
+	  PCM038.
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
