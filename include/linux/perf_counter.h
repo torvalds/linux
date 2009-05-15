@@ -130,7 +130,11 @@ struct perf_counter_hw_event {
 	 */
 	__u64			config;
 
-	__u64			irq_period;
+	union {
+		__u64		irq_period;
+		__u64		irq_freq;
+	};
+
 	__u32			record_type;
 	__u32			read_format;
 
@@ -146,8 +150,9 @@ struct perf_counter_hw_event {
 				mmap           :  1, /* include mmap data     */
 				munmap         :  1, /* include munmap data   */
 				comm	       :  1, /* include comm data     */
+				freq           :  1, /* use freq, not period  */
 
-				__reserved_1   : 52;
+				__reserved_1   : 51;
 
 	__u32			extra_config_len;
 	__u32			wakeup_events;	/* wakeup every n events */
@@ -337,6 +342,7 @@ struct hw_perf_counter {
 	atomic64_t			prev_count;
 	u64				irq_period;
 	atomic64_t			period_left;
+	u64				interrupts;
 #endif
 };
 

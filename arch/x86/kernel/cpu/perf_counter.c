@@ -286,11 +286,8 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		hwc->nmi = 1;
 	}
 
-	hwc->irq_period	= hw_event->irq_period;
-	if ((s64)hwc->irq_period <= 0 || hwc->irq_period > x86_pmu.max_period)
-		hwc->irq_period = x86_pmu.max_period;
-
-	atomic64_set(&hwc->period_left, hwc->irq_period);
+	atomic64_set(&hwc->period_left,
+			min(x86_pmu.max_period, hwc->irq_period));
 
 	/*
 	 * Raw event type provide the config in the event structure
@@ -458,7 +455,7 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 			     struct hw_perf_counter *hwc, int idx)
 {
 	s64 left = atomic64_read(&hwc->period_left);
-	s64 period = hwc->irq_period;
+	s64 period = min(x86_pmu.max_period, hwc->irq_period);
 	int err;
 
 	/*

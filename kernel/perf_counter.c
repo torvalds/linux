@@ -1046,6 +1046,38 @@ int perf_counter_task_enable(void)
 	return 0;
 }
 
+void perf_adjust_freq(struct perf_counter_context *ctx)
+{
+	struct perf_counter *counter;
+	u64 irq_period;
+	u64 events, period;
+	s64 delta;
+
+	spin_lock(&ctx->lock);
+	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+		if (counter->state != PERF_COUNTER_STATE_ACTIVE)
+			continue;
+
+		if (!counter->hw_event.freq || !counter->hw_event.irq_freq)
+			continue;
+
+		events = HZ * counter->hw.interrupts * counter->hw.irq_period;
+		period = div64_u64(events, counter->hw_event.irq_freq);
+
+		delta = (s64)(1 + period - counter->hw.irq_period);
+		delta >>= 1;
+
+		irq_period = counter->hw.irq_period + delta;
+
+		if (!irq_period)
+			irq_period = 1;
+
+		counter->hw.irq_period = irq_period;
+		counter->hw.interrupts = 0;
+	}
+	spin_unlock(&ctx->lock);
+}
+
 /*
  * Round-robin a context's counters:
  */
@@ -1080,6 +1112,9 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 
 	cpuctx = &per_cpu(perf_cpu_context, cpu);
 	ctx = &curr->perf_counter_ctx;
+
+	perf_adjust_freq(&cpuctx->ctx);
+	perf_adjust_freq(ctx);
 
 	perf_counter_cpu_sched_out(cpuctx);
 	__perf_counter_task_sched_out(ctx);
@@ -2382,6 +2417,8 @@ int perf_counter_overflow(struct perf_counter *counter,
 	int events = atomic_read(&counter->event_limit);
 	int ret = 0;
 
+	counter->hw.interrupts++;
+
 	/*
 	 * XXX event_limit might not quite work as expected on inherited
 	 * counters
@@ -2450,6 +2487,7 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 	enum hrtimer_restart ret = HRTIMER_RESTART;
 	struct perf_counter *counter;
 	struct pt_regs *regs;
+	u64 period;
 
 	counter	= container_of(hrtimer, struct perf_counter, hw.hrtimer);
 	counter->pmu->read(counter);
@@ -2468,7 +2506,8 @@ static enum hrtimer_restart perf_swcounter_hrtimer(struct hrtimer *hrtimer)
 			ret = HRTIMER_NORESTART;
 	}
 
-	hrtimer_forward_now(hrtimer, ns_to_ktime(counter->hw.irq_period));
+	period = max_t(u64, 10000, counter->hw.irq_period);
+	hrtimer_forward_now(hrtimer, ns_to_ktime(period));
 
 	return ret;
 }
@@ -2629,8 +2668,9 @@ static int cpu_clock_perf_counter_enable(struct perf_counter *counter)
 	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hwc->hrtimer.function = perf_swcounter_hrtimer;
 	if (hwc->irq_period) {
+		u64 period = max_t(u64, 10000, hwc->irq_period);
 		__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(hwc->irq_period), 0,
+				ns_to_ktime(period), 0,
 				HRTIMER_MODE_REL, 0);
 	}
 
@@ -2679,8 +2719,9 @@ static int task_clock_perf_counter_enable(struct perf_counter *counter)
 	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hwc->hrtimer.function = perf_swcounter_hrtimer;
 	if (hwc->irq_period) {
+		u64 period = max_t(u64, 10000, hwc->irq_period);
 		__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(hwc->irq_period), 0,
+				ns_to_ktime(period), 0,
 				HRTIMER_MODE_REL, 0);
 	}
 
@@ -2811,9 +2852,7 @@ static const struct pmu *tp_perf_counter_init(struct perf_counter *counter)
 
 static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 {
-	struct perf_counter_hw_event *hw_event = &counter->hw_event;
 	const struct pmu *pmu = NULL;
-	struct hw_perf_counter *hwc = &counter->hw;
 
 	/*
 	 * Software counters (currently) can't in general distinguish
@@ -2826,8 +2865,6 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 	case PERF_COUNT_CPU_CLOCK:
 		pmu = &perf_ops_cpu_clock;
 
-		if (hw_event->irq_period && hw_event->irq_period < 10000)
-			hw_event->irq_period = 10000;
 		break;
 	case PERF_COUNT_TASK_CLOCK:
 		/*
@@ -2839,8 +2876,6 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 		else
 			pmu = &perf_ops_cpu_clock;
 
-		if (hw_event->irq_period && hw_event->irq_period < 10000)
-			hw_event->irq_period = 10000;
 		break;
 	case PERF_COUNT_PAGE_FAULTS:
 	case PERF_COUNT_PAGE_FAULTS_MIN:
@@ -2853,9 +2888,6 @@ static const struct pmu *sw_perf_counter_init(struct perf_counter *counter)
 			pmu = &perf_ops_cpu_migrations;
 		break;
 	}
-
-	if (pmu)
-		hwc->irq_period = hw_event->irq_period;
 
 	return pmu;
 }
@@ -2872,6 +2904,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 {
 	const struct pmu *pmu;
 	struct perf_counter *counter;
+	struct hw_perf_counter *hwc;
 	long err;
 
 	counter = kzalloc(sizeof(*counter), gfpflags);
@@ -2906,6 +2939,12 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 		counter->state = PERF_COUNTER_STATE_OFF;
 
 	pmu = NULL;
+
+	hwc = &counter->hw;
+	if (hw_event->freq && hw_event->irq_freq)
+		hwc->irq_period = TICK_NSEC / hw_event->irq_freq;
+	else
+		hwc->irq_period = hw_event->irq_period;
 
 	/*
 	 * we currently do not support PERF_RECORD_GROUP on inherited counters

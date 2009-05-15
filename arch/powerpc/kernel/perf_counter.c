@@ -534,7 +534,7 @@ void hw_perf_enable(void)
 			continue;
 		}
 		val = 0;
-		if (counter->hw_event.irq_period) {
+		if (counter->hw.irq_period) {
 			left = atomic64_read(&counter->hw.period_left);
 			if (left < 0x80000000L)
 				val = 0x80000000L - left;
@@ -829,8 +829,6 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 
 	if (!ppmu)
 		return ERR_PTR(-ENXIO);
-	if ((s64)counter->hw_event.irq_period < 0)
-		return ERR_PTR(-EINVAL);
 	if (!perf_event_raw(&counter->hw_event)) {
 		ev = perf_event_id(&counter->hw_event);
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
@@ -901,7 +899,7 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 
 	counter->hw.config = events[n];
 	counter->hw.counter_base = cflags[n];
-	atomic64_set(&counter->hw.period_left, counter->hw_event.irq_period);
+	atomic64_set(&counter->hw.period_left, counter->hw.irq_period);
 
 	/*
 	 * See if we need to reserve the PMU.
@@ -934,6 +932,7 @@ const struct pmu *hw_perf_counter_init(struct perf_counter *counter)
 static void record_and_restart(struct perf_counter *counter, long val,
 			       struct pt_regs *regs, int nmi)
 {
+	u64 period = counter->hw.irq_period;
 	s64 prev, delta, left;
 	int record = 0;
 
@@ -948,11 +947,11 @@ static void record_and_restart(struct perf_counter *counter, long val,
 	 */
 	val = 0;
 	left = atomic64_read(&counter->hw.period_left) - delta;
-	if (counter->hw_event.irq_period) {
+	if (period) {
 		if (left <= 0) {
-			left += counter->hw_event.irq_period;
+			left += period;
 			if (left <= 0)
-				left = counter->hw_event.irq_period;
+				left = period;
 			record = 1;
 		}
 		if (left < 0x80000000L)
