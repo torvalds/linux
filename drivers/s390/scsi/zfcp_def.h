@@ -47,13 +47,6 @@
 
 /********************* CIO/QDIO SPECIFIC DEFINES *****************************/
 
-/* Adapter Identification Parameters */
-#define ZFCP_CONTROL_UNIT_TYPE  0x1731
-#define ZFCP_CONTROL_UNIT_MODEL 0x03
-#define ZFCP_DEVICE_TYPE        0x1732
-#define ZFCP_DEVICE_MODEL       0x03
-#define ZFCP_DEVICE_MODEL_PRIV	0x04
-
 /* DMQ bug workaround: don't use last SBALE */
 #define ZFCP_MAX_SBALES_PER_SBAL	(QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
 

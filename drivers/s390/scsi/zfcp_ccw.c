@@ -11,6 +11,24 @@
 
 #include "zfcp_ext.h"
 
+#define ZFCP_MODEL_PRIV 0x4
+
+static struct ccw_device_id zfcp_ccw_device_id[] = {
+	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, 0x3) },
+	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, ZFCP_MODEL_PRIV) },
+	{},
+};
+MODULE_DEVICE_TABLE(ccw, zfcp_ccw_device_id);
+
+/**
+ * zfcp_ccw_priv_sch - check if subchannel is privileged
+ * @adapter: Adapter/Subchannel to check
+ */
+int zfcp_ccw_priv_sch(struct zfcp_adapter *adapter)
+{
+	return adapter->ccw_device->id.dev_model == ZFCP_MODEL_PRIV;
+}
+
 /**
  * zfcp_ccw_probe - probe function of zfcp driver
  * @ccw_device: pointer to belonging ccw device
@@ -198,14 +216,6 @@ static void zfcp_ccw_shutdown(struct ccw_device *cdev)
 	zfcp_erp_wait(adapter);
 	up(&zfcp_data.config_sema);
 }
-
-static struct ccw_device_id zfcp_ccw_device_id[] = {
-	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, 0x3) },
-	{ CCW_DEVICE_DEVTYPE(0x1731, 0x3, 0x1732, 0x4) }, /* priv. */
-	{},
-};
-
-MODULE_DEVICE_TABLE(ccw, zfcp_ccw_device_id);
 
 static struct ccw_driver zfcp_ccw_driver = {
 	.owner       = THIS_MODULE,

@@ -1887,7 +1887,7 @@ static void zfcp_fsf_open_unit_handler(struct zfcp_fsf_req *req)
 
 		if (!(adapter->connection_features & FSF_FEATURE_NPIV_MODE) &&
 		    (adapter->adapter_features & FSF_FEATURE_LUN_SHARING) &&
-		    (adapter->ccw_device->id.dev_model != ZFCP_DEVICE_MODEL_PRIV)) {
+		    !zfcp_ccw_priv_sch(adapter)) {
 			exclusive = (bottom->lun_access_info &
 					FSF_UNIT_ACCESS_EXCLUSIVE);
 			readwrite = (bottom->lun_access_info &
