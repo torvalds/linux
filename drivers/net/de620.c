@@ -533,7 +533,7 @@ static int de620_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Start real output */
 
-	spin_lock_irqsave(&de620_lock, flags)
+	spin_lock_irqsave(&de620_lock, flags);
 	PRINTK(("de620_start_xmit: len=%d, bufs 0x%02x\n",
 		(int)skb->len, using_txbuf));
 
