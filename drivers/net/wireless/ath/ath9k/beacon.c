@@ -507,8 +507,7 @@ void ath_beacon_tasklet(unsigned long data)
  * slot. Slots that are not occupied will generate nothing.
  */
 static void ath_beacon_config_ap(struct ath_softc *sc,
-				 struct ath_beacon_config *conf,
-				 struct ath_vif *avp)
+				 struct ath_beacon_config *conf)
 {
 	u32 nexttbtt, intval;
 
@@ -553,8 +552,7 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
  * we've associated with.
  */
 static void ath_beacon_config_sta(struct ath_softc *sc,
-				  struct ath_beacon_config *conf,
-				  struct ath_vif *avp)
+				  struct ath_beacon_config *conf)
 {
 	struct ath9k_beacon_state bs;
 	int dtimperiod, dtimcount, sleepduration;
@@ -654,7 +652,6 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 
 static void ath_beacon_config_adhoc(struct ath_softc *sc,
 				    struct ath_beacon_config *conf,
-				    struct ath_vif *avp,
 				    struct ieee80211_vif *vif)
 {
 	u64 tsf;
@@ -720,14 +717,14 @@ void ath_beacon_config(struct ath_softc *sc, struct ieee80211_vif *vif)
 
 		switch(avp->av_opmode) {
 		case NL80211_IFTYPE_AP:
-			ath_beacon_config_ap(sc, &conf, avp);
+			ath_beacon_config_ap(sc, &conf);
 			break;
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_MESH_POINT:
-			ath_beacon_config_adhoc(sc, &conf, avp, vif);
+			ath_beacon_config_adhoc(sc, &conf, vif);
 			break;
 		case NL80211_IFTYPE_STATION:
-			ath_beacon_config_sta(sc, &conf, avp);
+			ath_beacon_config_sta(sc, &conf);
 			break;
 		default:
 			DPRINTF(sc, ATH_DBG_CONFIG,
