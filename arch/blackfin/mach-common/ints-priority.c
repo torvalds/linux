@@ -1052,7 +1052,7 @@ int __init init_arch_irq(void)
 			set_irq_chained_handler(irq, bfin_demux_error_irq);
 			break;
 #endif
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
 		case IRQ_TIMER0:
 			set_irq_handler(irq, handle_percpu_irq);
 			break;
@@ -1232,13 +1232,9 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 
 	if (likely(vec == EVT_IVTMR_P)) {
 		irq = IRQ_CORETMR;
-		goto core_tick;
-	}
 
-	SSYNC();
-
+	} else {
 #if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
-	{
 		unsigned long sic_status[3];
 
 		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
@@ -1254,9 +1250,7 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 			if (sic_status[(ivg->irqno - IVG7) / 32] & ivg->isrflag)
 				break;
 		}
-	}
 #else
-	{
 		unsigned long sic_status;
 
 		sic_status = bfin_read_SIC_IMASK() & bfin_read_SIC_ISR();
@@ -1268,15 +1262,13 @@ asmlinkage int __ipipe_grab_irq(int vec, struct pt_regs *regs)
 			} else if (sic_status & ivg->isrflag)
 				break;
 		}
-	}
 #endif
 
-	irq = ivg->irqno;
+		irq = ivg->irqno;
+	}
 
 	if (irq == IRQ_SYSTMR) {
-#ifdef CONFIG_GENERIC_CLOCKEVENTS
-core_tick:
-#else
+#ifndef CONFIG_GENERIC_CLOCKEVENTS
 		bfin_write_TIMER_STATUS(1); /* Latch TIMIL0 */
 #endif
 		/* This is basically what we need from the register frame. */
@@ -1288,9 +1280,6 @@ core_tick:
 			__raw_get_cpu_var(__ipipe_tick_regs).ipend |= 0x10;
 	}
 
-#ifndef CONFIG_GENERIC_CLOCKEVENTS
-core_tick:
-#endif
 	if (this_domain == ipipe_root_domain) {
 		s = __test_and_set_bit(IPIPE_SYNCDEFER_FLAG, &p->status);
 		barrier();
@@ -1308,7 +1297,7 @@ core_tick:
 		}
 	}
 
-       return 0;
+	return 0;
 }
 
 #endif /* CONFIG_IPIPE */

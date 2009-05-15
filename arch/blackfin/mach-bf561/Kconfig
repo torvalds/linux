@@ -125,6 +125,7 @@ config IRQ_DMA2_11
 	default 9
 config IRQ_TIMER0
 	int "TIMER 0  Interrupt"
+	default 7 if TICKSOURCE_GPTMR0
 	default 8
 config IRQ_TIMER1
 	int "TIMER 1  Interrupt"

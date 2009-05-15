@@ -43,6 +43,7 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/cpu.h>
+#include <asm/time.h>
 #include <linux/err.h>
 
 /*
@@ -356,7 +357,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 static void __cpuinit setup_secondary(unsigned int cpu)
 {
-#if !(defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE))
+#if !defined(CONFIG_TICKSOURCE_GPTMR0)
 	struct irq_desc *timer_desc;
 #endif
 	unsigned long ilat;
@@ -377,7 +378,7 @@ static void __cpuinit setup_secondary(unsigned int cpu)
 	    IMASK_IVG14 | IMASK_IVG13 | IMASK_IVG12 | IMASK_IVG11 |
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
-#if defined(CONFIG_TICK_SOURCE_SYSTMR0) || defined(CONFIG_IPIPE)
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
 	/* Power down the core timer, just to play safe. */
 	bfin_write_TCNTL(0);
 

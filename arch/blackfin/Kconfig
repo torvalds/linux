@@ -241,12 +241,6 @@ config IRQ_PER_CPU
 	depends on SMP
 	default y
 
-config TICK_SOURCE_SYSTMR0
-	bool
-	select BFIN_GPTIMERS
-	depends on SMP
-	default y
-
 config BF_REV_MIN
 	int
 	default 0 if (BF51x || BF52x || (BF54x && !BF54xM))
@@ -607,7 +601,6 @@ source kernel/Kconfig.hz
 
 config GENERIC_TIME
 	bool "Generic time"
-	depends on !SMP
 	default y
 
 config GENERIC_CLOCKEVENTS
@@ -615,18 +608,37 @@ config GENERIC_CLOCKEVENTS
 	depends on GENERIC_TIME
 	default y
 
+choice
+	prompt "Kernel Tick Source"
+	depends on GENERIC_CLOCKEVENTS
+	default TICKSOURCE_CORETMR
+
+config TICKSOURCE_GPTMR0
+	bool "Gptimer0 (SCLK domain)"
+	select BFIN_GPTIMERS
+	depends on !IPIPE
+
+config TICKSOURCE_CORETMR
+	bool "Core timer (CCLK domain)"
+
+endchoice
+
 config CYCLES_CLOCKSOURCE
-	bool "Use 'CYCLES' as a clocksource (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Use 'CYCLES' as a clocksource"
 	depends on GENERIC_CLOCKEVENTS
 	depends on !BFIN_SCRATCH_REG_CYCLES
-	default n
+	depends on !SMP
 	help
 	  If you say Y here, you will enable support for using the 'cycles'
 	  registers as a clock source.  Doing so means you will be unable to
 	  safely write to the 'cycles' register during runtime.  You will
 	  still be able to read it (such as for performance monitoring), but
 	  writing the registers will most likely crash the kernel.
+
+config GPTMR0_CLOCKSOURCE
+	bool "Use GPTimer0 as a clocksource (higher rating)"
+	depends on GENERIC_CLOCKEVENTS
+	depends on !TICKSOURCE_GPTMR0
 
 source kernel/time/Kconfig
 
