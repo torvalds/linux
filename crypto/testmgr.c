@@ -2308,6 +2308,9 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 		if (i < 0)
 			goto notest;
 
+		if (fips_enabled && !alg_test_descs[i].fips_allowed)
+			goto non_fips_alg;
+
 		rc = alg_test_cipher(alg_test_descs + i, driver, type, mask);
 		goto test_done;
 	}
@@ -2315,6 +2318,9 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 	i = alg_find_test(alg);
 	if (i < 0)
 		goto notest;
+
+	if (fips_enabled && !alg_test_descs[i].fips_allowed)
+		goto non_fips_alg;
 
 	rc = alg_test_descs[i].test(alg_test_descs + i, driver,
 				      type, mask);
@@ -2331,5 +2337,7 @@ test_done:
 notest:
 	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
 	return 0;
+non_fips_alg:
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(alg_test);
