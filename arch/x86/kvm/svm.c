@@ -1953,7 +1953,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	switch (ecx) {
-	case MSR_IA32_TIME_STAMP_COUNTER: {
+	case MSR_IA32_TSC: {
 		u64 tsc;
 
 		rdtscll(tsc);
@@ -2043,7 +2043,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	switch (ecx) {
-	case MSR_IA32_TIME_STAMP_COUNTER: {
+	case MSR_IA32_TSC: {
 		u64 tsc;
 
 		rdtscll(tsc);
