@@ -436,7 +436,7 @@ static void mb_free_blocks_double(struct inode *inode, struct ext4_buddy *e4b,
 
 	if (unlikely(e4b->bd_info->bb_bitmap == NULL))
 		return;
-	BUG_ON(!ext4_is_group_locked(sb, e4b->bd_group));
+	assert_spin_locked(ext4_group_lock_ptr(sb, e4b->bd_group));
 	for (i = 0; i < count; i++) {
 		if (!mb_test_bit(first + i, e4b->bd_info->bb_bitmap)) {
 			ext4_fsblk_t blocknr;
@@ -460,7 +460,7 @@ static void mb_mark_used_double(struct ext4_buddy *e4b, int first, int count)
 
 	if (unlikely(e4b->bd_info->bb_bitmap == NULL))
 		return;
-	BUG_ON(!ext4_is_group_locked(e4b->bd_sb, e4b->bd_group));
+	assert_spin_locked(ext4_group_lock_ptr(e4b->bd_sb, e4b->bd_group));
 	for (i = 0; i < count; i++) {
 		BUG_ON(mb_test_bit(first + i, e4b->bd_info->bb_bitmap));
 		mb_set_bit(first + i, e4b->bd_info->bb_bitmap);
@@ -1115,7 +1115,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 	struct super_block *sb = e4b->bd_sb;
 
 	BUG_ON(first + count > (sb->s_blocksize << 3));
-	BUG_ON(!ext4_is_group_locked(sb, e4b->bd_group));
+	assert_spin_locked(ext4_group_lock_ptr(sb, e4b->bd_group));
 	mb_check_buddy(e4b);
 	mb_free_blocks_double(inode, e4b, first, count);
 
@@ -1196,7 +1196,7 @@ static int mb_find_extent(struct ext4_buddy *e4b, int order, int block,
 	int ord;
 	void *buddy;
 
-	BUG_ON(!ext4_is_group_locked(e4b->bd_sb, e4b->bd_group));
+	assert_spin_locked(ext4_group_lock_ptr(e4b->bd_sb, e4b->bd_group));
 	BUG_ON(ex == NULL);
 
 	buddy = mb_find_buddy(e4b, order, &max);
@@ -1260,7 +1260,7 @@ static int mb_mark_used(struct ext4_buddy *e4b, struct ext4_free_extent *ex)
 
 	BUG_ON(start + len > (e4b->bd_sb->s_blocksize << 3));
 	BUG_ON(e4b->bd_group != ex->fe_group);
-	BUG_ON(!ext4_is_group_locked(e4b->bd_sb, e4b->bd_group));
+	assert_spin_locked(ext4_group_lock_ptr(e4b->bd_sb, e4b->bd_group));
 	mb_check_buddy(e4b);
 	mb_mark_used_double(e4b, start, len);
 

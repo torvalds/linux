@@ -1583,12 +1583,6 @@ static inline void ext4_unlock_group(struct super_block *sb,
 	spin_unlock(ext4_group_lock_ptr(sb, group));
 }
 
-static inline int ext4_is_group_locked(struct super_block *sb,
-					ext4_group_t group)
-{
-	return spin_is_locked(ext4_group_lock_ptr(sb, group));
-}
-
 /*
  * Inodes and files operations
  */
