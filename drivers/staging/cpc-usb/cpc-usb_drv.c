@@ -30,11 +30,6 @@
 
 #include <linux/version.h>
 
-/* usb_kill_urb has been introduced in kernel version 2.6.8 (RC2) */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,8))
-#define usb_kill_urb usb_unlink_urb
-#endif
-
 #ifdef CONFIG_PROC_FS
 #   include <linux/proc_fs.h>
 #endif
@@ -68,11 +63,11 @@ MODULE_LICENSE("GPL v2");
 
 #define CPC_USB_PROC_DIR     CPC_PROC_DIR "cpc-usb"
 
-static struct proc_dir_entry *procDir = NULL;
-static struct proc_dir_entry *procEntry = NULL;
+static struct proc_dir_entry *procDir;
+static struct proc_dir_entry *procEntry;
 
 /* Module parameters */
-static int debug = 0;
+static int debug;
 module_param(debug, int, S_IRUGO);
 
 /* table of devices that work with this driver */
@@ -91,16 +86,16 @@ DECLARE_WAIT_QUEUE_HEAD(rmmodWq);
 atomic_t useCount;
 
 static CPC_USB_T *CPCUSB_Table[CPC_USB_CARD_CNT] = { 0 };
-static unsigned int CPCUsbCnt = 0;
+static unsigned int CPCUsbCnt;
 
 /* prevent races between open() and disconnect() */
 static DECLARE_MUTEX(disconnect_sem);
 
 /* local function prototypes */
 static ssize_t cpcusb_read(struct file *file, char *buffer, size_t count,
-			   loff_t * ppos);
+			   loff_t *ppos);
 static ssize_t cpcusb_write(struct file *file, const char *buffer,
-			    size_t count, loff_t * ppos);
+			    size_t count, loff_t *ppos);
 static unsigned int cpcusb_poll(struct file *file, poll_table * wait);
 static int cpcusb_open(struct inode *inode, struct file *file);
 static int cpcusb_release(struct inode *inode, struct file *file);
@@ -109,23 +104,11 @@ static int cpcusb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id);
 static void cpcusb_disconnect(struct usb_interface *interface);
 
-static void cpcusb_read_bulk_callback(struct urb *urb
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
-					   , struct pt_regs *regs
-#endif
-);
-static void cpcusb_write_bulk_callback(struct urb *urb
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
-					   , struct pt_regs *regs
-#endif
-);
-static void cpcusb_read_interrupt_callback(struct urb *urb
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
-					   , struct pt_regs *regs
-#endif
-);
+static void cpcusb_read_bulk_callback(struct urb *urb);
+static void cpcusb_write_bulk_callback(struct urb *urb);
+static void cpcusb_read_interrupt_callback(struct urb *urb);
 
-static int cpcusb_setup_intrep(CPC_USB_T * card);
+static int cpcusb_setup_intrep(CPC_USB_T *card);
 
 static struct file_operations cpcusb_fops = {
 	/*
@@ -153,19 +136,11 @@ static struct file_operations cpcusb_fops = {
 static struct usb_class_driver cpcusb_class = {
 	.name = "usb/cpc_usb%d",
 	.fops = &cpcusb_fops,
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,14))
-	.mode =
-	    S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH |
-	    S_IWOTH,
-#endif
 	.minor_base = CPC_USB_BASE_MNR,
 };
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver cpcusb_driver = {
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,14))
-	.owner = THIS_MODULE,
-#endif
 	.name = "cpc-usb",
 	.probe = cpcusb_probe,
 	.disconnect = cpcusb_disconnect,
@@ -210,7 +185,7 @@ static int cpcusb_proc_read_info(char *page, char **start, off_t off,
 /*
  * Remove CPC-USB and cleanup
  */
-static inline void cpcusb_delete(CPC_USB_T * card)
+static inline void cpcusb_delete(CPC_USB_T *card)
 {
 	if (card) {
 		if (card->chan) {
@@ -231,7 +206,7 @@ static inline void cpcusb_delete(CPC_USB_T * card)
 /*
  * setup the interrupt IN endpoint of a specific CPC-USB device
  */
-static int cpcusb_setup_intrep(CPC_USB_T * card)
+static int cpcusb_setup_intrep(CPC_USB_T *card)
 {
 	int retval = 0;
 	struct usb_endpoint_descriptor *ep;
@@ -243,21 +218,21 @@ static int cpcusb_setup_intrep(CPC_USB_T * card)
 
 	/* setup the urb */
 	usb_fill_int_urb(card->intr_in_urb, card->udev,
-	                 usb_rcvintpipe(card->udev, card->num_intr_in),
-	                 card->intr_in_buffer,
-	                 sizeof(card->intr_in_buffer),
-	                 cpcusb_read_interrupt_callback,
-	                 card,
-	                 ep->bInterval);
+			 usb_rcvintpipe(card->udev, card->num_intr_in),
+			 card->intr_in_buffer,
+			 sizeof(card->intr_in_buffer),
+			 cpcusb_read_interrupt_callback,
+			 card,
+			 ep->bInterval);
 
 	card->intr_in_urb->status = 0;	/* needed! */
 
 	/* submit the urb */
 	retval = usb_submit_urb(card->intr_in_urb, GFP_KERNEL);
 
-	if (retval) {
-		err("%s - failed submitting intr urb, error %d", __FUNCTION__, retval);
-	}
+	if (retval)
+		err("%s - failed submitting intr urb, error %d", __func__,
+		    retval);
 
 	return retval;
 }
@@ -277,7 +252,7 @@ static int cpcusb_open(struct inode *inode, struct file *file)
 	interface = usb_find_interface(&cpcusb_driver, subminor);
 	if (!interface) {
 		err("%s - error, can't find device for minor %d",
-				__FUNCTION__, subminor);
+				__func__, subminor);
 		retval = CPC_ERR_NO_INTERFACE_PRESENT;
 		goto exit_no_device;
 	}
@@ -302,21 +277,21 @@ static int cpcusb_open(struct inode *inode, struct file *file)
 	file->private_data = card;
 	for (j = 0; j < CPC_USB_URB_CNT; j++) {
 		usb_fill_bulk_urb(card->urbs[j].urb, card->udev,
-		                  usb_rcvbulkpipe(card->udev, card->num_bulk_in),
-		                  card->urbs[j].buffer, card->urbs[j].size,
-		                  cpcusb_read_bulk_callback, card);
+				  usb_rcvbulkpipe(card->udev, card->num_bulk_in),
+				  card->urbs[j].buffer, card->urbs[j].size,
+				  cpcusb_read_bulk_callback, card);
 
 		retval = usb_submit_urb(card->urbs[j].urb, GFP_KERNEL);
 
 		if (retval) {
 			err("%s - failed submitting read urb, error %d",
-			    __FUNCTION__, retval);
+			    __func__, retval);
 			retval = CPC_ERR_TRANSMISSION_FAILED;
 			goto exit_on_error;
 		}
 	}
 
-	info("%s - %d URB's submitted", __FUNCTION__, j);
+	info("%s - %d URB's submitted", __func__, j);
 
 	ResetBuffer(card->chan);
 
@@ -341,7 +316,7 @@ static unsigned int cpcusb_poll(struct file *file, poll_table * wait)
 	unsigned int retval = 0;
 
 	if (!card) {
-		err("%s - device object lost", __FUNCTION__);
+		err("%s - device object lost", __func__);
 		return -EIO;
 	}
 
@@ -362,7 +337,7 @@ static int cpcusb_release(struct inode *inode, struct file *file)
 	int j, retval = 0;
 
 	if (card == NULL) {
-		dbg("%s - object is NULL", __FUNCTION__);
+		dbg("%s - object is NULL", __func__);
 		return CPC_ERR_NO_INTERFACE_PRESENT;
 	}
 
@@ -370,7 +345,7 @@ static int cpcusb_release(struct inode *inode, struct file *file)
 	down(&card->sem);
 
 	if (!card->open) {
-		dbg("%s - device not opened", __FUNCTION__);
+		dbg("%s - device not opened", __func__);
 		retval = CPC_ERR_NO_INTERFACE_PRESENT;
 		goto exit_not_opened;
 	}
@@ -417,7 +392,7 @@ exit_not_opened:
 }
 
 static ssize_t cpcusb_read(struct file *file, char *buffer, size_t count,
-			   loff_t * ppos)
+			   loff_t *ppos)
 {
 	CPC_USB_T *card = (CPC_USB_T *) file->private_data;
 	CPC_CHAN_T *chan;
@@ -460,7 +435,7 @@ static ssize_t cpcusb_read(struct file *file, char *buffer, size_t count,
 			retval = sizeof(CPC_MSG_T);
 		}
 	}
-//    spin_unlock_irqrestore(&card->slock, flags);
+/*	spin_unlock_irqrestore(&card->slock, flags); */
 
 	/* unlock the device */
 	up(&card->sem);
@@ -469,9 +444,9 @@ static ssize_t cpcusb_read(struct file *file, char *buffer, size_t count,
 }
 
 #define SHIFT  1
-static void inline cpcusb_align_buffer_alignment(unsigned char *buf)
+static inline void cpcusb_align_buffer_alignment(unsigned char *buf)
 {
-	// CPC-USB uploads packed bytes.
+	/* CPC-USB uploads packed bytes. */
 	CPC_MSG_T *cpc = (CPC_MSG_T *) buf;
 	unsigned int i;
 
@@ -481,9 +456,9 @@ static void inline cpcusb_align_buffer_alignment(unsigned char *buf)
 	}
 }
 
-static int cpc_get_buffer_count(CPC_CHAN_T * chan)
+static int cpc_get_buffer_count(CPC_CHAN_T *chan)
 {
-	// check the buffer parameters
+	/* check the buffer parameters */
 	if (chan->iidx == chan->oidx)
 		return !chan->WnR ? CPC_MSG_BUF_CNT : 0;
 	else if (chan->iidx >= chan->oidx)
@@ -493,7 +468,7 @@ static int cpc_get_buffer_count(CPC_CHAN_T * chan)
 }
 
 static ssize_t cpcusb_write(struct file *file, const char *buffer,
-			    size_t count, loff_t * ppos)
+			    size_t count, loff_t *ppos)
 {
 	CPC_USB_T *card = (CPC_USB_T *) file->private_data;
 	CPC_USB_WRITE_URB_T *wrUrb = NULL;
@@ -507,7 +482,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 	CPC_MSG_T *info = NULL;
 
 	dbg("%s - entered minor %d, count = %d, present = %d",
-	    __FUNCTION__, card->minor, count, card->present);
+	    __func__, card->minor, count, card->present);
 
 	if (count > sizeof(CPC_MSG_T))
 		return CPC_ERR_UNKNOWN;
@@ -527,7 +502,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 
 	/* verify that we actually have some data to write */
 	if (count == 0) {
-		dbg("%s - write request of 0 bytes", __FUNCTION__);
+		dbg("%s - write request of 0 bytes", __func__);
 		goto exit;
 	}
 
@@ -537,7 +512,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 		if (info->type != CPC_CMD_T_CLEAR_CMD_QUEUE
 		    || card->free_slots <= 0) {
 			dbg("%s - send buffer full please try again %d",
-			    __FUNCTION__, card->free_slots);
+			    __func__, card->free_slots);
 			retval = CPC_ERR_CAN_NO_TRANSMIT_BUF;
 			goto exit;
 		}
@@ -556,7 +531,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 
 	/* don't found write urb say error */
 	if (!wrUrb) {
-		dbg("%s - no free send urb available", __FUNCTION__);
+		dbg("%s - no free send urb available", __func__);
 		retval = CPC_ERR_CAN_NO_TRANSMIT_BUF;
 		goto exit;
 	}
@@ -576,7 +551,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 	/* check if it is a DRIVER information message, so we can
 	 * response to that message and not the USB
 	 */
-	info = (CPC_MSG_T *) & obuf[4];
+	info = (CPC_MSG_T *) &obuf[4];
 
 	bytes_written = 11 + info->length;
 	if (bytes_written >= wrUrb->size) {
@@ -662,7 +637,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 		/* if it is a parameter message convert it from SJA1000 controller
 		 * settings to M16C Basic controller settings
 		 */
-		SJA1000_TO_M16C_BASIC_Params((CPC_MSG_T *) & obuf[4]);
+		SJA1000_TO_M16C_BASIC_Params((CPC_MSG_T *) &obuf[4]);
 	}
 
 	/* don't forget the byte alignment */
@@ -681,7 +656,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 	if (retval) {
 		atomic_set(&wrUrb->busy, 0);	/* release urb */
 		err("%s - failed submitting write urb, error %d",
-		    __FUNCTION__, retval);
+		    __func__, retval);
 	} else {
 		retval = bytes_written;
 	}
@@ -690,7 +665,7 @@ exit:
 	/* unlock the device */
 	up(&card->sem);
 
-	dbg("%s - leaved", __FUNCTION__);
+	dbg("%s - leaved", __func__);
 
 	return retval;
 }
@@ -698,11 +673,7 @@ exit:
 /*
  * callback for interrupt IN urb
  */
-static void cpcusb_read_interrupt_callback(struct urb *urb
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
-					   , struct pt_regs *regs
-#endif
-)
+static void cpcusb_read_interrupt_callback(struct urb *urb)
 {
 	CPC_USB_T *card = (CPC_USB_T *) urb->context;
 	int retval;
@@ -712,7 +683,7 @@ static void cpcusb_read_interrupt_callback(struct urb *urb
 
 	if (!card->present) {
 		spin_unlock_irqrestore(&card->slock, flags);
-		info("%s - no such device", __FUNCTION__);
+		info("%s - no such device", __func__);
 		return;
 	}
 
@@ -725,17 +696,17 @@ static void cpcusb_read_interrupt_callback(struct urb *urb
 	case -ESHUTDOWN:
 		/* urb was killed */
 		spin_unlock_irqrestore(&card->slock, flags);
-		dbg("%s - intr urb killed", __FUNCTION__);
+		dbg("%s - intr urb killed", __func__);
 		return;
 	default:
-		info("%s - nonzero urb status %d", __FUNCTION__, urb->status);
+		info("%s - nonzero urb status %d", __func__, urb->status);
 		break;
 	}
 
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval) {
 		err("%s - failed resubmitting intr urb, error %d",
-		    __FUNCTION__, retval);
+		    __func__, retval);
 	}
 
 	spin_unlock_irqrestore(&card->slock, flags);
@@ -746,18 +717,16 @@ static void cpcusb_read_interrupt_callback(struct urb *urb
 
 #define UN_SHIFT  1
 #define CPCMSG_HEADER_LEN_FIRMWARE   11
-static int inline cpcusb_unalign_and_copy_buffy(unsigned char *out,
-					unsigned char *in)
+static inline int cpcusb_unalign_and_copy_buffy(unsigned char *out,
+						unsigned char *in)
 {
 	unsigned int i, j;
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++)
 		out[i] = in[i];
-	}
 
-	for (j = 0; j < (in[1] + (CPCMSG_HEADER_LEN_FIRMWARE - 3)); j++) {
+	for (j = 0; j < (in[1] + (CPCMSG_HEADER_LEN_FIRMWARE - 3)); j++)
 		out[j + i + UN_SHIFT] = in[j + i];
-	}
 
 	return i + j;
 }
@@ -765,11 +734,7 @@ static int inline cpcusb_unalign_and_copy_buffy(unsigned char *out,
 /*
  * callback for bulk IN urb
  */
-static void cpcusb_read_bulk_callback(struct urb *urb
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
-					   , struct pt_regs *regs
-#endif
-)
+static void cpcusb_read_bulk_callback(struct urb *urb)
 {
 	CPC_USB_T *card = (CPC_USB_T *) urb->context;
 	CPC_CHAN_T *chan;
@@ -778,7 +743,7 @@ static void cpcusb_read_bulk_callback(struct urb *urb
 	unsigned long flags;
 
 	if (!card) {
-		err("%s - device object lost", __FUNCTION__);
+		err("%s - device object lost", __func__);
 		return;
 	}
 
@@ -786,7 +751,7 @@ static void cpcusb_read_bulk_callback(struct urb *urb
 
 	if (!card->present) {
 		spin_unlock_irqrestore(&card->slock, flags);
-		info("%s - no such device", __FUNCTION__);
+		info("%s - no such device", __func__);
 		return;
 	}
 
@@ -798,10 +763,10 @@ static void cpcusb_read_bulk_callback(struct urb *urb
 	case -ESHUTDOWN:
 		/* urb was killed */
 		spin_unlock_irqrestore(&card->slock, flags);
-		dbg("%s - read urb killed", __FUNCTION__);
+		dbg("%s - read urb killed", __func__);
 		return;
 	default:
-		info("%s - nonzero urb status %d", __FUNCTION__, urb->status);
+		info("%s - nonzero urb status %d", __func__, urb->status);
 		break;
 	}
 
@@ -833,15 +798,15 @@ static void cpcusb_read_bulk_callback(struct urb *urb
 	}
 
 	usb_fill_bulk_urb(urb, card->udev,
-	                  usb_rcvbulkpipe(card->udev, card->num_bulk_in),
-	                  urb->transfer_buffer,
-	                  urb->transfer_buffer_length,
-	                  cpcusb_read_bulk_callback, card);
+			  usb_rcvbulkpipe(card->udev, card->num_bulk_in),
+			  urb->transfer_buffer,
+			  urb->transfer_buffer_length,
+			  cpcusb_read_bulk_callback, card);
 
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 
 	if (retval) {
-		err("%s - failed resubmitting read urb, error %d", __FUNCTION__, retval);
+		err("%s - failed resubmitting read urb, error %d", __func__, retval);
 	}
 
 	spin_unlock_irqrestore(&card->slock, flags);
@@ -852,11 +817,7 @@ static void cpcusb_read_bulk_callback(struct urb *urb
 /*
  * callback for bulk IN urb
  */
-static void cpcusb_write_bulk_callback(struct urb *urb
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
-					   , struct pt_regs *regs
-#endif
-)
+static void cpcusb_write_bulk_callback(struct urb *urb)
 {
 	CPC_USB_T *card = (CPC_USB_T *) urb->context;
 	unsigned long flags;
@@ -883,10 +844,10 @@ static void cpcusb_write_bulk_callback(struct urb *urb
 	case -ESHUTDOWN:
 		/* urb was killed */
 		spin_unlock_irqrestore(&card->slock, flags);
-		dbg("%s - write urb no. %d killed", __FUNCTION__, j);
+		dbg("%s - write urb no. %d killed", __func__, j);
 		return;
 	default:
-		info("%s - nonzero urb status %d", __FUNCTION__, urb->status);
+		info("%s - nonzero urb status %d", __func__, urb->status);
 		break;
 	}
 
@@ -911,7 +872,7 @@ static inline int cpcusb_get_free_slot(void)
  * probe function for new CPC-USB devices
  */
 static int cpcusb_probe(struct usb_interface *interface,
-		                const struct usb_device_id *id)
+			const struct usb_device_id *id)
 {
 	CPC_USB_T *card = NULL;
 	CPC_CHAN_T *chan = NULL;
@@ -922,7 +883,8 @@ static int cpcusb_probe(struct usb_interface *interface,
 
 	int i, j, retval = -ENOMEM, slot;
 
-	if ((slot = cpcusb_get_free_slot()) < 0) {
+	slot = cpcusb_get_free_slot();
+	if (slot < 0) {
 		info("No more devices supported");
 		return -ENOMEM;
 	}
@@ -961,7 +923,7 @@ static int cpcusb_probe(struct usb_interface *interface,
 	card->productId = udev->descriptor.idProduct;
 	info("Product %s",
 	     card->productId == USB_CPCUSB_LPC2119_PRODUCT_ID ?
-	    		 "CPC-USB/ARM7" : "CPC-USB/M16C");
+			 "CPC-USB/ARM7" : "CPC-USB/M16C");
 
 	/* set up the endpoint information */
 	/* check out the endpoints */
@@ -1008,7 +970,7 @@ static int cpcusb_probe(struct usb_interface *interface,
 				}
 			}
 			info("%s - %d reading URB's allocated",
-			     __FUNCTION__, CPC_USB_URB_CNT);
+			     __func__, CPC_USB_URB_CNT);
 		}
 
 		if (!card->num_bulk_out &&
@@ -1028,8 +990,8 @@ static int cpcusb_probe(struct usb_interface *interface,
 					goto error;
 				}
 				card->wrUrbs[j].buffer = usb_buffer_alloc(udev,
-				                               card->wrUrbs[j].size, GFP_KERNEL,
-				                               &card->wrUrbs[j].urb->transfer_dma);
+							       card->wrUrbs[j].size, GFP_KERNEL,
+							       &card->wrUrbs[j].urb->transfer_dma);
 
 				if (!card->wrUrbs[j].buffer) {
 					err("Couldn't allocate bulk_out_buffer");
@@ -1044,7 +1006,7 @@ static int cpcusb_probe(struct usb_interface *interface,
 						card);
 			}
 
-			info("%s - %d writing URB's allocated", __FUNCTION__, CPC_USB_URB_CNT);
+			info("%s - %d writing URB's allocated", __func__, CPC_USB_URB_CNT);
 		}
 	}
 
