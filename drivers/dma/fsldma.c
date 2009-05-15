@@ -313,8 +313,8 @@ static void fsl_chan_toggle_ext_start(struct fsl_dma_chan *fsl_chan, int enable)
 
 static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
-	struct fsl_desc_sw *desc = tx_to_fsl_desc(tx);
 	struct fsl_dma_chan *fsl_chan = to_fsl_chan(tx->chan);
+	struct fsl_desc_sw *desc;
 	unsigned long flags;
 	dma_cookie_t cookie;
 
@@ -322,14 +322,17 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	spin_lock_irqsave(&fsl_chan->desc_lock, flags);
 
 	cookie = fsl_chan->common.cookie;
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-	desc->async_tx.cookie = cookie;
-	fsl_chan->common.cookie = desc->async_tx.cookie;
+	list_for_each_entry(desc, &tx->tx_list, node) {
+		cookie++;
+		if (cookie < 0)
+			cookie = 1;
 
-	append_ld_queue(fsl_chan, desc);
-	list_splice_init(&desc->async_tx.tx_list, fsl_chan->ld_queue.prev);
+		desc->async_tx.cookie = cookie;
+	}
+
+	fsl_chan->common.cookie = cookie;
+	append_ld_queue(fsl_chan, tx_to_fsl_desc(tx));
+	list_splice_init(&tx->tx_list, fsl_chan->ld_queue.prev);
 
 	spin_unlock_irqrestore(&fsl_chan->desc_lock, flags);
 
