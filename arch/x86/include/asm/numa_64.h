@@ -24,6 +24,13 @@ extern void setup_node_bootmem(int nodeid, unsigned long start,
 			       unsigned long end);
 
 #ifdef CONFIG_NUMA
+/*
+ * Too small node sizes may confuse the VM badly. Usually they
+ * result from BIOS bugs. So dont recognize nodes as standalone
+ * NUMA entities that have less than this amount of RAM listed:
+ */
+#define NODE_MIN_SIZE (4*1024*1024)
+
 extern void __init init_cpu_to_node(void);
 extern void __cpuinit numa_set_node(int cpu, int node);
 extern void __cpuinit numa_clear_node(int cpu);

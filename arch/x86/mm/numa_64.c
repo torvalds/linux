@@ -179,16 +179,23 @@ static void * __init early_node_mem(int nodeid, unsigned long start,
 }
 
 /* Initialize bootmem allocator for a node */
-void __init setup_node_bootmem(int nodeid, unsigned long start,
-			       unsigned long end)
+void __init
+setup_node_bootmem(int nodeid, unsigned long start, unsigned long end)
 {
 	unsigned long start_pfn, last_pfn, bootmap_pages, bootmap_size;
+	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	unsigned long bootmap_start, nodedata_phys;
 	void *bootmap;
-	const int pgdat_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	int nid;
 
 	if (!end)
+		return;
+
+	/*
+	 * Don't confuse VM with a node that doesn't have the
+	 * minimum amount of memory:
+	 */
+	if (end && (end - start) < NODE_MIN_SIZE)
 		return;
 
 	start = roundup(start, ZONE_ALIGN);
