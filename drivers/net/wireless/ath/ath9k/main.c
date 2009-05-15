@@ -280,7 +280,7 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to reset channel (%u Mhz) "
-			"reset status %u\n",
+			"reset status %d\n",
 			channel->center_freq, r);
 		spin_unlock_bh(&sc->sc_resetlock);
 		return r;
@@ -1094,7 +1094,7 @@ void ath_radio_enable(struct ath_softc *sc)
 	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to reset channel %u (%uMhz) ",
-			"reset status %u\n",
+			"reset status %d\n",
 			channel->center_freq, r);
 	}
 	spin_unlock_bh(&sc->sc_resetlock);
@@ -1146,7 +1146,7 @@ void ath_radio_disable(struct ath_softc *sc)
 	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"Unable to reset channel %u (%uMhz) "
-			"reset status %u\n",
+			"reset status %d\n",
 			channel->center_freq, r);
 	}
 	spin_unlock_bh(&sc->sc_resetlock);
@@ -1709,7 +1709,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	r = ath9k_hw_reset(ah, sc->sc_ah->curchan, false);
 	if (r)
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to reset hardware; reset status %u\n", r);
+			"Unable to reset hardware; reset status %d\n", r);
 	spin_unlock_bh(&sc->sc_resetlock);
 
 	if (ath_startrecv(sc) != 0)
@@ -2001,7 +2001,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	r = ath9k_hw_reset(sc->sc_ah, init_channel, false);
 	if (r) {
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"Unable to reset hardware; reset status %u "
+			"Unable to reset hardware; reset status %d "
 			"(freq %u MHz)\n", r,
 			curchan->center_freq);
 		spin_unlock_bh(&sc->sc_resetlock);
