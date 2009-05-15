@@ -39,6 +39,14 @@ config SND_OMAP_SOC_OMAP2EVM
 	help
 	  Say Y if you want to add support for SoC audio on the omap2evm board.
 
+config SND_OMAP_SOC_OMAP3EVM
+	tristate "SoC Audio support for OMAP3EVM board"
+	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP3EVM
+	select SND_OMAP_SOC_MCBSP
+	select SND_SOC_TWL4030
+	help
+	  Say Y if you want to add support for SoC audio on the omap3evm board.
+
 config SND_OMAP_SOC_SDP3430
 	tristate "SoC Audio support for Texas Instruments SDP3430"
 	depends on TWL4030_CORE && SND_OMAP_SOC && MACH_OMAP_3430SDP
