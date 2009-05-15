@@ -115,12 +115,15 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	}
 
 	list_add_rcu(&counter->event_entry, &ctx->event_list);
+	ctx->nr_counters++;
 }
 
 static void
 list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 {
 	struct perf_counter *sibling, *tmp;
+
+	ctx->nr_counters--;
 
 	list_del_init(&counter->list_entry);
 	list_del_rcu(&counter->event_entry);
@@ -209,7 +212,6 @@ static void __perf_counter_remove_from_context(void *info)
 	counter_sched_out(counter, cpuctx, ctx);
 
 	counter->task = NULL;
-	ctx->nr_counters--;
 
 	/*
 	 * Protect the list operation against NMI by disabling the
@@ -276,7 +278,6 @@ retry:
 	 * succeed.
 	 */
 	if (!list_empty(&counter->list_entry)) {
-		ctx->nr_counters--;
 		list_del_counter(counter, ctx);
 		counter->task = NULL;
 	}
@@ -544,7 +545,6 @@ static void add_counter_to_ctx(struct perf_counter *counter,
 			       struct perf_counter_context *ctx)
 {
 	list_add_counter(counter, ctx);
-	ctx->nr_counters++;
 	counter->prev_state = PERF_COUNTER_STATE_OFF;
 	counter->tstamp_enabled = ctx->time;
 	counter->tstamp_running = ctx->time;
@@ -3206,9 +3206,8 @@ static int inherit_group(struct perf_counter *parent_counter,
 static void sync_child_counter(struct perf_counter *child_counter,
 			       struct perf_counter *parent_counter)
 {
-	u64 parent_val, child_val;
+	u64 child_val;
 
-	parent_val = atomic64_read(&parent_counter->count);
 	child_val = atomic64_read(&child_counter->count);
 
 	/*
@@ -3240,7 +3239,6 @@ __perf_counter_exit_task(struct task_struct *child,
 			 struct perf_counter_context *child_ctx)
 {
 	struct perf_counter *parent_counter;
-	struct perf_counter *sub, *tmp;
 
 	/*
 	 * If we do not self-reap then we have to wait for the
@@ -3252,8 +3250,8 @@ __perf_counter_exit_task(struct task_struct *child,
 	 */
 	if (child != current) {
 		wait_task_inactive(child, 0);
-		list_del_init(&child_counter->list_entry);
 		update_counter_times(child_counter);
+		list_del_counter(child_counter, child_ctx);
 	} else {
 		struct perf_cpu_context *cpuctx;
 		unsigned long flags;
@@ -3272,9 +3270,7 @@ __perf_counter_exit_task(struct task_struct *child,
 		group_sched_out(child_counter, cpuctx, child_ctx);
 		update_counter_times(child_counter);
 
-		list_del_init(&child_counter->list_entry);
-
-		child_ctx->nr_counters--;
+		list_del_counter(child_counter, child_ctx);
 
 		perf_enable();
 		local_irq_restore(flags);
@@ -3288,13 +3284,6 @@ __perf_counter_exit_task(struct task_struct *child,
 	 */
 	if (parent_counter) {
 		sync_child_counter(child_counter, parent_counter);
-		list_for_each_entry_safe(sub, tmp, &child_counter->sibling_list,
-					 list_entry) {
-			if (sub->parent) {
-				sync_child_counter(sub, sub->parent);
-				free_counter(sub);
-			}
-		}
 		free_counter(child_counter);
 	}
 }
@@ -3315,9 +3304,18 @@ void perf_counter_exit_task(struct task_struct *child)
 	if (likely(!child_ctx->nr_counters))
 		return;
 
+again:
 	list_for_each_entry_safe(child_counter, tmp, &child_ctx->counter_list,
 				 list_entry)
 		__perf_counter_exit_task(child, child_counter, child_ctx);
+
+	/*
+	 * If the last counter was a group counter, it will have appended all
+	 * its siblings to the list, but we obtained 'tmp' before that which
+	 * will still point to the list head terminating the iteration.
+	 */
+	if (!list_empty(&child_ctx->counter_list))
+		goto again;
 }
 
 /*
