@@ -109,6 +109,8 @@
 #define SCALE_4CIFS	1	/* 640x480(NTSC) or 704x576(PAL) */
 #define SCALE_2CIFS	2	/* 640x240(NTSC) or 704x288(PAL) */
 #define SCALE_1CIFS	3	/* 320x240(NTSC) or 352x288(PAL) */
+/* SCALE_4CIFSI is the 2 fields interpolated into one */
+#define SCALE_4CIFSI	4	/* 640x480(NTSC) or 704x576(PAL) high quality */
 
 #define COLOR_YUVPL	1	/* YUV planar */
 #define COLOR_YUVPK	2	/* YUV packed */
@@ -238,6 +240,8 @@ struct s2255_dev {
 	struct s2255_mode	mode[MAX_CHANNELS];
 	/* jpeg compression */
 	struct v4l2_jpegcompression jc[MAX_CHANNELS];
+	/* capture parameters (for high quality mode full size) */
+	struct v4l2_captureparm cap_parm[MAX_CHANNELS];
 	const struct s2255_fmt	*cur_fmt[MAX_CHANNELS];
 	int			cur_frame[MAX_CHANNELS];
 	int			last_frame[MAX_CHANNELS];
@@ -1020,9 +1024,16 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	fh->type = f->type;
 	norm = norm_minw(fh->dev->vdev[fh->channel]);
 	if (fh->width > norm_minw(fh->dev->vdev[fh->channel])) {
-		if (fh->height > norm_minh(fh->dev->vdev[fh->channel]))
-			fh->mode.scale = SCALE_4CIFS;
-		else
+		if (fh->height > norm_minh(fh->dev->vdev[fh->channel])) {
+			if (fh->dev->cap_parm[fh->channel].capturemode &
+			    V4L2_MODE_HIGHQUALITY) {
+				fh->mode.scale = SCALE_4CIFSI;
+				dprintk(2, "scale 4CIFSI\n");
+			} else {
+				fh->mode.scale = SCALE_4CIFS;
+				dprintk(2, "scale 4CIFS\n");
+			}
+		} else
 			fh->mode.scale = SCALE_2CIFS;
 
 	} else {
@@ -1123,6 +1134,7 @@ static u32 get_transfer_size(struct s2255_mode *mode)
 	if (mode->format == FORMAT_NTSC) {
 		switch (mode->scale) {
 		case SCALE_4CIFS:
+		case SCALE_4CIFSI:
 			linesPerFrame = NUM_LINES_4CIFS_NTSC * 2;
 			pixelsPerLine = LINE_SZ_4CIFS_NTSC;
 			break;
@@ -1140,6 +1152,7 @@ static u32 get_transfer_size(struct s2255_mode *mode)
 	} else if (mode->format == FORMAT_PAL) {
 		switch (mode->scale) {
 		case SCALE_4CIFS:
+		case SCALE_4CIFSI:
 			linesPerFrame = NUM_LINES_4CIFS_PAL * 2;
 			pixelsPerLine = LINE_SZ_4CIFS_PAL;
 			break;
@@ -1495,6 +1508,33 @@ static int vidioc_s_jpegcomp(struct file *file, void *priv,
 	dprintk(2, "setting jpeg quality %d\n", jc->quality);
 	return 0;
 }
+
+static int vidioc_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct s2255_fh *fh = priv;
+	struct s2255_dev *dev = fh->dev;
+	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	sp->parm.capture.capturemode = dev->cap_parm[fh->channel].capturemode;
+	dprintk(2, "getting parm %d\n", sp->parm.capture.capturemode);
+	return 0;
+}
+
+static int vidioc_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *sp)
+{
+	struct s2255_fh *fh = priv;
+	struct s2255_dev *dev = fh->dev;
+
+	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	dev->cap_parm[fh->channel].capturemode = sp->parm.capture.capturemode;
+	dprintk(2, "setting param capture mode %d\n",
+		sp->parm.capture.capturemode);
+	return 0;
+}
 static int s2255_open(struct file *file)
 {
 	int minor = video_devdata(file)->minor;
@@ -1786,6 +1826,8 @@ static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 #endif
 	.vidioc_s_jpegcomp = vidioc_s_jpegcomp,
 	.vidioc_g_jpegcomp = vidioc_g_jpegcomp,
+	.vidioc_s_parm = vidioc_s_parm,
+	.vidioc_g_parm = vidioc_g_parm,
 };
 
 static struct video_device template = {
