@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include "efx.h"
 #include "mdio_10g.h"
-#include "xenpack.h"
 #include "phy.h"
 #include "falcon.h"
 
@@ -169,7 +168,8 @@ static int xfp_phy_init(struct efx_nic *efx)
 
 static void xfp_phy_clear_interrupt(struct efx_nic *efx)
 {
-	xenpack_clear_lasi_irqs(efx);
+	/* Read to clear link status alarm */
+	efx_mdio_read(efx, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT);
 }
 
 static int xfp_link_ok(struct efx_nic *efx)

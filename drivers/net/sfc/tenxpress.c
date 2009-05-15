@@ -44,18 +44,6 @@
  */
 #define MAX_BAD_LP_TRIES	(5)
 
-/* LASI Control */
-#define PMA_PMD_LASI_CTRL	36866
-#define PMA_PMD_LASI_STATUS	36869
-#define PMA_PMD_LS_ALARM_LBN	0
-#define PMA_PMD_LS_ALARM_WIDTH	1
-#define PMA_PMD_TX_ALARM_LBN	1
-#define PMA_PMD_TX_ALARM_WIDTH	1
-#define PMA_PMD_RX_ALARM_LBN	2
-#define PMA_PMD_RX_ALARM_WIDTH	1
-#define PMA_PMD_AN_ALARM_LBN	3
-#define PMA_PMD_AN_ALARM_WIDTH	1
-
 /* Extended control register */
 #define PMA_PMD_XCONTROL_REG	49152
 #define PMA_PMD_EXT_GMII_EN_LBN	1
@@ -579,8 +567,8 @@ static void tenxpress_phy_poll(struct efx_nic *efx)
 			change = true;
 	} else {
 		int status = efx_mdio_read(efx, MDIO_MMD_PMAPMD,
-					   PMA_PMD_LASI_STATUS);
-		if (status & (1 << PMA_PMD_LS_ALARM_LBN))
+					   MDIO_PMA_LASI_STAT);
+		if (status & MDIO_PMA_LASI_LSALARM)
 			change = true;
 	}
 
