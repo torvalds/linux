@@ -503,18 +503,13 @@ struct iwl3945_tid_data {
 	u16 seq_number;
 };
 
-struct iwl3945_hw_key {
-	enum ieee80211_key_alg alg;
-	int keylen;
-	u8 key[32];
-};
 
 struct iwl3945_station_entry {
 	struct iwl3945_addsta_cmd sta;
 	struct iwl3945_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	u8 ps_status;
-	struct iwl3945_hw_key keyinfo;
+	struct iwl_hw_key keyinfo;
 };
 
 struct iwl_station_entry {

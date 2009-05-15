@@ -340,7 +340,7 @@ static int iwl3945_clear_sta_key_info(struct iwl_priv *priv, u8 sta_id)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
-	memset(&priv->stations_39[sta_id].keyinfo, 0, sizeof(struct iwl3945_hw_key));
+	memset(&priv->stations_39[sta_id].keyinfo, 0, sizeof(struct iwl_hw_key));
 	memset(&priv->stations_39[sta_id].sta.key, 0,
 		sizeof(struct iwl4965_keyinfo));
 	priv->stations_39[sta_id].sta.key.key_flags = STA_KEY_FLG_NO_ENC;
@@ -578,8 +578,7 @@ static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
 				      int sta_id)
 {
 	struct iwl3945_tx_cmd *tx = (struct iwl3945_tx_cmd *)cmd->cmd.payload;
-	struct iwl3945_hw_key *keyinfo =
-	    &priv->stations_39[sta_id].keyinfo;
+	struct iwl_hw_key *keyinfo = &priv->stations_39[sta_id].keyinfo;
 
 	switch (keyinfo->alg) {
 	case ALG_CCMP:
