@@ -49,7 +49,7 @@
 /* Version Information */
 #define DRIVER_AUTHOR  "Sebastian Haas <haas@ems-wuensche.com>"
 #define DRIVER_DESC    "CPC-USB Driver for Linux Kernel 2.6"
-#define DRIVER_VERSION CPC_DRIVER_VERSION " (CDKL v" CDKL_VERSION ")"
+#define DRIVER_VERSION CPC_DRIVER_VERSION
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -1198,7 +1198,6 @@ static int __init CPCUsb_Init(void)
 	if (!procDir) {
 		err("Could not create proc entry");
 	} else {
-		procDir->owner = THIS_MODULE;
 		procEntry = create_proc_read_entry("info", 0444, procDir,
 						   cpcusb_proc_read_info,
 						   NULL);
@@ -1206,8 +1205,6 @@ static int __init CPCUsb_Init(void)
 			err("Could not create proc entry %s", CPC_USB_PROC_DIR "/info");
 			remove_proc_entry(CPC_USB_PROC_DIR, NULL);
 			procDir = NULL;
-		} else {
-			procEntry->owner = THIS_MODULE;
 		}
 	}
 
