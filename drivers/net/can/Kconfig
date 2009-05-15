@@ -35,6 +35,12 @@ config CAN_CALC_BITTIMING
 	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
 	  If unsure, say Y.
 
+config CAN_SJA1000
+	depends on CAN_DEV
+	tristate "Philips SJA1000"
+	---help---
+	  Driver for the SJA1000 CAN controllers from Philips or NXP
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
