@@ -2314,7 +2314,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 {
 	struct zfcp_fsf_req *req;
 	struct fcp_cmnd_iu *fcp_cmnd_iu;
-	unsigned int sbtype;
+	unsigned int sbtype = SBAL_FLAGS0_TYPE_READ;
 	int real_bytes, retval = -EIO;
 	struct zfcp_adapter *adapter = unit->port->adapter;
 
@@ -2356,11 +2356,9 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	switch (scsi_cmnd->sc_data_direction) {
 	case DMA_NONE:
 		req->qtcb->bottom.io.data_direction = FSF_DATADIR_CMND;
-		sbtype = SBAL_FLAGS0_TYPE_READ;
 		break;
 	case DMA_FROM_DEVICE:
 		req->qtcb->bottom.io.data_direction = FSF_DATADIR_READ;
-		sbtype = SBAL_FLAGS0_TYPE_READ;
 		fcp_cmnd_iu->rddata = 1;
 		break;
 	case DMA_TO_DEVICE:
@@ -2369,8 +2367,6 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		fcp_cmnd_iu->wddata = 1;
 		break;
 	case DMA_BIDIRECTIONAL:
-	default:
-		retval = -EIO;
 		goto failed_scsi_cmnd;
 	}
 
@@ -2394,9 +2390,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 					     scsi_sglist(scsi_cmnd),
 					     FSF_MAX_SBALS_PER_REQ);
 	if (unlikely(real_bytes < 0)) {
-		if (req->sbal_number < FSF_MAX_SBALS_PER_REQ)
-			retval = -EIO;
-		else {
+		if (req->sbal_number >= FSF_MAX_SBALS_PER_REQ) {
 			dev_err(&adapter->ccw_device->dev,
 				"Oversize data package, unit 0x%016Lx "
 				"on port 0x%016Lx closed\n",
