@@ -55,6 +55,14 @@
 #define MDIO_AN_10GBT_CTRL	32	/* 10GBASE-T auto-negotiation control */
 #define MDIO_AN_10GBT_STAT	33	/* 10GBASE-T auto-negotiation status */
 
+/* LASI (Link Alarm Status Interrupt) registers, defined by XENPAK MSA. */
+#define MDIO_PMA_LASI_RXCTRL	0x9000	/* RX_ALARM control */
+#define MDIO_PMA_LASI_TXCTRL	0x9001	/* TX_ALARM control */
+#define MDIO_PMA_LASI_CTRL	0x9002	/* LASI control */
+#define MDIO_PMA_LASI_RXSTAT	0x9003	/* RX_ALARM status */
+#define MDIO_PMA_LASI_TXSTAT	0x9004	/* TX_ALARM status */
+#define MDIO_PMA_LASI_STAT	0x9005	/* LASI status */
+
 /* Control register 1. */
 /* Enable extended speed selection */
 #define MDIO_CTRL1_SPEEDSELEXT		(BMCR_SPEED1000 | BMCR_SPEED100)
@@ -217,6 +225,26 @@
 #define MDIO_AN_10GBT_STAT_LOCOK	0x2000	/* Local OK */
 #define MDIO_AN_10GBT_STAT_MS		0x4000	/* Master/slave config */
 #define MDIO_AN_10GBT_STAT_MSFLT	0x8000	/* Master/slave config fault */
+
+/* LASI RX_ALARM control/status registers. */
+#define MDIO_PMA_LASI_RX_PHYXSLFLT	0x0001	/* PHY XS RX local fault */
+#define MDIO_PMA_LASI_RX_PCSLFLT	0x0008	/* PCS RX local fault */
+#define MDIO_PMA_LASI_RX_PMALFLT	0x0010	/* PMA/PMD RX local fault */
+#define MDIO_PMA_LASI_RX_OPTICPOWERFLT	0x0020	/* RX optical power fault */
+#define MDIO_PMA_LASI_RX_WISLFLT	0x0200	/* WIS local fault */
+
+/* LASI TX_ALARM control/status registers. */
+#define MDIO_PMA_LASI_TX_PHYXSLFLT	0x0001	/* PHY XS TX local fault */
+#define MDIO_PMA_LASI_TX_PCSLFLT	0x0008	/* PCS TX local fault */
+#define MDIO_PMA_LASI_TX_PMALFLT	0x0010	/* PMA/PMD TX local fault */
+#define MDIO_PMA_LASI_TX_LASERPOWERFLT	0x0080	/* Laser output power fault */
+#define MDIO_PMA_LASI_TX_LASERTEMPFLT	0x0100	/* Laser temperature fault */
+#define MDIO_PMA_LASI_TX_LASERBICURRFLT	0x0200	/* Laser bias current fault */
+
+/* LASI control/status registers. */
+#define MDIO_PMA_LASI_LSALARM		0x0001	/* LS_ALARM enable/status */
+#define MDIO_PMA_LASI_TXALARM		0x0002	/* TX_ALARM enable/status */
+#define MDIO_PMA_LASI_RXALARM		0x0004	/* RX_ALARM enable/status */
 
 /* Mapping between MDIO PRTAD/DEVAD and mii_ioctl_data::phy_id */
 
