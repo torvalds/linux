@@ -128,6 +128,12 @@ static void __exit_signal(struct task_struct *tsk)
 		sig = NULL; /* Marker for below. */
 	}
 
+	/*
+	 * Flush inherited counters to the parent - before the parent
+	 * gets woken up by child-exit notifications.
+	 */
+	perf_counter_exit_task(tsk);
+
 	__unhash_process(tsk);
 
 	/*
