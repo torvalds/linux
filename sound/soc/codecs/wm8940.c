@@ -907,7 +907,7 @@ static int wm8940_i2c_probe(struct i2c_client *i2c,
 	return wm8940_register(wm8940);
 }
 
-static int wm8940_i2c_remove(struct i2c_client *client)
+static int __devexit wm8940_i2c_remove(struct i2c_client *client)
 {
 	struct wm8940_priv *wm8940 = i2c_get_clientdata(client);
 
