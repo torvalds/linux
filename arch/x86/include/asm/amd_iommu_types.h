@@ -195,7 +195,12 @@
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
 					      domain for an IOMMU */
 
-#define APERTURE_RANGE_SIZE	(128 * 1024 * 1024)
+#define APERTURE_RANGE_SHIFT	27	/* 128 MB */
+#define APERTURE_RANGE_SIZE	(1ULL << APERTURE_RANGE_SHIFT)
+#define APERTURE_RANGE_PAGES	(APERTURE_RANGE_SIZE >> PAGE_SHIFT)
+#define APERTURE_MAX_RANGES	32	/* allows 4GB of DMA address space */
+#define APERTURE_RANGE_INDEX(a)	((a) >> APERTURE_RANGE_SHIFT)
+#define APERTURE_PAGE_INDEX(a)	(((a) >> 21) & 0x3fULL)
 
 /*
  * This structure contains generic data for  IOMMU protection domains
@@ -227,6 +232,8 @@ struct aperture_range {
 	 * just calculate its address in constant time.
 	 */
 	u64 *pte_pages[64];
+
+	unsigned long offset;
 };
 
 /*
@@ -245,7 +252,7 @@ struct dma_ops_domain {
 	unsigned long next_bit;
 
 	/* address space relevant data */
-	struct aperture_range aperture;
+	struct aperture_range *aperture[APERTURE_MAX_RANGES];
 
 	/* This will be set to true when TLB needs to be flushed */
 	bool need_flush;
