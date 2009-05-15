@@ -620,9 +620,18 @@ static void mvsd_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	if (ios->bus_width == MMC_BUS_WIDTH_4)
 		ctrl_reg |= MVSD_HOST_CTRL_DATA_WIDTH_4_BITS;
 
+	/*
+	 * The HI_SPEED_EN bit is causing trouble with many (but not all)
+	 * high speed SD, SDHC and SDIO cards.  Not enabling that bit
+	 * makes all cards work.  So let's just ignore that bit for now
+	 * and revisit this issue if problems for not enabling this bit
+	 * are ever reported.
+	 */
+#if 0
 	if (ios->timing == MMC_TIMING_MMC_HS ||
 	    ios->timing == MMC_TIMING_SD_HS)
 		ctrl_reg |= MVSD_HOST_CTRL_HI_SPEED_EN;
+#endif
 
 	host->ctrl = ctrl_reg;
 	mvsd_write(MVSD_HOST_CTRL, ctrl_reg);
