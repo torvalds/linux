@@ -272,9 +272,6 @@ void __init setup_node_bootmem(int nodeid, unsigned long start,
 		reserve_bootmem_node(NODE_DATA(nodeid), bootmap_start,
 				 bootmap_pages<<PAGE_SHIFT, BOOTMEM_DEFAULT);
 
-#ifdef CONFIG_ACPI_NUMA
-	srat_reserve_add_area(nodeid);
-#endif
 	node_set_online(nodeid);
 }
 
@@ -591,8 +588,6 @@ static __init int numa_setup(char *opt)
 #ifdef CONFIG_ACPI_NUMA
 	if (!strncmp(opt, "noacpi", 6))
 		acpi_numa = -1;
-	if (!strncmp(opt, "hotadd=", 7))
-		hotadd_percent = simple_strtoul(opt+7, NULL, 10);
 #endif
 	return 0;
 }
