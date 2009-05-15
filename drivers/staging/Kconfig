@@ -121,5 +121,7 @@ source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/vt6655/Kconfig"
 
+source "drivers/staging/cpc-usb/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
