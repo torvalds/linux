@@ -87,6 +87,15 @@ static inline int acpi_probe_gsi(void)
 }
 #endif /* CONFIG_ACPI */
 
+#ifdef CONFIG_X86_MPPARSE
+extern int enable_update_mptable;
+#else
+static inline int enable_update_mptable(void)
+{
+	return 0;
+}
+#endif
+
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_APICS)
 
 struct physid_mask {

@@ -957,7 +957,7 @@ out:
 	return 0;
 }
 
-static int __initdata enable_update_mptable;
+int enable_update_mptable;
 
 static int __init update_mptable_setup(char *str)
 {
