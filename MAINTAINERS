@@ -1278,6 +1278,13 @@ F:	drivers/net/can/
 F:	include/linux/can/
 F:	include/linux/can.h
 
+CAN NETWORK DRIVERS
+P:	Wolfgang Grandegger
+M:	wg@grandegger.com
+L:	socketcan-core@lists.berlios.de (subscribers-only)
+W:	http://developer.berlios.de/projects/socketcan/
+S:	Maintained
+
 CELL BROADBAND ENGINE ARCHITECTURE
 P:	Arnd Bergmann
 M:	arnd@arndb.de
