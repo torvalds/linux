@@ -90,14 +90,12 @@ void perf_disable(void)
 	__perf_disable();
 	hw_perf_disable();
 }
-EXPORT_SYMBOL_GPL(perf_disable); /* ACPI idle */
 
 void perf_enable(void)
 {
 	if (__perf_enable())
 		hw_perf_enable();
 }
-EXPORT_SYMBOL_GPL(perf_enable); /* ACPI idle */
 
 static void
 list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
