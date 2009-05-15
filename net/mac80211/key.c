@@ -320,7 +320,7 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	case ALG_TKIP:
 		key->conf.iv_len = TKIP_IV_LEN;
 		key->conf.icv_len = TKIP_ICV_LEN;
-		if (seq && seq_len == 6) {
+		if (seq) {
 			for (i = 0; i < NUM_RX_DATA_QUEUES; i++) {
 				key->u.tkip.rx[i].iv32 =
 					get_unaligned_le32(&seq[2]);
@@ -332,7 +332,7 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	case ALG_CCMP:
 		key->conf.iv_len = CCMP_HDR_LEN;
 		key->conf.icv_len = CCMP_MIC_LEN;
-		if (seq && seq_len == CCMP_PN_LEN) {
+		if (seq) {
 			for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
 				for (j = 0; j < CCMP_PN_LEN; j++)
 					key->u.ccmp.rx_pn[i][j] =
@@ -342,7 +342,7 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	case ALG_AES_CMAC:
 		key->conf.iv_len = 0;
 		key->conf.icv_len = sizeof(struct ieee80211_mmie);
-		if (seq && seq_len == 6)
+		if (seq)
 			for (j = 0; j < 6; j++)
 				key->u.aes_cmac.rx_pn[j] = seq[6 - j - 1];
 		break;

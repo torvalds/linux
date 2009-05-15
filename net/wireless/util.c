@@ -181,5 +181,20 @@ int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 		return -EINVAL;
 	}
 
+	if (params->seq) {
+		switch (params->cipher) {
+		case WLAN_CIPHER_SUITE_WEP40:
+		case WLAN_CIPHER_SUITE_WEP104:
+			/* These ciphers do not use key sequence */
+			return -EINVAL;
+		case WLAN_CIPHER_SUITE_TKIP:
+		case WLAN_CIPHER_SUITE_CCMP:
+		case WLAN_CIPHER_SUITE_AES_CMAC:
+			if (params->seq_len != 6)
+				return -EINVAL;
+			break;
+		}
+	}
+
 	return 0;
 }
