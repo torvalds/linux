@@ -73,8 +73,6 @@ static char *version =
    or override something. */
 #include <linux/module.h>
 
-#define PRINTK(x) printk x
-
 /*
   Sources:
 
