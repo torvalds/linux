@@ -508,8 +508,6 @@ static bool ath_beacon_dtim_pending_cab(struct sk_buff *skb)
 static void ath_rx_ps_back_to_sleep(struct ath_softc *sc)
 {
 	sc->sc_flags &= ~(SC_OP_WAIT_FOR_BEACON | SC_OP_WAIT_FOR_CAB);
-	if (sc->hw->conf.flags & IEEE80211_CONF_PS)
-		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_NETWORK_SLEEP);
 }
 
 static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
