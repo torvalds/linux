@@ -51,6 +51,13 @@ config CAN_SJA1000_PLATFORM
 	  boards from Phytec (http://www.phytec.de) like the PCM027,
 	  PCM038.
 
+config CAN_EMS_PCI
+	tristate "EMS CPC-PCI and CPC-PCIe Card"
+	depends on PCI && CAN_SJA1000
+	---help---
+	  This driver is for the one or two channel CPC-PCI and CPC-PCIe
+	  cards from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
