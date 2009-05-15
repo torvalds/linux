@@ -579,6 +579,12 @@ int __init mx31_clocks_init(unsigned long fref)
 					   MX32, but still required to be set */
 		     MXC_CCM_CGR2);
 
+	/*
+	 * Before turning off usb_pll make sure ipg_per_clk is generated
+	 * by ipg_clk and not usb_pll.
+	 */
+	__raw_writel(__raw_readl(MXC_CCM_CCMR) | (1 << 24), MXC_CCM_CCMR);
+
 	usb_pll_disable(&usb_pll_clk);
 
 	pr_info("Clock input source is %ld\n", clk_get_rate(&ckih_clk));
