@@ -1402,7 +1402,7 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 	struct fsf_plogi *plogi;
 
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
-		return;
+		goto out;
 
 	switch (header->fsf_status) {
 	case FSF_PORT_ALREADY_OPEN:
@@ -1464,6 +1464,9 @@ static void zfcp_fsf_open_port_handler(struct zfcp_fsf_req *req)
 		req->status |= ZFCP_STATUS_FSFREQ_ERROR;
 		break;
 	}
+
+out:
+	zfcp_port_put(port);
 }
 
 /**
@@ -1476,6 +1479,7 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
 	struct qdio_buffer_element *sbale;
 	struct zfcp_adapter *adapter = erp_action->adapter;
 	struct zfcp_fsf_req *req;
+	struct zfcp_port *port = erp_action->port;
 	int retval = -EIO;
 
 	spin_lock_bh(&adapter->req_q_lock);
@@ -1496,16 +1500,18 @@ int zfcp_fsf_open_port(struct zfcp_erp_action *erp_action)
         sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
 
 	req->handler = zfcp_fsf_open_port_handler;
-	req->qtcb->bottom.support.d_id = erp_action->port->d_id;
-	req->data = erp_action->port;
+	req->qtcb->bottom.support.d_id = port->d_id;
+	req->data = port;
 	req->erp_action = erp_action;
 	erp_action->fsf_req = req;
+	zfcp_port_get(port);
 
 	zfcp_fsf_start_erp_timer(req);
 	retval = zfcp_fsf_req_send(req);
 	if (retval) {
 		zfcp_fsf_req_free(req);
 		erp_action->fsf_req = NULL;
+		zfcp_port_put(port);
 	}
 out:
 	spin_unlock_bh(&adapter->req_q_lock);
