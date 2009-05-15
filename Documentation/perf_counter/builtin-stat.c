@@ -538,8 +538,14 @@ static void process_options(int argc, char **argv)
 	}
 }
 
+static void skip_signal(int signo)
+{
+}
+
 int cmd_stat(int argc, char **argv, const char *prefix)
 {
+	sigset_t blocked;
+
 	page_size = sysconf(_SC_PAGE_SIZE);
 
 	process_options(argc, argv);
@@ -547,6 +553,16 @@ int cmd_stat(int argc, char **argv, const char *prefix)
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	assert(nr_cpus <= MAX_NR_CPUS);
 	assert(nr_cpus >= 0);
+
+	/*
+	 * We dont want to block the signals - that would cause
+	 * child tasks to inherit that and Ctrl-C would not work.
+	 * What we want is for Ctrl-C to work in the exec()-ed
+	 * task, but being ignored by perf stat itself:
+	 */
+	signal(SIGINT,  skip_signal);
+	signal(SIGALRM, skip_signal);
+	signal(SIGABRT, skip_signal);
 
 	return do_perfstat(argc, argv);
 }
