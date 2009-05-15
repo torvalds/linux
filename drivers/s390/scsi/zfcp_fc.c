@@ -704,7 +704,7 @@ static void zfcp_fc_generic_els_handler(unsigned long data)
 	}
 
 	reply->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
-	reply->reply_payload_rcv_len = blk_rq_bytes(job->req->next_rq);
+	reply->reply_payload_rcv_len = job->reply_payload.payload_len;
 
 out:
 	job->state_flags = FC_RQST_STATE_DONE;
@@ -736,15 +736,12 @@ int zfcp_fc_execute_els_fc_job(struct fc_bsg_job *job)
 		read_lock_irq(&zfcp_data.config_lock);
 		port = rport->dd_data;
 		if (port)
-			zfcp_port_get(port);
+			els_fc_job->els.d_id = port->d_id;
 		read_unlock_irq(&zfcp_data.config_lock);
 		if (!port) {
 			kfree(els_fc_job);
 			return -EINVAL;
 		}
-		els_fc_job->els.port = port;
-		els_fc_job->els.d_id = port->d_id;
-		zfcp_port_put(port);
 	} else {
 		port_did = job->request->rqst_data.h_els.port_id;
 		els_fc_job->els.d_id = (port_did[0] << 16) +
@@ -772,8 +769,8 @@ static void zfcp_fc_generic_ct_handler(unsigned long data)
 
 	job->reply->reply_data.ctels_reply.status = ct_fc_job->ct.status ?
 				FC_CTELS_STATUS_REJECT : FC_CTELS_STATUS_OK;
+	job->reply->reply_payload_rcv_len = job->reply_payload.payload_len;
 	job->state_flags = FC_RQST_STATE_DONE;
-	job->reply->reply_payload_rcv_len = blk_rq_bytes(job->req->next_rq);
 	job->job_done(job);
 
 	zfcp_wka_port_put(ct_fc_job->ct.wka_port);
