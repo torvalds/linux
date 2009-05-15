@@ -473,6 +473,11 @@ x86_perf_counter_set_period(struct perf_counter *counter,
 		left += period;
 		atomic64_set(&hwc->period_left, left);
 	}
+	/*
+	 * Quirk: certain CPUs dont like it if just 1 event is left:
+	 */
+	if (unlikely(left < 2))
+		left = 2;
 
 	per_cpu(prev_left[idx], smp_processor_id()) = left;
 
