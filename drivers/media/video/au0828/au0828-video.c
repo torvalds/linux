@@ -913,11 +913,6 @@ static int au0828_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	rc = videobuf_mmap_mapper(&fh->vb_vidq, vma);
 
-	dprintk(2, "vma start=0x%08lx, size=%ld, ret=%d\n",
-		(unsigned long)vma->vm_start,
-		(unsigned long)vma->vm_end-(unsigned long)vma->vm_start,
-		rc);
-
 	return rc;
 }
 
