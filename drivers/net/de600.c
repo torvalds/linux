@@ -38,14 +38,6 @@ static const char version[] = "de600.c: $Revision: 1.41-2.5 $,  Bjorn Ekwall (bj
 /* Add more time here if your adapter won't work OK: */
 #define DE600_SLOW_DOWN	udelay(delay_time)
 
-/* use 0 for production, 1 for verification, >2 for debug */
-#ifdef DE600_DEBUG
-#define PRINTK(x) if (de600_debug >= 2) printk x
-#else
-#define DE600_DEBUG 0
-#define PRINTK(x) /**/
-#endif
-
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -66,10 +58,6 @@ static const char version[] = "de600.c: $Revision: 1.41-2.5 $,  Bjorn Ekwall (bj
 #include <asm/io.h>
 
 #include "de600.h"
-
-static unsigned int de600_debug = DE600_DEBUG;
-module_param(de600_debug, int, 0);
-MODULE_PARM_DESC(de600_debug, "DE-600 debug level (0-2)");
 
 static unsigned int check_lost = 1;
 module_param(check_lost, bool, 0);
@@ -193,7 +181,7 @@ static int de600_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Start real output */
-	PRINTK(("de600_start_xmit:len=%d, page %d/%d\n", skb->len, tx_fifo_in, free_tx_pages));
+	pr_debug("de600_start_xmit:len=%d, page %d/%d\n", skb->len, tx_fifo_in, free_tx_pages);
 
 	if ((len = skb->len) < RUNT)
 		len = RUNT;
@@ -259,7 +247,7 @@ static irqreturn_t de600_interrupt(int irq, void *dev_id)
 	irq_status = de600_read_status(dev);
 
 	do {
-		PRINTK(("de600_interrupt (%02X)\n", irq_status));
+		pr_debug("de600_interrupt (%02X)\n", irq_status);
 
 		if (irq_status & RX_GOOD)
 			de600_rx_intr(dev);
@@ -407,8 +395,7 @@ static struct net_device * __init de600_probe(void)
 
 	printk(KERN_INFO "%s: D-Link DE-600 pocket adapter", dev->name);
 	/* Alpha testers must have the version number to report bugs. */
-	if (de600_debug > 1)
-		printk(version);
+	pr_debug("%s", version);
 
 	/* probe for adapter */
 	err = -ENODEV;
