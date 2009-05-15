@@ -523,7 +523,7 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
  * success: return IRQ number (>=0)
  * failure: return < 0
  */
-int acpi_register_gsi(struct device *dev, u32 gsi, int triggering, int polarity)
+int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 {
 	unsigned int irq;
 	unsigned int plat_gsi = gsi;
@@ -533,14 +533,14 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int triggering, int polarity)
 	 * Make sure all (legacy) PCI IRQs are set as level-triggered.
 	 */
 	if (acpi_irq_model == ACPI_IRQ_MODEL_PIC) {
-		if (triggering == ACPI_LEVEL_SENSITIVE)
+		if (trigger == ACPI_LEVEL_SENSITIVE)
 			eisa_set_level_irq(gsi);
 	}
 #endif
 
 #ifdef CONFIG_X86_IO_APIC
 	if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC) {
-		plat_gsi = mp_register_gsi(dev, gsi, triggering, polarity);
+		plat_gsi = mp_register_gsi(dev, gsi, trigger, polarity);
 	}
 #endif
 	acpi_gsi_to_irq(plat_gsi, &irq);
@@ -1156,7 +1156,7 @@ void __init mp_config_acpi_legacy_irqs(void)
 	}
 }
 
-static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int triggering,
+static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 			int polarity)
 {
 #ifdef CONFIG_X86_MPPARSE
@@ -1181,7 +1181,7 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int triggering,
 	/* print the entry should happen on mptable identically */
 	mp_irq.type = MP_INTSRC;
 	mp_irq.irqtype = mp_INT;
-	mp_irq.irqflag = (triggering == ACPI_EDGE_SENSITIVE ? 4 : 0x0c) |
+	mp_irq.irqflag = (trigger == ACPI_EDGE_SENSITIVE ? 4 : 0x0c) |
 				(polarity == ACPI_ACTIVE_HIGH ? 1 : 3);
 	mp_irq.srcbus = number;
 	mp_irq.srcbusirq = (((devfn >> 3) & 0x1f) << 2) | ((pin - 1) & 3);
@@ -1194,10 +1194,11 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int triggering,
 	return 0;
 }
 
-int mp_register_gsi(struct device *dev, u32 gsi, int triggering, int polarity)
+int mp_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 {
 	int ioapic;
 	int ioapic_pin;
+	struct io_apic_irq_attr irq_attr;
 
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
@@ -1225,11 +1226,12 @@ int mp_register_gsi(struct device *dev, u32 gsi, int triggering, int polarity)
 		       ioapic_pin);
 		return gsi;
 	}
-	mp_config_acpi_gsi(dev, gsi, triggering, polarity);
+	mp_config_acpi_gsi(dev, gsi, trigger, polarity);
 
-	io_apic_set_pci_routing(dev, ioapic, ioapic_pin, gsi,
-				triggering == ACPI_EDGE_SENSITIVE ? 0 : 1,
-				polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
+	set_io_apic_irq_attr(&irq_attr, ioapic, ioapic_pin,
+			     trigger == ACPI_EDGE_SENSITIVE ? 0 : 1,
+			     polarity == ACPI_ACTIVE_HIGH ? 0 : 1);
+	io_apic_set_pci_routing(dev, gsi, &irq_attr);
 
 	return gsi;
 }

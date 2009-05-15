@@ -155,15 +155,13 @@ int ibmphp_init_devno(struct slot **cur_slot)
 	for (loop = 0; loop < len; loop++) {
 		if ((*cur_slot)->number == rtable->slots[loop].slot &&
 		    (*cur_slot)->bus == rtable->slots[loop].bus) {
-			int ioapic = -1, ioapic_pin = -1;
-			int triggering, polarity;
+			struct io_apic_irq_attr irq_attr;
 
 			(*cur_slot)->device = PCI_SLOT(rtable->slots[loop].devfn);
 			for (i = 0; i < 4; i++)
 				(*cur_slot)->irq[i] = IO_APIC_get_PCI_irq_vector((int) (*cur_slot)->bus,
 						(int) (*cur_slot)->device, i,
-						&ioapic, &ioapic_pin,
-						&triggering, &polarity);
+						&irq_attr);
 
 			debug("(*cur_slot)->irq[0] = %x\n",
 					(*cur_slot)->irq[0]);

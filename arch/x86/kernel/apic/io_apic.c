@@ -1096,8 +1096,7 @@ static int pin_2_irq(int idx, int apic, int pin)
  * Not an __init, possibly needed by modules
  */
 int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin,
-				int *ioapic, int *ioapic_pin,
-				int *trigger, int *polarity)
+				struct io_apic_irq_attr *irq_attr)
 {
 	int apic, i, best_guess = -1;
 
@@ -1127,10 +1126,10 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin,
 				continue;
 
 			if (pin == (mp_irqs[i].srcbusirq & 3)) {
-				*ioapic = apic;
-				*ioapic_pin = mp_irqs[i].dstirq;
-				*trigger = irq_trigger(i);
-				*polarity = irq_polarity(i);
+				set_io_apic_irq_attr(irq_attr, apic,
+						     mp_irqs[i].dstirq,
+						     irq_trigger(i),
+						     irq_polarity(i));
 				return irq;
 			}
 			/*
@@ -1138,10 +1137,10 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin,
 			 * best-guess fuzzy result for broken mptables.
 			 */
 			if (best_guess < 0) {
-				*ioapic = apic;
-				*ioapic_pin = mp_irqs[i].dstirq;
-				*trigger = irq_trigger(i);
-				*polarity = irq_polarity(i);
+				set_io_apic_irq_attr(irq_attr, apic,
+						     mp_irqs[i].dstirq,
+						     irq_trigger(i),
+						     irq_polarity(i));
 				best_guess = irq;
 			}
 		}
@@ -3865,13 +3864,16 @@ int __init arch_probe_nr_irqs(void)
 }
 #endif
 
-static int __io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
-				 int triggering, int polarity)
+static int __io_apic_set_pci_routing(struct device *dev, int irq,
+				struct io_apic_irq_attr *irq_attr)
 {
 	struct irq_desc *desc;
 	struct irq_cfg *cfg;
 	int node;
+	int ioapic, pin;
+	int trigger, polarity;
 
+	ioapic = irq_attr->ioapic;
 	if (!IO_APIC_IRQ(irq)) {
 		apic_printk(APIC_QUIET,KERN_ERR "IOAPIC[%d]: Invalid reference to IRQ 0\n",
 			ioapic);
@@ -3889,6 +3891,10 @@ static int __io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, in
 		return 0;
 	}
 
+	pin = irq_attr->ioapic_pin;
+	trigger = irq_attr->trigger;
+	polarity = irq_attr->polarity;
+
 	/*
 	 * IRQs < 16 are already in the irq_2_pin[] map
 	 */
@@ -3897,20 +3903,22 @@ static int __io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, in
 		add_pin_to_irq_node(cfg, node, ioapic, pin);
 	}
 
-	setup_IO_APIC_irq(ioapic, pin, irq, desc, triggering, polarity);
+	setup_IO_APIC_irq(ioapic, pin, irq, desc, trigger, polarity);
 
 	return 0;
 }
 
-int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
-				 int triggering, int polarity)
+int io_apic_set_pci_routing(struct device *dev, int irq,
+				struct io_apic_irq_attr *irq_attr)
 {
-
+	int ioapic, pin;
 	/*
 	 * Avoid pin reprogramming.  PRTs typically include entries
 	 * with redundant pin->gsi mappings (but unique PCI devices);
 	 * we only program the IOAPIC on the first.
 	 */
+	ioapic = irq_attr->ioapic;
+	pin = irq_attr->ioapic_pin;
 	if (test_bit(pin, mp_ioapic_routing[ioapic].pin_programmed)) {
 		pr_debug("Pin %d-%d already programmed\n",
 			 mp_ioapics[ioapic].apicid, pin);
@@ -3918,8 +3926,7 @@ int io_apic_set_pci_routing(struct device *dev, int ioapic, int pin, int irq,
 	}
 	set_bit(pin, mp_ioapic_routing[ioapic].pin_programmed);
 
-	return __io_apic_set_pci_routing(dev, ioapic, pin, irq,
-					 triggering, polarity);
+	return __io_apic_set_pci_routing(dev, irq, irq_attr);
 }
 
 /* --------------------------------------------------------------------------
