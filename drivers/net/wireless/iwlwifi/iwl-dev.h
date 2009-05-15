@@ -499,14 +499,10 @@ struct iwl_qos_info {
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
 
-struct iwl3945_tid_data {
-	u16 seq_number;
-};
-
 
 struct iwl3945_station_entry {
 	struct iwl3945_addsta_cmd sta;
-	struct iwl3945_tid_data tid[MAX_TID_COUNT];
+	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	u8 ps_status;
 	struct iwl_hw_key keyinfo;
