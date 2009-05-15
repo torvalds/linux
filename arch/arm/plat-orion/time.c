@@ -12,14 +12,15 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
+#include <linux/cnt32_to_63.h>
+#include <linux/timer.h>
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <asm/mach/time.h>
 #include <mach/bridge-regs.h>
 #include <mach/hardware.h>
-#include <linux/sched.h>
-#include <linux/cnt32_to_63.h>
 
 /*
  * Number of timer ticks per jiffy.
@@ -44,14 +45,36 @@ static u32 ticks_per_jiffy;
 /*
  * Orion's sched_clock implementation. It has a resolution of
  * at least 7.5ns (133MHz TCLK) and a maximum value of 834 days.
+ *
+ * Because the hardware timer period is quite short (21 secs if
+ * 200MHz TCLK) and because cnt32_to_63() needs to be called at
+ * least once per half period to work properly, a kernel timer is
+ * set up to ensure this requirement is always met.
  */
 #define TCLK2NS_SCALE_FACTOR 8
 
 static unsigned long tclk2ns_scale;
 
-static void __init set_tclk2ns_scale(unsigned long tclk)
+unsigned long long sched_clock(void)
 {
-	unsigned long long v = NSEC_PER_SEC;
+	unsigned long long v = cnt32_to_63(0xffffffff - readl(TIMER0_VAL));
+	return (v * tclk2ns_scale) >> TCLK2NS_SCALE_FACTOR;
+}
+
+static struct timer_list cnt32_to_63_keepwarm_timer;
+
+static void cnt32_to_63_keepwarm(unsigned long data)
+{
+	mod_timer(&cnt32_to_63_keepwarm_timer, round_jiffies(jiffies + data));
+	(void) sched_clock();
+}
+
+static void __init setup_sched_clock(unsigned long tclk)
+{
+	unsigned long long v;
+	unsigned long data;
+
+	v = NSEC_PER_SEC;
 	v <<= TCLK2NS_SCALE_FACTOR;
 	v += tclk/2;
 	do_div(v, tclk);
@@ -63,12 +86,10 @@ static void __init set_tclk2ns_scale(unsigned long tclk)
 	if (v & 1)
 		v++;
 	tclk2ns_scale = v;
-}
 
-unsigned long long sched_clock(void)
-{
-	unsigned long long v = cnt32_to_63(0xffffffff - readl(TIMER0_VAL));
-	return (v * tclk2ns_scale) >> TCLK2NS_SCALE_FACTOR;
+	data = (0xffffffffUL / tclk / 2 - 2) * HZ;
+	setup_timer(&cnt32_to_63_keepwarm_timer, cnt32_to_63_keepwarm, data);
+	mod_timer(&cnt32_to_63_keepwarm_timer, round_jiffies(jiffies + data));
 }
 
 /*
@@ -210,9 +231,9 @@ void __init orion_time_init(unsigned int irq, unsigned int tclk)
 	ticks_per_jiffy = (tclk + HZ/2) / HZ;
 
 	/*
-	 * Set scale for sched_clock
+	 * Set scale and timer for sched_clock
 	 */
-	set_tclk2ns_scale(tclk);
+	setup_sched_clock(tclk);
 
 	/*
 	 * Setup free-running clocksource timer (interrupts
@@ -226,7 +247,6 @@ void __init orion_time_init(unsigned int irq, unsigned int tclk)
 	writel(u | TIMER0_EN | TIMER0_RELOAD_EN, TIMER_CTRL);
 	orion_clksrc.mult = clocksource_hz2mult(tclk, orion_clksrc.shift);
 	clocksource_register(&orion_clksrc);
-
 
 	/*
 	 * Setup clockevent timer (interrupt-driven.)
