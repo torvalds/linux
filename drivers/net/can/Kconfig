@@ -12,6 +12,29 @@ config CAN_VCAN
 	  This driver can also be built as a module.  If so, the module
 	  will be called vcan.
 
+config CAN_DEV
+	tristate "Platform CAN drivers with Netlink support"
+	depends on CAN
+	default Y
+	---help---
+	  Enables the common framework for platform CAN drivers with Netlink
+	  support. This is the standard library for CAN drivers.
+	  If unsure, say Y.
+
+config CAN_CALC_BITTIMING
+	bool "CAN bit-timing calculation"
+	depends on CAN_DEV
+	default Y
+	---help---
+	  If enabled, CAN bit-timing parameters will be calculated for the
+	  bit-rate specified via Netlink argument "bitrate" when the device
+	  get started. This works fine for the most common CAN controllers
+	  with standard bit-rates but may fail for exotic bit-rates or CAN
+	  source clock frequencies. Disabling saves some space, but then the
+	  bit-timing parameters must be specified directly using the Netlink
+	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
+	  If unsure, say Y.
+
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
