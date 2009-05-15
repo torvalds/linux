@@ -99,6 +99,8 @@ static void add_conn(struct work_struct *work)
 		BT_ERR("Failed to register connection device");
 		return;
 	}
+
+	hci_dev_hold(hdev);
 }
 
 /*
@@ -134,6 +136,7 @@ static void del_conn(struct work_struct *work)
 
 	device_del(&conn->dev);
 	put_device(&conn->dev);
+
 	hci_dev_put(hdev);
 }
 
