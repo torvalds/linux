@@ -898,6 +898,8 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 	trace_assign_type(field, iter->ent);
 
 	for (i = 0; i < FTRACE_STACK_ENTRIES; i++) {
+		if (!field->caller[i])
+			break;
 		if (i) {
 			if (!trace_seq_puts(s, " <= "))
 				goto partial;
