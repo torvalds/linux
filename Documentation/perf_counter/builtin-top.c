@@ -98,6 +98,7 @@ static unsigned int		page_size;
 static unsigned int		mmap_pages			=  16;
 static int			use_mmap			= 0;
 static int			use_munmap			= 0;
+static int			freq				= 0;
 
 static char			*vmlinux;
 
@@ -846,9 +847,10 @@ static void process_options(int argc, char **argv)
 			{"stat",	no_argument,		NULL, 'S'},
 			{"vmlinux",	required_argument,	NULL, 'x'},
 			{"zero",	no_argument,		NULL, 'z'},
+			{"freq",	required_argument,	NULL, 'F'},
 			{NULL,		0,			NULL,  0 }
 		};
-		int c = getopt_long(argc, argv, "+:ac:C:d:De:f:g:hln:m:p:r:s:Sx:zMU",
+		int c = getopt_long(argc, argv, "+:ac:C:d:De:f:g:hln:m:p:r:s:Sx:zMUF:",
 				    long_options, &option_index);
 		if (c == -1)
 			break;
@@ -889,6 +891,7 @@ static void process_options(int argc, char **argv)
 		case 'm': mmap_pages			=   atoi(optarg); break;
 		case 'M': use_mmap			=              1; break;
 		case 'U': use_munmap			=              1; break;
+		case 'F': freq = 1; default_interval	=   atoi(optarg); break;
 		default: error = 1; break;
 		}
 	}
@@ -1075,6 +1078,7 @@ int cmd_top(int argc, char **argv, const char *prefix)
 			hw_event.nmi		= nmi;
 			hw_event.mmap		= use_mmap;
 			hw_event.munmap		= use_munmap;
+			hw_event.freq		= freq;
 
 			fd[i][counter] = sys_perf_counter_open(&hw_event, tid, cpu, group_fd, 0);
 			if (fd[i][counter] < 0) {
