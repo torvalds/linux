@@ -582,7 +582,7 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 
 	pr->power.timer_broadcast_on_state = INT_MAX;
 
-	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER; i++) {
+	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		struct acpi_processor_cx *cx = &pr->power.states[i];
 
 		switch (cx->type) {
