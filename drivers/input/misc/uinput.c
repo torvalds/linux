@@ -54,27 +54,28 @@ static int uinput_dev_event(struct input_dev *dev, unsigned int type, unsigned i
 	return 0;
 }
 
+/* Atomically allocate an ID for the given request. Returns 0 on success. */
 static int uinput_request_alloc_id(struct uinput_device *udev, struct uinput_request *request)
 {
-	/* Atomically allocate an ID for the given request. Returns 0 on success. */
 	int id;
 	int err = -1;
 
 	spin_lock(&udev->requests_lock);
 
-	for (id = 0; id < UINPUT_NUM_REQUESTS; id++)
+	for (id = 0; id < UINPUT_NUM_REQUESTS; id++) {
 		if (!udev->requests[id]) {
 			request->id = id;
 			udev->requests[id] = request;
 			err = 0;
 			break;
 		}
+	}
 
 	spin_unlock(&udev->requests_lock);
 	return err;
 }
 
-static struct uinput_request* uinput_request_find(struct uinput_device *udev, int id)
+static struct uinput_request *uinput_request_find(struct uinput_device *udev, int id)
 {
 	/* Find an input request, by ID. Returns NULL if the ID isn't valid. */
 	if (id >= UINPUT_NUM_REQUESTS || id < 0)
@@ -99,14 +100,51 @@ static void uinput_request_done(struct uinput_device *udev, struct uinput_reques
 	complete(&request->done);
 }
 
-static int uinput_request_submit(struct input_dev *dev, struct uinput_request *request)
+static int uinput_request_submit(struct uinput_device *udev, struct uinput_request *request)
 {
-	/* Tell our userspace app about this new request by queueing an input event */
-	uinput_dev_event(dev, EV_UINPUT, request->code, request->id);
+	int retval;
 
-	/* Wait for the request to complete */
-	wait_for_completion(&request->done);
-	return request->retval;
+	retval = uinput_request_reserve_slot(udev, request);
+	if (retval)
+		return retval;
+
+	retval = mutex_lock_interruptible(&udev->mutex);
+	if (retval)
+		return retval;
+
+	if (udev->state != UIST_CREATED) {
+		retval = -ENODEV;
+		goto out;
+	}
+
+	/* Tell our userspace app about this new request by queueing an input event */
+	uinput_dev_event(udev->dev, EV_UINPUT, request->code, request->id);
+
+ out:
+	mutex_unlock(&udev->mutex);
+	return retval;
+}
+
+/*
+ * Fail all ouitstanding requests so handlers don't wait for the userspace
+ * to finish processing them.
+ */
+static void uinput_flush_requests(struct uinput_device *udev)
+{
+	struct uinput_request *request;
+	int i;
+
+	spin_lock(&udev->requests_lock);
+
+	for (i = 0; i < UINPUT_NUM_REQUESTS; i++) {
+		request = udev->requests[i];
+		if (request) {
+			request->retval = -ENODEV;
+			uinput_request_done(udev, request);
+		}
+	}
+
+	spin_unlock(&udev->requests_lock);
 }
 
 static void uinput_dev_set_gain(struct input_dev *dev, u16 gain)
@@ -126,6 +164,7 @@ static int uinput_dev_playback(struct input_dev *dev, int effect_id, int value)
 
 static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *effect, struct ff_effect *old)
 {
+	struct uinput_device *udev = input_get_drvdata(dev);
 	struct uinput_request request;
 	int retval;
 
@@ -146,15 +185,18 @@ static int uinput_dev_upload_effect(struct input_dev *dev, struct ff_effect *eff
 	request.u.upload.effect = effect;
 	request.u.upload.old = old;
 
-	retval = uinput_request_reserve_slot(input_get_drvdata(dev), &request);
-	if (!retval)
-		retval = uinput_request_submit(dev, &request);
+	retval = uinput_request_submit(udev, &request);
+	if (!retval) {
+		wait_for_completion(&request.done);
+		retval = request.retval;
+	}
 
 	return retval;
 }
 
 static int uinput_dev_erase_effect(struct input_dev *dev, int effect_id)
 {
+	struct uinput_device *udev = input_get_drvdata(dev);
 	struct uinput_request request;
 	int retval;
 
@@ -166,9 +208,11 @@ static int uinput_dev_erase_effect(struct input_dev *dev, int effect_id)
 	request.code = UI_FF_ERASE;
 	request.u.effect_id = effect_id;
 
-	retval = uinput_request_reserve_slot(input_get_drvdata(dev), &request);
-	if (!retval)
-		retval = uinput_request_submit(dev, &request);
+	retval = uinput_request_submit(udev, &request);
+	if (!retval) {
+		wait_for_completion(&request.done);
+		retval = request.retval;
+	}
 
 	return retval;
 }
@@ -176,20 +220,24 @@ static int uinput_dev_erase_effect(struct input_dev *dev, int effect_id)
 static void uinput_destroy_device(struct uinput_device *udev)
 {
 	const char *name, *phys;
+	struct input_dev *dev = udev->dev;
+	enum uinput_state old_state = udev->state;
 
-	if (udev->dev) {
-		name = udev->dev->name;
-		phys = udev->dev->phys;
-		if (udev->state == UIST_CREATED)
-			input_unregister_device(udev->dev);
-		else
-			input_free_device(udev->dev);
+	udev->state = UIST_NEW_DEVICE;
+
+	if (dev) {
+		name = dev->name;
+		phys = dev->phys;
+		if (old_state == UIST_CREATED) {
+			uinput_flush_requests(udev);
+			input_unregister_device(dev);
+		} else {
+			input_free_device(dev);
+		}
 		kfree(name);
 		kfree(phys);
 		udev->dev = NULL;
 	}
-
-	udev->state = UIST_NEW_DEVICE;
 }
 
 static int uinput_create_device(struct uinput_device *udev)
