@@ -880,6 +880,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 				zfcp_port_put(port);
 			return ZFCP_ERP_CONTINUES;
 		}
+		/* fall through */
 	case ZFCP_ERP_STEP_NAMESERVER_LOOKUP:
 		if (!port->d_id)
 			return ZFCP_ERP_FAILED;
