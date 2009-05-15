@@ -2942,7 +2942,7 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 
 	hwc = &counter->hw;
 	if (hw_event->freq && hw_event->irq_freq)
-		hwc->irq_period = TICK_NSEC / hw_event->irq_freq;
+		hwc->irq_period = div64_u64(TICK_NSEC, hw_event->irq_freq);
 	else
 		hwc->irq_period = hw_event->irq_period;
 
