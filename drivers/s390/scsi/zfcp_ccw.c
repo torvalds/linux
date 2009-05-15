@@ -176,8 +176,8 @@ static int zfcp_ccw_notify(struct ccw_device *ccw_device, int event)
 					"ccnoti4", NULL);
 		break;
 	case CIO_BOXED:
-		dev_warn(&adapter->ccw_device->dev,
-			 "The ccw device did not respond in time.\n");
+		dev_warn(&adapter->ccw_device->dev, "The FCP device "
+			 "did not respond within the specified time\n");
 		zfcp_erp_adapter_shutdown(adapter, 0, "ccnoti5", NULL);
 		break;
 	}
