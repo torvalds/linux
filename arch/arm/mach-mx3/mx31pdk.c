@@ -41,29 +41,27 @@
  * @ingroup System
  */
 
-static struct imxuart_platform_data uart_pdata = {
-	.flags = IMXUART_HAVE_RTSCTS,
-};
-
-static int uart_pins[] = {
+static int mx31pdk_pins[] = {
+	/* UART1 */
 	MX31_PIN_CTS1__CTS1,
 	MX31_PIN_RTS1__RTS1,
 	MX31_PIN_TXD1__TXD1,
 	MX31_PIN_RXD1__RXD1
 };
 
-static inline void mxc_init_imx_uart(void)
-{
-	mxc_iomux_setup_multiple_pins(uart_pins, ARRAY_SIZE(uart_pins), "uart-0");
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-}
+static struct imxuart_platform_data uart_pdata = {
+	.flags = IMXUART_HAVE_RTSCTS,
+};
 
 /*!
  * Board specific initialization.
  */
 static void __init mxc_board_init(void)
 {
-	mxc_init_imx_uart();
+	mxc_iomux_setup_multiple_pins(mx31pdk_pins, ARRAY_SIZE(mx31pdk_pins),
+				      "mx31pdk");
+
+	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 }
 
 static void __init mx31pdk_timer_init(void)
