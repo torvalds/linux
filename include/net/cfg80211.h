@@ -997,7 +997,7 @@ struct wiphy {
 	 * know whether it points to a wiphy your driver has registered
 	 * or not. Assign this to something global to your driver to
 	 * help determine whether you own this wiphy or not. */
-	void *privid;
+	const void *privid;
 
 	struct ieee80211_supported_band *bands[IEEE80211_NUM_BANDS];
 
