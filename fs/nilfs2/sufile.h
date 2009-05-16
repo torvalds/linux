@@ -46,6 +46,10 @@ int nilfs_sufile_get_ncleansegs(struct inode *, unsigned long *);
 ssize_t nilfs_sufile_get_suinfo(struct inode *, __u64, struct nilfs_suinfo *,
 				size_t);
 
+int nilfs_sufile_updatev(struct inode *, __u64 *, size_t, int, size_t *,
+			 void (*dofunc)(struct inode *, __u64,
+					struct buffer_head *,
+					struct buffer_head *));
 int nilfs_sufile_update(struct inode *, __u64, int,
 			void (*dofunc)(struct inode *, __u64,
 				       struct buffer_head *,
