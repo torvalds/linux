@@ -1,7 +1,7 @@
 /*
     NXP TDA10048HN DVB OFDM demodulator driver
 
-    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
+    Copyright (C) 2009 Steven Toth <stoth@kernellabs.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -139,8 +139,8 @@ struct tda10048_state {
 
 	struct i2c_adapter *i2c;
 
-	/* configuration settings */
-	const struct tda10048_config *config;
+	/* We'll cache and update the attach config settings */
+	struct tda10048_config config;
 	struct dvb_frontend frontend;
 
 	int fwloaded;
@@ -202,12 +202,24 @@ static struct init_tab {
 	{ TDA10048_CONF_C4_2, 0x04 },
 };
 
+static struct pll_tab {
+	u32	clk_freq_khz;
+	u32	if_freq_khz;
+	u8	m, n, p;
+} pll_tab[] = {
+	{ TDA10048_CLK_4000,  TDA10048_IF_36130, 10, 0, 0 },
+	{ TDA10048_CLK_16000, TDA10048_IF_4300,  10, 3, 0 },
+	{ TDA10048_CLK_16000, TDA10048_IF_4000,  10, 3, 0 },
+	{ TDA10048_CLK_16000, TDA10048_IF_36130, 10, 3, 0 },
+};
+
 static int tda10048_writereg(struct tda10048_state *state, u8 reg, u8 data)
 {
+	struct tda10048_config *config = &state->config;
 	int ret;
 	u8 buf[] = { reg, data };
 	struct i2c_msg msg = {
-		.addr = state->config->demod_address,
+		.addr = config->demod_address,
 		.flags = 0, .buf = buf, .len = 2 };
 
 	dprintk(2, "%s(reg = 0x%02x, data = 0x%02x)\n", __func__, reg, data);
@@ -222,13 +234,14 @@ static int tda10048_writereg(struct tda10048_state *state, u8 reg, u8 data)
 
 static u8 tda10048_readreg(struct tda10048_state *state, u8 reg)
 {
+	struct tda10048_config *config = &state->config;
 	int ret;
 	u8 b0[] = { reg };
 	u8 b1[] = { 0 };
 	struct i2c_msg msg[] = {
-		{ .addr = state->config->demod_address,
+		{ .addr = config->demod_address,
 			.flags = 0, .buf = b0, .len = 1 },
-		{ .addr = state->config->demod_address,
+		{ .addr = config->demod_address,
 			.flags = I2C_M_RD, .buf = b1, .len = 1 } };
 
 	dprintk(2, "%s(reg = 0x%02x)\n", __func__, reg);
@@ -245,6 +258,7 @@ static u8 tda10048_readreg(struct tda10048_state *state, u8 reg)
 static int tda10048_writeregbulk(struct tda10048_state *state, u8 reg,
 				 const u8 *data, u16 len)
 {
+	struct tda10048_config *config = &state->config;
 	int ret = -EREMOTEIO;
 	struct i2c_msg msg;
 	u8 *buf;
@@ -260,7 +274,7 @@ static int tda10048_writeregbulk(struct tda10048_state *state, u8 reg,
 	*buf = reg;
 	memcpy(buf + 1, data, len);
 
-	msg.addr = state->config->demod_address;
+	msg.addr = config->demod_address;
 	msg.flags = 0;
 	msg.buf = buf;
 	msg.len = len + 1;
@@ -411,47 +425,47 @@ static int tda10048_set_bandwidth(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int tda10048_set_pll(struct dvb_frontend *fe)
+static int tda10048_set_if(struct dvb_frontend *fe, enum fe_bandwidth bw)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
-	int ret = 0;
+	struct tda10048_config *config = &state->config;
+	int i;
+	u32 if_freq_khz;
 
-	dprintk(1, "%s()\n", __func__);
+	dprintk(1, "%s(bw = %d)\n", __func__, bw);
 
-	if ((state->config->clk_freq_khz == TDA10048_CLK_4000) &&
-		(state->config->if_freq_khz == TDA10048_IF_36130)) {
-		state->freq_if_hz = TDA10048_IF_36130 * 1000;
-		state->xtal_hz = TDA10048_CLK_4000 * 1000;
-		state->pll_mfactor = 10;
-		state->pll_nfactor = 0;
-		state->pll_pfactor = 0;
-	} else
-	if ((state->config->clk_freq_khz == TDA10048_CLK_16000) &&
-		(state->config->if_freq_khz == TDA10048_IF_4300)) {
-		state->freq_if_hz = TDA10048_IF_4300 * 1000;
-		state->xtal_hz = TDA10048_CLK_16000 * 1000;
-		state->pll_mfactor = 10;
-		state->pll_nfactor = 3;
-		state->pll_pfactor = 0;
-	} else
-	if ((state->config->clk_freq_khz == TDA10048_CLK_16000) &&
-		(state->config->if_freq_khz == TDA10048_IF_4000)) {
-		state->freq_if_hz = TDA10048_IF_4000 * 1000;
-		state->xtal_hz = TDA10048_CLK_16000 * 1000;
-		state->pll_mfactor = 10;
-		state->pll_nfactor = 3;
-		state->pll_pfactor = 0;
-	} else
-	if ((state->config->clk_freq_khz == TDA10048_CLK_16000) &&
-		(state->config->if_freq_khz == TDA10048_IF_36130)) {
-		state->freq_if_hz = TDA10048_IF_36130 * 1000;
-		state->xtal_hz = TDA10048_CLK_16000 * 1000;
-		state->pll_mfactor = 10;
-		state->pll_nfactor = 3;
-		state->pll_pfactor = 0;
-	} else {
-		printk(KERN_ERR "%s() Incorrect attach settings\n", __func__);
-		ret = -EINVAL;
+	/* based on target bandwidth and clk we calculate pll factors */
+	switch (bw) {
+	case BANDWIDTH_6_MHZ:
+		if_freq_khz = config->dtv6_if_freq_khz;
+		break;
+	case BANDWIDTH_7_MHZ:
+		if_freq_khz = config->dtv7_if_freq_khz;
+		break;
+	case BANDWIDTH_8_MHZ:
+		if_freq_khz = config->dtv8_if_freq_khz;
+		break;
+	default:
+		printk(KERN_ERR "%s() no default\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pll_tab); i++) {
+		if ((pll_tab[i].clk_freq_khz == config->clk_freq_khz) &&
+			(pll_tab[i].if_freq_khz == if_freq_khz)) {
+
+			state->freq_if_hz = pll_tab[i].if_freq_khz * 1000;
+			state->xtal_hz = pll_tab[i].clk_freq_khz * 1000;
+			state->pll_mfactor = pll_tab[i].m;
+			state->pll_nfactor = pll_tab[i].n;
+			state->pll_pfactor = pll_tab[i].p;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(pll_tab)) {
+		printk(KERN_ERR "%s() Incorrect attach settings\n",
+			__func__);
+		return -EINVAL;
 	}
 
 	dprintk(1, "- freq_if_hz = %d\n", state->freq_if_hz);
@@ -466,22 +480,21 @@ static int tda10048_set_pll(struct dvb_frontend *fe)
 	state->sample_freq /= (state->pll_pfactor + 4);
 	dprintk(1, "- sample_freq = %d\n", state->sample_freq);
 
-	tda10048_set_phy2(fe, state->sample_freq,
-		state->config->if_freq_khz * 1000);
-	tda10048_set_wref(fe, state->sample_freq, state->bandwidth);
-	tda10048_set_invwref(fe, state->sample_freq, state->bandwidth);
+	/* Update the I/F */
+	tda10048_set_phy2(fe, state->sample_freq, state->freq_if_hz);
 
-	return ret;
+	return 0;
 }
 
 static int tda10048_firmware_upload(struct dvb_frontend *fe)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
+	struct tda10048_config *config = &state->config;
 	const struct firmware *fw;
 	int ret;
 	int pos = 0;
 	int cnt;
-	u8 wlen = state->config->fwbulkwritelen;
+	u8 wlen = config->fwbulkwritelen;
 
 	if ((wlen != TDA10048_BULKWRITE_200) && (wlen != TDA10048_BULKWRITE_50))
 		wlen = TDA10048_BULKWRITE_200;
@@ -687,9 +700,10 @@ static int tda10048_get_tps(struct tda10048_state *state,
 static int tda10048_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
+	struct tda10048_config *config = &state->config;
 	dprintk(1, "%s(%d)\n", __func__, enable);
 
-	if (state->config->disable_gate_access)
+	if (config->disable_gate_access)
 		return 0;
 
 	if (enable)
@@ -729,8 +743,11 @@ static int tda10048_set_frontend(struct dvb_frontend *fe,
 
 	dprintk(1, "%s(frequency=%d)\n", __func__, p->frequency);
 
-	if (p->u.ofdm.bandwidth != state->bandwidth)
+	/* Update the I/F pll's if the bandwidth changes */
+	if (p->u.ofdm.bandwidth != state->bandwidth) {
+		tda10048_set_if(fe, p->u.ofdm.bandwidth);
 		tda10048_set_bandwidth(fe, p->u.ofdm.bandwidth);
+	}
 
 	if (fe->ops.tuner_ops.set_params) {
 
@@ -753,6 +770,7 @@ static int tda10048_set_frontend(struct dvb_frontend *fe,
 static int tda10048_init(struct dvb_frontend *fe)
 {
 	struct tda10048_state *state = fe->demodulator_priv;
+	struct tda10048_config *config = &state->config;
 	int ret = 0, i;
 
 	dprintk(1, "%s()\n", __func__);
@@ -765,15 +783,13 @@ static int tda10048_init(struct dvb_frontend *fe)
 		ret = tda10048_firmware_upload(fe);
 
 	/* Set either serial or parallel */
-	tda10048_output_mode(fe, state->config->output_mode);
+	tda10048_output_mode(fe, config->output_mode);
 
 	/* Set inversion */
-	tda10048_set_inversion(fe, state->config->inversion);
+	tda10048_set_inversion(fe, config->inversion);
 
-	/* Establish default PLL values */
-	tda10048_set_pll(fe);
-
-	/* Establish default bandwidth */
+	/* Establish default RF values */
+	tda10048_set_if(fe, BANDWIDTH_8_MHZ);
 	tda10048_set_bandwidth(fe, BANDWIDTH_8_MHZ);
 
 	/* Ensure we leave the gate closed */
@@ -1027,6 +1043,45 @@ static void tda10048_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
+static void tda10048_establish_defaults(struct dvb_frontend *fe)
+{
+	struct tda10048_state *state = fe->demodulator_priv;
+	struct tda10048_config *config = &state->config;
+
+	/* Validate/default the config */
+	if (config->dtv6_if_freq_khz == 0) {
+		config->dtv6_if_freq_khz = TDA10048_IF_4300;
+		printk(KERN_WARNING "%s() tda10048_config.dtv6_if_freq_khz "
+			"is not set (defaulting to %d)\n",
+			__func__,
+			config->dtv6_if_freq_khz);
+	}
+
+	if (config->dtv7_if_freq_khz == 0) {
+		config->dtv7_if_freq_khz = TDA10048_IF_4300;
+		printk(KERN_WARNING "%s() tda10048_config.dtv7_if_freq_khz "
+			"is not set (defaulting to %d)\n",
+			__func__,
+			config->dtv7_if_freq_khz);
+	}
+
+	if (config->dtv8_if_freq_khz == 0) {
+		config->dtv8_if_freq_khz = TDA10048_IF_4300;
+		printk(KERN_WARNING "%s() tda10048_config.dtv8_if_freq_khz "
+			"is not set (defaulting to %d)\n",
+			__func__,
+			config->dtv8_if_freq_khz);
+	}
+
+	if (config->clk_freq_khz == 0) {
+		config->clk_freq_khz = TDA10048_CLK_16000;
+		printk(KERN_WARNING "%s() tda10048_config.clk_freq_khz "
+			"is not set (defaulting to %d)\n",
+			__func__,
+			config->clk_freq_khz);
+	}
+}
+
 static struct dvb_frontend_ops tda10048_ops;
 
 struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
@@ -1041,8 +1096,8 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 	if (state == NULL)
 		goto error;
 
-	/* setup the state */
-	state->config = config;
+	/* setup the state and clone the config */
+	memcpy(&state->config, config, sizeof(*config));
 	state->i2c = i2c;
 	state->fwloaded = 0;
 	state->bandwidth = BANDWIDTH_8_MHZ;
@@ -1056,8 +1111,15 @@ struct dvb_frontend *tda10048_attach(const struct tda10048_config *config,
 		sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 
+	/* Establish any defaults the the user didn't pass */
+	tda10048_establish_defaults(&state->frontend);
+
 	/* Set the xtal and freq defaults */
-	if (tda10048_set_pll(&state->frontend) != 0)
+	if (tda10048_set_if(&state->frontend, BANDWIDTH_8_MHZ) != 0)
+		goto error;
+
+	/* Default bandwidth */
+	if (tda10048_set_bandwidth(&state->frontend, BANDWIDTH_8_MHZ) != 0)
 		goto error;
 
 	/* Leave the gate closed */

@@ -1,7 +1,7 @@
 /*
     NXP TDA10048HN DVB OFDM demodulator driver
 
-    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
+    Copyright (C) 2009 Steven Toth <stoth@kernellabs.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -52,7 +52,9 @@ struct tda10048_config {
 #define TDA10048_IF_4500  4500
 #define TDA10048_IF_4750  4750
 #define TDA10048_IF_36130 36130
-	u16 if_freq_khz;
+	u16 dtv6_if_freq_khz;
+	u16 dtv7_if_freq_khz;
+	u16 dtv8_if_freq_khz;
 
 #define TDA10048_CLK_4000  4000
 #define TDA10048_CLK_16000 16000
