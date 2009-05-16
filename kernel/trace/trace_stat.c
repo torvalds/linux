@@ -1,7 +1,7 @@
 /*
  * Infrastructure for statistic tracing (histogram output).
  *
- * Copyright (C) 2008 Frederic Weisbecker <fweisbec@gmail.com>
+ * Copyright (C) 2008-2009 Frederic Weisbecker <fweisbec@gmail.com>
  *
  * Based on the code from trace_branch.c which is
  * Copyright (C) 2008 Steven Rostedt <srostedt@redhat.com>
@@ -10,14 +10,19 @@
 
 
 #include <linux/list.h>
+#include <linux/rbtree.h>
 #include <linux/debugfs.h>
 #include "trace_stat.h"
 #include "trace.h"
 
 
-/* List of stat entries from a tracer */
-struct trace_stat_list {
-	struct list_head	list;
+/*
+ * List of stat red-black nodes from a tracer
+ * We use a such tree to sort quickly the stat
+ * entries from the tracer.
+ */
+struct stat_node {
+	struct rb_node		node;
 	void			*stat;
 };
 
@@ -25,7 +30,7 @@ struct trace_stat_list {
 struct stat_session {
 	struct list_head	session_list;
 	struct tracer_stat	*ts;
-	struct list_head	stat_list;
+	struct rb_root		stat_root;
 	struct mutex		stat_mutex;
 	struct dentry		*file;
 };
@@ -37,15 +42,45 @@ static DEFINE_MUTEX(all_stat_sessions_mutex);
 /* The root directory for all stat files */
 static struct dentry		*stat_dir;
 
+/*
+ * Iterate through the rbtree using a post order traversal path
+ * to release the next node.
+ * It won't necessary release one at each iteration
+ * but it will at least advance closer to the next one
+ * to be released.
+ */
+static struct rb_node *release_next(struct rb_node *node)
+{
+	struct stat_node *snode;
+	struct rb_node *parent = rb_parent(node);
+
+	if (node->rb_left)
+		return node->rb_left;
+	else if (node->rb_right)
+		return node->rb_right;
+	else {
+		if (!parent)
+			return NULL;
+		if (parent->rb_left == node)
+			parent->rb_left = NULL;
+		else
+			parent->rb_right = NULL;
+
+		snode = container_of(node, struct stat_node, node);
+		kfree(snode);
+
+		return parent;
+	}
+}
 
 static void reset_stat_session(struct stat_session *session)
 {
-	struct trace_stat_list *node, *next;
+	struct rb_node *node = session->stat_root.rb_node;
 
-	list_for_each_entry_safe(node, next, &session->stat_list, list)
-		kfree(node);
+	while (node)
+		node = release_next(node);
 
-	INIT_LIST_HEAD(&session->stat_list);
+	session->stat_root = RB_ROOT;
 }
 
 static void destroy_session(struct stat_session *session)
@@ -54,6 +89,35 @@ static void destroy_session(struct stat_session *session)
 	reset_stat_session(session);
 	mutex_destroy(&session->stat_mutex);
 	kfree(session);
+}
+
+typedef int (*cmp_stat_t)(void *, void *);
+
+static void
+insert_stat(struct rb_root *root, struct stat_node *data, cmp_stat_t cmp)
+{
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+
+	/*
+	 * Figure out where to put new node
+	 * This is a descendent sorting
+	 */
+	while (*new) {
+		struct stat_node *this;
+		int result;
+
+		this = container_of(*new, struct stat_node, node);
+		result = cmp(data->stat, this->stat);
+
+		parent = *new;
+		if (result >= 0)
+			new = &((*new)->rb_left);
+		else
+			new = &((*new)->rb_right);
+	}
+
+	rb_link_node(&data->node, parent, new);
+	rb_insert_color(&data->node, root);
 }
 
 /*
@@ -73,8 +137,9 @@ static int dummy_cmp(void *p1, void *p2)
  */
 static int stat_seq_init(struct stat_session *session)
 {
-	struct trace_stat_list *iter_entry, *new_entry;
 	struct tracer_stat *ts = session->ts;
+	struct stat_node *new_entry;
+	struct rb_root *root;
 	void *stat;
 	int ret = 0;
 	int i;
@@ -93,15 +158,13 @@ static int stat_seq_init(struct stat_session *session)
 	 * The first entry. Actually this is the second, but the first
 	 * one (the stat_list head) is pointless.
 	 */
-	new_entry = kmalloc(sizeof(struct trace_stat_list), GFP_KERNEL);
+	new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
 	if (!new_entry) {
 		ret = -ENOMEM;
 		goto exit;
 	}
-
-	INIT_LIST_HEAD(&new_entry->list);
-
-	list_add(&new_entry->list, &session->stat_list);
+	root = &session->stat_root;
+	insert_stat(root, new_entry, dummy_cmp);
 
 	new_entry->stat = stat;
 
@@ -116,31 +179,17 @@ static int stat_seq_init(struct stat_session *session)
 		if (!stat)
 			break;
 
-		new_entry = kmalloc(sizeof(struct trace_stat_list), GFP_KERNEL);
+		new_entry = kzalloc(sizeof(*new_entry), GFP_KERNEL);
 		if (!new_entry) {
 			ret = -ENOMEM;
 			goto exit_free_list;
 		}
 
-		INIT_LIST_HEAD(&new_entry->list);
 		new_entry->stat = stat;
 
-		list_for_each_entry_reverse(iter_entry, &session->stat_list,
-				list) {
-
-			/* Insertion with a descendent sorting */
-			if (ts->stat_cmp(iter_entry->stat,
-					new_entry->stat) >= 0) {
-
-				list_add(&new_entry->list, &iter_entry->list);
-				break;
-			}
-		}
-
-		/* The current larger value */
-		if (list_empty(&new_entry->list))
-			list_add(&new_entry->list, &session->stat_list);
+		insert_stat(root, new_entry, ts->stat_cmp);
 	}
+
 exit:
 	mutex_unlock(&session->stat_mutex);
 	return ret;
@@ -155,25 +204,38 @@ exit_free_list:
 static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 {
 	struct stat_session *session = s->private;
+	struct rb_node *node;
+	int i;
 
 	/* Prevent from tracer switch or stat_list modification */
 	mutex_lock(&session->stat_mutex);
 
 	/* If we are in the beginning of the file, print the headers */
-	if (!*pos && session->ts->stat_headers)
+	if (!*pos && session->ts->stat_headers) {
+		(*pos)++;
 		return SEQ_START_TOKEN;
+	}
 
-	return seq_list_start(&session->stat_list, *pos);
+	node = rb_first(&session->stat_root);
+	for (i = 0; node && i < *pos; i++)
+		node = rb_next(node);
+
+	(*pos)++;
+
+	return node;
 }
 
 static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 {
 	struct stat_session *session = s->private;
+	struct rb_node *node = p;
+
+	(*pos)++;
 
 	if (p == SEQ_START_TOKEN)
-		return seq_list_start(&session->stat_list, *pos);
+		return rb_first(&session->stat_root);
 
-	return seq_list_next(p, &session->stat_list, pos);
+	return rb_next(node);
 }
 
 static void stat_seq_stop(struct seq_file *s, void *p)
@@ -185,7 +247,7 @@ static void stat_seq_stop(struct seq_file *s, void *p)
 static int stat_seq_show(struct seq_file *s, void *v)
 {
 	struct stat_session *session = s->private;
-	struct trace_stat_list *l = list_entry(v, struct trace_stat_list, list);
+	struct stat_node *l = container_of(v, struct stat_node, node);
 
 	if (v == SEQ_START_TOKEN)
 		return session->ts->stat_headers(s);
@@ -286,15 +348,13 @@ int register_stat_tracer(struct tracer_stat *trace)
 	mutex_unlock(&all_stat_sessions_mutex);
 
 	/* Init the session */
-	session = kmalloc(sizeof(struct stat_session), GFP_KERNEL);
+	session = kzalloc(sizeof(*session), GFP_KERNEL);
 	if (!session)
 		return -ENOMEM;
 
 	session->ts = trace;
 	INIT_LIST_HEAD(&session->session_list);
-	INIT_LIST_HEAD(&session->stat_list);
 	mutex_init(&session->stat_mutex);
-	session->file = NULL;
 
 	ret = init_stat_file(session);
 	if (ret) {
