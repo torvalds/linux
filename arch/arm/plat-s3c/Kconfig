@@ -186,4 +186,9 @@ config S3C_DEV_USB_HOST
 	help
 	  Compile in platform device definition for USB host.
 
+config S3C_DEV_USB_HSOTG
+	bool
+	help
+	  Compile in platform device definition for USB high-speed OtG
+
 endif
