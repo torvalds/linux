@@ -537,40 +537,6 @@ static inline void insert_journal_hash(struct reiserfs_journal_cnode **table,
 	journal_hash(table, cn->sb, cn->blocknr) = cn;
 }
 
-/*
- * Several mutexes depend on the write lock.
- * However sometimes we want to relax the write lock while we hold
- * these mutexes, according to the release/reacquire on schedule()
- * properties of the Bkl that were used.
- * Reiserfs performances and locking were based on this scheme.
- * Now that the write lock is a mutex and not the bkl anymore, doing so
- * may result in a deadlock:
- *
- * A acquire write_lock
- * A acquire j_commit_mutex
- * A release write_lock and wait for something
- * B acquire write_lock
- * B can't acquire j_commit_mutex and sleep
- * A can't acquire write lock anymore
- * deadlock
- *
- * What we do here is avoiding such deadlock by playing the same game
- * than the Bkl: if we can't acquire a mutex that depends on the write lock,
- * we release the write lock, wait a bit and then retry.
- *
- * The mutexes concerned by this hack are:
- * - The commit mutex of a journal list
- * - The flush mutex
- * - The journal lock
- */
-static inline void reiserfs_mutex_lock_safe(struct mutex *m,
-			       struct super_block *s)
-{
-	reiserfs_write_unlock(s);
-	mutex_lock(m);
-	reiserfs_write_lock(s);
-}
-
 /* lock the current transaction */
 static inline void lock_journal(struct super_block *sb)
 {
