@@ -22,7 +22,7 @@ struct trace_stat_list {
 };
 
 /* A stat session is the stats output in one file */
-struct tracer_stat_session {
+struct stat_session {
 	struct list_head	session_list;
 	struct tracer_stat	*ts;
 	struct list_head	stat_list;
@@ -38,7 +38,7 @@ static DEFINE_MUTEX(all_stat_sessions_mutex);
 static struct dentry		*stat_dir;
 
 
-static void reset_stat_session(struct tracer_stat_session *session)
+static void reset_stat_session(struct stat_session *session)
 {
 	struct trace_stat_list *node, *next;
 
@@ -48,7 +48,7 @@ static void reset_stat_session(struct tracer_stat_session *session)
 	INIT_LIST_HEAD(&session->stat_list);
 }
 
-static void destroy_session(struct tracer_stat_session *session)
+static void destroy_session(struct stat_session *session)
 {
 	debugfs_remove(session->file);
 	reset_stat_session(session);
@@ -71,7 +71,7 @@ static int dummy_cmp(void *p1, void *p2)
  * All of these copies and sorting are required on all opening
  * since the stats could have changed between two file sessions.
  */
-static int stat_seq_init(struct tracer_stat_session *session)
+static int stat_seq_init(struct stat_session *session)
 {
 	struct trace_stat_list *iter_entry, *new_entry;
 	struct tracer_stat *ts = session->ts;
@@ -154,7 +154,7 @@ exit_free_list:
 
 static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 {
-	struct tracer_stat_session *session = s->private;
+	struct stat_session *session = s->private;
 
 	/* Prevent from tracer switch or stat_list modification */
 	mutex_lock(&session->stat_mutex);
@@ -168,7 +168,7 @@ static void *stat_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 {
-	struct tracer_stat_session *session = s->private;
+	struct stat_session *session = s->private;
 
 	if (p == SEQ_START_TOKEN)
 		return seq_list_start(&session->stat_list, *pos);
@@ -178,13 +178,13 @@ static void *stat_seq_next(struct seq_file *s, void *p, loff_t *pos)
 
 static void stat_seq_stop(struct seq_file *s, void *p)
 {
-	struct tracer_stat_session *session = s->private;
+	struct stat_session *session = s->private;
 	mutex_unlock(&session->stat_mutex);
 }
 
 static int stat_seq_show(struct seq_file *s, void *v)
 {
-	struct tracer_stat_session *session = s->private;
+	struct stat_session *session = s->private;
 	struct trace_stat_list *l = list_entry(v, struct trace_stat_list, list);
 
 	if (v == SEQ_START_TOKEN)
@@ -205,7 +205,7 @@ static int tracing_stat_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
-	struct tracer_stat_session *session = inode->i_private;
+	struct stat_session *session = inode->i_private;
 
 	ret = seq_open(file, &trace_stat_seq_ops);
 	if (!ret) {
@@ -222,7 +222,7 @@ static int tracing_stat_open(struct inode *inode, struct file *file)
  */
 static int tracing_stat_release(struct inode *i, struct file *f)
 {
-	struct tracer_stat_session *session = i->i_private;
+	struct stat_session *session = i->i_private;
 
 	mutex_lock(&session->stat_mutex);
 	reset_stat_session(session);
@@ -251,7 +251,7 @@ static int tracing_stat_init(void)
 	return 0;
 }
 
-static int init_stat_file(struct tracer_stat_session *session)
+static int init_stat_file(struct stat_session *session)
 {
 	if (!stat_dir && tracing_stat_init())
 		return -ENODEV;
@@ -266,7 +266,7 @@ static int init_stat_file(struct tracer_stat_session *session)
 
 int register_stat_tracer(struct tracer_stat *trace)
 {
-	struct tracer_stat_session *session, *node, *tmp;
+	struct stat_session *session, *node, *tmp;
 	int ret;
 
 	if (!trace)
@@ -286,7 +286,7 @@ int register_stat_tracer(struct tracer_stat *trace)
 	mutex_unlock(&all_stat_sessions_mutex);
 
 	/* Init the session */
-	session = kmalloc(sizeof(struct tracer_stat_session), GFP_KERNEL);
+	session = kmalloc(sizeof(struct stat_session), GFP_KERNEL);
 	if (!session)
 		return -ENOMEM;
 
@@ -312,7 +312,7 @@ int register_stat_tracer(struct tracer_stat *trace)
 
 void unregister_stat_tracer(struct tracer_stat *trace)
 {
-	struct tracer_stat_session *node, *tmp;
+	struct stat_session *node, *tmp;
 
 	mutex_lock(&all_stat_sessions_mutex);
 	list_for_each_entry_safe(node, tmp, &all_stat_sessions, session_list) {
