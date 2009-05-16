@@ -229,7 +229,7 @@ int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 
 /* exported functions */
 
-struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
+struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 {
 	static int wiphy_counter;
 

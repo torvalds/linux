@@ -1073,7 +1073,7 @@ static inline const char *wiphy_name(struct wiphy *wiphy)
  * The returned pointer must be assigned to each netdev's
  * ieee80211_ptr for proper operation.
  */
-struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv);
+struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv);
 
 /**
  * wiphy_register - register a wiphy with cfg80211

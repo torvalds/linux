@@ -16,7 +16,7 @@
 #include "reg.h"
 
 struct cfg80211_registered_device {
-	struct cfg80211_ops *ops;
+	const struct cfg80211_ops *ops;
 	struct list_head list;
 	/* we hold this mutex during any call so that
 	 * we cannot do multiple calls at once, and also
