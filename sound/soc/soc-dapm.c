@@ -67,10 +67,6 @@ static int dapm_down_seq[] = {
 	snd_soc_dapm_post
 };
 
-static int dapm_status = 1;
-module_param(dapm_status, int, 0);
-MODULE_PARM_DESC(dapm_status, "enable DPM sysfs entries");
-
 static void pop_wait(u32 pop_time)
 {
 	if (pop_time)
@@ -974,16 +970,12 @@ static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
 int snd_soc_dapm_sys_add(struct device *dev)
 {
-	if (!dapm_status)
-		return 0;
 	return device_create_file(dev, &dev_attr_dapm_widget);
 }
 
 static void snd_soc_dapm_sys_remove(struct device *dev)
 {
-	if (dapm_status) {
-		device_remove_file(dev, &dev_attr_dapm_widget);
-	}
+	device_remove_file(dev, &dev_attr_dapm_widget);
 }
 
 /* free all dapm widgets and resources */
