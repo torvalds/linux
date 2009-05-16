@@ -135,7 +135,9 @@ static struct tda10048_config hauppauge_hvr1210_config = {
 	.output_mode      = TDA10048_SERIAL_OUTPUT,
 	.fwbulkwritelen   = TDA10048_BULKWRITE_200,
 	.inversion        = TDA10048_INVERSION_ON,
-	.if_freq_khz      = TDA10048_IF_4000,
+	.dtv6_if_freq_khz = TDA10048_IF_3300,
+	.dtv7_if_freq_khz = TDA10048_IF_3500,
+	.dtv8_if_freq_khz = TDA10048_IF_4000,
 	.clk_freq_khz     = TDA10048_CLK_16000,
 };
 
