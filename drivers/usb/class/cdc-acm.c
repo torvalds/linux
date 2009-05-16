@@ -937,9 +937,9 @@ static int acm_probe(struct usb_interface *intf,
 	int buflen = intf->altsetting->extralen;
 	struct usb_interface *control_interface;
 	struct usb_interface *data_interface;
-	struct usb_endpoint_descriptor *epctrl;
-	struct usb_endpoint_descriptor *epread;
-	struct usb_endpoint_descriptor *epwrite;
+	struct usb_endpoint_descriptor *epctrl = NULL;
+	struct usb_endpoint_descriptor *epread = NULL;
+	struct usb_endpoint_descriptor *epwrite = NULL;
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 	struct acm *acm;
 	int minor;
@@ -952,6 +952,7 @@ static int acm_probe(struct usb_interface *intf,
 	unsigned long quirks;
 	int num_rx_buf;
 	int i;
+	int combined_interfaces = 0;
 
 	/* normal quirks */
 	quirks = (unsigned long)id->driver_info;
@@ -1033,9 +1034,15 @@ next_desc:
 			data_interface = usb_ifnum_to_if(usb_dev, (data_interface_num = call_interface_num));
 			control_interface = intf;
 		} else {
-			dev_dbg(&intf->dev,
-					"No union descriptor, giving up\n");
-			return -ENODEV;
+			if (intf->cur_altsetting->desc.bNumEndpoints != 3) {
+				dev_dbg(&intf->dev,"No union descriptor, giving up\n");
+				return -ENODEV;
+			} else {
+				dev_warn(&intf->dev,"No union descriptor, testing for castrated device\n");
+				combined_interfaces = 1;
+				control_interface = data_interface = intf;
+				goto look_for_collapsed_interface;
+			}
 		}
 	} else {
 		control_interface = usb_ifnum_to_if(usb_dev, union_header->bMasterInterface0);
@@ -1048,6 +1055,36 @@ next_desc:
 
 	if (data_interface_num != call_interface_num)
 		dev_dbg(&intf->dev, "Separate call control interface. That is not fully supported.\n");
+
+	if (control_interface == data_interface) {
+		/* some broken devices designed for windows work this way */
+		dev_warn(&intf->dev,"Control and data interfaces are not separated!\n");
+		combined_interfaces = 1;
+		/* a popular other OS doesn't use it */
+		quirks |= NO_CAP_LINE;
+		if (data_interface->cur_altsetting->desc.bNumEndpoints != 3) {
+			dev_err(&intf->dev, "This needs exactly 3 endpoints\n");
+			return -EINVAL;
+		}
+look_for_collapsed_interface:
+		for (i = 0; i < 3; i++) {
+			struct usb_endpoint_descriptor *ep;
+			ep = &data_interface->cur_altsetting->endpoint[i].desc;
+
+			if (usb_endpoint_is_int_in(ep))
+				epctrl = ep;
+			else if (usb_endpoint_is_bulk_out(ep))
+				epwrite = ep;
+			else if (usb_endpoint_is_bulk_in(ep))
+				epread = ep;
+			else
+				return -EINVAL;
+		}
+		if (!epctrl || !epread || !epwrite)
+			return -ENODEV;
+		else
+			goto made_compressed_probe;
+	}
 
 skip_normal_probe:
 
@@ -1068,10 +1105,11 @@ skip_normal_probe:
 	}
 
 	/* Accept probe requests only for the control interface */
-	if (intf != control_interface)
+	if (!combined_interfaces && intf != control_interface)
 		return -ENODEV;
 
-	if (usb_interface_claimed(data_interface)) { /* valid in this context */
+	if (!combined_interfaces && usb_interface_claimed(data_interface)) {
+		/* valid in this context */
 		dev_dbg(&intf->dev, "The data interface isn't available\n");
 		return -EBUSY;
 	}
@@ -1095,6 +1133,7 @@ skip_normal_probe:
 		epread = epwrite;
 		epwrite = t;
 	}
+made_compressed_probe:
 	dbg("interfaces are valid");
 	for (minor = 0; minor < ACM_TTY_MINORS && acm_table[minor]; minor++);
 
@@ -1112,12 +1151,15 @@ skip_normal_probe:
 	ctrlsize = le16_to_cpu(epctrl->wMaxPacketSize);
 	readsize = le16_to_cpu(epread->wMaxPacketSize) *
 				(quirks == SINGLE_RX_URB ? 1 : 2);
+	acm->combined_interfaces = combined_interfaces;
 	acm->writesize = le16_to_cpu(epwrite->wMaxPacketSize) * 20;
 	acm->control = control_interface;
 	acm->data = data_interface;
 	acm->minor = minor;
 	acm->dev = usb_dev;
 	acm->ctrl_caps = ac_management_function;
+	if (quirks & NO_CAP_LINE)
+		acm->ctrl_caps &= ~USB_CDC_CAP_LINE;
 	acm->ctrlsize = ctrlsize;
 	acm->readsize = readsize;
 	acm->rx_buflimit = num_rx_buf;
@@ -1223,9 +1265,10 @@ skip_normal_probe:
 
 skip_countries:
 	usb_fill_int_urb(acm->ctrlurb, usb_dev,
-			usb_rcvintpipe(usb_dev, epctrl->bEndpointAddress),
-			acm->ctrl_buffer, ctrlsize, acm_ctrl_irq, acm,
-			epctrl->bInterval);
+			 usb_rcvintpipe(usb_dev, epctrl->bEndpointAddress),
+			 acm->ctrl_buffer, ctrlsize, acm_ctrl_irq, acm,
+			 /* works around buggy devices */
+			 epctrl->bInterval ? epctrl->bInterval : 0xff);
 	acm->ctrlurb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	acm->ctrlurb->transfer_dma = acm->ctrl_dma;
 
@@ -1312,7 +1355,8 @@ static void acm_disconnect(struct usb_interface *intf)
 								acm->ctrl_dma);
 	acm_read_buffers_free(acm);
 
-	usb_driver_release_interface(&acm_driver, intf == acm->control ?
+	if (!acm->combined_interfaces)
+		usb_driver_release_interface(&acm_driver, intf == acm->control ?
 					acm->data : acm->control);
 
 	if (acm->port.count == 0) {
