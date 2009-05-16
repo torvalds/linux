@@ -26,7 +26,6 @@
 #include <linux/crc32.h>
 #include "page.h"
 #include "segbuf.h"
-#include "seglist.h"
 
 
 static struct kmem_cache *nilfs_segbuf_cachep;

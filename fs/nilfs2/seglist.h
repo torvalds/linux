@@ -32,11 +32,6 @@
 struct nilfs_segment_entry {
 	__u64			segnum;
 
-#define NILFS_SLH_FREED		0x0001	/* The segment was freed provisonally.
-					   It must be cancelled if
-					   construction aborted */
-
-	unsigned		flags;
 	struct list_head	list;
 	struct buffer_head     *bh_su;
 	struct nilfs_segment_usage *raw_su;
@@ -52,7 +47,6 @@ nilfs_alloc_segment_entry(__u64 segnum)
 
 	if (likely(ent)) {
 		ent->segnum = segnum;
-		ent->flags = 0;
 		ent->bh_su = NULL;
 		ent->raw_su = NULL;
 		INIT_LIST_HEAD(&ent->list);

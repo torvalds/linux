@@ -435,24 +435,6 @@ static int nilfs_ioctl_mark_blocks_dirty(struct the_nilfs *nilfs,
 	return nmembs;
 }
 
-static int nilfs_ioctl_free_segments(struct the_nilfs *nilfs,
-				     struct nilfs_argv *argv, void *buf)
-{
-	size_t nmembs = argv->v_nmembs;
-	struct nilfs_sb_info *sbi = nilfs->ns_writer;
-	int ret;
-
-	if (unlikely(!sbi)) {
-		/* never happens because called for a writable mount */
-		WARN_ON(1);
-		return -EROFS;
-	}
-	ret = nilfs_segctor_add_segments_to_be_freed(
-		NILFS_SC(sbi), buf, nmembs);
-
-	return (ret < 0) ? ret : nmembs;
-}
-
 int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 				       struct nilfs_argv *argv, void **kbufs)
 {
@@ -489,14 +471,6 @@ int nilfs_ioctl_prepare_clean_segments(struct the_nilfs *nilfs,
 		 * can safely abort because the operation is nondestructive.
 		 */
 		msg = "cannot mark copying blocks dirty";
-		goto failed;
-	}
-	ret = nilfs_ioctl_free_segments(nilfs, &argv[4], kbufs[4]);
-	if (ret < 0) {
-		/*
-		 * can safely abort because this operation is atomic.
-		 */
-		msg = "cannot set segments to be freed";
 		goto failed;
 	}
 	return 0;
