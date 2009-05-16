@@ -861,6 +861,7 @@ config SMP
 	depends on EXPERIMENTAL && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP)
 	depends on GENERIC_CLOCKEVENTS
 	select USE_GENERIC_SMP_HELPERS
+	select HAVE_ARM_SCU if ARCH_REALVIEW
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -877,6 +878,12 @@ config SMP
 	  <http://www.linuxdoc.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config HAVE_ARM_SCU
+	bool
+	depends on SMP
+	help
+	  This option enables support for the ARM system coherency unit
 
 choice
 	prompt "Memory split"

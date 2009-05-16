@@ -45,31 +45,12 @@ static void __iomem *scu_base_addr(void)
 		return (void __iomem *)0;
 }
 
-static unsigned int __init get_core_count(void)
+static inline unsigned int get_core_count(void)
 {
-	unsigned int ncores;
 	void __iomem *scu_base = scu_base_addr();
-
-	if (scu_base) {
-		ncores = __raw_readl(scu_base + SCU_CONFIG);
-		ncores = (ncores & 0x03) + 1;
-	} else
-		ncores = 1;
-
-	return ncores;
-}
-
-/*
- * Setup the SCU
- */
-static void scu_enable(void)
-{
-	u32 scu_ctrl;
-	void __iomem *scu_base = scu_base_addr();
-
-	scu_ctrl = __raw_readl(scu_base + SCU_CTRL);
-	scu_ctrl |= 1;
-	__raw_writel(scu_ctrl, scu_base + SCU_CTRL);
+	if (scu_base)
+		return scu_get_core_count(scu_base);
+	return 1;
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -239,7 +220,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		 */
 		percpu_timer_setup();
 
-		scu_enable();
+		scu_enable(scu_base_addr());
 		poke_milo();
 	}
 }
