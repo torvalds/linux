@@ -748,7 +748,8 @@ struct hda_codec {
 	/* detected preset */
 	const struct hda_codec_preset *preset;
 	struct module *owner;
-	const char *name;	/* codec name */
+	const char *vendor_name;	/* codec vendor name */
+	const char *chip_name;		/* codec chip name */
 	const char *modelname;	/* model name for preset */
 
 	/* set by patch */

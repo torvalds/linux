@@ -466,8 +466,12 @@ static void print_codec_info(struct snd_info_entry *entry,
 	hda_nid_t nid;
 	int i, nodes;
 
-	snd_iprintf(buffer, "Codec: %s\n",
-		    codec->name ? codec->name : "Not Set");
+	snd_iprintf(buffer, "Codec: ");
+	if (codec->vendor_name && codec->chip_name)
+		snd_iprintf(buffer, "%s %s\n",
+			    codec->vendor_name, codec->chip_name);
+	else
+		snd_iprintf(buffer, "Not Set\n");
 	snd_iprintf(buffer, "Address: %d\n", codec->addr);
 	snd_iprintf(buffer, "Function Id: 0x%x\n", codec->function_id);
 	snd_iprintf(buffer, "Vendor Id: 0x%08x\n", codec->vendor_id);

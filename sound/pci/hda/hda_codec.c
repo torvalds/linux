@@ -623,7 +623,10 @@ static int get_codec_name(struct hda_codec *codec)
 	const struct hda_vendor_id *c;
 	const char *vendor = NULL;
 	u16 vendor_id = codec->vendor_id >> 16;
-	char tmp[16], name[32];
+	char tmp[16];
+
+	if (codec->vendor_name)
+		goto get_chip_name;
 
 	for (c = hda_vendor_ids; c->id; c++) {
 		if (c->id == vendor_id) {
@@ -635,14 +638,21 @@ static int get_codec_name(struct hda_codec *codec)
 		sprintf(tmp, "Generic %04x", vendor_id);
 		vendor = tmp;
 	}
+	codec->vendor_name = kstrdup(vendor, GFP_KERNEL);
+	if (!codec->vendor_name)
+		return -ENOMEM;
+
+ get_chip_name:
+	if (codec->chip_name)
+		return 0;
+
 	if (codec->preset && codec->preset->name)
-		snprintf(name, sizeof(name), "%s %s", vendor,
-			 codec->preset->name);
-	else
-		snprintf(name, sizeof(name), "%s ID %x", vendor,
-			 codec->vendor_id & 0xffff);
-	codec->name = kstrdup(name, GFP_KERNEL);
-	if (!codec->name)
+		codec->chip_name = kstrdup(codec->preset->name, GFP_KERNEL);
+	else {
+		sprintf(tmp, "ID %x", codec->vendor_id & 0xffff);
+		codec->chip_name = kstrdup(tmp, GFP_KERNEL);
+	}
+	if (!codec->chip_name)
 		return -ENOMEM;
 	return 0;
 }
@@ -848,7 +858,8 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	module_put(codec->owner);
 	free_hda_cache(&codec->amp_cache);
 	free_hda_cache(&codec->cmd_cache);
-	kfree(codec->name);
+	kfree(codec->vendor_name);
+	kfree(codec->chip_name);
 	kfree(codec->modelname);
 	kfree(codec->wcaps);
 	kfree(codec);
@@ -989,15 +1000,16 @@ int snd_hda_codec_configure(struct hda_codec *codec)
 	int err;
 
 	codec->preset = find_codec_preset(codec);
-	if (!codec->name) {
+	if (!codec->vendor_name || !codec->chip_name) {
 		err = get_codec_name(codec);
 		if (err < 0)
 			return err;
 	}
 	/* audio codec should override the mixer name */
 	if (codec->afg || !*codec->bus->card->mixername)
-		strlcpy(codec->bus->card->mixername, codec->name,
-			sizeof(codec->bus->card->mixername));
+		snprintf(codec->bus->card->mixername,
+			 sizeof(codec->bus->card->mixername),
+			 "%s %s", codec->vendor_name, codec->chip_name);
 
 	if (is_generic_config(codec)) {
 		err = snd_hda_parse_generic_codec(codec);

@@ -242,7 +242,8 @@ CODEC_INFO_SHOW(subsystem_id);
 CODEC_INFO_SHOW(revision_id);
 CODEC_INFO_SHOW(afg);
 CODEC_INFO_SHOW(mfg);
-CODEC_INFO_STR_SHOW(name);
+CODEC_INFO_STR_SHOW(vendor_name);
+CODEC_INFO_STR_SHOW(chip_name);
 CODEC_INFO_STR_SHOW(modelname);
 
 #define CODEC_INFO_STORE(type)					\
@@ -275,7 +276,8 @@ static ssize_t type##_store(struct device *dev,			\
 CODEC_INFO_STORE(vendor_id);
 CODEC_INFO_STORE(subsystem_id);
 CODEC_INFO_STORE(revision_id);
-CODEC_INFO_STR_STORE(name);
+CODEC_INFO_STR_STORE(vendor_name);
+CODEC_INFO_STR_STORE(chip_name);
 CODEC_INFO_STR_STORE(modelname);
 
 #define CODEC_ACTION_STORE(type)				\
@@ -499,7 +501,8 @@ static struct device_attribute codec_attrs[] = {
 	CODEC_ATTR_RW(revision_id),
 	CODEC_ATTR_RO(afg),
 	CODEC_ATTR_RO(mfg),
-	CODEC_ATTR_RW(name),
+	CODEC_ATTR_RW(vendor_name),
+	CODEC_ATTR_RW(chip_name),
 	CODEC_ATTR_RW(modelname),
 	CODEC_ATTR_RW(init_verbs),
 	CODEC_ATTR_RW(hints),

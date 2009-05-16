@@ -277,13 +277,13 @@ struct alc_spec {
 						 */
 	unsigned int num_init_verbs;
 
-	char *stream_name_analog;	/* analog PCM stream */
+	char stream_name_analog[16];	/* analog PCM stream */
 	struct hda_pcm_stream *stream_analog_playback;
 	struct hda_pcm_stream *stream_analog_capture;
 	struct hda_pcm_stream *stream_analog_alt_playback;
 	struct hda_pcm_stream *stream_analog_alt_capture;
 
-	char *stream_name_digital;	/* digital PCM stream */
+	char stream_name_digital[16];	/* digital PCM stream */
 	struct hda_pcm_stream *stream_digital_playback;
 	struct hda_pcm_stream *stream_digital_capture;
 
@@ -3169,7 +3169,10 @@ static int alc_build_pcms(struct hda_codec *codec)
 	if (spec->no_analog)
 		goto skip_analog;
 
+	snprintf(spec->stream_name_analog, sizeof(spec->stream_name_analog),
+		 "%s Analog", codec->chip_name);
 	info->name = spec->stream_name_analog;
+	
 	if (spec->stream_analog_playback) {
 		if (snd_BUG_ON(!spec->multiout.dac_nids))
 			return -EINVAL;
@@ -3195,6 +3198,9 @@ static int alc_build_pcms(struct hda_codec *codec)
  skip_analog:
 	/* SPDIF for stream index #1 */
 	if (spec->multiout.dig_out_nid || spec->dig_in_nid) {
+		snprintf(spec->stream_name_digital,
+			 sizeof(spec->stream_name_digital),
+			 "%s Digital", codec->chip_name);
 		codec->num_pcms = 2;
 	        codec->slave_dig_outs = spec->multiout.slave_dig_outs;
 		info = spec->pcm_rec + 1;
@@ -4432,12 +4438,10 @@ static int patch_alc880(struct hda_codec *codec)
 	if (board_config != ALC880_AUTO)
 		setup_preset(spec, &alc880_presets[board_config]);
 
-	spec->stream_name_analog = "ALC880 Analog";
 	spec->stream_analog_playback = &alc880_pcm_analog_playback;
 	spec->stream_analog_capture = &alc880_pcm_analog_capture;
 	spec->stream_analog_alt_capture = &alc880_pcm_analog_alt_capture;
 
-	spec->stream_name_digital = "ALC880 Digital";
 	spec->stream_digital_playback = &alc880_pcm_digital_playback;
 	spec->stream_digital_capture = &alc880_pcm_digital_capture;
 
@@ -6078,11 +6082,9 @@ static int patch_alc260(struct hda_codec *codec)
 	if (board_config != ALC260_AUTO)
 		setup_preset(spec, &alc260_presets[board_config]);
 
-	spec->stream_name_analog = "ALC260 Analog";
 	spec->stream_analog_playback = &alc260_pcm_analog_playback;
 	spec->stream_analog_capture = &alc260_pcm_analog_capture;
 
-	spec->stream_name_digital = "ALC260 Digital";
 	spec->stream_digital_playback = &alc260_pcm_digital_playback;
 	spec->stream_digital_capture = &alc260_pcm_digital_capture;
 
@@ -7336,14 +7338,6 @@ static int patch_alc882(struct hda_codec *codec)
 
 	if (board_config != ALC882_AUTO)
 		setup_preset(spec, &alc882_presets[board_config]);
-
-	if (codec->vendor_id == 0x10ec0885) {
-		spec->stream_name_analog = "ALC885 Analog";
-		spec->stream_name_digital = "ALC885 Digital";
-	} else {
-		spec->stream_name_analog = "ALC882 Analog";
-		spec->stream_name_digital = "ALC882 Digital";
-	}
 
 	spec->stream_analog_playback = &alc882_pcm_analog_playback;
 	spec->stream_analog_capture = &alc882_pcm_analog_capture;
@@ -9232,13 +9226,6 @@ static int patch_alc883(struct hda_codec *codec)
 
 	switch (codec->vendor_id) {
 	case 0x10ec0888:
-		if (codec->revision_id == 0x100101) {
-			spec->stream_name_analog = "ALC1200 Analog";
-			spec->stream_name_digital = "ALC1200 Digital";
-		} else {
-			spec->stream_name_analog = "ALC888 Analog";
-			spec->stream_name_digital = "ALC888 Digital";
-		}
 		if (!spec->num_adc_nids) {
 			spec->num_adc_nids = ARRAY_SIZE(alc883_adc_nids);
 			spec->adc_nids = alc883_adc_nids;
@@ -9249,8 +9236,6 @@ static int patch_alc883(struct hda_codec *codec)
 		spec->init_amp = ALC_INIT_DEFAULT; /* always initialize */
 		break;
 	case 0x10ec0889:
-		spec->stream_name_analog = "ALC889 Analog";
-		spec->stream_name_digital = "ALC889 Digital";
 		if (!spec->num_adc_nids) {
 			spec->num_adc_nids = ARRAY_SIZE(alc889_adc_nids);
 			spec->adc_nids = alc889_adc_nids;
@@ -9261,8 +9246,6 @@ static int patch_alc883(struct hda_codec *codec)
 							capture */
 		break;
 	default:
-		spec->stream_name_analog = "ALC883 Analog";
-		spec->stream_name_digital = "ALC883 Digital";
 		if (!spec->num_adc_nids) {
 			spec->num_adc_nids = ARRAY_SIZE(alc883_adc_nids);
 			spec->adc_nids = alc883_adc_nids;
@@ -11087,11 +11070,9 @@ static int patch_alc262(struct hda_codec *codec)
 	if (board_config != ALC262_AUTO)
 		setup_preset(spec, &alc262_presets[board_config]);
 
-	spec->stream_name_analog = "ALC262 Analog";
 	spec->stream_analog_playback = &alc262_pcm_analog_playback;
 	spec->stream_analog_capture = &alc262_pcm_analog_capture;
 
-	spec->stream_name_digital = "ALC262 Digital";
 	spec->stream_digital_playback = &alc262_pcm_digital_playback;
 	spec->stream_digital_capture = &alc262_pcm_digital_capture;
 
@@ -12117,14 +12098,6 @@ static int patch_alc268(struct hda_codec *codec)
 	if (board_config != ALC268_AUTO)
 		setup_preset(spec, &alc268_presets[board_config]);
 
-	if (codec->vendor_id == 0x10ec0267) {
-		spec->stream_name_analog = "ALC267 Analog";
-		spec->stream_name_digital = "ALC267 Digital";
-	} else {
-		spec->stream_name_analog = "ALC268 Analog";
-		spec->stream_name_digital = "ALC268 Digital";
-	}
-
 	spec->stream_analog_playback = &alc268_pcm_analog_playback;
 	spec->stream_analog_capture = &alc268_pcm_analog_capture;
 	spec->stream_analog_alt_capture = &alc268_pcm_analog_alt_capture;
@@ -12979,7 +12952,6 @@ static int patch_alc269(struct hda_codec *codec)
 	if (board_config != ALC269_AUTO)
 		setup_preset(spec, &alc269_presets[board_config]);
 
-	spec->stream_name_analog = "ALC269 Analog";
 	if (codec->subsystem_id == 0x17aa3bf8) {
 		/* Due to a hardware problem on Lenovo Ideadpad, we need to
 		 * fix the sample rate of analog I/O to 44.1kHz
@@ -12990,7 +12962,6 @@ static int patch_alc269(struct hda_codec *codec)
 		spec->stream_analog_playback = &alc269_pcm_analog_playback;
 		spec->stream_analog_capture = &alc269_pcm_analog_capture;
 	}
-	spec->stream_name_digital = "ALC269 Digital";
 	spec->stream_digital_playback = &alc269_pcm_digital_playback;
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
@@ -14080,11 +14051,9 @@ static int patch_alc861(struct hda_codec *codec)
 	if (board_config != ALC861_AUTO)
 		setup_preset(spec, &alc861_presets[board_config]);
 
-	spec->stream_name_analog = "ALC861 Analog";
 	spec->stream_analog_playback = &alc861_pcm_analog_playback;
 	spec->stream_analog_capture = &alc861_pcm_analog_capture;
 
-	spec->stream_name_digital = "ALC861 Digital";
 	spec->stream_digital_playback = &alc861_pcm_digital_playback;
 	spec->stream_digital_capture = &alc861_pcm_digital_capture;
 
@@ -15007,13 +14976,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 		setup_preset(spec, &alc861vd_presets[board_config]);
 
 	if (codec->vendor_id == 0x10ec0660) {
-		spec->stream_name_analog = "ALC660-VD Analog";
-		spec->stream_name_digital = "ALC660-VD Digital";
 		/* always turn on EAPD */
 		add_verb(spec, alc660vd_eapd_verbs);
-	} else {
-		spec->stream_name_analog = "ALC861VD Analog";
-		spec->stream_name_digital = "ALC861VD Digital";
 	}
 
 	spec->stream_analog_playback = &alc861vd_pcm_analog_playback;
@@ -16935,17 +16899,6 @@ static int patch_alc662(struct hda_codec *codec)
 
 	if (board_config != ALC662_AUTO)
 		setup_preset(spec, &alc662_presets[board_config]);
-
-	if (codec->vendor_id == 0x10ec0663) {
-		spec->stream_name_analog = "ALC663 Analog";
-		spec->stream_name_digital = "ALC663 Digital";
-	} else if (codec->vendor_id == 0x10ec0272) {
-		spec->stream_name_analog = "ALC272 Analog";
-		spec->stream_name_digital = "ALC272 Digital";
-	} else {
-		spec->stream_name_analog = "ALC662 Analog";
-		spec->stream_name_digital = "ALC662 Digital";
-	}
 
 	spec->stream_analog_playback = &alc662_pcm_analog_playback;
 	spec->stream_analog_capture = &alc662_pcm_analog_capture;
