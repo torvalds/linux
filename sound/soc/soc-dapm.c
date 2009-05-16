@@ -658,7 +658,7 @@ static int dapm_supply_check_power(struct snd_soc_dapm_widget *w)
 static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 			     struct snd_soc_dapm_widget *w)
 {
-	int power, ret;
+	int ret;
 
 	switch (w->id) {
 	case snd_soc_dapm_pre:
@@ -696,18 +696,8 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 		return 0;
 
 	default:
-		break;
+		return dapm_generic_apply_power(w);
 	}
-
-	if (!w->power_check)
-		return 0;
-
-	power = w->power_check(w);
-	if (w->power == power)
-		return 0;
-	w->power = power;
-
-	return dapm_generic_apply_power(w);
 }
 
 /*
@@ -722,27 +712,68 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
 static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 {
 	struct snd_soc_dapm_widget *w;
-	int i, c = 1, *seq = NULL, ret = 0;
+	int ret = 0;
+	int i, power;
 
-	/* do we have a sequenced stream event */
-	if (event == SND_SOC_DAPM_STREAM_START) {
-		c = ARRAY_SIZE(dapm_up_seq);
-		seq = dapm_up_seq;
-	} else if (event == SND_SOC_DAPM_STREAM_STOP) {
-		c = ARRAY_SIZE(dapm_down_seq);
-		seq = dapm_down_seq;
+	INIT_LIST_HEAD(&codec->up_list);
+	INIT_LIST_HEAD(&codec->down_list);
+
+	/* Check which widgets we need to power and store them in
+	 * lists indicating if they should be powered up or down.
+	 */
+	list_for_each_entry(w, &codec->dapm_widgets, list) {
+		switch (w->id) {
+		case snd_soc_dapm_pre:
+			list_add_tail(&codec->down_list, &w->power_list);
+			break;
+		case snd_soc_dapm_post:
+			list_add_tail(&codec->up_list, &w->power_list);
+			break;
+
+		default:
+			if (!w->power_check)
+				continue;
+
+			power = w->power_check(w);
+			if (w->power == power)
+				continue;
+
+			if (power)
+				list_add_tail(&w->power_list, &codec->up_list);
+			else
+				list_add_tail(&w->power_list,
+					      &codec->down_list);
+
+			w->power = power;
+			break;
+		}
 	}
 
-	for (i = 0; i < c; i++) {
-		list_for_each_entry(w, &codec->dapm_widgets, list) {
-
+	/* Power down widgets first; try to avoid amplifying pops. */
+	for (i = 0; i < ARRAY_SIZE(dapm_down_seq); i++) {
+		list_for_each_entry(w, &codec->down_list, power_list) {
 			/* is widget in stream order */
-			if (seq && seq[i] && w->id != seq[i])
+			if (w->id != dapm_down_seq[i])
 				continue;
 
 			ret = dapm_power_widget(codec, event, w);
 			if (ret != 0)
-				return ret;
+				pr_err("Failed to power down %s: %d\n",
+				       w->name, ret);
+		}
+	}
+
+	/* Now power up. */
+	for (i = 0; i < ARRAY_SIZE(dapm_up_seq); i++) {
+		list_for_each_entry(w, &codec->up_list, power_list) {
+			/* is widget in stream order */
+			if (w->id != dapm_up_seq[i])
+				continue;
+
+			ret = dapm_power_widget(codec, event, w);
+			if (ret != 0)
+				pr_err("Failed to power up %s: %d\n",
+				       w->name, ret);
 		}
 	}
 

@@ -385,6 +385,9 @@ struct snd_soc_dapm_widget {
 	/* widget input and outputs */
 	struct list_head sources;
 	struct list_head sinks;
+
+	/* used during DAPM updates */
+	struct list_head power_list;
 };
 
 #endif
