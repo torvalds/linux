@@ -885,6 +885,12 @@ config HAVE_ARM_SCU
 	help
 	  This option enables support for the ARM system coherency unit
 
+config HAVE_ARM_TWD
+	bool
+	depends on SMP
+	help
+	  This options enables support for the ARM timer and watchdog unit
+
 choice
 	prompt "Memory split"
 	default VMSPLIT_3G
@@ -925,6 +931,7 @@ config LOCAL_TIMERS
 	bool "Use local timer interrupts"
 	depends on SMP && (REALVIEW_EB_ARM11MP || MACH_REALVIEW_PB11MP || REALVIEW_EB_A9MP)
 	default y
+	select HAVE_ARM_TWD if ARCH_REALVIEW
 	help
 	  Enable support for local timers on SMP platforms, rather then the
 	  legacy IPI broadcast method.  Local timers allows the system

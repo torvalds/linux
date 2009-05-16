@@ -24,6 +24,16 @@ asmlinkage void do_local_timer(struct pt_regs *);
 
 
 #ifdef CONFIG_LOCAL_TIMERS
+
+#ifdef CONFIG_HAVE_ARM_TWD
+
+#include "smp_twd.h"
+
+#define local_timer_ack()	twd_timer_ack()
+#define local_timer_stop()	twd_timer_stop()
+
+#else
+
 /*
  * Platform provides this to acknowledge a local timer IRQ.
  * Returns true if the local timer IRQ is to be processed.
@@ -34,6 +44,8 @@ int local_timer_ack(void);
  * Stop a local timer interrupt.
  */
 void local_timer_stop(void);
+
+#endif
 
 /*
  * Setup a local timer interrupt for a CPU.
