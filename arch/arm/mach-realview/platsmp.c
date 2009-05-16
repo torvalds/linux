@@ -23,7 +23,7 @@
 
 #include <mach/board-eb.h>
 #include <mach/board-pb11mp.h>
-#include <mach/scu.h>
+#include <asm/smp_scu.h>
 
 #include "core.h"
 
