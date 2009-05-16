@@ -563,9 +563,6 @@ static int get_num_ver(int mode, struct tree_balance *tb, int h,
 	return needed_nodes;
 }
 
-#ifdef CONFIG_REISERFS_CHECK
-extern struct tree_balance *cur_tb;
-#endif
 
 /* Set parameters for balancing.
  * Performs write of results of analysis of balancing into structure tb,
@@ -2368,7 +2365,7 @@ int fix_nodes(int op_mode, struct tree_balance *tb,
 			return REPEAT_SEARCH;
 	}
 #ifdef CONFIG_REISERFS_CHECK
-	if (cur_tb) {
+	if (REISERFS_SB(tb->tb_sb)->cur_tb) {
 		print_cur_tb("fix_nodes");
 		reiserfs_panic(tb->tb_sb, "PAP-8305",
 			       "there is pending do_balance");

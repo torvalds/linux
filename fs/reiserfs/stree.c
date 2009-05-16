@@ -222,9 +222,6 @@ static inline int bin_search(const void *key,	/* Key to search for. */
 	return ITEM_NOT_FOUND;
 }
 
-#ifdef CONFIG_REISERFS_CHECK
-extern struct tree_balance *cur_tb;
-#endif
 
 /* Minimal possible key. It is never in the tree. */
 const struct reiserfs_key MIN_KEY = { 0, 0, {{0, 0},} };
@@ -711,7 +708,7 @@ int search_by_key(struct super_block *sb, const struct cpu_key *key,	/* Key to s
 		       !key_in_buffer(search_path, key, sb),
 		       "PAP-5130: key is not in the buffer");
 #ifdef CONFIG_REISERFS_CHECK
-		if (cur_tb) {
+		if (REISERFS_SB(sb)->cur_tb) {
 			print_cur_tb("5140");
 			reiserfs_panic(sb, "PAP-5140",
 				       "schedule occurred in do_balance!");

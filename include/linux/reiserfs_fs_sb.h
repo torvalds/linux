@@ -417,6 +417,17 @@ struct reiserfs_sb_info {
 	char *s_qf_names[MAXQUOTAS];
 	int s_jquota_fmt;
 #endif
+#ifdef CONFIG_REISERFS_CHECK
+
+	struct tree_balance *cur_tb;	/*
+					 * Detects whether more than one
+					 * copy of tb exists per superblock
+					 * as a means of checking whether
+					 * do_balance is executing concurrently
+					 * against another tree reader/writer
+					 * on a same mount point.
+					 */
+#endif
 };
 
 /* Definitions of reiserfs on-disk properties: */
