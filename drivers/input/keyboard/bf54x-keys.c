@@ -252,7 +252,7 @@ static int __devinit bfin_kpad_probe(struct platform_device *pdev)
 	}
 
 	error = request_irq(bf54x_kpad->irq, bfin_kpad_isr,
-				 IRQF_SAMPLE_RANDOM, DRV_NAME, pdev);
+				0, DRV_NAME, pdev);
 	if (error) {
 		printk(KERN_ERR DRV_NAME
 			": unable to claim irq %d; error %d\n",

@@ -158,7 +158,8 @@ void free_interrupts(void);
 /* segments.c: */
 void setup_default_gdt_entries(struct lguest_ro_state *state);
 void setup_guest_gdt(struct lg_cpu *cpu);
-void load_guest_gdt(struct lg_cpu *cpu, unsigned long table, u32 num);
+void load_guest_gdt_entry(struct lg_cpu *cpu, unsigned int i,
+			  u32 low, u32 hi);
 void guest_load_tls(struct lg_cpu *cpu, unsigned long tls_array);
 void copy_gdt(const struct lg_cpu *cpu, struct desc_struct *gdt);
 void copy_gdt_tls(const struct lg_cpu *cpu, struct desc_struct *gdt);

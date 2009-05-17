@@ -880,7 +880,7 @@ static unsigned int atkbd_hp_zv6100_forced_release_keys[] = {
 };
 
 /*
- * Samsung NC10 with Fn+F? key release not working
+ * Samsung NC10,NC20 with Fn+F? key release not working
  */
 static unsigned int atkbd_samsung_forced_release_keys[] = {
 	0x82, 0x83, 0x84, 0x86, 0x88, 0x89, 0xb3, 0xf7, 0xf9, -1U
@@ -892,6 +892,13 @@ static unsigned int atkbd_samsung_forced_release_keys[] = {
  */
 static unsigned int atkbd_amilo_pa1510_forced_release_keys[] = {
 	0xb0, 0xae, -1U
+};
+
+/*
+ * Amilo Xi 3650 key release for light touch bar not working
+ */
+static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
+	0x67, 0xed, 0x90, 0xa2, 0x99, 0xa4, 0xae, 0xb0, -1U
 };
 
 /*
@@ -1534,6 +1541,24 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		.driver_data = atkbd_samsung_forced_release_keys,
 	},
 	{
+		.ident = "Samsung NC20",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "NC20"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_samsung_forced_release_keys,
+	},
+	{
+		.ident = "Samsung SQ45S70S",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SQ45S70S"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_samsung_forced_release_keys,
+	},
+	{
 		.ident = "Fujitsu Amilo PA 1510",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
@@ -1541,6 +1566,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_forced_release,
 		.driver_data = atkbd_amilo_pa1510_forced_release_keys,
+	},
+	{
+		.ident = "Fujitsu Amilo Xi 3650",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 3650"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_amilo_xi3650_forced_release_keys,
 	},
 	{ }
 };

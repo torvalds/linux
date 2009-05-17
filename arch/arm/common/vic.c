@@ -85,12 +85,11 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 	writel(32, base + VIC_PL190_DEF_VECT_ADDR);
 
 	for (i = 0; i < 32; i++) {
-		unsigned int irq = irq_start + i;
-
-		set_irq_chip(irq, &vic_chip);
-		set_irq_chip_data(irq, base);
-
 		if (vic_sources & (1 << i)) {
+			unsigned int irq = irq_start + i;
+
+			set_irq_chip(irq, &vic_chip);
+			set_irq_chip_data(irq, base);
 			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 		}

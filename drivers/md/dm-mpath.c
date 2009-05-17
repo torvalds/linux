@@ -8,7 +8,6 @@
 #include <linux/device-mapper.h>
 
 #include "dm-path-selector.h"
-#include "dm-bio-list.h"
 #include "dm-bio-record.h"
 #include "dm-uevent.h"
 

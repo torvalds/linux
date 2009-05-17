@@ -192,7 +192,6 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	struct lpfc_sli  *psli = &phba->sli;
 	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	struct lpfc_iocbq *iocb, *next_iocb;
-	IOCB_t *cmd;
 
 	/* Abort outstanding I/O on NPort <nlp_DID> */
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_DISCOVERY,
@@ -223,19 +222,10 @@ lpfc_els_abort(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	}
 	spin_unlock_irq(&phba->hbalock);
 
-	while (!list_empty(&completions)) {
-		iocb = list_get_first(&completions, struct lpfc_iocbq, list);
-		cmd = &iocb->iocb;
-		list_del_init(&iocb->list);
+	/* Cancel all the IOCBs from the completions list */
+	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
+			      IOERR_SLI_ABORTED);
 
-		if (!iocb->iocb_cmpl)
-			lpfc_sli_release_iocbq(phba, iocb);
-		else {
-			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
-			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
-			(iocb->iocb_cmpl) (phba, iocb, iocb);
-		}
-	}
 	lpfc_cancel_retry_delay_tmo(phba->pport, ndlp);
 	return 0;
 }

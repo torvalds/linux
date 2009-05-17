@@ -1463,6 +1463,16 @@ int iscsi_change_queue_depth(struct scsi_device *sdev, int depth)
 }
 EXPORT_SYMBOL_GPL(iscsi_change_queue_depth);
 
+int iscsi_target_alloc(struct scsi_target *starget)
+{
+	struct iscsi_cls_session *cls_session = starget_to_session(starget);
+	struct iscsi_session *session = cls_session->dd_data;
+
+	starget->can_queue = session->scsi_cmds_max;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iscsi_target_alloc);
+
 void iscsi_session_recovery_timedout(struct iscsi_cls_session *cls_session)
 {
 	struct iscsi_session *session = cls_session->dd_data;

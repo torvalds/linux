@@ -656,10 +656,6 @@ static int cypress_open(struct tty_struct *tty,
 	priv->rx_flags = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* setting to zero could cause data loss */
-	if (tty)
-		tty->low_latency = 1;
-
 	/* raise both lines and set termios */
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->line_control = CONTROL_DTR | CONTROL_RTS;

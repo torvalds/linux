@@ -363,8 +363,6 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
 	irqreturn_t ret, retval = IRQ_NONE;
 	unsigned int status = 0;
 
-	WARN_ONCE(!in_irq(), "BUG: IRQ handler called from non-hardirq context!");
-
 	if (!(action->flags & IRQF_DISABLED))
 		local_irq_enable_in_hardirq();
 

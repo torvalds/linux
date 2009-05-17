@@ -29,9 +29,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/fs.h>
-#include <linux/ipc.h>
 #include <linux/semaphore.h>
-#include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/unistd.h>
 
@@ -133,7 +131,7 @@ sys_ipc(uint call, int first, int second, int third, void *ptr, long fifth)
 		ret = sys_shmctl(first, second, (struct shmid_ds *) ptr);
 		break;
 	}
-	return -EINVAL;
+	return ret;
 }
 
 asmlinkage int sys_vfork(struct pt_regs *regs)

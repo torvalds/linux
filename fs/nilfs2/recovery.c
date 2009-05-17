@@ -407,13 +407,13 @@ void nilfs_dispose_segment_list(struct list_head *head)
 }
 
 static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
+					      struct nilfs_sb_info *sbi,
 					      struct nilfs_recovery_info *ri)
 {
 	struct list_head *head = &ri->ri_used_segments;
 	struct nilfs_segment_entry *ent, *n;
 	struct inode *sufile = nilfs->ns_sufile;
 	__u64 segnum[4];
-	time_t mtime;
 	int err;
 	int i;
 
@@ -422,6 +422,7 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	segnum[2] = ri->ri_segnum;
 	segnum[3] = ri->ri_nextnum;
 
+	nilfs_attach_writer(nilfs, sbi);
 	/*
 	 * Releasing the next segment of the latest super root.
 	 * The next segment is invalidated by this recovery.
@@ -442,24 +443,13 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	 * Collecting segments written after the latest super root.
 	 * These are marked dirty to avoid being reallocated in the next write.
 	 */
-	mtime = get_seconds();
 	list_for_each_entry_safe(ent, n, head, list) {
-		if (ent->segnum == segnum[0]) {
-			list_del(&ent->list);
-			nilfs_free_segment_entry(ent);
-			continue;
-		}
-		err = nilfs_open_segment_entry(ent, sufile);
-		if (unlikely(err))
-			goto failed;
-		if (!nilfs_segment_usage_dirty(ent->raw_su)) {
-			/* make the segment garbage */
-			ent->raw_su->su_nblocks = cpu_to_le32(0);
-			ent->raw_su->su_lastmod = cpu_to_le32(mtime);
-			nilfs_segment_usage_set_dirty(ent->raw_su);
+		if (ent->segnum != segnum[0]) {
+			err = nilfs_sufile_scrap(sufile, ent->segnum);
+			if (unlikely(err))
+				goto failed;
 		}
 		list_del(&ent->list);
-		nilfs_close_segment_entry(ent, sufile);
 		nilfs_free_segment_entry(ent);
 	}
 
@@ -471,10 +461,10 @@ static int nilfs_prepare_segment_for_recovery(struct the_nilfs *nilfs,
 	nilfs->ns_pseg_offset = 0;
 	nilfs->ns_seg_seq = ri->ri_seq + 2;
 	nilfs->ns_nextnum = nilfs->ns_segnum = segnum[0];
-	return 0;
 
  failed:
 	/* No need to recover sufile because it will be destroyed on error */
+	nilfs_detach_writer(nilfs, sbi);
 	return err;
 }
 
@@ -740,7 +730,7 @@ int nilfs_recover_logical_segments(struct the_nilfs *nilfs,
 		goto failed;
 
 	if (ri->ri_need_recovery == NILFS_RECOVERY_ROLLFORWARD_DONE) {
-		err = nilfs_prepare_segment_for_recovery(nilfs, ri);
+		err = nilfs_prepare_segment_for_recovery(nilfs, sbi, ri);
 		if (unlikely(err)) {
 			printk(KERN_ERR "NILFS: Error preparing segments for "
 			       "recovery.\n");

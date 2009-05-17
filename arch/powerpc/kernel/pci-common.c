@@ -1366,12 +1366,17 @@ static void __init pcibios_allocate_resources(int pass)
 
 	for_each_pci_dev(dev) {
 		pci_read_config_word(dev, PCI_COMMAND, &command);
-		for (idx = 0; idx < 6; idx++) {
+		for (idx = 0; idx <= PCI_ROM_RESOURCE; idx++) {
 			r = &dev->resource[idx];
 			if (r->parent)		/* Already allocated */
 				continue;
 			if (!r->flags || (r->flags & IORESOURCE_UNSET))
 				continue;	/* Not assigned at all */
+			/* We only allocate ROMs on pass 1 just in case they
+			 * have been screwed up by firmware
+			 */
+			if (idx == PCI_ROM_RESOURCE )
+				disabled = 1;
 			if (r->flags & IORESOURCE_IO)
 				disabled = !(command & PCI_COMMAND_IO);
 			else
@@ -1382,17 +1387,19 @@ static void __init pcibios_allocate_resources(int pass)
 		if (pass)
 			continue;
 		r = &dev->resource[PCI_ROM_RESOURCE];
-		if (r->flags & IORESOURCE_ROM_ENABLE) {
+		if (r->flags) {
 			/* Turn the ROM off, leave the resource region,
 			 * but keep it unregistered.
 			 */
 			u32 reg;
-			pr_debug("PCI: Switching off ROM of %s\n",
-				 pci_name(dev));
-			r->flags &= ~IORESOURCE_ROM_ENABLE;
 			pci_read_config_dword(dev, dev->rom_base_reg, &reg);
-			pci_write_config_dword(dev, dev->rom_base_reg,
-					       reg & ~PCI_ROM_ADDRESS_ENABLE);
+			if (reg & PCI_ROM_ADDRESS_ENABLE) {
+				pr_debug("PCI: Switching off ROM of %s\n",
+					 pci_name(dev));
+				r->flags &= ~IORESOURCE_ROM_ENABLE;
+				pci_write_config_dword(dev, dev->rom_base_reg,
+						       reg & ~PCI_ROM_ADDRESS_ENABLE);
+			}
 		}
 	}
 }

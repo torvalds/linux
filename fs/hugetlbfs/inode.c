@@ -26,7 +26,6 @@
 #include <linux/pagevec.h>
 #include <linux/parser.h>
 #include <linux/mman.h>
-#include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/dnotify.h>
 #include <linux/statfs.h>
@@ -311,16 +310,6 @@ out:
 	*ppos = ((loff_t)index << huge_page_shift(h)) + offset;
 	mutex_unlock(&inode->i_mutex);
 	return retval;
-}
-
-/*
- * Read a page. Again trivial. If it didn't already exist
- * in the page cache, it is zero-filled.
- */
-static int hugetlbfs_readpage(struct file *file, struct page * page)
-{
-	unlock_page(page);
-	return -EINVAL;
 }
 
 static int hugetlbfs_write_begin(struct file *file,
@@ -702,7 +691,6 @@ static void hugetlbfs_destroy_inode(struct inode *inode)
 }
 
 static const struct address_space_operations hugetlbfs_aops = {
-	.readpage	= hugetlbfs_readpage,
 	.write_begin	= hugetlbfs_write_begin,
 	.write_end	= hugetlbfs_write_end,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,
@@ -842,7 +830,7 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 bad_val:
  	printk(KERN_ERR "hugetlbfs: Bad value '%s' for mount option '%s'\n",
 	       args[0].from, p);
- 	return 1;
+ 	return -EINVAL;
 }
 
 static int

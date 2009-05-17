@@ -1130,8 +1130,8 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
  * @nd: pointer to nameidata
  * @open_flags: open intent flags
  */
-int path_lookup_open(int dfd, const char *name, unsigned int lookup_flags,
-		struct nameidata *nd, int open_flags)
+static int path_lookup_open(int dfd, const char *name,
+		unsigned int lookup_flags, struct nameidata *nd, int open_flags)
 {
 	struct file *filp = get_empty_filp();
 	int err;
@@ -1247,6 +1247,8 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	int err;
 	struct qstr this;
+
+	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
 
 	err = __lookup_one_len(name, &this, base, len);
 	if (err)
@@ -1635,18 +1637,19 @@ static int open_will_write_to_fs(int flag, struct inode *inode)
  * open_to_namei_flags() for more details.
  */
 struct file *do_filp_open(int dfd, const char *pathname,
-		int open_flag, int mode)
+		int open_flag, int mode, int acc_mode)
 {
 	struct file *filp;
 	struct nameidata nd;
-	int acc_mode, error;
+	int error;
 	struct path path;
 	struct dentry *dir;
 	int count = 0;
 	int will_write;
 	int flag = open_to_namei_flags(open_flag);
 
-	acc_mode = MAY_OPEN | ACC_MODE(flag);
+	if (!acc_mode)
+		acc_mode = MAY_OPEN | ACC_MODE(flag);
 
 	/* O_TRUNC implies we need access checks for write permissions */
 	if (flag & O_TRUNC)
@@ -1867,7 +1870,7 @@ do_link:
  */
 struct file *filp_open(const char *filename, int flags, int mode)
 {
-	return do_filp_open(AT_FDCWD, filename, flags, mode);
+	return do_filp_open(AT_FDCWD, filename, flags, mode, 0);
 }
 EXPORT_SYMBOL(filp_open);
 

@@ -1041,7 +1041,7 @@ static void __cpuinit probe_pcache(void)
 
 	printk("Primary instruction cache %ldkB, %s, %s, linesize %d bytes.\n",
 	       icache_size >> 10,
-	       cpu_has_vtag_icache ? "VIVT" : "VIPT",
+	       c->icache.flags & MIPS_CACHE_VTAG ? "VIVT" : "VIPT",
 	       way_string[c->icache.ways], c->icache.linesz);
 
 	printk("Primary data cache %ldkB, %s, %s, %s, linesize %d bytes\n",

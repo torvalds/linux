@@ -100,7 +100,7 @@ static unsigned int last_jiffy_time;
 
 #define TIMER4_TICKS_PER_JIFFY		((CLOCK_TICK_RATE + (HZ/2)) / HZ)
 
-static int ep93xx_timer_interrupt(int irq, void *dev_id)
+static irqreturn_t ep93xx_timer_interrupt(int irq, void *dev_id)
 {
 	__raw_writel(1, EP93XX_TIMER1_CLEAR);
 	while ((signed long)

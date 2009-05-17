@@ -65,7 +65,7 @@ static void set_resetgpio_mode(int resetgpio_action)
 		switch (resetgpio_action) {
 		case RESETGPIO_NORMAL_ALTFUNC:
 			if (reset_gpio == 113)
-				mode = 113 | GPIO_OUT | GPIO_DFLT_LOW;
+				mode = 113 | GPIO_ALT_FN_2_OUT;
 			if (reset_gpio == 95)
 				mode = 95 | GPIO_ALT_FN_1_OUT;
 			break;
@@ -364,7 +364,7 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_resume);
 int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 {
 	int ret;
-	struct pxa2xx_ac97_platform_data *pdata = dev->dev.platform_data;
+	pxa2xx_audio_ops_t *pdata = dev->dev.platform_data;
 
 	if (pdata) {
 		switch (pdata->reset_gpio) {

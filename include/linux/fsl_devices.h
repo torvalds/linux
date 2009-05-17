@@ -43,10 +43,6 @@
  *
  */
 
-/* Flags related to I2C device features */
-#define FSL_I2C_DEV_SEPARATE_DFSRR	0x00000001
-#define FSL_I2C_DEV_CLOCK_5200		0x00000002
-
 enum fsl_usb2_operating_modes {
 	FSL_USB2_MPH_HOST,
 	FSL_USB2_DR_HOST,
@@ -83,6 +79,10 @@ struct fsl_spi_platform_data {
 	u16	max_chipselect;
 	void	(*cs_control)(struct spi_device *spi, bool on);
 	u32	sysclk;
+
+	/* Legacy hooks, used by mpc52xx_psc_spi driver. */
+	void	(*activate_cs)(u8 cs, u8 polarity);
+	void	(*deactivate_cs)(u8 cs, u8 polarity);
 };
 
 struct mpc8xx_pcmcia_ops {

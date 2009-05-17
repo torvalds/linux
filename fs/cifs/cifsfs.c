@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/smp_lock.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -66,9 +67,6 @@ unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct *oplockThread; /* remove sparse warning */
 struct task_struct *oplockThread = NULL;
 /* extern struct task_struct * dnotifyThread; remove sparse warning */
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-static struct task_struct *dnotifyThread = NULL;
-#endif
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
@@ -316,6 +314,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->clientCanCacheAll = false;
 	cifs_inode->delete_pending = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
+	cifs_inode->server_eof = 0;
 
 	/* Can not set i_flags here - they get immediately overwritten
 	   to zero by the VFS */
@@ -532,6 +531,7 @@ static void cifs_umount_begin(struct super_block *sb)
 	if (tcon == NULL)
 		return;
 
+	lock_kernel();
 	read_lock(&cifs_tcp_ses_lock);
 	if (tcon->tc_count == 1)
 		tcon->tidStatus = CifsExiting;
@@ -550,6 +550,7 @@ static void cifs_umount_begin(struct super_block *sb)
 	}
 /* BB FIXME - finish add checks for tidStatus BB */
 
+	unlock_kernel();
 	return;
 }
 
@@ -601,8 +602,7 @@ cifs_get_sb(struct file_system_type *fs_type,
 
 	rc = cifs_read_super(sb, data, dev_name, flags & MS_SILENT ? 1 : 0);
 	if (rc) {
-		up_write(&sb->s_umount);
-		deactivate_super(sb);
+		deactivate_locked_super(sb);
 		return rc;
 	}
 	sb->s_flags |= MS_ACTIVE;
@@ -1040,34 +1040,6 @@ static int cifs_oplock_thread(void *dummyarg)
 	return 0;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-static int cifs_dnotify_thread(void *dummyarg)
-{
-	struct list_head *tmp;
-	struct TCP_Server_Info *server;
-
-	do {
-		if (try_to_freeze())
-			continue;
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(15*HZ);
-		/* check if any stuck requests that need
-		   to be woken up and wakeq so the
-		   thread can wake up and error out */
-		read_lock(&cifs_tcp_ses_lock);
-		list_for_each(tmp, &cifs_tcp_ses_list) {
-			server = list_entry(tmp, struct TCP_Server_Info,
-					 tcp_ses_list);
-			if (atomic_read(&server->inFlight))
-				wake_up_all(&server->response_q);
-		}
-		read_unlock(&cifs_tcp_ses_lock);
-	} while (!kthread_should_stop());
-
-	return 0;
-}
-#endif
-
 static int __init
 init_cifs(void)
 {
@@ -1144,21 +1116,8 @@ init_cifs(void)
 		goto out_unregister_dfs_key_type;
 	}
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-	dnotifyThread = kthread_run(cifs_dnotify_thread, NULL, "cifsdnotifyd");
-	if (IS_ERR(dnotifyThread)) {
-		rc = PTR_ERR(dnotifyThread);
-		cERROR(1, ("error %d create dnotify thread", rc));
-		goto out_stop_oplock_thread;
-	}
-#endif
-
 	return 0;
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
- out_stop_oplock_thread:
-#endif
-	kthread_stop(oplockThread);
  out_unregister_dfs_key_type:
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	unregister_key_type(&key_type_dns_resolver);
@@ -1196,9 +1155,6 @@ exit_cifs(void)
 	cifs_destroy_inodecache();
 	cifs_destroy_mids();
 	cifs_destroy_request_bufs();
-#ifdef CONFIG_CIFS_EXPERIMENTAL
-	kthread_stop(dnotifyThread);
-#endif
 	kthread_stop(oplockThread);
 }
 

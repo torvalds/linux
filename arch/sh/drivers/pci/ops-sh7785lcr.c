@@ -48,8 +48,13 @@ EXPORT_SYMBOL(board_pci_channels);
 
 static struct sh4_pci_address_map sh7785_pci_map = {
 	.window0	= {
+#if defined(CONFIG_32BIT)
+		.base	= SH7780_32BIT_DDR_BASE_ADDR,
+		.size	= 0x40000000,
+#else
 		.base	= SH7780_CS0_BASE_ADDR,
 		.size	= 0x20000000,
+#endif
 	},
 
 	.flags	= SH4_PCIC_NO_RESET,

@@ -100,7 +100,6 @@ void _enable_dcache(void)
 
 void _disable_dcache(void)
 {
-	if (cpuinfo.use_dcache) {
 #if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
 		__asm__ __volatile__ ("					\
 				msrclr	r0, %0;				\
@@ -119,12 +118,10 @@ void _disable_dcache(void)
 				: "i" (MSR_DCE)			\
 				: "memory", "r12");
 #endif
-	}
 }
 
 void _invalidate_dcache(unsigned int addr)
 {
-	if (cpuinfo.use_dcache)
 		__asm__ __volatile__ ("					\
 				wdc	%0, r0"				\
 				:					\

@@ -585,6 +585,7 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent,
 fallback:
 	ngroups = sbi->s_groups_count;
 	avefreei = freei / ngroups;
+fallback_retry:
 	parent_group = EXT4_I(parent)->i_block_group;
 	for (i = 0; i < ngroups; i++) {
 		grp = (parent_group + i) % ngroups;
@@ -602,7 +603,7 @@ fallback:
 		 * filesystems the above test can fail to find any blockgroups
 		 */
 		avefreei = 0;
-		goto fallback;
+		goto fallback_retry;
 	}
 
 	return -1;
@@ -831,11 +832,12 @@ struct inode *ext4_new_inode(handle_t *handle, struct inode *dir, int mode)
 		ret2 = find_group_flex(sb, dir, &group);
 		if (ret2 == -1) {
 			ret2 = find_group_other(sb, dir, &group, mode);
-			if (ret2 == 0 && once)
+			if (ret2 == 0 && once) {
 				once = 0;
 				printk(KERN_NOTICE "ext4: find_group_flex "
 				       "failed, fallback succeeded dir %lu\n",
 				       dir->i_ino);
+			}
 		}
 		goto got_group;
 	}

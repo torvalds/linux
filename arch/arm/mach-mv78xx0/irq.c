@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <asm/gpio.h>
-#include <mach/mv78xx0.h>
+#include <mach/bridge-regs.h>
 #include <plat/irq.h>
 #include "common.h"
 

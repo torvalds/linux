@@ -212,8 +212,7 @@ static u32 gfs2_bitfit(const u8 *buf, const unsigned int len,
 	if (tmp == 0)
 		return BFITNOENT;
 	ptr--;
-	bit = fls64(tmp);
-	bit--;		/* fls64 always adds one to the bit count */
+	bit = __ffs64(tmp);
 	bit /= 2;	/* two bits per entry in the bitmap */
 	return (((const unsigned char *)ptr - buf) * GFS2_NBBY) + bit;
 }
@@ -1445,10 +1444,12 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	struct buffer_head *dibh;
 	struct gfs2_alloc *al = ip->i_alloc;
 	struct gfs2_rgrpd *rgd = al->al_rgd;
 	u32 goal, blk;
 	u64 block;
+	int error;
 
 	if (rgrp_contains_block(rgd, ip->i_goal))
 		goal = ip->i_goal - rgd->rd_data0;
@@ -1461,7 +1462,13 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 	rgd->rd_last_alloc = blk;
 	block = rgd->rd_data0 + blk;
 	ip->i_goal = block;
-
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error == 0) {
+		struct gfs2_dinode *di = (struct gfs2_dinode *)dibh->b_data;
+		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+		di->di_goal_meta = di->di_goal_data = cpu_to_be64(ip->i_goal);
+		brelse(dibh);
+	}
 	gfs2_assert_withdraw(sdp, rgd->rd_free >= *n);
 	rgd->rd_free -= *n;
 

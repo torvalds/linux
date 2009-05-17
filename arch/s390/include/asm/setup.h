@@ -14,6 +14,7 @@
 
 #ifdef __KERNEL__
 
+#include <asm/lowcore.h>
 #include <asm/types.h>
 
 #define PARMAREA		0x10400
@@ -63,7 +64,6 @@ extern unsigned int s390_noexec;
 /*
  * Machine features detected in head.S
  */
-extern unsigned long machine_flags;
 
 #define MACHINE_FLAG_VM		(1UL << 0)
 #define MACHINE_FLAG_IEEE	(1UL << 1)
@@ -77,28 +77,28 @@ extern unsigned long machine_flags;
 #define MACHINE_FLAG_HPAGE	(1UL << 10)
 #define MACHINE_FLAG_PFMF	(1UL << 11)
 
-#define MACHINE_IS_VM		(machine_flags & MACHINE_FLAG_VM)
-#define MACHINE_IS_KVM		(machine_flags & MACHINE_FLAG_KVM)
-#define MACHINE_HAS_DIAG9C	(machine_flags & MACHINE_FLAG_DIAG9C)
+#define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
+#define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)
+#define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
 
 #ifndef __s390x__
-#define MACHINE_HAS_IEEE	(machine_flags & MACHINE_FLAG_IEEE)
-#define MACHINE_HAS_CSP		(machine_flags & MACHINE_FLAG_CSP)
+#define MACHINE_HAS_IEEE	(S390_lowcore.machine_flags & MACHINE_FLAG_IEEE)
+#define MACHINE_HAS_CSP		(S390_lowcore.machine_flags & MACHINE_FLAG_CSP)
 #define MACHINE_HAS_IDTE	(0)
 #define MACHINE_HAS_DIAG44	(1)
-#define MACHINE_HAS_MVPG	(machine_flags & MACHINE_FLAG_MVPG)
+#define MACHINE_HAS_MVPG	(S390_lowcore.machine_flags & MACHINE_FLAG_MVPG)
 #define MACHINE_HAS_MVCOS	(0)
 #define MACHINE_HAS_HPAGE	(0)
 #define MACHINE_HAS_PFMF	(0)
 #else /* __s390x__ */
 #define MACHINE_HAS_IEEE	(1)
 #define MACHINE_HAS_CSP		(1)
-#define MACHINE_HAS_IDTE	(machine_flags & MACHINE_FLAG_IDTE)
-#define MACHINE_HAS_DIAG44	(machine_flags & MACHINE_FLAG_DIAG44)
+#define MACHINE_HAS_IDTE	(S390_lowcore.machine_flags & MACHINE_FLAG_IDTE)
+#define MACHINE_HAS_DIAG44	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG44)
 #define MACHINE_HAS_MVPG	(1)
-#define MACHINE_HAS_MVCOS	(machine_flags & MACHINE_FLAG_MVCOS)
-#define MACHINE_HAS_HPAGE	(machine_flags & MACHINE_FLAG_HPAGE)
-#define MACHINE_HAS_PFMF	(machine_flags & MACHINE_FLAG_PFMF)
+#define MACHINE_HAS_MVCOS	(S390_lowcore.machine_flags & MACHINE_FLAG_MVCOS)
+#define MACHINE_HAS_HPAGE	(S390_lowcore.machine_flags & MACHINE_FLAG_HPAGE)
+#define MACHINE_HAS_PFMF	(S390_lowcore.machine_flags & MACHINE_FLAG_PFMF)
 #endif /* __s390x__ */
 
 #define ZFCPDUMP_HSA_SIZE	(32UL<<20)

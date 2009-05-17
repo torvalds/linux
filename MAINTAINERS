@@ -461,7 +461,7 @@ F:	arch/x86/include/asm/amd_iommu*.h
 
 AMD MICROCODE UPDATE SUPPORT
 P:	Andreas Herrmann
-M:	andeas.herrmann3@amd.com
+M:	andreas.herrmann3@amd.com
 L:	amd64-microcode@amd64.org
 S:	Supported
 F:	arch/x86/kernel/microcode_amd.c
@@ -543,6 +543,14 @@ S:	Maintained
 F:	arch/arm/lib/floppydma.S
 F:	arch/arm/include/asm/floppy.h
 
+ARM PORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/
+
 ARM PRIMECELL MMCI PL180/1 DRIVER
 S:	Orphan
 F:	drivers/mmc/host/mmci.*
@@ -592,6 +600,13 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/CLKDEV SUPPORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+F:	arch/arm/common/clkdev.c
+F:	arch/arm/include/asm/clkdev.h
+
 ARM/COMPULAB CM-X270/EM-X270 and CM-X300 MACHINE SUPPORT
 P:	Mike Rapoport
 M:	mike@compulab.co.il
@@ -610,6 +625,15 @@ L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 T:	git git://gitorious.org/linux-gemini/mainline.git
 S:	Maintained
 
+ARM/EBSA110 MACHINE SUPPORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/mach-ebsa110/
+F:	drivers/net/arm/am79c961a.*
+
 ARM/EZX SMARTPHONES (A780, A910, A1200, E680, ROKR E2 and ROKR E6)
 P:	Daniel Ribeiro
 M:	drwyrm@gmail.com
@@ -626,6 +650,15 @@ P:	Paulius Zaleckas
 M:	paulius.zaleckas@teltonika.lt
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
+
+ARM/FOOTBRIDGE ARCHITECTURE
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/include/asm/hardware/dec21285.h
+F:	arch/arm/mach-footbridge/
 
 ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
 P:	Sascha Hauer
@@ -767,17 +800,25 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/RISCPC ARCHITECTURE
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/common/time-acorn.c
+F:	arch/arm/include/asm/hardware/entry-macro-iomd.S
+F:	arch/arm/include/asm/hardware/ioc.h
+F:	arch/arm/include/asm/hardware/iomd.h
+F:	arch/arm/include/asm/hardware/memc.h
+F:	arch/arm/mach-rpc/
+F:	drivers/net/arm/ether*
+F:	drivers/scsi/arm/
+
 ARM/SHARK MACHINE SUPPORT
 P:	Alexander Schulz
 M:	alex@shark-linux.de
 W:	http://www.shark-linux.de/shark.html
-S:	Maintained
-
-ARM/STRONGARM110 PORT
-P:	Russell King
-M:	rmk@arm.linux.org.uk
-L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
-W:	http://www.arm.linux.org.uk/
 S:	Maintained
 
 ARM/S3C2410 ARM ARCHITECTURE
@@ -812,6 +853,14 @@ M:	mcuos.com@gmail.com
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 W:	http://www.mcuos.com
 S:	Maintained
+
+ARM/VFP SUPPORT
+P:	Russell King
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
+W:	http://www.arm.linux.org.uk/
+S:	Maintained
+F:	arch/arm/vfp/
 
 ARPD SUPPORT
 P:	Jonathan Layes
@@ -1238,6 +1287,14 @@ S:	Maintained
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/video/bt8xx/bttv*
 
+CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-cachefs@redhat.com
+S:	Supported
+F:	Documentation/filesystems/caching/cachefiles.txt
+F:	fs/cachefiles/
+
 CAFE CMOS INTEGRATED CAMERA CONTROLLER DRIVER
 P:	Jonathan Corbet
 M:	corbet@lwn.net
@@ -1280,12 +1337,9 @@ L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 F:	arch/powerpc/include/asm/cell*.h
-F:	arch/powerpc/include/asm/lv1call.h
-F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
-F:	arch/powerpc/platforms/ps3/
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 P:	David Vrabel
@@ -1371,6 +1425,11 @@ M:	Nils Faerber <nils@kernelconcepts.de>
 S:	Maintained
 F:	Documentation/input/cs461x.txt
 F:	sound/pci/cs46xx/
+
+CLK API
+P:	Russell King
+M:	linux@arm.linux.org.uk
+F:	include/linux/clk.h
 
 CODA FILE SYSTEM
 P:	Jan Harkes
@@ -1576,7 +1635,8 @@ F:	drivers/infiniband/hw/cxgb3/
 
 CYBERPRO FB DRIVER
 P:	Russell King
-M:	rmk@arm.linux.org.uk
+M:	linux@arm.linux.org.uk
+L:	linux-arm-kernel@lists.arm.linux.org.uk	(subscribers-only)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	drivers/video/cyber2000fb.*
@@ -1894,7 +1954,7 @@ F:	fs/ecryptfs/
 EDAC-CORE
 P:	Doug Thompson
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Supported
 F:	Documentation/edac.txt
@@ -1906,7 +1966,7 @@ P:	Mark Gross
 P:	Doug Thompson
 M:	mark.gross@intel.com
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e752x_edac.c
@@ -1914,7 +1974,7 @@ F:	drivers/edac/e752x_edac.c
 EDAC-E7XXX
 P:	Doug Thompson
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e7xxx_edac.c
@@ -1922,7 +1982,7 @@ F:	drivers/edac/e7xxx_edac.c
 EDAC-I82443BXGX
 P:	Tim Small
 M:	tim@buttersideup.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82443bxgx_edac.c
@@ -1930,7 +1990,7 @@ F:	drivers/edac/i82443bxgx_edac.c
 EDAC-I3000
 P:	Jason Uhlenkott
 M:	juhlenko@akamai.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i3000_edac.c
@@ -1938,7 +1998,7 @@ F:	drivers/edac/i3000_edac.c
 EDAC-I5000
 P:	Doug Thompson
 M:	dougthompson@xmission.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i5000_edac.c
@@ -1946,7 +2006,7 @@ F:	drivers/edac/i5000_edac.c
 EDAC-I5400
 P:	Mauro Carvalho Chehab
 M:	mchehab@redhat.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i5400_edac.c
@@ -1956,7 +2016,7 @@ P:	Ranganathan Desikan
 P:	Arvind R.
 M:	rdesikan@jetzbroadband.com
 M:	arvind@acarlab.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82975x_edac.c
@@ -1964,7 +2024,7 @@ F:	drivers/edac/i82975x_edac.c
 EDAC-PASEMI
 P:	Egor Martovetsky
 M:	egor@pasemi.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/pasemi_edac.c
@@ -1972,7 +2032,7 @@ F:	drivers/edac/pasemi_edac.c
 EDAC-R82600
 P:	Tim Small
 M:	tim@buttersideup.com
-L:	bluesmoke-devel@lists.sourceforge.net
+L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/r82600_edac.c
@@ -2002,6 +2062,8 @@ F:	drivers/infiniband/hw/ehca/
 EMBEDDED LINUX
 P:	Paul Gortmaker
 M:	paul.gortmaker@windriver.com
+P:	Matt Mackall
+M:	mpm@selenic.com
 P:	David Woodhouse
 M:	dwmw2@infradead.org
 L:	linux-embedded@vger.kernel.org
@@ -2270,6 +2332,15 @@ F:	Documentation/power/freezing-of-tasks.txt
 F:	include/linux/freezer.h
 F:	kernel/freezer.c
 
+FS-CACHE: LOCAL CACHING FOR NETWORK FILESYSTEMS
+P:	David Howells
+M:	dhowells@redhat.com
+L:	linux-cachefs@redhat.com
+S:	Supported
+F:	Documentation/filesystems/caching/
+F:	fs/fscache/
+F:	include/linux/fscache*.h
+
 FTRACE
 P:	Steven Rostedt
 M:	rostedt@goodmis.org
@@ -2490,7 +2561,6 @@ F:	kernel/power/
 F:	include/linux/suspend.h
 F:	include/linux/freezer.h
 F:	include/linux/pm.h
-F:	include/asm-*/suspend*.h
 F:	arch/*/include/asm/suspend*.h
 
 HID CORE LAYER
@@ -2592,8 +2662,8 @@ S:	Maintained
 F:	fs/hpfs/
 
 HSO 3G MODEM DRIVER
-P:	Denis Joseph Barrow
-M:	d.barow@option.com
+P:	Jan Dumon
+M:	j.dumon@option.com
 W:	http://www.pharscape.org
 S:	Maintained
 F:	drivers/net/usb/hso.c
@@ -2688,7 +2758,7 @@ IDE SUBSYSTEM
 P:	Bartlomiej Zolnierkiewicz
 M:	bzolnier@gmail.com
 L:	linux-ide@vger.kernel.org
-T:	quilt kernel.org/pub/linux/kernel/people/bart/pata-2.6/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bart/ide-2.6.git
 S:	Maintained
 F:	Documentation/ide/
 F:	drivers/ide/
@@ -3268,7 +3338,7 @@ P:	Eduard - Gabriel Munteanu
 M:	eduard.munteanu@linux360.ro
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
-F:	Documentation/vm/kmemtrace.txt
+F:	Documentation/trace/kmemtrace.txt
 F:	include/trace/kmemtrace.h
 F:	kernel/trace/kmemtrace.c
 
@@ -3364,11 +3434,10 @@ L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED MPC5XXX
-P:	Sylvain Munaut
-M:	tnt@246tNt.com
 P:	Grant Likely
 M:	grant.likely@secretlab.ca
 L:	linuxppc-dev@ozlabs.org
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC4XX
@@ -3378,7 +3447,7 @@ P:	Matt Porter
 M:	mporter@kernel.crashing.org
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/powerpc.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/powerpc-4xx.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED XILINX VIRTEX
@@ -3386,6 +3455,7 @@ P:	Grant Likely
 M:	grant.likely@secretlab.ca
 W:	http://wiki.secretlab.ca/index.php/Linux_on_Xilinx_Virtex
 L:	linuxppc-dev@ozlabs.org
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC8XX
@@ -3680,6 +3750,7 @@ L:	microblaze-uclinux@itee.uq.edu.au
 W:	http://www.monstr.eu/fdt/
 T:	git git://git.monstr.eu/linux-2.6-microblaze.git
 S:	Supported
+F:	arch/microblaze/
 
 MICROTEK X6 SCANNER
 P:	Oliver Neukum
@@ -4118,7 +4189,7 @@ P:	Joel Becker
 M:	joel.becker@oracle.com
 L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfasheh/ocfs2.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jlbec/ocfs2.git
 S:	Supported
 F:	Documentation/filesystems/ocfs2.txt
 F:	Documentation/filesystems/dlmfs.txt
@@ -4440,13 +4511,28 @@ F:	arch/powerpc/include/asm/ps3*.h
 F:	arch/powerpc/platforms/ps3/
 F:	drivers/*/ps3*
 F:	drivers/ps3/
+F:	drivers/rtc/rtc-ps3.c
 F:	drivers/usb/host/*ps3.c
+F:	sound/ppc/snd_ps3*
 
 PS3VRAM DRIVER
 P:	Jim Paris
 M:	jim@jtan.com
 L:	cbe-oss-dev@ozlabs.org
 S:	Maintained
+
+PTRACE SUPPORT
+P:	Roland McGrath
+M:	roland@redhat.com
+P:	Oleg Nesterov
+M:	oleg@redhat.com
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	include/asm-generic/syscall.h
+F:	include/linux/ptrace.h
+F:	include/linux/regset.h
+F:	include/linux/tracehook.h
+F:	kernel/ptrace.c
 
 PVRUSB2 VIDEO4LINUX DRIVER
 P:	Mike Isely
@@ -4593,13 +4679,13 @@ F:	kernel/rcutorture.c
 
 RDC R-321X SoC
 P:	Florian Fainelli
-M:	florian.fainelli@telecomint.eu
+M:	florian@openwrt.org
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 RDC R6040 FAST ETHERNET DRIVER
 P:	Florian Fainelli
-M:	florian.fainelli@telecomint.eu
+M:	florian@openwrt.org
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/r6040.c
@@ -4978,8 +5064,8 @@ S:	Maintained for 2.6.
 F:	Documentation/sgi-visws.txt
 
 SGI XP/XPC/XPNET DRIVER
-P:	Dean Nelson
-M:	dcn@sgi.com
+P:	Robin Holt
+M:	holt@sgi.com
 S:	Maintained
 F:	drivers/misc/sgi-xp/
 
@@ -5186,7 +5272,12 @@ M:	perex@perex.cz
 P:	Takashi Iwai
 M:	tiwai@suse.de
 L:	alsa-devel@alsa-project.org (subscribers-only)
+W:	http://www.alsa-project.org/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/sound-2.6.git
+T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
+F:	Documentation/sound/
+F:	include/sound/
 F:	sound/
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
@@ -5313,7 +5404,9 @@ L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git
 S:	Supported
+F:	Documentation/sh/
 F:	arch/sh/
+F:	drivers/sh/
 
 SUSPEND TO RAM
 P:	Len Brown
@@ -5331,7 +5424,6 @@ F:	kernel/power/
 F:	include/linux/suspend.h
 F:	include/linux/freezer.h
 F:	include/linux/pm.h
-F:	include/asm-*/suspend.h
 
 SVGA HANDLING
 P:	Martin Mares
@@ -5565,7 +5657,7 @@ L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 F:	arch/m68knommu/
 
-UCLINUX FOR RENESAS H8/300
+UCLINUX FOR RENESAS H8/300 (H8300)
 P:	Yoshinori Sato
 M:	ysato@users.sourceforge.jp
 W:	http://uclinux-h8.sourceforge.jp/

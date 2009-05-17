@@ -40,6 +40,7 @@
 #include <mach/irda.h>
 #include <mach/pxa27x_keypad.h>
 #include <mach/udc.h>
+#include <mach/palmasoc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -64,6 +65,7 @@ static unsigned long palmtx_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO95_AC97_nRESET,
 
 	/* IrDA */
 	GPIO40_GPIO,	/* ir disable */
@@ -75,7 +77,7 @@ static unsigned long palmtx_pin_config[] __initdata = {
 
 	/* USB */
 	GPIO13_GPIO,	/* usb detect */
-	GPIO95_GPIO,	/* usb power */
+	GPIO93_GPIO,	/* usb power */
 
 	/* PCMCIA */
 	GPIO48_nPOE,
@@ -359,7 +361,7 @@ static struct pxaficp_platform_data palmtx_ficp_platform_data = {
 static struct pxa2xx_udc_mach_info palmtx_udc_info __initdata = {
 	.gpio_vbus		= GPIO_NR_PALMTX_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,
-	.gpio_pullup		= GPIO_NR_PALMTX_USB_POWER,
+	.gpio_pullup		= GPIO_NR_PALMTX_USB_PULLUP,
 	.gpio_pullup_inverted	= 0,
 };
 
@@ -433,6 +435,25 @@ static struct wm97xx_batt_info wm97xx_batt_pdata = {
 };
 
 /******************************************************************************
+ * aSoC audio
+ ******************************************************************************/
+static struct palm27x_asoc_info palmtx_asoc_pdata = {
+	.jack_gpio	= GPIO_NR_PALMTX_EARPHONE_DETECT,
+};
+
+static pxa2xx_audio_ops_t palmtx_ac97_pdata = {
+	.reset_gpio	= 95,
+};
+
+static struct platform_device palmtx_asoc = {
+	.name = "palm27x-asoc",
+	.id   = -1,
+	.dev  = {
+		.platform_data = &palmtx_asoc_pdata,
+	},
+};
+
+/******************************************************************************
  * Framebuffer
  ******************************************************************************/
 static struct pxafb_mode_info palmtx_lcd_modes[] = {
@@ -494,6 +515,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 	&palmtx_backlight,
 	&power_supply,
+	&palmtx_asoc,
 };
 
 static struct map_desc palmtx_io_desc[] __initdata = {
@@ -514,9 +536,9 @@ static void __init palmtx_map_io(void)
 /* setup udc GPIOs initial state */
 static void __init palmtx_udc_init(void)
 {
-	if (!gpio_request(GPIO_NR_PALMTX_USB_POWER, "UDC Vbus")) {
-		gpio_direction_output(GPIO_NR_PALMTX_USB_POWER, 1);
-		gpio_free(GPIO_NR_PALMTX_USB_POWER);
+	if (!gpio_request(GPIO_NR_PALMTX_USB_PULLUP, "UDC Vbus")) {
+		gpio_direction_output(GPIO_NR_PALMTX_USB_PULLUP, 1);
+		gpio_free(GPIO_NR_PALMTX_USB_PULLUP);
 	}
 }
 
@@ -528,8 +550,8 @@ static void __init palmtx_init(void)
 	set_pxa_fb_info(&palmtx_lcd_screen);
 	pxa_set_mci_info(&palmtx_mci_platform_data);
 	palmtx_udc_init();
+	pxa_set_ac97_info(&palmtx_ac97_pdata);
 	pxa_set_udc_info(&palmtx_udc_info);
-	pxa_set_ac97_info(NULL);
 	pxa_set_ficp_info(&palmtx_ficp_platform_data);
 	pxa_set_keypad_info(&palmtx_keypad_platform_data);
 	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);

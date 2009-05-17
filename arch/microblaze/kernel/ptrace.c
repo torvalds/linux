@@ -32,7 +32,6 @@
 #include <linux/signal.h>
 
 #include <linux/errno.h>
-#include <linux/ptrace.h>
 #include <asm/processor.h>
 #include <linux/uaccess.h>
 #include <asm/asm-offsets.h>
