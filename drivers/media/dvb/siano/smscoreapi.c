@@ -781,7 +781,7 @@ static char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
 	/*BDA*/
 	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
 	/*ISDBT*/
-	{"none", "isdbt_nova_12mhz.inp", "dvb_nova_12mhz.inp", "none"},
+	{"none", "isdbt_nova_12mhz.inp", "isdbt_nova_12mhz_b0.inp", "none"},
 	/*ISDBTBDA*/
 	{"none", "isdbt_nova_12mhz.inp", "isdbt_nova_12mhz_b0.inp", "none"},
 	/*CMMB*/
