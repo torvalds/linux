@@ -1048,8 +1048,7 @@ static void ide_init_port(ide_hwif_t *hwif, unsigned int port,
 {
 	hwif->channel = port;
 
-	if (d->chipset)
-		hwif->chipset = d->chipset;
+	hwif->chipset = d->chipset ? d->chipset : ide_pci;
 
 	if (d->init_iops)
 		d->init_iops(hwif);
@@ -1178,7 +1177,6 @@ static void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
 	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
-	hwif->chipset = hw->chipset;
 	hwif->dev = hw->dev;
 	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
 	hwif->ack_intr = hw->ack_intr;

@@ -29,6 +29,7 @@ MODULE_PARM_DESC(probe_mask, "probe mask for legacy ISA IDE ports");
 
 static const struct ide_port_info ide_generic_port_info = {
 	.host_flags		= IDE_HFLAG_NO_DMA,
+	.chipset		= ide_generic,
 };
 
 #ifdef CONFIG_ARM
@@ -132,8 +133,6 @@ static int __init ide_generic_init(void)
 #else
 			hw.irq = legacy_irqs[i];
 #endif
-			hw.chipset = ide_generic;
-
 			rc = ide_host_add(&ide_generic_port_info, hws, NULL);
 			if (rc) {
 				release_region(io_addr + 0x206, 1);

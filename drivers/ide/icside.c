@@ -398,11 +398,11 @@ static void icside_setup_ports(hw_regs_t *hw, void __iomem *base,
 
 	hw->irq = ec->irq;
 	hw->dev = &ec->dev;
-	hw->chipset = ide_acorn;
 }
 
 static const struct ide_port_info icside_v5_port_info = {
 	.host_flags		= IDE_HFLAG_NO_DMA,
+	.chipset		= ide_acorn,
 };
 
 static int __devinit
@@ -457,6 +457,7 @@ static const struct ide_port_info icside_v6_port_info __initdata = {
 	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_MMIO,
 	.mwdma_mask		= ATA_MWDMA2,
 	.swdma_mask		= ATA_SWDMA2,
+	.chipset		= ide_acorn,
 };
 
 static int __devinit

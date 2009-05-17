@@ -25,6 +25,7 @@ static const struct ide_port_info ide_4drives_port_info = {
 	.port_ops		= &ide_4drives_port_ops,
 	.host_flags		= IDE_HFLAG_SERIALIZE | IDE_HFLAG_NO_DMA |
 				  IDE_HFLAG_4DRIVES,
+	.chipset		= ide_4drives,
 };
 
 static int __init ide_4drives_init(void)
@@ -52,7 +53,6 @@ static int __init ide_4drives_init(void)
 
 	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = 14;
-	hw.chipset = ide_4drives;
 
 	return ide_host_add(&ide_4drives_port_info, hws, NULL);
 }

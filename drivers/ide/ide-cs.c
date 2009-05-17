@@ -155,6 +155,7 @@ static const struct ide_port_info idecs_port_info = {
 	.port_ops		= &idecs_port_ops,
 	.host_flags		= IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
+	.chipset		= ide_pci,
 };
 
 static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
@@ -181,7 +182,6 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
     memset(&hw, 0, sizeof(hw));
     ide_std_init_ports(&hw, io, ctl);
     hw.irq = irq;
-    hw.chipset = ide_pci;
     hw.dev = &handle->dev;
 
     rc = ide_host_add(&idecs_port_info, hws, &host);

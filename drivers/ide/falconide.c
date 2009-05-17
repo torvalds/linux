@@ -111,6 +111,7 @@ static const struct ide_port_info falconide_port_info = {
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_SERIALIZE |
 				  IDE_HFLAG_NO_DMA,
 	.irq_flags		= IRQF_SHARED,
+	.chipset		= ide_generic,
 };
 
 static void __init falconide_setup_ports(hw_regs_t *hw)
@@ -128,8 +129,6 @@ static void __init falconide_setup_ports(hw_regs_t *hw)
 
 	hw->irq = IRQ_MFP_IDE;
 	hw->ack_intr = NULL;
-
-	hw->chipset = ide_generic;
 }
 
     /*

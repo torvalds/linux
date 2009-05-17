@@ -344,7 +344,6 @@ static int ide_hw_configure(struct pci_dev *dev, const struct ide_port_info *d,
 
 	memset(hw, 0, sizeof(*hw));
 	hw->dev = &dev->dev;
-	hw->chipset = d->chipset ? d->chipset : ide_pci;
 	ide_std_init_ports(hw, base, ctl | 2);
 
 	return 0;

@@ -216,6 +216,7 @@ static const struct ide_port_info at91_ide_port_info __initdata = {
 	.host_flags 	= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA | IDE_HFLAG_SINGLE |
 			  IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_UNMASK_IRQS,
 	.pio_mask 	= ATA_PIO6,
+	.chipset	= ide_generic,
 };
 
 /*
@@ -304,7 +305,6 @@ static int __init at91_ide_probe(struct platform_device *pdev)
 		ide_std_init_ports(&hw, tf_base, ctl_base + 6);
 
 	hw.irq = board->irq_pin;
-	hw.chipset = ide_generic;
 	hw.dev = &pdev->dev;
 
 	host = ide_host_alloc(&at91_ide_port_info, hws);

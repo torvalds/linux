@@ -13,6 +13,7 @@
 
 static const struct ide_port_info rapide_port_info = {
 	.host_flags		= IDE_HFLAG_MMIO | IDE_HFLAG_NO_DMA,
+	.chipset		= ide_generic,
 };
 
 static void rapide_setup_ports(hw_regs_t *hw, void __iomem *base,
@@ -49,7 +50,6 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 	memset(&hw, 0, sizeof(hw));
 	rapide_setup_ports(&hw, base, base + 0x818, 1 << 6, ec->irq);
-	hw.chipset = ide_generic;
 	hw.dev = &ec->dev;
 
 	ret = ide_host_add(&rapide_port_info, hws, &host);

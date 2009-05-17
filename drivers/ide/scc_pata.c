@@ -567,7 +567,6 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 		hw.io_ports_array[i] = ports->dma + 0x20 + i * 4;
 	hw.irq = dev->irq;
 	hw.dev = &dev->dev;
-	hw.chipset = ide_pci;
 
 	rc = ide_host_add(d, hws, &host);
 	if (rc)
@@ -823,6 +822,7 @@ static const struct ide_port_info scc_chipset __devinitdata = {
 	.host_flags	= IDE_HFLAG_SINGLE,
 	.irq_flags	= IRQF_SHARED,
 	.pio_mask	= ATA_PIO4,
+	.chipset	= ide_pci,
 };
 
 /**

@@ -73,12 +73,12 @@ static inline void hw_setup(hw_regs_t *hw)
 		hw->io_ports_array[i] = CONFIG_H8300_IDE_BASE + H8300_IDE_GAP*i;
 	hw->io_ports.ctl_addr = CONFIG_H8300_IDE_ALT;
 	hw->irq = EXT_IRQ0 + CONFIG_H8300_IDE_IRQ;
-	hw->chipset = ide_generic;
 }
 
 static const struct ide_port_info h8300_port_info = {
 	.tp_ops			= &h8300_tp_ops,
 	.host_flags		= IDE_HFLAG_NO_IO_32BIT | IDE_HFLAG_NO_DMA,
+	.chipset		= ide_generic,
 };
 
 static int __init h8300_ide_init(void)

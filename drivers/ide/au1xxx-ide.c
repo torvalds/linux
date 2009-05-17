@@ -499,6 +499,7 @@ static const struct ide_port_info au1xxx_port_info = {
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	.mwdma_mask		= ATA_MWDMA2,
 #endif
+	.chipset		= ide_au1xxx,
 };
 
 static int au_ide_probe(struct platform_device *dev)
@@ -548,7 +549,6 @@ static int au_ide_probe(struct platform_device *dev)
 	auide_setup_ports(&hw, ahwif);
 	hw.irq = ahwif->irq;
 	hw.dev = &dev->dev;
-	hw.chipset = ide_au1xxx;
 
 	ret = ide_host_add(&au1xxx_port_info, hws, &host);
 	if (ret)

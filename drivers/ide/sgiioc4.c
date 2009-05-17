@@ -575,7 +575,6 @@ sgiioc4_ide_setup_pci_device(struct pci_dev *dev)
 	memset(&hw, 0, sizeof(hw));
 	sgiioc4_init_hwif_ports(&hw, cmd_base, ctl, irqport);
 	hw.irq = dev->irq;
-	hw.chipset = ide_pci;
 	hw.dev = &dev->dev;
 
 	/* Initializing chipset IRQ Registers */

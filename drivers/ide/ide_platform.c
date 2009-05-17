@@ -40,12 +40,11 @@ static void __devinit plat_ide_setup_ports(hw_regs_t *hw,
 	hw->io_ports.ctl_addr = (unsigned long)ctrl;
 
 	hw->irq = irq;
-
-	hw->chipset = ide_generic;
 }
 
 static const struct ide_port_info platform_ide_port_info = {
 	.host_flags		= IDE_HFLAG_NO_DMA,
+	.chipset		= ide_generic,
 };
 
 static int __devinit plat_ide_probe(struct platform_device *pdev)
