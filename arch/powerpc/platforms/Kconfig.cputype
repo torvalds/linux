@@ -262,8 +262,8 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-1024)"
-	range 2 1024
+	int "Maximum number of CPUs (2-8192)"
+	range 2 8192
 	depends on SMP
 	default "32" if PPC64
 	default "4"
