@@ -371,20 +371,24 @@ static int p54spi_rx(struct p54s_priv *priv)
 {
 	struct sk_buff *skb;
 	u16 len;
+	u16 rx_head[2];
+#define READAHEAD_SZ (sizeof(rx_head)-sizeof(u16))
 
 	if (p54spi_wakeup(priv) < 0)
 		return -EBUSY;
 
-	/* dummy read to flush SPI DMA controller bug */
-	p54spi_read16(priv, SPI_ADRS_GEN_PURP_1);
-
-	len = p54spi_read16(priv, SPI_ADRS_DMA_DATA);
+	/* Read data size and first data word in one SPI transaction
+	 * This is workaround for firmware/DMA bug,
+	 * when first data word gets lost under high load.
+	 */
+	p54spi_spi_read(priv, SPI_ADRS_DMA_DATA, rx_head, sizeof(rx_head));
+	len = rx_head[0];
 
 	if (len == 0) {
-		dev_err(&priv->spi->dev, "rx request of zero bytes");
+		p54spi_sleep(priv);
+		dev_err(&priv->spi->dev, "rx request of zero bytes\n");
 		return 0;
 	}
-
 
 	/* Firmware may insert up to 4 padding bytes after the lmac header,
 	 * but it does not amend the size of SPI data transfer.
@@ -392,11 +396,19 @@ static int p54spi_rx(struct p54s_priv *priv)
 	 * past the end of allocated skb. Reserve extra 4 bytes for this case */
 	skb = dev_alloc_skb(len + 4);
 	if (!skb) {
+		p54spi_sleep(priv);
 		dev_err(&priv->spi->dev, "could not alloc skb");
-		return 0;
+		return -ENOMEM;
 	}
 
-	p54spi_spi_read(priv, SPI_ADRS_DMA_DATA, skb_put(skb, len), len);
+	if (len <= READAHEAD_SZ) {
+		memcpy(skb_put(skb, len), rx_head + 1, len);
+	} else {
+		memcpy(skb_put(skb, READAHEAD_SZ), rx_head + 1, READAHEAD_SZ);
+		p54spi_spi_read(priv, SPI_ADRS_DMA_DATA,
+				skb_put(skb, len - READAHEAD_SZ),
+				len - READAHEAD_SZ);
+	}
 	p54spi_sleep(priv);
 	/* Put additional bytes to compensate for the possible
 	 * alignment-caused truncation */
