@@ -24,7 +24,6 @@ int blk_rq_append_bio(struct request_queue *q, struct request *rq,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(blk_rq_append_bio);
 
 static int __blk_rq_unmap_user(struct bio *bio)
 {

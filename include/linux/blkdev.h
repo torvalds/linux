@@ -758,12 +758,6 @@ extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			 struct scsi_ioctl_command __user *);
 
 /*
- * Temporary export, until SCSI gets fixed up.
- */
-extern int blk_rq_append_bio(struct request_queue *q, struct request *rq,
-			     struct bio *bio);
-
-/*
  * A queue has just exitted congestion.  Note this in the global counter of
  * congested queues, and wake up anyone who was waiting for requests to be
  * put back.
