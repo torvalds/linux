@@ -82,7 +82,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * to get this processor out of WFI in the BootMonitor - make
 	 * sure that we are no longer being sent this soft interrupt
 	 */
-	smp_cross_call_done(cpumask_of_cpu(cpu));
+	smp_cross_call_done(cpumask_of(cpu));
 
 	/*
 	 * if any interrupts are already enabled for the primary
@@ -136,7 +136,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * Use smp_cross_call() for this, since there's little
 	 * point duplicating the code here
 	 */
-	smp_cross_call(cpumask_of_cpu(cpu));
+	smp_cross_call(cpumask_of(cpu));
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
