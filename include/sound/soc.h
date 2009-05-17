@@ -339,6 +339,7 @@ struct snd_soc_codec {
 	struct module *owner;
 	struct mutex mutex;
 	struct device *dev;
+	struct snd_soc_device *socdev;
 
 	struct list_head list;
 

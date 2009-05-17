@@ -94,6 +94,30 @@ static inline struct snd_soc_dapm_widget *dapm_cnew_widget(
 	return kmemdup(_widget, sizeof(*_widget), GFP_KERNEL);
 }
 
+/**
+ * snd_soc_dapm_set_bias_level - set the bias level for the system
+ * @socdev: audio device
+ * @level: level to configure
+ *
+ * Configure the bias (power) levels for the SoC audio device.
+ *
+ * Returns 0 for success else error.
+ */
+static int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
+				       enum snd_soc_bias_level level)
+{
+	struct snd_soc_card *card = socdev->card;
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int ret = 0;
+
+	if (card->set_bias_level)
+		ret = card->set_bias_level(card, level);
+	if (ret == 0 && codec->set_bias_level)
+		ret = codec->set_bias_level(codec, level);
+
+	return ret;
+}
+
 /* set up initial codec paths */
 static void dapm_set_path_status(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dapm_path *p, int i)
@@ -707,9 +731,11 @@ static int dapm_power_widget(struct snd_soc_codec *codec, int event,
  */
 static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 {
+	struct snd_soc_device *socdev = codec->socdev;
 	struct snd_soc_dapm_widget *w;
 	int ret = 0;
 	int i, power;
+	int sys_power = 0;
 
 	INIT_LIST_HEAD(&codec->up_list);
 	INIT_LIST_HEAD(&codec->down_list);
@@ -731,6 +757,9 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 				continue;
 
 			power = w->power_check(w);
+			if (power)
+				sys_power = 1;
+
 			if (w->power == power)
 				continue;
 
@@ -743,6 +772,15 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 			w->power = power;
 			break;
 		}
+	}
+
+	/* If we're changing to all on or all off then prepare */
+	if ((sys_power && codec->bias_level == SND_SOC_BIAS_STANDBY) ||
+	    (!sys_power && codec->bias_level == SND_SOC_BIAS_ON)) {
+		ret = snd_soc_dapm_set_bias_level(socdev,
+						  SND_SOC_BIAS_PREPARE);
+		if (ret != 0)
+			pr_err("Failed to prepare bias: %d\n", ret);
 	}
 
 	/* Power down widgets first; try to avoid amplifying pops. */
@@ -771,6 +809,22 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 				pr_err("Failed to power up %s: %d\n",
 				       w->name, ret);
 		}
+	}
+
+	/* If we just powered the last thing off drop to standby bias */
+	if (codec->bias_level == SND_SOC_BIAS_PREPARE && !sys_power) {
+		ret = snd_soc_dapm_set_bias_level(socdev,
+						  SND_SOC_BIAS_STANDBY);
+		if (ret != 0)
+			pr_err("Failed to apply standby bias: %d\n", ret);
+	}
+
+	/* If we just powered up then move to active bias */
+	if (codec->bias_level == SND_SOC_BIAS_PREPARE && sys_power) {
+		ret = snd_soc_dapm_set_bias_level(socdev,
+						  SND_SOC_BIAS_ON);
+		if (ret != 0)
+			pr_err("Failed to apply active bias: %d\n", ret);
 	}
 
 	return 0;
@@ -1719,30 +1773,6 @@ int snd_soc_dapm_stream_event(struct snd_soc_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
-
-/**
- * snd_soc_dapm_set_bias_level - set the bias level for the system
- * @socdev: audio device
- * @level: level to configure
- *
- * Configure the bias (power) levels for the SoC audio device.
- *
- * Returns 0 for success else error.
- */
-int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
-				enum snd_soc_bias_level level)
-{
-	struct snd_soc_card *card = socdev->card;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret = 0;
-
-	if (card->set_bias_level)
-		ret = card->set_bias_level(card, level);
-	if (ret == 0 && codec->set_bias_level)
-		ret = codec->set_bias_level(codec, level);
-
-	return ret;
-}
 
 /**
  * snd_soc_dapm_enable_pin - enable pin.
