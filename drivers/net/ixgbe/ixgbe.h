@@ -222,6 +222,10 @@ struct ixgbe_q_vector {
 	(&(((struct ixgbe_adv_tx_context_desc *)((R).desc))[i]))
 
 #define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
+#ifdef IXGBE_FCOE
+/* Use 3K as the baby jumbo frame size for FCoE */
+#define IXGBE_FCOE_JUMBO_FRAME_SIZE       3072
+#endif /* IXGBE_FCOE */
 
 #define OTHER_VECTOR 1
 #define NON_Q_VECTORS (OTHER_VECTOR)

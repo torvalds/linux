@@ -1864,6 +1864,10 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		hlreg0 &= ~IXGBE_HLREG0_JUMBOEN;
 	else
 		hlreg0 |= IXGBE_HLREG0_JUMBOEN;
+#ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
+		hlreg0 |= IXGBE_HLREG0_JUMBOEN;
+#endif
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg0);
 
 	rdlen = adapter->rx_ring[0].count * sizeof(union ixgbe_adv_rx_desc);
@@ -1885,6 +1889,17 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		adapter->rx_ring[i].tail = IXGBE_RDT(j);
 		adapter->rx_ring[i].rx_buf_len = rx_buf_len;
 
+#ifdef IXGBE_FCOE
+		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+			struct ixgbe_ring_feature *f;
+			f = &adapter->ring_feature[RING_F_FCOE];
+			if ((rx_buf_len < IXGBE_FCOE_JUMBO_FRAME_SIZE) &&
+			    (i >= f->mask) && (i < f->mask + f->indices))
+				adapter->rx_ring[i].rx_buf_len =
+				        IXGBE_FCOE_JUMBO_FRAME_SIZE;
+		}
+
+#endif /* IXGBE_FCOE */
 		ixgbe_configure_srrctl(adapter, j);
 	}
 
@@ -2423,6 +2438,13 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
 	}
 
+#ifdef IXGBE_FCOE
+	/* adjust max frame to be able to do baby jumbo for FCoE */
+	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
+	    (max_frame < IXGBE_FCOE_JUMBO_FRAME_SIZE))
+		max_frame = IXGBE_FCOE_JUMBO_FRAME_SIZE;
+
+#endif /* IXGBE_FCOE */
 	mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
 	if (max_frame != (mhadd >> IXGBE_MHADD_MFS_SHIFT)) {
 		mhadd &= ~IXGBE_MHADD_MFS_MASK;
