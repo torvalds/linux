@@ -2,6 +2,7 @@
 #include <net/rtnetlink.h>
 
 #include "ieee80211_i.h"
+#include "mesh.h"
 #include "driver-ops.h"
 #include "led.h"
 
@@ -13,10 +14,29 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	struct sta_info *sta;
 	unsigned long flags;
 
+	ieee80211_scan_cancel(local);
+
 	ieee80211_stop_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
+	/* flush out all packets */
+	synchronize_net();
+
+	local->quiescing = true;
+	/* make quiescing visible to timers everywhere */
+	mb();
+
 	flush_workqueue(local->hw.workqueue);
+
+	/* Don't try to run timers while suspended. */
+	del_timer_sync(&local->sta_cleanup);
+
+	 /*
+	 * Note that this particular timer doesn't need to be
+	 * restarted at resume.
+	 */
+	cancel_work_sync(&local->dynamic_ps_enable_work);
+	del_timer_sync(&local->dynamic_ps_timer);
 
 	/* disable keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
@@ -35,10 +55,20 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 
 	rcu_read_unlock();
 
+	/* flush again, in case driver queued work */
+	flush_workqueue(local->hw.workqueue);
+
+	/* stop hardware - this must stop RX */
+	if (local->open_count) {
+		ieee80211_led_radio(local, false);
+		drv_stop(local);
+	}
+
 	/* remove STAs */
-	if (local->ops->sta_notify) {
-		spin_lock_irqsave(&local->sta_lock, flags);
-		list_for_each_entry(sta, &local->sta_list, list) {
+	spin_lock_irqsave(&local->sta_lock, flags);
+	list_for_each_entry(sta, &local->sta_list, list) {
+		if (local->ops->sta_notify) {
+			sdata = sta->sdata;
 			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 				sdata = container_of(sdata->bss,
 					     struct ieee80211_sub_if_data,
@@ -47,29 +77,43 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 			drv_sta_notify(local, &sdata->vif, STA_NOTIFY_REMOVE,
 				       &sta->sta);
 		}
-		spin_unlock_irqrestore(&local->sta_lock, flags);
+
+		mesh_plink_quiesce(sta);
 	}
+	spin_unlock_irqrestore(&local->sta_lock, flags);
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
-		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&
-		    netif_running(sdata->dev)) {
-			conf.vif = &sdata->vif;
-			conf.type = sdata->vif.type;
-			conf.mac_addr = sdata->dev->dev_addr;
-			drv_remove_interface(local, &conf);
+		switch(sdata->vif.type) {
+		case NL80211_IFTYPE_STATION:
+			ieee80211_sta_quiesce(sdata);
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			ieee80211_ibss_quiesce(sdata);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			ieee80211_mesh_quiesce(sdata);
+			break;
+		case NL80211_IFTYPE_AP_VLAN:
+		case NL80211_IFTYPE_MONITOR:
+			/* don't tell driver about this */
+			continue;
+		default:
+			break;
 		}
+
+		if (!netif_running(sdata->dev))
+			continue;
+
+		conf.vif = &sdata->vif;
+		conf.type = sdata->vif.type;
+		conf.mac_addr = sdata->dev->dev_addr;
+		drv_remove_interface(local, &conf);
 	}
 
-	/* flush again, in case driver queued work */
-	flush_workqueue(local->hw.workqueue);
+	local->suspended = true;
+	local->quiescing = false;
 
-	/* stop hardware */
-	if (local->open_count) {
-		ieee80211_led_radio(local, false);
-		drv_stop(local);
-	}
 	return 0;
 }
 

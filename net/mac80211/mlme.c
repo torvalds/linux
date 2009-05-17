@@ -37,6 +37,9 @@
 #define IEEE80211_PROBE_IDLE_TIME (60 * HZ)
 #define IEEE80211_RETRY_AUTH_INTERVAL (1 * HZ)
 
+#define TMR_RUNNING_TIMER	0
+#define TMR_RUNNING_CHANSW	1
+
 /* utils */
 static int ecw2cw(int ecw)
 {
@@ -521,6 +524,11 @@ static void ieee80211_chswitch_timer(unsigned long data)
 		(struct ieee80211_sub_if_data *) data;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	if (sdata->local->quiescing) {
+		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
+		return;
+	}
+
 	queue_work(sdata->local->hw.workqueue, &ifmgd->chswitch_work);
 }
 
@@ -713,6 +721,9 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 void ieee80211_dynamic_ps_timer(unsigned long data)
 {
 	struct ieee80211_local *local = (void *) data;
+
+	if (local->quiescing)
+		return;
 
 	queue_work(local->hw.workqueue, &local->dynamic_ps_enable_work);
 }
@@ -2108,6 +2119,11 @@ static void ieee80211_sta_timer(unsigned long data)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
 
+	if (local->quiescing) {
+		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
+		return;
+	}
+
 	set_bit(IEEE80211_STA_REQ_RUN, &ifmgd->request);
 	queue_work(local->hw.workqueue, &ifmgd->work);
 }
@@ -2240,6 +2256,17 @@ static void ieee80211_sta_work(struct work_struct *work)
 
 	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
 		return;
+
+	/*
+	 * Nothing should have been stuffed into the workqueue during
+	 * the suspend->resume cycle. If this WARN is seen then there
+	 * is a bug with either the driver suspend or something in
+	 * mac80211 stuffing into the workqueue which we haven't yet
+	 * cleared during mac80211's suspend cycle.
+	 */
+	if (WARN_ON(local->suspended))
+		return;
+
 	ifmgd = &sdata->u.mgd;
 
 	while ((skb = skb_dequeue(&ifmgd->skb_queue)))
@@ -2306,6 +2333,38 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 			   &sdata->u.mgd.work);
 	}
 }
+
+#ifdef CONFIG_PM
+void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	/*
+	 * we need to use atomic bitops for the running bits
+	 * only because both timers might fire at the same
+	 * time -- the code here is properly synchronised.
+	 */
+
+	cancel_work_sync(&ifmgd->work);
+	cancel_work_sync(&ifmgd->beacon_loss_work);
+	if (del_timer_sync(&ifmgd->timer))
+		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
+
+	cancel_work_sync(&ifmgd->chswitch_work);
+	if (del_timer_sync(&ifmgd->chswitch_timer))
+		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
+}
+
+void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (test_and_clear_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running))
+		add_timer(&ifmgd->timer);
+	if (test_and_clear_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running))
+		add_timer(&ifmgd->chswitch_timer);
+}
+#endif
 
 /* interface setup */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)

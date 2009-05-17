@@ -267,6 +267,8 @@ void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
+void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
+void mesh_path_restart(struct ieee80211_sub_if_data *sdata);
 
 #ifdef CONFIG_MAC80211_MESH
 extern int mesh_allocated;
@@ -294,10 +296,20 @@ static inline void mesh_path_activate(struct mesh_path *mpath)
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
 
+void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata);
+void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata);
+void mesh_plink_quiesce(struct sta_info *sta);
+void mesh_plink_restart(struct sta_info *sta);
 #else
 #define mesh_allocated	0
 static inline void
 ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local) {}
+static inline void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
+{}
+static inline void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
+{}
+static inline void mesh_plink_quiesce(struct sta_info *sta) {}
+static inline void mesh_plink_restart(struct sta_info *sta) {}
 #endif
 
 #endif /* IEEE80211S_H */

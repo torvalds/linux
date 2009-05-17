@@ -1034,6 +1034,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct sta_info *sta;
 	unsigned long flags;
 	int res;
+	bool from_suspend = local->suspended;
+
+	/*
+	 * We're going to start the hardware, at that point
+	 * we are no longer suspended and can RX frames.
+	 */
+	local->suspended = false;
 
 	/* restart hardware */
 	if (local->open_count) {
@@ -1058,6 +1065,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	if (local->ops->sta_notify) {
 		spin_lock_irqsave(&local->sta_lock, flags);
 		list_for_each_entry(sta, &local->sta_list, list) {
+			sdata = sta->sdata;
 			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 				sdata = container_of(sdata->bss,
 					     struct ieee80211_sub_if_data,
@@ -1128,5 +1136,40 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	ieee80211_wake_queues_by_reason(hw,
 			IEEE80211_QUEUE_STOP_REASON_SUSPEND);
 
+	/*
+	 * If this is for hw restart things are still running.
+	 * We may want to change that later, however.
+	 */
+	if (!from_suspend)
+		return 0;
+
+#ifdef CONFIG_PM
+	local->suspended = false;
+
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		switch(sdata->vif.type) {
+		case NL80211_IFTYPE_STATION:
+			ieee80211_sta_restart(sdata);
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			ieee80211_ibss_restart(sdata);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			ieee80211_mesh_restart(sdata);
+			break;
+		default:
+			break;
+		}
+	}
+
+	add_timer(&local->sta_cleanup);
+
+	spin_lock_irqsave(&local->sta_lock, flags);
+	list_for_each_entry(sta, &local->sta_list, list)
+		mesh_plink_restart(sta);
+	spin_unlock_irqrestore(&local->sta_lock, flags);
+#else
+	WARN_ON(1);
+#endif
 	return 0;
 }

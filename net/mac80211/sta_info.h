@@ -293,6 +293,7 @@ struct sta_info {
 	__le16 reason;
 	u8 plink_retries;
 	bool ignore_plink_timer;
+	bool plink_timer_was_running;
 	enum plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;

@@ -611,6 +611,9 @@ static void sta_info_cleanup(unsigned long data)
 		sta_info_cleanup_expire_buffered(local, sta);
 	rcu_read_unlock();
 
+	if (local->quiescing)
+		return;
+
 	local->sta_cleanup.expires =
 		round_jiffies(jiffies + STA_INFO_CLEANUP_INTERVAL);
 	add_timer(&local->sta_cleanup);
