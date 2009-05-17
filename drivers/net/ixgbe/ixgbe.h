@@ -75,6 +75,8 @@
 #define IXGBE_RXBUFFER_128   128    /* Used for packet split */
 #define IXGBE_RXBUFFER_256   256    /* Used for packet split */
 #define IXGBE_RXBUFFER_2048  2048
+#define IXGBE_RXBUFFER_4096  4096
+#define IXGBE_RXBUFFER_8192  8192
 #define IXGBE_MAX_RXBUFFER   16384  /* largest size for a single descriptor */
 
 #define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_256
