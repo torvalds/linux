@@ -696,6 +696,7 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_I_VERSION            0x2000000 /* i_version support */
 #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */
 #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
+#define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
 
 /* Compatibility, for having both ext2_fs.h and ext4_fs.h included at once */
 #ifndef _LINUX_EXT2_FS_H
@@ -887,6 +888,7 @@ struct ext4_sb_info {
 	int s_jquota_fmt;			/* Format of quota to use */
 #endif
 	unsigned int s_want_extra_isize; /* New inodes should reserve # bytes */
+	struct rb_root system_blks;
 
 #ifdef EXTENTS_STATS
 	/* ext4 extents stats */
@@ -1617,6 +1619,15 @@ extern struct dentry *ext4_get_parent(struct dentry *child);
 /* symlink.c */
 extern const struct inode_operations ext4_symlink_inode_operations;
 extern const struct inode_operations ext4_fast_symlink_inode_operations;
+
+/* block_validity */
+extern void ext4_release_system_zone(struct super_block *sb);
+extern int ext4_setup_system_zone(struct super_block *sb);
+extern int __init init_ext4_system_zone(void);
+extern void exit_ext4_system_zone(void);
+extern int ext4_data_block_valid(struct ext4_sb_info *sbi,
+				 ext4_fsblk_t start_blk,
+				 unsigned int count);
 
 /* extents.c */
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);

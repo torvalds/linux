@@ -2961,15 +2961,10 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 		+ le32_to_cpu(es->s_first_data_block);
 
 	len = ac->ac_b_ex.fe_len;
-	if (in_range(ext4_block_bitmap(sb, gdp), block, len) ||
-	    in_range(ext4_inode_bitmap(sb, gdp), block, len) ||
-	    in_range(block, ext4_inode_table(sb, gdp),
-		     EXT4_SB(sb)->s_itb_per_group) ||
-	    in_range(block + len - 1, ext4_inode_table(sb, gdp),
-		     EXT4_SB(sb)->s_itb_per_group)) {
+	if (!ext4_data_block_valid(sbi, block, len)) {
 		ext4_error(sb, __func__,
-			   "Allocating block %llu in system zone of %d group\n",
-			   block, ac->ac_b_ex.fe_group);
+			   "Allocating blocks %llu-%llu which overlap "
+			   "fs metadata\n", block, block+len);
 		/* File system mounted not to panic on error
 		 * Fix the bitmap and repeat the block allocation
 		 * We leak some of the blocks here.

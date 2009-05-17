@@ -372,20 +372,21 @@ static int ext4_block_to_path(struct inode *inode,
 }
 
 static int __ext4_check_blockref(const char *function, struct inode *inode,
-				 __le32 *p, unsigned int max) {
-
-	unsigned int maxblocks = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es);
+				 __le32 *p, unsigned int max)
+{
 	__le32 *bref = p;
+	unsigned int blk;
+
 	while (bref < p+max) {
-		if (unlikely(le32_to_cpu(*bref) >= maxblocks)) {
+		blk = le32_to_cpu(*bref++);
+		if (blk && 
+		    unlikely(!ext4_data_block_valid(EXT4_SB(inode->i_sb), 
+						    blk, 1))) {
 			ext4_error(inode->i_sb, function,
-				   "block reference %u >= max (%u) "
-				   "in inode #%lu, offset=%d",
-				   le32_to_cpu(*bref), maxblocks,
-				   inode->i_ino, (int)(bref-p));
+				   "invalid block reference %u "
+				   "in inode #%lu", blk, inode->i_ino);
  			return -EIO;
  		}
-		bref++;
  	}
  	return 0;
 }
@@ -1125,6 +1126,21 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 		ext4_discard_preallocations(inode);
 }
 
+static int check_block_validity(struct inode *inode, sector_t logical,
+				sector_t phys, int len)
+{
+	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), phys, len)) {
+		ext4_error(inode->i_sb, "check_block_validity",
+			   "inode #%lu logical block %llu mapped to %llu "
+			   "(size %d)", inode->i_ino,
+			   (unsigned long long) logical,
+			   (unsigned long long) phys, len);
+		WARN_ON(1);
+		return -EIO;
+	}
+	return 0;
+}
+
 /*
  * The ext4_get_blocks() function tries to look up the requested blocks,
  * and returns if the blocks are already mapped.
@@ -1169,6 +1185,13 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 					     bh, 0);
 	}
 	up_read((&EXT4_I(inode)->i_data_sem));
+
+	if (retval > 0 && buffer_mapped(bh)) {
+		int ret = check_block_validity(inode, block, 
+					       bh->b_blocknr, retval);
+		if (ret != 0)
+			return ret;
+	}
 
 	/* If it is only a block(s) look up */
 	if ((flags & EXT4_GET_BLOCKS_CREATE) == 0)
@@ -1245,6 +1268,12 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 		ext4_da_update_reserve_space(inode, retval);
 
 	up_write((&EXT4_I(inode)->i_data_sem));
+	if (retval > 0 && buffer_mapped(bh)) {
+		int ret = check_block_validity(inode, block, 
+					       bh->b_blocknr, retval);
+		if (ret != 0)
+			return ret;
+	}
 	return retval;
 }
 

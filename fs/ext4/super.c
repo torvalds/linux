@@ -568,6 +568,7 @@ static void ext4_put_super(struct super_block *sb)
 	struct ext4_super_block *es = sbi->s_es;
 	int i, err;
 
+	ext4_release_system_zone(sb);
 	ext4_mb_release(sb);
 	ext4_ext_release(sb);
 	ext4_xattr_put_super(sb);
@@ -1055,6 +1056,7 @@ enum {
 	Opt_ignore, Opt_barrier, Opt_nobarrier, Opt_err, Opt_resize,
 	Opt_usrquota, Opt_grpquota, Opt_i_version,
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc,
+	Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio
 };
 
@@ -1114,6 +1116,8 @@ static const match_table_t tokens = {
 	{Opt_resize, "resize"},
 	{Opt_delalloc, "delalloc"},
 	{Opt_nodelalloc, "nodelalloc"},
+	{Opt_block_validity, "block_validity"},
+	{Opt_noblock_validity, "noblock_validity"},
 	{Opt_inode_readahead_blks, "inode_readahead_blks=%u"},
 	{Opt_journal_ioprio, "journal_ioprio=%u"},
 	{Opt_auto_da_alloc, "auto_da_alloc=%u"},
@@ -1507,6 +1511,12 @@ set_qf_format:
 			break;
 		case Opt_delalloc:
 			set_opt(sbi->s_mount_opt, DELALLOC);
+			break;
+		case Opt_block_validity:
+			set_opt(sbi->s_mount_opt, BLOCK_VALIDITY);
+			break;
+		case Opt_noblock_validity:
+			clear_opt(sbi->s_mount_opt, BLOCK_VALIDITY);
 			break;
 		case Opt_inode_readahead_blks:
 			if (match_int(&args[0], &option))
@@ -2826,6 +2836,13 @@ no_journal:
 	} else if (test_opt(sb, DELALLOC))
 		printk(KERN_INFO "EXT4-fs: delayed allocation enabled\n");
 
+	err = ext4_setup_system_zone(sb);
+	if (err) {
+		printk(KERN_ERR "EXT4-fs: failed to initialize system "
+		       "zone (%d)\n", err);
+		goto failed_mount4;
+	}
+
 	ext4_ext_init(sb);
 	err = ext4_mb_init(sb, needs_recovery);
 	if (err) {
@@ -2875,6 +2892,7 @@ cantfind_ext4:
 
 failed_mount4:
 	printk(KERN_ERR "EXT4-fs (device %s): mount failed\n", sb->s_id);
+	ext4_release_system_zone(sb);
 	if (sbi->s_journal) {
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
@@ -3515,6 +3533,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				sb->s_flags &= ~MS_RDONLY;
 		}
 	}
+	ext4_setup_system_zone(sb);
 	if (sbi->s_journal == NULL)
 		ext4_commit_super(sb, 1);
 
@@ -3927,13 +3946,16 @@ static int __init init_ext4_fs(void)
 {
 	int err;
 
+	err = init_ext4_system_zone();
+	if (err)
+		return err;
 	ext4_kset = kset_create_and_add("ext4", NULL, fs_kobj);
 	if (!ext4_kset)
-		return -ENOMEM;
+		goto out4;
 	ext4_proc_root = proc_mkdir("fs/ext4", NULL);
 	err = init_ext4_mballoc();
 	if (err)
-		return err;
+		goto out3;
 
 	err = init_ext4_xattr();
 	if (err)
@@ -3958,6 +3980,11 @@ out1:
 	exit_ext4_xattr();
 out2:
 	exit_ext4_mballoc();
+out3:
+	remove_proc_entry("fs/ext4", NULL);
+	kset_unregister(ext4_kset);
+out4:
+	exit_ext4_system_zone();
 	return err;
 }
 
@@ -3972,6 +3999,7 @@ static void __exit exit_ext4_fs(void)
 	exit_ext4_mballoc();
 	remove_proc_entry("fs/ext4", NULL);
 	kset_unregister(ext4_kset);
+	exit_ext4_system_zone();
 }
 
 MODULE_AUTHOR("Remy Card, Stephen Tweedie, Andrew Morton, Andreas Dilger, Theodore Ts'o and others");
