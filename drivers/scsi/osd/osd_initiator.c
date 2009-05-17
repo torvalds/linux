@@ -826,26 +826,6 @@ int osd_req_add_set_attr_list(struct osd_request *or,
 }
 EXPORT_SYMBOL(osd_req_add_set_attr_list);
 
-static int _append_map_kern(struct request *req,
-	void *buff, unsigned len, gfp_t flags)
-{
-	struct bio *bio;
-	int ret;
-
-	bio = bio_map_kern(req->q, buff, len, flags);
-	if (IS_ERR(bio)) {
-		OSD_ERR("Failed bio_map_kern(%p, %d) => %ld\n", buff, len,
-			PTR_ERR(bio));
-		return PTR_ERR(bio);
-	}
-	ret = blk_rq_append_bio(req->q, req, bio);
-	if (ret) {
-		OSD_ERR("Failed blk_rq_append_bio(%p) => %d\n", bio, ret);
-		bio_put(bio);
-	}
-	return ret;
-}
-
 static int _req_append_segment(struct osd_request *or,
 	unsigned padding, struct _osd_req_data_segment *seg,
 	struct _osd_req_data_segment *last_seg, struct _osd_io_info *io)
@@ -861,14 +841,14 @@ static int _req_append_segment(struct osd_request *or,
 		else
 			pad_buff = io->pad_buff;
 
-		ret = _append_map_kern(io->req, pad_buff, padding,
+		ret = blk_rq_map_kern(io->req->q, io->req, pad_buff, padding,
 				       or->alloc_flags);
 		if (ret)
 			return ret;
 		io->total_bytes += padding;
 	}
 
-	ret = _append_map_kern(io->req, seg->buff, seg->total_bytes,
+	ret = blk_rq_map_kern(io->req->q, io->req, seg->buff, seg->total_bytes,
 			       or->alloc_flags);
 	if (ret)
 		return ret;
