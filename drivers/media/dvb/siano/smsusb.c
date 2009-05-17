@@ -554,9 +554,9 @@ int smsusb_module_init(void)
 
 void smsusb_module_exit(void)
 {
-	sms_debug("");
 	/* Regular USB Cleanup */
 	usb_deregister(&smsusb_driver);
+	sms_info("end");
 }
 
 module_init(smsusb_module_init);
