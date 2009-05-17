@@ -126,7 +126,10 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 			netdev->netdev_ops->ndo_stop(netdev);
 		ixgbe_clear_interrupt_scheme(adapter);
 
-		adapter->hw.fc.requested_mode = ixgbe_fc_pfc;
+		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+			adapter->last_lfc_mode = adapter->hw.fc.current_mode;
+			adapter->hw.fc.requested_mode = ixgbe_fc_none;
+		}
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		ixgbe_init_interrupt_scheme(adapter);
@@ -135,11 +138,13 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 	} else {
 		/* Turn off DCB */
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-			adapter->hw.fc.requested_mode = ixgbe_fc_default;
 			if (netif_running(netdev))
 				netdev->netdev_ops->ndo_stop(netdev);
 			ixgbe_clear_interrupt_scheme(adapter);
 
+			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
+			adapter->temp_dcb_cfg.pfc_mode_enable = false;
+			adapter->dcb_cfg.pfc_mode_enable = false;
 			adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 			adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 			ixgbe_init_interrupt_scheme(adapter);
@@ -329,8 +334,23 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		return ret;
 	}
 
+	if (adapter->dcb_cfg.pfc_mode_enable) {
+		if ((adapter->hw.mac.type != ixgbe_mac_82598EB) &&
+			(adapter->hw.fc.current_mode != ixgbe_fc_pfc))
+			adapter->last_lfc_mode = adapter->hw.fc.current_mode;
+		adapter->hw.fc.requested_mode = ixgbe_fc_pfc;
+	} else {
+		if (adapter->hw.mac.type != ixgbe_mac_82598EB)
+			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
+		else
+			adapter->hw.fc.requested_mode = ixgbe_fc_none;
+	}
+
 	if (netif_running(netdev))
 		ixgbe_up(adapter);
+
+	if (adapter->dcb_cfg.pfc_mode_enable)
+		adapter->hw.fc.current_mode = ixgbe_fc_pfc;
 
 	adapter->dcb_set_bitmap = 0x00;
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
@@ -409,11 +429,17 @@ static u8 ixgbe_dcbnl_getpfcstate(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	return !!(adapter->flags & IXGBE_FLAG_DCB_ENABLED);
+	return adapter->dcb_cfg.pfc_mode_enable;
 }
 
 static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 {
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+
+	adapter->temp_dcb_cfg.pfc_mode_enable = state;
+	if (adapter->temp_dcb_cfg.pfc_mode_enable !=
+		adapter->dcb_cfg.pfc_mode_enable)
+		adapter->dcb_set_bitmap |= BIT_PFC;
 	return;
 }
 

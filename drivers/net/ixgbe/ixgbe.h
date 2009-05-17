@@ -252,6 +252,7 @@ struct ixgbe_adapter {
 	struct ixgbe_dcb_config dcb_cfg;
 	struct ixgbe_dcb_config temp_dcb_cfg;
 	u8 dcb_set_bitmap;
+	enum ixgbe_fc_mode last_lfc_mode;
 
 	/* Interrupt Throttle Rate */
 	u32 itr_setting;

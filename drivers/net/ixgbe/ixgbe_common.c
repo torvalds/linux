@@ -1661,9 +1661,10 @@ s32 ixgbe_fc_enable(struct ixgbe_hw *hw, s32 packetbuf_num)
 	reg = IXGBE_READ_REG(hw, IXGBE_MTQC);
 	/* Thresholds are different for link flow control when in DCB mode */
 	if (reg & IXGBE_MTQC_RT_ENA) {
-		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
-
 		/* Always disable XON for LFC when in DCB mode */
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), 0);
+
+		rx_pba_size = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num));
 		reg = (rx_pba_size >> 2) & 0xFFE0;
 		if (hw->fc.current_mode & ixgbe_fc_tx_pause)
 			reg |= IXGBE_FCRTH_FCEN;

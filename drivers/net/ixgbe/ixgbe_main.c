@@ -3554,6 +3554,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->dcb_cfg.bw_percentage[DCB_TX_CONFIG][0] = 100;
 	adapter->dcb_cfg.bw_percentage[DCB_RX_CONFIG][0] = 100;
 	adapter->dcb_cfg.rx_pba_cfg = pba_equal;
+	adapter->dcb_cfg.pfc_mode_enable = false;
 	adapter->dcb_cfg.round_robin_enable = false;
 	adapter->dcb_set_bitmap = 0x00;
 	ixgbe_copy_dcb_cfg(&adapter->dcb_cfg, &adapter->temp_dcb_cfg,
@@ -3564,6 +3565,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	/* default flow control settings */
 	hw->fc.requested_mode = ixgbe_fc_full;
 	hw->fc.current_mode = ixgbe_fc_full;	/* init for ethtool output */
+#ifdef CONFIG_DCB
+	adapter->last_lfc_mode = hw->fc.current_mode;
+#endif
 	hw->fc.high_water = IXGBE_DEFAULT_FCRTH;
 	hw->fc.low_water = IXGBE_DEFAULT_FCRTL;
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
@@ -4319,11 +4323,24 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 
 	if (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE) {
 		hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
+		if (link_up) {
+#ifdef CONFIG_DCB
+			if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+				for (i = 0; i < MAX_TRAFFIC_CLASS; i++)
+					hw->mac.ops.setup_fc(hw, i);
+			} else {
+				hw->mac.ops.setup_fc(hw, 0);
+			}
+#else
+			hw->mac.ops.setup_fc(hw, 0);
+#endif
+		}
+
 		if (link_up ||
 		    time_after(jiffies, (adapter->link_check_timeout +
 		                         IXGBE_TRY_LINK_TIMEOUT))) {
-			IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMC_LSC);
 			adapter->flags &= ~IXGBE_FLAG_NEED_LINK_UPDATE;
+			IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMC_LSC);
 		}
 		adapter->link_up = link_up;
 		adapter->link_speed = link_speed;

@@ -270,6 +270,13 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
+#ifdef CONFIG_DCB
+	if (adapter->dcb_cfg.pfc_mode_enable ||
+		((hw->mac.type == ixgbe_mac_82598EB) &&
+		(adapter->flags & IXGBE_FLAG_DCB_ENABLED)))
+		return -EINVAL;
+
+#endif
 	if (pause->autoneg != AUTONEG_ENABLE)
 		hw->fc.disable_fc_autoneg = true;
 	else
@@ -286,6 +293,9 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	else
 		return -EINVAL;
 
+#ifdef CONFIG_DCB
+	adapter->last_lfc_mode = hw->fc.requested_mode;
+#endif
 	hw->mac.ops.setup_fc(hw, 0);
 
 	return 0;
