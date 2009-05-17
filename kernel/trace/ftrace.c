@@ -2826,7 +2826,7 @@ void __init ftrace_init(void)
 				  __stop_mcount_loc);
 
 	ret = register_module_notifier(&ftrace_module_nb);
-	if (!ret)
+	if (ret)
 		pr_warning("Failed to register trace ftrace module notifier\n");
 
 	return;
