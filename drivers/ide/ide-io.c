@@ -201,12 +201,8 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 	} else if (s->b.set_multmode) {
 		s->b.set_multmode = 0;
 		ide_tf_set_setmult_cmd(drive, &cmd.tf);
-	} else if (s->all) {
-		int special = s->all;
-		s->all = 0;
-		printk(KERN_ERR "%s: bad special flag: 0x%02x\n", drive->name, special);
-		return ide_stopped;
-	}
+	} else
+		BUG();
 
 	cmd.valid.out.tf = IDE_VALID_OUT_TF | IDE_VALID_DEVICE;
 	cmd.valid.in.tf  = IDE_VALID_IN_TF  | IDE_VALID_DEVICE;
