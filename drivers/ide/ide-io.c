@@ -184,10 +184,27 @@ static void ide_tf_set_setmult_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 	tf->command = ATA_CMD_SET_MULTI;
 }
 
-static ide_startstop_t ide_disk_special(ide_drive_t *drive)
+/**
+ *	do_special		-	issue some special commands
+ *	@drive: drive the command is for
+ *
+ *	do_special() is used to issue ATA_CMD_INIT_DEV_PARAMS,
+ *	ATA_CMD_RESTORE and ATA_CMD_SET_MULTI commands to a drive.
+ */
+
+static ide_startstop_t do_special(ide_drive_t *drive)
 {
 	special_t *s = &drive->special;
 	struct ide_cmd cmd;
+
+#ifdef DEBUG
+	printk(KERN_DEBUG "%s: %s: 0x%02x\n", drive->name, __func__, s->all);
+#endif
+	if (drive->media != ide_disk) {
+		s->all = 0;
+		drive->mult_req = 0;
+		return ide_stopped;
+	}
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.protocol = ATA_PROT_NODATA;
@@ -211,31 +228,6 @@ static ide_startstop_t ide_disk_special(ide_drive_t *drive)
 	do_rw_taskfile(drive, &cmd);
 
 	return ide_started;
-}
-
-/**
- *	do_special		-	issue some special commands
- *	@drive: drive the command is for
- *
- *	do_special() is used to issue ATA_CMD_INIT_DEV_PARAMS,
- *	ATA_CMD_RESTORE and ATA_CMD_SET_MULTI commands to a drive.
- *
- *	It used to do much more, but has been scaled back.
- */
-
-static ide_startstop_t do_special (ide_drive_t *drive)
-{
-	special_t *s = &drive->special;
-
-#ifdef DEBUG
-	printk("%s: do_special: 0x%02x\n", drive->name, s->all);
-#endif
-	if (drive->media == ide_disk)
-		return ide_disk_special(drive);
-
-	s->all = 0;
-	drive->mult_req = 0;
-	return ide_stopped;
 }
 
 void ide_map_sg(ide_drive_t *drive, struct ide_cmd *cmd)
