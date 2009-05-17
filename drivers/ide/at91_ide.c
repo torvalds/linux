@@ -247,7 +247,7 @@ irqreturn_t at91_irq_handler(int irq, void *dev_id)
 static int __init at91_ide_probe(struct platform_device *pdev)
 {
 	int ret;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
 	unsigned long tf_base = 0, ctl_base = 0;

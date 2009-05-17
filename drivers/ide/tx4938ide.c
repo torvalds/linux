@@ -130,7 +130,7 @@ static const struct ide_port_info tx4938ide_port_info __initdata = {
 
 static int __init tx4938ide_probe(struct platform_device *pdev)
 {
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
 	struct tx4938ide_platform_info *pdata = pdev->dev.platform_data;

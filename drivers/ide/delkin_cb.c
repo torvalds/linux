@@ -77,7 +77,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	struct ide_host *host;
 	unsigned long base;
 	int rc;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 
 	rc = pci_enable_device(dev);
 	if (rc) {

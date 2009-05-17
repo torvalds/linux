@@ -316,7 +316,7 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 	void __iomem *base;
 	unsigned long rate, mem_size;
 	int i, rc;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 
 	clk = clk_get(&pdev->dev, "IDECLK");
 	if (IS_ERR(clk))

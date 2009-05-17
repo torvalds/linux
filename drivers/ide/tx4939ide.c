@@ -537,7 +537,7 @@ static const struct ide_port_info tx4939ide_port_info __initdata = {
 
 static int __init tx4939ide_probe(struct platform_device *pdev)
 {
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
 	int irq, ret;

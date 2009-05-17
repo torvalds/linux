@@ -16,7 +16,7 @@ static const struct ide_port_info rapide_port_info = {
 	.chipset		= ide_generic,
 };
 
-static void rapide_setup_ports(hw_regs_t *hw, void __iomem *base,
+static void rapide_setup_ports(struct ide_hw *hw, void __iomem *base,
 			       void __iomem *ctrl, unsigned int sz, int irq)
 {
 	unsigned long port = (unsigned long)base;
@@ -36,7 +36,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	void __iomem *base;
 	struct ide_host *host;
 	int ret;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 
 	ret = ecard_request_resources(ec);
 	if (ret)

@@ -64,11 +64,11 @@ static const struct ide_tp_ops h8300_tp_ops = {
 
 #define H8300_IDE_GAP (2)
 
-static inline void hw_setup(hw_regs_t *hw)
+static inline void hw_setup(struct ide_hw *hw)
 {
 	int i;
 
-	memset(hw, 0, sizeof(hw_regs_t));
+	memset(hw, 0, sizeof(*hw));
 	for (i = 0; i <= 7; i++)
 		hw->io_ports_array[i] = CONFIG_H8300_IDE_BASE + H8300_IDE_GAP*i;
 	hw->io_ports.ctl_addr = CONFIG_H8300_IDE_ALT;
@@ -83,7 +83,7 @@ static const struct ide_port_info h8300_port_info = {
 
 static int __init h8300_ide_init(void)
 {
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 
 	printk(KERN_INFO DRV_NAME ": H8/300 generic IDE interface\n");
 

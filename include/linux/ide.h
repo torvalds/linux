@@ -178,7 +178,7 @@ typedef u8 hwif_chipset_t;
 /*
  * Structure to hold all information about the location of this port
  */
-typedef struct hw_regs_s {
+struct ide_hw {
 	union {
 		struct ide_io_ports	io_ports;
 		unsigned long		io_ports_array[IDE_NR_PORTS];
@@ -188,9 +188,9 @@ typedef struct hw_regs_s {
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	struct device	*dev, *parent;
 	unsigned long	config;
-} hw_regs_t;
+};
 
-static inline void ide_std_init_ports(hw_regs_t *hw,
+static inline void ide_std_init_ports(struct ide_hw *hw,
 				      unsigned long io_addr,
 				      unsigned long ctl_addr)
 {
@@ -1212,7 +1212,7 @@ static inline int ide_pci_is_in_compatibility_mode(struct pci_dev *dev)
 }
 
 void ide_pci_setup_ports(struct pci_dev *, const struct ide_port_info *,
-			 hw_regs_t *, hw_regs_t **);
+			 struct ide_hw *, struct ide_hw **);
 void ide_setup_pci_noise(struct pci_dev *, const struct ide_port_info *);
 
 #ifdef CONFIG_BLK_DEV_IDEDMA_PCI
@@ -1456,12 +1456,12 @@ void ide_undecoded_slave(ide_drive_t *);
 void ide_port_apply_params(ide_hwif_t *);
 int ide_sysfs_register_port(ide_hwif_t *);
 
-struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **,
+struct ide_host *ide_host_alloc(const struct ide_port_info *, struct ide_hw **,
 				unsigned int);
 void ide_host_free(struct ide_host *);
 int ide_host_register(struct ide_host *, const struct ide_port_info *,
-		      hw_regs_t **);
-int ide_host_add(const struct ide_port_info *, hw_regs_t **, unsigned int,
+		      struct ide_hw **);
+int ide_host_add(const struct ide_port_info *, struct ide_hw **, unsigned int,
 		 struct ide_host **);
 void ide_host_remove(struct ide_host *);
 int ide_legacy_device_add(const struct ide_port_info *, unsigned long);

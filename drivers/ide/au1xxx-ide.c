@@ -449,7 +449,7 @@ static int auide_ddma_init(ide_hwif_t *hwif, const struct ide_port_info *d)
 }
 #endif
 
-static void auide_setup_ports(hw_regs_t *hw, _auide_hwif *ahwif)
+static void auide_setup_ports(struct ide_hw *hw, _auide_hwif *ahwif)
 {
 	int i;
 	unsigned long *ata_regs = hw->io_ports_array;
@@ -508,7 +508,7 @@ static int au_ide_probe(struct platform_device *dev)
 	struct resource *res;
 	struct ide_host *host;
 	int ret = 0;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 	char *mode = "MWDMA2";

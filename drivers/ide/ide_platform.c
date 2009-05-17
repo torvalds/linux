@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-static void __devinit plat_ide_setup_ports(hw_regs_t *hw,
+static void __devinit plat_ide_setup_ports(struct ide_hw *hw,
 					   void __iomem *base,
 					   void __iomem *ctrl,
 					   struct pata_platform_info *pdata,
@@ -54,7 +54,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	struct pata_platform_info *pdata;
 	struct ide_host *host;
 	int ret = 0, mmio = 0;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 	struct ide_port_info d = platform_ide_port_info;
 
 	pdata = pdev->dev.platform_data;

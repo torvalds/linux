@@ -62,7 +62,7 @@ int macide_ack_intr(ide_hwif_t* hwif)
 	return 0;
 }
 
-static void __init macide_setup_ports(hw_regs_t *hw, unsigned long base,
+static void __init macide_setup_ports(struct ide_hw *hw, unsigned long base,
 				      int irq, ide_ack_intr_t *ack_intr)
 {
 	int i;
@@ -96,7 +96,7 @@ static int __init macide_init(void)
 	ide_ack_intr_t *ack_intr;
 	unsigned long base;
 	int irq;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 
 	if (!MACH_IS_MAC)
 		return -ENODEV;

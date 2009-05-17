@@ -88,7 +88,7 @@ static int gayle_ack_intr_a1200(ide_hwif_t *hwif)
     return 1;
 }
 
-static void __init gayle_setup_ports(hw_regs_t *hw, unsigned long base,
+static void __init gayle_setup_ports(struct ide_hw *hw, unsigned long base,
 				     unsigned long ctl, unsigned long irq_port,
 				     ide_ack_intr_t *ack_intr)
 {
@@ -125,7 +125,7 @@ static int __init gayle_init(void)
     unsigned long base, ctrlport, irqport;
     ide_ack_intr_t *ack_intr;
     int a4000, i, rc;
-    hw_regs_t hw[GAYLE_NUM_HWIFS], *hws[GAYLE_NUM_HWIFS];
+    struct ide_hw hw[GAYLE_NUM_HWIFS], *hws[GAYLE_NUM_HWIFS];
 
     if (!MACH_IS_AMIGA)
 	return -ENODEV;

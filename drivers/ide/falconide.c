@@ -114,7 +114,7 @@ static const struct ide_port_info falconide_port_info = {
 	.chipset		= ide_generic,
 };
 
-static void __init falconide_setup_ports(hw_regs_t *hw)
+static void __init falconide_setup_ports(struct ide_hw *hw)
 {
 	int i;
 
@@ -138,7 +138,7 @@ static void __init falconide_setup_ports(hw_regs_t *hw)
 static int __init falconide_init(void)
 {
 	struct ide_host *host;
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 	int rc;
 
 	if (!MACH_IS_ATARI || !ATARIHW_PRESENT(IDE))

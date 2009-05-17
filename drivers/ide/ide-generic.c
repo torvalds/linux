@@ -86,7 +86,7 @@ static void ide_generic_check_pci_legacy_iobases(int *primary, int *secondary)
 
 static int __init ide_generic_init(void)
 {
-	hw_regs_t hw, *hws[] = { &hw };
+	struct ide_hw hw, *hws[] = { &hw };
 	unsigned long io_addr;
 	int i, rc = 0, primary = 0, secondary = 0;
 

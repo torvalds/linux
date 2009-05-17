@@ -1173,7 +1173,7 @@ static void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 	ide_port_init_devices_data(hwif);
 }
 
-static void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
+static void ide_init_port_hw(ide_hwif_t *hwif, struct ide_hw *hw)
 {
 	memcpy(&hwif->io_ports, &hw->io_ports, sizeof(hwif->io_ports));
 	hwif->irq = hw->irq;
@@ -1261,8 +1261,8 @@ out_nomem:
 	return -ENOMEM;
 }
 
-struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws,
-				unsigned int n_ports)
+struct ide_host *ide_host_alloc(const struct ide_port_info *d,
+				struct ide_hw **hws, unsigned int n_ports)
 {
 	struct ide_host *host;
 	struct device *dev = hws[0] ? hws[0]->dev : NULL;
@@ -1349,7 +1349,7 @@ static void ide_disable_port(ide_hwif_t *hwif)
 }
 
 int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
-		      hw_regs_t **hws)
+		      struct ide_hw **hws)
 {
 	ide_hwif_t *hwif, *mate = NULL;
 	int i, j = 0;
@@ -1443,7 +1443,7 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 }
 EXPORT_SYMBOL_GPL(ide_host_register);
 
-int ide_host_add(const struct ide_port_info *d, hw_regs_t **hws,
+int ide_host_add(const struct ide_port_info *d, struct ide_hw **hws,
 		 unsigned int n_ports, struct ide_host **hostp)
 {
 	struct ide_host *host;
