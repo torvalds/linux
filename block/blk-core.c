@@ -891,6 +891,51 @@ struct request *blk_get_request(struct request_queue *q, int rw, gfp_t gfp_mask)
 EXPORT_SYMBOL(blk_get_request);
 
 /**
+ * blk_make_request - given a bio, allocate a corresponding struct request.
+ *
+ * @bio:  The bio describing the memory mappings that will be submitted for IO.
+ *        It may be a chained-bio properly constructed by block/bio layer.
+ *
+ * blk_make_request is the parallel of generic_make_request for BLOCK_PC
+ * type commands. Where the struct request needs to be farther initialized by
+ * the caller. It is passed a &struct bio, which describes the memory info of
+ * the I/O transfer.
+ *
+ * The caller of blk_make_request must make sure that bi_io_vec
+ * are set to describe the memory buffers. That bio_data_dir() will return
+ * the needed direction of the request. (And all bio's in the passed bio-chain
+ * are properly set accordingly)
+ *
+ * If called under none-sleepable conditions, mapped bio buffers must not
+ * need bouncing, by calling the appropriate masked or flagged allocator,
+ * suitable for the target device. Otherwise the call to blk_queue_bounce will
+ * BUG.
+ */
+struct request *blk_make_request(struct request_queue *q, struct bio *bio,
+				 gfp_t gfp_mask)
+{
+	struct request *rq = blk_get_request(q, bio_data_dir(bio), gfp_mask);
+
+	if (unlikely(!rq))
+		return ERR_PTR(-ENOMEM);
+
+	for_each_bio(bio) {
+		struct bio *bounce_bio = bio;
+		int ret;
+
+		blk_queue_bounce(q, &bounce_bio);
+		ret = blk_rq_append_bio(q, rq, bounce_bio);
+		if (unlikely(ret)) {
+			blk_put_request(rq);
+			return ERR_PTR(ret);
+		}
+	}
+
+	return rq;
+}
+EXPORT_SYMBOL(blk_make_request);
+
+/**
  * blk_requeue_request - put a request back on queue
  * @q:		request queue where request should be inserted
  * @rq:		request to be inserted
