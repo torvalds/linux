@@ -325,7 +325,7 @@ static inline void p54spi_int_ack(struct p54s_priv *priv, u32 val)
 	p54spi_write32(priv, SPI_ADRS_HOST_INT_ACK, cpu_to_le32(val));
 }
 
-static void p54spi_wakeup(struct p54s_priv *priv)
+static int p54spi_wakeup(struct p54s_priv *priv)
 {
 	/* wake the chip */
 	p54spi_write32(priv, SPI_ADRS_ARM_INTERRUPTS,
@@ -335,13 +335,11 @@ static void p54spi_wakeup(struct p54s_priv *priv)
 	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
 			     cpu_to_le32(SPI_HOST_INT_READY))) {
 		dev_err(&priv->spi->dev, "INT_READY timeout\n");
-		goto out;
+		return -EBUSY;
 	}
 
 	p54spi_int_ack(priv, SPI_HOST_INT_READY);
-
-out:
-	return;
+	return 0;
 }
 
 static inline void p54spi_sleep(struct p54s_priv *priv)
@@ -374,7 +372,8 @@ static int p54spi_rx(struct p54s_priv *priv)
 	struct sk_buff *skb;
 	u16 len;
 
-	p54spi_wakeup(priv);
+	if (p54spi_wakeup(priv) < 0)
+		return -EBUSY;
 
 	/* dummy read to flush SPI DMA controller bug */
 	p54spi_read16(priv, SPI_ADRS_GEN_PURP_1);
@@ -425,7 +424,8 @@ static int p54spi_tx_frame(struct p54s_priv *priv, struct sk_buff *skb)
 	struct p54_hdr *hdr = (struct p54_hdr *) skb->data;
 	int ret = 0;
 
-	p54spi_wakeup(priv);
+	if (p54spi_wakeup(priv) < 0)
+		return -EBUSY;
 
 	ret = p54spi_spi_write_dma(priv, hdr->req_id, skb->data, skb->len);
 	if (ret < 0)
