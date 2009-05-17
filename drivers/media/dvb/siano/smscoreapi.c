@@ -30,6 +30,7 @@
 #include <linux/io.h>
 
 #include <linux/firmware.h>
+#include <linux/wait.h>
 
 #include "smscoreapi.h"
 #include "sms-cards.h"
@@ -351,6 +352,9 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	init_completion(&dev->reload_start_done);
 	init_completion(&dev->resume_done);
 	init_completion(&dev->ir_init_done);
+
+	/* Buffer management */
+	init_waitqueue_head(&dev->buffer_mng_waitq);
 
 	/* alloc common buffer */
 	dev->common_buffer_size = params->buffer_size * params->num_buffers;
@@ -686,7 +690,9 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 	 * onresponse must no longer be called */
 
 	while (1) {
-		while ((cb = smscore_getbuffer(coredev))) {
+		while (!list_empty(&coredev->buffers)) {
+			cb = (struct smscore_buffer_t *) coredev->buffers.next;
+			list_del(&cb->entry);
 			kfree(cb);
 			num_buffers++;
 		}
@@ -707,8 +713,10 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 
 	if (coredev->common_buffer)
 		dma_free_coherent(NULL, coredev->common_buffer_size,
-				  coredev->common_buffer,
-				  coredev->common_buffer_phys);
+			coredev->common_buffer, coredev->common_buffer_phys);
+
+	if (coredev->fw_buf != NULL)
+		kfree(coredev->fw_buf);
 
 	list_del(&coredev->entry);
 	kfree(coredev);
@@ -1071,12 +1079,24 @@ struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev)
 	struct smscore_buffer_t *cb = NULL;
 	unsigned long flags;
 
+	DEFINE_WAIT(wait);
+
 	spin_lock_irqsave(&coredev->bufferslock, flags);
 
-	if (!list_empty(&coredev->buffers)) {
-		cb = (struct smscore_buffer_t *) coredev->buffers.next;
-		list_del(&cb->entry);
-	}
+	/* This function must return a valid buffer, since the buffer list is
+	 * finite, we check that there is an available buffer, if not, we wait
+	 * until such buffer become available.
+	 */
+
+	prepare_to_wait(&coredev->buffer_mng_waitq, &wait, TASK_INTERRUPTIBLE);
+
+	if (list_empty(&coredev->buffers))
+		schedule();
+
+	finish_wait(&coredev->buffer_mng_waitq, &wait);
+
+	cb = (struct smscore_buffer_t *) coredev->buffers.next;
+	list_del(&cb->entry);
 
 	spin_unlock_irqrestore(&coredev->bufferslock, flags);
 
@@ -1093,8 +1113,8 @@ EXPORT_SYMBOL_GPL(smscore_getbuffer);
  *
  */
 void smscore_putbuffer(struct smscore_device_t *coredev,
-		       struct smscore_buffer_t *cb)
-{
+		struct smscore_buffer_t *cb) {
+	wake_up_interruptible(&coredev->buffer_mng_waitq);
 	list_add_locked(&cb->entry, &coredev->buffers, &coredev->bufferslock);
 }
 EXPORT_SYMBOL_GPL(smscore_putbuffer);
