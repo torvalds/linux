@@ -79,7 +79,7 @@ static int s3c24xx_gpiolib_bankg_toirq(struct gpio_chip *chip, unsigned offset)
 
 struct s3c_gpio_chip s3c24xx_gpios[] = {
 	[0] = {
-		.base	= S3C24XX_GPIO_BASE(S3C2410_GPA0),
+		.base	= S3C2410_GPACON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_1bit),
 		.chip	= {
 			.base			= S3C2410_GPA0,
@@ -91,7 +91,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 		},
 	},
 	[1] = {
-		.base	= S3C24XX_GPIO_BASE(S3C2410_GPB0),
+		.base	= S3C2410_GPBCON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPB0,
@@ -101,7 +101,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 		},
 	},
 	[2] = {
-		.base	= S3C24XX_GPIO_BASE(S3C2410_GPC0),
+		.base	= S3C2410_GPCCON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPC0,
@@ -111,7 +111,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 		},
 	},
 	[3] = {
-		.base	= S3C24XX_GPIO_BASE(S3C2410_GPD0),
+		.base	= S3C2410_GPDCON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPD0,
@@ -121,7 +121,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 		},
 	},
 	[4] = {
-		.base	= S3C24XX_GPIO_BASE(S3C2410_GPE0),
+		.base	= S3C2410_GPECON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPE0,
@@ -131,7 +131,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 		},
 	},
 	[5] = {
-		.base	= S3C24XX_GPIO_BASE(S3C2410_GPF0),
+		.base	= S3C2410_GPFCON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPF0,
@@ -142,7 +142,7 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 		},
 	},
 	[6] = {
-		.base	= S3C24XX_GPIO_BASE(S3C2410_GPG0),
+		.base	= S3C2410_GPGCON,
 		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
 		.chip	= {
 			.base			= S3C2410_GPG0,
