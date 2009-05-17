@@ -48,7 +48,7 @@ static void twd_set_mode(enum clock_event_mode mode,
 {
 	unsigned long ctrl;
 
-	switch(mode) {
+	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		/* timer load already set up */
 		ctrl = TWD_TIMER_CONTROL_ENABLE | TWD_TIMER_CONTROL_IT_ENABLE
@@ -72,8 +72,10 @@ static int twd_set_next_event(unsigned long evt,
 {
 	unsigned long ctrl = __raw_readl(twd_base + TWD_TIMER_CONTROL);
 
+	ctrl |= TWD_TIMER_CONTROL_ENABLE;
+
 	__raw_writel(evt, twd_base + TWD_TIMER_COUNTER);
-	__raw_writel(ctrl | TWD_TIMER_CONTROL_ENABLE, twd_base + TWD_TIMER_CONTROL);
+	__raw_writel(ctrl, twd_base + TWD_TIMER_CONTROL);
 
 	return 0;
 }
@@ -104,7 +106,7 @@ static void __cpuinit twd_calibrate_rate(void)
 	 * the timer ticks
 	 */
 	if (twd_timer_rate == 0) {
-		printk("Calibrating local timer... ");
+		printk(KERN_INFO "Calibrating local timer... ");
 
 		/* Wait for a tick to start */
 		waitjiffies = get_jiffies_64() + 1;
@@ -146,15 +148,15 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 
 	twd_calibrate_rate();
 
-	clk->name		= "local_timer";
-	clk->features		= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
-	clk->rating		= 350;
-	clk->set_mode		= twd_set_mode;
-	clk->set_next_event	= twd_set_next_event;
-	clk->shift		= 20;
-	clk->mult		= div_sc(twd_timer_rate, NSEC_PER_SEC, clk->shift);
-	clk->max_delta_ns	= clockevent_delta2ns(0xffffffff, clk);
-	clk->min_delta_ns	= clockevent_delta2ns(0xf, clk);
+	clk->name = "local_timer";
+	clk->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	clk->rating = 350;
+	clk->set_mode = twd_set_mode;
+	clk->set_next_event = twd_set_next_event;
+	clk->shift = 20;
+	clk->mult = div_sc(twd_timer_rate, NSEC_PER_SEC, clk->shift);
+	clk->max_delta_ns = clockevent_delta2ns(0xffffffff, clk);
+	clk->min_delta_ns = clockevent_delta2ns(0xf, clk);
 
 	/* Make sure our local interrupt controller has this enabled */
 	local_irq_save(flags);
