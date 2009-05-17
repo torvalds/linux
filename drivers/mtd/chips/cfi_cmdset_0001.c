@@ -329,6 +329,7 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
 	struct cfi_pri_intelext *extp;
+	unsigned int extra_size = 0;
 	unsigned int extp_size = sizeof(*extp);
 
  again:
@@ -352,19 +353,24 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 	extp->BlkStatusRegMask = le16_to_cpu(extp->BlkStatusRegMask);
 	extp->ProtRegAddr = le16_to_cpu(extp->ProtRegAddr);
 
-	if (extp->MajorVersion == '1' && extp->MinorVersion >= '3') {
-		unsigned int extra_size = 0;
-		int nb_parts, i;
+	if (extp->MinorVersion >= '0') {
+		extra_size = 0;
 
 		/* Protection Register info */
 		extra_size += (extp->NumProtectionFields - 1) *
 			      sizeof(struct cfi_intelext_otpinfo);
+	}
 
+	if (extp->MinorVersion >= '1') {
 		/* Burst Read info */
 		extra_size += 2;
 		if (extp_size < sizeof(*extp) + extra_size)
 			goto need_more;
-		extra_size += extp->extra[extra_size-1];
+		extra_size += extp->extra[extra_size - 1];
+	}
+
+	if (extp->MinorVersion >= '3') {
+		int nb_parts, i;
 
 		/* Number of hardware-partitions */
 		extra_size += 1;
