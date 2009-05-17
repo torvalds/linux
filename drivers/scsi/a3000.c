@@ -27,7 +27,7 @@ static int a3000_release(struct Scsi_Host *instance);
 static irqreturn_t a3000_intr(int irq, void *data)
 {
 	struct Scsi_Host *instance = data;
-	a3000_scsiregs *regs = (a3000_scsiregs *)(instance->base);
+	struct a3000_scsiregs *regs = (struct a3000_scsiregs *)(instance->base);
 	unsigned int status = regs->ISTR;
 	unsigned long flags;
 
@@ -47,7 +47,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 	struct WD33C93_hostdata *hdata = shost_priv(instance);
-	a3000_scsiregs *regs = (a3000_scsiregs *)(instance->base);
+	struct a3000_scsiregs *regs = (struct a3000_scsiregs *)(instance->base);
 	unsigned short cntr = CNTR_PDMD | CNTR_INTEN;
 	unsigned long addr = virt_to_bus(cmd->SCp.ptr);
 
@@ -110,7 +110,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
 	struct WD33C93_hostdata *hdata = shost_priv(instance);
-	a3000_scsiregs *regs = (a3000_scsiregs *)(instance->base);
+	struct a3000_scsiregs *regs = (struct a3000_scsiregs *)(instance->base);
 
 	/* disable SCSI interrupts */
 	unsigned short cntr = CNTR_PDMD;
@@ -166,7 +166,7 @@ static int __init a3000_detect(struct scsi_host_template *tpnt)
 {
 	struct Scsi_Host *instance;
 	wd33c93_regs wdregs;
-	a3000_scsiregs *regs;
+	struct a3000_scsiregs *regs;
 	struct WD33C93_hostdata *hdata;
 
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(A3000_SCSI))
@@ -183,7 +183,7 @@ static int __init a3000_detect(struct scsi_host_template *tpnt)
 
 	instance->base = ZTWO_VADDR(0xDD0000);
 	instance->irq = IRQ_AMIGA_PORTS;
-	regs = (a3000_scsiregs *)(instance->base);
+	regs = (struct a3000_scsiregs *)(instance->base);
 	regs->DAWR = DAWR_A3000;
 	wdregs.SASR = &regs->SASR;
 	wdregs.SCMD = &regs->SCMD;
@@ -243,7 +243,7 @@ static struct scsi_host_template driver_template = {
 
 static int a3000_release(struct Scsi_Host *instance)
 {
-	a3000_scsiregs *regs = (a3000_scsiregs *)(instance->base);
+	struct a3000_scsiregs *regs = (struct a3000_scsiregs *)(instance->base);
 
 	regs->CNTR = 0;
 	release_mem_region(0xDD0000, 256);
