@@ -286,6 +286,9 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 		hwc->nmi = 1;
 	}
 
+	if (!hwc->irq_period)
+		hwc->irq_period = x86_pmu.max_period;
+
 	atomic64_set(&hwc->period_left,
 			min(x86_pmu.max_period, hwc->irq_period));
 
