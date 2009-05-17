@@ -96,7 +96,7 @@ static void p54spi_spi_write(struct p54s_priv *priv, u8 address,
 	spi_message_add_tail(&t[0], &m);
 
 	t[1].tx_buf = buf;
-	t[1].len = len;
+	t[1].len = len & ~1;
 	spi_message_add_tail(&t[1], &m);
 
 	if (len % 2) {
@@ -541,11 +541,6 @@ static void p54spi_work(struct work_struct *work)
 	}
 
 	ret = p54spi_wq_tx(priv);
-	if (ret < 0)
-		goto out;
-
-	ints = p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
-
 out:
 	mutex_unlock(&priv->mutex);
 }
