@@ -217,11 +217,9 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 
-#ifdef CONFIG_LOCAL_TIMERS
+#if defined(CONFIG_LOCAL_TIMERS) || defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
 	/*
-	 * Enable the local timer for primary CPU. If the device is
-	 * dummy (!CONFIG_LOCAL_TIMERS), it was already registers in
-	 * realview_timer_init
+	 * Enable the local timer or broadcast device for the boot CPU.
 	 */
 	local_timer_setup();
 #endif
