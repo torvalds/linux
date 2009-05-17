@@ -562,6 +562,6 @@ void smsusb_module_exit(void)
 module_init(smsusb_module_init);
 module_exit(smsusb_module_exit);
 
-MODULE_DESCRIPTION("Driver for the Siano SMS1XXX USB dongle");
+MODULE_DESCRIPTION("Driver for the Siano SMS1xxx USB dongle");
 MODULE_AUTHOR("Siano Mobile Silicon, INC. (uris@siano-ms.com)");
 MODULE_LICENSE("GPL");
