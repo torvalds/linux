@@ -282,7 +282,8 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
  *
  * Description:
  *    Data will be mapped directly if possible. Otherwise a bounce
- *    buffer is used.
+ *    buffer is used. Can be called multple times to append multple
+ *    buffers.
  */
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		    unsigned int len, gfp_t gfp_mask)
@@ -290,6 +291,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	int reading = rq_data_dir(rq) == READ;
 	int do_copy = 0;
 	struct bio *bio;
+	int ret;
 
 	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
@@ -311,7 +313,13 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (do_copy)
 		rq->cmd_flags |= REQ_COPY_USER;
 
-	blk_rq_bio_prep(q, rq, bio);
+	ret = blk_rq_append_bio(q, rq, bio);
+	if (unlikely(ret)) {
+		/* request is too big */
+		bio_put(bio);
+		return ret;
+	}
+
 	blk_queue_bounce(q, &rq->bio);
 	rq->buffer = NULL;
 	return 0;
