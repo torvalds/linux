@@ -685,20 +685,6 @@ out:
 	return err;
 }
 
-/* Actual operations that are exported to VFS-land */
-struct xattr_handler *reiserfs_xattr_handlers[] = {
-	&reiserfs_xattr_user_handler,
-	&reiserfs_xattr_trusted_handler,
-#ifdef CONFIG_REISERFS_FS_SECURITY
-	&reiserfs_xattr_security_handler,
-#endif
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	&reiserfs_posix_acl_access_handler,
-	&reiserfs_posix_acl_default_handler,
-#endif
-	NULL
-};
-
 /*
  * In order to implement different sets of xattr operations for each xattr
  * prefix with the generic xattr API, a filesystem should create a
@@ -922,6 +908,28 @@ static int create_privroot(struct dentry *dentry)
 	return 0;
 }
 
+#else
+int __init reiserfs_xattr_register_handlers(void) { return 0; }
+void reiserfs_xattr_unregister_handlers(void) {}
+static int create_privroot(struct dentry *dentry) { return 0; }
+#endif
+
+/* Actual operations that are exported to VFS-land */
+struct xattr_handler *reiserfs_xattr_handlers[] = {
+#ifdef CONFIG_REISERFS_FS_XATTR
+	&reiserfs_xattr_user_handler,
+	&reiserfs_xattr_trusted_handler,
+#endif
+#ifdef CONFIG_REISERFS_FS_SECURITY
+	&reiserfs_xattr_security_handler,
+#endif
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
+	&reiserfs_posix_acl_access_handler,
+	&reiserfs_posix_acl_default_handler,
+#endif
+	NULL
+};
+
 static int xattr_mount_check(struct super_block *s)
 {
 	/* We need generation numbers to ensure that the oid mapping is correct
@@ -940,11 +948,6 @@ static int xattr_mount_check(struct super_block *s)
 
 	return 0;
 }
-
-#else
-int __init reiserfs_xattr_register_handlers(void) { return 0; }
-void reiserfs_xattr_unregister_handlers(void) {}
-#endif
 
 /* This will catch lookups from the fs root to .reiserfs_priv */
 static int
@@ -992,7 +995,6 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	int err = 0;
 	struct dentry *privroot = REISERFS_SB(s)->priv_root;
 
-#ifdef CONFIG_REISERFS_FS_XATTR
 	err = xattr_mount_check(s);
 	if (err)
 		goto error;
@@ -1023,14 +1025,11 @@ error:
 		clear_bit(REISERFS_XATTRS_USER, &(REISERFS_SB(s)->s_mount_opt));
 		clear_bit(REISERFS_POSIXACL, &(REISERFS_SB(s)->s_mount_opt));
 	}
-#endif
 
 	/* The super_block MS_POSIXACL must mirror the (no)acl mount option. */
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 	if (reiserfs_posixacl(s))
 		s->s_flags |= MS_POSIXACL;
 	else
-#endif
 		s->s_flags &= ~MS_POSIXACL;
 
 	return err;
