@@ -4799,6 +4799,48 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 	return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
 }
 
+/**
+ * ixgbe_add_sanmac_netdev - Add the SAN MAC address to the corresponding
+ * netdev->dev_addr_list
+ * @netdev: network interface device structure
+ *
+ * Returns non-zero on failure
+ **/
+static int ixgbe_add_sanmac_netdev(struct net_device *dev)
+{
+	int err = 0;
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_mac_info *mac = &adapter->hw.mac;
+
+	if (is_valid_ether_addr(mac->san_addr)) {
+		rtnl_lock();
+		err = dev_addr_add(dev, mac->san_addr, NETDEV_HW_ADDR_T_SAN);
+		rtnl_unlock();
+	}
+	return err;
+}
+
+/**
+ * ixgbe_del_sanmac_netdev - Removes the SAN MAC address to the corresponding
+ * netdev->dev_addr_list
+ * @netdev: network interface device structure
+ *
+ * Returns non-zero on failure
+ **/
+static int ixgbe_del_sanmac_netdev(struct net_device *dev)
+{
+	int err = 0;
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+	struct ixgbe_mac_info *mac = &adapter->hw.mac;
+
+	if (is_valid_ether_addr(mac->san_addr)) {
+		rtnl_lock();
+		err = dev_addr_del(dev, mac->san_addr, NETDEV_HW_ADDR_T_SAN);
+		rtnl_unlock();
+	}
+	return err;
+}
+
 #ifdef CONFIG_NET_POLL_CONTROLLER
 /*
  * Polling 'interrupt' - used by things like netconsole to send skbs
@@ -5159,6 +5201,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		ixgbe_setup_dca(adapter);
 	}
 #endif
+	/* add san mac addr to netdev */
+	ixgbe_add_sanmac_netdev(netdev);
 
 	dev_info(&pdev->dev, "Intel(R) 10 Gigabit Network Connection\n");
 	cards_found++;
@@ -5229,6 +5273,10 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 		ixgbe_cleanup_fcoe(adapter);
 
 #endif /* IXGBE_FCOE */
+
+	/* remove the added san mac */
+	ixgbe_del_sanmac_netdev(netdev);
+
 	if (netdev->reg_state == NETREG_REGISTERED)
 		unregister_netdev(netdev);
 
