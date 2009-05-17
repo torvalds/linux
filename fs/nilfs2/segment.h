@@ -239,5 +239,6 @@ extern int nilfs_search_super_root(struct the_nilfs *, struct nilfs_sb_info *,
 extern int nilfs_recover_logical_segments(struct the_nilfs *,
 					  struct nilfs_sb_info *,
 					  struct nilfs_recovery_info *);
+extern void nilfs_dispose_segment_list(struct list_head *);
 
 #endif /* _NILFS_SEGMENT_H */

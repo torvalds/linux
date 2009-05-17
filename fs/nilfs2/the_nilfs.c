@@ -32,7 +32,6 @@
 #include "cpfile.h"
 #include "sufile.h"
 #include "dat.h"
-#include "seglist.h"
 #include "segbuf.h"
 
 void nilfs_set_last_segment(struct the_nilfs *nilfs,
