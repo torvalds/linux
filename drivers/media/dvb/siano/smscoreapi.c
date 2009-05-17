@@ -905,7 +905,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		coredev->device_flags &= ~SMS_DEVICE_NOT_READY;
 	}
 
-	if (rc != 0)
+	if (rc < 0)
 		sms_err("return error code %d.", rc);
 	return rc;
 }
