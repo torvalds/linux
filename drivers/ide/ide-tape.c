@@ -617,7 +617,7 @@ static ide_startstop_t idetape_do_request(ide_drive_t *drive,
 	struct ide_cmd cmd;
 	u8 stat;
 
-	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %lu\n"
+	debug_log(DBG_SENSE, "sector: %llu, nr_sectors: %lu\n",
 		  (unsigned long long)rq->sector, rq->nr_sectors);
 
 	if (!(blk_special_request(rq) || blk_sense_request(rq))) {
