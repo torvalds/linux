@@ -30,8 +30,8 @@
  * set the configuration of the given pin to the value passed.
  *
  * eg:
- *    s3c2410_gpio_cfgpin(S3C2410_GPA0, S3C2410_GPA0_ADDR0);
- *    s3c2410_gpio_cfgpin(S3C2410_GPE8, S3C2410_GPE8_SDDAT1);
+ *    s3c2410_gpio_cfgpin(S3C2410_GPA(0), S3C2410_GPA0_ADDR0);
+ *    s3c2410_gpio_cfgpin(S3C2410_GPE(8), S3C2410_GPE8_SDDAT1);
 */
 
 extern void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function);
@@ -80,8 +80,8 @@ extern int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
  *
  * eg;
  *
- *   s3c2410_gpio_pullup(S3C2410_GPB0, 0);
- *   s3c2410_gpio_pullup(S3C2410_GPE8, 0);
+ *   s3c2410_gpio_pullup(S3C2410_GPB(0), 0);
+ *   s3c2410_gpio_pullup(S3C2410_GPE(8), 0);
 */
 
 extern void s3c2410_gpio_pullup(unsigned int pin, unsigned int to);

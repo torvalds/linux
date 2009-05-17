@@ -54,9 +54,9 @@ usb_simtec_powercontrol(int port, int to)
 	power_state[port] = to;
 
 	if (power_state[0] && power_state[1])
-		s3c2410_gpio_setpin(S3C2410_GPB4, 0);
+		s3c2410_gpio_setpin(S3C2410_GPB(4), 0);
 	else
-		s3c2410_gpio_setpin(S3C2410_GPB4, 1);
+		s3c2410_gpio_setpin(S3C2410_GPB(4), 1);
 }
 
 static irqreturn_t
@@ -64,7 +64,7 @@ usb_simtec_ocirq(int irq, void *pw)
 {
 	struct s3c2410_hcd_info *info = pw;
 
-	if (s3c2410_gpio_getpin(S3C2410_GPG10) == 0) {
+	if (s3c2410_gpio_getpin(S3C2410_GPG(10)) == 0) {
 		pr_debug("usb_simtec: over-current irq (oc detected)\n");
 		s3c2410_usb_report_oc(info, 3);
 	} else {
@@ -110,7 +110,7 @@ int usb_simtec_init(void)
 	printk("USB Power Control, (c) 2004 Simtec Electronics\n");
 	s3c_device_usb.dev.platform_data = &usb_simtec_info;
 
-	s3c2410_gpio_cfgpin(S3C2410_GPB4, S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_setpin(S3C2410_GPB4, 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPB(4), S3C2410_GPIO_OUTPUT);
+	s3c2410_gpio_setpin(S3C2410_GPB(4), 1);
 	return 0;
 }

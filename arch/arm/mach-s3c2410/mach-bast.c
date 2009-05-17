@@ -213,15 +213,15 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 static int bast_pm_suspend(struct sys_device *sd, pm_message_t state)
 {
 	/* ensure that an nRESET is not generated on resume. */
-	s3c2410_gpio_setpin(S3C2410_GPA21, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPIO_OUTPUT);
+	s3c2410_gpio_setpin(S3C2410_GPA(21), 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPIO_OUTPUT);
 
 	return 0;
 }
 
 static int bast_pm_resume(struct sys_device *sd)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPA21, S3C2410_GPA21_nRSTOUT);
+	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
 	return 0;
 }
 

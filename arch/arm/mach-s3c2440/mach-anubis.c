@@ -469,7 +469,7 @@ static void __init anubis_map_io(void)
 		anubis_nand_sets[0].nr_partitions = ARRAY_SIZE(anubis_default_nand_part_large);
 	} else {
 		/* ensure that the GPIO is setup */
-		s3c2410_gpio_setpin(S3C2410_GPA0, 1);
+		s3c2410_gpio_setpin(S3C2410_GPA(0), 1);
 	}
 }
 

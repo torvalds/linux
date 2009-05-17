@@ -124,12 +124,12 @@ void s3c_pm_configure_extint(void)
 	 * and then configure it as an input if it is not
 	*/
 
-	for (pin = S3C2410_GPF0; pin <= S3C2410_GPF7; pin++) {
-		s3c_pm_check_resume_pin(pin, pin - S3C2410_GPF0);
+	for (pin = S3C2410_GPF(0); pin <= S3C2410_GPF(7); pin++) {
+		s3c_pm_check_resume_pin(pin, pin - S3C2410_GPF(0));
 	}
 
-	for (pin = S3C2410_GPG0; pin <= S3C2410_GPG7; pin++) {
-		s3c_pm_check_resume_pin(pin, (pin - S3C2410_GPG0)+8);
+	for (pin = S3C2410_GPG(0); pin <= S3C2410_GPG(7); pin++) {
+		s3c_pm_check_resume_pin(pin, (pin - S3C2410_GPG(0))+8);
 	}
 }
 

@@ -121,16 +121,16 @@ static struct platform_device *nexcoder_devices[] __initdata = {
 static void __init nexcoder_sensorboard_init(void)
 {
 	// Initialize SCCB bus
-	s3c2410_gpio_setpin(S3C2410_GPE14, 1); // IICSCL
-	s3c2410_gpio_cfgpin(S3C2410_GPE14, S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_setpin(S3C2410_GPE15, 1); // IICSDA
-	s3c2410_gpio_cfgpin(S3C2410_GPE15, S3C2410_GPIO_OUTPUT);
+	s3c2410_gpio_setpin(S3C2410_GPE(14), 1); // IICSCL
+	s3c2410_gpio_cfgpin(S3C2410_GPE(14), S3C2410_GPIO_OUTPUT);
+	s3c2410_gpio_setpin(S3C2410_GPE(15), 1); // IICSDA
+	s3c2410_gpio_cfgpin(S3C2410_GPE(15), S3C2410_GPIO_OUTPUT);
 
 	// Power up the sensor board
-	s3c2410_gpio_setpin(S3C2410_GPF1, 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPF1, S3C2410_GPIO_OUTPUT); // CAM_GPIO7 => nLDO_PWRDN
-	s3c2410_gpio_setpin(S3C2410_GPF2, 0);
-	s3c2410_gpio_cfgpin(S3C2410_GPF2, S3C2410_GPIO_OUTPUT); // CAM_GPIO6 => CAM_PWRDN
+	s3c2410_gpio_setpin(S3C2410_GPF(1), 1);
+	s3c2410_gpio_cfgpin(S3C2410_GPF(1), S3C2410_GPIO_OUTPUT); // CAM_GPIO7 => nLDO_PWRDN
+	s3c2410_gpio_setpin(S3C2410_GPF(2), 0);
+	s3c2410_gpio_cfgpin(S3C2410_GPF(2), S3C2410_GPIO_OUTPUT); // CAM_GPIO6 => CAM_PWRDN
 }
 
 static void __init nexcoder_map_io(void)
