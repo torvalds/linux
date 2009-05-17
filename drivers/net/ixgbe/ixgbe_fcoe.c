@@ -482,8 +482,10 @@ int ixgbe_fso(struct ixgbe_adapter *adapter,
  */
 void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 {
+	int i, fcoe_q, fcoe_i;
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
+	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
 
 	/* create the pool for ddp if not created yet */
 	if (!fcoe->pool) {
@@ -497,12 +499,30 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 
 		spin_lock_init(&fcoe->lock);
 	}
-	/* L2 filter for FCoE: default to queue 0 */
+
+	/* Enable L2 eth type filter for FCoE */
 	IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FCOE),
 			(ETH_P_FCOE | IXGBE_ETQF_FCOE | IXGBE_ETQF_FILTER_EN));
-	IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, 0);
-	IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE),
-			IXGBE_ETQS_QUEUE_EN);
+	if (adapter->ring_feature[RING_F_FCOE].indices) {
+		/* Use multiple rx queues for FCoE by redirection table */
+		for (i = 0; i < IXGBE_FCRETA_SIZE; i++) {
+			fcoe_i = f->mask + i % f->indices;
+			fcoe_i &= IXGBE_FCRETA_ENTRY_MASK;
+			fcoe_q = adapter->rx_ring[fcoe_i].reg_idx;
+			IXGBE_WRITE_REG(hw, IXGBE_FCRETA(i), fcoe_q);
+		}
+		IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, IXGBE_FCRECTL_ENA);
+		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE), 0);
+	} else  {
+		/* Use single rx queue for FCoE */
+		fcoe_i = f->mask;
+		fcoe_q = adapter->rx_ring[fcoe_i].reg_idx;
+		IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, 0);
+		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE),
+				IXGBE_ETQS_QUEUE_EN |
+				(fcoe_q << IXGBE_ETQS_RX_QUEUE_SHIFT));
+	}
+
 	IXGBE_WRITE_REG(hw, IXGBE_FCRXCTRL,
 			IXGBE_FCRXCTRL_FCOELLI |
 			IXGBE_FCRXCTRL_FCCRCBO |
