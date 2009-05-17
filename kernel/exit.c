@@ -178,12 +178,6 @@ repeat:
 
 	proc_flush_task(p);
 
-	/*
-	 * Flush inherited counters to the parent - before the parent
-	 * gets woken up by child-exit notifications.
-	 */
-	perf_counter_exit_task(p);
-
 	write_lock_irq(&tasklist_lock);
 	tracehook_finish_release_task(p);
 	__exit_signal(p);
@@ -985,6 +979,13 @@ NORET_TYPE void do_exit(long code)
 		module_put(tsk->binfmt->module);
 
 	proc_exit_connector(tsk);
+
+	/*
+	 * Flush inherited counters to the parent - before the parent
+	 * gets woken up by child-exit notifications.
+	 */
+	perf_counter_exit_task(tsk);
+
 	exit_notify(tsk, group_dead);
 #ifdef CONFIG_NUMA
 	mpol_put(tsk->mempolicy);
@@ -1256,12 +1257,6 @@ static int wait_task_zombie(struct task_struct *p, int options,
 	 * thread can reap it because we set its state to EXIT_DEAD.
 	 */
 	read_unlock(&tasklist_lock);
-
-	/*
-	 * Flush inherited counters to the parent - before the parent
-	 * gets woken up by child-exit notifications.
-	 */
-	perf_counter_exit_task(p);
 
 	retval = ru ? getrusage(p, RUSAGE_BOTH, ru) : 0;
 	status = (p->signal->flags & SIGNAL_GROUP_EXIT)

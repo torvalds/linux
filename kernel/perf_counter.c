@@ -3299,6 +3299,8 @@ void perf_counter_exit_task(struct task_struct *child)
 	struct perf_counter *child_counter, *tmp;
 	struct perf_counter_context *child_ctx;
 
+	WARN_ON_ONCE(child != current);
+
 	child_ctx = &child->perf_counter_ctx;
 
 	if (likely(!child_ctx->nr_counters))
