@@ -36,7 +36,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	void __iomem *base;
 	struct ide_host *host;
 	int ret;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 
 	ret = ecard_request_resources(ec);
 	if (ret)
@@ -52,7 +52,7 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	rapide_setup_ports(&hw, base, base + 0x818, 1 << 6, ec->irq);
 	hw.dev = &ec->dev;
 
-	ret = ide_host_add(&rapide_port_info, hws, &host);
+	ret = ide_host_add(&rapide_port_info, hws, 1, &host);
 	if (ret)
 		goto release;
 

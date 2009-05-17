@@ -559,7 +559,7 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 {
 	struct scc_ports *ports = pci_get_drvdata(dev);
 	struct ide_host *host;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 	int i, rc;
 
 	memset(&hw, 0, sizeof(hw));
@@ -568,7 +568,7 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	hw.irq = dev->irq;
 	hw.dev = &dev->dev;
 
-	rc = ide_host_add(d, hws, &host);
+	rc = ide_host_add(d, hws, 1, &host);
 	if (rc)
 		return rc;
 

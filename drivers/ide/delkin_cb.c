@@ -77,7 +77,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	struct ide_host *host;
 	unsigned long base;
 	int rc;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 
 	rc = pci_enable_device(dev);
 	if (rc) {
@@ -99,7 +99,7 @@ delkin_cb_probe (struct pci_dev *dev, const struct pci_device_id *id)
 	hw.irq = dev->irq;
 	hw.dev = &dev->dev;
 
-	rc = ide_host_add(&delkin_cb_port_info, hws, &host);
+	rc = ide_host_add(&delkin_cb_port_info, hws, 1, &host);
 	if (rc)
 		goto out_disable;
 

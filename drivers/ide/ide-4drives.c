@@ -31,7 +31,7 @@ static const struct ide_port_info ide_4drives_port_info = {
 static int __init ide_4drives_init(void)
 {
 	unsigned long base = 0x1f0, ctl = 0x3f6;
-	hw_regs_t hw, *hws[] = { &hw, &hw, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw, &hw };
 
 	if (probe_4drives == 0)
 		return -ENODEV;
@@ -54,7 +54,7 @@ static int __init ide_4drives_init(void)
 	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = 14;
 
-	return ide_host_add(&ide_4drives_port_info, hws, NULL);
+	return ide_host_add(&ide_4drives_port_info, hws, 2, NULL);
 }
 
 module_init(ide_4drives_init);

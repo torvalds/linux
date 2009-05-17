@@ -160,7 +160,7 @@ static int __init buddha_init(void)
 
 	while ((z = zorro_find_device(ZORRO_WILDCARD, z))) {
 		unsigned long board;
-		hw_regs_t hw[MAX_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
+		hw_regs_t hw[MAX_NUM_HWIFS], *hws[MAX_NUM_HWIFS];
 
 		if (z->id == ZORRO_PROD_INDIVIDUAL_COMPUTERS_BUDDHA) {
 			buddha_num_hwifs = BUDDHA_NUM_HWIFS;
@@ -224,7 +224,7 @@ fail_base2:
 			hws[i] = &hw[i];
 		}
 
-		ide_host_add(&buddha_port_info, hws, NULL);
+		ide_host_add(&buddha_port_info, hws, i, NULL);
 	}
 
 	return 0;

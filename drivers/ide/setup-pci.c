@@ -538,7 +538,7 @@ int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
 		     void *priv)
 {
 	struct ide_host *host;
-	hw_regs_t hw[4], *hws[] = { NULL, NULL, NULL, NULL };
+	hw_regs_t hw[2], *hws[] = { NULL, NULL };
 	int ret;
 
 	ret = ide_setup_pci_controller(dev, d, 1);
@@ -547,7 +547,7 @@ int ide_pci_init_one(struct pci_dev *dev, const struct ide_port_info *d,
 
 	ide_pci_setup_ports(dev, d, &hw[0], &hws[0]);
 
-	host = ide_host_alloc(d, hws);
+	host = ide_host_alloc(d, hws, 2);
 	if (host == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -596,7 +596,7 @@ int ide_pci_init_two(struct pci_dev *dev1, struct pci_dev *dev2,
 		ide_pci_setup_ports(pdev[i], d, &hw[i*2], &hws[i*2]);
 	}
 
-	host = ide_host_alloc(d, hws);
+	host = ide_host_alloc(d, hws, 4);
 	if (host == NULL) {
 		ret = -ENOMEM;
 		goto out;

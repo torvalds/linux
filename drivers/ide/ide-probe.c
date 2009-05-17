@@ -1261,7 +1261,8 @@ out_nomem:
 	return -ENOMEM;
 }
 
-struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
+struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws,
+				unsigned int n_ports)
 {
 	struct ide_host *host;
 	struct device *dev = hws[0] ? hws[0]->dev : NULL;
@@ -1272,7 +1273,7 @@ struct ide_host *ide_host_alloc(const struct ide_port_info *d, hw_regs_t **hws)
 	if (host == NULL)
 		return NULL;
 
-	for (i = 0; i < MAX_HOST_PORTS; i++) {
+	for (i = 0; i < n_ports; i++) {
 		ide_hwif_t *hwif;
 		int idx;
 
@@ -1443,12 +1444,12 @@ int ide_host_register(struct ide_host *host, const struct ide_port_info *d,
 EXPORT_SYMBOL_GPL(ide_host_register);
 
 int ide_host_add(const struct ide_port_info *d, hw_regs_t **hws,
-		 struct ide_host **hostp)
+		 unsigned int n_ports, struct ide_host **hostp)
 {
 	struct ide_host *host;
 	int rc;
 
-	host = ide_host_alloc(d, hws);
+	host = ide_host_alloc(d, hws, n_ports);
 	if (host == NULL)
 		return -ENOMEM;
 

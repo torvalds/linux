@@ -508,7 +508,7 @@ static int au_ide_probe(struct platform_device *dev)
 	struct resource *res;
 	struct ide_host *host;
 	int ret = 0;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 
 #if defined(CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA)
 	char *mode = "MWDMA2";
@@ -550,7 +550,7 @@ static int au_ide_probe(struct platform_device *dev)
 	hw.irq = ahwif->irq;
 	hw.dev = &dev->dev;
 
-	ret = ide_host_add(&au1xxx_port_info, hws, &host);
+	ret = ide_host_add(&au1xxx_port_info, hws, 1, &host);
 	if (ret)
 		goto out;
 

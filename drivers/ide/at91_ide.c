@@ -247,8 +247,7 @@ irqreturn_t at91_irq_handler(int irq, void *dev_id)
 static int __init at91_ide_probe(struct platform_device *pdev)
 {
 	int ret;
-	hw_regs_t hw;
-	hw_regs_t *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 	struct ide_host *host;
 	struct resource *res;
 	unsigned long tf_base = 0, ctl_base = 0;
@@ -307,7 +306,7 @@ static int __init at91_ide_probe(struct platform_device *pdev)
 	hw.irq = board->irq_pin;
 	hw.dev = &pdev->dev;
 
-	host = ide_host_alloc(&at91_ide_port_info, hws);
+	host = ide_host_alloc(&at91_ide_port_info, hws, 1);
 	if (!host) {
 		perr("failed to allocate ide host\n");
 		return -ENOMEM;

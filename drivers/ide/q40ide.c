@@ -135,7 +135,7 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
 static int __init q40ide_init(void)
 {
     int i;
-    hw_regs_t hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
+    hw_regs_t hw[Q40IDE_NUM_HWIFS], *hws[] = { NULL, NULL };
 
     if (!MACH_IS_Q40)
       return -ENODEV;
@@ -162,7 +162,7 @@ static int __init q40ide_init(void)
 	hws[i] = &hw[i];
     }
 
-    return ide_host_add(&q40ide_port_info, hws, NULL);
+    return ide_host_add(&q40ide_port_info, hws, Q40IDE_NUM_HWIFS, NULL);
 }
 
 module_init(q40ide_init);

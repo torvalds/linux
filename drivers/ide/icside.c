@@ -410,7 +410,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 {
 	void __iomem *base;
 	struct ide_host *host;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 	int ret;
 
 	base = ecardm_iomap(ec, ECARD_RES_MEMC, 0, 0);
@@ -431,7 +431,7 @@ icside_register_v5(struct icside_state *state, struct expansion_card *ec)
 
 	icside_setup_ports(&hw, base, &icside_cardinfo_v5, ec);
 
-	host = ide_host_alloc(&icside_v5_port_info, hws);
+	host = ide_host_alloc(&icside_v5_port_info, hws, 1);
 	if (host == NULL)
 		return -ENODEV;
 
@@ -467,7 +467,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	struct ide_host *host;
 	unsigned int sel = 0;
 	int ret;
-	hw_regs_t hw[2], *hws[] = { &hw[0], &hw[1], NULL, NULL };
+	hw_regs_t hw[2], *hws[] = { &hw[0], &hw[1] };
 	struct ide_port_info d = icside_v6_port_info;
 
 	ioc_base = ecardm_iomap(ec, ECARD_RES_IOCFAST, 0, 0);
@@ -507,7 +507,7 @@ icside_register_v6(struct icside_state *state, struct expansion_card *ec)
 	icside_setup_ports(&hw[0], easi_base, &icside_cardinfo_v6_1, ec);
 	icside_setup_ports(&hw[1], easi_base, &icside_cardinfo_v6_2, ec);
 
-	host = ide_host_alloc(&d, hws);
+	host = ide_host_alloc(&d, hws, 2);
 	if (host == NULL)
 		return -ENODEV;
 

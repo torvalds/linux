@@ -54,7 +54,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	struct pata_platform_info *pdata;
 	struct ide_host *host;
 	int ret = 0, mmio = 0;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 	struct ide_port_info d = platform_ide_port_info;
 
 	pdata = pdev->dev.platform_data;
@@ -98,7 +98,7 @@ static int __devinit plat_ide_probe(struct platform_device *pdev)
 	if (mmio)
 		d.host_flags |= IDE_HFLAG_MMIO;
 
-	ret = ide_host_add(&d, hws, &host);
+	ret = ide_host_add(&d, hws, 1, &host);
 	if (ret)
 		goto out;
 

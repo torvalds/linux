@@ -37,7 +37,7 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	struct ide_host *host;
 	unsigned long base, ctl;
 	int rc;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 
 	printk(KERN_INFO DRV_NAME ": generic PnP IDE interface\n");
 
@@ -64,7 +64,7 @@ static int idepnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	ide_std_init_ports(&hw, base, ctl);
 	hw.irq = pnp_irq(dev, 0);
 
-	rc = ide_host_add(&ide_pnp_port_info, hws, &host);
+	rc = ide_host_add(&ide_pnp_port_info, hws, 1, &host);
 	if (rc)
 		goto out;
 

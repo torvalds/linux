@@ -1029,7 +1029,7 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	const int *bidp;
 	struct ide_host *host;
 	ide_hwif_t *hwif;
-	hw_regs_t *hws[] = { hw, NULL, NULL, NULL };
+	hw_regs_t *hws[] = { hw };
 	struct ide_port_info d = pmac_port_info;
 	int rc;
 
@@ -1077,7 +1077,7 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	/* Make sure we have sane timings */
 	sanitize_timings(pmif);
 
-	host = ide_host_alloc(&d, hws);
+	host = ide_host_alloc(&d, hws, 1);
 	if (host == NULL)
 		return -ENOMEM;
 	hwif = host->ports[0];

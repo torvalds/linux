@@ -164,7 +164,7 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
     struct ide_host *host;
     ide_hwif_t *hwif;
     int i, rc;
-    hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+    hw_regs_t hw, *hws[] = { &hw };
 
     if (!request_region(io, 8, DRV_NAME)) {
 	printk(KERN_ERR "%s: I/O resource 0x%lX-0x%lX not free.\n",
@@ -184,7 +184,7 @@ static struct ide_host *idecs_register(unsigned long io, unsigned long ctl,
     hw.irq = irq;
     hw.dev = &handle->dev;
 
-    rc = ide_host_add(&idecs_port_info, hws, &host);
+    rc = ide_host_add(&idecs_port_info, hws, 1, &host);
     if (rc)
 	goto out_release;
 

@@ -1456,11 +1456,12 @@ void ide_undecoded_slave(ide_drive_t *);
 void ide_port_apply_params(ide_hwif_t *);
 int ide_sysfs_register_port(ide_hwif_t *);
 
-struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **);
+struct ide_host *ide_host_alloc(const struct ide_port_info *, hw_regs_t **,
+				unsigned int);
 void ide_host_free(struct ide_host *);
 int ide_host_register(struct ide_host *, const struct ide_port_info *,
 		      hw_regs_t **);
-int ide_host_add(const struct ide_port_info *, hw_regs_t **,
+int ide_host_add(const struct ide_port_info *, hw_regs_t **, unsigned int,
 		 struct ide_host **);
 void ide_host_remove(struct ide_host *);
 int ide_legacy_device_add(const struct ide_port_info *, unsigned long);

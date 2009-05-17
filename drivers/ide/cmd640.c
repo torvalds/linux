@@ -708,7 +708,7 @@ static int __init cmd640x_init(void)
 	int second_port_cmd640 = 0, rc;
 	const char *bus_type, *port2;
 	u8 b, cfr;
-	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
+	hw_regs_t hw[2], *hws[2];
 
 	if (cmd640_vlb && probe_for_cmd640_vlb()) {
 		bus_type = "VLB";
@@ -822,7 +822,8 @@ static int __init cmd640x_init(void)
 	cmd640_dump_regs();
 #endif
 
-	return ide_host_add(&cmd640_port_info, hws, NULL);
+	return ide_host_add(&cmd640_port_info, hws, second_port_cmd640 ? 2 : 1,
+			    NULL);
 }
 
 module_param_named(probe_vlb, cmd640_vlb, bool, 0);

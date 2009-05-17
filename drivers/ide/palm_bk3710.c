@@ -316,7 +316,7 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 	void __iomem *base;
 	unsigned long rate, mem_size;
 	int i, rc;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 
 	clk = clk_get(&pdev->dev, "IDECLK");
 	if (IS_ERR(clk))
@@ -369,7 +369,7 @@ static int __init palm_bk3710_probe(struct platform_device *pdev)
 							     ATA_UDMA5;
 
 	/* Register the IDE interface with Linux */
-	rc = ide_host_add(&palm_bk3710_port_info, hws, NULL);
+	rc = ide_host_add(&palm_bk3710_port_info, hws, 1, NULL);
 	if (rc)
 		goto out;
 

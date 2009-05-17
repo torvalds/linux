@@ -96,7 +96,7 @@ static int __init macide_init(void)
 	ide_ack_intr_t *ack_intr;
 	unsigned long base;
 	int irq;
-	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	hw_regs_t hw, *hws[] = { &hw };
 
 	if (!MACH_IS_MAC)
 		return -ENODEV;
@@ -126,7 +126,7 @@ static int __init macide_init(void)
 
 	macide_setup_ports(&hw, base, irq, ack_intr);
 
-	return ide_host_add(&macide_port_info, hws, NULL);
+	return ide_host_add(&macide_port_info, hws, 1, NULL);
 }
 
 module_init(macide_init);

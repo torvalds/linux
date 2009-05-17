@@ -40,7 +40,7 @@ static void ide_legacy_init_one(hw_regs_t **hws, hw_regs_t *hw,
 
 int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 {
-	hw_regs_t hw[2], *hws[] = { NULL, NULL, NULL, NULL };
+	hw_regs_t hw[2], *hws[] = { NULL, NULL };
 
 	memset(&hw, 0, sizeof(hw));
 
@@ -52,6 +52,6 @@ int ide_legacy_device_add(const struct ide_port_info *d, unsigned long config)
 	    (d->host_flags & IDE_HFLAG_SINGLE))
 		return -ENOENT;
 
-	return ide_host_add(d, hws, NULL);
+	return ide_host_add(d, hws, 2, NULL);
 }
 EXPORT_SYMBOL_GPL(ide_legacy_device_add);
