@@ -1756,6 +1756,17 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 			else
 				dev_err(&adapter->pdev->dev, "Invalid DCB "
 				        "configuration\n");
+#ifdef IXGBE_FCOE
+			if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+				struct ixgbe_ring_feature *f;
+
+				rx_ring = &adapter->rx_ring[queue0];
+				f = &adapter->ring_feature[RING_F_FCOE];
+				if ((queue0 == 0) && (index > rx_ring->reg_idx))
+					queue0 = f->mask + index -
+					         rx_ring->reg_idx - 1;
+			}
+#endif /* IXGBE_FCOE */
 		} else {
 			queue0 = index;
 		}
@@ -2842,6 +2853,47 @@ static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
 	return ret;
 }
 
+#ifdef IXGBE_FCOE
+/**
+ * ixgbe_set_fcoe_queues: Allocate queues for Fiber Channel over Ethernet (FCoE)
+ * @adapter: board private structure to initialize
+ *
+ * FCoE RX FCRETA can use up to 8 rx queues for up to 8 different exchanges.
+ * The ring feature mask is not used as a mask for FCoE, as it can take any 8
+ * rx queues out of the max number of rx queues, instead, it is used as the
+ * index of the first rx queue used by FCoE.
+ *
+ **/
+static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
+{
+	bool ret = false;
+	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
+
+	f->indices = min((int)num_online_cpus(), f->indices);
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+#ifdef CONFIG_IXGBE_DCB
+		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			DPRINTK(PROBE, INFO, "FCOE enabled with DCB \n");
+			ixgbe_set_dcb_queues(adapter);
+		}
+#endif
+		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
+			DPRINTK(PROBE, INFO, "FCOE enabled with RSS \n");
+			ixgbe_set_rss_queues(adapter);
+		}
+		/* adding FCoE rx rings to the end */
+		f->mask = adapter->num_rx_queues;
+		adapter->num_rx_queues += f->indices;
+		if (adapter->num_tx_queues == 0)
+			adapter->num_tx_queues = f->indices;
+
+		ret = true;
+	}
+
+	return ret;
+}
+
+#endif /* IXGBE_FCOE */
 /*
  * ixgbe_set_num_queues: Allocate queues for device, feature dependant
  * @adapter: board private structure to initialize
@@ -2855,6 +2907,11 @@ static inline bool ixgbe_set_rss_queues(struct ixgbe_adapter *adapter)
  **/
 static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 {
+#ifdef IXGBE_FCOE
+	if (ixgbe_set_fcoe_queues(adapter))
+		goto done;
+
+#endif /* IXGBE_FCOE */
 #ifdef CONFIG_IXGBE_DCB
 	if (ixgbe_set_dcb_queues(adapter))
 		goto done;
@@ -3030,6 +3087,39 @@ static inline bool ixgbe_cache_ring_dcb(struct ixgbe_adapter *adapter)
 }
 #endif
 
+#ifdef IXGBE_FCOE
+/**
+ * ixgbe_cache_ring_fcoe - Descriptor ring to register mapping for the FCoE
+ * @adapter: board private structure to initialize
+ *
+ * Cache the descriptor ring offsets for FCoE mode to the assigned rings.
+ *
+ */
+static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
+{
+	int i, fcoe_i = 0;
+	bool ret = false;
+	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
+
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+#ifdef CONFIG_IXGBE_DCB
+		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			ixgbe_cache_ring_dcb(adapter);
+			fcoe_i = adapter->rx_ring[0].reg_idx + 1;
+		}
+#endif /* CONFIG_IXGBE_DCB */
+		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
+			ixgbe_cache_ring_rss(adapter);
+			fcoe_i = f->mask;
+		}
+		for (i = 0; i < f->indices; i++, fcoe_i++)
+			adapter->rx_ring[f->mask + i].reg_idx = fcoe_i;
+		ret = true;
+	}
+	return ret;
+}
+
+#endif /* IXGBE_FCOE */
 /**
  * ixgbe_cache_ring_register - Descriptor ring to register mapping
  * @adapter: board private structure to initialize
@@ -3047,6 +3137,11 @@ static void ixgbe_cache_ring_register(struct ixgbe_adapter *adapter)
 	adapter->rx_ring[0].reg_idx = 0;
 	adapter->tx_ring[0].reg_idx = 0;
 
+#ifdef IXGBE_FCOE
+	if (ixgbe_cache_ring_fcoe(adapter))
+		return;
+
+#endif /* IXGBE_FCOE */
 #ifdef CONFIG_IXGBE_DCB
 	if (ixgbe_cache_ring_dcb(adapter))
 		return;
@@ -3420,6 +3515,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags |= IXGBE_FLAG_RSC_ENABLED;
 #ifdef IXGBE_FCOE
 		adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
+		adapter->ring_feature[RING_F_FCOE].indices = IXGBE_FCRETA_SIZE;
 #endif /* IXGBE_FCOE */
 	}
 

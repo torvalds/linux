@@ -161,6 +161,9 @@ enum ixgbe_ring_f_enum {
 	RING_F_DCB,
 	RING_F_VMDQ,
 	RING_F_RSS,
+#ifdef IXGBE_FCOE
+	RING_F_FCOE,
+#endif /* IXGBE_FCOE */
 
 	RING_F_ARRAY_SIZE      /* must be last in enum set */
 };
@@ -168,6 +171,9 @@ enum ixgbe_ring_f_enum {
 #define IXGBE_MAX_DCB_INDICES   8
 #define IXGBE_MAX_RSS_INDICES  16
 #define IXGBE_MAX_VMDQ_INDICES 16
+#ifdef IXGBE_FCOE
+#define IXGBE_MAX_FCOE_INDICES  8
+#endif /* IXGBE_FCOE */
 struct ixgbe_ring_feature {
 	int indices;
 	int mask;
