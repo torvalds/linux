@@ -155,10 +155,15 @@ static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
 					 u8 *perm_addr)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	int i;
+	int i, j;
 
 	for (i = 0; i < netdev->addr_len; i++)
 		perm_addr[i] = adapter->hw.mac.perm_addr[i];
+
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+		for (j = 0; j < netdev->addr_len; j++, i++)
+			perm_addr[i] = adapter->hw.mac.san_addr[j];
+	}
 }
 
 static void ixgbe_dcbnl_set_pg_tc_cfg_tx(struct net_device *netdev, int tc,

@@ -71,12 +71,6 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	/* Identify the PHY */
 	hw->phy.ops.identify(hw);
 
-	/*
-	 * Store MAC address from RAR0, clear receive address registers, and
-	 * clear the multicast table
-	 */
-	hw->mac.ops.init_rx_addrs(hw);
-
 	/* Clear the VLAN filter table */
 	hw->mac.ops.clear_vfta(hw);
 
