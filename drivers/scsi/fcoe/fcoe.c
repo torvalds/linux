@@ -238,6 +238,9 @@ void fcoe_netdev_cleanup(struct fcoe_softc *fc)
 	if (!is_zero_ether_addr(fc->ctlr.data_src_addr))
 		dev_unicast_delete(fc->real_dev,
 				   fc->ctlr.data_src_addr, ETH_ALEN);
+	if (fc->ctlr.spma)
+		dev_unicast_delete(fc->real_dev,
+				   fc->ctlr.ctl_src_addr, ETH_ALEN);
 	dev_mc_delete(fc->real_dev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
 	rtnl_unlock();
 }
@@ -257,6 +260,7 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	u64 wwnn, wwpn;
 	struct fcoe_softc *fc;
 	u8 flogi_maddr[ETH_ALEN];
+	struct netdev_hw_addr *ha;
 
 	/* Setup lport private data to point to fcoe softc */
 	fc = lport_priv(lp);
@@ -313,9 +317,23 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	skb_queue_head_init(&fc->fcoe_pending_queue);
 	fc->fcoe_pending_queue_active = 0;
 
+	/* look for SAN MAC address, if multiple SAN MACs exist, only
+	 * use the first one for SPMA */
+	rcu_read_lock();
+	for_each_dev_addr(netdev, ha) {
+		if ((ha->type == NETDEV_HW_ADDR_T_SAN) &&
+		    (is_valid_ether_addr(fc->ctlr.ctl_src_addr))) {
+			memcpy(fc->ctlr.ctl_src_addr, ha->addr, ETH_ALEN);
+			fc->ctlr.spma = 1;
+			break;
+		}
+	}
+	rcu_read_unlock();
+
 	/* setup Source Mac Address */
-	memcpy(fc->ctlr.ctl_src_addr, fc->real_dev->dev_addr,
-	       fc->real_dev->addr_len);
+	if (!fc->ctlr.spma)
+		memcpy(fc->ctlr.ctl_src_addr, fc->real_dev->dev_addr,
+		       fc->real_dev->addr_len);
 
 	wwnn = fcoe_wwn_from_mac(fc->real_dev->dev_addr, 1, 0);
 	fc_set_wwnn(lp, wwnn);
@@ -331,6 +349,8 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	rtnl_lock();
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
 	dev_unicast_add(fc->real_dev, flogi_maddr, ETH_ALEN);
+	if (fc->ctlr.spma)
+		dev_unicast_add(fc->real_dev, fc->ctlr.ctl_src_addr, ETH_ALEN);
 	rtnl_unlock();
 
 	/*

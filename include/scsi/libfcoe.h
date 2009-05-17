@@ -73,6 +73,7 @@ enum fip_state {
  * @link:	current link status for libfc.
  * @last_link:	last link state reported to libfc.
  * @map_dest:	use the FC_MAP mode for destination MAC addresses.
+ * @spma:	supports SPMA server-provided MACs mode
  * @dest_addr:	MAC address of the selected FC forwarder.
  * @ctl_src_addr: the native MAC address of our local port.
  * @data_src_addr: the assigned MAC address for the local port after FLOGI.
@@ -104,6 +105,7 @@ struct fcoe_ctlr {
 	u8 link;
 	u8 last_link;
 	u8 map_dest;
+	u8 spma;
 	u8 dest_addr[ETH_ALEN];
 	u8 ctl_src_addr[ETH_ALEN];
 	u8 data_src_addr[ETH_ALEN];
