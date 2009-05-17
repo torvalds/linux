@@ -1004,6 +1004,10 @@ static void __perf_counter_task_sched_out(struct perf_counter_context *ctx)
 
 	if (!cpuctx->task_ctx)
 		return;
+
+	if (WARN_ON_ONCE(ctx != cpuctx->task_ctx))
+		return;
+
 	__perf_counter_sched_out(ctx, cpuctx);
 	cpuctx->task_ctx = NULL;
 }
