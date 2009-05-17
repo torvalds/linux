@@ -128,12 +128,6 @@ static void __exit_signal(struct task_struct *tsk)
 		sig = NULL; /* Marker for below. */
 	}
 
-	/*
-	 * Flush inherited counters to the parent - before the parent
-	 * gets woken up by child-exit notifications.
-	 */
-	perf_counter_exit_task(tsk);
-
 	__unhash_process(tsk);
 
 	/*
@@ -183,6 +177,13 @@ repeat:
 	atomic_dec(&__task_cred(p)->user->processes);
 
 	proc_flush_task(p);
+
+	/*
+	 * Flush inherited counters to the parent - before the parent
+	 * gets woken up by child-exit notifications.
+	 */
+	perf_counter_exit_task(p);
+
 	write_lock_irq(&tasklist_lock);
 	tracehook_finish_release_task(p);
 	__exit_signal(p);
