@@ -78,13 +78,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	trace_hardirqs_off();
 
 	/*
-	 * the primary core may have used a "cross call" soft interrupt
-	 * to get this processor out of WFI in the BootMonitor - make
-	 * sure that we are no longer being sent this soft interrupt
-	 */
-	smp_cross_call_done(cpumask_of(cpu));
-
-	/*
 	 * if any interrupts are already enabled for the primary
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
