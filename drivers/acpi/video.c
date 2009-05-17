@@ -538,6 +538,41 @@ acpi_video_device_lcd_set_level(struct acpi_video_device *device, int level)
 	return -EINVAL;
 }
 
+/*
+ * For some buggy _BQC methods, we need to add a constant value to
+ * the _BQC return value to get the actual current brightness level
+ */
+
+static int bqc_offset_aml_bug_workaround;
+static int __init video_set_bqc_offset(const struct dmi_system_id *d)
+{
+	bqc_offset_aml_bug_workaround = 9;
+	return 0;
+}
+
+static struct dmi_system_id video_dmi_table[] __initdata = {
+	/*
+	 * Broken _BQC workaround http://bugzilla.kernel.org/show_bug.cgi?id=13121
+	 */
+	{
+	 .callback = video_set_bqc_offset,
+	 .ident = "Acer Aspire 5720",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5720"),
+		},
+	},
+	{
+	 .callback = video_set_bqc_offset,
+	 .ident = "Acer Aspire 5710Z",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5710Z"),
+		},
+	},
+	{}
+};
+
 static int
 acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 					unsigned long long *level)
@@ -557,6 +592,7 @@ acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 				*level = device->brightness->levels[*level + 2];
 
 			}
+			*level += bqc_offset_aml_bug_workaround;
 			device->brightness->curr = *level;
 			return 0;
 		} else {
@@ -2290,6 +2326,8 @@ EXPORT_SYMBOL(acpi_video_register);
 
 static int __init acpi_video_init(void)
 {
+	dmi_check_system(video_dmi_table);
+
 	if (intel_opregion_present())
 		return 0;
 

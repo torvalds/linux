@@ -312,7 +312,7 @@ int acpi_bus_set_power(acpi_handle handle, int state)
       end:
 	if (result)
 		printk(KERN_WARNING PREFIX
-			      "Transitioning device [%s] to D%d\n",
+			      "Device [%s] failed to transition to D%d\n",
 			      device->pnp.bus_id, state);
 	else {
 		device->power.state = state;
