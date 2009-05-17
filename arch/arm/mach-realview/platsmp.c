@@ -19,6 +19,7 @@
 #include <asm/cacheflush.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
+#include <asm/localtimer.h>
 
 #include <mach/board-eb.h>
 #include <mach/board-pb11mp.h>
@@ -217,13 +218,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (max_cpus > ncores)
 		max_cpus = ncores;
 
-#if defined(CONFIG_LOCAL_TIMERS) || defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
-	/*
-	 * Enable the local timer or broadcast device for the boot CPU.
-	 */
-	local_timer_setup();
-#endif
-
 	/*
 	 * Initialise the present map, which describes the set of CPUs
 	 * actually populated at the present time.
@@ -239,6 +233,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 * WFI
 	 */
 	if (max_cpus > 1) {
+		/*
+		 * Enable the local timer or broadcast device for the
+		 * boot CPU, but only if we have more than one CPU.
+		 */
+		percpu_timer_setup();
+
 		scu_enable();
 		poke_milo();
 	}

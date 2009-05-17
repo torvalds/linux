@@ -11,10 +11,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
-#include <linux/device.h>
 #include <linux/smp.h>
 #include <linux/jiffies.h>
-#include <linux/percpu.h>
 #include <linux/clockchips.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -24,18 +22,6 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
-static DEFINE_PER_CPU(struct clock_event_device, local_clockevent);
-
-/*
- * Used on SMP for either the local timer or IPI_TIMER
- */
-void local_timer_interrupt(void)
-{
-	struct clock_event_device *clk = &__get_cpu_var(local_clockevent);
-
-	clk->event_handler(clk);
-}
-
 #ifdef CONFIG_LOCAL_TIMERS
 
 /* set up by the platform code */
@@ -44,7 +30,7 @@ void __iomem *twd_base;
 static unsigned long mpcore_timer_rate;
 
 static void local_timer_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *clk)
+				 struct clock_event_device *evt)
 {
 	unsigned long ctrl;
 
@@ -140,32 +126,29 @@ static void __cpuinit twd_calibrate_rate(void)
 /*
  * Setup the local clock events for a CPU.
  */
-void __cpuinit local_timer_setup(void)
+void __cpuinit local_timer_setup(struct clock_event_device *evt)
 {
-	unsigned int cpu = smp_processor_id();
-	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
 	unsigned long flags;
 
 	twd_calibrate_rate();
 
-	clk->name		= "local_timer";
-	clk->features		= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
-	clk->rating		= 350;
-	clk->set_mode		= local_timer_set_mode;
-	clk->set_next_event	= local_timer_set_next_event;
-	clk->irq		= IRQ_LOCALTIMER;
-	clk->cpumask		= cpumask_of(cpu);
-	clk->shift		= 20;
-	clk->mult		= div_sc(mpcore_timer_rate, NSEC_PER_SEC, clk->shift);
-	clk->max_delta_ns	= clockevent_delta2ns(0xffffffff, clk);
-	clk->min_delta_ns	= clockevent_delta2ns(0xf, clk);
+	evt->name		= "local_timer";
+	evt->features		= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	evt->rating		= 350;
+	evt->set_mode		= local_timer_set_mode;
+	evt->set_next_event	= local_timer_set_next_event;
+	evt->irq		= IRQ_LOCALTIMER;
+	evt->shift		= 20;
+	evt->mult		= div_sc(mpcore_timer_rate, NSEC_PER_SEC, evt->shift);
+	evt->max_delta_ns	= clockevent_delta2ns(0xffffffff, evt);
+	evt->min_delta_ns	= clockevent_delta2ns(0xf, evt);
 
 	/* Make sure our local interrupt controller has this enabled */
 	local_irq_save(flags);
 	get_irq_chip(IRQ_LOCALTIMER)->unmask(IRQ_LOCALTIMER);
 	local_irq_restore(flags);
 
-	clockevents_register_device(clk);
+	clockevents_register_device(evt);
 }
 
 /*
@@ -176,29 +159,4 @@ void __cpuexit local_timer_stop(void)
 	__raw_writel(0, twd_base + TWD_TIMER_CONTROL);
 }
 
-#else	/* CONFIG_LOCAL_TIMERS */
-
-static void dummy_timer_set_mode(enum clock_event_mode mode,
-				 struct clock_event_device *clk)
-{
-}
-
-void __cpuinit local_timer_setup(void)
-{
-	unsigned int cpu = smp_processor_id();
-	struct clock_event_device *clk = &per_cpu(local_clockevent, cpu);
-
-	clk->name		= "dummy_timer";
-	clk->features		= CLOCK_EVT_FEAT_ONESHOT |
-				  CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_FEAT_DUMMY;
-	clk->rating		= 400;
-	clk->mult               = 1;
-	clk->set_mode		= dummy_timer_set_mode;
-	clk->broadcast		= smp_timer_broadcast;
-	clk->cpumask		= cpumask_of(cpu);
-
-	clockevents_register_device(clk);
-}
-
-#endif	/* !CONFIG_LOCAL_TIMERS */
+#endif	/* CONFIG_LOCAL_TIMERS */
