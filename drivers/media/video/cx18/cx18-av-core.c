@@ -277,8 +277,15 @@ void cx18_av_std_setup(struct cx18 *cx)
 	struct cx18_av_state *state = &cx->av_state;
 	struct v4l2_subdev *sd = &state->sd;
 	v4l2_std_id std = state->std;
+
+	/*
+	 * Video ADC crystal clock to pixel clock SRC decimation ratio
+	 * 28.636360 MHz/13.5 Mpps * 256 = 0x21f.07b
+	 */
+	const int src_decimation = 0x21f;
+
 	int hblank, hactive, burst, vblank, vactive, sc;
-	int vblank656, src_decimation;
+	int vblank656;
 	int luma_lpf, uv_lpf, comb;
 	u32 pll_int, pll_frac, pll_post;
 
@@ -342,21 +349,31 @@ void cx18_av_std_setup(struct cx18 *cx)
 		hblank = 132;
 		hactive = 720;
 
+		/*
+		 * Burst gate delay (for 625 line systems)
+		 * Hsync leading edge to color burst rise = 5.6 us
+		 * Color burst width = 2.25 us
+		 * Gate width = 4 pixel clocks
+		 * (5.6 us + 2.25/2 us) * 13.5 Mpps + 4/2 clocks = 92.79 clocks
+		 */
 		burst = 93;
 		luma_lpf = 2;
-		src_decimation = 0x21f;
 		if (std & V4L2_STD_PAL) {
 			uv_lpf = 1;
 			comb = 0x20;
-			sc = 688739;
+			/* sc = 4433618.75 * src_decimation/28636360 * 2^13 */
+			sc = 688700;
 		} else if (std == V4L2_STD_PAL_Nc) {
 			uv_lpf = 1;
 			comb = 0x20;
-			sc = 556453;
+			/* sc = 3582056.25 * src_decimation/28636360 * 2^13 */
+			sc = 556422;
 		} else { /* SECAM */
 			uv_lpf = 0;
 			comb = 0;
-			sc = 672351;
+			/* (fr + fb)/2 = (4406260 + 4250000)/2 = 4328130 */
+			/* sc = 4328130 * src_decimation/28636360 * 2^13 */
+			sc = 672314;
 		}
 	} else {
 		/*
@@ -394,20 +411,30 @@ void cx18_av_std_setup(struct cx18 *cx)
 		luma_lpf = 1;
 		uv_lpf = 1;
 
-		src_decimation = 0x21f;
+		/*
+		 * Burst gate delay (for 525 line systems)
+		 * Hsync leading edge to color burst rise = 5.3 us
+		 * Color burst width = 2.5 us
+		 * Gate width = 4 pixel clocks
+		 * (5.3 us + 2.5/2 us) * 13.5 Mpps + 4/2 clocks = 90.425 clocks
+		 */
 		if (std == V4L2_STD_PAL_60) {
-			burst = 0x5b;
+			burst = 90;
 			luma_lpf = 2;
 			comb = 0x20;
-			sc = 688739;
+			/* sc = 4433618.75 * src_decimation/28636360 * 2^13 */
+			sc = 688700;
 		} else if (std == V4L2_STD_PAL_M) {
-			burst = 0x61;
+			/* The 97 needs to be verified against PAL-M timings */
+			burst = 97;
 			comb = 0x20;
-			sc = 555452;
+			/* sc = 3575611.49 * src_decimation/28636360 * 2^13 */
+			sc = 555421;
 		} else {
-			burst = 0x5b;
+			burst = 90;
 			comb = 0x66;
-			sc = 556063;
+			/* sc = 3579545.45.. * src_decimation/28636360 * 2^13 */
+			sc = 556032;
 		}
 	}
 
@@ -419,23 +446,23 @@ void cx18_av_std_setup(struct cx18 *cx)
 			    pll_int, pll_frac, pll_post);
 
 	if (pll_post) {
-		int fin, fsc, pll;
+		int fsc, pll;
 
 		pll = (28636360L * ((((u64)pll_int) << 25) + pll_frac)) >> 25;
 		pll /= pll_post;
-		CX18_DEBUG_INFO_DEV(sd, "PLL = %d.%06d MHz\n",
+		CX18_DEBUG_INFO_DEV(sd, "Video PLL = %d.%06d MHz\n",
 				    pll / 1000000, pll % 1000000);
-		CX18_DEBUG_INFO_DEV(sd, "PLL/8 = %d.%06d MHz\n",
+		CX18_DEBUG_INFO_DEV(sd, "Pixel rate = %d.%06d Mpixel/sec\n",
 				    pll / 8000000, (pll / 8) % 1000000);
 
-		fin = ((u64)src_decimation * pll) >> 12;
-		CX18_DEBUG_INFO_DEV(sd, "ADC Sampling freq = %d.%06d MHz\n",
-				    fin / 1000000, fin % 1000000);
+		CX18_DEBUG_INFO_DEV(sd, "ADC XTAL/pixel clock decimation ratio "
+				    "= %d.%03d\n", src_decimation / 256,
+				    ((src_decimation % 256) * 1000) / 256);
 
-		fsc = (((u64)sc) * pll) >> 24L;
+		fsc = ((((u64)sc) * 28636360)/src_decimation) >> 13L;
 		CX18_DEBUG_INFO_DEV(sd,
-				    "Chroma sub-carrier freq = %d.%06d MHz\n",
-				    fsc / 1000000, fsc % 1000000);
+				    "Chroma sub-carrier initial freq = %d.%06d "
+				    "MHz\n", fsc / 1000000, fsc % 1000000);
 
 		CX18_DEBUG_INFO_DEV(sd, "hblank %i, hactive %i, vblank %i, "
 				    "vactive %i, vblank656 %i, src_dec %i, "
