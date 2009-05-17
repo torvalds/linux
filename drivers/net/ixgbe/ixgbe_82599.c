@@ -347,6 +347,7 @@ enum ixgbe_media_type ixgbe_get_media_type_82599(struct ixgbe_hw *hw)
 	switch (hw->device_id) {
 	case IXGBE_DEV_ID_82599:
 	case IXGBE_DEV_ID_82599_KX4:
+	case IXGBE_DEV_ID_82599_XAUI_LOM:
 		/* Default device ID is mezzanine card KX/KX4 */
 		media_type = ixgbe_media_type_backplane;
 		break;
@@ -1199,6 +1200,8 @@ u32 ixgbe_get_supported_physical_layer_82599(struct ixgbe_hw *hw)
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_CX4;
 		else if (pma_pmd_10g_parallel == IXGBE_AUTOC_10G_KX4)
 			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_KX4;
+		else if (pma_pmd_10g_parallel == IXGBE_AUTOC_10G_XAUI)
+			physical_layer = IXGBE_PHYSICAL_LAYER_10GBASE_XAUI;
 		goto out;
 		break;
 	case IXGBE_AUTOC_LMS_10G_SERIAL:

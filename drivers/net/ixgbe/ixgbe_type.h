@@ -49,6 +49,7 @@
 #define IXGBE_DEV_ID_82599               0x10D8
 #define IXGBE_DEV_ID_82599_KX4           0x10F7
 #define IXGBE_DEV_ID_82599_SFP           0x10FB
+#define IXGBE_DEV_ID_82599_XAUI_LOM      0x10FC
 
 /* General Registers */
 #define IXGBE_CTRL      0x00000
@@ -1954,6 +1955,7 @@ typedef u32 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_1000BASE_KX  0x0200
 #define IXGBE_PHYSICAL_LAYER_1000BASE_BX  0x0400
 #define IXGBE_PHYSICAL_LAYER_10GBASE_KR   0x0800
+#define IXGBE_PHYSICAL_LAYER_10GBASE_XAUI 0x1000
 
 enum ixgbe_eeprom_type {
 	ixgbe_eeprom_uninitialized = 0,
