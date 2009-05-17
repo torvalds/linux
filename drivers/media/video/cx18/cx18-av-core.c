@@ -299,13 +299,13 @@ void cx18_av_std_setup(struct cx18 *cx)
 	if (std & V4L2_STD_625_50) {
 		/*
 		 * The following relationships of half line counts should hold:
-		 * 625 = vblank656 + vactive + postvactive
+		 * 625 = vblank656 + vactive
 		 * 10 = vblank656 - vblank = vsync pulses + equalization pulses
 		 *
 		 * vblank656: half lines after line 625/mid-313 of blanked video
 		 * vblank:    half lines, after line 5/317, of blanked video
-		 * vactive:   half lines of active video
-		 * postvactive: 5 half lines after the end of active video
+		 * vactive:   half lines of active video +
+		 * 		5 half lines after the end of active video
 		 *
 		 * As far as I can tell:
 		 * vblank656 starts counting from the falling edge of the first
@@ -316,10 +316,21 @@ void cx18_av_std_setup(struct cx18 *cx)
 		 * For 625 line systems the driver will extract VBI information
 		 * from lines 6-23 and lines 318-335 (but the slicer can only
 		 * handle 17 lines, not the 18 in the vblank region).
+		 * In addition, we need vblank656 and vblank to be one whole
+		 * line longer, to cover line 24 and 336, so the SAV/EAV RP
+		 * codes get generated such that the encoder can actually
+		 * extract line 23 & 335 (WSS).  We'll lose 1 line in each field
+		 * at the top of the screen.
+		 *
+		 * It appears the 5 half lines that happen after active
+		 * video must be included in vactive (579 instead of 574),
+		 * otherwise the colors get badly displayed in various regions
+		 * of the screen.  I guess the chroma comb filter gets confused
+		 * without them (at least when a PVR-350 is the PAL source).
 		 */
-		vblank656 = 46; /* lines  1 -  23  &  313 - 335 */
-		vblank = 36;    /* lines  6 -  23  &  318 - 335 */
-		vactive = 574;  /* lines 24 - 310  &  336 - 622 */
+		vblank656 = 48; /* lines  1 -  24  &  313 - 336 */
+		vblank = 38;    /* lines  6 -  24  &  318 - 336 */
+		vactive = 579;  /* lines 24 - 313  &  337 - 626 */
 
 		/*
 		 * For a 13.5 Mpps clock and 15,625 Hz line rate, a line is
@@ -989,9 +1000,9 @@ static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		 * cx18_av_std_setup(), above standard values:
 		 *
 		 * 480 + 1 for 60 Hz systems
-		 * 576 - 2 for 50 Hz systems
+		 * 576 + 3 for 50 Hz systems
 		 */
-		Vlines = pix->height + (is_50Hz ? -2 : 1);
+		Vlines = pix->height + (is_50Hz ? 3 : 1);
 
 		/*
 		 * Invalid height and width scaling requests are:

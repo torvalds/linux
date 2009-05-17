@@ -256,7 +256,7 @@ int cx18_av_vbi_s_fmt(struct cx18 *cx, struct v4l2_format *fmt)
 
 	cx18_av_write(cx, 0x43c, 0x16);
 	/* Should match vblank set in cx18_av_std_setup() */
-	cx18_av_write(cx, 0x474, is_pal ? 36 : 26);
+	cx18_av_write(cx, 0x474, is_pal ? 38 : 26);
 	return 0;
 }
 

@@ -374,12 +374,11 @@ static void cx18_vbi_setup(struct cx18_stream *s)
 		 * For 625/50 systems, according to the VIP 2 & BT.656 std:
 		 * The EAV RP code's Field bit toggles on line 1, a few lines
 		 * after the Vertcal Blank bit has already toggled.
-		 * Tell the encoder to capture 23-1+1=23 lines per field,
-		 * since we want lines 6 through 23.
-		 *
-		 * FIXME - revisit for 625/50 systems
+		 * (We've actually set the digitizer so that the Field bit
+		 * toggles on line 2.) Tell the encoder to capture 23-2+1=22
+		 * lines per field, since we want lines 6 through 23.
 		 */
-		lines = cx->is_60hz ? (21 - 4 + 1) * 2 : (23 - 1 + 1) * 2;
+		lines = cx->is_60hz ? (21 - 4 + 1) * 2 : (23 - 2 + 1) * 2;
 	}
 
 	data[0] = s->handle;
