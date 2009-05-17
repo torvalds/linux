@@ -428,14 +428,14 @@ static int set_multcount(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > (drive->id[ATA_ID_MAX_MULTSECT] & 0xff))
 		return -EINVAL;
 
-	if (drive->special.b.set_multmode)
+	if (drive->special_flags & IDE_SFLAG_SET_MULTMODE)
 		return -EBUSY;
 
 	rq = blk_get_request(drive->queue, READ, __GFP_WAIT);
 	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
 
 	drive->mult_req = arg;
-	drive->special.b.set_multmode = 1;
+	drive->special_flags |= IDE_SFLAG_SET_MULTMODE;
 	error = blk_execute_rq(drive->queue, NULL, rq, 0);
 	blk_put_request(rq);
 

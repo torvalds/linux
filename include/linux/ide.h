@@ -218,21 +218,12 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 
 /*
  * Special Driver Flags
- *
- * set_geometry	: respecify drive geometry
- * recalibrate	: seek to cyl 0
- * set_multmode	: set multmode count
- * reserved	: unused
  */
-typedef union {
-	unsigned all			: 8;
-	struct {
-		unsigned set_geometry	: 1;
-		unsigned recalibrate	: 1;
-		unsigned set_multmode	: 1;
-		unsigned reserved	: 5;
-	} b;
-} special_t;
+enum {
+	IDE_SFLAG_SET_GEOMETRY		= (1 << 0),
+	IDE_SFLAG_RECALIBRATE		= (1 << 1),
+	IDE_SFLAG_SET_MULTMODE		= (1 << 2),
+};
 
 /*
  * Status returned from various ide_ functions
@@ -530,7 +521,7 @@ struct ide_drive_s {
 	unsigned long sleep;		/* sleep until this time */
 	unsigned long timeout;		/* max time to wait for irq */
 
-	special_t	special;	/* special action flags */
+	u8	special_flags;		/* special action flags */
 
 	u8	select;			/* basic drive/head select reg value */
 	u8	retry_pio;		/* retrying dma capable host in pio */

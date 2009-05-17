@@ -194,14 +194,14 @@ static void ide_tf_set_setmult_cmd(ide_drive_t *drive, struct ide_taskfile *tf)
 
 static ide_startstop_t do_special(ide_drive_t *drive)
 {
-	special_t *s = &drive->special;
 	struct ide_cmd cmd;
 
 #ifdef DEBUG
-	printk(KERN_DEBUG "%s: %s: 0x%02x\n", drive->name, __func__, s->all);
+	printk(KERN_DEBUG "%s: %s: 0x%02x\n", drive->name, __func__,
+		drive->special_flags);
 #endif
 	if (drive->media != ide_disk) {
-		s->all = 0;
+		drive->special_flags = 0;
 		drive->mult_req = 0;
 		return ide_stopped;
 	}
@@ -209,14 +209,14 @@ static ide_startstop_t do_special(ide_drive_t *drive)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.protocol = ATA_PROT_NODATA;
 
-	if (s->b.set_geometry) {
-		s->b.set_geometry = 0;
+	if (drive->special_flags & IDE_SFLAG_SET_GEOMETRY) {
+		drive->special_flags &= ~IDE_SFLAG_SET_GEOMETRY;
 		ide_tf_set_specify_cmd(drive, &cmd.tf);
-	} else if (s->b.recalibrate) {
-		s->b.recalibrate = 0;
+	} else if (drive->special_flags & IDE_SFLAG_RECALIBRATE) {
+		drive->special_flags &= ~IDE_SFLAG_RECALIBRATE;
 		ide_tf_set_restore_cmd(drive, &cmd.tf);
-	} else if (s->b.set_multmode) {
-		s->b.set_multmode = 0;
+	} else if (drive->special_flags & IDE_SFLAG_SET_MULTMODE) {
+		drive->special_flags &= ~IDE_SFLAG_SET_MULTMODE;
 		ide_tf_set_setmult_cmd(drive, &cmd.tf);
 	} else
 		BUG();
@@ -339,7 +339,8 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 		printk(KERN_ERR "%s: drive not ready for command\n", drive->name);
 		return startstop;
 	}
-	if (!drive->special.all) {
+
+	if (drive->special_flags == 0) {
 		struct ide_driver *drv;
 
 		/*

@@ -97,7 +97,7 @@ static void ide_disk_init_mult_count(ide_drive_t *drive)
 		drive->mult_req = id[ATA_ID_MULTSECT] & 0xff;
 
 		if (drive->mult_req)
-			drive->special.b.set_multmode = 1;
+			drive->special_flags |= IDE_SFLAG_SET_MULTMODE;
 	}
 }
 
@@ -1138,8 +1138,8 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 		drive->hwif			= hwif;
 		drive->ready_stat		= ATA_DRDY;
 		drive->bad_wstat		= BAD_W_STAT;
-		drive->special.b.recalibrate	= 1;
-		drive->special.b.set_geometry	= 1;
+		drive->special_flags		= IDE_SFLAG_RECALIBRATE |
+						  IDE_SFLAG_SET_GEOMETRY;
 		drive->name[0]			= 'h';
 		drive->name[1]			= 'd';
 		drive->name[2]			= 'a' + j;

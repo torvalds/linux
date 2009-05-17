@@ -166,7 +166,7 @@ static ide_startstop_t task_no_data_intr(ide_drive_t *drive)
 	if (!OK_STAT(stat, ATA_DRDY, BAD_STAT)) {
 		if (custom && tf->command == ATA_CMD_SET_MULTI) {
 			drive->mult_req = drive->mult_count = 0;
-			drive->special.b.recalibrate = 1;
+			drive->special_flags |= IDE_SFLAG_RECALIBRATE;
 			(void)ide_dump_status(drive, __func__, stat);
 			return ide_stopped;
 		} else if (custom && tf->command == ATA_CMD_INIT_DEV_PARAMS) {

@@ -451,8 +451,8 @@ static int sil_sata_reset_poll(ide_drive_t *drive)
 static void sil_sata_pre_reset(ide_drive_t *drive)
 {
 	if (drive->media == ide_disk) {
-		drive->special.b.set_geometry = 0;
-		drive->special.b.recalibrate = 0;
+		drive->special_flags &=
+			~(IDE_SFLAG_SET_GEOMETRY | IDE_SFLAG_RECALIBRATE);
 	}
 }
 
