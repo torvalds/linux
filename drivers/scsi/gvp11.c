@@ -27,7 +27,7 @@
 static irqreturn_t gvp11_intr(int irq, void *data)
 {
 	struct Scsi_Host *instance = data;
-	gvp11_scsiregs *regs = (gvp11_scsiregs *)(instance->base);
+	struct gvp11_scsiregs *regs = (struct gvp11_scsiregs *)(instance->base);
 	unsigned int status = regs->CNTR;
 	unsigned long flags;
 
@@ -51,7 +51,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 	struct WD33C93_hostdata *hdata = shost_priv(instance);
-	gvp11_scsiregs *regs = (gvp11_scsiregs *)(instance->base);
+	struct gvp11_scsiregs *regs = (struct gvp11_scsiregs *)(instance->base);
 	unsigned short cntr = GVP11_DMAC_INT_ENABLE;
 	unsigned long addr = virt_to_bus(cmd->SCp.ptr);
 	int bank_mask;
@@ -145,7 +145,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
-	gvp11_scsiregs *regs = (gvp11_scsiregs *)(instance->base);
+	struct gvp11_scsiregs *regs = (struct gvp11_scsiregs *)(instance->base);
 	struct WD33C93_hostdata *hdata = shost_priv(instance);
 
 	/* stop DMA */
@@ -169,7 +169,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	}
 }
 
-static int __init check_wd33c93(gvp11_scsiregs *regs)
+static int __init check_wd33c93(struct gvp11_scsiregs *regs)
 {
 #ifdef CHECK_WD33C93
 	volatile unsigned char *sasr_3393, *scmd_3393;
@@ -258,7 +258,7 @@ int __init gvp11_detect(struct scsi_host_template *tpnt)
 	struct zorro_dev *z = NULL;
 	unsigned int default_dma_xfer_mask;
 	struct WD33C93_hostdata *hdata;
-	gvp11_scsiregs *regs;
+	struct gvp11_scsiregs *regs;
 	wd33c93_regs wdregs;
 	int num_gvp11 = 0;
 
@@ -301,7 +301,7 @@ int __init gvp11_detect(struct scsi_host_template *tpnt)
 		if (!request_mem_region(address, 256, "wd33c93"))
 			continue;
 
-		regs = (gvp11_scsiregs *)(ZTWO_VADDR(address));
+		regs = (struct gvp11_scsiregs *)(ZTWO_VADDR(address));
 		if (check_wd33c93(regs))
 			goto release;
 
@@ -399,7 +399,7 @@ static struct scsi_host_template driver_template = {
 int gvp11_release(struct Scsi_Host *instance)
 {
 #ifdef MODULE
-	gvp11_scsiregs *regs = (gvp11_scsiregs *)(instance->base);
+	struct gvp11_scsiregs *regs = (struct gvp11_scsiregs *)(instance->base);
 
 	regs->CNTR = 0;
 	release_mem_region(ZTWO_PADDR(instance->base), 256);
