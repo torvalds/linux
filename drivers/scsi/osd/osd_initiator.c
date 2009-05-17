@@ -1200,6 +1200,21 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 /*
  * osd_finalize_request and helpers
  */
+static struct request *_make_request(struct request_queue *q, bool has_write,
+			      struct _osd_io_info *oii, gfp_t flags)
+{
+	if (oii->bio)
+		return blk_make_request(q, oii->bio, flags);
+	else {
+		struct request *req;
+
+		req = blk_get_request(q, has_write ? WRITE : READ, flags);
+		if (unlikely(!req))
+			return ERR_PTR(-ENOMEM);
+
+		return req;
+	}
+}
 
 static int _init_blk_request(struct osd_request *or,
 	bool has_in, bool has_out)
@@ -1208,11 +1223,13 @@ static int _init_blk_request(struct osd_request *or,
 	struct scsi_device *scsi_device = or->osd_dev->scsi_device;
 	struct request_queue *q = scsi_device->request_queue;
 	struct request *req;
-	int ret = -ENOMEM;
+	int ret;
 
-	req = blk_get_request(q, has_out, flags);
-	if (!req)
+	req = _make_request(q, has_out, has_out ? &or->out : &or->in, flags);
+	if (IS_ERR(req)) {
+		ret = PTR_ERR(req);
 		goto out;
+	}
 
 	or->request = req;
 	req->cmd_type = REQ_TYPE_BLOCK_PC;
@@ -1225,9 +1242,10 @@ static int _init_blk_request(struct osd_request *or,
 		or->out.req = req;
 		if (has_in) {
 			/* allocate bidi request */
-			req = blk_get_request(q, READ, flags);
-			if (!req) {
+			req = _make_request(q, false, &or->in, flags);
+			if (IS_ERR(req)) {
 				OSD_DEBUG("blk_get_request for bidi failed\n");
+				ret = PTR_ERR(req);
 				goto out;
 			}
 			req->cmd_type = REQ_TYPE_BLOCK_PC;
@@ -1269,26 +1287,6 @@ int osd_finalize_request(struct osd_request *or,
 	if (ret) {
 		OSD_DEBUG("_init_blk_request failed\n");
 		return ret;
-	}
-
-	if (or->out.bio) {
-		ret = blk_rq_append_bio(or->request->q, or->out.req,
-					or->out.bio);
-		if (ret) {
-			OSD_DEBUG("blk_rq_append_bio out failed\n");
-			return ret;
-		}
-		OSD_DEBUG("out bytes=%llu (bytes_req=%u)\n",
-			_LLU(or->out.total_bytes), blk_rq_bytes(or->out.req));
-	}
-	if (or->in.bio) {
-		ret = blk_rq_append_bio(or->request->q, or->in.req, or->in.bio);
-		if (ret) {
-			OSD_DEBUG("blk_rq_append_bio in failed\n");
-			return ret;
-		}
-		OSD_DEBUG("in bytes=%llu (bytes_req=%u)\n",
-			_LLU(or->in.total_bytes), blk_rq_bytes(or->in.req));
 	}
 
 	or->out.pad_buff = sg_out_pad_buffer;
