@@ -871,23 +871,6 @@ static int reiserfs_check_acl(struct inode *inode, int mask)
 	return error;
 }
 
-int reiserfs_permission(struct inode *inode, int mask)
-{
-	/*
-	 * We don't do permission checks on the internal objects.
-	 * Permissions are determined by the "owning" object.
-	 */
-	if (IS_PRIVATE(inode))
-		return 0;
-	/*
-	 * Stat data v1 doesn't support ACLs.
-	 */
-	if (get_inode_sd_version(inode) == STAT_DATA_V1)
-		return generic_permission(inode, mask, NULL);
-	else
-		return generic_permission(inode, mask, reiserfs_check_acl);
-}
-
 static int create_privroot(struct dentry *dentry)
 {
 	int err;
@@ -949,6 +932,25 @@ static int xattr_mount_check(struct super_block *s)
 	}
 
 	return 0;
+}
+
+int reiserfs_permission(struct inode *inode, int mask)
+{
+	/*
+	 * We don't do permission checks on the internal objects.
+	 * Permissions are determined by the "owning" object.
+	 */
+	if (IS_PRIVATE(inode))
+		return 0;
+
+#ifdef CONFIG_REISERFS_FS_XATTR
+	/*
+	 * Stat data v1 doesn't support ACLs.
+	 */
+	if (get_inode_sd_version(inode) != STAT_DATA_V1)
+		return generic_permission(inode, mask, reiserfs_check_acl);
+#endif
+	return generic_permission(inode, mask, NULL);
 }
 
 /* This will catch lookups from the fs root to .reiserfs_priv */
