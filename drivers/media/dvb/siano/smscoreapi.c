@@ -31,6 +31,7 @@
 
 #include <linux/firmware.h>
 #include <linux/wait.h>
+#include <asm/byteorder.h>
 
 #include "smscoreapi.h"
 #include "sms-cards.h"
@@ -511,9 +512,13 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 {
 	struct SmsFirmware_ST *firmware = (struct SmsFirmware_ST *) buffer;
 	struct SmsMsgHdr_ST *msg;
-	u32 mem_address = firmware->StartAddress;
+	u32 mem_address;
 	u8 *payload = firmware->Payload;
 	int rc = 0;
+	firmware->StartAddress = le32_to_cpu(firmware->StartAddress);
+	firmware->Length = le32_to_cpu(firmware->Length);
+
+	mem_address = firmware->StartAddress;
 
 	sms_info("loading FW to addr 0x%x size %d",
 		 mem_address, firmware->Length);
