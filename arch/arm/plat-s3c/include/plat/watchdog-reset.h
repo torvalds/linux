@@ -11,6 +11,7 @@
 */
 
 #include <plat/regs-watchdog.h>
+#include <mach/map.h>
 
 #include <linux/clk.h>
 #include <linux/err.h>
