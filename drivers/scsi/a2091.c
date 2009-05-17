@@ -27,7 +27,7 @@ static int a2091_release(struct Scsi_Host *instance);
 static irqreturn_t a2091_intr(int irq, void *data)
 {
 	struct Scsi_Host *instance = data;
-	a2091_scsiregs *regs = (a2091_scsiregs *)(instance->base);
+	struct a2091_scsiregs *regs = (struct a2091_scsiregs *)(instance->base);
 	unsigned int status = regs->ISTR;
 	unsigned long flags;
 
@@ -44,7 +44,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
 	struct Scsi_Host *instance = cmd->device->host;
 	struct WD33C93_hostdata *hdata = shost_priv(instance);
-	a2091_scsiregs *regs = (a2091_scsiregs *)(instance->base);
+	struct a2091_scsiregs *regs = (struct a2091_scsiregs *)(instance->base);
 	unsigned short cntr = CNTR_PDMD | CNTR_INTEN;
 	unsigned long addr = virt_to_bus(cmd->SCp.ptr);
 
@@ -109,7 +109,7 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
 	struct WD33C93_hostdata *hdata = shost_priv(instance);
-	a2091_scsiregs *regs = (a2091_scsiregs *)(instance->base);
+	struct a2091_scsiregs *regs = (struct a2091_scsiregs *)(instance->base);
 
 	/* disable SCSI interrupts */
 	unsigned short cntr = CNTR_PDMD;
@@ -154,7 +154,7 @@ static int __init a2091_detect(struct scsi_host_template *tpnt)
 	unsigned long address;
 	struct zorro_dev *z = NULL;
 	wd33c93_regs wdregs;
-	a2091_scsiregs *regs;
+	struct a2091_scsiregs *regs;
 	struct WD33C93_hostdata *hdata;
 	int num_a2091 = 0;
 
@@ -179,7 +179,7 @@ static int __init a2091_detect(struct scsi_host_template *tpnt)
 		instance->base = ZTWO_VADDR(address);
 		instance->irq = IRQ_AMIGA_PORTS;
 		instance->unique_id = z->slotaddr;
-		regs = (a2091_scsiregs *)(instance->base);
+		regs = (struct a2091_scsiregs *)(instance->base);
 		regs->DAWR = DAWR_A2091;
 		wdregs.SASR = &regs->SASR;
 		wdregs.SCMD = &regs->SCMD;
@@ -243,7 +243,7 @@ static struct scsi_host_template driver_template = {
 static int a2091_release(struct Scsi_Host *instance)
 {
 #ifdef MODULE
-	a2091_scsiregs *regs = (a2091_scsiregs *)(instance->base);
+	struct a2091_scsiregs *regs = (struct a2091_scsiregs *)(instance->base);
 
 	regs->CNTR = 0;
 	release_mem_region(ZTWO_PADDR(instance->base), 256);
