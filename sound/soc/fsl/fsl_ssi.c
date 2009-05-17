@@ -674,7 +674,7 @@ struct snd_soc_dai *fsl_ssi_create_dai(struct fsl_ssi_info *ssi_info)
 	ssi_private->dev = ssi_info->dev;
 	ssi_private->asynchronous = ssi_info->asynchronous;
 
-	ssi_private->dev->driver_data = fsl_ssi_dai;
+	dev_set_drvdata(ssi_private->dev, fsl_ssi_dai);
 
 	/* Initialize the the device_attribute structure */
 	dev_attr->attr.name = "ssi-stats";
