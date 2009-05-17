@@ -13,19 +13,11 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/major.h>
-#include <linux/fs.h>
-#include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
-#include <linux/mmc/host.h>
 #include <linux/mtd/physmap.h>
-#include <linux/pm.h>
-#include <linux/backlight.h>
-#include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/spi/spi.h>
@@ -34,15 +26,11 @@
 #include <linux/mtd/sharpsl.h>
 
 #include <asm/setup.h>
-#include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <asm/irq.h>
-#include <asm/system.h>
-
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/irq.h>
+#include <asm/mach/sharpsl_param.h>
+#include <asm/hardware/scoop.h>
+
 
 #include <mach/pxa27x.h>
 #include <mach/pxa27x-udc.h>
@@ -51,14 +39,9 @@
 #include <mach/irda.h>
 #include <mach/mmc.h>
 #include <mach/ohci.h>
-#include <mach/udc.h>
 #include <mach/pxafb.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/spitz.h>
-#include <mach/sharpsl.h>
-
-#include <asm/mach/sharpsl_param.h>
-#include <asm/hardware/scoop.h>
 
 #include "generic.h"
 #include "devices.h"
