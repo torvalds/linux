@@ -2478,7 +2478,7 @@ static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
 static ssize_t show_qos(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	struct iwl_priv *priv = dev_get_drvdata(d);
 	char *p = buf;
 	int   q;
 
