@@ -434,16 +434,16 @@ static int p54spi_tx_frame(struct p54s_priv *priv, struct sk_buff *skb)
 	if (!p54spi_wait_bit(priv, SPI_ADRS_HOST_INTERRUPTS,
 			     cpu_to_le32(SPI_HOST_INT_WR_READY))) {
 		dev_err(&priv->spi->dev, "WR_READY timeout\n");
-		ret = -1;
+		ret = -EAGAIN;
 		goto out;
 	}
 
 	p54spi_int_ack(priv, SPI_HOST_INT_WR_READY);
-	p54spi_sleep(priv);
 
 	if (FREE_AFTER_TX(skb))
 		p54_free_skb(priv->hw, skb);
 out:
+	p54spi_sleep(priv);
 	return ret;
 }
 
