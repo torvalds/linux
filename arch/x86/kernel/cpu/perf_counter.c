@@ -285,6 +285,7 @@ static int __hw_perf_counter_init(struct perf_counter *counter)
 			return -EACCES;
 		hwc->nmi = 1;
 	}
+	perf_counters_lapic_init(hwc->nmi);
 
 	if (!hwc->irq_period)
 		hwc->irq_period = x86_pmu.max_period;
@@ -602,8 +603,6 @@ try_generic:
 		hwc->config_base  = x86_pmu.eventsel;
 		hwc->counter_base = x86_pmu.perfctr;
 	}
-
-	perf_counters_lapic_init(hwc->nmi);
 
 	x86_pmu.disable(hwc, idx);
 
@@ -1054,7 +1053,7 @@ void __init init_hw_perf_counters(void)
 
 	pr_info("... counter mask:    %016Lx\n", perf_counter_mask);
 
-	perf_counters_lapic_init(0);
+	perf_counters_lapic_init(1);
 	register_die_notifier(&perf_counter_nmi_notifier);
 }
 
