@@ -172,8 +172,6 @@ static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
 		__le32 buffer = p54spi_read32(priv, reg);
 		if ((buffer & bits) == bits)
 			return 1;
-
-		msleep(0);
 	}
 	return 0;
 }
@@ -181,15 +179,15 @@ static int p54spi_wait_bit(struct p54s_priv *priv, u16 reg, __le32 bits)
 static int p54spi_spi_write_dma(struct p54s_priv *priv, __le32 base,
 				const void *buf, size_t len)
 {
-	p54spi_write16(priv, SPI_ADRS_DMA_WRITE_CTRL,
-		       cpu_to_le16(SPI_DMA_WRITE_CTRL_ENABLE));
-
 	if (!p54spi_wait_bit(priv, SPI_ADRS_DMA_WRITE_CTRL,
 			     cpu_to_le32(HOST_ALLOWED))) {
 		dev_err(&priv->spi->dev, "spi_write_dma not allowed "
 			"to DMA write.\n");
 		return -EAGAIN;
 	}
+
+	p54spi_write16(priv, SPI_ADRS_DMA_WRITE_CTRL,
+		       cpu_to_le16(SPI_DMA_WRITE_CTRL_ENABLE));
 
 	p54spi_write16(priv, SPI_ADRS_DMA_WRITE_LEN, cpu_to_le16(len));
 	p54spi_write32(priv, SPI_ADRS_DMA_WRITE_BASE, base);
