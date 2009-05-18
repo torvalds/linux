@@ -948,28 +948,23 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 				  u64 addr, unsigned int pages)
 {
-	unsigned int mask;
+	unsigned int mask = ilog2(__roundup_pow_of_two(pages));
 
 	BUG_ON(addr & (~VTD_PAGE_MASK));
 	BUG_ON(pages == 0);
 
-	/* Fallback to domain selective flush if no PSI support */
-	if (!cap_pgsel_inv(iommu->cap))
-		return iommu->flush.flush_iotlb(iommu, did, 0, 0,
-						DMA_TLB_DSI_FLUSH);
-
 	/*
+	 * Fallback to domain selective flush if no PSI support or the size is
+	 * too big.
 	 * PSI requires page size to be 2 ^ x, and the base address is naturally
 	 * aligned to the size
 	 */
-	mask = ilog2(__roundup_pow_of_two(pages));
-	/* Fallback to domain selective flush if size is too big */
-	if (mask > cap_max_amask_val(iommu->cap))
-		return iommu->flush.flush_iotlb(iommu, did, 0, 0,
+	if (!cap_pgsel_inv(iommu->cap) || mask > cap_max_amask_val(iommu->cap))
+		iommu->flush.flush_iotlb(iommu, did, 0, 0,
 						DMA_TLB_DSI_FLUSH);
-
-	return iommu->flush.flush_iotlb(iommu, did, addr, mask,
-					DMA_TLB_PSI_FLUSH);
+	else
+		iommu->flush.flush_iotlb(iommu, did, addr, mask,
+						DMA_TLB_PSI_FLUSH);
 }
 
 static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
@@ -2260,15 +2255,16 @@ static void flush_unmaps(void)
 		if (!iommu)
 			continue;
 
-		if (deferred_flush[i].next) {
-			iommu->flush.flush_iotlb(iommu, 0, 0, 0,
-						 DMA_TLB_GLOBAL_FLUSH);
-			for (j = 0; j < deferred_flush[i].next; j++) {
-				__free_iova(&deferred_flush[i].domain[j]->iovad,
-						deferred_flush[i].iova[j]);
-			}
-			deferred_flush[i].next = 0;
+		if (!deferred_flush[i].next)
+			continue;
+
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
+					 DMA_TLB_GLOBAL_FLUSH, 0);
+		for (j = 0; j < deferred_flush[i].next; j++) {
+			__free_iova(&deferred_flush[i].domain[j]->iovad,
+					deferred_flush[i].iova[j]);
 		}
+		deferred_flush[i].next = 0;
 	}
 
 	list_size = 0;
