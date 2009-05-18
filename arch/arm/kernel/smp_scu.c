@@ -12,6 +12,7 @@
 #include <linux/io.h>
 
 #include <asm/smp_scu.h>
+#include <asm/cacheflush.h>
 
 #define SCU_CTRL		0x00
 #define SCU_CONFIG		0x04
@@ -38,4 +39,10 @@ void __init scu_enable(void __iomem *scu_base)
 	scu_ctrl = __raw_readl(scu_base + SCU_CTRL);
 	scu_ctrl |= 1;
 	__raw_writel(scu_ctrl, scu_base + SCU_CTRL);
+
+	/*
+	 * Ensure that the data accessed by CPU0 before the SCU was
+	 * initialised is visible to the other CPUs.
+	 */
+	flush_cache_all();
 }
