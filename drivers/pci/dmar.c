@@ -699,7 +699,8 @@ void free_iommu(struct intel_iommu *iommu)
  */
 static inline void reclaim_free_desc(struct q_inval *qi)
 {
-	while (qi->desc_status[qi->free_tail] == QI_DONE) {
+	while (qi->desc_status[qi->free_tail] == QI_DONE ||
+	       qi->desc_status[qi->free_tail] == QI_ABORT) {
 		qi->desc_status[qi->free_tail] = QI_FREE;
 		qi->free_tail = (qi->free_tail + 1) % QI_LENGTH;
 		qi->free_cnt++;
@@ -709,9 +710,12 @@ static inline void reclaim_free_desc(struct q_inval *qi)
 static int qi_check_fault(struct intel_iommu *iommu, int index)
 {
 	u32 fault;
-	int head;
+	int head, tail;
 	struct q_inval *qi = iommu->qi;
 	int wait_index = (index + 1) % QI_LENGTH;
+
+	if (qi->desc_status[wait_index] == QI_ABORT)
+		return -EAGAIN;
 
 	fault = readl(iommu->reg + DMAR_FSTS_REG);
 
@@ -722,7 +726,11 @@ static int qi_check_fault(struct intel_iommu *iommu, int index)
 	 */
 	if (fault & DMA_FSTS_IQE) {
 		head = readl(iommu->reg + DMAR_IQH_REG);
-		if ((head >> 4) == index) {
+		if ((head >> DMAR_IQ_SHIFT) == index) {
+			printk(KERN_ERR "VT-d detected invalid descriptor: "
+				"low=%llx, high=%llx\n",
+				(unsigned long long)qi->desc[index].low,
+				(unsigned long long)qi->desc[index].high);
 			memcpy(&qi->desc[index], &qi->desc[wait_index],
 					sizeof(struct qi_desc));
 			__iommu_flush_cache(iommu, &qi->desc[index],
@@ -731,6 +739,32 @@ static int qi_check_fault(struct intel_iommu *iommu, int index)
 			return -EINVAL;
 		}
 	}
+
+	/*
+	 * If ITE happens, all pending wait_desc commands are aborted.
+	 * No new descriptors are fetched until the ITE is cleared.
+	 */
+	if (fault & DMA_FSTS_ITE) {
+		head = readl(iommu->reg + DMAR_IQH_REG);
+		head = ((head >> DMAR_IQ_SHIFT) - 1 + QI_LENGTH) % QI_LENGTH;
+		head |= 1;
+		tail = readl(iommu->reg + DMAR_IQT_REG);
+		tail = ((tail >> DMAR_IQ_SHIFT) - 1 + QI_LENGTH) % QI_LENGTH;
+
+		writel(DMA_FSTS_ITE, iommu->reg + DMAR_FSTS_REG);
+
+		do {
+			if (qi->desc_status[head] == QI_IN_USE)
+				qi->desc_status[head] = QI_ABORT;
+			head = (head - 2 + QI_LENGTH) % QI_LENGTH;
+		} while (head != tail);
+
+		if (qi->desc_status[wait_index] == QI_ABORT)
+			return -EAGAIN;
+	}
+
+	if (fault & DMA_FSTS_ICE)
+		writel(DMA_FSTS_ICE, iommu->reg + DMAR_FSTS_REG);
 
 	return 0;
 }
@@ -741,7 +775,7 @@ static int qi_check_fault(struct intel_iommu *iommu, int index)
  */
 int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 {
-	int rc = 0;
+	int rc;
 	struct q_inval *qi = iommu->qi;
 	struct qi_desc *hw, wait_desc;
 	int wait_index, index;
@@ -751,6 +785,9 @@ int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 		return 0;
 
 	hw = qi->desc;
+
+restart:
+	rc = 0;
 
 	spin_lock_irqsave(&qi->q_lock, flags);
 	while (qi->free_cnt < 3) {
@@ -782,7 +819,7 @@ int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 	 * update the HW tail register indicating the presence of
 	 * new descriptors.
 	 */
-	writel(qi->free_head << 4, iommu->reg + DMAR_IQT_REG);
+	writel(qi->free_head << DMAR_IQ_SHIFT, iommu->reg + DMAR_IQT_REG);
 
 	while (qi->desc_status[wait_index] != QI_DONE) {
 		/*
@@ -794,17 +831,20 @@ int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 		 */
 		rc = qi_check_fault(iommu, index);
 		if (rc)
-			goto out;
+			break;
 
 		spin_unlock(&qi->q_lock);
 		cpu_relax();
 		spin_lock(&qi->q_lock);
 	}
-out:
-	qi->desc_status[index] = qi->desc_status[wait_index] = QI_DONE;
+
+	qi->desc_status[index] = QI_DONE;
 
 	reclaim_free_desc(qi);
 	spin_unlock_irqrestore(&qi->q_lock, flags);
+
+	if (rc == -EAGAIN)
+		goto restart;
 
 	return rc;
 }
@@ -853,6 +893,27 @@ void qi_flush_iotlb(struct intel_iommu *iommu, u16 did, u64 addr,
 		| QI_IOTLB_GRAN(type) | QI_IOTLB_TYPE;
 	desc.high = QI_IOTLB_ADDR(addr) | QI_IOTLB_IH(ih)
 		| QI_IOTLB_AM(size_order);
+
+	qi_submit_sync(&desc, iommu);
+}
+
+void qi_flush_dev_iotlb(struct intel_iommu *iommu, u16 sid, u16 qdep,
+			u64 addr, unsigned mask)
+{
+	struct qi_desc desc;
+
+	if (mask) {
+		BUG_ON(addr & ((1 << (VTD_PAGE_SHIFT + mask)) - 1));
+		addr |= (1 << (VTD_PAGE_SHIFT + mask - 1)) - 1;
+		desc.high = QI_DEV_IOTLB_ADDR(addr) | QI_DEV_IOTLB_SIZE;
+	} else
+		desc.high = QI_DEV_IOTLB_ADDR(addr);
+
+	if (qdep >= QI_DEV_IOTLB_MAX_INVS)
+		qdep = 0;
+
+	desc.low = QI_DEV_IOTLB_SID(sid) | QI_DEV_IOTLB_QDEP(qdep) |
+		   QI_DIOTLB_TYPE;
 
 	qi_submit_sync(&desc, iommu);
 }
