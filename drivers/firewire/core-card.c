@@ -176,6 +176,7 @@ int fw_core_add_descriptor(struct fw_descriptor *desc)
 
 	return 0;
 }
+EXPORT_SYMBOL(fw_core_add_descriptor);
 
 void fw_core_remove_descriptor(struct fw_descriptor *desc)
 {
@@ -189,6 +190,7 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc)
 
 	mutex_unlock(&card_mutex);
 }
+EXPORT_SYMBOL(fw_core_remove_descriptor);
 
 static void allocate_broadcast_channel(struct fw_card *card, int generation)
 {
@@ -427,6 +429,8 @@ void fw_card_initialize(struct fw_card *card,
 	card->local_node = NULL;
 
 	INIT_DELAYED_WORK(&card->work, fw_card_bm_work);
+	card->netdev = NULL;
+	INIT_LIST_HEAD(&card->ipv4_nodes);
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
