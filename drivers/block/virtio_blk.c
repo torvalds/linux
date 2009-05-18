@@ -50,7 +50,6 @@ static void blk_done(struct virtqueue *vq)
 
 	spin_lock_irqsave(&vblk->lock, flags);
 	while ((vbr = vblk->vq->vq_ops->get_buf(vblk->vq, &len)) != NULL) {
-		unsigned int nr_bytes;
 		int error;
 
 		switch (vbr->status) {
