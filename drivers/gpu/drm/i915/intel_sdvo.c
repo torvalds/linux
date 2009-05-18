@@ -1402,10 +1402,8 @@ static enum drm_connector_status intel_sdvo_detect(struct drm_connector *connect
 static void intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
 	struct intel_output *intel_output = to_intel_output(connector);
-	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
 
 	/* set the bus switch and get the modes */
-	intel_sdvo_set_control_bus_switch(intel_output, sdvo_priv->ddc_bus);
 	intel_ddc_get_modes(intel_output);
 
 #if 0
@@ -1601,6 +1599,9 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 
 	if (intel_output->i2c_bus)
 		intel_i2c_destroy(intel_output->i2c_bus);
+	if (intel_output->ddc_bus)
+		intel_i2c_destroy(intel_output->ddc_bus);
+
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
 	kfree(intel_output);
@@ -1697,12 +1698,56 @@ intel_sdvo_get_digital_encoding_mode(struct intel_output *output)
 	return true;
 }
 
+static struct intel_output *
+intel_sdvo_chan_to_intel_output(struct intel_i2c_chan *chan)
+{
+	struct drm_device *dev = chan->drm_dev;
+	struct drm_connector *connector;
+	struct intel_output *intel_output = NULL;
+
+	list_for_each_entry(connector,
+			&dev->mode_config.connector_list, head) {
+		if (to_intel_output(connector)->ddc_bus == chan) {
+			intel_output = to_intel_output(connector);
+			break;
+		}
+	}
+	return intel_output;
+}
+
+static int intel_sdvo_master_xfer(struct i2c_adapter *i2c_adap,
+				  struct i2c_msg msgs[], int num)
+{
+	struct intel_output *intel_output;
+	struct intel_sdvo_priv *sdvo_priv;
+	struct i2c_algo_bit_data *algo_data;
+	struct i2c_algorithm *algo;
+
+	algo_data = (struct i2c_algo_bit_data *)i2c_adap->algo_data;
+	intel_output =
+		intel_sdvo_chan_to_intel_output(
+				(struct intel_i2c_chan *)(algo_data->data));
+	if (intel_output == NULL)
+		return -EINVAL;
+
+	sdvo_priv = intel_output->dev_priv;
+	algo = (struct i2c_algorithm *)intel_output->i2c_bus->adapter.algo;
+
+	intel_sdvo_set_control_bus_switch(intel_output, sdvo_priv->ddc_bus);
+	return algo->master_xfer(i2c_adap, msgs, num);
+}
+
+static struct i2c_algorithm intel_sdvo_i2c_bit_algo = {
+	.master_xfer	= intel_sdvo_master_xfer,
+};
+
 bool intel_sdvo_init(struct drm_device *dev, int output_device)
 {
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
 	struct intel_sdvo_priv *sdvo_priv;
 	struct intel_i2c_chan *i2cbus = NULL;
+	struct intel_i2c_chan *ddcbus = NULL;
 	int connector_type;
 	u8 ch[0x40];
 	int i;
@@ -1747,6 +1792,20 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 			goto err_i2c;
 		}
 	}
+
+	/* setup the DDC bus. */
+	if (output_device == SDVOB)
+		ddcbus = intel_i2c_create(dev, GPIOE, "SDVOB DDC BUS");
+	else
+		ddcbus = intel_i2c_create(dev, GPIOE, "SDVOC DDC BUS");
+
+	if (ddcbus == NULL)
+		goto err_i2c;
+
+	intel_sdvo_i2c_bit_algo.functionality =
+		intel_output->i2c_bus->adapter.algo->functionality;
+	ddcbus->adapter.algo = &intel_sdvo_i2c_bit_algo;
+	intel_output->ddc_bus = ddcbus;
 
 	/* In defaut case sdvo lvds is false */
 	sdvo_priv->is_lvds = false;
@@ -1862,11 +1921,11 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		  sdvo_priv->caps.output_flags &
 			(SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1) ? 'Y' : 'N');
 
-	intel_output->ddc_bus = i2cbus;
-
 	return true;
 
 err_i2c:
+	if (ddcbus != NULL)
+		intel_i2c_destroy(intel_output->ddc_bus);
 	intel_i2c_destroy(intel_output->i2c_bus);
 err_inteloutput:
 	kfree(intel_output);
