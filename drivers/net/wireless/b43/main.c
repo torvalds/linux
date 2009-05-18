@@ -3553,27 +3553,25 @@ static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	B43_WARN_ON(wl->vif != vif);
 
+	spin_lock_irqsave(&wl->irq_lock, flags);
 	if (changed & BSS_CHANGED_BSSID) {
-		spin_lock_irqsave(&wl->irq_lock, flags);
 		if (conf->bssid)
 			memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 		else
 			memset(wl->bssid, 0, ETH_ALEN);
-
-		if (b43_status(dev) >= B43_STAT_INITIALIZED) {
-			if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
-			    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT)) {
-				B43_WARN_ON(vif->type != wl->if_type);
-				if (changed & BSS_CHANGED_BEACON)
-					b43_update_templates(wl);
-			} else if (b43_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
-				if (changed & BSS_CHANGED_BEACON)
-					b43_update_templates(wl);
-			}
-			b43_write_mac_bssid_templates(dev);
-		}
-		spin_unlock_irqrestore(&wl->irq_lock, flags);
 	}
+
+	if (b43_status(dev) >= B43_STAT_INITIALIZED) {
+		if (changed & BSS_CHANGED_BEACON &&
+		    (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
+		     b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT) ||
+		     b43_is_mode(wl, NL80211_IFTYPE_ADHOC)))
+			b43_update_templates(wl);
+
+		if (changed & BSS_CHANGED_BSSID)
+			b43_write_mac_bssid_templates(dev);
+	}
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	b43_mac_suspend(dev);
 

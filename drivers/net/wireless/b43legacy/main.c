@@ -2787,27 +2787,24 @@ static void b43legacy_op_bss_info_changed(struct ieee80211_hw *hw,
 	b43legacy_write32(dev, B43legacy_MMIO_GEN_IRQ_MASK, 0);
 
 	if (changed & BSS_CHANGED_BSSID) {
-		spin_unlock_irqrestore(&wl->irq_lock, flags);
 		b43legacy_synchronize_irq(dev);
 
 		if (conf->bssid)
 			memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 		else
 			memset(wl->bssid, 0, ETH_ALEN);
-
-		if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
-			if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP)) {
-				B43legacy_WARN_ON(vif->type != NL80211_IFTYPE_AP);
-				if (changed & BSS_CHANGED_BEACON)
-					b43legacy_update_templates(wl);
-			} else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
-				if (changed & BSS_CHANGED_BEACON)
-					b43legacy_update_templates(wl);
-			}
-			b43legacy_write_mac_bssid_templates(dev);
-		}
-		spin_unlock_irqrestore(&wl->irq_lock, flags);
 	}
+
+	if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
+		if (changed & BSS_CHANGED_BEACON &&
+		    (b43legacy_is_mode(wl, NL80211_IFTYPE_AP) ||
+		     b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)))
+			b43legacy_update_templates(wl);
+
+		if (changed & BSS_CHANGED_BSSID)
+			b43legacy_write_mac_bssid_templates(dev);
+	}
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	b43legacy_mac_suspend(dev);
 
