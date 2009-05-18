@@ -775,7 +775,6 @@ static struct video_device *vdev_init(struct saa7134_dev *dev,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor   = -1;
 	vfd->v4l2_dev  = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	vfd->debug   = video_debug;

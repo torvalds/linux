@@ -1010,7 +1010,6 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor   = -1;
 	vfd->v4l2_dev = &core->v4l2_dev;
 	vfd->parent = &pci->dev;
 	vfd->release = video_device_release;

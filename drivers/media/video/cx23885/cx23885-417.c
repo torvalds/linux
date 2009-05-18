@@ -1742,7 +1742,6 @@ static struct video_device *cx23885_video_dev_alloc(
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor   = -1;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name,
 		type, cx23885_boards[tsport->dev->board].name);
 	vfd->parent  = &pci->dev;

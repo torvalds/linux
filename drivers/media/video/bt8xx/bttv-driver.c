@@ -4166,7 +4166,6 @@ static struct video_device *vdev_init(struct bttv *btv,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor   = -1;
 	vfd->v4l2_dev = &btv->c.v4l2_dev;
 	vfd->release = video_device_release;
 	vfd->debug   = bttv_debug;
