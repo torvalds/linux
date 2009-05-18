@@ -1791,13 +1791,8 @@ static int ocfs2_mount_volume(struct super_block *sb)
 	}
 
 	status = ocfs2_truncate_log_init(osb);
-	if (status < 0) {
+	if (status < 0)
 		mlog_errno(status);
-		goto leave;
-	}
-
-	if (ocfs2_mount_local(osb))
-		goto leave;
 
 leave:
 	if (unlock_super)
