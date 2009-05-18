@@ -814,6 +814,48 @@ static int snd_soc_put_volsw_r2_twl4030(struct snd_kcontrol *kcontrol,
 	return err;
 }
 
+/* Codec operation modes */
+static const char *twl4030_op_modes_texts[] = {
+	"Option 2 (voice/audio)", "Option 1 (audio)"
+};
+
+static const struct soc_enum twl4030_op_modes_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_CODEC_MODE, 0,
+			ARRAY_SIZE(twl4030_op_modes_texts),
+			twl4030_op_modes_texts);
+
+int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct twl4030_priv *twl4030 = codec->private_data;
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned short val;
+	unsigned short mask, bitmask;
+
+	if (twl4030->configured) {
+		printk(KERN_ERR "twl4030 operation mode cannot be "
+			"changed on-the-fly\n");
+		return -EBUSY;
+	}
+
+	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
+		;
+	if (ucontrol->value.enumerated.item[0] > e->max - 1)
+		return -EINVAL;
+
+	val = ucontrol->value.enumerated.item[0] << e->shift_l;
+	mask = (bitmask - 1) << e->shift_l;
+	if (e->shift_l != e->shift_r) {
+		if (ucontrol->value.enumerated.item[1] > e->max - 1)
+			return -EINVAL;
+		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
+		mask |= (bitmask - 1) << e->shift_r;
+	}
+
+	return snd_soc_update_bits(codec, e->reg, mask, val);
+}
+
 /*
  * FGAIN volume control:
  * from -62 to 0 dB in 1 dB steps (mute instead of -63 dB)
@@ -895,6 +937,11 @@ static const struct soc_enum twl4030_vibradir_enum =
 			twl4030_vibradir_texts);
 
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
+	/* Codec operation mode control */
+	SOC_ENUM_EXT("Codec Operation Mode", twl4030_op_modes_enum,
+		snd_soc_get_enum_double,
+		snd_soc_put_twl4030_opmode_enum_double),
+
 	/* Common playback gain controls */
 	SOC_DOUBLE_R_TLV("DAC1 Digital Fine Playback Volume",
 		TWL4030_REG_ARXL1PGA, TWL4030_REG_ARXR1PGA,
