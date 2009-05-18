@@ -8,6 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <gelf.h>
+#include <elf.h>
+#include <libelf.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <errno.h>
@@ -195,10 +198,123 @@ static struct symbol *dso__find_symbol(struct dso *self, uint64_t ip)
 	return NULL;
 }
 
+/**
+ * elf_symtab__for_each_symbol - iterate thru all the symbols
+ *
+ * @self: struct elf_symtab instance to iterate
+ * @index: uint32_t index
+ * @sym: GElf_Sym iterator
+ */
+#define elf_symtab__for_each_symbol(syms, nr_syms, index, sym) \
+	for (index = 0, gelf_getsym(syms, index, &sym);\
+	     index < nr_syms; \
+	     index++, gelf_getsym(syms, index, &sym))
+
+static inline uint8_t elf_sym__type(const GElf_Sym *sym)
+{
+	return GELF_ST_TYPE(sym->st_info);
+}
+
+static inline bool elf_sym__is_function(const GElf_Sym *sym)
+{
+	return elf_sym__type(sym) == STT_FUNC &&
+	       sym->st_name != 0 &&
+	       sym->st_shndx != SHN_UNDEF;
+}
+
+static inline const char *elf_sym__name(const GElf_Sym *sym,
+					const Elf_Data *symstrs)
+{
+	return symstrs->d_buf + sym->st_name;
+}
+
+static Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
+				    GElf_Shdr *shp, const char *name,
+				    size_t *index)
+{
+	Elf_Scn *sec = NULL;
+	size_t cnt = 1;
+
+	while ((sec = elf_nextscn(elf, sec)) != NULL) {
+		char *str;
+
+		gelf_getshdr(sec, shp);
+		str = elf_strptr(elf, ep->e_shstrndx, shp->sh_name);
+		if (!strcmp(name, str)) {
+			if (index)
+				*index = cnt;
+			break;
+		}
+		++cnt;
+	}
+
+	return sec;
+}
+
 static int dso__load(struct dso *self)
 {
-	/* FIXME */
-	return 0;
+	int fd = open(self->name, O_RDONLY), err = -1;
+
+	if (fd == -1)
+		return -1;
+
+	Elf *elf = elf_begin(fd, ELF_C_READ_MMAP, NULL);
+	if (elf == NULL) {
+		fprintf(stderr, "%s: cannot read %s ELF file.\n",
+			__func__, self->name);
+		goto out_close;
+	}
+
+	GElf_Ehdr ehdr;
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		fprintf(stderr, "%s: cannot get elf header.\n", __func__);
+		goto out_elf_end;
+	}
+
+	GElf_Shdr shdr;
+	Elf_Scn *sec = elf_section_by_name(elf, &ehdr, &shdr, ".symtab", NULL);
+	if (sec == NULL)
+		sec = elf_section_by_name(elf, &ehdr, &shdr, ".dynsym", NULL);
+
+	if (sec == NULL)
+		goto out_elf_end;
+
+	if (gelf_getshdr(sec, &shdr) == NULL)
+		goto out_elf_end;
+
+	Elf_Data *syms = elf_getdata(sec, NULL);
+	if (syms == NULL)
+		goto out_elf_end;
+
+	sec = elf_getscn(elf, shdr.sh_link);
+	if (sec == NULL)
+		goto out_elf_end;
+
+	Elf_Data *symstrs = elf_getdata(sec, NULL);
+	if (symstrs == NULL)
+		goto out_elf_end;
+
+	const uint32_t nr_syms = shdr.sh_size / shdr.sh_entsize;
+
+	GElf_Sym sym;
+	uint32_t index;
+	elf_symtab__for_each_symbol(syms, nr_syms, index, sym) {
+		if (!elf_sym__is_function(&sym))
+			continue;
+		struct symbol *f = symbol__new(sym.st_value, sym.st_size,
+					       elf_sym__name(&sym, symstrs));
+		if (f == NULL)
+			goto out_elf_end;
+
+		dso__insert_symbol(self, f);
+	}
+
+	err = 0;
+out_elf_end:
+	elf_end(elf);
+out_close:
+	close(fd);
+	return err;
 }
 
 static size_t dso__fprintf(struct dso *self, FILE *fp)
@@ -613,6 +729,8 @@ int cmd_report(int argc, char **argv)
 	event_t *event;
 	int ret, rc = EXIT_FAILURE;
 	unsigned long total = 0;
+
+	elf_version(EV_CURRENT);
 
 	page_size = getpagesize();
 
