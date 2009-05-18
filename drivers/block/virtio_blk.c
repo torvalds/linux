@@ -124,12 +124,11 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 
 static void do_virtblk_request(struct request_queue *q)
 {
-	struct virtio_blk *vblk = NULL;
+	struct virtio_blk *vblk = q->queuedata;
 	struct request *req;
 	unsigned int issued = 0;
 
 	while ((req = blk_peek_request(q)) != NULL) {
-		vblk = req->rq_disk->private_data;
 		BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
 
 		/* If this request fails, stop queue and wait for something to
@@ -249,6 +248,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		goto out_put_disk;
 	}
 
+	vblk->disk->queue->queuedata = vblk;
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, vblk->disk->queue);
 
 	if (index < 26) {
