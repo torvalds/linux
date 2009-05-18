@@ -450,12 +450,11 @@ void hw_perf_enable(void)
 	int idx;
 
 	local_irq_save(flags);
+	cpuhw = &__get_cpu_var(cpu_hw_counters);
 	if (!cpuhw->disabled) {
 		local_irq_restore(flags);
 		return;
 	}
-
-	cpuhw = &__get_cpu_var(cpu_hw_counters);
 	cpuhw->disabled = 0;
 
 	/*
