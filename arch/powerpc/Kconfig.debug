@@ -41,6 +41,19 @@ config HCALL_STATS
 	  This option will add a small amount of overhead to all hypervisor
 	  calls.
 
+config PPC_EMULATED_STATS
+	bool "Emulated instructions tracking"
+	depends on DEBUG_FS
+	help
+	  Adds code to keep track of the number of instructions that are
+	  emulated by the in-kernel emulator. Counters for the various classes
+	  of emulated instructions are available under
+	  powerpc/emulated_instructions/ in the root of the debugfs file
+	  system. Optionally (controlled by
+	  powerpc/emulated_instructions/do_warn in debugfs), rate-limited
+	  warnings can be printed to the console when instructions are
+	  emulated.
+
 config CODE_PATCHING_SELFTEST
 	bool "Run self-tests of the code-patching code."
 	depends on DEBUG_KERNEL
