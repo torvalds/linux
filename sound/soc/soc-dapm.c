@@ -110,6 +110,24 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_device *socdev,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret = 0;
 
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		dev_dbg(socdev->dev, "Setting full bias\n");
+		break;
+	case SND_SOC_BIAS_PREPARE:
+		dev_dbg(socdev->dev, "Setting bias prepare\n");
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		dev_dbg(socdev->dev, "Setting standby bias\n");
+		break;
+	case SND_SOC_BIAS_OFF:
+		dev_dbg(socdev->dev, "Setting bias off\n");
+		break;
+	default:
+		dev_err(socdev->dev, "Setting invalid bias %d\n", level);
+		return -EINVAL;
+	}
+
 	if (card->set_bias_level)
 		ret = card->set_bias_level(card, level);
 	if (ret == 0 && codec->set_bias_level)
