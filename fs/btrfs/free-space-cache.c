@@ -652,7 +652,7 @@ again:
 			last = entry;
 			max_extent = 0;
 			total_retries++;
-			if (total_retries % 256 == 0) {
+			if (total_retries % 64 == 0) {
 				if (min_bytes >= (bytes + empty_size)) {
 					ret = -ENOSPC;
 					goto out;
