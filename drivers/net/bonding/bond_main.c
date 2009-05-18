@@ -2795,7 +2795,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 	 */
 	bond_for_each_slave(bond, slave, i) {
 		if (slave->link != BOND_LINK_UP) {
-			if (time_before_eq(jiffies, slave->dev->trans_start + delta_in_ticks) &&
+			if (time_before_eq(jiffies, dev_trans_start(slave->dev) + delta_in_ticks) &&
 			    time_before_eq(jiffies, slave->dev->last_rx + delta_in_ticks)) {
 
 				slave->link  = BOND_LINK_UP;
@@ -2827,7 +2827,7 @@ void bond_loadbalance_arp_mon(struct work_struct *work)
 			 * when the source ip is 0, so don't take the link down
 			 * if we don't know our ip yet
 			 */
-			if (time_after_eq(jiffies, slave->dev->trans_start + 2*delta_in_ticks) ||
+			if (time_after_eq(jiffies, dev_trans_start(slave->dev) + 2*delta_in_ticks) ||
 			    (time_after_eq(jiffies, slave->dev->last_rx + 2*delta_in_ticks))) {
 
 				slave->link  = BOND_LINK_DOWN;
@@ -2938,7 +2938,7 @@ static int bond_ab_arp_inspect(struct bonding *bond, int delta_in_ticks)
 		 *    the bond has an IP address)
 		 */
 		if ((slave->state == BOND_STATE_ACTIVE) &&
-		    (time_after_eq(jiffies, slave->dev->trans_start +
+		    (time_after_eq(jiffies, dev_trans_start(slave->dev) +
 				    2 * delta_in_ticks) ||
 		      (time_after_eq(jiffies, slave_last_rx(bond, slave)
 				     + 2 * delta_in_ticks)))) {
@@ -2982,7 +2982,7 @@ static void bond_ab_arp_commit(struct bonding *bond, int delta_in_ticks)
 			write_lock_bh(&bond->curr_slave_lock);
 
 			if (!bond->curr_active_slave &&
-			    time_before_eq(jiffies, slave->dev->trans_start +
+			    time_before_eq(jiffies, dev_trans_start(slave->dev) +
 					   delta_in_ticks)) {
 				slave->link = BOND_LINK_UP;
 				bond_change_active_slave(bond, slave);
