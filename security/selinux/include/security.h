@@ -8,13 +8,12 @@
 #ifndef _SELINUX_SECURITY_H_
 #define _SELINUX_SECURITY_H_
 
+#include <linux/magic.h>
 #include "flask.h"
 
 #define SECSID_NULL			0x00000000 /* unspecified SID */
 #define SECSID_WILD			0xffffffff /* wildcard SID */
 #define SECCLASS_NULL			0x0000 /* no class */
-
-#define SELINUX_MAGIC 0xf97cff8c
 
 /* Identify specific policy version changes */
 #define POLICYDB_VERSION_BASE		15
