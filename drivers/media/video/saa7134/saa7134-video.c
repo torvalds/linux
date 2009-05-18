@@ -1423,11 +1423,13 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct saa7134_fh *fh = file->private_data;
 	struct videobuf_buffer *buf = NULL;
+	unsigned int rc = 0;
 
 	if (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type)
 		return videobuf_poll_stream(file, &fh->vbi, wait);
 
 	if (res_check(fh,RESOURCE_VIDEO)) {
+		mutex_lock(&fh->cap.vb_lock);
 		if (!list_empty(&fh->cap.stream))
 			buf = list_entry(fh->cap.stream.next, struct videobuf_buffer, stream);
 	} else {
@@ -1446,13 +1448,14 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	}
 
 	if (!buf)
-		return POLLERR;
+		goto err;
 
 	poll_wait(file, &buf->done, wait);
 	if (buf->state == VIDEOBUF_DONE ||
 	    buf->state == VIDEOBUF_ERROR)
-		return POLLIN|POLLRDNORM;
-	return 0;
+		rc = POLLIN|POLLRDNORM;
+	mutex_unlock(&fh->cap.vb_lock);
+	return rc;
 
 err:
 	mutex_unlock(&fh->cap.vb_lock);
