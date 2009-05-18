@@ -1063,22 +1063,31 @@ static void ioat_dma_cleanup_tasklet(unsigned long data)
 static void
 ioat_dma_unmap(struct ioat_dma_chan *ioat_chan, struct ioat_desc_sw *desc)
 {
-	/*
-	 * yes we are unmapping both _page and _single
-	 * alloc'd regions with unmap_page. Is this
-	 * *really* that bad?
-	 */
-	if (!(desc->async_tx.flags & DMA_COMPL_SKIP_DEST_UNMAP))
-		pci_unmap_page(ioat_chan->device->pdev,
-				pci_unmap_addr(desc, dst),
-				pci_unmap_len(desc, len),
-				PCI_DMA_FROMDEVICE);
+	if (!(desc->async_tx.flags & DMA_COMPL_SKIP_DEST_UNMAP)) {
+		if (desc->async_tx.flags & DMA_COMPL_DEST_UNMAP_SINGLE)
+			pci_unmap_single(ioat_chan->device->pdev,
+					 pci_unmap_addr(desc, dst),
+					 pci_unmap_len(desc, len),
+					 PCI_DMA_FROMDEVICE);
+		else
+			pci_unmap_page(ioat_chan->device->pdev,
+				       pci_unmap_addr(desc, dst),
+				       pci_unmap_len(desc, len),
+				       PCI_DMA_FROMDEVICE);
+	}
 
-	if (!(desc->async_tx.flags & DMA_COMPL_SKIP_SRC_UNMAP))
-		pci_unmap_page(ioat_chan->device->pdev,
-				pci_unmap_addr(desc, src),
-				pci_unmap_len(desc, len),
-				PCI_DMA_TODEVICE);
+	if (!(desc->async_tx.flags & DMA_COMPL_SKIP_SRC_UNMAP)) {
+		if (desc->async_tx.flags & DMA_COMPL_SRC_UNMAP_SINGLE)
+			pci_unmap_single(ioat_chan->device->pdev,
+					 pci_unmap_addr(desc, src),
+					 pci_unmap_len(desc, len),
+					 PCI_DMA_TODEVICE);
+		else
+			pci_unmap_page(ioat_chan->device->pdev,
+				       pci_unmap_addr(desc, src),
+				       pci_unmap_len(desc, len),
+				       PCI_DMA_TODEVICE);
+	}
 }
 
 /**
@@ -1363,6 +1372,7 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 	int err = 0;
 	struct completion cmp;
 	unsigned long tmo;
+	unsigned long flags;
 
 	src = kzalloc(sizeof(u8) * IOAT_TEST_SIZE, GFP_KERNEL);
 	if (!src)
@@ -1392,8 +1402,9 @@ static int ioat_dma_self_test(struct ioatdma_device *device)
 				 DMA_TO_DEVICE);
 	dma_dest = dma_map_single(dma_chan->device->dev, dest, IOAT_TEST_SIZE,
 				  DMA_FROM_DEVICE);
+	flags = DMA_COMPL_SRC_UNMAP_SINGLE | DMA_COMPL_DEST_UNMAP_SINGLE;
 	tx = device->common.device_prep_dma_memcpy(dma_chan, dma_dest, dma_src,
-						   IOAT_TEST_SIZE, 0);
+						   IOAT_TEST_SIZE, flags);
 	if (!tx) {
 		dev_err(&device->pdev->dev,
 			"Self-test prep failed, disabling\n");

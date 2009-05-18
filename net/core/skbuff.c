@@ -502,7 +502,9 @@ int skb_recycle_check(struct sk_buff *skb, int skb_size)
 	shinfo->gso_segs = 0;
 	shinfo->gso_type = 0;
 	shinfo->ip6_frag_id = 0;
+	shinfo->tx_flags.flags = 0;
 	shinfo->frag_list = NULL;
+	memset(&shinfo->hwtstamps, 0, sizeof(shinfo->hwtstamps));
 
 	memset(skb, 0, offsetof(struct sk_buff, tail));
 	skb->data = skb->head + NET_SKB_PAD;

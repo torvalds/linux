@@ -848,8 +848,6 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 
 	if (ret == 0)
 		set_bit(EXTENT_BUFFER_UPTODATE, &buf->bflags);
-	else
-		WARN_ON(1);
 	return buf;
 
 }

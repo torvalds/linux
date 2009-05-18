@@ -2,7 +2,7 @@
  * pata_pdc202xx_old.c 	- Promise PDC202xx PATA for new ATA layer
  *			  (C) 2005 Red Hat Inc
  *			  Alan Cox <alan@lxorguk.ukuu.org.uk>
- *			  (C) 2007 Bartlomiej Zolnierkiewicz
+ *			  (C) 2007,2009 Bartlomiej Zolnierkiewicz
  *
  * Based in part on linux/drivers/ide/pci/pdc202xx_old.c
  *
@@ -158,7 +158,7 @@ static void pdc2026x_bmdma_start(struct ata_queued_cmd *qc)
 	u32 len;
 
 	/* Check we keep host level locking here */
-	if (adev->dma_mode >= XFER_UDMA_2)
+	if (adev->dma_mode > XFER_UDMA_2)
 		iowrite8(ioread8(clock) | sel66, clock);
 	else
 		iowrite8(ioread8(clock) & ~sel66, clock);
@@ -212,7 +212,7 @@ static void pdc2026x_bmdma_stop(struct ata_queued_cmd *qc)
 		iowrite8(ioread8(clock) & ~sel66, clock);
 	}
 	/* Flip back to 33Mhz for PIO */
-	if (adev->dma_mode >= XFER_UDMA_2)
+	if (adev->dma_mode > XFER_UDMA_2)
 		iowrite8(ioread8(clock) & ~sel66, clock);
 	ata_bmdma_stop(qc);
 	pdc202xx_set_piomode(ap, adev);

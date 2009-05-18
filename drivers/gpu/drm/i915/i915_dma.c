@@ -1011,8 +1011,16 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Basic memrange allocator for stolen space (aka vram) */
 	drm_mm_init(&dev_priv->vram, 0, prealloc_size);
 
-	/* Let GEM Manage from end of prealloc space to end of aperture */
-	i915_gem_do_init(dev, prealloc_size, agp_size);
+	/* Let GEM Manage from end of prealloc space to end of aperture.
+	 *
+	 * However, leave one page at the end still bound to the scratch page.
+	 * There are a number of places where the hardware apparently
+	 * prefetches past the end of the object, and we've seen multiple
+	 * hangs with the GPU head pointer stuck in a batchbuffer bound
+	 * at the last page of the aperture.  One page should be enough to
+	 * keep any prefetching inside of the aperture.
+	 */
+	i915_gem_do_init(dev, prealloc_size, agp_size - 4096);
 
 	ret = i915_gem_init_ringbuffer(dev);
 	if (ret)
@@ -1350,6 +1358,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_I915_GEM_SET_TILING, i915_gem_set_tiling, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_TILING, i915_gem_get_tiling, 0),
 	DRM_IOCTL_DEF(DRM_I915_GEM_GET_APERTURE, i915_gem_get_aperture_ioctl, 0),
+	DRM_IOCTL_DEF(DRM_I915_GET_PIPE_FROM_CRTC_ID, intel_get_pipe_from_crtc_id, 0),
 };
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);

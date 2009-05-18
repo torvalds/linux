@@ -406,7 +406,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	&sysrq_showlocks_op,		/* d */
 	&sysrq_term_op,			/* e */
 	&sysrq_moom_op,			/* f */
-	/* g: May be registered by ppc for kgdb */
+	/* g: May be registered for the kernel debugger */
 	NULL,				/* g */
 	NULL,				/* h - reserved for help */
 	&sysrq_kill_op,			/* i */
@@ -431,7 +431,7 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	&sysrq_sync_op,			/* s */
 	&sysrq_showstate_op,		/* t */
 	&sysrq_mountro_op,		/* u */
-	/* v: May be registered at init time by SMP VOYAGER */
+	/* v: May be registered for frame buffer console restore */
 	NULL,				/* v */
 	&sysrq_showstate_blocked_op,	/* w */
 	/* x: May be registered on ppc/powerpc for xmon */

@@ -29,7 +29,7 @@ extern unsigned long icache_way_size, dcache_way_size;
 
 #include <asm/r4kcache.h>
 
-int rm7k_tcache_enabled;
+static int rm7k_tcache_enabled;
 
 /*
  * Writeback and invalidate the primary cache dcache before DMA.
@@ -121,7 +121,7 @@ static void rm7k_sc_disable(void)
 	clear_c0_config(RM7K_CONF_SE);
 }
 
-struct bcache_ops rm7k_sc_ops = {
+static struct bcache_ops rm7k_sc_ops = {
 	.bc_enable = rm7k_sc_enable,
 	.bc_disable = rm7k_sc_disable,
 	.bc_wback_inv = rm7k_sc_wback_inv,

@@ -30,7 +30,7 @@
 	beq	dram_init_finished
 	nop
 
-#include "../../lib/dram_init.S"
+#include "../../arch-v10/lib/dram_init.S"
 
 dram_init_finished:
 
@@ -123,4 +123,4 @@ _cmd_line_magic:
 	.dword 0
 _cmd_line_addr:
 	.dword 0
-#include "../../lib/hw_settings.S"
+#include "../../arch-v10/lib/hw_settings.S"
