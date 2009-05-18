@@ -49,6 +49,7 @@
 #include "lnbh24.h"
 #include "cx24116.h"
 #include "cimax2.h"
+#include "lgs8gxx.h"
 #include "netup-eeprom.h"
 #include "netup-init.h"
 #include "lgdt3305.h"
@@ -420,10 +421,29 @@ static struct cx24116_config dvbworld_cx24116_config = {
 	.demod_address = 0x05,
 };
 
+static struct lgs8gxx_config mygica_x8506_lgs8gl5_config = {
+	.prod = LGS8GXX_PROD_LGS8GL5,
+	.demod_address = 0x19,
+	.serial_ts = 0,
+	.ts_clk_pol = 1,
+	.ts_clk_gated = 1,
+	.if_clk_freq = 30400, /* 30.4 MHz */
+	.if_freq = 5380, /* 5.38 MHz */
+	.if_neg_center = 1,
+	.ext_adc = 0,
+	.adc_signed = 0,
+	.if_neg_edge = 0,
+};
+
+static struct xc5000_config mygica_x8506_xc5000_config = {
+	.i2c_address = 0x61,
+	.if_khz = 5380,
+};
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
-	struct cx23885_i2c *i2c_bus = NULL;
+	struct cx23885_i2c *i2c_bus = NULL, *i2c_bus2 = NULL;
 	struct videobuf_dvb_frontend *fe0;
 	int ret;
 
@@ -743,6 +763,19 @@ static int dvb_register(struct cx23885_tsport *port)
 				}
 			}
 			break;
+		}
+		break;
+	case CX23885_BOARD_MYGICA_X8506:
+		i2c_bus = &dev->i2c_bus[0];
+		i2c_bus2 = &dev->i2c_bus[1];
+		fe0->dvb.frontend = dvb_attach(lgs8gxx_attach,
+			&mygica_x8506_lgs8gl5_config,
+			&i2c_bus->i2c_adap);
+		if (fe0->dvb.frontend != NULL) {
+			dvb_attach(xc5000_attach,
+				fe0->dvb.frontend,
+				&i2c_bus2->i2c_adap,
+				&mygica_x8506_xc5000_config);
 		}
 		break;
 	default:

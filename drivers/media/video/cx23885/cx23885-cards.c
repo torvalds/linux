@@ -197,6 +197,10 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "Hauppauge WinTV-HVR1210",
 		.portc		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_MYGICA_X8506] = {
+		.name		= "Mygica X8506 DMB-TH",
+		.portb		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -316,6 +320,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x2295,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210,
+	}, {
+		.subvendor = 0x14f1,
+		.subdevice = 0x8651,
+		.card      = CX23885_BOARD_MYGICA_X8506,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -706,6 +714,15 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		mdelay(20);
 		cx23885_gpio_set(dev, GPIO_9);
 		break;
+	case CX23885_BOARD_MYGICA_X8506:
+		/* GPIO-1 reset XC5000 */
+		/* GPIO-2 reset LGS8GL5 */
+		cx_set(GP0_IO, 0x00060000);
+		cx_clear(GP0_IO, 0x00000006);
+		mdelay(100);
+		cx_set(GP0_IO, 0x00060006);
+		mdelay(100);
+		break;
 	}
 }
 
@@ -808,6 +825,11 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
+		break;
+	case CX23885_BOARD_MYGICA_X8506:
+		ts1->gen_ctrl_val  = 0x5; /* Parallel */
+		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
+		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
