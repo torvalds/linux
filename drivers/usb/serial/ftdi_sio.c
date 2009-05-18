@@ -1487,14 +1487,7 @@ static int ftdi_sio_port_remove(struct usb_serial_port *port)
 
 	remove_sysfs_attrs(port);
 
-	/* all open ports are closed at this point
-	 *    (by usbserial.c:__serial_close, which calls ftdi_close)
-	 */
-
-	if (priv) {
-		usb_set_serial_port_data(port, NULL);
-		kref_put(&priv->kref, ftdi_sio_priv_release);
-	}
+	kref_put(&priv->kref, ftdi_sio_priv_release);
 
 	return 0;
 }
