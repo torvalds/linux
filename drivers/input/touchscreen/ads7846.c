@@ -83,6 +83,7 @@ struct ads7846_packet {
 struct ads7846 {
 	struct input_dev	*input;
 	char			phys[32];
+	char			name[32];
 
 	struct spi_device	*spi;
 
@@ -965,8 +966,9 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->wait_for_sync = pdata->wait_for_sync ? : null_wait_for_sync;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&spi->dev));
+	snprintf(ts->name, sizeof(ts->name), "ADS%d Touchscreen", ts->model);
 
-	input_dev->name = "ADS784x Touchscreen";
+	input_dev->name = ts->name;
 	input_dev->phys = ts->phys;
 	input_dev->dev.parent = &spi->dev;
 
