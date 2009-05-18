@@ -249,7 +249,7 @@ struct dma_ops_domain {
 	unsigned long aperture_size;
 
 	/* address we start to search for free addresses */
-	unsigned long next_bit;
+	unsigned long next_address;
 
 	/* address space relevant data */
 	struct aperture_range *aperture[APERTURE_MAX_RANGES];

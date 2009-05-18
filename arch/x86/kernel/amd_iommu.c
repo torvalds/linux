@@ -627,12 +627,14 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 					u64 dma_mask,
 					unsigned long start)
 {
-	unsigned long next_bit = dom->next_bit % APERTURE_RANGE_PAGES;
+	unsigned long next_bit = dom->next_address % APERTURE_RANGE_SIZE;
 	int max_index = dom->aperture_size >> APERTURE_RANGE_SHIFT;
 	int i = start >> APERTURE_RANGE_SHIFT;
 	unsigned long boundary_size;
 	unsigned long address = -1;
 	unsigned long limit;
+
+	next_bit >>= PAGE_SHIFT;
 
 	boundary_size = ALIGN(dma_get_seg_boundary(dev) + 1,
 			PAGE_SIZE) >> PAGE_SHIFT;
@@ -652,7 +654,7 @@ static unsigned long dma_ops_area_alloc(struct device *dev,
 		if (address != -1) {
 			address = dom->aperture[i]->offset +
 				  (address << PAGE_SHIFT);
-			dom->next_bit = (address >> PAGE_SHIFT) + pages;
+			dom->next_address = address + (pages << PAGE_SHIFT);
 			break;
 		}
 
@@ -669,14 +671,12 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 					     u64 dma_mask)
 {
 	unsigned long address;
-	unsigned long start = dom->next_bit << PAGE_SHIFT;
-
 
 	address = dma_ops_area_alloc(dev, dom, pages, align_mask,
-				     dma_mask, start);
+				     dma_mask, dom->next_address);
 
 	if (address == -1) {
-		dom->next_bit = 0;
+		dom->next_address = 0;
 		address = dma_ops_area_alloc(dev, dom, pages, align_mask,
 					     dma_mask, 0);
 		dom->need_flush = true;
@@ -704,10 +704,11 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 
 	BUG_ON(i >= APERTURE_MAX_RANGES || range == NULL);
 
-	if ((address >> PAGE_SHIFT) >= dom->next_bit)
+	if (address >= dom->next_address)
 		dom->need_flush = true;
 
 	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
+
 	iommu_area_free(range->bitmap, address, pages);
 
 }
@@ -870,7 +871,7 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	 * a valid dma-address. So we can use 0 as error value
 	 */
 	dma_dom->aperture[0]->bitmap[0] = 1;
-	dma_dom->next_bit = 0;
+	dma_dom->next_address = 0;
 
 	dma_dom->need_flush = false;
 	dma_dom->target_dev = 0xffff;
