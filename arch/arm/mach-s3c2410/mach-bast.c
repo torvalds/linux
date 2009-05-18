@@ -594,8 +594,6 @@ static void __init bast_map_io(void)
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
 	s3c24xx_init_uarts(bast_uartcfgs, ARRAY_SIZE(bast_uartcfgs));
-
-	usb_simtec_init();
 }
 
 static void __init bast_init(void)
@@ -609,6 +607,7 @@ static void __init bast_init(void)
 	i2c_register_board_info(0, bast_i2c_devs,
 				ARRAY_SIZE(bast_i2c_devs));
 
+	usb_simtec_init();
 	nor_simtec_init();
 }
 
