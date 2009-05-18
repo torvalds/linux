@@ -20,6 +20,8 @@ extern int seq_print_user_ip(struct trace_seq *s, struct mm_struct *mm,
 extern int trace_print_context(struct trace_iterator *iter);
 extern int trace_print_lat_context(struct trace_iterator *iter);
 
+extern void trace_event_read_lock(void);
+extern void trace_event_read_unlock(void);
 extern struct trace_event *ftrace_find_event(int type);
 
 extern enum print_line_t trace_nop_print(struct trace_iterator *iter,
