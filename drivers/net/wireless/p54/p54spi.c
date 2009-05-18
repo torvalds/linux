@@ -525,8 +525,7 @@ static void p54spi_work(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->fw_state == FW_STATE_OFF &&
-	    priv->fw_state == FW_STATE_RESET)
+	if (priv->fw_state == FW_STATE_OFF)
 		goto out;
 
 	ints = p54spi_read32(priv, SPI_ADRS_HOST_INTERRUPTS);
