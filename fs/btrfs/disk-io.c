@@ -2378,17 +2378,14 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	 * looks as though older kernels can get into trouble with
 	 * this code, they end up stuck in balance_dirty_pages forever
 	 */
-	struct extent_io_tree *tree;
 	u64 num_dirty;
-	u64 start = 0;
 	unsigned long thresh = 32 * 1024 * 1024;
-	tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 
 	if (current->flags & PF_MEMALLOC)
 		return;
 
-	num_dirty = count_range_bits(tree, &start, (u64)-1,
-				     thresh, EXTENT_DIRTY);
+	num_dirty = root->fs_info->dirty_metadata_bytes;
+
 	if (num_dirty > thresh) {
 		balance_dirty_pages_ratelimited_nr(
 				   root->fs_info->btree_inode->i_mapping, 1);
