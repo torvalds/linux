@@ -5,6 +5,7 @@
  *
  * PCI Express I/O Virtualization (IOV) support.
  *   Single Root IOV 1.0
+ *   Address Translation Service 1.0
  */
 
 #include <linux/pci.h>
@@ -679,3 +680,107 @@ irqreturn_t pci_sriov_migration(struct pci_dev *dev)
 	return sriov_migration(dev) ? IRQ_HANDLED : IRQ_NONE;
 }
 EXPORT_SYMBOL_GPL(pci_sriov_migration);
+
+static int ats_alloc_one(struct pci_dev *dev, int ps)
+{
+	int pos;
+	u16 cap;
+	struct pci_ats *ats;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ATS);
+	if (!pos)
+		return -ENODEV;
+
+	ats = kzalloc(sizeof(*ats), GFP_KERNEL);
+	if (!ats)
+		return -ENOMEM;
+
+	ats->pos = pos;
+	ats->stu = ps;
+	pci_read_config_word(dev, pos + PCI_ATS_CAP, &cap);
+	ats->qdep = PCI_ATS_CAP_QDEP(cap) ? PCI_ATS_CAP_QDEP(cap) :
+					    PCI_ATS_MAX_QDEP;
+	dev->ats = ats;
+
+	return 0;
+}
+
+static void ats_free_one(struct pci_dev *dev)
+{
+	kfree(dev->ats);
+	dev->ats = NULL;
+}
+
+/**
+ * pci_enable_ats - enable the ATS capability
+ * @dev: the PCI device
+ * @ps: the IOMMU page shift
+ *
+ * Returns 0 on success, or negative on failure.
+ */
+int pci_enable_ats(struct pci_dev *dev, int ps)
+{
+	int rc;
+	u16 ctrl;
+
+	BUG_ON(dev->ats);
+
+	if (ps < PCI_ATS_MIN_STU)
+		return -EINVAL;
+
+	rc = ats_alloc_one(dev, ps);
+	if (rc)
+		return rc;
+
+	ctrl = PCI_ATS_CTRL_ENABLE;
+	ctrl |= PCI_ATS_CTRL_STU(ps - PCI_ATS_MIN_STU);
+	pci_write_config_word(dev, dev->ats->pos + PCI_ATS_CTRL, ctrl);
+
+	return 0;
+}
+
+/**
+ * pci_disable_ats - disable the ATS capability
+ * @dev: the PCI device
+ */
+void pci_disable_ats(struct pci_dev *dev)
+{
+	u16 ctrl;
+
+	BUG_ON(!dev->ats);
+
+	pci_read_config_word(dev, dev->ats->pos + PCI_ATS_CTRL, &ctrl);
+	ctrl &= ~PCI_ATS_CTRL_ENABLE;
+	pci_write_config_word(dev, dev->ats->pos + PCI_ATS_CTRL, ctrl);
+
+	ats_free_one(dev);
+}
+
+/**
+ * pci_ats_queue_depth - query the ATS Invalidate Queue Depth
+ * @dev: the PCI device
+ *
+ * Returns the queue depth on success, or negative on failure.
+ *
+ * The ATS spec uses 0 in the Invalidate Queue Depth field to
+ * indicate that the function can accept 32 Invalidate Request.
+ * But here we use the `real' values (i.e. 1~32) for the Queue
+ * Depth.
+ */
+int pci_ats_queue_depth(struct pci_dev *dev)
+{
+	int pos;
+	u16 cap;
+
+	if (dev->ats)
+		return dev->ats->qdep;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ATS);
+	if (!pos)
+		return -ENODEV;
+
+	pci_read_config_word(dev, pos + PCI_ATS_CAP, &cap);
+
+	return PCI_ATS_CAP_QDEP(cap) ? PCI_ATS_CAP_QDEP(cap) :
+				       PCI_ATS_MAX_QDEP;
+}
