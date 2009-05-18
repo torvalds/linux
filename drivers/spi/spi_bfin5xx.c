@@ -540,10 +540,6 @@ static irqreturn_t bfin_spi_dma_irq_handler(int irq, void *dev_id)
 
 	clear_dma_irqstat(drv_data->dma_channel);
 
-	/* Wait for DMA to complete */
-	while (get_dma_curr_irqstat(drv_data->dma_channel) & DMA_RUN)
-		cpu_relax();
-
 	/*
 	 * wait for the last transaction shifted out.  HRM states:
 	 * at this point there may still be data in the SPI DMA FIFO waiting
