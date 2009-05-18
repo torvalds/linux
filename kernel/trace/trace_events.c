@@ -1174,7 +1174,7 @@ static __init int event_trace_init(void)
 	}
 
 	ret = register_module_notifier(&trace_module_nb);
-	if (!ret)
+	if (ret)
 		pr_warning("Failed to register trace events module notifier\n");
 
 	return 0;
