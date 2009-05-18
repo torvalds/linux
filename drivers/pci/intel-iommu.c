@@ -252,6 +252,7 @@ struct device_domain_info {
 	u8 bus;			/* PCI bus number */
 	u8 devfn;		/* PCI devfn number */
 	struct pci_dev *dev; /* it's NULL for PCIE-to-PCI bridge */
+	struct intel_iommu *iommu; /* IOMMU used by this device */
 	struct dmar_domain *domain; /* pointer to domain */
 };
 
@@ -945,6 +946,77 @@ static void __iommu_flush_iotlb(struct intel_iommu *iommu, u16 did,
 			(unsigned long long)DMA_TLB_IAIG(val));
 }
 
+static struct device_domain_info *iommu_support_dev_iotlb(
+	struct dmar_domain *domain, int segment, u8 bus, u8 devfn)
+{
+	int found = 0;
+	unsigned long flags;
+	struct device_domain_info *info;
+	struct intel_iommu *iommu = device_to_iommu(segment, bus, devfn);
+
+	if (!ecap_dev_iotlb_support(iommu->ecap))
+		return NULL;
+
+	if (!iommu->qi)
+		return NULL;
+
+	spin_lock_irqsave(&device_domain_lock, flags);
+	list_for_each_entry(info, &domain->devices, link)
+		if (info->bus == bus && info->devfn == devfn) {
+			found = 1;
+			break;
+		}
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+
+	if (!found || !info->dev)
+		return NULL;
+
+	if (!pci_find_ext_capability(info->dev, PCI_EXT_CAP_ID_ATS))
+		return NULL;
+
+	if (!dmar_find_matched_atsr_unit(info->dev))
+		return NULL;
+
+	info->iommu = iommu;
+
+	return info;
+}
+
+static void iommu_enable_dev_iotlb(struct device_domain_info *info)
+{
+	if (!info)
+		return;
+
+	pci_enable_ats(info->dev, VTD_PAGE_SHIFT);
+}
+
+static void iommu_disable_dev_iotlb(struct device_domain_info *info)
+{
+	if (!info->dev || !pci_ats_enabled(info->dev))
+		return;
+
+	pci_disable_ats(info->dev);
+}
+
+static void iommu_flush_dev_iotlb(struct dmar_domain *domain,
+				  u64 addr, unsigned mask)
+{
+	u16 sid, qdep;
+	unsigned long flags;
+	struct device_domain_info *info;
+
+	spin_lock_irqsave(&device_domain_lock, flags);
+	list_for_each_entry(info, &domain->devices, link) {
+		if (!info->dev || !pci_ats_enabled(info->dev))
+			continue;
+
+		sid = info->bus << 8 | info->devfn;
+		qdep = pci_ats_queue_depth(info->dev);
+		qi_flush_dev_iotlb(info->iommu, sid, qdep, addr, mask);
+	}
+	spin_unlock_irqrestore(&device_domain_lock, flags);
+}
+
 static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 				  u64 addr, unsigned int pages)
 {
@@ -965,6 +1037,8 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu, u16 did,
 	else
 		iommu->flush.flush_iotlb(iommu, did, addr, mask,
 						DMA_TLB_PSI_FLUSH);
+	if (did)
+		iommu_flush_dev_iotlb(iommu->domains[did], addr, mask);
 }
 
 static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
@@ -1305,6 +1379,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 	unsigned long ndomains;
 	int id;
 	int agaw;
+	struct device_domain_info *info = NULL;
 
 	pr_debug("Set context mapping for %02x:%02x.%d\n",
 		bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
@@ -1372,15 +1447,21 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 
 	context_set_domain_id(context, id);
 
+	if (translation != CONTEXT_TT_PASS_THROUGH) {
+		info = iommu_support_dev_iotlb(domain, segment, bus, devfn);
+		translation = info ? CONTEXT_TT_DEV_IOTLB :
+				     CONTEXT_TT_MULTI_LEVEL;
+	}
 	/*
 	 * In pass through mode, AW must be programmed to indicate the largest
 	 * AGAW value supported by hardware. And ASR is ignored by hardware.
 	 */
-	if (likely(translation == CONTEXT_TT_MULTI_LEVEL)) {
-		context_set_address_width(context, iommu->agaw);
-		context_set_address_root(context, virt_to_phys(pgd));
-	} else
+	if (unlikely(translation == CONTEXT_TT_PASS_THROUGH))
 		context_set_address_width(context, iommu->msagaw);
+	else {
+		context_set_address_root(context, virt_to_phys(pgd));
+		context_set_address_width(context, iommu->agaw);
+	}
 
 	context_set_translation_type(context, translation);
 	context_set_fault_enable(context);
@@ -1402,6 +1483,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 	} else {
 		iommu_flush_write_buffer(iommu);
 	}
+	iommu_enable_dev_iotlb(info);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	spin_lock_irqsave(&domain->iommu_lock, flags);
@@ -1552,6 +1634,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain)
 			info->dev->dev.archdata.iommu = NULL;
 		spin_unlock_irqrestore(&device_domain_lock, flags);
 
+		iommu_disable_dev_iotlb(info);
 		iommu = device_to_iommu(info->segment, info->bus, info->devfn);
 		iommu_detach_dev(iommu, info->bus, info->devfn);
 		free_devinfo_mem(info);
@@ -2259,10 +2342,16 @@ static void flush_unmaps(void)
 			continue;
 
 		iommu->flush.flush_iotlb(iommu, 0, 0, 0,
-					 DMA_TLB_GLOBAL_FLUSH, 0);
+					 DMA_TLB_GLOBAL_FLUSH);
 		for (j = 0; j < deferred_flush[i].next; j++) {
-			__free_iova(&deferred_flush[i].domain[j]->iovad,
-					deferred_flush[i].iova[j]);
+			unsigned long mask;
+			struct iova *iova = deferred_flush[i].iova[j];
+
+			mask = (iova->pfn_hi - iova->pfn_lo + 1) << PAGE_SHIFT;
+			mask = ilog2(mask >> VTD_PAGE_SHIFT);
+			iommu_flush_dev_iotlb(deferred_flush[i].domain[j],
+					iova->pfn_lo << PAGE_SHIFT, mask);
+			__free_iova(&deferred_flush[i].domain[j]->iovad, iova);
 		}
 		deferred_flush[i].next = 0;
 	}
@@ -2943,6 +3032,7 @@ static void vm_domain_remove_one_dev_info(struct dmar_domain *domain,
 				info->dev->dev.archdata.iommu = NULL;
 			spin_unlock_irqrestore(&device_domain_lock, flags);
 
+			iommu_disable_dev_iotlb(info);
 			iommu_detach_dev(iommu, info->bus, info->devfn);
 			iommu_detach_dependent_devices(iommu, pdev);
 			free_devinfo_mem(info);
@@ -2993,6 +3083,7 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 
 		spin_unlock_irqrestore(&device_domain_lock, flags1);
 
+		iommu_disable_dev_iotlb(info);
 		iommu = device_to_iommu(info->segment, info->bus, info->devfn);
 		iommu_detach_dev(iommu, info->bus, info->devfn);
 		iommu_detach_dependent_devices(iommu, info->dev);
@@ -3197,11 +3288,11 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		return -EFAULT;
 	}
 
-	ret = domain_context_mapping(dmar_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
+	ret = vm_domain_add_dev_info(dmar_domain, pdev);
 	if (ret)
 		return ret;
 
-	ret = vm_domain_add_dev_info(dmar_domain, pdev);
+	ret = domain_context_mapping(dmar_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
 	return ret;
 }
 

@@ -14,6 +14,7 @@
 #define DMA_PTE_SNP (1 << 11)
 
 #define CONTEXT_TT_MULTI_LEVEL	0
+#define CONTEXT_TT_DEV_IOTLB	1
 #define CONTEXT_TT_PASS_THROUGH 2
 
 struct intel_iommu;
