@@ -97,6 +97,8 @@ struct ads7846 {
 	u16			x_plate_ohms;
 	u16			pressure_max;
 
+	bool			swap_xy;
+
 	struct ads7846_packet	*packet;
 
 	struct spi_transfer	xfer[18];
@@ -599,6 +601,10 @@ static void ads7846_rx(void *ads)
 			dev_dbg(&ts->spi->dev, "DOWN\n");
 #endif
 		}
+
+		if (ts->swap_xy)
+			swap(x, y);
+
 		input_report_abs(input, ABS_X, x);
 		input_report_abs(input, ABS_Y, y);
 		input_report_abs(input, ABS_PRESSURE, Rt);
@@ -917,6 +923,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->spi = spi;
 	ts->input = input_dev;
 	ts->vref_mv = pdata->vref_mv;
+	ts->swap_xy = pdata->swap_xy;
 
 	hrtimer_init(&ts->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ts->timer.function = ads7846_timer;
