@@ -1142,7 +1142,7 @@ F:	arch/blackfin/
 BLACKFIN EMAC DRIVER
 P:	Michael Hennerich
 M:	michael.hennerich@analog.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/net/bfin_mac.*
@@ -1150,7 +1150,7 @@ F:	drivers/net/bfin_mac.*
 BLACKFIN RTC DRIVER
 P:	Mike Frysinger
 M:	vapier.adi@gmail.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/rtc/rtc-bfin.c
@@ -1158,7 +1158,7 @@ F:	drivers/rtc/rtc-bfin.c
 BLACKFIN SERIAL DRIVER
 P:	Sonic Zhang
 M:	sonic.zhang@analog.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/serial/bfin_5xx.c
@@ -1166,7 +1166,7 @@ F:	drivers/serial/bfin_5xx.c
 BLACKFIN WATCHDOG DRIVER
 P:	Mike Frysinger
 M:	vapier.adi@gmail.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/watchdog/bfin_wdt.c
@@ -1174,7 +1174,7 @@ F:	drivers/watchdog/bfin_wdt.c
 BLACKFIN I2C TWI DRIVER
 P:	Sonic Zhang
 M:	sonic.zhang@analog.com
-L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
+L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org/
 S:	Supported
 F:	drivers/i2c/busses/i2c-bfin-twi.c
