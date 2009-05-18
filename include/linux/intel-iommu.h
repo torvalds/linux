@@ -331,6 +331,7 @@ static inline void __iommu_flush_cache(
 }
 
 extern struct dmar_drhd_unit * dmar_find_matched_drhd_unit(struct pci_dev *dev);
+extern int dmar_find_matched_atsr_unit(struct pci_dev *dev);
 
 extern int alloc_iommu(struct dmar_drhd_unit *drhd);
 extern void free_iommu(struct intel_iommu *iommu);

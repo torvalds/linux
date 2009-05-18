@@ -267,6 +267,84 @@ rmrr_parse_dev(struct dmar_rmrr_unit *rmrru)
 	}
 	return ret;
 }
+
+static LIST_HEAD(dmar_atsr_units);
+
+static int __init dmar_parse_one_atsr(struct acpi_dmar_header *hdr)
+{
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	atsr = container_of(hdr, struct acpi_dmar_atsr, header);
+	atsru = kzalloc(sizeof(*atsru), GFP_KERNEL);
+	if (!atsru)
+		return -ENOMEM;
+
+	atsru->hdr = hdr;
+	atsru->include_all = atsr->flags & 0x1;
+
+	list_add(&atsru->list, &dmar_atsr_units);
+
+	return 0;
+}
+
+static int __init atsr_parse_dev(struct dmar_atsr_unit *atsru)
+{
+	int rc;
+	struct acpi_dmar_atsr *atsr;
+
+	if (atsru->include_all)
+		return 0;
+
+	atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
+	rc = dmar_parse_dev_scope((void *)(atsr + 1),
+				(void *)atsr + atsr->header.length,
+				&atsru->devices_cnt, &atsru->devices,
+				atsr->segment);
+	if (rc || !atsru->devices_cnt) {
+		list_del(&atsru->list);
+		kfree(atsru);
+	}
+
+	return rc;
+}
+
+int dmar_find_matched_atsr_unit(struct pci_dev *dev)
+{
+	int i;
+	struct pci_bus *bus;
+	struct acpi_dmar_atsr *atsr;
+	struct dmar_atsr_unit *atsru;
+
+	list_for_each_entry(atsru, &dmar_atsr_units, list) {
+		atsr = container_of(atsru->hdr, struct acpi_dmar_atsr, header);
+		if (atsr->segment == pci_domain_nr(dev->bus))
+			goto found;
+	}
+
+	return 0;
+
+found:
+	for (bus = dev->bus; bus; bus = bus->parent) {
+		struct pci_dev *bridge = bus->self;
+
+		if (!bridge || !bridge->is_pcie ||
+		    bridge->pcie_type == PCI_EXP_TYPE_PCI_BRIDGE)
+			return 0;
+
+		if (bridge->pcie_type == PCI_EXP_TYPE_ROOT_PORT) {
+			for (i = 0; i < atsru->devices_cnt; i++)
+				if (atsru->devices[i] == bridge)
+					return 1;
+			break;
+		}
+	}
+
+	if (atsru->include_all)
+		return 1;
+
+	return 0;
+}
 #endif
 
 static void __init
@@ -274,21 +352,27 @@ dmar_table_print_dmar_entry(struct acpi_dmar_header *header)
 {
 	struct acpi_dmar_hardware_unit *drhd;
 	struct acpi_dmar_reserved_memory *rmrr;
+	struct acpi_dmar_atsr *atsr;
 
 	switch (header->type) {
 	case ACPI_DMAR_TYPE_HARDWARE_UNIT:
-		drhd = (struct acpi_dmar_hardware_unit *)header;
+		drhd = container_of(header, struct acpi_dmar_hardware_unit,
+				    header);
 		printk (KERN_INFO PREFIX
-			"DRHD (flags: 0x%08x)base: 0x%016Lx\n",
-			drhd->flags, (unsigned long long)drhd->address);
+			"DRHD base: %#016Lx flags: %#x\n",
+			(unsigned long long)drhd->address, drhd->flags);
 		break;
 	case ACPI_DMAR_TYPE_RESERVED_MEMORY:
-		rmrr = (struct acpi_dmar_reserved_memory *)header;
-
+		rmrr = container_of(header, struct acpi_dmar_reserved_memory,
+				    header);
 		printk (KERN_INFO PREFIX
-			"RMRR base: 0x%016Lx end: 0x%016Lx\n",
+			"RMRR base: %#016Lx end: %#016Lx\n",
 			(unsigned long long)rmrr->base_address,
 			(unsigned long long)rmrr->end_address);
+		break;
+	case ACPI_DMAR_TYPE_ATSR:
+		atsr = container_of(header, struct acpi_dmar_atsr, header);
+		printk(KERN_INFO PREFIX "ATSR flags: %#x\n", atsr->flags);
 		break;
 	}
 }
@@ -363,6 +447,11 @@ parse_dmar_table(void)
 			ret = dmar_parse_one_rmrr(entry_header);
 #endif
 			break;
+		case ACPI_DMAR_TYPE_ATSR:
+#ifdef CONFIG_DMAR
+			ret = dmar_parse_one_atsr(entry_header);
+#endif
+			break;
 		default:
 			printk(KERN_WARNING PREFIX
 				"Unknown DMAR structure type\n");
@@ -431,8 +520,16 @@ int __init dmar_dev_scope_init(void)
 #ifdef CONFIG_DMAR
 	{
 		struct dmar_rmrr_unit *rmrr, *rmrr_n;
+		struct dmar_atsr_unit *atsr, *atsr_n;
+
 		list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
 			ret = rmrr_parse_dev(rmrr);
+			if (ret)
+				return ret;
+		}
+
+		list_for_each_entry_safe(atsr, atsr_n, &dmar_atsr_units, list) {
+			ret = atsr_parse_dev(atsr);
 			if (ret)
 				return ret;
 		}
@@ -468,6 +565,9 @@ int __init dmar_table_init(void)
 #ifdef CONFIG_DMAR
 	if (list_empty(&dmar_rmrr_units))
 		printk(KERN_INFO PREFIX "No RMRR found\n");
+
+	if (list_empty(&dmar_atsr_units))
+		printk(KERN_INFO PREFIX "No ATSR found\n");
 #endif
 
 #ifdef CONFIG_INTR_REMAP
