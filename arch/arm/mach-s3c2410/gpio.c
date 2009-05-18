@@ -40,7 +40,7 @@ int s3c2410_gpio_irqfilter(unsigned int pin, unsigned int on,
 	unsigned long val;
 
 	if (pin < S3C2410_GPG(8) || pin > S3C2410_GPG(15))
-		return -1;
+		return -EINVAL;
 
 	config &= 0xff;
 
