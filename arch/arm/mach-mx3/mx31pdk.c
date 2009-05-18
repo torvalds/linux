@@ -21,6 +21,8 @@
 #include <linux/clk.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/smsc911x.h>
+#include <linux/platform_device.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -53,6 +55,39 @@ static int mx31pdk_pins[] = {
 
 static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
+};
+
+/*
+ * Support for the SMSC9217 on the Debug board.
+ */
+
+static struct smsc911x_platform_config smsc911x_config = {
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_PUSH_PULL,
+	.flags		= SMSC911X_USE_16BIT | SMSC911X_FORCE_INTERNAL_PHY,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+};
+
+static struct resource smsc911x_resources[] = {
+	{
+		.start		= LAN9217_BASE_ADDR,
+		.end		= LAN9217_BASE_ADDR + 0xff,
+		.flags		= IORESOURCE_MEM,
+	}, {
+		.start		= EXPIO_INT_ENET,
+		.end		= EXPIO_INT_ENET,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device smsc911x_device = {
+	.name		= "smsc911x",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smsc911x_resources),
+	.resource	= smsc911x_resources,
+	.dev		= {
+		.platform_data = &smsc911x_config,
+	},
 };
 
 /*
@@ -207,7 +242,8 @@ static void __init mxc_board_init(void)
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
-	mx31pdk_init_expio();
+	if (!mx31pdk_init_expio())
+		platform_device_register(&smsc911x_device);
 }
 
 static void __init mx31pdk_timer_init(void)
