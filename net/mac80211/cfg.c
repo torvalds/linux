@@ -112,7 +112,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 }
 
 static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
-			     u8 key_idx, u8 *mac_addr,
+			     u8 key_idx, const u8 *mac_addr,
 			     struct key_params *params)
 {
 	struct ieee80211_sub_if_data *sdata;
@@ -141,7 +141,8 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 	}
 
-	key = ieee80211_key_alloc(alg, key_idx, params->key_len, params->key);
+	key = ieee80211_key_alloc(alg, key_idx, params->key_len, params->key,
+				  params->seq_len, params->seq);
 	if (!key)
 		return -ENOMEM;
 
@@ -166,7 +167,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
-			     u8 key_idx, u8 *mac_addr)
+			     u8 key_idx, const u8 *mac_addr)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
@@ -208,7 +209,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
-			     u8 key_idx, u8 *mac_addr, void *cookie,
+			     u8 key_idx, const u8 *mac_addr, void *cookie,
 			     void (*callback)(void *cookie,
 					      struct key_params *params))
 {
@@ -629,34 +630,38 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 	int i, j;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u32 mask, set;
 
 	sband = local->hw.wiphy->bands[local->oper_channel->band];
 
-	/*
-	 * FIXME: updating the flags is racy when this function is
-	 *	  called from ieee80211_change_station(), this will
-	 *	  be resolved in a future patch.
-	 */
+	spin_lock_bh(&sta->lock);
+	mask = params->sta_flags_mask;
+	set = params->sta_flags_set;
 
-	if (params->station_flags & STATION_FLAG_CHANGED) {
-		spin_lock_bh(&sta->lock);
+	if (mask & BIT(NL80211_STA_FLAG_AUTHORIZED)) {
 		sta->flags &= ~WLAN_STA_AUTHORIZED;
-		if (params->station_flags & STATION_FLAG_AUTHORIZED)
+		if (set & BIT(NL80211_STA_FLAG_AUTHORIZED))
 			sta->flags |= WLAN_STA_AUTHORIZED;
-
-		sta->flags &= ~WLAN_STA_SHORT_PREAMBLE;
-		if (params->station_flags & STATION_FLAG_SHORT_PREAMBLE)
-			sta->flags |= WLAN_STA_SHORT_PREAMBLE;
-
-		sta->flags &= ~WLAN_STA_WME;
-		if (params->station_flags & STATION_FLAG_WME)
-			sta->flags |= WLAN_STA_WME;
-
-		sta->flags &= ~WLAN_STA_MFP;
-		if (params->station_flags & STATION_FLAG_MFP)
-			sta->flags |= WLAN_STA_MFP;
-		spin_unlock_bh(&sta->lock);
 	}
+
+	if (mask & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE)) {
+		sta->flags &= ~WLAN_STA_SHORT_PREAMBLE;
+		if (set & BIT(NL80211_STA_FLAG_SHORT_PREAMBLE))
+			sta->flags |= WLAN_STA_SHORT_PREAMBLE;
+	}
+
+	if (mask & BIT(NL80211_STA_FLAG_WME)) {
+		sta->flags &= ~WLAN_STA_WME;
+		if (set & BIT(NL80211_STA_FLAG_WME))
+			sta->flags |= WLAN_STA_WME;
+	}
+
+	if (mask & BIT(NL80211_STA_FLAG_MFP)) {
+		sta->flags &= ~WLAN_STA_MFP;
+		if (set & BIT(NL80211_STA_FLAG_MFP))
+			sta->flags |= WLAN_STA_MFP;
+	}
+	spin_unlock_bh(&sta->lock);
 
 	/*
 	 * FIXME: updating the following information is racy when this
@@ -1252,6 +1257,19 @@ static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 	ret = ieee80211_sta_set_extra_ie(sdata, req->ie, req->ie_len);
 	if (ret)
 		return ret;
+
+	if (req->use_mfp) {
+		sdata->u.mgd.mfp = IEEE80211_MFP_REQUIRED;
+		sdata->u.mgd.flags |= IEEE80211_STA_MFP_ENABLED;
+	} else {
+		sdata->u.mgd.mfp = IEEE80211_MFP_DISABLED;
+		sdata->u.mgd.flags &= ~IEEE80211_STA_MFP_ENABLED;
+	}
+
+	if (req->control_port)
+		sdata->u.mgd.flags |= IEEE80211_STA_CONTROL_PORT;
+	else
+		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
 
 	sdata->u.mgd.flags |= IEEE80211_STA_EXT_SME;
 	sdata->u.mgd.state = IEEE80211_STA_MLME_ASSOCIATE;

@@ -190,8 +190,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 
 	priv->cfg->ops->smgmt->clear_station_table(priv);
 
-	if (!priv->error_recovering)
-		priv->start_calib = 0;
+	priv->start_calib = 0;
 
 	/* Add the broadcast address so we can send broadcast frames */
 	if (iwl_rxon_add_station(priv, iwl_bcast_addr, 0) ==
@@ -967,23 +966,6 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	tasklet_kill(&priv->irq_tasklet);
 }
 
-static void iwl_error_recovery(struct iwl_priv *priv)
-{
-	unsigned long flags;
-
-	memcpy(&priv->staging_rxon, &priv->recovery_rxon,
-	       sizeof(priv->staging_rxon));
-	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwlcore_commit_rxon(priv);
-
-	iwl_rxon_add_station(priv, priv->bssid, 1);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->assoc_id = le16_to_cpu(priv->staging_rxon.assoc_id);
-	priv->error_recovering = 0;
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
 static void iwl_irq_tasklet(struct iwl_priv *priv)
 {
 	u32 inta, handled = 0;
@@ -1514,9 +1496,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
-	if (priv->error_recovering)
-		iwl_error_recovery(priv);
-
 	iwl_power_update_mode(priv, 1);
 
 	/* reassociate for ADHOC mode */
@@ -1715,9 +1694,6 @@ static int __iwl_up(struct iwl_priv *priv)
 			continue;
 		}
 
-		/* Clear out the uCode error bit if it is set */
-		clear_bit(STATUS_FW_ERROR, &priv->status);
-
 		/* start card; "initialize" will load runtime ucode */
 		iwl_nic_start(priv);
 
@@ -1812,8 +1788,17 @@ static void iwl_bg_restart(struct work_struct *data)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	iwl_down(priv);
-	queue_work(priv->workqueue, &priv->up);
+	if (test_and_clear_bit(STATUS_FW_ERROR, &priv->status)) {
+		mutex_lock(&priv->mutex);
+		priv->vif = NULL;
+		priv->is_open = 0;
+		mutex_unlock(&priv->mutex);
+		iwl_down(priv);
+		ieee80211_restart_hw(priv->hw);
+	} else {
+		iwl_down(priv);
+		queue_work(priv->workqueue, &priv->up);
+	}
 }
 
 static void iwl_bg_rx_replenish(struct work_struct *data)
@@ -1853,7 +1838,6 @@ void iwl_post_associate(struct iwl_priv *priv)
 	if (!priv->vif || !priv->is_open)
 		return;
 
-	iwl_power_cancel_timeout(priv);
 	iwl_scan_cancel_timeout(priv, 200);
 
 	conf = ieee80211_get_hw_conf(priv->hw);
@@ -1929,7 +1913,7 @@ void iwl_post_associate(struct iwl_priv *priv)
 	 * If chain noise has already been run, then we need to enable
 	 * power management here */
 	if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
-		iwl_power_enable_management(priv);
+		iwl_power_update_mode(priv, 0);
 
 	/* Enable Rx differential gain and sensitivity calibrations */
 	iwl_chain_noise_reset(priv);
@@ -2007,10 +1991,8 @@ static void iwl_mac_stop(struct ieee80211_hw *hw)
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (!priv->is_open) {
-		IWL_DEBUG_MAC80211(priv, "leave - skip\n");
+	if (!priv->is_open)
 		return;
-	}
 
 	priv->is_open = 0;
 
@@ -2482,32 +2464,37 @@ static ssize_t show_power_level(struct device *d,
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	int mode = priv->power_data.user_power_setting;
-	int system = priv->power_data.system_power_setting;
 	int level = priv->power_data.power_mode;
 	char *p = buf;
 
-	switch (system) {
-	case IWL_POWER_SYS_AUTO:
-		p += sprintf(p, "SYSTEM:auto");
-		break;
-	case IWL_POWER_SYS_AC:
-		p += sprintf(p, "SYSTEM:ac");
-		break;
-	case IWL_POWER_SYS_BATTERY:
-		p += sprintf(p, "SYSTEM:battery");
-		break;
-	}
-
-	p += sprintf(p, "\tMODE:%s", (mode < IWL_POWER_AUTO) ?
-			"fixed" : "auto");
-	p += sprintf(p, "\tINDEX:%d", level);
-	p += sprintf(p, "\n");
+	p += sprintf(p, "INDEX:%d\t", level);
+	p += sprintf(p, "USER:%d\n", mode);
 	return p - buf + 1;
 }
 
 static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
 		   store_power_level);
 
+static ssize_t show_qos(struct device *d,
+				struct device_attribute *attr, char *buf)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
+	char *p = buf;
+	int   q;
+
+	for (q = 0; q < AC_NUM; q++) {
+		p += sprintf(p, "\tcw_min\tcw_max\taifsn\ttxop\n");
+		p += sprintf(p, "AC[%d]\t%u\t%u\t%u\t%u\n", q,
+			     priv->qos_data.def_qos_parm.ac[q].cw_min,
+			     priv->qos_data.def_qos_parm.ac[q].cw_max,
+			     priv->qos_data.def_qos_parm.ac[q].aifsn,
+			     priv->qos_data.def_qos_parm.ac[q].edca_txop);
+	}
+
+	return p - buf + 1;
+}
+
+static DEVICE_ATTR(qos, S_IRUGO, show_qos, NULL);
 
 static ssize_t show_statistics(struct device *d,
 			       struct device_attribute *attr, char *buf)
@@ -2570,7 +2557,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
 	iwl_setup_scan_deferred_work(priv);
-	iwl_setup_power_deferred_work(priv);
 
 	if (priv->cfg->ops->lib->setup_deferred_work)
 		priv->cfg->ops->lib->setup_deferred_work(priv);
@@ -2590,7 +2576,6 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 
 	cancel_delayed_work_sync(&priv->init_alive_start);
 	cancel_delayed_work(&priv->scan_check);
-	cancel_delayed_work_sync(&priv->set_power_save);
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
@@ -2607,7 +2592,7 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_debug_level.attr,
 #endif
 	&dev_attr_version.attr,
-
+	&dev_attr_qos.attr,
 	NULL
 };
 

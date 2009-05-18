@@ -933,7 +933,6 @@ struct iwl_priv {
 	const struct iwl_rxon_cmd active_rxon;
 	struct iwl_rxon_cmd staging_rxon;
 
-	int error_recovering;
 	struct iwl_rxon_cmd recovery_rxon;
 
 	/* 1st responses from initialize and runtime uCode images.
@@ -1076,7 +1075,6 @@ struct iwl_priv {
 
 	struct tasklet_struct irq_tasklet;
 
-	struct delayed_work set_power_save;
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;

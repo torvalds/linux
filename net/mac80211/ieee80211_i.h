@@ -235,7 +235,7 @@ struct mesh_preq_queue {
 #define IEEE80211_STA_ASSOCIATED	BIT(4)
 #define IEEE80211_STA_PROBEREQ_POLL	BIT(5)
 #define IEEE80211_STA_CREATE_IBSS	BIT(6)
-/* hole at 7, please re-use */
+#define IEEE80211_STA_CONTROL_PORT	BIT(7)
 #define IEEE80211_STA_WMM_ENABLED	BIT(8)
 /* hole at 9, please re-use */
 #define IEEE80211_STA_AUTO_SSID_SEL	BIT(10)
@@ -426,6 +426,12 @@ struct ieee80211_sub_if_data {
 	unsigned int flags;
 
 	int drop_unencrypted;
+
+	/*
+	 * keep track of whether the HT opmode (stored in
+	 * vif.bss_info.ht_operation_mode) is valid.
+	 */
+	bool ht_opmode_valid;
 
 	/* Fragment table for host-based reassembly */
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
@@ -760,6 +766,7 @@ struct ieee80211_local {
 		struct dentry *wep_iv;
 		struct dentry *tsf;
 		struct dentry *reset;
+		struct dentry *noack;
 		struct dentry *statistics;
 		struct local_debugfsdentries_statsdentries {
 			struct dentry *transmitted_fragment_count;

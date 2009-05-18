@@ -1110,6 +1110,11 @@ static void iwl3945_nic_config(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
+	/* Determine HW type */
+	pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &rev_id);
+
+	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
+
 	if (rev_id & PCI_CFG_REV_ID_BIT_RTP)
 		IWL_DEBUG_INFO(priv, "RTP type \n");
 	else if (rev_id & PCI_CFG_REV_ID_BIT_BASIC_SKU) {
@@ -1163,7 +1168,6 @@ static void iwl3945_nic_config(struct iwl_priv *priv)
 
 int iwl3945_hw_nic_init(struct iwl_priv *priv)
 {
-	u8 rev_id;
 	int rc;
 	unsigned long flags;
 	struct iwl_rx_queue *rxq = &priv->rxq;
@@ -1171,12 +1175,6 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->cfg->ops->lib->apm_ops.init(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Determine HW type */
-	rc = pci_read_config_byte(priv->pci_dev, PCI_REVISION_ID, &rev_id);
-	if (rc)
-		return rc;
-	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
 
 	rc = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
 	if (rc)

@@ -1,7 +1,7 @@
 /*
  * This is the linux wireless configuration interface.
  *
- * Copyright 2006-2008		Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2009		Johannes Berg <johannes@sipsolutions.net>
  */
 
 #include <linux/if.h>
@@ -457,6 +457,10 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 				"symlink to netdev!\n");
 		}
 		dev->ieee80211_ptr->netdev = dev;
+#ifdef CONFIG_WIRELESS_EXT
+		dev->ieee80211_ptr->wext.default_key = -1;
+		dev->ieee80211_ptr->wext.default_mgmt_key = -1;
+#endif
 		mutex_unlock(&rdev->devlist_mtx);
 		break;
 	case NETDEV_GOING_DOWN:
@@ -470,9 +474,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 #ifdef CONFIG_WIRELESS_EXT
 		if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC)
 			break;
-		if (!dev->ieee80211_ptr->wext.ssid_len)
+		if (!dev->ieee80211_ptr->wext.ibss.ssid_len)
 			break;
-		cfg80211_join_ibss(rdev, dev, &dev->ieee80211_ptr->wext);
+		cfg80211_join_ibss(rdev, dev, &dev->ieee80211_ptr->wext.ibss);
 		break;
 #endif
 	case NETDEV_UNREGISTER:

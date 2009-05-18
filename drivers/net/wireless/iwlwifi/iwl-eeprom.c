@@ -285,7 +285,7 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 
 	return 0;
 err:
-	IWL_ERR(priv, "Unsupported EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
+	IWL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x CALIB=0x%x < 0x%x\n",
 		  eeprom_ver, priv->cfg->eeprom_ver,
 		  calib_ver,  priv->cfg->eeprom_calib_ver);
 	return -EINVAL;

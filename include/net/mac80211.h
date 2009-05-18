@@ -73,22 +73,6 @@
  */
 
 /**
- * struct ieee80211_ht_bss_info - describing BSS's HT characteristics
- *
- * This structure describes most essential parameters needed
- * to describe 802.11n HT characteristics in a BSS.
- *
- * @primary_channel: channel number of primery channel
- * @bss_cap: 802.11n's general BSS capabilities (e.g. channel width)
- * @bss_op_mode: 802.11n's BSS operation modes (e.g. HT protection)
- */
-struct ieee80211_ht_bss_info {
-	u8 primary_channel;
-	u8 bss_cap;  /* use IEEE80211_HT_IE_CHA_ */
-	u8 bss_op_mode; /* use IEEE80211_HT_IE_ */
-};
-
-/**
  * enum ieee80211_max_queues - maximum number of queues
  *
  * @IEEE80211_MAX_QUEUES: Maximum number of regular device queues.
@@ -171,14 +155,6 @@ enum ieee80211_bss_change {
 };
 
 /**
- * struct ieee80211_bss_ht_conf - BSS's changing HT configuration
- * @operation_mode: HT operation mode (like in &struct ieee80211_ht_info)
- */
-struct ieee80211_bss_ht_conf {
-	u16 operation_mode;
-};
-
-/**
  * struct ieee80211_bss_conf - holds the BSS's changing parameters
  *
  * This structure keeps information about a BSS (and an association
@@ -203,6 +179,8 @@ struct ieee80211_bss_ht_conf {
  *	the current band.
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
+ * @ht_operation_mode: HT operation mode (like in &struct ieee80211_ht_info).
+ *	This field is only valid when the channel type is one of the HT types.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -219,7 +197,7 @@ struct ieee80211_bss_conf {
 	u16 assoc_capability;
 	u64 timestamp;
 	u32 basic_rates;
-	struct ieee80211_bss_ht_conf ht;
+	u16 ht_operation_mode;
 };
 
 /**

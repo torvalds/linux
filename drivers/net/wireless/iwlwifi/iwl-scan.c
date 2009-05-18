@@ -580,9 +580,10 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	int ret = 0;
 	u32 rate_flags = 0;
 	u16 cmd_len;
+	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
-	u8 rx_chain = priv->hw_params.valid_rx_ant;
+	u8 rx_ant = priv->hw_params.valid_rx_ant;
 	u8 rate;
 	bool is_active = false;
 
@@ -723,7 +724,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		 * Avoid A (0x1) because of its off-channel reception on A-band.
 		 */
 		if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
-			rx_chain = 0x6;
+			rx_ant = ANT_BC;
 	} else {
 		IWL_WARN(priv, "Invalid scan band count\n");
 		goto done;
@@ -735,10 +736,11 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
 	/* MIMO is not used here, but value is required */
-	scan->rx_chain = RXON_RX_CHAIN_DRIVER_FORCE_MSK |
-				cpu_to_le16((0x7 << RXON_RX_CHAIN_VALID_POS) |
-				(rx_chain << RXON_RX_CHAIN_FORCE_SEL_POS) |
-				(0x7 << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS));
+	rx_chain |= ANT_ABC << RXON_RX_CHAIN_VALID_POS;
+	rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
+	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
+	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
+	scan->rx_chain = cpu_to_le16(rx_chain);
 	cmd_len = iwl_fill_probe_req(priv,
 				(struct ieee80211_mgmt *)scan->data,
 				priv->scan_request->ie,

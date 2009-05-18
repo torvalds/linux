@@ -25,6 +25,8 @@
  *
  */
 
+#include <linux/types.h>
+
 /**
  * DOC: Station handling
  *
@@ -77,8 +79,8 @@
  * @NL80211_CMD_SET_KEY: Set key attributes %NL80211_ATTR_KEY_DEFAULT,
  *	%NL80211_ATTR_KEY_DEFAULT_MGMT, or %NL80211_ATTR_KEY_THRESHOLD.
  * @NL80211_CMD_NEW_KEY: add a key with given %NL80211_ATTR_KEY_DATA,
- *	%NL80211_ATTR_KEY_IDX, %NL80211_ATTR_MAC and %NL80211_ATTR_KEY_CIPHER
- *	attributes.
+ *	%NL80211_ATTR_KEY_IDX, %NL80211_ATTR_MAC, %NL80211_ATTR_KEY_CIPHER,
+ *	and %NL80211_ATTR_KEY_SEQ attributes.
  * @NL80211_CMD_DEL_KEY: delete a key identified by %NL80211_ATTR_KEY_IDX
  *	or %NL80211_ATTR_MAC.
  *
@@ -380,7 +382,7 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_STA_AID: Association ID for the station (u16)
  * @NL80211_ATTR_STA_FLAGS: flags, nested element with NLA_FLAG attributes of
- *	&enum nl80211_sta_flags.
+ *	&enum nl80211_sta_flags (deprecated, use %NL80211_ATTR_STA_FLAGS2)
  * @NL80211_ATTR_STA_LISTEN_INTERVAL: listen interval as defined by
  *	IEEE 802.11 7.3.1.6 (u16).
  * @NL80211_ATTR_STA_SUPPORTED_RATES: supported rates, array of supported
@@ -494,6 +496,21 @@ enum nl80211_commands {
  * @NL80211_ATTR_TIMED_OUT: a flag indicating than an operation timed out; this
  *	is used, e.g., with %NL80211_CMD_AUTHENTICATE event
  *
+ * @NL80211_ATTR_USE_MFP: Whether management frame protection (IEEE 802.11w) is
+ *	used for the association (&enum nl80211_mfp, represented as a u32);
+ *	this attribute can be used
+ *	with %NL80211_CMD_ASSOCIATE request
+ *
+ * @NL80211_ATTR_STA_FLAGS2: Attribute containing a
+ *	&struct nl80211_sta_flag_update.
+ *
+ * @NL80211_ATTR_CONTROL_PORT: A flag indicating whether user space controls
+ *	IEEE 802.1X port, i.e., sets/clears %NL80211_STA_FLAG_AUTHORIZED, in
+ *	station mode. If the flag is included in %NL80211_CMD_ASSOCIATE
+ *	request, the driver will assume that the port is unauthorized until
+ *	authorized by user space. Otherwise, port is marked authorized by
+ *	default in station mode.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -596,6 +613,12 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_TIMED_OUT,
 
+	NL80211_ATTR_USE_MFP,
+
+	NL80211_ATTR_STA_FLAGS2,
+
+	NL80211_ATTR_CONTROL_PORT,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -683,6 +706,18 @@ enum nl80211_sta_flags {
 	__NL80211_STA_FLAG_AFTER_LAST,
 	NL80211_STA_FLAG_MAX = __NL80211_STA_FLAG_AFTER_LAST - 1
 };
+
+/**
+ * struct nl80211_sta_flag_update - station flags mask/set
+ * @mask: mask of station flags to set
+ * @set: which values to set them to
+ *
+ * Both mask and set contain bits as per &enum nl80211_sta_flags.
+ */
+struct nl80211_sta_flag_update {
+	__u32 mask;
+	__u32 set;
+} __attribute__((packed));
 
 /**
  * enum nl80211_rate_info - bitrate information
@@ -1177,6 +1212,16 @@ enum nl80211_key_type {
 	NL80211_KEYTYPE_GROUP,
 	NL80211_KEYTYPE_PAIRWISE,
 	NL80211_KEYTYPE_PEERKEY,
+};
+
+/**
+ * enum nl80211_mfp - Management frame protection state
+ * @NL80211_MFP_NO: Management frame protection not used
+ * @NL80211_MFP_REQUIRED: Management frame protection required
+ */
+enum nl80211_mfp {
+	NL80211_MFP_NO,
+	NL80211_MFP_REQUIRED,
 };
 
 #endif /* __LINUX_NL80211_H */

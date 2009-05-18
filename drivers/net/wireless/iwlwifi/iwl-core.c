@@ -273,6 +273,14 @@ void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 }
 EXPORT_SYMBOL(iwl_activate_qos);
 
+/*
+ * AC        CWmin         CW max      AIFSN      TXOP Limit    TXOP Limit
+ *                                              (802.11b)      (802.11a/g)
+ * AC_BK      15            1023        7           0               0
+ * AC_BE      15            1023        3           0               0
+ * AC_VI       7              15        2          6.016ms       3.008ms
+ * AC_VO       3               7        2          3.264ms       1.504ms
+ */
 void iwl_reset_qos(struct iwl_priv *priv)
 {
 	u16 cw_min = 15;
@@ -304,6 +312,7 @@ void iwl_reset_qos(struct iwl_priv *priv)
 	if (priv->qos_data.qos_active)
 		aifs = 3;
 
+	/* AC_BE */
 	priv->qos_data.def_qos_parm.ac[0].cw_min = cpu_to_le16(cw_min);
 	priv->qos_data.def_qos_parm.ac[0].cw_max = cpu_to_le16(cw_max);
 	priv->qos_data.def_qos_parm.ac[0].aifsn = aifs;
@@ -311,6 +320,7 @@ void iwl_reset_qos(struct iwl_priv *priv)
 	priv->qos_data.def_qos_parm.ac[0].reserved1 = 0;
 
 	if (priv->qos_data.qos_active) {
+		/* AC_BK */
 		i = 1;
 		priv->qos_data.def_qos_parm.ac[i].cw_min = cpu_to_le16(cw_min);
 		priv->qos_data.def_qos_parm.ac[i].cw_max = cpu_to_le16(cw_max);
@@ -318,11 +328,12 @@ void iwl_reset_qos(struct iwl_priv *priv)
 		priv->qos_data.def_qos_parm.ac[i].edca_txop = 0;
 		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
 
+		/* AC_VI */
 		i = 2;
 		priv->qos_data.def_qos_parm.ac[i].cw_min =
 			cpu_to_le16((cw_min + 1) / 2 - 1);
 		priv->qos_data.def_qos_parm.ac[i].cw_max =
-			cpu_to_le16(cw_max);
+			cpu_to_le16(cw_min);
 		priv->qos_data.def_qos_parm.ac[i].aifsn = 2;
 		if (is_legacy)
 			priv->qos_data.def_qos_parm.ac[i].edca_txop =
@@ -332,11 +343,12 @@ void iwl_reset_qos(struct iwl_priv *priv)
 				cpu_to_le16(3008);
 		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
 
+		/* AC_VO */
 		i = 3;
 		priv->qos_data.def_qos_parm.ac[i].cw_min =
 			cpu_to_le16((cw_min + 1) / 4 - 1);
 		priv->qos_data.def_qos_parm.ac[i].cw_max =
-			cpu_to_le16((cw_max + 1) / 2 - 1);
+			cpu_to_le16((cw_min + 1) / 2 - 1);
 		priv->qos_data.def_qos_parm.ac[i].aifsn = 2;
 		priv->qos_data.def_qos_parm.ac[i].reserved1 = 0;
 		if (is_legacy)
@@ -960,10 +972,10 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 	if (iwl_is_monitor_mode(priv) &&
 	    !(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) &&
 	    ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)) {
-		rx_chain = 0x07 << RXON_RX_CHAIN_VALID_POS;
-		rx_chain |= 0x06 << RXON_RX_CHAIN_FORCE_SEL_POS;
-		rx_chain |= 0x07 << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
-		rx_chain |= 0x01 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
+		rx_chain = ANT_ABC << RXON_RX_CHAIN_VALID_POS;
+		rx_chain |= ANT_BC << RXON_RX_CHAIN_FORCE_SEL_POS;
+		rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
+		rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
 	}
 
 	priv->staging_rxon.rx_chain = cpu_to_le16(rx_chain);
@@ -1120,7 +1132,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
 }
 EXPORT_SYMBOL(iwl_connection_init_rx_config);
 
-void iwl_set_rate(struct iwl_priv *priv)
+static void iwl_set_rate(struct iwl_priv *priv)
 {
 	const struct ieee80211_supported_band *hw = NULL;
 	struct ieee80211_rate *rate;
@@ -1166,7 +1178,6 @@ void iwl_set_rate(struct iwl_priv *priv)
 		priv->staging_rxon.ofdm_basic_rates =
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 }
-EXPORT_SYMBOL(iwl_set_rate);
 
 void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
@@ -1230,11 +1241,6 @@ void iwl_irq_handle_error(struct iwl_priv *priv)
 		IWL_DEBUG(priv, IWL_DL_FW_ERRORS,
 			  "Restarting adapter due to uCode error.\n");
 
-		if (iwl_is_associated(priv)) {
-			memcpy(&priv->recovery_rxon, &priv->active_rxon,
-			       sizeof(priv->recovery_rxon));
-			priv->error_recovering = 1;
-		}
 		if (priv->cfg->mod_params->restart_fw)
 			queue_work(priv->workqueue, &priv->restart);
 	}
@@ -1358,7 +1364,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->ibss_beacon = NULL;
 
 	spin_lock_init(&priv->lock);
-	spin_lock_init(&priv->power_data.lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
 
@@ -2226,9 +2231,9 @@ static void iwl_ht_conf(struct iwl_priv *priv,
 
 	iwl_conf->tx_chan_width = iwl_conf->supported_chan_width != 0;
 	iwl_conf->ht_protection =
-		bss_conf->ht.operation_mode & IEEE80211_HT_OP_MODE_PROTECTION;
+		bss_conf->ht_operation_mode & IEEE80211_HT_OP_MODE_PROTECTION;
 	iwl_conf->non_GF_STA_present =
-		!!(bss_conf->ht.operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+		!!(bss_conf->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
 
 	rcu_read_unlock();
 
@@ -2582,14 +2587,13 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 		iwl_set_rate(priv);
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_PS) {
-		if (conf->flags & IEEE80211_CONF_PS)
-			ret = iwl_power_set_user_mode(priv, IWL_POWER_INDEX_3);
-		else
-			ret = iwl_power_set_user_mode(priv, IWL_POWER_MODE_CAM);
+	if (changed & IEEE80211_CONF_CHANGE_PS &&
+	    priv->iw_mode == NL80211_IFTYPE_STATION) {
+		priv->power_data.power_disabled =
+			!(conf->flags & IEEE80211_CONF_PS);
+		ret = iwl_power_update_mode(priv, 0);
 		if (ret)
 			IWL_DEBUG_MAC80211(priv, "Error setting power level\n");
-
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -2725,21 +2729,7 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 		iwlcore_commit_rxon(priv);
 	}
 
-	iwl_power_update_mode(priv, 0);
-
-	/* Per mac80211.h: This is only used in IBSS mode... */
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
-
-		/* switch to CAM during association period.
-		 * the ucode will block any association/authentication
-		 * frome during assiciation period if it can not hear
-		 * the AP because of PM. the timer enable PM back is
-		 * association do not complete
-		 */
-		if (priv->hw->conf.channel->flags &
-		    (IEEE80211_CHAN_PASSIVE_SCAN | IEEE80211_CHAN_RADAR))
-				iwl_power_disable_management(priv, 3000);
-
 		IWL_DEBUG_MAC80211(priv, "leave - not in IBSS\n");
 		mutex_unlock(&priv->mutex);
 		return;

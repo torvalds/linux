@@ -694,7 +694,7 @@ static void ath9k_hw_get_4k_gain_boundaries_pdadcs(struct ath_hw *ah,
 #undef TMP_VAL_VPD_TABLE
 }
 
-static bool ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
+static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 				  struct ath9k_channel *chan,
 				  int16_t *pTxPowerIndexOffset)
 {
@@ -805,11 +805,9 @@ static bool ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 	}
 
 	*pTxPowerIndexOffset = 0;
-
-	return true;
 }
 
-static bool ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
+static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 						 struct ath9k_channel *chan,
 						 int16_t *ratesArray,
 						 u16 cfgCtl,
@@ -1041,10 +1039,9 @@ static bool ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 		ratesArray[rateExtOfdm] = targetPowerOfdmExt.tPow2x[0];
 		ratesArray[rateExtCck] = targetPowerCckExt.tPow2x[0];
 	}
-	return true;
 }
 
-static int ath9k_hw_4k_set_txpower(struct ath_hw *ah,
+static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 				   struct ath9k_channel *chan,
 				   u16 cfgCtl,
 				   u8 twiceAntennaReduction,
@@ -1065,22 +1062,13 @@ static int ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 		ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
 	}
 
-	if (!ath9k_hw_set_4k_power_per_rate_table(ah, chan,
+	ath9k_hw_set_4k_power_per_rate_table(ah, chan,
 					       &ratesArray[0], cfgCtl,
 					       twiceAntennaReduction,
 					       twiceMaxRegulatoryPower,
-					       powerLimit)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"ath9k_hw_set_txpower: unable to set "
-			"tx power per rate table\n");
-		return -EIO;
-	}
+					       powerLimit);
 
-	if (!ath9k_hw_set_4k_power_cal_table(ah, chan, &txPowerIndexOffset)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			 "ath9k_hw_set_txpower: unable to set power table\n");
-		return -EIO;
-	}
+	ath9k_hw_set_4k_power_cal_table(ah, chan, &txPowerIndexOffset);
 
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] =	(int16_t)(txPowerIndexOffset + ratesArray[i]);
@@ -1168,7 +1156,6 @@ static int ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 	else
 		ah->regulatory.max_power_level = ratesArray[i];
 
-	return 0;
 }
 
 static void ath9k_hw_4k_set_addac(struct ath_hw *ah,
@@ -2103,7 +2090,7 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 	return;
 }
 
-static bool ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
+static void ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 				  struct ath9k_channel *chan,
 				  int16_t *pTxPowerIndexOffset)
 {
@@ -2255,13 +2242,11 @@ static bool ath9k_hw_set_def_power_cal_table(struct ath_hw *ah,
 	}
 
 	*pTxPowerIndexOffset = 0;
-
-	return true;
 #undef SM_PD_GAIN
 #undef SM_PDGAIN_B
 }
 
-static bool ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
+static void ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 						  struct ath9k_channel *chan,
 						  int16_t *ratesArray,
 						  u16 cfgCtl,
@@ -2549,10 +2534,9 @@ static bool ath9k_hw_set_def_power_per_rate_table(struct ath_hw *ah,
 				targetPowerCckExt.tPow2x[0];
 		}
 	}
-	return true;
 }
 
-static int ath9k_hw_def_set_txpower(struct ath_hw *ah,
+static void ath9k_hw_def_set_txpower(struct ath_hw *ah,
 				    struct ath9k_channel *chan,
 				    u16 cfgCtl,
 				    u8 twiceAntennaReduction,
@@ -2575,22 +2559,13 @@ static int ath9k_hw_def_set_txpower(struct ath_hw *ah,
 		ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
 	}
 
-	if (!ath9k_hw_set_def_power_per_rate_table(ah, chan,
+	ath9k_hw_set_def_power_per_rate_table(ah, chan,
 					       &ratesArray[0], cfgCtl,
 					       twiceAntennaReduction,
 					       twiceMaxRegulatoryPower,
-					       powerLimit)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			"ath9k_hw_set_txpower: unable to set "
-			"tx power per rate table\n");
-		return -EIO;
-	}
+					       powerLimit);
 
-	if (!ath9k_hw_set_def_power_cal_table(ah, chan, &txPowerIndexOffset)) {
-		DPRINTF(ah->ah_sc, ATH_DBG_EEPROM,
-			 "ath9k_hw_set_txpower: unable to set power table\n");
-		return -EIO;
-	}
+	ath9k_hw_set_def_power_cal_table(ah, chan, &txPowerIndexOffset);
 
 	for (i = 0; i < ARRAY_SIZE(ratesArray); i++) {
 		ratesArray[i] =	(int16_t)(txPowerIndexOffset + ratesArray[i]);
@@ -2717,8 +2692,6 @@ static int ath9k_hw_def_set_txpower(struct ath_hw *ah,
 			"Invalid chainmask configuration\n");
 		break;
 	}
-
-	return 0;
 }
 
 static u8 ath9k_hw_def_get_num_ant_config(struct ath_hw *ah,

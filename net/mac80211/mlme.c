@@ -33,6 +33,7 @@
 #define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
 #define IEEE80211_ASSOC_MAX_TRIES 3
 #define IEEE80211_MONITORING_INTERVAL (2 * HZ)
+#define IEEE80211_PROBE_WAIT (HZ / 20)
 #define IEEE80211_PROBE_IDLE_TIME (60 * HZ)
 #define IEEE80211_RETRY_AUTH_INTERVAL (1 * HZ)
 
@@ -95,15 +96,13 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct ieee80211_bss_ht_conf ht;
 	struct sta_info *sta;
 	u32 changed = 0;
+	u16 ht_opmode;
 	bool enable_ht = true, ht_changed;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
-	memset(&ht, 0, sizeof(ht));
 
 	/* HT is not supported */
 	if (!sband->ht_cap.ht_supported)
@@ -148,19 +147,20 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 						 IEEE80211_RC_HT_CHANGED);
 
 		rcu_read_unlock();
-
         }
 
 	/* disable HT */
 	if (!enable_ht)
 		return 0;
 
-	ht.operation_mode = le16_to_cpu(hti->operation_mode);
+	ht_opmode = le16_to_cpu(hti->operation_mode);
 
 	/* if bss configuration changed store the new one */
-	if (memcmp(&sdata->vif.bss_conf.ht, &ht, sizeof(ht))) {
+	if (!sdata->ht_opmode_valid ||
+	    sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
 		changed |= BSS_CHANGED_HT;
-		sdata->vif.bss_conf.ht = ht;
+		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
+		sdata->ht_opmode_valid = true;
 	}
 
 	return changed;
@@ -1043,10 +1043,15 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_unlock();
 
+	ieee80211_set_wmm_default(sdata);
+
 	ieee80211_recalc_idle(local);
 
 	/* channel(_type) changes are handled by ieee80211_hw_config */
 	local->oper_channel_type = NL80211_CHAN_NO_HT;
+
+	/* on the next assoc, re-program HT parameters */
+	sdata->ht_opmode_valid = false;
 
 	local->power_constr_level = 0;
 
@@ -1178,6 +1183,17 @@ void ieee80211_beacon_loss_work(struct work_struct *work)
 			     u.mgd.beacon_loss_work);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	/*
+	 * The driver has already reported this event and we have
+	 * already sent a probe request. Maybe the AP died and the
+	 * driver keeps reporting until we disassociate... We have
+	 * to ignore that because otherwise we would continually
+	 * reset the timer and never check whether we received a
+	 * probe response!
+	 */
+	if (ifmgd->flags & IEEE80211_STA_PROBEREQ_POLL)
+		return;
+
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (net_ratelimit()) {
 		printk(KERN_DEBUG "%s: driver reports beacon loss from AP %pM "
@@ -1190,7 +1206,7 @@ void ieee80211_beacon_loss_work(struct work_struct *work)
 	ieee80211_send_probe_req(sdata, ifmgd->bssid, ifmgd->ssid,
 				 ifmgd->ssid_len, NULL, 0);
 
-	mod_timer(&ifmgd->timer, jiffies + IEEE80211_MONITORING_INTERVAL);
+	mod_timer(&ifmgd->timer, jiffies + IEEE80211_PROBE_WAIT);
 }
 
 void ieee80211_beacon_loss(struct ieee80211_vif *vif)
@@ -1227,7 +1243,7 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 	}
 
 	if ((ifmgd->flags & IEEE80211_STA_PROBEREQ_POLL) &&
-	    time_after(jiffies, sta->last_rx + IEEE80211_MONITORING_INTERVAL)) {
+	    time_after(jiffies, sta->last_rx + IEEE80211_PROBE_WAIT)) {
 		printk(KERN_DEBUG "%s: no probe response from AP %pM "
 		       "- disassociating\n",
 		       sdata->dev->name, ifmgd->bssid);
@@ -1577,8 +1593,9 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	 *	  to between the sta_info_alloc() and sta_info_insert() above.
 	 */
 
-	set_sta_flags(sta, WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP |
-			   WLAN_STA_AUTHORIZED);
+	set_sta_flags(sta, WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_AP);
+	if (!(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
+		set_sta_flags(sta, WLAN_STA_AUTHORIZED);
 
 	rates = 0;
 	basic_rates = 0;
@@ -1658,6 +1675,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	if (elems.wmm_param)
 		ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
 					 elems.wmm_param_len);
+	else
+		ieee80211_set_wmm_default(sdata);
 
 	if (elems.ht_info_elem && elems.wmm_param &&
 	    (ifmgd->flags & IEEE80211_STA_WMM_ENABLED) &&

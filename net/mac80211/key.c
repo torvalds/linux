@@ -290,9 +290,11 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 					  int idx,
 					  size_t key_len,
-					  const u8 *key_data)
+					  const u8 *key_data,
+					  size_t seq_len, const u8 *seq)
 {
 	struct ieee80211_key *key;
+	int i, j;
 
 	BUG_ON(idx < 0 || idx >= NUM_DEFAULT_KEYS + NUM_DEFAULT_MGMT_KEYS);
 
@@ -318,14 +320,31 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 	case ALG_TKIP:
 		key->conf.iv_len = TKIP_IV_LEN;
 		key->conf.icv_len = TKIP_ICV_LEN;
+		if (seq && seq_len == 6) {
+			for (i = 0; i < NUM_RX_DATA_QUEUES; i++) {
+				key->u.tkip.rx[i].iv32 =
+					get_unaligned_le32(&seq[2]);
+				key->u.tkip.rx[i].iv16 =
+					get_unaligned_le16(seq);
+			}
+		}
 		break;
 	case ALG_CCMP:
 		key->conf.iv_len = CCMP_HDR_LEN;
 		key->conf.icv_len = CCMP_MIC_LEN;
+		if (seq && seq_len == CCMP_PN_LEN) {
+			for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+				for (j = 0; j < CCMP_PN_LEN; j++)
+					key->u.ccmp.rx_pn[i][j] =
+						seq[CCMP_PN_LEN - j - 1];
+		}
 		break;
 	case ALG_AES_CMAC:
 		key->conf.iv_len = 0;
 		key->conf.icv_len = sizeof(struct ieee80211_mmie);
+		if (seq && seq_len == 6)
+			for (j = 0; j < 6; j++)
+				key->u.aes_cmac.rx_pn[j] = seq[6 - j - 1];
 		break;
 	}
 	memcpy(key->conf.key, key_data, key_len);

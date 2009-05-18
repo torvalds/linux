@@ -252,27 +252,6 @@ struct beacon_parameters {
 };
 
 /**
- * enum station_flags - station flags
- *
- * Station capability flags. Note that these must be the bits
- * according to the nl80211 flags.
- *
- * @STATION_FLAG_CHANGED: station flags were changed
- * @STATION_FLAG_AUTHORIZED: station is authorized to send frames (802.1X)
- * @STATION_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
- *	with short preambles
- * @STATION_FLAG_WME: station is WME/QoS capable
- * @STATION_FLAG_MFP: station uses management frame protection
- */
-enum station_flags {
-	STATION_FLAG_CHANGED		= 1<<0,
-	STATION_FLAG_AUTHORIZED		= 1<<NL80211_STA_FLAG_AUTHORIZED,
-	STATION_FLAG_SHORT_PREAMBLE	= 1<<NL80211_STA_FLAG_SHORT_PREAMBLE,
-	STATION_FLAG_WME		= 1<<NL80211_STA_FLAG_WME,
-	STATION_FLAG_MFP		= 1<<NL80211_STA_FLAG_MFP,
-};
-
-/**
  * enum plink_action - actions to perform in mesh peers
  *
  * @PLINK_ACTION_INVALID: action 0 is reserved
@@ -294,14 +273,17 @@ enum plink_actions {
  * @supported_rates: supported rates in IEEE 802.11 format
  *	(or NULL for no change)
  * @supported_rates_len: number of supported rates
- * @station_flags: station flags (see &enum station_flags)
+ * @sta_flags_mask: station flags that changed
+ *	(bitmask of BIT(NL80211_STA_FLAG_...))
+ * @sta_flags_set: station flags values
+ *	(bitmask of BIT(NL80211_STA_FLAG_...))
  * @listen_interval: listen interval or -1 for no change
  * @aid: AID or zero for no change
  */
 struct station_parameters {
 	u8 *supported_rates;
 	struct net_device *vlan;
-	u32 station_flags;
+	u32 sta_flags_mask, sta_flags_set;
 	int listen_interval;
 	u16 aid;
 	u8 supported_rates_len;
@@ -672,6 +654,11 @@ struct cfg80211_auth_request {
  * @ssid_len: Length of ssid in octets
  * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
  * @ie_len: Length of ie buffer in octets
+ * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
+ * @control_port: Whether user space controls IEEE 802.1X port, i.e.,
+ *	sets/clears %NL80211_STA_FLAG_AUTHORIZED. If true, the driver is
+ *	required to assume that the port is unauthorized until authorized by
+ *	user space. Otherwise, port is marked authorized by default.
  */
 struct cfg80211_assoc_request {
 	struct ieee80211_channel *chan;
@@ -680,6 +667,8 @@ struct cfg80211_assoc_request {
 	size_t ssid_len;
 	const u8 *ie;
 	size_t ie_len;
+	bool use_mfp;
+	bool control_port;
 };
 
 /**
@@ -858,13 +847,13 @@ struct cfg80211_ops {
 				       struct vif_params *params);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, u8 *mac_addr,
+			   u8 key_index, const u8 *mac_addr,
 			   struct key_params *params);
 	int	(*get_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, u8 *mac_addr, void *cookie,
+			   u8 key_index, const u8 *mac_addr, void *cookie,
 			   void (*callback)(void *cookie, struct key_params*));
 	int	(*del_key)(struct wiphy *wiphy, struct net_device *netdev,
-			   u8 key_index, u8 *mac_addr);
+			   u8 key_index, const u8 *mac_addr);
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev,
 				   u8 key_index);
@@ -1145,8 +1134,11 @@ struct wireless_dev {
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* wext data */
-	struct cfg80211_ibss_params wext;
-	u8 wext_bssid[ETH_ALEN];
+	struct {
+		struct cfg80211_ibss_params ibss;
+		u8 bssid[ETH_ALEN];
+		s8 default_key, default_mgmt_key;
+	} wext;
 #endif
 };
 
@@ -1396,6 +1388,15 @@ int cfg80211_wext_siwretry(struct net_device *dev,
 int cfg80211_wext_giwretry(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_param *retry, char *extra);
+int cfg80211_wext_siwencodeext(struct net_device *dev,
+			       struct iw_request_info *info,
+			       struct iw_point *erq, char *extra);
+int cfg80211_wext_siwencode(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct iw_point *erq, char *keybuf);
+int cfg80211_wext_giwencode(struct net_device *dev,
+			    struct iw_request_info *info,
+			    struct iw_point *erq, char *keybuf);
 
 /*
  * callbacks for asynchronous cfg80211 methods, notification

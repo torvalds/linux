@@ -642,7 +642,7 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_HT) {
 		printk(KERN_DEBUG "  %s: HT: op_mode=0x%x\n",
 		       wiphy_name(hw->wiphy),
-		       info->ht.operation_mode);
+		       info->ht_operation_mode);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {

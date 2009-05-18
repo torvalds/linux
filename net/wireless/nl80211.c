@@ -1,7 +1,7 @@
 /*
  * This is the new netlink-based wireless configuration interface.
  *
- * Copyright 2006, 2007	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2009	Johannes Berg <johannes@sipsolutions.net>
  */
 
 #include <linux/if.h>
@@ -122,6 +122,11 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_REASON_CODE] = { .type = NLA_U16 },
 	[NL80211_ATTR_FREQ_FIXED] = { .type = NLA_FLAG },
 	[NL80211_ATTR_TIMED_OUT] = { .type = NLA_FLAG },
+	[NL80211_ATTR_USE_MFP] = { .type = NLA_U32 },
+	[NL80211_ATTR_STA_FLAGS2] = {
+		.len = sizeof(struct nl80211_sta_flag_update),
+	},
+	[NL80211_ATTR_CONTROL_PORT] = { .type = NLA_FLAG },
 };
 
 /* IE validation */
@@ -1072,6 +1077,14 @@ static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	err = func(&drv->wiphy, dev, key_idx);
+#ifdef CONFIG_WIRELESS_EXT
+	if (!err) {
+		if (func == drv->ops->set_default_key)
+			dev->ieee80211_ptr->wext.default_key = key_idx;
+		else
+			dev->ieee80211_ptr->wext.default_mgmt_key = key_idx;
+	}
+#endif
 
  out:
 	cfg80211_put_dev(drv);
@@ -1102,6 +1115,11 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 		params.key_len = nla_len(info->attrs[NL80211_ATTR_KEY_DATA]);
 	}
 
+	if (info->attrs[NL80211_ATTR_KEY_SEQ]) {
+		params.seq = nla_data(info->attrs[NL80211_ATTR_KEY_SEQ]);
+		params.seq_len = nla_len(info->attrs[NL80211_ATTR_KEY_SEQ]);
+	}
+
 	if (info->attrs[NL80211_ATTR_KEY_IDX])
 		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
 
@@ -1110,44 +1128,8 @@ static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_MAC])
 		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
-	if (key_idx > 5)
+	if (cfg80211_validate_key_settings(&params, key_idx, mac_addr))
 		return -EINVAL;
-
-	/*
-	 * Disallow pairwise keys with non-zero index unless it's WEP
-	 * (because current deployments use pairwise WEP keys with
-	 * non-zero indizes but 802.11i clearly specifies to use zero)
-	 */
-	if (mac_addr && key_idx &&
-	    params.cipher != WLAN_CIPHER_SUITE_WEP40 &&
-	    params.cipher != WLAN_CIPHER_SUITE_WEP104)
-		return -EINVAL;
-
-	/* TODO: add definitions for the lengths to linux/ieee80211.h */
-	switch (params.cipher) {
-	case WLAN_CIPHER_SUITE_WEP40:
-		if (params.key_len != 5)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_TKIP:
-		if (params.key_len != 32)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_CCMP:
-		if (params.key_len != 16)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_WEP104:
-		if (params.key_len != 13)
-			return -EINVAL;
-		break;
-	case WLAN_CIPHER_SUITE_AES_CMAC:
-		if (params.key_len != 16)
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	rtnl_lock();
 
@@ -1208,6 +1190,15 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	err = drv->ops->del_key(&drv->wiphy, dev, key_idx, mac_addr);
+
+#ifdef CONFIG_WIRELESS_EXT
+	if (!err) {
+		if (key_idx == dev->ieee80211_ptr->wext.default_key)
+			dev->ieee80211_ptr->wext.default_key = -1;
+		else if (key_idx == dev->ieee80211_ptr->wext.default_mgmt_key)
+			dev->ieee80211_ptr->wext.default_mgmt_key = -1;
+	}
+#endif
 
  out:
 	cfg80211_put_dev(drv);
@@ -1349,15 +1340,36 @@ static const struct nla_policy sta_flags_policy[NL80211_STA_FLAG_MAX + 1] = {
 	[NL80211_STA_FLAG_AUTHORIZED] = { .type = NLA_FLAG },
 	[NL80211_STA_FLAG_SHORT_PREAMBLE] = { .type = NLA_FLAG },
 	[NL80211_STA_FLAG_WME] = { .type = NLA_FLAG },
+	[NL80211_STA_FLAG_MFP] = { .type = NLA_FLAG },
 };
 
-static int parse_station_flags(struct nlattr *nla, u32 *staflags)
+static int parse_station_flags(struct genl_info *info,
+			       struct station_parameters *params)
 {
 	struct nlattr *flags[NL80211_STA_FLAG_MAX + 1];
+	struct nlattr *nla;
 	int flag;
 
-	*staflags = 0;
+	/*
+	 * Try parsing the new attribute first so userspace
+	 * can specify both for older kernels.
+	 */
+	nla = info->attrs[NL80211_ATTR_STA_FLAGS2];
+	if (nla) {
+		struct nl80211_sta_flag_update *sta_flags;
 
+		sta_flags = nla_data(nla);
+		params->sta_flags_mask = sta_flags->mask;
+		params->sta_flags_set = sta_flags->set;
+		if ((params->sta_flags_mask |
+		     params->sta_flags_set) & BIT(__NL80211_STA_FLAG_INVALID))
+			return -EINVAL;
+		return 0;
+	}
+
+	/* if present, parse the old attribute */
+
+	nla = info->attrs[NL80211_ATTR_STA_FLAGS];
 	if (!nla)
 		return 0;
 
@@ -1365,11 +1377,12 @@ static int parse_station_flags(struct nlattr *nla, u32 *staflags)
 			     nla, sta_flags_policy))
 		return -EINVAL;
 
-	*staflags = STATION_FLAG_CHANGED;
+	params->sta_flags_mask = (1 << __NL80211_STA_FLAG_AFTER_LAST) - 1;
+	params->sta_flags_mask &= ~1;
 
 	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++)
 		if (flags[flag])
-			*staflags |= (1<<flag);
+			params->sta_flags_set |= (1<<flag);
 
 	return 0;
 }
@@ -1665,8 +1678,7 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.ht_capa =
 			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
 
-	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
-				&params.station_flags))
+	if (parse_station_flags(info, &params))
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_STA_PLINK_ACTION])
@@ -1735,8 +1747,7 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 		params.ht_capa =
 			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
 
-	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
-				&params.station_flags))
+	if (parse_station_flags(info, &params))
 		return -EINVAL;
 
 	rtnl_lock();
@@ -1744,6 +1755,12 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
 		goto out_rtnl;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
 	if (err)
@@ -1787,6 +1804,12 @@ static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
 		goto out_rtnl;
+
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP_VLAN) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	if (!drv->ops->del_station) {
 		err = -EOPNOTSUPP;
@@ -3011,6 +3034,19 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
 		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
+
+	if (info->attrs[NL80211_ATTR_USE_MFP]) {
+		enum nl80211_mfp use_mfp =
+			nla_get_u32(info->attrs[NL80211_ATTR_USE_MFP]);
+		if (use_mfp == NL80211_MFP_REQUIRED)
+			req.use_mfp = true;
+		else if (use_mfp != NL80211_MFP_NO) {
+			err = -EINVAL;
+			goto out;
+		}
+	}
+
+	req.control_port = info->attrs[NL80211_ATTR_CONTROL_PORT];
 
 	err = drv->ops->assoc(&drv->wiphy, dev, &req);
 
