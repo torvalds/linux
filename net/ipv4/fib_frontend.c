@@ -40,7 +40,6 @@
 #include <net/route.h>
 #include <net/tcp.h>
 #include <net/sock.h>
-#include <net/icmp.h>
 #include <net/arp.h>
 #include <net/ip_fib.h>
 #include <net/rtnetlink.h>
