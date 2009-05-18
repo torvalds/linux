@@ -1651,7 +1651,7 @@ setup_nodes_for_search(struct btrfs_trans_handle *trans,
 		}
 		b = p->nodes[level];
 	} else if (ins_len < 0 && btrfs_header_nritems(b) <
-		   BTRFS_NODEPTRS_PER_BLOCK(root) / 4) {
+		   BTRFS_NODEPTRS_PER_BLOCK(root) / 2) {
 		int sret;
 
 		sret = reada_for_balance(root, p, level);
@@ -3807,7 +3807,7 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		}
 
 		/* delete the leaf if it is mostly empty */
-		if (used < BTRFS_LEAF_DATA_SIZE(root) / 4) {
+		if (used < BTRFS_LEAF_DATA_SIZE(root) / 2) {
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
