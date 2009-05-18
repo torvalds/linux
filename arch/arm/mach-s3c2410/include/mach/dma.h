@@ -3,7 +3,7 @@
  * Copyright (C) 2003,2004,2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Samsung S3C241XX DMA support
+ * Samsung S3C24XX DMA support
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,8 +13,8 @@
 #ifndef __ASM_ARCH_DMA_H
 #define __ASM_ARCH_DMA_H __FILE__
 
+#include <plat/dma.h>
 #include <linux/sysdev.h>
-#include <mach/hardware.h>
 
 #define MAX_DMA_TRANSFER_SIZE   0x100000 /* Data Unit is half word  */
 
@@ -55,9 +55,9 @@ enum dma_ch {
 
 /* we have 4 dma channels */
 #ifndef CONFIG_CPU_S3C2443
-#define S3C2410_DMA_CHANNELS		(4)
+#define S3C_DMA_CHANNELS		(4)
 #else
-#define S3C2410_DMA_CHANNELS		(6)
+#define S3C_DMA_CHANNELS		(6)
 #endif
 
 /* types */
@@ -67,7 +67,6 @@ enum s3c2410_dma_state {
 	S3C2410_DMA_RUNNING,
 	S3C2410_DMA_PAUSED
 };
-
 
 /* enum s3c2410_dma_loadst
  *
@@ -104,32 +103,6 @@ enum s3c2410_dma_loadst {
 	S3C2410_DMALOAD_1LOADED_1RUNNING,
 };
 
-enum s3c2410_dma_buffresult {
-	S3C2410_RES_OK,
-	S3C2410_RES_ERR,
-	S3C2410_RES_ABORT
-};
-
-enum s3c2410_dmasrc {
-	S3C2410_DMASRC_HW,		/* source is memory */
-	S3C2410_DMASRC_MEM		/* source is hardware */
-};
-
-/* enum s3c2410_chan_op
- *
- * operation codes passed to the DMA code by the user, and also used
- * to inform the current channel owner of any changes to the system state
-*/
-
-enum s3c2410_chan_op {
-	S3C2410_DMAOP_START,
-	S3C2410_DMAOP_STOP,
-	S3C2410_DMAOP_PAUSE,
-	S3C2410_DMAOP_RESUME,
-	S3C2410_DMAOP_FLUSH,
-	S3C2410_DMAOP_TIMEOUT,		/* internal signal to handler */
-	S3C2410_DMAOP_STARTED,		/* indicate channel started */
-};
 
 /* flags */
 
@@ -139,17 +112,14 @@ enum s3c2410_chan_op {
 
 /* dma buffer */
 
-struct s3c2410_dma_client {
-	char                *name;
-};
+struct s3c2410_dma_buf;
 
-/* s3c2410_dma_buf_s
+/* s3c2410_dma_buf
  *
  * internally used buffer structure to describe a queued or running
  * buffer.
 */
 
-struct s3c2410_dma_buf;
 struct s3c2410_dma_buf {
 	struct s3c2410_dma_buf	*next;
 	int			 magic;		/* magic */
@@ -160,20 +130,6 @@ struct s3c2410_dma_buf {
 };
 
 /* [1] is this updated for both recv/send modes? */
-
-struct s3c2410_dma_chan;
-
-/* s3c2410_dma_cbfn_t
- *
- * buffer callback routine type
-*/
-
-typedef void (*s3c2410_dma_cbfn_t)(struct s3c2410_dma_chan *,
-				   void *buf, int size,
-				   enum s3c2410_dma_buffresult result);
-
-typedef int  (*s3c2410_dma_opfn_t)(struct s3c2410_dma_chan *,
-				   enum s3c2410_chan_op );
 
 struct s3c2410_dma_stats {
 	unsigned long		loads;
@@ -206,10 +162,10 @@ struct s3c2410_dma_chan {
 
 	/* channel configuration */
 	enum s3c2410_dmasrc	 source;
+	enum dma_ch		 req_ch;
 	unsigned long		 dev_addr;
 	unsigned long		 load_timeout;
 	unsigned int		 flags;		/* channel flags */
-	unsigned int		 hw_cfg;	/* last hw config */
 
 	struct s3c24xx_dma_map	*map;		/* channel hw maps */
 
@@ -236,213 +192,6 @@ struct s3c2410_dma_chan {
 	struct sys_device	dev;
 };
 
-/* the currently allocated channel information */
-extern struct s3c2410_dma_chan s3c2410_chans[];
-
-/* note, we don't really use dma_device_t at the moment */
 typedef unsigned long dma_device_t;
-
-/* functions --------------------------------------------------------------- */
-
-/* s3c2410_dma_request
- *
- * request a dma channel exclusivley
-*/
-
-extern int s3c2410_dma_request(unsigned int channel,
-			       struct s3c2410_dma_client *, void *dev);
-
-
-/* s3c2410_dma_ctrl
- *
- * change the state of the dma channel
-*/
-
-extern int s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op);
-
-/* s3c2410_dma_setflags
- *
- * set the channel's flags to a given state
-*/
-
-extern int s3c2410_dma_setflags(unsigned int channel,
-				unsigned int flags);
-
-/* s3c2410_dma_free
- *
- * free the dma channel (will also abort any outstanding operations)
-*/
-
-extern int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *);
-
-/* s3c2410_dma_enqueue
- *
- * place the given buffer onto the queue of operations for the channel.
- * The buffer must be allocated from dma coherent memory, or the Dcache/WB
- * drained before the buffer is given to the DMA system.
-*/
-
-extern int s3c2410_dma_enqueue(unsigned int channel, void *id,
-			       dma_addr_t data, int size);
-
-/* s3c2410_dma_config
- *
- * configure the dma channel
-*/
-
-extern int s3c2410_dma_config(unsigned int channel, int xferunit, int dcon);
-
-/* s3c2410_dma_devconfig
- *
- * configure the device we're talking to
-*/
-
-extern int s3c2410_dma_devconfig(int channel, enum s3c2410_dmasrc source,
-				 int hwcfg, unsigned long devaddr);
-
-/* s3c2410_dma_getposition
- *
- * get the position that the dma transfer is currently at
-*/
-
-extern int s3c2410_dma_getposition(unsigned int channel,
-				   dma_addr_t *src, dma_addr_t *dest);
-
-extern int s3c2410_dma_set_opfn(unsigned int, s3c2410_dma_opfn_t rtn);
-extern int s3c2410_dma_set_buffdone_fn(unsigned int, s3c2410_dma_cbfn_t rtn);
-
-/* DMA Register definitions */
-
-#define S3C2410_DMA_DISRC       (0x00)
-#define S3C2410_DMA_DISRCC      (0x04)
-#define S3C2410_DMA_DIDST       (0x08)
-#define S3C2410_DMA_DIDSTC      (0x0C)
-#define S3C2410_DMA_DCON        (0x10)
-#define S3C2410_DMA_DSTAT       (0x14)
-#define S3C2410_DMA_DCSRC       (0x18)
-#define S3C2410_DMA_DCDST       (0x1C)
-#define S3C2410_DMA_DMASKTRIG   (0x20)
-#define S3C2412_DMA_DMAREQSEL	(0x24)
-#define S3C2443_DMA_DMAREQSEL	(0x24)
-
-#define S3C2410_DISRCC_INC	(1<<0)
-#define S3C2410_DISRCC_APB	(1<<1)
-
-#define S3C2410_DMASKTRIG_STOP   (1<<2)
-#define S3C2410_DMASKTRIG_ON     (1<<1)
-#define S3C2410_DMASKTRIG_SWTRIG (1<<0)
-
-#define S3C2410_DCON_DEMAND     (0<<31)
-#define S3C2410_DCON_HANDSHAKE  (1<<31)
-#define S3C2410_DCON_SYNC_PCLK  (0<<30)
-#define S3C2410_DCON_SYNC_HCLK  (1<<30)
-
-#define S3C2410_DCON_INTREQ     (1<<29)
-
-#define S3C2410_DCON_CH0_XDREQ0	(0<<24)
-#define S3C2410_DCON_CH0_UART0	(1<<24)
-#define S3C2410_DCON_CH0_SDI	(2<<24)
-#define S3C2410_DCON_CH0_TIMER	(3<<24)
-#define S3C2410_DCON_CH0_USBEP1	(4<<24)
-
-#define S3C2410_DCON_CH1_XDREQ1	(0<<24)
-#define S3C2410_DCON_CH1_UART1	(1<<24)
-#define S3C2410_DCON_CH1_I2SSDI	(2<<24)
-#define S3C2410_DCON_CH1_SPI	(3<<24)
-#define S3C2410_DCON_CH1_USBEP2	(4<<24)
-
-#define S3C2410_DCON_CH2_I2SSDO	(0<<24)
-#define S3C2410_DCON_CH2_I2SSDI	(1<<24)
-#define S3C2410_DCON_CH2_SDI	(2<<24)
-#define S3C2410_DCON_CH2_TIMER	(3<<24)
-#define S3C2410_DCON_CH2_USBEP3	(4<<24)
-
-#define S3C2410_DCON_CH3_UART2	(0<<24)
-#define S3C2410_DCON_CH3_SDI	(1<<24)
-#define S3C2410_DCON_CH3_SPI	(2<<24)
-#define S3C2410_DCON_CH3_TIMER	(3<<24)
-#define S3C2410_DCON_CH3_USBEP4	(4<<24)
-
-#define S3C2410_DCON_SRCSHIFT   (24)
-#define S3C2410_DCON_SRCMASK	(7<<24)
-
-#define S3C2410_DCON_BYTE       (0<<20)
-#define S3C2410_DCON_HALFWORD   (1<<20)
-#define S3C2410_DCON_WORD       (2<<20)
-
-#define S3C2410_DCON_AUTORELOAD (0<<22)
-#define S3C2410_DCON_NORELOAD   (1<<22)
-#define S3C2410_DCON_HWTRIG     (1<<23)
-
-#ifdef CONFIG_CPU_S3C2440
-#define S3C2440_DIDSTC_CHKINT	(1<<2)
-
-#define S3C2440_DCON_CH0_I2SSDO	(5<<24)
-#define S3C2440_DCON_CH0_PCMIN	(6<<24)
-
-#define S3C2440_DCON_CH1_PCMOUT	(5<<24)
-#define S3C2440_DCON_CH1_SDI	(6<<24)
-
-#define S3C2440_DCON_CH2_PCMIN	(5<<24)
-#define S3C2440_DCON_CH2_MICIN	(6<<24)
-
-#define S3C2440_DCON_CH3_MICIN	(5<<24)
-#define S3C2440_DCON_CH3_PCMOUT	(6<<24)
-#endif
-
-#ifdef CONFIG_CPU_S3C2412
-
-#define S3C2412_DMAREQSEL_SRC(x)	((x)<<1)
-
-#define S3C2412_DMAREQSEL_HW		(1)
-
-#define S3C2412_DMAREQSEL_SPI0TX	S3C2412_DMAREQSEL_SRC(0)
-#define S3C2412_DMAREQSEL_SPI0RX	S3C2412_DMAREQSEL_SRC(1)
-#define S3C2412_DMAREQSEL_SPI1TX	S3C2412_DMAREQSEL_SRC(2)
-#define S3C2412_DMAREQSEL_SPI1RX	S3C2412_DMAREQSEL_SRC(3)
-#define S3C2412_DMAREQSEL_I2STX		S3C2412_DMAREQSEL_SRC(4)
-#define S3C2412_DMAREQSEL_I2SRX		S3C2412_DMAREQSEL_SRC(5)
-#define S3C2412_DMAREQSEL_TIMER		S3C2412_DMAREQSEL_SRC(9)
-#define S3C2412_DMAREQSEL_SDI		S3C2412_DMAREQSEL_SRC(10)
-#define S3C2412_DMAREQSEL_USBEP1	S3C2412_DMAREQSEL_SRC(13)
-#define S3C2412_DMAREQSEL_USBEP2	S3C2412_DMAREQSEL_SRC(14)
-#define S3C2412_DMAREQSEL_USBEP3	S3C2412_DMAREQSEL_SRC(15)
-#define S3C2412_DMAREQSEL_USBEP4	S3C2412_DMAREQSEL_SRC(16)
-#define S3C2412_DMAREQSEL_XDREQ0	S3C2412_DMAREQSEL_SRC(17)
-#define S3C2412_DMAREQSEL_XDREQ1	S3C2412_DMAREQSEL_SRC(18)
-#define S3C2412_DMAREQSEL_UART0_0	S3C2412_DMAREQSEL_SRC(19)
-#define S3C2412_DMAREQSEL_UART0_1	S3C2412_DMAREQSEL_SRC(20)
-#define S3C2412_DMAREQSEL_UART1_0	S3C2412_DMAREQSEL_SRC(21)
-#define S3C2412_DMAREQSEL_UART1_1	S3C2412_DMAREQSEL_SRC(22)
-#define S3C2412_DMAREQSEL_UART2_0	S3C2412_DMAREQSEL_SRC(23)
-#define S3C2412_DMAREQSEL_UART2_1	S3C2412_DMAREQSEL_SRC(24)
-
-#endif
-
-#define S3C2443_DMAREQSEL_SRC(x)	((x)<<1)
-
-#define S3C2443_DMAREQSEL_HW		(1)
-
-#define S3C2443_DMAREQSEL_SPI0TX	S3C2443_DMAREQSEL_SRC(0)
-#define S3C2443_DMAREQSEL_SPI0RX	S3C2443_DMAREQSEL_SRC(1)
-#define S3C2443_DMAREQSEL_SPI1TX	S3C2443_DMAREQSEL_SRC(2)
-#define S3C2443_DMAREQSEL_SPI1RX	S3C2443_DMAREQSEL_SRC(3)
-#define S3C2443_DMAREQSEL_I2STX		S3C2443_DMAREQSEL_SRC(4)
-#define S3C2443_DMAREQSEL_I2SRX		S3C2443_DMAREQSEL_SRC(5)
-#define S3C2443_DMAREQSEL_TIMER		S3C2443_DMAREQSEL_SRC(9)
-#define S3C2443_DMAREQSEL_SDI		S3C2443_DMAREQSEL_SRC(10)
-#define S3C2443_DMAREQSEL_XDREQ0	S3C2443_DMAREQSEL_SRC(17)
-#define S3C2443_DMAREQSEL_XDREQ1	S3C2443_DMAREQSEL_SRC(18)
-#define S3C2443_DMAREQSEL_UART0_0	S3C2443_DMAREQSEL_SRC(19)
-#define S3C2443_DMAREQSEL_UART0_1	S3C2443_DMAREQSEL_SRC(20)
-#define S3C2443_DMAREQSEL_UART1_0	S3C2443_DMAREQSEL_SRC(21)
-#define S3C2443_DMAREQSEL_UART1_1	S3C2443_DMAREQSEL_SRC(22)
-#define S3C2443_DMAREQSEL_UART2_0	S3C2443_DMAREQSEL_SRC(23)
-#define S3C2443_DMAREQSEL_UART2_1	S3C2443_DMAREQSEL_SRC(24)
-#define S3C2443_DMAREQSEL_UART3_0	S3C2443_DMAREQSEL_SRC(25)
-#define S3C2443_DMAREQSEL_UART3_1	S3C2443_DMAREQSEL_SRC(26)
-#define S3C2443_DMAREQSEL_PCMOUT	S3C2443_DMAREQSEL_SRC(27)
-#define S3C2443_DMAREQSEL_PCMIN 	S3C2443_DMAREQSEL_SRC(28)
-#define S3C2443_DMAREQSEL_MICIN		S3C2443_DMAREQSEL_SRC(29)
 
 #endif /* __ASM_ARCH_DMA_H */

@@ -218,23 +218,16 @@ static int s3c24xx_pcm_prepare(struct snd_pcm_substream *substream)
 	 * sync to pclk, half-word transfers to the IIS-FIFO. */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		s3c2410_dma_devconfig(prtd->params->channel,
-				S3C2410_DMASRC_MEM, S3C2410_DISRCC_INC |
-				S3C2410_DISRCC_APB, prtd->params->dma_addr);
-
-		s3c2410_dma_config(prtd->params->channel,
-				prtd->params->dma_size,
-				S3C2410_DCON_SYNC_PCLK |
-				S3C2410_DCON_HANDSHAKE);
+				      S3C2410_DMASRC_MEM,
+				      prtd->params->dma_addr);
 	} else {
-		s3c2410_dma_config(prtd->params->channel,
-				prtd->params->dma_size,
-				S3C2410_DCON_HANDSHAKE |
-				S3C2410_DCON_SYNC_PCLK);
-
 		s3c2410_dma_devconfig(prtd->params->channel,
-					S3C2410_DMASRC_HW, 0x3,
-					prtd->params->dma_addr);
+				      S3C2410_DMASRC_HW,
+				      prtd->params->dma_addr);
 	}
+
+	s3c2410_dma_config(prtd->params->channel,
+			   prtd->params->dma_size);
 
 	/* flush the DMA channel */
 	s3c2410_dma_ctrl(prtd->params->channel, S3C2410_DMAOP_FLUSH);
