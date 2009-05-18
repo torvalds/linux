@@ -4410,8 +4410,8 @@ static int patch_alc880(struct hda_codec *codec)
 						  alc880_models,
 						  alc880_cfg_tbl);
 	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC880, "
-		       "trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC880_AUTO;
 	}
 
@@ -6054,8 +6054,9 @@ static int patch_alc260(struct hda_codec *codec)
 						  alc260_models,
 						  alc260_cfg_tbl);
 	if (board_config < 0) {
-		snd_printd(KERN_INFO "hda_codec: Unknown model for ALC260, "
-			   "trying auto-probe from BIOS...\n");
+		snd_printd(KERN_INFO "hda_codec: Unknown model for %s, "
+			   "trying auto-probe from BIOS...\n",
+			   codec->chip_name);
 		board_config = ALC260_AUTO;
 	}
 
@@ -7308,8 +7309,9 @@ static int patch_alc882(struct hda_codec *codec)
 				alc_free(codec);
 				return patch_alc883(codec);
 			}
-			printk(KERN_INFO "hda_codec: Unknown model for ALC882, "
-		       			 "trying auto-probe from BIOS...\n");
+			printk(KERN_INFO "hda_codec: Unknown model for %s, "
+			       "trying auto-probe from BIOS...\n",
+			       codec->chip_name);
 			board_config = ALC882_AUTO;
 		}
 	}
@@ -9196,8 +9198,8 @@ static int patch_alc883(struct hda_codec *codec)
 						  alc883_models,
 						  alc883_cfg_tbl);
 	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC883, "
-		       "trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC883_AUTO;
 	}
 
@@ -11040,8 +11042,8 @@ static int patch_alc262(struct hda_codec *codec)
 						  alc262_cfg_tbl);
 
 	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC262, "
-		       "trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC262_AUTO;
 	}
 
@@ -12076,8 +12078,8 @@ static int patch_alc268(struct hda_codec *codec)
 						  alc268_cfg_tbl);
 
 	if (board_config < 0 || board_config >= ALC268_MODEL_LAST) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC268, "
-		       "trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC268_AUTO;
 	}
 
@@ -12924,8 +12926,8 @@ static int patch_alc269(struct hda_codec *codec)
 						  alc269_cfg_tbl);
 
 	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC269, "
-		       "trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC269_AUTO;
 	}
 
@@ -14023,8 +14025,8 @@ static int patch_alc861(struct hda_codec *codec)
 						  alc861_cfg_tbl);
 
 	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC861, "
-		       "trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC861_AUTO;
 	}
 
@@ -14947,8 +14949,8 @@ static int patch_alc861vd(struct hda_codec *codec)
 						  alc861vd_cfg_tbl);
 
 	if (board_config < 0 || board_config >= ALC861VD_MODEL_LAST) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC660VD/"
-			"ALC861VD, trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC861VD_AUTO;
 	}
 
@@ -16872,8 +16874,8 @@ static int patch_alc662(struct hda_codec *codec)
 						  alc662_models,
 			  	                  alc662_cfg_tbl);
 	if (board_config < 0) {
-		printk(KERN_INFO "hda_codec: Unknown model for ALC662, "
-		       "trying auto-probe from BIOS...\n");
+		printk(KERN_INFO "hda_codec: Unknown model for %s, "
+		       "trying auto-probe from BIOS...\n", codec->chip_name);
 		board_config = ALC662_AUTO;
 	}
 
