@@ -1051,18 +1051,6 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("DAC Voice", "Voice Playback",
 			SND_SOC_NOPM, 0, 0),
 
-	/* Analog PGAs */
-	SND_SOC_DAPM_PGA("ARXR1_APGA", TWL4030_REG_ARXR1_APGA_CTL,
-			0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ARXL1_APGA", TWL4030_REG_ARXL1_APGA_CTL,
-			0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ARXR2_APGA", TWL4030_REG_ARXR2_APGA_CTL,
-			0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ARXL2_APGA", TWL4030_REG_ARXL2_APGA_CTL,
-			0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("VDL_APGA", TWL4030_REG_VDL_APGA_CTL,
-			0, 0, NULL, 0),
-
 	/* Analog bypasses */
 	SND_SOC_DAPM_SWITCH_E("Right1 Analog Loopback", SND_SOC_NOPM, 0, 0,
 			&twl4030_dapm_abypassr1_control, bypass_event,
@@ -1091,16 +1079,29 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 			&twl4030_dapm_dbypassv_control, bypass_event,
 			SND_SOC_DAPM_POST_REG),
 
-	SND_SOC_DAPM_MIXER("Analog R1 Playback Mixer", TWL4030_REG_AVDAC_CTL,
-			0, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Analog L1 Playback Mixer", TWL4030_REG_AVDAC_CTL,
-			1, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Analog R2 Playback Mixer", TWL4030_REG_AVDAC_CTL,
-			2, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Analog L2 Playback Mixer", TWL4030_REG_AVDAC_CTL,
-			3, 0, NULL, 0),
-	SND_SOC_DAPM_MIXER("Analog Voice Playback Mixer", TWL4030_REG_AVDAC_CTL,
-			4, 0, NULL, 0),
+	/* Digital mixers, power control for the physical DACs */
+	SND_SOC_DAPM_MIXER("Digital R1 Playback Mixer",
+			TWL4030_REG_AVDAC_CTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Digital L1 Playback Mixer",
+			TWL4030_REG_AVDAC_CTL, 1, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Digital R2 Playback Mixer",
+			TWL4030_REG_AVDAC_CTL, 2, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Digital L2 Playback Mixer",
+			TWL4030_REG_AVDAC_CTL, 3, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Digital Voice Playback Mixer",
+			TWL4030_REG_AVDAC_CTL, 4, 0, NULL, 0),
+
+	/* Analog mixers, power control for the physical PGAs */
+	SND_SOC_DAPM_MIXER("Analog R1 Playback Mixer",
+			TWL4030_REG_ARXR1_APGA_CTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Analog L1 Playback Mixer",
+			TWL4030_REG_ARXL1_APGA_CTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Analog R2 Playback Mixer",
+			TWL4030_REG_ARXR2_APGA_CTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Analog L2 Playback Mixer",
+			TWL4030_REG_ARXL2_APGA_CTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("Analog Voice Playback Mixer",
+			TWL4030_REG_VDL_APGA_CTL, 0, 0, NULL, 0),
 
 	/* Output MIXER controls */
 	/* Earpiece */
@@ -1194,60 +1195,60 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
-	{"Analog L1 Playback Mixer", NULL, "DAC Left1"},
-	{"Analog R1 Playback Mixer", NULL, "DAC Right1"},
-	{"Analog L2 Playback Mixer", NULL, "DAC Left2"},
-	{"Analog R2 Playback Mixer", NULL, "DAC Right2"},
-	{"Analog Voice Playback Mixer", NULL, "DAC Voice"},
+	{"Digital L1 Playback Mixer", NULL, "DAC Left1"},
+	{"Digital R1 Playback Mixer", NULL, "DAC Right1"},
+	{"Digital L2 Playback Mixer", NULL, "DAC Left2"},
+	{"Digital R2 Playback Mixer", NULL, "DAC Right2"},
+	{"Digital Voice Playback Mixer", NULL, "DAC Voice"},
 
-	{"ARXL1_APGA", NULL, "Analog L1 Playback Mixer"},
-	{"ARXR1_APGA", NULL, "Analog R1 Playback Mixer"},
-	{"ARXL2_APGA", NULL, "Analog L2 Playback Mixer"},
-	{"ARXR2_APGA", NULL, "Analog R2 Playback Mixer"},
-	{"VDL_APGA", NULL, "Analog Voice Playback Mixer"},
+	{"Analog L1 Playback Mixer", NULL, "Digital L1 Playback Mixer"},
+	{"Analog R1 Playback Mixer", NULL, "Digital R1 Playback Mixer"},
+	{"Analog L2 Playback Mixer", NULL, "Digital L2 Playback Mixer"},
+	{"Analog R2 Playback Mixer", NULL, "Digital R2 Playback Mixer"},
+	{"Analog Voice Playback Mixer", NULL, "Digital Voice Playback Mixer"},
 
 	/* Internal playback routings */
 	/* Earpiece */
-	{"Earpiece Mixer", "Voice", "VDL_APGA"},
-	{"Earpiece Mixer", "AudioL1", "ARXL1_APGA"},
-	{"Earpiece Mixer", "AudioL2", "ARXL2_APGA"},
-	{"Earpiece Mixer", "AudioR1", "ARXR1_APGA"},
+	{"Earpiece Mixer", "Voice", "Analog Voice Playback Mixer"},
+	{"Earpiece Mixer", "AudioL1", "Analog L1 Playback Mixer"},
+	{"Earpiece Mixer", "AudioL2", "Analog L2 Playback Mixer"},
+	{"Earpiece Mixer", "AudioR1", "Analog R1 Playback Mixer"},
 	/* PreDrivL */
-	{"PredriveL Mixer", "Voice", "VDL_APGA"},
-	{"PredriveL Mixer", "AudioL1", "ARXL1_APGA"},
-	{"PredriveL Mixer", "AudioL2", "ARXL2_APGA"},
-	{"PredriveL Mixer", "AudioR2", "ARXR2_APGA"},
+	{"PredriveL Mixer", "Voice", "Analog Voice Playback Mixer"},
+	{"PredriveL Mixer", "AudioL1", "Analog L1 Playback Mixer"},
+	{"PredriveL Mixer", "AudioL2", "Analog L2 Playback Mixer"},
+	{"PredriveL Mixer", "AudioR2", "Analog R2 Playback Mixer"},
 	/* PreDrivR */
-	{"PredriveR Mixer", "Voice", "VDL_APGA"},
-	{"PredriveR Mixer", "AudioR1", "ARXR1_APGA"},
-	{"PredriveR Mixer", "AudioR2", "ARXR2_APGA"},
-	{"PredriveR Mixer", "AudioL2", "ARXL2_APGA"},
+	{"PredriveR Mixer", "Voice", "Analog Voice Playback Mixer"},
+	{"PredriveR Mixer", "AudioR1", "Analog R1 Playback Mixer"},
+	{"PredriveR Mixer", "AudioR2", "Analog R2 Playback Mixer"},
+	{"PredriveR Mixer", "AudioL2", "Analog L2 Playback Mixer"},
 	/* HeadsetL */
-	{"HeadsetL Mixer", "Voice", "VDL_APGA"},
-	{"HeadsetL Mixer", "AudioL1", "ARXL1_APGA"},
-	{"HeadsetL Mixer", "AudioL2", "ARXL2_APGA"},
+	{"HeadsetL Mixer", "Voice", "Analog Voice Playback Mixer"},
+	{"HeadsetL Mixer", "AudioL1", "Analog L1 Playback Mixer"},
+	{"HeadsetL Mixer", "AudioL2", "Analog L2 Playback Mixer"},
 	/* HeadsetR */
-	{"HeadsetR Mixer", "Voice", "VDL_APGA"},
-	{"HeadsetR Mixer", "AudioR1", "ARXR1_APGA"},
-	{"HeadsetR Mixer", "AudioR2", "ARXR2_APGA"},
+	{"HeadsetR Mixer", "Voice", "Analog Voice Playback Mixer"},
+	{"HeadsetR Mixer", "AudioR1", "Analog R1 Playback Mixer"},
+	{"HeadsetR Mixer", "AudioR2", "Analog R2 Playback Mixer"},
 	/* CarkitL */
-	{"CarkitL Mixer", "Voice", "VDL_APGA"},
-	{"CarkitL Mixer", "AudioL1", "ARXL1_APGA"},
-	{"CarkitL Mixer", "AudioL2", "ARXL2_APGA"},
+	{"CarkitL Mixer", "Voice", "Analog Voice Playback Mixer"},
+	{"CarkitL Mixer", "AudioL1", "Analog L1 Playback Mixer"},
+	{"CarkitL Mixer", "AudioL2", "Analog L2 Playback Mixer"},
 	/* CarkitR */
-	{"CarkitR Mixer", "Voice", "VDL_APGA"},
-	{"CarkitR Mixer", "AudioR1", "ARXR1_APGA"},
-	{"CarkitR Mixer", "AudioR2", "ARXR2_APGA"},
+	{"CarkitR Mixer", "Voice", "Analog Voice Playback Mixer"},
+	{"CarkitR Mixer", "AudioR1", "Analog R1 Playback Mixer"},
+	{"CarkitR Mixer", "AudioR2", "Analog R2 Playback Mixer"},
 	/* HandsfreeL */
-	{"HandsfreeL Mux", "Voice", "VDL_APGA"},
-	{"HandsfreeL Mux", "AudioL1", "ARXL1_APGA"},
-	{"HandsfreeL Mux", "AudioL2", "ARXL2_APGA"},
-	{"HandsfreeL Mux", "AudioR2", "ARXR2_APGA"},
+	{"HandsfreeL Mux", "Voice", "Analog Voice Playback Mixer"},
+	{"HandsfreeL Mux", "AudioL1", "Analog L1 Playback Mixer"},
+	{"HandsfreeL Mux", "AudioL2", "Analog L2 Playback Mixer"},
+	{"HandsfreeL Mux", "AudioR2", "Analog R2 Playback Mixer"},
 	/* HandsfreeR */
-	{"HandsfreeR Mux", "Voice", "VDL_APGA"},
-	{"HandsfreeR Mux", "AudioR1", "ARXR1_APGA"},
-	{"HandsfreeR Mux", "AudioR2", "ARXR2_APGA"},
-	{"HandsfreeR Mux", "AudioL2", "ARXL2_APGA"},
+	{"HandsfreeR Mux", "Voice", "Analog Voice Playback Mixer"},
+	{"HandsfreeR Mux", "AudioR1", "Analog R1 Playback Mixer"},
+	{"HandsfreeR Mux", "AudioR2", "Analog R2 Playback Mixer"},
+	{"HandsfreeR Mux", "AudioL2", "Analog L2 Playback Mixer"},
 	/* Vibra */
 	{"Vibra Mux", "AudioL1", "DAC Left1"},
 	{"Vibra Mux", "AudioR1", "DAC Right1"},
@@ -1255,8 +1256,8 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Vibra Mux", "AudioR2", "DAC Right2"},
 
 	/* outputs */
-	{"OUTL", NULL, "ARXL2_APGA"},
-	{"OUTR", NULL, "ARXR2_APGA"},
+	{"OUTL", NULL, "Analog L2 Playback Mixer"},
+	{"OUTR", NULL, "Analog R2 Playback Mixer"},
 	{"EARPIECE", NULL, "Earpiece Mixer"},
 	{"PREDRIVEL", NULL, "PredriveL Mixer"},
 	{"PREDRIVER", NULL, "PredriveR Mixer"},
@@ -1320,9 +1321,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Left Digital Loopback", "Volume", "TX1 Capture Route"},
 	{"Voice Digital Loopback", "Volume", "TX2 Capture Route"},
 
-	{"Analog R2 Playback Mixer", NULL, "Right Digital Loopback"},
-	{"Analog L2 Playback Mixer", NULL, "Left Digital Loopback"},
-	{"Analog Voice Playback Mixer", NULL, "Voice Digital Loopback"},
+	{"Digital R2 Playback Mixer", NULL, "Right Digital Loopback"},
+	{"Digital L2 Playback Mixer", NULL, "Left Digital Loopback"},
+	{"Digital Voice Playback Mixer", NULL, "Voice Digital Loopback"},
 
 };
 
