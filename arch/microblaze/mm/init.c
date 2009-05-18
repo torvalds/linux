@@ -44,15 +44,14 @@ static void __init paging_init(void)
 	int i;
 	unsigned long zones_size[MAX_NR_ZONES];
 
+	/* Clean every zones */
+	memset(zones_size, 0, sizeof(zones_size));
+
 	/*
 	 * old: we can DMA to/from any address.put all page into ZONE_DMA
 	 * We use only ZONE_NORMAL
 	 */
 	zones_size[ZONE_NORMAL] = max_mapnr;
-
-	/* every other zones are empty */
-	for (i = 1; i < MAX_NR_ZONES; i++)
-		zones_size[i] = 0;
 
 	free_area_init(zones_size);
 }
