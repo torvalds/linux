@@ -148,8 +148,17 @@ struct s3c_gpio_chip s3c24xx_gpios[] = {
 			.base			= S3C2410_GPG(0),
 			.owner			= THIS_MODULE,
 			.label			= "GPIOG",
-			.ngpio			= 10,
+			.ngpio			= 16,
 			.to_irq			= s3c24xx_gpiolib_bankg_toirq,
+		},
+	}, {
+		.base	= S3C2410_GPHCON,
+		.pm	= __gpio_pm(&s3c_gpio_pm_2bit),
+		.chip	= {
+			.base			= S3C2410_GPH(0),
+			.owner			= THIS_MODULE,
+			.label			= "GPIOH",
+			.ngpio			= 11,
 		},
 	},
 };
