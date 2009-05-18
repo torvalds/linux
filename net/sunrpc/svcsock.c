@@ -380,6 +380,7 @@ static void svc_sock_setbufsize(struct socket *sock, unsigned int snd,
 	sock->sk->sk_sndbuf = snd * 2;
 	sock->sk->sk_rcvbuf = rcv * 2;
 	sock->sk->sk_userlocks |= SOCK_SNDBUF_LOCK|SOCK_RCVBUF_LOCK;
+	sock->sk->sk_write_space(sock->sk);
 	release_sock(sock->sk);
 #endif
 }
@@ -419,6 +420,15 @@ static void svc_write_space(struct sock *sk)
 		       svsk);
 		wake_up_interruptible(sk->sk_sleep);
 	}
+}
+
+static void svc_tcp_write_space(struct sock *sk)
+{
+	struct socket *sock = sk->sk_socket;
+
+	if (sk_stream_wspace(sk) >= sk_stream_min_wspace(sk) && sock)
+		clear_bit(SOCK_NOSPACE, &sock->flags);
+	svc_write_space(sk);
 }
 
 /*
@@ -1015,25 +1025,16 @@ static void svc_tcp_prep_reply_hdr(struct svc_rqst *rqstp)
 static int svc_tcp_has_wspace(struct svc_xprt *xprt)
 {
 	struct svc_sock *svsk =	container_of(xprt, struct svc_sock, sk_xprt);
-	struct svc_serv	*serv = svsk->sk_xprt.xpt_server;
+	struct svc_serv *serv = svsk->sk_xprt.xpt_server;
 	int required;
-	int wspace;
 
-	/*
-	 * Set the SOCK_NOSPACE flag before checking the available
-	 * sock space.
-	 */
+	if (test_bit(XPT_LISTENER, &xprt->xpt_flags))
+		return 1;
+	required = atomic_read(&xprt->xpt_reserved) + serv->sv_max_mesg;
+	if (sk_stream_wspace(svsk->sk_sk) >= required)
+		return 1;
 	set_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
-	required = atomic_read(&svsk->sk_xprt.xpt_reserved) + serv->sv_max_mesg;
-	wspace = sk_stream_wspace(svsk->sk_sk);
-
-	if (wspace < sk_stream_min_wspace(svsk->sk_sk))
-		return 0;
-	if (required * 2 > wspace)
-		return 0;
-
-	clear_bit(SOCK_NOSPACE, &svsk->sk_sock->flags);
-	return 1;
+	return 0;
 }
 
 static struct svc_xprt *svc_tcp_create(struct svc_serv *serv,
@@ -1089,7 +1090,7 @@ static void svc_tcp_init(struct svc_sock *svsk, struct svc_serv *serv)
 		dprintk("setting up TCP socket for reading\n");
 		sk->sk_state_change = svc_tcp_state_change;
 		sk->sk_data_ready = svc_tcp_data_ready;
-		sk->sk_write_space = svc_write_space;
+		sk->sk_write_space = svc_tcp_write_space;
 
 		svsk->sk_reclen = 0;
 		svsk->sk_tcplen = 0;
