@@ -14,8 +14,6 @@
 
 KBUILD_DEFCONFIG := ip22_defconfig
 
-cflags-y := -ffunction-sections
-
 #
 # Select the object file format to substitute into the linker script.
 #
@@ -49,6 +47,9 @@ ifneq ($(SUBARCH),$(ARCH))
     CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-linux-gnu-  $(tool-archpref)-unknown-linux-gnu-)
   endif
 endif
+
+cflags-y := -ffunction-sections
+cflags-y += $(call cc-option, -mno-check-zero-division)
 
 ifdef CONFIG_32BIT
 ld-emul			= $(32bit-emul)

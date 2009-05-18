@@ -384,7 +384,51 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 	.destroy = intel_lvds_enc_destroy,
 };
 
+static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
+{
+	DRM_DEBUG("Skipping LVDS initialization for %s\n", id->ident);
+	return 1;
+}
 
+/* These systems claim to have LVDS, but really don't */
+static const struct dmi_system_id __initdata intel_no_lvds[] = {
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Apple Mac Mini (Core series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Macmini1,1"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Apple Mac Mini (Core 2 series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Macmini2,1"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "MSI IM-945GSE-A",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MSI"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A9830IMS"),
+		},
+	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Dell Studio Hybrid",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Studio Hybrid 140g"),
+		},
+	},
+
+	/* FIXME: add a check for the Aopen Mini PC */
+
+	{ }	/* terminating entry */
+};
 
 /**
  * intel_lvds_init - setup LVDS connectors on this device
@@ -404,15 +448,9 @@ void intel_lvds_init(struct drm_device *dev)
 	u32 lvds;
 	int pipe;
 
-	/* Blacklist machines that we know falsely report LVDS. */
-	/* FIXME: add a check for the Aopen Mini PC */
-
-	/* Apple Mac Mini Core Duo and Mac Mini Core 2 Duo */
-	if(dmi_match(DMI_PRODUCT_NAME, "Macmini1,1") ||
-	   dmi_match(DMI_PRODUCT_NAME, "Macmini2,1")) {
-		DRM_DEBUG("Skipping LVDS initialization for Apple Mac Mini\n");
+	/* Skip init on machines we know falsely report LVDS */
+	if (dmi_check_system(intel_no_lvds))
 		return;
-	}
 
 	intel_output = kzalloc(sizeof(struct intel_output), GFP_KERNEL);
 	if (!intel_output) {

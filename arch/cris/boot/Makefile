@@ -1,8 +1,12 @@
 #
-# arch/cris/arch-v10/boot/Makefile
+# arch/cris/boot/Makefile
 #
 
-OBJCOPYFLAGS = -O binary --remove-section=.bss
+objcopyflags-$(CONFIG_ETRAX_ARCH_V10) += -R .note -R .comment
+objcopyflags-$(CONFIG_ETRAX_ARCH_V32) += --remove-section=.bss
+
+OBJCOPYFLAGS = -O binary $(objcopyflags-y)
+
 
 subdir- := compressed rescue
 targets := Image

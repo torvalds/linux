@@ -3,12 +3,12 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * Derived from IRIX <sys/SN/nmi.h>, Revision 1.5.
+ *
  * Copyright (C) 1992 - 1997 Silicon Graphics, Inc.
  */
 #ifndef __ASM_SN_NMI_H
 #define __ASM_SN_NMI_H
-
-#ident "$Revision: 1.5 $"
 
 #include <asm/sn/addrs.h>
 

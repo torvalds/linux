@@ -86,6 +86,7 @@ struct mlx4_ib_mr {
 
 struct mlx4_ib_fast_reg_page_list {
 	struct ib_fast_reg_page_list	ibfrpl;
+	__be64			       *mapped_page_list;
 	dma_addr_t			map;
 };
 

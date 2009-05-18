@@ -1329,6 +1329,14 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	priv = dev->priv;
 	priv->is_rtl8187b = (id->driver_info == DEVICE_RTL8187B);
 
+	/* allocate "DMA aware" buffer for register accesses */
+	priv->io_dmabuf = kmalloc(sizeof(*priv->io_dmabuf), GFP_KERNEL);
+	if (!priv->io_dmabuf) {
+		err = -ENOMEM;
+		goto err_free_dev;
+	}
+	mutex_init(&priv->io_mutex);
+
 	SET_IEEE80211_DEV(dev, &intf->dev);
 	usb_set_intfdata(intf, dev);
 	priv->udev = udev;
@@ -1495,7 +1503,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	err = ieee80211_register_hw(dev);
 	if (err) {
 		printk(KERN_ERR "rtl8187: Cannot register device\n");
-		goto err_free_dev;
+		goto err_free_dmabuf;
 	}
 	mutex_init(&priv->conf_mutex);
 	skb_queue_head_init(&priv->b_tx_status.queue);
@@ -1506,6 +1514,8 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 
 	return 0;
 
+ err_free_dmabuf:
+	kfree(priv->io_dmabuf);
  err_free_dev:
 	ieee80211_free_hw(dev);
 	usb_set_intfdata(intf, NULL);
@@ -1526,6 +1536,7 @@ static void __devexit rtl8187_disconnect(struct usb_interface *intf)
 	priv = dev->priv;
 	usb_reset_device(priv->udev);
 	usb_put_dev(interface_to_usbdev(intf));
+	kfree(priv->io_dmabuf);
 	ieee80211_free_hw(dev);
 }
 

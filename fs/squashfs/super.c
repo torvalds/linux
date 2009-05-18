@@ -157,6 +157,16 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (msblk->block_size > SQUASHFS_FILE_MAX_SIZE)
 		goto failed_mount;
 
+	/*
+	 * Check the system page size is not larger than the filesystem
+	 * block size (by default 128K).  This is currently not supported.
+	 */
+	if (PAGE_CACHE_SIZE > msblk->block_size) {
+		ERROR("Page size > filesystem block size (%d).  This is "
+			"currently not supported!\n", msblk->block_size);
+		goto failed_mount;
+	}
+
 	msblk->block_log = le16_to_cpu(sblk->block_log);
 	if (msblk->block_log > SQUASHFS_FILE_MAX_LOG)
 		goto failed_mount;

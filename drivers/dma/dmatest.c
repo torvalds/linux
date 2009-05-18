@@ -531,9 +531,7 @@ static int __init dmatest_init(void)
 		chan = dma_request_channel(mask, filter, NULL);
 		if (chan) {
 			err = dmatest_add_channel(chan);
-			if (err == 0)
-				continue;
-			else {
+			if (err) {
 				dma_release_channel(chan);
 				break; /* add_channel failed, punt */
 			}
