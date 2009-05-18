@@ -15,6 +15,7 @@
 #define VIRTIO_BLK_F_GEOMETRY	4	/* Legacy geometry available  */
 #define VIRTIO_BLK_F_RO		5	/* Disk is read-only */
 #define VIRTIO_BLK_F_BLK_SIZE	6	/* Block size of disk is available*/
+#define VIRTIO_BLK_F_SCSI	7	/* Supports scsi command passthru */
 
 struct virtio_blk_config
 {
@@ -53,6 +54,13 @@ struct virtio_blk_outhdr
 	__u32 ioprio;
 	/* Sector (ie. 512 byte offset) */
 	__u64 sector;
+};
+
+struct virtio_scsi_inhdr {
+	__u32 errors;
+	__u32 data_len;
+	__u32 sense_len;
+	__u32 residual;
 };
 
 /* And this is the final byte of the write scatter-gather list. */
