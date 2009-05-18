@@ -1347,8 +1347,7 @@ static int check_leaf(struct trie *t, struct leaf *l,
 		if (l->key != (key & ntohl(mask)))
 			continue;
 
-		err = fib_semantic_match(&li->falh, flp, res,
-					 htonl(l->key), mask, plen);
+		err = fib_semantic_match(&li->falh, flp, res, plen);
 
 #ifdef CONFIG_IP_FIB_TRIE_STATS
 		if (err <= 0)
