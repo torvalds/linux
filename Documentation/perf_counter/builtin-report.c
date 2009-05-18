@@ -32,7 +32,8 @@
 #include <linux/types.h>
 
 #include "../../include/linux/perf_counter.h"
-#include "list.h"
+#include "util/list.h"
+#include "util/rbtree.h"
 
 #define SHOW_KERNEL	1
 #define SHOW_USER	2
@@ -106,10 +107,10 @@ static void section__delete(struct section *self)
 }
 
 struct symbol {
-	struct list_head node;
-	uint64_t	 start;
-	uint64_t	 end;
-	char		 name[0];
+	struct rb_node rb_node;
+	uint64_t       start;
+	uint64_t       end;
+	char	       name[0];
 };
 
 static struct symbol *symbol__new(uint64_t start, uint64_t len, const char *name)
@@ -139,7 +140,7 @@ static size_t symbol__fprintf(struct symbol *self, FILE *fp)
 struct dso {
 	struct list_head node;
 	struct list_head sections;
-	struct list_head syms;
+	struct rb_root	 syms;
 	char		 name[0];
 };
 
@@ -150,7 +151,7 @@ static struct dso *dso__new(const char *name)
 	if (self != NULL) {
 		strcpy(self->name, name);
 		INIT_LIST_HEAD(&self->sections);
-		INIT_LIST_HEAD(&self->syms);
+		self->syms = RB_ROOT;
 	}
 
 	return self;
@@ -166,10 +167,14 @@ static void dso__delete_sections(struct dso *self)
 
 static void dso__delete_symbols(struct dso *self)
 {
-	struct symbol *pos, *n;
+	struct symbol *pos;
+	struct rb_node *next = rb_first(&self->syms);
 
-	list_for_each_entry_safe(pos, n, &self->syms, node)
+	while (next) {
+		pos = rb_entry(next, struct symbol, rb_node);
+		next = rb_next(&pos->rb_node);
 		symbol__delete(pos);
+	}
 }
 
 static void dso__delete(struct dso *self)
@@ -181,7 +186,21 @@ static void dso__delete(struct dso *self)
 
 static void dso__insert_symbol(struct dso *self, struct symbol *sym)
 {
-	list_add_tail(&sym->node, &self->syms);
+	struct rb_node **p = &self->syms.rb_node;
+	struct rb_node *parent = NULL;
+	const uint64_t ip = sym->start;
+	struct symbol *s;
+
+	while (*p != NULL) {
+		parent = *p;
+		s = rb_entry(parent, struct symbol, rb_node);
+		if (ip < s->start)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+	rb_link_node(&sym->rb_node, parent, p);
+	rb_insert_color(&sym->rb_node, &self->syms);
 }
 
 static struct symbol *dso__find_symbol(struct dso *self, uint64_t ip)
@@ -189,11 +208,18 @@ static struct symbol *dso__find_symbol(struct dso *self, uint64_t ip)
 	if (self == NULL)
 		return NULL;
 
-	struct symbol *pos;
+	struct rb_node *n = self->syms.rb_node;
 
-	list_for_each_entry(pos, &self->syms, node)
-		if (ip >= pos->start && ip <= pos->end)
-			return pos;
+	while (n) {
+		struct symbol *s = rb_entry(n, struct symbol, rb_node);
+
+		if (ip < s->start)
+			n = n->rb_left;
+		else if (ip > s->end)
+			n = n->rb_right;
+		else
+			return s;
+	}
 
 	return NULL;
 }
@@ -319,11 +345,13 @@ out_close:
 
 static size_t dso__fprintf(struct dso *self, FILE *fp)
 {
-	struct symbol *pos;
 	size_t ret = fprintf(fp, "dso: %s\n", self->name);
 
-	list_for_each_entry(pos, &self->syms, node)
+	struct rb_node *nd;
+	for (nd = rb_first(&self->syms); nd; nd = rb_next(nd)) {
+		struct symbol *pos = rb_entry(nd, struct symbol, rb_node);
 		ret += symbol__fprintf(pos, fp);
+	}
 
 	return ret;
 }

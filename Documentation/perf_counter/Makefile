@@ -287,6 +287,8 @@ LIB_FILE=libperf.a
 
 LIB_H += ../../include/linux/perf_counter.h
 LIB_H += perf.h
+LIB_H += util/list.h
+LIB_H += util/rbtree.h
 LIB_H += util/levenshtein.h
 LIB_H += util/parse-options.h
 LIB_H += util/parse-events.h
@@ -306,6 +308,7 @@ LIB_OBJS += util/levenshtein.o
 LIB_OBJS += util/parse-options.o
 LIB_OBJS += util/parse-events.o
 LIB_OBJS += util/path.o
+LIB_OBJS += util/rbtree.o
 LIB_OBJS += util/run-command.o
 LIB_OBJS += util/quote.o
 LIB_OBJS += util/strbuf.o
