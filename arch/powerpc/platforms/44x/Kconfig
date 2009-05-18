@@ -246,6 +246,7 @@ config IBM440EP_ERR42
 # Xilinx specific config options.
 config XILINX_VIRTEX
 	bool
+	select DEFAULT_UIMAGE
 
 # Xilinx Virtex 5 FXT FPGA architecture, selected by a Xilinx board above
 config XILINX_VIRTEX_5_FXT

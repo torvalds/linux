@@ -21,6 +21,7 @@
 #include <linux/io.h>
 
 #include <mach/hardware.h>
+#include <asm/cacheflush.h>
 #include <asm/irq.h>
 
 #include <mach/regs-power.h>
@@ -38,6 +39,8 @@ extern void s3c2412_sleep_enter(void);
 static void s3c2412_cpu_suspend(void)
 {
 	unsigned long tmp;
+
+	flush_cache_all();
 
 	/* set our standby method to sleep */
 

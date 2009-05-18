@@ -44,7 +44,7 @@
 
 extern int allow_au1k_wait; /* default off for CP0 Counter */
 
-static cycle_t au1x_counter1_read(void)
+static cycle_t au1x_counter1_read(struct clocksource *cs)
 {
 	return au_readl(SYS_RTCREAD);
 }

@@ -1,7 +1,9 @@
 #ifndef __ALPHA_PERCPU_H
 #define __ALPHA_PERCPU_H
+
 #include <linux/compiler.h>
 #include <linux/threads.h>
+#include <linux/percpu-defs.h>
 
 /*
  * Determine the real variable name from the name visible in the
@@ -73,6 +75,28 @@ extern unsigned long __per_cpu_offset[NR_CPUS];
 
 #endif /* SMP */
 
-#include <asm-generic/percpu.h>
+#ifdef CONFIG_SMP
+#define PER_CPU_BASE_SECTION ".data.percpu"
+#else
+#define PER_CPU_BASE_SECTION ".data"
+#endif
+
+#ifdef CONFIG_SMP
+
+#ifdef MODULE
+#define PER_CPU_SHARED_ALIGNED_SECTION ""
+#else
+#define PER_CPU_SHARED_ALIGNED_SECTION ".shared_aligned"
+#endif
+#define PER_CPU_FIRST_SECTION ".first"
+
+#else
+
+#define PER_CPU_SHARED_ALIGNED_SECTION ""
+#define PER_CPU_FIRST_SECTION ""
+
+#endif
+
+#define PER_CPU_ATTRIBUTES
 
 #endif /* __ALPHA_PERCPU_H */

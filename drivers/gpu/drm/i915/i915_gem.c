@@ -1691,11 +1691,20 @@ static int
 i915_wait_request(struct drm_device *dev, uint32_t seqno)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 ier;
 	int ret = 0;
 
 	BUG_ON(seqno == 0);
 
 	if (!i915_seqno_passed(i915_get_gem_seqno(dev), seqno)) {
+		ier = I915_READ(IER);
+		if (!ier) {
+			DRM_ERROR("something (likely vbetool) disabled "
+				  "interrupts, re-enabling\n");
+			i915_driver_irq_preinstall(dev);
+			i915_driver_irq_postinstall(dev);
+		}
+
 		dev_priv->mm.waiting_gem_seqno = seqno;
 		i915_user_irq_get(dev);
 		ret = wait_event_interruptible(dev_priv->irq_queue,

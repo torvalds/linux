@@ -545,14 +545,17 @@ static inline struct sk_buff *get_skb_by_index(struct sk_buff **skb_array,
 	x &= (arr_len - 1);
 
 	pref = skb_array[x];
-	prefetchw(pref);
-	prefetchw(pref + EHEA_CACHE_LINE);
+	if (pref) {
+		prefetchw(pref);
+		prefetchw(pref + EHEA_CACHE_LINE);
 
-	pref = (skb_array[x]->data);
-	prefetch(pref);
-	prefetch(pref + EHEA_CACHE_LINE);
-	prefetch(pref + EHEA_CACHE_LINE * 2);
-	prefetch(pref + EHEA_CACHE_LINE * 3);
+		pref = (skb_array[x]->data);
+		prefetch(pref);
+		prefetch(pref + EHEA_CACHE_LINE);
+		prefetch(pref + EHEA_CACHE_LINE * 2);
+		prefetch(pref + EHEA_CACHE_LINE * 3);
+	}
+
 	skb = skb_array[skb_index];
 	skb_array[skb_index] = NULL;
 	return skb;
@@ -569,12 +572,14 @@ static inline struct sk_buff *get_skb_by_index_ll(struct sk_buff **skb_array,
 	x &= (arr_len - 1);
 
 	pref = skb_array[x];
-	prefetchw(pref);
-	prefetchw(pref + EHEA_CACHE_LINE);
+	if (pref) {
+		prefetchw(pref);
+		prefetchw(pref + EHEA_CACHE_LINE);
 
-	pref = (skb_array[x]->data);
-	prefetchw(pref);
-	prefetchw(pref + EHEA_CACHE_LINE);
+		pref = (skb_array[x]->data);
+		prefetchw(pref);
+		prefetchw(pref + EHEA_CACHE_LINE);
+	}
 
 	skb = skb_array[wqe_index];
 	skb_array[wqe_index] = NULL;

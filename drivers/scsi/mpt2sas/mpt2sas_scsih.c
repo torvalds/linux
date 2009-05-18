@@ -119,7 +119,7 @@ struct sense_info {
  */
 struct fw_event_work {
 	struct list_head 	list;
-	struct delayed_work	work;
+	struct work_struct	work;
 	struct MPT2SAS_ADAPTER *ioc;
 	u8			VF_ID;
 	u8			host_reset_handling;
@@ -516,12 +516,8 @@ _scsih_sas_device_add(struct MPT2SAS_ADAPTER *ioc,
 	handle = sas_device->handle;
 	parent_handle = sas_device->parent_handle;
 	sas_address = sas_device->sas_address;
-	if (!mpt2sas_transport_port_add(ioc, handle, parent_handle)) {
+	if (!mpt2sas_transport_port_add(ioc, handle, parent_handle))
 		_scsih_sas_device_remove(ioc, sas_device);
-	} else if (!sas_device->starget) {
-		mpt2sas_transport_port_remove(ioc, sas_address, parent_handle);
-		_scsih_sas_device_remove(ioc, sas_device);
-	}
 }
 
 /**
@@ -1203,7 +1199,9 @@ scsih_target_destroy(struct scsi_target *starget)
 	rphy = dev_to_rphy(starget->dev.parent);
 	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 	   rphy->identify.sas_address);
-	if (sas_device)
+	if (sas_device && (sas_device->starget == starget) &&
+	    (sas_device->id == starget->id) &&
+	    (sas_device->channel == starget->channel))
 		sas_device->starget = NULL;
 
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
@@ -2009,8 +2007,8 @@ _scsih_fw_event_add(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	list_add_tail(&fw_event->list, &ioc->fw_event_list);
-	INIT_DELAYED_WORK(&fw_event->work, _firmware_event_work);
-	queue_delayed_work(ioc->firmware_event_thread, &fw_event->work, 1);
+	INIT_WORK(&fw_event->work, _firmware_event_work);
+	queue_work(ioc->firmware_event_thread, &fw_event->work);
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
@@ -2054,7 +2052,7 @@ _scsih_fw_event_requeue(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
 		return;
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	queue_delayed_work(ioc->firmware_event_thread, &fw_event->work, delay);
+	queue_work(ioc->firmware_event_thread, &fw_event->work);
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
@@ -2863,8 +2861,9 @@ scsih_io_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 VF_ID, u32 reply)
 		struct sense_info data;
 		const void *sense_data = mpt2sas_base_get_sense_buffer(ioc,
 		    smid);
-		memcpy(scmd->sense_buffer, sense_data,
+		u32 sz = min_t(u32, SCSI_SENSE_BUFFERSIZE,
 		    le32_to_cpu(mpi_reply->SenseCount));
+		memcpy(scmd->sense_buffer, sense_data, sz);
 		_scsih_normalize_sense(scmd->sense_buffer, &data);
 		/* failure prediction threshold exceeded */
 		if (data.asc == 0x5D)
@@ -3923,7 +3922,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 
 		mpt2sas_scsih_issue_tm(ioc, handle, lun,
 		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30);
-		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
+		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 
 		if ((mpi_reply->IOCStatus == MPI2_IOCSTATUS_SUCCESS) &&
 		    (mpi_reply->ResponseCode ==
@@ -3933,10 +3932,10 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc, u8 VF_ID,
 			continue;
 
 		mpt2sas_scsih_issue_tm(ioc, handle, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, smid, 30);
+		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30);
+		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
 	}
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 	ioc->broadcast_aen_busy = 0;
 	mutex_unlock(&ioc->tm_cmds.mutex);
 
@@ -4962,7 +4961,7 @@ static void
 _firmware_event_work(struct work_struct *work)
 {
 	struct fw_event_work *fw_event = container_of(work,
-	    struct fw_event_work, work.work);
+	    struct fw_event_work, work);
 	unsigned long flags;
 	struct MPT2SAS_ADAPTER *ioc = fw_event->ioc;
 

@@ -10,13 +10,12 @@ cd "${1:-.}" || usage
 
 # Check for git and a git repo.
 if head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
-	# Do we have an untagged version?
-	if git name-rev --tags HEAD | grep -E '^HEAD[[:space:]]+(.*~[0-9]*|undefined)$' > /dev/null; then
-		if tag=`git describe 2>/dev/null`; then
-			echo $tag | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
-		else
-			printf '%s%s' -g $head
-		fi
+	# Do we have an untagged tag?
+	if atag=`git describe 2>/dev/null`; then
+		echo "$atag" | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
+	# add -g${head}, if there is no usable tag
+	else
+		printf '%s%s' -g $head
 	fi
 
 	# Is this git on svn?
