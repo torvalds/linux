@@ -234,6 +234,8 @@ struct pci_ats {
 	int pos;	/* capability position */
 	int stu;	/* Smallest Translation Unit */
 	int qdep;	/* Invalidate Queue Depth */
+	int ref_cnt;	/* Physical Function reference count */
+	int is_enabled:1;	/* Enable bit is set */
 };
 
 #ifdef CONFIG_PCI_IOV
@@ -255,7 +257,7 @@ extern int pci_ats_queue_depth(struct pci_dev *dev);
  */
 static inline int pci_ats_enabled(struct pci_dev *dev)
 {
-	return !!dev->ats;
+	return dev->ats && dev->ats->is_enabled;
 }
 #else
 static inline int pci_iov_init(struct pci_dev *dev)
