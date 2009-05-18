@@ -111,6 +111,15 @@ config TOUCHSCREEN_DA9034
 	  Say Y here to enable the support for the touchscreen found
 	  on Dialog Semiconductor DA9034 PMIC.
 
+config TOUCHSCREEN_EETI
+	tristate "EETI touchscreen panel support"
+	depends on I2C
+	help
+	  Say Y here to enable support for I2C connected EETI touch panels.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called eeti_ts.
+
 config TOUCHSCREEN_FUJITSU
 	tristate "Fujitsu serial touchscreen"
 	select SERIO
