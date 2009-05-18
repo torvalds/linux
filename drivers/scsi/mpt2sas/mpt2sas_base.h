@@ -61,6 +61,7 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport_sas.h>
 #include <scsi/scsi_dbg.h>
+#include <scsi/scsi_eh.h>
 
 #include "mpt2sas_debug.h"
 
