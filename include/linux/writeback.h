@@ -14,17 +14,6 @@ extern struct list_head inode_in_use;
 extern struct list_head inode_unused;
 
 /*
- * Yes, writeback.h requires sched.h
- * No, sched.h is not included from here.
- */
-static inline int task_is_pdflush(struct task_struct *task)
-{
-	return task->flags & PF_FLUSHER;
-}
-
-#define current_is_pdflush()	task_is_pdflush(current)
-
-/*
  * fs/fs-writeback.c
  */
 enum writeback_sync_modes {
@@ -155,7 +144,6 @@ balance_dirty_pages_ratelimited(struct address_space *mapping)
 typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
 				void *data);
 
-int pdflush_operation(void (*fn)(unsigned long), unsigned long arg0);
 int generic_writepages(struct address_space *mapping,
 		       struct writeback_control *wbc);
 int write_cache_pages(struct address_space *mapping,

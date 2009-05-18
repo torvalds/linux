@@ -30,6 +30,11 @@
 #define inode_to_bdi(inode)	((inode)->i_mapping->backing_dev_info)
 
 /*
+ * We don't actually have pdflush, but this one is exported though /proc...
+ */
+int nr_pdflush_threads;
+
+/*
  * Work items for the bdi_writeback threads
  */
 struct bdi_work {
