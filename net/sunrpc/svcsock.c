@@ -893,6 +893,7 @@ failed:
 static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 {
 	struct svc_serv	*serv = svsk->sk_xprt.xpt_server;
+	unsigned int want;
 	int len;
 
 	if (test_and_clear_bit(XPT_CHNGBUF, &svsk->sk_xprt.xpt_flags))
@@ -915,9 +916,9 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
 	if (svsk->sk_tcplen < sizeof(rpc_fraghdr)) {
-		int		want = sizeof(rpc_fraghdr) - svsk->sk_tcplen;
 		struct kvec	iov;
 
+		want = sizeof(rpc_fraghdr) - svsk->sk_tcplen;
 		iov.iov_base = ((char *) &svsk->sk_reclen) + svsk->sk_tcplen;
 		iov.iov_len  = want;
 		if ((len = svc_recvfrom(rqstp, &iov, 1, want)) < 0)
@@ -1040,8 +1041,9 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	struct svc_serv	*serv = svsk->sk_xprt.xpt_server;
 	int		len;
 	struct kvec *vec;
-	int pnum, vlen;
 	struct rpc_rqst *req = NULL;
+	unsigned int vlen;
+	int pnum;
 
 	dprintk("svc: tcp_recv %p data %d conn %d close %d\n",
 		svsk, test_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags),
@@ -1072,7 +1074,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	}
 
 	pnum = 1;
-	while (vlen < len) {
+	while (vlen < svsk->sk_reclen - 8) {
 		vec[pnum].iov_base = (req) ?
 			page_address(req->rq_private_buf.pages[pnum - 1]) :
 			page_address(rqstp->rq_pages[pnum]);
@@ -1083,29 +1085,23 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_respages = &rqstp->rq_pages[pnum];
 
 	/* Now receive data */
-	len = svc_recvfrom(rqstp, vec, pnum, len);
+	len = svc_recvfrom(rqstp, vec, pnum, svsk->sk_reclen - 8);
 	if (len < 0)
 		goto err_again;
 
-	/*
-	 * Account for the 8 bytes we read earlier
-	 */
-	len += 8;
-
 	if (req) {
-		xprt_complete_rqst(req->rq_task, len);
-		len = 0;
+		xprt_complete_rqst(req->rq_task, svsk->sk_reclen);
+		rqstp->rq_arg.len = 0;
 		goto out;
 	}
-	dprintk("svc: TCP complete record (%d bytes)\n", len);
-	rqstp->rq_arg.len = len;
+	dprintk("svc: TCP complete record (%d bytes)\n", svsk->sk_reclen);
+	rqstp->rq_arg.len = svsk->sk_reclen;
 	rqstp->rq_arg.page_base = 0;
-	if (len <= rqstp->rq_arg.head[0].iov_len) {
-		rqstp->rq_arg.head[0].iov_len = len;
+	if (rqstp->rq_arg.len <= rqstp->rq_arg.head[0].iov_len) {
+		rqstp->rq_arg.head[0].iov_len = rqstp->rq_arg.len;
 		rqstp->rq_arg.page_len = 0;
-	} else {
-		rqstp->rq_arg.page_len = len - rqstp->rq_arg.head[0].iov_len;
-	}
+	} else
+		rqstp->rq_arg.page_len = rqstp->rq_arg.len - rqstp->rq_arg.head[0].iov_len;
 
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
@@ -1123,7 +1119,7 @@ out:
 	if (serv->sv_stats)
 		serv->sv_stats->nettcpcnt++;
 
-	return len;
+	return rqstp->rq_arg.len;
 
 err_again:
 	if (len == -EAGAIN) {
