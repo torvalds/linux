@@ -1537,7 +1537,10 @@ static void __init setup_IO_APIC_irqs(void)
 		}
 		cfg = desc->chip_data;
 		add_pin_to_irq_node(cfg, node, apic_id, pin);
-		set_bit(pin, mp_ioapic_routing[apic_id].pin_programmed);
+		/*
+		 * don't mark it in pin_programmed, so later acpi could
+		 * set it correctly when irq < 16
+		 */
 		setup_IO_APIC_irq(apic_id, pin, irq, desc,
 				irq_trigger(idx), irq_polarity(idx));
 	}
