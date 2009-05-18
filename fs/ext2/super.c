@@ -1093,6 +1093,7 @@ failed_mount:
 	brelse(bh);
 failed_sbi:
 	sb->s_fs_info = NULL;
+	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 	return ret;
 }
