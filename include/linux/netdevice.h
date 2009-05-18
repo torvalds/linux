@@ -474,6 +474,9 @@ struct netdev_queue {
 	 * please use this field instead of dev->trans_start
 	 */
 	unsigned long		trans_start;
+	unsigned long		tx_bytes;
+	unsigned long		tx_packets;
+	unsigned long		tx_dropped;
 } ____cacheline_aligned_in_smp;
 
 
