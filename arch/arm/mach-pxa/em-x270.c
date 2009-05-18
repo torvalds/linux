@@ -30,6 +30,7 @@
 #include <linux/apm-emulation.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/regulator/userspace-consumer.h>
 
 #include <media/soc_camera.h>
 
@@ -1038,6 +1039,52 @@ static void  __init em_x270_init_camera(void)
 static inline void em_x270_init_camera(void) {}
 #endif
 
+static struct regulator_bulk_data em_x270_gps_consumer_supply = {
+	.supply		= "vcc gps",
+};
+
+static struct regulator_userspace_consumer_data em_x270_gps_consumer_data = {
+	.name		= "vcc gps",
+	.num_supplies	= 1,
+	.supplies	= &em_x270_gps_consumer_supply,
+};
+
+static struct platform_device em_x270_gps_userspace_consumer = {
+	.name		= "reg-userspace-consumer",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &em_x270_gps_consumer_data,
+	},
+};
+
+static struct regulator_bulk_data em_x270_gprs_consumer_supply = {
+	.supply		= "vcc gprs",
+};
+
+static struct regulator_userspace_consumer_data em_x270_gprs_consumer_data = {
+	.name		= "vcc gprs",
+	.num_supplies	= 1,
+	.supplies	= &em_x270_gprs_consumer_supply
+};
+
+static struct platform_device em_x270_gprs_userspace_consumer = {
+	.name		= "reg-userspace-consumer",
+	.id		= 1,
+	.dev		= {
+		.platform_data = &em_x270_gprs_consumer_data,
+	}
+};
+
+static struct platform_device *em_x270_userspace_consumers[] = {
+	&em_x270_gps_userspace_consumer,
+	&em_x270_gprs_userspace_consumer,
+};
+
+static void __init em_x270_userspace_consumers_init(void)
+{
+	platform_add_devices(ARRAY_AND_SIZE(em_x270_userspace_consumers));
+}
+
 /* DA9030 related initializations */
 #define REGULATOR_CONSUMER(_name, _dev, _supply)			       \
 	static struct regulator_consumer_supply _name##_consumers[] = {	\
@@ -1047,11 +1094,11 @@ static inline void em_x270_init_camera(void) {}
 		},							\
 	}
 
-REGULATOR_CONSUMER(ldo3, NULL, "vcc gps");
+REGULATOR_CONSUMER(ldo3, &em_x270_gps_userspace_consumer.dev, "vcc gps");
 REGULATOR_CONSUMER(ldo5, NULL, "vcc cam");
 REGULATOR_CONSUMER(ldo10, &pxa_device_mci.dev, "vcc sdio");
 REGULATOR_CONSUMER(ldo12, NULL, "vcc usb");
-REGULATOR_CONSUMER(ldo19, NULL, "vcc gprs");
+REGULATOR_CONSUMER(ldo19, &em_x270_gprs_userspace_consumer.dev, "vcc gprs");
 
 #define REGULATOR_INIT(_ldo, _min_uV, _max_uV, _ops_mask)		\
 	static struct regulator_init_data _ldo##_data = {		\
@@ -1062,6 +1109,7 @@ REGULATOR_CONSUMER(ldo19, NULL, "vcc gprs");
 				.enabled = 0,				\
 			},						\
 			.valid_ops_mask = _ops_mask,			\
+			.apply_uV = 1,					\
 		},							\
 		.num_consumer_supplies = ARRAY_SIZE(_ldo##_consumers),	\
 		.consumer_supplies = _ldo##_consumers,			\
@@ -1240,6 +1288,7 @@ static void __init em_x270_init(void)
 	em_x270_init_spi();
 	em_x270_init_i2c();
 	em_x270_init_camera();
+	em_x270_userspace_consumers_init();
 }
 
 MACHINE_START(EM_X270, "Compulab EM-X270")
