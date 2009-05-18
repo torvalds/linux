@@ -3453,6 +3453,14 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (test_bit(VCPU_REGS_RIP, (unsigned long *)&vcpu->arch.regs_dirty))
 		vmcs_writel(GUEST_RIP, vcpu->arch.regs[VCPU_REGS_RIP]);
 
+	/* When single-stepping over STI and MOV SS, we must clear the
+	 * corresponding interruptibility bits in the guest state. Otherwise
+	 * vmentry fails as it then expects bit 14 (BS) in pending debug
+	 * exceptions being set, but that's not correct for the guest debugging
+	 * case. */
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		vmx_set_interrupt_shadow(vcpu, 0);
+
 	/*
 	 * Loading guest fpu may have cleared host cr0.ts
 	 */

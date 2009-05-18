@@ -3361,9 +3361,6 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu)
 
 static void inject_pending_irq(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		kvm_x86_ops->set_interrupt_shadow(vcpu, 0);
-
 	/* try to reinject previous events if any */
 	if (vcpu->arch.nmi_injected) {
 		kvm_x86_ops->set_nmi(vcpu);
