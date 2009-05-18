@@ -254,7 +254,7 @@ static int index_to_minor(int index)
 	return index << PART_BITS;
 }
 
-static int virtblk_probe(struct virtio_device *vdev)
+static int __devinit virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
 	int err;
@@ -395,7 +395,7 @@ out:
 	return err;
 }
 
-static void virtblk_remove(struct virtio_device *vdev)
+static void __devexit virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
 
