@@ -2517,10 +2517,19 @@ static struct pci_device_id azx_ids[] = {
 	/* Teradici */
 	{ PCI_DEVICE(0x6549, 0x1200), .driver_data = AZX_DRIVER_TERA },
 	/* Creative X-Fi (CA0110-IBG) */
+#if !defined(CONFIG_SND_CTXFI) && !defined(CONFIG_SND_CTXFI_MODULE)
+	/* the following entry conflicts with snd-ctxfi driver,
+	 * as ctxfi driver mutates from HD-audio to native mode with
+	 * a special command sequence.
+	 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_CREATIVE, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
 	  .class_mask = 0xffffff,
 	  .driver_data = AZX_DRIVER_GENERIC },
+#else
+	/* this entry seems still valid -- i.e. without emu20kx chip */
+	{ PCI_DEVICE(0x1102, 0x0009), .driver_data = AZX_DRIVER_GENERIC },
+#endif
 	/* AMD Generic, PCI class code and Vendor ID for HD Audio */
 	{ PCI_DEVICE(PCI_VENDOR_ID_ATI, PCI_ANY_ID),
 	  .class = PCI_CLASS_MULTIMEDIA_HD_AUDIO << 8,
