@@ -156,6 +156,8 @@ static struct atmel_nand_data __initdata afeb9260_nand_data = {
  * MCI (SD/MMC)
  */
 static struct at91_mmc_data __initdata afeb9260_mmc_data = {
+	.det_pin 	= AT91_PIN_PC9,
+	.wp_pin 	= AT91_PIN_PC4,
 	.slot_b		= 1,
 	.wire4		= 1,
 };
