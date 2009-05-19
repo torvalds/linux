@@ -36,6 +36,8 @@ CPUFLAGS-1 += $(call cc-option,-mcpu=v$(CPU_VER))
 # r31 holds current when in kernel mode
 CFLAGS_KERNEL += -ffixed-r31 $(CPUFLAGS-1) $(CPUFLAGS-2)
 
+LDFLAGS		:=
+LDFLAGS_vmlinux	:=
 LDFLAGS_BLOB := --format binary --oformat elf32-microblaze
 
 LIBGCC := $(shell $(CC) $(CFLAGS_KERNEL) -print-libgcc-file-name)
