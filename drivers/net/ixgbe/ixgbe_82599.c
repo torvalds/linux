@@ -109,6 +109,13 @@ s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 		if (ret_val != 0)
 			goto setup_sfp_out;
 
+		/* PHY config will finish before releasing the semaphore */
+		ret_val = ixgbe_acquire_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
+		if (ret_val != 0) {
+			ret_val = IXGBE_ERR_SWFW_SYNC;
+			goto setup_sfp_out;
+		}
+
 		hw->eeprom.ops.read(hw, ++data_offset, &data_value);
 		while (data_value != 0xffff) {
 			IXGBE_WRITE_REG(hw, IXGBE_CORECTL, data_value);
@@ -119,6 +126,11 @@ s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 		IXGBE_WRITE_REG(hw, IXGBE_CORECTL, 0x00000102);
 		IXGBE_WRITE_REG(hw, IXGBE_CORECTL, 0x00000b1d);
 		IXGBE_WRITE_FLUSH(hw);
+
+		/* Release the semaphore */
+		ixgbe_release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
+		/* Delay obtaining semaphore again to allow FW access */
+		msleep(hw->eeprom.semaphore_delay);
 	}
 
 setup_sfp_out:
