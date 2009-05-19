@@ -20,12 +20,6 @@
 
 /***************************************************************************/
 
-extern unsigned int mcf_timervector;
-extern unsigned int mcf_profilevector;
-extern unsigned int mcf_timerlevel;
-
-/***************************************************************************/
-
 /*
  *	Some platforms need software versions of the GPIO data registers.
  */
@@ -148,14 +142,15 @@ void mcf_disableall(void)
 
 /***************************************************************************/
 
-void mcf_settimericr(int timer, int level)
+static void __init m5272_timers_init(void)
 {
-	volatile unsigned long *icrp;
+	/* Timer1 @ level6 is always used as system timer */
+	writel((0x8 | 0x6) << ((4 - 1) * 4), MCF_MBAR + MCFSIM_ICR1);
 
-	if ((timer >= 1 ) && (timer <= 4)) {
-		icrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_ICR1);
-		*icrp = (0x8 | level) << ((4 - timer) * 4);
-	}
+#ifdef CONFIG_HIGHPROFILE
+	/* Timer2 @ level7 is to be used as a high speed profile timer  */
+	writel((0x8 | 0x7) << ((4 - 2) * 4), MCF_MBAR + MCFSIM_ICR1);
+#endif
 }
 
 /***************************************************************************/
@@ -195,9 +190,8 @@ void __init config_BSP(char *commandp, int size)
 	commandp[size-1] = 0;
 #endif
 
-	mcf_timervector = 69;
-	mcf_profilevector = 70;
 	mach_reset = m5272_cpu_reset;
+	m5272_timers_init();
 }
 
 /***************************************************************************/

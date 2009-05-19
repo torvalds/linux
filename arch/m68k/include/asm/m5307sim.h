@@ -124,6 +124,7 @@
 #define	MCFSIM_DMA2ICR		MCFSIM_ICR8	/* DMA 2 ICR */
 #define	MCFSIM_DMA3ICR		MCFSIM_ICR9	/* DMA 3 ICR */
 
+
 /*
  *	Some symbol defines for the Parallel Port Pin Assignment Register
  */
@@ -139,6 +140,11 @@
 #define IRQ3_LEVEL6	0x40
 #define IRQ1_LEVEL2	0x20
 
+/*
+ *	Define system peripheral IRQ usage.
+ */
+#define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
+#define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
 
 /*
  *	Define the Cache register flags.

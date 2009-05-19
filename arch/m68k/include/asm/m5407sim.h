@@ -111,6 +111,11 @@
 #define IRQ3_LEVEL6	0x40
 #define IRQ1_LEVEL2	0x20
 
+/*
+ *	Define system peripheral IRQ usage.
+ */
+#define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
+#define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
 
 /*
  *	Define the Cache register flags.

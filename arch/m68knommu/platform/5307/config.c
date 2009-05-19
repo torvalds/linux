@@ -21,12 +21,6 @@
 
 /***************************************************************************/
 
-extern unsigned int mcf_timervector;
-extern unsigned int mcf_profilevector;
-extern unsigned int mcf_timerlevel;
-
-/***************************************************************************/
-
 /*
  *	Some platforms need software versions of the GPIO data registers.
  */
@@ -83,21 +77,17 @@ static void __init m5307_uarts_init(void)
 
 /***************************************************************************/
 
-void mcf_settimericr(unsigned int timer, unsigned int level)
+static void __init m5307_timers_init(void)
 {
-	volatile unsigned char *icrp;
-	unsigned int icr, imr;
+	/* Timer1 is always used as system timer */
+	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI3,
+		MCF_MBAR + MCFSIM_TIMER1ICR);
 
-	if (timer <= 2) {
-		switch (timer) {
-		case 2:  icr = MCFSIM_TIMER2ICR; imr = MCFINTC_TIMER2; break;
-		default: icr = MCFSIM_TIMER1ICR; imr = MCFINTC_TIMER1; break;
-		}
-
-		icrp = (volatile unsigned char *) (MCF_MBAR + icr);
-		*icrp = MCFSIM_ICR_AUTOVEC | (level << 2) | MCFSIM_ICR_PRI3;
-		mcf_clrimr(imr);
-	}
+#ifdef CONFIG_HIGHPROFILE
+	/* Timer2 is to be used as a high speed profile timer  */
+	writeb(MCFSIM_ICR_AUTOVEC | MCFSIM_ICR_LEVEL7 | MCFSIM_ICR_PRI3,
+		MCF_MBAR + MCFSIM_TIMER2ICR);
+#endif
 }
 
 /***************************************************************************/
@@ -120,13 +110,10 @@ void __init config_BSP(char *commandp, int size)
 	/* Copy command line from FLASH to local buffer... */
 	memcpy(commandp, (char *) 0xf0004000, size);
 	commandp[size-1] = 0;
-	/* Different timer setup - to prevent device clash */
-	mcf_timervector = 30;
-	mcf_profilevector = 31;
-	mcf_timerlevel = 6;
 #endif
 
 	mach_reset = m5307_cpu_reset;
+	m5307_timers_init();
 
 #ifdef CONFIG_BDM_DISABLE
 	/*
