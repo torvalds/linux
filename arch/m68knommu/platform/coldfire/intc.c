@@ -103,10 +103,14 @@ void mcf_autovector(int irq)
 
 static void intc_irq_mask(unsigned int irq)
 {
+	if ((irq >= EIRQ1) && (irq <= EIRQ7))
+		mcf_setimr(irq - EIRQ1 + 1);
 }
 
 static void intc_irq_unmask(unsigned int irq)
 {
+	if ((irq >= EIRQ1) && (irq <= EIRQ7))
+		mcf_clrimr(irq - EIRQ1 + 1);
 }
 
 static int intc_irq_set_type(unsigned int irq, unsigned int type)
