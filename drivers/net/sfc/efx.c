@@ -50,16 +50,6 @@ static struct workqueue_struct *reset_workqueue;
  *************************************************************************/
 
 /*
- * Enable large receive offload (LRO) aka soft segment reassembly (SSR)
- *
- * This sets the default for new devices.  It can be controlled later
- * using ethtool.
- */
-static int lro = true;
-module_param(lro, int, 0644);
-MODULE_PARM_DESC(lro, "Large receive offload acceleration");
-
-/*
  * Use separate channels for TX and RX events
  *
  * Set this to 1 to use separate channels for TX and RX. It allows us
@@ -2167,9 +2157,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 	if (!net_dev)
 		return -ENOMEM;
 	net_dev->features |= (NETIF_F_IP_CSUM | NETIF_F_SG |
-			      NETIF_F_HIGHDMA | NETIF_F_TSO);
-	if (lro)
-		net_dev->features |= NETIF_F_GRO;
+			      NETIF_F_HIGHDMA | NETIF_F_TSO |
+			      NETIF_F_GRO);
 	/* Mask for features that also apply to VLAN devices */
 	net_dev->vlan_features |= (NETIF_F_ALL_CSUM | NETIF_F_SG |
 				   NETIF_F_HIGHDMA | NETIF_F_TSO);
