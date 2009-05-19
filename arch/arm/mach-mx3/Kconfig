@@ -75,4 +75,11 @@ config MACH_PCM043
 	  Include support for Phytec pcm043 platform. This includes
 	  specific configurations for the board and its peripherals.
 
+config MACH_ARMADILLO5X0
+	bool "Support Atmark Armadillo-500 Development Base Board"
+	select ARCH_MX31
+	help
+	  Include support for Atmark Armadillo-500 platform. This includes
+	  specific configurations for the board and its peripherals.
+
 endif

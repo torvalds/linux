@@ -15,3 +15,4 @@ obj-$(CONFIG_MACH_MX31MOBOARD)	+= mx31moboard.o mx31moboard-devboard.o \
 				   mx31moboard-marxbot.o
 obj-$(CONFIG_MACH_QONG)		+= qong.o
 obj-$(CONFIG_MACH_PCM043)	+= pcm043.o
+obj-$(CONFIG_MACH_ARMADILLO5X0) += armadillo5x0.o
