@@ -108,6 +108,11 @@ static inline int bfin_addr_dcachable(unsigned long addr)
 		addr >= _ramend && addr < physical_mem_end)
 		return 1;
 
+#ifndef CONFIG_BFIN_L2_NOT_CACHED
+	if (addr >= L2_START && addr < L2_START + L2_LENGTH)
+		return 1;
+#endif
+
 	return 0;
 }
 
