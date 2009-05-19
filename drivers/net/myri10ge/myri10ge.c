@@ -1300,7 +1300,7 @@ myri10ge_rx_done(struct myri10ge_slice_state *ss, struct myri10ge_rx_buf *rx,
 		remainder -= MYRI10GE_ALLOC_SIZE;
 	}
 
-	if (mgp->csum_flag && myri10ge_lro) {
+	if (dev->features & NETIF_F_LRO) {
 		rx_frags[0].page_offset += MXGEFW_PAD;
 		rx_frags[0].size -= MXGEFW_PAD;
 		len -= MXGEFW_PAD;
@@ -1716,12 +1716,17 @@ static u32 myri10ge_get_rx_csum(struct net_device *netdev)
 static int myri10ge_set_rx_csum(struct net_device *netdev, u32 csum_enabled)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
+	int err = 0;
 
 	if (csum_enabled)
 		mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
-	else
+	else {
+		u32 flags = ethtool_op_get_flags(netdev);
+		err = ethtool_op_set_flags(netdev, (flags & ~ETH_FLAG_LRO));
 		mgp->csum_flag = 0;
-	return 0;
+
+	}
+	return err;
 }
 
 static int myri10ge_set_tso(struct net_device *netdev, u32 tso_enabled)
@@ -1904,7 +1909,9 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.get_sset_count = myri10ge_get_sset_count,
 	.get_ethtool_stats = myri10ge_get_ethtool_stats,
 	.set_msglevel = myri10ge_set_msglevel,
-	.get_msglevel = myri10ge_get_msglevel
+	.get_msglevel = myri10ge_get_msglevel,
+	.get_flags = ethtool_op_get_flags,
+	.set_flags = ethtool_op_set_flags
 };
 
 static int myri10ge_allocate_rings(struct myri10ge_slice_state *ss)
@@ -3910,6 +3917,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (dac_enabled)
 		netdev->features |= NETIF_F_HIGHDMA;
+	if (myri10ge_lro)
+		netdev->features |= NETIF_F_LRO;
 
 	/* make sure we can get an irq, and that MSI can be
 	 * setup (if available).  Also ensure netdev->irq
