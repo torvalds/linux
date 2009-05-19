@@ -121,7 +121,6 @@ u16 amd_iommu_last_bdf;			/* largest PCI device id we have
 					   to handle */
 LIST_HEAD(amd_iommu_unity_map);		/* a list of required unity mappings
 					   we find in ACPI */
-unsigned amd_iommu_aperture_order = 26; /* size of aperture in power of 2 */
 bool amd_iommu_isolate = true;		/* if true, device isolation is
 					   enabled */
 bool amd_iommu_unmap_flush;		/* if true, flush on every unmap */
@@ -1137,9 +1136,6 @@ int __init amd_iommu_init(void)
 
 	enable_iommus();
 
-	printk(KERN_INFO "AMD IOMMU: aperture size is %d MB\n",
-			(1 << (amd_iommu_aperture_order-20)));
-
 	printk(KERN_INFO "AMD IOMMU: device isolation ");
 	if (amd_iommu_isolate)
 		printk("enabled\n");
@@ -1225,15 +1221,4 @@ static int __init parse_amd_iommu_options(char *str)
 	return 1;
 }
 
-static int __init parse_amd_iommu_size_options(char *str)
-{
-	unsigned order = PAGE_SHIFT + get_order(memparse(str, &str));
-
-	if ((order > 24) && (order < 31))
-		amd_iommu_aperture_order = order;
-
-	return 1;
-}
-
 __setup("amd_iommu=", parse_amd_iommu_options);
-__setup("amd_iommu_size=", parse_amd_iommu_size_options);

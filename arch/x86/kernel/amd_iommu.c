@@ -939,16 +939,9 @@ static void dma_ops_domain_free(struct dma_ops_domain *dom)
  * It also intializes the page table and the address allocator data
  * structures required for the dma_ops interface
  */
-static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
-						   unsigned order)
+static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu)
 {
 	struct dma_ops_domain *dma_dom;
-
-	/*
-	 * Currently the DMA aperture must be between 32 MB and 1GB in size
-	 */
-	if ((order < 25) || (order > 30))
-		return NULL;
 
 	dma_dom = kzalloc(sizeof(struct dma_ops_domain), GFP_KERNEL);
 	if (!dma_dom)
@@ -1087,7 +1080,6 @@ static int device_change_notifier(struct notifier_block *nb,
 	struct protection_domain *domain;
 	struct dma_ops_domain *dma_domain;
 	struct amd_iommu *iommu;
-	int order = amd_iommu_aperture_order;
 	unsigned long flags;
 
 	if (devid > amd_iommu_last_bdf)
@@ -1126,7 +1118,7 @@ static int device_change_notifier(struct notifier_block *nb,
 		dma_domain = find_protection_domain(devid);
 		if (dma_domain)
 			goto out;
-		dma_domain = dma_ops_domain_alloc(iommu, order);
+		dma_domain = dma_ops_domain_alloc(iommu);
 		if (!dma_domain)
 			goto out;
 		dma_domain->target_dev = devid;
@@ -1826,7 +1818,6 @@ static void prealloc_protection_domains(void)
 	struct pci_dev *dev = NULL;
 	struct dma_ops_domain *dma_dom;
 	struct amd_iommu *iommu;
-	int order = amd_iommu_aperture_order;
 	u16 devid;
 
 	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
@@ -1839,7 +1830,7 @@ static void prealloc_protection_domains(void)
 		iommu = amd_iommu_rlookup_table[devid];
 		if (!iommu)
 			continue;
-		dma_dom = dma_ops_domain_alloc(iommu, order);
+		dma_dom = dma_ops_domain_alloc(iommu);
 		if (!dma_dom)
 			continue;
 		init_unity_mappings_for_device(dma_dom, devid);
@@ -1865,7 +1856,6 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 int __init amd_iommu_init_dma_ops(void)
 {
 	struct amd_iommu *iommu;
-	int order = amd_iommu_aperture_order;
 	int ret;
 
 	/*
@@ -1874,7 +1864,7 @@ int __init amd_iommu_init_dma_ops(void)
 	 * protection domain will be assigned to the default one.
 	 */
 	list_for_each_entry(iommu, &amd_iommu_list, list) {
-		iommu->default_dom = dma_ops_domain_alloc(iommu, order);
+		iommu->default_dom = dma_ops_domain_alloc(iommu);
 		if (iommu->default_dom == NULL)
 			return -ENOMEM;
 		iommu->default_dom->domain.flags |= PD_DEFAULT_MASK;
