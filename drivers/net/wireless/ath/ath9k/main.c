@@ -2428,8 +2428,10 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 	*total_flags &= SUPPORTED_FILTERS;
 
 	sc->rx.rxfilter = *total_flags;
+	ath9k_ps_wakeup(sc);
 	rfilt = ath_calcrxfilter(sc);
 	ath9k_hw_setrxfilter(sc->sc_ah, rfilt);
+	ath9k_ps_restore(sc);
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "Set HW RX filter: 0x%x\n", sc->rx.rxfilter);
 }
