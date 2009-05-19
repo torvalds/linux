@@ -252,6 +252,11 @@ static void __init iommu_enable(struct amd_iommu *iommu)
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
 
+static void iommu_disable(struct amd_iommu *iommu)
+{
+	iommu_feature_disable(iommu, CONTROL_IOMMU_EN);
+}
+
 /*
  * mapping and unmapping functions for the IOMMU MMIO space. Each AMD IOMMU in
  * the system has one.
@@ -943,6 +948,14 @@ static void __init enable_iommus(void)
 		iommu_init_msi(iommu);
 		iommu_enable(iommu);
 	}
+}
+
+static void disable_iommus(void)
+{
+	struct amd_iommu *iommu;
+
+	for_each_iommu(iommu)
+		iommu_disable(iommu);
 }
 
 /*
