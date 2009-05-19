@@ -801,8 +801,9 @@ static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = nr;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
-		if (nr == BP_VECTOR || nr == OF_VECTOR)
-			vmx->rmode.irq.rip++;
+		if (kvm_exception_is_soft(nr))
+			vmx->rmode.irq.rip +=
+				vmx->vcpu.arch.event_exit_inst_len;
 		intr_info |= INTR_TYPE_SOFT_INTR;
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, intr_info);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
@@ -2468,6 +2469,9 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu)
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = irq;
 		vmx->rmode.irq.rip = kvm_rip_read(vcpu);
+		if (vcpu->arch.interrupt.soft)
+			vmx->rmode.irq.rip +=
+				vmx->vcpu.arch.event_exit_inst_len;
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			     irq | INTR_TYPE_SOFT_INTR | INTR_INFO_VALID_MASK);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
