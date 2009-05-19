@@ -73,7 +73,6 @@ static unsigned int steal_context_smp(unsigned int id)
 	struct mm_struct *mm;
 	unsigned int cpu, max;
 
- again:
 	max = last_context - first_context;
 
 	/* Attempt to free next_context first and then loop until we manage */
@@ -108,7 +107,9 @@ static unsigned int steal_context_smp(unsigned int id)
 	spin_unlock(&context_lock);
 	cpu_relax();
 	spin_lock(&context_lock);
-	goto again;
+
+	/* This will cause the caller to try again */
+	return MMU_NO_CONTEXT;
 }
 #endif  /* CONFIG_SMP */
 
@@ -194,6 +195,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 		WARN_ON(prev->context.active < 1);
 		prev->context.active--;
 	}
+
+ again:
 #endif /* CONFIG_SMP */
 
 	/* If we already have a valid assigned context, skip all that */
@@ -212,7 +215,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 #ifdef CONFIG_SMP
 		if (num_online_cpus() > 1) {
 			id = steal_context_smp(id);
-			goto stolen;
+			if (id == MMU_NO_CONTEXT)
+				goto again;
 		}
 #endif /* CONFIG_SMP */
 		id = steal_context_up(id);
@@ -286,8 +290,8 @@ void destroy_context(struct mm_struct *mm)
 		mm->context.id = MMU_NO_CONTEXT;
 #ifdef DEBUG_MAP_CONSISTENCY
 		mm->context.active = 0;
-		context_mm[id] = NULL;
 #endif
+		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
 	spin_unlock(&context_lock);
