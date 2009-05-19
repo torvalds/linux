@@ -472,29 +472,31 @@ int t3_set_phy_speed_duplex(struct cphy *phy, int speed, int duplex)
 
 int t3_phy_lasi_intr_enable(struct cphy *phy)
 {
-	return t3_mdio_write(phy, MDIO_MMD_PMAPMD, LASI_CTRL, 1);
+	return t3_mdio_write(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_CTRL,
+			     MDIO_PMA_LASI_LSALARM);
 }
 
 int t3_phy_lasi_intr_disable(struct cphy *phy)
 {
-	return t3_mdio_write(phy, MDIO_MMD_PMAPMD, LASI_CTRL, 0);
+	return t3_mdio_write(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_CTRL, 0);
 }
 
 int t3_phy_lasi_intr_clear(struct cphy *phy)
 {
 	u32 val;
 
-	return t3_mdio_read(phy, MDIO_MMD_PMAPMD, LASI_STAT, &val);
+	return t3_mdio_read(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT, &val);
 }
 
 int t3_phy_lasi_intr_handler(struct cphy *phy)
 {
 	unsigned int status;
-	int err = t3_mdio_read(phy, MDIO_MMD_PMAPMD, LASI_STAT, &status);
+	int err = t3_mdio_read(phy, MDIO_MMD_PMAPMD, MDIO_PMA_LASI_STAT,
+			       &status);
 
 	if (err)
 		return err;
-	return (status & 1) ?  cphy_cause_link_change : 0;
+	return (status & MDIO_PMA_LASI_LSALARM) ? cphy_cause_link_change : 0;
 }
 
 static const struct adapter_info t3_adap_info[] = {

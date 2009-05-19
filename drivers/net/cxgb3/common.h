@@ -521,16 +521,6 @@ enum {
 	MAC_RXFIFO_SIZE = 32768
 };
 
-/* LASI control and status registers */
-enum {
-	RX_ALARM_CTRL = 0x9000,
-	TX_ALARM_CTRL = 0x9001,
-	LASI_CTRL = 0x9002,
-	RX_ALARM_STAT = 0x9003,
-	TX_ALARM_STAT = 0x9004,
-	LASI_STAT = 0x9005
-};
-
 /* PHY loopback direction */
 enum {
 	PHY_LOOPBACK_TX = 1,
