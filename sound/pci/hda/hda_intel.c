@@ -128,8 +128,11 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{ULI, M5461}}");
 MODULE_DESCRIPTION("Intel HDA driver");
 
+#ifdef CONFIG_SND_VERBOSE_PRINTK
+#define SFX	/* nop */
+#else
 #define SFX	"hda-intel: "
-
+#endif
 
 /*
  * registers
@@ -620,7 +623,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 	}
 
 	if (chip->msi) {
-		snd_printk(KERN_WARNING "hda_intel: No response from codec, "
+		snd_printk(KERN_WARNING SFX "No response from codec, "
 			   "disabling MSI: last cmd=0x%08x\n", chip->last_cmd);
 		free_irq(chip->irq, chip);
 		chip->irq = -1;
@@ -634,7 +637,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 	}
 
 	if (!chip->polling_mode) {
-		snd_printk(KERN_WARNING "hda_intel: azx_get_response timeout, "
+		snd_printk(KERN_WARNING SFX "azx_get_response timeout, "
 			   "switching to polling mode: last cmd=0x%08x\n",
 			   chip->last_cmd);
 		chip->polling_mode = 1;
@@ -649,7 +652,7 @@ static unsigned int azx_rirb_get_response(struct hda_bus *bus)
 		return -1;
 	}
 
-	snd_printk(KERN_ERR "hda_intel: azx_get_response timeout (ERROR): "
+	snd_printk(KERN_ERR SFX "azx_get_response timeout (ERROR): "
 		   "last cmd=0x%08x\n", chip->last_cmd);
 	spin_lock_irq(&chip->reg_lock);
 	chip->rirb.cmds = 0; /* reset the index */
@@ -776,7 +779,7 @@ static int azx_reset(struct azx *chip)
 
 	/* check to see if controller is ready */
 	if (!azx_readb(chip, GCTL)) {
-		snd_printd("azx_reset: controller not ready!\n");
+		snd_printd(SFX "azx_reset: controller not ready!\n");
 		return -EBUSY;
 	}
 
@@ -786,7 +789,7 @@ static int azx_reset(struct azx *chip)
 	/* detect codecs */
 	if (!chip->codec_mask) {
 		chip->codec_mask = azx_readw(chip, STATESTS);
-		snd_printdd("codec_mask = 0x%x\n", chip->codec_mask);
+		snd_printdd(SFX "codec_mask = 0x%x\n", chip->codec_mask);
 	}
 
 	return 0;
@@ -954,12 +957,12 @@ static void azx_init_pci(struct azx *chip)
 	case AZX_DRIVER_SCH:
 		pci_read_config_word(chip->pci, INTEL_SCH_HDA_DEVC, &snoop);
 		if (snoop & INTEL_SCH_HDA_DEVC_NOSNOOP) {
-			pci_write_config_word(chip->pci, INTEL_SCH_HDA_DEVC, \
+			pci_write_config_word(chip->pci, INTEL_SCH_HDA_DEVC,
 				snoop & (~INTEL_SCH_HDA_DEVC_NOSNOOP));
 			pci_read_config_word(chip->pci,
 				INTEL_SCH_HDA_DEVC, &snoop);
-			snd_printdd("HDA snoop disabled, enabling ... %s\n",\
-				(snoop & INTEL_SCH_HDA_DEVC_NOSNOOP) \
+			snd_printdd(SFX "HDA snoop disabled, enabling ... %s\n",
+				(snoop & INTEL_SCH_HDA_DEVC_NOSNOOP)
 				? "Failed" : "OK");
 		}
 		break;
@@ -1099,7 +1102,7 @@ static int azx_setup_periods(struct azx *chip,
 				pos_align;
 		pos_adj = frames_to_bytes(runtime, pos_adj);
 		if (pos_adj >= period_bytes) {
-			snd_printk(KERN_WARNING "Too big adjustment %d\n",
+			snd_printk(KERN_WARNING SFX "Too big adjustment %d\n",
 				   bdl_pos_adj[chip->dev_index]);
 			pos_adj = 0;
 		} else {
@@ -1123,7 +1126,7 @@ static int azx_setup_periods(struct azx *chip,
 	return 0;
 
  error:
-	snd_printk(KERN_ERR "Too many BDL entries: buffer=%d, period=%d\n",
+	snd_printk(KERN_ERR SFX "Too many BDL entries: buffer=%d, period=%d\n",
 		   azx_dev->bufsize, period_bytes);
 	return -EINVAL;
 }
@@ -1216,7 +1219,7 @@ static int probe_codec(struct azx *chip, int addr)
 	chip->probing = 0;
 	if (res == -1)
 		return -EIO;
-	snd_printdd("hda_intel: codec #%d probed OK\n", addr);
+	snd_printdd(SFX "codec #%d probed OK\n", addr);
 	return 0;
 }
 
@@ -1271,8 +1274,8 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 				/* Some BIOSen give you wrong codec addresses
 				 * that don't exist
 				 */
-				snd_printk(KERN_WARNING
-					   "hda_intel: Codec #%d probe error; "
+				snd_printk(KERN_WARNING SFX
+					   "Codec #%d probe error; "
 					   "disabling it...\n", c);
 				chip->codec_mask &= ~(1 << c);
 				/* More badly, accessing to a non-existing
@@ -1488,7 +1491,7 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 	bufsize = snd_pcm_lib_buffer_bytes(substream);
 	period_bytes = snd_pcm_lib_period_bytes(substream);
 
-	snd_printdd("azx_pcm_prepare: bufsize=0x%x, format=0x%x\n",
+	snd_printdd(SFX "azx_pcm_prepare: bufsize=0x%x, format=0x%x\n",
 		    bufsize, format_val);
 
 	if (bufsize != azx_dev->bufsize ||
@@ -2265,7 +2268,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	synchronize_irq(chip->irq);
 
 	gcap = azx_readw(chip, GCAP);
-	snd_printdd("chipset global capabilities = 0x%x\n", gcap);
+	snd_printdd(SFX "chipset global capabilities = 0x%x\n", gcap);
 
 	/* ATI chips seems buggy about 64bit DMA addresses */
 	if (chip->driver_type == AZX_DRIVER_ATI)
@@ -2309,7 +2312,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->azx_dev = kcalloc(chip->num_streams, sizeof(*chip->azx_dev),
 				GFP_KERNEL);
 	if (!chip->azx_dev) {
-		snd_printk(KERN_ERR "cannot malloc azx_dev\n");
+		snd_printk(KERN_ERR SFX "cannot malloc azx_dev\n");
 		goto errout;
 	}
 
