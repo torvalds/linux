@@ -3737,6 +3737,8 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		err = snd_hda_attach_beep_device(codec, nid);
 		if (err < 0)
 			return err;
+		/* IDT/STAC codecs have linear beep tone parameter */
+		codec->beep->linear_tone = 1;
 		/* if no beep switch is available, make its own one */
 		caps = query_amp_caps(codec, nid, HDA_OUTPUT);
 		if (codec->beep &&

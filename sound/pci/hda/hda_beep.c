@@ -45,6 +45,46 @@ static void snd_hda_generate_beep(struct work_struct *work)
 			AC_VERB_SET_BEEP_CONTROL, beep->tone);
 }
 
+/* (non-standard) Linear beep tone calculation for IDT/STAC codecs 
+ *
+ * The tone frequency of beep generator on IDT/STAC codecs is
+ * defined from the 8bit tone parameter, in Hz,
+ *    freq = 48000 * (257 - tone) / 1024
+ * that is from 12kHz to 93.75kHz in step of 46.875 hz
+ */
+static int beep_linear_tone(struct hda_beep *beep, int hz)
+{
+	hz *= 1000; /* fixed point */
+	hz = hz - DIGBEEP_HZ_MIN;
+	if (hz < 0)
+		hz = 0; /* turn off PC beep*/
+	else if (hz >= (DIGBEEP_HZ_MAX - DIGBEEP_HZ_MIN))
+		hz = 0xff;
+	else {
+		hz /= DIGBEEP_HZ_STEP;
+		hz++;
+	}
+	return hz;
+}
+
+/* HD-audio standard beep tone parameter calculation
+ *
+ * The tone frequency in Hz is calculated as
+ *   freq = 48000 / (tone * 4)
+ * from 47Hz to 12kHz
+ */
+static int beep_standard_tone(struct hda_beep *beep, int hz)
+{
+	if (hz <= 0)
+		return 0; /* disabled */
+	hz = 12000 / hz;
+	if (hz > 0xff)
+		return 0xff;
+	if (hz <= 0)
+		return 1;
+	return hz;
+}
+
 static int snd_hda_beep_event(struct input_dev *dev, unsigned int type,
 				unsigned int code, int hz)
 {
@@ -55,21 +95,14 @@ static int snd_hda_beep_event(struct input_dev *dev, unsigned int type,
 		if (hz)
 			hz = 1000;
 	case SND_TONE:
-		hz *= 1000; /* fixed point */
-		hz = hz - DIGBEEP_HZ_MIN;
-		if (hz < 0)
-			hz = 0; /* turn off PC beep*/
-		else if (hz >= (DIGBEEP_HZ_MAX - DIGBEEP_HZ_MIN))
-			hz = 0xff;
-		else {
-			hz /= DIGBEEP_HZ_STEP;
-			hz++;
-		}
+		if (beep->linear_tone)
+			beep->tone = beep_linear_tone(beep, hz);
+		else
+			beep->tone = beep_standard_tone(beep, hz);
 		break;
 	default:
 		return -1;
 	}
-	beep->tone = hz;
 
 	/* schedule beep event */
 	schedule_work(&beep->beep_work);
