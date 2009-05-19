@@ -2492,6 +2492,13 @@ int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	if (len == 0 && ifmgd->extra_ie_len == 0)
+		return -EALREADY;
+
+	if (len == ifmgd->extra_ie_len && ifmgd->extra_ie &&
+	    memcmp(ifmgd->extra_ie, ie, len) == 0)
+		return -EALREADY;
+
 	kfree(ifmgd->extra_ie);
 	if (len == 0) {
 		ifmgd->extra_ie = NULL;

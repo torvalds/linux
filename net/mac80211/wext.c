@@ -37,12 +37,13 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		int ret = ieee80211_sta_set_extra_ie(sdata, extra, data->length);
-		if (ret)
+		if (ret && ret != -EALREADY)
 			return ret;
 		sdata->u.mgd.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
 		sdata->u.mgd.flags &= ~IEEE80211_STA_EXT_SME;
 		sdata->u.mgd.flags &= ~IEEE80211_STA_CONTROL_PORT;
-		ieee80211_sta_req_auth(sdata);
+		if (ret != -EALREADY)
+			ieee80211_sta_req_auth(sdata);
 		return 0;
 	}
 
