@@ -18,6 +18,33 @@
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 
+/*
+ * Define the vector numbers for the basic 7 interrupt sources.
+ * These are often referred to as the "external" interrupts in
+ * the ColdFire documentation (for the early ColdFire cores at least).
+ */
+#define	EIRQ1	25
+#define	EIRQ7	31
+
+/*
+ * Interrupts can be "vectored" on the ColdFire cores that support this old
+ * interrupt controller. That is, the device raising the interrupt can also
+ * supply the vector number to interrupt through. The AVR register of the
+ * interrupt controller enables or disables this for each external interrupt,
+ * so provide generic support for this. Setting this up is out-of-band for
+ * the interrupt system API's, and needs to be done by the driver that
+ * supports this device. Very few devices actually use this.
+ */
+void mcf_autovector(int irq)
+{
+	if ((irq >= EIRQ1) && (irq <= EIRQ7)) {
+		u8 avec;
+		avec = __raw_readb(MCF_MBAR + MCFSIM_AVR);
+		avec |= (0x1 << (irq - EIRQ1 + 1));
+		__raw_writeb(avec, MCF_MBAR + MCFSIM_AVR);
+	}
+}
+
 static void intc_irq_mask(unsigned int irq)
 {
 }

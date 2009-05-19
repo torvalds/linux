@@ -68,23 +68,6 @@ static void __init m5206_uarts_init(void)
 
 /***************************************************************************/
 
-void mcf_autovector(unsigned int vec)
-{
-	volatile unsigned char  *mbar;
-	unsigned char		icr;
-
-	if ((vec >= 25) && (vec <= 31)) {
-		vec -= 25;
-		mbar = (volatile unsigned char *) MCF_MBAR;
-		icr = MCFSIM_ICR_AUTOVEC | (vec << 3);
-		*(mbar + MCFSIM_ICR1 + vec) = icr;
-		vec = 0x1 << (vec + 1);
-		mcf_setimr(mcf_getimr() & ~vec);
-	}
-}
-
-/***************************************************************************/
-
 void mcf_settimericr(unsigned int timer, unsigned int level)
 {
 	volatile unsigned char *icrp;

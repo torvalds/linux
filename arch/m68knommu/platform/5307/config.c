@@ -83,20 +83,6 @@ static void __init m5307_uarts_init(void)
 
 /***************************************************************************/
 
-void mcf_autovector(unsigned int vec)
-{
-	volatile unsigned char  *mbar;
-
-	if ((vec >= 25) && (vec <= 31)) {
-		mbar = (volatile unsigned char *) MCF_MBAR;
-		vec = 0x1 << (vec - 24);
-		*(mbar + MCFSIM_AVR) |= vec;
-		mcf_setimr(mcf_getimr() & ~vec);
-	}
-}
-
-/***************************************************************************/
-
 void mcf_settimericr(unsigned int timer, unsigned int level)
 {
 	volatile unsigned char *icrp;

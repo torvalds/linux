@@ -148,13 +148,6 @@ void mcf_disableall(void)
 
 /***************************************************************************/
 
-void mcf_autovector(unsigned int vec)
-{
-	/* Everything is auto-vectored on the 5272 */
-}
-
-/***************************************************************************/
-
 void mcf_settimericr(int timer, int level)
 {
 	volatile unsigned long *icrp;
