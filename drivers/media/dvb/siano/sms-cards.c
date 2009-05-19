@@ -85,6 +85,16 @@ static struct sms_board sms_boards[] = {
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
 		.lna_ctrl  = -1,
 	},
+	[SMS1XXX_BOARD_SIANO_NICE] = {
+	/* 11 */
+		.name = "Siano Nice Digital Receiver",
+		.type = SMS_NOVA_B0,
+	},
+	[SMS1XXX_BOARD_SIANO_VENICE] = {
+	/* 12 */
+		.name = "Siano Venice Digital Receiver",
+		.type = SMS_VEGA,
+	},
 };
 
 struct sms_board *sms_get_board(int id)
