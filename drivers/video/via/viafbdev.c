@@ -1782,6 +1782,10 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	viafb_init_chip_info(pdev, ent);
 	viaparinfo->fbmem = pci_resource_start(pdev, 0);
 	viaparinfo->memsize = viafb_get_fb_size_from_pci();
+	if (viaparinfo->memsize < 0) {
+		rc = viaparinfo->memsize;
+		goto out_delete_i2c;
+	}
 	viaparinfo->fbmem_free = viaparinfo->memsize;
 	viaparinfo->fbmem_used = 0;
 	viafbinfo->screen_base = ioremap_nocache(viaparinfo->fbmem,
