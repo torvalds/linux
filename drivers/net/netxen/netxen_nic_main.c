@@ -539,6 +539,7 @@ netxen_setup_intr(struct netxen_adapter *adapter)
 		adapter->msi_tgt_status =
 			msi_tgt_status[adapter->ahw.pci_func];
 		dev_info(&pdev->dev, "using msi interrupts\n");
+		adapter->msix_entries[0].vector = pdev->irq;
 		return;
 	}
 
