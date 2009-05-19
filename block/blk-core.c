@@ -910,6 +910,15 @@ EXPORT_SYMBOL(blk_get_request);
  * need bouncing, by calling the appropriate masked or flagged allocator,
  * suitable for the target device. Otherwise the call to blk_queue_bounce will
  * BUG.
+ *
+ * WARNING: When allocating/cloning a bio-chain, careful consideration should be
+ * given to how you allocate bios. In particular, you cannot use __GFP_WAIT for
+ * anything but the first bio in the chain. Otherwise you risk waiting for IO
+ * completion of a bio that hasn't been submitted yet, thus resulting in a
+ * deadlock. Alternatively bios should be allocated using bio_kmalloc() instead
+ * of bio_alloc(), as that avoids the mempool deadlock.
+ * If possible a big IO should be split into smaller parts when allocation
+ * fails. Partial allocation should not be an error, or you risk a live-lock.
  */
 struct request *blk_make_request(struct request_queue *q, struct bio *bio,
 				 gfp_t gfp_mask)
