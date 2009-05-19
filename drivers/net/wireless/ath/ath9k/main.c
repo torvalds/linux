@@ -2070,6 +2070,31 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
+	if (unlikely(sc->sc_ah->power_mode != ATH9K_PM_AWAKE)) {
+		/*
+		 * We are using PS-Poll and mac80211 can request TX while in
+		 * power save mode. Need to wake up hardware for the TX to be
+		 * completed and if needed, also for RX of buffered frames.
+		 */
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		ath9k_ps_wakeup(sc);
+		ath9k_hw_setrxabort(sc->sc_ah, 0);
+		if (ieee80211_is_pspoll(hdr->frame_control)) {
+			DPRINTF(sc, ATH_DBG_PS, "Sending PS-Poll to pick a "
+				"buffered frame\n");
+			sc->sc_flags |= SC_OP_WAIT_FOR_PSPOLL_DATA;
+		} else {
+			DPRINTF(sc, ATH_DBG_PS, "Wake up to complete TX\n");
+			sc->sc_flags |= SC_OP_WAIT_FOR_TX_ACK;
+		}
+		/*
+		 * The actual restore operation will happen only after
+		 * the sc_flags bit is cleared. We are just dropping
+		 * the ps_usecount here.
+		 */
+		ath9k_ps_restore(sc);
+	}
+
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
 
 	/*
@@ -2307,7 +2332,10 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 			if (!(ah->caps.hw_caps &
 			      ATH9K_HW_CAP_AUTOSLEEP)) {
 				ath9k_hw_setrxabort(sc->sc_ah, 0);
-				sc->sc_flags &= ~SC_OP_WAIT_FOR_BEACON;
+				sc->sc_flags &= ~(SC_OP_WAIT_FOR_BEACON |
+						  SC_OP_WAIT_FOR_CAB |
+						  SC_OP_WAIT_FOR_PSPOLL_DATA |
+						  SC_OP_WAIT_FOR_TX_ACK);
 				if (sc->imask & ATH9K_INT_TIM_TIMER) {
 					sc->imask &= ~ATH9K_INT_TIM_TIMER;
 					ath9k_hw_set_interrupts(sc->sc_ah,

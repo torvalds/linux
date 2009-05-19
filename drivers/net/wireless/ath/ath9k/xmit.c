@@ -1790,6 +1790,16 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		skb_pull(skb, padsize);
 	}
 
+	if (sc->sc_flags & SC_OP_WAIT_FOR_TX_ACK) {
+		sc->sc_flags &= ~SC_OP_WAIT_FOR_TX_ACK;
+		DPRINTF(sc, ATH_DBG_PS, "Going back to sleep after having "
+			"received TX status (0x%x)\n",
+			sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+					SC_OP_WAIT_FOR_CAB |
+					SC_OP_WAIT_FOR_PSPOLL_DATA |
+					SC_OP_WAIT_FOR_TX_ACK));
+	}
+
 	if (frame_type == ATH9K_NOT_INTERNAL)
 		ieee80211_tx_status(hw, skb);
 	else

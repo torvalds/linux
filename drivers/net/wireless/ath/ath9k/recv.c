@@ -560,7 +560,8 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *)skb->data;
 
 	/* Process Beacon and CAB receive in PS state */
-	if (ieee80211_is_beacon(hdr->frame_control))
+	if ((sc->sc_flags & SC_OP_WAIT_FOR_BEACON) &&
+	    ieee80211_is_beacon(hdr->frame_control))
 		ath_rx_ps_beacon(sc, skb);
 	else if ((sc->sc_flags & SC_OP_WAIT_FOR_CAB) &&
 		 (ieee80211_is_data(hdr->frame_control) ||
@@ -574,6 +575,16 @@ static void ath_rx_ps(struct ath_softc *sc, struct sk_buff *skb)
 		 * point.
 		 */
 		ath_rx_ps_back_to_sleep(sc);
+	} else if ((sc->sc_flags & SC_OP_WAIT_FOR_PSPOLL_DATA) &&
+		   !is_multicast_ether_addr(hdr->addr1) &&
+		   !ieee80211_has_morefrags(hdr->frame_control)) {
+		sc->sc_flags &= ~SC_OP_WAIT_FOR_PSPOLL_DATA;
+		DPRINTF(sc, ATH_DBG_PS, "Going back to sleep after having "
+			"received PS-Poll data (0x%x)\n",
+			sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+					SC_OP_WAIT_FOR_CAB |
+					SC_OP_WAIT_FOR_PSPOLL_DATA |
+					SC_OP_WAIT_FOR_TX_ACK));
 	}
 }
 
@@ -798,7 +809,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			sc->rx.rxotherant = 0;
 		}
 
-		if (unlikely(sc->sc_flags & SC_OP_WAIT_FOR_BEACON))
+		if (unlikely(sc->sc_flags & (SC_OP_WAIT_FOR_BEACON |
+					     SC_OP_WAIT_FOR_PSPOLL_DATA)))
 			ath_rx_ps(sc, skb);
 
 		ath_rx_send_to_mac80211(sc, skb, &rx_status);
