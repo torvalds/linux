@@ -527,7 +527,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u8 comp_codes_1g = 0;
 	u8 comp_codes_10g = 0;
 	u8 oui_bytes[3] = {0, 0, 0};
-	u8 transmission_media = 0;
+	u8 cable_tech = 0;
 	u16 enforce_sfp = 0;
 
 	status = hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_IDENTIFIER,
@@ -543,8 +543,8 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		                            &comp_codes_1g);
 		hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_10GBE_COMP_CODES,
 		                            &comp_codes_10g);
-		hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_TRANSMISSION_MEDIA,
-		                            &transmission_media);
+		hw->phy.ops.read_i2c_eeprom(hw, IXGBE_SFF_CABLE_TECHNOLOGY,
+		                            &cable_tech);
 
 		/* ID Module
 		 * =========
@@ -557,7 +557,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		 * 6    SFP_SR/LR_CORE1 - 82599-specific
 		 */
 		if (hw->mac.type == ixgbe_mac_82598EB) {
-			if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE)
+			if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 				hw->phy.sfp_type = ixgbe_sfp_type_da_cu;
 			else if (comp_codes_10g & IXGBE_SFF_10GBASESR_CAPABLE)
 				hw->phy.sfp_type = ixgbe_sfp_type_sr;
@@ -566,7 +566,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			else
 				hw->phy.sfp_type = ixgbe_sfp_type_unknown;
 		} else if (hw->mac.type == ixgbe_mac_82599EB) {
-			if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE)
+			if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 				if (hw->bus.lan_id == 0)
 					hw->phy.sfp_type =
 					             ixgbe_sfp_type_da_cu_core0;
@@ -621,8 +621,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 
 			switch (vendor_oui) {
 			case IXGBE_SFF_VENDOR_OUI_TYCO:
-				if (transmission_media &
-				    IXGBE_SFF_TWIN_AX_CAPABLE)
+				if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 					hw->phy.type = ixgbe_phy_tw_tyco;
 				break;
 			case IXGBE_SFF_VENDOR_OUI_FTL:
@@ -635,8 +634,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				hw->phy.type = ixgbe_phy_sfp_intel;
 				break;
 			default:
-				if (transmission_media &
-				    IXGBE_SFF_TWIN_AX_CAPABLE)
+				if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)
 					hw->phy.type = ixgbe_phy_tw_unknown;
 				else
 					hw->phy.type = ixgbe_phy_sfp_unknown;
@@ -644,8 +642,8 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			}
 		}
 
-		/* All DA cables are supported */
-		if (transmission_media & IXGBE_SFF_TWIN_AX_CAPABLE) {
+		/* All passive DA cables are supported */
+		if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE) {
 			status = 0;
 			goto out;
 		}
