@@ -1344,13 +1344,22 @@ void wiphy_apply_custom_regulatory(struct wiphy *wiphy,
 				   const struct ieee80211_regdomain *regd)
 {
 	enum ieee80211_band band;
+	unsigned int bands_set = 0;
 
 	mutex_lock(&cfg80211_mutex);
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-		if (wiphy->bands[band])
-			handle_band_custom(wiphy, band, regd);
+		if (!wiphy->bands[band])
+			continue;
+		handle_band_custom(wiphy, band, regd);
+		bands_set++;
 	}
 	mutex_unlock(&cfg80211_mutex);
+
+	/*
+	 * no point in calling this if it won't have any effect
+	 * on your device's supportd bands.
+	 */
+	WARN_ON(!bands_set);
 }
 EXPORT_SYMBOL(wiphy_apply_custom_regulatory);
 
