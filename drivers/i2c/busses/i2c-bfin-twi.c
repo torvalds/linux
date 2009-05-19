@@ -196,8 +196,6 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 			/* remove restart bit and enable master receive */
 			write_MASTER_CTL(iface,
 				read_MASTER_CTL(iface) & ~RSTART);
-			write_MASTER_CTL(iface,
-				read_MASTER_CTL(iface) | MEN | MDIR);
 			SSYNC();
 		} else if (iface->cur_mode == TWI_I2C_MODE_REPEAT &&
 				iface->cur_msg+1 < iface->msg_num) {
@@ -222,18 +220,19 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 			}
 
 			if (iface->pmsg[iface->cur_msg].len <= 255)
-				write_MASTER_CTL(iface,
-				iface->pmsg[iface->cur_msg].len << 6);
+					write_MASTER_CTL(iface,
+					(read_MASTER_CTL(iface) &
+					(~(0xff << 6))) |
+				(iface->pmsg[iface->cur_msg].len << 6));
 			else {
-				write_MASTER_CTL(iface, 0xff << 6);
+				write_MASTER_CTL(iface,
+					(read_MASTER_CTL(iface) |
+					(0xff << 6)));
 				iface->manual_stop = 1;
 			}
 			/* remove restart bit and enable master receive */
 			write_MASTER_CTL(iface,
 				read_MASTER_CTL(iface) & ~RSTART);
-			write_MASTER_CTL(iface, read_MASTER_CTL(iface) |
-				MEN | ((iface->read_write == I2C_SMBUS_READ) ?
-				MDIR : 0));
 			SSYNC();
 		} else {
 			iface->result = 1;
