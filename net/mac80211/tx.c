@@ -872,6 +872,8 @@ ieee80211_tx_h_calculate_duration(struct ieee80211_tx_data *tx)
 
 	do {
 		hdr = (void *) skb->data;
+		if (unlikely(ieee80211_is_pspoll(hdr->frame_control)))
+			break; /* must not overwrite AID */
 		next_len = skb->next ? skb->next->len : 0;
 		group_addr = is_multicast_ether_addr(hdr->addr1);
 
