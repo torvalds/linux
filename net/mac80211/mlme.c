@@ -1389,8 +1389,8 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 		ifmgd->flags |= IEEE80211_STA_PROBEREQ_POLL;
 		ieee80211_send_probe_req(sdata, ifmgd->bssid, ifmgd->ssid,
 					 ifmgd->ssid_len, NULL, 0);
+		mod_timer(&ifmgd->timer, jiffies + IEEE80211_PROBE_WAIT);
 		goto unlock;
-
 	}
 
 	if (time_after(jiffies, sta->last_rx + IEEE80211_PROBE_IDLE_TIME)) {
@@ -1399,15 +1399,16 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata)
 					 ifmgd->ssid_len, NULL, 0);
 	}
 
+	if (!disassoc)
+		mod_timer(&ifmgd->timer,
+			  jiffies + IEEE80211_MONITORING_INTERVAL);
+
  unlock:
 	rcu_read_unlock();
 
 	if (disassoc)
 		ieee80211_set_disassoc(sdata, true, true,
 					WLAN_REASON_PREV_AUTH_NOT_VALID);
-	else
-		mod_timer(&ifmgd->timer, jiffies +
-				      IEEE80211_MONITORING_INTERVAL);
 }
 
 
