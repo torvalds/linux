@@ -803,10 +803,6 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 		goto out;
 	}
 
-	if (count > PAGE_SIZE) {
-		ret = -EINVAL;
-		goto out;
-	}
 	page = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!page) {
 		ret = -ENOMEM;
