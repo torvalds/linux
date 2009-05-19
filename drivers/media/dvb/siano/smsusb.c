@@ -485,7 +485,6 @@ static int smsusb_resume(struct usb_interface *intf)
 }
 
 struct usb_device_id smsusb_id_table[] = {
-#ifdef CONFIG_DVB_SIANO_SMS1XXX_SMS_IDS
 	{ USB_DEVICE(0x187f, 0x0010),
 		.driver_info = SMS1XXX_BOARD_SIANO_STELLAR },
 	{ USB_DEVICE(0x187f, 0x0100),
@@ -496,7 +495,6 @@ struct usb_device_id smsusb_id_table[] = {
 		.driver_info = SMS1XXX_BOARD_SIANO_NOVA_B },
 	{ USB_DEVICE(0x187f, 0x0300),
 		.driver_info = SMS1XXX_BOARD_SIANO_VEGA },
-#endif
 	{ USB_DEVICE(0x2040, 0x1700),
 		.driver_info = SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT },
 	{ USB_DEVICE(0x2040, 0x1800),
