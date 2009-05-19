@@ -386,12 +386,10 @@ static struct mv64xxx_i2c_pdata kirkwood_i2c_pdata = {
 
 static struct resource kirkwood_i2c_resources[] = {
 	{
-		.name	= "i2c",
 		.start	= I2C_PHYS_BASE,
 		.end	= I2C_PHYS_BASE + 0x1f,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "i2c",
 		.start	= IRQ_KIRKWOOD_TWSI,
 		.end	= IRQ_KIRKWOOD_TWSI,
 		.flags	= IORESOURCE_IRQ,

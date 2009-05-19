@@ -532,12 +532,10 @@ static struct mv64xxx_i2c_pdata mv78xx0_i2c_0_pdata = {
 
 static struct resource mv78xx0_i2c_0_resources[] = {
 	{
-		.name   = "i2c 0 base",
 		.start  = I2C_0_PHYS_BASE,
 		.end    = I2C_0_PHYS_BASE + 0x1f,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.name   = "i2c 0 irq",
 		.start  = IRQ_MV78XX0_I2C_0,
 		.end    = IRQ_MV78XX0_I2C_0,
 		.flags  = IORESOURCE_IRQ,
@@ -567,12 +565,10 @@ static struct mv64xxx_i2c_pdata mv78xx0_i2c_1_pdata = {
 
 static struct resource mv78xx0_i2c_1_resources[] = {
 	{
-		.name   = "i2c 1 base",
 		.start  = I2C_1_PHYS_BASE,
 		.end    = I2C_1_PHYS_BASE + 0x1f,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.name   = "i2c 1 irq",
 		.start  = IRQ_MV78XX0_I2C_1,
 		.end    = IRQ_MV78XX0_I2C_1,
 		.flags  = IORESOURCE_IRQ,

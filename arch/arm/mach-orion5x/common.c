@@ -248,12 +248,10 @@ static struct mv64xxx_i2c_pdata orion5x_i2c_pdata = {
 
 static struct resource orion5x_i2c_resources[] = {
 	{
-		.name	= "i2c base",
 		.start	= I2C_PHYS_BASE,
 		.end	= I2C_PHYS_BASE + 0x1f,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "i2c irq",
 		.start	= IRQ_ORION5X_I2C,
 		.end	= IRQ_ORION5X_I2C,
 		.flags	= IORESOURCE_IRQ,
