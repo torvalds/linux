@@ -485,6 +485,15 @@ void __init tx4939_dmac_init(int memcpy_chan0, int memcpy_chan1)
 	}
 }
 
+void __init tx4939_aclc_init(void)
+{
+	u64 pcfg = __raw_readq(&tx4939_ccfgptr->pcfg);
+
+	if ((pcfg & TX4939_PCFG_I2SMODE_MASK) == TX4939_PCFG_I2SMODE_ACLC)
+		txx9_aclc_init(TX4939_ACLC_REG & 0xfffffffffULL,
+			       TXX9_IRQ_BASE + TX4939_IR_ACLC, 1, 0, 1);
+}
+
 static void __init tx4939_stop_unused_modules(void)
 {
 	__u64 pcfg, rst = 0, ckd = 0;

@@ -265,6 +265,49 @@ void __init tx4927_dmac_init(int memcpy_chan)
 		       TXX9_IRQ_BASE + TX4927_IR_DMA(0), &plat_data);
 }
 
+void __init tx4927_aclc_init(unsigned int dma_chan_out,
+			     unsigned int dma_chan_in)
+{
+	u64 pcfg = __raw_readq(&tx4927_ccfgptr->pcfg);
+	__u64 dmasel_mask = 0, dmasel = 0;
+	unsigned long flags;
+
+	if (!(pcfg & TX4927_PCFG_SEL2))
+		return;
+	/* setup DMASEL (playback:ACLC ch0, capture:ACLC ch1) */
+	switch (dma_chan_out) {
+	case 0:
+		dmasel_mask |= TX4927_PCFG_DMASEL0_MASK;
+		dmasel |= TX4927_PCFG_DMASEL0_ACL0;
+		break;
+	case 2:
+		dmasel_mask |= TX4927_PCFG_DMASEL2_MASK;
+		dmasel |= TX4927_PCFG_DMASEL2_ACL0;
+		break;
+	default:
+		return;
+	}
+	switch (dma_chan_in) {
+	case 1:
+		dmasel_mask |= TX4927_PCFG_DMASEL1_MASK;
+		dmasel |= TX4927_PCFG_DMASEL1_ACL1;
+		break;
+	case 3:
+		dmasel_mask |= TX4927_PCFG_DMASEL3_MASK;
+		dmasel |= TX4927_PCFG_DMASEL3_ACL1;
+		break;
+	default:
+		return;
+	}
+	local_irq_save(flags);
+	txx9_clear64(&tx4927_ccfgptr->pcfg, dmasel_mask);
+	txx9_set64(&tx4927_ccfgptr->pcfg, dmasel);
+	local_irq_restore(flags);
+	txx9_aclc_init(TX4927_ACLC_REG & 0xfffffffffULL,
+		       TXX9_IRQ_BASE + TX4927_IR_ACLC,
+		       0, dma_chan_out, dma_chan_in);
+}
+
 static void __init tx4927_stop_unused_modules(void)
 {
 	__u64 pcfg, rst = 0, ckd = 0;

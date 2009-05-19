@@ -50,6 +50,7 @@
 #define TX4927_NR_SIO	2
 #define TX4927_SIO_REG(ch)	(TX4927_REG_BASE + 0xf300 + (ch) * 0x100)
 #define TX4927_PIO_REG		(TX4927_REG_BASE + 0xf500)
+#define TX4927_ACLC_REG		(TX4927_REG_BASE + 0xf700)
 
 #define TX4927_IR_ECCERR	0
 #define TX4927_IR_WTOERR	1
@@ -267,5 +268,6 @@ void tx4927_setup_pcierr_irq(void);
 void tx4927_irq_init(void);
 void tx4927_mtd_init(int ch);
 void tx4927_dmac_init(int memcpy_chan);
+void tx4927_aclc_init(unsigned int dma_chan_out, unsigned int dma_chan_in);
 
 #endif /* __ASM_TXX9_TX4927_H */
