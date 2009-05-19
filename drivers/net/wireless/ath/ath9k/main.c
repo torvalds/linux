@@ -329,6 +329,12 @@ static void ath_ani_calibrate(unsigned long data)
 	if (sc->sc_flags & SC_OP_SCANNING)
 		goto set_timer;
 
+	/* Only calibrate if awake */
+	if (sc->sc_ah->power_mode != ATH9K_PM_AWAKE)
+		goto set_timer;
+
+	ath9k_ps_wakeup(sc);
+
 	/* Long calibration runs independently of short calibration. */
 	if ((timestamp - sc->ani.longcal_timer) >= ATH_LONG_CALINTERVAL) {
 		longcal = true;
@@ -379,6 +385,8 @@ static void ath_ani_calibrate(unsigned long data)
 				sc->ani.noise_floor);
 		}
 	}
+
+	ath9k_ps_restore(sc);
 
 set_timer:
 	/*
