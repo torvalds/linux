@@ -796,22 +796,37 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
 	gh->gh_ip = 0;
 }
 
-static int just_schedule(void *word)
+/**
+ * gfs2_glock_holder_wait
+ * @word: unused
+ *
+ * This function and gfs2_glock_demote_wait both show up in the WCHAN
+ * field. Thus I've separated these otherwise identical functions in
+ * order to be more informative to the user.
+ */
+
+static int gfs2_glock_holder_wait(void *word)
 {
         schedule();
         return 0;
 }
 
+static int gfs2_glock_demote_wait(void *word)
+{
+	schedule();
+	return 0;
+}
+
 static void wait_on_holder(struct gfs2_holder *gh)
 {
 	might_sleep();
-	wait_on_bit(&gh->gh_iflags, HIF_WAIT, just_schedule, TASK_UNINTERRUPTIBLE);
+	wait_on_bit(&gh->gh_iflags, HIF_WAIT, gfs2_glock_holder_wait, TASK_UNINTERRUPTIBLE);
 }
 
 static void wait_on_demote(struct gfs2_glock *gl)
 {
 	might_sleep();
-	wait_on_bit(&gl->gl_flags, GLF_DEMOTE, just_schedule, TASK_UNINTERRUPTIBLE);
+	wait_on_bit(&gl->gl_flags, GLF_DEMOTE, gfs2_glock_demote_wait, TASK_UNINTERRUPTIBLE);
 }
 
 /**

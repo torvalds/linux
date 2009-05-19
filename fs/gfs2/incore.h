@@ -12,6 +12,7 @@
 
 #include <linux/fs.h>
 #include <linux/workqueue.h>
+#include <linux/slow-work.h>
 #include <linux/dlm.h>
 #include <linux/buffer_head.h>
 
@@ -376,11 +377,11 @@ struct gfs2_journal_extent {
 struct gfs2_jdesc {
 	struct list_head jd_list;
 	struct list_head extent_list;
-
+	struct slow_work jd_work;
 	struct inode *jd_inode;
+	unsigned long jd_flags;
+#define JDF_RECOVERY 1
 	unsigned int jd_jid;
-	int jd_dirty;
-
 	unsigned int jd_blocks;
 };
 
@@ -389,9 +390,6 @@ struct gfs2_statfs_change_host {
 	s64 sc_free;
 	s64 sc_dinodes;
 };
-
-#define GFS2_GLOCKD_DEFAULT	1
-#define GFS2_GLOCKD_MAX		16
 
 #define GFS2_QUOTA_DEFAULT	GFS2_QUOTA_OFF
 #define GFS2_QUOTA_OFF		0
@@ -427,7 +425,6 @@ struct gfs2_tune {
 	unsigned int gt_incore_log_blocks;
 	unsigned int gt_log_flush_secs;
 
-	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;
 
 	unsigned int gt_quota_simul_sync; /* Max quotavals to sync at once */
@@ -448,6 +445,7 @@ enum {
 	SDF_JOURNAL_LIVE	= 1,
 	SDF_SHUTDOWN		= 2,
 	SDF_NOBARRIERS		= 3,
+	SDF_NORECOVERY		= 4,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -494,7 +492,6 @@ struct lm_lockstruct {
 	unsigned long ls_flags;
 	dlm_lockspace_t *ls_dlm;
 
-	int ls_recover_jid;
 	int ls_recover_jid_done;
 	int ls_recover_jid_status;
 };
@@ -583,7 +580,6 @@ struct gfs2_sbd {
 
 	/* Daemon stuff */
 
-	struct task_struct *sd_recoverd_process;
 	struct task_struct *sd_logd_process;
 	struct task_struct *sd_quotad_process;
 

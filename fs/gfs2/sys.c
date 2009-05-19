@@ -356,34 +356,33 @@ static ssize_t first_done_show(struct gfs2_sbd *sdp, char *buf)
 	return sprintf(buf, "%d\n", ls->ls_first_done);
 }
 
-static ssize_t recover_show(struct gfs2_sbd *sdp, char *buf)
+static ssize_t recover_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
-	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	return sprintf(buf, "%d\n", ls->ls_recover_jid);
-}
-
-static void gfs2_jdesc_make_dirty(struct gfs2_sbd *sdp, unsigned int jid)
-{
+	unsigned jid;
 	struct gfs2_jdesc *jd;
+	int rv;
 
+	rv = sscanf(buf, "%u", &jid);
+	if (rv != 1)
+		return -EINVAL;
+
+	rv = -ESHUTDOWN;
 	spin_lock(&sdp->sd_jindex_spin);
+	if (test_bit(SDF_NORECOVERY, &sdp->sd_flags))
+		goto out;
+	rv = -EBUSY;
+	if (sdp->sd_jdesc->jd_jid == jid)
+		goto out;
+	rv = -ENOENT;
 	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
 		if (jd->jd_jid != jid)
 			continue;
-		jd->jd_dirty = 1;
+		rv = slow_work_enqueue(&jd->jd_work);
 		break;
 	}
+out:
 	spin_unlock(&sdp->sd_jindex_spin);
-}
-
-static ssize_t recover_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
-{
-	struct lm_lockstruct *ls = &sdp->sd_lockstruct;
-	ls->ls_recover_jid = simple_strtol(buf, NULL, 0);
-	gfs2_jdesc_make_dirty(sdp, ls->ls_recover_jid);
-	if (sdp->sd_recoverd_process)
-		wake_up_process(sdp->sd_recoverd_process);
-	return len;
+	return rv ? rv : len;
 }
 
 static ssize_t recover_done_show(struct gfs2_sbd *sdp, char *buf)
@@ -401,15 +400,15 @@ static ssize_t recover_status_show(struct gfs2_sbd *sdp, char *buf)
 #define GDLM_ATTR(_name,_mode,_show,_store) \
 static struct gfs2_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
-GDLM_ATTR(proto_name,     0444, proto_name_show,     NULL);
-GDLM_ATTR(block,          0644, block_show,          block_store);
-GDLM_ATTR(withdraw,       0644, withdraw_show,       withdraw_store);
-GDLM_ATTR(id,             0444, lkid_show,           NULL);
-GDLM_ATTR(first,          0444, lkfirst_show,        NULL);
-GDLM_ATTR(first_done,     0444, first_done_show,     NULL);
-GDLM_ATTR(recover,        0644, recover_show,        recover_store);
-GDLM_ATTR(recover_done,   0444, recover_done_show,   NULL);
-GDLM_ATTR(recover_status, 0444, recover_status_show, NULL);
+GDLM_ATTR(proto_name,     0444, proto_name_show,	NULL);
+GDLM_ATTR(block,          0644, block_show,		block_store);
+GDLM_ATTR(withdraw,       0644, withdraw_show,		withdraw_store);
+GDLM_ATTR(id,             0444, lkid_show,		NULL);
+GDLM_ATTR(first,          0444, lkfirst_show,		NULL);
+GDLM_ATTR(first_done,     0444, first_done_show,	NULL);
+GDLM_ATTR(recover,        0200, NULL,			recover_store);
+GDLM_ATTR(recover_done,   0444, recover_done_show,	NULL);
+GDLM_ATTR(recover_status, 0444, recover_status_show,	NULL);
 
 static struct attribute *lock_module_attrs[] = {
 	&gdlm_attr_proto_name.attr,

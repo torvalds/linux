@@ -121,6 +121,12 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	return error;
 }
 
+static int gfs2_umount_recovery_wait(void *word)
+{
+	schedule();
+	return 0;
+}
+
 /**
  * gfs2_put_super - Unmount the filesystem
  * @sb: The VFS superblock
@@ -131,6 +137,7 @@ static void gfs2_put_super(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
+	struct gfs2_jdesc *jd;
 
 	/*  Unfreeze the filesystem, if we need to  */
 
@@ -139,9 +146,25 @@ static void gfs2_put_super(struct super_block *sb)
 		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 	mutex_unlock(&sdp->sd_freeze_lock);
 
+	/* No more recovery requests */
+	set_bit(SDF_NORECOVERY, &sdp->sd_flags);
+	smp_mb();
+
+	/* Wait on outstanding recovery */
+restart:
+	spin_lock(&sdp->sd_jindex_spin);
+	list_for_each_entry(jd, &sdp->sd_jindex_list, jd_list) {
+		if (!test_bit(JDF_RECOVERY, &jd->jd_flags))
+			continue;
+		spin_unlock(&sdp->sd_jindex_spin);
+		wait_on_bit(&jd->jd_flags, JDF_RECOVERY,
+			    gfs2_umount_recovery_wait, TASK_UNINTERRUPTIBLE);
+		goto restart;
+	}
+	spin_unlock(&sdp->sd_jindex_spin);
+
 	kthread_stop(sdp->sd_quotad_process);
 	kthread_stop(sdp->sd_logd_process);
-	kthread_stop(sdp->sd_recoverd_process);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		error = gfs2_make_fs_ro(sdp);
