@@ -3,7 +3,6 @@
 /*
  * Architecture specific compatibility types
  */
-#include <linux/seccomp.h>
 #include <linux/thread_info.h>
 #include <linux/types.h>
 #include <asm/page.h>

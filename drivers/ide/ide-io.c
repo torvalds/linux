@@ -102,11 +102,14 @@ void ide_complete_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat, u8 err)
 			drive->dev_flags |= IDE_DFLAG_PARKED;
 	}
 
-	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
-		memcpy(rq->special, cmd, sizeof(*cmd));
+	if (rq && rq->cmd_type == REQ_TYPE_ATA_TASKFILE) {
+		struct ide_cmd *orig_cmd = rq->special;
 
-	if (cmd->tf_flags & IDE_TFLAG_DYN)
-		kfree(cmd);
+		if (cmd->tf_flags & IDE_TFLAG_DYN)
+			kfree(orig_cmd);
+		else
+			memcpy(orig_cmd, cmd, sizeof(*cmd));
+	}
 }
 
 /* obsolete, blk_rq_bytes() should be used instead */

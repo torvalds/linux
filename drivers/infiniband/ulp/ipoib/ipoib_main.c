@@ -106,8 +106,7 @@ int ipoib_open(struct net_device *dev)
 
 	ipoib_dbg(priv, "bringing up interface\n");
 
-	if (!test_and_set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
-		napi_enable(&priv->napi);
+	set_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	if (ipoib_pkey_dev_delay_open(dev))
 		return 0;
@@ -143,7 +142,6 @@ err_stop:
 	ipoib_ib_dev_stop(dev, 1);
 
 err_disable:
-	napi_disable(&priv->napi);
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
 
 	return -EINVAL;
@@ -156,7 +154,6 @@ static int ipoib_stop(struct net_device *dev)
 	ipoib_dbg(priv, "stopping interface\n");
 
 	clear_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags);
-	napi_disable(&priv->napi);
 
 	netif_stop_queue(dev);
 

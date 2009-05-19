@@ -37,7 +37,6 @@
 #include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <linux/signal.h>
 #include <linux/syscalls.h>
 #include <asm/cacheflush.h>
 #include <asm/syscalls.h>
@@ -179,7 +178,9 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc, int *rval_p)
 
 asmlinkage int sys_sigreturn(struct pt_regs *regs)
 {
-	struct sigframe *frame = (struct sigframe *)regs->r1;
+	struct sigframe *frame =
+			(struct sigframe *)(regs->r1 + STATE_SAVE_ARG_SPACE);
+
 	sigset_t set;
 	int rval;
 
@@ -210,7 +211,9 @@ badframe:
 
 asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 {
-	struct rt_sigframe *frame = (struct rt_sigframe *)regs->r1;
+	struct rt_sigframe *frame =
+			(struct rt_sigframe *)(regs->r1 + STATE_SAVE_ARG_SPACE);
+
 	sigset_t set;
 	stack_t st;
 	int rval;
@@ -337,7 +340,8 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->r1 = (unsigned long) frame;
+	regs->r1 = (unsigned long) frame - STATE_SAVE_ARG_SPACE;
+
 	/* Signal handler args: */
 	regs->r5 = signal; /* Arg 0: signum */
 	regs->r6 = (unsigned long) &frame->sc; /* arg 1: sigcontext */
@@ -415,7 +419,8 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		goto give_sigsegv;
 
 	/* Set up registers for signal handler */
-	regs->r1 = (unsigned long) frame;
+	regs->r1 = (unsigned long) frame - STATE_SAVE_ARG_SPACE;
+
 	/* Signal handler args: */
 	regs->r5 = signal; /* arg 0: signum */
 	regs->r6 = (unsigned long) &frame->info; /* arg 1: siginfo */

@@ -100,8 +100,20 @@ static irqreturn_t omap_kp_interrupt(int irq, void *dev_id)
 	/* disable keyboard interrupt and schedule for handling */
 	if (cpu_is_omap24xx()) {
 		int i;
-		for (i = 0; i < omap_kp->rows; i++)
-			disable_irq(gpio_to_irq(row_gpios[i]));
+
+		for (i = 0; i < omap_kp->rows; i++) {
+			int gpio_irq = gpio_to_irq(row_gpios[i]);
+			/*
+			 * The interrupt which we're currently handling should
+			 * be disabled _nosync() to avoid deadlocks waiting
+			 * for this handler to complete.  All others should
+			 * be disabled the regular way for SMP safety.
+			 */
+			if (gpio_irq == irq)
+				disable_irq_nosync(gpio_irq);
+			else
+				disable_irq(gpio_irq);
+		}
 	} else
 		/* disable keyboard interrupt and schedule for handling */
 		omap_writew(1, OMAP_MPUIO_BASE + OMAP_MPUIO_KBD_MASKIT);

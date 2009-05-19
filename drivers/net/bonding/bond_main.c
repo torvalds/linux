@@ -5199,7 +5199,6 @@ static int __init bonding_init(void)
 {
 	int i;
 	int res;
-	struct bonding *bond;
 
 	printk(KERN_INFO "%s", version);
 
@@ -5228,13 +5227,6 @@ static int __init bonding_init(void)
 
 	goto out;
 err:
-	list_for_each_entry(bond, &bond_dev_list, bond_list) {
-		bond_work_cancel_all(bond);
-		destroy_workqueue(bond->wq);
-	}
-
-	bond_destroy_sysfs();
-
 	rtnl_lock();
 	bond_free_all();
 	rtnl_unlock();

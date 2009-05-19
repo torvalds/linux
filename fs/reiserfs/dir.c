@@ -41,6 +41,18 @@ static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
 
 #define store_ih(where,what) copy_item_head (where, what)
 
+static inline bool is_privroot_deh(struct dentry *dir,
+				   struct reiserfs_de_head *deh)
+{
+	int ret = 0;
+#ifdef CONFIG_REISERFS_FS_XATTR
+	struct dentry *privroot = REISERFS_SB(dir->d_sb)->priv_root;
+	ret = (dir == dir->d_parent && privroot->d_inode &&
+	       deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
+#endif
+	return ret;
+}
+
 int reiserfs_readdir_dentry(struct dentry *dentry, void *dirent,
 			   filldir_t filldir, loff_t *pos)
 {
@@ -138,18 +150,8 @@ int reiserfs_readdir_dentry(struct dentry *dentry, void *dirent,
 				}
 
 				/* Ignore the .reiserfs_priv entry */
-				if (reiserfs_xattrs(inode->i_sb) &&
-				    !old_format_only(inode->i_sb) &&
-				    dentry == inode->i_sb->s_root &&
-				    REISERFS_SB(inode->i_sb)->priv_root &&
-				    REISERFS_SB(inode->i_sb)->priv_root->d_inode
-				    && deh_objectid(deh) ==
-				    le32_to_cpu(INODE_PKEY
-						(REISERFS_SB(inode->i_sb)->
-						 priv_root->d_inode)->
-						k_objectid)) {
+				if (is_privroot_deh(dentry, deh))
 					continue;
-				}
 
 				d_off = deh_offset(deh);
 				*pos = d_off;

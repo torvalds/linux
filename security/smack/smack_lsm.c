@@ -609,8 +609,12 @@ static int smack_inode_setxattr(struct dentry *dentry, const char *name,
 	    strcmp(name, XATTR_NAME_SMACKIPOUT) == 0) {
 		if (!capable(CAP_MAC_ADMIN))
 			rc = -EPERM;
-		/* a label cannot be void and cannot begin with '-' */
-		if (size == 0 || (size > 0 && ((char *)value)[0] == '-'))
+		/*
+		 * check label validity here so import wont fail on
+		 * post_setxattr
+		 */
+		if (size == 0 || size >= SMK_LABELLEN ||
+		    smk_import(value, size) == NULL)
 			rc = -EINVAL;
 	} else
 		rc = cap_inode_setxattr(dentry, name, value, size, flags);
@@ -642,9 +646,6 @@ static void smack_inode_post_setxattr(struct dentry *dentry, const char *name,
 	 * Not SMACK
 	 */
 	if (strcmp(name, XATTR_NAME_SMACK))
-		return;
-
-	if (size >= SMK_LABELLEN)
 		return;
 
 	isp = dentry->d_inode->i_security;

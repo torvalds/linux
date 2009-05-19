@@ -5,12 +5,13 @@
 
 struct scatterlist {
 #ifdef CONFIG_DEBUG_SG
-    unsigned long sg_magic;
+	unsigned long	sg_magic;
 #endif
-    unsigned long page_link;
-    unsigned int offset;/* for highmem, page offset */
-    dma_addr_t dma_address;
-    unsigned int length;
+	unsigned long	page_link;
+	unsigned int	offset;		/* for highmem, page offset */
+	unsigned int	length;
+	dma_addr_t	dma_address;
+	unsigned int	dma_length;
 };
 
 #define ISA_DMA_THRESHOLD	PHYS_ADDR_MASK

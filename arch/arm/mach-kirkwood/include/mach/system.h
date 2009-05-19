@@ -9,8 +9,7 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
-#include <mach/hardware.h>
-#include <mach/kirkwood.h>
+#include <mach/bridge-regs.h>
 
 static inline void arch_idle(void)
 {

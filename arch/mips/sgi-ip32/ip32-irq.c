@@ -112,13 +112,13 @@ static void inline flush_mace_bus(void)
 extern irqreturn_t crime_memerr_intr(int irq, void *dev_id);
 extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 
-struct irqaction memerr_irq = {
+static struct irqaction memerr_irq = {
 	.handler = crime_memerr_intr,
 	.flags = IRQF_DISABLED,
 	.name = "CRIME memory error",
 };
 
-struct irqaction cpuerr_irq = {
+static struct irqaction cpuerr_irq = {
 	.handler = crime_cpuerr_intr,
 	.flags = IRQF_DISABLED,
 	.name = "CRIME CPU error",

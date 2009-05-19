@@ -36,7 +36,7 @@ static void early_printk_putc(char c)
 
 	unsigned retries = 10000;
 	/* read status bit - 0x8 offset */
-	while (retries-- && (in_be32(base_addr + 8) & (1 << 3)))
+	while (--retries && (in_be32(base_addr + 8) & (1 << 3)))
 		;
 
 	/* Only attempt the iowrite if we didn't timeout */

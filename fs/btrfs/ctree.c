@@ -1325,12 +1325,12 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 	int ret = 0;
 	int blocksize;
 
-	parent = path->nodes[level - 1];
+	parent = path->nodes[level + 1];
 	if (!parent)
 		return 0;
 
 	nritems = btrfs_header_nritems(parent);
-	slot = path->slots[level];
+	slot = path->slots[level + 1];
 	blocksize = btrfs_level_size(root, level);
 
 	if (slot > 0) {
@@ -1341,7 +1341,7 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 			block1 = 0;
 		free_extent_buffer(eb);
 	}
-	if (slot < nritems) {
+	if (slot + 1 < nritems) {
 		block2 = btrfs_node_blockptr(parent, slot + 1);
 		gen = btrfs_node_ptr_generation(parent, slot + 1);
 		eb = btrfs_find_tree_block(root, block2, blocksize);
@@ -1351,7 +1351,11 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 	}
 	if (block1 || block2) {
 		ret = -EAGAIN;
+
+		/* release the whole path */
 		btrfs_release_path(root, path);
+
+		/* read the blocks */
 		if (block1)
 			readahead_tree_block(root, block1, blocksize, 0);
 		if (block2)
@@ -1361,7 +1365,7 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 			eb = read_tree_block(root, block1, blocksize, 0);
 			free_extent_buffer(eb);
 		}
-		if (block1) {
+		if (block2) {
 			eb = read_tree_block(root, block2, blocksize, 0);
 			free_extent_buffer(eb);
 		}
@@ -1465,6 +1469,7 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	u32 blocksize;
 	struct extent_buffer *b = *eb_ret;
 	struct extent_buffer *tmp;
+	int ret;
 
 	blocknr = btrfs_node_blockptr(b, slot);
 	gen = btrfs_node_ptr_generation(b, slot);
@@ -1472,6 +1477,10 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 
 	tmp = btrfs_find_tree_block(root, blocknr, blocksize);
 	if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
+		/*
+		 * we found an up to date block without sleeping, return
+		 * right away
+		 */
 		*eb_ret = tmp;
 		return 0;
 	}
@@ -1479,18 +1488,34 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 	/*
 	 * reduce lock contention at high levels
 	 * of the btree by dropping locks before
-	 * we read.
+	 * we read.  Don't release the lock on the current
+	 * level because we need to walk this node to figure
+	 * out which blocks to read.
 	 */
-	btrfs_release_path(NULL, p);
+	btrfs_unlock_up_safe(p, level + 1);
+	btrfs_set_path_blocking(p);
+
 	if (tmp)
 		free_extent_buffer(tmp);
 	if (p->reada)
 		reada_for_search(root, p, level, slot, key->objectid);
 
+	btrfs_release_path(NULL, p);
+
+	ret = -EAGAIN;
 	tmp = read_tree_block(root, blocknr, blocksize, gen);
-	if (tmp)
+	if (tmp) {
+		/*
+		 * If the read above didn't mark this buffer up to date,
+		 * it will never end up being up to date.  Set ret to EIO now
+		 * and give up so that our caller doesn't loop forever
+		 * on our EAGAINs.
+		 */
+		if (!btrfs_buffer_uptodate(tmp, 0))
+			ret = -EIO;
 		free_extent_buffer(tmp);
-	return -EAGAIN;
+	}
+	return ret;
 }
 
 /*
@@ -1689,6 +1714,9 @@ cow_done:
 			if (ret == -EAGAIN)
 				goto again;
 
+			if (ret == -EIO)
+				goto done;
+
 			if (!p->skip_locking) {
 				int lret;
 
@@ -1731,6 +1759,8 @@ done:
 	 */
 	if (!p->leave_spinning)
 		btrfs_set_path_blocking(p);
+	if (ret < 0)
+		btrfs_release_path(root, p);
 	return ret;
 }
 
@@ -4205,6 +4235,11 @@ again:
 		if (ret == -EAGAIN)
 			goto again;
 
+		if (ret < 0) {
+			btrfs_release_path(root, path);
+			goto done;
+		}
+
 		if (!path->skip_locking) {
 			ret = btrfs_try_spin_lock(next);
 			if (!ret) {
@@ -4238,6 +4273,11 @@ again:
 					    0, &key);
 		if (ret == -EAGAIN)
 			goto again;
+
+		if (ret < 0) {
+			btrfs_release_path(root, path);
+			goto done;
+		}
 
 		if (!path->skip_locking) {
 			btrfs_assert_tree_locked(path->nodes[level]);

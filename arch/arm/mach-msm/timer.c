@@ -57,12 +57,12 @@ static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static cycle_t msm_gpt_read(void)
+static cycle_t msm_gpt_read(struct clocksource *cs)
 {
 	return readl(MSM_GPT_BASE + TIMER_COUNT_VAL);
 }
 
-static cycle_t msm_dgt_read(void)
+static cycle_t msm_dgt_read(struct clocksource *cs)
 {
 	return readl(MSM_DGT_BASE + TIMER_COUNT_VAL) >> MSM_DGT_SHIFT;
 }

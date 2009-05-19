@@ -1248,7 +1248,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	pgprintk("%s: adding gfn %lx role %x\n", __func__, gfn, role.word);
 	sp->gfn = gfn;
 	sp->role = role;
-	sp->global = role.cr4_pge;
+	sp->global = 0;
 	hlist_add_head(&sp->hash_link, bucket);
 	if (!direct) {
 		if (rmap_write_protect(vcpu->kvm, gfn))

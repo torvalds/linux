@@ -143,7 +143,9 @@ extern u64 timecounter_cyc2time(struct timecounter *tc,
  *			400-499: Perfect
  *				The ideal clocksource. A must-use where
  *				available.
- * @read:		returns a cycle value
+ * @read:		returns a cycle value, passes clocksource as argument
+ * @enable:		optional function to enable the clocksource
+ * @disable:		optional function to disable the clocksource
  * @mask:		bitmask for two's complement
  *			subtraction of non 64 bit counters
  * @mult:		cycle to nanosecond multiplier (adjusted by NTP)
@@ -162,7 +164,9 @@ struct clocksource {
 	char *name;
 	struct list_head list;
 	int rating;
-	cycle_t (*read)(void);
+	cycle_t (*read)(struct clocksource *cs);
+	int (*enable)(struct clocksource *cs);
+	void (*disable)(struct clocksource *cs);
 	cycle_t mask;
 	u32 mult;
 	u32 mult_orig;
@@ -271,7 +275,34 @@ static inline u32 clocksource_hz2mult(u32 hz, u32 shift_constant)
  */
 static inline cycle_t clocksource_read(struct clocksource *cs)
 {
-	return cs->read();
+	return cs->read(cs);
+}
+
+/**
+ * clocksource_enable: - enable clocksource
+ * @cs:		pointer to clocksource
+ *
+ * Enables the specified clocksource. The clocksource callback
+ * function should start up the hardware and setup mult and field
+ * members of struct clocksource to reflect hardware capabilities.
+ */
+static inline int clocksource_enable(struct clocksource *cs)
+{
+	return cs->enable ? cs->enable(cs) : 0;
+}
+
+/**
+ * clocksource_disable: - disable clocksource
+ * @cs:		pointer to clocksource
+ *
+ * Disables the specified clocksource. The clocksource callback
+ * function should power down the now unused hardware block to
+ * save power.
+ */
+static inline void clocksource_disable(struct clocksource *cs)
+{
+	if (cs->disable)
+		cs->disable(cs);
 }
 
 /**

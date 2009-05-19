@@ -12,10 +12,17 @@
    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  
 */
 
-#ifndef _MD_K_H
-#define _MD_K_H
+#ifndef _MD_MD_H
+#define _MD_MD_H
 
-#ifdef CONFIG_BLOCK
+#include <linux/blkdev.h>
+#include <linux/kobject.h>
+#include <linux/list.h>
+#include <linux/mm.h>
+#include <linux/mutex.h>
+#include <linux/timer.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #define MaxSector (~(sector_t)0)
 
@@ -408,10 +415,6 @@ static inline void safe_put_page(struct page *p)
 	if (p) put_page(p);
 }
 
-#endif /* CONFIG_BLOCK */
-#endif
-
-
 extern int register_md_personality(struct mdk_personality *p);
 extern int unregister_md_personality(struct mdk_personality *p);
 extern mdk_thread_t * md_register_thread(void (*run) (mddev_t *mddev),
@@ -434,3 +437,5 @@ extern void md_new_event(mddev_t *mddev);
 extern int md_allow_write(mddev_t *mddev);
 extern void md_wait_for_blocked_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern void md_set_array_sectors(mddev_t *mddev, sector_t array_sectors);
+
+#endif /* _MD_MD_H */

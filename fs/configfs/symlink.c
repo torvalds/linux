@@ -135,7 +135,7 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	struct path path;
 	struct configfs_dirent *sd;
 	struct config_item *parent_item;
-	struct config_item *target_item;
+	struct config_item *target_item = NULL;
 	struct config_item_type *type;
 
 	ret = -EPERM;  /* What lack-of-symlink returns */

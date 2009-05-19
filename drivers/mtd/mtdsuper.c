@@ -74,8 +74,7 @@ static int get_sb_mtd_aux(struct file_system_type *fs_type, int flags,
 
 	ret = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 	if (ret < 0) {
-		up_write(&sb->s_umount);
-		deactivate_super(sb);
+		deactivate_locked_super(sb);
 		return ret;
 	}
 

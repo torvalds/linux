@@ -186,6 +186,12 @@ static enum print_line_t power_print_line(struct trace_iterator *iter)
 	return TRACE_TYPE_UNHANDLED;
 }
 
+static void power_print_header(struct seq_file *s)
+{
+	seq_puts(s, "#   TIMESTAMP      STATE  EVENT\n");
+	seq_puts(s, "#       |            |      |\n");
+}
+
 static struct tracer power_tracer __read_mostly =
 {
 	.name		= "power",
@@ -194,6 +200,7 @@ static struct tracer power_tracer __read_mostly =
 	.stop		= stop_power_trace,
 	.reset		= power_trace_reset,
 	.print_line	= power_print_line,
+	.print_header	= power_print_header,
 };
 
 static int init_power_trace(void)

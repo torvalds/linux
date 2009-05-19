@@ -176,7 +176,7 @@ static __init void microblaze_clockevent_init(void)
 	clockevents_register_device(&clockevent_microblaze_timer);
 }
 
-static cycle_t microblaze_read(void)
+static cycle_t microblaze_read(struct clocksource *cs)
 {
 	/* reading actual value of timer 1 */
 	return (cycle_t) (in_be32(TIMER_BASE + TCR1));

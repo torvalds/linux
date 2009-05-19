@@ -38,7 +38,7 @@ void octeon_init_cvmcount(void)
 	local_irq_restore(flags);
 }
 
-static cycle_t octeon_cvmcount_read(void)
+static cycle_t octeon_cvmcount_read(struct clocksource *cs)
 {
 	return read_c0_cvmcount();
 }

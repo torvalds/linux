@@ -349,6 +349,7 @@ static int ov7725_power(struct device *dev, int mode)
 static struct ov772x_camera_info ov7725_info = {
 	.buswidth  = SOCAM_DATAWIDTH_8,
 	.flags = OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
+	.edgectrl = OV772X_AUTO_EDGECTRL(0xf, 0),
 	.link = {
 		.power  = ov7725_power,
 	},

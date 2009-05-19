@@ -158,6 +158,7 @@ int ht_create_irq(struct pci_dev *dev, int idx)
 
 /**
  * ht_destroy_irq - destroy an irq created with ht_create_irq
+ * @irq: irq to be destroyed
  *
  * This reverses ht_create_irq removing the specified irq from
  * existence.  The irq should be free before this happens.

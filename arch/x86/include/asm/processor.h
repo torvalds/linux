@@ -138,7 +138,7 @@ extern struct tss_struct	doublefault_tss;
 extern __u32			cleared_cpu_caps[NCAPINTS];
 
 #ifdef CONFIG_SMP
-DECLARE_PER_CPU(struct cpuinfo_x86, cpu_info);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct cpuinfo_x86, cpu_info);
 #define cpu_data(cpu)		per_cpu(cpu_info, cpu)
 #define current_cpu_data	__get_cpu_var(cpu_info)
 #else
@@ -270,7 +270,7 @@ struct tss_struct {
 
 } ____cacheline_aligned;
 
-DECLARE_PER_CPU(struct tss_struct, init_tss);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, init_tss);
 
 /*
  * Save the original ist values for checking stack pointers during debugging
@@ -393,7 +393,7 @@ union irq_stack_union {
 	};
 };
 
-DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
+DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union);
 DECLARE_INIT_PER_CPU(irq_stack_union);
 
 DECLARE_PER_CPU(char *, irq_stack_ptr);
