@@ -130,7 +130,8 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 				 MAY_READ | MAY_EXEC | MAY_OPEN);
 	if (error)
 		goto exit;
-	error = ima_path_check(&nd.path, MAY_READ | MAY_EXEC | MAY_OPEN);
+	error = ima_path_check(&nd.path, MAY_READ | MAY_EXEC | MAY_OPEN,
+			       IMA_COUNT_UPDATE);
 	if (error)
 		goto exit;
 
@@ -680,7 +681,7 @@ struct file *open_exec(const char *name)
 	err = inode_permission(nd.path.dentry->d_inode, MAY_EXEC | MAY_OPEN);
 	if (err)
 		goto out_path_put;
-	err = ima_path_check(&nd.path, MAY_EXEC | MAY_OPEN);
+	err = ima_path_check(&nd.path, MAY_EXEC | MAY_OPEN, IMA_COUNT_UPDATE);
 	if (err)
 		goto out_path_put;
 

@@ -125,6 +125,15 @@ static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
 	return rc;
 }
 
+static void ima_update_counts(struct ima_iint_cache *iint, int mask)
+{
+	iint->opencount++;
+	if ((mask & MAY_WRITE) || (mask == 0))
+		iint->writecount++;
+	else if (mask & (MAY_READ | MAY_EXEC))
+		iint->readcount++;
+}
+
 /**
  * ima_path_check - based on policy, collect/store measurement.
  * @path: contains a pointer to the path to be measured
@@ -143,7 +152,7 @@ static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
  * Return 0 on success, an error code on failure.
  * (Based on the results of appraise_measurement().)
  */
-int ima_path_check(struct path *path, int mask)
+int ima_path_check(struct path *path, int mask, int update_counts)
 {
 	struct inode *inode = path->dentry->d_inode;
 	struct ima_iint_cache *iint;
@@ -157,11 +166,8 @@ int ima_path_check(struct path *path, int mask)
 		return 0;
 
 	mutex_lock(&iint->mutex);
-	iint->opencount++;
-	if ((mask & MAY_WRITE) || (mask == 0))
-		iint->writecount++;
-	else if (mask & (MAY_READ | MAY_EXEC))
-		iint->readcount++;
+	if (update_counts)
+		ima_update_counts(iint, mask);
 
 	rc = ima_must_measure(iint, inode, MAY_READ, PATH_CHECK);
 	if (rc < 0)
@@ -197,6 +203,7 @@ out:
 	kref_put(&iint->refcount, iint_free);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ima_path_check);
 
 static int process_measurement(struct file *file, const unsigned char *filename,
 			       int mask, int function)
@@ -225,7 +232,16 @@ out:
 	return rc;
 }
 
-static void opencount_get(struct file *file)
+/*
+ * ima_opens_get - increment file counts
+ *
+ * - for IPC shm and shmat file.
+ * - for nfsd exported files.
+ *
+ * Increment the counts for these files to prevent unnecessary
+ * imbalance messages.
+ */
+void ima_counts_get(struct file *file)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct ima_iint_cache *iint;
@@ -237,8 +253,14 @@ static void opencount_get(struct file *file)
 		return;
 	mutex_lock(&iint->mutex);
 	iint->opencount++;
+	if ((file->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
+		iint->readcount++;
+
+	if (file->f_mode & FMODE_WRITE)
+		iint->writecount++;
 	mutex_unlock(&iint->mutex);
 }
+EXPORT_SYMBOL_GPL(ima_counts_get);
 
 /**
  * ima_file_mmap - based on policy, collect/store measurement.
@@ -261,18 +283,6 @@ int ima_file_mmap(struct file *file, unsigned long prot)
 		rc = process_measurement(file, file->f_dentry->d_name.name,
 					 MAY_EXEC, FILE_MMAP);
 	return 0;
-}
-
-/*
- * ima_shm_check - IPC shm and shmat create/fput a file
- *
- * Maintain the opencount for these files to prevent unnecessary
- * imbalance messages.
- */
-void ima_shm_check(struct file *file)
-{
-	opencount_get(file);
-	return;
 }
 
 /**
