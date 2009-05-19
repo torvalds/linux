@@ -1920,16 +1920,22 @@ static inline __u16 qeth_l3_rebuild_skb(struct qeth_card *card,
 		 hdr->hdr.l3.vlan_id : *((u16 *)&hdr->hdr.l3.dest_addr[12]);
 	}
 
-	skb->ip_summed = card->options.checksum_type;
-	if (card->options.checksum_type == HW_CHECKSUMMING) {
+	switch (card->options.checksum_type) {
+	case SW_CHECKSUMMING:
+		skb->ip_summed = CHECKSUM_NONE;
+		break;
+	case NO_CHECKSUMMING:
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		break;
+	case HW_CHECKSUMMING:
 		if ((hdr->hdr.l3.ext_flags &
-		      (QETH_HDR_EXT_CSUM_HDR_REQ |
-		       QETH_HDR_EXT_CSUM_TRANSP_REQ)) ==
-		     (QETH_HDR_EXT_CSUM_HDR_REQ |
-		      QETH_HDR_EXT_CSUM_TRANSP_REQ))
+		    (QETH_HDR_EXT_CSUM_HDR_REQ |
+		     QETH_HDR_EXT_CSUM_TRANSP_REQ)) ==
+		    (QETH_HDR_EXT_CSUM_HDR_REQ |
+		     QETH_HDR_EXT_CSUM_TRANSP_REQ))
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
-			skb->ip_summed = SW_CHECKSUMMING;
+			skb->ip_summed = CHECKSUM_NONE;
 	}
 
 	return vlan_id;
