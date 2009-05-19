@@ -124,23 +124,6 @@
 #define	MCFSIM_DMA2ICR		MCFSIM_ICR8	/* DMA 2 ICR */
 #define	MCFSIM_DMA3ICR		MCFSIM_ICR9	/* DMA 3 ICR */
 
-#if defined(CONFIG_M5307)
-#define	MCFSIM_IMR_MASKALL	0x3fffe		/* All SIM intr sources */
-#endif
-
-/*
- *	Macro to set IMR register. It is 32 bits on the 5307.
- */
-#define	mcf_getimr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR))
-
-#define	mcf_setimr(imr)		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR)) = (imr);
-
-#define	mcf_getipr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IPR))
-
-
 /*
  *	Some symbol defines for the Parallel Port Pin Assignment Register
  */

@@ -1,5 +1,5 @@
 /*
- * intc.c
+ * intc.c  -- support for the old ColdFire interrupt controller
  *
  * (C) Copyright 2009, Greg Ungerer <gerg@snapgear.com>
  *
@@ -25,6 +25,62 @@
  */
 #define	EIRQ1	25
 #define	EIRQ7	31
+
+/*
+ * In the early version 2 core ColdFire parts the IMR register was 16 bits
+ * in size. Version 3 (and later version 2) core parts have a 32 bit
+ * sized IMR register. Provide some size independant methods to access the
+ * IMR register.
+ */
+#ifdef MCFSIM_IMR_IS_16BITS
+
+void mcf_setimr(int index)
+{
+        u16 imr;
+        imr = __raw_readw(MCF_MBAR + MCFSIM_IMR);
+	__raw_writew(imr | (0x1 << index), MCF_MBAR + MCFSIM_IMR);
+}
+
+void mcf_clrimr(int index)
+{
+        u16 imr;
+        imr = __raw_readw(MCF_MBAR + MCFSIM_IMR);
+	__raw_writew(imr & ~(0x1 << index), MCF_MBAR + MCFSIM_IMR);
+}
+
+void mcf_maskimr(unsigned int mask)
+{
+	u16 imr;
+        imr = __raw_readw(MCF_MBAR + MCFSIM_IMR);
+	imr |= mask;
+	__raw_writew(imr, MCF_MBAR + MCFSIM_IMR);
+}
+
+#else
+
+void mcf_setimr(int index)
+{
+        u32 imr;
+        imr = __raw_readl(MCF_MBAR + MCFSIM_IMR);
+	__raw_writel(imr | (0x1 << index), MCF_MBAR + MCFSIM_IMR);
+}
+
+void mcf_clrimr(int index)
+{
+        u32 imr;
+        imr = __raw_readl(MCF_MBAR + MCFSIM_IMR);
+	__raw_writel(imr & ~(0x1 << index), MCF_MBAR + MCFSIM_IMR);
+}
+
+void mcf_maskimr(unsigned int mask)
+{
+	u32 imr;
+        imr = __raw_readl(MCF_MBAR + MCFSIM_IMR);
+	imr |= mask;
+	__raw_writel(imr, MCF_MBAR + MCFSIM_IMR);
+}
+
+#endif
 
 /*
  * Interrupts can be "vectored" on the ColdFire cores that support this old
@@ -70,6 +126,7 @@ void __init init_IRQ(void)
 	int irq;
 
 	init_vectors();
+	mcf_maskimr(0xffffffff);
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
 		irq_desc[irq].status = IRQ_DISABLED;

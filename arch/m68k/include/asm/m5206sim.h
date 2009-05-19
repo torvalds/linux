@@ -117,21 +117,11 @@
 #define	MCFSIM_DMA2ICR		MCFSIM_ICR15	/* DMA 2 ICR */
 #endif
 
-#if defined(CONFIG_M5206e)
-#define	MCFSIM_IMR_MASKALL	0xfffe		/* All SIM intr sources */
-#endif
-
 /*
- *	Macro to get and set IMR register. It is 16 bits on the 5206.
+ * Let the common interrupt handler code know that the ColdFire 5206*
+ * family of CPU's only has a 16bit sized IMR register.
  */
-#define	mcf_getimr()		\
-	*((volatile unsigned short *) (MCF_MBAR + MCFSIM_IMR))
-
-#define	mcf_setimr(imr)		\
-	*((volatile unsigned short *) (MCF_MBAR + MCFSIM_IMR)) = (imr)
-
-#define	mcf_getipr()		\
-	*((volatile unsigned short *) (MCF_MBAR + MCFSIM_IPR))
+#define	MCFSIM_IMR_IS_16BITS
 
 /****************************************************************************/
 #endif	/* m5206sim_h */

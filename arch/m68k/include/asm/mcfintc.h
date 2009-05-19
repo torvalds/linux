@@ -48,59 +48,32 @@
 #define	MCFSIM_ICR_PRI3		0x03		/* Priority 3 intr */
 
 /*
- *	Bit definitions for the ICR family of registers.
+ * IMR bit position definitions.
  */
-#define	MCFSIM_ICR_AUTOVEC	0x80		/* Auto-vectored intr */
-#define	MCFSIM_ICR_LEVEL0	0x00		/* Level 0 intr */
-#define	MCFSIM_ICR_LEVEL1	0x04		/* Level 1 intr */
-#define	MCFSIM_ICR_LEVEL2	0x08		/* Level 2 intr */
-#define	MCFSIM_ICR_LEVEL3	0x0c		/* Level 3 intr */
-#define	MCFSIM_ICR_LEVEL4	0x10		/* Level 4 intr */
-#define	MCFSIM_ICR_LEVEL5	0x14		/* Level 5 intr */
-#define	MCFSIM_ICR_LEVEL6	0x18		/* Level 6 intr */
-#define	MCFSIM_ICR_LEVEL7	0x1c		/* Level 7 intr */
+#define	MCFINTC_EINT1		1		/* External int #1 */
+#define	MCFINTC_EINT2		2		/* External int #2 */
+#define	MCFINTC_EINT3		3		/* External int #3 */
+#define	MCFINTC_EINT4		4		/* External int #4 */
+#define	MCFINTC_EINT5		5		/* External int #5 */
+#define	MCFINTC_EINT6		6		/* External int #6 */
+#define	MCFINTC_EINT7		7		/* External int #7 */
+#define	MCFINTC_SWT		8		/* Software Watchdog */
+#define	MCFINTC_TIMER1		9
+#define	MCFINTC_TIMER2		10
+#define	MCFINTC_I2C		11		/* I2C / MBUS */
+#define	MCFINTC_UART0		12
+#define	MCFINTC_UART1		13
+#define	MCFINTC_DMA0		14
+#define	MCFINTC_DMA1		15
+#define	MCFINTC_DMA2		16
+#define	MCFINTC_DMA3		17
+#define	MCFINTC_QSPI		18
 
-#define	MCFSIM_ICR_PRI0		0x00		/* Priority 0 intr */
-#define	MCFSIM_ICR_PRI1		0x01		/* Priority 1 intr */
-#define	MCFSIM_ICR_PRI2		0x02		/* Priority 2 intr */
-#define	MCFSIM_ICR_PRI3		0x03		/* Priority 3 intr */
-
-/*
- *	Bit definitions for the Interrupt Mask register (IMR).
- */
-#define	MCFSIM_IMR_EINT1	0x0002		/* External intr # 1 */
-#define	MCFSIM_IMR_EINT2	0x0004		/* External intr # 2 */
-#define	MCFSIM_IMR_EINT3	0x0008		/* External intr # 3 */
-#define	MCFSIM_IMR_EINT4	0x0010		/* External intr # 4 */
-#define	MCFSIM_IMR_EINT5	0x0020		/* External intr # 5 */
-#define	MCFSIM_IMR_EINT6	0x0040		/* External intr # 6 */
-#define	MCFSIM_IMR_EINT7	0x0080		/* External intr # 7 */
-
-#define	MCFSIM_IMR_SWD		0x0100		/* Software Watchdog intr */
-#define	MCFSIM_IMR_TIMER1	0x0200		/* TIMER 1 intr */
-#define	MCFSIM_IMR_TIMER2	0x0400		/* TIMER 2 intr */
-#define MCFSIM_IMR_MBUS		0x0800		/* MBUS intr	*/
-#define	MCFSIM_IMR_UART1	0x1000		/* UART 1 intr */
-#define	MCFSIM_IMR_UART2	0x2000		/* UART 2 intr */
-
-#if defined(CONFIG_M5206e)
-#define	MCFSIM_IMR_DMA1		0x4000		/* DMA 1 intr */
-#define	MCFSIM_IMR_DMA2		0x8000		/* DMA 2 intr */
-#elif defined(CONFIG_M5249) || defined(CONFIG_M5307)
-#define	MCFSIM_IMR_DMA0		0x4000		/* DMA 0 intr */
-#define	MCFSIM_IMR_DMA1		0x8000		/* DMA 1 intr */
-#define	MCFSIM_IMR_DMA2		0x10000		/* DMA 2 intr */
-#define	MCFSIM_IMR_DMA3		0x20000		/* DMA 3 intr */
+#ifndef __ASSEMBLER__
+void mcf_autovector(int irq);
+void mcf_setimr(int index);
+void mcf_clrimr(int index);
 #endif
-
-/*
- *	Mask for all of the SIM devices. Some parts have more or less
- *	SIM devices. This is a catchall for the sandard set.
- */
-#ifndef MCFSIM_IMR_MASKALL
-#define	MCFSIM_IMR_MASKALL	0x3ffe		/* All intr sources */
-#endif
-
 
 /****************************************************************************/
 #endif	/* mcfintc_h */

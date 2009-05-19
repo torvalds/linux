@@ -49,11 +49,11 @@ static void __init m5206_uart_init_line(int line, int irq)
 	if (line == 0) {
 		writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI1, MCF_MBAR + MCFSIM_UART1ICR);
 		writeb(irq, MCFUART_BASE1 + MCFUART_UIVR);
-		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART1);
+		mcf_clrimr(MCFINTC_UART0);
 	} else if (line == 1) {
 		writel(MCFSIM_ICR_LEVEL6 | MCFSIM_ICR_PRI2, MCF_MBAR + MCFSIM_UART2ICR);
 		writeb(irq, MCFUART_BASE2 + MCFUART_UIVR);
-		mcf_setimr(mcf_getimr() & ~MCFSIM_IMR_UART2);
+		mcf_clrimr(MCFINTC_UART1);
 	}
 }
 
@@ -75,13 +75,13 @@ void mcf_settimericr(unsigned int timer, unsigned int level)
 
 	if (timer <= 2) {
 		switch (timer) {
-		case 2:  icr = MCFSIM_TIMER2ICR; imr = MCFSIM_IMR_TIMER2; break;
-		default: icr = MCFSIM_TIMER1ICR; imr = MCFSIM_IMR_TIMER1; break;
+		case 2:  icr = MCFSIM_TIMER2ICR; imr = MCFINTC_TIMER2; break;
+		default: icr = MCFSIM_TIMER1ICR; imr = MCFINTC_TIMER1; break;
 		}
 
 		icrp = (volatile unsigned char *) (MCF_MBAR + icr);
 		*icrp = MCFSIM_ICR_AUTOVEC | (level << 2) | MCFSIM_ICR_PRI3;
-		mcf_setimr(mcf_getimr() & ~imr);
+		mcf_clrimr(imr);
 	}
 }
 
@@ -100,7 +100,6 @@ void m5206_cpu_reset(void)
 
 void __init config_BSP(char *commandp, int size)
 {
-	mcf_setimr(MCFSIM_IMR_MASKALL);
 	mach_reset = m5206_cpu_reset;
 }
 

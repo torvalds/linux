@@ -106,19 +106,6 @@
 #define MCFGPIO_PIN_MAX		64
 #define MCFGPIO_IRQ_MAX		-1
 #define MCFGPIO_IRQ_VECBASE	-1
-/*
- *	Macro to set IMR register. It is 32 bits on the 5249.
- */
-#define	MCFSIM_IMR_MASKALL	0x7fffe		/* All SIM intr sources */
-
-#define	mcf_getimr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR))
-
-#define	mcf_setimr(imr)		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IMR)) = (imr);
-
-#define	mcf_getipr()		\
-	*((volatile unsigned long *) (MCF_MBAR + MCFSIM_IPR))
 
 /****************************************************************************/
 
