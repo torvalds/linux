@@ -1403,10 +1403,26 @@ static dma_addr_t __map_single(struct device *dev,
 	if (align)
 		align_mask = (1UL << get_order(size)) - 1;
 
+retry:
 	address = dma_ops_alloc_addresses(dev, dma_dom, pages, align_mask,
 					  dma_mask);
-	if (unlikely(address == bad_dma_address))
-		goto out;
+	if (unlikely(address == bad_dma_address)) {
+		/*
+		 * setting next_address here will let the address
+		 * allocator only scan the new allocated range in the
+		 * first run. This is a small optimization.
+		 */
+		dma_dom->next_address = dma_dom->aperture_size;
+
+		if (alloc_new_range(iommu, dma_dom, false, GFP_ATOMIC))
+			goto out;
+
+		/*
+		 * aperture was sucessfully enlarged by 128 MB, try
+		 * allocation again
+		 */
+		goto retry;
+	}
 
 	start = address;
 	for (i = 0; i < pages; ++i) {
