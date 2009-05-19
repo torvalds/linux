@@ -1430,8 +1430,6 @@ static int ath_init(u16 devid, struct ath_softc *sc)
 	for (i = 0; i < sc->keymax; i++)
 		ath9k_hw_keyreset(ah, (u16) i);
 
-	error = ath_regd_init(&sc->sc_ah->regulatory, sc->hw->wiphy,
-			      ath9k_reg_notifier);
 	if (error)
 		goto bad;
 
@@ -1644,13 +1642,18 @@ int ath_attach(u16 devid, struct ath_softc *sc)
 	if (error != 0)
 		return error;
 
-	reg = &sc->sc_ah->regulatory;
-
 	/* get mac address from hardware and set in mac80211 */
 
 	SET_IEEE80211_PERM_ADDR(hw, sc->sc_ah->macaddr);
 
 	ath_set_hw_capab(sc, hw);
+
+	error = ath_regd_init(&sc->sc_ah->regulatory, sc->hw->wiphy,
+			      ath9k_reg_notifier);
+	if (error)
+		return error;
+
+	reg = &sc->sc_ah->regulatory;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
 		setup_ht_cap(sc, &sc->sbands[IEEE80211_BAND_2GHZ].ht_cap);
