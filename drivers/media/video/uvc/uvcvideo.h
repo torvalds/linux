@@ -634,6 +634,7 @@ struct uvc_device {
 	enum uvc_device_state state;
 	struct kref kref;
 	struct list_head list;
+	atomic_t users;
 
 	/* Video control interface */
 	__u16 uvc_version;
@@ -770,6 +771,8 @@ extern int uvc_query_ctrl(struct uvc_device *dev, __u8 query, __u8 unit,
 /* Status */
 extern int uvc_status_init(struct uvc_device *dev);
 extern void uvc_status_cleanup(struct uvc_device *dev);
+extern int uvc_status_start(struct uvc_device *dev);
+extern void uvc_status_stop(struct uvc_device *dev);
 extern int uvc_status_suspend(struct uvc_device *dev);
 extern int uvc_status_resume(struct uvc_device *dev);
 

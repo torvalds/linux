@@ -439,6 +439,15 @@ static int uvc_v4l2_open(struct file *file)
 		goto done;
 	}
 
+	if (atomic_inc_return(&video->dev->users) == 1) {
+		if ((ret = uvc_status_start(video->dev)) < 0) {
+			usb_autopm_put_interface(video->dev->intf);
+			atomic_dec(&video->dev->users);
+			kfree(handle);
+			goto done;
+		}
+	}
+
 	handle->device = video;
 	handle->state = UVC_HANDLE_PASSIVE;
 	file->private_data = handle;
@@ -472,6 +481,9 @@ static int uvc_v4l2_release(struct file *file)
 	uvc_dismiss_privileges(handle);
 	kfree(handle);
 	file->private_data = NULL;
+
+	if (atomic_dec_return(&video->dev->users) == 0)
+		uvc_status_stop(video->dev);
 
 	usb_autopm_put_interface(video->dev->intf);
 	kref_put(&video->dev->kref, uvc_delete);
