@@ -2088,6 +2088,21 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
+	if (sc->hw->conf.flags & IEEE80211_CONF_PS) {
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		/*
+		 * mac80211 does not set PM field for normal data frames, so we
+		 * need to update that based on the current PS mode.
+		 */
+		if (ieee80211_is_data(hdr->frame_control) &&
+		    !ieee80211_is_nullfunc(hdr->frame_control) &&
+		    !ieee80211_has_pm(hdr->frame_control)) {
+			DPRINTF(sc, ATH_DBG_PS, "Add PM=1 for a TX frame "
+				"while in PS mode\n");
+			hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PM);
+		}
+	}
+
 	if (unlikely(sc->sc_ah->power_mode != ATH9K_PM_AWAKE)) {
 		/*
 		 * We are using PS-Poll and mac80211 can request TX while in
