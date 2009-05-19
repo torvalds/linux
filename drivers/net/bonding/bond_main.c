@@ -5148,6 +5148,7 @@ int bond_create(char *name, struct bond_params *params)
 		goto out_rtnl;
 	}
 
+	bond_dev->priv_flags &= ~IFF_XMIT_DST_RELEASE;
 	if (!name) {
 		res = dev_alloc_name(bond_dev, "bond%d");
 		if (res < 0)

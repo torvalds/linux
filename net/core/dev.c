@@ -1688,6 +1688,14 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 				goto gso;
 		}
 
+		/*
+		 * If device doesnt need skb->dst, release it right now while
+		 * its hot in this cpu cache
+		 */
+		if ((dev->priv_flags & IFF_XMIT_DST_RELEASE) && skb->dst) {
+			dst_release(skb->dst);
+			skb->dst = NULL;
+		}
 		rc = ops->ndo_start_xmit(skb, dev);
 		/*
 		 * TODO: if skb_orphan() was called by
@@ -5045,6 +5053,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	netdev_init_queues(dev);
 
 	INIT_LIST_HEAD(&dev->napi_list);
+	dev->priv_flags = IFF_XMIT_DST_RELEASE;
 	setup(dev);
 	strcpy(dev->name, name);
 	return dev;

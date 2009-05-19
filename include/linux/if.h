@@ -67,6 +67,9 @@
 #define IFF_ISATAP	0x80		/* ISATAP interface (RFC4214)	*/
 #define IFF_MASTER_ARPMON 0x100		/* bonding master, ARP mon in use */
 #define IFF_WAN_HDLC	0x200		/* WAN HDLC device		*/
+#define IFF_XMIT_DST_RELEASE 0x400	/* dev_hard_start_xmit() is allowed to
+					 * release skb->dst
+					 */
 
 #define IF_GET_IFACE	0x0001		/* for querying only */
 #define IF_GET_PROTO	0x0002
