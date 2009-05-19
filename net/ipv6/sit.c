@@ -165,8 +165,13 @@ static struct ip_tunnel * ipip6_tunnel_locate(struct net *net,
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 
 	for (tp = __ipip6_bucket(sitn, parms); (t = *tp) != NULL; tp = &t->next) {
-		if (local == t->parms.iph.saddr && remote == t->parms.iph.daddr)
-			return t;
+		if (local == t->parms.iph.saddr &&
+		    remote == t->parms.iph.daddr) {
+			if (create)
+				return NULL;
+			else
+				return t;
+		}
 	}
 	if (!create)
 		goto failed;
