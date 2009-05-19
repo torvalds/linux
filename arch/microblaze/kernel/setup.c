@@ -98,6 +98,29 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 {
 	unsigned long *src, *dst = (unsigned long *)0x0;
 
+	/* If CONFIG_MTD_UCLINUX is defined, assume ROMFS is at the
+	 * end of kernel. There are two position which we want to check.
+	 * The first is __init_end and the second __bss_start.
+	 */
+#ifdef CONFIG_MTD_UCLINUX
+	int romfs_size;
+	unsigned int romfs_base;
+	char *old_klimit = klimit;
+
+	romfs_base = (ram ? ram : (unsigned int)&__init_end);
+	romfs_size = PAGE_ALIGN(get_romfs_len((unsigned *)romfs_base));
+	if (!romfs_size) {
+		romfs_base = (unsigned int)&__bss_start;
+		romfs_size = PAGE_ALIGN(get_romfs_len((unsigned *)romfs_base));
+	}
+
+	/* Move ROMFS out of BSS before clearing it */
+	if (romfs_size > 0) {
+		memmove(&_ebss, (int *)romfs_base, romfs_size);
+		klimit += romfs_size;
+	}
+#endif
+
 /* clearing bss section */
 	memset(__bss_start, 0, __bss_stop-__bss_start);
 	memset(_ssbss, 0, _esbss-_ssbss);
@@ -119,27 +142,15 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	printk(KERN_NOTICE "Found FDT at 0x%08x\n", fdt);
 
 #ifdef CONFIG_MTD_UCLINUX
-	{
-		int size;
-		unsigned int romfs_base;
-		romfs_base = (ram ? ram : (unsigned int)&__init_end);
-		/* if CONFIG_MTD_UCLINUX_EBSS is defined, assume ROMFS is at the
-		 * end of kernel, which is ROMFS_LOCATION defined above. */
-		size = PAGE_ALIGN(get_romfs_len((unsigned *)romfs_base));
-		early_printk("Found romfs @ 0x%08x (0x%08x)\n",
-				romfs_base, size);
-		early_printk("#### klimit %p ####\n", klimit);
-		BUG_ON(size < 0); /* What else can we do? */
+	early_printk("Found romfs @ 0x%08x (0x%08x)\n",
+			romfs_base, romfs_size);
+	early_printk("#### klimit %p ####\n", old_klimit);
+	BUG_ON(romfs_size < 0); /* What else can we do? */
 
-		/* Use memmove to handle likely case of memory overlap */
-		early_printk("Moving 0x%08x bytes from 0x%08x to 0x%08x\n",
-			size, romfs_base, (unsigned)&_ebss);
-		memmove(&_ebss, (int *)romfs_base, size);
+	early_printk("Moved 0x%08x bytes from 0x%08x to 0x%08x\n",
+			romfs_size, romfs_base, (unsigned)&_ebss);
 
-		/* update klimit */
-		klimit += PAGE_ALIGN(size);
-		early_printk("New klimit: 0x%08x\n", (unsigned)klimit);
-	}
+	early_printk("New klimit: 0x%08x\n", (unsigned)klimit);
 #endif
 
 	for (src = __ivt_start; src < __ivt_end; src++, dst++)
