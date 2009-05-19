@@ -104,9 +104,14 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 			write_MASTER_CTL(iface,
 				read_MASTER_CTL(iface) | STOP);
 		else if (iface->cur_mode == TWI_I2C_MODE_REPEAT &&
-				iface->cur_msg+1 < iface->msg_num)
-			write_MASTER_CTL(iface,
-				read_MASTER_CTL(iface) | RSTART);
+		         iface->cur_msg + 1 < iface->msg_num) {
+			if (iface->pmsg[iface->cur_msg + 1].flags & I2C_M_RD)
+				write_MASTER_CTL(iface,
+					read_MASTER_CTL(iface) | RSTART | MDIR);
+			else
+				write_MASTER_CTL(iface,
+					(read_MASTER_CTL(iface) | RSTART) & ~MDIR);
+		}
 		SSYNC();
 		/* Clear status */
 		write_INT_STAT(iface, XMTSERV);
@@ -134,9 +139,13 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 				read_MASTER_CTL(iface) | STOP);
 			SSYNC();
 		} else if (iface->cur_mode == TWI_I2C_MODE_REPEAT &&
-				iface->cur_msg+1 < iface->msg_num) {
-			write_MASTER_CTL(iface,
-				read_MASTER_CTL(iface) | RSTART);
+		           iface->cur_msg + 1 < iface->msg_num) {
+			if (iface->pmsg[iface->cur_msg + 1].flags & I2C_M_RD)
+				write_MASTER_CTL(iface,
+					read_MASTER_CTL(iface) | RSTART | MDIR);
+			else
+				write_MASTER_CTL(iface,
+					(read_MASTER_CTL(iface) | RSTART) & ~MDIR);
 			SSYNC();
 		}
 		/* Clear interrupt source */
