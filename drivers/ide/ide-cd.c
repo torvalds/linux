@@ -699,6 +699,7 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 
 out_end:
 	if (blk_pc_request(rq) && rc == 0) {
+		rq->resid_len = 0;
 		blk_end_request_all(rq, 0);
 		hwif->rq = NULL;
 	} else {
@@ -718,8 +719,7 @@ out_end:
 
 		/* make sure it's fully ended */
 		if (blk_fs_request(rq) == 0) {
-			rq->resid_len = blk_rq_bytes(rq) -
-				(cmd->nbytes - cmd->nleft);
+			rq->resid_len -= cmd->nbytes - cmd->nleft;
 			if (uptodate == 0 && (cmd->tf_flags & IDE_TFLAG_WRITE))
 				rq->resid_len += cmd->last_xfer_len;
 		}

@@ -1937,7 +1937,11 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	if (ret > 0) {
 		/* positive number is the untransferred residual */
 		rsp->resid_len = ret;
+		req->resid_len = 0;
 		ret = 0;
+	} else if (ret == 0) {
+		rsp->resid_len = 0;
+		req->resid_len = 0;
 	}
 
 	return ret;

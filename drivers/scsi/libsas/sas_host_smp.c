@@ -176,9 +176,6 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 	resp_data[1] = req_data[1];
 	resp_data[2] = SMP_RESP_FUNC_UNK;
 
-	req->resid_len = blk_rq_bytes(req);
-	rsp->resid_len = blk_rq_bytes(rsp);
-
 	switch (req_data[1]) {
 	case SMP_REPORT_GENERAL:
 		req->resid_len -= 8;

@@ -380,7 +380,7 @@ static int ide_tape_callback(ide_drive_t *drive, int dsc)
 		}
 
 		tape->first_frame += blocks;
-		rq->resid_len = blk_rq_bytes(rq) - blocks * tape->blk_size;
+		rq->resid_len -= blocks * tape->blk_size;
 
 		if (pc->error) {
 			uptodate = 0;
