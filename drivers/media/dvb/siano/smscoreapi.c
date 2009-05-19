@@ -352,6 +352,9 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	init_completion(&dev->init_device_done);
 	init_completion(&dev->reload_start_done);
 	init_completion(&dev->resume_done);
+	init_completion(&dev->gpio_configuration_done);
+	init_completion(&dev->gpio_set_level_done);
+	init_completion(&dev->gpio_get_level_done);
 	init_completion(&dev->ir_init_done);
 
 	/* Buffer management */
@@ -1051,6 +1054,23 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		case MSG_SMS_SLEEP_RESUME_COMP_IND:
 			complete(&coredev->resume_done);
 			break;
+		case MSG_SMS_GPIO_CONFIG_EX_RES:
+			sms_debug("MSG_SMS_GPIO_CONFIG_EX_RES");
+			complete(&coredev->gpio_configuration_done);
+			break;
+		case MSG_SMS_GPIO_SET_LEVEL_RES:
+			sms_debug("MSG_SMS_GPIO_SET_LEVEL_RES");
+			complete(&coredev->gpio_set_level_done);
+			break;
+		case MSG_SMS_GPIO_GET_LEVEL_RES:
+		{
+			u32 *msgdata = (u32 *) phdr;
+			coredev->gpio_get_res = msgdata[1];
+			sms_debug("MSG_SMS_GPIO_GET_LEVEL_RES gpio level %d",
+					coredev->gpio_get_res);
+			complete(&coredev->gpio_get_level_done);
+			break;
+		}
 		case MSG_SMS_START_IR_RES:
 			complete(&coredev->ir_init_done);
 			break;
