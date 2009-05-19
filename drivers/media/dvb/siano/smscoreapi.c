@@ -1590,24 +1590,11 @@ static int __init smscore_module_init(void)
 	INIT_LIST_HEAD(&g_smscore_registry);
 	kmutex_init(&g_smscore_registrylock);
 
-
-
-
-
-
-	return rc;
-	sms_debug("rc %d", rc);
-
 	return rc;
 }
 
 static void __exit smscore_module_exit(void)
 {
-
-
-
-
-
 	kmutex_lock(&g_smscore_deviceslock);
 	while (!list_empty(&g_smscore_notifyees)) {
 		struct smscore_device_notifyee_t *notifyee =
