@@ -203,6 +203,9 @@ struct skb_shared_info {
 #ifdef CONFIG_HAS_DMA
 	dma_addr_t	dma_maps[MAX_SKB_FRAGS + 1];
 #endif
+	/* Intermediate layers must ensure that destructor_arg
+	 * remains valid until skb destructor */
+	void *		destructor_arg;
 };
 
 /* We divide dataref into two halves.  The higher 16 bits hold references
