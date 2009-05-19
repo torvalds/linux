@@ -145,5 +145,6 @@ struct packet_mreq
 #define PACKET_MR_MULTICAST	0
 #define PACKET_MR_PROMISC	1
 #define PACKET_MR_ALLMULTI	2
+#define PACKET_MR_UNICAST	3
 
 #endif
