@@ -432,7 +432,7 @@ static const struct snd_kcontrol_new twl4030_dapm_analoglmic_controls[] = {
 /* Right analog microphone selection */
 static const struct snd_kcontrol_new twl4030_dapm_analogrmic_controls[] = {
 	SOC_DAPM_SINGLE("Sub mic", TWL4030_REG_ANAMICR, 0, 1, 0),
-	SOC_DAPM_SINGLE("AUXR", TWL4030_REG_ANAMICR, 1, 1, 0),
+	SOC_DAPM_SINGLE("AUXR", TWL4030_REG_ANAMICR, 2, 1, 0),
 };
 
 /* TX1 L/R Analog/Digital microphone selection */
