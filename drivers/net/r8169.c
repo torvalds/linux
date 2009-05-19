@@ -843,75 +843,81 @@ static int rtl8169_set_speed_xmii(struct net_device *dev,
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
-	int auto_nego, giga_ctrl;
-
-	auto_nego = mdio_read(ioaddr, MII_ADVERTISE);
-	auto_nego &= ~(ADVERTISE_10HALF | ADVERTISE_10FULL |
-		       ADVERTISE_100HALF | ADVERTISE_100FULL);
-	giga_ctrl = mdio_read(ioaddr, MII_CTRL1000);
-	giga_ctrl &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
+	int giga_ctrl, bmcr;
 
 	if (autoneg == AUTONEG_ENABLE) {
+		int auto_nego;
+
+		auto_nego = mdio_read(ioaddr, MII_ADVERTISE);
 		auto_nego |= (ADVERTISE_10HALF | ADVERTISE_10FULL |
 			      ADVERTISE_100HALF | ADVERTISE_100FULL);
-		giga_ctrl |= ADVERTISE_1000FULL | ADVERTISE_1000HALF;
-	} else {
-		if (speed == SPEED_10)
-			auto_nego |= ADVERTISE_10HALF | ADVERTISE_10FULL;
-		else if (speed == SPEED_100)
-			auto_nego |= ADVERTISE_100HALF | ADVERTISE_100FULL;
-		else if (speed == SPEED_1000)
+		auto_nego |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+
+		giga_ctrl = mdio_read(ioaddr, MII_CTRL1000);
+		giga_ctrl &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
+
+		/* The 8100e/8101e/8102e do Fast Ethernet only. */
+		if ((tp->mac_version != RTL_GIGA_MAC_VER_07) &&
+		    (tp->mac_version != RTL_GIGA_MAC_VER_08) &&
+		    (tp->mac_version != RTL_GIGA_MAC_VER_09) &&
+		    (tp->mac_version != RTL_GIGA_MAC_VER_10) &&
+		    (tp->mac_version != RTL_GIGA_MAC_VER_13) &&
+		    (tp->mac_version != RTL_GIGA_MAC_VER_14) &&
+		    (tp->mac_version != RTL_GIGA_MAC_VER_15) &&
+		    (tp->mac_version != RTL_GIGA_MAC_VER_16)) {
 			giga_ctrl |= ADVERTISE_1000FULL | ADVERTISE_1000HALF;
-
-		if (duplex == DUPLEX_HALF)
-			auto_nego &= ~(ADVERTISE_10FULL | ADVERTISE_100FULL);
-
-		if (duplex == DUPLEX_FULL)
-			auto_nego &= ~(ADVERTISE_10HALF | ADVERTISE_100HALF);
-
-		/* This tweak comes straight from Realtek's driver. */
-		if ((speed == SPEED_100) && (duplex == DUPLEX_HALF) &&
-		    ((tp->mac_version == RTL_GIGA_MAC_VER_13) ||
-		     (tp->mac_version == RTL_GIGA_MAC_VER_16))) {
-			auto_nego = ADVERTISE_100HALF | ADVERTISE_CSMA;
-		}
-	}
-
-	/* The 8100e/8101e/8102e do Fast Ethernet only. */
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_07) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_08) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_09) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_10) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_13) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_14) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_15) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_16)) {
-		if ((giga_ctrl & (ADVERTISE_1000FULL | ADVERTISE_1000HALF)) &&
-		    netif_msg_link(tp)) {
+		} else if (netif_msg_link(tp)) {
 			printk(KERN_INFO "%s: PHY does not support 1000Mbps.\n",
 			       dev->name);
 		}
-		giga_ctrl &= ~(ADVERTISE_1000FULL | ADVERTISE_1000HALF);
-	}
 
-	auto_nego |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+		bmcr = BMCR_ANENABLE | BMCR_ANRESTART;
 
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_11) ||
-	    (tp->mac_version == RTL_GIGA_MAC_VER_12) ||
-	    (tp->mac_version >= RTL_GIGA_MAC_VER_17)) {
-		/*
-		 * Wake up the PHY.
-		 * Vendor specific (0x1f) and reserved (0x0e) MII registers.
-		 */
+		if ((tp->mac_version == RTL_GIGA_MAC_VER_11) ||
+		    (tp->mac_version == RTL_GIGA_MAC_VER_12) ||
+		    (tp->mac_version >= RTL_GIGA_MAC_VER_17)) {
+			/*
+			 * Wake up the PHY.
+			 * Vendor specific (0x1f) and reserved (0x0e) MII
+			 * registers.
+			 */
+			mdio_write(ioaddr, 0x1f, 0x0000);
+			mdio_write(ioaddr, 0x0e, 0x0000);
+		}
+
+		mdio_write(ioaddr, MII_ADVERTISE, auto_nego);
+		mdio_write(ioaddr, MII_CTRL1000, giga_ctrl);
+	} else {
+		giga_ctrl = 0;
+
+		if (speed == SPEED_10)
+			bmcr = 0;
+		else if (speed == SPEED_100)
+			bmcr = BMCR_SPEED100;
+		else
+			return -EINVAL;
+
+		if (duplex == DUPLEX_FULL)
+			bmcr |= BMCR_FULLDPLX;
+
 		mdio_write(ioaddr, 0x1f, 0x0000);
-		mdio_write(ioaddr, 0x0e, 0x0000);
 	}
 
 	tp->phy_1000_ctrl_reg = giga_ctrl;
 
-	mdio_write(ioaddr, MII_ADVERTISE, auto_nego);
-	mdio_write(ioaddr, MII_CTRL1000, giga_ctrl);
-	mdio_write(ioaddr, MII_BMCR, BMCR_ANENABLE | BMCR_ANRESTART);
+	mdio_write(ioaddr, MII_BMCR, bmcr);
+
+	if ((tp->mac_version == RTL_GIGA_MAC_VER_02) ||
+	    (tp->mac_version == RTL_GIGA_MAC_VER_03)) {
+		if ((speed == SPEED_100) && (autoneg != AUTONEG_ENABLE)) {
+			mdio_write(ioaddr, 0x17, 0x2138);
+			mdio_write(ioaddr, 0x0e, 0x0260);
+		} else {
+			mdio_write(ioaddr, 0x17, 0x2108);
+			mdio_write(ioaddr, 0x0e, 0x0000);
+		}
+	}
+
 	return 0;
 }
 
