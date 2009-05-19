@@ -110,4 +110,11 @@ config REGULATOR_PCF50633
 	 Say Y here to support the voltage regulators and convertors
 	 on PCF50633
 
+config REGULATOR_LP3971
+	tristate "National Semiconductors LP3971 PMIC regulator driver"
+	depends on I2C
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3971 PMIC
+
 endif
