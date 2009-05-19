@@ -66,6 +66,54 @@ MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 /* Events that may come from DVB v3 adapter */
 static void sms_board_dvb3_event(struct smsdvb_client_t *client,
 		enum SMS_DVB3_EVENTS event) {
+
+	struct smscore_device_t *coredev = client->coredev;
+	switch (event) {
+	case DVB3_EVENT_INIT:
+		sms_debug("DVB3_EVENT_INIT");
+		sms_board_event(coredev, BOARD_EVENT_BIND);
+		break;
+	case DVB3_EVENT_SLEEP:
+		sms_debug("DVB3_EVENT_SLEEP");
+		sms_board_event(coredev, BOARD_EVENT_POWER_SUSPEND);
+		break;
+	case DVB3_EVENT_HOTPLUG:
+		sms_debug("DVB3_EVENT_HOTPLUG");
+		sms_board_event(coredev, BOARD_EVENT_POWER_INIT);
+		break;
+	case DVB3_EVENT_FE_LOCK:
+		if (client->event_fe_state != DVB3_EVENT_FE_LOCK) {
+			client->event_fe_state = DVB3_EVENT_FE_LOCK;
+			sms_debug("DVB3_EVENT_FE_LOCK");
+			sms_board_event(coredev, BOARD_EVENT_FE_LOCK);
+		}
+		break;
+	case DVB3_EVENT_FE_UNLOCK:
+		if (client->event_fe_state != DVB3_EVENT_FE_UNLOCK) {
+			client->event_fe_state = DVB3_EVENT_FE_UNLOCK;
+			sms_debug("DVB3_EVENT_FE_UNLOCK");
+			sms_board_event(coredev, BOARD_EVENT_FE_UNLOCK);
+		}
+		break;
+	case DVB3_EVENT_UNC_OK:
+		if (client->event_unc_state != DVB3_EVENT_UNC_OK) {
+			client->event_unc_state = DVB3_EVENT_UNC_OK;
+			sms_debug("DVB3_EVENT_UNC_OK");
+			sms_board_event(coredev, BOARD_EVENT_MULTIPLEX_OK);
+		}
+		break;
+	case DVB3_EVENT_UNC_ERR:
+		if (client->event_unc_state != DVB3_EVENT_UNC_ERR) {
+			client->event_unc_state = DVB3_EVENT_UNC_ERR;
+			sms_debug("DVB3_EVENT_UNC_ERR");
+			sms_board_event(coredev, BOARD_EVENT_MULTIPLEX_ERRORS);
+		}
+		break;
+
+	default:
+		sms_err("Unknown dvb3 api event");
+		break;
+	}
 }
 
 static int smsdvb_onresponse(void *context, struct smscore_buffer_t *cb)
