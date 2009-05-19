@@ -332,7 +332,7 @@ static struct sdio_driver smssdio_driver = {
 /* Module functions                                                */
 /*******************************************************************/
 
-int smssdio_register(void)
+int smssdio_module_init(void)
 {
 	int ret = 0;
 
@@ -344,10 +344,13 @@ int smssdio_register(void)
 	return ret;
 }
 
-void smssdio_unregister(void)
+void smssdio_module_exit(void)
 {
 	sdio_unregister_driver(&smssdio_driver);
 }
+
+module_init(smssdio_module_init);
+module_exit(smssdio_module_exit);
 
 MODULE_DESCRIPTION("Siano SMS1xxx SDIO driver");
 MODULE_AUTHOR("Pierre Ossman");
