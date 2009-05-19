@@ -368,7 +368,7 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 	}
 out:
 	write_unlock(&ipip6_lock);
-	return 0;
+	return err;
 }
 
 static int
