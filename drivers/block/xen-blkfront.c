@@ -934,8 +934,6 @@ static void blkfront_closing(struct xenbus_device *dev)
 
 	spin_lock_irqsave(&blkif_io_lock, flags);
 
-	del_gendisk(info->gd);
-
 	/* No more blkif_request(). */
 	blk_stop_queue(info->rq);
 
@@ -948,6 +946,8 @@ static void blkfront_closing(struct xenbus_device *dev)
 
 	blk_cleanup_queue(info->rq);
 	info->rq = NULL;
+
+	del_gendisk(info->gd);
 
  out:
 	xenbus_frontend_closed(dev);
