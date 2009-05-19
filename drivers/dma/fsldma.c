@@ -598,15 +598,16 @@ static void fsl_chan_xfer_ld_queue(struct fsl_dma_chan *fsl_chan)
 	dma_addr_t next_dest_addr;
 	unsigned long flags;
 
+	spin_lock_irqsave(&fsl_chan->desc_lock, flags);
+
 	if (!dma_is_idle(fsl_chan))
-		return;
+		goto out_unlock;
 
 	dma_halt(fsl_chan);
 
 	/* If there are some link descriptors
 	 * not transfered in queue. We need to start it.
 	 */
-	spin_lock_irqsave(&fsl_chan->desc_lock, flags);
 
 	/* Find the first un-transfer desciptor */
 	for (ld_node = fsl_chan->ld_queue.next;
@@ -616,8 +617,6 @@ static void fsl_chan_xfer_ld_queue(struct fsl_dma_chan *fsl_chan)
 				fsl_chan->completed_cookie,
 				fsl_chan->common.cookie) == DMA_SUCCESS);
 		ld_node = ld_node->next);
-
-	spin_unlock_irqrestore(&fsl_chan->desc_lock, flags);
 
 	if (ld_node != &fsl_chan->ld_queue) {
 		/* Get the ld start address from ld_queue */
@@ -630,6 +629,9 @@ static void fsl_chan_xfer_ld_queue(struct fsl_dma_chan *fsl_chan)
 		set_cdar(fsl_chan, 0);
 		set_ndar(fsl_chan, 0);
 	}
+
+out_unlock:
+	spin_unlock_irqrestore(&fsl_chan->desc_lock, flags);
 }
 
 /**
