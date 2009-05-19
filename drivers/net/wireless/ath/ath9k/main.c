@@ -35,14 +35,14 @@ MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 #define CHAN2G(_freq, _idx)  { \
 	.center_freq = (_freq), \
 	.hw_value = (_idx), \
-	.max_power = 30, \
+	.max_power = 20, \
 }
 
 #define CHAN5G(_freq, _idx) { \
 	.band = IEEE80211_BAND_5GHZ, \
 	.center_freq = (_freq), \
 	.hw_value = (_idx), \
-	.max_power = 30, \
+	.max_power = 20, \
 }
 
 /* Some 2 GHz radios are actually tunable on 2312-2732
