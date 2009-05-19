@@ -46,7 +46,7 @@
 /* Mapping from PT_xxx to the stack offset at which the register is
    saved.  Notice that usp has no stack-slot and needs to be treated
    specially (see get_reg/put_reg below). */
-static int regoff[] = {
+static const int regoff[] = {
 	[0]	= PT_REG(d1),
 	[1]	= PT_REG(d2),
 	[2]	= PT_REG(d3),
@@ -81,6 +81,14 @@ static inline long get_reg(struct task_struct *task, int regno)
 		addr = (unsigned long *)(task->thread.esp0 + regoff[regno]);
 	else
 		return 0;
+	/* Need to take stkadj into account. */
+	if (regno == PT_SR || regno == PT_PC) {
+		long stkadj = *(long *)(task->thread.esp0 + PT_REG(stkadj));
+		addr = (unsigned long *) ((unsigned long)addr + stkadj);
+		/* The sr is actually a 16 bit register.  */
+		if (regno == PT_SR)
+			return *(unsigned short *)addr;
+	}
 	return *addr;
 }
 
@@ -98,6 +106,16 @@ static inline int put_reg(struct task_struct *task, int regno,
 		addr = (unsigned long *)(task->thread.esp0 + regoff[regno]);
 	else
 		return -1;
+	/* Need to take stkadj into account. */
+	if (regno == PT_SR || regno == PT_PC) {
+		long stkadj = *(long *)(task->thread.esp0 + PT_REG(stkadj));
+		addr = (unsigned long *) ((unsigned long)addr + stkadj);
+		/* The sr is actually a 16 bit register.  */
+		if (regno == PT_SR) {
+			*(unsigned short *)addr = data;
+			return 0;
+		}
+	}
 	*addr = data;
 	return 0;
 }
@@ -107,7 +125,7 @@ static inline int put_reg(struct task_struct *task, int regno,
  */
 static inline void singlestep_disable(struct task_struct *child)
 {
-	unsigned long tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
+	unsigned long tmp = get_reg(child, PT_SR) & ~TRACE_BITS;
 	put_reg(child, PT_SR, tmp);
 	clear_tsk_thread_flag(child, TIF_DELAYED_TRACE);
 }
@@ -122,15 +140,15 @@ void ptrace_disable(struct task_struct *child)
 
 void user_enable_single_step(struct task_struct *child)
 {
-	unsigned long tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
-	put_reg(child, PT_SR, tmp | (T1_BIT << 16));
+	unsigned long tmp = get_reg(child, PT_SR) & ~TRACE_BITS;
+	put_reg(child, PT_SR, tmp | T1_BIT);
 	set_tsk_thread_flag(child, TIF_DELAYED_TRACE);
 }
 
 void user_enable_block_step(struct task_struct *child)
 {
-	unsigned long tmp = get_reg(child, PT_SR) & ~(TRACE_BITS << 16);
-	put_reg(child, PT_SR, tmp | (T0_BIT << 16));
+	unsigned long tmp = get_reg(child, PT_SR) & ~TRACE_BITS;
+	put_reg(child, PT_SR, tmp | T0_BIT);
 }
 
 void user_disable_single_step(struct task_struct *child)
@@ -152,8 +170,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr >= 0 && addr < 19) {
 			tmp = get_reg(child, addr);
-			if (addr == PT_SR)
-				tmp >>= 16;
 		} else if (addr >= 21 && addr < 49) {
 			tmp = child->thread.fp[addr - 21];
 			/* Convert internal fpu reg representation
@@ -163,7 +179,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				tmp = ((tmp & 0xffff0000) << 15) |
 				      ((tmp & 0x0000ffff) << 16);
 		} else
-			break;
+			goto out_eio;
 		ret = put_user(tmp, (unsigned long *)data);
 		break;
 
@@ -174,9 +190,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 		if (addr == PT_SR) {
 			data &= SR_MASK;
-			data <<= 16;
-			data |= get_reg(child, PT_SR) & ~(SR_MASK << 16);
-		} else if (addr >= 0 && addr < 19) {
+			data |= get_reg(child, PT_SR) & ~SR_MASK;
+		}
+		if (addr >= 0 && addr < 19) {
 			if (put_reg(child, addr, data))
 				goto out_eio;
 		} else if (addr >= 21 && addr < 48) {
@@ -196,8 +212,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_GETREGS:	/* Get all gp regs from the child. */
 		for (i = 0; i < 19; i++) {
 			tmp = get_reg(child, i);
-			if (i == PT_SR)
-				tmp >>= 16;
 			ret = put_user(tmp, (unsigned long *)data);
 			if (ret)
 				break;
@@ -212,8 +226,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 				break;
 			if (i == PT_SR) {
 				tmp &= SR_MASK;
-				tmp <<= 16;
-				tmp |= get_reg(child, PT_SR) & ~(SR_MASK << 16);
+				tmp |= get_reg(child, PT_SR) & ~SR_MASK;
 			}
 			put_reg(child, i, tmp);
 			data += sizeof(long);
