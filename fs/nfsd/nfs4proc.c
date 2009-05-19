@@ -1313,23 +1313,8 @@ static const char *nfsd4_op_name(unsigned opnum)
 	return "unknown_operation";
 }
 
-#define nfs4svc_decode_voidargs		NULL
-#define nfs4svc_release_void		NULL
 #define nfsd4_voidres			nfsd4_voidargs
-#define nfs4svc_release_compound	NULL
 struct nfsd4_voidargs { int dummy; };
-
-#define PROC(name, argt, rest, relt, cache, respsize)	\
- { (svc_procfunc) nfsd4_proc_##name,		\
-   (kxdrproc_t) nfs4svc_decode_##argt##args,	\
-   (kxdrproc_t) nfs4svc_encode_##rest##res,	\
-   (kxdrproc_t) nfs4svc_release_##relt,		\
-   sizeof(struct nfsd4_##argt##args),		\
-   sizeof(struct nfsd4_##rest##res),		\
-   0,						\
-   cache,					\
-   respsize,					\
- }
 
 /*
  * TODO: At the present time, the NFSv4 server does not do XID caching
@@ -1342,8 +1327,23 @@ struct nfsd4_voidargs { int dummy; };
  * better XID's.
  */
 static struct svc_procedure		nfsd_procedures4[2] = {
-  PROC(null,	 void,		void,		void,	  RC_NOCACHE, 1),
-  PROC(compound, compound,	compound,	compound, RC_NOCACHE, NFSD_BUFSIZE/4)
+	[NFSPROC4_NULL] = {
+		.pc_func = (svc_procfunc) nfsd4_proc_null,
+		.pc_encode = (kxdrproc_t) nfs4svc_encode_voidres,
+		.pc_argsize = sizeof(struct nfsd4_voidargs),
+		.pc_ressize = sizeof(struct nfsd4_voidres),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = 1,
+	},
+	[NFSPROC4_COMPOUND] = {
+		.pc_func = (svc_procfunc) nfsd4_proc_compound,
+		.pc_decode = (kxdrproc_t) nfs4svc_decode_compoundargs,
+		.pc_encode = (kxdrproc_t) nfs4svc_encode_compoundres,
+		.pc_argsize = sizeof(struct nfsd4_compoundargs),
+		.pc_ressize = sizeof(struct nfsd4_compoundres),
+		.pc_cachetype = RC_NOCACHE,
+		.pc_xdrressize = NFSD_BUFSIZE/4,
+	},
 };
 
 struct svc_version	nfsd_version4 = {
