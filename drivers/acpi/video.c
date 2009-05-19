@@ -578,6 +578,14 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 		DMI_MATCH(DMI_PRODUCT_NAME, "eMachines E510"),
 		},
 	},
+	{
+	 .callback = video_set_bqc_offset,
+	 .ident = "Acer Aspire 5315",
+	 .matches = {
+		DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5315"),
+		},
+	},
 	{}
 };
 
