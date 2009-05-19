@@ -1677,10 +1677,8 @@ static void ctcm_remove_device(struct ccwgroup_device *cgdev)
 	BUG_ON(priv == NULL);
 
 	CTCM_DBF_TEXT_(SETUP, CTC_DBF_INFO,
-			"removing device %s, r/w = %s/%s, proto : %d",
-			priv->channel[READ]->netdev->name,
-			priv->channel[READ]->id, priv->channel[WRITE]->id,
-			priv->protocol);
+			"removing device %p, proto : %d",
+			cgdev, priv->protocol);
 
 	if (cgdev->state == CCWGROUP_ONLINE)
 		ctcm_shutdown_device(cgdev);
