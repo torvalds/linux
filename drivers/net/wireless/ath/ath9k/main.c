@@ -480,6 +480,16 @@ static void ath9k_tasklet(unsigned long data)
 	if (status & ATH9K_INT_TX)
 		ath_tx_tasklet(sc);
 
+	if ((status & ATH9K_INT_TSFOOR) &&
+	    (sc->hw->conf.flags & IEEE80211_CONF_PS)) {
+		/*
+		 * TSF sync does not look correct; remain awake to sync with
+		 * the next Beacon.
+		 */
+		DPRINTF(sc, ATH_DBG_PS, "TSFOOR - Sync with next Beacon\n");
+		sc->sc_flags |= SC_OP_WAIT_FOR_BEACON;
+	}
+
 	/* re-enable hardware interrupt */
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
 	ath9k_ps_restore(sc);
