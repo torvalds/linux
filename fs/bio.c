@@ -1198,7 +1198,7 @@ static void bio_copy_kern_endio(struct bio *bio, int err)
 		char *addr = page_address(bvec->bv_page);
 		int len = bmd->iovecs[i].bv_len;
 
-		if (read && !err)
+		if (read)
 			memcpy(p, addr, len);
 
 		__free_page(bvec->bv_page);
