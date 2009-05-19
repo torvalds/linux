@@ -1507,7 +1507,6 @@ handle_fault:
 #define FLAGS_HAS_TIMEOUT	0x04
 
 static long futex_wait_restart(struct restart_block *restart);
-static long futex_lock_pi_restart(struct restart_block *restart);
 
 /**
  * fixup_owner() - Post lock pi_state and corner case management
@@ -1930,21 +1929,6 @@ uaddr_faulted:
 	goto retry;
 }
 
-static long futex_lock_pi_restart(struct restart_block *restart)
-{
-	u32 __user *uaddr = (u32 __user *)restart->futex.uaddr;
-	ktime_t t, *tp = NULL;
-	int fshared = restart->futex.flags & FLAGS_SHARED;
-
-	if (restart->futex.flags & FLAGS_HAS_TIMEOUT) {
-		t.tv64 = restart->futex.time;
-		tp = &t;
-	}
-	restart->fn = do_no_restart_syscall;
-
-	return (long)futex_lock_pi(uaddr, fshared, restart->futex.val, tp, 0);
-}
-
 /*
  * Userspace attempted a TID -> 0 atomic transition, and failed.
  * This is the in-kernel slowpath: we look up the PI state (if any),
@@ -2141,12 +2125,10 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 	struct hrtimer_sleeper timeout, *to = NULL;
 	struct rt_mutex_waiter rt_waiter;
 	struct rt_mutex *pi_mutex = NULL;
-	struct restart_block *restart;
 	struct futex_hash_bucket *hb;
 	union futex_key key2;
 	struct futex_q q;
 	int res, ret;
-	u32 uval;
 
 	if (!bitset)
 		return -EINVAL;
@@ -2245,30 +2227,17 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 		if (rt_mutex_owner(pi_mutex) == current)
 			rt_mutex_unlock(pi_mutex);
 	} else if (ret == -EINTR) {
-		ret = -EFAULT;
-		if (get_user(uval, uaddr2))
-			goto out_put_keys;
-
 		/*
-		 * We've already been requeued, so restart by calling
-		 * futex_lock_pi() directly, rather then returning to this
-		 * function.
+		 * We've already been requeued, but we have no way to
+		 * restart by calling futex_lock_pi() directly. We
+		 * could restart the syscall, but that will look at
+		 * the user space value and return right away. So we
+		 * drop back with EWOULDBLOCK to tell user space that
+		 * "val" has been changed. That's the same what the
+		 * restart of the syscall would do in
+		 * futex_wait_setup().
 		 */
-		ret = -ERESTART_RESTARTBLOCK;
-		restart = &current_thread_info()->restart_block;
-		restart->fn = futex_lock_pi_restart;
-		restart->futex.uaddr = (u32 *)uaddr2;
-		restart->futex.val = uval;
-		restart->futex.flags = 0;
-		if (abs_time) {
-			restart->futex.flags |= FLAGS_HAS_TIMEOUT;
-			restart->futex.time = abs_time->tv64;
-		}
-
-		if (fshared)
-			restart->futex.flags |= FLAGS_SHARED;
-		if (clockrt)
-			restart->futex.flags |= FLAGS_CLOCKRT;
+		ret = -EWOULDBLOCK;
 	}
 
 out_put_keys:
