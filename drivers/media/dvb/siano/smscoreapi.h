@@ -580,10 +580,10 @@ struct smscore_gpio_config {
 #define SMS_GPIO_DIRECTION_OUTPUT 1
 	u8 Direction;
 
-#define SMS_GPIO_PULLUPDOWN_NONE     0
-#define SMS_GPIO_PULLUPDOWN_PULLDOWN 1
-#define SMS_GPIO_PULLUPDOWN_PULLUP   2
-#define SMS_GPIO_PULLUPDOWN_KEEPER   3
+#define SMS_GPIO_PULL_UP_DOWN_NONE     0
+#define SMS_GPIO_PULL_UP_DOWN_PULLDOWN 1
+#define SMS_GPIO_PULL_UP_DOWN_PULLUP   2
+#define SMS_GPIO_PULL_UP_DOWN_KEEPER   3
 	u8 PullUpDown;
 
 #define SMS_GPIO_INPUT_CHARACTERISTICS_NORMAL  0
@@ -607,13 +607,12 @@ struct smscore_gpio_config {
 
 #define SMS_GPIO_OUTPUT_DRIVING_1_5mA		0 /* 11xx */
 #define SMS_GPIO_OUTPUT_DRIVING_2_8mA		1 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_4mA			2 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_7mA			3 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_10mA			4 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_11mA			5 /* 11xx */
-#define SMS_GPIO_OUTPUT_DRIVING_14mA			6 /* 11xx */
-#undef SMS_GPIO_OUTPUT_DRIVING_16mA
-#define SMS_GPIO_OUTPUT_DRIVING_16mA			7 /* 11xx */
+#define SMS_GPIO_OUTPUT_DRIVING_4mA		2 /* 11xx */
+#define SMS_GPIO_OUTPUT_DRIVING_7mA		3 /* 11xx */
+#define SMS_GPIO_OUTPUT_DRIVING_10mA		4 /* 11xx */
+#define SMS_GPIO_OUTPUT_DRIVING_11mA		5 /* 11xx */
+#define SMS_GPIO_OUTPUT_DRIVING_14mA		6 /* 11xx */
+#define SMS_GPIO_OUTPUT_DRIVING_16mA		7 /* 11xx */
 	u8 OutputDriving;
 };
 
