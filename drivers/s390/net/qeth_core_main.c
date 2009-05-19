@@ -952,6 +952,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 		buf->buffer->element[i].addr = NULL;
 		buf->buffer->element[i].flags = 0;
 	}
+	buf->buffer->element[15].flags = 0;
 	buf->next_element_to_fill = 0;
 	atomic_set(&buf->state, QETH_QDIO_BUF_EMPTY);
 }
