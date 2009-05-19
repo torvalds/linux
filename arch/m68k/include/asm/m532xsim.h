@@ -66,6 +66,11 @@
 #define MCFSIM_ICR_TIMER1	(0xFC048040+32)
 #define MCFSIM_ICR_TIMER2	(0xFC048040+33)
 
+/*
+ *	Define system peripheral IRQ usage.
+ */
+#define	MCF_IRQ_TIMER		(64 + 32)	/* Timer0 */
+#define	MCF_IRQ_PROFILER	(64 + 33)	/* Timer1 */
 
 /*
  *	Define the Cache register flags.

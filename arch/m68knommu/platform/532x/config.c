@@ -30,12 +30,6 @@
 
 /***************************************************************************/
 
-extern unsigned int mcf_timervector;
-extern unsigned int mcf_profilevector;
-extern unsigned int mcf_timerlevel;
-
-/***************************************************************************/
-
 static struct mcf_platform_uart m532x_uart_platform[] = {
 	{
 		.mapbase	= MCFUART_BASE1,
@@ -87,6 +81,7 @@ static struct platform_device m532x_fec = {
 	.num_resources		= ARRAY_SIZE(m532x_fec_resources),
 	.resource		= m532x_fec_resources,
 };
+
 static struct platform_device *m532x_devices[] __initdata = {
 	&m532x_uart,
 	&m532x_fec,
@@ -126,12 +121,6 @@ static void __init m532x_fec_init(void)
 
 /***************************************************************************/
 
-void mcf_settimericr(unsigned int timer, unsigned int level)
-{
-}
-
-/***************************************************************************/
-
 static void m532x_cpu_reset(void)
 {
 	local_irq_disable();
@@ -152,10 +141,6 @@ void __init config_BSP(char *commandp, int size)
 		memset(commandp, 0, size);
 	}
 #endif
-
-	mcf_timervector = 64+32;
-	mcf_profilevector = 64+33;
-	mach_reset = m532x_cpu_reset;
 
 #ifdef CONFIG_BDM_DISABLE
 	/*
