@@ -7948,8 +7948,9 @@ int sched_smt_power_savings = 0, sched_mc_power_savings = 0;
 
 /*
  * The cpus mask in sched_group and sched_domain hangs off the end.
- * FIXME: use cpumask_var_t or dynamic percpu alloc to avoid wasting space
- * for nr_cpu_ids < CONFIG_NR_CPUS.
+ *
+ * ( See the the comments in include/linux/sched.h:struct sched_group
+ *   and struct sched_domain. )
  */
 struct static_sched_group {
 	struct sched_group sg;
