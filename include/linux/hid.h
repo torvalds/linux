@@ -238,6 +238,42 @@ struct hid_item {
 #define HID_GD_RIGHT		0x00010092
 #define HID_GD_LEFT		0x00010093
 
+#define HID_DG_DIGITIZER	0x000d0001
+#define HID_DG_PEN		0x000d0002
+#define HID_DG_LIGHTPEN		0x000d0003
+#define HID_DG_TOUCHSCREEN	0x000d0004
+#define HID_DG_TOUCHPAD		0x000d0005
+#define HID_DG_STYLUS		0x000d0020
+#define HID_DG_PUCK		0x000d0021
+#define HID_DG_FINGER		0x000d0022
+#define HID_DG_TIPPRESSURE	0x000d0030
+#define HID_DG_BARRELPRESSURE	0x000d0031
+#define HID_DG_INRANGE		0x000d0032
+#define HID_DG_TOUCH		0x000d0033
+#define HID_DG_UNTOUCH		0x000d0034
+#define HID_DG_TAP		0x000d0035
+#define HID_DG_TABLETFUNCTIONKEY	0x000d0039
+#define HID_DG_PROGRAMCHANGEKEY	0x000d003a
+#define HID_DG_INVERT		0x000d003c
+#define HID_DG_TIPSWITCH	0x000d0042
+#define HID_DG_TIPSWITCH2	0x000d0043
+#define HID_DG_BARRELSWITCH	0x000d0044
+#define HID_DG_ERASER		0x000d0045
+#define HID_DG_TABLETPICK	0x000d0046
+/*
+ * as of May 20, 2009 the usages below are not yet in the official USB spec
+ * but are being pushed by Microsft as described in their paper "Digitizer
+ * Drivers for Windows Touch and Pen-Based Computers"
+ */
+#define HID_DG_CONFIDENCE	0x000d0047
+#define HID_DG_WIDTH		0x000d0048
+#define HID_DG_HEIGHT		0x000d0049
+#define HID_DG_CONTACTID	0x000d0051
+#define HID_DG_INPUTMODE	0x000d0052
+#define HID_DG_DEVICEINDEX	0x000d0053
+#define HID_DG_CONTACTCOUNT	0x000d0054
+#define HID_DG_CONTACTMAX	0x000d0055
+
 /*
  * HID report types --- Ouch! HID spec says 1 2 3!
  */
