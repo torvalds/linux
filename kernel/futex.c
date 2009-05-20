@@ -2185,10 +2185,8 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 
 	/* Prepare to wait on uaddr. */
 	ret = futex_wait_setup(uaddr, val, fshared, &q, &hb);
-	if (ret) {
-		put_futex_key(fshared, &key2);
-		goto out;
-	}
+	if (ret)
+		goto out_key2;
 
 	/* Queue the futex_q, drop the hb lock, wait for wakeup. */
 	futex_wait_queue_me(hb, &q, to);
@@ -2282,6 +2280,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 
 out_put_keys:
 	put_futex_key(fshared, &q.key);
+out_key2:
 	put_futex_key(fshared, &key2);
 
 out:
