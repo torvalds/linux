@@ -5,3 +5,7 @@ config HAVE_KVM
 
 config HAVE_KVM_IRQCHIP
        bool
+
+config HAVE_KVM_EVENTFD
+       bool
+       select EVENTFD

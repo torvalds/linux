@@ -136,6 +136,12 @@ struct kvm {
 	struct list_head vm_list;
 	struct kvm_io_bus mmio_bus;
 	struct kvm_io_bus pio_bus;
+#ifdef CONFIG_HAVE_KVM_EVENTFD
+	struct {
+		spinlock_t        lock;
+		struct list_head  items;
+	} irqfds;
+#endif
 	struct kvm_vm_stat stat;
 	struct kvm_arch arch;
 	atomic_t users_count;
@@ -524,5 +530,23 @@ void kvm_free_irq_routing(struct kvm *kvm);
 static inline void kvm_free_irq_routing(struct kvm *kvm) {}
 
 #endif
+
+#ifdef CONFIG_HAVE_KVM_EVENTFD
+
+void kvm_irqfd_init(struct kvm *kvm);
+int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags);
+void kvm_irqfd_release(struct kvm *kvm);
+
+#else
+
+static inline void kvm_irqfd_init(struct kvm *kvm) {}
+static inline int kvm_irqfd(struct kvm *kvm, int fd, int gsi, int flags)
+{
+	return -EINVAL;
+}
+
+static inline void kvm_irqfd_release(struct kvm *kvm) {}
+
+#endif /* CONFIG_HAVE_KVM_EVENTFD */
 
 #endif

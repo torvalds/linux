@@ -986,6 +986,7 @@ static struct kvm *kvm_create_vm(void)
 	spin_lock_init(&kvm->mmu_lock);
 	spin_lock_init(&kvm->requests_lock);
 	kvm_io_bus_init(&kvm->pio_bus);
+	kvm_irqfd_init(kvm);
 	mutex_init(&kvm->lock);
 	kvm_io_bus_init(&kvm->mmio_bus);
 	init_rwsem(&kvm->slots_lock);
@@ -1070,6 +1071,8 @@ EXPORT_SYMBOL_GPL(kvm_put_kvm);
 static int kvm_vm_release(struct inode *inode, struct file *filp)
 {
 	struct kvm *kvm = filp->private_data;
+
+	kvm_irqfd_release(kvm);
 
 	kvm_put_kvm(kvm);
 	return 0;
@@ -2222,6 +2225,15 @@ static long kvm_vm_ioctl(struct file *filp,
 	}
 #endif
 #endif /* KVM_CAP_IRQ_ROUTING */
+	case KVM_IRQFD: {
+		struct kvm_irqfd data;
+
+		r = -EFAULT;
+		if (copy_from_user(&data, argp, sizeof data))
+			goto out;
+		r = kvm_irqfd(kvm, data.fd, data.gsi, data.flags);
+		break;
+	}
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
 	}
