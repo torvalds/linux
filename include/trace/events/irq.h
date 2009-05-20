@@ -7,6 +7,19 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM irq
 
+#define softirq_name(sirq) { sirq, #sirq }
+#define show_softirq_name(val)						\
+	__print_symbolic(val,						\
+			 softirq_name(HI_SOFTIRQ),			\
+			 softirq_name(TIMER_SOFTIRQ),			\
+			 softirq_name(NET_TX_SOFTIRQ),			\
+			 softirq_name(NET_RX_SOFTIRQ),			\
+			 softirq_name(BLOCK_SOFTIRQ),			\
+			 softirq_name(TASKLET_SOFTIRQ),			\
+			 softirq_name(SCHED_SOFTIRQ),			\
+			 softirq_name(HRTIMER_SOFTIRQ),			\
+			 softirq_name(RCU_SOFTIRQ))
+
 /**
  * irq_handler_entry - called immediately before the irq action handler
  * @irq: irq number
@@ -87,15 +100,14 @@ TRACE_EVENT(softirq_entry,
 
 	TP_STRUCT__entry(
 		__field(	int,	vec			)
-		__string(	name,	softirq_to_name[h-vec]	)
 	),
 
 	TP_fast_assign(
 		__entry->vec = (int)(h - vec);
-		__assign_str(name, softirq_to_name[h-vec]);
 	),
 
-	TP_printk("softirq=%d action=%s", __entry->vec, __get_str(name))
+	TP_printk("softirq=%d action=%s", __entry->vec,
+		  show_softirq_name(__entry->vec))
 );
 
 /**
@@ -117,15 +129,14 @@ TRACE_EVENT(softirq_exit,
 
 	TP_STRUCT__entry(
 		__field(	int,	vec			)
-		__string(	name,	softirq_to_name[h-vec]	)
 	),
 
 	TP_fast_assign(
 		__entry->vec = (int)(h - vec);
-		__assign_str(name, softirq_to_name[h-vec]);
 	),
 
-	TP_printk("softirq=%d action=%s", __entry->vec, __get_str(name))
+	TP_printk("softirq=%d action=%s", __entry->vec,
+		  show_softirq_name(__entry->vec))
 );
 
 #endif /*  _TRACE_IRQ_H */
