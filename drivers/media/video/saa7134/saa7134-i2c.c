@@ -259,7 +259,7 @@ static int saa7134_i2c_xfer(struct i2c_adapter *i2c_adap,
 				/* workaround for a saa7134 i2c bug
 				 * needed to talk to the mt352 demux
 				 * thanks to pinnacle for the hint */
-				int quirk = 0xfd;
+				int quirk = 0xfe;
 				d1printk(" [%02x quirk]",quirk);
 				i2c_send_byte(dev,START,quirk);
 				i2c_recv_byte(dev);
