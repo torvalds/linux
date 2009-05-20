@@ -892,7 +892,7 @@ int __init arch_clk_init(void)
 	struct clk *clk;
 	int i;
 
-	clk_cpg_init();
+	cpg_clk_init();
 
 	clk = clk_get(NULL, "master_clk");
 	for (i = 0; i < ARRAY_SIZE(sh7722_clocks); i++) {
