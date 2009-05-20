@@ -983,6 +983,7 @@ static int __init init_exclusion_range(struct ivmd_header *m)
 static int __init init_unity_map_range(struct ivmd_header *m)
 {
 	struct unity_map_entry *e = 0;
+	char *s;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL)
@@ -991,13 +992,16 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 	switch (m->type) {
 	default:
 	case ACPI_IVMD_TYPE:
+		s = "IVMD_TYPEi\t\t\t";
 		e->devid_start = e->devid_end = m->devid;
 		break;
 	case ACPI_IVMD_TYPE_ALL:
+		s = "IVMD_TYPE_ALL\t\t";
 		e->devid_start = 0;
 		e->devid_end = amd_iommu_last_bdf;
 		break;
 	case ACPI_IVMD_TYPE_RANGE:
+		s = "IVMD_TYPE_RANGE\t\t";
 		e->devid_start = m->devid;
 		e->devid_end = m->aux;
 		break;
@@ -1005,6 +1009,13 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 	e->address_start = PAGE_ALIGN(m->range_start);
 	e->address_end = e->address_start + PAGE_ALIGN(m->range_length);
 	e->prot = m->flags >> 1;
+
+	DUMP_printk("%s devid_start: %02x:%02x.%x devid_end: %02x:%02x.%x"
+		    " range_start: %016llx range_end: %016llx flags: %x\n", s,
+		    PCI_BUS(e->devid_start), PCI_SLOT(e->devid_start),
+		    PCI_FUNC(e->devid_start), PCI_BUS(e->devid_end),
+		    PCI_SLOT(e->devid_end), PCI_FUNC(e->devid_end),
+		    e->address_start, e->address_end, m->flags);
 
 	list_add_tail(&e->list, &amd_iommu_unity_map);
 
