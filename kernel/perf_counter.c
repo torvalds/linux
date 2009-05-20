@@ -2716,7 +2716,8 @@ static int cpu_clock_perf_counter_enable(struct perf_counter *counter)
 
 static void cpu_clock_perf_counter_disable(struct perf_counter *counter)
 {
-	hrtimer_cancel(&counter->hw.hrtimer);
+	if (counter->hw.irq_period)
+		hrtimer_cancel(&counter->hw.hrtimer);
 	cpu_clock_perf_counter_update(counter);
 }
 
@@ -2767,7 +2768,8 @@ static int task_clock_perf_counter_enable(struct perf_counter *counter)
 
 static void task_clock_perf_counter_disable(struct perf_counter *counter)
 {
-	hrtimer_cancel(&counter->hw.hrtimer);
+	if (counter->hw.irq_period)
+		hrtimer_cancel(&counter->hw.hrtimer);
 	task_clock_perf_counter_update(counter, counter->ctx->time);
 
 }
