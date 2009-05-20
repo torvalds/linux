@@ -27,6 +27,9 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/clk.h>
+#include <linux/platform_device.h>
+#include <linux/interrupt.h>
+#include <linux/smsc911x.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -46,6 +49,44 @@
  * appropriate baseboard support code.
  */
 
+/* SMSC ethernet support */
+
+static struct resource smsc91x_resources[] = {
+	{
+		.start	= CS4_BASE_ADDR,
+		.end	= CS4_BASE_ADDR + 0xffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
+		.end	= IOMUX_TO_IRQ(MX31_PIN_GPIO1_0),
+		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_FALLING,
+	}
+};
+
+static struct smsc911x_platform_config smsc911x_config = {
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags		= SMSC911X_USE_32BIT |
+			  SMSC911X_SAVE_MAC_ADDRESS |
+			  SMSC911X_FORCE_INTERNAL_PHY,
+};
+
+static struct platform_device smsc91x_device = {
+	.name		= "smsc911x",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(smsc91x_resources),
+	.resource	= smsc91x_resources,
+	.dev		= {
+		.platform_data = &smsc911x_config,
+	}
+};
+
+static struct platform_device *devices[] __initdata = {
+	&smsc91x_device,
+};
+
 static int mx31lilly_baseboard;
 core_param(mx31lilly_baseboard, mx31lilly_baseboard, int, 0444);
 
@@ -61,6 +102,10 @@ static void __init mx31lilly_board_init(void)
 		printk(KERN_ERR "Illegal mx31lilly_baseboard type %d\n",
 			mx31lilly_baseboard);
 	}
+
+	mxc_iomux_alloc_pin(MX31_PIN_CS4__CS4, "Ethernet CS");
+
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static void __init mx31lilly_timer_init(void)
