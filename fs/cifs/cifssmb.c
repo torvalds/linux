@@ -2475,7 +2475,7 @@ querySymLinkRetry:
 			/* BB FIXME investigate remapping reserved chars here */
 			*symlinkinfo = cifs_strndup_from_ucs(data_start, count,
 						    is_unicode, nls_codepage);
-			if (!symlinkinfo)
+			if (!*symlinkinfo)
 				rc = -ENOMEM;
 		}
 	}
