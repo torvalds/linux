@@ -826,8 +826,12 @@ void __perf_counter_sched_out(struct perf_counter_context *ctx,
 
 	perf_disable();
 	if (ctx->nr_active) {
-		list_for_each_entry(counter, &ctx->counter_list, list_entry)
-			group_sched_out(counter, cpuctx, ctx);
+		list_for_each_entry(counter, &ctx->counter_list, list_entry) {
+			if (counter != counter->group_leader)
+				counter_sched_out(counter, cpuctx, ctx);
+			else
+				group_sched_out(counter, cpuctx, ctx);
+		}
 	}
 	perf_enable();
  out:
@@ -903,8 +907,12 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 		if (counter->cpu != -1 && counter->cpu != cpu)
 			continue;
 
-		if (group_can_go_on(counter, cpuctx, 1))
-			group_sched_in(counter, cpuctx, ctx, cpu);
+		if (counter != counter->group_leader)
+			counter_sched_in(counter, cpuctx, ctx, cpu);
+		else {
+			if (group_can_go_on(counter, cpuctx, 1))
+				group_sched_in(counter, cpuctx, ctx, cpu);
+		}
 
 		/*
 		 * If this pinned group hasn't been scheduled,
@@ -932,9 +940,14 @@ __perf_counter_sched_in(struct perf_counter_context *ctx,
 		if (counter->cpu != -1 && counter->cpu != cpu)
 			continue;
 
-		if (group_can_go_on(counter, cpuctx, can_add_hw)) {
-			if (group_sched_in(counter, cpuctx, ctx, cpu))
+		if (counter != counter->group_leader) {
+			if (counter_sched_in(counter, cpuctx, ctx, cpu))
 				can_add_hw = 0;
+		} else {
+			if (group_can_go_on(counter, cpuctx, can_add_hw)) {
+				if (group_sched_in(counter, cpuctx, ctx, cpu))
+					can_add_hw = 0;
+			}
 		}
 	}
 	perf_enable();
