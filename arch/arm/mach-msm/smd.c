@@ -49,16 +49,13 @@ static int msm_smd_debug_mask;
 struct shared_info
 {
 	int ready;
-	unsigned state_apps;
-	unsigned state_modem;
+	unsigned state;
 };
 
-static unsigned dummy_state_apps;
-static unsigned dummy_state_modem;
+static unsigned dummy_state[SMSM_STATE_COUNT];
 
 static struct shared_info smd_info = {
-	.state_apps = (unsigned) &dummy_state_apps,
-	.state_modem = (unsigned) &dummy_state_modem,
+	.state = (unsigned) &dummy_state,
 };
 
 module_param_named(debug_mask, msm_smd_debug_mask,
@@ -115,9 +112,14 @@ static void handle_modem_crash(void)
 
 extern int (*msm_check_for_modem_crash)(void);
 
+uint32_t raw_smsm_get_state(enum smsm_state_item item)
+{
+	return readl(smd_info.state + item * 4);
+}
+
 static int check_for_modem_crash(void)
 {
-	if (readl(smd_info.state_modem) & SMSM_RESET) {
+	if (raw_smsm_get_state(SMSM_STATE_MODEM) & SMSM_RESET) {
 		handle_modem_crash();
 		return -1;
 	}
@@ -978,8 +980,8 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 
 	spin_lock_irqsave(&smem_lock, flags);
 
-	apps = readl(smd_info.state_apps);
-	modm = readl(smd_info.state_modem);
+	apps = raw_smsm_get_state(SMSM_STATE_APPS);
+	modm = raw_smsm_get_state(SMSM_STATE_MODEM);
 
 	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
 		pr_info("<SM %08x %08x>\n", apps, modm);
@@ -992,24 +994,26 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int smsm_change_state(uint32_t clear_mask, uint32_t set_mask)
+int smsm_change_state(enum smsm_state_item item,
+		      uint32_t clear_mask, uint32_t set_mask)
 {
 	unsigned long flags;
 	unsigned state;
+	unsigned addr = smd_info.state + item * 4;
 
 	if (!smd_info.ready)
 		return -EIO;
 
 	spin_lock_irqsave(&smem_lock, flags);
 
-	if (readl(smd_info.state_modem) & SMSM_RESET)
+	if (raw_smsm_get_state(SMSM_STATE_MODEM) & SMSM_RESET)
 		handle_modem_crash();
 
-	state = (readl(smd_info.state_apps) & ~clear_mask) | set_mask;
-	writel(state, smd_info.state_apps);
+	state = (readl(addr) & ~clear_mask) | set_mask;
+	writel(state, addr);
 
 	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
-		pr_info("smsm_change_state %x\n", state);
+		pr_info("smsm_change_state %d %x\n", item, state);
 	notify_other_smsm();
 
 	spin_unlock_irqrestore(&smem_lock, flags);
@@ -1017,16 +1021,16 @@ int smsm_change_state(uint32_t clear_mask, uint32_t set_mask)
 	return 0;
 }
 
-uint32_t smsm_get_state(void)
+uint32_t smsm_get_state(enum smsm_state_item item)
 {
 	unsigned long flags;
 	uint32_t rv;
 
 	spin_lock_irqsave(&smem_lock, flags);
 
-	rv = readl(smd_info.state_modem);
+	rv = readl(smd_info.state + item * 4);
 
-	if (rv & SMSM_RESET)
+	if (item == SMSM_STATE_MODEM && (rv & SMSM_RESET))
 		handle_modem_crash();
 
 	spin_unlock_irqrestore(&smem_lock, flags);
@@ -1145,14 +1149,8 @@ int smd_core_init(void)
 		unsigned size;
 		void *state;
 		state = smem_item(SMEM_SMSM_SHARED_STATE, &size);
-		if (size == SMSM_V1_SIZE) {
-			smd_info.state_apps = state + SMSM_V1_STATE_APPS;
-			smd_info.state_modem = state + SMSM_V1_STATE_MODEM;
-			break;
-		}
-		if (size == SMSM_V2_SIZE) {
-			smd_info.state_apps = state + SMSM_V2_STATE_APPS;
-			smd_info.state_modem = state + SMSM_V2_STATE_MODEM;
+		if (size == SMSM_V1_SIZE || size == SMSM_V2_SIZE) {
+			smd_info.state = (unsigned)state;
 			break;
 		}
 	}
@@ -1181,8 +1179,8 @@ int smd_core_init(void)
 	do_smd_probe();
 
 	/* indicate that we're up and running */
-	writel(SMSM_INIT | SMSM_SMDINIT | SMSM_RPCINIT, smd_info.state_apps);
-	notify_other_smsm();
+	smsm_change_state(SMSM_STATE_APPS,
+			  ~0, SMSM_INIT | SMSM_SMDINIT | SMSM_RPCINIT);
 
 	pr_info("smd_core_init() done\n");
 
@@ -1227,13 +1225,13 @@ static int debug_read_stat(char *buf, int max)
 
 	msg = smem_find(ID_DIAG_ERR_MSG, SZ_DIAG_ERR_MSG);
 
-	if (readl(smd_info.state_modem) & SMSM_RESET)
+	if (raw_smsm_get_state(SMSM_STATE_MODEM) & SMSM_RESET)
 		i += scnprintf(buf + i, max - i,
 			       "smsm: ARM9 HAS CRASHED\n");
 
 	i += scnprintf(buf + i, max - i, "smsm: a9: %08x a11: %08x\n",
-		       readl(smd_info.state_modem),
-		       readl(smd_info.state_apps));
+		       raw_smsm_get_state(SMSM_STATE_MODEM),
+		       raw_smsm_get_state(SMSM_STATE_APPS));
 
 	if (msg) {
 		msg[SZ_DIAG_ERR_MSG - 1] = 0;

@@ -59,13 +59,7 @@ struct smem_shared
 };
 
 #define SMSM_V1_SIZE		(sizeof(unsigned) * 8)
-#define SMSM_V1_STATE_APPS	0x0000
-#define SMSM_V1_STATE_MODEM	0x0004
-#define SMSM_V1_STATE_DSP	0x0008
-
 #define SMSM_V2_SIZE		(sizeof(unsigned) * 4)
-#define SMSM_V2_STATE_APPS	0x0004
-#define SMSM_V2_STATE_MODEM	0x000C
 
 struct smsm_interrupt_info
 {
@@ -113,9 +107,29 @@ struct smsm_interrupt_info
 #define SMSM_WKUP_REASON_ALARM	0x00000010
 #define SMSM_WKUP_REASON_RESET	0x00000020
 
+#ifndef CONFIG_ARCH_MSM_SCORPION
+enum smsm_state_item {
+	SMSM_STATE_APPS = 1,
+	SMSM_STATE_MODEM = 3,
+	SMSM_STATE_COUNT,
+};
+#else
+enum smsm_state_item {
+	SMSM_STATE_APPS,
+	SMSM_STATE_MODEM,
+	SMSM_STATE_HEXAGON,
+	SMSM_STATE_APPS_DEM,
+	SMSM_STATE_MODEM_DEM,
+	SMSM_STATE_QDSP6_DEM,
+	SMSM_STATE_POWER_MASTER_DEM,
+	SMSM_STATE_TIME_MASTER_DEM,
+	SMSM_STATE_COUNT,
+};
+#endif
+
 void *smem_alloc(unsigned id, unsigned size);
-int smsm_change_state(uint32_t clear_mask, uint32_t set_mask);
-uint32_t smsm_get_state(void);
+int smsm_change_state(enum smsm_state_item item, uint32_t clear_mask, uint32_t set_mask);
+uint32_t smsm_get_state(enum smsm_state_item item);
 int smsm_set_sleep_duration(uint32_t delay);
 int smsm_set_interrupt_info(struct smsm_interrupt_info *info);
 void smsm_print_sleep_info(void);
