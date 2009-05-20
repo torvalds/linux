@@ -899,7 +899,7 @@ static int cpcusb_probe(struct usb_interface *interface,
 
 	/* allocate and initialize the channel struct */
 	card->chan = kmalloc(sizeof(CPC_CHAN_T), GFP_KERNEL);
-	if (!card) {
+	if (!card->chan) {
 		kfree(card);
 		err("Out of memory");
 		return -ENOMEM;
