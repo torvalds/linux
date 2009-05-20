@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -39,6 +40,8 @@
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lilly.h>
 #include <mach/mmc.h>
+#include <mach/mx3fb.h>
+#include <mach/ipu.h>
 
 #include "devices.h"
 
@@ -59,6 +62,29 @@ static unsigned int lilly_db_board_pins[] __initdata = {
 	MX31_PIN_SD1_DATA0__SD1_DATA0,
 	MX31_PIN_SD1_CLK__SD1_CLK,
 	MX31_PIN_SD1_CMD__SD1_CMD,
+	MX31_PIN_LD0__LD0,
+	MX31_PIN_LD1__LD1,
+	MX31_PIN_LD2__LD2,
+	MX31_PIN_LD3__LD3,
+	MX31_PIN_LD4__LD4,
+	MX31_PIN_LD5__LD5,
+	MX31_PIN_LD6__LD6,
+	MX31_PIN_LD7__LD7,
+	MX31_PIN_LD8__LD8,
+	MX31_PIN_LD9__LD9,
+	MX31_PIN_LD10__LD10,
+	MX31_PIN_LD11__LD11,
+	MX31_PIN_LD12__LD12,
+	MX31_PIN_LD13__LD13,
+	MX31_PIN_LD14__LD14,
+	MX31_PIN_LD15__LD15,
+	MX31_PIN_LD16__LD16,
+	MX31_PIN_LD17__LD17,
+	MX31_PIN_VSYNC3__VSYNC3,
+	MX31_PIN_HSYNC__HSYNC,
+	MX31_PIN_FPSHIFT__FPSHIFT,
+	MX31_PIN_DRDY0__DRDY0,
+	MX31_PIN_CONTRAST__CONTRAST,
 };
 
 /* UART */
@@ -124,6 +150,50 @@ static struct imxmmc_platform_data mmc_pdata = {
 	.exit	= mxc_mmc1_exit,
 };
 
+/* Framebuffer support */
+static struct ipu_platform_data ipu_data __initdata = {
+	.irq_base = MXC_IPU_IRQ_START,
+};
+
+static const struct fb_videomode fb_modedb = {
+	/* 640x480 TFT panel (IPS-056T) */
+	.name	   	= "CRT-VGA",
+	.refresh	= 64,
+	.xres		= 640,
+	.yres		= 480,
+	.pixclock	= 30000,
+	.left_margin	= 200,
+	.right_margin	= 2,
+	.upper_margin	= 2,
+	.lower_margin	= 2,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.sync		= FB_SYNC_VERT_HIGH_ACT | FB_SYNC_OE_ACT_HIGH,
+	.vmode		= FB_VMODE_NONINTERLACED,
+	.flag		= 0,
+};
+
+static struct mx3fb_platform_data fb_pdata __initdata = {
+	.dma_dev	= &mx3_ipu.dev,
+	.name		= "CRT-VGA",
+	.mode		= &fb_modedb,
+	.num_modes	= 1,
+};
+
+#define LCD_VCC_EN_GPIO	 (7)
+
+static void __init mx31lilly_init_fb(void)
+{
+	if (gpio_request(LCD_VCC_EN_GPIO, "LCD enable") != 0) {
+		printk(KERN_WARNING "unable to request LCD_VCC_EN pin.\n");
+		return;
+	}
+
+	mxc_register_device(&mx3_ipu, &ipu_data);
+	mxc_register_device(&mx3_fb, &fb_pdata);
+	gpio_direction_output(LCD_VCC_EN_GPIO, 1);
+}
+
 void __init mx31lilly_db_init(void)
 {
 	mxc_iomux_setup_multiple_pins(lilly_db_board_pins,
@@ -131,5 +201,6 @@ void __init mx31lilly_db_init(void)
 					"development board pins");
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
+	mx31lilly_init_fb();
 }
 
