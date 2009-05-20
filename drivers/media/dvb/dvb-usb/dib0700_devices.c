@@ -1495,6 +1495,8 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT) },
 /* 50 */{ USB_DEVICE(USB_VID_ELGATO,	USB_PID_ELGATO_EYETV_DTT_Dlx) },
 	{ USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV_DONGLE_H) },
+	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_T3) },
+	{ USB_DEVICE(USB_VID_TERRATEC,	USB_PID_TERRATEC_T5) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1728,8 +1730,9 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[30], NULL },
 				{ NULL },
 			},
-			{   "Terratec Cinergy T USB XXS",
-				{ &dib0700_usb_id_table[33], NULL },
+			{   "Terratec Cinergy T USB XXS/ T3",
+				{ &dib0700_usb_id_table[33],
+					&dib0700_usb_id_table[52], NULL },
 				{ NULL },
 			},
 			{   "Elgato EyeTV DTT",
@@ -1790,8 +1793,9 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ &dib0700_usb_id_table[36], NULL },
 				{ NULL },
 			},
-			{  "Terratec Cinergy DT USB XS Diversity",
-				{ &dib0700_usb_id_table[43], NULL },
+			{  "Terratec Cinergy DT USB XS Diversity/ T5",
+				{ &dib0700_usb_id_table[43],
+					&dib0700_usb_id_table[53], NULL},
 				{ NULL },
 			},
 			{  "Sony PlayTV",
