@@ -2013,7 +2013,7 @@ u16_t zfiConfigWdsPort(zdev_t* dev, u8_t wdsPortId, u16_t flag, u16_t* wdsAddr,
 
     zmw_get_wlan_dev(dev);
 
-    if (wdsPortId > ZM_MAX_WDS_SUPPORT)
+    if (wdsPortId >= ZM_MAX_WDS_SUPPORT)
     {
         return ZM_ERR_WDS_PORT_ID;
     }
