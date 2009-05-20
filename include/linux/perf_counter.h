@@ -508,7 +508,6 @@ struct perf_counter_context {
 	int			nr_counters;
 	int			nr_active;
 	int			is_active;
-	int			rr_allowed;
 	struct task_struct	*task;
 
 	/*

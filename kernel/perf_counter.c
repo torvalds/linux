@@ -1120,8 +1120,7 @@ void perf_counter_task_tick(struct task_struct *curr, int cpu)
 	__perf_counter_task_sched_out(ctx);
 
 	rotate_ctx(&cpuctx->ctx);
-	if (ctx->rr_allowed)
-		rotate_ctx(ctx);
+	rotate_ctx(ctx);
 
 	perf_counter_cpu_sched_in(cpuctx, cpu);
 	perf_counter_task_sched_in(curr, cpu);
@@ -3109,7 +3108,6 @@ __perf_counter_init_context(struct perf_counter_context *ctx,
 	mutex_init(&ctx->mutex);
 	INIT_LIST_HEAD(&ctx->counter_list);
 	INIT_LIST_HEAD(&ctx->event_list);
-	ctx->rr_allowed = 1;
 	ctx->task = task;
 }
 
@@ -3350,14 +3348,14 @@ void perf_counter_init_task(struct task_struct *child)
 	 */
 	mutex_lock(&parent_ctx->mutex);
 
-	parent_ctx->rr_allowed = 0;
-	barrier(); /* irqs */
-
 	/*
 	 * We dont have to disable NMIs - we are only looking at
 	 * the list, not manipulating it:
 	 */
-	list_for_each_entry(counter, &parent_ctx->counter_list, list_entry) {
+	list_for_each_entry_rcu(counter, &parent_ctx->event_list, event_entry) {
+		if (counter != counter->group_leader)
+			continue;
+
 		if (!counter->hw_event.inherit)
 			continue;
 
@@ -3365,9 +3363,6 @@ void perf_counter_init_task(struct task_struct *child)
 				  parent_ctx, child, child_ctx))
 			break;
 	}
-
-	barrier(); /* irqs */
-	parent_ctx->rr_allowed = 1;
 
 	mutex_unlock(&parent_ctx->mutex);
 }
