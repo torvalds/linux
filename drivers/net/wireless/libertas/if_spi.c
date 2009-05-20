@@ -814,6 +814,13 @@ static void if_spi_e2h(struct if_spi_card *card)
 	if (err)
 		goto out;
 
+	/* re-enable the card event interrupt */
+	spu_write_u16(card, IF_SPI_HOST_INT_STATUS_REG,
+			~IF_SPI_HICU_CARD_EVENT);
+
+	/* generate a card interrupt */
+	spu_write_u16(card, IF_SPI_CARD_INT_CAUSE_REG, IF_SPI_CIC_HOST_EVENT);
+
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	lbs_queue_event(priv, cause & 0xff);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
