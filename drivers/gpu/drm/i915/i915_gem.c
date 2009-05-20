@@ -1145,7 +1145,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 			mutex_unlock(&dev->struct_mutex);
 			return VM_FAULT_SIGBUS;
 		}
-		list_add(&obj_priv->list, &dev_priv->mm.inactive_list);
+		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 	}
 
 	/* Need a new fence register? */
@@ -1375,7 +1375,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 			mutex_unlock(&dev->struct_mutex);
 			return ret;
 		}
-		list_add(&obj_priv->list, &dev_priv->mm.inactive_list);
+		list_add_tail(&obj_priv->list, &dev_priv->mm.inactive_list);
 	}
 
 	drm_gem_object_unreference(obj);
