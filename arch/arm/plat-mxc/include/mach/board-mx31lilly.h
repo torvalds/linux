@@ -31,12 +31,15 @@
 
 enum mx31lilly_boards {
 	MX31LILLY_NOBOARD	= 0,
+	MX31LILLY_DB		= 1,
 };
 
 /*
  * This CPU module needs a baseboard to work. After basic initializing
  * its own devices, it calls baseboard's init function.
  */
+
+extern void mx31lilly_db_init(void);
 
 #endif
 

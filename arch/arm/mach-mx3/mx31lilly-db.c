@@ -1,5 +1,5 @@
 /*
- *  LILLY-1131 module support
+ *  LILLY-1131 development board support
  *
  *    Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
  *
@@ -24,61 +24,45 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/clk.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>
 #include <mach/common.h>
+#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31lilly.h>
 
 #include "devices.h"
 
 /*
- * This file contains module-specific initialization routines for LILLY-1131.
- * Initialization of peripherals found on the baseboard is implemented in the
- * appropriate baseboard support code.
+ * This file contains board-specific initialization routines for the
+ * LILLY-1131 development board. If you design an own baseboard for the
+ * module, use this file as base for support code.
  */
 
-static int mx31lilly_baseboard;
-core_param(mx31lilly_baseboard, mx31lilly_baseboard, int, 0444);
-
-static void __init mx31lilly_board_init(void)
-{
-	switch (mx31lilly_baseboard) {
-	case MX31LILLY_NOBOARD:
-		break;
-	case MX31LILLY_DB:
-		mx31lilly_db_init();
-		break;
-	default:
-		printk(KERN_ERR "Illegal mx31lilly_baseboard type %d\n",
-			mx31lilly_baseboard);
-	}
-}
-
-static void __init mx31lilly_timer_init(void)
-{
-	mx31_clocks_init(26000000);
-}
-
-static struct sys_timer mx31lilly_timer = {
-	.init	= mx31lilly_timer_init,
+static unsigned int lilly_db_board_pins[] __initdata = {
+	MX31_PIN_CTS1__CTS1,
+	MX31_PIN_RTS1__RTS1,
+	MX31_PIN_TXD1__TXD1,
+	MX31_PIN_RXD1__RXD1,
 };
 
-MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
-	.phys_io	= AIPS1_BASE_ADDR,
-	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
-	.boot_params	= PHYS_OFFSET + 0x100,
-	.map_io		= mx31_map_io,
-	.init_irq	= mxc_init_irq,
-	.init_machine	= mx31lilly_board_init,
-	.timer		= &mx31lilly_timer,
-MACHINE_END
+/* UART */
+static struct imxuart_platform_data uart_pdata __initdata = {
+	.flags = IMXUART_HAVE_RTSCTS,
+};
+
+void __init mx31lilly_db_init(void)
+{
+	mxc_iomux_setup_multiple_pins(lilly_db_board_pins,
+					ARRAY_SIZE(lilly_db_board_pins),
+					"development board pins");
+	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+}
 
