@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -83,8 +84,30 @@ static struct platform_device smsc91x_device = {
 	}
 };
 
+/* NOR flash */
+static struct physmap_flash_data nor_flash_data = {
+	.width  = 2,
+};
+
+static struct resource nor_flash_resource = {
+	.start	= 0xa0000000,
+	.end	= 0xa1ffffff,
+	.flags	= IORESOURCE_MEM,
+};
+
+static struct platform_device physmap_flash_device = {
+	.name	= "physmap-flash",
+	.id	= 0,
+	.dev	= {
+		.platform_data  = &nor_flash_data,
+	},
+	.resource = &nor_flash_resource,
+	.num_resources = 1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&smsc91x_device,
+	&physmap_flash_device,
 };
 
 static int mx31lilly_baseboard;
