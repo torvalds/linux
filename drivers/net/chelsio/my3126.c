@@ -167,7 +167,7 @@ static struct cphy_ops my3126_ops = {
 				   MDIO_DEVS_PHYXS),
 };
 
-static struct cphy *my3126_phy_create(adapter_t *adapter,
+static struct cphy *my3126_phy_create(struct net_device *dev,
 			int phy_addr, const struct mdio_ops *mdio_ops)
 {
 	struct cphy *cphy = kzalloc(sizeof (*cphy), GFP_KERNEL);
@@ -175,7 +175,7 @@ static struct cphy *my3126_phy_create(adapter_t *adapter,
 	if (!cphy)
 		return NULL;
 
-	cphy_init(cphy, adapter, phy_addr, &my3126_ops, mdio_ops);
+	cphy_init(cphy, dev, phy_addr, &my3126_ops, mdio_ops);
 	INIT_DELAYED_WORK(&cphy->phy_update, my3216_poll);
 	cphy->bmsr = 0;
 

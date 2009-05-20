@@ -137,10 +137,11 @@ static inline int simple_mdio_write(struct cphy *cphy, int reg,
 }
 
 /* Convenience initializer */
-static inline void cphy_init(struct cphy *phy, adapter_t *adapter,
+static inline void cphy_init(struct cphy *phy, struct net_device *dev,
 			     int phy_addr, struct cphy_ops *phy_ops,
 			     const struct mdio_ops *mdio_ops)
 {
+	struct adapter *adapter = netdev_priv(dev);
 	phy->adapter = adapter;
 	phy->ops     = phy_ops;
 	if (mdio_ops) {
@@ -150,12 +151,13 @@ static inline void cphy_init(struct cphy *phy, adapter_t *adapter,
 		phy->mdio.mdio_read = mdio_ops->read;
 		phy->mdio.mdio_write = mdio_ops->write;
 	}
+	phy->mdio.dev = dev;
 }
 
 /* Operations of the PHY-instance factory */
 struct gphy {
 	/* Construct a PHY instance with the given PHY address */
-	struct cphy *(*create)(adapter_t *adapter, int phy_addr,
+	struct cphy *(*create)(struct net_device *dev, int phy_addr,
 			       const struct mdio_ops *mdio_ops);
 
 	/*

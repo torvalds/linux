@@ -1135,14 +1135,13 @@ int __devinit t1_init_sw_modules(adapter_t *adapter,
 		struct cmac *mac;
 		int phy_addr = bi->mdio_phybaseaddr + i;
 
-		adapter->port[i].phy = bi->gphy->create(adapter, phy_addr,
-							bi->mdio_ops);
+		adapter->port[i].phy = bi->gphy->create(adapter->port[i].dev,
+							phy_addr, bi->mdio_ops);
 		if (!adapter->port[i].phy) {
 			CH_ERR("%s: PHY %d initialization failed\n",
 			       adapter->name, i);
 			goto error;
 		}
-		adapter->port[i].phy->mdio.dev = adapter->port[i].dev;
 
 		adapter->port[i].mac = mac = bi->gmac->create(adapter, i);
 		if (!mac) {

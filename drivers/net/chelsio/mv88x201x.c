@@ -209,7 +209,7 @@ static struct cphy_ops mv88x201x_ops = {
 			      MDIO_DEVS_PHYXS | MDIO_DEVS_WIS),
 };
 
-static struct cphy *mv88x201x_phy_create(adapter_t *adapter, int phy_addr,
+static struct cphy *mv88x201x_phy_create(struct net_device *dev, int phy_addr,
 					 const struct mdio_ops *mdio_ops)
 {
 	u32 val;
@@ -218,7 +218,7 @@ static struct cphy *mv88x201x_phy_create(adapter_t *adapter, int phy_addr,
 	if (!cphy)
 		return NULL;
 
-	cphy_init(cphy, adapter, phy_addr, &mv88x201x_ops, mdio_ops);
+	cphy_init(cphy, dev, phy_addr, &mv88x201x_ops, mdio_ops);
 
 	/* Commands the PHY to enable XFP's clock. */
 	cphy_mdio_read(cphy, MDIO_MMD_PCS, 0x8300, &val);
