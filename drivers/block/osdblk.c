@@ -66,6 +66,7 @@
 #include <scsi/osd_initiator.h>
 #include <scsi/osd_attributes.h>
 #include <scsi/osd_sec.h>
+#include <scsi/scsi_device.h>
 
 #define DRV_NAME "osdblk"
 #define PFX DRV_NAME ": "
@@ -436,6 +437,12 @@ static int osdblk_init_disk(struct osdblk_device *osdev)
 		put_disk(disk);
 		return rc;
 	}
+
+	/* Set our limits to the lower device limits, because osdblk cannot
+	 * sleep when allocating a lower-request and therefore cannot be
+	 * bouncing.
+	 */
+	blk_queue_stack_limits(q, osd_request_queue(osdev->osd));
 
 	blk_queue_prep_rq(q, blk_queue_start_tag);
 	blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH, osdblk_prepare_flush);
