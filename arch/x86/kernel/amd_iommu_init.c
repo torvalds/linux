@@ -598,32 +598,83 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	p += sizeof(struct ivhd_header);
 	end += h->length;
 
+
 	while (p < end) {
 		e = (struct ivhd_entry *)p;
 		switch (e->type) {
 		case IVHD_DEV_ALL:
+
+			DUMP_printk("  DEV_ALL\t\t\t first devid: %02x:%02x.%x"
+				    " last device %02x:%02x.%x flags: %02x\n",
+				    PCI_BUS(iommu->first_device),
+				    PCI_SLOT(iommu->first_device),
+				    PCI_FUNC(iommu->first_device),
+				    PCI_BUS(iommu->last_device),
+				    PCI_SLOT(iommu->last_device),
+				    PCI_FUNC(iommu->last_device),
+				    e->flags);
+
 			for (dev_i = iommu->first_device;
 					dev_i <= iommu->last_device; ++dev_i)
 				set_dev_entry_from_acpi(iommu, dev_i,
 							e->flags, 0);
 			break;
 		case IVHD_DEV_SELECT:
+
+			DUMP_printk("  DEV_SELECT\t\t\t devid: %02x:%02x.%x "
+				    "flags: %02x\n",
+				    PCI_BUS(e->devid),
+				    PCI_SLOT(e->devid),
+				    PCI_FUNC(e->devid),
+				    e->flags);
+
 			devid = e->devid;
 			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
 			break;
 		case IVHD_DEV_SELECT_RANGE_START:
+
+			DUMP_printk("  DEV_SELECT_RANGE_START\t "
+				    "devid: %02x:%02x.%x flags: %02x\n",
+				    PCI_BUS(e->devid),
+				    PCI_SLOT(e->devid),
+				    PCI_FUNC(e->devid),
+				    e->flags);
+
 			devid_start = e->devid;
 			flags = e->flags;
 			ext_flags = 0;
 			alias = false;
 			break;
 		case IVHD_DEV_ALIAS:
+
+			DUMP_printk("  DEV_ALIAS\t\t\t devid: %02x:%02x.%x "
+				    "flags: %02x devid_to: %02x:%02x.%x\n",
+				    PCI_BUS(e->devid),
+				    PCI_SLOT(e->devid),
+				    PCI_FUNC(e->devid),
+				    e->flags,
+				    PCI_BUS(e->ext >> 8),
+				    PCI_SLOT(e->ext >> 8),
+				    PCI_FUNC(e->ext >> 8));
+
 			devid = e->devid;
 			devid_to = e->ext >> 8;
 			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
 			amd_iommu_alias_table[devid] = devid_to;
 			break;
 		case IVHD_DEV_ALIAS_RANGE:
+
+			DUMP_printk("  DEV_ALIAS_RANGE\t\t "
+				    "devid: %02x:%02x.%x flags: %02x "
+				    "devid_to: %02x:%02x.%x\n",
+				    PCI_BUS(e->devid),
+				    PCI_SLOT(e->devid),
+				    PCI_FUNC(e->devid),
+				    e->flags,
+				    PCI_BUS(e->ext >> 8),
+				    PCI_SLOT(e->ext >> 8),
+				    PCI_FUNC(e->ext >> 8));
+
 			devid_start = e->devid;
 			flags = e->flags;
 			devid_to = e->ext >> 8;
@@ -631,17 +682,39 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			alias = true;
 			break;
 		case IVHD_DEV_EXT_SELECT:
+
+			DUMP_printk("  DEV_EXT_SELECT\t\t devid: %02x:%02x.%x "
+				    "flags: %02x ext: %08x\n",
+				    PCI_BUS(e->devid),
+				    PCI_SLOT(e->devid),
+				    PCI_FUNC(e->devid),
+				    e->flags, e->ext);
+
 			devid = e->devid;
 			set_dev_entry_from_acpi(iommu, devid, e->flags,
 						e->ext);
 			break;
 		case IVHD_DEV_EXT_SELECT_RANGE:
+
+			DUMP_printk("  DEV_EXT_SELECT_RANGE\t devid: "
+				    "%02x:%02x.%x flags: %02x ext: %08x\n",
+				    PCI_BUS(e->devid),
+				    PCI_SLOT(e->devid),
+				    PCI_FUNC(e->devid),
+				    e->flags, e->ext);
+
 			devid_start = e->devid;
 			flags = e->flags;
 			ext_flags = e->ext;
 			alias = false;
 			break;
 		case IVHD_DEV_RANGE_END:
+
+			DUMP_printk("  DEV_RANGE_END\t\t devid: %02x:%02x.%x\n",
+				    PCI_BUS(e->devid),
+				    PCI_SLOT(e->devid),
+				    PCI_FUNC(e->devid));
+
 			devid = e->devid;
 			for (dev_i = devid_start; dev_i <= devid; ++dev_i) {
 				if (alias)
