@@ -92,9 +92,10 @@ struct gfs2_rgrpd {
 	unsigned int rd_bh_count;
 	u32 rd_last_alloc;
 	unsigned char rd_flags;
-#define GFS2_RDF_CHECK        0x01      /* Need to check for unlinked inodes */
-#define GFS2_RDF_NOALLOC      0x02      /* rg prohibits allocation */
-#define GFS2_RDF_UPTODATE     0x04      /* rg is up to date */
+#define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
+#define GFS2_RDF_UPTODATE	0x20000000 /* rg is up to date */
+#define GFS2_RDF_ERROR		0x40000000 /* error in rg */
+#define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
 };
 
 enum gfs2_state_bits {

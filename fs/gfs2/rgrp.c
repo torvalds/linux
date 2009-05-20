@@ -701,10 +701,7 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 	u32 rg_flags;
 
 	rg_flags = be32_to_cpu(str->rg_flags);
-	if (rg_flags & GFS2_RGF_NOALLOC)
-		rgd->rd_flags |= GFS2_RDF_NOALLOC;
-	else
-		rgd->rd_flags &= ~GFS2_RDF_NOALLOC;
+	rg_flags &= ~GFS2_RDF_MASK;
 	rgd->rd_free = be32_to_cpu(str->rg_free);
 	rgd->rd_dinodes = be32_to_cpu(str->rg_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(str->rg_igeneration);
@@ -713,11 +710,8 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 static void gfs2_rgrp_out(struct gfs2_rgrpd *rgd, void *buf)
 {
 	struct gfs2_rgrp *str = buf;
-	u32 rg_flags = 0;
 
-	if (rgd->rd_flags & GFS2_RDF_NOALLOC)
-		rg_flags |= GFS2_RGF_NOALLOC;
-	str->rg_flags = cpu_to_be32(rg_flags);
+	str->rg_flags = cpu_to_be32(rgd->rd_flags & ~GFS2_RDF_MASK);
 	str->rg_free = cpu_to_be32(rgd->rd_free);
 	str->rg_dinodes = cpu_to_be32(rgd->rd_dinodes);
 	str->__pad = cpu_to_be32(0);
@@ -942,7 +936,7 @@ static int try_rgrp_fit(struct gfs2_rgrpd *rgd, struct gfs2_alloc *al)
 	struct gfs2_sbd *sdp = rgd->rd_sbd;
 	int ret = 0;
 
-	if (rgd->rd_flags & GFS2_RDF_NOALLOC)
+	if (rgd->rd_flags & (GFS2_RGF_NOALLOC | GFS2_RDF_ERROR))
 		return 0;
 
 	spin_lock(&sdp->sd_rindex_spin);
@@ -1435,13 +1429,33 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 }
 
 /**
- * gfs2_alloc_block - Allocate a block
- * @ip: the inode to allocate the block for
+ * gfs2_rgrp_dump - print out an rgrp
+ * @seq: The iterator
+ * @gl: The glock in question
  *
- * Returns: the allocated block
  */
 
-u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
+int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl)
+{
+	const struct gfs2_rgrpd *rgd = gl->gl_object;
+	if (rgd == NULL)
+		return 0;
+	gfs2_print_dbg(seq, " R: n:%llu f:%02x b:%u/%u i:%u\n",
+		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
+		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes);
+	return 0;
+}
+
+/**
+ * gfs2_alloc_block - Allocate one or more blocks
+ * @ip: the inode to allocate the block for
+ * @bn: Used to return the starting block number
+ * @n: requested number of blocks/extent length (value/result)
+ *
+ * Returns: 0 or error
+ */
+
+int gfs2_alloc_block(struct gfs2_inode *ip, u64 *bn, unsigned int *n)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
@@ -1457,7 +1471,10 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 		goal = rgd->rd_last_alloc;
 
 	blk = rgblk_search(rgd, goal, GFS2_BLKST_FREE, GFS2_BLKST_USED, n);
-	BUG_ON(blk == BFITNOENT);
+
+	/* Since all blocks are reserved in advance, this shouldn't happen */
+	if (blk == BFITNOENT)
+		goto rgrp_error;
 
 	rgd->rd_last_alloc = blk;
 	block = rgd->rd_data0 + blk;
@@ -1469,7 +1486,9 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 		di->di_goal_meta = di->di_goal_data = cpu_to_be64(ip->i_goal);
 		brelse(dibh);
 	}
-	gfs2_assert_withdraw(sdp, rgd->rd_free >= *n);
+	if (rgd->rd_free < *n)
+		goto rgrp_error;
+
 	rgd->rd_free -= *n;
 
 	gfs2_trans_add_bh(rgd->rd_gl, rgd->rd_bits[0].bi_bh, 1);
@@ -1484,7 +1503,16 @@ u64 gfs2_alloc_block(struct gfs2_inode *ip, unsigned int *n)
 	rgd->rd_free_clone -= *n;
 	spin_unlock(&sdp->sd_rindex_spin);
 
-	return block;
+	*bn = block;
+	return 0;
+
+rgrp_error:
+	fs_warn(sdp, "rgrp %llu has an error, marking it readonly until umount\n",
+	        (unsigned long long)rgd->rd_addr);
+	fs_warn(sdp, "umount on all nodes and run fsck.gfs2 to fix the error\n");
+	gfs2_rgrp_dump(NULL, rgd->rd_gl);
+	rgd->rd_flags |= GFS2_RDF_ERROR;
+	return -EIO;
 }
 
 /**
