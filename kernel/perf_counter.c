@@ -208,18 +208,17 @@ static void __perf_counter_remove_from_context(void *info)
 		return;
 
 	spin_lock_irqsave(&ctx->lock, flags);
+	/*
+	 * Protect the list operation against NMI by disabling the
+	 * counters on a global level.
+	 */
+	perf_disable();
 
 	counter_sched_out(counter, cpuctx, ctx);
 
 	counter->task = NULL;
 
-	/*
-	 * Protect the list operation against NMI by disabling the
-	 * counters on a global level. NOP for non NMI based counters.
-	 */
-	perf_disable();
 	list_del_counter(counter, ctx);
-	perf_enable();
 
 	if (!ctx->task) {
 		/*
@@ -231,6 +230,7 @@ static void __perf_counter_remove_from_context(void *info)
 			    perf_max_counters - perf_reserved_percpu);
 	}
 
+	perf_enable();
 	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 

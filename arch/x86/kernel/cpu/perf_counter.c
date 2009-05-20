@@ -740,6 +740,7 @@ static int intel_pmu_handle_irq(struct pt_regs *regs, int nmi)
 again:
 	if (++loops > 100) {
 		WARN_ONCE(1, "perfcounters: irq loop stuck!\n");
+		perf_counter_print_debug();
 		return 1;
 	}
 
