@@ -1080,6 +1080,29 @@ void show_regs(struct pt_regs *fp)
 	unsigned int cpu = smp_processor_id();
 	unsigned char in_atomic = (bfin_read_IPEND() & 0x10) || in_atomic();
 
+	verbose_printk(KERN_NOTICE "\n");
+	if (CPUID != bfin_cpuid())
+		verbose_printk(KERN_NOTICE "Compiled for cpu family 0x%04x (Rev %d), "
+			"but running on:0x%04x (Rev %d)\n",
+			CPUID, bfin_compiled_revid(), bfin_cpuid(), bfin_revid());
+
+	verbose_printk(KERN_NOTICE "ADSP-%s-0.%d",
+		CPU, bfin_compiled_revid());
+
+	if (bfin_compiled_revid() !=  bfin_revid())
+		verbose_printk("(Detected 0.%d)", bfin_revid());
+
+	verbose_printk(" %lu(MHz CCLK) %lu(MHz SCLK) (%s)\n",
+		get_cclk()/1000000, get_sclk()/1000000,
+#ifdef CONFIG_MPU
+		"mpu on"
+#else
+		"mpu off"
+#endif
+		);
+
+	verbose_printk(KERN_NOTICE "%s", linux_banner);
+
 	verbose_printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\t\t%s\n", print_tainted());
 	verbose_printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
 		(long)fp->seqstat, fp->ipend, fp->syscfg);
