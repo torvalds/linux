@@ -66,19 +66,19 @@ struct if_sdio_model {
 static struct if_sdio_model if_sdio_models[] = {
 	{
 		/* 8385 */
-		.model = 0x04,
+		.model = IF_SDIO_MODEL_8385,
 		.helper = "sd8385_helper.bin",
 		.firmware = "sd8385.bin",
 	},
 	{
 		/* 8686 */
-		.model = 0x0B,
+		.model = IF_SDIO_MODEL_8686,
 		.helper = "sd8686_helper.bin",
 		.firmware = "sd8686.bin",
 	},
 	{
 		/* 8688 */
-		.model = 0x10,
+		.model = IF_SDIO_MODEL_8688,
 		.helper = "sd8688_helper.bin",
 		.firmware = "sd8688.bin",
 	},
@@ -118,7 +118,7 @@ static u16 if_sdio_read_scratch(struct if_sdio_card *card, int *err)
 	int ret, reg;
 	u16 scratch;
 
-	if (card->model == 0x04)
+	if (card->model == IF_SDIO_MODEL_8385)
 		reg = IF_SDIO_SCRATCH_OLD;
 	else
 		reg = IF_SDIO_SCRATCH;
@@ -216,7 +216,7 @@ static int if_sdio_handle_event(struct if_sdio_card *card,
 
 	lbs_deb_enter(LBS_DEB_SDIO);
 
-	if (card->model == 0x04) {
+	if (card->model == IF_SDIO_MODEL_8385) {
 		event = sdio_readb(card->func, IF_SDIO_EVENT, &ret);
 		if (ret)
 			goto out;
@@ -829,10 +829,10 @@ static int if_sdio_probe(struct sdio_func *func,
 		if (sscanf(func->card->info[i],
 				"ID: %x", &model) == 1)
 			break;
-               if (!strcmp(func->card->info[i], "IBIS Wireless SDIO Card")) {
-                       model = 4;
-                       break;
-               }
+		if (!strcmp(func->card->info[i], "IBIS Wireless SDIO Card")) {
+			model = IF_SDIO_MODEL_8385;
+			break;
+		}
 	}
 
 	if (i == func->card->num_info) {
