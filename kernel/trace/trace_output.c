@@ -251,6 +251,31 @@ ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 	return p->buffer;
 }
 
+const char *
+ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
+			 const struct trace_print_flags *symbol_array)
+{
+	int i;
+
+	trace_seq_init(p);
+
+	for (i = 0;  symbol_array[i].name; i++) {
+
+		if (val != symbol_array[i].mask)
+			continue;
+
+		trace_seq_puts(p, symbol_array[i].name);
+		break;
+	}
+
+	if (!p->len)
+		trace_seq_printf(p, "0x%lx", val);
+		
+	trace_seq_putc(p, 0);
+
+	return p->buffer;
+}
+
 #ifdef CONFIG_KRETPROBES
 static inline const char *kretprobed(const char *name)
 {

@@ -20,6 +20,9 @@ const char *ftrace_print_flags_seq(struct trace_seq *p, const char *delim,
 				   unsigned long flags,
 				   const struct trace_print_flags *flag_array);
 
+const char *ftrace_print_symbols_seq(struct trace_seq *p, unsigned long val,
+				     const struct trace_print_flags *symbol_array);
+
 /*
  * The trace entry - the most basic unit of tracing. This is what
  * is printed in the end as a single line in the trace output, such as:

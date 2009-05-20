@@ -130,6 +130,14 @@
 		ftrace_print_flags_seq(p, delim, flag, flags);		\
 	})
 
+#undef __print_symbolic
+#define __print_symbolic(value, symbol_array...)			\
+	({								\
+		static const struct trace_print_flags symbols[] =	\
+			{ symbol_array, { -1, NULL }};			\
+		ftrace_print_symbols_seq(p, value, symbols);		\
+	})
+
 #undef TRACE_EVENT
 #define TRACE_EVENT(call, proto, args, tstruct, assign, print)		\
 enum print_line_t							\
