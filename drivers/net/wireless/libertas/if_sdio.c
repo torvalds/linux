@@ -107,6 +107,8 @@ struct if_sdio_card {
 
 	struct workqueue_struct	*workqueue;
 	struct work_struct	packet_worker;
+
+	u8			rx_unit;
 };
 
 /********************************************************************/
@@ -134,6 +136,46 @@ static u16 if_sdio_read_scratch(struct if_sdio_card *card, int *err)
 		return 0xffff;
 
 	return scratch;
+}
+
+static u8 if_sdio_read_rx_unit(struct if_sdio_card *card)
+{
+	int ret;
+	u8 rx_unit;
+
+	rx_unit = sdio_readb(card->func, IF_SDIO_RX_UNIT, &ret);
+
+	if (ret)
+		rx_unit = 0;
+
+	return rx_unit;
+}
+
+static u16 if_sdio_read_rx_len(struct if_sdio_card *card, int *err)
+{
+	int ret;
+	u16 rx_len;
+
+	switch (card->model) {
+	case IF_SDIO_MODEL_8385:
+	case IF_SDIO_MODEL_8686:
+		rx_len = if_sdio_read_scratch(card, &ret);
+		break;
+	case IF_SDIO_MODEL_8688:
+	default: /* for newer chipsets */
+		rx_len = sdio_readb(card->func, IF_SDIO_RX_LEN, &ret);
+		if (!ret)
+			rx_len <<= card->rx_unit;
+		else
+			rx_len = 0xffff;	/* invalid length */
+
+		break;
+	}
+
+	if (err)
+		*err = ret;
+
+	return rx_len;
 }
 
 static int if_sdio_handle_cmd(struct if_sdio_card *card,
@@ -254,7 +296,7 @@ static int if_sdio_card_to_host(struct if_sdio_card *card)
 
 	lbs_deb_enter(LBS_DEB_SDIO);
 
-	size = if_sdio_read_scratch(card, &ret);
+	size = if_sdio_read_rx_len(card, &ret);
 	if (ret)
 		goto out;
 
@@ -923,10 +965,21 @@ static int if_sdio_probe(struct sdio_func *func,
 
 	priv->fw_ready = 1;
 
+	sdio_claim_host(func);
+
+	/*
+	 * Get rx_unit if the chip is SD8688 or newer.
+	 * SD8385 & SD8686 do not have rx_unit.
+	 */
+	if ((card->model != IF_SDIO_MODEL_8385)
+			&& (card->model != IF_SDIO_MODEL_8686))
+		card->rx_unit = if_sdio_read_rx_unit(card);
+	else
+		card->rx_unit = 0;
+
 	/*
 	 * Enable interrupts now that everything is set up
 	 */
-	sdio_claim_host(func);
 	sdio_writeb(func, 0x0f, IF_SDIO_H_INT_MASK, &ret);
 	sdio_release_host(func);
 	if (ret)

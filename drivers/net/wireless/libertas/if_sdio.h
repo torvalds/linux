@@ -44,6 +44,9 @@
 #define IF_SDIO_SCRATCH_OLD	0x80fe
 #define   IF_SDIO_FIRMWARE_OK	0xfedc
 
+#define IF_SDIO_RX_LEN		0x42
+#define IF_SDIO_RX_UNIT		0x43
+
 #define IF_SDIO_EVENT           0x80fc
 
 #define IF_SDIO_BLOCK_SIZE	256
