@@ -43,11 +43,7 @@
 
 static int __initdata acpi_force = 0;
 u32 acpi_rsdt_forced;
-#ifdef	CONFIG_ACPI
-int acpi_disabled = 0;
-#else
-int acpi_disabled = 1;
-#endif
+int acpi_disabled;
 EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_X86_64
