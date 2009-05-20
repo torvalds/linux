@@ -3866,11 +3866,11 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 			return -EINVAL;
 		}
 
+		p->phy.mdio.dev = adapter->port[i];
 		ret = pti->phy_prep(&p->phy, adapter, ai->phy_base_addr + j,
 				    ai->mdio_ops);
 		if (ret)
 			return ret;
-		p->phy.mdio.dev = adapter->port[i];
 		mac_prep(&p->mac, adapter, j);
 
 		/*
