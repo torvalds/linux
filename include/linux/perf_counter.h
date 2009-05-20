@@ -258,6 +258,14 @@ enum perf_event_type {
 	PERF_EVENT_COMM			= 3,
 
 	/*
+	 * struct {
+	 * 	struct perf_event_header	header;
+	 * 	u64				irq_period;
+	 * };
+	 */
+	PERF_EVENT_PERIOD		= 4,
+
+	/*
 	 * When header.misc & PERF_EVENT_MISC_OVERFLOW the event_type field
 	 * will be PERF_RECORD_*
 	 *

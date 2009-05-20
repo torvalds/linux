@@ -1046,7 +1046,9 @@ int perf_counter_task_enable(void)
 	return 0;
 }
 
-void perf_adjust_freq(struct perf_counter_context *ctx)
+static void perf_log_period(struct perf_counter *counter, u64 period);
+
+static void perf_adjust_freq(struct perf_counter_context *ctx)
 {
 	struct perf_counter *counter;
 	u64 irq_period;
@@ -1071,6 +1073,8 @@ void perf_adjust_freq(struct perf_counter_context *ctx)
 
 		if (!irq_period)
 			irq_period = 1;
+
+		perf_log_period(counter, irq_period);
 
 		counter->hw.irq_period = irq_period;
 		counter->hw.interrupts = 0;
@@ -2404,6 +2408,40 @@ void perf_counter_munmap(unsigned long addr, unsigned long len,
 	};
 
 	perf_counter_mmap_event(&mmap_event);
+}
+
+/*
+ *
+ */
+
+static void perf_log_period(struct perf_counter *counter, u64 period)
+{
+	struct perf_output_handle handle;
+	int ret;
+
+	struct {
+		struct perf_event_header	header;
+		u64				time;
+		u64				period;
+	} freq_event = {
+		.header = {
+			.type = PERF_EVENT_PERIOD,
+			.misc = 0,
+			.size = sizeof(freq_event),
+		},
+		.time = sched_clock(),
+		.period = period,
+	};
+
+	if (counter->hw.irq_period == period)
+		return;
+
+	ret = perf_output_begin(&handle, counter, sizeof(freq_event), 0, 0);
+	if (ret)
+		return;
+
+	perf_output_put(&handle, freq_event);
+	perf_output_end(&handle);
 }
 
 /*
