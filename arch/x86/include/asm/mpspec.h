@@ -61,9 +61,11 @@ extern void get_smp_config(void);
 #ifdef CONFIG_X86_MPPARSE
 extern void find_smp_config(void);
 extern void early_reserve_e820_mpc_new(void);
+extern int enable_update_mptable;
 #else
 static inline void find_smp_config(void) { }
 static inline void early_reserve_e820_mpc_new(void) { }
+#define enable_update_mptable 0
 #endif
 
 void __cpuinit generic_processor_info(int apicid, int version);
@@ -86,15 +88,6 @@ static inline int acpi_probe_gsi(void)
 	return 0;
 }
 #endif /* CONFIG_ACPI */
-
-#ifdef CONFIG_X86_MPPARSE
-extern int enable_update_mptable;
-#else
-static inline int enable_update_mptable(void)
-{
-	return 0;
-}
-#endif
 
 #define PHYSID_ARRAY_SIZE	BITS_TO_LONGS(MAX_APICS)
 
