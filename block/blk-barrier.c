@@ -218,7 +218,7 @@ static inline bool start_ordered(struct request_queue *q, struct request **rqp)
 	} else
 		skip |= QUEUE_ORDSEQ_PREFLUSH;
 
-	if ((q->ordered & QUEUE_ORDERED_BY_DRAIN) && q->in_flight)
+	if ((q->ordered & QUEUE_ORDERED_BY_DRAIN) && queue_in_flight(q))
 		rq = NULL;
 	else
 		skip |= QUEUE_ORDSEQ_DRAIN;

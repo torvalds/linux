@@ -404,7 +404,7 @@ struct request_queue
 	struct list_head	tag_busy_list;
 
 	unsigned int		nr_sorted;
-	unsigned int		in_flight;
+	unsigned int		in_flight[2];
 
 	unsigned int		rq_timeout;
 	struct timer_list	timeout;
@@ -509,6 +509,11 @@ static inline void queue_flag_clear_unlocked(unsigned int flag,
 					     struct request_queue *q)
 {
 	__clear_bit(flag, &q->queue_flags);
+}
+
+static inline int queue_in_flight(struct request_queue *q)
+{
+	return q->in_flight[0] + q->in_flight[1];
 }
 
 static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)

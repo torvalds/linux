@@ -546,7 +546,7 @@ void elv_requeue_request(struct request_queue *q, struct request *rq)
 	 * in_flight count again
 	 */
 	if (blk_account_rq(rq)) {
-		q->in_flight--;
+		q->in_flight[rq_is_sync(rq)]--;
 		if (blk_sorted_rq(rq))
 			elv_deactivate_rq(q, rq);
 	}
@@ -685,7 +685,7 @@ void elv_insert(struct request_queue *q, struct request *rq, int where)
 
 	if (unplug_it && blk_queue_plugged(q)) {
 		int nrq = q->rq.count[BLK_RW_SYNC] + q->rq.count[BLK_RW_ASYNC]
-			- q->in_flight;
+				- queue_in_flight(q);
 
 		if (nrq >= q->unplug_thresh)
 			__generic_unplug_device(q);
@@ -823,7 +823,7 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 	 * request is released from the driver, io must be done
 	 */
 	if (blk_account_rq(rq)) {
-		q->in_flight--;
+		q->in_flight[rq_is_sync(rq)]--;
 		if (blk_sorted_rq(rq) && e->ops->elevator_completed_req_fn)
 			e->ops->elevator_completed_req_fn(q, rq);
 	}
@@ -838,7 +838,7 @@ void elv_completed_request(struct request_queue *q, struct request *rq)
 		if (!list_empty(&q->queue_head))
 			next = list_entry_rq(q->queue_head.next);
 
-		if (!q->in_flight &&
+		if (!queue_in_flight(q) &&
 		    blk_ordered_cur_seq(q) == QUEUE_ORDSEQ_DRAIN &&
 		    (!next || blk_ordered_req_seq(next) > QUEUE_ORDSEQ_DRAIN)) {
 			blk_ordered_complete_seq(q, QUEUE_ORDSEQ_DRAIN, 0);

@@ -1815,7 +1815,7 @@ void blk_dequeue_request(struct request *rq)
 	 * the driver side.
 	 */
 	if (blk_account_rq(rq))
-		q->in_flight++;
+		q->in_flight[rq_is_sync(rq)]++;
 }
 
 /**
