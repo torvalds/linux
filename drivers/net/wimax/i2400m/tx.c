@@ -491,7 +491,7 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	 */
 	hdr_size = sizeof(*tx_msg)
 		+ le16_to_cpu(tx_msg->num_pls) * sizeof(tx_msg->pld[0]);
-	hdr_size = ALIGN(hdr_size, I2400M_PL_PAD);
+	hdr_size = ALIGN(hdr_size, I2400M_PL_ALIGN);
 	tx_msg->offset = I2400M_TX_PLD_SIZE - hdr_size;
 	tx_msg_moved = (void *) tx_msg + tx_msg->offset;
 	memmove(tx_msg_moved, tx_msg, hdr_size);
@@ -574,7 +574,7 @@ int i2400m_tx(struct i2400m *i2400m, const void *buf, size_t buf_len,
 
 	d_fnstart(3, dev, "(i2400m %p skb %p [%zu bytes] pt %u)\n",
 		  i2400m, buf, buf_len, pl_type);
-	padded_len = ALIGN(buf_len, I2400M_PL_PAD);
+	padded_len = ALIGN(buf_len, I2400M_PL_ALIGN);
 	d_printf(5, dev, "padded_len %zd buf_len %zd\n", padded_len, buf_len);
 	/* If there is no current TX message, create one; if the
 	 * current one is out of payload slots or we have a singleton,

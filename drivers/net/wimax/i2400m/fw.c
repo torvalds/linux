@@ -397,7 +397,7 @@ static int i2400m_download_chunk(struct i2400m *i2400m, const void *chunk,
 				 unsigned int direct, unsigned int do_csum)
 {
 	int ret;
-	size_t chunk_len = ALIGN(__chunk_len, I2400M_PL_PAD);
+	size_t chunk_len = ALIGN(__chunk_len, I2400M_PL_ALIGN);
 	struct device *dev = i2400m_dev(i2400m);
 	struct {
 		struct i2400m_bootrom_header cmd;
