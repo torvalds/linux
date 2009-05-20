@@ -60,6 +60,13 @@ config MACH_MX31MOBOARD
 	  Include support for mx31moboard platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_MX31LILLY
+	bool "Support MX31 LILLY-1131 platforms (INCO startec)"
+	select ARCH_MX31
+	help
+	  Include support for mx31 based LILLY1131 modules. This includes
+	  specific configurations for the board and its peripherals.
+
 config MACH_QONG
 	bool "Support Dave/DENX QongEVB-LITE platform"
 	select ARCH_MX31
