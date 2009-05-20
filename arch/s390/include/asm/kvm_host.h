@@ -182,8 +182,9 @@ struct kvm_s390_interrupt_info {
 };
 
 /* for local_interrupt.action_flags */
-#define ACTION_STORE_ON_STOP 1
-#define ACTION_STOP_ON_STOP  2
+#define ACTION_STORE_ON_STOP		(1<<0)
+#define ACTION_STOP_ON_STOP		(1<<1)
+#define ACTION_RELOADVCPU_ON_STOP	(1<<2)
 
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;

@@ -490,6 +490,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	vcpu_load(vcpu);
 
+rerun_vcpu:
 	/* verify, that memory has been registered */
 	if (!vcpu->kvm->arch.guest_memsize) {
 		vcpu_put(vcpu);
@@ -509,6 +510,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->arch.sie_block->gpsw.addr = kvm_run->s390_sieic.addr;
 		break;
 	case KVM_EXIT_UNKNOWN:
+	case KVM_EXIT_INTR:
 	case KVM_EXIT_S390_RESET:
 		break;
 	default:
@@ -521,6 +523,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		__vcpu_run(vcpu);
 		rc = kvm_handle_sie_intercept(vcpu);
 	} while (!signal_pending(current) && !rc);
+
+	if (rc == SIE_INTERCEPT_RERUNVCPU)
+		goto rerun_vcpu;
 
 	if (signal_pending(current) && !rc)
 		rc = -EINTR;

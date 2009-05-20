@@ -20,6 +20,8 @@
 
 typedef int (*intercept_handler_t)(struct kvm_vcpu *vcpu);
 
+/* negativ values are error codes, positive values for internal conditions */
+#define SIE_INTERCEPT_RERUNVCPU		(1<<0)
 int kvm_handle_sie_intercept(struct kvm_vcpu *vcpu);
 
 #define VM_EVENT(d_kvm, d_loglevel, d_string, d_args...)\
@@ -50,6 +52,7 @@ int kvm_s390_inject_vm(struct kvm *kvm,
 int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 		struct kvm_s390_interrupt *s390int);
 int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
+int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
 
 /* implemented in priv.c */
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
