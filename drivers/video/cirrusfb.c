@@ -567,9 +567,7 @@ static int cirrusfb_check_var(struct fb_var_screeninfo *var,
 	default:
 		dev_dbg(info->device,
 			"Unsupported bpp size: %d\n", var->bits_per_pixel);
-		assert(false);
-		/* should never occur */
-		break;
+		return -EINVAL;
 	}
 
 	if (var->xres_virtual < var->xres)

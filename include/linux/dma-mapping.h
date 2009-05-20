@@ -115,7 +115,7 @@ static inline u64 dma_get_mask(struct device *dev)
 {
 	if (dev && dev->dma_mask && *dev->dma_mask)
 		return *dev->dma_mask;
-	return DMA_32BIT_MASK;
+	return DMA_BIT_MASK(32);
 }
 
 extern u64 dma_get_required_mask(struct device *dev);

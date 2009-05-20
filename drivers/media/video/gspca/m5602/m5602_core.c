@@ -51,7 +51,7 @@ int m5602_read_bridge(struct sd *sd, u8 address, u8 *i2c_data)
 	       address, *i2c_data);
 
 	/* usb_control_msg(...) returns the number of bytes sent upon success,
-	mask that and return zero upon success instead*/
+	mask that and return zero instead*/
 	return (err < 0) ? err : 0;
 }
 
@@ -76,7 +76,7 @@ int m5602_write_bridge(struct sd *sd, u8 address, u8 i2c_data)
 				4, M5602_URB_MSG_TIMEOUT);
 
 	/* usb_control_msg(...) returns the number of bytes sent upon success,
-	   mask that and return zero upon success instead */
+	   mask that and return zero instead */
 	return (err < 0) ? err : 0;
 }
 
@@ -92,29 +92,29 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 		err = m5602_read_bridge(sd, M5602_XB_I2C_STATUS, i2c_data);
 	} while ((*i2c_data & I2C_BUSY) && !err);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_write_bridge(sd, M5602_XB_I2C_DEV_ADDR,
 				 sd->sensor->i2c_slave_id);
 	if (err < 0)
-		goto out;
+		return err;
 
 	err = m5602_write_bridge(sd, M5602_XB_I2C_REG_ADDR, address);
 	if (err < 0)
-		goto out;
+		return err;
 
 	if (sd->sensor->i2c_regW == 1) {
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, len);
 		if (err < 0)
-			goto out;
+			return err;
 
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x08);
 		if (err < 0)
-			goto out;
+			return err;
 	} else {
 		err = m5602_write_bridge(sd, M5602_XB_I2C_CTRL, 0x18 + len);
 		if (err < 0)
-			goto out;
+			return err;
 	}
 
 	for (i = 0; (i < len) && !err; i++) {
@@ -123,7 +123,6 @@ int m5602_read_sensor(struct sd *sd, const u8 address,
 		PDEBUG(D_CONF, "Reading sensor register "
 			       "0x%x containing 0x%x ", address, *i2c_data);
 	}
-out:
 	return err;
 }
 
@@ -310,7 +309,11 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 
 static void m5602_stop_transfer(struct gspca_dev *gspca_dev)
 {
-	/* Is there are a command to stop a data transfer? */
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	/* Run the sensor specific end transfer sequence */
+	if (sd->sensor->stop)
+		sd->sensor->stop(sd);
 }
 
 /* sub-driver description, the ctrl and nctrl is filled at probe time */
@@ -359,6 +362,17 @@ static int m5602_probe(struct usb_interface *intf,
 			       THIS_MODULE);
 }
 
+void m5602_disconnect(struct usb_interface *intf)
+{
+	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor->disconnect)
+		sd->sensor->disconnect(sd);
+
+	gspca_disconnect(intf);
+}
+
 static struct usb_driver sd_driver = {
 	.name = MODULE_NAME,
 	.id_table = m5602_table,
@@ -367,7 +381,7 @@ static struct usb_driver sd_driver = {
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
 #endif
-	.disconnect = gspca_disconnect
+	.disconnect = m5602_disconnect
 };
 
 /* -- module insert / remove -- */

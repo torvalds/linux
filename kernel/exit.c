@@ -837,8 +837,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	 */
 	if (tsk->exit_signal != SIGCHLD && !task_detached(tsk) &&
 	    (tsk->parent_exec_id != tsk->real_parent->self_exec_id ||
-	     tsk->self_exec_id != tsk->parent_exec_id) &&
-	    !capable(CAP_KILL))
+	     tsk->self_exec_id != tsk->parent_exec_id))
 		tsk->exit_signal = SIGCHLD;
 
 	signal = tracehook_notify_death(tsk, &cookie, group_dead);
@@ -923,6 +922,8 @@ NORET_TYPE void do_exit(long code)
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule();
 	}
+
+	exit_irq_thread();
 
 	exit_signals(tsk);  /* sets PF_EXITING */
 	/*

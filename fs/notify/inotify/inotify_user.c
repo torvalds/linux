@@ -220,7 +220,7 @@ static struct inotify_kernel_event * kernel_event(s32 wd, u32 mask, u32 cookie,
 				rem = 0;
 		}
 
-		kevent->name = kmalloc(len + rem, GFP_KERNEL);
+		kevent->name = kmalloc(len + rem, GFP_NOFS);
 		if (unlikely(!kevent->name)) {
 			kmem_cache_free(event_cachep, kevent);
 			return NULL;

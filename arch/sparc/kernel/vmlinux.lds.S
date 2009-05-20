@@ -41,7 +41,7 @@ SECTIONS
 	.text TEXTSTART :
 	{
 		_text = .;
-		*(.text.head)
+		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT

@@ -481,7 +481,7 @@ restart:
 			if ((flags & DCACHE_REFERENCED)
 				&& (dentry->d_flags & DCACHE_REFERENCED)) {
 				dentry->d_flags &= ~DCACHE_REFERENCED;
-				list_move_tail(&dentry->d_lru, &referenced);
+				list_move(&dentry->d_lru, &referenced);
 				spin_unlock(&dentry->d_lock);
 			} else {
 				list_move_tail(&dentry->d_lru, &tmp);
@@ -2149,7 +2149,6 @@ int is_subdir(struct dentry *new_dentry, struct dentry *old_dentry)
 	int result;
 	unsigned long seq;
 
-	/* FIXME: This is old behavior, needed? Please check callers. */
 	if (new_dentry == old_dentry)
 		return 1;
 

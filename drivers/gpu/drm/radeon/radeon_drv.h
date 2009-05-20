@@ -99,9 +99,10 @@
  * 1.27- Add support for IGP GART
  * 1.28- Add support for VBL on CRTC2
  * 1.29- R500 3D cmd buffer support
+ * 1.30- Add support for occlusion queries
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		29
+#define DRIVER_MINOR		30
 #define DRIVER_PATCHLEVEL	0
 
 /*

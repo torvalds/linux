@@ -167,7 +167,7 @@ struct pnp_card *pnp_alloc_card(struct pnp_protocol *protocol, int id, char *pnp
 	card->dev.parent = &card->protocol->dev;
 	dev_set_name(&card->dev, "%02x:%02x", card->protocol->number, card->number);
 
-	card->dev.coherent_dma_mask = DMA_24BIT_MASK;
+	card->dev.coherent_dma_mask = DMA_BIT_MASK(24);
 	card->dev.dma_mask = &card->dev.coherent_dma_mask;
 
 	dev_id = pnp_add_card_id(card, pnpid);

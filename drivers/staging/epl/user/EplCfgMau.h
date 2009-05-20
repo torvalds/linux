@@ -69,25 +69,22 @@
 
 ****************************************************************************/
 
-#include "../EplInc.h"
-
 #ifndef _EPLCFGMA_H_
 #define _EPLCFGMA_H_
+
+#include "../EplInc.h"
 
 #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_CFGMA)) != 0)
 
 #include "EplObdu.h"
 #include "EplSdoComu.h"
 
-//---------------------------------------------------------------------------
-// typedef
-//---------------------------------------------------------------------------
 //define max number of timeouts for configuration of 1 device
 #define EPL_CFGMA_MAX_TIMEOUT   3
 
 //callbackfunction, called if configuration is finished
-typedef void (PUBLIC * tfpEplCfgMaCb) (unsigned int uiNodeId_p,
-				       tEplKernel Errorstate_p);
+typedef void (* tfpEplCfgMaCb)(unsigned int uiNodeId_p,
+			       tEplKernel Errorstate_p);
 
 //State for configuartion manager Statemachine
 typedef enum {
@@ -131,31 +128,27 @@ typedef enum {
 typedef struct {
 	tEplCfgState m_CfgState;	// state of the configuration state maschine
 	tEplSdoComConHdl m_SdoComConHdl;	// handle for sdo connection
-	DWORD m_dwLastAbortCode;
+	u32 m_dwLastAbortCode;
 	unsigned int m_uiLastIndex;	// last index of configuration, to compair with actual index
-	BYTE *m_pbConcise;	// Ptr to concise DCF
-	BYTE *m_pbActualIndex;	// Ptr to actual index in the DCF segment
+	u8 *m_pbConcise;	// Ptr to concise DCF
+	u8 *m_pbActualIndex;	// Ptr to actual index in the DCF segment
 	tfpEplCfgMaCb m_pfnCfgMaCb;	// Ptr to CfgMa Callback, is call if configuration finished
 	tEplKernel m_EplKernelError;	// errorcode
-	DWORD m_dwNumValueCopy;	// numeric values are copied in this variable
+	u32 m_dwNumValueCopy;	// numeric values are copied in this variable
 	unsigned int m_uiPdoNodeId;	// buffer for PDO node id
-	BYTE m_bNrOfMappedObject;	// number of mapped objects
+	u8 m_bNrOfMappedObject;	// number of mapped objects
 	unsigned int m_uiNodeId;	// Epl node addresse
 	tEplSdocState m_SdocState;	// bitcoded state of the SDO transfer
 	unsigned int m_uiLastSubIndex;	// last subindex of configuration
 	BOOL m_fOneTranferOk;	// atleased one transfer was successful
-	BYTE m_bEventFlag;	// for Eventsignaling to the State Maschine
-	DWORD m_dwCntObjectInDcf;	// number of Objects in DCF
+	u8 m_bEventFlag;	// for Eventsignaling to the State Maschine
+	u32 m_dwCntObjectInDcf;	// number of Objects in DCF
 	tEplCfgMaIndexType m_SkipCfg;	// TRUE if a adsitional Configurationprocess
 	// have to insert e.g. PDO-mapping
-	WORD m_wTimeOutCnt;	// Timeout Counter, break configuration is
+	u16 m_wTimeOutCnt;	// Timeout Counter, break configuration is
 	// m_wTimeOutCnt == CFGMA_MAX_TIMEOUT
 
 } tEplCfgMaNode;
-
-//---------------------------------------------------------------------------
-// function prototypes
-//---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaInit()
@@ -166,7 +159,7 @@ typedef struct {
 //
 // Returns:     tEplKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaInit();
+tEplKernel EplCfgMaInit(void);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaAddInstance()
@@ -177,7 +170,7 @@ tEplKernel PUBLIC EplCfgMaInit();
 //
 // Returns:     tEplKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaAddInstance();
+tEplKernel EplCfgMaAddInstance(void);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaDelInstance()
@@ -188,7 +181,7 @@ tEplKernel PUBLIC EplCfgMaAddInstance();
 //
 // Returns:     tEplKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaDelInstance();
+tEplKernel plCfgMaDelInstance(void);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaStartConfig()
@@ -199,16 +192,16 @@ tEplKernel PUBLIC EplCfgMaDelInstance();
 // Parameters:  uiNodeId_p              = NodeId of the node to configure
 //              pbConcise_p             = pointer to DCF
 //              fpCfgMaCb_p             = pointer to callback function (should not be NULL)
-//              SizeOfConcise_p         = size of DCF in BYTE -> for future use
+//              SizeOfConcise_p         = size of DCF in u8 -> for future use
 //              DcfType_p               = type of the DCF
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaStartConfig(unsigned int uiNodeId_p,
-				      BYTE * pbConcise_p,
-				      tfpEplCfgMaCb fpCfgMaCb_p,
-				      tEplObdSize SizeOfConcise_p,
-				      tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaStartConfig(unsigned int uiNodeId_p,
+			       u8 * pbConcise_p,
+			       tfpEplCfgMaCb fpCfgMaCb_p,
+			       tEplObdSize SizeOfConcise_p,
+			       tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    CfgMaStartConfigurationNode()
@@ -222,9 +215,9 @@ tEplKernel PUBLIC EplCfgMaStartConfig(unsigned int uiNodeId_p,
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaStartConfigNode(unsigned int uiNodeId_p,
-					  tfpEplCfgMaCb fpCfgMaCb_p,
-					  tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaStartConfigNode(unsigned int uiNodeId_p,
+				   tfpEplCfgMaCb fpCfgMaCb_p,
+				   tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaStartConfigNodeDcf()
@@ -235,16 +228,16 @@ tEplKernel PUBLIC EplCfgMaStartConfigNode(unsigned int uiNodeId_p,
 // Parameters:  uiNodeId_p              = NodeId of the node to configure
 //              pbConcise_p             = pointer to DCF
 //              fpCfgMaCb_p             = pointer to callback function (should not be NULL)
-//              SizeOfConcise_p         = size of DCF in BYTE -> for future use
+//              SizeOfConcise_p         = size of DCF in u8 -> for future use
 //              DcfType_p               = type of the DCF
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
-					     BYTE * pbConcise_p,
-					     tfpEplCfgMaCb fpCfgMaCb_p,
-					     tEplObdSize SizeOfConcise_p,
-					     tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
+				      u8 * pbConcise_p,
+				      tfpEplCfgMaCb fpCfgMaCb_p,
+				      tEplObdSize SizeOfConcise_p,
+				      tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaLinkDcf()
@@ -253,15 +246,15 @@ tEplKernel PUBLIC EplCfgMaStartConfigNodeDcf(unsigned int uiNodeId_p,
 //
 // Parameters:  uiNodeId_p              = NodeId of the node to configure
 //              pbConcise_p             = pointer to DCF
-//              SizeOfConcise_p        = size of DCF in BYTE -> for future use
+//              SizeOfConcise_p        = size of DCF in u8 -> for future use
 //              DcfType_p               = type of the DCF
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaLinkDcf(unsigned int uiNodeId_p,
-				  BYTE * pbConcise_p,
-				  tEplObdSize SizeOfConcise_p,
-				  tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaLinkDcf(unsigned int uiNodeId_p,
+			   u8 * pbConcise_p,
+			   tEplObdSize SizeOfConcise_p,
+			   tEplCfgMaDcfTyp DcfType_p);
 
 //---------------------------------------------------------------------------
 // Function:    EplCfgMaCheckDcf()
@@ -274,8 +267,7 @@ tEplKernel PUBLIC EplCfgMaLinkDcf(unsigned int uiNodeId_p,
 //
 // Returns:     tCopKernel              = error code
 //---------------------------------------------------------------------------
-tEplKernel PUBLIC EplCfgMaCheckDcf(unsigned int uiNodeId_p,
-				   tEplCfgMaDcfTyp DcfType_p);
+tEplKernel EplCfgMaCheckDcf(unsigned int uiNodeId_p, tEplCfgMaDcfTyp DcfType_p);
 
 #endif // #if (((EPL_MODULE_INTEGRATION) & (EPL_MODULE_CFGMA)) != 0)
 

@@ -79,8 +79,6 @@
 /*                                                                         */
 /***************************************************************************/
 
-#if (!defined(SHBIPC_INLINED)) || defined(SHBIPC_INLINE_ENABLED)
-
 //---------------------------------------------------------------------------
 //  Configuration
 //---------------------------------------------------------------------------
@@ -211,13 +209,11 @@ static inline tShbMemHeader *ShbIpcGetShbMemHeader(tShbMemInst * pShbMemInst_p)
 // not inlined internal functions
 int ShbIpcThreadSignalNewData(void *pvThreadParam_p);
 int ShbIpcThreadSignalJobReady(void *pvThreadParam_p);
-#endif
 
 //---------------------------------------------------------------------------
 // modul globale vars
 //---------------------------------------------------------------------------
 
-#if !defined(SHBIPC_INLINE_ENABLED)
 struct sShbMemTable *psMemTableElementFirst_g;
 
 static void *ShbIpcAllocPrivateMem(unsigned long ulMemSize_p);
@@ -230,7 +226,6 @@ static void ShbIpcCrc32GenTable(unsigned long aulCrcTable[256]);
 static unsigned long ShbIpcCrc32GetCrc(const char *pcString,
 				       unsigned long aulCrcTable[256]);
 
-#endif
 
 //=========================================================================//
 //                                                                         //
@@ -238,7 +233,6 @@ static unsigned long ShbIpcCrc32GetCrc(const char *pcString,
 //                                                                         //
 //=========================================================================//
 
-#if !defined(SHBIPC_INLINE_ENABLED)
 // not inlined external functions
 
 //---------------------------------------------------------------------------
@@ -433,15 +427,11 @@ tShbError ShbIpcReleaseBuffer(tShbInstance pShbInstance_p)
 	return (ShbError);
 }
 
-#endif // !defined(SHBIPC_INLINE_ENABLED)
-
-#if (!defined(SHBIPC_INLINED)) || defined(SHBIPC_INLINE_ENABLED)
-
 //---------------------------------------------------------------------------
 //  Enter atomic section for Shared Buffer access
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbIpcEnterAtomicSection(tShbInstance pShbInstance_p)
+tShbError ShbIpcEnterAtomicSection(tShbInstance pShbInstance_p)
 {
 
 	tShbMemInst *pShbMemInst;
@@ -469,7 +459,7 @@ INLINE_FUNCTION tShbError ShbIpcEnterAtomicSection(tShbInstance pShbInstance_p)
 //  Leave atomic section for Shared Buffer access
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbIpcLeaveAtomicSection(tShbInstance pShbInstance_p)
+tShbError ShbIpcLeaveAtomicSection(tShbInstance pShbInstance_p)
 {
 
 	tShbMemInst *pShbMemInst;
@@ -496,12 +486,9 @@ INLINE_FUNCTION tShbError ShbIpcLeaveAtomicSection(tShbInstance pShbInstance_p)
 //  Start signaling of new data (called from reading process)
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbIpcStartSignalingNewData(tShbInstance
-						      pShbInstance_p,
-						      tSigHndlrNewData
-						      pfnSignalHandlerNewData_p,
-						      tShbPriority
-						      ShbPriority_p)
+tShbError ShbIpcStartSignalingNewData(tShbInstance pShbInstance_p,
+				      tSigHndlrNewData pfnSignalHandlerNewData_p,
+				      tShbPriority ShbPriority_p)
 {
 	tShbMemInst *pShbMemInst;
 	tShbMemHeader *pShbMemHeader;
@@ -557,8 +544,7 @@ INLINE_FUNCTION tShbError ShbIpcStartSignalingNewData(tShbInstance
 //  Stop signaling of new data (called from reading process)
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbIpcStopSignalingNewData(tShbInstance
-						     pShbInstance_p)
+tShbError ShbIpcStopSignalingNewData(tShbInstance pShbInstance_p)
 {
 	tShbMemInst *pShbMemInst;
 	tShbMemHeader *pShbMemHeader;
@@ -604,7 +590,7 @@ INLINE_FUNCTION tShbError ShbIpcStopSignalingNewData(tShbInstance
 //  Signal new data (called from writing process)
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbIpcSignalNewData(tShbInstance pShbInstance_p)
+tShbError ShbIpcSignalNewData(tShbInstance pShbInstance_p)
 {
 	tShbMemHeader *pShbMemHeader;
 
@@ -625,12 +611,9 @@ INLINE_FUNCTION tShbError ShbIpcSignalNewData(tShbInstance pShbInstance_p)
 //  Start signaling for job ready (called from waiting process)
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbIpcStartSignalingJobReady(tShbInstance
-						       pShbInstance_p,
-						       unsigned long
-						       ulTimeOut_p,
-						       tSigHndlrJobReady
-						       pfnSignalHandlerJobReady_p)
+tShbError ShbIpcStartSignalingJobReady(tShbInstance pShbInstance_p,
+				       unsigned long ulTimeOut_p,
+				       tSigHndlrJobReady pfnSignalHandlerJobReady_p)
 {
 	tShbMemInst *pShbMemInst;
 	tShbMemHeader *pShbMemHeader;
@@ -663,7 +646,7 @@ INLINE_FUNCTION tShbError ShbIpcStartSignalingJobReady(tShbInstance
 //  Signal job ready (called from executing process)
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbIpcSignalJobReady(tShbInstance pShbInstance_p)
+tShbError ShbIpcSignalJobReady(tShbInstance pShbInstance_p)
 {
 	tShbMemHeader *pShbMemHeader;
 
@@ -685,7 +668,7 @@ INLINE_FUNCTION tShbError ShbIpcSignalJobReady(tShbInstance pShbInstance_p)
 //  Get pointer to common used share memory area
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION void *ShbIpcGetShMemPtr(tShbInstance pShbInstance_p)
+void *ShbIpcGetShMemPtr(tShbInstance pShbInstance_p)
 {
 
 	tShbMemHeader *pShbMemHeader;
@@ -694,7 +677,7 @@ INLINE_FUNCTION void *ShbIpcGetShMemPtr(tShbInstance pShbInstance_p)
 	pShbMemHeader =
 	    ShbIpcGetShbMemHeader(ShbIpcGetShbMemInst(pShbInstance_p));
 	if (pShbMemHeader != NULL) {
-		pShbShMemPtr = (BYTE *) pShbMemHeader + sizeof(tShbMemHeader);
+		pShbShMemPtr = (u8 *) pShbMemHeader + sizeof(tShbMemHeader);
 	} else {
 		pShbShMemPtr = NULL;
 	}
@@ -703,15 +686,11 @@ INLINE_FUNCTION void *ShbIpcGetShMemPtr(tShbInstance pShbInstance_p)
 
 }
 
-#endif
-
 //=========================================================================//
 //                                                                         //
 //          P R I V A T E   F U N C T I O N S                              //
 //                                                                         //
 //=========================================================================//
-
-#if !defined(SHBIPC_INLINE_ENABLED)
 
 //---------------------------------------------------------------------------
 //  Get pointer to process local information structure
@@ -963,4 +942,3 @@ static void ShbIpcDeleteListElement(int iBufferId)
 
 }
 
-#endif

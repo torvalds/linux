@@ -33,8 +33,8 @@
 
 #include <plat/regs-s3c2412-iis.h>
 
-#include <plat/regs-gpio.h>
 #include <plat/audio.h>
+#include <mach/regs-gpio.h>
 #include <mach/dma.h>
 
 #include "s3c24xx-pcm.h"

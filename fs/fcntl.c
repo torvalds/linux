@@ -117,11 +117,13 @@ SYSCALL_DEFINE2(dup2, unsigned int, oldfd, unsigned int, newfd)
 {
 	if (unlikely(newfd == oldfd)) { /* corner case */
 		struct files_struct *files = current->files;
+		int retval = oldfd;
+
 		rcu_read_lock();
 		if (!fcheck_files(files, oldfd))
-			oldfd = -EBADF;
+			retval = -EBADF;
 		rcu_read_unlock();
-		return oldfd;
+		return retval;
 	}
 	return sys_dup3(oldfd, newfd, 0);
 }

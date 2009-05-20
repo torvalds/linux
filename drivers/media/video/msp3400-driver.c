@@ -56,7 +56,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
-#include <media/v4l2-i2c-drv-legacy.h>
+#include <media/v4l2-i2c-drv.h>
 #include <media/msp3400.h>
 #include <media/tvaudio.h>
 #include "msp3400-driver.h"
@@ -108,10 +108,6 @@ MODULE_PARM_DESC(dolby, "Activates Dolby processsing");
 /* DSP unit subaddress */
 #define I2C_MSP_DSP     0x12
 
-/* Addresses to scan */
-static unsigned short normal_i2c[] = { 0x80 >> 1, 0x88 >> 1, I2C_CLIENT_END };
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 /* functions for talking to the MSP3400C Sound processor                   */
@@ -509,25 +505,26 @@ static int msp_s_std(struct v4l2_subdev *sd, v4l2_std_id id)
 	return 0;
 }
 
-static int msp_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *rt)
+static int msp_s_routing(struct v4l2_subdev *sd,
+			 u32 input, u32 output, u32 config)
 {
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int tuner = (rt->input >> 3) & 1;
-	int sc_in = rt->input & 0x7;
-	int sc1_out = rt->output & 0xf;
-	int sc2_out = (rt->output >> 4) & 0xf;
+	int tuner = (input >> 3) & 1;
+	int sc_in = input & 0x7;
+	int sc1_out = output & 0xf;
+	int sc2_out = (output >> 4) & 0xf;
 	u16 val, reg;
 	int i;
 	int extern_input = 1;
 
-	if (state->routing.input == rt->input &&
-			state->routing.output == rt->output)
+	if (state->route_in == input && state->route_out == output)
 		return 0;
-	state->routing = *rt;
+	state->route_in = input;
+	state->route_out = output;
 	/* check if the tuner input is used */
 	for (i = 0; i < 5; i++) {
-		if (((rt->input >> (4 + i * 4)) & 0xf) == 0)
+		if (((input >> (4 + i * 4)) & 0xf) == 0)
 			extern_input = 0;
 	}
 	state->mode = extern_input ? MSP_MODE_EXTERN : MSP_MODE_AM_DETECT;
@@ -677,7 +674,7 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	}
 	v4l_info(client, "Audmode:  0x%04x\n", state->audmode);
 	v4l_info(client, "Routing:  0x%08x (input) 0x%08x (output)\n",
-			state->routing.input, state->routing.output);
+			state->route_in, state->route_out);
 	v4l_info(client, "ACB:      0x%04x\n", state->acb);
 	return 0;
 }
@@ -696,11 +693,6 @@ static int msp_resume(struct i2c_client *client)
 	return 0;
 }
 
-static int msp_command(struct i2c_client *client, unsigned cmd, void *arg)
-{
-	return v4l2_subdev_command(i2c_get_clientdata(client), cmd, arg);
-}
-
 /* ----------------------------------------------------------------------- */
 
 static const struct v4l2_subdev_core_ops msp_core_ops = {
@@ -709,6 +701,7 @@ static const struct v4l2_subdev_core_ops msp_core_ops = {
 	.g_ctrl = msp_g_ctrl,
 	.s_ctrl = msp_s_ctrl,
 	.queryctrl = msp_queryctrl,
+	.s_std = msp_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops msp_tuner_ops = {
@@ -716,7 +709,6 @@ static const struct v4l2_subdev_tuner_ops msp_tuner_ops = {
 	.g_tuner = msp_g_tuner,
 	.s_tuner = msp_s_tuner,
 	.s_radio = msp_s_radio,
-	.s_std = msp_s_std,
 };
 
 static const struct v4l2_subdev_audio_ops msp_audio_ops = {
@@ -770,8 +762,8 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	state->i2s_mode = 0;
 	init_waitqueue_head(&state->wq);
 	/* These are the reset input/output positions */
-	state->routing.input = MSP_INPUT_DEFAULT;
-	state->routing.output = MSP_OUTPUT_DEFAULT;
+	state->route_in = MSP_INPUT_DEFAULT;
+	state->route_out = MSP_OUTPUT_DEFAULT;
 
 	state->rev1 = msp_read_dsp(client, 0x1e);
 	if (state->rev1 != -1)
@@ -925,8 +917,6 @@ MODULE_DEVICE_TABLE(i2c, msp_id);
 
 static struct v4l2_i2c_driver_data v4l2_i2c_data = {
 	.name = "msp3400",
-	.driverid = I2C_DRIVERID_MSP3400,
-	.command = msp_command,
 	.probe = msp_probe,
 	.remove = msp_remove,
 	.suspend = msp_suspend,

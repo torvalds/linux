@@ -71,6 +71,7 @@
 #include <asm/setup.h>
 #include <asm/sections.h>
 #include <asm/cacheflush.h>
+#include <trace/kmemtrace.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/smp.h>
@@ -491,6 +492,11 @@ static int __init do_early_param(char *param, char *val)
 	return 0;
 }
 
+void __init parse_early_options(char *cmdline)
+{
+	parse_args("early options", cmdline, NULL, 0, do_early_param);
+}
+
 /* Arch code calls this early on, or if not, just before other parsing. */
 void __init parse_early_param(void)
 {
@@ -502,7 +508,7 @@ void __init parse_early_param(void)
 
 	/* All fall through to do_early_param. */
 	strlcpy(tmp_cmdline, boot_command_line, COMMAND_LINE_SIZE);
-	parse_args("early options", tmp_cmdline, NULL, 0, do_early_param);
+	parse_early_options(tmp_cmdline);
 	done = 1;
 }
 
@@ -648,6 +654,7 @@ asmlinkage void __init start_kernel(void)
 	enable_debug_pagealloc();
 	cpu_hotplug_init();
 	kmem_cache_init();
+	kmemtrace_init();
 	debug_objects_mem_init();
 	idr_init_cache();
 	setup_per_cpu_pageset();
@@ -769,6 +776,7 @@ static void __init do_basic_setup(void)
 {
 	rcu_init_sched(); /* needed by module_init stage. */
 	init_workqueues();
+	cpuset_init_smp();
 	usermodehelper_init();
 	driver_init();
 	init_irq_proc();
@@ -862,8 +870,6 @@ static int __init kernel_init(void * unused)
 
 	smp_init();
 	sched_init_smp();
-
-	cpuset_init_smp();
 
 	do_basic_setup();
 

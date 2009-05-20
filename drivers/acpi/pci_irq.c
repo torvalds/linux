@@ -86,7 +86,7 @@ static struct acpi_prt_entry *acpi_pci_irq_find_prt_entry(struct pci_dev *dev,
 }
 
 /* http://bugzilla.kernel.org/show_bug.cgi?id=4773 */
-static struct dmi_system_id medion_md9580[] = {
+static const struct dmi_system_id medion_md9580[] = {
 	{
 		.ident = "Medion MD9580-F laptop",
 		.matches = {
@@ -98,7 +98,7 @@ static struct dmi_system_id medion_md9580[] = {
 };
 
 /* http://bugzilla.kernel.org/show_bug.cgi?id=5044 */
-static struct dmi_system_id dell_optiplex[] = {
+static const struct dmi_system_id dell_optiplex[] = {
 	{
 		.ident = "Dell Optiplex GX1",
 		.matches = {
@@ -110,7 +110,7 @@ static struct dmi_system_id dell_optiplex[] = {
 };
 
 /* http://bugzilla.kernel.org/show_bug.cgi?id=10138 */
-static struct dmi_system_id hp_t5710[] = {
+static const struct dmi_system_id hp_t5710[] = {
 	{
 		.ident = "HP t5710",
 		.matches = {
@@ -123,13 +123,13 @@ static struct dmi_system_id hp_t5710[] = {
 };
 
 struct prt_quirk {
-	struct dmi_system_id	*system;
+	const struct dmi_system_id *system;
 	unsigned int		segment;
 	unsigned int		bus;
 	unsigned int		device;
 	unsigned char		pin;
-	char			*source;	/* according to BIOS */
-	char			*actual_source;
+	const char		*source;	/* according to BIOS */
+	const char		*actual_source;
 };
 
 #define PCI_INTX_PIN(c)		(c - 'A' + 1)
@@ -139,7 +139,7 @@ struct prt_quirk {
  * interrupt at the listed segment/bus/device/pin is connected to the first
  * link device, but it is actually connected to the second.
  */
-static struct prt_quirk prt_quirks[] = {
+static const struct prt_quirk prt_quirks[] = {
 	{ medion_md9580, 0, 0, 9, PCI_INTX_PIN('A'),
 		"\\_SB_.PCI0.ISA_.LNKA",
 		"\\_SB_.PCI0.ISA_.LNKB"},
@@ -155,7 +155,7 @@ static void do_prt_fixups(struct acpi_prt_entry *entry,
 			  struct acpi_pci_routing_table *prt)
 {
 	int i;
-	struct prt_quirk *quirk;
+	const struct prt_quirk *quirk;
 
 	for (i = 0; i < ARRAY_SIZE(prt_quirks); i++) {
 		quirk = &prt_quirks[i];
@@ -319,7 +319,7 @@ static struct acpi_prt_entry *acpi_pci_irq_lookup(struct pci_dev *dev, int pin)
 	 */
 	bridge = dev->bus->self;
 	while (bridge) {
-		pin = (((pin - 1) + PCI_SLOT(dev->devfn)) % 4) + 1;
+		pin = pci_swizzle_interrupt_pin(dev, pin);
 
 		if ((bridge->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) {
 			/* PC card has the same IRQ as its cardbridge */

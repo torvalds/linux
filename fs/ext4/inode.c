@@ -372,16 +372,16 @@ static int ext4_block_to_path(struct inode *inode,
 }
 
 static int __ext4_check_blockref(const char *function, struct inode *inode,
-				 unsigned int *p, unsigned int max) {
+				 __le32 *p, unsigned int max) {
 
 	unsigned int maxblocks = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es);
-	unsigned int *bref = p;
+	__le32 *bref = p;
 	while (bref < p+max) {
-		if (unlikely(*bref >= maxblocks)) {
+		if (unlikely(le32_to_cpu(*bref) >= maxblocks)) {
 			ext4_error(inode->i_sb, function,
 				   "block reference %u >= max (%u) "
 				   "in inode #%lu, offset=%d",
-				   *bref, maxblocks,
+				   le32_to_cpu(*bref), maxblocks,
 				   inode->i_ino, (int)(bref-p));
  			return -EIO;
  		}
@@ -1149,6 +1149,7 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 	int retval;
 
 	clear_buffer_mapped(bh);
+	clear_buffer_unwritten(bh);
 
 	/*
 	 * Try to see if we can get  the block without requesting
@@ -1177,6 +1178,18 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 	 */
 	if (retval > 0 && buffer_mapped(bh))
 		return retval;
+
+	/*
+	 * When we call get_blocks without the create flag, the
+	 * BH_Unwritten flag could have gotten set if the blocks
+	 * requested were part of a uninitialized extent.  We need to
+	 * clear this flag now that we are committed to convert all or
+	 * part of the uninitialized extent to be an initialized
+	 * extent.  This is because we need to avoid the combination
+	 * of BH_Unwritten and BH_Mapped flags being simultaneously
+	 * set on the buffer_head.
+	 */
+	clear_buffer_unwritten(bh);
 
 	/*
 	 * New blocks allocate and/or writing to uninitialized extent
@@ -2297,6 +2310,10 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 				  struct buffer_head *bh_result, int create)
 {
 	int ret = 0;
+	sector_t invalid_block = ~((sector_t) 0xffff);
+
+	if (invalid_block < ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es))
+		invalid_block = ~0;
 
 	BUG_ON(create == 0);
 	BUG_ON(bh_result->b_size != inode->i_sb->s_blocksize);
@@ -2318,11 +2335,18 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 			/* not enough space to reserve */
 			return ret;
 
-		map_bh(bh_result, inode->i_sb, 0);
+		map_bh(bh_result, inode->i_sb, invalid_block);
 		set_buffer_new(bh_result);
 		set_buffer_delay(bh_result);
 	} else if (ret > 0) {
 		bh_result->b_size = (ret << inode->i_blkbits);
+		/*
+		 * With sub-block writes into unwritten extents
+		 * we also need to mark the buffer as new so that
+		 * the unwritten parts of the buffer gets correctly zeroed.
+		 */
+		if (buffer_unwritten(bh_result))
+			set_buffer_new(bh_result);
 		ret = 0;
 	}
 
@@ -4357,11 +4381,9 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	ei->i_flags = le32_to_cpu(raw_inode->i_flags);
 	inode->i_blocks = ext4_inode_blocks(raw_inode, ei);
 	ei->i_file_acl = le32_to_cpu(raw_inode->i_file_acl_lo);
-	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
-	    cpu_to_le32(EXT4_OS_HURD)) {
+	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_64BIT))
 		ei->i_file_acl |=
 			((__u64)le16_to_cpu(raw_inode->i_file_acl_high)) << 32;
-	}
 	inode->i_size = ext4_isize(raw_inode);
 	ei->i_disksize = inode->i_size;
 	inode->i_generation = le32_to_cpu(raw_inode->i_generation);
@@ -4409,9 +4431,23 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 			(__u64)(le32_to_cpu(raw_inode->i_version_hi)) << 32;
 	}
 
-	if (ei->i_flags & EXT4_EXTENTS_FL) {
-		/* Validate extent which is part of inode */
-		ret = ext4_ext_check_inode(inode);
+	ret = 0;
+	if (ei->i_file_acl &&
+	    ((ei->i_file_acl < 
+	      (le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block) +
+	       EXT4_SB(sb)->s_gdb_count)) ||
+	     (ei->i_file_acl >= ext4_blocks_count(EXT4_SB(sb)->s_es)))) {
+		ext4_error(sb, __func__,
+			   "bad extended attribute block %llu in inode #%lu",
+			   ei->i_file_acl, inode->i_ino);
+		ret = -EIO;
+		goto bad_inode;
+	} else if (ei->i_flags & EXT4_EXTENTS_FL) {
+		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
+		    (S_ISLNK(inode->i_mode) &&
+		     !ext4_inode_is_fast_symlink(inode)))
+			/* Validate extent which is part of inode */
+			ret = ext4_ext_check_inode(inode);
  	} else if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		   (S_ISLNK(inode->i_mode) &&
 		    !ext4_inode_is_fast_symlink(inode))) {

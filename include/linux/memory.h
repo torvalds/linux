@@ -110,4 +110,10 @@ struct memory_accessor {
 			 off_t offset, size_t count);
 };
 
+/*
+ * Kernel text modification mutex, used for code patching. Users of this lock
+ * can sleep.
+ */
+extern struct mutex text_mutex;
+
 #endif /* _LINUX_MEMORY_H_ */

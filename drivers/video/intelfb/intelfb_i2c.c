@@ -156,6 +156,7 @@ void intelfb_create_i2c_busses(struct intelfb_info *dinfo)
 	switch(dinfo->chipset) {
 	case INTEL_830M:
 	case INTEL_845G:
+	case INTEL_854:
 	case INTEL_855GM:
 	case INTEL_865G:
 		dinfo->output[i].type = INTELFB_OUTPUT_DVO;

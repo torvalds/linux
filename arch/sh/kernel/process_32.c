@@ -176,12 +176,24 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
-#if defined(CONFIG_SH_FPU)
+#if defined(CONFIG_SH_FPU) || defined(CONFIG_SH_DSP)
 	struct task_struct *tsk = current;
+#endif
 
+#if defined(CONFIG_SH_FPU)
 	unlazy_fpu(tsk, regs);
 	p->thread.fpu = tsk->thread.fpu;
 	copy_to_stopped_child_used_math(p);
+#endif
+
+#if defined(CONFIG_SH_DSP)
+	if (is_dsp_enabled(tsk)) {
+		/* We can use the __save_dsp or just copy the struct:
+		 * __save_dsp(p);
+		 * p->thread.dsp_status.status |= SR_DSP
+		 */
+		p->thread.dsp_status = tsk->thread.dsp_status;
+	}
 #endif
 
 	childregs = task_pt_regs(p);

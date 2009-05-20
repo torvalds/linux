@@ -254,40 +254,6 @@ restore_all:
 
 	lds	k2, pr			! restore pr
 	!
-#ifdef CONFIG_SH_DSP
-	mov.l	@r15+, k0		! DSP mode marker
-	mov.l	5f, k1
-	cmp/eq	k0, k1			! Do we have a DSP stack frame?
-	bf	skip_restore
-
-	stc	sr, k0			! Enable CPU DSP mode
-	or	k1, k0			! (within kernel it may be disabled)
-	ldc	k0, sr
-	mov	r2, k0			! Backup r2
-
-	! Restore DSP registers from stack
-	mov	r15, r2
-	movs.l	@r2+, a1
-	movs.l	@r2+, a0g
-	movs.l	@r2+, a1g
-	movs.l	@r2+, m0
-	movs.l	@r2+, m1
-	mov	r2, r15
-
-	lds.l	@r15+, a0
-	lds.l	@r15+, x0
-	lds.l	@r15+, x1
-	lds.l	@r15+, y0
-	lds.l	@r15+, y1
-	lds.l	@r15+, dsr
-	ldc.l	@r15+, rs
-	ldc.l	@r15+, re
-	ldc.l	@r15+, mod
-
-	mov	k0, r2			! Restore r2
-skip_restore:
-#endif
-	!
 	! Calculate new SR value
 	mov	k3, k2			! original SR value
 	mov	#0xf0, k1
@@ -358,7 +324,7 @@ general_exception:
 	add	k0, k4
 0:
 	! Setup stack and save DSP context (k0 contains original r15 on return)
-	bsr	prepare_stack_save_dsp
+	bsr	prepare_stack
 	 nop
 
 	! Save registers / Switch to bank 0
@@ -374,15 +340,14 @@ general_exception:
 1:	.long	EXPEVT
 #endif
 
-! prepare_stack_save_dsp()
+! prepare_stack()
 ! - roll back gRB
 ! - switch to kernel stack
-! - save DSP
 ! k0 returns original sp (after roll back)
 ! k1 trashed
 ! k2 trashed
 
-prepare_stack_save_dsp:
+prepare_stack:
 #ifdef CONFIG_GUSA
 	! Check for roll back gRB (User and Kernel)
 	mov	r15, k0
@@ -416,47 +381,9 @@ prepare_stack_save_dsp:
 	mov	k1, r15		! change to kernel stack
 	!
 1:
-#ifdef CONFIG_SH_DSP
-	! Save DSP context if needed
-	stc	sr, k1
-	mov	#0x10, k2
-	shll8   k2			! DSP=1 (0x00001000)
-	tst	k2, k1			! Check if in DSP mode (passed in k2)
-	bt/s	skip_save
-	 mov	#0, k1			! Set marker for no stack frame
-
-	mov	k2, k1			! Save has-frame marker
-
-	! Save DSP registers on stack
-	stc.l	mod, @-r15
-	stc.l	re, @-r15
-	stc.l	rs, @-r15
-	sts.l	dsr, @-r15
-	sts.l	y1, @-r15
-	sts.l	y0, @-r15
-	sts.l	x1, @-r15
-	sts.l	x0, @-r15
-	sts.l	a0, @-r15
-
-	! GAS is broken, does not generate correct "movs.l Ds,@-As" instr.
-
-	! FIXME: Make sure that this is still the case with newer toolchains,
-	! as we're not at all interested in supporting ancient toolchains at
-	! this point. -- PFM.
-
-	mov	r15, k2
-	.word	0xf653			! movs.l	a1, @-r2
-	.word	0xf6f3			! movs.l	a0g, @-r2
-	.word	0xf6d3			! movs.l	a1g, @-r2
-	.word	0xf6c3			! movs.l	m0, @-r2
-	.word	0xf6e3			! movs.l	m1, @-r2
-	mov	k2, r15
-
-skip_save:
-	mov.l	k1, @-r15		! Push DSP mode marker onto stack
-#endif
 	rts
 	 nop
+
 !
 ! 0x400: Instruction and Data TLB miss exception vector
 !
@@ -468,7 +395,7 @@ handle_exception:
 	mova	exception_data, k0
 
 	! Setup stack and save DSP context (k0 contains original r15 on return)
-	bsr	prepare_stack_save_dsp
+	bsr	prepare_stack
 	 PREF(k0)
 
 	! Save registers / Switch to bank 0
@@ -572,7 +499,7 @@ ENTRY(handle_interrupt)
 	mova	exception_data, k0
 
 	! Setup stack and save DSP context (k0 contains original r15 on return)
-	bsr	prepare_stack_save_dsp
+	bsr	prepare_stack
 	 PREF(k0)
 
 	! Save registers / Switch to bank 0

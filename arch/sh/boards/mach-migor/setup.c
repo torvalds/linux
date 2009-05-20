@@ -352,9 +352,7 @@ static int tw9910_power(struct device *dev, int mode)
 }
 
 static struct sh_mobile_ceu_info sh_mobile_ceu_info = {
-	.flags = SOCAM_MASTER | SOCAM_DATAWIDTH_8 | SOCAM_PCLK_SAMPLE_RISING
-	| SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH
-	| SOCAM_DATA_ACTIVE_HIGH,
+	.flags = SH_CEU_FLAG_USE_8BIT_BUS,
 };
 
 static struct resource migor_ceu_resources[] = {

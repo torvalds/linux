@@ -376,33 +376,34 @@ static int vpx3220_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int vpx3220_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int vpx3220_s_routing(struct v4l2_subdev *sd,
+			     u32 input, u32 output, u32 config)
 {
 	int data;
 
-	/* RJ:   route->input = 0: ST8 (PCTV) input
-		 route->input = 1: COMPOSITE  input
-		 route->input = 2: SVHS       input  */
+	/* RJ:   input = 0: ST8 (PCTV) input
+		 input = 1: COMPOSITE  input
+		 input = 2: SVHS       input  */
 
-	const int input[3][2] = {
+	const int input_vals[3][2] = {
 		{0x0c, 0},
 		{0x0d, 0},
 		{0x0e, 1}
 	};
 
-	if (route->input < 0 || route->input > 2)
+	if (input < 0 || input > 2)
 		return -EINVAL;
 
-	v4l2_dbg(1, debug, sd, "input switched to %s\n", inputs[route->input]);
+	v4l2_dbg(1, debug, sd, "input switched to %s\n", inputs[input]);
 
-	vpx3220_write(sd, 0x33, input[route->input][0]);
+	vpx3220_write(sd, 0x33, input_vals[input][0]);
 
 	data = vpx3220_fp_read(sd, 0xf2) & ~(0x0020);
 	if (data < 0)
 		return data;
 	/* 0x0010 is required to latch the setting */
 	vpx3220_fp_write(sd, 0xf2,
-			data | (input[route->input][1] << 5) | 0x0010);
+			data | (input_vals[input][1] << 5) | 0x0010);
 
 	udelay(10);
 	return 0;
@@ -516,9 +517,6 @@ static const struct v4l2_subdev_core_ops vpx3220_core_ops = {
 	.g_ctrl = vpx3220_g_ctrl,
 	.s_ctrl = vpx3220_s_ctrl,
 	.queryctrl = vpx3220_queryctrl,
-};
-
-static const struct v4l2_subdev_tuner_ops vpx3220_tuner_ops = {
 	.s_std = vpx3220_s_std,
 };
 
@@ -531,7 +529,6 @@ static const struct v4l2_subdev_video_ops vpx3220_video_ops = {
 
 static const struct v4l2_subdev_ops vpx3220_ops = {
 	.core = &vpx3220_core_ops,
-	.tuner = &vpx3220_tuner_ops,
 	.video = &vpx3220_video_ops,
 };
 

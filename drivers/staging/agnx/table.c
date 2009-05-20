@@ -80,7 +80,7 @@ void routing_table_init(struct agnx_priv *priv)
 
 	disable_receiver(priv);
 
-	for ( type = 0; type < 0x3; type++ ) {
+	for (type = 0; type < 0x3; type++) {
 		for (subtype = 0; subtype < 0x10; subtype++) {
 			/* 1. Set Routing table to R/W and to Return status on Read */
 			reg = (type << ROUTAB_TYPE_SHIFT) |
@@ -89,7 +89,7 @@ void routing_table_init(struct agnx_priv *priv)
 			if (type == ROUTAB_TYPE_DATA) {
 				/* NULL goes to RFP */
 				if (subtype == ROUTAB_SUBTYPE_NULL)
-//					reg |= ROUTAB_ROUTE_RFP;
+/*					reg |= ROUTAB_ROUTE_RFP; */
 					reg |= ROUTAB_ROUTE_CPU;
 				/* QOS NULL goes to CPU */
 				else if (subtype == ROUTAB_SUBTYPE_QOSNULL)
@@ -104,7 +104,7 @@ void routing_table_init(struct agnx_priv *priv)
 					 (subtype == ROUTAB_SUBTYPE_QOSDATAPOLL) ||
 					 (subtype == ROUTAB_SUBTYPE_QOSDATAACKPOLL))
 					reg |= ROUTAB_ROUTE_ENCRY;
-//					reg |= ROUTAB_ROUTE_CPU;
+/*					reg |= ROUTAB_ROUTE_CPU; */
 				/*Drop NULL and QOS NULL ack, poll and poll ack*/
 				else if ((subtype == ROUTAB_SUBTYPE_NULLACK) ||
 					 (subtype == ROUTAB_SUBTYPE_QOSNULLACK) ||
@@ -112,11 +112,11 @@ void routing_table_init(struct agnx_priv *priv)
 					 (subtype == ROUTAB_SUBTYPE_QOSNULLPOLL) ||
 					 (subtype == ROUTAB_SUBTYPE_NULLPOLLACK) ||
 					 (subtype == ROUTAB_SUBTYPE_QOSNULLPOLLACK))
-//					reg |= ROUTAB_ROUTE_DROP;
+/*					reg |= ROUTAB_ROUTE_DROP; */
 					reg |= ROUTAB_ROUTE_CPU;
-			}
-			else
+			} else {
 				reg |= (ROUTAB_ROUTE_CPU);
+			}
 			iowrite32(reg, ctl + AGNX_RXM_ROUTAB);
 			/* Check to verify that the status bit cleared */
 			routing_table_delay();

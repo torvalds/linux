@@ -196,6 +196,7 @@ static int __init pcie_setup(struct pci_sys_data *sys)
 /*****************************************************************************
  * PCI controller
  ****************************************************************************/
+#define ORION5X_PCI_REG(x)	(ORION5X_PCI_VIRT_BASE | (x))
 #define PCI_MODE		ORION5X_PCI_REG(0xd00)
 #define PCI_CMD			ORION5X_PCI_REG(0xc00)
 #define PCI_P2P_CONF		ORION5X_PCI_REG(0x1d14)

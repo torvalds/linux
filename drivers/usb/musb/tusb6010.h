@@ -2,7 +2,6 @@
  * Definitions for TUSB6010 USB 2.0 OTG Dual Role controller
  *
  * Copyright (C) 2006 Nokia Corporation
- * Jarkko Nikula <jarkko.nikula@nokia.com>
  * Tony Lindgren <tony@atomide.com>
  *
  * This program is free software; you can redistribute it and/or modify

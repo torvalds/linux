@@ -54,7 +54,7 @@
 #define	SR_SRWD			0x80	/* SR write protect */
 
 /* Define max times to check status register before we give up. */
-#define	MAX_READY_WAIT_COUNT	100000
+#define	MAX_READY_WAIT_JIFFIES	(10 * HZ)	/* eg. M25P128 specs 6s max sector erase */
 #define	CMD_SIZE		4
 
 #ifdef CONFIG_M25PXX_USE_FAST_READ
@@ -63,12 +63,6 @@
 #else
 #define OPCODE_READ 	OPCODE_NORM_READ
 #define FAST_READ_DUMMY_BYTE 0
-#endif
-
-#ifdef CONFIG_MTD_PARTITIONS
-#define	mtd_has_partitions()	(1)
-#else
-#define	mtd_has_partitions()	(0)
 #endif
 
 /****************************************************************************/
@@ -145,20 +139,20 @@ static inline int write_enable(struct m25p *flash)
  */
 static int wait_till_ready(struct m25p *flash)
 {
-	int count;
+	unsigned long deadline;
 	int sr;
 
-	/* one chip guarantees max 5 msec wait here after page writes,
-	 * but potentially three seconds (!) after page erase.
-	 */
-	for (count = 0; count < MAX_READY_WAIT_COUNT; count++) {
+	deadline = jiffies + MAX_READY_WAIT_JIFFIES;
+
+	do {
 		if ((sr = read_sr(flash)) < 0)
 			break;
 		else if (!(sr & SR_WIP))
 			return 0;
 
-		/* REVISIT sometimes sleeping would be best */
-	}
+		cond_resched();
+
+	} while (!time_after_eq(jiffies, deadline));
 
 	return 1;
 }
@@ -252,10 +246,12 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	mutex_lock(&flash->lock);
 
 	/* whole-chip erase? */
-	if (len == flash->mtd.size && erase_chip(flash)) {
-		instr->state = MTD_ERASE_FAILED;
-		mutex_unlock(&flash->lock);
-		return -EIO;
+	if (len == flash->mtd.size) {
+		if (erase_chip(flash)) {
+			instr->state = MTD_ERASE_FAILED;
+			mutex_unlock(&flash->lock);
+			return -EIO;
+		}
 
 	/* REVISIT in some cases we could speed up erasing large regions
 	 * by using OPCODE_SE instead of OPCODE_BE_4K.  We may have set up
@@ -678,6 +674,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		flash->mtd.erasesize = info->sector_size;
 	}
 
+	flash->mtd.dev.parent = &spi->dev;
+
 	dev_info(&spi->dev, "%s (%lld Kbytes)\n", info->name,
 			(long long)flash->mtd.size >> 10);
 
@@ -708,12 +706,13 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		struct mtd_partition	*parts = NULL;
 		int			nr_parts = 0;
 
-#ifdef CONFIG_MTD_CMDLINE_PARTS
-		static const char *part_probes[] = { "cmdlinepart", NULL, };
+		if (mtd_has_cmdlinepart()) {
+			static const char *part_probes[]
+					= { "cmdlinepart", NULL, };
 
-		nr_parts = parse_mtd_partitions(&flash->mtd,
-				part_probes, &parts, 0);
-#endif
+			nr_parts = parse_mtd_partitions(&flash->mtd,
+					part_probes, &parts, 0);
+		}
 
 		if (nr_parts <= 0 && data && data->parts) {
 			parts = data->parts;

@@ -115,6 +115,8 @@ static int __init omapflash_probe(struct platform_device *pdev)
 	}
 	info->mtd->owner = THIS_MODULE;
 
+	info->mtd->dev.parent = &pdev->dev;
+
 #ifdef CONFIG_MTD_PARTITIONS
 	err = parse_mtd_partitions(info->mtd, part_probes, &info->parts, 0);
 	if (err > 0)

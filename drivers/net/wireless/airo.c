@@ -6501,7 +6501,10 @@ static int airo_get_encode(struct net_device *dev,
 
 	/* Copy the key to the user buffer */
 	dwrq->length = get_wep_key(local, index, &buf[0], sizeof(buf));
-	memcpy(extra, buf, dwrq->length);
+	if (dwrq->length != -1)
+		memcpy(extra, buf, dwrq->length);
+	else
+		dwrq->length = 0;
 
 	return 0;
 }
@@ -6659,7 +6662,10 @@ static int airo_get_encodeext(struct net_device *dev,
 	
 	/* Copy the key to the user buffer */
 	ext->key_len = get_wep_key(local, idx, &buf[0], sizeof(buf));
-	memcpy(extra, buf, ext->key_len);
+	if (ext->key_len != -1)
+		memcpy(extra, buf, ext->key_len);
+	else
+		ext->key_len = 0;
 
 	return 0;
 }
@@ -6713,11 +6719,11 @@ static int airo_set_auth(struct net_device *dev,
 				local->config.authType = AUTH_ENCRYPT;
 			} else
 				return -EINVAL;
-			break;
 
 			/* Commit the changes to flags if needed */
 			if (local->config.authType != currentAuthType)
 				set_bit (FLAG_COMMIT, &local->flags);
+			break;
 		}
 
 	case IW_AUTH_WPA_ENABLED:

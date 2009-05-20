@@ -142,16 +142,17 @@ static int bt856_s_std_output(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int bt856_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int bt856_s_routing(struct v4l2_subdev *sd,
+			   u32 input, u32 output, u32 config)
 {
 	struct bt856 *encoder = to_bt856(sd);
 
-	v4l2_dbg(1, debug, sd, "set input %d\n", route->input);
+	v4l2_dbg(1, debug, sd, "set input %d\n", input);
 
 	/* We only have video bus.
-	 * route->input= 0: input is from bt819
-	 * route->input= 1: input is from ZR36060 */
-	switch (route->input) {
+	 * input= 0: input is from bt819
+	 * input= 1: input is from ZR36060 */
+	switch (input) {
 	case 0:
 		bt856_setbit(encoder, 0xde, 4, 0);
 		bt856_setbit(encoder, 0xde, 3, 1);

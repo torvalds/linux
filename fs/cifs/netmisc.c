@@ -79,6 +79,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ErrQuota, -EDQUOT},
 	{ErrNotALink, -ENOLINK},
 	{ERRnetlogonNotStarted, -ENOPROTOOPT},
+	{ERRsymlink, -EOPNOTSUPP},
 	{ErrTooManyLinks, -EMLINK},
 	{0, 0}
 };
@@ -714,6 +715,7 @@ static const struct {
 	ERRDOS, ERRnoaccess, 0xc000028f}, {
 	ERRDOS, ERRnoaccess, 0xc0000290}, {
 	ERRDOS, ERRbadfunc, 0xc000029c}, {
+	ERRDOS, ERRsymlink, NT_STATUS_STOPPED_ON_SYMLINK}, {
 	ERRDOS, ERRinvlevel, 0x007c0001}, };
 
 /*****************************************************************************

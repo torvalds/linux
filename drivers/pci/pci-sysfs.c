@@ -148,7 +148,7 @@ static ssize_t is_enabled_store(struct device *dev,
 		return -EPERM;
 
 	if (!val) {
-		if (atomic_read(&pdev->enable_cnt) != 0)
+		if (pci_is_enabled(pdev))
 			pci_disable_device(pdev);
 		else
 			result = -EIO;
@@ -277,13 +277,9 @@ remove_store(struct device *dev, struct device_attribute *dummy,
 {
 	int ret = 0;
 	unsigned long val;
-	struct pci_dev *pdev = to_pci_dev(dev);
 
 	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
-
-	if (pci_is_root_bus(pdev->bus))
-		return -EBUSY;
 
 	/* An attribute cannot be unregistered by one of its own methods,
 	 * so we have to use this roundabout approach.
@@ -496,6 +492,7 @@ write_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
 /**
  * pci_read_legacy_io - read byte(s) from legacy I/O port space
  * @kobj: kobject corresponding to file to read from
+ * @bin_attr: struct bin_attribute for this file
  * @buf: buffer to store results
  * @off: offset into legacy I/O port space
  * @count: number of bytes to read
@@ -521,6 +518,7 @@ pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
 /**
  * pci_write_legacy_io - write byte(s) to legacy I/O port space
  * @kobj: kobject corresponding to file to read from
+ * @bin_attr: struct bin_attribute for this file
  * @buf: buffer containing value to be written
  * @off: offset into legacy I/O port space
  * @count: number of bytes to write
@@ -737,9 +735,9 @@ pci_mmap_resource_wc(struct kobject *kobj, struct bin_attribute *attr,
 
 /**
  * pci_remove_resource_files - cleanup resource files
- * @dev: dev to cleanup
+ * @pdev: dev to cleanup
  *
- * If we created resource files for @dev, remove them from sysfs and
+ * If we created resource files for @pdev, remove them from sysfs and
  * free their resources.
  */
 static void
@@ -797,9 +795,9 @@ static int pci_create_attr(struct pci_dev *pdev, int num, int write_combine)
 
 /**
  * pci_create_resource_files - create resource files in sysfs for @dev
- * @dev: dev in question
+ * @pdev: dev in question
  *
- * Walk the resources in @dev creating files for each resource available.
+ * Walk the resources in @pdev creating files for each resource available.
  */
 static int pci_create_resource_files(struct pci_dev *pdev)
 {
@@ -833,6 +831,7 @@ void __weak pci_remove_resource_files(struct pci_dev *dev) { return; }
 /**
  * pci_write_rom - used to enable access to the PCI ROM display
  * @kobj: kernel object handle
+ * @bin_attr: struct bin_attribute for this file
  * @buf: user input
  * @off: file offset
  * @count: number of byte in input
@@ -856,6 +855,7 @@ pci_write_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
 /**
  * pci_read_rom - read a PCI ROM
  * @kobj: kernel object handle
+ * @bin_attr: struct bin_attribute for this file
  * @buf: where to put the data we read from the ROM
  * @off: file offset
  * @count: number of bytes to read

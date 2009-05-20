@@ -75,7 +75,6 @@ VOID STARxEAPOLFrameIndicate(
 
                     if (pAd->StaCfg.DesireSharedKey[idx].KeyLen > 0)
     				{
-#ifdef RT2860
 						MAC_TABLE_ENTRY *pEntry = &pAd->MacTab.Content[BSSID_WCID];
 
 						// Set key material and cipherAlg to Asic
@@ -89,7 +88,6 @@ VOID STARxEAPOLFrameIndicate(
 
                         pAd->IndicateMediaState = NdisMediaStateConnected;
                         pAd->ExtraInfo = GENERAL_LINK_UP;
-#endif // RT2860 //
 						// For Preventing ShardKey Table is cleared by remove key procedure.
     					pAd->SharedKey[BSS0][idx].CipherAlg = CipherAlg;
 						pAd->SharedKey[BSS0][idx].KeyLen = pAd->StaCfg.DesireSharedKey[idx].KeyLen;
@@ -693,14 +691,12 @@ BOOLEAN STARxDoneInterruptHandle(
 			break;
 		}
 
-#ifdef RT2860
 		if (RxProcessed++ > MAX_RX_PROCESS_CNT)
 		{
 			// need to reschedule rx handle
 			bReschedule = TRUE;
 			break;
 		}
-#endif // RT2860 //
 
 		RxProcessed ++; // test
 
@@ -811,6 +807,13 @@ BOOLEAN STARxDoneInterruptHandle(
 		}
 	}
 
+	// fRTMP_PS_GO_TO_SLEEP_NOW is set if receiving beacon.
+	if (RTMP_TEST_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW) && (INFRA_ON(pAd)))
+	{
+		RTMP_CLEAR_PSFLAG(pAd, fRTMP_PS_GO_TO_SLEEP_NOW);
+		AsicSleepThenAutoWakeup(pAd, pAd->ThisTbttNumToNextWakeUp);
+		bReschedule = FALSE;
+	}
 	return bReschedule;
 }
 
@@ -828,7 +831,7 @@ BOOLEAN STARxDoneInterruptHandle(
 VOID	RTMPHandleTwakeupInterrupt(
 	IN PRTMP_ADAPTER pAd)
 {
-	AsicForceWakeup(pAd, FALSE);
+	AsicForceWakeup(pAd, DOT11POWERSAVE);
 }
 
 /*
@@ -1220,7 +1223,6 @@ NDIS_STATUS STASendPacket(
 
 	========================================================================
 */
-#ifdef RT2860
 NDIS_STATUS RTMPFreeTXDRequest(
 	IN		PRTMP_ADAPTER	pAd,
 	IN		UCHAR			QueIdx,
@@ -1264,7 +1266,6 @@ NDIS_STATUS RTMPFreeTXDRequest(
 
 	return (Status);
 }
-#endif // RT2860 //
 
 
 
@@ -1889,7 +1890,8 @@ VOID STA_AMPDU_Frame_Tx(
 		//
 		// Kick out Tx
 		//
-		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
+		if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
+			HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 
 		pAd->RalinkCounters.KickTxCount++;
 		pAd->RalinkCounters.OneSecTxDoneCount++;
@@ -2019,7 +2021,8 @@ VOID STA_AMSDU_Frame_Tx(
 	//
 	// Kick out Tx
 	//
-	HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
+	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
+		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
 #endif // DOT11_N_SUPPORT //
 
@@ -2139,7 +2142,8 @@ VOID STA_Legacy_Frame_Tx(
 	//
 	// Kick out Tx
 	//
-	HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
+	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
+		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 }
 
 
@@ -2249,7 +2253,8 @@ VOID STA_ARalink_Frame_Tx(
 	//
 	// Kick out Tx
 	//
-	HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
+	if (!RTMP_TEST_PSFLAG(pAd, fRTMP_PS_DISABLE_TX))
+		HAL_KickOutTx(pAd, pTxBlk, pTxBlk->QueIdx);
 
 }
 
@@ -2526,7 +2531,7 @@ NDIS_STATUS STAHardTransmit(
 	if ((pAd->StaCfg.Psm == PWR_SAVE) && OPSTATUS_TEST_FLAG(pAd, fOP_STATUS_DOZE))
 	{
 	    DBGPRINT_RAW(RT_DEBUG_TRACE, ("AsicForceWakeup At HardTx\n"));
-		AsicForceWakeup(pAd, TRUE);
+		AsicForceWakeup(pAd, FROM_TX);
 	}
 
 	// It should not change PSM bit, when APSD turn on.

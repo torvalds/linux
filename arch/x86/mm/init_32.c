@@ -1054,16 +1054,46 @@ static noinline int do_test_wp_bit(void)
 const int rodata_test_data = 0xC3;
 EXPORT_SYMBOL_GPL(rodata_test_data);
 
+static int kernel_set_to_readonly;
+
+void set_kernel_text_rw(void)
+{
+	unsigned long start = PFN_ALIGN(_text);
+	unsigned long size = PFN_ALIGN(_etext) - start;
+
+	if (!kernel_set_to_readonly)
+		return;
+
+	pr_debug("Set kernel text: %lx - %lx for read write\n",
+		 start, start+size);
+
+	set_pages_rw(virt_to_page(start), size >> PAGE_SHIFT);
+}
+
+void set_kernel_text_ro(void)
+{
+	unsigned long start = PFN_ALIGN(_text);
+	unsigned long size = PFN_ALIGN(_etext) - start;
+
+	if (!kernel_set_to_readonly)
+		return;
+
+	pr_debug("Set kernel text: %lx - %lx for read only\n",
+		 start, start+size);
+
+	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
+}
+
 void mark_rodata_ro(void)
 {
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long size = PFN_ALIGN(_etext) - start;
 
-#ifndef CONFIG_DYNAMIC_FTRACE
-	/* Dynamic tracing modifies the kernel text section */
 	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
 	printk(KERN_INFO "Write protecting the kernel text: %luk\n",
 		size >> 10);
+
+	kernel_set_to_readonly = 1;
 
 #ifdef CONFIG_CPA_DEBUG
 	printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
@@ -1073,7 +1103,6 @@ void mark_rodata_ro(void)
 	printk(KERN_INFO "Testing CPA: write protecting again\n");
 	set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
 #endif
-#endif /* CONFIG_DYNAMIC_FTRACE */
 
 	start += size;
 	size = (unsigned long)__end_rodata - start;

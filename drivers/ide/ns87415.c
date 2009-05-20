@@ -61,41 +61,23 @@ static u8 superio_dma_sff_read_status(ide_hwif_t *hwif)
 	return superio_ide_inb(hwif->dma_base + ATA_DMA_STATUS);
 }
 
-static void superio_tf_read(ide_drive_t *drive, struct ide_cmd *cmd)
+static void superio_tf_read(ide_drive_t *drive, struct ide_taskfile *tf,
+			    u8 valid)
 {
 	struct ide_io_ports *io_ports = &drive->hwif->io_ports;
-	struct ide_taskfile *tf = &cmd->tf;
 
-	/* be sure we're looking at the low order bits */
-	outb(ATA_DEVCTL_OBS, io_ports->ctl_addr);
-
-	if (cmd->tf_flags & IDE_TFLAG_IN_ERROR)
+	if (valid & IDE_VALID_ERROR)
 		tf->error  = inb(io_ports->feature_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_NSECT)
+	if (valid & IDE_VALID_NSECT)
 		tf->nsect  = inb(io_ports->nsect_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_LBAL)
+	if (valid & IDE_VALID_LBAL)
 		tf->lbal   = inb(io_ports->lbal_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_LBAM)
+	if (valid & IDE_VALID_LBAM)
 		tf->lbam   = inb(io_ports->lbam_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_LBAH)
+	if (valid & IDE_VALID_LBAH)
 		tf->lbah   = inb(io_ports->lbah_addr);
-	if (cmd->tf_flags & IDE_TFLAG_IN_DEVICE)
+	if (valid & IDE_VALID_DEVICE)
 		tf->device = superio_ide_inb(io_ports->device_addr);
-
-	if (cmd->tf_flags & IDE_TFLAG_LBA48) {
-		outb(ATA_HOB | ATA_DEVCTL_OBS, io_ports->ctl_addr);
-
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_ERROR)
-			tf->hob_error = inb(io_ports->feature_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_NSECT)
-			tf->hob_nsect = inb(io_ports->nsect_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAL)
-			tf->hob_lbal  = inb(io_ports->lbal_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAM)
-			tf->hob_lbam  = inb(io_ports->lbam_addr);
-		if (cmd->tf_flags & IDE_TFLAG_IN_HOB_LBAH)
-			tf->hob_lbah  = inb(io_ports->lbah_addr);
-	}
 }
 
 static void ns87415_dev_select(ide_drive_t *drive);

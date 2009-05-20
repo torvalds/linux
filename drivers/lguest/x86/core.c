@@ -324,6 +324,11 @@ static void rewrite_hypercall(struct lg_cpu *cpu)
 	u8 insn[3] = {0xcd, 0x1f, 0x90};
 
 	__lgwrite(cpu, guest_pa(cpu, cpu->regs->eip), insn, sizeof(insn));
+	/* The above write might have caused a copy of that page to be made
+	 * (if it was read-only).  We need to make sure the Guest has
+	 * up-to-date pagetables.  As this doesn't happen often, we can just
+	 * drop them all. */
+	guest_pagetable_clear_all(cpu);
 }
 
 static bool is_hypercall(struct lg_cpu *cpu)
@@ -563,8 +568,8 @@ void __exit lguest_arch_host_fini(void)
 int lguest_arch_do_hcall(struct lg_cpu *cpu, struct hcall_args *args)
 {
 	switch (args->arg0) {
-	case LHCALL_LOAD_GDT:
-		load_guest_gdt(cpu, args->arg1, args->arg2);
+	case LHCALL_LOAD_GDT_ENTRY:
+		load_guest_gdt_entry(cpu, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_LOAD_IDT_ENTRY:
 		load_guest_idt_entry(cpu, args->arg1, args->arg2, args->arg3);

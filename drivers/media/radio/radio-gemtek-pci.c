@@ -356,20 +356,8 @@ static struct pci_device_id gemtek_pci_id[] =
 
 MODULE_DEVICE_TABLE(pci, gemtek_pci_id);
 
-static int gemtek_pci_open(struct file *file)
-{
-	return 0;
-}
-
-static int gemtek_pci_release(struct file *file)
-{
-	return 0;
-}
-
 static const struct v4l2_file_operations gemtek_pci_fops = {
 	.owner		= THIS_MODULE,
-	.open           = gemtek_pci_open,
-	.release        = gemtek_pci_release,
 	.ioctl		= video_ioctl2,
 };
 

@@ -317,8 +317,7 @@ svc_pool_map_set_cpumask(struct task_struct *task, unsigned int pidx)
 	}
 	case SVC_POOL_PERNODE:
 	{
-		node_to_cpumask_ptr(nodecpumask, node);
-		set_cpus_allowed_ptr(task, nodecpumask);
+		set_cpus_allowed_ptr(task, cpumask_of_node(node));
 		break;
 	}
 	}
@@ -1009,6 +1008,8 @@ svc_process(struct svc_rqst *rqstp)
 	rqstp->rq_res.tail[0].iov_len = 0;
 	/* Will be turned off only in gss privacy case: */
 	rqstp->rq_splice_ok = 1;
+	/* Will be turned off only when NFSv4 Sessions are used */
+	rqstp->rq_usedeferral = 1;
 
 	/* Setup reply header */
 	rqstp->rq_xprt->xpt_ops->xpo_prep_reply_hdr(rqstp);
@@ -1079,7 +1080,6 @@ svc_process(struct svc_rqst *rqstp)
 	procp = versp->vs_proc + proc;
 	if (proc >= versp->vs_nproc || !procp->pc_func)
 		goto err_bad_proc;
-	rqstp->rq_server   = serv;
 	rqstp->rq_procinfo = procp;
 
 	/* Syntactic check complete */

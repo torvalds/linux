@@ -31,8 +31,7 @@ static ssize_t show_status(struct device *dev, struct device_attribute *attr,
 	char *s = out;
 	int i = 0;
 
-	if (!the_controller || !out)
-		BUG();
+	BUG_ON(!the_controller || !out);
 
 	spin_lock(&the_controller->lock);
 

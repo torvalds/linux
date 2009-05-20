@@ -5,7 +5,7 @@
 #include <linux/tracepoint.h>
 
 DECLARE_TRACE(kfree_skb,
-	TPPROTO(struct sk_buff *skb, void *location),
-	TPARGS(skb, location));
+	TP_PROTO(struct sk_buff *skb, void *location),
+	TP_ARGS(skb, location));
 
 #endif

@@ -169,7 +169,7 @@ static int pca9532_event(struct input_dev *dev, unsigned int type,
 {
 	struct pca9532_data *data = input_get_drvdata(dev);
 
-	if (type != EV_SND && (code != SND_BELL || code != SND_TONE))
+	if (!(type == EV_SND && (code == SND_BELL || code == SND_TONE)))
 		return -1;
 
 	/* XXX: allow different kind of beeps with psc/pwm modifications */

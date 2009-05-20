@@ -465,7 +465,6 @@ static void sh_cmt_register_clockevent(struct sh_cmt_priv *p,
 	ced->set_mode = sh_cmt_clock_event_mode;
 
 	pr_info("sh_cmt: %s used for clock events\n", ced->name);
-	ced->mult = 1; /* work around misplaced WARN_ON() in clockevents.c */
 	clockevents_register_device(ced);
 }
 
@@ -557,7 +556,7 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 			       cfg->clockevent_rating,
 			       cfg->clocksource_rating);
  err2:
-	free_irq(irq, p);
+	remove_irq(irq, &p->irqaction);
  err1:
 	iounmap(p->mapbase);
  err0:

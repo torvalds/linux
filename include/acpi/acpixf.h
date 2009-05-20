@@ -47,7 +47,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20081204
+#define ACPI_CA_VERSION                 0x20090320
 
 #include "actypes.h"
 #include "actbl.h"
@@ -191,14 +191,12 @@ acpi_evaluate_object(acpi_handle object,
 		     struct acpi_object_list *parameter_objects,
 		     struct acpi_buffer *return_object_buffer);
 
-#ifdef ACPI_FUTURE_USAGE
 acpi_status
 acpi_evaluate_object_typed(acpi_handle object,
 			   acpi_string pathname,
 			   struct acpi_object_list *external_params,
 			   struct acpi_buffer *return_buffer,
 			   acpi_object_type return_type);
-#endif
 
 acpi_status
 acpi_get_object_info(acpi_handle handle, struct acpi_buffer *return_buffer);
@@ -349,17 +347,15 @@ acpi_resource_to_address64(struct acpi_resource *resource,
  */
 acpi_status acpi_reset(void);
 
-acpi_status acpi_get_register(u32 register_id, u32 * return_value);
+acpi_status acpi_read_bit_register(u32 register_id, u32 *return_value);
 
-acpi_status acpi_get_register_unlocked(u32 register_id, u32 *return_value);
+acpi_status acpi_write_bit_register(u32 register_id, u32 value);
 
-acpi_status acpi_set_register(u32 register_id, u32 value);
+acpi_status acpi_set_firmware_waking_vector(u32 physical_address);
 
-acpi_status
-acpi_set_firmware_waking_vector(u32 physical_address);
-
-acpi_status
-acpi_set_firmware_waking_vector64(u64 physical_address);
+#if ACPI_MACHINE_WIDTH == 64
+acpi_status acpi_set_firmware_waking_vector64(u64 physical_address);
+#endif
 
 acpi_status acpi_read(u32 *value, struct acpi_generic_address *reg);
 

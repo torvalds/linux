@@ -674,6 +674,11 @@ int __must_check pci_reenable_device(struct pci_dev *);
 int __must_check pcim_enable_device(struct pci_dev *pdev);
 void pcim_pin_device(struct pci_dev *pdev);
 
+static inline int pci_is_enabled(struct pci_dev *pdev)
+{
+	return (atomic_read(&pdev->enable_cnt) > 0);
+}
+
 static inline int pci_is_managed(struct pci_dev *pdev)
 {
 	return pdev->is_managed;

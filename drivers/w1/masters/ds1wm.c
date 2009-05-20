@@ -16,10 +16,10 @@
 #include <linux/irq.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
-#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
-#include <linux/ds1wm.h>
+#include <linux/mfd/core.h>
+#include <linux/mfd/ds1wm.h>
 
 #include <asm/io.h>
 
@@ -89,10 +89,9 @@ struct ds1wm_data {
 	void		__iomem *map;
 	int		bus_shift; /* # of shifts to calc register offsets */
 	struct platform_device *pdev;
-	struct ds1wm_platform_data *pdata;
+	struct mfd_cell	*cell;
 	int		irq;
 	int		active_high;
-	struct clk	*clk;
 	int		slave_present;
 	void		*reset_complete;
 	void		*read_complete;
@@ -215,17 +214,17 @@ static int ds1wm_find_divisor(int gclk)
 
 static void ds1wm_up(struct ds1wm_data *ds1wm_data)
 {
-	int gclk, divisor;
+	int divisor;
+	struct ds1wm_driver_data *plat = ds1wm_data->cell->driver_data;
 
-	if (ds1wm_data->pdata->enable)
-		ds1wm_data->pdata->enable(ds1wm_data->pdev);
+	if (ds1wm_data->cell->enable)
+		ds1wm_data->cell->enable(ds1wm_data->pdev);
 
-	gclk = clk_get_rate(ds1wm_data->clk);
-	clk_enable(ds1wm_data->clk);
-	divisor = ds1wm_find_divisor(gclk);
+	divisor = ds1wm_find_divisor(plat->clock_rate);
 	if (divisor == 0) {
 		dev_err(&ds1wm_data->pdev->dev,
-			"no suitable divisor for %dHz clock\n", gclk);
+			"no suitable divisor for %dHz clock\n",
+			plat->clock_rate);
 		return;
 	}
 	ds1wm_write_register(ds1wm_data, DS1WM_CLKDIV, divisor);
@@ -244,10 +243,8 @@ static void ds1wm_down(struct ds1wm_data *ds1wm_data)
 	ds1wm_write_register(ds1wm_data, DS1WM_INT_EN,
 			     ds1wm_data->active_high ? DS1WM_INTEN_IAS : 0);
 
-	if (ds1wm_data->pdata->disable)
-		ds1wm_data->pdata->disable(ds1wm_data->pdev);
-
-	clk_disable(ds1wm_data->clk);
+	if (ds1wm_data->cell->disable)
+		ds1wm_data->cell->disable(ds1wm_data->pdev);
 }
 
 /* --------------------------------------------------------------------- */
@@ -330,11 +327,16 @@ static struct w1_bus_master ds1wm_master = {
 static int ds1wm_probe(struct platform_device *pdev)
 {
 	struct ds1wm_data *ds1wm_data;
-	struct ds1wm_platform_data *plat;
+	struct ds1wm_driver_data *plat;
 	struct resource *res;
+	struct mfd_cell *cell;
 	int ret;
 
 	if (!pdev)
+		return -ENODEV;
+
+	cell = pdev->dev.platform_data;
+	if (!cell)
 		return -ENODEV;
 
 	ds1wm_data = kzalloc(sizeof(*ds1wm_data), GFP_KERNEL);
@@ -348,15 +350,18 @@ static int ds1wm_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err0;
 	}
-	ds1wm_data->map = ioremap(res->start, res->end - res->start + 1);
+	ds1wm_data->map = ioremap(res->start, resource_size(res));
 	if (!ds1wm_data->map) {
 		ret = -ENOMEM;
 		goto err0;
 	}
-	plat = pdev->dev.platform_data;
-	ds1wm_data->bus_shift = plat->bus_shift;
+	plat = cell->driver_data;
+
+	/* calculate bus shift from mem resource */
+	ds1wm_data->bus_shift = resource_size(res) >> 3;
+
 	ds1wm_data->pdev = pdev;
-	ds1wm_data->pdata = plat;
+	ds1wm_data->cell = cell;
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
@@ -376,26 +381,18 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err1;
 
-	ds1wm_data->clk = clk_get(&pdev->dev, "ds1wm");
-	if (IS_ERR(ds1wm_data->clk)) {
-		ret = PTR_ERR(ds1wm_data->clk);
-		goto err2;
-	}
-
 	ds1wm_up(ds1wm_data);
 
 	ds1wm_master.data = (void *)ds1wm_data;
 
 	ret = w1_add_master_device(&ds1wm_master);
 	if (ret)
-		goto err3;
+		goto err2;
 
 	return 0;
 
-err3:
-	ds1wm_down(ds1wm_data);
-	clk_put(ds1wm_data->clk);
 err2:
+	ds1wm_down(ds1wm_data);
 	free_irq(ds1wm_data->irq, ds1wm_data);
 err1:
 	iounmap(ds1wm_data->map);
@@ -434,7 +431,6 @@ static int ds1wm_remove(struct platform_device *pdev)
 
 	w1_remove_master_device(&ds1wm_master);
 	ds1wm_down(ds1wm_data);
-	clk_put(ds1wm_data->clk);
 	free_irq(ds1wm_data->irq, ds1wm_data);
 	iounmap(ds1wm_data->map);
 	kfree(ds1wm_data);

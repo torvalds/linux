@@ -473,12 +473,7 @@ VOID MlmeAssocReqAction(
 				RSNIe = IE_WPA2;
 			}
 
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
-#ifdef SIOCSIWGENIE
-			if (pAd->StaCfg.WpaSupplicantUP != 1)
-#endif // SIOCSIWGENIE //
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
-            	RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, BSS0);
+            RTMPMakeRSNIE(pAd, pAd->StaCfg.AuthMode, pAd->StaCfg.WepStatus, BSS0);
 
             // Check for WPA PMK cache list
 			if (pAd->StaCfg.AuthMode == Ndis802_11AuthModeWPA2)
@@ -504,17 +499,6 @@ VOID MlmeAssocReqAction(
 				}
 			}
 
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
-#ifdef SIOCSIWGENIE
-			if (pAd->StaCfg.WpaSupplicantUP == 1)
-			{
-				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
-		                        	pAd->StaCfg.RSNIE_Len,			pAd->StaCfg.RSN_IE,
-		                        	END_OF_ARGS);
-			}
-			else
-#endif
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 			{
 				MakeOutgoingFrame(pOutBuffer + FrameLen,    		&tmp,
 				              		1,                              &RSNIe,
@@ -525,11 +509,6 @@ VOID MlmeAssocReqAction(
 
 			FrameLen += tmp;
 
-#ifdef NATIVE_WPA_SUPPLICANT_SUPPORT
-#ifdef SIOCSIWGENIE
-			if (pAd->StaCfg.WpaSupplicantUP != 1)
-#endif
-#endif // NATIVE_WPA_SUPPLICANT_SUPPORT //
 			{
 	            // Append Variable IE
 	            NdisMoveMemory(pAd->StaCfg.ReqVarIEs + VarIesOffset, &RSNIe, 1);

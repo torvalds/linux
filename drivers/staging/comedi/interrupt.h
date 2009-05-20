@@ -21,15 +21,6 @@
 
 #include <linux/interrupt.h>
 
-#include <linux/version.h>
-
-#ifndef IRQ_NONE
-typedef void irqreturn_t;
-#define IRQ_NONE
-#define IRQ_HANDLED
-#define IRQ_RETVAL(x) (void)(x)
-#endif
-
 #ifndef IRQF_DISABLED
 #define IRQF_DISABLED           SA_INTERRUPT
 #define IRQF_SAMPLE_RANDOM      SA_SAMPLE_RANDOM

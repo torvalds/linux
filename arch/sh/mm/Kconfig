@@ -251,18 +251,6 @@ config SH7705_CACHE_32KB
 	depends on CPU_SUBTYPE_SH7705
 	default y
 
-config SH_DIRECT_MAPPED
-	bool "Use direct-mapped caching"
-	default n
-	help
-	  Selecting this option will configure the caches to be direct-mapped,
-	  even if the cache supports a 2 or 4-way mode. This is useful primarily
-	  for debugging on platforms with 2 and 4-way caches (SH7750R/SH7751R,
-	  SH4-202, SH4-501, etc.)
-
-	  Turn this option off for platforms that do not have a direct-mapped
-	  cache, and you have no need to run the caches in such a configuration.
-
 choice
 	prompt "Cache mode"
 	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5

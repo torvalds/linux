@@ -15,9 +15,9 @@
 #include "sysdef.h"
 
 unsigned char
-Wb35Tx_get_tx_buffer(phw_data_t pHwData, u8 **pBuffer)
+Wb35Tx_get_tx_buffer(struct hw_data * pHwData, u8 **pBuffer)
 {
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	*pBuffer = pWb35Tx->TxBuffer[0];
 	return true;
@@ -28,8 +28,8 @@ static void Wb35Tx(struct wbsoft_priv *adapter);
 static void Wb35Tx_complete(struct urb * pUrb)
 {
 	struct wbsoft_priv *adapter = pUrb->context;
-	phw_data_t	pHwData = &adapter->sHwData;
-	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
+	struct hw_data *	pHwData = &adapter->sHwData;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	PMDS		pMds = &adapter->Mds;
 
 	printk("wb35: tx complete\n");
@@ -64,8 +64,8 @@ error:
 
 static void Wb35Tx(struct wbsoft_priv *adapter)
 {
-	phw_data_t	pHwData = &adapter->sHwData;
-	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
+	struct hw_data *	pHwData = &adapter->sHwData;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	u8		*pTxBufferAddress;
 	PMDS		pMds = &adapter->Mds;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx4Urb;
@@ -115,8 +115,8 @@ static void Wb35Tx(struct wbsoft_priv *adapter)
 
 void Wb35Tx_start(struct wbsoft_priv *adapter)
 {
-	phw_data_t pHwData = &adapter->sHwData;
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct hw_data * pHwData = &adapter->sHwData;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
 	if (atomic_inc_return(&pWb35Tx->TxFireCounter) == 1) {
@@ -126,9 +126,9 @@ void Wb35Tx_start(struct wbsoft_priv *adapter)
 		atomic_dec(&pWb35Tx->TxFireCounter);
 }
 
-unsigned char Wb35Tx_initial(phw_data_t pHwData)
+unsigned char Wb35Tx_initial(struct hw_data * pHwData)
 {
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	pWb35Tx->Tx4Urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!pWb35Tx->Tx4Urb)
@@ -145,29 +145,29 @@ unsigned char Wb35Tx_initial(phw_data_t pHwData)
 }
 
 //======================================================
-void Wb35Tx_stop(phw_data_t pHwData)
+void Wb35Tx_stop(struct hw_data * pHwData)
 {
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	// Trying to canceling the Trp of EP2
 	if (pWb35Tx->EP2vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx2Urb ); // Only use unlink, let Wb35Tx_destrot to free them
 	#ifdef _PE_TX_DUMP_
-	WBDEBUG(("EP2 Tx stop\n"));
+	printk("EP2 Tx stop\n");
 	#endif
 
 	// Trying to canceling the Irp of EP4
 	if (pWb35Tx->EP4vm_state == VM_RUNNING)
 		usb_unlink_urb( pWb35Tx->Tx4Urb ); // Only use unlink, let Wb35Tx_destrot to free them
 	#ifdef _PE_TX_DUMP_
-	WBDEBUG(("EP4 Tx stop\n"));
+	printk("EP4 Tx stop\n");
 	#endif
 }
 
 //======================================================
-void Wb35Tx_destroy(phw_data_t pHwData)
+void Wb35Tx_destroy(struct hw_data * pHwData)
 {
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	// Wait for VM stop
 	do {
@@ -182,14 +182,14 @@ void Wb35Tx_destroy(phw_data_t pHwData)
 		usb_free_urb( pWb35Tx->Tx2Urb );
 
 	#ifdef _PE_TX_DUMP_
-	WBDEBUG(("Wb35Tx_destroy OK\n"));
+	printk("Wb35Tx_destroy OK\n");
 	#endif
 }
 
 void Wb35Tx_CurrentTime(struct wbsoft_priv *adapter, u32 TimeCount)
 {
-	phw_data_t pHwData = &adapter->sHwData;
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct hw_data * pHwData = &adapter->sHwData;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	unsigned char Trigger = false;
 
 	if (pWb35Tx->TxTimer > TimeCount)
@@ -208,9 +208,9 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter);
 static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 {
 	struct wbsoft_priv *adapter = pUrb->context;
-	phw_data_t	pHwData = &adapter->sHwData;
+	struct hw_data *	pHwData = &adapter->sHwData;
 	T02_DESCRIPTOR	T02, TSTATUS;
-	PWB35TX		pWb35Tx = &pHwData->Wb35Tx;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	u32 *		pltmp = (u32 *)pWb35Tx->EP2_buf;
 	u32		i;
 	u16		InterruptInLength;
@@ -229,7 +229,7 @@ static void Wb35Tx_EP2VM_complete(struct urb * pUrb)
 
 	//The Urb is completed, check the result
 	if (pWb35Tx->EP2VM_status != 0) {
-		WBDEBUG(("EP2 IoCompleteRoutine return error\n"));
+		printk("EP2 IoCompleteRoutine return error\n");
 		pWb35Tx->EP2vm_state= VM_STOP;
 		goto error;
 	}
@@ -256,8 +256,8 @@ error:
 
 static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 {
-	phw_data_t	pHwData = &adapter->sHwData;
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct hw_data *	pHwData = &adapter->sHwData;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 	struct urb *	pUrb = (struct urb *)pWb35Tx->Tx2Urb;
 	u32 *	pltmp = (u32 *)pWb35Tx->EP2_buf;
 	int		retv;
@@ -279,7 +279,7 @@ static void Wb35Tx_EP2VM(struct wbsoft_priv *adapter)
 
 	if (retv < 0) {
 		#ifdef _PE_TX_DUMP_
-		WBDEBUG(("EP2 Tx Irp sending error\n"));
+		printk("EP2 Tx Irp sending error\n");
 		#endif
 		goto error;
 	}
@@ -292,8 +292,8 @@ error:
 
 void Wb35Tx_EP2VM_start(struct wbsoft_priv *adapter)
 {
-	phw_data_t pHwData = &adapter->sHwData;
-	PWB35TX pWb35Tx = &pHwData->Wb35Tx;
+	struct hw_data * pHwData = &adapter->sHwData;
+	struct wb35_tx *pWb35Tx = &pHwData->Wb35Tx;
 
 	// Allow only one thread to run into function
 	if (atomic_inc_return(&pWb35Tx->TxResultCount) == 1) {

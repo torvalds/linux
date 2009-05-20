@@ -1,0 +1,2606 @@
+/*
+ * This file is part of stlc45xx
+ *
+ * Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
+ *
+ * Contact: Kalle Valo <kalle.valo@nokia.com>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA
+ *
+ */
+
+#include "stlc45xx.h"
+
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/interrupt.h>
+#include <linux/firmware.h>
+#include <linux/delay.h>
+#include <linux/irq.h>
+#include <linux/spi/spi.h>
+#include <linux/etherdevice.h>
+#include <linux/gpio.h>
+#include <linux/moduleparam.h>
+
+#include "stlc45xx_lmac.h"
+
+/*
+ * gpios should be handled in board files and provided via platform data,
+ * but because it's currently impossible for stlc45xx to have a header file
+ * in include/linux, let's use module paramaters for now
+ */
+static int stlc45xx_gpio_power = 97;
+module_param(stlc45xx_gpio_power, int, 0444);
+MODULE_PARM_DESC(stlc45xx_gpio_power, "stlc45xx gpio number for power line");
+
+static int stlc45xx_gpio_irq = 87;
+module_param(stlc45xx_gpio_irq, int, 0444);
+MODULE_PARM_DESC(stlc45xx_gpio_irq, "stlc45xx gpio number for irq line");
+
+static const u8 default_cal_channels[] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6c, 0x09,
+	0x00, 0x00, 0xc9, 0xff, 0xd8, 0xff, 0x00, 0x00, 0x00, 0x01, 0x10,
+	0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0xe0, 0x00, 0xe0, 0x00,
+	0xe0, 0x00, 0xe0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0,
+	0x00, 0x54, 0x01, 0xab, 0xf6, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42,
+	0xc0, 0x42, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00,
+	0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x22, 0x01, 0x37, 0xa9,
+	0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0x00, 0xbc, 0x00,
+	0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc,
+	0x00, 0xbc, 0xfb, 0x00, 0xca, 0x79, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0,
+	0x2b, 0xc0, 0x2b, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4,
+	0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0xd0, 0x00, 0x5d,
+	0x54, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0x00, 0xaa,
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00,
+	0xaa, 0x00, 0xaa, 0xa7, 0x00, 0xa9, 0x3d, 0xc0, 0x17, 0xc0, 0x17,
+	0xc0, 0x17, 0xc0, 0x17, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00,
+	0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x7a, 0x00,
+	0x06, 0x2c, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0x00,
+	0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96,
+	0x00, 0x96, 0x00, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x06, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x71, 0x09, 0x00, 0x00, 0xc9, 0xff, 0xd8,
+	0xff, 0x00, 0x00, 0x00, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01,
+	0x10, 0x01, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xd0,
+	0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0x54, 0x01, 0xab, 0xf6,
+	0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0x00, 0xcb, 0x00,
+	0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb,
+	0x00, 0xcb, 0x22, 0x01, 0x37, 0xa9, 0xc0, 0x33, 0xc0, 0x33, 0xc0,
+	0x33, 0xc0, 0x33, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc,
+	0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0xfb, 0x00, 0xca,
+	0x79, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0x00, 0xb4,
+	0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00,
+	0xb4, 0x00, 0xb4, 0xd0, 0x00, 0x5d, 0x54, 0xc0, 0x21, 0xc0, 0x21,
+	0xc0, 0x21, 0xc0, 0x21, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00,
+	0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0xa7, 0x00,
+	0xa9, 0x3d, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0x00,
+	0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0,
+	0x00, 0xa0, 0x00, 0xa0, 0x7a, 0x00, 0x06, 0x2c, 0xc0, 0x0d, 0xc0,
+	0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96,
+	0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x80,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x76,
+	0x09, 0x00, 0x00, 0xc9, 0xff, 0xd8, 0xff, 0x00, 0x00, 0x00, 0x01,
+	0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0xf0, 0x00, 0xf0,
+	0x00, 0xf0, 0x00, 0xf0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00,
+	0xd0, 0x00, 0x54, 0x01, 0xab, 0xf6, 0xc0, 0x42, 0xc0, 0x42, 0xc0,
+	0x42, 0xc0, 0x42, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb,
+	0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x22, 0x01, 0x37,
+	0xa9, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0x00, 0xbc,
+	0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00,
+	0xbc, 0x00, 0xbc, 0xfb, 0x00, 0xca, 0x79, 0xc0, 0x2b, 0xc0, 0x2b,
+	0xc0, 0x2b, 0xc0, 0x2b, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00,
+	0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0xd0, 0x00,
+	0x5d, 0x54, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0x00,
+	0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0x00, 0xaa, 0x00, 0xaa, 0xa7, 0x00, 0xa9, 0x3d, 0xc0, 0x17, 0xc0,
+	0x17, 0xc0, 0x17, 0xc0, 0x17, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0,
+	0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x7a,
+	0x00, 0x06, 0x2c, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d,
+	0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00,
+	0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x06, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x7b, 0x09, 0x00, 0x00, 0xc9, 0xff,
+	0xd8, 0xff, 0x00, 0x00, 0x00, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10,
+	0x01, 0x10, 0x01, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00,
+	0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0x54, 0x01, 0xab,
+	0xf6, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0x00, 0xcb,
+	0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00,
+	0xcb, 0x00, 0xcb, 0x22, 0x01, 0x37, 0xa9, 0xc0, 0x33, 0xc0, 0x33,
+	0xc0, 0x33, 0xc0, 0x33, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00,
+	0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0xfb, 0x00,
+	0xca, 0x79, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0x00,
+	0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4,
+	0x00, 0xb4, 0x00, 0xb4, 0xd0, 0x00, 0x5d, 0x54, 0xc0, 0x21, 0xc0,
+	0x21, 0xc0, 0x21, 0xc0, 0x21, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0xa7,
+	0x00, 0xa9, 0x3d, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17,
+	0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00,
+	0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x7a, 0x00, 0x06, 0x2c, 0xc0, 0x0d,
+	0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0x00, 0x96, 0x00, 0x96, 0x00,
+	0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x80,
+	0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x80, 0x09, 0x00, 0x00, 0xc9, 0xff, 0xd8, 0xff, 0x00, 0x00, 0x00,
+	0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0xf0, 0x00,
+	0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0,
+	0x00, 0xd0, 0x00, 0x54, 0x01, 0xab, 0xf6, 0xc0, 0x42, 0xc0, 0x42,
+	0xc0, 0x42, 0xc0, 0x42, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00,
+	0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x22, 0x01,
+	0x37, 0xa9, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0x00,
+	0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc,
+	0x00, 0xbc, 0x00, 0xbc, 0xfb, 0x00, 0xca, 0x79, 0xc0, 0x2b, 0xc0,
+	0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4,
+	0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0xd0,
+	0x00, 0x5d, 0x54, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21,
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00,
+	0xaa, 0x00, 0xaa, 0x00, 0xaa, 0xa7, 0x00, 0xa9, 0x3d, 0xc0, 0x17,
+	0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0x00, 0xa0, 0x00, 0xa0, 0x00,
+	0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0,
+	0x7a, 0x00, 0x06, 0x2c, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0,
+	0x0d, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96,
+	0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x85, 0x09, 0x00, 0x00, 0xc9,
+	0xff, 0xd8, 0xff, 0x00, 0x00, 0x00, 0x01, 0x10, 0x01, 0x10, 0x01,
+	0x10, 0x01, 0x10, 0x01, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xf0,
+	0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0x54, 0x01,
+	0xab, 0xf6, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0x00,
+	0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb,
+	0x00, 0xcb, 0x00, 0xcb, 0x22, 0x01, 0x37, 0xa9, 0xc0, 0x33, 0xc0,
+	0x33, 0xc0, 0x33, 0xc0, 0x33, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc,
+	0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0xfb,
+	0x00, 0xca, 0x79, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b,
+	0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00,
+	0xb4, 0x00, 0xb4, 0x00, 0xb4, 0xd0, 0x00, 0x5d, 0x54, 0xc0, 0x21,
+	0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0x00, 0xaa, 0x00, 0xaa, 0x00,
+	0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0xa7, 0x00, 0xa9, 0x3d, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0xc0,
+	0x17, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0,
+	0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x7a, 0x00, 0x06, 0x2c, 0xc0,
+	0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0x00, 0x96, 0x00, 0x96,
+	0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00,
+	0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06,
+	0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x8a, 0x09, 0x00, 0x00, 0xc9, 0xff, 0xd8, 0xff, 0x00, 0x00,
+	0x00, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0xf0,
+	0x00, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xd0, 0x00, 0xd0, 0x00,
+	0xd0, 0x00, 0xd0, 0x00, 0x54, 0x01, 0xab, 0xf6, 0xc0, 0x42, 0xc0,
+	0x42, 0xc0, 0x42, 0xc0, 0x42, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb,
+	0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x22,
+	0x01, 0x37, 0xa9, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33,
+	0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00,
+	0xbc, 0x00, 0xbc, 0x00, 0xbc, 0xfb, 0x00, 0xca, 0x79, 0xc0, 0x2b,
+	0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0x00, 0xb4, 0x00, 0xb4, 0x00,
+	0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4,
+	0xd0, 0x00, 0x5d, 0x54, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0xc0,
+	0x21, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0xa7, 0x00, 0xa9, 0x3d, 0xc0,
+	0x17, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0x00, 0xa0, 0x00, 0xa0,
+	0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00,
+	0xa0, 0x7a, 0x00, 0x06, 0x2c, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d,
+	0xc0, 0x0d, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00,
+	0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x80, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x09, 0x00, 0x00,
+	0xc9, 0xff, 0xd8, 0xff, 0x00, 0x00, 0x00, 0x01, 0x10, 0x01, 0x10,
+	0x01, 0x10, 0x01, 0x10, 0x01, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00,
+	0xf0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0x54,
+	0x01, 0xab, 0xf6, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42,
+	0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00,
+	0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x22, 0x01, 0x37, 0xa9, 0xc0, 0x33,
+	0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0x00, 0xbc, 0x00, 0xbc, 0x00,
+	0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc,
+	0xfb, 0x00, 0xca, 0x79, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0,
+	0x2b, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4,
+	0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0xd0, 0x00, 0x5d, 0x54, 0xc0,
+	0x21, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0x00, 0xaa, 0x00, 0xaa,
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00,
+	0xaa, 0xa7, 0x00, 0xa9, 0x3d, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17,
+	0xc0, 0x17, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00,
+	0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x7a, 0x00, 0x06, 0x2c,
+	0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0x00, 0x96, 0x00,
+	0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96,
+	0x00, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x06, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x94, 0x09, 0x00, 0x00, 0xc9, 0xff, 0xd8, 0xff, 0x00,
+	0x00, 0x00, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01,
+	0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xd0, 0x00, 0xd0,
+	0x00, 0xd0, 0x00, 0xd0, 0x00, 0x54, 0x01, 0xab, 0xf6, 0xc0, 0x42,
+	0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0x00, 0xcb, 0x00, 0xcb, 0x00,
+	0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb,
+	0x22, 0x01, 0x37, 0xa9, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0xc0,
+	0x33, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc,
+	0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0xfb, 0x00, 0xca, 0x79, 0xc0,
+	0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0x00, 0xb4, 0x00, 0xb4,
+	0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00,
+	0xb4, 0xd0, 0x00, 0x5d, 0x54, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21,
+	0xc0, 0x21, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00,
+	0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0xa7, 0x00, 0xa9, 0x3d,
+	0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0x00, 0xa0, 0x00,
+	0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0,
+	0x00, 0xa0, 0x7a, 0x00, 0x06, 0x2c, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0,
+	0x0d, 0xc0, 0x0d, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96,
+	0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x80, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x99, 0x09, 0x00,
+	0x00, 0xc9, 0xff, 0xd8, 0xff, 0x00, 0x00, 0x00, 0x01, 0x10, 0x01,
+	0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0xf0, 0x00, 0xf0, 0x00, 0xf0,
+	0x00, 0xf0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00,
+	0x54, 0x01, 0xab, 0xf6, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0xc0,
+	0x42, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb,
+	0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x22, 0x01, 0x37, 0xa9, 0xc0,
+	0x33, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33, 0x00, 0xbc, 0x00, 0xbc,
+	0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00,
+	0xbc, 0xfb, 0x00, 0xca, 0x79, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b,
+	0xc0, 0x2b, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00,
+	0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0xd0, 0x00, 0x5d, 0x54,
+	0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0xc0, 0x21, 0x00, 0xaa, 0x00,
+	0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0x00, 0xaa, 0xa7, 0x00, 0xa9, 0x3d, 0xc0, 0x17, 0xc0, 0x17, 0xc0,
+	0x17, 0xc0, 0x17, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0,
+	0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x7a, 0x00, 0x06,
+	0x2c, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0xc0, 0x0d, 0x00, 0x96,
+	0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00,
+	0x96, 0x00, 0x96, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x06, 0x80, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x9e, 0x09, 0x00, 0x00, 0xc9, 0xff, 0xd8, 0xff,
+	0x00, 0x00, 0x00, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10, 0x01, 0x10,
+	0x01, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xf0, 0x00, 0xd0, 0x00,
+	0xd0, 0x00, 0xd0, 0x00, 0xd0, 0x00, 0x54, 0x01, 0xab, 0xf6, 0xc0,
+	0x42, 0xc0, 0x42, 0xc0, 0x42, 0xc0, 0x42, 0x00, 0xcb, 0x00, 0xcb,
+	0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00, 0xcb, 0x00,
+	0xcb, 0x22, 0x01, 0x37, 0xa9, 0xc0, 0x33, 0xc0, 0x33, 0xc0, 0x33,
+	0xc0, 0x33, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00,
+	0xbc, 0x00, 0xbc, 0x00, 0xbc, 0x00, 0xbc, 0xfb, 0x00, 0xca, 0x79,
+	0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0xc0, 0x2b, 0x00, 0xb4, 0x00,
+	0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4, 0x00, 0xb4,
+	0x00, 0xb4, 0xd0, 0x00, 0x5d, 0x54, 0xc0, 0x21, 0xc0, 0x21, 0xc0,
+	0x21, 0xc0, 0x21, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa,
+	0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0x00, 0xaa, 0xa7, 0x00, 0xa9,
+	0x3d, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0xc0, 0x17, 0x00, 0xa0,
+	0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00, 0xa0, 0x00,
+	0xa0, 0x00, 0xa0, 0x7a, 0x00, 0x06, 0x2c, 0xc0, 0x0d, 0xc0, 0x0d,
+	0xc0, 0x0d, 0xc0, 0x0d, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00,
+	0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x96, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x80, 0x80, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00 };
+
+static const u8 default_cal_rssi[] = {
+	0x0a, 0x01, 0x72, 0xfe, 0x1a, 0x00, 0x00, 0x00, 0x0a, 0x01, 0x72,
+	0xfe, 0x1a, 0x00, 0x00, 0x00, 0x0a, 0x01, 0x72, 0xfe, 0x1a, 0x00,
+	0x00, 0x00, 0x0a, 0x01, 0x72, 0xfe, 0x1a, 0x00, 0x00, 0x00, 0x0a,
+	0x01, 0x72, 0xfe, 0x1a, 0x00, 0x00, 0x00, 0x0a, 0x01, 0x72, 0xfe,
+	0x1a, 0x00, 0x00, 0x00, 0x0a, 0x01, 0x72, 0xfe, 0x1a, 0x00, 0x00,
+	0x00, 0x0a, 0x01, 0x72, 0xfe, 0x1a, 0x00, 0x00, 0x00, 0x0a, 0x01,
+	0x72, 0xfe, 0x1a, 0x00, 0x00, 0x00, 0x0a, 0x01, 0x72, 0xfe, 0x1a,
+	0x00, 0x00, 0x00, 0x0a, 0x01, 0x72, 0xfe, 0x1a, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00 };
+
+static void stlc45xx_tx_edcf(struct stlc45xx *stlc);
+static void stlc45xx_tx_setup(struct stlc45xx *stlc);
+static void stlc45xx_tx_scan(struct stlc45xx *stlc);
+static void stlc45xx_tx_psm(struct stlc45xx *stlc, bool enable);
+static int stlc45xx_tx_nullfunc(struct stlc45xx *stlc, bool powersave);
+static int stlc45xx_tx_pspoll(struct stlc45xx *stlc, bool powersave);
+
+static ssize_t stlc45xx_sysfs_show_cal_rssi(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	struct stlc45xx *stlc = dev_get_drvdata(dev);
+	ssize_t len;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	len = PAGE_SIZE;
+
+	mutex_lock(&stlc->mutex);
+
+	if (stlc->cal_rssi)
+		hex_dump_to_buffer(stlc->cal_rssi, RSSI_CAL_ARRAY_LEN, 16,
+				   2, buf, len, 0);
+	mutex_unlock(&stlc->mutex);
+
+	len = strlen(buf);
+
+	return len;
+}
+
+static ssize_t stlc45xx_sysfs_store_cal_rssi(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t count)
+{
+	struct stlc45xx *stlc = dev_get_drvdata(dev);
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	if (count != RSSI_CAL_ARRAY_LEN) {
+		stlc45xx_error("invalid cal_rssi length: %zu", count);
+		count = 0;
+		goto out_unlock;
+	}
+
+	kfree(stlc->cal_rssi);
+
+	stlc->cal_rssi = kmemdup(buf, RSSI_CAL_ARRAY_LEN, GFP_KERNEL);
+
+	if (!stlc->cal_rssi) {
+		stlc45xx_error("failed to allocate memory for cal_rssi");
+		count = 0;
+		goto out_unlock;
+	}
+
+ out_unlock:
+	mutex_unlock(&stlc->mutex);
+
+	return count;
+}
+
+static ssize_t stlc45xx_sysfs_show_cal_channels(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct stlc45xx *stlc = dev_get_drvdata(dev);
+	ssize_t len;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	len = PAGE_SIZE;
+
+	mutex_lock(&stlc->mutex);
+
+	if (stlc->cal_channels)
+		hex_dump_to_buffer(stlc->cal_channels, CHANNEL_CAL_ARRAY_LEN,
+				   16, 2, buf, len, 0);
+
+	mutex_unlock(&stlc->mutex);
+
+	len = strlen(buf);
+
+	return len;
+}
+
+static ssize_t stlc45xx_sysfs_store_cal_channels(struct device *dev,
+						 struct device_attribute *attr,
+						 const char *buf, size_t count)
+{
+	struct stlc45xx *stlc = dev_get_drvdata(dev);
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	if (count != CHANNEL_CAL_ARRAY_LEN) {
+		stlc45xx_error("invalid cal_channels size: %zu ", count);
+		count = 0;
+		goto out_unlock;
+	}
+
+	kfree(stlc->cal_channels);
+
+	stlc->cal_channels = kmemdup(buf, count, GFP_KERNEL);
+
+	if (!stlc->cal_channels) {
+		stlc45xx_error("failed to allocate memory for cal_channels");
+		count = 0;
+		goto out_unlock;
+	}
+
+out_unlock:
+	mutex_unlock(&stlc->mutex);
+
+	return count;
+}
+
+static ssize_t stlc45xx_sysfs_show_tx_buf(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct stlc45xx *stlc = dev_get_drvdata(dev);
+	struct txbuffer *entry;
+	ssize_t len = 0;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s()", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	list_for_each_entry(entry, &stlc->tx_sent, tx_list) {
+		len += sprintf(buf + len, "0x%x: 0x%x-0x%x\n",
+			       entry->handle, entry->start,
+			       entry->end);
+	}
+
+	mutex_unlock(&stlc->mutex);
+
+	return len;
+}
+
+static DEVICE_ATTR(cal_rssi, S_IRUGO | S_IWUSR,
+		   stlc45xx_sysfs_show_cal_rssi,
+		   stlc45xx_sysfs_store_cal_rssi);
+static DEVICE_ATTR(cal_channels, S_IRUGO | S_IWUSR,
+		   stlc45xx_sysfs_show_cal_channels,
+		   stlc45xx_sysfs_store_cal_channels);
+static DEVICE_ATTR(tx_buf, S_IRUGO, stlc45xx_sysfs_show_tx_buf, NULL);
+
+static void stlc45xx_spi_read(struct stlc45xx *stlc, unsigned long addr,
+			      void *buf, size_t len)
+{
+	struct spi_transfer t[2];
+	struct spi_message m;
+
+	/* We first push the address */
+	addr = (addr << 8) | ADDR_READ_BIT_15;
+
+	spi_message_init(&m);
+	memset(t, 0, sizeof(t));
+
+	t[0].tx_buf = &addr;
+	t[0].len = 2;
+	spi_message_add_tail(&t[0], &m);
+
+	t[1].rx_buf = buf;
+	t[1].len = len;
+	spi_message_add_tail(&t[1], &m);
+
+	spi_sync(stlc->spi, &m);
+}
+
+
+static void stlc45xx_spi_write(struct stlc45xx *stlc, unsigned long addr,
+			       void *buf, size_t len)
+{
+	struct spi_transfer t[3];
+	struct spi_message m;
+	u16 last_word;
+
+	/* We first push the address */
+	addr = addr << 8;
+
+	spi_message_init(&m);
+	memset(t, 0, sizeof(t));
+
+	t[0].tx_buf = &addr;
+	t[0].len = 2;
+	spi_message_add_tail(&t[0], &m);
+
+	t[1].tx_buf = buf;
+	t[1].len = len;
+	spi_message_add_tail(&t[1], &m);
+
+	if (len % 2) {
+		last_word = ((u8 *)buf)[len - 1];
+
+		t[2].tx_buf = &last_word;
+		t[2].len = 2;
+		spi_message_add_tail(&t[2], &m);
+	}
+
+	spi_sync(stlc->spi, &m);
+}
+
+static u16 stlc45xx_read16(struct stlc45xx *stlc, unsigned long addr)
+{
+	u16 val;
+
+	stlc45xx_spi_read(stlc, addr, &val, sizeof(val));
+
+	return val;
+}
+
+static u32 stlc45xx_read32(struct stlc45xx *stlc, unsigned long addr)
+{
+	u32 val;
+
+	stlc45xx_spi_read(stlc, addr, &val, sizeof(val));
+
+	return val;
+}
+
+static void stlc45xx_write16(struct stlc45xx *stlc, unsigned long addr, u16 val)
+{
+	stlc45xx_spi_write(stlc, addr, &val, sizeof(val));
+}
+
+static void stlc45xx_write32(struct stlc45xx *stlc, unsigned long addr, u32 val)
+{
+	stlc45xx_spi_write(stlc, addr, &val, sizeof(val));
+}
+
+struct stlc45xx_spi_reg {
+	u16 address;
+	u16 length;
+	char *name;
+};
+
+/* caller must hold tx_lock */
+static void stlc45xx_txbuffer_dump(struct stlc45xx *stlc)
+{
+	struct txbuffer *txbuffer;
+	char *buf, *pos;
+	int buf_len, l, count;
+
+	if (!(DEBUG_LEVEL & DEBUG_TXBUFFER))
+		return;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s()", __func__);
+
+	buf_len = 500;
+	buf = kmalloc(buf_len, GFP_ATOMIC);
+	if (!buf)
+		return;
+
+	pos = buf;
+	count = 0;
+
+	list_for_each_entry(txbuffer, &stlc->txbuffer, buffer_list) {
+		l = snprintf(pos, buf_len, "0x%x-0x%x,",
+			     txbuffer->start, txbuffer->end);
+		/* drop the null byte */
+		pos += l;
+		buf_len -= l;
+		count++;
+	}
+
+	if (count == 0)
+		*pos = '\0';
+	else
+		*--pos = '\0';
+
+	stlc45xx_debug(DEBUG_TXBUFFER, "txbuffer: in buffer %d regions: %s",
+		       count, buf);
+
+	kfree(buf);
+}
+
+/* caller must hold tx_lock */
+static int stlc45xx_txbuffer_find(struct stlc45xx *stlc, size_t len)
+{
+	struct txbuffer *txbuffer;
+	int pos;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s()", __func__);
+
+	pos = FIRMWARE_TXBUFFER_START;
+
+	if (list_empty(&stlc->txbuffer))
+		goto out;
+
+	/*
+	 * the entries in txbuffer must be in the same order as they are in
+	 * the real buffer
+	 */
+	list_for_each_entry(txbuffer, &stlc->txbuffer, buffer_list) {
+		if (pos + len < txbuffer->start)
+			break;
+		pos = ALIGN(txbuffer->end + 1, 4);
+	}
+
+	if (pos + len > FIRMWARE_TXBUFFER_END)
+		/* not enough room */
+		pos = -1;
+
+	stlc45xx_debug(DEBUG_TXBUFFER, "txbuffer: find %zu B: 0x%x", len, pos);
+
+out:
+	return pos;
+}
+
+static int stlc45xx_txbuffer_add(struct stlc45xx *stlc,
+				 struct txbuffer *txbuffer)
+{
+	struct txbuffer *r, *prev = NULL;
+
+	if (list_empty(&stlc->txbuffer)) {
+		list_add(&txbuffer->buffer_list, &stlc->txbuffer);
+		return 0;
+	}
+
+	r = list_first_entry(&stlc->txbuffer, struct txbuffer, buffer_list);
+
+	if (txbuffer->start < r->start) {
+		/* add to the beginning of the list */
+		list_add(&txbuffer->buffer_list, &stlc->txbuffer);
+		return 0;
+	}
+
+	prev = NULL;
+	list_for_each_entry(r, &stlc->txbuffer, buffer_list) {
+		/* skip first entry, we checked for that above */
+		if (!prev) {
+			prev = r;
+			continue;
+		}
+
+		/* double-check overlaps */
+		WARN_ON_ONCE(txbuffer->start >= r->start &&
+			     txbuffer->start <= r->end);
+		WARN_ON_ONCE(txbuffer->end >= r->start &&
+			     txbuffer->end <= r->end);
+
+		if (prev->end < txbuffer->start &&
+		    txbuffer->end < r->start) {
+			/* insert at this spot */
+			list_add_tail(&txbuffer->buffer_list, &r->buffer_list);
+			return 0;
+		}
+
+		prev = r;
+	}
+
+	/* not found */
+	list_add_tail(&txbuffer->buffer_list, &stlc->txbuffer);
+
+	return 0;
+
+}
+
+/* caller must hold tx_lock */
+static struct txbuffer *stlc45xx_txbuffer_alloc(struct stlc45xx *stlc,
+						 size_t frame_len)
+{
+	struct txbuffer *entry = NULL;
+	size_t len;
+	int pos;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s()", __func__);
+
+	len = FIRMWARE_TXBUFFER_HEADER + frame_len + FIRMWARE_TXBUFFER_TRAILER;
+	pos = stlc45xx_txbuffer_find(stlc, len);
+
+	if (pos < 0)
+		return NULL;
+
+	WARN_ON_ONCE(pos + len > FIRMWARE_TXBUFFER_END);
+	WARN_ON_ONCE(pos < FIRMWARE_TXBUFFER_START);
+
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	entry->start = pos;
+	entry->frame_start = pos + FIRMWARE_TXBUFFER_HEADER;
+	entry->end = entry->start + len - 1;
+
+	stlc45xx_debug(DEBUG_TXBUFFER, "txbuffer: allocated 0x%x-0x%x",
+		       entry->start, entry->end);
+
+	stlc45xx_txbuffer_add(stlc, entry);
+
+	stlc45xx_txbuffer_dump(stlc);
+
+	return entry;
+}
+
+/* caller must hold tx_lock */
+static void stlc45xx_txbuffer_free(struct stlc45xx *stlc,
+				   struct txbuffer *txbuffer)
+{
+	stlc45xx_debug(DEBUG_FUNC, "%s()", __func__);
+
+	stlc45xx_debug(DEBUG_TXBUFFER, "txbuffer: freed 0x%x-0x%x",
+		       txbuffer->start, txbuffer->end);
+
+	list_del(&txbuffer->buffer_list);
+	kfree(txbuffer);
+}
+
+
+static int stlc45xx_wait_bit(struct stlc45xx *stlc, u16 reg, u32 mask,
+			     u32 expected)
+{
+	int i;
+	char buffer[4];
+
+	for (i = 0; i < 2000; i++) {
+		stlc45xx_spi_read(stlc, reg, buffer, sizeof(buffer));
+		if (((*(u32 *)buffer) & mask) == expected)
+			return 1;
+		msleep(1);
+	}
+
+	return 0;
+}
+
+static int stlc45xx_request_firmware(struct stlc45xx *stlc)
+{
+	const struct firmware *fw;
+	int ret;
+
+	/* FIXME: should driver use it's own struct device? */
+	ret = request_firmware(&fw, "3826.arm", &stlc->spi->dev);
+
+	if (ret < 0) {
+		stlc45xx_error("request_firmware() failed: %d", ret);
+		return ret;
+	}
+
+	if (fw->size % 4) {
+		stlc45xx_error("firmware size is not multiple of 32bit: %zu",
+			       fw->size);
+		return -EILSEQ; /* Illegal byte sequence  */;
+	}
+
+	if (fw->size < 1000) {
+		stlc45xx_error("firmware is too small: %zu", fw->size);
+		return -EILSEQ;
+	}
+
+	stlc->fw = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!stlc->fw) {
+		stlc45xx_error("could not allocate memory for firmware");
+		return -ENOMEM;
+	}
+
+	stlc->fw_len = fw->size;
+
+	release_firmware(fw);
+
+	return 0;
+}
+
+static int stlc45xx_upload_firmware(struct stlc45xx *stlc)
+{
+	struct s_dma_regs dma_regs;
+	unsigned long fw_len, fw_addr;
+	long _fw_len;
+	int ret;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	if (!stlc->fw) {
+		ret = stlc45xx_request_firmware(stlc);
+		if (ret < 0)
+			return ret;
+	}
+
+	/* stop the device */
+	stlc45xx_write16(stlc, SPI_ADRS_DEV_CTRL_STAT,
+			 SPI_CTRL_STAT_HOST_OVERRIDE | SPI_CTRL_STAT_HOST_RESET
+			 | SPI_CTRL_STAT_START_HALTED);
+
+	msleep(TARGET_BOOT_SLEEP);
+
+	stlc45xx_write16(stlc, SPI_ADRS_DEV_CTRL_STAT,
+			 SPI_CTRL_STAT_HOST_OVERRIDE
+			 | SPI_CTRL_STAT_START_HALTED);
+
+	msleep(TARGET_BOOT_SLEEP);
+
+	fw_addr = FIRMWARE_ADDRESS;
+	fw_len = stlc->fw_len;
+
+	while (fw_len > 0) {
+		_fw_len = (fw_len > SPI_MAX_PACKET_SIZE)
+			? SPI_MAX_PACKET_SIZE : fw_len;
+		dma_regs.cmd = SPI_DMA_WRITE_CTRL_ENABLE;
+		dma_regs.len = cpu_to_le16(_fw_len);
+		dma_regs.addr = cpu_to_le32(fw_addr);
+
+		fw_len -= _fw_len;
+		fw_addr += _fw_len;
+
+		stlc45xx_write16(stlc, SPI_ADRS_DMA_WRITE_CTRL, dma_regs.cmd);
+
+		if (stlc45xx_wait_bit(stlc, SPI_ADRS_DMA_WRITE_CTRL,
+				      HOST_ALLOWED, HOST_ALLOWED) == 0) {
+			stlc45xx_error("fw_upload not allowed to DMA write");
+			return -EAGAIN;
+		}
+
+		stlc45xx_write16(stlc, SPI_ADRS_DMA_WRITE_LEN, dma_regs.len);
+		stlc45xx_write32(stlc, SPI_ADRS_DMA_WRITE_BASE, dma_regs.addr);
+
+		stlc45xx_spi_write(stlc, SPI_ADRS_DMA_DATA, stlc->fw, _fw_len);
+
+		/* FIXME: I think this doesn't work if firmware is large,
+		 * this loop goes to second round. fw->data is not
+		 * increased at all! */
+	}
+
+	BUG_ON(fw_len != 0);
+
+	/* enable host interrupts */
+	stlc45xx_write32(stlc, SPI_ADRS_HOST_INT_EN, SPI_HOST_INTS_DEFAULT);
+
+	/* boot the device */
+	stlc45xx_write16(stlc, SPI_ADRS_DEV_CTRL_STAT,
+			 SPI_CTRL_STAT_HOST_OVERRIDE | SPI_CTRL_STAT_HOST_RESET
+			 | SPI_CTRL_STAT_RAM_BOOT);
+
+	msleep(TARGET_BOOT_SLEEP);
+
+	stlc45xx_write16(stlc, SPI_ADRS_DEV_CTRL_STAT,
+			 SPI_CTRL_STAT_HOST_OVERRIDE | SPI_CTRL_STAT_RAM_BOOT);
+	msleep(TARGET_BOOT_SLEEP);
+
+	return 0;
+}
+
+/* caller must hold tx_lock */
+static void stlc45xx_check_txsent(struct stlc45xx *stlc)
+{
+	struct txbuffer *entry, *n;
+
+	list_for_each_entry_safe(entry, n, &stlc->tx_sent, tx_list) {
+		if (time_after(jiffies, entry->lifetime)) {
+			if (net_ratelimit())
+				stlc45xx_warning("frame 0x%x lifetime exceeded",
+						 entry->start);
+			list_del(&entry->tx_list);
+			skb_pull(entry->skb, entry->header_len);
+			ieee80211_tx_status(stlc->hw, entry->skb);
+			stlc45xx_txbuffer_free(stlc, entry);
+		}
+	}
+}
+
+static void stlc45xx_power_off(struct stlc45xx *stlc)
+{
+	disable_irq(gpio_to_irq(stlc45xx_gpio_irq));
+	gpio_set_value(stlc45xx_gpio_power, 0);
+}
+
+static void stlc45xx_power_on(struct stlc45xx *stlc)
+{
+	gpio_set_value(stlc45xx_gpio_power, 1);
+	enable_irq(gpio_to_irq(stlc45xx_gpio_irq));
+
+	/*
+	 * need to wait a while before device can be accessed, the length
+	 * is just a guess
+	 */
+	msleep(10);
+}
+
+/* caller must hold tx_lock */
+static void stlc45xx_flush_queues(struct stlc45xx *stlc)
+{
+	struct txbuffer *entry;
+
+	while (!list_empty(&stlc->tx_sent)) {
+		entry = list_first_entry(&stlc->tx_sent,
+					 struct txbuffer, tx_list);
+		list_del(&entry->tx_list);
+		dev_kfree_skb(entry->skb);
+		stlc45xx_txbuffer_free(stlc, entry);
+	}
+
+	WARN_ON(!list_empty(&stlc->tx_sent));
+
+	while (!list_empty(&stlc->tx_pending)) {
+		entry = list_first_entry(&stlc->tx_pending,
+					 struct txbuffer, tx_list);
+		list_del(&entry->tx_list);
+		dev_kfree_skb(entry->skb);
+		stlc45xx_txbuffer_free(stlc, entry);
+	}
+
+	WARN_ON(!list_empty(&stlc->tx_pending));
+	WARN_ON(!list_empty(&stlc->txbuffer));
+}
+
+static void stlc45xx_work_reset(struct work_struct *work)
+{
+	struct stlc45xx *stlc = container_of(work, struct stlc45xx,
+					     work_reset);
+
+	mutex_lock(&stlc->mutex);
+
+	if (stlc->fw_state != FW_STATE_RESET)
+		goto out;
+
+	stlc45xx_power_off(stlc);
+
+	mutex_unlock(&stlc->mutex);
+
+	/* wait that all work_structs have finished, we can't hold
+	 * stlc->mutex to avoid deadlock */
+	cancel_work_sync(&stlc->work);
+
+	/* FIXME: find out good value to wait for chip power down */
+	msleep(100);
+
+	mutex_lock(&stlc->mutex);
+
+	/* FIXME: we should gracefully handle if the state has changed
+	 * after re-acquiring mutex */
+	WARN_ON(stlc->fw_state != FW_STATE_RESET);
+
+	spin_lock_bh(&stlc->tx_lock);
+	stlc45xx_flush_queues(stlc);
+	spin_unlock_bh(&stlc->tx_lock);
+
+	stlc->fw_state = FW_STATE_RESETTING;
+
+	stlc45xx_power_on(stlc);
+	stlc45xx_upload_firmware(stlc);
+
+out:
+	mutex_unlock(&stlc->mutex);
+}
+
+/* caller must hold mutex */
+static void stlc45xx_reset(struct stlc45xx *stlc)
+{
+	stlc45xx_warning("resetting firmware");
+	stlc->fw_state = FW_STATE_RESET;
+	ieee80211_stop_queues(stlc->hw);
+	queue_work(stlc->hw->workqueue, &stlc->work_reset);
+}
+
+static void stlc45xx_work_tx_timeout(struct work_struct *work)
+{
+	struct stlc45xx *stlc = container_of(work, struct stlc45xx,
+					     work_tx_timeout.work);
+
+	stlc45xx_warning("tx timeout");
+
+	mutex_lock(&stlc->mutex);
+
+	if (stlc->fw_state != FW_STATE_READY)
+		goto out;
+
+	stlc45xx_reset(stlc);
+
+out:
+	mutex_unlock(&stlc->mutex);
+}
+
+static void stlc45xx_int_ack(struct stlc45xx *stlc, u32 val)
+{
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	stlc45xx_write32(stlc, SPI_ADRS_HOST_INT_ACK, val);
+}
+
+static void stlc45xx_wakeup(struct stlc45xx *stlc)
+{
+	unsigned long timeout;
+	u32 ints;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	/* wake the chip */
+	stlc45xx_write32(stlc, SPI_ADRS_ARM_INTERRUPTS, SPI_TARGET_INT_WAKEUP);
+
+	/* And wait for the READY interrupt */
+	timeout = jiffies + HZ;
+
+	ints = stlc45xx_read32(stlc, SPI_ADRS_HOST_INTERRUPTS);
+	while (!(ints & SPI_HOST_INT_READY)) {
+		if (time_after(jiffies, timeout))
+				goto out;
+		ints = stlc45xx_read32(stlc, SPI_ADRS_HOST_INTERRUPTS);
+	}
+
+	stlc45xx_int_ack(stlc, SPI_HOST_INT_READY);
+
+out:
+	return;
+}
+
+static void stlc45xx_sleep(struct stlc45xx *stlc)
+{
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	stlc45xx_write32(stlc, SPI_ADRS_ARM_INTERRUPTS, SPI_TARGET_INT_SLEEP);
+}
+
+static void stlc45xx_int_ready(struct stlc45xx *stlc)
+{
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	stlc45xx_write32(stlc, SPI_ADRS_HOST_INT_EN,
+			 SPI_HOST_INT_UPDATE | SPI_HOST_INT_SW_UPDATE);
+
+	switch (stlc->fw_state) {
+	case FW_STATE_BOOTING:
+		stlc->fw_state = FW_STATE_READY;
+		complete(&stlc->fw_comp);
+		break;
+	case FW_STATE_RESETTING:
+		stlc->fw_state = FW_STATE_READY;
+
+		stlc45xx_tx_scan(stlc);
+		stlc45xx_tx_setup(stlc);
+		stlc45xx_tx_edcf(stlc);
+
+		ieee80211_wake_queues(stlc->hw);
+		break;
+	default:
+		break;
+	}
+}
+
+static int stlc45xx_rx_txack(struct stlc45xx *stlc, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+	struct s_lm_control *control;
+	struct s_lmo_tx *tx;
+	struct txbuffer *entry;
+	int found = 0;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	control = (struct s_lm_control *) skb->data;
+	tx = (struct s_lmo_tx *) (control + 1);
+
+	if (list_empty(&stlc->tx_sent)) {
+		if (net_ratelimit())
+			stlc45xx_warning("no frames waiting for "
+					 "acknowledgement");
+		return -1;
+	}
+
+	list_for_each_entry(entry, &stlc->tx_sent, tx_list) {
+		if (control->handle == entry->handle) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		if (net_ratelimit())
+			stlc45xx_warning("couldn't find frame for tx ack 0x%x",
+					 control->handle);
+		return -1;
+	}
+
+	stlc45xx_debug(DEBUG_TX, "TX ACK 0x%x", entry->handle);
+
+	if (entry->status_needed) {
+		info = IEEE80211_SKB_CB(entry->skb);
+
+		if (!(tx->flags & LM_TX_FAILED)) {
+			/* frame was acked */
+			info->flags |= IEEE80211_TX_STAT_ACK;
+			info->status.ack_signal = tx->rcpi / 2 - 110;
+		}
+
+		skb_pull(entry->skb, entry->header_len);
+
+		ieee80211_tx_status(stlc->hw, entry->skb);
+	}
+
+	list_del(&entry->tx_list);
+
+	stlc45xx_check_txsent(stlc);
+	if (list_empty(&stlc->tx_sent))
+		/* there are no pending frames, we can stop the tx timeout
+		 * timer */
+		cancel_delayed_work(&stlc->work_tx_timeout);
+
+	spin_lock_bh(&stlc->tx_lock);
+
+	stlc45xx_txbuffer_free(stlc, entry);
+
+	if (stlc->tx_queue_stopped &&
+	    stlc45xx_txbuffer_find(stlc, MAX_FRAME_LEN) != -1) {
+		stlc45xx_debug(DEBUG_QUEUE, "room in tx buffer, waking queues");
+		ieee80211_wake_queues(stlc->hw);
+		stlc->tx_queue_stopped = 0;
+	}
+
+	spin_unlock_bh(&stlc->tx_lock);
+
+	return 0;
+}
+
+static int stlc45xx_rx_control(struct stlc45xx *stlc, struct sk_buff *skb)
+{
+	struct s_lm_control *control;
+	int ret = 0;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	control = (struct s_lm_control *) skb->data;
+
+	switch (control->oid) {
+	case LM_OID_TX:
+		ret = stlc45xx_rx_txack(stlc, skb);
+		break;
+	case LM_OID_SETUP:
+	case LM_OID_SCAN:
+	case LM_OID_TRAP:
+	case LM_OID_EDCF:
+	case LM_OID_KEYCACHE:
+	case LM_OID_PSM:
+	case LM_OID_STATS:
+	case LM_OID_LED:
+	default:
+		stlc45xx_warning("unhandled rx control oid %d\n",
+				 control->oid);
+		break;
+	}
+
+	dev_kfree_skb(skb);
+
+	return ret;
+}
+
+/* copied from mac80211 */
+static void stlc45xx_parse_elems(u8 *start, size_t len,
+				 struct stlc45xx_ie_tim **tim,
+				 size_t *tim_len)
+{
+	size_t left = len;
+	u8 *pos = start;
+
+	while (left >= 2) {
+		u8 id, elen;
+
+		id = *pos++;
+		elen = *pos++;
+		left -= 2;
+
+		if (elen > left)
+			return;
+
+		switch (id) {
+		case WLAN_EID_TIM:
+			*tim = (struct stlc45xx_ie_tim *) pos;
+			*tim_len = elen;
+			break;
+		default:
+			break;
+		}
+
+		left -= elen;
+		pos += elen;
+	}
+}
+
+/*
+ * mac80211 doesn't have support for asking frames with PS-Poll, so let's
+ * implement in the driver for now. We have to add support to mac80211
+ * later.
+ */
+static int stlc45xx_check_more_data(struct stlc45xx *stlc, struct sk_buff *skb)
+{
+	struct s_lm_data_in *data = (struct s_lm_data_in *) skb->data;
+	struct ieee80211_hdr *hdr;
+	size_t len;
+	u16 fc;
+
+	hdr = (void *) skb->data + sizeof(*data);
+	len = skb->len - sizeof(*data);
+
+	/* minimum frame length is the null frame length 24 bytes */
+	if (len < 24) {
+		stlc45xx_warning("invalid frame length when checking for "
+				 "more data");
+		return -EINVAL;
+	}
+
+	fc = le16_to_cpu(hdr->frame_control);
+	if (!(fc & IEEE80211_FCTL_FROMDS))
+		/* this is not from DS */
+		return 0;
+
+	if (compare_ether_addr(hdr->addr1, stlc->mac_addr) != 0)
+		/* the frame was not for us */
+		return 0;
+
+	if (!(fc & IEEE80211_FCTL_MOREDATA)) {
+		/* AP has no more frames buffered for us */
+		stlc45xx_debug(DEBUG_PSM, "all buffered frames retrieved");
+		stlc->pspolling = false;
+		return 0;
+	}
+
+	/* MOREDATA bit is set, let's ask for a new frame from the AP */
+	stlc45xx_tx_pspoll(stlc, stlc->psm);
+
+	return 0;
+}
+
+/*
+ * mac80211 cannot read TIM from beacons, so let's add a hack to the
+ * driver. We have to add support to mac80211 later.
+ */
+static int stlc45xx_rx_data_beacon(struct stlc45xx *stlc, struct sk_buff *skb)
+{
+	struct s_lm_data_in *data = (struct s_lm_data_in *) skb->data;
+	size_t len = skb->len, tim_len = 0, baselen, pvbmap_len;
+	struct ieee80211_mgmt *mgmt;
+	struct stlc45xx_ie_tim *tim = NULL;
+	int bmap_offset, index, aid_bit;
+
+	mgmt = (void *) skb->data + sizeof(*data);
+
+	baselen = (u8 *) mgmt->u.beacon.variable - (u8 *) mgmt;
+	if (baselen > len) {
+		stlc45xx_warning("invalid baselen in beacon");
+		return -EINVAL;
+	}
+
+	stlc45xx_parse_elems(mgmt->u.beacon.variable, len - baselen, &tim,
+			     &tim_len);
+
+	if (!tim) {
+		stlc45xx_warning("didn't find tim from a beacon");
+		return -EINVAL;
+	}
+
+	bmap_offset = tim->bmap_control & 0xfe;
+	index = stlc->aid / 8 - bmap_offset;
+
+	pvbmap_len = tim_len - 3;
+	if (index > pvbmap_len)
+		return -EINVAL;
+
+	aid_bit = !!(tim->pvbmap[index] & (1 << stlc->aid % 8));
+
+	stlc45xx_debug(DEBUG_PSM, "fc 0x%x duration %d seq %d dtim %u "
+		       "bmap_control 0x%x aid_bit %d",
+		       mgmt->frame_control, mgmt->duration, mgmt->seq_ctrl >> 4,
+		       tim->dtim_count, tim->bmap_control, aid_bit);
+
+	if (!aid_bit)
+		return 0;
+
+	stlc->pspolling = true;
+	stlc45xx_tx_pspoll(stlc, stlc->psm);
+
+	return 0;
+}
+
+static int stlc45xx_rx_data(struct stlc45xx *stlc, struct sk_buff *skb)
+{
+	struct ieee80211_rx_status status;
+	struct s_lm_data_in *data = (struct s_lm_data_in *) skb->data;
+	int align = 0;
+	u8 *p, align_len;
+	u16 len;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	if (stlc->psm) {
+		if (data->flags & LM_IN_BEACON)
+			stlc45xx_rx_data_beacon(stlc, skb);
+		else if (stlc->pspolling && (data->flags & LM_IN_DATA))
+			stlc45xx_check_more_data(stlc, skb);
+	}
+
+	memset(&status, 0, sizeof(status));
+
+	status.freq = data->frequency;
+	status.signal = data->rcpi / 2 - 110;
+
+	/* let's assume that maximum rcpi value is 140 (= 35 dBm) */
+	status.qual = data->rcpi * 100 / 140;
+
+	status.band = IEEE80211_BAND_2GHZ;
+
+	/*
+	 * FIXME: this gives warning from __ieee80211_rx()
+	 *
+	 * status.rate_idx = data->rate;
+	 */
+
+	len = data->length;
+
+	if (data->flags & LM_FLAG_ALIGN)
+		align = 1;
+
+	skb_pull(skb, sizeof(*data));
+
+	if (align) {
+		p = skb->data;
+		align_len = *p;
+		skb_pull(skb, align_len);
+	}
+
+	skb_trim(skb, len);
+
+	stlc45xx_debug(DEBUG_RX, "rx data 0x%p %d B", skb->data, skb->len);
+	stlc45xx_dump(DEBUG_RX_CONTENT, skb->data, skb->len);
+
+	ieee80211_rx(stlc->hw, skb, &status);
+
+	return 0;
+}
+
+
+
+static int stlc45xx_rx(struct stlc45xx *stlc)
+{
+	struct s_lm_control *control;
+	struct sk_buff *skb;
+	int ret;
+	u16 len;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	stlc45xx_wakeup(stlc);
+
+	/* dummy read to flush SPI DMA controller bug */
+	stlc45xx_read16(stlc, SPI_ADRS_GEN_PURP_1);
+
+	len = stlc45xx_read16(stlc, SPI_ADRS_DMA_DATA);
+
+	if (len == 0) {
+		stlc45xx_warning("rx request of zero bytes");
+		return 0;
+	}
+
+	skb = dev_alloc_skb(len);
+	if (!skb) {
+		stlc45xx_warning("could not alloc skb");
+		return 0;
+	}
+
+	stlc45xx_spi_read(stlc, SPI_ADRS_DMA_DATA, skb_put(skb, len), len);
+
+	stlc45xx_sleep(stlc);
+
+	stlc45xx_debug(DEBUG_RX, "rx frame 0x%p %d B", skb->data, skb->len);
+	stlc45xx_dump(DEBUG_RX_CONTENT, skb->data, skb->len);
+
+	control = (struct s_lm_control *) skb->data;
+
+	if (control->flags & LM_FLAG_CONTROL)
+		ret = stlc45xx_rx_control(stlc, skb);
+	else
+		ret = stlc45xx_rx_data(stlc, skb);
+
+	return ret;
+}
+
+
+static irqreturn_t stlc45xx_interrupt(int irq, void *config)
+{
+	struct spi_device *spi = config;
+	struct stlc45xx *stlc = dev_get_drvdata(&spi->dev);
+
+	stlc45xx_debug(DEBUG_IRQ, "IRQ");
+
+	queue_work(stlc->hw->workqueue, &stlc->work);
+
+	return IRQ_HANDLED;
+}
+
+static int stlc45xx_tx_frame(struct stlc45xx *stlc, u32 address,
+			     void *buf, size_t len)
+{
+	struct s_dma_regs dma_regs;
+	unsigned long timeout;
+	int ret = 0;
+	u32 ints;
+
+	stlc->tx_frames++;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	stlc45xx_debug(DEBUG_TX, "tx frame 0x%p %zu B", buf, len);
+	stlc45xx_dump(DEBUG_TX_CONTENT, buf, len);
+
+	stlc45xx_wakeup(stlc);
+
+	dma_regs.cmd  = SPI_DMA_WRITE_CTRL_ENABLE;
+	dma_regs.len  = cpu_to_le16(len);
+	dma_regs.addr = cpu_to_le32(address);
+
+	stlc45xx_spi_write(stlc, SPI_ADRS_DMA_WRITE_CTRL, &dma_regs,
+			   sizeof(dma_regs));
+
+	stlc45xx_spi_write(stlc, SPI_ADRS_DMA_DATA, buf, len);
+
+	timeout = jiffies + 2 * HZ;
+	ints = stlc45xx_read32(stlc, SPI_ADRS_HOST_INTERRUPTS);
+	while (!(ints & SPI_HOST_INT_WR_READY)) {
+		if (time_after(jiffies, timeout)) {
+			stlc45xx_warning("WR_READY timeout");
+			ret = -1;
+			goto out;
+		}
+		ints = stlc45xx_read32(stlc, SPI_ADRS_HOST_INTERRUPTS);
+	}
+
+	stlc45xx_int_ack(stlc, SPI_HOST_INT_WR_READY);
+
+	stlc45xx_sleep(stlc);
+
+out:
+	return ret;
+}
+
+static int stlc45xx_wq_tx(struct stlc45xx *stlc)
+{
+	struct txbuffer *entry;
+	int ret = 0;
+
+	spin_lock_bh(&stlc->tx_lock);
+
+	while (!list_empty(&stlc->tx_pending)) {
+		entry = list_entry(stlc->tx_pending.next,
+				   struct txbuffer, tx_list);
+
+		list_del_init(&entry->tx_list);
+
+		spin_unlock_bh(&stlc->tx_lock);
+
+		ret = stlc45xx_tx_frame(stlc, entry->frame_start,
+					entry->skb->data, entry->skb->len);
+
+		spin_lock_bh(&stlc->tx_lock);
+
+		if (ret < 0) {
+			/* frame transfer to firmware buffer failed */
+			/* FIXME: report this to mac80211 */
+			dev_kfree_skb(entry->skb);
+			stlc45xx_txbuffer_free(stlc, entry);
+			goto out;
+		}
+
+		list_add(&entry->tx_list, &stlc->tx_sent);
+		queue_delayed_work(stlc->hw->workqueue,
+				   &stlc->work_tx_timeout,
+				   msecs_to_jiffies(TX_TIMEOUT));
+	}
+
+out:
+	spin_unlock_bh(&stlc->tx_lock);
+	return ret;
+}
+
+static void stlc45xx_work(struct work_struct *work)
+{
+	struct stlc45xx *stlc = container_of(work, struct stlc45xx, work);
+	u32 ints;
+	int ret;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	if (stlc->fw_state == FW_STATE_OFF &&
+	    stlc->fw_state == FW_STATE_RESET)
+		goto out;
+
+	ints = stlc45xx_read32(stlc, SPI_ADRS_HOST_INTERRUPTS);
+	stlc45xx_debug(DEBUG_BH, "begin host_ints 0x%08x", ints);
+
+	if (ints & SPI_HOST_INT_READY) {
+		stlc45xx_int_ready(stlc);
+		stlc45xx_int_ack(stlc, SPI_HOST_INT_READY);
+	}
+
+	if (stlc->fw_state != FW_STATE_READY)
+		goto out;
+
+	if (ints & SPI_HOST_INT_UPDATE) {
+		stlc45xx_int_ack(stlc, SPI_HOST_INT_UPDATE);
+		ret = stlc45xx_rx(stlc);
+		if (ret < 0) {
+			stlc45xx_reset(stlc);
+			goto out;
+		}
+	}
+	if (ints & SPI_HOST_INT_SW_UPDATE) {
+		stlc45xx_int_ack(stlc, SPI_HOST_INT_SW_UPDATE);
+		ret = stlc45xx_rx(stlc);
+		if (ret < 0) {
+			stlc45xx_reset(stlc);
+			goto out;
+		}
+	}
+
+	ret = stlc45xx_wq_tx(stlc);
+	if (ret < 0) {
+		stlc45xx_reset(stlc);
+		goto out;
+	}
+
+	ints = stlc45xx_read32(stlc, SPI_ADRS_HOST_INTERRUPTS);
+	stlc45xx_debug(DEBUG_BH, "end host_ints 0x%08x", ints);
+
+out:
+	mutex_unlock(&stlc->mutex);
+}
+
+static void stlc45xx_tx_edcf(struct stlc45xx *stlc)
+{
+	struct s_lm_control *control;
+	struct s_lmo_edcf *edcf;
+	size_t len, edcf_len;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	edcf_len = sizeof(*edcf);
+	len = sizeof(*control) + edcf_len;
+	control = kzalloc(len, GFP_KERNEL);
+	edcf = (struct s_lmo_edcf *) (control + 1);
+
+	control->flags = LM_FLAG_CONTROL | LM_CTRL_OPSET;
+	control->length = edcf_len;
+	control->oid = LM_OID_EDCF;
+
+	edcf->slottime = 0x14;
+	edcf->sifs = 10;
+	edcf->eofpad = 6;
+	edcf->maxburst = 1500;
+
+	edcf->queues[0].aifs = 2;
+	edcf->queues[0].pad0 = 1;
+	edcf->queues[0].cwmin = 3;
+	edcf->queues[0].cwmax = 7;
+	edcf->queues[0].txop = 47;
+	edcf->queues[1].aifs = 2;
+	edcf->queues[1].pad0 = 0;
+	edcf->queues[1].cwmin = 7;
+	edcf->queues[1].cwmax = 15;
+	edcf->queues[1].txop = 94;
+	edcf->queues[2].aifs = 3;
+	edcf->queues[2].pad0 = 0;
+	edcf->queues[2].cwmin = 15;
+	edcf->queues[2].cwmax = 1023;
+	edcf->queues[2].txop = 0;
+	edcf->queues[3].aifs = 7;
+	edcf->queues[3].pad0 = 0;
+	edcf->queues[3].cwmin = 15;
+	edcf->queues[3].cwmax = 1023;
+	edcf->queues[3].txop = 0;
+	edcf->queues[4].aifs = 13;
+	edcf->queues[4].pad0 = 99;
+	edcf->queues[4].cwmin = 3437;
+	edcf->queues[4].cwmax = 512;
+	edcf->queues[4].txop = 12;
+	edcf->queues[5].aifs = 142;
+	edcf->queues[5].pad0 = 109;
+	edcf->queues[5].cwmin = 8756;
+	edcf->queues[5].cwmax = 6;
+	edcf->queues[5].txop = 0;
+	edcf->queues[6].aifs = 4;
+	edcf->queues[6].pad0 = 0;
+	edcf->queues[6].cwmin = 0;
+	edcf->queues[6].cwmax = 58705;
+	edcf->queues[6].txop = 25716;
+	edcf->queues[7].aifs = 0;
+	edcf->queues[7].pad0 = 0;
+	edcf->queues[7].cwmin = 0;
+	edcf->queues[7].cwmax = 0;
+	edcf->queues[7].txop = 0;
+
+	stlc45xx_tx_frame(stlc, FIRMWARE_CONFIG_START, control, len);
+
+	kfree(control);
+}
+
+static void stlc45xx_tx_setup(struct stlc45xx *stlc)
+{
+	struct s_lm_control *control;
+	struct s_lmo_setup *setup;
+	size_t len, setup_len;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	setup_len = sizeof(*setup);
+	len = sizeof(*control) + setup_len;
+	control = kzalloc(len, GFP_KERNEL);
+	setup = (struct s_lmo_setup *) (control + 1);
+
+	control->flags = LM_FLAG_CONTROL | LM_CTRL_OPSET;
+	control->length = setup_len;
+	control->oid = LM_OID_SETUP;
+
+	setup->flags = LM_SETUP_INFRA;
+	setup->antenna = 2;
+	setup->rx_align = 0;
+	setup->rx_buffer = FIRMWARE_RXBUFFER_START;
+	setup->rx_mtu = FIRMWARE_MTU;
+	setup->frontend = 5;
+	setup->timeout = 0;
+	setup->truncate = 48896;
+	setup->bratemask = 0xffffffff;
+	setup->ref_clock = 644245094;
+	setup->lpf_bandwidth = 65535;
+	setup->osc_start_delay = 65535;
+
+	memcpy(setup->macaddr, stlc->mac_addr, ETH_ALEN);
+	memcpy(setup->bssid, stlc->bssid, ETH_ALEN);
+
+	stlc45xx_tx_frame(stlc, FIRMWARE_CONFIG_START, control, len);
+
+	kfree(control);
+}
+
+static void stlc45xx_tx_scan(struct stlc45xx *stlc)
+{
+	struct s_lm_control *control;
+	struct s_lmo_scan *scan;
+	size_t len, scan_len;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	scan_len = sizeof(*scan);
+	len = sizeof(*control) + scan_len;
+	control = kzalloc(len, GFP_KERNEL);
+	scan = (struct s_lmo_scan *) (control + 1);
+
+	control->flags = LM_FLAG_CONTROL | LM_CTRL_OPSET;
+	control->length = scan_len;
+	control->oid = LM_OID_SCAN;
+
+	scan->flags = LM_SCAN_EXIT;
+	scan->bratemask = 0x15f;
+	scan->aloft[0] = 3;
+	scan->aloft[1] = 3;
+	scan->aloft[2] = 1;
+	scan->aloft[3] = 0;
+	scan->aloft[4] = 0;
+	scan->aloft[5] = 0;
+	scan->aloft[6] = 0;
+	scan->aloft[7] = 0;
+
+	memcpy(&scan->rssical, &stlc->cal_rssi[(stlc->channel - 1) *
+					       RSSI_CAL_LEN],
+	       RSSI_CAL_LEN);
+	memcpy(&scan->channel, &stlc->cal_channels[(stlc->channel - 1) *
+						   CHANNEL_CAL_LEN],
+	       CHANNEL_CAL_LEN);
+
+	stlc45xx_tx_frame(stlc, FIRMWARE_CONFIG_START, control, len);
+
+	kfree(control);
+}
+
+/*
+ * caller must hold mutex
+ */
+static int stlc45xx_tx_pspoll(struct stlc45xx *stlc, bool powersave)
+{
+	struct ieee80211_hdr *pspoll;
+	int payload_len, padding, i;
+	struct s_lm_data_out *data;
+	struct txbuffer *entry;
+	DECLARE_MAC_BUF(mac);
+	struct sk_buff *skb;
+	char *payload;
+	u16 fc;
+
+	skb = dev_alloc_skb(stlc->hw->extra_tx_headroom + 16);
+	if (!skb) {
+		stlc45xx_warning("failed to allocate pspoll frame");
+		return -ENOMEM;
+	}
+	skb_reserve(skb, stlc->hw->extra_tx_headroom);
+
+	pspoll = (struct ieee80211_hdr *) skb_put(skb, 16);
+	memset(pspoll, 0, 16);
+	fc = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL;
+	if (powersave)
+		fc |= IEEE80211_FCTL_PM;
+	pspoll->frame_control = cpu_to_le16(fc);
+	pspoll->duration_id = cpu_to_le16(stlc->aid);
+
+	/* aid in PS-Poll has its two MSBs each set to 1 */
+	pspoll->duration_id |= cpu_to_le16(1 << 15) | cpu_to_le16(1 << 14);
+
+	memcpy(pspoll->addr1, stlc->bssid, ETH_ALEN);
+	memcpy(pspoll->addr2, stlc->mac_addr, ETH_ALEN);
+
+	stlc45xx_debug(DEBUG_PSM, "sending PS-Poll frame to %s (powersave %d, "
+		       "fc 0x%x, aid %d)", print_mac(mac, pspoll->addr1),
+		       powersave, fc, stlc->aid);
+
+	spin_lock_bh(&stlc->tx_lock);
+
+	entry = stlc45xx_txbuffer_alloc(stlc, skb->len);
+
+	spin_unlock_bh(&stlc->tx_lock);
+
+	if (!entry) {
+		/*
+		 * The queue should be stopped before the firmware buffer
+		 * is full, so firmware buffer should always have enough
+		 * space.
+		 *
+		 * But I'm too lazy and omit it for now.
+		 */
+		if (net_ratelimit())
+			stlc45xx_warning("firmware tx buffer full is full "
+					 "for null frame");
+		return -ENOSPC;
+	}
+
+	payload = skb->data;
+	payload_len = skb->len;
+	padding = (int) (skb->data - sizeof(*data)) & 3;
+	entry->header_len = sizeof(*data) + padding;
+
+	entry->skb = skb;
+	entry->status_needed = false;
+	entry->handle = (u32) skb;
+	entry->lifetime = jiffies + msecs_to_jiffies(TX_FRAME_LIFETIME);
+
+	stlc45xx_debug(DEBUG_TX, "tx data 0x%x (0x%p payload %d B "
+		       "padding %d header_len %d)",
+		       entry->handle, payload, payload_len, padding,
+		       entry->header_len);
+	stlc45xx_dump(DEBUG_TX_CONTENT, payload, payload_len);
+
+	data = (struct s_lm_data_out *) skb_push(skb, entry->header_len);
+
+	memset(data, 0, entry->header_len);
+
+	if (padding)
+		data->flags = LM_FLAG_ALIGN;
+
+	data->flags = LM_OUT_BURST;
+	data->length = payload_len;
+	data->handle = entry->handle;
+	data->aid = 1;
+	data->rts_retries = 7;
+	data->retries = 7;
+	data->aloft_ctrl = 0;
+	data->crypt_offset = 58;
+	data->keytype = 0;
+	data->keylen = 0;
+	data->queue = LM_QUEUE_DATA3;
+	data->backlog = 32;
+	data->antenna = 2;
+	data->cts = 3;
+	data->power = 127;
+
+	for (i = 0; i < 8; i++)
+		data->aloft[i] = 0;
+
+	/*
+	 * check if there's enough space in tx buffer
+	 *
+	 * FIXME: ignored for now
+	 */
+
+	stlc45xx_tx_frame(stlc, entry->start, skb->data, skb->len);
+
+	list_add(&entry->tx_list, &stlc->tx_sent);
+
+	return 0;
+}
+
+/*
+ * caller must hold mutex
+ *
+ * shamelessly stolen from mac80211/ieee80211_send_nullfunc
+ */
+static int stlc45xx_tx_nullfunc(struct stlc45xx *stlc, bool powersave)
+{
+	struct ieee80211_hdr *nullfunc;
+	int payload_len, padding, i;
+	struct s_lm_data_out *data;
+	struct txbuffer *entry;
+	DECLARE_MAC_BUF(mac);
+	struct sk_buff *skb;
+	char *payload;
+	u16 fc;
+
+	skb = dev_alloc_skb(stlc->hw->extra_tx_headroom + 24);
+	if (!skb) {
+		stlc45xx_warning("failed to allocate buffer for null frame\n");
+		return -ENOMEM;
+	}
+	skb_reserve(skb, stlc->hw->extra_tx_headroom);
+
+	nullfunc = (struct ieee80211_hdr *) skb_put(skb, 24);
+	memset(nullfunc, 0, 24);
+	fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC |
+	     IEEE80211_FCTL_TODS;
+
+	if (powersave)
+		fc |= IEEE80211_FCTL_PM;
+
+	nullfunc->frame_control = cpu_to_le16(fc);
+	memcpy(nullfunc->addr1, stlc->bssid, ETH_ALEN);
+	memcpy(nullfunc->addr2, stlc->mac_addr, ETH_ALEN);
+	memcpy(nullfunc->addr3, stlc->bssid, ETH_ALEN);
+
+	stlc45xx_debug(DEBUG_PSM, "sending Null frame to %s (powersave %d, "
+		       "fc 0x%x)",
+		       print_mac(mac, nullfunc->addr1), powersave, fc);
+
+	spin_lock_bh(&stlc->tx_lock);
+
+	entry = stlc45xx_txbuffer_alloc(stlc, skb->len);
+
+	spin_unlock_bh(&stlc->tx_lock);
+
+	if (!entry) {
+		/*
+		 * The queue should be stopped before the firmware buffer
+		 * is full, so firmware buffer should always have enough
+		 * space.
+		 *
+		 * But I'm too lazy and omit it for now.
+		 */
+		if (net_ratelimit())
+			stlc45xx_warning("firmware tx buffer full is full "
+					 "for null frame");
+		return -ENOSPC;
+	}
+
+	payload = skb->data;
+	payload_len = skb->len;
+	padding = (int) (skb->data - sizeof(*data)) & 3;
+	entry->header_len = sizeof(*data) + padding;
+
+	entry->skb = skb;
+	entry->status_needed = false;
+	entry->handle = (u32) skb;
+	entry->lifetime = jiffies + msecs_to_jiffies(TX_FRAME_LIFETIME);
+
+	stlc45xx_debug(DEBUG_TX, "tx data 0x%x (0x%p payload %d B "
+		       "padding %d header_len %d)",
+		       entry->handle, payload, payload_len, padding,
+		       entry->header_len);
+	stlc45xx_dump(DEBUG_TX_CONTENT, payload, payload_len);
+
+	data = (struct s_lm_data_out *) skb_push(skb, entry->header_len);
+
+	memset(data, 0, entry->header_len);
+
+	if (padding)
+		data->flags = LM_FLAG_ALIGN;
+
+	data->flags = LM_OUT_BURST;
+	data->length = payload_len;
+	data->handle = entry->handle;
+	data->aid = 1;
+	data->rts_retries = 7;
+	data->retries = 7;
+	data->aloft_ctrl = 0;
+	data->crypt_offset = 58;
+	data->keytype = 0;
+	data->keylen = 0;
+	data->queue = LM_QUEUE_DATA3;
+	data->backlog = 32;
+	data->antenna = 2;
+	data->cts = 3;
+	data->power = 127;
+
+	for (i = 0; i < 8; i++)
+		data->aloft[i] = 0;
+
+	/*
+	 * check if there's enough space in tx buffer
+	 *
+	 * FIXME: ignored for now
+	 */
+
+	stlc45xx_tx_frame(stlc, entry->start, skb->data, skb->len);
+
+	list_add(&entry->tx_list, &stlc->tx_sent);
+
+	return 0;
+}
+
+/* caller must hold mutex */
+static void stlc45xx_tx_psm(struct stlc45xx *stlc, bool enable)
+{
+	struct s_lm_control *control;
+	struct s_lmo_psm *psm;
+	size_t len, psm_len;
+
+	WARN_ON(!stlc->associated);
+	WARN_ON(stlc->aid < 1);
+	WARN_ON(stlc->aid > 2007);
+
+	psm_len = sizeof(*psm);
+	len = sizeof(*control) + psm_len;
+	control = kzalloc(len, GFP_KERNEL);
+	psm = (struct s_lmo_psm *) (control + 1);
+
+	control->flags = LM_FLAG_CONTROL | LM_CTRL_OPSET;
+	control->length = psm_len;
+	control->oid = LM_OID_PSM;
+
+	if (enable)
+		psm->flags |= LM_PSM;
+
+	psm->aid = stlc->aid;
+
+	psm->beacon_rcpi_skip_max = 60;
+
+	psm->intervals[0].interval = 1;
+	psm->intervals[0].periods = 1;
+	psm->intervals[1].interval = 1;
+	psm->intervals[1].periods = 1;
+	psm->intervals[2].interval = 1;
+	psm->intervals[2].periods = 1;
+	psm->intervals[3].interval = 1;
+	psm->intervals[3].periods = 1;
+
+	psm->nr = 0;
+	psm->exclude[0] = 0;
+
+	stlc45xx_debug(DEBUG_PSM, "sending LM_OID_PSM (aid %d, interval %d)",
+		       psm->aid, psm->intervals[0].interval);
+
+	stlc45xx_tx_frame(stlc, FIRMWARE_CONFIG_START, control, len);
+
+	kfree(control);
+}
+
+static int stlc45xx_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+{
+	struct stlc45xx *stlc = hw->priv;
+	struct ieee80211_tx_info *info;
+	struct ieee80211_rate *rate;
+	int payload_len, padding, i;
+	struct s_lm_data_out *data;
+	struct txbuffer *entry;
+	char *payload;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	spin_lock_bh(&stlc->tx_lock);
+
+	entry = stlc45xx_txbuffer_alloc(stlc, skb->len);
+	if (!entry) {
+		/* the queue should be stopped before the firmware buffer
+		 * is full, so firmware buffer should always have enough
+		 * space */
+		if (net_ratelimit())
+			stlc45xx_warning("firmware buffer full");
+		spin_unlock_bh(&stlc->tx_lock);
+		return NETDEV_TX_BUSY;
+	}
+
+	info = IEEE80211_SKB_CB(skb);
+
+	payload = skb->data;
+	payload_len = skb->len;
+	padding = (int) (skb->data - sizeof(*data)) & 3;
+	entry->header_len = sizeof(*data) + padding;
+
+	entry->skb = skb;
+	entry->status_needed = true;
+	entry->handle = (u32) skb;
+	entry->lifetime = jiffies + msecs_to_jiffies(TX_FRAME_LIFETIME);
+
+	stlc45xx_debug(DEBUG_TX, "tx data 0x%x (0x%p payload %d B "
+		       "padding %d header_len %d)",
+		       entry->handle, payload, payload_len, padding,
+		       entry->header_len);
+	stlc45xx_dump(DEBUG_TX_CONTENT, payload, payload_len);
+
+	data = (struct s_lm_data_out *) skb_push(skb, entry->header_len);
+
+	memset(data, 0, entry->header_len);
+
+	if (padding)
+		data->flags = LM_FLAG_ALIGN;
+
+	data->flags = LM_OUT_BURST;
+	data->length = payload_len;
+	data->handle = entry->handle;
+	data->aid = 1;
+	data->rts_retries = 7;
+	data->retries = 7;
+	data->aloft_ctrl = 0;
+	data->crypt_offset = 58;
+	data->keytype = 0;
+	data->keylen = 0;
+	data->queue = 2;
+	data->backlog = 32;
+	data->antenna = 2;
+	data->cts = 3;
+	data->power = 127;
+
+	for (i = 0; i < 8; i++) {
+		rate = ieee80211_get_tx_rate(stlc->hw, info);
+		data->aloft[i] = rate->hw_value;
+	}
+
+	list_add_tail(&entry->tx_list, &stlc->tx_pending);
+
+	/* check if there's enough space in tx buffer */
+	if (stlc45xx_txbuffer_find(stlc, MAX_FRAME_LEN) == -1) {
+		stlc45xx_debug(DEBUG_QUEUE, "tx buffer full, stopping queues");
+		stlc->tx_queue_stopped = 1;
+		ieee80211_stop_queues(stlc->hw);
+	}
+
+	queue_work(stlc->hw->workqueue, &stlc->work);
+
+	spin_unlock_bh(&stlc->tx_lock);
+
+	return NETDEV_TX_OK;
+}
+
+static int stlc45xx_op_start(struct ieee80211_hw *hw)
+{
+	struct stlc45xx *stlc = hw->priv;
+	unsigned long timeout;
+	int ret = 0;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	stlc->fw_state = FW_STATE_BOOTING;
+	stlc->channel = 1;
+
+	stlc45xx_power_on(stlc);
+
+	ret = stlc45xx_upload_firmware(stlc);
+	if (ret < 0) {
+		stlc45xx_power_off(stlc);
+		goto out_unlock;
+	}
+
+	stlc->tx_queue_stopped = 0;
+
+	mutex_unlock(&stlc->mutex);
+
+	timeout = msecs_to_jiffies(2000);
+	timeout = wait_for_completion_interruptible_timeout(&stlc->fw_comp,
+							    timeout);
+	if (!timeout) {
+		stlc45xx_error("firmware boot failed");
+		stlc45xx_power_off(stlc);
+		ret = -1;
+		goto out;
+	}
+
+	stlc45xx_debug(DEBUG_BOOT, "firmware booted");
+
+	/* FIXME: should we take mutex just after wait_for_completion()? */
+	mutex_lock(&stlc->mutex);
+
+	WARN_ON(stlc->fw_state != FW_STATE_READY);
+
+out_unlock:
+	mutex_unlock(&stlc->mutex);
+
+out:
+	return ret;
+}
+
+static void stlc45xx_op_stop(struct ieee80211_hw *hw)
+{
+	struct stlc45xx *stlc = hw->priv;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	WARN_ON(stlc->fw_state != FW_STATE_READY);
+
+	stlc45xx_power_off(stlc);
+
+	/* FIXME: make sure that all work_structs have completed */
+
+	spin_lock_bh(&stlc->tx_lock);
+	stlc45xx_flush_queues(stlc);
+	spin_unlock_bh(&stlc->tx_lock);
+
+	stlc->fw_state = FW_STATE_OFF;
+
+	mutex_unlock(&stlc->mutex);
+}
+
+static int stlc45xx_op_add_interface(struct ieee80211_hw *hw,
+				     struct ieee80211_if_init_conf *conf)
+{
+	struct stlc45xx *stlc = hw->priv;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	switch (conf->type) {
+	case NL80211_IFTYPE_STATION:
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	memcpy(stlc->mac_addr, conf->mac_addr, ETH_ALEN);
+
+	return 0;
+}
+
+static void stlc45xx_op_remove_interface(struct ieee80211_hw *hw,
+					 struct ieee80211_if_init_conf *conf)
+{
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+}
+
+static int stlc45xx_op_config_interface(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_if_conf *conf)
+{
+	struct stlc45xx *stlc = hw->priv;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	memcpy(stlc->bssid, conf->bssid, ETH_ALEN);
+	stlc45xx_tx_setup(stlc);
+
+	mutex_unlock(&stlc->mutex);
+
+	return 0;
+}
+
+static int stlc45xx_op_config(struct ieee80211_hw *hw, u32 changed)
+{
+	struct stlc45xx *stlc = hw->priv;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	mutex_lock(&stlc->mutex);
+
+	stlc->channel = hw->conf.channel->hw_value;
+	stlc45xx_tx_scan(stlc);
+	stlc45xx_tx_setup(stlc);
+	stlc45xx_tx_edcf(stlc);
+
+	if ((hw->conf.flags & IEEE80211_CONF_PS) != stlc->psm) {
+		stlc->psm = hw->conf.flags & IEEE80211_CONF_PS;
+		if (stlc->associated) {
+			stlc45xx_tx_psm(stlc, stlc->psm);
+			stlc45xx_tx_nullfunc(stlc, stlc->psm);
+		}
+	}
+
+	mutex_unlock(&stlc->mutex);
+
+	return 0;
+}
+
+static void stlc45xx_op_configure_filter(struct ieee80211_hw *hw,
+				      unsigned int changed_flags,
+				      unsigned int *total_flags,
+				      int mc_count,
+				      struct dev_addr_list *mc_list)
+{
+	*total_flags = 0;
+}
+
+static void stlc45xx_op_bss_info_changed(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif,
+					 struct ieee80211_bss_conf *info,
+					 u32 changed)
+{
+	struct stlc45xx *stlc = hw->priv;
+
+	if (changed & BSS_CHANGED_ASSOC) {
+		stlc->associated = info->assoc;
+		if (info->assoc)
+			stlc->aid = info->aid;
+		else
+			stlc->aid = -1;
+
+		if (stlc->psm) {
+			stlc45xx_tx_psm(stlc, stlc->psm);
+			stlc45xx_tx_nullfunc(stlc, stlc->psm);
+		}
+	}
+}
+
+
+/* can't be const, mac80211 writes to this */
+static struct ieee80211_rate stlc45xx_rates[] = {
+	{ .bitrate = 10,  .hw_value = 0,    .hw_value_short = 0, },
+	{ .bitrate = 20,  .hw_value = 1,    .hw_value_short = 1, },
+	{ .bitrate = 55,  .hw_value = 2,    .hw_value_short = 2, },
+	{ .bitrate = 110, .hw_value = 3,    .hw_value_short = 3, },
+	{ .bitrate = 60,  .hw_value = 4,    .hw_value_short = 4, },
+	{ .bitrate = 90,  .hw_value = 5,    .hw_value_short = 5, },
+	{ .bitrate = 120, .hw_value = 6,    .hw_value_short = 6, },
+	{ .bitrate = 180, .hw_value = 7,    .hw_value_short = 7, },
+	{ .bitrate = 240, .hw_value = 8,    .hw_value_short = 8, },
+	{ .bitrate = 360, .hw_value = 9,    .hw_value_short = 9, },
+	{ .bitrate = 480, .hw_value = 10,   .hw_value_short = 10, },
+	{ .bitrate = 540, .hw_value = 11,   .hw_value_short = 11, },
+};
+
+/* can't be const, mac80211 writes to this */
+static struct ieee80211_channel stlc45xx_channels[] = {
+	{ .hw_value = 1, .center_freq = 2412},
+	{ .hw_value = 2, .center_freq = 2417},
+	{ .hw_value = 3, .center_freq = 2422},
+	{ .hw_value = 4, .center_freq = 2427},
+	{ .hw_value = 5, .center_freq = 2432},
+	{ .hw_value = 6, .center_freq = 2437},
+	{ .hw_value = 7, .center_freq = 2442},
+	{ .hw_value = 8, .center_freq = 2447},
+	{ .hw_value = 9, .center_freq = 2452},
+	{ .hw_value = 10, .center_freq = 2457},
+	{ .hw_value = 11, .center_freq = 2462},
+	{ .hw_value = 12, .center_freq = 2467},
+	{ .hw_value = 13, .center_freq = 2472},
+};
+
+/* can't be const, mac80211 writes to this */
+static struct ieee80211_supported_band stlc45xx_band_2ghz = {
+	.channels = stlc45xx_channels,
+	.n_channels = ARRAY_SIZE(stlc45xx_channels),
+	.bitrates = stlc45xx_rates,
+	.n_bitrates = ARRAY_SIZE(stlc45xx_rates),
+};
+
+static const struct ieee80211_ops stlc45xx_ops = {
+	.start = stlc45xx_op_start,
+	.stop = stlc45xx_op_stop,
+	.add_interface = stlc45xx_op_add_interface,
+	.remove_interface = stlc45xx_op_remove_interface,
+	.config = stlc45xx_op_config,
+	.config_interface = stlc45xx_op_config_interface,
+	.configure_filter = stlc45xx_op_configure_filter,
+	.tx = stlc45xx_op_tx,
+	.bss_info_changed = stlc45xx_op_bss_info_changed,
+};
+
+static int stlc45xx_register_mac80211(struct stlc45xx *stlc)
+{
+	/* FIXME: SET_IEEE80211_PERM_ADDR() requires default_mac_addr
+	   to be non-const for some strange reason */
+	static u8 default_mac_addr[ETH_ALEN] = {
+		0x00, 0x02, 0xee, 0xc0, 0xff, 0xee
+	};
+	int ret;
+
+	SET_IEEE80211_PERM_ADDR(stlc->hw, default_mac_addr);
+
+	ret = ieee80211_register_hw(stlc->hw);
+	if (ret) {
+		stlc45xx_error("unable to register mac80211 hw: %d", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void stlc45xx_device_release(struct device *dev)
+{
+
+}
+
+static struct platform_device stlc45xx_device = {
+	.name		= "stlc45xx",
+	.id		= -1,
+
+	/* device model insists to have a release function */
+	.dev            = {
+		.release = stlc45xx_device_release,
+	},
+};
+
+static int __devinit stlc45xx_probe(struct spi_device *spi)
+{
+	struct stlc45xx *stlc;
+	struct ieee80211_hw *hw;
+	int ret;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	/* mac80211 alloc */
+	hw = ieee80211_alloc_hw(sizeof(*stlc), &stlc45xx_ops);
+	if (!hw) {
+		stlc45xx_error("could not alloc ieee80211_hw");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* mac80211 clears hw->priv */
+	stlc = hw->priv;
+
+	stlc->hw = hw;
+	dev_set_drvdata(&spi->dev, stlc);
+	stlc->spi = spi;
+
+	spi->bits_per_word = 16;
+	spi->max_speed_hz = 24000000;
+
+	ret = spi_setup(spi);
+	if (ret < 0)
+		stlc45xx_error("spi_setup failed");
+
+	ret = gpio_request(stlc45xx_gpio_power, "stlc45xx power");
+	if (ret < 0) {
+		stlc45xx_error("power GPIO request failed: %d", ret);
+		return ret;
+	}
+
+	ret = gpio_request(stlc45xx_gpio_irq, "stlc45xx irq");
+	if (ret < 0) {
+		stlc45xx_error("irq GPIO request failed: %d", ret);
+		goto out;
+	}
+
+	gpio_direction_output(stlc45xx_gpio_power, 0);
+	gpio_direction_input(stlc45xx_gpio_irq);
+
+	ret = request_irq(gpio_to_irq(stlc45xx_gpio_irq),
+			  stlc45xx_interrupt, IRQF_DISABLED, "stlc45xx",
+			  stlc->spi);
+	if (ret < 0)
+		/* FIXME: handle the error */
+		stlc45xx_error("request_irq() failed");
+
+	set_irq_type(gpio_to_irq(stlc45xx_gpio_irq),
+		     IRQ_TYPE_EDGE_RISING);
+
+	disable_irq(gpio_to_irq(stlc45xx_gpio_irq));
+
+	ret = platform_device_register(&stlc45xx_device);
+	if (ret) {
+		stlc45xx_error("Couldn't register wlan_omap device.");
+		return ret;
+	}
+	dev_set_drvdata(&stlc45xx_device.dev, stlc);
+
+	INIT_WORK(&stlc->work, stlc45xx_work);
+	INIT_WORK(&stlc->work_reset, stlc45xx_work_reset);
+	INIT_DELAYED_WORK(&stlc->work_tx_timeout, stlc45xx_work_tx_timeout);
+	mutex_init(&stlc->mutex);
+	init_completion(&stlc->fw_comp);
+	spin_lock_init(&stlc->tx_lock);
+	INIT_LIST_HEAD(&stlc->txbuffer);
+	INIT_LIST_HEAD(&stlc->tx_pending);
+	INIT_LIST_HEAD(&stlc->tx_sent);
+
+	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		IEEE80211_HW_SIGNAL_DBM |
+		IEEE80211_HW_NOISE_DBM;
+	/* four bytes for padding */
+	hw->extra_tx_headroom = sizeof(struct s_lm_data_out) + 4;
+
+	/* unit us */
+	hw->channel_change_time = 1000;
+
+	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &stlc45xx_band_2ghz;
+
+	SET_IEEE80211_DEV(hw, &spi->dev);
+
+	BUILD_BUG_ON(sizeof(default_cal_rssi) != RSSI_CAL_ARRAY_LEN);
+	BUILD_BUG_ON(sizeof(default_cal_channels) != CHANNEL_CAL_ARRAY_LEN);
+
+	stlc->cal_rssi = kmemdup(default_cal_rssi, RSSI_CAL_ARRAY_LEN,
+				 GFP_KERNEL);
+	stlc->cal_channels = kmemdup(default_cal_channels,
+				     CHANNEL_CAL_ARRAY_LEN,
+				     GFP_KERNEL);
+
+	ret = device_create_file(&stlc45xx_device.dev, &dev_attr_cal_rssi);
+	if (ret < 0) {
+		stlc45xx_error("failed to create sysfs file cal_rssi");
+		goto out;
+	}
+
+	ret = device_create_file(&stlc45xx_device.dev, &dev_attr_cal_channels);
+	if (ret < 0) {
+		stlc45xx_error("failed to create sysfs file cal_channels");
+		goto out;
+	}
+
+	ret = device_create_file(&stlc45xx_device.dev, &dev_attr_tx_buf);
+	if (ret < 0) {
+		stlc45xx_error("failed to create sysfs file tx_buf");
+		goto out;
+	}
+
+	ret = stlc45xx_register_mac80211(stlc);
+	if (ret < 0)
+		goto out;
+
+	stlc45xx_info("v" DRIVER_VERSION " loaded");
+
+	stlc45xx_info("config buffer 0x%x-0x%x",
+		      FIRMWARE_CONFIG_START, FIRMWARE_CONFIG_END);
+	stlc45xx_info("tx 0x%x-0x%x, rx 0x%x-0x%x",
+		      FIRMWARE_TXBUFFER_START, FIRMWARE_TXBUFFER_END,
+		      FIRMWARE_RXBUFFER_START, FIRMWARE_RXBUFFER_END);
+
+out:
+	return ret;
+}
+
+static int __devexit stlc45xx_remove(struct spi_device *spi)
+{
+	struct stlc45xx *stlc = dev_get_drvdata(&spi->dev);
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	platform_device_unregister(&stlc45xx_device);
+
+	ieee80211_unregister_hw(stlc->hw);
+
+	free_irq(gpio_to_irq(stlc45xx_gpio_irq), spi);
+
+	gpio_free(stlc45xx_gpio_power);
+	gpio_free(stlc45xx_gpio_irq);
+
+	/* FIXME: free cal_channels and cal_rssi? */
+
+	kfree(stlc->fw);
+
+	mutex_destroy(&stlc->mutex);
+
+	/* frees also stlc */
+	ieee80211_free_hw(stlc->hw);
+	stlc = NULL;
+
+	return 0;
+}
+
+
+static struct spi_driver stlc45xx_spi_driver = {
+	.driver = {
+		/* use cx3110x name because board-n800.c uses that for the
+		 * SPI port */
+		.name		= "cx3110x",
+		.bus		= &spi_bus_type,
+		.owner		= THIS_MODULE,
+	},
+
+	.probe		= stlc45xx_probe,
+	.remove		= __devexit_p(stlc45xx_remove),
+};
+
+static int __init stlc45xx_init(void)
+{
+	int ret;
+
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	ret = spi_register_driver(&stlc45xx_spi_driver);
+	if (ret < 0) {
+		stlc45xx_error("failed to register SPI driver: %d", ret);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static void __exit stlc45xx_exit(void)
+{
+	stlc45xx_debug(DEBUG_FUNC, "%s", __func__);
+
+	spi_unregister_driver(&stlc45xx_spi_driver);
+
+	stlc45xx_info("unloaded");
+}
+
+module_init(stlc45xx_init);
+module_exit(stlc45xx_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Kalle Valo <kalle.valo@nokia.com>");

@@ -25,7 +25,6 @@
 #include <mach/board.h>
 #include <mach/mux.h>
 #include <mach/gpio.h>
-#include <mach/eac.h>
 #include <mach/mmc.h>
 
 #if defined(CONFIG_VIDEO_OMAP2) || defined(CONFIG_VIDEO_OMAP2_MODULE)
@@ -364,38 +363,6 @@ static void omap_init_mcspi(void)
 
 #else
 static inline void omap_init_mcspi(void) {}
-#endif
-
-#ifdef CONFIG_SND_OMAP24XX_EAC
-
-#define OMAP2_EAC_BASE			0x48090000
-
-static struct resource omap2_eac_resources[] = {
-	{
-		.start		= OMAP2_EAC_BASE,
-		.end		= OMAP2_EAC_BASE + 0x109,
-		.flags		= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device omap2_eac_device = {
-	.name		= "omap24xx-eac",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap2_eac_resources),
-	.resource	= omap2_eac_resources,
-	.dev = {
-		.platform_data = NULL,
-	},
-};
-
-void omap_init_eac(struct eac_platform_data *pdata)
-{
-	omap2_eac_device.dev.platform_data = pdata;
-	platform_device_register(&omap2_eac_device);
-}
-
-#else
-void omap_init_eac(struct eac_platform_data *pdata) {}
 #endif
 
 #ifdef CONFIG_OMAP_SHA1_MD5

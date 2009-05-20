@@ -1087,10 +1087,8 @@ zr36057_init (struct zoran *zr)
 		detect_guest_activity(zr);
 	test_interrupts(zr);
 	if (!pass_through) {
-		struct v4l2_routing route = { 2, 0 };
-
 		decoder_call(zr, video, s_stream, 0);
-		encoder_call(zr, video, s_routing, &route);
+		encoder_call(zr, video, s_routing, 2, 0, 0);
 	}
 
 	zr->zoran_proc = NULL;
@@ -1360,11 +1358,13 @@ static int __devinit zoran_probe(struct pci_dev *pdev,
 		goto zr_free_irq;
 	}
 
-	zr->decoder = v4l2_i2c_new_probed_subdev(&zr->i2c_adapter,
-		zr->card.mod_decoder, zr->card.i2c_decoder, zr->card.addrs_decoder);
+	zr->decoder = v4l2_i2c_new_probed_subdev(&zr->v4l2_dev,
+		&zr->i2c_adapter, zr->card.mod_decoder, zr->card.i2c_decoder,
+		zr->card.addrs_decoder);
 
 	if (zr->card.mod_encoder)
-		zr->encoder = v4l2_i2c_new_probed_subdev(&zr->i2c_adapter,
+		zr->encoder = v4l2_i2c_new_probed_subdev(&zr->v4l2_dev,
+			&zr->i2c_adapter,
 			zr->card.mod_encoder, zr->card.i2c_encoder,
 			zr->card.addrs_encoder);
 

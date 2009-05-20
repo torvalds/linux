@@ -144,6 +144,19 @@ config BOARD_FAVR_32
 	bool "Favr-32 LCD-board"
 	select CPU_AT32AP7000
 
+config BOARD_MERISC
+	bool "Merisc board"
+	select CPU_AT32AP7000
+	help
+	  Merisc is the family name for a range of AVR32-based boards.
+
+	  The boards are designed to be used in a man-machine
+	  interfacing environment, utilizing a touch-based graphical
+	  user interface. They host a vast range of I/O peripherals as
+	  well as a large SDRAM & Flash memory bank.
+
+	  For more information see: http://www.martinsson.se/merisc
+
 config BOARD_MIMC200
 	bool "MIMC200 CPU board"
 	select CPU_AT32AP7000
@@ -153,6 +166,7 @@ source "arch/avr32/boards/atstk1000/Kconfig"
 source "arch/avr32/boards/atngw100/Kconfig"
 source "arch/avr32/boards/hammerhead/Kconfig"
 source "arch/avr32/boards/favr-32/Kconfig"
+source "arch/avr32/boards/merisc/Kconfig"
 
 choice
 	prompt "Boot loader type"

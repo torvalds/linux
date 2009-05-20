@@ -7,9 +7,9 @@
 //====================================
 // Interface function declare
 //====================================
-unsigned char		Wb35Rx_initial(  phw_data_t pHwData );
-void		Wb35Rx_destroy(  phw_data_t pHwData );
-void		Wb35Rx_stop(  phw_data_t pHwData );
+unsigned char		Wb35Rx_initial(  struct hw_data * pHwData );
+void		Wb35Rx_destroy(  struct hw_data * pHwData );
+void		Wb35Rx_stop(  struct hw_data * pHwData );
 void		Wb35Rx_start(struct ieee80211_hw *hw);
 
 #endif

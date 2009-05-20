@@ -147,6 +147,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 			devices_found++;
 		}
 		info->mtd[i]->owner = THIS_MODULE;
+		info->mtd[i]->dev.parent = &dev->dev;
 	}
 
 	if (devices_found == 1) {

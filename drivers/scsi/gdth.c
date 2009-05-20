@@ -5023,16 +5023,16 @@ static int __devinit gdth_pci_probe_one(gdth_pci_str *pcistr,
 	/* 64-bit DMA only supported from FW >= x.43 */
 	if (!(ha->cache_feat & ha->raw_feat & ha->screen_feat & GDT_64BIT) ||
 	    !ha->dma64_support) {
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "GDT-PCI %d: "
 				"Unable to set 32-bit DMA\n", ha->hanum);
 				goto out_free_coal_stat;
 		}
 	} else {
 		shp->max_cmd_len = 16;
-		if (!pci_set_dma_mask(pdev, DMA_64BIT_MASK)) {
+		if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
 			printk("GDT-PCI %d: 64-bit DMA enabled\n", ha->hanum);
-		} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+		} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "GDT-PCI %d: "
 				"Unable to set 64/32-bit DMA\n", ha->hanum);
 			goto out_free_coal_stat;

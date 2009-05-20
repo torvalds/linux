@@ -44,6 +44,12 @@
 #include "acl.h"
 #include "namei.h"
 
+#ifdef CONFIG_EXT3_DEFAULTS_TO_ORDERED
+  #define EXT3_MOUNT_DEFAULT_DATA_MODE EXT3_MOUNT_ORDERED_DATA
+#else
+  #define EXT3_MOUNT_DEFAULT_DATA_MODE EXT3_MOUNT_WRITEBACK_DATA
+#endif
+
 static int ext3_load_journal(struct super_block *, struct ext3_super_block *,
 			     unsigned long journal_devnum);
 static int ext3_create_journal(struct super_block *, struct ext3_super_block *,
@@ -1919,7 +1925,7 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
                    cope, else JOURNAL_DATA */
 		if (journal_check_available_features
 		    (sbi->s_journal, 0, 0, JFS_FEATURE_INCOMPAT_REVOKE))
-			set_opt(sbi->s_mount_opt, ORDERED_DATA);
+			set_opt(sbi->s_mount_opt, DEFAULT_DATA_MODE);
 		else
 			set_opt(sbi->s_mount_opt, JOURNAL_DATA);
 		break;

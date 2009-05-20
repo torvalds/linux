@@ -181,6 +181,12 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 	}
 
 	this_node = acpi_ns_map_handle_to_node(obj_handle);
+	if (!this_node) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Invalid object handle %p\n",
+				  obj_handle));
+		return (AE_OK);
+	}
+
 	type = this_node->type;
 
 	/* Check if the owner matches */
@@ -214,9 +220,8 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		acpi_os_printf("%4.4s", acpi_ut_get_node_name(this_node));
 	}
 
-	/*
-	 * Now we can print out the pertinent information
-	 */
+	/* Now we can print out the pertinent information */
+
 	acpi_os_printf(" %-12s %p %2.2X ",
 		       acpi_ut_get_type_name(type), this_node,
 		       this_node->owner_id);
@@ -509,7 +514,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		case ACPI_DESC_TYPE_OPERAND:
 
-			obj_type = ACPI_GET_OBJECT_TYPE(obj_desc);
+			obj_type = obj_desc->common.type;
 
 			if (obj_type > ACPI_TYPE_LOCAL_MAX) {
 				acpi_os_printf
@@ -539,9 +544,8 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			goto cleanup;
 		}
 
-		/*
-		 * Valid object, get the pointer to next level, if any
-		 */
+		/* Valid object, get the pointer to next level, if any */
+
 		switch (obj_type) {
 		case ACPI_TYPE_BUFFER:
 		case ACPI_TYPE_STRING:
@@ -602,14 +606,14 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
  *              display_type        - 0 or ACPI_DISPLAY_SUMMARY
  *              max_depth           - Maximum depth of dump. Use ACPI_UINT32_MAX
  *                                    for an effectively unlimited depth.
- *              owner_id            - Dump only objects owned by this ID.  Use
+ *              owner_id            - Dump only objects owned by this ID. Use
  *                                    ACPI_UINT32_MAX to match all owners.
  *              start_handle        - Where in namespace to start/end search
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump typed objects within the loaded namespace.
- *              Uses acpi_ns_walk_namespace in conjunction with acpi_ns_dump_one_object.
+ * DESCRIPTION: Dump typed objects within the loaded namespace. Uses
+ *              acpi_ns_walk_namespace in conjunction with acpi_ns_dump_one_object.
  *
  ******************************************************************************/
 

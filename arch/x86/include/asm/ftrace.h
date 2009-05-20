@@ -28,6 +28,13 @@
 
 #endif
 
+/* FIXME: I don't want to stay hardcoded */
+#ifdef CONFIG_X86_64
+# define FTRACE_SYSCALL_MAX     296
+#else
+# define FTRACE_SYSCALL_MAX     333
+#endif
+
 #ifdef CONFIG_FUNCTION_TRACER
 #define MCOUNT_ADDR		((long)(mcount))
 #define MCOUNT_INSN_SIZE	5 /* sizeof mcount call */

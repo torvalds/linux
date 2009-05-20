@@ -41,7 +41,7 @@
 
 MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("libfc");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 static int fc_fcp_debug;
 
@@ -407,10 +407,12 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 
 		if (~crc != le32_to_cpu(fr_crc(fp))) {
 crc_err:
-			stats = lp->dev_stats[smp_processor_id()];
+			stats = fc_lport_get_stats(lp);
 			stats->ErrorFrames++;
+			/* FIXME - per cpu count, not total count! */
 			if (stats->InvalidCRCCount++ < 5)
-				FC_DBG("CRC error on data frame\n");
+				printk(KERN_WARNING "CRC error on data frame for port (%6x)\n",
+				       fc_host_port_id(lp->host));
 			/*
 			 * Assume the frame is total garbage.
 			 * We may have copied it over the good part
@@ -711,7 +713,7 @@ done:
 static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 {
 	struct fc_fcp_pkt *fsp = (struct fc_fcp_pkt *)arg;
-	struct fc_lport *lp;
+	struct fc_lport *lport = fsp->lp;
 	struct fc_frame_header *fh;
 	struct fcp_txrdy *dd;
 	u8 r_ctl;
@@ -722,9 +724,8 @@ static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 
 	fh = fc_frame_header_get(fp);
 	r_ctl = fh->fh_r_ctl;
-	lp = fsp->lp;
 
-	if (!(lp->state & LPORT_ST_READY))
+	if (!(lport->state & LPORT_ST_READY))
 		goto out;
 	if (fc_fcp_lock_pkt(fsp))
 		goto out;
@@ -777,7 +778,7 @@ errout:
 	if (IS_ERR(fp))
 		fc_fcp_error(fsp, fp);
 	else if (rc == -ENOMEM)
-		fc_fcp_reduce_can_queue(lp);
+		fc_fcp_reduce_can_queue(lport);
 }
 
 static void fc_fcp_resp(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
@@ -1752,7 +1753,7 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 	/*
 	 * setup the data direction
 	 */
-	stats = lp->dev_stats[smp_processor_id()];
+	stats = fc_lport_get_stats(lp);
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		fsp->req_flags = FC_SRB_READ;
 		stats->InputRequests++;

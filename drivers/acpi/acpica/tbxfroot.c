@@ -75,8 +75,8 @@ static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
 	 * Note: Sometimes there exists more than one RSDP in memory; the valid
 	 * RSDP has a valid checksum, all others have an invalid checksum.
 	 */
-	if (ACPI_STRNCMP((char *)rsdp, ACPI_SIG_RSDP, sizeof(ACPI_SIG_RSDP) - 1)
-	    != 0) {
+	if (ACPI_STRNCMP((char *)rsdp, ACPI_SIG_RSDP,
+			 sizeof(ACPI_SIG_RSDP) - 1) != 0) {
 
 		/* Nope, BAD Signature */
 

@@ -36,7 +36,7 @@ source "drivers/leds/Kconfig"
 
 #This is just to shut up some Kconfig warnings, so no prompt.
 config INPUT
-	bool
+	tristate
 	default n
 
 source "arch/um/Kconfig.debug"

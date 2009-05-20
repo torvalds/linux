@@ -30,6 +30,7 @@
  * option) any later version.
  */
 
+#include <linux/init.h>
 #include <linux/threads.h>
 #include <asm/processor.h>
 #include <asm/page.h>
@@ -53,7 +54,7 @@
  *   r7 - End of kernel command line string
  *
  */
-	.section	.text.head, "ax"
+	__HEAD
 _ENTRY(_stext);
 _ENTRY(_start);
 	/*

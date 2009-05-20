@@ -520,8 +520,9 @@ int svc_rdma_post_recv(struct svcxprt_rdma *xprt)
 	svc_xprt_get(&xprt->sc_xprt);
 	ret = ib_post_recv(xprt->sc_qp, &recv_wr, &bad_recv_wr);
 	if (ret) {
-		svc_xprt_put(&xprt->sc_xprt);
+		svc_rdma_unmap_dma(ctxt);
 		svc_rdma_put_context(ctxt, 1);
+		svc_xprt_put(&xprt->sc_xprt);
 	}
 	return ret;
 

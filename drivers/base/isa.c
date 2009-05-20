@@ -141,7 +141,7 @@ int isa_register_driver(struct isa_driver *isa_driver, unsigned int ndev)
 		isa_dev->dev.release		= isa_dev_release;
 		isa_dev->id			= id;
 
-		isa_dev->dev.coherent_dma_mask = DMA_24BIT_MASK;
+		isa_dev->dev.coherent_dma_mask = DMA_BIT_MASK(24);
 		isa_dev->dev.dma_mask = &isa_dev->dev.coherent_dma_mask;
 
 		error = device_register(&isa_dev->dev);

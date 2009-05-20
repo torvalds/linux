@@ -221,22 +221,23 @@ static int ramfs_fill_super(struct super_block * sb, void * data, int silent)
 	save_mount_options(sb, data);
 
 	fsi = kzalloc(sizeof(struct ramfs_fs_info), GFP_KERNEL);
+	sb->s_fs_info = fsi;
 	if (!fsi) {
 		err = -ENOMEM;
 		goto fail;
 	}
-	sb->s_fs_info = fsi;
 
 	err = ramfs_parse_options(data, &fsi->mount_opts);
 	if (err)
 		goto fail;
 
-	sb->s_maxbytes = MAX_LFS_FILESIZE;
-	sb->s_blocksize = PAGE_CACHE_SIZE;
-	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
-	sb->s_magic = RAMFS_MAGIC;
-	sb->s_op = &ramfs_ops;
-	sb->s_time_gran = 1;
+	sb->s_maxbytes		= MAX_LFS_FILESIZE;
+	sb->s_blocksize		= PAGE_CACHE_SIZE;
+	sb->s_blocksize_bits	= PAGE_CACHE_SHIFT;
+	sb->s_magic		= RAMFS_MAGIC;
+	sb->s_op		= &ramfs_ops;
+	sb->s_time_gran		= 1;
+
 	inode = ramfs_get_inode(sb, S_IFDIR | fsi->mount_opts.mode, 0);
 	if (!inode) {
 		err = -ENOMEM;
@@ -244,14 +245,16 @@ static int ramfs_fill_super(struct super_block * sb, void * data, int silent)
 	}
 
 	root = d_alloc_root(inode);
+	sb->s_root = root;
 	if (!root) {
 		err = -ENOMEM;
 		goto fail;
 	}
-	sb->s_root = root;
+
 	return 0;
 fail:
 	kfree(fsi);
+	sb->s_fs_info = NULL;
 	iput(inode);
 	return err;
 }

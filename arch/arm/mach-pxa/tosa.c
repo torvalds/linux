@@ -45,6 +45,7 @@
 #include <mach/udc.h>
 #include <mach/tosa_bt.h>
 #include <mach/pxa2xx_spi.h>
+#include <mach/audio.h>
 
 #include <asm/mach/arch.h>
 #include <mach/tosa.h>
@@ -914,6 +915,7 @@ static void __init tosa_init(void)
 	pxa_set_udc_info(&udc_info);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
+	pxa_set_ac97_info(NULL);
 	platform_scoop_config = &tosa_pcmcia_config;
 
 	pxa2xx_set_spi_info(2, &pxa_ssp_master_info);

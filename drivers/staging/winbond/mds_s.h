@@ -9,6 +9,12 @@
 #include "mac_structures.h"
 #include "scan_s.h"
 
+/* Preamble_Type, see <SFS-802.11G-MIB-203> */
+enum {
+	WLAN_PREAMBLE_TYPE_SHORT,
+	WLAN_PREAMBLE_TYPE_LONG,
+};
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 #define MAX_USB_TX_DESCRIPTOR		15		// IS89C35 ability
 #define MAX_USB_TX_BUFFER_NUMBER	4		// Virtual pre-buffer number of MAX_USB_TX_BUFFER
@@ -17,26 +23,8 @@
 #define AUTH_REQUEST_PAIRWISE_ERROR			0		// _F flag setting
 #define AUTH_REQUEST_GROUP_ERROR			1		// _F flag setting
 
-// For variable setting
-#define CURRENT_BSS_TYPE				psBSS(psLOCAL->wConnectedSTAindex)->bBssType
-#define CURRENT_WEP_MODE				psSME->_dot11PrivacyInvoked
-#define CURRENT_BSSID					psBSS(psLOCAL->wConnectedSTAindex)->abBssID
-#define CURRENT_DESIRED_WPA_ENABLE		((psSME->bDesiredAuthMode==WPA_AUTH)||(psSME->bDesiredAuthMode==WPAPSK_AUTH))
-#ifdef _WPA2_
-#define CURRENT_DESIRED_WPA2_ENABLE		((psSME->bDesiredAuthMode==WPA2_AUTH)||(psSME->bDesiredAuthMode==WPA2PSK_AUTH))
-#endif //end def _WPA2_
-#define CURRENT_PAIRWISE_KEY_OK			psSME->pairwise_key_ok
-//[20040712 WS]
-#define CURRENT_GROUP_KEY_OK			psSME->group_key_ok
-#define CURRENT_PAIRWISE_KEY			psSME->tx_mic_key
-#define CURRENT_GROUP_KEY				psSME->group_tx_mic_key
-#define CURRENT_ENCRYPT_STATUS			psSME->encrypt_status
-#define CURRENT_WEP_ID					adapter->sSmePara._dot11WEPDefaultKeyID
-#define CURRENT_CONTROL_PORT_BLOCK		( psSME->wpa_ok!=1 || (adapter->Mds.boCounterMeasureBlock==1 && (CURRENT_ENCRYPT_STATUS==ENCRYPT_TKIP)) )
 #define CURRENT_FRAGMENT_THRESHOLD		(adapter->Mds.TxFragmentThreshold & ~0x1)
 #define CURRENT_PREAMBLE_MODE			psLOCAL->boShortPreamble?WLAN_PREAMBLE_TYPE_SHORT:WLAN_PREAMBLE_TYPE_LONG
-#define CURRENT_TX_RATE					adapter->sLocalPara.CurrentTxRate
-#define CURRENT_FALL_BACK_TX_RATE		adapter->sLocalPara.CurrentTxFallbackRate
 #define CURRENT_TX_RATE_FOR_MNG			adapter->sLocalPara.CurrentTxRateForMng
 #define CURRENT_PROTECT_MECHANISM		psLOCAL->boProtectMechanism
 #define CURRENT_RTS_THRESHOLD			adapter->Mds.TxRTSThreshold

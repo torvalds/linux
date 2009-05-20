@@ -134,11 +134,11 @@ static int vp27smpx_log_status(struct v4l2_subdev *sd)
 static const struct v4l2_subdev_core_ops vp27smpx_core_ops = {
 	.log_status = vp27smpx_log_status,
 	.g_chip_ident = vp27smpx_g_chip_ident,
+	.s_std = vp27smpx_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops vp27smpx_tuner_ops = {
 	.s_radio = vp27smpx_s_radio,
-	.s_std = vp27smpx_s_std,
 	.s_tuner = vp27smpx_s_tuner,
 	.g_tuner = vp27smpx_g_tuner,
 };

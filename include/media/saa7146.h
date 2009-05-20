@@ -18,7 +18,7 @@
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
 
-#define SAA7146_VERSION_CODE 0x000500	/* 0.5.0 */
+#define SAA7146_VERSION_CODE 0x000600	/* 0.6.0 */
 
 #define saa7146_write(sxy,adr,dat)    writel((dat),(sxy->mem+(adr)))
 #define saa7146_read(sxy,adr)         readl(sxy->mem+(adr))

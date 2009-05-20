@@ -193,7 +193,9 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 
 	mutex_lock(&cs->mutex);
 
-	if (!cs->open_count)
+	if (!cs->connected)
+		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+	else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		if (!--cs->open_count) {
@@ -228,7 +230,10 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
-	if (!cs->open_count)
+	if (!cs->connected) {
+		gig_dbg(DEBUG_IF, "not connected");
+		retval = -ENODEV;
+	} else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		retval = 0;
@@ -248,13 +253,6 @@ static int if_ioctl(struct tty_struct *tty, struct file *file,
 				retval = put_user(int_arg, (int __user *) arg);
 			break;
 		case GIGASET_BRKCHARS:
-			//FIXME test if MS_LOCKED
-			if (!cs->connected) {
-				gig_dbg(DEBUG_ANY,
-				    "can't communicate with unplugged device");
-				retval = -ENODEV;
-				break;
-			}
 			retval = copy_from_user(&buf,
 					(const unsigned char __user *) arg, 6)
 				? -EFAULT : 0;
@@ -331,7 +329,7 @@ static int if_tiocmset(struct tty_struct *tty, struct file *file,
 		return -ERESTARTSYS; // FIXME -EINTR?
 
 	if (!cs->connected) {
-		gig_dbg(DEBUG_ANY, "can't communicate with unplugged device");
+		gig_dbg(DEBUG_IF, "not connected");
 		retval = -ENODEV;
 	} else {
 		mc = (cs->control_state | set) & ~clear & (TIOCM_RTS|TIOCM_DTR);
@@ -360,14 +358,14 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
-	if (!cs->open_count)
+	if (!cs->connected) {
+		gig_dbg(DEBUG_IF, "not connected");
+		retval = -ENODEV;
+	} else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else if (cs->mstate != MS_LOCKED) {
 		dev_warn(cs->dev, "can't write to unlocked device\n");
 		retval = -EBUSY;
-	} else if (!cs->connected) {
-		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
-		retval = -EBUSY; //FIXME
 	} else {
 		retval = cs->ops->write_cmd(cs, buf, count,
 					    &cs->if_wake_tasklet);
@@ -394,14 +392,14 @@ static int if_write_room(struct tty_struct *tty)
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
-	if (!cs->open_count)
+	if (!cs->connected) {
+		gig_dbg(DEBUG_IF, "not connected");
+		retval = -ENODEV;
+	} else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else if (cs->mstate != MS_LOCKED) {
 		dev_warn(cs->dev, "can't write to unlocked device\n");
 		retval = -EBUSY;
-	} else if (!cs->connected) {
-		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
-		retval = -EBUSY; //FIXME
 	} else
 		retval = cs->ops->write_room(cs);
 
@@ -426,14 +424,14 @@ static int if_chars_in_buffer(struct tty_struct *tty)
 	if (mutex_lock_interruptible(&cs->mutex))
 		return -ERESTARTSYS; // FIXME -EINTR?
 
-	if (!cs->open_count)
+	if (!cs->connected) {
+		gig_dbg(DEBUG_IF, "not connected");
+		retval = -ENODEV;
+	} else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else if (cs->mstate != MS_LOCKED) {
 		dev_warn(cs->dev, "can't write to unlocked device\n");
 		retval = -EBUSY;
-	} else if (!cs->connected) {
-		gig_dbg(DEBUG_ANY, "can't write to unplugged device");
-		retval = -EBUSY; //FIXME
 	} else
 		retval = cs->ops->chars_in_buffer(cs);
 
@@ -456,7 +454,9 @@ static void if_throttle(struct tty_struct *tty)
 
 	mutex_lock(&cs->mutex);
 
-	if (!cs->open_count)
+	if (!cs->connected)
+		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+	else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		//FIXME
@@ -479,7 +479,9 @@ static void if_unthrottle(struct tty_struct *tty)
 
 	mutex_lock(&cs->mutex);
 
-	if (!cs->open_count)
+	if (!cs->connected)
+		gig_dbg(DEBUG_IF, "not connected");	/* nothing to do */
+	else if (!cs->open_count)
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 	else {
 		//FIXME
@@ -506,13 +508,13 @@ static void if_set_termios(struct tty_struct *tty, struct ktermios *old)
 
 	mutex_lock(&cs->mutex);
 
-	if (!cs->open_count) {
-		dev_warn(cs->dev, "%s: device not opened\n", __func__);
+	if (!cs->connected) {
+		gig_dbg(DEBUG_IF, "not connected");
 		goto out;
 	}
 
-	if (!cs->connected) {
-		gig_dbg(DEBUG_ANY, "can't communicate with unplugged device");
+	if (!cs->open_count) {
+		dev_warn(cs->dev, "%s: device not opened\n", __func__);
 		goto out;
 	}
 

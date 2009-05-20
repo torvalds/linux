@@ -1467,7 +1467,7 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 		goto err_pci_disable_2;
 	}
 
-	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (rc < 0) {
 		net_probe(tp, KERN_ERR "%s: DMA configuration failed.\n",
 			  pci_name(pdev));

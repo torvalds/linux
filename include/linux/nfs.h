@@ -109,7 +109,6 @@
 	NFSERR_FILE_OPEN = 10046,      /*       v4 */
 	NFSERR_ADMIN_REVOKED = 10047,  /*       v4 */
 	NFSERR_CB_PATH_DOWN = 10048,   /*       v4 */
-	NFSERR_REPLAY_ME = 10049	/*       v4 */
 };
 
 /* NFSv2 file types - beware, these are not the same in NFSv3 */

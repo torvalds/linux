@@ -495,7 +495,15 @@ _GLOBAL(giveup_altivec)
 	stvx	vr0,r4,r3
 	beq	1f
 	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
+#ifdef CONFIG_VSX
+BEGIN_FTR_SECTION
+	lis	r3,(MSR_VEC|MSR_VSX)@h
+FTR_SECTION_ELSE
 	lis	r3,MSR_VEC@h
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_VSX)
+#else
+	lis	r3,MSR_VEC@h
+#endif
 	andc	r4,r4,r3		/* disable FP for previous task */
 	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
 1:

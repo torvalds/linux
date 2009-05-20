@@ -348,11 +348,9 @@ static void mlx4_en_tx_timeout(struct net_device *dev)
 	if (netif_msg_timer(priv))
 		mlx4_warn(mdev, "Tx timeout called on port:%d\n", priv->port);
 
-	if (netif_carrier_ok(dev)) {
-		priv->port_stats.tx_timeout++;
-		mlx4_dbg(DRV, priv, "Scheduling watchdog\n");
-		queue_work(mdev->workqueue, &priv->watchdog_task);
-	}
+	priv->port_stats.tx_timeout++;
+	mlx4_dbg(DRV, priv, "Scheduling watchdog\n");
+	queue_work(mdev->workqueue, &priv->watchdog_task);
 }
 
 
@@ -585,7 +583,7 @@ int mlx4_en_start_port(struct net_device *dev)
 		err = mlx4_en_activate_cq(priv, cq);
 		if (err) {
 			mlx4_err(mdev, "Failed activating Rx CQ\n");
-			goto rx_err;
+			goto cq_err;
 		}
 		for (j = 0; j < cq->size; j++)
 			cq->buf[j].owner_sr_opcode = MLX4_CQE_OWNER_MASK;
@@ -761,9 +759,14 @@ static void mlx4_en_restart(struct work_struct *work)
 	struct net_device *dev = priv->dev;
 
 	mlx4_dbg(DRV, priv, "Watchdog task called for port %d\n", priv->port);
-	mlx4_en_stop_port(dev);
-	if (mlx4_en_start_port(dev))
-	    mlx4_err(mdev, "Failed restarting port %d\n", priv->port);
+
+	mutex_lock(&mdev->state_lock);
+	if (priv->port_up) {
+		mlx4_en_stop_port(dev);
+		if (mlx4_en_start_port(dev))
+			mlx4_err(mdev, "Failed restarting port %d\n", priv->port);
+	}
+	mutex_unlock(&mdev->state_lock);
 }
 
 
@@ -1054,7 +1057,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	 * Set driver features
 	 */
 	dev->features |= NETIF_F_SG;
-	dev->features |= NETIF_F_HW_CSUM;
+	dev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	dev->features |= NETIF_F_HIGHDMA;
 	dev->features |= NETIF_F_HW_VLAN_TX |
 			 NETIF_F_HW_VLAN_RX |

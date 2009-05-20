@@ -69,8 +69,8 @@ static int jive_hw_params(struct snd_pcm_substream *substream,
 		break;
 	}
 
-	s3c_i2sv2_calc_rate(&div, NULL, params_rate(params),
-			    s3c2412_get_iisclk());
+	s3c_i2sv2_iis_calc_rate(&div, NULL, params_rate(params),
+				s3c2412_get_iisclk());
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
@@ -145,8 +145,9 @@ static struct snd_soc_dai_link jive_dai = {
 };
 
 /* jive audio machine driver */
-static struct snd_soc_machine snd_soc_machine_jive = {
+static struct snd_soc_card snd_soc_machine_jive = {
 	.name		= "Jive",
+	.platform	= &s3c24xx_soc_platform,
 	.dai_link	= &jive_dai,
 	.num_links	= 1,
 };
@@ -157,9 +158,8 @@ static struct wm8750_setup_data jive_wm8750_setup = {
 
 /* jive audio subsystem */
 static struct snd_soc_device jive_snd_devdata = {
-	.machine	= &snd_soc_machine_jive,
-	.platform	= &s3c24xx_soc_platform,
-	.codec_dev	= &soc_codec_dev_wm8750_spi,
+	.card		= &snd_soc_machine_jive,
+	.codec_dev	= &soc_codec_dev_wm8750,
 	.codec_data	= &jive_wm8750_setup,
 };
 

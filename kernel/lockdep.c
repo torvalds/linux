@@ -42,6 +42,7 @@
 #include <linux/hash.h>
 #include <linux/ftrace.h>
 #include <linux/stringify.h>
+#include <trace/lockdep.h>
 
 #include <asm/sections.h>
 
@@ -792,6 +793,7 @@ register_lock_class(struct lockdep_map *lock, unsigned int subclass, int force)
 
 		printk("BUG: MAX_LOCKDEP_KEYS too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return NULL;
 	}
 	class = lock_classes + nr_lock_classes++;
@@ -855,6 +857,7 @@ static struct lock_list *alloc_list_entry(void)
 
 		printk("BUG: MAX_LOCKDEP_ENTRIES too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return NULL;
 	}
 	return list_entries + nr_list_entries++;
@@ -1681,6 +1684,7 @@ cache_hit:
 
 		printk("BUG: MAX_LOCKDEP_CHAINS too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return 0;
 	}
 	chain = lock_chains + nr_lock_chains++;
@@ -2486,12 +2490,19 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		      struct lock_class_key *key, int subclass)
 {
-	if (unlikely(!debug_locks))
+	lock->class_cache = NULL;
+#ifdef CONFIG_LOCK_STAT
+	lock->cpu = raw_smp_processor_id();
+#endif
+
+	if (DEBUG_LOCKS_WARN_ON(!name)) {
+		lock->name = "NULL";
 		return;
+	}
+
+	lock->name = name;
 
 	if (DEBUG_LOCKS_WARN_ON(!key))
-		return;
-	if (DEBUG_LOCKS_WARN_ON(!name))
 		return;
 	/*
 	 * Sanity check, the lock-class key must be persistent:
@@ -2501,12 +2512,11 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		DEBUG_LOCKS_WARN_ON(1);
 		return;
 	}
-	lock->name = name;
 	lock->key = key;
-	lock->class_cache = NULL;
-#ifdef CONFIG_LOCK_STAT
-	lock->cpu = raw_smp_processor_id();
-#endif
+
+	if (unlikely(!debug_locks))
+		return;
+
 	if (subclass)
 		register_lock_class(lock, subclass, 1);
 }
@@ -2540,6 +2550,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		debug_locks_off();
 		printk("BUG: MAX_LOCKDEP_SUBCLASSES too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return 0;
 	}
 
@@ -2636,6 +2647,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		debug_locks_off();
 		printk("BUG: MAX_LOCK_DEPTH too low!\n");
 		printk("turning off the locking correctness validator.\n");
+		dump_stack();
 		return 0;
 	}
 
@@ -2923,6 +2935,8 @@ void lock_set_class(struct lockdep_map *lock, const char *name,
 }
 EXPORT_SYMBOL_GPL(lock_set_class);
 
+DEFINE_TRACE(lock_acquire);
+
 /*
  * We are not always called with irqs disabled - do that here,
  * and also avoid lockdep recursion:
@@ -2932,6 +2946,8 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  struct lockdep_map *nest_lock, unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_acquire(lock, subclass, trylock, read, check, nest_lock, ip);
 
 	if (unlikely(current->lockdep_recursion))
 		return;
@@ -2947,10 +2963,14 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 }
 EXPORT_SYMBOL_GPL(lock_acquire);
 
+DEFINE_TRACE(lock_release);
+
 void lock_release(struct lockdep_map *lock, int nested,
 			  unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_release(lock, nested, ip);
 
 	if (unlikely(current->lockdep_recursion))
 		return;
@@ -3100,9 +3120,13 @@ found_it:
 	lock->ip = ip;
 }
 
+DEFINE_TRACE(lock_contended);
+
 void lock_contended(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_contended(lock, ip);
 
 	if (unlikely(!lock_stat))
 		return;
@@ -3119,9 +3143,13 @@ void lock_contended(struct lockdep_map *lock, unsigned long ip)
 }
 EXPORT_SYMBOL_GPL(lock_contended);
 
+DEFINE_TRACE(lock_acquired);
+
 void lock_acquired(struct lockdep_map *lock, unsigned long ip)
 {
 	unsigned long flags;
+
+	trace_lock_acquired(lock, ip);
 
 	if (unlikely(!lock_stat))
 		return;

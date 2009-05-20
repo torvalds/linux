@@ -272,11 +272,14 @@ static void disable_tracepoint(struct tracepoint *elem)
  *
  * Updates the probe callback corresponding to a range of tracepoints.
  */
-void tracepoint_update_probe_range(struct tracepoint *begin,
-	struct tracepoint *end)
+void
+tracepoint_update_probe_range(struct tracepoint *begin, struct tracepoint *end)
 {
 	struct tracepoint *iter;
 	struct tracepoint_entry *mark_entry;
+
+	if (!begin)
+		return;
 
 	mutex_lock(&tracepoints_mutex);
 	for (iter = begin; iter < end; iter++) {

@@ -631,6 +631,7 @@ int pci_iov_bus_range(struct pci_bus *bus)
 /**
  * pci_enable_sriov - enable the SR-IOV capability
  * @dev: the PCI device
+ * @nr_virtfn: number of virtual functions to enable
  *
  * Returns 0 on success, or negative on failure.
  */

@@ -734,20 +734,47 @@ void __init mem_init(void)
 const int rodata_test_data = 0xC3;
 EXPORT_SYMBOL_GPL(rodata_test_data);
 
+static int kernel_set_to_readonly;
+
+void set_kernel_text_rw(void)
+{
+	unsigned long start = PFN_ALIGN(_stext);
+	unsigned long end = PFN_ALIGN(__start_rodata);
+
+	if (!kernel_set_to_readonly)
+		return;
+
+	pr_debug("Set kernel text: %lx - %lx for read write\n",
+		 start, end);
+
+	set_memory_rw(start, (end - start) >> PAGE_SHIFT);
+}
+
+void set_kernel_text_ro(void)
+{
+	unsigned long start = PFN_ALIGN(_stext);
+	unsigned long end = PFN_ALIGN(__start_rodata);
+
+	if (!kernel_set_to_readonly)
+		return;
+
+	pr_debug("Set kernel text: %lx - %lx for read only\n",
+		 start, end);
+
+	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
+}
+
 void mark_rodata_ro(void)
 {
 	unsigned long start = PFN_ALIGN(_stext), end = PFN_ALIGN(__end_rodata);
 	unsigned long rodata_start =
 		((unsigned long)__start_rodata + PAGE_SIZE - 1) & PAGE_MASK;
 
-#ifdef CONFIG_DYNAMIC_FTRACE
-	/* Dynamic tracing modifies the kernel text section */
-	start = rodata_start;
-#endif
-
 	printk(KERN_INFO "Write protecting the kernel read-only data: %luk\n",
 	       (end - start) >> 10);
 	set_memory_ro(start, (end - start) >> PAGE_SHIFT);
+
+	kernel_set_to_readonly = 1;
 
 	/*
 	 * The rodata section (but not the kernel text!) should also be

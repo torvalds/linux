@@ -107,6 +107,9 @@ extern u32 native_safe_apic_wait_icr_idle(void);
 extern void native_apic_icr_write(u32 low, u32 id);
 extern u64 native_apic_icr_read(void);
 
+#define EIM_8BIT_APIC_ID	0
+#define EIM_32BIT_APIC_ID	1
+
 #ifdef CONFIG_X86_X2APIC
 /*
  * Make previous memory operations globally visible before

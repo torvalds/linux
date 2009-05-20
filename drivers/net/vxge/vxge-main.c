@@ -43,6 +43,7 @@
 
 #include <linux/if_vlan.h>
 #include <linux/pci.h>
+#include <linux/tcp.h>
 #include <net/ip.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

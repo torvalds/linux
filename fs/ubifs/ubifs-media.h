@@ -36,8 +36,30 @@
 /* UBIFS node magic number (must not have the padding byte first or last) */
 #define UBIFS_NODE_MAGIC  0x06101831
 
-/* UBIFS on-flash format version */
+/*
+ * UBIFS on-flash format version. This version is increased when the on-flash
+ * format is changing. If this happens, UBIFS is will support older versions as
+ * well. But older UBIFS code will not support newer formats. Format changes
+ * will be rare and only when absolutely necessary, e.g. to fix a bug or to add
+ * a new feature.
+ *
+ * UBIFS went into mainline kernel with format version 4. The older formats
+ * were development formats.
+ */
 #define UBIFS_FORMAT_VERSION 4
+
+/*
+ * Read-only compatibility version. If the UBIFS format is changed, older UBIFS
+ * implementations will not be able to mount newer formats in read-write mode.
+ * However, depending on the change, it may be possible to mount newer formats
+ * in R/O mode. This is indicated by the R/O compatibility version which is
+ * stored in the super-block.
+ *
+ * This is needed to support boot-loaders which only need R/O mounting. With
+ * this flag it is possible to do UBIFS format changes without a need to update
+ * boot-loaders.
+ */
+#define UBIFS_RO_COMPAT_VERSION 0
 
 /* Minimum logical eraseblock size in bytes */
 #define UBIFS_MIN_LEB_SZ (15*1024)
@@ -53,7 +75,7 @@
 
 /*
  * If compressed data length is less than %UBIFS_MIN_COMPRESS_DIFF bytes
- * shorter than uncompressed data length, UBIFS preferes to leave this data
+ * shorter than uncompressed data length, UBIFS prefers to leave this data
  * node uncompress, because it'll be read faster.
  */
 #define UBIFS_MIN_COMPRESS_DIFF 64
@@ -586,6 +608,7 @@ struct ubifs_pad_node {
  * @padding2: reserved for future, zeroes
  * @time_gran: time granularity in nanoseconds
  * @uuid: UUID generated when the file system image was created
+ * @ro_compat_version: UBIFS R/O compatibility version
  */
 struct ubifs_sb_node {
 	struct ubifs_ch ch;
@@ -612,7 +635,8 @@ struct ubifs_sb_node {
 	__le64 rp_size;
 	__le32 time_gran;
 	__u8 uuid[16];
-	__u8 padding2[3972];
+	__le32 ro_compat_version;
+	__u8 padding2[3968];
 } __attribute__ ((packed));
 
 /**

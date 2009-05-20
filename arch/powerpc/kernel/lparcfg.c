@@ -434,6 +434,21 @@ static void pseries_cmo_data(struct seq_file *m)
 	seq_printf(m, "cmo_page_size=%lu\n", cmo_get_page_size());
 }
 
+static void splpar_dispatch_data(struct seq_file *m)
+{
+	int cpu;
+	unsigned long dispatches = 0;
+	unsigned long dispatch_dispersions = 0;
+
+	for_each_possible_cpu(cpu) {
+		dispatches += lppaca[cpu].yield_count;
+		dispatch_dispersions += lppaca[cpu].dispersion_count;
+	}
+
+	seq_printf(m, "dispatches=%lu\n", dispatches);
+	seq_printf(m, "dispatch_dispersions=%lu\n", dispatch_dispersions);
+}
+
 static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
@@ -460,6 +475,7 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 		parse_ppp_data(m);
 		parse_mpp_data(m);
 		pseries_cmo_data(m);
+		splpar_dispatch_data(m);
 
 		seq_printf(m, "purr=%ld\n", get_purr());
 	} else {		/* non SPLPAR case */

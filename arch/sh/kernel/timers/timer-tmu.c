@@ -81,7 +81,7 @@ static int tmu_timer_stop(void)
  */
 static int tmus_are_scaled;
 
-static cycle_t tmu_timer_read(void)
+static cycle_t tmu_timer_read(struct clocksource *cs)
 {
 	return ((cycle_t)(~_tmu_read(TMU1)))<<tmus_are_scaled;
 }

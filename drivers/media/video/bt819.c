@@ -292,21 +292,22 @@ static int bt819_s_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	return 0;
 }
 
-static int bt819_s_routing(struct v4l2_subdev *sd, const struct v4l2_routing *route)
+static int bt819_s_routing(struct v4l2_subdev *sd,
+			   u32 input, u32 output, u32 config)
 {
 	struct bt819 *decoder = to_bt819(sd);
 
-	v4l2_dbg(1, debug, sd, "set input %x\n", route->input);
+	v4l2_dbg(1, debug, sd, "set input %x\n", input);
 
-	if (route->input < 0 || route->input > 7)
+	if (input < 0 || input > 7)
 		return -EINVAL;
 
 	if (sd->v4l2_dev == NULL || sd->v4l2_dev->notify == NULL)
 		v4l2_err(sd, "no notify found!\n");
 
-	if (decoder->input != route->input) {
+	if (decoder->input != input) {
 		v4l2_subdev_notify(sd, BT819_FIFO_RESET_LOW, 0);
-		decoder->input = route->input;
+		decoder->input = input;
 		/* select mode */
 		if (decoder->input == 0) {
 			bt819_setbit(decoder, 0x0b, 6, 0);
@@ -444,9 +445,6 @@ static const struct v4l2_subdev_core_ops bt819_core_ops = {
 	.g_ctrl = bt819_g_ctrl,
 	.s_ctrl = bt819_s_ctrl,
 	.queryctrl = bt819_queryctrl,
-};
-
-static const struct v4l2_subdev_tuner_ops bt819_tuner_ops = {
 	.s_std = bt819_s_std,
 };
 
@@ -459,7 +457,6 @@ static const struct v4l2_subdev_video_ops bt819_video_ops = {
 
 static const struct v4l2_subdev_ops bt819_ops = {
 	.core = &bt819_core_ops,
-	.tuner = &bt819_tuner_ops,
 	.video = &bt819_video_ops,
 };
 

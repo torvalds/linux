@@ -156,12 +156,12 @@ static int gpiomux_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 }
 
 static int gpiomux_s_audio_routing(struct v4l2_subdev *sd,
-				   const struct v4l2_routing *route)
+				   u32 input, u32 output, u32 config)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	u32 data;
 
-	switch (route->input) {
+	switch (input) {
 	case 0:
 		data = cx->card->gpio_audio_input.tuner;
 		break;
@@ -180,10 +180,10 @@ static int gpiomux_s_audio_routing(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_core_ops gpiomux_core_ops = {
 	.log_status = gpiomux_log_status,
+	.s_std = gpiomux_s_std,
 };
 
 static const struct v4l2_subdev_tuner_ops gpiomux_tuner_ops = {
-	.s_std = gpiomux_s_std,
 	.s_radio = gpiomux_s_radio,
 };
 

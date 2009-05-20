@@ -85,14 +85,8 @@
 #include "SharedBuff.h"
 #include "ShbIpc.h"
 
-// d.k. Linux kernel modules needs other header files for memcpy()
-#if (TARGET_SYSTEM == _LINUX_) && defined(__KERNEL__)
 #include <linux/string.h>
-#else
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#endif
+#include <linux/kernel.h>
 
 /***************************************************************************/
 /*                                                                         */
@@ -101,8 +95,6 @@
 /*                                                                         */
 /*                                                                         */
 /***************************************************************************/
-
-#if (!defined(SHAREDBUFF_INLINED)) || defined(INLINE_ENABLED)
 
 //---------------------------------------------------------------------------
 //  Configuration
@@ -177,7 +169,7 @@ typedef struct {
 //  Get pointer to Circular Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbCirBuff *ShbCirGetBuffer(tShbInstance pShbInstance_p)
+tShbCirBuff *ShbCirGetBuffer(tShbInstance pShbInstance_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -193,7 +185,7 @@ INLINE_FUNCTION tShbCirBuff *ShbCirGetBuffer(tShbInstance pShbInstance_p)
 //  Get pointer to Linear Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbLinBuff *ShbLinGetBuffer(tShbInstance pShbInstance_p)
+tShbLinBuff *ShbLinGetBuffer(tShbInstance pShbInstance_p)
 {
 
 	tShbLinBuff *pShbLinBuff;
@@ -210,7 +202,6 @@ int ShbCirSignalHandlerNewData(tShbInstance pShbInstance_p);
 void ShbCirSignalHandlerReset(tShbInstance pShbInstance_p,
 			      unsigned int fTimeOut_p);
 
-#endif
 
 //=========================================================================//
 //                                                                         //
@@ -218,7 +209,6 @@ void ShbCirSignalHandlerReset(tShbInstance pShbInstance_p,
 //                                                                         //
 //=========================================================================//
 
-#if !defined(INLINE_ENABLED)
 // not inlined external functions
 
 //---------------------------------------------------------------------------
@@ -363,18 +353,13 @@ tShbError ShbCirReleaseBuffer(tShbInstance pShbInstance_p)
 
 }
 
-#endif // !defined(INLINE_ENABLED)
-
-#if (!defined(SHAREDBUFF_INLINED)) || defined(INLINE_ENABLED)
-
 //---------------------------------------------------------------------------
 //  Reset Circular Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirResetBuffer(tShbInstance pShbInstance_p,
-					    unsigned long ulTimeOut_p,
-					    tShbCirSigHndlrReset
-					    pfnSignalHandlerReset_p)
+tShbError ShbCirResetBuffer(tShbInstance pShbInstance_p,
+			    unsigned long ulTimeOut_p,
+			    tShbCirSigHndlrReset pfnSignalHandlerReset_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -440,9 +425,9 @@ INLINE_FUNCTION tShbError ShbCirResetBuffer(tShbInstance pShbInstance_p,
 //  Write data block to Circular Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirWriteDataBlock(tShbInstance pShbInstance_p,
-					       const void *pSrcDataBlock_p,
-					       unsigned long ulDataBlockSize_p)
+tShbError ShbCirWriteDataBlock(tShbInstance pShbInstance_p,
+			       const void *pSrcDataBlock_p,
+			       unsigned long ulDataBlockSize_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -608,9 +593,9 @@ INLINE_FUNCTION tShbError ShbCirWriteDataBlock(tShbInstance pShbInstance_p,
 //  Allocate block within the Circular Shared Buffer for chunk writing
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirAllocDataBlock(tShbInstance pShbInstance_p,
-					       tShbCirChunk * pShbCirChunk_p,
-					       unsigned long ulDataBufferSize_p)
+tShbError ShbCirAllocDataBlock(tShbInstance pShbInstance_p,
+			       tShbCirChunk * pShbCirChunk_p,
+			       unsigned long ulDataBufferSize_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -717,12 +702,11 @@ INLINE_FUNCTION tShbError ShbCirAllocDataBlock(tShbInstance pShbInstance_p,
 //  Write data chunk into an allocated buffer of the Circular Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirWriteDataChunk(tShbInstance pShbInstance_p,
-					       tShbCirChunk * pShbCirChunk_p,
-					       const void *pSrcDataChunk_p,
-					       unsigned long ulDataChunkSize_p,
-					       unsigned int
-					       *pfBufferCompleted_p)
+tShbError ShbCirWriteDataChunk(tShbInstance pShbInstance_p,
+			       tShbCirChunk *pShbCirChunk_p,
+			       const void *pSrcDataChunk_p,
+			       unsigned long ulDataChunkSize_p,
+			       unsigned int *pfBufferCompleted_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -857,10 +841,10 @@ INLINE_FUNCTION tShbError ShbCirWriteDataChunk(tShbInstance pShbInstance_p,
 //  Read data block from Circular Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirReadDataBlock(tShbInstance pShbInstance_p,
-					      void *pDstDataBlock_p,
-					      unsigned long ulRdBuffSize_p,
-					      unsigned long *pulDataBlockSize_p)
+tShbError ShbCirReadDataBlock(tShbInstance pShbInstance_p,
+			      void *pDstDataBlock_p,
+			      unsigned long ulRdBuffSize_p,
+			      unsigned long *pulDataBlockSize_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -1009,9 +993,8 @@ INLINE_FUNCTION tShbError ShbCirReadDataBlock(tShbInstance pShbInstance_p,
 //  Get data size of next readable block from Circular Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirGetReadDataSize(tShbInstance pShbInstance_p,
-						unsigned long
-						*pulDataBlockSize_p)
+tShbError ShbCirGetReadDataSize(tShbInstance pShbInstance_p,
+				unsigned long *pulDataBlockSize_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -1070,9 +1053,8 @@ INLINE_FUNCTION tShbError ShbCirGetReadDataSize(tShbInstance pShbInstance_p,
 //  Get number of readable blocks from Circular Shared Buffer
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirGetReadBlockCount(tShbInstance pShbInstance_p,
-						  unsigned long
-						  *pulDataBlockCount_p)
+tShbError ShbCirGetReadBlockCount(tShbInstance pShbInstance_p,
+				  unsigned long *pulDataBlockCount_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -1113,12 +1095,9 @@ INLINE_FUNCTION tShbError ShbCirGetReadBlockCount(tShbInstance pShbInstance_p,
 //  d.k.: new parameter priority as enum
 //---------------------------------------------------------------------------
 
-INLINE_FUNCTION tShbError ShbCirSetSignalHandlerNewData(tShbInstance
-							pShbInstance_p,
-							tShbCirSigHndlrNewData
-							pfnSignalHandlerNewData_p,
-							tShbPriority
-							ShbPriority_p)
+tShbError ShbCirSetSignalHandlerNewData(tShbInstance pShbInstance_p,
+					tShbCirSigHndlrNewData pfnSignalHandlerNewData_p,
+					tShbPriority ShbPriority_p)
 {
 
 	tShbCirBuff *pShbCirBuff;
@@ -1164,10 +1143,6 @@ INLINE_FUNCTION tShbError ShbCirSetSignalHandlerNewData(tShbInstance
 	return (ShbError);
 
 }
-
-#endif
-
-#if !defined(INLINE_ENABLED)
 
 //---------------------------------------------------------------------------
 //  DEBUG: Trace Circular Shared Buffer
@@ -1413,18 +1388,13 @@ tShbError ShbLinReleaseBuffer(tShbInstance pShbInstance_p)
 
 }
 
-#endif // !defined(INLINE_ENABLED)
-
-#if (!defined(SHAREDBUFF_INLINED)) || defined(INLINE_ENABLED)
-
 //---------------------------------------------------------------------------
 //  Write data block to Linear Shared Buffer
 //---------------------------------------------------------------------------
-
-INLINE_FUNCTION tShbError ShbLinWriteDataBlock(tShbInstance pShbInstance_p,
-					       unsigned long ulDstBufferOffs_p,
-					       const void *pSrcDataBlock_p,
-					       unsigned long ulDataBlockSize_p)
+tShbError ShbLinWriteDataBlock(tShbInstance pShbInstance_p,
+			       unsigned long ulDstBufferOffs_p,
+			       const void *pSrcDataBlock_p,
+			       unsigned long ulDataBlockSize_p)
 {
 
 	tShbLinBuff *pShbLinBuff;
@@ -1489,11 +1459,10 @@ INLINE_FUNCTION tShbError ShbLinWriteDataBlock(tShbInstance pShbInstance_p,
 //---------------------------------------------------------------------------
 //  Read data block from Linear Shared Buffer
 //---------------------------------------------------------------------------
-
-INLINE_FUNCTION tShbError ShbLinReadDataBlock(tShbInstance pShbInstance_p,
-					      void *pDstDataBlock_p,
-					      unsigned long ulSrcBufferOffs_p,
-					      unsigned long ulDataBlockSize_p)
+tShbError ShbLinReadDataBlock(tShbInstance pShbInstance_p,
+			      void *pDstDataBlock_p,
+			      unsigned long ulSrcBufferOffs_p,
+			      unsigned long ulDataBlockSize_p)
 {
 
 	tShbLinBuff *pShbLinBuff;
@@ -1554,10 +1523,6 @@ INLINE_FUNCTION tShbError ShbLinReadDataBlock(tShbInstance pShbInstance_p,
 	return (ShbError);
 
 }
-
-#endif
-
-#if !defined(INLINE_ENABLED)
 
 //---------------------------------------------------------------------------
 //  DEBUG: Trace Linear Shared Buffer
@@ -1639,7 +1604,7 @@ tShbError ShbTraceDump(const unsigned char *pabStartAddr_p,
 	ulBuffSize = ulDataSize_p;
 
 	if (pszInfoText_p != NULL) {
-		TRACE0(pszInfoText_p);
+		TRACE1("%s", pszInfoText_p);
 	}
 	// dump buffer contents
 	for (nRow = 0;; nRow++) {
@@ -1793,7 +1758,5 @@ void ShbCirSignalHandlerReset(tShbInstance pShbInstance_p,
 	return;
 
 }
-
-#endif
 
 // EOF

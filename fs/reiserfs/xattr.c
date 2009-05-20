@@ -113,41 +113,30 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 
 #define xattr_may_create(flags)	(!flags || flags & XATTR_CREATE)
 
-/* Returns and possibly creates the xattr dir. */
-static struct dentry *lookup_or_create_dir(struct dentry *parent,
-					    const char *name, int flags)
-{
-	struct dentry *dentry;
-	BUG_ON(!parent);
-
-	dentry = lookup_one_len(name, parent, strlen(name));
-	if (IS_ERR(dentry))
-		return dentry;
-	else if (!dentry->d_inode) {
-		int err = -ENODATA;
-
-		if (xattr_may_create(flags)) {
-			mutex_lock_nested(&parent->d_inode->i_mutex,
-					  I_MUTEX_XATTR);
-			err = xattr_mkdir(parent->d_inode, dentry, 0700);
-			mutex_unlock(&parent->d_inode->i_mutex);
-		}
-
-		if (err) {
-			dput(dentry);
-			dentry = ERR_PTR(err);
-		}
-	}
-
-	return dentry;
-}
-
 static struct dentry *open_xa_root(struct super_block *sb, int flags)
 {
 	struct dentry *privroot = REISERFS_SB(sb)->priv_root;
-	if (!privroot)
+	struct dentry *xaroot;
+	if (!privroot->d_inode)
 		return ERR_PTR(-ENODATA);
-	return lookup_or_create_dir(privroot, XAROOT_NAME, flags);
+
+	mutex_lock_nested(&privroot->d_inode->i_mutex, I_MUTEX_XATTR);
+
+	xaroot = dget(REISERFS_SB(sb)->xattr_root);
+	if (!xaroot)
+		xaroot = ERR_PTR(-ENODATA);
+	else if (!xaroot->d_inode) {
+		int err = -ENODATA;
+		if (xattr_may_create(flags))
+			err = xattr_mkdir(privroot->d_inode, xaroot, 0700);
+		if (err) {
+			dput(xaroot);
+			xaroot = ERR_PTR(err);
+		}
+	}
+
+	mutex_unlock(&privroot->d_inode->i_mutex);
+	return xaroot;
 }
 
 static struct dentry *open_xa_dir(const struct inode *inode, int flags)
@@ -163,10 +152,22 @@ static struct dentry *open_xa_dir(const struct inode *inode, int flags)
 		 le32_to_cpu(INODE_PKEY(inode)->k_objectid),
 		 inode->i_generation);
 
-	xadir = lookup_or_create_dir(xaroot, namebuf, flags);
+	mutex_lock_nested(&xaroot->d_inode->i_mutex, I_MUTEX_XATTR);
+
+	xadir = lookup_one_len(namebuf, xaroot, strlen(namebuf));
+	if (!IS_ERR(xadir) && !xadir->d_inode) {
+		int err = -ENODATA;
+		if (xattr_may_create(flags))
+			err = xattr_mkdir(xaroot->d_inode, xadir, 0700);
+		if (err) {
+			dput(xadir);
+			xadir = ERR_PTR(err);
+		}
+	}
+
+	mutex_unlock(&xaroot->d_inode->i_mutex);
 	dput(xaroot);
 	return xadir;
-
 }
 
 /* The following are side effects of other operations that aren't explicitly
@@ -184,6 +185,7 @@ fill_with_dentries(void *buf, const char *name, int namelen, loff_t offset,
 {
 	struct reiserfs_dentry_buf *dbuf = buf;
 	struct dentry *dentry;
+	WARN_ON_ONCE(!mutex_is_locked(&dbuf->xadir->d_inode->i_mutex));
 
 	if (dbuf->count == ARRAY_SIZE(dbuf->dentries))
 		return -ENOSPC;
@@ -349,6 +351,7 @@ static struct dentry *xattr_lookup(struct inode *inode, const char *name,
 	if (IS_ERR(xadir))
 		return ERR_CAST(xadir);
 
+	mutex_lock_nested(&xadir->d_inode->i_mutex, I_MUTEX_XATTR);
 	xafile = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(xafile)) {
 		err = PTR_ERR(xafile);
@@ -360,18 +363,15 @@ static struct dentry *xattr_lookup(struct inode *inode, const char *name,
 
 	if (!xafile->d_inode) {
 		err = -ENODATA;
-		if (xattr_may_create(flags)) {
-			mutex_lock_nested(&xadir->d_inode->i_mutex,
-					  I_MUTEX_XATTR);
+		if (xattr_may_create(flags))
 			err = xattr_create(xadir->d_inode, xafile,
 					      0700|S_IFREG);
-			mutex_unlock(&xadir->d_inode->i_mutex);
-		}
 	}
 
 	if (err)
 		dput(xafile);
 out:
+	mutex_unlock(&xadir->d_inode->i_mutex);
 	dput(xadir);
 	if (err)
 		return ERR_PTR(err);
@@ -435,6 +435,7 @@ static int lookup_and_delete_xattr(struct inode *inode, const char *name)
 	if (IS_ERR(xadir))
 		return PTR_ERR(xadir);
 
+	mutex_lock_nested(&xadir->d_inode->i_mutex, I_MUTEX_XATTR);
 	dentry = lookup_one_len(name, xadir, strlen(name));
 	if (IS_ERR(dentry)) {
 		err = PTR_ERR(dentry);
@@ -442,14 +443,13 @@ static int lookup_and_delete_xattr(struct inode *inode, const char *name)
 	}
 
 	if (dentry->d_inode) {
-		mutex_lock_nested(&xadir->d_inode->i_mutex, I_MUTEX_XATTR);
 		err = xattr_unlink(xadir->d_inode, dentry);
-		mutex_unlock(&xadir->d_inode->i_mutex);
 		update_ctime(inode);
 	}
 
 	dput(dentry);
 out_dput:
+	mutex_unlock(&xadir->d_inode->i_mutex);
 	dput(xadir);
 	return err;
 }
@@ -687,20 +687,6 @@ out:
 	return err;
 }
 
-/* Actual operations that are exported to VFS-land */
-struct xattr_handler *reiserfs_xattr_handlers[] = {
-	&reiserfs_xattr_user_handler,
-	&reiserfs_xattr_trusted_handler,
-#ifdef CONFIG_REISERFS_FS_SECURITY
-	&reiserfs_xattr_security_handler,
-#endif
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
-	&reiserfs_posix_acl_access_handler,
-	&reiserfs_posix_acl_default_handler,
-#endif
-	NULL
-};
-
 /*
  * In order to implement different sets of xattr operations for each xattr
  * prefix with the generic xattr API, a filesystem should create a
@@ -843,7 +829,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 	if (!dentry->d_inode)
 		return -EINVAL;
 
-	if (!reiserfs_xattrs(dentry->d_sb) ||
+	if (!dentry->d_sb->s_xattr ||
 	    get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
 		return -EOPNOTSUPP;
 
@@ -885,41 +871,49 @@ static int reiserfs_check_acl(struct inode *inode, int mask)
 	return error;
 }
 
-int reiserfs_permission(struct inode *inode, int mask)
-{
-	/*
-	 * We don't do permission checks on the internal objects.
-	 * Permissions are determined by the "owning" object.
-	 */
-	if (IS_PRIVATE(inode))
-		return 0;
-	/*
-	 * Stat data v1 doesn't support ACLs.
-	 */
-	if (get_inode_sd_version(inode) == STAT_DATA_V1)
-		return generic_permission(inode, mask, NULL);
-	else
-		return generic_permission(inode, mask, reiserfs_check_acl);
-}
-
 static int create_privroot(struct dentry *dentry)
 {
 	int err;
 	struct inode *inode = dentry->d_parent->d_inode;
-	mutex_lock_nested(&inode->i_mutex, I_MUTEX_XATTR);
+	WARN_ON_ONCE(!mutex_is_locked(&inode->i_mutex));
+
 	err = xattr_mkdir(inode, dentry, 0700);
-	mutex_unlock(&inode->i_mutex);
-	if (err) {
-		dput(dentry);
-		dentry = NULL;
+	if (err || !dentry->d_inode) {
+		reiserfs_warning(dentry->d_sb, "jdm-20006",
+				 "xattrs/ACLs enabled and couldn't "
+				 "find/create .reiserfs_priv. "
+				 "Failing mount.");
+		return -EOPNOTSUPP;
 	}
 
-	if (dentry && dentry->d_inode)
-		reiserfs_info(dentry->d_sb, "Created %s - reserved for xattr "
-			      "storage.\n", PRIVROOT_NAME);
+	dentry->d_inode->i_flags |= S_PRIVATE;
+	reiserfs_info(dentry->d_sb, "Created %s - reserved for xattr "
+		      "storage.\n", PRIVROOT_NAME);
 
-	return err;
+	return 0;
 }
+
+#else
+int __init reiserfs_xattr_register_handlers(void) { return 0; }
+void reiserfs_xattr_unregister_handlers(void) {}
+static int create_privroot(struct dentry *dentry) { return 0; }
+#endif
+
+/* Actual operations that are exported to VFS-land */
+struct xattr_handler *reiserfs_xattr_handlers[] = {
+#ifdef CONFIG_REISERFS_FS_XATTR
+	&reiserfs_xattr_user_handler,
+	&reiserfs_xattr_trusted_handler,
+#endif
+#ifdef CONFIG_REISERFS_FS_SECURITY
+	&reiserfs_xattr_security_handler,
+#endif
+#ifdef CONFIG_REISERFS_FS_POSIX_ACL
+	&reiserfs_posix_acl_access_handler,
+	&reiserfs_posix_acl_default_handler,
+#endif
+	NULL
+};
 
 static int xattr_mount_check(struct super_block *s)
 {
@@ -940,21 +934,33 @@ static int xattr_mount_check(struct super_block *s)
 	return 0;
 }
 
-#else
-int __init reiserfs_xattr_register_handlers(void) { return 0; }
-void reiserfs_xattr_unregister_handlers(void) {}
+int reiserfs_permission(struct inode *inode, int mask)
+{
+	/*
+	 * We don't do permission checks on the internal objects.
+	 * Permissions are determined by the "owning" object.
+	 */
+	if (IS_PRIVATE(inode))
+		return 0;
+
+#ifdef CONFIG_REISERFS_FS_XATTR
+	/*
+	 * Stat data v1 doesn't support ACLs.
+	 */
+	if (get_inode_sd_version(inode) != STAT_DATA_V1)
+		return generic_permission(inode, mask, reiserfs_check_acl);
 #endif
+	return generic_permission(inode, mask, NULL);
+}
 
 /* This will catch lookups from the fs root to .reiserfs_priv */
 static int
 xattr_lookup_poison(struct dentry *dentry, struct qstr *q1, struct qstr *name)
 {
 	struct dentry *priv_root = REISERFS_SB(dentry->d_sb)->priv_root;
-	if (name->len == priv_root->d_name.len &&
-	    name->hash == priv_root->d_name.hash &&
-	    !memcmp(name->name, priv_root->d_name.name, name->len)) {
+	if (container_of(q1, struct dentry, d_name) == priv_root)
 		return -ENOENT;
-	} else if (q1->len == name->len &&
+	if (q1->len == name->len &&
 		   !memcmp(q1->name, name->name, name->len))
 		return 0;
 	return 1;
@@ -964,73 +970,71 @@ static const struct dentry_operations xattr_lookup_poison_ops = {
 	.d_compare = xattr_lookup_poison,
 };
 
+int reiserfs_lookup_privroot(struct super_block *s)
+{
+	struct dentry *dentry;
+	int err = 0;
+
+	/* If we don't have the privroot located yet - go find it */
+	mutex_lock(&s->s_root->d_inode->i_mutex);
+	dentry = lookup_one_len(PRIVROOT_NAME, s->s_root,
+				strlen(PRIVROOT_NAME));
+	if (!IS_ERR(dentry)) {
+		REISERFS_SB(s)->priv_root = dentry;
+		s->s_root->d_op = &xattr_lookup_poison_ops;
+		if (dentry->d_inode)
+			dentry->d_inode->i_flags |= S_PRIVATE;
+	} else
+		err = PTR_ERR(dentry);
+	mutex_unlock(&s->s_root->d_inode->i_mutex);
+
+	return err;
+}
+
 /* We need to take a copy of the mount flags since things like
  * MS_RDONLY don't get set until *after* we're called.
  * mount_flags != mount_options */
 int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 {
 	int err = 0;
+	struct dentry *privroot = REISERFS_SB(s)->priv_root;
 
-#ifdef CONFIG_REISERFS_FS_XATTR
 	err = xattr_mount_check(s);
 	if (err)
 		goto error;
-#endif
 
-	/* If we don't have the privroot located yet - go find it */
-	if (!REISERFS_SB(s)->priv_root) {
-		struct dentry *dentry;
-		dentry = lookup_one_len(PRIVROOT_NAME, s->s_root,
-					strlen(PRIVROOT_NAME));
-		if (!IS_ERR(dentry)) {
-#ifdef CONFIG_REISERFS_FS_XATTR
-			if (!(mount_flags & MS_RDONLY) && !dentry->d_inode)
-				err = create_privroot(dentry);
-#endif
-			if (!dentry->d_inode) {
-				dput(dentry);
-				dentry = NULL;
-			}
-		} else
-			err = PTR_ERR(dentry);
-
-		if (!err && dentry) {
-			s->s_root->d_op = &xattr_lookup_poison_ops;
-			dentry->d_inode->i_flags |= S_PRIVATE;
-			REISERFS_SB(s)->priv_root = dentry;
-#ifdef CONFIG_REISERFS_FS_XATTR
-		/* xattrs are unavailable */
-		} else if (!(mount_flags & MS_RDONLY)) {
-			/* If we're read-only it just means that the dir
-			 * hasn't been created. Not an error -- just no
-			 * xattrs on the fs. We'll check again if we
-			 * go read-write */
-			reiserfs_warning(s, "jdm-20006",
-					 "xattrs/ACLs enabled and couldn't "
-					 "find/create .reiserfs_priv. "
-					 "Failing mount.");
-			err = -EOPNOTSUPP;
-#endif
-		}
+	if (!privroot->d_inode && !(mount_flags & MS_RDONLY)) {
+		mutex_lock(&s->s_root->d_inode->i_mutex);
+		err = create_privroot(REISERFS_SB(s)->priv_root);
+		mutex_unlock(&s->s_root->d_inode->i_mutex);
 	}
 
-#ifdef CONFIG_REISERFS_FS_XATTR
-	if (!err)
+	if (privroot->d_inode) {
 		s->s_xattr = reiserfs_xattr_handlers;
+		mutex_lock(&privroot->d_inode->i_mutex);
+		if (!REISERFS_SB(s)->xattr_root) {
+			struct dentry *dentry;
+			dentry = lookup_one_len(XAROOT_NAME, privroot,
+						strlen(XAROOT_NAME));
+			if (!IS_ERR(dentry))
+				REISERFS_SB(s)->xattr_root = dentry;
+			else
+				err = PTR_ERR(dentry);
+		}
+		mutex_unlock(&privroot->d_inode->i_mutex);
+	}
 
 error:
 	if (err) {
 		clear_bit(REISERFS_XATTRS_USER, &(REISERFS_SB(s)->s_mount_opt));
 		clear_bit(REISERFS_POSIXACL, &(REISERFS_SB(s)->s_mount_opt));
 	}
-#endif
 
 	/* The super_block MS_POSIXACL must mirror the (no)acl mount option. */
-	s->s_flags = s->s_flags & ~MS_POSIXACL;
-#ifdef CONFIG_REISERFS_FS_POSIX_ACL
 	if (reiserfs_posixacl(s))
 		s->s_flags |= MS_POSIXACL;
-#endif
+	else
+		s->s_flags &= ~MS_POSIXACL;
 
 	return err;
 }

@@ -326,11 +326,14 @@ ext4_ext_max_entries(struct inode *inode, int depth)
 
 static int ext4_valid_extent(struct inode *inode, struct ext4_extent *ext)
 {
-	ext4_fsblk_t block = ext_pblock(ext);
+	ext4_fsblk_t block = ext_pblock(ext), valid_block;
 	int len = ext4_ext_get_actual_len(ext);
 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
-	if (unlikely(block < le32_to_cpu(es->s_first_data_block) ||
-			((block + len) > ext4_blocks_count(es))))
+
+	valid_block = le32_to_cpu(es->s_first_data_block) +
+		EXT4_SB(inode->i_sb)->s_gdb_count;
+	if (unlikely(block <= valid_block ||
+		     ((block + len) > ext4_blocks_count(es))))
 		return 0;
 	else
 		return 1;
@@ -339,10 +342,13 @@ static int ext4_valid_extent(struct inode *inode, struct ext4_extent *ext)
 static int ext4_valid_extent_idx(struct inode *inode,
 				struct ext4_extent_idx *ext_idx)
 {
-	ext4_fsblk_t block = idx_pblock(ext_idx);
+	ext4_fsblk_t block = idx_pblock(ext_idx), valid_block;
 	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
-	if (unlikely(block < le32_to_cpu(es->s_first_data_block) ||
-			(block > ext4_blocks_count(es))))
+
+	valid_block = le32_to_cpu(es->s_first_data_block) +
+		EXT4_SB(inode->i_sb)->s_gdb_count;
+	if (unlikely(block <= valid_block ||
+		     (block >= ext4_blocks_count(es))))
 		return 0;
 	else
 		return 1;
@@ -1835,11 +1841,13 @@ ext4_ext_put_in_cache(struct inode *inode, ext4_lblk_t block,
 {
 	struct ext4_ext_cache *cex;
 	BUG_ON(len == 0);
+	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 	cex = &EXT4_I(inode)->i_cached_extent;
 	cex->ec_type = type;
 	cex->ec_block = block;
 	cex->ec_len = len;
 	cex->ec_start = start;
+	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 }
 
 /*
@@ -1896,12 +1904,17 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 			struct ext4_extent *ex)
 {
 	struct ext4_ext_cache *cex;
+	int ret = EXT4_EXT_CACHE_NO;
 
+	/* 
+	 * We borrow i_block_reservation_lock to protect i_cached_extent
+	 */
+	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 	cex = &EXT4_I(inode)->i_cached_extent;
 
 	/* has cache valid data? */
 	if (cex->ec_type == EXT4_EXT_CACHE_NO)
-		return EXT4_EXT_CACHE_NO;
+		goto errout;
 
 	BUG_ON(cex->ec_type != EXT4_EXT_CACHE_GAP &&
 			cex->ec_type != EXT4_EXT_CACHE_EXTENT);
@@ -1912,11 +1925,11 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 		ext_debug("%u cached by %u:%u:%llu\n",
 				block,
 				cex->ec_block, cex->ec_len, cex->ec_start);
-		return cex->ec_type;
+		ret = cex->ec_type;
 	}
-
-	/* not in cache */
-	return EXT4_EXT_CACHE_NO;
+errout:
+	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+	return ret;
 }
 
 /*
@@ -2416,8 +2429,6 @@ static int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
 			len = ee_len;
 
 		bio = bio_alloc(GFP_NOIO, len);
-		if (!bio)
-			return -ENOMEM;
 		bio->bi_sector = ee_pblock;
 		bio->bi_bdev   = inode->i_sb->s_bdev;
 
@@ -2871,6 +2882,8 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 				if (allocated > max_blocks)
 					allocated = max_blocks;
 				set_buffer_unwritten(bh_result);
+				bh_result->b_bdev = inode->i_sb->s_bdev;
+				bh_result->b_blocknr = newblock;
 				goto out2;
 			}
 

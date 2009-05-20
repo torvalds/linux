@@ -1,6 +1,9 @@
 #ifndef _TDFX_H
 #define _TDFX_H
 
+#include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
+
 /* membase0 register offsets */
 #define STATUS		0x00
 #define PCIINIT0	0x04
@@ -123,6 +126,18 @@
 #define VIDCFG_PIXFMT_SHIFT             18
 #define DACMODE_2X			BIT(0)
 
+/* I2C bit locations in the VIDSERPARPORT register */
+#define DDC_ENAB	0x00040000
+#define DDC_SCL_OUT	0x00080000
+#define DDC_SDA_OUT	0x00100000
+#define DDC_SCL_IN	0x00200000
+#define DDC_SDA_IN	0x00400000
+#define I2C_ENAB	0x00800000
+#define I2C_SCL_OUT	0x01000000
+#define I2C_SDA_OUT	0x02000000
+#define I2C_SCL_IN	0x04000000
+#define I2C_SDA_IN	0x08000000
+
 /* VGA rubbish, need to change this for multihead support */
 #define MISC_W		0x3c2
 #define MISC_R		0x3cc
@@ -168,12 +183,23 @@ struct banshee_reg {
 	unsigned long miscinit0;
 };
 
+struct tdfx_par;
+
+struct tdfxfb_i2c_chan {
+	struct tdfx_par *par;
+	struct i2c_adapter adapter;
+	struct i2c_algo_bit_data algo;
+};
+
 struct tdfx_par {
 	u32 max_pixclock;
 	u32 palette[16];
 	void __iomem *regbase_virt;
 	unsigned long iobase;
 	int mtrr_handle;
+#ifdef CONFIG_FB_3DFX_I2C
+	struct tdfxfb_i2c_chan chan[2];
+#endif
 };
 
 #endif	/* __KERNEL__ */

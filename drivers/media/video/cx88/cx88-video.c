@@ -428,10 +428,8 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 		   routes for different inputs. HVR-1300 surely does */
 		if (core->board.audio_chip &&
 		    core->board.audio_chip == V4L2_IDENT_WM8775) {
-			struct v4l2_routing route;
-
-			route.input = INPUT(input).audioroute;
-			call_all(core, audio, s_routing, &route);
+			call_all(core, audio, s_routing,
+					INPUT(input).audioroute, 0, 0);
 		}
 		/* cx2388's C-ADC is connected to the tuner only.
 		   When used with S-Video, that ADC is busy dealing with
@@ -823,10 +821,8 @@ static int video_open(struct file *file)
 		if (core->board.radio.audioroute) {
 			if(core->board.audio_chip &&
 				core->board.audio_chip == V4L2_IDENT_WM8775) {
-				struct v4l2_routing route;
-
-				route.input = core->board.radio.audioroute;
-				call_all(core, audio, s_routing, &route);
+				call_all(core, audio, s_routing,
+					core->board.radio.audioroute, 0, 0);
 			}
 			/* "I2S ADC mode" */
 			core->tvaudio = WW_I2SADC;
@@ -931,7 +927,7 @@ static int video_release(struct file *file)
 	kfree(fh);
 
 	if(atomic_dec_and_test(&dev->core->users))
-		call_all(dev->core, core, s_standby, 0);
+		call_all(dev->core, tuner, s_standby);
 
 	return 0;
 }
@@ -1836,7 +1832,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
 
 	pci_set_master(pci_dev);
-	if (!pci_dma_supported(pci_dev,DMA_32BIT_MASK)) {
+	if (!pci_dma_supported(pci_dev,DMA_BIT_MASK(32))) {
 		printk("%s/0: Oops: no 32bit PCI DMA ???\n",core->name);
 		err = -EIO;
 		goto fail_core;
@@ -1882,18 +1878,15 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* load and configure helper modules */
 
 	if (core->board.audio_chip == V4L2_IDENT_WM8775)
-		v4l2_i2c_new_subdev(&core->i2c_adap,
+		v4l2_i2c_new_subdev(&core->v4l2_dev, &core->i2c_adap,
 				"wm8775", "wm8775", 0x36 >> 1);
 
 	if (core->board.audio_chip == V4L2_IDENT_TVAUDIO) {
 		/* This probes for a tda9874 as is used on some
 		   Pixelview Ultra boards. */
-		static const unsigned short i2c_addr[] = {
-			0xb0 >> 1, I2C_CLIENT_END
-		};
-
-		v4l2_i2c_new_probed_subdev(&core->i2c_adap,
-				"tvaudio", "tvaudio", i2c_addr);
+		v4l2_i2c_new_probed_subdev_addr(&core->v4l2_dev,
+				&core->i2c_adap,
+				"tvaudio", "tvaudio", 0xb0 >> 1);
 	}
 
 	switch (core->boardnr) {

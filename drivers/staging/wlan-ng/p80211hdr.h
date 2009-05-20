@@ -63,43 +63,23 @@
 /*================================================================*/
 /* System Includes */
 
+#include <linux/if_ether.h>
+
 /*================================================================*/
 /* Project Includes */
 
-#ifndef  _WLAN_COMPAT_H
-#include "wlan_compat.h"
-#endif
 
 
 /*================================================================*/
 /* Constants */
 
 /*--- Sizes -----------------------------------------------*/
-#define WLAN_ADDR_LEN			6
 #define WLAN_CRC_LEN			4
 #define WLAN_BSSID_LEN			6
-#define WLAN_BSS_TS_LEN			8
 #define WLAN_HDR_A3_LEN			24
 #define WLAN_HDR_A4_LEN			30
 #define WLAN_SSID_MAXLEN		32
 #define WLAN_DATA_MAXLEN		2312
-#define WLAN_A3FR_MAXLEN		(WLAN_HDR_A3_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN)
-#define WLAN_A4FR_MAXLEN		(WLAN_HDR_A4_LEN + WLAN_DATA_MAXLEN + WLAN_CRC_LEN)
-#define WLAN_BEACON_FR_MAXLEN		(WLAN_HDR_A3_LEN + 334)
-#define WLAN_ATIM_FR_MAXLEN		(WLAN_HDR_A3_LEN + 0)
-#define WLAN_DISASSOC_FR_MAXLEN		(WLAN_HDR_A3_LEN + 2)
-#define WLAN_ASSOCREQ_FR_MAXLEN		(WLAN_HDR_A3_LEN + 48)
-#define WLAN_ASSOCRESP_FR_MAXLEN	(WLAN_HDR_A3_LEN + 16)
-#define WLAN_REASSOCREQ_FR_MAXLEN	(WLAN_HDR_A3_LEN + 54)
-#define WLAN_REASSOCRESP_FR_MAXLEN	(WLAN_HDR_A3_LEN + 16)
-#define WLAN_PROBEREQ_FR_MAXLEN		(WLAN_HDR_A3_LEN + 44)
-#define WLAN_PROBERESP_FR_MAXLEN	(WLAN_HDR_A3_LEN + 78)
-#define WLAN_AUTHEN_FR_MAXLEN		(WLAN_HDR_A3_LEN + 261)
-#define WLAN_DEAUTHEN_FR_MAXLEN		(WLAN_HDR_A3_LEN + 2)
-#define WLAN_WEP_NKEYS			4
-#define WLAN_WEP_MAXKEYLEN		13
-#define WLAN_CHALLENGE_IE_LEN		130
-#define WLAN_CHALLENGE_LEN		128
 #define WLAN_WEP_IV_LEN			4
 #define WLAN_WEP_ICV_LEN		4
 
@@ -143,7 +123,6 @@
 #define WLAN_FSTYPE_CFPOLL		0x06
 #define WLAN_FSTYPE_CFACK_CFPOLL	0x07
 
-
 /*================================================================*/
 /* Macros */
 
@@ -166,97 +145,51 @@
 /*                        SET_FC_FSTYPE(WLAN_FSTYPE_RTS) );   */
 /*------------------------------------------------------------*/
 
-#define WLAN_GET_FC_PVER(n)	 (((u16)(n)) & (BIT0 | BIT1))
-#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT2 | BIT3)) >> 2)
-#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & (BIT4|BIT5|BIT6|BIT7)) >> 4)
-#define WLAN_GET_FC_TODS(n) 	((((u16)(n)) & (BIT8)) >> 8)
-#define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT9)) >> 9)
-#define WLAN_GET_FC_MOREFRAG(n) ((((u16)(n)) & (BIT10)) >> 10)
-#define WLAN_GET_FC_RETRY(n)	((((u16)(n)) & (BIT11)) >> 11)
-#define WLAN_GET_FC_PWRMGT(n)	((((u16)(n)) & (BIT12)) >> 12)
-#define WLAN_GET_FC_MOREDATA(n) ((((u16)(n)) & (BIT13)) >> 13)
-#define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT14)) >> 14)
-#define WLAN_GET_FC_ORDER(n)	((((u16)(n)) & (BIT15)) >> 15)
+#define WLAN_GET_FC_FTYPE(n)	((((u16)(n)) & (BIT(2) | BIT(3))) >> 2)
+#define WLAN_GET_FC_FSTYPE(n)	((((u16)(n)) & (BIT(4)|BIT(5)|BIT(6)|BIT(7))) >> 4)
+#define WLAN_GET_FC_TODS(n) 	((((u16)(n)) & (BIT(8))) >> 8)
+#define WLAN_GET_FC_FROMDS(n)	((((u16)(n)) & (BIT(9))) >> 9)
+#define WLAN_GET_FC_ISWEP(n)	((((u16)(n)) & (BIT(14))) >> 14)
 
-#define WLAN_SET_FC_PVER(n)	((u16)(n))
 #define WLAN_SET_FC_FTYPE(n)	(((u16)(n)) << 2)
 #define WLAN_SET_FC_FSTYPE(n)	(((u16)(n)) << 4)
 #define WLAN_SET_FC_TODS(n) 	(((u16)(n)) << 8)
 #define WLAN_SET_FC_FROMDS(n)	(((u16)(n)) << 9)
-#define WLAN_SET_FC_MOREFRAG(n) (((u16)(n)) << 10)
-#define WLAN_SET_FC_RETRY(n)	(((u16)(n)) << 11)
-#define WLAN_SET_FC_PWRMGT(n)	(((u16)(n)) << 12)
-#define WLAN_SET_FC_MOREDATA(n) (((u16)(n)) << 13)
 #define WLAN_SET_FC_ISWEP(n)	(((u16)(n)) << 14)
-#define WLAN_SET_FC_ORDER(n)	(((u16)(n)) << 15)
 
-/*--- Duration Macros ----------------------------------------*/
-/* Macros to get/set the bitfields of the Duration Field      */
-/*  - the duration value is only valid when bit15 is zero     */
-/*  - the firmware handles these values, so I'm not going     */
-/*    these macros right now.                                 */
-/*------------------------------------------------------------*/
-
-/*--- Sequence Control  Macros -------------------------------*/
-/* Macros to get/set the bitfields of the Sequence Control    */
-/* Field.                                                     */
-/*------------------------------------------------------------*/
-#define WLAN_GET_SEQ_FRGNUM(n) (((u16)(n)) & (BIT0|BIT1|BIT2|BIT3))
-#define WLAN_GET_SEQ_SEQNUM(n) ((((u16)(n)) & (~(BIT0|BIT1|BIT2|BIT3))) >> 4)
-
-/*--- Data ptr macro -----------------------------------------*/
-/* Creates a u8* to the data portion of a frame            */
-/* Assumes you're passing in a ptr to the beginning of the hdr*/
-/*------------------------------------------------------------*/
-#define WLAN_HDR_A3_DATAP(p) (((u8*)(p)) + WLAN_HDR_A3_LEN)
-#define WLAN_HDR_A4_DATAP(p) (((u8*)(p)) + WLAN_HDR_A4_LEN)
-
-#define DOT11_RATE5_ISBASIC_GET(r)     (((u8)(r)) & BIT7)
+#define DOT11_RATE5_ISBASIC_GET(r)     (((u8)(r)) & BIT(7))
 
 /*================================================================*/
 /* Types */
 
-/* BSS Timestamp */
-typedef u8 wlan_bss_ts_t[WLAN_BSS_TS_LEN];
-
 /* Generic 802.11 Header types */
 
-typedef struct p80211_hdr_a3
-{
-	u16	fc;
-	u16	dur;
-	u8	a1[WLAN_ADDR_LEN];
-	u8	a2[WLAN_ADDR_LEN];
-	u8	a3[WLAN_ADDR_LEN];
-	u16	seq;
-} __WLAN_ATTRIB_PACK__ p80211_hdr_a3_t;
+typedef struct p80211_hdr_a3 {
+	u16 fc;
+	u16 dur;
+	u8 a1[ETH_ALEN];
+	u8 a2[ETH_ALEN];
+	u8 a3[ETH_ALEN];
+	u16 seq;
+} __attribute__ ((packed)) p80211_hdr_a3_t;
 
-typedef struct p80211_hdr_a4
-{
-	u16	fc;
-	u16	dur;
-	u8	a1[WLAN_ADDR_LEN];
-	u8	a2[WLAN_ADDR_LEN];
-	u8	a3[WLAN_ADDR_LEN];
-	u16	seq;
-	u8	a4[WLAN_ADDR_LEN];
-} __WLAN_ATTRIB_PACK__ p80211_hdr_a4_t;
+typedef struct p80211_hdr_a4 {
+	u16 fc;
+	u16 dur;
+	u8 a1[ETH_ALEN];
+	u8 a2[ETH_ALEN];
+	u8 a3[ETH_ALEN];
+	u16 seq;
+	u8 a4[ETH_ALEN];
+} __attribute__ ((packed)) p80211_hdr_a4_t;
 
-typedef union p80211_hdr
-{
-	p80211_hdr_a3_t		a3;
-	p80211_hdr_a4_t		a4;
-} __WLAN_ATTRIB_PACK__ p80211_hdr_t;
+typedef union p80211_hdr {
+	p80211_hdr_a3_t a3;
+	p80211_hdr_a4_t a4;
+} __attribute__ ((packed)) p80211_hdr_t;
 
 
-/*================================================================*/
-/* Extern Declarations */
-
-
-/*================================================================*/
-/* Function Declarations */
-
-/* Frame and header lenght macros */
+/* Frame and header length macros */
 
 #define WLAN_CTL_FRAMELEN(fstype) (\
 	(fstype) == WLAN_FSTYPE_BLOCKACKREQ	? 24 : \
@@ -271,23 +204,22 @@ typedef union p80211_hdr
 #define WLAN_FCS_LEN			4
 
 /* ftcl in HOST order */
-inline static u16 p80211_headerlen(u16 fctl)
+static inline u16 p80211_headerlen(u16 fctl)
 {
 	u16 hdrlen = 0;
 
-	switch ( WLAN_GET_FC_FTYPE(fctl) ) {
+	switch (WLAN_GET_FC_FTYPE(fctl)) {
 	case WLAN_FTYPE_MGMT:
 		hdrlen = WLAN_HDR_A3_LEN;
 		break;
 	case WLAN_FTYPE_DATA:
 		hdrlen = WLAN_HDR_A3_LEN;
-		if ( WLAN_GET_FC_TODS(fctl) && WLAN_GET_FC_FROMDS(fctl) ) {
-			hdrlen += WLAN_ADDR_LEN;
-		}
+		if (WLAN_GET_FC_TODS(fctl) && WLAN_GET_FC_FROMDS(fctl))
+			hdrlen += ETH_ALEN;
 		break;
 	case WLAN_FTYPE_CTL:
 		hdrlen = WLAN_CTL_FRAMELEN(WLAN_GET_FC_FSTYPE(fctl)) -
-			WLAN_FCS_LEN;
+		    WLAN_FCS_LEN;
 		break;
 	default:
 		hdrlen = WLAN_HDR_A3_LEN;

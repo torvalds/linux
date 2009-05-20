@@ -41,18 +41,10 @@
 #include <linux/mutex.h>
 #include <linux/version.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/poll.h>
-
-#include "surface_sysfs.h"
-
-/* make this work on older kernel versions */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 19)
-#include "frontier_compat.h"
-#endif /* older kernel versions */
 
 #include "alphatrack.h"
 
@@ -62,19 +54,18 @@
 #ifdef CONFIG_USB_DYNAMIC_MINORS
 #define USB_ALPHATRACK_MINOR_BASE	0
 #else
-// FIXME 176 - is another driver's minor - apply for that
-// #define USB_ALPHATRACK_MINOR_BASE	177
+/* FIXME 176 - is another driver's minor - apply for that */
 #define USB_ALPHATRACK_MINOR_BASE	176
 #endif
 
 /* table of devices that work with this driver */
-static struct usb_device_id usb_alphatrack_table [] = {
-	{ USB_DEVICE(VENDOR_ID, PRODUCT_ID) },
-	{ }					/* Terminating entry */
+static struct usb_device_id usb_alphatrack_table[] = {
+	{USB_DEVICE(VENDOR_ID, PRODUCT_ID)},
+	{}			/* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(usb, usb_alphatrack_table);
-MODULE_VERSION("0.40");
+MODULE_VERSION("0.41");
 MODULE_AUTHOR("Mike Taht <m@taht.net>");
 MODULE_DESCRIPTION("Alphatrack USB Driver");
 MODULE_LICENSE("GPL");
@@ -93,17 +84,17 @@ MODULE_SUPPORTED_DEVICE("Frontier Designs Alphatrack Control Surface");
 #define ALPHATRACK_USB_TIMEOUT 10
 #define OUTPUT_CMD_SIZE 8
 #define INPUT_CMD_SIZE 12
+#define ALPHATRACK_DEBUG 0
 
-
-static int debug = 0;
+static int debug = ALPHATRACK_DEBUG;
 
 /* Use our own dbg macro */
-#define dbg_info(dev, format, arg...) do { if (debug) dev_info(dev , format , ## arg); } while (0)
+#define dbg_info(dev, format, arg...) do \
+    { if (debug) dev_info(dev , format , ## arg); } while (0)
 
 #define alphatrack_ocmd_info(dev, cmd, format, arg...)
 
 #define alphatrack_icmd_info(dev, cmd, format, arg...)
-
 
 /* Module parameters */
 
@@ -116,14 +107,14 @@ MODULE_PARM_DESC(debug, "Debug enabled or not");
 
 static int ring_buffer_size = RING_BUFFER_SIZE;
 
-module_param(ring_buffer_size, int,  S_IRUGO);
+module_param(ring_buffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_buffer_size, "Read ring buffer size");
 
 /* The write_buffer can one day contain more than one interrupt out transfer.
  */
 
 static int write_buffer_size = WRITE_BUFFER_SIZE;
-module_param(write_buffer_size, int,  S_IRUGO);
+module_param(write_buffer_size, int, S_IRUGO);
 MODULE_PARM_DESC(write_buffer_size, "Write buffer size");
 
 /*
@@ -133,55 +124,56 @@ MODULE_PARM_DESC(write_buffer_size, "Write buffer size");
 
 static int min_interrupt_in_interval = ALPHATRACK_USB_TIMEOUT;
 module_param(min_interrupt_in_interval, int, 0);
-MODULE_PARM_DESC(min_interrupt_in_interval, "Minimum interrupt in interval in ms");
+MODULE_PARM_DESC(min_interrupt_in_interval,
+		 "Minimum interrupt in interval in ms");
 
 static int min_interrupt_out_interval = ALPHATRACK_USB_TIMEOUT;
 module_param(min_interrupt_out_interval, int, 0);
-MODULE_PARM_DESC(min_interrupt_out_interval, "Minimum interrupt out interval in ms");
-
-
+MODULE_PARM_DESC(min_interrupt_out_interval,
+		 "Minimum interrupt out interval in ms");
 
 /* Structure to hold all of our device specific stuff */
 
 struct usb_alphatrack {
-	struct semaphore	sem;		/* locks this structure */
-	struct usb_interface*	intf;		/* save off the usb interface pointer */
-	int			open_count;	/* number of times this port has been opened */
+	struct semaphore sem;	/* locks this structure */
+	struct usb_interface *intf;	/* save off the usb interface pointer */
+	int open_count;		/* number of times this port has been opened */
 
-	struct alphatrack_icmd	(*ring_buffer)[RING_BUFFER_SIZE]; /* just make c happy */
-	struct alphatrack_ocmd	(*write_buffer)[WRITE_BUFFER_SIZE]; /* just make c happy */
-	unsigned int		ring_head;
-	unsigned int		ring_tail;
+	/* make gcc happy */
+	struct alphatrack_icmd (*ring_buffer)[RING_BUFFER_SIZE];
+	struct alphatrack_ocmd (*write_buffer)[WRITE_BUFFER_SIZE];
+	unsigned int ring_head;
+	unsigned int ring_tail;
 
-	wait_queue_head_t	read_wait;
-	wait_queue_head_t	write_wait;
+	wait_queue_head_t read_wait;
+	wait_queue_head_t write_wait;
 
-	unsigned char*		interrupt_in_buffer;
-	unsigned char*		oldi_buffer;
-	struct usb_endpoint_descriptor* interrupt_in_endpoint;
-	struct urb*		interrupt_in_urb;
-	int			interrupt_in_interval;
-	size_t			interrupt_in_endpoint_size;
-	int			interrupt_in_running;
-	int			interrupt_in_done;
+	unsigned char *interrupt_in_buffer;
+	unsigned char *oldi_buffer;
+	struct usb_endpoint_descriptor *interrupt_in_endpoint;
+	struct urb *interrupt_in_urb;
+	int interrupt_in_interval;
+	size_t interrupt_in_endpoint_size;
+	int interrupt_in_running;
+	int interrupt_in_done;
 
-	char*			interrupt_out_buffer;
-	struct usb_endpoint_descriptor* interrupt_out_endpoint;
-	struct urb*		interrupt_out_urb;
-	int			interrupt_out_interval;
-	size_t			interrupt_out_endpoint_size;
-	int			interrupt_out_busy;
+	char *interrupt_out_buffer;
+	struct usb_endpoint_descriptor *interrupt_out_endpoint;
+	struct urb *interrupt_out_urb;
+	int interrupt_out_interval;
+	size_t interrupt_out_endpoint_size;
+	int interrupt_out_busy;
 
 	atomic_t writes_pending;
-	int event; /* alternate interface to events */
-	int fader; /* 10 bits */
-	int lights; /* 23 bits */
-	unsigned char dump_state; /* 0 if disabled 1 if enabled */
-	unsigned char enable; /* 0 if disabled 1 if enabled */
-	unsigned char offline; /* if the device is out of range or asleep */
-	unsigned char verbose; /* be verbose in error reporting */
-	unsigned char  last_cmd[OUTPUT_CMD_SIZE];
-	unsigned char  screen[32];
+	int event;		/* alternate interface to events */
+	int fader;		/* 10 bits */
+	int lights;		/* 23 bits */
+	unsigned char dump_state;	/* 0 if disabled 1 if enabled */
+	unsigned char enable;	/* 0 if disabled 1 if enabled */
+	unsigned char offline;	/* if the device is out of range or asleep */
+	unsigned char verbose;	/* be verbose in error reporting */
+	unsigned char last_cmd[OUTPUT_CMD_SIZE];
+	unsigned char screen[32];
 };
 
 /* prevent races between open() and disconnect() */
@@ -219,7 +211,7 @@ static void usb_alphatrack_delete(struct usb_alphatrack *dev)
 	kfree(dev->ring_buffer);
 	kfree(dev->interrupt_in_buffer);
 	kfree(dev->interrupt_out_buffer);
-	kfree(dev); // fixme oldi_buffer
+	kfree(dev);		/* fixme oldi_buffer */
 }
 
 /**
@@ -234,39 +226,52 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 
 	if (urb->status) {
 		if (urb->status == -ENOENT ||
-		    urb->status == -ECONNRESET ||
-		    urb->status == -ESHUTDOWN) {
+		    urb->status == -ECONNRESET || urb->status == -ESHUTDOWN) {
 			goto exit;
 		} else {
-			dbg_info(&dev->intf->dev, "%s: nonzero status received: %d\n",
-				 __func__, urb->status);
-			goto resubmit; /* maybe we can recover */
+			dbg_info(&dev->intf->dev,
+				 "%s: nonzero status received: %d\n", __func__,
+				 urb->status);
+			goto resubmit;	/* maybe we can recover */
 		}
 	}
 
 	if (urb->actual_length != INPUT_CMD_SIZE) {
 		dev_warn(&dev->intf->dev,
-			 "Urb length was %d bytes!! Do something intelligent \n", urb->actual_length);
+			 "Urb length was %d bytes!!"
+			 "Do something intelligent \n", urb->actual_length);
 	} else {
-		 alphatrack_ocmd_info(&dev->intf->dev,&(*dev->ring_buffer)[dev->ring_tail].cmd,"%s", "bla");
-		 if(memcmp(dev->interrupt_in_buffer,dev->oldi_buffer,INPUT_CMD_SIZE)==0) {
-						goto resubmit;
+		alphatrack_ocmd_info(&dev->intf->dev,
+				     &(*dev->ring_buffer)[dev->ring_tail].cmd,
+				     "%s", "bla");
+		if (memcmp
+		    (dev->interrupt_in_buffer, dev->oldi_buffer,
+		     INPUT_CMD_SIZE) == 0) {
+			goto resubmit;
 		}
-		memcpy(dev->oldi_buffer,dev->interrupt_in_buffer,INPUT_CMD_SIZE);
+		memcpy(dev->oldi_buffer, dev->interrupt_in_buffer,
+		       INPUT_CMD_SIZE);
 
 #if SUPPRESS_EXTRA_OFFLINE_EVENTS
-	if(dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff) { goto resubmit; }
-		if(dev->offline == 1 && dev->interrupt_in_buffer[1] == 0xff) { dev->offline = 2; goto resubmit; }
+		if (dev->offline == 2 && dev->interrupt_in_buffer[1] == 0xff)
+			goto resubmit;
+		if (dev->offline == 1 && dev->interrupt_in_buffer[1] == 0xff) {
+			dev->offline = 2;
+			goto resubmit;
+		}
 /* Always pass one offline event up the stack */
-		if(dev->offline > 0 && dev->interrupt_in_buffer[1] != 0xff) { dev->offline = 0; }
-		if(dev->offline == 0 && dev->interrupt_in_buffer[1] == 0xff) { dev->offline = 1; }
+		if (dev->offline > 0 && dev->interrupt_in_buffer[1] != 0xff)
+			dev->offline = 0;
+		if (dev->offline == 0 && dev->interrupt_in_buffer[1] == 0xff)
+			dev->offline = 1;
 #endif
-		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
-		next_ring_head = (dev->ring_head+1) % ring_buffer_size;
+		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
+			 __func__, dev->ring_head, dev->ring_tail);
+		next_ring_head = (dev->ring_head + 1) % ring_buffer_size;
 
 		if (next_ring_head != dev->ring_tail) {
 			memcpy(&((*dev->ring_buffer)[dev->ring_head]),
-						 dev->interrupt_in_buffer, urb->actual_length);
+			       dev->interrupt_in_buffer, urb->actual_length);
 			dev->ring_head = next_ring_head;
 			retval = 0;
 			memset(dev->interrupt_in_buffer, 0, urb->actual_length);
@@ -330,7 +335,7 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 
 	if (!interface) {
 		err("%s - error, can't find device for minor %d\n",
-		     __func__, subminor);
+		    __func__, subminor);
 		retval = -ENODEV;
 		goto unlock_disconnect_exit;
 	}
@@ -361,11 +366,11 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 	usb_fill_int_urb(dev->interrupt_in_urb,
 			 interface_to_usbdev(interface),
 			 usb_rcvintpipe(interface_to_usbdev(interface),
-					dev->interrupt_in_endpoint->bEndpointAddress),
+					dev->interrupt_in_endpoint->
+					bEndpointAddress),
 			 dev->interrupt_in_buffer,
 			 dev->interrupt_in_endpoint_size,
-			 usb_alphatrack_interrupt_in_callback,
-			 dev,
+			 usb_alphatrack_interrupt_in_callback, dev,
 			 dev->interrupt_in_interval);
 
 	dev->interrupt_in_running = 1;
@@ -375,7 +380,8 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 
 	retval = usb_submit_urb(dev->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
-		dev_err(&interface->dev, "Couldn't submit interrupt_in_urb %d\n", retval);
+		dev_err(&interface->dev,
+			"Couldn't submit interrupt_in_urb %d\n", retval);
 		dev->interrupt_in_running = 0;
 		dev->open_count = 0;
 		goto unlock_exit;
@@ -383,7 +389,6 @@ static int usb_alphatrack_open(struct inode *inode, struct file *file)
 
 	/* save device in the file's private structure */
 	file->private_data = dev;
-
 
 unlock_exit:
 	up(&dev->sem);
@@ -430,7 +435,9 @@ static int usb_alphatrack_release(struct inode *inode, struct file *file)
 
 	/* wait until write transfer is finished */
 	if (dev->interrupt_out_busy)
-		wait_event_interruptible_timeout(dev->write_wait, !dev->interrupt_out_busy, 2 * HZ);
+		wait_event_interruptible_timeout(dev->write_wait,
+						 !dev->interrupt_out_busy,
+						 2 * HZ);
 	usb_alphatrack_abort_transfers(dev);
 	dev->open_count = 0;
 
@@ -444,7 +451,7 @@ exit:
 /**
  *	usb_alphatrack_poll
  */
-static unsigned int usb_alphatrack_poll(struct file *file, poll_table *wait)
+static unsigned int usb_alphatrack_poll(struct file *file, poll_table * wait)
 {
 	struct usb_alphatrack *dev;
 	unsigned int mask = 0;
@@ -465,8 +472,8 @@ static unsigned int usb_alphatrack_poll(struct file *file, poll_table *wait)
 /**
  *	usb_alphatrack_read
  */
-static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer, size_t count,
-			   loff_t *ppos)
+static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer,
+				   size_t count, loff_t *ppos)
 {
 	struct usb_alphatrack *dev;
 	int retval = 0;
@@ -493,30 +500,36 @@ static ssize_t usb_alphatrack_read(struct file *file, char __user *buffer, size_
 	}
 
 	while (dev->ring_head == dev->ring_tail) {
-					if (file->f_flags & O_NONBLOCK) {
-									retval = -EAGAIN;
-									goto unlock_exit;
-					}
-					dev->interrupt_in_done = 0 ;
-					retval = wait_event_interruptible(dev->read_wait, dev->interrupt_in_done);
-					if (retval < 0) {
-									goto unlock_exit;
-					}
+		if (file->f_flags & O_NONBLOCK) {
+			retval = -EAGAIN;
+			goto unlock_exit;
+		}
+		dev->interrupt_in_done = 0;
+		retval =
+		    wait_event_interruptible(dev->read_wait,
+					     dev->interrupt_in_done);
+		if (retval < 0)
+			goto unlock_exit;
 	}
 
-	alphatrack_ocmd_info(&dev->intf->dev, &(*dev->ring_buffer)[dev->ring_tail].cmd, "%s", ": copying to userspace");
+	alphatrack_ocmd_info(&dev->intf->dev,
+			     &(*dev->ring_buffer)[dev->ring_tail].cmd, "%s",
+			     ": copying to userspace");
 
-	   c = 0;
-	   while((c < count) && (dev->ring_tail != dev->ring_head)) {
-						 if (copy_to_user(&buffer[c], &(*dev->ring_buffer)[dev->ring_tail], INPUT_CMD_SIZE)) {
-										 retval = -EFAULT;
-										 goto unlock_exit;
-						 }
-						 dev->ring_tail = (dev->ring_tail+1) % ring_buffer_size;
-						 c+=INPUT_CMD_SIZE;
-						 dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n", __func__,dev->ring_head,dev->ring_tail);
-	   }
-	   retval = c;
+	c = 0;
+	while ((c < count) && (dev->ring_tail != dev->ring_head)) {
+		if (copy_to_user
+		    (&buffer[c], &(*dev->ring_buffer)[dev->ring_tail],
+		     INPUT_CMD_SIZE)) {
+			retval = -EFAULT;
+			goto unlock_exit;
+		}
+		dev->ring_tail = (dev->ring_tail + 1) % ring_buffer_size;
+		c += INPUT_CMD_SIZE;
+		dbg_info(&dev->intf->dev, "%s: head, tail are %x, %x\n",
+			 __func__, dev->ring_head, dev->ring_tail);
+	}
+	retval = c;
 
 unlock_exit:
 	/* unlock the device */
@@ -529,8 +542,9 @@ exit:
 /**
  *	usb_alphatrack_write
  */
-static ssize_t usb_alphatrack_write(struct file *file, const char __user *buffer,
-			    size_t count, loff_t *ppos)
+static ssize_t usb_alphatrack_write(struct file *file,
+				    const char __user *buffer, size_t count,
+				    loff_t *ppos)
 {
 	struct usb_alphatrack *dev;
 	size_t bytes_to_write;
@@ -561,19 +575,24 @@ static ssize_t usb_alphatrack_write(struct file *file, const char __user *buffer
 			retval = -EAGAIN;
 			goto unlock_exit;
 		}
-		retval = wait_event_interruptible(dev->write_wait, !dev->interrupt_out_busy);
-		if (retval < 0) {
+		retval =
+		    wait_event_interruptible(dev->write_wait,
+					     !dev->interrupt_out_busy);
+		if (retval < 0)
 			goto unlock_exit;
-		}
 	}
 
 	/* write the data into interrupt_out_buffer from userspace */
-  /* FIXME - if you write more than 12 bytes this breaks */
-	bytes_to_write = min(count, write_buffer_size*dev->interrupt_out_endpoint_size);
+	/* FIXME - if you write more than 12 bytes this breaks */
+	bytes_to_write =
+	    min(count, write_buffer_size * dev->interrupt_out_endpoint_size);
 	if (bytes_to_write < count)
-		dev_warn(&dev->intf->dev, "Write buffer overflow, %zd bytes dropped\n",count-bytes_to_write);
+		dev_warn(&dev->intf->dev,
+			 "Write buffer overflow, %zd bytes dropped\n",
+			 count - bytes_to_write);
 
-	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n", __func__, count, bytes_to_write);
+	dbg_info(&dev->intf->dev, "%s: count = %zd, bytes_to_write = %zd\n",
+		 __func__, count, bytes_to_write);
 
 	if (copy_from_user(dev->interrupt_out_buffer, buffer, bytes_to_write)) {
 		retval = -EFAULT;
@@ -589,11 +608,10 @@ static ssize_t usb_alphatrack_write(struct file *file, const char __user *buffer
 	usb_fill_int_urb(dev->interrupt_out_urb,
 			 interface_to_usbdev(dev->intf),
 			 usb_sndintpipe(interface_to_usbdev(dev->intf),
-					dev->interrupt_out_endpoint->bEndpointAddress),
-			 dev->interrupt_out_buffer,
-			 bytes_to_write,
-			 usb_alphatrack_interrupt_out_callback,
-			 dev,
+					dev->interrupt_out_endpoint->
+					bEndpointAddress),
+			 dev->interrupt_out_buffer, bytes_to_write,
+			 usb_alphatrack_interrupt_out_callback, dev,
 			 dev->interrupt_out_interval);
 	dev->interrupt_out_busy = 1;
 	atomic_inc(&dev->writes_pending);
@@ -618,12 +636,12 @@ exit:
 
 /* file operations needed when we register this driver */
 static const struct file_operations usb_alphatrack_fops = {
-	.owner =	THIS_MODULE,
-	.read  =	usb_alphatrack_read,
-	.write =	usb_alphatrack_write,
-	.open =		usb_alphatrack_open,
-	.release =	usb_alphatrack_release,
-	.poll =		usb_alphatrack_poll,
+	.owner = THIS_MODULE,
+	.read = usb_alphatrack_read,
+	.write = usb_alphatrack_write,
+	.open = usb_alphatrack_open,
+	.release = usb_alphatrack_release,
+	.poll = usb_alphatrack_poll,
 };
 
 /*
@@ -632,11 +650,10 @@ static const struct file_operations usb_alphatrack_fops = {
  */
 
 static struct usb_class_driver usb_alphatrack_class = {
-	.name =		"alphatrack%d",
-	.fops =		&usb_alphatrack_fops,
-	.minor_base =	USB_ALPHATRACK_MINOR_BASE,
+	.name = "alphatrack%d",
+	.fops = &usb_alphatrack_fops,
+	.minor_base = USB_ALPHATRACK_MINOR_BASE,
 };
-
 
 /**
  *	usb_alphatrack_probe
@@ -644,7 +661,8 @@ static struct usb_class_driver usb_alphatrack_class = {
  *	Called by the usb core when a new device is connected that it thinks
  *	this driver might be interested in.
  */
-static int usb_alphatrack_probe(struct usb_interface *intf, const struct usb_device_id *id)
+static int usb_alphatrack_probe(struct usb_interface *intf,
+				const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usb_alphatrack *dev = NULL;
@@ -683,28 +701,35 @@ static int usb_alphatrack_probe(struct usb_interface *intf, const struct usb_dev
 		goto error;
 	}
 	if (dev->interrupt_out_endpoint == NULL)
-		dev_warn(&intf->dev, "Interrupt out endpoint not found (using control endpoint instead)\n");
+		dev_warn(&intf->dev,
+			 "Interrupt out endpoint not found"
+			 "(using control endpoint instead)\n");
 
-	dev->interrupt_in_endpoint_size = le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
+	dev->interrupt_in_endpoint_size =
+	    le16_to_cpu(dev->interrupt_in_endpoint->wMaxPacketSize);
 
 	if (dev->interrupt_in_endpoint_size != 64)
-	    dev_warn(&intf->dev, "Interrupt in endpoint size is not 64!\n");
+		dev_warn(&intf->dev, "Interrupt in endpoint size is not 64!\n");
 
-	if(ring_buffer_size == 0) { ring_buffer_size = RING_BUFFER_SIZE; }
+	if (ring_buffer_size == 0)
+		ring_buffer_size = RING_BUFFER_SIZE;
 
-	true_size = min(ring_buffer_size,RING_BUFFER_SIZE);
+	true_size = min(ring_buffer_size, RING_BUFFER_SIZE);
 
-	/* FIXME - there are more usb_alloc routines for dma correctness. Needed? */
-
-//	dev->ring_buffer = kmalloc((true_size*sizeof(struct alphatrack_icmd))+12, GFP_KERNEL);
-	dev->ring_buffer = kmalloc((true_size*sizeof(struct alphatrack_icmd)), GFP_KERNEL);
+	/* FIXME - there are more usb_alloc routines for dma correctness.
+	   Needed? */
+	dev->ring_buffer =
+	    kmalloc((true_size * sizeof(struct alphatrack_icmd)), GFP_KERNEL);
 
 	if (!dev->ring_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate input ring_buffer of size %d\n",true_size);
+		dev_err(&intf->dev,
+			"Couldn't allocate input ring_buffer of size %d\n",
+			true_size);
 		goto error;
 	}
 
-	dev->interrupt_in_buffer = kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
+	dev->interrupt_in_buffer =
+	    kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
 
 	if (!dev->interrupt_in_buffer) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_buffer\n");
@@ -721,23 +746,30 @@ static int usb_alphatrack_probe(struct usb_interface *intf, const struct usb_dev
 		goto error;
 	}
 
-	dev->interrupt_out_endpoint_size = dev->interrupt_out_endpoint ? le16_to_cpu(dev->interrupt_out_endpoint->wMaxPacketSize) :
-									 udev->descriptor.bMaxPacketSize0;
+	dev->interrupt_out_endpoint_size =
+	    dev->interrupt_out_endpoint ? le16_to_cpu(dev->
+						      interrupt_out_endpoint->
+						      wMaxPacketSize) : udev->
+	    descriptor.bMaxPacketSize0;
 
-	if (dev->interrupt_out_endpoint_size !=64)
-		dev_warn(&intf->dev, "Interrupt out endpoint size is not 64!)\n");
+	if (dev->interrupt_out_endpoint_size != 64)
+		dev_warn(&intf->dev,
+			 "Interrupt out endpoint size is not 64!)\n");
 
-	if(write_buffer_size == 0) { write_buffer_size = WRITE_BUFFER_SIZE; }
-	true_size = min(write_buffer_size,WRITE_BUFFER_SIZE);
+	if (write_buffer_size == 0)
+		write_buffer_size = WRITE_BUFFER_SIZE;
+	true_size = min(write_buffer_size, WRITE_BUFFER_SIZE);
 
-	dev->interrupt_out_buffer = kmalloc(true_size*dev->interrupt_out_endpoint_size, GFP_KERNEL);
+	dev->interrupt_out_buffer =
+	    kmalloc(true_size * dev->interrupt_out_endpoint_size, GFP_KERNEL);
 
 	if (!dev->interrupt_out_buffer) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_out_buffer\n");
 		goto error;
 	}
 
-	dev->write_buffer = kmalloc(sizeof(struct alphatrack_ocmd)*true_size, GFP_KERNEL);
+	dev->write_buffer =
+	    kmalloc(sizeof(struct alphatrack_ocmd) * true_size, GFP_KERNEL);
 
 	if (!dev->write_buffer) {
 		dev_err(&intf->dev, "Couldn't allocate write_buffer \n");
@@ -749,25 +781,36 @@ static int usb_alphatrack_probe(struct usb_interface *intf, const struct usb_dev
 		dev_err(&intf->dev, "Couldn't allocate interrupt_out_urb\n");
 		goto error;
 	}
-	dev->interrupt_in_interval = min_interrupt_in_interval > dev->interrupt_in_endpoint->bInterval ? min_interrupt_in_interval : dev->interrupt_in_endpoint->bInterval;
+	dev->interrupt_in_interval =
+	    min_interrupt_in_interval >
+	    dev->interrupt_in_endpoint->
+	    bInterval ? min_interrupt_in_interval : dev->interrupt_in_endpoint->
+	    bInterval;
 	if (dev->interrupt_out_endpoint)
-		dev->interrupt_out_interval = min_interrupt_out_interval > dev->interrupt_out_endpoint->bInterval ? min_interrupt_out_interval : dev->interrupt_out_endpoint->bInterval;
+		dev->interrupt_out_interval =
+		    min_interrupt_out_interval >
+		    dev->interrupt_out_endpoint->
+		    bInterval ? min_interrupt_out_interval : dev->
+		    interrupt_out_endpoint->bInterval;
 
 	/* we can register the device now, as it is ready */
 	usb_set_intfdata(intf, dev);
 
-	atomic_set(&dev->writes_pending,0);
+	atomic_set(&dev->writes_pending, 0);
 	retval = usb_register_dev(intf, &usb_alphatrack_class);
 	if (retval) {
 		/* something prevented us from registering this driver */
-		dev_err(&intf->dev, "Not able to get a minor for this device.\n");
+		dev_err(&intf->dev,
+			"Not able to get a minor for this device.\n");
 		usb_set_intfdata(intf, NULL);
 		goto error;
 	}
 
 	/* let the user know what node this device is now attached to */
-	dev_info(&intf->dev, "Alphatrack Device #%d now attached to major %d minor %d\n",
-		(intf->minor - USB_ALPHATRACK_MINOR_BASE), USB_MAJOR, intf->minor);
+	dev_info(&intf->dev,
+		 "Alphatrack Device #%d now attached to major %d minor %d\n",
+		 (intf->minor - USB_ALPHATRACK_MINOR_BASE), USB_MAJOR,
+		 intf->minor);
 
 exit:
 	return retval;
@@ -809,7 +852,7 @@ static void usb_alphatrack_disconnect(struct usb_interface *intf)
 		up(&dev->sem);
 	}
 
-	atomic_set(&dev->writes_pending,0);
+	atomic_set(&dev->writes_pending, 0);
 	mutex_unlock(&disconnect_mutex);
 
 	dev_info(&intf->dev, "Alphatrack Surface #%d now disconnected\n",
@@ -818,10 +861,10 @@ static void usb_alphatrack_disconnect(struct usb_interface *intf)
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver usb_alphatrack_driver = {
-	.name =		"alphatrack",
-	.probe =	usb_alphatrack_probe,
-	.disconnect =	usb_alphatrack_disconnect,
-	.id_table =	usb_alphatrack_table,
+	.name = "alphatrack",
+	.probe = usb_alphatrack_probe,
+	.disconnect = usb_alphatrack_disconnect,
+	.id_table = usb_alphatrack_table,
 };
 
 /**
@@ -834,7 +877,8 @@ static int __init usb_alphatrack_init(void)
 	/* register this driver with the USB subsystem */
 	retval = usb_register(&usb_alphatrack_driver);
 	if (retval)
-		err("usb_register failed for the "__FILE__" driver. Error number %d\n", retval);
+		err("usb_register failed for the " __FILE__
+		    " driver. Error number %d\n", retval);
 
 	return retval;
 }
@@ -850,4 +894,3 @@ static void __exit usb_alphatrack_exit(void)
 
 module_init(usb_alphatrack_init);
 module_exit(usb_alphatrack_exit);
-

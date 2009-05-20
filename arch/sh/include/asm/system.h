@@ -153,6 +153,7 @@ extern unsigned long cached_to_uncached;
 extern struct dentry *sh_debugfs_root;
 
 void per_cpu_trap_init(void);
+void default_idle(void);
 
 asmlinkage void break_point_trap(void);
 

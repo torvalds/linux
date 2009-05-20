@@ -239,7 +239,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	}
 
 	/*
-	 * Make sure the the amount of space in buds will not exceed
+	 * Make sure the amount of space in buds will not exceed the
 	 * 'c->max_bud_bytes' limit, because we want to guarantee mount time
 	 * limits.
 	 *
@@ -367,7 +367,6 @@ static void remove_buds(struct ubifs_info *c)
 				bud->jhead, c->leb_size - bud->start,
 				c->cmt_bud_bytes);
 			rb_erase(p1, &c->buds);
-			list_del(&bud->list);
 			/*
 			 * If the commit does not finish, the recovery will need
 			 * to replay the journal, in which case the old buds
@@ -375,7 +374,7 @@ static void remove_buds(struct ubifs_info *c)
 			 * commit i.e. do not allow them to be garbage
 			 * collected.
 			 */
-			list_add(&bud->list, &c->old_buds);
+			list_move(&bud->list, &c->old_buds);
 		}
 	}
 	spin_unlock(&c->buds_lock);

@@ -157,7 +157,7 @@ __ftrace_make_nop(struct module *mod,
 	 * 0xe8, 0x4c, 0x00, 0x28,    ld      r2,40(r12)
 	 */
 
-	pr_debug("ip:%lx jumps to %lx r2: %lx", ip, tramp, mod->arch.toc);
+	pr_devel("ip:%lx jumps to %lx r2: %lx", ip, tramp, mod->arch.toc);
 
 	/* Find where the trampoline jumps to */
 	if (probe_kernel_read(jmp, (void *)tramp, sizeof(jmp))) {
@@ -165,7 +165,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EFAULT;
 	}
 
-	pr_debug(" %08x %08x", jmp[0], jmp[1]);
+	pr_devel(" %08x %08x", jmp[0], jmp[1]);
 
 	/* verify that this is what we expect it to be */
 	if (((jmp[0] & 0xffff0000) != 0x3d820000) ||
@@ -181,18 +181,18 @@ __ftrace_make_nop(struct module *mod,
 	offset = ((unsigned)((unsigned short)jmp[0]) << 16) +
 		(int)((short)jmp[1]);
 
-	pr_debug(" %x ", offset);
+	pr_devel(" %x ", offset);
 
 	/* get the address this jumps too */
 	tramp = mod->arch.toc + offset + 32;
-	pr_debug("toc: %lx", tramp);
+	pr_devel("toc: %lx", tramp);
 
 	if (probe_kernel_read(jmp, (void *)tramp, 8)) {
 		printk(KERN_ERR "Failed to read %lx\n", tramp);
 		return -EFAULT;
 	}
 
-	pr_debug(" %08x %08x\n", jmp[0], jmp[1]);
+	pr_devel(" %08x %08x\n", jmp[0], jmp[1]);
 
 	ptr = ((unsigned long)jmp[0] << 32) + jmp[1];
 
@@ -269,7 +269,7 @@ __ftrace_make_nop(struct module *mod,
 	 *  0x4e, 0x80, 0x04, 0x20  bctr
 	 */
 
-	pr_debug("ip:%lx jumps to %lx", ip, tramp);
+	pr_devel("ip:%lx jumps to %lx", ip, tramp);
 
 	/* Find where the trampoline jumps to */
 	if (probe_kernel_read(jmp, (void *)tramp, sizeof(jmp))) {
@@ -277,7 +277,7 @@ __ftrace_make_nop(struct module *mod,
 		return -EFAULT;
 	}
 
-	pr_debug(" %08x %08x ", jmp[0], jmp[1]);
+	pr_devel(" %08x %08x ", jmp[0], jmp[1]);
 
 	/* verify that this is what we expect it to be */
 	if (((jmp[0] & 0xffff0000) != 0x3d600000) ||
@@ -293,7 +293,7 @@ __ftrace_make_nop(struct module *mod,
 	if (tramp & 0x8000)
 		tramp -= 0x10000;
 
-	pr_debug(" %x ", tramp);
+	pr_devel(" %lx ", tramp);
 
 	if (tramp != addr) {
 		printk(KERN_ERR
@@ -402,7 +402,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	/* ld r2,40(r1) */
 	op[1] = 0xe8410028;
 
-	pr_debug("write to %lx\n", rec->ip);
+	pr_devel("write to %lx\n", rec->ip);
 
 	if (probe_kernel_write((void *)ip, op, MCOUNT_INSN_SIZE * 2))
 		return -EPERM;
@@ -442,7 +442,7 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		return -EINVAL;
 	}
 
-	pr_debug("write to %lx\n", rec->ip);
+	pr_devel("write to %lx\n", rec->ip);
 
 	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
 		return -EPERM;
@@ -557,7 +557,6 @@ extern void mod_return_to_handler(void);
 void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 {
 	unsigned long old;
-	unsigned long long calltime;
 	int faulted;
 	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)&return_to_handler;
@@ -565,7 +564,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
 
-#if CONFIG_PPC64
+#ifdef CONFIG_PPC64
 	/* non core kernel code needs to save and restore the TOC */
 	if (REGION_ID(self_addr) != KERNEL_REGION_ID)
 		return_hooker = (unsigned long)&mod_return_to_handler;
@@ -595,7 +594,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 			PPC_LONG "2b,4b\n"
 		".previous"
 
-		: [old] "=r" (old), [faulted] "=r" (faulted)
+		: [old] "=&r" (old), [faulted] "=r" (faulted)
 		: [parent] "r" (parent), [return_hooker] "r" (return_hooker)
 		: "memory"
 	);
@@ -606,10 +605,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return;
 	}
 
-	calltime = cpu_clock(raw_smp_processor_id());
-
-	if (ftrace_push_return_trace(old, calltime,
-				self_addr, &trace.depth) == -EBUSY) {
+	if (ftrace_push_return_trace(old, self_addr, &trace.depth) == -EBUSY) {
 		*parent = old;
 		return;
 	}

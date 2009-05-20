@@ -83,6 +83,7 @@
 #include <linux/net.h>
 #include <linux/ipc.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 struct oldabi_stat64 {
 	unsigned long long st_dev;
@@ -176,21 +177,12 @@ asmlinkage long sys_oabi_fstatat64(int dfd,
 				   int flag)
 {
 	struct kstat stat;
-	int error = -EINVAL;
+	int error;
 
-	if ((flag & ~AT_SYMLINK_NOFOLLOW) != 0)
-		goto out;
-
-	if (flag & AT_SYMLINK_NOFOLLOW)
-		error = vfs_lstat_fd(dfd, filename, &stat);
-	else
-		error = vfs_stat_fd(dfd, filename, &stat);
-
-	if (!error)
-	error = cp_oldabi_stat64(&stat, statbuf);
-
-out:
-	return error;
+	error = vfs_fstatat(dfd, filename, &stat, flag);
+	if (error)
+		return error;
+	return cp_oldabi_stat64(&stat, statbuf);
 }
 
 struct oabi_flock64 {

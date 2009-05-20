@@ -652,7 +652,7 @@ static int au8522_reset(struct v4l2_subdev *sd, u32 val)
 }
 
 static int au8522_s_video_routing(struct v4l2_subdev *sd,
-				  const struct v4l2_routing *route)
+					u32 input, u32 output, u32 config)
 {
 	struct au8522_state *state = to_state(sd);
 
@@ -663,11 +663,11 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 	   closed), and then came back to analog mode */
 	au8522_writereg(state, 0x106, 1);
 
-	if (route->input == AU8522_COMPOSITE_CH1) {
+	if (input == AU8522_COMPOSITE_CH1) {
 		au8522_setup_cvbs_mode(state);
-	} else if (route->input == AU8522_SVIDEO_CH13) {
+	} else if (input == AU8522_SVIDEO_CH13) {
 		au8522_setup_svideo_mode(state);
-	} else if (route->input == AU8522_COMPOSITE_CH4_SIF) {
+	} else if (input == AU8522_COMPOSITE_CH4_SIF) {
 		au8522_setup_cvbs_tuner_mode(state);
 	} else {
 		printk(KERN_ERR "au8522 mode not currently supported\n");
@@ -677,10 +677,10 @@ static int au8522_s_video_routing(struct v4l2_subdev *sd,
 }
 
 static int au8522_s_audio_routing(struct v4l2_subdev *sd,
-				  const struct v4l2_routing *route)
+					u32 input, u32 output, u32 config)
 {
 	struct au8522_state *state = to_state(sd);
-	set_audio_input(state, route->input);
+	set_audio_input(state, input);
 	return 0;
 }
 

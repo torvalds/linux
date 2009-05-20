@@ -15,11 +15,22 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/ftrace.h>
-#include <asm/uaccess.h>
+#include <linux/memory.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/init.h>
+
 #include <asm/sections.h>
+#include <asm/uaccess.h>
+
+/*
+ * mutex protecting text section modification (dynamic code patching).
+ * some users need to sleep (allocating memory...) while they hold this lock.
+ *
+ * NOT exported to modules - patching kernel text is a really delicate matter.
+ */
+DEFINE_MUTEX(text_mutex);
 
 extern struct exception_table_entry __start___ex_table[];
 extern struct exception_table_entry __stop___ex_table[];
@@ -49,7 +60,7 @@ static inline int init_kernel_text(unsigned long addr)
 	return 0;
 }
 
-__notrace_funcgraph int core_kernel_text(unsigned long addr)
+int core_kernel_text(unsigned long addr)
 {
 	if (addr >= (unsigned long)_stext &&
 	    addr <= (unsigned long)_etext)
@@ -61,11 +72,11 @@ __notrace_funcgraph int core_kernel_text(unsigned long addr)
 	return 0;
 }
 
-__notrace_funcgraph int __kernel_text_address(unsigned long addr)
+int __kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
 		return 1;
-	if (__module_text_address(addr))
+	if (is_module_text_address(addr))
 		return 1;
 	/*
 	 * There might be init symbols in saved stacktraces.
@@ -84,7 +95,7 @@ int kernel_text_address(unsigned long addr)
 {
 	if (core_kernel_text(addr))
 		return 1;
-	return module_text_address(addr) != NULL;
+	return is_module_text_address(addr);
 }
 
 /*
@@ -100,5 +111,5 @@ int func_ptr_is_kernel_text(void *ptr)
 	addr = (unsigned long) dereference_function_descriptor(ptr);
 	if (core_kernel_text(addr))
 		return 1;
-	return module_text_address(addr) != NULL;
+	return is_module_text_address(addr);
 }

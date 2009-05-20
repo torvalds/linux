@@ -186,6 +186,7 @@ me_device_t *me0600_pci_constructor(struct pci_dev *pci_device)
 
 	return (me_device_t *) me0600_device;
 }
+EXPORT_SYMBOL(me0600_pci_constructor);
 
 // Init and exit of module.
 
@@ -210,6 +211,3 @@ MODULE_AUTHOR
 MODULE_DESCRIPTION("Device Driver Module for ME-6xx Device");
 MODULE_SUPPORTED_DEVICE("Meilhaus ME-6xx Devices");
 MODULE_LICENSE("GPL");
-
-// Export the constructor.
-EXPORT_SYMBOL(me0600_pci_constructor);
