@@ -521,6 +521,13 @@ static void ath_rx_ps_beacon(struct ath_softc *sc, struct sk_buff *skb)
 	if (memcmp(sc->curbssid, mgmt->bssid, ETH_ALEN) != 0)
 		return; /* not from our current AP */
 
+	if (sc->sc_flags & SC_OP_BEACON_SYNC) {
+		sc->sc_flags &= ~SC_OP_BEACON_SYNC;
+		DPRINTF(sc, ATH_DBG_PS, "Reconfigure Beacon timers based on "
+			"timestamp from the AP\n");
+		ath_beacon_config(sc, NULL);
+	}
+
 	if (!(sc->hw->conf.flags & IEEE80211_CONF_PS)) {
 		/* We are not in PS mode anymore; remain awake */
 		DPRINTF(sc, ATH_DBG_PS, "Not in PS mode anymore, remain "
