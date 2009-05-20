@@ -297,6 +297,9 @@ void br_topology_change_detection(struct net_bridge *br)
 {
 	int isroot = br_is_root_bridge(br);
 
+	if (br->stp_enabled != BR_KERNEL_STP)
+		return;
+
 	pr_info("%s: topology change detected, %s\n", br->dev->name,
 		isroot ? "propagating" : "sending tcn bpdu");
 
