@@ -535,9 +535,9 @@ static void ieee80211_sta_find_ibss(struct ieee80211_sub_if_data *sdata)
 		bssid = ifibss->bssid;
 	bss = (void *)cfg80211_get_bss(local->hw.wiphy, chan, bssid,
 				       ifibss->ssid, ifibss->ssid_len,
-				       capability,
 				       WLAN_CAPABILITY_IBSS |
-				       WLAN_CAPABILITY_PRIVACY);
+				       WLAN_CAPABILITY_PRIVACY,
+				       capability);
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 	if (bss)
