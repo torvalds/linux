@@ -527,8 +527,10 @@ rerun_vcpu:
 	if (rc == SIE_INTERCEPT_RERUNVCPU)
 		goto rerun_vcpu;
 
-	if (signal_pending(current) && !rc)
+	if (signal_pending(current) && !rc) {
+		kvm_run->exit_reason = KVM_EXIT_INTR;
 		rc = -EINTR;
+	}
 
 	if (rc == -ENOTSUPP) {
 		/* intercept cannot be handled in-kernel, prepare kvm-run */
