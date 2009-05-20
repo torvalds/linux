@@ -194,6 +194,12 @@
 #define PD_DMA_OPS_MASK		(1UL << 0) /* domain used for dma_ops */
 #define PD_DEFAULT_MASK		(1UL << 1) /* domain is a default dma_ops
 					      domain for an IOMMU */
+extern bool amd_iommu_dump;
+#define DUMP_printk(format, arg...)					\
+	do {								\
+		if (amd_iommu_dump)						\
+			printk(KERN_INFO "AMD IOMMU: " format, ## arg);	\
+	} while(0);
 
 /*
  * This structure contains generic data for  IOMMU protection domains
