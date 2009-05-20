@@ -32,14 +32,16 @@
 #include <xen/features.h>
 #include <xen/page.h>
 
+#define REMAP_BATCH_SIZE 16
+
 #ifndef HAVE_ARCH_PRIVCMD_MMAP
 static int privcmd_enforce_singleshot_mapping(struct vm_area_struct *vma);
 #endif
 
 struct remap_data {
 	unsigned long mfn;
-	unsigned domid;
 	pgprot_t prot;
+	struct mmu_update *mmu_update;
 };
 
 static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
@@ -48,17 +50,23 @@ static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
 	struct remap_data *rmd = data;
 	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
 
-	xen_set_domain_pte(ptep, pte, rmd->domid);
+	rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
+	rmd->mmu_update->val = pte_val_ma(pte);
+	rmd->mmu_update++;
 
 	return 0;
 }
 
-int remap_domain_mfn_range(struct vm_area_struct *vma, unsigned long addr,
-			   unsigned long mfn, unsigned long size,
-			   pgprot_t prot, unsigned domid)
+static int remap_domain_mfn_range(struct vm_area_struct *vma,
+				  unsigned long addr,
+				  unsigned long mfn, int nr,
+				  pgprot_t prot, unsigned domid)
 {
 	struct remap_data rmd;
-	int err;
+	struct mmu_update mmu_update[REMAP_BATCH_SIZE];
+	int batch;
+	unsigned long range;
+	int err = 0;
 
 	prot = __pgprot(pgprot_val(prot) | _PAGE_IOMAP);
 
@@ -66,10 +74,29 @@ int remap_domain_mfn_range(struct vm_area_struct *vma, unsigned long addr,
 
 	rmd.mfn = mfn;
 	rmd.prot = prot;
-	rmd.domid = domid;
 
-	err = apply_to_page_range(vma->vm_mm, addr, size,
-				  remap_area_mfn_pte_fn, &rmd);
+	while (nr) {
+		batch = min(REMAP_BATCH_SIZE, nr);
+		range = (unsigned long)batch << PAGE_SHIFT;
+
+		rmd.mmu_update = mmu_update;
+		err = apply_to_page_range(vma->vm_mm, addr, range,
+					  remap_area_mfn_pte_fn, &rmd);
+		if (err)
+			goto out;
+
+		err = -EFAULT;
+		if (HYPERVISOR_mmu_update(mmu_update, batch, NULL, domid) < 0)
+			goto out;
+
+		nr -= batch;
+		addr += range;
+	}
+
+	err = 0;
+out:
+
+	flush_tlb_all();
 
 	return err;
 }
@@ -158,7 +185,7 @@ static int traverse_pages(unsigned nelem, size_t size,
 {
 	void *pagedata;
 	unsigned pageidx;
-	int ret;
+	int ret = 0;
 
 	BUG_ON(size > PAGE_SIZE);
 
@@ -208,8 +235,7 @@ static int mmap_mfn_range(void *data, void *state)
 
 	rc = remap_domain_mfn_range(vma,
 				    msg->va & PAGE_MASK,
-				    msg->mfn,
-				    msg->npages << PAGE_SHIFT,
+				    msg->mfn, msg->npages,
 				    vma->vm_page_prot,
 				    st->domain);
 	if (rc < 0)
@@ -290,7 +316,7 @@ static int mmap_batch_fn(void *data, void *state)
 	struct mmap_batch_state *st = state;
 
 	if (remap_domain_mfn_range(st->vma, st->va & PAGE_MASK,
-				   *mfnp, PAGE_SIZE,
+				   *mfnp, 1,
 				   st->vma->vm_page_prot, st->domain) < 0) {
 		*mfnp |= 0xf0000000U;
 		st->err++;
@@ -362,9 +388,9 @@ static long privcmd_ioctl_mmap_batch(void __user *udata)
 	up_write(&mm->mmap_sem);
 
 	if (state.err > 0) {
-		ret = state.err;
+		ret = 0;
 
-		state.user = udata;
+		state.user = m.arr;
 		traverse_pages(m.num, sizeof(xen_pfn_t),
 			       &pagelist,
 			       mmap_return_errors, &state);
