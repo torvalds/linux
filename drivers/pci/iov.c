@@ -487,6 +487,8 @@ found:
 	iov->self = dev;
 	pci_read_config_dword(dev, pos + PCI_SRIOV_CAP, &iov->cap);
 	pci_read_config_byte(dev, pos + PCI_SRIOV_FUNC_LINK, &iov->link);
+	if (dev->pcie_type == PCI_EXP_TYPE_RC_END)
+		iov->link = PCI_DEVFN(PCI_SLOT(dev->devfn), iov->link);
 
 	if (pdev)
 		iov->dev = pci_dev_get(pdev);
