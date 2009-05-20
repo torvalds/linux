@@ -2358,6 +2358,8 @@ void omap_dma_global_context_save(void)
 
 void omap_dma_global_context_restore(void)
 {
+	int ch;
+
 	dma_write(omap_dma_global_context.dma_gcr, GCR);
 	dma_write(omap_dma_global_context.dma_ocp_sysconfig,
 		OCP_SYSCONFIG);
@@ -2372,6 +2374,10 @@ void omap_dma_global_context_restore(void)
 	 */
 	if (cpu_is_omap34xx() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
 		dma_write(0x3 , IRQSTATUS_L0);
+
+	for (ch = 0; ch < dma_chan_count; ch++)
+		if (dma_chan[ch].dev_id != -1)
+			omap_clear_dma(ch);
 }
 
 /*----------------------------------------------------------------------------*/
