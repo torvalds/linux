@@ -2060,7 +2060,7 @@ pi_faulted:
  *
  * Returns
  *  0 - no early wakeup detected
- * <0 - -ETIMEDOUT or -ERESTARTSYS (FIXME: or ERESTARTNOINTR?)
+ * <0 - -ETIMEDOUT or -ERESTARTNOINTR
  */
 static inline
 int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
@@ -2087,15 +2087,8 @@ int handle_early_requeue_pi_wakeup(struct futex_hash_bucket *hb,
 
 		if (timeout && !timeout->task)
 			ret = -ETIMEDOUT;
-		else {
-			/*
-			 * We expect signal_pending(current), but another
-			 * thread may have handled it for us already.
-			 */
-			/* FIXME: ERESTARTSYS or ERESTARTNOINTR?  Do we care if
-			 * the user specified SA_RESTART or not? */
-			ret = -ERESTARTSYS;
-		}
+		else
+			ret = -ERESTARTNOINTR;
 	}
 	return ret;
 }
