@@ -649,6 +649,14 @@ static void __cpuinit build_update_entries(u32 **p, unsigned int tmp,
 #endif
 }
 
+/*
+ * For a 64-bit kernel, we are using the 64-bit XTLB refill exception
+ * because EXL == 0.  If we wrap, we can also use the 32 instruction
+ * slots before the XTLB refill exception handler which belong to the
+ * unused TLB refill exception.
+ */
+#define MIPS64_REFILL_INSNS 32
+
 static void __cpuinit build_r4000_tlb_refill_handler(void)
 {
 	u32 *p = tlb_handler;
@@ -702,9 +710,10 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	if ((p - tlb_handler) > 64)
 		panic("TLB refill handler space exceeded");
 #else
-	if (((p - tlb_handler) > 63)
-	    || (((p - tlb_handler) > 61)
-		&& uasm_insn_has_bdelay(relocs, tlb_handler + 29)))
+	if (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 1)
+	    || (((p - tlb_handler) > (MIPS64_REFILL_INSNS * 2) - 3)
+		&& uasm_insn_has_bdelay(relocs,
+					tlb_handler + MIPS64_REFILL_INSNS - 3)))
 		panic("TLB refill handler space exceeded");
 #endif
 
@@ -717,16 +726,24 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 	uasm_copy_handler(relocs, labels, tlb_handler, p, f);
 	final_len = p - tlb_handler;
 #else /* CONFIG_64BIT */
-	f = final_handler + 32;
-	if ((p - tlb_handler) <= 32) {
+	f = final_handler + MIPS64_REFILL_INSNS;
+	if ((p - tlb_handler) <= MIPS64_REFILL_INSNS) {
 		/* Just copy the handler. */
 		uasm_copy_handler(relocs, labels, tlb_handler, p, f);
 		final_len = p - tlb_handler;
 	} else {
-		u32 *split = tlb_handler + 30;
+		/*
+		 * Split two instructions before the end.  One for the
+		 * branch and one for the instruction in the delay
+		 * slot.
+		 */
+		u32 *split = tlb_handler + MIPS64_REFILL_INSNS - 2;
 
 		/*
-		 * Find the split point.
+		 * Find the split point.  If the branch would fall in
+		 * a delay slot, we must back up an additional
+		 * instruction so that it is no longer in a delay
+		 * slot.
 		 */
 		if (uasm_insn_has_bdelay(relocs, split - 1))
 			split--;
@@ -749,7 +766,8 @@ static void __cpuinit build_r4000_tlb_refill_handler(void)
 
 		/* Copy the rest of the handler. */
 		uasm_copy_handler(relocs, labels, split, p, final_handler);
-		final_len = (f - (final_handler + 32)) + (p - split);
+		final_len = (f - (final_handler + MIPS64_REFILL_INSNS)) +
+			    (p - split);
 	}
 #endif /* CONFIG_64BIT */
 
