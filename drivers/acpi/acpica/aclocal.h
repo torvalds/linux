@@ -205,6 +205,7 @@ struct acpi_namespace_node {
 #define ANOBJ_METHOD_LOCAL              0x08	/* Node is a method local */
 #define ANOBJ_SUBTREE_HAS_INI           0x10	/* Used to optimize device initialization */
 #define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
+#define ANOBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
 
 #define ANOBJ_IS_EXTERNAL               0x08	/* i_aSL only: This object created via External() */
 #define ANOBJ_METHOD_NO_RETVAL          0x10	/* i_aSL only: Method has no return value */
