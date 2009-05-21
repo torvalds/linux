@@ -88,6 +88,8 @@ struct genl_ops
 };
 
 extern int genl_register_family(struct genl_family *family);
+extern int genl_register_family_with_ops(struct genl_family *family,
+	struct genl_ops *ops, size_t n_ops);
 extern int genl_unregister_family(struct genl_family *family);
 extern int genl_register_ops(struct genl_family *, struct genl_ops *ops);
 extern int genl_unregister_ops(struct genl_family *, struct genl_ops *ops);
