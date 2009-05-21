@@ -229,6 +229,8 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 				       walk_state);
 		if (ACPI_FAILURE(status)) {
 			(void)acpi_ex_unload_table(ddb_handle);
+
+			acpi_ut_remove_reference(ddb_handle);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -454,6 +456,10 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(status);
 	}
 
+	/* Remove the reference by added by acpi_ex_store above */
+
+	acpi_ut_remove_reference(ddb_handle);
+
 	/* Invoke table handler if present */
 
 	if (acpi_gbl_table_handler) {
@@ -530,8 +536,5 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	(void)acpi_tb_release_owner_id(table_index);
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
-	/* Table unloaded, remove a reference to the ddb_handle object */
-
-	acpi_ut_remove_reference(ddb_handle);
 	return_ACPI_STATUS(AE_OK);
 }
