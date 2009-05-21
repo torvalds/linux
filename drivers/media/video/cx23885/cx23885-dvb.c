@@ -243,12 +243,22 @@ static struct tda18271_std_map hauppauge_tda18271_std_map = {
 		      .if_lvl = 6, .rfagc_top = 0x37 },
 };
 
+static struct tda18271_std_map hauppauge_hvr1200_tda18271_std_map = {
+	.dvbt_6   = { .if_freq = 3300, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_7   = { .if_freq = 3800, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+	.dvbt_8   = { .if_freq = 4300, .agc_mode = 3, .std = 6,
+		      .if_lvl = 1, .rfagc_top = 0x37, },
+};
+
 static struct tda18271_config hauppauge_tda18271_config = {
 	.std_map = &hauppauge_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
 static struct tda18271_config hauppauge_hvr1200_tuner_config = {
+	.std_map = &hauppauge_hvr1200_tda18271_std_map,
 	.gate    = TDA18271_GATE_ANALOG,
 };
 
