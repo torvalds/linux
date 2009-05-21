@@ -225,6 +225,7 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	if (!(oflags & FMODE_READ))
 		write_only = true;
 
+	mode &= ~current_umask();
 	rc = CIFSPOSIXCreate(xid, cifs_sb->tcon, posix_flags, mode,
 			pnetfid, presp_data, &oplock, full_path,
 			cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
@@ -310,7 +311,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		return -ENOMEM;
 	}
 
-	mode &= ~current_umask();
 	if (oplockEnabled)
 		oplock = REQ_OPLOCK;
 
@@ -336,7 +336,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			else /* success, no need to query */
 				goto cifs_create_set_dentry;
 		} else if ((rc != -EIO) && (rc != -EREMOTE) &&
-			 (rc != -EOPNOTSUPP)) /* path not found or net err */
+			 (rc != -EOPNOTSUPP) && (rc != -EINVAL))
 			goto cifs_create_out;
 		/* else fallthrough to retry, using older open call, this is
 		   case where server does not support this SMB level, and
@@ -609,7 +609,6 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	int xid;
 	int rc = 0; /* to get around spurious gcc warning, set to zero here */
 	int oplock = 0;
-	int mode;
 	__u16 fileHandle = 0;
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
@@ -660,13 +659,12 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	if (pTcon->unix_ext) {
 		if (!(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
-				(nd->flags & LOOKUP_OPEN)) {
+		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open) {
 			if (!((nd->intent.open.flags & O_CREAT) &&
 					(nd->intent.open.flags & O_EXCL))) {
-				mode = nd->intent.open.create_mode &
-						~current_umask();
 				rc = cifs_posix_open(full_path, &newInode,
-					parent_dir_inode->i_sb, mode,
+					parent_dir_inode->i_sb,
+					nd->intent.open.create_mode,
 					nd->intent.open.flags, &oplock,
 					&fileHandle, xid);
 				/*
@@ -681,6 +679,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 				 */
 				if ((rc != -EINVAL) && (rc != -EOPNOTSUPP))
 					posix_open = true;
+				else
+					pTcon->broken_posix_open = true;
 			}
 		}
 		if (!posix_open)
