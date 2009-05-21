@@ -280,23 +280,22 @@ acpi_ex_region_read(union acpi_operand_object *obj_desc, u32 length, u8 *buffer)
 {
 	acpi_status status;
 	acpi_integer value;
-	acpi_physical_address address;
+	u32 region_offset = 0;
 	u32 i;
-
-	address = obj_desc->region.address;
 
 	/* Bytewise reads */
 
 	for (i = 0; i < length; i++) {
 		status = acpi_ev_address_space_dispatch(obj_desc, ACPI_READ,
-							address, 8, &value);
+							region_offset, 8,
+							&value);
 		if (ACPI_FAILURE(status)) {
 			return status;
 		}
 
 		*buffer = (u8)value;
 		buffer++;
-		address++;
+		region_offset++;
 	}
 
 	return AE_OK;
