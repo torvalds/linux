@@ -91,6 +91,7 @@ acpi_ex_add_table(u32 table_index,
 
 	/* Init the table handle */
 
+	obj_desc->common.flags |= AOPOBJ_DATA_VALID;
 	obj_desc->reference.class = ACPI_REFCLASS_TABLE;
 	*ddb_handle = obj_desc;
 
@@ -501,19 +502,30 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 
 	/*
 	 * Validate the handle
-	 * Although the handle is partially validated in acpi_ex_reconfiguration(),
+	 * Although the handle is partially validated in acpi_ex_reconfiguration()
 	 * when it calls acpi_ex_resolve_operands(), the handle is more completely
 	 * validated here.
+	 *
+	 * Handle must be a valid operand object of type reference. Also, the
+	 * ddb_handle must still be marked valid (table has not been previously
+	 * unloaded)
 	 */
 	if ((!ddb_handle) ||
 	    (ACPI_GET_DESCRIPTOR_TYPE(ddb_handle) != ACPI_DESC_TYPE_OPERAND) ||
-	    (ddb_handle->common.type != ACPI_TYPE_LOCAL_REFERENCE)) {
+	    (ddb_handle->common.type != ACPI_TYPE_LOCAL_REFERENCE) ||
+	    (!(ddb_handle->common.flags & AOPOBJ_DATA_VALID))) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Get the table index from the ddb_handle */
 
 	table_index = table_desc->reference.value;
+
+	/* Ensure the table is still loaded */
+
+	if (!acpi_tb_is_table_loaded(table_index)) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
 
 	/* Invoke table handler if present */
 
@@ -536,5 +548,10 @@ acpi_status acpi_ex_unload_table(union acpi_operand_object *ddb_handle)
 	(void)acpi_tb_release_owner_id(table_index);
 	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 
+	/*
+	 * Invalidate the handle. We do this because the handle may be stored
+	 * in a named object and may not be actually deleted until much later.
+	 */
+	ddb_handle->common.flags &= ~AOPOBJ_DATA_VALID;
 	return_ACPI_STATUS(AE_OK);
 }
