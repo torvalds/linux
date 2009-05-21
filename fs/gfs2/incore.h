@@ -94,7 +94,7 @@ struct gfs2_rgrpd {
 	struct gfs2_sbd *rd_sbd;
 	unsigned int rd_bh_count;
 	u32 rd_last_alloc;
-	unsigned char rd_flags;
+	u32 rd_flags;
 #define GFS2_RDF_CHECK		0x10000000 /* check for unlinked inodes */
 #define GFS2_RDF_UPTODATE	0x20000000 /* rg is up to date */
 #define GFS2_RDF_ERROR		0x40000000 /* error in rg */

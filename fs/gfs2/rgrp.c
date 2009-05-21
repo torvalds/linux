@@ -581,7 +581,6 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 
 	rgd->rd_gl->gl_object = rgd;
 	rgd->rd_flags &= ~GFS2_RDF_UPTODATE;
-	rgd->rd_flags |= GFS2_RDF_CHECK;
 	return error;
 }
 
@@ -703,6 +702,8 @@ static void gfs2_rgrp_in(struct gfs2_rgrpd *rgd, const void *buf)
 
 	rg_flags = be32_to_cpu(str->rg_flags);
 	rg_flags &= ~GFS2_RDF_MASK;
+	rgd->rd_flags &= GFS2_RDF_MASK;
+	rgd->rd_flags |= rg_flags;
 	rgd->rd_free = be32_to_cpu(str->rg_free);
 	rgd->rd_dinodes = be32_to_cpu(str->rg_dinodes);
 	rgd->rd_igeneration = be64_to_cpu(str->rg_igeneration);
@@ -773,7 +774,7 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 		for (x = 0; x < length; x++)
 			clear_bit(GBF_FULL, &rgd->rd_bits[x].bi_flags);
 		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
-		rgd->rd_flags |= GFS2_RDF_UPTODATE;
+		rgd->rd_flags |= (GFS2_RDF_UPTODATE | GFS2_RDF_CHECK);
 	}
 
 	spin_lock(&sdp->sd_rindex_spin);
