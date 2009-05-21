@@ -209,7 +209,7 @@ static int fib4_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 }
 
 static int fib4_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
-			  struct nlmsghdr *nlh, struct fib_rule_hdr *frh)
+			  struct fib_rule_hdr *frh)
 {
 	struct fib4_rule *rule4 = (struct fib4_rule *) rule;
 

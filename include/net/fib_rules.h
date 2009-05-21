@@ -54,7 +54,6 @@ struct fib_rules_ops
 					   struct fib_rule_hdr *,
 					   struct nlattr **);
 	int			(*fill)(struct fib_rule *, struct sk_buff *,
-					struct nlmsghdr *,
 					struct fib_rule_hdr *);
 	u32			(*default_pref)(struct fib_rules_ops *ops);
 	size_t			(*nlmsg_payload)(struct fib_rule *);

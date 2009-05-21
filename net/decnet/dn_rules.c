@@ -192,7 +192,7 @@ unsigned dnet_addr_type(__le16 addr)
 }
 
 static int dn_fib_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
-			    struct nlmsghdr *nlh, struct fib_rule_hdr *frh)
+			    struct fib_rule_hdr *frh)
 {
 	struct dn_fib_rule *r = (struct dn_fib_rule *)rule;
 

@@ -500,7 +500,7 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 	if (rule->target)
 		NLA_PUT_U32(skb, FRA_GOTO, rule->target);
 
-	if (ops->fill(rule, skb, nlh, frh) < 0)
+	if (ops->fill(rule, skb, frh) < 0)
 		goto nla_put_failure;
 
 	return nlmsg_end(skb, nlh);
