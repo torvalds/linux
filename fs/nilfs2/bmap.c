@@ -437,12 +437,6 @@ int nilfs_bmap_get_new_block(const struct nilfs_bmap *bmap, __u64 ptr,
 	return 0;
 }
 
-void nilfs_bmap_delete_block(const struct nilfs_bmap *bmap,
-			     struct buffer_head *bh)
-{
-	nilfs_btnode_delete(bh);
-}
-
 __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *bmap,
 			      const struct buffer_head *bh)
 {
