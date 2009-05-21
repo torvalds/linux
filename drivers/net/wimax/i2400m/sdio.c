@@ -78,6 +78,14 @@ static const char *i2400ms_bus_fw_names[] = {
 };
 
 
+static const struct i2400m_poke_table i2400ms_pokes[] = {
+	I2400M_FW_POKE(0x6BE260, 0x00000088),
+	I2400M_FW_POKE(0x080550, 0x00000005),
+	I2400M_FW_POKE(0xAE0000, 0x00000000),
+	I2400M_FW_POKE(0x000000, 0x00000000), /* MUST be 0 terminated or bad
+					       * things will happen */
+};
+
 /*
  * Enable the SDIO function
  *
@@ -425,6 +433,7 @@ int i2400ms_probe(struct sdio_func *func,
 	i2400m->bus_bm_wait_for_ack = i2400ms_bus_bm_wait_for_ack;
 	i2400m->bus_fw_names = i2400ms_bus_fw_names;
 	i2400m->bus_bm_mac_addr_impaired = 1;
+	i2400m->bus_bm_pokes_table = &i2400ms_pokes[0];
 
 	sdio_claim_host(func);
 	result = sdio_set_block_size(func, I2400MS_BLK_SIZE);
