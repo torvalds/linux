@@ -41,7 +41,6 @@ unsigned int memory_size;
  */
 static void __init paging_init(void)
 {
-	int i;
 	unsigned long zones_size[MAX_NR_ZONES];
 
 	/* Clean every zones */
