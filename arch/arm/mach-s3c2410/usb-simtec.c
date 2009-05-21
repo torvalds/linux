@@ -18,9 +18,11 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/gpio.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/gpio.h>
 #include <linux/io.h>
 
 #include <asm/mach/arch.h>
@@ -29,7 +31,6 @@
 
 #include <mach/bast-map.h>
 #include <mach/bast-irq.h>
-#include <mach/regs-gpio.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -53,9 +54,9 @@ usb_simtec_powercontrol(int port, int to)
 	power_state[port] = to;
 
 	if (power_state[0] && power_state[1])
-		s3c2410_gpio_setpin(S3C2410_GPB4, 0);
+		gpio_set_value(S3C2410_GPB(4), 0);
 	else
-		s3c2410_gpio_setpin(S3C2410_GPB4, 1);
+		gpio_set_value(S3C2410_GPB(4), 1);
 }
 
 static irqreturn_t
@@ -63,7 +64,7 @@ usb_simtec_ocirq(int irq, void *pw)
 {
 	struct s3c2410_hcd_info *info = pw;
 
-	if (s3c2410_gpio_getpin(S3C2410_GPG10) == 0) {
+	if (gpio_get_value(S3C2410_GPG(10)) == 0) {
 		pr_debug("usb_simtec: over-current irq (oc detected)\n");
 		s3c2410_usb_report_oc(info, 3);
 	} else {
@@ -106,10 +107,27 @@ static struct s3c2410_hcd_info usb_simtec_info = {
 
 int usb_simtec_init(void)
 {
-	printk("USB Power Control, (c) 2004 Simtec Electronics\n");
-	s3c_device_usb.dev.platform_data = &usb_simtec_info;
+	int ret;
 
-	s3c2410_gpio_cfgpin(S3C2410_GPB4, S3C2410_GPB4_OUTP);
-	s3c2410_gpio_setpin(S3C2410_GPB4, 1);
+	printk("USB Power Control, (c) 2004 Simtec Electronics\n");
+
+	ret = gpio_request(S3C2410_GPB(4), "USB power control");
+	if (ret < 0) {
+		pr_err("%s: failed to get GPB4\n", __func__);
+		return ret;
+	}
+
+	ret = gpio_request(S3C2410_GPG(10), "USB overcurrent");
+	if (ret < 0) {
+		pr_err("%s: failed to get GPG10\n", __func__);
+		gpio_free(S3C2410_GPB(4));
+		return ret;
+	}
+
+	/* turn power on */
+	gpio_direction_output(S3C2410_GPB(4), 1);
+	gpio_direction_input(S3C2410_GPG(10));
+
+	s3c_device_usb.dev.platform_data = &usb_simtec_info;
 	return 0;
 }

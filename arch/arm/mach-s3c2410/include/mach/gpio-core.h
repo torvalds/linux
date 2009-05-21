@@ -24,7 +24,7 @@ static inline struct s3c_gpio_chip *s3c_gpiolib_getchip(unsigned int pin)
 {
 	struct s3c_gpio_chip *chip;
 
-	if (pin > S3C2410_GPG10)
+	if (pin > S3C2410_GPG(10))
 		return NULL;
 
 	chip = &s3c24xx_gpios[pin/32];

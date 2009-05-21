@@ -127,7 +127,7 @@ static void h1940_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 
 static struct s3c2410_udc_mach_info h1940_udc_cfg __initdata = {
 	.udc_command		= h1940_udc_pullup,
-	.vbus_pin		= S3C2410_GPG5,
+	.vbus_pin		= S3C2410_GPG(5),
 	.vbus_pin_inverted	= 1,
 };
 
