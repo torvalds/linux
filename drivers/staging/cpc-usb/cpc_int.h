@@ -15,9 +15,7 @@
 
 #define CPC_MSG_BUF_CNT	1500
 
-#ifdef CONFIG_PROC_FS
-#   define CPC_PROC_DIR "driver/"
-#endif
+#define CPC_PROC_DIR "driver/"
 
 #undef dbg
 #undef err

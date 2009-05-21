@@ -30,9 +30,7 @@
 
 #include <linux/version.h>
 
-#ifdef CONFIG_PROC_FS
-#   include <linux/proc_fs.h>
-#endif
+#include <linux/proc_fs.h>
 
 #include "cpc.h"
 
@@ -56,10 +54,6 @@ MODULE_LICENSE("GPL v2");
 
 #define USB_CPCUSB_M16C_PRODUCT_ID    0x0888
 #define USB_CPCUSB_LPC2119_PRODUCT_ID 0x0444
-
-#ifndef CONFIG_PROC_FS
-#error "PROCFS needed"
-#endif
 
 #define CPC_USB_PROC_DIR     CPC_PROC_DIR "cpc-usb"
 
