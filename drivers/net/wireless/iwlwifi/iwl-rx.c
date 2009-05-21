@@ -582,8 +582,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 
 	iwl_leds_background(priv);
 
-	if (priv->cfg->ops->lib->temperature && change)
-		priv->cfg->ops->lib->temperature(priv);
+	if (priv->cfg->ops->lib->temp_ops.temperature && change)
+		priv->cfg->ops->lib->temp_ops.temperature(priv);
 }
 EXPORT_SYMBOL(iwl_rx_statistics);
 

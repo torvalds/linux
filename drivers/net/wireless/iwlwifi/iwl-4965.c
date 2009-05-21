@@ -788,6 +788,12 @@ static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
 	.nrg_th_ofdm = 100,
 };
 
+static void iwl4965_set_ct_threshold(struct iwl_priv *priv)
+{
+	/* want Kelvin */
+	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+}
+
 /**
  * iwl4965_hw_set_hw_params
  *
@@ -822,7 +828,8 @@ static int iwl4965_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.rx_chains_num = 2;
 	priv->hw_params.valid_tx_ant = ANT_A | ANT_B;
 	priv->hw_params.valid_rx_ant = ANT_A | ANT_B;
-	priv->hw_params.ct_kill_threshold = CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD);
+	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
+		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
 
 	priv->hw_params.sens = &iwl4965_sensitivity;
 
@@ -2331,9 +2338,12 @@ static struct iwl_lib_ops iwl4965_lib = {
 	},
 	.send_tx_power	= iwl4965_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
-	.temperature = iwl4965_temperature_calib,
 	.post_associate = iwl_post_associate,
 	.config_ap = iwl_config_ap,
+	.temp_ops = {
+		.temperature = iwl4965_temperature_calib,
+		.set_ct_kill = iwl4965_set_ct_threshold,
+	},
 };
 
 static struct iwl_ops iwl4965_ops = {

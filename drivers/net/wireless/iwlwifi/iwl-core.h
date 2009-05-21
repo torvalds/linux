@@ -112,6 +112,19 @@ struct iwl_hcmd_utils_ops {
 			  struct iwl_rx_phy_res *rx_resp);
 };
 
+struct iwl_apm_ops {
+	int (*init)(struct iwl_priv *priv);
+	int (*reset)(struct iwl_priv *priv);
+	void (*stop)(struct iwl_priv *priv);
+	void (*config)(struct iwl_priv *priv);
+	int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
+};
+
+struct iwl_temp_ops {
+	void (*temperature)(struct iwl_priv *priv);
+	void (*set_ct_kill)(struct iwl_priv *priv);
+};
+
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -149,23 +162,20 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	/* 1st ucode load */
 	int (*load_ucode)(struct iwl_priv *priv);
-	 /* power management */
-	struct {
-		int (*init)(struct iwl_priv *priv);
-		int (*reset)(struct iwl_priv *priv);
-		void (*stop)(struct iwl_priv *priv);
-		void (*config)(struct iwl_priv *priv);
-		int (*set_pwr_src)(struct iwl_priv *priv, enum iwl_pwr_src src);
-	} apm_ops;
+	/* power management */
+	struct iwl_apm_ops apm_ops;
+
 	/* power */
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-	void (*temperature) (struct iwl_priv *priv);
 	void (*post_associate) (struct iwl_priv *priv);
 	void (*config_ap) (struct iwl_priv *priv);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
+
+	/* temperature */
+	struct iwl_temp_ops temp_ops;
 };
 
 struct iwl_ops {

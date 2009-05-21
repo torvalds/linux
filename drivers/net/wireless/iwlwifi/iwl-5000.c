@@ -434,15 +434,19 @@ static const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
 	return &priv->eeprom[address];
 }
 
-static s32 iwl5150_get_ct_threshold(struct iwl_priv *priv)
+static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 {
-	const s32 volt2temp_coef = -5;
-	u16 *temp_calib = (u16 *)iwl_eeprom_query_addr(priv,
-						EEPROM_5000_TEMPERATURE);
-	/* offset =  temperate -  voltage / coef */
-	s32 offset = temp_calib[0] - temp_calib[1] / volt2temp_coef;
-	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD) - offset;
-	return threshold * volt2temp_coef;
+	const s32 volt2temp_coef = IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF;
+	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD) -
+			iwl_temp_calib_to_offset(priv);
+
+	priv->hw_params.ct_kill_threshold = threshold * volt2temp_coef;
+}
+
+static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
+{
+	/* want Celsius */
+	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD;
 }
 
 /*
@@ -868,17 +872,8 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
 	priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
-	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
-	case CSR_HW_REV_TYPE_5150:
-		/* 5150 wants in Kelvin */
-		priv->hw_params.ct_kill_threshold =
-				iwl5150_get_ct_threshold(priv);
-		break;
-	default:
-		/* all others want Celsius */
-		priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD;
-		break;
-	}
+	if (priv->cfg->ops->lib->temp_ops.set_ct_kill)
+		priv->cfg->ops->lib->temp_ops.set_ct_kill(priv);
 
 	/* Set initial calibration set */
 	switch (priv->hw_rev & CSR_HW_REV_TYPE_MSK) {
@@ -899,7 +894,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			BIT(IWL_CALIB_BASE_BAND);
 		break;
 	}
-
 
 	return 0;
 }
@@ -1434,6 +1428,17 @@ static void iwl5000_temperature(struct iwl_priv *priv)
 	priv->temperature = le32_to_cpu(priv->statistics.general.temperature);
 }
 
+static void iwl5150_temperature(struct iwl_priv *priv)
+{
+	u32 vt = 0;
+	s32 offset =  iwl_temp_calib_to_offset(priv);
+
+	vt = le32_to_cpu(priv->statistics.general.temperature);
+	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
+	/* now vt hold the temperature in Kelvin */
+	priv->temperature = KELVIN_TO_CELSIUS(vt);
+}
+
 /* Calc max signal level (dBm) among 3 possible receivers */
 int iwl5000_calc_rssi(struct iwl_priv *priv,
 			     struct iwl_rx_phy_res *rx_resp)
@@ -1511,7 +1516,6 @@ struct iwl_lib_ops iwl5000_lib = {
 	.init_alive_start = iwl5000_init_alive_start,
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
-	.temperature = iwl5000_temperature,
 	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
@@ -1538,10 +1542,70 @@ struct iwl_lib_ops iwl5000_lib = {
 	},
 	.post_associate = iwl_post_associate,
 	.config_ap = iwl_config_ap,
+	.temp_ops = {
+		.temperature = iwl5000_temperature,
+		.set_ct_kill = iwl5000_set_ct_threshold,
+	 },
+};
+
+static struct iwl_lib_ops iwl5150_lib = {
+	.set_hw_params = iwl5000_hw_set_hw_params,
+	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
+	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
+	.txq_set_sched = iwl5000_txq_set_sched,
+	.txq_agg_enable = iwl5000_txq_agg_enable,
+	.txq_agg_disable = iwl5000_txq_agg_disable,
+	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
+	.txq_free_tfd = iwl_hw_txq_free_tfd,
+	.txq_init = iwl_hw_tx_queue_init,
+	.rx_handler_setup = iwl5000_rx_handler_setup,
+	.setup_deferred_work = iwl5000_setup_deferred_work,
+	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
+	.load_ucode = iwl5000_load_ucode,
+	.init_alive_start = iwl5000_init_alive_start,
+	.alive_notify = iwl5000_alive_notify,
+	.send_tx_power = iwl5000_send_tx_power,
+	.update_chain_flags = iwl_update_chain_flags,
+	.apm_ops = {
+		.init =	iwl5000_apm_init,
+		.reset = iwl5000_apm_reset,
+		.stop = iwl5000_apm_stop,
+		.config = iwl5000_nic_config,
+		.set_pwr_src = iwl_set_pwr_src,
+	},
+	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_5000_REG_BAND_1_CHANNELS,
+			EEPROM_5000_REG_BAND_2_CHANNELS,
+			EEPROM_5000_REG_BAND_3_CHANNELS,
+			EEPROM_5000_REG_BAND_4_CHANNELS,
+			EEPROM_5000_REG_BAND_5_CHANNELS,
+			EEPROM_5000_REG_BAND_24_FAT_CHANNELS,
+			EEPROM_5000_REG_BAND_52_FAT_CHANNELS
+		},
+		.verify_signature  = iwlcore_eeprom_verify_signature,
+		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
+		.release_semaphore = iwlcore_eeprom_release_semaphore,
+		.calib_version	= iwl5000_eeprom_calib_version,
+		.query_addr = iwl5000_eeprom_query_addr,
+	},
+	.post_associate = iwl_post_associate,
+	.config_ap = iwl_config_ap,
+	.temp_ops = {
+		.temperature = iwl5150_temperature,
+		.set_ct_kill = iwl5150_set_ct_threshold,
+	 },
 };
 
 struct iwl_ops iwl5000_ops = {
 	.lib = &iwl5000_lib,
+	.hcmd = &iwl5000_hcmd,
+	.utils = &iwl5000_hcmd_utils,
+	.smgmt = &iwl5000_station_mgmt,
+};
+
+static struct iwl_ops iwl5150_ops = {
+	.lib = &iwl5150_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
 	.smgmt = &iwl5000_station_mgmt,
@@ -1642,7 +1706,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.ucode_api_max = IWL5150_UCODE_API_MAX,
 	.ucode_api_min = IWL5150_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
-	.ops = &iwl5000_ops,
+	.ops = &iwl5150_ops,
 	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
