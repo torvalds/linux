@@ -78,6 +78,7 @@ void fsnotify_put_event(struct fsnotify_event *event)
 		if (event->data_type == FSNOTIFY_EVENT_PATH)
 			path_put(&event->path);
 
+		kfree(event->file_name);
 		kmem_cache_free(fsnotify_event_cachep, event);
 	}
 }
@@ -262,6 +263,9 @@ static void initialize_event(struct fsnotify_event *event)
 	event->data_type = FSNOTIFY_EVENT_NONE;
 
 	event->to_tell = NULL;
+
+	event->file_name = NULL;
+	event->name_len = 0;
 }
 
 /*
@@ -274,9 +278,10 @@ static void initialize_event(struct fsnotify_event *event)
  * @mask what actually happened.
  * @data pointer to the object which was actually affected
  * @data_type flag indication if the data is a file, path, inode, nothing...
+ * @name the filename, if available
  */
 struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
-					     void *data, int data_type)
+					     void *data, int data_type, const char *name)
 {
 	struct fsnotify_event *event;
 
@@ -285,6 +290,15 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
 		return NULL;
 
 	initialize_event(event);
+
+	if (name) {
+		event->file_name = kstrdup(name, GFP_KERNEL);
+		if (!event->file_name) {
+			kmem_cache_free(fsnotify_event_cachep, event);
+			return NULL;
+		}
+		event->name_len = strlen(event->file_name);
+	}
 	event->to_tell = to_tell;
 
 	switch (data_type) {

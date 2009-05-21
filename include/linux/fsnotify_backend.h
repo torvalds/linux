@@ -192,6 +192,9 @@ struct fsnotify_event {
 	int data_type;		/* which of the above union we have */
 	atomic_t refcnt;	/* how many groups still are using/need to send this event */
 	__u32 mask;		/* the type of access, bitwise OR for FS_* event types */
+
+	char *file_name;
+	size_t name_len;
 };
 
 /*
@@ -224,7 +227,7 @@ struct fsnotify_mark_entry {
 /* called from the vfs helpers */
 
 /* main fsnotify call to send events */
-extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is);
+extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const char *name);
 extern void __fsnotify_parent(struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 
@@ -319,10 +322,12 @@ extern void fsnotify_put_mark(struct fsnotify_mark_entry *entry);
 
 /* put here because inotify does some weird stuff when destroying watches */
 extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
-						    void *data, int data_is);
+						    void *data, int data_is, const char *name);
+
 #else
 
-static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is)
+static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+			    const char *name);
 {}
 
 static inline void __fsnotify_parent(struct dentry *dentry, __u32 mask)
