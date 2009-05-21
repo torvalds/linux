@@ -25,7 +25,7 @@
 #define __field(type, item)		type	item;
 
 #undef __string
-#define __string(item, src)		int	__str_loc_##item;
+#define __string(item, src)		unsigned short	__str_loc_##item;
 
 #undef TP_STRUCT__entry
 #define TP_STRUCT__entry(args...) args
