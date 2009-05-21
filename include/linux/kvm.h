@@ -676,7 +676,7 @@ struct kvm_assigned_msix_nr {
 	__u16 padding;
 };
 
-#define KVM_MAX_MSIX_PER_DEV		512
+#define KVM_MAX_MSIX_PER_DEV		256
 struct kvm_assigned_msix_entry {
 	__u32 assigned_dev_id;
 	__u32 gsi;
