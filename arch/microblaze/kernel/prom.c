@@ -509,12 +509,13 @@ static void __init early_init_dt_check_for_initrd(unsigned long node)
 
 	prop = of_get_flat_dt_prop(node, "linux,initrd-start", &l);
 	if (prop) {
-		initrd_start = (unsigned long)__va(of_read_ulong(prop, l/4));
+		initrd_start = (unsigned long)
+					__va((u32)of_read_ulong(prop, l/4));
 
 		prop = of_get_flat_dt_prop(node, "linux,initrd-end", &l);
 		if (prop) {
 			initrd_end = (unsigned long)
-					__va(of_read_ulong(prop, l/4));
+					__va((u32)of_read_ulong(prop, 1/4));
 			initrd_below_start_ok = 1;
 		} else {
 			initrd_start = 0;
