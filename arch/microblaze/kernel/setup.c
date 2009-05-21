@@ -42,10 +42,6 @@ char cmd_line[COMMAND_LINE_SIZE];
 
 void __init setup_arch(char **cmdline_p)
 {
-#ifdef CONFIG_CMDLINE_FORCE
-	strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
-	strlcpy(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
-#endif
 	*cmdline_p = cmd_line;
 
 	console_verbose();
@@ -106,10 +102,7 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 	memset(__bss_start, 0, __bss_stop-__bss_start);
 	memset(_ssbss, 0, _esbss-_ssbss);
 
-	/*
-	 * Copy command line passed from bootloader, or use default
-	 * if none provided, or forced
-	 */
+	/* Copy command line passed from bootloader */
 #ifndef CONFIG_CMDLINE_BOOL
 	if (cmdline && cmdline[0] != '\0')
 		strlcpy(cmd_line, cmdline, COMMAND_LINE_SIZE);
