@@ -474,10 +474,18 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	struct i2400m_msg_hdr *tx_msg_moved;
 	size_t aligned_size, padding, hdr_size;
 	void *pad_buf;
+	unsigned num_pls;
 
 	if (tx_msg->size & I2400M_TX_SKIP)	/* a skipper? nothing to do */
 		goto out;
-
+	num_pls = le16_to_cpu(tx_msg->num_pls);
+	/* We can get this situation when a new message was started
+	 * and there was no space to add payloads before hitting the
+	 tail (and taking padding into consideration). */
+	if (num_pls == 0) {
+		tx_msg->size |= I2400M_TX_SKIP;
+		goto out;
+	}
 	/* Relocate the message header
 	 *
 	 * Find the current header size, align it to 16 and if we need
