@@ -74,13 +74,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	__u32 new_dir_mask = 0;
 
 	if (old_dir == new_dir) {
-		inode_dir_notify(old_dir, DN_RENAME);
 		old_dir_mask = FS_DN_RENAME;
-	} else {
-		inode_dir_notify(old_dir, DN_DELETE);
-		old_dir_mask = FS_DELETE;
-		inode_dir_notify(new_dir, DN_CREATE);
-		new_dir_mask = FS_CREATE;
 	}
 
 	if (isdir) {
@@ -132,7 +126,6 @@ static inline void fsnotify_nameremove(struct dentry *dentry, int isdir)
 
 	if (isdir)
 		mask |= FS_IN_ISDIR;
-	dnotify_parent(dentry, DN_DELETE);
 
 	fsnotify_parent(dentry, mask);
 }
@@ -154,7 +147,6 @@ static inline void fsnotify_inoderemove(struct inode *inode)
  */
 static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 {
-	inode_dir_notify(inode, DN_CREATE);
 	inotify_inode_queue_event(inode, IN_CREATE, 0, dentry->d_name.name,
 				  dentry->d_inode);
 	audit_inode_child(dentry->d_name.name, dentry, inode);
@@ -169,7 +161,6 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
  */
 static inline void fsnotify_link(struct inode *dir, struct inode *inode, struct dentry *new_dentry)
 {
-	inode_dir_notify(dir, DN_CREATE);
 	inotify_inode_queue_event(dir, IN_CREATE, 0, new_dentry->d_name.name,
 				  inode);
 	fsnotify_link_count(inode);
@@ -186,7 +177,6 @@ static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 	__u32 mask = (FS_CREATE | FS_IN_ISDIR);
 	struct inode *d_inode = dentry->d_inode;
 
-	inode_dir_notify(inode, DN_CREATE);
 	inotify_inode_queue_event(inode, mask, 0, dentry->d_name.name, d_inode);
 	audit_inode_child(dentry->d_name.name, dentry, inode);
 
@@ -204,7 +194,6 @@ static inline void fsnotify_access(struct dentry *dentry)
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_IN_ISDIR;
 
-	dnotify_parent(dentry, DN_ACCESS);
 	inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 
 	fsnotify_parent(dentry, mask);
@@ -222,7 +211,6 @@ static inline void fsnotify_modify(struct dentry *dentry)
 	if (S_ISDIR(inode->i_mode))
 		mask |= FS_IN_ISDIR;
 
-	dnotify_parent(dentry, DN_MODIFY);
 	inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 
 	fsnotify_parent(dentry, mask);
@@ -289,47 +277,33 @@ static inline void fsnotify_xattr(struct dentry *dentry)
 static inline void fsnotify_change(struct dentry *dentry, unsigned int ia_valid)
 {
 	struct inode *inode = dentry->d_inode;
-	int dn_mask = 0;
-	__u32 in_mask = 0;
+	__u32 mask = 0;
 
-	if (ia_valid & ATTR_UID) {
-		in_mask |= FS_ATTRIB;
-		dn_mask |= DN_ATTRIB;
-	}
-	if (ia_valid & ATTR_GID) {
-		in_mask |= FS_ATTRIB;
-		dn_mask |= DN_ATTRIB;
-	}
-	if (ia_valid & ATTR_SIZE) {
-		in_mask |= FS_MODIFY;
-		dn_mask |= DN_MODIFY;
-	}
+	if (ia_valid & ATTR_UID)
+		mask |= FS_ATTRIB;
+	if (ia_valid & ATTR_GID)
+		mask |= FS_ATTRIB;
+	if (ia_valid & ATTR_SIZE)
+		mask |= FS_MODIFY;
+
 	/* both times implies a utime(s) call */
 	if ((ia_valid & (ATTR_ATIME | ATTR_MTIME)) == (ATTR_ATIME | ATTR_MTIME))
-	{
-		in_mask |= FS_ATTRIB;
-		dn_mask |= DN_ATTRIB;
-	} else if (ia_valid & ATTR_ATIME) {
-		in_mask |= FS_ACCESS;
-		dn_mask |= DN_ACCESS;
-	} else if (ia_valid & ATTR_MTIME) {
-		in_mask |= FS_MODIFY;
-		dn_mask |= DN_MODIFY;
-	}
-	if (ia_valid & ATTR_MODE) {
-		in_mask |= FS_ATTRIB;
-		dn_mask |= DN_ATTRIB;
-	}
+		mask |= FS_ATTRIB;
+	else if (ia_valid & ATTR_ATIME)
+		mask |= FS_ACCESS;
+	else if (ia_valid & ATTR_MTIME)
+		mask |= FS_MODIFY;
 
-	if (dn_mask)
-		dnotify_parent(dentry, dn_mask);
-	if (in_mask) {
+	if (ia_valid & ATTR_MODE)
+		mask |= FS_ATTRIB;
+
+	if (mask) {
 		if (S_ISDIR(inode->i_mode))
-			in_mask |= FS_IN_ISDIR;
-		inotify_inode_queue_event(inode, in_mask, 0, NULL, NULL);
+			mask |= FS_IN_ISDIR;
+		inotify_inode_queue_event(inode, mask, 0, NULL, NULL);
 
-		fsnotify_parent(dentry, in_mask);
-		fsnotify(inode, in_mask, inode, FSNOTIFY_EVENT_INODE);
+		fsnotify_parent(dentry, mask);
+		fsnotify(inode, mask, inode, FSNOTIFY_EVENT_INODE);
 	}
 }
 

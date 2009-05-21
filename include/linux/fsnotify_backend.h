@@ -57,6 +57,9 @@
 				   FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE |\
 				   FS_DELETE)
 
+/* listeners that hard code group numbers near the top */
+#define DNOTIFY_GROUP_NUM	UINT_MAX
+
 struct fsnotify_group;
 struct fsnotify_event;
 struct fsnotify_mark_entry;
