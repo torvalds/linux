@@ -424,12 +424,6 @@ int nilfs_bmap_get_block(const struct nilfs_bmap *bmap, __u64 ptr,
 				ptr, 0, bhp, 0);
 }
 
-void nilfs_bmap_put_block(const struct nilfs_bmap *bmap,
-			  struct buffer_head *bh)
-{
-	brelse(bh);
-}
-
 int nilfs_bmap_get_new_block(const struct nilfs_bmap *bmap, __u64 ptr,
 			     struct buffer_head **bhp)
 {
