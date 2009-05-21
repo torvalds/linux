@@ -883,7 +883,7 @@ struct clk_ops *onchip_ops[] = {
 void __init
 arch_init_clk_ops(struct clk_ops **ops, int type)
 {
-	BUG_ON(type < 0 || type > ARRAY_SIZE(onchip_ops));
+	BUG_ON(type < 0 || type >= ARRAY_SIZE(onchip_ops));
 	*ops = onchip_ops[type];
 }
 
