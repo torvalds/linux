@@ -31,75 +31,11 @@
 #include <xen/interface/xen.h>
 #include <xen/features.h>
 #include <xen/page.h>
-
-#define REMAP_BATCH_SIZE 16
+#include <xen/xen-ops.h>
 
 #ifndef HAVE_ARCH_PRIVCMD_MMAP
 static int privcmd_enforce_singleshot_mapping(struct vm_area_struct *vma);
 #endif
-
-struct remap_data {
-	unsigned long mfn;
-	pgprot_t prot;
-	struct mmu_update *mmu_update;
-};
-
-static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
-				 unsigned long addr, void *data)
-{
-	struct remap_data *rmd = data;
-	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
-
-	rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
-	rmd->mmu_update->val = pte_val_ma(pte);
-	rmd->mmu_update++;
-
-	return 0;
-}
-
-static int remap_domain_mfn_range(struct vm_area_struct *vma,
-				  unsigned long addr,
-				  unsigned long mfn, int nr,
-				  pgprot_t prot, unsigned domid)
-{
-	struct remap_data rmd;
-	struct mmu_update mmu_update[REMAP_BATCH_SIZE];
-	int batch;
-	unsigned long range;
-	int err = 0;
-
-	prot = __pgprot(pgprot_val(prot) | _PAGE_IOMAP);
-
-	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
-
-	rmd.mfn = mfn;
-	rmd.prot = prot;
-
-	while (nr) {
-		batch = min(REMAP_BATCH_SIZE, nr);
-		range = (unsigned long)batch << PAGE_SHIFT;
-
-		rmd.mmu_update = mmu_update;
-		err = apply_to_page_range(vma->vm_mm, addr, range,
-					  remap_area_mfn_pte_fn, &rmd);
-		if (err)
-			goto out;
-
-		err = -EFAULT;
-		if (HYPERVISOR_mmu_update(mmu_update, batch, NULL, domid) < 0)
-			goto out;
-
-		nr -= batch;
-		addr += range;
-	}
-
-	err = 0;
-out:
-
-	flush_tlb_all();
-
-	return err;
-}
 
 static long privcmd_ioctl_hypercall(void __user *udata)
 {
@@ -233,11 +169,11 @@ static int mmap_mfn_range(void *data, void *state)
 	    ((msg->va+(msg->npages<<PAGE_SHIFT)) > vma->vm_end))
 		return -EINVAL;
 
-	rc = remap_domain_mfn_range(vma,
-				    msg->va & PAGE_MASK,
-				    msg->mfn, msg->npages,
-				    vma->vm_page_prot,
-				    st->domain);
+	rc = xen_remap_domain_mfn_range(vma,
+					msg->va & PAGE_MASK,
+					msg->mfn, msg->npages,
+					vma->vm_page_prot,
+					st->domain);
 	if (rc < 0)
 		return rc;
 
@@ -315,9 +251,8 @@ static int mmap_batch_fn(void *data, void *state)
 	xen_pfn_t *mfnp = data;
 	struct mmap_batch_state *st = state;
 
-	if (remap_domain_mfn_range(st->vma, st->va & PAGE_MASK,
-				   *mfnp, 1,
-				   st->vma->vm_page_prot, st->domain) < 0) {
+	if (xen_remap_domain_mfn_range(st->vma, st->va & PAGE_MASK, *mfnp, 1,
+				       st->vma->vm_page_prot, st->domain) < 0) {
 		*mfnp |= 0xf0000000U;
 		st->err++;
 	}

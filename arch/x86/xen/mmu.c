@@ -2265,6 +2265,72 @@ void __init xen_hvm_init_mmu_ops(void)
 }
 #endif
 
+#define REMAP_BATCH_SIZE 16
+
+struct remap_data {
+	unsigned long mfn;
+	pgprot_t prot;
+	struct mmu_update *mmu_update;
+};
+
+static int remap_area_mfn_pte_fn(pte_t *ptep, pgtable_t token,
+				 unsigned long addr, void *data)
+{
+	struct remap_data *rmd = data;
+	pte_t pte = pte_mkspecial(pfn_pte(rmd->mfn++, rmd->prot));
+
+	rmd->mmu_update->ptr = arbitrary_virt_to_machine(ptep).maddr;
+	rmd->mmu_update->val = pte_val_ma(pte);
+	rmd->mmu_update++;
+
+	return 0;
+}
+
+int xen_remap_domain_mfn_range(struct vm_area_struct *vma,
+			       unsigned long addr,
+			       unsigned long mfn, int nr,
+			       pgprot_t prot, unsigned domid)
+{
+	struct remap_data rmd;
+	struct mmu_update mmu_update[REMAP_BATCH_SIZE];
+	int batch;
+	unsigned long range;
+	int err = 0;
+
+	prot = __pgprot(pgprot_val(prot) | _PAGE_IOMAP);
+
+	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
+
+	rmd.mfn = mfn;
+	rmd.prot = prot;
+
+	while (nr) {
+		batch = min(REMAP_BATCH_SIZE, nr);
+		range = (unsigned long)batch << PAGE_SHIFT;
+
+		rmd.mmu_update = mmu_update;
+		err = apply_to_page_range(vma->vm_mm, addr, range,
+					  remap_area_mfn_pte_fn, &rmd);
+		if (err)
+			goto out;
+
+		err = -EFAULT;
+		if (HYPERVISOR_mmu_update(mmu_update, batch, NULL, domid) < 0)
+			goto out;
+
+		nr -= batch;
+		addr += range;
+	}
+
+	err = 0;
+out:
+
+	flush_tlb_all();
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(xen_remap_domain_mfn_range);
+
 #ifdef CONFIG_XEN_DEBUG_FS
 
 static struct dentry *d_mmu_debug;
