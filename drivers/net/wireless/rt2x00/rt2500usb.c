@@ -503,6 +503,10 @@ static void rt2500usb_config_erp(struct rt2x00_dev *rt2x00dev,
 
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR11, erp->basic_rates);
 
+	rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
+	rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL, erp->beacon_int * 4);
+	rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
+
 	rt2500usb_register_write(rt2x00dev, MAC_CSR10, erp->slot_time);
 	rt2500usb_register_write(rt2x00dev, MAC_CSR11, erp->sifs);
 	rt2500usb_register_write(rt2x00dev, MAC_CSR12, erp->eifs);
@@ -632,17 +636,6 @@ static void rt2500usb_config_txpower(struct rt2x00_dev *rt2x00dev,
 	rt2500usb_rf_write(rt2x00dev, 3, rf3);
 }
 
-static void rt2500usb_config_duration(struct rt2x00_dev *rt2x00dev,
-				      struct rt2x00lib_conf *libconf)
-{
-	u16 reg;
-
-	rt2500usb_register_read(rt2x00dev, TXRX_CSR18, &reg);
-	rt2x00_set_field16(&reg, TXRX_CSR18_INTERVAL,
-			   libconf->conf->beacon_int * 4);
-	rt2500usb_register_write(rt2x00dev, TXRX_CSR18, reg);
-}
-
 static void rt2500usb_config_ps(struct rt2x00_dev *rt2x00dev,
 				struct rt2x00lib_conf *libconf)
 {
@@ -680,8 +673,6 @@ static void rt2500usb_config(struct rt2x00_dev *rt2x00dev,
 	    !(flags & IEEE80211_CONF_CHANGE_CHANNEL))
 		rt2500usb_config_txpower(rt2x00dev,
 					 libconf->conf->power_level);
-	if (flags & IEEE80211_CONF_CHANGE_BEACON_INTERVAL)
-		rt2500usb_config_duration(rt2x00dev, libconf);
 	if (flags & IEEE80211_CONF_CHANGE_PS)
 		rt2500usb_config_ps(rt2x00dev, libconf);
 }

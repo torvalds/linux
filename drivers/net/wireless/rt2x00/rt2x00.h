@@ -417,6 +417,8 @@ struct rt2x00lib_erp {
 	short pifs;
 	short difs;
 	short eifs;
+
+	u16 beacon_int;
 };
 
 /*
