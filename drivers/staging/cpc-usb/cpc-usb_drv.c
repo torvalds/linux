@@ -475,7 +475,7 @@ static ssize_t cpcusb_write(struct file *file, const char *buffer,
 	unsigned char type = 0;
 	CPC_MSG_T *info = NULL;
 
-	dbg("%s - entered minor %d, count = %d, present = %d",
+	dbg("%s - entered minor %d, count = %zu, present = %d",
 	    __func__, card->minor, count, card->present);
 
 	if (count > sizeof(CPC_MSG_T))
@@ -1031,7 +1031,7 @@ static int cpcusb_probe(struct usb_interface *interface,
 		retval = -ENOMEM;
 		goto error;
 	}
-	info("Allocated memory for %d messages (%d kbytes)",
+	info("Allocated memory for %d messages (%lu kbytes)",
 	     CPC_MSG_BUF_CNT, (sizeof(CPC_MSG_T) * CPC_MSG_BUF_CNT) / 1000);
 	memset(chan->buf, 0, sizeof(CPC_MSG_T) * CPC_MSG_BUF_CNT);
 
