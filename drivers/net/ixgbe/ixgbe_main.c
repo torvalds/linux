@@ -411,6 +411,9 @@ static void ixgbe_setup_dca(struct ixgbe_adapter *adapter)
 	if (!(adapter->flags & IXGBE_FLAG_DCA_ENABLED))
 		return;
 
+	/* always use CB2 mode, difference is masked in the CB driver */
+	IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
+
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		adapter->tx_ring[i].cpu = -1;
 		ixgbe_update_tx_dca(adapter, &adapter->tx_ring[i]);
@@ -432,9 +435,6 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 		/* if we're already enabled, don't do it again */
 		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 			break;
-		/* Always use CB2 mode, difference is masked
-		 * in the CB driver. */
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
 		if (dca_add_requester(dev) == 0) {
 			adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
 			ixgbe_setup_dca(adapter);
@@ -2767,13 +2767,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	netif_carrier_off(netdev);
 
-#ifdef CONFIG_IXGBE_DCA
-	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
-		adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
-		dca_remove_requester(&adapter->pdev->dev);
-	}
-
-#endif
 	if (!pci_channel_offline(adapter->pdev))
 		ixgbe_reset(adapter);
 	ixgbe_clean_all_tx_rings(adapter);
@@ -2781,13 +2774,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 #ifdef CONFIG_IXGBE_DCA
 	/* since we reset the hardware DCA settings were cleared */
-	if (dca_add_requester(&adapter->pdev->dev) == 0) {
-		adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
-		/* always use CB2 mode, difference is masked
-		 * in the CB driver */
-		IXGBE_WRITE_REG(hw, IXGBE_DCA_CTRL, 2);
-		ixgbe_setup_dca(adapter);
-	}
+	ixgbe_setup_dca(adapter);
 #endif
 }
 
@@ -5354,9 +5341,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 #ifdef CONFIG_IXGBE_DCA
 	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
-		/* always use CB2 mode, difference is masked
-		 * in the CB driver */
-		IXGBE_WRITE_REG(hw, IXGBE_DCA_CTRL, 2);
 		ixgbe_setup_dca(adapter);
 	}
 #endif
