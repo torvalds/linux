@@ -156,6 +156,27 @@ enum {
 	I2400M_BM_ACK_BUF_SIZE = 256,
 };
 
+/**
+ * struct i2400m_poke_table - Hardware poke table for the Intel 2400m
+ *
+ * This structure will be used to create a device specific poke table
+ * to put the device in a consistant state at boot time.
+ *
+ * @address: The device address to poke
+ *
+ * @data: The data value to poke to the device address
+ *
+ */
+struct i2400m_poke_table{
+	__le32 address;
+	__le32 data;
+};
+
+#define I2400M_FW_POKE(a, d) {		\
+	.address = cpu_to_le32(a),	\
+	.data = cpu_to_le32(d)		\
+}
+
 
 /**
  * i2400m_reset_type - methods to reset a device
@@ -263,6 +284,12 @@ struct i2400m_roq;
  * @bus_bm_mac_addr_impaired: [fill] Set to true if the device's MAC
  *     address provided in boot mode is kind of broken and needs to
  *     be re-read later on.
+ *
+ * @bus_bm_pokes_table: [fill/optional] A table of device addresses
+ *     and values that will be poked at device init time to move the
+ *     device to the correct state for the type of boot/firmware being
+ *     used.  This table MUST be terminated with (0x000000,
+ *     0x00000000) or bad things will happen.
  *
  *
  * @wimax_dev: WiMAX generic device for linkage into the kernel WiMAX
@@ -424,6 +451,7 @@ struct i2400m {
 				       struct i2400m_bootrom_header *, size_t);
 	const char **bus_fw_names;
 	unsigned bus_bm_mac_addr_impaired:1;
+	const struct i2400m_poke_table *bus_bm_pokes_table;
 
 	spinlock_t tx_lock;		/* protect TX state */
 	void *tx_buf;

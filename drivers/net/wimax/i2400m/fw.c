@@ -770,40 +770,21 @@ error_read_mac:
 static
 int i2400m_dnload_init_nonsigned(struct i2400m *i2400m)
 {
-#define POKE(a, d) {					\
-	.address = cpu_to_le32(a),		\
-	.data = cpu_to_le32(d)		\
-}
-	static const struct {
-		__le32 address;
-		__le32 data;
-	} i2400m_pokes[] = {
-		POKE(0x081A58, 0xA7810230),
-		POKE(0x080040, 0x00000000),
-		POKE(0x080048, 0x00000082),
-		POKE(0x08004C, 0x0000081F),
-		POKE(0x080054, 0x00000085),
-		POKE(0x080058, 0x00000180),
-		POKE(0x08005C, 0x00000018),
-		POKE(0x080060, 0x00000010),
-		POKE(0x080574, 0x00000001),
-		POKE(0x080550, 0x00000005),
-		POKE(0xAE0000, 0x00000000),
-	};
-#undef POKE
-	unsigned i;
-	int ret;
+	unsigned i = 0;
+	int ret = 0;
 	struct device *dev = i2400m_dev(i2400m);
-
-	dev_warn(dev, "WARNING!!! non-signed boot UNTESTED PATH!\n");
-
 	d_fnstart(5, dev, "(i2400m %p)\n", i2400m);
-	for (i = 0; i < ARRAY_SIZE(i2400m_pokes); i++) {
-		ret = i2400m_download_chunk(i2400m, &i2400m_pokes[i].data,
-					    sizeof(i2400m_pokes[i].data),
-					    i2400m_pokes[i].address, 1, 1);
-		if (ret < 0)
-			break;
+	if (i2400m->bus_bm_pokes_table) {
+		while (i2400m->bus_bm_pokes_table[i].address) {
+			ret = i2400m_download_chunk(
+				i2400m,
+				&i2400m->bus_bm_pokes_table[i].data,
+				sizeof(i2400m->bus_bm_pokes_table[i].data),
+				i2400m->bus_bm_pokes_table[i].address, 1, 1);
+			if (ret < 0)
+				break;
+			i++;
+		}
 	}
 	d_fnend(5, dev, "(i2400m %p) = %d\n", i2400m, ret);
 	return ret;
