@@ -45,8 +45,16 @@ struct ima_measure_rule_entry {
 	} lsm[MAX_LSM_RULES];
 };
 
-/* Without LSM specific knowledge, the default policy can only be
+/*
+ * Without LSM specific knowledge, the default policy can only be
  * written in terms of .action, .func, .mask, .fsmagic, and .uid
+ */
+
+/*
+ * The minimum rule set to allow for full TCB coverage.  Measures all files
+ * opened or mmap for exec and everything read by root.  Dangerous because
+ * normal users can easily run the machine out of memory simply building
+ * and running executables.
  */
 static struct ima_measure_rule_entry default_rules[] = {
 	{.action = DONT_MEASURE,.fsmagic = PROC_SUPER_MAGIC,.flags = IMA_FSMAGIC},
@@ -59,6 +67,8 @@ static struct ima_measure_rule_entry default_rules[] = {
 	 .flags = IMA_FUNC | IMA_MASK},
 	{.action = MEASURE,.func = BPRM_CHECK,.mask = MAY_EXEC,
 	 .flags = IMA_FUNC | IMA_MASK},
+	{.action = MEASURE,.func = PATH_CHECK,.mask = MAY_READ,.uid = 0,
+	 .flags = IMA_FUNC | IMA_MASK | IMA_UID},
 };
 
 static LIST_HEAD(measure_default_rules);
@@ -66,6 +76,14 @@ static LIST_HEAD(measure_policy_rules);
 static struct list_head *ima_measure;
 
 static DEFINE_MUTEX(ima_measure_mutex);
+
+static bool ima_use_tcb __initdata;
+static int __init default_policy_setup(char *str)
+{
+	ima_use_tcb = 1;
+	return 1;
+}
+__setup("ima_tcb", default_policy_setup);
 
 /**
  * ima_match_rules - determine whether an inode matches the measure rule.
@@ -162,9 +180,15 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask)
  */
 void ima_init_policy(void)
 {
-	int i;
+	int i, entries;
 
-	for (i = 0; i < ARRAY_SIZE(default_rules); i++)
+	/* if !ima_use_tcb set entries = 0 so we load NO default rules */
+	if (ima_use_tcb)
+		entries = ARRAY_SIZE(default_rules);
+	else
+		entries = 0;
+
+	for (i = 0; i < entries; i++)
 		list_add_tail(&default_rules[i].list, &measure_default_rules);
 	ima_measure = &measure_default_rules;
 }
