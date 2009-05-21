@@ -402,10 +402,14 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	}
 
 	/*
-	 * The sync level of the mutex must be less than or equal to the current
-	 * sync level
+	 * The sync level of the mutex must be equal to the current sync level. In
+	 * other words, the current level means that at least one mutex at that
+	 * level is currently being held. Attempting to release a mutex of a
+	 * different level can only mean that the mutex ordering rule is being
+	 * violated. This behavior is clarified in ACPI 4.0 specification.
 	 */
-	if (obj_desc->mutex.sync_level > walk_state->thread->current_sync_level) {
+	if (obj_desc->mutex.sync_level !=
+	    walk_state->thread->current_sync_level) {
 		ACPI_ERROR((AE_INFO,
 			    "Cannot release Mutex [%4.4s], SyncLevel mismatch: mutex %d current %d",
 			    acpi_ut_get_node_name(obj_desc->mutex.node),
@@ -423,10 +427,13 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	    walk_state->thread->acquired_mutex_list->mutex.original_sync_level;
 
 	status = acpi_ex_release_mutex_object(obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	if (obj_desc->mutex.acquisition_depth == 0) {
 
-		/* Restore the original sync_level */
+		/* Restore the previous sync_level */
 
 		walk_state->thread->current_sync_level = previous_sync_level;
 	}
