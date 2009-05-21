@@ -64,9 +64,12 @@ struct gfs2_log_element {
 	const struct gfs2_log_operations *le_ops;
 };
 
+#define GBF_FULL 1
+
 struct gfs2_bitmap {
 	struct buffer_head *bi_bh;
 	char *bi_clone;
+	unsigned long bi_flags;
 	u32 bi_offset;
 	u32 bi_start;
 	u32 bi_len;

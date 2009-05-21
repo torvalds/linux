@@ -442,6 +442,7 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 	for (x = 0; x < length; x++) {
 		bi = rgd->rd_bits + x;
 
+		bi->bi_flags = 0;
 		/* small rgrp; bitmap stored completely in header block */
 		if (length == 1) {
 			bytes = bytes_left;
@@ -769,6 +770,8 @@ int gfs2_rgrp_bh_get(struct gfs2_rgrpd *rgd)
 	}
 
 	if (!(rgd->rd_flags & GFS2_RDF_UPTODATE)) {
+		for (x = 0; x < length; x++)
+			clear_bit(GBF_FULL, &rgd->rd_bits[x].bi_flags);
 		gfs2_rgrp_in(rgd, (rgd->rd_bits[0].bi_bh)->b_data);
 		rgd->rd_flags |= GFS2_RDF_UPTODATE;
 	}
@@ -897,6 +900,7 @@ void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 			continue;
 		if (sdp->sd_args.ar_discard)
 			gfs2_rgrp_send_discards(sdp, rgd->rd_data0, bi);
+		clear_bit(GBF_FULL, &bi->bi_flags);
 		memcpy(bi->bi_clone + bi->bi_offset,
 		       bi->bi_bh->b_data + bi->bi_offset, bi->bi_len);
 	}
@@ -1309,30 +1313,37 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 {
 	struct gfs2_bitmap *bi = NULL;
 	const u32 length = rgd->rd_length;
-	u32 blk = 0;
+	u32 blk = BFITNOENT;
 	unsigned int buf, x;
 	const unsigned int elen = *n;
-	const u8 *buffer;
+	const u8 *buffer = NULL;
 
 	*n = 0;
 	/* Find bitmap block that contains bits for goal block */
 	for (buf = 0; buf < length; buf++) {
 		bi = rgd->rd_bits + buf;
-		if (goal < (bi->bi_start + bi->bi_len) * GFS2_NBBY)
-			break;
+		/* Convert scope of "goal" from rgrp-wide to within found bit block */
+		if (goal < (bi->bi_start + bi->bi_len) * GFS2_NBBY) {
+			goal -= bi->bi_start * GFS2_NBBY;
+			goto do_search;
+		}
 	}
+	buf = 0;
+	goal = 0;
 
-	gfs2_assert(rgd->rd_sbd, buf < length);
-
-	/* Convert scope of "goal" from rgrp-wide to within found bit block */
-	goal -= bi->bi_start * GFS2_NBBY;
-
+do_search:
 	/* Search (up to entire) bitmap in this rgrp for allocatable block.
 	   "x <= length", instead of "x < length", because we typically start
 	   the search in the middle of a bit block, but if we can't find an
 	   allocatable block anywhere else, we want to be able wrap around and
 	   search in the first part of our first-searched bit block.  */
 	for (x = 0; x <= length; x++) {
+		bi = rgd->rd_bits + buf;
+
+		if (test_bit(GBF_FULL, &bi->bi_flags) &&
+		    (old_state == GFS2_BLKST_FREE))
+			goto skip;
+
 		/* The GFS2_BLKST_UNLINKED state doesn't apply to the clone
 		   bitmaps, so we must search the originals for that. */
 		buffer = bi->bi_bh->b_data + bi->bi_offset;
@@ -1343,33 +1354,39 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 		if (blk != BFITNOENT)
 			break;
 
+		if ((goal == 0) && (old_state == GFS2_BLKST_FREE))
+			set_bit(GBF_FULL, &bi->bi_flags);
+
 		/* Try next bitmap block (wrap back to rgrp header if at end) */
-		buf = (buf + 1) % length;
-		bi = rgd->rd_bits + buf;
+skip:
+		buf++;
+		buf %= length;
 		goal = 0;
 	}
 
-	if (blk != BFITNOENT && old_state != new_state) {
-		*n = 1;
-		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
-		gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
-			    bi->bi_len, blk, new_state);
-		goal = blk;
-		while (*n < elen) {
-			goal++;
-			if (goal >= (bi->bi_len * GFS2_NBBY))
-				break;
-			if (gfs2_testbit(rgd, buffer, bi->bi_len, goal) !=
-			    GFS2_BLKST_FREE)
-				break;
-			gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone,
-				    bi->bi_offset, bi->bi_len, goal,
-				    new_state);
-			(*n)++;
-		}
-	}
+	if (blk == BFITNOENT)
+		return blk;
+	*n = 1;
+	if (old_state == new_state)
+		goto out;
 
-	return (blk == BFITNOENT) ? blk : (bi->bi_start * GFS2_NBBY) + blk;
+	gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
+	gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
+		    bi->bi_len, blk, new_state);
+	goal = blk;
+	while (*n < elen) {
+		goal++;
+		if (goal >= (bi->bi_len * GFS2_NBBY))
+			break;
+		if (gfs2_testbit(rgd, buffer, bi->bi_len, goal) !=
+		    GFS2_BLKST_FREE)
+			break;
+		gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone, bi->bi_offset,
+			    bi->bi_len, goal, new_state);
+		(*n)++;
+	}
+out:
+	return (bi->bi_start * GFS2_NBBY) + blk;
 }
 
 /**
