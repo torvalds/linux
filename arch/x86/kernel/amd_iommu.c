@@ -57,6 +57,10 @@ static int dma_ops_unity_map(struct dma_ops_domain *dma_dom,
 static struct dma_ops_domain *find_protection_domain(u16 devid);
 
 
+#ifndef BUS_NOTIFY_UNBOUND_DRIVER
+#define BUS_NOTIFY_UNBOUND_DRIVER 0x0005
+#endif
+
 #ifdef CONFIG_AMD_IOMMU_STATS
 
 /*
@@ -1012,7 +1016,7 @@ static int device_change_notifier(struct notifier_block *nb,
 		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
 		       "device %s\n", dma_domain->domain.id, dev_name(dev));
 		break;
-	case BUS_NOTIFY_UNBIND_DRIVER:
+	case BUS_NOTIFY_UNBOUND_DRIVER:
 		if (!domain)
 			goto out;
 		detach_device(domain, devid);
