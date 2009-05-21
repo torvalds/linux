@@ -319,7 +319,7 @@ static struct file_operations ima_measure_policy_ops = {
 	.release = ima_release_policy
 };
 
-int ima_fs_init(void)
+int __init ima_fs_init(void)
 {
 	ima_dir = securityfs_create_dir("ima", NULL);
 	if (IS_ERR(ima_dir))

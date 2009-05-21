@@ -178,7 +178,7 @@ int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask)
  * ima_measure points to either the measure_default_rules or the
  * the new measure_policy_rules.
  */
-void ima_init_policy(void)
+void __init ima_init_policy(void)
 {
 	int i, entries;
 
