@@ -241,6 +241,20 @@ config PCF50633_GPIO
 	 Say yes here if you want to include support GPIO for pins on
 	 the PCF50633 chip.
 
+config AB3100_CORE
+	tristate "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
+	depends on I2C
+	default y if ARCH_U300
+	help
+	  Select this to enable the AB3100 Mixed Signal IC core
+	  functionality. This connects to a AB3100 on the I2C bus
+	  and expose a number of symbols needed for dependent devices
+	  to read and write registers and subscribe to events from
+	  this multi-functional IC. This is needed to use other features
+	  of the AB3100 such as battery-backed RTC, charging control,
+	  LEDs, vibrator, system power and temperature, power management
+	  and ALSA sound.
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"
