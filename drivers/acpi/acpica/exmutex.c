@@ -83,6 +83,15 @@ void acpi_ex_unlink_mutex(union acpi_operand_object *obj_desc)
 
 	if (obj_desc->mutex.prev) {
 		(obj_desc->mutex.prev)->mutex.next = obj_desc->mutex.next;
+
+		/*
+		 * Migrate the previous sync level associated with this mutex to the
+		 * previous mutex on the list so that it may be preserved. This handles
+		 * the case where several mutexes have been acquired at the same level,
+		 * but are not released in opposite order.
+		 */
+		(obj_desc->mutex.prev)->mutex.original_sync_level =
+		    obj_desc->mutex.original_sync_level;
 	} else {
 		thread->acquired_mutex_list = obj_desc->mutex.next;
 	}
@@ -349,6 +358,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 		      struct acpi_walk_state *walk_state)
 {
 	acpi_status status = AE_OK;
+	u8 previous_sync_level;
 
 	ACPI_FUNCTION_TRACE(ex_release_mutex);
 
@@ -404,14 +414,21 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
 	}
 
+	/*
+	 * Get the previous sync_level from the head of the acquired mutex list.
+	 * This handles the case where several mutexes at the same level have been
+	 * acquired, but are not released in reverse order.
+	 */
+	previous_sync_level =
+	    walk_state->thread->acquired_mutex_list->mutex.original_sync_level;
+
 	status = acpi_ex_release_mutex_object(obj_desc);
 
 	if (obj_desc->mutex.acquisition_depth == 0) {
 
 		/* Restore the original sync_level */
 
-		walk_state->thread->current_sync_level =
-		    obj_desc->mutex.original_sync_level;
+		walk_state->thread->current_sync_level = previous_sync_level;
 	}
 	return_ACPI_STATUS(status);
 }
