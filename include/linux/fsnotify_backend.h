@@ -119,6 +119,13 @@ struct fsnotify_group {
 
 	const struct fsnotify_ops *ops;	/* how this group handles things */
 
+	/* needed to send notification to userspace */
+	struct mutex notification_mutex;	/* protect the notification_list */
+	struct list_head notification_list;	/* list of event_holder this group needs to send to userspace */
+	wait_queue_head_t notification_waitq;	/* read() on the notification file blocks on this waitq */
+	unsigned int q_len;			/* events on the queue */
+	unsigned int max_events;		/* maximum events allowed on the list */
+
 	/* stores all fastapth entries assoc with this group so they can be cleaned on unregister */
 	spinlock_t mark_lock;		/* protect mark_entries list */
 	atomic_t num_marks;		/* 1 for each mark entry and 1 for not being
@@ -136,11 +143,32 @@ struct fsnotify_group {
 };
 
 /*
+ * A single event can be queued in multiple group->notification_lists.
+ *
+ * each group->notification_list will point to an event_holder which in turns points
+ * to the actual event that needs to be sent to userspace.
+ *
+ * Seemed cheaper to create a refcnt'd event and a small holder for every group
+ * than create a different event for every group
+ *
+ */
+struct fsnotify_event_holder {
+	struct fsnotify_event *event;
+	struct list_head event_list;
+};
+
+/*
  * all of the information about the original object we want to now send to
  * a group.  If you want to carry more info from the accessing task to the
  * listener this structure is where you need to be adding fields.
  */
 struct fsnotify_event {
+	/*
+	 * If we create an event we are also likely going to need a holder
+	 * to link to a group.  So embed one holder in the event.  Means only
+	 * one allocation for the common case where we only have one group
+	 */
+	struct fsnotify_event_holder holder;
 	spinlock_t lock;	/* protection for the associated event_holder and private_list */
 	/* to_tell may ONLY be dereferenced during handle_event(). */
 	struct inode *to_tell;	/* either the inode the event happened to or its parent */
@@ -263,6 +291,15 @@ extern void fsnotify_put_event(struct fsnotify_event *event);
 /* find private data previously attached to an event */
 extern struct fsnotify_event_private_data *fsnotify_get_priv_from_event(struct fsnotify_group *group,
 									struct fsnotify_event *event);
+
+/* attach the event to the group notification queue */
+extern int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event);
+/* true if the group notification queue is empty */
+extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
+/* return, but do not dequeue the first event on the notification queue */
+extern struct fsnotify_event *fsnotify_peek_notify_event(struct fsnotify_group *group);
+/* reutnr AND dequeue the first event on the notification queue */
+extern struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group);
 
 /* functions used to manipulate the marks attached to inodes */
 

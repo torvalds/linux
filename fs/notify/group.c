@@ -91,6 +91,9 @@ static void fsnotify_get_group(struct fsnotify_group *group)
  */
 void fsnotify_final_destroy_group(struct fsnotify_group *group)
 {
+	/* clear the notification queue of all events */
+	fsnotify_flush_notify(group);
+
 	if (group->ops->free_group_priv)
 		group->ops->free_group_priv(group);
 
@@ -213,6 +216,12 @@ struct fsnotify_group *fsnotify_obtain_group(unsigned int group_num, __u32 mask,
 	group->on_group_list = 0;
 	group->group_num = group_num;
 	group->mask = mask;
+
+	mutex_init(&group->notification_mutex);
+	INIT_LIST_HEAD(&group->notification_list);
+	init_waitqueue_head(&group->notification_waitq);
+	group->q_len = 0;
+	group->max_events = UINT_MAX;
 
 	spin_lock_init(&group->mark_lock);
 	atomic_set(&group->num_marks, 0);
