@@ -42,6 +42,7 @@
 
 #define IF_SDIO_SCRATCH		0x34
 #define IF_SDIO_SCRATCH_OLD	0x80fe
+#define IF_SDIO_FW_STATUS	0x40
 #define   IF_SDIO_FIRMWARE_OK	0xfedc
 
 #define IF_SDIO_RX_LEN		0x42

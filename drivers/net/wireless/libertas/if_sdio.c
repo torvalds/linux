@@ -100,6 +100,7 @@ struct if_sdio_card {
 
 	int			model;
 	unsigned long		ioport;
+	unsigned int		scratch_reg;
 
 	const char		*helper;
 	const char		*firmware;
@@ -119,19 +120,21 @@ struct if_sdio_card {
 /* I/O                                                              */
 /********************************************************************/
 
+/*
+ *  For SD8385/SD8686, this function reads firmware status after
+ *  the image is downloaded, or reads RX packet length when
+ *  interrupt (with IF_SDIO_H_INT_UPLD bit set) is received.
+ *  For SD8688, this function reads firmware status only.
+ */
 static u16 if_sdio_read_scratch(struct if_sdio_card *card, int *err)
 {
-	int ret, reg;
+	int ret;
 	u16 scratch;
 
-	if (card->model == IF_SDIO_MODEL_8385)
-		reg = IF_SDIO_SCRATCH_OLD;
-	else
-		reg = IF_SDIO_SCRATCH;
-
-	scratch = sdio_readb(card->func, reg, &ret);
+	scratch = sdio_readb(card->func, card->scratch_reg, &ret);
 	if (!ret)
-		scratch |= sdio_readb(card->func, reg + 1, &ret) << 8;
+		scratch |= sdio_readb(card->func, card->scratch_reg + 1,
+					&ret) << 8;
 
 	if (err)
 		*err = ret;
@@ -706,6 +709,8 @@ static int if_sdio_prog_firmware(struct if_sdio_card *card)
 	if (ret)
 		goto out;
 
+	lbs_deb_sdio("firmware status = %#x\n", scratch);
+
 	if (scratch == IF_SDIO_FIRMWARE_OK) {
 		lbs_deb_sdio("firmware already loaded\n");
 		goto success;
@@ -893,6 +898,20 @@ static int if_sdio_probe(struct sdio_func *func,
 
 	card->func = func;
 	card->model = model;
+
+	switch (card->model) {
+	case IF_SDIO_MODEL_8385:
+		card->scratch_reg = IF_SDIO_SCRATCH_OLD;
+		break;
+	case IF_SDIO_MODEL_8686:
+		card->scratch_reg = IF_SDIO_SCRATCH;
+		break;
+	case IF_SDIO_MODEL_8688:
+	default: /* for newer chipsets */
+		card->scratch_reg = IF_SDIO_FW_STATUS;
+		break;
+	}
+
 	spin_lock_init(&card->lock);
 	card->workqueue = create_workqueue("libertas_sdio");
 	INIT_WORK(&card->packet_worker, if_sdio_host_to_card_worker);
