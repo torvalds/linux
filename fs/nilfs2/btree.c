@@ -1067,10 +1067,8 @@ static void nilfs_btree_commit_insert(struct nilfs_btree *btree,
 		btree->bt_ops->btop_set_target(btree, key, ptr);
 
 	for (level = NILFS_BTREE_LEVEL_NODE_MIN; level <= maxlevel; level++) {
-		if (btree->bt_bmap.b_pops->bpop_commit_alloc_ptr != NULL) {
-			btree->bt_bmap.b_pops->bpop_commit_alloc_ptr(
-				&btree->bt_bmap, &path[level - 1].bp_newreq);
-		}
+		btree->bt_bmap.b_pops->bpop_commit_alloc_ptr(
+			&btree->bt_bmap, &path[level - 1].bp_newreq);
 		path[level].bp_op(btree, path, level, &key, &ptr);
 	}
 
@@ -1656,10 +1654,8 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 	btree = (struct nilfs_btree *)bmap;
 	nilfs_btree_init(bmap, low, high);
 	if (nreq != NULL) {
-		if (bmap->b_pops->bpop_commit_alloc_ptr != NULL) {
-			bmap->b_pops->bpop_commit_alloc_ptr(bmap, dreq);
-			bmap->b_pops->bpop_commit_alloc_ptr(bmap, nreq);
-		}
+		bmap->b_pops->bpop_commit_alloc_ptr(bmap, dreq);
+		bmap->b_pops->bpop_commit_alloc_ptr(bmap, nreq);
 
 		/* create child node at level 1 */
 		lock_buffer(bh);
@@ -1681,8 +1677,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 		nilfs_btree_node_init(btree, node, NILFS_BTREE_NODE_ROOT,
 				      2, 1, &keys[0], &tmpptr);
 	} else {
-		if (bmap->b_pops->bpop_commit_alloc_ptr != NULL)
-			bmap->b_pops->bpop_commit_alloc_ptr(bmap, dreq);
+		bmap->b_pops->bpop_commit_alloc_ptr(bmap, dreq);
 
 		/* create root node at level 1 */
 		node = nilfs_btree_get_root(btree);

@@ -111,9 +111,7 @@ static void nilfs_direct_commit_insert(struct nilfs_direct *direct,
 	bh = (struct buffer_head *)((unsigned long)ptr);
 	set_buffer_nilfs_volatile(bh);
 
-	if (direct->d_bmap.b_pops->bpop_commit_alloc_ptr != NULL)
-		direct->d_bmap.b_pops->bpop_commit_alloc_ptr(
-			&direct->d_bmap, req);
+	direct->d_bmap.b_pops->bpop_commit_alloc_ptr(&direct->d_bmap, req);
 	nilfs_direct_set_ptr(direct, key, req->bpr_ptr);
 
 	if (!nilfs_bmap_dirty(&direct->d_bmap))
