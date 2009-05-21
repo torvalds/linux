@@ -63,6 +63,7 @@
 struct fsnotify_group;
 struct fsnotify_event;
 struct fsnotify_mark_entry;
+struct fsnotify_event_private_data;
 
 /*
  * Each group much define these ops.  The fsnotify infrastructure will call
@@ -81,6 +82,7 @@ struct fsnotify_ops {
 	int (*handle_event)(struct fsnotify_group *group, struct fsnotify_event *event);
 	void (*free_group_priv)(struct fsnotify_group *group);
 	void (*freeing_mark)(struct fsnotify_mark_entry *entry, struct fsnotify_group *group);
+	void (*free_event_priv)(struct fsnotify_event_private_data *priv);
 };
 
 /*
@@ -158,6 +160,15 @@ struct fsnotify_event_holder {
 };
 
 /*
+ * Inotify needs to tack data onto an event.  This struct lets us later find the
+ * correct private data of the correct group.
+ */
+struct fsnotify_event_private_data {
+	struct fsnotify_group *group;
+	struct list_head event_list;
+};
+
+/*
  * all of the information about the original object we want to now send to
  * a group.  If you want to carry more info from the accessing task to the
  * listener this structure is where you need to be adding fields.
@@ -196,6 +207,8 @@ struct fsnotify_event {
 	u32 sync_cookie;	/* used to corrolate events, namely inotify mv events */
 	char *file_name;
 	size_t name_len;
+
+	struct list_head private_data_list;	/* groups can store private data here */
 };
 
 /*
@@ -294,17 +307,18 @@ extern void fsnotify_put_group(struct fsnotify_group *group);
 /* take a reference to an event */
 extern void fsnotify_get_event(struct fsnotify_event *event);
 extern void fsnotify_put_event(struct fsnotify_event *event);
-/* find private data previously attached to an event */
-extern struct fsnotify_event_private_data *fsnotify_get_priv_from_event(struct fsnotify_group *group,
-									struct fsnotify_event *event);
+/* find private data previously attached to an event and unlink it */
+extern struct fsnotify_event_private_data *fsnotify_remove_priv_from_event(struct fsnotify_group *group,
+									   struct fsnotify_event *event);
 
 /* attach the event to the group notification queue */
-extern int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event);
+extern int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event,
+				     struct fsnotify_event_private_data *priv);
 /* true if the group notification queue is empty */
 extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 /* return, but do not dequeue the first event on the notification queue */
 extern struct fsnotify_event *fsnotify_peek_notify_event(struct fsnotify_group *group);
-/* reutnr AND dequeue the first event on the notification queue */
+/* return AND dequeue the first event on the notification queue */
 extern struct fsnotify_event *fsnotify_remove_notify_event(struct fsnotify_group *group);
 
 /* functions used to manipulate the marks attached to inodes */

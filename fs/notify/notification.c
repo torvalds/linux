@@ -90,6 +90,8 @@ void fsnotify_put_event(struct fsnotify_event *event)
 		if (event->data_type == FSNOTIFY_EVENT_PATH)
 			path_put(&event->path);
 
+		BUG_ON(!list_empty(&event->private_data_list));
+
 		kfree(event->file_name);
 		kmem_cache_free(fsnotify_event_cachep, event);
 	}
@@ -106,7 +108,29 @@ void fsnotify_destroy_event_holder(struct fsnotify_event_holder *holder)
 }
 
 /*
- * check if 2 events contain the same information.
+ * Find the private data that the group previously attached to this event when
+ * the group added the event to the notification queue (fsnotify_add_notify_event)
+ */
+struct fsnotify_event_private_data *fsnotify_remove_priv_from_event(struct fsnotify_group *group, struct fsnotify_event *event)
+{
+	struct fsnotify_event_private_data *lpriv;
+	struct fsnotify_event_private_data *priv = NULL;
+
+	assert_spin_locked(&event->lock);
+
+	list_for_each_entry(lpriv, &event->private_data_list, event_list) {
+		if (lpriv->group == group) {
+			priv = lpriv;
+			list_del(&priv->event_list);
+			break;
+		}
+	}
+	return priv;
+}
+
+/*
+ * Check if 2 events contain the same information.  We do not compare private data
+ * but at this moment that isn't a problem for any know fsnotify listeners.
  */
 static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new)
 {
@@ -134,12 +158,16 @@ static bool event_compare(struct fsnotify_event *old, struct fsnotify_event *new
  * event off the queue to deal with.  If the event is successfully added to the
  * group's notification queue, a reference is taken on event.
  */
-int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event)
+int fsnotify_add_notify_event(struct fsnotify_group *group, struct fsnotify_event *event,
+			      struct fsnotify_event_private_data *priv)
 {
 	struct fsnotify_event_holder *holder = NULL;
 	struct list_head *list = &group->notification_list;
 	struct fsnotify_event_holder *last_holder;
 	struct fsnotify_event *last_event;
+
+	/* easy to tell if priv was attached to the event */
+	INIT_LIST_HEAD(&priv->event_list);
 
 	/*
 	 * There is one fsnotify_event_holder embedded inside each fsnotify_event.
@@ -158,8 +186,11 @@ alloc_holder:
 
 	mutex_lock(&group->notification_mutex);
 
-	if (group->q_len >= group->max_events)
+	if (group->q_len >= group->max_events) {
 		event = &q_overflow_event;
+		/* sorry, no private data on the overflow event */
+		priv = NULL;
+	}
 
 	spin_lock(&event->lock);
 
@@ -183,7 +214,7 @@ alloc_holder:
 			mutex_unlock(&group->notification_mutex);
 			if (holder != &event->holder)
 				fsnotify_destroy_event_holder(holder);
-			return 0;
+			return -EEXIST;
 		}
 	}
 
@@ -192,6 +223,8 @@ alloc_holder:
 
 	fsnotify_get_event(event);
 	list_add_tail(&holder->event_list, list);
+	if (priv)
+		list_add_tail(&priv->event_list, &event->private_data_list);
 	spin_unlock(&event->lock);
 	mutex_unlock(&group->notification_mutex);
 
@@ -252,10 +285,19 @@ struct fsnotify_event *fsnotify_peek_notify_event(struct fsnotify_group *group)
 void fsnotify_flush_notify(struct fsnotify_group *group)
 {
 	struct fsnotify_event *event;
+	struct fsnotify_event_private_data *priv;
 
 	mutex_lock(&group->notification_mutex);
 	while (!fsnotify_notify_queue_is_empty(group)) {
 		event = fsnotify_remove_notify_event(group);
+		/* if they don't implement free_event_priv they better not have attached any */
+		if (group->ops->free_event_priv) {
+			spin_lock(&event->lock);
+			priv = fsnotify_remove_priv_from_event(group, event);
+			spin_unlock(&event->lock);
+			if (priv)
+				group->ops->free_event_priv(priv);
+		}
 		fsnotify_put_event(event); /* matches fsnotify_add_notify_event */
 	}
 	mutex_unlock(&group->notification_mutex);
@@ -273,6 +315,8 @@ static void initialize_event(struct fsnotify_event *event)
 	event->path.mnt = NULL;
 	event->inode = NULL;
 	event->data_type = FSNOTIFY_EVENT_NONE;
+
+	INIT_LIST_HEAD(&event->private_data_list);
 
 	event->to_tell = NULL;
 

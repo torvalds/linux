@@ -183,6 +183,7 @@ static struct fsnotify_ops dnotify_fsnotify_ops = {
 	.should_send_event = dnotify_should_send_event,
 	.free_group_priv = NULL,
 	.freeing_mark = dnotify_freeing_mark,
+	.free_event_priv = NULL,
 };
 
 /*
