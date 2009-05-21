@@ -170,6 +170,10 @@ enum sync_dimension {
 	ABSYNC = 1
 };
 
+#define EDMA_CTLR_CHAN(ctlr, chan)	(((ctlr) << 16) | (chan))
+#define EDMA_CTLR(i)			((i) >> 16)
+#define EDMA_CHAN_SLOT(i)		((i) & 0xffff)
+
 #define EDMA_CHANNEL_ANY		-1	/* for edma_alloc_channel() */
 #define EDMA_SLOT_ANY			-1	/* for edma_alloc_slot() */
 
@@ -180,7 +184,7 @@ int edma_alloc_channel(int channel,
 void edma_free_channel(unsigned channel);
 
 /* alloc/free parameter RAM slots */
-int edma_alloc_slot(int slot);
+int edma_alloc_slot(unsigned ctlr, int slot);
 void edma_free_slot(unsigned slot);
 
 /* calls that operate on part of a parameter RAM slot */
@@ -216,9 +220,12 @@ struct edma_soc_info {
 	unsigned	n_region;
 	unsigned	n_slot;
 	unsigned	n_tc;
+	unsigned	n_cc;
 
 	/* list of channels with no even trigger; terminated by "-1" */
 	const s8	*noevent;
+	const s8	(*queue_tc_mapping)[2];
+	const s8	(*queue_priority_mapping)[2];
 };
 
 #endif

@@ -143,7 +143,7 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 	prtd->master_lch = ret;
 
 	/* Request parameter RAM reload slot */
-	ret = edma_alloc_slot(EDMA_SLOT_ANY);
+	ret = edma_alloc_slot(EDMA_CTLR(prtd->master_lch), EDMA_SLOT_ANY);
 	if (ret < 0) {
 		edma_free_channel(prtd->master_lch);
 		return ret;
@@ -160,8 +160,8 @@ static int davinci_pcm_dma_request(struct snd_pcm_substream *substream)
 	 * so davinci_pcm_enqueue_dma() takes less time in IRQ.
 	 */
 	edma_read_slot(prtd->slave_lch, &p_ram);
-	p_ram.opt |= TCINTEN | EDMA_TCC(prtd->master_lch);
-	p_ram.link_bcntrld = prtd->slave_lch << 5;
+	p_ram.opt |= TCINTEN | EDMA_TCC(EDMA_CHAN_SLOT(prtd->master_lch));
+	p_ram.link_bcntrld = EDMA_CHAN_SLOT(prtd->slave_lch) << 5;
 	edma_write_slot(prtd->slave_lch, &p_ram);
 
 	return 0;

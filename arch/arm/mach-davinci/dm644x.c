@@ -484,17 +484,38 @@ static const s8 dma_chan_dm644x_no_event[] = {
 	-1
 };
 
-static struct edma_soc_info dm644x_edma_info = {
-	.n_channel	= 64,
-	.n_region	= 4,
-	.n_slot		= 128,
-	.n_tc		= 2,
-	.noevent	= dma_chan_dm644x_no_event,
+static const s8
+queue_tc_mapping[][2] = {
+	/* {event queue no, TC no} */
+	{0, 0},
+	{1, 1},
+	{-1, -1},
+};
+
+static const s8
+queue_priority_mapping[][2] = {
+	/* {event queue no, Priority} */
+	{0, 3},
+	{1, 7},
+	{-1, -1},
+};
+
+static struct edma_soc_info dm644x_edma_info[] = {
+	{
+		.n_channel		= 64,
+		.n_region		= 4,
+		.n_slot			= 128,
+		.n_tc			= 2,
+		.n_cc			= 1,
+		.noevent		= dma_chan_dm644x_no_event,
+		.queue_tc_mapping	= queue_tc_mapping,
+		.queue_priority_mapping	= queue_priority_mapping,
+	},
 };
 
 static struct resource edma_resources[] = {
 	{
-		.name	= "edma_cc",
+		.name	= "edma_cc0",
 		.start	= 0x01c00000,
 		.end	= 0x01c00000 + SZ_64K - 1,
 		.flags	= IORESOURCE_MEM,
@@ -512,10 +533,12 @@ static struct resource edma_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	{
+		.name	= "edma0",
 		.start	= IRQ_CCINT0,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
+		.name	= "edma0_err",
 		.start	= IRQ_CCERRINT,
 		.flags	= IORESOURCE_IRQ,
 	},
@@ -524,8 +547,8 @@ static struct resource edma_resources[] = {
 
 static struct platform_device dm644x_edma_device = {
 	.name			= "edma",
-	.id			= -1,
-	.dev.platform_data	= &dm644x_edma_info,
+	.id			= 0,
+	.dev.platform_data	= dm644x_edma_info,
 	.num_resources		= ARRAY_SIZE(edma_resources),
 	.resource		= edma_resources,
 };
