@@ -1244,6 +1244,53 @@ extern int ieee80211_radiotap_iterator_init(
 extern int ieee80211_radiotap_iterator_next(
    struct ieee80211_radiotap_iterator *iterator);
 
+extern const unsigned char rfc1042_header[6];
+extern const unsigned char bridge_tunnel_header[6];
+
+/**
+ * ieee80211_get_hdrlen_from_skb - get header length from data
+ *
+ * Given an skb with a raw 802.11 header at the data pointer this function
+ * returns the 802.11 header length in bytes (not including encryption
+ * headers). If the data in the sk_buff is too short to contain a valid 802.11
+ * header the function returns 0.
+ *
+ * @skb: the frame
+ */
+unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
+
+/**
+ * ieee80211_hdrlen - get header length in bytes from frame control
+ * @fc: frame control field in little-endian format
+ */
+unsigned int ieee80211_hdrlen(__le16 fc);
+
+/**
+ * ieee80211_data_to_8023 - convert an 802.11 data frame to 802.3
+ * @skb: the 802.11 data frame
+ * @addr: the device MAC address
+ * @iftype: the virtual interface type
+ */
+int ieee80211_data_to_8023(struct sk_buff *skb, u8 *addr,
+			   enum nl80211_iftype iftype);
+
+/**
+ * ieee80211_data_from_8023 - convert an 802.3 frame to 802.11
+ * @skb: the 802.3 frame
+ * @addr: the device MAC address
+ * @iftype: the virtual interface type
+ * @bssid: the network bssid (used only for iftype STATION and ADHOC)
+ * @qos: build 802.11 QoS data frame
+ */
+int ieee80211_data_from_8023(struct sk_buff *skb, u8 *addr,
+			     enum nl80211_iftype iftype, u8 *bssid, bool qos);
+
+/**
+ * cfg80211_classify8021d - determine the 802.1p/1d tag for a data frame
+ * @skb: the data frame
+ */
+unsigned int cfg80211_classify8021d(struct sk_buff *skb);
+
 /*
  * Regulatory helper functions for wiphys
  */

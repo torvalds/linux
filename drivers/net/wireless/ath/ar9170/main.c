@@ -1555,7 +1555,7 @@ static int ar9170_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (key->alg) {
 	case ALG_WEP:
-		if (key->keylen == LEN_WEP40)
+		if (key->keylen == WLAN_KEY_LEN_WEP40)
 			ktype = AR9170_ENC_ALG_WEP64;
 		else
 			ktype = AR9170_ENC_ALG_WEP128;

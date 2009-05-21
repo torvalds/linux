@@ -672,16 +672,6 @@ enum ieee80211_key_alg {
 };
 
 /**
- * enum ieee80211_key_len - key length
- * @LEN_WEP40: WEP 5-byte long key
- * @LEN_WEP104: WEP 13-byte long key
- */
-enum ieee80211_key_len {
-	LEN_WEP40 = 5,
-	LEN_WEP104 = 13,
-};
-
-/**
  * enum ieee80211_key_flags - key flags
  *
  * These flags are used for communication about keys between the driver
@@ -1810,24 +1800,6 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
  */
 struct sk_buff *
 ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-
-/**
- * ieee80211_get_hdrlen_from_skb - get header length from data
- *
- * Given an skb with a raw 802.11 header at the data pointer this function
- * returns the 802.11 header length in bytes (not including encryption
- * headers). If the data in the sk_buff is too short to contain a valid 802.11
- * header the function returns 0.
- *
- * @skb: the frame
- */
-unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb);
-
-/**
- * ieee80211_hdrlen - get header length in bytes from frame control
- * @fc: frame control field in little-endian format
- */
-unsigned int ieee80211_hdrlen(__le16 fc);
 
 /**
  * ieee80211_get_tkip_key - get a TKIP rc4 for skb

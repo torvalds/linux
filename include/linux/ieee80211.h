@@ -493,6 +493,7 @@ struct ieee80211s_hdr {
 /* Mesh flags */
 #define MESH_FLAGS_AE_A4 	0x1
 #define MESH_FLAGS_AE_A5_A6	0x2
+#define MESH_FLAGS_AE		0x3
 #define MESH_FLAGS_PS_DEEP	0x4
 
 /**
@@ -1083,6 +1084,14 @@ enum ieee80211_spectrum_mgmt_actioncode {
 	WLAN_ACTION_SPCT_TPC_REQ = 2,
 	WLAN_ACTION_SPCT_TPC_RPRT = 3,
 	WLAN_ACTION_SPCT_CHL_SWITCH = 4,
+};
+
+/* Security key length */
+enum ieee80211_key_len {
+	WLAN_KEY_LEN_WEP40 = 5,
+	WLAN_KEY_LEN_WEP104 = 13,
+	WLAN_KEY_LEN_CCMP = 16,
+	WLAN_KEY_LEN_TKIP = 32,
 };
 
 /*

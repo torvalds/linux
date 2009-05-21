@@ -3637,7 +3637,7 @@ static int b43_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	err = -EINVAL;
 	switch (key->alg) {
 	case ALG_WEP:
-		if (key->keylen == LEN_WEP40)
+		if (key->keylen == WLAN_KEY_LEN_WEP40)
 			algorithm = B43_SEC_ALGO_WEP40;
 		else
 			algorithm = B43_SEC_ALGO_WEP104;

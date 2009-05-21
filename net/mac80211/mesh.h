@@ -191,12 +191,8 @@ struct mesh_rmc {
 #define PLINK_CATEGORY		30
 #define MESH_PATH_SEL_CATEGORY	32
 
-/* Mesh Header Flags */
-#define IEEE80211S_FLAGS_AE	0x3
-
 /* Public interfaces */
 /* Various */
-int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 		struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_check(u8 *addr, struct ieee80211s_hdr *mesh_hdr,

@@ -1247,93 +1247,12 @@ ieee80211_drop_unencrypted(struct ieee80211_rx_data *rx, __le16 fc)
 }
 
 static int
-ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
+__ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 {
 	struct net_device *dev = rx->dev;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) rx->skb->data;
-	u16 hdrlen, ethertype;
-	u8 *payload;
-	u8 dst[ETH_ALEN];
-	u8 src[ETH_ALEN] __aligned(2);
-	struct sk_buff *skb = rx->skb;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
-		return -1;
-
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-
-	/* convert IEEE 802.11 header + possible LLC headers into Ethernet
-	 * header
-	 * IEEE 802.11 address fields:
-	 * ToDS FromDS Addr1 Addr2 Addr3 Addr4
-	 *   0     0   DA    SA    BSSID n/a
-	 *   0     1   DA    BSSID SA    n/a
-	 *   1     0   BSSID SA    DA    n/a
-	 *   1     1   RA    TA    DA    SA
-	 */
-	memcpy(dst, ieee80211_get_DA(hdr), ETH_ALEN);
-	memcpy(src, ieee80211_get_SA(hdr), ETH_ALEN);
-
-	switch (hdr->frame_control &
-		cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
-	case cpu_to_le16(IEEE80211_FCTL_TODS):
-		if (unlikely(sdata->vif.type != NL80211_IFTYPE_AP &&
-			     sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
-			return -1;
-		break;
-	case cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
-		if (unlikely(sdata->vif.type != NL80211_IFTYPE_WDS &&
-			     sdata->vif.type != NL80211_IFTYPE_MESH_POINT))
-			return -1;
-		if (ieee80211_vif_is_mesh(&sdata->vif)) {
-			struct ieee80211s_hdr *meshdr = (struct ieee80211s_hdr *)
-				(skb->data + hdrlen);
-			hdrlen += ieee80211_get_mesh_hdrlen(meshdr);
-			if (meshdr->flags & MESH_FLAGS_AE_A5_A6) {
-				memcpy(dst, meshdr->eaddr1, ETH_ALEN);
-				memcpy(src, meshdr->eaddr2, ETH_ALEN);
-			}
-		}
-		break;
-	case cpu_to_le16(IEEE80211_FCTL_FROMDS):
-		if (sdata->vif.type != NL80211_IFTYPE_STATION ||
-		    (is_multicast_ether_addr(dst) &&
-		     !compare_ether_addr(src, dev->dev_addr)))
-			return -1;
-		break;
-	case cpu_to_le16(0):
-		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
-			return -1;
-		break;
-	}
-
-	if (unlikely(skb->len - hdrlen < 8))
-		return -1;
-
-	payload = skb->data + hdrlen;
-	ethertype = (payload[6] << 8) | payload[7];
-
-	if (likely((compare_ether_addr(payload, rfc1042_header) == 0 &&
-		    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
-		   compare_ether_addr(payload, bridge_tunnel_header) == 0)) {
-		/* remove RFC1042 or Bridge-Tunnel encapsulation and
-		 * replace EtherType */
-		skb_pull(skb, hdrlen + 6);
-		memcpy(skb_push(skb, ETH_ALEN), src, ETH_ALEN);
-		memcpy(skb_push(skb, ETH_ALEN), dst, ETH_ALEN);
-	} else {
-		struct ethhdr *ehdr;
-		__be16 len;
-
-		skb_pull(skb, hdrlen);
-		len = htons(skb->len);
-		ehdr = (struct ethhdr *) skb_push(skb, sizeof(struct ethhdr));
-		memcpy(ehdr->h_dest, dst, ETH_ALEN);
-		memcpy(ehdr->h_source, src, ETH_ALEN);
-		ehdr->h_proto = len;
-	}
-	return 0;
+	return ieee80211_data_to_8023(rx->skb, dev->dev_addr, sdata->vif.type);
 }
 
 /*
@@ -1472,7 +1391,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 	if (!(rx->flags & IEEE80211_RX_AMSDU))
 		return RX_CONTINUE;
 
-	err = ieee80211_data_to_8023(rx);
+	err = __ieee80211_data_to_8023(rx);
 	if (unlikely(err))
 		return RX_DROP_UNUSABLE;
 
@@ -1658,7 +1577,7 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
 		return RX_DROP_MONITOR;
 
-	err = ieee80211_data_to_8023(rx);
+	err = __ieee80211_data_to_8023(rx);
 	if (unlikely(err))
 		return RX_DROP_UNUSABLE;
 

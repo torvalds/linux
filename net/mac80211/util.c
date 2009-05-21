@@ -35,15 +35,6 @@
 /* privid for wiphys to determine whether they belong to us or not */
 void *mac80211_wiphy_privid = &mac80211_wiphy_privid;
 
-/* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
-/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
-const unsigned char rfc1042_header[] __aligned(2) =
-	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00 };
-
-/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-const unsigned char bridge_tunnel_header[] __aligned(2) =
-	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
-
 struct ieee80211_hw *wiphy_to_ieee80211_hw(struct wiphy *wiphy)
 {
 	struct ieee80211_local *local;
@@ -101,70 +92,6 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 	}
 
 	return NULL;
-}
-
-unsigned int ieee80211_hdrlen(__le16 fc)
-{
-	unsigned int hdrlen = 24;
-
-	if (ieee80211_is_data(fc)) {
-		if (ieee80211_has_a4(fc))
-			hdrlen = 30;
-		if (ieee80211_is_data_qos(fc))
-			hdrlen += IEEE80211_QOS_CTL_LEN;
-		goto out;
-	}
-
-	if (ieee80211_is_ctl(fc)) {
-		/*
-		 * ACK and CTS are 10 bytes, all others 16. To see how
-		 * to get this condition consider
-		 *   subtype mask:   0b0000000011110000 (0x00F0)
-		 *   ACK subtype:    0b0000000011010000 (0x00D0)
-		 *   CTS subtype:    0b0000000011000000 (0x00C0)
-		 *   bits that matter:         ^^^      (0x00E0)
-		 *   value of those: 0b0000000011000000 (0x00C0)
-		 */
-		if ((fc & cpu_to_le16(0x00E0)) == cpu_to_le16(0x00C0))
-			hdrlen = 10;
-		else
-			hdrlen = 16;
-	}
-out:
-	return hdrlen;
-}
-EXPORT_SYMBOL(ieee80211_hdrlen);
-
-unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
-{
-	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)skb->data;
-	unsigned int hdrlen;
-
-	if (unlikely(skb->len < 10))
-		return 0;
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	if (unlikely(hdrlen > skb->len))
-		return 0;
-	return hdrlen;
-}
-EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
-
-int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr)
-{
-	int ae = meshhdr->flags & IEEE80211S_FLAGS_AE;
-	/* 7.1.3.5a.2 */
-	switch (ae) {
-	case 0:
-		return 6;
-	case 1:
-		return 12;
-	case 2:
-		return 18;
-	case 3:
-		return 24;
-	default:
-		return 6;
-	}
 }
 
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx)

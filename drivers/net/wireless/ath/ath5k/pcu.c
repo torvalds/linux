@@ -1038,9 +1038,9 @@ int ath5k_keycache_type(const struct ieee80211_key_conf *key)
 	case ALG_CCMP:
 		return AR5K_KEYTABLE_TYPE_CCM;
 	case ALG_WEP:
-		if (key->keylen == LEN_WEP40)
+		if (key->keylen == WLAN_KEY_LEN_WEP40)
 			return AR5K_KEYTABLE_TYPE_40;
-		else if (key->keylen == LEN_WEP104)
+		else if (key->keylen == WLAN_KEY_LEN_WEP104)
 			return AR5K_KEYTABLE_TYPE_104;
 		return -EINVAL;
 	default:

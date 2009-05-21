@@ -1085,8 +1085,6 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
-extern const unsigned char rfc1042_header[6];
-extern const unsigned char bridge_tunnel_header[6];
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum nl80211_iftype type);
 int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
