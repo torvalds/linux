@@ -202,12 +202,6 @@ void nilfs_bmap_add_blocks(const struct nilfs_bmap *, int);
 void nilfs_bmap_sub_blocks(const struct nilfs_bmap *, int);
 
 
-int nilfs_bmap_get_block(const struct nilfs_bmap *, __u64,
-			 struct buffer_head **);
-int nilfs_bmap_get_new_block(const struct nilfs_bmap *, __u64,
-			     struct buffer_head **);
-
-
 /* Assume that bmap semaphore is locked. */
 static inline int nilfs_bmap_dirty(const struct nilfs_bmap *bmap)
 {

@@ -417,26 +417,6 @@ void nilfs_bmap_sub_blocks(const struct nilfs_bmap *bmap, int n)
 		mark_inode_dirty(bmap->b_inode);
 }
 
-int nilfs_bmap_get_block(const struct nilfs_bmap *bmap, __u64 ptr,
-			 struct buffer_head **bhp)
-{
-	return nilfs_btnode_get(&NILFS_BMAP_I(bmap)->i_btnode_cache,
-				ptr, 0, bhp, 0);
-}
-
-int nilfs_bmap_get_new_block(const struct nilfs_bmap *bmap, __u64 ptr,
-			     struct buffer_head **bhp)
-{
-	int ret;
-
-	ret = nilfs_btnode_get(&NILFS_BMAP_I(bmap)->i_btnode_cache,
-			       ptr, 0, bhp, 1);
-	if (ret < 0)
-		return ret;
-	set_buffer_nilfs_volatile(*bhp);
-	return 0;
-}
-
 __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *bmap,
 			      const struct buffer_head *bh)
 {
