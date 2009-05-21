@@ -152,14 +152,6 @@ static void end_intc_irq(unsigned int irq)
 	enable_intc_irq(irq);
 }
 
-/* For future use, if we ever support IRLM=0) */
-void make_intc_irq(unsigned int irq)
-{
-	disable_irq_nosync(irq);
-	irq_desc[irq].chip = &intc_irq_type;
-	disable_intc_irq(irq);
-}
-
 void __init plat_irq_setup(void)
 {
 	unsigned long long __dummy0, __dummy1=~0x00000000100000f0;
@@ -174,7 +166,7 @@ void __init plat_irq_setup(void)
 
 	/* Set default: per-line enable/disable, priority driven ack/eoi */
 	for (i = 0; i < NR_INTC_IRQS; i++)
-		irq_desc[i].chip = &intc_irq_type;
+		set_irq_chip_and_handler(i, &intc_irq_type, handle_level_irq);
 
 
 	/* Disable all interrupts and set all priorities to 0 to avoid trouble */
