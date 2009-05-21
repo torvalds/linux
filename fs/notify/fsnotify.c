@@ -26,6 +26,15 @@
 #include "fsnotify.h"
 
 /*
+ * Clear all of the marks on an inode when it is being evicted from core
+ */
+void __fsnotify_inode_delete(struct inode *inode)
+{
+	fsnotify_clear_marks_by_inode(inode);
+}
+EXPORT_SYMBOL_GPL(__fsnotify_inode_delete);
+
+/*
  * This is the main call to fsnotify.  The VFS calls into hook specific functions
  * in linux/fsnotify.h.  Those functions then in turn call here.  Here will call
  * out to all of the registered fsnotify_group.  Those groups can then use the
@@ -43,6 +52,8 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is)
 	if (!(mask & fsnotify_mask))
 		return;
 
+	if (!(mask & to_tell->i_fsnotify_mask))
+		return;
 	/*
 	 * SRCU!!  the groups list is very very much read only and the path is
 	 * very hot.  The VAST majority of events are not going to need to do
@@ -51,6 +62,8 @@ void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is)
 	idx = srcu_read_lock(&fsnotify_grp_srcu);
 	list_for_each_entry_rcu(group, &fsnotify_groups, group_list) {
 		if (mask & group->mask) {
+			if (!group->ops->should_send_event(group, to_tell, mask))
+				continue;
 			if (!event) {
 				event = fsnotify_create_event(to_tell, mask, data, data_is);
 				/* shit, we OOM'd and now we can't tell, maybe

@@ -22,6 +22,7 @@
 #include <linux/cdev.h>
 #include <linux/bootmem.h>
 #include <linux/inotify.h>
+#include <linux/fsnotify.h>
 #include <linux/mount.h>
 #include <linux/async.h>
 
@@ -189,6 +190,10 @@ struct inode *inode_init_always(struct super_block *sb, struct inode *inode)
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
 
+#ifdef CONFIG_FSNOTIFY
+	inode->i_fsnotify_mask = 0;
+#endif
+
 	return inode;
 
 out_free_security:
@@ -221,6 +226,7 @@ void destroy_inode(struct inode *inode)
 	BUG_ON(inode_has_buffers(inode));
 	ima_inode_free(inode);
 	security_inode_free(inode);
+	fsnotify_inode_delete(inode);
 	if (inode->i_sb->s_op->destroy_inode)
 		inode->i_sb->s_op->destroy_inode(inode);
 	else
@@ -251,6 +257,9 @@ void inode_init_once(struct inode *inode)
 #ifdef CONFIG_INOTIFY
 	INIT_LIST_HEAD(&inode->inotify_watches);
 	mutex_init(&inode->inotify_mutex);
+#endif
+#ifdef CONFIG_FSNOTIFY
+	INIT_HLIST_HEAD(&inode->i_fsnotify_mark_entries);
 #endif
 }
 EXPORT_SYMBOL(inode_init_once);

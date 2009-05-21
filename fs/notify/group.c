@@ -55,6 +55,29 @@ void fsnotify_recalc_global_mask(void)
 }
 
 /*
+ * Update the group->mask by running all of the marks associated with this
+ * group and finding the bitwise | of all of the mark->mask.  If we change
+ * the group->mask we need to update the global mask of events interesting
+ * to the system.
+ */
+void fsnotify_recalc_group_mask(struct fsnotify_group *group)
+{
+	__u32 mask = 0;
+	__u32 old_mask = group->mask;
+	struct fsnotify_mark_entry *entry;
+
+	spin_lock(&group->mark_lock);
+	list_for_each_entry(entry, &group->mark_entries, g_list)
+		mask |= entry->mask;
+	spin_unlock(&group->mark_lock);
+
+	group->mask = mask;
+
+	if (old_mask != mask)
+		fsnotify_recalc_global_mask();
+}
+
+/*
  * Take a reference to a group so things found under the fsnotify_grp_mutex
  * can't get freed under us
  */
@@ -66,12 +89,30 @@ static void fsnotify_get_group(struct fsnotify_group *group)
 /*
  * Final freeing of a group
  */
-static void fsnotify_destroy_group(struct fsnotify_group *group)
+void fsnotify_final_destroy_group(struct fsnotify_group *group)
 {
 	if (group->ops->free_group_priv)
 		group->ops->free_group_priv(group);
 
 	kfree(group);
+}
+
+/*
+ * Trying to get rid of a group.  We need to first get rid of any outstanding
+ * allocations and then free the group.  Remember that fsnotify_clear_marks_by_group
+ * could miss marks that are being freed by inode and those marks could still
+ * hold a reference to this group (via group->num_marks)  If we get into that
+ * situtation, the fsnotify_final_destroy_group will get called when that final
+ * mark is freed.
+ */
+static void fsnotify_destroy_group(struct fsnotify_group *group)
+{
+	/* clear all inode mark entries for this group */
+	fsnotify_clear_marks_by_group(group);
+
+	/* past the point of no return, matches the initial value of 1 */
+	if (atomic_dec_and_test(&group->num_marks))
+		fsnotify_final_destroy_group(group);
 }
 
 /*
@@ -173,6 +214,10 @@ struct fsnotify_group *fsnotify_obtain_group(unsigned int group_num, __u32 mask,
 	group->group_num = group_num;
 	group->mask = mask;
 
+	spin_lock_init(&group->mark_lock);
+	atomic_set(&group->num_marks, 0);
+	INIT_LIST_HEAD(&group->mark_entries);
+
 	group->ops = ops;
 
 	mutex_lock(&fsnotify_grp_mutex);
@@ -188,6 +233,8 @@ struct fsnotify_group *fsnotify_obtain_group(unsigned int group_num, __u32 mask,
 	/* group not found, add a new one */
 	list_add_rcu(&group->group_list, &fsnotify_groups);
 	group->on_group_list = 1;
+	/* being on the fsnotify_groups list holds one num_marks */
+	atomic_inc(&group->num_marks);
 
 	mutex_unlock(&fsnotify_grp_mutex);
 
