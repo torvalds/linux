@@ -168,7 +168,7 @@ struct acpi_device_dir {
 
 /* Plug and Play */
 
-typedef char acpi_bus_id[5];
+typedef char acpi_bus_id[8];
 typedef unsigned long acpi_bus_address;
 typedef char acpi_hardware_id[15];
 typedef char acpi_unique_id[9];
