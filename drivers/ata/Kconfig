@@ -535,6 +535,15 @@ config PATA_OPTIDMA
 
 	  If unsure, say N.
 
+config PATA_PALMLD
+	tristate "Palm LifeDrive PATA support"
+	depends on MACH_PALMLD
+	help
+	  This option enables support for Palm LifeDrive's internal ATA
+	  port via the new ATA layer.
+
+	  If unsure, say N.
+
 config PATA_PCMCIA
 	tristate "PCMCIA PATA support"
 	depends on PCMCIA

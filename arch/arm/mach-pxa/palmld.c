@@ -127,7 +127,7 @@ static unsigned long palmld_pin_config[] __initdata = {
 	GPIO81_GPIO,	/* wifi reset */
 
 	/* HDD */
-	GPIO95_GPIO,	/* HDD irq */
+	GPIO98_GPIO,	/* HDD reset */
 	GPIO115_GPIO,	/* HDD power */
 
 	/* MISC */
@@ -494,6 +494,14 @@ static struct platform_device palmld_asoc = {
 };
 
 /******************************************************************************
+ * HDD
+ ******************************************************************************/
+static struct platform_device palmld_hdd = {
+	.name	= "pata_palmld",
+	.id	= -1,
+};
+
+/******************************************************************************
  * Framebuffer
  ******************************************************************************/
 static struct pxafb_mode_info palmld_lcd_modes[] = {
@@ -557,6 +565,7 @@ static struct platform_device *devices[] __initdata = {
 	&palmld_leds,
 	&power_supply,
 	&palmld_asoc,
+	&palmld_hdd,
 };
 
 static struct map_desc palmld_io_desc[] __initdata = {
