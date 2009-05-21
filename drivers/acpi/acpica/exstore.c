@@ -193,10 +193,12 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 		case ACPI_REFCLASS_TABLE:
 
+			/* Case for ddb_handle */
+
 			ACPI_DEBUG_PRINT_RAW((ACPI_DB_DEBUG_OBJECT,
 					      "Table Index 0x%X\n",
 					      source_desc->reference.value));
-			break;
+			return;
 
 		default:
 			break;
