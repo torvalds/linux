@@ -334,9 +334,7 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 
 		/* Get the next node in this scope (NULL if none) */
 
-		child_node =
-		    acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
-					  child_node);
+		child_node = acpi_ns_get_next_node(parent_node, child_node);
 		if (child_node) {
 
 			/* Found a child node - detach any attached object */
@@ -345,8 +343,7 @@ void acpi_ns_delete_namespace_subtree(struct acpi_namespace_node *parent_node)
 
 			/* Check if this node has any children */
 
-			if (acpi_ns_get_next_node
-			    (ACPI_TYPE_ANY, child_node, NULL)) {
+			if (child_node->child) {
 				/*
 				 * There is at least one child of this node,
 				 * visit the node
@@ -432,9 +429,7 @@ void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 		 * Get the next child of this parent node. When child_node is NULL,
 		 * the first child of the parent is returned
 		 */
-		child_node =
-		    acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
-					  child_node);
+		child_node = acpi_ns_get_next_node(parent_node, child_node);
 
 		if (deletion_node) {
 			acpi_ns_delete_children(deletion_node);
@@ -452,8 +447,7 @@ void acpi_ns_delete_namespace_by_owner(acpi_owner_id owner_id)
 
 			/* Check if this node has any children */
 
-			if (acpi_ns_get_next_node
-			    (ACPI_TYPE_ANY, child_node, NULL)) {
+			if (child_node->child) {
 				/*
 				 * There is at least one child of this node,
 				 * visit the node

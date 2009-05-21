@@ -268,7 +268,7 @@ acpi_get_next_object(acpi_object_type type,
 
 	/* Internal function does the real work */
 
-	node = acpi_ns_get_next_node(type, parent_node, child_node);
+	node = acpi_ns_get_next_node_typed(type, parent_node, child_node);
 	if (!node) {
 		status = AE_NOT_FOUND;
 		goto unlock_and_exit;
