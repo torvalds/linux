@@ -196,7 +196,6 @@ struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 static int __init net_ns_init(void)
 {
 	struct net_generic *ng;
-	int err;
 
 #ifdef CONFIG_NET_NS
 	net_cachep = kmem_cache_create("net_namespace", sizeof(struct net),
@@ -216,15 +215,14 @@ static int __init net_ns_init(void)
 	rcu_assign_pointer(init_net.gen, ng);
 
 	mutex_lock(&net_mutex);
-	err = setup_net(&init_net);
+	if (setup_net(&init_net))
+		panic("Could not setup the initial network namespace");
 
 	rtnl_lock();
 	list_add_tail(&init_net.list, &net_namespace_list);
 	rtnl_unlock();
 
 	mutex_unlock(&net_mutex);
-	if (err)
-		panic("Could not setup the initial network namespace");
 
 	return 0;
 }
