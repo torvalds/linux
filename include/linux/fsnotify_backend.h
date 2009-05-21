@@ -46,6 +46,17 @@
 #define FS_DN_RENAME		0x10000000	/* file renamed */
 #define FS_DN_MULTISHOT		0x20000000	/* dnotify multishot */
 
+/* This inode cares about things that happen to its children.  Always set for
+ * dnotify and inotify. */
+#define FS_EVENT_ON_CHILD	0x08000000
+
+/* This is a list of all events that may get sent to a parernt based on fs event
+ * happening to inodes inside that directory */
+#define FS_EVENTS_POSS_ON_CHILD   (FS_ACCESS | FS_MODIFY | FS_ATTRIB |\
+				   FS_CLOSE_WRITE | FS_CLOSE_NOWRITE | FS_OPEN |\
+				   FS_MOVED_FROM | FS_MOVED_TO | FS_CREATE |\
+				   FS_DELETE)
+
 struct fsnotify_group;
 struct fsnotify_event;
 struct fsnotify_mark_entry;
@@ -183,8 +194,52 @@ struct fsnotify_mark_entry {
 
 /* main fsnotify call to send events */
 extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is);
+extern void __fsnotify_parent(struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
 
+static inline int fsnotify_inode_watches_children(struct inode *inode)
+{
+	/* FS_EVENT_ON_CHILD is set if the inode may care */
+	if (!(inode->i_fsnotify_mask & FS_EVENT_ON_CHILD))
+		return 0;
+	/* this inode might care about child events, does it care about the
+	 * specific set of events that can happen on a child? */
+	return inode->i_fsnotify_mask & FS_EVENTS_POSS_ON_CHILD;
+}
+
+/*
+ * Update the dentry with a flag indicating the interest of its parent to receive
+ * filesystem events when those events happens to this dentry->d_inode.
+ */
+static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
+{
+	struct dentry *parent;
+
+	assert_spin_locked(&dcache_lock);
+	assert_spin_locked(&dentry->d_lock);
+
+	parent = dentry->d_parent;
+	if (fsnotify_inode_watches_children(parent->d_inode))
+		dentry->d_flags |= DCACHE_FSNOTIFY_PARENT_WATCHED;
+	else
+		dentry->d_flags &= ~DCACHE_FSNOTIFY_PARENT_WATCHED;
+}
+
+/*
+ * fsnotify_d_instantiate - instantiate a dentry for inode
+ * Called with dcache_lock held.
+ */
+static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
+{
+	if (!inode)
+		return;
+
+	assert_spin_locked(&dcache_lock);
+
+	spin_lock(&dentry->d_lock);
+	__fsnotify_update_dcache_flags(dentry);
+	spin_unlock(&dentry->d_lock);
+}
 
 /* called from fsnotify listeners, such as fanotify or dnotify */
 
@@ -230,7 +285,16 @@ extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32
 static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is)
 {}
 
+static inline void __fsnotify_parent(struct dentry *dentry, __u32 mask)
+{}
+
 static inline void __fsnotify_inode_delete(struct inode *inode)
+{}
+
+static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
+{}
+
+static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
 {}
 
 #endif	/* CONFIG_FSNOTIFY */

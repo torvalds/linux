@@ -131,6 +131,8 @@ void fsnotify_recalc_inode_mask(struct inode *inode)
 	spin_lock(&inode->i_lock);
 	fsnotify_recalc_inode_mask_locked(inode);
 	spin_unlock(&inode->i_lock);
+
+	__fsnotify_update_child_dentry_flags(inode);
 }
 
 /*
@@ -188,6 +190,19 @@ void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
 	 * is being freed.
 	 */
 	group->ops->freeing_mark(entry, group);
+
+	/*
+	 * __fsnotify_update_child_dentry_flags(inode);
+	 *
+	 * I really want to call that, but we can't, we have no idea if the inode
+	 * still exists the second we drop the entry->lock.
+	 *
+	 * The next time an event arrive to this inode from one of it's children
+	 * __fsnotify_parent will see that the inode doesn't care about it's
+	 * children and will update all of these flags then.  So really this
+	 * is just a lazy update (and could be a perf win...)
+	 */
+
 
 	/*
 	 * it's possible that this group tried to destroy itself, but this
@@ -323,6 +338,8 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 	if (lentry) {
 		ret = -EEXIST;
 		fsnotify_put_mark(lentry);
+	} else {
+		__fsnotify_update_child_dentry_flags(inode);
 	}
 
 	return ret;
