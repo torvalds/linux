@@ -789,11 +789,14 @@ struct acpi_bit_register_info {
 /* For control registers, both ignored and reserved bits must be preserved */
 
 /*
- * The ACPI spec says to ignore PM1_CTL.SCI_EN (bit 0)
- * but we need to be able to write ACPI_BITREG_SCI_ENABLE directly
- * as a BIOS workaround on some machines.
+ * For PM1 control, the SCI enable bit (bit 0, SCI_EN) is defined by the
+ * ACPI specification to be a "preserved" bit - "OSPM always preserves this
+ * bit position", section 4.7.3.2.1. However, on some machines the OS must
+ * write a one to this bit after resume for the machine to work properly.
+ * To enable this, we no longer attempt to preserve this bit. No machines
+ * are known to fail if the bit is not preserved. (May 2009)
  */
-#define ACPI_PM1_CONTROL_IGNORED_BITS           0x0200	/* Bits 9 */
+#define ACPI_PM1_CONTROL_IGNORED_BITS           0x0200	/* Bit 9 */
 #define ACPI_PM1_CONTROL_RESERVED_BITS          0xC1F8	/* Bits 14-15, 3-8 */
 #define ACPI_PM1_CONTROL_PRESERVED_BITS \
 	       (ACPI_PM1_CONTROL_IGNORED_BITS | ACPI_PM1_CONTROL_RESERVED_BITS)
