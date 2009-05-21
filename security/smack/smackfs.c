@@ -776,7 +776,7 @@ static ssize_t smk_write_netlbladdr(struct file *file, const char __user *buf,
 	struct sockaddr_in newname;
 	char smack[SMK_LABELLEN];
 	char *sp;
-	char data[SMK_NETLBLADDRMAX];
+	char data[SMK_NETLBLADDRMAX + 1];
 	char *host = (char *)&newname.sin_addr.s_addr;
 	int rc;
 	struct netlbl_audit audit_info;
