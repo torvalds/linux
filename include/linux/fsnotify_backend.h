@@ -336,6 +336,7 @@ extern void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry);
 extern void fsnotify_clear_marks_by_group(struct fsnotify_group *group);
 extern void fsnotify_get_mark(struct fsnotify_mark_entry *entry);
 extern void fsnotify_put_mark(struct fsnotify_mark_entry *entry);
+extern void fsnotify_unmount_inodes(struct list_head *list);
 
 /* put here because inotify does some weird stuff when destroying watches */
 extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
@@ -364,6 +365,9 @@ static inline u32 fsnotify_get_cookie(void)
 {
 	return 0;
 }
+
+static inline void fsnotify_unmount_inodes(struct list_head *list)
+{}
 
 #endif	/* CONFIG_FSNOTIFY */
 
