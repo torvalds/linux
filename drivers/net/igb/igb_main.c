@@ -996,6 +996,11 @@ void igb_down(struct igb_adapter *adapter)
 		igb_reset(adapter);
 	igb_clean_all_tx_rings(adapter);
 	igb_clean_all_rx_rings(adapter);
+#ifdef CONFIG_IGB_DCA
+
+	/* since we reset the hardware DCA settings were cleared */
+	igb_setup_dca(adapter);
+#endif
 }
 
 void igb_reinit_locked(struct igb_adapter *adapter)
@@ -1457,9 +1462,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IGB_FLAG_DCA_ENABLED;
 		dev_info(&pdev->dev, "DCA enabled\n");
-		/* Always use CB2 mode, difference is masked
-		 * in the CB driver. */
-		wr32(E1000_DCA_CTRL, E1000_DCA_CTRL_DCA_MODE_CB2);
 		igb_setup_dca(adapter);
 	}
 #endif
@@ -3771,10 +3773,14 @@ static void igb_update_tx_dca(struct igb_ring *tx_ring)
 
 static void igb_setup_dca(struct igb_adapter *adapter)
 {
+	struct e1000_hw *hw = &adapter->hw;
 	int i;
 
 	if (!(adapter->flags & IGB_FLAG_DCA_ENABLED))
 		return;
+
+	/* Always use CB2 mode, difference is masked in the CB driver. */
+	wr32(E1000_DCA_CTRL, E1000_DCA_CTRL_DCA_MODE_CB2);
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		adapter->tx_ring[i].cpu = -1;
