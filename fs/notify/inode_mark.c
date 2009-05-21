@@ -204,6 +204,8 @@ void fsnotify_destroy_mark_by_entry(struct fsnotify_mark_entry *entry)
 	 */
 
 
+	iput(inode);
+
 	/*
 	 * it's possible that this group tried to destroy itself, but this
 	 * this mark was simultaneously being freed by inode.  If that's the
@@ -306,6 +308,10 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 	struct fsnotify_mark_entry *lentry;
 	int ret = 0;
 
+	inode = igrab(inode);
+	if (unlikely(!inode))
+		return -EINVAL;
+
 	/*
 	 * LOCKING ORDER!!!!
 	 * entry->lock
@@ -337,6 +343,7 @@ int fsnotify_add_mark(struct fsnotify_mark_entry *entry,
 
 	if (lentry) {
 		ret = -EEXIST;
+		iput(inode);
 		fsnotify_put_mark(lentry);
 	} else {
 		__fsnotify_update_child_dentry_flags(inode);
