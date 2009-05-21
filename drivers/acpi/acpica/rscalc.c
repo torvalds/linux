@@ -547,7 +547,7 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 
 		if (!package_element ||
 		    (package_element->common.type != ACPI_TYPE_PACKAGE)) {
-			return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
+			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 		}
 
 		/*
