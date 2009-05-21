@@ -1,12 +1,8 @@
 #
 # KVM configuration
 #
-config HAVE_KVM
-	bool
 
-config HAVE_KVM_IRQCHIP
-       bool
-       default y
+source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
@@ -28,6 +24,7 @@ config KVM
 	depends on PCI
 	select PREEMPT_NOTIFIERS
 	select ANON_INODES
+	select HAVE_KVM_IRQCHIP
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
