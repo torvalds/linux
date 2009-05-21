@@ -9,6 +9,7 @@
 
 #ifdef __KERNEL__
 
+#include <linux/idr.h> /* inotify uses this */
 #include <linux/fs.h> /* struct inode */
 #include <linux/list.h>
 #include <linux/path.h> /* struct path */
@@ -59,6 +60,7 @@
 
 /* listeners that hard code group numbers near the top */
 #define DNOTIFY_GROUP_NUM	UINT_MAX
+#define INOTIFY_GROUP_NUM	(DNOTIFY_GROUP_NUM-1)
 
 struct fsnotify_group;
 struct fsnotify_event;
@@ -141,6 +143,15 @@ struct fsnotify_group {
 	/* groups can define private fields here or use the void *private */
 	union {
 		void *private;
+#ifdef CONFIG_INOTIFY_USER
+		struct inotify_group_private_data {
+			spinlock_t	idr_lock;
+			struct idr      idr;
+			u32             last_wd;
+			struct fasync_struct    *fa;    /* async notification */
+			struct user_struct      *user;
+		} inotify_data;
+#endif
 	};
 };
 
