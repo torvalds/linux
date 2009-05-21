@@ -20,6 +20,7 @@
 #include <linux/netlink.h>
 #include <linux/net_dropmon.h>
 #include <trace/skb.h>
+#include <trace/napi.h>
 
 #include <asm/unaligned.h>
 #include <asm/bitops.h>
@@ -27,3 +28,6 @@
 
 DEFINE_TRACE(kfree_skb);
 EXPORT_TRACEPOINT_SYMBOL_GPL(kfree_skb);
+
+DEFINE_TRACE(napi_poll);
+EXPORT_TRACEPOINT_SYMBOL_GPL(napi_poll);
