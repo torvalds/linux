@@ -657,6 +657,7 @@ restart:
 	}
 
 	fepriv->thread = NULL;
+	fepriv->exit = 0;
 	mb();
 
 	dvb_frontend_wakeup(fe);
