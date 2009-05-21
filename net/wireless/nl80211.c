@@ -3912,17 +3912,12 @@ nla_put_failure:
 
 int nl80211_init(void)
 {
-	int err, i;
+	int err;
 
-	err = genl_register_family(&nl80211_fam);
+	err = genl_register_family_with_ops(&nl80211_fam,
+		nl80211_ops, ARRAY_SIZE(nl80211_ops));
 	if (err)
 		return err;
-
-	for (i = 0; i < ARRAY_SIZE(nl80211_ops); i++) {
-		err = genl_register_ops(&nl80211_fam, &nl80211_ops[i]);
-		if (err)
-			goto err_out;
-	}
 
 	err = genl_register_mc_group(&nl80211_fam, &nl80211_config_mcgrp);
 	if (err)
