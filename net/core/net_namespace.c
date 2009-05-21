@@ -198,7 +198,6 @@ static int __init net_ns_init(void)
 	struct net_generic *ng;
 	int err;
 
-	printk(KERN_INFO "net_namespace: %zd bytes\n", sizeof(struct net));
 #ifdef CONFIG_NET_NS
 	net_cachep = kmem_cache_create("net_namespace", sizeof(struct net),
 					SMP_CACHE_BYTES,
