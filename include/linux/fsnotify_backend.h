@@ -193,6 +193,7 @@ struct fsnotify_event {
 	atomic_t refcnt;	/* how many groups still are using/need to send this event */
 	__u32 mask;		/* the type of access, bitwise OR for FS_* event types */
 
+	u32 sync_cookie;	/* used to corrolate events, namely inotify mv events */
 	char *file_name;
 	size_t name_len;
 };
@@ -227,9 +228,11 @@ struct fsnotify_mark_entry {
 /* called from the vfs helpers */
 
 /* main fsnotify call to send events */
-extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is, const char *name);
+extern void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
+		     const char *name, u32 cookie);
 extern void __fsnotify_parent(struct dentry *dentry, __u32 mask);
 extern void __fsnotify_inode_delete(struct inode *inode);
+extern u32 fsnotify_get_cookie(void);
 
 static inline int fsnotify_inode_watches_children(struct inode *inode)
 {
@@ -322,12 +325,13 @@ extern void fsnotify_put_mark(struct fsnotify_mark_entry *entry);
 
 /* put here because inotify does some weird stuff when destroying watches */
 extern struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
-						    void *data, int data_is, const char *name);
+						    void *data, int data_is, const char *name,
+						    u32 cookie);
 
 #else
 
 static inline void fsnotify(struct inode *to_tell, __u32 mask, void *data, int data_is,
-			    const char *name);
+			    const char *name, u32 cookie)
 {}
 
 static inline void __fsnotify_parent(struct dentry *dentry, __u32 mask)
@@ -341,6 +345,11 @@ static inline void __fsnotify_update_dcache_flags(struct dentry *dentry)
 
 static inline void __fsnotify_d_instantiate(struct dentry *dentry, struct inode *inode)
 {}
+
+static inline u32 fsnotify_get_cookie(void)
+{
+	return 0;
+}
 
 #endif	/* CONFIG_FSNOTIFY */
 

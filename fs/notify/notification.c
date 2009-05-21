@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/mutex.h>
 #include <linux/namei.h>
@@ -56,6 +57,17 @@ static struct kmem_cache *fsnotify_event_holder_cachep;
  * get set to 0 so it will never get 'freed'
  */
 static struct fsnotify_event q_overflow_event;
+static atomic_t fsnotify_sync_cookie = ATOMIC_INIT(0);
+
+/**
+ * fsnotify_get_cookie - return a unique cookie for use in synchronizing events.
+ * Called from fsnotify_move, which is inlined into filesystem modules.
+ */
+u32 fsnotify_get_cookie(void)
+{
+	return atomic_inc_return(&fsnotify_sync_cookie);
+}
+EXPORT_SYMBOL_GPL(fsnotify_get_cookie);
 
 /* return true if the notify queue is empty, false otherwise */
 bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group)
@@ -266,6 +278,8 @@ static void initialize_event(struct fsnotify_event *event)
 
 	event->file_name = NULL;
 	event->name_len = 0;
+
+	event->sync_cookie = 0;
 }
 
 /*
@@ -280,8 +294,8 @@ static void initialize_event(struct fsnotify_event *event)
  * @data_type flag indication if the data is a file, path, inode, nothing...
  * @name the filename, if available
  */
-struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
-					     void *data, int data_type, const char *name)
+struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask, void *data,
+					     int data_type, const char *name, u32 cookie)
 {
 	struct fsnotify_event *event;
 
@@ -299,6 +313,8 @@ struct fsnotify_event *fsnotify_create_event(struct inode *to_tell, __u32 mask,
 		}
 		event->name_len = strlen(event->file_name);
 	}
+
+	event->sync_cookie = cookie;
 	event->to_tell = to_tell;
 
 	switch (data_type) {
