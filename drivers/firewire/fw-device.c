@@ -292,8 +292,7 @@ static void init_fw_attribute_group(struct device *dev,
 		group->attrs[j++] = &attr->attr;
 	}
 
-	BUG_ON(j >= ARRAY_SIZE(group->attrs));
-	group->attrs[j++] = NULL;
+	group->attrs[j] = NULL;
 	group->groups[0] = &group->group;
 	group->groups[1] = NULL;
 	group->group.attrs = group->attrs;
@@ -570,9 +569,13 @@ static void create_units(struct fw_device *device)
 		unit->device.parent = &device->device;
 		dev_set_name(&unit->device, "%s.%d", dev_name(&device->device), i++);
 
+		BUILD_BUG_ON(ARRAY_SIZE(unit->attribute_group.attrs) <
+				ARRAY_SIZE(fw_unit_attributes) +
+				ARRAY_SIZE(config_rom_attributes));
 		init_fw_attribute_group(&unit->device,
 					fw_unit_attributes,
 					&unit->attribute_group);
+
 		if (device_register(&unit->device) < 0)
 			goto skip_unit;
 
@@ -849,9 +852,13 @@ static void fw_device_init(struct work_struct *work)
 	device->device.devt = MKDEV(fw_cdev_major, minor);
 	dev_set_name(&device->device, "fw%d", minor);
 
+	BUILD_BUG_ON(ARRAY_SIZE(device->attribute_group.attrs) <
+			ARRAY_SIZE(fw_device_attributes) +
+			ARRAY_SIZE(config_rom_attributes));
 	init_fw_attribute_group(&device->device,
 				fw_device_attributes,
 				&device->attribute_group);
+
 	if (device_add(&device->device)) {
 		fw_error("Failed to add device.\n");
 		goto error_with_cdev;
