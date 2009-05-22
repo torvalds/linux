@@ -307,6 +307,21 @@ struct blk_cmd_filter {
 	struct kobject kobj;
 };
 
+struct queue_limits {
+	unsigned long		bounce_pfn;
+	unsigned long		seg_boundary_mask;
+
+	unsigned int		max_hw_sectors;
+	unsigned int		max_sectors;
+	unsigned int		max_segment_size;
+
+	unsigned short		logical_block_size;
+	unsigned short		max_hw_segments;
+	unsigned short		max_phys_segments;
+
+	unsigned char		no_cluster;
+};
+
 struct request_queue
 {
 	/*
@@ -358,7 +373,6 @@ struct request_queue
 	/*
 	 * queue needs bounce pages for pages above this limit
 	 */
-	unsigned long		bounce_pfn;
 	gfp_t			bounce_gfp;
 
 	/*
@@ -387,14 +401,6 @@ struct request_queue
 	unsigned int		nr_congestion_off;
 	unsigned int		nr_batching;
 
-	unsigned int		max_sectors;
-	unsigned int		max_hw_sectors;
-	unsigned short		max_phys_segments;
-	unsigned short		max_hw_segments;
-	unsigned short		logical_block_size;
-	unsigned int		max_segment_size;
-
-	unsigned long		seg_boundary_mask;
 	void			*dma_drain_buffer;
 	unsigned int		dma_drain_size;
 	unsigned int		dma_pad_mask;
@@ -409,6 +415,8 @@ struct request_queue
 	unsigned int		rq_timeout;
 	struct timer_list	timeout;
 	struct list_head	timeout_list;
+
+	struct queue_limits	limits;
 
 	/*
 	 * sg stuff
@@ -991,45 +999,45 @@ extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 
 static inline unsigned long queue_bounce_pfn(struct request_queue *q)
 {
-	return q->bounce_pfn;
+	return q->limits.bounce_pfn;
 }
 
 static inline unsigned long queue_segment_boundary(struct request_queue *q)
 {
-	return q->seg_boundary_mask;
+	return q->limits.seg_boundary_mask;
 }
 
 static inline unsigned int queue_max_sectors(struct request_queue *q)
 {
-	return q->max_sectors;
+	return q->limits.max_sectors;
 }
 
 static inline unsigned int queue_max_hw_sectors(struct request_queue *q)
 {
-	return q->max_hw_sectors;
+	return q->limits.max_hw_sectors;
 }
 
 static inline unsigned short queue_max_hw_segments(struct request_queue *q)
 {
-	return q->max_hw_segments;
+	return q->limits.max_hw_segments;
 }
 
 static inline unsigned short queue_max_phys_segments(struct request_queue *q)
 {
-	return q->max_phys_segments;
+	return q->limits.max_phys_segments;
 }
 
 static inline unsigned int queue_max_segment_size(struct request_queue *q)
 {
-	return q->max_segment_size;
+	return q->limits.max_segment_size;
 }
 
 static inline unsigned short queue_logical_block_size(struct request_queue *q)
 {
 	int retval = 512;
 
-	if (q && q->logical_block_size)
-		retval = q->logical_block_size;
+	if (q && q->limits.logical_block_size)
+		retval = q->limits.logical_block_size;
 
 	return retval;
 }

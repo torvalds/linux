@@ -179,16 +179,16 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 	 */
 	if (b_pfn < (min_t(u64, 0xffffffffUL, BLK_BOUNCE_HIGH) >> PAGE_SHIFT))
 		dma = 1;
-	q->bounce_pfn = max_low_pfn;
+	q->limits.bounce_pfn = max_low_pfn;
 #else
 	if (b_pfn < blk_max_low_pfn)
 		dma = 1;
-	q->bounce_pfn = b_pfn;
+	q->limits.bounce_pfn = b_pfn;
 #endif
 	if (dma) {
 		init_emergency_isa_pool();
 		q->bounce_gfp = GFP_NOIO | GFP_DMA;
-		q->bounce_pfn = b_pfn;
+		q->limits.bounce_pfn = b_pfn;
 	}
 }
 EXPORT_SYMBOL(blk_queue_bounce_limit);
@@ -211,10 +211,10 @@ void blk_queue_max_sectors(struct request_queue *q, unsigned int max_sectors)
 	}
 
 	if (BLK_DEF_MAX_SECTORS > max_sectors)
-		q->max_hw_sectors = q->max_sectors = max_sectors;
+		q->limits.max_hw_sectors = q->limits.max_sectors = max_sectors;
 	else {
-		q->max_sectors = BLK_DEF_MAX_SECTORS;
-		q->max_hw_sectors = max_sectors;
+		q->limits.max_sectors = BLK_DEF_MAX_SECTORS;
+		q->limits.max_hw_sectors = max_sectors;
 	}
 }
 EXPORT_SYMBOL(blk_queue_max_sectors);
@@ -222,9 +222,9 @@ EXPORT_SYMBOL(blk_queue_max_sectors);
 void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_sectors)
 {
 	if (BLK_DEF_MAX_SECTORS > max_sectors)
-		q->max_hw_sectors = BLK_DEF_MAX_SECTORS;
+		q->limits.max_hw_sectors = BLK_DEF_MAX_SECTORS;
 	else
-		q->max_hw_sectors = max_sectors;
+		q->limits.max_hw_sectors = max_sectors;
 }
 EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 
@@ -247,7 +247,7 @@ void blk_queue_max_phys_segments(struct request_queue *q,
 		       __func__, max_segments);
 	}
 
-	q->max_phys_segments = max_segments;
+	q->limits.max_phys_segments = max_segments;
 }
 EXPORT_SYMBOL(blk_queue_max_phys_segments);
 
@@ -271,7 +271,7 @@ void blk_queue_max_hw_segments(struct request_queue *q,
 		       __func__, max_segments);
 	}
 
-	q->max_hw_segments = max_segments;
+	q->limits.max_hw_segments = max_segments;
 }
 EXPORT_SYMBOL(blk_queue_max_hw_segments);
 
@@ -292,7 +292,7 @@ void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size)
 		       __func__, max_size);
 	}
 
-	q->max_segment_size = max_size;
+	q->limits.max_segment_size = max_size;
 }
 EXPORT_SYMBOL(blk_queue_max_segment_size);
 
@@ -308,7 +308,7 @@ EXPORT_SYMBOL(blk_queue_max_segment_size);
  **/
 void blk_queue_logical_block_size(struct request_queue *q, unsigned short size)
 {
-	q->logical_block_size = size;
+	q->limits.logical_block_size = size;
 }
 EXPORT_SYMBOL(blk_queue_logical_block_size);
 
@@ -325,14 +325,27 @@ EXPORT_SYMBOL(blk_queue_logical_block_size);
 void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 {
 	/* zero is "infinity" */
-	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
-	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
-	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask, b->seg_boundary_mask);
+	t->limits.max_sectors = min_not_zero(queue_max_sectors(t),
+					     queue_max_sectors(b));
 
-	t->max_phys_segments = min_not_zero(t->max_phys_segments, b->max_phys_segments);
-	t->max_hw_segments = min_not_zero(t->max_hw_segments, b->max_hw_segments);
-	t->max_segment_size = min_not_zero(t->max_segment_size, b->max_segment_size);
-	t->logical_block_size = max(t->logical_block_size, b->logical_block_size);
+	t->limits.max_hw_sectors = min_not_zero(queue_max_hw_sectors(t),
+						queue_max_hw_sectors(b));
+
+	t->limits.seg_boundary_mask = min_not_zero(queue_segment_boundary(t),
+						   queue_segment_boundary(b));
+
+	t->limits.max_phys_segments = min_not_zero(queue_max_phys_segments(t),
+						   queue_max_phys_segments(b));
+
+	t->limits.max_hw_segments = min_not_zero(queue_max_hw_segments(t),
+						 queue_max_hw_segments(b));
+
+	t->limits.max_segment_size = min_not_zero(queue_max_segment_size(t),
+						  queue_max_segment_size(b));
+
+	t->limits.logical_block_size = max(queue_logical_block_size(t),
+					   queue_logical_block_size(b));
+
 	if (!t->queue_lock)
 		WARN_ON_ONCE(1);
 	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
@@ -430,7 +443,7 @@ void blk_queue_segment_boundary(struct request_queue *q, unsigned long mask)
 		       __func__, mask);
 	}
 
-	q->seg_boundary_mask = mask;
+	q->limits.seg_boundary_mask = mask;
 }
 EXPORT_SYMBOL(blk_queue_segment_boundary);
 
