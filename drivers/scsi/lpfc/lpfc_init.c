@@ -385,6 +385,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	/* Update the fc_host data structures with new wwn. */
 	fc_host_node_name(shost) = wwn_to_u64(vport->fc_nodename.u.wwn);
 	fc_host_port_name(shost) = wwn_to_u64(vport->fc_portname.u.wwn);
+	fc_host_max_npiv_vports(shost) = phba->max_vpi;
 
 	/* If no serial number in VPD data, use low 6 bytes of WWNN */
 	/* This should be consolidated into parse_vpd ? - mr */

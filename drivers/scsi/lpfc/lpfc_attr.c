@@ -2277,6 +2277,36 @@ lpfc_param_init(topology, 0, 0, 6)
 static DEVICE_ATTR(lpfc_topology, S_IRUGO | S_IWUSR,
 		lpfc_topology_show, lpfc_topology_store);
 
+/**
+ * lpfc_static_vport_show: Read callback function for
+ *   lpfc_static_vport sysfs file.
+ * @dev: Pointer to class device object.
+ * @attr: device attribute structure.
+ * @buf: Data buffer.
+ *
+ * This function is the read call back function for
+ * lpfc_static_vport sysfs file. The lpfc_static_vport
+ * sysfs file report the mageability of the vport.
+ **/
+static ssize_t
+lpfc_static_vport_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	if (vport->vport_flag & STATIC_VPORT)
+		sprintf(buf, "1\n");
+	else
+		sprintf(buf, "0\n");
+
+	return strlen(buf);
+}
+
+/*
+ * Sysfs attribute to control the statistical data collection.
+ */
+static DEVICE_ATTR(lpfc_static_vport, S_IRUGO,
+		   lpfc_static_vport_show, NULL);
 
 /**
  * lpfc_stat_data_ctrl_store - write call back for lpfc_stat_data_ctrl sysfs file
@@ -3051,6 +3081,7 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_enable_da_id,
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
+	&dev_attr_lpfc_static_vport,
 	NULL,
 };
 

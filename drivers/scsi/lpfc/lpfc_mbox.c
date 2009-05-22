@@ -41,6 +41,44 @@
 #include "lpfc_compat.h"
 
 /**
+ * lpfc_dump_static_vport - Dump HBA's static vport information.
+ * @phba: pointer to lpfc hba data structure.
+ * @pmb: pointer to the driver internal queue element for mailbox command.
+ * @offset: offset for dumping vport info.
+ *
+ * The dump mailbox command provides a method for the device driver to obtain
+ * various types of information from the HBA device.
+ *
+ * This routine prepares the mailbox command for dumping list of static
+ * vports to be created.
+ **/
+void
+lpfc_dump_static_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
+		uint16_t offset)
+{
+	MAILBOX_t *mb;
+	void *ctx;
+
+	mb = &pmb->u.mb;
+	ctx = pmb->context2;
+
+	/* Setup to dump vport info region */
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_DUMP_MEMORY;
+	mb->un.varDmp.cv = 1;
+	mb->un.varDmp.type = DMP_NV_PARAMS;
+	mb->un.varDmp.entry_index = offset;
+	mb->un.varDmp.region_id = DMP_REGION_VPORT;
+	mb->un.varDmp.word_cnt = DMP_RSP_SIZE/sizeof(uint32_t);
+	mb->un.varDmp.co = 0;
+	mb->un.varDmp.resp_offset = 0;
+	pmb->context2 = ctx;
+	mb->mbxOwner = OWN_HOST;
+
+	return;
+}
+
+/**
  * lpfc_dump_mem - Prepare a mailbox command for retrieving HBA's VPD memory
  * @phba: pointer to lpfc hba data structure.
  * @pmb: pointer to the driver internal queue element for mailbox command.

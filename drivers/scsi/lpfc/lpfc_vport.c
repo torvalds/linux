@@ -251,23 +251,22 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 		    (vport->fc_flag & wait_flags)  ||
 		    ((vport->port_state > LPFC_VPORT_FAILED) &&
 		     (vport->port_state < LPFC_VPORT_READY))) {
-			lpfc_printf_log(phba, KERN_INFO, LOG_VPORT,
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT,
 					"1833 Vport discovery quiesce Wait:"
-					" vpi x%x state x%x fc_flags x%x"
+					" state x%x fc_flags x%x"
 					" num_nodes x%x, waiting 1000 msecs"
 					" total wait msecs x%x\n",
-					vport->vpi, vport->port_state,
-					vport->fc_flag, vport->num_disc_nodes,
+					vport->port_state, vport->fc_flag,
+					vport->num_disc_nodes,
 					jiffies_to_msecs(jiffies - start_time));
 			msleep(1000);
 		} else {
 			/* Base case.  Wait variants satisfied.  Break out */
-			lpfc_printf_log(phba, KERN_INFO, LOG_VPORT,
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT,
 					 "1834 Vport discovery quiesced:"
-					 " vpi x%x state x%x fc_flags x%x"
+					 " state x%x fc_flags x%x"
 					 " wait msecs x%x\n",
-					 vport->vpi, vport->port_state,
-					 vport->fc_flag,
+					 vport->port_state, vport->fc_flag,
 					 jiffies_to_msecs(jiffies
 						- start_time));
 			break;
@@ -275,12 +274,10 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 	}
 
 	if (time_after(jiffies, wait_time_max))
-		lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
 				"1835 Vport discovery quiesce failed:"
-				" vpi x%x state x%x fc_flags x%x"
-				" wait msecs x%x\n",
-				vport->vpi, vport->port_state,
-				vport->fc_flag,
+				" state x%x fc_flags x%x wait msecs x%x\n",
+				vport->port_state, vport->fc_flag,
 				jiffies_to_msecs(jiffies - start_time));
 }
 
@@ -558,6 +555,16 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 				 "physical host\n");
 		return VPORT_ERROR;
 	}
+
+	/* If the vport is a static vport fail the deletion. */
+	if ((vport->vport_flag & STATIC_VPORT) &&
+		!(phba->pport->load_flag & FC_UNLOADING)) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+				 "1837 vport_delete failed: Cannot delete "
+				 "static vport.\n");
+		return VPORT_ERROR;
+	}
+
 	/*
 	 * If we are not unloading the driver then prevent the vport_delete
 	 * from happening until after this vport's discovery is finished.
@@ -733,7 +740,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 	struct lpfc_vport *port_iterator;
 	struct lpfc_vport **vports;
 	int index = 0;
-	vports = kzalloc((phba->max_vpi + 1) * sizeof(struct lpfc_vport *),
+	vports = kzalloc((phba->max_vports + 1) * sizeof(struct lpfc_vport *),
 			 GFP_KERNEL);
 	if (vports == NULL)
 		return NULL;
@@ -757,7 +764,7 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 	int i;
 	if (vports == NULL)
 		return;
-	for (i=0; vports[i] != NULL && i <= phba->max_vpi; i++)
+	for (i = 0; vports[i] != NULL && i <= phba->max_vports; i++)
 		scsi_host_put(lpfc_shost_from_vport(vports[i]));
 	kfree(vports);
 }
