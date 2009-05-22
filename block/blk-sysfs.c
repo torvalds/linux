@@ -395,15 +395,15 @@ int blk_register_queue(struct gendisk *disk)
 	if (WARN_ON(!q))
 		return -ENXIO;
 
-	if (!q->request_fn)
-		return 0;
-
 	ret = kobject_add(&q->kobj, kobject_get(&disk_to_dev(disk)->kobj),
 			  "%s", "queue");
 	if (ret < 0)
 		return ret;
 
 	kobject_uevent(&q->kobj, KOBJ_ADD);
+
+	if (!q->request_fn)
+		return 0;
 
 	ret = elv_register_queue(q);
 	if (ret) {

@@ -575,6 +575,9 @@ void elv_drain_elevator(struct request_queue *q)
  */
 void elv_quiesce_start(struct request_queue *q)
 {
+	if (!q->elevator)
+		return;
+
 	queue_flag_set(QUEUE_FLAG_ELVSWITCH, q);
 
 	/*
@@ -1050,6 +1053,9 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 	char elevator_name[ELV_NAME_MAX];
 	struct elevator_type *e;
 
+	if (!q->elevator)
+		return count;
+
 	strlcpy(elevator_name, name, sizeof(elevator_name));
 	strstrip(elevator_name);
 
@@ -1073,9 +1079,14 @@ ssize_t elv_iosched_store(struct request_queue *q, const char *name,
 ssize_t elv_iosched_show(struct request_queue *q, char *name)
 {
 	struct elevator_queue *e = q->elevator;
-	struct elevator_type *elv = e->elevator_type;
+	struct elevator_type *elv;
 	struct elevator_type *__e;
 	int len = 0;
+
+	if (!q->elevator)
+		return sprintf(name, "none\n");
+
+	elv = e->elevator_type;
 
 	spin_lock(&elv_list_lock);
 	list_for_each_entry(__e, &elv_list, list) {
