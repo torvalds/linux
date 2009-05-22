@@ -538,6 +538,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #endif
 	new->protocol		= old->protocol;
 	new->mark		= old->mark;
+	new->iif		= old->iif;
 	__nf_copy(new, old);
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
@@ -550,10 +551,18 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #endif
 #endif
 	new->vlan_tci		= old->vlan_tci;
+#if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
+	new->do_not_encrypt	= old->do_not_encrypt;
+	new->requeue		= old->requeue;
+#endif
 
 	skb_copy_secmark(new, old);
 }
 
+/*
+ * You should not add any new code to this function.  Add it to
+ * __copy_skb_header above instead.
+ */
 static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 {
 #define C(x) n->x = skb->x
@@ -569,16 +578,11 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	n->cloned = 1;
 	n->nohdr = 0;
 	n->destructor = NULL;
-	C(iif);
 	C(tail);
 	C(end);
 	C(head);
 	C(data);
 	C(truesize);
-#if defined(CONFIG_MAC80211) || defined(CONFIG_MAC80211_MODULE)
-	C(do_not_encrypt);
-	C(requeue);
-#endif
 	atomic_set(&n->users, 1);
 
 	atomic_inc(&(skb_shinfo(skb)->dataref));
