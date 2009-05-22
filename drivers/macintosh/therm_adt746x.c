@@ -37,6 +37,7 @@
 #define CONFIG_REG   0x40
 #define MANUAL_MASK  0xe0
 #define AUTO_MASK    0x20
+#define INVERT_MASK  0x10
 
 static u8 TEMP_REG[3]    = {0x26, 0x25, 0x27}; /* local, sensor1, sensor2 */
 static u8 LIMIT_REG[3]   = {0x6b, 0x6a, 0x6c}; /* local, sensor1, sensor2 */
@@ -229,7 +230,8 @@ static void write_fan_speed(struct thermostat *th, int speed, int fan)
 	
 	if (speed >= 0) {
 		manual = read_reg(th, MANUAL_MODE[fan]);
-		write_reg(th, MANUAL_MODE[fan], manual|MANUAL_MASK);
+		write_reg(th, MANUAL_MODE[fan],
+			(manual|MANUAL_MASK) & (~INVERT_MASK));
 		write_reg(th, FAN_SPD_SET[fan], speed);
 	} else {
 		/* back to automatic */
