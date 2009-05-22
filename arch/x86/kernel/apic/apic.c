@@ -14,6 +14,7 @@
  *	Mikael Pettersson	:	PM converted to driver model.
  */
 
+#include <linux/perf_counter.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>
 #include <linux/acpi_pmtmr.h>

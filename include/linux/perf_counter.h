@@ -449,7 +449,6 @@ struct perf_counter {
 	struct hw_perf_counter		hw;
 
 	struct perf_counter_context	*ctx;
-	struct task_struct		*task;
 	struct file			*filp;
 
 	struct perf_counter		*parent;
@@ -498,7 +497,6 @@ struct perf_counter {
  * Used as a container for task counters and CPU counters as well:
  */
 struct perf_counter_context {
-#ifdef CONFIG_PERF_COUNTERS
 	/*
 	 * Protect the states of the counters in the list,
 	 * nr_active, and the list:
@@ -516,6 +514,7 @@ struct perf_counter_context {
 	int			nr_counters;
 	int			nr_active;
 	int			is_active;
+	atomic_t		refcount;
 	struct task_struct	*task;
 
 	/*
@@ -523,7 +522,6 @@ struct perf_counter_context {
 	 */
 	u64			time;
 	u64			timestamp;
-#endif
 };
 
 /**

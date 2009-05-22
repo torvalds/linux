@@ -63,6 +63,7 @@
 #include <linux/fs_struct.h>
 #include <trace/sched.h>
 #include <linux/magic.h>
+#include <linux/perf_counter.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>

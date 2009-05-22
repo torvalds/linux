@@ -71,7 +71,6 @@ struct sched_param {
 #include <linux/path.h>
 #include <linux/compiler.h>
 #include <linux/completion.h>
-#include <linux/perf_counter.h>
 #include <linux/pid.h>
 #include <linux/percpu.h>
 #include <linux/topology.h>
@@ -99,6 +98,7 @@ struct robust_list_head;
 struct bio;
 struct bts_tracer;
 struct fs_struct;
+struct perf_counter_context;
 
 /*
  * List of flags we want to share for kernel threads,
@@ -1387,7 +1387,9 @@ struct task_struct {
 	struct list_head pi_state_list;
 	struct futex_pi_state *pi_state_cache;
 #endif
-	struct perf_counter_context perf_counter_ctx;
+#ifdef CONFIG_PERF_COUNTERS
+	struct perf_counter_context *perf_counter_ctxp;
+#endif
 #ifdef CONFIG_NUMA
 	struct mempolicy *mempolicy;
 	short il_next;
