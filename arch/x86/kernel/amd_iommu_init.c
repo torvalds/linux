@@ -906,6 +906,8 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 
 	switch (m->type) {
 	default:
+		kfree(e);
+		return 0;
 	case ACPI_IVMD_TYPE:
 		e->devid_start = e->devid_end = m->devid;
 		break;
