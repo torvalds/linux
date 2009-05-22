@@ -204,6 +204,11 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	}
 }
 
+static void wbinvd_local(void *unused)
+{
+	wbinvd();
+}
+
 static void cpa_flush_array(unsigned long *start, int numpages, int cache,
 			    int in_flags, struct page **pages)
 {
@@ -219,7 +224,8 @@ static void cpa_flush_array(unsigned long *start, int numpages, int cache,
 	/* 4M threshold */
 	if (numpages >= 1024) {
 		if (boot_cpu_data.x86 >= 4)
-			wbinvd();
+			on_each_cpu(wbinvd_local, NULL, 1);
+
 		return;
 	}
 	/*
