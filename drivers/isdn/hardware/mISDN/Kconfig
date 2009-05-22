@@ -13,7 +13,7 @@ config MISDN_HFCPCI
 
 config MISDN_HFCMULTI
 	tristate "Support for HFC multiport cards (HFC-4S/8S/E1)"
-	depends on PCI
+	depends on PCI || 8xx
 	depends on MISDN
 	help
 	  Enable support for cards with Cologne Chip AG's HFC multiport
@@ -22,6 +22,15 @@ config MISDN_HFCMULTI
 	   * HFC-4S (4 S/T interfaces on one chip)
 	   * HFC-8S (8 S/T interfaces on one chip)
 	   * HFC-E1 (E1 interface for 2Mbit ISDN)
+
+config MISDN_HFCMULTI_8xx
+	boolean "Support for XHFC embedded board in HFC multiport driver"
+	depends on MISDN
+	depends on MISDN_HFCMULTI
+	depends on 8xx
+	default 8xx
+	help
+	  Enable support for the XHFC embedded solution from Speech Design.
 
 config MISDN_HFCUSB
 	tristate "Support for HFC-S USB based TAs"

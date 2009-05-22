@@ -947,6 +947,10 @@ conf_software:
 	if (current_conf >= 0) {
 join_members:
 		list_for_each_entry(member, &conf->mlist, list) {
+			/* if no conference engine on our chip, change to
+			 * software */
+			if (!member->dsp->features.hfc_conf)
+				goto conf_software;
 			/* in case of hdlc, change to software */
 			if (member->dsp->hdlc)
 				goto conf_software;

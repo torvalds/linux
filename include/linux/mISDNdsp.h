@@ -25,6 +25,7 @@ extern void mISDN_dsp_element_unregister(struct mISDN_dsp_element *elem);
 struct dsp_features {
 	int	hfc_id; /* unique id to identify the chip (or -1) */
 	int	hfc_dtmf; /* set if HFCmulti card supports dtmf */
+	int	hfc_conf; /* set if HFCmulti card supports conferences */
 	int	hfc_loops; /* set if card supports tone loops */
 	int	hfc_echocanhw; /* set if card supports echocancelation*/
 	int	pcm_id; /* unique id to identify the pcm bus (or -1) */
