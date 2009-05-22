@@ -450,11 +450,14 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
                              Notification Handling
    -------------------------------------------------------------------------- */
 
-static void acpi_bus_check_device(struct acpi_device *device)
+static void acpi_bus_check_device(acpi_handle handle)
 {
+	struct acpi_device *device;
 	acpi_status status;
 	struct acpi_device_status old_status;
 
+	if (acpi_bus_get_device(handle, &device))
+		return;
 	if (!device)
 		return;
 
@@ -488,13 +491,10 @@ static void acpi_bus_check_device(struct acpi_device *device)
 	}
 }
 
-static void acpi_bus_check_scope(struct acpi_device *device)
+static void acpi_bus_check_scope(acpi_handle handle)
 {
-	if (!device)
-		return;
-
 	/* Status Change? */
-	acpi_bus_check_device(device);
+	acpi_bus_check_device(handle);
 
 	/*
 	 * TBD: Enumerate child devices within this device's scope and
@@ -531,13 +531,10 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	blocking_notifier_call_chain(&acpi_bus_notify_list,
 		type, (void *)handle);
 
-	if (acpi_bus_get_device(handle, &device))
-		return;
-
 	switch (type) {
 
 	case ACPI_NOTIFY_BUS_CHECK:
-		acpi_bus_check_scope(device);
+		acpi_bus_check_scope(handle);
 		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
@@ -545,7 +542,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		acpi_bus_check_device(device);
+		acpi_bus_check_device(handle);
 		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
@@ -583,10 +580,13 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 	}
 
-	driver = device->driver;
-	if (driver && driver->ops.notify &&
-	    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
-		driver->ops.notify(device, type);
+	acpi_bus_get_device(handle, &device);
+	if (device) {
+		driver = device->driver;
+		if (driver && driver->ops.notify &&
+		    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
+			driver->ops.notify(device, type);
+	}
 }
 
 /* --------------------------------------------------------------------------
