@@ -94,6 +94,7 @@ static void debounce(unsigned long data)
 	volatile unsigned char reg_a, reg_c, xctrl_a;
 
 	reg_c = CMOS_READ(RTC_INTR_FLAGS);
+	reg_a = CMOS_READ(RTC_REG_A);
 	CMOS_WRITE(reg_a | DS_REGA_DV0, RTC_REG_A);
 	wbflush();
 	xctrl_a = CMOS_READ(DS_B1_XCTRL4A);
