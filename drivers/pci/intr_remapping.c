@@ -10,6 +10,8 @@
 #include <linux/intel-iommu.h>
 #include "intr_remapping.h"
 #include <acpi/acpi.h>
+#include <asm/pci-direct.h>
+#include "pci.h"
 
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static int ir_ioapic_num;
@@ -418,6 +420,91 @@ int free_irte(int irq)
 	return rc;
 }
 
+/*
+ * source validation type
+ */
+#define SVT_NO_VERIFY		0x0  /* no verification is required */
+#define SVT_VERIFY_SID_SQ	0x1  /* verify using SID and SQ fiels */
+#define SVT_VERIFY_BUS		0x2  /* verify bus of request-id */
+
+/*
+ * source-id qualifier
+ */
+#define SQ_ALL_16	0x0  /* verify all 16 bits of request-id */
+#define SQ_13_IGNORE_1	0x1  /* verify most significant 13 bits, ignore
+			      * the third least significant bit
+			      */
+#define SQ_13_IGNORE_2	0x2  /* verify most significant 13 bits, ignore
+			      * the second and third least significant bits
+			      */
+#define SQ_13_IGNORE_3	0x3  /* verify most significant 13 bits, ignore
+			      * the least three significant bits
+			      */
+
+/*
+ * set SVT, SQ and SID fields of irte to verify
+ * source ids of interrupt requests
+ */
+static void set_irte_sid(struct irte *irte, unsigned int svt,
+			 unsigned int sq, unsigned int sid)
+{
+	irte->svt = svt;
+	irte->sq = sq;
+	irte->sid = sid;
+}
+
+int set_ioapic_sid(struct irte *irte, int apic)
+{
+	int i;
+	u16 sid = 0;
+
+	if (!irte)
+		return -1;
+
+	for (i = 0; i < MAX_IO_APICS; i++) {
+		if (ir_ioapic[i].id == apic) {
+			sid = (ir_ioapic[i].bus << 8) | ir_ioapic[i].devfn;
+			break;
+		}
+	}
+
+	if (sid == 0) {
+		pr_warning("Failed to set source-id of IOAPIC (%d)\n", apic);
+		return -1;
+	}
+
+	set_irte_sid(irte, 1, 0, sid);
+
+	return 0;
+}
+
+int set_msi_sid(struct irte *irte, struct pci_dev *dev)
+{
+	struct pci_dev *bridge;
+
+	if (!irte || !dev)
+		return -1;
+
+	/* PCIe device or Root Complex integrated PCI device */
+	if (dev->is_pcie || !dev->bus->parent) {
+		set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16,
+			     (dev->bus->number << 8) | dev->devfn);
+		return 0;
+	}
+
+	bridge = pci_find_upstream_pcie_bridge(dev);
+	if (bridge) {
+		if (bridge->is_pcie) /* this is a PCIE-to-PCI/PCIX bridge */
+			set_irte_sid(irte, SVT_VERIFY_BUS, SQ_ALL_16,
+				(bridge->bus->number << 8) | dev->bus->number);
+		else /* this is a legacy PCI bridge */
+			set_irte_sid(irte, SVT_VERIFY_SID_SQ, SQ_ALL_16,
+				(bridge->bus->number << 8) | bridge->devfn);
+	}
+
+	return 0;
+}
+
 static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 {
 	u64 addr;
@@ -624,6 +711,35 @@ error:
 	return -1;
 }
 
+static void ir_parse_one_ioapic_scope(struct acpi_dmar_device_scope *scope,
+				      struct intel_iommu *iommu)
+{
+	struct acpi_dmar_pci_path *path;
+	u8 bus;
+	int count;
+
+	bus = scope->bus;
+	path = (struct acpi_dmar_pci_path *)(scope + 1);
+	count = (scope->length - sizeof(struct acpi_dmar_device_scope))
+		/ sizeof(struct acpi_dmar_pci_path);
+
+	while (--count > 0) {
+		/*
+		 * Access PCI directly due to the PCI
+		 * subsystem isn't initialized yet.
+		 */
+		bus = read_pci_config_byte(bus, path->dev, path->fn,
+					   PCI_SECONDARY_BUS);
+		path++;
+	}
+
+	ir_ioapic[ir_ioapic_num].bus   = bus;
+	ir_ioapic[ir_ioapic_num].devfn = PCI_DEVFN(path->dev, path->fn);
+	ir_ioapic[ir_ioapic_num].iommu = iommu;
+	ir_ioapic[ir_ioapic_num].id    = scope->enumeration_id;
+	ir_ioapic_num++;
+}
+
 static int ir_parse_ioapic_scope(struct acpi_dmar_header *header,
 				 struct intel_iommu *iommu)
 {
@@ -648,9 +764,7 @@ static int ir_parse_ioapic_scope(struct acpi_dmar_header *header,
 			       " 0x%Lx\n", scope->enumeration_id,
 			       drhd->address);
 
-			ir_ioapic[ir_ioapic_num].iommu = iommu;
-			ir_ioapic[ir_ioapic_num].id = scope->enumeration_id;
-			ir_ioapic_num++;
+			ir_parse_one_ioapic_scope(scope, iommu);
 		}
 		start += scope->length;
 	}

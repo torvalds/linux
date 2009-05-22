@@ -1414,6 +1414,9 @@ int setup_ioapic_entry(int apic_id, int irq,
 		irte.vector = vector;
 		irte.dest_id = IRTE_DEST(destination);
 
+		/* Set source-id of interrupt request */
+		set_ioapic_sid(&irte, apic_id);
+
 		modify_irte(irq, &irte);
 
 		ir_entry->index2 = (index >> 15) & 0x1;
@@ -3289,6 +3292,9 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_ms
 		irte.dlvry_mode = apic->irq_delivery_mode;
 		irte.vector = cfg->vector;
 		irte.dest_id = IRTE_DEST(dest);
+
+		/* Set source-id of interrupt request */
+		set_msi_sid(&irte, pdev);
 
 		modify_irte(irq, &irte);
 
