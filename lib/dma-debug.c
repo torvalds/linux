@@ -99,6 +99,15 @@ static struct dentry *show_num_errors_dent  __read_mostly;
 static struct dentry *num_free_entries_dent __read_mostly;
 static struct dentry *min_free_entries_dent __read_mostly;
 
+/* per-driver filter related state */
+
+#define NAME_MAX_LEN	64
+
+static char                  current_driver_name[NAME_MAX_LEN] __read_mostly;
+static struct device_driver *current_driver                    __read_mostly;
+
+static DEFINE_RWLOCK(driver_name_lock);
+
 static const char *type2name[4] = { "single", "page",
 				    "scather-gather", "coherent" };
 
@@ -128,9 +137,47 @@ static inline void dump_entry_trace(struct dma_debug_entry *entry)
 #endif
 }
 
+static bool driver_filter(struct device *dev)
+{
+	/* driver filter off */
+	if (likely(!current_driver_name[0]))
+		return true;
+
+	/* driver filter on and initialized */
+	if (current_driver && dev->driver == current_driver)
+		return true;
+
+	/* driver filter on but not yet initialized */
+	if (!current_driver && current_driver_name[0]) {
+		struct device_driver *drv = get_driver(dev->driver);
+		unsigned long flags;
+		bool ret = false;
+
+		if (!drv)
+			return false;
+
+		/* lock to protect against change of current_driver_name */
+		read_lock_irqsave(&driver_name_lock, flags);
+
+		if (drv->name &&
+		    strncmp(current_driver_name, drv->name, 63) == 0) {
+			current_driver = drv;
+			ret = true;
+		}
+
+		read_unlock_irqrestore(&driver_name_lock, flags);
+		put_driver(drv);
+
+		return ret;
+	}
+
+	return false;
+}
+
 #define err_printk(dev, entry, format, arg...) do {		\
 		error_count += 1;				\
-		if (show_all_errors || show_num_errors > 0) {	\
+		if (driver_filter(dev) &&			\
+		    (show_all_errors || show_num_errors > 0)) {	\
 			WARN(1, "%s %s: " format,		\
 			     dev_driver_string(dev),		\
 			     dev_name(dev) , ## arg);		\
