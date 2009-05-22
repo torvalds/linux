@@ -116,6 +116,7 @@ struct dsp_conf {
 #define ECHOCAN_BUFF_MASK 0x3ff /* -1 */
 
 struct dsp_dtmf {
+	int		enable; /* dtmf is enabled */
 	int		treshold; /* above this is dtmf (square of) */
 	int		software; /* dtmf uses software decoding */
 	int		hardware; /* dtmf uses hardware decoding */

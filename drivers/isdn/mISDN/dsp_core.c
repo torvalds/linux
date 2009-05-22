@@ -306,6 +306,7 @@ dsp_control_req(struct dsp *dsp, struct mISDNhead *hh, struct sk_buff *skb)
 					"to %d\n", *((int *)data));
 			dsp->dtmf.treshold = (*(int *)data) * 10000;
 		}
+		dsp->dtmf.enable = 1;
 		/* init goertzel */
 		dsp_dtmf_goertzel_init(dsp);
 
@@ -316,6 +317,7 @@ dsp_control_req(struct dsp *dsp, struct mISDNhead *hh, struct sk_buff *skb)
 	case DTMF_TONE_STOP: /* turn off DTMF */
 		if (dsp_debug & DEBUG_DSP_CORE)
 			printk(KERN_DEBUG "%s: stop dtmf\n", __func__);
+		dsp->dtmf.enable = 0;
 		dsp->dtmf.hardware = 0;
 		dsp->dtmf.software = 0;
 		break;
