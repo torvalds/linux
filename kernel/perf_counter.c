@@ -104,8 +104,11 @@ static void get_ctx(struct perf_counter_context *ctx)
 
 static void put_ctx(struct perf_counter_context *ctx)
 {
-	if (atomic_dec_and_test(&ctx->refcount))
+	if (atomic_dec_and_test(&ctx->refcount)) {
+		if (ctx->parent_ctx)
+			put_ctx(ctx->parent_ctx);
 		kfree(ctx);
+	}
 }
 
 static void
@@ -127,6 +130,8 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 
 	list_add_rcu(&counter->event_entry, &ctx->event_list);
 	ctx->nr_counters++;
+	if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
+		ctx->nr_enabled++;
 }
 
 /*
@@ -141,6 +146,8 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	if (list_empty(&counter->list_entry))
 		return;
 	ctx->nr_counters--;
+	if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
+		ctx->nr_enabled--;
 
 	list_del_init(&counter->list_entry);
 	list_del_rcu(&counter->event_entry);
@@ -204,6 +211,22 @@ group_sched_out(struct perf_counter *group_counter,
 }
 
 /*
+ * Mark this context as not being a clone of another.
+ * Called when counters are added to or removed from this context.
+ * We also increment our generation number so that anything that
+ * was cloned from this context before this will not match anything
+ * cloned from this context after this.
+ */
+static void unclone_ctx(struct perf_counter_context *ctx)
+{
+	++ctx->generation;
+	if (!ctx->parent_ctx)
+		return;
+	put_ctx(ctx->parent_ctx);
+	ctx->parent_ctx = NULL;
+}
+
+/*
  * Cross CPU call to remove a performance counter
  *
  * We disable the counter on the hardware level first. After that we
@@ -263,6 +286,7 @@ static void perf_counter_remove_from_context(struct perf_counter *counter)
 	struct perf_counter_context *ctx = counter->ctx;
 	struct task_struct *task = ctx->task;
 
+	unclone_ctx(ctx);
 	if (!task) {
 		/*
 		 * Per cpu counters are removed via an smp call and
@@ -378,6 +402,7 @@ static void __perf_counter_disable(void *info)
 		else
 			counter_sched_out(counter, cpuctx, ctx);
 		counter->state = PERF_COUNTER_STATE_OFF;
+		ctx->nr_enabled--;
 	}
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
@@ -419,6 +444,7 @@ static void perf_counter_disable(struct perf_counter *counter)
 	if (counter->state == PERF_COUNTER_STATE_INACTIVE) {
 		update_counter_times(counter);
 		counter->state = PERF_COUNTER_STATE_OFF;
+		ctx->nr_enabled--;
 	}
 
 	spin_unlock_irq(&ctx->lock);
@@ -727,6 +753,7 @@ static void __perf_counter_enable(void *info)
 		goto unlock;
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
 	counter->tstamp_enabled = ctx->time - counter->total_time_enabled;
+	ctx->nr_enabled++;
 
 	/*
 	 * If the counter is in a group and isn't the group leader,
@@ -817,6 +844,7 @@ static void perf_counter_enable(struct perf_counter *counter)
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
 		counter->tstamp_enabled =
 			ctx->time - counter->total_time_enabled;
+		ctx->nr_enabled++;
 	}
  out:
 	spin_unlock_irq(&ctx->lock);
@@ -862,6 +890,25 @@ void __perf_counter_sched_out(struct perf_counter_context *ctx,
 }
 
 /*
+ * Test whether two contexts are equivalent, i.e. whether they
+ * have both been cloned from the same version of the same context
+ * and they both have the same number of enabled counters.
+ * If the number of enabled counters is the same, then the set
+ * of enabled counters should be the same, because these are both
+ * inherited contexts, therefore we can't access individual counters
+ * in them directly with an fd; we can only enable/disable all
+ * counters via prctl, or enable/disable all counters in a family
+ * via ioctl, which will have the same effect on both contexts.
+ */
+static int context_equiv(struct perf_counter_context *ctx1,
+			 struct perf_counter_context *ctx2)
+{
+	return ctx1->parent_ctx && ctx1->parent_ctx == ctx2->parent_ctx
+		&& ctx1->parent_gen == ctx2->parent_gen
+		&& ctx1->nr_enabled == ctx2->nr_enabled;
+}
+
+/*
  * Called from scheduler to remove the counters of the current task,
  * with interrupts disabled.
  *
@@ -872,10 +919,12 @@ void __perf_counter_sched_out(struct perf_counter_context *ctx,
  * accessing the counter control register. If a NMI hits, then it will
  * not restart the counter.
  */
-void perf_counter_task_sched_out(struct task_struct *task, int cpu)
+void perf_counter_task_sched_out(struct task_struct *task,
+				 struct task_struct *next, int cpu)
 {
 	struct perf_cpu_context *cpuctx = &per_cpu(perf_cpu_context, cpu);
 	struct perf_counter_context *ctx = task->perf_counter_ctxp;
+	struct perf_counter_context *next_ctx;
 	struct pt_regs *regs;
 
 	if (likely(!ctx || !cpuctx->task_ctx))
@@ -885,6 +934,16 @@ void perf_counter_task_sched_out(struct task_struct *task, int cpu)
 
 	regs = task_pt_regs(task);
 	perf_swcounter_event(PERF_COUNT_CONTEXT_SWITCHES, 1, 1, regs, 0);
+
+	next_ctx = next->perf_counter_ctxp;
+	if (next_ctx && context_equiv(ctx, next_ctx)) {
+		task->perf_counter_ctxp = next_ctx;
+		next->perf_counter_ctxp = ctx;
+		ctx->task = next;
+		next_ctx->task = task;
+		return;
+	}
+
 	__perf_counter_sched_out(ctx, cpuctx);
 
 	cpuctx->task_ctx = NULL;
@@ -997,6 +1056,8 @@ void perf_counter_task_sched_in(struct task_struct *task, int cpu)
 	struct perf_counter_context *ctx = task->perf_counter_ctxp;
 
 	if (likely(!ctx))
+		return;
+	if (cpuctx->task_ctx == ctx)
 		return;
 	__perf_counter_sched_in(ctx, cpuctx, cpu);
 	cpuctx->task_ctx = ctx;
@@ -3253,6 +3314,16 @@ inherit_counter(struct perf_counter *parent_counter,
 		return child_counter;
 
 	/*
+	 * Make the child state follow the state of the parent counter,
+	 * not its hw_event.disabled bit.  We hold the parent's mutex,
+	 * so we won't race with perf_counter_{en,dis}able_family.
+	 */
+	if (parent_counter->state >= PERF_COUNTER_STATE_INACTIVE)
+		child_counter->state = PERF_COUNTER_STATE_INACTIVE;
+	else
+		child_counter->state = PERF_COUNTER_STATE_OFF;
+
+	/*
 	 * Link it up in the child's context:
 	 */
 	add_counter_to_ctx(child_counter, child_ctx);
@@ -3276,16 +3347,6 @@ inherit_counter(struct perf_counter *parent_counter,
 	 */
 	mutex_lock(&parent_counter->mutex);
 	list_add_tail(&child_counter->child_list, &parent_counter->child_list);
-
-	/*
-	 * Make the child state follow the state of the parent counter,
-	 * not its hw_event.disabled bit.  We hold the parent's mutex,
-	 * so we won't race with perf_counter_{en,dis}able_family.
-	 */
-	if (parent_counter->state >= PERF_COUNTER_STATE_INACTIVE)
-		child_counter->state = PERF_COUNTER_STATE_INACTIVE;
-	else
-		child_counter->state = PERF_COUNTER_STATE_OFF;
 
 	mutex_unlock(&parent_counter->mutex);
 
@@ -3429,6 +3490,7 @@ void perf_counter_init_task(struct task_struct *child)
 	struct perf_counter_context *child_ctx, *parent_ctx;
 	struct perf_counter *counter;
 	struct task_struct *parent = current;
+	int inherited_all = 1;
 
 	child->perf_counter_ctxp = NULL;
 
@@ -3463,12 +3525,31 @@ void perf_counter_init_task(struct task_struct *child)
 		if (counter != counter->group_leader)
 			continue;
 
-		if (!counter->hw_event.inherit)
+		if (!counter->hw_event.inherit) {
+			inherited_all = 0;
 			continue;
+		}
 
 		if (inherit_group(counter, parent,
-				  parent_ctx, child, child_ctx))
+				  parent_ctx, child, child_ctx)) {
+			inherited_all = 0;
 			break;
+		}
+	}
+
+	if (inherited_all) {
+		/*
+		 * Mark the child context as a clone of the parent
+		 * context, or of whatever the parent is a clone of.
+		 */
+		if (parent_ctx->parent_ctx) {
+			child_ctx->parent_ctx = parent_ctx->parent_ctx;
+			child_ctx->parent_gen = parent_ctx->parent_gen;
+		} else {
+			child_ctx->parent_ctx = parent_ctx;
+			child_ctx->parent_gen = parent_ctx->generation;
+		}
+		get_ctx(child_ctx->parent_ctx);
 	}
 
 	mutex_unlock(&parent_ctx->mutex);

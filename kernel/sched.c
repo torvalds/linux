@@ -5091,7 +5091,7 @@ need_resched_nonpreemptible:
 
 	if (likely(prev != next)) {
 		sched_info_switch(prev, next);
-		perf_counter_task_sched_out(prev, cpu);
+		perf_counter_task_sched_out(prev, next, cpu);
 
 		rq->nr_switches++;
 		rq->curr = next;

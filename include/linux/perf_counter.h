@@ -513,6 +513,7 @@ struct perf_counter_context {
 	struct list_head	event_list;
 	int			nr_counters;
 	int			nr_active;
+	int			nr_enabled;
 	int			is_active;
 	atomic_t		refcount;
 	struct task_struct	*task;
@@ -522,6 +523,14 @@ struct perf_counter_context {
 	 */
 	u64			time;
 	u64			timestamp;
+
+	/*
+	 * These fields let us detect when two contexts have both
+	 * been cloned (inherited) from a common ancestor.
+	 */
+	struct perf_counter_context *parent_ctx;
+	u32			parent_gen;
+	u32			generation;
 };
 
 /**
@@ -552,7 +561,8 @@ extern int perf_max_counters;
 extern const struct pmu *hw_perf_counter_init(struct perf_counter *counter);
 
 extern void perf_counter_task_sched_in(struct task_struct *task, int cpu);
-extern void perf_counter_task_sched_out(struct task_struct *task, int cpu);
+extern void perf_counter_task_sched_out(struct task_struct *task,
+					struct task_struct *next, int cpu);
 extern void perf_counter_task_tick(struct task_struct *task, int cpu);
 extern void perf_counter_init_task(struct task_struct *child);
 extern void perf_counter_exit_task(struct task_struct *child);
