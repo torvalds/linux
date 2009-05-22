@@ -75,7 +75,7 @@ static int sg_set_timeout(struct request_queue *q, int __user *p)
 
 static int sg_get_reserved_size(struct request_queue *q, int __user *p)
 {
-	unsigned val = min(q->sg_reserved_size, q->max_sectors << 9);
+	unsigned val = min(q->sg_reserved_size, queue_max_sectors(q) << 9);
 
 	return put_user(val, p);
 }
@@ -89,8 +89,8 @@ static int sg_set_reserved_size(struct request_queue *q, int __user *p)
 
 	if (size < 0)
 		return -EINVAL;
-	if (size > (q->max_sectors << 9))
-		size = q->max_sectors << 9;
+	if (size > (queue_max_sectors(q) << 9))
+		size = queue_max_sectors(q) << 9;
 
 	q->sg_reserved_size = size;
 	return 0;
@@ -264,7 +264,7 @@ static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
 	if (hdr->cmd_len > BLK_MAX_CDB)
 		return -EINVAL;
 
-	if (hdr->dxfer_len > (q->max_hw_sectors << 9))
+	if (hdr->dxfer_len > (queue_max_hw_sectors(q) << 9))
 		return -EIO;
 
 	if (hdr->dxfer_len)

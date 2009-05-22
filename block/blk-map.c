@@ -115,7 +115,7 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 	struct bio *bio = NULL;
 	int ret;
 
-	if (len > (q->max_hw_sectors << 9))
+	if (len > (queue_max_hw_sectors(q) << 9))
 		return -EINVAL;
 	if (!len)
 		return -EINVAL;
@@ -292,7 +292,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	struct bio *bio;
 	int ret;
 
-	if (len > (q->max_hw_sectors << 9))
+	if (len > (queue_max_hw_sectors(q) << 9))
 		return -EINVAL;
 	if (!len || !kbuf)
 		return -EINVAL;

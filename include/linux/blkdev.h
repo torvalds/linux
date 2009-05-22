@@ -898,6 +898,7 @@ extern void blk_cleanup_queue(struct request_queue *);
 extern void blk_queue_make_request(struct request_queue *, make_request_fn *);
 extern void blk_queue_bounce_limit(struct request_queue *, u64);
 extern void blk_queue_max_sectors(struct request_queue *, unsigned int);
+extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_max_phys_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_hw_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
@@ -987,6 +988,41 @@ extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 #define BLK_SEG_BOUNDARY_MASK	0xFFFFFFFFUL
 
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
+
+static inline unsigned long queue_bounce_pfn(struct request_queue *q)
+{
+	return q->bounce_pfn;
+}
+
+static inline unsigned long queue_segment_boundary(struct request_queue *q)
+{
+	return q->seg_boundary_mask;
+}
+
+static inline unsigned int queue_max_sectors(struct request_queue *q)
+{
+	return q->max_sectors;
+}
+
+static inline unsigned int queue_max_hw_sectors(struct request_queue *q)
+{
+	return q->max_hw_sectors;
+}
+
+static inline unsigned short queue_max_hw_segments(struct request_queue *q)
+{
+	return q->max_hw_segments;
+}
+
+static inline unsigned short queue_max_phys_segments(struct request_queue *q)
+{
+	return q->max_phys_segments;
+}
+
+static inline unsigned int queue_max_segment_size(struct request_queue *q)
+{
+	return q->max_segment_size;
+}
 
 static inline unsigned short queue_logical_block_size(struct request_queue *q)
 {

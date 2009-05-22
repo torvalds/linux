@@ -499,11 +499,11 @@ int bio_get_nr_vecs(struct block_device *bdev)
 	struct request_queue *q = bdev_get_queue(bdev);
 	int nr_pages;
 
-	nr_pages = ((q->max_sectors << 9) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (nr_pages > q->max_phys_segments)
-		nr_pages = q->max_phys_segments;
-	if (nr_pages > q->max_hw_segments)
-		nr_pages = q->max_hw_segments;
+	nr_pages = ((queue_max_sectors(q) << 9) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	if (nr_pages > queue_max_phys_segments(q))
+		nr_pages = queue_max_phys_segments(q);
+	if (nr_pages > queue_max_hw_segments(q))
+		nr_pages = queue_max_hw_segments(q);
 
 	return nr_pages;
 }
@@ -562,8 +562,8 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 	 * make this too complex.
 	 */
 
-	while (bio->bi_phys_segments >= q->max_phys_segments
-	       || bio->bi_phys_segments >= q->max_hw_segments) {
+	while (bio->bi_phys_segments >= queue_max_phys_segments(q)
+	       || bio->bi_phys_segments >= queue_max_hw_segments(q)) {
 
 		if (retried_segments)
 			return 0;
@@ -634,7 +634,8 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 int bio_add_pc_page(struct request_queue *q, struct bio *bio, struct page *page,
 		    unsigned int len, unsigned int offset)
 {
-	return __bio_add_page(q, bio, page, len, offset, q->max_hw_sectors);
+	return __bio_add_page(q, bio, page, len, offset,
+			      queue_max_hw_sectors(q));
 }
 
 /**
@@ -654,7 +655,7 @@ int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
 		 unsigned int offset)
 {
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-	return __bio_add_page(q, bio, page, len, offset, q->max_sectors);
+	return __bio_add_page(q, bio, page, len, offset, queue_max_sectors(q));
 }
 
 struct bio_map_data {

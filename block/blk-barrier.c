@@ -388,10 +388,10 @@ int blkdev_issue_discard(struct block_device *bdev,
 
 		bio->bi_sector = sector;
 
-		if (nr_sects > q->max_hw_sectors) {
-			bio->bi_size = q->max_hw_sectors << 9;
-			nr_sects -= q->max_hw_sectors;
-			sector += q->max_hw_sectors;
+		if (nr_sects > queue_max_hw_sectors(q)) {
+			bio->bi_size = queue_max_hw_sectors(q) << 9;
+			nr_sects -= queue_max_hw_sectors(q);
+			sector += queue_max_hw_sectors(q);
 		} else {
 			bio->bi_size = nr_sects << 9;
 			nr_sects = 0;

@@ -95,7 +95,7 @@ queue_ra_store(struct request_queue *q, const char *page, size_t count)
 
 static ssize_t queue_max_sectors_show(struct request_queue *q, char *page)
 {
-	int max_sectors_kb = q->max_sectors >> 1;
+	int max_sectors_kb = queue_max_sectors(q) >> 1;
 
 	return queue_var_show(max_sectors_kb, (page));
 }
@@ -109,7 +109,7 @@ static ssize_t
 queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 {
 	unsigned long max_sectors_kb,
-			max_hw_sectors_kb = q->max_hw_sectors >> 1,
+		max_hw_sectors_kb = queue_max_hw_sectors(q) >> 1,
 			page_kb = 1 << (PAGE_CACHE_SHIFT - 10);
 	ssize_t ret = queue_var_store(&max_sectors_kb, page, count);
 
@@ -117,7 +117,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 		return -EINVAL;
 
 	spin_lock_irq(q->queue_lock);
-	q->max_sectors = max_sectors_kb << 1;
+	blk_queue_max_sectors(q, max_sectors_kb << 1);
 	spin_unlock_irq(q->queue_lock);
 
 	return ret;
@@ -125,7 +125,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 
 static ssize_t queue_max_hw_sectors_show(struct request_queue *q, char *page)
 {
-	int max_hw_sectors_kb = q->max_hw_sectors >> 1;
+	int max_hw_sectors_kb = queue_max_hw_sectors(q) >> 1;
 
 	return queue_var_show(max_hw_sectors_kb, (page));
 }

@@ -766,7 +766,7 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		return compat_put_int(arg, bdev_logical_block_size(bdev));
 	case BLKSECTGET:
 		return compat_put_ushort(arg,
-					 bdev_get_queue(bdev)->max_sectors);
+					 queue_max_sectors(bdev_get_queue(bdev)));
 	case BLKRASET: /* compatible, but no compat_ptr (!) */
 	case BLKFRASET:
 		if (!capable(CAP_SYS_ADMIN))

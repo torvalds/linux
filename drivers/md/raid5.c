@@ -3463,10 +3463,10 @@ static int bio_fits_rdev(struct bio *bi)
 {
 	struct request_queue *q = bdev_get_queue(bi->bi_bdev);
 
-	if ((bi->bi_size>>9) > q->max_sectors)
+	if ((bi->bi_size>>9) > queue_max_sectors(q))
 		return 0;
 	blk_recount_segments(q, bi);
-	if (bi->bi_phys_segments > q->max_phys_segments)
+	if (bi->bi_phys_segments > queue_max_phys_segments(q))
 		return 0;
 
 	if (q->merge_bvec_fn)
