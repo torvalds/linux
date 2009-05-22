@@ -119,9 +119,6 @@ static struct chip_ident chip_id_to_device_name[] = {
  * First we have to put a SPU register name on the bus. Then we can
  * either read from or write to that register.
  *
- * For 16-bit transactions, byte order on the bus is big-endian.
- * We don't have to worry about that here, though.
- * The translation takes place in the SPI routines.
  */
 
 static void spu_transaction_init(struct if_spi_card *card)
@@ -147,7 +144,7 @@ static void spu_transaction_finish(struct if_spi_card *card)
 static int spu_write(struct if_spi_card *card, u16 reg, const u8 *buf, int len)
 {
 	int err = 0;
-	u16 reg_out = reg | IF_SPI_WRITE_OPERATION_MASK;
+	u16 reg_out = cpu_to_le16(reg | IF_SPI_WRITE_OPERATION_MASK);
 
 	/* You must give an even number of bytes to the SPU, even if it
 	 * doesn't care about the last one.  */
@@ -169,16 +166,10 @@ out:
 
 static inline int spu_write_u16(struct if_spi_card *card, u16 reg, u16 val)
 {
-	return spu_write(card, reg, (u8 *)&val, sizeof(u16));
-}
+	u16 buff;
 
-static inline int spu_write_u32(struct if_spi_card *card, u16 reg, u32 val)
-{
-	/* The lower 16 bits are written first. */
-	u16 out[2];
-	out[0] = val & 0xffff;
-	out[1] = (val & 0xffff0000) >> 16;
-	return spu_write(card, reg, (u8 *)&out, sizeof(u32));
+	buff = cpu_to_le16(val);
+	return spu_write(card, reg, (u8 *)&buff, sizeof(u16));
 }
 
 static inline int spu_reg_is_port_reg(u16 reg)
@@ -198,7 +189,7 @@ static int spu_read(struct if_spi_card *card, u16 reg, u8 *buf, int len)
 	unsigned int i, delay;
 	int err = 0;
 	u16 zero = 0;
-	u16 reg_out = reg | IF_SPI_READ_OPERATION_MASK;
+	u16 reg_out = cpu_to_le16(reg | IF_SPI_READ_OPERATION_MASK);
 
 	/* You must take an even number of bytes from the SPU, even if you
 	 * don't care about the last one.  */
@@ -236,18 +227,25 @@ out:
 /* Read 16 bits from an SPI register */
 static inline int spu_read_u16(struct if_spi_card *card, u16 reg, u16 *val)
 {
-	return spu_read(card, reg, (u8 *)val, sizeof(u16));
+	u16 buf;
+	int ret;
+
+	ret = spu_read(card, reg, (u8 *)&buf, sizeof(buf));
+	if (ret == 0)
+		*val = le16_to_cpup(&buf);
+	return ret;
 }
 
 /* Read 32 bits from an SPI register.
  * The low 16 bits are read first. */
 static int spu_read_u32(struct if_spi_card *card, u16 reg, u32 *val)
 {
-	u16 buf[2];
+	u32 buf;
 	int err;
-	err = spu_read(card, reg, (u8 *)buf, sizeof(u32));
+
+	err = spu_read(card, reg, (u8 *)&buf, sizeof(buf));
 	if (!err)
-		*val = buf[0] | (buf[1] << 16);
+		*val = le32_to_cpup(&buf);
 	return err;
 }
 
