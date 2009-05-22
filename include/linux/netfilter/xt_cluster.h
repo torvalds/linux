@@ -12,4 +12,6 @@ struct xt_cluster_match_info {
 	u_int32_t		flags;
 };
 
+#define XT_CLUSTER_NODES_MAX	32
+
 #endif /* _XT_CLUSTER_MATCH_H */

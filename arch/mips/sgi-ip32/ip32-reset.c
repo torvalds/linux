@@ -145,7 +145,7 @@ static irqreturn_t ip32_rtc_int(int irq, void *dev_id)
 			"%s: RTC IRQ without RTC_IRQF\n", __func__);
 	}
 	/* Wait until interrupt goes away */
-	disable_irq(MACEISA_RTC_IRQ);
+	disable_irq_nosync(MACEISA_RTC_IRQ);
 	init_timer(&debounce_timer);
 	debounce_timer.function = debounce;
 	debounce_timer.expires = jiffies + 50;

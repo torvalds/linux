@@ -137,8 +137,8 @@ void __init init_IRQ(void)
 
 	intr_type =
 		*(int *) of_get_property(intc, "xlnx,kind-of-intr", NULL);
-	if (intr_type >= (1 << nr_irq))
-		printk(KERN_INFO " ERROR: Mishmash in king-of-intr param\n");
+	if (intr_type >= (1 << (nr_irq + 1)))
+		printk(KERN_INFO " ERROR: Mismatch in kind-of-intr param\n");
 
 #ifdef CONFIG_SELFMOD_INTC
 	selfmod_function((int *) arr_func, intc_baseaddr);

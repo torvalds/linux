@@ -526,6 +526,7 @@
 #define   DPLLA_INPUT_BUFFER_ENABLE	(1 << 0)
 #define D_STATE		0x6104
 #define CG_2D_DIS	0x6200
+#define DPCUNIT_CLOCK_GATE_DISABLE	(1 << 24)
 #define CG_3D_DIS	0x6204
 
 /*

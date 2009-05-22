@@ -109,7 +109,7 @@ struct intel_i2c_chan *intel_i2c_create(struct drm_device *dev, const u32 reg,
 void intel_i2c_destroy(struct intel_i2c_chan *chan);
 int intel_ddc_get_modes(struct intel_output *intel_output);
 extern bool intel_ddc_probe(struct intel_output *intel_output);
-
+void intel_i2c_quirk_set(struct drm_device *dev, bool enable);
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
@@ -125,6 +125,8 @@ extern struct drm_encoder *intel_best_encoder(struct drm_connector *connector);
 
 extern struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 						    struct drm_crtc *crtc);
+int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
 extern void intel_wait_for_vblank(struct drm_device *dev);
 extern struct drm_crtc *intel_get_crtc_from_pipe(struct drm_device *dev, int pipe);
 extern struct drm_crtc *intel_get_load_detect_pipe(struct intel_output *intel_output,

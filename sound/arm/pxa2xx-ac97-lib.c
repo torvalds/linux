@@ -65,7 +65,7 @@ static void set_resetgpio_mode(int resetgpio_action)
 		switch (resetgpio_action) {
 		case RESETGPIO_NORMAL_ALTFUNC:
 			if (reset_gpio == 113)
-				mode = 113 | GPIO_OUT | GPIO_DFLT_LOW;
+				mode = 113 | GPIO_ALT_FN_2_OUT;
 			if (reset_gpio == 95)
 				mode = 95 | GPIO_ALT_FN_1_OUT;
 			break;

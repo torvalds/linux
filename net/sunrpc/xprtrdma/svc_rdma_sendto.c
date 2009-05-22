@@ -183,6 +183,7 @@ static int fast_reg_xdr(struct svcxprt_rdma *xprt,
 
  fatal_err:
 	printk("svcrdma: Error fast registering memory for xprt %p\n", xprt);
+	vec->frmr = NULL;
 	svc_rdma_put_frmr(xprt, frmr);
 	return -EIO;
 }
@@ -516,6 +517,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 		       "svcrdma: could not post a receive buffer, err=%d."
 		       "Closing transport %p.\n", ret, rdma);
 		set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);
+		svc_rdma_put_frmr(rdma, vec->frmr);
 		svc_rdma_put_context(ctxt, 0);
 		return -ENOTCONN;
 	}
@@ -606,6 +608,7 @@ static int send_reply(struct svcxprt_rdma *rdma,
 	return 0;
 
  err:
+	svc_rdma_unmap_dma(ctxt);
 	svc_rdma_put_frmr(rdma, vec->frmr);
 	svc_rdma_put_context(ctxt, 1);
 	return -EIO;

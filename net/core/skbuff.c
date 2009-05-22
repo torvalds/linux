@@ -502,7 +502,9 @@ int skb_recycle_check(struct sk_buff *skb, int skb_size)
 	shinfo->gso_segs = 0;
 	shinfo->gso_type = 0;
 	shinfo->ip6_frag_id = 0;
+	shinfo->tx_flags.flags = 0;
 	shinfo->frag_list = NULL;
+	memset(&shinfo->hwtstamps, 0, sizeof(shinfo->hwtstamps));
 
 	memset(skb, 0, offsetof(struct sk_buff, tail));
 	skb->data = skb->head + NET_SKB_PAD;
@@ -2286,7 +2288,7 @@ unsigned int skb_seq_read(unsigned int consumed, const u8 **data,
 next_skb:
 	block_limit = skb_headlen(st->cur_skb) + st->stepped_offset;
 
-	if (abs_offset < block_limit) {
+	if (abs_offset < block_limit && !st->frag_data) {
 		*data = st->cur_skb->data + (abs_offset - st->stepped_offset);
 		return block_limit - abs_offset;
 	}

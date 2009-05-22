@@ -161,7 +161,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	hotplug_en &= CRT_FORCE_HOTPLUG_MASK;
 	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
-	if (IS_GM45(dev))
+	if (IS_G4X(dev))
 		hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
 
 	hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
