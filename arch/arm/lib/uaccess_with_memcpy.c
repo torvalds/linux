@@ -49,13 +49,10 @@ pin_page_for_write(const void __user *_addr, pte_t **ptep, spinlock_t **ptlp)
 	return 1;
 }
 
-unsigned long
-__copy_to_user(void __user *to, const void *from, unsigned long n)
+static unsigned long noinline
+__copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 {
 	int atomic;
-
-	if (n < 1024)
-		return __copy_to_user_std(to, from, n);
 
 	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
 		memcpy((void *)to, from, n);
@@ -99,11 +96,24 @@ out:
 	return n;
 }
 
-unsigned long __clear_user(void __user *addr, unsigned long n)
+unsigned long
+__copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	if (n < 256)
-		return __clear_user_std(addr, n);
-
+	/*
+	 * This test is stubbed out of the main function above to keep
+	 * the overhead for small copies low by avoiding a large
+	 * register dump on the stack just to reload them right away.
+	 * With frame pointer disabled, tail call optimization kicks in
+	 * as well making this test almost invisible.
+	 */
+	if (n < 1024)
+		return __copy_to_user_std(to, from, n);
+	return __copy_to_user_memcpy(to, from, n);
+}
+	
+static unsigned long noinline
+__clear_user_memset(void __user *addr, unsigned long n)
+{
 	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
 		memset((void *)addr, 0, n);
 		return 0;
@@ -136,4 +146,12 @@ unsigned long __clear_user(void __user *addr, unsigned long n)
 
 out:
 	return n;
+}
+
+unsigned long __clear_user(void __user *addr, unsigned long n)
+{
+	/* See rational for this in __copy_to_user() above. */
+	if (n < 256)
+		return __clear_user_std(addr, n);
+	return __clear_user_memset(addr, n);
 }
