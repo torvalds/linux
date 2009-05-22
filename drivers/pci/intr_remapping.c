@@ -314,7 +314,8 @@ int modify_irte(int irq, struct irte *irte_modified)
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	irte = &iommu->ir_table->base[index];
 
-	set_64bit((unsigned long *)irte, irte_modified->low);
+	set_64bit((unsigned long *)&irte->low, irte_modified->low);
+	set_64bit((unsigned long *)&irte->high, irte_modified->high);
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
@@ -369,12 +370,32 @@ struct intel_iommu *map_dev_to_ir(struct pci_dev *dev)
 	return drhd->iommu;
 }
 
+static int clear_entries(struct irq_2_iommu *irq_iommu)
+{
+	struct irte *start, *entry, *end;
+	struct intel_iommu *iommu;
+	int index;
+
+	if (irq_iommu->sub_handle)
+		return 0;
+
+	iommu = irq_iommu->iommu;
+	index = irq_iommu->irte_index + irq_iommu->sub_handle;
+
+	start = iommu->ir_table->base + index;
+	end = start + (1 << irq_iommu->irte_mask);
+
+	for (entry = start; entry < end; entry++) {
+		set_64bit((unsigned long *)&entry->low, 0);
+		set_64bit((unsigned long *)&entry->high, 0);
+	}
+
+	return qi_flush_iec(iommu, index, irq_iommu->irte_mask);
+}
+
 int free_irte(int irq)
 {
 	int rc = 0;
-	int index, i;
-	struct irte *irte;
-	struct intel_iommu *iommu;
 	struct irq_2_iommu *irq_iommu;
 	unsigned long flags;
 
@@ -385,16 +406,7 @@ int free_irte(int irq)
 		return -1;
 	}
 
-	iommu = irq_iommu->iommu;
-
-	index = irq_iommu->irte_index + irq_iommu->sub_handle;
-	irte = &iommu->ir_table->base[index];
-
-	if (!irq_iommu->sub_handle) {
-		for (i = 0; i < (1 << irq_iommu->irte_mask); i++)
-			set_64bit((unsigned long *)(irte + i), 0);
-		rc = qi_flush_iec(iommu, index, irq_iommu->irte_mask);
-	}
+	rc = clear_entries(irq_iommu);
 
 	irq_iommu->iommu = NULL;
 	irq_iommu->irte_index = 0;
