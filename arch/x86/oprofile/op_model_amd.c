@@ -26,12 +26,7 @@
 #define NUM_COUNTERS 4
 #define NUM_CONTROLS 4
 
-#define CTR_READ(l, h, msrs, c) do {rdmsr(msrs->counters[(c)].addr, (l), (h)); } while (0)
-#define CTR_WRITE(l, msrs, c) do {wrmsr(msrs->counters[(c)].addr, -(unsigned int)(l), -1); } while (0)
 #define CTR_OVERFLOWED(n) (!((n) & (1U<<31)))
-
-#define CTRL_READ(l, h, msrs, c) do {rdmsr(msrs->controls[(c)].addr, (l), (h)); } while (0)
-#define CTRL_WRITE(l, h, msrs, c) do {wrmsr(msrs->controls[(c)].addr, (l), (h)); } while (0)
 #define CTRL_CLEAR_LO(x) (x &= (1<<21))
 #define CTRL_CLEAR_HI(x) (x &= 0xfffffcf0)
 #define CTRL_SET_EVENT_LOW(val, e) (val |= (e & 0xff))
@@ -101,17 +96,17 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 	for (i = 0 ; i < NUM_CONTROLS; ++i) {
 		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
 			continue;
-		CTRL_READ(low, high, msrs, i);
+		rdmsr(msrs->controls[i].addr, low, high);
 		CTRL_CLEAR_LO(low);
 		CTRL_CLEAR_HI(high);
-		CTRL_WRITE(low, high, msrs, i);
+		wrmsr(msrs->controls[i].addr, low, high);
 	}
 
 	/* avoid a false detection of ctr overflows in NMI handler */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (unlikely(!CTR_IS_RESERVED(msrs, i)))
 			continue;
-		CTR_WRITE(1, msrs, i);
+		wrmsr(msrs->counters[i].addr, -1, -1);
 	}
 
 	/* enable active counters */
@@ -119,9 +114,9 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 		if ((counter_config[i].enabled) && (CTR_IS_RESERVED(msrs, i))) {
 			reset_value[i] = counter_config[i].count;
 
-			CTR_WRITE(counter_config[i].count, msrs, i);
+			wrmsr(msrs->counters[i].addr, -(unsigned int)counter_config[i].count, -1);
 
-			CTRL_READ(low, high, msrs, i);
+			rdmsr(msrs->controls[i].addr, low, high);
 			CTRL_CLEAR_LO(low);
 			CTRL_CLEAR_HI(high);
 			CTRL_SET_ENABLE(low);
@@ -133,7 +128,7 @@ static void op_amd_setup_ctrs(struct op_msrs const * const msrs)
 			CTRL_SET_HOST_ONLY(high, 0);
 			CTRL_SET_GUEST_ONLY(high, 0);
 
-			CTRL_WRITE(low, high, msrs, i);
+			wrmsr(msrs->controls[i].addr, low, high);
 		} else {
 			reset_value[i] = 0;
 		}
@@ -267,10 +262,10 @@ static int op_amd_check_ctrs(struct pt_regs * const regs,
 	for (i = 0 ; i < NUM_COUNTERS; ++i) {
 		if (!reset_value[i])
 			continue;
-		CTR_READ(low, high, msrs, i);
+		rdmsr(msrs->counters[i].addr, low, high);
 		if (CTR_OVERFLOWED(low)) {
 			oprofile_add_sample(regs, i);
-			CTR_WRITE(reset_value[i], msrs, i);
+			wrmsr(msrs->counters[i].addr, -(unsigned int)reset_value[i], -1);
 		}
 	}
 
@@ -286,9 +281,9 @@ static void op_amd_start(struct op_msrs const * const msrs)
 	int i;
 	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
 		if (reset_value[i]) {
-			CTRL_READ(low, high, msrs, i);
+			rdmsr(msrs->controls[i].addr, low, high);
 			CTRL_SET_ACTIVE(low);
-			CTRL_WRITE(low, high, msrs, i);
+			wrmsr(msrs->controls[i].addr, low, high);
 		}
 	}
 
@@ -307,9 +302,9 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	for (i = 0 ; i < NUM_COUNTERS ; ++i) {
 		if (!reset_value[i])
 			continue;
-		CTRL_READ(low, high, msrs, i);
+		rdmsr(msrs->controls[i].addr, low, high);
 		CTRL_SET_INACTIVE(low);
-		CTRL_WRITE(low, high, msrs, i);
+		wrmsr(msrs->controls[i].addr, low, high);
 	}
 
 	op_amd_stop_ibs();
