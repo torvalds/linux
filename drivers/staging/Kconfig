@@ -85,6 +85,8 @@ source "drivers/staging/altpciechdma/Kconfig"
 
 source "drivers/staging/rtl8187se/Kconfig"
 
+source "drivers/staging/rtl8192su/Kconfig"
+
 source "drivers/staging/rspiusb/Kconfig"
 
 source "drivers/staging/mimio/Kconfig"
