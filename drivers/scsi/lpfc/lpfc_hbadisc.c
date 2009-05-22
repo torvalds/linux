@@ -29,10 +29,12 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
 
+#include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_sli.h"
+#include "lpfc_sli4.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
 #include "lpfc_logmsg.h"
@@ -491,6 +493,10 @@ lpfc_work_done(struct lpfc_hba *phba)
 	phba->work_ha = 0;
 	spin_unlock_irq(&phba->hbalock);
 
+	/* First, try to post the next mailbox command to SLI4 device */
+	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
+		lpfc_sli4_post_async_mbox(phba);
+
 	if (ha_copy & HA_ERATT)
 		/* Handle the error attention event */
 		lpfc_handle_eratt(phba);
@@ -501,9 +507,27 @@ lpfc_work_done(struct lpfc_hba *phba)
 	if (ha_copy & HA_LATT)
 		lpfc_handle_latt(phba);
 
+	/* Process SLI4 events */
+	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC) {
+		if (phba->hba_flag & FCP_XRI_ABORT_EVENT)
+			lpfc_sli4_fcp_xri_abort_event_proc(phba);
+		if (phba->hba_flag & ELS_XRI_ABORT_EVENT)
+			lpfc_sli4_els_xri_abort_event_proc(phba);
+		if (phba->hba_flag & ASYNC_EVENT)
+			lpfc_sli4_async_event_proc(phba);
+		if (phba->hba_flag & HBA_POST_RECEIVE_BUFFER) {
+			spin_lock_irq(&phba->hbalock);
+			phba->hba_flag &= ~HBA_POST_RECEIVE_BUFFER;
+			spin_unlock_irq(&phba->hbalock);
+			lpfc_sli_hbqbuf_add_hbqs(phba, LPFC_ELS_HBQ);
+		}
+		if (phba->hba_flag & HBA_RECEIVE_BUFFER)
+			lpfc_sli4_handle_received_buffer(phba);
+	}
+
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for(i = 0; i <= phba->max_vpi; i++) {
+		for (i = 0; i <= phba->max_vports; i++) {
 			/*
 			 * We could have no vports in array if unloading, so if
 			 * this happens then just use the pport
@@ -2556,7 +2580,8 @@ lpfc_issue_clear_la(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	 * clear_la then don't send it.
 	 */
 	if ((phba->link_state >= LPFC_CLEAR_LA) ||
-	    (vport->port_type != LPFC_PHYSICAL_PORT))
+	    (vport->port_type != LPFC_PHYSICAL_PORT) ||
+		(phba->sli_rev == LPFC_SLI_REV4))
 		return;
 
 			/* Link up discovery */
@@ -2585,7 +2610,7 @@ lpfc_issue_reg_vpi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 
 	regvpimbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (regvpimbox) {
-		lpfc_reg_vpi(phba, vport->vpi, vport->fc_myDID, regvpimbox);
+		lpfc_reg_vpi(vport, regvpimbox);
 		regvpimbox->mbox_cmpl = lpfc_mbx_cmpl_reg_vpi;
 		regvpimbox->vport = vport;
 		if (lpfc_sli_issue_mbox(phba, regvpimbox, MBX_NOWAIT)
@@ -2645,7 +2670,8 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	 */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
 	    !(vport->fc_flag & FC_PT2PT) &&
-	    !(vport->fc_flag & FC_RSCN_MODE)) {
+	    !(vport->fc_flag & FC_RSCN_MODE) &&
+	    (phba->sli_rev < LPFC_SLI_REV4)) {
 		lpfc_issue_reg_vpi(phba, vport);
 		return;
 	}

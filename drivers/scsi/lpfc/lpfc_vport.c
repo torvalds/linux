@@ -32,8 +32,10 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
+#include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
@@ -89,6 +91,8 @@ lpfc_alloc_vpi(struct lpfc_hba *phba)
 		vpi = 0;
 	else
 		set_bit(vpi, phba->vpi_bmask);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		phba->sli4_hba.max_cfg_param.vpi_used++;
 	spin_unlock_irq(&phba->hbalock);
 	return vpi;
 }
@@ -96,8 +100,12 @@ lpfc_alloc_vpi(struct lpfc_hba *phba)
 static void
 lpfc_free_vpi(struct lpfc_hba *phba, int vpi)
 {
+	if (vpi == 0)
+		return;
 	spin_lock_irq(&phba->hbalock);
 	clear_bit(vpi, phba->vpi_bmask);
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		phba->sli4_hba.max_cfg_param.vpi_used--;
 	spin_unlock_irq(&phba->hbalock);
 }
 
@@ -308,6 +316,21 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		goto error_out;
 	}
 
+	/*
+	 * In SLI4, the vpi must be activated before it can be used
+	 * by the port.
+	 */
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		rc = lpfc_sli4_init_vpi(phba, vpi);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
+					"1838 Failed to INIT_VPI on vpi %d "
+					"status %d\n", vpi, rc);
+			rc = VPORT_NORESOURCES;
+			lpfc_free_vpi(phba, vpi);
+			goto error_out;
+		}
+	}
 
 	/* Assign an unused board number */
 	if ((instance = lpfc_get_instance()) < 0) {

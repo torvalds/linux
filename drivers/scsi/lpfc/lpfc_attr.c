@@ -30,8 +30,10 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport_fc.h>
 
+#include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_sli4.h"
 #include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
@@ -828,18 +830,37 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		return 0;
 	}
 
-	if (mrpi)
-		*mrpi = pmb->un.varRdConfig.max_rpi;
-	if (arpi)
-		*arpi = pmb->un.varRdConfig.avail_rpi;
-	if (mxri)
-		*mxri = pmb->un.varRdConfig.max_xri;
-	if (axri)
-		*axri = pmb->un.varRdConfig.avail_xri;
-	if (mvpi)
-		*mvpi = pmb->un.varRdConfig.max_vpi;
-	if (avpi)
-		*avpi = pmb->un.varRdConfig.avail_vpi;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		rd_config = &pmboxq->u.mqe.un.rd_config;
+		if (mrpi)
+			*mrpi = bf_get(lpfc_mbx_rd_conf_rpi_count, rd_config);
+		if (arpi)
+			*arpi = bf_get(lpfc_mbx_rd_conf_rpi_count, rd_config) -
+					phba->sli4_hba.max_cfg_param.rpi_used;
+		if (mxri)
+			*mxri = bf_get(lpfc_mbx_rd_conf_xri_count, rd_config);
+		if (axri)
+			*axri = bf_get(lpfc_mbx_rd_conf_xri_count, rd_config) -
+					phba->sli4_hba.max_cfg_param.xri_used;
+		if (mvpi)
+			*mvpi = bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config);
+		if (avpi)
+			*avpi = bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config) -
+					phba->sli4_hba.max_cfg_param.vpi_used;
+	} else {
+		if (mrpi)
+			*mrpi = pmb->un.varRdConfig.max_rpi;
+		if (arpi)
+			*arpi = pmb->un.varRdConfig.avail_rpi;
+		if (mxri)
+			*mxri = pmb->un.varRdConfig.max_xri;
+		if (axri)
+			*axri = pmb->un.varRdConfig.avail_xri;
+		if (mvpi)
+			*mvpi = pmb->un.varRdConfig.max_vpi;
+		if (avpi)
+			*avpi = pmb->un.varRdConfig.avail_vpi;
+	}
 
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 	return 1;
@@ -2844,13 +2865,37 @@ LPFC_ATTR_RW(poll_tmo, 10, 1, 255,
 /*
 # lpfc_use_msi: Use MSI (Message Signaled Interrupts) in systems that
 #		support this feature
-#       0  = MSI disabled
+#       0  = MSI disabled (default)
 #       1  = MSI enabled
-#       2  = MSI-X enabled (default)
-# Value range is [0,2]. Default value is 2.
+#       2  = MSI-X enabled
+# Value range is [0,2]. Default value is 0.
 */
-LPFC_ATTR_R(use_msi, 2, 0, 2, "Use Message Signaled Interrupts (1) or "
+LPFC_ATTR_R(use_msi, 0, 0, 2, "Use Message Signaled Interrupts (1) or "
 	    "MSI-X (2), if possible");
+
+/*
+# lpfc_fcp_imax: Set the maximum number of fast-path FCP interrupts per second
+#
+# Value range is [636,651042]. Default value is 10000.
+*/
+LPFC_ATTR_R(fcp_imax, LPFC_FP_DEF_IMAX, LPFC_MIM_IMAX, LPFC_DMULT_CONST,
+	    "Set the maximum number of fast-path FCP interrupts per second");
+
+/*
+# lpfc_fcp_wq_count: Set the number of fast-path FCP work queues
+#
+# Value range is [1,31]. Default value is 4.
+*/
+LPFC_ATTR_R(fcp_wq_count, LPFC_FP_WQN_DEF, LPFC_FP_WQN_MIN, LPFC_FP_WQN_MAX,
+	    "Set the number of fast-path FCP work queues, if possible");
+
+/*
+# lpfc_fcp_eq_count: Set the number of fast-path FCP event queues
+#
+# Value range is [1,7]. Default value is 1.
+*/
+LPFC_ATTR_R(fcp_eq_count, LPFC_FP_EQN_DEF, LPFC_FP_EQN_MIN, LPFC_FP_EQN_MAX,
+	    "Set the number of fast-path FCP event queues, if possible");
 
 /*
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
@@ -2969,6 +3014,9 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_poll,
 	&dev_attr_lpfc_poll_tmo,
 	&dev_attr_lpfc_use_msi,
+	&dev_attr_lpfc_fcp_imax,
+	&dev_attr_lpfc_fcp_wq_count,
+	&dev_attr_lpfc_fcp_eq_count,
 	&dev_attr_lpfc_enable_bg,
 	&dev_attr_lpfc_soft_wwnn,
 	&dev_attr_lpfc_soft_wwpn,
@@ -4105,6 +4153,9 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_poll_tmo_init(phba, lpfc_poll_tmo);
 	lpfc_enable_npiv_init(phba, lpfc_enable_npiv);
 	lpfc_use_msi_init(phba, lpfc_use_msi);
+	lpfc_fcp_imax_init(phba, lpfc_fcp_imax);
+	lpfc_fcp_wq_count_init(phba, lpfc_fcp_wq_count);
+	lpfc_fcp_eq_count_init(phba, lpfc_fcp_eq_count);
 	lpfc_enable_hba_reset_init(phba, lpfc_enable_hba_reset);
 	lpfc_enable_hba_heartbeat_init(phba, lpfc_enable_hba_heartbeat);
 	lpfc_enable_bg_init(phba, lpfc_enable_bg);
