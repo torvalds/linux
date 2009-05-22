@@ -938,6 +938,61 @@ out:
 }
 
 /**
+ * gfs2_readlinki - return the contents of a symlink
+ * @ip: the symlink's inode
+ * @buf: a pointer to the buffer to be filled
+ * @len: a pointer to the length of @buf
+ *
+ * If @buf is too small, a piece of memory is kmalloc()ed and needs
+ * to be freed by the caller.
+ *
+ * Returns: errno
+ */
+
+static int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len)
+{
+	struct gfs2_holder i_gh;
+	struct buffer_head *dibh;
+	unsigned int x;
+	int error;
+
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
+	error = gfs2_glock_nq(&i_gh);
+	if (error) {
+		gfs2_holder_uninit(&i_gh);
+		return error;
+	}
+
+	if (!ip->i_disksize) {
+		gfs2_consist_inode(ip);
+		error = -EIO;
+		goto out;
+	}
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		goto out;
+
+	x = ip->i_disksize + 1;
+	if (x > *len) {
+		*buf = kmalloc(x, GFP_NOFS);
+		if (!*buf) {
+			error = -ENOMEM;
+			goto out_brelse;
+		}
+	}
+
+	memcpy(*buf, dibh->b_data + sizeof(struct gfs2_dinode), x);
+	*len = x;
+
+out_brelse:
+	brelse(dibh);
+out:
+	gfs2_glock_dq_uninit(&i_gh);
+	return error;
+}
+
+/**
  * gfs2_readlink - Read the value of a symlink
  * @dentry: the symlink
  * @buf: the buffer to read the symlink data into

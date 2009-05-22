@@ -99,7 +99,6 @@ extern struct inode *gfs2_createi(struct gfs2_holder *ghs,
 extern int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 			  const struct gfs2_inode *ip);
 extern int gfs2_permission(struct inode *inode, int mask);
-extern int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len);
 extern int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 extern struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 extern void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
