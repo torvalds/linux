@@ -2275,7 +2275,17 @@ end:
 }
 
 
-static int bcm4320_early_init(struct usbnet *usbdev)
+static int bcm4320a_early_init(struct usbnet *usbdev)
+{
+	/* bcm4320a doesn't handle configuration parameters well. Try
+	 * set any and you get partially zeroed mac and broken device.
+	 */
+
+	return 0;
+}
+
+
+static int bcm4320b_early_init(struct usbnet *usbdev)
 {
 	struct rndis_wext_private *priv = get_rndis_wext_priv(usbdev);
 	char buf[8];
@@ -2515,7 +2525,7 @@ static const struct driver_info	bcm4320b_info = {
 	.rx_fixup =	rndis_rx_fixup,
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wext_reset,
-	.early_init =	bcm4320_early_init,
+	.early_init =	bcm4320b_early_init,
 	.link_change =	rndis_wext_link_change,
 };
 
@@ -2528,7 +2538,7 @@ static const struct driver_info	bcm4320a_info = {
 	.rx_fixup =	rndis_rx_fixup,
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wext_reset,
-	.early_init =	bcm4320_early_init,
+	.early_init =	bcm4320a_early_init,
 	.link_change =	rndis_wext_link_change,
 };
 
@@ -2541,7 +2551,7 @@ static const struct driver_info rndis_wext_info = {
 	.rx_fixup =	rndis_rx_fixup,
 	.tx_fixup =	rndis_tx_fixup,
 	.reset =	rndis_wext_reset,
-	.early_init =	bcm4320_early_init,
+	.early_init =	bcm4320a_early_init,
 	.link_change =	rndis_wext_link_change,
 };
 
