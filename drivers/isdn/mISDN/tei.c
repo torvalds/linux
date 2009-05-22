@@ -227,7 +227,7 @@ tei_debug(struct FsmInst *fi, char *fmt, ...)
 	if (!(*debug & DEBUG_L2_TEIFSM))
 		return;
 	va_start(va, fmt);
-	printk(KERN_DEBUG "tei(%d): ", tm->l2->tei);
+	printk(KERN_DEBUG "sapi(%d) tei(%d): ", tm->l2->sapi, tm->l2->tei);
 	vprintk(fmt, va);
 	printk("\n");
 	va_end(va);
@@ -1191,9 +1191,16 @@ check_data(struct manager *mgr, struct sk_buff *skb)
 	if ((skb->data[2] & ~0x10) != SABME)
 		return -ENOTCONN;
 	/* We got a SABME for a fixed TEI */
+	if (*debug & DEBUG_L2_CTRL)
+		printk(KERN_DEBUG "%s: SABME sapi(%d) tei(%d)\n",
+		    __func__, sapi, tei);
 	l2 = create_new_tei(mgr, tei, sapi);
-	if (!l2)
+	if (!l2) {
+		if (*debug & DEBUG_L2_CTRL)
+			printk(KERN_DEBUG "%s: failed to create new tei\n",
+			    __func__);
 		return -ENOMEM;
+	}
 	ret = l2->ch.send(&l2->ch, skb);
 	return ret;
 }

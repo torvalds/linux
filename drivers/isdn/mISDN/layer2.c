@@ -99,7 +99,7 @@ l2m_debug(struct FsmInst *fi, char *fmt, ...)
 	if (!(*debug & DEBUG_L2_FSM))
 		return;
 	va_start(va, fmt);
-	printk(KERN_DEBUG "l2 (tei %d): ", l2->tei);
+	printk(KERN_DEBUG "l2 (sapi %d tei %d): ", l2->sapi, l2->tei);
 	vprintk(fmt, va);
 	printk("\n");
 	va_end(va);
@@ -1859,20 +1859,18 @@ ph_data_indication(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb)
 		psapi >>= 2;
 		ptei >>= 1;
 		if (psapi != l2->sapi) {
-			/* not our bussiness
-			 * printk(KERN_DEBUG "%s: sapi %d/%d sapi mismatch\n",
-			 *  __func__,
-			 *	psapi, l2->sapi);
-			 */
+			/* not our bussiness */
+			if (*debug & DEBUG_L2)
+				printk(KERN_DEBUG "%s: sapi %d/%d mismatch\n",
+					__func__, psapi, l2->sapi);
 			dev_kfree_skb(skb);
 			return 0;
 		}
 		if ((ptei != l2->tei) && (ptei != GROUP_TEI)) {
-			/* not our bussiness
-			 * printk(KERN_DEBUG "%s: tei %d/%d sapi %d mismatch\n",
-			 *  __func__,
-			 *	ptei, l2->tei, psapi);
-			 */
+			/* not our bussiness */
+			if (*debug & DEBUG_L2)
+				printk(KERN_DEBUG "%s: tei %d/%d mismatch\n",
+					__func__, ptei, l2->tei);
 			dev_kfree_skb(skb);
 			return 0;
 		}
@@ -1927,8 +1925,8 @@ l2_send(struct mISDNchannel *ch, struct sk_buff *skb)
 	int 			ret = -EINVAL;
 
 	if (*debug & DEBUG_L2_RECV)
-		printk(KERN_DEBUG "%s: prim(%x) id(%x) tei(%d)\n",
-		    __func__, hh->prim, hh->id, l2->tei);
+		printk(KERN_DEBUG "%s: prim(%x) id(%x) sapi(%d) tei(%d)\n",
+		    __func__, hh->prim, hh->id, l2->sapi, l2->tei);
 	switch (hh->prim) {
 	case PH_DATA_IND:
 		ret = ph_data_indication(l2, hh, skb);
