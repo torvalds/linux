@@ -19,6 +19,7 @@
 #include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/ip.h>
+#include <linux/list.h>
 
 #include "qeth_core.h"
 
@@ -640,6 +641,7 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct dev_addr_list *dm;
+	struct netdev_hw_addr *ha;
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return ;
@@ -653,8 +655,8 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 	for (dm = dev->mc_list; dm; dm = dm->next)
 		qeth_l2_add_mc(card, dm->da_addr, 0);
 
-	for (dm = dev->uc_list; dm; dm = dm->next)
-		qeth_l2_add_mc(card, dm->da_addr, 1);
+	list_for_each_entry(ha, &dev->uc_list, list)
+		qeth_l2_add_mc(card, ha->addr, 1);
 
 	spin_unlock_bh(&card->mclock);
 	if (!qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))

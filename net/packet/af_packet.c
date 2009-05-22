@@ -1582,9 +1582,9 @@ static int packet_dev_mc(struct net_device *dev, struct packet_mclist *i,
 		break;
 	case PACKET_MR_UNICAST:
 		if (what > 0)
-			return dev_unicast_add(dev, i->addr, i->alen);
+			return dev_unicast_add(dev, i->addr);
 		else
-			return dev_unicast_delete(dev, i->addr, i->alen);
+			return dev_unicast_delete(dev, i->addr);
 		break;
 	default:;
 	}

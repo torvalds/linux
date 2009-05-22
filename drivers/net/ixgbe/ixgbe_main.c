@@ -2181,11 +2181,7 @@ static void ixgbe_set_rx_mode(struct net_device *netdev)
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 
 	/* reprogram secondary unicast list */
-	addr_count = netdev->uc_count;
-	if (addr_count)
-		addr_list = netdev->uc_list->dmi_addr;
-	hw->mac.ops.update_uc_addr_list(hw, addr_list, addr_count,
-	                                  ixgbe_addr_list_itr);
+	hw->mac.ops.update_uc_addr_list(hw, &netdev->uc_list);
 
 	/* reprogram multicast list */
 	addr_count = netdev->mc_count;

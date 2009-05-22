@@ -48,6 +48,7 @@
 #include <linux/cache.h>
 #include <linux/firmware.h>
 #include <linux/log2.h>
+#include <linux/list.h>
 
 #include "bnx2.h"
 #include "bnx2_fw.h"
@@ -3310,7 +3311,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	u32 rx_mode, sort_mode;
-	struct dev_addr_list *uc_ptr;
+	struct netdev_hw_addr *ha;
 	int i;
 
 	if (!netif_running(dev))
@@ -3369,21 +3370,19 @@ bnx2_set_rx_mode(struct net_device *dev)
 		sort_mode |= BNX2_RPM_SORT_USER0_MC_HSH_EN;
 	}
 
-	uc_ptr = NULL;
 	if (dev->uc_count > BNX2_MAX_UNICAST_ADDRESSES) {
 		rx_mode |= BNX2_EMAC_RX_MODE_PROMISCUOUS;
 		sort_mode |= BNX2_RPM_SORT_USER0_PROM_EN |
 			     BNX2_RPM_SORT_USER0_PROM_VLAN;
 	} else if (!(dev->flags & IFF_PROMISC)) {
-		uc_ptr = dev->uc_list;
-
 		/* Add all entries into to the match filter list */
-		for (i = 0; i < dev->uc_count; i++) {
-			bnx2_set_mac_addr(bp, uc_ptr->da_addr,
+		i = 0;
+		list_for_each_entry(ha, &dev->uc_list, list) {
+			bnx2_set_mac_addr(bp, ha->addr,
 					  i + BNX2_START_UNICAST_ADDRESS_INDEX);
 			sort_mode |= (1 <<
 				      (i + BNX2_START_UNICAST_ADDRESS_INDEX));
-			uc_ptr = uc_ptr->next;
+			i++;
 		}
 
 	}

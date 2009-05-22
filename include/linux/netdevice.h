@@ -215,9 +215,12 @@ struct netdev_hw_addr {
 	struct list_head	list;
 	unsigned char		addr[MAX_ADDR_LEN];
 	unsigned char		type;
-#define NETDEV_HW_ADDR_T_LAN	1
-#define NETDEV_HW_ADDR_T_SAN	2
-#define NETDEV_HW_ADDR_T_SLAVE	3
+#define NETDEV_HW_ADDR_T_LAN		1
+#define NETDEV_HW_ADDR_T_SAN		2
+#define NETDEV_HW_ADDR_T_SLAVE		3
+#define NETDEV_HW_ADDR_T_UNICAST	4
+	int			refcount;
+	bool			synced;
 	struct rcu_head		rcu_head;
 };
 
@@ -773,10 +776,11 @@ struct net_device
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
-	spinlock_t		addr_list_lock;
-	struct dev_addr_list	*uc_list;	/* Secondary unicast mac addresses */
+	struct list_head	uc_list;	/* Secondary unicast mac
+						   addresses */
 	int			uc_count;	/* Number of installed ucasts	*/
 	int			uc_promisc;
+	spinlock_t		addr_list_lock;
 	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
 	int			mc_count;	/* Number of installed mcasts	*/
 	unsigned int		promiscuity;
@@ -1836,8 +1840,8 @@ extern int dev_addr_del_multiple(struct net_device *to_dev,
 /* Functions used for secondary unicast and multicast support */
 extern void		dev_set_rx_mode(struct net_device *dev);
 extern void		__dev_set_rx_mode(struct net_device *dev);
-extern int		dev_unicast_delete(struct net_device *dev, void *addr, int alen);
-extern int		dev_unicast_add(struct net_device *dev, void *addr, int alen);
+extern int		dev_unicast_delete(struct net_device *dev, void *addr);
+extern int		dev_unicast_add(struct net_device *dev, void *addr);
 extern int		dev_unicast_sync(struct net_device *to, struct net_device *from);
 extern void		dev_unicast_unsync(struct net_device *to, struct net_device *from);
 extern int 		dev_mc_delete(struct net_device *dev, void *addr, int alen, int all);

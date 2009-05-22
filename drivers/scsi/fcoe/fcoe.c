@@ -182,8 +182,8 @@ static void fcoe_update_src_mac(struct fcoe_ctlr *fip, u8 *old, u8 *new)
 	fc = fcoe_from_ctlr(fip);
 	rtnl_lock();
 	if (!is_zero_ether_addr(old))
-		dev_unicast_delete(fc->real_dev, old, ETH_ALEN);
-	dev_unicast_add(fc->real_dev, new, ETH_ALEN);
+		dev_unicast_delete(fc->real_dev, old);
+	dev_unicast_add(fc->real_dev, new);
 	rtnl_unlock();
 }
 
@@ -233,13 +233,11 @@ void fcoe_netdev_cleanup(struct fcoe_softc *fc)
 	/* Delete secondary MAC addresses */
 	rtnl_lock();
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
-	dev_unicast_delete(fc->real_dev, flogi_maddr, ETH_ALEN);
+	dev_unicast_delete(fc->real_dev, flogi_maddr);
 	if (!is_zero_ether_addr(fc->ctlr.data_src_addr))
-		dev_unicast_delete(fc->real_dev,
-				   fc->ctlr.data_src_addr, ETH_ALEN);
+		dev_unicast_delete(fc->real_dev, fc->ctlr.data_src_addr);
 	if (fc->ctlr.spma)
-		dev_unicast_delete(fc->real_dev,
-				   fc->ctlr.ctl_src_addr, ETH_ALEN);
+		dev_unicast_delete(fc->real_dev, fc->ctlr.ctl_src_addr);
 	dev_mc_delete(fc->real_dev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
 	rtnl_unlock();
 }
@@ -347,9 +345,9 @@ static int fcoe_netdev_config(struct fc_lport *lp, struct net_device *netdev)
 	 */
 	rtnl_lock();
 	memcpy(flogi_maddr, (u8[6]) FC_FCOE_FLOGI_MAC, ETH_ALEN);
-	dev_unicast_add(fc->real_dev, flogi_maddr, ETH_ALEN);
+	dev_unicast_add(fc->real_dev, flogi_maddr);
 	if (fc->ctlr.spma)
-		dev_unicast_add(fc->real_dev, fc->ctlr.ctl_src_addr, ETH_ALEN);
+		dev_unicast_add(fc->real_dev, fc->ctlr.ctl_src_addr);
 	dev_mc_add(fc->real_dev, FIP_ALL_ENODE_MACS, ETH_ALEN, 0);
 	rtnl_unlock();
 

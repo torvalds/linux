@@ -28,6 +28,8 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
+#include <linux/list.h>
+#include <linux/netdevice.h>
 
 #include "ixgbe.h"
 #include "ixgbe_common.h"
@@ -1356,15 +1358,14 @@ static void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr, u32 vmdq)
  *  Drivers using secondary unicast addresses must set user_set_promisc when
  *  manually putting the device into promiscuous mode.
  **/
-s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
-                              u32 addr_count, ixgbe_mc_addr_itr next)
+s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
+				      struct list_head *uc_list)
 {
-	u8 *addr;
 	u32 i;
 	u32 old_promisc_setting = hw->addr_ctrl.overflow_promisc;
 	u32 uc_addr_in_use;
 	u32 fctrl;
-	u32 vmdq;
+	struct netdev_hw_addr *ha;
 
 	/*
 	 * Clear accounting of old secondary address list,
@@ -1382,10 +1383,9 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw, u8 *addr_list,
 	}
 
 	/* Add the new addresses */
-	for (i = 0; i < addr_count; i++) {
+	list_for_each_entry(ha, uc_list, list) {
 		hw_dbg(hw, " Adding the secondary addresses:\n");
-		addr = next(hw, &addr_list, &vmdq);
-		ixgbe_add_uc_addr(hw, addr, vmdq);
+		ixgbe_add_uc_addr(hw, ha->addr, 0);
 	}
 
 	if (hw->addr_ctrl.overflow_promisc) {

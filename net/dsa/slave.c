@@ -67,7 +67,7 @@ static int dsa_slave_open(struct net_device *dev)
 		return -ENETDOWN;
 
 	if (compare_ether_addr(dev->dev_addr, master->dev_addr)) {
-		err = dev_unicast_add(master, dev->dev_addr, ETH_ALEN);
+		err = dev_unicast_add(master, dev->dev_addr);
 		if (err < 0)
 			goto out;
 	}
@@ -90,7 +90,7 @@ clear_allmulti:
 		dev_set_allmulti(master, -1);
 del_unicast:
 	if (compare_ether_addr(dev->dev_addr, master->dev_addr))
-		dev_unicast_delete(master, dev->dev_addr, ETH_ALEN);
+		dev_unicast_delete(master, dev->dev_addr);
 out:
 	return err;
 }
@@ -108,7 +108,7 @@ static int dsa_slave_close(struct net_device *dev)
 		dev_set_promiscuity(master, -1);
 
 	if (compare_ether_addr(dev->dev_addr, master->dev_addr))
-		dev_unicast_delete(master, dev->dev_addr, ETH_ALEN);
+		dev_unicast_delete(master, dev->dev_addr);
 
 	return 0;
 }
@@ -147,13 +147,13 @@ static int dsa_slave_set_mac_address(struct net_device *dev, void *a)
 		goto out;
 
 	if (compare_ether_addr(addr->sa_data, master->dev_addr)) {
-		err = dev_unicast_add(master, addr->sa_data, ETH_ALEN);
+		err = dev_unicast_add(master, addr->sa_data);
 		if (err < 0)
 			return err;
 	}
 
 	if (compare_ether_addr(dev->dev_addr, master->dev_addr))
-		dev_unicast_delete(master, dev->dev_addr, ETH_ALEN);
+		dev_unicast_delete(master, dev->dev_addr);
 
 out:
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);

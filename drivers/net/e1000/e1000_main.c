@@ -2330,7 +2330,8 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_addr_list *uc_ptr;
+	struct netdev_hw_addr *ha;
+	bool use_uc = false;
 	struct dev_addr_list *mc_ptr;
 	u32 rctl;
 	u32 hash_value;
@@ -2369,12 +2370,11 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			rctl |= E1000_RCTL_VFE;
 	}
 
-	uc_ptr = NULL;
 	if (netdev->uc_count > rar_entries - 1) {
 		rctl |= E1000_RCTL_UPE;
 	} else if (!(netdev->flags & IFF_PROMISC)) {
 		rctl &= ~E1000_RCTL_UPE;
-		uc_ptr = netdev->uc_list;
+		use_uc = true;
 	}
 
 	ew32(RCTL, rctl);
@@ -2392,13 +2392,20 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	 * if there are not 14 addresses, go ahead and clear the filters
 	 * -- with 82571 controllers only 0-13 entries are filled here
 	 */
+	i = 1;
+	if (use_uc)
+		list_for_each_entry(ha, &netdev->uc_list, list) {
+			if (i == rar_entries)
+				break;
+			e1000_rar_set(hw, ha->addr, i++);
+		}
+
+	WARN_ON(i == rar_entries);
+
 	mc_ptr = netdev->mc_list;
 
-	for (i = 1; i < rar_entries; i++) {
-		if (uc_ptr) {
-			e1000_rar_set(hw, uc_ptr->da_addr, i);
-			uc_ptr = uc_ptr->next;
-		} else if (mc_ptr) {
+	for (; i < rar_entries; i++) {
+		if (mc_ptr) {
 			e1000_rar_set(hw, mc_ptr->da_addr, i);
 			mc_ptr = mc_ptr->next;
 		} else {
@@ -2408,7 +2415,6 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			E1000_WRITE_FLUSH();
 		}
 	}
-	WARN_ON(uc_ptr != NULL);
 
 	/* load any remaining addresses into the hash table */
 
