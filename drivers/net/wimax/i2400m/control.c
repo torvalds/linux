@@ -1396,16 +1396,16 @@ error:
  *
  * @i2400m: device descriptor
  *
- * Gracefully stops the device, moving it to the lowest power
- * consumption state possible.
+ * Release resources acquired during the running of the device; in
+ * theory, should also tell the device to go to sleep, switch off the
+ * radio, all that, but at this point, in most cases (driver
+ * disconnection, reset handling) we can't even talk to the device.
  */
 void i2400m_dev_shutdown(struct i2400m *i2400m)
 {
-	int result = -ENODEV;
 	struct device *dev = i2400m_dev(i2400m);
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
-	result = i2400m->bus_reset(i2400m, I2400M_RT_WARM);
-	d_fnend(3, dev, "(i2400m %p) = void [%d]\n", i2400m, result);
+	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
 	return;
 }
