@@ -31,24 +31,6 @@ void ide_toggle_bounce(ide_drive_t *drive, int on)
 		blk_queue_bounce_limit(drive->queue, addr);
 }
 
-static void ide_dump_opcode(ide_drive_t *drive)
-{
-	struct request *rq = drive->hwif->rq;
-	struct ide_cmd *cmd = NULL;
-
-	if (!rq)
-		return;
-
-	if (rq->cmd_type == REQ_TYPE_ATA_TASKFILE)
-		cmd = rq->special;
-
-	printk(KERN_ERR "ide: failed opcode was: ");
-	if (cmd == NULL)
-		printk(KERN_CONT "unknown\n");
-	else
-		printk(KERN_CONT "0x%02x\n", cmd->tf.command);
-}
-
 u64 ide_get_lba_addr(struct ide_cmd *cmd, int lba48)
 {
 	struct ide_taskfile *tf = &cmd->tf;
@@ -179,7 +161,10 @@ u8 ide_dump_status(ide_drive_t *drive, const char *msg, u8 stat)
 		else
 			ide_dump_atapi_error(drive, err);
 	}
-	ide_dump_opcode(drive);
+
+	printk(KERN_ERR "%s: possibly failed opcode: 0x%02x\n",
+		drive->name, drive->hwif->cmd.tf.command);
+
 	return err;
 }
 EXPORT_SYMBOL(ide_dump_status);
