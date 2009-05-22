@@ -12,6 +12,17 @@
 
 #include <asm/asm.h>
 #include <asm/errno.h>
+#include <asm/cpumask.h>
+
+struct msr {
+	union {
+		struct {
+			u32 l;
+			u32 h;
+		};
+		u64 q;
+	};
+};
 
 static inline unsigned long long native_read_tscp(unsigned int *aux)
 {

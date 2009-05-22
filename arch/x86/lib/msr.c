@@ -5,7 +5,7 @@
 
 struct msr_info {
 	u32 msr_no;
-	u32 l, h;
+	struct msr reg;
 	int err;
 };
 
@@ -13,14 +13,14 @@ static void __rdmsr_on_cpu(void *info)
 {
 	struct msr_info *rv = info;
 
-	rdmsr(rv->msr_no, rv->l, rv->h);
+	rdmsr(rv->msr_no, rv->reg.l, rv->reg.h);
 }
 
 static void __wrmsr_on_cpu(void *info)
 {
 	struct msr_info *rv = info;
 
-	wrmsr(rv->msr_no, rv->l, rv->h);
+	wrmsr(rv->msr_no, rv->reg.l, rv->reg.h);
 }
 
 int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
@@ -30,8 +30,8 @@ int rdmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 
 	rv.msr_no = msr_no;
 	err = smp_call_function_single(cpu, __rdmsr_on_cpu, &rv, 1);
-	*l = rv.l;
-	*h = rv.h;
+	*l = rv.reg.l;
+	*h = rv.reg.h;
 
 	return err;
 }
@@ -42,8 +42,8 @@ int wrmsr_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 	struct msr_info rv;
 
 	rv.msr_no = msr_no;
-	rv.l = l;
-	rv.h = h;
+	rv.reg.l = l;
+	rv.reg.h = h;
 	err = smp_call_function_single(cpu, __wrmsr_on_cpu, &rv, 1);
 
 	return err;
@@ -55,14 +55,14 @@ static void __rdmsr_safe_on_cpu(void *info)
 {
 	struct msr_info *rv = info;
 
-	rv->err = rdmsr_safe(rv->msr_no, &rv->l, &rv->h);
+	rv->err = rdmsr_safe(rv->msr_no, &rv->reg.l, &rv->reg.h);
 }
 
 static void __wrmsr_safe_on_cpu(void *info)
 {
 	struct msr_info *rv = info;
 
-	rv->err = wrmsr_safe(rv->msr_no, rv->l, rv->h);
+	rv->err = wrmsr_safe(rv->msr_no, rv->reg.l, rv->reg.h);
 }
 
 int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
@@ -72,8 +72,8 @@ int rdmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 *l, u32 *h)
 
 	rv.msr_no = msr_no;
 	err = smp_call_function_single(cpu, __rdmsr_safe_on_cpu, &rv, 1);
-	*l = rv.l;
-	*h = rv.h;
+	*l = rv.reg.l;
+	*h = rv.reg.h;
 
 	return err ? err : rv.err;
 }
@@ -84,8 +84,8 @@ int wrmsr_safe_on_cpu(unsigned int cpu, u32 msr_no, u32 l, u32 h)
 	struct msr_info rv;
 
 	rv.msr_no = msr_no;
-	rv.l = l;
-	rv.h = h;
+	rv.reg.l = l;
+	rv.reg.h = h;
 	err = smp_call_function_single(cpu, __wrmsr_safe_on_cpu, &rv, 1);
 
 	return err ? err : rv.err;
