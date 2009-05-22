@@ -122,7 +122,7 @@ static DEFINE_SPINLOCK(blkif_io_lock);
 static int get_id_from_freelist(struct blkfront_info *info)
 {
 	unsigned long free = info->shadow_free;
-	BUG_ON(free > BLK_RING_SIZE);
+	BUG_ON(free >= BLK_RING_SIZE);
 	info->shadow_free = info->shadow[free].req.id;
 	info->shadow[free].req.id = 0x0fffffee; /* debug */
 	return free;
