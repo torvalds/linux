@@ -625,7 +625,8 @@ extern void perf_counter_init(void);
 static inline void
 perf_counter_task_sched_in(struct task_struct *task, int cpu)		{ }
 static inline void
-perf_counter_task_sched_out(struct task_struct *task, int cpu)		{ }
+perf_counter_task_sched_out(struct task_struct *task,
+			    struct task_struct *next, int cpu)		{ }
 static inline void
 perf_counter_task_tick(struct task_struct *task, int cpu)		{ }
 static inline void perf_counter_init_task(struct task_struct *child)	{ }
