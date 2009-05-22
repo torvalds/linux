@@ -405,6 +405,7 @@ struct rndis_wext_private {
 	int  encr_tx_key_index;
 	char encr_keys[4][32];
 	int  encr_key_len[4];
+	char encr_key_wpa[4];
 	int  wpa_version;
 	int  wpa_keymgmt;
 	int  wpa_authalg;
@@ -956,7 +957,7 @@ static int set_infra_mode(struct usbnet *usbdev, int mode)
 	if (priv->wpa_keymgmt == 0 ||
 		priv->wpa_keymgmt == IW_AUTH_KEY_MGMT_802_1X) {
 		for (i = 0; i < 4; i++) {
-			if (priv->encr_key_len[i] > 0)
+			if (priv->encr_key_len[i] > 0 && !priv->encr_key_wpa[i])
 				add_wep_key(usbdev, priv->encr_keys[i],
 						priv->encr_key_len[i], i);
 		}
@@ -1027,6 +1028,7 @@ static int add_wep_key(struct usbnet *usbdev, char *key, int key_len, int index)
 	}
 
 	priv->encr_key_len[index] = key_len;
+	priv->encr_key_wpa[index] = 0;
 	memcpy(&priv->encr_keys[index], key, key_len);
 
 	return 0;
@@ -1092,7 +1094,8 @@ static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
 		return ret;
 
 	priv->encr_key_len[index] = key_len;
-	memcpy(&priv->encr_keys[index], ndis_key.material, key_len);
+	priv->encr_key_wpa[index] = 1;
+
 	if (flags & ndis_80211_addkey_transmit_key)
 		priv->encr_tx_key_index = index;
 
@@ -1112,6 +1115,7 @@ static int remove_key(struct usbnet *usbdev, int index, u8 bssid[ETH_ALEN])
 		return 0;
 
 	priv->encr_key_len[index] = 0;
+	priv->encr_key_wpa[index] = 0;
 	memset(&priv->encr_keys[index], 0, sizeof(priv->encr_keys[index]));
 
 	if (priv->wpa_cipher_pair == IW_AUTH_CIPHER_TKIP ||
