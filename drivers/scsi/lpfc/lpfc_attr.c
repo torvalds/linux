@@ -2924,6 +2924,14 @@ LPFC_ATTR_R(enable_hba_heartbeat, 1, 0, 1, "Enable HBA Heartbeat.");
 */
 LPFC_ATTR_R(enable_bg, 0, 0, 1, "Enable BlockGuard Support");
 
+/*
+# lpfc_enable_fip: When set, FIP is required to start discovery. If not
+# set, the driver will add an FCF record manually if the port has no
+# FCF records available and start discovery.
+# Value range is [0,1]. Default value is 1 (enabled)
+*/
+LPFC_ATTR_RW(enable_fip, 0, 0, 1, "Enable FIP Discovery");
+
 
 /*
 # lpfc_prot_mask: i
@@ -2990,6 +2998,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_peer_port_login,
 	&dev_attr_lpfc_nodev_tmo,
 	&dev_attr_lpfc_devloss_tmo,
+	&dev_attr_lpfc_enable_fip,
 	&dev_attr_lpfc_fcp_class,
 	&dev_attr_lpfc_use_adisc,
 	&dev_attr_lpfc_ack0,
@@ -3042,6 +3051,7 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_lun_queue_depth,
 	&dev_attr_lpfc_nodev_tmo,
 	&dev_attr_lpfc_devloss_tmo,
+	&dev_attr_lpfc_enable_fip,
 	&dev_attr_lpfc_hba_queue_depth,
 	&dev_attr_lpfc_peer_port_login,
 	&dev_attr_lpfc_restrict_login,
@@ -4167,26 +4177,10 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
 	lpfc_prot_sg_seg_cnt_init(phba, lpfc_prot_sg_seg_cnt);
-	/*
-	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
-	 * used to create the sg_dma_buf_pool must be dynamically calculated.
-	 * 2 segments are added since the IOCB needs a command and response bde.
-	 */
-	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
-			sizeof(struct fcp_rsp) +
-			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
-
-	if (phba->cfg_enable_bg) {
-		phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT;
-		phba->cfg_sg_dma_buf_size +=
-			phba->cfg_prot_sg_seg_cnt * sizeof(struct ulp_bde64);
-	}
-
-	/* Also reinitialize the host templates with new values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
+	lpfc_enable_fip_init(phba, lpfc_enable_fip);
+	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);
+
 	return;
 }
 

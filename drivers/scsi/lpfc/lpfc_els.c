@@ -388,6 +388,75 @@ fail:
 }
 
 /**
+ * lpfc_issue_reg_vfi - Register VFI for this vport's fabric login
+ * @vport: pointer to a host virtual N_Port data structure.
+ *
+ * This routine issues a REG_VFI mailbox for the vfi, vpi, fcfi triplet for
+ * the @vport. This mailbox command is necessary for FCoE only.
+ *
+ * Return code
+ *   0 - successfully issued REG_VFI for @vport
+ *   A failure code otherwise.
+ **/
+static int
+lpfc_issue_reg_vfi(struct lpfc_vport *vport)
+{
+	struct lpfc_hba  *phba = vport->phba;
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_nodelist *ndlp;
+	struct serv_parm *sp;
+	struct lpfc_dmabuf *dmabuf;
+	int rc = 0;
+
+	sp = &phba->fc_fabparam;
+	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp)) {
+		rc = -ENODEV;
+		goto fail;
+	}
+
+	dmabuf = kzalloc(sizeof(struct lpfc_dmabuf), GFP_KERNEL);
+	if (!dmabuf) {
+		rc = -ENOMEM;
+		goto fail;
+	}
+	dmabuf->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &dmabuf->phys);
+	if (!dmabuf->virt) {
+		rc = -ENOMEM;
+		goto fail_free_dmabuf;
+	}
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		rc = -ENOMEM;
+		goto fail_free_coherent;
+	}
+	vport->port_state = LPFC_FABRIC_CFG_LINK;
+	memcpy(dmabuf->virt, &phba->fc_fabparam, sizeof(vport->fc_sparam));
+	lpfc_reg_vfi(mboxq, vport, dmabuf->phys);
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_reg_vfi;
+	mboxq->vport = vport;
+	mboxq->context1 = dmabuf;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		rc = -ENXIO;
+		goto fail_free_mbox;
+	}
+	return 0;
+
+fail_free_mbox:
+	mempool_free(mboxq, phba->mbox_mem_pool);
+fail_free_coherent:
+	lpfc_mbuf_free(phba, dmabuf->virt, dmabuf->phys);
+fail_free_dmabuf:
+	kfree(dmabuf);
+fail:
+	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+		"0289 Issue Register VFI failed: Err %d\n", rc);
+	return rc;
+}
+
+/**
  * lpfc_cmpl_els_flogi_fabric - Completion function for flogi to a fabric port
  * @vport: pointer to a host virtual N_Port data structure.
  * @ndlp: pointer to a node-list data structure.
@@ -499,17 +568,24 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 	}
 
-	lpfc_nlp_set_state(vport, ndlp, NLP_STE_REG_LOGIN_ISSUE);
-
-	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED &&
-	    vport->fc_flag & FC_VPORT_NEEDS_REG_VPI) {
-		lpfc_register_new_vport(phba, vport, ndlp);
-		return 0;
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_REG_LOGIN_ISSUE);
+		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED &&
+		    vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)
+			lpfc_register_new_vport(phba, vport, ndlp);
+		else
+			lpfc_issue_fabric_reglogin(vport);
+	} else {
+		ndlp->nlp_type |= NLP_FABRIC;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
+		if (vport->vfi_state & LPFC_VFI_REGISTERED) {
+			lpfc_start_fdiscs(phba);
+			lpfc_do_scr_ns_plogi(phba, vport);
+		} else
+			lpfc_issue_reg_vfi(vport);
 	}
-	lpfc_issue_fabric_reglogin(vport);
 	return 0;
 }
-
 /**
  * lpfc_cmpl_els_flogi_nport - Completion function for flogi to an N_Port
  * @vport: pointer to a host virtual N_Port data structure.
@@ -817,9 +893,14 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (sp->cmn.fcphHigh < FC_PH3)
 		sp->cmn.fcphHigh = FC_PH3;
 
-	if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
+	if  (phba->sli_rev == LPFC_SLI_REV4) {
+		elsiocb->iocb.ulpCt_h = ((SLI4_CT_FCFI >> 1) & 1);
+		elsiocb->iocb.ulpCt_l = (SLI4_CT_FCFI & 1);
+		/* FLOGI needs to be 3 for WQE FCFI */
+		/* Set the fcfi to the fcfi we registered with */
+		elsiocb->iocb.ulpContext = phba->fcf.fcfi;
+	} else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 		sp->cmn.request_multiple_Nport = 1;
-
 		/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
 		icmd->ulpCt_h = 1;
 		icmd->ulpCt_l = 0;
@@ -932,6 +1013,8 @@ lpfc_initial_flogi(struct lpfc_vport *vport)
 		if (!ndlp)
 			return 0;
 		lpfc_nlp_init(vport, ndlp, Fabric_DID);
+		/* Set the node type */
+		ndlp->nlp_type |= NLP_FABRIC;
 		/* Put ndlp onto node list */
 		lpfc_enqueue_node(vport, ndlp);
 	} else if (!NLP_CHK_NODE_ACT(ndlp)) {
@@ -1604,7 +1687,8 @@ lpfc_adisc_done(struct lpfc_vport *vport)
 	 * and continue discovery.
 	 */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
-	    !(vport->fc_flag & FC_RSCN_MODE)) {
+	    !(vport->fc_flag & FC_RSCN_MODE) &&
+	    (phba->sli_rev < LPFC_SLI_REV4)) {
 		lpfc_issue_reg_vpi(phba, vport);
 		return;
 	}
@@ -2937,6 +3021,14 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
 
+	/*
+	 * This routine is used to register and unregister in previous SLI
+	 * modes.
+	 */
+	if ((pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) &&
+	    (phba->sli_rev == LPFC_SLI_REV4))
+		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
+
 	pmb->context1 = NULL;
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -3816,7 +3908,9 @@ lpfc_rscn_payload_check(struct lpfc_vport *vport, uint32_t did)
 			payload_len -= sizeof(uint32_t);
 			switch (rscn_did.un.b.resv & RSCN_ADDRESS_FORMAT_MASK) {
 			case RSCN_ADDRESS_FORMAT_PORT:
-				if (ns_did.un.word == rscn_did.un.word)
+				if ((ns_did.un.b.domain == rscn_did.un.b.domain)
+				    && (ns_did.un.b.area == rscn_did.un.b.area)
+				    && (ns_did.un.b.id == rscn_did.un.b.id))
 					goto return_did_out;
 				break;
 			case RSCN_ADDRESS_FORMAT_AREA:
@@ -4857,7 +4951,10 @@ lpfc_els_rcv_fan(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		} else {
 			/* FAN verified - skip FLOGI */
 			vport->fc_myDID = vport->fc_prevDID;
-			lpfc_issue_fabric_reglogin(vport);
+			if (phba->sli_rev < LPFC_SLI_REV4)
+				lpfc_issue_fabric_reglogin(vport);
+			else
+				lpfc_issue_reg_vfi(vport);
 		}
 	}
 	return 0;
@@ -5540,11 +5637,10 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 dropit:
 	if (vport && !(vport->load_flag & FC_UNLOADING))
-		lpfc_printf_log(phba, KERN_ERR, LOG_ELS,
-			"(%d):0111 Dropping received ELS cmd "
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+			"0111 Dropping received ELS cmd "
 			"Data: x%x x%x x%x\n",
-			vport->vpi, icmd->ulpStatus,
-			icmd->un.ulpWord[4], icmd->ulpTimeout);
+			icmd->ulpStatus, icmd->un.ulpWord[4], icmd->ulpTimeout);
 	phba->fc_stat.elsRcvDrop++;
 }
 
@@ -5620,10 +5716,9 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	     icmd->ulpCommand == CMD_IOCB_RCV_SEQ64_CX)) {
 		if (icmd->unsli3.rcvsli3.vpi == 0xffff)
 			vport = phba->pport;
-		else {
-			uint16_t vpi = icmd->unsli3.rcvsli3.vpi;
-			vport = lpfc_find_vport_by_vpid(phba, vpi);
-		}
+		else
+			vport = lpfc_find_vport_by_vpid(phba,
+				icmd->unsli3.rcvsli3.vpi - phba->vpi_base);
 	}
 	/* If there are no BDEs associated
 	 * with this IOCB, there is nothing to do.
@@ -5792,7 +5887,10 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	} else {
 		if (vport == phba->pport)
-			lpfc_issue_fabric_reglogin(vport);
+			if (phba->sli_rev < LPFC_SLI_REV4)
+				lpfc_issue_fabric_reglogin(vport);
+			else
+				lpfc_issue_reg_vfi(vport);
 		else
 			lpfc_do_scr_ns_plogi(phba, vport);
 	}
@@ -5824,7 +5922,7 @@ lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (mbox) {
-		lpfc_reg_vpi(phba, vport->vpi, vport->fc_myDID, mbox);
+		lpfc_reg_vpi(vport, mbox);
 		mbox->vport = vport;
 		mbox->context2 = lpfc_nlp_get(ndlp);
 		mbox->mbox_cmpl = lpfc_cmpl_reg_new_vport;
@@ -6495,4 +6593,39 @@ void lpfc_fabric_abort_hba(struct lpfc_hba *phba)
 	/* Cancel all the IOCBs from the completions list */
 	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,
 			      IOERR_SLI_ABORTED);
+}
+
+/**
+ * lpfc_sli4_els_xri_aborted - Slow-path process of els xri abort
+ * @phba: pointer to lpfc hba data structure.
+ * @axri: pointer to the els xri abort wcqe structure.
+ *
+ * This routine is invoked by the worker thread to process a SLI4 slow-path
+ * ELS aborted xri.
+ **/
+void
+lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
+			  struct sli4_wcqe_xri_aborted *axri)
+{
+	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
+	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
+	unsigned long iflag = 0;
+
+	spin_lock_irqsave(&phba->sli4_hba.abts_sgl_list_lock, iflag);
+	list_for_each_entry_safe(sglq_entry, sglq_next,
+			&phba->sli4_hba.lpfc_abts_els_sgl_list, list) {
+		if (sglq_entry->sli4_xritag == xri) {
+			list_del(&sglq_entry->list);
+			spin_unlock_irqrestore(
+					&phba->sli4_hba.abts_sgl_list_lock,
+					 iflag);
+			spin_lock_irqsave(&phba->hbalock, iflag);
+
+			list_add_tail(&sglq_entry->list,
+				&phba->sli4_hba.lpfc_sgl_list);
+			spin_unlock_irqrestore(&phba->hbalock, iflag);
+			return;
+		}
+	}
+	spin_unlock_irqrestore(&phba->sli4_hba.abts_sgl_list_lock, iflag);
 }

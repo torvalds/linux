@@ -10929,3 +10929,520 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba)
 	};
 	return 0;
 }
+
+/**
+ * lpfc_sli4_post_all_rpi_hdrs - Post the rpi header memory region to the port
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to post rpi header templates to the
+ * HBA consistent with the SLI-4 interface spec.  This routine
+ * posts a PAGE_SIZE memory region to the port to hold up to
+ * PAGE_SIZE modulo 64 rpi context headers.
+ *
+ * This routine does not require any locks.  It's usage is expected
+ * to be driver load or reset recovery when the driver is
+ * sequential.
+ *
+ * Return codes
+ * 	0 - sucessful
+ *      EIO - The mailbox failed to complete successfully.
+ * 	When this error occurs, the driver is not guaranteed
+ *	to have any rpi regions posted to the device and
+ *	must either attempt to repost the regions or take a
+ *	fatal error.
+ **/
+int
+lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *phba)
+{
+	struct lpfc_rpi_hdr *rpi_page;
+	uint32_t rc = 0;
+
+	/* Post all rpi memory regions to the port. */
+	list_for_each_entry(rpi_page, &phba->sli4_hba.lpfc_rpi_hdr_list, list) {
+		rc = lpfc_sli4_post_rpi_hdr(phba, rpi_page);
+		if (rc != MBX_SUCCESS) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"2008 Error %d posting all rpi "
+					"headers\n", rc);
+			rc = -EIO;
+			break;
+		}
+	}
+
+	return rc;
+}
+
+/**
+ * lpfc_sli4_post_rpi_hdr - Post an rpi header memory region to the port
+ * @phba: pointer to lpfc hba data structure.
+ * @rpi_page:  pointer to the rpi memory region.
+ *
+ * This routine is invoked to post a single rpi header to the
+ * HBA consistent with the SLI-4 interface spec.  This memory region
+ * maps up to 64 rpi context regions.
+ *
+ * Return codes
+ * 	0 - sucessful
+ * 	ENOMEM - No available memory
+ *      EIO - The mailbox failed to complete successfully.
+ **/
+int
+lpfc_sli4_post_rpi_hdr(struct lpfc_hba *phba, struct lpfc_rpi_hdr *rpi_page)
+{
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_mbx_post_hdr_tmpl *hdr_tmpl;
+	uint32_t rc = 0;
+	uint32_t mbox_tmo;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+
+	/* The port is notified of the header region via a mailbox command. */
+	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2001 Unable to allocate memory for issuing "
+				"SLI_CONFIG_SPECIAL mailbox command\n");
+		return -ENOMEM;
+	}
+
+	/* Post all rpi memory regions to the port. */
+	hdr_tmpl = &mboxq->u.mqe.un.hdr_tmpl;
+	mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG);
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+			 LPFC_MBOX_OPCODE_FCOE_POST_HDR_TEMPLATE,
+			 sizeof(struct lpfc_mbx_post_hdr_tmpl) -
+			 sizeof(struct mbox_header), LPFC_SLI4_MBX_EMBED);
+	bf_set(lpfc_mbx_post_hdr_tmpl_page_cnt,
+	       hdr_tmpl, rpi_page->page_count);
+	bf_set(lpfc_mbx_post_hdr_tmpl_rpi_offset, hdr_tmpl,
+	       rpi_page->start_rpi);
+	hdr_tmpl->rpi_paddr_lo = putPaddrLow(rpi_page->dmabuf->phys);
+	hdr_tmpl->rpi_paddr_hi = putPaddrHigh(rpi_page->dmabuf->phys);
+	if (!phba->sli4_hba.intr_enable)
+		rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	else
+		rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
+	shdr = (union lpfc_sli4_cfg_shdr *) &hdr_tmpl->header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mboxq, phba->mbox_mem_pool);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2514 POST_RPI_HDR mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		rc = -ENXIO;
+	}
+	return rc;
+}
+
+/**
+ * lpfc_sli4_alloc_rpi - Get an available rpi in the device's range
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to post rpi header templates to the
+ * HBA consistent with the SLI-4 interface spec.  This routine
+ * posts a PAGE_SIZE memory region to the port to hold up to
+ * PAGE_SIZE modulo 64 rpi context headers.
+ *
+ * Returns
+ * 	A nonzero rpi defined as rpi_base <= rpi < max_rpi if sucessful
+ * 	LPFC_RPI_ALLOC_ERROR if no rpis are available.
+ **/
+int
+lpfc_sli4_alloc_rpi(struct lpfc_hba *phba)
+{
+	int rpi;
+	uint16_t max_rpi, rpi_base, rpi_limit;
+	uint16_t rpi_remaining;
+	struct lpfc_rpi_hdr *rpi_hdr;
+
+	max_rpi = phba->sli4_hba.max_cfg_param.max_rpi;
+	rpi_base = phba->sli4_hba.max_cfg_param.rpi_base;
+	rpi_limit = phba->sli4_hba.next_rpi;
+
+	/*
+	 * The valid rpi range is not guaranteed to be zero-based.  Start
+	 * the search at the rpi_base as reported by the port.
+	 */
+	spin_lock_irq(&phba->hbalock);
+	rpi = find_next_zero_bit(phba->sli4_hba.rpi_bmask, rpi_limit, rpi_base);
+	if (rpi >= rpi_limit || rpi < rpi_base)
+		rpi = LPFC_RPI_ALLOC_ERROR;
+	else {
+		set_bit(rpi, phba->sli4_hba.rpi_bmask);
+		phba->sli4_hba.max_cfg_param.rpi_used++;
+		phba->sli4_hba.rpi_count++;
+	}
+
+	/*
+	 * Don't try to allocate more rpi header regions if the device limit
+	 * on available rpis max has been exhausted.
+	 */
+	if ((rpi == LPFC_RPI_ALLOC_ERROR) &&
+	    (phba->sli4_hba.rpi_count >= max_rpi)) {
+		spin_unlock_irq(&phba->hbalock);
+		return rpi;
+	}
+
+	/*
+	 * If the driver is running low on rpi resources, allocate another
+	 * page now.  Note that the next_rpi value is used because
+	 * it represents how many are actually in use whereas max_rpi notes
+	 * how many are supported max by the device.
+	 */
+	rpi_remaining = phba->sli4_hba.next_rpi - rpi_base -
+		phba->sli4_hba.rpi_count;
+	spin_unlock_irq(&phba->hbalock);
+	if (rpi_remaining < LPFC_RPI_LOW_WATER_MARK) {
+		rpi_hdr = lpfc_sli4_create_rpi_hdr(phba);
+		if (!rpi_hdr) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"2002 Error Could not grow rpi "
+					"count\n");
+		} else {
+			lpfc_sli4_post_rpi_hdr(phba, rpi_hdr);
+		}
+	}
+
+	return rpi;
+}
+
+/**
+ * lpfc_sli4_free_rpi - Release an rpi for reuse.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to release an rpi to the pool of
+ * available rpis maintained by the driver.
+ **/
+void
+lpfc_sli4_free_rpi(struct lpfc_hba *phba, int rpi)
+{
+	spin_lock_irq(&phba->hbalock);
+	clear_bit(rpi, phba->sli4_hba.rpi_bmask);
+	phba->sli4_hba.rpi_count--;
+	phba->sli4_hba.max_cfg_param.rpi_used--;
+	spin_unlock_irq(&phba->hbalock);
+}
+
+/**
+ * lpfc_sli4_remove_rpis - Remove the rpi bitmask region
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to remove the memory region that
+ * provided rpi via a bitmask.
+ **/
+void
+lpfc_sli4_remove_rpis(struct lpfc_hba *phba)
+{
+	kfree(phba->sli4_hba.rpi_bmask);
+}
+
+/**
+ * lpfc_sli4_resume_rpi - Remove the rpi bitmask region
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to remove the memory region that
+ * provided rpi via a bitmask.
+ **/
+int
+lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp)
+{
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_hba *phba = ndlp->phba;
+	int rc;
+
+	/* The port is notified of the header region via a mailbox command. */
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+
+	/* Post all rpi memory regions to the port. */
+	lpfc_resume_rpi(mboxq, ndlp);
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2010 Resume RPI Mailbox failed "
+				"status %d, mbxStatus x%x\n", rc,
+				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		return -EIO;
+	}
+	return 0;
+}
+
+/**
+ * lpfc_sli4_init_vpi - Initialize a vpi with the port
+ * @phba: pointer to lpfc hba data structure.
+ * @vpi: vpi value to activate with the port.
+ *
+ * This routine is invoked to activate a vpi with the
+ * port when the host intends to use vports with a
+ * nonzero vpi.
+ *
+ * Returns:
+ *    0 success
+ *    -Evalue otherwise
+ **/
+int
+lpfc_sli4_init_vpi(struct lpfc_hba *phba, uint16_t vpi)
+{
+	LPFC_MBOXQ_t *mboxq;
+	int rc = 0;
+	uint32_t mbox_tmo;
+
+	if (vpi == 0)
+		return -EINVAL;
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+	lpfc_init_vpi(mboxq, vpi);
+	mbox_tmo = lpfc_mbox_tmo_val(phba, MBX_INIT_VPI);
+	rc = lpfc_sli_issue_mbox_wait(phba, mboxq, mbox_tmo);
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mboxq, phba->mbox_mem_pool);
+	if (rc != MBX_SUCCESS) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2022 INIT VPI Mailbox failed "
+				"status %d, mbxStatus x%x\n", rc,
+				bf_get(lpfc_mqe_status, &mboxq->u.mqe));
+		rc = -EIO;
+	}
+	return rc;
+}
+
+/**
+ * lpfc_mbx_cmpl_add_fcf_record - add fcf mbox completion handler.
+ * @phba: pointer to lpfc hba data structure.
+ * @mboxq: Pointer to mailbox object.
+ *
+ * This routine is invoked to manually add a single FCF record. The caller
+ * must pass a completely initialized FCF_Record.  This routine takes
+ * care of the nonembedded mailbox operations.
+ **/
+static void
+lpfc_mbx_cmpl_add_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
+{
+	void *virt_addr;
+	union lpfc_sli4_cfg_shdr *shdr;
+	uint32_t shdr_status, shdr_add_status;
+
+	virt_addr = mboxq->sge_array->addr[0];
+	/* The IOCTL status is embedded in the mailbox subheader. */
+	shdr = (union lpfc_sli4_cfg_shdr *) virt_addr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+
+	if ((shdr_status || shdr_add_status) &&
+		(shdr_status != STATUS_FCF_IN_USE))
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2558 ADD_FCF_RECORD mailbox failed with "
+			"status x%x add_status x%x\n",
+			shdr_status, shdr_add_status);
+
+	lpfc_sli4_mbox_cmd_free(phba, mboxq);
+}
+
+/**
+ * lpfc_sli4_add_fcf_record - Manually add an FCF Record.
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_record:  pointer to the initialized fcf record to add.
+ *
+ * This routine is invoked to manually add a single FCF record. The caller
+ * must pass a completely initialized FCF_Record.  This routine takes
+ * care of the nonembedded mailbox operations.
+ **/
+int
+lpfc_sli4_add_fcf_record(struct lpfc_hba *phba, struct fcf_record *fcf_record)
+{
+	int rc = 0;
+	LPFC_MBOXQ_t *mboxq;
+	uint8_t *bytep;
+	void *virt_addr;
+	dma_addr_t phys_addr;
+	struct lpfc_mbx_sge sge;
+	uint32_t alloc_len, req_len;
+	uint32_t fcfindex;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2009 Failed to allocate mbox for ADD_FCF cmd\n");
+		return -ENOMEM;
+	}
+
+	req_len = sizeof(struct fcf_record) + sizeof(union lpfc_sli4_cfg_shdr) +
+		  sizeof(uint32_t);
+
+	/* Allocate DMA memory and set up the non-embedded mailbox command */
+	alloc_len = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+				     LPFC_MBOX_OPCODE_FCOE_ADD_FCF,
+				     req_len, LPFC_SLI4_MBX_NEMBED);
+	if (alloc_len < req_len) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2523 Allocated DMA memory size (x%x) is "
+			"less than the requested DMA memory "
+			"size (x%x)\n", alloc_len, req_len);
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		return -ENOMEM;
+	}
+
+	/*
+	 * Get the first SGE entry from the non-embedded DMA memory.  This
+	 * routine only uses a single SGE.
+	 */
+	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
+	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
+	if (unlikely(!mboxq->sge_array)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2526 Failed to get the non-embedded SGE "
+				"virtual address\n");
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		return -ENOMEM;
+	}
+	virt_addr = mboxq->sge_array->addr[0];
+	/*
+	 * Configure the FCF record for FCFI 0.  This is the driver's
+	 * hardcoded default and gets used in nonFIP mode.
+	 */
+	fcfindex = bf_get(lpfc_fcf_record_fcf_index, fcf_record);
+	bytep = virt_addr + sizeof(union lpfc_sli4_cfg_shdr);
+	lpfc_sli_pcimem_bcopy(&fcfindex, bytep, sizeof(uint32_t));
+
+	/*
+	 * Copy the fcf_index and the FCF Record Data. The data starts after
+	 * the FCoE header plus word10. The data copy needs to be endian
+	 * correct.
+	 */
+	bytep += sizeof(uint32_t);
+	lpfc_sli_pcimem_bcopy(fcf_record, bytep, sizeof(struct fcf_record));
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_add_fcf_record;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"2515 ADD_FCF_RECORD mailbox failed with "
+			"status 0x%x\n", rc);
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		rc = -EIO;
+	} else
+		rc = 0;
+
+	return rc;
+}
+
+/**
+ * lpfc_sli4_build_dflt_fcf_record - Build the driver's default FCF Record.
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_record:  pointer to the fcf record to write the default data.
+ * @fcf_index: FCF table entry index.
+ *
+ * This routine is invoked to build the driver's default FCF record.  The
+ * values used are hardcoded.  This routine handles memory initialization.
+ *
+ **/
+void
+lpfc_sli4_build_dflt_fcf_record(struct lpfc_hba *phba,
+				struct fcf_record *fcf_record,
+				uint16_t fcf_index)
+{
+	memset(fcf_record, 0, sizeof(struct fcf_record));
+	fcf_record->max_rcv_size = LPFC_FCOE_MAX_RCV_SIZE;
+	fcf_record->fka_adv_period = LPFC_FCOE_FKA_ADV_PER;
+	fcf_record->fip_priority = LPFC_FCOE_FIP_PRIORITY;
+	bf_set(lpfc_fcf_record_mac_0, fcf_record, phba->fc_map[0]);
+	bf_set(lpfc_fcf_record_mac_1, fcf_record, phba->fc_map[1]);
+	bf_set(lpfc_fcf_record_mac_2, fcf_record, phba->fc_map[2]);
+	bf_set(lpfc_fcf_record_mac_3, fcf_record, LPFC_FCOE_FCF_MAC3);
+	bf_set(lpfc_fcf_record_mac_4, fcf_record, LPFC_FCOE_FCF_MAC4);
+	bf_set(lpfc_fcf_record_mac_5, fcf_record, LPFC_FCOE_FCF_MAC5);
+	bf_set(lpfc_fcf_record_fc_map_0, fcf_record, phba->fc_map[0]);
+	bf_set(lpfc_fcf_record_fc_map_1, fcf_record, phba->fc_map[1]);
+	bf_set(lpfc_fcf_record_fc_map_2, fcf_record, phba->fc_map[2]);
+	bf_set(lpfc_fcf_record_fcf_valid, fcf_record, 1);
+	bf_set(lpfc_fcf_record_fcf_index, fcf_record, fcf_index);
+	bf_set(lpfc_fcf_record_mac_addr_prov, fcf_record,
+		LPFC_FCF_FPMA | LPFC_FCF_SPMA);
+	/* Set the VLAN bit map */
+	if (phba->valid_vlan) {
+		fcf_record->vlan_bitmap[phba->vlan_id / 8]
+			= 1 << (phba->vlan_id % 8);
+	}
+}
+
+/**
+ * lpfc_sli4_read_fcf_record - Read the driver's default FCF Record.
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_index: FCF table entry offset.
+ *
+ * This routine is invoked to read up to @fcf_num of FCF record from the
+ * device starting with the given @fcf_index.
+ **/
+int
+lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
+{
+	int rc = 0, error;
+	LPFC_MBOXQ_t *mboxq;
+	void *virt_addr;
+	dma_addr_t phys_addr;
+	uint8_t *bytep;
+	struct lpfc_mbx_sge sge;
+	uint32_t alloc_len, req_len;
+	struct lpfc_mbx_read_fcf_tbl *read_fcf;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2000 Failed to allocate mbox for "
+				"READ_FCF cmd\n");
+		return -ENOMEM;
+	}
+
+	req_len = sizeof(struct fcf_record) +
+		  sizeof(union lpfc_sli4_cfg_shdr) + 2 * sizeof(uint32_t);
+
+	/* Set up READ_FCF SLI4_CONFIG mailbox-ioctl command */
+	alloc_len = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+			 LPFC_MBOX_OPCODE_FCOE_READ_FCF_TABLE, req_len,
+			 LPFC_SLI4_MBX_NEMBED);
+
+	if (alloc_len < req_len) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0291 Allocated DMA memory size (x%x) is "
+				"less than the requested DMA memory "
+				"size (x%x)\n", alloc_len, req_len);
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		return -ENOMEM;
+	}
+
+	/* Get the first SGE entry from the non-embedded DMA memory. This
+	 * routine only uses a single SGE.
+	 */
+	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
+	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
+	if (unlikely(!mboxq->sge_array)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"2527 Failed to get the non-embedded SGE "
+				"virtual address\n");
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		return -ENOMEM;
+	}
+	virt_addr = mboxq->sge_array->addr[0];
+	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
+
+	/* Set up command fields */
+	bf_set(lpfc_mbx_read_fcf_tbl_indx, &read_fcf->u.request, fcf_index);
+	/* Perform necessary endian conversion */
+	bytep = virt_addr + sizeof(union lpfc_sli4_cfg_shdr);
+	lpfc_sli_pcimem_bcopy(bytep, bytep, sizeof(uint32_t));
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_fcf_record;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+		error = -EIO;
+	} else
+		error = 0;
+	return error;
+}
