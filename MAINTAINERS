@@ -784,6 +784,12 @@ M:	marek.vasut@gmail.com
 W:	http://hackndev.com
 S:	Maintained
 
+ARM/PALM TREO 680 SUPPORT
+P:	Tomas Cech
+M:	sleep_walker@suse.cz
+W:	http://hackndev.com
+S:	Maintained
+
 ARM/PALMZ72 SUPPORT
 P:	Sergey Lapin
 M:	slapin@ossfans.org
