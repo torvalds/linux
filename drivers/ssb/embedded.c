@@ -29,6 +29,7 @@ int ssb_watchdog_timer_set(struct ssb_bus *bus, u32 ticks)
 	}
 	return -ENODEV;
 }
+EXPORT_SYMBOL(ssb_watchdog_timer_set);
 
 u32 ssb_gpio_in(struct ssb_bus *bus, u32 mask)
 {
