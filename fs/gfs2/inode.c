@@ -1046,45 +1046,6 @@ fail:
 	return ERR_PTR(error);
 }
 
-
-/*
- * gfs2_unlink_ok - check to see that a inode is still in a directory
- * @dip: the directory
- * @name: the name of the file
- * @ip: the inode
- *
- * Assumes that the lock on (at least) @dip is held.
- *
- * Returns: 0 if the parent/child relationship is correct, errno if it isn't
- */
-
-int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
-		   const struct gfs2_inode *ip)
-{
-	int error;
-
-	if (IS_IMMUTABLE(&ip->i_inode) || IS_APPEND(&ip->i_inode))
-		return -EPERM;
-
-	if ((dip->i_inode.i_mode & S_ISVTX) &&
-	    dip->i_inode.i_uid != current_fsuid() &&
-	    ip->i_inode.i_uid != current_fsuid() && !capable(CAP_FOWNER))
-		return -EPERM;
-
-	if (IS_APPEND(&dip->i_inode))
-		return -EPERM;
-
-	error = gfs2_permission(&dip->i_inode, MAY_WRITE | MAY_EXEC);
-	if (error)
-		return error;
-
-	error = gfs2_dir_check(&dip->i_inode, name, ip);
-	if (error)
-		return error;
-
-	return 0;
-}
-
 static int __gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr)
 {
 	struct buffer_head *dibh;
