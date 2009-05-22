@@ -830,7 +830,7 @@ static int __devinit fsl_dma_chan_probe(struct fsl_dma_device *fdev,
 			new_fsl_chan->reg.end - new_fsl_chan->reg.start + 1);
 
 	new_fsl_chan->id = ((new_fsl_chan->reg.start - 0x100) & 0xfff) >> 7;
-	if (new_fsl_chan->id > FSL_DMA_MAX_CHANS_PER_DEVICE) {
+	if (new_fsl_chan->id >= FSL_DMA_MAX_CHANS_PER_DEVICE) {
 		dev_err(fdev->dev, "There is no %d channel!\n",
 				new_fsl_chan->id);
 		err = -EINVAL;
