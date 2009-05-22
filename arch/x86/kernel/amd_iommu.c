@@ -1009,8 +1009,9 @@ static int device_change_notifier(struct notifier_block *nb,
 		if (!dma_domain)
 			dma_domain = iommu->default_dom;
 		attach_device(iommu, &dma_domain->domain, devid);
-		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
-		       "device %s\n", dma_domain->domain.id, dev_name(dev));
+		DUMP_printk(KERN_INFO "AMD IOMMU: Using protection domain "
+			    "%d for device %s\n",
+			    dma_domain->domain.id, dev_name(dev));
 		break;
 	case BUS_NOTIFY_UNBIND_DRIVER:
 		if (!domain)
@@ -1133,8 +1134,9 @@ static int get_device_resources(struct device *dev,
 			dma_dom = (*iommu)->default_dom;
 		*domain = &dma_dom->domain;
 		attach_device(*iommu, *domain, *bdf);
-		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
-				"device %s\n", (*domain)->id, dev_name(dev));
+		DUMP_printk(KERN_INFO "AMD IOMMU: Using protection domain "
+				"%d for device %s\n",
+				(*domain)->id, dev_name(dev));
 	}
 
 	if (domain_for_device(_bdf) == NULL)
