@@ -97,6 +97,7 @@
 #define CSR_UCODE_DRV_GP1_CLR   (CSR_BASE+0x05c)
 #define CSR_UCODE_DRV_GP2       (CSR_BASE+0x060)
 #define CSR_LED_REG             (CSR_BASE+0x094)
+#define CSR_DRAM_INT_TBL_REG	(CSR_BASE+0x0A0)
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
 /* Analog phase-lock-loop configuration  */
@@ -256,6 +257,11 @@
 
 /* HPET MEM debug */
 #define CSR_DBG_HPET_MEM_REG_VAL	(0xFFFF0000)
+
+/* DRAM INT TABLE */
+#define CSR_DRAM_INT_TBL_ENABLE		(1 << 31)
+#define CSR_DRAM_INIT_TBL_WRAP_CHECK	(1 << 27)
+
 /*=== HBUS (Host-side Bus) ===*/
 #define HBUS_BASE	(0x400)
 /*

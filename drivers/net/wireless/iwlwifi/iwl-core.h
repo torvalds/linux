@@ -170,6 +170,7 @@ struct iwl_lib_ops {
 	void (*update_chain_flags)(struct iwl_priv *priv);
 	void (*post_associate) (struct iwl_priv *priv);
 	void (*config_ap) (struct iwl_priv *priv);
+	irqreturn_t (*isr) (int irq, void *data);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
@@ -239,6 +240,7 @@ struct iwl_cfg {
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
 	bool need_pll_cfg;
+	bool use_isr_legacy;
 };
 
 /***************************
@@ -466,7 +468,13 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
  *****************************************************/
 void iwl_disable_interrupts(struct iwl_priv *priv);
 void iwl_enable_interrupts(struct iwl_priv *priv);
-irqreturn_t iwl_isr(int irq, void *data);
+irqreturn_t iwl_isr_legacy(int irq, void *data);
+int iwl_reset_ict(struct iwl_priv *priv);
+void iwl_disable_ict(struct iwl_priv *priv);
+int iwl_alloc_isr_ict(struct iwl_priv *priv);
+void iwl_free_isr_ict(struct iwl_priv *priv);
+irqreturn_t iwl_isr_ict(int irq, void *data);
+
 static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 {
 	int pos;

@@ -2286,6 +2286,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.update_chain_flags = iwl_update_chain_flags,
 	.post_associate = iwl_post_associate,
 	.config_ap = iwl_config_ap,
+	.isr = iwl_isr_legacy,
 	.temp_ops = {
 		.temperature = iwl4965_temperature_calib,
 		.set_ct_kill = iwl4965_set_ct_threshold,
@@ -2310,6 +2311,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_4965_TX_POWER_VERSION,
 	.ops = &iwl4965_ops,
 	.mod_params = &iwl4965_mod_params,
+	.use_isr_legacy = true
 };
 
 /* Module firmware */

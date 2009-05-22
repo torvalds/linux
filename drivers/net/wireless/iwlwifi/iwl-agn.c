@@ -937,7 +937,7 @@ static inline void iwl_synchronize_irq(struct iwl_priv *priv)
 	tasklet_kill(&priv->irq_tasklet);
 }
 
-static void iwl_irq_tasklet(struct iwl_priv *priv)
+static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 {
 	u32 inta, handled = 0;
 	u32 inta_fh;
@@ -1119,6 +1119,174 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	}
 #endif
 	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+/* tasklet for iwlagn interrupt */
+static void iwl_irq_tasklet(struct iwl_priv *priv)
+{
+	u32 inta = 0;
+	u32 handled = 0;
+	unsigned long flags;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	u32 inta_mask;
+#endif
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	/* Ack/clear/reset pending uCode interrupts.
+	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
+	 */
+	iwl_write32(priv, CSR_INT, priv->inta);
+
+	inta = priv->inta;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (priv->debug_level & IWL_DL_ISR) {
+		/* just for debug */
+		inta_mask = iwl_read32(priv, CSR_INT_MASK);
+		IWL_DEBUG_ISR(priv, "inta 0x%08x, enabled 0x%08x\n ",
+				inta, inta_mask);
+	}
+#endif
+	/* saved interrupt in inta variable now we can reset priv->inta */
+	priv->inta = 0;
+
+	/* Now service all interrupt bits discovered above. */
+	if (inta & CSR_INT_BIT_HW_ERR) {
+		IWL_ERR(priv, "Microcode HW error detected.  Restarting.\n");
+
+		/* Tell the device to stop sending interrupts */
+		iwl_disable_interrupts(priv);
+
+		priv->isr_stats.hw++;
+		iwl_irq_handle_error(priv);
+
+		handled |= CSR_INT_BIT_HW_ERR;
+
+		spin_unlock_irqrestore(&priv->lock, flags);
+
+		return;
+	}
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (priv->debug_level & (IWL_DL_ISR)) {
+		/* NIC fires this, but we don't use it, redundant with WAKEUP */
+		if (inta & CSR_INT_BIT_SCD) {
+			IWL_DEBUG_ISR(priv, "Scheduler finished to transmit "
+				      "the frame/frames.\n");
+			priv->isr_stats.sch++;
+		}
+
+		/* Alive notification via Rx interrupt will do the real work */
+		if (inta & CSR_INT_BIT_ALIVE) {
+			IWL_DEBUG_ISR(priv, "Alive interrupt\n");
+			priv->isr_stats.alive++;
+		}
+	}
+#endif
+	/* Safely ignore these bits for debug checks below */
+	inta &= ~(CSR_INT_BIT_SCD | CSR_INT_BIT_ALIVE);
+
+	/* HW RF KILL switch toggled */
+	if (inta & CSR_INT_BIT_RF_KILL) {
+		int hw_rf_kill = 0;
+		if (!(iwl_read32(priv, CSR_GP_CNTRL) &
+				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW))
+			hw_rf_kill = 1;
+
+		IWL_DEBUG_RF_KILL(priv, "RF_KILL bit toggled to %s.\n",
+				hw_rf_kill ? "disable radio" : "enable radio");
+
+		priv->isr_stats.rfkill++;
+
+		/* driver only loads ucode once setting the interface up.
+		 * the driver allows loading the ucode even if the radio
+		 * is killed. Hence update the killswitch state here. The
+		 * rfkill handler will care about restarting if needed.
+		 */
+		if (!test_bit(STATUS_ALIVE, &priv->status)) {
+			if (hw_rf_kill)
+				set_bit(STATUS_RF_KILL_HW, &priv->status);
+			else
+				clear_bit(STATUS_RF_KILL_HW, &priv->status);
+			queue_work(priv->workqueue, &priv->rf_kill);
+		}
+
+		handled |= CSR_INT_BIT_RF_KILL;
+	}
+
+	/* Chip got too hot and stopped itself */
+	if (inta & CSR_INT_BIT_CT_KILL) {
+		IWL_ERR(priv, "Microcode CT kill error detected.\n");
+		priv->isr_stats.ctkill++;
+		handled |= CSR_INT_BIT_CT_KILL;
+	}
+
+	/* Error detected by uCode */
+	if (inta & CSR_INT_BIT_SW_ERR) {
+		IWL_ERR(priv, "Microcode SW error detected. "
+			" Restarting 0x%X.\n", inta);
+		priv->isr_stats.sw++;
+		priv->isr_stats.sw_err = inta;
+		iwl_irq_handle_error(priv);
+		handled |= CSR_INT_BIT_SW_ERR;
+	}
+
+	/* uCode wakes up after power-down sleep */
+	if (inta & CSR_INT_BIT_WAKEUP) {
+		IWL_DEBUG_ISR(priv, "Wakeup interrupt\n");
+		iwl_rx_queue_update_write_ptr(priv, &priv->rxq);
+		iwl_txq_update_write_ptr(priv, &priv->txq[0]);
+		iwl_txq_update_write_ptr(priv, &priv->txq[1]);
+		iwl_txq_update_write_ptr(priv, &priv->txq[2]);
+		iwl_txq_update_write_ptr(priv, &priv->txq[3]);
+		iwl_txq_update_write_ptr(priv, &priv->txq[4]);
+		iwl_txq_update_write_ptr(priv, &priv->txq[5]);
+
+		priv->isr_stats.wakeup++;
+
+		handled |= CSR_INT_BIT_WAKEUP;
+	}
+
+	/* All uCode command responses, including Tx command responses,
+	 * Rx "responses" (frame-received notification), and other
+	 * notifications from uCode come through here*/
+	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
+		IWL_DEBUG_ISR(priv, "Rx interrupt\n");
+		iwl_write32(priv, CSR_FH_INT_STATUS, CSR49_FH_INT_RX_MASK);
+		iwl_rx_handle(priv);
+		priv->isr_stats.rx++;
+		handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
+	}
+
+	if (inta & CSR_INT_BIT_FH_TX) {
+		iwl_write32(priv, CSR_FH_INT_STATUS, CSR49_FH_INT_TX_MASK);
+		IWL_DEBUG_ISR(priv, "Tx interrupt\n");
+		priv->isr_stats.tx++;
+		handled |= CSR_INT_BIT_FH_TX;
+		/* FH finished to write, send event */
+		priv->ucode_write_complete = 1;
+		wake_up_interruptible(&priv->wait_command_queue);
+	}
+
+	if (inta & ~handled) {
+		IWL_ERR(priv, "Unhandled INTA bits 0x%08x\n", inta & ~handled);
+		priv->isr_stats.unhandled++;
+	}
+
+	if (inta & ~CSR_INI_SET_MASK) {
+		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
+			 inta & ~CSR_INI_SET_MASK);
+	}
+
+
+	/* Re-enable all interrupts */
+	/* only Re-enable if diabled by irq */
+	if (test_bit(STATUS_INT_ENABLED, &priv->status))
+		iwl_enable_interrupts(priv);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 }
 
 
@@ -1550,6 +1718,8 @@ static void __iwl_down(struct iwl_priv *priv)
 		       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
 				STATUS_EXIT_PENDING;
 
+	/* device going down, Stop using ICT table */
+	iwl_disable_ict(priv);
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_clear_bit(priv, CSR_GP_CNTRL,
 			 CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
@@ -1633,6 +1803,8 @@ static int __iwl_up(struct iwl_priv *priv)
 
 	/* clear (again), then enable host interrupts */
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
+	/* enable dram interrupt */
+	iwl_reset_ict(priv);
 	iwl_enable_interrupts(priv);
 
 	/* really make sure rfkill handshake bits are cleared */
@@ -2533,8 +2705,12 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	priv->statistics_periodic.data = (unsigned long)priv;
 	priv->statistics_periodic.function = iwl_bg_statistics_periodic;
 
-	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
-		     iwl_irq_tasklet, (unsigned long)priv);
+	if (!priv->cfg->use_isr_legacy)
+		tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
+			iwl_irq_tasklet, (unsigned long)priv);
+	else
+		tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
+			iwl_irq_tasklet_legacy, (unsigned long)priv);
 }
 
 static void iwl_cancel_deferred_work(struct iwl_priv *priv)
@@ -2735,8 +2911,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_enable_msi(priv->pci_dev);
 
-	err = request_irq(priv->pci_dev->irq, iwl_isr, IRQF_SHARED,
-			  DRV_NAME, priv);
+	iwl_alloc_isr_ict(priv);
+	err = request_irq(priv->pci_dev->irq, priv->cfg->ops->lib->isr,
+			  IRQF_SHARED, DRV_NAME, priv);
 	if (err) {
 		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->pci_dev->irq);
 		goto out_disable_msi;
@@ -2793,6 +2970,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	sysfs_remove_group(&pdev->dev.kobj, &iwl_attribute_group);
  out_free_irq:
 	free_irq(priv->pci_dev->irq, priv);
+	iwl_free_isr_ict(priv);
  out_disable_msi:
 	pci_disable_msi(priv->pci_dev);
 	iwl_uninit_drv(priv);
@@ -2873,6 +3051,8 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	pci_set_drvdata(pdev, NULL);
 
 	iwl_uninit_drv(priv);
+
+	iwl_free_isr_ict(priv);
 
 	if (priv->ibss_beacon)
 		dev_kfree_skb(priv->ibss_beacon);

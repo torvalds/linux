@@ -2838,6 +2838,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.send_tx_power	= iwl3945_send_tx_power,
 	.is_valid_rtc_data_addr = iwl3945_hw_valid_rtc_data_addr,
 	.post_associate = iwl3945_post_associate,
+	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
 };
 
@@ -2871,7 +2872,8 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
-	.mod_params = &iwl3945_mod_params
+	.mod_params = &iwl3945_mod_params,
+	.use_isr_legacy = true
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2883,7 +2885,8 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.eeprom_size = IWL3945_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_3945_EEPROM_VERSION,
 	.ops = &iwl3945_ops,
-	.mod_params = &iwl3945_mod_params
+	.mod_params = &iwl3945_mod_params,
+	.use_isr_legacy = true
 };
 
 struct pci_device_id iwl3945_hw_card_ids[] = {

@@ -1048,6 +1048,14 @@ struct iwl_priv {
 	/*End*/
 	struct iwl_hw_params hw_params;
 
+	/* INT ICT Table */
+	u32 *ict_tbl;
+	dma_addr_t ict_tbl_dma;
+	dma_addr_t aligned_ict_tbl_dma;
+	int ict_index;
+	void *ict_tbl_vir;
+	u32 inta;
+	bool use_ict;
 
 	/* Current association information needed to configure the
 	 * hardware */
