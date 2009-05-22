@@ -309,8 +309,93 @@ EXPORT_SYMBOL(blk_queue_max_segment_size);
 void blk_queue_logical_block_size(struct request_queue *q, unsigned short size)
 {
 	q->limits.logical_block_size = size;
+
+	if (q->limits.physical_block_size < size)
+		q->limits.physical_block_size = size;
+
+	if (q->limits.io_min < q->limits.physical_block_size)
+		q->limits.io_min = q->limits.physical_block_size;
 }
 EXPORT_SYMBOL(blk_queue_logical_block_size);
+
+/**
+ * blk_queue_physical_block_size - set physical block size for the queue
+ * @q:  the request queue for the device
+ * @size:  the physical block size, in bytes
+ *
+ * Description:
+ *   This should be set to the lowest possible sector size that the
+ *   hardware can operate on without reverting to read-modify-write
+ *   operations.
+ */
+void blk_queue_physical_block_size(struct request_queue *q, unsigned short size)
+{
+	q->limits.physical_block_size = size;
+
+	if (q->limits.physical_block_size < q->limits.logical_block_size)
+		q->limits.physical_block_size = q->limits.logical_block_size;
+
+	if (q->limits.io_min < q->limits.physical_block_size)
+		q->limits.io_min = q->limits.physical_block_size;
+}
+EXPORT_SYMBOL(blk_queue_physical_block_size);
+
+/**
+ * blk_queue_alignment_offset - set physical block alignment offset
+ * @q:	the request queue for the device
+ * @alignment:	alignment offset in bytes
+ *
+ * Description:
+ *   Some devices are naturally misaligned to compensate for things like
+ *   the legacy DOS partition table 63-sector offset.  Low-level drivers
+ *   should call this function for devices whose first sector is not
+ *   naturally aligned.
+ */
+void blk_queue_alignment_offset(struct request_queue *q, unsigned int offset)
+{
+	q->limits.alignment_offset =
+		offset & (q->limits.physical_block_size - 1);
+	q->limits.misaligned = 0;
+}
+EXPORT_SYMBOL(blk_queue_alignment_offset);
+
+/**
+ * blk_queue_io_min - set minimum request size for the queue
+ * @q:	the request queue for the device
+ * @io_min:  smallest I/O size in bytes
+ *
+ * Description:
+ *   Some devices have an internal block size bigger than the reported
+ *   hardware sector size.  This function can be used to signal the
+ *   smallest I/O the device can perform without incurring a performance
+ *   penalty.
+ */
+void blk_queue_io_min(struct request_queue *q, unsigned int min)
+{
+	q->limits.io_min = min;
+
+	if (q->limits.io_min < q->limits.logical_block_size)
+		q->limits.io_min = q->limits.logical_block_size;
+
+	if (q->limits.io_min < q->limits.physical_block_size)
+		q->limits.io_min = q->limits.physical_block_size;
+}
+EXPORT_SYMBOL(blk_queue_io_min);
+
+/**
+ * blk_queue_io_opt - set optimal request size for the queue
+ * @q:	the request queue for the device
+ * @io_opt:  optimal request size in bytes
+ *
+ * Description:
+ *   Drivers can call this function to set the preferred I/O request
+ *   size for devices that report such a value.
+ */
+void blk_queue_io_opt(struct request_queue *q, unsigned int opt)
+{
+	q->limits.io_opt = opt;
+}
+EXPORT_SYMBOL(blk_queue_io_opt);
 
 /*
  * Returns the minimum that is _not_ zero, unless both are zero.
@@ -356,6 +441,107 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	}
 }
 EXPORT_SYMBOL(blk_queue_stack_limits);
+
+/**
+ * blk_stack_limits - adjust queue_limits for stacked devices
+ * @t:	the stacking driver limits (top)
+ * @bdev:  the underlying queue limits (bottom)
+ * @offset:  offset to beginning of data within component device
+ *
+ * Description:
+ *    Merges two queue_limit structs.  Returns 0 if alignment didn't
+ *    change.  Returns -1 if adding the bottom device caused
+ *    misalignment.
+ */
+int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
+		     sector_t offset)
+{
+	t->max_sectors = min_not_zero(t->max_sectors, b->max_sectors);
+	t->max_hw_sectors = min_not_zero(t->max_hw_sectors, b->max_hw_sectors);
+
+	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
+					    b->seg_boundary_mask);
+
+	t->max_phys_segments = min_not_zero(t->max_phys_segments,
+					    b->max_phys_segments);
+
+	t->max_hw_segments = min_not_zero(t->max_hw_segments,
+					  b->max_hw_segments);
+
+	t->max_segment_size = min_not_zero(t->max_segment_size,
+					   b->max_segment_size);
+
+	t->logical_block_size = max(t->logical_block_size,
+				    b->logical_block_size);
+
+	t->physical_block_size = max(t->physical_block_size,
+				     b->physical_block_size);
+
+	t->io_min = max(t->io_min, b->io_min);
+	t->no_cluster |= b->no_cluster;
+
+	/* Bottom device offset aligned? */
+	if (offset &&
+	    (offset & (b->physical_block_size - 1)) != b->alignment_offset) {
+		t->misaligned = 1;
+		return -1;
+	}
+
+	/* If top has no alignment offset, inherit from bottom */
+	if (!t->alignment_offset)
+		t->alignment_offset =
+			b->alignment_offset & (b->physical_block_size - 1);
+
+	/* Top device aligned on logical block boundary? */
+	if (t->alignment_offset & (t->logical_block_size - 1)) {
+		t->misaligned = 1;
+		return -1;
+	}
+
+	return 0;
+}
+
+/**
+ * disk_stack_limits - adjust queue limits for stacked drivers
+ * @t:	MD/DM gendisk (top)
+ * @bdev:  the underlying block device (bottom)
+ * @offset:  offset to beginning of data within component device
+ *
+ * Description:
+ *    Merges the limits for two queues.  Returns 0 if alignment
+ *    didn't change.  Returns -1 if adding the bottom device caused
+ *    misalignment.
+ */
+void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
+		       sector_t offset)
+{
+	struct request_queue *t = disk->queue;
+	struct request_queue *b = bdev_get_queue(bdev);
+
+	offset += get_start_sect(bdev) << 9;
+
+	if (blk_stack_limits(&t->limits, &b->limits, offset) < 0) {
+		char top[BDEVNAME_SIZE], bottom[BDEVNAME_SIZE];
+
+		disk_name(disk, 0, top);
+		bdevname(bdev, bottom);
+
+		printk(KERN_NOTICE "%s: Warning: Device %s is misaligned\n",
+		       top, bottom);
+	}
+
+	if (!t->queue_lock)
+		WARN_ON_ONCE(1);
+	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(t->queue_lock, flags);
+		if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags))
+			queue_flag_clear(QUEUE_FLAG_CLUSTER, t);
+		spin_unlock_irqrestore(t->queue_lock, flags);
+	}
+}
+EXPORT_SYMBOL(disk_stack_limits);
 
 /**
  * blk_queue_dma_pad - set pad mask

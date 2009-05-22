@@ -105,6 +105,21 @@ static ssize_t queue_logical_block_size_show(struct request_queue *q, char *page
 	return queue_var_show(queue_logical_block_size(q), page);
 }
 
+static ssize_t queue_physical_block_size_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(queue_physical_block_size(q), page);
+}
+
+static ssize_t queue_io_min_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(queue_io_min(q), page);
+}
+
+static ssize_t queue_io_opt_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(queue_io_opt(q), page);
+}
+
 static ssize_t
 queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 {
@@ -257,6 +272,21 @@ static struct queue_sysfs_entry queue_logical_block_size_entry = {
 	.show = queue_logical_block_size_show,
 };
 
+static struct queue_sysfs_entry queue_physical_block_size_entry = {
+	.attr = {.name = "physical_block_size", .mode = S_IRUGO },
+	.show = queue_physical_block_size_show,
+};
+
+static struct queue_sysfs_entry queue_io_min_entry = {
+	.attr = {.name = "minimum_io_size", .mode = S_IRUGO },
+	.show = queue_io_min_show,
+};
+
+static struct queue_sysfs_entry queue_io_opt_entry = {
+	.attr = {.name = "optimal_io_size", .mode = S_IRUGO },
+	.show = queue_io_opt_show,
+};
+
 static struct queue_sysfs_entry queue_nonrot_entry = {
 	.attr = {.name = "rotational", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_nonrot_show,
@@ -289,6 +319,9 @@ static struct attribute *default_attrs[] = {
 	&queue_iosched_entry.attr,
 	&queue_hw_sector_size_entry.attr,
 	&queue_logical_block_size_entry.attr,
+	&queue_physical_block_size_entry.attr,
+	&queue_io_min_entry.attr,
+	&queue_io_opt_entry.attr,
 	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,

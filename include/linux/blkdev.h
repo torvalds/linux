@@ -314,11 +314,16 @@ struct queue_limits {
 	unsigned int		max_hw_sectors;
 	unsigned int		max_sectors;
 	unsigned int		max_segment_size;
+	unsigned int		physical_block_size;
+	unsigned int		alignment_offset;
+	unsigned int		io_min;
+	unsigned int		io_opt;
 
 	unsigned short		logical_block_size;
 	unsigned short		max_hw_segments;
 	unsigned short		max_phys_segments;
 
+	unsigned char		misaligned;
 	unsigned char		no_cluster;
 };
 
@@ -911,6 +916,15 @@ extern void blk_queue_max_phys_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_hw_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_logical_block_size(struct request_queue *, unsigned short);
+extern void blk_queue_physical_block_size(struct request_queue *, unsigned short);
+extern void blk_queue_alignment_offset(struct request_queue *q,
+				       unsigned int alignment);
+extern void blk_queue_io_min(struct request_queue *q, unsigned int min);
+extern void blk_queue_io_opt(struct request_queue *q, unsigned int opt);
+extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
+			    sector_t offset);
+extern void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
+			      sector_t offset);
 extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
 extern void blk_queue_dma_pad(struct request_queue *, unsigned int);
 extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
@@ -1045,6 +1059,39 @@ static inline unsigned short queue_logical_block_size(struct request_queue *q)
 static inline unsigned short bdev_logical_block_size(struct block_device *bdev)
 {
 	return queue_logical_block_size(bdev_get_queue(bdev));
+}
+
+static inline unsigned int queue_physical_block_size(struct request_queue *q)
+{
+	return q->limits.physical_block_size;
+}
+
+static inline unsigned int queue_io_min(struct request_queue *q)
+{
+	return q->limits.io_min;
+}
+
+static inline unsigned int queue_io_opt(struct request_queue *q)
+{
+	return q->limits.io_opt;
+}
+
+static inline int queue_alignment_offset(struct request_queue *q)
+{
+	if (q && q->limits.misaligned)
+		return -1;
+
+	if (q && q->limits.alignment_offset)
+		return q->limits.alignment_offset;
+
+	return 0;
+}
+
+static inline int queue_sector_alignment_offset(struct request_queue *q,
+						sector_t sector)
+{
+	return ((sector << 9) - q->limits.alignment_offset)
+		& (q->limits.io_min - 1);
 }
 
 static inline int queue_dma_alignment(struct request_queue *q)
