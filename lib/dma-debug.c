@@ -1109,3 +1109,21 @@ void debug_dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 }
 EXPORT_SYMBOL(debug_dma_sync_sg_for_device);
 
+static int __init dma_debug_driver_setup(char *str)
+{
+	int i;
+
+	for (i = 0; i < NAME_MAX_LEN - 1; ++i, ++str) {
+		current_driver_name[i] = *str;
+		if (*str == 0)
+			break;
+	}
+
+	if (current_driver_name[0])
+		printk(KERN_INFO "DMA-API: enable driver filter for "
+				 "driver [%s]\n", current_driver_name);
+
+
+	return 1;
+}
+__setup("dma_debug_driver=", dma_debug_driver_setup);
