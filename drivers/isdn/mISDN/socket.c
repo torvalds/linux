@@ -292,7 +292,7 @@ static int
 data_sock_ioctl_bound(struct sock *sk, unsigned int cmd, void __user *p)
 {
 	struct mISDN_ctrl_req	cq;
-	int			err = -EINVAL, val;
+	int			err = -EINVAL, val[2];
 	struct mISDNchannel	*bchan, *next;
 
 	lock_sock(sk);
@@ -328,12 +328,27 @@ data_sock_ioctl_bound(struct sock *sk, unsigned int cmd, void __user *p)
 			err = -EINVAL;
 			break;
 		}
-		if (get_user(val, (int __user *)p)) {
+		val[0] = cmd;
+		if (get_user(val[1], (int __user *)p)) {
 			err = -EFAULT;
 			break;
 		}
 		err = _pms(sk)->dev->teimgr->ctrl(_pms(sk)->dev->teimgr,
-		    CONTROL_CHANNEL, &val);
+		    CONTROL_CHANNEL, val);
+		break;
+	case IMHOLD_L1:
+		if (sk->sk_protocol != ISDN_P_LAPD_NT
+		 && sk->sk_protocol != ISDN_P_LAPD_TE) {
+			err = -EINVAL;
+			break;
+		}
+		val[0] = cmd;
+		if (get_user(val[1], (int __user *)p)) {
+			err = -EFAULT;
+			break;
+		}
+		err = _pms(sk)->dev->teimgr->ctrl(_pms(sk)->dev->teimgr,
+		    CONTROL_CHANNEL, val);
 		break;
 	default:
 		err = -EINVAL;
