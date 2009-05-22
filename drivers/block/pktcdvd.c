@@ -2657,7 +2657,7 @@ static void pkt_init_queue(struct pktcdvd_device *pd)
 	struct request_queue *q = pd->disk->queue;
 
 	blk_queue_make_request(q, pkt_make_request);
-	blk_queue_hardsect_size(q, CD_FRAMESIZE);
+	blk_queue_logical_block_size(q, CD_FRAMESIZE);
 	blk_queue_max_sectors(q, PACKET_MAX_SECTORS);
 	blk_queue_merge_bvec(q, pkt_merge_bvec);
 	q->queuedata = pd;

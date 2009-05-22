@@ -391,7 +391,7 @@ struct request_queue
 	unsigned int		max_hw_sectors;
 	unsigned short		max_phys_segments;
 	unsigned short		max_hw_segments;
-	unsigned short		hardsect_size;
+	unsigned short		logical_block_size;
 	unsigned int		max_segment_size;
 
 	unsigned long		seg_boundary_mask;
@@ -901,7 +901,7 @@ extern void blk_queue_max_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_max_phys_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_hw_segments(struct request_queue *, unsigned short);
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
-extern void blk_queue_hardsect_size(struct request_queue *, unsigned short);
+extern void blk_queue_logical_block_size(struct request_queue *, unsigned short);
 extern void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b);
 extern void blk_queue_dma_pad(struct request_queue *, unsigned int);
 extern void blk_queue_update_dma_pad(struct request_queue *, unsigned int);
@@ -988,19 +988,19 @@ extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
 
-static inline int queue_hardsect_size(struct request_queue *q)
+static inline unsigned short queue_logical_block_size(struct request_queue *q)
 {
 	int retval = 512;
 
-	if (q && q->hardsect_size)
-		retval = q->hardsect_size;
+	if (q && q->logical_block_size)
+		retval = q->logical_block_size;
 
 	return retval;
 }
 
-static inline int bdev_hardsect_size(struct block_device *bdev)
+static inline unsigned short bdev_logical_block_size(struct block_device *bdev)
 {
-	return queue_hardsect_size(bdev_get_queue(bdev));
+	return queue_logical_block_size(bdev_get_queue(bdev));
 }
 
 static inline int queue_dma_alignment(struct request_queue *q)

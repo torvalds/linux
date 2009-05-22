@@ -1510,7 +1510,7 @@ got_data:
 		 */
 		sector_size = 512;
 	}
-	blk_queue_hardsect_size(sdp->request_queue, sector_size);
+	blk_queue_logical_block_size(sdp->request_queue, sector_size);
 
 	{
 		char cap_str_2[10], cap_str_10[10];

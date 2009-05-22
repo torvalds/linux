@@ -182,7 +182,7 @@ static void cdrom_analyze_sense_data(ide_drive_t *drive,
 				 (sense->information[2] <<  8) |
 				 (sense->information[3]);
 
-			if (drive->queue->hardsect_size == 2048)
+			if (queue_logical_block_size(drive->queue) == 2048)
 				/* device sector size is 2K */
 				sector <<= 2;
 
@@ -737,7 +737,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	struct request_queue *q = drive->queue;
 	int write = rq_data_dir(rq) == WRITE;
 	unsigned short sectors_per_frame =
-		queue_hardsect_size(q) >> SECTOR_BITS;
+		queue_logical_block_size(q) >> SECTOR_BITS;
 
 	ide_debug_log(IDE_DBG_RQ, "rq->cmd[0]: 0x%x, rq->cmd_flags: 0x%x, "
 				  "secs_per_frame: %u",
@@ -1021,8 +1021,8 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	/* save a private copy of the TOC capacity for error handling */
 	drive->probed_capacity = toc->capacity * sectors_per_frame;
 
-	blk_queue_hardsect_size(drive->queue,
-				sectors_per_frame << SECTOR_BITS);
+	blk_queue_logical_block_size(drive->queue,
+				     sectors_per_frame << SECTOR_BITS);
 
 	/* first read just the header, so we know how long the TOC is */
 	stat = cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
@@ -1338,7 +1338,7 @@ static int ide_cdrom_probe_capabilities(ide_drive_t *drive)
 /* standard prep_rq_fn that builds 10 byte cmds */
 static int ide_cdrom_prep_fs(struct request_queue *q, struct request *rq)
 {
-	int hard_sect = queue_hardsect_size(q);
+	int hard_sect = queue_logical_block_size(q);
 	long block = (long)blk_rq_pos(rq) / (hard_sect >> 9);
 	unsigned long blocks = blk_rq_sectors(rq) / (hard_sect >> 9);
 
@@ -1543,7 +1543,7 @@ static int ide_cdrom_setup(ide_drive_t *drive)
 
 	nslots = ide_cdrom_probe_capabilities(drive);
 
-	blk_queue_hardsect_size(q, CD_FRAMESIZE);
+	blk_queue_logical_block_size(q, CD_FRAMESIZE);
 
 	if (ide_cdrom_register(drive, nslots)) {
 		printk(KERN_ERR PFX "%s: %s failed to register device with the"

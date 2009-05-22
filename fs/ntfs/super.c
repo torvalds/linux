@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
-#include <linux/blkdev.h>	/* For bdev_hardsect_size(). */
+#include <linux/blkdev.h>	/* For bdev_logical_block_size(). */
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
@@ -2785,13 +2785,13 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		goto err_out_now;
 
 	/* We support sector sizes up to the PAGE_CACHE_SIZE. */
-	if (bdev_hardsect_size(sb->s_bdev) > PAGE_CACHE_SIZE) {
+	if (bdev_logical_block_size(sb->s_bdev) > PAGE_CACHE_SIZE) {
 		if (!silent)
 			ntfs_error(sb, "Device has unsupported sector size "
 					"(%i).  The maximum supported sector "
 					"size on this architecture is %lu "
 					"bytes.",
-					bdev_hardsect_size(sb->s_bdev),
+					bdev_logical_block_size(sb->s_bdev),
 					PAGE_CACHE_SIZE);
 		goto err_out_now;
 	}

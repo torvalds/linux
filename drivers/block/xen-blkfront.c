@@ -344,7 +344,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	queue_flag_set_unlocked(QUEUE_FLAG_VIRT, rq);
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
-	blk_queue_hardsect_size(rq, sector_size);
+	blk_queue_logical_block_size(rq, sector_size);
 	blk_queue_max_sectors(rq, 512);
 
 	/* Each segment in a request is up to an aligned page in size. */

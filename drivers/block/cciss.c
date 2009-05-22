@@ -1389,8 +1389,8 @@ static void cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 
 	disk->queue->queuedata = h;
 
-	blk_queue_hardsect_size(disk->queue,
-				h->drv[drv_index].block_size);
+	blk_queue_logical_block_size(disk->queue,
+				     h->drv[drv_index].block_size);
 
 	/* Make sure all queue data is written out before */
 	/* setting h->drv[drv_index].queue, as setting this */
@@ -2298,7 +2298,7 @@ static int cciss_revalidate(struct gendisk *disk)
 	cciss_geometry_inquiry(h->ctlr, logvol, 1, total_size, block_size,
 			       inq_buff, drv);
 
-	blk_queue_hardsect_size(drv->queue, drv->block_size);
+	blk_queue_logical_block_size(drv->queue, drv->block_size);
 	set_capacity(disk, drv->nr_blocks);
 
 	kfree(inq_buff);

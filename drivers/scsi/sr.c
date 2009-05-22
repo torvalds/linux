@@ -727,7 +727,7 @@ static void get_sectorsize(struct scsi_cd *cd)
 	}
 
 	queue = cd->device->request_queue;
-	blk_queue_hardsect_size(queue, sector_size);
+	blk_queue_logical_block_size(queue, sector_size);
 
 	return;
 }

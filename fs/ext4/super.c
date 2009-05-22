@@ -2962,7 +2962,7 @@ static journal_t *ext4_get_dev_journal(struct super_block *sb,
 	}
 
 	blocksize = sb->s_blocksize;
-	hblock = bdev_hardsect_size(bdev);
+	hblock = bdev_logical_block_size(bdev);
 	if (blocksize < hblock) {
 		printk(KERN_ERR
 			"EXT4-fs: blocksize too small for journal device.\n");

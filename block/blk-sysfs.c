@@ -100,9 +100,9 @@ static ssize_t queue_max_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_sectors_kb, (page));
 }
 
-static ssize_t queue_hw_sector_size_show(struct request_queue *q, char *page)
+static ssize_t queue_logical_block_size_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(q->hardsect_size, page);
+	return queue_var_show(queue_logical_block_size(q), page);
 }
 
 static ssize_t
@@ -249,7 +249,12 @@ static struct queue_sysfs_entry queue_iosched_entry = {
 
 static struct queue_sysfs_entry queue_hw_sector_size_entry = {
 	.attr = {.name = "hw_sector_size", .mode = S_IRUGO },
-	.show = queue_hw_sector_size_show,
+	.show = queue_logical_block_size_show,
+};
+
+static struct queue_sysfs_entry queue_logical_block_size_entry = {
+	.attr = {.name = "logical_block_size", .mode = S_IRUGO },
+	.show = queue_logical_block_size_show,
 };
 
 static struct queue_sysfs_entry queue_nonrot_entry = {
@@ -283,6 +288,7 @@ static struct attribute *default_attrs[] = {
 	&queue_max_sectors_entry.attr,
 	&queue_iosched_entry.attr,
 	&queue_hw_sector_size_entry.attr,
+	&queue_logical_block_size_entry.attr,
 	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,

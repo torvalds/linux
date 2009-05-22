@@ -722,7 +722,7 @@ static void ub_cmd_build_block(struct ub_dev *sc, struct ub_lun *lun,
 	/*
 	 * build the command
 	 *
-	 * The call to blk_queue_hardsect_size() guarantees that request
+	 * The call to blk_queue_logical_block_size() guarantees that request
 	 * is aligned, but it is given in terms of 512 byte units, always.
 	 */
 	block = blk_rq_pos(rq) >> lun->capacity.bshift;
@@ -1749,7 +1749,7 @@ static int ub_bd_revalidate(struct gendisk *disk)
 	ub_revalidate(lun->udev, lun);
 
 	/* XXX Support sector size switching like in sr.c */
-	blk_queue_hardsect_size(disk->queue, lun->capacity.bsize);
+	blk_queue_logical_block_size(disk->queue, lun->capacity.bsize);
 	set_capacity(disk, lun->capacity.nsec);
 	// set_disk_ro(sdkp->disk, lun->readonly);
 
@@ -2324,7 +2324,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	blk_queue_max_phys_segments(q, UB_MAX_REQ_SG);
 	blk_queue_segment_boundary(q, 0xffffffff);	/* Dubious. */
 	blk_queue_max_sectors(q, UB_MAX_SECTORS);
-	blk_queue_hardsect_size(q, lun->capacity.bsize);
+	blk_queue_logical_block_size(q, lun->capacity.bsize);
 
 	lun->disk = disk;
 	q->queuedata = lun;

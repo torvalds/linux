@@ -347,7 +347,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 				offsetof(struct virtio_blk_config, blk_size),
 				&blk_size);
 	if (!err)
-		blk_queue_hardsect_size(vblk->disk->queue, blk_size);
+		blk_queue_logical_block_size(vblk->disk->queue, blk_size);
 
 	add_disk(vblk->disk);
 	return 0;

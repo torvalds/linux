@@ -311,7 +311,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKBSZGET: /* get the logical block size (cf. BLKSSZGET) */
 		return put_int(arg, block_size(bdev));
 	case BLKSSZGET: /* get block device hardware sector size */
-		return put_int(arg, bdev_hardsect_size(bdev));
+		return put_int(arg, bdev_logical_block_size(bdev));
 	case BLKSECTGET:
 		return put_ushort(arg, bdev_get_queue(bdev)->max_sectors);
 	case BLKRASET:

@@ -469,8 +469,8 @@ static void vio_handle_cd_event(struct HvLpEvent *event)
 	case viocdopen:
 		if (event->xRc == 0) {
 			di = &viocd_diskinfo[bevent->disk];
-			blk_queue_hardsect_size(di->viocd_disk->queue,
-					bevent->block_size);
+			blk_queue_logical_block_size(di->viocd_disk->queue,
+						     bevent->block_size);
 			set_capacity(di->viocd_disk,
 					bevent->media_size *
 					bevent->block_size / 512);

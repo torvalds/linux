@@ -1490,11 +1490,12 @@ struct bio_pair *bio_split(struct bio *bi, int first_sectors)
 sector_t bio_sector_offset(struct bio *bio, unsigned short index,
 			   unsigned int offset)
 {
-	unsigned int sector_sz = queue_hardsect_size(bio->bi_bdev->bd_disk->queue);
+	unsigned int sector_sz;
 	struct bio_vec *bv;
 	sector_t sectors;
 	int i;
 
+	sector_sz = queue_logical_block_size(bio->bi_bdev->bd_disk->queue);
 	sectors = 0;
 
 	if (index >= bio->bi_idx)

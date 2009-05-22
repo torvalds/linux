@@ -1915,7 +1915,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	if (uopt.flags & (1 << UDF_FLAG_BLOCKSIZE_SET)) {
 		ret = udf_load_vrs(sb, &uopt, silent, &fileset);
 	} else {
-		uopt.blocksize = bdev_hardsect_size(sb->s_bdev);
+		uopt.blocksize = bdev_logical_block_size(sb->s_bdev);
 		ret = udf_load_vrs(sb, &uopt, silent, &fileset);
 		if (!ret && uopt.blocksize != UDF_DEFAULT_BLOCKSIZE) {
 			if (!silent)

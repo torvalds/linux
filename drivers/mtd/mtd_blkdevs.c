@@ -378,7 +378,7 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	}
 
 	tr->blkcore_priv->rq->queuedata = tr;
-	blk_queue_hardsect_size(tr->blkcore_priv->rq, tr->blksize);
+	blk_queue_logical_block_size(tr->blkcore_priv->rq, tr->blksize);
 	if (tr->discard)
 		blk_queue_set_discard(tr->blkcore_priv->rq,
 				      blktrans_discard_request);

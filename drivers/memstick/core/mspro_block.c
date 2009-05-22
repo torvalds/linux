@@ -1242,7 +1242,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 
 	sprintf(msb->disk->disk_name, "mspblk%d", disk_id);
 
-	blk_queue_hardsect_size(msb->queue, msb->page_size);
+	blk_queue_logical_block_size(msb->queue, msb->page_size);
 
 	capacity = be16_to_cpu(sys_info->user_block_count);
 	capacity *= be16_to_cpu(sys_info->block_size);

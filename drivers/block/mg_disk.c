@@ -996,7 +996,7 @@ static int mg_probe(struct platform_device *plat_dev)
 		goto probe_err_6;
 	}
 	blk_queue_max_sectors(host->breq, MG_MAX_SECTS);
-	blk_queue_hardsect_size(host->breq, MG_SECTOR_SIZE);
+	blk_queue_logical_block_size(host->breq, MG_SECTOR_SIZE);
 
 	init_timer(&host->timer);
 	host->timer.function = mg_times_out;

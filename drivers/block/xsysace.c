@@ -984,7 +984,7 @@ static int __devinit ace_setup(struct ace_device *ace)
 	ace->queue = blk_init_queue(ace_request, &ace->lock);
 	if (ace->queue == NULL)
 		goto err_blk_initq;
-	blk_queue_hardsect_size(ace->queue, 512);
+	blk_queue_logical_block_size(ace->queue, 512);
 
 	/*
 	 * Allocate and initialize GD structure

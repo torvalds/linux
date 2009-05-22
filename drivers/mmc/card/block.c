@@ -521,7 +521,7 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 
 	sprintf(md->disk->disk_name, "mmcblk%d", devidx);
 
-	blk_queue_hardsect_size(md->queue.queue, 512);
+	blk_queue_logical_block_size(md->queue.queue, 512);
 
 	if (!mmc_card_sd(card) && mmc_card_blockaddr(card)) {
 		/*

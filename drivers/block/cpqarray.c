@@ -474,7 +474,7 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 		disk->fops = &ida_fops;
 		if (j && !drv->nr_blks)
 			continue;
-		blk_queue_hardsect_size(hba[i]->queue, drv->blk_size);
+		blk_queue_logical_block_size(hba[i]->queue, drv->blk_size);
 		set_capacity(disk, drv->nr_blks);
 		disk->queue = hba[i]->queue;
 		disk->private_data = drv;
@@ -1546,7 +1546,7 @@ static int revalidate_allvol(ctlr_info_t *host)
 		drv_info_t *drv = &host->drv[i];
 		if (i && !drv->nr_blks)
 			continue;
-		blk_queue_hardsect_size(host->queue, drv->blk_size);
+		blk_queue_logical_block_size(host->queue, drv->blk_size);
 		set_capacity(disk, drv->nr_blks);
 		disk->queue = host->queue;
 		disk->private_data = drv;

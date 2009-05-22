@@ -739,7 +739,7 @@ static void __devinit probe_gdrom_setupdisk(void)
 
 static int __devinit probe_gdrom_setupqueue(void)
 {
-	blk_queue_hardsect_size(gd.gdrom_rq, GDROM_HARD_SECTOR);
+	blk_queue_logical_block_size(gd.gdrom_rq, GDROM_HARD_SECTOR);
 	/* using DMA so memory will need to be contiguous */
 	blk_queue_max_hw_segments(gd.gdrom_rq, 1);
 	/* set a large max size to get most from DMA */

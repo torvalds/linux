@@ -134,7 +134,7 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->backing_dev_info.state = 0;
 	q->backing_dev_info.capabilities = BDI_CAP_MAP_COPY;
 	blk_queue_max_sectors(q, SAFE_MAX_SECTORS);
-	blk_queue_hardsect_size(q, 512);
+	blk_queue_logical_block_size(q, 512);
 	blk_queue_dma_alignment(q, 511);
 	blk_queue_congestion_threshold(q);
 	q->nr_batching = BLK_BATCH_REQ;
@@ -288,21 +288,20 @@ void blk_queue_max_segment_size(struct request_queue *q, unsigned int max_size)
 EXPORT_SYMBOL(blk_queue_max_segment_size);
 
 /**
- * blk_queue_hardsect_size - set hardware sector size for the queue
+ * blk_queue_logical_block_size - set logical block size for the queue
  * @q:  the request queue for the device
- * @size:  the hardware sector size, in bytes
+ * @size:  the logical block size, in bytes
  *
  * Description:
- *   This should typically be set to the lowest possible sector size
- *   that the hardware can operate on (possible without reverting to
- *   even internal read-modify-write operations). Usually the default
- *   of 512 covers most hardware.
+ *   This should be set to the lowest possible block size that the
+ *   storage device can address.  The default of 512 covers most
+ *   hardware.
  **/
-void blk_queue_hardsect_size(struct request_queue *q, unsigned short size)
+void blk_queue_logical_block_size(struct request_queue *q, unsigned short size)
 {
-	q->hardsect_size = size;
+	q->logical_block_size = size;
 }
-EXPORT_SYMBOL(blk_queue_hardsect_size);
+EXPORT_SYMBOL(blk_queue_logical_block_size);
 
 /*
  * Returns the minimum that is _not_ zero, unless both are zero.
@@ -324,7 +323,7 @@ void blk_queue_stack_limits(struct request_queue *t, struct request_queue *b)
 	t->max_phys_segments = min_not_zero(t->max_phys_segments, b->max_phys_segments);
 	t->max_hw_segments = min_not_zero(t->max_hw_segments, b->max_hw_segments);
 	t->max_segment_size = min_not_zero(t->max_segment_size, b->max_segment_size);
-	t->hardsect_size = max(t->hardsect_size, b->hardsect_size);
+	t->logical_block_size = max(t->logical_block_size, b->logical_block_size);
 	if (!t->queue_lock)
 		WARN_ON_ONCE(1);
 	else if (!test_bit(QUEUE_FLAG_CLUSTER, &b->queue_flags)) {

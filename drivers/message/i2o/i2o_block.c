@@ -794,8 +794,9 @@ static int i2o_block_transfer(struct request *req)
 	if (c->adaptec) {
 		u8 cmd[10];
 		u32 scsi_flags;
-		u16 hwsec = queue_hardsect_size(req->q) >> KERNEL_SECTOR_SHIFT;
+		u16 hwsec;
 
+		hwsec = queue_logical_block_size(req->q) >> KERNEL_SECTOR_SHIFT;
 		memset(cmd, 0, 10);
 
 		sgl_offset = SGL_OFFSET_12;
@@ -1078,7 +1079,7 @@ static int i2o_block_probe(struct device *dev)
 	 */
 	if (!i2o_parm_field_get(i2o_dev, 0x0004, 1, &blocksize, 4) ||
 	    !i2o_parm_field_get(i2o_dev, 0x0000, 3, &blocksize, 4)) {
-		blk_queue_hardsect_size(queue, le32_to_cpu(blocksize));
+		blk_queue_logical_block_size(queue, le32_to_cpu(blocksize));
 	} else
 		osm_warn("unable to get blocksize of %s\n", gd->disk_name);
 
