@@ -362,7 +362,8 @@ clear_channelmap(u_int nr, u_char *map)
 #define MISDN_CTRL_HFC_RECEIVE_ON	0x4006
 #define MISDN_CTRL_HFC_ECHOCAN_ON 	0x4007
 #define MISDN_CTRL_HFC_ECHOCAN_OFF 	0x4008
-
+#define MISDN_CTRL_HFC_WD_INIT		0x4009
+#define MISDN_CTRL_HFC_WD_RESET		0x400A
 
 /* socket options */
 #define MISDN_TIME_STAMP		0x0001

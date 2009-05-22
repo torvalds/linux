@@ -62,6 +62,7 @@ struct hfcm_hw {
 	u_char	r_sci_msk;
 	u_char	r_tx0, r_tx1;
 	u_char	a_st_ctrl0[8];
+	u_char	r_bert_wd_md;
 	timer_t	timer;
 };
 

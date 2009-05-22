@@ -4013,11 +4013,41 @@ open_bchannel(struct hfc_multi *hc, struct dchannel *dch,
 static int
 channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 {
+	struct hfc_multi	*hc = dch->hw;
 	int	ret = 0;
+	int	wd_mode, wd_cnt;
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = 0;
+		cq->op = MISDN_CTRL_HFC_OP;
+		break;
+	case MISDN_CTRL_HFC_WD_INIT: /* init the watchdog */
+		wd_cnt = cq->p1 & 0xf;
+		wd_mode = !!(cq->p1 >> 4);
+		if (debug & DEBUG_HFCMULTI_MSG)
+			printk(KERN_DEBUG
+			    "%s: MISDN_CTRL_HFC_WD_INIT mode %s counter 0x%x\n",
+			    __func__, wd_mode ? "AUTO" : "MANUAL", wd_cnt);
+		/* set the watchdog timer */
+		HFC_outb(hc, R_TI_WD, poll_timer | (wd_cnt << 4));
+		hc->hw.r_bert_wd_md = (wd_mode ? V_AUTO_WD_RES : 0);
+		if (hc->ctype == HFC_TYPE_XHFC)
+			hc->hw.r_bert_wd_md |= 0x40 /* V_WD_EN */;
+		/* init the watchdog register and reset the counter */
+		HFC_outb(hc, R_BERT_WD_MD, hc->hw.r_bert_wd_md | V_WD_RES);
+		if (test_bit(HFC_CHIP_PLXSD, &hc->chip)) {
+			/* enable the watchdog output for Speech-Design */
+			HFC_outb(hc, R_GPIO_SEL, V_GPIO_SEL7);
+			HFC_outb(hc, R_GPIO_EN1, V_GPIO_EN15);
+			HFC_outb(hc, R_GPIO_OUT1, 0);
+			HFC_outb(hc, R_GPIO_OUT1, V_GPIO_OUT15);
+		}
+		break;
+	case MISDN_CTRL_HFC_WD_RESET: /* reset the watchdog counter */
+		if (debug & DEBUG_HFCMULTI_MSG)
+			printk(KERN_DEBUG "%s: MISDN_CTRL_HFC_WD_RESET\n",
+			    __func__);
+		HFC_outb(hc, R_BERT_WD_MD, hc->hw.r_bert_wd_md | V_WD_RES);
 		break;
 	default:
 		printk(KERN_WARNING "%s: unknown Op %x\n",
