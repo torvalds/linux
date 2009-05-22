@@ -27,9 +27,6 @@ static int num_counters = 2;
 static int counter_width = 32;
 
 #define CTR_OVERFLOWED(n) (!((n) & (1ULL<<(counter_width-1))))
-
-#define CTRL_READ(l, h, msrs, c) do {rdmsr((msrs->controls[(c)].addr), (l), (h)); } while (0)
-#define CTRL_WRITE(l, h, msrs, c) do {wrmsr((msrs->controls[(c)].addr), (l), (h)); } while (0)
 #define CTRL_CLEAR(x) (x &= (1<<21))
 #define CTRL_SET_EVENT(val, e) (val |= e)
 
@@ -88,9 +85,9 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 	for (i = 0 ; i < num_counters; ++i) {
 		if (unlikely(!CTRL_IS_RESERVED(msrs, i)))
 			continue;
-		CTRL_READ(low, high, msrs, i);
+		rdmsr(msrs->controls[i].addr, low, high);
 		CTRL_CLEAR(low);
-		CTRL_WRITE(low, high, msrs, i);
+		wrmsr(msrs->controls[i].addr, low, high);
 	}
 
 	/* avoid a false detection of ctr overflows in NMI handler */
@@ -107,14 +104,14 @@ static void ppro_setup_ctrs(struct op_msrs const * const msrs)
 
 			wrmsrl(msrs->counters[i].addr, -reset_value[i]);
 
-			CTRL_READ(low, high, msrs, i);
+			rdmsr(msrs->controls[i].addr, low, high);
 			CTRL_CLEAR(low);
 			CTRL_SET_ENABLE(low);
 			CTRL_SET_USR(low, counter_config[i].user);
 			CTRL_SET_KERN(low, counter_config[i].kernel);
 			CTRL_SET_UM(low, counter_config[i].unit_mask);
 			CTRL_SET_EVENT(low, counter_config[i].event);
-			CTRL_WRITE(low, high, msrs, i);
+			wrmsr(msrs->controls[i].addr, low, high);
 		} else {
 			reset_value[i] = 0;
 		}
@@ -162,9 +159,9 @@ static void ppro_start(struct op_msrs const * const msrs)
 		return;
 	for (i = 0; i < num_counters; ++i) {
 		if (reset_value[i]) {
-			CTRL_READ(low, high, msrs, i);
+			rdmsr(msrs->controls[i].addr, low, high);
 			CTRL_SET_ACTIVE(low);
-			CTRL_WRITE(low, high, msrs, i);
+			wrmsr(msrs->controls[i].addr, low, high);
 		}
 	}
 }
@@ -180,9 +177,9 @@ static void ppro_stop(struct op_msrs const * const msrs)
 	for (i = 0; i < num_counters; ++i) {
 		if (!reset_value[i])
 			continue;
-		CTRL_READ(low, high, msrs, i);
+		rdmsr(msrs->controls[i].addr, low, high);
 		CTRL_SET_INACTIVE(low);
-		CTRL_WRITE(low, high, msrs, i);
+		wrmsr(msrs->controls[i].addr, low, high);
 	}
 }
 
