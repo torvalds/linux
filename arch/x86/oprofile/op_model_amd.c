@@ -26,22 +26,14 @@
 #define NUM_COUNTERS 4
 #define NUM_CONTROLS 4
 
-#define CTR_IS_RESERVED(msrs, c) (msrs->counters[(c)].addr ? 1 : 0)
 #define CTR_READ(l, h, msrs, c) do {rdmsr(msrs->counters[(c)].addr, (l), (h)); } while (0)
 #define CTR_WRITE(l, msrs, c) do {wrmsr(msrs->counters[(c)].addr, -(unsigned int)(l), -1); } while (0)
 #define CTR_OVERFLOWED(n) (!((n) & (1U<<31)))
 
-#define CTRL_IS_RESERVED(msrs, c) (msrs->controls[(c)].addr ? 1 : 0)
 #define CTRL_READ(l, h, msrs, c) do {rdmsr(msrs->controls[(c)].addr, (l), (h)); } while (0)
 #define CTRL_WRITE(l, h, msrs, c) do {wrmsr(msrs->controls[(c)].addr, (l), (h)); } while (0)
-#define CTRL_SET_ACTIVE(n) (n |= (1<<22))
-#define CTRL_SET_INACTIVE(n) (n &= ~(1<<22))
 #define CTRL_CLEAR_LO(x) (x &= (1<<21))
 #define CTRL_CLEAR_HI(x) (x &= 0xfffffcf0)
-#define CTRL_SET_ENABLE(val) (val |= 1<<20)
-#define CTRL_SET_USR(val, u) (val |= ((u & 1) << 16))
-#define CTRL_SET_KERN(val, k) (val |= ((k & 1) << 17))
-#define CTRL_SET_UM(val, m) (val |= (m << 8))
 #define CTRL_SET_EVENT_LOW(val, e) (val |= (e & 0xff))
 #define CTRL_SET_EVENT_HIGH(val, e) (val |= ((e >> 8) & 0xf))
 #define CTRL_SET_HOST_ONLY(val, h) (val |= ((h & 1) << 9))
