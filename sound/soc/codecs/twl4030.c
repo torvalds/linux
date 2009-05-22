@@ -1997,6 +1997,8 @@ static int twl4030_resume(struct platform_device *pdev)
 static int twl4030_init(struct snd_soc_device *socdev)
 {
 	struct snd_soc_codec *codec = socdev->card->codec;
+	struct twl4030_setup_data *setup = socdev->codec_data;
+	struct twl4030_priv *twl4030 = codec->private_data;
 	int ret = 0;
 
 	printk(KERN_INFO "TWL4030 Audio Codec init \n");
@@ -2013,6 +2015,23 @@ static int twl4030_init(struct snd_soc_device *socdev)
 					GFP_KERNEL);
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
+
+	/* Configuration for headset ramp delay from setup data */
+	if (setup) {
+		unsigned char hs_pop;
+
+		if (setup->sysclk)
+			twl4030->sysclk = setup->sysclk;
+		else
+			twl4030->sysclk = 26000;
+
+		hs_pop = twl4030_read_reg_cache(codec, TWL4030_REG_HS_POPN_SET);
+		hs_pop &= ~TWL4030_RAMP_DELAY;
+		hs_pop |= (setup->ramp_delay_value << 2);
+		twl4030_write_reg_cache(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
+	} else {
+		twl4030->sysclk = 26000;
+	}
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -2063,9 +2082,6 @@ static int twl4030_probe(struct platform_device *pdev)
 		kfree(codec);
 		return -ENOMEM;
 	}
-	/* Set default sysclk (used by the headsetl/rpga_event callback for
-	 * pop-attenuation) */
-	twl4030->sysclk = 26000;
 
 	codec->private_data = twl4030;
 	socdev->card->codec = codec;
