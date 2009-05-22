@@ -663,10 +663,19 @@ l1oip_socket_thread(void *data)
 	struct iovec iov;
 	mm_segment_t oldfs;
 	struct sockaddr_in sin_rx;
-	unsigned char recvbuf[1500];
+	unsigned char *recvbuf;
+	size_t recvbuf_size = 1500;
 	int recvlen;
 	struct socket *socket = NULL;
 	DECLARE_COMPLETION(wait);
+
+	/* allocate buffer memory */
+	recvbuf = kmalloc(recvbuf_size, GFP_KERNEL);
+	if (!recvbuf) {
+		printk(KERN_ERR "%s: Failed to alloc recvbuf.\n", __func__);
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	/* make daemon */
 	allow_signal(SIGTERM);
@@ -674,7 +683,8 @@ l1oip_socket_thread(void *data)
 	/* create socket */
 	if (sock_create(PF_INET, SOCK_DGRAM, IPPROTO_UDP, &socket)) {
 		printk(KERN_ERR "%s: Failed to create socket.\n", __func__);
-		return -EIO;
+		ret = -EIO;
+		goto fail;
 	}
 
 	/* set incoming address */
@@ -730,10 +740,10 @@ l1oip_socket_thread(void *data)
 			__func__);
 	while (!signal_pending(current)) {
 		iov.iov_base = recvbuf;
-		iov.iov_len = sizeof(recvbuf);
+		iov.iov_len = recvbuf_size;
 		oldfs = get_fs();
 		set_fs(KERNEL_DS);
-		recvlen = sock_recvmsg(socket, &msg, sizeof(recvbuf), 0);
+		recvlen = sock_recvmsg(socket, &msg, recvbuf_size, 0);
 		set_fs(oldfs);
 		if (recvlen > 0) {
 			l1oip_socket_parse(hc, &sin_rx, recvbuf, recvlen);
@@ -760,6 +770,9 @@ l1oip_socket_thread(void *data)
 			__func__);
 
 fail:
+	/* free recvbuf */
+	kfree(recvbuf);
+
 	/* close socket */
 	if (socket)
 		sock_release(socket);
