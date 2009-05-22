@@ -263,6 +263,9 @@ static int camera_probe(void)
 	struct i2c_msg msg;
 	int ret;
 
+	if (!a)
+		return -ENODEV;
+
 	camera_power(1);
 	msg.addr = 0x6e;
 	msg.buf = camera_ncm03j_magic;

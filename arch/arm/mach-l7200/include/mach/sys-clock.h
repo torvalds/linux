@@ -18,7 +18,7 @@
 
 /* IO_START and IO_BASE are defined in hardware.h */
 
-#define SYS_CLOCK_START (IO_START + SYS_CLCOK_OFF)  /* Physical address */
+#define SYS_CLOCK_START (IO_START + SYS_CLOCK_OFF)  /* Physical address */
 #define SYS_CLOCK_BASE  (IO_BASE  + SYS_CLOCK_OFF)  /* Virtual address  */
 
 /* Define the interface to the SYS_CLOCK */

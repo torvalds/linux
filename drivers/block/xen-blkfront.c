@@ -932,8 +932,6 @@ static void blkfront_closing(struct xenbus_device *dev)
 
 	spin_lock_irqsave(&blkif_io_lock, flags);
 
-	del_gendisk(info->gd);
-
 	/* No more blkif_request(). */
 	blk_stop_queue(info->rq);
 
@@ -946,6 +944,8 @@ static void blkfront_closing(struct xenbus_device *dev)
 
 	blk_cleanup_queue(info->rq);
 	info->rq = NULL;
+
+	del_gendisk(info->gd);
 
  out:
 	xenbus_frontend_closed(dev);
@@ -975,8 +975,10 @@ static void backend_changed(struct xenbus_device *dev,
 		break;
 
 	case XenbusStateClosing:
-		if (info->gd == NULL)
-			xenbus_dev_fatal(dev, -ENODEV, "gd is NULL");
+		if (info->gd == NULL) {
+			xenbus_frontend_closed(dev);
+			break;
+		}
 		bd = bdget_disk(info->gd, 0);
 		if (bd == NULL)
 			xenbus_dev_fatal(dev, -ENODEV, "bdget failed");
