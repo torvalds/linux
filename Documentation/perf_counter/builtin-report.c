@@ -518,7 +518,7 @@ static size_t symhist__fprintf(struct symhist *self, FILE *fp)
 	size_t ret = fprintf(fp, "%#llx [%c] ", (unsigned long long)self->ip, self->level);
 
 	if (self->level != '.')
-		ret += fprintf(fp, "%s", self->sym->name);
+		ret += fprintf(fp, "%s", self->sym ? self->sym->name: "<unknown>");
 	else
 		ret += fprintf(fp, "%s: %s",
 			       self->dso ? self->dso->name : "<unknown",
