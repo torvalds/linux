@@ -824,6 +824,11 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 
 	BUG_ON(i >= APERTURE_MAX_RANGES || range == NULL);
 
+#ifdef CONFIG_IOMMU_STRESS
+	if (i < 4)
+		return;
+#endif
+
 	if (address >= dom->next_address)
 		dom->need_flush = true;
 
