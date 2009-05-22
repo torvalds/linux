@@ -11,6 +11,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/interrupt.h>
@@ -81,11 +82,16 @@ static struct irq_desc irq_desc_init = {
 	.lock       = __SPIN_LOCK_UNLOCKED(irq_desc_init.lock),
 };
 
-void init_kstat_irqs(struct irq_desc *desc, int node, int nr)
+void __ref init_kstat_irqs(struct irq_desc *desc, int node, int nr)
 {
 	void *ptr;
 
-	ptr = kzalloc_node(nr * sizeof(*desc->kstat_irqs), GFP_ATOMIC, node);
+	if (slab_is_available())
+		ptr = kzalloc_node(nr * sizeof(*desc->kstat_irqs),
+				   GFP_ATOMIC, node);
+	else
+		ptr = alloc_bootmem_node(NODE_DATA(node),
+				nr * sizeof(*desc->kstat_irqs));
 
 	/*
 	 * don't overwite if can not get new one
@@ -186,7 +192,7 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 	return NULL;
 }
 
-struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node)
+struct irq_desc * __ref irq_to_desc_alloc_node(unsigned int irq, int node)
 {
 	struct irq_desc *desc;
 	unsigned long flags;
@@ -208,7 +214,11 @@ struct irq_desc *irq_to_desc_alloc_node(unsigned int irq, int node)
 	if (desc)
 		goto out_unlock;
 
-	desc = kzalloc_node(sizeof(*desc), GFP_ATOMIC, node);
+	if (slab_is_available())
+		desc = kzalloc_node(sizeof(*desc), GFP_ATOMIC, node);
+	else
+		desc = alloc_bootmem_node(NODE_DATA(node), sizeof(*desc));
+
 	printk(KERN_DEBUG "  alloc irq_desc for %d on node %d\n", irq, node);
 	if (!desc) {
 		printk(KERN_ERR "can not alloc irq_desc\n");
