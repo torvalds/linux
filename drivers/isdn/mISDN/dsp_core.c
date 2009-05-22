@@ -704,6 +704,8 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 			break;
 		}
 
+		spin_lock_irqsave(&dsp_lock, flags);
+
 		/* decrypt if enabled */
 		if (dsp->bf_enable)
 			dsp_bf_decrypt(dsp, skb->data, skb->len);
@@ -741,11 +743,11 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 			}
 		}
 		/* we need to process receive data if software */
-		spin_lock_irqsave(&dsp_lock, flags);
 		if (dsp->pcm_slot_tx < 0 && dsp->pcm_slot_rx < 0) {
 			/* process data from card at cmx */
 			dsp_cmx_receive(dsp, skb);
 		}
+
 		spin_unlock_irqrestore(&dsp_lock, flags);
 
 		if (dsp->rx_disabled) {
