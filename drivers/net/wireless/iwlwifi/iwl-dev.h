@@ -814,6 +814,11 @@ enum {
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
+enum iwl_nvm_type {
+	NVM_DEVICE_TYPE_EEPROM = 0,
+	NVM_DEVICE_TYPE_OTP,
+};
+
 /* interrupt statistics */
 struct isr_statistics {
 	u32 hw;
@@ -1024,6 +1029,7 @@ struct iwl_priv {
 
 	/* eeprom */
 	u8 *eeprom;
+	int    nvm_device_type;
 	struct iwl_eeprom_calib_info *calib_info;
 
 	enum nl80211_iftype iw_mode;

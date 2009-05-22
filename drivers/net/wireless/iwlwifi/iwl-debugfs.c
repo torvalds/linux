@@ -292,7 +292,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
+static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 				       char __user *user_buf,
 				       size_t count,
 				       loff_t *ppos)
@@ -306,7 +306,7 @@ static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
 	buf_size = 4 * eeprom_len + 256;
 
 	if (eeprom_len % 16) {
-		IWL_ERR(priv, "EEPROM size is not multiple of 16.\n");
+		IWL_ERR(priv, "NVM size is not multiple of 16.\n");
 		return -ENODATA;
 	}
 
@@ -318,6 +318,13 @@ static ssize_t iwl_dbgfs_eeprom_read(struct file *file,
 	}
 
 	ptr = priv->eeprom;
+	if (!ptr) {
+		IWL_ERR(priv, "Invalid EEPROM/OTP memory\n");
+		return -ENOMEM;
+	}
+	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s\n",
+			(priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			? "OTP" : "EEPROM");
 	for (ofs = 0 ; ofs < eeprom_len ; ofs += 16) {
 		pos += scnprintf(buf + pos, buf_size - pos, "0x%.4x ", ofs);
 		hex_dump_to_buffer(ptr + ofs, 16 , 16, 2, buf + pos,
@@ -419,7 +426,6 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 				channels[i].flags &
 				IEEE80211_CHAN_PASSIVE_SCAN ?
 				"passive only" : "active/passive");
-
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;
@@ -564,7 +570,7 @@ static ssize_t iwl_dbgfs_interrupt_write(struct file *file,
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
 DEBUGFS_WRITE_FILE_OPS(log_event);
-DEBUGFS_READ_FILE_OPS(eeprom);
+DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
@@ -598,7 +604,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	DEBUGFS_ADD_DIR(data, dbgfs->dir_drv);
 	DEBUGFS_ADD_DIR(rf, dbgfs->dir_drv);
-	DEBUGFS_ADD_FILE(eeprom, data);
+	DEBUGFS_ADD_FILE(nvm, data);
 	DEBUGFS_ADD_FILE(sram, data);
 	DEBUGFS_ADD_FILE(log_event, data);
 	DEBUGFS_ADD_FILE(stations, data);
@@ -629,7 +635,7 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv)
 	if (!priv->dbgfs)
 		return;
 
-	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_eeprom);
+	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_nvm);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_rx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_tx_statistics);
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_sram);

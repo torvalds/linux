@@ -2298,8 +2298,10 @@ static ssize_t show_version(struct device *d,
 
 	if (priv->eeprom) {
 		eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
-		pos += sprintf(buf + pos, "EEPROM version: 0x%x\n",
-				 eeprom_ver);
+		pos += sprintf(buf + pos, "NVM Type: %s, version: 0x%x\n",
+			       (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+			       ? "OTP" : "EEPROM", eeprom_ver);
+
 	} else {
 		pos += sprintf(buf + pos, "EEPROM not initialzed\n");
 	}
