@@ -2105,6 +2105,15 @@ W:	http://sourceforge.net/projects/lpfcxxxx
 S:	Supported
 F:	drivers/scsi/lpfc/
 
+ENE CB710 FLASH CARD READER DRIVER
+P:	Michał Mirosław
+M:	mirq-linux@rere.qmqm.pl
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/misc/cb710/
+F:	drivers/mmc/host/cb710-mmc.*
+F:	include/linux/cb710.h
+
 EPSON 1355 FRAMEBUFFER DRIVER
 P:	Christopher Hoover
 M:	ch@murgatroid.com

@@ -241,3 +241,16 @@ config MMC_TMIO
 	help
 	  This provides support for the SD/MMC cell found in TC6393XB,
 	  T7L66XB and also ipaq ASIC3
+
+config MMC_CB710
+	tristate "ENE CB710 MMC/SD Interface support"
+	depends on PCI
+	select CB710_CORE
+	help
+	  This option enables support for MMC/SD part of ENE CB710/720 Flash
+	  memory card reader found in some laptops (ie. some versions of
+	  HP Compaq nx9500).
+
+	  This driver can also be built as a module. If so, the module
+	  will be called cb710-mmc.
+
