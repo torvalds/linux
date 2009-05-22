@@ -153,7 +153,7 @@ static void __cpa_flush_all(void *arg)
 	 */
 	__flush_tlb_all();
 
-	if (cache && boot_cpu_data.x86_model >= 4)
+	if (cache && boot_cpu_data.x86 >= 4)
 		wbinvd();
 }
 
@@ -218,7 +218,7 @@ static void cpa_flush_array(unsigned long *start, int numpages, int cache,
 
 	/* 4M threshold */
 	if (numpages >= 1024) {
-		if (boot_cpu_data.x86_model >= 4)
+		if (boot_cpu_data.x86 >= 4)
 			wbinvd();
 		return;
 	}
