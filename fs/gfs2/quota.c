@@ -60,7 +60,6 @@
 #include "super.h"
 #include "trans.h"
 #include "inode.h"
-#include "ops_address.h"
 #include "util.h"
 
 #define QUOTA_USER 1

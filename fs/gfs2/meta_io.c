@@ -31,7 +31,6 @@
 #include "rgrp.h"
 #include "trans.h"
 #include "util.h"
-#include "ops_address.h"
 
 static int gfs2_aspace_writepage(struct page *page, struct writeback_control *wbc)
 {

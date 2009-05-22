@@ -25,7 +25,6 @@
 #include "trans.h"
 #include "dir.h"
 #include "util.h"
-#include "ops_address.h"
 
 /* This doesn't need to be that large as max 64 bit pointers in a 4k
  * block is 512, so __u16 is fine for that. It saves stack space to

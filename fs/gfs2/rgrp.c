@@ -29,7 +29,6 @@
 #include "util.h"
 #include "log.h"
 #include "inode.h"
-#include "ops_address.h"
 
 #define BFITNOENT ((u32)~0)
 #define NO_BLOCK ((u64)~0)

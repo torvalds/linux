@@ -30,7 +30,6 @@
 #include "inode.h"
 #include "log.h"
 #include "meta_io.h"
-#include "ops_address.h"
 #include "quota.h"
 #include "rgrp.h"
 #include "trans.h"
