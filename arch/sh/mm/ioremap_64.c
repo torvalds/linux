@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
+#include <linux/slab.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/addrspace.h>
@@ -175,7 +176,7 @@ static __init_refok void *sh64_get_page(void)
 {
 	void *page;
 
-	if (after_bootmem)
+	if (slab_is_available())
 		page = (void *)get_zeroed_page(GFP_KERNEL);
 	else
 		page = alloc_bootmem_pages(PAGE_SIZE);
