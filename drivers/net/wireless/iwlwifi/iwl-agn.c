@@ -831,6 +831,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 	unsigned long flags;
 	u8 fill_rx = 0;
 	u32 count = 8;
+	int total_empty;
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
@@ -841,7 +842,12 @@ void iwl_rx_handle(struct iwl_priv *priv)
 	if (i == r)
 		IWL_DEBUG_RX(priv, "r = %d, i = %d\n", r, i);
 
-	if (iwl_rx_queue_space(rxq) > (RX_QUEUE_SIZE / 2))
+	/* calculate total frames need to be restock after handling RX */
+	total_empty = r - priv->rxq.write_actual;
+	if (total_empty < 0)
+		total_empty += RX_QUEUE_SIZE;
+
+	if (total_empty > (RX_QUEUE_SIZE / 2))
 		fill_rx = 1;
 
 	while (i != r) {
@@ -918,7 +924,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 			count++;
 			if (count >= 8) {
 				priv->rxq.read = i;
-				iwl_rx_queue_restock(priv);
+				iwl_rx_replenish_now(priv);
 				count = 0;
 			}
 		}
@@ -926,7 +932,10 @@ void iwl_rx_handle(struct iwl_priv *priv)
 
 	/* Backtrack one entry */
 	priv->rxq.read = i;
-	iwl_rx_queue_restock(priv);
+	if (fill_rx)
+		iwl_rx_replenish_now(priv);
+	else
+		iwl_rx_queue_restock(priv);
 }
 
 /* call this function to flush any scheduled tasklet */
