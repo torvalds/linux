@@ -100,6 +100,7 @@
 #define CSR_DRAM_INT_TBL_REG	(CSR_BASE+0x0A0)
 #define CSR_GIO_CHICKEN_BITS    (CSR_BASE+0x100)
 
+#define CSR_INT_PERIODIC_REG	(CSR_BASE+0x005)
 /* Analog phase-lock-loop configuration  */
 #define CSR_ANA_PLL_CFG         (CSR_BASE+0x20c)
 /*
@@ -129,12 +130,14 @@
 #define CSR_HW_IF_CONFIG_REG_BIT_ME_OWN			(0x02000000)
 #define CSR_HW_IF_CONFIG_REG_BIT_WAKE_ME		(0x08000000)
 
+#define CSR_INT_PERIODIC_DIS			(0x00)
+#define CSR_INT_PERIODIC_ENA			(0xFF)
 
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
  * acknowledged (reset) by host writing "1" to flagged bits. */
 #define CSR_INT_BIT_FH_RX        (1 << 31) /* Rx DMA, cmd responses, FH_INT[17:16] */
 #define CSR_INT_BIT_HW_ERR       (1 << 29) /* DMA hardware error FH_INT[31] */
-#define CSR_INT_BIT_DNLD         (1 << 28) /* uCode Download */
+#define CSR_INT_BIT_RX_PERIODIC	 (1 << 28) /* Rx periodic */
 #define CSR_INT_BIT_FH_TX        (1 << 27) /* Tx DMA FH_INT[1:0] */
 #define CSR_INT_BIT_SCD          (1 << 26) /* TXQ pointer advanced */
 #define CSR_INT_BIT_SW_ERR       (1 << 25) /* uCode error */

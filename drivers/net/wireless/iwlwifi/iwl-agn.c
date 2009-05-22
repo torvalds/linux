@@ -1107,9 +1107,9 @@ static void iwl_irq_tasklet_legacy(struct iwl_priv *priv)
 		priv->isr_stats.unhandled++;
 	}
 
-	if (inta & ~CSR_INI_SET_MASK) {
+	if (inta & ~(priv->inta_mask)) {
 		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
-			 inta & ~CSR_INI_SET_MASK);
+			 inta & ~priv->inta_mask);
 		IWL_WARN(priv, "   with FH_INT = 0x%08x\n", inta_fh);
 	}
 
@@ -1260,12 +1260,37 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	/* All uCode command responses, including Tx command responses,
 	 * Rx "responses" (frame-received notification), and other
 	 * notifications from uCode come through here*/
-	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
+	if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX |
+			CSR_INT_BIT_RX_PERIODIC)) {
 		IWL_DEBUG_ISR(priv, "Rx interrupt\n");
-		iwl_write32(priv, CSR_FH_INT_STATUS, CSR49_FH_INT_RX_MASK);
+		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX)) {
+			handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
+			iwl_write32(priv, CSR_FH_INT_STATUS,
+					CSR49_FH_INT_RX_MASK);
+		}
+		if (inta & CSR_INT_BIT_RX_PERIODIC) {
+			handled |= CSR_INT_BIT_RX_PERIODIC;
+			iwl_write32(priv, CSR_INT, CSR_INT_BIT_RX_PERIODIC);
+		}
+		/* Sending RX interrupt require many steps to be done in the
+		 * the device:
+		 * 1- write interrupt to current index in ICT table.
+		 * 2- dma RX frame.
+		 * 3- update RX shared data to indicate last write index.
+		 * 4- send interrupt.
+		 * This could lead to RX race, driver could receive RX interrupt
+		 * but the shared data changes does not reflect this.
+		 * this could lead to RX race, RX periodic will solve this race
+		 */
+		iwl_write32(priv, CSR_INT_PERIODIC_REG,
+			    CSR_INT_PERIODIC_DIS);
 		iwl_rx_handle(priv);
+		/* Only set RX periodic if real RX is received. */
+		if (inta & (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX))
+			iwl_write32(priv, CSR_INT_PERIODIC_REG,
+				    CSR_INT_PERIODIC_ENA);
+
 		priv->isr_stats.rx++;
-		handled |= (CSR_INT_BIT_FH_RX | CSR_INT_BIT_SW_RX);
 	}
 
 	if (inta & CSR_INT_BIT_FH_TX) {
@@ -1283,9 +1308,9 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		priv->isr_stats.unhandled++;
 	}
 
-	if (inta & ~CSR_INI_SET_MASK) {
+	if (inta & ~(priv->inta_mask)) {
 		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
-			 inta & ~CSR_INI_SET_MASK);
+			 inta & ~priv->inta_mask);
 	}
 
 
@@ -2808,6 +2833,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
 	priv->pci_dev = pdev;
+	priv->inta_mask = CSR_INI_SET_MASK;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	priv->debug_level = priv->cfg->mod_params->debug;

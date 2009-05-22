@@ -1058,6 +1058,7 @@ struct iwl_priv {
 	u32 inta;
 	bool use_ict;
 
+	u32 inta_mask;
 	/* Current association information needed to configure the
 	 * hardware */
 	u16 assoc_id;

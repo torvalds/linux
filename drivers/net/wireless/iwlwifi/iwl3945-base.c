@@ -1944,9 +1944,9 @@ static void iwl3945_irq_tasklet(struct iwl_priv *priv)
 		priv->isr_stats.unhandled++;
 	}
 
-	if (inta & ~CSR_INI_SET_MASK) {
+	if (inta & ~priv->inta_mask) {
 		IWL_WARN(priv, "Disabled INTA bits 0x%08x were pending\n",
-			 inta & ~CSR_INI_SET_MASK);
+			 inta & ~priv->inta_mask);
 		IWL_WARN(priv, "   with FH_INT = 0x%08x\n", inta_fh);
 	}
 
@@ -4184,6 +4184,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
 	priv->pci_dev = pdev;
+	priv->inta_mask = CSR_INI_SET_MASK;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	priv->debug_level = iwl3945_mod_params.debug;
