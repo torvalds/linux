@@ -203,13 +203,13 @@ dsp_rx_off_member(struct dsp *dsp)
 	else if (dsp->dtmf.software)
 		rx_off = 0;
 	/* echo in software */
-	else if (dsp->echo && dsp->pcm_slot_tx < 0)
+	else if (dsp->echo.software)
 		rx_off = 0;
 	/* bridge in software */
-	else if (dsp->conf) {
-		if (dsp->conf->software)
-			rx_off = 0;
-	}
+	else if (dsp->conf && dsp->conf->software)
+		rx_off = 0;
+	/* data is not required by user space and not required
+	 * for echo dtmf detection, soft-echo, soft-bridging */
 
 	if (rx_off == dsp->rx_is_off)
 		return;
@@ -415,7 +415,7 @@ tone_off:
 		dsp_rx_off(dsp);
 		break;
 	case DSP_ECHO_ON: /* enable echo */
-		dsp->echo = 1; /* soft echo */
+		dsp->echo.software = 1; /* soft echo */
 		if (dsp_debug & DEBUG_DSP_CORE)
 			printk(KERN_DEBUG "%s: enable cmx-echo\n", __func__);
 		dsp_cmx_hardware(dsp->conf, dsp);
@@ -424,7 +424,8 @@ tone_off:
 			dsp_cmx_debug(dsp);
 		break;
 	case DSP_ECHO_OFF: /* disable echo */
-		dsp->echo = 0;
+		dsp->echo.software = 0;
+		dsp->echo.hardware = 0;
 		if (dsp_debug & DEBUG_DSP_CORE)
 			printk(KERN_DEBUG "%s: disable cmx-echo\n", __func__);
 		dsp_cmx_hardware(dsp->conf, dsp);
@@ -722,7 +723,7 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 				skb->len, (dsp_options&DSP_OPT_ULAW)?1:0);
 		}
 		/* we need to process receive data if software */
-		if (dsp->pcm_slot_tx < 0 && dsp->pcm_slot_rx < 0) {
+		if (dsp->conf && dsp->conf->software) {
 			/* process data from card at cmx */
 			dsp_cmx_receive(dsp, skb);
 		}
