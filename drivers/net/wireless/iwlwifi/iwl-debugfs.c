@@ -172,7 +172,6 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
 	const size_t bufsz = sizeof(buf);
 
-	iwl_grab_nic_access(priv);
 	for (i = priv->dbgfs->sram_len; i > 0; i -= 4) {
 		val = iwl_read_targ_mem(priv, priv->dbgfs->sram_offset + \
 					priv->dbgfs->sram_len - i);
@@ -192,7 +191,6 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		pos += scnprintf(buf + pos, bufsz - pos, "0x%08x ", val);
 	}
 	pos += scnprintf(buf + pos, bufsz - pos, "\n");
-	iwl_release_nic_access(priv);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	return ret;

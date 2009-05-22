@@ -896,6 +896,7 @@ struct iwl_priv {
 	/* spinlock */
 	spinlock_t lock;	/* protect general shared data */
 	spinlock_t hcmd_lock;	/* protect hcmd */
+	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
 	/* basic pci-network driver stuff */

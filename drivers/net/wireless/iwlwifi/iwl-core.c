@@ -1588,10 +1588,6 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 
 	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < len; i += 100, image += 100/sizeof(u32)) {
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
@@ -1606,8 +1602,6 @@ static int iwlcore_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 
 				break;
 		}
 	}
-
-	iwl_release_nic_access(priv);
 
 	return ret;
 }
@@ -1625,10 +1619,6 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 	u32 errcnt;
 
 	IWL_DEBUG_INFO(priv, "ucode inst image size is %u\n", len);
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
 
 	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			   IWL49_RTC_INST_LOWER_BOUND);
@@ -1649,8 +1639,6 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 *image,
 				break;
 		}
 	}
-
-	iwl_release_nic_access(priv);
 
 	if (!errcnt)
 		IWL_DEBUG_INFO(priv,
@@ -1760,7 +1748,6 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	u32 data2, line;
 	u32 desc, time, count, base, data1;
 	u32 blink1, blink2, ilink1, ilink2;
-	int ret;
 
 	if (priv->ucode_type == UCODE_INIT)
 		base = le32_to_cpu(priv->card_alive_init.error_event_table_ptr);
@@ -1769,12 +1756,6 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 
 	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv, "Not valid error log pointer 0x%08X\n", base);
-		return;
-	}
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		IWL_WARN(priv, "Can not read from adapter at this time.\n");
 		return;
 	}
 
@@ -1804,7 +1785,6 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X\n", blink1, blink2,
 		ilink1, ilink2);
 
-	iwl_release_nic_access(priv);
 }
 EXPORT_SYMBOL(iwl_dump_nic_error_log);
 
@@ -1813,7 +1793,6 @@ EXPORT_SYMBOL(iwl_dump_nic_error_log);
 /**
  * iwl_print_event_log - Dump error event log to syslog
  *
- * NOTE: Must be called with iwl_grab_nic_access() already obtained!
  */
 static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 				u32 num_events, u32 mode)
@@ -1859,7 +1838,6 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 
 void iwl_dump_nic_event_log(struct iwl_priv *priv)
 {
-	int ret;
 	u32 base;       /* SRAM byte address of event log header */
 	u32 capacity;   /* event log capacity in # entries */
 	u32 mode;       /* 0 - no timestamp, 1 - timestamp recorded */
@@ -1877,12 +1855,6 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 		return;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		IWL_WARN(priv, "Can not read from adapter at this time.\n");
-		return;
-	}
-
 	/* event log header */
 	capacity = iwl_read_targ_mem(priv, base);
 	mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
@@ -1894,7 +1866,6 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	/* bail out if nothing in log */
 	if (size == 0) {
 		IWL_ERR(priv, "Start IWL Event Log Dump: nothing in log\n");
-		iwl_release_nic_access(priv);
 		return;
 	}
 
@@ -1909,7 +1880,6 @@ void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	/* (then/else) start at top of log */
 	iwl_print_event_log(priv, 0, next_entry, mode);
 
-	iwl_release_nic_access(priv);
 }
 EXPORT_SYMBOL(iwl_dump_nic_event_log);
 
@@ -2016,11 +1986,11 @@ int iwl_radio_kill_sw_enable_radio(struct iwl_priv *priv)
 	/* wake up ucode */
 	msleep(10);
 
-	spin_lock_irqsave(&priv->lock, flags);
 	iwl_read32(priv, CSR_UCODE_DRV_GP1);
+	spin_lock_irqsave(&priv->reg_lock, flags);
 	if (!iwl_grab_nic_access(priv))
 		iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->reg_lock, flags);
 
 	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
 		IWL_DEBUG_RF_KILL(priv, "Can not turn radio back on - "

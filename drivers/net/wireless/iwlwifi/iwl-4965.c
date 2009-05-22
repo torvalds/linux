@@ -163,10 +163,6 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	inst_len = priv->ucode_init.len;
 	data_len = priv->ucode_init_data.len;
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
-
 	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
 	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
@@ -179,10 +175,8 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 		_iwl_write_prph(priv, reg_offset, le32_to_cpu(*image));
 
 	ret = iwl4965_verify_bsm(priv);
-	if (ret) {
-		iwl_release_nic_access(priv);
+	if (ret)
 		return ret;
-	}
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
@@ -211,7 +205,6 @@ static int iwl4965_load_bsm(struct iwl_priv *priv)
 	 *   (e.g. when powering back up after power-save shutdown) */
 	iwl_write_prph(priv, BSM_WR_CTRL_REG, BSM_WR_CTRL_REG_BIT_START_EN);
 
-	iwl_release_nic_access(priv);
 
 	return 0;
 }
@@ -229,19 +222,11 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 {
 	dma_addr_t pinst;
 	dma_addr_t pdata;
-	unsigned long flags;
 	int ret = 0;
 
 	/* bits 35:4 for 4965 */
 	pinst = priv->ucode_code.p_addr >> 4;
 	pdata = priv->ucode_data_backup.p_addr >> 4;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Tell bootstrap uCode where to find image to load */
 	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
@@ -253,10 +238,6 @@ static int iwl4965_set_ucode_ptrs(struct iwl_priv *priv)
 	 *   that all new ptr/size info is in place */
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
-	iwl_release_nic_access(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	IWL_DEBUG_INFO(priv, "Runtime uCode pointers are set.\n");
 
 	return ret;
@@ -358,10 +339,6 @@ static int iwl4965_apm_init(struct iwl_priv *priv)
 		goto out;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
-
 	/* enable DMA */
 	iwl_write_prph(priv, APMG_CLK_CTRL_REG, APMG_CLK_VAL_DMA_CLK_RQT |
 						APMG_CLK_VAL_BSM_CLK_RQT);
@@ -372,7 +349,6 @@ static int iwl4965_apm_init(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwl_release_nic_access(priv);
 out:
 	return ret;
 }
@@ -454,11 +430,9 @@ static void iwl4965_apm_stop(struct iwl_priv *priv)
 static int iwl4965_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	iwl4965_apm_stop_master(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
@@ -475,9 +449,6 @@ static int iwl4965_apm_reset(struct iwl_priv *priv)
 
 	udelay(10);
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
 	/* Enable DMA and BSM Clock */
 	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT |
 					      APMG_CLK_VAL_BSM_CLK_RQT);
@@ -488,14 +459,10 @@ static int iwl4965_apm_reset(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwl_release_nic_access(priv);
-
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
 
 out:
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return ret;
 }
 
@@ -681,17 +648,10 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
 	unsigned long flags;
-	int ret;
 	int i, chan;
 	u32 reg_val;
 
 	spin_lock_irqsave(&priv->lock, flags);
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Clear 4965's internal Tx Scheduler data base */
 	priv->scd_base_addr = iwl_read_prph(priv, IWL49_SCD_SRAM_BASE_ADDR);
@@ -759,10 +719,9 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 		iwl4965_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
 
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static struct iwl_sensitivity_ranges iwl4965_sensitivity = {
@@ -1840,8 +1799,6 @@ static void iwl4965_tx_queue_stop_scheduler(struct iwl_priv *priv,
 static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
-	int ret = 0;
-
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES <= txq_id)) {
 		IWL_WARN(priv,
@@ -1850,10 +1807,6 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			IWL49_FIRST_AMPDU_QUEUE + IWL49_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
 	}
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
 
 	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
 
@@ -1867,8 +1820,6 @@ static int iwl4965_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	iwl_clear_bits_prph(priv, IWL49_SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(priv, txq_id);
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
-
-	iwl_release_nic_access(priv);
 
 	return 0;
 }
@@ -1911,7 +1862,6 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 				  int tx_fifo, int sta_id, int tid, u16 ssn_idx)
 {
 	unsigned long flags;
-	int ret;
 	u16 ra_tid;
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
@@ -1929,11 +1879,6 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Stop this Tx queue before configuring it */
 	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
@@ -1966,7 +1911,6 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
 
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;

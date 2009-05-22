@@ -124,10 +124,6 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 		return ret;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
-
 	/* enable DMA */
 	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 
@@ -136,8 +132,6 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	/* disable L1-Active */
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
-
-	iwl_release_nic_access(priv);
 
 	return ret;
 }
@@ -165,11 +159,8 @@ static void iwl5000_apm_stop(struct iwl_priv *priv)
 static int iwl5000_apm_reset(struct iwl_priv *priv)
 {
 	int ret = 0;
-	unsigned long flags;
 
 	iwl5000_apm_stop_master(priv);
-
-	spin_lock_irqsave(&priv->lock, flags);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 
@@ -193,10 +184,6 @@ static int iwl5000_apm_reset(struct iwl_priv *priv)
 		goto out;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
-
 	/* enable DMA */
 	iwl_write_prph(priv, APMG_CLK_EN_REG, APMG_CLK_VAL_DMA_CLK_RQT);
 
@@ -205,11 +192,7 @@ static int iwl5000_apm_reset(struct iwl_priv *priv)
 	/* disable L1-Active */
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
-
-	iwl_release_nic_access(priv);
-
 out:
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ret;
 }
@@ -252,11 +235,9 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 	 * (PCIe power is lost before PERST# is asserted),
 	 * causing ME FW to lose ownership and not being able to obtain it back.
 	 */
-	iwl_grab_nic_access(priv);
 	iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
 				~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
-	iwl_release_nic_access(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -537,18 +518,8 @@ static int iwl5000_load_section(struct iwl_priv *priv,
 				struct fw_desc *image,
 				u32 dst_addr)
 {
-	int ret = 0;
-	unsigned long flags;
-
 	dma_addr_t phy_addr = image->p_addr;
 	u32 byte_cnt = image->len;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	iwl_write_direct32(priv,
 		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
@@ -578,8 +549,6 @@ static int iwl5000_load_section(struct iwl_priv *priv,
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 	return 0;
 }
 
@@ -740,17 +709,10 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
 	unsigned long flags;
-	int ret;
 	int i, chan;
 	u32 reg_val;
 
 	spin_lock_irqsave(&priv->lock, flags);
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	priv->scd_base_addr = iwl_read_prph(priv, IWL50_SCD_SRAM_BASE_ADDR);
 	a = priv->scd_base_addr + IWL50_SCD_CONTEXT_DATA_OFFSET;
@@ -819,7 +781,6 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 	iwl_txq_ctx_activate(priv, 8);
 	iwl_txq_ctx_activate(priv, 9);
 
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 
@@ -1000,7 +961,6 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 				  int tx_fifo, int sta_id, int tid, u16 ssn_idx)
 {
 	unsigned long flags;
-	int ret;
 	u16 ra_tid;
 
 	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
@@ -1018,11 +978,6 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Stop this Tx queue before configuring it */
 	iwl5000_tx_queue_stop_scheduler(priv, txq_id);
@@ -1058,7 +1013,6 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwl5000_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
 
-	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -1067,8 +1021,6 @@ static int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 				   u16 ssn_idx, u8 tx_fifo)
 {
-	int ret;
-
 	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES <= txq_id)) {
 		IWL_ERR(priv,
@@ -1077,10 +1029,6 @@ static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			IWL50_FIRST_AMPDU_QUEUE + IWL50_NUM_AMPDU_QUEUES - 1);
 		return -EINVAL;
 	}
-
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		return ret;
 
 	iwl5000_tx_queue_stop_scheduler(priv, txq_id);
 
@@ -1094,8 +1042,6 @@ static int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	iwl_clear_bits_prph(priv, IWL50_SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(priv, txq_id);
 	iwl5000_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
-
-	iwl_release_nic_access(priv);
 
 	return 0;
 }

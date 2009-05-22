@@ -98,7 +98,6 @@ const struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT_3945] = {
  *   ... and set IWL_EVT_DISABLE to 1. */
 void iwl3945_disable_events(struct iwl_priv *priv)
 {
-	int ret;
 	int i;
 	u32 base;		/* SRAM address of event log header */
 	u32 disable_ptr;	/* SRAM address of event-disable bitmap array */
@@ -159,26 +158,17 @@ void iwl3945_disable_events(struct iwl_priv *priv)
 		return;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		IWL_WARN(priv, "Can not read from adapter at this time.\n");
-		return;
-	}
-
 	disable_ptr = iwl_read_targ_mem(priv, base + (4 * sizeof(u32)));
 	array_size = iwl_read_targ_mem(priv, base + (5 * sizeof(u32)));
-	iwl_release_nic_access(priv);
 
 	if (IWL_EVT_DISABLE && (array_size == IWL_EVT_DISABLE_SIZE)) {
 		IWL_DEBUG_INFO(priv, "Disabling selected uCode log events at 0x%x\n",
 			       disable_ptr);
-		ret = iwl_grab_nic_access(priv);
 		for (i = 0; i < IWL_EVT_DISABLE_SIZE; i++)
 			iwl_write_targ_mem(priv,
 					   disable_ptr + (i * sizeof(u32)),
 					   evt_disable[i]);
 
-		iwl_release_nic_access(priv);
 	} else {
 		IWL_DEBUG_INFO(priv, "Selected uCode log events may be disabled\n");
 		IWL_DEBUG_INFO(priv, "  by writing \"1\"s into disable bitmap\n");
@@ -908,55 +898,30 @@ u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 
 static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 {
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
-
 	if (src == IWL_PWR_SRC_VAUX) {
 		if (pci_pme_capable(priv->pci_dev, PCI_D3cold)) {
 			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 					APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
 					~APMG_PS_CTRL_MSK_PWR_SRC);
-			iwl_release_nic_access(priv);
 
 			iwl_poll_bit(priv, CSR_GPIO_IN,
 				     CSR_GPIO_IN_VAL_VAUX_PWR_SRC,
 				     CSR_GPIO_IN_BIT_AUX_POWER, 5000);
-		} else {
-			iwl_release_nic_access(priv);
 		}
 	} else {
 		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
 				~APMG_PS_CTRL_MSK_PWR_SRC);
 
-		iwl_release_nic_access(priv);
 		iwl_poll_bit(priv, CSR_GPIO_IN, CSR_GPIO_IN_VAL_VMAIN_PWR_SRC,
 			     CSR_GPIO_IN_BIT_AUX_POWER, 5000);	/* uS */
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
-	int rc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
-
 	iwl_write_direct32(priv, FH39_RCSR_RBD_BASE(0), rxq->dma_addr);
 	iwl_write_direct32(priv, FH39_RCSR_RPTR_ADDR(0), rxq->rb_stts_dma);
 	iwl_write_direct32(priv, FH39_RCSR_WPTR(0), 0);
@@ -973,23 +938,11 @@ static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	/* fake read to flush all prev I/O */
 	iwl_read_direct32(priv, FH39_RSSR_CTRL);
 
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return 0;
 }
 
 static int iwl3945_tx_reset(struct iwl_priv *priv)
 {
-	int rc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 
 	/* bypass mode */
 	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0x2);
@@ -1017,8 +970,6 @@ static int iwl3945_tx_reset(struct iwl_priv *priv)
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_ORDER_RSP_WAIT_TH |
 		FH39_TSSR_TX_MSG_CONFIG_REG_VAL_RSP_WAIT_TH);
 
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -1061,7 +1012,7 @@ static int iwl3945_txq_ctx_reset(struct iwl_priv *priv)
 
 static int iwl3945_apm_init(struct iwl_priv *priv)
 {
-	int ret = 0;
+	int ret;
 
 	iwl_power_initialize(priv);
 
@@ -1083,10 +1034,6 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 		goto out;
 	}
 
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto out;
-
 	/* enable DMA */
 	iwl_write_prph(priv, APMG_CLK_CTRL_REG, APMG_CLK_VAL_DMA_CLK_RQT |
 						APMG_CLK_VAL_BSM_CLK_RQT);
@@ -1097,7 +1044,6 @@ static int iwl3945_apm_init(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwl_release_nic_access(priv);
 out:
 	return ret;
 }
@@ -1196,22 +1142,13 @@ int iwl3945_hw_nic_init(struct iwl_priv *priv)
 
 	iwl3945_rx_init(priv, rxq);
 
-	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Look at using this instead:
 	rxq->need_update = 1;
 	iwl_rx_queue_update_write_ptr(priv, rxq);
 	*/
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 	iwl_write_direct32(priv, FH39_RCSR_WPTR(0), rxq->write & ~7);
-	iwl_release_nic_access(priv);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	rc = iwl3945_txq_ctx_reset(priv);
 	if (rc)
@@ -1243,14 +1180,6 @@ void iwl3945_hw_txq_ctx_free(struct iwl_priv *priv)
 void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 {
 	int txq_id;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	if (iwl_grab_nic_access(priv)) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		iwl3945_hw_txq_ctx_free(priv);
-		return;
-	}
 
 	/* stop SCD */
 	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0);
@@ -1262,9 +1191,6 @@ void iwl3945_hw_txq_ctx_stop(struct iwl_priv *priv)
 				FH39_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(txq_id),
 				1000);
 	}
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl3945_hw_txq_ctx_free(priv);
 }
@@ -1310,12 +1236,8 @@ static void iwl3945_apm_stop(struct iwl_priv *priv)
 
 static int iwl3945_apm_reset(struct iwl_priv *priv)
 {
-	int rc;
-	unsigned long flags;
-
 	iwl3945_apm_stop_master(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
 
 	iwl_set_bit(priv, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
 	udelay(10);
@@ -1325,36 +1247,31 @@ static int iwl3945_apm_reset(struct iwl_priv *priv)
 	iwl_poll_direct_bit(priv, CSR_GP_CNTRL,
 			 CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY, 25000);
 
-	rc = iwl_grab_nic_access(priv);
-	if (!rc) {
-		iwl_write_prph(priv, APMG_CLK_CTRL_REG,
-					 APMG_CLK_VAL_BSM_CLK_RQT);
+	iwl_write_prph(priv, APMG_CLK_CTRL_REG,
+				APMG_CLK_VAL_BSM_CLK_RQT);
 
-		iwl_write_prph(priv, APMG_RTC_INT_MSK_REG, 0x0);
-		iwl_write_prph(priv, APMG_RTC_INT_STT_REG,
+	iwl_write_prph(priv, APMG_RTC_INT_MSK_REG, 0x0);
+	iwl_write_prph(priv, APMG_RTC_INT_STT_REG,
 					0xFFFFFFFF);
 
-		/* enable DMA */
-		iwl_write_prph(priv, APMG_CLK_EN_REG,
-					 APMG_CLK_VAL_DMA_CLK_RQT |
-					 APMG_CLK_VAL_BSM_CLK_RQT);
-		udelay(10);
+	/* enable DMA */
+	iwl_write_prph(priv, APMG_CLK_EN_REG,
+				APMG_CLK_VAL_DMA_CLK_RQT |
+				APMG_CLK_VAL_BSM_CLK_RQT);
+	udelay(10);
 
-		iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
+	iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_RESET_REQ);
-		udelay(5);
-		iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
+	udelay(5);
+	iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_RESET_REQ);
-		iwl_release_nic_access(priv);
-	}
 
 	/* Clear the 'host command active' bit... */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
 	wake_up_interruptible(&priv->wait_command_queue);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return rc;
+	return 0;
 }
 
 /**
@@ -2500,14 +2417,6 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 int iwl3945_hw_rxq_stop(struct iwl_priv *priv)
 {
 	int rc;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 
 	iwl_write_direct32(priv, FH39_RCSR_CONFIG(0), 0);
 	rc = iwl_poll_direct_bit(priv, FH39_RSSR_STATUS,
@@ -2515,28 +2424,17 @@ int iwl3945_hw_rxq_stop(struct iwl_priv *priv)
 	if (rc < 0)
 		IWL_ERR(priv, "Can't stop Rx DMA.\n");
 
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
 	return 0;
 }
 
 int iwl3945_hw_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
-	int rc;
-	unsigned long flags;
 	int txq_id = txq->q.id;
 
 	struct iwl3945_shared *shared_data = priv->shared_virt;
 
 	shared_data->tx_base_ptr[txq_id] = cpu_to_le32((u32)txq->q.dma_addr);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_nic_access(priv);
-	if (rc) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
-	}
 	iwl_write_direct32(priv, FH39_CBCC_CTRL(txq_id), 0);
 	iwl_write_direct32(priv, FH39_CBCC_BASE(txq_id), 0);
 
@@ -2546,11 +2444,9 @@ int iwl3945_hw_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		FH39_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_IFTFD |
 		FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL |
 		FH39_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE);
-	iwl_release_nic_access(priv);
 
 	/* fake read to flush all prev. writes */
 	iwl_read32(priv, FH39_TSSR_CBB_BASE);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -2858,10 +2754,6 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	inst_len = priv->ucode_init.len;
 	data_len = priv->ucode_init_data.len;
 
-	rc = iwl_grab_nic_access(priv);
-	if (rc)
-		return rc;
-
 	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
 	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
@@ -2875,10 +2767,8 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 					  le32_to_cpu(*image));
 
 	rc = iwl3945_verify_bsm(priv);
-	if (rc) {
-		iwl_release_nic_access(priv);
+	if (rc)
 		return rc;
-	}
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
 	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
@@ -2909,8 +2799,6 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	 *   (e.g. when powering back up after power-save shutdown) */
 	iwl_write_prph(priv, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START_EN);
-
-	iwl_release_nic_access(priv);
 
 	return 0;
 }

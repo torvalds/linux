@@ -145,13 +145,7 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 			goto exit_unlock;
 		}
 
-		ret = iwl_grab_nic_access(priv);
-		if (ret)
-			goto exit_unlock;
-
-		/* Device expects a multiple of 8 */
 		iwl_write_direct32(priv, rx_wrt_ptr_reg, q->write & ~0x7);
-		iwl_release_nic_access(priv);
 
 	/* Else device is assumed to be awake */
 	} else {
@@ -403,18 +397,9 @@ EXPORT_SYMBOL(iwl_rx_queue_reset);
 
 int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
-	int ret;
-	unsigned long flags;
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 	const u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT why this stalls RX */
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	if (priv->cfg->mod_params->amsdu_size_8K)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
@@ -452,34 +437,18 @@ int iwl_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
 			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
 
-	iwl_release_nic_access(priv);
-
 	iwl_write32(priv, CSR_INT_COALESCING, 0x40);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
 
 int iwl_rxq_stop(struct iwl_priv *priv)
 {
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (unlikely(ret)) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* stop Rx DMA */
 	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 	iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
 			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }

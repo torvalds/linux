@@ -240,14 +240,12 @@ static int iwl_init_otp_access(struct iwl_priv *priv)
 	if (ret < 0)
 		IWL_ERR(priv, "Time out access OTP\n");
 	else {
-		ret = iwl_grab_nic_access(priv);
 		if (!ret) {
 			iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
 					  APMG_PS_CTRL_VAL_RESET_REQ);
 			udelay(5);
 			iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 					    APMG_PS_CTRL_VAL_RESET_REQ);
-			iwl_release_nic_access(priv);
 		}
 	}
 	return ret;

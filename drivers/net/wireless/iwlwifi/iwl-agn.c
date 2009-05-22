@@ -503,23 +503,11 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 			 struct iwl_tx_queue *txq)
 {
-	int ret;
-	unsigned long flags;
 	int txq_id = txq->q.id;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret) {
-		spin_unlock_irqrestore(&priv->lock, flags);
-		return ret;
-	}
 
 	/* Circular buffer (TFD queue in DRAM) physical base address */
 	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
 			     txq->q.dma_addr >> 8);
-
-	iwl_release_nic_access(priv);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -709,6 +697,7 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	u32 flags = le32_to_cpu(pkt->u.card_state_notif.flags);
 	unsigned long status = priv->status;
+	unsigned long reg_flags;
 
 	IWL_DEBUG_RF_KILL(priv, "Card state received: HW:%s SW:%s\n",
 			  (flags & HW_CARD_DISABLED) ? "Kill" : "On",
@@ -720,32 +709,25 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 		iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		if (!iwl_grab_nic_access(priv)) {
-			iwl_write_direct32(
-				priv, HBUS_TARG_MBX_C,
-				HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
-
-			iwl_release_nic_access(priv);
-		}
+		iwl_write_direct32(priv, HBUS_TARG_MBX_C,
+					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
 			iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			if (!iwl_grab_nic_access(priv)) {
-				iwl_write_direct32(
-					priv, HBUS_TARG_MBX_C,
+			iwl_write_direct32(priv, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
-				iwl_release_nic_access(priv);
-			}
 		}
 
 		if (flags & RF_CARD_DISABLED) {
 			iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			iwl_read32(priv, CSR_UCODE_DRV_GP1);
+			spin_lock_irqsave(&priv->reg_lock, reg_flags);
 			if (!iwl_grab_nic_access(priv))
 				iwl_release_nic_access(priv);
+			spin_unlock_irqrestore(&priv->reg_lock, reg_flags);
 		}
 	}
 
@@ -774,14 +756,6 @@ static void iwl_rx_card_state_notif(struct iwl_priv *priv,
 
 int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 {
-	int ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_nic_access(priv);
-	if (ret)
-		goto err;
-
 	if (src == IWL_PWR_SRC_VAUX) {
 		if (pci_pme_capable(priv->pci_dev, PCI_D3cold))
 			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
@@ -793,10 +767,7 @@ int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 				       ~APMG_PS_CTRL_MSK_PWR_SRC);
 	}
 
-	iwl_release_nic_access(priv);
-err:
-	spin_unlock_irqrestore(&priv->lock, flags);
-	return ret;
+	return 0;
 }
 
 /**
@@ -1587,13 +1558,8 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_txq_ctx_stop(priv);
 	iwl_rxq_stop(priv);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	if (!iwl_grab_nic_access(priv)) {
-		iwl_write_prph(priv, APMG_CLK_DIS_REG,
-					 APMG_CLK_VAL_DMA_CLK_RQT);
-		iwl_release_nic_access(priv);
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	iwl_write_prph(priv, APMG_CLK_DIS_REG,
+				APMG_CLK_VAL_DMA_CLK_RQT);
 
 	udelay(5);
 
@@ -2707,6 +2673,10 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(unsigned long long) pci_resource_len(pdev, 0));
 	IWL_DEBUG_INFO(priv, "pci_resource_base = %p\n", priv->hw_base);
 
+	/* this spin lock will be used in apm_ops.init and EEPROM access
+	 * we should init now
+	 */
+	spin_lock_init(&priv->reg_lock);
 	iwl_hw_detect(priv);
 	IWL_INFO(priv, "Detected Intel Wireless WiFi Link %s REV=0x%X\n",
 		priv->cfg->name, priv->hw_rev);
