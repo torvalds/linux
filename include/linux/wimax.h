@@ -59,7 +59,7 @@ enum {
 	 * M - Major: change if removing or modifying an existing call.
 	 * m - minor: change when adding a new call
 	 */
-	WIMAX_GNL_VERSION = 00,
+	WIMAX_GNL_VERSION = 01,
 	/* Generic NetLink attributes */
 	WIMAX_GNL_ATTR_INVALID = 0x00,
 	WIMAX_GNL_ATTR_MAX = 10,
