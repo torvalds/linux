@@ -450,8 +450,7 @@ int acpi_bus_receive_event(struct acpi_bus_event *event)
                              Notification Handling
    -------------------------------------------------------------------------- */
 
-static int
-acpi_bus_check_device(struct acpi_device *device, int *status_changed)
+static int acpi_bus_check_device(struct acpi_device *device)
 {
 	acpi_status status = 0;
 	struct acpi_device_status old_status;
@@ -459,9 +458,6 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 
 	if (!device)
 		return -EINVAL;
-
-	if (status_changed)
-		*status_changed = 0;
 
 	old_status = device->status;
 
@@ -471,10 +467,6 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 	 */
 	if (device->parent && !device->parent->status.present) {
 		device->status = device->parent->status;
-		if (STRUCT_TO_INT(old_status) != STRUCT_TO_INT(device->status)) {
-			if (status_changed)
-				*status_changed = 1;
-		}
 		return 0;
 	}
 
@@ -484,9 +476,6 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 
 	if (STRUCT_TO_INT(old_status) == STRUCT_TO_INT(device->status))
 		return 0;
-
-	if (status_changed)
-		*status_changed = 1;
 
 	/*
 	 * Device Insertion/Removal
@@ -505,19 +494,14 @@ acpi_bus_check_device(struct acpi_device *device, int *status_changed)
 static int acpi_bus_check_scope(struct acpi_device *device)
 {
 	int result = 0;
-	int status_changed = 0;
-
 
 	if (!device)
 		return -EINVAL;
 
 	/* Status Change? */
-	result = acpi_bus_check_device(device, &status_changed);
+	result = acpi_bus_check_device(device);
 	if (result)
 		return result;
-
-	if (!status_changed)
-		return 0;
 
 	/*
 	 * TBD: Enumerate child devices within this device's scope and
@@ -571,7 +555,7 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		result = acpi_bus_check_device(device, NULL);
+		result = acpi_bus_check_device(device);
 		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
 		 *      drivers via the device manager (device.c).
