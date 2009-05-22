@@ -295,7 +295,7 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 
 	timeout = ((cmd == ATA_CMD_ID_ATA) ? WAIT_WORSTCASE : WAIT_PIDENTIFY) / 2;
 
-	if (ide_busy_sleep(hwif, timeout, use_altstatus))
+	if (ide_busy_sleep(drive, timeout, use_altstatus))
 		return 1;
 
 	/* wait for IRQ and ATA_DRQ */
@@ -316,8 +316,9 @@ int ide_dev_read_id(ide_drive_t *drive, u8 cmd, u16 *id)
 	return rc;
 }
 
-int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
+int ide_busy_sleep(ide_drive_t *drive, unsigned long timeout, int altstatus)
 {
+	ide_hwif_t *hwif = drive->hwif;
 	u8 stat;
 
 	timeout += jiffies;
@@ -329,6 +330,8 @@ int ide_busy_sleep(ide_hwif_t *hwif, unsigned long timeout, int altstatus)
 		if ((stat & ATA_BUSY) == 0)
 			return 0;
 	} while (time_before(jiffies, timeout));
+
+	printk(KERN_ERR "%s: timeout in %s\n", drive->name, __func__);
 
 	return 1;	/* drive timed-out */
 }
@@ -420,7 +423,7 @@ static int do_probe (ide_drive_t *drive, u8 cmd)
 			tp_ops->dev_select(drive);
 			msleep(50);
 			tp_ops->exec_command(hwif, ATA_CMD_DEV_RESET);
-			(void)ide_busy_sleep(hwif, WAIT_WORSTCASE, 0);
+			(void)ide_busy_sleep(drive, WAIT_WORSTCASE, 0);
 			rc = ide_dev_read_id(drive, cmd, id);
 		}
 
