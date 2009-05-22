@@ -513,7 +513,11 @@ config SH_PCLK_FREQ
 	  This is necessary for determining the reference clock value on
 	  platforms lacking an RTC.
 
+config SH_CLK_CPG
+	def_bool y
+
 config SH_CLK_CPG_LEGACY
+	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785
 
 config SH_CLK_MD

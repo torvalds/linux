@@ -2,6 +2,7 @@
 #include <linux/compiler.h>
 #include <asm/clock.h>
 
+#ifdef CONFIG_SH_CLK_CPG_LEGACY
 static struct clk master_clk = {
 	.name		= "master_clk",
 	.flags		= CLK_ENABLE_ON_INIT,
@@ -58,3 +59,4 @@ int __init __weak arch_clk_init(void)
 {
 	return cpg_clk_init();
 }
+#endif /* CONFIG_SH_CPG_CLK_LEGACY */
