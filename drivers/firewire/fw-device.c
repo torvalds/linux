@@ -355,9 +355,56 @@ static ssize_t guid_show(struct device *dev,
 	return ret;
 }
 
+static int units_sprintf(char *buf, u32 *directory)
+{
+	struct fw_csr_iterator ci;
+	int key, value;
+	int specifier_id = 0;
+	int version = 0;
+
+	fw_csr_iterator_init(&ci, directory);
+	while (fw_csr_iterator_next(&ci, &key, &value)) {
+		switch (key) {
+		case CSR_SPECIFIER_ID:
+			specifier_id = value;
+			break;
+		case CSR_VERSION:
+			version = value;
+			break;
+		}
+	}
+
+	return sprintf(buf, "0x%06x:0x%06x ", specifier_id, version);
+}
+
+static ssize_t units_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct fw_device *device = fw_device(dev);
+	struct fw_csr_iterator ci;
+	int key, value, i = 0;
+
+	down_read(&fw_device_rwsem);
+	fw_csr_iterator_init(&ci, &device->config_rom[5]);
+	while (fw_csr_iterator_next(&ci, &key, &value)) {
+		if (key != (CSR_UNIT | CSR_DIRECTORY))
+			continue;
+		i += units_sprintf(&buf[i], ci.p + value - 1);
+		if (i >= PAGE_SIZE - (8 + 1 + 8 + 1))
+			break;
+	}
+	up_read(&fw_device_rwsem);
+
+	if (i)
+		buf[i - 1] = '\n';
+
+	return i;
+}
+
 static struct device_attribute fw_device_attributes[] = {
 	__ATTR_RO(config_rom),
 	__ATTR_RO(guid),
+	__ATTR_RO(units),
 	__ATTR_NULL,
 };
 
@@ -999,6 +1046,9 @@ static void fw_device_refresh(struct work_struct *work)
 	}
 
 	create_units(device);
+
+	/* Userspace may want to re-read attributes. */
+	kobject_uevent(&device->device.kobj, KOBJ_CHANGE);
 
 	if (atomic_cmpxchg(&device->state,
 			   FW_DEVICE_INITIALIZING,

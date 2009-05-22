@@ -42,7 +42,7 @@ enum fw_device_state {
 struct fw_attribute_group {
 	struct attribute_group *groups[2];
 	struct attribute_group group;
-	struct attribute *attrs[11];
+	struct attribute *attrs[12];
 };
 
 struct fw_node;
