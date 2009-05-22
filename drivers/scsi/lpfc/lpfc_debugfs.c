@@ -280,6 +280,8 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 	struct lpfc_dmabuf *d_buf;
 	struct hbq_dmabuf *hbq_buf;
 
+	if (phba->sli_rev != 3)
+		return 0;
 	cnt = LPFC_HBQINFO_SIZE;
 	spin_lock_irq(&phba->hbalock);
 
@@ -489,12 +491,15 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 				 pring->next_cmdidx, pring->local_getidx,
 				 pring->flag, pgpp->rspPutInx, pring->numRiocb);
 	}
-	word0 = readl(phba->HAregaddr);
-	word1 = readl(phba->CAregaddr);
-	word2 = readl(phba->HSregaddr);
-	word3 = readl(phba->HCregaddr);
-	len +=  snprintf(buf+len, size-len, "HA:%08x CA:%08x HS:%08x HC:%08x\n",
-	word0, word1, word2, word3);
+
+	if (phba->sli_rev <= LPFC_SLI_REV3) {
+		word0 = readl(phba->HAregaddr);
+		word1 = readl(phba->CAregaddr);
+		word2 = readl(phba->HSregaddr);
+		word3 = readl(phba->HCregaddr);
+		len +=  snprintf(buf+len, size-len, "HA:%08x CA:%08x HS:%08x "
+				 "HC:%08x\n", word0, word1, word2, word3);
+	}
 	spin_unlock_irq(&phba->hbalock);
 	return len;
 }

@@ -555,23 +555,24 @@ lpfc_work_done(struct lpfc_hba *phba)
 		/*
 		 * Turn on Ring interrupts
 		 */
-		spin_lock_irq(&phba->hbalock);
-		control = readl(phba->HCregaddr);
-		if (!(control & (HC_R0INT_ENA << LPFC_ELS_RING))) {
-			lpfc_debugfs_slow_ring_trc(phba,
-				"WRK Enable ring: cntl:x%x hacopy:x%x",
-				control, ha_copy, 0);
+		if (phba->sli_rev <= LPFC_SLI_REV3) {
+			spin_lock_irq(&phba->hbalock);
+			control = readl(phba->HCregaddr);
+			if (!(control & (HC_R0INT_ENA << LPFC_ELS_RING))) {
+				lpfc_debugfs_slow_ring_trc(phba,
+					"WRK Enable ring: cntl:x%x hacopy:x%x",
+					control, ha_copy, 0);
 
-			control |= (HC_R0INT_ENA << LPFC_ELS_RING);
-			writel(control, phba->HCregaddr);
-			readl(phba->HCregaddr); /* flush */
+				control |= (HC_R0INT_ENA << LPFC_ELS_RING);
+				writel(control, phba->HCregaddr);
+				readl(phba->HCregaddr); /* flush */
+			} else {
+				lpfc_debugfs_slow_ring_trc(phba,
+					"WRK Ring ok:     cntl:x%x hacopy:x%x",
+					control, ha_copy, 0);
+			}
+			spin_unlock_irq(&phba->hbalock);
 		}
-		else {
-			lpfc_debugfs_slow_ring_trc(phba,
-				"WRK Ring ok:     cntl:x%x hacopy:x%x",
-				control, ha_copy, 0);
-		}
-		spin_unlock_irq(&phba->hbalock);
 	}
 	lpfc_work_list_done(phba);
 }
@@ -689,7 +690,7 @@ lpfc_port_link_failure(struct lpfc_vport *vport)
 	lpfc_can_disctmo(vport);
 }
 
-static void
+void
 lpfc_linkdown_port(struct lpfc_vport *vport)
 {
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
@@ -1147,10 +1148,12 @@ lpfc_enable_la(struct lpfc_hba *phba)
 	struct lpfc_sli *psli = &phba->sli;
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag |= LPFC_PROCESS_LA;
-	control = readl(phba->HCregaddr);
-	control |= HC_LAINT_ENA;
-	writel(control, phba->HCregaddr);
-	readl(phba->HCregaddr); /* flush */
+	if (phba->sli_rev <= LPFC_SLI_REV3) {
+		control = readl(phba->HCregaddr);
+		control |= HC_LAINT_ENA;
+		writel(control, phba->HCregaddr);
+		readl(phba->HCregaddr); /* flush */
+	}
 	spin_unlock_irq(&phba->hbalock);
 }
 
@@ -2919,11 +2922,13 @@ restart_disc:
 		 * set port_state to PORT_READY if SLI2.
 		 * cmpl_reg_vpi will set port_state to READY for SLI3.
 		 */
-		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
-			lpfc_issue_reg_vpi(phba, vport);
-		else  {	/* NPIV Not enabled */
-			lpfc_issue_clear_la(phba, vport);
-			vport->port_state = LPFC_VPORT_READY;
+		if (phba->sli_rev < LPFC_SLI_REV4) {
+			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
+				lpfc_issue_reg_vpi(phba, vport);
+			else  {	/* NPIV Not enabled */
+				lpfc_issue_clear_la(phba, vport);
+				vport->port_state = LPFC_VPORT_READY;
+			}
 		}
 
 		/* Setup and issue mailbox INITIALIZE LINK command */
@@ -2959,11 +2964,13 @@ restart_disc:
 		 * set port_state to PORT_READY if SLI2.
 		 * cmpl_reg_vpi will set port_state to READY for SLI3.
 		 */
-		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
-			lpfc_issue_reg_vpi(phba, vport);
-		else {	/* NPIV Not enabled */
-			lpfc_issue_clear_la(phba, vport);
-			vport->port_state = LPFC_VPORT_READY;
+		if (phba->sli_rev < LPFC_SLI_REV4) {
+			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
+				lpfc_issue_reg_vpi(phba, vport);
+			else  {	/* NPIV Not enabled */
+				lpfc_issue_clear_la(phba, vport);
+				vport->port_state = LPFC_VPORT_READY;
+			}
 		}
 		break;
 

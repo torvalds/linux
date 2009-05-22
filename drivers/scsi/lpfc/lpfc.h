@@ -23,6 +23,13 @@
 
 struct lpfc_sli2_slim;
 
+#define LPFC_PCI_DEV_LP		0x1
+#define LPFC_PCI_DEV_OC		0x2
+
+#define LPFC_SLI_REV2		2
+#define LPFC_SLI_REV3		3
+#define LPFC_SLI_REV4		4
+
 #define LPFC_MAX_TARGET		4096	/* max number of targets supported */
 #define LPFC_MAX_DISC_THREADS	64	/* max outstanding discovery els
 					   requests */
@@ -264,8 +271,8 @@ enum hba_state {
 };
 
 struct lpfc_vport {
-	struct list_head listentry;
 	struct lpfc_hba *phba;
+	struct list_head listentry;
 	uint8_t port_type;
 #define LPFC_PHYSICAL_PORT 1
 #define LPFC_NPIV_PORT  2
@@ -420,8 +427,66 @@ enum intr_type_t {
 };
 
 struct lpfc_hba {
+	/* SCSI interface function jump table entries */
+	int (*lpfc_new_scsi_buf)
+		(struct lpfc_vport *, int);
+	struct lpfc_scsi_buf * (*lpfc_get_scsi_buf)
+		(struct lpfc_hba *);
+	int (*lpfc_scsi_prep_dma_buf)
+		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+	void (*lpfc_scsi_unprep_dma_buf)
+		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+	void (*lpfc_release_scsi_buf)
+		(struct lpfc_hba *, struct lpfc_scsi_buf *);
+	void (*lpfc_rampdown_queue_depth)
+		(struct lpfc_hba *);
+	void (*lpfc_scsi_prep_cmnd)
+		(struct lpfc_vport *, struct lpfc_scsi_buf *,
+		 struct lpfc_nodelist *);
+	int (*lpfc_scsi_prep_task_mgmt_cmd)
+		(struct lpfc_vport *, struct lpfc_scsi_buf *,
+		 unsigned int, uint8_t);
+
+	/* IOCB interface function jump table entries */
+	int (*__lpfc_sli_issue_iocb)
+		(struct lpfc_hba *, uint32_t,
+		 struct lpfc_iocbq *, uint32_t);
+	void (*__lpfc_sli_release_iocbq)(struct lpfc_hba *,
+			 struct lpfc_iocbq *);
+	int (*lpfc_hba_down_post)(struct lpfc_hba *phba);
+
+
+	IOCB_t * (*lpfc_get_iocb_from_iocbq)
+		(struct lpfc_iocbq *);
+	void (*lpfc_scsi_cmd_iocb_cmpl)
+		(struct lpfc_hba *, struct lpfc_iocbq *, struct lpfc_iocbq *);
+
+	/* MBOX interface function jump table entries */
+	int (*lpfc_sli_issue_mbox)
+		(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
+	/* Slow-path IOCB process function jump table entries */
+	void (*lpfc_sli_handle_slow_ring_event)
+		(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+		 uint32_t mask);
+	/* INIT device interface function jump table entries */
+	int (*lpfc_sli_hbq_to_firmware)
+		(struct lpfc_hba *, uint32_t, struct hbq_dmabuf *);
+	int (*lpfc_sli_brdrestart)
+		(struct lpfc_hba *);
+	int (*lpfc_sli_brdready)
+		(struct lpfc_hba *, uint32_t);
+	void (*lpfc_handle_eratt)
+		(struct lpfc_hba *);
+	void (*lpfc_stop_port)
+		(struct lpfc_hba *);
+
+
+	/* SLI4 specific HBA data structure */
+	struct lpfc_sli4_hba sli4_hba;
+
 	struct lpfc_sli sli;
-	uint32_t sli_rev;		/* SLI2 or SLI3 */
+	uint8_t pci_dev_grp;	/* lpfc PCI dev group: 0x0, 0x1, 0x2,... */
+	uint32_t sli_rev;		/* SLI2, SLI3, or SLI4 */
 	uint32_t sli3_options;		/* Mask of enabled SLI3 options */
 #define LPFC_SLI3_HBQ_ENABLED		0x01
 #define LPFC_SLI3_NPIV_ENABLED		0x02
@@ -526,11 +591,12 @@ struct lpfc_hba {
 	unsigned long data_flags;
 
 	uint32_t hbq_in_use;		/* HBQs in use flag */
-	struct list_head hbqbuf_in_list;  /* in-fly hbq buffer list */
+	struct list_head rb_pend_list;  /* Received buffers to be processed */
 	uint32_t hbq_count;	        /* Count of configured HBQs */
 	struct hbq_s hbqs[LPFC_MAX_HBQS]; /* local copy of hbq indicies  */
 
 	unsigned long pci_bar0_map;     /* Physical address for PCI BAR0 */
+	unsigned long pci_bar1_map;     /* Physical address for PCI BAR1 */
 	unsigned long pci_bar2_map;     /* Physical address for PCI BAR2 */
 	void __iomem *slim_memmap_p;	/* Kernel memory mapped address for
 					   PCI BAR0 */

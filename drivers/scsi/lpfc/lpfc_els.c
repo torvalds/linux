@@ -84,7 +84,8 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
 	uint32_t ha_copy;
 
 	if (vport->port_state >= LPFC_VPORT_READY ||
-	    phba->link_state == LPFC_LINK_DOWN)
+	    phba->link_state == LPFC_LINK_DOWN ||
+	    phba->sli_rev > LPFC_SLI_REV3)
 		return 0;
 
 	/* Read the HBA Host Attention Register */
@@ -305,7 +306,7 @@ els_iocb_free_pcmb_exit:
  *   0 - successfully issued fabric registration login for @vport
  *   -ENXIO -- failed to issue fabric registration login for @vport
  **/
-static int
+int
 lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 {
 	struct lpfc_hba  *phba = vport->phba;
@@ -345,8 +346,7 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 		err = 4;
 		goto fail;
 	}
-	rc = lpfc_reg_login(phba, vport->vpi, Fabric_DID, (uint8_t *)sp, mbox,
-			    0);
+	rc = lpfc_reg_rpi(phba, vport->vpi, Fabric_DID, (uint8_t *)sp, mbox, 0);
 	if (rc) {
 		err = 5;
 		goto fail_free_mbox;
@@ -1350,14 +1350,12 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 	IOCB_t *icmd;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int ret;
 
 	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
 
 	ndlp = lpfc_findnode_did(vport, did);
 	if (ndlp && !NLP_CHK_NODE_ACT(ndlp))
@@ -1391,7 +1389,7 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 
 	phba->fc_stat.elsXmitPLOGI++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_plogi;
-	ret = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+	ret = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 
 	if (ret == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
@@ -1501,13 +1499,8 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	PRLI *npr;
 	IOCB_t *icmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
-	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
-
-	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
 
 	cmdsize = (sizeof(uint32_t) + sizeof(PRLI));
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
@@ -1550,7 +1543,8 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_PRLI_SND;
 	spin_unlock_irq(shost->host_lock);
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) ==
+	    IOCB_ERROR) {
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_PRLI_SND;
 		spin_unlock_irq(shost->host_lock);
@@ -1788,8 +1782,6 @@ lpfc_issue_els_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	ADISC *ap;
 	IOCB_t *icmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 
@@ -1822,7 +1814,8 @@ lpfc_issue_els_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_ADISC_SND;
 	spin_unlock_irq(shost->host_lock);
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) ==
+	    IOCB_ERROR) {
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_ADISC_SND;
 		spin_unlock_irq(shost->host_lock);
@@ -1937,14 +1930,9 @@ lpfc_issue_els_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	struct lpfc_hba  *phba = vport->phba;
 	IOCB_t *icmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
-	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int rc;
-
-	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];
 
 	spin_lock_irq(shost->host_lock);
 	if (ndlp->nlp_flag & NLP_LOGO_SND) {
@@ -1978,7 +1966,7 @@ lpfc_issue_els_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_LOGO_SND;
 	spin_unlock_irq(shost->host_lock);
-	rc = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 
 	if (rc == IOCB_ERROR) {
 		spin_lock_irq(shost->host_lock);
@@ -2058,14 +2046,12 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	struct lpfc_hba  *phba = vport->phba;
 	IOCB_t *icmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	struct lpfc_nodelist *ndlp;
 
 	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
 	cmdsize = (sizeof(uint32_t) + sizeof(SCR));
 
 	ndlp = lpfc_findnode_did(vport, nportid);
@@ -2108,7 +2094,8 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 
 	phba->fc_stat.elsXmitSCR++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_cmd;
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) ==
+	    IOCB_ERROR) {
 		/* The additional lpfc_nlp_put will cause the following
 		 * lpfc_els_free_iocb routine to trigger the rlease of
 		 * the node.
@@ -2152,7 +2139,6 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	struct lpfc_hba  *phba = vport->phba;
 	IOCB_t *icmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	FARP *fp;
 	uint8_t *pcmd;
@@ -2162,7 +2148,6 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	struct lpfc_nodelist *ndlp;
 
 	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
 	cmdsize = (sizeof(uint32_t) + sizeof(FARP));
 
 	ndlp = lpfc_findnode_did(vport, nportid);
@@ -2219,7 +2204,8 @@ lpfc_issue_els_farpr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 
 	phba->fc_stat.elsXmitFARPR++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_cmd;
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) ==
+	    IOCB_ERROR) {
 		/* The additional lpfc_nlp_put will cause the following
 		 * lpfc_els_free_iocb routine to trigger the release of
 		 * the node.
@@ -2961,6 +2947,7 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		 */
 		lpfc_nlp_not_used(ndlp);
 	}
+
 	return;
 }
 
@@ -3170,7 +3157,6 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 	IOCB_t *icmd;
 	IOCB_t *oldcmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
@@ -3178,7 +3164,6 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 	ELS_PKT *els_pkt_ptr;
 
 	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
 	oldcmd = &oldiocb->iocb;
 
 	switch (flag) {
@@ -3266,7 +3251,7 @@ lpfc_els_rsp_acc(struct lpfc_vport *vport, uint32_t flag,
 	}
 
 	phba->fc_stat.elsXmitACC++;
-	rc = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
@@ -3305,15 +3290,12 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 	IOCB_t *icmd;
 	IOCB_t *oldcmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int rc;
 
 	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
-
 	cmdsize = 2 * sizeof(uint32_t);
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_LS_RJT);
@@ -3346,7 +3328,7 @@ lpfc_els_rsp_reject(struct lpfc_vport *vport, uint32_t rejectError,
 
 	phba->fc_stat.elsXmitLSRJT++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
-	rc = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 
 	if (rc == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
@@ -3379,8 +3361,6 @@ lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 		       struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_hba  *phba = vport->phba;
-	struct lpfc_sli  *psli = &phba->sli;
-	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	ADISC *ap;
 	IOCB_t *icmd, *oldcmd;
 	struct lpfc_iocbq *elsiocb;
@@ -3422,7 +3402,7 @@ lpfc_els_rsp_adisc_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 
 	phba->fc_stat.elsXmitACC++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
-	rc = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
@@ -3459,14 +3439,12 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 	IOCB_t *icmd;
 	IOCB_t *oldcmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int rc;
 
 	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];	/* ELS ring */
 
 	cmdsize = sizeof(uint32_t) + sizeof(PRLI);
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry, ndlp,
@@ -3520,7 +3498,7 @@ lpfc_els_rsp_prli_acc(struct lpfc_vport *vport, struct lpfc_iocbq *oldiocb,
 	phba->fc_stat.elsXmitACC++;
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 
-	rc = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
@@ -3562,15 +3540,12 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 	RNID *rn;
 	IOCB_t *icmd, *oldcmd;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli_ring *pring;
 	struct lpfc_sli *psli;
 	uint8_t *pcmd;
 	uint16_t cmdsize;
 	int rc;
 
 	psli = &phba->sli;
-	pring = &psli->ring[LPFC_ELS_RING];
-
 	cmdsize = sizeof(uint32_t) + sizeof(uint32_t)
 					+ (2 * sizeof(struct lpfc_name));
 	if (format)
@@ -3626,7 +3601,7 @@ lpfc_els_rsp_rnid_acc(struct lpfc_vport *vport, uint8_t format,
 	elsiocb->context1 = NULL;  /* Don't need ndlp for cmpl,
 				    * it could be freed */
 
-	rc = lpfc_sli_issue_iocb(phba, pring, elsiocb, 0);
+	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0);
 	if (rc == IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
@@ -4440,8 +4415,6 @@ lpfc_els_rcv_lirr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 static void
 lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	MAILBOX_t *mb;
 	IOCB_t *icmd;
 	RPS_RSP *rps_rsp;
@@ -4507,7 +4480,7 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			 ndlp->nlp_rpi);
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 	phba->fc_stat.elsXmitACC++;
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR)
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) == IOCB_ERROR)
 		lpfc_els_free_iocb(phba, elsiocb);
 	return;
 }
@@ -4616,8 +4589,6 @@ lpfc_els_rsp_rpl_acc(struct lpfc_vport *vport, uint16_t cmdsize,
 	IOCB_t *icmd, *oldcmd;
 	RPL_RSP rpl_rsp;
 	struct lpfc_iocbq *elsiocb;
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
 	uint8_t *pcmd;
 
 	elsiocb = lpfc_prep_els_iocb(vport, 0, cmdsize, oldiocb->retry, ndlp,
@@ -4654,7 +4625,8 @@ lpfc_els_rsp_rpl_acc(struct lpfc_vport *vport, uint16_t cmdsize,
 			 ndlp->nlp_rpi);
 	elsiocb->iocb_cmpl = lpfc_cmpl_els_rsp;
 	phba->fc_stat.elsXmitACC++;
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) ==
+	    IOCB_ERROR) {
 		lpfc_els_free_iocb(phba, elsiocb);
 		return 1;
 	}
@@ -6139,7 +6111,6 @@ lpfc_issue_els_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 	IOCB_t *icmd;
 	struct lpfc_iocbq *elsiocb;
 	uint8_t *pcmd;
@@ -6169,7 +6140,8 @@ lpfc_issue_els_npiv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	spin_lock_irq(shost->host_lock);
 	ndlp->nlp_flag |= NLP_LOGO_SND;
 	spin_unlock_irq(shost->host_lock);
-	if (lpfc_sli_issue_iocb(phba, pring, elsiocb, 0) == IOCB_ERROR) {
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) ==
+	    IOCB_ERROR) {
 		spin_lock_irq(shost->host_lock);
 		ndlp->nlp_flag &= ~NLP_LOGO_SND;
 		spin_unlock_irq(shost->host_lock);
@@ -6224,7 +6196,6 @@ lpfc_resume_fabric_iocbs(struct lpfc_hba *phba)
 	struct lpfc_iocbq *iocb;
 	unsigned long iflags;
 	int ret;
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 	IOCB_t *cmd;
 
 repeat:
@@ -6248,7 +6219,7 @@ repeat:
 			"Fabric sched1:   ste:x%x",
 			iocb->vport->port_state, 0, 0);
 
-		ret = lpfc_sli_issue_iocb(phba, pring, iocb, 0);
+		ret = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, iocb, 0);
 
 		if (ret == IOCB_ERROR) {
 			iocb->iocb_cmpl = iocb->fabric_iocb_cmpl;
@@ -6394,7 +6365,6 @@ static int
 lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 {
 	unsigned long iflags;
-	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 	int ready;
 	int ret;
 
@@ -6418,7 +6388,7 @@ lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 			"Fabric sched2:   ste:x%x",
 			iocb->vport->port_state, 0, 0);
 
-		ret = lpfc_sli_issue_iocb(phba, pring, iocb, 0);
+		ret = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, iocb, 0);
 
 		if (ret == IOCB_ERROR) {
 			iocb->iocb_cmpl = iocb->fabric_iocb_cmpl;
