@@ -941,7 +941,8 @@ static int tcp_v6_gso_send_check(struct sk_buff *skb)
 	return 0;
 }
 
-struct sk_buff **tcp6_gro_receive(struct sk_buff **head, struct sk_buff *skb)
+static struct sk_buff **tcp6_gro_receive(struct sk_buff **head,
+					 struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = skb_gro_network_header(skb);
 
@@ -961,9 +962,8 @@ struct sk_buff **tcp6_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 
 	return tcp_gro_receive(head, skb);
 }
-EXPORT_SYMBOL(tcp6_gro_receive);
 
-int tcp6_gro_complete(struct sk_buff *skb)
+static int tcp6_gro_complete(struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct tcphdr *th = tcp_hdr(skb);
@@ -974,7 +974,6 @@ int tcp6_gro_complete(struct sk_buff *skb)
 
 	return tcp_gro_complete(skb);
 }
-EXPORT_SYMBOL(tcp6_gro_complete);
 
 static void tcp_v6_send_response(struct sk_buff *skb, u32 seq, u32 ack, u32 win,
 				 u32 ts, struct tcp_md5sig_key *key, int rst)
