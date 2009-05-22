@@ -805,7 +805,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	 */
 	if (phba->link_state < LPFC_LINK_DOWN ||
 	    !phba->mbox_mem_pool ||
-	    (phba->sli.sli_flag & LPFC_SLI2_ACTIVE) == 0)
+	    (phba->sli.sli_flag & LPFC_SLI_ACTIVE) == 0)
 		return 0;
 
 	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO)
@@ -822,7 +822,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	pmboxq->context1 = NULL;
 
 	if ((phba->pport->fc_flag & FC_OFFLINE_MODE) ||
-		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+		(!(psli->sli_flag & LPFC_SLI_ACTIVE)))
 		rc = MBX_NOT_FINISHED;
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -2045,22 +2045,9 @@ static DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 # lpfc_log_verbose: Only turn this flag on if you are willing to risk being
 # deluged with LOTS of information.
 # You can set a bit mask to record specific types of verbose messages:
-#
-# LOG_ELS                       0x1        ELS events
-# LOG_DISCOVERY                 0x2        Link discovery events
-# LOG_MBOX                      0x4        Mailbox events
-# LOG_INIT                      0x8        Initialization events
-# LOG_LINK_EVENT                0x10       Link events
-# LOG_FCP                       0x40       FCP traffic history
-# LOG_NODE                      0x80       Node table events
-# LOG_BG                        0x200      BlockBuard events
-# LOG_MISC                      0x400      Miscellaneous events
-# LOG_SLI                       0x800      SLI events
-# LOG_FCP_ERROR                 0x1000     Only log FCP errors
-# LOG_LIBDFC                    0x2000     LIBDFC events
-# LOG_ALL_MSG                   0xffff     LOG all messages
+# See lpfc_logmsh.h for definitions.
 */
-LPFC_VPORT_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffff,
+LPFC_VPORT_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffffffff,
 		       "Verbose logging bit-mask");
 
 /*
@@ -2365,7 +2352,7 @@ lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
 		if (vports == NULL)
 			return -ENOMEM;
 
-		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			v_shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(v_shost->host_lock);
 			/* Block and reset data collection */
@@ -2380,7 +2367,7 @@ lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
 		phba->bucket_base = base;
 		phba->bucket_step = step;
 
-		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			v_shost = lpfc_shost_from_vport(vports[i]);
 
 			/* Unblock data collection */
@@ -2397,7 +2384,7 @@ lpfc_stat_data_ctrl_store(struct device *dev, struct device_attribute *attr,
 		if (vports == NULL)
 			return -ENOMEM;
 
-		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			v_shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(shost->host_lock);
 			vports[i]->stat_data_blocked = 1;
@@ -3418,7 +3405,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		}
 
 		if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-		    (!(phba->sli.sli_flag & LPFC_SLI2_ACTIVE))){
+		    (!(phba->sli.sli_flag & LPFC_SLI_ACTIVE))) {
 
 			spin_unlock_irq(&phba->hbalock);
 			rc = lpfc_sli_issue_mbox (phba,
@@ -3646,6 +3633,9 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 			case LA_8GHZ_LINK:
 				fc_host_speed(shost) = FC_PORTSPEED_8GBIT;
 			break;
+			case LA_10GHZ_LINK:
+				fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+			break;
 			default:
 				fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 			break;
@@ -3713,7 +3703,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	 */
 	if (phba->link_state < LPFC_LINK_DOWN ||
 	    !phba->mbox_mem_pool ||
-	    (phba->sli.sli_flag & LPFC_SLI2_ACTIVE) == 0)
+	    (phba->sli.sli_flag & LPFC_SLI_ACTIVE) == 0)
 		return NULL;
 
 	if (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO)
@@ -3756,7 +3746,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+	    (!(psli->sli_flag & LPFC_SLI_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -3838,7 +3828,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+		(!(psli->sli_flag & LPFC_SLI_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -3856,7 +3846,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+	    (!(psli->sli_flag & LPFC_SLI_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -4021,6 +4011,21 @@ lpfc_set_vport_symbolic_name(struct fc_vport *fc_vport)
 
 	if (vport->port_state == LPFC_VPORT_READY)
 		lpfc_ns_cmd(vport, SLI_CTNS_RSPN_ID, 0, 0);
+}
+
+/**
+ * lpfc_hba_log_verbose_init - Set hba's log verbose level
+ * @phba: Pointer to lpfc_hba struct.
+ *
+ * This function is called by the lpfc_get_cfgparam() routine to set the
+ * module lpfc_log_verbose into the @phba cfg_log_verbose for use with
+ * log messsage according to the module's lpfc_log_verbose parameter setting
+ * before hba port or vport created.
+ **/
+static void
+lpfc_hba_log_verbose_init(struct lpfc_hba *phba, uint32_t verbose)
+{
+	phba->cfg_log_verbose = verbose;
 }
 
 struct fc_function_template lpfc_transport_functions = {

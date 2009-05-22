@@ -121,7 +121,7 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	if (!pmb) {
 		return -ENOMEM;
 	}
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 
 	lpfc_read_sparam(phba, pmb, vport->vpi);
 	/*

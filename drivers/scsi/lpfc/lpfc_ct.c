@@ -1578,6 +1578,9 @@ lpfc_fdmi_cmd(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp, int cmdcode)
 				case LA_8GHZ_LINK:
 					ae->un.PortSpeed = HBA_PORTSPEED_8GBIT;
 				break;
+				case LA_10GHZ_LINK:
+					ae->un.PortSpeed = HBA_PORTSPEED_10GBIT;
+				break;
 				default:
 					ae->un.PortSpeed =
 						HBA_PORTSPEED_UNKNOWN;
@@ -1730,7 +1733,7 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 	uint8_t *fwname;
 
 	if (vp->rev.rBit) {
-		if (psli->sli_flag & LPFC_SLI2_ACTIVE)
+		if (psli->sli_flag & LPFC_SLI_ACTIVE)
 			rev = vp->rev.sli2FwRev;
 		else
 			rev = vp->rev.sli1FwRev;
@@ -1756,7 +1759,7 @@ lpfc_decode_firmware_rev(struct lpfc_hba *phba, char *fwrevision, int flag)
 		}
 		b4 = (rev & 0x0000000f);
 
-		if (psli->sli_flag & LPFC_SLI2_ACTIVE)
+		if (psli->sli_flag & LPFC_SLI_ACTIVE)
 			fwname = vp->rev.sli2FwName;
 		else
 			fwname = vp->rev.sli1FwName;

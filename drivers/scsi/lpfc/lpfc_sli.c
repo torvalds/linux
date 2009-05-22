@@ -3272,7 +3272,7 @@ void lpfc_reset_barrier(struct lpfc_hba *phba)
 		mdelay(1);
 
 	if (readl(resp_buf + 1) != ~(BARRIER_TEST_PATTERN)) {
-		if (phba->sli.sli_flag & LPFC_SLI2_ACTIVE ||
+		if (phba->sli.sli_flag & LPFC_SLI_ACTIVE ||
 		    phba->pport->stopped)
 			goto restore_hc;
 		else
@@ -3353,7 +3353,9 @@ lpfc_sli_brdkill(struct lpfc_hba *phba)
 		return 1;
 	}
 
-	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	spin_lock_irq(&phba->hbalock);
+	psli->sli_flag &= ~LPFC_SLI_ACTIVE;
+	spin_unlock_irq(&phba->hbalock);
 
 	mempool_free(pmb, phba->mbox_mem_pool);
 
@@ -4643,7 +4645,7 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->pport->work_port_lock);
 	spin_lock_irq(&phba->hbalock);
 	phba->link_state = LPFC_LINK_UNKNOWN;
-	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	psli->sli_flag &= ~LPFC_SLI_ACTIVE;
 	spin_unlock_irq(&phba->hbalock);
 
 	pring = &psli->ring[psli->fcp_ring];

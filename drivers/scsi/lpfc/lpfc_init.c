@@ -906,7 +906,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 					"taking this port offline.\n");
 
 			spin_lock_irq(&phba->hbalock);
-			psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+			psli->sli_flag &= ~LPFC_SLI_ACTIVE;
 			spin_unlock_irq(&phba->hbalock);
 
 			lpfc_offline_prep(phba);
@@ -931,13 +931,15 @@ lpfc_offline_eratt(struct lpfc_hba *phba)
 	struct lpfc_sli   *psli = &phba->sli;
 
 	spin_lock_irq(&phba->hbalock);
-	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	psli->sli_flag &= ~LPFC_SLI_ACTIVE;
 	spin_unlock_irq(&phba->hbalock);
 	lpfc_offline_prep(phba);
 
 	lpfc_offline(phba);
 	lpfc_reset_barrier(phba);
+	spin_lock_irq(&phba->hbalock);
 	lpfc_sli_brdreset(phba);
+	spin_unlock_irq(&phba->hbalock);
 	lpfc_hba_down_post(phba);
 	lpfc_sli_brdready(phba, HS_MBRDY);
 	lpfc_unblock_mgmt_io(phba);
@@ -980,6 +982,16 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	struct lpfc_sli_ring  *pring;
 	struct lpfc_sli *psli = &phba->sli;
 
+	/* If the pci channel is offline, ignore possible errors,
+	 * since we cannot communicate with the pci card anyway.
+	 */
+	if (pci_channel_offline(phba->pcidev)) {
+		spin_lock_irq(&phba->hbalock);
+		phba->hba_flag &= ~DEFER_ERATT;
+		spin_unlock_irq(&phba->hbalock);
+		return;
+	}
+
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 		"0479 Deferred Adapter Hardware Error "
 		"Data: x%x x%x x%x\n",
@@ -987,7 +999,7 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 		phba->work_status[0], phba->work_status[1]);
 
 	spin_lock_irq(&phba->hbalock);
-	psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+	psli->sli_flag &= ~LPFC_SLI_ACTIVE;
 	spin_unlock_irq(&phba->hbalock);
 
 
@@ -1097,7 +1109,7 @@ lpfc_handle_eratt_s3(struct lpfc_hba *phba)
 				phba->work_status[0], phba->work_status[1]);
 
 		spin_lock_irq(&phba->hbalock);
-		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+		psli->sli_flag &= ~LPFC_SLI_ACTIVE;
 		spin_unlock_irq(&phba->hbalock);
 
 		/*
