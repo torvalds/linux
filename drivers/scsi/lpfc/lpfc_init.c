@@ -108,7 +108,7 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		return -ENOMEM;
 	}
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 	phba->link_state = LPFC_INIT_MBX_CMDS;
 
 	if (lpfc_is_LC_HBA(phba->pcidev->device)) {
@@ -221,6 +221,11 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 					mb->mbxCommand, mb->mbxStatus);
 			mb->un.varDmp.word_cnt = 0;
 		}
+		/* dump mem may return a zero when finished or we got a
+		 * mailbox error, either way we are done.
+		 */
+		if (mb->un.varDmp.word_cnt == 0)
+			break;
 		if (mb->un.varDmp.word_cnt > DMP_VPD_SIZE - offset)
 			mb->un.varDmp.word_cnt = DMP_VPD_SIZE - offset;
 		lpfc_sli_pcimem_bcopy(((uint8_t *)mb) + DMP_RSP_OFFSET,
@@ -249,7 +254,7 @@ out_free_mbox:
 static void
 lpfc_config_async_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 {
-	if (pmboxq->mb.mbxStatus == MBX_SUCCESS)
+	if (pmboxq->u.mb.mbxStatus == MBX_SUCCESS)
 		phba->temp_sensor_support = 1;
 	else
 		phba->temp_sensor_support = 0;
@@ -276,7 +281,7 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	/* character array used for decoding dist type. */
 	char dist_char[] = "nabx";
 
-	if (pmboxq->mb.mbxStatus != MBX_SUCCESS) {
+	if (pmboxq->u.mb.mbxStatus != MBX_SUCCESS) {
 		mempool_free(pmboxq, phba->mbox_mem_pool);
 		return;
 	}
@@ -284,7 +289,7 @@ lpfc_dump_wakeup_param_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	prg = (struct prog_id *) &prog_id_word;
 
 	/* word 7 contain option rom version */
-	prog_id_word = pmboxq->mb.un.varWords[7];
+	prog_id_word = pmboxq->u.mb.un.varWords[7];
 
 	/* Decode the Option rom version word to a readable string */
 	if (prg->dist < 4)
@@ -341,7 +346,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		phba->link_state = LPFC_HBA_ERROR;
 		return -ENOMEM;
 	}
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 
 	/* Get login parameters for NID.  */
 	lpfc_read_sparam(phba, pmb, 0);
@@ -476,17 +481,18 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
 					"0352 Config MSI mailbox command "
 					"failed, mbxCmd x%x, mbxStatus x%x\n",
-					pmb->mb.mbxCommand, pmb->mb.mbxStatus);
+					pmb->u.mb.mbxCommand,
+					pmb->u.mb.mbxStatus);
 			mempool_free(pmb, phba->mbox_mem_pool);
 			return -EIO;
 		}
 	}
 
+	spin_lock_irq(&phba->hbalock);
 	/* Initialize ERATT handling flag */
 	phba->hba_flag &= ~HBA_ERATT_HANDLED;
 
 	/* Enable appropriate host interrupts */
-	spin_lock_irq(&phba->hbalock);
 	status = readl(phba->HCregaddr);
 	status |= HC_MBINT_ENA | HC_ERINT_ENA | HC_LAINT_ENA;
 	if (psli->num_rings > 0)
@@ -2201,7 +2207,7 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	lpfc_sli_flush_mbox_queue(phba);
+	lpfc_sli_mbox_sys_shutdown(phba);
 }
 
 /**

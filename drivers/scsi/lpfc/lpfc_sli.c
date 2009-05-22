@@ -43,24 +43,7 @@
 #include "lpfc_logmsg.h"
 #include "lpfc_compat.h"
 #include "lpfc_debugfs.h"
-
-/*
- * Define macro to log: Mailbox command x%x cannot issue Data
- * This allows multiple uses of lpfc_msgBlk0311
- * w/o perturbing log msg utility.
- */
-#define LOG_MBOX_CANNOT_ISSUE_DATA(phba, pmbox, psli, flag) \
-			lpfc_printf_log(phba, \
-				KERN_INFO, \
-				LOG_MBOX | LOG_SLI, \
-				"(%d):0311 Mailbox command x%x cannot " \
-				"issue Data: x%x x%x x%x\n", \
-				pmbox->vport ? pmbox->vport->vpi : 0, \
-				pmbox->mb.mbxCommand,		\
-				phba->pport->port_state,	\
-				psli->sli_flag,	\
-				flag)
-
+#include "lpfc_vport.h"
 
 /* There are only four IOCB completion types. */
 typedef enum _lpfc_iocb_type {
@@ -843,7 +826,7 @@ lpfc_sli_ring_map(struct lpfc_hba *phba)
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb)
 		return -ENOMEM;
-	pmbox = &pmb->mb;
+	pmbox = &pmb->u.mb;
 	phba->link_state = LPFC_INIT_MBX_CMDS;
 	for (i = 0; i < psli->num_rings; i++) {
 		lpfc_config_ring(phba, i, pmb);
@@ -1652,6 +1635,15 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_HEARTBEAT:
 	case MBX_PORT_CAPABILITIES:
 	case MBX_PORT_IOV_CONTROL:
+	case MBX_SLI4_CONFIG:
+	case MBX_SLI4_REQ_FTRS:
+	case MBX_REG_FCFI:
+	case MBX_UNREG_FCFI:
+	case MBX_REG_VFI:
+	case MBX_UNREG_VFI:
+	case MBX_INIT_VPI:
+	case MBX_INIT_VFI:
+	case MBX_RESUME_RPI:
 		ret = mbxCommand;
 		break;
 	default:
@@ -1672,7 +1664,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
  * will wake up thread waiting on the wait queue pointed by context1
  * of the mailbox.
  **/
-static void
+void
 lpfc_sli_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
 	wait_queue_head_t *pdone_q;
@@ -1706,7 +1698,7 @@ void
 lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_dmabuf *mp;
-	uint16_t rpi;
+	uint16_t rpi, vpi;
 	int rc;
 
 	mp = (struct lpfc_dmabuf *) (pmb->context1);
@@ -1716,24 +1708,30 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		kfree(mp);
 	}
 
+	if ((pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) &&
+	    (phba->sli_rev == LPFC_SLI_REV4))
+		lpfc_sli4_free_rpi(phba, pmb->u.mb.un.varUnregLogin.rpi);
+
 	/*
 	 * If a REG_LOGIN succeeded  after node is destroyed or node
 	 * is in re-discovery driver need to cleanup the RPI.
 	 */
 	if (!(phba->pport->load_flag & FC_UNLOADING) &&
-	    pmb->mb.mbxCommand == MBX_REG_LOGIN64 &&
-	    !pmb->mb.mbxStatus) {
-
-		rpi = pmb->mb.un.varWords[0];
-		lpfc_unreg_login(phba, pmb->mb.un.varRegLogin.vpi, rpi, pmb);
+	    pmb->u.mb.mbxCommand == MBX_REG_LOGIN64 &&
+	    !pmb->u.mb.mbxStatus) {
+		rpi = pmb->u.mb.un.varWords[0];
+		vpi = pmb->u.mb.un.varRegLogin.vpi - phba->vpi_base;
+		lpfc_unreg_login(phba, vpi, rpi, pmb);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 		if (rc != MBX_NOT_FINISHED)
 			return;
 	}
 
-	mempool_free(pmb, phba->mbox_mem_pool);
-	return;
+	if (bf_get(lpfc_mqe_command, &pmb->u.mqe) == MBX_SLI4_CONFIG)
+		lpfc_sli4_mbox_cmd_free(phba, pmb);
+	else
+		mempool_free(pmb, phba->mbox_mem_pool);
 }
 
 /**
@@ -1770,7 +1768,7 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 		if (pmb == NULL)
 			break;
 
-		pmbox = &pmb->mb;
+		pmbox = &pmb->u.mb;
 
 		if (pmbox->mbxCommand != MBX_HEARTBEAT) {
 			if (pmb->vport) {
@@ -1799,9 +1797,10 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 			/* Unknow mailbox command compl */
 			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
 					"(%d):0323 Unknown Mailbox command "
-					"%x Cmpl\n",
+					"x%x (x%x) Cmpl\n",
 					pmb->vport ? pmb->vport->vpi : 0,
-					pmbox->mbxCommand);
+					pmbox->mbxCommand,
+					lpfc_sli4_mbox_opcode_get(phba, pmb));
 			phba->link_state = LPFC_HBA_ERROR;
 			phba->work_hs = HS_FFER3;
 			lpfc_handle_eratt(phba);
@@ -1816,29 +1815,29 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
 						LOG_MBOX | LOG_SLI,
 						"(%d):0305 Mbox cmd cmpl "
 						"error - RETRYing Data: x%x "
-						"x%x x%x x%x\n",
+						"(x%x) x%x x%x x%x\n",
 						pmb->vport ? pmb->vport->vpi :0,
 						pmbox->mbxCommand,
+						lpfc_sli4_mbox_opcode_get(phba,
+									  pmb),
 						pmbox->mbxStatus,
 						pmbox->un.varWords[0],
 						pmb->vport->port_state);
 				pmbox->mbxStatus = 0;
 				pmbox->mbxOwner = OWN_HOST;
-				spin_lock_irq(&phba->hbalock);
-				phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
-				spin_unlock_irq(&phba->hbalock);
 				rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
-				if (rc == MBX_SUCCESS)
+				if (rc != MBX_NOT_FINISHED)
 					continue;
 			}
 		}
 
 		/* Mailbox cmd <cmd> Cmpl <cmpl> */
 		lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
-				"(%d):0307 Mailbox cmd x%x Cmpl x%p "
+				"(%d):0307 Mailbox cmd x%x (x%x) Cmpl x%p "
 				"Data: x%x x%x x%x x%x x%x x%x x%x x%x x%x\n",
 				pmb->vport ? pmb->vport->vpi : 0,
 				pmbox->mbxCommand,
+				lpfc_sli4_mbox_opcode_get(phba, pmb),
 				pmb->mbox_cmpl,
 				*((uint32_t *) pmbox),
 				pmbox->un.varWords[0],
@@ -3377,10 +3376,10 @@ lpfc_sli_brdkill(struct lpfc_hba *phba)
 	}
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	psli->mbox_active = NULL;
 	phba->link_flag &= ~LS_IGNORE_ERATT;
 	spin_unlock_irq(&phba->hbalock);
 
-	psli->mbox_active = NULL;
 	lpfc_hba_down_post(phba);
 	phba->link_state = LPFC_HBA_ERROR;
 
@@ -3790,7 +3789,7 @@ lpfc_sli_hbq_setup(struct lpfc_hba *phba)
 	if (!pmb)
 		return -ENOMEM;
 
-	pmbox = &pmb->mb;
+	pmbox = &pmb->u.mb;
 
 	/* Initialize the struct lpfc_sli_hbq structure for each hbq */
 	phba->link_state = LPFC_INIT_MBX_CMDS;
@@ -3917,33 +3916,43 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0442 Adapter failed to init, mbxCmd x%x "
 				"CONFIG_PORT, mbxStatus x%x Data: x%x\n",
-				pmb->mb.mbxCommand, pmb->mb.mbxStatus, 0);
+				pmb->u.mb.mbxCommand, pmb->u.mb.mbxStatus, 0);
 			spin_lock_irq(&phba->hbalock);
-			phba->sli.sli_flag &= ~LPFC_SLI2_ACTIVE;
+			phba->sli.sli_flag &= ~LPFC_SLI_ACTIVE;
 			spin_unlock_irq(&phba->hbalock);
 			rc = -ENXIO;
-		} else
+		} else {
+			/* Allow asynchronous mailbox command to go through */
+			spin_lock_irq(&phba->hbalock);
+			phba->sli.sli_flag &= ~LPFC_SLI_ASYNC_MBX_BLK;
+			spin_unlock_irq(&phba->hbalock);
 			done = 1;
+		}
 	}
 	if (!done) {
 		rc = -EINVAL;
 		goto do_prep_failed;
 	}
-	if (pmb->mb.un.varCfgPort.sli_mode == 3) {
-		if (!pmb->mb.un.varCfgPort.cMA) {
+	if (pmb->u.mb.un.varCfgPort.sli_mode == 3) {
+		if (!pmb->u.mb.un.varCfgPort.cMA) {
 			rc = -ENXIO;
 			goto do_prep_failed;
 		}
-		if (phba->max_vpi && pmb->mb.un.varCfgPort.gmv) {
+		if (phba->max_vpi && pmb->u.mb.un.varCfgPort.gmv) {
 			phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
-			phba->max_vpi = pmb->mb.un.varCfgPort.max_vpi;
+			phba->max_vpi = pmb->u.mb.un.varCfgPort.max_vpi;
+			phba->max_vports = (phba->max_vpi > phba->max_vports) ?
+				phba->max_vpi : phba->max_vports;
+
 		} else
 			phba->max_vpi = 0;
-		if (pmb->mb.un.varCfgPort.gerbm)
+		if (pmb->u.mb.un.varCfgPort.gdss)
+			phba->sli3_options |= LPFC_SLI3_DSS_ENABLED;
+		if (pmb->u.mb.un.varCfgPort.gerbm)
 			phba->sli3_options |= LPFC_SLI3_HBQ_ENABLED;
-		if (pmb->mb.un.varCfgPort.gcrp)
+		if (pmb->u.mb.un.varCfgPort.gcrp)
 			phba->sli3_options |= LPFC_SLI3_CRP_ENABLED;
-		if (pmb->mb.un.varCfgPort.ginb) {
+		if (pmb->u.mb.un.varCfgPort.ginb) {
 			phba->sli3_options |= LPFC_SLI3_INB_ENABLED;
 			phba->hbq_get = phba->mbox->us.s3_inb_pgp.hbq_get;
 			phba->port_gp = phba->mbox->us.s3_inb_pgp.port;
@@ -3959,7 +3968,7 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 		}
 
 		if (phba->cfg_enable_bg) {
-			if (pmb->mb.un.varCfgPort.gbg)
+			if (pmb->u.mb.un.varCfgPort.gbg)
 				phba->sli3_options |= LPFC_SLI3_BG_ENABLED;
 			else
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -4054,8 +4063,9 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		if (rc)
 			goto lpfc_sli_hba_setup_error;
 	}
-
+	spin_lock_irq(&phba->hbalock);
 	phba->sli.sli_flag |= LPFC_PROCESS_LA;
+	spin_unlock_irq(&phba->hbalock);
 
 	rc = lpfc_config_port_post(phba);
 	if (rc)
@@ -4596,7 +4606,7 @@ void
 lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 {
 	LPFC_MBOXQ_t *pmbox = phba->sli.mbox_active;
-	MAILBOX_t *mb = &pmbox->mb;
+	MAILBOX_t *mb = &pmbox->u.mb;
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
 
@@ -6414,6 +6424,52 @@ lpfc_sli_queue_setup(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli_mbox_sys_flush - Flush mailbox command sub-system
+ * @phba: Pointer to HBA context object.
+ *
+ * This routine flushes the mailbox command subsystem. It will unconditionally
+ * flush all the mailbox commands in the three possible stages in the mailbox
+ * command sub-system: pending mailbox command queue; the outstanding mailbox
+ * command; and completed mailbox command queue. It is caller's responsibility
+ * to make sure that the driver is in the proper state to flush the mailbox
+ * command sub-system. Namely, the posting of mailbox commands into the
+ * pending mailbox command queue from the various clients must be stopped;
+ * either the HBA is in a state that it will never works on the outstanding
+ * mailbox command (such as in EEH or ERATT conditions) or the outstanding
+ * mailbox command has been completed.
+ **/
+static void
+lpfc_sli_mbox_sys_flush(struct lpfc_hba *phba)
+{
+	LIST_HEAD(completions);
+	struct lpfc_sli *psli = &phba->sli;
+	LPFC_MBOXQ_t *pmb;
+	unsigned long iflag;
+
+	/* Flush all the mailbox commands in the mbox system */
+	spin_lock_irqsave(&phba->hbalock, iflag);
+	/* The pending mailbox command queue */
+	list_splice_init(&phba->sli.mboxq, &completions);
+	/* The outstanding active mailbox command */
+	if (psli->mbox_active) {
+		list_add_tail(&psli->mbox_active->list, &completions);
+		psli->mbox_active = NULL;
+		psli->sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	}
+	/* The completed mailbox command queue */
+	list_splice_init(&phba->sli.mboxq_cmpl, &completions);
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
+
+	/* Return all flushed mailbox commands with MBX_NOT_FINISHED status */
+	while (!list_empty(&completions)) {
+		list_remove_head(&completions, pmb, LPFC_MBOXQ_t, list);
+		pmb->u.mb.mbxStatus = MBX_NOT_FINISHED;
+		if (pmb->mbox_cmpl)
+			pmb->mbox_cmpl(phba, pmb);
+	}
+}
+
+/**
  * lpfc_sli_host_down - Vport cleanup function
  * @vport: Pointer to virtual port object.
  *
@@ -6506,9 +6562,11 @@ lpfc_sli_hba_down(struct lpfc_hba *phba)
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
 	struct lpfc_dmabuf *buf_ptr;
-	LPFC_MBOXQ_t *pmb;
-	int i;
 	unsigned long flags = 0;
+	int i;
+
+	/* Shutdown the mailbox command sub-system */
+	lpfc_sli_mbox_sys_shutdown(phba);
 
 	lpfc_hba_down_prep(phba);
 
@@ -7773,7 +7831,7 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 
 		if ((work_ha_copy & HA_MBATT) && (phba->sli.mbox_active)) {
 			pmb = phba->sli.mbox_active;
-			pmbox = &pmb->mb;
+			pmbox = &pmb->u.mb;
 			mbox = phba->mbox;
 			vport = pmb->vport;
 
@@ -8167,6 +8225,183 @@ lpfc_sli4_iocb_param_transfer(struct lpfc_iocbq *pIocbIn,
 		pIocbIn->sli4_info.priority =
 					bf_get(lpfc_wcqe_c_priority, wcqe);
 	}
+}
+
+/**
+ * lpfc_sli4_sp_handle_async_event - Handle an asynchroous event
+ * @phba: Pointer to HBA context object.
+ * @cqe: Pointer to mailbox completion queue entry.
+ *
+ * This routine process a mailbox completion queue entry with asynchrous
+ * event.
+ *
+ * Return: true if work posted to worker thread, otherwise false.
+ **/
+static bool
+lpfc_sli4_sp_handle_async_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
+{
+	struct lpfc_cq_event *cq_event;
+	unsigned long iflags;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"0392 Async Event: word0:x%x, word1:x%x, "
+			"word2:x%x, word3:x%x\n", mcqe->word0,
+			mcqe->mcqe_tag0, mcqe->mcqe_tag1, mcqe->trailer);
+
+	/* Allocate a new internal CQ_EVENT entry */
+	cq_event = lpfc_sli4_cq_event_alloc(phba);
+	if (!cq_event) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"0394 Failed to allocate CQ_EVENT entry\n");
+		return false;
+	}
+
+	/* Move the CQE into an asynchronous event entry */
+	memcpy(&cq_event->cqe, mcqe, sizeof(struct lpfc_mcqe));
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	list_add_tail(&cq_event->list, &phba->sli4_hba.sp_asynce_work_queue);
+	/* Set the async event flag */
+	phba->hba_flag |= ASYNC_EVENT;
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+
+	return true;
+}
+
+/**
+ * lpfc_sli4_sp_handle_mbox_event - Handle a mailbox completion event
+ * @phba: Pointer to HBA context object.
+ * @cqe: Pointer to mailbox completion queue entry.
+ *
+ * This routine process a mailbox completion queue entry with mailbox
+ * completion event.
+ *
+ * Return: true if work posted to worker thread, otherwise false.
+ **/
+static bool
+lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
+{
+	uint32_t mcqe_status;
+	MAILBOX_t *mbox, *pmbox;
+	struct lpfc_mqe *mqe;
+	struct lpfc_vport *vport;
+	struct lpfc_nodelist *ndlp;
+	struct lpfc_dmabuf *mp;
+	unsigned long iflags;
+	LPFC_MBOXQ_t *pmb;
+	bool workposted = false;
+	int rc;
+
+	/* If not a mailbox complete MCQE, out by checking mailbox consume */
+	if (!bf_get(lpfc_trailer_completed, mcqe))
+		goto out_no_mqe_complete;
+
+	/* Get the reference to the active mbox command */
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	pmb = phba->sli.mbox_active;
+	if (unlikely(!pmb)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"1832 No pending MBOX command to handle\n");
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		goto out_no_mqe_complete;
+	}
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	mqe = &pmb->u.mqe;
+	pmbox = (MAILBOX_t *)&pmb->u.mqe;
+	mbox = phba->mbox;
+	vport = pmb->vport;
+
+	/* Reset heartbeat timer */
+	phba->last_completion_time = jiffies;
+	del_timer(&phba->sli.mbox_tmo);
+
+	/* Move mbox data to caller's mailbox region, do endian swapping */
+	if (pmb->mbox_cmpl && mbox)
+		lpfc_sli_pcimem_bcopy(mbox, mqe, sizeof(struct lpfc_mqe));
+	/* Set the mailbox status with SLI4 range 0x4000 */
+	mcqe_status = bf_get(lpfc_mcqe_status, mcqe);
+	if (mcqe_status != MB_CQE_STATUS_SUCCESS)
+		bf_set(lpfc_mqe_status, mqe,
+		       (LPFC_MBX_ERROR_RANGE | mcqe_status));
+
+	if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
+		pmb->mbox_flag &= ~LPFC_MBX_IMED_UNREG;
+		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_MBOX_VPORT,
+				      "MBOX dflt rpi: status:x%x rpi:x%x",
+				      mcqe_status,
+				      pmbox->un.varWords[0], 0);
+		if (mcqe_status == MB_CQE_STATUS_SUCCESS) {
+			mp = (struct lpfc_dmabuf *)(pmb->context1);
+			ndlp = (struct lpfc_nodelist *)pmb->context2;
+			/* Reg_LOGIN of dflt RPI was successful. Now lets get
+			 * RID of the PPI using the same mbox buffer.
+			 */
+			lpfc_unreg_login(phba, vport->vpi,
+					 pmbox->un.varWords[0], pmb);
+			pmb->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
+			pmb->context1 = mp;
+			pmb->context2 = ndlp;
+			pmb->vport = vport;
+			rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+			if (rc != MBX_BUSY)
+				lpfc_printf_log(phba, KERN_ERR, LOG_MBOX |
+						LOG_SLI, "0385 rc should "
+						"have been MBX_BUSY\n");
+			if (rc != MBX_NOT_FINISHED)
+				goto send_current_mbox;
+		}
+	}
+	spin_lock_irqsave(&phba->pport->work_port_lock, iflags);
+	phba->pport->work_port_events &= ~WORKER_MBOX_TMO;
+	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflags);
+
+	/* There is mailbox completion work to do */
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	__lpfc_mbox_cmpl_put(phba, pmb);
+	phba->work_ha |= HA_MBATT;
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	workposted = true;
+
+send_current_mbox:
+	spin_lock_irqsave(&phba->hbalock, iflags);
+	/* Release the mailbox command posting token */
+	phba->sli.sli_flag &= ~LPFC_SLI_MBOX_ACTIVE;
+	/* Setting active mailbox pointer need to be in sync to flag clear */
+	phba->sli.mbox_active = NULL;
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
+	/* Wake up worker thread to post the next pending mailbox command */
+	lpfc_worker_wake_up(phba);
+out_no_mqe_complete:
+	if (bf_get(lpfc_trailer_consumed, mcqe))
+		lpfc_sli4_mq_release(phba->sli4_hba.mbx_wq);
+	return workposted;
+}
+
+/**
+ * lpfc_sli4_sp_handle_mcqe - Process a mailbox completion queue entry
+ * @phba: Pointer to HBA context object.
+ * @cqe: Pointer to mailbox completion queue entry.
+ *
+ * This routine process a mailbox completion queue entry, it invokes the
+ * proper mailbox complete handling or asynchrous event handling routine
+ * according to the MCQE's async bit.
+ *
+ * Return: true if work posted to worker thread, otherwise false.
+ **/
+static bool
+lpfc_sli4_sp_handle_mcqe(struct lpfc_hba *phba, struct lpfc_cqe *cqe)
+{
+	struct lpfc_mcqe mcqe;
+	bool workposted;
+
+	/* Copy the mailbox MCQE and convert endian order as needed */
+	lpfc_sli_pcimem_bcopy(cqe, &mcqe, sizeof(struct lpfc_mcqe));
+
+	/* Invoke the proper event handling routine */
+	if (!bf_get(lpfc_trailer_async, &mcqe))
+		workposted = lpfc_sli4_sp_handle_mbox_event(phba, &mcqe);
+	else
+		workposted = lpfc_sli4_sp_handle_async_event(phba, &mcqe);
+	return workposted;
 }
 
 /**
@@ -9247,6 +9482,112 @@ out:
 }
 
 /**
+ * lpfc_mq_create - Create a mailbox Queue on the HBA
+ * @phba: HBA structure that indicates port to create a queue on.
+ * @mq: The queue structure to use to create the mailbox queue.
+ *
+ * This function creates a mailbox queue, as detailed in @mq, on a port,
+ * described by @phba by sending a MQ_CREATE mailbox command to the HBA.
+ *
+ * The @phba struct is used to send mailbox command to HBA. The @cq struct
+ * is used to get the entry count and entry size that are necessary to
+ * determine the number of pages to allocate and use for this queue. This
+ * function will send the MQ_CREATE mailbox command to the HBA to setup the
+ * mailbox queue. This function is asynchronous and will wait for the mailbox
+ * command to finish before continuing.
+ *
+ * On success this function will return a zero. If unable to allocate enough
+ * memory this function will return ENOMEM. If the queue create mailbox command
+ * fails this function will return ENXIO.
+ **/
+uint32_t
+lpfc_mq_create(struct lpfc_hba *phba, struct lpfc_queue *mq,
+	       struct lpfc_queue *cq, uint32_t subtype)
+{
+	struct lpfc_mbx_mq_create *mq_create;
+	struct lpfc_dmabuf *dmabuf;
+	LPFC_MBOXQ_t *mbox;
+	int rc, length, status = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+	length = (sizeof(struct lpfc_mbx_mq_create) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_MQ_CREATE,
+			 length, LPFC_SLI4_MBX_EMBED);
+	mq_create = &mbox->u.mqe.un.mq_create;
+	bf_set(lpfc_mbx_mq_create_num_pages, &mq_create->u.request,
+		    mq->page_count);
+	bf_set(lpfc_mq_context_cq_id, &mq_create->u.request.context,
+		    cq->queue_id);
+	bf_set(lpfc_mq_context_valid, &mq_create->u.request.context, 1);
+	switch (mq->entry_count) {
+	default:
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"0362 Unsupported MQ count. (%d)\n",
+				mq->entry_count);
+		if (mq->entry_count < 16)
+			return -EINVAL;
+		/* otherwise default to smallest count (drop through) */
+	case 16:
+		bf_set(lpfc_mq_context_count, &mq_create->u.request.context,
+		       LPFC_MQ_CNT_16);
+		break;
+	case 32:
+		bf_set(lpfc_mq_context_count, &mq_create->u.request.context,
+		       LPFC_MQ_CNT_32);
+		break;
+	case 64:
+		bf_set(lpfc_mq_context_count, &mq_create->u.request.context,
+		       LPFC_MQ_CNT_64);
+		break;
+	case 128:
+		bf_set(lpfc_mq_context_count, &mq_create->u.request.context,
+		       LPFC_MQ_CNT_128);
+		break;
+	}
+	list_for_each_entry(dmabuf, &mq->page_list, list) {
+		mq_create->u.request.page[dmabuf->buffer_tag].addr_lo =
+					putPaddrLow(dmabuf->phys);
+		mq_create->u.request.page[dmabuf->buffer_tag].addr_hi =
+					putPaddrHigh(dmabuf->phys);
+	}
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
+	/* The IOCTL status is embedded in the mailbox subheader. */
+	shdr = (union lpfc_sli4_cfg_shdr *) &mq_create->header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2502 MQ_CREATE mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		status = -ENXIO;
+		goto out;
+	}
+	mq->queue_id = bf_get(lpfc_mbx_mq_create_q_id, &mq_create->u.response);
+	if (mq->queue_id == 0xFFFF) {
+		status = -ENXIO;
+		goto out;
+	}
+	mq->type = LPFC_MQ;
+	mq->subtype = subtype;
+	mq->host_index = 0;
+	mq->hba_index = 0;
+
+	/* link the mq onto the parent cq child list */
+	list_add_tail(&mq->list, &cq->child_list);
+out:
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mbox, phba->mbox_mem_pool);
+	return status;
+}
+
+/**
  * lpfc_wq_create - Create a Work Queue on the HBA
  * @phba: HBA structure that indicates port to create a queue on.
  * @wq: The queue structure to use to create the work queue.
@@ -9611,6 +9952,60 @@ lpfc_cq_destroy(struct lpfc_hba *phba, struct lpfc_queue *cq)
 	list_del_init(&cq->list);
 	if (rc != MBX_TIMEOUT)
 		mempool_free(mbox, cq->phba->mbox_mem_pool);
+	return status;
+}
+
+/**
+ * lpfc_mq_destroy - Destroy a Mailbox Queue on the HBA
+ * @qm: The queue structure associated with the queue to destroy.
+ *
+ * This function destroys a queue, as detailed in @mq by sending an mailbox
+ * command, specific to the type of queue, to the HBA.
+ *
+ * The @mq struct is used to get the queue ID of the queue to destroy.
+ *
+ * On success this function will return a zero. If the queue destroy mailbox
+ * command fails this function will return ENXIO.
+ **/
+uint32_t
+lpfc_mq_destroy(struct lpfc_hba *phba, struct lpfc_queue *mq)
+{
+	LPFC_MBOXQ_t *mbox;
+	int rc, length, status = 0;
+	uint32_t shdr_status, shdr_add_status;
+	union lpfc_sli4_cfg_shdr *shdr;
+
+	if (!mq)
+		return -ENODEV;
+	mbox = mempool_alloc(mq->phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox)
+		return -ENOMEM;
+	length = (sizeof(struct lpfc_mbx_mq_destroy) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_MQ_DESTROY,
+			 length, LPFC_SLI4_MBX_EMBED);
+	bf_set(lpfc_mbx_mq_destroy_q_id, &mbox->u.mqe.un.mq_destroy.u.request,
+	       mq->queue_id);
+	mbox->vport = mq->phba->pport;
+	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	rc = lpfc_sli_issue_mbox(mq->phba, mbox, MBX_POLL);
+	/* The IOCTL status is embedded in the mailbox subheader. */
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&mbox->u.mqe.un.mq_destroy.header.cfg_shdr;
+	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	if (shdr_status || shdr_add_status || rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2507 MQ_DESTROY mailbox failed with "
+				"status x%x add_status x%x, mbx status x%x\n",
+				shdr_status, shdr_add_status, rc);
+		status = -ENXIO;
+	}
+	/* Remove mq from any list */
+	list_del_init(&mq->list);
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mbox, mq->phba->mbox_mem_pool);
 	return status;
 }
 

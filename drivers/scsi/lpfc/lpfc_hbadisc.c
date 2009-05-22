@@ -879,7 +879,7 @@ lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_sli   *psli = &phba->sli;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	uint32_t control;
 
 	/* Since we don't do discovery right now, turn these off here */
@@ -942,7 +942,7 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 
-	if (pmb->mb.mbxStatus)
+	if (pmb->u.mb.mbxStatus)
 		goto out;
 
 	mempool_free(pmb, phba->mbox_mem_pool);
@@ -970,7 +970,7 @@ out:
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
 			 "0306 CONFIG_LINK mbxStatus error x%x "
 			 "HBA state x%x\n",
-			 pmb->mb.mbxStatus, vport->port_state);
+			 pmb->u.mb.mbxStatus, vport->port_state);
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	lpfc_linkdown(phba);
@@ -1202,7 +1202,7 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	READ_LA_VAR *la;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 
 	/* Unblock ELS traffic */
@@ -1217,7 +1217,7 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		goto lpfc_mbx_cmpl_read_la_free_mbuf;
 	}
 
-	la = (READ_LA_VAR *) & pmb->mb.un.varReadLA;
+	la = (READ_LA_VAR *) &pmb->u.mb.un.varReadLA;
 
 	memcpy(&phba->alpa_map[0], mp->virt, 128);
 
@@ -1355,7 +1355,7 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 static void
 lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
@@ -1408,7 +1408,7 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 
 	switch (mb->mbxStatus) {
 	case 0x0011:
@@ -2279,7 +2279,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	/* cleanup any ndlp on mbox q waiting for reglogin cmpl */
 	if ((mb = phba->sli.mbox_active)) {
-		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
+		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			mb->context2 = NULL;
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -2288,7 +2288,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
-		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
+		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		    (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
@@ -2970,7 +2970,7 @@ restart_disc:
 		lpfc_linkdown(phba);
 		lpfc_init_link(phba, initlinkmbox, phba->cfg_topology,
 			       phba->cfg_link_speed);
-		initlinkmbox->mb.un.varInitLnk.lipsr_AL_PA = 0;
+		initlinkmbox->u.mb.un.varInitLnk.lipsr_AL_PA = 0;
 		initlinkmbox->vport = vport;
 		initlinkmbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		rc = lpfc_sli_issue_mbox(phba, initlinkmbox, MBX_NOWAIT);
@@ -3069,7 +3069,7 @@ restart_disc:
 void
 lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	struct lpfc_dmabuf   *mp = (struct lpfc_dmabuf *) (pmb->context1);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
 	struct lpfc_vport    *vport = pmb->vport;

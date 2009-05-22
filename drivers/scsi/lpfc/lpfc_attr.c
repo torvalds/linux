@@ -507,12 +507,14 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 		return -ENOMEM;
 
 	memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
-	pmboxq->mb.mbxCommand = MBX_DOWN_LINK;
-	pmboxq->mb.mbxOwner = OWN_HOST;
+	pmboxq->u.mb.mbxCommand = MBX_DOWN_LINK;
+	pmboxq->u.mb.mbxOwner = OWN_HOST;
 
 	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO * 2);
 
-	if ((mbxstatus == MBX_SUCCESS) && (pmboxq->mb.mbxStatus == 0)) {
+	if ((mbxstatus == MBX_SUCCESS) &&
+	    (pmboxq->u.mb.mbxStatus == 0 ||
+	     pmboxq->u.mb.mbxStatus == MBXERR_LINK_DOWN)) {
 		memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 		lpfc_init_link(phba, pmboxq, phba->cfg_topology,
 			       phba->cfg_link_speed);
@@ -791,7 +793,8 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		  uint32_t *mrpi, uint32_t *arpi,
 		  uint32_t *mvpi, uint32_t *avpi)
 {
-	struct lpfc_sli   *psli = &phba->sli;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_mbx_read_config *rd_config;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
 	int rc = 0;
@@ -813,7 +816,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		return 0;
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 
-	pmb = &pmboxq->mb;
+	pmb = &pmboxq->u.mb;
 	pmb->mbxCommand = MBX_READ_CONFIG;
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
@@ -3247,7 +3250,7 @@ sysfs_mbox_write(struct kobject *kobj, struct bin_attribute *bin_attr,
 		}
 	}
 
-	memcpy((uint8_t *) & phba->sysfs_mbox.mbox->mb + off,
+	memcpy((uint8_t *) &phba->sysfs_mbox.mbox->u.mb + off,
 	       buf, count);
 
 	phba->sysfs_mbox.offset = off + count;
@@ -3289,6 +3292,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 	int rc;
+	MAILBOX_t *pmb;
 
 	if (off > MAILBOX_CMD_SIZE)
 		return -ERANGE;
@@ -3313,8 +3317,8 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	if (off == 0 &&
 	    phba->sysfs_mbox.state  == SMBOX_WRITING &&
 	    phba->sysfs_mbox.offset >= 2 * sizeof(uint32_t)) {
-
-		switch (phba->sysfs_mbox.mbox->mb.mbxCommand) {
+		pmb = &phba->sysfs_mbox.mbox->u.mb;
+		switch (pmb->mbxCommand) {
 			/* Offline only */
 		case MBX_INIT_LINK:
 		case MBX_DOWN_LINK:
@@ -3331,7 +3335,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 			if (!(vport->fc_flag & FC_OFFLINE_MODE)) {
 				printk(KERN_WARNING "mbox_read:Command 0x%x "
 				       "is illegal in on-line state\n",
-				       phba->sysfs_mbox.mbox->mb.mbxCommand);
+				       pmb->mbxCommand);
 				sysfs_mbox_idle(phba);
 				spin_unlock_irq(&phba->hbalock);
 				return -EPERM;
@@ -3367,13 +3371,13 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_CONFIG_PORT:
 		case MBX_RUN_BIU_DIAG:
 			printk(KERN_WARNING "mbox_read: Illegal Command 0x%x\n",
-			       phba->sysfs_mbox.mbox->mb.mbxCommand);
+			       pmb->mbxCommand);
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
 		default:
 			printk(KERN_WARNING "mbox_read: Unknown Command 0x%x\n",
-			       phba->sysfs_mbox.mbox->mb.mbxCommand);
+			       pmb->mbxCommand);
 			sysfs_mbox_idle(phba);
 			spin_unlock_irq(&phba->hbalock);
 			return -EPERM;
@@ -3383,14 +3387,14 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		 * or RESTART mailbox commands until the HBA is restarted.
 		 */
 		if (phba->pport->stopped &&
-		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_DUMP_MEMORY &&
-		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_RESTART &&
-		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_WRITE_VPARMS &&
-		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_WRITE_WWN)
+		    pmb->mbxCommand != MBX_DUMP_MEMORY &&
+		    pmb->mbxCommand != MBX_RESTART &&
+		    pmb->mbxCommand != MBX_WRITE_VPARMS &&
+		    pmb->mbxCommand != MBX_WRITE_WWN)
 			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
 					"1259 mbox: Issued mailbox cmd "
 					"0x%x while in stopped state.\n",
-					phba->sysfs_mbox.mbox->mb.mbxCommand);
+					pmb->mbxCommand);
 
 		phba->sysfs_mbox.mbox->vport = vport;
 
@@ -3416,8 +3420,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 			spin_unlock_irq(&phba->hbalock);
 			rc = lpfc_sli_issue_mbox_wait (phba,
 						       phba->sysfs_mbox.mbox,
-				lpfc_mbox_tmo_val(phba,
-				    phba->sysfs_mbox.mbox->mb.mbxCommand) * HZ);
+				lpfc_mbox_tmo_val(phba, pmb->mbxCommand) * HZ);
 			spin_lock_irq(&phba->hbalock);
 		}
 
@@ -3439,7 +3442,7 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		return -EAGAIN;
 	}
 
-	memcpy(buf, (uint8_t *) & phba->sysfs_mbox.mbox->mb + off, count);
+	memcpy(buf, (uint8_t *) &pmb + off, count);
 
 	phba->sysfs_mbox.offset = off + count;
 
@@ -3711,14 +3714,14 @@ lpfc_get_stats(struct Scsi_Host *shost)
 		return NULL;
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 
-	pmb = &pmboxq->mb;
+	pmb = &pmboxq->u.mb;
 	pmb->mbxCommand = MBX_READ_STATUS;
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
+		(!(psli->sli_flag & LPFC_SLI_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -3817,7 +3820,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 		return;
 	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
 
-	pmb = &pmboxq->mb;
+	pmb = &pmboxq->u.mb;
 	pmb->mbxCommand = MBX_READ_STATUS;
 	pmb->mbxOwner = OWN_HOST;
 	pmb->un.varWords[0] = 0x1; /* reset request */

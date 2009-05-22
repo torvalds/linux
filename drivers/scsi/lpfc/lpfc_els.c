@@ -4277,7 +4277,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			lpfc_init_link(phba, mbox,
 				       phba->cfg_topology,
 				       phba->cfg_link_speed);
-			mbox->mb.un.varInitLnk.lipsr_AL_PA = 0;
+			mbox->u.mb.un.varInitLnk.lipsr_AL_PA = 0;
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			mbox->vport = vport;
 			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
@@ -4426,7 +4426,7 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	uint16_t xri, status;
 	uint32_t cmdsize;
 
-	mb = &pmb->mb;
+	mb = &pmb->u.mb;
 
 	ndlp = (struct lpfc_nodelist *) pmb->context2;
 	xri = (uint16_t) ((unsigned long)(pmb->context1));
@@ -5755,7 +5755,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;

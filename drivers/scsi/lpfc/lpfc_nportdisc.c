@@ -1192,7 +1192,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 
 	/* cleanup any ndlp on mbox q waiting for reglogin cmpl */
 	if ((mb = phba->sli.mbox_active)) {
-		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
+		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			lpfc_nlp_put(ndlp);
 			mb->context2 = NULL;
@@ -1202,7 +1202,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
-		if ((mb->mb.mbxCommand == MBX_REG_LOGIN64) &&
+		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
@@ -1253,7 +1253,7 @@ lpfc_cmpl_reglogin_reglogin_issue(struct lpfc_vport *vport,
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
-	MAILBOX_t *mb = &pmb->mb;
+	MAILBOX_t *mb = &pmb->u.mb;
 	uint32_t did  = mb->un.varWords[1];
 
 	if (mb->mbxStatus) {
@@ -1880,11 +1880,12 @@ lpfc_cmpl_reglogin_npr_node(struct lpfc_vport *vport,
 			    void *arg, uint32_t evt)
 {
 	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
-	MAILBOX_t    *mb = &pmb->mb;
+	MAILBOX_t    *mb = &pmb->u.mb;
 
-	if (!mb->mbxStatus)
+	if (!mb->mbxStatus) {
 		ndlp->nlp_rpi = mb->un.varWords[0];
-	else {
+		ndlp->nlp_flag |= NLP_RPI_VALID;
+	} else {
 		if (ndlp->nlp_flag & NLP_NODEV_REMOVE) {
 			lpfc_drop_node(vport, ndlp);
 			return NLP_STE_FREED_NODE;
