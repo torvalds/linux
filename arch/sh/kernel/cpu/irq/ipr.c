@@ -59,17 +59,21 @@ void register_ipr_controller(struct ipr_desc *desc)
 
 	for (i = 0; i < desc->nr_irqs; i++) {
 		struct ipr_data *p = desc->ipr_data + i;
+#ifdef CONFIG_SPARSE_IRQ
 		struct irq_desc *irq_desc;
+#endif
 
 		BUG_ON(p->ipr_idx >= desc->nr_offsets);
 		BUG_ON(!desc->ipr_offsets[p->ipr_idx]);
 
+#ifdef CONFIG_SPARSE_IRQ
 		irq_desc = irq_to_desc_alloc_cpu(p->irq, smp_processor_id());
 		if (unlikely(!irq_desc)) {
 			printk(KERN_INFO "can not get irq_desc for %d\n",
 			       p->irq);
 			continue;
 		}
+#endif
 
 		disable_irq_nosync(p->irq);
 		set_irq_chip_and_handler_name(p->irq, &desc->chip,

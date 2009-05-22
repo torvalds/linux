@@ -771,16 +771,19 @@ void __init register_intc_controller(struct intc_desc *desc)
 	for (i = 0; i < desc->nr_vectors; i++) {
 		struct intc_vect *vect = desc->vectors + i;
 		unsigned int irq = evt2irq(vect->vect);
+#ifdef CONFIG_SPARSE_IRQ
 		struct irq_desc *irq_desc;
-
+#endif
 		if (!vect->enum_id)
 			continue;
 
+#ifdef CONFIG_SPARSE_IRQ
 		irq_desc = irq_to_desc_alloc_cpu(irq, cpu);
 		if (unlikely(!irq_desc)) {
 			printk(KERN_INFO "can not get irq_desc for %d\n", irq);
 			continue;
 		}
+#endif
 
 		intc_register_irq(desc, d, vect->enum_id, irq);
 	}
