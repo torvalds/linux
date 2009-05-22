@@ -112,7 +112,8 @@ struct dsp_conf {
 
 #define DSP_DTMF_NPOINTS 102
 
-#define ECHOCAN_BUFLEN (4*128)
+#define ECHOCAN_BUFF_SIZE 0x400 /* must be 2**n */
+#define ECHOCAN_BUFF_MASK 0x3ff /* -1 */
 
 struct dsp_dtmf {
 	int		treshold; /* above this is dtmf (square of) */
