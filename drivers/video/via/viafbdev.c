@@ -1775,7 +1775,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 		viafb_dual_fb = 0;
 
 	/* Set up I2C bus stuff */
-	rc = viafb_create_i2c_bus(viaparinfo);
+	rc = viafb_create_i2c_busses(viaparinfo);
 	if (rc)
 		goto out_fb_release;
 
@@ -1964,7 +1964,7 @@ out_fb1_release:
 out_unmap_screen:
 	iounmap(viafbinfo->screen_base);
 out_delete_i2c:
-	viafb_delete_i2c_buss(viaparinfo);
+	viafb_delete_i2c_busses(viaparinfo);
 out_fb_release:
 	framebuffer_release(viafbinfo);
 	return rc;
@@ -1980,7 +1980,7 @@ static void __devexit via_pci_remove(struct pci_dev *pdev)
 	iounmap((void *)viafbinfo->screen_base);
 	iounmap(viaparinfo->shared->engine_mmio);
 
-	viafb_delete_i2c_buss(viaparinfo);
+	viafb_delete_i2c_busses(viaparinfo);
 
 	framebuffer_release(viafbinfo);
 	if (viafb_dual_fb)

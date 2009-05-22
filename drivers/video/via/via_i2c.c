@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  * This program is free software; you can redistribute it and/or
@@ -24,40 +24,44 @@
 static void via_i2c_setscl(void *data, int state)
 {
 	u8 val;
-	struct via_i2c_stuff *via_i2c_chan = (struct via_i2c_stuff *)data;
+	struct via_i2c_adap_cfg *adap_data = data;
 
-	val = viafb_read_reg(VIASR, via_i2c_chan->i2c_port) & 0xF0;
+	printk(KERN_DEBUG "reading index 0x%02x from IO 0x%x\n",
+		adap_data->ioport_index, adap_data->io_port);
+	val = viafb_read_reg(adap_data->io_port,
+			     adap_data->ioport_index) & 0xF0;
 	if (state)
 		val |= 0x20;
 	else
 		val &= ~0x20;
-	switch (via_i2c_chan->i2c_port) {
-	case I2CPORTINDEX:
+	switch (adap_data->type) {
+	case VIA_I2C_I2C:
 		val |= 0x01;
 		break;
-	case GPIOPORTINDEX:
+	case VIA_I2C_GPIO:
 		val |= 0x80;
 		break;
 	default:
-		DEBUG_MSG("via_i2c: specify wrong i2c port.\n");
+		DEBUG_MSG("viafb_i2c: specify wrong i2c type.\n");
 	}
-	viafb_write_reg(via_i2c_chan->i2c_port, VIASR, val);
+	viafb_write_reg(adap_data->ioport_index,
+			adap_data->io_port, val);
 }
 
 static int via_i2c_getscl(void *data)
 {
-	struct via_i2c_stuff *via_i2c_chan = (struct via_i2c_stuff *)data;
+	struct via_i2c_adap_cfg *adap_data = data;
 
-	if (viafb_read_reg(VIASR, via_i2c_chan->i2c_port) & 0x08)
+	if (viafb_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x08)
 		return 1;
 	return 0;
 }
 
 static int via_i2c_getsda(void *data)
 {
-	struct via_i2c_stuff *via_i2c_chan = (struct via_i2c_stuff *)data;
+	struct via_i2c_adap_cfg *adap_data = data;
 
-	if (viafb_read_reg(VIASR, via_i2c_chan->i2c_port) & 0x04)
+	if (viafb_read_reg(adap_data->io_port, adap_data->ioport_index) & 0x04)
 		return 1;
 	return 0;
 }
@@ -65,27 +69,29 @@ static int via_i2c_getsda(void *data)
 static void via_i2c_setsda(void *data, int state)
 {
 	u8 val;
-	struct via_i2c_stuff *via_i2c_chan = (struct via_i2c_stuff *)data;
+	struct via_i2c_adap_cfg *adap_data = data;
 
-	val = viafb_read_reg(VIASR, via_i2c_chan->i2c_port) & 0xF0;
+	val = viafb_read_reg(adap_data->io_port,
+			     adap_data->ioport_index) & 0xF0;
 	if (state)
 		val |= 0x10;
 	else
 		val &= ~0x10;
-	switch (via_i2c_chan->i2c_port) {
-	case I2CPORTINDEX:
+	switch (adap_data->type) {
+	case VIA_I2C_I2C:
 		val |= 0x01;
 		break;
-	case GPIOPORTINDEX:
+	case VIA_I2C_GPIO:
 		val |= 0x40;
 		break;
 	default:
-		DEBUG_MSG("via_i2c: specify wrong i2c port.\n");
+		DEBUG_MSG("viafb_i2c: specify wrong i2c type.\n");
 	}
-	viafb_write_reg(via_i2c_chan->i2c_port, VIASR, val);
+	viafb_write_reg(adap_data->ioport_index,
+			adap_data->io_port, val);
 }
 
-int viafb_i2c_readbyte(u8 slave_addr, u8 index, u8 *pdata)
+int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata)
 {
 	u8 mm1[] = {0x00};
 	struct i2c_msg msgs[2];
@@ -97,12 +103,11 @@ int viafb_i2c_readbyte(u8 slave_addr, u8 index, u8 *pdata)
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = 1;
 	msgs[0].buf = mm1; msgs[1].buf = pdata;
-	i2c_transfer(&viaparinfo->shared->i2c_stuff.adapter, msgs, 2);
-
-	return 0;
+	return i2c_transfer(&viaparinfo->shared->i2c_stuff[adap].adapter,
+			msgs, 2);
 }
 
-int viafb_i2c_writebyte(u8 slave_addr, u8 index, u8 data)
+int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data)
 {
 	u8 msg[2] = { index, data };
 	struct i2c_msg msgs;
@@ -111,10 +116,11 @@ int viafb_i2c_writebyte(u8 slave_addr, u8 index, u8 data)
 	msgs.addr = slave_addr / 2;
 	msgs.len = 2;
 	msgs.buf = msg;
-	return i2c_transfer(&viaparinfo->shared->i2c_stuff.adapter, &msgs, 1);
+	return i2c_transfer(&viaparinfo->shared->i2c_stuff[adap].adapter,
+			&msgs, 1);
 }
 
-int viafb_i2c_readbytes(u8 slave_addr, u8 index, u8 *buff, int buff_len)
+int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len)
 {
 	u8 mm1[] = {0x00};
 	struct i2c_msg msgs[2];
@@ -125,53 +131,88 @@ int viafb_i2c_readbytes(u8 slave_addr, u8 index, u8 *buff, int buff_len)
 	mm1[0] = index;
 	msgs[0].len = 1; msgs[1].len = buff_len;
 	msgs[0].buf = mm1; msgs[1].buf = buff;
-	i2c_transfer(&viaparinfo->shared->i2c_stuff.adapter, msgs, 2);
+	return i2c_transfer(&viaparinfo->shared->i2c_stuff[adap].adapter,
+			msgs, 2);
+}
+
+static int create_i2c_bus(struct i2c_adapter *adapter,
+			  struct i2c_algo_bit_data *algo,
+			  struct via_i2c_adap_cfg *adap_cfg,
+			  struct pci_dev *pdev)
+{
+	printk(KERN_DEBUG "viafb: creating bus adap=0x%p, algo_bit_data=0x%p, adap_cfg=0x%p\n", adapter, algo, adap_cfg);
+
+	algo->setsda = via_i2c_setsda;
+	algo->setscl = via_i2c_setscl;
+	algo->getsda = via_i2c_getsda;
+	algo->getscl = via_i2c_getscl;
+	algo->udelay = 40;
+	algo->timeout = 20;
+	algo->data = adap_cfg;
+
+	sprintf(adapter->name, "viafb i2c io_port idx 0x%02x",
+		adap_cfg->ioport_index);
+	adapter->owner = THIS_MODULE;
+	adapter->id = 0x01FFFF;
+	adapter->class = I2C_CLASS_DDC;
+	adapter->algo_data = algo;
+	if (pdev)
+		adapter->dev.parent = &pdev->dev;
+	else
+		adapter->dev.parent = NULL;
+	/* i2c_set_adapdata(adapter, adap_cfg); */
+
+	/* Raise SCL and SDA */
+	via_i2c_setsda(adap_cfg, 1);
+	via_i2c_setscl(adap_cfg, 1);
+	udelay(20);
+
+	return i2c_bit_add_bus(adapter);
+}
+
+static struct via_i2c_adap_cfg adap_configs[] = {
+	[VIA_I2C_ADAP_26]	= { VIA_I2C_I2C,  VIASR, 0x26 },
+	[VIA_I2C_ADAP_31]	= { VIA_I2C_I2C,  VIASR, 0x31 },
+	[VIA_I2C_ADAP_25]	= { VIA_I2C_GPIO, VIASR, 0x25 },
+	[VIA_I2C_ADAP_2C]	= { VIA_I2C_GPIO, VIASR, 0x2c },
+	[VIA_I2C_ADAP_3D]	= { VIA_I2C_GPIO, VIASR, 0x3d },
+	{ 0, 0, 0 }
+};
+
+int viafb_create_i2c_busses(struct viafb_par *viapar)
+{
+	int i, ret;
+
+	for (i = 0; i < VIAFB_NUM_I2C; i++) {
+		struct via_i2c_adap_cfg *adap_cfg = &adap_configs[i];
+		struct via_i2c_stuff *i2c_stuff = &viapar->shared->i2c_stuff[i];
+
+		if (adap_cfg->type == 0)
+			break;
+
+		ret = create_i2c_bus(&i2c_stuff->adapter,
+				     &i2c_stuff->algo, adap_cfg,
+				NULL); /* FIXME: PCIDEV */
+		if (ret < 0) {
+			printk(KERN_ERR "viafb: cannot create i2c bus %u:%d\n",
+				i, ret);
+			/* FIXME: properly release previous busses */
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
-int viafb_create_i2c_bus(void *viapar)
+void viafb_delete_i2c_busses(struct viafb_par *par)
 {
-	int ret;
-	struct via_i2c_stuff *i2c_stuff =
-		&((struct viafb_par *)viapar)->shared->i2c_stuff;
+	int i;
 
-	strcpy(i2c_stuff->adapter.name, "via_i2c");
-	i2c_stuff->i2c_port = 0x0;
-	i2c_stuff->adapter.owner = THIS_MODULE;
-	i2c_stuff->adapter.id = 0x01FFFF;
-	i2c_stuff->adapter.class = 0;
-	i2c_stuff->adapter.algo_data = &i2c_stuff->algo;
-	i2c_stuff->adapter.dev.parent = NULL;
-	i2c_stuff->algo.setsda = via_i2c_setsda;
-	i2c_stuff->algo.setscl = via_i2c_setscl;
-	i2c_stuff->algo.getsda = via_i2c_getsda;
-	i2c_stuff->algo.getscl = via_i2c_getscl;
-	i2c_stuff->algo.udelay = 40;
-	i2c_stuff->algo.timeout = 20;
-	i2c_stuff->algo.data = i2c_stuff;
-
-	i2c_set_adapdata(&i2c_stuff->adapter, i2c_stuff);
-
-	/* Raise SCL and SDA */
-	i2c_stuff->i2c_port = I2CPORTINDEX;
-	via_i2c_setsda(i2c_stuff, 1);
-	via_i2c_setscl(i2c_stuff, 1);
-
-	i2c_stuff->i2c_port = GPIOPORTINDEX;
-	via_i2c_setsda(i2c_stuff, 1);
-	via_i2c_setscl(i2c_stuff, 1);
-	udelay(20);
-
-	ret = i2c_bit_add_bus(&i2c_stuff->adapter);
-	if (ret == 0)
-		DEBUG_MSG("I2C bus %s registered.\n", i2c_stuff->adapter.name);
-	else
-		DEBUG_MSG("Failed to register I2C bus %s.\n",
-			i2c_stuff->adapter.name);
-	return ret;
-}
-
-void viafb_delete_i2c_buss(void *par)
-{
-	i2c_del_adapter(&((struct viafb_par *)par)->shared->i2c_stuff.adapter);
+	for (i = 0; i < ARRAY_SIZE(par->shared->i2c_stuff); i++) {
+		struct via_i2c_stuff *i2c_stuff = &par->shared->i2c_stuff[i];
+		/* only remove those entries in the array that we've
+		 * actually used (and thus initialized algo_data) */
+		if (i2c_stuff->adapter.algo_data == &i2c_stuff->algo)
+			i2c_del_adapter(&i2c_stuff->adapter);
+	}
 }

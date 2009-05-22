@@ -1,5 +1,5 @@
 /*
- * Copyright 1998-2008 VIA Technologies, Inc. All Rights Reserved.
+ * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
 
  * This program is free software; you can redistribute it and/or
@@ -24,23 +24,38 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
+enum via_i2c_type {
+	VIA_I2C_NONE,
+	VIA_I2C_I2C,
+	VIA_I2C_GPIO,
+};
+
+/* private data for each adapter */
+struct via_i2c_adap_cfg {
+	enum via_i2c_type	type;
+	u_int16_t		io_port;
+	u_int8_t		ioport_index;
+};
+
 struct via_i2c_stuff {
 	u16 i2c_port;			/* GPIO or I2C port */
 	struct i2c_adapter adapter;
 	struct i2c_algo_bit_data algo;
 };
 
-#define I2CPORT           0x3c4
-#define I2CPORTINDEX      0x31
-#define GPIOPORT          0x3C4
-#define GPIOPORTINDEX     0x2C
-#define I2C_BUS             1
-#define GPIO_BUS            2
-#define DELAYPORT           0x3C3
+enum viafb_i2c_adap {
+	VIA_I2C_ADAP_26,
+	VIA_I2C_ADAP_31,
+	VIA_I2C_ADAP_25,
+	VIA_I2C_ADAP_2C,
+	VIA_I2C_ADAP_3D,
+};
 
-int viafb_i2c_readbyte(u8 slave_addr, u8 index, u8 *pdata);
-int viafb_i2c_writebyte(u8 slave_addr, u8 index, u8 data);
-int viafb_i2c_readbytes(u8 slave_addr, u8 index, u8 *buff, int buff_len);
-int viafb_create_i2c_bus(void *par);
-void viafb_delete_i2c_buss(void *par);
+int viafb_i2c_readbyte(u8 adap, u8 slave_addr, u8 index, u8 *pdata);
+int viafb_i2c_writebyte(u8 adap, u8 slave_addr, u8 index, u8 data);
+int viafb_i2c_readbytes(u8 adap, u8 slave_addr, u8 index, u8 *buff, int buff_len);
+
+struct viafb_par;
+int viafb_create_i2c_busses(struct viafb_par *par);
+void viafb_delete_i2c_busses(struct viafb_par *par);
 #endif /* __VIA_I2C_H__ */
