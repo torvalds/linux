@@ -1945,6 +1945,9 @@ next_frame:
 				"%d!=%d\n", __func__, hc->id + 1, temp, z2);
 		z2 = temp; /* repeat unti Z2 is equal */
 	}
+	hc->chan[ch].Zfill = z1 - z2;
+	if (hc->chan[ch].Zfill < 0)
+		hc->chan[ch].Zfill += hc->Zlen;
 	Zspace = z2 - z1;
 	if (Zspace <= 0)
 		Zspace += hc->Zlen;
@@ -2031,6 +2034,7 @@ next_frame:
 
 	/* Have to prep the audio data */
 	hc->write_fifo(hc, d, ii - i);
+	hc->chan[ch].Zfill += ii - i;
 	*idxp = ii;
 
 	/* if not all data has been written */
@@ -2226,7 +2230,7 @@ next_frame:
 			if (dch)
 				recv_Dchannel(dch);
 			else
-				recv_Bchannel(bch);
+				recv_Bchannel(bch, MISDN_ID_ANY);
 			*sp = skb;
 			again++;
 			goto next_frame;
@@ -2258,7 +2262,7 @@ next_frame:
 			    "(z1=%04x, z2=%04x) TRANS\n",
 				__func__, hc->id + 1, ch, Zsize, z1, z2);
 		/* only bch is transparent */
-		recv_Bchannel(bch);
+		recv_Bchannel(bch, hc->chan[ch].Zfill);
 		*sp = skb;
 	}
 }

@@ -262,5 +262,5 @@ extern int  dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg);
 extern void dsp_pipeline_process_tx(struct dsp_pipeline *pipeline, u8 *data,
 		int len);
 extern void dsp_pipeline_process_rx(struct dsp_pipeline *pipeline, u8 *data,
-		int len);
+		int len, unsigned int txlen);
 

@@ -347,7 +347,8 @@ void dsp_pipeline_process_tx(struct dsp_pipeline *pipeline, u8 *data, int len)
 			entry->elem->process_tx(entry->p, data, len);
 }
 
-void dsp_pipeline_process_rx(struct dsp_pipeline *pipeline, u8 *data, int len)
+void dsp_pipeline_process_rx(struct dsp_pipeline *pipeline, u8 *data, int len,
+	unsigned int txlen)
 {
 	struct dsp_pipeline_entry *entry;
 
@@ -356,7 +357,7 @@ void dsp_pipeline_process_rx(struct dsp_pipeline *pipeline, u8 *data, int len)
 
 	list_for_each_entry_reverse(entry, &pipeline->list, list)
 		if (entry->elem->process_rx)
-			entry->elem->process_rx(entry->p, data, len);
+			entry->elem->process_rx(entry->p, data, len, txlen);
 }
 
 

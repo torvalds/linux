@@ -44,6 +44,7 @@ struct hfc_chan {
 	int		conf;	/* conference setting of TX slot */
 	int		txpending;	/* if there is currently data in */
 					/* the FIFO 0=no, 1=yes, 2=splloop */
+	int		Zfill;	/* rx-fifo level on last hfcmulti_tx */
 	int		rx_off; /* set to turn fifo receive off */
 	int		coeff_count; /* curren coeff block */
 	s32		*coeff; /* memory pointer to 8 coeff blocks */

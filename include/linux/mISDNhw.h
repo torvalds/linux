@@ -185,7 +185,7 @@ extern int	dchannel_senddata(struct dchannel *, struct sk_buff *);
 extern int	bchannel_senddata(struct bchannel *, struct sk_buff *);
 extern void	recv_Dchannel(struct dchannel *);
 extern void	recv_Echannel(struct dchannel *, struct dchannel *);
-extern void	recv_Bchannel(struct bchannel *);
+extern void	recv_Bchannel(struct bchannel *, unsigned int id);
 extern void	recv_Dchannel_skb(struct dchannel *, struct sk_buff *);
 extern void	recv_Bchannel_skb(struct bchannel *, struct sk_buff *);
 extern void	confirm_Bsend(struct bchannel *bch);

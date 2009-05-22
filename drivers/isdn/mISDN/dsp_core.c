@@ -710,7 +710,7 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 		/* pipeline */
 		if (dsp->pipeline.inuse)
 			dsp_pipeline_process_rx(&dsp->pipeline, skb->data,
-				skb->len);
+				skb->len, hh->id);
 		/* change volume if requested */
 		if (dsp->rx_volume)
 			dsp_change_volume(skb, dsp->rx_volume);

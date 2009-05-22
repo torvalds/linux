@@ -452,7 +452,7 @@ hfcpci_empty_bfifo(struct bchannel *bch, struct bzfifo *bz,
 		}
 		bz->za[new_f2].z2 = cpu_to_le16(new_z2);
 		bz->f2 = new_f2;	/* next buffer */
-		recv_Bchannel(bch);
+		recv_Bchannel(bch, MISDN_ID_ANY);
 	}
 }
 
@@ -541,35 +541,45 @@ receive_dmsg(struct hfc_pci *hc)
  * check for transparent receive data and read max one 'poll' size if avail
  */
 static void
-hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *bz, u_char *bdata)
+hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *rxbz,
+	struct bzfifo *txbz, u_char *bdata)
 {
-	 __le16 *z1r, *z2r;
-	int		new_z2, fcnt, maxlen;
-	u_char		*ptr, *ptr1;
+	 __le16	*z1r, *z2r, *z1t, *z2t;
+	int	new_z2, fcnt_rx, fcnt_tx, maxlen;
+	u_char	*ptr, *ptr1;
 
-	z1r = &bz->za[MAX_B_FRAMES].z1;		/* pointer to z reg */
+	z1r = &rxbz->za[MAX_B_FRAMES].z1;	/* pointer to z reg */
 	z2r = z1r + 1;
+	z1t = &txbz->za[MAX_B_FRAMES].z1;
+	z2t = z1t + 1;
 
-	fcnt = le16_to_cpu(*z1r) - le16_to_cpu(*z2r);
-	if (!fcnt)
+	fcnt_rx = le16_to_cpu(*z1r) - le16_to_cpu(*z2r);
+	if (!fcnt_rx)
 		return;	/* no data avail */
 
-	if (fcnt <= 0)
-		fcnt += B_FIFO_SIZE;	/* bytes actually buffered */
-	new_z2 = le16_to_cpu(*z2r) + fcnt;	/* new position in fifo */
+	if (fcnt_rx <= 0)
+		fcnt_rx += B_FIFO_SIZE;	/* bytes actually buffered */
+	new_z2 = le16_to_cpu(*z2r) + fcnt_rx;	/* new position in fifo */
 	if (new_z2 >= (B_FIFO_SIZE + B_SUB_VAL))
 		new_z2 -= B_FIFO_SIZE;	/* buffer wrap */
 
-	if (fcnt > MAX_DATA_SIZE) {	/* flush, if oversized */
+	if (fcnt_rx > MAX_DATA_SIZE) {	/* flush, if oversized */
 		*z2r = cpu_to_le16(new_z2);		/* new position */
 		return;
 	}
 
-	bch->rx_skb = mI_alloc_skb(fcnt, GFP_ATOMIC);
+	fcnt_tx = le16_to_cpu(*z2t) - le16_to_cpu(*z1t);
+	if (fcnt_tx <= 0)
+		fcnt_tx += B_FIFO_SIZE;
+		    /* fcnt_tx contains available bytes in tx-fifo */
+	fcnt_tx = B_FIFO_SIZE - fcnt_tx;
+		    /* remaining bytes to send (bytes in tx-fifo) */
+
+	bch->rx_skb = mI_alloc_skb(fcnt_rx, GFP_ATOMIC);
 	if (bch->rx_skb) {
-		ptr = skb_put(bch->rx_skb, fcnt);
-		if (le16_to_cpu(*z2r) + fcnt <= B_FIFO_SIZE + B_SUB_VAL)
-			maxlen = fcnt;	/* complete transfer */
+		ptr = skb_put(bch->rx_skb, fcnt_rx);
+		if (le16_to_cpu(*z2r) + fcnt_rx <= B_FIFO_SIZE + B_SUB_VAL)
+			maxlen = fcnt_rx;	/* complete transfer */
 		else
 			maxlen = B_FIFO_SIZE + B_SUB_VAL - le16_to_cpu(*z2r);
 			    /* maximum */
@@ -577,14 +587,14 @@ hfcpci_empty_fifo_trans(struct bchannel *bch, struct bzfifo *bz, u_char *bdata)
 		ptr1 = bdata + (le16_to_cpu(*z2r) - B_SUB_VAL);
 		    /* start of data */
 		memcpy(ptr, ptr1, maxlen);	/* copy data */
-		fcnt -= maxlen;
+		fcnt_rx -= maxlen;
 
-		if (fcnt) {	/* rest remaining */
+		if (fcnt_rx) {	/* rest remaining */
 			ptr += maxlen;
 			ptr1 = bdata;	/* start of buffer */
-			memcpy(ptr, ptr1, fcnt);	/* rest */
+			memcpy(ptr, ptr1, fcnt_rx);	/* rest */
 		}
-		recv_Bchannel(bch);
+		recv_Bchannel(bch, fcnt_tx); /* bch, id */
 	} else
 		printk(KERN_WARNING "HFCPCI: receive out of memory\n");
 
@@ -600,26 +610,28 @@ main_rec_hfcpci(struct bchannel *bch)
 	struct hfc_pci	*hc = bch->hw;
 	int		rcnt, real_fifo;
 	int		receive = 0, count = 5;
-	struct bzfifo	*bz;
+	struct bzfifo	*txbz, *rxbz;
 	u_char		*bdata;
 	struct zt	*zp;
 
 	if ((bch->nr & 2) && (!hc->hw.bswapped)) {
-		bz = &((union fifo_area *)(hc->hw.fifos))->b_chans.rxbz_b2;
+		rxbz = &((union fifo_area *)(hc->hw.fifos))->b_chans.rxbz_b2;
+		txbz = &((union fifo_area *)(hc->hw.fifos))->b_chans.txbz_b2;
 		bdata = ((union fifo_area *)(hc->hw.fifos))->b_chans.rxdat_b2;
 		real_fifo = 1;
 	} else {
-		bz = &((union fifo_area *)(hc->hw.fifos))->b_chans.rxbz_b1;
+		rxbz = &((union fifo_area *)(hc->hw.fifos))->b_chans.rxbz_b1;
+		txbz = &((union fifo_area *)(hc->hw.fifos))->b_chans.txbz_b1;
 		bdata = ((union fifo_area *)(hc->hw.fifos))->b_chans.rxdat_b1;
 		real_fifo = 0;
 	}
 Begin:
 	count--;
-	if (bz->f1 != bz->f2) {
+	if (rxbz->f1 != rxbz->f2) {
 		if (bch->debug & DEBUG_HW_BCHANNEL)
 			printk(KERN_DEBUG "hfcpci rec ch(%x) f1(%d) f2(%d)\n",
-			    bch->nr, bz->f1, bz->f2);
-		zp = &bz->za[bz->f2];
+			    bch->nr, rxbz->f1, rxbz->f2);
+		zp = &rxbz->za[rxbz->f2];
 
 		rcnt = le16_to_cpu(zp->z1) - le16_to_cpu(zp->z2);
 		if (rcnt < 0)
@@ -630,8 +642,8 @@ Begin:
 			    "hfcpci rec ch(%x) z1(%x) z2(%x) cnt(%d)\n",
 			    bch->nr, le16_to_cpu(zp->z1),
 			    le16_to_cpu(zp->z2), rcnt);
-		hfcpci_empty_bfifo(bch, bz, bdata, rcnt);
-		rcnt = bz->f1 - bz->f2;
+		hfcpci_empty_bfifo(bch, rxbz, bdata, rcnt);
+		rcnt = rxbz->f1 - rxbz->f2;
 		if (rcnt < 0)
 			rcnt += MAX_B_FRAMES + 1;
 		if (hc->hw.last_bfifo_cnt[real_fifo] > rcnt + 1) {
@@ -644,7 +656,7 @@ Begin:
 		else
 			receive = 0;
 	} else if (test_bit(FLG_TRANSPARENT, &bch->Flags)) {
-		hfcpci_empty_fifo_trans(bch, bz, bdata);
+		hfcpci_empty_fifo_trans(bch, rxbz, txbz, bdata);
 		return;
 	} else
 		receive = 0;
