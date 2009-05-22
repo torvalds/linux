@@ -380,50 +380,53 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 	}
 
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
-	channels = supp_band->channels;
+	if (supp_band) {
+		channels = supp_band->channels;
 
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"Displaying %d channels in 2.4GHz band 802.11bg):\n",
-			 supp_band->n_channels);
-
-	for (i = 0; i < supp_band->n_channels; i++)
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"%d: %ddBm: BSS%s%s, %s.\n",
-				ieee80211_frequency_to_channel(
-				channels[i].center_freq),
-				channels[i].max_power,
-				channels[i].flags & IEEE80211_CHAN_RADAR ?
-				" (IEEE 802.11h required)" : "",
-				((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
-				|| (channels[i].flags &
-				IEEE80211_CHAN_RADAR)) ? "" :
-				", IBSS",
-				channels[i].flags &
-				IEEE80211_CHAN_PASSIVE_SCAN ?
-				"passive only" : "active/passive");
+				"Displaying %d channels in 2.4GHz band 802.11bg):\n",
+				supp_band->n_channels);
 
+		for (i = 0; i < supp_band->n_channels; i++)
+			pos += scnprintf(buf + pos, bufsz - pos,
+					"%d: %ddBm: BSS%s%s, %s.\n",
+					ieee80211_frequency_to_channel(
+					channels[i].center_freq),
+					channels[i].max_power,
+					channels[i].flags & IEEE80211_CHAN_RADAR ?
+					" (IEEE 802.11h required)" : "",
+					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					|| (channels[i].flags &
+					IEEE80211_CHAN_RADAR)) ? "" :
+					", IBSS",
+					channels[i].flags &
+					IEEE80211_CHAN_PASSIVE_SCAN ?
+					"passive only" : "active/passive");
+	}
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_5GHZ);
-	channels = supp_band->channels;
+	if (supp_band) {
+		channels = supp_band->channels;
 
-	pos += scnprintf(buf + pos, bufsz - pos,
-			"Displaying %d channels in 5.2GHz band (802.11a)\n",
-			supp_band->n_channels);
-
-	for (i = 0; i < supp_band->n_channels; i++)
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"%d: %ddBm: BSS%s%s, %s.\n",
-				ieee80211_frequency_to_channel(
-				channels[i].center_freq),
-				channels[i].max_power,
-				channels[i].flags & IEEE80211_CHAN_RADAR ?
-				" (IEEE 802.11h required)" : "",
-				((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
-				|| (channels[i].flags &
-				IEEE80211_CHAN_RADAR)) ? "" :
-				", IBSS",
-				channels[i].flags &
-				IEEE80211_CHAN_PASSIVE_SCAN ?
-				"passive only" : "active/passive");
+				"Displaying %d channels in 5.2GHz band (802.11a)\n",
+				supp_band->n_channels);
+
+		for (i = 0; i < supp_band->n_channels; i++)
+			pos += scnprintf(buf + pos, bufsz - pos,
+					"%d: %ddBm: BSS%s%s, %s.\n",
+					ieee80211_frequency_to_channel(
+					channels[i].center_freq),
+					channels[i].max_power,
+					channels[i].flags & IEEE80211_CHAN_RADAR ?
+					" (IEEE 802.11h required)" : "",
+					((channels[i].flags & IEEE80211_CHAN_NO_IBSS)
+					|| (channels[i].flags &
+					IEEE80211_CHAN_RADAR)) ? "" :
+					", IBSS",
+					channels[i].flags &
+					IEEE80211_CHAN_PASSIVE_SCAN ?
+					"passive only" : "active/passive");
+	}
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
 	return ret;
