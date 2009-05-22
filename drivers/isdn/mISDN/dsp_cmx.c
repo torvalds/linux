@@ -238,7 +238,7 @@ dsp_cmx_add_conf_member(struct dsp *dsp, struct dsp_conf *conf)
 
 	member = kzalloc(sizeof(struct dsp_conf_member), GFP_ATOMIC);
 	if (!member) {
-		printk(KERN_ERR "kmalloc struct dsp_conf_member failed\n");
+		printk(KERN_ERR "kzalloc struct dsp_conf_member failed\n");
 		return -ENOMEM;
 	}
 	member->dsp = dsp;
@@ -317,7 +317,7 @@ static struct dsp_conf
 
 	conf = kzalloc(sizeof(struct dsp_conf), GFP_ATOMIC);
 	if (!conf) {
-		printk(KERN_ERR "kmalloc struct dsp_conf failed\n");
+		printk(KERN_ERR "kzalloc struct dsp_conf failed\n");
 		return NULL;
 	}
 	INIT_LIST_HEAD(&conf->mlist);
@@ -1389,7 +1389,8 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 		while (r != rr && t != tt) {
 #ifdef CMX_TX_DEBUG
 			if (strlen(debugbuf) < 48)
-			    sprintf(debugbuf+strlen(debugbuf), " %02x", p[t]);
+				sprintf(debugbuf+strlen(debugbuf), " %02x",
+				    p[t]);
 #endif
 			*d++ = p[t]; /* write tx_buff */
 			t = (t+1) & CMX_BUFF_MASK;

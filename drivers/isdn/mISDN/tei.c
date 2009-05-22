@@ -872,7 +872,6 @@ ph_data_ind(struct manager *mgr, struct sk_buff *skb)
 			    __func__, skb->len);
 		goto done;
 	}
-	if (*debug  & DEBUG_L2_TEI)
 
 	if ((skb->data[0] >> 2) != TEI_SAPI) /* not for us */
 		goto done;

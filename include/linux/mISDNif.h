@@ -292,19 +292,19 @@ struct mISDN_devrename {
 
 /* MPH_INFORMATION_REQ payload */
 struct ph_info_ch {
-        __u32 protocol;
-        __u64 Flags;
+	__u32 protocol;
+	__u64 Flags;
 };
 
 struct ph_info_dch {
-        struct ph_info_ch ch;
-        __u16 state;
-        __u16 num_bch;
+	struct ph_info_ch ch;
+	__u16 state;
+	__u16 num_bch;
 };
 
 struct ph_info {
-        struct ph_info_dch dch;
-        struct ph_info_ch  bch[];
+	struct ph_info_dch dch;
+	struct ph_info_ch  bch[];
 };
 
 /* timer device ioctl */

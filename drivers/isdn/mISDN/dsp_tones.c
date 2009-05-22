@@ -253,18 +253,24 @@ static struct pattern {
 	{8000, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 
 	{TONE_GERMAN_DIALPBX,
-	{DATA_GA, DATA_S, DATA_GA, DATA_S, DATA_GA, DATA_S, NULL, NULL, NULL, NULL},
-	{SIZE_GA, SIZE_S, SIZE_GA, SIZE_S, SIZE_GA, SIZE_S, NULL, NULL, NULL, NULL},
+	{DATA_GA, DATA_S, DATA_GA, DATA_S, DATA_GA, DATA_S, NULL, NULL, NULL,
+		NULL},
+	{SIZE_GA, SIZE_S, SIZE_GA, SIZE_S, SIZE_GA, SIZE_S, NULL, NULL, NULL,
+		NULL},
 	{2000, 2000, 2000, 2000, 2000, 12000, 0, 0, 0, 0} },
 
 	{TONE_GERMAN_OLDDIALPBX,
-	{DATA_GO, DATA_S, DATA_GO, DATA_S, DATA_GO, DATA_S, NULL, NULL, NULL, NULL},
-	{SIZE_GO, SIZE_S, SIZE_GO, SIZE_S, SIZE_GO, SIZE_S, NULL, NULL, NULL, NULL},
+	{DATA_GO, DATA_S, DATA_GO, DATA_S, DATA_GO, DATA_S, NULL, NULL, NULL,
+		NULL},
+	{SIZE_GO, SIZE_S, SIZE_GO, SIZE_S, SIZE_GO, SIZE_S, NULL, NULL, NULL,
+		NULL},
 	{2000, 2000, 2000, 2000, 2000, 12000, 0, 0, 0, 0} },
 
 	{TONE_AMERICAN_DIALPBX,
-	{DATA_DT, DATA_S, DATA_DT, DATA_S, DATA_DT, DATA_S, NULL, NULL, NULL, NULL},
-	{SIZE_DT, SIZE_S, SIZE_DT, SIZE_S, SIZE_DT, SIZE_S, NULL, NULL, NULL, NULL},
+	{DATA_DT, DATA_S, DATA_DT, DATA_S, DATA_DT, DATA_S, NULL, NULL, NULL,
+		NULL},
+	{SIZE_DT, SIZE_S, SIZE_DT, SIZE_S, SIZE_DT, SIZE_S, NULL, NULL, NULL,
+		NULL},
 	{2000, 2000, 2000, 2000, 2000, 12000, 0, 0, 0, 0} },
 
 	{TONE_GERMAN_RINGING,
@@ -434,7 +440,7 @@ dsp_tone_hw_message(struct dsp *dsp, u8 *sample, int len)
 
 	/* unlocking is not required, because we don't expect a response */
 	nskb = _alloc_mISDN_skb(PH_CONTROL_REQ,
-		(len)?HFC_SPL_LOOP_ON:HFC_SPL_LOOP_OFF, len, sample,
+		(len) ? HFC_SPL_LOOP_ON : HFC_SPL_LOOP_OFF, len, sample,
 		GFP_ATOMIC);
 	if (nskb) {
 		if (dsp->ch.peer) {
@@ -498,8 +504,7 @@ dsp_tone(struct dsp *dsp, int tone)
 
 	/* we turn off the tone */
 	if (!tone) {
-		if (dsp->features.hfc_loops)
-		if (timer_pending(&tonet->tl))
+		if (dsp->features.hfc_loops && timer_pending(&tonet->tl))
 			del_timer(&tonet->tl);
 		if (dsp->features.hfc_loops)
 			dsp_tone_hw_message(dsp, NULL, 0);

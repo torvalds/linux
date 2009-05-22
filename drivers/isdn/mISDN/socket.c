@@ -222,7 +222,7 @@ mISDN_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 	} else { /* use default for L2 messages */
 		if ((sk->sk_protocol == ISDN_P_LAPD_TE) ||
 		    (sk->sk_protocol == ISDN_P_LAPD_NT))
-		    mISDN_HEAD_ID(skb) = _pms(sk)->ch.nr;
+			mISDN_HEAD_ID(skb) = _pms(sk)->ch.nr;
 	}
 
 	if (*debug & DEBUG_SOCKET)

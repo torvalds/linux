@@ -259,7 +259,7 @@ mISDN_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
 	return ret;
 }
 
-static struct file_operations mISDN_fops = {
+static const struct file_operations mISDN_fops = {
 	.read		= mISDN_read,
 	.poll		= mISDN_poll,
 	.ioctl		= mISDN_ioctl,
