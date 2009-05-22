@@ -661,6 +661,10 @@ static int alloc_new_range(struct amd_iommu *iommu,
 	int index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
 	int i;
 
+#ifdef CONFIG_IOMMU_STRESS
+	populate = false;
+#endif
+
 	if (index >= APERTURE_MAX_RANGES)
 		return -ENOMEM;
 
