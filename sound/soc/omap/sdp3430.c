@@ -276,10 +276,17 @@ static struct snd_soc_card snd_soc_sdp3430 = {
 	.num_links = ARRAY_SIZE(sdp3430_dai),
 };
 
+/* twl4030 setup */
+static struct twl4030_setup_data twl4030_setup = {
+	.ramp_delay_value = 3,
+	.sysclk = 26000,
+};
+
 /* Audio subsystem */
 static struct snd_soc_device sdp3430_snd_devdata = {
 	.card = &snd_soc_sdp3430,
 	.codec_dev = &soc_codec_dev_twl4030,
+	.codec_data = &twl4030_setup,
 };
 
 static struct platform_device *sdp3430_snd_device;
