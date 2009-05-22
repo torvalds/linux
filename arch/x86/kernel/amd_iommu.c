@@ -783,6 +783,11 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 {
 	unsigned long address;
 
+#ifdef CONFIG_IOMMU_STRESS
+	dom->next_address = 0;
+	dom->need_flush = true;
+#endif
+
 	address = dma_ops_area_alloc(dev, dom, pages, align_mask,
 				     dma_mask, dom->next_address);
 
