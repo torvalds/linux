@@ -107,6 +107,22 @@
 #define	MCFSIM2_IDECONFIG2	0x190		/* IDEconfig2 */
 
 /*
+ * Define the base interrupt for the second interrupt controller.
+ * We set it to 128, out of the way of the base interrupts, and plenty
+ * of room for its 64 interrupts.
+ */
+#define	MCFINTC2_VECBASE	128
+
+#define	MCFINTC2_GPIOIRQ0	(MCFINTC2_VECBASE + 32)
+#define	MCFINTC2_GPIOIRQ1	(MCFINTC2_VECBASE + 33)
+#define	MCFINTC2_GPIOIRQ2	(MCFINTC2_VECBASE + 34)
+#define	MCFINTC2_GPIOIRQ3	(MCFINTC2_VECBASE + 35)
+#define	MCFINTC2_GPIOIRQ4	(MCFINTC2_VECBASE + 36)
+#define	MCFINTC2_GPIOIRQ5	(MCFINTC2_VECBASE + 37)
+#define	MCFINTC2_GPIOIRQ6	(MCFINTC2_VECBASE + 38)
+#define	MCFINTC2_GPIOIRQ7	(MCFINTC2_VECBASE + 39)
+
+/*
  * Generic GPIO support
  */
 #define MCFGPIO_PIN_MAX		64
@@ -135,9 +151,9 @@
 	subql	#1,%a1				/* get MBAR2 address in a1 */
 
 	/*
-	 *      Move secondary interrupts to base at 128.
+	 *      Move secondary interrupts to their base (128).
 	 */
-	moveb	#0x80,%d0
+	moveb	#MCFINTC2_VECBASE,%d0
 	moveb	%d0,0x16b(%a1)			/* interrupt base register */
 
 	/*
