@@ -279,7 +279,6 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 	int multi = 0;
 	u8 frame[len+32];
 	struct socket *socket = NULL;
-	mm_segment_t oldfs;
 
 	if (debug & DEBUG_L1OIP_MSG)
 		printk(KERN_DEBUG "%s: sending data to socket (len = %d)\n",
@@ -352,10 +351,7 @@ l1oip_socket_send(struct l1oip *hc, u8 localcodec, u8 channel, u32 chanmask,
 			"= %d)\n", __func__, len);
 	hc->sendiov.iov_base = frame;
 	hc->sendiov.iov_len  = len;
-	oldfs = get_fs();
-	set_fs(KERNEL_DS);
-	len = sock_sendmsg(socket, &hc->sendmsg, len);
-	set_fs(oldfs);
+	len = kernel_sendmsg(socket, &hc->sendmsg, &hc->sendiov, 1, len);
 	/* give socket back */
 	hc->socket = socket; /* no locking required */
 
@@ -660,8 +656,6 @@ l1oip_socket_thread(void *data)
 	struct l1oip *hc = (struct l1oip *)data;
 	int ret = 0;
 	struct msghdr msg;
-	struct iovec iov;
-	mm_segment_t oldfs;
 	struct sockaddr_in sin_rx;
 	unsigned char *recvbuf;
 	size_t recvbuf_size = 1500;
@@ -718,16 +712,12 @@ l1oip_socket_thread(void *data)
 	msg.msg_namelen = sizeof(sin_rx);
 	msg.msg_control = NULL;
 	msg.msg_controllen = 0;
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
 
 	/* build send message */
 	hc->sendmsg.msg_name = &hc->sin_remote;
 	hc->sendmsg.msg_namelen = sizeof(hc->sin_remote);
 	hc->sendmsg.msg_control = NULL;
 	hc->sendmsg.msg_controllen = 0;
-	hc->sendmsg.msg_iov    = &hc->sendiov;
-	hc->sendmsg.msg_iovlen = 1;
 
 	/* give away socket */
 	spin_lock(&hc->socket_lock);
@@ -739,12 +729,12 @@ l1oip_socket_thread(void *data)
 		printk(KERN_DEBUG "%s: socket created and open\n",
 			__func__);
 	while (!signal_pending(current)) {
-		iov.iov_base = recvbuf;
-		iov.iov_len = recvbuf_size;
-		oldfs = get_fs();
-		set_fs(KERNEL_DS);
-		recvlen = sock_recvmsg(socket, &msg, recvbuf_size, 0);
-		set_fs(oldfs);
+		struct kvec iov = {
+			.iov_base = recvbuf,
+			.iov_len = sizeof(recvbuf),
+		};
+		recvlen = kernel_recvmsg(socket, &msg, &iov, 1,
+					 sizeof(recvbuf), 0);
 		if (recvlen > 0) {
 			l1oip_socket_parse(hc, &sin_rx, recvbuf, recvlen);
 		} else {
