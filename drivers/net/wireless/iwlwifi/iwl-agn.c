@@ -1792,6 +1792,49 @@ static void iwl_down(struct iwl_priv *priv)
 	iwl_cancel_deferred_work(priv);
 }
 
+#define HW_READY_TIMEOUT (50)
+
+static int iwl_set_hw_ready(struct iwl_priv *priv)
+{
+	int ret = 0;
+
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
+
+	/* See if we got it */
+	ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+				HW_READY_TIMEOUT);
+	if (ret != -ETIMEDOUT)
+		priv->hw_ready = true;
+	else
+		priv->hw_ready = false;
+
+	IWL_DEBUG_INFO(priv, "hardware %s\n",
+		      (priv->hw_ready == 1) ? "ready" : "not ready");
+	return ret;
+}
+
+static int iwl_prepare_card_hw(struct iwl_priv *priv)
+{
+	int ret = 0;
+
+	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter \n");
+
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			CSR_HW_IF_CONFIG_REG_PREPARE);
+
+	ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+			~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
+			CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
+
+	if (ret != -ETIMEDOUT)
+		iwl_set_hw_ready(priv);
+
+	return ret;
+}
+
 #define MAX_HW_RESTARTS 5
 
 static int __iwl_up(struct iwl_priv *priv)
@@ -1806,6 +1849,13 @@ static int __iwl_up(struct iwl_priv *priv)
 
 	if (!priv->ucode_data_backup.v_addr || !priv->ucode_data.v_addr) {
 		IWL_ERR(priv, "ucode not available for device bringup\n");
+		return -EIO;
+	}
+
+	iwl_prepare_card_hw(priv);
+
+	if (!priv->hw_ready) {
+		IWL_WARN(priv, "Exit HW not ready\n");
 		return -EIO;
 	}
 
@@ -2895,6 +2945,12 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
+
+	iwl_prepare_card_hw(priv);
+	if (!priv->hw_ready) {
+		IWL_WARN(priv, "Failed, HW not ready\n");
+		goto out_iounmap;
+	}
 
 	/* amp init */
 	err = priv->cfg->ops->lib->apm_ops.init(priv);
