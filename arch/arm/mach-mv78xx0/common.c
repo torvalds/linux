@@ -321,6 +321,9 @@ static struct platform_device mv78xx0_ge00 = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge00_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init mv78xx0_ge00_init(struct mv643xx_eth_platform_data *eth_data)
@@ -375,6 +378,9 @@ static struct platform_device mv78xx0_ge01 = {
 	.id		= 1,
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge01_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init mv78xx0_ge01_init(struct mv643xx_eth_platform_data *eth_data)
@@ -429,6 +435,9 @@ static struct platform_device mv78xx0_ge10 = {
 	.id		= 2,
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge10_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init mv78xx0_ge10_init(struct mv643xx_eth_platform_data *eth_data)
@@ -496,6 +505,9 @@ static struct platform_device mv78xx0_ge11 = {
 	.id		= 3,
 	.num_resources	= 1,
 	.resource	= mv78xx0_ge11_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init mv78xx0_ge11_init(struct mv643xx_eth_platform_data *eth_data)

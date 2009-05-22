@@ -144,6 +144,9 @@ static struct platform_device kirkwood_ge00 = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= kirkwood_ge00_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
@@ -202,6 +205,9 @@ static struct platform_device kirkwood_ge01 = {
 	.id		= 1,
 	.num_resources	= 1,
 	.resource	= kirkwood_ge01_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data)

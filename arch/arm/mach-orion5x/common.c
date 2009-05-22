@@ -188,6 +188,9 @@ static struct platform_device orion5x_eth = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= orion5x_eth_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init orion5x_eth_init(struct mv643xx_eth_platform_data *eth_data)
