@@ -702,9 +702,10 @@ static int configure_clock(struct snd_soc_codec *codec)
 			 * performance. */
 			for (i = 0; i < ARRAY_SIZE(clk_sys_rates); i++) {
 				target = wm9081->fs * clk_sys_rates[i].ratio;
+				new_sysclk = target;
 				if (target >= wm9081->bclk &&
 				    target > 3000000)
-					new_sysclk = target;
+					break;
 			}
 		} else if (wm9081->fs) {
 			for (i = 0; i < ARRAY_SIZE(clk_sys_rates); i++) {
@@ -1102,7 +1103,8 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 	}
 	dev_dbg(codec->dev, "Selected SAMPLE_RATE of %dHz\n",
 		sample_rates[best].rate);
-	clk_ctrl2 |= (sample_rates[i].sample_rate << WM9081_SAMPLE_RATE_SHIFT);
+	clk_ctrl2 |= (sample_rates[best].sample_rate
+			<< WM9081_SAMPLE_RATE_SHIFT);
 
 	/* BCLK_DIV */
 	best = 0;
