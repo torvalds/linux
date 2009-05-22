@@ -1046,58 +1046,6 @@ fail:
 	return ERR_PTR(error);
 }
 
-/**
- * gfs2_rmdiri - Remove a directory
- * @dip: The parent directory of the directory to be removed
- * @name: The name of the directory to be removed
- * @ip: The GFS2 inode of the directory to be removed
- *
- * Assumes Glocks on dip and ip are held
- *
- * Returns: errno
- */
-
-int gfs2_rmdiri(struct gfs2_inode *dip, const struct qstr *name,
-		struct gfs2_inode *ip)
-{
-	struct qstr dotname;
-	int error;
-
-	if (ip->i_entries != 2) {
-		if (gfs2_consist_inode(ip))
-			gfs2_dinode_print(ip);
-		return -EIO;
-	}
-
-	error = gfs2_dir_del(dip, name);
-	if (error)
-		return error;
-
-	error = gfs2_change_nlink(dip, -1);
-	if (error)
-		return error;
-
-	gfs2_str2qstr(&dotname, ".");
-	error = gfs2_dir_del(ip, &dotname);
-	if (error)
-		return error;
-
-	gfs2_str2qstr(&dotname, "..");
-	error = gfs2_dir_del(ip, &dotname);
-	if (error)
-		return error;
-
-	/* It looks odd, but it really should be done twice */
-	error = gfs2_change_nlink(ip, -1);
-	if (error)
-		return error;
-
-	error = gfs2_change_nlink(ip, -1);
-	if (error)
-		return error;
-
-	return error;
-}
 
 /*
  * gfs2_unlink_ok - check to see that a inode is still in a directory
