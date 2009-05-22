@@ -526,8 +526,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->sp			= secpath_get(old->sp);
 #endif
 	memcpy(new->cb, old->cb, sizeof(old->cb));
-	new->csum_start		= old->csum_start;
-	new->csum_offset	= old->csum_offset;
+	new->csum		= old->csum;
 	new->local_df		= old->local_df;
 	new->pkt_type		= old->pkt_type;
 	new->ip_summed		= old->ip_summed;
