@@ -62,14 +62,6 @@
 #define __refdata        __section(.ref.data)
 #define __refconst       __section(.ref.rodata)
 
-/* backward compatibility note
- *  A few places hardcode the old section names:
- *  .text.init.refok
- *  .data.init.refok
- *  .exit.text.refok
- *  They should be converted to use the defines from this file
- */
-
 /* compatibility defines */
 #define __init_refok     __ref
 #define __initdata_refok __refdata

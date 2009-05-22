@@ -467,7 +467,7 @@ jump_to_sun4u_init:
 	jmpl    %g2 + %g0, %g0
 	 nop
 
-	.section	.text.init.refok
+	__REF
 sun4u_init:
 	BRANCH_IF_SUN4V(g1, sun4v_init)
 

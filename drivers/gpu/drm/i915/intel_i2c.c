@@ -34,6 +34,21 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
+void intel_i2c_quirk_set(struct drm_device *dev, bool enable)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* When using bit bashing for I2C, this bit needs to be set to 1 */
+	if (!IS_IGD(dev))
+		return;
+	if (enable)
+		I915_WRITE(CG_2D_DIS,
+			I915_READ(CG_2D_DIS) | DPCUNIT_CLOCK_GATE_DISABLE);
+	else
+		I915_WRITE(CG_2D_DIS,
+			I915_READ(CG_2D_DIS) & (~DPCUNIT_CLOCK_GATE_DISABLE));
+}
+
 /*
  * Intel GPIO access functions
  */
@@ -153,8 +168,10 @@ struct intel_i2c_chan *intel_i2c_create(struct drm_device *dev, const u32 reg,
 		goto out_free;
 
 	/* JJJ:  raise SCL and SDA? */
+	intel_i2c_quirk_set(dev, true);
 	set_data(chan, 1);
 	set_clock(chan, 1);
+	intel_i2c_quirk_set(dev, false);
 	udelay(20);
 
 	return chan;

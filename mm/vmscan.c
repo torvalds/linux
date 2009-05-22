@@ -1471,7 +1471,7 @@ static void shrink_zone(int priority, struct zone *zone,
 
 	for_each_evictable_lru(l) {
 		int file = is_file_lru(l);
-		int scan;
+		unsigned long scan;
 
 		scan = zone_nr_pages(zone, sc, l);
 		if (priority) {

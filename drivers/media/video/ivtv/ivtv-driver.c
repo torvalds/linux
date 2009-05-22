@@ -305,14 +305,17 @@ int ivtv_waitq(wait_queue_head_t *waitq)
 /* Generic utility functions */
 int ivtv_msleep_timeout(unsigned int msecs, int intr)
 {
-	int ret;
 	int timeout = msecs_to_jiffies(msecs);
 
 	do {
 		set_current_state(intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 		timeout = schedule_timeout(timeout);
-		if (intr && (ret = signal_pending(current)))
-			return ret;
+		if (intr) {
+			int ret = signal_pending(current);
+
+			if (ret)
+				return ret;
+		}
 	} while (timeout);
 	return 0;
 }

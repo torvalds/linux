@@ -667,7 +667,7 @@ ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 	lower_buf = kmalloc(lower_bufsiz, GFP_KERNEL);
 	if (lower_buf == NULL) {
 		printk(KERN_ERR "%s: Out of memory whilst attempting to "
-		       "kmalloc [%d] bytes\n", __func__, lower_bufsiz);
+		       "kmalloc [%zd] bytes\n", __func__, lower_bufsiz);
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -690,7 +690,7 @@ ecryptfs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 		}
 		/* Check for bufsiz <= 0 done in sys_readlinkat() */
 		rc = copy_to_user(buf, plaintext_name,
-				  min((unsigned) bufsiz, plaintext_name_size));
+				  min((size_t) bufsiz, plaintext_name_size));
 		if (rc)
 			rc = -EFAULT;
 		else

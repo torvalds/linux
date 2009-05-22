@@ -145,11 +145,13 @@ static irqreturn_t nwpserial_interrupt(int irq, void *dev_id)
 		ch = dcr_read(up->dcr_host, UART_RX);
 		if (up->port.ignore_status_mask != NWPSERIAL_STATUS_RXVALID)
 			tty_insert_flip_char(tty, ch, TTY_NORMAL);
-	} while (dcr_read(up->dcr_host, UART_RX) & UART_LSR_DR);
+	} while (dcr_read(up->dcr_host, UART_LSR) & UART_LSR_DR);
 
 	tty_flip_buffer_push(tty);
 	ret = IRQ_HANDLED;
 
+	/* clear interrupt */
+	dcr_write(up->dcr_host, UART_IIR, 1);
 out:
 	spin_unlock(&up->port.lock);
 	return ret;

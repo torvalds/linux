@@ -382,7 +382,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
-		.oprofile_cpu_type	= "ppc64/compat-power5+",
+		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power5+",
 	},
 	{	/* Power6 */
@@ -416,7 +417,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
-		.oprofile_cpu_type	= "ppc64/compat-power6",
+		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
 		.platform		= "power6",
 	},
 	{	/* 2.06-compliant processor, i.e. Power7 "architected" mode */
@@ -429,7 +431,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_generic,
-		.oprofile_cpu_type	= "ppc64/compat-power7",
+		.oprofile_type		= PPC_OPROFILE_POWER4,
+		.oprofile_cpu_type	= "ppc64/ibm-compat-v1",
 		.platform		= "power7",
 	},
 	{	/* Power7 */
@@ -1766,7 +1769,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_features		= CPU_FTRS_E500MC,
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
-			MMU_FTR_USE_TLBILX | MMU_FTR_TLBILX_EARLY_OPCODE,
+			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
 		.dcache_bsize		= 64,
 		.num_pmcs		= 4,
@@ -1833,8 +1836,10 @@ static void __init setup_cpu_spec(unsigned long offset, struct cpu_spec *s)
 		 * and, in that case, keep the current value for
 		 * oprofile_cpu_type.
 		 */
-		if (old.oprofile_cpu_type == NULL)
-			t->oprofile_cpu_type = s->oprofile_cpu_type;
+		if (old.oprofile_cpu_type != NULL) {
+			t->oprofile_cpu_type = old.oprofile_cpu_type;
+			t->oprofile_type = old.oprofile_type;
+		}
 	}
 
 	*PTRRELOC(&cur_cpu_spec) = &the_cpu_spec;

@@ -171,10 +171,8 @@ static void hci_conn_timeout(unsigned long arg)
 	switch (conn->state) {
 	case BT_CONNECT:
 	case BT_CONNECT2:
-		if (conn->type == ACL_LINK)
+		if (conn->type == ACL_LINK && conn->out)
 			hci_acl_connect_cancel(conn);
-		else
-			hci_acl_disconn(conn, 0x13);
 		break;
 	case BT_CONFIG:
 	case BT_CONNECTED:
@@ -215,6 +213,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	conn->state = BT_OPEN;
 
 	conn->power_save = 1;
+	conn->disc_timeout = HCI_DISCONN_TIMEOUT;
 
 	switch (type) {
 	case ACL_LINK:
@@ -246,6 +245,8 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	hci_conn_hash_add(hdev, conn);
 	if (hdev->notify)
 		hdev->notify(hdev, HCI_NOTIFY_CONN_ADD);
+
+	hci_conn_init_sysfs(conn);
 
 	tasklet_enable(&hdev->tx_task);
 
@@ -288,6 +289,8 @@ int hci_conn_del(struct hci_conn *conn)
 	skb_queue_purge(&conn->data_q);
 
 	hci_conn_del_sysfs(conn);
+
+	hci_dev_put(hdev);
 
 	return 0;
 }
@@ -424,12 +427,9 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 	if (sec_level == BT_SECURITY_SDP)
 		return 1;
 
-	if (sec_level == BT_SECURITY_LOW) {
-		if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0)
-			return hci_conn_auth(conn, sec_level, auth_type);
-		else
-			return 1;
-	}
+	if (sec_level == BT_SECURITY_LOW &&
+				(!conn->ssp_mode || !conn->hdev->ssp_mode))
+		return 1;
 
 	if (conn->link_mode & HCI_LM_ENCRYPT)
 		return hci_conn_auth(conn, sec_level, auth_type);

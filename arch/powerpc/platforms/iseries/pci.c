@@ -444,7 +444,6 @@ void __init iSeries_pcibios_fixup_resources(struct pci_dev *pdev)
 	pdev->sysdata = node;
 	allocate_device_bars(pdev);
 	iseries_device_information(pdev, bus, *sub_bus);
-	iommu_devnode_init_iSeries(pdev, node);
 }
 
 /*

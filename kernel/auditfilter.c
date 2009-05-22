@@ -1028,7 +1028,7 @@ static void audit_update_watch(struct audit_parent *parent,
 
 		if (audit_enabled) {
 			struct audit_buffer *ab;
-			ab = audit_log_start(NULL, GFP_KERNEL,
+			ab = audit_log_start(NULL, GFP_NOFS,
 				AUDIT_CONFIG_CHANGE);
 			audit_log_format(ab, "auid=%u ses=%u",
 				audit_get_loginuid(current),
@@ -1067,7 +1067,7 @@ static void audit_remove_parent_watches(struct audit_parent *parent)
 			e = container_of(r, struct audit_entry, rule);
 			if (audit_enabled) {
 				struct audit_buffer *ab;
-				ab = audit_log_start(NULL, GFP_KERNEL,
+				ab = audit_log_start(NULL, GFP_NOFS,
 					AUDIT_CONFIG_CHANGE);
 				audit_log_format(ab, "auid=%u ses=%u",
 					audit_get_loginuid(current),

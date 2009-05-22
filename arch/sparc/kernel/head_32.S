@@ -735,7 +735,7 @@ go_to_highmem:
 		 nop
 
 /* The code above should be at beginning and we have to take care about
- * short jumps, as branching to .text.init section from .text is usually
+ * short jumps, as branching to .init.text section from .text is usually
  * impossible */
 		__INIT
 /* Acquire boot time privileged register values, this will help debugging.

@@ -1411,13 +1411,12 @@ config PAGE_SIZE_4KB
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on EXPERIMENTAL && CPU_R8000
+	depends on (EXPERIMENTAL && CPU_R8000) || CPU_CAVIUM_OCTEON
 	help
 	  Using 8kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
-	  only on the R8000 processor.  Not that at the time of this writing
-	  this option is still high experimental; there are also issues with
-	  compatibility of user applications.
+	  only on R8000 and cnMIPS processors.  Note that you will need a
+	  suitable Linux distribution to support this.
 
 config PAGE_SIZE_16KB
 	bool "16kB"
@@ -1427,6 +1426,15 @@ config PAGE_SIZE_16KB
 	  the price of higher memory consumption.  This option is available on
 	  all non-R3000 family processors.  Note that you will need a suitable
 	  Linux distribution to support this.
+
+config PAGE_SIZE_32KB
+	bool "32kB"
+	depends on CPU_CAVIUM_OCTEON
+	help
+	  Using 32kB page size will result in higher performance kernel at
+	  the price of higher memory consumption.  This option is available
+	  only on cnMIPS cores.  Note that you will need a suitable Linux
+	  distribution to support this.
 
 config PAGE_SIZE_64KB
 	bool "64kB"
@@ -1957,10 +1965,6 @@ config SECCOMP
 	  If unsure, say Y. Only embedded should say N here.
 
 endmenu
-
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
 
 config LOCKDEP_SUPPORT
 	bool

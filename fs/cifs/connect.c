@@ -1,7 +1,7 @@
 /*
  *   fs/cifs/connect.c
  *
- *   Copyright (C) International Business Machines  Corp., 2002,2008
+ *   Copyright (C) International Business Machines  Corp., 2002,2009
  *   Author(s): Steve French (sfrench@us.ibm.com)
  *
  *   This library is free software; you can redistribute it and/or modify
@@ -32,6 +32,7 @@
 #include <linux/kthread.h>
 #include <linux/pagevec.h>
 #include <linux/freezer.h>
+#include <linux/namei.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <net/ipv6.h>
@@ -978,6 +979,13 @@ cifs_parse_mount_options(char *options, const char *devname,
 				return 1;
 			} else if (strnicmp(value, "krb5", 4) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_KRB5;
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+			} else if (strnicmp(value, "ntlmsspi", 8) == 0) {
+				vol->secFlg |= CIFSSEC_MAY_NTLMSSP |
+					CIFSSEC_MUST_SIGN;
+			} else if (strnicmp(value, "ntlmssp", 7) == 0) {
+				vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
+#endif
 			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
 				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
 					CIFSSEC_MUST_SIGN;
@@ -2278,6 +2286,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	struct dfs_info3_param *referrals = NULL;
 	unsigned int num_referrals = 0;
+	int referral_walks_count = 0;
 try_mount_again:
 #endif
 	full_path = NULL;
@@ -2525,6 +2534,16 @@ remote_path_check:
 	/* get referral if needed */
 	if (rc == -EREMOTE) {
 #ifdef CONFIG_CIFS_DFS_UPCALL
+		if (referral_walks_count > MAX_NESTED_LINKS) {
+			/*
+			 * BB: when we implement proper loop detection,
+			 *     we will remove this check. But now we need it
+			 *     to prevent an indefinite loop if 'DFS tree' is
+			 *     misconfigured (i.e. has loops).
+			 */
+			rc = -ELOOP;
+			goto mount_fail_check;
+		}
 		/* convert forward to back slashes in prepath here if needed */
 		if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) == 0)
 			convert_delimiter(cifs_sb->prepath,
@@ -2558,6 +2577,7 @@ remote_path_check:
 			cleanup_volume_info(&volume_info);
 			FreeXid(xid);
 			kfree(full_path);
+			referral_walks_count++;
 			goto try_mount_again;
 		}
 #else /* No DFS support, return error on mount */
@@ -2592,1041 +2612,6 @@ out:
 	return rc;
 }
 
-static int
-CIFSSessSetup(unsigned int xid, struct cifsSesInfo *ses,
-	      char session_key[CIFS_SESS_KEY_SIZE],
-	      const struct nls_table *nls_codepage)
-{
-	struct smb_hdr *smb_buffer;
-	struct smb_hdr *smb_buffer_response;
-	SESSION_SETUP_ANDX *pSMB;
-	SESSION_SETUP_ANDX *pSMBr;
-	char *bcc_ptr;
-	char *user;
-	char *domain;
-	int rc = 0;
-	int remaining_words = 0;
-	int bytes_returned = 0;
-	int len;
-	__u32 capabilities;
-	__u16 count;
-
-	cFYI(1, ("In sesssetup"));
-	if (ses == NULL)
-		return -EINVAL;
-	user = ses->userName;
-	domain = ses->domainName;
-	smb_buffer = cifs_buf_get();
-
-	if (smb_buffer == NULL)
-		return -ENOMEM;
-
-	smb_buffer_response = smb_buffer;
-	pSMBr = pSMB = (SESSION_SETUP_ANDX *) smb_buffer;
-
-	/* send SMBsessionSetup here */
-	header_assemble(smb_buffer, SMB_COM_SESSION_SETUP_ANDX,
-			NULL /* no tCon exists yet */ , 13 /* wct */ );
-
-	smb_buffer->Mid = GetNextMid(ses->server);
-	pSMB->req_no_secext.AndXCommand = 0xFF;
-	pSMB->req_no_secext.MaxBufferSize = cpu_to_le16(ses->server->maxBuf);
-	pSMB->req_no_secext.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
-
-	if (ses->server->secMode &
-			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
-
-	capabilities = CAP_LARGE_FILES | CAP_NT_SMBS | CAP_LEVEL_II_OPLOCKS |
-		CAP_LARGE_WRITE_X | CAP_LARGE_READ_X;
-	if (ses->capabilities & CAP_UNICODE) {
-		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
-		capabilities |= CAP_UNICODE;
-	}
-	if (ses->capabilities & CAP_STATUS32) {
-		smb_buffer->Flags2 |= SMBFLG2_ERR_STATUS;
-		capabilities |= CAP_STATUS32;
-	}
-	if (ses->capabilities & CAP_DFS) {
-		smb_buffer->Flags2 |= SMBFLG2_DFS;
-		capabilities |= CAP_DFS;
-	}
-	pSMB->req_no_secext.Capabilities = cpu_to_le32(capabilities);
-
-	pSMB->req_no_secext.CaseInsensitivePasswordLength =
-		cpu_to_le16(CIFS_SESS_KEY_SIZE);
-
-	pSMB->req_no_secext.CaseSensitivePasswordLength =
-	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
-	bcc_ptr = pByteArea(smb_buffer);
-	memcpy(bcc_ptr, (char *) session_key, CIFS_SESS_KEY_SIZE);
-	bcc_ptr += CIFS_SESS_KEY_SIZE;
-	memcpy(bcc_ptr, (char *) session_key, CIFS_SESS_KEY_SIZE);
-	bcc_ptr += CIFS_SESS_KEY_SIZE;
-
-	if (ses->capabilities & CAP_UNICODE) {
-		if ((long) bcc_ptr % 2) { /* must be word aligned for Unicode */
-			*bcc_ptr = 0;
-			bcc_ptr++;
-		}
-		if (user == NULL)
-			bytes_returned = 0; /* skip null user */
-		else
-			bytes_returned =
-				cifs_strtoUCS((__le16 *) bcc_ptr, user, 100,
-					nls_codepage);
-		/* convert number of 16 bit words to bytes */
-		bcc_ptr += 2 * bytes_returned;
-		bcc_ptr += 2;	/* trailing null */
-		if (domain == NULL)
-			bytes_returned =
-			    cifs_strtoUCS((__le16 *) bcc_ptr,
-					  "CIFS_LINUX_DOM", 32, nls_codepage);
-		else
-			bytes_returned =
-			    cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
-					  nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bcc_ptr += 2;
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, "Linux version ",
-				  32, nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, utsname()->release,
-				  32, nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bcc_ptr += 2;
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
-				  64, nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bcc_ptr += 2;
-	} else {
-		if (user != NULL) {
-		    strncpy(bcc_ptr, user, 200);
-		    bcc_ptr += strnlen(user, 200);
-		}
-		*bcc_ptr = 0;
-		bcc_ptr++;
-		if (domain == NULL) {
-			strcpy(bcc_ptr, "CIFS_LINUX_DOM");
-			bcc_ptr += strlen("CIFS_LINUX_DOM") + 1;
-		} else {
-			strncpy(bcc_ptr, domain, 64);
-			bcc_ptr += strnlen(domain, 64);
-			*bcc_ptr = 0;
-			bcc_ptr++;
-		}
-		strcpy(bcc_ptr, "Linux version ");
-		bcc_ptr += strlen("Linux version ");
-		strcpy(bcc_ptr, utsname()->release);
-		bcc_ptr += strlen(utsname()->release) + 1;
-		strcpy(bcc_ptr, CIFS_NETWORK_OPSYS);
-		bcc_ptr += strlen(CIFS_NETWORK_OPSYS) + 1;
-	}
-	count = (long) bcc_ptr - (long) pByteArea(smb_buffer);
-	smb_buffer->smb_buf_length += count;
-	pSMB->req_no_secext.ByteCount = cpu_to_le16(count);
-
-	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response,
-			 &bytes_returned, CIFS_LONG_OP);
-	if (rc) {
-/* rc = map_smb_to_linux_error(smb_buffer_response); now done in SendReceive */
-	} else if ((smb_buffer_response->WordCount == 3)
-		   || (smb_buffer_response->WordCount == 4)) {
-		__u16 action = le16_to_cpu(pSMBr->resp.Action);
-		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
-		if (action & GUEST_LOGIN)
-			cFYI(1, ("Guest login")); /* BB mark SesInfo struct? */
-		ses->Suid = smb_buffer_response->Uid; /* UID left in wire format
-							 (little endian) */
-		cFYI(1, ("UID = %d ", ses->Suid));
-	/* response can have either 3 or 4 word count - Samba sends 3 */
-		bcc_ptr = pByteArea(smb_buffer_response);
-		if ((pSMBr->resp.hdr.WordCount == 3)
-		    || ((pSMBr->resp.hdr.WordCount == 4)
-			&& (blob_len < pSMBr->resp.ByteCount))) {
-			if (pSMBr->resp.hdr.WordCount == 4)
-				bcc_ptr += blob_len;
-
-			if (smb_buffer->Flags2 & SMBFLG2_UNICODE) {
-				if ((long) (bcc_ptr) % 2) {
-					remaining_words =
-					    (BCC(smb_buffer_response) - 1) / 2;
-					/* Unicode strings must be word
-					   aligned */
-					bcc_ptr++;
-				} else {
-					remaining_words =
-						BCC(smb_buffer_response) / 2;
-				}
-				len =
-				    UniStrnlen((wchar_t *) bcc_ptr,
-					       remaining_words - 1);
-/* We look for obvious messed up bcc or strings in response so we do not go off
-   the end since (at least) WIN2K and Windows XP have a major bug in not null
-   terminating last Unicode string in response  */
-				kfree(ses->serverOS);
-				ses->serverOS = kzalloc(2 * (len + 1),
-							GFP_KERNEL);
-				if (ses->serverOS == NULL)
-					goto sesssetup_nomem;
-				cifs_strfromUCS_le(ses->serverOS,
-						   (__le16 *)bcc_ptr,
-						   len, nls_codepage);
-				bcc_ptr += 2 * (len + 1);
-				remaining_words -= len + 1;
-				ses->serverOS[2 * len] = 0;
-				ses->serverOS[1 + (2 * len)] = 0;
-				if (remaining_words > 0) {
-					len = UniStrnlen((wchar_t *)bcc_ptr,
-							 remaining_words-1);
-					kfree(ses->serverNOS);
-					ses->serverNOS = kzalloc(2 * (len + 1),
-								 GFP_KERNEL);
-					if (ses->serverNOS == NULL)
-						goto sesssetup_nomem;
-					cifs_strfromUCS_le(ses->serverNOS,
-							   (__le16 *)bcc_ptr,
-							   len, nls_codepage);
-					bcc_ptr += 2 * (len + 1);
-					ses->serverNOS[2 * len] = 0;
-					ses->serverNOS[1 + (2 * len)] = 0;
-					if (strncmp(ses->serverNOS,
-						"NT LAN Manager 4", 16) == 0) {
-						cFYI(1, ("NT4 server"));
-						ses->flags |= CIFS_SES_NT4;
-					}
-					remaining_words -= len + 1;
-					if (remaining_words > 0) {
-						len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);
-				/* last string is not always null terminated
-				   (for e.g. for Windows XP & 2000) */
-						kfree(ses->serverDomain);
-						ses->serverDomain =
-						    kzalloc(2*(len+1),
-							    GFP_KERNEL);
-						if (ses->serverDomain == NULL)
-							goto sesssetup_nomem;
-						cifs_strfromUCS_le(ses->serverDomain,
-							(__le16 *)bcc_ptr,
-							len, nls_codepage);
-						bcc_ptr += 2 * (len + 1);
-						ses->serverDomain[2*len] = 0;
-						ses->serverDomain[1+(2*len)] = 0;
-					} else { /* else no more room so create
-						  dummy domain string */
-						kfree(ses->serverDomain);
-						ses->serverDomain =
-							kzalloc(2, GFP_KERNEL);
-					}
-				} else { /* no room so create dummy domain
-					    and NOS string */
-
-					/* if these kcallocs fail not much we
-					   can do, but better to not fail the
-					   sesssetup itself */
-					kfree(ses->serverDomain);
-					ses->serverDomain =
-					    kzalloc(2, GFP_KERNEL);
-					kfree(ses->serverNOS);
-					ses->serverNOS =
-					    kzalloc(2, GFP_KERNEL);
-				}
-			} else {	/* ASCII */
-				len = strnlen(bcc_ptr, 1024);
-				if (((long) bcc_ptr + len) - (long)
-				    pByteArea(smb_buffer_response)
-					    <= BCC(smb_buffer_response)) {
-					kfree(ses->serverOS);
-					ses->serverOS = kzalloc(len + 1,
-								GFP_KERNEL);
-					if (ses->serverOS == NULL)
-						goto sesssetup_nomem;
-					strncpy(ses->serverOS, bcc_ptr, len);
-
-					bcc_ptr += len;
-					/* null terminate the string */
-					bcc_ptr[0] = 0;
-					bcc_ptr++;
-
-					len = strnlen(bcc_ptr, 1024);
-					kfree(ses->serverNOS);
-					ses->serverNOS = kzalloc(len + 1,
-								 GFP_KERNEL);
-					if (ses->serverNOS == NULL)
-						goto sesssetup_nomem;
-					strncpy(ses->serverNOS, bcc_ptr, len);
-					bcc_ptr += len;
-					bcc_ptr[0] = 0;
-					bcc_ptr++;
-
-					len = strnlen(bcc_ptr, 1024);
-					kfree(ses->serverDomain);
-					ses->serverDomain = kzalloc(len + 1,
-								    GFP_KERNEL);
-					if (ses->serverDomain == NULL)
-						goto sesssetup_nomem;
-					strncpy(ses->serverDomain, bcc_ptr,
-						len);
-					bcc_ptr += len;
-					bcc_ptr[0] = 0;
-					bcc_ptr++;
-				} else
-					cFYI(1,
-					     ("Variable field of length %d "
-						"extends beyond end of smb ",
-					      len));
-			}
-		} else {
-			cERROR(1, ("Security Blob Length extends beyond "
-				"end of SMB"));
-		}
-	} else {
-		cERROR(1, ("Invalid Word count %d: ",
-			smb_buffer_response->WordCount));
-		rc = -EIO;
-	}
-sesssetup_nomem:	/* do not return an error on nomem for the info strings,
-			   since that could make reconnection harder, and
-			   reconnection might be needed to free memory */
-	cifs_buf_release(smb_buffer);
-
-	return rc;
-}
-
-static int
-CIFSNTLMSSPNegotiateSessSetup(unsigned int xid,
-			      struct cifsSesInfo *ses, bool *pNTLMv2_flag,
-			      const struct nls_table *nls_codepage)
-{
-	struct smb_hdr *smb_buffer;
-	struct smb_hdr *smb_buffer_response;
-	SESSION_SETUP_ANDX *pSMB;
-	SESSION_SETUP_ANDX *pSMBr;
-	char *bcc_ptr;
-	char *domain;
-	int rc = 0;
-	int remaining_words = 0;
-	int bytes_returned = 0;
-	int len;
-	int SecurityBlobLength = sizeof(NEGOTIATE_MESSAGE);
-	PNEGOTIATE_MESSAGE SecurityBlob;
-	PCHALLENGE_MESSAGE SecurityBlob2;
-	__u32 negotiate_flags, capabilities;
-	__u16 count;
-
-	cFYI(1, ("In NTLMSSP sesssetup (negotiate)"));
-	if (ses == NULL)
-		return -EINVAL;
-	domain = ses->domainName;
-	*pNTLMv2_flag = false;
-	smb_buffer = cifs_buf_get();
-	if (smb_buffer == NULL) {
-		return -ENOMEM;
-	}
-	smb_buffer_response = smb_buffer;
-	pSMB = (SESSION_SETUP_ANDX *) smb_buffer;
-	pSMBr = (SESSION_SETUP_ANDX *) smb_buffer_response;
-
-	/* send SMBsessionSetup here */
-	header_assemble(smb_buffer, SMB_COM_SESSION_SETUP_ANDX,
-			NULL /* no tCon exists yet */ , 12 /* wct */ );
-
-	smb_buffer->Mid = GetNextMid(ses->server);
-	pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	pSMB->req.hdr.Flags |= (SMBFLG_CASELESS | SMBFLG_CANONICAL_PATH_FORMAT);
-
-	pSMB->req.AndXCommand = 0xFF;
-	pSMB->req.MaxBufferSize = cpu_to_le16(ses->server->maxBuf);
-	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
-
-	if (ses->server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
-
-	capabilities = CAP_LARGE_FILES | CAP_NT_SMBS | CAP_LEVEL_II_OPLOCKS |
-	    CAP_EXTENDED_SECURITY;
-	if (ses->capabilities & CAP_UNICODE) {
-		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
-		capabilities |= CAP_UNICODE;
-	}
-	if (ses->capabilities & CAP_STATUS32) {
-		smb_buffer->Flags2 |= SMBFLG2_ERR_STATUS;
-		capabilities |= CAP_STATUS32;
-	}
-	if (ses->capabilities & CAP_DFS) {
-		smb_buffer->Flags2 |= SMBFLG2_DFS;
-		capabilities |= CAP_DFS;
-	}
-	pSMB->req.Capabilities = cpu_to_le32(capabilities);
-
-	bcc_ptr = (char *) &pSMB->req.SecurityBlob;
-	SecurityBlob = (PNEGOTIATE_MESSAGE) bcc_ptr;
-	strncpy(SecurityBlob->Signature, NTLMSSP_SIGNATURE, 8);
-	SecurityBlob->MessageType = NtLmNegotiate;
-	negotiate_flags =
-	    NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_NEGOTIATE_OEM |
-	    NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_NTLM |
-	    NTLMSSP_NEGOTIATE_56 |
-	    /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN | */ NTLMSSP_NEGOTIATE_128;
-	if (sign_CIFS_PDUs)
-		negotiate_flags |= NTLMSSP_NEGOTIATE_SIGN;
-/*	if (ntlmv2_support)
-		negotiate_flags |= NTLMSSP_NEGOTIATE_NTLMV2;*/
-	/* setup pointers to domain name and workstation name */
-	bcc_ptr += SecurityBlobLength;
-
-	SecurityBlob->WorkstationName.Buffer = 0;
-	SecurityBlob->WorkstationName.Length = 0;
-	SecurityBlob->WorkstationName.MaximumLength = 0;
-
-	/* Domain not sent on first Sesssetup in NTLMSSP, instead it is sent
-	along with username on auth request (ie the response to challenge) */
-	SecurityBlob->DomainName.Buffer = 0;
-	SecurityBlob->DomainName.Length = 0;
-	SecurityBlob->DomainName.MaximumLength = 0;
-	if (ses->capabilities & CAP_UNICODE) {
-		if ((long) bcc_ptr % 2) {
-			*bcc_ptr = 0;
-			bcc_ptr++;
-		}
-
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, "Linux version ",
-				  32, nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, utsname()->release, 32,
-				  nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bcc_ptr += 2;	/* null terminate Linux version */
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
-				  64, nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		*(bcc_ptr + 1) = 0;
-		*(bcc_ptr + 2) = 0;
-		bcc_ptr += 2;	/* null terminate network opsys string */
-		*(bcc_ptr + 1) = 0;
-		*(bcc_ptr + 2) = 0;
-		bcc_ptr += 2;	/* null domain */
-	} else {		/* ASCII */
-		strcpy(bcc_ptr, "Linux version ");
-		bcc_ptr += strlen("Linux version ");
-		strcpy(bcc_ptr, utsname()->release);
-		bcc_ptr += strlen(utsname()->release) + 1;
-		strcpy(bcc_ptr, CIFS_NETWORK_OPSYS);
-		bcc_ptr += strlen(CIFS_NETWORK_OPSYS) + 1;
-		bcc_ptr++;	/* empty domain field */
-		*bcc_ptr = 0;
-	}
-	SecurityBlob->NegotiateFlags = cpu_to_le32(negotiate_flags);
-	pSMB->req.SecurityBlobLength = cpu_to_le16(SecurityBlobLength);
-	count = (long) bcc_ptr - (long) pByteArea(smb_buffer);
-	smb_buffer->smb_buf_length += count;
-	pSMB->req.ByteCount = cpu_to_le16(count);
-
-	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response,
-			 &bytes_returned, CIFS_LONG_OP);
-
-	if (smb_buffer_response->Status.CifsError ==
-	    cpu_to_le32(NT_STATUS_MORE_PROCESSING_REQUIRED))
-		rc = 0;
-
-	if (rc) {
-/*    rc = map_smb_to_linux_error(smb_buffer_response);  *//* done in SendReceive now */
-	} else if ((smb_buffer_response->WordCount == 3)
-		   || (smb_buffer_response->WordCount == 4)) {
-		__u16 action = le16_to_cpu(pSMBr->resp.Action);
-		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
-
-		if (action & GUEST_LOGIN)
-			cFYI(1, ("Guest login"));
-	/* Do we want to set anything in SesInfo struct when guest login? */
-
-		bcc_ptr = pByteArea(smb_buffer_response);
-	/* response can have either 3 or 4 word count - Samba sends 3 */
-
-		SecurityBlob2 = (PCHALLENGE_MESSAGE) bcc_ptr;
-		if (SecurityBlob2->MessageType != NtLmChallenge) {
-			cFYI(1, ("Unexpected NTLMSSP message type received %d",
-			      SecurityBlob2->MessageType));
-		} else if (ses) {
-			ses->Suid = smb_buffer_response->Uid; /* UID left in le format */
-			cFYI(1, ("UID = %d", ses->Suid));
-			if ((pSMBr->resp.hdr.WordCount == 3)
-			    || ((pSMBr->resp.hdr.WordCount == 4)
-				&& (blob_len <
-				    pSMBr->resp.ByteCount))) {
-
-				if (pSMBr->resp.hdr.WordCount == 4) {
-					bcc_ptr += blob_len;
-					cFYI(1, ("Security Blob Length %d",
-					      blob_len));
-				}
-
-				cFYI(1, ("NTLMSSP Challenge rcvd"));
-
-				memcpy(ses->server->cryptKey,
-				       SecurityBlob2->Challenge,
-				       CIFS_CRYPTO_KEY_SIZE);
-				if (SecurityBlob2->NegotiateFlags &
-					cpu_to_le32(NTLMSSP_NEGOTIATE_NTLMV2))
-					*pNTLMv2_flag = true;
-
-				if ((SecurityBlob2->NegotiateFlags &
-					cpu_to_le32(NTLMSSP_NEGOTIATE_ALWAYS_SIGN))
-					|| (sign_CIFS_PDUs > 1))
-						ses->server->secMode |=
-							SECMODE_SIGN_REQUIRED;
-				if ((SecurityBlob2->NegotiateFlags &
-					cpu_to_le32(NTLMSSP_NEGOTIATE_SIGN)) && (sign_CIFS_PDUs))
-						ses->server->secMode |=
-							SECMODE_SIGN_ENABLED;
-
-				if (smb_buffer->Flags2 & SMBFLG2_UNICODE) {
-					if ((long) (bcc_ptr) % 2) {
-						remaining_words =
-						    (BCC(smb_buffer_response)
-						     - 1) / 2;
-					 /* Must word align unicode strings */
-						bcc_ptr++;
-					} else {
-						remaining_words =
-						    BCC
-						    (smb_buffer_response) / 2;
-					}
-					len =
-					    UniStrnlen((wchar_t *) bcc_ptr,
-						       remaining_words - 1);
-/* We look for obvious messed up bcc or strings in response so we do not go off
-   the end since (at least) WIN2K and Windows XP have a major bug in not null
-   terminating last Unicode string in response  */
-					kfree(ses->serverOS);
-					ses->serverOS =
-					    kzalloc(2 * (len + 1), GFP_KERNEL);
-					cifs_strfromUCS_le(ses->serverOS,
-							   (__le16 *)
-							   bcc_ptr, len,
-							   nls_codepage);
-					bcc_ptr += 2 * (len + 1);
-					remaining_words -= len + 1;
-					ses->serverOS[2 * len] = 0;
-					ses->serverOS[1 + (2 * len)] = 0;
-					if (remaining_words > 0) {
-						len = UniStrnlen((wchar_t *)
-								 bcc_ptr,
-								 remaining_words
-								 - 1);
-						kfree(ses->serverNOS);
-						ses->serverNOS =
-						    kzalloc(2 * (len + 1),
-							    GFP_KERNEL);
-						cifs_strfromUCS_le(ses->
-								   serverNOS,
-								   (__le16 *)
-								   bcc_ptr,
-								   len,
-								   nls_codepage);
-						bcc_ptr += 2 * (len + 1);
-						ses->serverNOS[2 * len] = 0;
-						ses->serverNOS[1 +
-							       (2 * len)] = 0;
-						remaining_words -= len + 1;
-						if (remaining_words > 0) {
-							len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);
-				/* last string not always null terminated
-				   (for e.g. for Windows XP & 2000) */
-							kfree(ses->serverDomain);
-							ses->serverDomain =
-							    kzalloc(2 *
-								    (len +
-								     1),
-								    GFP_KERNEL);
-							cifs_strfromUCS_le
-							    (ses->serverDomain,
-							     (__le16 *)bcc_ptr,
-							     len, nls_codepage);
-							bcc_ptr +=
-							    2 * (len + 1);
-							ses->serverDomain[2*len]
-							    = 0;
-							ses->serverDomain
-								[1 + (2 * len)]
-							    = 0;
-						} /* else no more room so create dummy domain string */
-						else {
-							kfree(ses->serverDomain);
-							ses->serverDomain =
-							    kzalloc(2,
-								    GFP_KERNEL);
-						}
-					} else {	/* no room so create dummy domain and NOS string */
-						kfree(ses->serverDomain);
-						ses->serverDomain =
-						    kzalloc(2, GFP_KERNEL);
-						kfree(ses->serverNOS);
-						ses->serverNOS =
-						    kzalloc(2, GFP_KERNEL);
-					}
-				} else {	/* ASCII */
-					len = strnlen(bcc_ptr, 1024);
-					if (((long) bcc_ptr + len) - (long)
-					    pByteArea(smb_buffer_response)
-					    <= BCC(smb_buffer_response)) {
-						kfree(ses->serverOS);
-						ses->serverOS =
-						    kzalloc(len + 1,
-							    GFP_KERNEL);
-						strncpy(ses->serverOS,
-							bcc_ptr, len);
-
-						bcc_ptr += len;
-						bcc_ptr[0] = 0;	/* null terminate string */
-						bcc_ptr++;
-
-						len = strnlen(bcc_ptr, 1024);
-						kfree(ses->serverNOS);
-						ses->serverNOS =
-						    kzalloc(len + 1,
-							    GFP_KERNEL);
-						strncpy(ses->serverNOS, bcc_ptr, len);
-						bcc_ptr += len;
-						bcc_ptr[0] = 0;
-						bcc_ptr++;
-
-						len = strnlen(bcc_ptr, 1024);
-						kfree(ses->serverDomain);
-						ses->serverDomain =
-						    kzalloc(len + 1,
-							    GFP_KERNEL);
-						strncpy(ses->serverDomain,
-							bcc_ptr, len);
-						bcc_ptr += len;
-						bcc_ptr[0] = 0;
-						bcc_ptr++;
-					} else
-						cFYI(1,
-						     ("field of length %d "
-						    "extends beyond end of smb",
-						      len));
-				}
-			} else {
-				cERROR(1, ("Security Blob Length extends beyond"
-					   " end of SMB"));
-			}
-		} else {
-			cERROR(1, ("No session structure passed in."));
-		}
-	} else {
-		cERROR(1, ("Invalid Word count %d:",
-			smb_buffer_response->WordCount));
-		rc = -EIO;
-	}
-
-	cifs_buf_release(smb_buffer);
-
-	return rc;
-}
-static int
-CIFSNTLMSSPAuthSessSetup(unsigned int xid, struct cifsSesInfo *ses,
-			char *ntlm_session_key, bool ntlmv2_flag,
-			const struct nls_table *nls_codepage)
-{
-	struct smb_hdr *smb_buffer;
-	struct smb_hdr *smb_buffer_response;
-	SESSION_SETUP_ANDX *pSMB;
-	SESSION_SETUP_ANDX *pSMBr;
-	char *bcc_ptr;
-	char *user;
-	char *domain;
-	int rc = 0;
-	int remaining_words = 0;
-	int bytes_returned = 0;
-	int len;
-	int SecurityBlobLength = sizeof(AUTHENTICATE_MESSAGE);
-	PAUTHENTICATE_MESSAGE SecurityBlob;
-	__u32 negotiate_flags, capabilities;
-	__u16 count;
-
-	cFYI(1, ("In NTLMSSPSessSetup (Authenticate)"));
-	if (ses == NULL)
-		return -EINVAL;
-	user = ses->userName;
-	domain = ses->domainName;
-	smb_buffer = cifs_buf_get();
-	if (smb_buffer == NULL) {
-		return -ENOMEM;
-	}
-	smb_buffer_response = smb_buffer;
-	pSMB = (SESSION_SETUP_ANDX *)smb_buffer;
-	pSMBr = (SESSION_SETUP_ANDX *)smb_buffer_response;
-
-	/* send SMBsessionSetup here */
-	header_assemble(smb_buffer, SMB_COM_SESSION_SETUP_ANDX,
-			NULL /* no tCon exists yet */ , 12 /* wct */ );
-
-	smb_buffer->Mid = GetNextMid(ses->server);
-	pSMB->req.hdr.Flags |= (SMBFLG_CASELESS | SMBFLG_CANONICAL_PATH_FORMAT);
-	pSMB->req.hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	pSMB->req.AndXCommand = 0xFF;
-	pSMB->req.MaxBufferSize = cpu_to_le16(ses->server->maxBuf);
-	pSMB->req.MaxMpxCount = cpu_to_le16(ses->server->maxReq);
-
-	pSMB->req.hdr.Uid = ses->Suid;
-
-	if (ses->server->secMode & (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-		smb_buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
-
-	capabilities = CAP_LARGE_FILES | CAP_NT_SMBS | CAP_LEVEL_II_OPLOCKS |
-			CAP_EXTENDED_SECURITY;
-	if (ses->capabilities & CAP_UNICODE) {
-		smb_buffer->Flags2 |= SMBFLG2_UNICODE;
-		capabilities |= CAP_UNICODE;
-	}
-	if (ses->capabilities & CAP_STATUS32) {
-		smb_buffer->Flags2 |= SMBFLG2_ERR_STATUS;
-		capabilities |= CAP_STATUS32;
-	}
-	if (ses->capabilities & CAP_DFS) {
-		smb_buffer->Flags2 |= SMBFLG2_DFS;
-		capabilities |= CAP_DFS;
-	}
-	pSMB->req.Capabilities = cpu_to_le32(capabilities);
-
-	bcc_ptr = (char *)&pSMB->req.SecurityBlob;
-	SecurityBlob = (PAUTHENTICATE_MESSAGE)bcc_ptr;
-	strncpy(SecurityBlob->Signature, NTLMSSP_SIGNATURE, 8);
-	SecurityBlob->MessageType = NtLmAuthenticate;
-	bcc_ptr += SecurityBlobLength;
-	negotiate_flags = NTLMSSP_NEGOTIATE_UNICODE | NTLMSSP_REQUEST_TARGET |
-			NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_TARGET_INFO |
-			0x80000000 | NTLMSSP_NEGOTIATE_128;
-	if (sign_CIFS_PDUs)
-		negotiate_flags |= /* NTLMSSP_NEGOTIATE_ALWAYS_SIGN |*/ NTLMSSP_NEGOTIATE_SIGN;
-	if (ntlmv2_flag)
-		negotiate_flags |= NTLMSSP_NEGOTIATE_NTLMV2;
-
-/* setup pointers to domain name and workstation name */
-
-	SecurityBlob->WorkstationName.Buffer = 0;
-	SecurityBlob->WorkstationName.Length = 0;
-	SecurityBlob->WorkstationName.MaximumLength = 0;
-	SecurityBlob->SessionKey.Length = 0;
-	SecurityBlob->SessionKey.MaximumLength = 0;
-	SecurityBlob->SessionKey.Buffer = 0;
-
-	SecurityBlob->LmChallengeResponse.Length = 0;
-	SecurityBlob->LmChallengeResponse.MaximumLength = 0;
-	SecurityBlob->LmChallengeResponse.Buffer = 0;
-
-	SecurityBlob->NtChallengeResponse.Length =
-	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
-	SecurityBlob->NtChallengeResponse.MaximumLength =
-	    cpu_to_le16(CIFS_SESS_KEY_SIZE);
-	memcpy(bcc_ptr, ntlm_session_key, CIFS_SESS_KEY_SIZE);
-	SecurityBlob->NtChallengeResponse.Buffer =
-	    cpu_to_le32(SecurityBlobLength);
-	SecurityBlobLength += CIFS_SESS_KEY_SIZE;
-	bcc_ptr += CIFS_SESS_KEY_SIZE;
-
-	if (ses->capabilities & CAP_UNICODE) {
-		if (domain == NULL) {
-			SecurityBlob->DomainName.Buffer = 0;
-			SecurityBlob->DomainName.Length = 0;
-			SecurityBlob->DomainName.MaximumLength = 0;
-		} else {
-			__u16 ln = cifs_strtoUCS((__le16 *) bcc_ptr, domain, 64,
-					  nls_codepage);
-			ln *= 2;
-			SecurityBlob->DomainName.MaximumLength =
-			    cpu_to_le16(ln);
-			SecurityBlob->DomainName.Buffer =
-			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += ln;
-			SecurityBlobLength += ln;
-			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
-		}
-		if (user == NULL) {
-			SecurityBlob->UserName.Buffer = 0;
-			SecurityBlob->UserName.Length = 0;
-			SecurityBlob->UserName.MaximumLength = 0;
-		} else {
-			__u16 ln = cifs_strtoUCS((__le16 *) bcc_ptr, user, 64,
-					  nls_codepage);
-			ln *= 2;
-			SecurityBlob->UserName.MaximumLength =
-			    cpu_to_le16(ln);
-			SecurityBlob->UserName.Buffer =
-			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += ln;
-			SecurityBlobLength += ln;
-			SecurityBlob->UserName.Length = cpu_to_le16(ln);
-		}
-
-		/* SecurityBlob->WorkstationName.Length =
-		 cifs_strtoUCS((__le16 *) bcc_ptr, "AMACHINE",64, nls_codepage);
-		   SecurityBlob->WorkstationName.Length *= 2;
-		   SecurityBlob->WorkstationName.MaximumLength =
-			cpu_to_le16(SecurityBlob->WorkstationName.Length);
-		   SecurityBlob->WorkstationName.Buffer =
-				 cpu_to_le32(SecurityBlobLength);
-		   bcc_ptr += SecurityBlob->WorkstationName.Length;
-		   SecurityBlobLength += SecurityBlob->WorkstationName.Length;
-		   SecurityBlob->WorkstationName.Length =
-			cpu_to_le16(SecurityBlob->WorkstationName.Length);  */
-
-		if ((long) bcc_ptr % 2) {
-			*bcc_ptr = 0;
-			bcc_ptr++;
-		}
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, "Linux version ",
-				  32, nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, utsname()->release, 32,
-				  nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		bcc_ptr += 2;	/* null term version string */
-		bytes_returned =
-		    cifs_strtoUCS((__le16 *) bcc_ptr, CIFS_NETWORK_OPSYS,
-				  64, nls_codepage);
-		bcc_ptr += 2 * bytes_returned;
-		*(bcc_ptr + 1) = 0;
-		*(bcc_ptr + 2) = 0;
-		bcc_ptr += 2;	/* null terminate network opsys string */
-		*(bcc_ptr + 1) = 0;
-		*(bcc_ptr + 2) = 0;
-		bcc_ptr += 2;	/* null domain */
-	} else {		/* ASCII */
-		if (domain == NULL) {
-			SecurityBlob->DomainName.Buffer = 0;
-			SecurityBlob->DomainName.Length = 0;
-			SecurityBlob->DomainName.MaximumLength = 0;
-		} else {
-			__u16 ln;
-			negotiate_flags |= NTLMSSP_NEGOTIATE_DOMAIN_SUPPLIED;
-			strncpy(bcc_ptr, domain, 63);
-			ln = strnlen(domain, 64);
-			SecurityBlob->DomainName.MaximumLength =
-			    cpu_to_le16(ln);
-			SecurityBlob->DomainName.Buffer =
-			    cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += ln;
-			SecurityBlobLength += ln;
-			SecurityBlob->DomainName.Length = cpu_to_le16(ln);
-		}
-		if (user == NULL) {
-			SecurityBlob->UserName.Buffer = 0;
-			SecurityBlob->UserName.Length = 0;
-			SecurityBlob->UserName.MaximumLength = 0;
-		} else {
-			__u16 ln;
-			strncpy(bcc_ptr, user, 63);
-			ln = strnlen(user, 64);
-			SecurityBlob->UserName.MaximumLength = cpu_to_le16(ln);
-			SecurityBlob->UserName.Buffer =
-						cpu_to_le32(SecurityBlobLength);
-			bcc_ptr += ln;
-			SecurityBlobLength += ln;
-			SecurityBlob->UserName.Length = cpu_to_le16(ln);
-		}
-		/* BB fill in our workstation name if known BB */
-
-		strcpy(bcc_ptr, "Linux version ");
-		bcc_ptr += strlen("Linux version ");
-		strcpy(bcc_ptr, utsname()->release);
-		bcc_ptr += strlen(utsname()->release) + 1;
-		strcpy(bcc_ptr, CIFS_NETWORK_OPSYS);
-		bcc_ptr += strlen(CIFS_NETWORK_OPSYS) + 1;
-		bcc_ptr++;	/* null domain */
-		*bcc_ptr = 0;
-	}
-	SecurityBlob->NegotiateFlags = cpu_to_le32(negotiate_flags);
-	pSMB->req.SecurityBlobLength = cpu_to_le16(SecurityBlobLength);
-	count = (long) bcc_ptr - (long) pByteArea(smb_buffer);
-	smb_buffer->smb_buf_length += count;
-	pSMB->req.ByteCount = cpu_to_le16(count);
-
-	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response,
-			 &bytes_returned, CIFS_LONG_OP);
-	if (rc) {
-/*   rc = map_smb_to_linux_error(smb_buffer_response) done in SendReceive now */
-	} else if ((smb_buffer_response->WordCount == 3) ||
-		   (smb_buffer_response->WordCount == 4)) {
-		__u16 action = le16_to_cpu(pSMBr->resp.Action);
-		__u16 blob_len = le16_to_cpu(pSMBr->resp.SecurityBlobLength);
-		if (action & GUEST_LOGIN)
-			cFYI(1, ("Guest login")); /* BB Should we set anything
-							 in SesInfo struct ? */
-/*		if (SecurityBlob2->MessageType != NtLm??) {
-			cFYI("Unexpected message type on auth response is %d"));
-		} */
-
-		if (ses) {
-			cFYI(1,
-			     ("Check challenge UID %d vs auth response UID %d",
-			      ses->Suid, smb_buffer_response->Uid));
-			/* UID left in wire format */
-			ses->Suid = smb_buffer_response->Uid;
-			bcc_ptr = pByteArea(smb_buffer_response);
-		/* response can have either 3 or 4 word count - Samba sends 3 */
-			if ((pSMBr->resp.hdr.WordCount == 3)
-			    || ((pSMBr->resp.hdr.WordCount == 4)
-				&& (blob_len <
-				    pSMBr->resp.ByteCount))) {
-				if (pSMBr->resp.hdr.WordCount == 4) {
-					bcc_ptr +=
-					    blob_len;
-					cFYI(1,
-					     ("Security Blob Length %d ",
-					      blob_len));
-				}
-
-				cFYI(1,
-				     ("NTLMSSP response to Authenticate "));
-
-				if (smb_buffer->Flags2 & SMBFLG2_UNICODE) {
-					if ((long) (bcc_ptr) % 2) {
-						remaining_words =
-						    (BCC(smb_buffer_response)
-						     - 1) / 2;
-						bcc_ptr++;	/* Unicode strings must be word aligned */
-					} else {
-						remaining_words = BCC(smb_buffer_response) / 2;
-					}
-					len = UniStrnlen((wchar_t *) bcc_ptr,
-							remaining_words - 1);
-/* We look for obvious messed up bcc or strings in response so we do not go off
-  the end since (at least) WIN2K and Windows XP have a major bug in not null
-  terminating last Unicode string in response  */
-					kfree(ses->serverOS);
-					ses->serverOS =
-					    kzalloc(2 * (len + 1), GFP_KERNEL);
-					cifs_strfromUCS_le(ses->serverOS,
-							   (__le16 *)
-							   bcc_ptr, len,
-							   nls_codepage);
-					bcc_ptr += 2 * (len + 1);
-					remaining_words -= len + 1;
-					ses->serverOS[2 * len] = 0;
-					ses->serverOS[1 + (2 * len)] = 0;
-					if (remaining_words > 0) {
-						len = UniStrnlen((wchar_t *)
-								 bcc_ptr,
-								 remaining_words
-								 - 1);
-						kfree(ses->serverNOS);
-						ses->serverNOS =
-						    kzalloc(2 * (len + 1),
-							    GFP_KERNEL);
-						cifs_strfromUCS_le(ses->
-								   serverNOS,
-								   (__le16 *)
-								   bcc_ptr,
-								   len,
-								   nls_codepage);
-						bcc_ptr += 2 * (len + 1);
-						ses->serverNOS[2 * len] = 0;
-						ses->serverNOS[1+(2*len)] = 0;
-						remaining_words -= len + 1;
-						if (remaining_words > 0) {
-							len = UniStrnlen((wchar_t *) bcc_ptr, remaining_words);
-     /* last string not always null terminated (e.g. for Windows XP & 2000) */
-							kfree(ses->serverDomain);
-							ses->serverDomain =
-							    kzalloc(2 *
-								    (len +
-								     1),
-								    GFP_KERNEL);
-							cifs_strfromUCS_le
-							    (ses->
-							     serverDomain,
-							     (__le16 *)
-							     bcc_ptr, len,
-							     nls_codepage);
-							bcc_ptr +=
-							    2 * (len + 1);
-							ses->
-							    serverDomain[2
-									 * len]
-							    = 0;
-							ses->
-							    serverDomain[1
-									 +
-									 (2
-									  *
-									  len)]
-							    = 0;
-						} /* else no more room so create dummy domain string */
-						else {
-							kfree(ses->serverDomain);
-							ses->serverDomain = kzalloc(2,GFP_KERNEL);
-						}
-					} else {  /* no room so create dummy domain and NOS string */
-						kfree(ses->serverDomain);
-						ses->serverDomain = kzalloc(2, GFP_KERNEL);
-						kfree(ses->serverNOS);
-						ses->serverNOS = kzalloc(2, GFP_KERNEL);
-					}
-				} else {	/* ASCII */
-					len = strnlen(bcc_ptr, 1024);
-					if (((long) bcc_ptr + len) -
-					   (long) pByteArea(smb_buffer_response)
-						<= BCC(smb_buffer_response)) {
-						kfree(ses->serverOS);
-						ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
-						strncpy(ses->serverOS,bcc_ptr, len);
-
-						bcc_ptr += len;
-						bcc_ptr[0] = 0;	/* null terminate the string */
-						bcc_ptr++;
-
-						len = strnlen(bcc_ptr, 1024);
-						kfree(ses->serverNOS);
-						ses->serverNOS = kzalloc(len+1,
-								    GFP_KERNEL);
-						strncpy(ses->serverNOS,
-							bcc_ptr, len);
-						bcc_ptr += len;
-						bcc_ptr[0] = 0;
-						bcc_ptr++;
-
-						len = strnlen(bcc_ptr, 1024);
-						kfree(ses->serverDomain);
-						ses->serverDomain =
-								kzalloc(len+1,
-								    GFP_KERNEL);
-						strncpy(ses->serverDomain,
-							bcc_ptr, len);
-						bcc_ptr += len;
-						bcc_ptr[0] = 0;
-						bcc_ptr++;
-					} else
-						cFYI(1, ("field of length %d "
-						   "extends beyond end of smb ",
-						      len));
-				}
-			} else {
-				cERROR(1, ("Security Blob extends beyond end "
-					"of SMB"));
-			}
-		} else {
-			cERROR(1, ("No session structure passed in."));
-		}
-	} else {
-		cERROR(1, ("Invalid Word count %d: ",
-			smb_buffer_response->WordCount));
-		rc = -EIO;
-	}
-
-	cifs_buf_release(smb_buffer);
-
-	return rc;
-}
-
 int
 CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	 const char *tree, struct cifsTconInfo *tcon,
@@ -3638,7 +2623,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	TCONX_RSP *pSMBr;
 	unsigned char *bcc_ptr;
 	int rc = 0;
-	int length;
+	int length, bytes_left;
 	__u16 count;
 
 	if (ses == NULL)
@@ -3726,14 +2711,22 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 	rc = SendReceive(xid, ses, smb_buffer, smb_buffer_response, &length,
 			 CIFS_STD_OP);
 
-	/* if (rc) rc = map_smb_to_linux_error(smb_buffer_response); */
 	/* above now done in SendReceive */
 	if ((rc == 0) && (tcon != NULL)) {
+		bool is_unicode;
+
 		tcon->tidStatus = CifsGood;
 		tcon->need_reconnect = false;
 		tcon->tid = smb_buffer_response->Tid;
 		bcc_ptr = pByteArea(smb_buffer_response);
-		length = strnlen(bcc_ptr, BCC(smb_buffer_response) - 2);
+		bytes_left = BCC(smb_buffer_response);
+		length = strnlen(bcc_ptr, bytes_left - 2);
+		if (smb_buffer->Flags2 & SMBFLG2_UNICODE)
+			is_unicode = true;
+		else
+			is_unicode = false;
+
+
 		/* skip service field (NB: this field is always ASCII) */
 		if (length == 3) {
 			if ((bcc_ptr[0] == 'I') && (bcc_ptr[1] == 'P') &&
@@ -3748,39 +2741,16 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			}
 		}
 		bcc_ptr += length + 1;
+		bytes_left -= (length + 1);
 		strncpy(tcon->treeName, tree, MAX_TREE_SIZE);
-		if (smb_buffer->Flags2 & SMBFLG2_UNICODE) {
-			length = UniStrnlen((wchar_t *) bcc_ptr, 512);
-			if ((bcc_ptr + (2 * length)) -
-			     pByteArea(smb_buffer_response) <=
-			    BCC(smb_buffer_response)) {
-				kfree(tcon->nativeFileSystem);
-				tcon->nativeFileSystem =
-				    kzalloc((4 * length) + 2, GFP_KERNEL);
-				if (tcon->nativeFileSystem) {
-					cifs_strfromUCS_le(
-						tcon->nativeFileSystem,
-						(__le16 *) bcc_ptr,
-						length, nls_codepage);
-					cFYI(1, ("nativeFileSystem=%s",
-						tcon->nativeFileSystem));
-				}
-			}
-			/* else do not bother copying these information fields*/
-		} else {
-			length = strnlen(bcc_ptr, 1024);
-			if ((bcc_ptr + length) -
-			    pByteArea(smb_buffer_response) <=
-			    BCC(smb_buffer_response)) {
-				kfree(tcon->nativeFileSystem);
-				tcon->nativeFileSystem =
-				    kzalloc(length + 1, GFP_KERNEL);
-				if (tcon->nativeFileSystem)
-					strncpy(tcon->nativeFileSystem, bcc_ptr,
-						length);
-			}
-			/* else do not bother copying these information fields*/
-		}
+
+		/* mostly informational -- no need to fail on error here */
+		tcon->nativeFileSystem = cifs_strndup_from_ucs(bcc_ptr,
+						      bytes_left, is_unicode,
+						      nls_codepage);
+
+		cFYI(1, ("nativeFileSystem=%s", tcon->nativeFileSystem));
+
 		if ((smb_buffer_response->WordCount == 3) ||
 			 (smb_buffer_response->WordCount == 7))
 			/* field is in same location */
@@ -3819,8 +2789,6 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 					   struct nls_table *nls_info)
 {
 	int rc = 0;
-	char ntlm_session_key[CIFS_SESS_KEY_SIZE];
-	bool ntlmv2_flag = false;
 	int first_time = 0;
 	struct TCP_Server_Info *server = pSesInfo->server;
 
@@ -3852,83 +2820,19 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 	pSesInfo->capabilities = server->capabilities;
 	if (linuxExtEnabled == 0)
 		pSesInfo->capabilities &= (~CAP_UNIX);
-	/*	pSesInfo->sequence_number = 0;*/
+
 	cFYI(1, ("Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d",
 		 server->secMode, server->capabilities, server->timeAdj));
 
-	if (experimEnabled < 2)
-		rc = CIFS_SessSetup(xid, pSesInfo, first_time, nls_info);
-	else if (extended_security
-			&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
-			&& (server->secType == NTLMSSP)) {
-		rc = -EOPNOTSUPP;
-	} else if (extended_security
-			&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
-			&& (server->secType == RawNTLMSSP)) {
-		cFYI(1, ("NTLMSSP sesssetup"));
-		rc = CIFSNTLMSSPNegotiateSessSetup(xid, pSesInfo, &ntlmv2_flag,
-						   nls_info);
-		if (!rc) {
-			if (ntlmv2_flag) {
-				char *v2_response;
-				cFYI(1, ("more secure NTLM ver2 hash"));
-				if (CalcNTLMv2_partial_mac_key(pSesInfo,
-								nls_info)) {
-					rc = -ENOMEM;
-					goto ss_err_exit;
-				} else
-					v2_response = kmalloc(16 + 64 /* blob*/,
-								GFP_KERNEL);
-				if (v2_response) {
-					CalcNTLMv2_response(pSesInfo,
-								v2_response);
-				/*	if (first_time)
-						cifs_calculate_ntlmv2_mac_key */
-					kfree(v2_response);
-					/* BB Put dummy sig in SessSetup PDU? */
-				} else {
-					rc = -ENOMEM;
-					goto ss_err_exit;
-				}
-
-			} else {
-				SMBNTencrypt(pSesInfo->password,
-					     server->cryptKey,
-					     ntlm_session_key);
-
-				if (first_time)
-					cifs_calculate_mac_key(
-					     &server->mac_signing_key,
-					     ntlm_session_key,
-					     pSesInfo->password);
-			}
-			/* for better security the weaker lanman hash not sent
-			   in AuthSessSetup so we no longer calculate it */
-
-			rc = CIFSNTLMSSPAuthSessSetup(xid, pSesInfo,
-						      ntlm_session_key,
-						      ntlmv2_flag,
-						      nls_info);
-		}
-	} else { /* old style NTLM 0.12 session setup */
-		SMBNTencrypt(pSesInfo->password, server->cryptKey,
-			     ntlm_session_key);
-
-		if (first_time)
-			cifs_calculate_mac_key(&server->mac_signing_key,
-						ntlm_session_key,
-						pSesInfo->password);
-
-		rc = CIFSSessSetup(xid, pSesInfo, ntlm_session_key, nls_info);
-	}
+	rc = CIFS_SessSetup(xid, pSesInfo, first_time, nls_info);
 	if (rc) {
 		cERROR(1, ("Send error in SessSetup = %d", rc));
 	} else {
 		cFYI(1, ("CIFS Session Established successfully"));
-			spin_lock(&GlobalMid_Lock);
-			pSesInfo->status = CifsGood;
-			pSesInfo->need_reconnect = false;
-			spin_unlock(&GlobalMid_Lock);
+		spin_lock(&GlobalMid_Lock);
+		pSesInfo->status = CifsGood;
+		pSesInfo->need_reconnect = false;
+		spin_unlock(&GlobalMid_Lock);
 	}
 
 ss_err_exit:

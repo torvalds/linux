@@ -283,6 +283,7 @@ typedef struct drm_i915_private {
 	u8 saveAR[21];
 	u8 saveDACMASK;
 	u8 saveCR[37];
+	uint64_t saveFENCE[16];
 
 	struct {
 		struct drm_mm gtt_space;
@@ -674,12 +675,12 @@ extern int i915_restore_state(struct drm_device *dev);
 #ifdef CONFIG_ACPI
 /* i915_opregion.c */
 extern int intel_opregion_init(struct drm_device *dev, int resume);
-extern void intel_opregion_free(struct drm_device *dev);
+extern void intel_opregion_free(struct drm_device *dev, int suspend);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);
 #else
 static inline int intel_opregion_init(struct drm_device *dev, int resume) { return 0; }
-static inline void intel_opregion_free(struct drm_device *dev) { return; }
+static inline void intel_opregion_free(struct drm_device *dev, int suspend) { return; }
 static inline void opregion_asle_intr(struct drm_device *dev) { return; }
 static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
@@ -705,13 +706,8 @@ extern void intel_modeset_cleanup(struct drm_device *dev);
 #define I915_WRITE16(reg, val)	writel(val, dev_priv->regs + (reg))
 #define I915_READ8(reg)		readb(dev_priv->regs + (reg))
 #define I915_WRITE8(reg, val)	writeb(val, dev_priv->regs + (reg))
-#ifdef writeq
 #define I915_WRITE64(reg, val)	writeq(val, dev_priv->regs + (reg))
-#else
-#define I915_WRITE64(reg, val)	(writel(val, dev_priv->regs + (reg)), \
-				 writel(upper_32_bits(val), dev_priv->regs + \
-					(reg) + 4))
-#endif
+#define I915_READ64(reg)	readq(dev_priv->regs + (reg))
 #define POSTING_READ(reg)	(void)I915_READ(reg)
 
 #define I915_VERBOSE 0
@@ -787,15 +783,18 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		       (dev)->pci_device == 0x2A42 || \
 		       (dev)->pci_device == 0x2E02 || \
 		       (dev)->pci_device == 0x2E12 || \
-		       (dev)->pci_device == 0x2E22)
+		       (dev)->pci_device == 0x2E22 || \
+		       (dev)->pci_device == 0x2E32)
 
-#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
+#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02 || \
+			(dev)->pci_device == 0x2A12)
 
 #define IS_GM45(dev) ((dev)->pci_device == 0x2A42)
 
 #define IS_G4X(dev) ((dev)->pci_device == 0x2E02 || \
 		     (dev)->pci_device == 0x2E12 || \
 		     (dev)->pci_device == 0x2E22 || \
+		     (dev)->pci_device == 0x2E32 || \
 		     IS_GM45(dev))
 
 #define IS_IGDG(dev) ((dev)->pci_device == 0xa001)

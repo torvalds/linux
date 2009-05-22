@@ -513,7 +513,8 @@ static ssize_t show_target(struct sys_device *dev, struct sysdev_attribute *attr
 			      char *buf)
 {
 	return sprintf(buf, "%llu\n",
-		       (u64)balloon_stats.target_pages << PAGE_SHIFT);
+		       (unsigned long long)balloon_stats.target_pages
+		       << PAGE_SHIFT);
 }
 
 static ssize_t store_target(struct sys_device *dev,

@@ -9,14 +9,15 @@
  * This file contains M32R architecture specific macro definitions.
  */
 
+#include <linux/stringify.h>
 
-#ifndef __STR
+#undef __STR
+
 #ifdef __ASSEMBLY__
 #define __STR(x) x
 #else
-#define __STR(x) #x
+#define __STR(x) __stringify(x)
 #endif
-#endif /* __STR */
 
 #ifdef CONFIG_SMP
 #define M32R_LOCK	__STR(lock)

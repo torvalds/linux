@@ -179,7 +179,7 @@ typedef struct sg_device { /* holds the state of each scsi generic device */
 /* tasklet or soft irq callback */
 static void sg_rq_end_io(struct request *rq, int uptodate);
 static int sg_start_req(Sg_request *srp, unsigned char *cmd);
-static void sg_finish_rem_req(Sg_request * srp);
+static int sg_finish_rem_req(Sg_request * srp);
 static int sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size);
 static ssize_t sg_new_read(Sg_fd * sfp, char __user *buf, size_t count,
 			   Sg_request * srp);
@@ -518,7 +518,7 @@ sg_new_read(Sg_fd * sfp, char __user *buf, size_t count, Sg_request * srp)
 		goto err_out;
 	}
 err_out:
-	sg_finish_rem_req(srp);
+	err = sg_finish_rem_req(srp);
 	return (0 == err) ? count : err;
 }
 
@@ -1696,9 +1696,10 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	return res;
 }
 
-static void
-sg_finish_rem_req(Sg_request * srp)
+static int sg_finish_rem_req(Sg_request * srp)
 {
+	int ret = 0;
+
 	Sg_fd *sfp = srp->parentfp;
 	Sg_scatter_hold *req_schp = &srp->data;
 
@@ -1710,12 +1711,14 @@ sg_finish_rem_req(Sg_request * srp)
 
 	if (srp->rq) {
 		if (srp->bio)
-			blk_rq_unmap_user(srp->bio);
+			ret = blk_rq_unmap_user(srp->bio);
 
 		blk_put_request(srp->rq);
 	}
 
 	sg_remove_request(sfp, srp);
+
+	return ret;
 }
 
 static int

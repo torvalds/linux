@@ -190,8 +190,8 @@ static int subdev_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 	mask = itv->card->gpio_audio_detect.mask;
 	if (mask == 0 || (read_reg(IVTV_REG_GPIO_IN) & mask))
-		vt->rxsubchans = V4L2_TUNER_MODE_STEREO |
-			V4L2_TUNER_MODE_LANG1 | V4L2_TUNER_MODE_LANG2;
+		vt->rxsubchans = V4L2_TUNER_SUB_STEREO |
+			V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
 	else
 		vt->rxsubchans = V4L2_TUNER_SUB_MONO;
 	return 0;

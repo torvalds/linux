@@ -181,6 +181,10 @@ config SYS_SUPPORTS_APM_EMULATION
 	default y if PMAC_APM_EMU
 	bool
 
+config DTC
+       bool
+       default y
+
 config DEFAULT_UIMAGE
 	bool
 	help

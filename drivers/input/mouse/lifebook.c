@@ -61,6 +61,12 @@ static const struct dmi_system_id lifebook_dmi_table[] = {
 		},
 	},
 	{
+		.ident = "Lifebook B-2130",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "ZEPHYR"),
+		},
+	},
+	{
 		.ident = "Lifebook B213x/B2150",
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook B2131/B2133/B2150"),
