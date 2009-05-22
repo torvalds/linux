@@ -214,10 +214,6 @@ void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
 #endif
 
-/* codec IO */
-#define snd_soc_read(codec, reg) codec->read(codec, reg)
-#define snd_soc_write(codec, reg, value) codec->write(codec, reg, value)
-
 /* codec register bit access */
 int snd_soc_update_bits(struct snd_soc_codec *codec, unsigned short reg,
 				unsigned short mask, unsigned short value);
@@ -506,6 +502,19 @@ struct soc_enum {
 	const unsigned int *values;
 	void *dapm;
 };
+
+/* codec IO */
+static inline unsigned int snd_soc_read(struct snd_soc_codec *codec,
+					unsigned int reg)
+{
+	return codec->read(codec, reg);
+}
+
+static inline unsigned int snd_soc_write(struct snd_soc_codec *codec,
+					 unsigned int reg, unsigned int val)
+{
+	return codec->write(codec, reg, val);
+}
 
 #include <sound/soc-dai.h>
 
