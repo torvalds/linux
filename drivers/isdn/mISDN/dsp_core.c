@@ -311,6 +311,7 @@ dsp_control_req(struct dsp *dsp, struct mISDNhead *hh, struct sk_buff *skb)
 
 		/* check dtmf hardware */
 		dsp_dtmf_hardware(dsp);
+		dsp_rx_off(dsp);
 		break;
 	case DTMF_TONE_STOP: /* turn off DTMF */
 		if (dsp_debug & DEBUG_DSP_CORE)
@@ -657,11 +658,10 @@ get_features(struct mISDNchannel *ch)
 static int
 dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 {
-	struct dsp			*dsp = container_of(ch, struct dsp, ch);
+	struct dsp		*dsp = container_of(ch, struct dsp, ch);
 	struct mISDNhead	*hh;
 	int			ret = 0;
-	u8			*digits;
-	int			cont;
+	u8			*digits = NULL;
 	u_long			flags;
 
 	hh = mISDN_HEAD_P(skb);
@@ -716,31 +716,10 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 		/* change volume if requested */
 		if (dsp->rx_volume)
 			dsp_change_volume(skb, dsp->rx_volume);
-
 		/* check if dtmf soft decoding is turned on */
 		if (dsp->dtmf.software) {
 			digits = dsp_dtmf_goertzel_decode(dsp, skb->data,
 				skb->len, (dsp_options&DSP_OPT_ULAW)?1:0);
-			while (*digits) {
-				struct sk_buff *nskb;
-				if (dsp_debug & DEBUG_DSP_DTMF)
-					printk(KERN_DEBUG "%s: digit"
-					    "(%c) to layer %s\n",
-					    __func__, *digits, dsp->name);
-				cont = DTMF_TONE_VAL | *digits;
-				nskb = _alloc_mISDN_skb(PH_CONTROL_IND,
-				    MISDN_ID_ANY, sizeof(int), &cont,
-				    GFP_ATOMIC);
-				if (nskb) {
-					if (dsp->up) {
-						if (dsp->up->send(
-						    dsp->up, nskb))
-						dev_kfree_skb(nskb);
-					} else
-						dev_kfree_skb(nskb);
-				}
-				digits++;
-			}
 		}
 		/* we need to process receive data if software */
 		if (dsp->pcm_slot_tx < 0 && dsp->pcm_slot_rx < 0) {
@@ -750,6 +729,30 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 
 		spin_unlock_irqrestore(&dsp_lock, flags);
 
+		/* send dtmf result, if any */
+		if (digits) {
+			while (*digits) {
+				int k;
+				struct sk_buff *nskb;
+				if (dsp_debug & DEBUG_DSP_DTMF)
+					printk(KERN_DEBUG "%s: digit"
+					    "(%c) to layer %s\n",
+					    __func__, *digits, dsp->name);
+				k = *digits | DTMF_TONE_VAL;
+				nskb = _alloc_mISDN_skb(PH_CONTROL_IND,
+					MISDN_ID_ANY, sizeof(int), &k,
+					GFP_ATOMIC);
+				if (nskb) {
+					if (dsp->up) {
+						if (dsp->up->send(
+						    dsp->up, nskb))
+							dev_kfree_skb(nskb);
+					} else
+						dev_kfree_skb(nskb);
+				}
+				digits++;
+			}
+		}
 		if (dsp->rx_disabled) {
 			/* if receive is not allowed */
 			break;
@@ -789,7 +792,7 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 					if (dsp->up) {
 						if (dsp->up->send(
 						    dsp->up, nskb))
-						dev_kfree_skb(nskb);
+							dev_kfree_skb(nskb);
 					} else
 						dev_kfree_skb(nskb);
 				}
