@@ -267,7 +267,7 @@ static struct mem_access trapped_io_access = {
 int handle_trapped_io(struct pt_regs *regs, unsigned long address)
 {
 	mm_segment_t oldfs;
-	opcode_t instruction;
+	insn_size_t instruction;
 	int tmp;
 
 	if (!lookup_tiop(address))

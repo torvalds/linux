@@ -34,6 +34,7 @@
 # define TRAP_ILLEGAL_SLOT_INST	6
 # define TRAP_ADDRESS_ERROR	9
 # ifdef CONFIG_CPU_SH2A
+#  define TRAP_UBC		12
 #  define TRAP_FPU_ERROR	13
 #  define TRAP_DIVZERO_ERROR	17
 #  define TRAP_DIVOVF_ERROR	18
@@ -176,7 +177,7 @@ static struct mem_access user_mem_access = {
  *   (if that instruction is in a branch delay slot)
  * - return 0 if emulation okay, -EFAULT on existential error
  */
-static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs,
+static int handle_unaligned_ins(insn_size_t instruction, struct pt_regs *regs,
 				struct mem_access *ma)
 {
 	int ret, index, count;
@@ -321,10 +322,10 @@ static int handle_unaligned_ins(opcode_t instruction, struct pt_regs *regs,
  * - fetches the instruction from PC+2
  */
 static inline int handle_delayslot(struct pt_regs *regs,
-				   opcode_t old_instruction,
+				   insn_size_t old_instruction,
 				   struct mem_access *ma)
 {
-	opcode_t instruction;
+	insn_size_t instruction;
 	void __user *addr = (void __user *)(regs->pc +
 		instruction_size(old_instruction));
 
@@ -364,7 +365,7 @@ static inline int handle_delayslot(struct pt_regs *regs,
 
 static int handle_unaligned_notify_count = 10;
 
-int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
+int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 			    struct mem_access *ma)
 {
 	u_int rm;
@@ -522,7 +523,7 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 	unsigned long error_code = 0;
 	mm_segment_t oldfs;
 	siginfo_t info;
-	opcode_t instruction;
+	insn_size_t instruction;
 	int tmp;
 
 	/* Intentional ifdef */
@@ -847,6 +848,10 @@ void __init trap_init(void)
 #ifdef CONFIG_SH_FPU
 	set_exception_table_vec(TRAP_FPU_ERROR, fpu_error_trap_handler);
 #endif
+#endif
+
+#ifdef TRAP_UBC
+	set_exception_table_vec(TRAP_UBC, break_point_trap);
 #endif
 
 	/* Setup VBR for boot cpu */

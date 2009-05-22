@@ -1,7 +1,6 @@
 #ifndef __ASM_SH_CLOCK_H
 #define __ASM_SH_CLOCK_H
 
-#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/seq_file.h>
 #include <linux/clk.h>
@@ -28,7 +27,7 @@ struct clk {
 	struct clk		*parent;
 	struct clk_ops		*ops;
 
-	struct kref		kref;
+	int			usecount;
 
 	unsigned long		rate;
 	unsigned long		flags;
@@ -37,6 +36,7 @@ struct clk {
 
 #define CLK_ALWAYS_ENABLED	(1 << 0)
 #define CLK_RATE_PROPAGATES	(1 << 1)
+#define CLK_NEEDS_INIT		(1 << 2)
 
 /* Should be defined by processor-specific code */
 void arch_init_clk_ops(struct clk_ops **, int type);

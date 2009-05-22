@@ -109,6 +109,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	case CPU_SH7785:
 	case CPU_SH7786:
 	case CPU_SH7723:
+	case CPU_SH7724:
 	case CPU_SHX3:
 		lmodel = &op_model_sh4a_ops;
 		break;

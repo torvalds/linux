@@ -38,10 +38,10 @@ config EARLY_SCIF_CONSOLE_PORT
 	default "0xffe00000" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7763 || \
 				CPU_SUBTYPE_SH7722 || CPU_SUBTYPE_SH7366 || \
 				CPU_SUBTYPE_SH7343
-	default "0xffe80000" if CPU_SH4
 	default "0xffea0000" if CPU_SUBTYPE_SH7785
 	default "0xfffe8000" if CPU_SUBTYPE_SH7203
 	default "0xfffe9800" if CPU_SUBTYPE_SH7206 || CPU_SUBTYPE_SH7263
+	default "0xffe80000" if CPU_SH4
 	default "0x00000000"
 
 config EARLY_PRINTK
@@ -92,7 +92,7 @@ config 4KSTACKS
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
-	depends on DEBUG_KERNEL && SUPERH32
+	depends on DEBUG_KERNEL && SUPERH32 && BROKEN
 	help
 	  If you say Y here the kernel will use separate kernel stacks
 	  for handling hard and soft interrupts.  This can help avoid
@@ -122,27 +122,8 @@ config SH_NO_BSS_INIT
 	  For all other cases, say N. If this option seems perplexing, or
 	  you aren't sure, say N.
 
-config MORE_COMPILE_OPTIONS
-	bool "Add any additional compile options"
-	help
-	  If you want to add additional CFLAGS to the kernel build, enable this
-	  option and then enter what you would like to add in the next question.
-	  Note however that -g is already appended with the selection of KGDB.
-
-config COMPILE_OPTIONS
-	string "Additional compile arguments"
-	depends on MORE_COMPILE_OPTIONS
-
 config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
 	depends on SUPERH64
-
-config POOR_MANS_STRACE
-	bool "Debug: enable rudimentary strace facility"
-	depends on SUPERH64
-	help
-	  This option allows system calls to be traced to the console.  It also
-	  aids in detecting kernel stack underflow.  It is useful for debugging
-	  early-userland problems (e.g. init incurring fatal exceptions.)
 
 endmenu

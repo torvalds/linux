@@ -14,6 +14,7 @@
  *   Copyright (C) 2002 Stuart Menefy (stuart.menefy@st.com)
  */
 #include <asm/cache.h>
+#include <asm/tlb.h>
 #include <cpu/mmu_context.h>
 #include <cpu/registers.h>
 
@@ -33,11 +34,7 @@
 #define	ICCR0_INIT_VAL	ICCR0_ON | ICCR0_ICI		/* ICE + ICI */
 #define	ICCR1_INIT_VAL	ICCR1_NOLOCK			/* No locking */
 
-#if 1
 #define	OCCR0_INIT_VAL	OCCR0_ON | OCCR0_OCI | OCCR0_WB	/* OCE + OCI + WB */
-#else
-#define	OCCR0_INIT_VAL	OCCR0_OFF
-#endif
 #define	OCCR1_INIT_VAL	OCCR1_NOLOCK			/* No locking */
 
 	.text

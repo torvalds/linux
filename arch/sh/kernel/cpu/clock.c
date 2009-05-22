@@ -19,7 +19,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
-#include <linux/kref.h>
 #include <linux/kobject.h>
 #include <linux/sysdev.h>
 #include <linux/seq_file.h>
@@ -27,7 +26,6 @@
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <asm/clock.h>
-#include <asm/timer.h>
 
 static LIST_HEAD(clock_list);
 static DEFINE_SPINLOCK(clock_lock);
@@ -90,7 +88,7 @@ static void propagate_rate(struct clk *clk)
 	}
 }
 
-static int __clk_enable(struct clk *clk)
+static void __clk_init(struct clk *clk)
 {
 	/*
 	 * See if this is the first time we're enabling the clock, some
@@ -99,17 +97,34 @@ static int __clk_enable(struct clk *clk)
 	 * changes and the clock needs to hunt for the proper set of
 	 * divisors to use before it can effectively recalc.
 	 */
-	if (unlikely(atomic_read(&clk->kref.refcount) == 1))
+
+	if (clk->flags & CLK_NEEDS_INIT) {
 		if (clk->ops && clk->ops->init)
 			clk->ops->init(clk);
 
-	kref_get(&clk->kref);
+		clk->flags &= ~CLK_NEEDS_INIT;
+	}
+}
 
+static int __clk_enable(struct clk *clk)
+{
+	if (!clk)
+		return -EINVAL;
+
+	clk->usecount++;
+
+	/* nothing to do if always enabled */
 	if (clk->flags & CLK_ALWAYS_ENABLED)
 		return 0;
 
-	if (likely(clk->ops && clk->ops->enable))
-		clk->ops->enable(clk);
+	if (clk->usecount == 1) {
+		__clk_init(clk);
+
+		__clk_enable(clk->parent);
+
+		if (clk->ops && clk->ops->enable)
+			clk->ops->enable(clk);
+	}
 
 	return 0;
 }
@@ -119,11 +134,6 @@ int clk_enable(struct clk *clk)
 	unsigned long flags;
 	int ret;
 
-	if (!clk)
-		return -EINVAL;
-
-	clk_enable(clk->parent);
-
 	spin_lock_irqsave(&clock_lock, flags);
 	ret = __clk_enable(clk);
 	spin_unlock_irqrestore(&clock_lock, flags);
@@ -132,21 +142,23 @@ int clk_enable(struct clk *clk)
 }
 EXPORT_SYMBOL_GPL(clk_enable);
 
-static void clk_kref_release(struct kref *kref)
-{
-	/* Nothing to do */
-}
-
 static void __clk_disable(struct clk *clk)
 {
-	int count = kref_put(&clk->kref, clk_kref_release);
+	if (!clk)
+		return;
+
+	clk->usecount--;
+
+	WARN_ON(clk->usecount < 0);
 
 	if (clk->flags & CLK_ALWAYS_ENABLED)
 		return;
 
-	if (!count) {	/* count reaches zero, disable the clock */
+	if (clk->usecount == 0) {
 		if (likely(clk->ops && clk->ops->disable))
 			clk->ops->disable(clk);
+
+		__clk_disable(clk->parent);
 	}
 }
 
@@ -154,14 +166,9 @@ void clk_disable(struct clk *clk)
 {
 	unsigned long flags;
 
-	if (!clk)
-		return;
-
 	spin_lock_irqsave(&clock_lock, flags);
 	__clk_disable(clk);
 	spin_unlock_irqrestore(&clock_lock, flags);
-
-	clk_disable(clk->parent);
 }
 EXPORT_SYMBOL_GPL(clk_disable);
 
@@ -170,14 +177,14 @@ int clk_register(struct clk *clk)
 	mutex_lock(&clock_list_sem);
 
 	list_add(&clk->node, &clock_list);
-	kref_init(&clk->kref);
+	clk->usecount = 0;
+	clk->flags |= CLK_NEEDS_INIT;
 
 	mutex_unlock(&clock_list_sem);
 
 	if (clk->flags & CLK_ALWAYS_ENABLED) {
+		__clk_init(clk);
 		pr_debug( "Clock '%s' is ALWAYS_ENABLED\n", clk->name);
-		if (clk->ops && clk->ops->init)
-			clk->ops->init(clk);
 		if (clk->ops && clk->ops->enable)
 			clk->ops->enable(clk);
 		pr_debug( "Enabled.");
@@ -353,7 +360,7 @@ static int show_clocks(char *buf, char **start, off_t off,
 		p += sprintf(p, "%-12s\t: %ld.%02ldMHz\t%s\n", clk->name,
 			     rate / 1000000, (rate % 1000000) / 10000,
 			     ((clk->flags & CLK_ALWAYS_ENABLED) ||
-			      (atomic_read(&clk->kref.refcount) != 1)) ?
+			      clk->usecount > 0) ?
 			     "enabled" : "disabled");
 	}
 

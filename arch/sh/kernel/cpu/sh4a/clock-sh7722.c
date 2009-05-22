@@ -130,6 +130,12 @@ static void adjust_clocks(int originate, int *l, unsigned long v[],
  * is quite simple..
  */
 
+#if defined(CONFIG_CPU_SUBTYPE_SH7724)
+#define STCPLL(frqcr) ((((frqcr >> 24) & 0x3f) + 1) * 2)
+#else
+#define STCPLL(frqcr) (((frqcr >> 24) & 0x1f) + 1)
+#endif
+
 /*
  * Instead of having two separate multipliers/divisors set, like this:
  *
@@ -139,13 +145,17 @@ static void adjust_clocks(int originate, int *l, unsigned long v[],
  * I created the divisors2 array, which is used to calculate rate like
  *   rate = parent * 2 / divisors2[ divisor ];
 */
+#if defined(CONFIG_CPU_SUBTYPE_SH7724)
+static int divisors2[] = { 4, 1, 8, 12, 16, 24, 32, 1, 48, 64, 72, 96, 1, 144 };
+#else
 static int divisors2[] = { 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 32, 40 };
+#endif
 
 static void master_clk_recalc(struct clk *clk)
 {
 	unsigned frqcr = ctrl_inl(FRQCR);
 
-	clk->rate = CONFIG_SH_PCLK_FREQ * (((frqcr >> 24) & 0x1f) + 1);
+	clk->rate = CONFIG_SH_PCLK_FREQ * STCPLL(frqcr);
 }
 
 static void master_clk_init(struct clk *clk)
@@ -161,13 +171,30 @@ static void module_clk_recalc(struct clk *clk)
 {
 	unsigned long frqcr = ctrl_inl(FRQCR);
 
-	clk->rate = clk->parent->rate / (((frqcr >> 24) & 0x1f) + 1);
+	clk->rate = clk->parent->rate / STCPLL(frqcr);
 }
+
+#if defined(CONFIG_CPU_SUBTYPE_SH7724)
+#define MASTERDIVS	{ 12, 16, 24, 30, 32, 36, 48 }
+#define STCMASK		0x3f
+#define DIVCALC(div)	(div/2-1)
+#define FRQCRKICK	0x80000000
+#elif defined(CONFIG_CPU_SUBTYPE_SH7723)
+#define MASTERDIVS	{ 6, 8, 12, 16 }
+#define STCMASK		0x1f
+#define DIVCALC(div)	(div-1)
+#define FRQCRKICK	0x00000000
+#else
+#define MASTERDIVS	{ 2, 3, 4, 6, 8, 16 }
+#define STCMASK		0x1f
+#define DIVCALC(div)	(div-1)
+#define FRQCRKICK	0x00000000
+#endif
 
 static int master_clk_setrate(struct clk *clk, unsigned long rate, int id)
 {
 	int div = rate / clk->rate;
-	int master_divs[] = { 2, 3, 4, 6, 8, 16 };
+	int master_divs[] = MASTERDIVS;
 	int index;
 	unsigned long frqcr;
 
@@ -180,8 +207,9 @@ static int master_clk_setrate(struct clk *clk, unsigned long rate, int id)
 	div = master_divs[index - 1];
 
 	frqcr = ctrl_inl(FRQCR);
-	frqcr &= ~(0xF << 24);
-	frqcr |= ( (div-1) << 24);
+	frqcr &= ~(STCMASK << 24);
+	frqcr |= (DIVCALC(div) << 24);
+	frqcr |= FRQCRKICK;
 	ctrl_outl(frqcr, FRQCR);
 
 	return 0;
@@ -377,6 +405,7 @@ static int sh7722_frqcr_set_rate(struct clk *clk, unsigned long rate,
 	/* clear FRQCR bits */
 	frqcr &= ~(ctx.mask << ctx.shift);
 	frqcr |= div << ctx.shift;
+	frqcr |= FRQCRKICK;
 
 	/* ...and perform actual change */
 	ctrl_outl(frqcr, FRQCR);
@@ -542,8 +571,8 @@ static struct clk sh7722_r_clock = {
 	.flags = CLK_RATE_PROPAGATES,
 };
 
-#ifndef CONFIG_CPU_SUBTYPE_SH7343
-
+#if !defined(CONFIG_CPU_SUBTYPE_SH7343) &&\
+    !defined(CONFIG_CPU_SUBTYPE_SH7724)
 /*
  * these three clocks - SIU A, SIU B, IrDA - share the same clk_ops
  * methods of clk_ops determine which register they should access by
@@ -560,15 +589,16 @@ static struct clk sh7722_siu_b_clock = {
 	.arch_flags = SCLKBCR,
 	.ops = &sh7722_siu_clk_ops,
 };
+#endif /* CONFIG_CPU_SUBTYPE_SH7343, SH7724 */
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7722)
+#if defined(CONFIG_CPU_SUBTYPE_SH7722) ||\
+    defined(CONFIG_CPU_SUBTYPE_SH7724)
 static struct clk sh7722_irda_clock = {
 	.name = "irda_clk",
 	.arch_flags = IrDACLKCR,
 	.ops = &sh7722_siu_clk_ops,
 };
 #endif
-#endif /* CONFIG_CPU_SUBTYPE_SH7343 */
 
 static struct clk sh7722_video_clock = {
 	.name = "video_clk",
@@ -715,6 +745,61 @@ static struct clk sh7722_mstpcr_clocks[] = {
 	MSTPCR("vpu0", "bus_clk", 2, 1),
 	MSTPCR("lcdc0", "bus_clk", 2, 0),
 #endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7724)
+	/* See Datasheet : Overview -> Block Diagram */
+	MSTPCR("tlb0", "cpu_clk", 0, 31),
+	MSTPCR("ic0", "cpu_clk", 0, 30),
+	MSTPCR("oc0", "cpu_clk", 0, 29),
+	MSTPCR("rs0", "bus_clk", 0, 28),
+	MSTPCR("ilmem0", "cpu_clk", 0, 27),
+	MSTPCR("l2c0", "sh_clk", 0, 26),
+	MSTPCR("fpu0", "cpu_clk", 0, 24),
+	MSTPCR("intc0", "peripheral_clk", 0, 22),
+	MSTPCR("dmac0", "bus_clk", 0, 21),
+	MSTPCR("sh0", "sh_clk", 0, 20),
+	MSTPCR("hudi0", "peripheral_clk", 0, 19),
+	MSTPCR("ubc0", "cpu_clk", 0, 17),
+	MSTPCR("tmu0", "peripheral_clk", 0, 15),
+	MSTPCR("cmt0", "r_clk", 0, 14),
+	MSTPCR("rwdt0", "r_clk", 0, 13),
+	MSTPCR("dmac1", "bus_clk", 0, 12),
+	MSTPCR("tmu1", "peripheral_clk", 0, 10),
+	MSTPCR("scif0", "peripheral_clk", 0, 9),
+	MSTPCR("scif1", "peripheral_clk", 0, 8),
+	MSTPCR("scif2", "peripheral_clk", 0, 7),
+	MSTPCR("scif3", "bus_clk", 0, 6),
+	MSTPCR("scif4", "bus_clk", 0, 5),
+	MSTPCR("scif5", "bus_clk", 0, 4),
+	MSTPCR("msiof0", "bus_clk", 0, 2),
+	MSTPCR("msiof1", "bus_clk", 0, 1),
+	MSTPCR("keysc0", "r_clk", 1, 12),
+	MSTPCR("rtc0", "r_clk", 1, 11),
+	MSTPCR("i2c0", "peripheral_clk", 1, 9),
+	MSTPCR("i2c1", "peripheral_clk", 1, 8),
+	MSTPCR("mmc0", "bus_clk", 2, 29),
+	MSTPCR("eth0", "bus_clk", 2, 28),
+	MSTPCR("atapi0", "bus_clk", 2, 26),
+	MSTPCR("tpu0", "bus_clk", 2, 25),
+	MSTPCR("irda0", "peripheral_clk", 2, 24),
+	MSTPCR("tsif0", "bus_clk", 2, 22),
+	MSTPCR("usb1", "bus_clk", 2, 21),
+	MSTPCR("usb0", "bus_clk", 2, 20),
+	MSTPCR("2dg0", "bus_clk", 2, 19),
+	MSTPCR("sdhi0", "bus_clk", 2, 18),
+	MSTPCR("sdhi1", "bus_clk", 2, 17),
+	MSTPCR("veu1", "bus_clk", 2, 15),
+	MSTPCR("ceu1", "bus_clk", 2, 13),
+	MSTPCR("beu1", "bus_clk", 2, 12),
+	MSTPCR("2ddmac0", "sh_clk", 2, 10),
+	MSTPCR("spu0", "bus_clk", 2, 9),
+	MSTPCR("jpu0", "bus_clk", 2, 6),
+	MSTPCR("vou0", "bus_clk", 2, 5),
+	MSTPCR("beu0", "bus_clk", 2, 4),
+	MSTPCR("ceu0", "bus_clk", 2, 3),
+	MSTPCR("veu0", "bus_clk", 2, 2),
+	MSTPCR("vpu0", "bus_clk", 2, 1),
+	MSTPCR("lcdc0", "bus_clk", 2, 0),
+#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7343)
 	MSTPCR("uram0", "umem_clk", 0, 28),
 	MSTPCR("xymem0", "bus_clk", 0, 26),
@@ -786,12 +871,15 @@ static struct clk *sh7722_clocks[] = {
 	&sh7722_sh_clock,
 	&sh7722_peripheral_clock,
 	&sh7722_sdram_clock,
-#ifndef CONFIG_CPU_SUBTYPE_SH7343
+#if !defined(CONFIG_CPU_SUBTYPE_SH7343) &&\
+    !defined(CONFIG_CPU_SUBTYPE_SH7724)
 	&sh7722_siu_a_clock,
 	&sh7722_siu_b_clock,
-#if defined(CONFIG_CPU_SUBTYPE_SH7722)
-	&sh7722_irda_clock,
 #endif
+/* 7724 should support FSI clock */
+#if defined(CONFIG_CPU_SUBTYPE_SH7722) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7724)
+	&sh7722_irda_clock,
 #endif
 	&sh7722_video_clock,
 };

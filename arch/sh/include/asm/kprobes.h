@@ -6,7 +6,7 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 
-typedef u16 kprobe_opcode_t;
+typedef insn_size_t kprobe_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0xc33a
 
 #define MAX_INSN_SIZE 16

@@ -11,10 +11,10 @@ endif
 
 obj-y	:= debugtraps.o idle.o io.o io_generic.o irq.o			\
 	   machvec.o process_32.o ptrace_32.o setup.o signal_32.o	\
-	   sys_sh.o sys_sh32.o syscalls_32.o time_32.o topology.o	\
+	   sys_sh.o sys_sh32.o syscalls_32.o time.o topology.o	\
 	   traps.o traps_32.o
 
-obj-y				+= cpu/ timers/
+obj-y				+= cpu/
 obj-$(CONFIG_VSYSCALL)		+= vsyscall/
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SH_STANDARD_BIOS)	+= sh_bios.o
@@ -31,5 +31,7 @@ obj-$(CONFIG_GENERIC_GPIO)	+= gpio.o
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_DUMP_CODE)		+= disassemble.o
 obj-$(CONFIG_HIBERNATION)	+= swsusp.o
+
+obj-$(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)	+= localtimer.o
 
 EXTRA_CFLAGS += -Werror

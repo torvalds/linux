@@ -26,7 +26,6 @@
 #define SH7751_PCI_IO_SIZE           0x40000     /* Size of IO window */
 
 #define SH7751_PCIREG_BASE           0xFE200000  /* PCI regs base address */
-#define PCI_REG(n)                  (SH7751_PCIREG_BASE+ n)
 
 #define SH7751_PCICONF0            0x0           /* PCI Config Reg 0 */
   #define SH7751_PCICONF0_DEVID      0xFFFF0000  /* Device ID */
@@ -58,7 +57,7 @@
   #define SH7751_PCICONF2_SCC        0x00FF0000  /* Sub-Class Code */
   #define SH7751_PCICONF2_RLPI       0x0000FF00  /* Programming Interface */
   #define SH7751_PCICONF2_REV        0x000000FF  /* Revision ID */
-#define SH7751_PCICONF3            0xC           /* PCI Config Reg 3 */ 
+#define SH7751_PCICONF3            0xC           /* PCI Config Reg 3 */
   #define SH7751_PCICONF3_BIST7      0x80000000  /* Bist Supported */
   #define SH7751_PCICONF3_BIST6      0x40000000  /* Bist Executing */
   #define SH7751_PCICONF3_BIST3_0    0x0F000000  /* Bist Passed */
@@ -73,12 +72,12 @@
   #define SH7751_PCICONF5_BASE       0xFFFFFFF0  /* Mem Space Base Addr */
   #define SH7751_PCICONF5_LAP        0x00000008  /* Prefetch Enabled */
   #define SH7751_PCICONF5_LAT        0x00000006  /* Local Memory type */
-  #define SH7751_PCICONF5_ASI        0x00000001  /* Address Space Type */  
+  #define SH7751_PCICONF5_ASI        0x00000001  /* Address Space Type */
 #define SH7751_PCICONF6            0x18          /* PCI Config Reg 6 */
   #define SH7751_PCICONF6_BASE       0xFFFFFFF0  /* Mem Space Base Addr */
   #define SH7751_PCICONF6_LAP        0x00000008  /* Prefetch Enabled */
   #define SH7751_PCICONF6_LAT        0x00000006  /* Local Memory type */
-  #define SH7751_PCICONF6_ASI        0x00000001  /* Address Space Type */  
+  #define SH7751_PCICONF6_ASI        0x00000001  /* Address Space Type */
 /* PCICONF7 - PCICONF10 are undefined */
 #define SH7751_PCICONF11           0x2C          /* PCI Config Reg 11 */
   #define SH7751_PCICONF11_SSID      0xFFFF0000  /* Subsystem ID */
@@ -126,10 +125,5 @@
 #define SH7751_CS4_BASE_ADDR       (SH7751_CS3_BASE_ADDR + SH7751_MEM_REGION_SIZE)
 #define SH7751_CS5_BASE_ADDR       (SH7751_CS4_BASE_ADDR + SH7751_MEM_REGION_SIZE)
 #define SH7751_CS6_BASE_ADDR       (SH7751_CS5_BASE_ADDR + SH7751_MEM_REGION_SIZE)
-
-struct sh4_pci_address_map;
-
-/* arch/sh/drivers/pci/pci-sh7751.c */
-int sh7751_pcic_init(struct sh4_pci_address_map *map);
 
 #endif /* _PCI_SH7751_H_ */
