@@ -850,7 +850,7 @@ EXPORT_SYMBOL(ia64_unreg_MCA_extension);
 
 
 static inline void
-copy_reg(const u64 *fr, u64 fnat, u64 *tr, u64 *tnat)
+copy_reg(const u64 *fr, u64 fnat, unsigned long *tr, unsigned long *tnat)
 {
 	u64 fslot, tslot, nat;
 	*tr = *fr;
@@ -914,9 +914,9 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	struct switch_stack *old_sw;
 	unsigned size = sizeof(struct pt_regs) +
 			sizeof(struct switch_stack) + 16;
-	u64 *old_bspstore, *old_bsp;
-	u64 *new_bspstore, *new_bsp;
-	u64 old_unat, old_rnat, new_rnat, nat;
+	unsigned long *old_bspstore, *old_bsp;
+	unsigned long *new_bspstore, *new_bsp;
+	unsigned long old_unat, old_rnat, new_rnat, nat;
 	u64 slots, loadrs = regs->loadrs;
 	u64 r12 = ms->pmsa_gr[12-1], r13 = ms->pmsa_gr[13-1];
 	u64 ar_bspstore = regs->ar_bspstore;
@@ -968,10 +968,10 @@ ia64_mca_modify_original_stack(struct pt_regs *regs,
 	 * loadrs for the new stack and save it in the new pt_regs, where
 	 * ia64_old_stack() can get it.
 	 */
-	old_bspstore = (u64 *)ar_bspstore;
-	old_bsp = (u64 *)ar_bsp;
+	old_bspstore = (unsigned long *)ar_bspstore;
+	old_bsp = (unsigned long *)ar_bsp;
 	slots = ia64_rse_num_regs(old_bspstore, old_bsp);
-	new_bspstore = (u64 *)((u64)current + IA64_RBS_OFFSET);
+	new_bspstore = (unsigned long *)((u64)current + IA64_RBS_OFFSET);
 	new_bsp = ia64_rse_skip_regs(new_bspstore, slots);
 	regs->loadrs = (new_bsp - new_bspstore) * 8 << 16;
 
@@ -1918,9 +1918,9 @@ ia64_mca_init(void)
 	ia64_fptr_t *init_hldlr_ptr_slave = (ia64_fptr_t *)ia64_os_init_dispatch_slave;
 	ia64_fptr_t *mca_hldlr_ptr = (ia64_fptr_t *)ia64_os_mca_dispatch;
 	int i;
-	s64 rc;
+	long rc;
 	struct ia64_sal_retval isrv;
-	u64 timeout = IA64_MCA_RENDEZ_TIMEOUT;	/* platform specific */
+	unsigned long timeout = IA64_MCA_RENDEZ_TIMEOUT; /* platform specific */
 	static struct notifier_block default_init_monarch_nb = {
 		.notifier_call = default_monarch_init_process,
 		.priority = 0/* we need to notified last */

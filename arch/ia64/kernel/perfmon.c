@@ -312,7 +312,7 @@ typedef struct pfm_context {
 	unsigned long		th_pmcs[PFM_NUM_PMC_REGS];	/* PMC thread save state */
 	unsigned long		th_pmds[PFM_NUM_PMD_REGS];	/* PMD thread save state */
 
-	u64			ctx_saved_psr_up;	/* only contains psr.up value */
+	unsigned long		ctx_saved_psr_up;	/* only contains psr.up value */
 
 	unsigned long		ctx_last_activation;	/* context last activation number for last_cpu */
 	unsigned int		ctx_last_cpu;		/* CPU id of current or last CPU used (SMP only) */
@@ -5213,8 +5213,8 @@ pfm_end_notify_user(pfm_context_t *ctx)
  * main overflow processing routine.
  * it can be called from the interrupt path or explicitly during the context switch code
  */
-static void
-pfm_overflow_handler(struct task_struct *task, pfm_context_t *ctx, u64 pmc0, struct pt_regs *regs)
+static void pfm_overflow_handler(struct task_struct *task, pfm_context_t *ctx,
+				unsigned long pmc0, struct pt_regs *regs)
 {
 	pfm_ovfl_arg_t *ovfl_arg;
 	unsigned long mask;

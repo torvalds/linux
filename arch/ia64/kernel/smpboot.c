@@ -865,7 +865,7 @@ init_smp_config(void)
 void __devinit
 identify_siblings(struct cpuinfo_ia64 *c)
 {
-	s64 status;
+	long status;
 	u16 pltid;
 	pal_logical_to_physical_t info;
 
