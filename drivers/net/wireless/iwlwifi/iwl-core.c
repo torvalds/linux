@@ -617,19 +617,23 @@ u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 	struct iwl_ht_info *iwl_ht_conf = &priv->current_ht_config;
 
 	if ((!iwl_ht_conf->is_ht) ||
-	   (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ) ||
-	   (iwl_ht_conf->extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_NONE))
+	    (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ))
 		return 0;
 
+	/* We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
+	 * the bit will not set if it is pure 40MHz case
+	 */
 	if (sta_ht_inf) {
-		if ((!sta_ht_inf->ht_supported) ||
-		   (!(sta_ht_inf->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)))
+		if (!sta_ht_inf->ht_supported)
 			return 0;
 	}
 
-	return iwl_is_channel_extension(priv, priv->band,
-					le16_to_cpu(priv->staging_rxon.channel),
-					iwl_ht_conf->extension_chan_offset);
+	if (iwl_ht_conf->ht_protection & IEEE80211_HT_OP_MODE_PROTECTION_20MHZ)
+		return 1;
+	else
+		return iwl_is_channel_extension(priv, priv->band,
+				le16_to_cpu(priv->staging_rxon.channel),
+				iwl_ht_conf->extension_chan_offset);
 }
 EXPORT_SYMBOL(iwl_is_fat_tx_allowed);
 
@@ -799,41 +803,50 @@ EXPORT_SYMBOL(iwl_rate_get_lowest_plcp);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 {
 	struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
-	u32 val;
 
 	if (!ht_info->is_ht) {
-		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED_MSK |
-			RXON_FLG_CHANNEL_MODE_PURE_40_MSK |
+		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
 			RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
 			RXON_FLG_FAT_PROT_MSK |
 			RXON_FLG_HT_PROT_MSK);
 		return;
 	}
 
-	/* Set up channel bandwidth:  20 MHz only, or 20/40 mixed if fat ok */
-	if (iwl_is_fat_tx_allowed(priv, NULL))
-		rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED_MSK;
-	else
-		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED_MSK |
-				 RXON_FLG_CHANNEL_MODE_PURE_40_MSK);
+	/* FIXME: if the definition of ht_protection changed, the "translation"
+	 * will be needed for rxon->flags
+	 */
+	rxon->flags |= cpu_to_le32(ht_info->ht_protection << RXON_FLG_HT_OPERATING_MODE_POS);
 
-	/* Note: control channel is opposite of extension channel */
-	switch (ht_info->extension_chan_offset) {
-	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-		rxon->flags &= ~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
-		break;
-	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-		rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
-		break;
-	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
-	default:
-		rxon->flags &= ~RXON_FLG_CHANNEL_MODE_MIXED_MSK;
-		break;
+	/* Set up channel bandwidth:
+	 * 20 MHz only, 20/40 mixed or pure 40 if fat ok */
+	/* clear the HT channel mode before set the mode */
+	rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
+			 RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
+	if (iwl_is_fat_tx_allowed(priv, NULL)) {
+		/* pure 40 fat */
+		if (rxon->flags & RXON_FLG_FAT_PROT_MSK)
+			rxon->flags |= RXON_FLG_CHANNEL_MODE_PURE_40;
+		else {
+			/* Note: control channel is opposite of extension channel */
+			switch (ht_info->extension_chan_offset) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				rxon->flags &= ~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
+				rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+				rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_NONE:
+			default:
+				/* channel location only valid if in Mixed mode */
+				IWL_ERR(priv, "invalid extension channel offset\n");
+				break;
+			}
+		}
+	} else {
+		rxon->flags |= RXON_FLG_CHANNEL_MODE_LEGACY;
 	}
-
-	val = ht_info->ht_protection;
-
-	rxon->flags |= cpu_to_le32(val << RXON_FLG_HT_OPERATING_MODE_POS);
 
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv);
@@ -1122,8 +1135,9 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode)
 	priv->staging_rxon.cck_basic_rates =
 	    (IWL_CCK_RATES_MASK >> IWL_FIRST_CCK_RATE) & 0xF;
 
-	priv->staging_rxon.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED_MSK |
-					RXON_FLG_CHANNEL_MODE_PURE_40_MSK);
+	/* clear both MIX and PURE40 mode flag */
+	priv->staging_rxon.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED |
+					RXON_FLG_CHANNEL_MODE_PURE_40);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 	memcpy(priv->staging_rxon.wlap_bssid_addr, priv->mac_addr, ETH_ALEN);
 	priv->staging_rxon.ofdm_ht_single_stream_basic_rates = 0xff;
