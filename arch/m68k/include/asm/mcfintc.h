@@ -25,11 +25,6 @@
  */
 
 /*
- * Define the base address of the SIM within the MBAR address space.
- */
-#define	MCFSIM_BASE		0x0		/* Base address within SIM */
-
-/*
  * Bit definitions for the ICR family of registers.
  */
 #define	MCFSIM_ICR_AUTOVEC	0x80		/* Auto-vectored intr */
@@ -48,7 +43,9 @@
 #define	MCFSIM_ICR_PRI3		0x03		/* Priority 3 intr */
 
 /*
- * IMR bit position definitions.
+ * IMR bit position definitions. Not all ColdFire parts with this interrupt
+ * controller actually support all of these interrupt sources. But the bit
+ * numbers are the same in all cores.
  */
 #define	MCFINTC_EINT1		1		/* External int #1 */
 #define	MCFINTC_EINT2		2		/* External int #2 */
@@ -70,6 +67,19 @@
 #define	MCFINTC_QSPI		18
 
 #ifndef __ASSEMBLER__
+
+/*
+ * There is no one-is-one correspondance between the interrupt number (irq)
+ * and the bit fields on the mask register. So we create a per-cpu type
+ * mapping of irq to mask bit. The CPU platform code needs to register
+ * its supported irq's at init time, using this function.
+ */
+extern unsigned char mcf_irq2imr[];
+static inline void mcf_mapirq2imr(int irq, int imr)
+{
+	mcf_irq2imr[irq] = imr;
+}
+
 void mcf_autovector(int irq);
 void mcf_setimr(int index);
 void mcf_clrimr(int index);
