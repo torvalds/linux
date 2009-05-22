@@ -551,6 +551,9 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	struct acpi_device *device = NULL;
 	struct acpi_driver *driver;
 
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Notification %#02x to handle %p\n",
+			  type, handle));
+
 	blocking_notifier_call_chain(&acpi_bus_notify_list,
 		type, (void *)handle);
 
@@ -560,9 +563,6 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	switch (type) {
 
 	case ACPI_NOTIFY_BUS_CHECK:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received BUS CHECK notification for device [%s]\n",
-				  device->pnp.bus_id));
 		result = acpi_bus_check_scope(device);
 		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
@@ -571,9 +571,6 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received DEVICE CHECK notification for device [%s]\n",
-				  device->pnp.bus_id));
 		result = acpi_bus_check_device(device, NULL);
 		/*
 		 * TBD: We'll need to outsource certain events to non-ACPI
@@ -582,44 +579,26 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 		break;
 
 	case ACPI_NOTIFY_DEVICE_WAKE:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received DEVICE WAKE notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_EJECT_REQUEST:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received EJECT REQUEST notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_DEVICE_CHECK_LIGHT:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received DEVICE CHECK LIGHT notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD: Exactly what does 'light' mean? */
 		break;
 
 	case ACPI_NOTIFY_FREQUENCY_MISMATCH:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received FREQUENCY MISMATCH notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_BUS_MODE_MISMATCH:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received BUS MODE MISMATCH notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
 	case ACPI_NOTIFY_POWER_FAULT:
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Received POWER FAULT notification for device [%s]\n",
-				  device->pnp.bus_id));
 		/* TBD */
 		break;
 
