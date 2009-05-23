@@ -2559,7 +2559,8 @@ void perf_counter_munmap(unsigned long addr, unsigned long len,
 }
 
 /*
- *
+ * Log irq_period changes so that analyzing tools can re-normalize the
+ * event flow.
  */
 
 static void perf_log_period(struct perf_counter *counter, u64 period)

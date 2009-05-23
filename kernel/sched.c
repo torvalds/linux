@@ -4875,8 +4875,9 @@ void scheduler_tick(void)
 	update_rq_clock(rq);
 	update_cpu_load(rq);
 	curr->sched_class->task_tick(rq, curr, 0);
-	perf_counter_task_tick(curr, cpu);
 	spin_unlock(&rq->lock);
+
+	perf_counter_task_tick(curr, cpu);
 
 #ifdef CONFIG_SMP
 	rq->idle_at_tick = idle_cpu(cpu);
