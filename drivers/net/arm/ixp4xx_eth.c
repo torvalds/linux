@@ -817,29 +817,29 @@ static int request_queues(struct port *port)
 	int err;
 
 	err = qmgr_request_queue(RXFREE_QUEUE(port->id), RX_DESCS, 0, 0,
-			    "%s:RX-free", port->netdev->name);
+				 "%s:RX-free", port->netdev->name);
 	if (err)
 		return err;
 
 	err = qmgr_request_queue(port->plat->rxq, RX_DESCS, 0, 0,
-			    "%s:RX", port->netdev->name);
+				 "%s:RX", port->netdev->name);
 	if (err)
 		goto rel_rxfree;
 
 	err = qmgr_request_queue(TX_QUEUE(port->id), TX_DESCS, 0, 0,
-			    "%s:TX", port->netdev->name);
+				 "%s:TX", port->netdev->name);
 	if (err)
 		goto rel_rx;
 
 	err = qmgr_request_queue(port->plat->txreadyq, TX_DESCS, 0, 0,
-			    "%s:TX-ready", port->netdev->name);
+				 "%s:TX-ready", port->netdev->name);
 	if (err)
 		goto rel_tx;
 
 	/* TX-done queue handles skbs sent out by the NPEs */
 	if (!ports_open) {
 		err = qmgr_request_queue(TXDONE_QUEUE, TXDONE_QUEUE_LEN, 0, 0,
-				    "%s:TX-done", DRV_NAME);
+					 "%s:TX-done", DRV_NAME);
 		if (err)
 			goto rel_txready;
 	}
