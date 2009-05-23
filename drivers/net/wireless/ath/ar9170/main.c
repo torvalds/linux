@@ -343,7 +343,6 @@ static void ar9170_tx_status_janitor(struct work_struct *work)
 	if (unlikely(!IS_STARTED(ar)))
 		return ;
 
-	mutex_lock(&ar->mutex);
 	/* recycle the garbage back to mac80211... one by one. */
 	while ((skb = skb_dequeue(&ar->global_tx_status_waste))) {
 #ifdef AR9170_QUEUE_DEBUG
@@ -369,8 +368,6 @@ static void ar9170_tx_status_janitor(struct work_struct *work)
 	if (skb_queue_len(&ar->global_tx_status_waste) > 0)
 		queue_delayed_work(ar->hw->workqueue, &ar->tx_status_janitor,
 				   msecs_to_jiffies(100));
-
-	mutex_unlock(&ar->mutex);
 }
 
 static void ar9170_handle_command_response(struct ar9170 *ar,
@@ -1013,10 +1010,10 @@ static void ar9170_op_stop(struct ieee80211_hw *hw)
 
 	flush_workqueue(ar->hw->workqueue);
 
-	mutex_lock(&ar->mutex);
 	cancel_delayed_work_sync(&ar->tx_status_janitor);
 	cancel_work_sync(&ar->filter_config_work);
 	cancel_work_sync(&ar->beacon_work);
+	mutex_lock(&ar->mutex);
 	skb_queue_purge(&ar->global_tx_status_waste);
 	skb_queue_purge(&ar->global_tx_status);
 
