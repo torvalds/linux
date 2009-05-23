@@ -957,6 +957,8 @@ static int ar9170_op_start(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->mutex);
 
+	ar->filter_changed = 0;
+
 	/* reinitialize queues statistics */
 	memset(&ar->tx_stats, 0, sizeof(ar->tx_stats));
 	for (i = 0; i < ARRAY_SIZE(ar->tx_stats); i++)
@@ -1376,20 +1378,26 @@ static void ar9170_set_filters(struct work_struct *work)
 		return ;
 
 	mutex_lock(&ar->mutex);
-	if (ar->filter_changed & AR9170_FILTER_CHANGED_PROMISC) {
+	if (test_and_clear_bit(AR9170_FILTER_CHANGED_MODE,
+			       &ar->filter_changed)) {
 		err = ar9170_set_operating_mode(ar);
 		if (err)
 			goto unlock;
 	}
 
-	if (ar->filter_changed & AR9170_FILTER_CHANGED_MULTICAST) {
+	if (test_and_clear_bit(AR9170_FILTER_CHANGED_MULTICAST,
+			       &ar->filter_changed)) {
 		err = ar9170_update_multicast(ar);
 		if (err)
 			goto unlock;
 	}
 
-	if (ar->filter_changed & AR9170_FILTER_CHANGED_FRAMEFILTER)
+	if (test_and_clear_bit(AR9170_FILTER_CHANGED_FRAMEFILTER,
+			       &ar->filter_changed)) {
 		err = ar9170_update_frame_filter(ar);
+		if (err)
+			goto unlock;
+	}
 
 unlock:
 	mutex_unlock(&ar->mutex);
@@ -1419,7 +1427,7 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 			int i;
 
 			/* always get broadcast frames */
-			mchash = 1ULL << (0xff>>2);
+			mchash = 1ULL << (0xff >> 2);
 
 			for (i = 0; i < mc_count; i++) {
 				if (WARN_ON(!mclist))
@@ -1429,7 +1437,7 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 			}
 		ar->want_mc_hash = mchash;
 		}
-		ar->filter_changed |= AR9170_FILTER_CHANGED_MULTICAST;
+		set_bit(AR9170_FILTER_CHANGED_MULTICAST, &ar->filter_changed);
 	}
 
 	if (changed_flags & FIF_CONTROL) {
@@ -1445,12 +1453,14 @@ static void ar9170_op_configure_filter(struct ieee80211_hw *hw,
 		else
 			ar->want_filter = ar->cur_filter & ~filter;
 
-		ar->filter_changed |= AR9170_FILTER_CHANGED_FRAMEFILTER;
+		set_bit(AR9170_FILTER_CHANGED_FRAMEFILTER,
+			&ar->filter_changed);
 	}
 
 	if (changed_flags & FIF_PROMISC_IN_BSS) {
 		ar->sniffer_enabled = ((*new_flags) & FIF_PROMISC_IN_BSS) != 0;
-		ar->filter_changed |= AR9170_FILTER_CHANGED_PROMISC;
+		set_bit(AR9170_FILTER_CHANGED_MODE,
+			&ar->filter_changed);
 	}
 
 	if (likely(IS_STARTED(ar)))
