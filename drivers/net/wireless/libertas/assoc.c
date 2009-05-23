@@ -19,8 +19,9 @@ static const u8 bssid_any[ETH_ALEN]  __attribute__ ((aligned (2))) =
 static const u8 bssid_off[ETH_ALEN]  __attribute__ ((aligned (2))) =
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
-/* The firmware needs certain bits masked out of the beacon-derviced capability
- * field when associating/joining to BSSs.
+/* The firmware needs the following bits masked out of the beacon-derived
+ * capability field when associating/joining to a BSS:
+ *  9 (QoS), 11 (APSD), 12 (unused), 14 (unused), 15 (unused)
  */
 #define CAPINFO_MASK	(~(0xda00))
 
@@ -102,6 +103,52 @@ static void lbs_set_basic_rate_flags(u8 *rates, size_t len)
 }
 
 
+static u8 iw_auth_to_ieee_auth(u8 auth)
+{
+	if (auth == IW_AUTH_ALG_OPEN_SYSTEM)
+		return 0x00;
+	else if (auth == IW_AUTH_ALG_SHARED_KEY)
+		return 0x01;
+	else if (auth == IW_AUTH_ALG_LEAP)
+		return 0x80;
+
+	lbs_deb_join("%s: invalid auth alg 0x%X\n", __func__, auth);
+	return 0;
+}
+
+/**
+ *  @brief This function prepares the authenticate command.  AUTHENTICATE only
+ *  sets the authentication suite for future associations, as the firmware
+ *  handles authentication internally during the ASSOCIATE command.
+ *
+ *  @param priv      A pointer to struct lbs_private structure
+ *  @param bssid     The peer BSSID with which to authenticate
+ *  @param auth      The authentication mode to use (from wireless.h)
+ *
+ *  @return         0 or -1
+ */
+static int lbs_set_authentication(struct lbs_private *priv, u8 bssid[6], u8 auth)
+{
+	struct cmd_ds_802_11_authenticate cmd;
+	int ret = -1;
+	DECLARE_MAC_BUF(mac);
+
+	lbs_deb_enter(LBS_DEB_JOIN);
+
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	memcpy(cmd.bssid, bssid, ETH_ALEN);
+
+	cmd.authtype = iw_auth_to_ieee_auth(auth);
+
+	lbs_deb_join("AUTH_CMD: BSSID %s, auth 0x%x\n",
+		print_mac(mac, bssid), cmd.authtype);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_AUTHENTICATE, &cmd);
+
+	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
+	return ret;
+}
+
 /**
  *  @brief Associate to a specific BSS discovered in a scan
  *
@@ -118,11 +165,15 @@ static int lbs_associate(struct lbs_private *priv,
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_AUTHENTICATE,
-				    0, CMD_OPTION_WAITFORRSP,
-				    0, assoc_req->bss.bssid);
-	if (ret)
-		goto out;
+	/* FW v9 and higher indicate authentication suites as a TLV in the
+	 * association command, not as a separate authentication command.
+	 */
+	if (priv->fwrelease < 0x09000000) {
+		ret = lbs_set_authentication(priv, assoc_req->bss.bssid,
+					     priv->secinfo.auth_mode);
+		if (ret)
+			goto out;
+	}
 
 	/* Use short preamble only when both the BSS and firmware support it */
 	if ((priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
@@ -1466,57 +1517,6 @@ struct assoc_request *lbs_get_association_request(struct lbs_private *priv)
 
 
 /**
- *  @brief This function prepares command of authenticate.
- *
- *  @param priv      A pointer to struct lbs_private structure
- *  @param cmd       A pointer to cmd_ds_command structure
- *  @param pdata_buf Void cast of pointer to a BSSID to authenticate with
- *
- *  @return         0 or -1
- */
-int lbs_cmd_80211_authenticate(struct lbs_private *priv,
-				 struct cmd_ds_command *cmd,
-				 void *pdata_buf)
-{
-	struct cmd_ds_802_11_authenticate *pauthenticate = &cmd->params.auth;
-	int ret = -1;
-	u8 *bssid = pdata_buf;
-
-	lbs_deb_enter(LBS_DEB_JOIN);
-
-	cmd->command = cpu_to_le16(CMD_802_11_AUTHENTICATE);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_authenticate)
-			+ S_DS_GEN);
-
-	/* translate auth mode to 802.11 defined wire value */
-	switch (priv->secinfo.auth_mode) {
-	case IW_AUTH_ALG_OPEN_SYSTEM:
-		pauthenticate->authtype = 0x00;
-		break;
-	case IW_AUTH_ALG_SHARED_KEY:
-		pauthenticate->authtype = 0x01;
-		break;
-	case IW_AUTH_ALG_LEAP:
-		pauthenticate->authtype = 0x80;
-		break;
-	default:
-		lbs_deb_join("AUTH_CMD: invalid auth alg 0x%X\n",
-			priv->secinfo.auth_mode);
-		goto out;
-	}
-
-	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
-
-	lbs_deb_join("AUTH_CMD: BSSID %pM, auth 0x%x\n",
-		bssid, pauthenticate->authtype);
-	ret = 0;
-
-out:
-	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
-	return ret;
-}
-
-/**
  *  @brief Deauthenticate from a specific BSS
  *
  *  @param priv        A pointer to struct lbs_private structure
@@ -1557,12 +1557,13 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	struct assoc_request *assoc_req = pdata_buf;
 	struct bss_descriptor *bss = &assoc_req->bss;
 	u8 *pos;
-	u16 tmpcap, tmplen;
+	u16 tmpcap, tmplen, tmpauth;
 	struct mrvl_ie_ssid_param_set *ssid;
 	struct mrvl_ie_ds_param_set *ds;
 	struct mrvl_ie_cf_param_set *cf;
 	struct mrvl_ie_rates_param_set *rates;
 	struct mrvl_ie_rsn_param_set *rsn;
+	struct mrvl_ie_auth_type *auth;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
@@ -1626,6 +1627,21 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	 * copying to current bss rates.
 	 */
 	lbs_set_basic_rate_flags(rates->rates, tmplen);
+
+	/* Firmware v9+ indicate authentication suites as a TLV */
+	if (priv->fwrelease >= 0x09000000) {
+		DECLARE_MAC_BUF(mac);
+
+		auth = (struct mrvl_ie_auth_type *) pos;
+		auth->header.type = cpu_to_le16(TLV_TYPE_AUTH_TYPE);
+		auth->header.len = cpu_to_le16(2);
+		tmpauth = iw_auth_to_ieee_auth(priv->secinfo.auth_mode);
+		auth->auth = cpu_to_le16(tmpauth);
+		pos += sizeof(auth->header) + 2;
+
+		lbs_deb_join("AUTH_CMD: BSSID %s, auth 0x%x\n",
+			print_mac(mac, bss->bssid), priv->secinfo.auth_mode);
+	}
 
 	if (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled) {
 		rsn = (struct mrvl_ie_rsn_param_set *) pos;
