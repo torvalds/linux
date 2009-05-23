@@ -93,11 +93,6 @@
 #define WM8974_MCLKDIV_8	(6 << 5)
 #define WM8974_MCLKDIV_12	(7 << 5)
 
-
-struct wm8974_setup_data {
-	unsigned short i2c_address;
-};
-
 extern struct snd_soc_dai wm8974_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8974;
 

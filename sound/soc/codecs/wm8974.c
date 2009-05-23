@@ -3,7 +3,7 @@
  *
  * Copyright 2006 Wolfson Microelectronics PLC.
  *
- * Author: Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+ * Author: Liam Girdwood <linux@wolfsonmicro.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -28,13 +28,6 @@
 
 #include "wm8974.h"
 
-struct snd_soc_codec_device soc_codec_dev_wm8974;
-
-/*
- * wm8974 register cache
- * We can't read the WM8974 register space when we are
- * using 2 wire for device control, so we cache them instead.
- */
 static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 	0x0000, 0x0000, 0x0000, 0x0000,
 	0x0050, 0x0000, 0x0140, 0x0000,
@@ -52,6 +45,13 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 	0x0000, 0x0000, 0x0039, 0x0000,
 	0x0000,
 };
+
+struct wm8974_priv {
+	struct snd_soc_codec codec;
+	u16 reg_cache[WM8974_CACHEREGNUM];
+};
+
+static struct snd_soc_codec *wm8974_codec;
 
 /*
  * read wm8974 register cache
@@ -623,178 +623,42 @@ static int wm8974_resume(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * initialise the WM8974 driver
- * register the mixer and dsp interfaces with the kernel
- */
-static int wm8974_init(struct snd_soc_device *socdev)
+static int wm8974_probe(struct platform_device *pdev)
 {
-	struct snd_soc_codec *codec = socdev->card->codec;
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec;
 	int ret = 0;
 
-	codec->name = "WM8974";
-	codec->owner = THIS_MODULE;
-	codec->read = wm8974_read_reg_cache;
-	codec->write = wm8974_write;
-	codec->set_bias_level = wm8974_set_bias_level;
-	codec->dai = &wm8974_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = ARRAY_SIZE(wm8974_reg);
-	codec->reg_cache = kmemdup(wm8974_reg, sizeof(wm8974_reg), GFP_KERNEL);
+	if (wm8974_codec == NULL) {
+		dev_err(&pdev->dev, "Codec device not registered\n");
+		return -ENODEV;
+	}
 
-	if (codec->reg_cache == NULL)
-		return -ENOMEM;
-
-	wm8974_reset(codec);
+	socdev->card->codec = wm8974_codec;
+	codec = wm8974_codec;
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
-		printk(KERN_ERR "wm8974: failed to create pcms\n");
+		dev_err(codec->dev, "failed to create pcms: %d\n", ret);
 		goto pcm_err;
 	}
 
-	/* power on device */
-	wm8974_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8974_add_controls(codec);
+	snd_soc_add_controls(codec, wm8974_snd_controls,
+			     ARRAY_SIZE(wm8974_snd_controls));
 	wm8974_add_widgets(codec);
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
-		printk(KERN_ERR "wm8974: failed to register card\n");
+		dev_err(codec->dev, "failed to register card: %d\n", ret);
 		goto card_err;
 	}
+
 	return ret;
 
 card_err:
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
 pcm_err:
-	kfree(codec->reg_cache);
-	return ret;
-}
-
-static struct snd_soc_device *wm8974_socdev;
-
-#if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
-
-/*
- * WM8974 2 wire address is 0x1a
- */
-#define I2C_DRIVERID_WM8974 0xfefe /* liam -  need a proper id */
-
-static unsigned short normal_i2c[] = { 0, I2C_CLIENT_END };
-
-/* Magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
-
-static struct i2c_driver wm8974_i2c_driver;
-static struct i2c_client client_template;
-
-/* If the i2c layer weren't so broken, we could pass this kind of data
-   around */
-
-static int wm8974_codec_probe(struct i2c_adapter *adap, int addr, int kind)
-{
-	struct snd_soc_device *socdev = wm8974_socdev;
-	struct wm8974_setup_data *setup = socdev->codec_data;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct i2c_client *i2c;
-	int ret;
-
-	if (addr != setup->i2c_address)
-		return -ENODEV;
-
-	client_template.adapter = adap;
-	client_template.addr = addr;
-
-	i2c = kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL) {
-		kfree(codec);
-		return -ENOMEM;
-	}
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
-
-	ret = i2c_attach_client(i2c);
-	if (ret < 0) {
-		pr_err("failed to attach codec at addr %x\n", addr);
-		goto err;
-	}
-
-	ret = wm8974_init(socdev);
-	if (ret < 0) {
-		pr_err("failed to initialise WM8974\n");
-		goto err;
-	}
-	return ret;
-
-err:
-	kfree(codec);
-	kfree(i2c);
-	return ret;
-}
-
-static int wm8974_i2c_detach(struct i2c_client *client)
-{
-	struct snd_soc_codec *codec = i2c_get_clientdata(client);
-	i2c_detach_client(client);
-	kfree(codec->reg_cache);
-	kfree(client);
-	return 0;
-}
-
-static int wm8974_i2c_attach(struct i2c_adapter *adap)
-{
-	return i2c_probe(adap, &addr_data, wm8974_codec_probe);
-}
-
-/* corgi i2c codec control layer */
-static struct i2c_driver wm8974_i2c_driver = {
-	.driver = {
-		.name = "WM8974 I2C Codec",
-		.owner = THIS_MODULE,
-	},
-	.id =             I2C_DRIVERID_WM8974,
-	.attach_adapter = wm8974_i2c_attach,
-	.detach_client =  wm8974_i2c_detach,
-	.command =        NULL,
-};
-
-static struct i2c_client client_template = {
-	.name =   "WM8974",
-	.driver = &wm8974_i2c_driver,
-};
-#endif
-
-static int wm8974_probe(struct platform_device *pdev)
-{
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct wm8974_setup_data *setup;
-	struct snd_soc_codec *codec;
-	int ret = 0;
-
-	setup = socdev->codec_data;
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-
-	socdev->card->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-
-	wm8974_socdev = socdev;
-#if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
-	if (setup->i2c_address) {
-		normal_i2c[0] = setup->i2c_address;
-		codec->hw_write = (hw_write_t)i2c_master_send;
-		ret = i2c_add_driver(&wm8974_i2c_driver);
-		if (ret != 0)
-			printk(KERN_ERR "can't add i2c driver");
-	}
-#else
-	/* Add other interfaces here */
-#endif
 	return ret;
 }
 
@@ -802,17 +666,9 @@ static int wm8974_probe(struct platform_device *pdev)
 static int wm8974_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec->control_data)
-		wm8974_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-#if defined (CONFIG_I2C) || defined (CONFIG_I2C_MODULE)
-	i2c_del_driver(&wm8974_i2c_driver);
-#endif
-	kfree(codec);
 
 	return 0;
 }
@@ -825,15 +681,124 @@ struct snd_soc_codec_device soc_codec_dev_wm8974 = {
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_wm8974);
 
+static __devinit int wm8974_register(struct wm8974_priv *wm8974)
+{
+	int ret;
+	struct snd_soc_codec *codec = &wm8974->codec;
+
+	if (wm8974_codec) {
+		dev_err(codec->dev, "Another WM8974 is registered\n");
+		return -EINVAL;
+	}
+
+	mutex_init(&codec->mutex);
+	INIT_LIST_HEAD(&codec->dapm_widgets);
+	INIT_LIST_HEAD(&codec->dapm_paths);
+
+	codec->private_data = wm8974;
+	codec->name = "WM8974";
+	codec->owner = THIS_MODULE;
+	codec->read = wm8974_read_reg_cache;
+	codec->write = wm8974_write;
+	codec->bias_level = SND_SOC_BIAS_OFF;
+	codec->set_bias_level = wm8974_set_bias_level;
+	codec->dai = &wm8974_dai;
+	codec->num_dai = 1;
+	codec->reg_cache_size = WM8974_CACHEREGNUM;
+	codec->reg_cache = &wm8974->reg_cache;
+
+	memcpy(codec->reg_cache, wm8974_reg, sizeof(wm8974_reg));
+
+	ret = wm8974_reset(codec);
+	if (ret < 0) {
+		dev_err(codec->dev, "Failed to issue reset\n");
+		return ret;
+	}
+
+	wm8974_dai.dev = codec->dev;
+
+	wm8974_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+
+	wm8974_codec = codec;
+
+	ret = snd_soc_register_codec(codec);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_register_dai(&wm8974_dai);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
+		snd_soc_unregister_codec(codec);
+		return ret;
+	}
+
+	return 0;
+}
+
+static __devexit void wm8974_unregister(struct wm8974_priv *wm8974)
+{
+	wm8974_set_bias_level(&wm8974->codec, SND_SOC_BIAS_OFF);
+	snd_soc_unregister_dai(&wm8974_dai);
+	snd_soc_unregister_codec(&wm8974->codec);
+	kfree(wm8974);
+	wm8974_codec = NULL;
+}
+
+static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
+				      const struct i2c_device_id *id)
+{
+	struct wm8974_priv *wm8974;
+	struct snd_soc_codec *codec;
+
+	wm8974 = kzalloc(sizeof(struct wm8974_priv), GFP_KERNEL);
+	if (wm8974 == NULL)
+		return -ENOMEM;
+
+	codec = &wm8974->codec;
+	codec->hw_write = (hw_write_t)i2c_master_send;
+
+	i2c_set_clientdata(i2c, wm8974);
+	codec->control_data = i2c;
+
+	codec->dev = &i2c->dev;
+
+	return wm8974_register(wm8974);
+}
+
+static __devexit int wm8974_i2c_remove(struct i2c_client *client)
+{
+	struct wm8974_priv *wm8974 = i2c_get_clientdata(client);
+	wm8974_unregister(wm8974);
+	return 0;
+}
+
+static const struct i2c_device_id wm8974_i2c_id[] = {
+	{ "wm8974", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, wm8974_i2c_id);
+
+static struct i2c_driver wm8974_i2c_driver = {
+	.driver = {
+		.name = "WM8974 I2C Codec",
+		.owner = THIS_MODULE,
+	},
+	.probe =    wm8974_i2c_probe,
+	.remove =   __devexit_p(wm8974_i2c_remove),
+	.id_table = wm8974_i2c_id,
+};
+
 static int __init wm8974_modinit(void)
 {
-	return snd_soc_register_dai(&wm8974_dai);
+	return i2c_add_driver(&wm8974_i2c_driver);
 }
 module_init(wm8974_modinit);
 
 static void __exit wm8974_exit(void)
 {
-	snd_soc_unregister_dai(&wm8974_dai);
+	i2c_del_driver(&wm8974_i2c_driver);
 }
 module_exit(wm8974_exit);
 
