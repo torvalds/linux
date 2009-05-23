@@ -38,6 +38,7 @@ struct nameidata;
 int reiserfs_xattr_register_handlers(void) __init;
 void reiserfs_xattr_unregister_handlers(void);
 int reiserfs_xattr_init(struct super_block *sb, int mount_flags);
+int reiserfs_lookup_privroot(struct super_block *sb);
 int reiserfs_delete_xattrs(struct inode *inode);
 int reiserfs_chown_xattrs(struct inode *inode, struct iattr *attrs);
 
@@ -97,7 +98,7 @@ static inline size_t reiserfs_xattr_jcreate_nblocks(struct inode *inode)
 
 	if ((REISERFS_I(inode)->i_flags & i_has_xattr_dir) == 0) {
 		nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
-		if (REISERFS_SB(inode->i_sb)->xattr_root == NULL)
+		if (!REISERFS_SB(inode->i_sb)->xattr_root->d_inode)
 			nblocks += JOURNAL_BLOCKS_PER_OBJECT(inode->i_sb);
 	}
 

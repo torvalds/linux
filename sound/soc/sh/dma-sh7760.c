@@ -103,7 +103,8 @@ static struct snd_pcm_hardware camelot_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
-		SNDRV_PCM_INFO_MMAP_VALID),
+		SNDRV_PCM_INFO_MMAP_VALID |
+		SNDRV_PCM_INFO_BATCH),
 	.formats =	DMABRG_FMTS,
 	.rates =	DMABRG_RATES,
 	.rate_min =		8000,

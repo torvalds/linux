@@ -1272,7 +1272,8 @@ static irqreturn_t idmac_interrupt(int irq, void *dev_id)
 	/* Other interrupts do not interfere with this channel */
 	spin_lock(&ichan->lock);
 	if (unlikely(chan_id != IDMAC_SDC_0 && chan_id != IDMAC_SDC_1 &&
-		     ((curbuf >> chan_id) & 1) == ichan->active_buffer)) {
+		     ((curbuf >> chan_id) & 1) == ichan->active_buffer &&
+		     !list_is_last(ichan->queue.next, &ichan->queue))) {
 		int i = 100;
 
 		/* This doesn't help. See comment in ipu_disable_channel() */
@@ -1547,7 +1548,7 @@ static irqreturn_t ic_sof_irq(int irq, void *dev_id)
 	struct idmac_channel *ichan = dev_id;
 	printk(KERN_DEBUG "Got SOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
 }
 
@@ -1556,7 +1557,7 @@ static irqreturn_t ic_eof_irq(int irq, void *dev_id)
 	struct idmac_channel *ichan = dev_id;
 	printk(KERN_DEBUG "Got EOF IRQ %d on Channel %d\n",
 	       irq, ichan->dma_chan.chan_id);
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
 }
 

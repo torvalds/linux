@@ -338,12 +338,12 @@ static int ixp4xx_mdio_register(void)
 	if (cpu_is_ixp43x()) {
 		/* IXP43x lacks NPE-B and uses NPE-C for MII PHY access */
 		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEC_ETH))
-			return -ENOSYS;
+			return -ENODEV;
 		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthC_BASE_VIRT;
 	} else {
 		/* All MII PHY accesses use NPE-B Ethernet registers */
 		if (!(ixp4xx_read_feature_bits() & IXP4XX_FEATURE_NPEB_ETH0))
-			return -ENOSYS;
+			return -ENODEV;
 		mdio_regs = (struct eth_regs __iomem *)IXP4XX_EthB_BASE_VIRT;
 	}
 
@@ -456,7 +456,8 @@ static inline void queue_put_desc(unsigned int queue, u32 phys,
 	debug_desc(phys, desc);
 	BUG_ON(phys & 0x1F);
 	qmgr_put_entry(queue, phys);
-	BUG_ON(qmgr_stat_overflow(queue));
+	/* Don't check for queue overflow here, we've allocated sufficient
+	   length and queues >= 32 don't support this check anyway. */
 }
 
 
@@ -512,8 +513,8 @@ static int eth_poll(struct napi_struct *napi, int budget)
 #endif
 			napi_complete(napi);
 			qmgr_enable_irq(rxq);
-			if (!qmgr_stat_empty(rxq) &&
-			    napi_reschedule(napi)) {
+			if (!qmgr_stat_nearly_empty(rxq) &&
+			    napi_reschedule(napi)) { /* really empty in fact */
 #if DEBUG_RX
 				printk(KERN_DEBUG "%s: eth_poll"
 				       " napi_reschedule successed\n",
@@ -630,7 +631,8 @@ static void eth_txdone_irq(void *unused)
 			port->tx_buff_tab[n_desc] = NULL;
 		}
 
-		start = qmgr_stat_empty(port->plat->txreadyq);
+		/* really empty in fact */
+		start = qmgr_stat_nearly_empty(port->plat->txreadyq);
 		queue_put_desc(port->plat->txreadyq, phys, desc);
 		if (start) {
 #if DEBUG_TX
@@ -708,13 +710,14 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	queue_put_desc(TX_QUEUE(port->id), tx_desc_phys(port, n), desc);
 	dev->trans_start = jiffies;
 
-	if (qmgr_stat_empty(txreadyq)) {
+	if (qmgr_stat_nearly_empty(txreadyq)) { /* really empty in fact */
 #if DEBUG_TX
 		printk(KERN_DEBUG "%s: eth_xmit queue full\n", dev->name);
 #endif
 		netif_stop_queue(dev);
 		/* we could miss TX ready interrupt */
-		if (!qmgr_stat_empty(txreadyq)) {
+		/* really empty in fact */
+		if (!qmgr_stat_nearly_empty(txreadyq)) {
 #if DEBUG_TX
 			printk(KERN_DEBUG "%s: eth_xmit ready again\n",
 			       dev->name);
@@ -814,29 +817,29 @@ static int request_queues(struct port *port)
 	int err;
 
 	err = qmgr_request_queue(RXFREE_QUEUE(port->id), RX_DESCS, 0, 0,
-			    "%s:RX-free", port->netdev->name);
+				 "%s:RX-free", port->netdev->name);
 	if (err)
 		return err;
 
 	err = qmgr_request_queue(port->plat->rxq, RX_DESCS, 0, 0,
-			    "%s:RX", port->netdev->name);
+				 "%s:RX", port->netdev->name);
 	if (err)
 		goto rel_rxfree;
 
 	err = qmgr_request_queue(TX_QUEUE(port->id), TX_DESCS, 0, 0,
-			    "%s:TX", port->netdev->name);
+				 "%s:TX", port->netdev->name);
 	if (err)
 		goto rel_rx;
 
 	err = qmgr_request_queue(port->plat->txreadyq, TX_DESCS, 0, 0,
-			    "%s:TX-ready", port->netdev->name);
+				 "%s:TX-ready", port->netdev->name);
 	if (err)
 		goto rel_tx;
 
 	/* TX-done queue handles skbs sent out by the NPEs */
 	if (!ports_open) {
 		err = qmgr_request_queue(TXDONE_QUEUE, TXDONE_QUEUE_LEN, 0, 0,
-				    "%s:TX-done", DRV_NAME);
+					 "%s:TX-done", DRV_NAME);
 		if (err)
 			goto rel_txready;
 	}
@@ -1174,7 +1177,7 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 		regs_phys  = IXP4XX_EthC_BASE_PHYS;
 		break;
 	default:
-		err = -ENOSYS;
+		err = -ENODEV;
 		goto err_free;
 	}
 
@@ -1189,15 +1192,10 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 		goto err_free;
 	}
 
-	if (register_netdev(dev)) {
-		err = -EIO;
-		goto err_npe_rel;
-	}
-
 	port->mem_res = request_mem_region(regs_phys, REGS_SIZE, dev->name);
 	if (!port->mem_res) {
 		err = -EBUSY;
-		goto err_unreg;
+		goto err_npe_rel;
 	}
 
 	port->plat = plat;
@@ -1215,20 +1213,25 @@ static int __devinit eth_init_one(struct platform_device *pdev)
 	snprintf(phy_id, BUS_ID_SIZE, PHY_ID_FMT, "0", plat->phy);
 	port->phydev = phy_connect(dev, phy_id, &ixp4xx_adjust_link, 0,
 				   PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(port->phydev)) {
-		printk(KERN_ERR "%s: Could not attach to PHY\n", dev->name);
-		return PTR_ERR(port->phydev);
-	}
+	if ((err = IS_ERR(port->phydev)))
+		goto err_free_mem;
 
 	port->phydev->irq = PHY_POLL;
+
+	if ((err = register_netdev(dev)))
+		goto err_phy_dis;
 
 	printk(KERN_INFO "%s: MII PHY %i on %s\n", dev->name, plat->phy,
 	       npe_name(port->npe));
 
 	return 0;
 
-err_unreg:
-	unregister_netdev(dev);
+err_phy_dis:
+	phy_disconnect(port->phydev);
+err_free_mem:
+	npe_port_tab[NPE_ID(port->id)] = NULL;
+	platform_set_drvdata(pdev, NULL);
+	release_resource(port->mem_res);
 err_npe_rel:
 	npe_release(port->npe);
 err_free:
@@ -1242,6 +1245,7 @@ static int __devexit eth_remove_one(struct platform_device *pdev)
 	struct port *port = netdev_priv(dev);
 
 	unregister_netdev(dev);
+	phy_disconnect(port->phydev);
 	npe_port_tab[NPE_ID(port->id)] = NULL;
 	platform_set_drvdata(pdev, NULL);
 	npe_release(port->npe);

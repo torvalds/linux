@@ -265,10 +265,10 @@ static int i2c_pxa_wait_bus_not_busy(struct pxa_i2c *i2c)
 		show_state(i2c);
 	}
 
-	if (timeout <= 0)
+	if (timeout < 0)
 		show_state(i2c);
 
-	return timeout <= 0 ? I2C_RETRY : 0;
+	return timeout < 0 ? I2C_RETRY : 0;
 }
 
 static int i2c_pxa_wait_master(struct pxa_i2c *i2c)
@@ -612,7 +612,7 @@ static int i2c_pxa_pio_set_master(struct pxa_i2c *i2c)
 		show_state(i2c);
 	}
 
-	if (timeout <= 0) {
+	if (timeout < 0) {
 		show_state(i2c);
 		dev_err(&i2c->adap.dev,
 			"i2c_pxa: timeout waiting for bus free\n");

@@ -93,7 +93,7 @@ void __init tx4938_setup(void)
 {
 	int i;
 	__u32 divmode;
-	int cpuclk = 0;
+	unsigned int cpuclk = 0;
 	u64 ccfg;
 
 	txx9_reg_res_init(TX4938_REV_PCODE(), TX4938_REG_BASE,

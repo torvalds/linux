@@ -514,34 +514,32 @@ void clear_zonelist_oom(struct zonelist *zonelist, gfp_t gfp_mask)
  */
 static void __out_of_memory(gfp_t gfp_mask, int order)
 {
-	if (sysctl_oom_kill_allocating_task) {
-		oom_kill_process(current, gfp_mask, order, 0, NULL,
-				"Out of memory (oom_kill_allocating_task)");
+	struct task_struct *p;
+	unsigned long points;
 
-	} else {
-		unsigned long points;
-		struct task_struct *p;
-
-retry:
-		/*
-		 * Rambo mode: Shoot down a process and hope it solves whatever
-		 * issues we may have.
-		 */
-		p = select_bad_process(&points, NULL);
-
-		if (PTR_ERR(p) == -1UL)
+	if (sysctl_oom_kill_allocating_task)
+		if (!oom_kill_process(current, gfp_mask, order, 0, NULL,
+				"Out of memory (oom_kill_allocating_task)"))
 			return;
+retry:
+	/*
+	 * Rambo mode: Shoot down a process and hope it solves whatever
+	 * issues we may have.
+	 */
+	p = select_bad_process(&points, NULL);
 
-		/* Found nothing?!?! Either we hang forever, or we panic. */
-		if (!p) {
-			read_unlock(&tasklist_lock);
-			panic("Out of memory and no killable processes...\n");
-		}
+	if (PTR_ERR(p) == -1UL)
+		return;
 
-		if (oom_kill_process(p, gfp_mask, order, points, NULL,
-				     "Out of memory"))
-			goto retry;
+	/* Found nothing?!?! Either we hang forever, or we panic. */
+	if (!p) {
+		read_unlock(&tasklist_lock);
+		panic("Out of memory and no killable processes...\n");
 	}
+
+	if (oom_kill_process(p, gfp_mask, order, points, NULL,
+			     "Out of memory"))
+		goto retry;
 }
 
 /*

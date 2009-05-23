@@ -895,6 +895,13 @@ static unsigned int atkbd_amilo_pa1510_forced_release_keys[] = {
 };
 
 /*
+ * Amilo Xi 3650 key release for light touch bar not working
+ */
+static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
+	0x67, 0xed, 0x90, 0xa2, 0x99, 0xa4, 0xae, 0xb0, -1U
+};
+
+/*
  * atkbd_set_keycode_table() initializes keyboard's keycode table
  * according to the selected scancode set
  */
@@ -1559,6 +1566,15 @@ static struct dmi_system_id atkbd_dmi_quirk_table[] __initdata = {
 		},
 		.callback = atkbd_setup_forced_release,
 		.driver_data = atkbd_amilo_pa1510_forced_release_keys,
+	},
+	{
+		.ident = "Fujitsu Amilo Xi 3650",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 3650"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_amilo_xi3650_forced_release_keys,
 	},
 	{ }
 };

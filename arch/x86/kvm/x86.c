@@ -1121,9 +1121,9 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 
 static int is_efer_nx(void)
 {
-	u64 efer;
+	unsigned long long efer = 0;
 
-	rdmsrl(MSR_EFER, efer);
+	rdmsrl_safe(MSR_EFER, &efer);
 	return efer & EFER_NX;
 }
 
@@ -1259,7 +1259,7 @@ static void do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 		bit(X86_FEATURE_CMOV) | bit(X86_FEATURE_PSE36) |
 		bit(X86_FEATURE_MMX) | bit(X86_FEATURE_FXSR) |
 		bit(X86_FEATURE_SYSCALL) |
-		(bit(X86_FEATURE_NX) && is_efer_nx()) |
+		(is_efer_nx() ? bit(X86_FEATURE_NX) : 0) |
 #ifdef CONFIG_X86_64
 		bit(X86_FEATURE_LM) |
 #endif

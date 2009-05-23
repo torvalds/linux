@@ -128,7 +128,8 @@ void nilfs_forget_buffer(struct buffer_head *bh)
 
 	lock_buffer(bh);
 	clear_buffer_nilfs_volatile(bh);
-	if (test_clear_buffer_dirty(bh) && nilfs_page_buffers_clean(page))
+	clear_buffer_dirty(bh);
+	if (nilfs_page_buffers_clean(page))
 		__nilfs_clear_page_dirty(page);
 
 	clear_buffer_uptodate(bh);

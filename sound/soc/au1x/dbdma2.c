@@ -82,7 +82,7 @@ static struct au1xpsc_audio_dmadata *au1xpsc_audio_pcmdma[2];
 /* PCM hardware DMA capabilities - platform specific */
 static const struct snd_pcm_hardware au1xpsc_pcm_hardware = {
 	.info		  = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
-			    SNDRV_PCM_INFO_INTERLEAVED,
+			    SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BATCH,
 	.formats	  = AU1XPSC_PCM_FMTS,
 	.period_bytes_min = AU1XPSC_PERIOD_MIN_BYTES,
 	.period_bytes_max = 4096 * 1024 - 1,

@@ -407,7 +407,7 @@ config INET_XFRM_MODE_BEET
 	  If unsure, say Y.
 
 config INET_LRO
-	tristate "Large Receive Offload (ipv4/tcp)"
+	bool "Large Receive Offload (ipv4/tcp)"
 
 	---help---
 	  Support for Large Receive Offload (ipv4/tcp).

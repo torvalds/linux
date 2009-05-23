@@ -1,3 +1,16 @@
+Version 1.58
+------------
+Guard against buffer overruns in various UCS-2 to UTF-8 string conversions
+when the UTF-8 string is composed of unusually long (more than 4 byte) converted
+characters. Add support for mounting root of a share which redirects immediately
+to DFS target. Convert string conversion functions from Unicode to more
+accurately mark string length before allocating memory (which may help the
+rare cases where a UTF-8 string is much larger than the UCS2 string that
+we converted from).  Fix endianness of the vcnum field used during
+session setup to distinguish multiple mounts to same server from different
+userids. Raw NTLMSSP fixed (it requires /proc/fs/cifs/experimental
+flag to be set to 2, and mount must enable krb5 to turn on extended security).
+ 
 Version 1.57
 ------------
 Improve support for multiple security contexts to the same server. We
