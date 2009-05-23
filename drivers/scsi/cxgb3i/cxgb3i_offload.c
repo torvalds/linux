@@ -1737,7 +1737,7 @@ int cxgb3i_c3cn_send_pdus(struct s3_conn *c3cn, struct sk_buff *skb)
 		c3cn_tx_debug("c3cn 0x%p, snd %u - %u > %u.\n",
 				c3cn, c3cn->write_seq, c3cn->snd_una,
 				cxgb3_snd_win);
-		err = -EAGAIN;
+		err = -ENOBUFS;
 		goto out_err;
 	}
 
@@ -1775,6 +1775,8 @@ done:
 out_err:
 	if (copied == 0 && err == -EPIPE)
 		copied = c3cn->err ? c3cn->err : -EPIPE;
+	else
+		copied = err;
 	goto done;
 }
 

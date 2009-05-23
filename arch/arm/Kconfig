@@ -299,6 +299,7 @@ config ARCH_MXC
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
+	select HAVE_CLK
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
@@ -317,15 +318,6 @@ config ARCH_H720X
 	select ISA_DMA_API
 	help
 	  This enables support for systems based on the Hynix HMS720x
-
-config ARCH_IMX
-	bool "IMX"
-	select CPU_ARM920T
-	select GENERIC_GPIO
-	select GENERIC_TIME
-	select GENERIC_CLOCKEVENTS
-	help
-	  Support for Motorola's i.MX family of processors (MX1, MXL).
 
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
@@ -507,8 +499,6 @@ config ARCH_PXA
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_CLK
-	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
@@ -603,6 +593,8 @@ config ARCH_DAVINCI
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select ZONE_DMA
+	select HAVE_IDE
+	select COMMON_CLKDEV
 	help
 	  Support for TI's DaVinci platform.
 
@@ -681,8 +673,6 @@ endif
 
 source "arch/arm/mach-lh7a40x/Kconfig"
 
-source "arch/arm/mach-imx/Kconfig"
-
 source "arch/arm/mach-h720x/Kconfig"
 
 source "arch/arm/mach-versatile/Kconfig"
@@ -739,6 +729,56 @@ config XSCALE_PMU
 if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
+
+config ARM_ERRATA_411920
+	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
+	depends on CPU_V6 && !SMP
+	help
+	  Invalidation of the Instruction Cache operation can
+	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
+	  It does not affect the MPCore. This option enables the ARM Ltd.
+	  recommended workaround.
+
+config ARM_ERRATA_430973
+	bool "ARM errata: Stale prediction on replaced interworking branch"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 430973 Cortex-A8
+	  (r1p0..r1p2) erratum. If a code sequence containing an ARM/Thumb
+	  interworking branch is replaced with another code sequence at the
+	  same virtual address, whether due to self-modifying code or virtual
+	  to physical address re-mapping, Cortex-A8 does not recover from the
+	  stale interworking branch prediction. This results in Cortex-A8
+	  executing the new code sequence in the incorrect ARM or Thumb state.
+	  The workaround enables the BTB/BTAC operations by setting ACTLR.IBE
+	  and also flushes the branch target cache at every context switch.
+	  Note that setting specific bits in the ACTLR register may not be
+	  available in non-secure mode.
+
+config ARM_ERRATA_458693
+	bool "ARM errata: Processor deadlock when a false hazard is created"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 458693 Cortex-A8 (r2p0)
+	  erratum. For very specific sequences of memory operations, it is
+	  possible for a hazard condition intended for a cache line to instead
+	  be incorrectly associated with a different cache line. This false
+	  hazard might then cause a processor deadlock. The workaround enables
+	  the L1 caching of the NEON accesses and disables the PLD instruction
+	  in the ACTLR register. Note that setting specific bits in the ACTLR
+	  register may not be available in non-secure mode.
+
+config ARM_ERRATA_460075
+	bool "ARM errata: Data written to the L2 cache can be overwritten with stale data"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 460075 Cortex-A8 (r2p0)
+	  erratum. Any asynchronous access to the L2 cache may encounter a
+	  situation in which recent store transactions to the L2 cache are lost
+	  and overwritten with stale memory contents from external memory. The
+	  workaround disables the write-allocate mode for the L2 cache via the
+	  ACTLR register. Note that setting specific bits in the ACTLR register
+	  may not be available in non-secure mode.
 
 endmenu
 
@@ -971,7 +1011,7 @@ source "mm/Kconfig"
 config LEDS
 	bool "Timer and CPU usage LEDs"
 	depends on ARCH_CDB89712 || ARCH_EBSA110 || \
-		   ARCH_EBSA285 || ARCH_IMX || ARCH_INTEGRATOR || \
+		   ARCH_EBSA285 || ARCH_INTEGRATOR || \
 		   ARCH_LUBBOCK || MACH_MAINSTONE || ARCH_NETWINDER || \
 		   ARCH_OMAP || ARCH_P720T || ARCH_PXA_IDP || \
 		   ARCH_SA1100 || ARCH_SHARK || ARCH_VERSATILE || \
@@ -1137,7 +1177,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA)
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1161,15 +1201,6 @@ config CPU_FREQ_INTEGRATOR
 	  For details, take a look at <file:Documentation/cpu-freq>.
 
 	  If in doubt, say Y.
-
-config CPU_FREQ_IMX
-	tristate "CPUfreq driver for i.MX CPUs"
-	depends on ARCH_IMX && CPU_FREQ
-	default n
-	help
-	  This enables the CPUfreq driver for i.MX CPUs.
-
-	  If in doubt, say N.
 
 config CPU_FREQ_PXA
 	bool

@@ -61,6 +61,9 @@ struct btrfs_device {
 	/* size of the device */
 	u64 total_bytes;
 
+	/* size of the disk */
+	u64 disk_total_bytes;
+
 	/* bytes used */
 	u64 bytes_used;
 

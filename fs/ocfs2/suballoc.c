@@ -2197,26 +2197,29 @@ static int ocfs2_get_suballoc_slot_bit(struct ocfs2_super *osb, u64 blkno,
 	struct buffer_head *inode_bh = NULL;
 	struct ocfs2_dinode *inode_fe;
 
-	mlog_entry("blkno: %llu\n", blkno);
+	mlog_entry("blkno: %llu\n", (unsigned long long)blkno);
 
 	/* dirty read disk */
 	status = ocfs2_read_blocks_sync(osb, blkno, 1, &inode_bh);
 	if (status < 0) {
-		mlog(ML_ERROR, "read block %llu failed %d\n", blkno, status);
+		mlog(ML_ERROR, "read block %llu failed %d\n",
+		     (unsigned long long)blkno, status);
 		goto bail;
 	}
 
 	inode_fe = (struct ocfs2_dinode *) inode_bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(inode_fe)) {
-		mlog(ML_ERROR, "invalid inode %llu requested\n", blkno);
+		mlog(ML_ERROR, "invalid inode %llu requested\n",
+		     (unsigned long long)blkno);
 		status = -EINVAL;
 		goto bail;
 	}
 
-	if (le16_to_cpu(inode_fe->i_suballoc_slot) != OCFS2_INVALID_SLOT &&
+	if (le16_to_cpu(inode_fe->i_suballoc_slot) != (u16)OCFS2_INVALID_SLOT &&
 	    (u32)le16_to_cpu(inode_fe->i_suballoc_slot) > osb->max_slots - 1) {
 		mlog(ML_ERROR, "inode %llu has invalid suballoc slot %u\n",
-		     blkno, (u32)le16_to_cpu(inode_fe->i_suballoc_slot));
+		     (unsigned long long)blkno,
+		     (u32)le16_to_cpu(inode_fe->i_suballoc_slot));
 		status = -EINVAL;
 		goto bail;
 	}
@@ -2251,7 +2254,8 @@ static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
 	u64 bg_blkno;
 	int status;
 
-	mlog_entry("blkno: %llu bit: %u\n", blkno, (unsigned int)bit);
+	mlog_entry("blkno: %llu bit: %u\n", (unsigned long long)blkno,
+		   (unsigned int)bit);
 
 	alloc_fe = (struct ocfs2_dinode *)alloc_bh->b_data;
 	if ((bit + 1) > ocfs2_bits_per_group(&alloc_fe->id2.i_chain)) {
@@ -2266,7 +2270,8 @@ static int ocfs2_test_suballoc_bit(struct ocfs2_super *osb,
 	status = ocfs2_read_group_descriptor(suballoc, alloc_fe, bg_blkno,
 					     &group_bh);
 	if (status < 0) {
-		mlog(ML_ERROR, "read group %llu failed %d\n", bg_blkno, status);
+		mlog(ML_ERROR, "read group %llu failed %d\n",
+		     (unsigned long long)bg_blkno, status);
 		goto bail;
 	}
 
@@ -2300,7 +2305,7 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 	struct inode *inode_alloc_inode;
 	struct buffer_head *alloc_bh = NULL;
 
-	mlog_entry("blkno: %llu", blkno);
+	mlog_entry("blkno: %llu", (unsigned long long)blkno);
 
 	status = ocfs2_get_suballoc_slot_bit(osb, blkno, &suballoc_slot,
 					     &suballoc_bit);

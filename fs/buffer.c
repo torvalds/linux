@@ -2397,7 +2397,8 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 	if ((page->mapping != inode->i_mapping) ||
 	    (page_offset(page) > size)) {
 		/* page got truncated out from underneath us */
-		goto out_unlock;
+		unlock_page(page);
+		goto out;
 	}
 
 	/* page is wholly or partially inside EOF */
@@ -2411,14 +2412,15 @@ block_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 		ret = block_commit_write(page, 0, end);
 
 	if (unlikely(ret)) {
+		unlock_page(page);
 		if (ret == -ENOMEM)
 			ret = VM_FAULT_OOM;
 		else /* -ENOSPC, -EIO, etc */
 			ret = VM_FAULT_SIGBUS;
-	}
+	} else
+		ret = VM_FAULT_LOCKED;
 
-out_unlock:
-	unlock_page(page);
+out:
 	return ret;
 }
 

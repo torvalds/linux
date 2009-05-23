@@ -70,8 +70,10 @@ static int autofs4_mount_busy(struct vfsmount *mnt, struct dentry *dentry)
 		 * Otherwise it's an offset mount and we need to check
 		 * if we can umount its mount, if there is one.
 		 */
-		if (!d_mountpoint(dentry))
+		if (!d_mountpoint(dentry)) {
+			status = 0;
 			goto done;
+		}
 	}
 
 	/* Update the expiry counter if fs is busy */

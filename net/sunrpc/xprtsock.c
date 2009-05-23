@@ -807,6 +807,9 @@ static void xs_reset_transport(struct sock_xprt *transport)
  *
  * This is used when all requests are complete; ie, no DRC state remains
  * on the server we want to save.
+ *
+ * The caller _must_ be holding XPRT_LOCKED in order to avoid issues with
+ * xs_reset_transport() zeroing the socket from underneath a writer.
  */
 static void xs_close(struct rpc_xprt *xprt)
 {
@@ -822,6 +825,14 @@ static void xs_close(struct rpc_xprt *xprt)
 	clear_bit(XPRT_CLOSING, &xprt->state);
 	smp_mb__after_clear_bit();
 	xprt_disconnect_done(xprt);
+}
+
+static void xs_tcp_close(struct rpc_xprt *xprt)
+{
+	if (test_and_clear_bit(XPRT_CONNECTION_CLOSE, &xprt->state))
+		xs_close(xprt);
+	else
+		xs_tcp_shutdown(xprt);
 }
 
 /**
@@ -1772,6 +1783,15 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 			xprt, -status, xprt_connected(xprt),
 			sock->sk->sk_state);
 	switch (status) {
+	default:
+		printk("%s: connect returned unhandled error %d\n",
+			__func__, status);
+	case -EADDRNOTAVAIL:
+		/* We're probably in TIME_WAIT. Get rid of existing socket,
+		 * and retry
+		 */
+		set_bit(XPRT_CONNECTION_CLOSE, &xprt->state);
+		xprt_force_disconnect(xprt);
 	case -ECONNREFUSED:
 	case -ECONNRESET:
 	case -ENETUNREACH:
@@ -1782,10 +1802,6 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 		xprt_clear_connecting(xprt);
 		return;
 	}
-	/* get rid of existing socket, and retry */
-	xs_tcp_shutdown(xprt);
-	printk("%s: connect returned unhandled error %d\n",
-			__func__, status);
 out_eagain:
 	status = -EAGAIN;
 out:
@@ -1994,7 +2010,7 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.buf_free		= rpc_free,
 	.send_request		= xs_tcp_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
-	.close			= xs_tcp_shutdown,
+	.close			= xs_tcp_close,
 	.destroy		= xs_destroy,
 	.print_stats		= xs_tcp_print_stats,
 };

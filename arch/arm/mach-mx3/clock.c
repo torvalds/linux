@@ -566,8 +566,6 @@ int __init mx31_clocks_init(unsigned long fref)
 	u32 reg;
 	int i;
 
-	mxc_set_cpu_type(MXC_CPU_MX31);
-
 	ckih_rate = fref;
 
 	for (i = 0; i < ARRAY_SIZE(lookups); i++)
@@ -580,6 +578,12 @@ int __init mx31_clocks_init(unsigned long fref)
 		     1 << 27 | 1 << 28, /* Bit 27 and 28 are not defined for
 					   MX32, but still required to be set */
 		     MXC_CCM_CGR2);
+
+	/*
+	 * Before turning off usb_pll make sure ipg_per_clk is generated
+	 * by ipg_clk and not usb_pll.
+	 */
+	__raw_writel(__raw_readl(MXC_CCM_CCMR) | (1 << 24), MXC_CCM_CCMR);
 
 	usb_pll_disable(&usb_pll_clk);
 

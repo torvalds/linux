@@ -26,6 +26,7 @@
 
 #include <asm/mach/map.h>
 
+#include <mach/common.h>
 #include <mach/hardware.h>
 
 static struct map_desc imx_io_desc[] __initdata = {
@@ -37,7 +38,9 @@ static struct map_desc imx_io_desc[] __initdata = {
 	}
 };
 
-void __init mxc_map_io(void)
+void __init mx1_map_io(void)
 {
+	mxc_set_cpu_type(MXC_CPU_MX1);
+
 	iotable_init(imx_io_desc, ARRAY_SIZE(imx_io_desc));
 }

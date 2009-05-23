@@ -221,7 +221,7 @@ void add_taint(unsigned flag)
 	 * post-warning case.
 	 */
 	if (flag != TAINT_CRAP && flag != TAINT_WARN && __debug_locks_off())
-		printk(KERN_WARNING "Disabling lockdep due to kernel taint\n");
+		printk(KERN_WARNING "Disabling lock debugging due to kernel taint\n");
 
 	set_bit(flag, &tainted_mask);
 }

@@ -206,7 +206,7 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 }
 
 /**
- * lpfc_discovery_wait: Wait for driver discovery to quiesce.
+ * lpfc_discovery_wait - Wait for driver discovery to quiesce
  * @vport: The virtual port for which this call is being executed.
  *
  * This driver calls this routine specifically from lpfc_vport_delete
@@ -741,7 +741,7 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 
 
 /**
- * lpfc_vport_reset_stat_data: Reset the statistical data for the vport.
+ * lpfc_vport_reset_stat_data - Reset the statistical data for the vport
  * @vport: Pointer to vport object.
  *
  * This function resets the statistical data for the vport. This function
@@ -763,8 +763,7 @@ lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
 
 
 /**
- * lpfc_alloc_bucket: Allocate data buffer required for collecting
- *  statistical data.
+ * lpfc_alloc_bucket - Allocate data buffer required for statistical data
  * @vport: Pointer to vport object.
  *
  * This function allocates data buffer required for all the FC
@@ -797,8 +796,7 @@ lpfc_alloc_bucket(struct lpfc_vport *vport)
 }
 
 /**
- * lpfc_free_bucket: Free data buffer required for collecting
- *  statistical data.
+ * lpfc_free_bucket - Free data buffer required for statistical data
  * @vport: Pointer to vport object.
  *
  * Th function frees statistical data buffer of all the FC

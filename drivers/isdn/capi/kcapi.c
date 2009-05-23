@@ -270,6 +270,15 @@ static void recv_handler(struct work_struct *work)
 	mutex_unlock(&ap->recv_mtx);
 }
 
+/**
+ * capi_ctr_handle_message() - handle incoming CAPI message
+ * @card:	controller descriptor structure.
+ * @appl:	application ID.
+ * @skb:	message.
+ *
+ * Called by hardware driver to pass a CAPI message to the application.
+ */
+
 void capi_ctr_handle_message(struct capi_ctr * card, u16 appl, struct sk_buff *skb)
 {
 	struct capi20_appl *ap;
@@ -348,6 +357,13 @@ error:
 
 EXPORT_SYMBOL(capi_ctr_handle_message);
 
+/**
+ * capi_ctr_ready() - signal CAPI controller ready
+ * @card:	controller descriptor structure.
+ *
+ * Called by hardware driver to signal that the controller is up and running.
+ */
+
 void capi_ctr_ready(struct capi_ctr * card)
 {
 	card->cardstate = CARD_RUNNING;
@@ -359,6 +375,14 @@ void capi_ctr_ready(struct capi_ctr * card)
 }
 
 EXPORT_SYMBOL(capi_ctr_ready);
+
+/**
+ * capi_ctr_reseted() - signal CAPI controller reset
+ * @card:	controller descriptor structure.
+ *
+ * Called by hardware driver to signal that the controller is down and
+ * unavailable for use.
+ */
 
 void capi_ctr_reseted(struct capi_ctr * card)
 {
@@ -391,6 +415,13 @@ void capi_ctr_reseted(struct capi_ctr * card)
 
 EXPORT_SYMBOL(capi_ctr_reseted);
 
+/**
+ * capi_ctr_suspend_output() - suspend controller
+ * @card:	controller descriptor structure.
+ *
+ * Called by hardware driver to stop data flow.
+ */
+
 void capi_ctr_suspend_output(struct capi_ctr *card)
 {
 	if (!card->blocked) {
@@ -400,6 +431,13 @@ void capi_ctr_suspend_output(struct capi_ctr *card)
 }
 
 EXPORT_SYMBOL(capi_ctr_suspend_output);
+
+/**
+ * capi_ctr_resume_output() - resume controller
+ * @card:	controller descriptor structure.
+ *
+ * Called by hardware driver to resume data flow.
+ */
 
 void capi_ctr_resume_output(struct capi_ctr *card)
 {
@@ -412,6 +450,14 @@ void capi_ctr_resume_output(struct capi_ctr *card)
 EXPORT_SYMBOL(capi_ctr_resume_output);
 
 /* ------------------------------------------------------------- */
+
+/**
+ * attach_capi_ctr() - register CAPI controller
+ * @card:	controller descriptor structure.
+ *
+ * Called by hardware driver to register a controller with the CAPI subsystem.
+ * Return value: 0 on success, error code < 0 on error
+ */
 
 int
 attach_capi_ctr(struct capi_ctr *card)
@@ -459,6 +505,15 @@ attach_capi_ctr(struct capi_ctr *card)
 
 EXPORT_SYMBOL(attach_capi_ctr);
 
+/**
+ * detach_capi_ctr() - unregister CAPI controller
+ * @card:	controller descriptor structure.
+ *
+ * Called by hardware driver to remove the registration of a controller
+ * with the CAPI subsystem.
+ * Return value: 0 on success, error code < 0 on error
+ */
+
 int detach_capi_ctr(struct capi_ctr *card)
 {
         if (card->cardstate != CARD_DETECTED)
@@ -479,6 +534,13 @@ int detach_capi_ctr(struct capi_ctr *card)
 
 EXPORT_SYMBOL(detach_capi_ctr);
 
+/**
+ * register_capi_driver() - register CAPI driver
+ * @driver:	driver descriptor structure.
+ *
+ * Called by hardware driver to register itself with the CAPI subsystem.
+ */
+
 void register_capi_driver(struct capi_driver *driver)
 {
 	unsigned long flags;
@@ -489,6 +551,13 @@ void register_capi_driver(struct capi_driver *driver)
 }
 
 EXPORT_SYMBOL(register_capi_driver);
+
+/**
+ * unregister_capi_driver() - unregister CAPI driver
+ * @driver:	driver descriptor structure.
+ *
+ * Called by hardware driver to unregister itself from the CAPI subsystem.
+ */
 
 void unregister_capi_driver(struct capi_driver *driver)
 {
@@ -505,6 +574,13 @@ EXPORT_SYMBOL(unregister_capi_driver);
 /* -------- CAPI2.0 Interface ---------------------------------- */
 /* ------------------------------------------------------------- */
 
+/**
+ * capi20_isinstalled() - CAPI 2.0 operation CAPI_INSTALLED
+ *
+ * Return value: CAPI result code (CAPI_NOERROR if at least one ISDN controller
+ *	is ready for use, CAPI_REGNOTINSTALLED otherwise)
+ */
+
 u16 capi20_isinstalled(void)
 {
 	int i;
@@ -516,6 +592,18 @@ u16 capi20_isinstalled(void)
 }
 
 EXPORT_SYMBOL(capi20_isinstalled);
+
+/**
+ * capi20_register() - CAPI 2.0 operation CAPI_REGISTER
+ * @ap:		CAPI application descriptor structure.
+ *
+ * Register an application's presence with CAPI.
+ * A unique application ID is assigned and stored in @ap->applid.
+ * After this function returns successfully, the message receive
+ * callback function @ap->recv_message() may be called at any time
+ * until capi20_release() has been called for the same @ap.
+ * Return value: CAPI result code
+ */
 
 u16 capi20_register(struct capi20_appl *ap)
 {
@@ -571,6 +659,16 @@ u16 capi20_register(struct capi20_appl *ap)
 
 EXPORT_SYMBOL(capi20_register);
 
+/**
+ * capi20_release() - CAPI 2.0 operation CAPI_RELEASE
+ * @ap:		CAPI application descriptor structure.
+ *
+ * Terminate an application's registration with CAPI.
+ * After this function returns successfully, the message receive
+ * callback function @ap->recv_message() will no longer be called.
+ * Return value: CAPI result code
+ */
+
 u16 capi20_release(struct capi20_appl *ap)
 {
 	int i;
@@ -602,6 +700,15 @@ u16 capi20_release(struct capi20_appl *ap)
 }
 
 EXPORT_SYMBOL(capi20_release);
+
+/**
+ * capi20_put_message() - CAPI 2.0 operation CAPI_PUT_MESSAGE
+ * @ap:		CAPI application descriptor structure.
+ * @skb:	CAPI message.
+ *
+ * Transfer a single message to CAPI.
+ * Return value: CAPI result code
+ */
 
 u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 {
@@ -668,6 +775,16 @@ u16 capi20_put_message(struct capi20_appl *ap, struct sk_buff *skb)
 
 EXPORT_SYMBOL(capi20_put_message);
 
+/**
+ * capi20_get_manufacturer() - CAPI 2.0 operation CAPI_GET_MANUFACTURER
+ * @contr:	controller number.
+ * @buf:	result buffer (64 bytes).
+ *
+ * Retrieve information about the manufacturer of the specified ISDN controller
+ * or (for @contr == 0) the driver itself.
+ * Return value: CAPI result code
+ */
+
 u16 capi20_get_manufacturer(u32 contr, u8 *buf)
 {
 	struct capi_ctr *card;
@@ -684,6 +801,16 @@ u16 capi20_get_manufacturer(u32 contr, u8 *buf)
 }
 
 EXPORT_SYMBOL(capi20_get_manufacturer);
+
+/**
+ * capi20_get_version() - CAPI 2.0 operation CAPI_GET_VERSION
+ * @contr:	controller number.
+ * @verp:	result structure.
+ *
+ * Retrieve version information for the specified ISDN controller
+ * or (for @contr == 0) the driver itself.
+ * Return value: CAPI result code
+ */
 
 u16 capi20_get_version(u32 contr, struct capi_version *verp)
 {
@@ -703,6 +830,16 @@ u16 capi20_get_version(u32 contr, struct capi_version *verp)
 
 EXPORT_SYMBOL(capi20_get_version);
 
+/**
+ * capi20_get_serial() - CAPI 2.0 operation CAPI_GET_SERIAL_NUMBER
+ * @contr:	controller number.
+ * @serial:	result buffer (8 bytes).
+ *
+ * Retrieve the serial number of the specified ISDN controller
+ * or (for @contr == 0) the driver itself.
+ * Return value: CAPI result code
+ */
+
 u16 capi20_get_serial(u32 contr, u8 *serial)
 {
 	struct capi_ctr *card;
@@ -720,6 +857,16 @@ u16 capi20_get_serial(u32 contr, u8 *serial)
 }
 
 EXPORT_SYMBOL(capi20_get_serial);
+
+/**
+ * capi20_get_profile() - CAPI 2.0 operation CAPI_GET_PROFILE
+ * @contr:	controller number.
+ * @profp:	result structure.
+ *
+ * Retrieve capability information for the specified ISDN controller
+ * or (for @contr == 0) the number of installed controllers.
+ * Return value: CAPI result code
+ */
 
 u16 capi20_get_profile(u32 contr, struct capi_profile *profp)
 {
@@ -903,6 +1050,15 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 }
 #endif
 
+/**
+ * capi20_manufacturer() - CAPI 2.0 operation CAPI_MANUFACTURER
+ * @cmd:	command.
+ * @data:	parameter.
+ *
+ * Perform manufacturer specific command.
+ * Return value: CAPI result code
+ */
+
 int capi20_manufacturer(unsigned int cmd, void __user *data)
 {
         struct capi_ctr *card;
@@ -981,6 +1137,21 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 EXPORT_SYMBOL(capi20_manufacturer);
 
 /* temporary hack */
+
+/**
+ * capi20_set_callback() - set CAPI application notification callback function
+ * @ap:		CAPI application descriptor structure.
+ * @callback:	callback function (NULL to remove).
+ *
+ * If not NULL, the callback function will be called to notify the
+ * application of the addition or removal of a controller.
+ * The first argument (cmd) will tell whether the controller was added
+ * (KCI_CONTRUP) or removed (KCI_CONTRDOWN).
+ * The second argument (contr) will be the controller number.
+ * For cmd==KCI_CONTRUP the third argument (data) will be a pointer to the
+ * new controller's capability profile structure.
+ */
+
 void capi20_set_callback(struct capi20_appl *ap,
 			 void (*callback) (unsigned int cmd, __u32 contr, void *data))
 {

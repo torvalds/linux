@@ -15,65 +15,26 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/pwm.h>
+#include <mach/hardware.h>
 
-#if defined CONFIG_ARCH_MX1 || defined CONFIG_ARCH_MX21
-#define PWM_VER_1
 
-#define PWMCR	0x00	/* PWM Control Register		*/
-#define PWMSR	0x04	/* PWM Sample Register		*/
-#define PWMPR	0x08	/* PWM Period Register		*/
-#define PWMCNR	0x0C	/* PWM Counter Register		*/
+/* i.MX1 and i.MX21 share the same PWM function block: */
 
-#define PWMCR_HCTR		(1 << 18)		/* Halfword FIFO Data Swapping	*/
-#define PWMCR_BCTR		(1 << 17)		/* Byte FIFO Data Swapping	*/
-#define PWMCR_SWR		(1 << 16)		/* Software Reset		*/
-#define PWMCR_CLKSRC_PERCLK	(0 << 15)		/* PERCLK Clock Source		*/
-#define PWMCR_CLKSRC_CLK32	(1 << 15)		/* 32KHz Clock Source		*/
-#define PWMCR_PRESCALER(x)	(((x - 1) & 0x7F) << 8)	/* PRESCALER			*/
-#define PWMCR_IRQ		(1 << 7)		/* Interrupt Request		*/
-#define PWMCR_IRQEN		(1 << 6)		/* Interrupt Request Enable	*/
-#define PWMCR_FIFOAV		(1 << 5)		/* FIFO Available		*/
-#define PWMCR_EN		(1 << 4)		/* Enables/Disables the PWM	*/
-#define PWMCR_REPEAT(x)		(((x) & 0x03) << 2)	/* Sample Repeats		*/
-#define PWMCR_DIV(x)		(((x) & 0x03) << 0)	/* Clock divider 2/4/8/16	*/
+#define MX1_PWMC    0x00   /* PWM Control Register */
+#define MX1_PWMS    0x04   /* PWM Sample Register */
+#define MX1_PWMP    0x08   /* PWM Period Register */
 
-#define MAX_DIV			(128 * 16)
-#endif
 
-#if defined CONFIG_MACH_MX27 || defined CONFIG_ARCH_MX31
-#define PWM_VER_2
+/* i.MX27, i.MX31, i.MX35 share the same PWM function block: */
 
-#define PWMCR	0x00	/* PWM Control Register		*/
-#define PWMSR	0x04	/* PWM Status Register		*/
-#define PWMIR	0x08	/* PWM Interrupt Register	*/
-#define PWMSAR	0x0C	/* PWM Sample Register		*/
-#define PWMPR	0x10	/* PWM Period Register		*/
-#define PWMCNR	0x14	/* PWM Counter Register		*/
+#define MX3_PWMCR                 0x00    /* PWM Control Register */
+#define MX3_PWMSAR                0x0C    /* PWM Sample Register */
+#define MX3_PWMPR                 0x10    /* PWM Period Register */
+#define MX3_PWMCR_PRESCALER(x)    (((x - 1) & 0xFFF) << 4)
+#define MX3_PWMCR_CLKSRC_IPG_HIGH (2 << 16)
+#define MX3_PWMCR_EN              (1 << 0)
 
-#define PWMCR_EN		(1 << 0)		/* Enables/Disables the PWM	*/
-#define PWMCR_REPEAT(x)		(((x) & 0x03) << 1)	/* Sample Repeats		*/
-#define PWMCR_SWR		(1 << 3)		/* Software Reset		*/
-#define PWMCR_PRESCALER(x)	(((x - 1) & 0xFFF) << 4)/* PRESCALER			*/
-#define PWMCR_CLKSRC(x)		(((x) & 0x3) << 16)
-#define PWMCR_CLKSRC_OFF	(0 << 16)
-#define PWMCR_CLKSRC_IPG	(1 << 16)
-#define PWMCR_CLKSRC_IPG_HIGH	(2 << 16)
-#define PWMCR_CLKSRC_CLK32	(3 << 16)
-#define PWMCR_POUTC
-#define PWMCR_HCTR		(1 << 20)		/* Halfword FIFO Data Swapping	*/
-#define PWMCR_BCTR		(1 << 21)		/* Byte FIFO Data Swapping	*/
-#define PWMCR_DBGEN		(1 << 22)		/* Debug Mode			*/
-#define PWMCR_WAITEN		(1 << 23)		/* Wait Mode			*/
-#define PWMCR_DOZEN		(1 << 24)		/* Doze Mode			*/
-#define PWMCR_STOPEN		(1 << 25)		/* Stop Mode			*/
-#define PWMCR_FWM(x)		(((x) & 0x3) << 26)	/* FIFO Water Mark		*/
 
-#define MAX_DIV 4096
-#endif
-
-#define PWMS_SAMPLE(x)		((x) & 0xFFFF)		/* Contains a two-sample word	*/
-#define PWMP_PERIOD(x)		((x) & 0xFFFF)		/* Represents the PWM's period	*/
-#define PWMC_COUNTER(x)		((x) & 0xFFFF)		/* Represents the current count value	*/
 
 struct pwm_device {
 	struct list_head	node;
@@ -91,32 +52,52 @@ struct pwm_device {
 
 int pwm_config(struct pwm_device *pwm, int duty_ns, int period_ns)
 {
-	unsigned long long c;
-	unsigned long period_cycles, duty_cycles, prescale;
-
 	if (pwm == NULL || period_ns == 0 || duty_ns > period_ns)
 		return -EINVAL;
 
-	c = clk_get_rate(pwm->clk);
-	c = c * period_ns;
-	do_div(c, 1000000000);
-	period_cycles = c;
+	if (cpu_is_mx27() || cpu_is_mx3()) {
+		unsigned long long c;
+		unsigned long period_cycles, duty_cycles, prescale;
+		c = clk_get_rate(pwm->clk);
+		c = c * period_ns;
+		do_div(c, 1000000000);
+		period_cycles = c;
 
-	prescale = period_cycles / 0x10000 + 1;
+		prescale = period_cycles / 0x10000 + 1;
 
-	period_cycles /= prescale;
-	c = (unsigned long long)period_cycles * duty_ns;
-	do_div(c, period_ns);
-	duty_cycles = c;
+		period_cycles /= prescale;
+		c = (unsigned long long)period_cycles * duty_ns;
+		do_div(c, period_ns);
+		duty_cycles = c;
 
-#ifdef PWM_VER_2
-	writel(duty_cycles, pwm->mmio_base + PWMSAR);
-	writel(period_cycles, pwm->mmio_base + PWMPR);
-	writel(PWMCR_PRESCALER(prescale - 1) | PWMCR_CLKSRC_IPG_HIGH | PWMCR_EN,
-			pwm->mmio_base + PWMCR);
-#elif defined PWM_VER_1
-#error PWM not yet working on MX1 / MX21
-#endif
+		writel(duty_cycles, pwm->mmio_base + MX3_PWMSAR);
+		writel(period_cycles, pwm->mmio_base + MX3_PWMPR);
+		writel(MX3_PWMCR_PRESCALER(prescale - 1) |
+			MX3_PWMCR_CLKSRC_IPG_HIGH | MX3_PWMCR_EN,
+			pwm->mmio_base + MX3_PWMCR);
+	} else if (cpu_is_mx1() || cpu_is_mx21()) {
+		/* The PWM subsystem allows for exact frequencies. However,
+		 * I cannot connect a scope on my device to the PWM line and
+		 * thus cannot provide the program the PWM controller
+		 * exactly. Instead, I'm relying on the fact that the
+		 * Bootloader (u-boot or WinCE+haret) has programmed the PWM
+		 * function group already. So I'll just modify the PWM sample
+		 * register to follow the ratio of duty_ns vs. period_ns
+		 * accordingly.
+		 *
+		 * This is good enought for programming the brightness of
+		 * the LCD backlight.
+		 *
+		 * The real implementation would divide PERCLK[0] first by
+		 * both the prescaler (/1 .. /128) and then by CLKSEL
+		 * (/2 .. /16).
+		 */
+		u32 max = readl(pwm->mmio_base + MX1_PWMP);
+		u32 p = max * duty_ns / period_ns;
+		writel(max - p, pwm->mmio_base + MX1_PWMS);
+	} else {
+		BUG();
+	}
 
 	return 0;
 }
@@ -297,4 +278,3 @@ module_exit(mxc_pwm_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
-

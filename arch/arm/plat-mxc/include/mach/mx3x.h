@@ -48,6 +48,9 @@
 #define CS4_SIZE		SZ_32M
 
 #define CS5_BASE_ADDR		0xB6000000
+#define CS5_BASE_ADDR_VIRT	0xF6000000
+#define CS5_SIZE		SZ_32M
+
 #define PCMCIA_MEM_BASE_ADDR	0xBC000000
 
 /*
@@ -190,6 +193,9 @@
 
 #define CS4_IO_ADDRESS(x)  \
 	(((x) - CS4_BASE_ADDR) + CS4_BASE_ADDR_VIRT)
+
+#define CS5_IO_ADDRESS(x)  \
+	(((x) - CS5_BASE_ADDR) + CS5_BASE_ADDR_VIRT)
 
 #define X_MEMC_IO_ADDRESS(x)  \
 	(((x) - X_MEMC_BASE_ADDR) + X_MEMC_BASE_ADDR_VIRT)
