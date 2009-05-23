@@ -134,8 +134,6 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 
 	list_add_rcu(&counter->event_entry, &ctx->event_list);
 	ctx->nr_counters++;
-	if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
-		ctx->nr_enabled++;
 }
 
 /*
@@ -150,8 +148,6 @@ list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 	if (list_empty(&counter->list_entry))
 		return;
 	ctx->nr_counters--;
-	if (counter->state >= PERF_COUNTER_STATE_INACTIVE)
-		ctx->nr_enabled--;
 
 	list_del_init(&counter->list_entry);
 	list_del_rcu(&counter->event_entry);
@@ -406,7 +402,6 @@ static void __perf_counter_disable(void *info)
 		else
 			counter_sched_out(counter, cpuctx, ctx);
 		counter->state = PERF_COUNTER_STATE_OFF;
-		ctx->nr_enabled--;
 	}
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
@@ -448,7 +443,6 @@ static void perf_counter_disable(struct perf_counter *counter)
 	if (counter->state == PERF_COUNTER_STATE_INACTIVE) {
 		update_counter_times(counter);
 		counter->state = PERF_COUNTER_STATE_OFF;
-		ctx->nr_enabled--;
 	}
 
 	spin_unlock_irq(&ctx->lock);
@@ -759,7 +753,6 @@ static void __perf_counter_enable(void *info)
 		goto unlock;
 	counter->state = PERF_COUNTER_STATE_INACTIVE;
 	counter->tstamp_enabled = ctx->time - counter->total_time_enabled;
-	ctx->nr_enabled++;
 
 	/*
 	 * If the counter is in a group and isn't the group leader,
@@ -850,7 +843,6 @@ static void perf_counter_enable(struct perf_counter *counter)
 		counter->state = PERF_COUNTER_STATE_INACTIVE;
 		counter->tstamp_enabled =
 			ctx->time - counter->total_time_enabled;
-		ctx->nr_enabled++;
 	}
  out:
 	spin_unlock_irq(&ctx->lock);
@@ -910,8 +902,7 @@ static int context_equiv(struct perf_counter_context *ctx1,
 			 struct perf_counter_context *ctx2)
 {
 	return ctx1->parent_ctx && ctx1->parent_ctx == ctx2->parent_ctx
-		&& ctx1->parent_gen == ctx2->parent_gen
-		&& ctx1->nr_enabled == ctx2->nr_enabled;
+		&& ctx1->parent_gen == ctx2->parent_gen;
 }
 
 /*

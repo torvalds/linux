@@ -516,7 +516,6 @@ struct perf_counter_context {
 	struct list_head	event_list;
 	int			nr_counters;
 	int			nr_active;
-	int			nr_enabled;
 	int			is_active;
 	atomic_t		refcount;
 	struct task_struct	*task;
