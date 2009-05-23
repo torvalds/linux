@@ -92,8 +92,7 @@ static int nilfs_direct_prepare_insert(struct nilfs_direct *direct,
 
 	if (direct->d_ops->dop_find_target != NULL)
 		req->bpr_ptr = direct->d_ops->dop_find_target(direct, key);
-	ret = direct->d_bmap.b_pops->bpop_prepare_alloc_ptr(&direct->d_bmap,
-							       req);
+	ret = nilfs_bmap_prepare_alloc_ptr(&direct->d_bmap, req);
 	if (ret < 0)
 		return ret;
 
@@ -111,7 +110,7 @@ static void nilfs_direct_commit_insert(struct nilfs_direct *direct,
 	bh = (struct buffer_head *)((unsigned long)ptr);
 	set_buffer_nilfs_volatile(bh);
 
-	direct->d_bmap.b_pops->bpop_commit_alloc_ptr(&direct->d_bmap, req);
+	nilfs_bmap_commit_alloc_ptr(&direct->d_bmap, req);
 	nilfs_direct_set_ptr(direct, key, req->bpr_ptr);
 
 	if (!nilfs_bmap_dirty(&direct->d_bmap))
@@ -150,25 +149,18 @@ static int nilfs_direct_prepare_delete(struct nilfs_direct *direct,
 {
 	int ret;
 
-	if (direct->d_bmap.b_pops->bpop_prepare_end_ptr != NULL) {
-		req->bpr_ptr = nilfs_direct_get_ptr(direct, key);
-		ret = direct->d_bmap.b_pops->bpop_prepare_end_ptr(
-			&direct->d_bmap, req);
-		if (ret < 0)
-			return ret;
-	}
-
-	stats->bs_nblocks = 1;
-	return 0;
+	req->bpr_ptr = nilfs_direct_get_ptr(direct, key);
+	ret = nilfs_bmap_prepare_end_ptr(&direct->d_bmap, req);
+	if (!ret)
+		stats->bs_nblocks = 1;
+	return ret;
 }
 
 static void nilfs_direct_commit_delete(struct nilfs_direct *direct,
 				       union nilfs_bmap_ptr_req *req,
 				       __u64 key)
 {
-	if (direct->d_bmap.b_pops->bpop_commit_end_ptr != NULL)
-		direct->d_bmap.b_pops->bpop_commit_end_ptr(
-			&direct->d_bmap, req);
+	nilfs_bmap_commit_end_ptr(&direct->d_bmap, req);
 	nilfs_direct_set_ptr(direct, key, NILFS_BMAP_INVALID_PTR);
 }
 
@@ -289,11 +281,11 @@ static int nilfs_direct_propagate_v(struct nilfs_direct *direct,
 	if (!buffer_nilfs_volatile(bh)) {
 		oldreq.bpr_ptr = ptr;
 		newreq.bpr_ptr = ptr;
-		ret = nilfs_bmap_prepare_update(&direct->d_bmap, &oldreq,
-						&newreq);
+		ret = nilfs_bmap_prepare_update_v(&direct->d_bmap, &oldreq,
+						  &newreq);
 		if (ret < 0)
 			return ret;
-		nilfs_bmap_commit_update(&direct->d_bmap, &oldreq, &newreq);
+		nilfs_bmap_commit_update_v(&direct->d_bmap, &oldreq, &newreq);
 		set_buffer_nilfs_volatile(bh);
 		nilfs_direct_set_ptr(direct, key, newreq.bpr_ptr);
 	} else
