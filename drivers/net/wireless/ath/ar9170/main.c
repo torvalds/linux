@@ -146,7 +146,6 @@ static struct ieee80211_channel ar9170_5ghz_chantable[] = {
 {									\
 	.ht_supported	= true,						\
 	.cap		= IEEE80211_HT_CAP_MAX_AMSDU |			\
-			  IEEE80211_HT_CAP_SM_PS |			\
 			  IEEE80211_HT_CAP_SUP_WIDTH_20_40 |		\
 			  IEEE80211_HT_CAP_SGI_40 |			\
 			  IEEE80211_HT_CAP_DSSSCCK40 |			\
