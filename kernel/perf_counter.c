@@ -597,6 +597,8 @@ static void add_counter_to_ctx(struct perf_counter *counter,
 
 /*
  * Cross CPU call to install and enable a performance counter
+ *
+ * Must be called with ctx->mutex held
  */
 static void __perf_install_in_context(void *info)
 {
@@ -1496,13 +1498,13 @@ static void perf_counter_for_each_sibling(struct perf_counter *counter,
 	struct perf_counter_context *ctx = counter->ctx;
 	struct perf_counter *sibling;
 
-	spin_lock_irq(&ctx->lock);
+	mutex_lock(&ctx->mutex);
 	counter = counter->group_leader;
 
 	func(counter);
 	list_for_each_entry(sibling, &counter->sibling_list, list_entry)
 		func(sibling);
-	spin_unlock_irq(&ctx->lock);
+	mutex_unlock(&ctx->mutex);
 }
 
 static void perf_counter_for_each_child(struct perf_counter *counter,
@@ -3414,7 +3416,10 @@ __perf_counter_exit_task(struct task_struct *child,
 	struct perf_counter *parent_counter;
 
 	update_counter_times(child_counter);
+
+	spin_lock_irq(&child_ctx->lock);
 	list_del_counter(child_counter, child_ctx);
+	spin_unlock_irq(&child_ctx->lock);
 
 	parent_counter = child_counter->parent;
 	/*
