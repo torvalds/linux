@@ -1,6 +1,25 @@
 #ifndef _PERF_PERF_H
 #define _PERF_PERF_H
 
+#if defined(__x86_64__) || defined(__i386__)
+#include "../../arch/x86/include/asm/unistd.h"
+#define rmb()		asm volatile("lfence" ::: "memory")
+#define cpu_relax()	asm volatile("rep; nop" ::: "memory");
+#endif
+
+#ifdef __powerpc__
+#include "../../arch/powerpc/include/asm/unistd.h"
+#define rmb()		asm volatile ("sync" ::: "memory")
+#define cpu_relax()	asm volatile ("" ::: "memory");
+#endif
+
+#include <time.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
+
+#include "../../include/linux/perf_counter.h"
+
 /*
  * prctl(PR_TASK_PERF_COUNTERS_DISABLE) will (cheaply) disable all
  * counters in the current task.
@@ -25,18 +44,6 @@ static inline unsigned long long rdclock(void)
  */
 #define __user
 #define asmlinkage
-
-#if defined(__x86_64__) || defined(__i386__)
-#include "../../arch/x86/include/asm/unistd.h"
-#define rmb()		asm volatile("lfence" ::: "memory")
-#define cpu_relax()	asm volatile("rep; nop" ::: "memory");
-#endif
-
-#ifdef __powerpc__
-#include "../../arch/powerpc/include/asm/unistd.h"
-#define rmb()		asm volatile ("sync" ::: "memory")
-#define cpu_relax()	asm volatile ("" ::: "memory");
-#endif
 
 #define unlikely(x)	__builtin_expect(!!(x), 0)
 #define min(x, y) ({				\

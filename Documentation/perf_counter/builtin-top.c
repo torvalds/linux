@@ -42,6 +42,7 @@
   * Released under the GPL v2. (and only v2, not any later version)
   */
 
+#include "perf.h"
 #include "util/util.h"
 
 #include <getopt.h>
@@ -63,10 +64,6 @@
 
 #include <linux/unistd.h>
 #include <linux/types.h>
-
-#include "../../include/linux/perf_counter.h"
-
-#include "perf.h"
 
 static int			system_wide			=  0;
 

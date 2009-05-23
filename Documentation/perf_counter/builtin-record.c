@@ -1,5 +1,6 @@
 
 
+#include "perf.h"
 #include "util/util.h"
 
 #include <sys/types.h>
@@ -30,9 +31,7 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 
-#include "../../include/linux/perf_counter.h"
 
-#include "perf.h"
 
 #define ALIGN(x,a)		__ALIGN_MASK(x,(typeof(x))(a)-1)
 #define __ALIGN_MASK(x,mask)	(((x)+(mask))&~(mask))
