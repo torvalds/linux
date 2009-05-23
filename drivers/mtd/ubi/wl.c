@@ -756,15 +756,14 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 
 	err = ubi_eba_copy_leb(ubi, e1->pnum, e2->pnum, vid_hdr);
 	if (err) {
-		if (err == -EAGAIN)
-			goto out_not_moved;
-		if (err < 0)
-			goto out_error;
-		if (err == 2) {
-			/* Target PEB write error, torture it */
+		if (err == MOVE_CANCEL_BITFLIPS ||
+		    err == MOVE_TARGET_WR_ERR) {
+			/* Target PEB bit-flips or write error, torture it */
 			torture = 1;
 			goto out_not_moved;
 		}
+		if (err < 0)
+			goto out_error;
 
 		/*
 		 * The LEB has not been moved because the volume is being
@@ -774,7 +773,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		 */
 
 		dbg_wl("canceled moving PEB %d", e1->pnum);
-		ubi_assert(err == 1);
+		ubi_assert(err == MOVE_CANCEL_RACE);
 
 		ubi_free_vid_hdr(ubi, vid_hdr);
 		vid_hdr = NULL;

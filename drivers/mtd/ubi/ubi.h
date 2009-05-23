@@ -100,6 +100,22 @@ enum {
 	UBI_IO_BITFLIPS
 };
 
+/*
+ * Return codes of the 'ubi_eba_copy_leb()' function.
+ *
+ * MOVE_CANCEL_RACE: canceled because the volume is being deleted, the source
+ *                   PEB was put meanwhile, or there is I/O on the source PEB
+ * MOVE_TARGET_WR_ERR: canceled because there was a write error to the target
+ *                     PEB
+ * MOVE_CANCEL_BITFLIPS: canceled because a bit-flip was detected in the
+ *                       target PEB
+ */
+enum {
+	MOVE_CANCEL_RACE = 1,
+	MOVE_TARGET_WR_ERR,
+	MOVE_CANCEL_BITFLIPS,
+};
+
 /**
  * struct ubi_wl_entry - wear-leveling entry.
  * @u.rb: link in the corresponding (free/used) RB-tree
