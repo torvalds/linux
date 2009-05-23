@@ -1,5 +1,8 @@
 config SND_SOC_OF_SIMPLE
 	tristate
+	
+config SND_MPC52xx_DMA
+	tristate
 
 # ASoC platform support for the Freescale MPC8610 SOC.  This compiles drivers
 # for the SSI and the Elo DMA controller.  You will still need to select
@@ -23,6 +26,7 @@ config SND_SOC_MPC5200_I2S
 	tristate "Freescale MPC5200 PSC in I2S mode driver"
 	depends on PPC_MPC52xx && PPC_BESTCOMM
 	select SND_SOC_OF_SIMPLE
+	select SND_MPC52xx_DMA
 	select PPC_BESTCOMM_GEN_BD
 	help
 	  Say Y here to support the MPC5200 PSCs in I2S mode.
