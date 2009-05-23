@@ -265,22 +265,23 @@ struct cmd_ds_802_11_deauthenticate {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_associate {
-	u8 peerstaaddr[6];
+	struct cmd_header hdr;
+
+	u8 bssid[6];
 	__le16 capability;
 	__le16 listeninterval;
 	__le16 bcnperiod;
 	u8 dtimperiod;
-
-#if 0
-	mrvlietypes_ssidparamset_t ssidParamSet;
-	mrvlietypes_phyparamset_t phyparamset;
-	mrvlietypes_ssparamset_t ssparamset;
-	mrvlietypes_ratesparamset_t ratesParamSet;
-#endif
+	u8 iebuf[512];    /* Enough for required and most optional IEs */
 } __attribute__ ((packed));
 
-struct cmd_ds_802_11_associate_rsp {
-	struct ieee_assoc_response response;
+struct cmd_ds_802_11_associate_response {
+	struct cmd_header hdr;
+
+	__le16 capability;
+	__le16 statuscode;
+	__le16 aid;
+	u8 iebuf[512];
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_set_wep {
@@ -771,7 +772,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_802_11_associate associate;
 		struct cmd_ds_802_11_get_stat gstat;
 		struct cmd_ds_802_3_get_stat gstat_8023;
 		struct cmd_ds_802_11_rf_antenna rant;

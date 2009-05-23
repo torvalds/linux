@@ -210,12 +210,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_reg_access(priv, respcmd, resp);
 		break;
 
-	case CMD_RET_802_11_ASSOCIATE:
-	case CMD_RET(CMD_802_11_ASSOCIATE):
-	case CMD_RET(CMD_802_11_REASSOCIATE):
-		ret = lbs_ret_80211_associate(priv, resp);
-		break;
-
 	case CMD_RET(CMD_802_11_SET_AFC):
 	case CMD_RET(CMD_802_11_GET_AFC):
 		spin_lock_irqsave(&priv->driver_lock, flags);

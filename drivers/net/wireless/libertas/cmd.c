@@ -1414,11 +1414,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_802_11_ps_mode(cmdptr, cmd_action);
 		break;
 
-	case CMD_802_11_ASSOCIATE:
-	case CMD_802_11_REASSOCIATE:
-		ret = lbs_cmd_80211_associate(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_MAC_REG_ACCESS:
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:

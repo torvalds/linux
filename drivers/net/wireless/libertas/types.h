@@ -54,13 +54,6 @@ union ieee_phy_param_set {
 	struct ieee_ie_ds_param_set ds;
 } __attribute__ ((packed));
 
-struct ieee_assoc_response {
-	__le16 capability;
-	__le16 statuscode;
-	__le16 aid;
-	u8 iebuffer[1];
-} __attribute__ ((packed));
-
 /** TLV  type ID definition */
 #define PROPRIETARY_TLV_BASE_ID		0x0100
 
