@@ -1527,7 +1527,7 @@ static int nilfs_btree_check_delete(struct nilfs_bmap *bmap, __u64 key)
 	if (bh != NULL)
 		brelse(bh);
 
-	return (maxkey == key) && (nextmaxkey < bmap->b_low);
+	return (maxkey == key) && (nextmaxkey < NILFS_BMAP_LARGE_LOW);
 }
 
 static int nilfs_btree_gather_data(struct nilfs_bmap *bmap,
@@ -1634,7 +1634,7 @@ static void
 nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 				      __u64 key, __u64 ptr,
 				      const __u64 *keys, const __u64 *ptrs,
-				      int n, __u64 low, __u64 high,
+				      int n,
 				      union nilfs_bmap_ptr_req *dreq,
 				      union nilfs_bmap_ptr_req *nreq,
 				      struct buffer_head *bh)
@@ -1652,7 +1652,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 
 	/* convert and insert */
 	btree = (struct nilfs_btree *)bmap;
-	nilfs_btree_init(bmap, low, high);
+	nilfs_btree_init(bmap);
 	if (nreq != NULL) {
 		bmap->b_pops->bpop_commit_alloc_ptr(bmap, dreq);
 		bmap->b_pops->bpop_commit_alloc_ptr(bmap, nreq);
@@ -1701,13 +1701,10 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
  * @keys:
  * @ptrs:
  * @n:
- * @low:
- * @high:
  */
 int nilfs_btree_convert_and_insert(struct nilfs_bmap *bmap,
 				   __u64 key, __u64 ptr,
-				   const __u64 *keys, const __u64 *ptrs,
-				   int n, __u64 low, __u64 high)
+				   const __u64 *keys, const __u64 *ptrs, int n)
 {
 	struct buffer_head *bh;
 	union nilfs_bmap_ptr_req dreq, nreq, *di, *ni;
@@ -1732,7 +1729,7 @@ int nilfs_btree_convert_and_insert(struct nilfs_bmap *bmap,
 	if (ret < 0)
 		return ret;
 	nilfs_btree_commit_convert_and_insert(bmap, key, ptr, keys, ptrs, n,
-					      low, high, di, ni, bh);
+					      di, ni, bh);
 	nilfs_bmap_add_blocks(bmap, stats.bs_nblocks);
 	return 0;
 }
@@ -2245,14 +2242,11 @@ static const struct nilfs_btree_operations nilfs_btree_ops_p = {
 	.btop_assign		=	nilfs_btree_assign_p,
 };
 
-int nilfs_btree_init(struct nilfs_bmap *bmap, __u64 low, __u64 high)
+int nilfs_btree_init(struct nilfs_bmap *bmap)
 {
-	struct nilfs_btree *btree;
+	struct nilfs_btree *btree = (struct nilfs_btree *)bmap;
 
-	btree = (struct nilfs_btree *)bmap;
 	bmap->b_ops = &nilfs_btree_ops;
-	bmap->b_low = low;
-	bmap->b_high = high;
 	switch (bmap->b_inode->i_ino) {
 	case NILFS_DAT_INO:
 		btree->bt_ops = &nilfs_btree_ops_p;
@@ -2267,7 +2261,5 @@ int nilfs_btree_init(struct nilfs_bmap *bmap, __u64 low, __u64 high)
 
 void nilfs_btree_init_gc(struct nilfs_bmap *bmap)
 {
-	bmap->b_low = NILFS_BMAP_LARGE_LOW;
-	bmap->b_high = NILFS_BMAP_LARGE_HIGH;
 	bmap->b_ops = &nilfs_btree_ops_gc;
 }

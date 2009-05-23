@@ -125,8 +125,6 @@ static inline int nilfs_bmap_is_new_ptr(unsigned long ptr)
  * @b_inode: owner of bmap
  * @b_ops: bmap operation table
  * @b_pops: bmap ptr operation table
- * @b_low: low watermark of conversion
- * @b_high: high watermark of conversion
  * @b_last_allocated_key: last allocated key for data block
  * @b_last_allocated_ptr: last allocated ptr for data block
  * @b_state: state
@@ -140,8 +138,6 @@ struct nilfs_bmap {
 	struct inode *b_inode;
 	const struct nilfs_bmap_operations *b_ops;
 	const struct nilfs_bmap_ptr_operations *b_pops;
-	__u64 b_low;
-	__u64 b_high;
 	__u64 b_last_allocated_key;
 	__u64 b_last_allocated_ptr;
 	int b_state;

@@ -108,10 +108,9 @@ struct nilfs_btree {
 
 int nilfs_btree_path_cache_init(void);
 void nilfs_btree_path_cache_destroy(void);
-int nilfs_btree_init(struct nilfs_bmap *, __u64, __u64);
+int nilfs_btree_init(struct nilfs_bmap *);
 int nilfs_btree_convert_and_insert(struct nilfs_bmap *, __u64, __u64,
-				   const __u64 *, const __u64 *,
-				   int, __u64, __u64);
+				   const __u64 *, const __u64 *, int);
 void nilfs_btree_init_gc(struct nilfs_bmap *);
 
 #endif	/* _NILFS_BTREE_H */

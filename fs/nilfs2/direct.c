@@ -242,8 +242,7 @@ static int nilfs_direct_gather_data(struct nilfs_bmap *bmap,
 }
 
 int nilfs_direct_delete_and_convert(struct nilfs_bmap *bmap,
-				    __u64 key, __u64 *keys, __u64 *ptrs,
-				    int n, __u64 low, __u64 high)
+				    __u64 key, __u64 *keys, __u64 *ptrs, int n)
 {
 	struct nilfs_direct *direct;
 	__le64 *dptrs;
@@ -273,8 +272,7 @@ int nilfs_direct_delete_and_convert(struct nilfs_bmap *bmap,
 			dptrs[i] = NILFS_BMAP_INVALID_PTR;
 	}
 
-	nilfs_direct_init(bmap, low, high);
-
+	nilfs_direct_init(bmap);
 	return 0;
 }
 
@@ -410,14 +408,11 @@ static const struct nilfs_direct_operations nilfs_direct_ops_p = {
 	.dop_assign		=	nilfs_direct_assign_p,
 };
 
-int nilfs_direct_init(struct nilfs_bmap *bmap, __u64 low, __u64 high)
+int nilfs_direct_init(struct nilfs_bmap *bmap)
 {
-	struct nilfs_direct *direct;
+	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;
 
-	direct = (struct nilfs_direct *)bmap;
 	bmap->b_ops = &nilfs_direct_ops;
-	bmap->b_low = low;
-	bmap->b_high = high;
 	switch (bmap->b_inode->i_ino) {
 	case NILFS_DAT_INO:
 		direct->d_ops = &nilfs_direct_ops_p;
