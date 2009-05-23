@@ -3416,10 +3416,7 @@ __perf_counter_exit_task(struct task_struct *child,
 	struct perf_counter *parent_counter;
 
 	update_counter_times(child_counter);
-
-	spin_lock_irq(&child_ctx->lock);
-	list_del_counter(child_counter, child_ctx);
-	spin_unlock_irq(&child_ctx->lock);
+	perf_counter_remove_from_context(child_counter);
 
 	parent_counter = child_counter->parent;
 	/*
