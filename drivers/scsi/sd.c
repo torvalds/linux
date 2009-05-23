@@ -1307,6 +1307,7 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	int sense_valid = 0;
 	int the_result;
 	int retries = 3;
+	unsigned int alignment;
 	unsigned long long lba;
 	unsigned sector_size;
 
@@ -1357,6 +1358,16 @@ static int read_capacity_16(struct scsi_disk *sdkp, struct scsi_device *sdp,
 		sdkp->capacity = 0;
 		return -EOVERFLOW;
 	}
+
+	/* Logical blocks per physical block exponent */
+	sdkp->hw_sector_size = (1 << (buffer[13] & 0xf)) * sector_size;
+
+	/* Lowest aligned logical block */
+	alignment = ((buffer[14] & 0x3f) << 8 | buffer[15]) * sector_size;
+	blk_queue_alignment_offset(sdp->request_queue, alignment);
+	if (alignment && sdkp->first_scan)
+		sd_printk(KERN_NOTICE, sdkp,
+			  "physical block alignment offset: %u\n", alignment);
 
 	sdkp->capacity = lba + 1;
 	return sector_size;
@@ -1409,6 +1420,7 @@ static int read_capacity_10(struct scsi_disk *sdkp, struct scsi_device *sdp,
 	}
 
 	sdkp->capacity = lba + 1;
+	sdkp->hw_sector_size = sector_size;
 	return sector_size;
 }
 
@@ -1521,11 +1533,17 @@ got_data:
 		string_get_size(sz, STRING_UNITS_10, cap_str_10,
 				sizeof(cap_str_10));
 
-		if (sdkp->first_scan || old_capacity != sdkp->capacity)
+		if (sdkp->first_scan || old_capacity != sdkp->capacity) {
 			sd_printk(KERN_NOTICE, sdkp,
-				  "%llu %d-byte hardware sectors: (%s/%s)\n",
+				  "%llu %d-byte logical blocks: (%s/%s)\n",
 				  (unsigned long long)sdkp->capacity,
 				  sector_size, cap_str_10, cap_str_2);
+
+			if (sdkp->hw_sector_size != sector_size)
+				sd_printk(KERN_NOTICE, sdkp,
+					  "%u-byte physical blocks\n",
+					  sdkp->hw_sector_size);
+		}
 	}
 
 	/* Rescale capacity to 512-byte units */
@@ -1538,6 +1556,7 @@ got_data:
 	else if (sector_size == 256)
 		sdkp->capacity >>= 1;
 
+	blk_queue_physical_block_size(sdp->request_queue, sdkp->hw_sector_size);
 	sdkp->device->sector_size = sector_size;
 }
 
