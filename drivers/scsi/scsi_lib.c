@@ -896,6 +896,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 			scsi_print_result(cmd);
 			if (driver_byte(result) & DRIVER_SENSE)
 				scsi_print_sense("", cmd);
+			scsi_print_command(cmd);
 		}
 		blk_end_request_all(req, -EIO);
 		scsi_next_command(cmd);
