@@ -380,7 +380,7 @@ static void free_user_volumes(struct ubi_device *ubi)
  * @ubi: UBI device description object
  *
  * This function returns zero in case of success and a negative error code in
- * case of failure. Note, this function destroys all volumes if it failes.
+ * case of failure. Note, this function destroys all volumes if it fails.
  */
 static int uif_init(struct ubi_device *ubi)
 {
@@ -871,9 +871,15 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 		ubi->beb_rsvd_pebs);
 	ubi_msg("max/mean erase counter: %d/%d", ubi->max_ec, ubi->mean_ec);
 
+	/*
+	 * The below lock makes sure we do not race with 'ubi_thread()' which
+	 * checks @ubi->thread_enabled. Otherwise we may fail to wake it up.
+	 */
+	spin_lock(&ubi->wl_lock);
 	if (!DBG_DISABLE_BGT)
 		ubi->thread_enabled = 1;
 	wake_up_process(ubi->bgt_thread);
+	spin_unlock(&ubi->wl_lock);
 
 	ubi_devices[ubi_num] = ubi;
 	return ubi_num;
