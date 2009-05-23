@@ -1795,6 +1795,29 @@ void sd_read_app_tag_own(struct scsi_disk *sdkp, unsigned char *buffer)
 }
 
 /**
+ * sd_read_block_characteristics - Query block dev. characteristics
+ * @disk: disk to query
+ */
+static void sd_read_block_characteristics(struct scsi_disk *sdkp)
+{
+	char *buffer;
+	u16 rot;
+
+	/* Block Device Characteristics VPD */
+	buffer = scsi_get_vpd_page(sdkp->device, 0xb1);
+
+	if (buffer == NULL)
+		return;
+
+	rot = get_unaligned_be16(&buffer[4]);
+
+	if (rot == 1)
+		queue_flag_set_unlocked(QUEUE_FLAG_NONROT, sdkp->disk->queue);
+
+	kfree(buffer);
+}
+
+/**
  *	sd_revalidate_disk - called the first time a new disk is seen,
  *	performs disk spin up, read_capacity, etc.
  *	@disk: struct gendisk we care about
@@ -1831,6 +1854,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	 */
 	if (sdkp->media_present) {
 		sd_read_capacity(sdkp, buffer);
+		sd_read_block_characteristics(sdkp);
 		sd_read_write_protect_flag(sdkp, buffer);
 		sd_read_cache_type(sdkp, buffer);
 		sd_read_app_tag_own(sdkp, buffer);
@@ -1952,6 +1976,8 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	dev_set_drvdata(dev, sdkp);
 	add_disk(gd);
 	sd_dif_config_host(sdkp);
+
+	sd_revalidate_disk(gd);
 
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
 		  sdp->removable ? "removable " : "");
