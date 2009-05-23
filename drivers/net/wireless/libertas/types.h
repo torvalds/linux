@@ -8,9 +8,14 @@
 #include <asm/byteorder.h>
 #include <linux/wireless.h>
 
-struct ieee_ie_cf_param_set {
-	u8 elementid;
+struct ieee_ie_header {
+	u8 id;
 	u8 len;
+} __attribute__ ((packed));
+
+struct ieee_ie_cf_param_set {
+	struct ieee_ie_header header;
+
 	u8 cfpcnt;
 	u8 cfpperiod;
 	__le16 cfpmaxduration;
@@ -19,8 +24,8 @@ struct ieee_ie_cf_param_set {
 
 
 struct ieee_ie_ibss_param_set {
-	u8 elementid;
-	u8 len;
+	struct ieee_ie_header header;
+
 	__le16 atimwindow;
 } __attribute__ ((packed));
 
@@ -30,8 +35,8 @@ union ieee_ss_param_set {
 } __attribute__ ((packed));
 
 struct ieee_ie_fh_param_set {
-	u8 elementid;
-	u8 len;
+	struct ieee_ie_header header;
+
 	__le16 dwelltime;
 	u8 hopset;
 	u8 hoppattern;
@@ -39,8 +44,8 @@ struct ieee_ie_fh_param_set {
 } __attribute__ ((packed));
 
 struct ieee_ie_ds_param_set {
-	u8 elementid;
-	u8 len;
+	struct ieee_ie_header header;
+
 	u8 channel;
 } __attribute__ ((packed));
 
@@ -98,28 +103,28 @@ struct ieee_assoc_response {
 #define TLV_TYPE_OLD_MESH_ID        (PROPRIETARY_TLV_BASE_ID + 291)
 
 /** TLV related data structures*/
-struct mrvlietypesheader {
+struct mrvl_ie_header {
 	__le16 type;
 	__le16 len;
 } __attribute__ ((packed));
 
-struct mrvlietypes_data {
-	struct mrvlietypesheader header;
+struct mrvl_ie_data {
+	struct mrvl_ie_header header;
 	u8 Data[1];
 } __attribute__ ((packed));
 
-struct mrvlietypes_ratesparamset {
-	struct mrvlietypesheader header;
+struct mrvl_ie_rates_param_set {
+	struct mrvl_ie_header header;
 	u8 rates[1];
 } __attribute__ ((packed));
 
-struct mrvlietypes_ssidparamset {
-	struct mrvlietypesheader header;
+struct mrvl_ie_ssid_param_set {
+	struct mrvl_ie_header header;
 	u8 ssid[1];
 } __attribute__ ((packed));
 
-struct mrvlietypes_wildcardssidparamset {
-	struct mrvlietypesheader header;
+struct mrvl_ie_wildcard_ssid_param_set {
+	struct mrvl_ie_header header;
 	u8 MaxSsidlength;
 	u8 ssid[1];
 } __attribute__ ((packed));
@@ -144,66 +149,66 @@ struct chanscanparamset {
 	__le16 maxscantime;
 } __attribute__ ((packed));
 
-struct mrvlietypes_chanlistparamset {
-	struct mrvlietypesheader header;
+struct mrvl_ie_chanlist_param_set {
+	struct mrvl_ie_header header;
 	struct chanscanparamset chanscanparam[1];
 } __attribute__ ((packed));
 
-struct mrvlietypes_cfparamset {
-	struct mrvlietypesheader header;
+struct mrvl_ie_cf_param_set {
+	struct mrvl_ie_header header;
 	u8 cfpcnt;
 	u8 cfpperiod;
 	__le16 cfpmaxduration;
 	__le16 cfpdurationremaining;
 } __attribute__ ((packed));
 
-struct mrvlietypes_dsparamset {
-	struct mrvlietypesheader header;
+struct mrvl_ie_ds_param_set {
+	struct mrvl_ie_header header;
 	u8 channel;
 } __attribute__ ((packed));
 
-struct mrvlietypes_rsnparamset {
-	struct mrvlietypesheader header;
+struct mrvl_ie_rsn_param_set {
+	struct mrvl_ie_header header;
 	u8 rsnie[1];
 } __attribute__ ((packed));
 
-struct mrvlietypes_tsftimestamp {
-	struct mrvlietypesheader header;
+struct mrvl_ie_tsf_timestamp {
+	struct mrvl_ie_header header;
 	__le64 tsftable[1];
 } __attribute__ ((packed));
 
 /**  Local Power capability */
-struct mrvlietypes_powercapability {
-	struct mrvlietypesheader header;
+struct mrvl_ie_power_capability {
+	struct mrvl_ie_header header;
 	s8 minpower;
 	s8 maxpower;
 } __attribute__ ((packed));
 
 /* used in CMD_802_11_SUBSCRIBE_EVENT for SNR, RSSI and Failure */
-struct mrvlietypes_thresholds {
-	struct mrvlietypesheader header;
+struct mrvl_ie_thresholds {
+	struct mrvl_ie_header header;
 	u8 value;
 	u8 freq;
 } __attribute__ ((packed));
 
-struct mrvlietypes_beaconsmissed {
-	struct mrvlietypesheader header;
+struct mrvl_ie_beacons_missed {
+	struct mrvl_ie_header header;
 	u8 beaconmissed;
 	u8 reserved;
 } __attribute__ ((packed));
 
-struct mrvlietypes_numprobes {
-	struct mrvlietypesheader header;
+struct mrvl_ie_num_probes {
+	struct mrvl_ie_header header;
 	__le16 numprobes;
 } __attribute__ ((packed));
 
-struct mrvlietypes_bcastprobe {
-	struct mrvlietypesheader header;
+struct mrvl_ie_bcast_probe {
+	struct mrvl_ie_header header;
 	__le16 bcastprobe;
 } __attribute__ ((packed));
 
-struct mrvlietypes_numssidprobe {
-	struct mrvlietypesheader header;
+struct mrvl_ie_num_ssid_probe {
+	struct mrvl_ie_header header;
 	__le16 numssidprobe;
 } __attribute__ ((packed));
 
@@ -212,8 +217,8 @@ struct led_pin {
 	u8 pin;
 } __attribute__ ((packed));
 
-struct mrvlietypes_ledgpio {
-	struct mrvlietypesheader header;
+struct mrvl_ie_ledgpio {
+	struct mrvl_ie_header header;
 	struct led_pin ledpin[1];
 } __attribute__ ((packed));
 
@@ -225,8 +230,8 @@ struct led_bhv {
 } __attribute__ ((packed));
 
 
-struct mrvlietypes_ledbhv {
-	struct mrvlietypesheader header;
+struct mrvl_ie_ledbhv {
+	struct mrvl_ie_header header;
 	struct led_bhv ledbhv[1];
 } __attribute__ ((packed));
 

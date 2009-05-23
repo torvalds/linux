@@ -353,7 +353,7 @@ struct bss_descriptor {
 	union ieee_phy_param_set phy;
 	union ieee_ss_param_set ss;
 
-	struct ieeetypes_countryinfofullset countryinfo;
+	struct ieee_ie_country_info_full_set countryinfo;
 
 	u8 wpa_ie[MAX_WPA_IE_LEN];
 	size_t wpa_ie_len;

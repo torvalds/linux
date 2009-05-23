@@ -1470,8 +1470,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		break;
 	case CMD_802_11_LED_GPIO_CTRL:
 		{
-			struct mrvlietypes_ledgpio *gpio =
-			    (struct mrvlietypes_ledgpio*)
+			struct mrvl_ie_ledgpio *gpio =
+			    (struct mrvl_ie_ledgpio*)
 			    cmdptr->params.ledgpio.data;
 
 			memmove(&cmdptr->params.ledgpio,

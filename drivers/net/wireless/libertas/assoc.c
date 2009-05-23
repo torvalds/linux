@@ -342,13 +342,13 @@ static int lbs_adhoc_start(struct lbs_private *priv,
 	WARN_ON(!assoc_req->channel);
 
 	/* set Physical parameter set */
-	cmd.ds.elementid = WLAN_EID_DS_PARAMS;
-	cmd.ds.len = 1;
+	cmd.ds.header.id = WLAN_EID_DS_PARAMS;
+	cmd.ds.header.len = 1;
 	cmd.ds.channel = assoc_req->channel;
 
 	/* set IBSS parameter set */
-	cmd.ibss.elementid = WLAN_EID_IBSS_PARAMS;
-	cmd.ibss.len = 2;
+	cmd.ibss.header.id = WLAN_EID_IBSS_PARAMS;
+	cmd.ibss.header.len = 2;
 	cmd.ibss.atimwindow = cpu_to_le16(0);
 
 	/* set capability info */
@@ -1558,11 +1558,11 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	struct bss_descriptor *bss = &assoc_req->bss;
 	u8 *pos;
 	u16 tmpcap, tmplen;
-	struct mrvlietypes_ssidparamset *ssid;
-	struct mrvlietypes_dsparamset *ds;
-	struct mrvlietypes_cfparamset *cf;
-	struct mrvlietypes_ratesparamset *rates;
-	struct mrvlietypes_rsnparamset *rsn;
+	struct mrvl_ie_ssid_param_set *ssid;
+	struct mrvl_ie_ds_param_set *ds;
+	struct mrvl_ie_cf_param_set *cf;
+	struct mrvl_ie_rates_param_set *rates;
+	struct mrvl_ie_rsn_param_set *rsn;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
@@ -1586,27 +1586,27 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	pos += sizeof(passo->bcnperiod);
 	pos += sizeof(passo->dtimperiod);
 
-	ssid = (struct mrvlietypes_ssidparamset *) pos;
+	ssid = (struct mrvl_ie_ssid_param_set *) pos;
 	ssid->header.type = cpu_to_le16(TLV_TYPE_SSID);
 	tmplen = bss->ssid_len;
 	ssid->header.len = cpu_to_le16(tmplen);
 	memcpy(ssid->ssid, bss->ssid, tmplen);
 	pos += sizeof(ssid->header) + tmplen;
 
-	ds = (struct mrvlietypes_dsparamset *) pos;
+	ds = (struct mrvl_ie_ds_param_set *) pos;
 	ds->header.type = cpu_to_le16(TLV_TYPE_PHY_DS);
 	ds->header.len = cpu_to_le16(1);
 	ds->channel = bss->phy.ds.channel;
 	pos += sizeof(ds->header) + 1;
 
-	cf = (struct mrvlietypes_cfparamset *) pos;
+	cf = (struct mrvl_ie_cf_param_set *) pos;
 	cf->header.type = cpu_to_le16(TLV_TYPE_CF);
 	tmplen = sizeof(*cf) - sizeof (cf->header);
 	cf->header.len = cpu_to_le16(tmplen);
 	/* IE payload should be zeroed, firmware fills it in for us */
 	pos += sizeof(*cf);
 
-	rates = (struct mrvlietypes_ratesparamset *) pos;
+	rates = (struct mrvl_ie_rates_param_set *) pos;
 	rates->header.type = cpu_to_le16(TLV_TYPE_RATES);
 	memcpy(&rates->rates, &bss->rates, MAX_RATES);
 	tmplen = MAX_RATES;
@@ -1628,7 +1628,7 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	lbs_set_basic_rate_flags(rates->rates, tmplen);
 
 	if (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled) {
-		rsn = (struct mrvlietypes_rsnparamset *) pos;
+		rsn = (struct mrvl_ie_rsn_param_set *) pos;
 		/* WPA_IE or WPA2_IE */
 		rsn->header.type = cpu_to_le16((u16) assoc_req->wpa_ie[0]);
 		tmplen = (u16) assoc_req->wpa_ie[1];
