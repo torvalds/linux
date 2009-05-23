@@ -20,7 +20,7 @@ static void do_hw_reset(void);
 
 static int reset_gpio = -1;
 
-int init_gpio_reset(int gpio, int output)
+int init_gpio_reset(int gpio, int output, int level)
 {
 	int rc;
 
@@ -31,7 +31,7 @@ int init_gpio_reset(int gpio, int output)
 	}
 
 	if (output)
-		rc = gpio_direction_output(gpio, 0);
+		rc = gpio_direction_output(gpio, level);
 	else
 		rc = gpio_direction_input(gpio);
 	if (rc) {

@@ -64,6 +64,7 @@ static unsigned long palmt5_pin_config[] __initdata = {
 	GPIO29_AC97_SDATA_IN_0,
 	GPIO30_AC97_SDATA_OUT,
 	GPIO31_AC97_SYNC,
+	GPIO89_AC97_SYSCLK,
 	GPIO95_AC97_nRESET,
 
 	/* IrDA */
