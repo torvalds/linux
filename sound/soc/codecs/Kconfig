@@ -19,6 +19,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_SSM2602 if I2C
+	select SND_SOC_STAC9766 if SND_SOC_AC97_BUS
 	select SND_SOC_TLV320AIC23 if I2C
 	select SND_SOC_TLV320AIC26 if SPI_MASTER
 	select SND_SOC_TLV320AIC3X if I2C
@@ -91,6 +92,9 @@ config SND_SOC_PCM3008
        tristate
 
 config SND_SOC_SSM2602
+	tristate
+
+config SND_SOC_STAC9766
 	tristate
 
 config SND_SOC_TLV320AIC23
