@@ -3654,6 +3654,7 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) sdev->host->hostdata;
 	struct ipr_resource_entry *res;
+	struct ata_port *ap = NULL;
 	unsigned long lock_flags = 0;
 
 	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
@@ -3672,12 +3673,16 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		}
 		if (ipr_is_vset_device(res) || ipr_is_scsi_disk(res))
 			sdev->allow_restart = 1;
-		if (ipr_is_gata(res) && res->sata_port) {
+		if (ipr_is_gata(res) && res->sata_port)
+			ap = res->sata_port->ap;
+		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+
+		if (ap) {
 			scsi_adjust_queue_depth(sdev, 0, IPR_MAX_CMD_PER_ATA_LUN);
-			ata_sas_slave_configure(sdev, res->sata_port->ap);
-		} else {
+			ata_sas_slave_configure(sdev, ap);
+		} else
 			scsi_adjust_queue_depth(sdev, 0, sdev->host->cmd_per_lun);
-		}
+		return 0;
 	}
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 	return 0;

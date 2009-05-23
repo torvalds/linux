@@ -117,13 +117,15 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 		   size_t size)
 {
 	struct page *ecryptfs_page;
+	struct ecryptfs_crypt_stat *crypt_stat;
+	struct inode *ecryptfs_inode = ecryptfs_file->f_dentry->d_inode;
 	char *ecryptfs_page_virt;
-	loff_t ecryptfs_file_size =
-		i_size_read(ecryptfs_file->f_dentry->d_inode);
+	loff_t ecryptfs_file_size = i_size_read(ecryptfs_inode);
 	loff_t data_offset = 0;
 	loff_t pos;
 	int rc = 0;
 
+	crypt_stat = &ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	/*
 	 * if we are writing beyond current size, then start pos
 	 * at the current size - we'll fill in zeros from there.
@@ -184,7 +186,13 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 		flush_dcache_page(ecryptfs_page);
 		SetPageUptodate(ecryptfs_page);
 		unlock_page(ecryptfs_page);
-		rc = ecryptfs_encrypt_page(ecryptfs_page);
+		if (crypt_stat->flags & ECRYPTFS_ENCRYPTED)
+			rc = ecryptfs_encrypt_page(ecryptfs_page);
+		else
+			rc = ecryptfs_write_lower_page_segment(ecryptfs_inode,
+						ecryptfs_page,
+						start_offset_in_page,
+						data_offset);
 		page_cache_release(ecryptfs_page);
 		if (rc) {
 			printk(KERN_ERR "%s: Error encrypting "
@@ -194,14 +202,16 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 		pos += num_bytes;
 	}
 	if ((offset + size) > ecryptfs_file_size) {
-		i_size_write(ecryptfs_file->f_dentry->d_inode, (offset + size));
-		rc = ecryptfs_write_inode_size_to_metadata(
-			ecryptfs_file->f_dentry->d_inode);
-		if (rc) {
-			printk(KERN_ERR	"Problem with "
-			       "ecryptfs_write_inode_size_to_metadata; "
-			       "rc = [%d]\n", rc);
-			goto out;
+		i_size_write(ecryptfs_inode, (offset + size));
+		if (crypt_stat->flags & ECRYPTFS_ENCRYPTED) {
+			rc = ecryptfs_write_inode_size_to_metadata(
+								ecryptfs_inode);
+			if (rc) {
+				printk(KERN_ERR	"Problem with "
+				       "ecryptfs_write_inode_size_to_metadata; "
+				       "rc = [%d]\n", rc);
+				goto out;
+			}
 		}
 	}
 out:

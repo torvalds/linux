@@ -29,7 +29,7 @@
 
 #define RTC_NAME		"sgi_rtc"
 
-static cycle_t uv_read_rtc(void);
+static cycle_t uv_read_rtc(struct clocksource *cs);
 static int uv_rtc_next_event(unsigned long, struct clock_event_device *);
 static void uv_rtc_timer_setup(enum clock_event_mode,
 				struct clock_event_device *);
@@ -123,7 +123,7 @@ static int uv_setup_intr(int cpu, u64 expires)
 	/* Initialize comparator value */
 	uv_write_global_mmr64(pnode, UVH_INT_CMPB, expires);
 
-	return (expires < uv_read_rtc() && !uv_intr_pending(pnode));
+	return (expires < uv_read_rtc(NULL) && !uv_intr_pending(pnode));
 }
 
 /*
@@ -256,7 +256,7 @@ static int uv_rtc_unset_timer(int cpu)
 
 	spin_lock_irqsave(&head->lock, flags);
 
-	if (head->next_cpu == bcpu && uv_read_rtc() >= *t)
+	if (head->next_cpu == bcpu && uv_read_rtc(NULL) >= *t)
 		rc = 1;
 
 	*t = ULLONG_MAX;
@@ -278,7 +278,7 @@ static int uv_rtc_unset_timer(int cpu)
 /*
  * Read the RTC.
  */
-static cycle_t uv_read_rtc(void)
+static cycle_t uv_read_rtc(struct clocksource *cs)
 {
 	return (cycle_t)uv_read_local_mmr(UVH_RTC);
 }
@@ -291,7 +291,7 @@ static int uv_rtc_next_event(unsigned long delta,
 {
 	int ced_cpu = cpumask_first(ced->cpumask);
 
-	return uv_rtc_set_timer(ced_cpu, delta + uv_read_rtc());
+	return uv_rtc_set_timer(ced_cpu, delta + uv_read_rtc(NULL));
 }
 
 /*

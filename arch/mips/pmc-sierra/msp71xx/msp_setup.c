@@ -21,7 +21,6 @@
 
 #if defined(CONFIG_PMC_MSP7120_GW)
 #include <msp_regops.h>
-#include <msp_gpio.h>
 #define MSP_BOARD_RESET_GPIO	9
 #endif
 
@@ -88,11 +87,8 @@ void msp7120_reset(void)
 	 * as GPIO char driver may not be enabled and it would look up
 	 * data inRAM!
 	 */
-	set_value_reg32(GPIO_CFG3_REG,
-			basic_mode_mask(MSP_BOARD_RESET_GPIO),
-			basic_mode(MSP_GPIO_OUTPUT, MSP_BOARD_RESET_GPIO));
-	set_reg32(GPIO_DATA3_REG,
-			basic_data_mask(MSP_BOARD_RESET_GPIO));
+	set_value_reg32(GPIO_CFG3_REG, 0xf000, 0x8000);
+	set_reg32(GPIO_DATA3_REG, 8);
 
 	/*
 	 * In case GPIO9 doesn't reset the board (jumper configurable!)

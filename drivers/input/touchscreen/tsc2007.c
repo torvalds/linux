@@ -200,8 +200,9 @@ static int tsc2007_read_values(struct tsc2007 *tsc)
 static enum hrtimer_restart tsc2007_timer(struct hrtimer *handle)
 {
 	struct tsc2007 *ts = container_of(handle, struct tsc2007, timer);
+	unsigned long flags;
 
-	spin_lock_irq(&ts->lock);
+	spin_lock_irqsave(&ts->lock, flags);
 
 	if (unlikely(!ts->get_pendown_state() && ts->pendown)) {
 		struct input_dev *input = ts->input;
@@ -222,7 +223,7 @@ static enum hrtimer_restart tsc2007_timer(struct hrtimer *handle)
 		tsc2007_send_event(ts);
 	}
 
-	spin_unlock_irq(&ts->lock);
+	spin_unlock_irqrestore(&ts->lock, flags);
 
 	return HRTIMER_NORESTART;
 }
@@ -235,7 +236,7 @@ static irqreturn_t tsc2007_irq(int irq, void *handle)
 	spin_lock_irqsave(&ts->lock, flags);
 
 	if (likely(ts->get_pendown_state())) {
-		disable_irq(ts->irq);
+		disable_irq_nosync(ts->irq);
 		hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_DELAY),
 					HRTIMER_MODE_REL);
 	}

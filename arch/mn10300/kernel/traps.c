@@ -37,7 +37,7 @@
 #include <asm/cacheflush.h>
 #include <asm/cpu-regs.h>
 #include <asm/busctl-regs.h>
-#include <asm/unit/leds.h>
+#include <unit/leds.h>
 #include <asm/fpu.h>
 #include <asm/gdb-stub.h>
 #include <asm/sections.h>

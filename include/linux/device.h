@@ -384,13 +384,8 @@ struct device {
 	struct device_driver *driver;	/* which driver has allocated this
 					   device */
 	void		*driver_data;	/* data private to the driver */
-
-	void		*platform_data;	/* We will remove platform_data
-					   field if all platform devices
-					   pass its platform specific data
-					   from platform_device->platform_data,
-					   other kind of devices should not
-					   use platform_data. */
+	void		*platform_data;	/* Platform specific data, device
+					   core doesn't touch it */
 	struct dev_pm_info	power;
 
 #ifdef CONFIG_NUMA
@@ -551,6 +546,7 @@ extern int (*platform_notify_remove)(struct device *dev);
 extern struct device *get_device(struct device *dev);
 extern void put_device(struct device *dev);
 
+extern void wait_for_device_probe(void);
 
 /* drivers/base/power/shutdown.c */
 extern void device_shutdown(void);

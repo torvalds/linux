@@ -413,7 +413,9 @@ out_unlock:
 	gfs2_glock_dq(&gh);
 out:
 	gfs2_holder_uninit(&gh);
-	if (ret)
+	if (ret == -ENOMEM)
+		ret = VM_FAULT_OOM;
+	else if (ret)
 		ret = VM_FAULT_SIGBUS;
 	return ret;
 }
@@ -705,7 +707,7 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	}
 }
 
-const struct file_operations *gfs2_file_fops = &(const struct file_operations){
+const struct file_operations gfs2_file_fops = {
 	.llseek		= gfs2_llseek,
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
@@ -723,7 +725,7 @@ const struct file_operations *gfs2_file_fops = &(const struct file_operations){
 	.setlease	= gfs2_setlease,
 };
 
-const struct file_operations *gfs2_dir_fops = &(const struct file_operations){
+const struct file_operations gfs2_dir_fops = {
 	.readdir	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
@@ -735,7 +737,7 @@ const struct file_operations *gfs2_dir_fops = &(const struct file_operations){
 
 #endif /* CONFIG_GFS2_FS_LOCKING_DLM */
 
-const struct file_operations *gfs2_file_fops_nolock = &(const struct file_operations){
+const struct file_operations gfs2_file_fops_nolock = {
 	.llseek		= gfs2_llseek,
 	.read		= do_sync_read,
 	.aio_read	= generic_file_aio_read,
@@ -751,7 +753,7 @@ const struct file_operations *gfs2_file_fops_nolock = &(const struct file_operat
 	.setlease	= generic_setlease,
 };
 
-const struct file_operations *gfs2_dir_fops_nolock = &(const struct file_operations){
+const struct file_operations gfs2_dir_fops_nolock = {
 	.readdir	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,

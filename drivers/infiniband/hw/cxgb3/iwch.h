@@ -117,6 +117,11 @@ static inline struct iwch_dev *to_iwch_dev(struct ib_device *ibdev)
 	return container_of(ibdev, struct iwch_dev, ibdev);
 }
 
+static inline struct iwch_dev *rdev_to_iwch_dev(struct cxio_rdev *rdev)
+{
+	return container_of(rdev, struct iwch_dev, rdev);
+}
+
 static inline int t3b_device(const struct iwch_dev *rhp)
 {
 	return rhp->rdev.t3cdev_p->type == T3B;

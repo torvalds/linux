@@ -893,8 +893,7 @@ static int mwl8k_rxq_init(struct ieee80211_hw *hw, int index)
 		rx_desc->next_rx_desc_phys_addr =
 			cpu_to_le32(rxq->rx_desc_dma
 						+ nexti * sizeof(*rx_desc));
-		rx_desc->rx_ctrl =
-			cpu_to_le32(MWL8K_RX_CTRL_OWNED_BY_HOST);
+		rx_desc->rx_ctrl = MWL8K_RX_CTRL_OWNED_BY_HOST;
 	}
 
 	return 0;
@@ -3720,12 +3719,12 @@ err_free_reg:
 	return rc;
 }
 
-static void __devexit mwl8k_remove(struct pci_dev *pdev)
+static void __devexit mwl8k_shutdown(struct pci_dev *pdev)
 {
 	printk(KERN_ERR "===>%s(%u)\n", __func__, __LINE__);
 }
 
-static void __devexit mwl8k_shutdown(struct pci_dev *pdev)
+static void __devexit mwl8k_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct mwl8k_priv *priv;

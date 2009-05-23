@@ -16,7 +16,7 @@
 #include <asm/processor.h>
 #include <asm/intctl-regs.h>
 #include <asm/rtc-regs.h>
-#include <asm/unit/leds.h>
+#include <unit/leds.h>
 
 #if 0
 static const u8 asb2303_led_hex_tbl[16] = {

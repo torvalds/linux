@@ -1261,25 +1261,32 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		int i;
 		unsigned char mac_addr[ETH_ALEN];
 
-		if (num_vfs)
+		if (num_vfs) {
 			adapter->vf_data = kcalloc(num_vfs,
 						sizeof(struct vf_data_storage),
 						GFP_KERNEL);
-		if (!adapter->vf_data) {
-			dev_err(&pdev->dev, "Could not allocate VF private "
-				"data - IOV enable failed\n");
-		} else {
-			err = pci_enable_sriov(pdev, num_vfs);
-			if (!err) {
-				adapter->vfs_allocated_count = num_vfs;
-				dev_info(&pdev->dev, "%d vfs allocated\n", num_vfs);
-				for (i = 0; i < adapter->vfs_allocated_count; i++) {
-					random_ether_addr(mac_addr);
-					igb_set_vf_mac(adapter, i, mac_addr);
-				}
+			if (!adapter->vf_data) {
+				dev_err(&pdev->dev,
+				        "Could not allocate VF private data - "
+					"IOV enable failed\n");
 			} else {
-				kfree(adapter->vf_data);
-				adapter->vf_data = NULL;
+				err = pci_enable_sriov(pdev, num_vfs);
+				if (!err) {
+					adapter->vfs_allocated_count = num_vfs;
+					dev_info(&pdev->dev,
+					         "%d vfs allocated\n",
+					         num_vfs);
+					for (i = 0;
+					     i < adapter->vfs_allocated_count;
+					     i++) {
+						random_ether_addr(mac_addr);
+						igb_set_vf_mac(adapter, i,
+						               mac_addr);
+					}
+				} else {
+					kfree(adapter->vf_data);
+					adapter->vf_data = NULL;
+				}
 			}
 		}
 	}
@@ -1999,7 +2006,7 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
 	u32 srrctl = 0;
-	int i, j;
+	int i;
 
 	rctl = rd32(E1000_RCTL);
 
@@ -2064,8 +2071,6 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 	if (adapter->vfs_allocated_count) {
 		u32 vmolr;
 
-		j = adapter->rx_ring[0].reg_idx;
-
 		/* set all queue drop enable bits */
 		wr32(E1000_QDE, ALL_QUEUES);
 		srrctl |= E1000_SRRCTL_DROP_EN;
@@ -2073,16 +2078,16 @@ static void igb_setup_rctl(struct igb_adapter *adapter)
 		/* disable queue 0 to prevent tail write w/o re-config */
 		wr32(E1000_RXDCTL(0), 0);
 
-		vmolr = rd32(E1000_VMOLR(j));
+		vmolr = rd32(E1000_VMOLR(adapter->vfs_allocated_count));
 		if (rctl & E1000_RCTL_LPE)
 			vmolr |= E1000_VMOLR_LPE;
-		if (adapter->num_rx_queues > 0)
+		if (adapter->num_rx_queues > 1)
 			vmolr |= E1000_VMOLR_RSSE;
-		wr32(E1000_VMOLR(j), vmolr);
+		wr32(E1000_VMOLR(adapter->vfs_allocated_count), vmolr);
 	}
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		j = adapter->rx_ring[i].reg_idx;
+		int j = adapter->rx_ring[i].reg_idx;
 		wr32(E1000_SRRCTL(j), srrctl);
 	}
 

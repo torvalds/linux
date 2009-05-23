@@ -156,8 +156,19 @@ int __ieee80211_resume(struct ieee80211_hw *hw)
 		case NL80211_IFTYPE_ADHOC:
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_MESH_POINT:
-			WARN_ON(ieee80211_if_config(sdata, changed));
-			ieee80211_bss_info_change_notify(sdata, ~0);
+			/*
+			 * Driver's config_interface can fail if rfkill is
+			 * enabled. Accommodate this return code.
+			 * FIXME: When mac80211 has knowledge of rfkill
+			 * state the code below can change back to:
+			 *   WARN(ieee80211_if_config(sdata, changed));
+			 *   ieee80211_bss_info_change_notify(sdata, ~0);
+			 */
+			if (ieee80211_if_config(sdata, changed))
+				printk(KERN_DEBUG "%s: failed to configure interface during resume\n",
+				       sdata->dev->name);
+			else
+				ieee80211_bss_info_change_notify(sdata, ~0);
 			break;
 		case NL80211_IFTYPE_WDS:
 			break;

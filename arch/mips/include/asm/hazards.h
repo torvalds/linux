@@ -138,8 +138,9 @@ do {									\
 		__instruction_hazard();					\
 } while (0)
 
-#elif defined(CONFIG_CPU_R10000) || defined(CONFIG_CPU_CAVIUM_OCTEON) || \
-      defined(CONFIG_CPU_R5500) || defined(CONFIG_MACH_ALCHEMY)
+#elif defined(CONFIG_MACH_ALCHEMY) || defined(CONFIG_CPU_CAVIUM_OCTEON) || \
+      defined(CONFIG_CPU_LOONGSON2) || defined(CONFIG_CPU_R10000) || \
+      defined(CONFIG_CPU_R5500)
 
 /*
  * R10000 rocks - all hazards handled in hardware, so this becomes a nobrainer.

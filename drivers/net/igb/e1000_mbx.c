@@ -188,7 +188,7 @@ out:
  *  returns SUCCESS if it successfully received a message notification and
  *  copied it into the receive buffer.
  **/
-s32 igb_read_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+static s32 igb_read_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	s32 ret_val = -E1000_ERR_MBX;
@@ -214,7 +214,7 @@ out:
  *  returns SUCCESS if it successfully copied message into the buffer and
  *  received an ack to that message within delay * timeout period
  **/
-s32 igb_write_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
+static s32 igb_write_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 {
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	s32 ret_val = 0;
@@ -230,19 +230,6 @@ s32 igb_write_posted_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id)
 		ret_val = igb_poll_for_ack(hw, mbx_id);
 out:
 	return ret_val;
-}
-
-/**
- *  e1000_init_mbx_ops_generic - Initialize NVM function pointers
- *  @hw: pointer to the HW structure
- *
- *  Setups up the function pointers to no-op functions
- **/
-void e1000_init_mbx_ops_generic(struct e1000_hw *hw)
-{
-	struct e1000_mbx_info *mbx = &hw->mbx;
-	mbx->ops.read_posted = igb_read_posted_mbx;
-	mbx->ops.write_posted = igb_write_posted_mbx;
 }
 
 static s32 igb_check_for_bit_pf(struct e1000_hw *hw, u32 mask)

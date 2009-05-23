@@ -102,6 +102,7 @@ int afs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+#ifdef CONFIG_AFS_FSCACHE
 /*
  * deal with notification that a page was read from the cache
  */
@@ -117,6 +118,7 @@ static void afs_file_readpage_read_complete(struct page *page,
 		SetPageUptodate(page);
 	unlock_page(page);
 }
+#endif
 
 /*
  * AFS read page from file, directory or symlink

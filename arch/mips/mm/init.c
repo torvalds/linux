@@ -104,14 +104,6 @@ unsigned long setup_zero_pages(void)
 	return 1UL << order;
 }
 
-/*
- * These are almost like kmap_atomic / kunmap_atmic except they take an
- * additional address argument as the hint.
- */
-
-#define kmap_get_fixmap_pte(vaddr)					\
-	pte_offset_kernel(pmd_offset(pud_offset(pgd_offset_k(vaddr), (vaddr)), (vaddr)), (vaddr))
-
 #ifdef CONFIG_MIPS_MT_SMTC
 static pte_t *kmap_coherent_pte;
 static void __init kmap_coherent_init(void)
@@ -263,24 +255,6 @@ void copy_from_user_page(struct vm_area_struct *vma,
 			SetPageDcacheDirty(page);
 	}
 }
-
-#ifdef CONFIG_HIGHMEM
-unsigned long highstart_pfn, highend_pfn;
-
-pte_t *kmap_pte;
-pgprot_t kmap_prot;
-
-static void __init kmap_init(void)
-{
-	unsigned long kmap_vstart;
-
-	/* cache the first kmap pte */
-	kmap_vstart = __fix_to_virt(FIX_KMAP_BEGIN);
-	kmap_pte = kmap_get_fixmap_pte(kmap_vstart);
-
-	kmap_prot = PAGE_KERNEL;
-}
-#endif /* CONFIG_HIGHMEM */
 
 void __init fixrange_init(unsigned long start, unsigned long end,
 	pgd_t *pgd_base)

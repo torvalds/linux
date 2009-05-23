@@ -41,7 +41,7 @@ static const char serial_revdate[] = "2007-11-06";
 #include <asm/irq.h>
 #include <asm/bitops.h>
 #include <asm/serial-regs.h>
-#include <asm/unit/timex.h>
+#include <unit/timex.h>
 #include "mn10300-serial.h"
 
 static inline __attribute__((format(printf, 1, 2)))

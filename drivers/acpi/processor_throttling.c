@@ -45,6 +45,14 @@
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_throttling");
 
+/* ignore_tpc:
+ *  0 -> acpi processor driver doesn't ignore _TPC values
+ *  1 -> acpi processor driver ignores _TPC values
+ */
+static int ignore_tpc;
+module_param(ignore_tpc, int, 0644);
+MODULE_PARM_DESC(ignore_tpc, "Disable broken BIOS _TPC throttling support");
+
 struct throttling_tstate {
 	unsigned int cpu;		/* cpu nr */
 	int target_state;		/* target T-state */
@@ -283,6 +291,10 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 
 	if (!pr)
 		return -EINVAL;
+
+	if (ignore_tpc)
+		goto end;
+
 	status = acpi_evaluate_integer(pr->handle, "_TPC", NULL, &tpc);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND) {
@@ -290,6 +302,8 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 		}
 		return -ENODEV;
 	}
+
+end:
 	pr->throttling_platform_limit = (int)tpc;
 	return 0;
 }
@@ -301,6 +315,9 @@ int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 	int current_state;
 	struct acpi_processor_limit *limit;
 	int target_state;
+
+	if (ignore_tpc)
+		return 0;
 
 	result = acpi_processor_get_platform_limit(pr);
 	if (result) {
@@ -821,6 +838,14 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 	ret = acpi_read_throttling_status(pr, &value);
 	if (ret >= 0) {
 		state = acpi_get_throttling_state(pr, value);
+		if (state == -1) {
+			ACPI_WARNING((AE_INFO,
+				"Invalid throttling state, reset\n"));
+			state = 0;
+			ret = acpi_processor_set_throttling(pr, state);
+			if (ret)
+				return ret;
+		}
 		pr->throttling.state = state;
 	}
 

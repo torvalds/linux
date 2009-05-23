@@ -44,7 +44,7 @@ static s32 e1000_set_vfta_vf(struct e1000_hw *, u16, bool);
  *  e1000_init_mac_params_vf - Inits MAC params
  *  @hw: pointer to the HW structure
  **/
-s32 e1000_init_mac_params_vf(struct e1000_hw *hw)
+static s32 e1000_init_mac_params_vf(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
 

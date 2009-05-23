@@ -259,7 +259,6 @@ struct e1000_hw {
 /* These functions must be implemented by drivers */
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 void e1000_init_function_pointers_vf(struct e1000_hw *hw);
-s32  e1000_init_mac_params_vf(struct e1000_hw *hw);
 
 
 #endif /* _E1000_VF_H_ */

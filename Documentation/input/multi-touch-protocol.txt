@@ -1,0 +1,140 @@
+Multi-touch (MT) Protocol
+-------------------------
+	Copyright (C) 2009	Henrik Rydberg <rydberg@euromail.se>
+
+
+Introduction
+------------
+
+In order to utilize the full power of the new multi-touch devices, a way to
+report detailed finger data to user space is needed. This document
+describes the multi-touch (MT) protocol which allows kernel drivers to
+report details for an arbitrary number of fingers.
+
+
+Usage
+-----
+
+Anonymous finger details are sent sequentially as separate packets of ABS
+events. Only the ABS_MT events are recognized as part of a finger
+packet. The end of a packet is marked by calling the input_mt_sync()
+function, which generates a SYN_MT_REPORT event. The end of multi-touch
+transfer is marked by calling the usual input_sync() function.
+
+A set of ABS_MT events with the desired properties is defined. The events
+are divided into categories, to allow for partial implementation.  The
+minimum set consists of ABS_MT_TOUCH_MAJOR, ABS_MT_POSITION_X and
+ABS_MT_POSITION_Y, which allows for multiple fingers to be tracked.  If the
+device supports it, the ABS_MT_WIDTH_MAJOR may be used to provide the size
+of the approaching finger. Anisotropy and direction may be specified with
+ABS_MT_TOUCH_MINOR, ABS_MT_WIDTH_MINOR and ABS_MT_ORIENTATION. Devices with
+more granular information may specify general shapes as blobs, i.e., as a
+sequence of rectangular shapes grouped together by an
+ABS_MT_BLOB_ID. Finally, the ABS_MT_TOOL_TYPE may be used to specify
+whether the touching tool is a finger or a pen or something else.
+
+
+Event Semantics
+---------------
+
+The word "contact" is used to describe a tool which is in direct contact
+with the surface. A finger, a pen or a rubber all classify as contacts.
+
+ABS_MT_TOUCH_MAJOR
+
+The length of the major axis of the contact. The length should be given in
+surface units. If the surface has an X times Y resolution, the largest
+possible value of ABS_MT_TOUCH_MAJOR is sqrt(X^2 + Y^2), the diagonal.
+
+ABS_MT_TOUCH_MINOR
+
+The length, in surface units, of the minor axis of the contact. If the
+contact is circular, this event can be omitted.
+
+ABS_MT_WIDTH_MAJOR
+
+The length, in surface units, of the major axis of the approaching
+tool. This should be understood as the size of the tool itself. The
+orientation of the contact and the approaching tool are assumed to be the
+same.
+
+ABS_MT_WIDTH_MINOR
+
+The length, in surface units, of the minor axis of the approaching
+tool. Omit if circular.
+
+The above four values can be used to derive additional information about
+the contact. The ratio ABS_MT_TOUCH_MAJOR / ABS_MT_WIDTH_MAJOR approximates
+the notion of pressure. The fingers of the hand and the palm all have
+different characteristic widths [1].
+
+ABS_MT_ORIENTATION
+
+The orientation of the ellipse. The value should describe half a revolution
+clockwise around the touch center. The scale of the value is arbitrary, but
+zero should be returned for an ellipse aligned along the Y axis of the
+surface. As an example, an index finger placed straight onto the axis could
+return zero orientation, something negative when twisted to the left, and
+something positive when twisted to the right. This value can be omitted if
+the touching object is circular, or if the information is not available in
+the kernel driver.
+
+ABS_MT_POSITION_X
+
+The surface X coordinate of the center of the touching ellipse.
+
+ABS_MT_POSITION_Y
+
+The surface Y coordinate of the center of the touching ellipse.
+
+ABS_MT_TOOL_TYPE
+
+The type of approaching tool. A lot of kernel drivers cannot distinguish
+between different tool types, such as a finger or a pen. In such cases, the
+event should be omitted. The protocol currently supports MT_TOOL_FINGER and
+MT_TOOL_PEN [2].
+
+ABS_MT_BLOB_ID
+
+The BLOB_ID groups several packets together into one arbitrarily shaped
+contact. This is a low-level anonymous grouping, and should not be confused
+with the high-level contactID, explained below. Most kernel drivers will
+not have this capability, and can safely omit the event.
+
+
+Finger Tracking
+---------------
+
+The kernel driver should generate an arbitrary enumeration of the set of
+anonymous contacts currently on the surface. The order in which the packets
+appear in the event stream is not important.
+
+The process of finger tracking, i.e., to assign a unique contactID to each
+initiated contact on the surface, is left to user space; preferably the
+multi-touch X driver [3]. In that driver, the contactID stays the same and
+unique until the contact vanishes (when the finger leaves the surface). The
+problem of assigning a set of anonymous fingers to a set of identified
+fingers is a euclidian bipartite matching problem at each event update, and
+relies on a sufficiently rapid update rate.
+
+Notes
+-----
+
+In order to stay compatible with existing applications, the data
+reported in a finger packet must not be recognized as single-touch
+events. In addition, all finger data must bypass input filtering,
+since subsequent events of the same type refer to different fingers.
+
+The first kernel driver to utilize the MT protocol is the bcm5974 driver,
+where examples can be found.
+
+[1] With the extension ABS_MT_APPROACH_X and ABS_MT_APPROACH_Y, the
+difference between the contact position and the approaching tool position
+could be used to derive tilt.
+[2] The list can of course be extended.
+[3] The multi-touch X driver is currently in the prototyping stage. At the
+time of writing (April 2009), the MT protocol is not yet merged, and the
+prototype implements finger matching, basic mouse support and two-finger
+scrolling. The project aims at improving the quality of current multi-touch
+functionality available in the synaptics X driver, and in addition
+implement more advanced gestures.

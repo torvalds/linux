@@ -258,7 +258,7 @@ static const struct file_operations omap_wdt_fops = {
 	.release = omap_wdt_release,
 };
 
-static int __init omap_wdt_probe(struct platform_device *pdev)
+static int __devinit omap_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res, *mem;
 	struct omap_wdt_dev *wdev;
@@ -367,7 +367,7 @@ static void omap_wdt_shutdown(struct platform_device *pdev)
 		omap_wdt_disable(wdev);
 }
 
-static int omap_wdt_remove(struct platform_device *pdev)
+static int __devexit omap_wdt_remove(struct platform_device *pdev)
 {
 	struct omap_wdt_dev *wdev = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -426,7 +426,7 @@ static int omap_wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver omap_wdt_driver = {
 	.probe		= omap_wdt_probe,
-	.remove		= omap_wdt_remove,
+	.remove		= __devexit_p(omap_wdt_remove),
 	.shutdown	= omap_wdt_shutdown,
 	.suspend	= omap_wdt_suspend,
 	.resume		= omap_wdt_resume,

@@ -2490,12 +2490,19 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		      struct lock_class_key *key, int subclass)
 {
-	if (unlikely(!debug_locks))
+	lock->class_cache = NULL;
+#ifdef CONFIG_LOCK_STAT
+	lock->cpu = raw_smp_processor_id();
+#endif
+
+	if (DEBUG_LOCKS_WARN_ON(!name)) {
+		lock->name = "NULL";
 		return;
+	}
+
+	lock->name = name;
 
 	if (DEBUG_LOCKS_WARN_ON(!key))
-		return;
-	if (DEBUG_LOCKS_WARN_ON(!name))
 		return;
 	/*
 	 * Sanity check, the lock-class key must be persistent:
@@ -2505,12 +2512,11 @@ void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		DEBUG_LOCKS_WARN_ON(1);
 		return;
 	}
-	lock->name = name;
 	lock->key = key;
-	lock->class_cache = NULL;
-#ifdef CONFIG_LOCK_STAT
-	lock->cpu = raw_smp_processor_id();
-#endif
+
+	if (unlikely(!debug_locks))
+		return;
+
 	if (subclass)
 		register_lock_class(lock, subclass, 1);
 }
