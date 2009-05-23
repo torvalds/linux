@@ -711,11 +711,13 @@ static int lbs_adhoc_start(struct lbs_private *priv,
 
 	/* set capability info */
 	tmpcap = WLAN_CAPABILITY_IBSS;
-	if (assoc_req->secinfo.wep_enabled) {
-		lbs_deb_join("ADHOC_START: WEP enabled, setting privacy on\n");
+	if (assoc_req->secinfo.wep_enabled ||
+	    assoc_req->secinfo.WPAenabled ||
+	    assoc_req->secinfo.WPA2enabled) {
+		lbs_deb_join("ADHOC_START: WEP/WPA enabled, privacy on\n");
 		tmpcap |= WLAN_CAPABILITY_PRIVACY;
 	} else
-		lbs_deb_join("ADHOC_START: WEP disabled, setting privacy off\n");
+		lbs_deb_join("ADHOC_START: WEP disabled, privacy off\n");
 
 	cmd.capability = cpu_to_le16(tmpcap);
 
