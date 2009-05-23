@@ -111,6 +111,10 @@ static void put_ctx(struct perf_counter_context *ctx)
 	}
 }
 
+/*
+ * Add a counter from the lists for its context.
+ * Must be called with ctx->mutex and ctx->lock held.
+ */
 static void
 list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 {
@@ -136,7 +140,7 @@ list_add_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
 
 /*
  * Remove a counter from the lists for its context.
- * Must be called with counter->mutex and ctx->mutex held.
+ * Must be called with ctx->mutex and ctx->lock held.
  */
 static void
 list_del_counter(struct perf_counter *counter, struct perf_counter_context *ctx)
@@ -276,7 +280,7 @@ static void __perf_counter_remove_from_context(void *info)
 /*
  * Remove the counter from a task's (or a CPU's) list of counters.
  *
- * Must be called with counter->mutex and ctx->mutex held.
+ * Must be called with ctx->mutex held.
  *
  * CPU counters are removed with a smp call. For task counters we only
  * call when the task is on a CPU.
@@ -1407,11 +1411,7 @@ static int perf_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 
 	mutex_lock(&ctx->mutex);
-	mutex_lock(&counter->mutex);
-
 	perf_counter_remove_from_context(counter);
-
-	mutex_unlock(&counter->mutex);
 	mutex_unlock(&ctx->mutex);
 
 	free_counter(counter);
@@ -1437,7 +1437,7 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 	if (counter->state == PERF_COUNTER_STATE_ERROR)
 		return 0;
 
-	mutex_lock(&counter->mutex);
+	mutex_lock(&counter->child_mutex);
 	values[0] = perf_counter_read(counter);
 	n = 1;
 	if (counter->hw_event.read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
@@ -1446,7 +1446,7 @@ perf_read_hw(struct perf_counter *counter, char __user *buf, size_t count)
 	if (counter->hw_event.read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
 		values[n++] = counter->total_time_running +
 			atomic64_read(&counter->child_total_time_running);
-	mutex_unlock(&counter->mutex);
+	mutex_unlock(&counter->child_mutex);
 
 	if (count < n * sizeof(u64))
 		return -EINVAL;
@@ -1510,11 +1510,11 @@ static void perf_counter_for_each_child(struct perf_counter *counter,
 {
 	struct perf_counter *child;
 
-	mutex_lock(&counter->mutex);
+	mutex_lock(&counter->child_mutex);
 	func(counter);
 	list_for_each_entry(child, &counter->child_list, child_list)
 		func(child);
-	mutex_unlock(&counter->mutex);
+	mutex_unlock(&counter->child_mutex);
 }
 
 static void perf_counter_for_each(struct perf_counter *counter,
@@ -1522,11 +1522,11 @@ static void perf_counter_for_each(struct perf_counter *counter,
 {
 	struct perf_counter *child;
 
-	mutex_lock(&counter->mutex);
+	mutex_lock(&counter->child_mutex);
 	perf_counter_for_each_sibling(counter, func);
 	list_for_each_entry(child, &counter->child_list, child_list)
 		perf_counter_for_each_sibling(child, func);
-	mutex_unlock(&counter->mutex);
+	mutex_unlock(&counter->child_mutex);
 }
 
 static long perf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -3106,15 +3106,15 @@ perf_counter_alloc(struct perf_counter_hw_event *hw_event,
 	if (!group_leader)
 		group_leader = counter;
 
-	mutex_init(&counter->mutex);
+	mutex_init(&counter->child_mutex);
+	INIT_LIST_HEAD(&counter->child_list);
+
 	INIT_LIST_HEAD(&counter->list_entry);
 	INIT_LIST_HEAD(&counter->event_entry);
 	INIT_LIST_HEAD(&counter->sibling_list);
 	init_waitqueue_head(&counter->waitq);
 
 	mutex_init(&counter->mmap_mutex);
-
-	INIT_LIST_HEAD(&counter->child_list);
 
 	counter->cpu			= cpu;
 	counter->hw_event		= *hw_event;
@@ -3346,10 +3346,9 @@ inherit_counter(struct perf_counter *parent_counter,
 	/*
 	 * Link this into the parent counter's child list
 	 */
-	mutex_lock(&parent_counter->mutex);
+	mutex_lock(&parent_counter->child_mutex);
 	list_add_tail(&child_counter->child_list, &parent_counter->child_list);
-
-	mutex_unlock(&parent_counter->mutex);
+	mutex_unlock(&parent_counter->child_mutex);
 
 	return child_counter;
 }
@@ -3396,9 +3395,9 @@ static void sync_child_counter(struct perf_counter *child_counter,
 	/*
 	 * Remove this counter from the parent's list
 	 */
-	mutex_lock(&parent_counter->mutex);
+	mutex_lock(&parent_counter->child_mutex);
 	list_del_init(&child_counter->child_list);
-	mutex_unlock(&parent_counter->mutex);
+	mutex_unlock(&parent_counter->child_mutex);
 
 	/*
 	 * Release the parent counter, if this was the last
@@ -3414,16 +3413,8 @@ __perf_counter_exit_task(struct task_struct *child,
 {
 	struct perf_counter *parent_counter;
 
-	/*
-	 * Protect against concurrent operations on child_counter
-	 * due its fd getting closed, etc.
-	 */
-	mutex_lock(&child_counter->mutex);
-
 	update_counter_times(child_counter);
 	list_del_counter(child_counter, child_ctx);
-
-	mutex_unlock(&child_counter->mutex);
 
 	parent_counter = child_counter->parent;
 	/*

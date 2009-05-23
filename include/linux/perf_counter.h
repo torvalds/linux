@@ -452,9 +452,6 @@ struct perf_counter {
 	struct perf_counter_context	*ctx;
 	struct file			*filp;
 
-	struct perf_counter		*parent;
-	struct list_head		child_list;
-
 	/*
 	 * These accumulate total time (in nanoseconds) that children
 	 * counters have been enabled and running, respectively.
@@ -465,7 +462,9 @@ struct perf_counter {
 	/*
 	 * Protect attach/detach and child_list:
 	 */
-	struct mutex			mutex;
+	struct mutex			child_mutex;
+	struct list_head		child_list;
+	struct perf_counter		*parent;
 
 	int				oncpu;
 	int				cpu;
