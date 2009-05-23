@@ -455,7 +455,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 			break;
 	}
 	if (tv.tuner_type == TUNER_ABSENT)
-		IVTV_ERR("tveeprom cannot autodetect tuner!");
+		IVTV_ERR("tveeprom cannot autodetect tuner!\n");
 
 	if (itv->options.tuner == -1)
 		itv->options.tuner = tv.tuner_type;
