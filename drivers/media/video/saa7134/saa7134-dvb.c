@@ -1574,7 +1574,7 @@ static int dvb_init(struct saa7134_dev *dev)
 
 	/* register everything else */
 	ret = videobuf_dvb_register_bus(&dev->frontends, THIS_MODULE, dev,
-		&dev->pci->dev, adapter_nr, 0);
+					&dev->pci->dev, adapter_nr, 0, NULL);
 
 	/* this sequence is necessary to make the tda1004x load its firmware
 	 * and to enter analog mode of hybrid boards

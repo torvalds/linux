@@ -139,7 +139,9 @@ static int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 			  struct device *device,
 			  char *adapter_name,
 			  short *adapter_nr,
-			  int mfe_shared)
+			  int mfe_shared,
+			  int (*fe_ioctl_override)(struct dvb_frontend *,
+					unsigned int, void *, unsigned int))
 {
 	int result;
 
@@ -154,6 +156,7 @@ static int videobuf_dvb_register_adapter(struct videobuf_dvb_frontends *fe,
 	}
 	fe->adapter.priv = adapter_priv;
 	fe->adapter.mfe_shared = mfe_shared;
+	fe->adapter.fe_ioctl_override = fe_ioctl_override;
 
 	return result;
 }
@@ -253,7 +256,9 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 			  void *adapter_priv,
 			  struct device *device,
 			  short *adapter_nr,
-			  int mfe_shared)
+			  int mfe_shared,
+			  int (*fe_ioctl_override)(struct dvb_frontend *,
+					unsigned int, void *, unsigned int))
 {
 	struct list_head *list, *q;
 	struct videobuf_dvb_frontend *fe;
@@ -267,7 +272,7 @@ int videobuf_dvb_register_bus(struct videobuf_dvb_frontends *f,
 
 	/* Bring up the adapter */
 	res = videobuf_dvb_register_adapter(f, module, adapter_priv, device,
-		fe->dvb.name, adapter_nr, mfe_shared);
+		fe->dvb.name, adapter_nr, mfe_shared, fe_ioctl_override);
 	if (res < 0) {
 		printk(KERN_WARNING "videobuf_dvb_register_adapter failed (errno = %d)\n", res);
 		return res;
