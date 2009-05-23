@@ -28,9 +28,6 @@
 
 #include "wm8974.h"
 
-#define AUDIO_NAME "wm8974"
-#define WM8974_VERSION "0.6"
-
 struct snd_soc_codec_device soc_codec_dev_wm8974;
 
 /*
@@ -39,27 +36,27 @@ struct snd_soc_codec_device soc_codec_dev_wm8974;
  * using 2 wire for device control, so we cache them instead.
  */
 static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
-    0x0000, 0x0000, 0x0000, 0x0000,
-    0x0050, 0x0000, 0x0140, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x00ff,
-    0x0000, 0x0000, 0x0100, 0x00ff,
-    0x0000, 0x0000, 0x012c, 0x002c,
-    0x002c, 0x002c, 0x002c, 0x0000,
-    0x0032, 0x0000, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0000, 0x0000,
-    0x0038, 0x000b, 0x0032, 0x0000,
-    0x0008, 0x000c, 0x0093, 0x00e9,
-    0x0000, 0x0000, 0x0000, 0x0000,
-    0x0003, 0x0010, 0x0000, 0x0000,
-    0x0000, 0x0002, 0x0000, 0x0000,
-    0x0000, 0x0000, 0x0039, 0x0000,
-    0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000,
+	0x0050, 0x0000, 0x0140, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x00ff,
+	0x0000, 0x0000, 0x0100, 0x00ff,
+	0x0000, 0x0000, 0x012c, 0x002c,
+	0x002c, 0x002c, 0x002c, 0x0000,
+	0x0032, 0x0000, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0000, 0x0000,
+	0x0038, 0x000b, 0x0032, 0x0000,
+	0x0008, 0x000c, 0x0093, 0x00e9,
+	0x0000, 0x0000, 0x0000, 0x0000,
+	0x0003, 0x0010, 0x0000, 0x0000,
+	0x0000, 0x0002, 0x0000, 0x0000,
+	0x0000, 0x0000, 0x0039, 0x0000,
+	0x0000,
 };
 
 /*
  * read wm8974 register cache
  */
-static inline unsigned int wm8974_read_reg_cache(struct snd_soc_codec * codec,
+static inline unsigned int wm8974_read_reg_cache(struct snd_soc_codec *codec,
 	unsigned int reg)
 {
 	u16 *cache = codec->reg_cache;
@@ -97,7 +94,7 @@ static int wm8974_write(struct snd_soc_codec *codec, unsigned int reg,
 	data[0] = (reg << 1) | ((value >> 8) & 0x0001);
 	data[1] = value & 0x00ff;
 
-	wm8974_write_reg_cache (codec, reg, value);
+	wm8974_write_reg_cache(codec, reg, value);
 	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
 	else
@@ -215,7 +212,8 @@ static int wm8974_add_controls(struct snd_soc_codec *codec)
 
 	for (i = 0; i < ARRAY_SIZE(wm8974_snd_controls); i++) {
 		err = snd_ctl_add(codec->card,
-				snd_soc_cnew(&wm8974_snd_controls[i],codec, NULL));
+				  snd_soc_cnew(&wm8974_snd_controls[i],
+					       codec, NULL));
 		if (err < 0)
 			return err;
 	}
@@ -347,13 +345,14 @@ struct pll_ {
 };
 
 static struct pll_ pll[] = {
-	{12000000, 11289600, 0, 7, 0x86c220},
-	{12000000, 12288000, 0, 8, 0x3126e8},
-	{13000000, 11289600, 0, 6, 0xf28bd4},
-	{13000000, 12288000, 0, 7, 0x8fd525},
-	{12288000, 11289600, 0, 7, 0x59999a},
-	{11289600, 12288000, 0, 8, 0x80dee9},
-	/* liam - add more entries */
+	{ 12000000, 11289600, 0, 7, 0x86c220 },
+	{ 12000000, 12288000, 0, 8, 0x3126e8 },
+	{ 13000000, 11289600, 0, 6, 0xf28bd4 },
+	{ 13000000, 12288000, 0, 7, 0x8fd525 },
+	{ 12288000, 11289600, 0, 7, 0x59999a },
+	{ 11289600, 12288000, 0, 8, 0x80dee9 },
+	{ 25000000, 11289600, 1, 7, 0x39B024 },
+	{ 25000000, 24576000, 1, 7, 0xdd4413 }
 };
 
 static int wm8974_set_dai_pll(struct snd_soc_dai *codec_dai,
@@ -363,23 +362,26 @@ static int wm8974_set_dai_pll(struct snd_soc_dai *codec_dai,
 	int i;
 	u16 reg;
 
-	if(freq_in == 0 || freq_out == 0) {
+	if (freq_in == 0 || freq_out == 0) {
 		reg = wm8974_read_reg_cache(codec, WM8974_POWER1);
 		wm8974_write(codec, WM8974_POWER1, reg & 0x1df);
 		return 0;
 	}
 
-	for(i = 0; i < ARRAY_SIZE(pll); i++) {
+	for (i = 0; i < ARRAY_SIZE(pll); i++) {
 		if (freq_in == pll[i].in_hz && freq_out == pll[i].out_hz) {
-			wm8974_write(codec, WM8974_PLLN, (pll[i].pre << 4) | pll[i].n);
+			wm8974_write(codec, WM8974_PLLN,
+				     (pll[i].pre << 4) | pll[i].n);
 			wm8974_write(codec, WM8974_PLLK1, pll[i].k >> 18);
-			wm8974_write(codec, WM8974_PLLK2, (pll[i].k >> 9) & 0x1ff);
+			wm8974_write(codec, WM8974_PLLK2,
+				     (pll[i].k >> 9) & 0x1ff);
 			wm8974_write(codec, WM8974_PLLK3, pll[i].k & 0x1ff);
 			reg = wm8974_read_reg_cache(codec, WM8974_POWER1);
 			wm8974_write(codec, WM8974_POWER1, reg | 0x020);
 			return 0;
 		}
 	}
+
 	return -EINVAL;
 }
 
@@ -394,7 +396,7 @@ static int wm8974_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8974_OPCLKDIV:
-		reg = wm8974_read_reg_cache(codec, WM8974_GPIO) & 0x1cf; 
+		reg = wm8974_read_reg_cache(codec, WM8974_GPIO) & 0x1cf;
 		wm8974_write(codec, WM8974_GPIO, reg | div);
 		break;
 	case WM8974_MCLKDIV:
@@ -531,7 +533,7 @@ static int wm8974_mute(struct snd_soc_dai *dai, int mute)
 	struct snd_soc_codec *codec = dai->codec;
 	u16 mute_reg = wm8974_read_reg_cache(codec, WM8974_DAC) & 0xffbf;
 
-	if(mute)
+	if (mute)
 		wm8974_write(codec, WM8974_DAC, mute_reg | 0x40);
 	else
 		wm8974_write(codec, WM8974_DAC, mute_reg);
@@ -562,9 +564,7 @@ static int wm8974_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define WM8974_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
-		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 | \
-		SNDRV_PCM_RATE_48000)
+#define WM8974_RATES (SNDRV_PCM_RATE_8000_48000)
 
 #define WM8974_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
@@ -649,7 +649,7 @@ static int wm8974_init(struct snd_soc_device *socdev)
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
-	if(ret < 0) {
+	if (ret < 0) {
 		printk(KERN_ERR "wm8974: failed to create pcms\n");
 		goto pcm_err;
 	}
@@ -772,8 +772,6 @@ static int wm8974_probe(struct platform_device *pdev)
 	struct wm8974_setup_data *setup;
 	struct snd_soc_codec *codec;
 	int ret = 0;
-
-	pr_info("WM8974 Audio Codec %s", WM8974_VERSION);
 
 	setup = socdev->codec_data;
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
