@@ -1347,6 +1347,22 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO,
 		} },
 	},
+	[EM2860_BOARD_TERRATEC_GRABBY] = {
+		.name            = "Terratec Grabby",
+		.vchannels       = 2,
+		.tuner_type      = TUNER_ABSENT,
+		.decoder         = EM28XX_SAA711X,
+		.xclk            = EM28XX_XCLK_FREQUENCY_12MHZ,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = EM28XX_AMUX_VIDEO2,
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = EM28XX_AMUX_VIDEO2,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1410,6 +1426,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2870_BOARD_TERRATEC_XS },
 	{ USB_DEVICE(0x0ccd, 0x0047),
 			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
+	{ USB_DEVICE(0x0ccd, 0x0096),
+			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
 	{ USB_DEVICE(0x185b, 0x2870),
 			.driver_info = EM2870_BOARD_COMPRO_VIDEOMATE },
 	{ USB_DEVICE(0x185b, 0x2041),
