@@ -469,6 +469,9 @@ struct perf_counter {
 	int				oncpu;
 	int				cpu;
 
+	struct list_head		owner_entry;
+	struct task_struct		*owner;
+
 	/* mmap bits */
 	struct mutex			mmap_mutex;
 	atomic_t			mmap_count;

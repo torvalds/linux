@@ -1076,79 +1076,26 @@ static void perf_counter_cpu_sched_in(struct perf_cpu_context *cpuctx, int cpu)
 	__perf_counter_sched_in(ctx, cpuctx, cpu);
 }
 
-int perf_counter_task_disable(void)
+int perf_counter_task_enable(void)
 {
-	struct task_struct *curr = current;
-	struct perf_counter_context *ctx = curr->perf_counter_ctxp;
 	struct perf_counter *counter;
-	unsigned long flags;
 
-	if (!ctx || !ctx->nr_counters)
-		return 0;
-
-	local_irq_save(flags);
-
-	__perf_counter_task_sched_out(ctx);
-
-	spin_lock(&ctx->lock);
-
-	/*
-	 * Disable all the counters:
-	 */
-	perf_disable();
-
-	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
-		if (counter->state != PERF_COUNTER_STATE_ERROR) {
-			update_group_times(counter);
-			counter->state = PERF_COUNTER_STATE_OFF;
-		}
-	}
-
-	perf_enable();
-
-	spin_unlock_irqrestore(&ctx->lock, flags);
+	mutex_lock(&current->perf_counter_mutex);
+	list_for_each_entry(counter, &current->perf_counter_list, owner_entry)
+		perf_counter_enable(counter);
+	mutex_unlock(&current->perf_counter_mutex);
 
 	return 0;
 }
 
-int perf_counter_task_enable(void)
+int perf_counter_task_disable(void)
 {
-	struct task_struct *curr = current;
-	struct perf_counter_context *ctx = curr->perf_counter_ctxp;
 	struct perf_counter *counter;
-	unsigned long flags;
-	int cpu;
 
-	if (!ctx || !ctx->nr_counters)
-		return 0;
-
-	local_irq_save(flags);
-	cpu = smp_processor_id();
-
-	__perf_counter_task_sched_out(ctx);
-
-	spin_lock(&ctx->lock);
-
-	/*
-	 * Disable all the counters:
-	 */
-	perf_disable();
-
-	list_for_each_entry(counter, &ctx->counter_list, list_entry) {
-		if (counter->state > PERF_COUNTER_STATE_OFF)
-			continue;
-		counter->state = PERF_COUNTER_STATE_INACTIVE;
-		counter->tstamp_enabled =
-			ctx->time - counter->total_time_enabled;
-		counter->hw_event.disabled = 0;
-	}
-	perf_enable();
-
-	spin_unlock(&ctx->lock);
-
-	perf_counter_task_sched_in(curr, cpu);
-
-	local_irq_restore(flags);
+	mutex_lock(&current->perf_counter_mutex);
+	list_for_each_entry(counter, &current->perf_counter_list, owner_entry)
+		perf_counter_disable(counter);
+	mutex_unlock(&current->perf_counter_mutex);
 
 	return 0;
 }
@@ -1415,6 +1362,11 @@ static int perf_release(struct inode *inode, struct file *file)
 	mutex_lock(&ctx->mutex);
 	perf_counter_remove_from_context(counter);
 	mutex_unlock(&ctx->mutex);
+
+	mutex_lock(&counter->owner->perf_counter_mutex);
+	list_del_init(&counter->owner_entry);
+	mutex_unlock(&counter->owner->perf_counter_mutex);
+	put_task_struct(counter->owner);
 
 	free_counter(counter);
 	put_context(ctx);
@@ -3272,6 +3224,12 @@ SYSCALL_DEFINE5(perf_counter_open,
 	perf_install_in_context(ctx, counter, cpu);
 	mutex_unlock(&ctx->mutex);
 
+	counter->owner = current;
+	get_task_struct(current);
+	mutex_lock(&current->perf_counter_mutex);
+	list_add_tail(&counter->owner_entry, &current->perf_counter_list);
+	mutex_unlock(&current->perf_counter_mutex);
+
 	fput_light(counter_file, fput_needed2);
 
 out_fput:
@@ -3487,6 +3445,9 @@ void perf_counter_init_task(struct task_struct *child)
 	int inherited_all = 1;
 
 	child->perf_counter_ctxp = NULL;
+
+	mutex_init(&child->perf_counter_mutex);
+	INIT_LIST_HEAD(&child->perf_counter_list);
 
 	/*
 	 * This is executed from the parent task context, so inherit

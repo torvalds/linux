@@ -1389,6 +1389,8 @@ struct task_struct {
 #endif
 #ifdef CONFIG_PERF_COUNTERS
 	struct perf_counter_context *perf_counter_ctxp;
+	struct mutex perf_counter_mutex;
+	struct list_head perf_counter_list;
 #endif
 #ifdef CONFIG_NUMA
 	struct mempolicy *mempolicy;
