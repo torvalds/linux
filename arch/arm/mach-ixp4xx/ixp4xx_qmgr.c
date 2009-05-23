@@ -49,6 +49,49 @@ void qmgr_set_irq(unsigned int queue, int src,
 }
 
 
+static irqreturn_t qmgr_irq1_a0(int irq, void *pdev)
+{
+	int i, ret = 0;
+
+	/* ACK - it may clear any bits so don't rely on it */
+	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[0]);
+
+	for (i = 0; i < HALF_QUEUES; i++) {
+		u32 src, stat;
+		if (!(qmgr_regs->irqen[0] & BIT(i)))
+			continue;
+		src = qmgr_regs->irqsrc[i >> 3];
+		stat = qmgr_regs->stat1[i >> 3];
+		if (src & 4) /* the IRQ condition is inverted */
+			stat = ~stat;
+		if (stat & BIT(src & 3)) {
+			irq_handlers[i](irq_pdevs[i]);
+			ret = IRQ_HANDLED;
+		}
+	}
+	return ret;
+}
+
+
+static irqreturn_t qmgr_irq2_a0(int irq, void *pdev)
+{
+	int i, ret = 0;
+	u32 req_bitmap;
+
+	/* ACK - it may clear any bits so don't rely on it */
+	__raw_writel(0xFFFFFFFF, &qmgr_regs->irqstat[1]);
+
+	req_bitmap = qmgr_regs->irqen[1] & qmgr_regs->statne_h;
+	for (i = 0; i < HALF_QUEUES; i++) {
+		if (!(req_bitmap & BIT(i)))
+			continue;
+		irq_handlers[HALF_QUEUES + i](irq_pdevs[HALF_QUEUES + i]);
+		ret = IRQ_HANDLED;
+	}
+	return ret;
+}
+
+
 static irqreturn_t qmgr_irq(int irq, void *pdev)
 {
 	int i, half = (irq == IRQ_IXP4XX_QM1 ? 0 : 1);
@@ -236,6 +279,8 @@ void qmgr_release_queue(unsigned int queue)
 static int qmgr_init(void)
 {
 	int i, err;
+	irq_handler_t handler1, handler2;
+
 	mem_res = request_mem_region(IXP4XX_QMGR_BASE_PHYS,
 				     IXP4XX_QMGR_REGION_SIZE,
 				     "IXP4xx Queue Manager");
@@ -265,19 +310,25 @@ static int qmgr_init(void)
 	for (i = 0; i < QUEUES; i++)
 		__raw_writel(0, &qmgr_regs->sram[i]);
 
-	err = request_irq(IRQ_IXP4XX_QM1, qmgr_irq, 0,
-			  "IXP4xx Queue Manager", NULL);
+	if (cpu_is_ixp42x_rev_a0()) {
+		handler1 = qmgr_irq1_a0;
+		handler2 = qmgr_irq2_a0;
+	} else
+		handler1 = handler2 = qmgr_irq;
+
+	err = request_irq(IRQ_IXP4XX_QM1, handler1, 0, "IXP4xx Queue Manager",
+			  NULL);
 	if (err) {
-		printk(KERN_ERR "qmgr: failed to request IRQ%i\n",
-		       IRQ_IXP4XX_QM1);
+		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
+		       IRQ_IXP4XX_QM1, err);
 		goto error_irq;
 	}
 
-	err = request_irq(IRQ_IXP4XX_QM2, qmgr_irq, 0,
-			  "IXP4xx Queue Manager", NULL);
+	err = request_irq(IRQ_IXP4XX_QM2, handler2, 0, "IXP4xx Queue Manager",
+			  NULL);
 	if (err) {
-		printk(KERN_ERR "qmgr: failed to request IRQ%i\n",
-		       IRQ_IXP4XX_QM2);
+		printk(KERN_ERR "qmgr: failed to request IRQ%i (%i)\n",
+		       IRQ_IXP4XX_QM2, err);
 		goto error_irq2;
 	}
 
