@@ -278,7 +278,7 @@ struct cmd_ds_802_11_associate {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_associate_rsp {
-	struct ieeetypes_assocrsp assocRsp;
+	struct ieee_assoc_response response;
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_set_wep {
@@ -535,9 +535,11 @@ struct cmd_ds_802_11_ad_hoc_start {
 	u8 bsstype;
 	__le16 beaconperiod;
 	u8 dtimperiod;   /* Reserved on v9 and later */
-	union IEEEtypes_ssparamset ssparamset;
-	union ieeetypes_phyparamset phyparamset;
-	__le16 probedelay;
+	struct ieee_ie_ibss_param_set ibss;
+	u8 reserved1[4];
+	struct ieee_ie_ds_param_set ds;
+	u8 reserved2[4];
+	__le16 probedelay;  /* Reserved on v9 and later */
 	__le16 capability;
 	u8 rates[MAX_RATES];
 	u8 tlv_memory_size_pad[100];
@@ -558,8 +560,10 @@ struct adhoc_bssdesc {
 	u8 dtimperiod;
 	__le64 timestamp;
 	__le64 localtime;
-	union ieeetypes_phyparamset phyparamset;
-	union IEEEtypes_ssparamset ssparamset;
+	struct ieee_ie_ds_param_set ds;
+	u8 reserved1[4];
+	struct ieee_ie_ibss_param_set ibss;
+	u8 reserved2[4];
 	__le16 capability;
 	u8 rates[MAX_RATES];
 

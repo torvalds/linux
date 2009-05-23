@@ -219,11 +219,10 @@ static int lbs_adhoc_join(struct lbs_private *priv,
 	memcpy(&cmd.bss.bssid, &bss->bssid, ETH_ALEN);
 	memcpy(&cmd.bss.ssid, &bss->ssid, bss->ssid_len);
 
-	memcpy(&cmd.bss.phyparamset, &bss->phyparamset,
-	       sizeof(union ieeetypes_phyparamset));
+	memcpy(&cmd.bss.ds, &bss->phy.ds, sizeof(struct ieee_ie_ds_param_set));
 
-	memcpy(&cmd.bss.ssparamset, &bss->ssparamset,
-	       sizeof(union IEEEtypes_ssparamset));
+	memcpy(&cmd.bss.ibss, &bss->ss.ibss,
+	       sizeof(struct ieee_ie_ibss_param_set));
 
 	cmd.bss.capability = cpu_to_le16(bss->capability & CAPINFO_MASK);
 	lbs_deb_join("ADHOC_J_CMD: tmpcap=%4X CAPINFO_MASK=%4X\n",
@@ -260,7 +259,7 @@ static int lbs_adhoc_join(struct lbs_private *priv,
 	 */
 	lbs_set_basic_rate_flags(cmd.bss.rates, ratesize);
 
-	cmd.bss.ssparamset.ibssparamset.atimwindow = cpu_to_le16(bss->atimwindow);
+	cmd.bss.ibss.atimwindow = bss->atimwindow;
 
 	if (assoc_req->secinfo.wep_enabled) {
 		u16 tmp = le16_to_cpu(cmd.bss.capability);
@@ -343,14 +342,14 @@ static int lbs_adhoc_start(struct lbs_private *priv,
 	WARN_ON(!assoc_req->channel);
 
 	/* set Physical parameter set */
-	cmd.phyparamset.dsparamset.elementid = WLAN_EID_DS_PARAMS;
-	cmd.phyparamset.dsparamset.len = 1;
-	cmd.phyparamset.dsparamset.currentchan = assoc_req->channel;
+	cmd.ds.elementid = WLAN_EID_DS_PARAMS;
+	cmd.ds.len = 1;
+	cmd.ds.channel = assoc_req->channel;
 
 	/* set IBSS parameter set */
-	cmd.ssparamset.ibssparamset.elementid = WLAN_EID_IBSS_PARAMS;
-	cmd.ssparamset.ibssparamset.len = 2;
-	cmd.ssparamset.ibssparamset.atimwindow = 0;
+	cmd.ibss.elementid = WLAN_EID_IBSS_PARAMS;
+	cmd.ibss.len = 2;
+	cmd.ibss.atimwindow = cpu_to_le16(0);
 
 	/* set capability info */
 	tmpcap = WLAN_CAPABILITY_IBSS;
@@ -1560,8 +1559,8 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	u8 *pos;
 	u16 tmpcap, tmplen;
 	struct mrvlietypes_ssidparamset *ssid;
-	struct mrvlietypes_phyparamset *phy;
-	struct mrvlietypes_ssparamset *ss;
+	struct mrvlietypes_dsparamset *ds;
+	struct mrvlietypes_cfparamset *cf;
 	struct mrvlietypes_ratesparamset *rates;
 	struct mrvlietypes_rsnparamset *rsn;
 
@@ -1594,20 +1593,18 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	memcpy(ssid->ssid, bss->ssid, tmplen);
 	pos += sizeof(ssid->header) + tmplen;
 
-	phy = (struct mrvlietypes_phyparamset *) pos;
-	phy->header.type = cpu_to_le16(TLV_TYPE_PHY_DS);
-	tmplen = sizeof(phy->fh_ds.dsparamset);
-	phy->header.len = cpu_to_le16(tmplen);
-	memcpy(&phy->fh_ds.dsparamset,
-	       &bss->phyparamset.dsparamset.currentchan,
-	       tmplen);
-	pos += sizeof(phy->header) + tmplen;
+	ds = (struct mrvlietypes_dsparamset *) pos;
+	ds->header.type = cpu_to_le16(TLV_TYPE_PHY_DS);
+	ds->header.len = cpu_to_le16(1);
+	ds->channel = bss->phy.ds.channel;
+	pos += sizeof(ds->header) + 1;
 
-	ss = (struct mrvlietypes_ssparamset *) pos;
-	ss->header.type = cpu_to_le16(TLV_TYPE_CF);
-	tmplen = sizeof(ss->cf_ibss.cfparamset);
-	ss->header.len = cpu_to_le16(tmplen);
-	pos += sizeof(ss->header) + tmplen;
+	cf = (struct mrvlietypes_cfparamset *) pos;
+	cf->header.type = cpu_to_le16(TLV_TYPE_CF);
+	tmplen = sizeof(*cf) - sizeof (cf->header);
+	cf->header.len = cpu_to_le16(tmplen);
+	/* IE payload should be zeroed, firmware fills it in for us */
+	pos += sizeof(*cf);
 
 	rates = (struct mrvlietypes_ratesparamset *) pos;
 	rates->header.type = cpu_to_le16(TLV_TYPE_RATES);
@@ -1643,7 +1640,7 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	}
 
 	/* update curbssparams */
-	priv->curbssparams.channel = bss->phyparamset.dsparamset.currentchan;
+	priv->curbssparams.channel = bss->phy.ds.channel;
 
 	if (lbs_parse_dnld_countryinfo_11d(priv, bss)) {
 		ret = -1;
@@ -1669,7 +1666,7 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 {
 	int ret = 0;
 	union iwreq_data wrqu;
-	struct ieeetypes_assocrsp *passocrsp;
+	struct ieee_assoc_response *passocrsp;
 	struct bss_descriptor *bss;
 	u16 status_code;
 
@@ -1682,7 +1679,7 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 	}
 	bss = &priv->in_progress_assoc_req->bss;
 
-	passocrsp = (struct ieeetypes_assocrsp *) &resp->params;
+	passocrsp = (struct ieee_assoc_response *) &resp->params;
 
 	/*
 	 * Older FW versions map the IEEE 802.11 Status Code in the association

@@ -513,10 +513,10 @@ void lbs_scan_worker(struct work_struct *work)
 static int lbs_process_bss(struct bss_descriptor *bss,
 			   uint8_t **pbeaconinfo, int *bytesleft)
 {
-	struct ieeetypes_fhparamset *pFH;
-	struct ieeetypes_dsparamset *pDS;
-	struct ieeetypes_cfparamset *pCF;
-	struct ieeetypes_ibssparamset *pibss;
+	struct ieee_ie_fh_param_set *fh;
+	struct ieee_ie_ds_param_set *ds;
+	struct ieee_ie_cf_param_set *cf;
+	struct ieee_ie_ibss_param_set *ibss;
 	DECLARE_SSID_BUF(ssid);
 	struct ieeetypes_countryinfoset *pcountryinfo;
 	uint8_t *pos, *end, *p;
@@ -616,32 +616,28 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 			break;
 
 		case WLAN_EID_FH_PARAMS:
-			pFH = (struct ieeetypes_fhparamset *) pos;
-			memmove(&bss->phyparamset.fhparamset, pFH,
-				sizeof(struct ieeetypes_fhparamset));
+			fh = (struct ieee_ie_fh_param_set *) pos;
+			memcpy(&bss->phy.fh, fh, sizeof(*fh));
 			lbs_deb_scan("got FH IE\n");
 			break;
 
 		case WLAN_EID_DS_PARAMS:
-			pDS = (struct ieeetypes_dsparamset *) pos;
-			bss->channel = pDS->currentchan;
-			memcpy(&bss->phyparamset.dsparamset, pDS,
-			       sizeof(struct ieeetypes_dsparamset));
+			ds = (struct ieee_ie_ds_param_set *) pos;
+			bss->channel = ds->channel;
+			memcpy(&bss->phy.ds, ds, sizeof(*ds));
 			lbs_deb_scan("got DS IE, channel %d\n", bss->channel);
 			break;
 
 		case WLAN_EID_CF_PARAMS:
-			pCF = (struct ieeetypes_cfparamset *) pos;
-			memcpy(&bss->ssparamset.cfparamset, pCF,
-			       sizeof(struct ieeetypes_cfparamset));
+			cf = (struct ieee_ie_cf_param_set *) pos;
+			memcpy(&bss->ss.cf, cf, sizeof(*cf));
 			lbs_deb_scan("got CF IE\n");
 			break;
 
 		case WLAN_EID_IBSS_PARAMS:
-			pibss = (struct ieeetypes_ibssparamset *) pos;
-			bss->atimwindow = le16_to_cpu(pibss->atimwindow);
-			memmove(&bss->ssparamset.ibssparamset, pibss,
-				sizeof(struct ieeetypes_ibssparamset));
+			ibss = (struct ieee_ie_ibss_param_set *) pos;
+			bss->atimwindow = ibss->atimwindow;
+			memcpy(&bss->ss.ibss, ibss, sizeof(*ibss));
 			lbs_deb_scan("got IBSS IE\n");
 			break;
 
