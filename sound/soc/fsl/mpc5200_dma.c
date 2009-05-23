@@ -34,21 +34,21 @@ MODULE_LICENSE("GPL");
 /*
  * Interrupt handlers
  */
-static irqreturn_t psc_i2s_status_irq(int irq, void *_psc_i2s)
+static irqreturn_t psc_dma_status_irq(int irq, void *_psc_dma)
 {
-	struct psc_i2s *psc_i2s = _psc_i2s;
-	struct mpc52xx_psc __iomem *regs = psc_i2s->psc_regs;
+	struct psc_dma *psc_dma = _psc_dma;
+	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 	u16 isr;
 
 	isr = in_be16(&regs->mpc52xx_psc_isr);
 
 	/* Playback underrun error */
-	if (psc_i2s->playback.active && (isr & MPC52xx_PSC_IMR_TXEMP))
-		psc_i2s->stats.underrun_count++;
+	if (psc_dma->playback.active && (isr & MPC52xx_PSC_IMR_TXEMP))
+		psc_dma->stats.underrun_count++;
 
 	/* Capture overrun error */
-	if (psc_i2s->capture.active && (isr & MPC52xx_PSC_IMR_ORERR))
-		psc_i2s->stats.overrun_count++;
+	if (psc_dma->capture.active && (isr & MPC52xx_PSC_IMR_ORERR))
+		psc_dma->stats.overrun_count++;
 
 	out_8(&regs->command, 4 << 4);	/* reset the error status */
 
@@ -56,7 +56,7 @@ static irqreturn_t psc_i2s_status_irq(int irq, void *_psc_i2s)
 }
 
 /**
- * psc_i2s_bcom_enqueue_next_buffer - Enqueue another audio buffer
+ * psc_dma_bcom_enqueue_next_buffer - Enqueue another audio buffer
  * @s: pointer to stream private data structure
  *
  * Enqueues another audio period buffer into the bestcomm queue.
@@ -65,7 +65,7 @@ static irqreturn_t psc_i2s_status_irq(int irq, void *_psc_i2s)
  * the queue.  Otherwise the enqueue will fail and the audio ring buffer
  * will get out of sync
  */
-static void psc_i2s_bcom_enqueue_next_buffer(struct psc_i2s_stream *s)
+static void psc_dma_bcom_enqueue_next_buffer(struct psc_dma_stream *s)
 {
 	struct bcom_bd *bd;
 
@@ -82,9 +82,9 @@ static void psc_i2s_bcom_enqueue_next_buffer(struct psc_i2s_stream *s)
 }
 
 /* Bestcomm DMA irq handler */
-static irqreturn_t psc_i2s_bcom_irq(int irq, void *_psc_i2s_stream)
+static irqreturn_t psc_dma_bcom_irq(int irq, void *_psc_dma_stream)
 {
-	struct psc_i2s_stream *s = _psc_i2s_stream;
+	struct psc_dma_stream *s = _psc_dma_stream;
 
 	/* For each finished period, dequeue the completed period buffer
 	 * and enqueue a new one in it's place. */
@@ -93,7 +93,7 @@ static irqreturn_t psc_i2s_bcom_irq(int irq, void *_psc_i2s_stream)
 		s->period_current_pt += s->period_bytes;
 		if (s->period_current_pt >= s->period_end)
 			s->period_current_pt = s->period_start;
-		psc_i2s_bcom_enqueue_next_buffer(s);
+		psc_dma_bcom_enqueue_next_buffer(s);
 		bcom_enable(s->bcom_task);
 	}
 
@@ -106,39 +106,39 @@ static irqreturn_t psc_i2s_bcom_irq(int irq, void *_psc_i2s_stream)
 }
 
 /**
- * psc_i2s_startup: create a new substream
+ * psc_dma_startup: create a new substream
  *
  * This is the first function called when a stream is opened.
  *
  * If this is the first stream open, then grab the IRQ and program most of
  * the PSC registers.
  */
-int psc_i2s_startup(struct snd_pcm_substream *substream,
+int psc_dma_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
+	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
 	int rc;
 
-	dev_dbg(psc_i2s->dev, "psc_i2s_startup(substream=%p)\n", substream);
+	dev_dbg(psc_dma->dev, "psc_dma_startup(substream=%p)\n", substream);
 
-	if (!psc_i2s->playback.active &&
-	    !psc_i2s->capture.active) {
+	if (!psc_dma->playback.active &&
+	    !psc_dma->capture.active) {
 		/* Setup the IRQs */
-		rc = request_irq(psc_i2s->irq, &psc_i2s_status_irq, IRQF_SHARED,
-				 "psc-i2s-status", psc_i2s);
-		rc |= request_irq(psc_i2s->capture.irq,
-				  &psc_i2s_bcom_irq, IRQF_SHARED,
-				  "psc-i2s-capture", &psc_i2s->capture);
-		rc |= request_irq(psc_i2s->playback.irq,
-				  &psc_i2s_bcom_irq, IRQF_SHARED,
-				  "psc-i2s-playback", &psc_i2s->playback);
+		rc = request_irq(psc_dma->irq, &psc_dma_status_irq, IRQF_SHARED,
+				 "psc-dma-status", psc_dma);
+		rc |= request_irq(psc_dma->capture.irq,
+				  &psc_dma_bcom_irq, IRQF_SHARED,
+				  "psc-dma-capture", &psc_dma->capture);
+		rc |= request_irq(psc_dma->playback.irq,
+				  &psc_dma_bcom_irq, IRQF_SHARED,
+				  "psc-dma-playback", &psc_dma->playback);
 		if (rc) {
-			free_irq(psc_i2s->irq, psc_i2s);
-			free_irq(psc_i2s->capture.irq,
-				 &psc_i2s->capture);
-			free_irq(psc_i2s->playback.irq,
-				 &psc_i2s->playback);
+			free_irq(psc_dma->irq, psc_dma);
+			free_irq(psc_dma->capture.irq,
+				 &psc_dma->capture);
+			free_irq(psc_dma->playback.irq,
+				 &psc_dma->playback);
 			return -ENODEV;
 		}
 	}
@@ -146,7 +146,7 @@ int psc_i2s_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int psc_i2s_hw_free(struct snd_pcm_substream *substream,
+int psc_dma_hw_free(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	snd_pcm_set_runtime_buffer(substream, NULL);
@@ -154,29 +154,29 @@ int psc_i2s_hw_free(struct snd_pcm_substream *substream,
 }
 
 /**
- * psc_i2s_trigger: start and stop the DMA transfer.
+ * psc_dma_trigger: start and stop the DMA transfer.
  *
  * This function is called by ALSA to start, stop, pause, and resume the DMA
  * transfer of data.
  */
-int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
+	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct psc_i2s_stream *s;
-	struct mpc52xx_psc __iomem *regs = psc_i2s->psc_regs;
+	struct psc_dma_stream *s;
+	struct mpc52xx_psc __iomem *regs = psc_dma->psc_regs;
 	u16 imr;
 	u8 psc_cmd;
 	unsigned long flags;
 
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
-		s = &psc_i2s->capture;
+		s = &psc_dma->capture;
 	else
-		s = &psc_i2s->playback;
+		s = &psc_dma->playback;
 
-	dev_dbg(psc_i2s->dev, "psc_i2s_trigger(substream=%p, cmd=%i)"
+	dev_dbg(psc_dma->dev, "psc_dma_trigger(substream=%p, cmd=%i)"
 		" stream_id=%i\n",
 		substream, cmd, substream->pstr->stream);
 
@@ -207,14 +207,14 @@ int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		else
 			bcom_gen_bd_tx_reset(s->bcom_task);
 		while (!bcom_queue_full(s->bcom_task))
-			psc_i2s_bcom_enqueue_next_buffer(s);
+			psc_dma_bcom_enqueue_next_buffer(s);
 		bcom_enable(s->bcom_task);
 
-		/* Due to errata in the i2s mode; need to line up enabling
+		/* Due to errata in the dma mode; need to line up enabling
 		 * the transmitter with a transition on the frame sync
 		 * line */
 
-		spin_lock_irqsave(&psc_i2s->lock, flags);
+		spin_lock_irqsave(&psc_dma->lock, flags);
 		/* first make sure it is low */
 		while ((in_8(&regs->ipcr_acr.ipcr) & 0x80) != 0)
 			;
@@ -228,7 +228,7 @@ int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (substream->pstr->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			psc_cmd |= MPC52xx_PSC_TX_ENABLE;
 		out_8(&regs->command, psc_cmd);
-		spin_unlock_irqrestore(&psc_i2s->lock, flags);
+		spin_unlock_irqrestore(&psc_dma->lock, flags);
 
 		break;
 
@@ -236,7 +236,7 @@ int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* Turn off the PSC */
 		s->active = 0;
 		if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE) {
-			if (!psc_i2s->playback.active) {
+			if (!psc_dma->playback.active) {
 				out_8(&regs->command, 2 << 4);	/* reset rx */
 				out_8(&regs->command, 3 << 4);	/* reset tx */
 				out_8(&regs->command, 4 << 4);	/* reset err */
@@ -244,7 +244,7 @@ int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		} else {
 			out_8(&regs->command, 3 << 4);	/* reset tx */
 			out_8(&regs->command, 4 << 4);	/* reset err */
-			if (!psc_i2s->capture.active)
+			if (!psc_dma->capture.active)
 				out_8(&regs->command, 2 << 4);	/* reset rx */
 		}
 
@@ -255,15 +255,15 @@ int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 		break;
 
 	default:
-		dev_dbg(psc_i2s->dev, "invalid command\n");
+		dev_dbg(psc_dma->dev, "invalid command\n");
 		return -EINVAL;
 	}
 
 	/* Update interrupt enable settings */
 	imr = 0;
-	if (psc_i2s->playback.active)
+	if (psc_dma->playback.active)
 		imr |= MPC52xx_PSC_IMR_TXEMP;
-	if (psc_i2s->capture.active)
+	if (psc_dma->capture.active)
 		imr |= MPC52xx_PSC_IMR_ORERR;
 	out_be16(&regs->isr_imr.imr, imr);
 
@@ -271,36 +271,36 @@ int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 }
 
 /**
- * psc_i2s_shutdown: shutdown the data transfer on a stream
+ * psc_dma_shutdown: shutdown the data transfer on a stream
  *
  * Shutdown the PSC if there are no other substreams open.
  */
-void psc_i2s_shutdown(struct snd_pcm_substream *substream,
+void psc_dma_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
+	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
 
-	dev_dbg(psc_i2s->dev, "psc_i2s_shutdown(substream=%p)\n", substream);
+	dev_dbg(psc_dma->dev, "psc_dma_shutdown(substream=%p)\n", substream);
 
 	/*
 	 * If this is the last active substream, disable the PSC and release
 	 * the IRQ.
 	 */
-	if (!psc_i2s->playback.active &&
-	    !psc_i2s->capture.active) {
+	if (!psc_dma->playback.active &&
+	    !psc_dma->capture.active) {
 
 		/* Disable all interrupts and reset the PSC */
-		out_be16(&psc_i2s->psc_regs->isr_imr.imr, 0);
-		out_8(&psc_i2s->psc_regs->command, 3 << 4); /* reset tx */
-		out_8(&psc_i2s->psc_regs->command, 2 << 4); /* reset rx */
-		out_8(&psc_i2s->psc_regs->command, 1 << 4); /* reset mode */
-		out_8(&psc_i2s->psc_regs->command, 4 << 4); /* reset error */
+		out_be16(&psc_dma->psc_regs->isr_imr.imr, 0);
+		out_8(&psc_dma->psc_regs->command, 3 << 4); /* reset tx */
+		out_8(&psc_dma->psc_regs->command, 2 << 4); /* reset rx */
+		out_8(&psc_dma->psc_regs->command, 1 << 4); /* reset mode */
+		out_8(&psc_dma->psc_regs->command, 4 << 4); /* reset error */
 
 		/* Release irqs */
-		free_irq(psc_i2s->irq, psc_i2s);
-		free_irq(psc_i2s->capture.irq, &psc_i2s->capture);
-		free_irq(psc_i2s->playback.irq, &psc_i2s->playback);
+		free_irq(psc_dma->irq, psc_dma);
+		free_irq(psc_dma->capture.irq, &psc_dma->capture);
+		free_irq(psc_dma->playback.irq, &psc_dma->playback);
 	}
 }
 
@@ -312,7 +312,7 @@ void psc_i2s_shutdown(struct snd_pcm_substream *substream,
  * interaction with the attached codec
  */
 
-static const struct snd_pcm_hardware psc_i2s_pcm_hardware = {
+static const struct snd_pcm_hardware psc_dma_pcm_hardware = {
 	.info = SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
 		SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_BATCH,
@@ -330,80 +330,80 @@ static const struct snd_pcm_hardware psc_i2s_pcm_hardware = {
 	.fifo_size		= 0,
 };
 
-static int psc_i2s_pcm_open(struct snd_pcm_substream *substream)
+static int psc_dma_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
-	struct psc_i2s_stream *s;
+	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
+	struct psc_dma_stream *s;
 
-	dev_dbg(psc_i2s->dev, "psc_i2s_pcm_open(substream=%p)\n", substream);
+	dev_dbg(psc_dma->dev, "psc_dma_pcm_open(substream=%p)\n", substream);
 
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
-		s = &psc_i2s->capture;
+		s = &psc_dma->capture;
 	else
-		s = &psc_i2s->playback;
+		s = &psc_dma->playback;
 
-	snd_soc_set_runtime_hwparams(substream, &psc_i2s_pcm_hardware);
+	snd_soc_set_runtime_hwparams(substream, &psc_dma_pcm_hardware);
 
 	s->stream = substream;
 	return 0;
 }
 
-static int psc_i2s_pcm_close(struct snd_pcm_substream *substream)
+static int psc_dma_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
-	struct psc_i2s_stream *s;
+	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
+	struct psc_dma_stream *s;
 
-	dev_dbg(psc_i2s->dev, "psc_i2s_pcm_close(substream=%p)\n", substream);
+	dev_dbg(psc_dma->dev, "psc_dma_pcm_close(substream=%p)\n", substream);
 
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
-		s = &psc_i2s->capture;
+		s = &psc_dma->capture;
 	else
-		s = &psc_i2s->playback;
+		s = &psc_dma->playback;
 
 	s->stream = NULL;
 	return 0;
 }
 
 static snd_pcm_uframes_t
-psc_i2s_pcm_pointer(struct snd_pcm_substream *substream)
+psc_dma_pcm_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct psc_i2s *psc_i2s = rtd->dai->cpu_dai->private_data;
-	struct psc_i2s_stream *s;
+	struct psc_dma *psc_dma = rtd->dai->cpu_dai->private_data;
+	struct psc_dma_stream *s;
 	dma_addr_t count;
 
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
-		s = &psc_i2s->capture;
+		s = &psc_dma->capture;
 	else
-		s = &psc_i2s->playback;
+		s = &psc_dma->playback;
 
 	count = s->period_current_pt - s->period_start;
 
 	return bytes_to_frames(substream->runtime, count);
 }
 
-static struct snd_pcm_ops psc_i2s_pcm_ops = {
-	.open		= psc_i2s_pcm_open,
-	.close		= psc_i2s_pcm_close,
+static struct snd_pcm_ops psc_dma_pcm_ops = {
+	.open		= psc_dma_pcm_open,
+	.close		= psc_dma_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
-	.pointer	= psc_i2s_pcm_pointer,
+	.pointer	= psc_dma_pcm_pointer,
 };
 
-static u64 psc_i2s_pcm_dmamask = 0xffffffff;
-static int psc_i2s_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
+static u64 psc_dma_pcm_dmamask = 0xffffffff;
+static int psc_dma_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 			   struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
-	size_t size = psc_i2s_pcm_hardware.buffer_bytes_max;
+	size_t size = psc_dma_pcm_hardware.buffer_bytes_max;
 	int rc = 0;
 
-	dev_dbg(rtd->socdev->dev, "psc_i2s_pcm_new(card=%p, dai=%p, pcm=%p)\n",
+	dev_dbg(rtd->socdev->dev, "psc_dma_pcm_new(card=%p, dai=%p, pcm=%p)\n",
 		card, dai, pcm);
 
 	if (!card->dev->dma_mask)
-		card->dev->dma_mask = &psc_i2s_pcm_dmamask;
+		card->dev->dma_mask = &psc_dma_pcm_dmamask;
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = 0xffffffff;
 
@@ -431,13 +431,13 @@ static int psc_i2s_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
 	return -ENOMEM;
 }
 
-static void psc_i2s_pcm_free(struct snd_pcm *pcm)
+static void psc_dma_pcm_free(struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
 	struct snd_pcm_substream *substream;
 	int stream;
 
-	dev_dbg(rtd->socdev->dev, "psc_i2s_pcm_free(pcm=%p)\n", pcm);
+	dev_dbg(rtd->socdev->dev, "psc_dma_pcm_free(pcm=%p)\n", pcm);
 
 	for (stream = 0; stream < 2; stream++) {
 		substream = pcm->streams[stream].substream;
@@ -449,10 +449,10 @@ static void psc_i2s_pcm_free(struct snd_pcm *pcm)
 	}
 }
 
-struct snd_soc_platform psc_i2s_pcm_soc_platform = {
+struct snd_soc_platform psc_dma_pcm_soc_platform = {
 	.name		= "mpc5200-psc-audio",
-	.pcm_ops	= &psc_i2s_pcm_ops,
-	.pcm_new	= &psc_i2s_pcm_new,
-	.pcm_free	= &psc_i2s_pcm_free,
+	.pcm_ops	= &psc_dma_pcm_ops,
+	.pcm_new	= &psc_dma_pcm_new,
+	.pcm_free	= &psc_dma_pcm_free,
 };
 

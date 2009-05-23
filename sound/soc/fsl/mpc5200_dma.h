@@ -6,9 +6,9 @@
 #define __SOUND_SOC_FSL_MPC5200_DMA_H__
 
 /**
- * psc_i2s_stream - Data specific to a single stream (playback or capture)
+ * psc_dma_stream - Data specific to a single stream (playback or capture)
  * @active:		flag indicating if the stream is active
- * @psc_i2s:		pointer back to parent psc_i2s data structure
+ * @psc_dma:		pointer back to parent psc_dma data structure
  * @bcom_task:		bestcomm task structure
  * @irq:		irq number for bestcomm task
  * @period_start:	physical address of start of DMA region
@@ -16,9 +16,9 @@
  * @period_next_pt:	physical address of next DMA buffer to enqueue
  * @period_bytes:	size of DMA period in bytes
  */
-struct psc_i2s_stream {
+struct psc_dma_stream {
 	int active;
-	struct psc_i2s *psc_i2s;
+	struct psc_dma *psc_dma;
 	struct bcom_task *bcom_task;
 	int irq;
 	struct snd_pcm_substream *stream;
@@ -30,7 +30,7 @@ struct psc_i2s_stream {
 };
 
 /**
- * psc_i2s - Private driver data
+ * psc_dma - Private driver data
  * @name: short name for this device ("PSC0", "PSC1", etc)
  * @psc_regs: pointer to the PSC's registers
  * @fifo_regs: pointer to the PSC's FIFO registers
@@ -42,7 +42,7 @@ struct psc_i2s_stream {
  * @playback: Playback stream context data
  * @capture: Capture stream context data
  */
-struct psc_i2s {
+struct psc_dma {
 	char name[32];
 	struct mpc52xx_psc __iomem *psc_regs;
 	struct mpc52xx_psc_fifo __iomem *fifo_regs;
@@ -53,8 +53,8 @@ struct psc_i2s {
 	u32 sicr;
 
 	/* per-stream data */
-	struct psc_i2s_stream playback;
-	struct psc_i2s_stream capture;
+	struct psc_dma_stream playback;
+	struct psc_dma_stream capture;
 
 	/* Statistics */
 	struct {
@@ -64,18 +64,18 @@ struct psc_i2s {
 };
 
 
-int psc_i2s_startup(struct snd_pcm_substream *substream,
+int psc_dma_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai);
 
-int psc_i2s_hw_free(struct snd_pcm_substream *substream,
+int psc_dma_hw_free(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai);
 
-void psc_i2s_shutdown(struct snd_pcm_substream *substream,
+void psc_dma_shutdown(struct snd_pcm_substream *substream,
 			     struct snd_soc_dai *dai);
 
-int psc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+int psc_dma_trigger(struct snd_pcm_substream *substream, int cmd,
 			   struct snd_soc_dai *dai);
 
-extern struct snd_soc_platform psc_i2s_pcm_soc_platform;
+extern struct snd_soc_platform psc_dma_pcm_soc_platform;
 
 #endif /* __SOUND_SOC_FSL_MPC5200_DMA_H__ */
