@@ -1340,6 +1340,8 @@ static int _init_blk_request(struct osd_request *or,
 
 	or->request = req;
 	req->cmd_type = REQ_TYPE_BLOCK_PC;
+	req->cmd_flags |= REQ_QUIET;
+
 	req->timeout = or->timeout;
 	req->retries = or->retries;
 	req->sense = or->sense;
