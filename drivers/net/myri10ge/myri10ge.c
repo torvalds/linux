@@ -1422,6 +1422,7 @@ myri10ge_clean_rx_done(struct myri10ge_slice_state *ss, int budget)
 {
 	struct myri10ge_rx_done *rx_done = &ss->rx_done;
 	struct myri10ge_priv *mgp = ss->mgp;
+	struct net_device *netdev = mgp->dev;
 	unsigned long rx_bytes = 0;
 	unsigned long rx_packets = 0;
 	unsigned long rx_ok;
@@ -1455,7 +1456,7 @@ myri10ge_clean_rx_done(struct myri10ge_slice_state *ss, int budget)
 	ss->stats.rx_packets += rx_packets;
 	ss->stats.rx_bytes += rx_bytes;
 
-	if (myri10ge_lro)
+	if (netdev->features & NETIF_F_LRO)
 		lro_flush_all(&rx_done->lro_mgr);
 
 	/* restock receive rings if needed */
