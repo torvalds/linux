@@ -913,9 +913,9 @@ static int nilfs_btree_prepare_insert(struct nilfs_btree *btree,
 	level = NILFS_BTREE_LEVEL_DATA;
 
 	/* allocate a new ptr for data block */
-	if (btree->bt_ops->btop_find_target != NULL)
+	if (NILFS_BMAP_USE_VBN(&btree->bt_bmap))
 		path[level].bp_newreq.bpr_ptr =
-			btree->bt_ops->btop_find_target(btree, path, key);
+			nilfs_btree_find_target_v(btree, path, key);
 
 	ret = nilfs_bmap_prepare_alloc_ptr(&btree->bt_bmap,
 					   &path[level].bp_newreq);
@@ -1061,8 +1061,8 @@ static void nilfs_btree_commit_insert(struct nilfs_btree *btree,
 
 	set_buffer_nilfs_volatile((struct buffer_head *)((unsigned long)ptr));
 	ptr = path[NILFS_BTREE_LEVEL_DATA].bp_newreq.bpr_ptr;
-	if (btree->bt_ops->btop_set_target != NULL)
-		btree->bt_ops->btop_set_target(btree, key, ptr);
+	if (NILFS_BMAP_USE_VBN(&btree->bt_bmap))
+		nilfs_btree_set_target_v(btree, key, ptr);
 
 	for (level = NILFS_BTREE_LEVEL_NODE_MIN; level <= maxlevel; level++) {
 		nilfs_bmap_commit_alloc_ptr(&btree->bt_bmap,
@@ -1586,9 +1586,9 @@ nilfs_btree_prepare_convert_and_insert(struct nilfs_bmap *bmap, __u64 key,
 
 	/* for data */
 	/* cannot find near ptr */
-	if (btree->bt_ops->btop_find_target != NULL)
-		dreq->bpr_ptr
-			= btree->bt_ops->btop_find_target(btree, NULL, key);
+	if (NILFS_BMAP_USE_VBN(bmap))
+		dreq->bpr_ptr = nilfs_btree_find_target_v(btree, NULL, key);
+
 	ret = nilfs_bmap_prepare_alloc_ptr(bmap, dreq);
 	if (ret < 0)
 		return ret;
@@ -1681,8 +1681,8 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *bmap,
 			nilfs_bmap_set_dirty(bmap);
 	}
 
-	if (btree->bt_ops->btop_set_target != NULL)
-		btree->bt_ops->btop_set_target(btree, key, dreq->bpr_ptr);
+	if (NILFS_BMAP_USE_VBN(bmap))
+		nilfs_btree_set_target_v(btree, key, dreq->bpr_ptr);
 }
 
 /**
@@ -1926,7 +1926,9 @@ static int nilfs_btree_propagate(const struct nilfs_bmap *bmap,
 		goto out;
 	}
 
-	ret = btree->bt_ops->btop_propagate(btree, path, level, bh);
+	ret = NILFS_BMAP_USE_VBN(bmap) ?
+		nilfs_btree_propagate_v(btree, path, level, bh) :
+		nilfs_btree_propagate_p(btree, path, level, bh);
 
  out:
 	nilfs_btree_clear_path(btree, path);
@@ -2107,8 +2109,9 @@ static int nilfs_btree_assign(struct nilfs_bmap *bmap,
 		goto out;
 	}
 
-	ret = btree->bt_ops->btop_assign(btree, path, level, bh,
-					    blocknr, binfo);
+	ret = NILFS_BMAP_USE_VBN(bmap) ?
+		nilfs_btree_assign_v(btree, path, level, bh, blocknr, binfo) :
+		nilfs_btree_assign_p(btree, path, level, bh, blocknr, binfo);
 
  out:
 	nilfs_btree_clear_path(btree, path);
@@ -2220,34 +2223,9 @@ static const struct nilfs_bmap_operations nilfs_btree_ops_gc = {
 	.bop_gather_data	=	NULL,
 };
 
-static const struct nilfs_btree_operations nilfs_btree_ops_v = {
-	.btop_find_target	=	nilfs_btree_find_target_v,
-	.btop_set_target	=	nilfs_btree_set_target_v,
-	.btop_propagate		=	nilfs_btree_propagate_v,
-	.btop_assign		=	nilfs_btree_assign_v,
-};
-
-static const struct nilfs_btree_operations nilfs_btree_ops_p = {
-	.btop_find_target	=	NULL,
-	.btop_set_target	=	NULL,
-	.btop_propagate		=	nilfs_btree_propagate_p,
-	.btop_assign		=	nilfs_btree_assign_p,
-};
-
 int nilfs_btree_init(struct nilfs_bmap *bmap)
 {
-	struct nilfs_btree *btree = (struct nilfs_btree *)bmap;
-
 	bmap->b_ops = &nilfs_btree_ops;
-	switch (bmap->b_inode->i_ino) {
-	case NILFS_DAT_INO:
-		btree->bt_ops = &nilfs_btree_ops_p;
-		break;
-	default:
-		btree->bt_ops = &nilfs_btree_ops_v;
-		break;
-	}
-
 	return 0;
 }
 
