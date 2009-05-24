@@ -140,6 +140,16 @@ static struct em28xx_reg_seq compro_mute_gpio[] = {
 	{  -1,			-1,		-1,		-1},
 };
 
+/* Terratec AV350 */
+static struct em28xx_reg_seq terratec_av350_mute_gpio[] = {
+	{EM28XX_R08_GPIO,	0xff,	0x7f,		10},
+	{	-1,		-1,	-1,		-1},
+};
+
+static struct em28xx_reg_seq terratec_av350_unmute_gpio[] = {
+	{EM28XX_R08_GPIO,	0xff,	0xff,		10},
+	{	-1,		-1,	-1,		-1},
+};
 /*
  *  Board definitions
  */
@@ -1363,6 +1373,26 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_VIDEO2,
 		} },
 	},
+	[EM2860_BOARD_TERRATEC_AV350] = {
+		.name            = "Terratec AV350",
+		.vchannels       = 2,
+		.tuner_type      = TUNER_ABSENT,
+		.decoder         = EM28XX_TVP5150,
+		.xclk            = EM28XX_XCLK_FREQUENCY_12MHZ,
+		.mute_gpio       = terratec_av350_mute_gpio,
+		.input           = { {
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = EM28XX_AUDIO_SRC_LINE,
+                        .gpio     = terratec_av350_unmute_gpio,
+
+		}, {
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = EM28XX_AUDIO_SRC_LINE,
+                        .gpio     = terratec_av350_unmute_gpio,
+		} },
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -1426,6 +1456,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2870_BOARD_TERRATEC_XS },
 	{ USB_DEVICE(0x0ccd, 0x0047),
 			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
+	{ USB_DEVICE(0x0ccd, 0x0084),
+			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
 	{ USB_DEVICE(0x0ccd, 0x0096),
 			.driver_info = EM2860_BOARD_TERRATEC_GRABBY },
 	{ USB_DEVICE(0x185b, 0x2870),

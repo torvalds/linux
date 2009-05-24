@@ -104,6 +104,7 @@
 #define EM2820_BOARD_IODATA_GVMVP_SZ		  65
 #define EM2880_BOARD_EMPIRE_DUAL_TV		  66
 #define EM2860_BOARD_TERRATEC_GRABBY		  67
+#define EM2860_BOARD_TERRATEC_AV350		  68
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
