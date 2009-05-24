@@ -963,7 +963,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	vol_id = be32_to_cpu(vid_hdr->vol_id);
 	lnum = be32_to_cpu(vid_hdr->lnum);
 
-	dbg_eba("copy LEB %d:%d, PEB %d to PEB %d", vol_id, lnum, from, to);
+	dbg_wl("copy LEB %d:%d, PEB %d to PEB %d", vol_id, lnum, from, to);
 
 	if (vid_hdr->vol_type == UBI_VID_STATIC) {
 		data_size = be32_to_cpu(vid_hdr->data_size);
@@ -984,7 +984,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	spin_unlock(&ubi->volumes_lock);
 	if (!vol) {
 		/* No need to do further work, cancel */
-		dbg_eba("volume %d is being removed, cancel", vol_id);
+		dbg_wl("volume %d is being removed, cancel", vol_id);
 		return MOVE_CANCEL_RACE;
 	}
 
@@ -1003,7 +1003,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 */
 	err = leb_write_trylock(ubi, vol_id, lnum);
 	if (err) {
-		dbg_eba("contention on LEB %d:%d, cancel", vol_id, lnum);
+		dbg_wl("contention on LEB %d:%d, cancel", vol_id, lnum);
 		return MOVE_CANCEL_RACE;
 	}
 
@@ -1013,9 +1013,9 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * cancel it.
 	 */
 	if (vol->eba_tbl[lnum] != from) {
-		dbg_eba("LEB %d:%d is no longer mapped to PEB %d, mapped to "
-			"PEB %d, cancel", vol_id, lnum, from,
-			vol->eba_tbl[lnum]);
+		dbg_wl("LEB %d:%d is no longer mapped to PEB %d, mapped to "
+		       "PEB %d, cancel", vol_id, lnum, from,
+		       vol->eba_tbl[lnum]);
 		err = MOVE_CANCEL_RACE;
 		goto out_unlock_leb;
 	}
@@ -1027,7 +1027,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	 * @ubi->buf_mutex.
 	 */
 	mutex_lock(&ubi->buf_mutex);
-	dbg_eba("read %d bytes of data", aldata_size);
+	dbg_wl("read %d bytes of data", aldata_size);
 	err = ubi_io_read_data(ubi, ubi->peb_buf1, from, 0, aldata_size);
 	if (err && err != UBI_IO_BITFLIPS) {
 		ubi_warn("error %d while reading data from PEB %d",
