@@ -327,10 +327,6 @@ static int myri10ge_debug = -1;	/* defaults above */
 module_param(myri10ge_debug, int, 0);
 MODULE_PARM_DESC(myri10ge_debug, "Debug level (0=none,...,16=all)");
 
-static int myri10ge_lro = 1;
-module_param(myri10ge_lro, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_lro, "Enable large receive offload");
-
 static int myri10ge_lro_max_pkts = MYRI10GE_LRO_MAX_PKTS;
 module_param(myri10ge_lro_max_pkts, int, S_IRUGO);
 MODULE_PARM_DESC(myri10ge_lro_max_pkts,
@@ -3918,8 +3914,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (dac_enabled)
 		netdev->features |= NETIF_F_HIGHDMA;
-	if (myri10ge_lro)
-		netdev->features |= NETIF_F_LRO;
+	netdev->features |= NETIF_F_LRO;
 
 	/* make sure we can get an irq, and that MSI can be
 	 * setup (if available).  Also ensure netdev->irq
