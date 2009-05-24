@@ -105,6 +105,10 @@ enum {
  *
  * MOVE_CANCEL_RACE: canceled because the volume is being deleted, the source
  *                   PEB was put meanwhile, or there is I/O on the source PEB
+ * MOVE_SOURCE_RD_ERR: canceled because there was a read error from the source
+ *                     PEB
+ * MOVE_TARGET_RD_ERR: canceled because there was a read error from the target
+ *                     PEB
  * MOVE_TARGET_WR_ERR: canceled because there was a write error to the target
  *                     PEB
  * MOVE_CANCEL_BITFLIPS: canceled because a bit-flip was detected in the
@@ -112,6 +116,8 @@ enum {
  */
 enum {
 	MOVE_CANCEL_RACE = 1,
+	MOVE_SOURCE_RD_ERR,
+	MOVE_TARGET_RD_ERR,
 	MOVE_TARGET_WR_ERR,
 	MOVE_CANCEL_BITFLIPS,
 };
@@ -334,14 +340,15 @@ struct ubi_wl_entry;
  * @alc_mutex: serializes "atomic LEB change" operations
  *
  * @used: RB-tree of used physical eraseblocks
+ * @erroneous: RB-tree of erroneous used physical eraseblocks
  * @free: RB-tree of free physical eraseblocks
  * @scrub: RB-tree of physical eraseblocks which need scrubbing
  * @pq: protection queue (contain physical eraseblocks which are temporarily
  *      protected from the wear-leveling worker)
  * @pq_head: protection queue head
  * @wl_lock: protects the @used, @free, @pq, @pq_head, @lookuptbl, @move_from,
- * 	     @move_to, @move_to_put @erase_pending, @wl_scheduled and @works
- * 	     fields
+ * 	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works and
+ * 	     @erroneous_peb_count fields
  * @move_mutex: serializes eraseblock moves
  * @work_sem: synchronizes the WL worker with use tasks
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
@@ -361,6 +368,8 @@ struct ubi_wl_entry;
  * @peb_size: physical eraseblock size
  * @bad_peb_count: count of bad physical eraseblocks
  * @good_peb_count: count of good physical eraseblocks
+ * @erroneous_peb_count: count of erroneous physical eraseblocks in @erroneous
+ * @max_erroneous: maximum allowed amount of erroneous physical eraseblocks
  * @min_io_size: minimal input/output unit size of the underlying MTD device
  * @hdrs_min_io_size: minimal I/O unit size used for VID and EC headers
  * @ro_mode: if the UBI device is in read-only mode
@@ -418,6 +427,7 @@ struct ubi_device {
 
 	/* Wear-leveling sub-system's stuff */
 	struct rb_root used;
+	struct rb_root erroneous;
 	struct rb_root free;
 	struct rb_root scrub;
 	struct list_head pq[UBI_PROT_QUEUE_LEN];
@@ -442,6 +452,8 @@ struct ubi_device {
 	int peb_size;
 	int bad_peb_count;
 	int good_peb_count;
+	int erroneous_peb_count;
+	int max_erroneous;
 	int min_io_size;
 	int hdrs_min_io_size;
 	int ro_mode;

@@ -419,8 +419,9 @@ retry:
 				 * not implemented.
 				 */
 				if (err == UBI_IO_BAD_VID_HDR) {
-					ubi_warn("bad VID header at PEB %d, LEB"
-						 "%d:%d", pnum, vol_id, lnum);
+					ubi_warn("corrupted VID header at PEB "
+						 "%d, LEB %d:%d", pnum, vol_id,
+						 lnum);
 					err = -EBADMSG;
 				} else
 					ubi_ro_mode(ubi);
@@ -1032,6 +1033,8 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	if (err && err != UBI_IO_BITFLIPS) {
 		ubi_warn("error %d while reading data from PEB %d",
 			 err, from);
+		if (err == -EIO)
+			err = MOVE_SOURCE_RD_ERR;
 		goto out_unlock_buf;
 	}
 
@@ -1078,9 +1081,11 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	/* Read the VID header back and check if it was written correctly */
 	err = ubi_io_read_vid_hdr(ubi, to, vid_hdr, 1);
 	if (err) {
-		if (err != UBI_IO_BITFLIPS)
+		if (err != UBI_IO_BITFLIPS) {
 			ubi_warn("cannot read VID header back from PEB %d", to);
-		else
+			if (err == -EIO)
+				err = MOVE_TARGET_RD_ERR;
+		} else
 			err = MOVE_CANCEL_BITFLIPS;
 		goto out_unlock_buf;
 	}
@@ -1102,10 +1107,12 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 
 		err = ubi_io_read_data(ubi, ubi->peb_buf2, to, 0, aldata_size);
 		if (err) {
-			if (err != UBI_IO_BITFLIPS)
+			if (err != UBI_IO_BITFLIPS) {
 				ubi_warn("cannot read data back from PEB %d",
 					 to);
-			else
+				if (err == -EIO)
+					err = MOVE_TARGET_RD_ERR;
+			} else
 				err = MOVE_CANCEL_BITFLIPS;
 			goto out_unlock_buf;
 		}

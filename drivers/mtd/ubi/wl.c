@@ -55,8 +55,8 @@
  *
  * As it was said, for the UBI sub-system all physical eraseblocks are either
  * "free" or "used". Free eraseblock are kept in the @wl->free RB-tree, while
- * used eraseblocks are kept in @wl->used or @wl->scrub RB-trees, or
- * (temporarily) in the @wl->pq queue.
+ * used eraseblocks are kept in @wl->used, @wl->erroneous, or @wl->scrub
+ * RB-trees, as well as (temporarily) in the @wl->pq queue.
  *
  * When the WL sub-system returns a physical eraseblock, the physical
  * eraseblock is protected from being moved for some "time". For this reason,
@@ -83,6 +83,8 @@
  * used. The former state corresponds to the @wl->free tree. The latter state
  * is split up on several sub-states:
  * o the WL movement is allowed (@wl->used tree);
+ * o the WL movement is disallowed (@wl->erroneous) becouse the PEB is
+ *   erroneous - e.g., there was a read error;
  * o the WL movement is temporarily prohibited (@wl->pq queue);
  * o scrubbing is needed (@wl->scrub tree).
  *
@@ -653,7 +655,7 @@ static int schedule_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 				int cancel)
 {
-	int err, scrubbing = 0, torture = 0, protect = 0;
+	int err, scrubbing = 0, torture = 0, protect = 0, erroneous = 0;
 	struct ubi_wl_entry *e1, *e2;
 	struct ubi_vid_hdr *vid_hdr;
 
@@ -769,10 +771,28 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			goto out_not_moved;
 		}
 
-		if (err == MOVE_CANCEL_BITFLIPS ||
-		    err == MOVE_TARGET_WR_ERR) {
+		if (err == MOVE_CANCEL_BITFLIPS || err == MOVE_TARGET_WR_ERR ||
+		    err == MOVE_TARGET_RD_ERR) {
 			/* Target PEB bit-flips or write error, torture it */
 			torture = 1;
+			goto out_not_moved;
+		}
+
+		if (err == MOVE_SOURCE_RD_ERR) {
+			/*
+			 * An error happened while reading the source PEB. Do
+			 * not switch to R/O mode in this case, and give the
+			 * upper layers a possibility to recover from this,
+			 * e.g. by unmapping corresponding LEB. Instead, just
+			 * put thie PEB to the @ubi->erroneus list to prevent
+			 * UBI from trying to move the over and over again.
+			 */
+			if (ubi->erroneous_peb_count > ubi->max_erroneous) {
+				ubi_err("too many erroneous eraseblocks (%d)",
+					ubi->erroneous_peb_count);
+				goto out_error;
+			}
+			erroneous = 1;
 			goto out_not_moved;
 		}
 
@@ -832,7 +852,10 @@ out_not_moved:
 	spin_lock(&ubi->wl_lock);
 	if (protect)
 		prot_queue_add(ubi, e1);
-	else if (scrubbing)
+	else if (erroneous) {
+		wl_tree_add(e1, &ubi->erroneous);
+		ubi->erroneous_peb_count += 1;
+	} else if (scrubbing)
 		wl_tree_add(e1, &ubi->scrub);
 	else
 		wl_tree_add(e1, &ubi->used);
@@ -1116,6 +1139,13 @@ retry:
 		} else if (in_wl_tree(e, &ubi->scrub)) {
 			paranoid_check_in_wl_tree(e, &ubi->scrub);
 			rb_erase(&e->u.rb, &ubi->scrub);
+		} else if (in_wl_tree(e, &ubi->erroneous)) {
+			paranoid_check_in_wl_tree(e, &ubi->erroneous);
+			rb_erase(&e->u.rb, &ubi->erroneous);
+			ubi->erroneous_peb_count -= 1;
+			ubi_assert(ubi->erroneous_peb_count >= 0);
+			/* Erronious PEBs should be tortured */
+			torture = 1;
 		} else {
 			err = prot_queue_del(ubi, e->pnum);
 			if (err) {
@@ -1364,7 +1394,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	struct ubi_scan_leb *seb, *tmp;
 	struct ubi_wl_entry *e;
 
-	ubi->used = ubi->free = ubi->scrub = RB_ROOT;
+	ubi->used = ubi->erroneous = ubi->free = ubi->scrub = RB_ROOT;
 	spin_lock_init(&ubi->wl_lock);
 	mutex_init(&ubi->move_mutex);
 	init_rwsem(&ubi->work_sem);
@@ -1502,6 +1532,7 @@ void ubi_wl_close(struct ubi_device *ubi)
 	cancel_pending(ubi);
 	protection_queue_destroy(ubi);
 	tree_destroy(&ubi->used);
+	tree_destroy(&ubi->erroneous);
 	tree_destroy(&ubi->free);
 	tree_destroy(&ubi->scrub);
 	kfree(ubi->lookuptbl);
