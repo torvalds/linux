@@ -90,8 +90,8 @@ static int nilfs_direct_prepare_insert(struct nilfs_direct *direct,
 {
 	int ret;
 
-	if (direct->d_ops->dop_find_target != NULL)
-		req->bpr_ptr = direct->d_ops->dop_find_target(direct, key);
+	if (NILFS_BMAP_USE_VBN(&direct->d_bmap))
+		req->bpr_ptr = nilfs_direct_find_target_v(direct, key);
 	ret = nilfs_bmap_prepare_alloc_ptr(&direct->d_bmap, req);
 	if (ret < 0)
 		return ret;
@@ -116,8 +116,8 @@ static void nilfs_direct_commit_insert(struct nilfs_direct *direct,
 	if (!nilfs_bmap_dirty(&direct->d_bmap))
 		nilfs_bmap_set_dirty(&direct->d_bmap);
 
-	if (direct->d_ops->dop_set_target != NULL)
-		direct->d_ops->dop_set_target(direct, key, req->bpr_ptr);
+	if (NILFS_BMAP_USE_VBN(&direct->d_bmap))
+		nilfs_direct_set_target_v(direct, key, req->bpr_ptr);
 }
 
 static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
@@ -297,12 +297,10 @@ static int nilfs_direct_propagate_v(struct nilfs_direct *direct,
 static int nilfs_direct_propagate(const struct nilfs_bmap *bmap,
 				  struct buffer_head *bh)
 {
-	struct nilfs_direct *direct;
+	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;
 
-	direct = (struct nilfs_direct *)bmap;
-	return (direct->d_ops->dop_propagate != NULL) ?
-		direct->d_ops->dop_propagate(direct, bh) :
-		0;
+	return NILFS_BMAP_USE_VBN(bmap) ?
+		nilfs_direct_propagate_v(direct, bh) : 0;
 }
 
 static int nilfs_direct_assign_v(struct nilfs_direct *direct,
@@ -362,8 +360,9 @@ static int nilfs_direct_assign(struct nilfs_bmap *bmap,
 		return -EINVAL;
 	}
 
-	return direct->d_ops->dop_assign(direct, key, ptr, bh,
-					 blocknr, binfo);
+	return NILFS_BMAP_USE_VBN(bmap) ?
+		nilfs_direct_assign_v(direct, key, ptr, bh, blocknr, binfo) :
+		nilfs_direct_assign_p(direct, key, ptr, bh, blocknr, binfo);
 }
 
 static const struct nilfs_bmap_operations nilfs_direct_ops = {
@@ -386,33 +385,8 @@ static const struct nilfs_bmap_operations nilfs_direct_ops = {
 };
 
 
-static const struct nilfs_direct_operations nilfs_direct_ops_v = {
-	.dop_find_target	=	nilfs_direct_find_target_v,
-	.dop_set_target		=	nilfs_direct_set_target_v,
-	.dop_propagate		=	nilfs_direct_propagate_v,
-	.dop_assign		=	nilfs_direct_assign_v,
-};
-
-static const struct nilfs_direct_operations nilfs_direct_ops_p = {
-	.dop_find_target	=	NULL,
-	.dop_set_target		=	NULL,
-	.dop_propagate		=	NULL,
-	.dop_assign		=	nilfs_direct_assign_p,
-};
-
 int nilfs_direct_init(struct nilfs_bmap *bmap)
 {
-	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;
-
 	bmap->b_ops = &nilfs_direct_ops;
-	switch (bmap->b_inode->i_ino) {
-	case NILFS_DAT_INO:
-		direct->d_ops = &nilfs_direct_ops_p;
-		break;
-	default:
-		direct->d_ops = &nilfs_direct_ops_v;
-		break;
-	}
-
 	return 0;
 }
