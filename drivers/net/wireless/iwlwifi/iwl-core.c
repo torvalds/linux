@@ -1704,8 +1704,9 @@ static irqreturn_t iwl_isr(int irq, void *data)
 {
 	struct iwl_priv *priv = data;
 	u32 inta, inta_mask;
+#ifdef CONFIG_IWLWIFI_DEBUG
 	u32 inta_fh;
-
+#endif
 	if (!priv)
 		return IRQ_NONE;
 
