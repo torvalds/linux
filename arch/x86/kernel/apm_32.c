@@ -1233,9 +1233,9 @@ static int suspend(int vetoable)
 	int err;
 	struct apm_user	*as;
 
-	device_suspend(PMSG_SUSPEND);
+	dpm_suspend_start(PMSG_SUSPEND);
 
-	device_suspend_noirq(PMSG_SUSPEND);
+	dpm_suspend_noirq(PMSG_SUSPEND);
 
 	local_irq_disable();
 	sysdev_suspend(PMSG_SUSPEND);
@@ -1259,9 +1259,9 @@ static int suspend(int vetoable)
 	sysdev_resume();
 	local_irq_enable();
 
-	device_resume_noirq(PMSG_RESUME);
+	dpm_resume_noirq(PMSG_RESUME);
 
-	device_resume(PMSG_RESUME);
+	dpm_resume_end(PMSG_RESUME);
 	queue_event(APM_NORMAL_RESUME, NULL);
 	spin_lock(&user_list_lock);
 	for (as = user_list; as != NULL; as = as->next) {
@@ -1277,7 +1277,7 @@ static void standby(void)
 {
 	int err;
 
-	device_suspend_noirq(PMSG_SUSPEND);
+	dpm_suspend_noirq(PMSG_SUSPEND);
 
 	local_irq_disable();
 	sysdev_suspend(PMSG_SUSPEND);
@@ -1291,7 +1291,7 @@ static void standby(void)
 	sysdev_resume();
 	local_irq_enable();
 
-	device_resume_noirq(PMSG_RESUME);
+	dpm_resume_noirq(PMSG_RESUME);
 }
 
 static apm_event_t get_event(void)
@@ -1376,7 +1376,7 @@ static void check_events(void)
 			ignore_bounce = 1;
 			if ((event != APM_NORMAL_RESUME)
 			    || (ignore_normal_resume == 0)) {
-				device_resume(PMSG_RESUME);
+				dpm_resume_end(PMSG_RESUME);
 				queue_event(event, NULL);
 			}
 			ignore_normal_resume = 0;

@@ -295,7 +295,7 @@ static int suspend_enter(suspend_state_t state)
 			return error;
 	}
 
-	error = device_suspend_noirq(PMSG_SUSPEND);
+	error = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to power down\n");
 		goto Platfrom_finish;
@@ -335,7 +335,7 @@ static int suspend_enter(suspend_state_t state)
 		suspend_ops->wake();
 
  Power_up_devices:
-	device_resume_noirq(PMSG_RESUME);
+	dpm_resume_noirq(PMSG_RESUME);
 
  Platfrom_finish:
 	if (suspend_ops->finish)
@@ -363,7 +363,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 	}
 	suspend_console();
 	suspend_test_start();
-	error = device_suspend(PMSG_SUSPEND);
+	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
 		printk(KERN_ERR "PM: Some devices failed to suspend\n");
 		goto Recover_platform;
@@ -376,7 +376,7 @@ int suspend_devices_and_enter(suspend_state_t state)
 
  Resume_devices:
 	suspend_test_start();
-	device_resume(PMSG_RESUME);
+	dpm_resume_end(PMSG_RESUME);
 	suspend_test_finish("resume devices");
 	resume_console();
  Close:
