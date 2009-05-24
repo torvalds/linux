@@ -779,13 +779,14 @@ EXPORT_SYMBOL(osd_req_remove_object);
 */
 
 void osd_req_write(struct osd_request *or,
-	const struct osd_obj_id *obj, struct bio *bio, u64 offset)
+	const struct osd_obj_id *obj, u64 offset,
+	struct bio *bio, u64 len)
 {
-	_osd_req_encode_common(or, OSD_ACT_WRITE, obj, offset, bio->bi_size);
+	_osd_req_encode_common(or, OSD_ACT_WRITE, obj, offset, len);
 	WARN_ON(or->out.bio || or->out.total_bytes);
-	bio->bi_rw |= (1 << BIO_RW);
+	WARN_ON(0 ==  bio_rw_flagged(bio, BIO_RW));
 	or->out.bio = bio;
-	or->out.total_bytes = bio->bi_size;
+	or->out.total_bytes = len;
 }
 EXPORT_SYMBOL(osd_req_write);
 
@@ -798,7 +799,8 @@ int osd_req_write_kern(struct osd_request *or,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	osd_req_write(or, obj, bio, offset);
+	bio->bi_rw |= (1 << BIO_RW); /* FIXME: bio_set_dir() */
+	osd_req_write(or, obj, offset, bio, len);
 	return 0;
 }
 EXPORT_SYMBOL(osd_req_write_kern);
@@ -828,13 +830,14 @@ void osd_req_flush_object(struct osd_request *or,
 EXPORT_SYMBOL(osd_req_flush_object);
 
 void osd_req_read(struct osd_request *or,
-	const struct osd_obj_id *obj, struct bio *bio, u64 offset)
+	const struct osd_obj_id *obj, u64 offset,
+	struct bio *bio, u64 len)
 {
-	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, bio->bi_size);
+	_osd_req_encode_common(or, OSD_ACT_READ, obj, offset, len);
 	WARN_ON(or->in.bio || or->in.total_bytes);
-	bio->bi_rw &= ~(1 << BIO_RW);
+	WARN_ON(1 == bio_rw_flagged(bio, BIO_RW));
 	or->in.bio = bio;
-	or->in.total_bytes = bio->bi_size;
+	or->in.total_bytes = len;
 }
 EXPORT_SYMBOL(osd_req_read);
 
@@ -847,7 +850,7 @@ int osd_req_read_kern(struct osd_request *or,
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
-	osd_req_read(or, obj, bio, offset);
+	osd_req_read(or, obj, offset, bio, len);
 	return 0;
 }
 EXPORT_SYMBOL(osd_req_read_kern);

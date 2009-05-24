@@ -363,7 +363,7 @@ void osd_req_create_object(struct osd_request *or, struct osd_obj_id *);
 void osd_req_remove_object(struct osd_request *or, struct osd_obj_id *);
 
 void osd_req_write(struct osd_request *or,
-	const struct osd_obj_id *, struct bio *data_out, u64 offset);
+	const struct osd_obj_id *obj, u64 offset, struct bio *bio, u64 len);
 int osd_req_write_kern(struct osd_request *or,
 	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
 void osd_req_append(struct osd_request *or,
@@ -380,7 +380,7 @@ void osd_req_flush_object(struct osd_request *or,
 	/*V2*/ u64 offset, /*V2*/ u64 len);
 
 void osd_req_read(struct osd_request *or,
-	const struct osd_obj_id *, struct bio *data_in, u64 offset);
+	const struct osd_obj_id *obj, u64 offset, struct bio *bio, u64 len);
 int osd_req_read_kern(struct osd_request *or,
 	const struct osd_obj_id *obj, u64 offset, void *buff, u64 len);
 
