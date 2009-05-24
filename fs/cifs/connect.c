@@ -1096,17 +1096,17 @@ cifs_parse_mount_options(char *options, const char *devname,
 				return 1;
 			}
 		} else if (strnicmp(data, "uid", 3) == 0) {
-			if (value && *value) {
+			if (value && *value)
 				vol->linux_uid =
 					simple_strtoul(value, &value, 0);
+		} else if (strnicmp(data, "forceuid", 8) == 0) {
 				vol->override_uid = 1;
-			}
 		} else if (strnicmp(data, "gid", 3) == 0) {
-			if (value && *value) {
+			if (value && *value)
 				vol->linux_gid =
 					simple_strtoul(value, &value, 0);
+		} else if (strnicmp(data, "forcegid", 8) == 0) {
 				vol->override_gid = 1;
-			}
 		} else if (strnicmp(data, "file_mode", 4) == 0) {
 			if (value && *value) {
 				vol->file_mode =
