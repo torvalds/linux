@@ -1035,10 +1035,11 @@ static void mmap_read(struct mmap_data *md)
 	md->prev = old;
 }
 
+static struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
+static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
+
 int cmd_top(int argc, char **argv, const char *prefix)
 {
-	struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
-	struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 	struct perf_counter_hw_event hw_event;
 	pthread_t thread;
 	int i, counter, group_fd, nr_poll = 0;
