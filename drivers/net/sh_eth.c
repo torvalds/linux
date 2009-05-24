@@ -250,6 +250,8 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		mdp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
+		dma_map_single(&ndev->dev, skb->tail, mdp->rx_buf_sz,
+				DMA_FROM_DEVICE);
 		skb->dev = ndev; /* Mark as being used by this device. */
 #if defined(CONFIG_CPU_SUBTYPE_SH7763)
 		reserve = SH7763_SKB_ALIGN
@@ -559,6 +561,8 @@ static int sh_eth_rx(struct net_device *ndev)
 			mdp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
+			dma_map_single(&ndev->dev, skb->tail, mdp->rx_buf_sz,
+					DMA_FROM_DEVICE);
 			skb->dev = ndev;
 #if defined(CONFIG_CPU_SUBTYPE_SH7763)
 			reserve = SH7763_SKB_ALIGN
