@@ -1132,16 +1132,16 @@ F:	fs/bfs/
 F:	include/linux/bfs_fs.h
 
 BLACKFIN ARCHITECTURE
-P:	Bryan Wu
-M:	cooloney@kernel.org
+P:	Mike Frysinger
+M:	vapier@gentoo.org
 L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
 F:	arch/blackfin/
 
 BLACKFIN EMAC DRIVER
-P:	Bryan Wu
-M:	cooloney@kernel.org
+P:	Michael Hennerich
+M:	michael.hennerich@analog.com
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
