@@ -118,39 +118,39 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 		_osd_ver_desc(or));
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_VENDOR_IDENTIFICATION [%s]\n",
+	OSD_INFO("VENDOR_IDENTIFICATION  [%s]\n",
 		(char *)pFirst);
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_PRODUCT_IDENTIFICATION [%s]\n",
+	OSD_INFO("PRODUCT_IDENTIFICATION [%s]\n",
 		(char *)pFirst);
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_PRODUCT_MODEL [%s]\n",
+	OSD_INFO("PRODUCT_MODEL          [%s]\n",
 		(char *)pFirst);
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_PRODUCT_REVISION_LEVEL [%u]\n",
+	OSD_INFO("PRODUCT_REVISION_LEVEL [%u]\n",
 		pFirst ? get_unaligned_be32(pFirst) : ~0U);
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_PRODUCT_SERIAL_NUMBER [%s]\n",
+	OSD_INFO("PRODUCT_SERIAL_NUMBER  [%s]\n",
 		(char *)pFirst);
 
 	pFirst = get_attrs[a].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_OSD_NAME [%s]\n", (char *)pFirst);
+	OSD_INFO("OSD_NAME               [%s]\n", (char *)pFirst);
 	a++;
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_TOTAL_CAPACITY [0x%llx]\n",
+	OSD_INFO("TOTAL_CAPACITY         [0x%llx]\n",
 		pFirst ? _LLU(get_unaligned_be64(pFirst)) : ~0ULL);
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_USED_CAPACITY [0x%llx]\n",
+	OSD_INFO("USED_CAPACITY          [0x%llx]\n",
 		pFirst ? _LLU(get_unaligned_be64(pFirst)) : ~0ULL);
 
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_NUMBER_OF_PARTITIONS [%llu]\n",
+	OSD_INFO("NUMBER_OF_PARTITIONS   [%llu]\n",
 		pFirst ? _LLU(get_unaligned_be64(pFirst)) : ~0ULL);
 
 	if (a >= nelem)
@@ -158,7 +158,7 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 
 	/* FIXME: Where are the time utilities */
 	pFirst = get_attrs[a++].val_ptr;
-	OSD_INFO("OSD_ATTR_RI_CLOCK [0x%02x%02x%02x%02x%02x%02x]\n",
+	OSD_INFO("CLOCK                  [0x%02x%02x%02x%02x%02x%02x]\n",
 		((char *)pFirst)[0], ((char *)pFirst)[1],
 		((char *)pFirst)[2], ((char *)pFirst)[3],
 		((char *)pFirst)[4], ((char *)pFirst)[5]);
@@ -169,7 +169,8 @@ static int _osd_print_system_info(struct osd_dev *od, void *caps)
 
 		hex_dump_to_buffer(get_attrs[a].val_ptr, len, 32, 1,
 				   sid_dump, sizeof(sid_dump), true);
-		OSD_INFO("OSD_ATTR_RI_OSD_SYSTEM_ID(%d) [%s]\n", len, sid_dump);
+		OSD_INFO("OSD_SYSTEM_ID(%d)\n"
+			 "        [%s]\n", len, sid_dump);
 		a++;
 	}
 out:
