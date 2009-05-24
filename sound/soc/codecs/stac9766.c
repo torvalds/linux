@@ -52,12 +52,14 @@ static const u16 stac9766_reg[] = {
 	0x0000, 0x0000, 0x0000, 0x0000, /* 7e */
 };
 
-static const char *stac9766_record_mux[] = {"Mic", "CD", "Video", "AUX", "Line", "Stereo Mix", "Mono Mix", "Phone"};
+static const char *stac9766_record_mux[] = {"Mic", "CD", "Video", "AUX",
+			"Line", "Stereo Mix", "Mono Mix", "Phone"};
 static const char *stac9766_mono_mux[] = {"Mix", "Mic"};
 static const char *stac9766_mic_mux[] = {"Mic1", "Mic2"};
 static const char *stac9766_SPDIF_mux[] = {"PCM", "ADC Record"};
 static const char *stac9766_popbypass_mux[] = {"Normal", "Bypass Mixer"};
-static const char *stac9766_record_all_mux[] = {"All analog", "Analog plus DAC"};
+static const char *stac9766_record_all_mux[] = {"All analog",
+	"Analog plus DAC"};
 static const char *stac9766_boost1[] = {"0dB", "10dB"};
 static const char *stac9766_boost2[] = {"0dB", "20dB"};
 static const char *stac9766_stereo_mic[] = {"Off", "On"};
@@ -73,7 +75,8 @@ static const struct soc_enum stac9766_SPDIF_enum =
 static const struct soc_enum stac9766_popbypass_enum =
 	SOC_ENUM_SINGLE(AC97_GENERAL_PURPOSE, 15, 2, stac9766_popbypass_mux);
 static const struct soc_enum stac9766_record_all_enum =
-	SOC_ENUM_SINGLE(AC97_STAC_ANALOG_SPECIAL, 12, 2, stac9766_record_all_mux);
+	SOC_ENUM_SINGLE(AC97_STAC_ANALOG_SPECIAL, 12, 2,
+			stac9766_record_all_mux);
 static const struct soc_enum stac9766_boost1_enum =
 	SOC_ENUM_SINGLE(AC97_MIC, 6, 2, stac9766_boost1); /* 0/10dB */
 static const struct soc_enum stac9766_boost2_enum =
@@ -89,9 +92,11 @@ static const DECLARE_TLV_DB_LINEAR(mix_tlv, -3450, 1200);
 static const struct snd_kcontrol_new stac9766_snd_ac97_controls[] = {
 	SOC_DOUBLE_TLV("Speaker Volume", AC97_MASTER, 8, 0, 31, 1, master_tlv),
 	SOC_SINGLE("Speaker Switch", AC97_MASTER, 15, 1, 1),
-	SOC_DOUBLE_TLV("Headphone Volume", AC97_HEADPHONE, 8, 0, 31, 1, master_tlv),
+	SOC_DOUBLE_TLV("Headphone Volume", AC97_HEADPHONE, 8, 0, 31, 1,
+		       master_tlv),
 	SOC_SINGLE("Headphone Switch", AC97_HEADPHONE, 15, 1, 1),
-	SOC_SINGLE_TLV("Mono Out Volume", AC97_MASTER_MONO, 0, 31, 1, master_tlv),
+	SOC_SINGLE_TLV("Mono Out Volume", AC97_MASTER_MONO, 0, 31, 1,
+		       master_tlv),
 	SOC_SINGLE("Mono Out Switch", AC97_MASTER_MONO, 15, 1, 1),
 
 	SOC_DOUBLE_TLV("Record Volume", AC97_REC_GAIN, 8, 0, 15, 0, record_tlv),
@@ -133,8 +138,8 @@ static const struct snd_kcontrol_new stac9766_snd_ac97_controls[] = {
 	SOC_ENUM("Pop Bypass Mux", stac9766_popbypass_enum),
 };
 
-int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
-                                unsigned int val)
+static int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
+			       unsigned int val)
 {
 	u16 *cache = codec->reg_cache;
 
@@ -152,7 +157,8 @@ int stac9766_ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	return 0;
 }
 
-unsigned int stac9766_ac97_read(struct snd_soc_codec *codec, unsigned int reg)
+static unsigned int stac9766_ac97_read(struct snd_soc_codec *codec,
+				       unsigned int reg)
 {
 	u16 val = 0, *cache = codec->reg_cache;
 
@@ -176,7 +182,7 @@ unsigned int stac9766_ac97_read(struct snd_soc_codec *codec, unsigned int reg)
 }
 
 static int ac97_analog_prepare(struct snd_pcm_substream *substream,
-                                struct snd_soc_dai *dai)
+			       struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -197,7 +203,7 @@ static int ac97_analog_prepare(struct snd_pcm_substream *substream,
 }
 
 static int ac97_digital_prepare(struct snd_pcm_substream *substream,
-                                struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -216,7 +222,7 @@ static int ac97_digital_prepare(struct snd_pcm_substream *substream,
 }
 
 static int ac97_digital_trigger(struct snd_pcm_substream *substream,
-								int cmd, struct snd_soc_dai *dai)
+				int cmd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	unsigned short vra;
@@ -232,7 +238,7 @@ static int ac97_digital_trigger(struct snd_pcm_substream *substream,
 }
 
 static int stac9766_set_bias_level(struct snd_soc_codec *codec,
-                                enum snd_soc_bias_level level)
+				   enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_ON: /* full On */
@@ -249,7 +255,7 @@ static int stac9766_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
+static int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 {
 	if (try_warm && soc_ac97_ops.warm_reset) {
 		soc_ac97_ops.warm_reset(codec->ac97);
@@ -266,7 +272,7 @@ int stac9766_reset(struct snd_soc_codec *codec, int try_warm)
 }
 
 static int stac9766_codec_suspend(struct platform_device *pdev,
-                                pm_message_t state)
+				  pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
@@ -303,13 +309,11 @@ reset:
 	return 0;
 }
 
-static struct snd_soc_dai_ops stac9766_dai_ops_analog =
-{
+static struct snd_soc_dai_ops stac9766_dai_ops_analog = {
 	.prepare = ac97_analog_prepare,
 };
 
-static struct snd_soc_dai_ops stac9766_dai_ops_digital =
-{
+static struct snd_soc_dai_ops stac9766_dai_ops_digital = {
 	.prepare = ac97_digital_prepare,
 	.trigger = ac97_digital_trigger,
 };
@@ -354,7 +358,8 @@ struct snd_soc_dai stac9766_dai[] = {
 	},
 	/* alsa ops */
 	.ops = &stac9766_dai_ops_digital,
-}};
+}
+};
 EXPORT_SYMBOL_GPL(stac9766_dai);
 
 static int stac9766_codec_probe(struct platform_device *pdev)
@@ -371,7 +376,8 @@ static int stac9766_codec_probe(struct platform_device *pdev)
 	codec = socdev->card->codec;
 	mutex_init(&codec->mutex);
 
-	codec->reg_cache = kmemdup(stac9766_reg, sizeof(stac9766_reg), GFP_KERNEL);
+	codec->reg_cache = kmemdup(stac9766_reg, sizeof(stac9766_reg),
+				   GFP_KERNEL);
 	if (codec->reg_cache == NULL) {
 		ret = -ENOMEM;
 		goto cache_err;
@@ -409,8 +415,8 @@ static int stac9766_codec_probe(struct platform_device *pdev)
 
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_add_controls(codec, stac9766_snd_ac97_controls, ARRAY_SIZE(
-	                                stac9766_snd_ac97_controls));
+	snd_soc_add_controls(codec, stac9766_snd_ac97_controls,
+			     ARRAY_SIZE(stac9766_snd_ac97_controls));
 
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
@@ -444,26 +450,13 @@ static int stac9766_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct snd_soc_codec_device soc_codec_dev_stac9766 =
-{
+struct snd_soc_codec_device soc_codec_dev_stac9766 = {
 	.probe = stac9766_codec_probe,
 	.remove = stac9766_codec_remove,
 	.suspend = stac9766_codec_suspend,
 	.resume = stac9766_codec_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_stac9766);
-
-static int __init stac9766_modinit(void)
-{
-	return snd_soc_register_dais(stac9766_dai, ARRAY_SIZE(stac9766_dai));
-}
-module_init(stac9766_modinit);
-
-static void __exit stac9766_exit(void)
-{
-	snd_soc_unregister_dais(stac9766_dai, ARRAY_SIZE(stac9766_dai));
-}
-module_exit(stac9766_exit);
 
 MODULE_DESCRIPTION("ASoC stac9766 driver");
 MODULE_AUTHOR("Jon Smirl <jonsmirl@gmail.com>");
