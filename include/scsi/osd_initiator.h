@@ -48,6 +48,7 @@ enum osd_std_version {
  */
 struct osd_dev {
 	struct scsi_device *scsi_device;
+	struct file *file;
 	unsigned def_timeout;
 
 #ifdef OSD_VER1_SUPPORT
