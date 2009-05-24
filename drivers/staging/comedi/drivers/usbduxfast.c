@@ -406,7 +406,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 					udfs->ai_sample_count
 					* sizeof(uint16_t));
 				usbduxfast_ai_stop(udfs, 0);
-				/* say comedi that the acquistion is over */
+				/* tell comedi that the acquistion is over */
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(udfs->comedidev, s);
 				return;
@@ -414,8 +414,13 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 			udfs->ai_sample_count -= n;
 		}
 		/* write the full buffer to comedi */
-		cfc_write_array_to_buffer(s, urb->transfer_buffer,
-					  urb->actual_length);
+		err = cfc_write_array_to_buffer(s, urb->transfer_buffer,
+						urb->actual_length);
+		if (unlikely(err == 0)) {
+			/* buffer overflow */
+			usbduxfast_ai_stop(udfs, 0);
+			return;
+		}
 
 		/* tell comedi that data is there */
 		comedi_event(udfs->comedidev, s);

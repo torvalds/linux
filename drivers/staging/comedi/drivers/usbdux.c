@@ -509,14 +509,19 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	for (i = 0; i < n; i++) {
 		/* transfer data */
 		if (CR_RANGE(s->async->cmd.chanlist[i]) <= 1) {
-			comedi_buf_put
+			err = comedi_buf_put
 				(s->async,
-				le16_to_cpu(this_usbduxsub->
-					inBuffer[i]) ^ 0x800);
+				 le16_to_cpu(this_usbduxsub->
+					     inBuffer[i]) ^ 0x800);
 		} else {
-			comedi_buf_put
+			err = comedi_buf_put
 				(s->async,
-				le16_to_cpu(this_usbduxsub->inBuffer[i]));
+				 le16_to_cpu(this_usbduxsub->inBuffer[i]));
+		}
+		if (unlikely(err == 0)) {
+			/* buffer overflow */
+			usbdux_ai_stop(this_usbduxsub, 0);
+			return;
 		}
 	}
 	/* tell comedi that data is there */
