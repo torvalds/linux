@@ -334,9 +334,6 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	if (dev->bus->pm) {
 		pm_dev_dbg(dev, state, "EARLY ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
-	} else if (dev->bus->resume_early) {
-		pm_dev_dbg(dev, state, "legacy EARLY ");
-		error = dev->bus->resume_early(dev);
 	}
  End:
 	TRACE_RESUME(error);
@@ -581,10 +578,6 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 	if (dev->bus->pm) {
 		pm_dev_dbg(dev, state, "LATE ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
-	} else if (dev->bus->suspend_late) {
-		pm_dev_dbg(dev, state, "legacy LATE ");
-		error = dev->bus->suspend_late(dev, state);
-		suspend_report_result(dev->bus->suspend_late, error);
 	}
 	return error;
 }
