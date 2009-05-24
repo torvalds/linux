@@ -1704,6 +1704,12 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 	user_extra = nr_pages + 1;
 	user_lock_limit = sysctl_perf_counter_mlock >> (PAGE_SHIFT - 10);
+
+	/*
+	 * Increase the limit linearly with more CPUs:
+	 */
+	user_lock_limit *= num_online_cpus();
+
 	user_locked = atomic_long_read(&user->locked_vm) + user_extra;
 
 	extra = 0;
