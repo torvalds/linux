@@ -157,26 +157,25 @@ int cfg80211_validate_key_settings(struct key_params *params, int key_idx,
 	    params->cipher != WLAN_CIPHER_SUITE_WEP104)
 		return -EINVAL;
 
-	/* TODO: add definitions for the lengths to linux/ieee80211.h */
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
-		if (params->key_len != 5)
+		if (params->key_len != WLAN_KEY_LEN_WEP40)
 			return -EINVAL;
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		if (params->key_len != 32)
+		if (params->key_len != WLAN_KEY_LEN_TKIP)
 			return -EINVAL;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		if (params->key_len != 16)
+		if (params->key_len != WLAN_KEY_LEN_CCMP)
 			return -EINVAL;
 		break;
 	case WLAN_CIPHER_SUITE_WEP104:
-		if (params->key_len != 13)
+		if (params->key_len != WLAN_KEY_LEN_WEP104)
 			return -EINVAL;
 		break;
 	case WLAN_CIPHER_SUITE_AES_CMAC:
-		if (params->key_len != 16)
+		if (params->key_len != WLAN_KEY_LEN_AES_CMAC)
 			return -EINVAL;
 		break;
 	default:
