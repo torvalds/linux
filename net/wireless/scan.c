@@ -29,12 +29,13 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 		goto out;
 
 	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
-	wiphy_to_dev(request->wiphy)->scan_req = NULL;
 
 	if (aborted)
 		nl80211_send_scan_aborted(wiphy_to_dev(request->wiphy), dev);
 	else
 		nl80211_send_scan_done(wiphy_to_dev(request->wiphy), dev);
+
+	wiphy_to_dev(request->wiphy)->scan_req = NULL;
 
 #ifdef CONFIG_WIRELESS_EXT
 	if (!aborted) {
