@@ -43,22 +43,23 @@
  *
  * This function does not issue actual read request of the specified data
  * block. It is done by VFS.
- * Bulk read for direct-io is not supported yet. (should be supported)
  */
 int nilfs_get_block(struct inode *inode, sector_t blkoff,
 		    struct buffer_head *bh_result, int create)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
-	unsigned long blknum = 0;
+	__u64 blknum = 0;
 	int err = 0, ret;
 	struct inode *dat = nilfs_dat_inode(NILFS_I_NILFS(inode));
+	unsigned maxblocks = bh_result->b_size >> inode->i_blkbits;
 
-	/* This exclusion control is a workaround; should be revised */
-	down_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
-	ret = nilfs_bmap_lookup(ii->i_bmap, (unsigned long)blkoff, &blknum);
-	up_read(&NILFS_MDT(dat)->mi_sem);	/* XXX */
-	if (ret == 0) {	/* found */
+	down_read(&NILFS_MDT(dat)->mi_sem);
+	ret = nilfs_bmap_lookup_contig(ii->i_bmap, blkoff, &blknum, maxblocks);
+	up_read(&NILFS_MDT(dat)->mi_sem);
+	if (ret >= 0) {	/* found */
 		map_bh(bh_result, inode->i_sb, blknum);
+		if (ret > 0)
+			bh_result->b_size = (ret << inode->i_blkbits);
 		goto out;
 	}
 	/* data block was not found */

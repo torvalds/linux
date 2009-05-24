@@ -31,7 +31,7 @@
 #include "dat.h"
 #include "alloc.h"
 
-static struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
+struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *bmap)
 {
 	return nilfs_dat_inode(NILFS_I_NILFS(bmap->b_inode));
 }
@@ -58,6 +58,16 @@ int nilfs_bmap_lookup_at_level(struct nilfs_bmap *bmap, __u64 key, int level,
 	return ret;
 }
 
+int nilfs_bmap_lookup_contig(struct nilfs_bmap *bmap, __u64 key, __u64 *ptrp,
+			     unsigned maxblocks)
+{
+	int ret;
+
+	down_read(&bmap->b_sem);
+	ret = bmap->b_ops->bop_lookup_contig(bmap, key, ptrp, maxblocks);
+	up_read(&bmap->b_sem);
+	return ret;
+}
 
 /**
  * nilfs_bmap_lookup - find a record

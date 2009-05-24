@@ -25,6 +25,7 @@
 #include "page.h"
 #include "direct.h"
 #include "alloc.h"
+#include "dat.h"
 
 static inline __le64 *nilfs_direct_dptrs(const struct nilfs_direct *direct)
 {
@@ -60,6 +61,47 @@ static int nilfs_direct_lookup(const struct nilfs_bmap *bmap,
 	if (ptrp != NULL)
 		*ptrp = ptr;
 	return 0;
+}
+
+static int nilfs_direct_lookup_contig(const struct nilfs_bmap *bmap,
+				      __u64 key, __u64 *ptrp,
+				      unsigned maxblocks)
+{
+	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;
+	struct inode *dat = NULL;
+	__u64 ptr, ptr2;
+	sector_t blocknr;
+	int ret, cnt;
+
+	if (key > NILFS_DIRECT_KEY_MAX ||
+	    (ptr = nilfs_direct_get_ptr(direct, key)) ==
+	    NILFS_BMAP_INVALID_PTR)
+		return -ENOENT;
+
+	if (NILFS_BMAP_USE_VBN(bmap)) {
+		dat = nilfs_bmap_get_dat(bmap);
+		ret = nilfs_dat_translate(dat, ptr, &blocknr);
+		if (ret < 0)
+			return ret;
+		ptr = blocknr;
+	}
+
+	maxblocks = min_t(unsigned, maxblocks, NILFS_DIRECT_KEY_MAX - key + 1);
+	for (cnt = 1; cnt < maxblocks &&
+		     (ptr2 = nilfs_direct_get_ptr(direct, key + cnt)) !=
+		     NILFS_BMAP_INVALID_PTR;
+	     cnt++) {
+		if (dat) {
+			ret = nilfs_dat_translate(dat, ptr2, &blocknr);
+			if (ret < 0)
+				return ret;
+			ptr2 = blocknr;
+		}
+		if (ptr2 != ptr + cnt)
+			break;
+	}
+	*ptrp = ptr;
+	return cnt;
 }
 
 static __u64
@@ -367,6 +409,7 @@ static int nilfs_direct_assign(struct nilfs_bmap *bmap,
 
 static const struct nilfs_bmap_operations nilfs_direct_ops = {
 	.bop_lookup		=	nilfs_direct_lookup,
+	.bop_lookup_contig	=	nilfs_direct_lookup_contig,
 	.bop_insert		=	nilfs_direct_insert,
 	.bop_delete		=	nilfs_direct_delete,
 	.bop_clear		=	NULL,

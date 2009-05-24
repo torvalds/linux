@@ -64,6 +64,8 @@ struct nilfs_bmap_stats {
  */
 struct nilfs_bmap_operations {
 	int (*bop_lookup)(const struct nilfs_bmap *, __u64, int, __u64 *);
+	int (*bop_lookup_contig)(const struct nilfs_bmap *, __u64, __u64 *,
+				 unsigned);
 	int (*bop_insert)(struct nilfs_bmap *, __u64, __u64);
 	int (*bop_delete)(struct nilfs_bmap *, __u64);
 	void (*bop_clear)(struct nilfs_bmap *);
@@ -140,6 +142,7 @@ int nilfs_bmap_test_and_clear_dirty(struct nilfs_bmap *);
 int nilfs_bmap_read(struct nilfs_bmap *, struct nilfs_inode *);
 void nilfs_bmap_write(struct nilfs_bmap *, struct nilfs_inode *);
 int nilfs_bmap_lookup(struct nilfs_bmap *, unsigned long, unsigned long *);
+int nilfs_bmap_lookup_contig(struct nilfs_bmap *, __u64, __u64 *, unsigned);
 int nilfs_bmap_insert(struct nilfs_bmap *, unsigned long, unsigned long);
 int nilfs_bmap_delete(struct nilfs_bmap *, unsigned long);
 int nilfs_bmap_last_key(struct nilfs_bmap *, unsigned long *);
@@ -160,6 +163,7 @@ void nilfs_bmap_commit_gcdat(struct nilfs_bmap *, struct nilfs_bmap *);
 /*
  * Internal use only
  */
+struct inode *nilfs_bmap_get_dat(const struct nilfs_bmap *);
 int nilfs_bmap_prepare_alloc_v(struct nilfs_bmap *,
 			       union nilfs_bmap_ptr_req *);
 void nilfs_bmap_commit_alloc_v(struct nilfs_bmap *,
