@@ -559,7 +559,6 @@ int mlx4_en_start_port(struct net_device *dev)
 	struct mlx4_en_rx_ring *rx_ring;
 	int rx_index = 0;
 	int tx_index = 0;
-	u16 stride;
 	int err = 0;
 	int i;
 	int j;
@@ -573,8 +572,6 @@ int mlx4_en_start_port(struct net_device *dev)
 	dev->mtu = min(dev->mtu, priv->max_mtu);
 	mlx4_en_calc_rx_buf(dev);
 	mlx4_dbg(DRV, priv, "Rx buf size:%d\n", priv->rx_skb_size);
-	stride = roundup_pow_of_two(sizeof(struct mlx4_en_rx_desc) +
-				    DS_SIZE * priv->num_frags);
 	/* Configure rx cq's and rings */
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		cq = &priv->rx_cq[i];
