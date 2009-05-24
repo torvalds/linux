@@ -789,6 +789,20 @@ void osd_req_write(struct osd_request *or,
 }
 EXPORT_SYMBOL(osd_req_write);
 
+int osd_req_write_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, u64 offset, void* buff, u64 len)
+{
+	struct request_queue *req_q = or->osd_dev->scsi_device->request_queue;
+	struct bio *bio = bio_map_kern(req_q, buff, len, GFP_KERNEL);
+
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	osd_req_write(or, obj, bio, offset);
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_write_kern);
+
 /*TODO: void osd_req_append(struct osd_request *,
 	const struct osd_obj_id *, struct bio *data_out); */
 /*TODO: void osd_req_create_write(struct osd_request *,
@@ -823,6 +837,20 @@ void osd_req_read(struct osd_request *or,
 	or->in.total_bytes = bio->bi_size;
 }
 EXPORT_SYMBOL(osd_req_read);
+
+int osd_req_read_kern(struct osd_request *or,
+	const struct osd_obj_id *obj, u64 offset, void* buff, u64 len)
+{
+	struct request_queue *req_q = or->osd_dev->scsi_device->request_queue;
+	struct bio *bio = bio_map_kern(req_q, buff, len, GFP_KERNEL);
+
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	osd_req_read(or, obj, bio, offset);
+	return 0;
+}
+EXPORT_SYMBOL(osd_req_read_kern);
 
 void osd_req_get_attributes(struct osd_request *or,
 	const struct osd_obj_id *obj)
