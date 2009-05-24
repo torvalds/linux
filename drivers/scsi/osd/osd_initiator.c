@@ -1262,7 +1262,7 @@ static inline void osd_sec_parms_set_in_offset(bool is_v1,
 }
 
 static int _osd_req_finalize_data_integrity(struct osd_request *or,
-	bool has_in, bool has_out, const u8 *cap_key)
+	bool has_in, bool has_out, u64 out_data_bytes, const u8 *cap_key)
 {
 	struct osd_security_parameters *sec_parms = _osd_req_sec_params(or);
 	int ret;
@@ -1277,8 +1277,7 @@ static int _osd_req_finalize_data_integrity(struct osd_request *or,
 		};
 		unsigned pad;
 
-		or->out_data_integ.data_bytes = cpu_to_be64(
-			or->out.bio ? or->out.bio->bi_size : 0);
+		or->out_data_integ.data_bytes = cpu_to_be64(out_data_bytes);
 		or->out_data_integ.set_attributes_bytes = cpu_to_be64(
 			or->set_attr.total_bytes);
 		or->out_data_integ.get_attributes_bytes = cpu_to_be64(
@@ -1370,6 +1369,7 @@ int osd_finalize_request(struct osd_request *or,
 {
 	struct osd_cdb_head *cdbh = osd_cdb_head(&or->cdb);
 	bool has_in, has_out;
+	u64 out_data_bytes = or->out.total_bytes;
 	int ret;
 
 	if (options & OSD_REQ_FUA)
@@ -1439,7 +1439,8 @@ int osd_finalize_request(struct osd_request *or,
 		}
 	}
 
-	ret = _osd_req_finalize_data_integrity(or, has_in, has_out, cap_key);
+	ret = _osd_req_finalize_data_integrity(or, has_in, has_out,
+					       out_data_bytes, cap_key);
 	if (ret)
 		return ret;
 
