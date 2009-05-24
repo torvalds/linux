@@ -18,6 +18,7 @@
 #include "osd_types.h"
 
 #include <linux/blkdev.h>
+#include <scsi/scsi_device.h>
 
 /* Note: "NI" in comments below means "Not Implemented yet" */
 
@@ -69,6 +70,10 @@ void osd_dev_fini(struct osd_dev *od);
 
 /* some hi level device operations */
 int osd_auto_detect_ver(struct osd_dev *od, void *caps);    /* GFP_KERNEL */
+static inline struct request_queue *osd_request_queue(struct osd_dev *od)
+{
+	return od->scsi_device->request_queue;
+}
 
 /* we might want to use function vector in the future */
 static inline void osd_dev_set_ver(struct osd_dev *od, enum osd_std_version v)

@@ -59,10 +59,9 @@ static void _pcol_init(struct page_collect *pcol, unsigned expected_pages,
 		struct inode *inode)
 {
 	struct exofs_sb_info *sbi = inode->i_sb->s_fs_info;
-	struct request_queue *req_q = sbi->s_dev->scsi_device->request_queue;
 
 	pcol->sbi = sbi;
-	pcol->req_q = req_q;
+	pcol->req_q = osd_request_queue(sbi->s_dev);
 	pcol->inode = inode;
 	pcol->expected_pages = expected_pages;
 

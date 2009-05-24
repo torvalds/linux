@@ -670,7 +670,7 @@ static int _osd_req_list_objects(struct osd_request *or,
 	__be16 action, const struct osd_obj_id *obj, osd_id initial_id,
 	struct osd_obj_id_list *list, unsigned nelem)
 {
-	struct request_queue *q = or->osd_dev->scsi_device->request_queue;
+	struct request_queue *q = osd_request_queue(or->osd_dev);
 	u64 len = nelem * sizeof(osd_id) + sizeof(*list);
 	struct bio *bio;
 
@@ -793,7 +793,7 @@ EXPORT_SYMBOL(osd_req_write);
 int osd_req_write_kern(struct osd_request *or,
 	const struct osd_obj_id *obj, u64 offset, void* buff, u64 len)
 {
-	struct request_queue *req_q = or->osd_dev->scsi_device->request_queue;
+	struct request_queue *req_q = osd_request_queue(or->osd_dev);
 	struct bio *bio = bio_map_kern(req_q, buff, len, GFP_KERNEL);
 
 	if (IS_ERR(bio))
@@ -844,7 +844,7 @@ EXPORT_SYMBOL(osd_req_read);
 int osd_req_read_kern(struct osd_request *or,
 	const struct osd_obj_id *obj, u64 offset, void* buff, u64 len)
 {
-	struct request_queue *req_q = or->osd_dev->scsi_device->request_queue;
+	struct request_queue *req_q = osd_request_queue(or->osd_dev);
 	struct bio *bio = bio_map_kern(req_q, buff, len, GFP_KERNEL);
 
 	if (IS_ERR(bio))
